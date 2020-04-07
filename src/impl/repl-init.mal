@@ -1,0 +1,62 @@
+
+(defmacro! defn!
+  (fn* [name params body] `(def! ~name (fn* ~params ~body))))
+
+(def! reduce (fn* (f init xs)
+  (if (empty? xs) init (reduce f (f init (first xs)) (rest xs)))))
+(def! foldr (fn* [f init xs]
+  (if (empty? xs) init (f (first xs) (foldr f init (rest xs))))))
+
+(defn! not [a] (if a false true))
+
+(def! map
+  (fn* [f xs]
+    (foldr (fn* [x acc] (cons (f x) acc)) () xs)))
+		
+(defmacro! cond (fn* (& xs)
+	(if (> (count xs) 0)
+		(list
+			'if
+			(first xs)
+			(if (> (count xs) 1) (nth xs 1) (throw "odd number of forms to cond"))
+			(cons 'cond (rest (rest xs)))
+		)
+	)
+))
+
+(defn! last [lst] (nth lst (- (len lst) 1)))
+
+
+(defn! inc [x] (+ x 1))
+(def! gensym (let* [counter (atom 0)] (fn* [] (symbol (str "G__" (swap! counter inc))))))
+
+(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))
+
+(defn! range [n]
+	(if (= n 0)
+		()
+		(concat (range (- n 1)) n)))
+
+(defmacro! set$ (fn* (x) `(def! $ ~x)))
+
+(set$ '(fill "red" (rect 0 0 100 100)))
+
+(defn! lerp [a b t] (+ b (* (- a b) t)))
+
+(defn! color [& e]
+	(let* (l (len e))
+		(do
+			(prn l)
+			(cond
+				(= l 1) e
+				(= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
+				true "black"
+			)
+		)
+	)
+)
+
+(defn! rect [x y w h]	(vector "rect" x y w h))
+(defn! circle [x y r]	(vector "circle" x y r))
+(defn! line [x1 y1 x2 y2]	(vector "line" x1 y1 x2 y2)))
+(defn! merge [p0 p1] [p0 p1]))
