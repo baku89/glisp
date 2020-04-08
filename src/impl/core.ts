@@ -51,9 +51,17 @@ export const coreNS = new Map<string, any>([
 
 	// Calculus
 	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
-	['-', (i: number, ...a: number[]) => a.length ? a.reduce((x, y) => x - y, i) : -i],
+	[
+		'-',
+		(i: number, ...a: number[]) =>
+			a.length ? a.reduce((x, y) => x - y, i) : -i
+	],
 	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
-	['/', (i: number, ...a: number[]) => a.reduce((x, y) => x / y, i)],
+	[
+		'/',
+		(i: number, ...a: number[]) =>
+			a.length ? a.reduce((x, y) => x / y, i) : 1 / i
+	],
 
 	['list', (...a: MalVal[]) => a],
 	['list?', Array.isArray],
@@ -64,11 +72,12 @@ export const coreNS = new Map<string, any>([
 			b < a.length ? a[b] : _error('nth: index out of range')
 	],
 	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
-	['rest', (a: MalVal[]) => (a === null ? [] : Array.from(a.slice(1)))],
+	['rest', (a: MalVal[]) => (a === null ? [] : a.slice(1))],
 	[
 		'last',
 		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
 	],
+	['non-last', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
 
 	['empty?', (l: MalVal[]) => l.length === 0],
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
