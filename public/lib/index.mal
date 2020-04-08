@@ -53,7 +53,7 @@
 ;; Graphical
 (defmacro! set$ (fn (x) `(def! $ ~x)))
 
-(set$ '(fill "red" (rect 0 0 100 100)))
+(set$ "")
 
 
 (defn! color (& e)

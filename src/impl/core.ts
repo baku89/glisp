@@ -84,6 +84,14 @@ export const coreNS = new Map<string, any>([
 			return null
 		}
 	],
+	[
+		'println',
+		(...a: MalVal[]) => {
+			printer.println(...a.map(e => printExp(e, false)))
+			return null
+		}
+	],
+
 	['read-string', readStr],
 	['slurp', slurp],
 

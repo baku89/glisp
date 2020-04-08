@@ -2,14 +2,14 @@
 	<div id="app" @mousewheel="onScroll">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor />
+				<Editor :code="code" @input="onEdit" />
 			</div>
 			<div class="app__console">
 				<Console />
 			</div>
 		</div>
 		<div class="app__viewer">
-			<Viewer />
+			<Viewer :timestamp="timestamp" />
 		</div>
 	</div>
 </template>
@@ -17,10 +17,12 @@
 <script lang="ts">
 import 'normalize.css'
 
-import {Component, Vue} from 'vue-property-decorator'
+import {Component, Vue, Watch} from 'vue-property-decorator'
 import Editor from './components/Editor.vue'
 import Viewer from './components/Viewer.vue'
 import Console from './components/Console.vue'
+
+import {replEnv, REP} from '@/impl/repl'
 
 @Component({
 	components: {
@@ -30,8 +32,41 @@ import Console from './components/Console.vue'
 	}
 })
 export default class App extends Vue {
+	private replEnv = replEnv.data
+	private code = ''
+	private timestamp: number = Date.now()
+
 	onScroll(e: MouseWheelEvent) {
 		// e.preventDefault()
+	}
+
+	private created() {
+		if (localStorage['savedText']) {
+			this.code = localStorage['savedText']
+		} else {
+			this.code = '(fill "black" (rect 50 50 50 50))'
+		}
+	}
+
+	private onEdit(value: string) {
+		localStorage['savedText'] = value
+
+		value = value.replace(/"/g, '\\"')
+
+		let succeed = true
+
+		try {
+			REP(`(set$ "${value}")`)
+		} catch (e) {
+			succeed = false
+		}
+	}
+
+	@Watch('replEnv.$')
+	private onViewChanged(value: string) {
+		console.log('updateddddddd')
+		this.code = value
+		this.timestamp = Date.now()
 	}
 }
 </script>

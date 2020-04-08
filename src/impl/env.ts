@@ -1,18 +1,17 @@
 import {MalVal} from './types'
 
-export interface EnvData {
-	[key: string]: MalVal
-}
-
 function toKey(key: symbol | string): string {
 	return typeof key === 'symbol' ? key.description || '' : key
 }
 
 export default class Env {
-	public data: EnvData = {}
-	private outer: Env | null
+	public data: {
+		[key: string]: MalVal
+	} = {}
 
-	public name!: string
+	public outer: Env | null
+
+	public name = 'let'
 
 	constructor(
 		outer: Env | null = null,

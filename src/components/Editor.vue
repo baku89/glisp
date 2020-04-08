@@ -1,6 +1,6 @@
 <template>
 	<div class="Editor">
-		<InputCodeEditor :value="code" @input="onInput" lang="lisp" />
+		<InputCodeEditor :value="code" @input="$emit('input', $event)" lang="lisp" />
 	</div>
 </template>
 
@@ -11,7 +11,7 @@ import InputCodeEditor from './InputCodeEditor.vue'
 
 import {replEnv, PRINT, REP} from '@/impl/repl'
 import {MalVal} from '../impl/types'
-import Env, {EnvData} from '../impl/env'
+import Env from '../impl/env'
 
 @Component({
 	components: {
@@ -19,49 +19,7 @@ import Env, {EnvData} from '../impl/env'
 	}
 })
 export default class Editor extends Vue {
-	private envData: EnvData = replEnv.data
-
-	private code: string = PRINT(replEnv.get('$'))
-
-	private userEdited!: boolean
-
-	private created() {
-		if (localStorage['savedText']) {
-			this.code = localStorage['savedText']
-		} else {
-			this.onEnvChanged()
-		}
-	}
-
-	@Watch('envData.$')
-	private onEnvChanged() {
-		if (this.userEdited) {
-			this.userEdited = false
-			return
-		}
-
-		const ast = replEnv.get('$')
-
-		let _,
-			lines = [ast]
-
-		if (Array.isArray(ast) && ast[0] === Symbol.for('do')) {
-			;[_, ...lines] = ast
-		}
-
-		this.code = lines.map(line => PRINT(line)).join('\n')
-	}
-
-	private onInput(value: string) {
-		this.userEdited = true
-		localStorage['savedText'] = value
-
-		try {
-			REP(`(def! $ '(do ${value}))`)
-		} catch (e) {
-			this.userEdited = false
-		}
-	}
+	@Prop({type: String, required: true}) private code!: string
 }
 </script>
 

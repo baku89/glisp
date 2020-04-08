@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import {Component, Vue} from 'vue-property-decorator'
-import {PRINT, EVAL, REP} from '@/impl/repl'
+import {consoleREP} from '@/impl/view'
 import {printer} from '@/impl/printer'
 import {BlankException} from '@/impl/reader'
 
@@ -23,16 +23,17 @@ export default class Console extends Vue {
 		const handler = function(line?: string) {
 			if (line) {
 				try {
-					jqconsole.Write(REP(line) + '\n', 'jqconsole-return')
+					jqconsole.Write(consoleREP(line) + '\n', 'jqconsole-return')
 				} catch (exc) {
 					if (exc instanceof BlankException) {
 						return
 					}
-					if (exc.stack) {
-						jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
-					} else {
-						jqconsole.Write(exc + '\n', 'jqconsole-error')
-					}
+					jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
+					// if (exc.stack) {
+					// 	jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
+					// } else {
+					// 	jqconsole.Write(exc + '\n', 'jqconsole-error')
+					// }
 				}
 				// jq_save_history(jqconsole)
 			}

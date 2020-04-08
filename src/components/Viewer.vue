@@ -11,14 +11,12 @@
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import {replEnv, PRINT} from '@/impl/repl'
-import {createViewportRep} from '@/impl/viewport'
-import Env, {EnvData} from '../impl/env'
+import {createViewREP} from '@/impl/view'
 
 @Component
 export default class Viewer extends Vue {
-	private envData: EnvData = replEnv.data
+	@Prop({type: Number, required: true}) private timestamp!: string
 
-	private ctx!: CanvasRenderingContext2D
 	private rep!: any
 
 	private mounted() {
@@ -27,20 +25,18 @@ export default class Viewer extends Vue {
 			const canvas = ctx.canvas
 			ctx.canvas.width = canvas.clientWidth
 			ctx.canvas.height = canvas.clientHeight
-
-			this.ctx = ctx
 			;(window as any)['ctx'] = ctx
 
-			this.rep = createViewportRep(ctx)
+			this.rep = createViewREP(ctx)
 
-			this.onWorldChanged()
+			this.update()
 		}
 	}
 
-	@Watch('envData.$')
-	private onWorldChanged() {
-		const str = PRINT(replEnv.get('$'))
-		this.rep(str)
+	@Watch('timestamp')
+	private update() {
+		const str = replEnv.get('$') as string
+		this.rep(`(do ${str})`)
 	}
 
 	private onMousemove() {

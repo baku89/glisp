@@ -1,4 +1,4 @@
-import {replEnv, READ, EVAL} from './repl'
+import {replEnv, READ, EVAL, PRINT} from './repl'
 import Env from './env'
 import {MalVal} from './types'
 import {printer} from './printer'
@@ -63,24 +63,28 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 	}
 }
 
-export function createViewportRep(ctx: CanvasRenderingContext2D) {
-	const repCanvas = (str: string) => {
-		const vpEnv = new Env(replEnv)
-		vpEnv.name = 'draw'
+const consoleEnv = new Env(replEnv)
+consoleEnv.name = 'console'
 
-		let out = null
+export function createViewREP(ctx: CanvasRenderingContext2D) {
+	const repCanvas = (str: string) => {
+		const viewEnv = new Env(replEnv)
+		viewEnv.name = 'view'
+
+		let out
 
 		try {
-			const src = READ(`(do ${str})`)
-			out = EVAL(src, vpEnv)
+			const src = READ(str)
+			out = EVAL(src, viewEnv)
 		} catch (e) {
 			printer.println(e)
 			// printer.println(e.stack)
 		}
 
-		if (out) {
+		if (out !== undefined) {
 			// Draw
-			// Clear
+			consoleEnv.outer = viewEnv
+
 			const w = ctx.canvas.width
 			const h = ctx.canvas.height
 			ctx.clearRect(0, 0, w, h)
@@ -90,3 +94,5 @@ export function createViewportRep(ctx: CanvasRenderingContext2D) {
 
 	return repCanvas
 }
+
+export const consoleREP = (str: string) => PRINT(EVAL(READ(str), consoleEnv))
