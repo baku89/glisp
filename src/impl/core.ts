@@ -34,7 +34,7 @@ export const coreNS = new Map<string, any>([
 	['symbol?', (a: MalVal) => typeof a === 'symbol'],
 	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc).ismacro],
 	[
-		'[macro?',
+		'macro?',
 		(a: MalVal) => typeof a === 'function' && !!(a as MalFunc).ismacro
 	],
 
