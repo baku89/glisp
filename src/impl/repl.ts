@@ -41,7 +41,8 @@ function macroexpand(ast: MalVal = null, env: Env) {
 
 const evalAst = (ast: MalVal, env: Env) => {
 	if (typeof ast === 'symbol') {
-		return env.get(ast)
+		const val = env.get(ast)
+		return val === undefined ? null : val
 	} else if (Array.isArray(ast)) {
 		return ast.map(x => EVAL(x, env))
 	} else {
