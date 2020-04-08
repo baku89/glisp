@@ -36,10 +36,11 @@
 
 ;; Math
 (def! PI2 (* PI 2))
-
 (defn! lerp (a b t) (+ b (* (- a b) t)))
 (defn! degrees (radians) (/ (* radians 180) PI))
 (defn! radians (degrees) (/ (* degrees PI) 180))
+(defn! distance (x1 y1 x2 y2)
+	(sqrt (+ (pow (- x2 x1) 2) (pow (- y2 y1) 2))))
 
 ;; Logical
 (defn! not (a) (if a false true))
@@ -55,7 +56,6 @@
 
 (set$ "")
 
-
 (defn! color (& e)
 	(let (l (count e))
 		(cond
@@ -66,36 +66,61 @@
 	)
 )
 
-(defn! translate (x y body) `("translate" ~x ~y ~body))
-(defn! scale (x y body) `("scale" ~x ~y ~body))
-(defn! rotate (a body) `("rotate" ~a ~body))
+(defn! translate (x y body) `(translate ~x ~y ~body))
+(defn! scale (x y body) `(scale ~x ~y ~body))
+(defn! rotate (a body) `(rotate ~a ~body))
 
-(defn! fill (color path) `("fill" ~color ~path))
-(defn! stroke (color width path) `("stroke" ~color ~width ~path))
+(defn! fill (color path) `(fill ~color ~path))
+(defn! stroke (color width path) `(stroke ~color ~width ~path))
 
-(defn! rect (x y w h)	`("rect" ~x ~y ~w ~h))
-(defn! circle (x y r)	`("circle" ~x ~y ~r))
-(defn! line (x1 y1 x2 y2)	`("line" ~x1 ~y1 ~x2 ~y2))
-(defn! merge (p0 p1) `(~p0 ~p1))
+(defn! merge-path (& xs)
+	`(path ~@(apply concat (map rest xs))))
+
+(defn! rect (x y w h)
+	`(path
+		M ~x ~y
+		L ~(+ x w) ~y
+		L ~(+ x w) ~(+ y h)
+		L ~x ~(+ y h)
+		Z))
+
+(defn! circle (x y r)
+	`(path M ~(+ x r) ~y A ~x ~y ~r 0 ~PI2 false Z))
+	
+(defn! line (x1 y1 x2 y2)
+	`(path M ~x1 ~y1 L ~x2 ~y2))
 
 (defn! _polyline (& pts)
 	(if (< (count pts) 2)
 		()
-		(cons
-			`("L" ~(first pts) ~(nth pts 1))
-			(apply _polyline (rest (rest pts)))
+		`(
+			L ~(first pts) ~(nth pts 1)
+			~@(apply _polyline (rest (rest pts)))
 		)
 	)
 )
 
 (defn! polyline (& pts)
 	(if (>= (count pts) 2)
-		(concat
-			("path")
-			(cons
-				`("M" ~(first pts) ~(nth pts 1))
+		`(
+			path
+			~@(concat
+				M (first pts) (nth pts 1)
 				(apply _polyline (rest (rest pts))))
 		)
 	)
 )
+
+;; Draw
+(defmacro! begin-draw! (fn (state)
+	`(def! ~state nil)
+))
+
+(defmacro! draw! (fn (f state input)
+	`(do
+		(def! __res__ (~f ~state ~input))
+		(def! ~state (rest __res__))
+		(first __res__)
+	)
+))
 
