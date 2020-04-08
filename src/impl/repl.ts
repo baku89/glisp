@@ -115,6 +115,18 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 					env,
 					a1 as symbol[]
 				)
+			case 'env-chain': {
+				let _env: Env | null = env
+				const envs = []
+
+				do {
+					envs.push(_env)
+					_env = _env.outer
+				} while (_env)
+
+				ast = [Symbol.for('println'), envs.map(e => e.name).join(' <- ')]
+				break // continue TCO loop
+			}
 			default: {
 				// Apply Function
 				const [_fn, ...args] = evalAst(ast, env) as MalVal[]
@@ -142,6 +154,7 @@ export const PRINT = (ast: MalVal) => {
 
 // rep
 export const replEnv: Env = new Env()
+replEnv.name = 'repl'
 
 export const REP = (str: string, env: Env = replEnv) =>
 	PRINT(EVAL(READ(str), env))
