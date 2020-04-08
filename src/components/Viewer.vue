@@ -1,7 +1,7 @@
 <template>
 	<div class="Viewer">
 		<div class="Viewer__tools">
-			<button @click="togglePencil">Toggle Pencil</button>
+			<button @click="togglePencil">{{tool === 'pencil' ? 'Stop' : 'Start'}}</button>
 		</div>
 		<canvas
 			class="Viewer__canvas"
@@ -51,7 +51,7 @@ export default class Viewer extends Vue {
 		this.tool = this.tool ? null : 'pencil'
 
 		if (this.tool === 'pencil') {
-			consoleREP("(def! state '())")
+			consoleREP("(begin-draw! state '())")
 		}
 	}
 
@@ -69,8 +69,11 @@ export default class Viewer extends Vue {
 				y = offsetY,
 				p = this.mousePressed
 
-			consoleREP(`(def! state (pencil state '(${x} ${y} ${p})))`)
-			consoleREP('($insert `(quote ~(first state)))')
+			consoleREP(`
+				(if
+					(draw! pencil state '(${x} ${y} ${p}))
+					($insert (first state)))
+			`)
 		}
 	}
 }
