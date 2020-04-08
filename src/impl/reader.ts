@@ -18,15 +18,17 @@ class Reader {
 	}
 }
 
-function tokenize(str: string): Array<any> {
+function tokenize(str: string): any[] {
 	// eslint-disable-next-line no-useless-escape
 	const re = /[\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
-
-	const results = str
-		.match(re)
-		?.map((t: string) => t.trim())
-		.filter((t: string) => t !== '')
-
+	let match = null
+	const results = []
+	while ((match = re.exec(str)) && match[1] != '') {
+		if (match[1][0] === ';') {
+			continue
+		}
+		results.push(match[1])
+	}
 	return results || []
 }
 
@@ -106,13 +108,17 @@ function readForm(reader: Reader): any {
 		case '~@':
 			reader.next()
 			return [Symbol.for('splice-unquote'), readForm(reader)]
-		// case '^':
-		// 	reader.next()
-		// 	var meta = readForm(reader)
-		// 	return [Symbol.for('with-meta'), readForm(reader), meta]
-		// case '@':
-		// 	reader.next()
-		// 	return [Symbol.for('deref'), readForm(reader)]
+		case '#':
+			reader.next()
+			return [Symbol.for('do'), readForm(reader)]
+		case '^': {
+			reader.next()
+			const meta = readForm(reader)
+			return [Symbol.for('with-meta'), readForm(reader), meta]
+		}
+		case '@':
+			reader.next()
+			return [Symbol.for('deref'), readForm(reader)]
 
 		// list
 		case ')':

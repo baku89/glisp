@@ -4,6 +4,8 @@ import Env from './env'
 
 type MalPureFunc = (...args: MalList) => MalVal
 
+const isvector = Symbol('isvector')
+
 export interface MalFunc {
 	(...args: MalList): MalVal
 	meta: object | null
@@ -11,11 +13,6 @@ export interface MalFunc {
 	env: Env
 	params: Array<symbol>
 	ismacro: boolean
-}
-
-export interface MalVector {
-	[index: number]: MalVal
-	isvector: boolean
 }
 
 export type MalVal =
@@ -31,6 +28,7 @@ export type MalVal =
 	| MalList
 
 export type MalList = Array<MalVal>
+export type MalVector = MalList
 
 // General Functions
 export function isEqual(a: MalVal, b: MalVal) {
@@ -92,17 +90,17 @@ export const isMalFunc = (obj: MalVal) =>
 
 // Lists
 export function isList(obj: MalVal) {
-	return !!(Array.isArray(obj) && !(obj as any).isvector)
+	return !!(Array.isArray(obj) && !(obj as any)[isvector])
 }
 
 // Vector
 export function createMalVector(obj: MalList) {
-	;(obj as any).isvector = true
+	;(obj as any)[isvector] = true
 	return obj
 }
 
 export function isVector(obj: MalVal) {
-	return !!(Array.isArray(obj) && (obj as any).isvector)
+	return !!(Array.isArray(obj) && (obj as any)[isvector])
 }
 
 // Atoms

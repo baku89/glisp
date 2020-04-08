@@ -1,15 +1,15 @@
 <template>
-	<div id="app">
+	<div id="app" @mousewheel="onScroll">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor v-model="source" />
+				<Editor />
 			</div>
 			<div class="app__console">
 				<Console />
 			</div>
 		</div>
 		<div class="app__viewer">
-			<Viewer :source="source" />
+			<Viewer />
 		</div>
 	</div>
 </template>
@@ -30,13 +30,19 @@ import Console from './components/Console.vue'
 	}
 })
 export default class App extends Vue {
-	source = 'Unco2'
+	onScroll(e: MouseWheelEvent) {
+		// e.preventDefault()
+	}
 }
 </script>
 
 <style lang="stylus">
+html, body
+	overflow hidden
+	height 100vh
+
 html
-	font-size 14px
+	font-size 12px
 	font-family 'Roboto', Helvetica, Arial, sans-serif
 
 #app
@@ -50,8 +56,11 @@ html
 	-moz-osx-font-smoothing grayscale
 
 .app
-	&__control, &__viewer
-		width 50%
+	&__control
+		width 40%
+
+	&__viewer
+		width 60%
 
 	&__editor, &__console
 		height 50%

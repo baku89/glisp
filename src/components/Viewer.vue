@@ -1,5 +1,11 @@
 <template>
-	<canvas class="Viewer" ref="canvas" />
+	<canvas
+		class="Viewer"
+		ref="canvas"
+		@mousedown="onMousedown"
+		@mouseup="onMouseup"
+		@mousemove="onMousemove"
+	/>
 </template>
 
 <script lang="ts">
@@ -35,6 +41,18 @@ export default class Viewer extends Vue {
 	private onWorldChanged() {
 		const str = PRINT(replEnv.get('$'))
 		this.rep(str)
+	}
+
+	private onMousemove() {
+		null
+	}
+
+	private onMouseup() {
+		null
+	}
+
+	private onMousedown() {
+		null
 	}
 }
 </script>

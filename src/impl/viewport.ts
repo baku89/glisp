@@ -1,108 +1,90 @@
-import {replEnv, REP} from './repl'
+import {replEnv, READ, EVAL} from './repl'
 import Env from './env'
-import {MalVector, isVector} from './types'
+import {MalVector, isList, MalVal} from './types'
 import {printer} from './printer'
 
-function drawPath(ctx: CanvasRenderingContext2D, path: MalVector) {
-	if (!Array.isArray(path)) {
-		return
-	}
+function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
+	if (isList(ast)) {
+		const [cmd, ...args] = ast as any[]
 
-	const [type, ...rest] = path
+		const last = args.length > 0 ? args[args.length - 1] : null
 
-	if (isVector(type)) {
-		path.forEach(p => drawPath(ctx, p))
-	} else if (typeof type === 'string') {
-		switch (type) {
-			case 'rect':
-				// @ts-ignore
-				ctx.rect(...rest)
-				break
-			case 'circle':
-				ctx.arc(rest[0], rest[1], rest[2], 0, 2 * Math.PI)
-				break
-			case 'arc':
-				// @ts-ignore
-				ctx.arc(...rest)
-				break
-			case 'line':
-				ctx.moveTo(rest[0], rest[1])
-				ctx.lineTo(rest[2], rest[3])
-				break
-			case 'path':
-				console.log('path!!!!', rest)
-				for (const [cmd, a0, a1] of rest) {
-					switch (cmd) {
-						case 'M':
-							ctx.moveTo(a0, a1)
-							break
-						case 'L':
-							ctx.lineTo(a0, a1)
-							break
-						case 'Z':
-							ctx.closePath()
-							break
-						default:
-							throw new Error(`Invalid d-path command: ${cmd}`)
-					}
+		if (cmd === 'fill') {
+			ctx.beginPath()
+			draw(ctx, last)
+			ctx.fillStyle = args[0] as string
+			ctx.fill()
+		} else if (cmd === 'stroke') {
+			ctx.beginPath()
+			draw(ctx, last)
+			ctx.strokeStyle = args[0]
+			ctx.lineWidth = args[1]
+			ctx.stroke()
+		} else if (cmd === 'rect') {
+			;(ctx.rect as any)(...args)
+		} else if (cmd === 'circle') {
+			ctx.arc(args[0], args[1], args[2], 0, 2 * Math.PI)
+		} else if (cmd === 'line') {
+			const [x0, y0, x1, y1] = args as number[]
+			ctx.moveTo(x0, y0)
+			ctx.lineTo(x1, y1)
+		} else if (cmd === 'path') {
+			for (const [c, a0, a1] of args) {
+				switch (c) {
+					case 'M':
+						ctx.moveTo(a0, a1)
+						break
+					case 'L':
+						ctx.lineTo(a0, a1)
+						break
+					case 'Z':
+						ctx.closePath()
+						break
+					default:
+						throw new Error(`Invalid d-path command: ${c}`)
 				}
-				break
-
-			default:
-				throw new Error(`Invalid path type: ${type}`)
+			}
+		} else if (cmd === 'translate') {
+			ctx.save()
+			ctx.translate(args[0] as number, args[1] as number)
+			draw(ctx, last)
+			ctx.restore()
+		} else if (cmd === 'scale') {
+			ctx.save()
+			ctx.scale(args[0] as number, args[1] as number)
+			draw(ctx, last)
+			ctx.restore()
+		} else if (cmd === 'rotate') {
+			ctx.save()
+			ctx.rotate(args[0] as number)
+			draw(ctx, last)
+			ctx.restore()
 		}
 	}
 }
 
 export function createViewportRep(ctx: CanvasRenderingContext2D) {
-	const vpEnv = new Env(replEnv)
-
-	const nsViewport = {
-		stroke: (color: string, width: number, path: MalVector) => {
-			ctx.strokeStyle = color
-			ctx.lineWidth = width
-			ctx.beginPath()
-			drawPath(ctx, path)
-			ctx.stroke()
-
-			return path
-		},
-
-		fill: (color: string, path: MalVector) => {
-			ctx.fillStyle = color
-			ctx.beginPath()
-			drawPath(ctx, path)
-			ctx.fill()
-			return path
-		},
-
-		clear: () => {
-			if (ctx) {
-				const w = ctx.canvas.width
-				const h = ctx.canvas.height
-
-				ctx.clearRect(0, 0, w, h)
-			}
-			return null
-		}
-	}
-
-	for (const key in nsViewport) {
-		vpEnv.set(key, (nsViewport as any)[key])
-	}
-
-	replEnv.name = 'repl'
-	vpEnv.name = 'vp'
-
 	const repCanvas = (str: string) => {
-		const drawEnv = new Env(vpEnv)
-		drawEnv.name = 'draw'
+		const vpEnv = new Env(replEnv)
+		vpEnv.name = 'draw'
+
+		let out = null
 
 		try {
-			REP(`(do (clear) ${str})`, drawEnv)
+			const src = READ(`(do ${str})`)
+			out = EVAL(src, vpEnv)
 		} catch (e) {
 			printer.println(e)
 			// printer.println(e.stack)
+		}
+
+		if (out) {
+			// Draw
+			// Clear
+			const w = ctx.canvas.width
+			const h = ctx.canvas.height
+			ctx.clearRect(0, 0, w, h)
+			draw(ctx, out)
 		}
 	}
 

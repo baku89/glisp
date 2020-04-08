@@ -1,6 +1,6 @@
 <template>
 	<div class="Editor">
-		<InputCodeEditor :value="worldCode" @input="onInput" lang="lisp" />
+		<InputCodeEditor :value="code" @input="onInput" lang="lisp" />
 	</div>
 </template>
 
@@ -10,7 +10,7 @@ import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import InputCodeEditor from './InputCodeEditor.vue'
 
 import {replEnv, PRINT, REP} from '@/impl/repl'
-import {MalVal} from '../impl/types'
+import {MalVal, isList, MalList} from '../impl/types'
 import Env, {EnvData} from '../impl/env'
 
 @Component({
@@ -21,14 +21,13 @@ import Env, {EnvData} from '../impl/env'
 export default class Editor extends Vue {
 	private envData: EnvData = replEnv.data
 
-	private worldCode: string = PRINT(replEnv.get('$'))
+	private code: string = PRINT(replEnv.get('$'))
 
-	private edited!: boolean
+	private userEdited!: boolean
 
 	private created() {
 		if (localStorage['savedText']) {
-			console.log('laod', localStorage['savedText'])
-			this.onInput(localStorage['savedText'])
+			this.code = localStorage['savedText']
 		} else {
 			this.onEnvChanged()
 		}
@@ -36,21 +35,31 @@ export default class Editor extends Vue {
 
 	@Watch('envData.$')
 	private onEnvChanged() {
-		if (!this.edited) {
-			console.log('env changed by outer force')
-			this.worldCode = PRINT(replEnv.get('$'))
+		if (this.userEdited) {
+			this.userEdited = false
+			return
 		}
-		this.edited = false
+
+		const ast = replEnv.get('$')
+
+		let _,
+			lines = [ast]
+
+		if (isList(ast) && (ast as MalList)[0] === Symbol.for('do')) {
+			;[_, ...lines] = ast as MalList
+		}
+
+		this.code = lines.map(line => PRINT(line)).join('\n')
 	}
 
 	private onInput(value: string) {
-		this.edited = true
+		this.userEdited = true
 		localStorage['savedText'] = value
 
 		try {
 			REP(`(def! $ '(do ${value}))`)
 		} catch (e) {
-			this.edited = false
+			this.userEdited = false
 		}
 	}
 }

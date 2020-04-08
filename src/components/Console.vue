@@ -71,6 +71,7 @@ export default class Console extends Vue {
 
 .jqconsole
 	font-family 'Fira Code', monospace !important
+	font-variant-ligatures normal !important
 
 	&-cursor
 		background-color gray

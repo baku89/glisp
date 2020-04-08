@@ -18,6 +18,20 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 	const _r = printReadably
 
 	if (isList(obj)) {
+		obj = obj as MalList
+
+		if (obj.length === 2) {
+			if (obj[0] === Symbol.for('quote')) {
+				return "'" + printExp(obj[1], _r)
+			} else if (obj[0] === Symbol.for('quasiquote')) {
+				return '`' + printExp(obj[1], _r)
+			} else if (obj[0] === Symbol.for('unquote')) {
+				return '~' + printExp(obj[1], _r)
+			} else if (obj[0] === Symbol.for('splice-unquote')) {
+				return '~@' + printExp(obj[1], _r)
+			}
+		}
+
 		return '(' + (obj as MalList).map(e => printExp(e, _r)).join(' ') + ')'
 	} else if (isVector(obj)) {
 		return '[' + (obj as MalList).map(e => printExp(e, _r)).join(' ') + ']'
@@ -39,7 +53,7 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 	} else if (isMalFunc(obj)) {
 		const params = printExp((obj as MalFunc).params, _r)
 		const body = printExp((obj as MalFunc).ast, _r)
-		return `(fn* ${params} ${body})`
+		return `(fn ${params} ${body})`
 	} else if (obj === undefined) {
 		return 'UNDEFINED'
 	} else {

@@ -35,7 +35,7 @@ function quasiquote(ast: MalVal): MalVal {
 	}
 }
 
-function macroexpand(ast: MalVal, env: Env) {
+function macroexpand(ast: MalVal = null, env: Env) {
 	let _ast = ast as MalList
 
 	while (isList(_ast) && typeof _ast[0] === 'symbol' && env.find(_ast[0])) {
@@ -84,7 +84,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 		switch (typeof a0 === 'symbol' ? Symbol.keyFor(a0) : Symbol(':default')) {
 			case 'def!':
 				return env.set(a1 as symbol, EVAL(a2, env))
-			case 'let*': {
+			case 'let': {
 				const letEnv = new Env(env)
 				const lst = a1 as MalList
 				for (let i = 0; i < lst.length; i += 2) {
@@ -112,14 +112,14 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				break // continue TCO loop
 			case 'if': {
 				const cond = EVAL(a1, env)
-				if (cond === null || cond === false) {
-					ast = typeof a3 !== 'undefined' ? a3 : null
-				} else {
+				if (cond) {
 					ast = a2
+				} else {
+					ast = typeof a3 !== 'undefined' ? a3 : null
 				}
 				break // continue TCO loop
 			}
-			case 'fn*':
+			case 'fn':
 				return createMalFunc(
 					(...args) => EVAL(a2, new Env(env, a1 as symbol[], args)),
 					a2,
@@ -163,5 +163,7 @@ replEnv.set('eval', (ast: MalVal) => {
 	return EVAL(ast, replEnv)
 })
 
-import initSource from './repl-init.mal'
-REP(`(do ${initSource})`)
+REP(
+	'(def! load-file (fn (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))'
+)
+REP('(load-file "./lib/index.mal")')

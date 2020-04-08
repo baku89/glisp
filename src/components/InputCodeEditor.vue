@@ -57,13 +57,13 @@ export default class InputCodeEditor extends Vue {
 			{
 				match: /^[-+]?[0-9]+$/,
 				update: (val: number, e: MouseWheelEvent) =>
-					Math.round(val + e.deltaY / 100),
+					Math.round(val - e.deltaY / 10),
 				parse: (s: string) => parseInt(s),
 				toString: (val: number) => val.toString()
 			},
 			{
 				match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
-				update: (val: number, e: MouseWheelEvent) => val + e.deltaY / 100,
+				update: (val: number, e: MouseWheelEvent) => val - e.deltaY / 10,
 				parse: (s: string) => parseFloat(s),
 				toString: (val: number) => val.toFixed(1)
 			},
@@ -71,8 +71,8 @@ export default class InputCodeEditor extends Vue {
 				// Vector 2
 				match: /^[-+]?[0-9]+ [-+]?[0-9]+$/,
 				update: ([x, y]: number[], e: MouseWheelEvent) => [
-					x + e.deltaX / 100,
-					y + e.deltaY / 100
+					x - e.deltaX / 10,
+					y - e.deltaY / 10
 				],
 				parse: (s: string) => s.split(' ').map(parseFloat),
 				toString: (val: number[]) => val.map(v => v.toFixed(0)).join(' ')
