@@ -50,10 +50,10 @@ export const coreNS = new Map<string, any>([
 	['and', (...a: MalVal[]) => a.reduce((x, y) => x && y, true)],
 
 	// Calculus
-	['+', (...a: Array<number>) => a.reduce((x, y) => x + y, 0)],
-	['-', (...a: Array<number>) => a.reduce((x, y) => x - y, 0)],
-	['*', (...args: Array<number>) => args.reduce((a, b) => a * b, 1)],
-	['/', (i: number, ...rest: Array<number>) => rest.reduce((a, b) => a / b, i)],
+	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
+	['-', (i: number, ...a: number[]) => a.length ? a.reduce((x, y) => x - y, i) : -i],
+	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
+	['/', (i: number, ...a: number[]) => a.reduce((x, y) => x / y, i)],
 
 	['list', (...a: MalVal[]) => a],
 	['list?', Array.isArray],
