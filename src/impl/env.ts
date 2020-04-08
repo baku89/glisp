@@ -43,7 +43,7 @@ export default class Env {
 		return value
 	}
 
-	public find(key: symbol | string): MalVal {
+	public find(key: symbol | string): MalVal | void {
 		key = toKey(key)
 
 		// eslint-disable-next-line no-prototype-builtins
@@ -52,16 +52,16 @@ export default class Env {
 		} else if (this.outer !== null) {
 			return this.outer.find(key)
 		} else {
-			return null
+			return undefined
 		}
 	}
 
-	public get(key: symbol | string): MalVal {
+	public get(key: symbol | string): MalVal | void {
 		key = toKey(key)
 
 		const value = this.find(key)
 
-		if (value === null) {
+		if (value === undefined) {
 			throw new Error(`Symbol '${key}' not found`)
 		}
 
