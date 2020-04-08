@@ -2,6 +2,14 @@ import {replEnv, READ, EVAL, PRINT} from './repl'
 import Env from './env'
 import {MalVal} from './types'
 import {printer} from './printer'
+import EventEmitter from 'eventemitter3'
+
+export const viewHandler = new EventEmitter()
+
+replEnv.set('$insert', (item: MalVal) => {
+	viewHandler.emit('$insert', item)
+	return null
+})
 
 function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 	if (Array.isArray(ast)) {

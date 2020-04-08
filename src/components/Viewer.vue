@@ -1,21 +1,29 @@
 <template>
-	<canvas
-		class="Viewer"
-		ref="canvas"
-		@mousedown="onMousedown"
-		@mouseup="onMouseup"
-		@mousemove="onMousemove"
-	/>
+	<div class="Viewer">
+		<div class="Viewer__tools">
+			<button @click="togglePencil">Toggle Pencil</button>
+		</div>
+		<canvas
+			class="Viewer__canvas"
+			ref="canvas"
+			@mousedown="onMouse"
+			@mouseup="onMouse"
+			@mousemove="onMouse"
+		/>
+	</div>
 </template>
 
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import {replEnv, PRINT} from '@/impl/repl'
-import {createViewREP} from '@/impl/view'
+import {createViewREP, consoleREP} from '@/impl/view'
 
 @Component
 export default class Viewer extends Vue {
 	@Prop({type: Number, required: true}) private timestamp!: string
+
+	private tool: string | null = null
+	private mousePressed = false
 
 	private rep!: any
 
@@ -39,22 +47,46 @@ export default class Viewer extends Vue {
 		this.rep(`(do ${str})`)
 	}
 
-	private onMousemove() {
-		null
+	private togglePencil() {
+		this.tool = this.tool ? null : 'pencil'
+
+		if (this.tool === 'pencil') {
+			consoleREP("(def! state '())")
+		}
 	}
 
-	private onMouseup() {
-		null
-	}
+	private onMouse(e: MouseEvent) {
+		if (this.tool === 'pencil') {
+			const {type, offsetX, offsetY} = e
 
-	private onMousedown() {
-		null
+			if (type === 'mousedown') {
+				this.mousePressed = true
+			} else if (type === 'mouseup') {
+				this.mousePressed = false
+			}
+
+			const x = offsetX,
+				y = offsetY,
+				p = this.mousePressed
+
+			consoleREP(`(def! state (pencil state '(${x} ${y} ${p})))`)
+			consoleREP('($insert `(quote ~(first state)))')
+		}
 	}
 }
 </script>
 
 <style lang="stylus" scoped>
 .Viewer
+	position relative
 	height 100%
-	background #eee
+
+	&__tools
+		position absolute
+		top 0
+		right 0
+
+	&__canvas
+		height 100%
+		background #eee
 </style>

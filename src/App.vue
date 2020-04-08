@@ -2,7 +2,12 @@
 	<div id="app" @mousewheel="onScroll">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor :code="code" @input="onEdit" />
+				<Editor
+					:code="code"
+					:selection="selection"
+					@input="onEdit"
+					@select="onSelect"
+				/>
 			</div>
 			<div class="app__console">
 				<Console />
@@ -18,11 +23,15 @@
 import 'normalize.css'
 
 import {Component, Vue, Watch} from 'vue-property-decorator'
-import Editor from './components/Editor.vue'
-import Viewer from './components/Viewer.vue'
-import Console from './components/Console.vue'
+import Editor from '@/components/Editor.vue'
+import Viewer from '@/components/Viewer.vue'
+import Console from '@/components/Console.vue'
 
-import {replEnv, REP} from '@/impl/repl'
+import {replEnv, REP, PRINT} from '@/impl/repl'
+import {viewHandler} from '@/impl/view'
+import {MalVal} from '@/impl/types'
+
+import {replaceRange} from '@/utils'
 
 @Component({
 	components: {
@@ -33,6 +42,8 @@ import {replEnv, REP} from '@/impl/repl'
 })
 export default class App extends Vue {
 	private replEnv = replEnv.data
+
+	private selection = [0, 0]
 	private code = ''
 	private timestamp: number = Date.now()
 
@@ -41,30 +52,45 @@ export default class App extends Vue {
 	}
 
 	private created() {
-		if (localStorage['savedText']) {
-			this.code = localStorage['savedText']
-		} else {
-			this.code = '(fill "black" (rect 50 50 50 50))'
+		this.code = localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
+
+		const value = this.code.replace(/"/g, '\\"')
+
+		try {
+			REP(`(set$ "${value}")`)
+		} catch (err) {
+			console.log('err')
 		}
+	}
+
+	private mounted() {
+		viewHandler.on('$insert', (item: MalVal) => {
+			const itemStr = PRINT(item)
+
+			const [start, end] = this.selection
+			const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
+
+			this.onEdit(code)
+			this.selection = selection
+		})
 	}
 
 	private onEdit(value: string) {
 		localStorage['savedText'] = value
 
+		this.code = value
+
 		value = value.replace(/"/g, '\\"')
 
-		let succeed = true
+		REP(`(set$ "${value}")`)
+	}
 
-		try {
-			REP(`(set$ "${value}")`)
-		} catch (e) {
-			succeed = false
-		}
+	private onSelect(selection: [number, number]) {
+		this.selection = selection
 	}
 
 	@Watch('replEnv.$')
 	private onViewChanged(value: string) {
-		console.log('updateddddddd')
 		this.code = value
 		this.timestamp = Date.now()
 	}

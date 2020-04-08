@@ -21,8 +21,11 @@ function replaceRange(
 export default class InputCodeEditor extends Vue {
 	@Prop({type: String, required: true}) private value!: string
 	@Prop({type: String, default: 'text'}) private lang!: string
+	@Prop({type: Array}) private selection!: [number, number]
 
 	private editor!: ace.Editor
+
+	private editedByProp = false
 
 	private mounted() {
 		this.editor = ace.edit(this.$refs.editor as HTMLElement)
@@ -34,10 +37,6 @@ export default class InputCodeEditor extends Vue {
 		this.editor.getSession().setMode(`ace/mode/${this.lang}`)
 		this.editor.setTheme(`ace/theme/${theme}`)
 		this.editor.setValue(this.value, -1)
-		this.editor.on('change', () => {
-			const value = this.editor.getValue()
-			this.$emit('input', value)
-		})
 		this.editor.$blockScrolling = Infinity
 
 		this.editor.setOptions({
@@ -48,10 +47,13 @@ export default class InputCodeEditor extends Vue {
 			maxLines: Infinity
 		})
 
-		const sel = this.editor.getSelection()
-		const doc = this.editor.getSession().doc
+		this.editor.on('change', this.onChange)
+		this.editor.on('changeSelection', this.onSelect)
 
 		// Updater
+
+		const sel = this.editor.getSelection()
+		const doc = this.editor.getSession().doc
 
 		const Updaters = [
 			{
@@ -87,14 +89,14 @@ export default class InputCodeEditor extends Vue {
 			}
 
 			const range = sel.getRange()
+			const start = doc.positionToIndex(range.start, 0)
+			const end = doc.positionToIndex(range.end, 0)
+
 			const origStr = doc.getTextRange(range)
 
 			const updater = Updaters.find(({match}) => origStr.match(match))
 
 			if (updater) {
-				const start = doc.positionToIndex(range.start, 0)
-				const end = doc.positionToIndex(range.end, 0)
-
 				let val = updater.parse(origStr)
 				const text = this.editor.getValue()
 
@@ -125,16 +127,63 @@ export default class InputCodeEditor extends Vue {
 		this.editor.container.remove()
 	}
 
+	private onChange() {
+		const value = this.editor.getValue()
+		this.$emit('input', value)
+	}
+
+	private onSelect() {
+		const selection = this.getSelection()
+		this.$emit('select', selection)
+	}
+
+	private getSelection() {
+		const sel = this.editor.getSelection()
+		const doc = this.editor.getSession().doc
+
+		const range = sel.getRange()
+		const start = doc.positionToIndex(range.start, 0)
+		const end = doc.positionToIndex(range.end, 0)
+
+		return [start, end]
+	}
+
 	@Watch('value')
 	private onValueChanged(newValue: string) {
 		if (this.editor.getValue() !== newValue) {
+			this.editor.off('change', this.onChange)
+			this.editor.off('changeSelection', this.onSelect)
+
 			this.editor.setValue(newValue)
+
+			this.editor.on('change', this.onChange)
+			this.editor.on('changeSelection', this.onSelect)
 		}
 	}
 
 	@Watch('lang')
 	private onLangChanged(lang: string) {
 		this.editor.getSession().setMode(`ace/mode/${lang}`)
+	}
+
+	@Watch('selection')
+	private onChangeSelection([start, end]: [number, number]) {
+		const sel = this.editor.getSelection()
+		const doc = this.editor.getSession().doc
+
+		const range = sel.getRange()
+
+		const [oldStart, oldEnd] = this.getSelection()
+
+		if (start !== oldStart || end !== oldEnd) {
+			const s = doc.indexToPosition(start, 0)
+			const e = doc.indexToPosition(end, 0)
+
+			range.setStart(s.row, s.column)
+			range.setEnd(e.row, e.column)
+
+			sel.setRange(range, false)
+		}
 	}
 }
 </script>

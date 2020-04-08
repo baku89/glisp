@@ -1,6 +1,12 @@
 <template>
 	<div class="Editor">
-		<InputCodeEditor :value="code" @input="$emit('input', $event)" lang="lisp" />
+		<InputCodeEditor
+			:value="code"
+			:selection="selection"
+			@input="$emit('input', $event)"
+			@select="$emit('select', $event)"
+			lang="lisp"
+		/>
 	</div>
 </template>
 
@@ -9,10 +15,6 @@ import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 
 import InputCodeEditor from './InputCodeEditor.vue'
 
-import {replEnv, PRINT, REP} from '@/impl/repl'
-import {MalVal} from '../impl/types'
-import Env from '../impl/env'
-
 @Component({
 	components: {
 		InputCodeEditor
@@ -20,6 +22,7 @@ import Env from '../impl/env'
 })
 export default class Editor extends Vue {
 	@Prop({type: String, required: true}) private code!: string
+	@Prop({type: Array, required: true}) private selection!: [number, number]
 }
 </script>
 
