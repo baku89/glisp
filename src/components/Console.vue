@@ -28,7 +28,7 @@ export default class Console extends Vue {
 					if (exc instanceof BlankException) {
 						return
 					}
-					jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
+					jqconsole.Write(exc + '\n', 'jqconsole-error')
 					// if (exc.stack) {
 					// 	jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
 					// } else {
