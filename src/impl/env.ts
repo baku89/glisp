@@ -1,4 +1,4 @@
-import {MalVal, MalList} from './types'
+import {MalVal} from './types'
 
 export interface EnvData {
 	[key: string]: MalVal
@@ -17,7 +17,7 @@ export default class Env {
 	constructor(
 		outer: Env | null = null,
 		binds?: Array<symbol>,
-		exprs?: MalList
+		exprs?: MalVal[]
 	) {
 		this.data = {}
 		this.outer = outer

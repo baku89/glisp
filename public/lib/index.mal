@@ -31,8 +31,8 @@
 	)
 )
 
-(defn! map [f xs]
-	(foldr (fn [x acc] (cons (f x) acc)) () xs))
+(defn! map (f xs)
+	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
 ;; Math
 (def! PI2 (* PI 2))
@@ -45,10 +45,10 @@
 (defn! not (a) (if a false true))
 
 ;; Trivial
-(defn! inc [x] (+ x 1))
-(defn! dec [x] (- a 1))
+(defn! inc (x) (+ x 1))
+(defn! dec (x) (- a 1))
 
-(def! gensym (let [counter (atom 0)] (fn [] (symbol (str "G__" (swap! counter inc))))))
+(def! gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
 
 ;; Graphical
 (defmacro! set$ (fn (x) `(def! $ ~x)))
@@ -56,7 +56,7 @@
 (set$ '(fill "red" (rect 0 0 100 100)))
 
 
-(defn! color [& e]
+(defn! color (& e)
 	(let (l (count e))
 		(cond
 			(= l 1) e
@@ -66,12 +66,12 @@
 	)
 )
 
-(defn! translate [x y body] `("translate" ~x ~y ~body))
-(defn! scale [x y body] `("scale" ~x ~y ~body))
-(defn! rotate [a body] `("rotate" ~a ~body))
+(defn! translate (x y body) `("translate" ~x ~y ~body))
+(defn! scale (x y body) `("scale" ~x ~y ~body))
+(defn! rotate (a body) `("rotate" ~a ~body))
 
-(defn! fill [color path] `("fill" ~color ~path))
-(defn! stroke [color width path] `("stroke" ~color ~width ~path))
+(defn! fill (color path) `("fill" ~color ~path))
+(defn! stroke (color width path) `("stroke" ~color ~width ~path))
 
 (defn! rect (x y w h)	`("rect" ~x ~y ~w ~h))
 (defn! circle (x y r)	`("circle" ~x ~y ~r))
@@ -91,7 +91,7 @@
 (defn! polyline (& pts)
 	(if (>= (count pts) 2)
 		(concat
-			["path"]
+			("path")
 			(cons
 				`("M" ~(first pts) ~(nth pts 1))
 				(apply _polyline (rest (rest pts))))

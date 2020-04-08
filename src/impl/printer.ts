@@ -1,12 +1,4 @@
-import {
-	MalVal,
-	isList,
-	isVector,
-	MalList,
-	MalAtom,
-	isMalFunc,
-	MalFunc
-} from './types'
+import {MalVal, MalAtom, isMalFunc, MalFunc} from './types'
 
 export const printer = {
 	println: (...args: any) => {
@@ -17,9 +9,7 @@ export const printer = {
 export default function printExp(obj: MalVal, printReadably = true): string {
 	const _r = printReadably
 
-	if (isList(obj)) {
-		obj = obj as MalList
-
+	if (Array.isArray(obj)) {
 		if (obj.length === 2) {
 			if (obj[0] === Symbol.for('quote')) {
 				return "'" + printExp(obj[1], _r)
@@ -32,9 +22,7 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 			}
 		}
 
-		return '(' + (obj as MalList).map(e => printExp(e, _r)).join(' ') + ')'
-	} else if (isVector(obj)) {
-		return '[' + (obj as MalList).map(e => printExp(e, _r)).join(' ') + ']'
+		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
 	} else if (typeof obj === 'string') {
 		return _r
 			? '"' +

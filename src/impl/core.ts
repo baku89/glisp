@@ -1,13 +1,4 @@
-import {
-	MalVal,
-	MalList,
-	isList,
-	MalFunc,
-	MalAtom,
-	isVector,
-	createMalVector,
-	cloneAST
-} from './types'
+import {MalVal, MalFunc, MalAtom, cloneAST} from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
 
@@ -54,8 +45,8 @@ export const coreNS = new Map<string, any>([
 	['>', (a: number, b: number) => a > b],
 	['>=', (a: number, b: number) => a >= b],
 
-	['or', (...a: MalList) => a.reduce((x, y) => x || y, false)],
-	['and', (...a: MalList) => a.reduce((x, y) => x && y, true)],
+	['or', (...a: MalVal[]) => a.reduce((x, y) => x || y, false)],
+	['and', (...a: MalVal[]) => a.reduce((x, y) => x && y, true)],
 
 	// Calculus
 	['+', (...a: Array<number>) => a.reduce((x, y) => x + y, 0)],
@@ -63,34 +54,32 @@ export const coreNS = new Map<string, any>([
 	['*', (...args: Array<number>) => args.reduce((a, b) => a * b, 1)],
 	['/', (i: number, ...rest: Array<number>) => rest.reduce((a, b) => a / b, i)],
 
-	['list', (...a: MalList) => a],
-	['list?', isList],
-	['vector', (...a: MalList) => createMalVector(a)],
-	['vector?', isVector],
+	['list', (...a: MalVal[]) => a],
+	['list?', Array.isArray],
 
 	[
 		'nth',
-		(a: MalList, b: number) =>
+		(a: MalVal[], b: number) =>
 			b < a.length ? a[b] : _error('nth: index out of range')
 	],
-	['first', (a: MalList) => (a !== null && a.length > 0 ? a[0] : null)],
-	['rest', (a: MalList) => (a === null ? [] : Array.from(a.slice(1)))],
+	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
+	['rest', (a: MalVal[]) => (a === null ? [] : Array.from(a.slice(1)))],
 	[
 		'last',
-		(a: MalList) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
+		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
 	],
 
-	['empty?', (l: MalList) => l.length === 0],
-	['count', (a: MalList) => (a === null ? 0 : a.length)],
+	['empty?', (l: MalVal[]) => l.length === 0],
+	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
 	[
 		'apply',
-		(f: MalFunc, ...a: MalList) => f(...a.slice(0, -1).concat(a[a.length - 1]))
+		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
 
-	['str', (...a: MalList) => a.map(e => printExp(e, false)).join('')],
+	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
 	[
 		'prn',
-		(...a: MalList) => {
+		(...a: MalVal[]) => {
 			printer.println(...a.map(e => printExp(e, true)))
 			return null
 		}
@@ -101,7 +90,7 @@ export const coreNS = new Map<string, any>([
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
 	[
 		'concat',
-		(...args: MalList) => args.reduce((x: MalList, y) => x.concat(y), [])
+		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
 	],
 
 	['meta', (a: MalVal) => (a as any)?.meta || null],

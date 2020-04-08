@@ -1,14 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
-import {
-	MalVal,
-	MalFunc,
-	MalList,
-	isList,
-	createMalFunc,
-	isMalFunc,
-	cloneAST
-} from './types'
+import {MalVal, MalFunc, createMalFunc, isMalFunc, cloneAST} from './types'
 
 import readStr from './reader'
 import printExp from './printer'
@@ -36,24 +28,22 @@ function quasiquote(ast: MalVal): MalVal {
 }
 
 function macroexpand(ast: MalVal = null, env: Env) {
-	let _ast = ast as MalList
-
-	while (isList(_ast) && typeof _ast[0] === 'symbol' && env.find(_ast[0])) {
-		const fn = env.get(_ast[0]) as MalFunc
+	while (Array.isArray(ast) && typeof ast[0] === 'symbol' && env.find(ast[0])) {
+		const fn = env.get(ast[0]) as MalFunc
 		if (!fn.ismacro) {
 			break
 		}
-		_ast = fn(..._ast.slice(1)) as MalList
+		ast = fn(...ast.slice(1))
 	}
 
-	return _ast
+	return ast
 }
 
 const evalAst = (ast: MalVal, env: Env) => {
 	if (typeof ast === 'symbol') {
 		return env.get(ast)
-	} else if (isList(ast)) {
-		return (ast as MalList).map(x => EVAL(x, env))
+	} else if (Array.isArray(ast)) {
+		return ast.map(x => EVAL(x, env))
 	} else {
 		return ast
 	}
@@ -62,17 +52,16 @@ const evalAst = (ast: MalVal, env: Env) => {
 export function EVAL(ast: MalVal, env: Env): MalVal {
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		if (!isList(ast)) {
+		if (!Array.isArray(ast)) {
 			return evalAst(ast, env)
 		}
 
 		ast = macroexpand(ast, env)
 
-		if (!isList(ast)) {
+		if (!Array.isArray(ast)) {
 			return evalAst(ast, env)
 		}
 
-		ast = ast as MalList
 		if (ast.length === 0) {
 			return ast
 		}
@@ -86,7 +75,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				return env.set(a1 as symbol, EVAL(a2, env))
 			case 'let': {
 				const letEnv = new Env(env)
-				const lst = a1 as MalList
+				const lst = a1 as MalVal[]
 				for (let i = 0; i < lst.length; i += 2) {
 					letEnv.set(lst[i] as symbol, EVAL(lst[i + 1], letEnv))
 				}
@@ -128,7 +117,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				)
 			default: {
 				// Apply Function
-				const [_fn, ...args] = evalAst(ast, env) as MalList
+				const [_fn, ...args] = evalAst(ast, env) as MalVal[]
 
 				const fn = _fn as MalFunc
 

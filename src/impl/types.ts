@@ -2,12 +2,10 @@
 
 import Env from './env'
 
-type MalPureFunc = (...args: MalList) => MalVal
-
-const isvector = Symbol('isvector')
+type MalPureFunc = (...args: MalVal[]) => MalVal
 
 export interface MalFunc {
-	(...args: MalList): MalVal
+	(...args: MalVal[]): MalVal
 	meta: object | null
 	ast: MalVal
 	env: Env
@@ -24,11 +22,7 @@ export type MalVal =
 	| MalAtom
 	| MalFunc
 	| MalPureFunc
-	| MalVector
-	| MalList
-
-export type MalList = Array<MalVal>
-export type MalVector = MalList
+	| MalVal[]
 
 // General Functions
 export function isEqual(a: MalVal, b: MalVal) {
@@ -49,15 +43,9 @@ export function isEqual(a: MalVal, b: MalVal) {
 
 export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
 	let newObj = null
-	if (isList(obj)) {
-		newObj = (obj as MalList).slice(0)
-	} else if (isVector(obj)) {
-		newObj = createMalVector((obj as MalList).slice(0))
-	} /* else if (obj instanceof Map) {
-			newObj = new Map(obj.entries())
-	}*/ else if (
-		obj instanceof Function
-	) {
+	if (Array.isArray(obj)) {
+		newObj = [...obj]
+	} else if (obj instanceof Function) {
 		// new function instance
 		const fn = (...args: any) => obj.apply(fn, args)
 		// copy original properties
@@ -75,7 +63,7 @@ export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
 
 // Functions
 export function createMalFunc(
-	fn: (...args: MalList) => MalVal,
+	fn: (...args: MalVal[]) => MalVal,
 	ast: MalVal,
 	env: Env,
 	params: Array<symbol>,
@@ -87,21 +75,6 @@ export function createMalFunc(
 
 export const isMalFunc = (obj: MalVal) =>
 	obj && (obj as MalFunc).ast ? true : false
-
-// Lists
-export function isList(obj: MalVal) {
-	return !!(Array.isArray(obj) && !(obj as any)[isvector])
-}
-
-// Vector
-export function createMalVector(obj: MalList) {
-	;(obj as any)[isvector] = true
-	return obj
-}
-
-export function isVector(obj: MalVal) {
-	return !!(Array.isArray(obj) && (obj as any)[isvector])
-}
 
 // Atoms
 export class MalAtom {

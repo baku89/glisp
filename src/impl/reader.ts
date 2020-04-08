@@ -1,5 +1,3 @@
-import {MalVector, isList, createMalVector} from './types'
-
 class Reader {
 	public tokens: Array<string>
 	public position: number
@@ -84,11 +82,6 @@ function readList(reader: Reader, start = '(', end = ')') {
 	return ast
 }
 
-function readVector(reader: Reader) {
-	const v = createMalVector(readList(reader, '[', ']'))
-	return v
-}
-
 function readForm(reader: Reader): any {
 	const token = reader.peek()
 
@@ -126,12 +119,6 @@ function readForm(reader: Reader): any {
 		case '(':
 			return readList(reader)
 
-		// vector
-		case ']':
-			throw new Error("unexpected ']'")
-		case '[': {
-			return readVector(reader)
-		}
 		// hash-map
 		// case '}':
 		// 	throw new Error("unexpected '}'")

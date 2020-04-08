@@ -10,7 +10,7 @@ import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import InputCodeEditor from './InputCodeEditor.vue'
 
 import {replEnv, PRINT, REP} from '@/impl/repl'
-import {MalVal, isList, MalList} from '../impl/types'
+import {MalVal} from '../impl/types'
 import Env, {EnvData} from '../impl/env'
 
 @Component({
@@ -45,8 +45,8 @@ export default class Editor extends Vue {
 		let _,
 			lines = [ast]
 
-		if (isList(ast) && (ast as MalList)[0] === Symbol.for('do')) {
-			;[_, ...lines] = ast as MalList
+		if (Array.isArray(ast) && ast[0] === Symbol.for('do')) {
+			;[_, ...lines] = ast
 		}
 
 		this.code = lines.map(line => PRINT(line)).join('\n')

@@ -1,10 +1,10 @@
 import {replEnv, READ, EVAL} from './repl'
 import Env from './env'
-import {MalVector, isList, MalVal} from './types'
+import {MalVal} from './types'
 import {printer} from './printer'
 
 function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
-	if (isList(ast)) {
+	if (Array.isArray(ast)) {
 		const [cmd, ...args] = ast as any[]
 
 		const last = args.length > 0 ? args[args.length - 1] : null
