@@ -152,6 +152,13 @@
 	)
 )
 
+(defn! graph (start end step f)
+	(apply polyline
+		(apply concat
+			(map f (range start (+ end step) step)))
+	)
+)
+
 ;; Draw
 (defmacro! begin-draw! (fn (state)
 	`(def! ~state nil)
