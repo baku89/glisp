@@ -6,6 +6,7 @@ import readStr from './reader'
 import printExp, {printer} from './printer'
 import Env from './env'
 import {coreNS} from './core'
+import {pathNS} from './path'
 
 // read
 export const READ = (str: string) => readStr(str)
@@ -169,6 +170,7 @@ export const REP = (str: string, env: Env = replEnv) => {
 
 // Setup REP env
 coreNS.forEach((v, k) => replEnv.set(k, v))
+pathNS.forEach((v, k) => replEnv.set(k, v))
 replEnv.set('eval', (ast: MalVal) => {
 	return EVAL(ast, replEnv)
 })

@@ -6,6 +6,8 @@ function _error(e: string) {
 	throw new Error(e)
 }
 
+const _SYM = Symbol.for
+
 // String functions
 function slurp(url: string) {
 	const req = new XMLHttpRequest()
@@ -31,7 +33,7 @@ export const coreNS = new Map<string, any>([
 	['bool?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
 	['string?', (a: MalVal) => typeof a === 'string'],
-	['symbol', (a: string) => Symbol.for(a)],
+	['symbol', (a: string) => _SYM(a)],
 	['symbol?', (a: MalVal) => typeof a === 'symbol'],
 	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc).ismacro],
 	[

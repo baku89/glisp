@@ -24,7 +24,6 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 		if (cmd === _SYM('background')) {
 			const color = args[0]
 			if (typeof color === 'string') {
-				console.log('set valid color!!!!')
 				viewHandler.emit('set-background', args[0] as string)
 			}
 		} else if (cmd === _SYM('fill')) {
@@ -46,9 +45,6 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 					case _SYM('L'):
 						ctx.lineTo(args[++i], args[++i])
 						break
-					case _SYM('A'):
-						ctx.arc(args[++i], args[++i], args[++i], args[++i], args[++i])
-						break
 					case _SYM('C'):
 						ctx.bezierCurveTo(
 							args[++i],
@@ -62,8 +58,14 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 					case _SYM('Z'):
 						ctx.closePath()
 						break
-					default:
-						throw new Error(`Invalid d-path command: ${args[i]}`)
+					default: {
+						const c = args[i]
+						throw new Error(
+							`Invalid d-path command: ${
+								typeof c === 'symbol' ? Symbol.keyFor(c) : c
+							}`
+						)
+					}
 				}
 			}
 		} else if (cmd === _SYM('translate')) {
@@ -102,8 +104,8 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 		try {
 			const src = READ(str)
 			out = EVAL(src, viewEnv)
-		} catch (e) {
-			printer.error(e)
+		} catch (err) {
+			printer.error(err)
 		}
 
 		if (out !== undefined) {
@@ -118,7 +120,11 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			ctx.lineCap = 'round'
 			ctx.lineJoin = 'round'
 
-			draw(ctx, out)
+			try {
+				draw(ctx, out)
+			} catch (err) {
+				printer.error(err)
+			}
 		}
 
 		return viewEnv
