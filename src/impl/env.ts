@@ -1,4 +1,5 @@
 import {MalVal} from './types'
+import {printer} from './printer'
 
 function toKey(key: symbol | string): string {
 	return typeof key === 'symbol' ? key.description || '' : key
@@ -24,12 +25,16 @@ export default class Env {
 		if (binds && exprs) {
 			// Returns a new Env with symbols in binds bound to
 			// corresponding values in exprs
-			// TODO: check types of binds and exprs and compare lengths
 			for (let i = 0; i < binds.length; i++) {
 				if (binds[i].description === '&') {
 					// variable length arguments
 					this.data[toKey(binds[i + 1])] = Array.prototype.slice.call(exprs, i)
 					break
+				}
+				if (exprs[i] === undefined) {
+					throw new Error(
+						`Error: parameter '${toKey(binds[i])}' is not specified`
+					)
 				}
 				this.data[toKey(binds[i])] = exprs[i]
 			}
