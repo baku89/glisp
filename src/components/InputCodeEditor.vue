@@ -21,6 +21,7 @@ function replaceRange(
 export default class InputCodeEditor extends Vue {
 	@Prop({type: String, required: true}) private value!: string
 	@Prop({type: String, default: 'text'}) private lang!: string
+	@Prop({type: String, default: 'tomorrow'}) private theme!: string
 	@Prop({type: Array}) private selection!: [number, number]
 
 	private editor!: ace.Editor
@@ -29,13 +30,13 @@ export default class InputCodeEditor extends Vue {
 
 	private mounted() {
 		this.editor = ace.edit(this.$refs.editor as HTMLElement)
-		const theme = 'clouds'
 
-		require(`brace/theme/${theme}`)
+		require('brace/theme/tomorrow')
+		require('brace/theme/tomorrow_night')
 		require(`brace/mode/${this.lang}`)
 
 		this.editor.getSession().setMode(`ace/mode/${this.lang}`)
-		this.editor.setTheme(`ace/theme/${theme}`)
+		this.editor.setTheme(`ace/theme/${this.theme}`)
 		this.editor.setValue(this.value, -1)
 		this.editor.$blockScrolling = Infinity
 
@@ -46,6 +47,8 @@ export default class InputCodeEditor extends Vue {
 			useSoftTabs: false,
 			maxLines: Infinity
 		})
+
+		this.editor.getSession().setUseWrapMode(true)
 
 		this.editor.on('change', this.onChange)
 		this.editor.on('changeSelection', this.onSelect)
@@ -166,6 +169,11 @@ export default class InputCodeEditor extends Vue {
 		this.editor.getSession().setMode(`ace/mode/${lang}`)
 	}
 
+	@Watch('theme')
+	private onThemeChanged(theme: string) {
+		this.editor.setTheme(`ace/theme/${theme}`)
+	}
+
 	@Watch('selection')
 	private onChangeSelection([start, end]: [number, number]) {
 		const sel = this.editor.getSelection()
@@ -191,10 +199,9 @@ export default class InputCodeEditor extends Vue {
 <style lang="stylus" scoped>
 .InputCodeEditor
 	position relative
-	overflow scroll
+	overflow-y scroll
 	width 100%
 	height 100%
-	background white
 
 	&__editor
 		position relative

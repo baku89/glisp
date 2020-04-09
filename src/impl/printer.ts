@@ -1,8 +1,14 @@
 import {MalVal, MalAtom, isMalFunc, MalFunc} from './types'
 
 export const printer = {
-	println: (...args: any) => {
+	log: (...args: any) => {
+		console.info(...args)
+	},
+	return: (...args: any) => {
 		console.log(...args)
+	},
+	error: (...args: any) => {
+		console.error(...args)
 	}
 }
 

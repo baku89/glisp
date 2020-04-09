@@ -3,7 +3,7 @@
 import {MalVal, MalFunc, createMalFunc, isMalFunc, cloneAST} from './types'
 
 import readStr from './reader'
-import printExp from './printer'
+import printExp, {printer} from './printer'
 import Env from './env'
 import {coreNS} from './core'
 
@@ -140,6 +140,8 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					return fn(...args)
+				} else if (Array.isArray(fn)) {
+					throw new Error('array.......')
 				} else {
 					throw new Error(`${fn} is not a function.`)
 				}
@@ -157,8 +159,13 @@ export const PRINT = (ast: MalVal) => {
 export const replEnv: Env = new Env()
 replEnv.name = 'repl'
 
-export const REP = (str: string, env: Env = replEnv) =>
-	PRINT(EVAL(READ(str), env))
+export const REP = (str: string, env: Env = replEnv) => {
+	try {
+		PRINT(EVAL(READ(str), env))
+	} catch (err) {
+		printer.error(err)
+	}
+}
 
 // Setup REP env
 coreNS.forEach((v, k) => replEnv.set(k, v))

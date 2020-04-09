@@ -13,6 +13,7 @@
 		"vue-property-decorator": "^8.4.1"
 	},
 	"devDependencies": {
+		"@types/color": "^3.0.1",
 		"@types/jquery": "^3.3.34",
 		"@typescript-eslint/eslint-plugin": "^2.26.0",
 		"@typescript-eslint/parser": "^2.26.0",
@@ -22,6 +23,7 @@
 		"@vue/eslint-config-prettier": "^6.0.0",
 		"@vue/eslint-config-typescript": "^5.0.2",
 		"brace": "^0.11.1",
+		"color": "^3.1.2",
 		"eslint": "^6.7.2",
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",
@@ -34,6 +36,7 @@
 		"stylus-loader": "^3.0.2",
 		"tslib": "^1.11.1",
 		"typescript": "~3.8.3",
+		"vue-click-outside": "^1.0.7",
 		"vue-template-compiler": "^2.6.11"
 	}
 }

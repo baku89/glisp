@@ -90,14 +90,14 @@ export const coreNS = new Map<string, any>([
 	[
 		'prn',
 		(...a: MalVal[]) => {
-			printer.println(...a.map(e => printExp(e, true)))
+			printer.log(...a.map(e => printExp(e, true)))
 			return null
 		}
 	],
 	[
 		'println',
 		(...a: MalVal[]) => {
-			printer.println(...a.map(e => printExp(e, false)))
+			printer.log(...a.map(e => printExp(e, false)))
 			return null
 		}
 	],
@@ -106,6 +106,7 @@ export const coreNS = new Map<string, any>([
 	['slurp', slurp],
 
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
+	['push', (a: MalVal[], b: MalVal) => [...a, b]],
 	[
 		'concat',
 		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])

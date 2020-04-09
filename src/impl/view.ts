@@ -4,6 +4,8 @@ import {MalVal} from './types'
 import {printer} from './printer'
 import EventEmitter from 'eventemitter3'
 
+import {BlankException} from './reader'
+
 export const viewHandler = new EventEmitter()
 
 replEnv.set('$insert', (item: MalVal) => {
@@ -19,7 +21,13 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 
 		const last = args.length > 0 ? args[args.length - 1] : null
 
-		if (cmd === _SYM('fill')) {
+		if (cmd === _SYM('background')) {
+			const color = args[0]
+			if (typeof color === 'string') {
+				console.log('set valid color!!!!')
+				viewHandler.emit('set-background', args[0] as string)
+			}
+		} else if (cmd === _SYM('fill')) {
 			draw(ctx, last)
 			ctx.fillStyle = args[0] as string
 			ctx.fill()
@@ -80,6 +88,10 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 			ctx.rotate(args[0] as number)
 			draw(ctx, last)
 			ctx.restore()
+		} else {
+			for (const a of ast) {
+				draw(ctx, a)
+			}
 		}
 	}
 }
@@ -98,8 +110,7 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			const src = READ(str)
 			out = EVAL(src, viewEnv)
 		} catch (e) {
-			printer.println(e)
-			// printer.println(e.stack)
+			printer.error(e)
 		}
 
 		if (out !== undefined) {
@@ -109,11 +120,26 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			const w = ctx.canvas.width
 			const h = ctx.canvas.height
 			ctx.clearRect(0, 0, w, h)
+
 			draw(ctx, out)
 		}
+
+		return viewEnv
 	}
 
 	return repCanvas
 }
 
-export const consoleREP = (str: string) => PRINT(EVAL(READ(str), consoleEnv))
+export const consoleREP = (str: string, output = true) => {
+	try {
+		const out = EVAL(READ(str), consoleEnv)
+		if (output) {
+			printer.return(PRINT(out))
+		}
+	} catch (err) {
+		if (err instanceof BlankException) {
+			return
+		}
+		printer.error(err)
+	}
+}

@@ -1,7 +1,15 @@
 <template>
-	<div class="Viewer">
+	<div class="Viewer" v-click-outside="onClickOutside">
 		<div class="Viewer__tools">
-			<button @click="togglePencil">{{tool === 'pencil' ? 'Stop' : 'Start'}}</button>
+			<button
+				class="Viewer__tool"
+				:class="{active: tool === activeTool}"
+				v-for="(tool, i) in tools"
+				:key="i"
+				@click="toggleTool(tool)"
+			>
+				{{ tool }}
+			</button>
 		</div>
 		<canvas
 			class="Viewer__canvas"
@@ -15,17 +23,24 @@
 
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
+import ClickOutside from 'vue-click-outside'
+
 import {replEnv, PRINT} from '@/impl/repl'
 import {createViewREP, consoleREP} from '@/impl/view'
+import Env from '@/impl/env'
 
-@Component
+@Component({
+	directives: {ClickOutside}
+})
 export default class Viewer extends Vue {
 	@Prop({type: Number, required: true}) private timestamp!: string
 
-	private tool: string | null = null
+	private activeTool: string | null = null
+	private tools: string[] = []
+
 	private mousePressed = false
 
-	private rep!: any
+	private rep!: (s: string) => Env
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
@@ -38,25 +53,46 @@ export default class Viewer extends Vue {
 			this.rep = createViewREP(ctx)
 
 			this.update()
+
+			window.addEventListener('resize', () => {
+				const canvas = ctx.canvas
+				ctx.canvas.width = canvas.clientWidth
+				ctx.canvas.height = canvas.clientHeight
+				this.update()
+			})
 		}
 	}
 
 	@Watch('timestamp')
 	private update() {
 		const str = replEnv.get('$') as string
-		this.rep(`(do ${str})`)
-	}
+		const viewEnv = this.rep(`(do ${str})`)
 
-	private togglePencil() {
-		this.tool = this.tool ? null : 'pencil'
+		this.tools = ((viewEnv.get('$tools') as symbol[]) || []).map(
+			(sym: symbol) => Symbol.keyFor(sym) || ''
+		)
 
-		if (this.tool === 'pencil') {
-			consoleREP("(begin-draw! state '())")
+		if (this.activeTool && !this.tools.includes(this.activeTool)) {
+			this.activeTool = null
 		}
 	}
 
+	private toggleTool(tool: string) {
+		if (this.activeTool === tool) {
+			this.activeTool = null
+		} else {
+			// Begin
+			this.activeTool = tool
+			consoleREP(`(begin-draw! state)`)
+		}
+	}
+
+	private onClickOutside() {
+		this.activeTool = null
+	}
+
 	private onMouse(e: MouseEvent) {
-		if (this.tool === 'pencil') {
+		if (this.activeTool) {
 			const {type, offsetX, offsetY} = e
 
 			if (type === 'mousedown') {
@@ -69,11 +105,14 @@ export default class Viewer extends Vue {
 				y = offsetY,
 				p = this.mousePressed
 
-			consoleREP(`
+			consoleREP(
+				`
 				(if
-					(draw! pencil state '(${x} ${y} ${p}))
+					(draw! ${this.activeTool} state '(${x} ${y} ${p}))
 					($insert (first state)))
-			`)
+			`,
+				false
+			)
 		}
 	}
 }
@@ -89,7 +128,21 @@ export default class Viewer extends Vue {
 		top 0
 		right 0
 
+	&__tool
+		outliine none
+		background 0
+		border 1px solid var(--comment)
+		padding .5rem 1rem
+		margin 0 .5rem
+		border-radius 1.5rem
+		color var(--foreground)
+
+		transition all var(--tdur) ease
+
+		&.active
+			box-shadow 0 0 0 3px var(--background), 0 0 0 4px var(--comment)
+
+
 	&__canvas
 		height 100%
-		background #eee
 </style>

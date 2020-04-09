@@ -1,8 +1,10 @@
 <template>
 	<div class="Editor">
 		<InputCodeEditor
+			class="Editor__input"
 			:value="code"
 			:selection="selection"
+			:theme="dark ? 'tomorrow_night' : 'tomorrow'"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
 			lang="lisp"
@@ -23,6 +25,7 @@ import InputCodeEditor from './InputCodeEditor.vue'
 export default class Editor extends Vue {
 	@Prop({type: String, required: true}) private code!: string
 	@Prop({type: Array, required: true}) private selection!: [number, number]
+	@Prop({type: Boolean, default: false}) private dark!: boolean
 }
 </script>
 
@@ -35,6 +38,7 @@ export default class Editor extends Vue {
 		width 100%
 		height 100%
 		outline none
+		border 1px solid red
 		border 0
 		font-size 1rem
 		font-family monospace

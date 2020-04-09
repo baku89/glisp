@@ -6,7 +6,6 @@
 import {Component, Vue} from 'vue-property-decorator'
 import {consoleREP} from '@/impl/view'
 import {printer} from '@/impl/printer'
-import {BlankException} from '@/impl/reader'
 
 @Component
 export default class Console extends Vue {
@@ -14,28 +13,25 @@ export default class Console extends Vue {
 		// eslint-disable-next-line no-undef
 		const jqconsole = ($(this.$el) as any).jqconsole('', '>>>')
 
-		printer.println = (...args: Array<any>) => {
+		printer.log = (...args: Array<any>) => {
 			const str = args.join(' ')
 			jqconsole.Write(str + '\n', 'jqconsole-output')
+		}
+
+		printer.return = (...args: Array<any>) => {
+			const str = args.join(' ')
+			jqconsole.Write(str + '\n', 'jqconsole-return')
+		}
+
+		printer.error = (...args: Array<any>) => {
+			const str = args.join(' ')
+			jqconsole.Write(str + '\n', 'jqconsole-error')
 		}
 
 		// Handle a command.
 		const handler = function(line?: string) {
 			if (line) {
-				try {
-					jqconsole.Write(consoleREP(line) + '\n', 'jqconsole-return')
-				} catch (exc) {
-					if (exc instanceof BlankException) {
-						return
-					}
-					jqconsole.Write(exc + '\n', 'jqconsole-error')
-					// if (exc.stack) {
-					// 	jqconsole.Write(exc.stack + '\n', 'jqconsole-error')
-					// } else {
-					// 	jqconsole.Write(exc + '\n', 'jqconsole-error')
-					// }
-				}
-				// jq_save_history(jqconsole)
+				consoleREP(line)
 			}
 			jqconsole.Prompt(true, handler)
 		}
@@ -65,8 +61,6 @@ export default class Console extends Vue {
 .Console
 	position relative
 	height 100%
-	background-color black
-	color white
 	text-align left
 	font-size 1rem
 
@@ -75,29 +69,26 @@ export default class Console extends Vue {
 	font-variant-ligatures normal !important
 
 	&-cursor
-		background-color gray
+		background var(--selection)
+		transition background var(--tdur) ease
 
 	&-prompt, &-old-prompt
-		color #ddd
+		color var(--foreground)
+		transition color var(--tdur) ease
 
 	&-output
-		color gray
+		color var(--comment)
+		transition color var(--tdur) ease
 
 	&-return
-		color white
+		color var(--comment)
+		transition color var(--tdur) ease
 
 	&-error
-		color red
+		color var(--red)
+		transition color var(--tdur) ease
 
-	.brace
-		color #00FFFF
-
-	.paren
-		color #FF00FF
-
-	.bracket
-		color #FFFF00
-
-	.dquote
-		color #FF8888
+	.brace, .paren, .bracket, .dquote
+		color var(--yellow)
+		transition color var(--tdur) ease
 </style>

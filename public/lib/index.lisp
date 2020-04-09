@@ -1,5 +1,5 @@
-(defmacro! defn!
-  (fn (name params body) `(def! ~name (fn ~params ~body))))
+(defmacro! defn! (fn (name params body)
+	`(def! ~name (fn ~params ~body))))
 
 (defmacro! macroview (fn (expr)
 	`(prn (macroexpand ~expr))
@@ -52,9 +52,8 @@
 (def! gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
 
 ;; Graphical
+(def! $ "")
 (defmacro! set$ (fn (x) `(def! $ ~x)))
-
-(set$ "")
 
 (defn! color (& e)
 	(let (l (count e))
@@ -70,8 +69,26 @@
 (defn! scale (x y body) `(scale ~x ~y ~body))
 (defn! rotate (a body) `(rotate ~a ~body))
 
-(defn! fill (color path) `(fill ~color ~path))
-(defn! stroke (color width path) `(stroke ~color ~width ~path))
+(defn! background (& xs) `(background ~@xs))
+
+(defn! fill (& xs) 
+	(let (l (count xs))
+		(cond
+			(= l 2) `(fill ~@xs)
+			true nil
+		)
+	)
+)
+
+(defn! stroke (& xs)
+	(let (l (count xs))
+		(cond
+			(= l 2) `(stroke ~(first xs) 1 ~(last xs))
+			(= l 3) `(stroke ~@xs)
+			true nil
+		)
+	)
+)
 
 (defn! merge-path (& xs)
 	`(path ~@(apply concat (map rest xs))))
