@@ -2,12 +2,7 @@
 	<div id="app" @mousewheel="onScroll">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor
-					:code="code"
-					:selection="selection"
-					@input="onEdit"
-					@select="onSelect"
-				/>
+				<Editor :code="code" :selection="selection" @input="onEdit" @select="onSelect" />
 			</div>
 			<div class="app__console">
 				<Console />
@@ -79,10 +74,12 @@ export default class App extends Vue {
 		localStorage['savedText'] = value
 
 		this.code = value
-
 		value = value.replace(/"/g, '\\"')
-
-		REP(`(set$ "${value}")`)
+		try {
+			REP(`(set$ "${value}")`)
+		} catch (err) {
+			console.log('err')
+		}
 	}
 
 	private onSelect(selection: [number, number]) {
