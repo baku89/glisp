@@ -47,14 +47,7 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 						ctx.lineTo(args[++i], args[++i])
 						break
 					case _SYM('A'):
-						ctx.arc(
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i]
-						)
+						ctx.arc(args[++i], args[++i], args[++i], args[++i], args[++i])
 						break
 					case _SYM('C'):
 						ctx.bezierCurveTo(
@@ -120,6 +113,10 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			const w = ctx.canvas.width
 			const h = ctx.canvas.height
 			ctx.clearRect(0, 0, w, h)
+
+			// Set the default line cap
+			ctx.lineCap = 'round'
+			ctx.lineJoin = 'round'
 
 			draw(ctx, out)
 		}

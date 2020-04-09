@@ -35,12 +35,17 @@
 	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
 ;; Math
-(def! PI2 (* PI 2))
+(def! TWO_PI (* PI 2))
+(def! HALF_PI (/ PI 2))
+
 (defn! lerp (a b t) (+ b (* (- a b) t)))
 (defn! degrees (radians) (/ (* radians 180) PI))
 (defn! radians (degrees) (/ (* degrees PI) 180))
 (defn! distance (x1 y1 x2 y2)
 	(sqrt (+ (pow (- x2 x1) 2) (pow (- y2 y1) 2))))
+
+(defn! odd? (x) (= (% x 2) 1))
+(defn! even? (x) (= (% x 2) 0))
 
 ;; Logical
 (defn! not (a) (if a false true))
@@ -48,6 +53,9 @@
 ;; Trivial
 (defn! inc (x) (+ x 1))
 (defn! dec (x) (- a 1))
+
+(defn! empty? (x) (= (count x) 0))
+
 
 (def! gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
 
@@ -101,29 +109,45 @@
 		L ~x ~(+ y h)
 		Z))
 
+(defn! arc (x y r start stop & xs)
+	(let
+		(
+			sx (+ x (* r (cos start)))
+			sy (+ y (* r (sin start)))
+		)
+		`(path
+			M ~sx ~sy
+			A ~x ~y ~r ~start ~stop
+			~@(if (first xs) '(Z) '())
+			)
+	)
+)
+
 (defn! circle (x y r)
-	`(path M ~(+ x r) ~y A ~x ~y ~r 0 ~PI2 false Z))
+	`(path M ~(+ x r) ~y A ~x ~y ~r 0 ~TWO_PI Z))
 	
 (defn! line (x1 y1 x2 y2)
 	`(path M ~x1 ~y1 L ~x2 ~y2))
 
-(defn! _polyline (& pts)
-	(if (< (count pts) 2)
-		()
-		`(
-			L ~(first pts) ~(nth pts 1)
-			~@(apply _polyline (rest (rest pts)))
-		)
-	)
-)
-
 (defn! polyline (& pts)
-	(if (>= (count pts) 2)
-		`(
-			path
-			~@(concat
-				M (first pts) (nth pts 1)
-				(apply _polyline (rest (rest pts))))
+	(let
+		(line-to (fn (& pts)
+			(if (< (count pts) 2)
+				()
+				`(
+					L ~(first pts) ~(nth pts 1)
+					~@(apply line-to (rest (rest pts)))
+				)
+			)
+		))
+
+		(if (>= (count pts) 2)
+			`(
+				path
+				M ~(first pts) ~(nth pts 1)
+				~@(apply line-to (rest (rest pts)))
+				~@(if (= (last pts) true) '(Z) '())
+			)
 		)
 	)
 )

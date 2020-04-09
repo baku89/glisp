@@ -28,6 +28,7 @@ export const coreNS = new Map<string, any>([
 	['nil?', (a: MalVal) => a === null],
 	['true?', (a: MalVal) => a === true],
 	['false?', (a: MalVal) => a === false],
+	['bool?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
 	['string?', (a: MalVal) => typeof a === 'string'],
 	['symbol', (a: string) => Symbol.for(a)],
@@ -62,6 +63,7 @@ export const coreNS = new Map<string, any>([
 		(i: number, ...a: number[]) =>
 			a.length ? a.reduce((x, y) => x / y, i) : 1 / i
 	],
+	['%', (a: number, b: number) => a % b],
 
 	['list', (...a: MalVal[]) => a],
 	['list?', Array.isArray],
@@ -79,7 +81,6 @@ export const coreNS = new Map<string, any>([
 	],
 	['non-last', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
 
-	['empty?', (l: MalVal[]) => l.length === 0],
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
 	[
 		'apply',
