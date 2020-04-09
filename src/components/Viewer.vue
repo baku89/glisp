@@ -7,9 +7,7 @@
 				v-for="(tool, i) in tools"
 				:key="i"
 				@click="toggleTool(tool)"
-			>
-				{{ tool }}
-			</button>
+			>{{ tool }}</button>
 		</div>
 		<canvas
 			class="Viewer__canvas"
@@ -44,22 +42,31 @@ export default class Viewer extends Vue {
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
+
 		if (ctx) {
-			const canvas = ctx.canvas
-			ctx.canvas.width = canvas.clientWidth
-			ctx.canvas.height = canvas.clientHeight
-			;(window as any)['ctx'] = ctx
+			const dpi = window.devicePixelRatio || 1
+
+			ctx.resetTransform = () => {
+				CanvasRenderingContext2D.prototype.resetTransform.call(ctx)
+				ctx.scale(dpi, dpi)
+			}
 
 			this.rep = createViewREP(ctx)
 
-			this.update()
-
-			window.addEventListener('resize', () => {
+			const updateCanvasRes = () => {
 				const canvas = ctx.canvas
-				ctx.canvas.width = canvas.clientWidth
-				ctx.canvas.height = canvas.clientHeight
+
+				ctx.canvas.width = canvas.clientWidth * dpi
+				ctx.canvas.height = canvas.clientHeight * dpi
+
+				ctx.scale(dpi, dpi)
+
 				this.update()
-			})
+			}
+
+			window.addEventListener('resize', updateCanvasRes)
+
+			updateCanvasRes()
 		}
 	}
 
@@ -129,19 +136,17 @@ export default class Viewer extends Vue {
 		right 0
 
 	&__tool
-		outliine none
-		background 0
+		margin 0 0.5rem
+		padding 0.5rem 1rem
 		border 1px solid var(--comment)
-		padding .5rem 1rem
-		margin 0 .5rem
 		border-radius 1.5rem
+		background 0
 		color var(--foreground)
-
 		transition all var(--tdur) ease
+		outliine none
 
 		&.active
 			box-shadow 0 0 0 3px var(--background), 0 0 0 4px var(--comment)
-
 
 	&__canvas
 		height 100%
