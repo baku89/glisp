@@ -1,3 +1,5 @@
+import {LispError} from './repl'
+
 class Reader {
 	public tokens: Array<string>
 	public position: number
@@ -45,7 +47,7 @@ function readAtom(reader: Reader) {
 			.slice(1, token.length - 1)
 			.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 	} else if (token[0] === '"') {
-		throw new Error("expected '\"', got EOF")
+		throw new LispError("[READ] expected '\"', got EOF")
 		// } else if (token[0] === ':') {
 		// 	return types._keyword(token.slice(1))
 	} else if (token === 'nil') {
@@ -67,12 +69,12 @@ function readList(reader: Reader, start = '(', end = ')') {
 	let token = reader.next()
 
 	if (token !== start) {
-		throw new Error(`expected '${start}'`)
+		throw new LispError(`[READ] expected '${start}'`)
 	}
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
-			throw new Error(`expected '${end}', got EOF`)
+			throw new LispError(`[READ] expected '${end}', got EOF`)
 		}
 
 		ast.push(readForm(reader)) // eslint-disable-line @typescript-eslint/no-use-before-define
@@ -131,11 +133,7 @@ function readForm(reader: Reader): any {
 	}
 }
 
-export class BlankException extends Error {
-	constructor() {
-		super('Blank Exception')
-	}
-}
+export class BlankException extends Error {}
 
 export default function readStr(str: string) {
 	const tokens = tokenize(str)

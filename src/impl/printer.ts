@@ -9,7 +9,8 @@ export const printer = {
 	},
 	error: (...args: any) => {
 		console.error(...args)
-	}
+	},
+	clear: console.clear
 }
 
 export default function printExp(obj: MalVal, printReadably = true): string {

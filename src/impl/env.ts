@@ -1,5 +1,5 @@
 import {MalVal} from './types'
-import {printer} from './printer'
+import {LispError} from './repl'
 
 function toKey(key: symbol | string): string {
 	return typeof key === 'symbol' ? key.description || '' : key
@@ -67,7 +67,7 @@ export default class Env {
 		const value = this.find(key)
 
 		if (value === undefined) {
-			throw new Error(`Symbol '${key}' not found`)
+			throw new LispError(`Symbol '${key}' not found`)
 		}
 
 		return value

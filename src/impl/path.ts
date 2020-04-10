@@ -1,4 +1,4 @@
-import { vec2 } from 'gl-matrix'
+import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 
 const _SYM = Symbol.for
@@ -9,7 +9,9 @@ const SYM_L = _SYM('L')
 const SYM_C = _SYM('C')
 const SYM_Z = _SYM('Z')
 
-function* splitCommands(path: (number | symbol)[]): Generator<[symbol, ...number[]]> {
+function* splitCommands(
+	path: (number | symbol)[]
+): Generator<[symbol, ...number[]]> {
 	let start = 0
 
 	for (let i = 1, l = path.length; i <= l; i++) {
@@ -28,15 +30,15 @@ function pathToBezier(path: (number | symbol)[]) {
 		const commands = path.slice(1)
 
 		for (const line of splitCommands(commands)) {
-
 			const [cmd, ...args] = line
 
-			let sx = 0, sy = 0
+			let sx = 0,
+				sy = 0
 
 			switch (cmd) {
 				case SYM_M:
 				case SYM_C:
-					[sx, sy] = args
+					;[sx, sy] = args
 					ret.push(...line)
 					break
 				case SYM_Z:
@@ -48,7 +50,7 @@ function pathToBezier(path: (number | symbol)[]) {
 				default:
 					throw new Error(
 						`Invalid d-path command2: ${
-						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+							typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 						}`
 					)
 			}
@@ -58,19 +60,18 @@ function pathToBezier(path: (number | symbol)[]) {
 }
 
 function offsetBezier(...args: number[]) {
-
 	const bezier = new Bezier([
-		{ x: args[0], y: args[1] },
-		{ x: args[2], y: args[3] },
-		{ x: args[4], y: args[5] },
-		{ x: args[6], y: args[7] }
+		{x: args[0], y: args[1]},
+		{x: args[2], y: args[3]},
+		{x: args[4], y: args[5]},
+		{x: args[6], y: args[7]}
 	])
 
 	const d = args[8]
 
 	const offset = bezier.offset(d)
 
-	const { x, y } = offset[0].points[0]
+	const {x, y} = offset[0].points[0]
 
 	const ret = [SYM_M, x, y]
 
@@ -108,21 +109,19 @@ function offsetLine(a: vec2, b: vec2, d: number) {
 
 function offsetPath(d: number, path: (number | symbol)[]) {
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
-		throw new Error('Invalid Path')
+		throw new Error('Invalid path')
 	} else {
-
 		const ret: (symbol | number)[] = [SYM_PATH]
 		const commands = path.slice(1)
 
 		const last = vec2.create() // original last
 		const first = vec2.create() // original first
-		const loff = vec2.create()  // last offset
+		const loff = vec2.create() // last offset
 
 		let continued = false
 
 		let cmd, args
 		for ([cmd, ...args] of splitCommands(commands)) {
-
 			if (cmd === SYM_M) {
 				vec2.copy(first, args as vec2)
 				vec2.copy(last, first)
@@ -131,7 +130,10 @@ function offsetPath(d: number, path: (number | symbol)[]) {
 					args = first as number[]
 				}
 
-				let off = cmd === SYM_C ? offsetBezier(...last, ...args, d) : offsetLine(last, args as vec2, d)
+				let off =
+					cmd === SYM_C
+						? offsetBezier(...last, ...(args as number[]), d)
+						: offsetLine(last, args as vec2, d)
 				if (off) {
 					if (continued) {
 						off[0] = SYM_L
@@ -156,6 +158,6 @@ function offsetPath(d: number, path: (number | symbol)[]) {
 }
 
 export const pathNS = new Map<string, any>([
-	['path-to-bezier', pathToBezier],
-	['path-offset', offsetPath]
+	['path/to-bezier', pathToBezier],
+	['path/offset', offsetPath]
 ])

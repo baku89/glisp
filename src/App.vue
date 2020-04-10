@@ -2,13 +2,7 @@
 	<div id="app" @mousewheel="onScroll" :style="colors">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor
-					:code="code"
-					:selection="selection"
-					:dark="dark"
-					@input="onEdit"
-					@select="onSelect"
-				/>
+				<Editor :code="code" :selection="selection" :dark="dark" @input="onEdit" @select="onSelect" />
 			</div>
 			<div class="app__console">
 				<Console />
@@ -60,11 +54,7 @@ export default class App extends Vue {
 
 		const value = this.code.replace(/"/g, '\\"')
 
-		try {
-			REP(`(set$ "${value}")`)
-		} catch (err) {
-			console.log('err')
-		}
+		REP(`(set$ "${value}")`)
 	}
 
 	private mounted() {
@@ -95,11 +85,7 @@ export default class App extends Vue {
 
 		this.code = value
 		value = value.replace(/"/g, '\\"')
-		try {
-			REP(`(set$ "${value}")`)
-		} catch (err) {
-			console.log('err')
-		}
+		REP(`(set$ "${value}")`)
 	}
 
 	private onSelect(selection: [number, number]) {
@@ -167,8 +153,6 @@ html
 	font-family 'Fira Code', monospace
 
 #app
-	--tdur 1s
-
 	display flex
 	overflow hidden
 	width 100%
@@ -177,6 +161,7 @@ html
 	color var(--foreground)
 	text-align center
 	transition background var(--tdur) ease
+	--tdur 1s
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
 
@@ -194,8 +179,8 @@ html
 			display block
 			width 1px
 			background var(--selection)
-			transition background var(--tdur) ease
 			content ''
+			transition background var(--tdur) ease
 
 	&__editor, &__console
 		height calc(50% - 1.5rem)
@@ -212,8 +197,8 @@ html
 			display block
 			height 1px
 			background var(--selection)
-			transition background var(--tdur) ease
 			content ''
+			transition background var(--tdur) ease
 
 	&__console
 		margin 0 0 1rem 1rem

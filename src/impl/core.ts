@@ -1,9 +1,10 @@
 import {MalVal, MalFunc, MalAtom, cloneAST} from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
+import {LispError} from './repl'
 
 function _error(e: string) {
-	throw new Error(e)
+	throw new LispError(e)
 }
 
 const _SYM = Symbol.for
@@ -20,12 +21,7 @@ function slurp(url: string) {
 }
 
 export const coreNS = new Map<string, any>([
-	[
-		'throw',
-		(a: any) => {
-			throw a
-		}
-	],
+	['throw', _error],
 
 	['nil?', (a: MalVal) => a === null],
 	['true?', (a: MalVal) => a === true],

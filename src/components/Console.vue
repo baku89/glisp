@@ -28,6 +28,10 @@ export default class Console extends Vue {
 			jqconsole.Write(str + '\n', 'jqconsole-error')
 		}
 
+		printer.clear = () => {
+			jqconsole.Clear()
+		}
+
 		// Handle a command.
 		const handler = function(line?: string) {
 			if (line) {

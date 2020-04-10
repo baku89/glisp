@@ -8,6 +8,8 @@ import Env from './env'
 import {coreNS} from './core'
 import {pathNS} from './path'
 
+export class LispError extends Error {}
+
 // read
 export const READ = (str: string) => readStr(str)
 
@@ -142,9 +144,9 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				} else if (typeof fn === 'function') {
 					return fn(...args)
 				} else if (Array.isArray(fn)) {
-					throw new Error('array.......')
+					throw new LispError(`[EVAL] List ${PRINT(fn)} is not a function`)
 				} else {
-					throw new Error(`${fn} is not a function.`)
+					throw new LispError(`[EVAL] ${fn} is not a function`)
 				}
 			}
 		}
