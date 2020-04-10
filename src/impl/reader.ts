@@ -105,7 +105,7 @@ function readForm(reader: Reader): any {
 			return [Symbol.for('splice-unquote'), readForm(reader)]
 		case '#':
 			reader.next()
-			return [Symbol.for('do'), readForm(reader)]
+			return [Symbol.for('do'), ...readForm(reader)]
 		case '^': {
 			reader.next()
 			const meta = readForm(reader)
@@ -120,12 +120,6 @@ function readForm(reader: Reader): any {
 			throw new Error("unexpected ')'")
 		case '(':
 			return readList(reader)
-
-		// hash-map
-		// case '}':
-		// 	throw new Error("unexpected '}'")
-		// case '{':
-		// 	return read_hash_map(reader)
 
 		// atom
 		default:
