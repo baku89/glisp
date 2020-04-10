@@ -51,7 +51,7 @@
 (deftool! draw-circle (state input) (do
 
 	(if (nil? (first state))
-			(def! state '((merge-path) 0 0 false)))
+			(def! state '((path/merge) 0 0 false)))
 
 	(let
 		(
@@ -97,7 +97,7 @@
 (deftool! draw-rect (state input) (do
 
 	(if (nil? (first state))
-			(def! state '((merge-path) 0 0 false)))
+			(def! state '((path/merge) 0 0 false)))
 
 	(let
 		(

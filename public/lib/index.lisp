@@ -98,7 +98,7 @@
 	)
 )
 
-(defn! merge-path (& xs)
+(defn! path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
 (defn! rect (x y w h)
@@ -164,6 +164,7 @@
 				~@(apply line-to (rest (rest pts)))
 				~@(if (= (last pts) true) '(Z) '())
 			)
+			`(path)
 		)
 	)
 )
