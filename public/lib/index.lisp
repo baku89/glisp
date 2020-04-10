@@ -51,6 +51,8 @@
 (defn! not (a) (if a false true))
 
 ;; Trivial
+(def! g list)
+
 (defn! inc (x) (+ x 1))
 (defn! dec (x) (- a 1))
 
@@ -175,6 +177,19 @@
 	)
 )
 
+(defmacro! repeat-item (fn (sym n body)
+	`(g
+		~@(map 
+			(fn (i) `(let (~sym ~i) ~body))
+			(cond
+				(number? n) (range n)
+				(list? n) (apply range n)
+				true (throw "ERROR")
+			)
+		)
+	)
+))
+
 (def! K (/ (* 4 (- (sqrt 2) 1)) 3))
 
 (defn! circle (x y r)
@@ -228,6 +243,15 @@
 			(map f (range start (+ end step) step)))
 	)
 )
+
+(defmacro! appearance (fn (styles body)
+	(foldr
+		(fn (style bd)
+			(concat style (list bd)))
+		body
+		styles
+	)
+))
 
 ;; Draw
 (defmacro! begin-draw! (fn (state)
