@@ -20,7 +20,7 @@ function slurp(url: string) {
 	return req.responseText
 }
 
-function chunkByCount(arr: MalVal[], n: number) {
+export function chunkByCount(arr: MalVal[], n: number) {
 	const ret = []
 
 	for (let i = 0; i < arr.length; i += n) {

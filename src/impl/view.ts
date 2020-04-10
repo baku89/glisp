@@ -6,6 +6,7 @@ import EventEmitter from 'eventemitter3'
 
 import {BlankException} from './reader'
 import {iteratePath} from './path'
+import {chunkByCount} from './core'
 
 export const viewHandler = new EventEmitter()
 
@@ -22,7 +23,19 @@ const SYM_L = _SYM('L')
 const SYM_C = _SYM('C')
 const SYM_Z = _SYM('Z')
 
-function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
+interface DrawStyleFill {
+	type: 'fill'
+	params: {style: string}
+}
+
+interface DrawStyleStroke {
+	type: 'stroke'
+	params: {style: string; width: number}
+}
+
+type DrawStyle = DrawStyleFill | DrawStyleStroke
+
+function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 	if (Array.isArray(ast)) {
 		const [cmd, ...args] = ast as any[]
 
@@ -34,14 +47,17 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 				viewHandler.emit('set-background', args[0] as string)
 			}
 		} else if (cmd === _SYM('fill')) {
-			draw(ctx, last)
-			ctx.fillStyle = args[0] as string
-			ctx.fill()
+			const style: DrawStyleFill = {
+				type: 'fill',
+				params: {style: args[0] as string}
+			}
+			draw(ctx, [...styles, style], last)
 		} else if (cmd === _SYM('stroke')) {
-			draw(ctx, last)
-			ctx.strokeStyle = args[0]
-			ctx.lineWidth = args[1]
-			ctx.stroke()
+			const style: DrawStyleStroke = {
+				type: 'stroke',
+				params: {style: args[0] as string, width: args[1]}
+			}
+			draw(ctx, [...styles, style], last)
 		} else if (cmd === _SYM('path')) {
 			ctx.beginPath()
 			for (const [c, ...a] of iteratePath(args)) {
@@ -61,33 +77,85 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 						ctx.closePath()
 						break
 					default: {
-						console.log('naja', c)
-						throw new Error(
-							`Invalid d-path command: ${
-								typeof c === 'symbol' ? Symbol.keyFor(c) : c
-							}`
-						)
+						const name = typeof c === 'symbol' ? Symbol.keyFor(c) : c
+						throw new Error(`Invalid d-path command: ${name}`)
 					}
+				}
+			}
+			// Apply Styles
+			for (const style of styles) {
+				if (style.type === 'fill') {
+					ctx.fillStyle = style.params.style
+					ctx.fill()
+				} else if (style.type === 'stroke') {
+					ctx.strokeStyle = style.params.style
+					ctx.lineWidth = style.params.width
+					ctx.stroke()
+				}
+			}
+		} else if (cmd === _SYM('text')) {
+			// Text representation:
+			// (text "Text" x y option1 value1 option2 value2 ....)
+			// e.g. (text "Hello" 100 100 :size 14 :align "center")
+
+			const [text, x, y] = args as [string, number, number]
+
+			const computedStyle = getComputedStyle(document.documentElement)
+
+			let size = parseFloat(computedStyle.fontSize)
+			let font = computedStyle.fontFamily
+			let align = 'center'
+			let baseline = 'middle'
+
+			for (const [option, val] of chunkByCount(args.slice(3), 2)) {
+				switch (option) {
+					case _SYM(':size'):
+						size = val as number
+						break
+					case _SYM(':font'):
+						font = val as string
+						break
+					case _SYM(':align'):
+						align = val as string
+						break
+					case _SYM(':baseline'):
+						baseline = val as string
+						break
+				}
+			}
+			ctx.font = `${size}px ${font}`
+			ctx.textAlign = align as CanvasTextAlign
+			ctx.textBaseline = baseline as CanvasTextBaseline
+
+			// Apply Styles
+			for (const style of styles) {
+				if (style.type === 'fill') {
+					ctx.fillStyle = style.params.style
+					ctx.fillText(text, x, y)
+				} else if (style.type === 'stroke') {
+					ctx.strokeStyle = style.params.style
+					ctx.lineWidth = style.params.width
+					ctx.strokeText(text, x, y)
 				}
 			}
 		} else if (cmd === _SYM('translate')) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
-			draw(ctx, last)
+			draw(ctx, styles, last)
 			ctx.restore()
 		} else if (cmd === _SYM('scale')) {
 			ctx.save()
 			ctx.scale(args[0] as number, args[1] as number)
-			draw(ctx, last)
+			draw(ctx, styles, last)
 			ctx.restore()
 		} else if (cmd === _SYM('rotate')) {
 			ctx.save()
 			ctx.rotate(args[0] as number)
-			draw(ctx, last)
+			draw(ctx, styles, last)
 			ctx.restore()
 		} else {
 			for (const a of ast) {
-				draw(ctx, a)
+				draw(ctx, styles, a)
 			}
 		}
 	}
@@ -131,8 +199,10 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			ctx.lineCap = 'round'
 			ctx.lineJoin = 'round'
 
+			const styles: DrawStyle[] = []
+
 			try {
-				draw(ctx, out)
+				draw(ctx, styles, out)
 			} catch (err) {
 				printer.error(err.stack)
 			}

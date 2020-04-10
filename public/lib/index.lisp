@@ -145,6 +145,14 @@
 (defn! path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
+(defn! path (& xs) xs)
+
+; symbol for text
+(def! :size nil)
+(def! :align nil)
+(def! :baseline nil)
+(defn! text (& xs) xs)
+
 (defn! rect (x y w h)
 	`(path
 		M ~x ~y
