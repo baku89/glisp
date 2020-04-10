@@ -121,6 +121,8 @@ function offsetLine(a: vec2, b: vec2, d: number) {
 }
 
 function offsetPath(d: number, path: PathType) {
+	d *= -1
+
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
 		throw new Error('Invalid path')
 	} else {
@@ -169,8 +171,6 @@ function offsetPath(d: number, path: PathType) {
 		return ret
 	}
 }
-
-window.iteratePath = iteratePath
 
 export const pathNS = new Map<string, any>([
 	['path/to-bezier', pathToBezier],
