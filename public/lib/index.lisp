@@ -123,8 +123,24 @@
 	)
 )
 
+(def! K (/ (* 4 (- (sqrt 2) 1)) 3))
+
 (defn! circle (x y r)
-	`(path M ~(+ x r) ~y A ~x ~y ~r 0 ~TWO_PI Z))
+	`(path
+		M ~(+ x r)  ~y			 ; right
+		C ~(+ x r)	~(+ y K)
+			~(+ x K)	~(+ y r)
+			~x				~(+ y r) ; bottom
+		C ~(- x K)	~(+ y r) 
+			~(- x r)	~(+ y K)
+			~(- x r)	~y			 ; left
+		C ~(- x r)	~(- y r) 
+			~(- x K)	~(- y r)
+			~x				~(- y r) ; top
+		C ~(+ x K)	~(- y r) 
+			~(+ x r)	~(- y r)
+			~(+ x r)	~y			 ; right
+		Z))
 	
 (defn! line (x1 y1 x2 y2)
 	`(path M ~x1 ~y1 L ~x2 ~y2))
