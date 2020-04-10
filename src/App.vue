@@ -52,9 +52,7 @@ export default class App extends Vue {
 	private created() {
 		this.code = localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
 
-		const value = this.code.replace(/"/g, '\\"')
-
-		REP(`(set$ "${value}")`)
+		replEnv.set('$canvas', this.code)
 	}
 
 	private mounted() {
@@ -84,8 +82,7 @@ export default class App extends Vue {
 		localStorage['savedText'] = value
 
 		this.code = value
-		value = value.replace(/"/g, '\\"')
-		REP(`(set$ "${value}")`)
+		replEnv.set('$canvas', value)
 	}
 
 	private onSelect(selection: [number, number]) {
@@ -132,8 +129,9 @@ export default class App extends Vue {
 		return {...colors, '--background': this.background}
 	}
 
-	@Watch('replEnv.$')
+	@Watch('replEnv.$canvas')
 	private onViewChanged(value: string) {
+		console.log('onViewChanged')
 		this.code = value
 		this.timestamp = Date.now()
 	}

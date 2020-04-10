@@ -45,15 +45,11 @@ export default class Viewer extends Vue {
 
 		if (ctx) {
 			const dpi = window.devicePixelRatio || 1
-			const rem = parseFloat(
-				getComputedStyle(document.documentElement).fontSize
-			)
-
-			ctx.resetTransform = () => {
-				CanvasRenderingContext2D.prototype.resetTransform.call(ctx)
-				ctx.scale(dpi, dpi)
-				ctx.translate(rem, rem)
-			}
+			// ctx.resetTransform = () => {
+			// 	CanvasRenderingContext2D.prototype.resetTransform.call(ctx)
+			// 	ctx.scale(dpi, dpi)
+			// 	ctx.translate(rem, rem)
+			// }
 
 			this.rep = (str: string) => viewREP(str, ctx)
 
@@ -62,9 +58,6 @@ export default class Viewer extends Vue {
 
 				ctx.canvas.width = canvas.clientWidth * dpi
 				ctx.canvas.height = canvas.clientHeight * dpi
-
-				ctx.translate(rem * 4, rem * 4)
-				ctx.scale(dpi, dpi)
 
 				this.update()
 			}
@@ -77,7 +70,7 @@ export default class Viewer extends Vue {
 
 	@Watch('timestamp')
 	private update() {
-		const str = replEnv.get('$') as string
+		const str = replEnv.get('$canvas') as string
 		const viewEnv = this.rep(`(do ${str})`)
 
 		this.tools = ((viewEnv.get('$tools') as symbol[]) || []).map(

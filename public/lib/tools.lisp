@@ -1,10 +1,3 @@
-(def! $tools ())
-
-(defmacro! deftool! (fn (name params body)
-	`(do
-		(def! ~name (fn ~params ~body))
-		(def! $tools (push $tools '~name)))))
-
 (deftool! pencil (state input) (do
 
 	; Initialize state

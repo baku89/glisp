@@ -66,9 +66,7 @@
 (def! $ui-border nil)
 
 ;; Graphical
-(def! $ "")
-
-(defmacro! set$ (fn (x) `(def! $ ~x)))
+(def! $canvas "")
 
 (defn! color (& e)
 	(let (l (count e))
@@ -290,3 +288,9 @@
 	)
 ))
 
+(def! $tools ())
+
+(defmacro! deftool! (fn (name params body)
+	`(do
+		(def! ~name (fn ~params ~body))
+		(def! $tools (push $tools '~name)))))

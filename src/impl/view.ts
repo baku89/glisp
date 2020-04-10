@@ -208,6 +208,7 @@ consoleEnv.set('export-artboard', () => {
 export function viewREP(str: string, ctx: CanvasRenderingContext2D) {
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
+	replEnv.set('$tools', [])
 
 	let out
 
@@ -226,9 +227,16 @@ export function viewREP(str: string, ctx: CanvasRenderingContext2D) {
 		// Draw
 		consoleEnv.outer = viewEnv
 
+		ctx.resetTransform()
+
 		const w = ctx.canvas.width
 		const h = ctx.canvas.height
 		ctx.clearRect(0, 0, w, h)
+
+		const dpi = window.devicePixelRatio || 1
+		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+		ctx.translate(rem * 4, rem * 4)
+		ctx.scale(dpi, dpi)
 
 		// Set the default line cap
 		ctx.lineCap = 'round'
