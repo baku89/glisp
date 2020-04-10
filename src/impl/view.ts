@@ -82,8 +82,8 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 					}
 				}
 			}
-			// Apply Styles
-			for (const style of styles) {
+			// Apply Styles (ignoring default style)
+			for (const style of styles.length > 1 ? styles.slice(1) : styles) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fill()
@@ -153,6 +153,29 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			ctx.rotate(args[0] as number)
 			draw(ctx, styles, last)
 			ctx.restore()
+		} else if (cmd === _SYM('$artboard')) {
+			const [id, region, body] = args
+			const [x, y, w, h] = region
+
+			// Draw Frame
+			ctx.save()
+			ctx.strokeStyle = styles[0].params.style
+			ctx.lineWidth = 1
+			ctx.rect(x, y, w, h)
+			ctx.stroke()
+			ctx.restore()
+
+			// Enable Clip
+			ctx.save()
+			const clipRegion = new Path2D()
+			clipRegion.rect(x, y, w, h)
+			ctx.clip(clipRegion)
+
+			// Draw inner items
+			draw(ctx, styles, body)
+
+			// Restore
+			ctx.restore()
 		} else {
 			for (const a of ast) {
 				draw(ctx, styles, a)
@@ -169,49 +192,63 @@ consoleEnv.set('console/clear', () => {
 	return null
 })
 
-export function createViewREP(ctx: CanvasRenderingContext2D) {
-	const repCanvas = (str: string) => {
-		const viewEnv = new Env(replEnv)
-		viewEnv.name = 'view'
+consoleEnv.set('export-artboard', () => {
+	const canvas = document.createElement('canvas')
+	const ctx = canvas.getContext('2d')
 
-		let out
+	if (ctx) {
+		const canvas = ctx.canvas
+		const d = canvas.toDataURL('image/png')
+		const w = window.open('about:blank', 'Image for canvas')
+		w?.document.write(`<img src=${d} />`)
+	}
+	return null
+})
 
-		try {
-			const src = READ(str)
-			out = EVAL(src, viewEnv)
-		} catch (err) {
-			if (err instanceof LispError) {
-				printer.error(err)
-			} else {
-				printer.error(err.stack)
-			}
+export function viewREP(str: string, ctx: CanvasRenderingContext2D) {
+	const viewEnv = new Env(replEnv)
+	viewEnv.name = 'view'
+
+	let out
+
+	try {
+		const src = READ(str)
+		out = EVAL(src, viewEnv)
+	} catch (err) {
+		if (err instanceof LispError) {
+			printer.error(err)
+		} else {
+			printer.error(err.stack)
 		}
-
-		if (out !== undefined) {
-			// Draw
-			consoleEnv.outer = viewEnv
-
-			const w = ctx.canvas.width
-			const h = ctx.canvas.height
-			ctx.clearRect(0, 0, w, h)
-
-			// Set the default line cap
-			ctx.lineCap = 'round'
-			ctx.lineJoin = 'round'
-
-			const styles: DrawStyle[] = []
-
-			try {
-				draw(ctx, styles, out)
-			} catch (err) {
-				printer.error(err.stack)
-			}
-		}
-
-		return viewEnv
 	}
 
-	return repCanvas
+	if (out !== undefined) {
+		// Draw
+		consoleEnv.outer = viewEnv
+
+		const w = ctx.canvas.width
+		const h = ctx.canvas.height
+		ctx.clearRect(0, 0, w, h)
+
+		// Set the default line cap
+		ctx.lineCap = 'round'
+		ctx.lineJoin = 'round'
+
+		// default style
+		const uiBorder = viewEnv.get('$ui-border') as string
+
+		const styles: DrawStyle[] = [
+			{type: 'stroke', params: {style: uiBorder, width: 1}}
+		]
+
+		try {
+			draw(ctx, styles, out)
+		} catch (err) {
+			printer.error(err.stack)
+		}
+	}
+
+	return viewEnv
 }
 
 export const consoleREP = (str: string, output = true) => {

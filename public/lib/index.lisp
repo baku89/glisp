@@ -61,8 +61,13 @@
 
 (def! gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
 
+;; UI
+(def! $ui-background nil)
+(def! $ui-border nil)
+
 ;; Graphical
 (def! $ "")
+
 (defmacro! set$ (fn (x) `(def! $ ~x)))
 
 (defn! color (& e)
@@ -252,6 +257,25 @@
 		styles
 	)
 ))
+
+(defmacro! artboard (fn (id region & body)
+	`(list
+		'$artboard ~id (list ~@region)
+		(let
+			(
+				$width ~(nth region 2)
+				$height ~(nth region 3)
+				background (fn (c) (fill c (rect 0 0 $width $height)))
+			)
+			(translate ~(first region) ~(nth region 1)
+				(list 'g ~@body)
+			)
+		)
+	)
+))
+
+
+(defn! guide (body) (stroke $ui-border body))
 
 ;; Draw
 (defmacro! begin-draw! (fn (state)

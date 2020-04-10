@@ -24,7 +24,7 @@ import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 
 import {replEnv, PRINT} from '@/impl/repl'
-import {createViewREP, consoleREP} from '@/impl/view'
+import {viewREP, consoleREP} from '@/impl/view'
 import Env from '@/impl/env'
 
 @Component({
@@ -45,13 +45,17 @@ export default class Viewer extends Vue {
 
 		if (ctx) {
 			const dpi = window.devicePixelRatio || 1
+			const rem = parseFloat(
+				getComputedStyle(document.documentElement).fontSize
+			)
 
 			ctx.resetTransform = () => {
 				CanvasRenderingContext2D.prototype.resetTransform.call(ctx)
 				ctx.scale(dpi, dpi)
+				ctx.translate(rem, rem)
 			}
 
-			this.rep = createViewREP(ctx)
+			this.rep = (str: string) => viewREP(str, ctx)
 
 			const updateCanvasRes = () => {
 				const canvas = ctx.canvas
@@ -59,6 +63,7 @@ export default class Viewer extends Vue {
 				ctx.canvas.width = canvas.clientWidth * dpi
 				ctx.canvas.height = canvas.clientHeight * dpi
 
+				ctx.translate(rem * 4, rem * 4)
 				ctx.scale(dpi, dpi)
 
 				this.update()
@@ -108,8 +113,13 @@ export default class Viewer extends Vue {
 				this.mousePressed = false
 			}
 
-			const x = offsetX,
-				y = offsetY,
+			const rem = parseFloat(
+				getComputedStyle(document.documentElement).fontSize
+			)
+			const margin = rem * 4
+
+			const x = offsetX - margin,
+				y = offsetY - margin,
 				p = this.mousePressed
 
 			consoleREP(
@@ -132,8 +142,8 @@ export default class Viewer extends Vue {
 
 	&__tools
 		position absolute
-		top 0
-		right 0
+		top 1rem
+		right 1rem
 
 	&__tool
 		margin 0 0.5rem

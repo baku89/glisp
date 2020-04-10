@@ -127,6 +127,8 @@ export default class App extends Vue {
 
 		const colors = this.dark ? darkColors : brightColors
 
+		replEnv.set('$ui-border', colors['--selection'])
+
 		return {...colors, '--background': this.background}
 	}
 
@@ -134,6 +136,11 @@ export default class App extends Vue {
 	private onViewChanged(value: string) {
 		this.code = value
 		this.timestamp = Date.now()
+	}
+
+	@Watch('background')
+	private onBackgroundChanged() {
+		replEnv.set('$ui-background', this.background)
 	}
 }
 </script>
@@ -204,6 +211,5 @@ html
 		margin 0 0 1rem 1rem
 
 	&__viewer
-		margin 1rem 1rem 1rem 0
 		width 60%
 </style>
