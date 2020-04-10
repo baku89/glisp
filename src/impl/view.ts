@@ -1,10 +1,11 @@
-import {replEnv, READ, EVAL, PRINT} from './repl'
+import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
 import {MalVal} from './types'
 import {printer} from './printer'
 import EventEmitter from 'eventemitter3'
 
 import {BlankException} from './reader'
+import {iteratePath} from './path'
 
 export const viewHandler = new EventEmitter()
 
@@ -14,6 +15,12 @@ replEnv.set('$insert', (item: MalVal) => {
 })
 
 const _SYM = Symbol.for
+
+const SYM_PATH = _SYM('path')
+const SYM_M = _SYM('M')
+const SYM_L = _SYM('L')
+const SYM_C = _SYM('C')
+const SYM_Z = _SYM('Z')
 
 function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 	if (Array.isArray(ast)) {
@@ -37,29 +44,24 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 			ctx.stroke()
 		} else if (cmd === _SYM('path')) {
 			ctx.beginPath()
-			for (let i = 0; i < args.length; i++) {
-				switch (args[i]) {
-					case _SYM('M'):
-						ctx.moveTo(args[++i], args[++i])
+			for (const [c, ...a] of iteratePath(args)) {
+				switch (c) {
+					case SYM_M:
+						ctx.moveTo(...(a as [number, number]))
 						break
-					case _SYM('L'):
-						ctx.lineTo(args[++i], args[++i])
+					case SYM_L:
+						ctx.lineTo(...(a as [number, number]))
 						break
-					case _SYM('C'):
+					case SYM_C:
 						ctx.bezierCurveTo(
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i],
-							args[++i]
+							...(a as [number, number, number, number, number, number])
 						)
 						break
-					case _SYM('Z'):
+					case SYM_Z:
 						ctx.closePath()
 						break
 					default: {
-						const c = args[i]
+						console.log('naja', c)
 						throw new Error(
 							`Invalid d-path command: ${
 								typeof c === 'symbol' ? Symbol.keyFor(c) : c
@@ -94,6 +96,11 @@ function draw(ctx: CanvasRenderingContext2D, ast: MalVal) {
 const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
 
+consoleEnv.set('console/clear', () => {
+	printer.clear()
+	return null
+})
+
 export function createViewREP(ctx: CanvasRenderingContext2D) {
 	const repCanvas = (str: string) => {
 		const viewEnv = new Env(replEnv)
@@ -105,7 +112,11 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			const src = READ(str)
 			out = EVAL(src, viewEnv)
 		} catch (err) {
-			printer.error(err)
+			if (err instanceof LispError) {
+				printer.error(err)
+			} else {
+				printer.error(err.stack)
+			}
 		}
 
 		if (out !== undefined) {
@@ -123,7 +134,7 @@ export function createViewREP(ctx: CanvasRenderingContext2D) {
 			try {
 				draw(ctx, out)
 			} catch (err) {
-				printer.error(err)
+				printer.error(err.stack)
 			}
 		}
 
@@ -142,7 +153,10 @@ export const consoleREP = (str: string, output = true) => {
 	} catch (err) {
 		if (err instanceof BlankException) {
 			return
+		} else if (err instanceof LispError) {
+			printer.error(err)
+		} else {
+			printer.error(err.stack)
 		}
-		printer.error(err)
 	}
 }

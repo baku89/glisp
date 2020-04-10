@@ -9,9 +9,9 @@ const SYM_L = _SYM('L')
 const SYM_C = _SYM('C')
 const SYM_Z = _SYM('Z')
 
-function* splitCommands(
-	path: (number | symbol)[]
-): Generator<[symbol, ...number[]]> {
+type PathType = (symbol | number)[]
+
+export function* iteratePath(path: PathType): Generator<[symbol, ...number[]]> {
 	let start = 0
 
 	for (let i = 1, l = path.length; i <= l; i++) {
@@ -22,14 +22,14 @@ function* splitCommands(
 	}
 }
 
-function pathToBezier(path: (number | symbol)[]) {
+function pathToBezier(path: PathType) {
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
 		throw new Error('path-to-bezier: invalid path')
 	} else {
-		const ret: (number | symbol)[] = [SYM_PATH]
+		const ret: PathType = [SYM_PATH]
 		const commands = path.slice(1)
 
-		for (const line of splitCommands(commands)) {
+		for (const line of iteratePath(commands)) {
 			const [cmd, ...args] = line
 
 			let sx = 0,
@@ -59,7 +59,20 @@ function pathToBezier(path: (number | symbol)[]) {
 	}
 }
 
+const EPSILON = 1e-5
+
 function offsetBezier(...args: number[]) {
+	if (
+		Math.abs(args[2] - args[0]) < EPSILON &&
+		Math.abs(args[4] - args[0]) < EPSILON &&
+		Math.abs(args[6] - args[0]) < EPSILON &&
+		Math.abs(args[3] - args[1]) < EPSILON &&
+		Math.abs(args[5] - args[1]) < EPSILON &&
+		Math.abs(args[7] - args[1]) < EPSILON
+	) {
+		return false
+	}
+
 	const bezier = new Bezier([
 		{x: args[0], y: args[1]},
 		{x: args[2], y: args[3]},
@@ -107,7 +120,7 @@ function offsetLine(a: vec2, b: vec2, d: number) {
 	return [SYM_M, ...oa, SYM_L, ...ob] as (symbol | number)[]
 }
 
-function offsetPath(d: number, path: (number | symbol)[]) {
+function offsetPath(d: number, path: PathType) {
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
 		throw new Error('Invalid path')
 	} else {
@@ -121,7 +134,7 @@ function offsetPath(d: number, path: (number | symbol)[]) {
 		let continued = false
 
 		let cmd, args
-		for ([cmd, ...args] of splitCommands(commands)) {
+		for ([cmd, ...args] of iteratePath(commands)) {
 			if (cmd === SYM_M) {
 				vec2.copy(first, args as vec2)
 				vec2.copy(last, first)
@@ -157,7 +170,13 @@ function offsetPath(d: number, path: (number | symbol)[]) {
 	}
 }
 
+window.iteratePath = iteratePath
+
 export const pathNS = new Map<string, any>([
 	['path/to-bezier', pathToBezier],
-	['path/offset', offsetPath]
+	['path/offset', offsetPath],
+	[
+		'path/split-commands',
+		([_, ...path]: PathType) => Array.from(iteratePath(path))
+	]
 ])

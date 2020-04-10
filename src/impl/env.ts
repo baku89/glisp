@@ -32,7 +32,7 @@ export default class Env {
 					break
 				}
 				if (exprs[i] === undefined) {
-					throw new Error(
+					throw new LispError(
 						`Error: parameter '${toKey(binds[i])}' is not specified`
 					)
 				}

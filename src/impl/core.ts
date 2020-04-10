@@ -20,6 +20,15 @@ function slurp(url: string) {
 	return req.responseText
 }
 
+function chunkByCount(arr: MalVal[], n: number) {
+	const ret = []
+
+	for (let i = 0; i < arr.length; i += n) {
+		ret.push(arr.slice(i, i + n))
+	}
+	return ret
+}
+
 export const coreNS = new Map<string, any>([
 	['throw', _error],
 
@@ -63,13 +72,21 @@ export const coreNS = new Map<string, any>([
 	],
 	['%', (a: number, b: number) => a % b],
 
+	// Array
 	['list', (...a: MalVal[]) => a],
 	['list?', Array.isArray],
 
 	[
 		'nth',
-		(a: MalVal[], b: number) =>
-			b < a.length ? a[b] : _error('nth: index out of range')
+		(a: MalVal[], i: number) => {
+			if (i < 0) {
+				return -i <= a.length
+					? a[a.length - i]
+					: _error('[nth] index out of range')
+			} else {
+				return i < a.length ? a[i] : _error('[nth] index out of range')
+			}
+		}
 	],
 	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
 	['rest', (a: MalVal[]) => (a === null ? [] : a.slice(1))],
@@ -78,13 +95,15 @@ export const coreNS = new Map<string, any>([
 		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
 	],
 	['non-last', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
-
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
+	['slice', (a: MalVal[], start: number, end: number) => a.slice(start, end)],
 	[
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
+	['chunk-by-count', chunkByCount],
 
+	// String
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
 	[
 		'prn',
@@ -105,7 +124,7 @@ export const coreNS = new Map<string, any>([
 	['slurp', slurp],
 
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
-	['push', (a: MalVal[], b: MalVal) => [...a, b]],
+	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
 	[
 		'concat',
 		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])

@@ -98,6 +98,50 @@
 	)
 )
 
+
+(defn! path/map-commands (f path)
+	(cons
+		'path
+		(apply concat 
+			(map
+				(fn (xs)
+					(let (cmd (first xs) args (rest xs))
+						`(~cmd ~@(apply concat
+							(map f (chunk-by-count args 2))))
+					)
+				)
+				(path/split-commands path)
+			)
+		)
+	)
+)
+
+(defn! path/translate (x y path)
+	(let
+		(f (fn (pos)
+			`(~(+ (first pos) x) ~(+ (last pos) y))))
+		(path/map-commands f path)
+	)
+)
+
+(defn! path/scale (x y path)
+	(let
+		(f (fn (pos)
+			`(~(* (first pos) x) ~(* (last pos) y))))
+		(path/map-commands f path)
+	)
+)
+
+(defn! path/rotate (a path)
+	(let
+		(f (fn (pos)
+			`(
+				~(* (first pos) x)
+				~(* (last  pos) y))))
+		(path/map-commands f path)
+	)
+)
+
 (defn! path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
@@ -135,7 +179,7 @@
 			C ~(- x k)	~(+ y r) 
 				~(- x r)	~(+ y k)
 				~(- x r)	~y			 ; left
-			C ~(- x r)	~(- y r) 
+			C ~(- x r)	~(- y k) 
 				~(- x k)	~(- y r)
 				~x				~(- y r) ; top
 			C ~(+ x K)	~(- y r) 
@@ -146,7 +190,7 @@
 (defn! line (x1 y1 x2 y2)
 	`(path M ~x1 ~y1 L ~x2 ~y2))
 
-(defn! polyline (& pts)
+(defn! poly (& pts)
 	(let
 		(line-to (fn (& pts)
 			(if (< (count pts) 2)
@@ -171,7 +215,7 @@
 )
 
 (defn! graph (start end step f)
-	(apply polyline
+	(apply poly
 		(apply concat
 			(map f (range start (+ end step) step)))
 	)
@@ -184,9 +228,9 @@
 
 (defmacro! draw! (fn (f state input)
 	`(do
-		(def! __res__ (~f ~state ~input))
-		(def! ~state (rest __res__))
-		(first __res__)
+		(def! __ret__ (~f ~state ~input))
+		(def! ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
+		(first __ret__)
 	)
 ))
 
