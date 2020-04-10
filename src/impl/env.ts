@@ -61,6 +61,12 @@ export default class Env {
 		}
 	}
 
+	public hasOwn(key: symbol | string) {
+		key = toKey(key)
+		// eslint-disable-next-line no-prototype-builtins
+		return this.data.hasOwnProperty(key)
+	}
+
 	public get(key: symbol | string): MalVal | void {
 		key = toKey(key)
 

@@ -131,6 +131,24 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				ast = [Symbol.for('println'), envs.map(e => e.name).join(' <- ')]
 				break // continue TCO loop
 			}
+			case 'which-env': {
+				let _env: Env | null = env
+				const envs = []
+
+				do {
+					envs.push(_env)
+					_env = _env.outer
+				} while (_env)
+
+				ast = [
+					Symbol.for('println'),
+					envs
+						.filter(e => e.hasOwn(a1 as string))
+						.map(e => e.name)
+						.join(' <- ') || 'not defined'
+				]
+				break
+			}
 			default: {
 				// Apply Function
 				const [_fn, ...args] = evalAst(ast, env) as MalVal[]
