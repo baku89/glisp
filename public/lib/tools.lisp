@@ -49,7 +49,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def! state '((path/merge) 0 0 false)))
+			(def! state '((g) 0 0 false)))
 
 	(let
 		(
@@ -67,16 +67,16 @@
 			
 			cx		(if just-down x (nth state 1))
 			cy		(if just-down y (nth state 2))
-			
-			c `(circle ~cx ~cy ~(round (distance cx cy x y)))
 		)
 		
-		(
+		(list
 			; Updated Item or nil if no needs to update
 			(if p
-				(if just-down
-					(concat item (list c))
-					(concat (non-last item) (list c))
+				(let (C `(circle ~cx ~cy ~(round (distance cx cy x y))))
+					(if just-down
+						(concat item (list C))
+						(concat (non-last item) (list C))
+					)
 				)
 			)
 			
@@ -91,7 +91,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def! state '((path/merge) 0 0 false)))
+			(def! state '((g) 0 0 false)))
 
 	(let
 		(
@@ -109,16 +109,16 @@
 			
 			ox		(if just-down x (nth state 1))
 			oy		(if just-down y (nth state 2))
-			
-			c `(rect ~ox ~oy ~(- x ox) ~(- y oy))
 		)
 		
 		(list
 			; Updated Item or nil if no needs to update
 			(if p
-				(if just-down
-					(concat item (list c))
-					(concat (non-last item) (list c))
+				(let (R `(rect ~ox ~oy ~(- x ox) ~(- y oy)))
+					(if just-down
+						(concat item (list R))
+						(concat (non-last item) (list R))
+					)
 				)
 			)
 			
