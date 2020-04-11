@@ -228,7 +228,8 @@ export default class InputCodeEditor extends Vue {
 
 	.active-range
 		position absolute
-		background var(--currentline)
+		background var(--yellow)
+		opacity .2
 
 	&__editor
 		position relative
