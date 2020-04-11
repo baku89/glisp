@@ -4,6 +4,7 @@
 			class="Editor__input"
 			:value="code"
 			:selection="selection"
+			:activeRange="activeRange"
 			:theme="dark ? 'tomorrow_night' : 'tomorrow'"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
@@ -25,6 +26,7 @@ import InputCodeEditor from './InputCodeEditor.vue'
 export default class Editor extends Vue {
 	@Prop({type: String, required: true}) private code!: string
 	@Prop({type: Array, required: true}) private selection!: [number, number]
+	@Prop({required: true}) private activeRange!: [number, number] | null
 	@Prop({type: Boolean, default: false}) private dark!: boolean
 }
 </script>

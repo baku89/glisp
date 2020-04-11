@@ -2,14 +2,21 @@
 	<div id="app" @mousewheel="onScroll" :style="colors">
 		<div class="app__control">
 			<div class="app__editor">
-				<Editor :code="code" :selection="selection" :dark="dark" @input="onEdit" @select="onSelect" />
+				<Editor
+					:code="code"
+					:selection="selection"
+					:activeRange="activeRange"
+					:dark="dark"
+					@input="onEdit"
+					@select="onSelect"
+				/>
 			</div>
 			<div class="app__console">
 				<Console />
 			</div>
 		</div>
 		<div class="app__viewer">
-			<Viewer :timestamp="timestamp" />
+			<Viewer :code="code" :selection="selection" />
 		</div>
 	</div>
 </template>
@@ -29,6 +36,7 @@ import {viewHandler} from '@/impl/view'
 import {MalVal} from '@/impl/types'
 
 import {replaceRange} from '@/utils'
+import {printer} from './impl/printer'
 
 @Component({
 	components: {
@@ -38,11 +46,9 @@ import {replaceRange} from '@/utils'
 	}
 })
 export default class App extends Vue {
-	private replEnv = replEnv.data
-
 	private selection = [0, 0]
+	private activeRange: [number, number] | null = null
 	private code = ''
-	private timestamp: number = Date.now()
 	private background = 'snow'
 
 	onScroll(e: MouseWheelEvent) {
@@ -51,7 +57,6 @@ export default class App extends Vue {
 
 	private created() {
 		this.code = localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
-
 		replEnv.set('$canvas', this.code)
 	}
 
@@ -87,6 +92,68 @@ export default class App extends Vue {
 
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
+
+		// Find nearest parenthess
+		let [start, end] = selection
+
+		const code = this.code
+
+		const selectedCode = this.code.slice(start, end)
+		const depthDiff =
+			(selectedCode.match(/\(/g) || []).length -
+			(selectedCode.match(/\)/g) || []).length
+
+		function searchParenthesis(code: string, pos: number, reverse: boolean) {
+			const open = reverse ? code.lastIndexOf('(', pos) : code.indexOf('(', pos)
+			const close = reverse
+				? code.lastIndexOf(')', pos)
+				: code.indexOf(')', pos)
+
+			if (open === -1 && close === -1) {
+				return [-1, 0]
+			} else if (open === -1) {
+				return [close, -1]
+			} else if (close === -1) {
+				return [open, +1]
+			} else {
+				return reverse
+					? [Math.max(open, close), close < open ? +1 : -1]
+					: [Math.min(open, close), open < close ? +1 : -1]
+			}
+		}
+
+		// Find nearest parenthesis
+		for (
+			let i = 1000, depth = Math.min(-1, depthDiff - 1);
+			depth !== 0 && 0 < i;
+			i--
+		) {
+			const [pos, inc] = searchParenthesis(code, --start, true)
+			if (pos === -1) {
+				start = -1
+				break
+			} else {
+				start = pos
+				depth += inc
+			}
+		}
+
+		for (
+			let i = 1000, depth = Math.max(1, depthDiff - 1);
+			depth !== 0 && 0 < i;
+			i--
+		) {
+			const [pos, inc] = searchParenthesis(code, ++end, false)
+			if (pos === -1) {
+				end = -1
+				break
+			} else {
+				end = pos
+				depth += inc
+			}
+		}
+
+		this.activeRange = start !== -1 && end !== -1 ? [start, end] : null
 	}
 
 	private get dark() {
@@ -127,13 +194,6 @@ export default class App extends Vue {
 		replEnv.set('$ui-border', colors['--selection'])
 
 		return {...colors, '--background': this.background}
-	}
-
-	@Watch('replEnv.$canvas')
-	private onViewChanged(value: string) {
-		console.log('onViewChanged')
-		this.code = value
-		this.timestamp = Date.now()
 	}
 
 	@Watch('background')

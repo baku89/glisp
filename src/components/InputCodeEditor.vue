@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
-import ace from 'brace'
+import ace, {Range} from 'brace'
 
 function replaceRange(
 	s: string,
@@ -23,8 +23,10 @@ export default class InputCodeEditor extends Vue {
 	@Prop({type: String, default: 'text'}) private lang!: string
 	@Prop({type: String, default: 'tomorrow'}) private theme!: string
 	@Prop({type: Array}) private selection!: [number, number]
+	@Prop() private activeRange!: [number, number] | null
 
 	private editor!: ace.Editor
+	private activeRangeMarker!: number
 
 	private editedByProp = false
 
@@ -151,6 +153,20 @@ export default class InputCodeEditor extends Vue {
 		return [start, end]
 	}
 
+	private convertToAceRange(start: number, end: number) {
+		const sel = this.editor.getSelection()
+		const doc = this.editor.getSession().doc
+
+		const s = doc.indexToPosition(start, 0)
+		const e = doc.indexToPosition(end, 0)
+
+		const range = this.editor.getSelectionRange()
+		range.setStart(s.row, s.column)
+		range.setEnd(e.row, e.column)
+
+		return range
+	}
+
 	@Watch('value')
 	private onValueChanged(newValue: string) {
 		if (this.editor.getValue() !== newValue) {
@@ -174,34 +190,45 @@ export default class InputCodeEditor extends Vue {
 		this.editor.setTheme(`ace/theme/${theme}`)
 	}
 
+	@Watch('activeRange')
+	private onChangeActiveRange(value: [number, number] | null) {
+		this.editor.session.removeMarker(this.activeRangeMarker)
+
+		if (value !== null) {
+			const [start, end] = value
+			const range = this.convertToAceRange(start, end + 1)
+			this.activeRangeMarker = this.editor.session.addMarker(
+				range,
+				'active-range',
+				'text',
+				false
+			)
+		}
+	}
+
 	@Watch('selection')
 	private onChangeSelection([start, end]: [number, number]) {
-		const sel = this.editor.getSelection()
-		const doc = this.editor.getSession().doc
-
-		const range = sel.getRange()
-
 		const [oldStart, oldEnd] = this.getSelection()
 
 		if (start !== oldStart || end !== oldEnd) {
-			const s = doc.indexToPosition(start, 0)
-			const e = doc.indexToPosition(end, 0)
-
-			range.setStart(s.row, s.column)
-			range.setEnd(e.row, e.column)
-
-			sel.setRange(range, false)
+			const range = this.convertToAceRange(start, end)
+			this.editor.selection.setRange(range, false)
 		}
 	}
 }
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
+
 .InputCodeEditor
 	position relative
 	overflow-y scroll
 	width 100%
 	height 100%
+
+	.active-range
+		position absolute
+		background var(--currentline)
 
 	&__editor
 		position relative
