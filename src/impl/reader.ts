@@ -122,7 +122,7 @@ function readForm(reader: Reader): any {
 			return [Symbol.for('splice-unquote'), readForm(reader)]
 		case '#':
 			reader.next()
-			return [Symbol.for('do'), ...readForm(reader)]
+			return [Symbol.for('fn'), [], readForm(reader)]
 		case '^': {
 			reader.next()
 			const meta = readForm(reader)

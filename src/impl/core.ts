@@ -70,7 +70,7 @@ export const coreNS = new Map<string, any>([
 		(i: number, ...a: number[]) =>
 			a.length ? a.reduce((x, y) => x / y, i) : 1 / i
 	],
-	['%', (a: number, b: number) => a % b],
+	['mod', (a: number, b: number) => a % b],
 
 	// Array
 	['list', (...a: MalVal[]) => a],
@@ -135,7 +135,7 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			const c = cloneAST(a)
-			;(c as any).meta = m
+				; (c as any).meta = m
 			return c
 		}
 	],

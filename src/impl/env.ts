@@ -11,6 +11,7 @@ export default class Env {
 	} = {}
 
 	public outer: Env | null
+	private exprs?: MalVal[]
 
 	public name = 'let'
 
@@ -21,6 +22,10 @@ export default class Env {
 	) {
 		this.data = {}
 		this.outer = outer
+
+		if (exprs) {
+			this.exprs = exprs
+		}
 
 		if (binds && exprs) {
 			// Returns a new Env with symbols in binds bound to
@@ -54,6 +59,9 @@ export default class Env {
 		// eslint-disable-next-line no-prototype-builtins
 		if (this.data.hasOwnProperty(key)) {
 			return this.data[key]
+		} else if (key.startsWith('%') && this.exprs && this.exprs.length >= (parseInt(key.slice(1)) || 0)) {
+			const index = (parseInt(key.slice(1)) || 0)
+			return this.exprs[index]
 		} else if (this.outer !== null) {
 			return this.outer.find(key)
 		} else {
