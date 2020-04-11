@@ -233,7 +233,7 @@ export default class InputCodeEditor extends Vue {
 	&__editor
 		position relative
 		width 100%
-		background transparent
+		background transparent !important
 		font-size 1rem
 		font-family 'Fira Code', monospace, sans-serif
 </style>
