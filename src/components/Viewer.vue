@@ -1,13 +1,33 @@
 <template>
 	<div class="Viewer" v-click-outside="onClickOutside">
-		<div class="Viewer__tools">
+		<div class="Viewer__buttons Viewer__tools">
 			<button
-				class="Viewer__tool"
+				class="Viewer__button"
 				:class="{active: tool === activeTool}"
 				v-for="(tool, i) in tools"
 				:key="i"
 				@click="toggleTool(tool)"
-			>{{ tool }}</button>
+			>
+				{{ tool }}
+			</button>
+		</div>
+		<div class="Viewer__buttons Viewer__hands">
+			<button
+				class="Viewer__button"
+				:class="{active: hand === activeHand}"
+				v-for="(hand, i) in hands"
+				:key="i"
+				@click="activeHand = hand"
+			>
+				{{ hand }}
+			</button>
+			<button
+				class="Viewer__button"
+				:class="{active: activeHand === null}"
+				@click="activeHand = null"
+			>
+				Normal
+			</button>
 		</div>
 		<canvas
 			class="Viewer__canvas"
@@ -16,6 +36,9 @@
 			@mouseup="onMouse"
 			@mousemove="onMouse"
 		/>
+		<div class="Viewer__cursor-wrapper">
+			<div class="Viewer__cursor" :style="cursorStyle" />
+		</div>
 	</div>
 </template>
 
@@ -23,33 +46,35 @@
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 
-import {replEnv, PRINT} from '@/impl/repl'
-import {viewREP, consoleREP} from '@/impl/view'
+import {replEnv, PRINT, EVAL} from '@/impl/repl'
+import {viewREP, consoleREP, consoleEnv} from '@/impl/view'
 import Env from '@/impl/env'
+
+const S = Symbol.for
 
 @Component({
 	directives: {ClickOutside}
 })
 export default class Viewer extends Vue {
-	@Prop({type: Number, required: true}) private timestamp!: string
+	@Prop({type: String, required: true}) private code!: string
 
 	private activeTool: string | null = null
 	private tools: string[] = []
 
+	private activeHand: string | null = null
+	private hands: string[] = []
+	private cursorStyle = {left: '0px', top: '0px'}
+
 	private mousePressed = false
 
 	private rep!: (s: string) => Env
+	private viewEnv!: Env
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
 
 		if (ctx) {
 			const dpi = window.devicePixelRatio || 1
-			// ctx.resetTransform = () => {
-			// 	CanvasRenderingContext2D.prototype.resetTransform.call(ctx)
-			// 	ctx.scale(dpi, dpi)
-			// 	ctx.translate(rem, rem)
-			// }
 
 			this.rep = (str: string) => viewREP(str, ctx)
 
@@ -68,12 +93,16 @@ export default class Viewer extends Vue {
 		}
 	}
 
-	@Watch('timestamp')
+	@Watch('code')
 	private update() {
 		const str = replEnv.get('$canvas') as string
-		const viewEnv = this.rep(`(do ${str})`)
+		this.viewEnv = this.rep(`(do ${str})`)
 
-		this.tools = ((viewEnv.get('$tools') as symbol[]) || []).map(
+		this.tools = ((this.viewEnv.get('$tools') as symbol[]) || []).map(
+			(sym: symbol) => Symbol.keyFor(sym) || ''
+		)
+
+		this.hands = ((this.viewEnv.get('$hands') as symbol[]) || []).map(
 			(sym: symbol) => Symbol.keyFor(sym) || ''
 		)
 
@@ -97,24 +126,33 @@ export default class Viewer extends Vue {
 	}
 
 	private onMouse(e: MouseEvent) {
+		const {type, offsetX, offsetY} = e
+
+		if (type === 'mousedown') {
+			this.mousePressed = true
+		} else if (type === 'mouseup') {
+			this.mousePressed = false
+		}
+
+		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+		const margin = rem * 2
+
+		let x = offsetX - margin,
+			y = offsetY - margin,
+			p = this.mousePressed
+
+		if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
+			;[x, y, p] = EVAL([S(this.activeHand), x, y, p], consoleEnv) as [
+				number,
+				number,
+				boolean
+			]
+		}
+
+		this.cursorStyle.left = x + 'px'
+		this.cursorStyle.top = y + 'px'
+
 		if (this.activeTool) {
-			const {type, offsetX, offsetY} = e
-
-			if (type === 'mousedown') {
-				this.mousePressed = true
-			} else if (type === 'mouseup') {
-				this.mousePressed = false
-			}
-
-			const rem = parseFloat(
-				getComputedStyle(document.documentElement).fontSize
-			)
-			const margin = rem * 4
-
-			const x = offsetX - margin,
-				y = offsetY - margin,
-				p = this.mousePressed
-
 			consoleREP(
 				`
 				(if
@@ -134,16 +172,22 @@ export default class Viewer extends Vue {
 	height 100%
 
 	&__tools
-		position absolute
 		top 1rem
+
+	&__hands
+		top 4rem
+
+	&__buttons
+		position absolute
 		right 1rem
 
-	&__tool
+	&__button
 		margin 0 0.5rem
 		padding 0.5rem 1rem
 		border 1px solid var(--comment)
 		border-radius 1.5rem
 		background 0
+		background var(--background)
 		color var(--foreground)
 		transition all var(--tdur) ease
 		outliine none
@@ -153,4 +197,17 @@ export default class Viewer extends Vue {
 
 	&__canvas
 		height 100%
+
+	&__cursor-wrapper
+		position absolute
+		top 2rem
+		left 2rem
+		background blue
+		pointer-events none
+
+	&__cursor
+		position absolute
+		width 10px
+		height 10px
+		background green
 </style>

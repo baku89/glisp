@@ -1,11 +1,11 @@
 import {LispError} from './repl'
 
 class Reader {
-	public tokens: Array<string>
+	public tokens: (string | symbol)[]
 	public position: number
 
-	constructor(tokens: Array<string>) {
-		this.tokens = tokens.map(x => x)
+	constructor(tokens: (string | symbol)[]) {
+		this.tokens = [...tokens]
 		this.position = 0
 	}
 
@@ -18,15 +18,28 @@ class Reader {
 	}
 }
 
-function tokenize(str: string): any[] {
+export const SYM_CURSOR_START = Symbol('CURSOR_START')
+
+function tokenize(str: string, selection?: [number, number]): any[] {
 	// eslint-disable-next-line no-useless-escape
 	const re = /[\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
 	const results = []
+
+	let reachedStart = false
+
 	while ((match = re.exec(str)) && match[1] != '') {
 		if (match[1][0] === ';') {
 			continue
 		}
+
+		if (selection) {
+			if (!reachedStart && selection[0] <= re.lastIndex) {
+				reachedStart = true
+				results.push(SYM_CURSOR_START)
+			}
+		}
+
 		results.push(match[1])
 	}
 	return results || []
@@ -35,30 +48,34 @@ function tokenize(str: string): any[] {
 function readAtom(reader: Reader) {
 	const token = reader.next()
 
-	if (token.match(/^[-+]?[0-9]+$/)) {
-		// integer
-		return parseInt(token, 10)
-	} else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
-		// float
-		return parseFloat(token)
-	} else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
-		// string
-		return token
-			.slice(1, token.length - 1)
-			.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
-	} else if (token[0] === '"') {
-		throw new LispError("[READ] expected '\"', got EOF")
-		// } else if (token[0] === ':') {
-		// 	return types._keyword(token.slice(1))
-	} else if (token === 'nil') {
-		return null
-	} else if (token === 'true') {
-		return true
-	} else if (token === 'false') {
-		return false
+	if (typeof token === 'string') {
+		if (token.match(/^[-+]?[0-9]+$/)) {
+			// integer
+			return parseInt(token, 10)
+		} else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
+			// float
+			return parseFloat(token)
+		} else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
+			// string
+			return token
+				.slice(1, token.length - 1)
+				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
+		} else if (token[0] === '"') {
+			throw new LispError("[READ] expected '\"', got EOF")
+			// } else if (token[0] === ':') {
+			// 	return types._keyword(token.slice(1))
+		} else if (token === 'nil') {
+			return null
+		} else if (token === 'true') {
+			return true
+		} else if (token === 'false') {
+			return false
+		} else {
+			// symbol
+			return Symbol.for(token as string)
+		}
 	} else {
-		// symbol
-		return Symbol.for(token)
+		return token
 	}
 }
 
@@ -114,10 +131,9 @@ function readForm(reader: Reader): any {
 		case '@':
 			reader.next()
 			return [Symbol.for('deref'), readForm(reader)]
-
 		// list
 		case ')':
-			throw new Error("unexpected ')'")
+			throw new LispError("unexpected ')'")
 		case '(':
 			return readList(reader)
 
@@ -129,10 +145,11 @@ function readForm(reader: Reader): any {
 
 export class BlankException extends Error {}
 
-export default function readStr(str: string) {
+export default function readStr(str: string, selection?: [number, number]) {
 	const tokens = tokenize(str)
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	return readForm(new Reader(tokens))
+	const ast = readForm(new Reader(tokens))
+	return ast
 }

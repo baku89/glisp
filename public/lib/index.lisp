@@ -289,8 +289,14 @@
 ))
 
 (def! $tools ())
+(def! $hands ())
 
 (defmacro! deftool! (fn (name params body)
 	`(do
 		(def! ~name (fn ~params ~body))
 		(def! $tools (push $tools '~name)))))
+
+(defmacro! defhand! (fn (name params body)
+	`(do
+		(def! ~name (fn ~params ~body))
+		(def! $hands (push $hands '~name)))))

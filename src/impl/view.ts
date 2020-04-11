@@ -2,6 +2,7 @@ import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
 import {MalVal} from './types'
 import {printer} from './printer'
+import readStr from './reader'
 import EventEmitter from 'eventemitter3'
 
 import {BlankException} from './reader'
@@ -108,8 +109,10 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			let baseline = 'middle'
 
 			for (const [option, val] of chunkByCount(args.slice(3), 2)) {
+				printer.log(option)
 				switch (option) {
 					case _SYM(':size'):
+						printer.log('size')
 						size = val as number
 						break
 					case _SYM(':font'):
@@ -128,14 +131,16 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			ctx.textBaseline = baseline as CanvasTextBaseline
 
 			// Apply Styles
-			for (const style of styles) {
-				if (style.type === 'fill') {
-					ctx.fillStyle = style.params.style
-					ctx.fillText(text, x, y)
-				} else if (style.type === 'stroke') {
-					ctx.strokeStyle = style.params.style
-					ctx.lineWidth = style.params.width
-					ctx.strokeText(text, x, y)
+			for (const style of styles.length > 1 ? styles.slice(1) : styles) {
+				for (const style of styles) {
+					if (style.type === 'fill') {
+						ctx.fillStyle = style.params.style
+						ctx.fillText(text, x, y)
+					} else if (style.type === 'stroke') {
+						ctx.strokeStyle = style.params.style
+						ctx.lineWidth = style.params.width
+						ctx.strokeText(text, x, y)
+					}
 				}
 			}
 		} else if (cmd === _SYM('translate')) {
@@ -157,14 +162,6 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			const [id, region, body] = args
 			const [x, y, w, h] = region
 
-			// Draw Frame
-			ctx.save()
-			ctx.strokeStyle = styles[0].params.style
-			ctx.lineWidth = 1
-			ctx.rect(x, y, w, h)
-			ctx.stroke()
-			ctx.restore()
-
 			// Enable Clip
 			ctx.save()
 			const clipRegion = new Path2D()
@@ -184,7 +181,7 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 	}
 }
 
-const consoleEnv = new Env(replEnv)
+export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
 
 consoleEnv.set('console/clear', () => {
@@ -205,15 +202,16 @@ consoleEnv.set('export-artboard', () => {
 	return null
 })
 
-export function viewREP(str: string, ctx: CanvasRenderingContext2D) {
+export function viewREP(str: string, ctx: CanvasRenderingContext2D, selection?: [number, number]) {
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
 	replEnv.set('$tools', [])
+	replEnv.set('$hands', [])
 
 	let out
 
 	try {
-		const src = READ(str)
+		const src = readStr(str, selection)
 		out = EVAL(src, viewEnv)
 	} catch (err) {
 		if (err instanceof LispError) {
