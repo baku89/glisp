@@ -95,8 +95,17 @@ export default class App extends Vue {
 
 		// Find nearest parenthess
 		let [start, end] = selection
-
 		const code = this.code
+
+		if (code[start] === '(') {
+			start += 1
+		}
+		if (code[end] === ')') {
+			end -= 1
+		}
+		if (code[end - 1] === ')' && start < end) {
+			end -= 2
+		}
 
 		const selectedCode = this.code.slice(start, end)
 		const depthDiff =
