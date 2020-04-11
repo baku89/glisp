@@ -1,4 +1,4 @@
-(deftool! pencil (state input) (do
+(defpen! pencil (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -38,7 +38,7 @@
 	)
 ))
 
-(deftool! draw-circle (state input) (do
+(defpen! draw-circle (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -80,7 +80,7 @@
 ))
 
 
-(deftool! draw-rect (state input) (do
+(defpen! draw-rect (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -121,7 +121,7 @@
 	)
 ))
 
-(deftool! draw-poly (state input) (do
+(defpen! draw-poly (state input) (do
 
 	(if (nil? (first state))
 		(def! state '((poly) false false false)))

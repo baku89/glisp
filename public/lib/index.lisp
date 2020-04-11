@@ -288,13 +288,13 @@
 	)
 ))
 
-(def! $tools ())
+(def! $pens ())
 (def! $hands ())
 
-(defmacro! deftool! (fn (name params body)
+(defmacro! defpen! (fn (name params body)
 	`(do
 		(def! ~name (fn ~params ~body))
-		(def! $tools (push $tools '~name)))))
+		(def! $pens (push $pens '~name)))))
 
 (defmacro! defhand! (fn (name params body)
 	`(do

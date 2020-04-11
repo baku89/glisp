@@ -205,7 +205,7 @@ consoleEnv.set('export-artboard', () => {
 export function viewREP(str: string, ctx: CanvasRenderingContext2D, selection?: [number, number]) {
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
-	replEnv.set('$tools', [])
+	replEnv.set('$pens', [])
 	replEnv.set('$hands', [])
 
 	let out

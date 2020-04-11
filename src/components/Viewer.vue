@@ -1,14 +1,14 @@
 <template>
 	<div class="Viewer" v-click-outside="onClickOutside">
-		<div class="Viewer__buttons Viewer__tools">
+		<div class="Viewer__buttons Viewer__pens">
 			<button
 				class="Viewer__button"
-				:class="{active: tool === activeTool}"
-				v-for="(tool, i) in tools"
+				:class="{active: pen === activePen}"
+				v-for="(pen, i) in pens"
 				:key="i"
-				@click="toggleTool(tool)"
+				@click="togglepen(pen)"
 			>
-				{{ tool }}
+				{{ pen }}
 			</button>
 		</div>
 		<div class="Viewer__buttons Viewer__hands">
@@ -58,8 +58,8 @@ const S = Symbol.for
 export default class Viewer extends Vue {
 	@Prop({type: String, required: true}) private code!: string
 
-	private activeTool: string | null = null
-	private tools: string[] = []
+	private activePen: string | null = null
+	private pens: string[] = []
 
 	private activeHand: string | null = null
 	private hands: string[] = []
@@ -98,7 +98,7 @@ export default class Viewer extends Vue {
 		const str = replEnv.get('$canvas') as string
 		this.viewEnv = this.rep(`(do ${str})`)
 
-		this.tools = ((this.viewEnv.get('$tools') as symbol[]) || []).map(
+		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
 			(sym: symbol) => Symbol.keyFor(sym) || ''
 		)
 
@@ -106,23 +106,23 @@ export default class Viewer extends Vue {
 			(sym: symbol) => Symbol.keyFor(sym) || ''
 		)
 
-		if (this.activeTool && !this.tools.includes(this.activeTool)) {
-			this.activeTool = null
+		if (this.activePen && !this.pens.includes(this.activePen)) {
+			this.activePen = null
 		}
 	}
 
-	private toggleTool(tool: string) {
-		if (this.activeTool === tool) {
-			this.activeTool = null
+	private togglepen(pen: string) {
+		if (this.activePen === pen) {
+			this.activePen = null
 		} else {
 			// Begin
-			this.activeTool = tool
+			this.activePen = pen
 			consoleREP(`(begin-draw! state)`)
 		}
 	}
 
 	private onClickOutside() {
-		this.activeTool = null
+		this.activePen = null
 	}
 
 	private onMouse(e: MouseEvent) {
@@ -152,11 +152,11 @@ export default class Viewer extends Vue {
 		this.cursorStyle.left = x + 'px'
 		this.cursorStyle.top = y + 'px'
 
-		if (this.activeTool) {
+		if (this.activePen) {
 			consoleREP(
 				`
 				(if
-					(draw! ${this.activeTool} state '(${x} ${y} ${p}))
+					(draw! ${this.activePen} state '(${x} ${y} ${p}))
 					($insert (first state)))
 			`,
 				false
@@ -171,7 +171,7 @@ export default class Viewer extends Vue {
 	position relative
 	height 100%
 
-	&__tools
+	&__pens
 		top 1rem
 
 	&__hands
