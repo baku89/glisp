@@ -16,13 +16,12 @@ replEnv.set('$insert', (item: MalVal) => {
 	return null
 })
 
-const _SYM = Symbol.for
+const S = Symbol.for
 
-const SYM_PATH = _SYM('path')
-const SYM_M = _SYM('M')
-const SYM_L = _SYM('L')
-const SYM_C = _SYM('C')
-const SYM_Z = _SYM('Z')
+const SYM_M = S('M')
+const SYM_L = S('L')
+const SYM_C = S('C')
+const SYM_Z = S('Z')
 
 interface DrawStyleFill {
 	type: 'fill'
@@ -42,24 +41,24 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 
 		const last = args.length > 0 ? args[args.length - 1] : null
 
-		if (cmd === _SYM('background')) {
+		if (cmd === S('background')) {
 			const color = args[0]
 			if (typeof color === 'string') {
 				viewHandler.emit('set-background', args[0] as string)
 			}
-		} else if (cmd === _SYM('fill')) {
+		} else if (cmd === S('fill')) {
 			const style: DrawStyleFill = {
 				type: 'fill',
 				params: {style: args[0] as string}
 			}
 			draw(ctx, [...styles, style], last)
-		} else if (cmd === _SYM('stroke')) {
+		} else if (cmd === S('stroke')) {
 			const style: DrawStyleStroke = {
 				type: 'stroke',
 				params: {style: args[0] as string, width: args[1]}
 			}
 			draw(ctx, [...styles, style], last)
-		} else if (cmd === _SYM('path')) {
+		} else if (cmd === S('path')) {
 			ctx.beginPath()
 			for (const [c, ...a] of iteratePath(args)) {
 				switch (c) {
@@ -94,7 +93,7 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 					ctx.stroke()
 				}
 			}
-		} else if (cmd === _SYM('text')) {
+		} else if (cmd === S('text')) {
 			// Text representation:
 			// (text "Text" x y option1 value1 option2 value2 ....)
 			// e.g. (text "Hello" 100 100 :size 14 :align "center")
@@ -111,17 +110,17 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			for (const [option, val] of chunkByCount(args.slice(3), 2)) {
 				printer.log(option)
 				switch (option) {
-					case _SYM(':size'):
+					case S(':size'):
 						printer.log('size')
 						size = val as number
 						break
-					case _SYM(':font'):
+					case S(':font'):
 						font = val as string
 						break
-					case _SYM(':align'):
+					case S(':align'):
 						align = val as string
 						break
-					case _SYM(':baseline'):
+					case S(':baseline'):
 						baseline = val as string
 						break
 				}
@@ -143,22 +142,22 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 					}
 				}
 			}
-		} else if (cmd === _SYM('translate')) {
+		} else if (cmd === S('translate')) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
 			draw(ctx, styles, last)
 			ctx.restore()
-		} else if (cmd === _SYM('scale')) {
+		} else if (cmd === S('scale')) {
 			ctx.save()
 			ctx.scale(args[0] as number, args[1] as number)
 			draw(ctx, styles, last)
 			ctx.restore()
-		} else if (cmd === _SYM('rotate')) {
+		} else if (cmd === S('rotate')) {
 			ctx.save()
 			ctx.rotate(args[0] as number)
 			draw(ctx, styles, last)
 			ctx.restore()
-		} else if (cmd === _SYM('$artboard')) {
+		} else if (cmd === S(':artboard')) {
 			const [id, region, body] = args
 			const [x, y, w, h] = region
 
@@ -189,12 +188,32 @@ consoleEnv.set('console/clear', () => {
 	return null
 })
 
-consoleEnv.set('export-artboard', () => {
+consoleEnv.set('export', (name: MalVal = null) => {
 	const canvas = document.createElement('canvas')
+	let x = 0,
+		y = 0,
+		width = consoleEnv.get('$width') as number,
+		height = consoleEnv.get('$height') as number
 	const ctx = canvas.getContext('2d')
 
-	if (ctx) {
-		const canvas = ctx.canvas
+	let $view = consoleEnv.get('$view')
+
+	if (Array.isArray($view) && ctx) {
+		if (name !== null) {
+			$view = EVAL([S('extract-artboard'), name, [S('quote'), $view]], consoleEnv)
+			if ($view === null) {
+				throw new LispError('Artboard not found')
+			} else {
+				[x, y, width, height] = ($view as any)[2] as number[]
+			}
+		}
+
+		canvas.width = width
+		canvas.height = height
+		ctx.translate(-x, -y)
+
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		draw(ctx, [], $view as MalVal)
 		const d = canvas.toDataURL('image/png')
 		const w = window.open('about:blank', 'Image for canvas')
 		w?.document.write(`<img src=${d} />`)
@@ -202,16 +221,21 @@ consoleEnv.set('export-artboard', () => {
 	return null
 })
 
-export function viewREP(str: string, ctx: CanvasRenderingContext2D, selection?: [number, number]) {
-	const viewEnv = new Env(replEnv)
-	viewEnv.name = 'view'
+export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D, selection?: [number, number]) {
 	replEnv.set('$pens', [])
 	replEnv.set('$hands', [])
+
+	const viewEnv = new Env(replEnv)
+	viewEnv.name = 'view'
+
+	const dpi = window.devicePixelRatio
+	viewEnv.set('$width', ctx.canvas.width / dpi)
+	viewEnv.set('$height', ctx.canvas.height / dpi)
 
 	let out
 
 	try {
-		const src = readStr(str, selection)
+		const src = typeof str === 'string' ? readStr(str, selection) : str
 		out = EVAL(src, viewEnv)
 	} catch (err) {
 		if (err instanceof LispError) {

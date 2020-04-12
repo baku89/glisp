@@ -111,7 +111,7 @@ export default class Viewer extends Vue {
 	@Watch('code')
 	private update() {
 		const str = replEnv.get('$canvas') as string
-		this.viewEnv = this.rep(`(do ${str})`)
+		this.viewEnv = this.rep(`(def $view (do ${str}))`)
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
 			(sym: symbol) => Symbol.keyFor(sym) || ''
@@ -220,6 +220,7 @@ export default class Viewer extends Vue {
 
 
 	&__canvas
+		width 100%
 		height 100%
 
 	&__cursor-wrapper

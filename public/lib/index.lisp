@@ -244,7 +244,7 @@
 
 (defmacro artboard (id region & body)
 	`(list
-		'$artboard ~id (list ~@region)
+		':artboard ~id (list ~@region)
 		(let
 			(
 				$width ~(nth region 2)
@@ -252,7 +252,7 @@
 				background (fn (c) (fill c (rect 0 0 $width $height)))
 			)
 			(translate ~(first region) ~(nth region 1)
-				(list 'g ~@body)))))
+				(list 'g (stroke "red" 10 (rect 0 0 $width $height)) ~@body)))))
 
 
 (defn guide (body) (stroke $ui-border body))
