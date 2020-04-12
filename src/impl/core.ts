@@ -48,7 +48,7 @@ export const coreNS = new Map<string, any>([
 
 	// Compare
 	['=', (a: MalVal, b: MalVal) => a === b],
-	['!=', (a: MalVal, b: MalVal) => a !== b],
+	['not=', (a: MalVal, b: MalVal) => a !== b],
 	['<', (a: number, b: number) => a < b],
 	['<=', (a: number, b: number) => a <= b],
 	['>', (a: number, b: number) => a > b],

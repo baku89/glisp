@@ -53,6 +53,8 @@ const evalAst = (ast: MalVal, env: Env) => {
 	}
 }
 
+const S = Symbol.for
+
 export function EVAL(ast: MalVal, env: Env): MalVal {
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
@@ -75,7 +77,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 
 		// Special Forms
 		switch (typeof a0 === 'symbol' ? Symbol.keyFor(a0) : Symbol(':default')) {
-			case 'def!':
+			case 'def':
 				return env.set(a1 as symbol, EVAL(a2, env))
 			case 'let': {
 				const letEnv = new Env(env)
@@ -84,7 +86,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 					letEnv.set(lst[i] as symbol, EVAL(lst[i + 1], letEnv))
 				}
 				env = letEnv
-				ast = a2
+				ast = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
 				break // continue TCO loop
 			}
 			case 'quote':
@@ -196,6 +198,6 @@ replEnv.set('eval', (ast: MalVal) => {
 })
 
 REP(
-	'(def! load-file (fn (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))'
+	'(def load-file (fn (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))'
 )
 REP('(load-file "./lib/index.lisp")')

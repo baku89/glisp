@@ -2,7 +2,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def! state '((quote path) false false false)))
+			(def state '((quote path) false false false)))
 
 	(let
 		(
@@ -42,7 +42,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def! state '((g) 0 0 false)))
+			(def state '((g) 0 0 false)))
 
 	(let
 		(
@@ -84,7 +84,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def! state '((g) 0 0 false)))
+			(def state '((g) 0 0 false)))
 
 	(let
 		(
@@ -124,7 +124,7 @@
 (defpen! draw-poly (state input) (do
 
 	(if (nil? (first state))
-		(def! state '((poly) false false false)))
+		(def state '((poly) false false false)))
 	
 	(let
 		(

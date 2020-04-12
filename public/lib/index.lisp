@@ -1,5 +1,11 @@
-(defmacro! defn! (fn (name params body)
-	`(def! ~name (fn ~params ~body))))
+(defmacro! defn (fn (name params & body)
+	`(def
+		~name
+		(fn
+			~params
+			~(if (= 1 (count body))
+				body
+				`(do ~@body))))))
 
 (defmacro! macroview (fn (expr)
 	`(prn (macroexpand ~expr))
@@ -18,57 +24,78 @@
 ))
 
 ;; Functioal Language Features
-(defn! reduce (f init xs)
+(defn reduce (f init xs)
   (if (empty? xs) init (reduce f (f init (first xs)) (rest xs))))
 
-(defn! foldr (f init xs)
+(defn foldr (f init xs)
   (if (empty? xs)
 		init
 		(f
 			(first xs)
-			(foldr f init (rest xs))
-		)
-	)
-)
+			(foldr f init (rest xs)))))
 
-(defn! map (f xs)
+(defn map (f xs)
 	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
-;; Math
-(def! TWO_PI (* PI 2))
-(def! HALF_PI (/ PI 2))
+(defn filter (f xs)
+	(reduce
+		(fn (l x)
+			(if (f x)
+				(push l x)
+				l))
+		'()
+		xs))
 
-(defn! lerp (a b t) (+ b (* (- a b) t)))
-(defn! degrees (radians) (/ (* radians 180) PI))
-(defn! radians (degrees) (/ (* degrees PI) 180))
-(defn! distance (x1 y1 x2 y2)
+(defn remove (f xs)
+	(reduce
+		(fn (l x)
+			(if (not (f x))
+				(push l x)
+				l))
+		'()
+		xs))
+		
+(defmacro! ->> (fn (values & forms)
+	(reduce
+		(fn (v form) `(~@form ~v))
+		values
+		forms)))
+
+;; Math
+(def TWO_PI (* PI 2))
+(def HALF_PI (/ PI 2))
+
+(defn lerp (a b t) (+ b (* (- a b) t)))
+(defn deg (x) (/ (* x 180) PI))
+(defn rad (x) (/ (* x PI) 180))
+(defn distance (x1 y1 x2 y2)
 	(sqrt (+ (pow (- x2 x1) 2) (pow (- y2 y1) 2))))
 
-(defn! odd? (x) (= (% x 2) 1))
-(defn! even? (x) (= (% x 2) 0))
+(defn odd? (x) (= (mod x 2) 1))
+(defn even? (x) (= (mod x 2) 0))
 
 ;; Logical
-(defn! not (a) (if a false true))
+(defn not (a) (if a false true))
 
 ;; Trivial
-(def! g list)
+(def g list)
 
-(defn! inc (x) (+ x 1))
-(defn! dec (x) (- a 1))
+(defn inc (x) (+ x 1))
+(defn dec (x) (- a 1))
 
-(defn! empty? (x) (= (count x) 0))
+(defn empty? (x) (= (count x) 0))
 
 
-(def! gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
+(def gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
 
 ;; UI
-(def! $ui-background nil)
-(def! $ui-border nil)
+(def $ui-background nil)
+(def $ui-border nil)
 
 ;; Graphical
-(def! $canvas "")
+(def $canvas "")
 
-(defn! color (& e)
+(defn color (& e)
 	(let (l (count e))
 		(cond
 			(= l 1) e
@@ -78,13 +105,13 @@
 	)
 )
 
-(defn! translate (x y body) `(translate ~x ~y ~body))
-(defn! scale (x y body) `(scale ~x ~y ~body))
-(defn! rotate (a body) `(rotate ~a ~body))
+(defn translate (x y body) `(translate ~x ~y ~body))
+(defn scale (x y body) `(scale ~x ~y ~body))
+(defn rotate (a body) `(rotate ~a ~body))
 
-(defn! background (& xs) `(background ~@xs))
+(defn background (& xs) `(background ~@xs))
 
-(defn! fill (& xs) 
+(defn fill (& xs) 
 	(let (l (count xs))
 		(cond
 			(= l 2) `(fill ~@xs)
@@ -93,7 +120,7 @@
 	)
 )
 
-(defn! stroke (& xs)
+(defn stroke (& xs)
 	(let (l (count xs))
 		(cond
 			(= l 2) `(stroke ~(first xs) 1 ~(last xs))
@@ -104,7 +131,7 @@
 )
 
 
-(defn! path/map-commands (f path)
+(defn path/map-commands (f path)
 	(cons
 		'path
 		(apply concat 
@@ -121,7 +148,7 @@
 	)
 )
 
-(defn! path/translate (x y path)
+(defn path/translate (x y path)
 	(let
 		(f (fn (pos)
 			`(~(+ (first pos) x) ~(+ (last pos) y))))
@@ -129,7 +156,7 @@
 	)
 )
 
-(defn! path/scale (x y path)
+(defn path/scale (x y path)
 	(let
 		(f (fn (pos)
 			`(~(* (first pos) x) ~(* (last pos) y))))
@@ -137,7 +164,7 @@
 	)
 )
 
-(defn! path/rotate (a path)
+(defn path/rotate (a path)
 	(let
 		(f (fn (pos)
 			`(
@@ -147,18 +174,18 @@
 	)
 )
 
-(defn! path/merge (& xs)
+(defn path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
-(defn! path (& xs) xs)
+(defn path (& xs) xs)
 
 ; symbol for text
-(def! :size nil)
-(def! :align nil)
-(def! :baseline nil)
-(defn! text (& xs) xs)
+(def :size nil)
+(def :align nil)
+(def :baseline nil)
+(defn text (& xs) xs)
 
-(defn! rect (x y w h)
+(defn rect (x y w h)
 	`(path
 		M ~x ~y
 		L ~(+ x w) ~y
@@ -166,7 +193,7 @@
 		L ~x ~(+ y h)
 		Z))
 
-(defn! arc (x y r start stop & xs)
+(defn arc (x y r start stop & xs)
 	(let
 		(
 			sx (+ x (* r (cos start)))
@@ -193,9 +220,9 @@
 	)
 ))
 
-(def! K (/ (* 4 (- (sqrt 2) 1)) 3))
+(def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
-(defn! circle (x y r)
+(defn circle (x y r)
 	(let (k (* r K))
 		`(path
 			M ~(+ x r)  ~y			 ; right
@@ -213,10 +240,10 @@
 				~(+ x r)	~y			 ; right
 			Z)))
 	
-(defn! line (x1 y1 x2 y2)
+(defn line (x1 y1 x2 y2)
 	`(path M ~x1 ~y1 L ~x2 ~y2))
 
-(defn! poly (& pts)
+(defn poly (& pts)
 	(let
 		(line-to (fn (& pts)
 			(if (< (count pts) 2)
@@ -240,7 +267,7 @@
 	)
 )
 
-(defn! graph (start end step f)
+(defn graph (start end step f)
 	(apply poly
 		(apply concat
 			(map f (range start (+ end step) step)))
@@ -273,30 +300,30 @@
 ))
 
 
-(defn! guide (body) (stroke $ui-border body))
+(defn guide (body) (stroke $ui-border body))
 
 ;; Draw
 (defmacro! begin-draw! (fn (state)
-	`(def! ~state nil)
+	`(def ~state nil)
 ))
 
 (defmacro! draw! (fn (f state input)
 	`(do
-		(def! __ret__ (~f ~state ~input))
-		(def! ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
+		(def __ret__ (~f ~state ~input))
+		(def ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
 		(first __ret__)
 	)
 ))
 
-(def! $pens ())
-(def! $hands ())
+(def $pens ())
+(def $hands ())
 
 (defmacro! defpen! (fn (name params body)
 	`(do
-		(def! ~name (fn ~params ~body))
-		(def! $pens (push $pens '~name)))))
+		(def ~name (fn ~params ~body))
+		(def $pens (push $pens '~name)))))
 
 (defmacro! defhand! (fn (name params body)
 	`(do
-		(def! ~name (fn ~params ~body))
-		(def! $hands (push $hands '~name)))))
+		(def ~name (fn ~params ~body))
+		(def $hands (push $hands '~name)))))
