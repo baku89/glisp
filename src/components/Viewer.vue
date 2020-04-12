@@ -117,7 +117,7 @@ export default class Viewer extends Vue {
 		} else {
 			// Begin
 			this.activePen = pen
-			consoleREP(`(begin-draw! state)`)
+			consoleREP(`(begin-draw state)`)
 		}
 	}
 
@@ -156,7 +156,7 @@ export default class Viewer extends Vue {
 			consoleREP(
 				`
 				(if
-					(draw! ${this.activePen} state '(${x} ${y} ${p}))
+					(draw ${this.activePen} state '(${x} ${y} ${p}))
 					($insert (first state)))
 			`,
 				false
@@ -207,7 +207,24 @@ export default class Viewer extends Vue {
 
 	&__cursor
 		position absolute
-		width 10px
-		height 10px
-		background green
+		width 2rem
+		height @width
+		margin @width * -.5
+		border-radius 50%
+
+		&:before, &:after
+			content ''
+			position absolute
+			display block
+			background red
+
+		&:before
+			width 1px
+			height 100%
+			left 50%
+
+		&:after
+			width 100%
+			height 1px
+			top 50%
 </style>

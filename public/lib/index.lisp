@@ -1,27 +1,24 @@
-(defmacro! defn (fn (name params & body)
+(defmacro defn (name params & body)
 	`(def
 		~name
 		(fn
 			~params
 			~(if (= 1 (count body))
-				body
-				`(do ~@body))))))
+				(first body)
+				`(do ~@body)))))
 
-(defmacro! macroview (fn (expr)
-	`(prn (macroexpand ~expr))
-))
+(defmacro macroview (expr)
+	`(prn (macroexpand ~expr)))
 
 ;; Conditionals
-(defmacro! cond (fn (& xs)
+(defmacro cond (& xs)
 	(if (> (count xs) 0)
 		(list
 			'if
 			(first xs)
-			(if (> (count xs) 1) (nth xs 1) (throw "odd number of forms to cond"))
-			(cons 'cond (rest (rest xs)))
-		)
-	)
-))
+			(if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
+			(cons 'cond (rest (rest xs))))))
+(def :else true)
 
 ;; Functioal Language Features
 (defn reduce (f init xs)
@@ -55,11 +52,11 @@
 		'()
 		xs))
 		
-(defmacro! ->> (fn (values & forms)
+(defmacro ->> (values & forms)
 	(reduce
 		(fn (v form) `(~@form ~v))
 		values
-		forms)))
+		forms))
 
 ;; Math
 (def TWO_PI (* PI 2))
@@ -86,7 +83,9 @@
 (defn empty? (x) (= (count x) 0))
 
 
-(def gensym (let (counter (atom 0)) (fn () (symbol (str "G__" (swap! counter inc))))))
+(def gensym
+	(let (counter (atom 0))
+		#(symbol (str "G__" (swap! counter inc)))))
 
 ;; UI
 (def $ui-background nil)
@@ -100,10 +99,7 @@
 		(cond
 			(= l 1) e
 			(= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
-			true "black"
-		)
-	)
-)
+			true "black")))
 
 (defn translate (x y body) `(translate ~x ~y ~body))
 (defn scale (x y body) `(scale ~x ~y ~body))
@@ -113,22 +109,14 @@
 
 (defn fill (& xs) 
 	(let (l (count xs))
-		(cond
-			(= l 2) `(fill ~@xs)
-			true nil
-		)
-	)
-)
+		(if (= l 2) `(fill ~@xs))))
 
 (defn stroke (& xs)
 	(let (l (count xs))
 		(cond
 			(= l 2) `(stroke ~(first xs) 1 ~(last xs))
 			(= l 3) `(stroke ~@xs)
-			true nil
-		)
-	)
-)
+			:else nil)))
 
 
 (defn path/map-commands (f path)
@@ -142,27 +130,19 @@
 							(map f (chunk-by-count args 2))))
 					)
 				)
-				(path/split-commands path)
-			)
-		)
-	)
-)
+				(path/split-commands path)))))
 
 (defn path/translate (x y path)
 	(let
 		(f (fn (pos)
 			`(~(+ (first pos) x) ~(+ (last pos) y))))
-		(path/map-commands f path)
-	)
-)
+		(path/map-commands f path)))
 
 (defn path/scale (x y path)
 	(let
 		(f (fn (pos)
 			`(~(* (first pos) x) ~(* (last pos) y))))
-		(path/map-commands f path)
-	)
-)
+		(path/map-commands f path)))
 
 (defn path/rotate (a path)
 	(let
@@ -170,16 +150,14 @@
 			`(
 				~(* (first pos) x)
 				~(* (last  pos) y))))
-		(path/map-commands f path)
-	)
-)
+		(path/map-commands f path)))
 
 (defn path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
 (defn path (& xs) xs)
 
-; symbol for text
+; keywords for text
 (def :size nil)
 (def :align nil)
 (def :baseline nil)
@@ -202,23 +180,16 @@
 		`(path
 			M ~sx ~sy
 			A ~x ~y ~r ~start ~stop
-			~@(if (first xs) '(Z) '())
-			)
-	)
-)
+			~@(if (first xs) '(Z) '()))))
 
-(defmacro! repeat-item (fn (sym n body)
+(defmacro repeat-item (fn (sym n body)
 	`(g
 		~@(map 
 			(fn (i) `(let (~sym ~i) ~body))
 			(cond
 				(number? n) (range n)
 				(list? n) (apply range n)
-				true (throw "ERROR")
-			)
-		)
-	)
-))
+				true (throw "ERROR"))))))
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
@@ -250,40 +221,28 @@
 				()
 				`(
 					L ~(first pts) ~(nth pts 1)
-					~@(apply line-to (rest (rest pts)))
-				)
-			)
-		))
-
+					~@(apply line-to (rest (rest pts)))))))
 		(if (>= (count pts) 2)
 			`(
 				path
 				M ~(first pts) ~(nth pts 1)
 				~@(apply line-to (rest (rest pts)))
-				~@(if (= (last pts) true) '(Z) '())
-			)
-			`(path)
-		)
-	)
-)
+				~@(if (= (last pts) true) '(Z) '()))
+			`(path))))
 
 (defn graph (start end step f)
 	(apply poly
 		(apply concat
-			(map f (range start (+ end step) step)))
-	)
-)
+			(map f (range start (+ end step) step)))))
 
-(defmacro! appearance (fn (styles body)
+(defmacro appearance (styles body)
 	(foldr
 		(fn (style bd)
 			(concat style (list bd)))
 		body
-		styles
-	)
-))
+		styles))
 
-(defmacro! artboard (fn (id region & body)
+(defmacro artboard (id region & body)
 	`(list
 		'$artboard ~id (list ~@region)
 		(let
@@ -293,37 +252,30 @@
 				background (fn (c) (fill c (rect 0 0 $width $height)))
 			)
 			(translate ~(first region) ~(nth region 1)
-				(list 'g ~@body)
-			)
-		)
-	)
-))
+				(list 'g ~@body)))))
 
 
 (defn guide (body) (stroke $ui-border body))
 
-;; Draw
-(defmacro! begin-draw! (fn (state)
-	`(def ~state nil)
-))
+;; ;; Draw
+(defmacro begin-draw (state)
+	`(def ~state nil))
 
-(defmacro! draw! (fn (f state input)
+(defmacro draw (f state input)
 	`(do
 		(def __ret__ (~f ~state ~input))
 		(def ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
-		(first __ret__)
-	)
-))
+		(first __ret__)))
 
 (def $pens ())
 (def $hands ())
 
-(defmacro! defpen! (fn (name params body)
+(defmacro defpen (name params body)
 	`(do
 		(def ~name (fn ~params ~body))
-		(def $pens (push $pens '~name)))))
+		(def $pens (push $pens '~name))))
 
-(defmacro! defhand! (fn (name params body)
+(defmacro defhand (name params body)
 	`(do
 		(def ~name (fn ~params ~body))
-		(def $hands (push $hands '~name)))))
+		(def $hands (push $hands '~name))))

@@ -94,8 +94,9 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 			case 'quasiquote':
 				ast = quasiquote(a1)
 				break // continue TCO loop
-			case 'defmacro!': {
-				const fn = cloneAST(EVAL(a2, env)) as MalFunc
+			case 'defmacro': {
+				const fnast = [S('fn'), a2, ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]]
+				const fn = cloneAST(EVAL(fnast, env)) as MalFunc
 				fn.ismacro = true
 				return env.set(a1 as symbol, fn)
 			}
