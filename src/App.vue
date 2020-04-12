@@ -1,5 +1,8 @@
 <template>
 	<div id="app" @mousewheel="onScroll" :style="colors">
+		<div class="app__viewer">
+			<Viewer :code="code" :selection="selection" />
+		</div>
 		<div class="app__control">
 			<div class="app__editor">
 				<Editor
@@ -14,9 +17,6 @@
 			<div class="app__console">
 				<Console />
 			</div>
-		</div>
-		<div class="app__viewer">
-			<Viewer :code="code" :selection="selection" />
 		</div>
 	</div>
 </template>
@@ -240,10 +240,10 @@ html
 	-moz-osx-font-smoothing grayscale
 
 .app
-	&__control
+	&__viewer
 		position relative
+		width 60%
 		margin-right 1rem
-		width 40%
 
 		&:after
 			position absolute
@@ -256,18 +256,21 @@ html
 			content ''
 			transition background var(--tdur) ease
 
+	&__control
+		width 40%
+
 	&__editor, &__console
 		height calc(50% - 1.5rem)
 
 	&__editor
 		position relative
-		margin 1rem 0 1rem 1rem
+		margin 1rem .5rem 1rem 1rem
 
 		&:after
 			position absolute
 			right 0
 			bottom -0.5rem
-			left 1rem
+			left -1rem
 			display block
 			height 1px
 			background var(--selection)
@@ -275,8 +278,5 @@ html
 			transition background var(--tdur) ease
 
 	&__console
-		margin 0 0 1rem 1rem
-
-	&__viewer
-		width 60%
+		margin 0 .5rem 1rem 1rem
 </style>

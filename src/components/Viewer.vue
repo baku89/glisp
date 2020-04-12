@@ -179,7 +179,7 @@ export default class Viewer extends Vue {
 
 	&__buttons
 		position absolute
-		right 1rem
+		left 1rem
 
 	&__button
 		margin 0 0.5rem

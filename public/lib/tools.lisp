@@ -1,4 +1,4 @@
-(defpen! pencil (state input) (do
+(defpen pencil (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -19,7 +19,7 @@
 			
 			; just mouse down?
 			just-down (and (not pp) p)
-			needs-update (or just-down (and p (or (!= x px) (!= y py))))
+			needs-update (or just-down (and p (or (not= x px) (not= y py))))
 		)
 		
 		(list
@@ -28,17 +28,14 @@
 				`(quote
 					~(concat
 						item
-						`(~(if just-down 'M 'L)	~x ~y)
-					)
-				)
-			)
+						`(~(if just-down 'M 'L)	~x ~y))))
 			; Updated State
 			x y p
 		)
 	)
 ))
 
-(defpen! draw-circle (state input) (do
+(defpen draw-circle (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -59,8 +56,7 @@
 			just-down (and (not pp) p)
 			
 			cx		(if just-down x (nth state 1))
-			cy		(if just-down y (nth state 2))
-		)
+			cy		(if just-down y (nth state 2)))
 		
 		(list
 			; Updated Item or nil if no needs to update
@@ -68,10 +64,7 @@
 				(let (C `(circle ~cx ~cy ~(round (distance cx cy x y))))
 					(if just-down
 						(concat item (list C))
-						(concat (non-last item) (list C))
-					)
-				)
-			)
+						(concat (non-last item) (list C)))))
 			
 			; Updated State
 			cx cy p
@@ -80,7 +73,7 @@
 ))
 
 
-(defpen! draw-rect (state input) (do
+(defpen draw-rect (state input) (do
 
 	; Initialize state
 	(if (nil? (first state))
@@ -101,8 +94,7 @@
 			just-down (and (not pp) p)
 			
 			ox		(if just-down x (nth state 1))
-			oy		(if just-down y (nth state 2))
-		)
+			oy		(if just-down y (nth state 2)))
 		
 		(list
 			; Updated Item or nil if no needs to update
@@ -110,10 +102,7 @@
 				(let (R `(rect ~ox ~oy ~(- x ox) ~(- y oy)))
 					(if just-down
 						(concat item (list R))
-						(concat (non-last item) (list R))
-					)
-				)
-			)
+						(concat (non-last item) (list R)))))
 			
 			; Updated State
 			ox oy p
@@ -121,7 +110,7 @@
 	)
 ))
 
-(defpen! draw-poly (state input) (do
+(defpen draw-poly (state input) (do
 
 	(if (nil? (first state))
 		(def state '((poly) false false false)))
@@ -140,8 +129,7 @@
 			p		(nth input 2)
 			
 			just-down (and (not pp) p)
-			needs-update (or just-down (and p (or (!= x px) (!= y py))))
-		)
+			needs-update (or just-down (and p (or (not= x px) (not= y py)))))
 	
 		(list 
 			; Updated Item or nil if no needs to update
@@ -150,8 +138,7 @@
 					(push item x y)
 					(push (slice item 0 (- (count item) 2)) x y)
 				)
-				nil
-			)
+				nil)
 			
 			; Updated state
 			x y p
