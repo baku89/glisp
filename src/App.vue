@@ -252,7 +252,7 @@ html
 			bottom @top
 			display block
 			width 1px
-			background var(--selection)
+			background var(--comment)
 			content ''
 			transition background var(--tdur) ease
 
@@ -273,7 +273,7 @@ html
 			left -1rem
 			display block
 			height 1px
-			background var(--selection)
+			background var(--comment)
 			content ''
 			transition background var(--tdur) ease
 

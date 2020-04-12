@@ -1,33 +1,37 @@
 <template>
 	<div class="Viewer" v-click-outside="onClickOutside">
-		<div class="Viewer__buttons Viewer__pens">
-			<button
-				class="Viewer__button"
-				:class="{active: pen === activePen}"
-				v-for="(pen, i) in pens"
-				:key="i"
-				@click="togglepen(pen)"
-			>
-				{{ pen }}
-			</button>
-		</div>
-		<div class="Viewer__buttons Viewer__hands">
-			<button
-				class="Viewer__button"
-				:class="{active: hand === activeHand}"
-				v-for="(hand, i) in hands"
-				:key="i"
-				@click="activeHand = hand"
-			>
-				{{ hand }}
-			</button>
-			<button
-				class="Viewer__button"
-				:class="{active: activeHand === null}"
-				@click="activeHand = null"
-			>
-				Normal
-			</button>
+		<div class="Viewer__hud">
+			<div class="Viewer__buttons">
+				<label class="Viewer__label">🖋</label>
+				<button
+					class="Viewer__button"
+					:class="{active: pen === activePen}"
+					v-for="(pen, i) in pens"
+					:key="i"
+					@click="togglepen(pen)"
+				>
+					{{ pen }}
+				</button>
+			</div>
+			<div class="Viewer__buttons">
+				<label class="Viewer__label">✍️</label>
+				<button
+					class="Viewer__button"
+					:class="{active: hand === activeHand}"
+					v-for="(hand, i) in hands"
+					:key="i"
+					@click="activeHand = hand"
+				>
+					{{ hand }}
+				</button>
+				<button
+					class="Viewer__button"
+					:class="{active: activeHand === null}"
+					@click="activeHand = null"
+				>
+					*
+				</button>
+			</div>
 		</div>
 		<canvas
 			class="Viewer__canvas"
@@ -35,6 +39,8 @@
 			@mousedown="onMouse"
 			@mouseup="onMouse"
 			@mousemove="onMouse"
+			@mouseenter="cursorVisible = true"
+			@mouseleave="cursorVisible = false"
 		/>
 		<div class="Viewer__cursor-wrapper">
 			<div class="Viewer__cursor" :style="cursorStyle" />
@@ -63,7 +69,16 @@ export default class Viewer extends Vue {
 
 	private activeHand: string | null = null
 	private hands: string[] = []
-	private cursorStyle = {left: '0px', top: '0px'}
+
+	private cursorVisible = false
+	private cursorPos = [0, 0]
+	private get cursorStyle() {
+		return {
+			left: this.cursorPos[0] + 'px',
+			top: this.cursorPos[1] + 'px',
+			visibility: this.cursorVisible ? 'visible' : 'hidden'
+		}
+	}
 
 	private mousePressed = false
 
@@ -126,7 +141,7 @@ export default class Viewer extends Vue {
 	}
 
 	private onMouse(e: MouseEvent) {
-		const {type, offsetX, offsetY} = e
+		const {type, pageX, pageY} = e
 
 		if (type === 'mousedown') {
 			this.mousePressed = true
@@ -137,8 +152,8 @@ export default class Viewer extends Vue {
 		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
 		const margin = rem * 2
 
-		let x = offsetX - margin,
-			y = offsetY - margin,
+		let x = pageX - margin,
+			y = pageY - margin,
 			p = this.mousePressed
 
 		if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
@@ -149,8 +164,7 @@ export default class Viewer extends Vue {
 			]
 		}
 
-		this.cursorStyle.left = x + 'px'
-		this.cursorStyle.top = y + 'px'
+		this.cursorPos = [x, y]
 
 		if (this.activePen) {
 			consoleREP(
@@ -171,21 +185,28 @@ export default class Viewer extends Vue {
 	position relative
 	height 100%
 
-	&__pens
-		top 1rem
-
-	&__hands
-		top 4rem
-
-	&__buttons
+	&__hud
 		position absolute
+		bottom 1rem
 		left 1rem
 
+	&__buttons
+		display flex
+		margin-bottom 1rem
+
+	&__label
+		font-size 1.5rem
+		padding-top .2rem
+		margin-right .2rem
+		filter grayscale(1)
+		// background white
+
 	&__button
-		margin 0 0.5rem
-		padding 0.5rem 1rem
+		margin 0 0.3rem
+		line-height 1.2rem
+		padding .4rem .7rem
 		border 1px solid var(--comment)
-		border-radius 1.5rem
+		border-radius 1rem
 		background 0
 		background var(--background)
 		color var(--foreground)
@@ -193,7 +214,10 @@ export default class Viewer extends Vue {
 		outliine none
 
 		&.active
-			box-shadow 0 0 0 3px var(--background), 0 0 0 4px var(--comment)
+			color var(--background)
+			background var(--comment)
+			transition all 0 ease
+
 
 	&__canvas
 		height 100%
