@@ -25,6 +25,7 @@
 		"bezier-js": "^2.6.1",
 		"brace": "^0.11.1",
 		"color": "^3.1.2",
+		"dateformat": "^3.0.3",
 		"eslint": "^6.7.2",
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",

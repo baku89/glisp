@@ -231,6 +231,9 @@ export default class InputCodeEditor extends Vue {
 		background var(--yellow)
 		opacity .2
 
+	.ace_selection
+		opacity .5
+
 	&__editor
 		position relative
 		width 100%

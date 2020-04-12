@@ -63,9 +63,21 @@ export default class App extends Vue {
 
 	private created() {
 		const url = new URL(location.href)
+
+		const queryCodeURL = url.searchParams.get('code_url')
 		const queryCode = url.searchParams.get('code')
 
-		if (queryCode) {
+		if (queryCodeURL) {
+			const url = decodeURI(queryCodeURL)
+
+			const getCode = async () => {
+				const res = await fetch(url)
+				const code = await res.text()
+				this.code = `;; Loaded from "${url}"\n\n${code}`
+				history.pushState({}, document.title, '/')
+			}
+			getCode()
+		} else if (queryCode) {
 			this.code = decodeURI(queryCode)
 			history.pushState({}, document.title, '/')
 		} else {

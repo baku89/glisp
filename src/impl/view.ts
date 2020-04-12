@@ -1,9 +1,12 @@
+
+import EventEmitter from 'eventemitter3'
+import dateFormat from 'dateformat'
+
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
 import {MalVal} from './types'
 import {printer} from './printer'
 import readStr from './reader'
-import EventEmitter from 'eventemitter3'
 
 import {BlankException} from './reader'
 import {iteratePath} from './path'
@@ -220,16 +223,49 @@ consoleEnv.set('export', (name: MalVal = null) => {
 	return null
 })
 
-consoleEnv.set('gen-url', () => {
+consoleEnv.set('gen-url', (_name: MalVal) => {
 	const code = consoleEnv.get('$canvas') as string
 
-	const url = new URL(location.href)
-	url.searchParams.set('code', encodeURI(code))
-	const canvasURL = url.toString()
+	let filename: string
+	if (typeof _name === 'string') {
+		filename = `${_name}.lisp`
+	} else {
+		filename = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}.lisp`
+	}
 
-	viewHandler.emit('gen-url', canvasURL)
+	console.log(filename)
 
-	EVAL([S('println'), canvasURL], consoleEnv)
+	async function publishToGist() {
+		const res = await fetch('https://api.github.com/gists', {
+			method: 'POST',
+			headers: {
+				'Authorization': 'Basic ' + btoa('glispsketch:9c52d322b8ed3c1e9ca535429cd8868bb73b22bc')
+			},
+			body: JSON.stringify({
+				public: true,
+				files: {
+					[filename]: {
+						content: code
+					}
+				}
+			})
+		})
+		const data = await res.json()
+
+		const codeURL = data.files[filename].raw_url
+
+		const url = new URL(location.href)
+		url.searchParams.set('code_url', codeURL)
+		const canvasURL = url.toString()
+
+		EVAL([S('println'), canvasURL], consoleEnv)
+
+		viewHandler.emit('gen-url', canvasURL)
+	}
+
+	publishToGist()
+
+	EVAL([S('println'), 'Publishing to Gist...'], consoleEnv)
 
 	return null
 })

@@ -110,8 +110,12 @@ export default class Viewer extends Vue {
 
 	@Watch('code')
 	private update() {
-		const str = replEnv.get('$canvas') as string
-		this.viewEnv = this.rep(`(def $view (do ${str}))`)
+		const trimmed = this.code
+			.split('\n')
+			.map(s => s.replace(/;.*$/, '').trim())
+			.join('')
+		const str = trimmed ? `(do ${this.code})` : '""'
+		this.viewEnv = this.rep(`(def $view ${str}\n)`)
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
 			(sym: symbol) => Symbol.keyFor(sym) || ''
