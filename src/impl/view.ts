@@ -111,7 +111,6 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 				printer.log(option)
 				switch (option) {
 					case S(':size'):
-						printer.log('size')
 						size = val as number
 						break
 					case S(':font'):
@@ -218,6 +217,20 @@ consoleEnv.set('export', (name: MalVal = null) => {
 		const w = window.open('about:blank', 'Image for canvas')
 		w?.document.write(`<img src=${d} />`)
 	}
+	return null
+})
+
+consoleEnv.set('gen-url', () => {
+	const code = consoleEnv.get('$canvas') as string
+
+	const url = new URL(location.href)
+	url.searchParams.set('code', encodeURI(code))
+	const canvasURL = url.toString()
+
+	viewHandler.emit('gen-url', canvasURL)
+
+	EVAL([S('println'), canvasURL], consoleEnv)
+
 	return null
 })
 

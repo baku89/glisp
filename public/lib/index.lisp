@@ -254,6 +254,14 @@
 			(translate ~(first region) ~(nth region 1)
 				(list 'g (stroke "red" 10 (rect 0 0 $width $height)) ~@body)))))
 
+(defn extract-artboard (name body)
+	(if (list? body)
+		(first
+			(filter
+				#(and
+					(= (first %) ':artboard)
+					(= (nth % 1) name))
+				body))))
 
 (defn guide (body) (stroke $ui-border body))
 

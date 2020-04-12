@@ -1,5 +1,10 @@
 <template>
-	<div id="app" @mousewheel="onScroll" :style="colors">
+	<div
+		id="app"
+		:class="{'background-set': backgroundSet}"
+		:style="colors"
+		@mousewheel="onScroll"
+	>
 		<div class="app__viewer">
 			<Viewer :code="code" :selection="selection" />
 		</div>
@@ -50,17 +55,26 @@ export default class App extends Vue {
 	private activeRange: [number, number] | null = null
 	private code = ''
 	private background = 'snow'
+	private backgroundSet = false
 
 	onScroll(e: MouseWheelEvent) {
 		// e.preventDefault()
 	}
 
 	private created() {
-		this.code = localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
-		replEnv.set('$canvas', this.code)
-	}
+		const url = new URL(location.href)
+		const queryCode = url.searchParams.get('code')
 
-	private mounted() {
+		if (queryCode) {
+			this.code = decodeURI(queryCode)
+			history.pushState({}, document.title, '/')
+		} else {
+			this.code =
+				localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
+		}
+
+		replEnv.set('$canvas', this.code)
+
 		viewHandler.on('$insert', (item: MalVal) => {
 			const itemStr = PRINT(item)
 
@@ -70,6 +84,7 @@ export default class App extends Vue {
 			this.onEdit(code)
 			this.selection = selection
 		})
+
 		viewHandler.on('set-background', (bg: string) => {
 			let base
 
@@ -80,6 +95,13 @@ export default class App extends Vue {
 			}
 
 			this.background = bg
+			if (!this.backgroundSet) {
+				setTimeout(() => (this.backgroundSet = true), 1)
+			}
+		})
+
+		viewHandler.on('gen-url', (url: string) => {
+			navigator.clipboard.writeText(url).then(() => alert('URL Copied.'))
 		})
 	}
 
@@ -235,9 +257,12 @@ html
 	color var(--foreground)
 	text-align center
 	transition background var(--tdur) ease
-	--tdur 1s
+	--tdur 0
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
+
+	&.background-set
+		--tdur 1s
 
 .app
 	&__viewer
