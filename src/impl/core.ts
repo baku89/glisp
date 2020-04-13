@@ -154,7 +154,7 @@ export const coreNS = new Map<string, any>([
 		(...args: number[]) => {
 			let start = 0,
 				end = 0,
-				step = 1
+				step = Math.sign(end - start)
 
 			if (args.length === 1) {
 				;[end] = args
@@ -164,9 +164,13 @@ export const coreNS = new Map<string, any>([
 				;[start, end, step] = args
 			}
 
+			if ((end - start) * step <= 0) {
+				step = Math.sign(end - start) || 1
+			}
+
 			const arr = []
 
-			for (let i = start; i < end; i += step) {
+			for (let i = start; step > 0 ? i < end : i > end; i += step) {
 				arr.push(i)
 			}
 
