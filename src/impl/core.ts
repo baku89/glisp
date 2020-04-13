@@ -22,7 +22,7 @@ function slurp(url: string) {
 	return req.responseText
 }
 
-export function chunkByCount(arr: MalVal[], n: number) {
+export function chunkByCount(arr: any[], n: number) {
 	const ret = []
 
 	for (let i = 0; i < arr.length; i += n) {
@@ -134,7 +134,7 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			const c = cloneAST(a)
-			;(c as any).meta = m
+				; (c as any).meta = m
 			return c
 		}
 	],

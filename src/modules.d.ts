@@ -26,5 +26,7 @@ declare module 'bezier-js' {
 
 		offset(d: number): Bezier[]
 		split(t1: number, t2?: number): Bezier
+		length(): number
+		get(t: number): Point
 	}
 }

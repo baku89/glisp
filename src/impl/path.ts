@@ -1,7 +1,9 @@
+/* eslint-ignore @typescript-eslint/no-use-before-define */
 import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import {MalVal} from './types'
 import {chunkByCount} from './core'
+import {LispError} from './repl'
 
 type PathType = (symbol | number)[]
 type SegmentType = [symbol, ...number[]]
@@ -31,7 +33,21 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+function getBezier(points: number[]) {
+	const coords = chunkByCount(points, 2).map(([x, y]) => ({x, y}))
+	if (coords.length !== 4) {
+		throw new LispError('Invalid point count for cubic bezier')
+	}
+	return new Bezier(coords)
+}
+
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
+	if (!Array.isArray(path) || path.length < 1) {
+		throw new LispError('Invalid path')
+	}
+
 	let start = path[0] === SYM_PATH ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
@@ -42,41 +58,123 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	}
 }
 
-function pathToBezier(path: PathType) {
-	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
-		throw new Error('path-to-bezier: invalid path')
-	} else {
-		const ret: PathType = [SYM_PATH]
-		const commands = path.slice(1)
+function* iterateSegmentWithLength(path: PathType): Generator<[SegmentType, number]> {
+	let length = 0
 
-		for (const line of iterateSegment(commands)) {
-			const [cmd, ...args] = line
+	const first = vec2.create()
+	const prev = vec2.create()
+	const curt = vec2.create()
 
-			let sx = 0,
-				sy = 0
+	for (const seg of iterateSegment(path)) {
+		const [cmd, ...points] = seg
+		switch (cmd) {
+			case SYM_M:
+				vec2.copy(first, points as vec2)
+				vec2.copy(prev, first)
+				break
+			case SYM_L:
+				vec2.copy(curt, points.slice(-2) as vec2)
+				length += vec2.dist(prev, curt)
+				vec2.copy(prev, curt)
+				break
+			case SYM_C: {
+				const bezier = getBezier([...(prev as number[]), ...points])
+				length += bezier.length()
+				vec2.copy(prev, points.slice(-2) as vec2)
+				break
+			}
+			case SYM_Z:
+				length += vec2.dist(prev, first)
+				break
+		}
+		yield [seg, length]
+	}
+}
+
+function pathToBeziers(path: PathType) {
+	const ret: PathType = [SYM_PATH]
+
+	for (const line of iterateSegment(path)) {
+		const [cmd, ...args] = line
+
+		let sx = 0,
+			sy = 0
+
+		switch (cmd) {
+			case SYM_M:
+			case SYM_C:
+				;[sx, sy] = args
+				ret.push(...line)
+				break
+			case SYM_Z:
+				ret.push(...line)
+				break
+			case SYM_L:
+				ret.push(SYM_L, sx, sy, ...args, ...args)
+				break
+			default:
+				throw new Error(
+					`Invalid d-path command: ${
+					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+					}`
+				)
+		}
+	}
+	return ret
+}
+
+function pathLength(path: PathType) {
+	const segs = Array.from(iterateSegmentWithLength(path))
+	return segs.slice(-1)[0][1]
+}
+
+function positionAtLength(len: number, path: PathType) {
+	const segs = Array.from(iterateSegmentWithLength(path))
+	const length = segs.slice(-1)[0][1]
+
+	len = clamp(len, 0, length)
+
+	const first = vec2.create()
+	const prev = vec2.create()
+	const curt = vec2.create()
+	let startLen = 0
+
+	for (let i = 0; i < segs.length; i++) {
+		const [[cmd, ...points], endLen] = segs[i]
+		if (cmd === SYM_M) {
+			vec2.copy(first, points as vec2)
+		}
+		vec2.copy(curt, cmd === SYM_Z ? first : points.slice(-2) as vec2)
+
+		if (len <= endLen) {
+			const t = (len - startLen) / (endLen - startLen)
 
 			switch (cmd) {
 				case SYM_M:
-				case SYM_C:
-					;[sx, sy] = args
-					ret.push(...line)
-					break
-				case SYM_Z:
-					ret.push(...line)
-					break
+					return [...curt]
 				case SYM_L:
-					ret.push(SYM_L, sx, sy, ...args, ...args)
-					break
+				case SYM_Z:
+					vec2.lerp(prev, prev, curt, t)
+					return [...prev]
+				case SYM_C: {
+					const bezier = getBezier([...prev, ...points])
+					const {x, y} = bezier.get(t)
+					return [x, y]
+				}
 				default:
-					throw new Error(
-						`Invalid d-path command2: ${
-						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
-						}`
-					)
+					throw new LispError('Dont know why...')
 			}
 		}
-		return ret
+
+		vec2.copy(prev, curt)
+		startLen = endLen
 	}
+
+}
+
+function positionAt(t: number, path: PathType) {
+	const length = pathLength(path)
+	return positionAtLength(t * length, path)
 }
 
 function arc(
@@ -190,23 +288,11 @@ function arc(
 }
 
 function offsetBezier(...args: number[]) {
-	if (
-		Math.abs(args[2] - args[0]) < EPSILON &&
-		Math.abs(args[4] - args[0]) < EPSILON &&
-		Math.abs(args[6] - args[0]) < EPSILON &&
-		Math.abs(args[3] - args[1]) < EPSILON &&
-		Math.abs(args[5] - args[1]) < EPSILON &&
-		Math.abs(args[7] - args[1]) < EPSILON
-	) {
+	const bezier = getBezier(args.slice(0, 8))
+
+	if (bezier.length() < EPSILON) {
 		return false
 	}
-
-	const bezier = new Bezier([
-		{x: args[0], y: args[1]},
-		{x: args[2], y: args[3]},
-		{x: args[4], y: args[5]},
-		{x: args[6], y: args[7]}
-	])
 
 	const d = args[8]
 
@@ -311,7 +397,7 @@ function getPathRotation(path: PathType): number {
 	return Math.sign(Math.round(rot))
 }
 
-function offsetPath(d: number, path: PathType) {
+function pathOffset(d: number, path: PathType) {
 	const isClockwise = getPathRotation(path) === 1
 
 	if (isClockwise) {
@@ -417,8 +503,12 @@ function offsetPath(d: number, path: PathType) {
 
 export const pathNS = new Map<string, any>([
 	['arc', arc],
-	['path/to-bezier', pathToBezier],
-	['path/offset', offsetPath],
+	['path/to-beziers', pathToBeziers],
+	['path/offset', pathOffset],
+	['path/length', pathLength],
+	['path/closed?', isPathClosed],
+	['path/position-at-length', positionAtLength],
+	['path/position-at', positionAt],
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => Array.from(iterateSegment(path))
