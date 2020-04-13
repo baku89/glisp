@@ -228,7 +228,7 @@ consoleEnv.set('export', (name: MalVal = null) => {
 		ctx.translate(-x, -y)
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		draw(ctx, [], $view as MalVal)
+		draw(ctx, $view, [])
 		const d = canvas.toDataURL('image/png')
 		const w = window.open('about:blank', 'Image for canvas')
 		w?.document.write(`<img src=${d} />`)
