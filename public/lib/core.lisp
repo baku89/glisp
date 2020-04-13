@@ -43,6 +43,14 @@
 (defn map (f xs)
 	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
+(defn cartesian-product (& xs)
+	(apply concat 
+		(map
+			(fn (R) (map #(cons % R) (first xs)))
+			(if (= 2 (count xs))
+				(last xs)
+				(apply product (rest xs))))))
+
 (defn map-indexed (f xs)
 	(map
 		(fn (i) (f i (nth xs i)))
