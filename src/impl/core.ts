@@ -78,7 +78,9 @@ export const coreNS = new Map<string, any>([
 	[
 		'nth',
 		(a: MalVal[], i: number) => {
-			if (i < 0) {
+			if (typeof i !== 'number') {
+				_error('[nth] Index should be specified by number')
+			} else if (i < 0) {
 				return -i <= a.length
 					? a[a.length - i]
 					: _error('[nth] index out of range')
