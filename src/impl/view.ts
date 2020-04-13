@@ -3,7 +3,7 @@ import dateFormat from 'dateformat'
 
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
-import {MalVal, keywordFor as K} from './types'
+import {MalVal, keywordFor as K, keywordFor, isKeyword} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 
@@ -240,12 +240,47 @@ consoleEnv.set('export', (name: MalVal = null) => {
 	return null
 })
 
-consoleEnv.set('gen-url', (_name: MalVal) => {
+function createHashMap(arr: MalVal[]) {
+	const ret: {[key: string]: MalVal | MalVal[]} = {}
+	const counts: {[key: string]: number} = {}
+
+	for (let i = 0, keyword = '_'; i < arr.length; i++) {
+		if (isKeyword(arr[i])) {
+			keyword = (arr[i] as string).slice(1)
+			counts[keyword] = 0
+		} else {
+			if (++counts[keyword] === 1) {
+				ret[keyword] = arr[i]
+			} else if (counts[keyword] === 2) {
+				ret[keyword] = [ret[keyword], arr[i]]
+			} else {
+				;(ret[keyword] as MalVal[]).push(arr[i])
+			}
+		}
+	}
+	return ret
+}
+
+consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	const code = consoleEnv.get('$canvas') as string
 
+	// eslint-disable-next-line prefer-const
+	let {_: name, user, token} = createHashMap(args)
+
+	if (typeof user !== 'string' || typeof token !== 'string') {
+		const saved = localStorage.getItem('gist_api_token')
+		if (saved !== null) {
+			;({user, token} = JSON.parse(saved) as any)
+			printer.log('Using saved API key')
+		} else {
+			throw new LispError(`Parameters :user and :token must be specified.
+Get the token from https://github.com/settings/tokens/new with 'gist' option turned on.`)
+		}
+	}
+
 	let filename: string
-	if (typeof _name === 'string') {
-		filename = `${_name}.lisp`
+	if (typeof name === 'string') {
+		filename = `${name}.lisp`
 	} else {
 		filename = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}.lisp`
 	}
@@ -254,9 +289,7 @@ consoleEnv.set('gen-url', (_name: MalVal) => {
 		const res = await fetch('https://api.github.com/gists', {
 			method: 'POST',
 			headers: {
-				Authorization:
-					'Basic ' +
-					btoa('glispsketch:9c52d322b8ed3c1e9ca535429cd8868bb73b22bc')
+				Authorization: 'Basic ' + btoa(`${user as string}:${token as string}`)
 			},
 			body: JSON.stringify({
 				public: true,
@@ -267,22 +300,33 @@ consoleEnv.set('gen-url', (_name: MalVal) => {
 				}
 			})
 		})
-		const data = await res.json()
 
-		const codeURL = data.files[filename].raw_url
+		if (res.ok) {
+			const data = await res.json()
 
-		const url = new URL(location.href)
-		url.searchParams.set('code_url', codeURL)
-		const canvasURL = url.toString()
+			const codeURL = data.files[filename].raw_url
 
-		EVAL([S('println'), canvasURL], consoleEnv)
+			const url = new URL(location.href)
+			url.searchParams.set('code_url', codeURL)
+			const canvasURL = url.toString()
 
-		viewHandler.emit('gen-url', canvasURL)
+			printer.log(`Canvas URL: ${canvasURL}`)
+
+			await navigator.clipboard.writeText(canvasURL)
+
+			printer.log('Copied to clipboard')
+
+			localStorage.setItem('gist_api_key', JSON.stringify({user, token}))
+		} else {
+			printer.error('Invalid username or token')
+		}
 	}
 
 	publishToGist()
 
-	EVAL([S('println'), 'Publishing to Gist...'], consoleEnv)
+	printer.log(
+		`Publishing to Gist... user=${user as string}, token=${token as string}`
+	)
 
 	return null
 })
