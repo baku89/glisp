@@ -3,7 +3,13 @@ import Bezier from 'bezier-js'
 import {MalVal} from './types'
 import {chunkByCount} from './core'
 
+type PathType = (symbol | number)[]
+type SegmentType = [symbol, ...number[]]
+
+
 const S = Symbol.for
+
+const EPSILON = 1e-5
 
 const SYM_PATH = S('path')
 const SYM_M = S('M')
@@ -25,15 +31,12 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-type PathType = (symbol | number)[]
-type SegmentType = [symbol, ...number[]]
-
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	let start = path[0] === SYM_PATH ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || typeof path[i] === 'symbol') {
-			yield path.slice(start, i) as [symbol, ...number[]]
+			yield path.slice(start, i) as SegmentType
 			start = i
 		}
 	}
@@ -74,46 +77,6 @@ function pathToBezier(path: PathType) {
 		}
 		return ret
 	}
-}
-
-const EPSILON = 1e-5
-
-function offsetBezier(...args: number[]) {
-	if (
-		Math.abs(args[2] - args[0]) < EPSILON &&
-		Math.abs(args[4] - args[0]) < EPSILON &&
-		Math.abs(args[6] - args[0]) < EPSILON &&
-		Math.abs(args[3] - args[1]) < EPSILON &&
-		Math.abs(args[5] - args[1]) < EPSILON &&
-		Math.abs(args[7] - args[1]) < EPSILON
-	) {
-		return false
-	}
-
-	const bezier = new Bezier([
-		{x: args[0], y: args[1]},
-		{x: args[2], y: args[3]},
-		{x: args[4], y: args[5]},
-		{x: args[6], y: args[7]}
-	])
-
-	const d = args[8]
-
-	const offset = bezier.offset(d)
-
-	const {x, y} = offset[0].points[0]
-
-	const ret = [SYM_M, x, y]
-
-	for (const seg of offset) {
-		const pts = seg.points
-		ret.push(SYM_C)
-		for (let i = 1; i < 4; i++) {
-			ret.push(pts[i].x, pts[i].y)
-		}
-	}
-
-	return ret
 }
 
 function arc(
@@ -226,6 +189,44 @@ function arc(
 	]
 }
 
+function offsetBezier(...args: number[]) {
+	if (
+		Math.abs(args[2] - args[0]) < EPSILON &&
+		Math.abs(args[4] - args[0]) < EPSILON &&
+		Math.abs(args[6] - args[0]) < EPSILON &&
+		Math.abs(args[3] - args[1]) < EPSILON &&
+		Math.abs(args[5] - args[1]) < EPSILON &&
+		Math.abs(args[7] - args[1]) < EPSILON
+	) {
+		return false
+	}
+
+	const bezier = new Bezier([
+		{x: args[0], y: args[1]},
+		{x: args[2], y: args[3]},
+		{x: args[4], y: args[5]},
+		{x: args[6], y: args[7]}
+	])
+
+	const d = args[8]
+
+	const offset = bezier.offset(d)
+
+	const {x, y} = offset[0].points[0]
+
+	const ret = [SYM_M, x, y]
+
+	for (const seg of offset) {
+		const pts = seg.points
+		ret.push(SYM_C)
+		for (let i = 1; i < 4; i++) {
+			ret.push(pts[i].x, pts[i].y)
+		}
+	}
+
+	return ret
+}
+
 function offsetLine(a: vec2, b: vec2, d: number) {
 	if (vec2.equals(a, b)) {
 		return false
@@ -244,7 +245,7 @@ function offsetLine(a: vec2, b: vec2, d: number) {
 	vec2.add(oa, a, dir)
 	vec2.add(ob, b, dir)
 
-	return [SYM_M, ...oa, SYM_L, ...ob] as (symbol | number)[]
+	return [SYM_M, ...oa, SYM_L, ...ob] as PathType
 }
 
 function isPathClosed(path: PathType) {
@@ -320,7 +321,7 @@ function offsetPath(d: number, path: PathType) {
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
 		throw new Error('Invalid path')
 	} else {
-		const ret: (symbol | number)[] = [SYM_PATH]
+		const ret: PathType = [SYM_PATH]
 		const commands = path.slice(1)
 
 		//       loff   foff
