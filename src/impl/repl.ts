@@ -221,4 +221,4 @@ replEnv.set('eval', (ast: MalVal) => {
 REP(
 	'(def load-file (fn (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))'
 )
-REP('(load-file "./lib/index.lisp")')
+REP('(load-file "./lib/core.lisp")')

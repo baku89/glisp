@@ -170,17 +170,6 @@
 		L ~x ~(+ y h)
 		Z))
 
-(defn arc (x y r start stop & xs)
-	(let
-		(
-			sx (+ x (* r (cos start)))
-			sy (+ y (* r (sin start)))
-		)
-		`(path
-			M ~sx ~sy
-			A ~x ~y ~r ~start ~stop
-			~@(if (first xs) '(Z) '()))))
-
 (defmacro repeat-item (fn (sym n body)
 	`(g
 		~@(map 
