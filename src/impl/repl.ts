@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
-import {MalVal, MalFunc, createMalFunc, isMalFunc, cloneAST} from './types'
+import {
+	MalVal,
+	MalFunc,
+	createMalFunc,
+	isMalFunc,
+	cloneAST,
+	isKeyword
+} from './types'
 
 import readStr from './reader'
 import printExp, {printer} from './printer'
@@ -95,7 +102,11 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				ast = quasiquote(a1)
 				break // continue TCO loop
 			case 'defmacro': {
-				const fnast = [S('fn'), a2, ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]]
+				const fnast = [
+					S('fn'),
+					a2,
+					ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]
+				]
 				const fn = cloneAST(EVAL(fnast, env)) as MalFunc
 				fn.ismacro = true
 				return env.set(a1 as symbol, fn)
@@ -164,10 +175,19 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					return fn(...args)
-				} else if (Array.isArray(fn)) {
-					throw new LispError(`[EVAL] List ${PRINT(fn)} is not a function`)
 				} else {
-					throw new LispError(`[EVAL] ${fn} is not a function`)
+					let objname: string
+
+					if (isKeyword(fn)) {
+						objname = `Keyword ${PRINT(fn)}`
+					} else if (Array.isArray(fn)) {
+						objname = `List ${PRINT(fn)}`
+					} else {
+						objname = `${fn}`
+					}
+					throw new LispError(
+						`[EVAL] ${objname} is not a function. First element of list always should be a function.`
+					)
 				}
 			}
 		}

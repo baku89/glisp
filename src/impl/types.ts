@@ -83,6 +83,8 @@ export const isKeyword = (obj: MalVal) =>
 export const createKeyword = (obj: MalVal) =>
 	isKeyword(obj) ? obj : '\u029e' + (obj as string)
 
+export const keywordFor = (k: string) => '\u029e' + k
+
 // Atoms
 export class MalAtom {
 	public val: any

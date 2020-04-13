@@ -1,10 +1,9 @@
-
 import EventEmitter from 'eventemitter3'
 import dateFormat from 'dateformat'
 
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
-import {MalVal} from './types'
+import {MalVal, keywordFor as K} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 
@@ -38,7 +37,12 @@ interface DrawStyleStroke {
 
 type DrawStyle = DrawStyleFill | DrawStyleStroke
 
-function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
+function draw(
+	ctx: CanvasRenderingContext2D,
+	ast: MalVal,
+	styles: DrawStyle[],
+	defaultStyle?: DrawStyle
+) {
 	if (Array.isArray(ast)) {
 		const [cmd, ...args] = ast as any[]
 
@@ -54,13 +58,13 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 				type: 'fill',
 				params: {style: args[0] as string}
 			}
-			draw(ctx, [...styles, style], last)
+			draw(ctx, last, [style, ...styles], defaultStyle)
 		} else if (cmd === S('stroke')) {
 			const style: DrawStyleStroke = {
 				type: 'stroke',
 				params: {style: args[0] as string, width: args[1]}
 			}
-			draw(ctx, [...styles, style], last)
+			draw(ctx, last, [style, ...styles], defaultStyle)
 		} else if (cmd === S('path')) {
 			ctx.beginPath()
 			for (const [c, ...a] of iteratePath(args)) {
@@ -86,7 +90,11 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 				}
 			}
 			// Apply Styles (ignoring default style)
-			for (const style of styles.length > 1 ? styles.slice(1) : styles) {
+			for (const style of styles.length > 0
+				? styles
+				: defaultStyle
+				? [defaultStyle]
+				: []) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fill()
@@ -113,16 +121,16 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			for (const [option, val] of chunkByCount(args.slice(3), 2)) {
 				printer.log(option)
 				switch (option) {
-					case S(':size'):
+					case K('size'):
 						size = val as number
 						break
-					case S(':font'):
+					case K('font'):
 						font = val as string
 						break
-					case S(':align'):
+					case K('align'):
 						align = val as string
 						break
-					case S(':baseline'):
+					case K('baseline'):
 						baseline = val as string
 						break
 				}
@@ -132,32 +140,34 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			ctx.textBaseline = baseline as CanvasTextBaseline
 
 			// Apply Styles
-			for (const style of styles.length > 1 ? styles.slice(1) : styles) {
-				for (const style of styles) {
-					if (style.type === 'fill') {
-						ctx.fillStyle = style.params.style
-						ctx.fillText(text, x, y)
-					} else if (style.type === 'stroke') {
-						ctx.strokeStyle = style.params.style
-						ctx.lineWidth = style.params.width
-						ctx.strokeText(text, x, y)
-					}
+			for (const style of styles.length > 0
+				? styles
+				: defaultStyle
+				? [defaultStyle]
+				: []) {
+				if (style.type === 'fill') {
+					ctx.fillStyle = style.params.style
+					ctx.fillText(text, x, y)
+				} else if (style.type === 'stroke') {
+					ctx.strokeStyle = style.params.style
+					ctx.lineWidth = style.params.width
+					ctx.strokeText(text, x, y)
 				}
 			}
 		} else if (cmd === S('translate')) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
-			draw(ctx, styles, last)
+			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
 		} else if (cmd === S('scale')) {
 			ctx.save()
 			ctx.scale(args[0] as number, args[1] as number)
-			draw(ctx, styles, last)
+			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
 		} else if (cmd === S('rotate')) {
 			ctx.save()
 			ctx.rotate(args[0] as number)
-			draw(ctx, styles, last)
+			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
 		} else if (cmd === S(':artboard')) {
 			const [id, region, body] = args
@@ -170,13 +180,13 @@ function draw(ctx: CanvasRenderingContext2D, styles: DrawStyle[], ast: MalVal) {
 			ctx.clip(clipRegion)
 
 			// Draw inner items
-			draw(ctx, styles, body)
+			draw(ctx, body, styles, defaultStyle)
 
 			// Restore
 			ctx.restore()
 		} else {
 			for (const a of ast) {
-				draw(ctx, styles, a)
+				draw(ctx, a, styles, defaultStyle)
 			}
 		}
 	}
@@ -202,11 +212,14 @@ consoleEnv.set('export', (name: MalVal = null) => {
 
 	if (Array.isArray($view) && ctx) {
 		if (name !== null) {
-			$view = EVAL([S('extract-artboard'), name, [S('quote'), $view]], consoleEnv)
+			$view = EVAL(
+				[S('extract-artboard'), name, [S('quote'), $view]],
+				consoleEnv
+			)
 			if ($view === null) {
 				throw new LispError('Artboard not found')
 			} else {
-				[x, y, width, height] = ($view as any)[2] as number[]
+				;[x, y, width, height] = ($view as any)[2] as number[]
 			}
 		}
 
@@ -233,13 +246,13 @@ consoleEnv.set('gen-url', (_name: MalVal) => {
 		filename = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}.lisp`
 	}
 
-	console.log(filename)
-
 	async function publishToGist() {
 		const res = await fetch('https://api.github.com/gists', {
 			method: 'POST',
 			headers: {
-				'Authorization': 'Basic ' + btoa('glispsketch:9c52d322b8ed3c1e9ca535429cd8868bb73b22bc')
+				Authorization:
+					'Basic ' +
+					btoa('glispsketch:9c52d322b8ed3c1e9ca535429cd8868bb73b22bc')
 			},
 			body: JSON.stringify({
 				public: true,
@@ -270,7 +283,11 @@ consoleEnv.set('gen-url', (_name: MalVal) => {
 	return null
 })
 
-export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D, selection?: [number, number]) {
+export function viewREP(
+	str: string | MalVal,
+	ctx: CanvasRenderingContext2D,
+	selection?: [number, number]
+) {
 	replEnv.set('$pens', [])
 	replEnv.set('$hands', [])
 
@@ -316,12 +333,13 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D, sel
 		// default style
 		const uiBorder = viewEnv.get('$ui-border') as string
 
-		const styles: DrawStyle[] = [
-			{type: 'stroke', params: {style: uiBorder, width: 1}}
-		]
+		const defaultStyle: DrawStyle = {
+			type: 'stroke',
+			params: {style: uiBorder, width: 1}
+		}
 
 		try {
-			draw(ctx, styles, out)
+			draw(ctx, out, [], defaultStyle)
 		} catch (err) {
 			printer.error(err.stack)
 		}
