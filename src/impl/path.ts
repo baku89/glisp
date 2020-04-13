@@ -11,6 +11,19 @@ const SYM_L = S('L')
 const SYM_C = S('C')
 const SYM_Z = S('Z')
 
+const SIN_Q = [0, 1, 0, -1]
+const COS_Q = [1, 0, -1, 0]
+const HALF_PI = Math.PI / 2
+const K = (4 * (Math.sqrt(2) - 1)) / 3
+const UNIT_QUAD_BEZIER = new Bezier([
+	{x: 1, y: 0},
+	{x: 1, y: K},
+	{x: K, y: 1},
+	{x: 0, y: 1}
+])
+
+const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
+
 type PathType = (symbol | number)[]
 
 export function* iteratePath(path: PathType): Generator<[symbol, ...number[]]> {
@@ -100,19 +113,6 @@ function offsetBezier(...args: number[]) {
 
 	return ret
 }
-
-const SIN_Q = [0, 1, 0, -1]
-const COS_Q = [1, 0, -1, 0]
-const HALF_PI = Math.PI / 2
-const K = (4 * (Math.sqrt(2) - 1)) / 3
-const UNIT_QUAD_BEZIER = new Bezier([
-	{x: 1, y: 0},
-	{x: 1, y: K},
-	{x: K, y: 1},
-	{x: 0, y: 1}
-])
-
-const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function arc(
 	x: number,
@@ -217,7 +217,7 @@ function arc(
 	}
 
 	return [
-		S('path'),
+		SYM_PATH,
 		S('M'),
 		...points[0],
 		...chunkByCount(points.slice(1), 3)
@@ -300,9 +300,9 @@ function offsetPath(d: number, path: PathType) {
 }
 
 export const pathNS = new Map<string, any>([
+	['arc', arc],
 	['path/to-bezier', pathToBezier],
 	['path/offset', offsetPath],
-	['arc', arc],
 	[
 		'path/split-commands',
 		([_, ...path]: PathType) => Array.from(iteratePath(path))
