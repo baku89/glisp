@@ -101,7 +101,11 @@
 			true "black")))
 
 (defn translate (x y body) `(translate ~x ~y ~body))
-(defn scale (x y body) `(scale ~x ~y ~body))
+(defn scale (& xs) 
+	(cond
+		(= (count xs) 2) `(scale ~(first xs) ~(first xs) ~(last xs))
+		(= (count xs) 3) `(scale ~@xs)))
+
 (defn rotate (a body) `(rotate ~a ~body))
 
 (defn background (& xs) `(background ~@xs))
