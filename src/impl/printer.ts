@@ -1,4 +1,4 @@
-import {MalVal, MalAtom, isMalFunc, MalFunc} from './types'
+import {MalVal, MalAtom, isMalFunc, MalFunc, isKeyword} from './types'
 
 export const printer = {
 	log: (...args: any) => {
@@ -28,17 +28,22 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 				return '~@' + printExp(obj[1], _r)
 			}
 		}
-
 		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
 	} else if (typeof obj === 'string') {
-		return _r
-			? '"' +
-					obj
-						.replace(/\\/g, '\\\\')
-						.replace(/"/g, '\\"')
-						.replace(/\n/g, '\\n') +
-					'"'
-			: obj
+		if (isKeyword(obj)) {
+			return ':' + obj.slice(1)
+		} else if (_r) {
+			return (
+				'"' +
+				obj
+					.replace(/\\/g, '\\\\')
+					.replace(/"/g, '\\"')
+					.replace(/\n/g, '\\n') +
+				'"'
+			)
+		} else {
+			return obj
+		}
 	} else if (typeof obj === 'symbol') {
 		return Symbol.keyFor(obj) || 'INVALID_SYM'
 	} else if (obj === null) {

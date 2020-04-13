@@ -1,4 +1,5 @@
 import {LispError} from './repl'
+import {createKeyword} from './types'
 
 class Reader {
 	public tokens: (string | symbol)[]
@@ -62,8 +63,8 @@ function readAtom(reader: Reader) {
 				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 		} else if (token[0] === '"') {
 			throw new LispError("[READ] expected '\"', got EOF")
-			// } else if (token[0] === ':') {
-			// 	return types._keyword(token.slice(1))
+		} else if (token[0] === ':') {
+			return createKeyword(token.slice(1))
 		} else if (token === 'nil') {
 			return null
 		} else if (token === 'true') {

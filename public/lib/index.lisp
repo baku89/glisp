@@ -18,7 +18,6 @@
 			(first xs)
 			(if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
 			(cons 'cond (rest (rest xs))))))
-(def :else true)
 
 ;; Functioal Language Features
 (defn reduce (f init xs)
@@ -155,13 +154,9 @@
 (defn path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
-(defn path (& xs) xs)
+(defn path (& xs) `(path ~@xs))
 
-; keywords for text
-(def :size nil)
-(def :align nil)
-(def :baseline nil)
-(defn text (& xs) xs)
+(defn text (& xs) `(text ~@xs))
 
 (defn rect (x y w h)
 	`(path

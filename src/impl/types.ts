@@ -76,6 +76,13 @@ export function createMalFunc(
 export const isMalFunc = (obj: MalVal) =>
 	obj && (obj as MalFunc).ast ? true : false
 
+// Keyword
+// Use \u029e as the prefix of keyword instead of colon (:) for AST object
+export const isKeyword = (obj: MalVal) =>
+	typeof obj === 'string' && obj[0] === '\u029e'
+export const createKeyword = (obj: MalVal) =>
+	isKeyword(obj) ? obj : '\u029e' + (obj as string)
+
 // Atoms
 export class MalAtom {
 	public val: any
