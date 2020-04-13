@@ -8,7 +8,7 @@
 					:class="{active: pen === activePen}"
 					v-for="(pen, i) in pens"
 					:key="i"
-					@click="togglepen(pen)"
+					@click="togglePen(pen)"
 				>
 					{{ pen }}
 				</button>
@@ -84,6 +84,7 @@ export default class Viewer extends Vue {
 
 	private rep!: (s: string) => Env
 	private viewEnv!: Env
+	private rafID!: number
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
@@ -130,14 +131,36 @@ export default class Viewer extends Vue {
 		}
 	}
 
-	private togglepen(pen: string) {
+	private togglePen(pen: string) {
 		if (this.activePen === pen) {
 			this.activePen = null
+			cancelAnimationFrame(this.rafID)
 		} else {
 			// Begin
 			this.activePen = pen
-			consoleREP(`(begin-draw state)`)
+			EVAL([S('begin-draw'), S('state')], consoleEnv)
+			this.rafID = requestAnimationFrame(this.onFrame)
 		}
+	}
+
+	private onFrame() {
+		if (this.activePen === null) return
+
+		console.log('framee')
+
+		const [x, y] = this.cursorPos
+		const p = this.mousePressed
+
+		EVAL(
+			[
+				S('if'),
+				[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
+				[S('$insert'), [S('first'), S('state')]]
+			],
+			consoleEnv
+		)
+
+		this.rafID = requestAnimationFrame(this.onFrame)
 	}
 
 	private onClickOutside() {
@@ -169,17 +192,6 @@ export default class Viewer extends Vue {
 		}
 
 		this.cursorPos = [x, y]
-
-		if (this.activePen) {
-			consoleREP(
-				`
-				(if
-					(draw ${this.activePen} state '(${x} ${y} ${p}))
-					($insert (first state)))
-			`,
-				false
-			)
-		}
 	}
 }
 </script>
