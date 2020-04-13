@@ -124,9 +124,7 @@ function arc(
 	const min = Math.min(start, end)
 	const max = Math.max(start, end)
 
-	let points: [number, number][] = [
-		[x + r * Math.cos(min), y + r * Math.sin(min)]
-	]
+	let points: number[][] = [[x + r * Math.cos(min), y + r * Math.sin(min)]]
 
 	const minSeg = Math.ceil(min / HALF_PI)
 	const maxSeg = Math.floor(max / HALF_PI)
@@ -167,7 +165,7 @@ function arc(
 			points.push(
 				...bezier.points
 					.slice(1)
-					.map((p: {x: number; y: number}) => [
+					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
 						y + r * (p.x * sin + p.y * cos)
 					])
@@ -175,7 +173,7 @@ function arc(
 		}
 
 		// Cubic bezier points of the quarter circle in quadrant 0 in position [0, 0]
-		const qpoints: [number, number][] = [
+		const qpoints: number[][] = [
 			[r, K * r],
 			[K * r, r],
 			[0, r]
@@ -187,7 +185,7 @@ function arc(
 				sin = SIN_Q[q],
 				cos = COS_Q[q]
 			points.push(
-				...qpoints.map(([px, py]): [number, number] => [
+				...qpoints.map(([px, py]) => [
 					x + px * cos - py * sin,
 					y + px * sin + py * cos
 				])
@@ -204,7 +202,7 @@ function arc(
 			points.push(
 				...bezier.points
 					.slice(1)
-					.map((p: {x: number; y: number}) => [
+					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
 						y + r * (p.x * sin + p.y * cos)
 					])

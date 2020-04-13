@@ -3,7 +3,7 @@ import dateFormat from 'dateformat'
 
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
-import {MalVal, keywordFor as K, keywordFor, isKeyword} from './types'
+import {MalVal, keywordFor as K, isKeyword} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 
@@ -51,7 +51,7 @@ function draw(
 		if (cmd === S('background')) {
 			const color = args[0]
 			if (typeof color === 'string') {
-				viewHandler.emit('set-background', args[0] as string)
+				viewHandler.emit('set-background', args[0])
 			}
 		} else if (cmd === S('fill')) {
 			const style: DrawStyleFill = {
@@ -170,7 +170,7 @@ function draw(
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
 		} else if (cmd === S(':artboard')) {
-			const [id, region, body] = args
+			const [region, body] = args.slice(1)
 			const [x, y, w, h] = region
 
 			// Enable Clip
@@ -219,7 +219,7 @@ consoleEnv.set('export', (name: MalVal = null) => {
 			if ($view === null) {
 				throw new LispError(`Artboard "${name as string}" not found`)
 			} else {
-				;[x, y, width, height] = ($view as any)[2] as number[]
+				;[x, y, width, height] = ($view as MalVal[])[2] as number[]
 			}
 		}
 
@@ -270,7 +270,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			;({user, token} = JSON.parse(saved) as any)
+			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.

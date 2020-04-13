@@ -5,8 +5,6 @@ import printExp, {printer} from './printer'
 import readStr from './reader'
 import {LispError} from './repl'
 
-const random = seedrandom('test')
-
 function _error(e: string) {
 	throw new LispError(e)
 }

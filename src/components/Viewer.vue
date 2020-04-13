@@ -9,9 +9,7 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>
-					{{ pen }}
-				</button>
+				>{{ pen }}</button>
 			</div>
 			<div class="Viewer__buttons">
 				<label class="Viewer__label">✍️</label>
@@ -21,16 +19,12 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>
-					{{ hand }}
-				</button>
+				>{{ hand }}</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>
-					*
-				</button>
+				>*</button>
 			</div>
 		</div>
 		<canvas
@@ -211,29 +205,28 @@ export default class Viewer extends Vue {
 		margin-bottom 1rem
 
 	&__label
-		font-size 1.5rem
-		padding-top .2rem
-		margin-right .2rem
+		margin-right 0.2rem
+		padding-top 0.2rem
 		filter grayscale(1)
+		font-size 1.5rem
 		// background white
 
 	&__button
 		margin 0 0.3rem
-		line-height 1.2rem
-		padding .4rem .7rem
+		padding 0.4rem 0.7rem
 		border 1px solid var(--comment)
 		border-radius 1rem
 		background 0
 		background var(--background)
 		color var(--foreground)
+		line-height 1.2rem
 		transition all var(--tdur) ease
 		outliine none
 
 		&.active
-			color var(--background)
 			background var(--comment)
+			color var(--background)
 			transition all 0 ease
-
 
 	&__canvas
 		width 100%
@@ -247,25 +240,26 @@ export default class Viewer extends Vue {
 		pointer-events none
 
 	&__cursor
+		$width = 2rem
 		position absolute
-		width 2rem
+		margin $width * -0.5
+		width $width
 		height @width
-		margin @width * -.5
 		border-radius 50%
 
 		&:before, &:after
-			content ''
 			position absolute
 			display block
 			background red
+			content ''
 
 		&:before
+			left 50%
 			width 1px
 			height 100%
-			left 50%
 
 		&:after
+			top 50%
 			width 100%
 			height 1px
-			top 50%
 </style>
