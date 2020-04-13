@@ -8,7 +8,7 @@ import {printer} from './printer'
 import readStr from './reader'
 
 import {BlankException} from './reader'
-import {iteratePath} from './path'
+import {iterateSegment} from './path'
 import {chunkByCount} from './core'
 
 export const viewHandler = new EventEmitter()
@@ -67,7 +67,7 @@ function draw(
 			draw(ctx, last, [style, ...styles], defaultStyle)
 		} else if (cmd === S('path')) {
 			ctx.beginPath()
-			for (const [c, ...a] of iteratePath(args)) {
+			for (const [c, ...a] of iterateSegment(args)) {
 				switch (c) {
 					case SYM_M:
 						ctx.moveTo(...(a as [number, number]))
