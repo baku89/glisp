@@ -8,7 +8,7 @@
 			:theme="dark ? 'tomorrow_night' : 'tomorrow'"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
-			lang="lisp"
+			lang="clojure"
 		/>
 	</div>
 </template>
