@@ -1,10 +1,5 @@
 <template>
-	<div
-		id="app"
-		:class="{'background-set': backgroundSet}"
-		:style="colors"
-		@mousewheel="onScroll"
-	>
+	<div id="app" :class="{'background-set': backgroundSet}" :style="colors" @mousewheel="onScroll">
 		<div class="app__viewer">
 			<Viewer :code="code" :selection="selection" />
 		</div>
@@ -20,9 +15,7 @@
 				/>
 			</div>
 			<div class="app__console" :class="{expanded: !compact}">
-				<button class="app__console-toggle" @click="compact = !compact">
-					&#8810;
-				</button>
+				<button class="app__console-toggle" @click="compact = !compact">&#8810;</button>
 				<Console :compact="compact" />
 			</div>
 		</div>
@@ -272,10 +265,10 @@ html
 	font-family 'Fira Code', monospace
 
 button
-	user-select none
 	outline none
-	background none
 	border none
+	background none
+	user-select none
 
 #app
 	display flex
@@ -296,8 +289,8 @@ button
 .app
 	&__viewer
 		position relative
-		width 60%
 		margin-right 1rem
+		width 60%
 
 		&:after
 			position absolute
@@ -311,14 +304,14 @@ button
 			transition background var(--tdur) ease
 
 	&__control
-		flex-grow 1
 		display flex
+		flex-grow 1
 		flex-direction column
 
 	&__editor
 		position relative
 		flex-grow 1
-		margin 1rem .5rem 1rem 1rem
+		margin 1rem 0.5rem 1rem 1rem
 
 		&:after
 			position absolute
@@ -333,27 +326,28 @@ button
 
 	&__console
 		position relative
+		margin 1rem 0.5rem 1rem 1rem
 		height 2.2rem
-		transition height .2s ease
-		margin 1rem .5rem 1rem 1rem
+		transition height 0.2s ease
 
 		&-toggle
+			$size = 1.6rem
 			position absolute
 			top -1rem
 			left 50%
-			width 1.6rem
-			height @width
-			margin-left -0.5 * @width
-			margin-top -0.5 * @width
-			border-radius 1rem
-			text-indent -0.3em
+			margin-top -0.5 * $size
+			margin-left -0.5 * $size
+			width $size
+			height $size
 			border 1px solid var(--comment)
-			transform translateY(-0.5rem) rotate(90deg)
-			transition transform .2s ease
+			border-radius 1rem
 			background var(--background)
+			text-indent -0.3em
+			transition transform 0.2s ease
+			transform translateY(-0.5rem) rotate(90deg)
 
 		&.expanded
-			height 50%
+			height 40%
 
 			.app__console-toggle
 				transform translateY(-0.5rem) rotate(-90deg)
