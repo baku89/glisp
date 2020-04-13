@@ -64,7 +64,7 @@
 				(let (C `(circle ~cx ~cy ~(round (distance cx cy x y))))
 					(if just-down
 						(concat item (list C))
-						(concat (non-last item) (list C)))))
+						(concat (butlast item) (list C)))))
 			
 			; Updated State
 			cx cy p
@@ -102,7 +102,7 @@
 				(let (R `(rect ~ox ~oy ~(- x ox) ~(- y oy)))
 					(if just-down
 						(concat item (list R))
-						(concat (non-last item) (list R)))))
+						(concat (butlast item) (list R)))))
 			
 			; Updated State
 			ox oy p

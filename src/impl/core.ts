@@ -94,7 +94,7 @@ export const coreNS = new Map<string, any>([
 		'last',
 		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
 	],
-	['non-last', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
+	['butlast', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
 	['slice', (a: MalVal[], start: number, end: number) => a.slice(start, end)],
 	[
@@ -135,7 +135,7 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			const c = cloneAST(a)
-				; (c as any).meta = m
+			;(c as any).meta = m
 			return c
 		}
 	],
