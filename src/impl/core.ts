@@ -1,7 +1,11 @@
+import seedrandom from 'seedrandom'
+
 import {MalVal, MalFunc, MalAtom, cloneAST} from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
 import {LispError} from './repl'
+
+const random = seedrandom('test')
 
 function _error(e: string) {
 	throw new LispError(e)
@@ -170,8 +174,13 @@ export const coreNS = new Map<string, any>([
 
 			return arr
 		}
-	]
+	],
+
+	// Random
+	['random', (a: MalVal) => seedrandom(a)()]
 ])
 
 // Expose Math
-Object.getOwnPropertyNames(Math).forEach(k => coreNS.set(k, (Math as any)[k]))
+Object.getOwnPropertyNames(Math)
+	.filter(k => k !== 'random')
+	.forEach(k => coreNS.set(k, (Math as any)[k]))
