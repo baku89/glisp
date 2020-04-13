@@ -318,7 +318,7 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 
 			printer.log('Copied to clipboard')
 
-			localStorage.setItem('gist_api_key', JSON.stringify({user, token}))
+			localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
 		} else {
 			printer.error('Invalid username or token')
 		}
