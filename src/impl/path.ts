@@ -67,7 +67,7 @@ function pathToBezier(path: PathType) {
 				default:
 					throw new Error(
 						`Invalid d-path command2: ${
-							typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 						}`
 					)
 			}
@@ -128,8 +128,8 @@ function arc(
 
 	let points: number[][] = [[x + r * Math.cos(min), y + r * Math.sin(min)]]
 
-	const minSeg = Math.ceil(min / HALF_PI)
-	const maxSeg = Math.floor(max / HALF_PI)
+	const minSeg = Math.ceil(min / HALF_PI - EPSILON)
+	const maxSeg = Math.floor(max / HALF_PI + EPSILON)
 
 	// For trim
 	const t1 = unsignedMod(min / HALF_PI, 1)
@@ -323,17 +323,26 @@ function offsetPath(d: number, path: PathType) {
 		const ret: (symbol | number)[] = [SYM_PATH]
 		const commands = path.slice(1)
 
-		const last = vec2.create() // original last
-		const first = vec2.create() // original first
+		//       loff   foff
+		//----------|  /\
+		//          | /  \
+		//----------|/    \
+		//      lorig\     \
+		//            \     \
+
+		const lorig = vec2.create() // original last
+		const forig = vec2.create() // original first
 		const loff = vec2.create() // last offset
-		const foff = vec2.create() // first offset
+		const foff = vec2.create() // forig offset
 
 		const dirLast = vec2.create()
 		const dirNext = vec2.create()
 
-		const makeRoundCorner = (noff: vec2) => {
-			vec2.sub(dirLast, loff, last)
-			vec2.sub(dirNext, noff as vec2, last)
+		const makeRoundCorner = (origin: vec2, last: vec2, next: vec2) => {
+
+			// dont know why this order
+			vec2.sub(dirLast, last, origin)
+			vec2.sub(dirNext, next, origin)
 
 			if (d < 0) {
 				vec2.scale(dirLast, dirLast, -1)
@@ -342,10 +351,14 @@ function offsetPath(d: number, path: PathType) {
 
 			const angle = vec2.angle(dirLast, dirNext)
 
-			const start = Math.atan2(dirLast[1], dirLast[0])
-			const end = start + (d > 0 ? angle - TWO_PI : angle)
+			// Turn left or right
+			vec2.rotate(dirLast, dirLast, [0, 0], HALF_PI)
+			const turn = Math.sign(vec2.dot(dirLast, dirNext))
 
-			return arc(last[0], last[1], d, start, end).slice(1) as PathType
+			const start = Math.atan2(dirLast[1], dirLast[0])
+			const end = start - angle * turn
+
+			return arc(origin[0], origin[1], d, start, end).slice(1) as PathType
 		}
 
 		let continued = false
@@ -353,25 +366,26 @@ function offsetPath(d: number, path: PathType) {
 		let cmd, args
 		for ([cmd, ...args] of iterateSegment(commands)) {
 			if (cmd === SYM_M) {
-				vec2.copy(first, args as vec2)
-				vec2.copy(last, first)
+				vec2.copy(forig, args as vec2)
+				vec2.copy(lorig, forig)
 			} else if (cmd === SYM_L || cmd === SYM_C || cmd === SYM_Z) {
 				if (cmd === SYM_Z) {
-					args = first as number[]
+					args = forig as number[]
 				}
 
 				let off =
 					cmd === SYM_C
-						? offsetBezier(...last, ...(args as number[]), d)
-						: offsetLine(last, args as vec2, d)
+						? offsetBezier(...lorig, ...(args as number[]), d)
+						: offsetLine(lorig, args as vec2, d)
 				if (off) {
 					if (continued) {
 						if (vec2.equals(loff, off.slice(1) as vec2)) {
 							off = off.slice(3) // remove (M 0 1)
 						} else {
 							// make a bevel
-							const corner = makeRoundCorner(off.slice(1, 3) as vec2)
-							off = [...corner, ...off]
+							const corner = makeRoundCorner(lorig, loff, off.slice(1, 3) as vec2)
+							// (M x y # ...) + (M x y # ...)
+							off = [...corner.slice(3), ...off.slice(3)]
 							// make a chamfer Bevel
 							// off[0] = S('L')
 						}
@@ -381,15 +395,15 @@ function offsetPath(d: number, path: PathType) {
 						vec2.copy(foff, off.slice(1, 3) as vec2)
 					}
 					ret.push(...off)
-					vec2.copy(last, args.slice(-2) as vec2)
+					vec2.copy(lorig, args.slice(-2) as vec2)
 					vec2.copy(loff, off.slice(-2) as vec2)
 				}
 			}
 
 			if (cmd === SYM_Z) {
 				// Make a bevel corner
-				const corner = makeRoundCorner(foff)
-				ret.push(...corner)
+				const corner = makeRoundCorner(lorig, loff, foff)
+				ret.push(...corner.slice(3), SYM_Z)
 				// Chanfer
 				// ret.push(SYM_Z)
 
