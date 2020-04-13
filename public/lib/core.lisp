@@ -43,6 +43,11 @@
 (defn map (f xs)
 	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
+(defn map-indexed (f xs)
+	(map
+		(fn (i) (f i (nth xs i)))
+		(range (count xs))))
+
 (defn filter (f xs)
 	(reduce
 		(fn (l x)
