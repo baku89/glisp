@@ -1,13 +1,15 @@
 import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
+import {MalVal} from './types'
+import {chunkByCount} from './core'
 
-const _SYM = Symbol.for
+const S = Symbol.for
 
-const SYM_PATH = _SYM('path')
-const SYM_M = _SYM('M')
-const SYM_L = _SYM('L')
-const SYM_C = _SYM('C')
-const SYM_Z = _SYM('Z')
+const SYM_PATH = S('path')
+const SYM_M = S('M')
+const SYM_L = S('L')
+const SYM_C = S('C')
+const SYM_Z = S('Z')
 
 type PathType = (symbol | number)[]
 
@@ -99,6 +101,131 @@ function offsetBezier(...args: number[]) {
 	return ret
 }
 
+const SIN_Q = [0, 1, 0, -1]
+const COS_Q = [1, 0, -1, 0]
+const HALF_PI = Math.PI / 2
+const K = (4 * (Math.sqrt(2) - 1)) / 3
+const UNIT_QUAD_BEZIER = new Bezier([
+	{x: 1, y: 0},
+	{x: 1, y: K},
+	{x: K, y: 1},
+	{x: 0, y: 1}
+])
+
+const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
+
+function arc(
+	x: number,
+	y: number,
+	r: number,
+	start: number,
+	end: number
+): MalVal[] {
+	const min = Math.min(start, end)
+	const max = Math.max(start, end)
+
+	let points: [number, number][] = [
+		[x + r * Math.cos(min), y + r * Math.sin(min)]
+	]
+
+	const minSeg = Math.ceil(min / HALF_PI)
+	const maxSeg = Math.floor(max / HALF_PI)
+
+	// For trim
+	const t1 = unsignedMod(min / HALF_PI, 1)
+	const t2 = unsignedMod(max / HALF_PI, 1)
+
+	// quadrant
+	//  2 | 3
+	// ---+---
+	//  1 | 0
+	if (minSeg > maxSeg) {
+		// Less than 90 degree
+		const bezier = UNIT_QUAD_BEZIER.split(t1, t2)
+		const q = unsignedMod(Math.floor(min / HALF_PI), 4),
+			sin = SIN_Q[q],
+			cos = COS_Q[q]
+
+		points.push(
+			...bezier.points
+				.slice(1)
+				.map(p => [
+					x + r * (p.x * cos - p.y * sin),
+					y + r * (p.x * sin + p.y * cos)
+				])
+		)
+	} else {
+		// More than 90 degree
+
+		// Add beginning segment
+		if (Math.abs(minSeg * HALF_PI - min) > EPSILON) {
+			const bezier = UNIT_QUAD_BEZIER.split(t1, 1)
+			const q = unsignedMod(minSeg - 1, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
+
+			points.push(
+				...bezier.points
+					.slice(1)
+					.map((p: {x: number; y: number}) => [
+						x + r * (p.x * cos - p.y * sin),
+						y + r * (p.x * sin + p.y * cos)
+					])
+			)
+		}
+
+		// Cubic bezier points of the quarter circle in quadrant 0 in position [0, 0]
+		const qpoints: [number, number][] = [
+			[r, K * r],
+			[K * r, r],
+			[0, r]
+		]
+
+		// Add arc by every quadrant
+		for (let seg = minSeg; seg < maxSeg; seg++) {
+			const q = unsignedMod(seg, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
+			points.push(
+				...qpoints.map(([px, py]): [number, number] => [
+					x + px * cos - py * sin,
+					y + px * sin + py * cos
+				])
+			)
+		}
+
+		// Add terminal segment
+		if (Math.abs(maxSeg * HALF_PI - max) > EPSILON) {
+			const bezier = UNIT_QUAD_BEZIER.split(0, t2)
+			const q = unsignedMod(maxSeg, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
+
+			points.push(
+				...bezier.points
+					.slice(1)
+					.map((p: {x: number; y: number}) => [
+						x + r * (p.x * cos - p.y * sin),
+						y + r * (p.x * sin + p.y * cos)
+					])
+			)
+		}
+	}
+
+	if (end < start) {
+		points = points.reverse()
+	}
+
+	return [
+		S('path'),
+		S('M'),
+		...points[0],
+		...chunkByCount(points.slice(1), 3)
+			.map(pts => [S('C'), ...pts.flat()])
+			.flat()
+	]
+}
+
 function offsetLine(a: vec2, b: vec2, d: number) {
 	if (vec2.equals(a, b)) {
 		return false
@@ -175,6 +302,7 @@ function offsetPath(d: number, path: PathType) {
 export const pathNS = new Map<string, any>([
 	['path/to-bezier', pathToBezier],
 	['path/offset', offsetPath],
+	['arc', arc],
 	[
 		'path/split-commands',
 		([_, ...path]: PathType) => Array.from(iteratePath(path))
