@@ -93,8 +93,8 @@ function draw(
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
-				? [defaultStyle]
-				: []) {
+					? [defaultStyle]
+					: []) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fill()
@@ -143,8 +143,8 @@ function draw(
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
-				? [defaultStyle]
-				: []) {
+					? [defaultStyle]
+					: []) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fillText(text, x, y)
@@ -244,6 +244,8 @@ function createHashMap(arr: MalVal[]) {
 	const ret: {[key: string]: MalVal | MalVal[]} = {}
 	const counts: {[key: string]: number} = {}
 
+	counts['_'] = 0
+
 	for (let i = 0, keyword = '_'; i < arr.length; i++) {
 		if (isKeyword(arr[i])) {
 			keyword = (arr[i] as string).slice(1)
@@ -254,7 +256,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				;(ret[keyword] as MalVal[]).push(arr[i])
+				; (ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -270,7 +272,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			;({user, token} = JSON.parse(saved) as {user: string; token: string})
+			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.
