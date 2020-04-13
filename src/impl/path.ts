@@ -397,7 +397,7 @@ function getPathRotation(path: PathType): number {
 	return Math.sign(Math.round(rot))
 }
 
-function pathOffset(d: number, path: PathType) {
+function offset(d: number, path: PathType) {
 	const isClockwise = getPathRotation(path) === 1
 
 	if (isClockwise) {
@@ -450,20 +450,20 @@ function pathOffset(d: number, path: PathType) {
 
 		let continued = false
 
-		let cmd, args
-		for ([cmd, ...args] of iterateSegment(commands)) {
+		let cmd, points
+		for ([cmd, ...points] of iterateSegment(commands)) {
 			if (cmd === SYM_M) {
-				vec2.copy(forig, args as vec2)
+				vec2.copy(forig, points as vec2)
 				vec2.copy(lorig, forig)
 			} else if (cmd === SYM_L || cmd === SYM_C || cmd === SYM_Z) {
 				if (cmd === SYM_Z) {
-					args = forig as number[]
+					points = forig as number[]
 				}
 
 				let off =
 					cmd === SYM_C
-						? offsetBezier(...lorig, ...(args as number[]), d)
-						: offsetLine(lorig, args as vec2, d)
+						? offsetBezier(...lorig, ...(points as number[]), d)
+						: offsetLine(lorig, points as vec2, d)
 				if (off) {
 					if (continued) {
 						if (vec2.equals(loff, off.slice(1) as vec2)) {
@@ -482,7 +482,7 @@ function pathOffset(d: number, path: PathType) {
 						vec2.copy(foff, off.slice(1, 3) as vec2)
 					}
 					ret.push(...off)
-					vec2.copy(lorig, args.slice(-2) as vec2)
+					vec2.copy(lorig, points.slice(-2) as vec2)
 					vec2.copy(loff, off.slice(-2) as vec2)
 				}
 			}
@@ -504,7 +504,7 @@ function pathOffset(d: number, path: PathType) {
 export const pathNS = new Map<string, any>([
 	['arc', arc],
 	['path/to-beziers', pathToBeziers],
-	['path/offset', pathOffset],
+	['path/offset', offset],
 	['path/length', pathLength],
 	['path/closed?', isPathClosed],
 	['path/position-at-length', positionAtLength],
