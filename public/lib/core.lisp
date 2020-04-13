@@ -19,6 +19,16 @@
 			(if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
 			(cons 'cond (rest (rest xs))))))
 
+(defmacro or (& xs)
+	(if (empty? xs)
+		false
+		`(if ~(first xs) ~(first xs) (or ~@(rest xs)))))
+
+(defmacro and (& xs)
+	(if (= (count xs) 1)
+		(first xs)
+		`(if ~(first xs) (and ~@(rest xs)) false)))
+
 ;; Functioal Language Features
 (defn reduce (f init xs)
   (if (empty? xs) init (reduce f (f init (first xs)) (rest xs))))
@@ -57,6 +67,14 @@
 		values
 		forms))
 
+(defn find-list (f lst)
+	(do
+		(if (list? lst)
+			(if (f lst)
+				(apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
+				(apply concat (map #(find-list f %) lst)))
+			'())))
+			
 ;; Math
 (def TWO_PI (* PI 2))
 (def HALF_PI (/ PI 2))
@@ -223,13 +241,6 @@
 		(apply concat
 			(map f (range start (+ end step) step)))))
 
-(defmacro appearance (styles body)
-	(foldr
-		(fn (style bd)
-			(concat style (list bd)))
-		body
-		styles))
-
 (defmacro artboard (id region & body)
 	`(list
 		':artboard ~id (list ~@region)
@@ -240,16 +251,16 @@
 				background (fn (c) (fill c (rect 0 0 $width $height)))
 			)
 			(translate ~(first region) ~(nth region 1)
-				(list 'g (stroke "red" 10 (rect 0 0 $width $height)) ~@body)))))
+				(list 'g (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
 
 (defn extract-artboard (name body)
-	(if (list? body)
-		(first
-			(filter
-				#(and
-					(= (first %) ':artboard)
-					(= (nth % 1) name))
-				body))))
+	(first
+		(find-list
+			#(and
+				(>= (count %) 4)
+				(= (first %) :artboard)
+				(= (nth % 1) name))
+			body)))
 
 (defn guide (body) (stroke $ui-border body))
 

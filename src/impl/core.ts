@@ -54,9 +54,6 @@ export const coreNS = new Map<string, any>([
 	['>', (a: number, b: number) => a > b],
 	['>=', (a: number, b: number) => a >= b],
 
-	['or', (...a: MalVal[]) => a.reduce((x, y) => x || y, false)],
-	['and', (...a: MalVal[]) => a.reduce((x, y) => x && y, true)],
-
 	// Calculus
 	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
 	[

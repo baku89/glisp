@@ -217,7 +217,7 @@ consoleEnv.set('export', (name: MalVal = null) => {
 				consoleEnv
 			)
 			if ($view === null) {
-				throw new LispError('Artboard not found')
+				throw new LispError(`Artboard "${name as string}" not found`)
 			} else {
 				;[x, y, width, height] = ($view as any)[2] as number[]
 			}
@@ -226,6 +226,10 @@ consoleEnv.set('export', (name: MalVal = null) => {
 		canvas.width = width
 		canvas.height = height
 		ctx.translate(-x, -y)
+
+		// Set the default line cap
+		ctx.lineCap = 'round'
+		ctx.lineJoin = 'round'
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		draw(ctx, $view, [])
