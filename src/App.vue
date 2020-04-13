@@ -19,8 +19,11 @@
 					@select="onSelect"
 				/>
 			</div>
-			<div class="app__console">
-				<Console />
+			<div class="app__console" :class="{expanded: !compact}">
+				<button class="app__console-toggle" @click="compact = !compact">
+					&#8810;
+				</button>
+				<Console :compact="compact" />
 			</div>
 		</div>
 	</div>
@@ -56,6 +59,7 @@ export default class App extends Vue {
 	private code = ''
 	private background = 'snow'
 	private backgroundSet = false
+	private compact = true
 
 	onScroll(e: MouseWheelEvent) {
 		// e.preventDefault()
@@ -67,19 +71,29 @@ export default class App extends Vue {
 		const queryCodeURL = url.searchParams.get('code_url')
 		const queryCode = url.searchParams.get('code')
 
+		this.compact = url.searchParams.has('compact')
+
 		if (queryCodeURL) {
-			const url = decodeURI(queryCodeURL)
+			const codeURL = decodeURI(queryCodeURL)
+			url.searchParams.delete('code_url')
+			url.searchParams.delete('code')
 
 			const getCode = async () => {
-				const res = await fetch(url)
-				const code = await res.text()
-				this.code = `;; Loaded from "${url}"\n\n${code}`
-				history.pushState({}, document.title, '/')
+				const res = await fetch(codeURL)
+				if (res.ok) {
+					const code = await res.text()
+					this.code = `;; Loaded from "${codeURL}"\n\n${code}`
+				} else {
+					printer.error(`Failed to load from "${codeURL}"`)
+				}
+
+				history.pushState({}, document.title, url.pathname + url.search)
 			}
 			getCode()
 		} else if (queryCode) {
 			this.code = decodeURI(queryCode)
-			history.pushState({}, document.title, '/')
+			url.searchParams.delete('code')
+			history.pushState({}, document.title, url.pathname + url.search)
 		} else {
 			this.code =
 				localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
@@ -260,6 +274,12 @@ html
 	font-size 12px
 	font-family 'Fira Code', monospace
 
+button
+	user-select none
+	outline none
+	background none
+	border none
+
 #app
 	display flex
 	overflow hidden
@@ -294,13 +314,13 @@ html
 			transition background var(--tdur) ease
 
 	&__control
-		width 40%
-
-	&__editor, &__console
-		height calc(50% - 1.5rem)
+		flex-grow 1
+		display flex
+		flex-direction column
 
 	&__editor
 		position relative
+		flex-grow 1
 		margin 1rem .5rem 1rem 1rem
 
 		&:after
@@ -315,5 +335,29 @@ html
 			transition background var(--tdur) ease
 
 	&__console
-		margin 0 .5rem 1rem 1rem
+		position relative
+		height 2.2rem
+		transition height .2s ease
+		margin 1rem .5rem 1rem 1rem
+
+		&-toggle
+			position absolute
+			top -1rem
+			left 50%
+			width 1.6rem
+			height @width
+			margin-left -0.5 * @width
+			margin-top -0.5 * @width
+			border-radius 1rem
+			text-indent -0.3em
+			border 1px solid var(--comment)
+			transform translateY(-0.5rem) rotate(90deg)
+			transition transform .2s ease
+			background var(--background)
+
+		&.expanded
+			height 50%
+
+			.app__console-toggle
+				transform translateY(-0.5rem) rotate(-90deg)
 </style>

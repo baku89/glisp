@@ -1,14 +1,16 @@
 <template>
-	<div class="Console" />
+	<div class="Console" :class="{compact}" />
 </template>
 
 <script lang="ts">
-import {Component, Vue} from 'vue-property-decorator'
+import {Component, Vue, Prop} from 'vue-property-decorator'
 import {consoleREP} from '@/impl/view'
 import {printer} from '@/impl/printer'
 
 @Component
 export default class Console extends Vue {
+	@Prop({type: Boolean, required: true}) private compact!: boolean
+
 	private mounted() {
 		// eslint-disable-next-line no-undef
 		const jqconsole = ($(this.$el) as any).jqconsole('', '>>>')
@@ -67,6 +69,14 @@ export default class Console extends Vue {
 	height 100%
 	text-align left
 	font-size 1rem
+
+	&.compact
+		overflow hidden
+
+		& > div
+			top auto !important
+			overflow hidden !important
+
 
 .jqconsole
 	font-family 'Fira Code', monospace !important
