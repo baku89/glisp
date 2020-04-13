@@ -96,7 +96,8 @@ export default class App extends Vue {
 			history.pushState({}, document.title, url.pathname + url.search)
 		} else {
 			this.code =
-				localStorage['savedText'] || '(fill "black" (rect 50 50 50 50))'
+				localStorage.getItem('saved_code') ||
+				'(fill "black" (rect 50 50 50 50))'
 		}
 
 		replEnv.set('$canvas', this.code)
@@ -125,14 +126,10 @@ export default class App extends Vue {
 				setTimeout(() => (this.backgroundSet = true), 1)
 			}
 		})
-
-		viewHandler.on('gen-url', (url: string) => {
-			navigator.clipboard.writeText(url).then(() => alert('URL Copied.'))
-		})
 	}
 
 	private onEdit(value: string) {
-		localStorage['savedText'] = value
+		localStorage.setItem('saved_code', value)
 
 		this.code = value
 		replEnv.set('$canvas', value)
