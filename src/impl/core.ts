@@ -22,11 +22,11 @@ function slurp(url: string) {
 	return req.responseText
 }
 
-export function chunkByCount(arr: any[], n: number) {
+export function partition(n: number, coll: any[]) {
 	const ret = []
 
-	for (let i = 0; i < arr.length; i += n) {
-		ret.push(arr.slice(i, i + n))
+	for (let i = 0; i < coll.length; i += n) {
+		ret.push(coll.slice(i, i + n))
 	}
 	return ret
 }
@@ -102,7 +102,7 @@ export const coreNS = new Map<string, any>([
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
-	['chunk-by-count', chunkByCount],
+	['partition', partition],
 
 	// String
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
@@ -136,7 +136,7 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			const c = cloneAST(a)
-				; (c as any).meta = m
+			;(c as any).meta = m
 			return c
 		}
 	],

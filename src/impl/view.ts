@@ -9,7 +9,7 @@ import readStr from './reader'
 
 import {BlankException} from './reader'
 import {iterateSegment} from './path'
-import {chunkByCount} from './core'
+import {partition} from './core'
 
 export const viewHandler = new EventEmitter()
 
@@ -93,8 +93,8 @@ function draw(
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
-					? [defaultStyle]
-					: []) {
+				? [defaultStyle]
+				: []) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fill()
@@ -118,7 +118,7 @@ function draw(
 			let align = 'center'
 			let baseline = 'middle'
 
-			for (const [option, val] of chunkByCount(args.slice(3), 2)) {
+			for (const [option, val] of partition(2, args.slice(3))) {
 				printer.log(option)
 				switch (option) {
 					case K('size'):
@@ -143,8 +143,8 @@ function draw(
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
-					? [defaultStyle]
-					: []) {
+				? [defaultStyle]
+				: []) {
 				if (style.type === 'fill') {
 					ctx.fillStyle = style.params.style
 					ctx.fillText(text, x, y)
@@ -256,7 +256,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				; (ret[keyword] as MalVal[]).push(arr[i])
+				;(ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -272,7 +272,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
+			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.
