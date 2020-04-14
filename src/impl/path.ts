@@ -113,6 +113,110 @@ function* iterateCompleteSegmentWithLength(
 	}
 }
 
+function closedQ(path: PathType) {
+	return path.slice(-1)[0] === K_Z
+}
+
+function findCompleteSegmentAtLength(
+	len: number,
+	path: PathType
+): [SegmentType, number] {
+	const segs = iterateCompleteSegmentWithLength(path)
+
+	len = Math.max(len, 0)
+
+	let startLen = 0
+	let lastSeg = null
+
+	for (const [seg, endLen] of segs) {
+		const [cmd, ...points] = seg
+		// Skip zero-length segment
+		if (cmd === K_M) {
+			continue
+		} else if (
+			cmd === K_Z &&
+			vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) < EPSILON
+		) {
+			continue
+		}
+
+		if (len <= endLen) {
+			const t = (len - startLen) / (endLen - startLen)
+			return [seg, t]
+		}
+		startLen = endLen
+		lastSeg = seg
+	}
+
+	if (lastSeg) {
+		return [lastSeg, 1]
+	} else {
+		throw new LispError('[js: findCompleteSegmentAtLength] Empty path')
+	}
+}
+
+/**
+ * Returns:
+ * A --- B----
+ *        \  <- this angle
+ *         \
+ *          C
+ * The returned value is signed and is positive angle if ABC is CW, else negative.
+ */
+function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
+	const AB = vec2.create()
+	const BC = vec2.create()
+
+	vec2.sub(AB, through, from)
+	vec2.sub(BC, to, through)
+
+	const angle = vec2.angle(AB, BC)
+
+	// Rotate AB 90 degrees in CW
+	vec2.rotate(AB, AB, [0, 0], HALF_PI)
+	const rot = Math.sign(vec2.dot(AB, BC))
+
+	return angle * rot
+}
+
+/**
+ * Returns +1 if the path is clock-wise and -1 when CCW.
+ * Returns 0 if the direction is indeterminate
+ * like when the path is opened or 8-shaped.
+ */
+function getPathRotation(path: PathType): number {
+	// Indeterminate case: the path is opened
+	if (!closedQ(path)) {
+		return 0
+	}
+
+	const segments = Array.from(iterateSegment(path))
+
+	// Remove the last (Z)
+	segments.pop()
+
+	// Indeterminate case: the vertex of the path is < 3
+	if (segments.length < 3) {
+		return 0
+	}
+
+	// Extract only vertex points
+	const points = segments.map(seg => seg.slice(-2)) as number[][]
+	const numpt = points.length
+
+	let rot = 0
+
+	for (let i = 0; i < numpt; i++) {
+		const last = points[(i - 1 + numpt) % numpt]
+		const curt = points[i]
+		const next = points[(i + 1) % numpt]
+
+		rot += getTurnAngle(last as vec2, curt as vec2, next as vec2)
+	}
+
+	return Math.sign(Math.round(rot))
+}
+
 function toBeziers(path: PathType) {
 	const ret: PathType = [K_PATH]
 
@@ -150,47 +254,95 @@ function pathLength(path: PathType) {
 	return segs[segs.length - 1][1]
 }
 
-function positionAtLength(len: number, path: PathType) {
-	const segs = Array.from(iterateCompleteSegmentWithLength(path))
-	const length = segs[segs.length - 1][1]
+type LengthFunctionType = (len: number, path: PathType) => MalVal
 
-	len = clamp(len, 0, length)
-
-	const point = vec2.create()
-	let startLen = 0
-
-	for (let i = 0; i < segs.length; i++) {
-		const [[cmd, ...points], endLen] = segs[i]
-
-		const first = points.slice(0, 2)
-
-		if (len <= endLen) {
-			const t = (len - startLen) / (endLen - startLen)
-
-			switch (cmd) {
-				case K_M:
-					return first
-				case K_L:
-				case K_Z:
-					vec2.lerp(point, first as vec2, points.slice(-2) as vec2, t)
-					return [...point]
-				case K_C: {
-					const bezier = getBezier(points)
-					const {x, y} = bezier.get(t)
-					return [x, y]
-				}
-				default:
-					throw new LispError('Dont know why...')
-			}
-		}
-
-		startLen = endLen
-	}
+function convertToNormalizedLengthFunction(f: LengthFunctionType) {
+	return (t: number, path: PathType) => f(t * pathLength(path), path)
 }
 
-function positionAt(t: number, path: PathType) {
-	const length = pathLength(path)
-	return positionAtLength(t * length, path)
+function positionAtLength(len: number, path: PathType) {
+	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+
+	switch (cmd) {
+		case K_L:
+		case K_Z: {
+			// const first =
+			const pos = vec2.lerp(
+				vec2.create(),
+				points.slice(0, 2) as vec2,
+				points.slice(-2) as vec2,
+				t
+			)
+			return pos
+		}
+		case K_C: {
+			const bezier = getBezier(points)
+			const {x, y} = bezier.get(t)
+			return [x, y]
+		}
+	}
+
+	throw new LispError(`[path/position-at-length] Don't know why this error...`)
+}
+
+function normalAtLength(len: number, path: PathType) {
+	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+
+	// Invert normal if the path is clockwise
+	const mul = getPathRotation(path) === 1 ? -1 : 1
+
+	switch (cmd) {
+		case K_L:
+		case K_Z: {
+			const dir = vec2.sub(
+				vec2.create(),
+				points.slice(-2) as vec2,
+				points.slice(0, 2) as vec2
+			)
+			vec2.normalize(dir, dir)
+			vec2.rotate(dir, dir, [0, 0], HALF_PI * mul)
+			return dir
+		}
+		case K_C: {
+			const bezier = getBezier(points)
+			const {x, y} = bezier.normal(t)
+			return [x * mul, y * mul]
+		}
+	}
+
+	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
+}
+
+function angleAtLength(len: number, path: PathType) {
+	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+
+	let dir: vec2 | null = null
+
+	switch (cmd) {
+		case K_L:
+		case K_Z: {
+			dir = vec2.sub(
+				vec2.create(),
+				points.slice(-2) as vec2,
+				points.slice(0, 2) as vec2
+			)
+			vec2.normalize(dir, dir)
+			break
+		}
+		case K_C: {
+			const bezier = getBezier(points)
+			const {x, y} = bezier.normal(t)
+			dir = vec2.fromValues(x, y)
+			vec2.rotate(dir, dir, [0, 0], -HALF_PI)
+			break
+		}
+	}
+
+	if (dir) {
+		return Math.atan2(dir[1], dir[0])
+	}
+
+	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
 function arc(
@@ -350,72 +502,6 @@ function offsetSegmentLine(a: vec2, b: vec2, d: number) {
 	return [K_M, ...oa, K_L, ...ob] as PathType
 }
 
-function closedQ(path: PathType) {
-	return path.slice(-1)[0] === K_Z
-}
-
-/**
- * Returns:
- * A --- B----
- *        \  <- this angle
- *         \
- *          C
- * The returned value is signed and is positive angle if ABC is CW, else negative.
- */
-function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
-	const AB = vec2.create()
-	const BC = vec2.create()
-
-	vec2.sub(AB, through, from)
-	vec2.sub(BC, to, through)
-
-	const angle = vec2.angle(AB, BC)
-
-	// Rotate AB 90 degrees in CW
-	vec2.rotate(AB, AB, [0, 0], HALF_PI)
-	const rot = Math.sign(vec2.dot(AB, BC))
-
-	return angle * rot
-}
-
-/**
- * Returns +1 if the path is clock-wise and -1 when CCW.
- * Returns 0 if the direction is indeterminate
- * like when the path is opened or 8-shaped.
- */
-function getPathRotation(path: PathType): number {
-	// Indeterminate case: the path is opened
-	if (!closedQ(path)) {
-		return 0
-	}
-
-	const segments = Array.from(iterateSegment(path))
-
-	// Remove the last (Z)
-	segments.pop()
-
-	// Indeterminate case: the vertex of the path is < 3
-	if (segments.length < 3) {
-		return 0
-	}
-
-	// Extract only vertex points
-	const points = segments.map(seg => seg.slice(-2)) as number[][]
-	const numpt = points.length
-
-	let rot = 0
-
-	for (let i = 0; i < numpt; i++) {
-		const last = points[(i - 1 + numpt) % numpt]
-		const curt = points[i]
-		const next = points[(i + 1) % numpt]
-
-		rot += getTurnAngle(last as vec2, curt as vec2, next as vec2)
-	}
-
-	return Math.sign(Math.round(rot))
-}
-
 function offset(d: number, path: PathType) {
 	const dirLast = vec2.create()
 	const dirNext = vec2.create()
@@ -530,8 +616,11 @@ export const pathNS = new Map<string, any>([
 	['path/length', pathLength],
 	['path/closed?', closedQ],
 	['path/position-at-length', positionAtLength],
-	['path/position-at', positionAt],
-	// ['path/normal-at-length', normalAtLength],
+	['path/position-at', convertToNormalizedLengthFunction(positionAtLength)],
+	['path/normal-at-length', normalAtLength],
+	['path/normal-at', convertToNormalizedLengthFunction(normalAtLength)],
+	['path/angle-at-length', angleAtLength],
+	['path/angle-at', convertToNormalizedLengthFunction(angleAtLength)],
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => Array.from(iterateSegment(path))

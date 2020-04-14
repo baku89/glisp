@@ -180,13 +180,9 @@
 			`(~(* (first pos) x) ~(* (last pos) y))))
 		(path/map-points f path)))
 
-(defn path/rotate (a path)
-	(let
-		(f (fn (pos)
-			`(
-				~(* (first pos) x)
-				~(* (last  pos) y))))
-		(path/map-points f path)))
+(defn path/rotate (x y angle path)
+	(let (origin (list x y))
+		(path/map-points #(point/rotate origin angle %) path)))
 
 (defn path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
@@ -269,7 +265,7 @@
 
 (defn guide (body) (stroke $ui-border body))
 
-;; ;; Draw
+;; Draw
 (defmacro begin-draw (state)
 	`(def ~state nil))
 
@@ -291,3 +287,31 @@
 	`(do
 		(def ~name (fn ~params ~body))
 		(def $hands (push $hands '~name))))
+
+
+;; Linear-algebra
+
+(defn get-x (p) (first p))
+(defn get-y (p) (second p))
+
+(defn point/+ (a b)
+	(list (+ (get-x a) (get-x b))
+				(+ (get-y a) (get-y b))))
+
+(defn point/+ (a b)
+	(list (- (get-x a) (get-x b))
+				(- (get-y a) (get-y b))))
+
+(defn point/scale (p s)
+	(list (* s (get-x p))
+				(* s (get-y p))))
+
+(defn point/rotate (origin angle p)
+	(let (ox		(get-x origin)
+				oy		(get-y origin)
+				x			(- (get-x p) ox)
+				y			(- (get-y p) oy)
+				sinC	(sin angle)
+				cosC	(cos angle))
+		(list (+ ox (- (* x cosC) (* y sinC)))
+					(+ ox (+ (* x sinC) (* y cosC))))))

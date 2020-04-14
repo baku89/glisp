@@ -28,5 +28,6 @@ declare module 'bezier-js' {
 		split(t1: number, t2?: number): Bezier
 		length(): number
 		get(t: number): Point
+		normal(t: number): Point
 	}
 }
