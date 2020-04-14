@@ -77,6 +77,8 @@ export default class App extends Vue {
 
 		if (doClear) {
 			localStorage.removeItem('saved_code')
+			url.searchParams.delete('clear')
+			history.pushState({}, document.title, url.pathname + url.search)
 		}
 
 		this.compact = url.searchParams.has('compact')
@@ -106,7 +108,7 @@ export default class App extends Vue {
 			this.code =
 				localStorage.getItem('saved_code') ||
 				`(def w 20)
-(def col (range -5 5))
+(def col (range -5 6))
 (def grid (cartesian-product col col))
 
 (def rnd #(sign (- (random %) .5)))
