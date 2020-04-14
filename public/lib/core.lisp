@@ -133,25 +133,25 @@
 			(= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
 			true "black")))
 
-(defn translate (x y body) `(translate ~x ~y ~body))
+(defn translate (x y body) `(:translate ~x ~y ~body))
 (defn scale (& xs) 
 	(cond
-		(= (count xs) 2) `(scale ~(first xs) ~(first xs) ~(last xs))
-		(= (count xs) 3) `(scale ~@xs)))
+		(= (count xs) 2) `(:scale ~(first xs) ~(first xs) ~(last xs))
+		(= (count xs) 3) `(:scale ~@xs)))
 
-(defn rotate (a body) `(rotate ~a ~body))
+(defn rotate (a body) `(:rotate ~a ~body))
 
-(defn background (& xs) `(background ~@xs))
+(defn background (& xs) `(:background ~@xs))
 
 (defn fill (& xs) 
 	(let (l (count xs))
-		(if (= l 2) `(fill ~@xs))))
+		(if (= l 2) `(:fill ~@xs))))
 
 (defn stroke (& xs)
 	(let (l (count xs))
 		(cond
-			(= l 2) `(stroke ~(first xs) 1 ~(last xs))
-			(= l 3) `(stroke ~@xs)
+			(= l 2) `(:stroke ~(first xs) 1 ~(last xs))
+			(= l 3) `(:stroke ~@xs)
 			:else nil)))
 
 
@@ -191,49 +191,40 @@
 (defn path/merge (& xs)
 	`(path ~@(apply concat (map rest xs))))
 
-(defn path (& xs) `(path ~@xs))
+(defn path (& xs) `(:path ~@xs))
 
-(defn text (& xs) `(text ~@xs))
+(defn text (& xs) `(:text ~@xs))
 
 (defn rect (x y w h)
-	`(path
-		M ~x ~y
-		L ~(+ x w) ~y
-		L ~(+ x w) ~(+ y h)
-		L ~x ~(+ y h)
-		Z))
-
-(defmacro repeat-item (fn (sym n body)
-	`(g
-		~@(map 
-			(fn (i) `(let (~sym ~i) ~body))
-			(cond
-				(number? n) (range n)
-				(list? n) (apply range n)
-				true (throw "ERROR"))))))
+	`(:path
+		:M ~x ~y
+		:L ~(+ x w) ~y
+		:L ~(+ x w) ~(+ y h)
+		:L ~x ~(+ y h)
+		:Z))
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
 (defn circle (x y r)
 	(let (k (* r K))
-		`(path
-			M ~(+ x r)  ~y			 ; right
-			C ~(+ x r)	~(+ y k)
-				~(+ x k)	~(+ y r)
-				~x				~(+ y r) ; bottom
-			C ~(- x k)	~(+ y r) 
-				~(- x r)	~(+ y k)
-				~(- x r)	~y			 ; left
-			C ~(- x r)	~(- y k) 
-				~(- x k)	~(- y r)
-				~x				~(- y r) ; top
-			C ~(+ x k)	~(- y r) 
-				~(+ x r)	~(- y k)
-				~(+ x r)	~y			 ; right
-			Z)))
+		`(:path
+			:M	~(+ x r)  ~y			 ; right
+			:C	~(+ x r)	~(+ y k)
+					~(+ x k)	~(+ y r)
+					~x				~(+ y r) ; bottom
+			:C	~(- x k)	~(+ y r) 
+					~(- x r)	~(+ y k)
+					~(- x r)	~y			 ; left
+			:C	~(- x r)	~(- y k) 
+					~(- x k)	~(- y r)
+					~x				~(- y r) ; top
+			:C	~(+ x k)	~(- y r) 
+					~(+ x r)	~(- y k)
+					~(+ x r)	~y			 ; right
+			:Z)))
 	
 (defn line (x1 y1 x2 y2)
-	`(path M ~x1 ~y1 L ~x2 ~y2))
+	`(:path :M ~x1 ~y1 :L ~x2 ~y2))
 
 (defn poly (& pts)
 	(let
@@ -241,15 +232,14 @@
 			(if (< (count pts) 2)
 				()
 				`(
-					L ~(first pts) ~(nth pts 1)
+					:L ~(first pts) ~(nth pts 1)
 					~@(apply line-to (rest (rest pts)))))))
 		(if (>= (count pts) 2)
-			`(
-				path
-				M ~(first pts) ~(nth pts 1)
+			`(:path
+				:M ~(first pts) ~(nth pts 1)
 				~@(apply line-to (rest (rest pts)))
 				~@(if (= (last pts) true) '(Z) '()))
-			`(path))))
+			`(:path))))
 
 (defn graph (start end step f)
 	(apply poly
@@ -258,7 +248,7 @@
 
 (defmacro artboard (id region & body)
 	`(list
-		':artboard ~id (list ~@region)
+		:artboard ~id (list ~@region)
 		(let
 			(
 				$width ~(nth region 2)

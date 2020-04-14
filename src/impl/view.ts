@@ -20,10 +20,10 @@ replEnv.set('$insert', (item: MalVal) => {
 
 const S = Symbol.for
 
-const SYM_M = S('M')
-const SYM_L = S('L')
-const SYM_C = S('C')
-const SYM_Z = S('Z')
+const K_M = K('M')
+const K_L = K('L')
+const K_C = K('C')
+const K_Z = K('Z')
 
 interface DrawStyleFill {
 	type: 'fill'
@@ -48,44 +48,43 @@ function draw(
 
 		const last = args.length > 0 ? args[args.length - 1] : null
 
-		if (cmd === S('background')) {
+		if (cmd === K('background')) {
 			const color = args[0]
 			if (typeof color === 'string') {
 				viewHandler.emit('set-background', args[0])
 			}
-		} else if (cmd === S('fill')) {
+		} else if (cmd === K('fill')) {
 			const style: DrawStyleFill = {
 				type: 'fill',
 				params: {style: args[0] as string}
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === S('stroke')) {
+		} else if (cmd === K('stroke')) {
 			const style: DrawStyleStroke = {
 				type: 'stroke',
 				params: {style: args[0] as string, width: args[1]}
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === S('path')) {
+		} else if (cmd === K('path')) {
 			ctx.beginPath()
 			for (const [c, ...a] of iterateSegment(args)) {
 				switch (c) {
-					case SYM_M:
+					case K_M:
 						ctx.moveTo(...(a as [number, number]))
 						break
-					case SYM_L:
+					case K_L:
 						ctx.lineTo(...(a as [number, number]))
 						break
-					case SYM_C:
+					case K_C:
 						ctx.bezierCurveTo(
 							...(a as [number, number, number, number, number, number])
 						)
 						break
-					case SYM_Z:
+					case K_Z:
 						ctx.closePath()
 						break
 					default: {
-						const name = typeof c === 'symbol' ? Symbol.keyFor(c) : c
-						throw new Error(`Invalid d-path command: ${name}`)
+						throw new Error(`Invalid d-path command: ${PRINT(c)}`)
 					}
 				}
 			}
@@ -104,9 +103,9 @@ function draw(
 					ctx.stroke()
 				}
 			}
-		} else if (cmd === S('text')) {
+		} else if (cmd === K('text')) {
 			// Text representation:
-			// (text "Text" x y option1 value1 option2 value2 ....)
+			// (:text "Text" x y :option1 value1 :option2 value2 ....)
 			// e.g. (text "Hello" 100 100 :size 14 :align "center")
 
 			const [text, x, y] = args as [string, number, number]
@@ -154,22 +153,22 @@ function draw(
 					ctx.strokeText(text, x, y)
 				}
 			}
-		} else if (cmd === S('translate')) {
+		} else if (cmd === K('translate')) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === S('scale')) {
+		} else if (cmd === K('scale')) {
 			ctx.save()
 			ctx.scale(args[0] as number, args[1] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === S('rotate')) {
+		} else if (cmd === K('rotate')) {
 			ctx.save()
 			ctx.rotate(args[0] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === S(':artboard')) {
+		} else if (cmd === K('artboard')) {
 			const [region, body] = args.slice(1)
 			const [x, y, w, h] = region
 
@@ -333,11 +332,7 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 	return null
 })
 
-export function viewREP(
-	str: string | MalVal,
-	ctx: CanvasRenderingContext2D,
-	selection?: [number, number]
-) {
+export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 	replEnv.set('$pens', [])
 	replEnv.set('$hands', [])
 
@@ -351,7 +346,7 @@ export function viewREP(
 	let out
 
 	try {
-		const src = typeof str === 'string' ? readStr(str, selection) : str
+		const src = typeof str === 'string' ? readStr(str) : str
 		out = EVAL(src, viewEnv)
 	} catch (err) {
 		if (err instanceof LispError) {
@@ -362,6 +357,8 @@ export function viewREP(
 	}
 
 	if (out !== undefined) {
+		console.log(out)
+
 		// Draw
 		consoleEnv.outer = viewEnv
 

@@ -2,7 +2,7 @@
 
 	; Initialize state
 	(if (nil? (first state))
-			(def state '((quote path) false false false)))
+			(def state '((quote :path) false false false)))
 
 	(let
 		(
@@ -28,7 +28,7 @@
 				`(quote
 					~(concat
 						item
-						`(~(if just-down 'M 'L)	~x ~y))))
+						`(~(if just-down :M :L)	~x ~y))))
 			; Updated State
 			x y p
 		)

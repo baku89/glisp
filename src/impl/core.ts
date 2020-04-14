@@ -1,6 +1,13 @@
 import seedrandom from 'seedrandom'
 
-import {MalVal, MalFunc, MalAtom, cloneAST} from './types'
+import {
+	MalVal,
+	MalFunc,
+	MalAtom,
+	cloneAST,
+	isKeyword,
+	keywordFor
+} from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
 import {LispError} from './repl'
@@ -42,6 +49,8 @@ export const coreNS = new Map<string, any>([
 	['string?', (a: MalVal) => typeof a === 'string'],
 	['symbol', (a: string) => _SYM(a)],
 	['symbol?', (a: MalVal) => typeof a === 'symbol'],
+	['keyword?', isKeyword],
+	['keyword', keywordFor],
 	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc).ismacro],
 	[
 		'macro?',

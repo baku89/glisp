@@ -1,32 +1,30 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
 import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
-import {MalVal} from './types'
+import {MalVal, keywordFor as K, isKeyword} from './types'
 import {partition} from './core'
 import {LispError} from './repl'
 
-type PathType = (symbol | number)[]
-type SegmentType = [symbol, ...number[]]
-
-const S = Symbol.for
+type PathType = (string | number)[]
+type SegmentType = [string, ...number[]]
 
 const EPSILON = 1e-5
 
-const SYM_PATH = S('path')
-const SYM_M = S('M')
-const SYM_L = S('L')
-const SYM_C = S('C')
-const SYM_Z = S('Z')
+const K_PATH = K('path')
+const K_M = K('M')
+const K_L = K('L')
+const K_C = K('C')
+const K_Z = K('Z')
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
 const TWO_PI = Math.PI * 2
 const HALF_PI = Math.PI / 2
-const K = (4 * (Math.sqrt(2) - 1)) / 3
+const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
 const UNIT_QUAD_BEZIER = new Bezier([
 	{x: 1, y: 0},
-	{x: 1, y: K},
-	{x: K, y: 1},
+	{x: 1, y: KAPPA},
+	{x: KAPPA, y: 1},
 	{x: 0, y: 1}
 ])
 
@@ -48,10 +46,10 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 		throw new LispError('Invalid path')
 	}
 
-	let start = path[0] === SYM_PATH ? 1 : 0
+	let start = path[0] === K_PATH ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || typeof path[i] === 'symbol') {
+		if (i === l || isKeyword(path[i])) {
 			yield path.slice(start, i) as SegmentType
 			start = i
 		}
@@ -70,22 +68,22 @@ function* iterateSegmentWithLength(
 	for (const seg of iterateSegment(path)) {
 		const [cmd, ...points] = seg
 		switch (cmd) {
-			case SYM_M:
+			case K_M:
 				vec2.copy(first, points as vec2)
 				vec2.copy(prev, first)
 				break
-			case SYM_L:
+			case K_L:
 				vec2.copy(curt, points.slice(-2) as vec2)
 				length += vec2.dist(prev, curt)
 				vec2.copy(prev, curt)
 				break
-			case SYM_C: {
+			case K_C: {
 				const bezier = getBezier([...(prev as number[]), ...points])
 				length += bezier.length()
 				vec2.copy(prev, points.slice(-2) as vec2)
 				break
 			}
-			case SYM_Z:
+			case K_Z:
 				length += vec2.dist(prev, first)
 				break
 		}
@@ -94,7 +92,7 @@ function* iterateSegmentWithLength(
 }
 
 function toBeziers(path: PathType) {
-	const ret: PathType = [SYM_PATH]
+	const ret: PathType = [K_PATH]
 
 	for (const line of iterateSegment(path)) {
 		const [cmd, ...args] = line
@@ -103,16 +101,16 @@ function toBeziers(path: PathType) {
 			sy = 0
 
 		switch (cmd) {
-			case SYM_M:
-			case SYM_C:
+			case K_M:
+			case K_C:
 				;[sx, sy] = args
 				ret.push(...line)
 				break
-			case SYM_Z:
+			case K_Z:
 				ret.push(...line)
 				break
-			case SYM_L:
-				ret.push(SYM_L, sx, sy, ...args, ...args)
+			case K_L:
+				ret.push(K_L, sx, sy, ...args, ...args)
 				break
 			default:
 				throw new Error(
@@ -143,22 +141,22 @@ function positionAtLength(len: number, path: PathType) {
 
 	for (let i = 0; i < segs.length; i++) {
 		const [[cmd, ...points], endLen] = segs[i]
-		if (cmd === SYM_M) {
+		if (cmd === K_M) {
 			vec2.copy(first, points as vec2)
 		}
-		vec2.copy(curt, cmd === SYM_Z ? first : (points.slice(-2) as vec2))
+		vec2.copy(curt, cmd === K_Z ? first : (points.slice(-2) as vec2))
 
 		if (len <= endLen) {
 			const t = (len - startLen) / (endLen - startLen)
 
 			switch (cmd) {
-				case SYM_M:
+				case K_M:
 					return [...curt]
-				case SYM_L:
-				case SYM_Z:
+				case K_L:
+				case K_Z:
 					vec2.lerp(prev, prev, curt, t)
 					return [...prev]
-				case SYM_C: {
+				case K_C: {
 					const bezier = getBezier([...prev, ...points])
 					const {x, y} = bezier.get(t)
 					return [x, y]
@@ -238,8 +236,8 @@ function arc(
 
 		// Cubic bezier points of the quarter circle in quadrant 0 in position [0, 0]
 		const qpoints: number[][] = [
-			[r, K * r],
-			[K * r, r],
+			[r, KAPPA * r],
+			[KAPPA * r, r],
 			[0, r]
 		]
 
@@ -279,11 +277,11 @@ function arc(
 	}
 
 	return [
-		SYM_PATH,
-		S('M'),
+		K_PATH,
+		K_M,
 		...points[0],
 		...partition(3, points.slice(1))
-			.map(pts => [S('C'), ...pts.flat()])
+			.map(pts => [K_C, ...pts.flat()])
 			.flat()
 	]
 }
@@ -301,11 +299,11 @@ function offsetSegmentBezier(...args: number[]) {
 
 	const {x, y} = offset[0].points[0]
 
-	const ret = [SYM_M, x, y]
+	const ret = [K_M, x, y]
 
 	for (const seg of offset) {
 		const pts = seg.points
-		ret.push(SYM_C)
+		ret.push(K_C)
 		for (let i = 1; i < 4; i++) {
 			ret.push(pts[i].x, pts[i].y)
 		}
@@ -332,11 +330,11 @@ function offsetSegmentLine(a: vec2, b: vec2, d: number) {
 	vec2.add(oa, a, dir)
 	vec2.add(ob, b, dir)
 
-	return [SYM_M, ...oa, SYM_L, ...ob] as PathType
+	return [K_M, ...oa, K_L, ...ob] as PathType
 }
 
 function closedQ(path: PathType) {
-	return path.slice(-1)[0] === SYM_Z
+	return path.slice(-1)[0] === K_Z
 }
 
 function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
@@ -431,10 +429,10 @@ function offset(d: number, path: PathType) {
 		return arc(origin[0], origin[1], d, start, end).slice(1) as PathType
 	}
 
-	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
+	if (!Array.isArray(path) || path[0] !== K_PATH) {
 		throw new Error('Invalid path')
 	} else {
-		const ret: PathType = [SYM_PATH]
+		const ret: PathType = [K_PATH]
 		const commands = path.slice(1)
 
 		//       loff   coff
@@ -454,16 +452,16 @@ function offset(d: number, path: PathType) {
 
 		let cmd, points
 		for ([cmd, ...points] of iterateSegment(commands)) {
-			if (cmd === SYM_M) {
+			if (cmd === K_M) {
 				vec2.copy(forig, points as vec2)
 				vec2.copy(lorig, forig)
-			} else if (cmd === SYM_L || cmd === SYM_C || cmd === SYM_Z) {
-				if (cmd === SYM_Z) {
+			} else if (cmd === K_L || cmd === K_C || cmd === K_Z) {
+				if (cmd === K_Z) {
 					points = forig as number[]
 				}
 
 				let off =
-					cmd === SYM_C
+					cmd === K_C
 						? offsetSegmentBezier(...lorig, ...(points as number[]), d)
 						: offsetSegmentLine(lorig, points as vec2, d)
 				if (off) {
@@ -478,7 +476,7 @@ function offset(d: number, path: PathType) {
 							// (M x y # ...) + (M x y # ...)
 							off = [...corner.slice(3), ...off.slice(3)]
 							// make a chamfer Bevel
-							// off[0] = S('L')
+							// off[0] = K('L')
 						}
 					} else {
 						// First time to offset
@@ -491,12 +489,12 @@ function offset(d: number, path: PathType) {
 				}
 			}
 
-			if (cmd === SYM_Z) {
+			if (cmd === K_Z) {
 				// Make a bevel corner
 				const corner = makeRoundCorner(lorig, loff, foff)
-				ret.push(...corner.slice(3), SYM_Z)
+				ret.push(...corner.slice(3), K_Z)
 				// Chanfer
-				// ret.push(SYM_Z)
+				// ret.push(K_Z)
 
 				continued = false
 			}
