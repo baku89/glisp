@@ -659,7 +659,7 @@ function trimCurve(start: number, end: number, curve: SegmentType): SegmentType 
 }
 
 /**
- * Trim by normalized value (0-1) along the path
+ * Trim path by relative length from each ends
  */
 function trimByLength(start: number, end: number, path: PathType) {
 
@@ -668,7 +668,6 @@ function trimByLength(start: number, end: number, path: PathType) {
 		console.log('no change')
 		return path
 	}
-
 
 	path = makeOpen(path)
 
@@ -747,7 +746,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 		trimmed.push(trimCurve(startT, endT, seg))
 
 	} else {
-
+		// Trim over multiple curves
 		const startSeg = curves[startIndex][0]
 		trimmed.push(trimCurve(startT, 1, startSeg))
 
@@ -769,9 +768,16 @@ function trimByLength(start: number, end: number, path: PathType) {
 		return ret
 	}).flat()
 
-	const ret = [K_PATH, ...rest]
+	return [K_PATH, ...rest]
+}
 
-	return ret
+/**
+ * Trim path by normalized T 
+ */
+function pathTrim(t1: number, t2: number, path: PathType) {
+	const length = pathLength(path)
+	const start = t1 * length, end = (1 - t2) * length
+	return trimByLength(start, end, path)
 }
 
 export const pathNS = new Map<string, any>([
@@ -787,6 +793,7 @@ export const pathNS = new Map<string, any>([
 	['path/angle-at-length', angleAtLength],
 	['path/angle-at', convertToNormalizedLengthFunction(angleAtLength)],
 	['path/trim-by-length', trimByLength],
+	['path/trim', pathTrim],
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => Array.from(iterateSegment(path))
