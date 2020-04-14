@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
 import Env from './env'
+import {LispError} from './repl'
 
 type MalPureFunc = (...args: MalVal[]) => MalVal
 
@@ -51,7 +52,7 @@ export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
 		// copy original properties
 		newObj = Object.assign(fn, obj)
 	} else {
-		throw Error('Unsupported type for clone')
+		throw new LispError('[JS: cloneAST] Unsupported type for clone')
 	}
 
 	if (typeof newMeta !== 'undefined') {

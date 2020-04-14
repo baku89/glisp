@@ -135,6 +135,9 @@ export const coreNS = new Map<string, any>([
 	[
 		'with-meta',
 		(a: MalVal, m: any) => {
+			if (m === undefined) {
+				throw new LispError('[with-meta] Need the metadata to attach')
+			}
 			const c = cloneAST(a)
 			;(c as any).meta = m
 			return c
