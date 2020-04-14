@@ -20,10 +20,10 @@ replEnv.set('$insert', (item: MalVal) => {
 
 const S = Symbol.for
 
-const K_M = K('M')
-const K_L = K('L')
-const K_C = K('C')
-const K_Z = K('Z')
+const K_M = K('M'),
+	K_L = K('L'),
+	K_C = K('C'),
+	K_Z = K('Z')
 
 interface DrawStyleFill {
 	type: 'fill'
@@ -357,8 +357,6 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 	}
 
 	if (out !== undefined) {
-		console.log(out)
-
 		// Draw
 		consoleEnv.outer = viewEnv
 

@@ -157,7 +157,7 @@
 
 (defn path/map-points (f path)
 	(cons
-		'path
+		:path
 		(apply concat 
 			(map
 				(fn (xs)

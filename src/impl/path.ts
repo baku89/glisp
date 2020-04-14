@@ -56,36 +56,58 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	}
 }
 
-function* iterateSegmentWithLength(
+/**
+ *  Yields a segment with its complete points.
+ *  Thus each object can be like,
+ * [L prevX prevY x y]
+ * [Q prevX prevY x1 y1 x2 y2 x3 y3]
+ * [Z x y firstX firstY]
+ */
+export function* iterateCompleteSegment(
+	path: PathType
+): Generator<SegmentType> {
+	let first: number[] = [],
+		prev: number[] = []
+
+	for (const [cmd, ...points] of iterateSegment(path)) {
+		switch (cmd) {
+			case K_M:
+				yield [cmd, ...points]
+				first = points
+				prev = first
+				break
+			case K_L:
+			case K_C:
+				yield [cmd, ...prev, ...points] as SegmentType
+				prev = points.slice(-2)
+				break
+			case K_Z:
+				yield [cmd, ...prev, ...first] as SegmentType
+				break
+		}
+	}
+}
+
+function* iterateCompleteSegmentWithLength(
 	path: PathType
 ): Generator<[SegmentType, number]> {
 	let length = 0
 
-	const first = vec2.create()
-	const prev = vec2.create()
-	const curt = vec2.create()
-
-	for (const seg of iterateSegment(path)) {
+	for (const seg of iterateCompleteSegment(path)) {
 		const [cmd, ...points] = seg
 		switch (cmd) {
-			case K_M:
-				vec2.copy(first, points as vec2)
-				vec2.copy(prev, first)
-				break
+			case K_Z:
 			case K_L:
-				vec2.copy(curt, points.slice(-2) as vec2)
-				length += vec2.dist(prev, curt)
-				vec2.copy(prev, curt)
+				length += vec2.dist(
+					points.slice(0, 2) as vec2,
+					points.slice(-2) as vec2
+				)
 				break
 			case K_C: {
-				const bezier = getBezier([...(prev as number[]), ...points])
+				const bezier = getBezier(points)
 				length += bezier.length()
-				vec2.copy(prev, points.slice(-2) as vec2)
 				break
 			}
-			case K_Z:
-				length += vec2.dist(prev, first)
-				break
 		}
 		yield [seg, length]
 	}
@@ -124,40 +146,36 @@ function toBeziers(path: PathType) {
 }
 
 function pathLength(path: PathType) {
-	const segs = Array.from(iterateSegmentWithLength(path))
-	return segs.slice(-1)[0][1]
+	const segs = Array.from(iterateCompleteSegmentWithLength(path))
+	return segs[segs.length - 1][1]
 }
 
 function positionAtLength(len: number, path: PathType) {
-	const segs = Array.from(iterateSegmentWithLength(path))
-	const length = segs.slice(-1)[0][1]
+	const segs = Array.from(iterateCompleteSegmentWithLength(path))
+	const length = segs[segs.length - 1][1]
 
 	len = clamp(len, 0, length)
 
-	const first = vec2.create()
-	const prev = vec2.create()
-	const curt = vec2.create()
+	const point = vec2.create()
 	let startLen = 0
 
 	for (let i = 0; i < segs.length; i++) {
 		const [[cmd, ...points], endLen] = segs[i]
-		if (cmd === K_M) {
-			vec2.copy(first, points as vec2)
-		}
-		vec2.copy(curt, cmd === K_Z ? first : (points.slice(-2) as vec2))
+
+		const first = points.slice(0, 2)
 
 		if (len <= endLen) {
 			const t = (len - startLen) / (endLen - startLen)
 
 			switch (cmd) {
 				case K_M:
-					return [...curt]
+					return first
 				case K_L:
 				case K_Z:
-					vec2.lerp(prev, prev, curt, t)
-					return [...prev]
+					vec2.lerp(point, first as vec2, points.slice(-2) as vec2, t)
+					return [...point]
 				case K_C: {
-					const bezier = getBezier([...prev, ...points])
+					const bezier = getBezier(points)
 					const {x, y} = bezier.get(t)
 					return [x, y]
 				}
@@ -166,7 +184,6 @@ function positionAtLength(len: number, path: PathType) {
 			}
 		}
 
-		vec2.copy(prev, curt)
 		startLen = endLen
 	}
 }
@@ -337,13 +354,15 @@ function closedQ(path: PathType) {
 	return path.slice(-1)[0] === K_Z
 }
 
+/**
+ * Returns:
+ * A --- B----
+ *        \  <- this angle
+ *         \
+ *          C
+ * The returned value is signed and is positive angle if ABC is CW, else negative.
+ */
 function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
-	// A --- B----
-	//        \  <- this angle
-	//         \
-	//          C
-	// Returns positive angle if ABC is CW, else negative
-
 	const AB = vec2.create()
 	const BC = vec2.create()
 
@@ -359,11 +378,12 @@ function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
 	return angle * rot
 }
 
+/**
+ * Returns +1 if the path is clock-wise and -1 when CCW.
+ * Returns 0 if the direction is indeterminate
+ * like when the path is opened or 8-shaped.
+ */
 function getPathRotation(path: PathType): number {
-	// Returns +1 if the path is clock-wise and -1 when CCW.
-	// Returns 0 if the direction is indeterminate
-	// like when the path is opened or 8-shaped.
-
 	// Indeterminate case: the path is opened
 	if (!closedQ(path)) {
 		return 0
@@ -511,6 +531,7 @@ export const pathNS = new Map<string, any>([
 	['path/closed?', closedQ],
 	['path/position-at-length', positionAtLength],
 	['path/position-at', positionAt],
+	// ['path/normal-at-length', normalAtLength],
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => Array.from(iterateSegment(path))
