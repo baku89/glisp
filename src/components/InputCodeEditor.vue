@@ -253,5 +253,7 @@ export default class InputCodeEditor extends Vue {
 		width 100%
 		background transparent !important
 		font-size 1rem
-		font-family 'Fira Code', monospace, sans-serif
+
+	.ace_editor
+		font-family 'Fira Code', monospace, sans-serif !important
 </style>

@@ -260,6 +260,45 @@ function convertToNormalizedLengthFunction(f: LengthFunctionType) {
 	return (t: number, path: PathType) => f(t * pathLength(path), path)
 }
 
+function makeOpen(path: PathType) {
+	if (closedQ(path)) {
+		path = path.slice(0, path.length - 1)
+
+		const first = path[0] === K_PATH ? path.slice(2, 4) : path.slice(1, 3)
+		const last = path.slice(-2)
+
+		// Add L command to connect to first points if the last Z has certain length
+		if (vec2.dist(first as vec2, last as vec2) > EPSILON) {
+			path.push(K_L, ...first)
+		}
+	}
+
+	return path
+}
+
+function pathJoin(first: PathType, ...rest: PathType[]) {
+	const ret = makeOpen(first)
+
+	const lastEnd = vec2.fromValues(...ret.slice(-2) as [number, number])
+	const start = vec2.create()
+
+	for (const path of rest) {
+		let opened = makeOpen(path).slice(1) // remove K_PATH
+		vec2.copy(start, opened.slice(1, 3) as vec2) // retrieve M x y
+
+		if (vec2.dist(lastEnd, start) < EPSILON) {
+			opened = opened.slice(3) // Remove M if both ends are ident
+		} else {
+			opened[0] = K_L
+		}
+
+		ret.push(...opened)
+		vec2.copy(lastEnd, opened.slice(-2) as vec2)
+	}
+
+	return ret
+}
+
 function positionAtLength(len: number, path: PathType) {
 	const [[cmd, ...points], t] = findCurveAtLength(len, path)
 
@@ -609,24 +648,6 @@ function offset(d: number, path: PathType) {
 	}
 }
 
-function makeOpen(path: PathType) {
-	if (closedQ(path)) {
-		path = path.slice(0, path.length - 1)
-
-		const first = path[0] === K_PATH ? path.slice(2, 4) : path.slice(1, 3)
-		const last = path.slice(-2)
-
-		// Add L command to connect to first points if the last Z has certain length
-		if (vec2.dist(first as vec2, last as vec2) > EPSILON) {
-			path.push(K_L, ...first)
-		}
-	}
-
-	return path
-}
-
-
-
 function trimCurve(start: number, end: number, curve: SegmentType): SegmentType {
 
 	if (start < EPSILON && 1 - EPSILON < end) {
@@ -782,6 +803,7 @@ function pathTrim(t1: number, t2: number, path: PathType) {
 
 export const pathNS = new Map<string, any>([
 	['arc', arc],
+	['path/join', pathJoin],
 	['path/to-beziers', toBeziers],
 	['path/offset', offset],
 	['path/length', pathLength],

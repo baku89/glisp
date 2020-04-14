@@ -59,7 +59,7 @@ export default class App extends Vue {
 	private selection = [0, 0]
 	private activeRange: [number, number] | null = null
 	private code = ''
-	private background = 'snow'
+	private background = 'whitesmoke'
 	private backgroundSet = false
 	private compact = true
 	private renderError = false
@@ -73,6 +73,11 @@ export default class App extends Vue {
 
 		const queryCodeURL = url.searchParams.get('code_url')
 		const queryCode = url.searchParams.get('code')
+		const doClear = url.searchParams.has('clear')
+
+		if (doClear) {
+			localStorage.removeItem('saved_code')
+		}
 
 		this.compact = url.searchParams.has('compact')
 
@@ -100,7 +105,24 @@ export default class App extends Vue {
 		} else {
 			this.code =
 				localStorage.getItem('saved_code') ||
-				'(fill "black" (rect 50 50 50 50))'
+				`(def w 20)
+(def col (range -5 5))
+(def grid (cartesian-product col col))
+
+(def rnd #(sign (- (random %) .5)))
+
+(defn slash (i p)
+  (->> (line (- w) (- w) w w)
+       (scale (rnd i) 1)
+       (translate (.x p) (.y p))))
+
+(background "whitesmoke")
+
+(->> grid
+     (map #(vec2/scale % (* w 2)))
+     (map-indexed slash)
+     (stroke "salmon" 7)
+     (translate (/ $width 2) (/ $height 2)))`
 		}
 
 		replEnv.set('$canvas', this.code)
@@ -119,8 +141,6 @@ export default class App extends Vue {
 			if (this.background === bg) {
 				return
 			}
-
-			console.log('set')
 
 			let base
 

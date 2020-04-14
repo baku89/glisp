@@ -149,7 +149,7 @@ export const coreNS = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-			;(c as any).meta = m
+				; (c as any).meta = m
 			return c
 		}
 	],
@@ -179,8 +179,12 @@ export const coreNS = new Map<string, any>([
 				;[start, end, step] = args
 			}
 
+			if (start === end) {
+				return []
+			}
+
 			if ((end - start) * step <= 0) {
-				step = Math.sign(end - start) || 1
+				step = Math.sign(end - start) * Math.abs(step) || 1
 			}
 
 			const arr = []

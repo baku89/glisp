@@ -53,7 +53,7 @@
 			(fn (R) (map #(cons % R) (first xs)))
 			(if (= 2 (count xs))
 				(last xs)
-				(apply product (rest xs))))))
+				(apply cartesian-product (rest xs))))))
 
 (defn map-indexed (f xs)
 	(map
@@ -297,26 +297,26 @@
 
 ;; Linear-algebra
 
-(defn get-x (p) (first p))
-(defn get-y (p) (second p))
+(defn .x (p) (first p))
+(defn .y (p) (second p))
 
 (defn vec2/+ (a b)
-	(list (+ (get-x a) (get-x b))
-				(+ (get-y a) (get-y b))))
+	(list (+ (.x a) (.x b))
+				(+ (.y a) (.y b))))
 
 (defn vec2/+ (a b)
-	(list (- (get-x a) (get-x b))
-				(- (get-y a) (get-y b))))
+	(list (- (.x a) (.x b))
+				(- (.y a) (.y b))))
 
 (defn vec2/scale (p s)
-	(list (* s (get-x p))
-				(* s (get-y p))))
+	(list (* s (.x p))
+				(* s (.y p))))
 
 (defn vec2/rotate (origin angle p)
-	(let (ox		(get-x origin)
-				oy		(get-y origin)
-				x			(- (get-x p) ox)
-				y			(- (get-y p) oy)
+	(let (ox		(.x origin)
+				oy		(.y origin)
+				x			(- (.x p) ox)
+				y			(- (.y p) oy)
 				sinC	(sin angle)
 				cosC	(cos angle))
 		(list (+ ox (- (* x cosC) (* y sinC)))
