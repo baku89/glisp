@@ -112,6 +112,7 @@ export const coreNS = new Map<string, any>([
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
 	['partition', partition],
+	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],
 
 	// String
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],

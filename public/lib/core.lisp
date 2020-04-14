@@ -10,6 +10,11 @@
 (defmacro macroview (expr)
 	`(prn (macroexpand ~expr)))
 
+
+(defn eval-sketch (& xs)
+	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
+		
+
 ;; Conditionals
 (defmacro cond (& xs)
 	(if (> (count xs) 0)

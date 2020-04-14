@@ -111,7 +111,6 @@ export default class Viewer extends Vue {
 	}
 
 	private onRender(succeed: boolean) {
-		console.log('aasdfsdf')
 		this.$emit('render', succeed)
 	}
 
@@ -121,7 +120,8 @@ export default class Viewer extends Vue {
 			.split('\n')
 			.map(s => s.replace(/;.*$/, '').trim())
 			.join('')
-		const str = trimmed ? `(list ${this.code})` : '""'
+
+		const str = trimmed ? `(eval-sketch ${trimmed})` : '""'
 		this.viewEnv = this.rep(`(def $view ${str}\n)`)
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
