@@ -60,29 +60,44 @@ export default class InputCodeEditor extends Vue {
 		const sel = this.editor.getSelection()
 		const doc = this.editor.getSession().doc
 
+		const wheelSpeed = (e: MouseWheelEvent) => {
+			return (e.shiftKey ? 2 : e.altKey ? 0.02 : 0.5) / 10
+		}
+
 		const Updaters = [
 			{
 				match: /^[-+]?[0-9]+$/,
-				update: (val: number, e: MouseWheelEvent) =>
-					Math.round(val - e.deltaY / 10),
 				parse: (s: string) => parseInt(s),
+				update: (val: number, e: MouseWheelEvent) =>
+					Math.round(val - e.deltaY * wheelSpeed(e)),
 				toString: (val: number) => val.toString()
 			},
 			{
 				match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
-				update: (val: number, e: MouseWheelEvent) => val - e.deltaY / 10,
 				parse: (s: string) => parseFloat(s),
+				update: (val: number, e: MouseWheelEvent) =>
+					val - e.deltaY * wheelSpeed(e),
 				toString: (val: number) => val.toFixed(1)
 			},
 			{
-				// Vector 2
+				// Int 2
 				match: /^[-+]?[0-9]+ [-+]?[0-9]+$/,
-				update: ([x, y]: number[], e: MouseWheelEvent) => [
-					x - e.deltaX / 10,
-					y - e.deltaY / 10
-				],
 				parse: (s: string) => s.split(' ').map(parseFloat),
+				update: ([x, y]: number[], e: MouseWheelEvent) => [
+					x - e.deltaX * wheelSpeed(e),
+					y - e.deltaY * wheelSpeed(e)
+				],
 				toString: (val: number[]) => val.map(v => v.toFixed(0)).join(' ')
+			},
+			{
+				// Float 2
+				match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+) [-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
+				parse: (s: string) => s.split(' ').map(parseFloat),
+				update: ([x, y]: number[], e: MouseWheelEvent) => [
+					x - e.deltaX * wheelSpeed(e),
+					y - e.deltaY * wheelSpeed(e)
+				],
+				toString: (val: number[]) => val.map(v => v.toFixed(1)).join(' ')
 			}
 		]
 
@@ -219,7 +234,6 @@ export default class InputCodeEditor extends Vue {
 </script>
 
 <style lang="stylus">
-
 .InputCodeEditor
 	position relative
 	overflow-y scroll
@@ -229,10 +243,10 @@ export default class InputCodeEditor extends Vue {
 	.active-range
 		position absolute
 		background var(--yellow)
-		opacity .2
+		opacity 0.2
 
 	.ace_selection
-		opacity .5
+		opacity 0.5
 
 	&__editor
 		position relative
