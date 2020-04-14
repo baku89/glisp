@@ -236,7 +236,6 @@ export default class Viewer extends Vue {
 		position absolute
 		top 0
 		left 0
-		background blue
 		pointer-events none
 
 	&__cursor
@@ -250,7 +249,7 @@ export default class Viewer extends Vue {
 		&:before, &:after
 			position absolute
 			display block
-			background red
+			background var(--foreground)
 			content ''
 
 		&:before
