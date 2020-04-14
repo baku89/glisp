@@ -47,7 +47,7 @@ import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 
 import {replEnv, PRINT, EVAL} from '@/impl/repl'
-import {viewREP, consoleREP, consoleEnv} from '@/impl/view'
+import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/impl/view'
 import Env from '@/impl/env'
 
 const S = Symbol.for
@@ -79,6 +79,7 @@ export default class Viewer extends Vue {
 	private rep!: (s: string) => Env
 	private viewEnv!: Env
 	private rafID!: number
+	private updateCanvasRes!: any
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
@@ -88,7 +89,7 @@ export default class Viewer extends Vue {
 
 			this.rep = (str: string) => viewREP(str, ctx)
 
-			const updateCanvasRes = () => {
+			this.updateCanvasRes = () => {
 				const canvas = ctx.canvas
 
 				ctx.canvas.width = canvas.clientWidth * dpi
@@ -97,10 +98,21 @@ export default class Viewer extends Vue {
 				this.update()
 			}
 
-			window.addEventListener('resize', updateCanvasRes)
+			window.addEventListener('resize', this.updateCanvasRes)
+			viewHandler.on('render', this.onRender)
 
-			updateCanvasRes()
+			this.updateCanvasRes()
 		}
+	}
+
+	private beforeDestroy() {
+		window.removeEventListener('resize', this.updateCanvasRes)
+		viewHandler.off('render', this.onRender)
+	}
+
+	private onRender(succeed: boolean) {
+		console.log('aasdfsdf')
+		this.$emit('render', succeed)
 	}
 
 	@Watch('code')

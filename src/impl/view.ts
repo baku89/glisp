@@ -345,6 +345,8 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 
 	let out
 
+	let renderSucceed = true
+
 	try {
 		const src = typeof str === 'string' ? readStr(str) : str
 		out = EVAL(src, viewEnv)
@@ -354,6 +356,7 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		} else {
 			printer.error(err.stack)
 		}
+		renderSucceed = false
 	}
 
 	if (out !== undefined) {
@@ -387,8 +390,11 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 			draw(ctx, out, [], defaultStyle)
 		} catch (err) {
 			printer.error(err.stack)
+			renderSucceed = false
 		}
 	}
+
+	viewHandler.emit('render', renderSucceed)
 
 	return viewEnv
 }

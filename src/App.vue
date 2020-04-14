@@ -6,7 +6,7 @@
 		@mousewheel="onScroll"
 	>
 		<div class="app__viewer">
-			<Viewer :code="code" :selection="selection" />
+			<Viewer :code="code" :selection="selection" @render="onRender" />
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -20,7 +20,11 @@
 				/>
 			</div>
 			<div class="app__console">
-				<button class="app__console-toggle" @click="compact = !compact">&lt;</button>
+				<button
+					class="app__console-toggle"
+					:class="{error: renderError}"
+					@click="compact = !compact"
+				>{{ renderError ? '!' : '✓' }}</button>
 				<Console :compact="compact" />
 			</div>
 		</div>
@@ -58,6 +62,7 @@ export default class App extends Vue {
 	private background = 'snow'
 	private backgroundSet = false
 	private compact = true
+	private renderError = false
 
 	onScroll(e: MouseWheelEvent) {
 		// e.preventDefault()
@@ -124,6 +129,10 @@ export default class App extends Vue {
 				setTimeout(() => (this.backgroundSet = true), 1)
 			}
 		})
+	}
+
+	private onRender(succeed: boolean) {
+		this.renderError = !succeed
 	}
 
 	private onEdit(value: string) {
@@ -343,21 +352,56 @@ $compact-dur = 0.4s
 		&-toggle
 			$size = 2.5rem
 			position absolute
-			top -0.5rem
+			top -3rem
 			right 0
 			margin-top -0.5 * $size
 			width $size
 			height $size
 			border 1px solid var(--comment)
-			border-radius 50%
+			border-radius 0.5 * $size
 			background var(--background)
 			color var(--comment)
 			font-size 1.3rem
+			line-height 2.2rem
 			transition all $compact-dur var(--ease)
-			transform translateY(-0.5rem) rotate(-90deg)
+			--textcolor var(--comment)
+
+			&.error
+				border-color var(--red)
+				background var(--red)
+				color var(--background)
+				--textcolor var(--background)
+
+			&:hover
+				height 1.5 * $size
+				color transparent
+
+				&:before
+					opacity 1
+
+			&:before
+				position absolute
+				bottom 0
+				left 0
+				width $size
+				height $size
+				border-radius 0.5 * $size
+				color var(--textcolor)
+				// background red
+				content '<'
+				line-height $size
+				opacity 0
+				transition all $compact-dur var(--ease)
+				transform rotate(-90deg)
 
 			.compact &
-				transform translateY(-0.5rem) rotate(90deg)
+				&:hover
+					transform translateY(-1.5rem)
+
+				&:before
+					top 0
+					bottom none
+					transform rotate(90deg)
 
 .compact .app__editor
 	height calc(100% - 2rem - 2.2rem - 1.5rem)
