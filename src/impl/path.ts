@@ -609,6 +609,114 @@ function offset(d: number, path: PathType) {
 	}
 }
 
+function makeOpen(path: PathType) {
+	if (closedQ(path)) {
+		path = path.slice(0, path.length - 1)
+
+		const first = path[0] === K_PATH ? path.slice(2, 4) : path.slice(1, 3)
+		const last = path.slice(-2)
+
+		// Add L command to connect to first points if the last Z has certain length
+		if (vec2.dist(first as vec2, last as vec2) > EPSILON) {
+			path.push(K_L, ...first)
+		}
+	}
+
+	return path
+}
+
+/**
+ * Trim by normalized value (0-1) along the path
+ */
+function trimByLength(start: number, end: number, path: PathType) {
+	path = makeOpen(path)
+
+	const segs = Array.from(iterateCompleteSegmentWithLength(path))
+	const lastSeg = segs[segs.length - 1]
+
+	// Convert end parameter to a distance from the beginning of path
+	const length = lastSeg[1]
+	end = length - end
+
+	// Make positiove
+	start = Math.max(0, start)
+	end = Math.max(0, end)
+
+	if (start > end) {
+		;[start, end] = [end, start]
+	}
+
+	let startSegIndex = null,
+		startSegT = NaN
+	let endSegIndex = null,
+		endSegT = NaN
+
+	let fromLen = 0
+
+	console.log(JSON.stringify(segs))
+
+	// NOTE: might be better to search from both ends to avoid the overhead
+	for (let i = 0; i < segs.length; i++) {
+		const [seg, toLen] = segs[i]
+		const [cmd, ...points] = seg
+		// Skip zero-length segment
+		if (
+			cmd === K_M ||
+			(cmd === K_Z &&
+				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
+					EPSILON)
+		) {
+			continue
+		}
+
+		if (fromLen <= start && start < toLen) {
+			startSegIndex = i
+			startSegT = (start - fromLen) / (toLen - fromLen)
+		}
+
+		if (fromLen <= end && end < toLen) {
+			endSegIndex = i
+			endSegT = (end - fromLen) / (toLen - fromLen)
+		}
+
+		if (startSegIndex !== null && endSegIndex !== null) {
+			break
+		}
+
+		fromLen = toLen
+	}
+
+	if (startSegIndex === null) {
+		startSegIndex = segs.length - 1
+		startSegT = 1
+	}
+
+	if (endSegIndex === null) {
+		endSegIndex = segs.length - 1
+		endSegT = 1
+	}
+
+	if (startSegIndex !== endSegIndex) {
+		// prepare start
+		let startSeg = segs[startSegIndex][0]
+
+		if (startSegT > EPSILON) {
+			const [cmd, ...points] = startSeg
+			switch (cmd) {
+				case K_L:
+			}
+			startSeg = [L_M]
+		}
+
+		// Change to M
+		startSeg[0] = K_M
+	}
+
+	console.log('start=', startSegIndex, startSegT, 'end=', endSegIndex, endSegT)
+
+	return path
+}
+
 export const pathNS = new Map<string, any>([
 	['arc', arc],
 	['path/to-beziers', toBeziers],
@@ -621,6 +729,7 @@ export const pathNS = new Map<string, any>([
 	['path/normal-at', convertToNormalizedLengthFunction(normalAtLength)],
 	['path/angle-at-length', angleAtLength],
 	['path/angle-at', convertToNormalizedLengthFunction(angleAtLength)],
+	['path/trim-by-length', trimByLength],
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => Array.from(iterateSegment(path))

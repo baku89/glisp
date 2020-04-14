@@ -23,6 +23,7 @@ export type MalVal =
 	| MalAtom
 	| MalFunc
 	| MalPureFunc
+	| Float32Array
 	| MalVal[]
 
 // General Functions
