@@ -1,7 +1,7 @@
 <template>
 	<div class="Viewer" v-click-outside="onClickOutside">
 		<div class="Viewer__hud">
-			<div class="Viewer__buttons">
+			<div class="Viewer__buttons" v-if="pens.length > 0">
 				<label class="Viewer__label">✎</label>
 				<button
 					class="Viewer__button"
@@ -11,7 +11,7 @@
 					@click="togglePen(pen)"
 				>{{ pen }}</button>
 			</div>
-			<div class="Viewer__buttons">
+			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
 				<button
 					class="Viewer__button"
