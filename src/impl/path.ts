@@ -2,12 +2,11 @@
 import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import {MalVal} from './types'
-import {chunkByCount} from './core'
+import {partition} from './core'
 import {LispError} from './repl'
 
 type PathType = (symbol | number)[]
 type SegmentType = [symbol, ...number[]]
-
 
 const S = Symbol.for
 
@@ -33,10 +32,11 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const clamp = (value: number, min: number, max: number) =>
+	Math.max(min, Math.min(max, value))
 
 function getBezier(points: number[]) {
-	const coords = chunkByCount(points, 2).map(([x, y]) => ({x, y}))
+	const coords = partition(2, points).map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
 		throw new LispError('Invalid point count for cubic bezier')
 	}
@@ -58,7 +58,9 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	}
 }
 
-function* iterateSegmentWithLength(path: PathType): Generator<[SegmentType, number]> {
+function* iterateSegmentWithLength(
+	path: PathType
+): Generator<[SegmentType, number]> {
 	let length = 0
 
 	const first = vec2.create()
@@ -91,7 +93,7 @@ function* iterateSegmentWithLength(path: PathType): Generator<[SegmentType, numb
 	}
 }
 
-function pathToBeziers(path: PathType) {
+function toBeziers(path: PathType) {
 	const ret: PathType = [SYM_PATH]
 
 	for (const line of iterateSegment(path)) {
@@ -115,7 +117,7 @@ function pathToBeziers(path: PathType) {
 			default:
 				throw new Error(
 					`Invalid d-path command: ${
-					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 					}`
 				)
 		}
@@ -144,7 +146,7 @@ function positionAtLength(len: number, path: PathType) {
 		if (cmd === SYM_M) {
 			vec2.copy(first, points as vec2)
 		}
-		vec2.copy(curt, cmd === SYM_Z ? first : points.slice(-2) as vec2)
+		vec2.copy(curt, cmd === SYM_Z ? first : (points.slice(-2) as vec2))
 
 		if (len <= endLen) {
 			const t = (len - startLen) / (endLen - startLen)
@@ -169,7 +171,6 @@ function positionAtLength(len: number, path: PathType) {
 		vec2.copy(prev, curt)
 		startLen = endLen
 	}
-
 }
 
 function positionAt(t: number, path: PathType) {
@@ -281,13 +282,13 @@ function arc(
 		SYM_PATH,
 		S('M'),
 		...points[0],
-		...chunkByCount(points.slice(1), 3)
+		...partition(3, points.slice(1))
 			.map(pts => [S('C'), ...pts.flat()])
 			.flat()
 	]
 }
 
-function offsetBezier(...args: number[]) {
+function offsetSegmentBezier(...args: number[]) {
 	const bezier = getBezier(args.slice(0, 8))
 
 	if (bezier.length() < EPSILON) {
@@ -313,7 +314,7 @@ function offsetBezier(...args: number[]) {
 	return ret
 }
 
-function offsetLine(a: vec2, b: vec2, d: number) {
+function offsetSegmentLine(a: vec2, b: vec2, d: number) {
 	if (vec2.equals(a, b)) {
 		return false
 	}
@@ -334,7 +335,7 @@ function offsetLine(a: vec2, b: vec2, d: number) {
 	return [SYM_M, ...oa, SYM_L, ...ob] as PathType
 }
 
-function isPathClosed(path: PathType) {
+function closedQ(path: PathType) {
 	return path.slice(-1)[0] === SYM_Z
 }
 
@@ -366,7 +367,7 @@ function getPathRotation(path: PathType): number {
 	// like when the path is opened or 8-shaped.
 
 	// Indeterminate case: the path is opened
-	if (!isPathClosed(path)) {
+	if (!closedQ(path)) {
 		return 0
 	}
 
@@ -398,10 +399,36 @@ function getPathRotation(path: PathType): number {
 }
 
 function offset(d: number, path: PathType) {
+	const dirLast = vec2.create()
+	const dirNext = vec2.create()
+
 	const isClockwise = getPathRotation(path) === 1
 
 	if (isClockwise) {
 		d *= -1
+	}
+
+	const makeRoundCorner = (origin: vec2, last: vec2, next: vec2) => {
+		// dont know why this order
+		vec2.sub(dirLast, last, origin)
+		vec2.sub(dirNext, next, origin)
+
+		if (d < 0) {
+			vec2.scale(dirLast, dirLast, -1)
+			vec2.scale(dirNext, dirNext, -1)
+		}
+
+		const angle = vec2.angle(dirLast, dirNext)
+
+		const start = Math.atan2(dirLast[1], dirLast[0])
+
+		// Determine turned left or right
+		vec2.rotate(dirLast, dirLast, [0, 0], HALF_PI)
+		const turn = Math.sign(vec2.dot(dirLast, dirNext))
+
+		const end = start + angle * turn
+
+		return arc(origin[0], origin[1], d, start, end).slice(1) as PathType
 	}
 
 	if (!Array.isArray(path) || path[0] !== SYM_PATH) {
@@ -410,7 +437,7 @@ function offset(d: number, path: PathType) {
 		const ret: PathType = [SYM_PATH]
 		const commands = path.slice(1)
 
-		//       loff   foff
+		//       loff   coff
 		//----------|  /\
 		//          | /  \
 		//----------|/    \
@@ -420,33 +447,8 @@ function offset(d: number, path: PathType) {
 		const lorig = vec2.create() // original last
 		const forig = vec2.create() // original first
 		const loff = vec2.create() // last offset
-		const foff = vec2.create() // forig offset
-
-		const dirLast = vec2.create()
-		const dirNext = vec2.create()
-
-		const makeRoundCorner = (origin: vec2, last: vec2, next: vec2) => {
-
-			// dont know why this order
-			vec2.sub(dirLast, last, origin)
-			vec2.sub(dirNext, next, origin)
-
-			if (d < 0) {
-				vec2.scale(dirLast, dirLast, -1)
-				vec2.scale(dirNext, dirNext, -1)
-			}
-
-			const angle = vec2.angle(dirLast, dirNext)
-
-			// Turn left or right
-			vec2.rotate(dirLast, dirLast, [0, 0], HALF_PI)
-			const turn = Math.sign(vec2.dot(dirLast, dirNext))
-
-			const start = Math.atan2(dirLast[1], dirLast[0])
-			const end = start - angle * turn
-
-			return arc(origin[0], origin[1], d, start, end).slice(1) as PathType
-		}
+		const coff = vec2.create() // current offset
+		const foff = vec2.create() // first offset
 
 		let continued = false
 
@@ -462,15 +464,17 @@ function offset(d: number, path: PathType) {
 
 				let off =
 					cmd === SYM_C
-						? offsetBezier(...lorig, ...(points as number[]), d)
-						: offsetLine(lorig, points as vec2, d)
+						? offsetSegmentBezier(...lorig, ...(points as number[]), d)
+						: offsetSegmentLine(lorig, points as vec2, d)
 				if (off) {
+					vec2.copy(coff, off.slice(1, 3) as vec2)
+
 					if (continued) {
 						if (vec2.equals(loff, off.slice(1) as vec2)) {
 							off = off.slice(3) // remove (M 0 1)
 						} else {
 							// make a bevel
-							const corner = makeRoundCorner(lorig, loff, off.slice(1, 3) as vec2)
+							const corner = makeRoundCorner(lorig, loff, coff)
 							// (M x y # ...) + (M x y # ...)
 							off = [...corner.slice(3), ...off.slice(3)]
 							// make a chamfer Bevel
@@ -503,10 +507,10 @@ function offset(d: number, path: PathType) {
 
 export const pathNS = new Map<string, any>([
 	['arc', arc],
-	['path/to-beziers', pathToBeziers],
+	['path/to-beziers', toBeziers],
 	['path/offset', offset],
 	['path/length', pathLength],
-	['path/closed?', isPathClosed],
+	['path/closed?', closedQ],
 	['path/position-at-length', positionAtLength],
 	['path/position-at', positionAt],
 	[
