@@ -59,8 +59,12 @@ export default class Env {
 		// eslint-disable-next-line no-prototype-builtins
 		if (this.data.hasOwnProperty(key)) {
 			return this.data[key]
-		} else if (key.startsWith('%') && this.exprs && this.exprs.length >= (parseInt(key.slice(1)) || 0)) {
-			const index = (parseInt(key.slice(1)) || 0)
+		} else if (
+			key.startsWith('%') &&
+			this.exprs &&
+			this.exprs.length >= (parseInt(key.slice(1)) || 0)
+		) {
+			const index = parseInt(key.slice(1)) || 0
 			return this.exprs[index]
 		} else if (this.outer !== null) {
 			return this.outer.find(key)

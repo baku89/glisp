@@ -370,8 +370,6 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		ctx.clearRect(0, 0, w, h)
 
 		const dpi = window.devicePixelRatio || 1
-		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
-		ctx.translate(rem * 4, rem * 4)
 		ctx.scale(dpi, dpi)
 
 		// Set the default line cap

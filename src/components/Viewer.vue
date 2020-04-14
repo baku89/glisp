@@ -2,7 +2,7 @@
 	<div class="Viewer" v-click-outside="onClickOutside">
 		<div class="Viewer__hud">
 			<div class="Viewer__buttons">
-				<label class="Viewer__label">🖋</label>
+				<label class="Viewer__label">✎</label>
 				<button
 					class="Viewer__button"
 					:class="{active: pen === activePen}"
@@ -12,7 +12,7 @@
 				>{{ pen }}</button>
 			</div>
 			<div class="Viewer__buttons">
-				<label class="Viewer__label">✍️</label>
+				<label class="Viewer__label">🖑</label>
 				<button
 					class="Viewer__button"
 					:class="{active: hand === activeHand}"
@@ -78,7 +78,6 @@ export default class Viewer extends Vue {
 
 	private rep!: (s: string) => Env
 	private viewEnv!: Env
-	private rafID!: number
 	private updateCanvasRes!: any
 
 	private mounted() {
@@ -140,31 +139,11 @@ export default class Viewer extends Vue {
 	private togglePen(pen: string) {
 		if (this.activePen === pen) {
 			this.activePen = null
-			cancelAnimationFrame(this.rafID)
 		} else {
 			// Begin
 			this.activePen = pen
 			EVAL([S('begin-draw'), S('state')], consoleEnv)
-			this.rafID = requestAnimationFrame(this.onFrame)
 		}
-	}
-
-	private onFrame() {
-		if (this.activePen === null) return
-
-		const [x, y] = this.cursorPos
-		const p = this.mousePressed
-
-		EVAL(
-			[
-				S('if'),
-				[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
-				[S('$insert'), [S('first'), S('state')]]
-			],
-			consoleEnv
-		)
-
-		this.rafID = requestAnimationFrame(this.onFrame)
 	}
 
 	private onClickOutside() {
@@ -180,11 +159,8 @@ export default class Viewer extends Vue {
 			this.mousePressed = false
 		}
 
-		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
-		const margin = rem * 2
-
-		let x = pageX - margin,
-			y = pageY - margin,
+		let x = pageX,
+			y = pageY,
 			p = this.mousePressed
 
 		if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
@@ -193,6 +169,17 @@ export default class Viewer extends Vue {
 				number,
 				boolean
 			]
+		}
+
+		if (this.activePen !== null) {
+			EVAL(
+				[
+					S('if'),
+					[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
+					[S('$insert'), [S('first'), S('state')]]
+				],
+				consoleEnv
+			)
 		}
 
 		this.cursorPos = [x, y]
@@ -213,12 +200,15 @@ export default class Viewer extends Vue {
 	&__buttons
 		display flex
 		margin-bottom 1rem
+		height 2rem
+		// background green
 
 	&__label
 		margin-right 0.2rem
 		padding-top 0.2rem
-		filter grayscale(1)
-		font-size 1.5rem
+		color var(--comment)
+		font-size 2rem
+		line-height 1.8rem
 		// background white
 
 	&__button
@@ -229,7 +219,7 @@ export default class Viewer extends Vue {
 		background 0
 		background var(--background)
 		color var(--foreground)
-		line-height 1.2rem
+		line-height 1.1rem
 		transition all var(--tdur) var(--ease)
 		outliine none
 
@@ -244,8 +234,8 @@ export default class Viewer extends Vue {
 
 	&__cursor-wrapper
 		position absolute
-		top 2rem
-		left 2rem
+		top 0
+		left 0
 		background blue
 		pointer-events none
 
