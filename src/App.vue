@@ -264,6 +264,7 @@ export default class App extends Vue {
 html, body
 	overflow hidden
 	height 100vh
+	--ease cubic-bezier(0.22, 0, 0.02, 1)
 
 html
 	font-size 12px
@@ -283,7 +284,7 @@ button
 	background var(--background)
 	color var(--foreground)
 	text-align center
-	transition background var(--tdur) ease
+	transition background var(--tdur) var(--ease)
 	--tdur 0
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
@@ -291,7 +292,6 @@ button
 	&.background-set
 		--tdur 1s
 
-$compact-ease = cubic-bezier(0.22, 0, 0.02, 1)
 $compact-dur = 0.4s
 
 .app
@@ -309,7 +309,7 @@ $compact-dur = 0.4s
 			width 1px
 			background var(--comment)
 			content ''
-			transition background var(--tdur) ease
+			transition background var(--tdur) var(--ease)
 
 	&__control
 		position relative
@@ -319,7 +319,7 @@ $compact-dur = 0.4s
 		position relative
 		margin 1rem 0.5rem 1rem 1rem
 		height calc(70% - 2rem)
-		transition height $compact-dur $compact-ease
+		transition height $compact-dur var(--ease)
 
 		&:after
 			position absolute
@@ -330,7 +330,7 @@ $compact-dur = 0.4s
 			height 1px
 			background var(--comment)
 			content ''
-			transition background var(--tdur) $compact-ease
+			transition background var(--tdur) var(--ease)
 
 	&__console
 		position absolute
@@ -338,7 +338,7 @@ $compact-dur = 0.4s
 		margin 0.5rem 0.5rem 1rem 1rem
 		width calc(100% - 1.5rem)
 		height calc(30% - 1.5rem)
-		transition height $compact-dur $compact-ease
+		transition height $compact-dur var(--ease)
 
 		&-toggle
 			$size = 2.5rem
@@ -353,7 +353,7 @@ $compact-dur = 0.4s
 			background var(--background)
 			color var(--comment)
 			font-size 1.3rem
-			transition transform $compact-dur $compact-ease
+			transition all $compact-dur var(--ease)
 			transform translateY(-0.5rem) rotate(-90deg)
 
 			.compact &

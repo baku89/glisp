@@ -109,7 +109,7 @@ export default class Viewer extends Vue {
 			.split('\n')
 			.map(s => s.replace(/;.*$/, '').trim())
 			.join('')
-		const str = trimmed ? `(do ${this.code})` : '""'
+		const str = trimmed ? `(list ${this.code})` : '""'
 		this.viewEnv = this.rep(`(def $view ${str}\n)`)
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
@@ -139,8 +139,6 @@ export default class Viewer extends Vue {
 
 	private onFrame() {
 		if (this.activePen === null) return
-
-		console.log('framee')
 
 		const [x, y] = this.cursorPos
 		const p = this.mousePressed
@@ -220,7 +218,7 @@ export default class Viewer extends Vue {
 		background var(--background)
 		color var(--foreground)
 		line-height 1.2rem
-		transition all var(--tdur) ease
+		transition all var(--tdur) var(--ease)
 		outliine none
 
 		&.active

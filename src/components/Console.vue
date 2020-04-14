@@ -77,32 +77,31 @@ export default class Console extends Vue {
 			top auto !important
 			overflow hidden !important
 
-
 .jqconsole
 	font-family 'Fira Code', monospace !important
 	font-variant-ligatures normal !important
 
 	&-cursor
 		background var(--selection)
-		transition background var(--tdur) ease
+		transition background var(--tdur) var(--ease)
 
 	&-prompt, &-old-prompt
 		color var(--foreground)
-		transition color var(--tdur) ease
+		transition color var(--tdur) var(--ease)
 
 	&-output
 		color var(--comment)
-		transition color var(--tdur) ease
+		transition color var(--tdur) var(--ease)
 
 	&-return
 		color var(--comment)
-		transition color var(--tdur) ease
+		transition color var(--tdur) var(--ease)
 
 	&-error
 		color var(--red)
-		transition color var(--tdur) ease
+		transition color var(--tdur) var(--ease)
 
 	.brace, .paren, .bracket, .dquote
 		color var(--yellow)
-		transition color var(--tdur) ease
+		transition color var(--tdur) var(--ease)
 </style>
