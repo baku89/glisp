@@ -145,8 +145,6 @@ export default class App extends Vue {
 			end -= 1
 		}
 
-		console.log(start, end)
-
 		const selectedCode = this.code.slice(start, end)
 		const depthDiff =
 			(selectedCode.match(/\(/g) || []).length -
