@@ -112,6 +112,8 @@
 
 (defn empty? (x) (= (count x) 0))
 
+(defn second (x) (first (rest x)))
+
 
 (def gensym
 	(let (counter (atom 0))
@@ -159,9 +161,9 @@
 		(apply concat 
 			(map
 				(fn (xs)
-					(let (cmd (first xs) args (rest xs))
+					(let (cmd (first xs) points (rest xs))
 						`(~cmd ~@(apply concat
-							(map f (chunk-by-count args 2))))
+							(map f (partition 2 points))))
 					)
 				)
 				(path/split-segments path)))))
@@ -225,8 +227,8 @@
 			C ~(- x r)	~(- y k) 
 				~(- x k)	~(- y r)
 				~x				~(- y r) ; top
-			C ~(+ x K)	~(- y r) 
-				~(+ x r)	~(- y r)
+			C ~(+ x k)	~(- y r) 
+				~(+ x r)	~(- y k)
 				~(+ x r)	~y			 ; right
 			Z)))
 	
