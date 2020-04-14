@@ -1,6 +1,9 @@
 import {LispError} from './repl'
 import {createKeyword} from './types'
 
+export const SELECTION_START = '\u029b'
+export const SELECTION_END = '\u029c'
+
 class Reader {
 	public tokens: (string | symbol)[]
 	public position: number
@@ -21,29 +24,30 @@ class Reader {
 
 export const SYM_CURSOR_START = Symbol('CURSOR_START')
 
-function tokenize(str: string, selection?: [number, number]): any[] {
+function tokenize(str: string, outputPosition = false) {
 	// eslint-disable-next-line no-useless-escape
 	const re = /[\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
+	const spaceRe = /^[\s,]*/
+	let spaceMatch = null,
+		spaceOffset = null
 	const results = []
-
-	let reachedStart = false
 
 	while ((match = re.exec(str)) && match[1] != '') {
 		if (match[1][0] === ';') {
 			continue
 		}
 
-		if (selection) {
-			if (!reachedStart && selection[0] <= re.lastIndex) {
-				reachedStart = true
-				results.push(SYM_CURSOR_START)
-			}
-		}
+		if (outputPosition) {
+			spaceMatch = spaceRe.exec(match[0])
+			spaceOffset = spaceMatch ? spaceMatch[0].length : 0
 
-		results.push(match[1])
+			results.push([match[1], match.index + spaceOffset] as [string, number])
+		} else {
+			results.push(match[1])
+		}
 	}
-	return results || []
+	return results
 }
 
 function readAtom(reader: Reader) {
@@ -146,8 +150,8 @@ function readForm(reader: Reader): any {
 
 export class BlankException extends Error {}
 
-export default function readStr(str: string, selection?: [number, number]) {
-	const tokens = tokenize(str)
+export default function readStr(str: string) {
+	const tokens = tokenize(str) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}

@@ -137,13 +137,15 @@ export default class App extends Vue {
 
 		if (code[start] === '(') {
 			start += 1
-		}
-		if (code[end] === ')') {
+			end = Math.max(start, end)
+		} else if (code[end - 1] === ')') {
+			end -= 2
+			start -= 1
+		} else if (code[end] === ')') {
 			end -= 1
 		}
-		if (code[end - 1] === ')' && start < end) {
-			end -= 2
-		}
+
+		console.log(start, end)
 
 		const selectedCode = this.code.slice(start, end)
 		const depthDiff =
