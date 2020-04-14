@@ -1,5 +1,10 @@
 <template>
-	<div id="app" :class="{'background-set': backgroundSet}" :style="colors" @mousewheel="onScroll">
+	<div
+		id="app"
+		:class="{'background-set': backgroundSet, compact}"
+		:style="colors"
+		@mousewheel="onScroll"
+	>
 		<div class="app__viewer">
 			<Viewer :code="code" :selection="selection" />
 		</div>
@@ -14,8 +19,8 @@
 					@select="onSelect"
 				/>
 			</div>
-			<div class="app__console" :class="{expanded: !compact}">
-				<button class="app__console-toggle" @click="compact = !compact">&#8810;</button>
+			<div class="app__console">
+				<button class="app__console-toggle" @click="compact = !compact">&lt;</button>
 				<Console :compact="compact" />
 			</div>
 		</div>
@@ -286,6 +291,9 @@ button
 	&.background-set
 		--tdur 1s
 
+$compact-ease = cubic-bezier(0.22, 0, 0.02, 1)
+$compact-dur = 0.4s
+
 .app
 	&__viewer
 		position relative
@@ -304,14 +312,14 @@ button
 			transition background var(--tdur) ease
 
 	&__control
-		display flex
+		position relative
 		flex-grow 1
-		flex-direction column
 
 	&__editor
 		position relative
-		flex-grow 1
 		margin 1rem 0.5rem 1rem 1rem
+		height calc(70% - 2rem)
+		transition height $compact-dur $compact-ease
 
 		&:after
 			position absolute
@@ -322,33 +330,38 @@ button
 			height 1px
 			background var(--comment)
 			content ''
-			transition background var(--tdur) ease
+			transition background var(--tdur) $compact-ease
 
 	&__console
-		position relative
-		margin 1rem 0.5rem 1rem 1rem
-		height 2.2rem
-		transition height 0.2s ease
+		position absolute
+		bottom 0
+		margin 0.5rem 0.5rem 1rem 1rem
+		width calc(100% - 1.5rem)
+		height calc(30% - 1.5rem)
+		transition height $compact-dur $compact-ease
 
 		&-toggle
-			$size = 1.6rem
+			$size = 2.5rem
 			position absolute
-			top -1rem
-			left 50%
+			top -0.5rem
+			right 0
 			margin-top -0.5 * $size
-			margin-left -0.5 * $size
 			width $size
 			height $size
 			border 1px solid var(--comment)
-			border-radius 1rem
+			border-radius 50%
 			background var(--background)
-			text-indent -0.3em
-			transition transform 0.2s ease
-			transform translateY(-0.5rem) rotate(90deg)
+			color var(--comment)
+			font-size 1.3rem
+			transition transform $compact-dur $compact-ease
+			transform translateY(-0.5rem) rotate(-90deg)
 
-		&.expanded
-			height 40%
+			.compact &
+				transform translateY(-0.5rem) rotate(90deg)
 
-			.app__console-toggle
-				transform translateY(-0.5rem) rotate(-90deg)
+.compact .app__editor
+	height calc(100% - 2rem - 2.2rem - 1.5rem)
+
+.compact .app__console
+	height 2.2rem
 </style>
