@@ -116,6 +116,12 @@ export default class App extends Vue {
 		})
 
 		viewHandler.on('set-background', (bg: string) => {
+			if (this.background === bg) {
+				return
+			}
+
+			console.log('set')
+
 			let base
 
 			try {

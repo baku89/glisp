@@ -13,7 +13,6 @@
 
 (defn eval-sketch (& xs)
 	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
-		
 
 ;; Conditionals
 (defmacro cond (& xs)
@@ -130,6 +129,8 @@
 
 ;; Graphical
 (def $canvas "")
+(def $width 1000)
+(def $height 1000)
 
 (defn color (& e)
 	(let (l (count e))
@@ -146,7 +147,7 @@
 
 (defn rotate (a body) `(:rotate ~a ~body))
 
-(defn background (& xs) `(:background ~@xs))
+(defn background (c) `(:background ~c))
 
 (defn fill (& xs) 
 	(let (l (count xs))

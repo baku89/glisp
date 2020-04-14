@@ -37,11 +37,17 @@ interface DrawStyleStroke {
 
 type DrawStyle = DrawStyleFill | DrawStyleStroke
 
+function isValidColor(str: string) {
+	const s = new Option().style
+	s.color = str
+	return s.color === str
+}
+
 function draw(
 	ctx: CanvasRenderingContext2D,
 	ast: MalVal,
 	styles: DrawStyle[],
-	defaultStyle?: DrawStyle
+	defaultStyle: DrawStyle | null
 ) {
 	if (Array.isArray(ast)) {
 		const [cmd, ...args] = ast as any[]
@@ -50,8 +56,11 @@ function draw(
 
 		if (cmd === K('background')) {
 			const color = args[0]
-			if (typeof color === 'string') {
-				viewHandler.emit('set-background', args[0])
+			if (typeof color === 'string' && color !== '' && isValidColor(color)) {
+				// only execute if the color is valid
+				viewHandler.emit('set-background', color)
+				ctx.fillStyle = color
+				ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			}
 		} else if (cmd === K('fill')) {
 			const style: DrawStyleFill = {
@@ -88,7 +97,8 @@ function draw(
 					}
 				}
 			}
-			// Apply Styles (ignoring default style)
+			// Apply Styles
+			ctx.save()
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
@@ -103,6 +113,7 @@ function draw(
 					ctx.stroke()
 				}
 			}
+			ctx.restore()
 		} else if (cmd === K('text')) {
 			// Text representation:
 			// (:text "Text" x y :option1 value1 :option2 value2 ....)
@@ -139,6 +150,7 @@ function draw(
 			ctx.textBaseline = baseline as CanvasTextBaseline
 
 			// Apply Styles
+			ctx.save()
 			for (const style of styles.length > 0
 				? styles
 				: defaultStyle
@@ -153,6 +165,7 @@ function draw(
 					ctx.strokeText(text, x, y)
 				}
 			}
+			ctx.restore()
 		} else if (cmd === K('translate')) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
@@ -231,7 +244,7 @@ consoleEnv.set('export', (name: MalVal = null) => {
 		ctx.lineJoin = 'round'
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		draw(ctx, $view, [])
+		draw(ctx, $view, [], null)
 		const d = canvas.toDataURL('image/png')
 		const w = window.open('about:blank', 'Image for canvas')
 		w?.document.write(`<img src=${d} />`)
