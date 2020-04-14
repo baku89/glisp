@@ -42,7 +42,7 @@ function getBezier(points: number[]) {
 }
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
-	if (!Array.isArray(path) || path.length < 1) {
+	if (!Array.isArray(path)) {
 		throw new LispError('Invalid path')
 	}
 
@@ -63,7 +63,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
  * [Q prevX prevY x1 y1 x2 y2 x3 y3]
  * [Z x y firstX firstY]
  */
-export function* iterateCompleteSegment(
+export function* iterateCurve(
 	path: PathType
 ): Generator<SegmentType> {
 	let first: number[] = [],
@@ -88,12 +88,12 @@ export function* iterateCompleteSegment(
 	}
 }
 
-function* iterateCompleteSegmentWithLength(
+function* iterateCurveWithLength(
 	path: PathType
 ): Generator<[SegmentType, number]> {
 	let length = 0
 
-	for (const seg of iterateCompleteSegment(path)) {
+	for (const seg of iterateCurve(path)) {
 		const [cmd, ...points] = seg
 		switch (cmd) {
 			case K_Z:
@@ -117,11 +117,11 @@ function closedQ(path: PathType) {
 	return path.slice(-1)[0] === K_Z
 }
 
-function findCompleteSegmentAtLength(
+function findCurveAtLength(
 	len: number,
 	path: PathType
 ): [SegmentType, number] {
-	const segs = iterateCompleteSegmentWithLength(path)
+	const segs = iterateCurveWithLength(path)
 
 	len = Math.max(len, 0)
 
@@ -151,7 +151,7 @@ function findCompleteSegmentAtLength(
 	if (lastSeg) {
 		return [lastSeg, 1]
 	} else {
-		throw new LispError('[js: findCompleteSegmentAtLength] Empty path')
+		throw new LispError('[js: findCurveAtLength] Empty path')
 	}
 }
 
@@ -241,7 +241,7 @@ function toBeziers(path: PathType) {
 			default:
 				throw new Error(
 					`Invalid d-path command: ${
-						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 					}`
 				)
 		}
@@ -250,7 +250,7 @@ function toBeziers(path: PathType) {
 }
 
 function pathLength(path: PathType) {
-	const segs = Array.from(iterateCompleteSegmentWithLength(path))
+	const segs = Array.from(iterateCurveWithLength(path))
 	return segs[segs.length - 1][1]
 }
 
@@ -261,7 +261,7 @@ function convertToNormalizedLengthFunction(f: LengthFunctionType) {
 }
 
 function positionAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+	const [[cmd, ...points], t] = findCurveAtLength(len, path)
 
 	switch (cmd) {
 		case K_L:
@@ -286,7 +286,7 @@ function positionAtLength(len: number, path: PathType) {
 }
 
 function normalAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+	const [[cmd, ...points], t] = findCurveAtLength(len, path)
 
 	// Invert normal if the path is clockwise
 	const mul = getPathRotation(path) === 1 ? -1 : 1
@@ -314,7 +314,7 @@ function normalAtLength(len: number, path: PathType) {
 }
 
 function angleAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCompleteSegmentAtLength(len, path)
+	const [[cmd, ...points], t] = findCurveAtLength(len, path)
 
 	let dir: vec2 | null = null
 
@@ -625,96 +625,153 @@ function makeOpen(path: PathType) {
 	return path
 }
 
+
+
+function trimCurve(start: number, end: number, curve: SegmentType): SegmentType {
+
+	if (start < EPSILON && 1 - EPSILON < end) {
+		return curve
+	}
+
+	const [cmd, ...points] = curve
+	let trimmed: number[] = []
+
+	switch (cmd) {
+		case K_L:
+		case K_Z: {
+			const p0 = points.slice(0, 2) as vec2
+			const p1 = points.slice(-2) as vec2
+			const np0 = vec2.lerp(vec2.create(), p0, p1, start)
+			const np1 = vec2.lerp(vec2.create(), p0, p1, end)
+			trimmed = [...np0, ...np1]
+			break
+		}
+		case K_C: {
+			const bezier = getBezier(points).split(start, end)
+			trimmed = bezier.points.map(({x, y}) => [x, y]).flat()
+			break
+		}
+		default:
+			throw new LispError('[js: trimCurve] Only can trim L or C')
+	}
+
+	return [cmd, ...trimmed]
+}
+
 /**
  * Trim by normalized value (0-1) along the path
  */
 function trimByLength(start: number, end: number, path: PathType) {
+
+	// In case no change
+	if (start < EPSILON && end < EPSILON) {
+		console.log('no change')
+		return path
+	}
+
+
 	path = makeOpen(path)
 
-	const segs = Array.from(iterateCompleteSegmentWithLength(path))
-	const lastSeg = segs[segs.length - 1]
+	const curves = Array.from(iterateCurveWithLength(path))
+	const lastCurve = curves[curves.length - 1]
 
 	// Convert end parameter to a distance from the beginning of path
-	const length = lastSeg[1]
+	const length = lastCurve[1]
 	end = length - end
 
 	// Make positiove
 	start = Math.max(0, start)
 	end = Math.max(0, end)
 
+	// Swap to make sure start < end
 	if (start > end) {
 		;[start, end] = [end, start]
 	}
 
-	let startSegIndex = null,
-		startSegT = NaN
-	let endSegIndex = null,
-		endSegT = NaN
+	// Returns empty if trimmed entire
+	if (end - start < EPSILON) {
+		return [K_PATH]
+	}
+
+	let startIndex = null,
+		startT = NaN,
+		endIndex = null,
+		endT = NaN
 
 	let fromLen = 0
 
-	console.log(JSON.stringify(segs))
-
 	// NOTE: might be better to search from both ends to avoid the overhead
-	for (let i = 0; i < segs.length; i++) {
-		const [seg, toLen] = segs[i]
-		const [cmd, ...points] = seg
-		// Skip zero-length segment
+	for (let i = 0; i < curves.length; i++) {
+		const [[cmd, ...points], toLen] = curves[i] // Skip zero-length segment
 		if (
 			cmd === K_M ||
 			(cmd === K_Z &&
 				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
-					EPSILON)
+				EPSILON)
 		) {
 			continue
 		}
 
 		if (fromLen <= start && start < toLen) {
-			startSegIndex = i
-			startSegT = (start - fromLen) / (toLen - fromLen)
+			startIndex = i
+			startT = (start - fromLen) / (toLen - fromLen)
 		}
 
 		if (fromLen <= end && end < toLen) {
-			endSegIndex = i
-			endSegT = (end - fromLen) / (toLen - fromLen)
+			endIndex = i
+			endT = (end - fromLen) / (toLen - fromLen)
 		}
 
-		if (startSegIndex !== null && endSegIndex !== null) {
+		if (startIndex !== null && endIndex !== null) {
 			break
 		}
 
 		fromLen = toLen
 	}
 
-	if (startSegIndex === null) {
-		startSegIndex = segs.length - 1
-		startSegT = 1
+	if (startIndex === null) {
+		startIndex = curves.length - 1
+		startT = 1
 	}
 
-	if (endSegIndex === null) {
-		endSegIndex = segs.length - 1
-		endSegT = 1
+	if (endIndex === null) {
+		endIndex = curves.length - 1
+		endT = 1
 	}
 
-	if (startSegIndex !== endSegIndex) {
-		// prepare start
-		let startSeg = segs[startSegIndex][0]
+	const trimmed: SegmentType[] = []
 
-		if (startSegT > EPSILON) {
-			const [cmd, ...points] = startSeg
-			switch (cmd) {
-				case K_L:
-			}
-			startSeg = [L_M]
+	if (startIndex === endIndex) {
+		// Trim one curve on both its start and end
+		const seg = curves[startIndex][0]
+		trimmed.push(trimCurve(startT, endT, seg))
+
+	} else {
+
+		const startSeg = curves[startIndex][0]
+		trimmed.push(trimCurve(startT, 1, startSeg))
+
+		const middleCurves = curves.slice(startIndex + 1, endIndex).map(([c, _]) => c)
+		trimmed.push(...middleCurves)
+
+		if (endT > EPSILON) {
+			const endSeg = curves[endIndex][0]
+			trimmed.push(trimCurve(0, endT, endSeg))
 		}
-
-		// Change to M
-		startSeg[0] = K_M
 	}
 
-	console.log('start=', startSegIndex, startSegT, 'end=', endSegIndex, endSegT)
+	// Convert to path
+	const rest = trimmed.map(([cmd, ...pts], i) => {
+		const ret = [cmd, ...pts.slice(2)]
+		if (i === 0) {
+			ret.unshift(K_M, ...pts.slice(0, 2))
+		}
+		return ret
+	}).flat()
 
-	return path
+	const ret = [K_PATH, ...rest]
+
+	return ret
 }
 
 export const pathNS = new Map<string, any>([
