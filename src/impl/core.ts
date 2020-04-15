@@ -15,8 +15,6 @@ import readStr from './reader'
 import {LispError} from './repl'
 import interop from './interop'
 
-const _SYM = Symbol.for
-
 // String functions
 function slurp(url: string) {
 	const req = new XMLHttpRequest()
@@ -62,7 +60,7 @@ export const coreNS = new Map<string, any>([
 	['bool?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
 	['string?', (a: MalVal) => typeof a === 'string'],
-	['symbol', (a: string) => _SYM(a)],
+	['symbol', Symbol.for],
 	['symbol?', (a: MalVal) => typeof a === 'symbol'],
 	['keyword?', isKeyword],
 	['keyword', keywordFor],
