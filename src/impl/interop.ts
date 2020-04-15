@@ -21,8 +21,6 @@ export default {
 			return null
 		}
 
-		console.log('js-eval', obj)
-
 		const cache: any[] = []
 
 		const str = JSON.stringify(obj, (key, value) => {
