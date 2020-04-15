@@ -226,8 +226,8 @@
 				(lerp (.y a) (.y b) t)))
 
 ;; UI
-(def $ui-background nil)
-(def $ui-border nil)
+(def $background nil)
+(def $guide-color nil)
 
 ;; Graphical
 (def $canvas "")
@@ -275,7 +275,7 @@
 				(= (nth % 1) name))
 			body)))
 
-(defn guide (body) (stroke $ui-border body))
+(defn guide (body) (stroke $guide-color body))
 
 (defn color (& e)
 	(let (l (count e))

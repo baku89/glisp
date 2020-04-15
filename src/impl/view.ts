@@ -402,7 +402,7 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		ctx.lineJoin = 'round'
 
 		// default style
-		const uiBorder = viewEnv.get('$ui-border') as string
+		const uiBorder = viewEnv.get('$guide-color') as string
 
 		const defaultStyle: DrawStyle = {
 			type: 'stroke',

@@ -284,14 +284,14 @@ export default class App extends Vue {
 
 		const colors = this.dark ? darkColors : brightColors
 
-		replEnv.set('$ui-border', colors['--selection'])
+		replEnv.set('$guide-color', colors['--selection'])
 
 		return {...colors, '--background': this.background}
 	}
 
 	@Watch('background')
 	private onBackgroundChanged() {
-		replEnv.set('$ui-background', this.background)
+		replEnv.set('$background', this.background)
 	}
 }
 </script>
