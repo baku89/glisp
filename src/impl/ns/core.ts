@@ -170,7 +170,7 @@ const jsObjects = new Map<string, any>([
 	],
 	[
 		'get',
-		(m: MalMap, a: MalVal) => (m === null ? null : m.has(a) ? m.get(a) : null)
+		(m: MalMap, a: MalVal, notfound?: MalVal) => (m === null ? null : m.has(a) ? m.get(a) : notfound !== undefined ? notfound : null)
 	],
 	['contains?', (m: MalMap, a: MalVal) => m.has(a)],
 	['keys', (a: MalMap) => Array.from(a.keys())],
@@ -204,7 +204,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-			;(c as any).meta = m
+				; (c as any).meta = m
 			return c
 		}
 	],

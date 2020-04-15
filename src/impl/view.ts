@@ -3,7 +3,7 @@ import dateFormat from 'dateformat'
 
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
-import {MalVal, keywordFor as K, isKeyword} from './types'
+import {MalVal, keywordFor as K, isKeyword, MalMap} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 
@@ -32,24 +32,70 @@ const K_M = K('M'),
 	K_TRANSLATE = K('translate'),
 	K_SCALE = K('scale'),
 	K_ROTATE = K('rotate'),
-	K_ARTBOARD = K('artboard')
+	K_ARTBOARD = K('artboard'),
+	K_STYLE = K('style'),
+	K_WIDTH = K('width'),
+	K_CAP = K('cap'),
+	K_JOIN = K('join'),
+	K_DASH = K('dash')
 
-interface DrawStyleFill {
-	type: 'fill'
-	params: {style: string}
+type DrawParams = Map<string, string | number | number[]>
+
+interface DrawStyle {
+	type: string
+	params: string | DrawParams
 }
-
-interface DrawStyleStroke {
-	type: 'stroke'
-	params: {style: string; width: number}
-}
-
-type DrawStyle = DrawStyleFill | DrawStyleStroke
 
 function isValidColor(str: string) {
 	const s = new Option().style
 	s.color = str
 	return s.color === str
+}
+
+function applyDrawStyle(ctx: CanvasRenderingContext2D, styles: DrawStyle[], defaultStyle: DrawStyle | null, text?: string, x?: number, y?: number) {
+
+	styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
+
+	console.log(styles)
+
+	const isText = text !== undefined
+
+	ctx.save()
+	for (const style of styles) {
+		if (style.type === K_FILL) {
+			ctx.fillStyle = style.params as string
+			if (isText) {
+				ctx.fillText(text as string, x as number, y as number)
+			} else {
+				ctx.fill()
+			}
+		} else if (style.type === K_STROKE) {
+			for (const [k, v] of (style.params as DrawParams).entries()) {
+				switch (k) {
+					case K_STYLE:
+						ctx.strokeStyle = v as string
+						break
+					case K_WIDTH:
+						ctx.lineWidth = v as number
+						break
+					case K_CAP:
+						ctx.lineCap = v as CanvasLineCap
+						break
+					case K_JOIN:
+						ctx.lineJoin = v as CanvasLineJoin
+						break
+					case K_DASH:
+						ctx.setLineDash(v as number[])
+				}
+			}
+			if (isText) {
+				ctx.strokeText(text as string, x as number, y as number)
+			} else {
+				ctx.stroke()
+			}
+		}
+	}
+	ctx.restore()
 }
 
 function draw(
@@ -77,15 +123,15 @@ function draw(
 				ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			}
 		} else if (cmd === K_FILL) {
-			const style: DrawStyleFill = {
-				type: 'fill',
-				params: {style: args[0] as string}
+			const style: DrawStyle = {
+				type: K_FILL,
+				params: args[0]
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
 		} else if (cmd === K_STROKE) {
-			const style: DrawStyleStroke = {
-				type: 'stroke',
-				params: {style: args[0] as string, width: args[1]}
+			const style: DrawStyle = {
+				type: K_STROKE,
+				params: args[0]
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
 		} else if (cmd === K_PATH) {
@@ -112,74 +158,32 @@ function draw(
 				}
 			}
 			// Apply Styles
-			ctx.save()
-			for (const style of styles.length > 0
-				? styles
-				: defaultStyle
-				? [defaultStyle]
-				: []) {
-				if (style.type === 'fill') {
-					ctx.fillStyle = style.params.style
-					ctx.fill()
-				} else if (style.type === 'stroke') {
-					ctx.strokeStyle = style.params.style
-					ctx.lineWidth = style.params.width
-					ctx.stroke()
-				}
-			}
-			ctx.restore()
+			applyDrawStyle(ctx, styles, defaultStyle)
 		} else if (cmd === K_TEXT) {
 			// Text representation:
-			// (:text "Text" x y :option1 value1 :option2 value2 ....)
-			// e.g. (text "Hello" 100 100 :size 14 :align "center")
-
-			const [text, x, y] = args as [string, number, number]
-
+			// (:text "Text" x y {:option1 value1...})
+			const [text, x, y, options] = args
 			const computedStyle = getComputedStyle(document.documentElement)
+			const style: any = {
+				size: parseFloat(computedStyle.fontSize),
+				font: computedStyle.fontFamily,
+				align: 'center',
+				baseline: 'middle'
+			}
 
-			let size = parseFloat(computedStyle.fontSize)
-			let font = computedStyle.fontFamily
-			let align = 'center'
-			let baseline = 'middle'
-
-			for (const [option, val] of partition(2, args.slice(3))) {
-				printer.log(option)
-				switch (option) {
-					case K('size'):
-						size = val as number
-						break
-					case K('font'):
-						font = val as string
-						break
-					case K('align'):
-						align = val as string
-						break
-					case K('baseline'):
-						baseline = val as string
-						break
+			if (options instanceof Map) {
+				for (const [k, v] of options.entries()) {
+					style[(k as string).slice(1)] = v
 				}
 			}
-			ctx.font = `${size}px ${font}`
-			ctx.textAlign = align as CanvasTextAlign
-			ctx.textBaseline = baseline as CanvasTextBaseline
+
+			ctx.font = `${style.size}px ${style.font}`
+			ctx.textAlign = style.align as CanvasTextAlign
+			ctx.textBaseline = style.baseline as CanvasTextBaseline
 
 			// Apply Styles
-			ctx.save()
-			for (const style of styles.length > 0
-				? styles
-				: defaultStyle
-				? [defaultStyle]
-				: []) {
-				if (style.type === 'fill') {
-					ctx.fillStyle = style.params.style
-					ctx.fillText(text, x, y)
-				} else if (style.type === 'stroke') {
-					ctx.strokeStyle = style.params.style
-					ctx.lineWidth = style.params.width
-					ctx.strokeText(text, x, y)
-				}
-			}
-			ctx.restore()
+			applyDrawStyle(ctx, styles, defaultStyle, text, x, y)
+
 		} else if (cmd === K_TRANSLATE) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
@@ -211,7 +215,7 @@ function draw(
 			// Restore
 			ctx.restore()
 		} else {
-			printer.error('Unknown renderign command', PRINT(cmd))
+			printer.error('Unknown rendering command', PRINT(cmd))
 		}
 	}
 }
@@ -280,7 +284,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				;(ret[keyword] as MalVal[]).push(arr[i])
+				; (ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -296,7 +300,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			;({user, token} = JSON.parse(saved) as {user: string; token: string})
+			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.
@@ -405,8 +409,11 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		const uiBorder = viewEnv.get('$guide-color') as string
 
 		const defaultStyle: DrawStyle = {
-			type: 'stroke',
-			params: {style: uiBorder, width: 1}
+			type: K_STROKE,
+			params: new Map<string, string | number>([
+				[K_STYLE, uiBorder],
+				[K_WIDTH, 1]
+			])
 		}
 
 		try {

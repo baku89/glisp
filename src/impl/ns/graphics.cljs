@@ -5,6 +5,8 @@
 (def $background nil)
 (def $guide-color nil)
 
+(def $line-width 1)
+
 
 (defn filter-sketch (coll)
   (if (not (list? coll))
@@ -65,25 +67,23 @@
 
 (defn rotate (a body) `(:rotate ~a ~body))
 
-
  ;; Style
 
-(defn fill (& xs)
-  (let (l (count xs))
-    (if (= l 2) `(:fill ~@xs))))
+(defn fill (style & xs)
+  `(:fill ~color ~xs))
 
-(defn stroke (& xs)
-  (let (l (count xs))
-    (cond
-      (= l 2) `(:stroke ~(first xs) 1 ~(last xs))
-      (= l 3) `(:stroke ~@xs)
-      :else nil)))
+(defn stroke (style & xs)
+  (def snd (first xs))
+  (cond (list? snd) `(:stroke ~(hash-map :style style :width $line-width) ~xs)
+        (number? snd) `(:stroke ~(hash-map :style style :width snd) ~(rest xs))
+        (map? snd) `(:stroke ~(assoc snd :style style) ~(rest xs))))
 
 ;; Shape Functions
 
 (defn path (& xs) `(:path ~@xs))
 
-(defn text (& xs) `(:text ~@xs))
+(defn text (str x y & xs)
+  `(:text ~str ~x ~y ~(apply hash-map xs)))
 
 (defn rect (x y w h)
   `(:path
