@@ -8,8 +8,8 @@ import {printer} from './printer'
 import readStr from './reader'
 
 import {BlankException} from './reader'
-import {iterateSegment} from './path'
-import {partition} from './core'
+import {iterateSegment} from './ns/path'
+import {partition} from './ns/core'
 
 export const viewHandler = new EventEmitter()
 

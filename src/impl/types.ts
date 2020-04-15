@@ -3,7 +3,7 @@
 import Env from './env'
 import {LispError} from './repl'
 
-type MalPureFunc = (...args: MalVal[]) => MalVal
+export type MalJSFunc = (...args: MalVal[]) => MalVal | never
 
 export interface MalFunc {
 	(...args: MalVal[]): MalVal
@@ -24,7 +24,7 @@ export type MalVal =
 	| null
 	| MalAtom
 	| MalFunc
-	| MalPureFunc
+	| MalJSFunc
 	| MalMap
 	| MalVal[]
 	| Float32Array
@@ -117,9 +117,15 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 
 // Atoms
 export class MalAtom {
-	public val: any
+	public val: MalVal
 
-	constructor(val: any) {
+	constructor(val: MalVal) {
 		this.val = val
 	}
+}
+
+// Namespace
+export interface MalNamespace {
+	jsObjects?: Map<string, any>
+	malCode?: string
 }

@@ -12,8 +12,7 @@ import {
 import readStr from './reader'
 import printExp, {printer} from './printer'
 import Env from './env'
-import {coreNS} from './core'
-import {pathNS} from './path'
+import {declareAllNamespaces} from './ns'
 
 export class LispError extends Error {}
 
@@ -202,10 +201,19 @@ export const PRINT = (ast: MalVal) => {
 	return printExp(ast, true)
 }
 
-// rep
+// Initialize root Env
 export const replEnv: Env = new Env()
 replEnv.name = 'repl'
 
+// eval(0) should be declared before everything
+replEnv.set('eval', (ast: MalVal) => {
+	return EVAL(ast, replEnv)
+})
+
+// Namespace decleration
+declareAllNamespaces(replEnv)
+
+// Root REPL
 export const REP = (str: string, env: Env = replEnv) => {
 	try {
 		PRINT(EVAL(READ(str), env))
@@ -213,15 +221,3 @@ export const REP = (str: string, env: Env = replEnv) => {
 		printer.error(err)
 	}
 }
-
-// Setup REP env
-coreNS.forEach((v, k) => replEnv.set(k, v))
-pathNS.forEach((v, k) => replEnv.set(k, v))
-replEnv.set('eval', (ast: MalVal) => {
-	return EVAL(ast, replEnv)
-})
-
-REP(
-	'(def load-file (fn (f) (eval (read-string (str "(do " (slurp f) "\nnil)")))))'
-)
-REP('(load-file "./lib/core.lisp")')

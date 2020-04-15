@@ -8,12 +8,14 @@ import {
 	isKeyword,
 	keywordFor,
 	assocBang,
-	MalMap
-} from './types'
-import printExp, {printer} from './printer'
-import readStr from './reader'
-import {LispError} from './repl'
-import interop from './interop'
+	MalMap,
+	MalJSFunc,
+	MalNamespace
+} from '../types'
+import printExp, {printer} from '../printer'
+import readStr from '../reader'
+import {LispError} from '../repl'
+import interop from '../interop'
 
 // String functions
 function slurp(url: string) {
@@ -46,7 +48,7 @@ function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
 	return interop.jsToMal(res)
 }
 
-export const coreNS = new Map<string, any>([
+const jsObjects = new Map<string, any>([
 	[
 		'throw',
 		(msg: string) => {
@@ -60,7 +62,16 @@ export const coreNS = new Map<string, any>([
 	['bool?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
 	['string?', (a: MalVal) => typeof a === 'string'],
-	['symbol', Symbol.for],
+	[
+		'symbol',
+		(a: MalVal) => {
+			if (typeof a !== 'string') {
+				throw new LispError(`Cannot create a symbol from ${printExp(a)}`)
+			} else {
+				return Symbol.for(a)
+			}
+		}
+	],
 	['symbol?', (a: MalVal) => typeof a === 'symbol'],
 	['keyword?', isKeyword],
 	['keyword', keywordFor],
@@ -70,7 +81,7 @@ export const coreNS = new Map<string, any>([
 		(a: MalVal) => typeof a === 'function' && !!(a as MalFunc).ismacro
 	],
 
-	// Compare
+	// // Compare
 	['=', (a: MalVal, b: MalVal) => a === b],
 	['not=', (a: MalVal, b: MalVal) => a !== b],
 	['<', (a: number, b: number) => a < b],
@@ -184,7 +195,7 @@ export const coreNS = new Map<string, any>([
 	['read-string', readStr],
 	['slurp', slurp],
 
-	// Meta
+	// // Meta
 	['meta', (a: MalVal) => (a as any)?.meta || null],
 	[
 		'with-meta',
@@ -243,10 +254,10 @@ export const coreNS = new Map<string, any>([
 		}
 	],
 
-	// Other useful functions in JS
+	// // Other useful functions in JS
 	['time-ms', Date.now],
 
-	// Interop
+	// // Interop
 	['js-eval', jsEval],
 	['.', jsMethodCall],
 
@@ -257,4 +268,9 @@ export const coreNS = new Map<string, any>([
 // Expose Math
 Object.getOwnPropertyNames(Math)
 	.filter(k => k !== 'random')
-	.forEach(k => coreNS.set(k, (Math as any)[k]))
+	.forEach(k => jsObjects.set(k, (Math as any)[k]))
+
+export default {
+	jsObjects,
+	malCode: require('raw-loader!./core.cljs').default
+} as MalNamespace
