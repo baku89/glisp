@@ -1,4 +1,7 @@
 import seedrandom from 'seedrandom'
+import {vsprintf} from 'sprintf-js'
+
+console.log(vsprintf)
 
 import {
 	MalVal,
@@ -195,6 +198,7 @@ const jsObjects = new Map<string, any>([
 		}
 	],
 	['read-string', readStr],
+	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)],
 	['slurp', slurp],
 
 	// // Meta
@@ -273,6 +277,5 @@ Object.getOwnPropertyNames(Math)
 	.forEach(k => jsObjects.set(k, (Math as any)[k]))
 
 export default {
-	jsObjects,
-	malCode: require('raw-loader!./core.cljs').default
+	jsObjects
 } as MalNamespace

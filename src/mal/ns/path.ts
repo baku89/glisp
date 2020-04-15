@@ -242,7 +242,7 @@ function toBeziers(path: PathType) {
 			default:
 				throw new Error(
 					`Invalid d-path command: ${
-						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 					}`
 				)
 		}
@@ -730,7 +730,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 			cmd === K_M ||
 			(cmd === K_Z &&
 				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
-					EPSILON)
+				EPSILON)
 		) {
 			continue
 		}
@@ -830,6 +830,5 @@ const jsObjects = new Map<string, any>([
 ])
 
 export default {
-	jsObjects,
-	malCode: ''
+	jsObjects
 } as MalNamespace

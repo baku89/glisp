@@ -1,4 +1,3 @@
-
 (defmacro defn (name params & body)
   (def attrs {})
   (if (map? params)
@@ -16,9 +15,16 @@
 (defmacro macroview (expr)
   `(prn (macroexpand ~expr)))
 
-(defn load-file
-  (f)
-  (eval (read-string (str "(do " (slurp f) "\nnil)"))))
+(def load-file
+  (try
+    load-file
+    (catch _
+           (let (seen (atom (hash-map __filename__ nil)))
+             (fn (filename)
+               (if (not (contains? @seen filename))
+                 (do
+                   (swap! seen assoc filename nil)
+                   (load-file-force filename))))))))
 
 (defn ? (f)
   (def doc (get (meta f) :doc))
@@ -134,3 +140,11 @@
 (def gensym
   (let (counter (atom 0))
     #(symbol (str "G__" (swap! counter inc)))))
+
+(prn __filename__)
+
+;; Load other cores
+(load-file "ui.cljs")
+(load-file "graphics.cljs")
+(load-file "math.cljs")
+(load-file "path.cljs")

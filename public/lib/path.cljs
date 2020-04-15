@@ -1,3 +1,5 @@
+(load-file "math.cljs")
+
 ;; Path modifiers
 (defn path/map-points (f path)
   (cons

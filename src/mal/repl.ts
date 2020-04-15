@@ -115,6 +115,18 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 			}
 			case 'macroexpand':
 				return macroexpand(a1, env)
+			case 'try':
+				try {
+					return EVAL(a1, env)
+				} catch (exc) {
+					let err = exc
+					if (a2 && Array.isArray(a2) && a2[0] === S('catch')) {
+						if (exc instanceof Error) {err = exc.message}
+						return EVAL(a2[2], new Env(env, [a2[1] as symbol], [err]))
+					} else {
+						throw err
+					}
+				}
 			case 'do':
 				evalAst(ast.slice(1, -1), env)
 				ast = ast[ast.length - 1]
@@ -221,3 +233,18 @@ export const REP = (str: string, env: Env = replEnv) => {
 		printer.error(err)
 	}
 }
+
+// Load core library
+
+/* eslint-disable no-useless-escape */
+REP(`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`)
+REP(`(def load-file-force
+  (fn (path)
+		(let (url (js-eval (format "new URL('%s', '%s')" path __filename__)))
+			(prn url)
+      (eval (read-string
+             (format "(do (def __filename__ \\"%s\\") %s \n nil)"
+                     url
+                     (slurp url)))))))`)
+
+REP('(load-file-force "./lib/core.cljs")')

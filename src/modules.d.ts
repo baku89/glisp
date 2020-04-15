@@ -31,3 +31,7 @@ declare module 'bezier-js' {
 		normal(t: number): Point
 	}
 }
+
+declare module 'sprintf-js' {
+	export function vsprintf(format: string, args: any[]): string
+}
