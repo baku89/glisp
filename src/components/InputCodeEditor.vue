@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
-import ace, {Range} from 'brace'
+import ace, {Range as AceRange} from 'brace'
 
 function replaceRange(
 	s: string,
@@ -108,17 +108,21 @@ export default class InputCodeEditor extends Vue {
 				window.removeEventListener('mousewheel', listener)
 			}
 
-			const range = sel.getRange()
-			const start = doc.positionToIndex(range.start, 0)
-			const end = doc.positionToIndex(range.end, 0)
+			const origStr = this.editor.getCopyText()
 
-			const origStr = doc.getTextRange(range)
+			if (origStr.trim() === '') {
+				return
+			}
 
 			const updater = Updaters.find(({match}) => origStr.match(match))
 
 			if (updater) {
+				const [start, end] = this.getSelection()
+
 				let val = updater.parse(origStr)
 				const text = this.editor.getValue()
+
+				const range = sel.getRange()
 
 				listener = (e: WheelEvent) => {
 					val = updater.update(val as any, e)
