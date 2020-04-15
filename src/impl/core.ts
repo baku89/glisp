@@ -6,7 +6,9 @@ import {
 	MalAtom,
 	cloneAST,
 	isKeyword,
-	keywordFor
+	keywordFor,
+	assocBang,
+	MalMap
 } from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
@@ -135,6 +137,35 @@ export const coreNS = new Map<string, any>([
 	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
 	['reverse', (coll: MalVal[]) => coll.reverse()],
+	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
+	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
+	[
+		'concat',
+		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
+	],
+
+	// Map
+	['hash-map', (...a: MalVal[]) => assocBang(new Map(), ...a)],
+	['map?', (a: MalVal) => a instanceof Map],
+	[
+		'assoc',
+		(m: MalMap, ...a: MalVal[]) => assocBang(cloneAST(m) as MalMap, ...a)
+	],
+	[
+		'dissoc',
+		(m: MalMap, ...a: MalVal[]) => {
+			const n = cloneAST(m) as MalMap
+			a.forEach(k => n.delete(k))
+			return n
+		}
+	],
+	[
+		'get',
+		(m: MalMap, a: MalVal) => (m === null ? null : m.has(a) ? m.get(a) : null)
+	],
+	['contains?', (m: MalMap, a: MalVal) => m.has(a)],
+	['keys', (a: MalMap) => Array.from(a.keys())],
+	['vals', (a: MalMap) => Array.from(a.values())],
 
 	// String
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
@@ -152,17 +183,10 @@ export const coreNS = new Map<string, any>([
 			return null
 		}
 	],
-
 	['read-string', readStr],
 	['slurp', slurp],
 
-	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
-	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
-	[
-		'concat',
-		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
-	],
-
+	// Meta
 	['meta', (a: MalVal) => (a as any)?.meta || null],
 	[
 		'with-meta',
@@ -175,6 +199,8 @@ export const coreNS = new Map<string, any>([
 			return c
 		}
 	],
+
+	// Atom
 	['atom', (a: MalVal) => new MalAtom(a)],
 	['atom?', (a: MalVal) => a instanceof MalAtom],
 	['deref', (atm: MalAtom) => atm.val],

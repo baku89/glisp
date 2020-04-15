@@ -14,6 +14,8 @@ export interface MalFunc {
 	ismacro: boolean
 }
 
+export type MalMap = Map<MalVal, MalVal>
+
 export type MalVal =
 	| number
 	| string
@@ -23,7 +25,7 @@ export type MalVal =
 	| MalAtom
 	| MalFunc
 	| MalPureFunc
-	| Map<MalVal, MalVal>
+	| MalMap
 	| MalVal[]
 	| Float32Array
 
@@ -103,7 +105,7 @@ export const createKeyword = (obj: MalVal) =>
 export const keywordFor = (k: string) => '\u029e' + k
 
 // Maps
-export function assocBang(hm: Map<MalVal, MalVal>, ...args: any[]) {
+export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
 		throw new LispError('Odd number of map arguments')
 	}
