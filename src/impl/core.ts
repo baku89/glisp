@@ -133,6 +133,7 @@ export const coreNS = new Map<string, any>([
 	['partition', partition],
 	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
+	['reverse', (coll: MalVal[]) => coll.reverse()],
 
 	// String
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
