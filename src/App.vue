@@ -113,7 +113,7 @@ export default class App extends Vue {
 				localStorage.getItem('saved_code') ||
 				`(def w 20)
 (def col (range -5 6))
-(def grid (cartesian-product col col))
+(def grid (combination/× col col))
 
 (def rnd #(sign (- (random %) .5)))
 
@@ -123,7 +123,6 @@ export default class App extends Vue {
        (translate (.x p) (.y p))))
 
 :start-sketch
-
 (background "whitesmoke")
 
 (->> grid

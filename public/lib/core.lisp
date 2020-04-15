@@ -54,14 +54,6 @@
 (defn map (f xs)
 	(foldr (fn (x acc) (cons (f x) acc)) () xs))
 
-(defn cartesian-product (& xs)
-	(apply concat 
-		(map
-			(fn (R) (map #(cons % R) (first xs)))
-			(if (= 2 (count xs))
-				(last xs)
-				(apply cartesian-product (rest xs))))))
-
 (defn map-indexed (f xs)
 	(map
 		(fn (i) (f i (nth xs i)))
@@ -98,7 +90,19 @@
 				(apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
 				(apply concat (map #(find-list f %) lst)))
 			'())))
-			
+
+;; Combination
+
+(defn combination/product (& xs)
+	(apply concat 
+		(map
+			(fn (R) (map #(cons % R) (first xs)))
+			(if (= 2 (count xs))
+				(last xs)
+				(apply combination/product (rest xs))))))
+
+(def combination/× combination/product)
+
 ;; Math
 (def TWO_PI (* PI 2))
 (def HALF_PI (/ PI 2))
