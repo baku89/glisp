@@ -1,5 +1,5 @@
 import {LispError} from './repl'
-import {createKeyword} from './types'
+import {createKeyword, assocBang} from './types'
 
 export const SELECTION_START = '\u029b'
 export const SELECTION_END = '\u029c'
@@ -106,6 +106,11 @@ function readList(reader: Reader, start = '(', end = ')') {
 	return ast
 }
 
+// read hash-map key/value pairs
+function readHashMap(reader: Reader) {
+	return assocBang(new Map(), ...readList(reader, '{', '}'))
+}
+
 function readForm(reader: Reader): any {
 	const token = reader.peek()
 
@@ -141,6 +146,11 @@ function readForm(reader: Reader): any {
 			throw new LispError("unexpected ')'")
 		case '(':
 			return readList(reader)
+		// hash-map
+		case '}':
+			throw new Error("unexpected '}'")
+		case '{':
+			return readHashMap(reader)
 
 		// atom
 		default:

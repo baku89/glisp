@@ -23,8 +23,9 @@ export type MalVal =
 	| MalAtom
 	| MalFunc
 	| MalPureFunc
-	| Float32Array
+	| Map<MalVal, MalVal>
 	| MalVal[]
+	| Float32Array
 
 // General Functions
 export function isEqual(a: MalVal, b: MalVal) {
@@ -38,6 +39,18 @@ export function isEqual(a: MalVal, b: MalVal) {
 			}
 		}
 		return true
+	} else if (a instanceof Map && b instanceof Map) {
+		if (a.size !== b.size) {
+			return false
+		}
+		for (const k of a.keys()) {
+			const aval = a.get(k),
+				bval = b.get(k)
+			if (aval === undefined || bval === undefined || !isEqual(aval, bval)) {
+				return false
+			}
+		}
+		return true
 	} else {
 		return a === b
 	}
@@ -47,6 +60,8 @@ export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
 	let newObj = null
 	if (Array.isArray(obj)) {
 		newObj = [...obj]
+	} else if (obj instanceof Map) {
+		newObj = new Map(obj.entries())
 	} else if (obj instanceof Function) {
 		// new function instance
 		const fn = (...args: any) => obj.apply(fn, args)
@@ -86,6 +101,17 @@ export const createKeyword = (obj: MalVal) =>
 	isKeyword(obj) ? obj : '\u029e' + (obj as string)
 
 export const keywordFor = (k: string) => '\u029e' + k
+
+// Maps
+export function assocBang(hm: Map<MalVal, MalVal>, ...args: any[]) {
+	if (args.length % 2 === 1) {
+		throw new LispError('Odd number of map arguments')
+	}
+	for (let i = 0; i < args.length; i += 2) {
+		hm.set(args[i], args[i + 1])
+	}
+	return hm
+}
 
 // Atoms
 export class MalAtom {

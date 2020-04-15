@@ -29,6 +29,12 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 			}
 		}
 		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
+	} else if (obj instanceof Map) {
+		const ret = []
+		for (const [k, v] of obj) {
+			ret.push(printExp(k, _r), printExp(v, _r))
+		}
+		return '{' + ret.join(' ') + '}'
 	} else if (typeof obj === 'string') {
 		if (isKeyword(obj)) {
 			return ':' + obj.slice(1)

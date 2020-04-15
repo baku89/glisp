@@ -54,6 +54,10 @@ const evalAst = (ast: MalVal, env: Env) => {
 		return env.get(ast)
 	} else if (Array.isArray(ast)) {
 		return ast.map(x => EVAL(x, env))
+	} else if (ast instanceof Map) {
+		const hm = new Map()
+		ast.forEach((v, k) => hm.set(EVAL(k, env), EVAL(v, env)))
+		return hm
 	} else {
 		return ast
 	}
