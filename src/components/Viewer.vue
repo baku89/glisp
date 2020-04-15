@@ -9,7 +9,9 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>{{ pen }}</button>
+				>
+					{{ pen }}
+				</button>
 			</div>
 			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
@@ -19,12 +21,16 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>{{ hand }}</button>
+				>
+					{{ hand }}
+				</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>*</button>
+				>
+					*
+				</button>
 			</div>
 		</div>
 		<canvas
@@ -115,12 +121,11 @@ export default class Viewer extends Vue {
 
 	@Watch('code')
 	private update() {
-		const trimmed = this.code
-			.split('\n')
-			.map(s => s.replace(/;.*$/, '').trim())
-			.join('')
+		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
 
-		const str = trimmed ? `(eval-sketch ${trimmed})` : '""'
+		const trimmed = lines.join('')
+
+		const str = trimmed ? `(eval-sketch ${lines.join('\n')})` : '""'
 		this.viewEnv = this.rep(`(def $view ${str}\n)`)
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(

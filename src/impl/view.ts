@@ -23,7 +23,16 @@ const S = Symbol.for
 const K_M = K('M'),
 	K_L = K('L'),
 	K_C = K('C'),
-	K_Z = K('Z')
+	K_Z = K('Z'),
+	K_BACKGROUND = K('background'),
+	K_FILL = K('fill'),
+	K_STROKE = K('stroke'),
+	K_PATH = K('path'),
+	K_TEXT = K('text'),
+	K_TRANSLATE = K('translate'),
+	K_SCALE = K('scale'),
+	K_ROTATE = K('rotate'),
+	K_ARTBOARD = K('artboard')
 
 interface DrawStyleFill {
 	type: 'fill'
@@ -50,11 +59,16 @@ function draw(
 	defaultStyle: DrawStyle | null
 ) {
 	if (Array.isArray(ast)) {
+		// console.log(ast)
 		const [cmd, ...args] = ast as any[]
 
 		const last = args.length > 0 ? args[args.length - 1] : null
 
-		if (cmd === K('background')) {
+		if (!isKeyword(cmd)) {
+			for (const a of ast) {
+				draw(ctx, a, styles, defaultStyle)
+			}
+		} else if (cmd === K_BACKGROUND) {
 			const color = args[0]
 			if (typeof color === 'string' && color !== '' && isValidColor(color)) {
 				// only execute if the color is valid
@@ -62,19 +76,19 @@ function draw(
 				ctx.fillStyle = color
 				ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 			}
-		} else if (cmd === K('fill')) {
+		} else if (cmd === K_FILL) {
 			const style: DrawStyleFill = {
 				type: 'fill',
 				params: {style: args[0] as string}
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === K('stroke')) {
+		} else if (cmd === K_STROKE) {
 			const style: DrawStyleStroke = {
 				type: 'stroke',
 				params: {style: args[0] as string, width: args[1]}
 			}
 			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === K('path')) {
+		} else if (cmd === K_PATH) {
 			ctx.beginPath()
 			for (const [c, ...a] of iterateSegment(args)) {
 				switch (c) {
@@ -114,7 +128,7 @@ function draw(
 				}
 			}
 			ctx.restore()
-		} else if (cmd === K('text')) {
+		} else if (cmd === K_TEXT) {
 			// Text representation:
 			// (:text "Text" x y :option1 value1 :option2 value2 ....)
 			// e.g. (text "Hello" 100 100 :size 14 :align "center")
@@ -166,22 +180,22 @@ function draw(
 				}
 			}
 			ctx.restore()
-		} else if (cmd === K('translate')) {
+		} else if (cmd === K_TRANSLATE) {
 			ctx.save()
 			ctx.translate(args[0] as number, args[1] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === K('scale')) {
+		} else if (cmd === K_SCALE) {
 			ctx.save()
 			ctx.scale(args[0] as number, args[1] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === K('rotate')) {
+		} else if (cmd === K_ROTATE) {
 			ctx.save()
 			ctx.rotate(args[0] as number)
 			draw(ctx, last, styles, defaultStyle)
 			ctx.restore()
-		} else if (cmd === K('artboard')) {
+		} else if (cmd === K_ARTBOARD) {
 			const [region, body] = args.slice(1)
 			const [x, y, w, h] = region
 
@@ -197,9 +211,7 @@ function draw(
 			// Restore
 			ctx.restore()
 		} else {
-			for (const a of ast) {
-				draw(ctx, a, styles, defaultStyle)
-			}
+			printer.error('Unknown renderign command', PRINT(cmd))
 		}
 	}
 }
