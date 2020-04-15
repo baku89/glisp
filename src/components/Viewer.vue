@@ -9,9 +9,7 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>
-					{{ pen }}
-				</button>
+				>{{ pen }}</button>
 			</div>
 			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
@@ -21,16 +19,12 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>
-					{{ hand }}
-				</button>
+				>{{ hand }}</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>
-					*
-				</button>
+				>*</button>
 			</div>
 		</div>
 		<canvas
@@ -52,9 +46,9 @@
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 
-import {replEnv, PRINT, EVAL} from '@/impl/repl'
-import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/impl/view'
-import Env from '@/impl/env'
+import {replEnv, PRINT, EVAL} from '@/mal/repl'
+import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/mal/view'
+import Env from '@/mal/env'
 
 const S = Symbol.for
 

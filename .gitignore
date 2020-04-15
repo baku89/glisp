@@ -2,7 +2,7 @@
 node_modules
 /dist
 
-mal
+/mal
 
 # local env files
 .env.local

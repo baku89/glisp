@@ -1,9 +1,5 @@
 <template>
-	<div
-		id="app"
-		:class="{'background-set': backgroundSet, compact}"
-		:style="colors"
-	>
+	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
 		<div class="app__viewer">
 			<Viewer :code="code" :selection="selection" @render="onRender" />
 		</div>
@@ -23,9 +19,7 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>
-					{{ renderError ? '!' : '✓' }}
-				</button>
+				>{{ renderError ? '!' : '✓' }}</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -42,12 +36,12 @@ import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 
-import {replEnv, REP, PRINT} from '@/impl/repl'
-import {viewHandler} from '@/impl/view'
-import {MalVal} from '@/impl/types'
+import {replEnv, REP, PRINT} from '@/mal/repl'
+import {viewHandler} from '@/mal/view'
+import {MalVal} from '@/mal/types'
 
 import {replaceRange} from '@/utils'
-import {printer} from './impl/printer'
+import {printer} from './mal/printer'
 
 @Component({
 	components: {

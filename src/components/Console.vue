@@ -4,8 +4,8 @@
 
 <script lang="ts">
 import {Component, Vue, Prop} from 'vue-property-decorator'
-import {consoleREP} from '@/impl/view'
-import {printer} from '@/impl/printer'
+import {consoleREP} from '@/mal/view'
+import {printer} from '@/mal/printer'
 
 @Component
 export default class Console extends Vue {
