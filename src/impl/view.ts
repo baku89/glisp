@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3'
 import dateFormat from 'dateformat'
 
-import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
+import {replEnv, READ, EVAL, PRINT, LispError, lispError} from './repl'
 import Env from './env'
 import {MalVal, keywordFor as K, isKeyword} from './types'
 import {printer} from './printer'
@@ -229,7 +229,7 @@ consoleEnv.set('export', (name: MalVal = null) => {
 				consoleEnv
 			)
 			if ($view === null) {
-				throw new LispError(`Artboard "${name as string}" not found`)
+				throw lispError(`Artboard "${name as string}" not found`)
 			} else {
 				;[x, y, width, height] = ($view as MalVal[])[2] as number[]
 			}
@@ -287,7 +287,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
-			throw new LispError(`Parameters :user and :token must be specified.
+			throw lispError(`Parameters :user and :token must be specified.
 Get the token from https://github.com/settings/tokens/new with 'gist' option turned on.`)
 		}
 	}

@@ -10,11 +10,7 @@ import {
 } from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
-import {LispError} from './repl'
-
-function _error(e: string) {
-	throw new LispError(e)
-}
+import {lispError} from './repl'
 
 const _SYM = Symbol.for
 
@@ -24,7 +20,7 @@ function slurp(url: string) {
 	req.open('GET', url, false)
 	req.send()
 	if (req.status !== 200) {
-		_error(`Failed to slurp file: ${url}`)
+		lispError(`Failed to slurp file: ${url}`)
 	}
 	return req.responseText
 }
@@ -39,7 +35,7 @@ export function partition(n: number, coll: any[]) {
 }
 
 export const coreNS = new Map<string, any>([
-	['throw', _error],
+	['throw', lispError],
 
 	['nil?', (a: MalVal) => a === null],
 	['true?', (a: MalVal) => a === true],
@@ -88,13 +84,13 @@ export const coreNS = new Map<string, any>([
 		'nth',
 		(a: MalVal[], i: number) => {
 			if (typeof i !== 'number') {
-				_error('[nth] Index should be specified by number')
+				lispError('[nth] Index should be specified by number')
 			} else if (i < 0) {
 				return -i <= a.length
 					? a[a.length - i]
-					: _error('[nth] index out of range')
+					: lispError('[nth] index out of range')
 			} else {
-				return i < a.length ? a[i] : _error('[nth] index out of range')
+				return i < a.length ? a[i] : lispError('[nth] index out of range')
 			}
 		}
 	],
@@ -146,10 +142,10 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			if (m === undefined) {
-				throw new LispError('[with-meta] Need the metadata to attach')
+				throw lispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-				; (c as any).meta = m
+			;(c as any).meta = m
 			return c
 		}
 	],

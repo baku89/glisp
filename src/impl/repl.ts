@@ -17,6 +17,10 @@ import {pathNS} from './path'
 
 export class LispError extends Error {}
 
+export function lispError(e: string) {
+	throw lispError(e)
+}
+
 // read
 export const READ = (str: string) => readStr(str)
 
@@ -51,8 +55,7 @@ function macroexpand(ast: MalVal = null, env: Env) {
 
 const evalAst = (ast: MalVal, env: Env) => {
 	if (typeof ast === 'symbol') {
-		const val = env.get(ast)
-		return val === undefined ? null : val
+		return env.get(ast)
 	} else if (Array.isArray(ast)) {
 		return ast.map(x => EVAL(x, env))
 	} else {
@@ -176,17 +179,17 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				} else if (typeof fn === 'function') {
 					return fn(...args)
 				} else {
-					let objname: string
+					let typename = ''
 
 					if (isKeyword(fn)) {
-						objname = `Keyword ${PRINT(fn)}`
+						typename = 'Keyword '
 					} else if (Array.isArray(fn)) {
-						objname = `List ${PRINT(fn)}`
-					} else {
-						objname = `${fn}`
+						typename = 'List '
 					}
-					throw new LispError(
-						`[EVAL] ${objname} is not a function. First element of list always should be a function.`
+					throw lispError(
+						`[EVAL] ${typename} ${PRINT(
+							fn
+						)} is not a function. First element of list always should be a function.`
 					)
 				}
 			}

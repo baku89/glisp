@@ -1,4 +1,4 @@
-import {LispError} from './repl'
+import {lispError} from './repl'
 import {createKeyword} from './types'
 
 export const SELECTION_START = '\u029b'
@@ -66,7 +66,7 @@ function readAtom(reader: Reader) {
 				.slice(1, token.length - 1)
 				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 		} else if (token[0] === '"') {
-			throw new LispError("[READ] expected '\"', got EOF")
+			throw lispError("[READ] expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return createKeyword(token.slice(1))
 		} else if (token === 'nil') {
@@ -91,12 +91,12 @@ function readList(reader: Reader, start = '(', end = ')') {
 	let token = reader.next()
 
 	if (token !== start) {
-		throw new LispError(`[READ] expected '${start}'`)
+		throw lispError(`[READ] expected '${start}'`)
 	}
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
-			throw new LispError(`[READ] expected '${end}', got EOF`)
+			throw lispError(`[READ] expected '${end}', got EOF`)
 		}
 
 		ast.push(readForm(reader)) // eslint-disable-line @typescript-eslint/no-use-before-define
@@ -138,7 +138,7 @@ function readForm(reader: Reader): any {
 			return [Symbol.for('deref'), readForm(reader)]
 		// list
 		case ')':
-			throw new LispError("unexpected ')'")
+			throw lispError("unexpected ')'")
 		case '(':
 			return readList(reader)
 

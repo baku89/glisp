@@ -3,7 +3,7 @@ import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import {MalVal, keywordFor as K, isKeyword} from './types'
 import {partition} from './core'
-import {LispError} from './repl'
+import {lispError} from './repl'
 
 type PathType = (string | number)[]
 type SegmentType = [string, ...number[]]
@@ -36,14 +36,14 @@ const clamp = (value: number, min: number, max: number) =>
 function getBezier(points: number[]) {
 	const coords = partition(2, points).map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
-		throw new LispError('Invalid point count for cubic bezier')
+		throw lispError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
 }
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
-		throw new LispError('Invalid path')
+		throw lispError('Invalid path')
 	}
 
 	let start = path[0] === K_PATH ? 1 : 0
@@ -63,9 +63,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
  * [Q prevX prevY x1 y1 x2 y2 x3 y3]
  * [Z x y firstX firstY]
  */
-export function* iterateCurve(
-	path: PathType
-): Generator<SegmentType> {
+export function* iterateCurve(path: PathType): Generator<SegmentType> {
 	let first: number[] = [],
 		prev: number[] = []
 
@@ -117,10 +115,7 @@ function closedQ(path: PathType) {
 	return path.slice(-1)[0] === K_Z
 }
 
-function findCurveAtLength(
-	len: number,
-	path: PathType
-): [SegmentType, number] {
+function findCurveAtLength(len: number, path: PathType): [SegmentType, number] {
 	const segs = iterateCurveWithLength(path)
 
 	len = Math.max(len, 0)
@@ -151,7 +146,7 @@ function findCurveAtLength(
 	if (lastSeg) {
 		return [lastSeg, 1]
 	} else {
-		throw new LispError('[js: findCurveAtLength] Empty path')
+		throw lispError('[js: findCurveAtLength] Empty path')
 	}
 }
 
@@ -241,7 +236,7 @@ function toBeziers(path: PathType) {
 			default:
 				throw new Error(
 					`Invalid d-path command: ${
-					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 					}`
 				)
 		}
@@ -279,7 +274,7 @@ function makeOpen(path: PathType) {
 function pathJoin(first: PathType, ...rest: PathType[]) {
 	const ret = makeOpen(first)
 
-	const lastEnd = vec2.fromValues(...ret.slice(-2) as [number, number])
+	const lastEnd = vec2.fromValues(...(ret.slice(-2) as [number, number]))
 	const start = vec2.create()
 
 	for (const path of rest) {
@@ -321,7 +316,7 @@ function positionAtLength(len: number, path: PathType) {
 		}
 	}
 
-	throw new LispError(`[path/position-at-length] Don't know why this error...`)
+	throw lispError(`[path/position-at-length] Don't know why this error...`)
 }
 
 function normalAtLength(len: number, path: PathType) {
@@ -349,7 +344,7 @@ function normalAtLength(len: number, path: PathType) {
 		}
 	}
 
-	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
+	throw lispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
 function angleAtLength(len: number, path: PathType) {
@@ -381,7 +376,7 @@ function angleAtLength(len: number, path: PathType) {
 		return Math.atan2(dir[1], dir[0])
 	}
 
-	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
+	throw lispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
 function arc(
@@ -648,8 +643,11 @@ function offset(d: number, path: PathType) {
 	}
 }
 
-function trimCurve(start: number, end: number, curve: SegmentType): SegmentType {
-
+function trimCurve(
+	start: number,
+	end: number,
+	curve: SegmentType
+): SegmentType {
 	if (start < EPSILON && 1 - EPSILON < end) {
 		return curve
 	}
@@ -673,7 +671,7 @@ function trimCurve(start: number, end: number, curve: SegmentType): SegmentType 
 			break
 		}
 		default:
-			throw new LispError('[js: trimCurve] Only can trim L or C')
+			throw lispError('[js: trimCurve] Only can trim L or C')
 	}
 
 	return [cmd, ...trimmed]
@@ -683,7 +681,6 @@ function trimCurve(start: number, end: number, curve: SegmentType): SegmentType 
  * Trim path by relative length from each ends
  */
 function trimByLength(start: number, end: number, path: PathType) {
-
 	// In case no change
 	if (start < EPSILON && end < EPSILON) {
 		console.log('no change')
@@ -727,7 +724,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 			cmd === K_M ||
 			(cmd === K_Z &&
 				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
-				EPSILON)
+					EPSILON)
 		) {
 			continue
 		}
@@ -765,13 +762,14 @@ function trimByLength(start: number, end: number, path: PathType) {
 		// Trim one curve on both its start and end
 		const seg = curves[startIndex][0]
 		trimmed.push(trimCurve(startT, endT, seg))
-
 	} else {
 		// Trim over multiple curves
 		const startSeg = curves[startIndex][0]
 		trimmed.push(trimCurve(startT, 1, startSeg))
 
-		const middleCurves = curves.slice(startIndex + 1, endIndex).map(([c, _]) => c)
+		const middleCurves = curves
+			.slice(startIndex + 1, endIndex)
+			.map(([c, _]) => c)
 		trimmed.push(...middleCurves)
 
 		if (endT > EPSILON) {
@@ -781,23 +779,26 @@ function trimByLength(start: number, end: number, path: PathType) {
 	}
 
 	// Convert to path
-	const rest = trimmed.map(([cmd, ...pts], i) => {
-		const ret = [cmd, ...pts.slice(2)]
-		if (i === 0) {
-			ret.unshift(K_M, ...pts.slice(0, 2))
-		}
-		return ret
-	}).flat()
+	const rest = trimmed
+		.map(([cmd, ...pts], i) => {
+			const ret = [cmd, ...pts.slice(2)]
+			if (i === 0) {
+				ret.unshift(K_M, ...pts.slice(0, 2))
+			}
+			return ret
+		})
+		.flat()
 
 	return [K_PATH, ...rest]
 }
 
 /**
- * Trim path by normalized T 
+ * Trim path by normalized T
  */
 function pathTrim(t1: number, t2: number, path: PathType) {
 	const length = pathLength(path)
-	const start = t1 * length, end = (1 - t2) * length
+	const start = t1 * length,
+		end = (1 - t2) * length
 	return trimByLength(start, end, path)
 }
 
