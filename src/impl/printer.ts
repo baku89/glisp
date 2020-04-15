@@ -48,15 +48,17 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 		return Symbol.keyFor(obj) || 'INVALID_SYM'
 	} else if (obj === null) {
 		return 'nil'
-	} else if (obj instanceof MalAtom) {
-		return '(atom ' + printExp(obj.val, _r) + ')'
 	} else if (isMalFunc(obj)) {
 		const params = printExp((obj as MalFunc).params, _r)
 		const body = printExp((obj as MalFunc).ast, _r)
 		return `(fn ${params} ${body})`
+	} else if (typeof obj === 'number' || typeof obj === 'boolean') {
+		return obj.toString()
+	} else if (obj instanceof MalAtom) {
+		return '(atom ' + printExp(obj.val, _r) + ')'
 	} else if (obj === undefined) {
-		return 'UNDEFINED'
+		return '<undefined>'
 	} else {
-		return obj?.toString() || 'ERROR'
+		return `<${obj.constructor.name}>`
 	}
 }
