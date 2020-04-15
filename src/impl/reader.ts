@@ -1,9 +1,6 @@
 import {LispError} from './repl'
 import {createKeyword, assocBang} from './types'
 
-export const SELECTION_START = '\u029b'
-export const SELECTION_END = '\u029c'
-
 class Reader {
 	public tokens: (string | symbol)[]
 	public position: number
@@ -21,8 +18,6 @@ class Reader {
 		return this.tokens[this.position]
 	}
 }
-
-export const SYM_CURSOR_START = Symbol('CURSOR_START')
 
 function tokenize(str: string, outputPosition = false) {
 	// eslint-disable-next-line no-useless-escape
