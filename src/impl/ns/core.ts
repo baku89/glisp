@@ -9,7 +9,6 @@ import {
 	keywordFor,
 	assocBang,
 	MalMap,
-	MalJSFunc,
 	MalNamespace
 } from '../types'
 import printExp, {printer} from '../printer'
