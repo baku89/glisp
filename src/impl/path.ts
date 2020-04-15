@@ -3,7 +3,7 @@ import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import {MalVal, keywordFor as K, isKeyword} from './types'
 import {partition} from './core'
-import {lispError} from './repl'
+import {LispError} from './repl'
 
 type PathType = (string | number)[]
 type SegmentType = [string, ...number[]]
@@ -36,14 +36,14 @@ const clamp = (value: number, min: number, max: number) =>
 function getBezier(points: number[]) {
 	const coords = partition(2, points).map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
-		throw lispError('Invalid point count for cubic bezier')
+		throw new LispError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
 }
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
-		throw lispError('Invalid path')
+		throw new LispError('Invalid path')
 	}
 
 	let start = path[0] === K_PATH ? 1 : 0
@@ -146,7 +146,7 @@ function findCurveAtLength(len: number, path: PathType): [SegmentType, number] {
 	if (lastSeg) {
 		return [lastSeg, 1]
 	} else {
-		throw lispError('[js: findCurveAtLength] Empty path')
+		throw new LispError('[js: findCurveAtLength] Empty path')
 	}
 }
 
@@ -316,7 +316,7 @@ function positionAtLength(len: number, path: PathType) {
 		}
 	}
 
-	throw lispError(`[path/position-at-length] Don't know why this error...`)
+	throw new LispError(`[path/position-at-length] Don't know why this error...`)
 }
 
 function normalAtLength(len: number, path: PathType) {
@@ -344,7 +344,7 @@ function normalAtLength(len: number, path: PathType) {
 		}
 	}
 
-	throw lispError(`[path/normal-at-length] Don't know why this error...`)
+	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
 function angleAtLength(len: number, path: PathType) {
@@ -376,7 +376,7 @@ function angleAtLength(len: number, path: PathType) {
 		return Math.atan2(dir[1], dir[0])
 	}
 
-	throw lispError(`[path/normal-at-length] Don't know why this error...`)
+	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
 function arc(
@@ -671,7 +671,7 @@ function trimCurve(
 			break
 		}
 		default:
-			throw lispError('[js: trimCurve] Only can trim L or C')
+			throw new LispError('[js: trimCurve] Only can trim L or C')
 	}
 
 	return [cmd, ...trimmed]

@@ -17,10 +17,6 @@ import {pathNS} from './path'
 
 export class LispError extends Error {}
 
-export function lispError(e: string) {
-	throw lispError(e)
-}
-
 // read
 export const READ = (str: string) => readStr(str)
 
@@ -186,7 +182,7 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 					} else if (Array.isArray(fn)) {
 						typename = 'List '
 					}
-					throw lispError(
+					throw new LispError(
 						`[EVAL] ${typename} ${PRINT(
 							fn
 						)} is not a function. First element of list always should be a function.`

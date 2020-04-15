@@ -1,5 +1,5 @@
 import {MalVal} from './types'
-import {lispError} from './repl'
+import {LispError} from './repl'
 
 function toKey(key: symbol | string): string {
 	return typeof key === 'symbol' ? key.description || '' : key
@@ -37,7 +37,7 @@ export default class Env {
 					break
 				}
 				if (exprs[i] === undefined) {
-					throw lispError(
+					throw new LispError(
 						`Error: parameter '${toKey(binds[i])}' is not specified`
 					)
 				}
@@ -85,7 +85,7 @@ export default class Env {
 		const value = this.find(key)
 
 		if (value === undefined) {
-			throw lispError(`Symbol '${key}' not found`)
+			throw new LispError(`Symbol '${key}' not found`)
 		}
 
 		return value

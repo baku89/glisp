@@ -10,7 +10,8 @@ import {
 } from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
-import {lispError} from './repl'
+import {LispError} from './repl'
+import interop from './interop'
 
 const _SYM = Symbol.for
 
@@ -20,7 +21,7 @@ function slurp(url: string) {
 	req.open('GET', url, false)
 	req.send()
 	if (req.status !== 200) {
-		lispError(`Failed to slurp file: ${url}`)
+		throw new LispError(`Failed to slurp file: ${url}`)
 	}
 	return req.responseText
 }
@@ -34,8 +35,24 @@ export function partition(n: number, coll: any[]) {
 	return ret
 }
 
+// Interop
+function jsEval(str: string): MalVal {
+	return interop.jsToMal(eval(str.toString()))
+}
+
+function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
+	const [obj, f] = interop.resolveJS(objMethodStr)
+	const res = f.apply(obj, args)
+	return interop.jsToMal(res)
+}
+
 export const coreNS = new Map<string, any>([
-	['throw', lispError],
+	[
+		'throw',
+		(msg: string) => {
+			throw new LispError(msg)
+		}
+	],
 
 	['nil?', (a: MalVal) => a === null],
 	['true?', (a: MalVal) => a === true],
@@ -84,13 +101,19 @@ export const coreNS = new Map<string, any>([
 		'nth',
 		(a: MalVal[], i: number) => {
 			if (typeof i !== 'number') {
-				lispError('[nth] Index should be specified by number')
+				throw new LispError('[nth] Index should be specified by number')
 			} else if (i < 0) {
-				return -i <= a.length
-					? a[a.length - i]
-					: lispError('[nth] index out of range')
+				if (-i <= a.length) {
+					return a[a.length - i]
+				} else {
+					throw new LispError('[nth] index out of range')
+				}
 			} else {
-				return i < a.length ? a[i] : lispError('[nth] index out of range')
+				if (i < a.length) {
+					return a[i]
+				} else {
+					throw new LispError('[nth] index out of range')
+				}
 			}
 		}
 	],
@@ -142,7 +165,7 @@ export const coreNS = new Map<string, any>([
 		'with-meta',
 		(a: MalVal, m: any) => {
 			if (m === undefined) {
-				throw lispError('[with-meta] Need the metadata to attach')
+				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
 			;(c as any).meta = m
@@ -192,6 +215,10 @@ export const coreNS = new Map<string, any>([
 			return arr
 		}
 	],
+
+	// Interop
+	['js-eval', jsEval],
+	['.', jsMethodCall],
 
 	// Random
 	['random', (a: MalVal) => seedrandom(a)()]
