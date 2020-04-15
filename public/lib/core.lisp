@@ -231,14 +231,24 @@
 (def $height 1000)
 
 
-;;(defn sketch? (coll)
-;;	(if (not (list? coll))
-;;		false
-;;		(cond
-			
+(defn filter-sketch (coll)
+	(if (not (list? coll))
+		nil
+		(cond
+			(keyword? (first coll)) coll
+			(list? (first coll))
+				(->> coll
+						 (map filter-sketch)
+						 (remove empty?)))))
+
+(defn filter-root-sketch (coll)
+		(->> coll
+			(map filter-sketch)
+			(remove empty?)))
 
 (defn eval-sketch (& xs)
-	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
+	(filter-root-sketch
+		(slice xs (inc (last-index-of :start-sketch xs)) (count xs))))
 
 (defmacro artboard (id region & body)
 	`(list

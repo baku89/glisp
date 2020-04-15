@@ -192,7 +192,7 @@ export default class InputCodeEditor extends Vue {
 			this.editor.off('change', this.onChange)
 			this.editor.off('changeSelection', this.onSelect)
 
-			this.editor.setValue(newValue)
+			this.editor.setValue(newValue, -1)
 
 			this.editor.on('change', this.onChange)
 			this.editor.on('changeSelection', this.onSelect)
