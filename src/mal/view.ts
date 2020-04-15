@@ -3,13 +3,12 @@ import dateFormat from 'dateformat'
 
 import {replEnv, READ, EVAL, PRINT, LispError} from './repl'
 import Env from './env'
-import {MalVal, keywordFor as K, isKeyword, MalMap} from './types'
+import {MalVal, keywordFor as K, isKeyword} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 
 import {BlankException} from './reader'
 import {iterateSegment} from './ns/path'
-import {partition} from './ns/core'
 
 export const viewHandler = new EventEmitter()
 
@@ -56,21 +55,19 @@ function applyDrawStyle(ctx: CanvasRenderingContext2D, styles: DrawStyle[], defa
 
 	styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
 
-	console.log(styles)
-
 	const isText = text !== undefined
 
 	ctx.save()
-	for (const style of styles) {
-		if (style.type === K_FILL) {
-			ctx.fillStyle = style.params as string
+	for (const {type, params} of styles) {
+		if (type === K_FILL) {
+			ctx.fillStyle = params as string
 			if (isText) {
 				ctx.fillText(text as string, x as number, y as number)
 			} else {
 				ctx.fill()
 			}
-		} else if (style.type === K_STROKE) {
-			for (const [k, v] of (style.params as DrawParams).entries()) {
+		} else if (type === K_STROKE) {
+			for (const [k, v] of (params as DrawParams).entries()) {
 				switch (k) {
 					case K_STYLE:
 						ctx.strokeStyle = v as string
@@ -114,108 +111,126 @@ function draw(
 			for (const a of ast) {
 				draw(ctx, a, styles, defaultStyle)
 			}
-		} else if (cmd === K_BACKGROUND) {
-			const color = args[0]
-			if (typeof color === 'string' && color !== '' && isValidColor(color)) {
-				// only execute if the color is valid
-				viewHandler.emit('set-background', color)
-				ctx.fillStyle = color
-				ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-			}
-		} else if (cmd === K_FILL) {
-			const style: DrawStyle = {
-				type: K_FILL,
-				params: args[0]
-			}
-			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === K_STROKE) {
-			const style: DrawStyle = {
-				type: K_STROKE,
-				params: args[0]
-			}
-			draw(ctx, last, [style, ...styles], defaultStyle)
-		} else if (cmd === K_PATH) {
-			ctx.beginPath()
-			for (const [c, ...a] of iterateSegment(args)) {
-				switch (c) {
-					case K_M:
-						ctx.moveTo(...(a as [number, number]))
-						break
-					case K_L:
-						ctx.lineTo(...(a as [number, number]))
-						break
-					case K_C:
-						ctx.bezierCurveTo(
-							...(a as [number, number, number, number, number, number])
-						)
-						break
-					case K_Z:
-						ctx.closePath()
-						break
-					default: {
-						throw new Error(`Invalid d-path command: ${PRINT(c)}`)
-					}
-				}
-			}
-			// Apply Styles
-			applyDrawStyle(ctx, styles, defaultStyle)
-		} else if (cmd === K_TEXT) {
-			// Text representation:
-			// (:text "Text" x y {:option1 value1...})
-			const [text, x, y, options] = args
-			const computedStyle = getComputedStyle(document.documentElement)
-			const style: any = {
-				size: parseFloat(computedStyle.fontSize),
-				font: computedStyle.fontFamily,
-				align: 'center',
-				baseline: 'middle'
-			}
-
-			if (options instanceof Map) {
-				for (const [k, v] of options.entries()) {
-					style[(k as string).slice(1)] = v
-				}
-			}
-
-			ctx.font = `${style.size}px ${style.font}`
-			ctx.textAlign = style.align as CanvasTextAlign
-			ctx.textBaseline = style.baseline as CanvasTextBaseline
-
-			// Apply Styles
-			applyDrawStyle(ctx, styles, defaultStyle, text, x, y)
-
-		} else if (cmd === K_TRANSLATE) {
-			ctx.save()
-			ctx.translate(args[0] as number, args[1] as number)
-			draw(ctx, last, styles, defaultStyle)
-			ctx.restore()
-		} else if (cmd === K_SCALE) {
-			ctx.save()
-			ctx.scale(args[0] as number, args[1] as number)
-			draw(ctx, last, styles, defaultStyle)
-			ctx.restore()
-		} else if (cmd === K_ROTATE) {
-			ctx.save()
-			ctx.rotate(args[0] as number)
-			draw(ctx, last, styles, defaultStyle)
-			ctx.restore()
-		} else if (cmd === K_ARTBOARD) {
-			const [region, body] = args.slice(1)
-			const [x, y, w, h] = region
-
-			// Enable Clip
-			ctx.save()
-			const clipRegion = new Path2D()
-			clipRegion.rect(x, y, w, h)
-			ctx.clip(clipRegion)
-
-			// Draw inner items
-			draw(ctx, body, styles, defaultStyle)
-
-			// Restore
-			ctx.restore()
 		} else {
-			printer.error('Unknown rendering command', PRINT(cmd))
+			switch (cmd) {
+				case K_BACKGROUND: {
+					const color = args[0]
+					if (typeof color === 'string' && color !== '' && isValidColor(color)) {
+						// only execute if the color is valid
+						viewHandler.emit('set-background', color)
+						ctx.fillStyle = color
+						ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+					}
+					break
+				}
+				case K_FILL: {
+					const style: DrawStyle = {
+						type: K_FILL,
+						params: args[0]
+					}
+					draw(ctx, last, [style, ...styles], defaultStyle)
+					break
+				}
+				case K_STROKE: {
+					const style: DrawStyle = {
+						type: K_STROKE,
+						params: args[0]
+					}
+					draw(ctx, last, [style, ...styles], defaultStyle)
+					break
+				}
+				case K_PATH: {
+					ctx.beginPath()
+					for (const [c, ...a] of iterateSegment(args)) {
+						switch (c) {
+							case K_M:
+								ctx.moveTo(...(a as [number, number]))
+								break
+							case K_L:
+								ctx.lineTo(...(a as [number, number]))
+								break
+							case K_C:
+								ctx.bezierCurveTo(
+									...(a as [number, number, number, number, number, number])
+								)
+								break
+							case K_Z:
+								ctx.closePath()
+								break
+							default: {
+								throw new Error(`Invalid d-path command: ${PRINT(c)}`)
+							}
+						}
+					}
+					// Apply Styles
+					applyDrawStyle(ctx, styles, defaultStyle)
+					break
+				}
+				case K_TEXT: {
+					// Text representation:
+					// (:text "Text" x y {:option1 value1...})
+					const [text, x, y, options] = args
+					const computedStyle = getComputedStyle(document.documentElement)
+					const settings: any = {
+						size: parseFloat(computedStyle.fontSize),
+						font: computedStyle.fontFamily,
+						align: 'center',
+						baseline: 'middle'
+					}
+
+					if (options instanceof Map) {
+						for (const [k, v] of options.entries()) {
+							settings[(k as string).slice(1)] = v
+						}
+					}
+
+					ctx.font = `${settings.size}px ${settings.font}`
+					ctx.textAlign = settings.align as CanvasTextAlign
+					ctx.textBaseline = settings.baseline as CanvasTextBaseline
+
+					// Apply Styles
+					applyDrawStyle(ctx, styles, defaultStyle, text, x, y)
+
+					break
+				}
+				case K_TRANSLATE:
+					ctx.save()
+					ctx.translate(args[0] as number, args[1] as number)
+					draw(ctx, last, styles, defaultStyle)
+					ctx.restore()
+					break
+				case K_SCALE:
+					ctx.save()
+					ctx.scale(args[0] as number, args[1] as number)
+					draw(ctx, last, styles, defaultStyle)
+					ctx.restore()
+					break
+				case K_ROTATE:
+					ctx.save()
+					ctx.rotate(args[0] as number)
+					draw(ctx, last, styles, defaultStyle)
+					ctx.restore()
+					break
+				case K_ARTBOARD: {
+					const [region, body] = args.slice(1)
+					const [x, y, w, h] = region
+
+					// Enable Clip
+					ctx.save()
+					const clipRegion = new Path2D()
+					clipRegion.rect(x, y, w, h)
+					ctx.clip(clipRegion)
+
+					// Draw inner items
+					draw(ctx, body, styles, defaultStyle)
+
+					// Restore
+					ctx.restore()
+					break
+				}
+				default:
+					printer.error('Unknown rendering command', PRINT(cmd))
+			}
 		}
 	}
 }

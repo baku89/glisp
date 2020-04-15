@@ -241,7 +241,6 @@ REP(`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`)
 REP(`(def load-file-force
   (fn (path)
 		(let (url (js-eval (format "new URL('%s', '%s')" path __filename__)))
-			(prn url)
       (eval (read-string
              (format "(do (def __filename__ \\"%s\\") %s \n nil)"
                      url
