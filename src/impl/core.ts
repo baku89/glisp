@@ -216,6 +216,9 @@ export const coreNS = new Map<string, any>([
 		}
 	],
 
+	// Other useful functions in JS
+	['time-ms', Date.now],
+
 	// Interop
 	['js-eval', jsEval],
 	['.', jsMethodCall],
