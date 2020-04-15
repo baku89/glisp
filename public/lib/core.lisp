@@ -10,10 +10,6 @@
 (defmacro macroview (expr)
 	`(prn (macroexpand ~expr)))
 
-
-(defn eval-sketch (& xs)
-	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
-
 ;; Conditionals
 (defmacro cond (& xs)
 	(if (> (count xs) 0)
@@ -95,6 +91,7 @@
 ;; Math
 (def TWO_PI (* PI 2))
 (def HALF_PI (/ PI 2))
+(def QUARTER_PI (/ PI 4))
 
 (defn lerp (a b t) (+ b (* (- a b) t)))
 (defn deg (x) (/ (* x 180) PI))
@@ -118,10 +115,100 @@
 
 (defn second (x) (first (rest x)))
 
-
 (def gensym
 	(let (counter (atom 0))
 		#(symbol (str "G__" (swap! counter inc)))))
+
+;; Linear-algebra
+;; Using the implementation of gl-matrix
+;; http://glmatrix.net/docs/vec2.js.htm
+
+(defn .x (v) (first v))
+(defn .y (v) (second v))
+
+(defn vec2? (v)
+	(and
+		(list? v)
+		(= (count v) 2)
+		(number? (.x v))
+		(number? (.y v))))
+
+(defn vec2/+ (a b)
+	(list (+ (.x a) (.x b))
+				(+ (.y a) (.y b))))
+
+(defn vec2/- (a b)
+	(list (- (.x a) (.x b))
+				(- (.y a) (.y b))))
+
+(defn vec2/* (a b)
+	(list (* (.x a) (.x b))
+				(* (.y a) (.y b))))
+
+(defn vec2/div (a b)
+	(list (/ (.x a) (.x b))
+				(/ (.y a) (.y b))))
+
+(defn vec2/ceil (v)
+	(list (ceil (.x v)) (ceil (.y v))))
+
+(defn vec2/floor (v)
+	(list (floor (.x v)) (floor (.y v))))
+
+(defn vec2/min (v)
+	(list (min (.x v)) (min (.y v))))
+
+(defn vec2/max (v)
+	(list (max (.x v)) (max (.y v))))
+
+(defn vec2/round (v)
+	(list (round (.x v)) (round (.y v))))
+
+(defn vec2/scale (v scalar)
+	(list (* scalar (.x v))
+				(* scalar (.y v))))
+
+;; a + b * scale
+(defn vec2/scale-add (a b scale)
+	(list (+ (.x a) (* scale (.x b)))
+				(+ (.y a) (* scale (.y b)))))
+
+(defn vec2/dist (a b)
+	(hypot (- (.x b) (.x a)) (- (.y b) (.y a))))
+
+(defn vec2/len (v)
+	(hypot (.x v) (.y v)))
+
+(defn vec2/rotate (origin angle v)
+	(let (ox		(.x origin)
+				oy		(.y origin)
+				x			(- (.x v) ox)
+				y			(- (.y v) oy)
+				sinC	(sin angle)
+				cosC	(cos angle))
+		(list (+ ox (- (* x cosC) (* y sinC)))
+					(+ oy (+ (* x sinC) (* y cosC))))))
+
+(defn vec2/negate (v)
+	(vec2/scale v -1))
+
+(defn vec2/inverse (v)
+	(vec2/div '(1 1) v))
+
+; TODO: Should this return the original value
+; when its length is zero?
+(defn vec2/normalize (v)
+	(let (len (vec2/len v))
+		(if (> len 0)
+			(vec2/scale v (/ len))
+			v)))
+
+(defn vec2/dot (a b)
+	(+ (* (.x a) (.x b)) (* (.y a) (.y b))))
+
+(defn vec2/lerp (a b t)
+	(list (lerp (.x a) (.x b) t)
+				(lerp (.y a) (.y b) t)))
 
 ;; UI
 (def $ui-background nil)
@@ -132,12 +219,42 @@
 (def $width 1000)
 (def $height 1000)
 
+(defn eval-sketch (& xs)
+	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
+
+(defmacro artboard (id region & body)
+	`(list
+		:artboard ~id (list ~@region)
+		(let
+			(
+				$width ~(nth region 2)
+				$height ~(nth region 3)
+				background (fn (c) (fill c (rect 0 0 $width $height)))
+			)
+			(translate ~(first region) ~(nth region 1)
+				(list 'g (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
+
+(defn extract-artboard (name body)
+	(first
+		(find-list
+			#(and
+				(>= (count %) 4)
+				(= (first %) :artboard)
+				(= (nth % 1) name))
+			body)))
+
+(defn guide (body) (stroke $ui-border body))
+
 (defn color (& e)
 	(let (l (count e))
 		(cond
 			(= l 1) e
 			(= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
 			true "black")))
+
+(defn background (c) `(:background ~c))
+
+;; Transformation
 
 (defn translate (x y body) `(:translate ~x ~y ~body))
 (defn scale (& xs) 
@@ -147,7 +264,8 @@
 
 (defn rotate (a body) `(:rotate ~a ~body))
 
-(defn background (c) `(:background ~c))
+ 
+ ;; Style
 
 (defn fill (& xs) 
 	(let (l (count xs))
@@ -160,38 +278,7 @@
 			(= l 3) `(:stroke ~@xs)
 			:else nil)))
 
-
-(defn path/map-points (f path)
-	(cons
-		:path
-		(apply concat 
-			(map
-				(fn (xs)
-					(let (cmd (first xs) points (rest xs))
-						`(~cmd ~@(apply concat
-							(map f (partition 2 points))))
-					)
-				)
-				(path/split-segments path)))))
-
-(defn path/translate (x y path)
-	(let
-		(f (fn (pos)
-			`(~(+ (first pos) x) ~(+ (last pos) y))))
-		(path/map-points f path)))
-
-(defn path/scale (x y path)
-	(let
-		(f (fn (pos)
-			`(~(* (first pos) x) ~(* (last pos) y))))
-		(path/map-points f path)))
-
-(defn path/rotate (x y angle path)
-	(let (origin (list x y))
-		(path/map-points #(vec2/rotate origin angle %) path)))
-
-(defn path/merge (& xs)
-	`(path ~@(apply concat (map rest xs))))
+;; Shape Functions
 
 (defn path (& xs) `(:path ~@xs))
 
@@ -243,35 +330,70 @@
 				~@(if (= (last pts) true) '(Z) '()))
 			`(:path))))
 
-(defn graph (start end step f)
+(defn ellipse (x y w h)
+	(->> (circle 0 0 1)
+			 (path/scale w h)
+			 (path/translate x y)))
+
+(defn point (x y)
+	`(:path :M ~x ~y :L ~x ~y))
+
+(defn quad (x1 y1 x2 y2 x3 y3 x4 y4)
+	`(:path
+			:M ~x1 ~y1
+			:L ~x2 ~y2
+			:L ~x3 ~y3
+			:L ~x4 ~y4
+			:Z))
+
+(defn triangle (x1 y1 x2 y2 x3 y3)
+	`(:path
+			:M ~x1 ~y1
+			:L ~x2 ~y2
+			:L ~x3 ~y3
+			:Z))
+
+(defn graph (f start end step)
 	(apply poly
 		(apply concat
 			(map f (range start (+ end step) step)))))
 
-(defmacro artboard (id region & body)
-	`(list
-		:artboard ~id (list ~@region)
-		(let
-			(
-				$width ~(nth region 2)
-				$height ~(nth region 3)
-				background (fn (c) (fill c (rect 0 0 $width $height)))
-			)
-			(translate ~(first region) ~(nth region 1)
-				(list 'g (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
+;; Path modifiers
 
-(defn extract-artboard (name body)
-	(first
-		(find-list
-			#(and
-				(>= (count %) 4)
-				(= (first %) :artboard)
-				(= (nth % 1) name))
-			body)))
+(defn path/map-points (f path)
+	(cons
+		:path
+		(apply concat 
+			(map
+				(fn (xs)
+					(let (cmd (first xs) points (rest xs))
+						`(~cmd ~@(apply concat
+							(map f (partition 2 points))))
+					)
+				)
+				(path/split-segments path)))))
 
-(defn guide (body) (stroke $ui-border body))
+(defn path/translate (x y path)
+	(let
+		(f (fn (pos)
+			`(~(+ (first pos) x) ~(+ (last pos) y))))
+		(path/map-points f path)))
 
-;; Draw
+(defn path/scale (x y path)
+	(let
+		(f (fn (pos)
+			`(~(* (first pos) x) ~(* (last pos) y))))
+		(path/map-points f path)))
+
+(defn path/rotate (x y angle path)
+	(let (origin (list x y))
+		(path/map-points #(vec2/rotate origin angle %) path)))
+
+(defn path/merge (& xs)
+	`(path ~@(apply concat (map rest xs))))
+
+
+;; Pens and Hands
 (defmacro begin-draw (state)
 	`(def ~state nil))
 
@@ -293,31 +415,3 @@
 	`(do
 		(def ~name (fn ~params ~body))
 		(def $hands (push $hands '~name))))
-
-
-;; Linear-algebra
-
-(defn .x (p) (first p))
-(defn .y (p) (second p))
-
-(defn vec2/+ (a b)
-	(list (+ (.x a) (.x b))
-				(+ (.y a) (.y b))))
-
-(defn vec2/+ (a b)
-	(list (- (.x a) (.x b))
-				(- (.y a) (.y b))))
-
-(defn vec2/scale (p s)
-	(list (* s (.x p))
-				(* s (.y p))))
-
-(defn vec2/rotate (origin angle p)
-	(let (ox		(.x origin)
-				oy		(.y origin)
-				x			(- (.x p) ox)
-				y			(- (.y p) oy)
-				sinC	(sin angle)
-				cosC	(cos angle))
-		(list (+ ox (- (* x cosC) (* y sinC)))
-					(+ ox (+ (* x sinC) (* y cosC))))))
