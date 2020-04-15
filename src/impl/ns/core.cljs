@@ -1,18 +1,40 @@
 
 (defmacro defn (name params & body)
-  `(def
-     ~name
-     (fn
-       ~params
-       ~(if (= 1 (count body))
-          (first body)
-          `(do ~@body)))))
+  (def attrs {})
+  (if (map? params)
+    (do (def attrs params)
+        (def params (first body))
+        (def body (rest body))))
+  `(def ~name
+     (with-meta
+       (fn ~params
+         ~(if (= 1 (count body))
+            (first body)
+            `(do ~@body)))
+       ~attrs)))
 
 (defmacro macroview (expr)
   `(prn (macroexpand ~expr)))
 
-(defn load-file (f)
+(defn load-file
+  (f)
   (eval (read-string (str "(do " (slurp f) "\nnil)"))))
+
+(defn ? (f)
+  (def doc (get (meta f) :doc))
+  (println
+   (if doc
+     (do
+       (println (get doc :desc))
+       (def params (get doc :params))
+       (def param-width (+ 2 (reduce #(max %0 (count (first (str %1)))) 0 params)))
+       (def spaces (join "" (repeat " " param-width)))
+       (map #(println (slice (str (first %) spaces) 0 param-width)
+                      (slice (str "[" (slice (second %) 1) "]     ") 0 10)
+                      (last %))
+            params)
+       nil)
+     "No document")))
 
 ;; Conditionals
 (defmacro cond (& xs)

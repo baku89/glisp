@@ -151,6 +151,9 @@ const jsObjects = new Map<string, any>([
 		'concat',
 		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
 	],
+	[
+		'join', (separator: string, coll: MalVal[]) => coll.map(v => printExp(v, false)).join(separator)
+	],
 
 	// Map
 	['hash-map', (...a: MalVal[]) => assocBang(new Map(), ...a)],
@@ -169,7 +172,7 @@ const jsObjects = new Map<string, any>([
 	],
 	[
 		'get',
-		(m: MalMap, a: MalVal, notfound?: MalVal) => (m === null ? null : m.has(a) ? m.get(a) : notfound !== undefined ? notfound : null)
+		(m: MalMap, a: MalVal, notfound?: MalVal) => (!(m instanceof Map) ? null : m.has(a) ? m.get(a) : notfound !== undefined ? notfound : null)
 	],
 	['contains?', (m: MalMap, a: MalVal) => m.has(a)],
 	['keys', (a: MalMap) => Array.from(a.keys())],

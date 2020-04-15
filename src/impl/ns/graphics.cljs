@@ -82,10 +82,21 @@
 
 (defn path (& xs) `(:path ~@xs))
 
-(defn text (str x y & xs)
+(defn text
+  {:doc {:desc "Generate a text shape."
+         :params '((str :string "the alphanumeric symbols to be displayed")
+                   (x :number "x-coordinate of text")
+                   (y :number "y-coordinate of text"))}}
+  (str x y & xs)
   `(:text ~str ~x ~y ~(apply hash-map xs)))
 
-(defn rect (x y w h)
+(defn rect
+  {:doc {:desc "Draws a rectangle to the screen."
+         :params '((x :number "x-coordinate of the rectangle")
+                   (y :number "y-coordinate of the rectangle")
+                   (w :number "width of the rectangle")
+                   (h :number "height of the rectangle"))}}
+  (x y w h)
   `(:path
     :M ~x ~y
     :L ~(+ x w) ~y
