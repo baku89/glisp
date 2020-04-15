@@ -15,6 +15,7 @@ export default class Console extends Vue {
 		// eslint-disable-next-line no-undef
 		const jqconsole = ($(this.$el) as any).jqconsole('', '>>>')
 
+		// Change the logging target to native console to this
 		printer.log = (...args: Array<any>) => {
 			const str = args.join(' ')
 			jqconsole.Write(str + '\n', 'jqconsole-output')
@@ -59,6 +60,9 @@ export default class Console extends Vue {
 
 		// Initiate the first prompt.
 		handler()
+
+		// Fire the setup event so that main app can run initial evaluation
+		this.$emit('setup')
 	}
 }
 </script>

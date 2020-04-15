@@ -24,8 +24,10 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>{{ renderError ? '!' : '✓' }}</button>
-				<Console :compact="compact" />
+				>
+					{{ renderError ? '!' : '✓' }}
+				</button>
+				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
 	</div>
@@ -64,6 +66,8 @@ export default class App extends Vue {
 	private compact = true
 	private renderError = false
 
+	private initialCode!: string
+
 	onScroll(e: MouseWheelEvent) {
 		// e.preventDefault()
 	}
@@ -92,7 +96,7 @@ export default class App extends Vue {
 				const res = await fetch(codeURL)
 				if (res.ok) {
 					const code = await res.text()
-					this.code = `;; Loaded from "${codeURL}"\n\n${code}`
+					this.initialCode = `;; Loaded from "${codeURL}"\n\n${code}`
 				} else {
 					printer.error(`Failed to load from "${codeURL}"`)
 				}
@@ -101,11 +105,11 @@ export default class App extends Vue {
 			}
 			getCode()
 		} else if (queryCode) {
-			this.code = decodeURI(queryCode)
+			this.initialCode = decodeURI(queryCode)
 			url.searchParams.delete('code')
 			history.pushState({}, document.title, url.pathname + url.search)
 		} else {
-			this.code =
+			this.initialCode =
 				localStorage.getItem('saved_code') ||
 				`(def w 20)
 (def col (range -5 6))
@@ -126,8 +130,6 @@ export default class App extends Vue {
      (stroke "salmon" 7)
      (translate (/ $width 2) (/ $height 2)))`
 		}
-
-		replEnv.set('$canvas', this.code)
 
 		viewHandler.on('$insert', (item: MalVal) => {
 			const itemStr = PRINT(item)
@@ -157,6 +159,12 @@ export default class App extends Vue {
 				setTimeout(() => (this.backgroundSet = true), 1)
 			}
 		})
+	}
+
+	private onSetupConsole() {
+		// Wait the initial rendering until the console has been mounted
+		this.code = this.initialCode
+		replEnv.set('$canvas', this.code)
 	}
 
 	private onRender(succeed: boolean) {
