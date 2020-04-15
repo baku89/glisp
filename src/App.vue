@@ -122,6 +122,8 @@ export default class App extends Vue {
        (scale (rnd i) 1)
        (translate (.x p) (.y p))))
 
+:start-sketch
+
 (background "whitesmoke")
 
 (->> grid
