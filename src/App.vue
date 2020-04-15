@@ -3,7 +3,6 @@
 		id="app"
 		:class="{'background-set': backgroundSet, compact}"
 		:style="colors"
-		@mousewheel="onScroll"
 	>
 		<div class="app__viewer">
 			<Viewer :code="code" :selection="selection" @render="onRender" />
@@ -67,10 +66,6 @@ export default class App extends Vue {
 	private renderError = false
 
 	private initialCode!: string
-
-	onScroll(e: MouseWheelEvent) {
-		// e.preventDefault()
-	}
 
 	private created() {
 		const url = new URL(location.href)
