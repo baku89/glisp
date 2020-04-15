@@ -19,6 +19,17 @@
 			(if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
 			(cons 'cond (rest (rest xs))))))
 
+
+(defmacro case (val & xs)
+	(if (> (count xs) 0)
+		(if (= (count xs) 1)
+			(first xs)
+			(list
+				'if
+				`(= ~val ~(first xs))
+				(nth xs 1)
+				(concat 'case val (rest (rest xs)))))))
+
 (defmacro or (& xs)
 	(if (empty? xs)
 		false
@@ -123,8 +134,8 @@
 ;; Using the implementation of gl-matrix
 ;; http://glmatrix.net/docs/vec2.js.htm
 
-(defn .x (v) (first v))
-(defn .y (v) (second v))
+(def .x first)
+(def .y second)
 
 (defn vec2? (v)
 	(and
@@ -218,6 +229,13 @@
 (def $canvas "")
 (def $width 1000)
 (def $height 1000)
+
+
+;;(defn sketch? (coll)
+;;	(if (not (list? coll))
+;;		false
+;;		(cond
+			
 
 (defn eval-sketch (& xs)
 	(slice xs (inc (last-index-of :start-sketch xs)) (count xs)))
