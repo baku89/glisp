@@ -44,6 +44,7 @@
 		"tslib": "^1.11.1",
 		"typescript": "~3.8.3",
 		"vue-click-outside": "^1.0.7",
-		"vue-template-compiler": "^2.6.11"
+		"vue-template-compiler": "^2.6.11",
+		"worker-loader": "^2.0.0"
 	}
 }
