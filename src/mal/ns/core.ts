@@ -155,7 +155,9 @@ const jsObjects = new Map<string, any>([
 		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
 	],
 	[
-		'join', (separator: string, coll: MalVal[]) => coll.map(v => printExp(v, false)).join(separator)
+		'join',
+		(separator: string, coll: MalVal[]) =>
+			coll.map(v => printExp(v, false)).join(separator)
 	],
 
 	// Map
@@ -175,13 +177,21 @@ const jsObjects = new Map<string, any>([
 	],
 	[
 		'get',
-		(m: MalMap, a: MalVal, notfound?: MalVal) => (!(m instanceof Map) ? null : m.has(a) ? m.get(a) : notfound !== undefined ? notfound : null)
+		(m: MalMap, a: MalVal, notfound?: MalVal) =>
+			!(m instanceof Map)
+				? null
+				: m.has(a)
+				? m.get(a)
+				: notfound !== undefined
+				? notfound
+				: null
 	],
 	['contains?', (m: MalMap, a: MalVal) => m.has(a)],
 	['keys', (a: MalMap) => Array.from(a.keys())],
 	['vals', (a: MalMap) => Array.from(a.values())],
 
 	// String
+	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
 	[
 		'prn',
@@ -210,7 +220,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-				; (c as any).meta = m
+			;(c as any).meta = m
 			return c
 		}
 	],

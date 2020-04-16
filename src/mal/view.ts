@@ -9,6 +9,7 @@ import readStr from './reader'
 
 import {BlankException} from './reader'
 import {iterateSegment} from './ns/path'
+import {partition} from './ns/core'
 
 export const viewHandler = new EventEmitter()
 
@@ -42,7 +43,7 @@ type DrawParams = Map<string, string | number | number[]>
 
 interface DrawStyle {
 	type: string
-	params: string | DrawParams
+	params: DrawParams
 }
 
 function isValidColor(str: string) {
@@ -51,8 +52,40 @@ function isValidColor(str: string) {
 	return s.color === str
 }
 
-function applyDrawStyle(ctx: CanvasRenderingContext2D, styles: DrawStyle[], defaultStyle: DrawStyle | null, text?: string, x?: number, y?: number) {
+function createFillOrStrokeStyle(
+	ctx: CanvasRenderingContext2D,
+	style: string | any[]
+) {
+	if (typeof style === 'string') {
+		return style
+	} else if (Array.isArray(style)) {
+		const [type, params] = style as [string, Map<string, any[]>]
+		switch (type) {
+			case K('linear-gradient'): {
+				const [x0, y0, x1, y1] = params.get(K('points')) as number[]
+				const stops = params.get(K('stops')) as (string | number)[]
+				const grad = ctx.createLinearGradient(x0, y0, x1, y1)
+				for (const [offset, color] of partition(2, stops)) {
+					if (typeof offset !== 'number' || typeof color !== 'string') {
+						continue
+					}
+					grad.addColorStop(offset, color)
+				}
+				return grad
+			}
+		}
+	}
+	return ''
+}
 
+function applyDrawStyle(
+	ctx: CanvasRenderingContext2D,
+	styles: DrawStyle[],
+	defaultStyle: DrawStyle | null,
+	text?: string,
+	x?: number,
+	y?: number
+) {
 	styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
 
 	const isText = text !== undefined
@@ -60,7 +93,10 @@ function applyDrawStyle(ctx: CanvasRenderingContext2D, styles: DrawStyle[], defa
 	ctx.save()
 	for (const {type, params} of styles) {
 		if (type === K_FILL) {
-			ctx.fillStyle = params as string
+			ctx.fillStyle = createFillOrStrokeStyle(
+				ctx,
+				params.get(K_STYLE) as string
+			)
 			if (isText) {
 				ctx.fillText(text as string, x as number, y as number)
 			} else {
@@ -70,7 +106,7 @@ function applyDrawStyle(ctx: CanvasRenderingContext2D, styles: DrawStyle[], defa
 			for (const [k, v] of (params as DrawParams).entries()) {
 				switch (k) {
 					case K_STYLE:
-						ctx.strokeStyle = v as string
+						ctx.strokeStyle = createFillOrStrokeStyle(ctx, v as string)
 						break
 					case K_WIDTH:
 						ctx.lineWidth = v as number
@@ -115,7 +151,11 @@ function draw(
 			switch (cmd) {
 				case K_BACKGROUND: {
 					const color = args[0]
-					if (typeof color === 'string' && color !== '' && isValidColor(color)) {
+					if (
+						typeof color === 'string' &&
+						color !== '' &&
+						isValidColor(color)
+					) {
 						// only execute if the color is valid
 						viewHandler.emit('set-background', color)
 						ctx.fillStyle = color
@@ -299,7 +339,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				; (ret[keyword] as MalVal[]).push(arr[i])
+				;(ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -315,7 +355,7 @@ consoleEnv.set('publish-gist', (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
+			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.

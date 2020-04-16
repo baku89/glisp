@@ -28,20 +28,24 @@
 
 (defn ? (f)
   (def doc (get (meta f) :doc))
-  (println
-   (if doc
-     (do
-       (println (get doc :desc))
-       (def params (get doc :params))
-       (def param-width (+ 2 (reduce #(max %0 (count (first (str %1)))) 0 params)))
-       (def spaces (join "" (repeat " " param-width)))
-       (map #(println (slice (str (first %) spaces) 0 param-width)
-                      (slice (str "[" (slice (second %) 1) "]     ") 0 10)
-                      (last %))
-            params)
-       nil)
-     "No document")))
-
+  (cond (string? doc) (println doc)
+        (map? doc) (do
+                     (println (get doc :desc))
+                     (def params (get doc :params))
+                     (def param-width
+                       (+ 2 (apply max
+                                   (map #(count (str (first %)))
+                                        params))))
+                     (def spaces (join "" (repeat " " param-width)))
+                     (println
+                      (join "\n"
+                            (map #(join " "
+                                        (list (slice (str (first %) spaces) 0 param-width)
+                                              (slice (format "[%s]       " (slice (second %) 1)) 0 9)
+                                              (last %)))
+                                 params)))
+                     nil)
+        :else (println "No document")))
 ;; Conditionals
 (defmacro cond (& xs)
   (if (> (count xs) 0)
@@ -141,7 +145,43 @@
   (let (counter (atom 0))
     #(symbol (str "G__" (swap! counter inc)))))
 
-(prn __filename__)
+;; Pretty printer a MAL object.
+
+(def pprint
+  (let (spaces- (fn (indent)
+                  (if (> indent 0)
+                    (str " " (spaces- (- indent 1)))
+                    ""))
+
+                pp-seq- (fn (obj indent)
+                          (let (xindent (+ 1 indent))
+                            (apply str (pp- (first obj) 0)
+                                   (map (fn (x) (str "\n" (spaces- xindent)
+                                                     (pp- x xindent)))
+                                        (rest obj)))))
+
+                pp-map- (fn (obj indent)
+                          (let (ks (keys obj)
+                                   kindent (+ 1 indent)
+                                   kwidth (count (str (first ks)))
+                                   vindent (+ 1 (+ kwidth kindent)))
+                            (apply str (pp- (first ks) 0)
+                                   " "
+                                   (pp- (get obj (first ks)) 0)
+                                   (map (fn (k) (str "\n" (spaces- kindent)
+                                                     (pp- k kindent)
+                                                     " "
+                                                     (pp- (get obj k) vindent)))
+                                        (rest (keys obj))))))
+
+                pp- (fn (obj indent)
+                      (cond
+                        (list? obj)   (format "(%s)" (pp-seq- obj indent))
+                        (map? obj)    (format "{%s}" (pp-map- obj indent))
+                        :else         (pr-str obj))))
+
+    (fn (obj)
+      (println (pp- obj 0)))))
 
 ;; Load other cores
 (load-file "ui.cljs")

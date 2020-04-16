@@ -40,29 +40,34 @@
 
  ;; Style
 
-(defn fill (style & xs)
-  `(:fill ~color ~xs))
+(defn fill
+  {:doc {:desc "Fill the shapes with specified style"}}
+  (style & xs)
+  `(:fill ~(hash-map :style style) ~xs))
 
-(defn stroke (style & xs)
-  (def snd (first xs))
-  (cond (list? snd) `(:stroke ~(hash-map :style style :width $line-width) ~xs)
-        (number? snd) `(:stroke ~(hash-map :style style :width snd) ~(rest xs))
-        (map? snd) `(:stroke ~(assoc snd :style style) ~(rest xs))))
+(defn stroke
+  {:doc "Draw a stroke along the shapes with specified style"}
+  (style & xs)
+  (let (snd (first xs))
+    (cond (list? snd) `(:stroke ~(hash-map :style style :width $line-width) ~xs)
+          (number? snd) `(:stroke ~(hash-map :style style :width snd) ~(rest xs))
+          (map? snd) `(:stroke ~(assoc snd :style style) ~(rest xs)))))
 
-(defn linear-gradient (x1 y1 x2 y2 & xs)
-  (let (args (get (hash-map xs))
-  (if (contains? args :step))
-    (throw "[linear-gradient] odd number of arguments")
-    (list :linear-gradient
-          (hash-map :points (list x1 y1 x2 y2)
-                    :stops xs))))
+(defn linear-gradient
+  {:doc "Define a linear gradient style to apply to fill or stroke"}
+  (x1 y1 x2 y2 & xs)
+  (let (args (apply hash-map xs))
+    (if (not (contains? args :stops))
+      (throw "[linear-gradient] odd number of arguments")
+      (list :linear-gradient
+            (hash-map :points (list x1 y1 x2 y2)
+                      :stops (get args :stops))))))
 
 ;; Shape Functions
-
 (defn path (& xs) `(:path ~@xs))
 
 (defn text
-  {:doc {:desc "Generate a text shape."
+  {:doc {:desc "Generate a text shape"
          :params '((str :string "the alphanumeric symbols to be displayed")
                    (x :number "x-coordinate of text")
                    (y :number "y-coordinate of text"))}}
@@ -88,19 +93,11 @@
 (defn circle (x y r)
   (let (k (* r K))
     `(:path
-      :M	~(+ x r)  ~y			 ; right
-      :C	~(+ x r)	~(+ y k)
-      ~(+ x k)	~(+ y r)
-      ~x				~(+ y r) ; bottom
-      :C	~(- x k)	~(+ y r)
-      ~(- x r)	~(+ y k)
-      ~(- x r)	~y			 ; left
-      :C	~(- x r)	~(- y k)
-      ~(- x k)	~(- y r)
-      ~x				~(- y r) ; top
-      :C	~(+ x k)	~(- y r)
-      ~(+ x r)	~(- y k)
-      ~(+ x r)	~y			 ; right
+      :M ~(+ x r)  ~y			 ; right
+      :C ~(+ x r) ~(+ y k) ~(+ x k) ~(+ y r) ~x ~(+ y r) ; bottom
+      :C ~(- x k) ~(+ y r) ~(- x r) ~(+ y k) ~(- x r) ~y ; left
+      :C ~(- x r) ~(- y k) ~(- x k) ~(- y r) ~x ~(- y r) ; top
+      :C ~(+ x k) ~(- y r) ~(+ x r) ~(- y k) ~(+ x r)	~y ; right
       :Z)))
 
 (defn line (x1 y1 x2 y2)
