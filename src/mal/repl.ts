@@ -41,5 +41,3 @@ REP(`(def load-file-force
                      (slurp url)))))))`)
 
 REP('(load-file-force "./lib/core.cljs")')
-
-window.replEnv = replEnv

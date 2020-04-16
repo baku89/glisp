@@ -5,6 +5,8 @@ import {replEnv} from './repl'
 import readStr, {BlankException} from './reader'
 import {MalVal, LispError, isKeyword, symbolFor as S} from './types'
 import evalExp from './eval'
+import {readEvalStr} from '.'
+import CanvasRenderer from '@/renderer/CanvasRenderer'
 
 export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
@@ -14,43 +16,55 @@ consoleEnv.set(S('console/clear'), () => {
 	return null
 })
 
-// consoleEnv.set('export', (name: MalVal = null) => {
-// 	const canvas = document.createElement('canvas')
-// 	const offscreenCanvas = canvas.transferControlToOffscreen()
+consoleEnv.set(S('export'), (name: MalVal = null) => {
+	const canvas = document.createElement('canvas')
+	const renderer = new CanvasRenderer(canvas)
 
-// 	let x = 0,
-// 		y = 0,
-// 		width = consoleEnv.get('$width') as number,
-// 		height = consoleEnv.get('$height') as number
+	let x = 0,
+		y = 0,
+		width = consoleEnv.get(S('$width')) as number,
+		height = consoleEnv.get(S('$height')) as number
+	let $view = consoleEnv.get(S('$view'))
 
-// 	let $view = consoleEnv.get('$view')
+	if (Array.isArray($view)) {
+		if (typeof name === 'string') {
+			$view = readEvalStr(`(extract-artboard ${name} $view)`, consoleEnv)
+			if ($view === null) {
+				throw new LispError(`Artboard "${name as string}" not found`)
+			} else {
+				;[x, y, width, height] = ($view as MalVal[])[2] as number[]
+			}
+		}
+	}
 
-// 	if (Array.isArray($view) && ctx) {
-// 		if (typeof name === 'string') {
-// 			$view = readEvalStr(`(extract-artboard ${name} $view)`, consoleEnv)
-// 			if ($view === null) {
-// 				throw new LispError(`Artboard "${name as string}" not found`)
-// 			} else {
-// 				;[x, y, width, height] = ($view as MalVal[])[2] as number[]
-// 			}
-// 		}
+	console.log($view)
 
-// 		canvas.width = width
-// 		canvas.height = height
-// 		ctx.translate(-x, -y)
+	renderer.resize(300, 400, 1)
+	renderer.render($view, consoleEnv)
 
-// 		// Set the default line cap
-// 		ctx.lineCap = 'round'
-// 		ctx.lineJoin = 'round'
+	renderer.once('render', async (succeed: boolean) => {
+		console.log('succeed??', succeed)
 
-// 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-// 		draw(ctx, $view, [], null)
-// 		const d = canvas.toDataURL('image/png')
-// 		const w = window.open('about:blank', 'Image for canvas')
-// 		w?.document.write(`<img src=${d} />`)
-// 	}
-// 	return null
-// })
+		const d = canvas.toDataURL('image/ping')
+		const w = window.open('about:blank', 'Image for canvas')
+		w?.document.write(`<img src=${d} />`)
+
+		renderer.dispose()
+	})
+
+	// canvas.width = width
+	// canvas.height = height
+	// ctx.translate(-x, -y)
+
+	// Set the default line cap
+	// ctx.lineCap = 'round'
+	// ctx.lineJoin = 'round'
+
+	// // eslint-disable-next-line @typescript-eslint/no-use-before-define
+	// draw(ctx, $view, [], null)
+	// }
+	return null
+})
 
 function createHashMap(arr: MalVal[]) {
 	const ret: {[key: string]: MalVal | MalVal[]} = {}

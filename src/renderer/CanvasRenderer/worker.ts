@@ -55,6 +55,8 @@ class CanvasRendererWorker extends EventEmitter {
 		this.dpi = dpi
 		this.canvas.width = width * dpi
 		this.canvas.height = height * dpi
+
+		console.log('resize.....asdfkasdfiasdfjaosdifjiwoerjweir')
 	}
 
 	public render(ast: MalVal, settings: ViewerSettings) {
@@ -69,6 +71,8 @@ class CanvasRendererWorker extends EventEmitter {
 		const w = ctx.canvas.width
 		const h = ctx.canvas.height
 		ctx.clearRect(0, 0, w, h)
+
+		console.log(w, h, this.dpi, 'exf')
 
 		ctx.scale(this.dpi, this.dpi)
 
@@ -340,6 +344,7 @@ onmessage = e => {
 		}
 		case 'render': {
 			const {ast, settings} = params
+			console.log(ast, settings, 'render!!!!')
 			const succeed = renderer.render(ast, settings)
 			postMessage({type: 'render', params: succeed})
 			break

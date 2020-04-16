@@ -50,8 +50,8 @@
   {:doc "Draw a stroke along the shapes with specified style"}
   (style & xs)
   (let (snd (first xs))
-    (cond (list? snd) `(:stroke ~(hash-map :style style :width $line-width) ~xs)
-          (number? snd) `(:stroke ~(hash-map :style style :width snd) ~(rest xs))
+    (cond (list? snd) `(:stroke ~(hash-map :style style :width $line-width) ~@xs)
+          (number? snd) `(:stroke ~(hash-map :style style :width snd) ~@(rest xs))
           (map? snd) `(:stroke ~(assoc snd :style style) ~(rest xs)))))
 
 (defn linear-gradient

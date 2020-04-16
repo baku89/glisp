@@ -56,6 +56,8 @@ export default class CanvasRender extends EventEmitter {
 			guideColor: env.get(S('$guide-color')) as string
 		}
 
+		console.log('reasdfasdfasjdf9iafjoe', settings)
+
 		this.worker.postMessage({type: 'render', params: {ast, settings}})
 	}
 
