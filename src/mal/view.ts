@@ -269,7 +269,8 @@ function draw(
 					break
 				}
 				default:
-					printer.error('Unknown rendering command', PRINT(cmd))
+					break
+				// printer.error('Unknown rendering command', PRINT(cmd))
 			}
 		}
 	}
