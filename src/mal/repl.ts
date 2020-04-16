@@ -121,7 +121,9 @@ export function EVAL(ast: MalVal, env: Env): MalVal {
 				} catch (exc) {
 					let err = exc
 					if (a2 && Array.isArray(a2) && a2[0] === S('catch')) {
-						if (exc instanceof Error) {err = exc.message}
+						if (exc instanceof Error) {
+							err = exc.message
+						}
 						return EVAL(a2[2], new Env(env, [a2[1] as symbol], [err]))
 					} else {
 						throw err

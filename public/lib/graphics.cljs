@@ -49,6 +49,14 @@
         (number? snd) `(:stroke ~(hash-map :style style :width snd) ~(rest xs))
         (map? snd) `(:stroke ~(assoc snd :style style) ~(rest xs))))
 
+(defn linear-gradient (x1 y1 x2 y2 & xs)
+  (let (args (get (hash-map xs))
+  (if (contains? args :step))
+    (throw "[linear-gradient] odd number of arguments")
+    (list :linear-gradient
+          (hash-map :points (list x1 y1 x2 y2)
+                    :stops xs))))
+
 ;; Shape Functions
 
 (defn path (& xs) `(:path ~@xs))
