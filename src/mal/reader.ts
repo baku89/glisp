@@ -1,10 +1,10 @@
-import {createKeyword, assocBang, LispError} from './types'
+import {keywordFor, assocBang, LispError, symbolFor as S} from './types'
 
 class Reader {
-	public tokens: (string | symbol)[]
+	public tokens: string[]
 	public position: number
 
-	constructor(tokens: (string | symbol)[]) {
+	constructor(tokens: string[]) {
 		this.tokens = [...tokens]
 		this.position = 0
 	}
@@ -62,7 +62,7 @@ function readAtom(reader: Reader) {
 		} else if (token[0] === '"') {
 			throw new LispError("[READ] expected '\"', got EOF")
 		} else if (token[0] === ':') {
-			return createKeyword(token.slice(1))
+			return keywordFor(token.slice(1))
 		} else if (token === 'nil') {
 			return null
 		} else if (token === 'true') {
@@ -71,7 +71,7 @@ function readAtom(reader: Reader) {
 			return false
 		} else {
 			// symbol
-			return Symbol.for(token as string)
+			return S(token as string)
 		}
 	} else {
 		return token
@@ -114,27 +114,27 @@ function readForm(reader: Reader): any {
 			return null
 		case "'":
 			reader.next()
-			return [Symbol.for('quote'), readForm(reader)]
+			return [S('quote'), readForm(reader)]
 		case '`':
 			reader.next()
-			return [Symbol.for('quasiquote'), readForm(reader)]
+			return [S('quasiquote'), readForm(reader)]
 		case '~':
 			reader.next()
-			return [Symbol.for('unquote'), readForm(reader)]
+			return [S('unquote'), readForm(reader)]
 		case '~@':
 			reader.next()
-			return [Symbol.for('splice-unquote'), readForm(reader)]
+			return [S('splice-unquote'), readForm(reader)]
 		case '#':
 			reader.next()
-			return [Symbol.for('fn'), [], readForm(reader)]
+			return [S('fn'), [], readForm(reader)]
 		case '^': {
 			reader.next()
 			const meta = readForm(reader)
-			return [Symbol.for('with-meta'), readForm(reader), meta]
+			return [S('with-meta'), readForm(reader), meta]
 		}
 		case '@':
 			reader.next()
-			return [Symbol.for('deref'), readForm(reader)]
+			return [S('deref'), readForm(reader)]
 		// list
 		case ')':
 			throw new LispError("unexpected ')'")

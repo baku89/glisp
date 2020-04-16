@@ -1,7 +1,16 @@
 <template>
-	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+	<div
+		id="app"
+		:class="{'background-set': backgroundSet, compact}"
+		:style="colors"
+	>
 		<div class="app__viewer">
-			<Viewer :code="code" :selection="selection" @render="onRender" />
+			<Viewer
+				:code="code"
+				:selection="selection"
+				@render="onRender"
+				@set-background="onSetBackground"
+			/>
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -19,7 +28,9 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>{{ renderError ? '!' : '✓' }}</button>
+				>
+					{{ renderError ? '!' : '✓' }}
+				</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -36,9 +47,9 @@ import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 
-import {replEnv, REP, PRINT} from '@/mal/repl'
+import {replEnv, printExp} from '@/mal'
 import {viewHandler} from '@/mal/view'
-import {MalVal} from '@/mal/types'
+import {MalVal, symbolFor as S} from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from './mal/printer'
@@ -122,7 +133,7 @@ export default class App extends Vue {
 		}
 
 		viewHandler.on('$insert', (item: MalVal) => {
-			const itemStr = PRINT(item)
+			const itemStr = printExp(item)
 
 			const [start, end] = this.selection
 			const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
@@ -130,31 +141,12 @@ export default class App extends Vue {
 			this.onEdit(code)
 			this.selection = selection
 		})
-
-		viewHandler.on('set-background', (bg: string) => {
-			if (this.background === bg) {
-				return
-			}
-
-			let base
-
-			try {
-				base = Color(bg)
-			} catch (err) {
-				return
-			}
-
-			this.background = bg
-			if (!this.backgroundSet) {
-				setTimeout(() => (this.backgroundSet = true), 1)
-			}
-		})
 	}
 
 	private onSetupConsole() {
 		// Wait the initial rendering until the console has been mounted
 		this.code = this.initialCode
-		replEnv.set('$canvas', this.code)
+		replEnv.set(S('$canvas'), this.code)
 	}
 
 	private onRender(succeed: boolean) {
@@ -165,7 +157,7 @@ export default class App extends Vue {
 		localStorage.setItem('saved_code', value)
 
 		this.code = value
-		replEnv.set('$canvas', value)
+		replEnv.set(S('$canvas'), value)
 	}
 
 	private onSelect(selection: [number, number]) {
@@ -278,14 +270,30 @@ export default class App extends Vue {
 
 		const colors = this.dark ? darkColors : brightColors
 
-		replEnv.set('$guide-color', colors['--selection'])
+		replEnv.set(S('$guide-color'), colors['--selection'])
 
 		return {...colors, '--background': this.background}
 	}
 
-	@Watch('background')
-	private onBackgroundChanged() {
-		replEnv.set('$background', this.background)
+	private onSetBackground(bg: string) {
+		if (this.background === bg) {
+			return
+		}
+
+		let base
+
+		try {
+			base = Color(bg)
+		} catch (err) {
+			return
+		}
+
+		replEnv.set(S('$background'), this.background)
+
+		this.background = bg
+		if (!this.backgroundSet) {
+			setTimeout(() => (this.backgroundSet = true), 1)
+		}
 	}
 }
 </script>

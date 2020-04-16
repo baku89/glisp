@@ -1,10 +1,9 @@
-import {MalVal, keywordFor as K} from './mal/types'
-import printExp from './mal/printer'
-import {partition} from './mal/utils'
-import {iterateSegment} from './mal/ns/path'
+import {MalVal, keywordFor as K} from '@/mal/types'
+import printExp from '@/mal/printer'
+import {partition} from '@/mal/utils'
+import {iterateSegment} from '@/mal/ns/path'
 import EventEmitter from 'eventemitter3'
-
-const S = Symbol.for
+import {ViewerSettings} from './index'
 
 const K_M = K('M'),
 	K_L = K('L'),
@@ -33,92 +32,7 @@ interface DrawStyle {
 	params: DrawParams
 }
 
-function isValidColor(str: string) {
-	// const s = new Option().style
-	// s.color = str
-	return true //s.color === str
-}
-
-function createFillOrStrokeStyle(
-	ctx: CanvasRenderingContext2D,
-	style: string | any[]
-) {
-	if (typeof style === 'string') {
-		return style
-	} else if (Array.isArray(style)) {
-		const [type, params] = style as [string, Map<string, any[]>]
-		switch (type) {
-			case K('linear-gradient'): {
-				const [x0, y0, x1, y1] = params.get(K('points')) as number[]
-				const stops = params.get(K('stops')) as (string | number)[]
-				const grad = ctx.createLinearGradient(x0, y0, x1, y1)
-				for (const [offset, color] of partition(2, stops)) {
-					if (typeof offset !== 'number' || typeof color !== 'string') {
-						continue
-					}
-					grad.addColorStop(offset, color)
-				}
-				return grad
-			}
-		}
-	}
-	return ''
-}
-
-function applyDrawStyle(
-	ctx: CanvasRenderingContext2D,
-	styles: DrawStyle[],
-	defaultStyle: DrawStyle | null,
-	text?: string,
-	x?: number,
-	y?: number
-) {
-	styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
-
-	const isText = text !== undefined
-
-	ctx.save()
-	for (const {type, params} of styles) {
-		if (type === K_FILL) {
-			ctx.fillStyle = createFillOrStrokeStyle(
-				ctx,
-				params.get(K_STYLE) as string
-			)
-			if (isText) {
-				ctx.fillText(text as string, x as number, y as number)
-			} else {
-				ctx.fill()
-			}
-		} else if (type === K_STROKE) {
-			for (const [k, v] of (params as DrawParams).entries()) {
-				switch (k) {
-					case K_STYLE:
-						ctx.strokeStyle = createFillOrStrokeStyle(ctx, v as string)
-						break
-					case K_WIDTH:
-						ctx.lineWidth = v as number
-						break
-					case K_CAP:
-						ctx.lineCap = v as CanvasLineCap
-						break
-					case K_JOIN:
-						ctx.lineJoin = v as CanvasLineJoin
-						break
-					case K_DASH:
-						ctx.setLineDash(v as number[])
-				}
-			}
-			if (isText) {
-				ctx.strokeText(text as string, x as number, y as number)
-			} else {
-				ctx.stroke()
-			}
-		}
-	}
-	ctx.restore()
-}
-
-class CanvasRenderer extends EventEmitter {
+class CanvasRendererWorker extends EventEmitter {
 	private canvas: HTMLCanvasElement
 	private ctx: CanvasRenderingContext2D
 	private dpi!: number
@@ -143,7 +57,7 @@ class CanvasRenderer extends EventEmitter {
 		this.canvas.height = height * dpi
 	}
 
-	public render(ast: MalVal) {
+	public render(ast: MalVal, settings: ViewerSettings) {
 		if (!this.dpi) {
 			console.log('trying to render before settings resolution')
 		}
@@ -163,15 +77,16 @@ class CanvasRenderer extends EventEmitter {
 		ctx.lineJoin = 'round'
 
 		// default style
-		const uiBorder = 'black' //viewEnv.get('$guide-color') as string
-
-		const defaultStyle: DrawStyle = {
-			type: K_STROKE,
-			params: new Map<string, string | number>([
-				[K_STYLE, uiBorder],
-				[K_WIDTH, 1]
-			])
-		}
+		const defaultStyle: DrawStyle | null = settings.guideColor
+			? {
+					type: K_STROKE,
+					params: new Map<string, string | number | number[]>([
+						[K_STYLE, settings.guideColor],
+						[K_WIDTH, 1],
+						[K_DASH, [2, 4]]
+					])
+			  }
+			: null
 
 		try {
 			this.draw(ast, [], defaultStyle)
@@ -233,17 +148,16 @@ class CanvasRenderer extends EventEmitter {
 							}
 						}
 						// Apply Styles
-						applyDrawStyle(ctx, styles, defaultStyle)
+						this.applyDrawStyle(ctx, styles, defaultStyle)
 						break
 					}
 					case K_TEXT: {
 						// Text representation:
 						// (:text "Text" x y {:option1 value1...})
 						const [text, x, y, options] = args
-						// const computedStyle = //getComputedStyle(document.documentElement)
 						const settings: any = {
-							size: 12, //parseFloat(computedStyle.fontSize),
-							font: 'Fira Code', //computedStyle.fontFamily,
+							size: 12,
+							font: 'Fira Code',
 							align: 'center',
 							baseline: 'middle'
 						}
@@ -259,7 +173,7 @@ class CanvasRenderer extends EventEmitter {
 						ctx.textBaseline = settings.baseline as CanvasTextBaseline
 
 						// Apply Styles
-						applyDrawStyle(ctx, styles, defaultStyle, text, x, y)
+						this.applyDrawStyle(ctx, styles, defaultStyle, text, x, y)
 
 						break
 					}
@@ -283,13 +197,9 @@ class CanvasRenderer extends EventEmitter {
 						break
 					case K_BACKGROUND: {
 						const color = args[0]
-						if (
-							typeof color === 'string' &&
-							color !== '' &&
-							isValidColor(color)
-						) {
+						if (typeof color === 'string' && color !== '') {
 							// only execute if the color is valid
-							// viewHandler.emit('set-background', color)
+							this.emit('set-background', color)
 							ctx.fillStyle = color
 							ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 						}
@@ -315,7 +225,7 @@ class CanvasRenderer extends EventEmitter {
 					case K_ENABLE_ANIMATION: {
 						let fps = args[0]
 						fps = 0.1 < fps && fps < 60 ? fps : -1
-						this.emit('enable-animation', {fps})
+						this.emit('enable-animation', fps)
 						break
 					}
 					default:
@@ -325,9 +235,88 @@ class CanvasRenderer extends EventEmitter {
 			}
 		}
 	}
+
+	private createFillOrStrokeStyle(
+		ctx: CanvasRenderingContext2D,
+		style: string | any[]
+	) {
+		if (typeof style === 'string') {
+			return style
+		} else if (Array.isArray(style)) {
+			const [type, params] = style as [string, Map<string, any[]>]
+			switch (type) {
+				case K('linear-gradient'): {
+					const [x0, y0, x1, y1] = params.get(K('points')) as number[]
+					const stops = params.get(K('stops')) as (string | number)[]
+					const grad = ctx.createLinearGradient(x0, y0, x1, y1)
+					for (const [offset, color] of partition(2, stops)) {
+						if (typeof offset !== 'number' || typeof color !== 'string') {
+							continue
+						}
+						grad.addColorStop(offset, color)
+					}
+					return grad
+				}
+			}
+		}
+		return ''
+	}
+
+	private applyDrawStyle(
+		ctx: CanvasRenderingContext2D,
+		styles: DrawStyle[],
+		defaultStyle: DrawStyle | null,
+		text?: string,
+		x?: number,
+		y?: number
+	) {
+		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
+
+		const isText = text !== undefined
+
+		ctx.save()
+		for (const {type, params} of styles) {
+			if (type === K_FILL) {
+				ctx.fillStyle = this.createFillOrStrokeStyle(
+					ctx,
+					params.get(K_STYLE) as string
+				)
+				if (isText) {
+					ctx.fillText(text as string, x as number, y as number)
+				} else {
+					ctx.fill()
+				}
+			} else if (type === K_STROKE) {
+				for (const [k, v] of (params as DrawParams).entries()) {
+					switch (k) {
+						case K_STYLE:
+							ctx.strokeStyle = this.createFillOrStrokeStyle(ctx, v as string)
+							break
+						case K_WIDTH:
+							ctx.lineWidth = v as number
+							break
+						case K_CAP:
+							ctx.lineCap = v as CanvasLineCap
+							break
+						case K_JOIN:
+							ctx.lineJoin = v as CanvasLineJoin
+							break
+						case K_DASH:
+							ctx.setLineDash(v as number[])
+					}
+				}
+				if (isText) {
+					ctx.strokeText(text as string, x as number, y as number)
+				} else {
+					ctx.stroke()
+				}
+			}
+		}
+		ctx.restore()
+	}
 }
 
-let renderer: CanvasRenderer
+let renderer: CanvasRendererWorker
 
 onmessage = e => {
 	const {type, params} = e.data
@@ -335,9 +324,12 @@ onmessage = e => {
 	switch (type) {
 		case 'init': {
 			const {canvas} = params
-			renderer = new CanvasRenderer(canvas)
+			renderer = new CanvasRendererWorker(canvas)
 			renderer.on('enable-animation', (params: any) => {
 				postMessage({type: 'enable-animation', params})
+			})
+			renderer.on('set-background', (params: any) => {
+				postMessage({type: 'set-background', params})
 			})
 			break
 		}
@@ -347,9 +339,9 @@ onmessage = e => {
 			break
 		}
 		case 'render': {
-			const {ast} = params
-			renderer.render(ast)
-			postMessage({type: 'render', params: {}})
+			const {ast, settings} = params
+			const succeed = renderer.render(ast, settings)
+			postMessage({type: 'render', params: succeed})
 			break
 		}
 	}

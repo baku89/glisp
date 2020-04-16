@@ -11,7 +11,9 @@ import {
 	assocBang,
 	MalMap,
 	MalNamespace,
-	LispError
+	LispError,
+	isSymbol,
+	symbolFor
 } from '../types'
 import printExp, {printer} from '../printer'
 import readStr from '../reader'
@@ -60,11 +62,11 @@ const jsObjects = new Map<string, any>([
 			if (typeof a !== 'string') {
 				throw new LispError(`Cannot create a symbol from ${printExp(a)}`)
 			} else {
-				return Symbol.for(a)
+				return symbolFor(a)
 			}
 		}
 	],
-	['symbol?', (a: MalVal) => typeof a === 'symbol'],
+	['symbol?', isSymbol],
 	['keyword?', isKeyword],
 	['keyword', keywordFor],
 	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc).ismacro],

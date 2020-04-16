@@ -7,7 +7,7 @@ export interface MalFunc {
 	meta: object | null
 	ast: MalVal
 	env: Env
-	params: Array<symbol>
+	params: Array<string>
 	ismacro: boolean
 }
 
@@ -19,7 +19,6 @@ export type MalVal =
 	| number
 	| string
 	| boolean
-	| symbol
 	| null
 	| MalAtom
 	| MalFunc
@@ -84,7 +83,7 @@ export function createMalFunc(
 	fn: (...args: MalVal[]) => MalVal,
 	ast: MalVal,
 	env: Env,
-	params: Array<symbol>,
+	params: Array<string>,
 	meta = null,
 	ismacro = false
 ): MalFunc {
@@ -94,12 +93,18 @@ export function createMalFunc(
 export const isMalFunc = (obj: MalVal) =>
 	obj && (obj as MalFunc).ast ? true : false
 
+// Symbol
+// Use \u01a8 as the prefix of symbol for AST object
+export const isSymbol = (obj: MalVal) =>
+	typeof obj === 'string' && obj[0] === '\u01a8'
+export const symbolFor = (k: string) => '\u01a8' + k
+
 // Keyword
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
 export const isKeyword = (obj: MalVal) =>
 	typeof obj === 'string' && obj[0] === '\u029e'
-export const createKeyword = (obj: MalVal) =>
-	isKeyword(obj) ? obj : '\u029e' + (obj as string)
+// export const createKeyword = (obj: MalVal) =>
+// 	isKeyword(obj) ? obj : '\u029e' + (obj as string)
 
 export const keywordFor = (k: string) => '\u029e' + k
 

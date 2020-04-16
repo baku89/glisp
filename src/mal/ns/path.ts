@@ -6,7 +6,8 @@ import {
 	keywordFor as K,
 	isKeyword,
 	MalNamespace,
-	LispError
+	LispError,
+	isSymbol
 } from '../types'
 import {partition} from '../utils'
 
@@ -240,9 +241,7 @@ function toBeziers(path: PathType) {
 				break
 			default:
 				throw new Error(
-					`Invalid d-path command: ${
-						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
-					}`
+					`Invalid d-path command: ${isSymbol(cmd) ? cmd.slice(1) : cmd}`
 				)
 		}
 	}

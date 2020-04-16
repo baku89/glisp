@@ -1,8 +1,4 @@
-import {MalVal, LispError} from './types'
-
-function toKey(key: symbol | string): string {
-	return typeof key === 'symbol' ? key.description || '' : key
-}
+import {MalVal, LispError, symbolFor as S, isSymbol} from './types'
 
 export default class Env {
 	public data: {
@@ -16,7 +12,7 @@ export default class Env {
 
 	constructor(
 		outer: Env | null = null,
-		binds?: Array<symbol>,
+		binds?: Array<string>,
 		exprs?: MalVal[]
 	) {
 		this.data = {}
@@ -30,38 +26,41 @@ export default class Env {
 			// Returns a new Env with symbols in binds bound to
 			// corresponding values in exprs
 			for (let i = 0; i < binds.length; i++) {
-				if (binds[i].description === '&') {
+				if (binds[i] === S('&')) {
 					// variable length arguments
-					this.data[toKey(binds[i + 1])] = Array.prototype.slice.call(exprs, i)
+					this.data[binds[i + 1]] = Array.prototype.slice.call(exprs, i)
 					break
 				}
 				if (exprs[i] === undefined) {
 					throw new LispError(
-						`Error: parameter '${toKey(binds[i])}' is not specified`
+						`Error: parameter '${binds[i].slice(1)}' is not specified`
 					)
 				}
-				this.data[toKey(binds[i])] = exprs[i]
+				this.data[binds[i]] = exprs[i]
 			}
 		}
 	}
 
-	public set(key: symbol | string, value: MalVal) {
-		key = toKey(key)
-
+	public set(key: string, value: MalVal) {
+		if (!isSymbol(key)) {
+			throw 'SET not symbol' + key
+		}
 		this.data[key] = value
 		return value
 	}
 
-	public find(key: symbol | string): MalVal | void {
-		key = toKey(key)
+	public find(key: string): MalVal | void {
+		if (!isSymbol(key)) {
+			throw 'FIND not symbol'
+		}
 
 		// eslint-disable-next-line no-prototype-builtins
 		if (this.data.hasOwnProperty(key)) {
 			return this.data[key]
 		} else if (
-			key.startsWith('%') &&
+			key[1] === '%' &&
 			this.exprs &&
-			this.exprs.length >= (parseInt(key.slice(1)) || 0)
+			this.exprs.length >= (parseInt(key.slice(2)) || 0)
 		) {
 			const index = parseInt(key.slice(1)) || 0
 			return this.exprs[index]
@@ -72,19 +71,22 @@ export default class Env {
 		}
 	}
 
-	public hasOwn(key: symbol | string) {
-		key = toKey(key)
+	public hasOwn(key: string) {
+		if (!isSymbol(key)) {
+			throw 'HASOWN not symbol'
+		}
 		// eslint-disable-next-line no-prototype-builtins
 		return this.data.hasOwnProperty(key)
 	}
 
-	public get(key: symbol | string): MalVal {
-		key = toKey(key)
-
+	public get(key: string): MalVal {
+		if (!isSymbol(key)) {
+			throw 'get not symbol'
+		}
 		const value = this.find(key)
 
 		if (value === undefined) {
-			throw new LispError(`Symbol '${key}' not found`)
+			throw new LispError(`Symbol '${key.slice(1)}' not found`)
 		}
 
 		return value

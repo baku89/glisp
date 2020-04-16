@@ -7286,6 +7286,11 @@ vue-property-decorator@^8.4.1:
   dependencies:
     vue-class-component "^7.1.0"
 
+vue-resize@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/vue-resize/-/vue-resize-0.5.0.tgz#f55bb2b721a0ebcdfad8f3c14dfd00e3fd0fd913"
+  integrity sha512-k5gOOwTIGSoWZb133Gx3IfSeiiAmve5GyWI7+pU8CvbNntpSAlrCYwZ26GB63NpxcLPK94+m0BDl5TxuZUI+Hw==
+
 vue-style-loader@^4.1.0, vue-style-loader@^4.1.2:
   version "4.1.2"
   resolved "https://registry.npm.taobao.org/vue-style-loader/download/vue-style-loader-4.1.2.tgz#dedf349806f25ceb4e64f3ad7c0a44fba735fcf8"
@@ -7521,6 +7526,13 @@ worker-loader@^2.0.0:
   dependencies:
     loader-utils "^1.0.0"
     schema-utils "^0.4.0"
+
+worker-plugin@^4.0.2:
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/worker-plugin/-/worker-plugin-4.0.2.tgz#0456dd7af1c0de64591326fd8a08c5d9f2b5b27a"
+  integrity sha512-V+1zSZMOOKk+uBzKyNIODLQLsx59zSIOaI75J1EMS0iR1qy+KQR3y/pQ3T0vIhvPfDFapGRMsoMvQNEL3okqSA==
+  dependencies:
+    loader-utils "^1.1.0"
 
 worker-rpc@^0.1.0:
   version "0.1.1"

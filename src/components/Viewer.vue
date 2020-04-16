@@ -43,6 +43,7 @@
 			@mouseleave="cursorVisible = false"
 		>
 			<div class="Viewer__cursor" :style="cursorStyle" />
+			<ResizeObserver @notify="onResize" />
 		</div>
 	</div>
 </template>
@@ -50,17 +51,19 @@
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
+import 'vue-resize/dist/vue-resize.css'
+import {ResizeObserver} from 'vue-resize'
 
-import {replEnv, PRINT, EVAL, READ} from '@/mal/repl'
-import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/mal/view'
+import {evalExp, readEvalStr} from '@/mal'
+import {viewREP, viewHandler} from '@/mal/view'
+import {symbolFor as S} from '@/mal/types'
+import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
-
-import Worker from 'worker-loader!../worker'
-
-const S = Symbol.for
+import CanvasRenderer from '@/renderer/CanvasRenderer'
 
 @Component({
-	directives: {ClickOutside}
+	directives: {ClickOutside},
+	components: {ResizeObserver}
 })
 export default class Viewer extends Vue {
 	@Prop({type: String, required: true}) private code!: string
@@ -85,70 +88,40 @@ export default class Viewer extends Vue {
 	private mousePressed = false
 
 	private viewEnv!: Env
-	private timerID!: number
-	private rendering!: boolean
-
-	private worker!: any
+	private renderer!: CanvasRenderer
 	private canvas!: HTMLCanvasElement
 
 	private mounted() {
 		this.canvas = this.$refs.canvas as HTMLCanvasElement
-		const offscreenCanvas = this.canvas.transferControlToOffscreen()
+		this.renderer = new CanvasRenderer(this.canvas)
+		this.renderer.resize()
 
-		this.worker = new Worker() as ServiceWorker
-		this.worker.onmessage = this.onRendererMessage
-		this.worker.postMessage(
-			{
-				type: 'init',
-				params: {canvas: offscreenCanvas}
-			},
-			[offscreenCanvas] as Transferable[]
+		this.renderer.on('set-background', (color: string) =>
+			this.$emit('set-background', color)
 		)
+		this.renderer.on('enable-animation', (fps: string) => {
+			const check = () => {
+				if (this.renderer.isRendering) {
+					requestAnimationFrame(check)
+				} else {
+					this.update()
+				}
+			}
+			requestAnimationFrame(check)
+		})
 
-		this.onResize()
-		window.addEventListener('resize', this.onResize)
+		this.renderer.on('render', (succeed: boolean) => {
+			this.$emit('render', succeed)
+		})
 	}
 
 	private beforeDestroy() {
-		window.removeEventListener('resize', this.onResize)
-		this.worker.terminate()
+		this.renderer.dispose()
 	}
 
 	private onResize() {
-		const dpi = window.devicePixelRatio || 1
-		const width = this.canvas.clientWidth
-		const height = this.canvas.clientHeight
-
-		this.worker.postMessage({type: 'resize', params: {width, height, dpi}})
-
-		// Avoid to update the first time this func called by mount()
-		if (this.rendering !== undefined) {
-			this.update()
-		}
-	}
-
-	private onRendererMessage(e) {
-		const {type, params} = e.data
-
-		switch (type) {
-			case 'enable-animation': {
-				const {fps} = params
-				const trigger = () => {
-					if (this.rendering) {
-						requestAnimationFrame(trigger)
-					} else {
-						this.update()
-					}
-				}
-				requestAnimationFrame(this.update)
-
-				// this.timerID = setTimeout(this.update, 1000 / fps)
-				break
-			}
-			case 'render': {
-				this.rendering = false
-			}
-		}
+		this.renderer.resize()
+		this.update()
 	}
 
 	@Watch('code')
@@ -156,12 +129,12 @@ export default class Viewer extends Vue {
 		this.update()
 
 		if (this.viewEnv) {
-			this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
-				(sym: symbol) => Symbol.keyFor(sym) || ''
+			this.pens = ((this.viewEnv.get(S('$pens')) as string[]) || []).map(
+				sym => sym.slice(1) || ''
 			)
 
-			this.hands = ((this.viewEnv.get('$hands') as symbol[]) || []).map(
-				(sym: symbol) => Symbol.keyFor(sym) || ''
+			this.hands = ((this.viewEnv.get(S('$hands')) as string[]) || []).map(
+				sym => sym.slice(1) || ''
 			)
 
 			if (this.activePen && !this.pens.includes(this.activePen)) {
@@ -171,8 +144,6 @@ export default class Viewer extends Vue {
 	}
 
 	private update() {
-		// clearTimeout(this.timerID)
-
 		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
 		const trimmed = lines.join('')
 
@@ -184,16 +155,13 @@ export default class Viewer extends Vue {
 
 		const ret = viewREP(str, this.canvas)
 
-		if (ret) {
-			const ast = ret.data.$view
+		if (ret && ret.hasOwn(S('$view'))) {
 			this.viewEnv = ret
-
-			const id = Date.now()
-			this.rendering = true
-			this.worker.postMessage({type: 'render', params: {ast}})
+			const ast = this.viewEnv.get(S('$view'))
+			this.renderer.render(ast, this.viewEnv)
+		} else {
+			this.$emit('render', false)
 		}
-
-		this.$emit('render', !!ret)
 	}
 
 	private togglePen(pen: string) {
@@ -202,7 +170,7 @@ export default class Viewer extends Vue {
 		} else {
 			// Begin
 			this.activePen = pen
-			EVAL([S('begin-draw'), S('state')], consoleEnv)
+			readEvalStr('(begin-draw state)', consoleEnv)
 		}
 	}
 
@@ -224,7 +192,7 @@ export default class Viewer extends Vue {
 			p = this.mousePressed
 
 		if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
-			;[x, y, p] = EVAL([S(this.activeHand), x, y, p], consoleEnv) as [
+			;[x, y, p] = evalExp([S(this.activeHand), x, y, p], consoleEnv) as [
 				number,
 				number,
 				boolean
@@ -232,7 +200,7 @@ export default class Viewer extends Vue {
 		}
 
 		if (this.activePen !== null) {
-			EVAL(
+			evalExp(
 				[
 					S('if'),
 					[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
@@ -261,7 +229,6 @@ export default class Viewer extends Vue {
 		display flex
 		margin-bottom 1rem
 		height 2rem
-		// background green
 
 	&__label
 		margin-right 0.2rem
@@ -269,7 +236,6 @@ export default class Viewer extends Vue {
 		color var(--comment)
 		font-size 2rem
 		line-height 1.8rem
-		// background white
 
 	&__button
 		margin 0 0.3rem

@@ -6,7 +6,7 @@
              $height ~(nth region 3)
              background (fn (c) (fill c (rect 0 0 $width $height))))
       (translate ~(first region) ~(nth region 1)
-                 (list 'g (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
+                 (list (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
 
 (defn extract-artboard (name body)
   (first

@@ -1,4 +1,12 @@
-import {MalVal, MalAtom, isMalFunc, MalFunc, isKeyword} from './types'
+import {
+	MalVal,
+	MalAtom,
+	isMalFunc,
+	MalFunc,
+	isKeyword,
+	isSymbol,
+	symbolFor as S
+} from './types'
 
 export const printer = {
 	log: (...args: any) => {
@@ -18,13 +26,13 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 
 	if (Array.isArray(obj)) {
 		if (obj.length === 2) {
-			if (obj[0] === Symbol.for('quote')) {
+			if (obj[0] === S('quote')) {
 				return "'" + printExp(obj[1], _r)
-			} else if (obj[0] === Symbol.for('quasiquote')) {
+			} else if (obj[0] === S('quasiquote')) {
 				return '`' + printExp(obj[1], _r)
-			} else if (obj[0] === Symbol.for('unquote')) {
+			} else if (obj[0] === S('unquote')) {
 				return '~' + printExp(obj[1], _r)
-			} else if (obj[0] === Symbol.for('splice-unquote')) {
+			} else if (obj[0] === S('splice-unquote')) {
 				return '~@' + printExp(obj[1], _r)
 			}
 		}
@@ -36,7 +44,9 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 		}
 		return '{' + ret.join(' ') + '}'
 	} else if (typeof obj === 'string') {
-		if (isKeyword(obj)) {
+		if (isSymbol(obj)) {
+			return obj.slice(1)
+		} else if (isKeyword(obj)) {
 			return ':' + obj.slice(1)
 		} else if (_r) {
 			return (
@@ -50,8 +60,6 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 		} else {
 			return obj
 		}
-	} else if (typeof obj === 'symbol') {
-		return Symbol.keyFor(obj) || 'INVALID_SYM'
 	} else if (obj === null) {
 		return 'nil'
 	} else if (isMalFunc(obj)) {

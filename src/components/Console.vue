@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import {Component, Vue, Prop} from 'vue-property-decorator'
-import {consoleREP} from '@/mal/view'
+import {consoleREP} from '@/mal/console'
 import {printer} from '@/mal/printer'
 
 @Component

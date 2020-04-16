@@ -76,7 +76,7 @@
     (first xs)
     `(if ~(first xs) (and ~@(rest xs)) false)))
 
-(defn not (a) (if a false true))
+(defn not {:doc "test"} (a) (if a false true))
 
 
 ;; Functioal Language Features
@@ -183,7 +183,7 @@
     (fn (obj)
       (println (pp- obj 0)))))
 
-;; Load other cores
+; Load other cores
 (load-file "ui.cljs")
 (load-file "graphics.cljs")
 (load-file "math.cljs")
