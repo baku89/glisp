@@ -6,15 +6,14 @@ import {
 	createMalFunc,
 	isMalFunc,
 	cloneAST,
-	isKeyword
+	isKeyword,
+	LispError
 } from './types'
 
 import readStr from './reader'
 import printExp, {printer} from './printer'
 import Env from './env'
 import {declareAllNamespaces} from './ns'
-
-export class LispError extends Error {}
 
 // read
 export const READ = (str: string) => readStr(str)

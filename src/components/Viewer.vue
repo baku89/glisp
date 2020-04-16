@@ -33,16 +33,15 @@
 				</button>
 			</div>
 		</div>
-		<canvas
-			class="Viewer__canvas"
-			ref="canvas"
+		<canvas class="Viewer__canvas" ref="canvas" />
+		<div
+			class="Viewer__cursor-wrapper"
 			@mousedown="onMouse"
 			@mouseup="onMouse"
 			@mousemove="onMouse"
 			@mouseenter="cursorVisible = true"
 			@mouseleave="cursorVisible = false"
-		/>
-		<div class="Viewer__cursor-wrapper">
+		>
 			<div class="Viewer__cursor" :style="cursorStyle" />
 		</div>
 	</div>
@@ -55,6 +54,8 @@ import ClickOutside from 'vue-click-outside'
 import {replEnv, PRINT, EVAL, READ} from '@/mal/repl'
 import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/mal/view'
 import Env from '@/mal/env'
+
+import Worker from 'worker-loader!../worker'
 
 const S = Symbol.for
 
@@ -72,6 +73,7 @@ export default class Viewer extends Vue {
 
 	private cursorVisible = false
 	private cursorPos = [0, 0]
+
 	private get cursorStyle() {
 		return {
 			left: this.cursorPos[0] + 'px',
@@ -82,69 +84,96 @@ export default class Viewer extends Vue {
 
 	private mousePressed = false
 
-	private rep!: (s: string) => Env | false
 	private viewEnv!: Env
-	private updateCanvasRes!: any
-	private timerId!: number
+	private timerID!: number
+	private rendering!: boolean
+
+	private worker!: any
+	private canvas!: HTMLCanvasElement
 
 	private mounted() {
-		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
+		this.canvas = this.$refs.canvas as HTMLCanvasElement
+		const offscreenCanvas = this.canvas.transferControlToOffscreen()
 
-		if (ctx) {
-			const dpi = window.devicePixelRatio || 1
+		this.worker = new Worker() as ServiceWorker
+		this.worker.onmessage = this.onRendererMessage
+		this.worker.postMessage(
+			{
+				type: 'init',
+				params: {canvas: offscreenCanvas}
+			},
+			[offscreenCanvas] as Transferable[]
+		)
 
-			this.rep = (str: string) => viewREP(str, ctx)
-
-			this.updateCanvasRes = () => {
-				const canvas = ctx.canvas
-
-				ctx.canvas.width = canvas.clientWidth * dpi
-				ctx.canvas.height = canvas.clientHeight * dpi
-
-				this.update()
-			}
-
-			window.addEventListener('resize', this.updateCanvasRes)
-			viewHandler.on('enable-animation', this.onEnableAnimation)
-
-			this.updateCanvasRes()
-		}
+		this.onResize()
+		window.addEventListener('resize', this.onResize)
 	}
 
 	private beforeDestroy() {
-		window.removeEventListener('resize', this.updateCanvasRes)
-		viewHandler.off('enable-animation', this.onEnableAnimation)
+		window.removeEventListener('resize', this.onResize)
+		this.worker.terminate()
 	}
 
-	private onEnableAnimation(fps: number) {
-		if (fps <= 0) {
-			requestAnimationFrame(this.update)
+	private onResize() {
+		const dpi = window.devicePixelRatio || 1
+		const width = this.canvas.clientWidth
+		const height = this.canvas.clientHeight
+
+		this.worker.postMessage({type: 'resize', params: {width, height, dpi}})
+
+		// Avoid to update the first time this func called by mount()
+		if (this.rendering !== undefined) {
+			this.update()
 		}
-		this.timerId = setTimeout(this.update, 1000 / fps)
+	}
+
+	private onRendererMessage(e) {
+		const {type, params} = e.data
+
+		switch (type) {
+			case 'enable-animation': {
+				const {fps} = params
+				const trigger = () => {
+					if (this.rendering) {
+						requestAnimationFrame(trigger)
+					} else {
+						this.update()
+					}
+				}
+				requestAnimationFrame(this.update)
+
+				// this.timerID = setTimeout(this.update, 1000 / fps)
+				break
+			}
+			case 'render': {
+				this.rendering = false
+			}
+		}
 	}
 
 	@Watch('code')
 	private onCodeChanged() {
 		this.update()
 
-		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
-			(sym: symbol) => Symbol.keyFor(sym) || ''
-		)
+		if (this.viewEnv) {
+			this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
+				(sym: symbol) => Symbol.keyFor(sym) || ''
+			)
 
-		this.hands = ((this.viewEnv.get('$hands') as symbol[]) || []).map(
-			(sym: symbol) => Symbol.keyFor(sym) || ''
-		)
+			this.hands = ((this.viewEnv.get('$hands') as symbol[]) || []).map(
+				(sym: symbol) => Symbol.keyFor(sym) || ''
+			)
 
-		if (this.activePen && !this.pens.includes(this.activePen)) {
-			this.activePen = null
+			if (this.activePen && !this.pens.includes(this.activePen)) {
+				this.activePen = null
+			}
 		}
 	}
 
 	private update() {
-		clearTimeout(this.timerId)
+		// clearTimeout(this.timerID)
 
 		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
-
 		const trimmed = lines.join('')
 
 		const str = trimmed
@@ -153,10 +182,15 @@ export default class Viewer extends Vue {
 				(eval-sketch ${lines.join('\n')}))`
 			: '""'
 
-		const ret = this.rep(str)
+		const ret = viewREP(str, this.canvas)
 
 		if (ret) {
+			const ast = ret.data.$view
 			this.viewEnv = ret
+
+			const id = Date.now()
+			this.rendering = true
+			this.worker.postMessage({type: 'render', params: {ast}})
 		}
 
 		this.$emit('render', !!ret)
@@ -254,7 +288,7 @@ export default class Viewer extends Vue {
 			color var(--background)
 			transition all 0 ease
 
-	&__canvas
+	&__canvas, &__cursor-wrapper
 		width 100%
 		height 100%
 
@@ -262,6 +296,7 @@ export default class Viewer extends Vue {
 		position absolute
 		top 0
 		left 0
+
 		pointer-events none
 
 	&__cursor

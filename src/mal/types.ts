@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
-
 import Env from './env'
-import {LispError} from './repl'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never
 
@@ -13,6 +10,8 @@ export interface MalFunc {
 	params: Array<symbol>
 	ismacro: boolean
 }
+
+export class LispError extends Error {}
 
 export type MalMap = Map<MalVal, MalVal>
 

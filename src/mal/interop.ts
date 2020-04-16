@@ -1,4 +1,4 @@
-import {LispError} from './repl'
+import {LispError} from './types'
 
 export default {
 	resolveJS(str: string): [any, any] {

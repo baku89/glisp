@@ -7,8 +7,6 @@
 
 (def $line-width 1)
 
-(prn "ui Loaded")
-
 ;; Sketch
 
 (defn filter-sketch (coll)

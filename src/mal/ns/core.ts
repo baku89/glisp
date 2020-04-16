@@ -1,8 +1,6 @@
 import seedrandom from 'seedrandom'
 import {vsprintf} from 'sprintf-js'
 
-console.log(vsprintf)
-
 import {
 	MalVal,
 	MalFunc,
@@ -12,12 +10,13 @@ import {
 	keywordFor,
 	assocBang,
 	MalMap,
-	MalNamespace
+	MalNamespace,
+	LispError
 } from '../types'
 import printExp, {printer} from '../printer'
 import readStr from '../reader'
-import {LispError} from '../repl'
 import interop from '../interop'
+import {partition} from '../utils'
 
 // String functions
 function slurp(url: string) {
@@ -28,15 +27,6 @@ function slurp(url: string) {
 		throw new LispError(`Failed to slurp file: ${url}`)
 	}
 	return req.responseText
-}
-
-export function partition(n: number, coll: any[]) {
-	const ret = []
-
-	for (let i = 0; i < coll.length; i += n) {
-		ret.push(coll.slice(i, i + n))
-	}
-	return ret
 }
 
 // Interop

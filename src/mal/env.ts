@@ -1,5 +1,4 @@
-import {MalVal} from './types'
-import {LispError} from './repl'
+import {MalVal, LispError} from './types'
 
 function toKey(key: symbol | string): string {
 	return typeof key === 'symbol' ? key.description || '' : key

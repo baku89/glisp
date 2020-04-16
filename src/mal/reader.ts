@@ -1,5 +1,4 @@
-import {LispError} from './repl'
-import {createKeyword, assocBang} from './types'
+import {createKeyword, assocBang, LispError} from './types'
 
 class Reader {
 	public tokens: (string | symbol)[]

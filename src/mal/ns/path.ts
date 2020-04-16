@@ -6,10 +6,9 @@ import {
 	keywordFor as K,
 	isKeyword,
 	MalNamespace,
-	MalJSFunc
+	LispError
 } from '../types'
-import {partition} from './core'
-import {LispError} from '../repl'
+import {partition} from '../utils'
 
 type PathType = (string | number)[]
 type SegmentType = [string, ...number[]]
@@ -242,7 +241,7 @@ function toBeziers(path: PathType) {
 			default:
 				throw new Error(
 					`Invalid d-path command: ${
-					typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
+						typeof cmd === 'symbol' ? Symbol.keyFor(cmd) : cmd
 					}`
 				)
 		}
@@ -730,7 +729,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 			cmd === K_M ||
 			(cmd === K_Z &&
 				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
-				EPSILON)
+					EPSILON)
 		) {
 			continue
 		}
