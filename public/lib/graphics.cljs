@@ -27,6 +27,7 @@
       true "black")))
 
 (defn background (c) `(:background ~c))
+(defn enable-animation (& xs) (concat :enable-animation xs))
 
 ;; Transformation
 

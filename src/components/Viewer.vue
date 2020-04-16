@@ -9,7 +9,9 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>{{ pen }}</button>
+				>
+					{{ pen }}
+				</button>
 			</div>
 			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
@@ -19,12 +21,16 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>{{ hand }}</button>
+				>
+					{{ hand }}
+				</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>*</button>
+				>
+					*
+				</button>
 			</div>
 		</div>
 		<canvas
@@ -46,7 +52,7 @@
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 
-import {replEnv, PRINT, EVAL} from '@/mal/repl'
+import {replEnv, PRINT, EVAL, READ} from '@/mal/repl'
 import {viewREP, consoleREP, consoleEnv, viewHandler} from '@/mal/view'
 import Env from '@/mal/env'
 
@@ -76,9 +82,10 @@ export default class Viewer extends Vue {
 
 	private mousePressed = false
 
-	private rep!: (s: string) => Env
+	private rep!: (s: string) => Env | false
 	private viewEnv!: Env
 	private updateCanvasRes!: any
+	private timerId!: number
 
 	private mounted() {
 		const ctx = (this.$refs.canvas as HTMLCanvasElement).getContext('2d')
@@ -98,7 +105,7 @@ export default class Viewer extends Vue {
 			}
 
 			window.addEventListener('resize', this.updateCanvasRes)
-			viewHandler.on('render', this.onRender)
+			viewHandler.on('enable-animation', this.onEnableAnimation)
 
 			this.updateCanvasRes()
 		}
@@ -106,21 +113,19 @@ export default class Viewer extends Vue {
 
 	private beforeDestroy() {
 		window.removeEventListener('resize', this.updateCanvasRes)
-		viewHandler.off('render', this.onRender)
+		viewHandler.off('enable-animation', this.onEnableAnimation)
 	}
 
-	private onRender(succeed: boolean) {
-		this.$emit('render', succeed)
+	private onEnableAnimation(fps: number) {
+		if (fps <= 0) {
+			requestAnimationFrame(this.update)
+		}
+		this.timerId = setTimeout(this.update, 1000 / fps)
 	}
 
 	@Watch('code')
-	private update() {
-		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
-
-		const trimmed = lines.join('')
-
-		const str = trimmed ? `(eval-sketch ${lines.join('\n')})` : '""'
-		this.viewEnv = this.rep(`(def $view ${str}\n)`)
+	private onCodeChanged() {
+		this.update()
 
 		this.pens = ((this.viewEnv.get('$pens') as symbol[]) || []).map(
 			(sym: symbol) => Symbol.keyFor(sym) || ''
@@ -133,6 +138,28 @@ export default class Viewer extends Vue {
 		if (this.activePen && !this.pens.includes(this.activePen)) {
 			this.activePen = null
 		}
+	}
+
+	private update() {
+		clearTimeout(this.timerId)
+
+		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
+
+		const trimmed = lines.join('')
+
+		const str = trimmed
+			? `
+			(def $view
+				(eval-sketch ${lines.join('\n')}))`
+			: '""'
+
+		const ret = this.rep(str)
+
+		if (ret) {
+			this.viewEnv = ret
+		}
+
+		this.$emit('render', !!ret)
 	}
 
 	private togglePen(pen: string) {

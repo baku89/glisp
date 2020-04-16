@@ -25,6 +25,7 @@ const K_M = K('M'),
 	K_C = K('C'),
 	K_Z = K('Z'),
 	K_BACKGROUND = K('background'),
+	K_ENABLE_ANIMATION = K('enable-animation'),
 	K_FILL = K('fill'),
 	K_STROKE = K('stroke'),
 	K_PATH = K('path'),
@@ -149,20 +150,6 @@ function draw(
 			}
 		} else {
 			switch (cmd) {
-				case K_BACKGROUND: {
-					const color = args[0]
-					if (
-						typeof color === 'string' &&
-						color !== '' &&
-						isValidColor(color)
-					) {
-						// only execute if the color is valid
-						viewHandler.emit('set-background', color)
-						ctx.fillStyle = color
-						ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-					}
-					break
-				}
 				case K_FILL: {
 					const style: DrawStyle = {
 						type: K_FILL,
@@ -251,6 +238,20 @@ function draw(
 					draw(ctx, last, styles, defaultStyle)
 					ctx.restore()
 					break
+				case K_BACKGROUND: {
+					const color = args[0]
+					if (
+						typeof color === 'string' &&
+						color !== '' &&
+						isValidColor(color)
+					) {
+						// only execute if the color is valid
+						viewHandler.emit('set-background', color)
+						ctx.fillStyle = color
+						ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+					}
+					break
+				}
 				case K_ARTBOARD: {
 					const [region, body] = args.slice(1)
 					const [x, y, w, h] = region
@@ -266,6 +267,12 @@ function draw(
 
 					// Restore
 					ctx.restore()
+					break
+				}
+				case K_ENABLE_ANIMATION: {
+					let fps = args[0]
+					fps = 0.1 < fps && fps < 60 ? fps : -1
+					viewHandler.emit('enable-animation', fps)
 					break
 				}
 				default:
@@ -433,8 +440,12 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 	let renderSucceed = true
 
 	try {
+		// console.time('read')
 		const src = typeof str === 'string' ? readStr(str) : str
+		// console.timeEnd('read')
+		// console.time('eval')
 		out = EVAL(src, viewEnv)
+		// console.timeEnd('eval')
 	} catch (err) {
 		if (err instanceof LispError) {
 			printer.error(err)
@@ -443,6 +454,8 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		}
 		renderSucceed = false
 	}
+
+	console.time('render')
 
 	if (out !== undefined) {
 		// Draw
@@ -480,9 +493,11 @@ export function viewREP(str: string | MalVal, ctx: CanvasRenderingContext2D) {
 		}
 	}
 
+	console.timeEnd('render')
+
 	viewHandler.emit('render', renderSucceed)
 
-	return viewEnv
+	return renderSucceed ? viewEnv : false
 }
 
 export const consoleREP = (str: string, output = true) => {
