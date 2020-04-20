@@ -48,9 +48,9 @@ import ClickOutside from 'vue-click-outside'
 import 'vue-resize/dist/vue-resize.css'
 import {ResizeObserver} from 'vue-resize'
 
-import {evalExp, readEvalStr} from '@/mal'
+import {evalExp, readEvalStr, readStr} from '@/mal'
 import {viewREP, viewHandler} from '@/mal/view'
-import {symbolFor as S} from '@/mal/types'
+import {symbolFor as S, MalVal} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
 import CanvasRenderer from '@/renderer/CanvasRenderer'
@@ -60,7 +60,7 @@ import CanvasRenderer from '@/renderer/CanvasRenderer'
 	components: {ResizeObserver}
 })
 export default class Viewer extends Vue {
-	@Prop({type: String, required: true}) private code!: string
+	@Prop({required: true}) private ast!: MalVal
 
 	private activePen: string | null = null
 	private pens: string[] = []
@@ -118,7 +118,7 @@ export default class Viewer extends Vue {
 		this.update()
 	}
 
-	@Watch('code')
+	@Watch('ast', {deep: false})
 	private onCodeChanged() {
 		this.update()
 
@@ -138,15 +138,6 @@ export default class Viewer extends Vue {
 	}
 
 	private update() {
-		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
-		const trimmed = lines.join('')
-
-		const str = trimmed
-			? `
-			(def $view
-				(eval-sketch ${lines.join('\n')}))`
-			: '""'
-
 		const dpi = window.devicePixelRatio
 		const options = {
 			width: this.canvas.clientWidth / dpi,
@@ -154,8 +145,7 @@ export default class Viewer extends Vue {
 			updateConsole: true,
 			drawGuide: true
 		}
-
-		const {output, env} = viewREP(str, options)
+		const {output, env} = viewREP(this.ast, options)
 		if (env) {
 			this.viewEnv = env
 

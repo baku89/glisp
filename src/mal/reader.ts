@@ -1,20 +1,43 @@
-import {keywordFor, assocBang, LispError, symbolFor as S} from './types'
+import {
+	keywordFor,
+	assocBang,
+	LispError,
+	symbolFor as S,
+	MalTreeWithRange
+} from './types'
 
 class Reader {
-	public tokens: string[]
-	public position: number
+	private tokens: string[] | [string, number][]
+	private strlen: number
+	private position: number
 
-	constructor(tokens: string[]) {
+	constructor(tokens: string[], originalStr: string) {
 		this.tokens = [...tokens]
+		this.strlen = originalStr.length
 		this.position = 0
 	}
 
 	public next() {
-		return this.tokens[this.position++]
+		const token = this.tokens[this.position++]
+		return Array.isArray(token) ? token[0] : token
 	}
 
 	public peek() {
-		return this.tokens[this.position]
+		const token = this.tokens[this.position]
+		return Array.isArray(token) ? token[0] : token
+	}
+
+	public getPosition(): number {
+		const token = this.tokens[this.position]
+		return (token !== undefined ? token[1] : this.strlen) as number
+	}
+
+	public getLastPosition(): number {
+		const token = this.tokens[this.position - 1]
+		if (token === undefined) {
+			throw new Error('Cannot determine prev position')
+		}
+		return (token[1] as number) + token[0].length
 	}
 }
 
@@ -79,8 +102,15 @@ function readAtom(reader: Reader) {
 }
 
 // read list of tokens
-function readList(reader: Reader, start = '(', end = ')') {
-	const ast = []
+function readList(
+	reader: Reader,
+	outputPosition: boolean,
+	start = '(',
+	end = ')'
+) {
+	const ast: MalTreeWithRange = []
+
+	ast.start = reader.getPosition()
 
 	let token = reader.next()
 
@@ -93,72 +123,148 @@ function readList(reader: Reader, start = '(', end = ')') {
 			throw new LispError(`[READ] expected '${end}', got EOF`)
 		}
 
-		ast.push(readForm(reader)) // eslint-disable-line @typescript-eslint/no-use-before-define
+		ast.push(readForm(reader, outputPosition)) // eslint-disable-line @typescript-eslint/no-use-before-define
 	}
+
+	ast.end = reader.getPosition() + token.length
 
 	reader.next()
 	return ast
 }
 
 // read hash-map key/value pairs
-function readHashMap(reader: Reader) {
-	return assocBang(new Map(), ...readList(reader, '{', '}'))
+function readHashMap(reader: Reader, outputPosition: boolean) {
+	const lst = readList(reader, outputPosition, '{', '}')
+	const map = assocBang(new Map(), ...lst)
+	if (outputPosition) {
+		;(map as any).start = lst.start
+		;(map as any).end = lst.end
+	}
+	return map
 }
 
-function readForm(reader: Reader): any {
+function readForm(reader: Reader, outputPosition: boolean): any {
 	const token = reader.peek()
+	const pos = outputPosition ? reader.getPosition() : -1
+	let val
 
 	switch (token) {
 		// reader macros/transforms
 		case ';':
-			return null
+			val = null
+			break
 		case "'":
 			reader.next()
-			return [S('quote'), readForm(reader)]
+			val = [S('quote'), readForm(reader, outputPosition)]
+			break
 		case '`':
 			reader.next()
-			return [S('quasiquote'), readForm(reader)]
+			val = [S('quasiquote'), readForm(reader, outputPosition)]
+			break
 		case '~':
 			reader.next()
-			return [S('unquote'), readForm(reader)]
+			val = [S('unquote'), readForm(reader, outputPosition)]
+			break
 		case '~@':
 			reader.next()
-			return [S('splice-unquote'), readForm(reader)]
+			val = [S('splice-unquote'), readForm(reader, outputPosition)]
+			break
 		case '#':
 			reader.next()
-			return [S('fn'), [], readForm(reader)]
+			val = [S('fn'), [], readForm(reader, outputPosition)]
+			break
 		case '^': {
 			reader.next()
-			const meta = readForm(reader)
-			return [S('with-meta'), readForm(reader), meta]
+			const meta = readForm(reader, outputPosition)
+			val = [S('with-meta'), readForm(reader, outputPosition), meta]
+			break
 		}
 		case '@':
 			reader.next()
-			return [S('deref'), readForm(reader)]
+			val = [S('deref'), readForm(reader, outputPosition)]
+			break
 		// list
 		case ')':
 			throw new LispError("unexpected ')'")
+			break
 		case '(':
-			return readList(reader)
+			val = readList(reader, outputPosition)
+			break
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
+			break
 		case '{':
-			return readHashMap(reader)
+			val = readHashMap(reader, outputPosition)
+			break
 
 		// atom
 		default:
-			return readAtom(reader)
+			val = readAtom(reader)
+	}
+
+	if (
+		outputPosition &&
+		typeof val === 'object' &&
+		(val as any).start === undefined
+	) {
+		;(val as any).start = pos
+		;(val as any).end = reader.getLastPosition()
+	}
+
+	return val
+}
+
+export function findAstByPosition(
+	ast: any,
+	pos: number
+): MalTreeWithRange | null {
+	if (ast instanceof Object && (ast as any).start !== undefined) {
+		if ((ast as any).start <= pos && pos <= (ast as any).end) {
+			for (const child of ast) {
+				const ret = findAstByPosition(child, pos)
+				if (ret !== null) {
+					return ret
+				}
+			}
+			return ast
+		} else {
+			return null
+		}
+	} else {
+		return null
+	}
+}
+
+export function findAstByRange(
+	ast: any,
+	start: number,
+	end: number
+): MalTreeWithRange | null {
+	if (ast instanceof Object && (ast as any).start !== undefined) {
+		if ((ast as any).start <= start && end <= (ast as any).end) {
+			for (const child of ast) {
+				const ret = findAstByRange(child, start, end)
+				if (ret !== null) {
+					return ret
+				}
+			}
+			return ast
+		} else {
+			return null
+		}
+	} else {
+		return null
 	}
 }
 
 export class BlankException extends Error {}
 
-export default function readStr(str: string) {
-	const tokens = tokenize(str) as string[]
+export default function readStr(str: string, outputPosition = false) {
+	const tokens = tokenize(str, outputPosition) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	const ast = readForm(new Reader(tokens))
+	const ast = readForm(new Reader(tokens, str), outputPosition)
 	return ast
 }

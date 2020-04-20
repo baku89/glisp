@@ -1,12 +1,7 @@
 <template>
 	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
 		<div class="app__viewer">
-			<Viewer
-				:code="code"
-				:selection="selection"
-				@render="onRender"
-				@set-background="onSetBackground"
-			/>
+			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -41,12 +36,13 @@ import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 
-import {replEnv, printExp} from '@/mal'
+import {replEnv, printExp, readStr} from '@/mal'
 import {viewHandler} from '@/mal/view'
-import {MalVal, symbolFor as S} from '@/mal/types'
+import {MalVal, symbolFor as S, MalTreeWithRange} from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from './mal/printer'
+import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
 
 @Component({
 	components: {
@@ -65,6 +61,24 @@ export default class App extends Vue {
 	private renderError = false
 
 	private initialCode!: string
+
+	private get evalCode() {
+		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
+		const trimmed = lines.join('')
+
+		return trimmed ? `(def $view (eval-sketch ${this.code}))` : '""'
+	}
+
+	private get ast(): MalVal {
+		try {
+			return readStr(this.evalCode, true)
+		} catch (err) {
+			if (!(err instanceof BlankException)) {
+				printer.error(err)
+			}
+			return null
+		}
+	}
 
 	private created() {
 		const url = new URL(location.href)
@@ -139,76 +153,17 @@ export default class App extends Vue {
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
 
-		// Find nearest parenthess
-		let [start, end] = selection
-		const code = this.code
+		const [start, end] = selection
 
-		if (code[start] === '(') {
-			start += 1
-			end = Math.max(start, end)
-		} else if (code[end - 1] === ')') {
-			end -= 2
-			start -= 1
-		} else if (code[end] === ')') {
-			end -= 1
+		const offset = 24 // length of "(def $view (eval-sketch "
+
+		const selected = findAstByRange(this.ast, start + offset, end + offset)
+
+		if (selected && selected.start >= offset) {
+			this.activeRange = [selected.start - offset, selected.end - offset - 1]
+		} else {
+			this.activeRange = null
 		}
-
-		const selectedCode = this.code.slice(start, end)
-		const depthDiff =
-			(selectedCode.match(/\(/g) || []).length -
-			(selectedCode.match(/\)/g) || []).length
-
-		function searchParenthesis(code: string, pos: number, reverse: boolean) {
-			const open = reverse ? code.lastIndexOf('(', pos) : code.indexOf('(', pos)
-			const close = reverse
-				? code.lastIndexOf(')', pos)
-				: code.indexOf(')', pos)
-
-			if (open === -1 && close === -1) {
-				return [-1, 0]
-			} else if (open === -1) {
-				return [close, -1]
-			} else if (close === -1) {
-				return [open, +1]
-			} else {
-				return reverse
-					? [Math.max(open, close), close < open ? +1 : -1]
-					: [Math.min(open, close), open < close ? +1 : -1]
-			}
-		}
-
-		// Find nearest parenthesis
-		for (
-			let i = 1000, depth = Math.min(-1, depthDiff - 1);
-			depth !== 0 && 0 < i;
-			i--
-		) {
-			const [pos, inc] = searchParenthesis(code, --start, true)
-			if (pos === -1) {
-				start = -1
-				break
-			} else {
-				start = pos
-				depth += inc
-			}
-		}
-
-		for (
-			let i = 1000, depth = Math.max(1, depthDiff - 1);
-			depth !== 0 && 0 < i;
-			i--
-		) {
-			const [pos, inc] = searchParenthesis(code, ++end, false)
-			if (pos === -1) {
-				end = -1
-				break
-			} else {
-				end = pos
-				depth += inc
-			}
-		}
-
-		this.activeRange = start !== -1 && end !== -1 ? [start, end] : null
 	}
 
 	private get dark() {
