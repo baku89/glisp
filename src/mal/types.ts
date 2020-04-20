@@ -20,7 +20,7 @@ interface MalMapWithRange extends MalMap {
 	end: number
 }
 
-interface MalListWithRange extends MalMap {
+export interface MalListWithRange extends MalMap {
 	start: number
 	end: number
 }

@@ -3,7 +3,8 @@ import {
 	assocBang,
 	LispError,
 	symbolFor as S,
-	MalTreeWithRange
+	MalTreeWithRange,
+	MalListWithRange
 } from './types'
 
 class Reader {
@@ -108,9 +109,11 @@ function readList(
 	start = '(',
 	end = ')'
 ) {
-	const ast: MalTreeWithRange = []
+	const ast: any = []
 
-	ast.start = reader.getPosition()
+	if (outputPosition) {
+		ast.start = reader.getPosition()
+	}
 
 	let token = reader.next()
 
@@ -126,7 +129,9 @@ function readList(
 		ast.push(readForm(reader, outputPosition)) // eslint-disable-line @typescript-eslint/no-use-before-define
 	}
 
-	ast.end = reader.getPosition() + token.length
+	if (outputPosition) {
+		ast.end = reader.getPosition() + token.length
+	}
 
 	reader.next()
 	return ast
