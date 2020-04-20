@@ -2,7 +2,6 @@ import {
 	MalVal,
 	MalAtom,
 	isMalFunc,
-	MalFunc,
 	isKeyword,
 	isSymbol,
 	symbolFor as S
@@ -47,11 +46,11 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 		if (isSymbol(obj)) {
 			return obj.slice(1)
 		} else if (isKeyword(obj)) {
-			return ':' + obj.slice(1)
+			return ':' + (obj as string).slice(1)
 		} else if (_r) {
 			return (
 				'"' +
-				obj
+				(obj as string)
 					.replace(/\\/g, '\\\\')
 					.replace(/"/g, '\\"')
 					.replace(/\n/g, '\\n') +
@@ -63,8 +62,8 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 	} else if (obj === null) {
 		return 'nil'
 	} else if (isMalFunc(obj)) {
-		const params = printExp((obj as MalFunc).params, _r)
-		const body = printExp((obj as MalFunc).ast, _r)
+		const params = printExp(obj.params, _r)
+		const body = printExp(obj.ast, _r)
 		return `(fn ${params} ${body})`
 	} else if (typeof obj === 'number' || typeof obj === 'boolean') {
 		return obj.toString()

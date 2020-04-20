@@ -3,8 +3,7 @@ import {
 	assocBang,
 	LispError,
 	symbolFor as S,
-	MalTreeWithRange,
-	MalListWithRange
+	MalTreeWithRange
 } from './types'
 
 class Reader {

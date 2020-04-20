@@ -103,21 +103,20 @@ export function createMalFunc(
 	return Object.assign(fn, {ast, env, params, meta, ismacro})
 }
 
-export const isMalFunc = (obj: MalVal) =>
+export const isMalFunc = (obj: MalVal): obj is MalFunc =>
 	obj && (obj as MalFunc).ast ? true : false
 
 // Symbol
 // Use \u01a8 as the prefix of symbol for AST object
-export const isSymbol = (obj: MalVal) =>
+export const isSymbol = (obj: MalVal): obj is string =>
 	typeof obj === 'string' && obj[0] === '\u01a8'
+
 export const symbolFor = (k: string) => '\u01a8' + k
 
 // Keyword
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
-export const isKeyword = (obj: MalVal) =>
+export const isKeyword = (obj: MalVal): obj is string =>
 	typeof obj === 'string' && obj[0] === '\u029e'
-// export const createKeyword = (obj: MalVal) =>
-// 	isKeyword(obj) ? obj : '\u029e' + (obj as string)
 
 export const keywordFor = (k: string) => '\u029e' + k
 
@@ -127,6 +126,9 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 		throw new LispError('Odd number of map arguments')
 	}
 	for (let i = 0; i < args.length; i += 2) {
+		if (typeof args[i] !== 'string') {
+			throw new LispError('Hash map can only use string/symbol/keyword as key')
+		}
 		hm.set(args[i], args[i + 1])
 	}
 	return hm
