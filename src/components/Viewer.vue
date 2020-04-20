@@ -147,8 +147,15 @@ export default class Viewer extends Vue {
 				(eval-sketch ${lines.join('\n')}))`
 			: '""'
 
-		const {output, env} = viewREP(str, this.canvas)
+		const dpi = window.devicePixelRatio
+		const options = {
+			width: this.canvas.clientWidth / dpi,
+			height: this.canvas.clientHeight / dpi,
+			updateConsole: true,
+			drawGuide: true
+		}
 
+		const {output, env} = viewREP(str, options)
 		if (env) {
 			this.viewEnv = env
 

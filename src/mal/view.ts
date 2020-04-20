@@ -38,18 +38,24 @@ replEnv.set(S('$insert'), (item: MalVal) => {
 	return null
 })
 
+interface ViewREPOptions {
+	width: number
+	height: number
+	updateConsole: boolean
+	drawGuide: boolean
+}
+
 export function viewREP(
 	str: string | MalVal,
-	canvas: HTMLCanvasElement,
-	updateConsole = true,
-	drawGuide = true
+	options: ViewREPOptions
 ): {env: Env | false; output: MalVal} {
+	const {width, height, updateConsole, drawGuide} = options
+
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
 
-	const dpi = window.devicePixelRatio
-	viewEnv.set(S('$width'), canvas.clientWidth / dpi)
-	viewEnv.set(S('$height'), canvas.clientHeight / dpi)
+	viewEnv.set(S('$width'), width)
+	viewEnv.set(S('$height'), height)
 
 	if (!drawGuide) {
 		readEvalStr('(defn guide (body) nil)', viewEnv)

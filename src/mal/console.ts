@@ -19,29 +19,29 @@ consoleEnv.set(S('console/clear'), () => {
 })
 
 consoleEnv.set(S('export'), (name: MalVal = null) => {
-	const canvas = document.createElement('canvas')
-	const renderer = new CanvasRenderer(canvas)
-
 	let x = 0,
 		y = 0,
 		width = consoleEnv.get(S('$width')) as number,
 		height = consoleEnv.get(S('$height')) as number
 
+	const canvas = document.createElement('canvas')
+	const renderer = new CanvasRenderer(canvas)
+
 	const $canvas = consoleEnv.get(S('$canvas'))
 
-	const {env, output} = viewREP(
-		`(def $view (eval-sketch ${$canvas}))`,
-		canvas,
-		false,
-		false
-	)
+	const {env, output} = viewREP(`(eval-sketch ${$canvas})`, {
+		width,
+		height,
+		updateConsole: false,
+		drawGuide: false
+	})
+
+	let $view = output
 
 	if (env) {
-		let $view = env.get(S('$view'))
-
-		if (Array.isArray($view)) {
+		if (Array.isArray(output)) {
 			if (typeof name === 'string') {
-				$view = readEvalStr(`(extract-artboard "${name}" $view)`, env)
+				$view = evalExp([S('extract-artboard'), name, $view], env)
 				if ($view === null) {
 					throw new LispError(`Artboard "${name as string}" not found`)
 				} else {
@@ -52,9 +52,7 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 
 		const exec = async () => {
 			renderer.resize(width, height, 1)
-
 			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])
-
 			await renderer.render($view, {viewTransform: xform})
 			const image = await renderer.getImage()
 			const w = window.open('about:blank', 'Image for canvas')
