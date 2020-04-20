@@ -349,12 +349,13 @@ onmessage = e => {
 					params
 				})
 			})
+			_self.postMessage({type: 'init', params: null})
 			break
 		}
 		case 'resize': {
 			const {width, height, dpi} = params
 			renderer.resize(width, height, dpi)
-			console.log('set finished')
+			_self.postMessage({type: 'resize', params: null})
 			break
 		}
 		case 'render': {
