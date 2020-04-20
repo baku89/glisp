@@ -8,7 +8,6 @@
 (def $line-width 1)
 
 ;; Sketch
-
 (defn filter-sketch (coll)
   (if (not (list? coll))
     nil

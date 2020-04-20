@@ -33,11 +33,11 @@ interface DrawStyle {
 }
 
 class CanvasRendererWorker extends EventEmitter {
-	private canvas: HTMLCanvasElement
-	private ctx: CanvasRenderingContext2D
+	private canvas: OffscreenCanvas
+	private ctx: OffscreenCanvasRenderingContext2D
 	private dpi!: number
 
-	constructor(canvas: HTMLCanvasElement) {
+	constructor(canvas: OffscreenCanvas) {
 		super()
 
 		this.canvas = canvas
@@ -55,8 +55,6 @@ class CanvasRendererWorker extends EventEmitter {
 		this.dpi = dpi
 		this.canvas.width = width * dpi
 		this.canvas.height = height * dpi
-
-		console.log('resize.....asdfkasdfiasdfjaosdifjiwoerjweir')
 	}
 
 	public render(ast: MalVal, settings: ViewerSettings) {
@@ -72,9 +70,13 @@ class CanvasRendererWorker extends EventEmitter {
 		const h = ctx.canvas.height
 		ctx.clearRect(0, 0, w, h)
 
-		console.log(w, h, this.dpi, 'exf')
-
 		ctx.scale(this.dpi, this.dpi)
+
+		// Apply view transform
+		if (settings.viewTransform) {
+			const m = settings.viewTransform
+			ctx.transform(m[0], m[1], m[3], m[4], m[6], m[7])
+		}
 
 		// Set the default line cap
 		ctx.lineCap = 'round'
@@ -100,6 +102,10 @@ class CanvasRendererWorker extends EventEmitter {
 		}
 
 		return true
+	}
+
+	public async getBlob() {
+		return await this.canvas.convertToBlob()
 	}
 
 	private draw(
@@ -241,7 +247,7 @@ class CanvasRendererWorker extends EventEmitter {
 	}
 
 	private createFillOrStrokeStyle(
-		ctx: CanvasRenderingContext2D,
+		ctx: OffscreenCanvasRenderingContext2D,
 		style: string | any[]
 	) {
 		if (typeof style === 'string') {
@@ -267,7 +273,7 @@ class CanvasRendererWorker extends EventEmitter {
 	}
 
 	private applyDrawStyle(
-		ctx: CanvasRenderingContext2D,
+		ctx: OffscreenCanvasRenderingContext2D,
 		styles: DrawStyle[],
 		defaultStyle: DrawStyle | null,
 		text?: string,
@@ -330,23 +336,48 @@ onmessage = e => {
 			const {canvas} = params
 			renderer = new CanvasRendererWorker(canvas)
 			renderer.on('enable-animation', (params: any) => {
-				postMessage({type: 'enable-animation', params})
+				;((self as unknown) as Worker).postMessage({
+					type: 'enable-animation',
+					params
+				})
 			})
 			renderer.on('set-background', (params: any) => {
-				postMessage({type: 'set-background', params})
+				;((self as unknown) as Worker).postMessage({
+					type: 'set-background',
+					params
+				})
 			})
 			break
 		}
 		case 'resize': {
 			const {width, height, dpi} = params
 			renderer.resize(width, height, dpi)
+			console.log('set finished')
 			break
 		}
 		case 'render': {
 			const {ast, settings} = params
-			console.log(ast, settings, 'render!!!!')
 			const succeed = renderer.render(ast, settings)
-			postMessage({type: 'render', params: succeed})
+			;((self as unknown) as Worker).postMessage({
+				type: 'render',
+				params: succeed
+			})
+			break
+		}
+		case 'get-image': {
+			renderer.getBlob().then(blob => {
+				const reader = new FileReader()
+				reader.readAsDataURL(blob)
+				reader.onload = e => {
+					if (e.target) {
+						const data = e.target.result
+						;((self as unknown) as Worker).postMessage({
+							type: 'get-image',
+							params: data
+						})
+					}
+				}
+			})
 			break
 		}
 	}

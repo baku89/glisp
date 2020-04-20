@@ -16,6 +16,7 @@ import {
 	symbolFor
 } from '../types'
 import printExp, {printer} from '../printer'
+import evalExp from '../eval'
 import readStr from '../reader'
 import interop from '../interop'
 import {partition} from '../utils'

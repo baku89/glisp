@@ -9,9 +9,7 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>
-					{{ pen }}
-				</button>
+				>{{ pen }}</button>
 			</div>
 			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
@@ -21,16 +19,12 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>
-					{{ hand }}
-				</button>
+				>{{ hand }}</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>
-					*
-				</button>
+				>*</button>
 			</div>
 		</div>
 		<canvas class="Viewer__canvas" ref="canvas" />
@@ -153,12 +147,15 @@ export default class Viewer extends Vue {
 				(eval-sketch ${lines.join('\n')}))`
 			: '""'
 
-		const ret = viewREP(str, this.canvas)
+		const {output, env} = viewREP(str, this.canvas)
 
-		if (ret && ret.hasOwn(S('$view'))) {
-			this.viewEnv = ret
-			const ast = this.viewEnv.get(S('$view'))
-			this.renderer.render(ast, this.viewEnv)
+		if (env) {
+			this.viewEnv = env
+
+			const settings = {
+				guideColor: this.viewEnv.get(S('$guide-color')) as string
+			}
+			this.renderer.render(output, settings)
 		} else {
 			this.$emit('render', false)
 		}
@@ -262,7 +259,6 @@ export default class Viewer extends Vue {
 		position absolute
 		top 0
 		left 0
-
 		pointer-events none
 
 	&__cursor

@@ -7,6 +7,8 @@ import {MalVal, LispError, isKeyword, symbolFor as S} from './types'
 import evalExp from './eval'
 import {readEvalStr} from '.'
 import CanvasRenderer from '@/renderer/CanvasRenderer'
+import {viewREP} from './view'
+import {mat3} from 'gl-matrix'
 
 export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
@@ -24,45 +26,43 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 		y = 0,
 		width = consoleEnv.get(S('$width')) as number,
 		height = consoleEnv.get(S('$height')) as number
-	let $view = consoleEnv.get(S('$view'))
 
-	if (Array.isArray($view)) {
-		if (typeof name === 'string') {
-			$view = readEvalStr(`(extract-artboard ${name} $view)`, consoleEnv)
-			if ($view === null) {
-				throw new LispError(`Artboard "${name as string}" not found`)
-			} else {
-				;[x, y, width, height] = ($view as MalVal[])[2] as number[]
+	const $canvas = consoleEnv.get(S('$canvas'))
+
+	const {env, output} = viewREP(
+		`(def $view (eval-sketch ${$canvas}))`,
+		canvas,
+		false,
+		false
+	)
+
+	if (env) {
+		let $view = env.get(S('$view'))
+
+		if (Array.isArray($view)) {
+			if (typeof name === 'string') {
+				$view = readEvalStr(`(extract-artboard "${name}" $view)`, env)
+				if ($view === null) {
+					throw new LispError(`Artboard "${name as string}" not found`)
+				} else {
+					;[x, y, width, height] = ($view as MalVal[])[2] as number[]
+				}
 			}
 		}
+
+		const exec = async () => {
+			renderer.resize(width, height, 1)
+
+			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])
+
+			await renderer.render($view, {viewTransform: xform})
+			const image = await renderer.getImage()
+			const w = window.open('about:blank', 'Image for canvas')
+			w?.document.write(`<img src=${image} />`)
+		}
+
+		exec()
 	}
-
-	console.log($view)
-
-	renderer.resize(300, 400, 1)
-	renderer.render($view, consoleEnv)
-
-	renderer.once('render', async (succeed: boolean) => {
-		console.log('succeed??', succeed)
-
-		const d = canvas.toDataURL('image/ping')
-		const w = window.open('about:blank', 'Image for canvas')
-		w?.document.write(`<img src=${d} />`)
-
-		renderer.dispose()
-	})
-
-	// canvas.width = width
-	// canvas.height = height
-	// ctx.translate(-x, -y)
-
-	// Set the default line cap
-	// ctx.lineCap = 'round'
-	// ctx.lineJoin = 'round'
-
-	// // eslint-disable-next-line @typescript-eslint/no-use-before-define
-	// draw(ctx, $view, [], null)
-	// }
 	return null
 })
 

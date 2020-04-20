@@ -6,6 +6,7 @@ import {printer} from './printer'
 import readStr from './reader'
 import {consoleEnv} from './console'
 import evalExp from './eval'
+import {readEvalStr} from '.'
 
 export const viewHandler = new EventEmitter()
 
@@ -37,10 +38,12 @@ replEnv.set(S('$insert'), (item: MalVal) => {
 	return null
 })
 
-export function viewREP(str: string | MalVal, canvas: HTMLCanvasElement) {
-	replEnv.set(S('$pens'), [])
-	replEnv.set(S('$hands'), [])
-
+export function viewREP(
+	str: string | MalVal,
+	canvas: HTMLCanvasElement,
+	updateConsole = true,
+	drawGuide = true
+): {env: Env | false; output: MalVal} {
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
 
@@ -48,16 +51,19 @@ export function viewREP(str: string | MalVal, canvas: HTMLCanvasElement) {
 	viewEnv.set(S('$width'), canvas.clientWidth / dpi)
 	viewEnv.set(S('$height'), canvas.clientHeight / dpi)
 
-	let out
+	if (!drawGuide) {
+		readEvalStr('(defn guide (body) nil)', viewEnv)
+	}
 
-	let renderSucceed = true
+	let output: MalVal = null
+	let succeed = true
 
 	try {
 		// console.time('read')
 		const src = typeof str === 'string' ? readStr(str) : str
 		// console.timeEnd('read')
 		// console.time('eval')
-		out = evalExp(src, viewEnv)
+		output = evalExp(src, viewEnv)
 		// console.timeEnd('eval')
 	} catch (err) {
 		if (err instanceof LispError) {
@@ -65,13 +71,16 @@ export function viewREP(str: string | MalVal, canvas: HTMLCanvasElement) {
 		} else {
 			printer.error(err.stack)
 		}
-		renderSucceed = false
+		succeed = false
 	}
 
-	if (out !== undefined) {
+	if (succeed && updateConsole) {
 		// Draw
 		consoleEnv.outer = viewEnv
 	}
 
-	return renderSucceed ? viewEnv : false
+	return {
+		env: succeed ? viewEnv : false,
+		output: output
+	}
 }

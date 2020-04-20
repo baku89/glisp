@@ -1,13 +1,16 @@
 import EventEmitter from 'eventemitter3'
 import {MalVal, symbolFor as S} from '@/mal/types'
 import Env from '@/mal/env'
+import {mat3} from 'gl-matrix'
 
 export interface ViewerSettings {
-	guideColor: string | null
+	viewTransform?: mat3
+	guideColor?: string
 }
 
 export default class CanvasRender extends EventEmitter {
 	private canvas: HTMLCanvasElement
+	private offscreenCanvas: OffscreenCanvas
 	private worker: Worker
 	private rendering = false
 
@@ -15,16 +18,16 @@ export default class CanvasRender extends EventEmitter {
 		super()
 
 		this.canvas = canvas
-		const offscreenCanvas = this.canvas.transferControlToOffscreen()
+		this.offscreenCanvas = this.canvas.transferControlToOffscreen()
 
 		this.worker = new Worker('./worker.ts', {type: 'module'})
 		this.worker.onmessage = e => this.onMessage(e)
 		this.worker.postMessage(
 			{
 				type: 'init',
-				params: {canvas: offscreenCanvas}
+				params: {canvas: this.offscreenCanvas}
 			},
-			[offscreenCanvas]
+			[this.offscreenCanvas]
 		)
 	}
 
@@ -42,6 +45,7 @@ export default class CanvasRender extends EventEmitter {
 		} else {
 			;[width, height, dpi] = args
 		}
+
 		this.worker.postMessage({type: 'resize', params: {width, height, dpi}})
 	}
 
@@ -49,25 +53,35 @@ export default class CanvasRender extends EventEmitter {
 		this.worker.terminate()
 	}
 
-	public render(ast: MalVal, env: Env) {
+	public async render(ast: MalVal, settings: ViewerSettings) {
 		this.rendering = true
 
-		const settings: ViewerSettings = {
-			guideColor: env.get(S('$guide-color')) as string
-		}
+		await this.postMessageAndWait('render', {ast, settings})
 
-		console.log('reasdfasdfasjdf9iafjoe', settings)
+		this.rendering = false
 
-		this.worker.postMessage({type: 'render', params: {ast, settings}})
+		return
+	}
+
+	public async getImage() {
+		return await this.postMessageAndWait('get-image')
+	}
+
+	private postMessageAndWait(
+		type: string,
+		params: any = null,
+		transfer: Transferable[] = []
+	) {
+		return new Promise(resolve => {
+			this.worker.postMessage({type, params}, transfer)
+			this.once(type, (result: any) => {
+				resolve(result)
+			})
+		})
 	}
 
 	private onMessage(e: any) {
 		const {type, params} = e.data
-
-		if (type === 'render') {
-			this.rendering = false
-		}
-
 		this.emit(type, params)
 	}
 }
