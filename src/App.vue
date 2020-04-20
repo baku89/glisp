@@ -12,6 +12,7 @@
 					:dark="dark"
 					@input="onEdit"
 					@select="onSelect"
+					@select-outer="onSelectOuter"
 				/>
 			</div>
 			<div class="app__console">
@@ -53,7 +54,6 @@ import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
 })
 export default class App extends Vue {
 	private selection = [0, 0]
-	private activeRange: [number, number] | null = null
 	private code = ''
 	private background = 'whitesmoke'
 	private backgroundSet = false
@@ -152,17 +152,41 @@ export default class App extends Vue {
 
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
+	}
 
-		const [start, end] = selection
+	private get activeRange() {
+		const [start, end] = this.selection
 
+		return this.getOuterRange(start, end)
+	}
+
+	private getOuterRange(start: number, end: number) {
 		const offset = 24 // length of "(def $view (eval-sketch "
 
 		const selected = findAstByRange(this.ast, start + offset, end + offset)
 
 		if (selected && selected.start >= offset) {
-			this.activeRange = [selected.start - offset, selected.end - offset - 1]
+			return [selected.start - offset, selected.end - offset]
 		} else {
-			this.activeRange = null
+			return null
+		}
+	}
+
+	private onSelectOuter() {
+		if (this.activeRange === null) {
+			return
+		}
+
+		if (this.selection[0] === this.selection[1]) {
+			this.selection = this.activeRange
+		} else {
+			const selection = this.getOuterRange(
+				this.activeRange[0] - 1,
+				this.activeRange[1]
+			)
+			if (selection) {
+				this.selection = selection
+			}
 		}
 	}
 

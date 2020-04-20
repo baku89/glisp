@@ -55,6 +55,14 @@ export default class InputCodeEditor extends Vue {
 		this.editor.on('change', this.onChange)
 		this.editor.on('changeSelection', this.onSelect)
 
+		this.editor.commands.addCommand({
+			name: 'selectOuter',
+			bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
+			exec: () => {
+				this.$emit('select-outer')
+			}
+		})
+
 		// Updater
 
 		const sel = this.editor.getSelection()
@@ -215,7 +223,7 @@ export default class InputCodeEditor extends Vue {
 
 		if (value !== null) {
 			const [start, end] = value
-			const range = this.convertToAceRange(start, end + 1)
+			const range = this.convertToAceRange(start, end)
 			this.activeRangeMarker = this.editor.session.addMarker(
 				range,
 				'active-range',

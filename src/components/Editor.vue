@@ -8,6 +8,7 @@
 			:theme="dark ? 'tomorrow_night' : 'tomorrow'"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
+			@select-outer="$emit('select-outer')"
 			lang="clojure"
 		/>
 	</div>
