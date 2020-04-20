@@ -1,5 +1,8 @@
 <template>
 	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+		<div class="app__tree">
+			<Tree :ast="ast" @update="onUpdateAst" />
+		</div>
 		<div class="app__viewer">
 			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
@@ -36,6 +39,7 @@ import Color from 'color'
 import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
+import Tree from '@/components/Tree.vue'
 
 import {replEnv, printExp, readStr} from '@/mal'
 import {viewHandler} from '@/mal/view'
@@ -49,7 +53,8 @@ import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
 	components: {
 		Editor,
 		Viewer,
-		Console
+		Console,
+		Tree
 	}
 })
 export default class App extends Vue {
@@ -131,6 +136,11 @@ export default class App extends Vue {
 			this.onEdit(code)
 			this.selection = selection
 		})
+	}
+
+	private onUpdateAst(ast: MalVal) {
+		console.log('AASDFSDFIERW')
+		this.code = printExp((ast as any)[2][1])
 	}
 
 	private onSetupConsole() {
@@ -293,6 +303,14 @@ button
 $compact-dur = 0.4s
 
 .app
+	&__tree
+		position absolute
+		bottom 0
+		left 0
+		width 30rem
+		height 30rem
+		background red
+
 	&__viewer
 		position relative
 		margin-right 1rem

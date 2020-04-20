@@ -1,5 +1,5 @@
 <template>
-	<div class="Editor">
+	<div class="Editor" @click="onClick">
 		<InputCodeEditor
 			class="Editor__input"
 			:value="code"
@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
+import {Component, Prop, Vue} from 'vue-property-decorator'
 
 import InputCodeEditor from './InputCodeEditor.vue'
 
@@ -29,6 +29,10 @@ export default class Editor extends Vue {
 	@Prop({type: Array, required: true}) private selection!: [number, number]
 	@Prop({required: true}) private activeRange!: [number, number] | null
 	@Prop({type: Boolean, default: false}) private dark!: boolean
+
+	onClick() {
+		console.log('onasdf')
+	}
 }
 </script>
 

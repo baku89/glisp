@@ -183,7 +183,7 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 					ast = fn.ast
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
-					return fn(...args)
+					return (fn as any)(...args)
 				} else {
 					let typename = ''
 
