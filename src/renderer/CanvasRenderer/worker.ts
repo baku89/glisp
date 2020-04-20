@@ -328,6 +328,8 @@ class CanvasRendererWorker extends EventEmitter {
 
 let renderer: CanvasRendererWorker
 
+const _self = (self as unknown) as Worker
+
 onmessage = e => {
 	const {type, params} = e.data
 
@@ -336,13 +338,13 @@ onmessage = e => {
 			const {canvas} = params
 			renderer = new CanvasRendererWorker(canvas)
 			renderer.on('enable-animation', (params: any) => {
-				;((self as unknown) as Worker).postMessage({
+				_self.postMessage({
 					type: 'enable-animation',
 					params
 				})
 			})
 			renderer.on('set-background', (params: any) => {
-				;((self as unknown) as Worker).postMessage({
+				_self.postMessage({
 					type: 'set-background',
 					params
 				})
@@ -358,7 +360,7 @@ onmessage = e => {
 		case 'render': {
 			const {ast, settings} = params
 			const succeed = renderer.render(ast, settings)
-			;((self as unknown) as Worker).postMessage({
+			_self.postMessage({
 				type: 'render',
 				params: succeed
 			})
@@ -371,7 +373,7 @@ onmessage = e => {
 				reader.onload = e => {
 					if (e.target) {
 						const data = e.target.result
-						;((self as unknown) as Worker).postMessage({
+						_self.postMessage({
 							type: 'get-image',
 							params: data
 						})
