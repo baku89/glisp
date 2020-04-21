@@ -35,3 +35,7 @@ declare module 'bezier-js' {
 declare module 'sprintf-js' {
 	export function vsprintf(format: string, args: any[]): string
 }
+
+declare module 'vue-resize' {
+	export const ResizeObserver: any
+}
