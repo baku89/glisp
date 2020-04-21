@@ -28,10 +28,7 @@ export const REP = (str: string, env: Env = replEnv) => {
 	}
 }
 
-window.REP = a => evalExp(readStr(a), replEnv)
-
 // Load core library
-
 /* eslint-disable no-useless-escape */
 REP(`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`)
 REP(`(def load-file-force
