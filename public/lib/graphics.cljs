@@ -26,7 +26,10 @@
       (= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
       true "black")))
 
-(defn background (c) `(:background ~c))
+(defn background
+  {:doc {:desc "Fill the entire view or artboard with a color"
+         :params '((c :color "A background color"))}}
+  (c) `(:background ~c))
 (defn enable-animation (& xs) (concat :enable-animation xs))
 
 ;; Transformation
@@ -76,7 +79,7 @@
   `(:text ~str ~x ~y ~(apply hash-map xs)))
 
 (defn rect
-  {:doc {:desc "Draws a rectangle to the screen."
+  {:doc {:desc "Generate a rect path"
          :params '((x :number "x-coordinate of the rectangle")
                    (y :number "y-coordinate of the rectangle")
                    (w :number "width of the rectangle")
@@ -91,7 +94,12 @@
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
-(defn circle (x y r)
+(defn circle
+  {:doc {:desc "Generate a circle path"
+         :params '((x :number "x-coordinate of the centre of the circle")
+                   (y :number "y-coordinate of the centre of the circle")
+                   (r :number "radius o fthe circle"))}}
+  (x y r)
   (let (k (* r K))
     `(:path
       :M ~(+ x r)  ~y			 ; right
