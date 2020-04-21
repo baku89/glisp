@@ -93,7 +93,7 @@
 
 (defn map-indexed (f xs)
   (map
-   (fn (i) (f i (nth xs i)))
+   #(f % (nth xs %))
    (range (count xs))))
 
 (defn filter (f xs)

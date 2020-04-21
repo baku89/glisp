@@ -111,6 +111,7 @@ const jsObjects = new Map<string, any>([
 
 	['vector', (...a: MalVal[]) => MalVector.from(a)],
 	['vector?', isVector],
+	['vec', (a: MalVal[]) => MalVector.from(a)],
 
 	['sequential?', Array.isArray],
 
@@ -248,6 +249,7 @@ const jsObjects = new Map<string, any>([
 	[
 		'range',
 		(...args: number[]) => {
+			const ret = []
 			let start = 0,
 				end = 0,
 				step = Math.sign(end - start)
@@ -260,21 +262,17 @@ const jsObjects = new Map<string, any>([
 				;[start, end, step] = args
 			}
 
-			if (start === end) {
-				return []
+			if (start !== end) {
+				if ((end - start) * step <= 0) {
+					step = Math.sign(end - start) * Math.abs(step) || 1
+				}
+
+				for (let i = start; step > 0 ? i < end : i > end; i += step) {
+					ret.push(i)
+				}
 			}
 
-			if ((end - start) * step <= 0) {
-				step = Math.sign(end - start) * Math.abs(step) || 1
-			}
-
-			const arr = []
-
-			for (let i = start; step > 0 ? i < end : i > end; i += step) {
-				arr.push(i)
-			}
-
-			return arr
+			return MalVector.from(ret)
 		}
 	],
 

@@ -51,7 +51,7 @@ function macroexpand(ast: MalVal = null, env: Env) {
 const evalAst = (ast: MalVal, env: Env) => {
 	if (isSymbol(ast)) {
 		return env.get(ast as string)
-	} else if (isList(ast)) {
+	} else if (Array.isArray(ast)) {
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		return ast.map(x => evalExp(x, env))
 	} else if (isMap(ast)) {

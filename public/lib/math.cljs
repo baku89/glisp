@@ -107,11 +107,11 @@
 ;; Combination
 
 (defn combination/product (& xs)
-  (apply concat
-         (map
-          (fn (R) (map #(cons % R) (first xs)))
-          (if (= 2 (count xs))
-            (last xs)
-            (apply combination/product (rest xs))))))
+  (vec (apply concat
+              (map
+               (fn (R) (map #(cons % R) (first xs)))
+               (if (= 2 (count xs))
+                 (last xs)
+                 (apply combination/product (rest xs)))))))
 
 (def combination/× combination/product)

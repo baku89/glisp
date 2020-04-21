@@ -12,7 +12,14 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal, cloneAST, isKeyword, isSymbol} from '@/mal/types'
+import {
+	MalVal,
+	cloneAST,
+	isKeyword,
+	isSymbol,
+	isVector,
+	MalVector
+} from '@/mal/types'
 import {printExp} from '@/mal'
 
 import TreeNumber from './TreeNumber.vue'
@@ -49,7 +56,10 @@ export default class TreeList extends Vue {
 	}
 
 	onInput(i: number, val: MalVal) {
-		const ast = [...this.ast]
+		let ast = [...this.ast]
+		if (isVector(this.ast)) {
+			ast = MalVector.from(ast)
+		}
 		ast[i] = val
 		this.$emit('input', ast)
 	}
