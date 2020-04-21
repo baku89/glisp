@@ -137,6 +137,15 @@ export const isKeyword = (obj: MalVal): obj is string =>
 
 export const keywordFor = (k: string) => '\u029e' + k
 
+// List
+export const isList = (obj: MalVal): obj is MalVal[] =>
+	Array.isArray(obj) && !(obj instanceof MalVector) // eslint-disable-line @typescript-eslint/no-use-before-define
+
+// Vectors
+export class MalVector extends Array<MalVal> {}
+export const isVector = (obj: MalVal): obj is MalVector =>
+	obj instanceof MalVector
+
 // Maps
 export const isMap = (obj: MalVal): obj is MalMap =>
 	obj instanceof Object && !isMalFunc(obj) && !Array.isArray(obj)

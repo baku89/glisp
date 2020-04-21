@@ -46,7 +46,7 @@ import Tree from '@/components/Tree.vue'
 
 import {replEnv, printExp, readStr} from '@/mal'
 import {viewHandler} from '@/mal/view'
-import {MalVal, symbolFor as S, MalTreeWithRange} from '@/mal/types'
+import {MalVal, symbolFor as S, MalTreeWithRange, isList} from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from './mal/printer'
@@ -90,7 +90,7 @@ export default class App extends Vue {
 	}
 
 	private get sketchAst(): MalVal {
-		return Array.isArray(this.ast) ? (this.ast as any)[2].slice(1) : []
+		return isList(this.ast) ? (this.ast[2] as MalVal[]).slice(1) : []
 	}
 
 	private created() {

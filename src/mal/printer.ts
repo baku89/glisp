@@ -7,7 +7,9 @@ import {
 	symbolFor as S,
 	M_PARAMS,
 	M_AST,
-	isMap
+	isMap,
+	isList,
+	isVector
 } from './types'
 
 export const printer = {
@@ -26,7 +28,7 @@ export const printer = {
 export default function printExp(obj: MalVal, printReadably = true): string {
 	const _r = printReadably
 
-	if (Array.isArray(obj)) {
+	if (isList(obj)) {
 		if (obj.length === 2) {
 			if (obj[0] === S('quote')) {
 				return "'" + printExp(obj[1], _r)
@@ -39,6 +41,8 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 			}
 		}
 		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
+	} else if (isVector(obj)) {
+		return '[' + obj.map(e => printExp(e, _r)).join(' ') + ']'
 	} else if (isMap(obj)) {
 		const ret = []
 		for (const k in obj) {

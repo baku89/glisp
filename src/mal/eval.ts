@@ -15,7 +15,8 @@ import {
 	M_PARAMS,
 	M_AST,
 	isMap,
-	MalMap
+	MalMap,
+	isList
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -36,7 +37,7 @@ function quasiquote(ast: any): MalVal {
 }
 
 function macroexpand(ast: MalVal = null, env: Env) {
-	while (Array.isArray(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
+	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
 		const fn = env.get(ast[0] as string) as MalFunc
 		if (!fn[M_ISMACRO]) {
 			break
@@ -50,7 +51,7 @@ function macroexpand(ast: MalVal = null, env: Env) {
 const evalAst = (ast: MalVal, env: Env) => {
 	if (isSymbol(ast)) {
 		return env.get(ast as string)
-	} else if (Array.isArray(ast)) {
+	} else if (isList(ast)) {
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		return ast.map(x => evalExp(x, env))
 	} else if (isMap(ast)) {
@@ -68,13 +69,13 @@ const evalAst = (ast: MalVal, env: Env) => {
 export default function evalExp(ast: MalVal, env: Env): MalVal {
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		if (!Array.isArray(ast)) {
+		if (!isList(ast)) {
 			return evalAst(ast, env)
 		}
 
 		ast = macroexpand(ast, env)
 
-		if (!Array.isArray(ast)) {
+		if (!isList(ast)) {
 			return evalAst(ast, env)
 		}
 

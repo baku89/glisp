@@ -16,7 +16,10 @@ import {
 	symbolFor,
 	M_ISMACRO,
 	M_META,
-	isMap
+	isMap,
+	isList,
+	isVector,
+	MalVector
 } from '../types'
 import printExp, {printer} from '../printer'
 import evalExp from '../eval'
@@ -104,7 +107,12 @@ const jsObjects = new Map<string, any>([
 
 	// Array
 	['list', (...a: MalVal[]) => a],
-	['list?', Array.isArray],
+	['list?', isList],
+
+	['vector', (...a: MalVal[]) => MalVector.from(a)],
+	['vector?', isVector],
+
+	['sequential?', Array.isArray],
 
 	[
 		'nth',
@@ -139,6 +147,7 @@ const jsObjects = new Map<string, any>([
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
+	['map', (f: MalFunc, a: MalVal[]) => Array.from(a.map(x => f(x)))],
 	['partition', partition],
 	['index-of', (a: MalVal, coll: MalVal[]) => coll.indexOf(a)],
 	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],

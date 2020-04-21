@@ -91,9 +91,6 @@
      (first xs)
      (foldr f init (rest xs)))))
 
-(defn map (f xs)
-  (foldr (fn (x acc) (cons (f x) acc)) () xs))
-
 (defn map-indexed (f xs)
   (map
    (fn (i) (f i (nth xs i)))

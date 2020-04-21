@@ -4,7 +4,8 @@ import {
 	LispError,
 	symbolFor as S,
 	MalTreeWithRange,
-	isMap
+	isMap,
+	MalVector
 } from './types'
 
 class Reader {
@@ -138,6 +139,11 @@ function readList(
 	return ast
 }
 
+// read vector of tokens
+function readVector(reader: Reader, outputPosition: boolean) {
+	return MalVector.from(readList(reader, outputPosition, '[', ']'))
+}
+
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, outputPosition: boolean) {
 	const lst = readList(reader, outputPosition, '{', '}')
@@ -194,6 +200,12 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 			throw new LispError("unexpected ')'")
 		case '(':
 			val = readList(reader, outputPosition)
+			break
+		// vector
+		case ']':
+			throw new Error("unexpected ']'")
+		case '[':
+			val = readVector(reader, outputPosition)
 			break
 		// hash-map
 		case '}':
