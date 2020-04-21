@@ -96,24 +96,6 @@
    #(f % (nth xs %))
    (range (count xs))))
 
-(defn filter (f xs)
-  (reduce
-   (fn (l x)
-     (if (f x)
-       (push l x)
-       l))
-   '()
-   xs))
-
-(defn remove (f xs)
-  (reduce
-   (fn (l x)
-     (if (not (f x))
-       (push l x)
-       l))
-   '()
-   xs))
-
 (defmacro ->> (values & forms)
   (reduce
    (fn (v form) `(~@form ~v))

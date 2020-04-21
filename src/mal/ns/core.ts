@@ -148,7 +148,9 @@ const jsObjects = new Map<string, any>([
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
-	['map', (f: MalFunc, a: MalVal[]) => Array.from(a.map(x => f(x)))],
+	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
+	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
+	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
 
 	['partition', partition],
 	['index-of', (a: MalVal, coll: MalVal[]) => coll.indexOf(a)],
@@ -157,10 +159,7 @@ const jsObjects = new Map<string, any>([
 	['reverse', (coll: MalVal[]) => coll.reverse()],
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
 	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
-	[
-		'concat',
-		(...args: MalVal[]) => args.reduce((x: MalVal[], y) => x.concat(y), [])
-	],
+	['concat', (...args: MalVal[]) => [].concat(...(args as any))],
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>
