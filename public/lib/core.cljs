@@ -130,14 +130,14 @@
 
 
 ;; Trivial
-(def g list)
+(defn prn-pass [x] (do (prn x) x))
 
-(defn inc (x) (+ x 1))
-(defn dec (x) (- a 1))
+(defn inc [x] (+ x 1))
+(defn dec [x] (- a 1))
 
-(defn empty? (x) (= (count x) 0))
+(defn empty? [x] (= (count x) 0))
 
-(defn second (x) (first (rest x)))
+(defn second [x] (first (rest x)))
 
 (def gensym
   (let (counter (atom 0))

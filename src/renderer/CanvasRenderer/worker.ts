@@ -15,9 +15,7 @@ const K_M = K('M'),
 	K_STROKE = K('stroke'),
 	K_PATH = K('path'),
 	K_TEXT = K('text'),
-	K_TRANSLATE = K('translate'),
-	K_SCALE = K('scale'),
-	K_ROTATE = K('rotate'),
+	K_TRANSFORM = K('transform'),
 	K_ARTBOARD = K('artboard'),
 	K_STYLE = K('style'),
 	K_WIDTH = K('width'),
@@ -189,21 +187,11 @@ class CanvasRendererWorker extends EventEmitter {
 
 						break
 					}
-					case K_TRANSLATE:
+					case K_TRANSFORM:
 						ctx.save()
-						ctx.translate(args[0] as number, args[1] as number)
-						this.draw(last, styles, defaultStyle)
-						ctx.restore()
-						break
-					case K_SCALE:
-						ctx.save()
-						ctx.scale(args[0] as number, args[1] as number)
-						this.draw(last, styles, defaultStyle)
-						ctx.restore()
-						break
-					case K_ROTATE:
-						ctx.save()
-						ctx.rotate(args[0] as number)
+						ctx.transform(
+							...(args[0] as [number, number, number, number, number, number])
+						)
 						this.draw(last, styles, defaultStyle)
 						ctx.restore()
 						break

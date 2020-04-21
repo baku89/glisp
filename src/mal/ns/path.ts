@@ -7,7 +7,8 @@ import {
 	isKeyword,
 	MalNamespace,
 	LispError,
-	isSymbol
+	isSymbol,
+	MalVector
 } from '../types'
 import {partition} from '../utils'
 
@@ -56,7 +57,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || isKeyword(path[i])) {
-			yield path.slice(start, i) as SegmentType
+			yield MalVector.from(path.slice(start, i)) as SegmentType
 			start = i
 		}
 	}
@@ -823,7 +824,7 @@ const jsObjects = new Map<string, any>([
 	['path/trim', pathTrim],
 	[
 		'path/split-segments',
-		([_, ...path]: PathType) => Array.from(iterateSegment(path))
+		([_, ...path]: PathType) => MalVector.from(iterateSegment(path))
 	]
 ])
 

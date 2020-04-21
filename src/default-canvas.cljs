@@ -5,15 +5,12 @@
 (def rnd #(sign (- (random %) .5)))
 
 (defn slash (i p)
-  (->> (line (- w) (- w) w w)
-       (scale (rnd i) 1)
-       (translate (.x p) (.y p))))
-
-:start-sketch
-(background "whitesmoke")
+  (->> (line [(- w) (- w)] [w w])
+       (scale-x (rnd i))
+       (translate p)))
 
 (->> grid
      (map #(vec2/scale % (* w 2)))
      (map-indexed slash)
-     (stroke "salmon" 7)
-     (translate (/ $width 2) (/ $height 2)))
+     (stroke "salmon" 10)
+     (translate (vec2/scale $size .5)))

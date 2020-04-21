@@ -149,6 +149,7 @@ const jsObjects = new Map<string, any>([
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
 	['map', (f: MalFunc, a: MalVal[]) => Array.from(a.map(x => f(x)))],
+
 	['partition', partition],
 	['index-of', (a: MalVal, coll: MalVal[]) => coll.indexOf(a)],
 	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],

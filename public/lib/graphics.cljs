@@ -1,12 +1,13 @@
 (defmacro artboard [id region & body]
-  `(list
-    :artboard ~id (list ~@region)
-    (let
-     ($width ~(nth region 2)
-             $height ~(nth region 3)
-             background (fn (c) (fill c (rect 0 0 $width $height))))
-      (translate ~(first region) ~(nth region 1)
-                 (list (guide (rect .5 .5 (- $width 1) (- $height 1))) ~@body)))))
+  [:artboard id region
+   (let
+    [$width (nth region 2)
+     $height (nth region 3)
+     $size [$width $height]
+     background (fn (c) (fill c (rect [0 0] $size)))]
+     (translate (vec2 region)
+                (apply vector
+                       [(guide (rect [.5 .5] (vec2/- $size 1)))] body)))])
 
 (defn extract-artboard [name body]
   (first
@@ -35,13 +36,28 @@
 
 ; ;; Transformation
 
-(defn translate [t body] (vector :translate t body))
-(defn scale [s body]
-  (cond
-    (number? s) (vector :scale (vector s s) body)
-    (sequential? s) (vector :scale (vec s) body)))
+(defn translate
+  {:doc {:desc "Translate the containing items"
+         :params '[[t :vec2 "Amount of translation"]]}}
+  [t body] (vector :transform [1 0 0 1 (.x t) (.y t)] body))
+(defn translate-x [x body] (vector :transform [1 0 0 1 x 0] body))
+(defn translate-y [y body] (vector :transform [1 0 0 1 0 y] body))
 
-(defn rotate [angle body] (vector :rotate angle body))
+(defn scale
+  {:doc {:desc "Scale the containing items"
+         :params '[[[s :vec2 "Percent to scale the items"]]
+                   [[s :number "Percent to scale the items proportionally"]]]}}
+  [s body]
+  (cond
+    (number? s) (vector :transform [s 0 0 s 0 0] body)
+    (vec2? s) (vector :transform [(.x s) 0 0 (.y s) 0 0] body)))
+(defn scale-x [sx body] (vector :transform [sx 0 0 1 0 0] body))
+(defn scale-y [sy body] (vector :transform [1 0 0 sy 0 0] body))
+
+(defn rotate [angle body]
+  (let [s (sin angle)
+        c (cos angle)]
+    (vector :transform [c s (- s) c 0 0] body)))
 
 ;  ;; Style
 
@@ -76,17 +92,19 @@
 
 (defn rect
   {:doc {:desc "Generate a rect path"
-         :params '[[x :number "x-coordinate of the rectangle"]
-                   [y :number "y-coordinate of the rectangle"]
-                   [w :number "width of the rectangle"]
-                   [h :number "height of the rectangle"]]}}
-  [x y w h]
-  (vector :path
-          :M x y
-          :L (+ x w) y
-          :L (+ x w) (+ y h)
-          :L x (+ y h)
-          :Z))
+         :params '[[pos :vec2 "coordinate of top-left corner of the rectangle"]
+                   [size :vec2 "size of the rectangle"]]}}
+  [pos size]
+  (let [x (.x pos)
+        y (.y pos)
+        w (.x size)
+        h (.y size)]
+    (vector :path
+            :M x y
+            :L (+ x w) y
+            :L (+ x w) (+ y h)
+            :L x (+ y h)
+            :Z)))
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
@@ -109,42 +127,35 @@
 (defn line [p1 p2]
   (vec (concat :path :M p1 :L p2)))
 
-; (defn poly [& pts]
-;   (let
-;    (line-to (fn (& pts)
-;               (if (< (count pts) 2)
-;                 ()
-;                 `(:L ~(first pts) ~(nth pts 1)
-;                      ~@(apply line-to (rest (rest pts)))))))
-;     (if (>= (count pts) 2)
-;       `(:path
-;         :M ~(first pts) ~(nth pts 1)
-;         ~@(apply line-to (rest (rest pts)))
-;         ~@(if (= (last pts) true) '(Z) '()))
-;       [:path])))
+(defn poly [& pts]
+  (vec (concat
+        :path
+        :M (first pts)
+        (apply concat (map #(concat :L %)
+                           (rest pts))))))
 
-; (defn ellipse [x y w h]
-;   (->> (circle 0 0 1)
-;        (path/scale w h)
-;        (path/translate x y)))
+(defn ellipse [center size]
+  (->> (circle (vec2) 1)
+       (path/scale size)
+       (path/translate center)))
 
-; (defn point [x y]
-;   (vector :path :M x y :L x y))
+(defn point [p]
+  (vec (concat :path :M p :L p)))
 
-; (defn quad [x1 y1 x2 y2 x3 y3 x4 y4]
-;   (vector :path
-;           :M x1 y1
-;           :L x2 y2
-;           :L x3 y3
-;           :L x4 y4
-;           :Z))
+(defn quad [p1 p2 p3 p4]
+  (vec (concat :path
+               :M p1
+               :L p2
+               :L p3
+               :L p4
+               :Z)))
 
-(defn triangle [x1 y1 x2 y2 x3 y3]
-  (vector :path
-          :M x1 y1
-          :L x2 y2
-          :L x3 y3
-          :Z))
+(defn triangle [p1 p2 p3]
+  (vec (concat :path
+               :M p1
+               :L p2
+               :L p3
+               :Z)))
 
 (defn graph [f start end step]
   (apply poly

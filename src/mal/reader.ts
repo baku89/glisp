@@ -5,7 +5,9 @@ import {
 	symbolFor as S,
 	MalTreeWithRange,
 	isMap,
-	MalVector
+	MalVector,
+	M_START,
+	M_END
 } from './types'
 
 class Reader {
@@ -113,7 +115,7 @@ function readList(
 	const ast: any = []
 
 	if (outputPosition) {
-		ast.start = reader.getPosition()
+		ast[M_START] = reader.getPosition()
 	}
 
 	let token = reader.next()
@@ -132,7 +134,7 @@ function readList(
 	}
 
 	if (outputPosition) {
-		ast.end = reader.getPosition() + token.length
+		ast[M_END] = reader.getPosition() + token.length
 	}
 
 	reader.next()
@@ -149,8 +151,8 @@ function readHashMap(reader: Reader, outputPosition: boolean) {
 	const lst = readList(reader, outputPosition, '{', '}')
 	const map = assocBang({}, ...lst)
 	if (outputPosition) {
-		;(map as any).start = lst.start
-		;(map as any).end = lst.end
+		;(map as MalTreeWithRange)[M_START] = lst[M_START]
+		;(map as MalTreeWithRange)[M_END] = lst[M_END]
 	}
 	return map
 }
@@ -221,11 +223,11 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 
 	if (
 		outputPosition &&
-		typeof val === 'object' &&
-		(val as any).start === undefined
+		val instanceof Object &&
+		(val as MalTreeWithRange)[M_START] === undefined
 	) {
-		;(val as any).start = pos
-		;(val as any).end = reader.getLastPosition()
+		;(val as MalTreeWithRange)[M_START] = pos
+		;(val as MalTreeWithRange)[M_END] = reader.getLastPosition()
 	}
 
 	return val
@@ -235,8 +237,14 @@ export function findAstByPosition(
 	ast: any,
 	pos: number
 ): MalTreeWithRange | null {
-	if (ast instanceof Object && (ast as any).start !== undefined) {
-		if ((ast as any).start <= pos && pos <= (ast as any).end) {
+	if (
+		ast instanceof Object &&
+		(ast as MalTreeWithRange)[M_START] !== undefined
+	) {
+		if (
+			(ast as MalTreeWithRange)[M_START] <= pos &&
+			pos <= (ast as MalTreeWithRange)[M_END]
+		) {
 			for (const child of ast) {
 				const ret = findAstByPosition(child, pos)
 				if (ret !== null) {
@@ -257,8 +265,14 @@ export function findAstByRange(
 	start: number,
 	end: number
 ): MalTreeWithRange | null {
-	if (ast instanceof Object && (ast as any).start !== undefined) {
-		if ((ast as any).start <= start && end <= (ast as any).end) {
+	if (
+		ast instanceof Object &&
+		(ast as MalTreeWithRange)[M_START] !== undefined
+	) {
+		if (
+			(ast as MalTreeWithRange)[M_START] <= start &&
+			end <= (ast as MalTreeWithRange)[M_END]
+		) {
 			if (isMap(ast)) {
 				return ast as MalTreeWithRange
 			} else {

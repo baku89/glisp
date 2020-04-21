@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3'
 import {replEnv} from './repl'
 import Env from './env'
-import {MalVal, LispError, isKeyword, symbolFor as S} from './types'
+import {MalVal, LispError, isKeyword, symbolFor as S, MalVector} from './types'
 import {printer} from './printer'
 import readStr from './reader'
 import {consoleEnv} from './console'
@@ -56,6 +56,7 @@ export function viewREP(
 
 	viewEnv.set(S('$width'), width)
 	viewEnv.set(S('$height'), height)
+	viewEnv.set(S('$size'), MalVector.from([width, height]))
 
 	if (!drawGuide) {
 		readEvalStr('(defn guide (body) nil)', viewEnv)

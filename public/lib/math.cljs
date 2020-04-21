@@ -19,57 +19,63 @@
 (def .x first)
 (def .y second)
 
+(defn vec2 [& xs]
+  (cond (= 0 (count xs)) [0 0]
+        (= 1 (count xs)) [(first xs) (first xs)]
+        :else (vec (slice xs 0 2))))
+
 (defn vec2? (v)
   (and
-   (list? v)
-   (= (count v) 2)
+   (sequential? v)
+   (>= (count v) 2)
    (number? (.x v))
    (number? (.y v))))
 
-(defn vec2/+ (a b)
-  (list (+ (.x a) (.x b))
-        (+ (.y a) (.y b))))
+(defn vec2/+ [a b]
+  [(+ (.x a) (.x b))
+   (+ (.y a) (.y b))])
 
-(defn vec2/- (a b)
-  (list (- (.x a) (.x b))
-        (- (.y a) (.y b))))
+(defn vec2/- [a b]
+  [(- (.x a) (.x b))
+   (- (.y a) (.y b))])
 
-(defn vec2/* (a b)
-  (list (* (.x a) (.x b))
-        (* (.y a) (.y b))))
+(defn vec2/*
+  [a b]
+  [(* (.x a) (.x b))
+   (* (.y a) (.y b))])
 
-(defn vec2/div (a b)
-  (list (/ (.x a) (.x b))
-        (/ (.y a) (.y b))))
+(defn vec2/div [a b]
+  [(/ (.x a) (.x b))
+   (/ (.y a) (.y b))])
 
-(defn vec2/ceil (v)
-  (list (ceil (.x v)) (ceil (.y v))))
+(defn vec2/ceil [v]
+  [(ceil (.x v)) (ceil (.y v))])
 
-(defn vec2/floor (v)
-  (list (floor (.x v)) (floor (.y v))))
+(defn vec2/floor [v]
+  [(floor (.x v)) (floor (.y v))])
 
-(defn vec2/min (v)
-  (list (min (.x v)) (min (.y v))))
+(defn vec2/min [v]
+  [(min (.x v)) (min (.y v))])
 
-(defn vec2/max (v)
-  (list (max (.x v)) (max (.y v))))
+(defn vec2/max [v]
+  [(max (.x v)) (max (.y v))])
 
-(defn vec2/round (v)
-  (list (round (.x v)) (round (.y v))))
+(defn vec2/round [v]
+  [(round (.x v)) (round (.y v))])
 
 (defn vec2/scale (v scalar)
-  (list (* scalar (.x v))
-        (* scalar (.y v))))
+  [(* scalar (.x v))
+   (* scalar (.y v))])
 
 ;; a + b * scale
 (defn vec2/scale-add (a b scale)
-  (list (+ (.x a) (* scale (.x b)))
-        (+ (.y a) (* scale (.y b)))))
+  [(+ (.x a) (* scale (.x b)))
+   (+ (.y a) (* scale (.y b)))])
 
-(defn vec2/dist (a b)
+(defn vec2/dist [a b]
   (hypot (- (.x b) (.x a)) (- (.y b) (.y a))))
 
-(defn vec2/len (v)
+(defn vec2/len [v]
   (hypot (.x v) (.y v)))
 
 (defn vec2/rotate (origin angle v)
@@ -79,29 +85,29 @@
             y			(- (.y v) oy)
             sinC	(sin angle)
             cosC	(cos angle))
-    (list (+ ox (- (* x cosC) (* y sinC)))
-          (+ oy (+ (* x sinC) (* y cosC))))))
+    [(+ ox (- (* x cosC) (* y sinC)))
+     (+ oy (+ (* x sinC) (* y cosC)))]))
 
-(defn vec2/negate (v)
+(defn vec2/negate [v]
   (vec2/scale v -1))
 
-(defn vec2/inverse (v)
-  (vec2/div '(1 1) v))
+(defn vec2/inverse [v]
+  (vec2/div (vec2 1) v))
 
 ; TODO: Should this return the original value
 ; when its length is zero?
-(defn vec2/normalize (v)
+(defn vec2/normalize [v]
   (let (len (vec2/len v))
     (if (> len 0)
       (vec2/scale v (/ len))
       v)))
 
-(defn vec2/dot (a b)
+(defn vec2/dot [a b]
   (+ (* (.x a) (.x b)) (* (.y a) (.y b))))
 
-(defn vec2/lerp (a b t)
-  (list (lerp (.x a) (.x b) t)
-        (lerp (.y a) (.y b) t)))
+(defn vec2/lerp [a b t]
+  [(lerp (.x a) (.x b) t)
+   (lerp (.y a) (.y b) t)])
 
 
 ;; Combination

@@ -5,10 +5,10 @@
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
-				<div class="app__editor-mode">
+				<!-- <div class="app__editor-mode">
 					<button :class="{active: editorMode == 'code'}" @click="editorMode = 'code'">&lt;/&gt;</button>
 					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
-				</div>
+				</div>-->
 				<Editor
 					v-if="editorMode == 'code'"
 					:code="code"
@@ -46,7 +46,14 @@ import Tree from '@/components/Tree.vue'
 
 import {replEnv, printExp, readStr} from '@/mal'
 import {viewHandler} from '@/mal/view'
-import {MalVal, symbolFor as S, MalTreeWithRange, isList} from '@/mal/types'
+import {
+	MalVal,
+	symbolFor as S,
+	MalTreeWithRange,
+	isList,
+	M_START,
+	M_END
+} from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from './mal/printer'
@@ -182,8 +189,8 @@ export default class App extends Vue {
 
 		const selected = findAstByRange(this.ast, start + offset, end + offset)
 
-		if (selected && selected.start >= offset) {
-			return [selected.start - offset, selected.end - offset]
+		if (selected !== null && selected[M_START] >= offset) {
+			return [selected[M_START] - offset, selected[M_END] - offset]
 		} else {
 			return null
 		}

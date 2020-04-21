@@ -7,6 +7,8 @@ export const M_AST = Symbol('ast')
 export const M_ENV = Symbol('env')
 export const M_PARAMS = Symbol('params')
 export const M_ISMACRO = Symbol('ismacro')
+export const M_START = Symbol('start')
+export const M_END = Symbol('end')
 
 export interface MalFunc {
 	(...args: MalVal[]): MalVal
@@ -22,13 +24,13 @@ export class LispError extends Error {}
 export type MalMap = {[keyword: string]: MalVal}
 
 interface MalMapWithRange extends MalMap {
-	start: number
-	end: number
+	[M_START]: number
+	[M_END]: number
 }
 
-export interface MalListWithRange extends MalMap {
-	start: number
-	end: number
+export interface MalListWithRange extends Array<MalVal> {
+	[M_START]: number
+	[M_END]: number
 }
 
 export type MalTreeWithRange = MalMapWithRange | MalListWithRange

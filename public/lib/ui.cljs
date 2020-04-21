@@ -2,6 +2,7 @@
 (def $canvas "")
 (def $width 1000)
 (def $height 1000)
+(def $size [$width $height])
 (def $background nil)
 (def $guide-color nil)
 
@@ -9,13 +10,13 @@
 
 ;; Sketch
 (defn filter-sketch [coll]
-  (if (not (vector? coll))
+  (if (not (sequential? coll))
     nil
     (cond
       (keyword? (first coll)) coll
-      (vector? (first coll))  (->> coll
-                                   (map filter-sketch)
-                                   (remove empty?)))))
+      (sequential? (first coll))  (->> coll
+                                       (map filter-sketch)
+                                       (remove empty?)))))
 
 (defn filter-root-sketch [coll]
   (->> coll
