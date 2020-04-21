@@ -23,7 +23,9 @@ const K_M = K('M'),
 	K_WIDTH = K('width'),
 	K_CAP = K('cap'),
 	K_JOIN = K('join'),
-	K_DASH = K('dash')
+	K_DASH = K('dash'),
+	K_POINTS = K('points'),
+	K_STOPS = K('stops')
 
 type DrawParams = {[key: string]: string | number | number[]}
 
@@ -256,8 +258,8 @@ class CanvasRendererWorker extends EventEmitter {
 			const [type, params] = style as [string, DrawParams]
 			switch (type) {
 				case K('linear-gradient'): {
-					const [x0, y0, x1, y1] = params[K('points')] as number[]
-					const stops = params[K('stops')] as (string | number)[]
+					const [x0, y0, x1, y1] = params[K_POINTS] as number[]
+					const stops = params[K_STOPS] as (string | number)[]
 					const grad = ctx.createLinearGradient(x0, y0, x1, y1)
 					for (const [offset, color] of partition(2, stops)) {
 						if (typeof offset !== 'number' || typeof color !== 'string') {
