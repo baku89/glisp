@@ -3,7 +3,8 @@ import {
 	assocBang,
 	LispError,
 	symbolFor as S,
-	MalTreeWithRange
+	MalTreeWithRange,
+	isMap
 } from './types'
 
 class Reader {
@@ -246,13 +247,17 @@ export function findAstByRange(
 ): MalTreeWithRange | null {
 	if (ast instanceof Object && (ast as any).start !== undefined) {
 		if ((ast as any).start <= start && end <= (ast as any).end) {
-			for (const child of ast) {
-				const ret = findAstByRange(child, start, end)
-				if (ret !== null) {
-					return ret
+			if (isMap(ast)) {
+				return ast as MalTreeWithRange
+			} else {
+				for (const child of ast) {
+					const ret = findAstByRange(child, start, end)
+					if (ret !== null) {
+						return ret
+					}
 				}
+				return ast
 			}
-			return ast
 		} else {
 			return null
 		}
