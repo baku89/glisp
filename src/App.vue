@@ -1,14 +1,16 @@
 <template>
 	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
-		<div class="app__tree">
-			<Tree :ast="ast" @update="onUpdateAst" />
-		</div>
 		<div class="app__viewer">
 			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
+				<div class="app__editor-mode">
+					<button :class="{active: editorMode == 'code'}" @click="editorMode = 'code'">&lt;/&gt;</button>
+					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
+				</div>
 				<Editor
+					v-if="editorMode == 'code'"
 					:code="code"
 					:selection="selection"
 					:activeRange="activeRange"
@@ -17,6 +19,7 @@
 					@select="onSelect"
 					@select-outer="onSelectOuter"
 				/>
+				<Tree v-else :ast="sketchAst" @update="onUpdateAst" />
 			</div>
 			<div class="app__console">
 				<button
@@ -64,6 +67,7 @@ export default class App extends Vue {
 	private backgroundSet = false
 	private compact = true
 	private renderError = false
+	private editorMode = 'code'
 
 	private initialCode!: string
 
@@ -83,6 +87,10 @@ export default class App extends Vue {
 			}
 			return null
 		}
+	}
+
+	private get sketchAst(): MalVal {
+		return Array.isArray(this.ast) ? (this.ast as any)[2].slice(1) : []
 	}
 
 	private created() {
@@ -138,9 +146,8 @@ export default class App extends Vue {
 		})
 	}
 
-	private onUpdateAst(ast: MalVal) {
-		console.log('AASDFSDFIERW')
-		this.code = printExp((ast as any)[2][1])
+	private onUpdateAst(ast: MalVal[]) {
+		this.code = (ast as any).map((val: MalVal) => printExp(val)).join('\n')
 	}
 
 	private onSetupConsole() {
@@ -329,7 +336,7 @@ $compact-dur = 0.4s
 
 	&__control
 		position relative
-		flex-grow 1
+		width calc(40% - 1rem)
 
 	&__editor
 		position relative
@@ -347,6 +354,33 @@ $compact-dur = 0.4s
 			background var(--comment)
 			content ''
 			transition background var(--tdur) var(--ease)
+
+	&__editor-mode
+		position absolute
+		top 0
+		right 0
+		z-index 100
+		display flex
+		padding 0 0.3rem
+		border 1px solid var(--comment)
+		border-radius 1.5rem
+		background var(--background)
+		font-size 2rem
+
+		button
+			display block
+			padding 0.3rem 0.5rem
+			color var(--comment)
+			line-height 1.5rem
+
+			&.active
+				color var(--blue)
+
+			&:first-child
+				font-size 0.7em
+
+			&:not(:first-child)
+				border-left 1px dotted var(--comment)
 
 	&__console
 		position absolute

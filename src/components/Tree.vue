@@ -1,29 +1,25 @@
 <template>
-	<button class="Tree" @click="onClick">{{code}}</button>
+	<div class="Tree">
+		<TreeList :ast="ast" @input="onInput" :show-border="false" />
+	</div>
 </template>
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal, cloneAST} from '../mal/types'
-import {printExp} from '../mal'
+import TreeList from './trees/TreeList.vue'
+import {MalVal, cloneAST} from '@/mal/types'
+import {printExp} from '@/mal'
 
-@Component({})
+@Component({
+	components: {
+		TreeList
+	}
+})
 export default class Tree extends Vue {
 	@Prop({required: true}) private ast!: MalVal
 
-	mounted() {
-		console.log('mounted')
-	}
-
-	public get code() {
-		return printExp(this.ast)
-	}
-
-	private onClick() {
-		console.log('update')
-		const ast = cloneAST(this.ast)
-		;(ast as any)[2][1][2][3] += 1
-		this.$emit('update', ast)
+	private onInput(val: MalVal) {
+		this.$emit('update', val)
 	}
 }
 </script>
@@ -31,7 +27,7 @@ export default class Tree extends Vue {
 <style lang="stylus" scoped>
 .Tree
 	position relative
-	z-index 10000
+	overflow scroll
 	height 100%
-	background green
+	text-align left
 </style>
