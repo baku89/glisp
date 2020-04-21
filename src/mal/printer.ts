@@ -4,7 +4,10 @@ import {
 	isMalFunc,
 	isKeyword,
 	isSymbol,
-	symbolFor as S
+	symbolFor as S,
+	M_PARAMS,
+	M_AST,
+	isMap
 } from './types'
 
 export const printer = {
@@ -36,10 +39,10 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 			}
 		}
 		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
-	} else if (obj instanceof Map) {
+	} else if (isMap(obj)) {
 		const ret = []
-		for (const [k, v] of obj) {
-			ret.push(printExp(k, _r), printExp(v, _r))
+		for (const k in obj) {
+			ret.push(printExp(k, _r), printExp(obj[k], _r))
 		}
 		return '{' + ret.join(' ') + '}'
 	} else if (typeof obj === 'string') {
@@ -62,8 +65,8 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 	} else if (obj === null) {
 		return 'nil'
 	} else if (isMalFunc(obj)) {
-		const params = printExp(obj.params, _r)
-		const body = printExp(obj.ast, _r)
+		const params = printExp(obj[M_PARAMS], _r)
+		const body = printExp(obj[M_AST], _r)
 		return `(fn ${params} ${body})`
 	} else if (typeof obj === 'number' || typeof obj === 'boolean') {
 		return obj.toString()

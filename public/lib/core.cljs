@@ -46,6 +46,7 @@
                                  params)))
                      nil)
         :else (println "No document")))
+
 ;; Conditionals
 (defmacro cond (& xs)
   (if (> (count xs) 0)

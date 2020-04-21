@@ -75,7 +75,7 @@ export default class App extends Vue {
 		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
 		const trimmed = lines.join('')
 
-		return trimmed ? `(def $view (eval-sketch ${this.code}))` : '""'
+		return trimmed ? `(def $view (eval-sketch ${this.code}))` : ''
 	}
 
 	private get ast(): MalVal {

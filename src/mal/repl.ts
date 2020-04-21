@@ -28,6 +28,8 @@ export const REP = (str: string, env: Env = replEnv) => {
 	}
 }
 
+window.REP = a => evalExp(readStr(a), replEnv)
+
 // Load core library
 
 /* eslint-disable no-useless-escape */

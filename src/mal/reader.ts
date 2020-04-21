@@ -125,7 +125,8 @@ function readList(
 			throw new LispError(`[READ] expected '${end}', got EOF`)
 		}
 
-		ast.push(readForm(reader, outputPosition)) // eslint-disable-line @typescript-eslint/no-use-before-define
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		ast.push(readForm(reader, outputPosition))
 	}
 
 	if (outputPosition) {
@@ -139,7 +140,7 @@ function readList(
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, outputPosition: boolean) {
 	const lst = readList(reader, outputPosition, '{', '}')
-	const map = assocBang(new Map(), ...lst)
+	const map = assocBang({}, ...lst)
 	if (outputPosition) {
 		;(map as any).start = lst.start
 		;(map as any).end = lst.end
@@ -190,14 +191,12 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 		// list
 		case ')':
 			throw new LispError("unexpected ')'")
-			break
 		case '(':
 			val = readList(reader, outputPosition)
 			break
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
-			break
 		case '{':
 			val = readHashMap(reader, outputPosition)
 			break

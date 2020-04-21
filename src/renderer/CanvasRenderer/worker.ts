@@ -1,4 +1,4 @@
-import {MalVal, keywordFor as K} from '@/mal/types'
+import {MalVal, keywordFor as K, isMap} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/mal/utils'
 import {iterateSegment} from '@/mal/ns/path'
@@ -25,7 +25,7 @@ const K_M = K('M'),
 	K_JOIN = K('join'),
 	K_DASH = K('dash')
 
-type DrawParams = Map<string, string | number | number[]>
+type DrawParams = {[key: string]: string | number | number[]}
 
 interface DrawStyle {
 	type: string
@@ -86,11 +86,11 @@ class CanvasRendererWorker extends EventEmitter {
 		const defaultStyle: DrawStyle | null = settings.guideColor
 			? {
 					type: K_STROKE,
-					params: new Map<string, string | number | number[]>([
-						[K_STYLE, settings.guideColor],
-						[K_WIDTH, 1],
-						[K_DASH, [2, 4]]
-					])
+					params: {
+						K_STYLE: settings.guideColor,
+						K_WIDTH: 1,
+						K_DASH: [2, 4]
+					}
 			  }
 			: null
 
@@ -172,8 +172,8 @@ class CanvasRendererWorker extends EventEmitter {
 							baseline: 'middle'
 						}
 
-						if (options instanceof Map) {
-							for (const [k, v] of options.entries()) {
+						if (isMap(options)) {
+							for (const [k, v] of Object.entries(options)) {
 								settings[(k as string).slice(1)] = v
 							}
 						}
@@ -253,11 +253,11 @@ class CanvasRendererWorker extends EventEmitter {
 		if (typeof style === 'string') {
 			return style
 		} else if (Array.isArray(style)) {
-			const [type, params] = style as [string, Map<string, any[]>]
+			const [type, params] = style as [string, DrawParams]
 			switch (type) {
 				case K('linear-gradient'): {
-					const [x0, y0, x1, y1] = params.get(K('points')) as number[]
-					const stops = params.get(K('stops')) as (string | number)[]
+					const [x0, y0, x1, y1] = params[K('points')] as number[]
+					const stops = params[K('stops')] as (string | number)[]
 					const grad = ctx.createLinearGradient(x0, y0, x1, y1)
 					for (const [offset, color] of partition(2, stops)) {
 						if (typeof offset !== 'number' || typeof color !== 'string') {
@@ -289,7 +289,7 @@ class CanvasRendererWorker extends EventEmitter {
 			if (type === K_FILL) {
 				ctx.fillStyle = this.createFillOrStrokeStyle(
 					ctx,
-					params.get(K_STYLE) as string
+					params[K_STYLE] as string
 				)
 				if (isText) {
 					ctx.fillText(text as string, x as number, y as number)
@@ -297,7 +297,7 @@ class CanvasRendererWorker extends EventEmitter {
 					ctx.fill()
 				}
 			} else if (type === K_STROKE) {
-				for (const [k, v] of (params as DrawParams).entries()) {
+				for (const [k, v] of Object.entries(params as DrawParams)) {
 					switch (k) {
 						case K_STYLE:
 							ctx.strokeStyle = this.createFillOrStrokeStyle(ctx, v as string)

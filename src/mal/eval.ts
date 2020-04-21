@@ -9,7 +9,13 @@ import {
 	isKeyword,
 	LispError,
 	symbolFor as S,
-	isSymbol
+	isSymbol,
+	M_ISMACRO,
+	M_ENV,
+	M_PARAMS,
+	M_AST,
+	isMap,
+	MalMap
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -32,7 +38,7 @@ function quasiquote(ast: any): MalVal {
 function macroexpand(ast: MalVal = null, env: Env) {
 	while (Array.isArray(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
 		const fn = env.get(ast[0] as string) as MalFunc
-		if (!fn.ismacro) {
+		if (!fn[M_ISMACRO]) {
 			break
 		}
 		ast = fn(...ast.slice(1))
@@ -47,10 +53,12 @@ const evalAst = (ast: MalVal, env: Env) => {
 	} else if (Array.isArray(ast)) {
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		return ast.map(x => evalExp(x, env))
-	} else if (ast instanceof Map) {
-		const hm = new Map()
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		ast.forEach((v, k) => hm.set(evalExp(k, env), evalExp(v, env)))
+	} else if (isMap(ast)) {
+		const hm: MalMap = {}
+		for (const k in ast) {
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			hm[k] = evalExp(ast[k], env)
+		}
 		return hm
 	} else {
 		return ast
@@ -103,7 +111,7 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 					ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]
 				]
 				const fn = cloneAST(evalExp(fnast, env)) as MalFunc
-				fn.ismacro = true
+				fn[M_ISMACRO] = true
 				return env.set(a1 as string, fn)
 			}
 			case 'macroexpand':
@@ -179,8 +187,8 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 				const fn = _fn as MalFunc
 
 				if (isMalFunc(fn)) {
-					env = new Env(fn.env, fn.params, args)
-					ast = fn.ast
+					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
+					ast = fn[M_AST]
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					return (fn as any)(...args)

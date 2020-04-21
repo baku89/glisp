@@ -13,7 +13,10 @@ import {
 	MalNamespace,
 	LispError,
 	isSymbol,
-	symbolFor
+	symbolFor,
+	M_ISMACRO,
+	M_META,
+	isMap
 } from '../types'
 import printExp, {printer} from '../printer'
 import evalExp from '../eval'
@@ -70,10 +73,10 @@ const jsObjects = new Map<string, any>([
 	['symbol?', isSymbol],
 	['keyword?', isKeyword],
 	['keyword', keywordFor],
-	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc).ismacro],
+	['fn?', (a: MalVal) => typeof a === 'function' && !(a as MalFunc)[M_ISMACRO]],
 	[
 		'macro?',
-		(a: MalVal) => typeof a === 'function' && !!(a as MalFunc).ismacro
+		(a: MalVal) => typeof a === 'function' && !!(a as MalFunc)[M_ISMACRO]
 	],
 
 	// // Compare
@@ -154,34 +157,37 @@ const jsObjects = new Map<string, any>([
 	],
 
 	// Map
-	['hash-map', (...a: MalVal[]) => assocBang(new Map(), ...a)],
-	['map?', (a: MalVal) => a instanceof Map],
+	['hash-map', (...a: MalVal[]) => assocBang({}, ...a)],
+	['map?', isMap],
 	[
 		'assoc',
 		(m: MalMap, ...a: MalVal[]) => assocBang(cloneAST(m) as MalMap, ...a)
 	],
 	[
 		'dissoc',
-		(m: MalMap, ...a: MalVal[]) => {
+		(m: MalMap, ...a: string[]) => {
 			const n = cloneAST(m) as MalMap
-			a.forEach(k => n.delete(k))
+			a.forEach(k => delete n[k])
 			return n
 		}
 	],
 	[
 		'get',
-		(m: MalMap, a: MalVal, notfound?: MalVal) =>
-			!(m instanceof Map)
+		(m: MalMap, a: string, notfound?: MalVal) =>
+			!isMap(m)
 				? null
-				: m.has(a)
-				? m.get(a)
+				: a in m
+				? m[a]
 				: notfound !== undefined
 				? notfound
 				: null
 	],
-	['contains?', (m: MalMap, a: MalVal) => m.has(a)],
-	['keys', (a: MalMap) => Array.from(a.keys())],
-	['vals', (a: MalMap) => Array.from(a.values())],
+	[
+		'contains?',
+		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false)
+	],
+	['keys', (a: MalMap) => Object.keys(a)],
+	['vals', (a: MalMap) => Object.values(a)],
 
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
@@ -205,7 +211,7 @@ const jsObjects = new Map<string, any>([
 	['slurp', slurp],
 
 	// // Meta
-	['meta', (a: MalVal) => (a as any)?.meta || null],
+	['meta', (a: MalVal) => (a as any)[M_META] || null],
 	[
 		'with-meta',
 		(a: MalVal, m: any) => {
@@ -213,7 +219,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-			;(c as any).meta = m
+			;(c as any)[M_META] = m
 			return c
 		}
 	],

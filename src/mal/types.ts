@@ -2,18 +2,24 @@ import Env from './env'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never
 
+export const M_META = Symbol('meta')
+export const M_AST = Symbol('ast')
+export const M_ENV = Symbol('env')
+export const M_PARAMS = Symbol('params')
+export const M_ISMACRO = Symbol('ismacro')
+
 export interface MalFunc {
 	(...args: MalVal[]): MalVal
-	meta: object | null
-	ast: MalVal
-	env: Env
-	params: Array<string>
-	ismacro: boolean
+	[M_META]: MalVal
+	[M_AST]: MalVal
+	[M_ENV]: Env
+	[M_PARAMS]: Array<string>
+	[M_ISMACRO]: boolean
 }
 
 export class LispError extends Error {}
 
-export type MalMap = Map<MalVal, MalVal>
+export type MalMap = {[keyword: string]: MalVal}
 
 interface MalMapWithRange extends MalMap {
 	start: number
@@ -52,13 +58,15 @@ export function isEqual(a: MalVal, b: MalVal) {
 			}
 		}
 		return true
-	} else if (a instanceof Map && b instanceof Map) {
+
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+	} else if (isMap(a) && isMap(b)) {
 		if (a.size !== b.size) {
 			return false
 		}
-		for (const k of a.keys()) {
-			const aval = a.get(k),
-				bval = b.get(k)
+		for (const k of Object.keys(a)) {
+			const aval = a[k],
+				bval = b[k]
 			if (aval === undefined || bval === undefined || !isEqual(aval, bval)) {
 				return false
 			}
@@ -69,12 +77,14 @@ export function isEqual(a: MalVal, b: MalVal) {
 	}
 }
 
-export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
+export function cloneAST(obj: MalVal, newMeta?: MalVal): MalVal {
 	let newObj = null
 	if (Array.isArray(obj)) {
 		newObj = [...obj]
-	} else if (obj instanceof Map) {
-		newObj = new Map(obj.entries())
+
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+	} else if (isMap(obj)) {
+		newObj = {...obj}
 	} else if (obj instanceof Function) {
 		// new function instance
 		const fn = (...args: any) => obj.apply(fn, args)
@@ -85,7 +95,7 @@ export function cloneAST(obj: MalVal, newMeta?: object): MalVal {
 	}
 
 	if (typeof newMeta !== 'undefined') {
-		;(newObj as MalFunc).meta = newMeta
+		;(newObj as MalFunc)[M_META] = newMeta
 	}
 
 	return newObj
@@ -100,11 +110,18 @@ export function createMalFunc(
 	meta = null,
 	ismacro = false
 ): MalFunc {
-	return Object.assign(fn, {ast, env, params, meta, ismacro})
+	const attrs = {
+		[M_AST]: ast,
+		[M_ENV]: env,
+		[M_PARAMS]: params,
+		[M_META]: meta,
+		[M_ISMACRO]: ismacro
+	}
+	return Object.assign(fn, attrs)
 }
 
 export const isMalFunc = (obj: MalVal): obj is MalFunc =>
-	obj && (obj as MalFunc).ast ? true : false
+	obj && (obj as MalFunc)[M_AST] ? true : false
 
 // Symbol
 // Use \u01a8 as the prefix of symbol for AST object
@@ -121,6 +138,9 @@ export const isKeyword = (obj: MalVal): obj is string =>
 export const keywordFor = (k: string) => '\u029e' + k
 
 // Maps
+export const isMap = (obj: MalVal): obj is MalMap =>
+	obj instanceof Object && !isMalFunc(obj) && !Array.isArray(obj)
+
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
 		throw new LispError('Odd number of map arguments')
@@ -129,7 +149,7 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 		if (typeof args[i] !== 'string') {
 			throw new LispError('Hash map can only use string/symbol/keyword as key')
 		}
-		hm.set(args[i], args[i + 1])
+		hm[args[i]] = args[i + 1]
 	}
 	return hm
 }

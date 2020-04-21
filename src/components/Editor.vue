@@ -1,5 +1,5 @@
 <template>
-	<div class="Editor" @click="onClick">
+	<div class="Editor">
 		<InputCodeEditor
 			class="Editor__input"
 			:value="code"
@@ -29,10 +29,6 @@ export default class Editor extends Vue {
 	@Prop({type: Array, required: true}) private selection!: [number, number]
 	@Prop({required: true}) private activeRange!: [number, number] | null
 	@Prop({type: Boolean, default: false}) private dark!: boolean
-
-	onClick() {
-		console.log('onasdf')
-	}
 }
 </script>
 
