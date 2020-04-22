@@ -1,5 +1,7 @@
 import {MalVal, LispError, symbolFor as S, isSymbol} from './types'
 
+type Binds = (string | Binds)[]
+
 export default class Env {
 	public data: {
 		[key: string]: MalVal
@@ -10,11 +12,7 @@ export default class Env {
 
 	public name = 'let'
 
-	constructor(
-		outer: Env | null = null,
-		binds?: Array<string>,
-		exprs?: MalVal[]
-	) {
+	constructor(outer: Env | null = null, binds?: Binds, exprs?: MalVal[]) {
 		this.data = {}
 		this.outer = outer
 
@@ -25,19 +23,37 @@ export default class Env {
 		if (binds && exprs) {
 			// Returns a new Env with symbols in binds bound to
 			// corresponding values in exprs
-			for (let i = 0; i < binds.length; i++) {
-				if (binds[i] === S('&')) {
-					// variable length arguments
-					this.data[binds[i + 1]] = Array.prototype.slice.call(exprs, i)
-					break
+			const bindArgList = (binds: Binds, exprs: MalVal[]) => {
+				for (let i = 0; i < binds.length; i++) {
+					if (binds[i] === S('&')) {
+						// variable length arguments
+						this.data[binds[i + 1] as string] = Array.prototype.slice.call(
+							exprs,
+							i
+						)
+						break
+					}
+					if (Array.isArray(binds[i])) {
+						if (Array.isArray(exprs[i])) {
+							bindArgList(binds[i] as Binds, exprs[i] as MalVal[])
+						} else {
+							throw new LispError(
+								`Error: parameter '${(binds[i] as string[])
+									.map(s => s.slice(1))
+									.join(' ')}' is not specified as list`
+							)
+						}
+					} else if (exprs[i] === undefined) {
+						throw new LispError(
+							`Error: parameter '${binds[i].slice(1)}' is not specified`
+						)
+					} else {
+						this.data[binds[i] as string] = exprs[i]
+					}
 				}
-				if (exprs[i] === undefined) {
-					throw new LispError(
-						`Error: parameter '${binds[i].slice(1)}' is not specified`
-					)
-				}
-				this.data[binds[i]] = exprs[i]
 			}
+
+			bindArgList(binds, exprs)
 		}
 	}
 
