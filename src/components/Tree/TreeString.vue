@@ -8,7 +8,9 @@ import {Component, Prop, Vue} from 'vue-property-decorator'
 import {MalVal} from '@/mal/types'
 import {printExp} from '@/mal'
 
-@Component
+@Component({
+	name: 'TreeString'
+})
 export default class TreeString extends Vue {
 	@Prop({type: String, required: true}) private value!: MalVal
 

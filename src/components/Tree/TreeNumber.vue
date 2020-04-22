@@ -8,7 +8,9 @@ import {Component, Prop, Vue} from 'vue-property-decorator'
 import {MalVal} from '@/mal/types'
 import {printExp} from '@/mal'
 
-@Component
+@Component({
+	name: 'TreeNumber'
+})
 export default class TreeNumber extends Vue {
 	@Prop({type: Number, required: true}) private value!: number
 
