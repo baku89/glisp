@@ -48,7 +48,9 @@
         :else (println "No document")))
 
 ;; Conditionals
-(defmacro cond (& xs)
+(defmacro when [test & body] (list 'if test (cons 'do body)))
+
+(defmacro cond [& xs]
   (if (> (count xs) 0)
     (list
      'if
@@ -57,7 +59,7 @@
      (cons 'cond (rest (rest xs))))))
 
 
-(defmacro case (val & xs)
+(defmacro case [val & xs]
   (if (> (count xs) 0)
     (if (= (count xs) 1)
       (first xs)
@@ -67,24 +69,24 @@
        (nth xs 1)
        (concat 'case val (rest (rest xs)))))))
 
-(defmacro or (& xs)
+(defmacro or [& xs]
   (if (empty? xs)
     false
     `(if ~(first xs) ~(first xs) (or ~@(rest xs)))))
 
-(defmacro and (& xs)
+(defmacro and [& xs]
   (if (= (count xs) 1)
     (first xs)
     `(if ~(first xs) (and ~@(rest xs)) false)))
 
-(defn not {:doc "test"} (a) (if a false true))
+(defn not [a] (if a false true))
 
 
 ;; Functioal Language Features
-(defn reduce (f init xs)
+(defn reduce [f init xs]
   (if (empty? xs) init (reduce f (f init (first xs)) (rest xs))))
 
-(defn foldr (f init xs)
+(defn foldr [f init x]
   (if (empty? xs)
     init
     (f
@@ -96,13 +98,13 @@
    #(f % (nth xs %))
    (range (count xs))))
 
-(defmacro ->> (values & forms)
+(defmacro ->> [values & forms]
   (reduce
    (fn (v form) `(~@form ~v))
    values
    forms))
 
-(defn find-list (f lst)
+(defn find-list [f lst]
   (do
     (if (list? lst)
       (if (f lst)
