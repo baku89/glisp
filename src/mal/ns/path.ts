@@ -384,13 +384,7 @@ function angleAtLength(len: number, path: PathType) {
 	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
 }
 
-function arc(
-	x: number,
-	y: number,
-	r: number,
-	start: number,
-	end: number
-): MalVal[] {
+function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 	const min = Math.min(start, end)
 	const max = Math.max(start, end)
 
@@ -571,7 +565,7 @@ function offset(d: number, path: PathType) {
 
 		const end = start + angle * turn
 
-		return arc(origin[0], origin[1], d, start, end).slice(1) as PathType
+		return arc(origin, d, start, end).slice(1) as PathType
 	}
 
 	if (!Array.isArray(path) || path[0] !== K_PATH) {
