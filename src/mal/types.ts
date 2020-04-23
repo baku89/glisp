@@ -150,7 +150,10 @@ export const isVector = (obj: MalVal): obj is MalVector =>
 
 // Maps
 export const isMap = (obj: MalVal): obj is MalMap =>
-	obj instanceof Object && !isMalFunc(obj) && !Array.isArray(obj)
+	obj !== null &&
+	typeof obj === 'object' &&
+	!isMalFunc(obj) &&
+	!Array.isArray(obj)
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {

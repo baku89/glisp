@@ -79,6 +79,8 @@ export default class App extends Vue {
 
 	private initialCode!: string
 
+	private setupCount = 0
+
 	private get evalCode() {
 		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
 		const trimmed = lines.join('')
@@ -126,6 +128,7 @@ export default class App extends Vue {
 				if (res.ok) {
 					const code = await res.text()
 					this.initialCode = `;; Loaded from "${codeURL}"\n\n${code}`
+					this.setupCount++
 				} else {
 					printer.error(`Failed to load from "${codeURL}"`)
 				}
@@ -135,12 +138,14 @@ export default class App extends Vue {
 			getCode()
 		} else if (queryCode) {
 			this.initialCode = decodeURI(queryCode)
+			this.setupCount++
 			url.searchParams.delete('code')
 			history.pushState({}, document.title, url.pathname + url.search)
 		} else {
 			this.initialCode =
 				localStorage.getItem('saved_code') ||
 				require('raw-loader!./default-canvas.cljs').default
+			this.setupCount++
 		}
 
 		viewHandler.on('$insert', (item: MalVal) => {
@@ -159,9 +164,17 @@ export default class App extends Vue {
 	}
 
 	private onSetupConsole() {
-		// Wait the initial rendering until the console has been mounted
-		this.code = this.initialCode
-		replEnv.set(S('$canvas'), this.code)
+		this.setupCount++
+	}
+
+	@Watch('setupCount')
+	private onSetupFinished() {
+		if (this.setupCount === 2) {
+			// Wait the initial rendering until the console has been mounted
+			this.code = this.initialCode || ''
+			this.onEdit(this.code)
+			replEnv.set(S('$canvas'), this.code)
+		}
 	}
 
 	private onRender(succeed: boolean) {

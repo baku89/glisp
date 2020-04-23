@@ -88,7 +88,7 @@ function createHashMap(arr: MalVal[]) {
 }
 
 consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
-	const code = consoleEnv.get('$canvas') as string
+	const code = consoleEnv.get(S('$canvas')) as string
 
 	// eslint-disable-next-line prefer-const
 	let {_: name, user, token} = createHashMap(args)
@@ -156,6 +156,8 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 
 	return null
 })
+
+window.ce = consoleEnv
 
 export const consoleREP = (str: string, output = true) => {
 	try {

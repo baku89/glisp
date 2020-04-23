@@ -478,14 +478,14 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 		points = points.reverse()
 	}
 
-	return [
+	return MalVector.from([
 		K_PATH,
 		K_M,
 		...points[0],
 		...partition(3, points.slice(1))
 			.map(pts => [K_C, ...pts.flat()])
 			.flat()
-	]
+	])
 }
 
 function offsetSegmentBezier(...args: number[]) {
@@ -638,15 +638,11 @@ function offset(d: number, path: PathType) {
 				continued = false
 			}
 		}
-		return ret
+		return MalVector.from(ret)
 	}
 }
 
-function trimCurve(
-	start: number,
-	end: number,
-	curve: SegmentType
-): SegmentType {
+function trimCurve(start: number, end: number, curve: SegmentType) {
 	if (start < EPSILON && 1 - EPSILON < end) {
 		return curve
 	}
@@ -673,7 +669,7 @@ function trimCurve(
 			throw new LispError('[js: trimCurve] Only can trim L or C')
 	}
 
-	return [cmd, ...trimmed]
+	return MalVector.from([cmd, ...trimmed])
 }
 
 /**
@@ -760,11 +756,11 @@ function trimByLength(start: number, end: number, path: PathType) {
 	if (startIndex === endIndex) {
 		// Trim one curve on both its start and end
 		const seg = curves[startIndex][0]
-		trimmed.push(trimCurve(startT, endT, seg))
+		trimmed.push(trimCurve(startT, endT, seg) as SegmentType)
 	} else {
 		// Trim over multiple curves
 		const startSeg = curves[startIndex][0]
-		trimmed.push(trimCurve(startT, 1, startSeg))
+		trimmed.push(trimCurve(startT, 1, startSeg) as SegmentType)
 
 		const middleCurves = curves
 			.slice(startIndex + 1, endIndex)
@@ -773,7 +769,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 
 		if (endT > EPSILON) {
 			const endSeg = curves[endIndex][0]
-			trimmed.push(trimCurve(0, endT, endSeg))
+			trimmed.push(trimCurve(0, endT, endSeg) as SegmentType)
 		}
 	}
 
@@ -788,7 +784,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 		})
 		.flat()
 
-	return [K_PATH, ...rest]
+	return MalVector.from([K_PATH, ...rest])
 }
 
 /**

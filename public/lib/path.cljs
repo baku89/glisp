@@ -22,4 +22,4 @@
   (path/map-points #(vec2/rotate origin angle %) path))
 
 (defn path/merge [& xs]
-  (apply vector (concat :path (map rest xs))))
+  (vec (concat :path (apply concat (map rest xs)))))
