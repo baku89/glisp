@@ -127,12 +127,16 @@
 (defn line [p1 p2]
   (vec (concat :path :M p1 :L p2)))
 
-(defn poly [& pts]
-  (vec (concat
-        :path
-        :M (first pts)
-        (apply concat (map #(concat :L %)
-                           (rest pts))))))
+(defn polyline [& pts]
+  (vec (concat :M
+               (first pts)
+               (apply concat (map #(concat :L %) (rest pts))))))
+
+(defn polygon [& pts]
+  (vec (concat :M
+               (first pts)
+               (apply concat (map #(concat :L %) (rest pts)))
+               :Z)))
 
 (defn ellipse [center size]
   (->> (circle (vec2) 1)
