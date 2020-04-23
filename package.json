@@ -5,7 +5,8 @@
 	"scripts": {
 		"serve": "vue-cli-service serve",
 		"build": "vue-cli-service build",
-		"lint": "vue-cli-service lint"
+		"lint": "vue-cli-service lint",
+		"deploy": "node task.deploy.js"
 	},
 	"dependencies": {
 		"sprintf-js": "^1.1.2",
@@ -31,6 +32,7 @@
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",
 		"eventemitter3": "^4.0.0",
+		"ftp-deploy": "^2.3.7",
 		"gl-matrix": "^3.3.0",
 		"jq-console": "^2.13.2",
 		"jquery": "^3.4.1",

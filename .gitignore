@@ -4,6 +4,8 @@ node_modules
 
 /mal
 
+/task.deploy.js
+
 # local env files
 .env.local
 .env.*.local
