@@ -138,10 +138,9 @@ export default class Viewer extends Vue {
 	}
 
 	private update() {
-		const dpi = window.devicePixelRatio
 		const options = {
-			width: this.canvas.clientWidth / dpi,
-			height: this.canvas.clientHeight / dpi,
+			width: this.canvas.clientWidth,
+			height: this.canvas.clientHeight,
 			updateConsole: true,
 			drawGuide: true
 		}
