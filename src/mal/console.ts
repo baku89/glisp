@@ -157,8 +157,6 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 	return null
 })
 
-window.ce = consoleEnv
-
 export const consoleREP = (str: string, output = true) => {
 	try {
 		const out = evalExp(readStr(str), consoleEnv)
