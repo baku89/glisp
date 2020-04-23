@@ -128,13 +128,13 @@
   (vec (concat :path :M p1 :L p2)))
 
 (defn polyline [& pts]
-  (vec (concat :M
-               (first pts)
+  (vec (concat :path
+               :M (first pts)
                (apply concat (map #(concat :L %) (rest pts))))))
 
 (defn polygon [& pts]
-  (vec (concat :M
-               (first pts)
+  (vec (concat :path
+               :M (first pts)
                (apply concat (map #(concat :L %) (rest pts)))
                :Z)))
 
