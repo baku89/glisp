@@ -5,10 +5,10 @@
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
-				<div class="app__editor-mode">
+				<!-- <div class="app__editor-mode">
 					<button :class="{active: editorMode == 'code'}" @click="editorMode = 'code'">&lt;/&gt;</button>
 					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
-				</div>
+				</div>-->
 				<Editor
 					v-if="editorMode == 'code'"
 					:code="code"
@@ -19,7 +19,7 @@
 					@select="onSelect"
 					@select-outer="onSelectOuter"
 				/>
-				<TreeVector v-else :value="sketchAst" @update="onUpdateAst" />
+				<!-- <TreeVector v-else :value="sketchAst" @update="onUpdateAst" /> -->
 			</div>
 			<div class="app__console">
 				<button
@@ -42,7 +42,7 @@ import Color from 'color'
 import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
-import {TreeVector} from '@/components/Tree'
+// import {TreeVector} from '@/components/Tree'
 
 import {replEnv, printExp, readStr} from '@/mal'
 import {viewHandler} from '@/mal/view'
@@ -64,8 +64,8 @@ import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
 	components: {
 		Editor,
 		Viewer,
-		Console,
-		TreeVector
+		Console
+		// TreeVector
 	}
 })
 export default class App extends Vue {
