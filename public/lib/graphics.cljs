@@ -68,17 +68,17 @@
 ;; Style
 (defn fill
   {:doc {:desc "Fill the shapes with specified style"}}
-  [style body]
-  [:fill (hash-map :style style) body])
+  [color body]
+  [:style [:fill (hash-map :color color)] body])
 
 (defn stroke
   {:doc "Draw a stroke along the shapes with specified style"}
   [& args]
   (case (count args)
     2 (if (map? (first args))
-        [:stroke (first args) (last args)]
-        [:stroke (hash-map :style (first args) :width $line-width) (last args)])
-    3 [:stroke (hash-map :style (first args) :width (second args)) (last args)]
+        [:style [:stroke (first args)] (last args)]
+        [:style [:stroke (hash-map :color (first args) :width $line-width)] (last args)])
+    3 [:style [:stroke (hash-map :color (first args) :width (second args))] (last args)]
     (throw "[stroke] odd number of arguments")))
 
 

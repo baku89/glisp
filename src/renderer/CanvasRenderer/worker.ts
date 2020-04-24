@@ -14,6 +14,7 @@ const K_G = K('g'),
 	K_ENABLE_ANIMATION = K('enable-animation'),
 	K_FILL = K('fill'),
 	K_STROKE = K('stroke'),
+	K_COLOR = K('color'),
 	K_PATH = K('path'),
 	K_TEXT = K('text'),
 	K_TRANSFORM = K('transform'),
@@ -88,7 +89,7 @@ class CanvasRendererWorker extends EventEmitter {
 			? {
 					type: K_STROKE,
 					params: {
-						[K_STYLE]: settings.guideColor,
+						[K_COLOR]: settings.guideColor,
 						[K_WIDTH]: 1,
 						[K_DASH]: [2, 4]
 					}
@@ -134,9 +135,8 @@ class CanvasRendererWorker extends EventEmitter {
 							this.draw(child, styles, defaultStyle)
 						}
 						break
-					case K_FILL:
-					case K_STROKE: {
-						const style: DrawStyle = {type: cmd, params: rest[0]}
+					case K_STYLE: {
+						const style: DrawStyle = {type: rest[0][0], params: rest[0][1]}
 						this.draw(rest[1], [style, ...styles], defaultStyle)
 						break
 					}
@@ -292,7 +292,7 @@ class CanvasRendererWorker extends EventEmitter {
 			if (type === K_FILL) {
 				ctx.fillStyle = this.createFillOrStrokeStyle(
 					ctx,
-					params[K_STYLE] as string
+					params[K_COLOR] as string
 				)
 				if (isText) {
 					ctx.fillText(text as string, x as number, y as number)
@@ -302,7 +302,7 @@ class CanvasRendererWorker extends EventEmitter {
 			} else if (type === K_STROKE) {
 				for (const [k, v] of Object.entries(params as DrawParams)) {
 					switch (k) {
-						case K_STYLE:
+						case K_COLOR:
 							ctx.strokeStyle = this.createFillOrStrokeStyle(ctx, v as string)
 							break
 						case K_WIDTH:
