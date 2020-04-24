@@ -143,7 +143,16 @@ const jsObjects = new Map<string, any>([
 	],
 	['butlast', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
-	['slice', (a: MalVal[], start: number, end: number) => a.slice(start, end)],
+	[
+		'slice',
+		(a: MalVal[], start: number, end: number) => {
+			if (Array.isArray(a)) {
+				return a.slice(start, end)
+			} else {
+				throw new LispError(`[slice] ${printExp(a)} is not an array`)
+			}
+		}
+	],
 	[
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))

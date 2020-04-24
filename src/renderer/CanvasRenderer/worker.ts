@@ -1,11 +1,12 @@
-import {MalVal, keywordFor as K, isMap} from '@/mal/types'
+import {MalVal, keywordFor as K, isMap, isKeyword, LispError} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/mal/utils'
 import {iterateSegment} from '@/mal/ns/path'
 import EventEmitter from 'eventemitter3'
 import {ViewerSettings} from './index'
 
-const K_M = K('M'),
+const K_G = K('g'),
+	K_M = K('M'),
 	K_L = K('L'),
 	K_C = K('C'),
 	K_Z = K('Z'),
@@ -94,7 +95,6 @@ class CanvasRendererWorker extends EventEmitter {
 			  }
 			: null
 
-		console.log(defaultStyle)
 		try {
 			this.draw(ast, [], defaultStyle)
 		} catch (err) {
@@ -117,27 +117,29 @@ class CanvasRendererWorker extends EventEmitter {
 		const ctx = this.ctx
 
 		if (Array.isArray(ast)) {
-			// console.log(ast)
-			const [cmd, ...args] = ast as any[]
+			const [elm, ...rest] = ast as any[]
 
-			const last = args.length > 0 ? args[args.length - 1] : null
+			const cmd = elm.replace(/#.*$/, '')
 
 			// if (!isKeyword(cmd)) {
-			if (typeof cmd !== 'string') {
-				for (const a of ast) {
-					this.draw(a, styles, defaultStyle)
-				}
+			if (!isKeyword(cmd)) {
+				throw new LispError('Invalid format of AST to render')
 			} else {
 				switch (cmd) {
+					case K_G:
+						for (const child of rest) {
+							this.draw(child, styles, defaultStyle)
+						}
+						break
 					case K_FILL:
 					case K_STROKE: {
-						const style: DrawStyle = {type: cmd, params: args[0]}
-						this.draw(last, [style, ...styles], defaultStyle)
+						const style: DrawStyle = {type: cmd, params: rest[0]}
+						this.draw(rest[1], [style, ...styles], defaultStyle)
 						break
 					}
 					case K_PATH: {
 						ctx.beginPath()
-						for (const [c, ...a] of iterateSegment(args)) {
+						for (const [c, ...a] of iterateSegment(rest)) {
 							switch (c) {
 								case K_M:
 									ctx.moveTo(...(a as [number, number]))
@@ -154,7 +156,7 @@ class CanvasRendererWorker extends EventEmitter {
 									ctx.closePath()
 									break
 								default: {
-									throw new Error(`Invalid d-path command: ${printExp(c)}`)
+									throw new LispError(`Invalid d-path command: ${printExp(c)}`)
 								}
 							}
 						}
@@ -165,7 +167,7 @@ class CanvasRendererWorker extends EventEmitter {
 					case K_TEXT: {
 						// Text representation:
 						// (:text "Text" x y {:option1 value1...})
-						const [text, x, y, options] = args
+						const [text, x, y, options] = rest
 						const settings: any = {
 							size: 12,
 							font: 'Fira Code',
@@ -191,13 +193,13 @@ class CanvasRendererWorker extends EventEmitter {
 					case K_TRANSFORM:
 						ctx.save()
 						ctx.transform(
-							...(args[0] as [number, number, number, number, number, number])
+							...(rest[0] as [number, number, number, number, number, number])
 						)
-						this.draw(last, styles, defaultStyle)
+						this.draw(rest[1], styles, defaultStyle)
 						ctx.restore()
 						break
 					case K_BACKGROUND: {
-						const color = args[0]
+						const color = rest[0]
 						if (typeof color === 'string' && color !== '') {
 							// only execute if the color is valid
 							this.emit('set-background', color)
@@ -207,7 +209,7 @@ class CanvasRendererWorker extends EventEmitter {
 						break
 					}
 					case K_ARTBOARD: {
-						const [region, body] = args.slice(1)
+						const [region, body] = rest
 						const [x, y, w, h] = region
 
 						// Enable Clip
@@ -224,14 +226,13 @@ class CanvasRendererWorker extends EventEmitter {
 						break
 					}
 					case K_ENABLE_ANIMATION: {
-						let fps = args[0]
+						let fps = rest[0]
 						fps = 0.1 < fps && fps < 60 ? fps : -1
 						this.emit('enable-animation', fps)
 						break
 					}
 					default:
-						break
-					// printExper.error('Unknown rendering command', printExp(cmd))
+						throw new LispError(`Unknown rendering command ${printExp(cmd)}`)
 				}
 			}
 		}

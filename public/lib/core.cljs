@@ -107,7 +107,7 @@
 
 (defn find-list [f lst]
   (do
-    (if (list? lst)
+    (if (sequential? lst)
       (if (f lst)
         (apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
         (apply concat (map #(find-list f %) lst)))

@@ -1,22 +1,17 @@
-(defmacro artboard [id region & body]
-  [:artboard id region
+(defn artboard [id bounds & body]
+  [:artboard {:id id :bounds bounds}
    (let
-    [$width (nth region 2)
-     $height (nth region 3)
-     $size [$width $height]
-     background (fn (c) (fill c (rect [0 0] $size)))]
-     (translate (vec2 region)
-                (apply vector
-                       [(guide (rect [.5 .5] (vec2/- $size 1)))] body)))])
+    [$width (rect/width bounds)
+     $height (rect/height bounds)
+     $size (rect/size bounds)
+     background (fn (c) (fill c (rect [0 0] $size)))
+     frame-guide (guide (rect [.5 .5] (vec2/- $size [1 1])))]
+     (translate (rect/point bounds)
+                (make-group [frame-guide] body)))])
 
-(defn extract-artboard [name body]
+(defn find-item [sel body]
   (first
-   (find-list
-    #(and
-      (>= (count %) 4)
-      (= (first %) :artboard)
-      (= (nth % 1) name))
-    body)))
+   (find-list  #(= (first %) sel) body)))
 
 (defn guide [body] (stroke $guide-color body))
 
@@ -33,6 +28,8 @@
   [:background c])
 
 (defn enable-animation [& xs] (concat :enable-animation xs))
+
+(defn item? [a] (and (sequential? a) (keyword? (first a))))
 
 ; ;; Transformation
 
@@ -60,8 +57,17 @@
         c (cos angle)]
     [:transform [c s (- s) c 0 0] body]))
 
-;  ;; Style
+;; Make group
+(defn make-group [& xs]
+  (let [children (apply concat (map #(if (item? %) [%] %) xs))]
+    (if (= 1 (count children)) (first children)
+        (apply vector :g children))))
 
+
+(def g make-group)
+
+
+;; Style
 (defn fill
   {:doc {:desc "Fill the shapes with specified style"}}
   [style body]

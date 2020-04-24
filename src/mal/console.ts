@@ -3,7 +3,13 @@ import Env from './env'
 import printExp, {printer} from './printer'
 import {replEnv} from './repl'
 import readStr, {BlankException} from './reader'
-import {MalVal, LispError, isKeyword, symbolFor as S} from './types'
+import {
+	MalVal,
+	LispError,
+	isKeyword,
+	symbolFor as S,
+	keywordFor as K
+} from './types'
 import evalExp from './eval'
 import CanvasRenderer from '@/renderer/CanvasRenderer'
 import {viewREP} from './view'
@@ -48,11 +54,11 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 	if (env) {
 		if (Array.isArray(output)) {
 			if (typeof name === 'string') {
-				$view = evalExp([S('extract-artboard'), name, $view], env)
+				$view = evalExp([S('find-item'), K(`artboard#${name}`), $view], env)
 				if ($view === null) {
-					throw new LispError(`Artboard "${name as string}" not found`)
+					throw new LispError(`Artboard "${name as string}" does not exist`)
 				} else {
-					;[x, y, width, height] = ($view as MalVal[])[2] as number[]
+					;[x, y, width, height] = ($view as MalVal[])[1] as number[]
 				}
 			}
 		}

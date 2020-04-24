@@ -19,6 +19,18 @@ declare module 'bezier-js' {
 		y: number
 	}
 
+	interface BBoxDimension {
+		min: number
+		max: number
+		mid: number
+		size: number
+	}
+
+	interface BBox {
+		x: BBoxDimension
+		y: BBoxDimension
+	}
+
 	export default class Bezier {
 		constructor(points: Point[])
 
@@ -29,6 +41,7 @@ declare module 'bezier-js' {
 		length(): number
 		get(t: number): Point
 		normal(t: number): Point
+		bbox(): BBox
 	}
 }
 

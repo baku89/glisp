@@ -12,7 +12,7 @@
   (if (not (sequential? coll))
     nil
     (cond
-      (keyword? (first coll)) coll
+      (item? coll) coll
       (sequential? (first coll))  (->> coll
                                        (map filter-sketch)
                                        (remove empty?)))))
@@ -23,7 +23,7 @@
        (remove empty?)))
 
 (defn eval-sketch [& xs]
-  (vec (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs)))))
+  (apply vector :g (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs)))))
 
 
 ;; Pens and Hands
