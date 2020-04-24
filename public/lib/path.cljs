@@ -2,15 +2,15 @@
 
 ;; Path modifiers
 (defn path/map-points [f path]
-  (cons
-   :path
-   (apply concat
-          (map (fn (xs)
-                 (let [cmd (first xs)
-                       points (rest xs)]
-                   `(~cmd ~@(apply concat
-                                   (map f (partition 2 points))))))
-               (path/split-segments path)))))
+  (vec (cons
+        :path
+        (apply concat
+               (map (fn (xs)
+                      (let [cmd (first xs)
+                            points (rest xs)]
+                        `(~cmd ~@(apply concat
+                                        (map f (partition 2 points))))))
+                    (path/split-segments path))))))
 
 (defn path/translate [t path]
   (path/map-points #(vec2/+ % t) path))
