@@ -5,13 +5,20 @@ import {replEnv} from './repl'
 import readStr, {BlankException} from './reader'
 import {MalVal, LispError, isKeyword, symbolFor as S} from './types'
 import evalExp from './eval'
-import {readEvalStr} from '.'
 import CanvasRenderer from '@/renderer/CanvasRenderer'
 import {viewREP} from './view'
 import {mat3} from 'gl-matrix'
+import FileSaver from 'file-saver'
 
 export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
+
+function generateFilename(name?: string) {
+	if (!name) {
+		name = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}`
+	}
+	return `${name}.cljs`
+}
 
 consoleEnv.set(S('console/clear'), () => {
 	printer.clear()
@@ -29,7 +36,7 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 
 	const $canvas = consoleEnv.get(S('$canvas'))
 
-	const {env, output} = viewREP(`(eval-sketch ${$canvas})`, {
+	const {env, output} = viewREP(`(def $view (eval-sketch ${$canvas} \n nil))`, {
 		width,
 		height,
 		updateConsole: false,
@@ -87,6 +94,20 @@ function createHashMap(arr: MalVal[]) {
 	return ret
 }
 
+consoleEnv.set(S('save'), (...args: MalVal[]) => {
+	const filename = generateFilename(args[0] as string)
+
+	const $canvas = consoleEnv.get(S('$canvas')) as string
+
+	const file = new File([$canvas], filename, {
+		type: 'text/plain;charset=utf-8'
+	})
+
+	FileSaver.saveAs(file)
+
+	return null
+})
+
 consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
 	const code = consoleEnv.get(S('$canvas')) as string
 
@@ -104,12 +125,7 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 		}
 	}
 
-	let filename: string
-	if (typeof name === 'string') {
-		filename = `${name}.lisp`
-	} else {
-		filename = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}.lisp`
-	}
+	const filename = generateFilename(name as string)
 
 	async function publishToGist() {
 		const res = await fetch('https://api.github.com/gists', {

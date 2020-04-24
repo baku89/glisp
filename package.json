@@ -16,6 +16,7 @@
 	},
 	"devDependencies": {
 		"@types/color": "^3.0.1",
+		"@types/file-saver": "^2.0.1",
 		"@types/jquery": "^3.3.34",
 		"@typescript-eslint/eslint-plugin": "^2.26.0",
 		"@typescript-eslint/parser": "^2.26.0",
@@ -32,6 +33,7 @@
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",
 		"eventemitter3": "^4.0.0",
+		"file-saver": "^2.0.2",
 		"ftp-deploy": "^2.3.7",
 		"gl-matrix": "^3.3.0",
 		"jq-console": "^2.13.2",
