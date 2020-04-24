@@ -797,6 +797,43 @@ function pathTrim(t1: number, t2: number, path: PathType) {
 	return trimByLength(start, end, path)
 }
 
+/**
+ * Calc path bounds
+ */
+function pathBounds(path: PathType) {
+	// let top = -Infinity, left = -Infinity, right = Infinity, bottom = Infinity
+
+	let left = Infinity,
+		top = Infinity,
+		right = -Infinity,
+		bottom = -Infinity
+
+	for (const [cmd, ...pts] of iterateCurve(path)) {
+		switch (cmd) {
+			case K_L:
+				left = Math.min(left, pts[0], pts[2])
+				top = Math.min(top, pts[1], pts[3])
+				right = Math.max(right, pts[0], pts[2])
+				bottom = Math.max(bottom, pts[1], pts[3])
+				break
+			case K_C: {
+				const {x, y} = getBezier(pts).bbox()
+				left = Math.min(left, x.min)
+				top = Math.min(top, y.min)
+				right = Math.max(right, x.max)
+				bottom = Math.max(bottom, y.max)
+				break
+			}
+		}
+	}
+
+	if (isFinite(left + top + bottom + right)) {
+		return [left, top, right - left, bottom - top]
+	} else {
+		return null
+	}
+}
+
 const jsObjects = new Map<string, any>([
 	['arc', arc],
 	['path/join', pathJoin],
@@ -815,7 +852,8 @@ const jsObjects = new Map<string, any>([
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => MalVector.from(iterateSegment(path))
-	]
+	],
+	['path/bounds', pathBounds]
 ])
 
 export default {

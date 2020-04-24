@@ -1,5 +1,7 @@
 (load-file "math.cljs")
 
+(defn path? [a] (and (sequential? a) (= :path (first a))))
+
 ;; Path modifiers
 (defn path/map-points [f path]
   (vec (cons
