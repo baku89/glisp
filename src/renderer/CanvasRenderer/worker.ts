@@ -87,13 +87,14 @@ class CanvasRendererWorker extends EventEmitter {
 			? {
 					type: K_STROKE,
 					params: {
-						K_STYLE: settings.guideColor,
-						K_WIDTH: 1,
-						K_DASH: [2, 4]
+						[K_STYLE]: settings.guideColor,
+						[K_WIDTH]: 1,
+						[K_DASH]: [2, 4]
 					}
 			  }
 			: null
 
+		console.log(defaultStyle)
 		try {
 			this.draw(ast, [], defaultStyle)
 		} catch (err) {

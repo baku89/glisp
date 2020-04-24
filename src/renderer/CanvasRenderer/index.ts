@@ -1,6 +1,5 @@
 import EventEmitter from 'eventemitter3'
 import {MalVal, symbolFor as S} from '@/mal/types'
-import Env from '@/mal/env'
 import {mat3} from 'gl-matrix'
 
 export interface ViewerSettings {
