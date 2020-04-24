@@ -27,10 +27,7 @@ export default class Env {
 				for (let i = 0; i < binds.length; i++) {
 					if (binds[i] === S('&')) {
 						// variable length arguments
-						this.data[binds[i + 1] as string] = Array.prototype.slice.call(
-							exprs,
-							i
-						)
+						this.data[binds[i + 1] as string] = exprs.slice(i)
 						break
 					}
 					if (Array.isArray(binds[i])) {

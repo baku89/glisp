@@ -470,12 +470,14 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 		points = points.reverse()
 	}
 
+	points = points.map(pt => MalVector.from(pt))
+
 	return MalVector.from([
 		K_PATH,
 		K_M,
-		...points[0],
+		points[0],
 		...partition(3, points.slice(1))
-			.map(pts => [K_C, ...pts.flat()])
+			.map(pts => [K_C, ...pts])
 			.flat()
 	])
 }

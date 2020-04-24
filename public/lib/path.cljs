@@ -3,15 +3,13 @@
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
 ;; Path modifiers
+
 (defn path/map-points [f path]
-  (vec (cons
-        :path
-        (apply concat
-               (map (fn (xs)
-                      (let [cmd (first xs)
-                            points (rest xs)]
-                        `(~cmd ~@(apply concat (map f points)))))
-                    (path/split-segments path))))))
+  (vec
+   (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
+                            (path/split-segments path)))))
+
+
 
 (defn path/translate [t path]
   (path/map-points #(vec2/+ % t) path))
