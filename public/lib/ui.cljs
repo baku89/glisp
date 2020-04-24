@@ -5,7 +5,6 @@
 (def $size [$width $height])
 (def $background nil)
 (def $guide-color nil)
-
 (def $line-width 1)
 
 ;; Sketch
@@ -23,7 +22,7 @@
        (map filter-sketch)
        (remove empty?)))
 
-(defn eval-sketch (& xs)
+(defn eval-sketch [& xs]
   (vec (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs)))))
 
 
@@ -45,7 +44,7 @@
      (def ~name (fn ~params ~body))
      (def $pens (push $pens '~name))))
 
-(defmacro defhand (name params body)
+(defmacro defhand [name params body]
   `(do
      (def ~name (fn ~params ~body))
      (def $hands (push $hands '~name))))

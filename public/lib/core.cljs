@@ -1,4 +1,4 @@
-(defmacro defn (name params & body)
+(defmacro defn [name params & body]
   (def attrs {})
   (if (map? params)
     (do (def attrs params)
@@ -12,7 +12,7 @@
             `(do ~@body)))
        ~attrs)))
 
-(defmacro macroview (expr)
+(defmacro macroview [expr]
   `(prn (macroexpand ~expr)))
 
 (def load-file
@@ -26,7 +26,7 @@
                    (swap! seen assoc filename nil)
                    (load-file-force filename))))))))
 
-(defn ? (f)
+(defn ? [f]
   (def doc (get (meta f) :doc))
   (cond (string? doc) (println doc)
         (map? doc) (do
@@ -48,7 +48,8 @@
         :else (println "No document")))
 
 ;; Conditionals
-(defmacro when [test & body] (list 'if test (cons 'do body)))
+(defmacro when [test & body]
+  (list 'if test (cons 'do body)))
 
 (defmacro cond [& xs]
   (if (> (count xs) 0)
@@ -93,7 +94,7 @@
      (first xs)
      (foldr f init (rest xs)))))
 
-(defn map-indexed (f xs)
+(defn map-indexed [f xs]
   (map
    #(f % (nth xs %))
    (range (count xs))))
@@ -135,14 +136,14 @@
                     (str " " (spaces- (- indent 1)))
                     ""))
 
-                pp-seq- (fn (obj indent)
+                pp-seq- (fn [obj indent]
                           (let (xindent (+ 1 indent))
                             (apply str (pp- (first obj) 0)
                                    (map (fn (x) (str "\n" (spaces- xindent)
                                                      (pp- x xindent)))
                                         (rest obj)))))
 
-                pp-map- (fn (obj indent)
+                pp-map- (fn [obj indent]
                           (let (ks (keys obj)
                                    kindent (+ 1 indent)
                                    kwidth (count (str (first ks)))
@@ -162,7 +163,7 @@
                         (map? obj)    (format "{%s}" (pp-map- obj indent))
                         :else         (pr-str obj))))
 
-    (fn (obj)
+    (fn [obj]
       (println (pp- obj 0)))))
 
 ; Load other cores

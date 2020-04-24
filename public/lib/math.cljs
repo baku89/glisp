@@ -2,14 +2,12 @@
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
 
-(defn lerp (a b t) (+ b (* (- a b) t)))
-(defn deg (x) (/ (* x 180) PI))
-(defn rad (x) (/ (* x PI) 180))
-(defn distance (x1 y1 x2 y2)
-  (sqrt (+ (pow (- x2 x1) 2) (pow (- y2 y1) 2))))
+(defn lerp [a b t] (+ b (* (- a b) t)))
+(defn deg [x] (/ (* x 180) PI))
+(defn rad [x] (/ (* x PI) 180))
 
-(defn odd? (x) (= (mod x 2) 1))
-(defn even? (x) (= (mod x 2) 0))
+(defn odd? [x] (= (mod x 2) 1))
+(defn even? [x] (= (mod x 2) 0))
 
 
 ;; Linear-algebra
@@ -24,7 +22,7 @@
         (= 1 (count xs)) [(first xs) (first xs)]
         :else (vec (slice xs 0 2))))
 
-(defn vec2? (v)
+(defn vec2? [v]
   (and
    (sequential? v)
    (>= (count v) 2)
@@ -112,7 +110,7 @@
 
 ;; Combination
 
-(defn combination/product (& xs)
+(defn combination/product [& xs]
   (vec (apply concat
               (map
                (fn (R) (map #(cons % R) (first xs)))
