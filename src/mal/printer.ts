@@ -76,6 +76,8 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 		return obj.toString()
 	} else if (obj instanceof MalAtom) {
 		return '(atom ' + printExp(obj.val, _r) + ')'
+	} else if (typeof obj === 'function') {
+		return obj.toString()
 	} else if (obj === undefined) {
 		return '<undefined>'
 	} else {

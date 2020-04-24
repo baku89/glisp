@@ -82,10 +82,7 @@ export default class App extends Vue {
 	private setupCount = 0
 
 	private get evalCode() {
-		const lines = this.code.split('\n').map(s => s.replace(/;.*$/, '').trim())
-		const trimmed = lines.join('')
-
-		return trimmed ? `(def $view (eval-sketch ${this.code}))` : ''
+		return `(def $view (eval-sketch ${this.code} \n nil))`
 	}
 
 	private get ast(): MalVal {
