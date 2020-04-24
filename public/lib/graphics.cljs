@@ -20,17 +20,17 @@
 
 (defn guide [body] (stroke $guide-color body))
 
-(defn color [& e]
-  (let [l (count e)]
-    (cond
-      (= l 1) e
-      (= l 3) (str "rgba(" (nth e 0) "," (nth e 1) "," (nth e 2) ")")
-      true "black")))
+(defn color [& xs]
+  (case (count xs)
+    1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
+    3 (apply format "rgba(%f,%f,%f)" xs)
+    "black"))
 
 (defn background
   {:doc {:desc "Fill the entire view or artboard with a color"
          :params '[[c :color "A background color"]]}}
-  [c] (vector :background c))
+  [c]
+  [:background c])
 
 (defn enable-animation [& xs] (concat :enable-animation xs))
 
@@ -39,37 +39,44 @@
 (defn translate
   {:doc {:desc "Translate the containing items"
          :params '[[t :vec2 "Amount of translation"]]}}
-  [t body] (vector :transform [1 0 0 1 (.x t) (.y t)] body))
-(defn translate-x [x body] (vector :transform [1 0 0 1 x 0] body))
-(defn translate-y [y body] (vector :transform [1 0 0 1 0 y] body))
+  [t body]
+  [:transform [1 0 0 1 (.x t) (.y t)] body])
+
+(defn translate-x [x body] [:transform [1 0 0 1 x 0] body])
+(defn translate-y [y body] [:transform [1 0 0 1 0 y] body])
 
 (defn scale
   {:doc {:desc "Scale the containing items"
          :params '[[[s :vec2 "Percent to scale the items"]]
                    [[s :number "Percent to scale the items proportionally"]]]}}
   [s body]
-  (cond
-    (number? s) (vector :transform [s 0 0 s 0 0] body)
-    (vec2? s) (vector :transform [(.x s) 0 0 (.y s) 0 0] body)))
-(defn scale-x [sx body] (vector :transform [sx 0 0 1 0 0] body))
-(defn scale-y [sy body] (vector :transform [1 0 0 sy 0 0] body))
+  (cond (number? s) [:transform [s 0 0 s 0 0] body]
+        (vec2? s) [:transform [(.x s) 0 0 (.y s) 0 0] body]))
+(defn scale-x [sx body] [:transform [sx 0 0 1 0 0] body])
+(defn scale-y [sy body] [:transform [1 0 0 sy 0 0] body])
 
 (defn rotate [angle body]
   (let [s (sin angle)
         c (cos angle)]
-    (vector :transform [c s (- s) c 0 0] body)))
+    [:transform [c s (- s) c 0 0] body]))
 
 ;  ;; Style
 
 (defn fill
   {:doc {:desc "Fill the shapes with specified style"}}
   [style body]
-  (vector :fill (hash-map :style style) body))
+  [:fill (hash-map :style style) body])
 
 (defn stroke
   {:doc "Draw a stroke along the shapes with specified style"}
-  [style width body]
-  (vector :stroke (hash-map :style style :width width) body))
+  [& args]
+  (case (count args)
+    2 (if (map? (first args))
+        [:stroke (first args) (last args)]
+        [:stroke (hash-map :style (first args) :width $line-width) (last args)])
+    3 [:stroke (hash-map :style (first args) :width (second args)) (last args)]
+    (throw "[stroke] odd number of arguments")))
+
 
 ; (defn linear-gradient
 ;   {:doc "Define a linear gradient style to apply to fill or stroke"}
@@ -88,23 +95,19 @@
                    [x :number "x-coordinate of text"]
                    [y :number "y-coordinate of text"]]}}
   [str x y & xs]
-  (vector :text str x y (apply hash-map xs)))
+  [:text str x y (apply hash-map xs)])
 
 (defn rect
   {:doc {:desc "Generate a rect path"
          :params '[[pos :vec2 "coordinate of top-left corner of the rectangle"]
                    [size :vec2 "size of the rectangle"]]}}
-  [pos size]
-  (let [x (.x pos)
-        y (.y pos)
-        w (.x size)
-        h (.y size)]
-    (vector :path
-            :M x y
-            :L (+ x w) y
-            :L (+ x w) (+ y h)
-            :L x (+ y h)
-            :Z)))
+  [[x y] [w h]]
+  [:path
+   :M x y
+   :L (+ x w) y
+   :L (+ x w) (+ y h)
+   :L x (+ y h)
+   :Z])
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
@@ -112,17 +115,15 @@
   {:doc {:desc "Generate a circle path"
          :params '[[center :vec2   "the centre of the circle"]
                    [r      :number "radius o fthe circle"]]}}
-  [center r]
-  (let [k (* r K)
-        x (.x center)
-        y (.y center)]
-    (vector :path
-            :M (+ x r) y			 ; right
-            :C (+ x r) (+ y k) (+ x k) (+ y r) x (+ y r) ; bottom
-            :C (- x k) (+ y r) (- x r) (+ y k) (- x r) y ; left
-            :C (- x r) (- y k) (- x k) (- y r) x (- y r) ; top
-            :C (+ x k) (- y r) (+ x r) (- y k) (+ x r)	y ; right
-            :Z)))
+  [[x y] r]
+  (let [k (* r K)]
+    [:path
+     :M (+ x r) y			 ; right
+     :C (+ x r) (+ y k) (+ x k) (+ y r) x (+ y r) ; bottom
+     :C (- x k) (+ y r) (- x r) (+ y k) (- x r) y ; left
+     :C (- x r) (- y k) (- x k) (- y r) x (- y r) ; top
+     :C (+ x k) (- y r) (+ x r) (- y k) (+ x r)	y ; right
+     :Z]))
 
 (defn line [p1 p2]
   (vec (concat :path :M p1 :L p2)))
@@ -160,8 +161,3 @@
                :L p2
                :L p3
                :Z)))
-
-(defn graph [f start end step]
-  (apply poly
-         (apply concat
-                (map f (range start (+ end step) step)))))
