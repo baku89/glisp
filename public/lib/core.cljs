@@ -59,6 +59,17 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      (cons 'cond (rest (rest xs))))))
 
+(defn wrap-let [binds expr]
+  (list 'let binds expr))
+
+(defn make-binds-list [a b]
+  (apply concat (map #(list (nth a %) (nth b %)) (range (count a)))))
+
+(defmacro for [binds expr]
+  (let [pairs (partition 2 binds)
+        syms (map #(first %) pairs)
+        colls (apply combination/product (map #(eval (second %)) pairs))]
+    (map #(wrap-let (make-binds-list syms %) expr) colls)))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)
@@ -116,6 +127,19 @@
 
 ;; Trivial
 (defn prn-pass [x] (do (prn x) x))
+
+(defn zero? [x] (= x 0))
+(defn pos? [x] (> x 0))
+(defn neg? [x] (< x 0))
+(defn odd? [x] (= (mod x 2) 1))
+(defn even? [x] (= (mod x 2) 0))
+
+()
+
+(defn compare [x y]
+  (cond (= x y) 0
+        (> x y) 1
+        (< x y) -1))
 
 (defn inc [x] (+ x 1))
 (defn dec [x] (- a 1))

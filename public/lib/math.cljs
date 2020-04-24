@@ -6,9 +6,6 @@
 (defn deg [x] (/ (* x 180) PI))
 (defn rad [x] (/ (* x PI) 180))
 
-(defn odd? [x] (= (mod x 2) 1))
-(defn even? [x] (= (mod x 2) 0))
-
 
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
@@ -162,9 +159,9 @@
 (defn combination/product [& xs]
   (vec (apply concat
               (map
-               (fn (R) (map #(cons % R) (first xs)))
+               (fn (R) (map #(cons R %) (last xs)))
                (if (= 2 (count xs))
-                 (last xs)
-                 (apply combination/product (rest xs)))))))
+                 (first xs)
+                 (apply combination/product (butlast xs)))))))
 
 (def combination/× combination/product)

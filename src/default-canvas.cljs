@@ -2,11 +2,9 @@
 (def col (range -5 6))
 (def grid (combination/× col col))
 
-(def rnd #(sign (- (random %) .5)))
-
 (defn slash (i p)
   (->> (line [(- w) (- w)] [w w])
-       (scale-x (rnd i))
+       (scale-x (compare (random i) .5))
        (translate p)))
 
 (->> grid
