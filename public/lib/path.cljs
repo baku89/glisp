@@ -2,14 +2,67 @@
 
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
+;; Shape functions
+(defn path/rect
+  {:doc {:desc "Generate a rect path"
+         :params '[[pos :vec2 "coordinate of top-left corner of the rectangle"]
+                   [size :vec2 "size of the rectangle"]]}}
+  [[x y] [w h]]
+  [:path
+   :M [x y]
+   :L [(+ x w) y]
+   :L [(+ x w) (+ y h)]
+   :L [x (+ y h)]
+   :Z])
+(def rect path/rect)
+
+(def K (/ (* 4 (- (sqrt 2) 1)) 3))
+
+(defn path/circle
+  {:doc {:desc "Generate a circle path"
+         :params '[[center :vec2   "the centre of the circle"]
+                   [r      :number "radius o fthe circle"]]}}
+  [[x y] r]
+  (let [k (* r K)]
+    [:path
+     :M [(+ x r) y]			 ; right
+     :C [(+ x r) (+ y k)] [(+ x k) (+ y r)] [x (+ y r)] ; bottom
+     :C [(- x k) (+ y r)] [(- x r) (+ y k)] [(- x r) y] ; left
+     :C [(- x r) (- y k)] [(- x k) (- y r)] [x (- y r)] ; top
+     :C [(+ x k) (- y r)] [(+ x r) (- y k)] [(+ x r) y] ; right
+     :Z]))
+(def circle path/circle)
+
+(defn path/line [p1 p2]
+  [:path :M p1 :L p2])
+(def line path/line)
+
+(defn path/polyline [& pts]
+  (vec (concat :path
+               :M [(first pts)]
+               (apply concat (map #`(:L ~%) (rest pts))))))
+(def polyline path/polyline)
+
+(defn path/polygon [& pts]
+  (conj (apply polyline pts) :Z))
+(def polygon path/polygon)
+
+(defn path/ellipse [center size]
+  (->> (circle (vec2) 1)
+       (path/scale size)
+       (path/translate center)))
+(def ellipse path/ellipse)
+
+(defn path/point [p]
+  [:path :M p :L p])
+(def point path/point)
+
 ;; Path modifiers
 
 (defn path/map-points [f path]
   (vec
    (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
                             (path/split-segments path)))))
-
-
 
 (defn path/translate [t path]
   (path/map-points #(vec2/+ % t) path))
