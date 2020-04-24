@@ -68,7 +68,7 @@
        'if
        `(= ~val ~(first xs))
        (nth xs 1)
-       (concat 'case val (rest (rest xs)))))))
+       (concat 'case `(~val) (rest (rest xs)))))))
 
 (defmacro or [& xs]
   (if (empty? xs)
