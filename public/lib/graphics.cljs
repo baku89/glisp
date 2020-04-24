@@ -1,5 +1,5 @@
 (defn artboard [id bounds & body]
-  [:artboard {:id id :bounds bounds}
+  [(keyword (str "artboard#" id)) bounds
    (let
     [$width (rect/width bounds)
      $height (rect/height bounds)
@@ -62,8 +62,6 @@
   (let [children (apply concat (map #(if (item? %) [%] %) xs))]
     (if (= 1 (count children)) (first children)
         (apply vector :g children))))
-
-
 (def g make-group)
 
 
@@ -100,8 +98,8 @@
          :params '[[str :string "the alphanumeric symbols to be displayed"]
                    [x :number "x-coordinate of text"]
                    [y :number "y-coordinate of text"]]}}
-  [str x y & xs]
-  [:text str x y (apply hash-map xs)])
+  [str [x y] & xs]
+  [:text str [x y] (apply hash-map xs)])
 
 (defn rect
   {:doc {:desc "Generate a rect path"

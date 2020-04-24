@@ -119,12 +119,15 @@ class CanvasRendererWorker extends EventEmitter {
 		if (Array.isArray(ast)) {
 			const [elm, ...rest] = ast as any[]
 
-			const cmd = elm.replace(/#.*$/, '')
-
-			// if (!isKeyword(cmd)) {
-			if (!isKeyword(cmd)) {
-				throw new LispError('Invalid format of AST to render')
+			if (!isKeyword(elm)) {
+				throw new LispError(
+					`Invalid format of AST to render. \n First element of vectors should be keyword but ${printExp(
+						elm
+					)}`
+				)
 			} else {
+				const cmd = elm.replace(/#.*$/, '')
+
 				switch (cmd) {
 					case K_G:
 						for (const child of rest) {
@@ -167,7 +170,7 @@ class CanvasRendererWorker extends EventEmitter {
 					case K_TEXT: {
 						// Text representation:
 						// (:text "Text" x y {:option1 value1...})
-						const [text, x, y, options] = rest
+						const [text, [x, y], options] = rest
 						const settings: any = {
 							size: 12,
 							font: 'Fira Code',
