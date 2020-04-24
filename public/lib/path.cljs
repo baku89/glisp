@@ -10,8 +10,7 @@
                (map (fn (xs)
                       (let [cmd (first xs)
                             points (rest xs)]
-                        `(~cmd ~@(apply concat
-                                        (map f (partition 2 points))))))
+                        `(~cmd ~@(apply concat (map f points)))))
                     (path/split-segments path))))))
 
 (defn path/translate [t path]

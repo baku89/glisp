@@ -107,10 +107,10 @@
                    [size :vec2 "size of the rectangle"]]}}
   [[x y] [w h]]
   [:path
-   :M x y
-   :L (+ x w) y
-   :L (+ x w) (+ y h)
-   :L x (+ y h)
+   :M [x y]
+   :L [(+ x w) y]
+   :L [(+ x w) (+ y h)]
+   :L [x (+ y h)]
    :Z])
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
@@ -122,26 +122,24 @@
   [[x y] r]
   (let [k (* r K)]
     [:path
-     :M (+ x r) y			 ; right
-     :C (+ x r) (+ y k) (+ x k) (+ y r) x (+ y r) ; bottom
-     :C (- x k) (+ y r) (- x r) (+ y k) (- x r) y ; left
-     :C (- x r) (- y k) (- x k) (- y r) x (- y r) ; top
-     :C (+ x k) (- y r) (+ x r) (- y k) (+ x r)	y ; right
+     :M [(+ x r) y]			 ; right
+     :C [(+ x r) (+ y k)] [(+ x k) (+ y r)] [x (+ y r)] ; bottom
+     :C [(- x k) (+ y r)] [(- x r) (+ y k)] [(- x r) y] ; left
+     :C [(- x r) (- y k)] [(- x k) (- y r)] [x (- y r)] ; top
+     :C [(+ x k) (- y r)] [(+ x r) (- y k)] [(+ x r) y] ; right
      :Z]))
 
 (defn line [p1 p2]
-  (vec (concat :path :M p1 :L p2)))
+  [:path :M p1 :L p2])
 
 (defn polyline [& pts]
   (vec (concat :path
-               :M (first pts)
-               (apply concat (map #(concat :L %) (rest pts))))))
+               :M [(first pts)]
+               (apply concat (map #`(:L ~%) (rest pts))))))
 
 (defn polygon [& pts]
-  (vec (concat :path
-               :M (first pts)
-               (apply concat (map #(concat :L %) (rest pts)))
-               :Z)))
+  (conj (apply polyline pts) :Z))
+
 
 (defn ellipse [center size]
   (->> (circle (vec2) 1)
@@ -149,19 +147,4 @@
        (path/translate center)))
 
 (defn point [p]
-  (vec (concat :path :M p :L p)))
-
-(defn quad [p1 p2 p3 p4]
-  (vec (concat :path
-               :M p1
-               :L p2
-               :L p3
-               :L p4
-               :Z)))
-
-(defn triangle [p1 p2 p3]
-  (vec (concat :path
-               :M p1
-               :L p2
-               :L p3
-               :Z)))
+  [:path :M p :L p])

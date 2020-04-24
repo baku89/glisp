@@ -7,13 +7,15 @@ import {
 	isKeyword,
 	MalNamespace,
 	LispError,
-	isSymbol,
 	MalVector
 } from '../types'
 import {partition} from '../utils'
+import printExp from '../printer'
 
-type PathType = (string | number)[]
-type SegmentType = [string, ...number[]]
+type Vec2 = number[] | vec2
+
+type PathType = (string | Vec2)[]
+type SegmentType = [string, ...Vec2[]]
 
 const EPSILON = 1e-5
 
@@ -37,11 +39,8 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-const clamp = (value: number, min: number, max: number) =>
-	Math.max(min, Math.min(max, value))
-
-function getBezier(points: number[]) {
-	const coords = partition(2, points).map(([x, y]) => ({x, y}))
+function getBezier(points: Vec2[]) {
+	const coords = points.map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
 		throw new LispError('Invalid point count for cubic bezier')
 	}
@@ -66,28 +65,28 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 /**
  *  Yields a segment with its complete points.
  *  Thus each object can be like,
- * [L prevX prevY x y]
- * [Q prevX prevY x1 y1 x2 y2 x3 y3]
- * [Z x y firstX firstY]
+ * [L prev-pos p]
+ * [C prev-pos p1 p2 p3]
+ * [Z prev-pos first-pos]
  */
 export function* iterateCurve(path: PathType): Generator<SegmentType> {
-	let first: number[] = [],
-		prev: number[] = []
+	const first = vec2.create(),
+		prev = vec2.create()
 
 	for (const [cmd, ...points] of iterateSegment(path)) {
 		switch (cmd) {
 			case K_M:
-				yield [cmd, ...points]
-				first = points
-				prev = first
+				yield [K_M, ...points]
+				vec2.copy(first, points[0] as vec2)
+				vec2.copy(prev, first)
 				break
 			case K_L:
 			case K_C:
-				yield [cmd, ...prev, ...points] as SegmentType
-				prev = points.slice(-2)
+				yield [cmd, prev, ...points] as SegmentType
+				vec2.copy(prev, points[points.length - 1] as vec2)
 				break
 			case K_Z:
-				yield [cmd, ...prev, ...first] as SegmentType
+				yield [K_Z, prev, first] as SegmentType
 				break
 		}
 	}
@@ -103,10 +102,7 @@ function* iterateCurveWithLength(
 		switch (cmd) {
 			case K_Z:
 			case K_L:
-				length += vec2.dist(
-					points.slice(0, 2) as vec2,
-					points.slice(-2) as vec2
-				)
+				length += vec2.dist(points[0] as vec2, points[1] as vec2)
 				break
 			case K_C: {
 				const bezier = getBezier(points)
@@ -137,7 +133,7 @@ function findCurveAtLength(len: number, path: PathType): [SegmentType, number] {
 			continue
 		} else if (
 			cmd === K_Z &&
-			vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) < EPSILON
+			vec2.dist(points[0] as vec2, points[points.length - 1] as vec2) < EPSILON
 		) {
 			continue
 		}
@@ -203,7 +199,7 @@ function getPathRotation(path: PathType): number {
 	}
 
 	// Extract only vertex points
-	const points = segments.map(seg => seg.slice(-2)) as number[][]
+	const points = segments.map(seg => seg[seg.length - 1]) as number[][]
 	const numpt = points.length
 
 	let rot = 0
@@ -225,25 +221,22 @@ function toBeziers(path: PathType) {
 	for (const line of iterateSegment(path)) {
 		const [cmd, ...args] = line
 
-		let sx = 0,
-			sy = 0
+		let s: Vec2 = [NaN, NaN]
 
 		switch (cmd) {
 			case K_M:
 			case K_C:
-				;[sx, sy] = args
+				s = args[0]
 				ret.push(...line)
 				break
 			case K_Z:
 				ret.push(...line)
 				break
 			case K_L:
-				ret.push(K_L, sx, sy, ...args, ...args)
+				ret.push(K_L, s, ...args, ...args)
 				break
 			default:
-				throw new Error(
-					`Invalid d-path command: ${isSymbol(cmd) ? cmd.slice(1) : cmd}`
-				)
+				throw new Error(`Invalid d-path command: ${printExp(cmd)}`)
 		}
 	}
 	return ret
@@ -263,13 +256,12 @@ function convertToNormalizedLengthFunction(f: LengthFunctionType) {
 function makeOpen(path: PathType) {
 	if (closedQ(path)) {
 		path = path.slice(0, path.length - 1)
-
-		const first = path[0] === K_PATH ? path.slice(2, 4) : path.slice(1, 3)
-		const last = path.slice(-2)
+		const first = (path[0] === K_PATH ? path[2] : path[1]) as vec2
+		const last = path[path.length - 1] as vec2
 
 		// Add L command to connect to first points if the last Z has certain length
-		if (vec2.dist(first as vec2, last as vec2) > EPSILON) {
-			path.push(K_L, ...first)
+		if (vec2.dist(first, last) > EPSILON) {
+			path.push(K_L, first)
 		}
 	}
 
@@ -279,12 +271,12 @@ function makeOpen(path: PathType) {
 function pathJoin(first: PathType, ...rest: PathType[]) {
 	const ret = makeOpen(first)
 
-	const lastEnd = vec2.fromValues(...(ret.slice(-2) as [number, number]))
+	const lastEnd = vec2.fromValues(...(ret[ret.length - 1] as [number, number]))
 	const start = vec2.create()
 
 	for (const path of rest) {
 		let opened = makeOpen(path).slice(1) // remove K_PATH
-		vec2.copy(start, opened.slice(1, 3) as vec2) // retrieve M x y
+		vec2.copy(start, opened[1] as vec2) // retrieve M x y
 
 		if (vec2.dist(lastEnd, start) < EPSILON) {
 			opened = opened.slice(3) // Remove M if both ends are ident
@@ -293,7 +285,7 @@ function pathJoin(first: PathType, ...rest: PathType[]) {
 		}
 
 		ret.push(...opened)
-		vec2.copy(lastEnd, opened.slice(-2) as vec2)
+		vec2.copy(lastEnd, opened[opened.length - 1] as vec2)
 	}
 
 	return ret
@@ -308,8 +300,8 @@ function positionAtLength(len: number, path: PathType) {
 			// const first =
 			const pos = vec2.lerp(
 				vec2.create(),
-				points.slice(0, 2) as vec2,
-				points.slice(-2) as vec2,
+				points[0] as vec2,
+				points[points.length - 1] as vec2,
 				t
 			)
 			return pos
@@ -335,8 +327,8 @@ function normalAtLength(len: number, path: PathType) {
 		case K_Z: {
 			const dir = vec2.sub(
 				vec2.create(),
-				points.slice(-2) as vec2,
-				points.slice(0, 2) as vec2
+				points[points.length - 1] as vec2,
+				points[0] as vec2
 			)
 			vec2.normalize(dir, dir)
 			vec2.rotate(dir, dir, [0, 0], HALF_PI * mul)
@@ -362,8 +354,8 @@ function angleAtLength(len: number, path: PathType) {
 		case K_Z: {
 			dir = vec2.sub(
 				vec2.create(),
-				points.slice(-2) as vec2,
-				points.slice(0, 2) as vec2
+				points[points.length - 1] as vec2,
+				points[0] as vec2
 			)
 			vec2.normalize(dir, dir)
 			break
@@ -488,33 +480,31 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 	])
 }
 
-function offsetSegmentBezier(...args: number[]) {
-	const bezier = getBezier(args.slice(0, 8))
+function offsetSegmentBezier(d: number, ...points: Vec2[]): false | PathType {
+	const bezier = getBezier(points)
 
 	if (bezier.length() < EPSILON) {
 		return false
 	}
 
-	const d = args[8]
-
 	const offset = bezier.offset(d)
 
 	const {x, y} = offset[0].points[0]
 
-	const ret = [K_M, x, y]
+	const ret = [K_M, [x, y]]
 
 	for (const seg of offset) {
 		const pts = seg.points
 		ret.push(K_C)
 		for (let i = 1; i < 4; i++) {
-			ret.push(pts[i].x, pts[i].y)
+			ret.push([pts[i].x, pts[i].y])
 		}
 	}
 
 	return ret
 }
 
-function offsetSegmentLine(a: vec2, b: vec2, d: number) {
+function offsetSegmentLine(d: number, a: vec2, b: vec2): false | PathType {
 	if (vec2.equals(a, b)) {
 		return false
 	}
@@ -532,7 +522,7 @@ function offsetSegmentLine(a: vec2, b: vec2, d: number) {
 	vec2.add(oa, a, dir)
 	vec2.add(ob, b, dir)
 
-	return [K_M, ...oa, K_L, ...ob] as PathType
+	return [K_M, oa, K_L, ob] as PathType
 }
 
 function offset(d: number, path: PathType) {
@@ -592,39 +582,40 @@ function offset(d: number, path: PathType) {
 		let cmd, points
 		for ([cmd, ...points] of iterateSegment(commands)) {
 			if (cmd === K_M) {
-				vec2.copy(forig, points as vec2)
+				vec2.copy(forig, points[0] as vec2)
 				vec2.copy(lorig, forig)
 			} else if (cmd === K_L || cmd === K_C || cmd === K_Z) {
 				if (cmd === K_Z) {
 					points = forig as number[]
 				}
 
+				// off is like [:M [x y] :L [x y] ... ]
 				let off =
 					cmd === K_C
-						? offsetSegmentBezier(...lorig, ...(points as number[]), d)
-						: offsetSegmentLine(lorig, points as vec2, d)
+						? offsetSegmentBezier(d, lorig, ...(points as Vec2[]))
+						: offsetSegmentLine(d, lorig, points as vec2)
 				if (off) {
-					vec2.copy(coff, off.slice(1, 3) as vec2)
+					vec2.copy(coff, off[1] as vec2)
 
 					if (continued) {
-						if (vec2.equals(loff, off.slice(1) as vec2)) {
-							off = off.slice(3) // remove (M 0 1)
+						if (vec2.equals(loff, off[1] as vec2)) {
+							off = off.slice(2) // remove [:M [x y]]
 						} else {
 							// make a bevel
 							const corner = makeRoundCorner(lorig, loff, coff)
-							// (M x y # ...) + (M x y # ...)
-							off = [...corner.slice(3), ...off.slice(3)]
+							// (M [x y] # ...) + (M [x y] # ...)
+							off = [...corner.slice(2), ...off.slice(2)]
 							// make a chamfer Bevel
-							// off[0] = K('L')
+							// off[0] = K_L
 						}
 					} else {
 						// First time to offset
 						continued = true
-						vec2.copy(foff, off.slice(1, 3) as vec2)
+						vec2.copy(foff, off[1] as vec2)
 					}
 					ret.push(...off)
-					vec2.copy(lorig, points.slice(-2) as vec2)
-					vec2.copy(loff, off.slice(-2) as vec2)
+					vec2.copy(lorig, points[points.length - 1] as vec2)
+					vec2.copy(loff, off[off.length - 1] as vec2)
 				}
 			}
 
@@ -648,21 +639,21 @@ function trimCurve(start: number, end: number, curve: SegmentType) {
 	}
 
 	const [cmd, ...points] = curve
-	let trimmed: number[] = []
+	let trimmed: Vec2[] = []
 
 	switch (cmd) {
 		case K_L:
 		case K_Z: {
-			const p0 = points.slice(0, 2) as vec2
-			const p1 = points.slice(-2) as vec2
+			const p0 = points[0] as vec2
+			const p1 = points[points.length - 1] as vec2
 			const np0 = vec2.lerp(vec2.create(), p0, p1, start)
 			const np1 = vec2.lerp(vec2.create(), p0, p1, end)
-			trimmed = [...np0, ...np1]
+			trimmed = [np0, np1]
 			break
 		}
 		case K_C: {
 			const bezier = getBezier(points).split(start, end)
-			trimmed = bezier.points.map(({x, y}) => [x, y]).flat()
+			trimmed = bezier.points.map(({x, y}) => [x, y])
 			break
 		}
 		default:
@@ -718,7 +709,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 		if (
 			cmd === K_M ||
 			(cmd === K_Z &&
-				vec2.dist(points.slice(0, 2) as vec2, points.slice(-2) as vec2) <
+				vec2.dist(points[0] as vec2, points[points.length - 1] as vec2) <
 					EPSILON)
 		) {
 			continue
@@ -773,14 +764,18 @@ function trimByLength(start: number, end: number, path: PathType) {
 		}
 	}
 
-	// Convert to path
+	// Convert curves to path
 	const rest = trimmed
 		.map(([cmd, ...pts], i) => {
-			const ret = [cmd, ...pts.slice(2)]
-			if (i === 0) {
-				ret.unshift(K_M, ...pts.slice(0, 2))
+			switch (cmd) {
+				case K_M:
+					return [cmd, ...pts]
+				case K_L:
+				case K_C:
+					return [cmd, ...pts.slice(1)]
+				case K_Z:
+					return [cmd]
 			}
-			return ret
 		})
 		.flat()
 
@@ -811,10 +806,10 @@ function pathBounds(path: PathType) {
 	for (const [cmd, ...pts] of iterateCurve(path)) {
 		switch (cmd) {
 			case K_L:
-				left = Math.min(left, pts[0], pts[2])
-				top = Math.min(top, pts[1], pts[3])
-				right = Math.max(right, pts[0], pts[2])
-				bottom = Math.max(bottom, pts[1], pts[3])
+				left = Math.min(left, pts[0][0], pts[1][0])
+				top = Math.min(top, pts[0][1], pts[1][1])
+				right = Math.max(right, pts[0][0], pts[1][0])
+				bottom = Math.max(bottom, pts[0][1], pts[1][1])
 				break
 			case K_C: {
 				const {x, y} = getBezier(pts).bbox()

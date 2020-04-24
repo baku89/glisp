@@ -32,8 +32,8 @@ export const REP = (str: string, env: Env = replEnv) => {
 /* eslint-disable no-useless-escape */
 REP(`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`)
 REP(`(def load-file-force
-  (fn (path)
-		(let (url (js-eval (format "new URL('%s', '%s')" path __filename__)))
+  (fn [path]
+		(let [url (js-eval (format "new URL('%s', '%s')" path __filename__))]
       (eval (read-string
              (format "(do (def __filename__ \\"%s\\") %s \n nil)"
                      url

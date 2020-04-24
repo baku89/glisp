@@ -142,17 +142,25 @@ class CanvasRendererWorker extends EventEmitter {
 					}
 					case K_PATH: {
 						ctx.beginPath()
-						for (const [c, ...a] of iterateSegment(rest)) {
+						for (const [c, ...pts] of iterateSegment(rest)) {
+							const args = pts.flat()
 							switch (c) {
 								case K_M:
-									ctx.moveTo(...(a as [number, number]))
+									ctx.moveTo(...(args as [number, number]))
 									break
 								case K_L:
-									ctx.lineTo(...(a as [number, number]))
+									ctx.lineTo(...(args as [number, number]))
 									break
 								case K_C:
 									ctx.bezierCurveTo(
-										...(a as [number, number, number, number, number, number])
+										...(args as [
+											number,
+											number,
+											number,
+											number,
+											number,
+											number
+										])
 									)
 									break
 								case K_Z:
