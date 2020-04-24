@@ -36,15 +36,15 @@
      (def ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
      (first __ret__)))
 
-(def $pens ())
-(def $hands ())
+(def $pens [])
+(def $hands [])
 
 (defmacro defpen [name params body]
   `(do
      (def ~name (fn ~params ~body))
-     (def $pens (push $pens '~name))))
+     (def $pens (conj $pens '~name))))
 
 (defmacro defhand [name params body]
   `(do
      (def ~name (fn ~params ~body))
-     (def $hands (push $hands '~name))))
+     (def $hands (conj $hands '~name))))
