@@ -22,7 +22,6 @@ import {
 	MalVector
 } from '../types'
 import printExp, {printer} from '../printer'
-import evalExp from '../eval'
 import readStr from '../reader'
 import interop from '../interop'
 import {partition} from '../utils'
@@ -167,6 +166,18 @@ const jsObjects = new Map<string, any>([
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
 	['reverse', (coll: MalVal[]) => coll.reverse()],
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
+	[
+		'conj',
+		(lst: MalVal, ...args: MalVal[]) => {
+			if (isList(lst)) {
+				const newList = [...lst]
+				args.forEach(arg => newList.unshift(arg))
+				return newList
+			} else if (isVector(lst)) {
+				return MalVector.from([...lst, ...args])
+			}
+		}
+	],
 	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
 	['concat', (...args: MalVal[]) => [].concat(...(args as any))],
 	[
