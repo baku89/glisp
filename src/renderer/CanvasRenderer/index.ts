@@ -50,8 +50,12 @@ export default class CanvasRenderDelegate extends EventEmitter {
 
 	public async render(ast: MalVal, settings: ViewerSettings) {
 		this.rendering = true
-		await this.postMessageAndWait('render', {ast, settings})
-		this.rendering = false
+		return await this.postMessageAndWait('render', {ast, settings}).then(
+			ret => {
+				this.rendering = false
+				return ret
+			}
+		)
 	}
 
 	public async getImage() {

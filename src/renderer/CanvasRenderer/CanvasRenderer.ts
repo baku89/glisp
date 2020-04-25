@@ -2,7 +2,6 @@ import {MalVal, keywordFor as K, isMap, isKeyword, LispError} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/mal/utils'
 import {iterateSegment} from '@/mal/ns/path'
-import EventEmitter from 'eventemitter3'
 import {ViewerSettings} from './index'
 
 const K_G = K('g'),
@@ -40,14 +39,10 @@ interface DrawStyle {
 	params: DrawParams
 }
 
-export default class CanvasRenderer extends EventEmitter {
+export default class CanvasRenderer {
 	private canvas!: Canvas
 	private ctx!: CanvasContext
 	private dpi!: number
-
-	constructor() {
-		super()
-	}
 
 	public async postMeessage(type: string, params: any) {
 		switch (type) {
@@ -55,8 +50,9 @@ export default class CanvasRenderer extends EventEmitter {
 				return this.init(params)
 			case 'resize':
 				return this.resize(params)
-			case 'render':
+			case 'render': {
 				return this.render(params)
+			}
 			case 'get-image':
 				return await this.getImage()
 			default:
@@ -124,7 +120,7 @@ export default class CanvasRenderer extends EventEmitter {
 			  }
 			: null
 
-		this.draw(ast, [], defaultStyle)
+		return this.draw([], ast, [], defaultStyle)
 	}
 
 	private async getImage() {
@@ -155,6 +151,7 @@ export default class CanvasRenderer extends EventEmitter {
 	}
 
 	private draw(
+		ret: any[],
 		ast: MalVal,
 		styles: DrawStyle[],
 		defaultStyle: DrawStyle | null
@@ -176,12 +173,12 @@ export default class CanvasRenderer extends EventEmitter {
 				switch (cmd) {
 					case K_G:
 						for (const child of rest) {
-							this.draw(child, styles, defaultStyle)
+							this.draw(ret, child, styles, defaultStyle)
 						}
 						break
 					case K_STYLE: {
 						const style: DrawStyle = {type: rest[0][0], params: rest[0][1]}
-						this.draw(rest[1], [style, ...styles], defaultStyle)
+						this.draw(ret, rest[1], [style, ...styles], defaultStyle)
 						break
 					}
 					case K_PATH: {
@@ -250,17 +247,14 @@ export default class CanvasRenderer extends EventEmitter {
 						ctx.transform(
 							...(rest[0] as [number, number, number, number, number, number])
 						)
-						this.draw(rest[1], styles, defaultStyle)
+						this.draw(ret, rest[1], styles, defaultStyle)
 						ctx.restore()
 						break
 					case K_BACKGROUND: {
 						const color = rest[0]
-						if (typeof color === 'string' && color !== '') {
-							// only execute if the color is valid
-							this.emit('set-background', color)
-							ctx.fillStyle = color
-							ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-						}
+						ret.push(['set-background', color])
+						ctx.fillStyle = color
+						ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 						break
 					}
 					case K_ARTBOARD: {
@@ -274,7 +268,7 @@ export default class CanvasRenderer extends EventEmitter {
 						ctx.clip(clipRegion)
 
 						// Draw inner items
-						this.draw(body, styles, defaultStyle)
+						this.draw(ret, body, styles, defaultStyle)
 
 						// Restore
 						ctx.restore()
@@ -283,7 +277,7 @@ export default class CanvasRenderer extends EventEmitter {
 					case K_ENABLE_ANIMATION: {
 						let fps = rest[0]
 						fps = 0.1 < fps && fps < 60 ? fps : -1
-						this.emit('enable-animation', fps)
+						ret.push(['enable-animation', fps])
 						break
 					}
 					default:
@@ -291,6 +285,8 @@ export default class CanvasRenderer extends EventEmitter {
 				}
 			}
 		}
+
+		return ret
 	}
 
 	private createFillOrStrokeStyle(style: string | any[]) {

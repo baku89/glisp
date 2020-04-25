@@ -91,20 +91,6 @@ export default class Viewer extends Vue {
 		this.renderer = new CanvasRendererDelegate()
 		this.renderer.init(this.canvas)
 		this.renderer.resize()
-
-		// this.renderer.on('set-background', (color: string) =>
-		// 	this.$emit('set-background', color)
-		// )
-		// this.renderer.on('enable-animation', (fps: string) => {
-		// 	const check = () => {
-		// 		if (this.renderer.isRendering) {
-		// 			requestAnimationFrame(check)
-		// 		} else {
-		// 			this.update()
-		// 		}
-		// 	}
-		// 	requestAnimationFrame(check)
-		// })
 	}
 
 	private beforeDestroy() {
@@ -146,9 +132,26 @@ export default class Viewer extends Vue {
 
 			this.viewEnv = env
 
-			await this.renderer.render(output, {
+			const sidefxs: any = await this.renderer.render(output, {
 				guideColor: this.viewEnv.get(S('$guide-color')) as string
 			})
+
+			for (const [cmd, params] of sidefxs) {
+				switch (cmd) {
+					case 'set-background':
+						this.$emit('set-background', params)
+						break
+					case 'enable-animation': {
+						const check = () => {
+							this.renderer.isRendering
+								? requestAnimationFrame(check)
+								: this.update()
+						}
+						requestAnimationFrame(check)
+						break
+					}
+				}
+			}
 		} catch (err) {
 			if (err instanceof LispError) {
 				printer.error(err.message)
