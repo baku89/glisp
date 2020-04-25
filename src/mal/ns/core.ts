@@ -59,7 +59,7 @@ const jsObjects = new Map<string, any>([
 	['nil?', (a: MalVal) => a === null],
 	['true?', (a: MalVal) => a === true],
 	['false?', (a: MalVal) => a === false],
-	['bool?', (a: MalVal) => typeof a === 'boolean'],
+	['boolean?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
 	['string?', (a: MalVal) => typeof a === 'string'],
 	[
@@ -207,10 +207,10 @@ const jsObjects = new Map<string, any>([
 			!isMap(m)
 				? null
 				: a in m
-				? m[a]
-				: notfound !== undefined
-				? notfound
-				: null
+					? m[a]
+					: notfound !== undefined
+						? notfound
+						: null
 	],
 	[
 		'contains?',
@@ -249,7 +249,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-			;(c as any)[M_META] = m
+				; (c as any)[M_META] = m
 			return c
 		}
 	],

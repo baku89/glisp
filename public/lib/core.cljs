@@ -47,6 +47,17 @@
                      nil)
         :else (println "No document")))
 
+(defn type [x]
+  (cond (number? x) :number
+        (string? x) :string
+        (boolean? x) :boolean
+        (keyword? x) :keyword
+        (symbol? x) :symbol
+        (atom? x) :atom
+        (nil? x) :nil
+        (fn? x) :fn
+        (macro? x) :macro))
+
 ;; Conditionals
 (defmacro when [test & body]
   (list 'if test (cons 'do body)))
