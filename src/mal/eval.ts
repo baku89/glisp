@@ -151,6 +151,7 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 					env,
 					a1 as string[]
 				)
+			/*
 			case 'env-chain': {
 				let _env: Env | null = env
 				const envs = []
@@ -180,7 +181,7 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 						.join(' <- ') || 'not defined'
 				]
 				break
-			}
+			}*/
 			default: {
 				// Apply Function
 				const [_fn, ...args] = evalAst(ast, env) as MalVal[]
