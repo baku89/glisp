@@ -14,6 +14,9 @@
 (def .x first)
 (def .y second)
 
+;; vec2
+;; http://glmatrix.net/docs/module-vec2.html
+
 (defn vec2/uniform
   {:doc "Create vec2 with same value for x and y"}
   [v] [v v])
@@ -109,6 +112,46 @@
     [(+ (* (nth m 0) x) (* (nth m 2) y) (nth m 4))
      (+ (* (nth m 1) x) (* (nth m 3) y) (nth m 5))]))
 
+;; mat2d
+;; http://glmatrix.net/docs/module-mat2d.html
+
+;; mat2d/fromTranslation
+(defn mat2d/translate
+  {:doc {:desc "Translate the containing items"
+         :params '[[[x y] :vec2 "Amount of translation"]]
+         :return '[:mat2d "Transform matrix"]}}
+  [[x y]]
+  [1 0 0 1 x y])
+
+
+(defn mat2d/translate-x [x] [1 0 0 1 x 0])
+(defn mat2d/translate-y [y] [1 0 0 1 0 y])
+
+;; mat2d/fromScaling, scale
+(defn mat2d/scale
+  {:doc {:desc "Scale the containing items"
+         :params '[[[s :vec2 "Percent to scale the items"]]
+                   [[s :number "Percent to scale the items proportionally"]]]}}
+  [s]
+  (cond (number? s) [s 0 0 s 0 0]
+        (vec2? s) [(.x s) 0 0 (.y s) 0 0]))
+
+(defn mat2d/scale-x [sx] [sx 0 0 1 0 0])
+(defn mat2d/scale-y [sy] [1 0 0 sy 0 0])
+
+;; mat2d/fromRotation
+(defn mat2d/rotate [angle]
+  (let [s (sin angle)
+        c (cos angle)]
+    [c s (- s) c 0 0]))
+
+(def translate mat2d/translate)
+(def translate-x mat2d/translate-x)
+(def translate-y mat2d/translate-y)
+(def scale mat2d/scale)
+(def scale-x mat2d/scale-x)
+(def scale-y mat2d/scale-y)
+(def rotate mat2d/rotate)
 
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
