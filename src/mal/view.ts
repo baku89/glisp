@@ -48,7 +48,7 @@ interface ViewREPOptions {
 export function viewREP(
 	str: string | MalVal,
 	options: ViewREPOptions
-): {env: Env | false; output: MalVal} {
+): {env: Env; output: MalVal} {
 	const {width, height, updateConsole, drawGuide} = options
 
 	const viewEnv = new Env(replEnv)
@@ -63,31 +63,16 @@ export function viewREP(
 	}
 
 	let output: MalVal = null
-	let succeed = true
 
-	try {
-		// console.time('read')
-		const src = typeof str === 'string' ? readStr(str) : str
-		// console.timeEnd('read')
-		// console.time('eval')
-		output = evalExp(src, viewEnv)
-		// console.timeEnd('eval')
-	} catch (err) {
-		if (err instanceof LispError) {
-			printer.error(err)
-		} else {
-			printer.error(err.stack)
-		}
-		succeed = false
-	}
+	const src = typeof str === 'string' ? readStr(str) : str
+	output = evalExp(src, viewEnv)
 
-	if (succeed && updateConsole) {
-		// Draw
+	if (updateConsole) {
 		consoleEnv.outer = viewEnv
 	}
 
 	return {
-		env: succeed ? viewEnv : false,
-		output: output
+		env: viewEnv,
+		output
 	}
 }

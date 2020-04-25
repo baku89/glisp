@@ -3,13 +3,7 @@ import Env from './env'
 import printExp, {printer} from './printer'
 import {replEnv} from './repl'
 import readStr, {BlankException} from './reader'
-import {
-	MalVal,
-	LispError,
-	isKeyword,
-	symbolFor as S,
-	keywordFor as K
-} from './types'
+import {MalVal, LispError, isKeyword, symbolFor as S, keywordFor} from './types'
 import evalExp from './eval'
 import CanvasRenderer from '@/renderer/CanvasRenderer'
 import {viewREP} from './view'
@@ -32,38 +26,41 @@ consoleEnv.set(S('console/clear'), () => {
 })
 
 consoleEnv.set(S('export'), (name: MalVal = null) => {
-	let x = 0,
-		y = 0,
-		width = consoleEnv.get(S('$width')) as number,
-		height = consoleEnv.get(S('$height')) as number
+	const exec = async () => {
+		let x = 0,
+			y = 0,
+			width = consoleEnv.get(S('$width')) as number,
+			height = consoleEnv.get(S('$height')) as number
 
-	const canvas = document.createElement('canvas')
-	const renderer = new CanvasRenderer(canvas)
+		const renderer = new CanvasRenderer()
+		renderer.init(document.createElement('canvas'))
 
-	const $canvas = consoleEnv.get(S('$canvas'))
+		const $canvas = consoleEnv.get(S('$canvas'))
 
-	const {env, output} = viewREP(`(def $view (eval-sketch ${$canvas} \n nil))`, {
-		width,
-		height,
-		updateConsole: false,
-		drawGuide: false
-	})
+		const {env, output} = viewREP(`(eval-sketch ${$canvas} \n nil))`, {
+			width,
+			height,
+			updateConsole: false,
+			drawGuide: false
+		})
 
-	let $view = output
+		let $view = output
 
-	if (env) {
-		if (Array.isArray(output)) {
-			if (typeof name === 'string') {
-				$view = evalExp([S('find-item'), K(`artboard#${name}`), $view], env)
-				if ($view === null) {
-					throw new LispError(`Artboard "${name as string}" does not exist`)
-				} else {
-					;[x, y, width, height] = ($view as MalVal[])[1] as number[]
+		if (env) {
+			if (Array.isArray($view)) {
+				if (typeof name === 'string') {
+					$view = evalExp(
+						[S('find-item'), keywordFor(`artboard#${name}`), $view],
+						env
+					)
+					if ($view === null) {
+						throw new LispError(`Artboard "${name as string}" does not exist`)
+					} else {
+						;[x, y, width, height] = ($view as MalVal[])[1] as number[]
+					}
 				}
 			}
-		}
 
-		const exec = async () => {
 			renderer.resize(width, height, 1)
 			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])
 			await renderer.render($view, {viewTransform: xform})
@@ -71,9 +68,10 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 			const w = window.open('about:blank', 'Image for canvas')
 			w?.document.write(`<img src=${image} />`)
 		}
-
-		exec()
 	}
+
+	exec()
+
 	return null
 })
 

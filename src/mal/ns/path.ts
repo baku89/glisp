@@ -671,7 +671,6 @@ function trimCurve(start: number, end: number, curve: SegmentType) {
 function trimByLength(start: number, end: number, path: PathType) {
 	// In case no change
 	if (start < EPSILON && end < EPSILON) {
-		console.log('no change')
 		return path
 	}
 

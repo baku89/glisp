@@ -20,13 +20,8 @@ replEnv.set(S('eval'), (ast: MalVal) => {
 declareAllNamespaces(replEnv)
 
 // Root REPL
-export const REP = (str: string, env: Env = replEnv) => {
-	try {
-		printExp(evalExp(readStr(str), env))
-	} catch (err) {
-		printer.error(err)
-	}
-}
+export const REP = (str: string, env: Env = replEnv) =>
+	printExp(evalExp(readStr(str), env))
 
 // Load core library
 /* eslint-disable no-useless-escape */

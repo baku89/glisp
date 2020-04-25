@@ -50,10 +50,11 @@ import {ResizeObserver} from 'vue-resize'
 
 import {evalExp, readEvalStr, readStr} from '@/mal'
 import {viewREP, viewHandler} from '@/mal/view'
-import {symbolFor as S, MalVal} from '@/mal/types'
+import {symbolFor as S, MalVal, LispError} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
-import CanvasRenderer from '@/renderer/CanvasRenderer'
+import CanvasRendererDelegate from '@/renderer/CanvasRenderer'
+import {printer} from '../mal/printer'
 
 @Component({
 	directives: {ClickOutside},
@@ -82,31 +83,28 @@ export default class Viewer extends Vue {
 	private mousePressed = false
 
 	private viewEnv!: Env
-	private renderer!: CanvasRenderer
+	private renderer!: CanvasRendererDelegate
 	private canvas!: HTMLCanvasElement
 
 	private mounted() {
 		this.canvas = this.$refs.canvas as HTMLCanvasElement
-		this.renderer = new CanvasRenderer(this.canvas)
+		this.renderer = new CanvasRendererDelegate()
+		this.renderer.init(this.canvas)
 		this.renderer.resize()
 
-		this.renderer.on('set-background', (color: string) =>
-			this.$emit('set-background', color)
-		)
-		this.renderer.on('enable-animation', (fps: string) => {
-			const check = () => {
-				if (this.renderer.isRendering) {
-					requestAnimationFrame(check)
-				} else {
-					this.update()
-				}
-			}
-			requestAnimationFrame(check)
-		})
-
-		this.renderer.on('render', (succeed: boolean) => {
-			this.$emit('render', succeed)
-		})
+		// this.renderer.on('set-background', (color: string) =>
+		// 	this.$emit('set-background', color)
+		// )
+		// this.renderer.on('enable-animation', (fps: string) => {
+		// 	const check = () => {
+		// 		if (this.renderer.isRendering) {
+		// 			requestAnimationFrame(check)
+		// 		} else {
+		// 			this.update()
+		// 		}
+		// 	}
+		// 	requestAnimationFrame(check)
+		// })
 	}
 
 	private beforeDestroy() {
@@ -137,24 +135,30 @@ export default class Viewer extends Vue {
 		}
 	}
 
-	private update() {
-		const options = {
-			width: this.canvas.clientWidth,
-			height: this.canvas.clientHeight,
-			updateConsole: true,
-			drawGuide: true
-		}
-		const {output, env} = viewREP(this.ast, options)
-		if (env) {
+	private async update() {
+		try {
+			const {output, env} = viewREP(this.ast, {
+				width: this.canvas.clientWidth,
+				height: this.canvas.clientHeight,
+				updateConsole: true,
+				drawGuide: true
+			})
+
 			this.viewEnv = env
 
-			const settings = {
+			await this.renderer.render(output, {
 				guideColor: this.viewEnv.get(S('$guide-color')) as string
+			})
+		} catch (err) {
+			if (err instanceof LispError) {
+				printer.error(err.message)
+			} else {
+				printer.error(err)
 			}
-			this.renderer.render(output, settings)
-		} else {
 			this.$emit('render', false)
+			return
 		}
+		this.$emit('render', true)
 	}
 
 	private togglePen(pen: string) {
