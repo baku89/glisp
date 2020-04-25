@@ -7,7 +7,7 @@
      background (fn (c) (fill c (rect [0 0] $size)))
      frame-guide (guide (rect [.5 .5] (vec2/- $size [1 1])))]
      (translate (rect/point bounds)
-                (make-group [frame-guide] body)))])
+                (g [frame-guide] body)))])
 
 (defn find-item [sel body]
   (first
@@ -57,13 +57,11 @@
         c (cos angle)]
     [:transform [c s (- s) c 0 0] body]))
 
-;; Make group
-(defn make-group [& xs]
+;; Group
+(defn g [& xs]
   (let [children (apply concat (map #(if (item? %) [%] %) xs))]
     (if (= 1 (count children)) (first children)
         (apply vector :g children))))
-(def g make-group)
-
 
 ;; Style
 (defn g/fill

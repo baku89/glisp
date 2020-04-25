@@ -23,7 +23,7 @@
        (remove empty?)))
 
 (defn eval-sketch [& xs]
-  (make-group (vec (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs))))))
+  (g (vec (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs))))))
 
 
 ;; Pens and Hands
