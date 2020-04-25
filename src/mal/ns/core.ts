@@ -19,7 +19,8 @@ import {
 	isMap,
 	isList,
 	isVector,
-	MalVector
+	MalVector,
+	isString
 } from '../types'
 import printExp, {printer} from '../printer'
 import readStr from '../reader'
@@ -61,7 +62,7 @@ const jsObjects = new Map<string, any>([
 	['false?', (a: MalVal) => a === false],
 	['boolean?', (a: MalVal) => typeof a === 'boolean'],
 	['number?', (a: MalVal) => typeof a === 'number'],
-	['string?', (a: MalVal) => typeof a === 'string'],
+	['string?', isString],
 	[
 		'symbol',
 		(a: MalVal) => {
@@ -113,6 +114,21 @@ const jsObjects = new Map<string, any>([
 	['vec', (a: MalVal[]) => MalVector.from(a)],
 
 	['sequential?', Array.isArray],
+
+	[
+		'seq',
+		(a: MalVal) => {
+			if (Array.isArray(a)) {
+				return [...a]
+			} else if (isString(a) && a.length > 0) {
+				return a.split('')
+			} else if (isMap(a)) {
+				return Object.entries(a).map(entry => MalVector.from(entry))
+			} else {
+				return null
+			}
+		}
+	],
 
 	[
 		'nth',
@@ -207,10 +223,10 @@ const jsObjects = new Map<string, any>([
 			!isMap(m)
 				? null
 				: a in m
-					? m[a]
-					: notfound !== undefined
-						? notfound
-						: null
+				? m[a]
+				: notfound !== undefined
+				? notfound
+				: null
 	],
 	[
 		'contains?',
@@ -222,6 +238,7 @@ const jsObjects = new Map<string, any>([
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
 	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
+	['subs', (a: string, from: number, to?: number) => a.substr(from, to)],
 	[
 		'prn',
 		(...a: MalVal[]) => {
@@ -249,7 +266,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-				; (c as any)[M_META] = m
+			;(c as any)[M_META] = m
 			return c
 		}
 	],

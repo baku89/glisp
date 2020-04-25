@@ -66,20 +66,28 @@
 
 
 ;; Style
-(defn fill
+(defn g/fill
   {:doc {:desc "Fill the shapes with specified style"}}
-  [color body]
-  [:style [:fill (hash-map :color color)] body])
+  [color & body]
+  (vec `(:g ~{:style {:fill true :fill-color color}} ~@body)))
 
-(defn stroke
+(defn g/stroke
   {:doc "Draw a stroke along the shapes with specified style"}
-  [& args]
-  (case (count args)
-    2 (if (map? (first args))
-        [:style [:stroke (first args)] (last args)]
-        [:style [:stroke (hash-map :color (first args) :width $line-width)] (last args)])
-    3 [:style [:stroke (hash-map :color (first args) :width (second args))] (last args)]
-    (throw "[stroke] odd number of arguments")))
+  [fst snd & args]
+  (cond (map? fst) (let [attrs (->> (seq fst)
+                                    (map (fn [[k v]] (list (keyword (str "stroke-" (name k))) v)))
+                                    (apply concat)
+                                    (apply hash-map))]
+                     (vec `(:g ~(hash-map :style (assoc attrs :stroke true)) ~@(concat [snd] args))))
+        (string? fst) (if (number? snd)
+                        `(:g ~(hash-map :style {:stroke true
+                                                :stroke-color fst
+                                                :stroke-width snd})
+                             ~@args)
+                        `(:g ~(hash-map :style {:stroke true
+                                                :stroke-color fst
+                                                :stroke-width 1})
+                             ~(concat [snd] args)))))
 
 
 ; (defn linear-gradient

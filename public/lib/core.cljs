@@ -58,6 +58,12 @@
         (fn? x) :fn
         (macro? x) :macro))
 
+(defn name [x]
+  (cond (string? x) x
+        (symbol? x) (throw "Currently not supported")
+        (keyword? x) (subs (str x) 1)
+        :else (throw "Cannot get the name")))
+
 ;; Conditionals
 (defmacro when [test & body]
   (list 'if test (cons 'do body)))

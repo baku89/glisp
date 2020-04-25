@@ -1,4 +1,11 @@
-import {MalVal, keywordFor as K, isMap, isKeyword, LispError} from '@/mal/types'
+import {
+	MalVal,
+	keywordFor as K,
+	isMap,
+	isKeyword,
+	LispError,
+	MalMap
+} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/mal/utils'
 import {iterateSegment} from '@/mal/ns/path'
@@ -11,18 +18,20 @@ const K_G = K('g'),
 	K_Z = K('Z'),
 	K_BACKGROUND = K('background'),
 	K_ENABLE_ANIMATION = K('enable-animation'),
-	K_FILL = K('fill'),
-	K_STROKE = K('stroke'),
-	K_COLOR = K('color'),
 	K_PATH = K('path'),
 	K_TEXT = K('text'),
 	K_TRANSFORM = K('transform'),
 	K_ARTBOARD = K('artboard'),
+	// Styles
 	K_STYLE = K('style'),
-	K_WIDTH = K('width'),
-	K_CAP = K('cap'),
-	K_JOIN = K('join'),
-	K_DASH = K('dash'),
+	K_FILL = K('fill'),
+	K_STROKE = K('stroke'),
+	K_FILL_COLOR = K('fill-color'),
+	K_STROKE_COLOR = K('stroke-color'),
+	K_STROKE_WIDTH = K('stroke-width'),
+	K_STROKE_CAP = K('stroke-cap'),
+	K_STROKE_JOIN = K('stroke-join'),
+	K_STROKE_DASH = K('stroke-dash'),
 	K_POINTS = K('points'),
 	K_STOPS = K('stops')
 
@@ -31,13 +40,6 @@ type Canvas = HTMLCanvasElement | OffscreenCanvas
 type CanvasContext =
 	| CanvasRenderingContext2D
 	| OffscreenCanvasRenderingContext2D
-
-type DrawParams = {[key: string]: string | number | number[]}
-
-interface DrawStyle {
-	type: string
-	params: DrawParams
-}
 
 export default class CanvasRenderer {
 	private canvas!: Canvas
@@ -109,14 +111,12 @@ export default class CanvasRenderer {
 		ctx.lineJoin = 'round'
 
 		// default style
-		const defaultStyle: DrawStyle | null = settings.guideColor
+		const defaultStyle: MalMap | null = settings.guideColor
 			? {
-					type: K_STROKE,
-					params: {
-						[K_COLOR]: settings.guideColor,
-						[K_WIDTH]: 1,
-						[K_DASH]: [2, 4]
-					}
+					[K_STROKE]: true,
+					[K_STROKE_COLOR]: settings.guideColor,
+					[K_STROKE_WIDTH]: 1,
+					[K_STROKE_DASH]: [2, 4]
 			  }
 			: null
 
@@ -153,8 +153,8 @@ export default class CanvasRenderer {
 	private draw(
 		ret: any[],
 		ast: MalVal,
-		styles: DrawStyle[],
-		defaultStyle: DrawStyle | null
+		styles: MalMap[],
+		defaultStyle: MalMap | null
 	) {
 		const ctx = this.ctx
 
@@ -171,14 +171,24 @@ export default class CanvasRenderer {
 				const cmd = elm.replace(/#.*$/, '')
 
 				switch (cmd) {
-					case K_G:
-						for (const child of rest) {
+					case K_G: {
+						const [attrs, children] = isMap(rest[0])
+							? [rest[0], rest.slice(1)]
+							: [{}, rest]
+
+						for (const [key, val] of Object.entries(attrs)) {
+							switch (key) {
+								case K_STYLE: {
+									styles.push(
+										...((Array.isArray(val) ? val : [val]) as MalMap[])
+									)
+								}
+							}
+						}
+
+						for (const child of children) {
 							this.draw(ret, child, styles, defaultStyle)
 						}
-						break
-					case K_STYLE: {
-						const style: DrawStyle = {type: rest[0][0], params: rest[0][1]}
-						this.draw(ret, rest[1], [style, ...styles], defaultStyle)
 						break
 					}
 					case K_PATH: {
@@ -293,7 +303,7 @@ export default class CanvasRenderer {
 		if (typeof style === 'string') {
 			return style
 		} else if (Array.isArray(style)) {
-			const [type, params] = style as [string, DrawParams]
+			const [type, params] = style as [string, MalMap]
 			switch (type) {
 				case K('linear-gradient'): {
 					const [x0, y0, x1, y1] = params[K_POINTS] as number[]
@@ -313,8 +323,8 @@ export default class CanvasRenderer {
 	}
 
 	private applyDrawStyle(
-		styles: DrawStyle[],
-		defaultStyle: DrawStyle | null,
+		styles: MalMap[],
+		defaultStyle: MalMap | null,
 		text?: string,
 		x?: number,
 		y?: number
@@ -325,33 +335,38 @@ export default class CanvasRenderer {
 		const isText = text !== undefined
 
 		ctx.save()
-		for (const {type, params} of styles) {
-			if (type === K_FILL) {
-				ctx.fillStyle = this.createFillOrStrokeStyle(params[K_COLOR] as string)
+		for (const style of styles) {
+			for (const [k, v] of Object.entries(style)) {
+				switch (k) {
+					case K_FILL_COLOR:
+						ctx.fillStyle = this.createFillOrStrokeStyle(v as string)
+						break
+					case K_STROKE_COLOR:
+						ctx.strokeStyle = this.createFillOrStrokeStyle(v as string)
+						break
+					case K_STROKE_WIDTH:
+						ctx.lineWidth = v as number
+						break
+					case K_STROKE_CAP:
+						ctx.lineCap = v as CanvasLineCap
+						break
+					case K_STROKE_JOIN:
+						ctx.lineJoin = v as CanvasLineJoin
+						break
+					case K_STROKE_DASH:
+						ctx.setLineDash(v as number[])
+				}
+			}
+
+			if (style[K_FILL]) {
 				if (isText) {
 					ctx.fillText(text as string, x as number, y as number)
 				} else {
 					ctx.fill()
 				}
-			} else if (type === K_STROKE) {
-				for (const [k, v] of Object.entries(params as DrawParams)) {
-					switch (k) {
-						case K_COLOR:
-							ctx.strokeStyle = this.createFillOrStrokeStyle(v as string)
-							break
-						case K_WIDTH:
-							ctx.lineWidth = v as number
-							break
-						case K_CAP:
-							ctx.lineCap = v as CanvasLineCap
-							break
-						case K_JOIN:
-							ctx.lineJoin = v as CanvasLineJoin
-							break
-						case K_DASH:
-							ctx.setLineDash(v as number[])
-					}
-				}
+			}
+			if (style[K_STROKE]) {
+				console.log('aaaa')
 				if (isText) {
 					ctx.strokeText(text as string, x as number, y as number)
 				} else {
