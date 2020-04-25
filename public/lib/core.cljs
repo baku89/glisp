@@ -143,6 +143,7 @@
 
 
 ;; Trivial
+(defn identity [x] x)
 (defn prn-pass [x] (do (prn x) x))
 
 (defn zero? [x] (= x 0))
