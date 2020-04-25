@@ -170,6 +170,8 @@ export default class CanvasRenderer {
 			} else {
 				const cmd = elm.replace(/#.*$/, '')
 
+				ctx.save()
+
 				switch (cmd) {
 					case K_G: {
 						const [attrs, children] = isMap(rest[0])
@@ -178,10 +180,28 @@ export default class CanvasRenderer {
 
 						for (const [key, val] of Object.entries(attrs)) {
 							switch (key) {
-								case K_STYLE: {
+								case K_STYLE:
 									styles.push(
 										...((Array.isArray(val) ? val : [val]) as MalMap[])
 									)
+									break
+								case K_TRANSFORM: {
+									const xforms = Array.isArray((val as any[])[0])
+										? (val as number[][])
+										: [val as number[]]
+									for (const xform of xforms) {
+										ctx.transform(
+											...(xform as [
+												number,
+												number,
+												number,
+												number,
+												number,
+												number
+											])
+										)
+									}
+									break
 								}
 							}
 						}
@@ -189,6 +209,8 @@ export default class CanvasRenderer {
 						for (const child of children) {
 							this.draw(ret, child, styles, defaultStyle)
 						}
+
+						ctx.restore()
 						break
 					}
 					case K_PATH: {
@@ -252,14 +274,6 @@ export default class CanvasRenderer {
 
 						break
 					}
-					case K_TRANSFORM:
-						ctx.save()
-						ctx.transform(
-							...(rest[0] as [number, number, number, number, number, number])
-						)
-						this.draw(ret, rest[1], styles, defaultStyle)
-						ctx.restore()
-						break
 					case K_BACKGROUND: {
 						const color = rest[0]
 						ret.push(['set-background', color])

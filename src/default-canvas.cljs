@@ -10,6 +10,5 @@
 (->> grid
      (map #(vec2/scale % (* w 2)))
      (map-indexed slash)
-     g
-     (stroke "salmon" 10)
+     (g/stroke "salmon" 10)
      (translate (vec2/scale $size .5)))

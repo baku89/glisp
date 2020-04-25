@@ -35,27 +35,29 @@
 
 (defn translate
   {:doc {:desc "Translate the containing items"
-         :params '[[t :vec2 "Amount of translation"]]}}
-  [t body]
-  [:transform [1 0 0 1 (.x t) (.y t)] body])
+         :params '[[[x y] :vec2 "Amount of translation"]]
+         :return '[:mat2d "Transform matrix"]}}
+  [[x y]]
+  [1 0 0 1 x y])
 
-(defn translate-x [x body] [:transform [1 0 0 1 x 0] body])
-(defn translate-y [y body] [:transform [1 0 0 1 0 y] body])
+(defn translate-x [x] [1 0 0 1 x 0])
+(defn translate-y [y] [1 0 0 1 0 y])
 
 (defn scale
   {:doc {:desc "Scale the containing items"
          :params '[[[s :vec2 "Percent to scale the items"]]
                    [[s :number "Percent to scale the items proportionally"]]]}}
-  [s body]
-  (cond (number? s) [:transform [s 0 0 s 0 0] body]
-        (vec2? s) [:transform [(.x s) 0 0 (.y s) 0 0] body]))
-(defn scale-x [sx body] [:transform [sx 0 0 1 0 0] body])
-(defn scale-y [sy body] [:transform [1 0 0 sy 0 0] body])
+  [s]
+  (cond (number? s) [s 0 0 s 0 0]
+        (vec2? s) [(.x s) 0 0 (.y s) 0 0]))
 
-(defn rotate [angle body]
+(defn scale-x [sx] [sx 0 0 1 0 0])
+(defn scale-y [sy] [1 0 0 sy 0 0])
+
+(defn rotate [angle]
   (let [s (sin angle)
         c (cos angle)]
-    [:transform [c s (- s) c 0 0] body]))
+    [c s (- s) c 0 0]))
 
 ;; Group
 (defn g [& xs]
@@ -64,6 +66,15 @@
         (apply vector :g children))))
 
 ;; Style
+(defn fill [color]
+  {:fill true :fill-color color})
+
+(defn stroke [fst & args]
+  (cond (map? fst) (->> (seq fst)
+                        (map (fn [[k v]] (list (keyword (str "stroke-" (name k))) v)))
+                        (apply concat)
+                        (apply hash-map))))
+
 (defn g/fill
   {:doc {:desc "Fill the shapes with specified style"}}
   [color & body]
@@ -78,14 +89,14 @@
                                     (apply hash-map))]
                      (vec `(:g ~(hash-map :style (assoc attrs :stroke true)) ~@(concat [snd] args))))
         (string? fst) (if (number? snd)
-                        `(:g ~(hash-map :style {:stroke true
-                                                :stroke-color fst
-                                                :stroke-width snd})
-                             ~@args)
-                        `(:g ~(hash-map :style {:stroke true
-                                                :stroke-color fst
-                                                :stroke-width 1})
-                             ~(concat [snd] args)))))
+                        (vec `(:g ~(hash-map :style {:stroke true
+                                                     :stroke-color fst
+                                                     :stroke-width snd})
+                                  ~@args))
+                        (vec `(:g ~(hash-map :style {:stroke true
+                                                     :stroke-color fst
+                                                     :stroke-width 1})
+                                  ~(concat [snd] args))))))
 
 
 ; (defn linear-gradient
