@@ -76,17 +76,12 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      (cons 'cond (rest (rest xs))))))
 
-(defn wrap-let [binds expr]
-  (list 'let binds expr))
-
-(defn make-binds-list [a b]
-  (apply concat (map #(list (nth a %) (nth b %)) (range (count a)))))
-
-(defmacro for [binds expr]
+(defmacro for [binds & body]
   (let [pairs (partition 2 binds)
-        syms (map #(first %) pairs)
-        colls (apply combination/product (map #(eval (second %)) pairs))]
-    (map #(wrap-let (make-binds-list syms %) expr) colls)))
+        syms (map first pairs)
+        colls (map second pairs)
+        gen-lst `(combination/product ~@colls)]
+    `(map (fn [~syms] (do ~@body)) ~gen-lst)))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)

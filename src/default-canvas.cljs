@@ -1,14 +1,14 @@
-(def w 20)
-(def col (range -5 6))
-(def grid (combination/× col col))
+(def w 40)
+(def s (/ w 2))
 
-(defn slash (i p)
-  (->> (line [(- w) (- w)] [w w])
-       (scale-x (compare (random i) .5))
-       (translate p)))
+(defn slash (p)
+  (->> (line [(- s) (- s)] [s s])
+       (path/scale-x [(compare (random p) .5)])
+       (path/translate p)))
 
-(->> grid
-     (map #(vec2/scale % (* w 2)))
-     (map-indexed slash)
-     (g/stroke "salmon" 10)
-     (translate (vec2/scale $size .5)))
+[:g {:transform (view-center)
+     :style (stroke "salmon" 10)}
+
+ (g/for [y (column -5 6 w)
+         x (column -5 6 w)]
+   (slash [x y]))]

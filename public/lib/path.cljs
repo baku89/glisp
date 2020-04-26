@@ -67,8 +67,20 @@
 (defn path/translate [t path]
   (path/map-points #(vec2/+ % t) path))
 
+(defn path/translate-x [tx path]
+  (path/map-points #(vec2/+ % [tx 0]) path))
+
+(defn path/translate-x [ty path]
+  (path/map-points #(vec2/+ % [0 ty]) path))
+
 (defn path/scale [s path]
   (path/map-points #(vec2/* % s) path))
+
+(defn path/scale-x [sx path]
+  (path/map-points #(vec2/* % [sx 1]) path))
+
+(defn path/scale-y [sy path]
+  (path/map-points #(vec2/* % [1 y]) path))
 
 (defn path/rotate [origin angle path]
   (path/map-points #(vec2/rotate origin angle %) path))

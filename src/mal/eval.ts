@@ -92,9 +92,9 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 				return env.set(a1 as string, evalExp(a2, env))
 			case 'let': {
 				const letEnv = new Env(env)
-				const lst = a1 as MalVal[]
-				for (let i = 0; i < lst.length; i += 2) {
-					letEnv.set(lst[i] as string, evalExp(lst[i + 1], letEnv))
+				const binds = a1 as MalVal[]
+				for (let i = 0; i < binds.length; i += 2) {
+					letEnv.set(binds[i] as string, evalExp(binds[i + 1], letEnv))
 				}
 				env = letEnv
 				ast = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
