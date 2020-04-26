@@ -32,7 +32,7 @@
 (defn item? [a] (and (sequential? a) (keyword? (first a))))
 
 (defn column [from to step]
-  (map #(* % step) (range from to)))
+  (map #(* % step) (range from (inc to))))
 
 ; ;; Transformation
 (defn translate
