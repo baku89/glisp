@@ -48,19 +48,6 @@
     (if (= 1 (count children)) (first children)
         (apply vector :g children))))
 
-(defmacro g/for [& xs] `(g (for ~@xs)))
-
-(defn g/fill
-  {:doc {:desc "Fill the shapes with specified style"}}
-  [color & body]
-  (vec `(:g ~{:style (fill color)} ~@body)))
-
-(defn g/stroke
-  {:doc "Draw a stroke along the shapes with specified style"}
-  [fst snd & args]
-  (let [body (if (number? snd) args (concat [snd] args))]
-    (vec `(:g ~(hash-map :style (stroke fst snd)) ~@body))))
-
 ;; Transform
 (defmacro view-center []
   `(translate (vec2/scale $size .5)))
