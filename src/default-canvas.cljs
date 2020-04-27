@@ -1,7 +1,7 @@
 (def w 40)
 (def s (/ w 2))
 
-(defn slash (p)
+(defn slash [p]
   (->> (line [(- s) (- s)] [s s])
        (path/scale-x [(compare (random p) .5)])
        (path/translate p)))
