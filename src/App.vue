@@ -1,10 +1,19 @@
 <template>
-	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+	<div
+		id="app"
+		:class="{'background-set': backgroundSet, compact}"
+		:style="colors"
+	>
 		<div class="app__inspector">
 			<Inspector :value="selectedAst" @input="onEditSelected" />
 		</div>
 		<div class="app__viewer">
-			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
+			<Viewer
+				:ast="ast"
+				:selection="selection"
+				@render="onRender"
+				@set-background="onSetBackground"
+			/>
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -29,7 +38,9 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>{{ renderError ? '!' : '✓' }}</button>
+				>
+					{{ renderError ? '!' : '✓' }}
+				</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -168,12 +179,14 @@ export default class App extends Vue {
 	}
 
 	private onEditSelected(val: MalVal) {
-		const itemStr = printExp(val)
-		const [start, end] = this.activeRange
-		const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
+		if (this.activeRange) {
+			const itemStr = printExp(val)
+			const [start, end] = this.activeRange
+			const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
 
-		this.onEdit(code)
-		this.selection = selection
+			this.onEdit(code)
+			this.selection = selection
+		}
 	}
 
 	private onUpdateAst(ast: MalVal[]) {
