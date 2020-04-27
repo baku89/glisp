@@ -7,7 +7,9 @@ import {
 	isMap,
 	MalVector,
 	M_START,
-	M_END
+	M_END,
+	MalMap,
+	isList
 } from './types'
 
 class Reader {
@@ -290,6 +292,20 @@ export function findAstByRange(
 	} else {
 		return null
 	}
+}
+
+export function convertJSObjectToMalMap(obj: {[k: string]: any}): MalMap {
+	const ret: MalMap = {}
+
+	for (const [key, value] of Object.entries(obj)) {
+		ret[keywordFor(key)] = isMap(value)
+			? convertJSObjectToMalMap(value)
+			: isList(value)
+			? MalVector.from(value)
+			: value
+	}
+
+	return ret
 }
 
 export class BlankException extends Error {}
