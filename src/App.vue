@@ -238,7 +238,11 @@ export default class App extends Vue {
 	private updateSelectedAst() {
 		const [start, end] = this.selection
 		const selected = findAstByRange(this.ast, start + OFFSET, end + OFFSET)
-		this.selectedAst = selected
+		if (Array.isArray(selected) && selected[0] === S('sketch')) {
+			this.selectedAst = null
+		} else {
+			this.selectedAst = selected
+		}
 	}
 
 	private getOuterRange(start: number, end: number) {
