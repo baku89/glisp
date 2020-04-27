@@ -1,16 +1,7 @@
 <template>
-	<div
-		id="app"
-		:class="{'background-set': backgroundSet, compact}"
-		:style="colors"
-	>
+	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
 		<div class="app__viewer">
-			<Viewer
-				:ast="ast"
-				:selection="selection"
-				@render="onRender"
-				@set-background="onSetBackground"
-			/>
+			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -35,9 +26,7 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>
-					{{ renderError ? '!' : '✓' }}
-				</button>
+				>{{ renderError ? '!' : '✓' }}</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -207,7 +196,7 @@ export default class App extends Vue {
 	}
 
 	private getOuterRange(start: number, end: number) {
-		const offset = 24 // length of "(def $view (sketch "
+		const offset = 19 // length of "(def $view (sketch "
 
 		const selected = findAstByRange(this.ast, start + offset, end + offset)
 
