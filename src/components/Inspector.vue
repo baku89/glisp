@@ -2,37 +2,49 @@
 	<div class="Inspector">
 		<div class="Inspector__content" v-if="isFuncCall">
 			<div class="Inspector__header">
-				<div class="Inspector__name">{{fnName}}</div>
-				<div class="Inspector__desc">{{fnDesc}}</div>
+				<div class="Inspector__name">{{ fnName }}</div>
+				<div class="Inspector__desc">{{ fnDesc }}</div>
 			</div>
 			<div class="Inspector__params">
 				<div v-for="(pd, i) in paramsDesc" :key="i" class="Inspector__param">
-					<label class="label">{{pd['ʞlabel']}}</label>
-					<div v-if="isSymbol(params[i])" class="expr">{{params[i].slice(1)}}</div>
+					<label class="label">{{ pd['ʞlabel'] }}</label>
+					<div v-if="isSymbol(params[i])" class="expr">
+						{{ params[i].slice(1) }}
+					</div>
 					<InputNumber
-						v-else-if="pd['ʞtype'] === 'number' && typeof params[i] === 'number'"
+						v-else-if="
+							pd['ʞtype'] === 'number' && typeof params[i] === 'number'
+						"
 						:value="params[i]"
 						@input="onParamInput(i, $event)"
 					/>
 					<InputString
-						v-else-if="pd['ʞtype'] === 'string' && typeof params[i] === 'string'"
+						v-else-if="
+							pd['ʞtype'] === 'string' && typeof params[i] === 'string'
+						"
 						:value="params[i]"
 						@input="onParamInput(i, $event)"
 					/>
 					<InputVec2
-						v-else-if="pd['ʞtype'] === 'vec2' && Array.isArray(params[i]) && typeof params[i][0] === 'number' && typeof params[i][1] === 'number'"
+						v-else-if="
+							pd['ʞtype'] === 'vec2' &&
+								Array.isArray(params[i]) &&
+								typeof params[i][0] === 'number' &&
+								typeof params[i][1] === 'number'
+						"
 						:value="params[i]"
 						@input="onParamInput(i, $event)"
 					/>
-					<div v-else class="expr">{{printExp(params[i])}}</div>
+					<div v-else class="expr">{{ printExp(params[i]) }}</div>
 				</div>
 			</div>
 		</div>
 	</div>
 </template>
-	
+
 <script lang="ts">
 import {Component, Vue, Prop, Watch} from 'vue-property-decorator'
+import Case from 'case'
 import {
 	MalVal,
 	MalMap,
@@ -48,10 +60,10 @@ import {
 	isMalFunc,
 	markMalVector
 } from '@/mal/types'
+import printExp from '@/mal/printer'
 import InputNumber from '@/components/input/InputNumber.vue'
 import InputString from '@/components/input/InputString.vue'
 import InputVec2 from '@/components/input/InputVec2.vue'
-import {printExp} from '../mal'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -146,7 +158,9 @@ export default class Inspector extends Vue {
 			paramsDesc = paramsDesc.map((_desc: any, i: number) => {
 				const desc = {..._desc}
 				if (!('ʞlabel' in desc)) {
-					desc['ʞlabel'] = fnParams[i] ? fnParams[i].slice(1) : ''
+					desc['ʞlabel'] = fnParams[i]
+						? Case.capital((fnParams[i] as string).slice(1))
+						: ''
 				}
 				return desc
 			})
@@ -191,4 +205,3 @@ export default class Inspector extends Vue {
 		.expr
 			color var(--comment)
 </style>
-
