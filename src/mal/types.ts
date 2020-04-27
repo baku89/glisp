@@ -89,7 +89,11 @@ export function cloneAST(obj: MalVal, newMeta?: MalVal): MalVal {
 	let newObj = null
 	if (Array.isArray(obj)) {
 		newObj = [...obj]
-
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		if (isVector(obj)) {
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			markMalVector(newObj)
+		}
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	} else if (isMap(obj)) {
 		newObj = {...obj}
