@@ -7,10 +7,12 @@ import {
 	isKeyword,
 	MalNamespace,
 	LispError,
-	MalVector
+	MalVector,
+	M_META
 } from '../types'
 import {partition} from '../utils'
 import printExp from '../printer'
+import {convertJSObjectToMalMap} from '../reader'
 
 type Vec2 = number[] | vec2
 
@@ -481,6 +483,31 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 			.flat()
 	])
 }
+arc[M_META] = convertJSObjectToMalMap({
+	doc: 'Generate an arc path',
+	params: [
+		{
+			label: 'Center',
+			type: 'vec2',
+			desc: "Coordinate of the arc's center"
+		},
+		{
+			label: 'Radius',
+			type: 'number',
+			desc: "The arc's radius"
+		},
+		{
+			label: 'Start',
+			type: 'number',
+			desc: 'Angle to start the arc'
+		},
+		{
+			label: 'End',
+			type: 'number',
+			desc: 'Angle to stop the arc'
+		}
+	]
+})
 
 function offsetSegmentBezier(d: number, ...points: Vec2[]): false | PathType {
 	const bezier = getBezier(points)

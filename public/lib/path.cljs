@@ -20,8 +20,8 @@
 
 (defn path/circle
   {:doc "Generate a circle path"
-   :params '[{:label "Center" :type "vec2"  :desc "the centre of the circle"}
-             {:label "Radius" :type  "number" :desc "radius o fthe circle"}]}
+   :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
+            {:label "Radius" :type  "number" :desc "radius o fthe circle"}]}
   [[x y] r]
   (let [k (* r K)]
     [:path
@@ -34,7 +34,7 @@
 (def circle path/circle)
 
 (defn path/line
-  {:doc "Returns a line path"
+  {:doc "Returns a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]}
   [from to]
@@ -51,13 +51,20 @@
   (conj (apply polyline pts) :Z))
 (def polygon path/polygon)
 
-(defn path/ellipse [center size]
+(defn path/ellipse
+  {:doc "Generate an ellipse path"
+   :params [{:type "vec2"}
+            {:type "vec2"}]}
+  [center size]
   (->> (circle (vec2) 1)
        (path/scale size)
        (path/translate center)))
 (def ellipse path/ellipse)
 
-(defn path/point [p]
+(defn path/point
+  {:doc "Generate a point path"
+   :params [{:label "Pos" :type "vec2"}]}
+  [p]
   [:path :M p :L p])
 (def point path/point)
 

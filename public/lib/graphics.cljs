@@ -27,7 +27,8 @@
   [c]
   [:background c])
 
-(defn enable-animation [& xs] (concat :enable-animation xs))
+(defn enable-animation
+  [& xs] (concat :enable-animation xs))
 
 (defn element? [a] (and (sequential? a) (keyword? (first a))))
 
@@ -52,6 +53,8 @@
 
 ;; Style
 (defn fill [color]
+  {:doc "Creates a fill property"
+   :params [{:type "color" :desc "Color to fill"}]}
   {:fill true :fill-color color})
 
 (defn stroke [fst & args]

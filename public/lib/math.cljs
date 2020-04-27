@@ -23,7 +23,8 @@
 ;; http://glmatrix.net/docs/module-vec2.html
 
 (defn vec2/uniform
-  {:doc "Create vec2 with same value for x and y"}
+  {:doc "Create vec2 with same value for x and y"
+   :params [{:type "number"}]}
   [v] [v v])
 
 (defn vec2? [v]
@@ -33,20 +34,31 @@
    (number? (.x v))
    (number? (.y v))))
 
-(defn vec2/+ [a b]
+(defn vec2/+
+  {:doc "Adds two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]}
+  [a b]
   [(+ (.x a) (.x b))
    (+ (.y a) (.y b))])
 
-(defn vec2/- [a b]
+(defn vec2/-
+  {:doc "Subtracts *b* from *a*"
+   :params [{:type "vec2"} {:type "vec2"}]}
+  [a b]
   [(- (.x a) (.x b))
    (- (.y a) (.y b))])
 
 (defn vec2/*
+  {:doc "Multiplies two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]}
   [a b]
   [(* (.x a) (.x b))
    (* (.y a) (.y b))])
 
-(defn vec2/div [a b]
+(defn vec2/div
+  {:doc "Divides two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]}
+  [a b]
   [(/ (.x a) (.x b))
    (/ (.y a) (.y b))])
 
@@ -131,8 +143,15 @@
   [1 0 0 1 x y])
 
 
-(defn mat2d/translate-x [x] [1 0 0 1 x 0])
-(defn mat2d/translate-y [y] [1 0 0 1 0 y])
+(defn mat2d/translate-x
+  {:doc "Returns translation matrix"
+   :params [{:type "number"}]}
+  [x] [1 0 0 1 x 0])
+
+(defn mat2d/translate-y
+  {:doc "Returns translation matrix"
+   :params [{:type "number"}]}
+  [y] [1 0 0 1 0 y])
 
 ;; mat2d/fromScaling, scale
 (defn mat2d/scale
@@ -141,11 +160,20 @@
   [s]
   [(.x s) 0 0 (.y s) 0 0])
 
-(defn mat2d/scale-x [sx] [sx 0 0 1 0 0])
-(defn mat2d/scale-y [sy] [1 0 0 sy 0 0])
+(defn mat2d/scale-x
+  {:doc "Returns scaling matrix"
+   :params [{:type "number"}]}
+  [sx] [sx 0 0 1 0 0])
+(defn mat2d/scale-y
+  {:doc "Returns scaling matrix"
+   :params [{:type "number"}]}
+  [sy] [1 0 0 sy 0 0])
 
 ;; mat2d/fromRotation
-(defn mat2d/rotate [angle]
+(defn mat2d/rotate
+  {:doc "Returns rotation matrix"
+   :params [{:type "number"}]}
+  [angle]
   (let [s (sin angle)
         c (cos angle)]
     [c s (- s) c 0 0]))
