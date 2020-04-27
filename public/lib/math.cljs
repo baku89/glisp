@@ -115,6 +115,8 @@
 ;; mat2d
 ;; http://glmatrix.net/docs/module-mat2d.html
 
+(def mat2d/ident [1 0 0 1 0 0])
+
 ;; mat2d/fromTranslation
 (defn mat2d/translate
   {:doc {:desc "Translate the containing items"
@@ -144,6 +146,30 @@
   (let [s (sin angle)
         c (cos angle)]
     [c s (- s) c 0 0]))
+
+(defn mat2d/mul [a b]
+  (let [a0 (nth a 0)
+        a1 (nth a 1)
+        a2 (nth a 2)
+        a3 (nth a 3)
+        a4 (nth a 4)
+        a5 (nth a 5)
+        b0 (nth b 0)
+        b1 (nth b 1)
+        b2 (nth b 2)
+        b3 (nth b 3)
+        b4 (nth b 4)
+        b5 (nth b 5)]
+    [(+ (* a0 b0) (* a2 b1))
+     (+ (* a1 b0) (* a3 b1))
+     (+ (* a0 b2) (* a2 b3))
+     (+ (* a1 b2) (* a3 b3))
+     (+ (* a0 b4) (* a2 b5) a4)
+     (+ (* a1 b4) (* a3 b5) a5)]))
+
+(defn transform [& xs]
+  (reduce mat2d/mul mat2d/ident xs))
+
 
 (def translate mat2d/translate)
 (def translate-x mat2d/translate-x)
@@ -193,10 +219,6 @@
     (min (rect/top a) (rect/top b))]
    [(max (rect/right a) (rect/right b))
     (max (rect/bottom a) (rect/bottom b))]))
-
-(defn rect/transform [r xform])
-
-
 
 ;; Combination
 (defn combination/product [& xs]

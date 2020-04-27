@@ -185,24 +185,11 @@ export default class CanvasRenderer {
 										...((Array.isArray(val) ? val : [val]) as MalMap[])
 									)
 									break
-								case K_TRANSFORM: {
-									const xforms = Array.isArray((val as any[])[0])
-										? (val as number[][])
-										: [val as number[]]
-									for (const xform of xforms) {
-										ctx.transform(
-											...(xform as [
-												number,
-												number,
-												number,
-												number,
-												number,
-												number
-											])
-										)
-									}
+								case K_TRANSFORM:
+									ctx.transform(
+										...(val as [number, number, number, number, number, number])
+									)
 									break
-								}
 							}
 						}
 

@@ -8,7 +8,6 @@
 
 [:g {:transform (view-center)
      :style (stroke "salmon" 10)}
-
- (g/for [y (column -5 6 w)
-         x (column -5 6 w)]
+ (for [y (column -5 5 w)
+       x (column -5 5 w)]
    (slash [x y]))]
