@@ -20,7 +20,6 @@ import {
 	MalMap,
 	isList,
 	isVector,
-	createMalVector,
 	markMalVector
 } from './types'
 import Env from './env'
@@ -42,15 +41,18 @@ function quasiquote(ast: any): MalVal {
 }
 
 function macroexpand(ast: MalVal = null, env: Env, saveEval: boolean) {
-	let _ast = ast
-	while (isList(_ast) && isSymbol(_ast[0]) && env.find(_ast[0] as string)) {
-		const fn = env.get(_ast[0] as string) as MalFunc
+	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
+		const fn = env.get(ast[0] as string) as MalFunc
+		;(ast as any)[M_FN] = fn
 		if (!fn[M_ISMACRO]) {
 			break
 		}
-		_ast = fn(..._ast.slice(1))
+		ast = fn(...ast.slice(1))
+		if (saveEval) {
+			;(ast as any)[M_FN] = fn
+		}
 	}
-	return _ast
+	return ast
 }
 
 const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
@@ -108,7 +110,10 @@ export default function evalExp(
 		switch (isSymbol(a0) ? (a0 as string).slice(1) : Symbol(':default')) {
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
-				if (_ev) ast[M_EVAL] = ret
+				if (_ev) {
+					ast[M_FN] = env.get(S('def'))
+					ast[M_EVAL] = ret
+				}
 				return ret
 			}
 			case 'let': {
