@@ -166,6 +166,7 @@ export const isMap = (obj: MalVal): obj is MalMap =>
 	obj !== null &&
 	typeof obj === 'object' &&
 	!isMalFunc(obj) &&
+	!(obj instanceof MalAtom) && // eslint-disable-line @typescript-eslint/no-use-before-define
 	!Array.isArray(obj)
 
 export function assocBang(hm: MalMap, ...args: any[]) {
