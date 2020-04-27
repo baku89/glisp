@@ -65,7 +65,7 @@ export function viewREP(
 	let output: MalVal = null
 
 	const src = typeof str === 'string' ? readStr(str) : str
-	output = evalExp(src, viewEnv)
+	output = evalExp(src, viewEnv, true)
 
 	if (updateConsole) {
 		consoleEnv.outer = viewEnv

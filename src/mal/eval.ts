@@ -14,6 +14,8 @@ import {
 	M_ENV,
 	M_PARAMS,
 	M_AST,
+	M_EVAL,
+	M_FN,
 	isMap,
 	MalMap,
 	isList
@@ -36,29 +38,35 @@ function quasiquote(ast: any): MalVal {
 	}
 }
 
-function macroexpand(ast: MalVal = null, env: Env) {
-	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
-		const fn = env.get(ast[0] as string) as MalFunc
+function macroexpand(ast: MalVal = null, env: Env, saveEval: boolean) {
+	let _ast = ast
+	while (isList(_ast) && isSymbol(_ast[0]) && env.find(_ast[0] as string)) {
+		const fn = env.get(_ast[0] as string) as MalFunc
 		if (!fn[M_ISMACRO]) {
 			break
 		}
-		ast = fn(...ast.slice(1))
+		_ast = fn(..._ast.slice(1))
 	}
-
-	return ast
+	return _ast
 }
 
-const evalAst = (ast: MalVal, env: Env) => {
+const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 	if (isSymbol(ast)) {
 		return env.get(ast as string)
 	} else if (Array.isArray(ast)) {
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		return ast.map(x => evalExp(x, env))
+		return ast.map(x => {
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			const ret = evalExp(x, env, saveEval)
+			if (saveEval && isList(x)) {
+				x[M_EVAL] = ret
+			}
+			return ret
+		})
 	} else if (isMap(ast)) {
 		const hm: MalMap = {}
 		for (const k in ast) {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			hm[k] = evalExp(ast[k], env)
+			hm[k] = evalExp(ast[k], env, saveEval)
 		}
 		return hm
 	} else {
@@ -66,17 +74,23 @@ const evalAst = (ast: MalVal, env: Env) => {
 	}
 }
 
-export default function evalExp(ast: MalVal, env: Env): MalVal {
+export default function evalExp(
+	ast: MalVal,
+	env: Env,
+	saveEval = false
+): MalVal {
+	const _ev = saveEval
+
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		if (!isList(ast)) {
-			return evalAst(ast, env)
+			return evalAst(ast, env, _ev)
 		}
 
-		ast = macroexpand(ast, env)
+		ast = macroexpand(ast, env, _ev)
 
 		if (!isList(ast)) {
-			return evalAst(ast, env)
+			return evalAst(ast, env, _ev)
 		}
 
 		if (ast.length === 0) {
@@ -88,30 +102,39 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 
 		// Special Forms
 		switch (isSymbol(a0) ? (a0 as string).slice(1) : Symbol(':default')) {
-			case 'def':
-				return env.set(a1 as string, evalExp(a2, env))
+			case 'def': {
+				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
+				if (_ev) ast[M_EVAL] = ret
+				return ret
+			}
 			case 'let': {
 				const letEnv = new Env(env)
 				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
-					letEnv.set(binds[i] as string, evalExp(binds[i + 1], letEnv))
+					letEnv.set(binds[i] as string, evalExp(binds[i + 1], letEnv, _ev))
 				}
 				env = letEnv
-				ast = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
+				const ret = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
+				if (_ev) ast[M_EVAL] = ret
+				ast = ret
 				break // continue TCO loop
 			}
 			case 'quote':
+				if (_ev) ast[M_EVAL] = a1
 				return a1
-			case 'quasiquote':
-				ast = quasiquote(a1)
+			case 'quasiquote': {
+				const ret = quasiquote(a1)
+				if (_ev) ast[M_EVAL] = ret
+				ast = ret
 				break // continue TCO loop
+			}
 			case 'defmacro': {
 				const fnast = [
 					S('fn'),
 					a2,
 					ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]
 				]
-				const fn = cloneAST(evalExp(fnast, env)) as MalFunc
+				const fn = cloneAST(evalExp(fnast, env, _ev)) as MalFunc
 				fn[M_ISMACRO] = true
 				return env.set(a1 as string, fn)
 			}
@@ -119,34 +142,39 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 				return macroexpand(a1, env)
 			case 'try':
 				try {
-					return evalExp(a1, env)
+					return evalExp(a1, env, _ev)
 				} catch (exc) {
 					let err = exc
 					if (a2 && Array.isArray(a2) && a2[0] === S('catch')) {
 						if (exc instanceof Error) {
 							err = exc.message
 						}
-						return evalExp(a2[2], new Env(env, [a2[1] as string], [err]))
+						return evalExp(a2[2], new Env(env, [a2[1] as string], [err]), _ev)
 					} else {
 						throw err
 					}
 				}
-			case 'do':
-				evalAst(ast.slice(1, -1), env)
-				ast = ast[ast.length - 1]
+			case 'do': {
+				evalAst(ast.slice(1, -1), env, _ev)
+				const ret = ast[ast.length - 1]
+				if (_ev) ast[M_EVAL] = ret
+				ast = ret
 				break // continue TCO loop
+			}
 			case 'if': {
-				const cond = evalExp(a1, env)
+				const cond = evalExp(a1, env, _ev)
 				if (cond) {
+					if (_ev) ast[M_EVAL] = a2
 					ast = a2
 				} else {
+					if (_ev) ast[M_EVAL] = a3
 					ast = typeof a3 !== 'undefined' ? a3 : null
 				}
 				break // continue TCO loop
 			}
 			case 'fn':
 				return createMalFunc(
-					(...args) => evalExp(a2, new Env(env, a1 as string[], args)),
+					(...args) => evalExp(a2, new Env(env, a1 as string[], args), _ev),
 					a2,
 					env,
 					a1 as string[]
@@ -184,16 +212,25 @@ export default function evalExp(ast: MalVal, env: Env): MalVal {
 			}*/
 			default: {
 				// Apply Function
-				const [_fn, ...args] = evalAst(ast, env) as MalVal[]
+				const [_fn, ...args] = evalAst(ast, env, saveEval) as MalVal[]
 
 				const fn = _fn as MalFunc
 
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
+					if (saveEval) {
+						ast[M_EVAL] = fn[M_AST]
+						ast[M_FN] = fn
+					}
 					ast = fn[M_AST]
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
-					return (fn as any)(...args)
+					const ret = (fn as any)(...args)
+					if (saveEval) {
+						ast[M_EVAL] = ret
+						ast[M_FN] = fn
+					}
+					return ret
 				} else {
 					let typename = ''
 

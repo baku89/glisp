@@ -9,13 +9,17 @@ export const M_PARAMS = Symbol('params')
 export const M_ISMACRO = Symbol('ismacro')
 export const M_START = Symbol('start')
 export const M_END = Symbol('end')
+export const M_EVAL = Symbol('eval')
+export const M_FN = Symbol('fn')
+
+export type MalBind = (string | MalBind)[]
 
 export interface MalFunc {
 	(...args: MalVal[]): MalVal
 	[M_META]: MalVal
 	[M_AST]: MalVal
 	[M_ENV]: Env
-	[M_PARAMS]: Array<string>
+	[M_PARAMS]: MalBind
 	[M_ISMACRO]: boolean
 }
 
@@ -108,7 +112,7 @@ export function createMalFunc(
 	fn: (...args: MalVal[]) => MalVal,
 	ast: MalVal,
 	env: Env,
-	params: Array<string>,
+	params: MalBind,
 	meta = null,
 	ismacro = false
 ): MalFunc {
