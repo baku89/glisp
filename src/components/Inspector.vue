@@ -58,7 +58,8 @@ import {
 	M_PARAMS,
 	MalBind,
 	isMalFunc,
-	markMalVector
+	markMalVector,
+	getType
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputNumber from '@/components/input/InputNumber.vue'
@@ -161,6 +162,9 @@ export default class Inspector extends Vue {
 					desc['ʞlabel'] = fnParams[i]
 						? Case.capital((fnParams[i] as string).slice(1))
 						: ''
+				}
+				if (!desc['ʞtype'] || desc['ʞtype'] === 'any') {
+					desc['ʞtype'] = getType(this.params[i])
 				}
 				return desc
 			})

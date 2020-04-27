@@ -162,7 +162,7 @@ export const isList = (obj: MalVal): obj is MalVal[] =>
 export const isVector = (obj: MalVal): obj is MalVal[] =>
 	Array.isArray(obj) && !!(obj as any)[M_ISVECTOR]
 
-export function createMalVector(_arr: MalVal[]): MalVal[] {
+export function createMalVector<T>(_arr: Array<T>): Array<T> {
 	const arr = [..._arr]
 	;(arr as any)[M_ISVECTOR] = true
 	return arr
@@ -201,6 +201,38 @@ export class MalAtom {
 	constructor(val: MalVal) {
 		this.val = val
 	}
+}
+
+export function getType(obj: MalVal): string {
+	if (Array.isArray(obj)) {
+		return (obj as any)[M_ISVECTOR] ? 'vector' : 'list'
+	} else if (isMap(obj)) {
+		return 'map'
+	} else if (obj === null) {
+		return 'nil'
+	} else {
+		switch (typeof obj) {
+			case 'string':
+				switch (obj[0]) {
+					case SYMBOL_PREFIX:
+						return 'symbol'
+					case KEYWORD_PREFIX:
+						return 'keyword'
+					default:
+						return 'string'
+				}
+			case 'boolean':
+				return 'boolean'
+			case 'number':
+				return 'number'
+			case 'object':
+				if (obj instanceof MalAtom) {
+					return 'atom'
+				}
+		}
+	}
+
+	throw new LispError('Cannot get type')
 }
 
 // Namespace

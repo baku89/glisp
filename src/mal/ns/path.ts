@@ -8,7 +8,8 @@ import {
 	MalNamespace,
 	LispError,
 	M_META,
-	createMalVector
+	createMalVector,
+	markMalVector
 } from '../types'
 import {partition} from '../utils'
 import printExp from '../printer'
@@ -874,7 +875,7 @@ const jsObjects = new Map<string, any>([
 	['path/trim', pathTrim],
 	[
 		'path/split-segments',
-		([_, ...path]: PathType) => createMalVector(iterateSegment(path))
+		([_, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
 	],
 	['path/bounds', pathBounds]
 ])

@@ -12,6 +12,13 @@
             `(do ~@body)))
        ~attrs)))
 
+;; Def special forms
+(defn def
+  {:doc "Create a variable"
+   :params [{:type "symbol"}
+            {:type "any"}]}
+  [])
+
 (defmacro macroview [expr]
   `(prn (macroexpand ~expr)))
 

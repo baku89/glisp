@@ -63,7 +63,7 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, saveEval)
 			if (saveEval && isList(x)) {
-				x[M_EVAL] = ret
+				;(x as any)[M_EVAL] = ret
 			}
 			return ret
 		})
@@ -111,8 +111,8 @@ export default function evalExp(
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
 				if (_ev) {
-					ast[M_FN] = env.get(S('def'))
-					ast[M_EVAL] = ret
+					;(ast as any)[M_FN] = env.get(S('def'))
+					;(ast as any)[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -124,16 +124,22 @@ export default function evalExp(
 				}
 				env = letEnv
 				const ret = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
-				if (_ev) ast[M_EVAL] = ret
+				if (_ev) {
+					;(ast as any)[M_EVAL] = ret
+				}
 				ast = ret
 				break // continue TCO loop
 			}
 			case 'quote':
-				if (_ev) ast[M_EVAL] = a1
+				if (_ev) {
+					;(ast as any)[M_EVAL] = a1
+				}
 				return a1
 			case 'quasiquote': {
 				const ret = quasiquote(a1)
-				if (_ev) ast[M_EVAL] = ret
+				if (_ev) {
+					;(ast as any)[M_EVAL] = ret
+				}
 				ast = ret
 				break // continue TCO loop
 			}
@@ -148,7 +154,7 @@ export default function evalExp(
 				return env.set(a1 as string, fn)
 			}
 			case 'macroexpand':
-				return macroexpand(a1, env)
+				return macroexpand(a1, env, _ev)
 			case 'try':
 				try {
 					return evalExp(a1, env, _ev)
@@ -166,17 +172,23 @@ export default function evalExp(
 			case 'do': {
 				evalAst(ast.slice(1, -1), env, _ev)
 				const ret = ast[ast.length - 1]
-				if (_ev) ast[M_EVAL] = ret
+				if (_ev) {
+					;(ast as any)[M_EVAL] = ret
+				}
 				ast = ret
 				break // continue TCO loop
 			}
 			case 'if': {
 				const cond = evalExp(a1, env, _ev)
 				if (cond) {
-					if (_ev) ast[M_EVAL] = a2
+					if (_ev) {
+						;(ast as any)[M_EVAL] = a2
+					}
 					ast = a2
 				} else {
-					if (_ev) ast[M_EVAL] = a3
+					if (_ev) {
+						;(ast as any)[M_EVAL] = a3
+					}
 					ast = typeof a3 !== 'undefined' ? a3 : null
 				}
 				break // continue TCO loop
@@ -228,16 +240,16 @@ export default function evalExp(
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
 					if (saveEval) {
-						ast[M_EVAL] = fn[M_AST]
-						ast[M_FN] = fn
+						;(ast as any)[M_EVAL] = fn[M_AST]
+						;(ast as any)[M_FN] = fn
 					}
 					ast = fn[M_AST]
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					const ret = (fn as any)(...args)
 					if (saveEval) {
-						ast[M_EVAL] = ret
-						ast[M_FN] = fn
+						;(ast as any)[M_EVAL] = ret
+						;(ast as any)[M_FN] = fn
 					}
 					return ret
 				} else {

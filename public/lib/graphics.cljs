@@ -17,15 +17,15 @@
 
 (defn color [& xs]
   (case (count xs)
-    1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
+		1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
     3 (apply format "rgba(%f,%f,%f)" xs)
     "black"))
 
 (defn background
   {:doc "Fill the entire view or artboard with a color"
    :params [{:type "color" :desc "A background color"}]}
-  [c]
-  [:background c])
+  [color]
+  [:background color])
 
 (defn enable-animation
   [& xs] (concat :enable-animation xs))
