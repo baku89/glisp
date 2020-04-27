@@ -29,7 +29,7 @@
 
 (defn enable-animation [& xs] (concat :enable-animation xs))
 
-(defn item? [a] (and (sequential? a) (keyword? (first a))))
+(defn element? [a] (and (sequential? a) (keyword? (first a))))
 
 (defn column [from to step]
   (map #(* % step) (range from (inc to))))
@@ -44,7 +44,7 @@
 
 ;; Group
 (defn g [& xs]
-  (let [children (apply concat (map #(if (item? %) [%] %) xs))]
+  (let [children (apply concat (map #(if (element? %) [%] %) xs))]
     (if (= 1 (count children)) (first children)
         (apply vector :g children))))
 

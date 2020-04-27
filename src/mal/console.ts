@@ -35,9 +35,9 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 		const renderer = new CanvasRenderer()
 		renderer.init(document.createElement('canvas'))
 
-		const $canvas = consoleEnv.get(S('$canvas'))
+		const $sketch = consoleEnv.get(S('$sketch'))
 
-		const {env, output} = viewREP(`(eval-sketch ${$canvas} \n nil))`, {
+		const {env, output} = viewREP(`(sketch ${$sketch} \n nil))`, {
 			width,
 			height,
 			updateConsole: false,
@@ -91,7 +91,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				;(ret[keyword] as MalVal[]).push(arr[i])
+				; (ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -101,9 +101,9 @@ function createHashMap(arr: MalVal[]) {
 consoleEnv.set(S('save'), (...args: MalVal[]) => {
 	const filename = generateFilename(args[0] as string)
 
-	const $canvas = consoleEnv.get(S('$canvas')) as string
+	const $sketch = consoleEnv.get(S('$sketch')) as string
 
-	const file = new File([$canvas], filename, {
+	const file = new File([$sketch], filename, {
 		type: 'text/plain;charset=utf-8'
 	})
 
@@ -113,7 +113,7 @@ consoleEnv.set(S('save'), (...args: MalVal[]) => {
 })
 
 consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
-	const code = consoleEnv.get(S('$canvas')) as string
+	const code = consoleEnv.get(S('$sketch')) as string
 
 	// eslint-disable-next-line prefer-const
 	let {_: name, user, token} = createHashMap(args)
@@ -121,7 +121,7 @@ consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			;({user, token} = JSON.parse(saved) as {user: string; token: string})
+			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.

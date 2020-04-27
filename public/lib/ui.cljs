@@ -1,5 +1,5 @@
 ;; Graphics and UI
-(def $canvas "")
+(def $sketch "")
 (def $width 1000)
 (def $height 1000)
 (def $size [$width $height])
@@ -8,22 +8,25 @@
 (def $line-width 1)
 
 ;; Sketch
-(defn filter-sketch [coll]
-  (if (not (sequential? coll))
-    nil
-    (cond
-      (item? coll) coll
-      (sequential? (first coll))  (->> coll
-                                       (map filter-sketch)
-                                       (remove empty?)))))
+(defn normalize-element [el]
+  (let [tag (first el) content (rest el)]
+    (if (keyword? tag)
+      (cond (= tag :g)
+            (let [has-attrs (map? (first content))
+                  attrs (if has-attrs (first content) {})
+                  body (->> (if has-attrs (rest content) content)
+                            (map #(if (list? %) % [%]))
+                            (apply concat)
+                            (map normalize-element)
+                            (remove nil?))]
+              (vec `(~tag ~attrs ~@body)))
 
-(defn filter-root-sketch [coll]
-  (->> coll
-       (map filter-sketch)
-       (remove empty?)))
+            :else
+            el))))
 
-(defn eval-sketch [& xs]
-  (g (vec (filter-root-sketch (slice xs (inc (last-index-of :start-sketch xs)) (count xs))))))
+(defn sketch [& xs]
+  (let [sketch-body (filter element? (slice xs (inc (last-index-of :start-sketch xs))))]
+    (normalize-element (g sketch-body))))
 
 
 ;; Pens and Hands

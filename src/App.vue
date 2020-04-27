@@ -1,7 +1,16 @@
 <template>
-	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+	<div
+		id="app"
+		:class="{'background-set': backgroundSet, compact}"
+		:style="colors"
+	>
 		<div class="app__viewer">
-			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
+			<Viewer
+				:ast="ast"
+				:selection="selection"
+				@render="onRender"
+				@set-background="onSetBackground"
+			/>
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -26,7 +35,9 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>{{ renderError ? '!' : '✓' }}</button>
+				>
+					{{ renderError ? '!' : '✓' }}
+				</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -82,7 +93,7 @@ export default class App extends Vue {
 	private setupCount = 0
 
 	private get evalCode() {
-		return `(def $view (eval-sketch ${this.code} \n nil))`
+		return `(def $view (sketch ${this.code} \n nil))`
 	}
 
 	private get ast(): MalVal {
@@ -170,7 +181,7 @@ export default class App extends Vue {
 			// Wait the initial rendering until the console has been mounted
 			this.code = this.initialCode || ''
 			this.onEdit(this.code)
-			replEnv.set(S('$canvas'), this.code)
+			replEnv.set(S('$sketch'), this.code)
 		}
 	}
 
@@ -182,7 +193,7 @@ export default class App extends Vue {
 		localStorage.setItem('saved_code', value)
 
 		this.code = value
-		replEnv.set(S('$canvas'), value)
+		replEnv.set(S('$sketch'), value)
 	}
 
 	private onSelect(selection: [number, number]) {
@@ -196,7 +207,7 @@ export default class App extends Vue {
 	}
 
 	private getOuterRange(start: number, end: number) {
-		const offset = 24 // length of "(def $view (eval-sketch "
+		const offset = 24 // length of "(def $view (sketch "
 
 		const selected = findAstByRange(this.ast, start + offset, end + offset)
 
