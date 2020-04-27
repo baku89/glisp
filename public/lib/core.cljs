@@ -147,7 +147,7 @@
 (defn odd? [x] (= (mod x 2) 1))
 (defn even? [x] (= (mod x 2) 0))
 
-()
+(defn  percent [x] (/ x 100))
 
 (defn compare [x y]
   (cond (= x y) 0
