@@ -1,5 +1,8 @@
 <template>
 	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+		<div class="app__inspector">
+			<Inspector :value="selectedAst" @input="onEditSelected" />
+		</div>
 		<div class="app__viewer">
 			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
@@ -42,6 +45,7 @@ import Color from 'color'
 import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
+import Inspector from '@/components/Inspector.vue'
 // import {TreeVector} from '@/components/Tree'
 
 import {replEnv, printExp, readStr} from '@/mal'
@@ -52,19 +56,25 @@ import {
 	MalTreeWithRange,
 	isList,
 	M_START,
-	M_END
+	M_END,
+	M_META,
+	M_FN,
+	MalMap
 } from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from './mal/printer'
 import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
 
+const OFFSET = 19 // length of "(def $view (sketch "
+
 @Component({
 	name: 'App',
 	components: {
 		Editor,
 		Viewer,
-		Console
+		Console,
+		Inspector
 		// TreeVector
 	}
 })
@@ -76,6 +86,7 @@ export default class App extends Vue {
 	private compact = true
 	private renderError = false
 	private editorMode = 'code'
+	private selectedAst: MalVal = null
 
 	private initialCode!: string
 
@@ -156,6 +167,15 @@ export default class App extends Vue {
 		})
 	}
 
+	private onEditSelected(val: MalVal) {
+		const itemStr = printExp(val)
+		const [start, end] = this.activeRange
+		const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
+
+		this.onEdit(code)
+		this.selection = selection
+	}
+
 	private onUpdateAst(ast: MalVal[]) {
 		this.code = (ast as any).map((val: MalVal) => printExp(val)).join('\n')
 	}
@@ -176,6 +196,7 @@ export default class App extends Vue {
 
 	private onRender(succeed: boolean) {
 		this.renderError = !succeed
+		this.updateSelectedAst()
 	}
 
 	private onEdit(value: string) {
@@ -187,21 +208,30 @@ export default class App extends Vue {
 
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
+		this.updateSelectedAst()
 	}
 
 	private get activeRange() {
-		const [start, end] = this.selection
+		const selected = this.selectedAst as MalTreeWithRange
 
-		return this.getOuterRange(start, end)
+		if (selected !== null && selected[M_START] >= OFFSET) {
+			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+		} else {
+			return null
+		}
+	}
+
+	private updateSelectedAst() {
+		const [start, end] = this.selection
+		const selected = findAstByRange(this.ast, start + OFFSET, end + OFFSET)
+		this.selectedAst = selected
 	}
 
 	private getOuterRange(start: number, end: number) {
-		const offset = 19 // length of "(def $view (sketch "
+		const selected = findAstByRange(this.ast, start + OFFSET, end + OFFSET)
 
-		const selected = findAstByRange(this.ast, start + offset, end + offset)
-
-		if (selected !== null && selected[M_START] >= offset) {
-			return [selected[M_START] - offset, selected[M_END] - offset]
+		if (selected !== null && selected[M_START] >= OFFSET) {
+			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
 		} else {
 			return null
 		}
@@ -328,13 +358,13 @@ button
 $compact-dur = 0.4s
 
 .app
-	&__tree
+	&__inspector
 		position absolute
-		bottom 0
-		left 0
+		bottom 1rem
+		left 1rem
+		z-index 1000
 		width 30rem
-		height 30rem
-		background red
+		border 1px solid var(--comment)
 
 	&__viewer
 		position relative
