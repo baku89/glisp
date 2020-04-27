@@ -2,7 +2,12 @@
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
 
-(defn lerp [a b t] (+ b (* (- a b) t)))
+(defn lerp
+  {:doc "Calculates a number between two numbers at a specific increment"
+   :params [{:type "number" :desc "First value"}
+            {:type "number" :desc "Second value"}
+            {:type "number" :desc "Amount to interpolate between the two values (0 - 1)"}]}
+  [a b t] (+ b (* (- a b) t)))
 (defn deg [x] (/ (* x 180) PI))
 (defn rad [x] (/ (* x PI) 180))
 
@@ -119,9 +124,9 @@
 
 ;; mat2d/fromTranslation
 (defn mat2d/translate
-  {:doc {:desc "Translate the containing items"
-         :params '[[[x y] :vec2 "Amount of translation"]]
-         :return '[:mat2d "Transform matrix"]}}
+  {:doc "Returns translation matrix"
+   :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
+   :return [:type "mat2d" :desc "Transform matrix"]}
   [[x y]]
   [1 0 0 1 x y])
 
@@ -131,12 +136,10 @@
 
 ;; mat2d/fromScaling, scale
 (defn mat2d/scale
-  {:doc {:desc "Scale the containing items"
-         :params '[[[s :vec2 "Percent to scale the items"]]
-                   [[s :number "Percent to scale the items proportionally"]]]}}
+  {:doc  "Returns scaling matrix"
+   :params [{:label "Value" :type "vec2"}]}
   [s]
-  (cond (number? s) [s 0 0 s 0 0]
-        (vec2? s) [(.x s) 0 0 (.y s) 0 0]))
+  [(.x s) 0 0 (.y s) 0 0])
 
 (defn mat2d/scale-x [sx] [sx 0 0 1 0 0])
 (defn mat2d/scale-y [sy] [1 0 0 sy 0 0])

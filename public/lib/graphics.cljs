@@ -22,8 +22,8 @@
     "black"))
 
 (defn background
-  {:doc {:desc "Fill the entire view or artboard with a color"
-         :params '[[c :color "A background color"]]}}
+  {:doc "Fill the entire view or artboard with a color"
+   :params [{:type "color" :desc "A background color"}]}
   [c]
   [:background c])
 
@@ -31,16 +31,14 @@
 
 (defn element? [a] (and (sequential? a) (keyword? (first a))))
 
-(defn column [from to step]
+(defn column
+  {:doc "Returns a vector of nums from *start* to *end* (both inclusive) that each of element is multiplied by *step*"
+   :params [{:type "number" :desc "From"}
+            {:type "number" :desc "To"}
+            {:type "number" :desc "Step"}]}
+  [from to step]
   (map #(* % step) (range from (inc to))))
 
-; ;; Transformation
-(defn translate
-  {:doc {:desc "Translate the containing items"
-         :params '[[[x y] :vec2 "Amount of translation"]]
-         :return '[:mat2d "Transform matrix"]}}
-  [[x y]]
-  [1 0 0 1 x y])
 
 ;; Group
 (defn g [& xs]

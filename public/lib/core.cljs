@@ -141,7 +141,10 @@
 (defn identity [x] x)
 (defn prn-pass [x] (do (prn x) x))
 
-(defn zero? [x] (= x 0))
+(defn zero?
+  {:doc "Returns true if x is equal to 0"}
+  [x]
+  (= x 0))
 (defn pos? [x] (> x 0))
 (defn neg? [x] (< x 0))
 (defn odd? [x] (= (mod x 2) 1))
@@ -149,7 +152,11 @@
 
 (defn  percent [x] (/ x 100))
 
-(defn compare [x y]
+(defn compare
+  {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
+   :params [{:type "number"}
+            {:type "number"}]}
+  [x y]
   (cond (= x y) 0
         (> x y) 1
         (< x y) -1))

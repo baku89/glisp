@@ -4,9 +4,9 @@
 
 ;; Shape functions
 (defn path/rect
-  {:doc {:desc "Generate a rect path"
-         :params '[[pos :vec2 "coordinate of top-left corner of the rectangle"]
-                   [size :vec2 "size of the rectangle"]]}}
+  {:doc  "Generate a rect path"
+   :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
+            {:label "Size" :type "vec2" :desc "size of the rectangle"}]}
   [[x y] [w h]]
   [:path
    :M [x y]
@@ -19,9 +19,9 @@
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
 (defn path/circle
-  {:doc {:desc "Generate a circle path"
-         :params '[[center :vec2   "the centre of the circle"]
-                   [r      :number "radius o fthe circle"]]}}
+  {:doc "Generate a circle path"
+   :params '[{:label "Center" :type "vec2"  :desc "the centre of the circle"}
+             {:label "Radius" :type  "number" :desc "radius o fthe circle"}]}
   [[x y] r]
   (let [k (* r K)]
     [:path
@@ -33,8 +33,12 @@
      :Z]))
 (def circle path/circle)
 
-(defn path/line [p1 p2]
-  [:path :M p1 :L p2])
+(defn path/line
+  {:doc "Returns a line path"
+   :params [{:type "vec2"}
+            {:type "vec2"}]}
+  [from to]
+  [:path :M from :L to])
 (def line path/line)
 
 (defn path/polyline [& pts]
