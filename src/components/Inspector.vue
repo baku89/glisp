@@ -8,9 +8,12 @@
 			<div class="Inspector__params">
 				<div v-for="(pd, i) in paramsDesc" :key="i" class="Inspector__param">
 					<label class="label">{{ pd['ʞlabel'] }}</label>
-					<div v-if="isSymbol(params[i])" class="expr">
-						{{ params[i].slice(1) }}
-					</div>
+					<InputString
+						v-if="isSymbol(params[i])"
+						:value="params[i].slice(1)"
+						:allow-blank="false"
+						@input="onSymbolParamInput(i, $event)"
+					/>
 					<InputNumber
 						v-else-if="
 							pd['ʞtype'] === 'number' && typeof params[i] === 'number'
@@ -59,7 +62,8 @@ import {
 	MalBind,
 	isMalFunc,
 	markMalVector,
-	getType
+	getType,
+	symbolFor
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputNumber from '@/components/input/InputNumber.vue'
@@ -173,6 +177,10 @@ export default class Inspector extends Vue {
 		return paramsDesc
 	}
 
+	private onSymbolParamInput(i: number, v: string) {
+		this.onParamInput(i, symbolFor(v))
+	}
+
 	private onParamInput(i: number, v: MalVal) {
 		const newValue = [...(this.value as MalVal[])]
 		if (isVector(this.value)) {
@@ -189,6 +197,19 @@ export default class Inspector extends Vue {
 	padding 1rem
 	height 100%
 	text-align left
+	position relative
+
+	&:before
+		position absolute
+		content ''
+		display block
+		top 0
+		left 0
+		width 100%
+		height 100%
+		background var(--background)
+		opacity .8
+		z-index -1
 
 	&__header
 		margin-bottom 1em
