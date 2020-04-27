@@ -16,7 +16,6 @@ import {
 	isKeyword,
 	isSymbol,
 	isVector,
-	MalVector,
 	isList
 } from '@/mal/types'
 import {printExp} from '@/mal'

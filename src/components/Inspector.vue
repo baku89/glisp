@@ -46,7 +46,7 @@ import {
 	M_PARAMS,
 	MalBind,
 	isMalFunc,
-	MalVector
+	markMalVector
 } from '@/mal/types'
 import InputNumber from '@/components/input/InputNumber.vue'
 import InputString from '@/components/input/InputString.vue'
@@ -157,10 +157,10 @@ export default class Inspector extends Vue {
 
 	private onParamInput(i: number, v: MalVal) {
 		const newValue = [...(this.value as MalVal[])]
+		if (isVector(this.value)) {
+			markMalVector(newValue)
+		}
 		newValue[i + 1] = v
-
-		console.log(this.value, newValue)
-
 		this.$emit('input', newValue)
 	}
 }

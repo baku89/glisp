@@ -19,8 +19,8 @@ import {
 	isMap,
 	isList,
 	isVector,
-	MalVector,
-	isString
+	isString,
+	createMalVector
 } from '../types'
 import printExp, {printer} from '../printer'
 import readStr from '../reader'
@@ -109,9 +109,9 @@ const jsObjects = new Map<string, any>([
 	['list', (...a: MalVal[]) => a],
 	['list?', isList],
 
-	['vector', (...a: MalVal[]) => MalVector.from(a)],
+	['vector', (...a: MalVal[]) => createMalVector(a)],
 	['vector?', isVector],
-	['vec', (a: MalVal[]) => MalVector.from(a)],
+	['vec', (a: MalVal[]) => createMalVector(a)],
 
 	['sequential?', Array.isArray],
 
@@ -123,7 +123,7 @@ const jsObjects = new Map<string, any>([
 			} else if (isString(a) && a.length > 0) {
 				return a.split('')
 			} else if (isMap(a)) {
-				return Object.entries(a).map(entry => MalVector.from(entry))
+				return Object.entries(a).map(entry => createMalVector(entry))
 			} else {
 				return null
 			}
@@ -190,7 +190,7 @@ const jsObjects = new Map<string, any>([
 				args.forEach(arg => newList.unshift(arg))
 				return newList
 			} else if (isVector(lst)) {
-				return MalVector.from([...lst, ...args])
+				return createMalVector([...lst, ...args])
 			}
 		}
 	],

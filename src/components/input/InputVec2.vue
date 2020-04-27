@@ -5,10 +5,9 @@
 	</div>
 </template>
 
-
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal, MalVector} from '@/mal/types'
+import {MalVal, createMalVector} from '@/mal/types'
 import {printExp} from '@/mal'
 import InputNumber from './InputNumber.vue'
 
@@ -27,7 +26,7 @@ export default class InputVec2 extends Vue {
 	}
 
 	onInput(i: number, v: number) {
-		const value = MalVector.from([...this.value])
+		const value = createMalVector([...this.value])
 		value[i] = v
 
 		this.$emit('input', value)

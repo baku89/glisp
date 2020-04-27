@@ -5,11 +5,11 @@ import {
 	symbolFor as S,
 	MalTreeWithRange,
 	isMap,
-	MalVector,
 	M_START,
 	M_END,
 	MalMap,
-	MalVal
+	MalVal,
+	createMalVector
 } from './types'
 
 class Reader {
@@ -145,7 +145,7 @@ function readList(
 
 // read vector of tokens
 function readVector(reader: Reader, outputPosition: boolean) {
-	return MalVector.from(readList(reader, outputPosition, '[', ']'))
+	return createMalVector(readList(reader, outputPosition, '[', ']'))
 }
 
 // read hash-map key/value pairs
@@ -302,7 +302,7 @@ export function convertJSObjectToMalMap(obj: MalVal): MalVal {
 		}
 		return ret
 	} else if (Array.isArray(obj)) {
-		return MalVector.from(obj.map(v => convertJSObjectToMalMap(v)))
+		return createMalVector(obj.map(v => convertJSObjectToMalMap(v)))
 	} else {
 		return obj
 	}
@@ -315,6 +315,5 @@ export default function readStr(str: string, outputPosition = false) {
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	const ast = readForm(new Reader(tokens, str), outputPosition)
-	return ast
+	return readForm(new Reader(tokens, str), outputPosition)
 }

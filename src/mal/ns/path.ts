@@ -7,8 +7,8 @@ import {
 	isKeyword,
 	MalNamespace,
 	LispError,
-	MalVector,
-	M_META
+	M_META,
+	createMalVector
 } from '../types'
 import {partition} from '../utils'
 import printExp from '../printer'
@@ -58,7 +58,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || isKeyword(path[i])) {
-			yield MalVector.from(path.slice(start, i)) as SegmentType
+			yield createMalVector(path.slice(start, i)) as SegmentType
 			start = i
 		}
 	}
@@ -472,9 +472,9 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 		points = points.reverse()
 	}
 
-	points = points.map(pt => MalVector.from(pt))
+	points = points.map(pt => createMalVector(pt))
 
-	return MalVector.from([
+	return createMalVector([
 		K_PATH,
 		K_M,
 		points[0],
@@ -658,7 +658,7 @@ function offset(d: number, path: PathType) {
 				continued = false
 			}
 		}
-		return MalVector.from(ret)
+		return createMalVector(ret)
 	}
 }
 
@@ -689,7 +689,7 @@ function trimCurve(start: number, end: number, curve: SegmentType) {
 			throw new LispError('[js: trimCurve] Only can trim L or C')
 	}
 
-	return MalVector.from([cmd, ...trimmed])
+	return createMalVector([cmd, ...trimmed])
 }
 
 /**
@@ -807,7 +807,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 		})
 		.flat()
 
-	return MalVector.from([K_PATH, ...rest])
+	return createMalVector([K_PATH, ...rest])
 }
 
 /**
@@ -874,7 +874,7 @@ const jsObjects = new Map<string, any>([
 	['path/trim', pathTrim],
 	[
 		'path/split-segments',
-		([_, ...path]: PathType) => MalVector.from(iterateSegment(path))
+		([_, ...path]: PathType) => createMalVector(iterateSegment(path))
 	],
 	['path/bounds', pathBounds]
 ])

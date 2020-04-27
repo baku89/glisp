@@ -91,7 +91,7 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				; (ret[keyword] as MalVal[]).push(arr[i])
+				;(ret[keyword] as MalVal[]).push(arr[i])
 			}
 		}
 	}
@@ -121,7 +121,7 @@ consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
 		if (saved !== null) {
-			; ({user, token} = JSON.parse(saved) as {user: string; token: string})
+			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
 		} else {
 			throw new LispError(`Parameters :user and :token must be specified.

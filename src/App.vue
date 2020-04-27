@@ -1,19 +1,10 @@
 <template>
-	<div
-		id="app"
-		:class="{'background-set': backgroundSet, compact}"
-		:style="colors"
-	>
+	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
 		<div class="app__inspector">
 			<Inspector :value="selectedAst" @input="onEditSelected" />
 		</div>
 		<div class="app__viewer">
-			<Viewer
-				:ast="ast"
-				:selection="selection"
-				@render="onRender"
-				@set-background="onSetBackground"
-			/>
+			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
 		</div>
 		<div class="app__control">
 			<div class="app__editor">
@@ -38,9 +29,7 @@
 					class="app__console-toggle"
 					:class="{error: renderError}"
 					@click="compact = !compact"
-				>
-					{{ renderError ? '!' : '✓' }}
-				</button>
+				>{{ renderError ? '!' : '✓' }}</button>
 				<Console :compact="compact" @setup="onSetupConsole" />
 			</div>
 		</div>
@@ -70,7 +59,9 @@ import {
 	M_END,
 	M_META,
 	M_FN,
-	MalMap
+	MalMap,
+	MalVector,
+	isVector
 } from '@/mal/types'
 
 import {replaceRange} from '@/utils'

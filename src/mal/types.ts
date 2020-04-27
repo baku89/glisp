@@ -12,6 +12,8 @@ export const M_END = Symbol('end')
 export const M_EVAL = Symbol('eval')
 export const M_FN = Symbol('fn')
 
+const M_ISVECTOR = Symbol('isvector')
+
 export type MalBind = (string | MalBind)[]
 
 export interface MalFunc {
@@ -154,12 +156,22 @@ export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
 export const isList = (obj: MalVal): obj is MalVal[] =>
-	Array.isArray(obj) && !(obj instanceof MalVector) // eslint-disable-line @typescript-eslint/no-use-before-define
+	Array.isArray(obj) && !(obj as any)[M_ISVECTOR]
 
 // Vectors
-export class MalVector extends Array<MalVal> {}
-export const isVector = (obj: MalVal): obj is MalVector =>
-	obj instanceof MalVector
+export const isVector = (obj: MalVal): obj is MalVal[] =>
+	Array.isArray(obj) && !!(obj as any)[M_ISVECTOR]
+
+export function createMalVector(_arr: MalVal[]): MalVal[] {
+	const arr = [..._arr]
+	;(arr as any)[M_ISVECTOR] = true
+	return arr
+}
+
+export function markMalVector(arr: MalVal[]): MalVal[] {
+	;(arr as any)[M_ISVECTOR] = true
+	return arr
+}
 
 // Maps
 export const isMap = (obj: MalVal): obj is MalMap =>

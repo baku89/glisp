@@ -4,7 +4,6 @@
 	</div>
 </template>
 
-
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
@@ -13,8 +12,8 @@ import {
 	isKeyword,
 	isSymbol,
 	isVector,
-	MalVector,
-	isList
+	isList,
+	createMalVector
 } from '@/mal/types'
 import {printExp} from '@/mal'
 
@@ -42,7 +41,7 @@ export default class TreeVector extends Vue {
 	}
 
 	onInput(i: number, val: MalVal) {
-		const value = MalVector.from([...this.value])
+		const value = createMalVector(this.value)
 		value[i] = val
 		this.$emit('input', value)
 	}

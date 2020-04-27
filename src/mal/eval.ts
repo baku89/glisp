@@ -18,7 +18,10 @@ import {
 	M_FN,
 	isMap,
 	MalMap,
-	isList
+	isList,
+	isVector,
+	createMalVector,
+	markMalVector
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -54,7 +57,7 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 	if (isSymbol(ast)) {
 		return env.get(ast as string)
 	} else if (Array.isArray(ast)) {
-		return ast.map(x => {
+		const ret = ast.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, saveEval)
 			if (saveEval && isList(x)) {
@@ -62,6 +65,7 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 			}
 			return ret
 		})
+		return isVector(ast) ? markMalVector(ret) : ret
 	} else if (isMap(ast)) {
 		const hm: MalMap = {}
 		for (const k in ast) {

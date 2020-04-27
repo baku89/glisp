@@ -12,6 +12,11 @@ import {
 	isVector
 } from './types'
 
+const S_QUOTE = S('quote'),
+	S_QUASIQUOTE = S('quasiquote'),
+	S_UNQUOTE = S('unquote'),
+	S_SPLICE_UNQUOTE = S('splice-unquote')
+
 export const printer = {
 	log: (...args: any) => {
 		console.info(...args)
@@ -30,14 +35,15 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 
 	if (isList(obj)) {
 		if (obj.length === 2) {
-			if (obj[0] === S('quote')) {
-				return "'" + printExp(obj[1], _r)
-			} else if (obj[0] === S('quasiquote')) {
-				return '`' + printExp(obj[1], _r)
-			} else if (obj[0] === S('unquote')) {
-				return '~' + printExp(obj[1], _r)
-			} else if (obj[0] === S('splice-unquote')) {
-				return '~@' + printExp(obj[1], _r)
+			switch (obj[0]) {
+				case S_QUOTE:
+					return "'" + printExp(obj[1], _r)
+				case S_QUASIQUOTE:
+					return '`' + printExp(obj[1], _r)
+				case S_UNQUOTE:
+					return '~' + printExp(obj[1], _r)
+				case S_SPLICE_UNQUOTE:
+					return '~@' + printExp(obj[1], _r)
 			}
 		}
 		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
