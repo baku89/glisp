@@ -367,7 +367,6 @@ export default class CanvasRenderer {
 				}
 			}
 			if (style[K_STROKE]) {
-				console.log('aaaa')
 				if (isText) {
 					ctx.strokeText(text as string, x as number, y as number)
 				} else {

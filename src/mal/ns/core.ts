@@ -223,10 +223,10 @@ const jsObjects = new Map<string, any>([
 			!isMap(m)
 				? null
 				: a in m
-					? m[a]
-					: notfound !== undefined
-						? notfound
-						: null
+				? m[a]
+				: notfound !== undefined
+				? notfound
+				: null
 	],
 	[
 		'contains?',
@@ -266,7 +266,7 @@ const jsObjects = new Map<string, any>([
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
 			const c = cloneAST(a)
-				; (c as any)[M_META] = m
+			;(c as any)[M_META] = m
 			return c
 		}
 	],
