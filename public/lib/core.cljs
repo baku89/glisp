@@ -12,6 +12,11 @@
             `(do ~@body)))
        ~attrs)))
 
+(def defn
+  ^{:doc "Define a function"
+    :params [{label: "Symbol", type: "symbol"}, {label: "Params", type: "any"}]}
+  defn)
+
 ;; Def special forms
 (defn def
   {:doc "Create a variable"

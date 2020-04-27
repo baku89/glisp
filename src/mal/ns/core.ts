@@ -27,6 +27,8 @@ import readStr from '../reader'
 import interop from '../interop'
 import {partition} from '../utils'
 
+const random = seedrandom('GLISP')
+
 // String functions
 function slurp(url: string) {
 	const req = new XMLHttpRequest()
@@ -95,11 +97,23 @@ const jsObjects = [
 	['>=', (a: number, b: number) => a >= b],
 
 	// Calculus
-	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
+	[
+		'+',
+		(...a: number[]) => a.reduce((x, y) => x + y, 0),
+		{doc: 'Returns the sum of nums'}
+	],
 	[
 		'-',
-		(i: number, ...a: number[]) =>
-			a.length ? a.reduce((x, y) => x - y, i) : -i
+		(x: number, ...y: number[]) =>
+			y.length ? y.reduce((a, b) => a - b, x) : -x,
+		{
+			doc:
+				'If no ys are supplied, returns the negation of x, else subtracts the ys from x',
+			params: [
+				{label: 'X', type: 'number'},
+				{label: 'Y', type: 'number'}
+			]
+		}
 	],
 	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
 	[
@@ -329,13 +343,21 @@ const jsObjects = [
 	['.', jsMethodCall],
 
 	// Random
-	['random', (a: MalVal) => seedrandom(a)()]
+	[
+		'rnd',
+		(a: MalVal) => seedrandom(a)(),
+		{
+			doc:
+				'Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*',
+			params: [{label: 'Seed', type: 'any'}]
+		}
+	]
 ]
 
 // Expose Math
-Object.getOwnPropertyNames(Math)
-	.filter(k => k !== 'random')
-	.forEach(k => jsObjects.push([k, (Math as any)[k]]))
+Object.getOwnPropertyNames(Math).forEach(k =>
+	jsObjects.push([k, (Math as any)[k]])
+)
 
 export default {
 	jsObjects

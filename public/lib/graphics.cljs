@@ -17,7 +17,7 @@
 
 (defn color [& xs]
   (case (count xs)
-		1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
+    1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
     3 (apply format "rgba(%f,%f,%f)" xs)
     "black"))
 
@@ -52,9 +52,10 @@
   `(translate (vec2/scale $size .5)))
 
 ;; Style
-(defn fill [color]
+(defn fill
   {:doc "Creates a fill property"
    :params [{:type "color" :desc "Color to fill"}]}
+  [color]
   {:fill true :fill-color color})
 
 (defn stroke [fst & args]

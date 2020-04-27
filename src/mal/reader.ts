@@ -277,6 +277,12 @@ export function findAstByRange(
 			end <= (ast as MalTreeWithRange)[M_END]
 		) {
 			if (isMap(ast)) {
+				for (const child of Object.values(ast)) {
+					const ret = findAstByRange(child, start, end)
+					if (ret !== null) {
+						return ret
+					}
+				}
 				return ast as MalTreeWithRange
 			} else {
 				for (const child of ast) {
