@@ -9,7 +9,8 @@ import {
 	M_END,
 	MalMap,
 	MalVal,
-	createMalVector
+	createMalVector,
+	M_META
 } from './types'
 
 class Reader {
@@ -306,6 +307,14 @@ export function convertJSObjectToMalMap(obj: MalVal): MalVal {
 	} else {
 		return obj
 	}
+}
+
+export function attachMetaToJSObject(obj: any, meta: any): MalVal {
+	if (obj instanceof Object) {
+		obj[M_META] = convertJSObjectToMalMap(meta)
+	}
+
+	return obj
 }
 
 export class BlankException extends Error {}

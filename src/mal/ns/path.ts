@@ -13,7 +13,7 @@ import {
 } from '../types'
 import {partition} from '../utils'
 import printExp from '../printer'
-import {convertJSObjectToMalMap} from '../reader'
+import {attachMetaToJSObject} from '../reader'
 
 type Vec2 = number[] | vec2
 
@@ -484,7 +484,7 @@ function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 			.flat()
 	])
 }
-arc[M_META] = convertJSObjectToMalMap({
+attachMetaToJSObject(arc, {
 	doc: 'Generate an arc path',
 	params: [
 		{
