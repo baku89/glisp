@@ -1,5 +1,5 @@
 <template>
-	<input class="TreeNumber" type="number" :value="value" :step="step" @input="onInput" />
+	<input class="InputNumber" type="number" :value="value" :step="step" @input="onInput" />
 </template>
 
 
@@ -9,9 +9,9 @@ import {MalVal} from '@/mal/types'
 import {printExp} from '@/mal'
 
 @Component({
-	name: 'TreeNumber'
+	name: 'InputNumber'
 })
-export default class TreeNumber extends Vue {
+export default class InputNumber extends Vue {
 	@Prop({type: Number, required: true}) private value!: number
 
 	get step() {
@@ -32,9 +32,11 @@ export default class TreeNumber extends Vue {
 </script>
 
 <style lang="stylus" scoped>
-.TreeNumber
+.InputNumber
 	width 4rem
-	border 1px solid var(--comment)
+	border none
+	border-bottom 1px dashed var(--comment)
 	background var(--background)
 	color var(--orange)
+	font-size inherit
 </style>
