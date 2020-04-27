@@ -858,7 +858,7 @@ function pathBounds(path: PathType) {
 	}
 }
 
-const jsObjects = new Map<string, any>([
+const jsObjects = [
 	['arc', arc],
 	['path/join', pathJoin],
 	['path/to-beziers', toBeziers],
@@ -878,7 +878,7 @@ const jsObjects = new Map<string, any>([
 		([_, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
 	],
 	['path/bounds', pathBounds]
-])
+]
 
 export default {
 	jsObjects

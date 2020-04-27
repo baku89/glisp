@@ -1,7 +1,8 @@
 import Env from '../env'
 import core from './core'
 import path from './path'
-import {MalNamespace, symbolFor as S} from '../types'
+import {MalNamespace, symbolFor as S, M_META} from '../types'
+import {convertJSObjectToMalMap} from '../reader'
 
 const namespaces: (MalNamespace | string)[] = [core, path]
 
@@ -11,7 +12,12 @@ export function declareAllNamespaces(env: Env) {
 		const objects = typeof ns === 'object' && ns.jsObjects
 
 		if (objects) {
-			objects.forEach((v, k) => env.set(S(k), v))
+			objects.forEach(([k, v, meta]) => {
+				if (meta) {
+					v[M_META] = convertJSObjectToMalMap(meta)
+				}
+				env.set(S(k), v)
+			})
 		}
 
 		// if (code) {

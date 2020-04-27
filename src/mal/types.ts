@@ -237,6 +237,6 @@ export function getType(obj: MalVal): string {
 
 // Namespace
 export interface MalNamespace {
-	jsObjects?: Map<string, any>
+	jsObjects?: [string, any, any][]
 	malCode?: string
 }

@@ -49,11 +49,15 @@ function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
 	return interop.jsToMal(res)
 }
 
-const jsObjects = new Map<string, any>([
+const jsObjects = [
 	[
 		'throw',
 		(msg: string) => {
 			throw new LispError(msg)
+		},
+		{
+			doc: 'Throw an error',
+			params: [{label: 'Message', type: 'string'}]
 		}
 	],
 
@@ -101,7 +105,11 @@ const jsObjects = new Map<string, any>([
 	[
 		'/',
 		(i: number, ...a: number[]) =>
-			a.length ? a.reduce((x, y) => x / y, i) : 1 / i
+			a.length ? a.reduce((x, y) => x / y, i) : 1 / i,
+		{
+			doc:
+				'If no denominators are supplied, returns 1/numerator, else returns numerator divided by all of the denominators'
+		}
 	],
 	['mod', (a: number, b: number) => a % b],
 
@@ -322,12 +330,12 @@ const jsObjects = new Map<string, any>([
 
 	// Random
 	['random', (a: MalVal) => seedrandom(a)()]
-])
+]
 
 // Expose Math
 Object.getOwnPropertyNames(Math)
 	.filter(k => k !== 'random')
-	.forEach(k => jsObjects.set(k, (Math as any)[k]))
+	.forEach(k => jsObjects.push([k, (Math as any)[k]]))
 
 export default {
 	jsObjects
