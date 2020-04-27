@@ -3,7 +3,7 @@
 
 (defn slash [p]
   (->> (line [(- s) (- s)] [s s])
-       (path/scale-x [(compare (random p) .5)])
+       (path/scale-x [(compare (rnd p) .5)])
        (path/translate p)))
 
 [:g {:transform (view-center)
