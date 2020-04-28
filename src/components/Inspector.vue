@@ -144,21 +144,22 @@ export default class Inspector extends Vue {
 		for (let pi = 0, di = 0; pi < params.length; pi++) {
 			const desc = paramDesc[di]
 			const param = params[pi]
+			const type = desc[K('type')]
 
 			if (!desc) {
 				return null
 			}
 
-			if (isSymbol(param) || desc[K('type')] === 'any') {
-				retDesc.push(desc)
-				continue
-			}
-			if (desc[K('check')]) {
+			if (isSymbol(param) || type === 'any') {
+				null // Type = any : passed
+			} else if (type === 'color') {
+				null
+			} else if (desc[K('check')]) {
 				const checkFn: any = desc[K('check')]
 				if (!checkFn(param)) {
 					return null
 				}
-			} else if (getType(param) !== desc[K('type')]) {
+			} else if (getType(param) !== type) {
 				return null
 			}
 
@@ -273,6 +274,7 @@ export default class Inspector extends Vue {
 	padding 1rem
 	height 100%
 	text-align left
+	user-select none
 
 	&:before
 		position absolute
