@@ -12,9 +12,8 @@
 			:value="value[1]"
 			:step="step"
 			@input="onInput(1, $event)"
-		/>
-		]
-		<div class="InputVec2__drag" />
+		/>]
+		<!-- <div class="InputVec2__drag" /> -->
 	</div>
 </template>
 
@@ -52,33 +51,33 @@ export default class InputVec2 extends Vue {
 	display flex
 
 	&__el
-		margin-right .5rem
+		margin-right 0.5rem
 
 		&:last-child
 			margin-right 0
 
 	&__drag
-		margin-left .5rem
+		position relative
+		margin-left 0.5rem
 		width 1.3rem
 		height 1.3rem
 		border 1px solid var(--comment)
-		position relative
 
 		&:before, &:after
-			content ''
-			display block
 			position absolute
+			display block
 			background var(--comment)
+			content ''
 
 		&:before
-			width 1px
-			height 80%
 			top 10%
 			left 50%
+			width 1px
+			height 80%
 
 		&:after
+			top 50%
+			left 10%
 			width 80%
 			height 1px
-			left 10%
-			top 50%
 </style>
