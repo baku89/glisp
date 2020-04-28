@@ -72,21 +72,28 @@ export default class InputColor extends Vue {
 		color var(--green)
 
 	&__color
-		border none
-		padding 0
+		display inline-block
 		margin 0
-		outline none
+		margin-left 0.5em
+		padding 0
 		width 1.3em
 		height 1.3em
-		appearance none
+		outline none
+		border 0
+		background transparent
+		vertical-align bottom
 		font-size inherit
+		appearance none
 
 		&::-webkit-color-swatch-wrapper
 			margin 0
-			padding: 0
+			padding 0
+			background transparent
+
 		&::-webkit-color-swatch
 			margin 0
 			padding 0
-			border: none
+			border none
+			border 1px solid var(--comment)
 			border-radius 50%
 </style>
