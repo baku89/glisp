@@ -24,19 +24,25 @@
 
 (defn vec2/uniform
   {:doc "Create vec2 with same value for x and y"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "vec2"}}
   [v] [v v])
 
-(defn vec2? [v]
+(defn vec2?
+  {:doc "Check if x is vec2"
+   :params [{:type "any"}]
+   :return {:type "boolean"}}
+  [x]
   (and
-   (sequential? v)
-   (>= (count v) 2)
-   (number? (.x v))
-   (number? (.y v))))
+   (sequential? x)
+   (>= (count x) 2)
+   (number? (.x x))
+   (number? (.y x))))
 
 (defn vec2/+
   {:doc "Adds two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]}
+   :params [{:type "vec2"} {:type "vec2"}]
+   :return {:type "vec2"}}
   [a b]
   [(+ (.x a) (.x b))
    (+ (.y a) (.y b))])
@@ -145,34 +151,40 @@
 
 (defn mat2d/translate-x
   {:doc "Returns translation matrix"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "mat2d"}}
   [x] [1 0 0 1 x 0])
 
 (defn mat2d/translate-y
   {:doc "Returns translation matrix"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "mat2d"}}
   [y] [1 0 0 1 0 y])
 
 ;; mat2d/fromScaling, scale
 (defn mat2d/scale
   {:doc  "Returns scaling matrix"
-   :params [{:label "Value" :type "vec2"}]}
+   :params [{:label "Value" :type "vec2"}]
+   :return {:type "mat2d"}}
   [s]
   [(.x s) 0 0 (.y s) 0 0])
 
 (defn mat2d/scale-x
   {:doc "Returns scaling matrix"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "mat2d"}}
   [sx] [sx 0 0 1 0 0])
 (defn mat2d/scale-y
   {:doc "Returns scaling matrix"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "mat2d"}}
   [sy] [1 0 0 sy 0 0])
 
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :return {:type "mat2d"}}
   [angle]
   (let [s (sin angle)
         c (cos angle)]
@@ -198,7 +210,20 @@
      (+ (* a0 b4) (* a2 b5) a4)
      (+ (* a1 b4) (* a3 b5) a5)]))
 
-(defn transform [& xs]
+(defn mat2d/pivot
+  {:doc "Pivot"
+   :params [{:label "Pos" :type "vec2"}
+            {:label "Matrix" :type "mat2d" :variadic true}]}
+  [p & xs]
+  (let [m-first (mat2d/translate p)
+        m-last (mat2d/translate (vec2/negate p))]
+    (apply mat2d/transform `(~m-first ~@xs ~m-last))))
+
+(defn mat2d/transform
+  {:doc "Multiplies the matrices and returns transform matrix"
+   :params [{:label "Matrix" :type "mat2d" :variadic true}]
+   :return {:type "mat2d"}}
+  [& xs]
   (reduce mat2d/mul mat2d/ident xs))
 
 (def translate mat2d/translate)
@@ -208,6 +233,8 @@
 (def scale-x mat2d/scale-x)
 (def scale-y mat2d/scale-y)
 (def rotate mat2d/rotate)
+(def pivot mat2d/pivot)
+(def transform mat2d/transform)
 
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
