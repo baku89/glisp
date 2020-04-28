@@ -333,7 +333,7 @@ function saveOuter(ast: MalVal, outer: MalVal) {
 		const children = Array.isArray(ast)
 			? ast
 			: isMap(ast)
-			? Object.keys(ast)
+			? Object.values(ast)
 			: null
 
 		if (children) {

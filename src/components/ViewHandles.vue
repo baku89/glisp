@@ -52,24 +52,42 @@ export default class ViewHandles extends Vue {
 			isVector(exp) &&
 			isKeyword(exp[0]) &&
 			isMap(exp[1]) &&
-			Array.isArray(exp[1][K('transform')])
+			exp[1][K('transform')] !== undefined
 		) {
 			let elXform = exp[1][K('transform')] as any
 			elXform = elXform[M_EVAL] || elXform
 
-			mat2d.multiply(xform, xform, elXform)
+			mat2d.multiply(xform, elXform, xform)
 		}
 
-		if (exp[M_OUTER]) {
+		if (exp && exp[M_OUTER]) {
 			return this.calcTransform(exp[M_OUTER], xform)
 		} else {
 			return xform
 		}
 	}
 
+	private getWrappedElement(exp: any) {
+		let outer
+
+		while (exp && (outer = exp[M_OUTER])) {
+			if (isVector(outer) && isKeyword(outer[0])) {
+				// Item
+				if (isMap(exp) && outer[1] === exp) {
+					// When the exp is an attribute
+					return (outer as any)[M_OUTER] || null
+				} else {
+					return outer
+				}
+			}
+			exp = outer
+		}
+	}
+
 	private get transform(): mat2d {
 		if (this.exp !== null && this.exp instanceof Object) {
-			return this.calcTransform(this.exp)
+			const wrappedElement = this.getWrappedElement(this.exp)
+			return this.calcTransform(wrappedElement)
 		} else {
 			return [1, 0, 0, 1, 0, 0]
 		}
