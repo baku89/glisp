@@ -3,10 +3,26 @@
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
 ;; Shape functions
+(def path/rect-handle
+  {:draw-handle (fn [pos size]
+                  [{:type "point" :id :top-left :pos pos}
+                   {:type "point" :id :center :pos (vec2/scale-add pos size .5)}
+                   {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
+   :on-drag (fn [id p [pos size]]
+              (do
+                (case id
+                  :top-left [p (vec2/+ (vec2/- pos p) size)]
+                  :center (let [orig-center (vec2/scale-add pos size .5)
+                                delta (vec2/- p orig-center)]
+                            [(vec2/+ pos delta) size])
+                  :bottom-right [pos (vec2/- p pos)])))})
+
 (defn path/rect
   {:doc  "Generate a rect path"
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
-            {:label "Size" :type "vec2" :desc "size of the rectangle"}]}
+            {:label "Size" :type "vec2" :desc "size of the rectangle"}]
+   :return {:type "path"}
+   :handles path/rect-handle}
   [[x y] [w h]]
   [:path
    :M [x y]
