@@ -34,14 +34,17 @@
 (def circle path/circle)
 
 (defn path/line
-  {:doc "Returns a line segment path"
+  {:doc "Generates a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]}
   [from to]
   [:path :M from :L to])
 (def line path/line)
 
-(defn path/polyline [& pts]
+(defn path/polyline
+  {:doc "Generates a polyline path"
+   :params [{:label "Vertex" :type "vec2" :variadic true}]}
+  [& pts]
   (vec (concat :path
                :M [(first pts)]
                (apply concat (map #`(:L ~%) (rest pts))))))

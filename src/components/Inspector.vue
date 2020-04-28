@@ -23,6 +23,11 @@
 					:value="params[i]"
 					@input="onParamInput(i, $event)"
 				/>
+				<InputColor
+					v-else-if="pd['ʞtype'] === 'color' && typeof params[i] === 'string'"
+					:value="params[i]"
+					@input="onParamInput(i, $event)"
+				/>
 				<InputVec2
 					v-else-if="
 						pd['ʞtype'] === 'vec2' &&
@@ -125,12 +130,14 @@ export default class Inspector extends Vue {
 	}
 
 	private matchParameter(params: any[], paramDesc: any[]): any | null {
-		if (params.length !== paramDesc.length) {
+		if (params.length < paramDesc.length) {
 			return null // Insufficient parameters
 		}
 
-		for (let pi = 0; pi < params.length; pi++) {
-			const desc = paramDesc[pi]
+		const retDesc = []
+
+		for (let pi = 0, di = 0; pi < params.length; pi++) {
+			const desc = paramDesc[di]
 			const param = params[pi]
 
 			if (isSymbol(param) || desc[K('type')] === 'any') {
@@ -144,9 +151,15 @@ export default class Inspector extends Vue {
 			} else if (getType(param) !== desc[K('type')]) {
 				return null
 			}
+
+			if (!desc[K('variadic')]) {
+				di++
+			}
+
+			retDesc.push(desc)
 		}
 
-		return paramDesc
+		return retDesc
 	}
 
 	private get paramsDesc(): any {

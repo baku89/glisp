@@ -111,18 +111,29 @@ const jsObjects = [
 				'If no ys are supplied, returns the negation of x, else subtracts the ys from x',
 			params: [
 				{label: 'X', type: 'number'},
-				{label: 'Y', type: 'number'}
+				{label: 'Y', type: 'number', variadic: true}
 			]
 		}
 	],
-	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
+	[
+		'*',
+		(...args: number[]) => args.reduce((a, b) => a * b, 1),
+		{
+			doc: 'Returns the product of nums',
+			params: [{label: 'X', type: 'number', variadic: true}]
+		}
+	],
 	[
 		'/',
 		(i: number, ...a: number[]) =>
 			a.length ? a.reduce((x, y) => x / y, i) : 1 / i,
 		{
 			doc:
-				'If no denominators are supplied, returns 1/numerator, else returns numerator divided by all of the denominators'
+				'If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys',
+			params: [
+				{label: 'X', type: 'number'},
+				{label: 'Y', type: 'number', variadic: true}
+			]
 		}
 	],
 	['mod', (a: number, b: number) => a % b],
@@ -266,6 +277,10 @@ const jsObjects = [
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
 			return null
+		},
+		{
+			doc: 'Print the object to the shell',
+			params: [{label: 'Objects', type: 'any', variadic: true}]
 		}
 	],
 	[

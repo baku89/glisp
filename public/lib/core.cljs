@@ -88,12 +88,16 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      (cons 'cond (rest (rest xs))))))
 
-(defmacro for [binds & body]
+(defmacro for
+  [binds & body]
   (let [pairs (partition 2 binds)
         syms (map first pairs)
         colls (map second pairs)
         gen-lst `(combination/product ~@colls)]
     `(map (fn [~syms] (do ~@body)) ~gen-lst)))
+(def for (with-meta for {:doc "Make a iteration loop"
+                         :params [{:label "Binds" :type "code"}
+                                  {:label "body" :type "code" :variadic true}]}))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)
@@ -162,7 +166,10 @@
 (defn odd? [x] (= (mod x 2) 1))
 (defn even? [x] (= (mod x 2) 0))
 
-(defn  percent [x] (/ x 100))
+(defn  percent
+  {:doc "Map the percentage value between 0-100 to normalized 0-1"
+   :params [{:type "number"}]}
+  [value] (/ value 100))
 
 (defn compare
   {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
