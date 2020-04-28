@@ -207,7 +207,21 @@ export class MalAtom {
 	}
 }
 
-export function getType(obj: MalVal): string {
+type MalTypeString =
+	| 'list'
+	| 'vector'
+	| 'map'
+	| 'nil'
+	| 'symbol'
+	| 'keyword'
+	| 'string'
+	| 'boolean'
+	| 'number'
+	| 'atom'
+	| 'vec2'
+	| 'mat2d'
+
+export function getType(obj: MalVal): MalTypeString | null {
 	if (Array.isArray(obj)) {
 		if ((obj as any)[M_ISVECTOR]) {
 			const allNumber = obj.every(v => typeof v === 'number')
@@ -248,8 +262,7 @@ export function getType(obj: MalVal): string {
 				}
 		}
 	}
-
-	throw new LispError('Cannot get type')
+	return null
 }
 
 // Namespace

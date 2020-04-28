@@ -178,9 +178,10 @@ export default class Inspector extends Vue {
 		if (!paramsDesc && fnParams) {
 			paramsDesc = fnParams.map((fp, i) => {
 				const p = this.params[i]
+
 				const type = getType(p)
 
-				return {ʞtype: type}
+				return type ? {ʞtype: type} : {ʞtype: 'any'}
 			})
 		}
 
