@@ -1,6 +1,6 @@
 <template>
-	<div class="ViewHandles" @mousemove="onMousemove" @mouseup="onMouseup">
-		<div class="ViewHandles__transform">
+	<div class="ViewHandles">
+		<div class="ViewHandles__transform" :style="transformStyle">
 			<template v-for="{type, id, style} in handles">
 				<div
 					:key="id"
@@ -20,15 +20,73 @@ import {
 	M_META,
 	M_FN,
 	keywordFor as K,
-	markMalVector
+	markMalVector,
+	M_EVAL,
+	M_OUTER,
+	isVector,
+	isKeyword,
+	isMap,
+	createMalVector
 } from '../mal/types'
+import {mat2d, vec2} from 'gl-matrix'
 
 @Component({})
 export default class ViewHandles extends Vue {
 	@Prop({required: true}) exp!: MalVal
 
-	private get params() {
-		return this.handleInfo && Array.isArray(this.exp) ? this.exp.slice(1) : null
+	private get params(): MalVal[] | null {
+		return this.handleInfo && Array.isArray(this.exp)
+			? this.exp
+					.slice(1)
+					.map((e: any) => (e[M_EVAL] !== undefined ? e[M_EVAL] : e))
+			: null
+	}
+
+	private beforeUnmount() {
+		this.unregisterMouseEvents()
+	}
+
+	private unregisterMouseEvents() {
+		window.removeEventListener('mousemove', this.onMousemove)
+		window.removeEventListener('mouseup', this.onMouseup)
+	}
+
+	private calcTransform(exp: any, xform: mat2d = mat2d.create()): mat2d {
+		if (
+			isVector(exp) &&
+			isKeyword(exp[0]) &&
+			isMap(exp[1]) &&
+			Array.isArray(exp[1][K('transform')])
+		) {
+			let elXform = exp[1][K('transform')] as any
+			elXform = elXform[M_EVAL] || elXform
+
+			mat2d.multiply(xform, xform, elXform)
+		}
+
+		if (exp[M_OUTER]) {
+			return this.calcTransform(exp[M_OUTER], xform)
+		} else {
+			return xform
+		}
+	}
+
+	private get transform(): mat2d {
+		if (this.exp !== null && this.exp instanceof Object) {
+			return this.calcTransform(this.exp)
+		} else {
+			return [1, 0, 0, 1, 0, 0]
+		}
+	}
+
+	private get transformInv() {
+		return mat2d.invert(mat2d.create(), this.transform)
+	}
+
+	private get transformStyle() {
+		return {
+			transform: `matrix(${this.transform.join(',')})`
+		}
 	}
 
 	private get handleInfo() {
@@ -47,9 +105,10 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get handles(): {type: string; id: any; style: any}[] | null {
-		if (this.handleInfo && Array.isArray(this.exp)) {
+		if (this.handleInfo && this.params) {
 			const drawHandle = this.handleInfo[K('draw-handle')]
-			const handles = drawHandle(...this.exp.slice(1))
+
+			const handles = drawHandle(...this.params)
 
 			return handles.map((h: any) => {
 				const pos = h[K('pos')]
@@ -69,21 +128,21 @@ export default class ViewHandles extends Vue {
 
 	private onMousedown(id: any, e: MouseEvent) {
 		this.draggingId = id
+
+		window.addEventListener('mousemove', this.onMousemove)
+		window.addEventListener('mouseup', this.onMouseup)
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (this.draggingId == null) {
-			return
-		}
-
 		if (!this.handleInfo || !this.handles || !this.params) {
 			return
 		}
 
-		const {clientX, clientY} = e
-
 		const onDrag = this.handleInfo[K('on-drag')]
-		const pos = markMalVector([clientX, clientY])
+
+		const pos = markMalVector([e.clientX, e.clientY]) as number[]
+		vec2.transformMat2d(pos as vec2, pos as vec2, this.transformInv)
+
 		const newParams = onDrag(this.draggingId, pos, this.params)
 		const newExp = [(this.exp as any[])[0], ...newParams]
 
@@ -92,6 +151,7 @@ export default class ViewHandles extends Vue {
 
 	private onMouseup() {
 		this.draggingId = null
+		this.unregisterMouseEvents()
 	}
 }
 </script>
