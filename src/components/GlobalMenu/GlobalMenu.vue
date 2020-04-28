@@ -52,6 +52,13 @@ export default class GlobalMenu extends Vue {
 			]
 		],
 		[
+			'Examples',
+			[
+				['10 PRINT CHR', '(load-file "./examples/10-print-chr.cljs")'],
+				['Hello World', '(load-file "./examples/hello-world.cljs")']
+			]
+		],
+		[
 			'?',
 			[
 				['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
