@@ -8,6 +8,11 @@
 			<Inspector :value="selectedAst" @input="onEditSelected" />
 		</div>
 		<div class="app__viewer">
+			<ViewHandles
+				class="view-handles"
+				:exp="selectedAst"
+				@input="onEditSelected"
+			/>
 			<Viewer
 				:ast="ast"
 				:selection="selection"
@@ -57,6 +62,7 @@ import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
+import ViewHandles from '@/components/ViewHandles.vue'
 // import {TreeVector} from '@/components/Tree'
 
 import {replEnv, printExp, readStr} from '@/mal'
@@ -88,7 +94,8 @@ const OFFSET = 19 // length of "(def $view (sketch "
 		Editor,
 		Viewer,
 		Console,
-		Inspector
+		Inspector,
+		ViewHandles
 		// TreeVector
 	}
 })
@@ -408,6 +415,14 @@ $compact-dur = 0.4s
 		position relative
 		margin-right 1rem
 		width 60%
+
+		.view-handles
+			position absolute
+			z-index 100
+			top 0
+			left 0
+			width 100%
+			height 100%
 
 		&:after
 			position absolute
