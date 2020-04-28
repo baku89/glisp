@@ -252,7 +252,6 @@ export default class Viewer extends Vue {
 		background var(--background)
 		color var(--foreground)
 		line-height 1.1rem
-		transition all var(--tdur) var(--ease)
 		outliine none
 
 		&.active

@@ -1,10 +1,5 @@
 <template>
-	<div
-		id="app"
-		class="app"
-		:class="{'background-set': backgroundSet, compact}"
-		:style="colors"
-	>
+	<div id="app" class="app" :class="{compact}" :style="colors">
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
 			<div class="app__inspector">
@@ -108,7 +103,6 @@ export default class App extends Vue {
 	private selection = [0, 0]
 	private code = ''
 	private background = 'whitesmoke'
-	private backgroundSet = false
 	private compact = true
 	private renderError = false
 	private editorMode = 'code'
@@ -373,9 +367,6 @@ export default class App extends Vue {
 		replEnv.set(S('$background'), this.background)
 
 		this.background = bg
-		if (!this.backgroundSet) {
-			setTimeout(() => (this.backgroundSet = true), 1)
-		}
 	}
 }
 </script>
@@ -411,13 +402,8 @@ $compact-dur = 0.4s
 	height 100vh
 	background var(--background)
 	color var(--foreground)
-	transition background var(--tdur) var(--ease)
-	--tdur 0
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
-
-	&.background-set
-		--tdur 1s
 
 	&__content
 		position relative
@@ -454,7 +440,6 @@ $compact-dur = 0.4s
 			width 1px
 			background var(--comment)
 			content ''
-			transition background var(--tdur) var(--ease)
 
 	&__control
 		position relative
@@ -475,7 +460,6 @@ $compact-dur = 0.4s
 			height 1px
 			background var(--comment)
 			content ''
-			transition background var(--tdur) var(--ease)
 
 	&__editor-mode
 		position absolute

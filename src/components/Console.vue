@@ -87,25 +87,19 @@ export default class Console extends Vue {
 
 	&-cursor
 		background var(--selection)
-		transition background var(--tdur) var(--ease)
 
 	&-prompt, &-old-prompt
 		color var(--foreground)
-		transition color var(--tdur) var(--ease)
 
 	&-output
 		color var(--comment)
-		transition color var(--tdur) var(--ease)
 
 	&-return
 		color var(--comment)
-		transition color var(--tdur) var(--ease)
 
 	&-error
 		color var(--red)
-		transition color var(--tdur) var(--ease)
 
 	.brace, .paren, .bracket, .dquote
 		color var(--yellow)
-		transition color var(--tdur) var(--ease)
 </style>
