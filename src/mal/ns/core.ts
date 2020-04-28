@@ -20,7 +20,8 @@ import {
 	isList,
 	isVector,
 	isString,
-	createMalVector
+	createMalVector,
+	markMalVector
 } from '../types'
 import printExp, {printer} from '../printer'
 import readStr from '../reader'
@@ -346,7 +347,7 @@ const jsObjects = [
 				}
 			}
 
-			return ret
+			return markMalVector(ret)
 		}
 	],
 
