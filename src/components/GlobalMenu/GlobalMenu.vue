@@ -77,6 +77,7 @@ export default class GlobalMenu extends Vue {
 			this.expandedIndex = i
 		} else {
 			consoleREP(content, true)
+			this.expandedIndex = null
 		}
 	}
 
