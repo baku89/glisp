@@ -26,7 +26,7 @@ export const REP = (str: string, env: Env = replEnv) =>
 // Load core library
 /* eslint-disable no-useless-escape */
 REP(`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`)
-REP(`(def load-file-force
+REP(`(def import-force
   (fn [path]
 		(let [url (js-eval (format "new URL('%s', '%s')" path __filename__))]
       (eval (read-string
@@ -34,4 +34,4 @@ REP(`(def load-file-force
                      url
                      (slurp url)))))))`)
 
-REP('(load-file-force "./lib/core.cljs")')
+REP('(import-force "./lib/core.cljs")')

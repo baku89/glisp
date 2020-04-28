@@ -27,16 +27,16 @@
 (defmacro macroview [expr]
   `(prn (macroexpand ~expr)))
 
-(def load-file
+(def import
   (try
-    load-file
+    import
     (catch _
            (let (seen (atom (hash-map __filename__ nil)))
              (fn (filename)
                (if (not (contains? @seen filename))
                  (do
                    (swap! seen assoc filename nil)
-                   (load-file-force filename))))))))
+                   (import-force filename))))))))
 
 (defn ? [f]
   (def doc (get (meta f) :doc))
@@ -241,7 +241,7 @@
       (println (pp- obj 0)))))
 
 ; Load other cores
-(load-file "ui.cljs")
-(load-file "graphics.cljs")
-(load-file "math.cljs")
-(load-file "path.cljs")
+(import "ui.cljs")
+(import "graphics.cljs")
+(import "math.cljs")
+(import "path.cljs")
