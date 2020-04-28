@@ -33,7 +33,15 @@ consoleEnv.set(S('clear-console'), () => {
 	return null
 })
 
-const AppCommands = ['open-link', 'clear-console', 'select-outer', 'load-file']
+consoleEnv.set(S('prompt'), (msg: MalVal) => {
+	if (window) {
+		return window.prompt(msg as string)
+	} else {
+		return null
+	}
+})
+
+const AppCommands = ['clear-console', 'select-outer', 'load-file']
 
 AppCommands.forEach(cmd => {
 	consoleEnv.set(S(cmd), (...args: any[]) => {
