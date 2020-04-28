@@ -3,17 +3,18 @@
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
 			<div class="app__inspector">
-				<Inspector :value="selectedAst" @input="onEditSelected" />
+				<Inspector :value="selectedExpr" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
 				<ViewHandles
 					class="view-handles"
-					:exp="selectedAst"
+					:exp="selectedExpr"
 					@input="onEditSelected"
 				/>
 				<Viewer
-					:ast="ast"
-					:selection="selection"
+					:expr="viewExpr"
+					:guide-color="guideColor"
+					@resize="onResizeViewer"
 					@render="onRender"
 					@set-background="onSetBackground"
 				/>
@@ -34,7 +35,6 @@
 						@select="onSelect"
 						@select-outer="onSelectOuter"
 					/>
-					<!-- <TreeVector v-else :value="sketchAst" @update="onUpdateAst" /> -->
 				</div>
 				<div class="app__console">
 					<button
@@ -77,13 +77,16 @@ import {
 	M_FN,
 	MalMap,
 	isVector,
-	M_EVAL
+	M_EVAL,
+	LispError
 } from '@/mal/types'
 
 import {replaceRange} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findAstByPosition, findAstByRange} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
+import {viewREP} from './mal/view'
+import Env from './mal/env'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
@@ -106,29 +109,50 @@ export default class App extends Vue {
 	private compact = true
 	private renderError = false
 	private editorMode = 'code'
-	private selectedAst: MalVal = null
+	private selectedExpr: MalVal = null
+	private viewerSize = [0, 0]
+	private setupCount = 0
+	private viewExpr: MalVal = null
+	private viewEnv: Env | null = null
 
 	private initialCode!: string
-
-	private setupCount = 0
 
 	private get evalCode() {
 		return `(def $view (sketch ${this.code} \n nil))`
 	}
 
-	private get ast(): MalVal {
+	private get expr(): MalVal {
+		let expr
 		try {
-			return readStr(this.evalCode, true)
+			expr = readStr(this.evalCode, true)
 		} catch (err) {
 			if (!(err instanceof BlankException)) {
 				printer.error(err)
 			}
-			return null
 		}
-	}
 
-	private get sketchAst(): MalVal {
-		return isList(this.ast) ? (this.ast[2] as MalVal[]).slice(1) : []
+		if (expr !== undefined) {
+			try {
+				const {output, env} = viewREP(expr, {
+					width: this.viewerSize[0],
+					height: this.viewerSize[1],
+					updateConsole: true,
+					backgroundColor: this.background,
+					guideColor: this.guideColor
+				})
+
+				this.viewEnv = env
+				this.viewExpr = output
+			} catch (err) {
+				if (err instanceof LispError) {
+					printer.error(err.message)
+				} else {
+					printer.error(err)
+				}
+			}
+		}
+
+		return expr
 	}
 
 	private created() {
@@ -178,12 +202,12 @@ export default class App extends Vue {
 
 		appHandler.on('eval-selected', () => {
 			if (
-				this.selectedAst &&
+				this.selectedExpr &&
 				this.activeRange &&
-				typeof this.selectedAst === 'object' &&
-				(this.selectedAst as any)[M_EVAL] !== undefined
+				typeof this.selectedExpr === 'object' &&
+				(this.selectedExpr as any)[M_EVAL] !== undefined
 			) {
-				const evaled = (this.selectedAst as any)[M_EVAL]
+				const evaled = (this.selectedExpr as any)[M_EVAL]
 				const str = printExp(evaled)
 
 				const [start, end] = this.activeRange
@@ -198,7 +222,6 @@ export default class App extends Vue {
 			const res = await fetch(url)
 			if (res.ok) {
 				this.code = await res.text()
-				this.setupCount++
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
@@ -228,9 +251,9 @@ export default class App extends Vue {
 		}
 	}
 
-	private onUpdateAst(ast: MalVal[]) {
-		this.code = (ast as any).map((val: MalVal) => printExp(val)).join('\n')
-	}
+	// private onUpdateAst(ast: MalVal[]) {
+	// 	this.code = (ast as any).map((val: MalVal) => printExp(val)).join('\n')
+	// }
 
 	private onSetupConsole() {
 		this.setupCount++
@@ -248,7 +271,7 @@ export default class App extends Vue {
 
 	private onRender(succeed: boolean) {
 		this.renderError = !succeed
-		this.updateSelectedAst()
+		this.updateselectedExpr()
 	}
 
 	private onEdit(value: string) {
@@ -258,13 +281,17 @@ export default class App extends Vue {
 		replEnv.set(S('$sketch'), value)
 	}
 
+	private onResizeViewer(size: [number, number]) {
+		this.viewerSize = size
+	}
+
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
-		this.updateSelectedAst()
+		this.updateselectedExpr()
 	}
 
 	private get activeRange() {
-		const selected = this.selectedAst as MalTreeWithRange
+		const selected = this.selectedExpr as MalTreeWithRange
 
 		if (selected !== null && selected[M_START] >= OFFSET) {
 			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
@@ -273,18 +300,18 @@ export default class App extends Vue {
 		}
 	}
 
-	private updateSelectedAst() {
+	private updateselectedExpr() {
 		const [start, end] = this.selection
-		const selected = findAstByRange(this.ast, start + OFFSET, end + OFFSET)
+		const selected = findAstByRange(this.expr, start + OFFSET, end + OFFSET)
 		if (Array.isArray(selected) && selected[0] === S('sketch')) {
-			this.selectedAst = null
+			this.selectedExpr = null
 		} else {
-			this.selectedAst = selected
+			this.selectedExpr = selected
 		}
 	}
 
 	private getOuterRange(start: number, end: number) {
-		const selected = findAstByRange(this.ast, start + OFFSET, end + OFFSET)
+		const selected = findAstByRange(this.expr, start + OFFSET, end + OFFSET)
 
 		if (selected !== null && selected[M_START] >= OFFSET) {
 			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
@@ -346,9 +373,11 @@ export default class App extends Vue {
 
 		const colors = this.dark ? darkColors : brightColors
 
-		replEnv.set(S('$guide-color'), colors['--selection'])
-
 		return {...colors, '--background': this.background}
+	}
+
+	private get guideColor() {
+		return this.colors['--selection']
 	}
 
 	private onSetBackground(bg: string) {
@@ -363,8 +392,6 @@ export default class App extends Vue {
 		} catch (err) {
 			return
 		}
-
-		replEnv.set(S('$background'), this.background)
 
 		this.background = bg
 	}

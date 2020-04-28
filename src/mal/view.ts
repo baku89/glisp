@@ -16,14 +16,15 @@ interface ViewREPOptions {
 	width: number
 	height: number
 	updateConsole: boolean
-	drawGuide: boolean
+	backgroundColor: string
+	guideColor: string | null
 }
 
 export function viewREP(
 	str: string | MalVal,
 	options: ViewREPOptions
 ): {env: Env; output: MalVal} {
-	const {width, height, updateConsole, drawGuide} = options
+	const {width, height, updateConsole, backgroundColor, guideColor} = options
 
 	const viewEnv = new Env(replEnv)
 	viewEnv.name = 'view'
@@ -32,7 +33,11 @@ export function viewREP(
 	viewEnv.set(S('$height'), height)
 	viewEnv.set(S('$size'), createMalVector([width, height]))
 
-	if (!drawGuide) {
+	viewEnv.set(S('$background'), backgroundColor)
+
+	if (guideColor) {
+		viewEnv.set(S('$guide-color'), guideColor)
+	} else {
 		readEvalStr('(defn guide (body) nil)', viewEnv)
 	}
 

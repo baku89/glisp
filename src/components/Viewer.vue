@@ -1,6 +1,7 @@
 <template>
-	<div class="Viewer" v-click-outside="onClickOutside">
-		<div class="Viewer__hud">
+	<!-- <div class="Viewer" v-click-outside="onClickOutside"> -->
+	<div class="Viewer">
+		<!-- <div class="Viewer__hud">
 			<div class="Viewer__buttons" v-if="pens.length > 0">
 				<label class="Viewer__label">✎</label>
 				<button
@@ -32,17 +33,18 @@
 					*
 				</button>
 			</div>
-		</div>
+		</div> -->
 		<canvas class="Viewer__canvas" ref="canvas" />
-		<div
+		<!-- <div
 			class="Viewer__cursor-wrapper"
 			@mousedown="onMouse"
 			@mouseup="onMouse"
 			@mousemove="onMouse"
 			@mouseenter="cursorVisible = true"
 			@mouseleave="cursorVisible = false"
-		>
-			<div class="Viewer__cursor" :style="cursorStyle" />
+		> -->
+		<div class="Viewer__cursor-wrapper">
+			<!-- <div class="Viewer__cursor" :style="cursorStyle" /> -->
 			<ResizeObserver @notify="onResize" />
 		</div>
 	</div>
@@ -67,28 +69,27 @@ import {printer} from '../mal/printer'
 	components: {ResizeObserver}
 })
 export default class Viewer extends Vue {
-	@Prop({required: true}) private ast!: MalVal
+	@Prop({required: true}) private expr!: MalVal
+	@Prop({required: true}) private guideColor!: string
 
-	private activePen: string | null = null
-	private pens: string[] = []
+	// private activePen: string | null = null
+	// private pens: string[] = []
 
-	private activeHand: string | null = null
-	private hands: string[] = []
+	// private activeHand: string | null = null
+	// private hands: string[] = []
 
-	private cursorVisible = false
-	private cursorPos = [0, 0]
+	// private cursorVisible = false
+	// private cursorPos = [0, 0]
+	// private mousePressed = false
 
-	private get cursorStyle() {
-		return {
-			left: this.cursorPos[0] + 'px',
-			top: this.cursorPos[1] + 'px',
-			visibility: this.cursorVisible ? 'visible' : 'hidden'
-		}
-	}
+	// private get cursorStyle() {
+	// 	return {
+	// 		left: this.cursorPos[0] + 'px',
+	// 		top: this.cursorPos[1] + 'px',
+	// 		visibility: this.cursorVisible ? 'visible' : 'hidden'
+	// 	}
+	// }
 
-	private mousePressed = false
-
-	private viewEnv!: Env
 	private renderer!: CanvasRendererDelegate
 	private canvas!: HTMLCanvasElement
 
@@ -97,6 +98,9 @@ export default class Viewer extends Vue {
 		this.renderer = new CanvasRendererDelegate()
 		this.renderer.init(this.canvas)
 		this.renderer.resize()
+
+		this.onResize()
+		this.onExprUpdated()
 	}
 
 	private beforeDestroy() {
@@ -104,42 +108,16 @@ export default class Viewer extends Vue {
 	}
 
 	private onResize() {
-		this.renderer.resize()
-		this.update()
+		this.$emit('resize', [this.$el.clientWidth, this.$el.clientHeight])
+		// this.renderer.resize()
+		// this.update()
 	}
 
-	@Watch('ast', {deep: false})
-	private onCodeChanged() {
-		this.update()
-
-		if (this.viewEnv) {
-			this.pens = ((this.viewEnv.get(S('$pens')) as string[]) || []).map(
-				sym => sym.slice(1) || ''
-			)
-
-			this.hands = ((this.viewEnv.get(S('$hands')) as string[]) || []).map(
-				sym => sym.slice(1) || ''
-			)
-
-			if (this.activePen && !this.pens.includes(this.activePen)) {
-				this.activePen = null
-			}
-		}
-	}
-
-	private async update() {
+	@Watch('expr', {deep: false})
+	private async onExprUpdated() {
 		try {
-			const {output, env} = viewREP(this.ast, {
-				width: this.canvas.clientWidth,
-				height: this.canvas.clientHeight,
-				updateConsole: true,
-				drawGuide: true
-			})
-
-			this.viewEnv = env
-
-			const sidefxs: any = await this.renderer.render(output, {
-				guideColor: this.viewEnv.get(S('$guide-color')) as string
+			const sidefxs: any = await this.renderer.render(this.expr, {
+				guideColor: this.guideColor
 			})
 
 			for (const [cmd, params] of sidefxs) {
@@ -147,15 +125,15 @@ export default class Viewer extends Vue {
 					case 'set-background':
 						this.$emit('set-background', params)
 						break
-					case 'enable-animation': {
-						const check = () => {
-							this.renderer.isRendering
-								? requestAnimationFrame(check)
-								: this.update()
-						}
-						requestAnimationFrame(check)
-						break
-					}
+					// case 'enable-animation': {
+					// 	const check = () => {
+					// 		this.renderer.isRendering
+					// 			? requestAnimationFrame(check)
+					// 			: this.update()
+					// 	}
+					// 	requestAnimationFrame(check)
+					// 	break
+					// }
 				}
 			}
 		} catch (err) {
@@ -168,56 +146,70 @@ export default class Viewer extends Vue {
 			return
 		}
 		this.$emit('render', true)
+
+		// if (this.viewEnv) {
+		// 	this.pens = ((this.viewEnv.get(S('$pens')) as string[]) || []).map(
+		// 		sym => sym.slice(1) || ''
+		// 	)
+
+		// 	this.hands = ((this.viewEnv.get(S('$hands')) as string[]) || []).map(
+		// 		sym => sym.slice(1) || ''
+		// 	)
+
+		// 	if (this.activePen && !this.pens.includes(this.activePen)) {
+		// 		this.activePen = null
+		// 	}
+		// }
 	}
 
-	private togglePen(pen: string) {
-		if (this.activePen === pen) {
-			this.activePen = null
-		} else {
-			// Begin
-			this.activePen = pen
-			readEvalStr('(begin-draw state)', consoleEnv)
-		}
-	}
+	// private togglePen(pen: string) {
+	// 	if (this.activePen === pen) {
+	// 		this.activePen = null
+	// 	} else {
+	// 		// Begin
+	// 		this.activePen = pen
+	// 		readEvalStr('(begin-draw state)', consoleEnv)
+	// 	}
+	// }
 
-	private onClickOutside() {
-		this.activePen = null
-	}
+	// private onClickOutside() {
+	// 	this.activePen = null
+	// }
 
-	private onMouse(e: MouseEvent) {
-		const {type, pageX, pageY} = e
+	// private onMouse(e: MouseEvent) {
+	// 	const {type, pageX, pageY} = e
 
-		if (type === 'mousedown') {
-			this.mousePressed = true
-		} else if (type === 'mouseup') {
-			this.mousePressed = false
-		}
+	// 	if (type === 'mousedown') {
+	// 		this.mousePressed = true
+	// 	} else if (type === 'mouseup') {
+	// 		this.mousePressed = false
+	// 	}
 
-		let x = pageX,
-			y = pageY,
-			p = this.mousePressed
+	// 	let x = pageX,
+	// 		y = pageY,
+	// 		p = this.mousePressed
 
-		if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
-			;[x, y, p] = evalExp([S(this.activeHand), x, y, p], consoleEnv) as [
-				number,
-				number,
-				boolean
-			]
-		}
+	// 	if (this.activeHand !== null && this.viewEnv.hasOwn(this.activeHand)) {
+	// 		;[x, y, p] = evalExp([S(this.activeHand), x, y, p], consoleEnv) as [
+	// 			number,
+	// 			number,
+	// 			boolean
+	// 		]
+	// 	}
 
-		if (this.activePen !== null) {
-			evalExp(
-				[
-					S('if'),
-					[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
-					[S('insert-exp'), [S('first'), S('state')]]
-				],
-				consoleEnv
-			)
-		}
+	// 	if (this.activePen !== null) {
+	// 		evalExp(
+	// 			[
+	// 				S('if'),
+	// 				[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
+	// 				[S('insert-exp'), [S('first'), S('state')]]
+	// 			],
+	// 			consoleEnv
+	// 		)
+	// 	}
 
-		this.cursorPos = [x, y]
-	}
+	// 	this.cursorPos = [x, y]
+	// }
 }
 </script>
 
