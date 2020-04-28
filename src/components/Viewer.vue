@@ -49,7 +49,7 @@ import 'vue-resize/dist/vue-resize.css'
 import {ResizeObserver} from 'vue-resize'
 
 import {evalExp, readEvalStr, readStr} from '@/mal'
-import {viewREP, viewHandler} from '@/mal/view'
+import {viewREP} from '@/mal/view'
 import {symbolFor as S, MalVal, LispError} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
@@ -204,7 +204,7 @@ export default class Viewer extends Vue {
 				[
 					S('if'),
 					[S('draw'), S(this.activePen), S('state'), [S('quote'), [x, y, p]]],
-					[S('$insert'), [S('first'), S('state')]]
+					[S('insert-exp'), [S('first'), S('state')]]
 				],
 				consoleEnv
 			)

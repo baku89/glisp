@@ -1,37 +1,40 @@
 <template>
-	<div id="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
-		<div class="app__inspector">
-			<Inspector :value="selectedAst" @input="onEditSelected" />
-		</div>
-		<div class="app__viewer">
-			<ViewHandles class="view-handles" :exp="selectedAst" @input="onEditSelected" />
-			<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
-		</div>
-		<div class="app__control">
-			<div class="app__editor">
-				<!-- <div class="app__editor-mode">
+	<div id="app" class="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+		<GlobalMenu class="app__global-menu" />
+		<div class="app__content">
+			<div class="app__inspector">
+				<Inspector :value="selectedAst" @input="onEditSelected" />
+			</div>
+			<div class="app__viewer">
+				<ViewHandles class="view-handles" :exp="selectedAst" @input="onEditSelected" />
+				<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
+			</div>
+			<div class="app__control">
+				<div class="app__editor">
+					<!-- <div class="app__editor-mode">
 					<button :class="{active: editorMode == 'code'}" @click="editorMode = 'code'">&lt;/&gt;</button>
 					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
-				</div>-->
-				<Editor
-					v-if="editorMode == 'code'"
-					:code="code"
-					:selection="selection"
-					:activeRange="activeRange"
-					:dark="dark"
-					@input="onEdit"
-					@select="onSelect"
-					@select-outer="onSelectOuter"
-				/>
-				<!-- <TreeVector v-else :value="sketchAst" @update="onUpdateAst" /> -->
-			</div>
-			<div class="app__console">
-				<button
-					class="app__console-toggle"
-					:class="{error: renderError}"
-					@click="compact = !compact"
-				>{{ renderError ? '!' : '✓' }}</button>
-				<Console :compact="compact" @setup="onSetupConsole" />
+					</div>-->
+					<Editor
+						v-if="editorMode == 'code'"
+						:code="code"
+						:selection="selection"
+						:activeRange="activeRange"
+						:dark="dark"
+						@input="onEdit"
+						@select="onSelect"
+						@select-outer="onSelectOuter"
+					/>
+					<!-- <TreeVector v-else :value="sketchAst" @update="onUpdateAst" /> -->
+				</div>
+				<div class="app__console">
+					<button
+						class="app__console-toggle"
+						:class="{error: renderError}"
+						@click="compact = !compact"
+					>{{ renderError ? '!' : '✓' }}</button>
+					<Console :compact="compact" @setup="onSetupConsole" />
+				</div>
 			</div>
 		</div>
 	</div>
@@ -43,6 +46,7 @@ import 'normalize.css'
 import {Component, Vue, Watch} from 'vue-property-decorator'
 import Color from 'color'
 
+import GlobalMenu from '@/components/GlobalMenu'
 import Editor from '@/components/Editor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
@@ -51,7 +55,6 @@ import ViewHandles from '@/components/ViewHandles.vue'
 // import {TreeVector} from '@/components/Tree'
 
 import {replEnv, printExp, readStr} from '@/mal'
-import {viewHandler} from '@/mal/view'
 import {
 	MalVal,
 	symbolFor as S,
@@ -76,6 +79,7 @@ const OFFSET = 19 // length of "(def $view (sketch "
 @Component({
 	name: 'App',
 	components: {
+		GlobalMenu,
 		Editor,
 		Viewer,
 		Console,
@@ -180,7 +184,9 @@ export default class App extends Vue {
 			}
 		})
 
-		viewHandler.on('$insert', (item: MalVal) => {
+		appHandler.on('select-outer', this.onSelectOuter)
+
+		appHandler.on('insert-exp', (item: MalVal) => {
 			const itemStr = printExp(item)
 
 			const [start, end] = this.selection
@@ -369,14 +375,16 @@ button
 	background none
 	user-select none
 
-#app
-	display flex
+$compact-dur = 0.4s
+
+.app
+	position relative
 	overflow hidden
 	width 100%
+	height 100%
 	height 100vh
 	background var(--background)
 	color var(--foreground)
-	text-align center
 	transition background var(--tdur) var(--ease)
 	--tdur 0
 	-webkit-font-smoothing antialiased
@@ -385,9 +393,11 @@ button
 	&.background-set
 		--tdur 1s
 
-$compact-dur = 0.4s
+	&__content
+		position relative
+		display flex
+		height calc(100vh - 3.5rem)
 
-.app
 	&__inspector
 		position absolute
 		bottom 1rem

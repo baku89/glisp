@@ -23,9 +23,23 @@ function generateFilename(name?: string) {
 
 export const appHandler = new EventEmitter()
 
+consoleEnv.set(S('open-link'), (url: MalVal) => {
+	window.open(url as string, '_blank')
+	return `Open URL: ${url}`
+})
+
 consoleEnv.set(S('clear-console'), () => {
 	printer.clear()
 	return null
+})
+
+const AppCommands = ['open-link', 'clear-console', 'select-outer']
+
+AppCommands.forEach(cmd => {
+	consoleEnv.set(S(cmd), () => {
+		appHandler.emit(cmd)
+		return null
+	})
 })
 
 consoleEnv.set(S('eval-selected'), () => {

@@ -12,7 +12,6 @@ export const M_END = Symbol('end')
 export const M_EVAL = Symbol('eval')
 export const M_FN = Symbol('fn')
 export const M_OUTER = Symbol('outer')
-
 const M_ISVECTOR = Symbol('isvector')
 
 export type MalBind = (string | MalBind)[]

@@ -6,8 +6,7 @@ import readStr from './reader'
 import {consoleEnv} from './console'
 import evalExp from './eval'
 import {readEvalStr} from '.'
-
-export const viewHandler = new EventEmitter()
+import {appHandler} from './console'
 
 function createHashMap(arr: MalVal[]) {
 	const ret: {[key: string]: MalVal | MalVal[]} = {}
@@ -32,8 +31,8 @@ function createHashMap(arr: MalVal[]) {
 	return ret
 }
 
-replEnv.set(S('$insert'), (item: MalVal) => {
-	viewHandler.emit('$insert', item)
+replEnv.set(S('insert-exp'), (item: MalVal) => {
+	appHandler.emit('insert-exp', item)
 	return null
 })
 
