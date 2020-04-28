@@ -9,8 +9,9 @@ import {
 	M_END,
 	MalMap,
 	MalVal,
-	createMalVector,
-	M_META
+	M_META,
+	markMalVector,
+	M_OUTER
 } from './types'
 
 class Reader {
@@ -146,7 +147,7 @@ function readList(
 
 // read vector of tokens
 function readVector(reader: Reader, outputPosition: boolean) {
-	return createMalVector(readList(reader, outputPosition, '[', ']'))
+	return markMalVector(readList(reader, outputPosition, '[', ']'))
 }
 
 // read hash-map key/value pairs
@@ -309,7 +310,7 @@ export function convertJSObjectToMalMap(obj: MalVal): MalVal {
 		}
 		return ret
 	} else if (Array.isArray(obj)) {
-		return createMalVector(obj.map(v => convertJSObjectToMalMap(v)))
+		return markMalVector(obj.map(v => convertJSObjectToMalMap(v)))
 	} else {
 		return obj
 	}
@@ -325,10 +326,32 @@ export function attachMetaToJSObject(obj: any, meta: any): MalVal {
 
 export class BlankException extends Error {}
 
+function saveOuter(ast: MalVal, outer: MalVal) {
+	if (ast !== null && typeof ast === 'object') {
+		;(ast as any)[M_OUTER] = outer
+
+		const children = Array.isArray(ast)
+			? ast
+			: isMap(ast)
+			? Object.keys(ast)
+			: null
+
+		if (children) {
+			children.forEach(c => saveOuter(c, ast))
+		}
+	}
+}
+
 export default function readStr(str: string, outputPosition = false) {
 	const tokens = tokenize(str, outputPosition) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	return readForm(new Reader(tokens, str), outputPosition)
+	const ast = readForm(new Reader(tokens, str), outputPosition)
+
+	if (outputPosition) {
+		saveOuter(ast, null)
+	}
+
+	return ast
 }
