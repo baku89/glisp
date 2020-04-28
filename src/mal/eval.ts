@@ -40,7 +40,7 @@ function quasiquote(ast: any): MalVal {
 	}
 }
 
-function macroexpand(ast: MalVal = null, env: Env, saveEval: boolean) {
+function macroexpand(ast: MalVal = null, env: Env) {
 	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
 		const fn = env.get(ast[0] as string) as MalFunc
 		;(ast as any)[M_FN] = fn
@@ -48,9 +48,6 @@ function macroexpand(ast: MalVal = null, env: Env, saveEval: boolean) {
 			break
 		}
 		ast = fn(...ast.slice(1))
-		if (saveEval) {
-			;(ast as any)[M_FN] = fn
-		}
 	}
 	return ast
 }
@@ -93,7 +90,11 @@ export default function evalExp(
 			return evalAst(ast, env, _ev)
 		}
 
-		ast = macroexpand(ast, env, _ev)
+		const expandedAst = macroexpand(ast, env)
+		if (_ev) {
+			;(ast as any)[M_EVAL] = expandedAst
+		}
+		ast = expandedAst
 
 		if (!isList(ast)) {
 			return evalAst(ast, env, _ev)
@@ -153,18 +154,35 @@ export default function evalExp(
 				fn[M_ISMACRO] = true
 				return env.set(a1 as string, fn)
 			}
-			case 'macroexpand':
-				return macroexpand(a1, env, _ev)
+			case 'macroexpand': {
+				const ret = macroexpand(a1, env)
+				if (_ev) {
+					;(ast as any)[M_EVAL] = ret
+				}
+				return ret
+			}
 			case 'try':
 				try {
-					return evalExp(a1, env, _ev)
+					const ret = evalExp(a1, env, _ev)
+					if (_ev) {
+						;(ast as any)[M_EVAL] = ret
+					}
+					return ret
 				} catch (exc) {
 					let err = exc
 					if (a2 && Array.isArray(a2) && a2[0] === S('catch')) {
 						if (exc instanceof Error) {
 							err = exc.message
 						}
-						return evalExp(a2[2], new Env(env, [a2[1] as string], [err]), _ev)
+						const ret = evalExp(
+							a2[2],
+							new Env(env, [a2[1] as string], [err]),
+							_ev
+						)
+						if (_ev) {
+							;(ast as any)[M_EVAL] = ret
+						}
+						return ret
 					} else {
 						throw err
 					}
