@@ -59,17 +59,27 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 		const ret = ast.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, saveEval)
-			if (saveEval && isList(x)) {
+			if (saveEval && x !== null && x instanceof Object) {
 				;(x as any)[M_EVAL] = ret
 			}
 			return ret
 		})
+		if (saveEval) {
+			;(ast as any)[M_EVAL] = ret
+		}
 		return isVector(ast) ? markMalVector(ret) : ret
 	} else if (isMap(ast)) {
 		const hm: MalMap = {}
 		for (const k in ast) {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			hm[k] = evalExp(ast[k], env, saveEval)
+			const ret = evalExp(ast[k], env, saveEval)
+			if (saveEval && ast[k] !== null && ast[k] instanceof Object) {
+				;(ast[k] as any)[M_EVAL] = ret
+			}
+			hm[k] = ret
+		}
+		if (saveEval) {
+			;(ast as any)[M_EVAL] = hm
 		}
 		return hm
 	} else {
