@@ -181,7 +181,7 @@
         (< x y) -1))
 
 (defn inc [x] (+ x 1))
-(defn dec [x] (- a 1))
+(defn dec [x] (- x 1))
 
 (defn empty? [x] (= (count x) 0))
 
