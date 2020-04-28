@@ -1,4 +1,4 @@
-(load-file "math.cljs")
+(import "math.cljs")
 
 (defpen pencil (state input)
   (do

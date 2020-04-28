@@ -1,4 +1,4 @@
-(load-file "math.cljs")
+(import "math.cljs")
 
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
