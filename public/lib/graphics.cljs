@@ -15,6 +15,10 @@
 
 (defn guide [body] (stroke $guide-color body))
 
+;; Color
+(defn color? [x]
+  (string? x))
+
 (defn color [& xs]
   (case (count xs)
     1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
@@ -54,11 +58,16 @@
 ;; Style
 (defn fill
   {:doc "Creates a fill property"
-   :params [{:type "color" :desc "Color to fill"}]}
+   :params [{:label "Color" :type "color" :desc "Color to fill"}]}
   [color]
   {:fill true :fill-color color})
 
-(defn stroke [fst & args]
+(defn stroke
+  {:doc "Creates a stroke property"
+   :params [[{:label "Color" :type "color" :check color?}]
+            [{:label "Color" :type "color" :check color?} {:label "Width" :type "number"}]
+            [{:label "Prop" :type "map"}]]}
+  [fst & args]
   (cond (map? fst) (->> (seq fst)
                         (map (fn [[k v]] (list (keyword (str "stroke-" (name k))) v)))
                         (apply concat [:stroke true])
