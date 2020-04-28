@@ -52,3 +52,8 @@ declare module 'sprintf-js' {
 declare module 'vue-resize' {
 	export const ResizeObserver: any
 }
+
+declare module 'vue-markdown' {
+	export const VueMarkdown: any
+	export default VueMarkdown
+}

@@ -2,7 +2,7 @@
 	<div class="Inspector">
 		<div class="Inspector__header" v-if="isFuncCall">
 			<div class="Inspector__name">{{ fnName }}</div>
-			<div class="Inspector__desc">{{ fnDesc }}</div>
+			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
 		<div class="Inspector__params">
 			<div v-for="(desc, i) in paramsDesc" :key="i" class="Inspector__param">
@@ -72,6 +72,7 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
+import VueMarkdown from 'vue-markdown'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -80,7 +81,8 @@ const K_DOC = K('doc'),
 @Component({
 	name: 'Inspector',
 	components: {
-		...InputComponents
+		...InputComponents,
+		VueMarkdown
 	}
 })
 export default class Inspector extends Vue {
