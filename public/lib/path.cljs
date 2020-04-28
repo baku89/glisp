@@ -3,26 +3,19 @@
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
 ;; Shape functions
-(def path/rect-handle
-  {:draw-handle (fn [pos size]
-                  [{:type "point" :id :top-left :pos pos}
-                   {:type "point" :id :center :pos (vec2/scale-add pos size .5)}
-                   {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
-   :on-drag (fn [id p [pos size]]
-              (do
-                (case id
-                  :top-left [p (vec2/+ (vec2/- pos p) size)]
-                  :center (let [orig-center (vec2/scale-add pos size .5)
-                                delta (vec2/- p orig-center)]
-                            [(vec2/+ pos delta) size])
-                  :bottom-right [pos (vec2/- p pos)])))})
 
 (defn path/rect
   {:doc  "Generate a rect path"
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
             {:label "Size" :type "vec2" :desc "size of the rectangle"}]
    :return {:type "path"}
-   :handles path/rect-handle}
+   :handles {:draw-handle (fn [pos size]
+                            [{:type "point" :id :top-left :pos pos}
+                             {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
+             :on-drag (fn [id p [pos size]]
+                        (case id
+                          :top-left [p (vec2/+ (vec2/- pos p) size)]
+                          :bottom-right [pos (vec2/- p pos)]))}}
   [[x y] [w h]]
   [:path
    :M [x y]
@@ -34,10 +27,19 @@
 
 (def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
+
+
 (defn path/circle
   {:doc "Generate a circle path"
    :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
-            {:label "Radius" :type  "number" :desc "radius o fthe circle"}]}
+            {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
+   :handles {:draw-handle (fn [center radius]
+                            [{:type "point" :id :center :pos center}
+                             {:type "point" :id :radius :pos (vec2/+ center [radius 0])}])
+             :on-drag (fn [id p [center radius]]
+                        (case id
+                          :center [p radius]
+                          :radius [center (vec2/dist center p)]))}}
   [[x y] r]
   (let [k (* r K)]
     [:path
@@ -52,14 +54,43 @@
 (defn path/line
   {:doc "Generates a line segment path"
    :params [{:type "vec2"}
-            {:type "vec2"}]}
+            {:type "vec2"}]
+   :handles {:draw-handle (fn [from to]
+                            [{:type "point" :id :from :pos from}
+                             {:type "point" :id :to :pos to}])
+             :on-drag (fn [id p [from to]]
+                        (case id
+                          :from [p to]
+                          :to [from p]))}}
   [from to]
   [:path :M from :L to])
 (def line path/line)
 
+
+(defn replace-nth [coll idx val]
+  (let [ret (concat (slice coll 0 idx) [val] (slice coll (inc idx)))]
+    (cond (list? coll) ret
+          (vector? coll) (vec ret))))
+
 (defn path/polyline
   {:doc "Generates a polyline path"
-   :params [{:label "Vertex" :type "vec2" :variadic true}]}
+   :params [{:label "Vertex" :type "vec2" :variadic true}]
+   :handles {:draw-handle (fn [& pts]
+                            (concat
+                             (map-indexed (fn [i p] {:type "point" :id [:edit i] :pos p}) pts)
+                             (map (fn [i] {:type "point"
+                                           :id [:add (inc i)]
+                                           :pos (vec2/lerp (nth pts i)
+                                                           (nth pts (inc i))
+                                                           .5)})
+                                  (range (dec (count pts))))))
+             :on-drag (fn [[mode i] p [& pts]]
+                        (case mode
+                          :edit (replace-nth pts i p)
+                          :add [:change-id [:edit i]
+                                (concat (slice pts 0 i)
+                                        [p]
+                                        (slice pts i))]))}}
   [& pts]
   (vec (concat :path
                :M [(first pts)]

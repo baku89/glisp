@@ -1,13 +1,8 @@
 <template>
 	<div class="ViewHandles">
 		<div class="ViewHandles__transform" :style="transformStyle">
-			<template v-for="{type, id, style} in handles">
-				<div
-					:key="id"
-					:class="type"
-					:style="style"
-					@mousedown="onMousedown(id, $event)"
-				/>
+			<template v-for="({type, id, style}, i) in handles">
+				<div :key="i" :class="type" :style="style" @mousedown="onMousedown(id, $event)" />
 			</template>
 		</div>
 	</div>
@@ -29,6 +24,7 @@ import {
 	createMalVector
 } from '../mal/types'
 import {mat2d, vec2} from 'gl-matrix'
+import {printExp} from '../mal'
 
 @Component({})
 export default class ViewHandles extends Vue {
@@ -143,7 +139,13 @@ export default class ViewHandles extends Vue {
 		const pos = markMalVector([e.clientX, e.clientY]) as number[]
 		vec2.transformMat2d(pos as vec2, pos as vec2, this.transformInv)
 
-		const newParams = onDrag(this.draggingId, pos, this.params)
+		let newParams = onDrag(this.draggingId, pos, this.params) as MalVal[]
+
+		if (newParams[0] === K('change-id')) {
+			this.draggingId = newParams[1]
+			newParams = newParams[2] as MalVal[]
+		}
+
 		const newExp = [(this.exp as any[])[0], ...newParams]
 
 		this.$emit('input', newExp)
@@ -159,34 +161,33 @@ export default class ViewHandles extends Vue {
 <style lang="stylus" scoped>
 .ViewHandles
 	position relative
-	height 100%
 	overflow hidden
+	height 100%
 
 	&__transform
-
 		.point
 			$size = 1rem
 			position absolute
-			width $size
-			height $size
 			margin-top $size * -0.5
 			margin-left $size * -0.5
-			border-radius 50%
+			width $size
+			height $size
 			border 1px solid var(--blue)
+			border-radius 50%
 			background var(--background)
 
 			&:before
-				content ''
 				position absolute
-				top -.5rem
-				right -.5rem
-				bottom -.5rem
-				left -.5rem
+				top -0.5rem
+				right -0.5rem
+				bottom -0.5rem
+				left -0.5rem
 				display block
 				// background blue
 				border-radius 50%
+				content ''
 
 			&:hover
-				background var(--blue)
 				border-width 2px
+				background var(--blue)
 </style>
