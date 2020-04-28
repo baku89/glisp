@@ -18,6 +18,7 @@ import {printExp} from '@/mal'
 })
 export default class InputNumber extends Vue {
 	@Prop({type: Number, required: true}) private value!: number
+	@Prop({type: Function}) private validator!: (v: number) => number | null
 
 	get step() {
 		const [dec, float] = this.value.toString().split('.')
@@ -26,12 +27,27 @@ export default class InputNumber extends Vue {
 	}
 
 	onInput(e: InputEvent) {
-		const val = (e.target as HTMLInputElement).value
-		const num = parseFloat(val)
+		const str = (e.target as HTMLInputElement).value
+		let val: number | null = parseFloat(str)
 
-		if (!isNaN(num)) {
-			this.$emit('input', num)
+		if (isNaN(val)) {
+			return
 		}
+
+		if (this.validator) {
+			const origVal = val
+
+			val = this.validator(val)
+			if (typeof val !== 'number' || isNaN(val)) {
+				return
+			}
+
+			if (val !== origVal) {
+				;(e.target as HTMLInputElement).value = val.toString()
+			}
+		}
+
+		this.$emit('input', val)
 	}
 }
 </script>

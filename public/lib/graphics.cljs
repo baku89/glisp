@@ -65,7 +65,8 @@
 (defn stroke
   {:doc "Creates a stroke property"
    :params [[{:label "Color" :type "color" :check color?}]
-            [{:label "Color" :type "color" :check color?} {:label "Width" :type "number"}]
+            [{:label "Color" :type "color" :check color?}
+             {:label "Width" :type "number" :constraints {:min 0}}]
             [{:label "Prop" :type "map"}]]}
   [fst & args]
   (cond (map? fst) (->> (seq fst)

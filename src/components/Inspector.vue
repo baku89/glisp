@@ -5,8 +5,8 @@
 			<div class="Inspector__desc">{{ fnDesc }}</div>
 		</div>
 		<div class="Inspector__params">
-			<div v-for="(pd, i) in paramsDesc" :key="i" class="Inspector__param">
-				<label class="label">{{ pd['ʞlabel'] }}</label>
+			<div v-for="(desc, i) in paramsDesc" :key="i" class="Inspector__param">
+				<label class="label">{{ desc['ʞlabel'] }}</label>
 				<InputString
 					v-if="isSymbol(params[i])"
 					:value="params[i].slice(1)"
@@ -14,23 +14,29 @@
 					@input="onSymbolParamInput(i, $event)"
 				/>
 				<InputNumber
-					v-else-if="pd['ʞtype'] === 'number' && typeof params[i] === 'number'"
+					v-else-if="
+						desc['ʞtype'] === 'number' && typeof params[i] === 'number'
+					"
 					:value="params[i]"
+					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputString
-					v-else-if="pd['ʞtype'] === 'string' && typeof params[i] === 'string'"
+					v-else-if="
+						desc['ʞtype'] === 'string' && typeof params[i] === 'string'
+					"
 					:value="params[i]"
+					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputColor
-					v-else-if="pd['ʞtype'] === 'color' && typeof params[i] === 'string'"
+					v-else-if="desc['ʞtype'] === 'color' && typeof params[i] === 'string'"
 					:value="params[i]"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputVec2
 					v-else-if="
-						pd['ʞtype'] === 'vec2' &&
+						desc['ʞtype'] === 'vec2' &&
 							Array.isArray(params[i]) &&
 							typeof params[i][0] === 'number' &&
 							typeof params[i][1] === 'number'
@@ -177,7 +183,6 @@ export default class Inspector extends Vue {
 			const metaParamsDesc = this.meta[K_PARAMS]
 
 			if (Array.isArray(metaParamsDesc[0])) {
-				console.log('try to overloa')
 				// Has overloads then try to match the parameter
 				for (const desc of metaParamsDesc) {
 					const ret = this.matchParameter(this.params, desc)
@@ -219,6 +224,27 @@ export default class Inspector extends Vue {
 				if (!desc['ʞtype'] || desc['ʞtype'] === 'any') {
 					desc['ʞtype'] = getType(this.params[i])
 				}
+
+				// Make validator function
+				if (desc['ʞconstraints']) {
+					let validator = (v: any) => v
+
+					for (const [key, param] of Object.entries(desc['ʞconstraints'])) {
+						const _v = validator
+						switch (key.slice(1) as string) {
+							case 'min':
+								validator = (v: number) => Math.max(param as number, _v(v))
+								break
+							case 'max':
+								validator = (v: number) => Math.min(param as number, _v(v))
+								break
+						}
+					}
+					desc['validator'] = validator
+					console.log('validator', validator)
+					delete desc['ʞconstraints']
+				}
+
 				return desc
 			})
 		}
