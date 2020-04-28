@@ -241,7 +241,6 @@ export default class Inspector extends Vue {
 						}
 					}
 					desc['validator'] = validator
-					console.log('validator', validator)
 					delete desc['ʞconstraints']
 				}
 
