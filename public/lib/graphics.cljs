@@ -92,10 +92,10 @@
 ;                         :stops (get args :stops))))))
 
 ;; Shape Functions
-; (defn text
-;   {:doc {:desc "Generate a text shape"
-;          :params '[[str :string "the alphanumeric symbols to be displayed"]
-;                    [x :number "x-coordinate of text"]
-;                    [y :number "y-coordinate of text"]]}}
-;   [str [x y] & xs]
-;   [:text str [x y] (apply hash-map xs)])
+(defn text
+  {:doc "Generate a text shape"
+   :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
+            {:type "vec2"}
+            {:type "any" :variadic true}]}
+  [text [x y] & xs]
+  [:text text [x y] (apply hash-map xs)])
