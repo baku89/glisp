@@ -28,6 +28,15 @@
    :return {:type "vec2"}}
   [v] [v v])
 
+(defn vec2/dir
+  [a & xs]
+  (case (count xs)
+    0 [(cos a) (sin a)]
+    1 (let [l (first xs)] [(* l (cos a)) (* l (sin a))])))
+
+(defn vec2/angle [[x y]] (atan2 y x))
+
+
 (defn vec2?
   {:doc "Check if x is vec2"
    :params [{:type "any"}]

@@ -66,11 +66,20 @@
   [:path :M from :L to])
 (def line path/line)
 
-
-(defn replace-nth [coll idx val]
-  (let [ret (concat (slice coll 0 idx) [val] (slice coll (inc idx)))]
-    (cond (list? coll) ret
-          (vector? coll) (vec ret))))
+(def arc (with-meta arc
+           (assoc (meta arc)
+                  :handles
+                  {:draw-handle (fn [center r start end]
+                                  [{:type "point" :id :center :pos center}
+                                   {:type "point" :id :start :pos (vec2/+ center (vec2/dir start r))}
+                                   {:type "point" :id :end :pos (vec2/+ center (vec2/dir end r))}])
+                   :on-drag (fn [id p [center r start end]]
+                              (case id
+                                :center `(~p ~r ~start ~end)
+                                :start (let [start (vec2/angle (vec2/- p center))]
+                                         `(~center ~r ~start ~end))
+                                :end (let [end (vec2/angle (vec2/- p center))]
+                                       `(~center ~r ~start ~end))))})))
 
 (defn path/polyline
   {:doc "Generates a polyline path"
@@ -88,9 +97,7 @@
                         (case mode
                           :edit (replace-nth pts i p)
                           :add [:change-id [:edit i]
-                                (concat (slice pts 0 i)
-                                        [p]
-                                        (slice pts i))]))}}
+                                (insert-nth pts i p)]))}}
   [& pts]
   (vec (concat :path
                :M [(first pts)]

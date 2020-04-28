@@ -150,6 +150,7 @@ export default class Inspector extends Vue {
 			}
 
 			if (isSymbol(param) || desc[K('type')] === 'any') {
+				retDesc.push(desc)
 				continue
 			}
 			if (desc[K('check')]) {
@@ -268,22 +269,22 @@ export default class Inspector extends Vue {
 
 <style lang="stylus" scoped>
 .Inspector
+	position relative
 	padding 1rem
 	height 100%
 	text-align left
-	position relative
 
 	&:before
 		position absolute
-		content ''
-		display block
 		top 0
 		left 0
+		z-index -1
+		display block
 		width 100%
 		height 100%
 		background var(--background)
-		opacity .8
-		z-index -1
+		content ''
+		opacity 0.8
 
 	&__header
 		margin-bottom 1em
@@ -302,8 +303,8 @@ export default class Inspector extends Vue {
 			color var(--comment)
 
 		.expr
-			color var(--comment)
-			white-space nowrap
 			overflow hidden
+			color var(--comment)
 			text-overflow ellipsis
+			white-space nowrap
 </style>

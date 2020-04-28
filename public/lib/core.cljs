@@ -191,6 +191,17 @@
   (let (counter (atom 0))
     #(symbol (str "G__" (swap! counter inc)))))
 
+(defn replace-nth [coll idx val]
+  (let [ret (concat (slice coll 0 idx) [val] (slice coll (inc idx)))]
+    (cond (list? coll) ret
+          (vector? coll) (vec ret))))
+
+(defn insert-nth [coll idx val]
+  (let [ret (concat (slice coll 0 idx) [val] (slice coll idx))]
+    (cond (list? coll) ret
+          (vector? coll) (vec ret))))
+
+
 ;; Pretty printer a MAL object.
 
 (def pprint
