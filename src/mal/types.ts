@@ -209,7 +209,20 @@ export class MalAtom {
 
 export function getType(obj: MalVal): string {
 	if (Array.isArray(obj)) {
-		return (obj as any)[M_ISVECTOR] ? 'vector' : 'list'
+		if ((obj as any)[M_ISVECTOR]) {
+			const allNumber = obj.every(v => typeof v === 'number')
+			if (allNumber) {
+				switch (obj.length) {
+					case 2:
+						return 'vec2'
+					case 6:
+						return 'mat2d'
+				}
+			}
+			return 'vector'
+		} else {
+			return 'list'
+		}
 	} else if (isMap(obj)) {
 		return 'map'
 	} else if (obj === null) {
