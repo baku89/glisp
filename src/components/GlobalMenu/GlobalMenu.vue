@@ -1,15 +1,18 @@
 <template>
 	<div class="GlobalMenu">
-		<h1>'((GLISP))</h1>
+		<h1>'(GLISP)</h1>
 		<div class="GlobalMenu__menu" v-click-outside="onClose">
 			<div
 				class="GlobalMenu__item"
 				v-for="([label, content], i) in menu"
-				:class="{'has-submenu': Array.isArray(content), 'active': expandedIndex === i}"
+				:class="{
+					'has-submenu': Array.isArray(content),
+					active: expandedIndex === i
+				}"
 				@click="onClick(content, i)"
 				:key="label"
 			>
-				{{label}}
+				{{ label }}
 				<GlobalSubmenu
 					class="GlobalMenu__submenu"
 					v-if="expandedIndex === i"
@@ -83,7 +86,6 @@ export default class GlobalMenu extends Vue {
 }
 </script>
 
-
 <style lang="stylus" scoped>
 .GlobalMenu
 	position relative
@@ -101,7 +103,8 @@ export default class GlobalMenu extends Vue {
 		height 3.5rem
 		border-right 1px solid var(--comment)
 		text-align center
-		font-size 1.2rem
+		letter-spacing .2em
+		font-size 1.1rem
 		line-height 3.5rem
 
 	&__menu

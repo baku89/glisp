@@ -33,12 +33,12 @@ consoleEnv.set(S('clear-console'), () => {
 	return null
 })
 
-const AppCommands = ['open-link', 'clear-console', 'select-outer']
+const AppCommands = ['open-link', 'clear-console', 'select-outer', 'load-file']
 
 AppCommands.forEach(cmd => {
-	consoleEnv.set(S(cmd), () => {
-		appHandler.emit(cmd)
-		return null
+	consoleEnv.set(S(cmd), (...args: any[]) => {
+		appHandler.emit(cmd, ...args)
+		return `Command: ${cmd}`
 	})
 })
 

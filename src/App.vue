@@ -1,13 +1,27 @@
 <template>
-	<div id="app" class="app" :class="{'background-set': backgroundSet, compact}" :style="colors">
+	<div
+		id="app"
+		class="app"
+		:class="{'background-set': backgroundSet, compact}"
+		:style="colors"
+	>
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
 			<div class="app__inspector">
 				<Inspector :value="selectedAst" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedAst" @input="onEditSelected" />
-				<Viewer :ast="ast" :selection="selection" @render="onRender" @set-background="onSetBackground" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedAst"
+					@input="onEditSelected"
+				/>
+				<Viewer
+					:ast="ast"
+					:selection="selection"
+					@render="onRender"
+					@set-background="onSetBackground"
+				/>
 			</div>
 			<div class="app__control">
 				<div class="app__editor">
@@ -32,7 +46,9 @@
 						class="app__console-toggle"
 						:class="{error: renderError}"
 						@click="compact = !compact"
-					>{{ renderError ? '!' : '✓' }}</button>
+					>
+						{{ renderError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -181,6 +197,16 @@ export default class App extends Vue {
 
 				this.onEdit(code)
 				this.selection = selection
+			}
+		})
+
+		appHandler.on('load-file', async (url: string) => {
+			const res = await fetch(url)
+			if (res.ok) {
+				this.code = await res.text()
+				this.setupCount++
+			} else {
+				printer.error(`Failed to load from "${url}"`)
 			}
 		})
 
