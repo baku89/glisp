@@ -6,6 +6,8 @@
        (path/scale-x [(compare (rnd p) .5)])
        (path/translate p)))
 
+(background "snow")
+
 [:g {:transform (view-center)
      :style (stroke "salmon" 10)}
  (for [y (column -5 5 w)
