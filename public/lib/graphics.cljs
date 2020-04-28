@@ -55,8 +55,12 @@
         (apply vector :g children))))
 
 ;; Transform
-(defmacro view-center []
+(defmacro
+  view-center []
   `(translate (vec2/scale $size .5)))
+(def view-center
+  (with-meta view-center
+    {:doc "Returns a translation matrix to move the origin onto the center of view or artboard"}))
 
 ;; Style
 (defn fill
@@ -67,19 +71,20 @@
 
 (defn stroke
   {:doc "Creates a stroke property"
-   :params [[{:label "Color" :type "color" :check color?}]
-            [{:label "Color" :type "color" :check color?}
-             {:label "Width" :type "number" :constraints {:min 0}}]
-            [{:label "Prop" :type "map"}]]}
-  [fst & args]
-  (cond (map? fst) (->> (seq fst)
-                        (map (fn [[k v]] (list (keyword (str "stroke-" (name k))) v)))
-                        (apply concat [:stroke true])
-                        (apply hash-map))
-        (string? fst) (let [snd (first args)]
-                        (if (number? snd)
-                          {:stroke true :stroke-color fst :stroke-width snd}
-                          {:stroke true :stroke-color fst}))))
+   :params [[{:label "Color" :type "color"}]
+            [{:label "Color" :type "color"}
+             {:label "Width" :type "number" :constraints {:min 0}}
+             {:type "any" :variadic true}]]}
+  [color & args]
+  (let [params (case (count args)
+                 0 {}
+                 1 {:width (first args)}
+                 (apply hash-map (concat :width args)))]
+    (->> params
+         (seq params)
+         (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
+         (apply concat [:stroke true :stroke-color color])
+         (apply hash-map))))
 
 ; (defn linear-gradient
 ;   {:doc "Define a linear gradient style to apply to fill or stroke"}
