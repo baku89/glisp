@@ -1,45 +1,39 @@
 <template>
 	<div class="Inspector">
-		<div class="Inspector__content" v-if="isFuncCall">
-			<div class="Inspector__header">
-				<div class="Inspector__name">{{ fnName }}</div>
-				<div class="Inspector__desc">{{ fnDesc }}</div>
-			</div>
-			<div class="Inspector__params">
-				<div v-for="(pd, i) in paramsDesc" :key="i" class="Inspector__param">
-					<label class="label">{{ pd['ʞlabel'] }}</label>
-					<InputString
-						v-if="isSymbol(params[i])"
-						:value="params[i].slice(1)"
-						:allow-blank="false"
-						@input="onSymbolParamInput(i, $event)"
-					/>
-					<InputNumber
-						v-else-if="
-							pd['ʞtype'] === 'number' && typeof params[i] === 'number'
-						"
-						:value="params[i]"
-						@input="onParamInput(i, $event)"
-					/>
-					<InputString
-						v-else-if="
-							pd['ʞtype'] === 'string' && typeof params[i] === 'string'
-						"
-						:value="params[i]"
-						@input="onParamInput(i, $event)"
-					/>
-					<InputVec2
-						v-else-if="
-							pd['ʞtype'] === 'vec2' &&
-								Array.isArray(params[i]) &&
-								typeof params[i][0] === 'number' &&
-								typeof params[i][1] === 'number'
-						"
-						:value="params[i]"
-						@input="onParamInput(i, $event)"
-					/>
-					<div v-else class="expr">{{ printExp(params[i]) }}</div>
-				</div>
+		<div class="Inspector__header" v-if="isFuncCall">
+			<div class="Inspector__name">{{ fnName }}</div>
+			<div class="Inspector__desc">{{ fnDesc }}</div>
+		</div>
+		<div class="Inspector__params">
+			<div v-for="(pd, i) in paramsDesc" :key="i" class="Inspector__param">
+				<label class="label">{{ pd['ʞlabel'] }}</label>
+				<InputString
+					v-if="isSymbol(params[i])"
+					:value="params[i].slice(1)"
+					:validator="prohibitBlank"
+					@input="onSymbolParamInput(i, $event)"
+				/>
+				<InputNumber
+					v-else-if="pd['ʞtype'] === 'number' && typeof params[i] === 'number'"
+					:value="params[i]"
+					@input="onParamInput(i, $event)"
+				/>
+				<InputString
+					v-else-if="pd['ʞtype'] === 'string' && typeof params[i] === 'string'"
+					:value="params[i]"
+					@input="onParamInput(i, $event)"
+				/>
+				<InputVec2
+					v-else-if="
+						pd['ʞtype'] === 'vec2' &&
+							Array.isArray(params[i]) &&
+							typeof params[i][0] === 'number' &&
+							typeof params[i][1] === 'number'
+					"
+					:value="params[i]"
+					@input="onParamInput(i, $event)"
+				/>
+				<div v-else class="expr">{{ printExp(params[i]) }}</div>
 			</div>
 		</div>
 	</div>
@@ -66,9 +60,7 @@ import {
 	symbolFor
 } from '@/mal/types'
 import printExp from '@/mal/printer'
-import InputNumber from '@/components/input/InputNumber.vue'
-import InputString from '@/components/input/InputString.vue'
-import InputVec2 from '@/components/input/InputVec2.vue'
+import InputComponents from '@/components/input'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -77,13 +69,15 @@ const K_DOC = K('doc'),
 @Component({
 	name: 'Inspector',
 	components: {
-		InputNumber,
-		InputString,
-		InputVec2
+		...InputComponents
 	}
 })
 export default class Inspector extends Vue {
 	@Prop({required: true}) private value!: MalVal
+
+	private prohibitBlank(v: string) {
+		return v.trim() ? v : null
+	}
 
 	private isSymbol(x: MalVal) {
 		return isSymbol(x)
@@ -98,7 +92,7 @@ export default class Inspector extends Vue {
 	}
 
 	private get params(): MalVal[] {
-		return (this.value as MalVal[]).slice(1) || []
+		return this.isFuncCall ? (this.value as MalVal[]).slice(1) : [this.value]
 	}
 
 	private get fnName(): string {
@@ -111,7 +105,7 @@ export default class Inspector extends Vue {
 
 	private get meta(): any | null {
 		const value = this.value as any
-		if (value[M_FN]) {
+		if (value && value[M_FN]) {
 			return value[M_FN][M_META] || null
 		} else {
 			return null
@@ -130,43 +124,80 @@ export default class Inspector extends Vue {
 		}
 	}
 
+	private matchParameter(params: any[], paramDesc: any[]): any | null {
+		if (params.length !== paramDesc.length) {
+			return null // Insufficient parameters
+		}
+
+		for (let pi = 0; pi < params.length; pi++) {
+			const desc = paramDesc[pi]
+			const param = params[pi]
+
+			if (isSymbol(param) || desc[K('type')] === 'any') {
+				continue
+			}
+			if (desc[K('check')]) {
+				const checkFn: any = desc[K('check')]
+				if (!checkFn(param)) {
+					return null
+				}
+			} else if (getType(param) !== desc[K('type')]) {
+				return null
+			}
+		}
+
+		return paramDesc
+	}
+
 	private get paramsDesc(): any {
 		const value = this.value as any
 		let paramsDesc = null
 
-		const fn = value[M_FN]
+		const fn = value ? value[M_FN] : null
+		const fnParams = isMalFunc(fn) ? fn[M_PARAMS] : null
 
-		const fnParams: MalBind = isMalFunc(fn) ? fn[M_PARAMS] : []
+		// Check if the function has parmeter info as metadata
+		if (this.meta && this.meta[K_PARAMS]) {
+			const metaParamsDesc = this.meta[K_PARAMS]
 
-		if (this.meta !== null) {
-			paramsDesc = this.meta[K_PARAMS] || null
+			if (Array.isArray(metaParamsDesc[0])) {
+				// Has overloads then try to match the parameter
+				for (const desc of metaParamsDesc) {
+					const ret = this.matchParameter(this.params, desc)
+					if (ret !== null) {
+						paramsDesc = ret
+						break
+					}
+				}
+			} else {
+				paramsDesc = this.matchParameter(this.params, metaParamsDesc)
+			}
 		}
 
-		if (!paramsDesc) {
+		// else use parameter info of MalFunc
+		if (!paramsDesc && fnParams) {
 			paramsDesc = fnParams.map((fp, i) => {
 				const p = this.params[i]
-				let type
-
-				if (typeof p === 'number') {
-					type = 'number'
-				} else if (typeof p === 'string') {
-					type = 'string'
-				} else {
-					type = 'unknown'
-				}
+				const type = getType(p)
 
 				return {ʞtype: type}
 			})
 		}
 
+		// Set Neccessary info
 		if (paramsDesc) {
 			paramsDesc = paramsDesc.map((_desc: any, i: number) => {
 				const desc = {..._desc}
-				if (!('ʞlabel' in desc)) {
-					desc['ʞlabel'] = fnParams[i]
-						? Case.capital((fnParams[i] as string).slice(1))
-						: ''
+
+				// Set label from params if exists
+				if (!desc['ʞlabel']) {
+					desc['ʞlabel'] =
+						fnParams && fnParams[i]
+							? Case.capital((fnParams[i] as string).slice(1))
+							: ''
 				}
+
+				// Set the type if it is not specified or set to any
 				if (!desc['ʞtype'] || desc['ʞtype'] === 'any') {
 					desc['ʞtype'] = getType(this.params[i])
 				}
@@ -229,4 +260,7 @@ export default class Inspector extends Vue {
 
 		.expr
 			color var(--comment)
+			white-space nowrap
+			overflow hidden
+			text-overflow ellipsis
 </style>
