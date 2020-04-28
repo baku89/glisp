@@ -28,8 +28,6 @@ import readStr from '../reader'
 import interop from '../interop'
 import {partition} from '../utils'
 
-const random = seedrandom('GLISP')
-
 // String functions
 function slurp(url: string) {
 	const req = new XMLHttpRequest()

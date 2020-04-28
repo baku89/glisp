@@ -1,6 +1,11 @@
 <template>
 	<div class="TreeVector">
-		<Tree v-for="(el, i) in value" :key="i" :value="el" @input="onInput(i, $event)" />
+		<Tree
+			v-for="(el, i) in value"
+			:key="i"
+			:value="el"
+			@input="onInput(i, $event)"
+		/>
 	</div>
 </template>
 
@@ -8,11 +13,9 @@
 import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
 	MalVal,
-	cloneAST,
 	isKeyword,
 	isSymbol,
 	isVector,
-	isList,
 	createMalVector
 } from '@/mal/types'
 import {printExp} from '@/mal'

@@ -2,14 +2,19 @@
 	<div class="ViewHandles">
 		<div class="ViewHandles__transform" :style="transformStyle">
 			<template v-for="({type, id, style}, i) in handles">
-				<div :key="i" :class="type" :style="style" @mousedown="onMousedown(id, $event)" />
+				<div
+					:key="i"
+					:class="type"
+					:style="style"
+					@mousedown="onMousedown(id, $event)"
+				/>
 			</template>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
+import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
 	MalVal,
 	M_META,
@@ -20,11 +25,9 @@ import {
 	M_OUTER,
 	isVector,
 	isKeyword,
-	isMap,
-	createMalVector
+	isMap
 } from '../mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {printExp} from '../mal'
 
 @Component({})
 export default class ViewHandles extends Vue {
@@ -140,9 +143,8 @@ export default class ViewHandles extends Vue {
 
 	private draggingId: MalVal | null = null
 
-	private onMousedown(id: any, e: MouseEvent) {
+	private onMousedown(id: any) {
 		this.draggingId = id
-
 		window.addEventListener('mousemove', this.onMousemove)
 		window.addEventListener('mouseup', this.onMouseup)
 	}

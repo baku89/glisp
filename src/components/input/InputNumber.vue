@@ -10,8 +10,6 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal} from '@/mal/types'
-import {printExp} from '@/mal'
 
 @Component({
 	name: 'InputNumber'
@@ -21,8 +19,7 @@ export default class InputNumber extends Vue {
 	@Prop({type: Function}) private validator!: (v: number) => number | null
 
 	get step() {
-		const [dec, float] = this.value.toString().split('.')
-
+		const float = this.value.toString().split('.')[1]
 		return float !== undefined ? Math.pow(10, -float.length) : 1
 	}
 

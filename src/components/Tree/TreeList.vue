@@ -1,12 +1,11 @@
 <template>
 	<div class="TreeList">
-		<div class="TreeList__first">{{ printExp(first)}}</div>
+		<div class="TreeList__first">{{ printExp(first) }}</div>
 		<div class="TreeList__rest" v-for="(el, i) in rest" :key="i">
 			<Tree :value="el" @input="onInput(i, $event)" />
 		</div>
 	</div>
 </template>
-
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'

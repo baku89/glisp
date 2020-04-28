@@ -19,8 +19,7 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal, createMalVector} from '@/mal/types'
-import {printExp} from '@/mal'
+import {createMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 
 @Component({

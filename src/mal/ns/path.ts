@@ -7,7 +7,6 @@ import {
 	isKeyword,
 	MalNamespace,
 	LispError,
-	M_META,
 	createMalVector,
 	markMalVector
 } from '../types'
@@ -782,9 +781,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 		const startSeg = curves[startIndex][0]
 		trimmed.push(trimCurve(startT, 1, startSeg) as SegmentType)
 
-		const middleCurves = curves
-			.slice(startIndex + 1, endIndex)
-			.map(([c, _]) => c)
+		const middleCurves = curves.slice(startIndex + 1, endIndex).map(([c]) => c)
 		trimmed.push(...middleCurves)
 
 		if (endT > EPSILON) {
@@ -795,7 +792,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 
 	// Convert curves to path
 	const rest = trimmed
-		.map(([cmd, ...pts], i) => {
+		.map(([cmd, ...pts]) => {
 			switch (cmd) {
 				case K_M:
 					return [cmd, ...pts]

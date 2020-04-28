@@ -18,8 +18,6 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal} from '@/mal/types'
-import {printExp} from '@/mal'
 import Color from 'color'
 
 @Component({

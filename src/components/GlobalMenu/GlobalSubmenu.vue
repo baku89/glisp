@@ -5,7 +5,9 @@
 			v-for="[label, command] in menu"
 			@click="onClick(command)"
 			:key="label"
-		>{{label}}</div>
+		>
+			{{ label }}
+		</div>
 	</div>
 </template>
 
@@ -23,7 +25,6 @@ export default class GlobalSubmenu extends Vue {
 	}
 }
 </script>
-
 
 <style lang="stylus" scoped>
 .GlobalSubmenu

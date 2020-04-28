@@ -1,7 +1,7 @@
 import {MalVal, symbolFor as S} from './types'
 
 import readStr from './reader'
-import printExp, {printer} from './printer'
+import printExp from './printer'
 import evalExp from './eval'
 
 import Env from './env'

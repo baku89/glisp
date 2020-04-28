@@ -3,7 +3,9 @@
 	<TreeVector v-else-if="isVector(value)" :value="value" @input="onInput" />
 	<TreeNumber v-else-if="isNumber(value)" :value="value" @input="onInput" />
 	<TreeString v-else-if="isString(value)" :value="value" @input="onInput" />
-	<div v-else class="TreeList__atom" :class="{symbol: isSymbol(value)}">{{ printExp(value) }}</div>
+	<div v-else class="TreeList__atom" :class="{symbol: isSymbol(value)}">
+		{{ printExp(value) }}
+	</div>
 </template>
 
 <script lang="ts">

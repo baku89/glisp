@@ -10,8 +10,6 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {MalVal} from '@/mal/types'
-import {printExp} from '@/mal'
 
 @Component({
 	name: 'InputString'
@@ -33,7 +31,7 @@ export default class InputString extends Vue {
 		this.$emit('input', val)
 	}
 
-	onBlur(e: InputEvent) {
+	onBlur() {
 		;(this.$el as HTMLInputElement).value = this.value
 	}
 }

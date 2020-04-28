@@ -9,7 +9,9 @@
 					v-for="(pen, i) in pens"
 					:key="i"
 					@click="togglePen(pen)"
-				>{{ pen }}</button>
+				>
+					{{ pen }}
+				</button>
 			</div>
 			<div class="Viewer__buttons" v-if="hands.length > 0">
 				<label class="Viewer__label">🖑</label>
@@ -19,12 +21,16 @@
 					v-for="(hand, i) in hands"
 					:key="i"
 					@click="activeHand = hand"
-				>{{ hand }}</button>
+				>
+					{{ hand }}
+				</button>
 				<button
 					class="Viewer__button"
 					:class="{active: activeHand === null}"
 					@click="activeHand = null"
-				>*</button>
+				>
+					*
+				</button>
 			</div>
 		</div>
 		<canvas class="Viewer__canvas" ref="canvas" />
@@ -48,7 +54,7 @@ import ClickOutside from 'vue-click-outside'
 import 'vue-resize/dist/vue-resize.css'
 import {ResizeObserver} from 'vue-resize'
 
-import {evalExp, readEvalStr, readStr} from '@/mal'
+import {evalExp, readEvalStr} from '@/mal'
 import {viewREP} from '@/mal/view'
 import {symbolFor as S, MalVal, LispError} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
