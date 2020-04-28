@@ -154,7 +154,13 @@ export default class ViewHandles extends Vue {
 
 		const onDrag = this.handleInfo[K('on-drag')]
 
-		const pos = markMalVector([e.clientX, e.clientY]) as number[]
+		const viewRect = this.$el.getBoundingClientRect()
+
+		const pos = markMalVector([
+			e.clientX - viewRect.left,
+			e.clientY - viewRect.top
+		]) as number[]
+
 		vec2.transformMat2d(pos as vec2, pos as vec2, this.transformInv)
 
 		let newParams = onDrag(this.draggingId, pos, this.params) as MalVal[]
