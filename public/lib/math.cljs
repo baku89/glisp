@@ -6,7 +6,7 @@
   {:doc "Calculates a number between two numbers at a specific increment"
    :params [{:type "number" :desc "First value"}
             {:type "number" :desc "Second value"}
-            {:type "number" :desc "Amount to interpolate between the two values (0 - 1)"}]}
+            {:type "number" :desc "Normalized amount to interpolate between the two values"}]}
   [a b t] (+ b (* (- a b) t)))
 (defn deg [x] (/ (* x 180) PI))
 (defn rad [x] (/ (* x PI) 180))
@@ -92,7 +92,7 @@
 (defn vec2/len [v]
   (hypot (.x v) (.y v)))
 
-(defn vec2/rotate (origin angle v)
+(defn vec2/rotate [origin angle v]
   (let (ox		(.x origin)
             oy		(.y origin)
             x			(- (.x v) ox)
@@ -200,7 +200,6 @@
 
 (defn transform [& xs]
   (reduce mat2d/mul mat2d/ident xs))
-
 
 (def translate mat2d/translate)
 (def translate-x mat2d/translate-x)

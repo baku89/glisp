@@ -1,7 +1,12 @@
 <template>
-	<input class="InputNumber" type="number" :value="value" :step="step" @input="onInput" />
+	<input
+		class="InputNumber"
+		type="number"
+		:value="value"
+		:step="step"
+		@input="onInput"
+	/>
 </template>
-
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
@@ -39,4 +44,5 @@ export default class InputNumber extends Vue {
 	background var(--background)
 	color var(--orange)
 	font-size inherit
+	text-align right
 </style>

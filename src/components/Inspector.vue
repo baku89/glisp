@@ -133,12 +133,15 @@ export default class Inspector extends Vue {
 		if (params.length < paramDesc.length) {
 			return null // Insufficient parameters
 		}
-
 		const retDesc = []
 
 		for (let pi = 0, di = 0; pi < params.length; pi++) {
 			const desc = paramDesc[di]
 			const param = params[pi]
+
+			if (!desc) {
+				return null
+			}
 
 			if (isSymbol(param) || desc[K('type')] === 'any') {
 				continue
@@ -174,6 +177,7 @@ export default class Inspector extends Vue {
 			const metaParamsDesc = this.meta[K_PARAMS]
 
 			if (Array.isArray(metaParamsDesc[0])) {
+				console.log('try to overloa')
 				// Has overloads then try to match the parameter
 				for (const desc of metaParamsDesc) {
 					const ret = this.matchParameter(this.params, desc)
