@@ -9,6 +9,7 @@ import CanvasRenderer from '@/renderer/CanvasRenderer'
 import {viewREP} from './view'
 import {mat3} from 'gl-matrix'
 import FileSaver from 'file-saver'
+import EventEmitter from 'eventemitter3'
 
 export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
@@ -20,8 +21,15 @@ function generateFilename(name?: string) {
 	return `${name}.cljs`
 }
 
-consoleEnv.set(S('console/clear'), () => {
+export const appHandler = new EventEmitter()
+
+consoleEnv.set(S('clear-console'), () => {
 	printer.clear()
+	return null
+})
+
+consoleEnv.set(S('eval-selected'), () => {
+	appHandler.emit('eval-selected')
 	return null
 })
 

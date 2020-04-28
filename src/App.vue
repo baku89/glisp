@@ -71,12 +71,14 @@ import {
 	M_META,
 	M_FN,
 	MalMap,
-	isVector
+	isVector,
+	M_EVAL
 } from '@/mal/types'
 
 import {replaceRange} from '@/utils'
-import {printer} from './mal/printer'
-import {BlankException, findAstByPosition, findAstByRange} from './mal/reader'
+import {printer} from '@/mal/printer'
+import {BlankException, findAstByPosition, findAstByRange} from '@/mal/reader'
+import {appHandler} from '@/mal/console'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
@@ -167,6 +169,24 @@ export default class App extends Vue {
 				require('raw-loader!./default-canvas.cljs').default
 			this.setupCount++
 		}
+
+		appHandler.on('eval-selected', () => {
+			if (
+				this.selectedAst &&
+				this.activeRange &&
+				typeof this.selectedAst === 'object' &&
+				(this.selectedAst as any)[M_EVAL] !== undefined
+			) {
+				const evaled = (this.selectedAst as any)[M_EVAL]
+				const str = printExp(evaled)
+
+				const [start, end] = this.activeRange
+				const [code, ...selection] = replaceRange(this.code, start, end, str)
+
+				this.onEdit(code)
+				this.selection = selection
+			}
+		})
 
 		viewHandler.on('$insert', (item: MalVal) => {
 			const itemStr = printExp(item)
