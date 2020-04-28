@@ -13,7 +13,10 @@
   (first
    (find-list  #(= (first %) sel) body)))
 
-(defn guide [body] (stroke $guide-color body))
+(defn guide/stroke [& xs]
+  (if (zero? (count xs))
+    (stroke $guide-color)
+    (stroke $guide-color (first xs))))
 
 ;; Color
 (defn color? [x]
