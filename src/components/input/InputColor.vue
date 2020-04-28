@@ -2,7 +2,6 @@
 	<input class="InputColor" type="text" :value="value" @input="onInput" />
 </template>
 
-
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
 import {MalVal} from '@/mal/types'
@@ -24,7 +23,8 @@ export default class InputColor extends Vue {
 <style lang="stylus" scoped>
 .InputColor
 	width 8rem
-	border 1px solid var(--comment)
+	border none
+	border-bottom 1px dashed var(--comment)
 	background var(--background)
 	color var(--green)
 </style>
