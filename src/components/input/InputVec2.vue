@@ -1,18 +1,8 @@
 <template>
 	<div class="InputVec2">
 		[
-		<InputNumber
-			class="InputVec2__el"
-			:value="value[0]"
-			:step="step"
-			@input="onInput(0, $event)"
-		/>
-		<InputNumber
-			class="InputVec2__el"
-			:value="value[1]"
-			:step="step"
-			@input="onInput(1, $event)"
-		/>]
+		<InputNumber class="InputVec2__el" :value="value[0]" :step="step" @input="onInput(0, $event)" />
+		<InputNumber class="InputVec2__el" :value="value[1]" :step="step" @input="onInput(1, $event)" />]
 		<!-- <div class="InputVec2__drag" /> -->
 	</div>
 </template>
@@ -46,11 +36,15 @@ export default class InputVec2 extends Vue {
 </script>
 
 <style lang="stylus" scoped>
+@import './common.styl'
+
 .InputVec2
 	display flex
+	line-height $input-height
 
 	&__el
-		margin-right 0.5rem
+		margin-right 0.5em
+		width 4em
 
 		&:last-child
 			margin-right 0

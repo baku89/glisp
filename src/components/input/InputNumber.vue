@@ -1,11 +1,5 @@
 <template>
-	<input
-		class="InputNumber"
-		type="number"
-		:value="value"
-		:step="step"
-		@input="onInput"
-	/>
+	<input class="InputNumber" type="number" :value="value" :step="step" @input="onInput" />
 </template>
 
 <script lang="ts">
@@ -50,12 +44,10 @@ export default class InputNumber extends Vue {
 </script>
 
 <style lang="stylus" scoped>
+@import './common.styl'
+
 .InputNumber
-	width 4rem
-	border none
-	border-bottom 1px dashed var(--comment)
-	background var(--background)
+	input()
 	color var(--orange)
-	font-size inherit
 	text-align right
 </style>

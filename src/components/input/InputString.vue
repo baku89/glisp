@@ -1,11 +1,5 @@
 <template>
-	<input
-		class="InputString"
-		type="text"
-		:value="value"
-		@input="onInput"
-		@blur="onBlur"
-	/>
+	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
 </template>
 
 <script lang="ts">
@@ -38,10 +32,9 @@ export default class InputString extends Vue {
 </script>
 
 <style lang="stylus" scoped>
+@import './common.styl'
+
 .InputString
-	width 8rem
-	border none
-	border-bottom 1px dashed var(--comment)
-	background var(--background)
+	input()
 	color var(--green)
 </style>
