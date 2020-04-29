@@ -71,7 +71,8 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 			width,
 			height,
 			updateConsole: false,
-			drawGuide: false
+			backgroundColor: 'transparent',
+			guideColor: null
 		})
 
 		let $view = output
