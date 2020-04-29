@@ -1,52 +1,52 @@
 <template>
 	<div class="Inspector">
-		<div class="Inspector__header" v-if="isFuncCall">
+		<div class="Inspector__header" v-if="fn">
 			<div class="Inspector__name">{{ fnName }}</div>
 			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
-		<div class="Inspector__params">
-			<div v-for="(desc, i) in paramsDesc" :key="i" class="Inspector__param">
+		<div class="Inspector__params" v-if="paramDescs">
+			<div
+				v-for="(desc, i) in paramDescs.descs"
+				:key="i"
+				class="Inspector__param"
+				:class="{'is-default': params[i].isDefault}"
+			>
 				<label class="label">{{ desc['ʞlabel'] }}</label>
-				<InputString
-					v-if="isSymbol(params[i])"
-					:value="params[i].slice(1)"
-					:validator="prohibitBlank"
-					@input="onSymbolParamInput(i, $event)"
-				/>
 				<InputNumber
-					v-else-if="
-						desc['ʞtype'] === 'number' &&
-							(typeof params[i] === 'number' ||
-								typeof desc['ʞdefault'] === 'number')
-					"
-					:value="params[i] === undefined ? desc['ʞdefault'] : params[i]"
+					v-if="params[i].type === 'number'"
+					:value="params[i].value"
 					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputString
-					v-else-if="
-						desc['ʞtype'] === 'string' && typeof params[i] === 'string'
-					"
-					:value="params[i]"
+					v-else-if="params[i].type === 'string'"
+					:value="params[i].value"
 					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputColor
-					v-else-if="desc['ʞtype'] === 'color' && typeof params[i] === 'string'"
-					:value="params[i]"
+					v-else-if="params[i].type === 'color'"
+					:value="params[i].value"
 					@input="onParamInput(i, $event)"
 				/>
 				<InputVec2
-					v-else-if="
-						desc['ʞtype'] === 'vec2' &&
-							Array.isArray(params[i]) &&
-							typeof params[i][0] === 'number' &&
-							typeof params[i][1] === 'number'
-					"
-					:value="params[i]"
+					v-else-if="params[i].type === 'vec2'"
+					:value="params[i].value"
 					@input="onParamInput(i, $event)"
 				/>
-				<div v-else class="expr">{{ printExp(params[i]) }}</div>
+				<InputString
+					v-else-if="params[i].type === 'symbol'"
+					:value="params[i].value.slice(1)"
+					:validator="symbolValidator"
+					@input="onParamInput(i, $event)"
+				/>
+				<InputString
+					v-else-if="params[i].type === 'keyword'"
+					:value="params[i].value.slice(1)"
+					:validator="keywordValidator"
+					@input="onParamInput(i, $event)"
+				/>
+				<div v-else class="expr">{{ printExp(params[i].value) }}</div>
 			</div>
 		</div>
 	</div>
@@ -70,7 +70,10 @@ import {
 	isMalFunc,
 	markMalVector,
 	getType,
-	symbolFor as S
+	symbolFor as S,
+	isString,
+	isKeyword,
+	assocBang
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
@@ -81,15 +84,34 @@ const K_DOC = K('doc'),
 	K_TYPE = K('type'),
 	K_VARIADIC = K('variadic'),
 	K_LABEL = K('label'),
-	K_CONSTRAINTS = K('constraints')
+	K_CONSTRAINTS = K('constraints'),
+	K_DEFAULT = K('default'),
+	K_KEY = K('key'),
+	K_KEYS = K('keys')
 
 const S_AMP = S('&')
 
-interface ParamDesc {
+interface Desc {
 	[keyword: string]: any
 }
 
-type ParamDescList = (ParamDesc | string)[]
+type RestType = null | 'variadic' | 'keyword'
+
+interface Param {
+	type: string
+	value: MalVal[]
+	isDefault: boolean
+}
+
+interface ParamDescs {
+	descs: Desc[]
+	rest: null | {
+		pos: number
+		type: RestType
+	}
+}
+
+type MetaDescs = (Desc | string)[]
 
 @Component({
 	name: 'Inspector',
@@ -101,155 +123,130 @@ type ParamDescList = (ParamDesc | string)[]
 export default class Inspector extends Vue {
 	@Prop({required: true}) private value!: MalVal
 
-	private prohibitBlank(v: string) {
-		return v.trim() ? v : null
-	}
-
-	private isSymbol(x: MalVal) {
-		return isSymbol(x)
-	}
-
-	private printExp(x: MalVal) {
-		return printExp(x)
-	}
-
-	private get isFuncCall() {
-		return isList(this.value) && isSymbol(this.value[0])
-	}
-
-	private get params(): MalVal[] {
-		return this.isFuncCall ? (this.value as MalVal[]).slice(1) : [this.value]
+	private get fn() {
+		return (isList(this.value) && (this.value as any)[M_FN]) || null
 	}
 
 	private get fnName(): string {
-		if (this.isFuncCall) {
-			return ((this.value as MalVal[])[0] as string).slice(1)
+		if (this.fn) {
+			return ((this.value as MalVal[])[0] as string).slice(1) || ''
 		} else {
 			return ''
 		}
 	}
 
-	private get meta(): any | null {
-		const value = this.value as any
-		if (value && value[M_FN]) {
-			return value[M_FN][M_META] || null
-		} else {
-			return null
-		}
+	private get fnParams(): MalVal[] | null {
+		return this.fn ? (this.value as MalVal[]).slice(1) : null
+	}
+
+	private get fnMeta() {
+		return this.fn && this.fn[M_META] ? this.fn[M_META] : null
 	}
 
 	private get fnDesc(): string {
-		if (this.meta !== null) {
-			if (typeof this.meta === 'string') {
-				return this.meta
-			} else {
-				return (this.meta[K_DOC] as string) || ''
-			}
+		if (this.fnMeta) {
+			return typeof this.fnMeta === 'string'
+				? this.fnMeta
+				: (this.fnMeta[K_DOC] as string) || ''
 		} else {
 			return ''
 		}
 	}
 
-	// private matchParameter(params: any[], paramDesc: any[]): any | null {
-	// 	if (params.length < paramDesc.length) {
-	// 		return null // Insufficient parameters
-	// 	}
-	// 	const retDesc = []
-
-	// 	for (let pi = 0, di = 0; pi < params.length; pi++) {
-	// 		const desc = paramDesc[di]
-	// 		const param = params[pi]
-	// 		const type = desc[K_TYPE]
-
-	// 		if (!desc) {
-	// 			return null
-	// 		}
-
-	// 		// if (isSymbol(param) || type === 'any') {
-	// 		// 	null // Type = any : passed
-	// 		// } else if (type === 'color') {
-	// 		// 	null
-	// 		// } else if (desc[K('check')]) {
-	// 		// 	const checkFn: any = desc[K('check')]
-	// 		// 	if (!checkFn(param)) {
-	// 		// 		return null
-	// 		// 	}
-	// 		// } else if (getType(param) !== type) {
-	// 		// 	return null
-	// 		// }
-
-	// 		if (!desc[K_VARIADIC]) {
-	// 			di++
-	// 		}
-
-	// 		retDesc.push(desc)
-	// 	}
-
-	// 	return retDesc
-	// }
 	private matchParameter(
 		params: any[],
-		paramsDesc: ParamDescList
-	): ParamDesc[] | null {
+		metaDesc: MetaDescs
+	): ParamDescs | null {
 		const retDesc = []
 
-		const variadicPos = paramsDesc.indexOf(S_AMP)
+		const restPos = metaDesc.indexOf(S_AMP)
 
-		if (variadicPos === -1) {
-			if (params.length === paramsDesc.length) {
-				return paramsDesc as ParamDesc[]
+		if (restPos === -1) {
+			if (params.length === metaDesc.length) {
+				return {descs: metaDesc as Desc[], rest: null}
 			} else {
-				console.log('does not match')
 				return null
 			}
 		} else {
-			const restParamCount = params.slice(variadicPos).length
+			const restDesc = metaDesc[restPos + 1] as Desc
 
-			const requiredDesc = paramsDesc.slice(0, variadicPos)
-			const restDesc = paramsDesc[variadicPos + 1]
+			const requiredDescs = metaDesc.slice(0, restPos)
 
-			const desc = [...requiredDesc, ...Array(restParamCount).fill(restDesc)]
-			return desc as ParamDesc[]
+			if (K_KEYS in restDesc) {
+				// Keyworded rest args
+				const keys = restDesc[K_KEYS] as [string, Desc][]
+				const keywordsDescs = keys.map((desc: Desc) => {
+					const predefinedDesc = {
+						[K_LABEL]: Case.capital(desc[K_KEY].slice(1))
+					}
+					return {...predefinedDesc, ...desc}
+				})
+				return {
+					descs: [...requiredDescs, ...keywordsDescs] as Desc[],
+					rest: {
+						pos: restPos,
+						type: 'keyword'
+					}
+				}
+			} else {
+				// Variadic args
+				const restParamCount = params.slice(restPos).length
+
+				const restDescs = Array(restParamCount).fill(restDesc)
+				return {
+					descs: [...requiredDescs, ...restDescs] as Desc[],
+					rest: {
+						pos: restPos,
+						type: 'variadic'
+					}
+				}
+			}
 		}
 	}
 
-	private get paramsDesc(): ParamDesc | null {
-		const value = this.value as any
-		let paramsDesc: ParamDesc[] | null = null
+	private get paramDescs(): ParamDescs | null {
+		if (!this.fn || !this.fnParams) {
+			return null
+		}
 
-		const fn = value ? value[M_FN] : null
-		const fnParams = isMalFunc(fn) ? fn[M_PARAMS] : null
+		const value = this.value as MalVal[]
+		let paramDescs: ParamDescs | null = null
 
 		// Check if the function has parmeter info as metadata
-		if (this.meta && this.meta[K_PARAMS]) {
-			const metaParamsDesc = this.meta[K_PARAMS]
+		if (typeof this.fnMeta === 'object' && K_PARAMS in this.fnMeta) {
+			const metaDescs = this.fnMeta[K_PARAMS]
 
-			if (Array.isArray(metaParamsDesc[0])) {
+			if (Array.isArray(metaDescs[0])) {
 				// Has overloads then try to match the parameter
-				for (const desc of metaParamsDesc as ParamDescList[]) {
-					const ret = this.matchParameter(this.params, desc)
-					if (ret !== null) {
-						paramsDesc = ret
+				for (const desc of metaDescs as MetaDescs[]) {
+					if ((paramDescs = this.matchParameter(this.fnParams, desc))) {
 						break
 					}
 				}
 			} else {
-				paramsDesc = this.matchParameter(this.params, metaParamsDesc)
+				paramDescs = this.matchParameter(this.fnParams, metaDescs)
 			}
-		} else if (fnParams) {
-			// else use parameter info of MalFunc
-			paramsDesc = fnParams.map((fp, i) => {
-				const p = this.params[i]
-
-				const type = getType(p)
-
-				return type ? {[K_TYPE]: type} : {[K_TYPE]: 'any'}
-			})
 		}
 
+		const fnParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
+
+		// if (this.fnMeta && this.fnMeta[K_PARAMS]) {
+
+		// 	else {
+
+		// 	}
+		// } else if (fnParams) {
+		// 	// else use parameter info of MalFunc
+		// 	paramDescs = fnParams.map((fp, i) => {
+		// 		const p = this.params[i]
+		// 		const type = getType(p)
+		// 		return type ? {[K_TYPE]: type} : {[K_TYPE]: 'any'}
+		// 	})
+		// }
+
 		// Set Neccessary info
-		if (paramsDesc) {
-			paramsDesc = paramsDesc.map((_desc, i) => {
+		if (paramDescs) {
+			paramDescs.descs = paramDescs.descs.map((_desc, i) => {
 				const desc = {..._desc}
 
 				// Set label from params if exists
@@ -261,15 +258,17 @@ export default class Inspector extends Vue {
 				}
 
 				// Set the type if it is not specified or set to any
-				if (!(K_TYPE in desc) || desc[K_TYPE] === 'any') {
-					desc[K_TYPE] = getType(this.params[i])
+				if (!(K_TYPE in desc)) {
+					desc[K_TYPE] = 'any'
 				}
 
 				// Make validator function
-				if (desc[K_CONSTRAINTS]) {
+				if (K_CONSTRAINTS in desc) {
+					const constraints = desc[K_CONSTRAINTS]
+
 					let validator = (v: any) => v
 
-					for (const [key, param] of Object.entries(desc[K_CONSTRAINTS])) {
+					for (const [key, param] of Object.entries(constraints)) {
 						const _v = validator
 						switch (key.slice(1) as string) {
 							case 'min':
@@ -287,21 +286,143 @@ export default class Inspector extends Vue {
 				return desc
 			})
 		}
-
-		return paramsDesc
+		console.log('paramDescs')
+		return paramDescs
 	}
 
-	private onSymbolParamInput(i: number, v: string) {
-		this.onParamInput(i, S(v))
-	}
-
-	private onParamInput(i: number, v: MalVal) {
-		const newValue = [...(this.value as MalVal[])]
-		if (isVector(this.value)) {
-			markMalVector(newValue)
+	private getInputType(value: MalVal, desc: Desc): string {
+		switch (desc[K_TYPE]) {
+			case 'number':
+				if (typeof value === 'number') return 'number'
+				break
+			case 'string':
+				if (isString(value)) return 'string'
+				break
+			case 'color':
+				if (isString(value)) return 'color'
+				break
+			case 'vec2':
+				if (
+					Array.isArray(value) &&
+					typeof value[0] === 'number' &&
+					typeof value[1] === 'number'
+				) {
+					return 'vec2'
+				}
+				break
 		}
-		newValue[i + 1] = v
+
+		if (isSymbol(value)) {
+			return 'symbol'
+		} else if (isKeyword(value)) {
+			return 'keyword'
+		} else {
+			return 'expr'
+		}
+	}
+
+	private get params(): Param[] {
+		if (!this.paramDescs || !this.fnParams) {
+			return []
+		}
+
+		const params: Param[] = []
+
+		const {descs, rest} = this.paramDescs
+
+		for (let i = 0; i < descs.length; i++) {
+			const desc = descs[i]
+
+			if (rest && rest.type === 'keyword' && rest.pos <= i) {
+				const hm = assocBang({}, ...this.fnParams.slice(i))
+
+				for (let j = i; j < descs.length; j++) {
+					const desc = descs[j]
+					const key = desc[K_KEY]
+
+					const isDefault = !(key in hm) && K_DEFAULT in desc
+					const value = isDefault ? desc[K_DEFAULT] : hm[key]
+					const type = this.getInputType(value, desc)
+
+					params.push({type, value, isDefault})
+				}
+				return params
+			}
+
+			const isDefault = this.fnParams.length <= i && K_DEFAULT in desc
+			const value = isDefault ? desc[K_DEFAULT] : this.fnParams[i]
+			const type = this.getInputType(value, desc)
+
+			params.push({type, value, isDefault})
+		}
+		return params
+	}
+
+	private onParamInput(i: number, value: MalVal) {
+		if (!this.paramDescs || !this.fnParams) {
+			return
+		}
+
+		const {descs, rest} = this.paramDescs
+
+		// Clone the required part of params
+		const newParams = []
+		if (rest && rest.type === 'keyword' && rest.pos <= i) {
+			const restIndex = i - rest.pos
+
+			const restDescs = descs.slice(rest.pos)
+			const restParams = this.params.slice(rest.pos)
+
+			// Figure out which parameters have modified
+			const modifiedParams = []
+			for (let j = 0; j < restParams.length; j++) {
+				const param = restParams[j]
+				const desc = restDescs[j]
+
+				const v = j === restIndex ? value : param.value
+				const isDefault = v === desc[K_DEFAULT]
+
+				if (!isDefault) {
+					const key = desc[K_KEY]
+					modifiedParams.push(key, v)
+				}
+			}
+
+			newParams.push(...this.fnParams.slice(0, rest.pos), ...modifiedParams)
+		} else {
+			newParams.push(...this.fnParams)
+			newParams[i] = value
+		}
+		// Check if the parameters can be made shorter
+		if (!rest || newParams.length <= rest.pos) {
+			for (let j = newParams.length - 1; 0 <= j; j--) {
+				if (newParams[j] !== descs[j][K_DEFAULT]) {
+					break
+				}
+				newParams.pop()
+			}
+		}
+
+		const newValue = [(this.value as MalVal[])[0], ...newParams]
+
 		this.$emit('input', newValue)
+	}
+
+	// Use inside the template
+	private symbolValidator(v: string) {
+		return v.trim() ? S(v) : null
+	}
+
+	private keywordValidator(v: string) {
+		return v.trim() ? K(v) : null
+	}
+
+	private isSymbol(x: MalVal) {
+		return isSymbol(x)
+	}
+
+	private printExp(x: MalVal) {
+		return printExp(x)
 	}
 }
 </script>
@@ -335,6 +456,9 @@ export default class Inspector extends Vue {
 
 	&__param
 		margin-bottom 0.5em
+
+		&.is-default
+			opacity .5
 
 		.label
 			float left

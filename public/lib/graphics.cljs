@@ -74,8 +74,8 @@
    :params [{:label "Color" :type "color"}
             {:label "Width" :default 1 :type "number" :constraints {:min 0}}
             &
-            {:keys [[:cap {:type "string" :default "round"}]
-                    [:join {:type "string" :default "round"}]]}]}
+            {:keys [{:key :cap :type "string" :default "round"}
+                    {:key :join :type "string" :default "round"}]}]}
   [color & args]
   (let [params (case (count args)
                  0 {}
@@ -101,8 +101,11 @@
 (defn text
   {:doc "Generate a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
-            {:type "vec2"}
+            {:label "Pos" :type "vec2"}
             &
-            {:type "any"}]}
+            {:keys [{:key :size :type "number" :default 12}
+                    {:key :font :type "string" :default "Fira Code"}
+                    {:key :align :type "string" :default "center"}
+                    {:key :baseline :type "string" :default "middle"}]}]}
   [text [x y] & xs]
   [:text text [x y] (apply hash-map xs)])
