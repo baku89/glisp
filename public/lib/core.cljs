@@ -1,3 +1,5 @@
+(def & '&)
+
 (defmacro defn [name params & body]
   (def attrs {})
   (if (map? params)
@@ -14,14 +16,15 @@
 
 (def defn
   ^{:doc "Define a function"
-    :params [{label: "Symbol", type: "symbol"}, {label: "Params", type: "any"}]}
+    :params [{label: "Symbol", type: "symbol"}
+             {label: "Params", type: "any"}]}
   defn)
 
 ;; Def special forms
 (defn def
   {:doc "Create a variable"
-   :params [{:type "symbol"}
-            {:type "any"}]}
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Value" :type "any"}]}
   [])
 
 (defmacro macroview [expr]
@@ -97,7 +100,8 @@
     `(map (fn [~syms] (do ~@body)) ~gen-lst)))
 (def for (with-meta for {:doc "Make a iteration loop"
                          :params [{:label "Binds" :type "code"}
-                                  {:label "body" :type "code" :variadic true}]}))
+                                  &
+                                  {:label "body" :type "code"}]}))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)

@@ -74,7 +74,8 @@
    :params [[{:label "Color" :type "color"}]
             [{:label "Color" :type "color"}
              {:label "Width" :type "number" :constraints {:min 0}}
-             {:type "any" :variadic true}]]}
+             &
+             {:label "Rest" :type "any"}]]}
   [color & args]
   (let [params (case (count args)
                  0 {}
@@ -101,6 +102,7 @@
   {:doc "Generate a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
             {:type "vec2"}
-            {:type "any" :variadic true}]}
+            &
+            {:type "any"}]}
   [text [x y] & xs]
   [:text text [x y] (apply hash-map xs)])

@@ -220,8 +220,9 @@ type MalTypeString =
 	| 'atom'
 	| 'vec2'
 	| 'mat2d'
+	| 'undefined'
 
-export function getType(obj: MalVal): MalTypeString | null {
+export function getType(obj: MalVal): MalTypeString {
 	if (Array.isArray(obj)) {
 		if ((obj as any)[M_ISVECTOR]) {
 			const allNumber = obj.every(v => typeof v === 'number')
@@ -262,7 +263,7 @@ export function getType(obj: MalVal): MalTypeString | null {
 				}
 		}
 	}
-	return null
+	return 'undefined'
 }
 
 // Namespace

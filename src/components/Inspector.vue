@@ -68,7 +68,7 @@ import {
 	isMalFunc,
 	markMalVector,
 	getType,
-	symbolFor
+	symbolFor as S
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
@@ -76,7 +76,18 @@ import VueMarkdown from 'vue-markdown'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
-	K_TYPE = K('type')
+	K_TYPE = K('type'),
+	K_VARIADIC = K('variadic'),
+	K_LABEL = K('label'),
+	K_CONSTRAINTS = K('constraints')
+
+const S_AMP = S('&')
+
+interface ParamDesc {
+	[keyword: string]: any
+}
+
+type ParamDescList = (ParamDesc | string)[]
 
 @Component({
 	name: 'Inspector',
@@ -137,47 +148,71 @@ export default class Inspector extends Vue {
 		}
 	}
 
-	private matchParameter(params: any[], paramDesc: any[]): any | null {
-		if (params.length < paramDesc.length) {
-			return null // Insufficient parameters
-		}
+	// private matchParameter(params: any[], paramDesc: any[]): any | null {
+	// 	if (params.length < paramDesc.length) {
+	// 		return null // Insufficient parameters
+	// 	}
+	// 	const retDesc = []
+
+	// 	for (let pi = 0, di = 0; pi < params.length; pi++) {
+	// 		const desc = paramDesc[di]
+	// 		const param = params[pi]
+	// 		const type = desc[K_TYPE]
+
+	// 		if (!desc) {
+	// 			return null
+	// 		}
+
+	// 		// if (isSymbol(param) || type === 'any') {
+	// 		// 	null // Type = any : passed
+	// 		// } else if (type === 'color') {
+	// 		// 	null
+	// 		// } else if (desc[K('check')]) {
+	// 		// 	const checkFn: any = desc[K('check')]
+	// 		// 	if (!checkFn(param)) {
+	// 		// 		return null
+	// 		// 	}
+	// 		// } else if (getType(param) !== type) {
+	// 		// 	return null
+	// 		// }
+
+	// 		if (!desc[K_VARIADIC]) {
+	// 			di++
+	// 		}
+
+	// 		retDesc.push(desc)
+	// 	}
+
+	// 	return retDesc
+	// }
+	private matchParameter(
+		params: any[],
+		paramsDesc: ParamDescList
+	): ParamDesc[] | null {
 		const retDesc = []
 
-		for (let pi = 0, di = 0; pi < params.length; pi++) {
-			const desc = paramDesc[di]
-			const param = params[pi]
-			const type = desc[K('type')]
+		const variadicPos = paramsDesc.indexOf(S_AMP)
 
-			if (!desc) {
+		if (variadicPos === -1) {
+			if (params.length === paramsDesc.length) {
+				return paramsDesc as ParamDesc[]
+			} else {
 				return null
 			}
+		} else {
+			const restParamCount = params.slice(variadicPos).length
 
-			if (isSymbol(param) || type === 'any') {
-				null // Type = any : passed
-			} else if (type === 'color') {
-				null
-			} else if (desc[K('check')]) {
-				const checkFn: any = desc[K('check')]
-				if (!checkFn(param)) {
-					return null
-				}
-			} else if (getType(param) !== type) {
-				return null
-			}
+			const requiredDesc = paramsDesc.slice(0, variadicPos)
+			const restDesc = paramsDesc[variadicPos + 1]
 
-			if (!desc[K('variadic')]) {
-				di++
-			}
-
-			retDesc.push(desc)
+			const desc = [...requiredDesc, ...Array(restParamCount).fill(restDesc)]
+			return desc as ParamDesc[]
 		}
-
-		return retDesc
 	}
 
-	private get paramsDesc(): any {
+	private get paramsDesc(): ParamDesc | null {
 		const value = this.value as any
-		let paramsDesc = null
+		let paramsDesc: ParamDesc[] | null = null
 
 		const fn = value ? value[M_FN] : null
 		const fnParams = isMalFunc(fn) ? fn[M_PARAMS] : null
@@ -188,7 +223,7 @@ export default class Inspector extends Vue {
 
 			if (Array.isArray(metaParamsDesc[0])) {
 				// Has overloads then try to match the parameter
-				for (const desc of metaParamsDesc) {
+				for (const desc of metaParamsDesc as ParamDescList[]) {
 					const ret = this.matchParameter(this.params, desc)
 					if (ret !== null) {
 						paramsDesc = ret
@@ -198,42 +233,40 @@ export default class Inspector extends Vue {
 			} else {
 				paramsDesc = this.matchParameter(this.params, metaParamsDesc)
 			}
-		}
-
-		// else use parameter info of MalFunc
-		if (!paramsDesc && fnParams) {
+		} else if (fnParams) {
+			// else use parameter info of MalFunc
 			paramsDesc = fnParams.map((fp, i) => {
 				const p = this.params[i]
 
 				const type = getType(p)
 
-				return type ? {ʞtype: type} : {ʞtype: 'any'}
+				return type ? {[K_TYPE]: type} : {[K_TYPE]: 'any'}
 			})
 		}
 
 		// Set Neccessary info
 		if (paramsDesc) {
-			paramsDesc = paramsDesc.map((_desc: any, i: number) => {
+			paramsDesc = paramsDesc.map((_desc, i) => {
 				const desc = {..._desc}
 
 				// Set label from params if exists
-				if (!desc['ʞlabel']) {
-					desc['ʞlabel'] =
+				if (!(K_LABEL in desc)) {
+					desc[K_LABEL] =
 						fnParams && fnParams[i]
 							? Case.capital((fnParams[i] as string).slice(1))
 							: ''
 				}
 
 				// Set the type if it is not specified or set to any
-				if (!desc['ʞtype'] || desc['ʞtype'] === 'any') {
-					desc['ʞtype'] = getType(this.params[i])
+				if (!(K_TYPE in desc) || desc[K_TYPE] === 'any') {
+					desc[K_TYPE] = getType(this.params[i])
 				}
 
 				// Make validator function
-				if (desc['ʞconstraints']) {
+				if (desc[K_CONSTRAINTS]) {
 					let validator = (v: any) => v
 
-					for (const [key, param] of Object.entries(desc['ʞconstraints'])) {
+					for (const [key, param] of Object.entries(desc[K_CONSTRAINTS])) {
 						const _v = validator
 						switch (key.slice(1) as string) {
 							case 'min':
@@ -245,7 +278,7 @@ export default class Inspector extends Vue {
 						}
 					}
 					desc['validator'] = validator
-					delete desc['ʞconstraints']
+					delete desc[K_CONSTRAINTS]
 				}
 
 				return desc
@@ -256,7 +289,7 @@ export default class Inspector extends Vue {
 	}
 
 	private onSymbolParamInput(i: number, v: string) {
-		this.onParamInput(i, symbolFor(v))
+		this.onParamInput(i, S(v))
 	}
 
 	private onParamInput(i: number, v: MalVal) {

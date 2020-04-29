@@ -83,7 +83,7 @@
 
 (defn path/polyline
   {:doc "Generates a polyline path"
-   :params [{:label "Vertex" :type "vec2" :variadic true}]
+   :params [& {:label "Vertex" :type "vec2"}]
    :handles {:draw-handle (fn [& pts]
                             (concat
                              (map-indexed (fn [i p] {:type "point" :id [:edit i] :pos p}) pts)
@@ -132,7 +132,11 @@
    (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
                             (path/split-segments path)))))
 
-(defn path/translate [t path]
+(defn path/translate
+  {:doc "Returns a translated path"
+   :params [{:label "Value" :type "vec2"} {:type "path"}]
+   :return {:type "path"}}
+  [t path]
   (path/map-points #(vec2/+ % t) path))
 
 (defn path/translate-x [tx path]
@@ -144,7 +148,11 @@
 (defn path/scale [s path]
   (path/map-points #(vec2/* % s) path))
 
-(defn path/scale-x [sx path]
+(defn path/scale-x
+  {:doc "Returns a path scaled along x-axis"
+   :params [{:label "Value" :type "vec2"} {:type "path"}]
+   :return {:type "path"}}
+  [sx path]
   (path/map-points #(vec2/* % [sx 1]) path))
 
 (defn path/scale-y [sy path]
@@ -153,5 +161,9 @@
 (defn path/rotate [origin angle path]
   (path/map-points #(vec2/rotate origin angle %) path))
 
-(defn path/merge [& xs]
+(defn path/merge
+  {:doc "Returns a merged path"
+   :params [& {:type "path"}]
+   :return {:type "path"}}
+  [& xs]
   (vec (concat :path (apply concat (map rest xs)))))

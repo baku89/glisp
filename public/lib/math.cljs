@@ -230,7 +230,8 @@
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
-            {:label "Matrix" :type "mat2d" :variadic true}]}
+            &
+            {:label "Matrix" :type "mat2d"}]}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/negate p))]
@@ -238,7 +239,7 @@
 
 (defn mat2d/transform
   {:doc "Multiplies the matrices and returns transform matrix"
-   :params [{:label "Matrix" :type "mat2d" :variadic true}]
+   :params [& {:label "Matrix" :type "mat2d"}]
    :return {:type "mat2d"}}
   [& xs]
   (reduce mat2d/mul mat2d/ident xs))

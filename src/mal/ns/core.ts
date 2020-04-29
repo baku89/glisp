@@ -13,7 +13,7 @@ import {
 	MalNamespace,
 	LispError,
 	isSymbol,
-	symbolFor,
+	symbolFor as S,
 	M_ISMACRO,
 	M_META,
 	isMap,
@@ -27,6 +27,8 @@ import printExp, {printer} from '../printer'
 import readStr from '../reader'
 import interop from '../interop'
 import {partition} from '../utils'
+
+const S_AMP = S('&')
 
 // String functions
 function slurp(url: string) {
@@ -74,7 +76,7 @@ const jsObjects = [
 			if (typeof a !== 'string') {
 				throw new LispError(`Cannot create a symbol from ${printExp(a)}`)
 			} else {
-				return symbolFor(a)
+				return S(a)
 			}
 		}
 	],
@@ -110,7 +112,8 @@ const jsObjects = [
 				'If no ys are supplied, returns the negation of x, else subtracts the ys from x',
 			params: [
 				{label: 'X', type: 'number'},
-				{label: 'Y', type: 'number', variadic: true}
+				S_AMP,
+				{label: 'Y', type: 'number'}
 			]
 		}
 	],
@@ -119,7 +122,7 @@ const jsObjects = [
 		(...args: number[]) => args.reduce((a, b) => a * b, 1),
 		{
 			doc: 'Returns the product of nums',
-			params: [{label: 'X', type: 'number', variadic: true}]
+			params: [S_AMP, {label: 'X', type: 'number'}]
 		}
 	],
 	[
@@ -131,7 +134,8 @@ const jsObjects = [
 				'If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys',
 			params: [
 				{label: 'X', type: 'number'},
-				{label: 'Y', type: 'number', variadic: true}
+				S_AMP,
+				{label: 'Y', type: 'number'}
 			]
 		}
 	],
@@ -279,7 +283,7 @@ const jsObjects = [
 		},
 		{
 			doc: 'Print the object to the shell',
-			params: [{label: 'Objects', type: 'any', variadic: true}]
+			params: [S_AMP, {label: 'Objects', type: 'any'}]
 		}
 	],
 	[
