@@ -58,7 +58,11 @@ export default class GlobalMenu extends Vue {
 			'Examples',
 			[
 				['10 PRINT CHR', '(load-file "./examples/10-print-chr.cljs")'],
-				['Hello World', '(load-file "./examples/hello-world.cljs")']
+				['Hello World', '(load-file "./examples/hello-world.cljs")'],
+				[
+					'Primitive Definition',
+					'(load-file "./examples/primitive-definition.cljs")'
+				]
 			]
 		],
 		[
@@ -104,7 +108,7 @@ export default class GlobalMenu extends Vue {
 		height 3.5rem
 		border-right 1px solid var(--comment)
 		text-align center
-		letter-spacing .2em
+		letter-spacing 0.2em
 		font-size 1.1rem
 		line-height 3.5rem
 
