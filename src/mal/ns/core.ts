@@ -95,13 +95,27 @@ const jsObjects = [
 	['<', (a: number, b: number) => a < b],
 	['<=', (a: number, b: number) => a <= b],
 	['>', (a: number, b: number) => a > b],
-	['>=', (a: number, b: number) => a >= b],
+	[
+		'>=',
+		(a: number, b: number) => a >= b,
+		{
+			params: [
+				{label: 'a', type: 'number'},
+				{label: 'b', type: 'number'}
+			],
+			returns: {type: 'boolean'}
+		}
+	],
 
 	// Calculus
 	[
 		'+',
 		(...a: number[]) => a.reduce((x, y) => x + y, 0),
-		{doc: 'Returns the sum of nums'}
+		{
+			doc: 'Returns the sum of nums',
+			params: [S_AMP, {label: 'X', type: 'number'}],
+			return: {type: 'number'}
+		}
 	],
 	[
 		'-',
@@ -114,7 +128,8 @@ const jsObjects = [
 				{label: 'X', type: 'number'},
 				S_AMP,
 				{label: 'Y', type: 'number'}
-			]
+			],
+			return: {type: 'number'}
 		}
 	],
 	[
@@ -122,7 +137,8 @@ const jsObjects = [
 		(...args: number[]) => args.reduce((a, b) => a * b, 1),
 		{
 			doc: 'Returns the product of nums',
-			params: [S_AMP, {label: 'X', type: 'number'}]
+			params: [S_AMP, {label: 'X', type: 'number'}],
+			return: {type: 'number'}
 		}
 	],
 	[
@@ -136,7 +152,8 @@ const jsObjects = [
 				{label: 'X', type: 'number'},
 				S_AMP,
 				{label: 'Y', type: 'number'}
-			]
+			],
+			return: {type: 'number'}
 		}
 	],
 	['mod', (a: number, b: number) => a % b],
