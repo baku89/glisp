@@ -71,7 +71,6 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 			width,
 			height,
 			updateConsole: false,
-			backgroundColor: 'transparent',
 			guideColor: null
 		})
 

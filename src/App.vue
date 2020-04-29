@@ -384,7 +384,6 @@ export default class App extends Vue {
 	}
 
 	private onSetBackground(bg: string) {
-		console.log('onset background')
 		let base
 
 		try {
