@@ -1,7 +1,18 @@
+;; Example: Hello World
+
 (background "darkblue")
 
+;; The basic syntax is almost same as Hiccup and Dali
+;; https://github.com/stathissideris/dali/blob/master/doc/syntax.md
+
 [:g {:transform (translate [150 150])}
+ ;; Imagine former line as:
+ ;; <g style="transform: translate(150, 150)">
+
+ ;; Circle
  [:g {:style (fill "#f2ff53")}
   (circle [0 0] 100)]
- [:g {:style (fill "red")}
+
+ ;; Text
+ [:g {:style (fill "#ff4684")}
   (text "Hello World" [0 0] :size 25)]]
