@@ -2,7 +2,7 @@
 	<div id="app" class="app" :class="{compact}" :style="colors">
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
-			<div class="app__inspector">
+			<div class="app__inspector" v-if="selectedExpr">
 				<Inspector :value="selectedExpr" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
