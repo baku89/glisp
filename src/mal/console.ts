@@ -21,7 +21,25 @@ function generateFilename(name?: string) {
 	return `${name}.cljs`
 }
 
+function generateCodeURL(codeURL: string) {
+	const url = new URL(location.href)
+	url.searchParams.set('code_url', codeURL)
+	const canvasURL = url.toString()
+
+	printer.log(`Canvas URL: ${canvasURL}`)
+
+	navigator.clipboard.writeText(canvasURL).then(() => {
+		printer.log('Copied to clipboard')
+	})
+
+	return null
+}
+
 export const appHandler = new EventEmitter()
+
+consoleEnv.set(S('gen-code-url'), (codeURL: MalVal) => {
+	return generateCodeURL(codeURL as string)
+})
 
 consoleEnv.set(S('open-link'), (url: MalVal) => {
 	window.open(url as string, '_blank')
@@ -150,6 +168,7 @@ consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
 
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
+		console.log(saved)
 		if (saved !== null) {
 			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
@@ -181,16 +200,7 @@ Get the token from https://github.com/settings/tokens/new with 'gist' option tur
 			const data = await res.json()
 
 			const codeURL = data.files[filename].raw_url
-
-			const url = new URL(location.href)
-			url.searchParams.set('code_url', codeURL)
-			const canvasURL = url.toString()
-
-			printer.log(`Canvas URL: ${canvasURL}`)
-
-			await navigator.clipboard.writeText(canvasURL)
-
-			printer.log('Copied to clipboard')
+			generateCodeURL(codeURL)
 
 			localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
 		} else {
