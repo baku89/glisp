@@ -232,7 +232,6 @@ export default class App extends Vue {
 	}
 
 	private evalExpr() {
-		console.log('evalExpr')
 		try {
 			const {output, env} = viewREP(this.expr, {
 				width: this.viewerSize[0],

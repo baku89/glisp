@@ -168,7 +168,6 @@ consoleEnv.set(S('publish-gist'), (...args: MalVal[]) => {
 
 	if (typeof user !== 'string' || typeof token !== 'string') {
 		const saved = localStorage.getItem('gist_api_token')
-		console.log(saved)
 		if (saved !== null) {
 			;({user, token} = JSON.parse(saved) as {user: string; token: string})
 			printer.log('Using saved API key')
