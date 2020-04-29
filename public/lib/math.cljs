@@ -29,6 +29,9 @@
   [v] [v v])
 
 (defn vec2/dir
+  {:doc "Create a vec2 with specified angle and length"
+   :params [{:label "Angle" :type "number"}
+            {:label "Length" :type "number" :default 1}]}
   [a & xs]
   (case (count xs)
     0 [(cos a) (sin a)]

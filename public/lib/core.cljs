@@ -101,7 +101,7 @@
 (def for (with-meta for {:doc "Make a iteration loop"
                          :params [{:label "Binds" :type "code"}
                                   &
-                                  {:label "body" :type "code"}]}))
+                                  {:label "Body" :type "code"}]}))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)

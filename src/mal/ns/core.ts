@@ -367,6 +367,22 @@ const jsObjects = [
 			}
 
 			return markMalVector(ret)
+		},
+		{
+			doc:
+				'Returns a vector of nums from *start* to *end* (exclusive), by *step*',
+			params: [
+				[{label: 'End', type: 'number'}],
+				[
+					{label: 'Start', type: 'number'},
+					{label: 'End', type: 'number'}
+				],
+				[
+					{label: 'Start', type: 'number'},
+					{label: 'End', type: 'number'},
+					{label: 'Step', type: 'number'}
+				]
+			]
 		}
 	],
 
