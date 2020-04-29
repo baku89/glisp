@@ -165,8 +165,12 @@ export default class App extends Vue {
 			const getCode = async () => {
 				const res = await fetch(codeURL)
 				if (res.ok) {
-					const code = await res.text()
-					this.initialCode = `;; Loaded from "${codeURL}"\n\n${code}`
+					let code = await res.text()
+
+					if (codeURL.startsWith('http')) {
+						code = `;; Loaded from "${codeURL}"\n\n${code}`
+					}
+					this.initialCode = code
 					this.setupCount++
 				} else {
 					printer.error(`Failed to load from "${codeURL}"`)
