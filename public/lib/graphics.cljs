@@ -28,11 +28,16 @@
     3 (apply format "rgba(%f,%f,%f)" xs)
     "black"))
 
-(defn background
-  {:doc "Fill the entire view or artboard with a color"
-   :params [{:type "color" :desc "A background color"}]}
+(defmacro background
   [color]
-  [:background color])
+  `(do
+     (def $background ~color)
+     (vector :background ~color)))
+
+(def background
+  (with-meta background
+    {:doc "Fill the entire view or artboard with a color"
+     :params [{:type "color" :desc "A background color"}]}))
 
 (defn enable-animation
   [& xs] (concat :enable-animation xs))
