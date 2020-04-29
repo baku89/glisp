@@ -15,9 +15,11 @@
 				/>
 				<InputNumber
 					v-else-if="
-						desc['ʞtype'] === 'number' && typeof params[i] === 'number'
+						desc['ʞtype'] === 'number' &&
+							(typeof params[i] === 'number' ||
+								typeof desc['ʞdefault'] === 'number')
 					"
-					:value="params[i]"
+					:value="params[i] === undefined ? desc['ʞdefault'] : params[i]"
 					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
@@ -197,6 +199,7 @@ export default class Inspector extends Vue {
 			if (params.length === paramsDesc.length) {
 				return paramsDesc as ParamDesc[]
 			} else {
+				console.log('does not match')
 				return null
 			}
 		} else {

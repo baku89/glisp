@@ -71,11 +71,11 @@
 
 (defn stroke
   {:doc "Creates a stroke property"
-   :params [[{:label "Color" :type "color"}]
-            [{:label "Color" :type "color"}
-             {:label "Width" :type "number" :constraints {:min 0}}
-             &
-             {:label "Rest" :type "any"}]]}
+   :params [{:label "Color" :type "color"}
+            {:label "Width" :default 1 :type "number" :constraints {:min 0}}
+            &
+            {:keys [[:cap {:type "string" :default "round"}]
+                    [:join {:type "string" :default "round"}]]}]}
   [color & args]
   (let [params (case (count args)
                  0 {}
