@@ -79,8 +79,10 @@
    :params [{:label "Color" :type "color"}
             {:label "Width" :default 1 :type "number" :constraints {:min 0}}
             &
-            {:keys [{:key :cap :type "string" :default "round"}
-                    {:key :join :type "string" :default "round"}]}]}
+            {:keys [{:key :cap :type "string" :default "round"
+                     :enum ["butt" "round" "square"]}
+                    {:key :join :type "string" :default "round"
+                     :enum ["bevel" "round" "miter"]}]}]}
   [color & args]
   (let [params (case (count args)
                  0 {}
@@ -110,7 +112,10 @@
             &
             {:keys [{:key :size :type "number" :default 12}
                     {:key :font :type "string" :default "Fira Code"}
-                    {:key :align :type "string" :default "center"}
-                    {:key :baseline :type "string" :default "middle"}]}]}
+                    {:key :align :type "string" :default "center"
+                     :enum ["left" "center" "right" "start" "end"]}
+                    {:key :baseline :type "string" :default "middle"
+                     :enum ["top" "hanging" "middle"
+                            "alphabetic" "ideographic" "bottom"]}]}]}
   [text [x y] & xs]
   [:text text [x y] (apply hash-map xs)])

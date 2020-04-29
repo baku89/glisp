@@ -24,6 +24,13 @@
 					:validator="desc['validator']"
 					@input="onParamInput(i, $event)"
 				/>
+				<InputDropdown
+					v-else-if="params[i].type === 'dropdown'"
+					:value="params[i].value"
+					:values="desc['ʞenum']"
+					:validator="desc['validator']"
+					@input="onParamInput(i, $event)"
+				/>
 				<InputColor
 					v-else-if="params[i].type === 'color'"
 					:value="params[i].value"
@@ -35,6 +42,7 @@
 					@input="onParamInput(i, $event)"
 				/>
 				<InputString
+					style="color: var(--purple)"
 					v-else-if="params[i].type === 'symbol'"
 					:value="params[i].value.slice(1)"
 					:validator="symbolValidator"
@@ -87,7 +95,8 @@ const K_DOC = K('doc'),
 	K_CONSTRAINTS = K('constraints'),
 	K_DEFAULT = K('default'),
 	K_KEY = K('key'),
-	K_KEYS = K('keys')
+	K_KEYS = K('keys'),
+	K_ENUM = K('enum')
 
 const S_AMP = S('&')
 
@@ -286,15 +295,20 @@ export default class Inspector extends Vue {
 
 					let validator = (v: any) => v
 
-					for (const [key, param] of Object.entries(constraints)) {
+					for (const [key, param] of Object.entries(constraints) as [
+						string,
+						number
+					][]) {
 						const _v = validator
 						switch (key.slice(1) as string) {
 							case 'min':
-								validator = (v: number) => Math.max(param as number, _v(v))
+								validator = (v: number) => Math.max(param, _v(v))
 								break
 							case 'max':
-								validator = (v: number) => Math.min(param as number, _v(v))
+								validator = (v: number) => Math.min(param, _v(v))
 								break
+							case 'step':
+								validator = (v: number) => Math.round(_v(v) / param) * param
 						}
 					}
 					desc['validator'] = validator
@@ -313,7 +327,13 @@ export default class Inspector extends Vue {
 				if (typeof value === 'number') return 'number'
 				break
 			case 'string':
-				if (isString(value)) return 'string'
+				if (isString(value)) {
+					if (K_ENUM in desc) {
+						return 'dropdown'
+					} else {
+						return 'string'
+					}
+				}
 				break
 			case 'color':
 				if (isString(value)) return 'color'
@@ -451,6 +471,7 @@ export default class Inspector extends Vue {
 	height 100%
 	text-align left
 	user-select none
+	$param-height = 1.4em
 
 	&:before
 		position absolute
@@ -473,6 +494,7 @@ export default class Inspector extends Vue {
 
 	&__param
 		margin-bottom 0.5em
+		height $param-height
 
 		&.is-default
 			opacity 0.5
@@ -481,11 +503,15 @@ export default class Inspector extends Vue {
 			float left
 			clear both
 			width 5em
+			height $param-height
 			color var(--comment)
+			line-height $param-height
 
 		.expr
 			overflow hidden
+			height $param-height
 			color var(--comment)
 			text-overflow ellipsis
 			white-space nowrap
+			line-height $param-height
 </style>
