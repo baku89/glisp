@@ -33,7 +33,7 @@
 					*
 				</button>
 			</div>
-		</div> -->
+		</div>-->
 		<canvas class="Viewer__canvas" ref="canvas" />
 		<!-- <div
 			class="Viewer__cursor-wrapper"
@@ -42,7 +42,7 @@
 			@mousemove="onMouse"
 			@mouseenter="cursorVisible = true"
 			@mouseleave="cursorVisible = false"
-		> -->
+		>-->
 		<div class="Viewer__cursor-wrapper">
 			<!-- <div class="Viewer__cursor" :style="cursorStyle" /> -->
 			<ResizeObserver @notify="onResize" />
@@ -116,6 +116,9 @@ export default class Viewer extends Vue {
 
 	@Watch('expr', {deep: false})
 	private async onExprUpdated() {
+		if (!this.expr) {
+			return
+		}
 		try {
 			const sidefxs: any = await this.renderer.render(this.expr, {
 				guideColor: this.guideColor

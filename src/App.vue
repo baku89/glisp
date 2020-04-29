@@ -6,11 +6,7 @@
 				<Inspector :value="selectedExpr" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExpr"
-					@input="onEditSelected"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExpr" @input="onEditSelected" />
 				<Viewer
 					:expr="viewExpr"
 					:guide-color="guideColor"
@@ -41,9 +37,7 @@
 						class="app__console-toggle"
 						:class="{error: renderError}"
 						@click="compact = !compact"
-					>
-						{{ renderError ? '!' : '✓' }}
-					</button>
+					>{{ renderError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -234,7 +228,6 @@ export default class App extends Vue {
 				width: this.viewerSize[0],
 				height: this.viewerSize[1],
 				updateConsole: true,
-				backgroundColor: this.background,
 				guideColor: this.guideColor
 			})
 
@@ -391,10 +384,7 @@ export default class App extends Vue {
 	}
 
 	private onSetBackground(bg: string) {
-		if (this.background === bg) {
-			return
-		}
-
+		console.log('onset background')
 		let base
 
 		try {
