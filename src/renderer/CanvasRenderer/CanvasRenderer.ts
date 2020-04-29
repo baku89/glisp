@@ -181,9 +181,10 @@ export default class CanvasRenderer {
 						for (const [key, val] of Object.entries(attrs)) {
 							switch (key) {
 								case K_STYLE:
-									styles.push(
+									styles = [
+										...styles,
 										...((Array.isArray(val) ? val : [val]) as MalMap[])
-									)
+									]
 									break
 								case K_TRANSFORM:
 									ctx.transform(
