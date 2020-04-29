@@ -109,6 +109,7 @@ export default class Viewer extends Vue {
 
 	private onResize() {
 		this.$emit('resize', [this.$el.clientWidth, this.$el.clientHeight])
+		this.renderer.resize()
 		// this.renderer.resize()
 		// this.update()
 	}

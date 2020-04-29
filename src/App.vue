@@ -112,6 +112,8 @@ export default class App extends Vue {
 	private selectedExpr: MalVal = null
 	private viewerSize = [0, 0]
 	private setupCount = 0
+
+	private expr: MalVal = null
 	private viewExpr: MalVal = null
 	private viewEnv: Env | null = null
 
@@ -121,7 +123,13 @@ export default class App extends Vue {
 		return `(def $view (sketch ${this.code} \n nil))`
 	}
 
-	private get expr(): MalVal {
+	@Watch('evalCode')
+	private onEvalCodeUpdated() {
+		this.readExpr()
+		this.evalExpr()
+	}
+
+	private readExpr() {
 		let expr
 		try {
 			expr = readStr(this.evalCode, true)
@@ -129,30 +137,10 @@ export default class App extends Vue {
 			if (!(err instanceof BlankException)) {
 				printer.error(err)
 			}
+			expr = null
 		}
 
-		if (expr !== undefined) {
-			try {
-				const {output, env} = viewREP(expr, {
-					width: this.viewerSize[0],
-					height: this.viewerSize[1],
-					updateConsole: true,
-					backgroundColor: this.background,
-					guideColor: this.guideColor
-				})
-
-				this.viewEnv = env
-				this.viewExpr = output
-			} catch (err) {
-				if (err instanceof LispError) {
-					printer.error(err.message)
-				} else {
-					printer.error(err)
-				}
-			}
-		}
-
-		return expr
+		this.expr = expr
 	}
 
 	private created() {
@@ -240,6 +228,27 @@ export default class App extends Vue {
 		})
 	}
 
+	private evalExpr() {
+		try {
+			const {output, env} = viewREP(this.expr, {
+				width: this.viewerSize[0],
+				height: this.viewerSize[1],
+				updateConsole: true,
+				backgroundColor: this.background,
+				guideColor: this.guideColor
+			})
+
+			this.viewEnv = env
+			this.viewExpr = output
+		} catch (err) {
+			if (err instanceof LispError) {
+				printer.error(err.message)
+			} else {
+				printer.error(err)
+			}
+		}
+	}
+
 	private onEditSelected(val: MalVal) {
 		if (this.activeRange) {
 			const itemStr = printExp(val)
@@ -283,6 +292,7 @@ export default class App extends Vue {
 
 	private onResizeViewer(size: [number, number]) {
 		this.viewerSize = size
+		this.evalExpr()
 	}
 
 	private onSelect(selection: [number, number]) {
