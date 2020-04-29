@@ -89,17 +89,17 @@ export default class Env {
 	}
 
 	public hasOwn(key: string) {
-		if (!isSymbol(key)) {
-			throw 'HASOWN not symbol'
-		}
+		// if (!isSymbol(key)) {
+		// 	throw 'HASOWN not symbol'
+		// }
 		// eslint-disable-next-line no-prototype-builtins
 		return this.data.hasOwnProperty(key)
 	}
 
 	public get(key: string): MalVal {
-		if (!isSymbol(key)) {
-			throw 'get not symbol'
-		}
+		// if (!isSymbol(key)) {
+		// 	throw 'get not symbol'
+		// }
 		const value = this.find(key)
 
 		if (value === undefined) {
