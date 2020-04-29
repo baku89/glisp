@@ -117,6 +117,11 @@ export default class App extends Vue {
 		return `(def $view (sketch ${this.code} \n nil))`
 	}
 
+	@Watch('code')
+	private onCodeUpdated() {
+		replEnv.set(S('$sketch'), this.code)
+	}
+
 	@Watch('evalCode')
 	private onEvalCodeUpdated() {
 		this.readExpr()
@@ -223,6 +228,7 @@ export default class App extends Vue {
 	}
 
 	private evalExpr() {
+		console.log('evalExpr')
 		try {
 			const {output, env} = viewREP(this.expr, {
 				width: this.viewerSize[0],
@@ -280,7 +286,6 @@ export default class App extends Vue {
 		localStorage.setItem('saved_code', value)
 
 		this.code = value
-		replEnv.set(S('$sketch'), value)
 	}
 
 	private onResizeViewer(size: [number, number]) {
