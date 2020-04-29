@@ -37,10 +37,14 @@ export default class InputCodeEditor extends Vue {
 		require('brace/theme/tomorrow_night')
 		require(`brace/mode/${this.lang}`)
 
-		this.editor.getSession().setMode(`ace/mode/${this.lang}`)
 		this.editor.setTheme(`ace/theme/${this.theme}`)
 		this.editor.setValue(this.value, -1)
 		this.editor.$blockScrolling = Infinity
+		this.editor.setShowPrintMargin(false)
+		this.editor.setOption('displayIndentGuides', false)
+
+		const session = this.editor.getSession()
+		session.setMode(`ace/mode/${this.lang}`)
 
 		this.editor.setOptions({
 			highlightActiveLine: false,
