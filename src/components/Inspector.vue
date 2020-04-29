@@ -204,6 +204,24 @@ export default class Inspector extends Vue {
 		}
 	}
 
+	private detectInputType(v: MalVal) {
+		const type = getType(v)
+
+		if (type === 'vector') {
+			const allNumber = (v as MalVal[]).every(v => typeof v === 'number')
+			if (allNumber) {
+				switch ((v as MalVal[]).length) {
+					case 2:
+						return 'vec2'
+					case 6:
+						return 'mat2d'
+				}
+			}
+		}
+
+		return type || 'any'
+	}
+
 	private get paramDescs(): ParamDescs | null {
 		if (!this.fn || !this.fnParams) {
 			return null
@@ -211,6 +229,7 @@ export default class Inspector extends Vue {
 
 		const value = this.value as MalVal[]
 		let paramDescs: ParamDescs | null = null
+		const fnMetaParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
 
 		// Check if the function has parmeter info as metadata
 		if (typeof this.fnMeta === 'object' && K_PARAMS in this.fnMeta) {
@@ -226,23 +245,22 @@ export default class Inspector extends Vue {
 			} else {
 				paramDescs = this.matchParameter(this.fnParams, metaDescs)
 			}
+		} else if (fnMetaParams) {
+			// else use parameter info of MalFunc
+			const descs: Desc[] = fnMetaParams.map((fp, i) => {
+				let type = 'any'
+				if (this.fnParams) {
+					const p = this.fnParams[i]
+					type = this.detectInputType(p)
+				}
+				return {[K_TYPE]: type}
+			})
+
+			paramDescs = {
+				descs,
+				rest: null
+			}
 		}
-
-		const fnParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
-
-		// if (this.fnMeta && this.fnMeta[K_PARAMS]) {
-
-		// 	else {
-
-		// 	}
-		// } else if (fnParams) {
-		// 	// else use parameter info of MalFunc
-		// 	paramDescs = fnParams.map((fp, i) => {
-		// 		const p = this.params[i]
-		// 		const type = getType(p)
-		// 		return type ? {[K_TYPE]: type} : {[K_TYPE]: 'any'}
-		// 	})
-		// }
 
 		// Set Neccessary info
 		if (paramDescs) {
@@ -252,8 +270,8 @@ export default class Inspector extends Vue {
 				// Set label from params if exists
 				if (!(K_LABEL in desc)) {
 					desc[K_LABEL] =
-						fnParams && fnParams[i]
-							? Case.capital((fnParams[i] as string).slice(1))
+						fnMetaParams && fnMetaParams[i]
+							? Case.capital((fnMetaParams[i] as string).slice(1))
 							: ''
 				}
 
@@ -286,7 +304,6 @@ export default class Inspector extends Vue {
 				return desc
 			})
 		}
-		console.log('paramDescs')
 		return paramDescs
 	}
 
@@ -458,7 +475,7 @@ export default class Inspector extends Vue {
 		margin-bottom 0.5em
 
 		&.is-default
-			opacity .5
+			opacity 0.5
 
 		.label
 			float left

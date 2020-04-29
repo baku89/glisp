@@ -218,22 +218,10 @@ type MalTypeString =
 	| 'boolean'
 	| 'number'
 	| 'atom'
-	| 'vec2'
-	| 'mat2d'
-	| 'undefined'
 
-export function getType(obj: MalVal): MalTypeString {
+export function getType(obj: MalVal): MalTypeString | null {
 	if (Array.isArray(obj)) {
 		if ((obj as any)[M_ISVECTOR]) {
-			const allNumber = obj.every(v => typeof v === 'number')
-			if (allNumber) {
-				switch (obj.length) {
-					case 2:
-						return 'vec2'
-					case 6:
-						return 'mat2d'
-				}
-			}
 			return 'vector'
 		} else {
 			return 'list'
@@ -263,7 +251,7 @@ export function getType(obj: MalVal): MalTypeString {
 				}
 		}
 	}
-	return 'undefined'
+	return null
 }
 
 // Namespace
