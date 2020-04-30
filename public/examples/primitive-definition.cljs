@@ -30,9 +30,7 @@
           :angle rmin-angle}
          {:id :rmax
           :type "biarrow"
-          :pos (vec2/+
-                c
-                [rmax 0])}]))
+          :pos (vec2/+ c [rmax 0])}]))
     :on-drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
@@ -54,8 +52,10 @@
 
 (background "#4c5366")
 
-[:g {:style (fill "#fb6a4c")}
+[:g {:style (stroke "#fb6a4c" 12)}
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view
- (star [454 249] 5 70 190.51509126575772)]
+ (path/join
+  (star [527 277] 5 79.64923100695951 190.51509126575772)
+  (line [947 353] [896 597]))]
