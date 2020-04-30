@@ -56,6 +56,4 @@
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view
- (path/join
-  (star [527 277] 5 79.64923100695951 190.51509126575772)
-  (line [947 353] [896 597]))]
+ (star [200 200] 5 80 190)]
