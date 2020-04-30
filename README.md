@@ -9,7 +9,11 @@ Glisp literally uses a Lisp-like code as a project file. And as the code-as-data
 
 Developed by [Baku Hashimoto](https://baku89.com)
 
-The implementation of Lisp interpreter is the modified version of [Make a Lisp project](https://github.com/kanaka/mal).
+## Helpful Repositories
+
+- The implementation of Lisp interpreter is the modified version of [Make a Lisp project](https://github.com/kanaka/mal).
+- Boolean Operator and some bezier manipualations by [Paper.js](http://paperjs.org/).
+- Bezier curve analyzation by [Bezier.js](https://pomax.github.io/bezierjs/)
 
 ## Similar projects
 
