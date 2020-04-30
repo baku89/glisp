@@ -48,6 +48,7 @@
                           :meta (meta ~original))))))
 
 ;; Declare special forms as symbol
+(def do nil)
 (def & '&)
 
 ;; Annotate the parameter of special forms
