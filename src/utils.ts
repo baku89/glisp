@@ -1,5 +1,5 @@
 import Case from 'case'
-import {MalVal} from '@/mal/types'
+import {MalVal, isKeyword, isSymbol} from '@/mal/types'
 import printExp from '@/mal/printer'
 
 export function replaceRange(
@@ -21,10 +21,9 @@ export function clamp(value: number, min: number, max: number) {
 
 /**
  * Converts the bind expression to parameter's label
- * except for one letter
  * @param str original value
  */
 export function getParamLabel(ast: MalVal) {
-	const str = printExp(ast)
+	const str = isKeyword(ast) || isSymbol(ast) ? ast.slice(1) : printExp(ast)
 	return str.length === 1 ? str : Case.capital(str)
 }
