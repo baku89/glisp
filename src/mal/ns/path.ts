@@ -24,11 +24,13 @@ type SegmentType = [string, ...Vec2[]]
 
 const EPSILON = 1e-5
 
-const K_PATH = K('path')
-const K_M = K('M')
-const K_L = K('L')
-const K_C = K('C')
-const K_Z = K('Z')
+const K_PATH = K('path'),
+	K_M = K('M'),
+	K_L = K('L'),
+	K_C = K('C'),
+	K_Z = K('Z'),
+	K_H = K('H'),
+	K_V = K('V')
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
@@ -65,9 +67,21 @@ function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 		.abs()
 		.unarc()
 		.unshort()
-		.iterate(seg => {
-			const cmd = K(seg[0])
+		.iterate((seg, _, x, y) => {
+			let cmd = K(seg[0])
 			const pts = partition(2, seg.slice(1)).map(markMalVector) as number[][]
+
+			switch (cmd) {
+				case K_H:
+					pts[0] = [pts[0][0], y]
+					cmd = K_L
+					break
+				case K_V:
+					pts[0] = [x, pts[0][0]]
+					cmd = K_L
+					break
+			}
+
 			path.push(cmd, ...pts)
 		})
 
