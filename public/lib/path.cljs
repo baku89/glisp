@@ -25,30 +25,28 @@
    :Z])
 (def rect path/rect)
 
-(def K (/ (* 4 (- (sqrt 2) 1)) 3))
 
-
-
-(defn path/circle
-  {:doc "Generate a circle path"
-   :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
-            {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
-   :handles {:draw-handle (fn [center radius]
-                            [{:type "point" :id :center :pos center}
-                             {:type "point" :id :radius :pos (vec2/+ center [radius 0])}])
-             :on-drag (fn [id p [center radius]]
-                        (case id
-                          :center [p radius]
-                          :radius [center (vec2/dist center p)]))}}
-  [[x y] r]
-  (let [k (* r K)]
-    [:path
-     :M [(+ x r) y]			 ; right
-     :C [(+ x r) (+ y k)] [(+ x k) (+ y r)] [x (+ y r)] ; bottom
-     :C [(- x k) (+ y r)] [(- x r) (+ y k)] [(- x r) y] ; left
-     :C [(- x r) (- y k)] [(- x k) (- y r)] [x (- y r)] ; top
-     :C [(+ x k) (- y r)] [(+ x r) (- y k)] [(+ x r) y] ; right
-     :Z]))
+(def path/circle
+  ^{:doc "Generate a circle path"
+    :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
+             {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
+    :handles {:draw-handle (fn [center radius]
+                             [{:type "point" :id :center :pos center}
+                              {:type "point" :id :radius :pos (vec2/+ center [radius 0])}])
+              :on-drag (fn [id p [center radius]]
+                         (case id
+                           :center [p radius]
+                           :radius [center (vec2/dist center p)]))}}
+  (let [K (/ (* 4 (- (sqrt 2) 1)) 3)]
+    (fn [[x y] r]
+      (let [k (* r K)]
+        [:path
+         :M [(+ x r) y]			 ; right
+         :C [(+ x r) (+ y k)] [(+ x k) (+ y r)] [x (+ y r)] ; bottom
+         :C [(- x k) (+ y r)] [(- x r) (+ y k)] [(- x r) y] ; left
+         :C [(- x r) (- y k)] [(- x k) (- y r)] [x (- y r)] ; top
+         :C [(+ x k) (- y r)] [(+ x r) (- y k)] [(+ x r) y] ; right
+         :Z]))))
 (def circle path/circle)
 
 (defn path/line
