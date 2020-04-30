@@ -163,5 +163,5 @@
   {:doc "Returns a merged path"
    :params [& {:type "path"}]
    :return {:type "path"}}
-  [& xs]
-  (vec (concat :path (apply concat (map rest xs)))))
+  [& paths]
+  (vec (concat :path (apply concat (map rest paths)))))
