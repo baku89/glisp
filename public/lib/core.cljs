@@ -1,5 +1,3 @@
-(def & '&)
-
 (defmacro defn [name params & body]
   (def attrs {})
   (if (map? params)
@@ -20,7 +18,17 @@
              {label: "Params", type: "any"}]}
   defn)
 
-;; Def special forms
+(defmacro defalias [alias original]
+  `(def ~alias (with-meta ~original
+                 (hash-map
+                  :alias (hash-map
+                          :name ~(str original)
+                          :meta (meta ~original))))))
+
+;; Declare special forms as symbol
+(def & '&)
+
+;; Annotate the parameter of special forms
 (defn def
   {:doc "Create a variable"
    :params [{:label "Symbol" :type "symbol"}
@@ -75,8 +83,8 @@
 
 (defn name [x]
   (cond (string? x) x
-        (symbol? x) (throw "Currently not supported")
-        (keyword? x) (subs (str x) 1)
+        (symbol? x) (str x) ;; Might be hacky too as below
+        (keyword? x) (subs (str x) 1) ;; Might be hacky as it simply removes keyword prefix
         :else (throw "Cannot get the name")))
 
 ;; Conditionals

@@ -23,7 +23,7 @@
    :L [(+ x w) (+ y h)]
    :L [x (+ y h)]
    :Z])
-(def rect path/rect)
+(defalias rect path/rect)
 
 
 (def path/circle
@@ -47,7 +47,7 @@
          :C [(- x r) (- y k)] [(- x k) (- y r)] [x (- y r)] ; top
          :C [(+ x k) (- y r)] [(+ x r) (- y k)] [(+ x r) y] ; right
          :Z]))))
-(def circle path/circle)
+(defalias circle path/circle)
 
 (defn path/line
   {:doc "Generates a line segment path"
@@ -62,7 +62,7 @@
                           :to [from p]))}}
   [from to]
   [:path :M from :L to])
-(def line path/line)
+(defalias line path/line)
 
 (def arc (with-meta arc
            (assoc (meta arc)
@@ -100,11 +100,11 @@
   (vec (concat :path
                :M [(first pts)]
                (apply concat (map #`(:L ~%) (rest pts))))))
-(def polyline path/polyline)
+(defalias polyline path/polyline)
 
 (defn path/polygon [& pts]
   (conj (apply polyline pts) :Z))
-(def polygon path/polygon)
+(defalias polygon path/polygon)
 
 (defn path/ellipse
   {:doc "Generate an ellipse path"
@@ -114,14 +114,14 @@
   (->> (circle (vec2) 1)
        (path/scale size)
        (path/translate center)))
-(def ellipse path/ellipse)
+(defalias ellipse path/ellipse)
 
 (defn path/point
   {:doc "Generate a point path"
    :params [{:label "Pos" :type "vec2"}]}
   [p]
   [:path :M p :L p])
-(def point path/point)
+(defalias point path/point)
 
 ;; Path modifiers
 

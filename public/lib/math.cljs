@@ -247,15 +247,15 @@
   [& xs]
   (reduce mat2d/mul mat2d/ident xs))
 
-(def translate mat2d/translate)
-(def translate-x mat2d/translate-x)
-(def translate-y mat2d/translate-y)
-(def scale mat2d/scale)
-(def scale-x mat2d/scale-x)
-(def scale-y mat2d/scale-y)
-(def rotate mat2d/rotate)
-(def pivot mat2d/pivot)
-(def transform mat2d/transform)
+(defalias translate mat2d/translate)
+(defalias translate-x mat2d/translate-x)
+(defalias translate-y mat2d/translate-y)
+(defalias scale mat2d/scale)
+(defalias scale-x mat2d/scale-x)
+(defalias scale-y mat2d/scale-y)
+(defalias rotate mat2d/rotate)
+(defalias pivot mat2d/pivot)
+(defalias transform mat2d/transform)
 
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
@@ -308,5 +308,3 @@
             (if (= 2 (count xs))
               (first xs)
               (apply combination/product (butlast xs)))))))
-
-(def combination/× combination/product)

@@ -1,7 +1,10 @@
 <template>
 	<div class="Inspector">
 		<div class="Inspector__header" v-if="fn">
-			<div class="Inspector__name">{{ fnName }}</div>
+			<div class="Inspector__name">
+				{{ fnName }}
+				<span v-if="isAlias" class="alias">--> alias for {{isAlias}}</span>
+			</div>
 			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
 		<div class="Inspector__params" v-if="paramDescs">
@@ -136,6 +139,16 @@ export default class Inspector extends Vue {
 		return (isList(this.value) && (this.value as any)[M_FN]) || null
 	}
 
+	private get fnOrigMeta() {
+		return this.fn && this.fn[M_META] ? this.fn[M_META] : null
+	}
+
+	private get isAlias(): string | null {
+		return this.fnOrigMeta && K('alias') in this.fnOrigMeta
+			? this.fnOrigMeta[K('alias')][K('name')]
+			: null
+	}
+
 	private get fnName(): string {
 		if (this.fn) {
 			return ((this.value as MalVal[])[0] as string).slice(1) || ''
@@ -149,7 +162,9 @@ export default class Inspector extends Vue {
 	}
 
 	private get fnMeta() {
-		return this.fn && this.fn[M_META] ? this.fn[M_META] : null
+		return this.isAlias
+			? this.fnOrigMeta[K('alias')][K('meta')]
+			: this.fnOrigMeta
 	}
 
 	private get fnDesc(): string {
@@ -491,6 +506,11 @@ export default class Inspector extends Vue {
 	&__name
 		margin-bottom 0.5em
 		font-weight bold
+
+		.alias
+			color var(--comment)
+			font-weight normal
+			font-size 0.95em
 
 	&__param
 		margin-bottom 0.5em
