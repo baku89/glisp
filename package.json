@@ -48,6 +48,7 @@
 		"seedrandom": "^3.0.5",
 		"stylus": "^0.54.7",
 		"stylus-loader": "^3.0.2",
+		"svgpath": "^2.2.3",
 		"tslib": "^1.11.1",
 		"typescript": "~3.8.3",
 		"vue-click-outside": "^1.0.7",

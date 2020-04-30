@@ -111,7 +111,7 @@
    :params [{:type "vec2"}
             {:type "vec2"}]}
   [center size]
-  (->> (circle (vec2) 1)
+  (->> (circle [0 0] 1)
        (path/scale size)
        (path/translate center)))
 (defalias ellipse path/ellipse)

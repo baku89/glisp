@@ -1,6 +1,8 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
 import {vec2} from 'gl-matrix'
 import Bezier from 'bezier-js'
+import svgpath from 'svgpath'
+import paper from 'paper'
 import {
 	MalVal,
 	keywordFor as K,
@@ -13,6 +15,7 @@ import {
 import {partition} from '../utils'
 import printExp from '../printer'
 import {attachMetaToJSObject} from '../reader'
+import {clamp} from '@/utils'
 
 type Vec2 = number[] | vec2
 
@@ -40,6 +43,43 @@ const UNIT_QUAD_BEZIER = new Bezier([
 ])
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
+
+function createEmptyPath() {
+	return markMalVector([K_PATH])
+}
+
+paper.setup(new paper.Size(1, 1))
+
+function getPaperPath(path: PathType): paper.Path {
+	const d = path.map(x => (isKeyword(x) ? x.slice(1) : x)).join(' ')
+
+	return new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
+}
+
+function getMalPathFromPaper(_path: paper.Path): PathType {
+	const d = _path ? _path.pathData : ''
+
+	const path: PathType = createEmptyPath() as PathType
+
+	svgpath(d)
+		.abs()
+		.unarc()
+		.unshort()
+		.iterate(seg => {
+			const cmd = K(seg[0])
+			const pts = partition(2, seg.slice(1)).map(markMalVector) as number[][]
+			path.push(cmd, ...pts)
+		})
+
+	return path
+}
+
+function convertToMalPath(path: PathType): PathType {
+	const ret = markMalVector(
+		path.map(x => (x instanceof Float32Array ? [...x] : x))
+	) as PathType
+	return ret
+}
 
 function getBezier(points: Vec2[]) {
 	const coords = points.map(([x, y]) => ({x, y}))
@@ -244,9 +284,10 @@ function toBeziers(path: PathType) {
 	return ret
 }
 
-function pathLength(path: PathType) {
-	const segs = Array.from(iterateCurveWithLength(path))
-	return segs[segs.length - 1][1]
+function pathLength(_path: PathType) {
+	const path = getPaperPath(_path)
+	getMalPathFromPaper(path)
+	return path.length
 }
 
 type LengthFunctionType = (len: number, path: PathType) => MalVal
@@ -658,164 +699,70 @@ function offset(d: number, path: PathType) {
 				continued = false
 			}
 		}
-		return createMalVector(ret)
+		return convertToMalPath(ret)
 	}
-}
-
-function trimCurve(start: number, end: number, curve: SegmentType) {
-	if (start < EPSILON && 1 - EPSILON < end) {
-		return curve
-	}
-
-	const [cmd, ...points] = curve
-	let trimmed: Vec2[] = []
-
-	switch (cmd) {
-		case K_L:
-		case K_Z: {
-			const p0 = points[0] as vec2
-			const p1 = points[points.length - 1] as vec2
-			const np0 = vec2.lerp(vec2.create(), p0, p1, start)
-			const np1 = vec2.lerp(vec2.create(), p0, p1, end)
-			trimmed = [np0, np1]
-			break
-		}
-		case K_C: {
-			const bezier = getBezier(points).split(start, end)
-			trimmed = bezier.points.map(({x, y}) => [x, y])
-			break
-		}
-		default:
-			throw new LispError('[js: trimCurve] Only can trim L or C')
-	}
-
-	return createMalVector([cmd, ...trimmed])
 }
 
 /**
  * Trim path by relative length from each ends
  */
-function trimByLength(start: number, end: number, path: PathType) {
+function trimByLength(
+	start: number,
+	end: number,
+	malPath: PathType,
+	path: null | paper.Path
+) {
 	// In case no change
 	if (start < EPSILON && end < EPSILON) {
-		return path
+		return malPath
 	}
 
-	path = makeOpen(path)
-
-	const curves = Array.from(iterateCurveWithLength(path))
-	const lastCurve = curves[curves.length - 1]
+	if (!path) {
+		path = getPaperPath(malPath)
+	}
 
 	// Convert end parameter to a distance from the beginning of path
-	const length = lastCurve[1]
+	const length = path.length
 	end = length - end
 
 	// Make positiove
-	start = Math.max(0, start)
-	end = Math.max(0, end)
+	start = clamp(start, 0, length)
+	end = clamp(end, 0, length)
 
 	// Swap to make sure start < end
 	if (start > end) {
-		;[start, end] = [end, start]
+		return createEmptyPath()
 	}
 
-	// Returns empty if trimmed entire
-	if (end - start < EPSILON) {
-		return [K_PATH]
+	// Make Open
+	if (path.closed) {
+		path.splitAt(0)
 	}
 
-	let startIndex = null,
-		startT = NaN,
-		endIndex = null,
-		endT = NaN
+	const trimmed = path.splitAt(start)
 
-	let fromLen = 0
-
-	// NOTE: might be better to search from both ends to avoid the overhead
-	for (let i = 0; i < curves.length; i++) {
-		const [[cmd, ...points], toLen] = curves[i] // Skip zero-length segment
-		if (
-			cmd === K_M ||
-			(cmd === K_Z &&
-				vec2.dist(points[0] as vec2, points[points.length - 1] as vec2) <
-					EPSILON)
-		) {
-			continue
-		}
-
-		if (fromLen <= start && start < toLen) {
-			startIndex = i
-			startT = (start - fromLen) / (toLen - fromLen)
-		}
-
-		if (fromLen <= end && end < toLen) {
-			endIndex = i
-			endT = (end - fromLen) / (toLen - fromLen)
-		}
-
-		if (startIndex !== null && endIndex !== null) {
-			break
-		}
-
-		fromLen = toLen
+	if (!trimmed) {
+		return createEmptyPath()
 	}
 
-	if (startIndex === null) {
-		startIndex = curves.length - 1
-		startT = 1
+	trimmed.splitAt(end - start)
+
+	if (!trimmed) {
+		return createEmptyPath()
 	}
 
-	if (endIndex === null) {
-		endIndex = curves.length - 1
-		endT = 1
-	}
-
-	const trimmed: SegmentType[] = []
-
-	if (startIndex === endIndex) {
-		// Trim one curve on both its start and end
-		const seg = curves[startIndex][0]
-		trimmed.push(trimCurve(startT, endT, seg) as SegmentType)
-	} else {
-		// Trim over multiple curves
-		const startSeg = curves[startIndex][0]
-		trimmed.push(trimCurve(startT, 1, startSeg) as SegmentType)
-
-		const middleCurves = curves.slice(startIndex + 1, endIndex).map(([c]) => c)
-		trimmed.push(...middleCurves)
-
-		if (endT > EPSILON) {
-			const endSeg = curves[endIndex][0]
-			trimmed.push(trimCurve(0, endT, endSeg) as SegmentType)
-		}
-	}
-
-	// Convert curves to path
-	const rest = trimmed
-		.map(([cmd, ...pts]) => {
-			switch (cmd) {
-				case K_M:
-					return [cmd, ...pts]
-				case K_L:
-				case K_C:
-					return [cmd, ...pts.slice(1)]
-				case K_Z:
-					return [cmd]
-			}
-		})
-		.flat()
-
-	return createMalVector([K_PATH, ...rest])
+	return getMalPathFromPaper(trimmed)
 }
 
 /**
  * Trim path by normalized T
  */
-function pathTrim(t1: number, t2: number, path: PathType) {
-	const length = pathLength(path)
+function pathTrim(t1: number, t2: number, malPath: PathType) {
+	const path = getPaperPath(malPath)
+	const length = path.length
 	const start = t1 * length,
 		end = (1 - t2) * length
-	return trimByLength(start, end, path)
+	return trimByLength(start, end, malPath, path)
 }
 
 /**
