@@ -124,12 +124,19 @@ export default class ViewHandles extends Vue {
 			const handles = drawHandle(...this.params)
 
 			return handles.map((h: any) => {
+				const type = h[K('type')]
 				const pos = h[K('pos')]
 
+				const style: any = {left: pos[0] + 'px', top: pos[1] + 'px'}
+
+				if (type === 'biarrow') {
+					style['transform'] = `rotate(${h[K('angle')]}rad)`
+				}
+
 				return {
-					type: h[K('type')],
 					id: h[K('id')],
-					style: {left: pos[0] + 'px', top: pos[1] + 'px'}
+					type,
+					style
 				}
 			})
 		} else {
@@ -212,4 +219,42 @@ export default class ViewHandles extends Vue {
 			&:hover
 				border-width 2px
 				background var(--blue)
+
+		.biarrow
+			$size = 1rem
+			position absolute
+			margin-top $size * -0.5
+			margin-left $size * -0.5
+			width $size
+			height $size
+			transform-origin 50% 50%
+
+			&:before, &:after
+				position absolute
+				top 0
+				left 0
+
+			&:hover:before
+				background var(--blue)
+
+			&:before
+				z-index 10
+				display block
+				width $size
+				height $size
+				border 1px solid var(--blue)
+				border-radius 50%
+				background var(--background)
+				content ''
+
+			&:after
+				margin-top -0.5rem
+				margin-left -2rem
+				width 5rem
+				height 2rem
+				color var(--blue)
+				content '<- ->'
+				text-align center
+				white-space nowrap
+				line-height 2rem
 </style>

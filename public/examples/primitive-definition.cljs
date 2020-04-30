@@ -20,17 +20,19 @@
     ;; Returns a list of handles with ID
     ;; from the function's parameters
     (fn [c n rmin rmax]
-      [{:id :center :type "point" :pos c}
-       {:id :rmin
-        :type "point"
-        :pos (vec2/+
-              c
-              (vec2/dir (/ PI n) rmin))}
-       {:id :rmax
-        :type "point"
-        :pos (vec2/+
-              c
-              (vec2/dir 0 rmax))}])
+      (let [rmin-angle (/ PI n)]
+        [{:id :center :type "point" :pos c}
+         {:id :rmin
+          :type "biarrow"
+          :pos (vec2/+
+                c
+                (vec2/dir rmin-angle rmin))
+          :angle rmin-angle}
+         {:id :rmax
+          :type "biarrow"
+          :pos (vec2/+
+                c
+                [rmax 0])}]))
     :on-drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
@@ -56,4 +58,4 @@
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view
- (star [200 200] 5 70 180)]
+ (star [454 249] 5 70 190.51509126575772)]
