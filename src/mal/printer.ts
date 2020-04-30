@@ -9,7 +9,8 @@ import {
 	M_AST,
 	isMap,
 	isList,
-	isVector
+	isVector,
+	M_ISMACRO
 } from './types'
 
 const S_QUOTE = S('quote'),
@@ -77,7 +78,7 @@ export default function printExp(obj: MalVal, printReadably = true): string {
 	} else if (isMalFunc(obj)) {
 		const params = printExp(obj[M_PARAMS], _r)
 		const body = printExp(obj[M_AST], _r)
-		return `(fn ${params} ${body})`
+		return `(${obj[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
 	} else if (typeof obj === 'number' || typeof obj === 'boolean') {
 		return obj.toString()
 	} else if (obj instanceof MalAtom) {
