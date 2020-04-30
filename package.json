@@ -41,6 +41,7 @@
 		"jq-console": "^2.13.2",
 		"jquery": "^3.4.1",
 		"normalize.css": "^8.0.1",
+		"paper": "^0.12.4",
 		"perf_hooks": "^0.0.1",
 		"prettier": "^1.19.1",
 		"raw-loader": "^4.0.0",
