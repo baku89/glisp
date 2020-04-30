@@ -1,16 +1,38 @@
+(def defmacro
+  (macro [name params & body]
+         (do
+  ;; Destruction of meta, param, body
+         (def metadata nil)
+         (if (false? (sequential? params))
+           (do
+             (def metadata params)
+             (def params (first body))
+             (def body (rest body))))
+  ;; Wrap with 'do if body has multiple lines
+         (if (= 1 (count body))
+           (def body (first body))
+           (def body `(do ~@body)))
+
+         (if (nil? metadata)
+           `(def ~name (macro ~params ~body))
+           `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
+
 (defmacro defn [name params & body]
-  (def attrs {})
-  (if (map? params)
-    (do (def attrs params)
-        (def params (first body))
-        (def body (rest body))))
-  `(def ~name
-     (with-meta
-       (fn ~params
-         ~(if (= 1 (count body))
-            (first body)
-            `(do ~@body)))
-       ~attrs)))
+  ;; Destruction of meta, param, body
+  (def metadata nil)
+  (if (false? (sequential? params))
+    (do
+      (def metadata params)
+      (def params (first body))
+      (def body (rest body))))
+  ;; Wrap with 'do if body has multiple lines
+  (if (= 1 (count body))
+    (def body (first body))
+    (def body `(do ~@body)))
+
+  (if (nil? metadata)
+    `(def ~name (fn ~params ~body))
+    `(def ~name (with-meta (fn ~params ~body) ~metadata))))
 
 (def defn
   ^{:doc "Define a function"
@@ -100,16 +122,16 @@
      (cons 'cond (rest (rest xs))))))
 
 (defmacro for
+  {:doc "Make a iteration loop"
+   :params [{:label "Binds" :type "code"}
+            &
+            {:label "Body" :type "code"}]}
   [binds & body]
   (let [pairs (partition 2 binds)
         syms (map first pairs)
         colls (map second pairs)
         gen-lst `(combination/product ~@colls)]
     `(map (fn [~syms] (do ~@body)) ~gen-lst)))
-(def for (with-meta for {:doc "Make a iteration loop"
-                         :params [{:label "Binds" :type "code"}
-                                  &
-                                  {:label "Body" :type "code"}]}))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)
@@ -252,7 +274,7 @@
     (fn [obj]
       (println (pp- obj 0)))))
 
-; Load other cores
+;; ; Load other cores
 (import "ui.cljs")
 (import "graphics.cljs")
 (import "math.cljs")

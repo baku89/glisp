@@ -157,15 +157,11 @@ export default function evalExp(
 				ast = ret
 				break // continue TCO loop
 			}
-			case 'defmacro': {
-				const fnast = [
-					S('fn'),
-					a2,
-					ast.length === 4 ? a3 : [S('do'), ...ast.slice(3)]
-				]
+			case 'macro': {
+				const fnast = [S('fn'), a1, a2]
 				const fn = cloneAST(evalExp(fnast, env, _ev)) as MalFunc
 				fn[M_ISMACRO] = true
-				return env.set(a1 as string, fn)
+				return fn
 			}
 			case 'macroexpand': {
 				const ret = macroexpand(a1, env)
