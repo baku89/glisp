@@ -205,14 +205,15 @@ export default class Inspector extends Vue {
 
 	private matchParameter(
 		params: any[],
-		metaDesc: MetaDescs
+		metaDesc: MetaDescs,
+		forceMatch = false
 	): ParamDescs | null {
 		const retDesc = []
 
 		const restPos = metaDesc.indexOf(S_AMP)
 
 		if (restPos === -1) {
-			if (params.length === metaDesc.length) {
+			if (params.length === metaDesc.length || forceMatch) {
 				return {descs: metaDesc as Desc[], rest: null}
 			} else {
 				return null
@@ -292,6 +293,8 @@ export default class Inspector extends Vue {
 						break
 					}
 				}
+				// If no overloads matched, force apply first overload
+				paramDescs = this.matchParameter(this.fnParams, metaDescs[0], true)
 			} else {
 				paramDescs = this.matchParameter(this.fnParams, metaDescs)
 			}

@@ -5,7 +5,7 @@
 (def s (/ w 2))
 
 (defn slash [p]
-  (->> (line [(- s) (- s)] [s s])
+  (->> (line (vec2 (- s)) (vec2 s))
        (path/scale-x [(compare (rnd p) .5)])
        (path/translate p)))
 

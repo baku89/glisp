@@ -22,14 +22,20 @@
 ;; vec2
 ;; http://glmatrix.net/docs/module-vec2.html
 
-(defn vec2/uniform
-  {:doc "Create vec2 with same value for x and y"
-   :params [{:type "number"}]
+(defn vec2
+  {:doc "Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]"
+   :params [[{:label "x & y" :type "number" :default 0}]
+            [{:label "x" :type "number"}
+             {:label "y" :type "number"}]]
    :return {:type "vec2"}}
-  [v] [v v])
+  [& xs]
+  (case (count xs)
+    0 [0 0]
+    1 (let [v (first xs)] [v v])
+    2 (vec xs)))
 
 (defn vec2/dir
-  {:doc "Create a vec2 with specified angle and length"
+  {:doc "Createsa a vec2 with specified angle and length"
    :params [{:label "Angle" :type "number"}
             {:label "Length" :type "number" :default 1}]}
   [a & xs]
@@ -41,7 +47,7 @@
 
 
 (defn vec2?
-  {:doc "Check if x is vec2"
+  {:doc "Checks if x is vec2"
    :params [{:type "any"}]
    :return {:type "boolean"}}
   [x]
