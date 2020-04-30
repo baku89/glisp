@@ -288,15 +288,22 @@ export default class Inspector extends Vue {
 
 		// Set Neccessary info
 		if (paramDescs) {
+			const {descs, rest} = paramDescs
+
+			const restPos = rest && rest.type === 'variadic' ? rest.pos : descs.length
+
 			paramDescs.descs = paramDescs.descs.map((_desc, i) => {
 				const desc = {..._desc}
 
-				// Set label from params if exists
+				// Set label from params if not exists
 				if (!(K_LABEL in desc)) {
-					desc[K_LABEL] =
-						fnMetaParams && fnMetaParams[i]
-							? Case.capital((fnMetaParams[i] as string).slice(1))
-							: ''
+					if (i <= restPos) {
+						const pi = i === restPos ? restPos + 1 : i
+						desc[K_LABEL] =
+							fnMetaParams && fnMetaParams[pi]
+								? Case.capital((fnMetaParams[pi] as string).slice(1))
+								: ''
+					}
 				}
 
 				// Set the type if it is not specified or set to any
