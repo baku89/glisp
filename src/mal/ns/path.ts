@@ -56,7 +56,7 @@ function getPaperPath(path: PathType): paper.Path {
 	return new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
 }
 
-function getMalPathFromPaper(_path: paper.Path): PathType {
+function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 	const d = _path ? _path.pathData : ''
 
 	const path: PathType = createEmptyPath() as PathType
@@ -426,6 +426,33 @@ function aligningMatrixAtLength(
 
 	return markMalVector([...mat])
 }
+
+// Iteration
+function pathFlatten(flatness: number, path: PathType) {
+	const paperPath = getPaperPath(path)
+	paperPath.flatten(flatness)
+	return getMalPathFromPaper(paperPath)
+}
+
+// Binary Operation
+function createPolynominalBooleanOperator(methodName: string) {
+	return (...paths: PathType[]) => {
+		if (paths.length === 0) {
+			return createEmptyPath()
+		} else if (paths.length === 1) {
+			return paths[0]
+		}
+
+		const paperPaths = paths.map(getPaperPath) as paper.PathItem[]
+		const result = paperPaths
+			.slice(1)
+			.reduce((a, b) => (a as any)[methodName](b), paperPaths[0])
+
+		return getMalPathFromPaper(result)
+	}
+}
+
+// Shape Functions
 
 function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
 	const min = Math.min(start, end)
@@ -831,9 +858,17 @@ const jsObjects = [
 		convertToNormalizedFunction(aligningMatrixAtLength)
 	],
 
+	// Boolean
+	['path/unite', createPolynominalBooleanOperator('unite')],
+	['path/intersect', createPolynominalBooleanOperator('intersect')],
+	['path/subtract', createPolynominalBooleanOperator('subtract')],
+	['path/exclude', createPolynominalBooleanOperator('exclude')],
+	['path/divide', createPolynominalBooleanOperator('divide')],
+
 	// Manipulation
 	['path/trim', pathTrim],
 	['path/trim-by-length', trimByLength],
+	['path/flatten', pathFlatten],
 
 	// Utility
 	[
