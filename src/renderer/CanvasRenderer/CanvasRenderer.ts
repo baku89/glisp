@@ -303,7 +303,14 @@ export default class CanvasRenderer {
 
 	private createFillOrStrokeStyle(style: string | any[]) {
 		if (typeof style === 'string') {
-			return style
+			switch (style) {
+				case K_FILL_COLOR:
+					return this.ctx.fillStyle
+				case K_STROKE_COLOR:
+					return this.ctx.strokeStyle
+				default:
+					return style
+			}
 		} else if (Array.isArray(style)) {
 			const [type, params] = style as [string, MalMap]
 			switch (type) {
@@ -336,8 +343,34 @@ export default class CanvasRenderer {
 		const ctx = this.ctx
 		const isText = text !== undefined
 
+		const drawOrders = styles.map(s => ({
+			fill: !!s[K_FILL],
+			stroke: !!s[K_STROKE]
+		}))
+
+		let hasDrawnFill = false,
+			hasDrawnStroke = false
+		for (let i = drawOrders.length - 1; i >= 0; i--) {
+			const order = drawOrders[i]
+
+			if (hasDrawnFill) {
+				order.fill = false
+			}
+			if (hasDrawnStroke) {
+				order.stroke = false
+			}
+
+			if (order.fill) {
+				hasDrawnFill = true
+			}
+			if (order.stroke) {
+				hasDrawnStroke = true
+			}
+		}
+
 		ctx.save()
-		for (const style of styles) {
+		for (let i = 0; i < styles.length; i++) {
+			const style = styles[i]
 			for (const [k, v] of Object.entries(style)) {
 				switch (k) {
 					case K_FILL_COLOR:
@@ -360,14 +393,14 @@ export default class CanvasRenderer {
 				}
 			}
 
-			if (style[K_FILL]) {
+			if (drawOrders[i].fill) {
 				if (isText) {
 					ctx.fillText(text as string, x as number, y as number)
 				} else {
 					ctx.fill()
 				}
 			}
-			if (style[K_STROKE]) {
+			if (drawOrders[i].stroke) {
 				if (isText) {
 					ctx.strokeText(text as string, x as number, y as number)
 				} else {
