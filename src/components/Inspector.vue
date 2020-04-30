@@ -103,7 +103,7 @@ import {
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import VueMarkdown from 'vue-markdown'
-import {clamp, getParamCase} from '@/utils'
+import {clamp, getParamLabel} from '@/utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -227,7 +227,7 @@ export default class Inspector extends Vue {
 				const keys = restDesc[K_KEYS] as [string, Desc][]
 				const keywordsDescs = keys.map((desc: Desc) => {
 					const predefinedDesc = {
-						[K_LABEL]: getParamCase(desc[K_KEY].slice(1))
+						[K_LABEL]: getParamLabel(desc[K_KEY])
 					}
 					return {...predefinedDesc, ...desc}
 				})
@@ -297,14 +297,28 @@ export default class Inspector extends Vue {
 			}
 		} else if (fnMetaParams) {
 			// else use parameter info of MalFunc
-			const descs: Desc[] = fnMetaParams.map((fp, i) => {
-				let type = 'any'
-				if (this.fnParams) {
-					const p = this.fnParams[i]
-					type = this.detectInputType(p)
+			const descs: Desc[] = []
+
+			for (let i = 0; i < fnMetaParams.length; i++) {
+				// Variadic parameter
+				if (fnMetaParams[i] === S_AMP) {
+					for (let j = i; j < this.fnParams.length; j++) {
+						const type = this.fnParams
+							? this.detectInputType(this.fnParams[j])
+							: 'any'
+						descs.push({
+							[K_TYPE]: type,
+							[K_LABEL]: j === i ? getParamLabel(fnMetaParams[i + 1]) : ''
+						})
+					}
+					break
 				}
-				return {[K_TYPE]: type}
-			})
+
+				const type = this.fnParams
+					? this.detectInputType(this.fnParams[i])
+					: 'any'
+				descs.push({[K_TYPE]: type})
+			}
 
 			paramDescs = {
 				descs,
@@ -322,14 +336,11 @@ export default class Inspector extends Vue {
 				const desc = {..._desc}
 
 				// Set label from params if not exists
-				if (!(K_LABEL in desc)) {
-					if (i <= restPos) {
-						const pi = i === restPos ? restPos + 1 : i
-						desc[K_LABEL] =
-							fnMetaParams && fnMetaParams[pi]
-								? getParamCase((fnMetaParams[pi] as string).slice(1))
-								: ''
-					}
+				if (!(K_LABEL in desc) && fnMetaParams && i <= restPos) {
+					const pi = i === restPos ? restPos + 1 : i
+					desc[K_LABEL] = fnMetaParams[pi]
+						? getParamLabel(fnMetaParams[pi])
+						: ''
 				}
 
 				// Set the type if it is not specified or set to any
