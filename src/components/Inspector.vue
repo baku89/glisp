@@ -575,6 +575,7 @@ export default class Inspector extends Vue {
 <style lang="stylus" scoped>
 .Inspector
 	position relative
+	overflow hidden
 	padding 1rem
 	height 100%
 	text-align left
@@ -634,7 +635,6 @@ export default class Inspector extends Vue {
 			float left
 
 		.expr
-			overflow hidden
 			height $param-height
 			color var(--comment)
 			text-overflow ellipsis
