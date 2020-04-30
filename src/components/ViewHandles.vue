@@ -2,12 +2,7 @@
 	<div class="ViewHandles">
 		<div class="ViewHandles__transform" :style="transformStyle">
 			<template v-for="({type, id, style}, i) in handles">
-				<div
-					:key="i"
-					:class="type"
-					:style="style"
-					@mousedown="onMousedown(id, $event)"
-				/>
+				<div :key="i" :class="type" :style="style" @mousedown="onMousedown(id, $event)" />
 			</template>
 		</div>
 	</div>
@@ -109,13 +104,14 @@ export default class ViewHandles extends Vue {
 	private get handleInfo() {
 		const exp = this.exp as any
 
-		if (
-			exp !== null &&
-			exp[M_FN] &&
-			exp[M_FN][M_META] &&
-			exp[M_FN][M_META][K('handles')]
-		) {
-			return exp[M_FN][M_META][K('handles')]
+		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
+			const meta = exp[M_FN][M_META]
+
+			if (meta[K('alias')] && meta[K('alias')][K('meta')]) {
+				return meta[K('alias')][K('meta')][K('handles')] || null
+			} else {
+				exp[M_FN][M_META][K('handles')] || null
+			}
 		}
 
 		return null
