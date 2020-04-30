@@ -1,3 +1,5 @@
+import Case from 'case'
+
 export function replaceRange(
 	s: string,
 	start: number,
@@ -13,4 +15,13 @@ export function replaceRange(
 
 export function clamp(value: number, min: number, max: number) {
 	return Math.max(min, Math.min(value, max))
+}
+
+/**
+ * Converts the text to a capital case for parameter's label
+ * except for one letter
+ * @param str original value
+ */
+export function getParamCase(str: string) {
+	return str.length === 1 ? str : Case.capital(str)
 }

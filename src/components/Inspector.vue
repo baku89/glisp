@@ -79,7 +79,6 @@
 
 <script lang="ts">
 import {Component, Vue, Prop, Watch} from 'vue-property-decorator'
-import Case from 'case'
 import {
 	MalVal,
 	MalMap,
@@ -104,7 +103,7 @@ import {
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import VueMarkdown from 'vue-markdown'
-import {clamp} from '@/utils'
+import {clamp, getParamCase} from '@/utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -228,7 +227,7 @@ export default class Inspector extends Vue {
 				const keys = restDesc[K_KEYS] as [string, Desc][]
 				const keywordsDescs = keys.map((desc: Desc) => {
 					const predefinedDesc = {
-						[K_LABEL]: Case.capital(desc[K_KEY].slice(1))
+						[K_LABEL]: getParamCase(desc[K_KEY].slice(1))
 					}
 					return {...predefinedDesc, ...desc}
 				})
@@ -328,7 +327,7 @@ export default class Inspector extends Vue {
 						const pi = i === restPos ? restPos + 1 : i
 						desc[K_LABEL] =
 							fnMetaParams && fnMetaParams[pi]
-								? Case.capital((fnMetaParams[pi] as string).slice(1))
+								? getParamCase((fnMetaParams[pi] as string).slice(1))
 								: ''
 					}
 				}
