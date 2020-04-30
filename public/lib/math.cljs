@@ -157,8 +157,8 @@
   {:doc "Returns translation matrix"
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
    :return [:type "mat2d" :desc "Transform matrix"]
-   :handles {:draw-handle (fn [pos]
-                            [{:type "point" :id :move :pos pos}])
+   :handles {:draw (fn [pos]
+                     [{:type "point" :id :move :pos pos}])
              :on-drag (fn [id p]
                         [p])}}
   [[x y]]
@@ -169,8 +169,8 @@
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
    :return {:type "mat2d"}
-   :handles {:draw-handle (fn [x]
-                            [{:type "point" :id :move :pos [x 0]}])
+   :handles {:draw (fn [x]
+                     [{:type "point" :id :move :pos [x 0]}])
              :on-drag (fn [id p]
                         [(.x p)])}}
   [x] [1 0 0 1 x 0])

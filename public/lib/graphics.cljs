@@ -108,7 +108,7 @@
 (defn text
   {:doc "Generate a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
-            {:label "Pos" :type "vec2"}
+            {:type "vec2"}
             &
             {:keys [{:key :size :type "number" :default 12}
                     {:key :font :type "string" :default "Fira Code"}
@@ -116,6 +116,8 @@
                      :enum ["left" "center" "right" "start" "end"]}
                     {:key :baseline :type "string" :default "middle"
                      :enum ["top" "hanging" "middle"
-                            "alphabetic" "ideographic" "bottom"]}]}]}
-  [text [x y] & xs]
-  [:text text [x y] (apply hash-map xs)])
+                            "alphabetic" "ideographic" "bottom"]}]}]
+   :handles {:draw (fn [_ pos] [{:id :center :type "point" :pos pos}])
+             :on-drag (fn [id p params] (replace-nth params 1 p))}}
+  [text pos & xs]
+  [:text text pos (apply hash-map xs)])

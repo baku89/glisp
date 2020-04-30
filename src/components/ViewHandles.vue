@@ -110,7 +110,7 @@ export default class ViewHandles extends Vue {
 			if (meta[K('alias')] && meta[K('alias')][K('meta')]) {
 				return meta[K('alias')][K('meta')][K('handles')] || null
 			} else {
-				exp[M_FN][M_META][K('handles')] || null
+				return meta[K('handles')] || null
 			}
 		}
 
@@ -119,7 +119,7 @@ export default class ViewHandles extends Vue {
 
 	private get handles(): {type: string; id: any; style: any}[] | null {
 		if (this.handleInfo && this.params) {
-			const drawHandle = this.handleInfo[K('draw-handle')]
+			const drawHandle = this.handleInfo[K('draw')]
 
 			const handles = drawHandle(...this.params)
 

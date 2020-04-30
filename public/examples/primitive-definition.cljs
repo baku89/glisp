@@ -16,7 +16,7 @@
 
    ;; Handles definition
    :handles
-   {:draw-handle
+   {:draw
     ;; Returns a list of handles with ID
     ;; from the function's parameters
     (fn [c n rmin rmax]
