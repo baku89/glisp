@@ -14,7 +14,7 @@ export default class InputNumber extends Vue {
 
 	get step() {
 		const float = this.value.toString().split('.')[1]
-		return float !== undefined ? Math.pow(10, -float.length) : 1
+		return float !== undefined ? Math.min(Math.pow(10, -float.length), 0.1) : 1
 	}
 
 	onInput(e: InputEvent) {
