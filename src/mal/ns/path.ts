@@ -1,5 +1,5 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
-import {vec2} from 'gl-matrix'
+import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
 import paper from 'paper'
@@ -290,12 +290,6 @@ function pathLength(_path: PathType) {
 	return path.length
 }
 
-type LengthFunctionType = (len: number, path: PathType) => MalVal
-
-function convertToNormalizedLengthFunction(f: LengthFunctionType) {
-	return (t: number, path: PathType) => f(t * pathLength(path), path)
-}
-
 function makeOpen(path: PathType) {
 	if (closedQ(path)) {
 		path = path.slice(0, path.length - 1)
@@ -334,89 +328,103 @@ function pathJoin(first: PathType, ...rest: PathType[]) {
 	return ret
 }
 
-function positionAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCurveAtLength(len, path)
-
-	switch (cmd) {
-		case K_L:
-		case K_Z: {
-			// const first =
-			const pos = vec2.lerp(
-				vec2.create(),
-				points[0] as vec2,
-				points[points.length - 1] as vec2,
-				t
-			)
-			return pos
-		}
-		case K_C: {
-			const bezier = getBezier(points)
-			const {x, y} = bezier.get(t)
-			return [x, y]
-		}
+// Get Path Property
+type NormalizedFunctionType = (
+	t: number,
+	path: PathType,
+	paperPath?: paper.Path
+) => MalVal
+function convertToNormalizedFunction(f: NormalizedFunctionType) {
+	return (t: number, path: PathType) => {
+		const paperPath = getPaperPath(path)
+		return f(t * paperPath.length, path, paperPath)
 	}
-
-	throw new LispError(`[path/position-at-length] Don't know why this error...`)
 }
 
-function normalAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCurveAtLength(len, path)
-
-	// Invert normal if the path is clockwise
-	const mul = getPathRotation(path) === 1 ? -1 : 1
-
-	switch (cmd) {
-		case K_L:
-		case K_Z: {
-			const dir = vec2.sub(
-				vec2.create(),
-				points[points.length - 1] as vec2,
-				points[0] as vec2
-			)
-			vec2.normalize(dir, dir)
-			vec2.rotate(dir, dir, [0, 0], HALF_PI * mul)
-			return dir
-		}
-		case K_C: {
-			const bezier = getBezier(points)
-			const {x, y} = bezier.normal(t)
-			return [x * mul, y * mul]
-		}
+function getPropertyAtLength(
+	offset: number,
+	path: PathType,
+	methodName: string,
+	paperPath?: paper.Path
+) {
+	if (!paperPath) {
+		paperPath = getPaperPath(path)
 	}
+	offset = clamp(offset, 0, paperPath.length)
 
-	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
+	return (paperPath as any)[methodName](offset)
 }
 
-function angleAtLength(len: number, path: PathType) {
-	const [[cmd, ...points], t] = findCurveAtLength(len, path)
+function normalAtLength(
+	offset: number,
+	path: PathType,
+	paperPath?: paper.Path
+) {
+	const ret = getPropertyAtLength(
+		offset,
+		path,
+		'getNormalAt',
+		paperPath
+	) as paper.Point
+	return markMalVector([ret.x, ret.y])
+}
 
-	let dir: vec2 | null = null
+function positionAtLength(
+	offset: number,
+	path: PathType,
+	paperPath?: paper.Path
+) {
+	const {point} = getPropertyAtLength(
+		offset,
+		path,
+		'getLocationAt',
+		paperPath
+	) as paper.CurveLocation
+	return markMalVector([point.x, point.y])
+}
 
-	switch (cmd) {
-		case K_L:
-		case K_Z: {
-			dir = vec2.sub(
-				vec2.create(),
-				points[points.length - 1] as vec2,
-				points[0] as vec2
-			)
-			vec2.normalize(dir, dir)
-			break
-		}
-		case K_C: {
-			const bezier = getBezier(points)
-			const {x, y} = bezier.normal(t)
-			dir = vec2.fromValues(x, y)
-			vec2.rotate(dir, dir, [0, 0], -HALF_PI)
-			break
-		}
+function tangentAtLength(
+	offset: number,
+	path: PathType,
+	paperPath?: paper.Path
+) {
+	const ret = getPropertyAtLength(
+		offset,
+		path,
+		'getTangentAt',
+		paperPath
+	) as paper.Point
+	return markMalVector([ret.x, ret.y])
+}
+
+function angleAtLength(offset: number, path: PathType, paperPath?: paper.Path) {
+	const tangent = getPropertyAtLength(
+		offset,
+		path,
+		'getTangentAt',
+		paperPath
+	) as paper.Point
+	return tangent.angleInRadians
+}
+
+function aligningMatrixAtLength(
+	offset: number,
+	path: PathType,
+	paperPath?: paper.Path
+) {
+	if (!paperPath) {
+		paperPath = getPaperPath(path)
 	}
+	offset = clamp(offset, 0, paperPath.length)
 
-	if (dir) {
-		return Math.atan2(dir[1], dir[0])
-	}
+	const tangent = paperPath.getTangentAt(offset)
+	const {point} = paperPath.getLocationAt(offset)
 
-	throw new LispError(`[path/normal-at-length] Don't know why this error...`)
+	const mat = mat2d.fromTranslation(mat2d.create(), [point.x, point.y])
+
+	mat2d.rotate(mat, mat, tangent.angleInRadians)
+
+	return markMalVector([...mat])
 }
 
 function arc([x, y]: vec2, r: number, start: number, end: number): MalVal[] {
@@ -809,14 +817,25 @@ const jsObjects = [
 	['path/offset', offset],
 	['path/length', pathLength],
 	['path/closed?', closedQ],
+
+	// Get Property
 	['path/position-at-length', positionAtLength],
-	['path/position-at', convertToNormalizedLengthFunction(positionAtLength)],
+	['path/position-at', convertToNormalizedFunction(positionAtLength)],
 	['path/normal-at-length', normalAtLength],
-	['path/normal-at', convertToNormalizedLengthFunction(normalAtLength)],
+	['path/normal-at', convertToNormalizedFunction(normalAtLength)],
 	['path/angle-at-length', angleAtLength],
-	['path/angle-at', convertToNormalizedLengthFunction(angleAtLength)],
-	['path/trim-by-length', trimByLength],
+	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
+	['path/aligning-matrix-at-length', aligningMatrixAtLength],
+	[
+		'path/aligning-matrix-at',
+		convertToNormalizedFunction(aligningMatrixAtLength)
+	],
+
+	// Manipulation
 	['path/trim', pathTrim],
+	['path/trim-by-length', trimByLength],
+
+	// Utility
 	[
 		'path/split-segments',
 		([_, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
