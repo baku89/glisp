@@ -7,59 +7,73 @@
 			</div>
 			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
-		<div class="Inspector__params" v-if="paramDescs">
-			<div
+		<table class="Inspector__params">
+			<tr
 				v-for="(desc, i) in paramDescs.descs"
 				:key="i"
 				class="Inspector__param"
 				:class="{'is-default': params[i].isDefault}"
 			>
-				<label class="label">{{ desc['ʞlabel'] }}</label>
-				<InputNumber
-					v-if="params[i].type === 'number'"
-					:value="params[i].value"
-					:validator="desc['validator']"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputString
-					v-else-if="params[i].type === 'string'"
-					:value="params[i].value"
-					:validator="desc['validator']"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputDropdown
-					v-else-if="params[i].type === 'dropdown'"
-					:value="params[i].value"
-					:values="desc['ʞenum']"
-					:validator="desc['validator']"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputColor
-					v-else-if="params[i].type === 'color'"
-					:value="params[i].value"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputVec2
-					v-else-if="params[i].type === 'vec2'"
-					:value="params[i].value"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputString
-					style="color: var(--purple)"
-					v-else-if="params[i].type === 'symbol'"
-					:value="params[i].value.slice(1)"
-					:validator="symbolValidator"
-					@input="onParamInput(i, $event)"
-				/>
-				<InputString
-					v-else-if="params[i].type === 'keyword'"
-					:value="params[i].value.slice(1)"
-					:validator="keywordValidator"
-					@input="onParamInput(i, $event)"
-				/>
-				<div v-else class="expr">{{ printExp(params[i].value) }}</div>
-			</div>
-		</div>
+				<td class="label">{{ desc['ʞlabel'] }}</td>
+				<td class="value">
+					<div class="input">
+						<InputNumber
+							v-if="params[i].type === 'number'"
+							:value="params[i].value"
+							:validator="desc['validator']"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputString
+							v-else-if="params[i].type === 'string'"
+							:value="params[i].value"
+							:validator="desc['validator']"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputDropdown
+							v-else-if="params[i].type === 'dropdown'"
+							:value="params[i].value"
+							:values="desc['ʞenum']"
+							:validator="desc['validator']"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputColor
+							v-else-if="params[i].type === 'color'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputVec2
+							v-else-if="params[i].type === 'vec2'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputString
+							style="color: var(--purple)"
+							v-else-if="params[i].type === 'symbol'"
+							:value="params[i].value.slice(1)"
+							:validator="symbolValidator"
+							@input="onParamInput(i, $event)"
+						/>
+						<InputString
+							v-else-if="params[i].type === 'keyword'"
+							:value="params[i].value.slice(1)"
+							:validator="keywordValidator"
+							@input="onParamInput(i, $event)"
+						/>
+						<div v-else class="expr">{{ printExp(params[i].value) }}</div>
+					</div>
+					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+						<i class="far fa-times-circle" />
+					</button>
+					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+				</td>
+			</tr>
+			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
+				<td class="label"></td>
+				<td class="value">
+					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
+				</td>
+			</tr>
+		</table>
 	</div>
 </template>
 
@@ -84,11 +98,13 @@ import {
 	symbolFor as S,
 	isString,
 	isKeyword,
-	assocBang
+	assocBang,
+	cloneAST
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import VueMarkdown from 'vue-markdown'
+import {clamp} from '@/utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -121,6 +137,17 @@ interface ParamDescs {
 		pos: number
 		type: RestType
 	}
+}
+
+const EmptyParamDescs = {
+	descs: [],
+	rest: null
+}
+
+const InterpolateFuncs = {
+	number: (a: number, b: number) => (a + b) / 2,
+	vec2: (a: number[], b: number[]) =>
+		markMalVector([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])
 }
 
 type MetaDescs = (Desc | string)[]
@@ -246,9 +273,9 @@ export default class Inspector extends Vue {
 		return type || 'any'
 	}
 
-	private get paramDescs(): ParamDescs | null {
+	private get paramDescs(): ParamDescs {
 		if (!this.fn || !this.fnParams) {
-			return null
+			return EmptyParamDescs
 		}
 
 		const value = this.value as MalVal[]
@@ -340,7 +367,7 @@ export default class Inspector extends Vue {
 				return desc
 			})
 		}
-		return paramDescs
+		return paramDescs || EmptyParamDescs
 	}
 
 	private getInputType(value: MalVal, desc: Desc): string {
@@ -380,8 +407,16 @@ export default class Inspector extends Vue {
 		}
 	}
 
+	private get variadicPos(): number {
+		if (this.paramDescs.rest && this.paramDescs.rest.type === 'variadic') {
+			return this.paramDescs.rest.pos
+		} else {
+			return this.paramDescs.descs.length
+		}
+	}
+
 	private get params(): Param[] {
-		if (!this.paramDescs || !this.fnParams) {
+		if (!this.fnParams) {
 			return []
 		}
 
@@ -418,7 +453,7 @@ export default class Inspector extends Vue {
 	}
 
 	private onParamInput(i: number, value: MalVal) {
-		if (!this.paramDescs || !this.fnParams) {
+		if (!this.fnParams) {
 			return
 		}
 
@@ -464,6 +499,47 @@ export default class Inspector extends Vue {
 
 		const newValue = [(this.value as MalVal[])[0], ...newParams]
 
+		this.$emit('input', newValue)
+	}
+
+	private onParamDelete(i: number) {
+		if (!this.fnParams) {
+			return
+		}
+
+		const newParams = [...this.fnParams]
+		newParams.splice(i, 1)
+
+		const newValue = [(this.value as MalVal[])[0], ...newParams]
+		this.$emit('input', newValue)
+	}
+
+	private onParamInsert(i: number) {
+		if (!this.fnParams) {
+			return
+		}
+
+		const newParams = [...this.fnParams]
+
+		const type = this.params[this.variadicPos].type
+		const interporateFunc = (InterpolateFuncs as any)[type] || null
+
+		const imin = this.variadicPos
+		const imax = newParams.length - 1
+
+		let insertedValue
+
+		if (interporateFunc) {
+			const a = newParams[clamp(i - 1, imin, imax)]
+			const b = newParams[clamp(i, imin, imax)]
+			insertedValue = interporateFunc(a, b)
+		} else {
+			insertedValue = cloneAST(newParams[clamp(i - 1, imin, imax)])
+		}
+
+		newParams.splice(i, 0, insertedValue)
+
+		const newValue = [(this.value as MalVal[])[0], ...newParams]
 		this.$emit('input', newValue)
 	}
 
@@ -519,20 +595,33 @@ export default class Inspector extends Vue {
 			font-weight normal
 			font-size 0.95em
 
+	&__params
+		width 100%
+
 	&__param
-		margin-bottom 0.5em
+		position relative
+		margin 0.25em 0
 		height $param-height
 
 		&.is-default
 			opacity 0.5
 
+		td
+			padding 0
+
 		.label
-			float left
 			clear both
-			width 5em
+			padding-right 1em
 			height $param-height
 			color var(--comment)
+			white-space nowrap
 			line-height $param-height
+
+		.value
+			width 99%
+
+		.input
+			float left
 
 		.expr
 			overflow hidden
@@ -541,4 +630,56 @@ export default class Inspector extends Vue {
 			text-overflow ellipsis
 			white-space nowrap
 			line-height $param-height
+
+	button
+		height $param-height
+		color var(--comment)
+		line-height $param-height
+		cursor pointer
+
+		&:hover
+			opacity 1 !important
+
+		&.delete
+			position relative
+			z-index 10
+			opacity 0.5
+
+			&:hover
+				color var(--red)
+
+		&.insert
+			position absolute
+			// background blue
+			font-weight normal
+			opacity 0
+			transform translate(-1em, -66%)
+
+			&:hover
+				color var(--aqua)
+
+			&:before
+				position absolute
+				top 50%
+				right 0
+				display block
+				width 100%
+				width 23em
+				height 0.5em
+				// background red
+				content ''
+				transform translateY(-50%)
+
+		&.add
+			margin-top 0.3em
+			padding 0.1em 0.5em
+			height auto
+			border 1px solid var(--comment)
+			border-radius 3px
+			color var(--comment)
+			font-size 0.9em
+
+			&:hover
+				border-color var(--aqua)
+				color var(--aqua)
 </style>

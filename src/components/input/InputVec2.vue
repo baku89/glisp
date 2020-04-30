@@ -44,7 +44,7 @@ export default class InputVec2 extends Vue {
 
 	&__el
 		margin-right 0.5em
-		width 4em
+		width 5em
 
 		&:last-child
 			margin-right 0
