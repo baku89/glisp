@@ -21,9 +21,31 @@ export function clamp(value: number, min: number, max: number) {
 
 /**
  * Converts the bind expression to parameter's label
- * @param str original value
+ * @param exp A bind expression
  */
-export function getParamLabel(ast: MalVal) {
-	const str = isKeyword(ast) || isSymbol(ast) ? ast.slice(1) : printExp(ast)
+export function getParamLabel(exp: MalVal) {
+	const str = isKeyword(exp) || isSymbol(exp) ? exp.slice(1) : printExp(exp)
 	return str.length === 1 ? str : Case.capital(str)
+}
+
+const valueSymbol = Symbol('NonReactive.value')
+
+/**
+ * The utility class holds a value which does not need to be watched by Vue
+ */
+export class NonReactive<T> {
+	constructor(value: T) {
+		;(this as any)[valueSymbol] = value
+	}
+
+	public get value(): T {
+		return (this as any)[valueSymbol]
+	}
+}
+
+/**
+ * Creates NonReactive object
+ */
+export function nonReactive<T>(value: T): NonReactive<T> {
+	return new NonReactive(value)
 }

@@ -75,7 +75,7 @@ import {
 	LispError
 } from '@/mal/types'
 
-import {replaceRange} from '@/utils'
+import {replaceRange, NonReactive, nonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findAstByPosition, findAstByRange} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
@@ -108,8 +108,10 @@ export default class App extends Vue {
 	private setupCount = 0
 
 	private expr: MalVal = null
-	private viewExpr: MalVal = null
-	private viewEnv: Env | null = null
+
+	// Passed to Viewer (nonReactive)
+	private viewExpr: NonReactive<MalVal> | null = null
+	// private viewEnv: NonReactive<Env> | null = null
 
 	private initialCode!: string
 
@@ -240,8 +242,8 @@ export default class App extends Vue {
 				guideColor: this.guideColor
 			})
 
-			this.viewEnv = env
-			this.viewExpr = output
+			// this.viewEnv = nonReactive(env)
+			this.viewExpr = nonReactive(output)
 		} catch (err) {
 			if (err instanceof LispError) {
 				printer.error(err.message)

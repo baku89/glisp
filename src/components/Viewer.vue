@@ -63,13 +63,14 @@ import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
 import CanvasRendererDelegate from '@/renderer/CanvasRenderer'
 import {printer} from '../mal/printer'
+import {NonReactive} from '../utils'
 
 @Component({
 	directives: {ClickOutside},
 	components: {ResizeObserver}
 })
 export default class Viewer extends Vue {
-	@Prop({required: true}) private expr!: MalVal
+	@Prop({required: true}) private expr!: NonReactive<MalVal> | null
 	@Prop({required: true}) private guideColor!: string
 
 	// private activePen: string | null = null
@@ -120,7 +121,8 @@ export default class Viewer extends Vue {
 			return
 		}
 		try {
-			const sidefxs: any = await this.renderer.render(this.expr, {
+			const expr = this.expr.value
+			const sidefxs: any = await this.renderer.render(expr, {
 				guideColor: this.guideColor
 			})
 
