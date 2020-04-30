@@ -282,7 +282,7 @@ export default class Inspector extends Vue {
 		const fnMetaParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
 
 		// Check if the function has parmeter info as metadata
-		if (typeof this.fnMeta === 'object' && K_PARAMS in this.fnMeta) {
+		if (this.fnMeta && K_PARAMS in this.fnMeta) {
 			const metaDescs = this.fnMeta[K_PARAMS]
 
 			if (Array.isArray(metaDescs[0])) {
