@@ -2,7 +2,12 @@
 	<div class="ViewHandles">
 		<div class="ViewHandles__transform" :style="transformStyle">
 			<template v-for="({type, id, style}, i) in handles">
-				<div :key="i" :class="type" :style="style" @mousedown="onMousedown(id, $event)" />
+				<div
+					:key="i"
+					:class="type"
+					:style="style"
+					@mousedown="onMousedown(id, $event)"
+				/>
 			</template>
 		</div>
 	</div>
@@ -23,6 +28,18 @@ import {
 	isMap
 } from '../mal/types'
 import {mat2d, vec2} from 'gl-matrix'
+
+const K_ALIAS = K('alias'),
+	K_ANGLE = K('angle'),
+	K_HANDLES = K('handles'),
+	K_ID = K('id'),
+	K_META = K('meta'),
+	K_POS = K('pos'),
+	K_TYPE = K('type'),
+	K_TRANSFORM = K('transform'),
+	K_DRAW = K('draw'),
+	K_ON_DRAG = K('on-drag'),
+	K_CHANGE_ID = K('change-id')
 
 @Component({})
 export default class ViewHandles extends Vue {
@@ -50,9 +67,9 @@ export default class ViewHandles extends Vue {
 			isVector(exp) &&
 			isKeyword(exp[0]) &&
 			isMap(exp[1]) &&
-			exp[1][K('transform')] !== undefined
+			exp[1][K_TRANSFORM] !== undefined
 		) {
-			let elXform = exp[1][K('transform')] as any
+			let elXform = exp[1][K_TRANSFORM] as any
 			elXform = elXform[M_EVAL] || elXform
 
 			mat2d.multiply(xform, elXform, xform)
@@ -107,10 +124,10 @@ export default class ViewHandles extends Vue {
 		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
 			const meta = exp[M_FN][M_META]
 
-			if (meta[K('alias')] && meta[K('alias')][K('meta')]) {
-				return meta[K('alias')][K('meta')][K('handles')] || null
+			if (meta[K_ALIAS] && meta[K_ALIAS][K_META]) {
+				return meta[K_ALIAS][K_META][K_HANDLES] || null
 			} else {
-				return meta[K('handles')] || null
+				return meta[K_HANDLES] || null
 			}
 		}
 
@@ -119,22 +136,22 @@ export default class ViewHandles extends Vue {
 
 	private get handles(): {type: string; id: any; style: any}[] | null {
 		if (this.handleInfo && this.params) {
-			const drawHandle = this.handleInfo[K('draw')]
+			const drawHandle = this.handleInfo[K_DRAW]
 
 			const handles = drawHandle(...this.params)
 
 			return handles.map((h: any) => {
-				const type = h[K('type')]
-				const pos = h[K('pos')]
+				const type = h[K_TYPE]
+				const pos = h[K_POS]
 
 				const style: any = {left: pos[0] + 'px', top: pos[1] + 'px'}
 
 				if (type === 'biarrow') {
-					style['transform'] = `rotate(${h[K('angle')]}rad)`
+					style['transform'] = `rotate(${h[K_ANGLE]}rad)`
 				}
 
 				return {
-					id: h[K('id')],
+					id: h[K_ID],
 					type,
 					style
 				}
@@ -157,7 +174,7 @@ export default class ViewHandles extends Vue {
 			return
 		}
 
-		const onDrag = this.handleInfo[K('on-drag')]
+		const onDrag = this.handleInfo[K_ON_DRAG]
 
 		const viewRect = this.$el.getBoundingClientRect()
 
@@ -170,7 +187,7 @@ export default class ViewHandles extends Vue {
 
 		let newParams = onDrag(this.draggingId, pos, this.params) as MalVal[]
 
-		if (newParams[0] === K('change-id')) {
+		if (newParams[0] === K_CHANGE_ID) {
 			this.draggingId = newParams[1]
 			newParams = newParams[2] as MalVal[]
 		}

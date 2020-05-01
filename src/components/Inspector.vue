@@ -3,7 +3,7 @@
 		<div class="Inspector__header" v-if="fn">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span v-if="isAlias" class="alias">--> alias for {{isAlias}}</span>
+				<span v-if="isAlias" class="alias">--> alias for {{ isAlias }}</span>
 			</div>
 			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
@@ -61,16 +61,28 @@
 						/>
 						<div v-else class="expr">{{ printExp(params[i].value) }}</div>
 					</div>
-					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+					<button
+						class="delete"
+						v-if="i >= variadicPos"
+						@click="onParamDelete(i)"
+					>
 						<i class="far fa-times-circle" />
 					</button>
-					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+					<button
+						class="insert"
+						v-if="i >= variadicPos"
+						@click="onParamInsert(i)"
+					>
+						&lt;-- Insert
+					</button>
 				</td>
 			</tr>
 			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 				<td class="label"></td>
 				<td class="value">
-					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
+					<button class="add" @click="onParamInsert(params.length)">
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</table>
@@ -114,7 +126,10 @@ const K_DOC = K('doc'),
 	K_DEFAULT = K('default'),
 	K_KEY = K('key'),
 	K_KEYS = K('keys'),
-	K_ENUM = K('enum')
+	K_ALIAS = K('alias'),
+	K_ENUM = K('enum'),
+	K_NAME = K('name'),
+	K_META = K('meta')
 
 const S_AMP = S('&')
 
@@ -170,8 +185,8 @@ export default class Inspector extends Vue {
 	}
 
 	private get isAlias(): string | null {
-		return this.fnOrigMeta && K('alias') in this.fnOrigMeta
-			? this.fnOrigMeta[K('alias')][K('name')]
+		return this.fnOrigMeta && K_ALIAS in this.fnOrigMeta
+			? this.fnOrigMeta[K_ALIAS][K_NAME]
 			: null
 	}
 
@@ -188,9 +203,7 @@ export default class Inspector extends Vue {
 	}
 
 	private get fnMeta() {
-		return this.isAlias
-			? this.fnOrigMeta[K('alias')][K('meta')]
-			: this.fnOrigMeta
+		return this.isAlias ? this.fnOrigMeta[K_ALIAS][K_META] : this.fnOrigMeta
 	}
 
 	private get fnDesc(): string {
