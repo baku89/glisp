@@ -40,7 +40,7 @@
 		"ftp-deploy": "^2.3.7",
 		"gl-matrix": "^3.3.0",
 		"jq-console": "^2.13.2",
-		"jquery": "^3.4.1",
+		"jquery": "^3.5.0",
 		"normalize.css": "^8.0.1",
 		"paper": "^0.12.4",
 		"perf_hooks": "^0.0.1",
