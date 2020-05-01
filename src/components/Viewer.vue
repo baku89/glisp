@@ -61,9 +61,9 @@ import {viewREP} from '@/mal/view'
 import {symbolFor as S, MalVal, LispError} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
-import CanvasRendererDelegate from '@/renderer/CanvasRenderer'
 import {printer} from '../mal/printer'
 import {NonReactive} from '../utils'
+import createCanvasRender, {CanvasRendererType} from '@/renderer/CanvasRenderer'
 
 @Component({
 	directives: {ClickOutside},
@@ -91,33 +91,36 @@ export default class Viewer extends Vue {
 	// 	}
 	// }
 
-	private renderer!: CanvasRendererDelegate
+	private renderer!: CanvasRendererType //CanvasRendererDelegate
 	private canvas!: HTMLCanvasElement
 
-	private mounted() {
+	private async mounted() {
 		this.canvas = this.$refs.canvas as HTMLCanvasElement
-		this.renderer = new CanvasRendererDelegate()
-		this.renderer.init(this.canvas)
-		this.renderer.resize()
+		this.renderer = await createCanvasRender(this.canvas)
 
-		this.onResize()
+		await this.onResize()
 		this.onExprUpdated()
 	}
 
 	private beforeDestroy() {
-		this.renderer.dispose()
+		// this.renderer.dispose()
 	}
 
-	private onResize() {
+	private async onResize() {
+		const width = this.$el.clientWidth
+		const height = this.$el.clientHeight
+		const dpi = window.devicePixelRatio || 1
+		await this.renderer.resize(width, height, dpi)
+
 		this.$emit('resize', [this.$el.clientWidth, this.$el.clientHeight])
-		this.renderer.resize()
+
 		// this.renderer.resize()
 		// this.update()
 	}
 
 	@Watch('expr', {deep: false})
 	private async onExprUpdated() {
-		if (!this.expr) {
+		if (!this.expr || !this.renderer) {
 			return
 		}
 		try {

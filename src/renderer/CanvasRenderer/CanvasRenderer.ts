@@ -33,7 +33,8 @@ const K_G = K('g'),
 	K_STROKE_JOIN = K('stroke-join'),
 	K_STROKE_DASH = K('stroke-dash'),
 	K_POINTS = K('points'),
-	K_STOPS = K('stops')
+	K_STOPS = K('stops'),
+	K_LINEAR_GRADIENT = K('linear-gradient')
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -42,30 +43,10 @@ type CanvasContext =
 	| OffscreenCanvasRenderingContext2D
 
 export default class CanvasRenderer {
-	private canvas!: Canvas
 	private ctx!: CanvasContext
 	private dpi!: number
 
-	public async postMeessage(type: string, params: any) {
-		switch (type) {
-			case 'init':
-				return this.init(params)
-			case 'resize':
-				return this.resize(params)
-			case 'render': {
-				return this.render(params)
-			}
-			case 'get-image':
-				return await this.getImage()
-			default:
-				throw new Error(`undefined task ${type}`)
-				break
-		}
-	}
-
-	private init(params: {canvas: Canvas}) {
-		this.canvas = params.canvas
-
+	constructor(private canvas: Canvas) {
 		const ctx = this.canvas.getContext('2d')
 
 		if (ctx) {
@@ -75,17 +56,13 @@ export default class CanvasRenderer {
 		}
 	}
 
-	private resize(params: {width: number; height: number; dpi: number}) {
-		const {width, height, dpi} = params
-
+	public async resize(width: number, height: number, dpi: number) {
 		this.dpi = dpi
 		this.canvas.width = width * dpi
 		this.canvas.height = height * dpi
 	}
 
-	private render(params: {ast: MalVal; settings: ViewerSettings}) {
-		const {ast, settings} = params
-
+	public async render(ast: MalVal, settings: ViewerSettings) {
 		if (!this.dpi) {
 			throw new Error('trying to render before settings resolution')
 		}
@@ -123,7 +100,7 @@ export default class CanvasRenderer {
 		return this.draw([], ast, [], defaultStyle)
 	}
 
-	private async getImage() {
+	public async getImage() {
 		let blob: Blob
 
 		if (this.canvas instanceof OffscreenCanvas) {
@@ -314,7 +291,7 @@ export default class CanvasRenderer {
 		} else if (Array.isArray(style)) {
 			const [type, params] = style as [string, MalMap]
 			switch (type) {
-				case K('linear-gradient'): {
+				case K_LINEAR_GRADIENT: {
 					const [x0, y0, x1, y1] = params[K_POINTS] as number[]
 					const stops = params[K_STOPS] as (string | number)[]
 					const grad = this.ctx.createLinearGradient(x0, y0, x1, y1)

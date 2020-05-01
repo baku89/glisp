@@ -5,11 +5,11 @@ import {replEnv} from './repl'
 import readStr, {BlankException} from './reader'
 import {MalVal, LispError, isKeyword, symbolFor as S, keywordFor} from './types'
 import evalExp from './eval'
-import CanvasRenderer from '@/renderer/CanvasRenderer'
 import {viewREP} from './view'
 import {mat3} from 'gl-matrix'
 import FileSaver from 'file-saver'
 import EventEmitter from 'eventemitter3'
+import createCanvasRender from '@/renderer/CanvasRenderer'
 
 export const consoleEnv = new Env(replEnv)
 consoleEnv.name = 'console'
@@ -80,8 +80,7 @@ consoleEnv.set(S('export'), (name: MalVal = null) => {
 			width = consoleEnv.get(S('$width')) as number,
 			height = consoleEnv.get(S('$height')) as number
 
-		const renderer = new CanvasRenderer()
-		renderer.init(document.createElement('canvas'))
+		const renderer = await createCanvasRender()
 
 		const $sketch = consoleEnv.get(S('$sketch'))
 
