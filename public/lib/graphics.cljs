@@ -19,14 +19,20 @@
     (stroke $guide-color (first xs))))
 
 ;; Color
-(defn color? [x]
-  (string? x))
-
-(defn color [& xs]
+(defn color
+  {:doc "Creates a color string"}
+  [& xs]
   (case (count xs)
-    1 (let [v (first xs)] (if (number? v) (format "rgba(%f,%f,%f)" v v v) v))
+    1 (let [v (first xs)]
+        (if (number? v)
+          (format "rgba(%f,%f,%f)" v v v)
+          v))
     3 (apply format "rgba(%f,%f,%f)" xs)
     "black"))
+
+
+(defn color? [x]
+  (string? x))
 
 (defmacro background
   [color]
