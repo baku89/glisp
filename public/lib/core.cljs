@@ -72,7 +72,11 @@
                    (swap! seen assoc filename nil)
                    (import-force filename))))))))
 
-(defn ? [f]
+(defn ?
+  {:doc "Show the help of function"
+   :params [{:label "Function" :type "fn"}]
+   :returns {:type "nil"}}
+  [f]
   (def doc (get (meta f) :doc))
   (cond (string? doc) (println doc)
         (map? doc) (do
@@ -93,7 +97,11 @@
                      nil)
         :else (println "No document")))
 
-(defn type [x]
+(defn type
+  {:doc "Retruns the type of `x` in keyword"
+   :params [{:label "Value" :type "any"}]
+   :returns {:type "keyword"}}
+  [x]
   (cond (number? x) :number
         (string? x) :string
         (boolean? x) :boolean
@@ -104,7 +112,11 @@
         (fn? x) :fn
         (macro? x) :macro))
 
-(defn name [x]
+(defn name
+  {:doc "Returns the string name of string, symbol or keyword"
+   :params [{:type "any"}]
+   :returns {:type "string"}}
+  [x]
   (cond (string? x) x
         (symbol? x) (str x) ;; Might be hacky too as below
         (keyword? x) (subs (str x) 1) ;; Might be hacky as it simply removes keyword prefix

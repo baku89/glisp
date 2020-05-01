@@ -8,7 +8,7 @@
   {:doc  "Generate a rect path"
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
             {:label "Size" :type "vec2" :desc "size of the rectangle"}]
-   :return {:type "path"}
+   :returns {:type "path"}
    :handles {:draw (fn [pos size]
                      [{:type "point" :id :top-left :pos pos}
                       {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
@@ -133,7 +133,7 @@
 (defn path/translate
   {:doc "Returns a translated path"
    :params [{:label "Value" :type "vec2"} {:type "path"}]
-   :return {:type "path"}}
+   :returns {:type "path"}}
   [t path]
   (path/map-points #(vec2/+ % t) path))
 
@@ -149,7 +149,7 @@
 (defn path/scale-x
   {:doc "Returns a path scaled along x-axis"
    :params [{:label "Value" :type "vec2"} {:type "path"}]
-   :return {:type "path"}}
+   :returns {:type "path"}}
   [sx path]
   (path/map-points #(vec2/* % [sx 1]) path))
 
@@ -162,6 +162,6 @@
 (defn path/merge
   {:doc "Returns a merged path"
    :params [& {:type "path"}]
-   :return {:type "path"}}
+   :returns {:type "path"}}
   [& paths]
   (vec (concat :path (apply concat (map rest paths)))))

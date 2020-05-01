@@ -8,7 +8,9 @@
 (def $line-width 1)
 
 ;; Sketch
-(defn normalize-element [el]
+(defn normalize-element
+  {:private true}
+  [el]
   (let [tag (first el) content (rest el)]
     (if (keyword? tag)
       (cond (= tag :g)
@@ -30,10 +32,14 @@
 
 
 ;; Pens and Hands
-(defmacro begin-draw [state]
+(defmacro begin-draw
+  {:private true}
+  [state]
   `(def ~state nil))
 
-(defmacro draw [f state input]
+(defmacro draw
+  {:private true}
+  [f state input]
   `(do
      (def __ret__ (~f ~state ~input))
      (def ~state (if (first __ret__) __ret__ (concat (list (first ~state)) (rest __ret__))))
@@ -42,12 +48,16 @@
 (def $pens [])
 (def $hands [])
 
-(defmacro defpen [name params body]
+(defmacro defpen
+  {:private true}
+  [name params body]
   `(do
      (def ~name (fn ~params ~body))
      (def $pens (conj $pens '~name))))
 
-(defmacro defhand [name params body]
+(defmacro defhand
+  {:private true}
+  [name params body]
   `(do
      (def ~name (fn ~params ~body))
      (def $hands (conj $hands '~name))))

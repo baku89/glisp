@@ -6,18 +6,35 @@
   {:doc "Calculates a number between two numbers at a specific increment"
    :params [{:type "number" :desc "First value"}
             {:type "number" :desc "Second value"}
-            {:type "number" :desc "Normalized amount to interpolate between the two values"}]}
+            {:type "number" :desc "Normalized amount to interpolate between the two values"}]
+   :returns {:type "number"}}
   [a b t] (+ b (* (- a b) t)))
-(defn deg [x] (/ (* x 180) PI))
-(defn rad [x] (/ (* x PI) 180))
+(defn deg
+  {:doc "Converts radians to degrees"
+   :params [{:type "number"}]
+   :returns {:type "number"}}
+  [radians] (/ (* radians 180) PI))
+(defn rad
+  {:doc "Converts degrees to radians"
+   :params [{:type "number"}]
+   :returns {:type "number"}}
+  [degrees] (/ (* degrees PI) 180))
 
 
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
 ;; http://glmatrix.net/docs/vec2.js.htm
 
-(def .x first)
-(def .y second)
+(def .x
+  ^{:doc "Get x value from vec2"
+    :params [{:label "Value" :type "vec2"}]
+    :returns {:type "number"}}
+  first)
+(def .y
+  ^{:doc "Get y value from vec2"
+    :params [{:label "Value" :type "vec2"}]
+    :returns {:type "number"}}
+  second)
 
 ;; vec2
 ;; http://glmatrix.net/docs/module-vec2.html
@@ -27,29 +44,17 @@
    :params [[{:label "x & y" :type "number" :default 0}]
             [{:label "x" :type "number"}
              {:label "y" :type "number"}]]
-   :return {:type "vec2"}}
+   :returns {:type "vec2"}}
   [& xs]
   (case (count xs)
     0 [0 0]
     1 (let [v (first xs)] [v v])
     2 (vec xs)))
 
-(defn vec2/dir
-  {:doc "Createsa a vec2 with specified angle and length"
-   :params [{:label "Angle" :type "number"}
-            {:label "Length" :type "number" :default 1}]}
-  [a & xs]
-  (case (count xs)
-    0 [(cos a) (sin a)]
-    1 (let [l (first xs)] [(* l (cos a)) (* l (sin a))])))
-
-(defn vec2/angle [[x y]] (atan2 y x))
-
-
 (defn vec2?
   {:doc "Checks if x is vec2"
    :params [{:type "any"}]
-   :return {:type "boolean"}}
+   :returns {:type "boolean"}}
   [x]
   (and
    (sequential? x)
@@ -60,96 +65,164 @@
 (defn vec2/+
   {:doc "Adds two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :return {:type "vec2"}}
+   :returns {:type "vec2"}}
   [a b]
   [(+ (.x a) (.x b))
    (+ (.y a) (.y b))])
 
 (defn vec2/-
   {:doc "Subtracts *b* from *a*"
-   :params [{:type "vec2"} {:type "vec2"}]}
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "vec2"}}
   [a b]
   [(- (.x a) (.x b))
    (- (.y a) (.y b))])
 
 (defn vec2/*
   {:doc "Multiplies two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]}
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "vec2"}}
   [a b]
   [(* (.x a) (.x b))
    (* (.y a) (.y b))])
 
 (defn vec2/div
   {:doc "Divides two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]}
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "vec2"}}
   [a b]
   [(/ (.x a) (.x b))
    (/ (.y a) (.y b))])
 
-(defn vec2/ceil [v]
+(defn vec2/ceil
+  {:doc "Rounds a each element up to the next largest integer"
+   :params [{:label "Value" :type "vec2"}]
+   :returns {:type "vec2"}}
+  [v]
   [(ceil (.x v)) (ceil (.y v))])
 
-(defn vec2/floor [v]
+(defn vec2/floor
+  {:doc "Replaces a each element with a largest integer less than or equal to it"
+   :params [{:label "Value" :type "vec2"}]
+   :returns {:type "vec2"}}
+  [v]
   [(floor (.x v)) (floor (.y v))])
 
-(defn vec2/min [v]
-  [(min (.x v)) (min (.y v))])
+(defn vec2/min
+  {:doc "Returns the minimum of two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "vec2"}}
+  [a b]
+  [(min (.x a) (.y b)) (min (.y a) (.y b))])
 
-(defn vec2/max [v]
-  [(max (.x v)) (max (.y v))])
+(defn vec2/max
+  {:doc "Returns the maximum of two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "vec2"}}
+  [a b]
+  [(max (.x a) (.y b)) (max (.y a) (.y b))])
 
 (defn vec2/round [v]
   [(round (.x v)) (round (.y v))])
 
-(defn vec2/scale (v scalar)
-  [(* scalar (.x v))
-   (* scalar (.y v))])
+(defn vec2/dir
+  {:doc "Createsa a vec2 with specified angle and length"
+   :params [{:label "Angle" :type "number"}
+            {:label "Length" :type "number" :default 1}]
+   :returns {:type "vec2"}}
+  [a & xs]
+  (case (count xs)
+    0 [(cos a) (sin a)]
+    1 (let [l (first xs)] [(* l (cos a)) (* l (sin a))])))
+
+(defn vec2/angle
+  {:doc "Returns a angle of vec2 in radians"
+   :params [{:label "Value" :type "vec2"}]
+   :returns {:type "vec2"}}
+  [[x y]]
+  (atan2 y x))
+
+(defn vec2/scale
+  {:doc "Scales a vec2 by a scalar number"
+   :params [{:label "Value" :type "vec2"}
+            {:label "Scale" :type "number"}]
+   :returns {:type "vec2"}}
+  [v s]
+  [(* s (.x v))
+   (* s (.y v))])
 
 ;; a + b * scale
-(defn vec2/scale-add (a b scale)
+(defn vec2/scale-add
+  {:doc "Adds two vec2's after scaling the second operand by a scalar value"
+   :params [{:type "vec2"}
+            {:type "vec2"}
+            {:type "number"}]
+   :returns {:type "vec2"}}
+  [a b scale]
   [(+ (.x a) (* scale (.x b)))
    (+ (.y a) (* scale (.y b)))])
 
-(defn vec2/dist [a b]
+(defn vec2/dist
+  {:doc "Calculate the distance between two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "number"}}
+  [a b]
   (hypot (- (.x b) (.x a)) (- (.y b) (.y a))))
 
 (defn vec2/len [v]
   (hypot (.x v) (.y v)))
 
-(defn vec2/rotate [origin angle v]
-  (let (ox		(.x origin)
-            oy		(.y origin)
-            x			(- (.x v) ox)
-            y			(- (.y v) oy)
+(defn vec2/rotate
+  {:doc "Rotates a vec2"
+   :params [{:type "vec2"}
+            {:type "number"}
+            {:type "vec2"}]
+   :returns {:type "vec2"}}
+  [center angle value]
+  (let (ox		(.x center)
+            oy		(.y center)
+            x			(- (.x value) ox)
+            y			(- (.y value) oy)
             sinC	(sin angle)
             cosC	(cos angle))
     [(+ ox (- (* x cosC) (* y sinC)))
      (+ oy (+ (* x sinC) (* y cosC)))]))
 
-(defn vec2/negate [v]
-  (vec2/scale v -1))
-
-(defn vec2/inverse [v]
-  (vec2/div (vec2 1) v))
-
 ; TODO: Should this return the original value
 ; when its length is zero?
-(defn vec2/normalize [v]
-  (let (len (vec2/len v))
-    (if (> len 0)
-      (vec2/scale v (/ len))
-      v)))
+(defn vec2/normalize
+  {:doc "Normalizes a vec2"
+   :params [{:label "Value" :type "vec2"}]
+   :retruns {:type "vec2"}}
+  [v]
+  (let [len (vec2/len v)])
+  (if (> len 0)
+    (vec2/scale v (/ len))
+    v))
 
-(defn vec2/dot [a b]
+(defn vec2/dot
+  {:doc "Calculates the dot product of two vec2's"
+   :params [{:type "vec2"} {:type "vec2"}]
+   :returns {:type "number"}}
+  [a b]
   (+ (* (.x a) (.x b)) (* (.y a) (.y b))))
 
-(defn vec2/lerp [a b t]
+(defn vec2/lerp
+  {:doc "Performs a linear interpolation between two vec2's"
+   :params [{:type "vec2"} {:type "vec2"} {:type "number"}]
+   :returns {:type "vec2"}}
+  [a b t]
   [(lerp (.x a) (.x b) t)
    (lerp (.y a) (.y b) t)])
 
-(defn vec2/transform-mat2d [a m]
-  (let [x (.x a)
-        y (.y a)]
+(defn vec2/transform-mat2d
+  {:doc "Transforms the vec2 with a mat2d"
+   :params [{:type "vec2"}
+            {:label "Matrix" :type "mat2d"}]
+   :returns {:type "vec2"}}
+  [value m]
+  (let [x (.x value)
+        y (.y value)]
     [(+ (* (nth m 0) x) (* (nth m 2) y) (nth m 4))
      (+ (* (nth m 1) x) (* (nth m 3) y) (nth m 5))]))
 
@@ -162,7 +235,7 @@
 (defn mat2d/translate
   {:doc "Returns translation matrix"
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
-   :return [:type "mat2d" :desc "Transform matrix"]
+   :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [pos]
                      [{:type "point" :id :move :pos pos}])
              :on-drag (fn [id p]
@@ -174,7 +247,7 @@
 (defn mat2d/translate-x
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
-   :return {:type "mat2d"}
+   :returns {:type "mat2d"}
    :handles {:draw (fn [x]
                      [{:type "point" :id :move :pos [x 0]}])
              :on-drag (fn [id p]
@@ -184,63 +257,58 @@
 (defn mat2d/translate-y
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
-   :return {:type "mat2d"}}
+   :returns {:type "mat2d"}}
   [y] [1 0 0 1 0 y])
 
 ;; mat2d/fromScaling, scale
 (defn mat2d/scale
   {:doc  "Returns scaling matrix"
    :params [{:label "Value" :type "vec2"}]
-   :return {:type "mat2d"}}
+   :returns {:type "mat2d"}}
   [s]
   [(.x s) 0 0 (.y s) 0 0])
 
 (defn mat2d/scale-x
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :return {:type "mat2d"}}
+   :returns {:type "mat2d"}}
   [sx] [sx 0 0 1 0 0])
 (defn mat2d/scale-y
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :return {:type "mat2d"}}
+   :returns {:type "mat2d"}}
   [sy] [1 0 0 sy 0 0])
 
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
    :params [{:type "number"}]
-   :return {:type "mat2d"}}
+   :returns {:type "mat2d"}}
   [angle]
   (let [s (sin angle)
         c (cos angle)]
     [c s (- s) c 0 0]))
 
-(defn mat2d/mul [a b]
-  (let [a0 (nth a 0)
-        a1 (nth a 1)
-        a2 (nth a 2)
-        a3 (nth a 3)
-        a4 (nth a 4)
-        a5 (nth a 5)
-        b0 (nth b 0)
-        b1 (nth b 1)
-        b2 (nth b 2)
-        b3 (nth b 3)
-        b4 (nth b 4)
-        b5 (nth b 5)]
-    [(+ (* a0 b0) (* a2 b1))
-     (+ (* a1 b0) (* a3 b1))
-     (+ (* a0 b2) (* a2 b3))
-     (+ (* a1 b2) (* a3 b3))
-     (+ (* a0 b4) (* a2 b5) a4)
-     (+ (* a1 b4) (* a3 b5) a5)]))
+(defn mat2d/mul
+  {:doc "Multipies two mat2d's"
+   :params [{:label "a" :type "mat2d"}
+            {:label "b" :type "mat2d"}]
+   :returns {:type "mat2d"}}
+  [[a0 a1 a2 a3 a4 a5]
+   [b0 b1 b2 b3 b4 b5]]
+  [(+ (* a0 b0) (* a2 b1))
+   (+ (* a1 b0) (* a3 b1))
+   (+ (* a0 b2) (* a2 b3))
+   (+ (* a1 b2) (* a3 b3))
+   (+ (* a0 b4) (* a2 b5) a4)
+   (+ (* a1 b4) (* a3 b5) a5)])
 
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
             &
-            {:label "Matrix" :type "mat2d"}]}
+            {:label "Matrices" :type "mat2d"}]
+   :returns "mat2d"}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/negate p))]
@@ -248,8 +316,8 @@
 
 (defn mat2d/transform
   {:doc "Multiplies the matrices and returns transform matrix"
-   :params [& {:label "Matrix" :type "mat2d"}]
-   :return {:type "mat2d"}}
+   :params [& {:label "Matrices" :type "mat2d"}]
+   :returns {:type "mat2d"}}
   [& xs]
   (reduce mat2d/mul mat2d/ident xs))
 
