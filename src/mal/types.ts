@@ -85,7 +85,7 @@ export function isEqual(a: MalVal, b: MalVal) {
 	}
 }
 
-export function cloneAST(obj: MalVal, newMeta?: MalVal): MalVal {
+export function cloneExp(obj: MalVal, newMeta?: MalVal): MalVal {
 	let newObj = null
 	if (Array.isArray(obj)) {
 		newObj = [...obj]
@@ -103,7 +103,7 @@ export function cloneAST(obj: MalVal, newMeta?: MalVal): MalVal {
 		// copy original properties
 		newObj = Object.assign(fn, obj)
 	} else {
-		throw new LispError('[JS: cloneAST] Unsupported type for clone')
+		throw new LispError('[JS: cloneExp] Unsupported type for clone')
 	}
 
 	if (typeof newMeta !== 'undefined') {
@@ -116,14 +116,14 @@ export function cloneAST(obj: MalVal, newMeta?: MalVal): MalVal {
 // Functions
 export function createMalFunc(
 	fn: (...args: MalVal[]) => MalVal,
-	ast: MalVal,
+	exp: MalVal,
 	env: Env,
 	params: MalBind,
 	meta = null,
 	ismacro = false
 ): MalFunc {
 	const attrs = {
-		[M_AST]: ast,
+		[M_AST]: exp,
 		[M_ENV]: env,
 		[M_PARAMS]: params,
 		[M_META]: meta,

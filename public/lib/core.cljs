@@ -58,8 +58,8 @@
             {:label "Value" :type "any"}]}
   [])
 
-(defmacro macroview [expr]
-  `(prn (macroexpand ~expr)))
+(defmacro macroview [exp]
+  `(prn (macroexpand ~exp)))
 
 (def import
   (try

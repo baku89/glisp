@@ -5,7 +5,7 @@ import {
 	MalVal,
 	MalFunc,
 	MalAtom,
-	cloneAST,
+	cloneExp,
 	isKeyword,
 	keywordFor,
 	assocBang,
@@ -260,12 +260,12 @@ const jsObjects = [
 	['map?', isMap],
 	[
 		'assoc',
-		(m: MalMap, ...a: MalVal[]) => assocBang(cloneAST(m) as MalMap, ...a)
+		(m: MalMap, ...a: MalVal[]) => assocBang(cloneExp(m) as MalMap, ...a)
 	],
 	[
 		'dissoc',
 		(m: MalMap, ...a: string[]) => {
-			const n = cloneAST(m) as MalMap
+			const n = cloneExp(m) as MalMap
 			a.forEach(k => delete n[k])
 			return n
 		}
@@ -322,7 +322,7 @@ const jsObjects = [
 			if (m === undefined) {
 				throw new LispError('[with-meta] Need the metadata to attach')
 			}
-			const c = cloneAST(a)
+			const c = cloneExp(a)
 			;(c as any)[M_META] = m
 			return c
 		}

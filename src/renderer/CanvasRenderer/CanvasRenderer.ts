@@ -62,7 +62,7 @@ export default class CanvasRenderer {
 		this.canvas.height = height * dpi
 	}
 
-	public async render(ast: MalVal, settings: ViewerSettings) {
+	public async render(exp: MalVal, settings: ViewerSettings) {
 		if (!this.dpi) {
 			throw new Error('trying to render before settings resolution')
 		}
@@ -97,7 +97,7 @@ export default class CanvasRenderer {
 			  }
 			: null
 
-		return this.draw([], ast, [], defaultStyle)
+		return this.draw([], exp, [], defaultStyle)
 	}
 
 	public async getImage() {
@@ -129,14 +129,14 @@ export default class CanvasRenderer {
 
 	private draw(
 		ret: any[],
-		ast: MalVal,
+		exp: MalVal,
 		styles: MalMap[],
 		defaultStyle: MalMap | null
 	) {
 		const ctx = this.ctx
 
-		if (Array.isArray(ast)) {
-			const [elm, ...rest] = ast as any[]
+		if (Array.isArray(exp)) {
+			const [elm, ...rest] = exp as any[]
 
 			if (!isKeyword(elm)) {
 				throw new LispError(

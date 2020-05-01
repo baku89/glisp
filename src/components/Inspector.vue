@@ -59,7 +59,7 @@
 							:validator="keywordValidator"
 							@input="onParamInput(i, $event)"
 						/>
-						<div v-else class="expr">{{ printExp(params[i].value) }}</div>
+						<div v-else class="exp">{{ printExp(params[i].value) }}</div>
 					</div>
 					<button
 						class="delete"
@@ -110,7 +110,7 @@ import {
 	isString,
 	isKeyword,
 	assocBang,
-	cloneAST
+	cloneExp
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
@@ -429,7 +429,7 @@ export default class Inspector extends Vue {
 		} else if (isKeyword(value)) {
 			return 'keyword'
 		} else {
-			return 'expr'
+			return 'exp'
 		}
 	}
 
@@ -560,7 +560,7 @@ export default class Inspector extends Vue {
 			const b = newParams[clamp(i, imin, imax)]
 			insertedValue = interporateFunc(a, b)
 		} else {
-			insertedValue = cloneAST(newParams[clamp(i - 1, imin, imax)])
+			insertedValue = cloneExp(newParams[clamp(i - 1, imin, imax)])
 		}
 
 		newParams.splice(i, 0, insertedValue)
@@ -650,7 +650,7 @@ export default class Inspector extends Vue {
 		.input
 			float left
 
-		.expr
+		.exp
 			height $param-height
 			color var(--comment)
 			text-overflow ellipsis

@@ -11,7 +11,7 @@
 import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
 	MalVal,
-	cloneAST,
+	cloneExp,
 	isKeyword,
 	isSymbol,
 	isVector,

@@ -70,7 +70,7 @@ import createCanvasRender, {CanvasRendererType} from '@/renderer/CanvasRenderer'
 	components: {ResizeObserver}
 })
 export default class Viewer extends Vue {
-	@Prop({required: true}) private expr!: NonReactive<MalVal> | null
+	@Prop({required: true}) private exp!: NonReactive<MalVal> | null
 	@Prop({required: true}) private guideColor!: string
 
 	// private activePen: string | null = null
@@ -99,7 +99,7 @@ export default class Viewer extends Vue {
 		this.renderer = await createCanvasRender(this.canvas)
 
 		await this.onResize()
-		this.onExprUpdated()
+		this.onExpUpdated()
 	}
 
 	private beforeDestroy() {
@@ -118,14 +118,14 @@ export default class Viewer extends Vue {
 		// this.update()
 	}
 
-	@Watch('expr', {deep: false})
-	private async onExprUpdated() {
-		if (!this.expr || !this.renderer) {
+	@Watch('exp', {deep: false})
+	private async onExpUpdated() {
+		if (!this.exp || !this.renderer) {
 			return
 		}
 		try {
-			const expr = this.expr.value
-			const sidefxs: any = await this.renderer.render(expr, {
+			const exp = this.exp.value
+			const sidefxs: any = await this.renderer.render(exp, {
 				guideColor: this.guideColor
 			})
 

@@ -2,17 +2,17 @@
 	<div id="app" class="app" :class="{compact}" :style="colors">
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
-			<div class="app__inspector" v-if="selectedExpr">
-				<Inspector :value="selectedExpr" @input="onEditSelected" />
+			<div class="app__inspector" v-if="selectedExp">
+				<Inspector :value="selectedExp" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
 				<ViewHandles
 					class="view-handles"
-					:exp="selectedExpr"
+					:exp="selectedExp"
 					@input="onEditSelected"
 				/>
 				<Viewer
-					:expr="viewExpr"
+					:exp="viewExp"
 					:guide-color="guideColor"
 					@resize="onResizeViewer"
 					@render="onRender"
@@ -109,14 +109,14 @@ export default class App extends Vue {
 	private compact = true
 	private renderError = false
 	private editorMode = 'code'
-	private selectedExpr: MalVal = null
+	private selectedExp: MalVal = null
 	private viewerSize = [0, 0]
 	private setupCount = 0
 
-	private expr: MalVal = null
+	private exp: MalVal = null
 
 	// Passed to Viewer (nonReactive)
-	private viewExpr: NonReactive<MalVal> | null = null
+	private viewExp: NonReactive<MalVal> | null = null
 	// private viewEnv: NonReactive<Env> | null = null
 
 	private initialCode!: string
@@ -132,22 +132,22 @@ export default class App extends Vue {
 
 	@Watch('evalCode')
 	private onEvalCodeUpdated() {
-		this.readExpr()
-		this.evalExpr()
+		this.readStr()
+		this.evalExp()
 	}
 
-	private readExpr() {
-		let expr
+	private readStr() {
+		let exp
 		try {
-			expr = readStr(this.evalCode, true)
+			exp = readStr(this.evalCode, true)
 		} catch (err) {
 			if (!(err instanceof BlankException)) {
 				printer.error(err)
 			}
-			expr = null
+			exp = null
 		}
 
-		this.expr = expr
+		this.exp = exp
 	}
 
 	private created() {
@@ -201,12 +201,12 @@ export default class App extends Vue {
 
 		appHandler.on('eval-selected', () => {
 			if (
-				this.selectedExpr &&
+				this.selectedExp &&
 				this.activeRange &&
-				typeof this.selectedExpr === 'object' &&
-				(this.selectedExpr as any)[M_EVAL] !== undefined
+				typeof this.selectedExp === 'object' &&
+				(this.selectedExp as any)[M_EVAL] !== undefined
 			) {
-				const evaled = (this.selectedExpr as any)[M_EVAL]
+				const evaled = (this.selectedExp as any)[M_EVAL]
 				const str = printExp(evaled)
 
 				const [start, end] = this.activeRange
@@ -239,9 +239,9 @@ export default class App extends Vue {
 		})
 	}
 
-	private evalExpr() {
+	private evalExp() {
 		try {
-			const {output, env} = viewREP(this.expr, {
+			const {output, env} = viewREP(this.exp, {
 				width: this.viewerSize[0],
 				height: this.viewerSize[1],
 				updateConsole: true,
@@ -249,7 +249,7 @@ export default class App extends Vue {
 			})
 
 			// this.viewEnv = nonReactive(env)
-			this.viewExpr = nonReactive(output)
+			this.viewExp = nonReactive(output)
 		} catch (err) {
 			if (err instanceof LispError) {
 				printer.error(err.message)
@@ -290,7 +290,7 @@ export default class App extends Vue {
 
 	private onRender(succeed: boolean) {
 		this.renderError = !succeed
-		this.updateselectedExpr()
+		this.updateselectedExp()
 	}
 
 	private onEdit(value: string) {
@@ -301,16 +301,16 @@ export default class App extends Vue {
 
 	private onResizeViewer(size: [number, number]) {
 		this.viewerSize = size
-		this.evalExpr()
+		this.evalExp()
 	}
 
 	private onSelect(selection: [number, number]) {
 		this.selection = selection
-		this.updateselectedExpr()
+		this.updateselectedExp()
 	}
 
 	private get activeRange() {
-		const selected = this.selectedExpr as MalTreeWithRange
+		const selected = this.selectedExp as MalTreeWithRange
 
 		if (selected !== null && selected[M_START] >= OFFSET) {
 			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
@@ -319,18 +319,18 @@ export default class App extends Vue {
 		}
 	}
 
-	private updateselectedExpr() {
+	private updateselectedExp() {
 		const [start, end] = this.selection
-		const selected = findAstByRange(this.expr, start + OFFSET, end + OFFSET)
+		const selected = findAstByRange(this.exp, start + OFFSET, end + OFFSET)
 		if (Array.isArray(selected) && selected[0] === S('sketch')) {
-			this.selectedExpr = null
+			this.selectedExp = null
 		} else {
-			this.selectedExpr = selected
+			this.selectedExp = selected
 		}
 	}
 
 	private getOuterRange(start: number, end: number) {
-		const selected = findAstByRange(this.expr, start + OFFSET, end + OFFSET)
+		const selected = findAstByRange(this.exp, start + OFFSET, end + OFFSET)
 
 		if (selected !== null && selected[M_START] >= OFFSET) {
 			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]

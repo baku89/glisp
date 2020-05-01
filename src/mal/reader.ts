@@ -49,7 +49,7 @@ class Reader {
 	}
 }
 
-function tokenize(str: string, outputPosition = false) {
+function tokenize(str: string, savePosition = false) {
 	// eslint-disable-next-line no-useless-escape
 	const re = /[\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
@@ -63,7 +63,7 @@ function tokenize(str: string, outputPosition = false) {
 			continue
 		}
 
-		if (outputPosition) {
+		if (savePosition) {
 			spaceMatch = spaceRe.exec(match[0])
 			spaceOffset = spaceMatch ? spaceMatch[0].length : 0
 
@@ -112,14 +112,14 @@ function readAtom(reader: Reader) {
 // read list of tokens
 function readList(
 	reader: Reader,
-	outputPosition: boolean,
+	savePosition: boolean,
 	start = '(',
 	end = ')'
 ) {
-	const ast: any = []
+	const exp: any = []
 
-	if (outputPosition) {
-		ast[M_START] = reader.getPosition()
+	if (savePosition) {
+		exp[M_START] = reader.getPosition()
 	}
 
 	let token = reader.next()
@@ -134,36 +134,36 @@ function readList(
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		ast.push(readForm(reader, outputPosition))
+		exp.push(readForm(reader, savePosition))
 	}
 
-	if (outputPosition) {
-		ast[M_END] = reader.getPosition() + token.length
+	if (savePosition) {
+		exp[M_END] = reader.getPosition() + token.length
 	}
 
 	reader.next()
-	return ast
+	return exp
 }
 
 // read vector of tokens
-function readVector(reader: Reader, outputPosition: boolean) {
-	return markMalVector(readList(reader, outputPosition, '[', ']'))
+function readVector(reader: Reader, savePosition: boolean) {
+	return markMalVector(readList(reader, savePosition, '[', ']'))
 }
 
 // read hash-map key/value pairs
-function readHashMap(reader: Reader, outputPosition: boolean) {
-	const lst = readList(reader, outputPosition, '{', '}')
+function readHashMap(reader: Reader, savePosition: boolean) {
+	const lst = readList(reader, savePosition, '{', '}')
 	const map = assocBang({}, ...lst)
-	if (outputPosition) {
+	if (savePosition) {
 		;(map as MalTreeWithRange)[M_START] = lst[M_START]
 		;(map as MalTreeWithRange)[M_END] = lst[M_END]
 	}
 	return map
 }
 
-function readForm(reader: Reader, outputPosition: boolean): any {
+function readForm(reader: Reader, savePosition: boolean): any {
 	const token = reader.peek()
-	const pos = outputPosition ? reader.getPosition() : -1
+	const pos = savePosition ? reader.getPosition() : -1
 	let val
 
 	switch (token) {
@@ -173,51 +173,51 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 			break
 		case "'":
 			reader.next()
-			val = [S('quote'), readForm(reader, outputPosition)]
+			val = [S('quote'), readForm(reader, savePosition)]
 			break
 		case '`':
 			reader.next()
-			val = [S('quasiquote'), readForm(reader, outputPosition)]
+			val = [S('quasiquote'), readForm(reader, savePosition)]
 			break
 		case '~':
 			reader.next()
-			val = [S('unquote'), readForm(reader, outputPosition)]
+			val = [S('unquote'), readForm(reader, savePosition)]
 			break
 		case '~@':
 			reader.next()
-			val = [S('splice-unquote'), readForm(reader, outputPosition)]
+			val = [S('splice-unquote'), readForm(reader, savePosition)]
 			break
 		case '#':
 			reader.next()
-			val = [S('fn'), [], readForm(reader, outputPosition)]
+			val = [S('fn'), [], readForm(reader, savePosition)]
 			break
 		case '^': {
 			reader.next()
-			const meta = readForm(reader, outputPosition)
-			val = [S('with-meta'), readForm(reader, outputPosition), meta]
+			const meta = readForm(reader, savePosition)
+			val = [S('with-meta'), readForm(reader, savePosition), meta]
 			break
 		}
 		case '@':
 			reader.next()
-			val = [S('deref'), readForm(reader, outputPosition)]
+			val = [S('deref'), readForm(reader, savePosition)]
 			break
 		// list
 		case ')':
 			throw new LispError("unexpected ')'")
 		case '(':
-			val = readList(reader, outputPosition)
+			val = readList(reader, savePosition)
 			break
 		// vector
 		case ']':
 			throw new Error("unexpected ']'")
 		case '[':
-			val = readVector(reader, outputPosition)
+			val = readVector(reader, savePosition)
 			break
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
 		case '{':
-			val = readHashMap(reader, outputPosition)
+			val = readHashMap(reader, savePosition)
 			break
 
 		// atom
@@ -226,7 +226,7 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 	}
 
 	if (
-		outputPosition &&
+		savePosition &&
 		val instanceof Object &&
 		(val as MalTreeWithRange)[M_START] === undefined
 	) {
@@ -238,7 +238,7 @@ function readForm(reader: Reader, outputPosition: boolean): any {
 }
 
 export function findAstByPosition(
-	ast: any,
+	ast: MalVal,
 	pos: number
 ): MalTreeWithRange | null {
 	if (
@@ -249,13 +249,13 @@ export function findAstByPosition(
 			(ast as MalTreeWithRange)[M_START] <= pos &&
 			pos <= (ast as MalTreeWithRange)[M_END]
 		) {
-			for (const child of ast) {
+			for (const child of ast as MalVal[]) {
 				const ret = findAstByPosition(child, pos)
 				if (ret !== null) {
 					return ret
 				}
 			}
-			return ast
+			return ast as MalTreeWithRange
 		} else {
 			return null
 		}
@@ -265,34 +265,34 @@ export function findAstByPosition(
 }
 
 export function findAstByRange(
-	ast: any,
+	exp: any,
 	start: number,
 	end: number
 ): MalTreeWithRange | null {
 	if (
-		ast instanceof Object &&
-		(ast as MalTreeWithRange)[M_START] !== undefined
+		exp instanceof Object &&
+		(exp as MalTreeWithRange)[M_START] !== undefined
 	) {
 		if (
-			(ast as MalTreeWithRange)[M_START] <= start &&
-			end <= (ast as MalTreeWithRange)[M_END]
+			(exp as MalTreeWithRange)[M_START] <= start &&
+			end <= (exp as MalTreeWithRange)[M_END]
 		) {
-			if (isMap(ast)) {
-				for (const child of Object.values(ast)) {
+			if (isMap(exp)) {
+				for (const child of Object.values(exp)) {
 					const ret = findAstByRange(child, start, end)
 					if (ret !== null) {
 						return ret
 					}
 				}
-				return ast as MalTreeWithRange
+				return exp as MalTreeWithRange
 			} else {
-				for (const child of ast) {
+				for (const child of exp) {
 					const ret = findAstByRange(child, start, end)
 					if (ret !== null) {
 						return ret
 					}
 				}
-				return ast
+				return exp
 			}
 		} else {
 			return null
@@ -302,7 +302,7 @@ export function findAstByRange(
 	}
 }
 
-export function convertJSObjectToMalMap(obj: MalVal): MalVal {
+export function convertJSObjectToMalMap(obj: any): MalVal {
 	if (isMap(obj)) {
 		const ret: MalMap = {}
 		for (const [key, value] of Object.entries(obj)) {
@@ -326,32 +326,32 @@ export function attachMetaToJSObject(obj: any, meta: any): MalVal {
 
 export class BlankException extends Error {}
 
-function saveOuter(ast: MalVal, outer: MalVal) {
-	if (ast !== null && typeof ast === 'object') {
-		;(ast as any)[M_OUTER] = outer
+function saveOuter(exp: MalVal, outer: MalVal) {
+	if (exp !== null && typeof exp === 'object') {
+		;(exp as any)[M_OUTER] = outer
 
-		const children = Array.isArray(ast)
-			? ast
-			: isMap(ast)
-			? Object.values(ast)
+		const children = Array.isArray(exp)
+			? exp
+			: isMap(exp)
+			? Object.values(exp)
 			: null
 
 		if (children) {
-			children.forEach(c => saveOuter(c, ast))
+			children.forEach(c => saveOuter(c, exp))
 		}
 	}
 }
 
-export default function readStr(str: string, outputPosition = false) {
-	const tokens = tokenize(str, outputPosition) as string[]
+export default function readStr(str: string, savePosition = false) {
+	const tokens = tokenize(str, savePosition) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	const ast = readForm(new Reader(tokens, str), outputPosition)
+	const exp = readForm(new Reader(tokens, str), savePosition)
 
-	if (outputPosition) {
-		saveOuter(ast, null)
+	if (savePosition) {
+		saveOuter(exp, null)
 	}
 
-	return ast
+	return exp
 }

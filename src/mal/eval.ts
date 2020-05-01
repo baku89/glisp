@@ -5,7 +5,7 @@ import {
 	MalFunc,
 	createMalFunc,
 	isMalFunc,
-	cloneAST,
+	cloneExp,
 	isKeyword,
 	LispError,
 	symbolFor as S,
@@ -159,7 +159,7 @@ export default function evalExp(
 			}
 			case 'macro': {
 				const fnast = [S('fn'), a1, a2]
-				const fn = cloneAST(evalExp(fnast, env, _ev)) as MalFunc
+				const fn = cloneExp(evalExp(fnast, env, _ev)) as MalFunc
 				fn[M_ISMACRO] = true
 				return fn
 			}

@@ -12,8 +12,8 @@ export const replEnv: Env = new Env()
 replEnv.name = 'repl'
 
 // eval(0) should be declared before everything
-replEnv.set(S('eval'), (ast: MalVal) => {
-	return evalExp(ast, replEnv)
+replEnv.set(S('eval'), (exp: MalVal) => {
+	return evalExp(exp, replEnv)
 })
 
 // Namespace decleration
