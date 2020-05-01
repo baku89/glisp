@@ -6,7 +6,11 @@
 				<Inspector :value="selectedExpr" @input="onEditSelected" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExpr" @input="onEditSelected" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExpr"
+					@input="onEditSelected"
+				/>
 				<Viewer
 					:expr="viewExpr"
 					:guide-color="guideColor"
@@ -23,7 +27,7 @@
 					</div>-->
 					<Editor
 						v-if="editorMode == 'code'"
-						:code="code"
+						:value="code"
 						:selection="selection"
 						:activeRange="activeRange"
 						:dark="dark"
@@ -37,7 +41,9 @@
 						class="app__console-toggle"
 						:class="{error: renderError}"
 						@click="compact = !compact"
-					>{{ renderError ? '!' : '✓' }}</button>
+					>
+						{{ renderError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
