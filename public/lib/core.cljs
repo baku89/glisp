@@ -134,17 +134,28 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      (cons 'cond (rest (rest xs))))))
 
+(defn destruct-bind-expression
+  {:private true}
+  [binds]
+  (def pairs (partition 2 binds))
+  (def value-pairs (filter #(symbol? (first %)) pairs))
+  (def options (apply hash-map (apply concat (filter #(keyword? (first %)) pairs))))
+  [value-pairs options])
+
 (defmacro for
   {:doc "Make a iteration loop"
    :params [{:label "Binds" :type "code"}
             &
             {:label "Body" :type "code"}]}
   [binds & body]
-  (let [pairs (partition 2 binds)
-        syms (map first pairs)
-        colls (map second pairs)
+  (let [[value-pairs options] (destruct-bind-expression binds)
+        syms (map first value-pairs)
+        colls (map second value-pairs)
         gen-lst `(combination/product ~@colls)]
-    `(map (fn [~syms] (do ~@body)) ~gen-lst)))
+    (if (contains? options :index)
+      `(map-indexed (fn [~(get options :index) ~syms]
+                      (do ~@body)) ~gen-lst)
+      `(map (fn [~syms] (do ~@body)) ~gen-lst))))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)
