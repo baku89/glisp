@@ -219,8 +219,8 @@ export default class Editor extends Vue {
 		this.editor.getSession().setMode(`ace/mode/${lang}`)
 	}
 
-	@Watch('dark')
-	private onDarkChanged(theme: string) {
+	@Watch('theme')
+	private onThemeChanged(theme: string) {
 		this.editor.setTheme(`ace/theme/${theme}`)
 	}
 
