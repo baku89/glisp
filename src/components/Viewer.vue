@@ -61,8 +61,8 @@ import {viewREP} from '@/mal/view'
 import {symbolFor as S, MalVal, LispError} from '@/mal/types'
 import {consoleEnv} from '@/mal/console'
 import Env from '@/mal/env'
-import {printer} from '../mal/printer'
-import {NonReactive} from '../utils'
+import {printer} from '@/mal/printer'
+import {NonReactive} from '@/utils'
 import createCanvasRender, {CanvasRendererType} from '@/renderer/CanvasRenderer'
 
 @Component({

@@ -26,7 +26,7 @@ import {
 	isVector,
 	isKeyword,
 	isMap
-} from '../mal/types'
+} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 
 const K_ALIAS = K('alias'),
