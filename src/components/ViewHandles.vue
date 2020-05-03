@@ -1,20 +1,23 @@
 <template>
-	<div class="ViewHandles">
-		<div class="ViewHandles__transform" :style="transformStyle">
-			<template v-for="({type, id, style, path}, i) in handles">
-				<svg v-if="type === 'path'" :key="i">
-					<path :d="path" />
-				</svg>
-				<div
+	<svg class="ViewHandles">
+		<g class="ViewHandles__transform" :transform="transformStyle">
+			<template v-for="({type, id, transform, path}, i) in handles">
+				<path v-if="type === 'path'" :key="i" :d="path" />
+				<g
 					v-else
 					:key="i"
-					:class="type"
-					:style="style"
+					:transform="transform"
 					@mousedown="onMousedown(id, $event)"
-				/>
+				>
+					<path
+						v-if="type === 'biarrow'"
+						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
+					/>
+					<circle class="point" cx="0" cy="0" :r="rem * 0.5" />
+				</g>
 			</template>
-		</div>
-	</div>
+		</g>
+	</svg>
 </template>
 
 <script lang="ts">
@@ -52,6 +55,8 @@ const K_ALIAS = K('alias'),
 export default class ViewHandles extends Vue {
 	@Prop({required: true}) exp!: MalVal
 
+	private rem = 0
+
 	private get params(): MalVal[] {
 		return this.handleInfo && Array.isArray(this.exp)
 			? this.exp
@@ -62,6 +67,10 @@ export default class ViewHandles extends Vue {
 
 	private get evaluated(): MalVal {
 		return (this.exp as any)[M_EVAL] || null
+	}
+
+	private mounted() {
+		this.rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
 	}
 
 	private beforeUnmount() {
@@ -124,9 +133,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get transformStyle() {
-		return {
-			transform: `matrix(${this.transform.join(',')})`
-		}
+		return `matrix(${this.transform.join(',')})`
 	}
 
 	private get handleInfo() {
@@ -152,27 +159,25 @@ export default class ViewHandles extends Vue {
 			const handles = drawHandle(this.params, this.evaluated)
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
-				const pos = h[K_POS]
 
-				const style: {[k: string]: string} = {}
+				const ret: {[k: string]: string} = {
+					type,
+					id: h[K_ID],
+					transform: ''
+				}
 
 				if (type === 'point' || type === 'biarrow') {
-					style['left'] = pos[0] + 'px'
-					style['top'] = pos[1] + 'px'
+					const [x, y] = h[K_POS]
+					ret.transform = `translate(${x}, ${y})`
 				}
 
 				if (type === 'biarrow') {
-					style['transform'] = `rotate(${h[K_ANGLE]}rad)`
-				}
-
-				const ret = {
-					id: h[K_ID],
-					type,
-					style
+					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
+					ret.transform += ` rotate(${angle})`
 				}
 
 				if (type === 'path') {
-					;(ret as any)['path'] = getSVGPathData(h[K_PATH])
+					ret.path = getSVGPathData(h[K_PATH])
 				}
 
 				return ret
@@ -229,81 +234,18 @@ export default class ViewHandles extends Vue {
 .ViewHandles
 	position relative
 	overflow hidden
-	height 100%
+	height 100%a
 
-	&__transform
-		width 100%
-		height 100%
+	circle
+		stroke var(--blue)
+		stroke-width 1
+		fill var(--background)
 
-		.point
-			$size = 1rem
-			position absolute
-			margin-top $size * -0.5
-			margin-left $size * -0.5
-			width $size
-			height $size
-			border 1px solid var(--blue)
-			border-radius 50%
-			background var(--background)
+		&:hover
+			stroke-width 3
+			fill var(--blue)
 
-			&:before
-				position absolute
-				top -0.5rem
-				right -0.5rem
-				bottom -0.5rem
-				left -0.5rem
-				display block
-				// background blue
-				border-radius 50%
-				content ''
-
-			&:hover
-				border-width 2px
-				background var(--blue)
-
-		.biarrow
-			$size = 1rem
-			position absolute
-			margin-top $size * -0.5
-			margin-left $size * -0.5
-			width $size
-			height $size
-			transform-origin 50% 50%
-
-			&:before, &:after
-				position absolute
-				top 0
-				left 0
-
-			&:hover:before
-				background var(--blue)
-
-			&:before
-				z-index 10
-				display block
-				width $size
-				height $size
-				border 1px solid var(--blue)
-				border-radius 50%
-				background var(--background)
-				content ''
-
-			&:after
-				margin-top -0.5rem
-				margin-left -2rem
-				width 5rem
-				height 2rem
-				color var(--blue)
-				content '<- ->'
-				text-align center
-				white-space nowrap
-				line-height 2rem
-
-		svg
-			width 100%
-			height 100%
-
-		path
-			stroke var(--blue)
-			fill none
+	path
+		stroke var(--blue)
+		fill none
 </style>

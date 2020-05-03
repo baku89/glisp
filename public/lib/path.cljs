@@ -31,10 +31,10 @@
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
     :handles {:draw (fn [[center radius] path]
-                      [{:type "point" :id :center :pos center}
+                      [{:type "path" :id :path :path path}
                        {:type "biarrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
-                       {:type "path" :id :path :path path}])
+                       {:type "point" :id :center :pos center}])
               :on-drag (fn [id p [center radius]]
                          (case id
                            :center [p radius]

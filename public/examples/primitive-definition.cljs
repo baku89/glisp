@@ -19,9 +19,10 @@
    {:draw
     ;; Returns a list of handles with ID
     ;; from the function's parameters
-    (fn [c n rmin rmax]
+    (fn [[c n rmin rmax] path]
       (let [rmin-angle (/ PI n)]
-        [{:id :center :type "point" :pos c}
+        [{:id :path :type "path" :path path}
+         {:id :center :type "point" :pos c}
          {:id :rmin
           :type "biarrow"
           :pos (vec2/+
@@ -56,4 +57,4 @@
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view
- (star [200 200] 5 80 190)]
+ (star [295 217] 5 90.04998611882179 190)]
