@@ -1,8 +1,12 @@
 <template>
 	<div class="ViewHandles">
 		<div class="ViewHandles__transform" :style="transformStyle">
-			<template v-for="({type, id, style}, i) in handles">
+			<template v-for="({type, id, style, path}, i) in handles">
+				<svg v-if="type === 'path'" :key="i">
+					<path :d="path" />
+				</svg>
 				<div
+					v-else
 					:key="i"
 					:class="type"
 					:style="style"
@@ -28,6 +32,8 @@ import {
 	isMap
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
+import {printExp} from '@/mal'
+import {getSVGPathData} from '@/mal/ns/path'
 
 const K_ALIAS = K('alias'),
 	K_ANGLE = K('angle'),
@@ -39,18 +45,23 @@ const K_ALIAS = K('alias'),
 	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
 	K_ON_DRAG = K('on-drag'),
-	K_CHANGE_ID = K('change-id')
+	K_CHANGE_ID = K('change-id'),
+	K_PATH = K('path')
 
 @Component({})
 export default class ViewHandles extends Vue {
 	@Prop({required: true}) exp!: MalVal
 
-	private get params(): MalVal[] | null {
+	private get params(): MalVal[] {
 		return this.handleInfo && Array.isArray(this.exp)
 			? this.exp
 					.slice(1)
 					.map((e: any) => (e[M_EVAL] !== undefined ? e[M_EVAL] : e))
-			: null
+			: []
+	}
+
+	private get evaluated(): MalVal {
+		return (this.exp as any)[M_EVAL] || null
 	}
 
 	private beforeUnmount() {
@@ -135,26 +146,36 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get handles(): {type: string; id: any; style: any}[] | null {
-		if (this.handleInfo && this.params) {
+		if (this.handleInfo) {
 			const drawHandle = this.handleInfo[K_DRAW]
 
-			const handles = drawHandle(...this.params)
-
+			const handles = drawHandle(this.params, this.evaluated)
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
 				const pos = h[K_POS]
 
-				const style: any = {left: pos[0] + 'px', top: pos[1] + 'px'}
+				const style: {[k: string]: string} = {}
+
+				if (type === 'point' || type === 'biarrow') {
+					style['left'] = pos[0] + 'px'
+					style['top'] = pos[1] + 'px'
+				}
 
 				if (type === 'biarrow') {
 					style['transform'] = `rotate(${h[K_ANGLE]}rad)`
 				}
 
-				return {
+				const ret = {
 					id: h[K_ID],
 					type,
 					style
 				}
+
+				if (type === 'path') {
+					;(ret as any)['path'] = getSVGPathData(h[K_PATH])
+				}
+
+				return ret
 			})
 		} else {
 			return null
@@ -170,7 +191,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (!this.handleInfo || !this.handles || !this.params) {
+		if (!this.handleInfo || !this.handles) {
 			return
 		}
 
@@ -211,6 +232,9 @@ export default class ViewHandles extends Vue {
 	height 100%
 
 	&__transform
+		width 100%
+		height 100%
+
 		.point
 			$size = 1rem
 			position absolute
@@ -274,4 +298,12 @@ export default class ViewHandles extends Vue {
 				text-align center
 				white-space nowrap
 				line-height 2rem
+
+		svg
+			width 100%
+			height 100%
+
+		path
+			stroke var(--blue)
+			fill none
 </style>

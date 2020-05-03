@@ -30,9 +30,11 @@
   ^{:doc "Generate a circle path"
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
-    :handles {:draw (fn [center radius]
+    :handles {:draw (fn [[center radius] path]
                       [{:type "point" :id :center :pos center}
-                       {:type "biarrow" :id :radius :pos (vec2/+ center [radius 0])}])
+                       {:type "biarrow" :id :radius
+                        :pos (vec2/+ center [radius 0])}
+                       {:type "path" :id :path :path path}])
               :on-drag (fn [id p [center radius]]
                          (case id
                            :center [p radius]
@@ -53,7 +55,7 @@
   {:doc "Generates a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]
-   :handles {:draw (fn [from to]
+   :handles {:draw (fn [[from to]]
                      [{:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
              :on-drag (fn [id p [from to]]
@@ -67,7 +69,7 @@
 (def arc (with-meta arc
            (assoc (meta arc)
                   :handles
-                  {:draw (fn [center r start end]
+                  {:draw (fn [[center r start end]]
                            [{:type "point" :id :center :pos center}
                             {:type "point" :id :start :pos (vec2/+ center (vec2/dir start r))}
                             {:type "point" :id :end :pos (vec2/+ center (vec2/dir end r))}])
@@ -82,7 +84,7 @@
 (defn path/polyline
   {:doc "Generates a polyline path"
    :params [& {:label "Vertex" :type "vec2"}]
-   :handles {:draw (fn [& pts]
+   :handles {:draw (fn [[& pts]]
                      (concat
                       (map-indexed (fn [i p] {:type "point" :id [:edit i] :pos p}) pts)
                       (map (fn [i] {:type "point"

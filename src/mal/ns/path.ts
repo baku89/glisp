@@ -52,8 +52,16 @@ function createEmptyPath() {
 
 paper.setup(new paper.Size(1, 1))
 
+export function getSVGPathData(path: PathType) {
+	if (path[0] === K_PATH) {
+		path = path.slice(1)
+	}
+
+	return path.map(x => (isKeyword(x) ? x.slice(1) : x)).join(' ')
+}
+
 function getPaperPath(path: PathType): paper.Path {
-	const d = path.map(x => (isKeyword(x) ? x.slice(1) : x)).join(' ')
+	const d = getSVGPathData(path)
 
 	return new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
 }
@@ -102,7 +110,6 @@ function getBezier(points: Vec2[]) {
 	}
 	return new Bezier(coords)
 }
-
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
 		throw new LispError('Invalid path')

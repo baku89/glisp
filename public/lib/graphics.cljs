@@ -123,7 +123,7 @@
                     {:key :baseline :type "string" :default "middle"
                      :enum ["top" "hanging" "middle"
                             "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn [_ pos] [{:id :center :type "point" :pos pos}])
+   :handles {:draw (fn [[_ pos]] [{:id :center :type "point" :pos pos}])
              :on-drag (fn [id p params] (replace-nth params 1 p))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])
