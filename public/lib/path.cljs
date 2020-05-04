@@ -31,10 +31,13 @@
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
     :handles {:draw (fn [[center radius] path]
-                      [{:type "path" :id :path :path path}
+                      [{:type "path" :id :radius :path path}
                        {:type "arrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
-                       {:type "point" :id :center :pos center}])
+                       {:type "point"
+                        :id :center
+                        :class "translate"
+                        :pos center}])
               :on-drag (fn [id p [center radius]]
                          (case id
                            :center [p radius]
@@ -123,10 +126,26 @@
 (defn path/ellipse
   {:doc "Generate an ellipse path"
    :params [{:type "vec2"}
-            {:type "vec2"}]}
-  [center size]
+            {:type "vec2"}]
+   :handles {:draw (fn [[center [rx ry]] path]
+                     [{:type "path" :id :path :path path}
+                      {:type "arrow" :id :radius-x
+                       :pos (vec2/+ center [rx 0])}
+                      {:type "arrow" :id :radius-y
+                       :pos (vec2/+ center [0 ry])
+                       :angle HALF_PI}
+                      {:type "point"
+                       :id :center
+                       :class "translate"
+                       :pos center}])
+             :on-drag (fn [id p [center [rx ry]]]
+                        (case id
+                          :center [p [rx ry]]
+                          :radius-x [center [(abs (- (.x p) (.x center))) ry]]
+                          :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}}
+  [center radius]
   (->> (circle [0 0] 1)
-       (path/scale size)
+       (path/scale radius)
        (path/translate center)))
 (defalias ellipse path/ellipse)
 

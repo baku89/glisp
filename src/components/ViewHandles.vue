@@ -2,17 +2,15 @@
 	<svg class="ViewHandles">
 		<g class="ViewHandles__transform" :transform="transformStyle">
 			<template v-for="({type, id, transform, path, cls}, i) in handles">
-				<path v-if="type === 'path'" :class="cls" :key="i" :d="path" />
-				<g
-					v-else
+				<path
+					v-if="type === 'path'"
+					:class="cls"
 					:key="i"
-					:transform="transform"
+					:d="path"
 					@mousedown="onMousedown(id, $event)"
-				>
-					<path
-						v-if="type === 'arrow'"
-						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
-					/>
+				/>
+				<g v-else :key="i" :transform="transform" @mousedown="onMousedown(id, $event)">
+					<path v-if="type === 'arrow'" d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5" />
 					<path v-if="cls === 'translate'" d="M 12 0 H -12 M 0 12 V -12" />
 					<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 				</g>
@@ -238,7 +236,7 @@ export default class ViewHandles extends Vue {
 .ViewHandles
 	position relative
 	overflow hidden
-	height 100%a
+	height 100% a
 
 	circle
 		stroke var(--blue)
@@ -252,6 +250,9 @@ export default class ViewHandles extends Vue {
 	path
 		stroke var(--blue)
 		fill none
+
+		&:hover
+			stroke-width 3
 
 	.dashed
 		stroke-dasharray 3 2
