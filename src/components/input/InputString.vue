@@ -1,34 +1,55 @@
 <template>
-	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
+	<input
+		class="InputString"
+		type="text"
+		:value="value"
+		@input="onInput"
+		@blur="onBlur"
+	/>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
+import {defineComponent} from '@vue/composition-api'
 
-@Component({
-	name: 'InputString'
-})
-export default class InputString extends Vue {
-	@Prop({type: String, required: true}) private value!: string
-	@Prop({type: Function}) private validator!: (v: string) => string | null
+interface Props {
+	value: string
+	validator?: (v: string) => string | null
+}
 
-	onInput(e: InputEvent) {
-		let val: string | null = (e.target as HTMLInputElement).value
+export default defineComponent({
+	props: {
+		value: {
+			type: String,
+			required: true
+		},
+		validator: {
+			type: Function,
+			required: false
+		}
+	},
+	setup(props: Props, context) {
+		const onInput = (e: InputEvent) => {
+			let val: string | null = (e.target as HTMLInputElement).value
 
-		if (this.validator) {
-			val = this.validator(val)
-			if (!val) {
-				return
+			if (props.validator) {
+				val = props.validator(val)
+				if (val === null) return
 			}
+
+			context.emit('input', val)
 		}
 
-		this.$emit('input', val)
-	}
+		const onBlur = (e: InputEvent) => {
+			const el = e.target as HTMLInputElement
+			el.value = props.value
+		}
 
-	onBlur() {
-		;(this.$el as HTMLInputElement).value = this.value
+		return {
+			onInput,
+			onBlur
+		}
 	}
-}
+})
 </script>
 
 <style lang="stylus" scoped>
