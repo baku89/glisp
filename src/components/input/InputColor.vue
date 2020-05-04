@@ -10,52 +10,63 @@
 		<input
 			class="InputColor__color"
 			type="color"
-			:value="inputColorValue"
+			:value="hexCode"
 			@input="onInputColor"
 		/>
 	</div>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
+import {defineComponent, computed} from '@vue/composition-api'
 import Color from 'color'
 
-@Component({
-	name: 'InputColor'
+export default defineComponent({
+	name: 'InputColor',
+	props: {
+		value: {
+			type: String,
+			required: true
+		}
+	},
+	setup(props, context) {
+		const hexCode = computed(() => {
+			try {
+				const color = Color(props.value)
+				return color.hex()
+			} catch (err) {
+				return 'black'
+			}
+		})
+
+		const onInputText = (e: InputEvent) => {
+			const val = (e.target as HTMLInputElement).value
+			try {
+				Color(val)
+				context.emit('input', val)
+			} catch (err) {
+				return
+			}
+		}
+
+		const onBlurText = (e: InputEvent) => {
+			if (e.target) {
+				;(e.target as HTMLInputElement).value = props.value
+			}
+		}
+
+		const onInputColor = (e: InputEvent) => {
+			const val = (e.target as HTMLInputElement).value
+			context.emit('input', val)
+		}
+
+		return {
+			hexCode,
+			onInputText,
+			onBlurText,
+			onInputColor
+		}
+	}
 })
-export default class InputColor extends Vue {
-	@Prop({type: String, required: true}) private value!: string
-
-	private get inputColorValue() {
-		try {
-			const color = Color(this.value)
-			return color.hex()
-		} catch (err) {
-			return 'black'
-		}
-	}
-
-	onInputText(e: InputEvent) {
-		const val = (e.target as HTMLInputElement).value
-		try {
-			Color(val)
-			this.$emit('input', val)
-		} catch (err) {
-			return
-		}
-	}
-
-	onBlurText(e: InputEvent) {
-		if (e.target) {
-			;(e.target as HTMLInputElement).value = this.value
-		}
-	}
-
-	onInputColor(e: InputEvent) {
-		const val = (e.target as HTMLInputElement).value
-		this.$emit('input', val)
-	}
-}
 </script>
 
 <style lang="stylus" scoped>

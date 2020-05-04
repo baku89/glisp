@@ -1,46 +1,71 @@
 <template>
-	<input class="InputNumber" type="number" :value="value" :step="step" @input="onInput" />
+	<input
+		class="InputNumber"
+		type="number"
+		:value="value"
+		:step="step"
+		@input="onInput"
+	/>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
+import {defineComponent, computed} from '@vue/composition-api'
 
-@Component({
-	name: 'InputNumber'
-})
-export default class InputNumber extends Vue {
-	@Prop({type: Number, required: true}) private value!: number
-	@Prop({type: Function}) private validator!: (v: number) => number | null
+interface Props {
+	value: number
+	validator?: (v: number) => number | null
+}
 
-	get step() {
-		const float = this.value.toString().split('.')[1]
-		return float !== undefined ? Math.min(Math.pow(10, -float.length), 0.1) : 1
-	}
-
-	onInput(e: InputEvent) {
-		const str = (e.target as HTMLInputElement).value
-		let val: number | null = parseFloat(str)
-
-		if (isNaN(val)) {
-			return
+export default defineComponent({
+	name: 'InputNumber',
+	props: {
+		value: {
+			type: Number,
+			required: true
+		},
+		validator: {
+			type: Function,
+			required: false
 		}
+	},
+	setup(props: Props, context) {
+		const step = computed(() => {
+			const float = props.value.toString().split('.')[1]
+			return float !== undefined
+				? Math.min(Math.pow(10, -float.length), 0.1)
+				: 1
+		})
 
-		if (this.validator) {
-			const origVal = val
+		const onInput = (e: InputEvent) => {
+			const str = (e.target as HTMLInputElement).value
+			let val: number | null = parseFloat(str)
 
-			val = this.validator(val)
-			if (typeof val !== 'number' || isNaN(val)) {
+			if (isNaN(val)) {
 				return
 			}
 
-			if (val !== origVal) {
-				;(e.target as HTMLInputElement).value = val.toString()
+			if (props.validator) {
+				val = props.validator(val)
+				if (typeof val !== 'number' || isNaN(val)) {
+					return
+				}
 			}
+
+			context.emit('input', val)
 		}
 
-		this.$emit('input', val)
+		const onBlur = (e: InputEvent) => {
+			const el = e.target as HTMLInputElement
+			el.value = props.value.toString()
+		}
+
+		return {
+			step,
+			onInput,
+			onBlur
+		}
 	}
-}
+})
 </script>
 
 <style lang="stylus" scoped>

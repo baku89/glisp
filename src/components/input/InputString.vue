@@ -17,6 +17,7 @@ interface Props {
 }
 
 export default defineComponent({
+	name: 'InputString',
 	props: {
 		value: {
 			type: String,

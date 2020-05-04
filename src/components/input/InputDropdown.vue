@@ -1,34 +1,51 @@
 <template>
 	<select class="InputDropdown" :value="value" @change="onChange">
-		<option
-			v-for="(value, index) in values"
-			:key="index"
-			:value="value"
-		>{{labels ? labels[index] : value}}</option>
+		<option v-for="(value, index) in values" :key="index" :value="value">{{
+			labels ? labels[index] : value
+		}}</option>
 	</select>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
+import {defineComponent} from '@vue/composition-api'
 
 type ValueType = string | number
 
-@Component({
-	name: 'InputDropdown'
-})
-export default class InputDropdown extends Vue {
-	@Prop([String, Number]) private value!: ValueType
-	@Prop(Array) private values!: ValueType[]
-	@Prop(Array) private labels!: string[]
-
-	private onChange(e: Event) {
-		const {selectedIndex} = e.target as HTMLSelectElement
-		const newValue = this.values[selectedIndex]
-		this.$emit('input', newValue)
-	}
+interface Props {
+	value: ValueType
+	values: ValueType[]
+	labels?: string[]
 }
-</script>
 
+export default defineComponent({
+	name: 'InputDropdown',
+	props: {
+		value: {
+			type: [String, Number],
+			required: true
+		},
+		values: {
+			type: Array,
+			required: true
+		},
+		labels: {
+			type: Array,
+			required: false
+		}
+	},
+	setup(props: Props, context) {
+		const onChange = (e: InputEvent) => {
+			const {selectedIndex} = e.target as HTMLSelectElement
+			const newValue = props.values[selectedIndex]
+			context.emit('input', newValue)
+		}
+
+		return {
+			onChange
+		}
+	}
+})
+</script>
 
 <style lang="stylus" scoped>
 @import './common.styl'

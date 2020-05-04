@@ -1,38 +1,51 @@
 <template>
 	<div class="InputVec2">
 		[
-		<InputNumber class="InputVec2__el" :value="value[0]" :step="step" @input="onInput(0, $event)" />
-		<InputNumber class="InputVec2__el" :value="value[1]" :step="step" @input="onInput(1, $event)" />]
+		<InputNumber
+			class="InputVec2__el"
+			:value="value[0]"
+			@input="onInput(0, $event)"
+		/>
+		<InputNumber
+			class="InputVec2__el"
+			:value="value[1]"
+			@input="onInput(1, $event)"
+		/>]
 		<!-- <div class="InputVec2__drag" /> -->
 	</div>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
+import {defineComponent, computed} from '@vue/composition-api'
 import {createMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 
-@Component({
+interface Props {
+	value: [number, number]
+}
+
+export default defineComponent({
 	name: 'InputVec2',
-	components: {
-		InputNumber
+	components: {InputNumber},
+	props: {
+		value: {
+			type: Array,
+			required: true
+		}
+	},
+	setup(props: Props, context) {
+		const onInput = (i: number, v: number) => {
+			const value = createMalVector([...props.value])
+			value[i] = v
+
+			context.emit('input', value)
+		}
+
+		return {
+			onInput
+		}
 	}
 })
-export default class InputVec2 extends Vue {
-	@Prop({type: Array, required: true}) private value!: [number, number]
-
-	get step() {
-		const [dec, float] = this.value.toString().split('.')
-		return float !== undefined ? Math.pow(10, -float.length) : 1
-	}
-
-	onInput(i: number, v: number) {
-		const value = createMalVector([...this.value])
-		value[i] = v
-
-		this.$emit('input', value)
-	}
-}
 </script>
 
 <style lang="stylus" scoped>
