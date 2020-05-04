@@ -91,6 +91,8 @@
 
 <script lang="ts">
 import {Component, Vue, Prop, Watch} from 'vue-property-decorator'
+import VueMarkdown from 'vue-markdown'
+
 import {
 	MalVal,
 	MalMap,
@@ -113,8 +115,8 @@ import {
 	cloneExp
 } from '@/mal/types'
 import printExp from '@/mal/printer'
+import {consoleEnv} from '@/mal/console'
 import InputComponents from '@/components/input'
-import VueMarkdown from 'vue-markdown'
 import {clamp, getParamLabel} from '@/utils'
 
 const K_DOC = K('doc'),
@@ -176,8 +178,27 @@ type MetaDescs = (Desc | string)[]
 export default class Inspector extends Vue {
 	@Prop({required: true}) private value!: MalVal
 
+	private get primitiveType(): string | null {
+		if (isVector(this.value)) {
+			const isAllNumber = this.value.every(v => typeof v === 'number')
+			if (isAllNumber) {
+				switch (this.value.length) {
+					case 2:
+						return 'vec2'
+					case 6:
+						return 'mat2d'
+				}
+			}
+		}
+		return null
+	}
+
 	private get fn() {
-		return (isList(this.value) && (this.value as any)[M_FN]) || null
+		if (this.primitiveType) {
+			return consoleEnv.get(S(this.primitiveType + '/init'))
+		} else {
+			return (isList(this.value) && (this.value as any)[M_FN]) || null
+		}
 	}
 
 	private get fnOrigMeta() {
@@ -191,15 +212,23 @@ export default class Inspector extends Vue {
 	}
 
 	private get fnName(): string {
-		if (this.fn) {
+		if (this.primitiveType) {
+			return this.primitiveType
+		} else if (this.fn) {
 			return ((this.value as MalVal[])[0] as string).slice(1) || ''
 		} else {
 			return ''
 		}
 	}
 
-	private get fnParams(): MalVal[] | null {
-		return this.fn ? (this.value as MalVal[]).slice(1) : null
+	private get fnParams(): MalVal[] {
+		if (this.primitiveType) {
+			return [this.value]
+		} else if (this.fn) {
+			return (this.value as MalVal[]).slice(1)
+		} else {
+			return []
+		}
 	}
 
 	private get fnMeta() {
@@ -222,7 +251,6 @@ export default class Inspector extends Vue {
 		forceMatch = false
 	): ParamDescs | null {
 		const retDesc = []
-
 		const restPos = metaDesc.indexOf(S_AMP)
 
 		if (restPos === -1) {
@@ -306,8 +334,10 @@ export default class Inspector extends Vue {
 						break
 					}
 				}
-				// If no overloads matched, force apply first overload
-				paramDescs = this.matchParameter(this.fnParams, metaDescs[0], true)
+				if (!paramDescs) {
+					// If no overloads matched, force apply first overload
+					paramDescs = this.matchParameter(this.fnParams, metaDescs[0], true)
+				}
 			} else {
 				paramDescs = this.matchParameter(this.fnParams, metaDescs)
 			}
@@ -442,10 +472,6 @@ export default class Inspector extends Vue {
 	}
 
 	private get params(): Param[] {
-		if (!this.fnParams) {
-			return []
-		}
-
 		const params: Param[] = []
 
 		const {descs, rest} = this.paramDescs
@@ -523,7 +549,13 @@ export default class Inspector extends Vue {
 			}
 		}
 
-		const newValue = [(this.value as MalVal[])[0], ...newParams]
+		let newValue
+
+		if (this.primitiveType) {
+			newValue = markMalVector(newParams[0])
+		} else {
+			newValue = [(this.value as MalVal[])[0], ...newParams]
+		}
 
 		this.$emit('input', newValue)
 	}

@@ -51,6 +51,11 @@
     1 (let [v (first xs)] [v v])
     2 (vec xs)))
 
+(defn vec2/init
+  {:doc "Creates vec2"
+   :params [{:label "Value" :type "vec2" :default [0 0]}]}
+  [x] x)
+
 (defn vec2?
   {:doc "Checks if x is vec2"
    :params [{:type "any"}]
@@ -228,6 +233,32 @@
 
 ;; mat2d
 ;; http://glmatrix.net/docs/module-mat2d.html
+
+(defn mat2d
+  {:doc "Creates mat2d"
+   :params [{:label "a" :type "number"}
+            {:label "b" :type "number"}
+            {:label "c" :type "number"}
+            {:label "d" :type "number"}
+            {:label "tx" :type "number"}
+            {:label "ty" :type "number"}]
+   :returns {:type "mat2d"}}
+  [& xs]
+  (case (count xs)
+    0 mat2d/ident
+    6 (vec xs)
+    (throw "Invalid number of arguments")))
+
+(def mat2d/init mat2d)
+
+(defn mat2d?
+  {:doc "Checks if x is mat2d"
+   :params [{:type "any"}]
+   :returns {:type "boolean"}}
+  [x]
+  (and
+   (sequential? x)
+   (= (count x) 6)))
 
 (def mat2d/ident [1 0 0 1 0 0])
 
