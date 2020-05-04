@@ -3,7 +3,7 @@
 		<div class="Inspector__header" v-if="fn">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span v-if="isAlias" class="alias">--> alias for {{ isAlias }}</span>
+				<span v-if="aliasFor" class="alias">--> alias for {{ aliasFor }}</span>
 			</div>
 			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
 		</div>
@@ -184,7 +184,7 @@ export default class Inspector extends Vue {
 		return this.fn && this.fn[M_META] ? this.fn[M_META] : null
 	}
 
-	private get isAlias(): string | null {
+	private get aliasFor(): string | null {
 		return this.fnOrigMeta && K_ALIAS in this.fnOrigMeta
 			? this.fnOrigMeta[K_ALIAS][K_NAME]
 			: null
@@ -203,7 +203,7 @@ export default class Inspector extends Vue {
 	}
 
 	private get fnMeta() {
-		return this.isAlias ? this.fnOrigMeta[K_ALIAS][K_META] : this.fnOrigMeta
+		return this.aliasFor ? this.fnOrigMeta[K_ALIAS][K_META] : this.fnOrigMeta
 	}
 
 	private get fnDesc(): string {
