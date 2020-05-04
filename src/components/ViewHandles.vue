@@ -1,8 +1,8 @@
 <template>
 	<svg class="ViewHandles">
 		<g class="ViewHandles__transform" :transform="transformStyle">
-			<template v-for="({type, id, transform, path}, i) in handles">
-				<path v-if="type === 'path'" :key="i" :d="path" />
+			<template v-for="({type, id, transform, path, cls}, i) in handles">
+				<path v-if="type === 'path'" :class="cls" :key="i" :d="path" />
 				<g
 					v-else
 					:key="i"
@@ -13,7 +13,7 @@
 						v-if="type === 'biarrow'"
 						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
 					/>
-					<circle class="point" cx="0" cy="0" :r="rem * 0.5" />
+					<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 				</g>
 			</template>
 		</g>
@@ -49,7 +49,8 @@ const K_ALIAS = K('alias'),
 	K_DRAW = K('draw'),
 	K_ON_DRAG = K('on-drag'),
 	K_CHANGE_ID = K('change-id'),
-	K_PATH = K('path')
+	K_PATH = K('path'),
+	K_CLASS = K('class')
 
 @Component({})
 export default class ViewHandles extends Vue {
@@ -163,6 +164,7 @@ export default class ViewHandles extends Vue {
 				const ret: {[k: string]: string} = {
 					type,
 					id: h[K_ID],
+					cls: h[K_CLASS],
 					transform: ''
 				}
 
@@ -248,4 +250,10 @@ export default class ViewHandles extends Vue {
 	path
 		stroke var(--blue)
 		fill none
+
+	.dashed
+		stroke-dasharray 3 2
+
+		&:hover
+			stroke-dasharray none
 </style>

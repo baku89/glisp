@@ -66,29 +66,41 @@
   [:path :M from :L to])
 (defalias line path/line)
 
-(def arc (with-meta arc
-           (assoc (meta arc)
-                  :handles
-                  {:draw (fn [[center r start end]]
-                           [{:type "point" :id :center :pos center}
-                            {:type "point" :id :start :pos (vec2/+ center (vec2/dir start r))}
-                            {:type "point" :id :end :pos (vec2/+ center (vec2/dir end r))}])
-                   :on-drag (fn [id p [center r start end]]
-                              (case id
-                                :center `(~p ~r ~start ~end)
-                                :start (let [start (vec2/angle (vec2/- p center))]
-                                         `(~center ~r ~start ~end))
-                                :end (let [end (vec2/angle (vec2/- p center))]
-                                       `(~center ~r ~start ~end))))})))
+(def arc
+  (with-meta arc
+    (assoc (meta arc)
+           :handles
+           {:draw (fn [[center r start end]]
+                    [{:type "point"
+                      :id :center
+                      :pos center}
+                     {:type "point"
+                      :id :start
+                      :pos (vec2/+ center (vec2/dir start r))}
+                     {:type "point"
+                      :id :end
+                      :pos (vec2/+ center (vec2/dir end r))}])
+            :on-drag (fn [id p [center r start end]]
+                       (case id
+                         :center `(~p ~r ~start ~end)
+                         :start (let [start (vec2/angle (vec2/- p center))]
+                                  `(~center ~r ~start ~end))
+                         :end (let [end (vec2/angle (vec2/- p center))]
+                                `(~center ~r ~start ~end))))})))
 
 (defn path/polyline
   {:doc "Generates a polyline path"
    :params [& {:label "Vertex" :type "vec2"}]
    :handles {:draw (fn [[& pts]]
                      (concat
-                      (map-indexed (fn [i p] {:type "point" :id [:edit i] :pos p}) pts)
+                      (map-indexed
+                       (fn [i p] {:type "point"
+                                  :id [:edit i]
+                                  :pos p})
+                       pts)
                       (map (fn [i] {:type "point"
                                     :id [:add (inc i)]
+                                    :class "dashed"
                                     :pos (vec2/lerp (nth pts i)
                                                     (nth pts (inc i))
                                                     .5)})
