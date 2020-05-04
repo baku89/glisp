@@ -32,7 +32,7 @@
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
     :handles {:draw (fn [[center radius] path]
                       [{:type "path" :id :path :path path}
-                       {:type "biarrow" :id :radius
+                       {:type "arrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
                        {:type "point" :id :center :pos center}])
               :on-drag (fn [id p [center radius]]

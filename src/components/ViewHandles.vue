@@ -10,9 +10,10 @@
 					@mousedown="onMousedown(id, $event)"
 				>
 					<path
-						v-if="type === 'biarrow'"
+						v-if="type === 'arrow'"
 						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
 					/>
+					<path v-if="cls === 'translate'" d="M 12 0 H -12 M 0 12 V -12" />
 					<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 				</g>
 			</template>
@@ -160,20 +161,21 @@ export default class ViewHandles extends Vue {
 			const handles = drawHandle(this.params, this.evaluated)
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
+				const cls = h[K_CLASS]
 
 				const ret: {[k: string]: string} = {
 					type,
+					cls,
 					id: h[K_ID],
-					cls: h[K_CLASS],
 					transform: ''
 				}
 
-				if (type === 'point' || type === 'biarrow') {
+				if (type === 'point' || type === 'arrow') {
 					const [x, y] = h[K_POS]
 					ret.transform = `translate(${x}, ${y})`
 				}
 
-				if (type === 'biarrow') {
+				if (type === 'arrow') {
 					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
 					ret.transform += ` rotate(${angle})`
 				}

@@ -7,11 +7,14 @@
    ;; Parameter annotation
    :params
    [{:label "Center" :type "vec2"}
-    {:label "Num of Vertices" :type "number"
+    {:label "Num of Vertices"
+     :type "number"
      :constraints {:min 2 :step 1}}
-    {:label "Inner Radius" :type "number"
+    {:label "Inner Radius"
+     :type "number"
      :constraints {:min 0}}
-    {:label "Outer Radius" :type "number"
+    {:label "Outer Radius"
+     :type "number"
      :constraints {:min 0}}]
 
    ;; Handles definition
@@ -21,16 +24,21 @@
     ;; from the function's parameters
     (fn [[c n rmin rmax] path]
       (let [rmin-angle (/ PI n)]
-        [{:id :path :type "path" :path path}
-         {:id :center :type "point" :pos c}
+        [{:id :path
+          :type "path"
+          :path path}
+         {:id :center
+          :type "point"
+          :class "translate"
+          :pos c}
          {:id :rmin
-          :type "biarrow"
+          :type "arrow"
           :pos (vec2/+
                 c
                 (vec2/dir rmin-angle rmin))
           :angle rmin-angle}
          {:id :rmax
-          :type "biarrow"
+          :type "arrow"
           :pos (vec2/+ c [rmax 0])}]))
     :on-drag
     ;; In turn, returns new parameters
@@ -57,4 +65,4 @@
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view
- (star [295 217] 5 90.04998611882179 190)]
+ (star [200 200] 5 70 160)]

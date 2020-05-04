@@ -268,7 +268,10 @@
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
    :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [[pos]]
-                     [{:type "point" :id :move :pos pos}])
+                     [{:type "point"
+                       :id :move
+                       :class "translate"
+                       :pos pos}])
              :on-drag (fn [id p]
                         [p])}}
   [[x y]]
@@ -280,7 +283,7 @@
    :params [{:type "number"}]
    :returns {:type "mat2d"}
    :handles {:draw (fn [[x]]
-                     [{:type "point" :id :move :pos [x 0]}])
+                     [{:type "arrow" :id :move :pos [x 0]}])
              :on-drag (fn [id p]
                         [(.x p)])}}
   [x] [1 0 0 1 x 0])
