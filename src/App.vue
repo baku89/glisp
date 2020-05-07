@@ -87,8 +87,7 @@ import {replaceRange, NonReactive, nonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findAstByPosition, findAstByRange} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
-import {viewREP} from './mal/view'
-import Env from './mal/env'
+import {viewREP} from '@/mal/view'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
