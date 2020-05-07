@@ -370,8 +370,6 @@ export default defineComponent({
 					itemStr
 				)
 
-				console.log('onUpdateSelec')
-
 				data.code = code
 				data.selection = selection
 			}
