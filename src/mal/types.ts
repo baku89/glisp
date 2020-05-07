@@ -29,17 +29,21 @@ export class LispError extends Error {}
 
 export type MalMap = {[keyword: string]: MalVal}
 
-interface MalMapWithRange extends MalMap {
+interface MalNodeMap extends MalMap {
 	[M_START]: number
 	[M_END]: number
+	[M_EVAL]: number
+	[M_OUTER]: number
 }
 
-export interface MalListWithRange extends Array<MalVal> {
+export interface MalListNode extends Array<MalVal> {
 	[M_START]: number
 	[M_END]: number
+	[M_EVAL]: number
+	[M_OUTER]: number
 }
 
-export type MalTreeWithRange = MalMapWithRange | MalListWithRange
+export type MalNode = MalNodeMap | MalListNode
 
 export type MalVal =
 	| number
@@ -51,7 +55,7 @@ export type MalVal =
 	| MalJSFunc
 	| MalMap
 	| MalVal[]
-	| MalTreeWithRange
+	| MalNode
 	| Float32Array
 
 // General Functions

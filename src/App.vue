@@ -71,7 +71,7 @@ import {replEnv, printExp, readStr} from '@/mal'
 import {
 	MalVal,
 	symbolFor as S,
-	MalTreeWithRange,
+	MalNode,
 	isList,
 	M_START,
 	M_END,
@@ -198,7 +198,7 @@ export default defineComponent({
 				}
 			}),
 			selectedExpRange: computed(() => {
-				const selected = data.selectedExp as MalTreeWithRange
+				const selected = data.selectedExp as MalNode
 				if (selected !== null && selected[M_START] >= OFFSET) {
 					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
 				} else {

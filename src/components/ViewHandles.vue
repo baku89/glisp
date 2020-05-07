@@ -31,7 +31,8 @@ import {
 	M_OUTER,
 	isVector,
 	isKeyword,
-	isMap
+	isMap,
+	MalNode
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {printExp} from '@/mal'
@@ -110,7 +111,7 @@ export default class ViewHandles extends Vue {
 				// Item
 				if (isMap(exp) && outer[1] === exp) {
 					// When the exp is an attribute
-					return (outer as any)[M_OUTER] || null
+					return (outer as MalNode)[M_OUTER] || null
 				} else {
 					return outer
 				}

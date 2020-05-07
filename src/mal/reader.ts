@@ -3,7 +3,7 @@ import {
 	assocBang,
 	LispError,
 	symbolFor as S,
-	MalTreeWithRange,
+	MalNode,
 	isMap,
 	M_START,
 	M_END,
@@ -155,8 +155,8 @@ function readHashMap(reader: Reader, savePosition: boolean) {
 	const lst = readList(reader, savePosition, '{', '}')
 	const map = assocBang({}, ...lst)
 	if (savePosition) {
-		;(map as MalTreeWithRange)[M_START] = lst[M_START]
-		;(map as MalTreeWithRange)[M_END] = lst[M_END]
+		;(map as MalNode)[M_START] = lst[M_START]
+		;(map as MalNode)[M_END] = lst[M_END]
 	}
 	return map
 }
@@ -228,34 +228,25 @@ function readForm(reader: Reader, savePosition: boolean): any {
 	if (
 		savePosition &&
 		val instanceof Object &&
-		(val as MalTreeWithRange)[M_START] === undefined
+		(val as MalNode)[M_START] === undefined
 	) {
-		;(val as MalTreeWithRange)[M_START] = pos
-		;(val as MalTreeWithRange)[M_END] = reader.getLastPosition()
+		;(val as MalNode)[M_START] = pos
+		;(val as MalNode)[M_END] = reader.getLastPosition()
 	}
 
 	return val
 }
 
-export function findAstByPosition(
-	ast: MalVal,
-	pos: number
-): MalTreeWithRange | null {
-	if (
-		ast instanceof Object &&
-		(ast as MalTreeWithRange)[M_START] !== undefined
-	) {
-		if (
-			(ast as MalTreeWithRange)[M_START] <= pos &&
-			pos <= (ast as MalTreeWithRange)[M_END]
-		) {
+export function findAstByPosition(ast: MalVal, pos: number): MalNode | null {
+	if (ast instanceof Object && (ast as MalNode)[M_START] !== undefined) {
+		if ((ast as MalNode)[M_START] <= pos && pos <= (ast as MalNode)[M_END]) {
 			for (const child of ast as MalVal[]) {
 				const ret = findAstByPosition(child, pos)
 				if (ret !== null) {
 					return ret
 				}
 			}
-			return ast as MalTreeWithRange
+			return ast as MalNode
 		} else {
 			return null
 		}
@@ -268,15 +259,9 @@ export function findAstByRange(
 	exp: any,
 	start: number,
 	end: number
-): MalTreeWithRange | null {
-	if (
-		exp instanceof Object &&
-		(exp as MalTreeWithRange)[M_START] !== undefined
-	) {
-		if (
-			(exp as MalTreeWithRange)[M_START] <= start &&
-			end <= (exp as MalTreeWithRange)[M_END]
-		) {
+): MalNode | null {
+	if (exp instanceof Object && (exp as MalNode)[M_START] !== undefined) {
+		if ((exp as MalNode)[M_START] <= start && end <= (exp as MalNode)[M_END]) {
 			if (isMap(exp)) {
 				for (const child of Object.values(exp)) {
 					const ret = findAstByRange(child, start, end)
@@ -284,7 +269,7 @@ export function findAstByRange(
 						return ret
 					}
 				}
-				return exp as MalTreeWithRange
+				return exp as MalNode
 			} else {
 				for (const child of exp) {
 					const ret = findAstByRange(child, start, end)
