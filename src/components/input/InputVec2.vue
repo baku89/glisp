@@ -108,6 +108,8 @@ export default defineComponent({
 		watch(
 			() => [drag.isDragging, drag.deltaX, drag.deltaY],
 			([isDragging, x, y]) => {
+				if (!isDragging) return
+
 				const newValue = markMalVector([...props.value]) as number[]
 				newValue[0] += x as number
 				newValue[1] += y as number
