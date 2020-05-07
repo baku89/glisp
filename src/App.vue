@@ -234,7 +234,10 @@ export default defineComponent({
 			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
 
 			if (selected !== null && selected[M_START] >= OFFSET) {
-				return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+				return [selected[M_START] - OFFSET, selected[M_END] - OFFSET] as [
+					number,
+					number
+				]
 			} else {
 				return null
 			}
