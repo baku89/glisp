@@ -26,12 +26,12 @@
 ;; http://glmatrix.net/docs/vec2.js.htm
 
 (def .x
-  ^{:doc "Get x value from vec2"
+  ^{:doc "Gets x value from vec2"
     :params [{:label "Value" :type "vec2"}]
     :returns {:type "number"}}
   first)
 (def .y
-  ^{:doc "Get y value from vec2"
+  ^{:doc "Gets y value from vec2"
     :params [{:label "Value" :type "vec2"}]
     :returns {:type "number"}}
   second)
@@ -53,7 +53,9 @@
 
 (defn vec2/init
   {:doc "Creates vec2"
-   :params [{:label "Value" :type "vec2" :default [0 0]}]}
+   :params [{:label "Value" :type "vec2" :default [0 0]}]
+   :handles {:draw (fn [[val]] [{:type "point" :id :pos :class "translate" :pos val}])
+             :on-drag (fn [id pos] [pos])}}
   [x] x)
 
 (defn vec2?

@@ -5,7 +5,7 @@
 ;; Shape functions
 
 (defn path/rect
-  {:doc  "Generate a rect path"
+  {:doc  "Generates a rect path"
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
             {:label "Size" :type "vec2" :desc "size of the rectangle"}]
    :returns {:type "path"}
@@ -69,27 +69,40 @@
   [:path :M from :L to])
 (defalias line path/line)
 
-(def arc
-  (with-meta arc
-    (assoc (meta arc)
-           :handles
-           {:draw (fn [[center r start end]]
-                    [{:type "point"
-                      :id :center
-                      :pos center}
-                     {:type "point"
-                      :id :start
-                      :pos (vec2/+ center (vec2/dir start r))}
-                     {:type "point"
-                      :id :end
-                      :pos (vec2/+ center (vec2/dir end r))}])
-            :on-drag (fn [id p [center r start end]]
-                       (case id
-                         :center `(~p ~r ~start ~end)
-                         :start (let [start (vec2/angle (vec2/- p center))]
-                                  `(~center ~r ~start ~end))
-                         :end (let [end (vec2/angle (vec2/- p center))]
-                                `(~center ~r ~start ~end))))})))
+(def path/arc
+  ^{:doc "Generate an arc path"
+    :params [{:label "Center"
+              :type "vec2"
+              :desc "Coordinate of the arc's center"}
+             {:label "Radius"
+              :type "number"
+              :desc "The arc's radius"}
+             {:label "Start"
+              :type "number"
+              :desc "Angle to start the arc"}
+             {:label "End"
+              :type "number"
+              :desc "Angle to stop the arc"}]
+    :handles
+    {:draw (fn [[center r start end]]
+             [{:type "point"
+               :id :center
+               :pos center}
+              {:type "point"
+               :id :start
+               :pos (vec2/+ center (vec2/dir start r))}
+              {:type "point"
+               :id :end
+               :pos (vec2/+ center (vec2/dir end r))}])
+     :on-drag (fn [id p [center r start end]]
+                (case id
+                  :center `(~p ~r ~start ~end)
+                  :start (let [start (vec2/angle (vec2/- p center))]
+                           `(~center ~r ~start ~end))
+                  :end (let [end (vec2/angle (vec2/- p center))]
+                         `(~center ~r ~start ~end))))}}
+  path/arc)
+(defalias arc path/arc)
 
 (defn path/polyline
   {:doc "Generates a polyline path"
@@ -124,7 +137,7 @@
 (defalias polygon path/polygon)
 
 (defn path/ellipse
-  {:doc "Generate an ellipse path"
+  {:doc "Generates an ellipse path"
    :params [{:type "vec2"}
             {:type "vec2"}]
    :handles {:draw (fn [[center [rx ry]] path]
@@ -150,7 +163,7 @@
 (defalias ellipse path/ellipse)
 
 (defn path/point
-  {:doc "Generate a point path"
+  {:doc "Generates a point path"
    :params [{:label "Pos" :type "vec2"}]}
   [p]
   [:path :M p :L p])
@@ -158,7 +171,11 @@
 
 ;; Path modifiers
 
-(defn path/map-points [f path]
+(defn path/map-points
+  {:doc "Maps each point in a path and returns a new one"
+   :params [{:label "Function" :type "fn"}
+            {:type "path"}]}
+  [f path]
   (vec
    (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
                             (path/split-segments path)))))
