@@ -156,7 +156,13 @@ export default class ViewHandles extends Vue {
 		if (this.handleInfo) {
 			const drawHandle = this.handleInfo[K_DRAW]
 
-			const handles = drawHandle(this.params, this.evaluated)
+			let handles
+			try {
+				handles = drawHandle(this.params, this.evaluated)
+			} catch (_) {
+				return null
+			}
+
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
 				const cls = h[K_CLASS]
