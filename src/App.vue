@@ -131,26 +131,6 @@ export default defineComponent({
 		ViewHandles
 	},
 	setup() {
-		const data = reactive({
-			selection: [0, 0] as number[],
-			activeRange: computed(() => {
-				const selected = data.selectedExp as MalTreeWithRange
-				if (selected !== null && selected[M_START] >= OFFSET) {
-					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
-				} else {
-					return null
-				}
-			}),
-			codeHasLoaded: false,
-			code: '',
-			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
-			renderError: null as null | string,
-			selectedExp: null as MalVal,
-			editorMode: 'code',
-			exp: null as MalVal,
-			viewExp: null
-		})
-
 		const ui = reactive({
 			compact: false,
 			background: '',
@@ -167,6 +147,55 @@ export default defineComponent({
 			}),
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
+		})
+
+		const data = reactive({
+			selection: [0, 0] as number[],
+			activeRange: computed(() => {
+				const selected = data.selectedExp as MalTreeWithRange
+				if (selected !== null && selected[M_START] >= OFFSET) {
+					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+				} else {
+					return null
+				}
+			}),
+			codeHasLoaded: false,
+			code: '',
+			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
+			exp: computed(() => {
+				let exp
+				try {
+					exp = readStr(data.evalCode, true)
+				} catch (err) {
+					if (!(err instanceof BlankException)) {
+						printer.error(err)
+					}
+					exp = null
+				}
+				return exp
+			}),
+			viewExp: computed(() => {
+				let ret = null
+				try {
+					const {output, env} = viewREP(data.exp, {
+						width: ui.viewerSize[0],
+						height: ui.viewerSize[1],
+						updateConsole: true,
+						guideColor: ui.guideColor
+					})
+					ret = output
+				} catch (err) {
+					if (err instanceof LispError) {
+						printer.error(err.message)
+					} else {
+						printer.error(err)
+					}
+				}
+				return nonReactive(ret)
+			}),
+			renderError: null as null | string,
+			selectedExp: null as MalVal,
+			editorMode: 'code'
 		})
 
 		function _getOuterRange(start: number, end: number) {
@@ -277,39 +306,6 @@ export default defineComponent({
 			_updateSelectedExp()
 		}
 
-		function _readStr() {
-			let exp
-			try {
-				exp = readStr(data.evalCode, true)
-			} catch (err) {
-				if (!(err instanceof BlankException)) {
-					printer.error(err)
-				}
-				exp = null
-			}
-			data.exp = exp
-		}
-
-		function _evalExp() {
-			try {
-				const {output, env} = viewREP(data.exp, {
-					width: ui.viewerSize[0],
-					height: ui.viewerSize[1],
-					updateConsole: true,
-					guideColor: ui.guideColor
-				})
-
-				// this.viewEnv = nonReactive(env)
-				data.viewExp = nonReactive(output)
-			} catch (err) {
-				if (err instanceof LispError) {
-					printer.error(err.message)
-				} else {
-					printer.error(err)
-				}
-			}
-		}
-
 		// Init App Handler
 		appHandler.on('eval-selected', () => {
 			if (
@@ -357,7 +353,6 @@ export default defineComponent({
 
 		function onViewerResized(size: [number, number]) {
 			ui.viewerSize = size
-			_evalExp()
 		}
 
 		// Background and theme
@@ -377,14 +372,6 @@ export default defineComponent({
 			() => data.code,
 			() => {
 				replEnv.set(S('$sketch'), data.code)
-			}
-		)
-
-		watch(
-			() => data.evalCode,
-			() => {
-				_readStr()
-				_evalExp()
 			}
 		)
 
