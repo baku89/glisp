@@ -11,7 +11,7 @@
 					:exp="viewExp"
 					:guide-color="guideColor"
 					@resize="viewerSize = $event"
-					@render="onRender"
+					@render="renderError = !$event"
 					@set-background="onSetBackground"
 				/>
 			</div>
@@ -133,7 +133,7 @@ export default defineComponent({
 	setup() {
 		const ui = reactive({
 			compact: false,
-			background: '',
+			background: 'snow',
 			dark: computed(() => {
 				try {
 					return Color(ui.background).isDark() as boolean
@@ -161,6 +161,7 @@ export default defineComponent({
 					if (!(err instanceof BlankException)) {
 						printer.error(err)
 					}
+					data.renderError = true
 					exp = null
 				}
 				return exp
@@ -337,10 +338,6 @@ export default defineComponent({
 			data.selection = selection
 		})
 
-		function onRender(succeed: boolean) {
-			data.renderError = !succeed
-		}
-
 		// Background and theme
 		function onSetBackground(bg: string) {
 			let base
@@ -373,6 +370,8 @@ export default defineComponent({
 					itemStr
 				)
 
+				console.log('onUpdateSelec')
+
 				data.code = code
 				data.selection = selection
 			}
@@ -380,7 +379,6 @@ export default defineComponent({
 
 		return {
 			...toRefs(data),
-			onRender,
 			onSetupConsole,
 			onSelectOuter,
 			onUpdateSelectedExp,
