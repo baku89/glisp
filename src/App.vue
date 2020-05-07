@@ -6,12 +6,16 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
 					@resize="viewerSize = $event"
-					@render="renderError = !$event"
+					@render="hasError = !$event"
 					@set-background="onSetBackground"
 				/>
 			</div>
@@ -35,9 +39,11 @@
 				<div class="app__console">
 					<button
 						class="app__console-toggle"
-						:class="{error: renderError}"
+						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ renderError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -160,7 +166,7 @@ export default defineComponent({
 					if (!(err instanceof BlankException)) {
 						printer.error(err)
 					}
-					data.renderError = true
+					data.hasError = true
 					exp = null
 				}
 				return exp
@@ -184,7 +190,7 @@ export default defineComponent({
 				}
 				return nonReactive(ret)
 			}),
-			renderError: null as null | string,
+			hasError: null as null | string,
 
 			// Selection
 			selection: [0, 0] as number[],
