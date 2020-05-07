@@ -26,7 +26,6 @@
 					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
 					</div>-->
 					<Editor
-						v-if="editorMode == 'code'"
 						:value="code"
 						:selection="selection"
 						:activeRange="selectedExpRange"
@@ -152,7 +151,14 @@ export default defineComponent({
 			}),
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
-		})
+		}) as {
+			compact: boolean
+			background: string
+			dark: boolean
+			colors: {[k: string]: string}
+			viewerSize: [number, number]
+			guideColor: string
+		}
 
 		const data = reactive({
 			codeHasLoaded: false,
@@ -190,10 +196,10 @@ export default defineComponent({
 				}
 				return nonReactive(ret)
 			}),
-			hasError: null as null | string,
+			hasError: false,
 
 			// Selection
-			selection: [0, 0] as number[],
+			selection: [0, 0],
 			selectedExp: computed(() => {
 				const [start, end] = data.selection
 				const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
@@ -210,10 +216,19 @@ export default defineComponent({
 				} else {
 					return null
 				}
-			}),
+			})
+		}) as {
+			codeHasLoaded: boolean
+			code: string
+			evalCode: string
+			exp: MalVal
+			viewExp: MalVal
 
-			editorMode: 'code'
-		})
+			hasError: boolean
+			selection: [number, number]
+			selectedExp: MalVal
+			selectedExpRange: [number, number] | null
+		}
 
 		function _getOuterRange(start: number, end: number) {
 			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
