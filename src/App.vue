@@ -3,18 +3,14 @@
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
 			<div class="app__inspector" v-if="selectedExp">
-				<Inspector :value="selectedExp" @input="onEditSelected" />
+				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onEditSelected"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
-					@resize="onResizeViewer"
+					@resize="onViewerResized"
 					@render="onRender"
 					@set-background="onSetBackground"
 				/>
@@ -41,9 +37,7 @@
 						class="app__console-toggle"
 						:class="{error: renderError}"
 						@click="compact = !compact"
-					>
-						{{ renderError ? '!' : '✓' }}
-					</button>
+					>{{ renderError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -53,8 +47,16 @@
 
 <script lang="ts">
 import 'normalize.css'
-
-import {Component, Vue, Watch} from 'vue-property-decorator'
+import {
+	defineComponent,
+	reactive,
+	ref,
+	Ref,
+	computed,
+	watch,
+	onMounted,
+	toRefs
+} from '@vue/composition-api'
 import Color from 'color'
 
 import GlobalMenu from '@/components/GlobalMenu'
@@ -90,7 +92,35 @@ import Env from './mal/env'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
-@Component({
+const BRIGHT_COLORS = {
+	'--currentline': '#efefef',
+	'--selection': '#d6d6d6',
+	'--foreground': '#4d4d4c',
+	'--comment': '#8e908c',
+	'--red': '#c82829',
+	'--orange': '#f5871f',
+	'--yellow': '#eab700',
+	'--green': '#718c00',
+	'--aqua': '#3e999f',
+	'--blue': '#4271ae',
+	'--purple': '#8959a8'
+}
+
+const DARK_COLORS = {
+	'--currentline': '#282a2e',
+	'--selection': '#373b41',
+	'--foreground': '#c5c8c6',
+	'--comment': '#969896',
+	'--red': '#cc6666',
+	'--orange': '#de935f',
+	'--yellow': '#f0c674',
+	'--green': '#b5bd68',
+	'--aqua': '#8abeb7',
+	'--blue': '#81a2be',
+	'--purple': '#b294bb'
+}
+
+export default defineComponent({
 	name: 'App',
 	components: {
 		GlobalMenu,
@@ -99,318 +129,296 @@ const OFFSET = 19 // length of "(def $view (sketch "
 		Console,
 		Inspector,
 		ViewHandles
-		// TreeVector
-	}
-})
-export default class App extends Vue {
-	private selection = [0, 0]
-	private code = ''
-	private background = 'whitesmoke'
-	private compact = true
-	private renderError = false
-	private editorMode = 'code'
-	private selectedExp: MalVal = null
-	private viewerSize = [0, 0]
-	private setupCount = 0
+	},
+	setup() {
+		const data = reactive({
+			selection: [0, 0] as number[],
+			activeRange: computed(() => {
+				const selected = data.selectedExp as MalTreeWithRange
+				if (selected !== null && selected[M_START] >= OFFSET) {
+					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+				} else {
+					return null
+				}
+			}),
+			codeHasLoaded: false,
+			code: '',
+			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
+			renderError: null as null | string,
+			selectedExp: null as MalVal,
+			editorMode: 'code',
+			exp: null as MalVal,
+			viewExp: null
+		})
 
-	private exp: MalVal = null
+		const ui = reactive({
+			compact: false,
+			background: '',
+			dark: computed(() => {
+				try {
+					return Color(ui.background).isDark() as boolean
+				} catch (_) {
+					return false
+				}
+			}),
+			colors: computed(() => {
+				const colors = ui.dark ? DARK_COLORS : BRIGHT_COLORS
+				return {...colors, '--background': ui.background}
+			}),
+			viewerSize: [0, 0],
+			guideColor: computed(() => ui.colors['--selection'])
+		})
 
-	// Passed to Viewer (nonReactive)
-	private viewExp: NonReactive<MalVal> | null = null
-	// private viewEnv: NonReactive<Env> | null = null
+		function _getOuterRange(start: number, end: number) {
+			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
 
-	private initialCode!: string
-
-	private get evalCode() {
-		return `(def $view (sketch ${this.code} \n nil))`
-	}
-
-	@Watch('code')
-	private onCodeUpdated() {
-		replEnv.set(S('$sketch'), this.code)
-	}
-
-	@Watch('evalCode')
-	private onEvalCodeUpdated() {
-		this.readStr()
-		this.evalExp()
-	}
-
-	private readStr() {
-		let exp
-		try {
-			exp = readStr(this.evalCode, true)
-		} catch (err) {
-			if (!(err instanceof BlankException)) {
-				printer.error(err)
+			if (selected !== null && selected[M_START] >= OFFSET) {
+				return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+			} else {
+				return null
 			}
-			exp = null
 		}
 
-		this.exp = exp
-	}
+		function onSelectOuter() {
+			if (data.activeRange === null) {
+				return
+			}
 
-	private created() {
+			if (data.selection[0] === data.selection[1]) {
+				data.selection = data.activeRange
+			} else {
+				const selection = _getOuterRange(
+					data.activeRange[0] - 1,
+					data.activeRange[1]
+				)
+				if (selection) {
+					data.selection = selection
+				}
+			}
+		}
+
+		function onEdit(value: string) {
+			localStorage.setItem('saved_code', value)
+			data.code = value
+		}
+
+		// URL
 		const url = new URL(location.href)
 
-		const queryCodeURL = url.searchParams.get('code_url')
-		const queryCode = url.searchParams.get('code')
-		const doClear = url.searchParams.has('clear')
+		ui.compact = url.searchParams.has('compact')
 
-		if (doClear) {
+		if (url.searchParams.has('clear')) {
 			localStorage.removeItem('saved_code')
 			url.searchParams.delete('clear')
 			history.pushState({}, document.title, url.pathname + url.search)
 		}
 
-		this.compact = url.searchParams.has('compact')
+		// Load initial codes
+		const loadCodePromise = (async () => {
+			let code = ''
 
-		if (queryCodeURL) {
-			const codeURL = decodeURI(queryCodeURL)
-			url.searchParams.delete('code_url')
-			url.searchParams.delete('code')
+			const queryCodeURL = url.searchParams.get('code_url')
+			const queryCode = url.searchParams.get('code')
 
-			const getCode = async () => {
+			if (queryCodeURL) {
+				const codeURL = decodeURI(queryCodeURL)
+				url.searchParams.delete('code_url')
+				url.searchParams.delete('code')
+
 				const res = await fetch(codeURL)
 				if (res.ok) {
-					let code = await res.text()
+					code = await res.text()
 
 					if (codeURL.startsWith('http')) {
 						code = `;; Loaded from "${codeURL}"\n\n${code}`
 					}
-					this.initialCode = code
-					this.setupCount++
 				} else {
 					printer.error(`Failed to load from "${codeURL}"`)
 				}
 
 				history.pushState({}, document.title, url.pathname + url.search)
+			} else if (queryCode) {
+				code = decodeURI(queryCode)
+				url.searchParams.delete('code')
+				history.pushState({}, document.title, url.pathname + url.search)
+			} else {
+				code =
+					localStorage.getItem('saved_code') ||
+					require('raw-loader!./default-canvas.cljs').default
 			}
-			getCode()
-		} else if (queryCode) {
-			this.initialCode = decodeURI(queryCode)
-			this.setupCount++
-			url.searchParams.delete('code')
-			history.pushState({}, document.title, url.pathname + url.search)
-		} else {
-			this.initialCode =
-				localStorage.getItem('saved_code') ||
-				require('raw-loader!./default-canvas.cljs').default
-			this.setupCount++
+
+			return code
+		})()
+
+		let onSetupConsole
+		const setupConsolePromise = new Promise(resolve => {
+			onSetupConsole = () => {
+				resolve()
+			}
+		})
+
+		Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
+			data.code = ret[0] as string
+			data.codeHasLoaded = true
+		})
+
+		function _updateSelectedExp() {
+			const [start, end] = data.selection
+			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
+			if (Array.isArray(selected) && selected[0] === S('sketch')) {
+				data.selectedExp = null
+			} else {
+				data.selectedExp = selected
+			}
 		}
 
+		function onSelect(selection: [number, number]) {
+			data.selection = selection
+			_updateSelectedExp()
+		}
+
+		function _readStr() {
+			let exp
+			try {
+				exp = readStr(data.evalCode, true)
+			} catch (err) {
+				if (!(err instanceof BlankException)) {
+					printer.error(err)
+				}
+				exp = null
+			}
+			data.exp = exp
+		}
+
+		function _evalExp() {
+			try {
+				const {output, env} = viewREP(data.exp, {
+					width: ui.viewerSize[0],
+					height: ui.viewerSize[1],
+					updateConsole: true,
+					guideColor: ui.guideColor
+				})
+
+				// this.viewEnv = nonReactive(env)
+				data.viewExp = nonReactive(output)
+			} catch (err) {
+				if (err instanceof LispError) {
+					printer.error(err.message)
+				} else {
+					printer.error(err)
+				}
+			}
+		}
+
+		// Init App Handler
 		appHandler.on('eval-selected', () => {
 			if (
-				this.selectedExp &&
-				this.activeRange &&
-				typeof this.selectedExp === 'object' &&
-				(this.selectedExp as any)[M_EVAL] !== undefined
+				data.selectedExp &&
+				data.activeRange &&
+				typeof data.selectedExp === 'object' &&
+				(data.selectedExp as any)[M_EVAL] !== undefined
 			) {
-				const evaled = (this.selectedExp as any)[M_EVAL]
+				const evaled = (data.selectedExp as any)[M_EVAL]
 				const str = printExp(evaled)
 
-				const [start, end] = this.activeRange
-				const [code, ...selection] = replaceRange(this.code, start, end, str)
+				const [start, end] = data.activeRange
+				const [code, ...selection] = replaceRange(data.code, start, end, str)
 
-				this.onEdit(code)
-				this.selection = selection
+				onEdit(code)
+				data.selection = selection
 			}
 		})
 
 		appHandler.on('load-file', async (url: string) => {
 			const res = await fetch(url)
 			if (res.ok) {
-				this.code = await res.text()
+				data.code = await res.text()
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
 		})
 
-		appHandler.on('select-outer', this.onSelectOuter)
+		appHandler.on('select-outer', onSelectOuter)
 
 		appHandler.on('insert-exp', (item: MalVal) => {
 			const itemStr = printExp(item)
 
-			const [start, end] = this.selection
-			const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
+			const [start, end] = data.selection
+			const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
 
-			this.onEdit(code)
-			this.selection = selection
+			onEdit(code)
+			data.selection = selection
 		})
-	}
 
-	private evalExp() {
-		try {
-			const {output, env} = viewREP(this.exp, {
-				width: this.viewerSize[0],
-				height: this.viewerSize[1],
-				updateConsole: true,
-				guideColor: this.guideColor
-			})
+		function onRender(succeed: boolean) {
+			data.renderError = !succeed
+			_updateSelectedExp()
+		}
 
-			// this.viewEnv = nonReactive(env)
-			this.viewExp = nonReactive(output)
-		} catch (err) {
-			if (err instanceof LispError) {
-				printer.error(err.message)
-			} else {
-				printer.error(err)
+		function onViewerResized(size: [number, number]) {
+			ui.viewerSize = size
+			_evalExp()
+		}
+
+		// Background and theme
+		function onSetBackground(bg: string) {
+			let base
+
+			try {
+				base = Color(bg)
+			} catch (err) {
+				return
+			}
+
+			ui.background = bg
+		}
+
+		watch(
+			() => data.code,
+			() => {
+				replEnv.set(S('$sketch'), data.code)
+			}
+		)
+
+		watch(
+			() => data.evalCode,
+			() => {
+				_readStr()
+				_evalExp()
+			}
+		)
+
+		function onUpdateSelectedExp(val: MalVal) {
+			if (data.activeRange) {
+				const itemStr = printExp(val)
+				const [start, end] = data.activeRange
+				const [code, ...selection] = replaceRange(
+					data.code,
+					start,
+					end,
+					itemStr
+				)
+
+				onEdit(code)
+				data.selection = selection
 			}
 		}
-	}
 
-	private onEditSelected(val: MalVal) {
-		if (this.activeRange) {
-			const itemStr = printExp(val)
-			const [start, end] = this.activeRange
-			const [code, ...selection] = replaceRange(this.code, start, end, itemStr)
+		return {
+			...toRefs(data),
+			onEdit,
+			onRender,
+			onSelect,
+			onSetupConsole,
+			onViewerResized,
+			onUpdateSelectedExp,
+			onSelectOuter,
 
-			this.onEdit(code)
-			this.selection = selection
+			...toRefs(ui),
+			onSetBackground
 		}
 	}
-
-	// private onUpdateAst(ast: MalVal[]) {
-	// 	this.code = (ast as any).map((val: MalVal) => printExp(val)).join('\n')
-	// }
-
-	private onSetupConsole() {
-		this.setupCount++
-	}
-
-	@Watch('setupCount')
-	private onSetupFinished() {
-		if (this.setupCount === 2) {
-			// Wait the initial rendering until the console has been mounted
-			this.code = this.initialCode || ''
-			this.onEdit(this.code)
-			replEnv.set(S('$sketch'), this.code)
-		}
-	}
-
-	private onRender(succeed: boolean) {
-		this.renderError = !succeed
-		this.updateselectedExp()
-	}
-
-	private onEdit(value: string) {
-		localStorage.setItem('saved_code', value)
-
-		this.code = value
-	}
-
-	private onResizeViewer(size: [number, number]) {
-		this.viewerSize = size
-		this.evalExp()
-	}
-
-	private onSelect(selection: [number, number]) {
-		this.selection = selection
-		this.updateselectedExp()
-	}
-
-	private get activeRange() {
-		const selected = this.selectedExp as MalTreeWithRange
-
-		if (selected !== null && selected[M_START] >= OFFSET) {
-			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
-		} else {
-			return null
-		}
-	}
-
-	private updateselectedExp() {
-		const [start, end] = this.selection
-		const selected = findAstByRange(this.exp, start + OFFSET, end + OFFSET)
-		if (Array.isArray(selected) && selected[0] === S('sketch')) {
-			this.selectedExp = null
-		} else {
-			this.selectedExp = selected
-		}
-	}
-
-	private getOuterRange(start: number, end: number) {
-		const selected = findAstByRange(this.exp, start + OFFSET, end + OFFSET)
-
-		if (selected !== null && selected[M_START] >= OFFSET) {
-			return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
-		} else {
-			return null
-		}
-	}
-
-	private onSelectOuter() {
-		if (this.activeRange === null) {
-			return
-		}
-
-		if (this.selection[0] === this.selection[1]) {
-			this.selection = this.activeRange
-		} else {
-			const selection = this.getOuterRange(
-				this.activeRange[0] - 1,
-				this.activeRange[1]
-			)
-			if (selection) {
-				this.selection = selection
-			}
-		}
-	}
-
-	private get dark() {
-		return Color(this.background).isDark()
-	}
-
-	private get colors() {
-		const brightColors = {
-			'--currentline': '#efefef',
-			'--selection': '#d6d6d6',
-			'--foreground': '#4d4d4c',
-			'--comment': '#8e908c',
-			'--red': '#c82829',
-			'--orange': '#f5871f',
-			'--yellow': '#eab700',
-			'--green': '#718c00',
-			'--aqua': '#3e999f',
-			'--blue': '#4271ae',
-			'--purple': '#8959a8'
-		}
-
-		const darkColors = {
-			'--currentline': '#282a2e',
-			'--selection': '#373b41',
-			'--foreground': '#c5c8c6',
-			'--comment': '#969896',
-			'--red': '#cc6666',
-			'--orange': '#de935f',
-			'--yellow': '#f0c674',
-			'--green': '#b5bd68',
-			'--aqua': '#8abeb7',
-			'--blue': '#81a2be',
-			'--purple': '#b294bb'
-		}
-
-		const colors = this.dark ? darkColors : brightColors
-
-		return {...colors, '--background': this.background}
-	}
-
-	private get guideColor() {
-		return this.colors['--selection']
-	}
-
-	private onSetBackground(bg: string) {
-		let base
-
-		try {
-			base = Color(bg)
-		} catch (err) {
-			return
-		}
-
-		this.background = bg
-	}
-}
+})
 </script>
 
 <style lang="stylus">
