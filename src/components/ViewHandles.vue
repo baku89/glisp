@@ -4,13 +4,22 @@
 			<template v-for="({type, id, transform, path, cls}, i) in handles">
 				<path
 					v-if="type === 'path'"
+					class="path"
 					:class="cls"
 					:key="i"
 					:d="path"
 					@mousedown="onMousedown(id, $event)"
 				/>
-				<g v-else :key="i" :transform="transform" @mousedown="onMousedown(id, $event)">
-					<path v-if="type === 'arrow'" d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5" />
+				<g
+					v-else
+					:key="i"
+					:transform="transform"
+					@mousedown="onMousedown(id, $event)"
+				>
+					<path
+						v-if="type === 'arrow'"
+						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
+					/>
 					<path v-if="cls === 'translate'" d="M 12 0 H -12 M 0 12 V -12" />
 					<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 				</g>
@@ -258,6 +267,7 @@ export default class ViewHandles extends Vue {
 		stroke var(--blue)
 		fill none
 
+	.path
 		&:hover
 			stroke-width 3
 
