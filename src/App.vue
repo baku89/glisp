@@ -10,7 +10,7 @@
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
-					@resize="onViewerResized"
+					@resize="viewerSize = $event"
 					@render="onRender"
 					@set-background="onSetBackground"
 				/>
@@ -25,10 +25,10 @@
 						v-if="editorMode == 'code'"
 						:value="code"
 						:selection="selection"
-						:activeRange="activeRange"
+						:activeRange="selectedExpRange"
 						:dark="dark"
-						@input="onEdit"
-						@select="onSelect"
+						@input="code = $event"
+						@select="selection = $event"
 						@select-outer="onSelectOuter"
 					/>
 				</div>
@@ -150,15 +150,6 @@ export default defineComponent({
 		})
 
 		const data = reactive({
-			selection: [0, 0] as number[],
-			activeRange: computed(() => {
-				const selected = data.selectedExp as MalTreeWithRange
-				if (selected !== null && selected[M_START] >= OFFSET) {
-					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
-				} else {
-					return null
-				}
-			}),
 			codeHasLoaded: false,
 			code: '',
 			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
@@ -194,7 +185,27 @@ export default defineComponent({
 				return nonReactive(ret)
 			}),
 			renderError: null as null | string,
-			selectedExp: null as MalVal,
+
+			// Selection
+			selection: [0, 0] as number[],
+			selectedExp: computed(() => {
+				const [start, end] = data.selection
+				const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
+				if (Array.isArray(selected) && selected[0] === S('sketch')) {
+					return null
+				} else {
+					return selected
+				}
+			}),
+			selectedExpRange: computed(() => {
+				const selected = data.selectedExp as MalTreeWithRange
+				if (selected !== null && selected[M_START] >= OFFSET) {
+					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+				} else {
+					return null
+				}
+			}),
+
 			editorMode: 'code'
 		})
 
@@ -209,26 +220,21 @@ export default defineComponent({
 		}
 
 		function onSelectOuter() {
-			if (data.activeRange === null) {
+			if (data.selectedExpRange === null) {
 				return
 			}
 
 			if (data.selection[0] === data.selection[1]) {
-				data.selection = data.activeRange
+				data.selection = data.selectedExpRange
 			} else {
 				const selection = _getOuterRange(
-					data.activeRange[0] - 1,
-					data.activeRange[1]
+					data.selectedExpRange[0] - 1,
+					data.selectedExpRange[1]
 				)
 				if (selection) {
 					data.selection = selection
 				}
 			}
-		}
-
-		function onEdit(value: string) {
-			localStorage.setItem('saved_code', value)
-			data.code = value
 		}
 
 		// URL
@@ -291,36 +297,21 @@ export default defineComponent({
 			data.codeHasLoaded = true
 		})
 
-		function _updateSelectedExp() {
-			const [start, end] = data.selection
-			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
-			if (Array.isArray(selected) && selected[0] === S('sketch')) {
-				data.selectedExp = null
-			} else {
-				data.selectedExp = selected
-			}
-		}
-
-		function onSelect(selection: [number, number]) {
-			data.selection = selection
-			_updateSelectedExp()
-		}
-
 		// Init App Handler
 		appHandler.on('eval-selected', () => {
 			if (
 				data.selectedExp &&
-				data.activeRange &&
+				data.selectedExpRange &&
 				typeof data.selectedExp === 'object' &&
 				(data.selectedExp as any)[M_EVAL] !== undefined
 			) {
 				const evaled = (data.selectedExp as any)[M_EVAL]
 				const str = printExp(evaled)
 
-				const [start, end] = data.activeRange
+				const [start, end] = data.selectedExpRange
 				const [code, ...selection] = replaceRange(data.code, start, end, str)
 
-				onEdit(code)
+				data.code = code
 				data.selection = selection
 			}
 		})
@@ -342,17 +333,12 @@ export default defineComponent({
 			const [start, end] = data.selection
 			const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
 
-			onEdit(code)
+			data.code = code
 			data.selection = selection
 		})
 
 		function onRender(succeed: boolean) {
 			data.renderError = !succeed
-			_updateSelectedExp()
-		}
-
-		function onViewerResized(size: [number, number]) {
-			ui.viewerSize = size
 		}
 
 		// Background and theme
@@ -371,14 +357,15 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			() => {
+				localStorage.setItem('saved_code', data.code)
 				replEnv.set(S('$sketch'), data.code)
 			}
 		)
 
 		function onUpdateSelectedExp(val: MalVal) {
-			if (data.activeRange) {
+			if (data.selectedExpRange) {
 				const itemStr = printExp(val)
-				const [start, end] = data.activeRange
+				const [start, end] = data.selectedExpRange
 				const [code, ...selection] = replaceRange(
 					data.code,
 					start,
@@ -386,20 +373,17 @@ export default defineComponent({
 					itemStr
 				)
 
-				onEdit(code)
+				data.code = code
 				data.selection = selection
 			}
 		}
 
 		return {
 			...toRefs(data),
-			onEdit,
 			onRender,
-			onSelect,
 			onSetupConsole,
-			onViewerResized,
-			onUpdateSelectedExp,
 			onSelectOuter,
+			onUpdateSelectedExp,
 
 			...toRefs(ui),
 			onSetBackground
