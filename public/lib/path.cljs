@@ -198,3 +198,13 @@
    :returns {:type "path"}}
   [& paths]
   (vec (concat :path (apply concat (map rest paths)))))
+
+;; Annotations for JS functions
+
+(def path/trim
+  ^{:doc "Trims a path by normalized range"
+    :params [{:label "Start" :type "number" :constraints {:min 0 :max 1}}
+             {:label "End" :type "number" :constraints {:min 0 :max 1}}
+             {:label "Path" :type "path"}]
+    :returns {:type "path"}}
+  path/trim)
