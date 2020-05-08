@@ -236,7 +236,6 @@ export default class ViewHandles extends Vue {
 		}
 
 		const newExp = [(this.exp as any[])[0], ...newParams]
-
 		this.$emit('input', newExp)
 	}
 

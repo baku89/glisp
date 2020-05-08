@@ -77,7 +77,8 @@ import {
 	isMalNode,
 	M_OUTER,
 	MalListNode,
-	M_MACROEXPANDED
+	M_MACROEXPANDED,
+	M_STR
 } from '@/mal/types'
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
@@ -309,9 +310,6 @@ export default defineComponent({
 					let exp
 					try {
 						exp = readStr(evalCode, true)
-						if (printExp(exp) !== evalCode) {
-							console.error('NOTTTTT')
-						}
 					} catch (err) {
 						if (!(err instanceof BlankException)) {
 							printer.error(err)
@@ -322,6 +320,7 @@ export default defineComponent({
 				},
 				set: (exp: MalVal) => {
 					data.code = printExp(exp).slice(OFFSET, -8)
+					window.exp = exp
 				}
 			}),
 			hasError: computed(() => {
@@ -352,16 +351,32 @@ export default defineComponent({
 
 			// Selection
 			selection: [0, 0],
-			selectedExp: computed(() => {
-				if (data.exp === undefined) {
-					return null
-				}
-				const [start, end] = data.selection
-				const selected = findExpByRange(data.exp, start + OFFSET, end + OFFSET)
-				if (Array.isArray(selected) && selected[0] === S('sketch')) {
-					return null
-				} else {
-					return selected
+			selectedExp: computed({
+				get: () => {
+					if (data.exp === undefined) {
+						return null
+					}
+					const [start, end] = data.selection
+					const selected = findExpByRange(
+						data.exp,
+						start + OFFSET,
+						end + OFFSET
+					)
+					if (Array.isArray(selected) && selected[0] === S('sketch')) {
+						return null
+					} else {
+						return selected
+					}
+				},
+				set: (exp: MalVal) => {
+					const selection = getRangeOfExp(exp)
+
+					if (selection) {
+						const [start, end] = selection
+						data.selection = [start - OFFSET, end - OFFSET]
+					} else {
+						data.selection = [0, 0]
+					}
 				}
 			}),
 			selectedExpRange: computed(() => {
@@ -409,13 +424,7 @@ export default defineComponent({
 			// Assign new exp
 			const root = data.exp as MalListNode
 			data.exp = [...root]
-
-			const selection = getRangeOfExp(exp)
-
-			if (selection) {
-				const [start, end] = selection
-				data.selection = [start - OFFSET, end - OFFSET]
-			}
+			data.selectedExp = exp
 		}
 
 		// Init App Handler

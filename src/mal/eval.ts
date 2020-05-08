@@ -323,9 +323,6 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		// Set outer recursively
 		saveOuter(replaced, outer, key)
 
-		// Cache print
-		printExp(replaced, true, true)
-
 		// Delete M_STR
 		let _o = replaced as MalNode, // TODO: support atom
 			_key
@@ -339,5 +336,15 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 			}
 			delete _o[M_STR]
 		}
+
+		let root = outer
+		while (isMalNode(root) && root[M_OUTER]) {
+			root = root[M_OUTER]
+		}
+
+		// Cache print
+		printExp(root, true, true)
+	} else {
+		console.log('sdifsodfijsf')
 	}
 }
