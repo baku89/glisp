@@ -6,16 +6,12 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
 					@resize="viewerSize = $event"
-					@render="hasError = !$event"
+					@render="hasRenderError = !$event"
 					@set-background="onSetBackground"
 				/>
 			</div>
@@ -39,9 +35,7 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -66,7 +60,6 @@ import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
-// import {TreeVector} from '@/components/Tree'
 
 import {replEnv, printExp, readStr} from '@/mal'
 import {
@@ -79,7 +72,7 @@ import {
 	LispError
 } from '@/mal/types'
 
-import {replaceRange, NonReactive, nonReactive} from '@/utils'
+import {replaceRange, nonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findExpByRange} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
@@ -119,9 +112,10 @@ interface Data {
 	codeHasLoaded: boolean
 	code: string
 	evalCode: string
-	exp: MalVal
+	exp: MalVal | undefined
 	viewExp: MalVal
 	hasError: boolean
+	hasRenderError: boolean
 	selection: [number, number]
 	selectedExp: MalVal
 	selectedExpRange: [number, number] | null
@@ -250,7 +244,7 @@ function bindsAppHandler(data: Data) {
 			data.selection = data.selectedExpRange
 		} else {
 			const selection = getOuterRange(
-				data.exp,
+				data.exp || null,
 				data.selectedExpRange[0] - 1,
 				data.selectedExpRange[1]
 			)
@@ -296,6 +290,7 @@ export default defineComponent({
 				const colors = ui.dark ? DARK_COLORS : BRIGHT_COLORS
 				return {...colors, '--background': ui.background}
 			}),
+
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
 		}) as UI
@@ -305,19 +300,31 @@ export default defineComponent({
 			code: '',
 			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
 			exp: computed(() => {
+				const evalCode = data.evalCode
 				let exp
 				try {
-					exp = readStr(data.evalCode, true)
+					exp = readStr(evalCode, true)
+					window.exp = exp
+					if (printExp(exp) !== data.evalCode) {
+						console.error('NOTTTTT')
+					}
 				} catch (err) {
 					if (!(err instanceof BlankException)) {
 						printer.error(err)
 					}
-					data.hasError = true
-					exp = null
+					exp = undefined
 				}
 				return exp
 			}),
+			hasError: computed(() => {
+				return data.exp === undefined || data.hasRenderError
+			}),
+			hasRenderError: false,
 			viewExp: computed(() => {
+				if (data.exp === undefined) {
+					return nonReactive(null)
+				}
+
 				let ret = null
 				try {
 					const {output} = viewREP(data.exp, {
@@ -336,11 +343,13 @@ export default defineComponent({
 				}
 				return nonReactive(ret)
 			}),
-			hasError: false,
 
 			// Selection
 			selection: [0, 0],
 			selectedExp: computed(() => {
+				if (data.exp === undefined) {
+					return null
+				}
 				const [start, end] = data.selection
 				const selected = findExpByRange(data.exp, start + OFFSET, end + OFFSET)
 				if (Array.isArray(selected) && selected[0] === S('sketch')) {
@@ -378,7 +387,9 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			() => {
-				localStorage.setItem('saved_code', data.code)
+				if (data.code) {
+					localStorage.setItem('saved_code', data.code)
+				}
 				replEnv.set(S('$sketch'), data.code)
 			}
 		)
