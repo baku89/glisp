@@ -66,10 +66,10 @@ import {
 	MalVal,
 	symbolFor as S,
 	MalNode,
-	M_START,
-	M_END,
 	M_EVAL,
-	LispError
+	LispError,
+	isMalNode,
+	M_OUTER
 } from '@/mal/types'
 
 import {replaceRange, nonReactive} from '@/utils'
@@ -194,17 +194,15 @@ function parseURL(data: Data, ui: UI) {
 	return {onSetupConsole}
 }
 
-function getOuterRange(exp: MalVal, start: number, end: number) {
-	const selected = findExpByRange(exp, start + OFFSET, end + OFFSET)
-
-	if (selected !== null && selected[M_START] >= OFFSET) {
-		return [selected[M_START] - OFFSET, selected[M_END] - OFFSET] as [
-			number,
-			number
-		]
-	} else {
-		return null
+function getOuterRange(exp: MalVal) {
+	if (isMalNode(exp) && exp[M_OUTER]) {
+		const range = getRangeOfExp(exp[M_OUTER])
+		if (range) {
+			const [start, end] = range
+			return [start - OFFSET, end - OFFSET] as [number, number]
+		}
 	}
+	return null
 }
 
 function bindsAppHandler(data: Data) {
@@ -242,12 +240,8 @@ function bindsAppHandler(data: Data) {
 
 		if (data.selection[0] === data.selection[1]) {
 			data.selection = data.selectedExpRange
-		} else {
-			const selection = getOuterRange(
-				data.exp || null,
-				data.selectedExpRange[0] - 1,
-				data.selectedExpRange[1]
-			)
+		} else if (data.exp) {
+			const selection = getOuterRange(data.exp)
 			if (selection) {
 				data.selection = selection
 			}
@@ -360,7 +354,7 @@ export default defineComponent({
 			}),
 			selectedExpRange: computed(() => {
 				const selected = data.selectedExp as MalNode
-				if (selected !== null && selected[M_START] >= OFFSET) {
+				if (selected) {
 					const ret = getRangeOfExp(selected)
 					if (ret) {
 						const [start, end] = ret

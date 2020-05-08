@@ -15,8 +15,8 @@ export const M_OUTER = Symbol.for('outer')
 
 // Stores string repsentation
 export const M_ISSUGAR = Symbol('issugar')
-export const M_START = Symbol.for('start')
-export const M_END = Symbol.for('end')
+// export const M_START = Symbol.for('start')
+// export const M_END = Symbol.for('end')
 export const M_STR = Symbol.for('str') // a string representation of node itself
 export const M_ELMSTRS = Symbol.for('elmstrs') // string representations of each elements
 export const M_KEYS = Symbol.for('keys') // keys of hashmap in order
@@ -38,8 +38,8 @@ export class LispError extends Error {}
 export type MalMap = {[keyword: string]: MalVal}
 
 export interface MalNodeMap extends MalMap {
-	[M_START]: number
-	[M_END]: number
+	// [M_START]: number
+	// [M_END]: number
 	[M_STR]: string
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
@@ -50,8 +50,8 @@ export interface MalNodeMap extends MalMap {
 }
 
 export interface MalListNode extends Array<MalVal> {
-	[M_START]: number
-	[M_END]: number
+	// [M_START]: number
+	// [M_END]: number
 	[M_STR]: string
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]

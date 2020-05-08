@@ -6,8 +6,8 @@ import {
 	MalNode,
 	MalNodeMap,
 	isMap,
-	M_START,
-	M_END,
+	// M_START,
+	// M_END,
 	MalMap,
 	MalVal,
 	markMalVector,
@@ -176,8 +176,8 @@ function readList(reader: Reader, saveStr: boolean, start = '(', end = ')') {
 	if (saveStr) {
 		const formEnd = reader.endOffset()
 
-		exp[M_START] = formStart
-		exp[M_END] = formEnd
+		// exp[M_START] = formStart
+		// exp[M_END] = formEnd
 
 		// Save a delimiter between a last element and a end tag
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
@@ -203,8 +203,8 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 	const lst = readList(reader, saveStr, '{', '}')
 	const map = assocBang({}, ...lst)
 	if (saveStr) {
-		;(map as MalNode)[M_START] = lst[M_START]
-		;(map as MalNode)[M_END] = lst[M_END]
+		// ;(map as MalNode)[M_START] = lst[M_START]
+		// ;(map as MalNode)[M_END] = lst[M_END]
 		;(map as MalNode)[M_STR] = lst[M_STR]
 		;(map as MalNode)[M_ELMSTRS] = lst[M_ELMSTRS]
 		;(map as MalNode)[M_DELIMITERS] = lst[M_DELIMITERS]
@@ -305,8 +305,8 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		const formEnd = reader.prevEndOffset()
 
 		val[M_ISSUGAR] = true
-		val[M_START] = reader.offset(startIdx)
-		val[M_END] = reader.prevEndOffset()
+		// val[M_START] = reader.offset(startIdx)
+		// val[M_END] = reader.prevEndOffset()
 		val[M_STR] = reader.getStr(formStart, formEnd)
 
 		const delimiters = ['']
