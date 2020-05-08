@@ -452,8 +452,8 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 
 export class BlankException extends Error {}
 
-function saveOuter(exp: MalVal, outer: MalVal, key?: string | number) {
-	if (isMalNode(exp)) {
+export function saveOuter(exp: MalVal, outer: MalVal, key?: string | number) {
+	if (isMalNode(exp) && !(M_OUTER in exp)) {
 		exp[M_OUTER] = outer
 		exp[M_OUTER_KEY] = key
 

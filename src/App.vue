@@ -6,7 +6,11 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -35,7 +39,9 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -81,7 +87,12 @@ import {
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
+import {
+	BlankException,
+	findExpByRange,
+	getRangeOfExp,
+	saveOuter
+} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
 
@@ -401,20 +412,22 @@ export default defineComponent({
 			}
 		)
 
-		function onUpdateSelectedExp(val: MalVal) {
+		function onUpdateSelectedExp(exp: MalVal) {
 			const outer = (data.selectedExp as MalNode)[M_OUTER]
 			const key = (data.selectedExp as MalNode)[M_OUTER_KEY]
 
 			if (key !== undefined) {
-				// Set outer
-				;(val as MalNode)[M_OUTER] = outer
-				;(val as MalNode)[M_OUTER_KEY] = key
+				// Set as child
+				;(outer as any)[key] = exp
 
-				// Set child
-				;(outer as any)[key] = val
+				// Set outer recursively
+				saveOuter(exp, outer, key)
+
+				// Cache print
+				printExp(exp, false, true)
 
 				// Delete M_STR
-				let _o = val as MalNode,
+				let _o = exp as MalNode,
 					_key
 				while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
 					if (Array.isArray(_o)) {
@@ -430,6 +443,13 @@ export default defineComponent({
 				// Assign new exp
 				const root = data.exp as MalListNode
 				data.exp = [...root]
+
+				const selection = getRangeOfExp(exp)
+
+				if (selection) {
+					const [start, end] = selection
+					data.selection = [start - OFFSET, end - OFFSET]
+				}
 			}
 		}
 
