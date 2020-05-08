@@ -234,25 +234,7 @@ function readForm(reader: Reader, savePosition: boolean): any {
 	return val
 }
 
-export function findAstByPosition(exp: MalVal, pos: number): MalNode | null {
-	if (isMalNode(exp) && exp[M_START] !== undefined) {
-		if (exp[M_START] <= pos && pos <= exp[M_END]) {
-			for (const child of exp as MalVal[]) {
-				const ret = findAstByPosition(child, pos)
-				if (ret !== null) {
-					return ret
-				}
-			}
-			return exp
-		} else {
-			return null
-		}
-	} else {
-		return null
-	}
-}
-
-export function findAstByRange(
+export function findExpByRange(
 	exp: any,
 	start: number,
 	end: number
@@ -261,7 +243,7 @@ export function findAstByRange(
 		if (exp[M_START] <= start && end <= exp[M_END]) {
 			if (isMap(exp)) {
 				for (const child of Object.values(exp)) {
-					const ret = findAstByRange(child, start, end)
+					const ret = findExpByRange(child, start, end)
 					if (ret !== null) {
 						return ret
 					}
@@ -269,7 +251,7 @@ export function findAstByRange(
 				return exp
 			} else {
 				for (const child of exp) {
-					const ret = findAstByRange(child, start, end)
+					const ret = findExpByRange(child, start, end)
 					if (ret !== null) {
 						return ret
 					}

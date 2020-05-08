@@ -83,7 +83,7 @@ import {
 
 import {replaceRange, NonReactive, nonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {BlankException, findAstByPosition, findAstByRange} from '@/mal/reader'
+import {BlankException, findExpByRange} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
 
@@ -203,7 +203,7 @@ function parseURL(data: Data, ui: UI) {
 }
 
 function getOuterRange(exp: MalVal, start: number, end: number) {
-	const selected = findAstByRange(exp, start + OFFSET, end + OFFSET)
+	const selected = findExpByRange(exp, start + OFFSET, end + OFFSET)
 
 	if (selected !== null && selected[M_START] >= OFFSET) {
 		return [selected[M_START] - OFFSET, selected[M_END] - OFFSET] as [
@@ -344,7 +344,7 @@ export default defineComponent({
 			selection: [0, 0],
 			selectedExp: computed(() => {
 				const [start, end] = data.selection
-				const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
+				const selected = findExpByRange(data.exp, start + OFFSET, end + OFFSET)
 				if (Array.isArray(selected) && selected[0] === S('sketch')) {
 					return null
 				} else {
