@@ -428,8 +428,8 @@ export default defineComponent({
 				;(outer as any)[key] = val
 
 				// Delete M_STR
-				let _o: MalNode = val as MalNode
-				let _key
+				let _o = val as MalNode,
+					_key
 				while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
 					if (Array.isArray(_o)) {
 						_o[M_ELMSTRS][_key as number] = ''
@@ -441,11 +441,9 @@ export default defineComponent({
 					delete _o[M_STR]
 				}
 
+				// Assign new exp
 				const root = data.exp as MalListNode
-
-				const newExp = [...root]
-
-				data.exp = newExp
+				data.exp = [...root]
 			}
 		}
 
