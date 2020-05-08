@@ -7,12 +7,20 @@ export const M_AST = Symbol.for('ast')
 export const M_ENV = Symbol.for('env')
 export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
-export const M_START = Symbol.for('start')
-export const M_END = Symbol.for('end')
+const M_ISVECTOR = Symbol.for('isvector')
+
 export const M_EVAL = Symbol.for('eval')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
-const M_ISVECTOR = Symbol.for('isvector')
+
+// Stores string repsentation
+export const M_ISSUGAR = Symbol('issugar')
+export const M_START = Symbol.for('start')
+export const M_END = Symbol.for('end')
+export const M_STR = Symbol.for('str') // a string representation of node itself
+export const M_ELMSTRS = Symbol.for('elmstrs') // string representations of each elements
+export const M_KEYS = Symbol.for('keys') // keys of hashmap in order
+export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
 export type MalBind = (string | MalBind)[]
 
@@ -29,10 +37,14 @@ export class LispError extends Error {}
 
 export type MalMap = {[keyword: string]: MalVal}
 
-interface MalNodeMap extends MalMap {
+export interface MalNodeMap extends MalMap {
 	[M_START]: number
 	[M_END]: number
-	[M_FN]: MalVal
+	[M_STR]: string
+	[M_ISSUGAR]: boolean
+	[M_DELIMITERS]: string[]
+	[M_ELMSTRS]: string[]
+	[M_KEYS]: string[]
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalVal
 }
@@ -40,6 +52,10 @@ interface MalNodeMap extends MalMap {
 export interface MalListNode extends Array<MalVal> {
 	[M_START]: number
 	[M_END]: number
+	[M_STR]: string
+	[M_ISSUGAR]: boolean
+	[M_DELIMITERS]: string[]
+	[M_ELMSTRS]: string[]
 	[M_FN]: MalVal
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalVal
