@@ -75,7 +75,6 @@ export type MalVal =
 	| MalMap
 	| MalVal[]
 	| MalNode
-	| Float32Array
 
 // General Functions
 export function isEqual(a: MalVal, b: MalVal) {
