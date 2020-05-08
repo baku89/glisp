@@ -315,7 +315,7 @@ export default defineComponent({
 					return exp
 				},
 				set: (exp: MalVal) => {
-					data.code = printExp(exp).slice(OFFSET, -7)
+					data.code = printExp(exp).slice(OFFSET, -8)
 				}
 			}),
 			hasError: computed(() => {
