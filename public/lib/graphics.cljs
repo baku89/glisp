@@ -56,7 +56,7 @@
             {:type "number" :desc "To"}
             {:type "number" :desc "Step"}]}
   [from to step]
-  (map #(* % step) (range from (inc to))))
+  (vec (map #(* % step) (range from (inc to)))))
 
 
 ;; Group
