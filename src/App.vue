@@ -6,11 +6,7 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -32,7 +28,6 @@
 						:dark="dark"
 						@input="code = $event"
 						@select="selection = $event"
-						@select-outer="onSelectOuter"
 					/>
 				</div>
 				<div class="app__console">
@@ -40,9 +35,7 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -124,6 +117,162 @@ const DARK_COLORS = {
 	'--purple': '#b294bb'
 }
 
+interface Data {
+	codeHasLoaded: boolean
+	code: string
+	evalCode: string
+	exp: MalVal
+	viewExp: MalVal
+	hasError: boolean
+	selection: [number, number]
+	selectedExp: MalVal
+	selectedExpRange: [number, number] | null
+}
+
+interface UI {
+	compact: boolean
+	background: string
+	dark: boolean
+	colors: {[k: string]: string}
+	viewerSize: [number, number]
+	guideColor: string
+}
+
+function parseURL(data: Data, ui: UI) {
+	// URL
+	const url = new URL(location.href)
+
+	ui.compact = url.searchParams.has('compact')
+
+	if (url.searchParams.has('clear')) {
+		localStorage.removeItem('saved_code')
+		url.searchParams.delete('clear')
+		history.pushState({}, document.title, url.pathname + url.search)
+	}
+
+	// Load initial codes
+	const loadCodePromise = (async () => {
+		let code = ''
+
+		const queryCodeURL = url.searchParams.get('code_url')
+		const queryCode = url.searchParams.get('code')
+
+		if (queryCodeURL) {
+			const codeURL = decodeURI(queryCodeURL)
+			url.searchParams.delete('code_url')
+			url.searchParams.delete('code')
+
+			const res = await fetch(codeURL)
+			if (res.ok) {
+				code = await res.text()
+
+				if (codeURL.startsWith('http')) {
+					code = `;; Loaded from "${codeURL}"\n\n${code}`
+				}
+			} else {
+				printer.error(`Failed to load from "${codeURL}"`)
+			}
+
+			history.pushState({}, document.title, url.pathname + url.search)
+		} else if (queryCode) {
+			code = decodeURI(queryCode)
+			url.searchParams.delete('code')
+			history.pushState({}, document.title, url.pathname + url.search)
+		} else {
+			code =
+				localStorage.getItem('saved_code') ||
+				require('raw-loader!./default-canvas.cljs').default
+		}
+
+		return code
+	})()
+
+	let onSetupConsole
+	const setupConsolePromise = new Promise(resolve => {
+		onSetupConsole = () => {
+			resolve()
+		}
+	})
+
+	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
+		data.code = ret[0] as string
+		data.codeHasLoaded = true
+	})
+
+	return {onSetupConsole}
+}
+
+function getOuterRange(exp: MalVal, start: number, end: number) {
+	const selected = findAstByRange(exp, start + OFFSET, end + OFFSET)
+
+	if (selected !== null && selected[M_START] >= OFFSET) {
+		return [selected[M_START] - OFFSET, selected[M_END] - OFFSET] as [
+			number,
+			number
+		]
+	} else {
+		return null
+	}
+}
+
+function bindsAppHandler(data: Data) {
+	appHandler.on('eval-selected', () => {
+		if (
+			data.selectedExp &&
+			data.selectedExpRange &&
+			typeof data.selectedExp === 'object' &&
+			(data.selectedExp as any)[M_EVAL] !== undefined
+		) {
+			const evaled = (data.selectedExp as any)[M_EVAL]
+			const str = printExp(evaled)
+
+			const [start, end] = data.selectedExpRange
+			const [code, ...selection] = replaceRange(data.code, start, end, str)
+
+			data.code = code
+			data.selection = selection
+		}
+	})
+
+	appHandler.on('load-file', async (url: string) => {
+		const res = await fetch(url)
+		if (res.ok) {
+			data.code = await res.text()
+		} else {
+			printer.error(`Failed to load from "${url}"`)
+		}
+	})
+
+	appHandler.on('select-outer', () => {
+		if (data.selectedExpRange === null) {
+			return
+		}
+
+		if (data.selection[0] === data.selection[1]) {
+			data.selection = data.selectedExpRange
+		} else {
+			const selection = getOuterRange(
+				data.exp,
+				data.selectedExpRange[0] - 1,
+				data.selectedExpRange[1]
+			)
+			if (selection) {
+				data.selection = selection
+			}
+		}
+	})
+
+	appHandler.on('insert-exp', (item: MalVal) => {
+		const itemStr = printExp(item)
+
+		const [start, end] = data.selection
+		const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
+
+		data.code = code
+		data.selection = selection
+	})
+}
+
 export default defineComponent({
 	name: 'App',
 	components: {
@@ -151,14 +300,7 @@ export default defineComponent({
 			}),
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
-		}) as {
-			compact: boolean
-			background: string
-			dark: boolean
-			colors: {[k: string]: string}
-			viewerSize: [number, number]
-			guideColor: string
-		}
+		}) as UI
 
 		const data = reactive({
 			codeHasLoaded: false,
@@ -217,149 +359,12 @@ export default defineComponent({
 					return null
 				}
 			})
-		}) as {
-			codeHasLoaded: boolean
-			code: string
-			evalCode: string
-			exp: MalVal
-			viewExp: MalVal
+		}) as Data
 
-			hasError: boolean
-			selection: [number, number]
-			selectedExp: MalVal
-			selectedExpRange: [number, number] | null
-		}
-
-		function _getOuterRange(start: number, end: number) {
-			const selected = findAstByRange(data.exp, start + OFFSET, end + OFFSET)
-
-			if (selected !== null && selected[M_START] >= OFFSET) {
-				return [selected[M_START] - OFFSET, selected[M_END] - OFFSET] as [
-					number,
-					number
-				]
-			} else {
-				return null
-			}
-		}
-
-		function onSelectOuter() {
-			if (data.selectedExpRange === null) {
-				return
-			}
-
-			if (data.selection[0] === data.selection[1]) {
-				data.selection = data.selectedExpRange
-			} else {
-				const selection = _getOuterRange(
-					data.selectedExpRange[0] - 1,
-					data.selectedExpRange[1]
-				)
-				if (selection) {
-					data.selection = selection
-				}
-			}
-		}
-
-		// URL
-		const url = new URL(location.href)
-
-		ui.compact = url.searchParams.has('compact')
-
-		if (url.searchParams.has('clear')) {
-			localStorage.removeItem('saved_code')
-			url.searchParams.delete('clear')
-			history.pushState({}, document.title, url.pathname + url.search)
-		}
-
-		// Load initial codes
-		const loadCodePromise = (async () => {
-			let code = ''
-
-			const queryCodeURL = url.searchParams.get('code_url')
-			const queryCode = url.searchParams.get('code')
-
-			if (queryCodeURL) {
-				const codeURL = decodeURI(queryCodeURL)
-				url.searchParams.delete('code_url')
-				url.searchParams.delete('code')
-
-				const res = await fetch(codeURL)
-				if (res.ok) {
-					code = await res.text()
-
-					if (codeURL.startsWith('http')) {
-						code = `;; Loaded from "${codeURL}"\n\n${code}`
-					}
-				} else {
-					printer.error(`Failed to load from "${codeURL}"`)
-				}
-
-				history.pushState({}, document.title, url.pathname + url.search)
-			} else if (queryCode) {
-				code = decodeURI(queryCode)
-				url.searchParams.delete('code')
-				history.pushState({}, document.title, url.pathname + url.search)
-			} else {
-				code =
-					localStorage.getItem('saved_code') ||
-					require('raw-loader!./default-canvas.cljs').default
-			}
-
-			return code
-		})()
-
-		let onSetupConsole
-		const setupConsolePromise = new Promise(resolve => {
-			onSetupConsole = () => {
-				resolve()
-			}
-		})
-
-		Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
-			data.code = ret[0] as string
-			data.codeHasLoaded = true
-		})
+		const {onSetupConsole} = parseURL(data, ui)
 
 		// Init App Handler
-		appHandler.on('eval-selected', () => {
-			if (
-				data.selectedExp &&
-				data.selectedExpRange &&
-				typeof data.selectedExp === 'object' &&
-				(data.selectedExp as any)[M_EVAL] !== undefined
-			) {
-				const evaled = (data.selectedExp as any)[M_EVAL]
-				const str = printExp(evaled)
-
-				const [start, end] = data.selectedExpRange
-				const [code, ...selection] = replaceRange(data.code, start, end, str)
-
-				data.code = code
-				data.selection = selection
-			}
-		})
-
-		appHandler.on('load-file', async (url: string) => {
-			const res = await fetch(url)
-			if (res.ok) {
-				data.code = await res.text()
-			} else {
-				printer.error(`Failed to load from "${url}"`)
-			}
-		})
-
-		appHandler.on('select-outer', onSelectOuter)
-
-		appHandler.on('insert-exp', (item: MalVal) => {
-			const itemStr = printExp(item)
-
-			const [start, end] = data.selection
-			const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
-
-			data.code = code
-			data.selection = selection
-		})
+		bindsAppHandler(data)
 
 		// Background and theme
 		function onSetBackground(bg: string) {
@@ -399,12 +404,11 @@ export default defineComponent({
 		}
 
 		return {
-			...toRefs(data),
+			...toRefs(data as any),
 			onSetupConsole,
-			onSelectOuter,
 			onUpdateSelectedExp,
 
-			...toRefs(ui),
+			...toRefs(ui as any),
 			onSetBackground
 		}
 	}

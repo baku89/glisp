@@ -7,6 +7,7 @@
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ace, {Range as AceRange} from 'brace'
+import {appHandler} from '../mal/console'
 
 function replaceRange(
 	s: string,
@@ -66,7 +67,7 @@ export default class Editor extends Vue {
 			name: 'selectOuter',
 			bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
 			exec: () => {
-				this.$emit('select-outer')
+				appHandler.emit('select-outer')
 			}
 		})
 
