@@ -14,15 +14,15 @@ export default class Env {
 		[key: string]: MalVal
 	} = {}
 
-	public outer: Env | null
 	private exps?: MalVal[]
 
 	public name = 'let'
 
-	constructor(outer: Env | null = null, binds?: Binds, exps?: MalVal[]) {
-		this.data = {}
-		this.outer = outer
-
+	constructor(
+		private outer: Env | null = null,
+		binds?: Binds,
+		exps?: MalVal[]
+	) {
 		if (exps) {
 			this.exps = exps
 		}
