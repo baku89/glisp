@@ -44,7 +44,7 @@ function quasiquote(ast: any): MalVal {
 function macroexpand(ast: MalVal = null, env: Env) {
 	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
 		const fn = env.get(ast[0] as string) as MalFunc
-		;(ast as any)[M_FN] = fn
+		;(ast as MalNode)[M_FN] = fn
 		if (!fn[M_ISMACRO]) {
 			break
 		}
@@ -61,12 +61,12 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, saveEval)
 			if (saveEval && x !== null && x instanceof Object) {
-				;(x as any)[M_EVAL] = ret
+				;(x as MalNode)[M_EVAL] = ret
 			}
 			return ret
 		})
 		if (saveEval) {
-			;(ast as any)[M_EVAL] = ret
+			;(ast as MalNode)[M_EVAL] = ret
 		}
 		return isVector(ast) ? markMalVector(ret) : ret
 	} else if (isMap(ast)) {
@@ -75,12 +75,12 @@ const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(ast[k], env, saveEval)
 			if (saveEval && ast[k] !== null && ast[k] instanceof Object) {
-				;(ast[k] as any)[M_EVAL] = ret
+				;(ast[k] as MalNode)[M_EVAL] = ret
 			}
 			hm[k] = ret
 		}
 		if (saveEval) {
-			;(ast as any)[M_EVAL] = hm
+			;(ast as MalNode)[M_EVAL] = hm
 		}
 		return hm
 	} else {
@@ -103,7 +103,7 @@ export default function evalExp(
 
 		const expandedAst = macroexpand(ast, env)
 		if (_ev) {
-			;(ast as any)[M_EVAL] = expandedAst
+			;(ast as MalNode)[M_EVAL] = expandedAst
 		}
 		ast = expandedAst
 
@@ -123,8 +123,8 @@ export default function evalExp(
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
 				if (_ev) {
-					;(ast as any)[M_FN] = env.get(S('def'))
-					;(ast as any)[M_EVAL] = ret
+					;(ast as MalNode)[M_FN] = env.get(S('def'))
+					;(ast as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -140,20 +140,20 @@ export default function evalExp(
 				env = letEnv
 				const ret = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
 				if (_ev) {
-					;(ast as any)[M_EVAL] = ret
+					;(ast as MalNode)[M_EVAL] = ret
 				}
 				ast = ret
 				break // continue TCO loop
 			}
 			case 'quote':
 				if (_ev) {
-					;(ast as any)[M_EVAL] = a1
+					;(ast as MalNode)[M_EVAL] = a1
 				}
 				return a1
 			case 'quasiquote': {
 				const ret = quasiquote(a1)
 				if (_ev) {
-					;(ast as any)[M_EVAL] = ret
+					;(ast as MalNode)[M_EVAL] = ret
 				}
 				ast = ret
 				break // continue TCO loop
@@ -167,7 +167,7 @@ export default function evalExp(
 			case 'macroexpand': {
 				const ret = macroexpand(a1, env)
 				if (_ev) {
-					;(ast as any)[M_EVAL] = ret
+					;(ast as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -175,7 +175,7 @@ export default function evalExp(
 				try {
 					const ret = evalExp(a1, env, _ev)
 					if (_ev) {
-						;(ast as any)[M_EVAL] = ret
+						;(ast as MalNode)[M_EVAL] = ret
 					}
 					return ret
 				} catch (exc) {
@@ -190,7 +190,7 @@ export default function evalExp(
 							_ev
 						)
 						if (_ev) {
-							;(ast as any)[M_EVAL] = ret
+							;(ast as MalNode)[M_EVAL] = ret
 						}
 						return ret
 					} else {
@@ -201,7 +201,7 @@ export default function evalExp(
 				evalAst(ast.slice(1, -1), env, _ev)
 				const ret = ast[ast.length - 1]
 				if (_ev) {
-					;(ast as any)[M_EVAL] = ret
+					;(ast as MalNode)[M_EVAL] = ret
 				}
 				ast = ret
 				break // continue TCO loop
@@ -210,12 +210,12 @@ export default function evalExp(
 				const cond = evalExp(a1, env, _ev)
 				if (cond) {
 					if (_ev) {
-						;(ast as any)[M_EVAL] = a2
+						;(ast as MalNode)[M_EVAL] = a2
 					}
 					ast = a2
 				} else {
 					if (_ev) {
-						;(ast as any)[M_EVAL] = a3
+						;(ast as MalNode)[M_EVAL] = a3
 					}
 					ast = typeof a3 !== 'undefined' ? a3 : null
 				}
@@ -277,16 +277,16 @@ export default function evalExp(
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
 					if (saveEval) {
-						;(ast as any)[M_EVAL] = fn[M_AST]
-						;(ast as any)[M_FN] = fn
+						;(ast as MalNode)[M_EVAL] = fn[M_AST]
+						;(ast as MalNode)[M_FN] = fn
 					}
 					ast = fn[M_AST]
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					const ret = (fn as any)(...args)
 					if (saveEval) {
-						;(ast as any)[M_EVAL] = ret
-						;(ast as any)[M_FN] = fn
+						;(ast as MalNode)[M_EVAL] = ret
+						;(ast as MalNode)[M_FN] = fn
 					}
 					return ret
 				} else {
