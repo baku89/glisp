@@ -111,7 +111,6 @@ const DARK_COLORS = {
 interface Data {
 	codeHasLoaded: boolean
 	code: string
-	evalCode: string
 	exp: MalVal | undefined
 	viewExp: MalVal
 	hasError: boolean
@@ -292,14 +291,12 @@ export default defineComponent({
 		const data = reactive({
 			codeHasLoaded: false,
 			code: '',
-			evalCode: computed(() => `(def $view (sketch ${data.code} \n nil))`),
 			exp: computed(() => {
-				const evalCode = data.evalCode
+				const evalCode = `(def $view (sketch ${data.code} \n nil))`
 				let exp
 				try {
 					exp = readStr(evalCode, true)
-					window.exp = exp
-					if (printExp(exp) !== data.evalCode) {
+					if (printExp(exp) !== evalCode) {
 						console.error('NOTTTTT')
 					}
 				} catch (err) {
