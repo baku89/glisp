@@ -12,6 +12,7 @@ const M_ISVECTOR = Symbol.for('isvector')
 export const M_EVAL = Symbol.for('eval')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
+export const M_OUTER_KEY = Symbol.for('outer-key')
 
 // Stores string repsentation
 export const M_ISSUGAR = Symbol('issugar')
@@ -47,6 +48,7 @@ export interface MalNodeMap extends MalMap {
 	[M_KEYS]: string[]
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalVal
+	[M_OUTER_KEY]: number | string | undefined
 }
 
 export interface MalListNode extends Array<MalVal> {
@@ -59,6 +61,7 @@ export interface MalListNode extends Array<MalVal> {
 	[M_FN]: MalVal
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalVal
+	[M_OUTER_KEY]: MalVal
 }
 
 export type MalNode = MalNodeMap | MalListNode

@@ -17,10 +17,9 @@ import {
 	M_DELIMITERS,
 	M_STR,
 	M_KEYS,
-	MalListNode,
-	M_ISSUGAR
+	M_ISSUGAR,
+	M_OUTER_KEY
 } from './types'
-import printExp from './printer'
 
 class Reader {
 	private tokens: string[] | [string, number][]
@@ -334,13 +333,15 @@ export function getRangeOfExp(exp: MalVal): [number, number] | null {
 
 		if (isMalNode(outer)) {
 			if (Array.isArray(outer)) {
-				const index = outer.indexOf(exp)
+				const index = (exp as MalNode)[M_OUTER_KEY] as number
 				offset +=
 					(outer[M_ISSUGAR] ? 0 : 1) +
 					outer[M_DELIMITERS].slice(0, index + 1).join('').length +
 					outer[M_ELMSTRS].slice(0, index).join('').length
 			} else if (isMap(outer)) {
-				const index = outer[M_KEYS].map(k => outer[k]).indexOf(exp)
+				const index = outer[M_KEYS].indexOf(
+					(exp as MalNode)[M_OUTER_KEY] as string
+				)
 				offset +=
 					1 +
 					outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
@@ -460,18 +461,19 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 
 export class BlankException extends Error {}
 
-function saveOuter(exp: MalVal, outer: MalVal) {
+function saveOuter(exp: MalVal, outer: MalVal, key?: string | number) {
 	if (isMalNode(exp)) {
 		exp[M_OUTER] = outer
+		exp[M_OUTER_KEY] = key
 
-		const children = Array.isArray(exp)
-			? exp
+		const children: [string | number, MalVal][] | null = Array.isArray(exp)
+			? exp.map((v, i) => [i, v])
 			: isMap(exp)
-			? Object.values(exp)
+			? Object.entries(exp)
 			: null
 
 		if (children) {
-			children.forEach(c => saveOuter(c, exp))
+			children.forEach(([key, child]) => saveOuter(child, exp, key))
 		}
 	}
 }
