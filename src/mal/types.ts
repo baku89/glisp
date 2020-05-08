@@ -32,15 +32,15 @@ export type MalMap = {[keyword: string]: MalVal}
 interface MalNodeMap extends MalMap {
 	[M_START]: number
 	[M_END]: number
-	[M_EVAL]: number
-	[M_OUTER]: number
+	[M_EVAL]: MalVal
+	[M_OUTER]: MalVal
 }
 
 export interface MalListNode extends Array<MalVal> {
 	[M_START]: number
 	[M_END]: number
-	[M_EVAL]: number
-	[M_OUTER]: number
+	[M_EVAL]: MalVal
+	[M_OUTER]: MalVal
 }
 
 export type MalNode = MalNodeMap | MalListNode
