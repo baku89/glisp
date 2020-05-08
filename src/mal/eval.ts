@@ -23,7 +23,8 @@ import {
 	markMalVector,
 	MalNode,
 	isMalNode,
-	MalListNode
+	MalListNode,
+	M_MACROEXPANDED
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -43,7 +44,7 @@ function quasiquote(exp: any): MalVal {
 	}
 }
 
-function macroexpand(exp: MalVal = null, env: Env) {
+function macroexpand(exp: MalVal, env: Env) {
 	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0] as string)) {
 		const fn = env.get(exp[0] as string) as MalFunc
 		;(exp as MalListNode)[M_FN] = fn
@@ -97,11 +98,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			return evalAtom(exp, env, cache)
 		}
 
-		const expandedAst = macroexpand(exp, env)
-		if (cache) {
-			;(exp as MalNode)[M_EVAL] = expandedAst
+		const expandedExp = macroexpand(exp, env)
+		if (cache && exp !== expandedExp) {
+			;(exp as MalListNode)[M_MACROEXPANDED] = expandedExp
 		}
-		exp = expandedAst
+		exp = expandedExp
 
 		if (!isList(exp)) {
 			return evalAtom(exp, env, cache)

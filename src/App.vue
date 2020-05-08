@@ -75,7 +75,8 @@ import {
 	MalListNode,
 	M_ELMSTRS,
 	isMap,
-	M_KEYS
+	M_KEYS,
+	M_MACROEXPANDED
 } from '@/mal/types'
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
@@ -210,22 +211,25 @@ function getOuterRange(exp: MalVal) {
 	return null
 }
 
-function bindsAppHandler(data: Data) {
+function bindsAppHandler(
+	data: Data,
+	onUpdateSelectedExp: (val: MalVal) => any
+) {
 	appHandler.on('eval-selected', () => {
 		if (
 			data.selectedExp &&
 			data.selectedExpRange &&
-			typeof data.selectedExp === 'object' &&
-			(data.selectedExp as any)[M_EVAL] !== undefined
+			isMalNode(data.selectedExp)
 		) {
-			const evaled = (data.selectedExp as any)[M_EVAL]
-			const str = printExp(evaled)
-
-			const [start, end] = data.selectedExpRange
-			const [code, ...selection] = replaceRange(data.code, start, end, str)
-
-			data.code = code
-			data.selection = selection
+			let evaled
+			if (M_MACROEXPANDED in data.selectedExp) {
+				evaled = (data.selectedExp as MalListNode)[M_MACROEXPANDED]
+			} else if (M_EVAL in data.selectedExp) {
+				evaled = data.selectedExp[M_EVAL]
+			}
+			if (evaled !== undefined) {
+				onUpdateSelectedExp(evaled)
+			}
 		}
 	})
 
@@ -376,9 +380,6 @@ export default defineComponent({
 
 		const {onSetupConsole} = parseURL(data, ui)
 
-		// Init App Handler
-		bindsAppHandler(data)
-
 		// Background and theme
 		function onSetBackground(bg: string) {
 			try {
@@ -431,6 +432,9 @@ export default defineComponent({
 				data.exp = [...root]
 			}
 		}
+
+		// Init App Handler
+		bindsAppHandler(data, onUpdateSelectedExp)
 
 		return {
 			...toRefs(data as any),
