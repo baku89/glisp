@@ -6,7 +6,11 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -35,7 +39,9 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -48,8 +54,6 @@ import 'normalize.css'
 import {
 	defineComponent,
 	reactive,
-	ref,
-	Ref,
 	computed,
 	watch,
 	onMounted,
@@ -76,7 +80,6 @@ import {
 	M_META,
 	M_FN,
 	MalMap,
-	isVector,
 	M_EVAL,
 	LispError
 } from '@/mal/types'
