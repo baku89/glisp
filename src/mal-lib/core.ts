@@ -23,8 +23,6 @@ import {
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
 
-const S_AMP = S('&')
-
 function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new LispError('[with-meta] Need the metadata to attach')

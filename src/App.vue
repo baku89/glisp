@@ -76,25 +76,16 @@ import {
 	LispError,
 	isMalNode,
 	M_OUTER,
-	M_OUTER_KEY,
-	M_STR,
 	MalListNode,
-	M_ELMSTRS,
-	isMap,
-	M_KEYS,
 	M_MACROEXPANDED
 } from '@/mal/types'
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {
-	BlankException,
-	findExpByRange,
-	getRangeOfExp,
-	saveOuter
-} from '@/mal/reader'
+import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
+import {replaceExp} from './mal/eval'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
@@ -413,43 +404,17 @@ export default defineComponent({
 		)
 
 		function onUpdateSelectedExp(exp: MalVal) {
-			const outer = (data.selectedExp as MalNode)[M_OUTER]
-			const key = (data.selectedExp as MalNode)[M_OUTER_KEY]
+			replaceExp(data.selectedExp as MalNode, exp)
 
-			if (key !== undefined) {
-				// Set as child
-				;(outer as any)[key] = exp
+			// Assign new exp
+			const root = data.exp as MalListNode
+			data.exp = [...root]
 
-				// Set outer recursively
-				saveOuter(exp, outer, key)
+			const selection = getRangeOfExp(exp)
 
-				// Cache print
-				printExp(exp, true, true)
-
-				// Delete M_STR
-				let _o = exp as MalNode,
-					_key
-				while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
-					if (Array.isArray(_o)) {
-						_o[M_ELMSTRS][_key as number] = ''
-					} else if (isMap(_o)) {
-						const index = _o[M_KEYS].indexOf(_key as string)
-						const elmstrsIndex = index * 2 + 1
-						_o[M_ELMSTRS][elmstrsIndex] = ''
-					}
-					delete _o[M_STR]
-				}
-
-				// Assign new exp
-				const root = data.exp as MalListNode
-				data.exp = [...root]
-
-				const selection = getRangeOfExp(exp)
-
-				if (selection) {
-					const [start, end] = selection
-					data.selection = [start - OFFSET, end - OFFSET]
-				}
+			if (selection) {
+				const [start, end] = selection
+				data.selection = [start - OFFSET, end - OFFSET]
 			}
 		}
 

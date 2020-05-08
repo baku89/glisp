@@ -24,10 +24,16 @@ import {
 	MalNode,
 	isMalNode,
 	MalListNode,
-	M_MACROEXPANDED
+	M_MACROEXPANDED,
+	M_OUTER,
+	M_OUTER_KEY,
+	M_ELMSTRS,
+	M_KEYS,
+	M_STR
 } from './types'
 import Env from './env'
 import printExp from './printer'
+import {saveOuter} from './reader'
 
 // eval
 const isPair = (x: MalVal) => Array.isArray(x) && x.length > 0
@@ -301,6 +307,37 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 			}
+		}
+	}
+}
+
+// Cached Tree-shaking
+export function replaceExp(original: MalNode, replaced: MalVal) {
+	const outer = original[M_OUTER]
+	const key = original[M_OUTER_KEY]
+
+	if (key !== undefined) {
+		// Set as child
+		;(outer as any)[key] = replaced
+
+		// Set outer recursively
+		saveOuter(replaced, outer, key)
+
+		// Cache print
+		printExp(replaced, true, true)
+
+		// Delete M_STR
+		let _o = replaced as MalNode, // TODO: support atom
+			_key
+		while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
+			if (Array.isArray(_o)) {
+				_o[M_ELMSTRS][_key as number] = ''
+			} else if (isMap(_o)) {
+				const index = _o[M_KEYS].indexOf(_key as string)
+				const elmstrsIndex = index * 2 + 1
+				_o[M_ELMSTRS][elmstrsIndex] = ''
+			}
+			delete _o[M_STR]
 		}
 	}
 }

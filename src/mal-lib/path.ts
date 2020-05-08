@@ -55,7 +55,7 @@ export function getSVGPathData(path: PathType) {
 		path = path.slice(1)
 	}
 
-	return path.map(x => (isKeyword(x) ? x.slice(1) : x)).join(' ')
+	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
 }
 
 function getPaperPath(path: PathType): paper.Path {
@@ -116,7 +116,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	let start = path[0] === K_PATH ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || isKeyword(path[i])) {
+		if (i === l || isKeyword(path[i] as MalVal)) {
 			yield createMalVector(path.slice(start, i)) as SegmentType
 			start = i
 		}
@@ -816,7 +816,8 @@ const Exports = [
 	// Utility
 	[
 		'path/split-segments',
-		([, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
+		([, ...path]: PathType) =>
+			markMalVector(Array.from(iterateSegment(path) as any))
 	],
 	['path/bounds', pathBounds]
 ] as [string, MalVal][]

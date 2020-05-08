@@ -47,9 +47,9 @@ export default function printExp(
 	let ret: string
 	let elmStrs: string[] | null = null
 
-	if (isMalNode(exp) && exp[M_STR]) {
+	if (isMalNode(exp) && M_STR in exp) {
 		ret = exp[M_STR]
-	} else if (isMalNode(exp) && exp[M_ELMSTRS]) {
+	} else if (isMalNode(exp) && M_ELMSTRS in exp) {
 		const delimiters = exp[M_DELIMITERS]
 		elmStrs = exp[M_ELMSTRS]
 
@@ -153,7 +153,7 @@ export default function printExp(
 	} else if (exp === undefined) {
 		ret = '<undefined>'
 	} else {
-		ret = `<${exp.constructor.name}>`
+		ret = `<native objects>`
 	}
 
 	if (_c && isMalNode(exp) && elmStrs) {
