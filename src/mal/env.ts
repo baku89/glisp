@@ -18,11 +18,7 @@ export default class Env {
 
 	public name = 'let'
 
-	constructor(
-		private outer: Env | null = null,
-		binds?: Binds,
-		exps?: MalVal[]
-	) {
+	constructor(public outer: Env | null = null, binds?: Binds, exps?: MalVal[]) {
 		if (exps) {
 			this.exps = exps
 		}
