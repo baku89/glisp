@@ -5,7 +5,7 @@
 				{{ fnName }}
 				<span v-if="aliasFor" class="alias">--> alias for {{ aliasFor }}</span>
 			</div>
-			<VueMarkdown class="Inspector__desc" :source="fnDesc" />
+			<VueMarkdown :source="fnDoc" />
 		</div>
 		<table class="Inspector__params">
 			<tr
@@ -156,11 +156,17 @@ const EmptyParamDescs = {
 	rest: null
 }
 
+const TypeDefaults = {
+	number: 0,
+	vec2: markMalVector([0, 0]),
+	path: markMalVector([K('path')])
+} as {[type: string]: MalVal}
+
 const InterpolateFuncs = {
 	number: (a: number, b: number) => (a + b) / 2,
 	vec2: (a: number[], b: number[]) =>
 		markMalVector([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])
-}
+} as {[type: string]: (...xs: MalVal[]) => MalVal}
 
 type MetaDescs = (Desc | string)[]
 
@@ -231,7 +237,7 @@ export default class Inspector extends Vue {
 		return this.aliasFor ? this.fnOrigMeta[K_ALIAS][K_META] : this.fnOrigMeta
 	}
 
-	private get fnDesc(): string {
+	private get fnDoc(): string {
 		if (this.fnMeta) {
 			return typeof this.fnMeta === 'string'
 				? this.fnMeta
@@ -573,15 +579,23 @@ export default class Inspector extends Vue {
 
 		const newParams = [...this.fnParams]
 
-		const type = this.params[this.variadicPos].type
-		const interporateFunc = (InterpolateFuncs as any)[type] || null
+		const descVariadic = this.fnMeta[K_PARAMS][this.variadicPos + 1]
 
 		const imin = this.variadicPos
 		const imax = newParams.length - 1
 
 		let insertedValue
 
-		if (interporateFunc) {
+		const type = descVariadic[K_TYPE]
+		const descDefault = descVariadic[K_DEFAULT]
+		const typeDefault = TypeDefaults[type]
+		const interporateFunc = InterpolateFuncs[type] || null
+
+		if (descDefault !== undefined) {
+			insertedValue = descDefault
+		} else if (typeDefault) {
+			insertedValue = typeDefault
+		} else if (interporateFunc) {
 			const a = newParams[clamp(i - 1, imin, imax)]
 			const b = newParams[clamp(i, imin, imax)]
 			insertedValue = interporateFunc(a, b)
