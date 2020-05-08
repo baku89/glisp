@@ -69,10 +69,16 @@ import {
 	M_EVAL,
 	LispError,
 	isMalNode,
-	M_OUTER
+	M_OUTER,
+	M_OUTER_KEY,
+	M_STR,
+	MalListNode,
+	M_ELMSTRS,
+	isMap,
+	M_KEYS
 } from '@/mal/types'
 
-import {replaceRange, nonReactive} from '@/utils'
+import {replaceRange, nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
@@ -112,7 +118,7 @@ interface Data {
 	codeHasLoaded: boolean
 	code: string
 	exp: MalVal | undefined
-	viewExp: MalVal
+	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasRenderError: boolean
 	selection: [number, number]
@@ -291,45 +297,48 @@ export default defineComponent({
 		const data = reactive({
 			codeHasLoaded: false,
 			code: '',
-			exp: computed(() => {
-				const evalCode = `(def $view (sketch ${data.code} \n nil))`
-				let exp
-				try {
-					exp = readStr(evalCode, true)
-					if (printExp(exp) !== evalCode) {
-						console.error('NOTTTTT')
+			exp: computed({
+				get: () => {
+					const evalCode = `(def $view (sketch ${data.code} \n nil))`
+					let exp
+					try {
+						exp = readStr(evalCode, true)
+						if (printExp(exp) !== evalCode) {
+							console.error('NOTTTTT')
+						}
+					} catch (err) {
+						if (!(err instanceof BlankException)) {
+							printer.error(err)
+						}
+						exp = undefined
 					}
-				} catch (err) {
-					if (!(err instanceof BlankException)) {
-						printer.error(err)
-					}
-					exp = undefined
+					return exp
+				},
+				set: (exp: MalVal) => {
+					data.code = printExp(exp).slice(OFFSET, -7)
 				}
-				return exp
 			}),
 			hasError: computed(() => {
 				return data.exp === undefined || data.hasRenderError
 			}),
 			hasRenderError: false,
 			viewExp: computed(() => {
-				if (data.exp === undefined) {
-					return nonReactive(null)
-				}
-
-				let ret = null
-				try {
-					const {output} = viewREP(data.exp, {
-						width: ui.viewerSize[0],
-						height: ui.viewerSize[1],
-						updateConsole: true,
-						guideColor: ui.guideColor
-					})
-					ret = output
-				} catch (err) {
-					if (err instanceof LispError) {
-						printer.error(err.message)
-					} else {
-						printer.error(err)
+				let ret: MalVal = null
+				if (data.exp !== undefined) {
+					try {
+						const {output} = viewREP(data.exp, {
+							width: ui.viewerSize[0],
+							height: ui.viewerSize[1],
+							updateConsole: true,
+							guideColor: ui.guideColor
+						})
+						ret = output
+					} catch (err) {
+						if (err instanceof LispError) {
+							printer.error(err.message)
+						} else {
+							printer.error(err)
+						}
 					}
 				}
 				return nonReactive(ret)
@@ -392,18 +401,51 @@ export default defineComponent({
 		)
 
 		function onUpdateSelectedExp(val: MalVal) {
-			if (data.selectedExpRange) {
-				const itemStr = printExp(val)
-				const [start, end] = data.selectedExpRange
-				const [code, ...selection] = replaceRange(
-					data.code,
-					start,
-					end,
-					itemStr
-				)
+			// if (data.selectedExpRange) {
+			// 	const itemStr = printExp(val)
+			// 	const [start, end] = data.selectedExpRange
+			// 	const [code, ...selection] = replaceRange(
+			// 		data.code,
+			// 		start,
+			// 		end,
+			// 		itemStr
+			// 	)
 
-				data.code = code
-				data.selection = selection
+			// 	data.code = code
+			// 	data.selection = selection
+			// }
+			// eslint-disable-next-line no-self-assign
+
+			const outer = (data.selectedExp as MalNode)[M_OUTER]
+			const key = (data.selectedExp as MalNode)[M_OUTER_KEY]
+
+			if (key !== undefined) {
+				// Set outer
+				;(val as MalNode)[M_OUTER] = outer
+				;(val as MalNode)[M_OUTER_KEY] = key
+
+				// Set child
+				;(outer as any)[key] = val
+
+				// Delete M_STR
+				let _o: MalNode = val as MalNode
+				let _key
+				while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
+					if (Array.isArray(_o)) {
+						_o[M_ELMSTRS][_key as number] = ''
+					} else if (isMap(_o)) {
+						const index = _o[M_KEYS].indexOf(_key as string)
+						const elmstrsIndex = index * 2 + 1
+						_o[M_ELMSTRS][elmstrsIndex] = ''
+					}
+					delete _o[M_STR]
+				}
+
+				const root = data.exp as MalListNode
+
+				const newExp = [...root]
+
+				data.exp = newExp
 			}
 		}
 

@@ -12,7 +12,11 @@ import {
 	isVector,
 	M_ISMACRO,
 	isMalNode,
-	M_STR
+	M_STR,
+	M_ELMSTRS,
+	M_DELIMITERS,
+	M_ISSUGAR,
+	M_KEYS
 } from './types'
 
 const S_QUOTE = S('quote'),
@@ -45,6 +49,47 @@ export default function printExp(
 
 	if (isMalNode(exp) && exp[M_STR]) {
 		ret = exp[M_STR]
+	} else if (isMalNode(exp) && exp[M_ELMSTRS]) {
+		const delimiters = exp[M_DELIMITERS]
+		const elmStrs = exp[M_ELMSTRS]
+
+		if (Array.isArray(exp)) {
+			const count = elmStrs.length
+			ret = ''
+			for (let i = 0; i < count; i++) {
+				ret += delimiters[i]
+				if (!elmStrs[i]) {
+					elmStrs[i] = printExp(exp[i], _r, _c)
+				}
+				ret += elmStrs[i]
+			}
+			ret += delimiters[count]
+
+			if (!exp[M_ISSUGAR]) {
+				if (isList(exp)) {
+					ret = '(' + ret + ')'
+				} else if (isVector(exp)) {
+					ret = '[' + ret + ']'
+				}
+			}
+		} else {
+			// Map
+			const keys = exp[M_KEYS]
+			const count = keys.length
+			ret = ''
+
+			for (let i = 0; i < count; i++) {
+				ret += delimiters[i * 2] + elmStrs[i * 2] + delimiters[i * 2 + 1]
+
+				if (!elmStrs[i * 2 + 1]) {
+					elmStrs[i * 2 + 1] = printExp(exp[keys[i]], _r, _c)
+				}
+				ret += elmStrs[i * 2 + 1]
+			}
+			ret += delimiters[delimiters.length - 1]
+
+			ret = '{' + ret + '}'
+		}
 	} else if (isList(exp)) {
 		if (exp.length === 2) {
 			switch (exp[0]) {
