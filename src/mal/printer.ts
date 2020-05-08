@@ -31,63 +31,79 @@ export const printer = {
 	clear: console.clear
 }
 
-export default function printExp(obj: MalVal, printReadably = true): string {
+export default function printExp(
+	exp: MalVal,
+	printReadably = true,
+	cache = false
+): string {
 	const _r = printReadably
+	const _c = cache
 
-	if (isList(obj)) {
-		if (obj.length === 2) {
-			switch (obj[0]) {
+	let ret
+
+	if (isList(exp)) {
+		if (exp.length === 2) {
+			switch (exp[0]) {
 				case S_QUOTE:
-					return "'" + printExp(obj[1], _r)
+					ret = "'" + printExp(exp[1], _r, _c)
+					break
 				case S_QUASIQUOTE:
-					return '`' + printExp(obj[1], _r)
+					ret = '`' + printExp(exp[1], _r, _c)
+					break
 				case S_UNQUOTE:
-					return '~' + printExp(obj[1], _r)
+					ret = '~' + printExp(exp[1], _r, _c)
+					break
 				case S_SPLICE_UNQUOTE:
-					return '~@' + printExp(obj[1], _r)
+					ret = '~@' + printExp(exp[1], _r, _c)
+					break
+				default:
+					ret = '(' + exp.map(e => printExp(e, _r, _c)).join(' ') + ')'
+					break
 			}
+		} else {
+			ret = '(' + exp.map(e => printExp(e, _r, _c)).join(' ') + ')'
 		}
-		return '(' + obj.map(e => printExp(e, _r)).join(' ') + ')'
-	} else if (isVector(obj)) {
-		return '[' + obj.map(e => printExp(e, _r)).join(' ') + ']'
-	} else if (isMap(obj)) {
-		const ret = []
-		for (const k in obj) {
-			ret.push(printExp(k, _r), printExp(obj[k], _r))
+	} else if (isVector(exp)) {
+		ret = '[' + exp.map(e => printExp(e, _r, _c)).join(' ') + ']'
+	} else if (isMap(exp)) {
+		const maps = []
+		for (const k in exp) {
+			maps.push(printExp(k, _r, _c), printExp(exp[k], _r, _c))
 		}
-		return '{' + ret.join(' ') + '}'
-	} else if (typeof obj === 'string') {
-		if (isSymbol(obj)) {
-			return obj.slice(1)
-		} else if (isKeyword(obj)) {
-			return ':' + (obj as string).slice(1)
+		ret = '{' + maps.join(' ') + '}'
+	} else if (typeof exp === 'string') {
+		if (isSymbol(exp)) {
+			ret = exp.slice(1)
+		} else if (isKeyword(exp)) {
+			ret = ':' + (exp as string).slice(1)
 		} else if (_r) {
-			return (
+			ret =
 				'"' +
-				(obj as string)
+				(exp as string)
 					.replace(/\\/g, '\\\\')
 					.replace(/"/g, '\\"')
 					.replace(/\n/g, '\\n') +
 				'"'
-			)
 		} else {
-			return obj
+			ret = exp
 		}
-	} else if (obj === null) {
-		return 'nil'
-	} else if (isMalFunc(obj)) {
-		const params = printExp(obj[M_PARAMS], _r)
-		const body = printExp(obj[M_AST], _r)
-		return `(${obj[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
-	} else if (typeof obj === 'number' || typeof obj === 'boolean') {
-		return obj.toString()
-	} else if (obj instanceof MalAtom) {
-		return '(atom ' + printExp(obj.val, _r) + ')'
-	} else if (typeof obj === 'function') {
-		return obj.toString()
-	} else if (obj === undefined) {
-		return '<undefined>'
+	} else if (exp === null) {
+		ret = 'nil'
+	} else if (isMalFunc(exp)) {
+		const params = printExp(exp[M_PARAMS], _r, _c)
+		const body = printExp(exp[M_AST], _r, _c)
+		ret = `(${exp[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
+	} else if (typeof exp === 'number' || typeof exp === 'boolean') {
+		ret = exp.toString()
+	} else if (exp instanceof MalAtom) {
+		ret = '(atom ' + printExp(exp.val, _r, _c) + ')'
+	} else if (typeof exp === 'function') {
+		ret = exp.toString()
+	} else if (exp === undefined) {
+		ret = '<undefined>'
 	} else {
-		return `<${obj.constructor.name}>`
+		ret = `<${exp.constructor.name}>`
 	}
+
+	return ret
 }
