@@ -401,21 +401,6 @@ export default defineComponent({
 		)
 
 		function onUpdateSelectedExp(val: MalVal) {
-			// if (data.selectedExpRange) {
-			// 	const itemStr = printExp(val)
-			// 	const [start, end] = data.selectedExpRange
-			// 	const [code, ...selection] = replaceRange(
-			// 		data.code,
-			// 		start,
-			// 		end,
-			// 		itemStr
-			// 	)
-
-			// 	data.code = code
-			// 	data.selection = selection
-			// }
-			// eslint-disable-next-line no-self-assign
-
 			const outer = (data.selectedExp as MalNode)[M_OUTER]
 			const key = (data.selectedExp as MalNode)[M_OUTER_KEY]
 
