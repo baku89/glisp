@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
-import ace, {Range as AceRange} from 'brace'
+import ace from 'brace'
 import {appHandler} from '../mal/console'
 
 function replaceRange(
@@ -119,7 +119,7 @@ export default class Editor extends Vue {
 
 		let listener: any = null
 
-		sel.on('changeSelection', (e: string) => {
+		sel.on('changeSelection', () => {
 			if (listener) {
 				window.removeEventListener('mousewheel', listener)
 			}
@@ -189,7 +189,6 @@ export default class Editor extends Vue {
 	}
 
 	private convertToAceRange(start: number, end: number) {
-		const sel = this.editor.getSelection()
 		const doc = this.editor.getSession().doc
 
 		const s = doc.indexToPosition(start, 0)

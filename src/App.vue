@@ -56,7 +56,6 @@ import {
 	reactive,
 	computed,
 	watch,
-	onMounted,
 	toRefs
 } from '@vue/composition-api'
 import Color from 'color'
@@ -74,12 +73,8 @@ import {
 	MalVal,
 	symbolFor as S,
 	MalNode,
-	isList,
 	M_START,
 	M_END,
-	M_META,
-	M_FN,
-	MalMap,
 	M_EVAL,
 	LispError
 } from '@/mal/types'
@@ -325,7 +320,7 @@ export default defineComponent({
 			viewExp: computed(() => {
 				let ret = null
 				try {
-					const {output, env} = viewREP(data.exp, {
+					const {output} = viewREP(data.exp, {
 						width: ui.viewerSize[0],
 						height: ui.viewerSize[1],
 						updateConsole: true,
@@ -371,10 +366,8 @@ export default defineComponent({
 
 		// Background and theme
 		function onSetBackground(bg: string) {
-			let base
-
 			try {
-				base = Color(bg)
+				Color(bg)
 			} catch (err) {
 				return
 			}

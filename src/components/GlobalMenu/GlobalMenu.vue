@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts">
-import {Component, Vue, Watch} from 'vue-property-decorator'
+import {Component, Vue} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
 import {consoleREP} from '@/mal/console'

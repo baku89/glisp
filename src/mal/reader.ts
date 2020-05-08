@@ -9,7 +9,6 @@ import {
 	M_END,
 	MalMap,
 	MalVal,
-	M_META,
 	markMalVector,
 	M_OUTER,
 	isMalNode

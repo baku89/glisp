@@ -44,7 +44,6 @@ import {
 	MalNode
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {printExp} from '@/mal'
 import {getSVGPathData} from '@/mal/ns/path'
 
 const K_ALIAS = K('alias'),

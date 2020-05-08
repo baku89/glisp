@@ -90,21 +90,18 @@
 </template>
 
 <script lang="ts">
-import {Component, Vue, Prop, Watch} from 'vue-property-decorator'
+import {Component, Vue, Prop} from 'vue-property-decorator'
 import VueMarkdown from 'vue-markdown'
 
 import {
 	MalVal,
-	MalMap,
 	M_FN,
 	M_META,
 	isList,
 	isSymbol,
-	isMap,
 	keywordFor as K,
 	isVector,
 	M_PARAMS,
-	MalBind,
 	isMalFunc,
 	markMalVector,
 	getType,
@@ -122,7 +119,6 @@ import {clamp, getParamLabel} from '@/utils'
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
 	K_TYPE = K('type'),
-	K_VARIADIC = K('variadic'),
 	K_LABEL = K('label'),
 	K_CONSTRAINTS = K('constraints'),
 	K_DEFAULT = K('default'),
@@ -250,7 +246,6 @@ export default class Inspector extends Vue {
 		metaDesc: MetaDescs,
 		forceMatch = false
 	): ParamDescs | null {
-		const retDesc = []
 		const restPos = metaDesc.indexOf(S_AMP)
 
 		if (restPos === -1) {
@@ -319,7 +314,6 @@ export default class Inspector extends Vue {
 			return EmptyParamDescs
 		}
 
-		const value = this.value as MalVal[]
 		let paramDescs: ParamDescs | null = null
 		const fnMetaParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
 

@@ -33,7 +33,7 @@ const K_PATH = K('path'),
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
-const TWO_PI = Math.PI * 2
+// const TWO_PI = Math.PI * 2
 const HALF_PI = Math.PI / 2
 const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
 const UNIT_QUAD_BEZIER = new Bezier([
@@ -154,65 +154,8 @@ export function* iterateCurve(path: PathType): Generator<SegmentType> {
 	}
 }
 
-function* iterateCurveWithLength(
-	path: PathType
-): Generator<[SegmentType, number]> {
-	let length = 0
-
-	for (const seg of iterateCurve(path)) {
-		const [cmd, ...points] = seg
-		switch (cmd) {
-			case K_Z:
-			case K_L:
-				length += vec2.dist(points[0] as vec2, points[1] as vec2)
-				break
-			case K_C: {
-				const bezier = getBezier(points)
-				length += bezier.length()
-				break
-			}
-		}
-		yield [seg, length]
-	}
-}
-
 function closedQ(path: PathType) {
 	return path.slice(-1)[0] === K_Z
-}
-
-function findCurveAtLength(len: number, path: PathType): [SegmentType, number] {
-	const segs = iterateCurveWithLength(path)
-
-	len = Math.max(len, 0)
-
-	let startLen = 0
-	let lastSeg = null
-
-	for (const [seg, endLen] of segs) {
-		const [cmd, ...points] = seg
-		// Skip zero-length segment
-		if (cmd === K_M) {
-			continue
-		} else if (
-			cmd === K_Z &&
-			vec2.dist(points[0] as vec2, points[points.length - 1] as vec2) < EPSILON
-		) {
-			continue
-		}
-
-		if (len <= endLen) {
-			const t = (len - startLen) / (endLen - startLen)
-			return [seg, t]
-		}
-		startLen = endLen
-		lastSeg = seg
-	}
-
-	if (lastSeg) {
-		return [lastSeg, 1]
-	} else {
-		throw new LispError('[js: findCurveAtLength] Empty path')
-	}
 }
 
 /**
@@ -849,6 +792,8 @@ const jsObjects = [
 	['path/position-at', convertToNormalizedFunction(positionAtLength)],
 	['path/normal-at-length', normalAtLength],
 	['path/normal-at', convertToNormalizedFunction(normalAtLength)],
+	['path/tangent-at-length', tangentAtLength],
+	['path/tangent-at', convertToNormalizedFunction(tangentAtLength)],
 	['path/angle-at-length', angleAtLength],
 	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
 	['path/aligning-matrix-at-length', aligningMatrixAtLength],
@@ -872,7 +817,7 @@ const jsObjects = [
 	// Utility
 	[
 		'path/split-segments',
-		([_, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
+		([, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
 	],
 	['path/bounds', pathBounds]
 ]

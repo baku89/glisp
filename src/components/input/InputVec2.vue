@@ -1,18 +1,28 @@
 <template>
 	<div class="InputVec2">
 		[
-		<InputNumber class="InputVec2__el" :value="value[0]" @input="onInput(0, $event)" />
-		<InputNumber class="InputVec2__el" :value="value[1]" @input="onInput(1, $event)" />]
-		<button class="InputVec2__drag" :class="{dragging: drag.isDragging}" ref="dragEl" />
+		<InputNumber
+			class="InputVec2__el"
+			:value="value[0]"
+			@input="onInput(0, $event)"
+		/>
+		<InputNumber
+			class="InputVec2__el"
+			:value="value[1]"
+			@input="onInput(1, $event)"
+		/>]
+		<button
+			class="InputVec2__drag"
+			:class="{dragging: drag.isDragging}"
+			ref="dragEl"
+		/>
 	</div>
 </template>
 
 <script lang="ts">
 import {
 	defineComponent,
-	computed,
 	onBeforeUnmount,
-	onMounted,
 	ref,
 	Ref,
 	watch,
