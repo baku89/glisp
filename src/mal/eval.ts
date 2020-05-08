@@ -21,7 +21,8 @@ import {
 	isList,
 	isVector,
 	markMalVector,
-	MalNode
+	MalNode,
+	isMalNode
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -29,67 +30,67 @@ import printExp from './printer'
 // eval
 const isPair = (x: MalVal) => Array.isArray(x) && x.length > 0
 
-function quasiquote(ast: any): MalVal {
-	if (!isPair(ast)) {
-		return [S('quote'), ast]
-	} else if (ast[0] === S('unquote')) {
-		return ast[1]
-	} else if (isPair(ast[0]) && ast[0][0] === S('splice-unquote')) {
-		return [S('concat'), ast[0][1], quasiquote(ast.slice(1))]
+function quasiquote(exp: any): MalVal {
+	if (!isPair(exp)) {
+		return [S('quote'), exp]
+	} else if (exp[0] === S('unquote')) {
+		return exp[1]
+	} else if (isPair(exp[0]) && exp[0][0] === S('splice-unquote')) {
+		return [S('concat'), exp[0][1], quasiquote(exp.slice(1))]
 	} else {
-		return [S('cons'), quasiquote(ast[0]), quasiquote(ast.slice(1))]
+		return [S('cons'), quasiquote(exp[0]), quasiquote(exp.slice(1))]
 	}
 }
 
-function macroexpand(ast: MalVal = null, env: Env) {
-	while (isList(ast) && isSymbol(ast[0]) && env.find(ast[0] as string)) {
-		const fn = env.get(ast[0] as string) as MalFunc
-		;(ast as MalNode)[M_FN] = fn
+function macroexpand(exp: MalVal = null, env: Env) {
+	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0] as string)) {
+		const fn = env.get(exp[0] as string) as MalFunc
+		;(exp as MalNode)[M_FN] = fn
 		if (!fn[M_ISMACRO]) {
 			break
 		}
-		ast = fn(...ast.slice(1))
+		exp = fn(...exp.slice(1))
 	}
-	return ast
+	return exp
 }
 
-const evalAst = (ast: MalVal, env: Env, saveEval: boolean) => {
-	if (isSymbol(ast)) {
-		return env.get(ast as string)
-	} else if (Array.isArray(ast)) {
-		const ret = ast.map(x => {
+function evalAtom(exp: MalVal, env: Env, saveEval: boolean) {
+	if (isSymbol(exp)) {
+		return env.get(exp as string)
+	} else if (Array.isArray(exp)) {
+		const ret = exp.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, saveEval)
-			if (saveEval && x !== null && x instanceof Object) {
-				;(x as MalNode)[M_EVAL] = ret
+			if (saveEval && isMalNode(x)) {
+				x[M_EVAL] = ret
 			}
 			return ret
 		})
 		if (saveEval) {
-			;(ast as MalNode)[M_EVAL] = ret
+			;(exp as MalNode)[M_EVAL] = ret
 		}
-		return isVector(ast) ? markMalVector(ret) : ret
-	} else if (isMap(ast)) {
+		return isVector(exp) ? markMalVector(ret) : ret
+	} else if (isMap(exp)) {
 		const hm: MalMap = {}
-		for (const k in ast) {
+		for (const k in exp) {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			const ret = evalExp(ast[k], env, saveEval)
-			if (saveEval && ast[k] !== null && ast[k] instanceof Object) {
-				;(ast[k] as MalNode)[M_EVAL] = ret
+			const ret = evalExp(exp[k], env, saveEval)
+			if (saveEval && isMalNode(exp[k])) {
+				;(exp[k] as MalNode)[M_EVAL] = ret
 			}
 			hm[k] = ret
 		}
 		if (saveEval) {
-			;(ast as MalNode)[M_EVAL] = hm
+			;(exp as MalNode)[M_EVAL] = hm
 		}
 		return hm
 	} else {
-		return ast
+		return exp
 	}
 }
 
 export default function evalExp(
-	ast: MalVal,
+	exp: MalVal,
 	env: Env,
 	saveEval = false
 ): MalVal {
@@ -97,34 +98,34 @@ export default function evalExp(
 
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		if (!isList(ast)) {
-			return evalAst(ast, env, _ev)
+		if (!isList(exp)) {
+			return evalAtom(exp, env, _ev)
 		}
 
-		const expandedAst = macroexpand(ast, env)
+		const expandedAst = macroexpand(exp, env)
 		if (_ev) {
-			;(ast as MalNode)[M_EVAL] = expandedAst
+			;(exp as MalNode)[M_EVAL] = expandedAst
 		}
-		ast = expandedAst
+		exp = expandedAst
 
-		if (!isList(ast)) {
-			return evalAst(ast, env, _ev)
+		if (!isList(exp)) {
+			return evalAtom(exp, env, _ev)
 		}
 
-		if (ast.length === 0) {
-			return ast
+		if (exp.length === 0) {
+			return exp
 		}
 
 		// Apply list
-		const [a0, a1, a2, a3] = ast
+		const [a0, a1, a2, a3] = exp
 
 		// Special Forms
 		switch (isSymbol(a0) ? (a0 as string).slice(1) : Symbol(':default')) {
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
 				if (_ev) {
-					;(ast as MalNode)[M_FN] = env.get(S('def'))
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_FN] = env.get(S('def'))
+					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -138,36 +139,36 @@ export default function evalExp(
 					)
 				}
 				env = letEnv
-				const ret = ast.length === 3 ? a2 : [S('do'), ...ast.slice(2)]
+				const ret = exp.length === 3 ? a2 : [S('do'), ...exp.slice(2)]
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = ret
 				}
-				ast = ret
+				exp = ret
 				break // continue TCO loop
 			}
 			case 'quote':
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = a1
+					;(exp as MalNode)[M_EVAL] = a1
 				}
 				return a1
 			case 'quasiquote': {
 				const ret = quasiquote(a1)
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = ret
 				}
-				ast = ret
+				exp = ret
 				break // continue TCO loop
 			}
 			case 'macro': {
-				const fnast = [S('fn'), a1, a2]
-				const fn = cloneExp(evalExp(fnast, env, _ev)) as MalFunc
+				const fnexp = [S('fn'), a1, a2]
+				const fn = cloneExp(evalExp(fnexp, env, _ev)) as MalFunc
 				fn[M_ISMACRO] = true
 				return fn
 			}
 			case 'macroexpand': {
 				const ret = macroexpand(a1, env)
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -175,7 +176,7 @@ export default function evalExp(
 				try {
 					const ret = evalExp(a1, env, _ev)
 					if (_ev) {
-						;(ast as MalNode)[M_EVAL] = ret
+						;(exp as MalNode)[M_EVAL] = ret
 					}
 					return ret
 				} catch (exc) {
@@ -190,7 +191,7 @@ export default function evalExp(
 							_ev
 						)
 						if (_ev) {
-							;(ast as MalNode)[M_EVAL] = ret
+							;(exp as MalNode)[M_EVAL] = ret
 						}
 						return ret
 					} else {
@@ -198,26 +199,26 @@ export default function evalExp(
 					}
 				}
 			case 'do': {
-				evalAst(ast.slice(1, -1), env, _ev)
-				const ret = ast[ast.length - 1]
+				evalAtom(exp.slice(1, -1), env, _ev)
+				const ret = exp[exp.length - 1]
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = ret
 				}
-				ast = ret
+				exp = ret
 				break // continue TCO loop
 			}
 			case 'if': {
 				const cond = evalExp(a1, env, _ev)
 				if (cond) {
 					if (_ev) {
-						;(ast as MalNode)[M_EVAL] = a2
+						;(exp as MalNode)[M_EVAL] = a2
 					}
-					ast = a2
+					exp = a2
 				} else {
 					if (_ev) {
-						;(ast as MalNode)[M_EVAL] = a3
+						;(exp as MalNode)[M_EVAL] = a3
 					}
-					ast = typeof a3 !== 'undefined' ? a3 : null
+					exp = typeof a3 !== 'undefined' ? a3 : null
 				}
 				break // continue TCO loop
 			}
@@ -231,9 +232,9 @@ export default function evalExp(
 			case 'eval-when-execute': {
 				const ret = evalExp(a1, env, _ev)
 				if (_ev) {
-					;(ast as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = ret
 				}
-				ast = ret
+				exp = ret
 				break
 			}
 			/*
@@ -246,7 +247,7 @@ export default function evalExp(
 					_env = _env.outer
 				} while (_env)
 
-				ast = [S('println'), envs.map(e => e.name).join(' <- ')]
+				exp = [S('println'), envs.map(e => e.name).join(' <- ')]
 				break // continue TCO loop
 			}
 			case 'which-env': {
@@ -258,7 +259,7 @@ export default function evalExp(
 					_env = _env.outer
 				} while (_env)
 
-				ast = [
+				exp = [
 					S('println'),
 					envs
 						.filter(e => e.hasOwn(a1 as string))
@@ -270,23 +271,23 @@ export default function evalExp(
 			*/
 			default: {
 				// Apply Function
-				const [_fn, ...args] = evalAst(ast, env, saveEval) as MalVal[]
+				const [_fn, ...args] = evalAtom(exp, env, saveEval) as MalVal[]
 
 				const fn = _fn as MalFunc
 
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
 					if (saveEval) {
-						;(ast as MalNode)[M_EVAL] = fn[M_AST]
-						;(ast as MalNode)[M_FN] = fn
+						;(exp as MalNode)[M_EVAL] = fn[M_AST]
+						;(exp as MalNode)[M_FN] = fn
 					}
-					ast = fn[M_AST]
+					exp = fn[M_AST]
 					break // continue TCO loop
 				} else if (typeof fn === 'function') {
 					const ret = (fn as any)(...args)
 					if (saveEval) {
-						;(ast as MalNode)[M_EVAL] = ret
-						;(ast as MalNode)[M_FN] = fn
+						;(exp as MalNode)[M_EVAL] = ret
+						;(exp as MalNode)[M_FN] = fn
 					}
 					return ret
 				} else {

@@ -47,6 +47,8 @@ export interface MalListNode extends Array<MalVal> {
 
 export type MalNode = MalNodeMap | MalListNode
 
+export const isMalNode = (v: MalVal): v is MalNode => v instanceof Object
+
 export type MalVal =
 	| number
 	| string

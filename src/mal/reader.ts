@@ -11,7 +11,8 @@ import {
 	MalVal,
 	M_META,
 	markMalVector,
-	M_OUTER
+	M_OUTER,
+	isMalNode
 } from './types'
 
 class Reader {
@@ -225,28 +226,24 @@ function readForm(reader: Reader, savePosition: boolean): any {
 			val = readAtom(reader)
 	}
 
-	if (
-		savePosition &&
-		val instanceof Object &&
-		(val as MalNode)[M_START] === undefined
-	) {
-		;(val as MalNode)[M_START] = pos
-		;(val as MalNode)[M_END] = reader.getLastPosition()
+	if (savePosition && isMalNode(val) && val[M_START] === undefined) {
+		val[M_START] = pos
+		val[M_END] = reader.getLastPosition()
 	}
 
 	return val
 }
 
-export function findAstByPosition(ast: MalVal, pos: number): MalNode | null {
-	if (ast instanceof Object && (ast as MalNode)[M_START] !== undefined) {
-		if ((ast as MalNode)[M_START] <= pos && pos <= (ast as MalNode)[M_END]) {
-			for (const child of ast as MalVal[]) {
+export function findAstByPosition(exp: MalVal, pos: number): MalNode | null {
+	if (isMalNode(exp) && exp[M_START] !== undefined) {
+		if (exp[M_START] <= pos && pos <= exp[M_END]) {
+			for (const child of exp as MalVal[]) {
 				const ret = findAstByPosition(child, pos)
 				if (ret !== null) {
 					return ret
 				}
 			}
-			return ast as MalNode
+			return exp
 		} else {
 			return null
 		}
@@ -260,8 +257,8 @@ export function findAstByRange(
 	start: number,
 	end: number
 ): MalNode | null {
-	if (exp instanceof Object && (exp as MalNode)[M_START] !== undefined) {
-		if ((exp as MalNode)[M_START] <= start && end <= (exp as MalNode)[M_END]) {
+	if (isMalNode(exp) && exp[M_START] !== undefined) {
+		if (exp[M_START] <= start && end <= exp[M_END]) {
 			if (isMap(exp)) {
 				for (const child of Object.values(exp)) {
 					const ret = findAstByRange(child, start, end)
@@ -269,7 +266,7 @@ export function findAstByRange(
 						return ret
 					}
 				}
-				return exp as MalNode
+				return exp
 			} else {
 				for (const child of exp) {
 					const ret = findAstByRange(child, start, end)
@@ -301,19 +298,11 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 	}
 }
 
-export function attachMetaToJSObject(obj: any, meta: any): MalVal {
-	if (obj instanceof Object) {
-		obj[M_META] = convertJSObjectToMalMap(meta)
-	}
-
-	return obj
-}
-
 export class BlankException extends Error {}
 
 function saveOuter(exp: MalVal, outer: MalVal) {
-	if (exp !== null && typeof exp === 'object') {
-		;(exp as any)[M_OUTER] = outer
+	if (isMalNode(exp)) {
+		exp[M_OUTER] = outer
 
 		const children = Array.isArray(exp)
 			? exp
