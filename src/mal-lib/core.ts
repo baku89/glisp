@@ -25,6 +25,15 @@ import {partition} from '@/utils'
 
 const S_AMP = S('&')
 
+function withMeta(a: MalVal, m: any) {
+	if (m === undefined) {
+		throw new LispError('[with-meta] Need the metadata to attach')
+	}
+	const c = cloneExp(a)
+	;(c as any)[M_META] = m
+	return c
+}
+
 const Exports = [
 	['nil?', (x: MalVal) => x === null],
 	['true?', (x: MalVal) => x === true],
@@ -253,20 +262,13 @@ const Exports = [
 
 	// Meta
 	['meta', (a: MalVal) => (a as any)[M_META] || null],
+	['with-meta', withMeta],
+	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
 	[
-		'with-meta',
-		(a: MalVal, m: any) => {
-			if (m === undefined) {
-				throw new LispError('[with-meta] Need the metadata to attach')
-			}
-			const c = cloneExp(a)
-			;(c as any)[M_META] = m
-			return c
-		}
+		// Atom
+		'atom',
+		(a: MalVal) => new MalAtom(a)
 	],
-
-	// Atom
-	['atom', (a: MalVal) => new MalAtom(a)],
 	['atom?', (a: MalVal) => a instanceof MalAtom],
 	['deref', (atm: MalAtom) => atm.val],
 	['reset!', (atm: MalAtom, a: MalVal) => (atm.val = a)],

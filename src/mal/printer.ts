@@ -10,7 +10,9 @@ import {
 	isMap,
 	isList,
 	isVector,
-	M_ISMACRO
+	M_ISMACRO,
+	isMalNode,
+	M_STR
 } from './types'
 
 const S_QUOTE = S('quote'),
@@ -39,9 +41,11 @@ export default function printExp(
 	const _r = printReadably
 	const _c = cache
 
-	let ret
+	let ret: string
 
-	if (isList(exp)) {
+	if (isMalNode(exp) && exp[M_STR]) {
+		ret = exp[M_STR]
+	} else if (isList(exp)) {
 		if (exp.length === 2) {
 			switch (exp[0]) {
 				case S_QUOTE:
@@ -103,6 +107,11 @@ export default function printExp(
 		ret = '<undefined>'
 	} else {
 		ret = `<${exp.constructor.name}>`
+	}
+
+	if (isMalNode(exp)) {
+		// Cache
+		exp[M_STR] = ret
 	}
 
 	return ret

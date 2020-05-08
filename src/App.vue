@@ -74,7 +74,7 @@ import {
 
 import {replaceRange, nonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {BlankException, findExpByRange} from '@/mal/reader'
+import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
 
@@ -361,7 +361,13 @@ export default defineComponent({
 			selectedExpRange: computed(() => {
 				const selected = data.selectedExp as MalNode
 				if (selected !== null && selected[M_START] >= OFFSET) {
-					return [selected[M_START] - OFFSET, selected[M_END] - OFFSET]
+					const ret = getRangeOfExp(selected)
+					if (ret) {
+						const [start, end] = ret
+						return [start - OFFSET, end - OFFSET]
+					} else {
+						return null
+					}
 				} else {
 					return null
 				}

@@ -22,7 +22,8 @@ import {
 	isVector,
 	markMalVector,
 	MalNode,
-	isMalNode
+	isMalNode,
+	MalListNode
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -45,7 +46,7 @@ function quasiquote(exp: any): MalVal {
 function macroexpand(exp: MalVal = null, env: Env) {
 	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0] as string)) {
 		const fn = env.get(exp[0] as string) as MalFunc
-		;(exp as MalNode)[M_FN] = fn
+		;(exp as MalListNode)[M_FN] = fn
 		if (!fn[M_ISMACRO]) {
 			break
 		}
@@ -124,7 +125,7 @@ export default function evalExp(
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, _ev))
 				if (_ev) {
-					;(exp as MalNode)[M_FN] = env.get(S('def'))
+					;(exp as MalListNode)[M_FN] = env.get(S('def'))
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
@@ -279,7 +280,7 @@ export default function evalExp(
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
 					if (saveEval) {
 						;(exp as MalNode)[M_EVAL] = fn[M_AST]
-						;(exp as MalNode)[M_FN] = fn
+						;(exp as MalListNode)[M_FN] = fn
 					}
 					exp = fn[M_AST]
 					break // continue TCO loop
@@ -287,7 +288,7 @@ export default function evalExp(
 					const ret = (fn as any)(...args)
 					if (saveEval) {
 						;(exp as MalNode)[M_EVAL] = ret
-						;(exp as MalNode)[M_FN] = fn
+						;(exp as MalListNode)[M_FN] = fn
 					}
 					return ret
 				} else {
