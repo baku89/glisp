@@ -7,8 +7,8 @@ import {
 	MalMap
 } from '@/mal/types'
 import printExp from '@/mal/printer'
-import {partition} from '@/mal/utils'
-import {iterateSegment} from '@/mal/ns/path'
+import {partition} from '@/utils'
+import {iterateSegment} from '@/mal-lib/path'
 import {ViewerSettings} from './index'
 
 const K_G = K('g'),

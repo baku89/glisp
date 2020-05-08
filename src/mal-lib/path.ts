@@ -6,15 +6,14 @@ import paper from 'paper'
 import {
 	MalVal,
 	keywordFor as K,
+	symbolFor as S,
 	isKeyword,
-	MalNamespace,
 	LispError,
 	createMalVector,
 	markMalVector
-} from '../types'
-import {partition} from '../utils'
-import printExp from '../printer'
-import {clamp} from '@/utils'
+} from '@/mal/types'
+import {partition, clamp} from '@/utils'
+import printExp from '@/mal/printer'
 
 type Vec2 = number[] | vec2
 
@@ -779,7 +778,7 @@ function pathBounds(path: PathType) {
 	}
 }
 
-const jsObjects = [
+const Exports = [
 	['path/arc', pathArc],
 	['path/join', pathJoin],
 	['path/to-beziers', toBeziers],
@@ -820,8 +819,7 @@ const jsObjects = [
 		([, ...path]: PathType) => markMalVector(Array.from(iterateSegment(path)))
 	],
 	['path/bounds', pathBounds]
-]
+] as [string, MalVal][]
 
-export default {
-	jsObjects
-} as MalNamespace
+const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
+;(self as any)['glisp_library'] = Exp

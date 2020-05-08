@@ -1,3 +1,5 @@
+(import-js-force "../js/lib_core.js")
+
 (def defmacro
   (macro [name params & body]
          (do

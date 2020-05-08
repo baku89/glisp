@@ -2,17 +2,17 @@ import Env from './env'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never
 
-export const M_META = Symbol('meta')
-export const M_AST = Symbol('ast')
-export const M_ENV = Symbol('env')
-export const M_PARAMS = Symbol('params')
-export const M_ISMACRO = Symbol('ismacro')
-export const M_START = Symbol('start')
-export const M_END = Symbol('end')
-export const M_EVAL = Symbol('eval')
-export const M_FN = Symbol('fn')
-export const M_OUTER = Symbol('outer')
-const M_ISVECTOR = Symbol('isvector')
+export const M_META = Symbol.for('meta')
+export const M_AST = Symbol.for('ast')
+export const M_ENV = Symbol.for('env')
+export const M_PARAMS = Symbol.for('params')
+export const M_ISMACRO = Symbol.for('ismacro')
+export const M_START = Symbol.for('start')
+export const M_END = Symbol.for('end')
+export const M_EVAL = Symbol.for('eval')
+export const M_FN = Symbol.for('fn')
+export const M_OUTER = Symbol.for('outer')
+const M_ISVECTOR = Symbol.for('isvector')
 
 export type MalBind = (string | MalBind)[]
 
