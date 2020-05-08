@@ -94,8 +94,7 @@ export default class Viewer extends Vue {
 		this.canvas = this.$refs.canvas as HTMLCanvasElement
 		this.renderer = await createCanvasRender(this.canvas)
 
-		await this.onResize()
-		this.onExpUpdated()
+		this.onResize()
 	}
 
 	private beforeDestroy() {
