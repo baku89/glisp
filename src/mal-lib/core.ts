@@ -66,68 +66,22 @@ const Exports = [
 	['<', (a: number, b: number) => a < b],
 	['<=', (a: number, b: number) => a <= b],
 	['>', (a: number, b: number) => a > b],
-	[
-		'>=',
-		(a: number, b: number) => a >= b,
-		{
-			params: [
-				{label: 'a', type: 'number'},
-				{label: 'b', type: 'number'}
-			],
-			returns: {type: 'boolean'}
-		}
-	],
+	['>=', (a: number, b: number) => a >= b],
 
 	// Calculus
-	[
-		'+',
-		(...a: number[]) => a.reduce((x, y) => x + y, 0),
-		{
-			doc: 'Returns the sum of nums',
-			params: [S_AMP, {label: 'X', type: 'number'}],
-			return: {type: 'number'}
-		}
-	],
+	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
 	[
 		'-',
-		(x: number, ...y: number[]) =>
-			y.length ? y.reduce((a, b) => a - b, x) : -x,
-		{
-			doc:
-				'If no ys are supplied, returns the negation of x, else subtracts the ys from x',
-			params: [
-				{label: 'X', type: 'number'},
-				S_AMP,
-				{label: 'Y', type: 'number'}
-			],
-			return: {type: 'number'}
-		}
+		(x: number, ...ys: number[]) =>
+			ys.length ? ys.reduce((a, b) => a - b, x) : -x
 	],
-	[
-		'*',
-		(...args: number[]) => args.reduce((a, b) => a * b, 1),
-		{
-			doc: 'Returns the product of nums',
-			params: [S_AMP, {label: 'X', type: 'number'}],
-			return: {type: 'number'}
-		}
-	],
+	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
 	[
 		'/',
-		(i: number, ...a: number[]) =>
-			a.length ? a.reduce((x, y) => x / y, i) : 1 / i,
-		{
-			doc:
-				'If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys',
-			params: [
-				{label: 'X', type: 'number'},
-				S_AMP,
-				{label: 'Y', type: 'number'}
-			],
-			return: {type: 'number'}
-		}
+		(x: number, ...ys: number[]) =>
+			ys.length ? ys.reduce((a, b) => a / b, x) : 1 / x
 	],
-	['mod', (a: number, b: number) => a % b],
+	['mod', (x: number, y: number) => ((x % y) + y) % y],
 
 	// Array
 	['list', (...xs: MalVal[]) => xs],
@@ -303,34 +257,10 @@ const Exports = [
 				}
 			}
 			return markMalVector(ret)
-		},
-		{
-			doc:
-				'Returns a vector of nums from *start* to *end* (exclusive), by *step*',
-			params: [
-				[{label: 'End', type: 'number'}],
-				[
-					{label: 'Start', type: 'number'},
-					{label: 'End', type: 'number'}
-				],
-				[
-					{label: 'Start', type: 'number'},
-					{label: 'End', type: 'number'},
-					{label: 'Step', type: 'number'}
-				]
-			]
 		}
 	],
 	// Random
-	[
-		'rnd',
-		(a: MalVal) => seedrandom(a)(),
-		{
-			doc:
-				'Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*',
-			params: [{label: 'Seed', type: 'any'}]
-		}
-	]
+	['rnd', (a: MalVal) => seedrandom(a)()]
 ] as [string, MalVal][]
 
 // Expose Math

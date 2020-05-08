@@ -1,5 +1,64 @@
 (import-js-force "../js/lib_core.js")
 
+;; Declare special forms as symbol
+(def do nil)
+(def & '&)
+
+;; Annotate JS Functions
+(def +
+  ^{:doc "Returns the sum of nums"
+    :params [& {:label "x" :type "number" :default 0}]
+    :returns {:type "number"}}
+  +)
+
+(def -
+  ^{:doc "If no ys are supplied, returns the negation of x, else subtracts the ys from x"
+    :params [{:label "x" :type "number"}
+             &
+             {:label "y" :type "number"}]
+    :returns {:type "number"}}
+  -)
+
+(def *
+  ^{:doc "Returns the product of nums"
+    :params [& {:label "x" :type "number" :default 1}]
+    :returns {:type "number"}}
+  *)
+
+(def /
+  ^{:doc "If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys"
+    :params [{:label "x" :type "number"}
+             &
+             {:label "y" :type "number" :default 1}]
+    :retruns {:type "number"}}
+  /)
+
+(def mod
+  ^{:doc "Modulus of num and div. Truncates toward negative infinity"
+    :params [{:label "x" :type "number"}
+             {:label "y" :type "number"}]
+    :returns {:type "number"}}
+  mod)
+
+(def range
+  ^{:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
+    :params [[{:label "End" :type "number"}]
+             [{:label "Start" :type "number"}
+              {:label "End" :type "number"}]
+             [{:label "Start" :type "number"}
+              {:label "End" :type "number"}
+              {:label "Step" :type "number"}]]
+    :returns {:type "vector"}}
+  range)
+
+(def rnd
+  ^{:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
+    :params [:label "Seed" :type "number"]
+    :returns {:type "number"}}
+  rnd)
+
+;; Defn
+
 (def defmacro
   (macro [name params & body]
          (do
@@ -49,9 +108,6 @@
                           :name ~(str original)
                           :meta (meta ~original))))))
 
-;; Declare special forms as symbol
-(def do nil)
-(def & '&)
 
 ;; Annotate the parameter of special forms
 (defn def
