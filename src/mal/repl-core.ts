@@ -1,32 +1,9 @@
-import seedrandom from 'seedrandom'
 import {vsprintf} from 'sprintf-js'
 
-import {
-	MalVal,
-	MalFunc,
-	MalAtom,
-	cloneExp,
-	isKeyword,
-	keywordFor,
-	assocBang,
-	MalMap,
-	MalNamespace,
-	LispError,
-	isSymbol,
-	symbolFor as S,
-	M_ISMACRO,
-	M_META,
-	isMap,
-	isList,
-	isVector,
-	isString,
-	createMalVector,
-	markMalVector
-} from '../types'
-import printExp, {printer} from '../printer'
-import readStr from '../reader'
-import interop from '../interop'
-import {partition} from '@/utils'
+import {MalVal, LispError, symbolFor as S} from './types'
+import printExp, {printer} from './printer'
+import readStr from './reader'
+import interop from './interop'
 
 const S_AMP = S('&')
 
@@ -52,7 +29,7 @@ function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
 	return interop.jsToMal(res)
 }
 
-const jsObjects = [
+const Exports = [
 	[
 		'throw',
 		(msg: string) => {
@@ -94,13 +71,6 @@ const jsObjects = [
 
 	// Needed in import-force
 	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)]
-]
+] as [string, MalVal][]
 
-// Expose Math
-Object.getOwnPropertyNames(Math).forEach(k =>
-	jsObjects.push([k, (Math as any)[k]])
-)
-
-export default {
-	jsObjects
-} as MalNamespace
+export default Exports

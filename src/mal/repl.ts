@@ -3,23 +3,23 @@ import {MalVal, symbolFor as S} from './types'
 import readStr from './reader'
 import printExp from './printer'
 import evalExp from './eval'
-import {slurp} from './ns/core'
+import ReplCore, {slurp} from './repl-core'
 
 import Env from './env'
-import {declareAllNamespaces} from './ns'
 
 // Initialize root Env
 export const replEnv: Env = new Env()
 replEnv.name = 'repl'
-
-// Namespace decleration
-declareAllNamespaces(replEnv)
 
 // Root REPL
 export const REP = (str: string, env: Env = replEnv) =>
 	printExp(evalExp(readStr(str), env))
 
 // Defining essential functions
+ReplCore.forEach(([name, expr]) => {
+	replEnv.set(S(name), expr)
+})
+
 replEnv.set(S('eval'), (exp: MalVal) => {
 	return evalExp(exp, replEnv)
 })
@@ -27,7 +27,6 @@ replEnv.set(S('eval'), (exp: MalVal) => {
 replEnv.set(S('import-js-force'), (url: MalVal) => {
 	const filename = REP('__filename__').slice(1, -1)
 	const absurl = new URL(url as string, filename).href
-	console.log(absurl)
 	const text = slurp(absurl)
 	eval(text)
 	const exp = (self as any)['glisp_library']
