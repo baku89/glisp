@@ -20,7 +20,8 @@ import {
 	MalMap,
 	isList,
 	isVector,
-	markMalVector
+	markMalVector,
+	MalNode
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -227,6 +228,14 @@ export default function evalExp(
 					env,
 					a1 as string[]
 				)
+			case 'eval-when-execute': {
+				const ret = evalExp(a1, env, _ev)
+				if (_ev) {
+					;(ast as MalNode)[M_EVAL] = ret
+				}
+				ast = ret
+				break
+			}
 			/*
 			case 'env-chain': {
 				let _env: Env | null = env
@@ -257,7 +266,8 @@ export default function evalExp(
 						.join(' <- ') || 'not defined'
 				]
 				break
-			}*/
+			}
+			*/
 			default: {
 				// Apply Function
 				const [_fn, ...args] = evalAst(ast, env, saveEval) as MalVal[]
