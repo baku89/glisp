@@ -424,7 +424,7 @@ export default defineComponent({
 				saveOuter(exp, outer, key)
 
 				// Cache print
-				printExp(exp, false, true)
+				printExp(exp, true, true)
 
 				// Delete M_STR
 				let _o = exp as MalNode,
