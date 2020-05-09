@@ -14,7 +14,7 @@
    :handles {:draw (fn [pos size]
                      [{:type "point" :id :top-left :pos pos}
                       {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
-             :on-drag (fn [id p [pos size]]
+             :on-drag (fn [{id :id p :pos} [pos size]]
                         (case id
                           :top-left [p (vec2/+ (vec2/- pos p) size)]
                           :bottom-right [pos (vec2/- p pos)]))}}
@@ -40,7 +40,7 @@
                         :id :center
                         :class "translate"
                         :pos center}])
-              :on-drag (fn [id p [center radius]]
+              :on-drag (fn [{id :id p :pos} [center radius]]
                          (case id
                            :center [p radius]
                            :radius [center (vec2/dist center p)]))}}
@@ -63,7 +63,7 @@
    :handles {:draw (fn [[from to]]
                      [{:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :on-drag (fn [id p [from to]]
+             :on-drag (fn [{id :id p :pos} [from to]]
                         (case id
                           :from [p to]
                           :to [from p]))}}
@@ -96,7 +96,7 @@
               {:type "point"
                :id :end
                :pos (vec2/+ center (vec2/dir end r))}])
-     :on-drag (fn [id p [center r start end]]
+     :on-drag (fn [{id :id p :pos} [center r start end]]
                 (case id
                   :center `(~p ~r ~start ~end)
                   :start (let [start (vec2/angle (vec2/- p center))]
@@ -123,15 +123,18 @@
                                                     (nth pts (inc i))
                                                     .5)})
                            (range (dec (count pts))))))
-             :on-drag (fn [[mode i] p [& pts]]
-                        (case mode
-                          :edit (replace-nth pts i p)
-                          :add [:change-id [:edit i]
-                                (insert-nth pts i p)]))}}
+             :on-drag (fn [{id :id p :pos} [& pts]]
+                        (let [[mode i] id]
+                          (case mode
+                            :edit (replace-nth pts i p)
+                            :add [:change-id [:edit i]
+                                  (insert-nth pts i p)])))}}
   [& pts]
-  (vec (concat :path
-               :M [(first pts)]
-               (apply concat (map #`(:L ~%) (rest pts))))))
+  (if (= 0 (count pts))
+    [:path]
+    (vec (concat :path
+                 :M [(first pts)]
+                 (apply concat (map #`(:L ~%) (rest pts)))))))
 (defalias polyline path/polyline)
 
 (defn path/polygon [& pts]
@@ -153,7 +156,7 @@
                        :id :center
                        :class "translate"
                        :pos center}])
-             :on-drag (fn [id p [center [rx ry]]]
+             :on-drag (fn [{id :id p :pos} [center [rx ry]]]
                         (case id
                           :center [p [rx ry]]
                           :radius-x [center [(abs (- (.x p) (.x center))) ry]]

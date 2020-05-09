@@ -228,7 +228,12 @@ export default class ViewHandles extends Vue {
 
 		vec2.transformMat2d(pos as vec2, pos as vec2, this.transformInv)
 
-		let newParams = onDrag(this.draggingId, pos, this.params) as MalVal[]
+		const eventInfo = {
+			[K_ID]: this.draggingId,
+			[K_POS]: pos
+		}
+
+		let newParams = onDrag(eventInfo, this.params) as MalVal[]
 
 		if (newParams[0] === K_CHANGE_ID) {
 			this.draggingId = newParams[1]

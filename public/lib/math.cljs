@@ -55,7 +55,7 @@
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [[val]] [{:type "point" :id :pos :class "translate" :pos val}])
-             :on-drag (fn [id pos] [pos])}}
+             :on-drag (fn [{pos :pos}] [pos])}}
   [x] x)
 
 (defn vec2?
@@ -271,10 +271,9 @@
    :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [[pos]]
                      [{:type "point"
-                       :id :move
                        :class "translate"
                        :pos pos}])
-             :on-drag (fn [id p]
+             :on-drag (fn [{p :pos}]
                         [p])}}
   [[x y]]
   [1 0 0 1 x y])
@@ -285,8 +284,8 @@
    :params [{:type "number"}]
    :returns {:type "mat2d"}
    :handles {:draw (fn [[x]]
-                     [{:type "arrow" :id :move :pos [x 0]}])
-             :on-drag (fn [id p]
+                     [{:type "arrow" :pos [x 0]}])
+             :on-drag (fn [{p :pos}]
                         [(.x p)])}}
   [x] [1 0 0 1 x 0])
 
