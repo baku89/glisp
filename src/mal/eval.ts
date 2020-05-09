@@ -28,8 +28,7 @@ import {
 	M_OUTER,
 	M_OUTER_KEY,
 	M_ELMSTRS,
-	M_KEYS,
-	M_STR
+	M_KEYS
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -330,38 +329,28 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		// Set outer recursively
 		saveOuter(replaced, outer, key)
 
-		// Clear the outer's M_STR and M_ELMSTRS
-		delete outer[M_STR]
-		if (Array.isArray(outer) && typeof key === 'number') {
-			outer[M_ELMSTRS][key] = ''
-		} else if (isMap(outer) && typeof key === 'string') {
-			const index = outer[M_KEYS].indexOf(key)
-			const elmstrsIndex = index * 2 + 1
-			outer[M_ELMSTRS][elmstrsIndex] = ''
-		}
-
-		// Delete M_STR
+		// Refresh M_ELMSTRS of ancestors
 		let _outer = outer,
-			_key
+			_key = key,
+			_exp = replaced,
+			_expStr
 
-		while (((_key = _outer[M_OUTER_KEY]), (_outer = _outer[M_OUTER]))) {
+		while (_outer) {
+			_expStr = printExp(_exp)
+
 			if (Array.isArray(_outer) && typeof _key === 'number') {
-				_outer[M_ELMSTRS][_key] = ''
+				_outer[M_ELMSTRS][_key] = _expStr
 			} else if (isMap(_outer) && typeof _key === 'string') {
 				const index = _outer[M_KEYS].indexOf(_key)
 				const elmstrsIndex = index * 2 + 1
-				_outer[M_ELMSTRS][elmstrsIndex] = ''
+				_outer[M_ELMSTRS][elmstrsIndex] = _expStr
 			}
-			delete _outer[M_STR]
-		}
 
-		let root = outer
-		while (isMalNode(root) && root[M_OUTER]) {
-			root = root[M_OUTER]
+			// Go upward
+			_exp = _outer
+			_key = _outer[M_OUTER_KEY]
+			_outer = _outer[M_OUTER]
 		}
-
-		// Cache print
-		printExp(root, true, true)
 	} else {
 		console.log('sdifsodfijsf')
 	}

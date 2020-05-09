@@ -13,11 +13,11 @@ import {
 	isMalNode,
 	M_ELMSTRS,
 	M_DELIMITERS,
-	M_STR,
 	M_KEYS,
 	M_ISSUGAR,
 	M_OUTER_KEY
 } from './types'
+import printExp from './printer'
 
 class Reader {
 	private tokens: string[] | [string, number][]
@@ -131,7 +131,6 @@ function readAtom(reader: Reader) {
 function readList(reader: Reader, saveStr: boolean, start = '(', end = ')') {
 	const exp: any = []
 
-	const formStart = saveStr ? reader.offset() : 0
 	let elmStrs: any = null,
 		delimiters: string[] | null = null
 
@@ -171,14 +170,11 @@ function readList(reader: Reader, saveStr: boolean, start = '(', end = ')') {
 	}
 
 	if (saveStr) {
-		const formEnd = reader.endOffset()
-
 		// Save a delimiter between a last element and a end tag
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters?.push(delimiter)
 
 		// Save string information
-		exp[M_STR] = reader.getStr(formStart, formEnd)
 		exp[M_DELIMITERS] = delimiters
 		exp[M_ELMSTRS] = elmStrs
 	}
@@ -197,7 +193,7 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 	const lst = readList(reader, saveStr, '{', '}')
 	const map = assocBang({}, ...lst)
 	if (saveStr) {
-		;(map as MalNode)[M_STR] = lst[M_STR]
+		// ;(map as MalNode)[M_STR] = lst[M_STR]
 		;(map as MalNode)[M_ELMSTRS] = lst[M_ELMSTRS]
 		;(map as MalNode)[M_DELIMITERS] = lst[M_DELIMITERS]
 
@@ -291,13 +287,11 @@ function readForm(reader: Reader, saveStr: boolean): any {
 	}
 
 	if (sugar) {
+		// Save str info
 		const annotator = reader.peek(startIdx)
-
-		const formStart = reader.offset(startIdx)
 		const formEnd = reader.prevEndOffset()
 
 		val[M_ISSUGAR] = true
-		val[M_STR] = reader.getStr(formStart, formEnd)
 
 		const delimiters = ['']
 		const elmStrs = [annotator]
@@ -318,39 +312,28 @@ function readForm(reader: Reader, saveStr: boolean): any {
 	return val
 }
 
-export function getRangeOfExp(exp: MalVal): [number, number] | null {
-	function calcOffset(exp: MalVal, outer: MalVal): number {
-		let offset = 0
+export function getRangeOfExp(exp: MalNode): [number, number] | null {
+	function calcOffset(exp: MalNode): number {
+		if (!exp[M_OUTER]) {
+			return 0
+		}
 
-		if (isMalNode(outer)) {
-			if (Array.isArray(outer)) {
-				const index = (exp as MalNode)[M_OUTER_KEY] as number
-				offset +=
-					(outer[M_ISSUGAR] ? 0 : 1) +
-					outer[M_DELIMITERS].slice(0, index + 1).join('').length +
-					outer[M_ELMSTRS].slice(0, index).join('').length
-			} else if (isMap(outer)) {
-				const index = outer[M_KEYS].indexOf(
-					(exp as MalNode)[M_OUTER_KEY] as string
-				)
-				offset +=
-					1 +
-					outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
-					outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
+		const outer = exp[M_OUTER]
+		let offset = calcOffset(outer)
 
-				// console.log(
-				// 	offset,
-				// 	index,
-				// 	outer[M_DELIMITERS],
-				// 	outer[M_DELIMITERS].slice(0, (index + 1) * 2),
-				// 	outer[M_ELMSTRS].slice(0, index * 2 + 1),
-				// 	outer[M_STR]
-				// )
-			}
-
-			if (outer[M_OUTER]) {
-				offset += calcOffset(outer, outer[M_OUTER])
-			}
+		if (Array.isArray(outer)) {
+			const index = exp[M_OUTER_KEY] as number
+			offset +=
+				(outer[M_ISSUGAR] ? 0 : 1) +
+				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
+				outer[M_ELMSTRS].slice(0, index).join('').length
+		} else {
+			// Map
+			const index = outer[M_KEYS].indexOf(exp[M_OUTER_KEY] as string)
+			offset +=
+				1 /* '{'.length */ +
+				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
+				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
 		}
 
 		return offset
@@ -360,16 +343,10 @@ export function getRangeOfExp(exp: MalVal): [number, number] | null {
 		return null
 	}
 
-	let start = 0,
-		end = exp[M_STR].length
+	const expLength = printExp(exp).length
+	const offset = calcOffset(exp)
 
-	if (exp[M_OUTER]) {
-		const offset = calcOffset(exp, exp[M_OUTER])
-		start += offset
-		end += offset
-	}
-
-	return [start, end]
+	return [offset, offset + expLength]
 }
 
 export function findExpByRange(
@@ -377,63 +354,63 @@ export function findExpByRange(
 	start: number,
 	end: number
 ): MalNode | null {
-	if (isMalNode(exp)) {
-		if (!(M_STR in exp)) {
-			// throw new Error('Cannot analyze the range')
-			return null
-		}
-		// Has str cache
-		if (0 <= start && end <= exp[M_STR].length) {
-			let offset = exp[M_ISSUGAR] ? 0 : 1 /* '('.length */
-
-			if (isMap(exp)) {
-				const delimiters = exp[M_DELIMITERS]
-				const elmStrs = exp[M_ELMSTRS]
-				const keys = exp[M_KEYS]
-
-				// { <d0> <:e0> <d1> <e1> ... }
-				for (let i = 0, i2 = 0; i < keys.length; i++, i2 = i * 2) {
-					const child = exp[keys[i]]
-
-					offset +=
-						delimiters[i2].length +
-						elmStrs[i2].length +
-						delimiters[i2 + 1].length
-
-					const ret = findExpByRange(child, start - offset, end - offset)
-					if (ret !== null) {
-						return ret
-					}
-
-					offset += elmStrs[i2 + 1].length
-				}
-
-				return exp
-
-				return null
-			} else {
-				// Sequential
-				for (let i = 0; i < exp.length; i++) {
-					const child = exp[i]
-					offset += exp[M_DELIMITERS][i].length
-
-					// console.log('offset->', offset)
-
-					const ret = findExpByRange(child, start - offset, end - offset)
-					if (ret !== null) {
-						return ret
-					}
-
-					offset += exp[M_ELMSTRS][i].length
-				}
-				return exp
-			}
-		} else {
-			return null
-		}
-	} else {
+	if (!isMalNode(exp)) {
+		// If Atom
 		return null
 	}
+
+	// Creates a caches of children at the same time calculating length of exp
+	const expLen = printExp(exp, true, true).length
+
+	if (!(0 <= start && end <= expLen + 1)) {
+		// Does not fit within the exp
+		return null
+	}
+
+	let offset = 0
+
+	if (Array.isArray(exp)) {
+		// Sequential
+		if (!exp[M_ISSUGAR]) {
+			offset += 1 // Add the length of open-paren
+		}
+
+		// Search Children
+		for (let i = 0; i < exp.length; i++) {
+			const child = exp[i]
+			offset += exp[M_DELIMITERS][i].length
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			offset += exp[M_ELMSTRS][i].length
+		}
+	} else {
+		// Hash Map
+		const delimiters = exp[M_DELIMITERS]
+		const elmStrs = exp[M_ELMSTRS]
+		const keys = exp[M_KEYS]
+
+		// Search Children
+		// { <d0> <:e0> <d1> <e1> ... }
+		for (let i = 0, i2 = 0; i < keys.length; i++, i2 = i * 2) {
+			const child = exp[keys[i]]
+
+			offset +=
+				delimiters[i2].length + elmStrs[i2].length + delimiters[i2 + 1].length
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			offset += elmStrs[i2 + 1].length
+		}
+	}
+
+	return exp
 }
 
 export function convertJSObjectToMalMap(obj: any): MalVal {

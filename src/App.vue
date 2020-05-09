@@ -77,8 +77,7 @@ import {
 	isMalNode,
 	M_OUTER,
 	MalListNode,
-	M_MACROEXPANDED,
-	M_STR
+	M_MACROEXPANDED
 } from '@/mal/types'
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
@@ -369,7 +368,7 @@ export default defineComponent({
 					}
 				},
 				set: (exp: MalVal) => {
-					const selection = getRangeOfExp(exp)
+					const selection = getRangeOfExp(exp as MalNode)
 
 					if (selection) {
 						const [start, end] = selection

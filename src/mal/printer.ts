@@ -11,7 +11,6 @@ import {
 	isVector,
 	M_ISMACRO,
 	isMalNode,
-	M_STR,
 	M_ELMSTRS,
 	M_DELIMITERS,
 	M_ISSUGAR,
@@ -47,9 +46,7 @@ export default function printExp(
 	let ret: string
 	let elmStrs: string[] | null = null
 
-	if (isMalNode(exp) && M_STR in exp) {
-		ret = exp[M_STR]
-	} else if (isMalNode(exp) && M_ELMSTRS in exp) {
+	if (isMalNode(exp) && M_ELMSTRS in exp) {
 		const delimiters = exp[M_DELIMITERS]
 		elmStrs = exp[M_ELMSTRS]
 
@@ -91,28 +88,8 @@ export default function printExp(
 			ret = '{' + ret + '}'
 		}
 	} else if (isList(exp)) {
-		// if (exp.length === 2) {
-		// 	switch (exp[0]) {
-		// 		case S_QUOTE:
-		// 			ret = "'" + printExp(exp[1], _r, _c)
-		// 			break
-		// 		case S_QUASIQUOTE:
-		// 			ret = '`' + printExp(exp[1], _r, _c)
-		// 			break
-		// 		case S_UNQUOTE:
-		// 			ret = '~' + printExp(exp[1], _r, _c)
-		// 			break
-		// 		case S_SPLICE_UNQUOTE:
-		// 			ret = '~@' + printExp(exp[1], _r, _c)
-		// 			break
-		// 		default:
-		// 			ret = '(' + exp.map(e => printExp(e, _r, _c)).join(' ') + ')'
-		// 			break
-		// 	}
-		// } else {
 		elmStrs = exp.map(e => printExp(e, _r, _c))
 		ret = '(' + elmStrs.join(' ') + ')'
-		// }
 	} else if (isVector(exp)) {
 		elmStrs = exp.map(e => printExp(e, _r, _c))
 		ret = '[' + elmStrs.join(' ') + ']'
@@ -157,9 +134,6 @@ export default function printExp(
 	}
 
 	if (_c && isMalNode(exp) && elmStrs) {
-		// Cache
-		exp[M_STR] = ret
-
 		if (!exp[M_ELMSTRS]) {
 			exp[M_ELMSTRS] = elmStrs
 		}
