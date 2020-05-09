@@ -77,7 +77,7 @@ export default defineComponent({
 		width 8em
 		border none
 		border-bottom 1px dashed var(--comment)
-		background var(--background)
+		background transparent
 		color var(--green)
 
 	&__color
