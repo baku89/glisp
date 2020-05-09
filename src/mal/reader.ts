@@ -454,8 +454,10 @@ export class BlankException extends Error {}
 
 export function saveOuter(exp: MalVal, outer: MalVal, key?: string | number) {
 	if (isMalNode(exp) && !(M_OUTER in exp)) {
-		exp[M_OUTER] = outer
-		exp[M_OUTER_KEY] = key
+		if (isMalNode(outer) && key !== undefined) {
+			exp[M_OUTER] = outer
+			exp[M_OUTER_KEY] = key
+		}
 
 		const children: [string | number, MalVal][] | null = Array.isArray(exp)
 			? exp.map((v, i) => [i, v])

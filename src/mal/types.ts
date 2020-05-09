@@ -44,8 +44,8 @@ export interface MalNodeMap extends MalMap {
 	[M_ELMSTRS]: string[]
 	[M_KEYS]: string[]
 	[M_EVAL]: MalVal
-	[M_OUTER]: MalVal
-	[M_OUTER_KEY]: number | string | undefined
+	[M_OUTER]: MalNode
+	[M_OUTER_KEY]: string
 }
 
 export interface MalListNode extends Array<MalVal> {
@@ -56,8 +56,8 @@ export interface MalListNode extends Array<MalVal> {
 	[M_FN]: MalVal
 	[M_EVAL]: MalVal
 	[M_MACROEXPANDED]: MalVal
-	[M_OUTER]: MalVal
-	[M_OUTER_KEY]: number | string | undefined
+	[M_OUTER]: MalNode
+	[M_OUTER_KEY]: number
 }
 
 export type MalNode = MalNodeMap | MalListNode
