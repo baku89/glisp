@@ -121,7 +121,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		const [a0, a1, a2, a3] = exp
 
 		// Special Forms
-		switch (isSymbol(a0) ? (a0 as string).slice(1) : Symbol(':default')) {
+		switch (isSymbol(a0) ? (a0 as string).slice(1) : null) {
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
@@ -160,6 +160,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
+			case 'fn':
+				return createMalFunc(
+					(...args) => evalExp(a2, new Env(env, a1 as string[], args), cache),
+					a2,
+					env,
+					a1 as string[]
+				)
 			case 'macro': {
 				const fnexp = [S('fn'), a1, a2]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
@@ -204,39 +211,20 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp[exp.length - 1]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalListNode)[M_MACROEXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
 			}
 			case 'if': {
-				const cond = evalExp(a1, env, cache)
-				if (cond) {
-					if (cache) {
-						;(exp as MalNode)[M_EVAL] = a2
-					}
-					exp = a2
-				} else {
-					if (cache) {
-						;(exp as MalNode)[M_EVAL] = a3
-					}
-					exp = typeof a3 !== 'undefined' ? a3 : null
-				}
-				break // continue TCO loop
-			}
-			case 'fn':
-				return createMalFunc(
-					(...args) => evalExp(a2, new Env(env, a1 as string[], args), cache),
-					a2,
-					env,
-					a1 as string[]
-				)
-			case 'eval-when-execute': {
-				const ret = evalExp(a1, env, cache)
+				const test = evalExp(a1, env, cache)
+				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNode)[M_EVAL] = a2
+					;(exp as MalListNode)[M_MACROEXPANDED] = a2
 				}
 				exp = ret
-				break
+				break // continue TCO loop
 			}
 			/*
 			case 'env-chain': {

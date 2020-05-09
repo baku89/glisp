@@ -440,6 +440,10 @@ export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 			exp[M_OUTER_INDEX] = index
 		}
 
+		if (isMap(exp) && !(M_KEYS in exp)) {
+			exp[M_KEYS] = Object.keys(exp)
+		}
+
 		const children: MalVal[] | null = Array.isArray(exp)
 			? exp
 			: isMap(exp)

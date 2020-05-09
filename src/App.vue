@@ -218,11 +218,7 @@ function bindsAppHandler(
 	onUpdateSelectedExp: (val: MalVal) => any
 ) {
 	appHandler.on('eval-selected', () => {
-		if (
-			data.selectedExp &&
-			data.selectedExpRange &&
-			isMalNode(data.selectedExp)
-		) {
+		if (data.selectedExp && isMalNode(data.selectedExp)) {
 			let evaled
 			if (M_MACROEXPANDED in data.selectedExp) {
 				evaled = (data.selectedExp as MalListNode)[M_MACROEXPANDED]
