@@ -25,14 +25,35 @@
   (case (count xs)
     1 (let [v (first xs)]
         (if (number? v)
-          (format "rgba(%f,%f,%f)" v v v)
+          (color/gray v)
           v))
-    3 (apply format "rgba(%f,%f,%f)" xs)
+    3 (apply color/rgb xs)
     "black"))
-
 
 (defn color? [x]
   (string? x))
+
+(defn color/gray
+  {:returns {:type "color"}}
+  [v]
+  (def b (* v 255))
+  (format "rgb(%f,%f,%f)" b b b))
+
+(defn color/rgb
+  {:params [{:label "Red" :type "number"}
+            {:label "Green" :type "number"}
+            {:label "Blue" :type "number"}]
+   :returns {:type "color"}}
+  [r g b]
+  (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255)))
+
+(defn color/hsl
+  {:params [{:label "Hue" :type "number"}
+            {:label "Saturation" :type "number"}
+            {:label "Lightness" :type "number"}]
+   :returns {:type "color"}}
+  [h s l]
+  (format "rgb(%f,%f,%f)" (* (mod h 1) 360) (* s 100) (* l 100)))
 
 (defmacro background
   [color]
