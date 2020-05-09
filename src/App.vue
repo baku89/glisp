@@ -391,8 +391,8 @@ export default defineComponent({
 
 		watch(
 			() => [data.exp, ui.viewerSize, ui.guideColor],
-			async () => {
-				await delay(0)
+			() => {
+				// await delay(0)
 
 				let ret: MalVal = null
 				const exp = data.exp.value
