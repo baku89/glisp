@@ -15,7 +15,7 @@ import {
 	M_DELIMITERS,
 	M_KEYS,
 	M_ISSUGAR,
-	M_OUTER_KEY
+	M_OUTER_INDEX
 } from './types'
 import printExp from './printer'
 
@@ -191,17 +191,19 @@ function readVector(reader: Reader, saveStr: boolean) {
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, saveStr: boolean) {
 	const lst = readList(reader, saveStr, '{', '}')
-	const map = assocBang({}, ...lst)
+	const map = assocBang({}, ...lst) as MalNodeMap
 	if (saveStr) {
-		// ;(map as MalNode)[M_STR] = lst[M_STR]
-		;(map as MalNode)[M_ELMSTRS] = lst[M_ELMSTRS]
-		;(map as MalNode)[M_DELIMITERS] = lst[M_DELIMITERS]
-
 		const keys = []
+		const elmStrs = []
+
 		for (let i = 0; i < lst.length; i += 2) {
 			keys.push(lst[i])
+			elmStrs.push(lst[M_ELMSTRS][i + 1])
 		}
-		;(map as MalNodeMap)[M_KEYS] = keys
+
+		map[M_KEYS] = keys
+		map[M_ELMSTRS] = elmStrs
+		map[M_DELIMITERS] = lst[M_DELIMITERS]
 	}
 	return map
 }
@@ -322,18 +324,19 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		let offset = calcOffset(outer)
 
 		if (Array.isArray(outer)) {
-			const index = exp[M_OUTER_KEY] as number
+			const index = exp[M_OUTER_INDEX]
 			offset +=
 				(outer[M_ISSUGAR] ? 0 : 1) +
 				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
 				outer[M_ELMSTRS].slice(0, index).join('').length
 		} else {
 			// Map
-			const index = outer[M_KEYS].indexOf(exp[M_OUTER_KEY] as string)
+			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.length */ +
 				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
-				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
+				outer[M_KEYS].slice(0, index + 1).join('').length +
+				outer[M_ELMSTRS].slice(0, index).join('').length
 		}
 
 		return offset
@@ -367,13 +370,11 @@ export function findExpByRange(
 		return null
 	}
 
-	let offset = 0
-
 	if (Array.isArray(exp)) {
 		// Sequential
-		if (!exp[M_ISSUGAR]) {
-			offset += 1 // Add the length of open-paren
-		}
+
+		// Add the length of open-paren
+		let offset = exp[M_ISSUGAR] ? 0 : 1
 
 		// Search Children
 		for (let i = 0; i < exp.length; i++) {
@@ -389,24 +390,27 @@ export function findExpByRange(
 		}
 	} else {
 		// Hash Map
-		const delimiters = exp[M_DELIMITERS]
-		const elmStrs = exp[M_ELMSTRS]
+
+		let offset = 1 // length of '{'
+
 		const keys = exp[M_KEYS]
+		const elmStrs = exp[M_ELMSTRS]
+		const delimiters = exp[M_DELIMITERS]
 
 		// Search Children
-		// { <d0> <:e0> <d1> <e1> ... }
-		for (let i = 0, i2 = 0; i < keys.length; i++, i2 = i * 2) {
+		// { <d0> <:e0>s <d1> <e1> ... }
+		for (let i = 0; i < keys.length; i++) {
 			const child = exp[keys[i]]
 
 			offset +=
-				delimiters[i2].length + elmStrs[i2].length + delimiters[i2 + 1].length
+				delimiters[i * 2].length + keys[i].length + delimiters[i * 2 + 1].length
 
 			const ret = findExpByRange(child, start - offset, end - offset)
 			if (ret !== null) {
 				return ret
 			}
 
-			offset += elmStrs[i2 + 1].length
+			offset += elmStrs[i].length
 		}
 	}
 
@@ -429,21 +433,21 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 
 export class BlankException extends Error {}
 
-export function saveOuter(exp: MalVal, outer: MalVal, key?: string | number) {
+export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 	if (isMalNode(exp) && !(M_OUTER in exp)) {
-		if (isMalNode(outer) && key !== undefined) {
+		if (isMalNode(outer) && index !== undefined) {
 			exp[M_OUTER] = outer
-			exp[M_OUTER_KEY] = key
+			exp[M_OUTER_INDEX] = index
 		}
 
-		const children: [string | number, MalVal][] | null = Array.isArray(exp)
-			? exp.map((v, i) => [i, v])
+		const children: MalVal[] | null = Array.isArray(exp)
+			? exp
 			: isMap(exp)
-			? Object.entries(exp)
+			? exp[M_KEYS].map(k => exp[k])
 			: null
 
 		if (children) {
-			children.forEach(([key, child]) => saveOuter(child, exp, key))
+			children.forEach((child, index) => saveOuter(child, exp, index))
 		}
 	}
 }

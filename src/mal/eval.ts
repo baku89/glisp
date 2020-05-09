@@ -26,7 +26,7 @@ import {
 	MalListNode,
 	M_MACROEXPANDED,
 	M_OUTER,
-	M_OUTER_KEY,
+	M_OUTER_INDEX,
 	M_ELMSTRS,
 	M_KEYS
 } from './types'
@@ -313,45 +313,34 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 // Cached Tree-shaking
 export function replaceExp(original: MalNode, replaced: MalVal) {
 	const outer = original[M_OUTER]
-	const key = original[M_OUTER_KEY]
-	if (key !== undefined) {
+	const index = original[M_OUTER_INDEX]
+	if (index !== undefined) {
 		// Set as child
-		if (Array.isArray(outer) && typeof key === 'number') {
-			outer[key] = replaced
-		} else if (isMap(outer) && typeof key === 'string') {
-			outer[key] = replaced
+		if (Array.isArray(outer)) {
+			outer[index] = replaced
 		} else {
-			throw new LispError(
-				'The combination of M_OUTER and M_OUTER_KEY is invalid'
-			)
+			// hash map
+			const key = outer[M_KEYS][index]
+			outer[key] = replaced
 		}
 
 		// Set outer recursively
-		saveOuter(replaced, outer, key)
+		saveOuter(replaced, outer, index)
 
 		// Refresh M_ELMSTRS of ancestors
 		let _outer = outer,
-			_key = key,
-			_exp = replaced,
-			_expStr
+			_index = index,
+			_exp = replaced
 
 		while (_outer) {
-			_expStr = printExp(_exp)
-
-			if (Array.isArray(_outer) && typeof _key === 'number') {
-				_outer[M_ELMSTRS][_key] = _expStr
-			} else if (isMap(_outer) && typeof _key === 'string') {
-				const index = _outer[M_KEYS].indexOf(_key)
-				const elmstrsIndex = index * 2 + 1
-				_outer[M_ELMSTRS][elmstrsIndex] = _expStr
-			}
+			_outer[M_ELMSTRS][_index] = printExp(_exp)
 
 			// Go upward
 			_exp = _outer
-			_key = _outer[M_OUTER_KEY]
+			_index = _outer[M_OUTER_INDEX]
 			_outer = _outer[M_OUTER]
 		}
 	} else {
-		console.log('sdifsodfijsf')
+		console.error('sdifsodfijsf')
 	}
 }

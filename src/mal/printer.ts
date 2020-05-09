@@ -44,11 +44,12 @@ export default function printExp(
 	const _c = cache
 
 	let ret: string
-	let elmStrs: string[] | null = null
 
 	if (isMalNode(exp) && M_ELMSTRS in exp) {
+		// Print using cache
+
 		const delimiters = exp[M_DELIMITERS]
-		elmStrs = exp[M_ELMSTRS]
+		const elmStrs = exp[M_ELMSTRS]
 
 		if (Array.isArray(exp)) {
 			const count = elmStrs.length
@@ -76,70 +77,76 @@ export default function printExp(
 			ret = ''
 
 			for (let i = 0; i < count; i++) {
-				ret += delimiters[i * 2] + elmStrs[i * 2] + delimiters[i * 2 + 1]
+				ret += delimiters[i * 2] + printExp(keys[i]) + delimiters[i * 2 + 1]
 
-				if (!elmStrs[i * 2 + 1]) {
-					elmStrs[i * 2 + 1] = printExp(exp[keys[i]], _r, _c)
+				if (!elmStrs[i]) {
+					elmStrs[i] = printExp(exp[keys[i]], _r, _c)
 				}
-				ret += elmStrs[i * 2 + 1]
+				ret += elmStrs[i]
 			}
 			ret += delimiters[delimiters.length - 1]
 
 			ret = '{' + ret + '}'
 		}
-	} else if (isList(exp)) {
-		elmStrs = exp.map(e => printExp(e, _r, _c))
-		ret = '(' + elmStrs.join(' ') + ')'
-	} else if (isVector(exp)) {
-		elmStrs = exp.map(e => printExp(e, _r, _c))
-		ret = '[' + elmStrs.join(' ') + ']'
-	} else if (isMap(exp)) {
-		elmStrs = []
-		for (const k in exp) {
-			elmStrs.push(printExp(k, _r, _c), printExp(exp[k], _r, _c))
-		}
-		ret = '{' + elmStrs.join(' ') + '}'
-	} else if (typeof exp === 'string') {
-		if (isSymbol(exp)) {
-			ret = exp.slice(1)
-		} else if (isKeyword(exp)) {
-			ret = ':' + (exp as string).slice(1)
-		} else if (_r) {
-			ret =
-				'"' +
-				(exp as string)
-					.replace(/\\/g, '\\\\')
-					.replace(/"/g, '\\"')
-					.replace(/\n/g, '\\n') +
-				'"'
-		} else {
-			ret = exp
-		}
-	} else if (exp === null) {
-		ret = 'nil'
-	} else if (isMalFunc(exp)) {
-		const params = printExp(exp[M_PARAMS], _r, _c)
-		const body = printExp(exp[M_AST], _r, _c)
-		ret = `(${exp[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
-	} else if (typeof exp === 'number' || typeof exp === 'boolean') {
-		ret = exp.toString()
-	} else if (exp instanceof MalAtom) {
-		ret = '(atom ' + printExp(exp.val, _r, _c) + ')'
-	} else if (typeof exp === 'function') {
-		ret = exp.toString()
-	} else if (exp === undefined) {
-		ret = '<undefined>'
 	} else {
-		ret = `<native objects>`
-	}
+		// Calculate from zero
 
-	if (_c && isMalNode(exp) && elmStrs) {
-		if (!exp[M_ELMSTRS]) {
-			exp[M_ELMSTRS] = elmStrs
+		let elmStrs: string[] | null = null
+
+		if (isList(exp)) {
+			elmStrs = exp.map(e => printExp(e, _r, _c))
+			ret = '(' + elmStrs.join(' ') + ')'
+		} else if (isVector(exp)) {
+			elmStrs = exp.map(e => printExp(e, _r, _c))
+			ret = '[' + elmStrs.join(' ') + ']'
+		} else if (isMap(exp)) {
+			elmStrs = []
+			for (const k in exp) {
+				elmStrs.push(printExp(k, _r, _c), printExp(exp[k], _r, _c))
+			}
+			ret = '{' + elmStrs.join(' ') + '}'
+		} else if (typeof exp === 'string') {
+			if (isSymbol(exp)) {
+				ret = exp.slice(1)
+			} else if (isKeyword(exp)) {
+				ret = ':' + (exp as string).slice(1)
+			} else if (_r) {
+				ret =
+					'"' +
+					(exp as string)
+						.replace(/\\/g, '\\\\')
+						.replace(/"/g, '\\"')
+						.replace(/\n/g, '\\n') +
+					'"'
+			} else {
+				ret = exp
+			}
+		} else if (exp === null) {
+			ret = 'nil'
+		} else if (isMalFunc(exp)) {
+			const params = printExp(exp[M_PARAMS], _r, _c)
+			const body = printExp(exp[M_AST], _r, _c)
+			ret = `(${exp[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
+		} else if (typeof exp === 'number' || typeof exp === 'boolean') {
+			ret = exp.toString()
+		} else if (exp instanceof MalAtom) {
+			ret = '(atom ' + printExp(exp.val, _r, _c) + ')'
+		} else if (typeof exp === 'function') {
+			ret = exp.toString()
+		} else if (exp === undefined) {
+			ret = '<undefined>'
+		} else {
+			ret = `<native objects>`
 		}
 
-		if (!exp[M_DELIMITERS]) {
-			exp[M_DELIMITERS] = ['', ...Array(elmStrs.length - 1).fill(' '), '']
+		if (_c && isMalNode(exp) && elmStrs) {
+			if (!exp[M_ELMSTRS]) {
+				exp[M_ELMSTRS] = elmStrs
+			}
+
+			if (!exp[M_DELIMITERS]) {
+				exp[M_DELIMITERS] = ['', ...Array(elmStrs.length - 1).fill(' '), '']
+			}
 		}
 	}
 
