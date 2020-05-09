@@ -281,6 +281,8 @@ export default defineComponent({
 		ViewHandles
 	},
 	setup() {
+		let expNotEvaluated = false
+
 		const ui = reactive({
 			compact: false,
 			background: 'snow',
@@ -319,7 +321,7 @@ export default defineComponent({
 				},
 				set: exp => {
 					data.code = printExp(exp.value).slice(OFFSET, -8)
-					// window.exp = exp
+					window.exp = exp
 				}
 			}),
 			hasError: computed(() => {
@@ -330,6 +332,7 @@ export default defineComponent({
 				let ret: MalVal = null
 				if (data.exp.value !== undefined) {
 					try {
+						expNotEvaluated = false
 						const {output} = viewREP(data.exp.value, {
 							width: ui.viewerSize[0],
 							height: ui.viewerSize[1],
@@ -356,6 +359,19 @@ export default defineComponent({
 						return null
 					}
 					const [start, end] = data.selection
+					if (expNotEvaluated) {
+						try {
+							expNotEvaluated = false
+							viewREP(data.exp.value, {
+								width: ui.viewerSize[0],
+								height: ui.viewerSize[1],
+								updateConsole: true,
+								guideColor: ui.guideColor
+							})
+						} catch (_) {
+							null
+						}
+					}
 					const selected = findExpByRange(
 						data.exp.value,
 						start + OFFSET,
@@ -423,6 +439,7 @@ export default defineComponent({
 			}
 
 			replaceExp(data.selectedExp as MalNode, exp)
+			expNotEvaluated = true
 
 			// Assign new exp
 			const root = data.exp.value as MalListNode
