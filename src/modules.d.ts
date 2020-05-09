@@ -49,8 +49,11 @@ declare module 'sprintf-js' {
 	export function vsprintf(format: string, args: any[]): string
 }
 
-declare module 'vue-resize' {
-	export const ResizeObserver: any
+declare module 'resize-sensor' {
+	export default class ResizeSensor {
+		constructor(el: HTMLElement, callback: () => any)
+		public detach(): any
+	}
 }
 
 declare module 'vue-markdown' {

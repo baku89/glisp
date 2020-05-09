@@ -47,6 +47,7 @@
 		"perf_hooks": "^0.0.1",
 		"prettier": "^1.19.1",
 		"raw-loader": "^4.0.0",
+		"resize-sensor": "^0.0.6",
 		"seedrandom": "^3.0.5",
 		"stylus": "^0.54.7",
 		"stylus-loader": "^3.0.2",
