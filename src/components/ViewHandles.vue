@@ -41,7 +41,9 @@ import {
 	isVector,
 	isKeyword,
 	isMap,
-	MalNode
+	MalNode,
+	MalListNode,
+	M_EVAL_PARAMS
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -52,6 +54,7 @@ const K_ALIAS = K('alias'),
 	K_ID = K('id'),
 	K_META = K('meta'),
 	K_POS = K('pos'),
+	K_PREV_POS = K('prev-pos'),
 	K_TYPE = K('type'),
 	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
@@ -62,20 +65,100 @@ const K_ALIAS = K('alias'),
 
 @Component({})
 export default class ViewHandles extends Vue {
-	@Prop({required: true}) exp!: MalVal
+	@Prop({required: true}) exp!: MalNode
 
 	private rem = 0
 
+	private get handleInfo() {
+		const exp = this.exp as any
+
+		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
+			const meta = exp[M_FN][M_META]
+
+			if (meta[K_ALIAS] && meta[K_ALIAS][K_META]) {
+				return meta[K_ALIAS][K_META][K_HANDLES] || null
+			} else {
+				return meta[K_HANDLES] || null
+			}
+		}
+
+		return null
+	}
+
 	private get params(): MalVal[] {
-		return this.handleInfo && Array.isArray(this.exp)
-			? this.exp
-					.slice(1)
-					.map((e: any) => (e[M_EVAL] !== undefined ? e[M_EVAL] : e))
-			: []
+		if (
+			this.handleInfo &&
+			Array.isArray(this.exp) &&
+			(this.exp as MalListNode)[M_EVAL_PARAMS]
+		) {
+			return (this.exp as MalListNode)[M_EVAL_PARAMS]
+		} else {
+			return []
+		}
 	}
 
 	private get evaluated(): MalVal {
 		return (this.exp as any)[M_EVAL] || null
+	}
+
+	private get transform(): mat2d {
+		if (this.exp !== null && this.exp instanceof Object) {
+			const wrappedElement = this.getWrappedElement(this.exp)
+			return this.calcTransform(wrappedElement)
+		} else {
+			return [1, 0, 0, 1, 0, 0]
+		}
+	}
+
+	private get transformInv() {
+		return mat2d.invert(mat2d.create(), this.transform)
+	}
+
+	private get transformStyle() {
+		return `matrix(${this.transform.join(',')})`
+	}
+
+	private get handles(): {type: string; id: any; style: any}[] | null {
+		if (this.handleInfo) {
+			const drawHandle = this.handleInfo[K_DRAW]
+
+			let handles
+			try {
+				handles = drawHandle(this.params, this.evaluated)
+			} catch (_) {
+				return null
+			}
+
+			return handles.map((h: any) => {
+				const type = h[K_TYPE]
+				const cls = h[K_CLASS]
+
+				const ret: {[k: string]: string} = {
+					type,
+					cls,
+					id: h[K_ID],
+					transform: ''
+				}
+
+				if (type === 'point' || type === 'arrow') {
+					const [x, y] = h[K_POS]
+					ret.transform = `translate(${x}, ${y})`
+				}
+
+				if (type === 'arrow') {
+					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
+					ret.transform += ` rotate(${angle})`
+				}
+
+				if (type === 'path') {
+					ret.path = getSVGPathData(h[K_PATH])
+				}
+
+				return ret
+			})
+		} else {
+			return null
+		}
 	}
 
 	private mounted() {
@@ -128,88 +211,16 @@ export default class ViewHandles extends Vue {
 		}
 	}
 
-	private get transform(): mat2d {
-		if (this.exp !== null && this.exp instanceof Object) {
-			const wrappedElement = this.getWrappedElement(this.exp)
-			return this.calcTransform(wrappedElement)
-		} else {
-			return [1, 0, 0, 1, 0, 0]
-		}
-	}
+	private draggingId!: MalVal
+	private rawPrevPos!: number[]
 
-	private get transformInv() {
-		return mat2d.invert(mat2d.create(), this.transform)
-	}
-
-	private get transformStyle() {
-		return `matrix(${this.transform.join(',')})`
-	}
-
-	private get handleInfo() {
-		const exp = this.exp as any
-
-		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
-			const meta = exp[M_FN][M_META]
-
-			if (meta[K_ALIAS] && meta[K_ALIAS][K_META]) {
-				return meta[K_ALIAS][K_META][K_HANDLES] || null
-			} else {
-				return meta[K_HANDLES] || null
-			}
-		}
-
-		return null
-	}
-
-	private get handles(): {type: string; id: any; style: any}[] | null {
-		if (this.handleInfo) {
-			const drawHandle = this.handleInfo[K_DRAW]
-
-			let handles
-			try {
-				handles = drawHandle(this.params, this.evaluated)
-			} catch (_) {
-				return null
-			}
-
-			return handles.map((h: any) => {
-				const type = h[K_TYPE]
-				const cls = h[K_CLASS]
-
-				const ret: {[k: string]: string} = {
-					type,
-					cls,
-					id: h[K_ID],
-					transform: ''
-				}
-
-				if (type === 'point' || type === 'arrow') {
-					const [x, y] = h[K_POS]
-					ret.transform = `translate(${x}, ${y})`
-				}
-
-				if (type === 'arrow') {
-					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
-					ret.transform += ` rotate(${angle})`
-				}
-
-				if (type === 'path') {
-					ret.path = getSVGPathData(h[K_PATH])
-				}
-
-				return ret
-			})
-		} else {
-			return null
-		}
-	}
-
-	private draggingId: MalVal | null = null
-
-	private onMousedown(id: any) {
+	private onMousedown(id: any, e: MouseEvent) {
 		this.draggingId = id
 		window.addEventListener('mousemove', this.onMousemove)
 		window.addEventListener('mouseup', this.onMouseup)
+
+		const viewRect = this.$el.getBoundingClientRect()
+		this.rawPrevPos = [e.clientX - viewRect.left, e.clientY - viewRect.top]
 	}
 
 	private onMousemove(e: MouseEvent) {
@@ -220,18 +231,30 @@ export default class ViewHandles extends Vue {
 		const onDrag = this.handleInfo[K_ON_DRAG]
 
 		const viewRect = this.$el.getBoundingClientRect()
-
-		const pos = markMalVector([
+		const rawPos = markMalVector([
 			e.clientX - viewRect.left,
 			e.clientY - viewRect.top
 		]) as number[]
 
-		vec2.transformMat2d(pos as vec2, pos as vec2, this.transformInv)
+		const pos = [0, 0]
+		vec2.transformMat2d(pos as vec2, rawPos as vec2, this.transformInv)
+		markMalVector(pos)
+
+		const prevPos = [0, 0]
+		vec2.transformMat2d(
+			prevPos as vec2,
+			this.rawPrevPos as vec2,
+			this.transformInv
+		)
+		markMalVector(prevPos)
 
 		const eventInfo = {
 			[K_ID]: this.draggingId,
-			[K_POS]: pos
+			[K_POS]: pos,
+			[K_PREV_POS]: prevPos
 		}
+
+		this.rawPrevPos = rawPos
 
 		let newParams = onDrag(eventInfo, this.params) as MalVal[]
 
@@ -245,7 +268,6 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMouseup() {
-		this.draggingId = null
 		this.unregisterMouseEvents()
 	}
 }

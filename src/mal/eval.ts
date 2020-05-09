@@ -28,7 +28,8 @@ import {
 	M_OUTER,
 	M_OUTER_INDEX,
 	M_ELMSTRS,
-	M_KEYS
+	M_KEYS,
+	M_EVAL_PARAMS
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -263,6 +264,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const [_fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
 
 				const fn = _fn as MalFunc
+
+				if (isMalFunc(fn) || typeof fn === 'function') {
+					;(exp as MalListNode)[M_EVAL_PARAMS] = args
+				}
 
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)

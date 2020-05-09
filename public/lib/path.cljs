@@ -11,7 +11,7 @@
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
             {:label "Size" :type "vec2" :desc "size of the rectangle"}]
    :returns {:type "path"}
-   :handles {:draw (fn [pos size]
+   :handles {:draw (fn [[pos size]]
                      [{:type "point" :id :top-left :pos pos}
                       {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
              :on-drag (fn [{id :id p :pos} [pos size]]

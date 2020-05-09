@@ -318,7 +318,17 @@
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}}
+   :returns {:type "mat2d"}
+   :handles {:draw (fn [[angle]]
+                     (let [dir (vec2/dir angle 80)]
+                       [{:type "path" :path (line [0 0] dir)}
+                        {:type "path" :path (circle [0 0] 80)}
+                        {:type "point" :pos dir}]))
+             :on-drag (fn [{p :pos pp :prev-pos} [angle]]
+                        (let [angle-pp (vec2/angle pp)
+                              aligned-p (vec2/rotate [0 0] (- angle-pp) p)
+                              angle-delta (vec2/angle aligned-p)]
+                          [(+ angle angle-delta)]))}}
   [angle]
   (let [s (sin angle)
         c (cos angle)]

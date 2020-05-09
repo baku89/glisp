@@ -10,6 +10,7 @@ export const M_ISMACRO = Symbol.for('ismacro')
 const M_ISVECTOR = Symbol.for('isvector')
 
 export const M_EVAL = Symbol.for('eval')
+export const M_EVAL_PARAMS = Symbol.for('eval-params')
 export const M_MACROEXPANDED = Symbol.for('macroexpanded')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
@@ -49,8 +50,9 @@ export interface MalListNode extends Array<MalVal> {
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
-	[M_FN]: MalVal
-	[M_EVAL]: MalVal
+	[M_FN]: MalVal // Reference to a function
+	[M_EVAL]: MalVal // Stores evaluted value of the node
+	[M_EVAL_PARAMS]: MalVal[] // Stores evaluated values of fn's parameters
 	[M_MACROEXPANDED]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
