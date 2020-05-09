@@ -17,11 +17,6 @@ import {
 	M_KEYS
 } from './types'
 
-// const S_QUOTE = S('quote'),
-// 	S_QUASIQUOTE = S('quasiquote'),
-// 	S_UNQUOTE = S('unquote'),
-// 	S_SPLICE_UNQUOTE = S('splice-unquote')
-
 export const printer = {
 	log: (...args: any) => {
 		console.info(...args)
