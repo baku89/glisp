@@ -245,17 +245,19 @@ function bindsAppHandler(
 	})
 
 	appHandler.on('select-outer', () => {
-		if (data.selectedExpRange === null) {
+		const {selection, selectedExp, selectedExpRange} = data
+
+		if (selectedExpRange === null) {
 			return
 		}
 
-		if (data.selection[0] === data.selection[1]) {
-			data.selection = data.selectedExpRange
-		} else if (data.exp.value !== undefined) {
-			const selection = getOuterRange(data.exp.value)
-			if (selection) {
-				data.selection = selection
-			}
+		if (
+			selection[0] !== selectedExpRange[0] ||
+			selection[1] !== selectedExpRange[1]
+		) {
+			data.selection = [...selectedExpRange] as [number, number]
+		} else if (isMalNode(selectedExp) && selectedExp[M_OUTER]) {
+			data.selectedExp = selectedExp[M_OUTER]
 		}
 	})
 

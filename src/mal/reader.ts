@@ -365,7 +365,7 @@ export function findExpByRange(
 	// Creates a caches of children at the same time calculating length of exp
 	const expLen = printExp(exp, true, true).length
 
-	if (!(0 <= start && end <= expLen + 1)) {
+	if (!(0 <= start && end <= expLen)) {
 		// Does not fit within the exp
 		return null
 	}
