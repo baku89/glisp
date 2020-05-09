@@ -68,7 +68,7 @@ import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 
-import {replEnv, printExp, readStr} from '@/mal'
+import {printExp, readStr} from '@/mal'
 import {
 	MalVal,
 	symbolFor as S,
@@ -315,7 +315,30 @@ export default defineComponent({
 				return data.exp === undefined || data.hasRenderError
 			}),
 			hasRenderError: false,
-			viewExp: nonReactive(null),
+			viewExp: computed(() => {
+				let ret: MalVal = null
+				const exp = data.exp.value
+				if (exp !== undefined) {
+					const options = {
+						width: ui.viewerSize[0],
+						height: ui.viewerSize[1],
+						updateConsole: true,
+						guideColor: ui.guideColor
+					}
+					try {
+						expNotEvaluated = false
+						const {output} = viewREP(exp, options)
+						ret = output
+					} catch (err) {
+						if (err instanceof LispError) {
+							printer.error(err.message)
+						} else {
+							printer.error(err)
+						}
+					}
+				}
+				return nonReactive(ret)
+			}),
 
 			// Selection
 			selection: [0, 0],
@@ -390,43 +413,11 @@ export default defineComponent({
 		}
 
 		watch(
-			() => [data.exp, ui.viewerSize, ui.guideColor],
-			() => {
-				// await delay(0)
-
-				let ret: MalVal = null
-				const exp = data.exp.value
-				if (exp !== undefined) {
-					const options = {
-						width: ui.viewerSize[0],
-						height: ui.viewerSize[1],
-						updateConsole: true,
-						guideColor: ui.guideColor
-					}
-					try {
-						expNotEvaluated = false
-						const {output} = viewREP(exp, options)
-						ret = output
-					} catch (err) {
-						if (err instanceof LispError) {
-							printer.error(err.message)
-						} else {
-							printer.error(err)
-						}
-					}
-				}
-				// console.timeEnd('eval')
-				data.viewExp = nonReactive(ret)
-			}
-		)
-
-		watch(
 			() => data.code,
 			() => {
 				if (data.code) {
 					localStorage.setItem('saved_code', data.code)
 				}
-				replEnv.set(S('$sketch'), data.code)
 			}
 		)
 
