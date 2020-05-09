@@ -56,7 +56,8 @@ import {
 	reactive,
 	computed,
 	watch,
-	toRefs
+	toRefs,
+	watchEffect
 } from '@vue/composition-api'
 import Color from 'color'
 
@@ -73,19 +74,19 @@ import {
 	symbolFor as S,
 	MalNode,
 	M_EVAL,
-	LispError,
 	isMalNode,
 	M_OUTER,
 	MalListNode,
-	M_MACROEXPANDED
+	M_MACROEXPANDED,
+	LispError
 } from '@/mal/types'
 
-import {replaceRange, nonReactive, NonReactive} from '@/utils'
+import {replaceRange, nonReactive, NonReactive, delay} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
-import {replaceExp} from './mal/eval'
+import {replaceExp} from '@/mal/eval'
 
 const OFFSET = 19 // length of "(def $view (sketch "
 
@@ -202,17 +203,6 @@ function parseURL(data: Data, ui: UI) {
 	return {onSetupConsole}
 }
 
-function getOuterRange(exp: MalVal) {
-	if (isMalNode(exp) && exp[M_OUTER]) {
-		const range = getRangeOfExp(exp[M_OUTER])
-		if (range) {
-			const [start, end] = range
-			return [start - OFFSET, end - OFFSET] as [number, number]
-		}
-	}
-	return null
-}
-
 function bindsAppHandler(
 	data: Data,
 	onUpdateSelectedExp: (val: MalVal) => any
@@ -319,35 +309,13 @@ export default defineComponent({
 				},
 				set: exp => {
 					data.code = printExp(exp.value).slice(OFFSET, -8)
-					window.exp = exp
 				}
 			}),
 			hasError: computed(() => {
 				return data.exp === undefined || data.hasRenderError
 			}),
 			hasRenderError: false,
-			viewExp: computed(() => {
-				let ret: MalVal = null
-				if (data.exp.value !== undefined) {
-					try {
-						expNotEvaluated = false
-						const {output} = viewREP(data.exp.value, {
-							width: ui.viewerSize[0],
-							height: ui.viewerSize[1],
-							updateConsole: true,
-							guideColor: ui.guideColor
-						})
-						ret = output
-					} catch (err) {
-						if (err instanceof LispError) {
-							printer.error(err.message)
-						} else {
-							printer.error(err)
-						}
-					}
-				}
-				return nonReactive(ret)
-			}),
+			viewExp: nonReactive(null),
 
 			// Selection
 			selection: [0, 0],
@@ -420,6 +388,37 @@ export default defineComponent({
 
 			ui.background = bg
 		}
+
+		watch(
+			() => [data.exp, ui.viewerSize, ui.guideColor],
+			async () => {
+				await delay(0)
+
+				let ret: MalVal = null
+				const exp = data.exp.value
+				if (exp !== undefined) {
+					const options = {
+						width: ui.viewerSize[0],
+						height: ui.viewerSize[1],
+						updateConsole: true,
+						guideColor: ui.guideColor
+					}
+					try {
+						expNotEvaluated = false
+						const {output} = viewREP(exp, options)
+						ret = output
+					} catch (err) {
+						if (err instanceof LispError) {
+							printer.error(err.message)
+						} else {
+							printer.error(err)
+						}
+					}
+				}
+				// console.timeEnd('eval')
+				data.viewExp = nonReactive(ret)
+			}
+		)
 
 		watch(
 			() => data.code,
