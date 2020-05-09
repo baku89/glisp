@@ -1,70 +1,82 @@
 <template>
-	<div class="Console" :class="{compact}" />
+	<div class="Console" :class="{compact}" ref="el" />
 </template>
 
 <script lang="ts">
-import {Component, Vue, Prop} from 'vue-property-decorator'
+import {defineComponent, onMounted, ref, Ref} from '@vue/composition-api'
 import {consoleREP} from '@/mal/console'
 import {printer} from '@/mal/printer'
 
-@Component
-export default class Console extends Vue {
-	@Prop({type: Boolean, required: true}) private compact!: boolean
-
-	private mounted() {
-		// eslint-disable-next-line no-undef
-		const jqconsole = ($(this.$el) as any).jqconsole('', '>>>')
-
-		// Change the logging target to native console to this
-		printer.log = (...args: Array<any>) => {
-			const str = args.join(' ')
-			jqconsole.Write(str + '\n', 'jqconsole-output')
+export default defineComponent({
+	name: 'Console',
+	props: {
+		compact: {
+			type: Boolean,
+			required: true
 		}
+	},
+	setup(props, context) {
+		const el = ref(null) as Ref<null | HTMLElement>
 
-		printer.return = (...args: Array<any>) => {
-			const str = args.join(' ')
-			jqconsole.Write(str + '\n', 'jqconsole-return')
-		}
+		onMounted(() => {
+			if (!el.value) return
 
-		printer.error = (...args: Array<any>) => {
-			const str = args.join(' ')
-			jqconsole.Write(str + '\n', 'jqconsole-error')
-		}
+			// eslint-disable-next-line no-undef
+			const jqconsole = ($(el.value) as any).jqconsole('', '>>>')
 
-		printer.clear = () => {
-			jqconsole.Clear()
-		}
-
-		// Handle a command.
-		const handler = function(line?: string) {
-			if (line) {
-				consoleREP(line)
+			// Change the logging target to native console to this
+			printer.log = (...args: Array<any>) => {
+				const str = args.join(' ')
+				jqconsole.Write(str + '\n', 'jqconsole-output')
 			}
-			jqconsole.Prompt(true, handler)
-		}
 
-		// Move to line start Ctrl+A.
-		jqconsole.RegisterShortcut('A', function() {
-			jqconsole.MoveToStart()
+			printer.return = (...args: Array<any>) => {
+				const str = args.join(' ')
+				jqconsole.Write(str + '\n', 'jqconsole-return')
+			}
+
+			printer.error = (...args: Array<any>) => {
+				const str = args.join(' ')
+				jqconsole.Write(str + '\n', 'jqconsole-error')
+			}
+
+			printer.clear = () => {
+				jqconsole.Clear()
+			}
+
+			// Handle a command.
+			const handler = (line?: string) => {
+				if (line) {
+					consoleREP(line)
+				}
+				jqconsole.Prompt(true, handler)
+			}
+
+			// Move to line start Ctrl+A.
+			jqconsole.RegisterShortcut('A', () => {
+				jqconsole.MoveToStart()
+				handler()
+			})
+			// Move to line end Ctrl+E.
+			jqconsole.RegisterShortcut('E', () => {
+				jqconsole.MoveToEnd()
+				handler()
+			})
+			jqconsole.RegisterMatching('{', '}', 'brace')
+			jqconsole.RegisterMatching('(', ')', 'paren')
+			jqconsole.RegisterMatching('[', ']', 'bracket')
+			jqconsole.RegisterMatching('"', '"', 'dquote')
+
+			// Initiate the first prompt.
 			handler()
-		})
-		// Move to line end Ctrl+E.
-		jqconsole.RegisterShortcut('E', function() {
-			jqconsole.MoveToEnd()
-			handler()
-		})
-		jqconsole.RegisterMatching('{', '}', 'brace')
-		jqconsole.RegisterMatching('(', ')', 'paren')
-		jqconsole.RegisterMatching('[', ']', 'bracket')
-		jqconsole.RegisterMatching('"', '"', 'dquote')
 
-		// Initiate the first prompt.
-		handler()
+			// Fire the setup event so that main app can run initial evaluation
+			context.emit('setup')
+		})
 
-		// Fire the setup event so that main app can run initial evaluation
-		this.$emit('setup')
+		return {el}
 	}
-}
+})
 </script>
 
 <style lang="stylus">
