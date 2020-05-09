@@ -58,3 +58,6 @@ export function partition(n: number, coll: any[]) {
 	}
 	return ret
 }
+
+export const delay = (ms: number) =>
+	new Promise(resolve => setTimeout(resolve, ms))
