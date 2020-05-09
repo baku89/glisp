@@ -121,7 +121,7 @@ const DARK_COLORS = {
 interface Data {
 	codeHasLoaded: boolean
 	code: string
-	exp: MalVal | undefined
+	exp: NonReactive<MalVal | undefined>
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasRenderError: boolean
@@ -252,8 +252,8 @@ function bindsAppHandler(
 
 		if (data.selection[0] === data.selection[1]) {
 			data.selection = data.selectedExpRange
-		} else if (data.exp) {
-			const selection = getOuterRange(data.exp)
+		} else if (data.exp.value !== undefined) {
+			const selection = getOuterRange(data.exp.value)
 			if (selection) {
 				data.selection = selection
 			}
@@ -316,11 +316,11 @@ export default defineComponent({
 						}
 						exp = undefined
 					}
-					return exp
+					return nonReactive(exp)
 				},
-				set: (exp: MalVal) => {
-					data.code = printExp(exp).slice(OFFSET, -8)
-					window.exp = exp
+				set: exp => {
+					data.code = printExp(exp.value).slice(OFFSET, -8)
+					// window.exp = exp
 				}
 			}),
 			hasError: computed(() => {
@@ -329,9 +329,9 @@ export default defineComponent({
 			hasRenderError: false,
 			viewExp: computed(() => {
 				let ret: MalVal = null
-				if (data.exp !== undefined) {
+				if (data.exp.value !== undefined) {
 					try {
-						const {output} = viewREP(data.exp, {
+						const {output} = viewREP(data.exp.value, {
 							width: ui.viewerSize[0],
 							height: ui.viewerSize[1],
 							updateConsole: true,
@@ -353,12 +353,12 @@ export default defineComponent({
 			selection: [0, 0],
 			selectedExp: computed({
 				get: () => {
-					if (data.exp === undefined) {
+					if (data.exp.value === undefined) {
 						return null
 					}
 					const [start, end] = data.selection
 					const selected = findExpByRange(
-						data.exp,
+						data.exp.value,
 						start + OFFSET,
 						end + OFFSET
 					)
@@ -419,11 +419,15 @@ export default defineComponent({
 		)
 
 		function onUpdateSelectedExp(exp: MalVal) {
+			if (data.exp.value === undefined) {
+				return
+			}
+
 			replaceExp(data.selectedExp as MalNode, exp)
 
 			// Assign new exp
-			const root = data.exp as MalListNode
-			data.exp = [...root]
+			const root = data.exp.value as MalListNode
+			data.exp = nonReactive(root)
 			data.selectedExp = exp
 		}
 
