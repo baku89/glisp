@@ -51,12 +51,12 @@ function quasiquote(exp: any): MalVal {
 }
 
 function macroexpand(exp: MalVal, env: Env) {
-	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0] as string)) {
-		const fn = env.get(exp[0] as string) as MalFunc
-		;(exp as MalListNode)[M_FN] = fn
-		if (!fn[M_ISMACRO]) {
+	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0])) {
+		const fn = env.get(exp[0])
+		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
+		;(exp as MalListNode)[M_FN] = fn
 		exp = fn(...exp.slice(1))
 	}
 	return exp
@@ -64,7 +64,7 @@ function macroexpand(exp: MalVal, env: Env) {
 
 function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	if (isSymbol(exp)) {
-		return env.get(exp as string)
+		return env.get(exp)
 	} else if (Array.isArray(exp)) {
 		const ret = exp.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -315,26 +315,44 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 export function replaceExp(original: MalNode, replaced: MalVal) {
 	const outer = original[M_OUTER]
 	const key = original[M_OUTER_KEY]
-
 	if (key !== undefined) {
 		// Set as child
-		;(outer as any)[key] = replaced
+		if (Array.isArray(outer) && typeof key === 'number') {
+			outer[key] = replaced
+		} else if (isMap(outer) && typeof key === 'string') {
+			outer[key] = replaced
+		} else {
+			throw new LispError(
+				'The combination of M_OUTER and M_OUTER_KEY is invalid'
+			)
+		}
 
 		// Set outer recursively
 		saveOuter(replaced, outer, key)
 
+		// Clear the outer's M_STR and M_ELMSTRS
+		delete outer[M_STR]
+		if (Array.isArray(outer) && typeof key === 'number') {
+			outer[M_ELMSTRS][key] = ''
+		} else if (isMap(outer) && typeof key === 'string') {
+			const index = outer[M_KEYS].indexOf(key)
+			const elmstrsIndex = index * 2 + 1
+			outer[M_ELMSTRS][elmstrsIndex] = ''
+		}
+
 		// Delete M_STR
-		let _o = replaced as MalNode, // TODO: support atom
+		let _outer = outer,
 			_key
-		while (((_key = _o[M_OUTER_KEY]), (_o = _o[M_OUTER] as MalNode))) {
-			if (Array.isArray(_o)) {
-				_o[M_ELMSTRS][_key as number] = ''
-			} else if (isMap(_o)) {
-				const index = _o[M_KEYS].indexOf(_key as string)
+
+		while (((_key = _outer[M_OUTER_KEY]), (_outer = _outer[M_OUTER]))) {
+			if (Array.isArray(_outer) && typeof _key === 'number') {
+				_outer[M_ELMSTRS][_key] = ''
+			} else if (isMap(_outer) && typeof _key === 'string') {
+				const index = _outer[M_KEYS].indexOf(_key)
 				const elmstrsIndex = index * 2 + 1
-				_o[M_ELMSTRS][elmstrsIndex] = ''
+				_outer[M_ELMSTRS][elmstrsIndex] = ''
 			}
-			delete _o[M_STR]
+			delete _outer[M_STR]
 		}
 
 		let root = outer
