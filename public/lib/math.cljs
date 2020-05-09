@@ -41,7 +41,7 @@
 
 (defn vec2
   {:doc "Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]"
-   :params [[{:label "x & y" :type "number" :default 0}]
+   :params [[{:label "x" :type "number" :default 0}]
             [{:label "x" :type "number"}
              {:label "y" :type "number"}]]
    :returns {:type "vec2"}}

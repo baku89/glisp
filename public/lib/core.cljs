@@ -1,7 +1,7 @@
 (import-js-force "../js/lib_core.js")
 
 ;; Declare special forms as symbol
-(def do nil)
+(def do 'do)
 (def & '&)
 
 ;; Annotate JS Functions
@@ -181,7 +181,12 @@
         :else (throw "Cannot get the name")))
 
 ;; Conditionals
-(defmacro when [test & body]
+(defmacro when
+  {:doc "Evaluates test. If true, evaluates body in an implicit do"
+   :params [{:type "code"}
+            &
+            {:type "code"}]}
+  [test & body]
   (list 'if test (cons 'do body)))
 
 (defmacro cond [& xs]
@@ -322,46 +327,7 @@
     (cond (list? coll) ret
           (vector? coll) (vec ret))))
 
-
-;; Pretty printer a MAL object.
-
-(def pprint
-  (let (spaces- (fn (indent)
-                  (if (> indent 0)
-                    (str " " (spaces- (- indent 1)))
-                    ""))
-
-                pp-seq- (fn [obj indent]
-                          (let (xindent (+ 1 indent))
-                            (apply str (pp- (first obj) 0)
-                                   (map (fn (x) (str "\n" (spaces- xindent)
-                                                     (pp- x xindent)))
-                                        (rest obj)))))
-
-                pp-map- (fn [obj indent]
-                          (let (ks (keys obj)
-                                   kindent (+ 1 indent)
-                                   kwidth (count (str (first ks)))
-                                   vindent (+ 1 (+ kwidth kindent)))
-                            (apply str (pp- (first ks) 0)
-                                   " "
-                                   (pp- (get obj (first ks)) 0)
-                                   (map (fn (k) (str "\n" (spaces- kindent)
-                                                     (pp- k kindent)
-                                                     " "
-                                                     (pp- (get obj k) vindent)))
-                                        (rest (keys obj))))))
-
-                pp- (fn (obj indent)
-                      (cond
-                        (list? obj)   (format "(%s)" (pp-seq- obj indent))
-                        (map? obj)    (format "{%s}" (pp-map- obj indent))
-                        :else         (pr-str obj))))
-
-    (fn [obj]
-      (println (pp- obj 0)))))
-
-;; ; Load other cores
+;; Load other cores
 (import "ui.cljs")
 (import "graphics.cljs")
 (import "math.cljs")
