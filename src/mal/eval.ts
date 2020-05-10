@@ -149,15 +149,17 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				break // continue TCO loop
 			}
 			case 'quote':
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = a1
-				}
+				// No need to cache M_EVAL
+				// if (cache) {
+				// 	;(exp as MalNode)[M_EVAL] = a1
+				// }
 				return a1
 			case 'quasiquote': {
 				const ret = quasiquote(a1)
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-				}
+				// No need to cache M_EVAL
+				// if (cache) {
+				// 	;(exp as MalNode)[M_EVAL] = ret
+				// }
 				exp = ret
 				break // continue TCO loop
 			}
