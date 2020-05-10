@@ -271,12 +271,14 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				if (isMalFunc(fn)) {
 					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
+					const ret = fn(...args)
 					if (cache) {
-						;(exp as MalNode)[M_EVAL] = fn[M_AST]
+						;(exp as MalNode)[M_EVAL] = ret
 						;(exp as MalListNode)[M_FN] = fn
 					}
-					exp = fn[M_AST]
-					break // continue TCO loop
+					// exp = fn[M_AST]
+					// break // continue TCO loop
+					return ret
 				} else if (typeof fn === 'function') {
 					const ret = (fn as any)(...args)
 					if (cache) {

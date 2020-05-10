@@ -101,6 +101,9 @@
              {label: "Params", type: "any"}]}
   defn)
 
+(defmacro def- [& xs]
+  `(do (def ~@xs) nil))
+
 (defmacro defalias [alias original]
   `(def ~alias (with-meta ~original
                  (hash-map
