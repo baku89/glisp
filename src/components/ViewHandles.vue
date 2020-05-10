@@ -55,6 +55,7 @@ const K_ALIAS = K('alias'),
 	K_META = K('meta'),
 	K_POS = K('pos'),
 	K_PREV_POS = K('prev-pos'),
+	K_DELTA_POS = K('delta-pos'),
 	K_TYPE = K('type'),
 	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
@@ -86,6 +87,14 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get params(): MalVal[] {
+		if (this.handleInfo && Array.isArray(this.exp)) {
+			return this.exp.slice(1)
+		} else {
+			return []
+		}
+	}
+
+	private get evaluatedParams(): MalVal[] {
 		if (
 			this.handleInfo &&
 			Array.isArray(this.exp) &&
@@ -124,7 +133,7 @@ export default class ViewHandles extends Vue {
 
 			let handles
 			try {
-				handles = drawHandle(this.params, this.evaluated)
+				handles = drawHandle(this.evaluatedParams, this.evaluated)
 			} catch (_) {
 				return null
 			}
@@ -248,23 +257,32 @@ export default class ViewHandles extends Vue {
 		)
 		markMalVector(prevPos)
 
+		const deltaPos = markMalVector([pos[0] - prevPos[0], pos[1] - prevPos[1]])
+
 		const eventInfo = {
-			[K_ID]: this.draggingId,
+			[K_ID]: this.draggingId === undefined ? null : this.draggingId,
 			[K_POS]: pos,
-			[K_PREV_POS]: prevPos
+			[K_PREV_POS]: prevPos,
+			[K_DELTA_POS]: deltaPos
 		}
 
 		this.rawPrevPos = rawPos
 
-		let newParams = onDrag(eventInfo, this.params) as MalVal[]
+		let newParams = onDrag(
+			eventInfo,
+			this.params,
+			this.evaluatedParams
+		) as MalVal[]
 
-		if (newParams[0] === K_CHANGE_ID) {
-			this.draggingId = newParams[1]
-			newParams = newParams[2] as MalVal[]
+		if (newParams) {
+			if (newParams[0] === K_CHANGE_ID) {
+				this.draggingId = newParams[1]
+				newParams = newParams[2] as MalVal[]
+			}
+
+			const newExp = [(this.exp as any[])[0], ...newParams]
+			this.$emit('input', newExp)
 		}
-
-		const newExp = [(this.exp as any[])[0], ...newParams]
-		this.$emit('input', newExp)
 	}
 
 	private onMouseup() {

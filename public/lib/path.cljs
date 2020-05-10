@@ -60,15 +60,18 @@
   {:doc "Generates a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]
-   :handles {:draw (fn [[from to]]
-                     [{:type "point" :id :from :pos from}
+   :handles {:draw (fn [[from to] path]
+                     [{:type "path" :id :path :path path}
+                      {:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :on-drag (fn [{id :id p :pos} [from to]]
+             :on-drag (fn [{id :id p :pos dp :delta-pos} [from to]]
                         (case id
+                          :path [(vec2/+ from dp) (vec2/+ to dp)]
                           :from [p to]
                           :to [from p]))}}
   [from to]
   [:path :M from :L to])
+
 (defalias line path/line)
 
 (def path/arc
@@ -228,5 +231,14 @@
     :params [{:label "Start" :type "number" :constraints {:min 0 :max 1}}
              {:label "End" :type "number" :constraints {:min 0 :max 1}}
              {:label "Path" :type "path"}]
-    :returns {:type "path"}}
+    :returns {:type "path"}
+    :handles {:draw (fn [[start end path] trimmed-path]
+                      [{:type "path" :id :path-original :class "dashed" :path path}
+                       {:type "path" :id :path-trimmed :class "dashed" :path trimmed-path}
+                       {:type "point" :id :start :pos (path/position-at start path)}
+                       {:type "point" :id :end :pos (path/position-at end path)}])
+              :on-drag (fn [{id :id p :pos} [start end path] [_ _ evaluated-path]]
+                         (case id
+                           :start [(path/nearest-offset p evaluated-path) end path]
+                           :end [start (path/nearest-offset p evaluated-path) path]))}}
   path/trim)

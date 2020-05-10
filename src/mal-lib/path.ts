@@ -778,6 +778,13 @@ function pathBounds(path: PathType) {
 	}
 }
 
+function nearestOffset(pos: number[], malPath: PathType) {
+	const path = getPaperPath(malPath)
+	const location = path.getNearestLocation(new paper.Point(pos[0], pos[1]))
+
+	return location.offset / path.length
+}
+
 const Exports = [
 	['path/arc', pathArc],
 	['path/join', pathJoin],
@@ -819,7 +826,8 @@ const Exports = [
 		([, ...path]: PathType) =>
 			markMalVector(Array.from(iterateSegment(path) as any))
 	],
-	['path/bounds', pathBounds]
+	['path/bounds', pathBounds],
+	['path/nearest-offset', nearestOffset]
 ] as [string, MalVal][]
 
 const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]

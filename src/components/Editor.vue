@@ -67,12 +67,13 @@ export default class Editor extends Vue {
 			name: 'select-outer',
 			bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
 			exec: () => {
+				console.log('sel')
 				appHandler.emit('select-outer')
 			}
 		})
 
 		this.editor.commands.addCommand({
-			name: 'select-outer',
+			name: 'eval-selected',
 			bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
 			exec: () => {
 				appHandler.emit('eval-selected')
