@@ -11,13 +11,30 @@
    :params [{:label "Pos" :type "vec2" :desc "coordinate of top-left corner of the rectangle"}
             {:label "Size" :type "vec2" :desc "size of the rectangle"}]
    :returns {:type "path"}
-   :handles {:draw (fn [[pos size]]
-                     [{:type "point" :id :top-left :pos pos}
-                      {:type "point" :id :bottom-right :pos (vec2/+ pos size)}])
-             :on-drag (fn [{id :id p :pos} [pos size]]
+   :handles {:draw (fn [[[x y] [w h]]]
+                     [; center
+                      {:type "point" :id :center :class "translate" :pos (vec2/scale-add [x y] [w h] .5)}
+                      ; edges
+                      {:type "path" :id :left :class "hover" :path (line [x y] [x (+ y h)])}
+                      {:type "path" :id :top :class "hover" :path (line [x y] [(+ x w) y])}
+                      {:type "path" :id :right :class "hover" :path (line [(+ x w) y] (vec2/+ [x y] [w h]))}
+                      {:type "path" :id :bottom :class "hover" :path (line [x (+ y h)] (vec2/+ [x y] [w h]))}
+                      ; corners
+                      {:type "point" :id :top-left :pos [x y]}
+                      {:type "point" :id :top-right :pos [(+ x w) y]}
+                      {:type "point" :id :bottom-left :pos [x (+ y h)]}
+                      {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
+             :on-drag (fn [{id :id p :pos dp :delta-pos} [pos size] [[_x _y] [_w _h]]]
                         (case id
-                          :top-left [p (vec2/+ (vec2/- pos p) size)]
-                          :bottom-right [pos (vec2/- p pos)]))}}
+                          :center [(vec2/+ [_x _y] dp) size]
+                          :left  [[(+ _x (.x dp)) _y] [(- _w (.x dp)) _h]]
+                          :top   [[_x (+ _y (.y dp))] [_w (- _h (.y dp))]]
+                          :right [pos [(+ _w (.x dp)) _h]]
+                          :bottom [pos [_w (+ _h (.y dp))]]
+                          :top-left [p (vec2/- (vec2/+ [_x _y] [_w _h]) p)]
+                          :top-right [[_x (.y p)] [(- (.x p) _x) (- (+ _y _h) (.y p))]]
+                          :bottom-left [[(.x p) _y] [(- (+ _x _w) (.x p)) (- (.y p) _y)]]
+                          :bottom-right [pos (vec2/- p [_x _y])]))}}
   [[x y] [w h]]
   [:path
    :M [x y]
@@ -33,7 +50,7 @@
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
     :handles {:draw (fn [[center radius] path]
-                      [{:type "path" :id :radius :path path}
+                      [{:type "path" :id :radius :class "hover" :path path}
                        {:type "arrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
                        {:type "point"

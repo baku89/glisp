@@ -2,14 +2,16 @@
 	<svg class="ViewHandles">
 		<g class="ViewHandles__transform" :transform="transformStyle">
 			<template v-for="({type, id, transform, path, cls}, i) in handles">
-				<path
+				<g
 					v-if="type === 'path'"
 					class="path"
 					:class="cls"
 					:key="i"
-					:d="path"
 					@mousedown="onMousedown(id, $event)"
-				/>
+				>
+					<path class="path__hover" :d="path" />
+					<path class="path__display" :d="path" />
+				</g>
 				<g
 					v-else
 					:key="i"
@@ -311,12 +313,22 @@ export default class ViewHandles extends Vue {
 		fill none
 
 	.path
-		&:hover
+		&.hover:hover .path__display
 			stroke-width 3
 
-	.dashed
+		&__hover
+			stroke transparent
+			stroke-width 20
+
+	// Dash
+	circle.dashed
+		stroke-dasharray 3 2
+		&:hover
+			stroke-dasharray none
+
+	.path.dashed
 		stroke-dasharray 3 2
 
-		&:hover
+		&.hover:hover
 			stroke-dasharray none
 </style>
