@@ -120,7 +120,7 @@ const DARK_COLORS = {
 interface Data {
 	codeHasLoaded: boolean
 	code: string
-	exp: NonReactive<MalVal | undefined>
+	exp: NonReactive<MalVal> | null | false
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasRenderError: boolean
@@ -291,49 +291,55 @@ export default defineComponent({
 
 		const data = reactive({
 			codeHasLoaded: false,
-			code: '',
-			exp: computed({
+			code: computed({
 				get: () => {
-					const evalCode = `(def $view (sketch ${data.code} \n nil))`
+					if (data.exp) {
+						return (data.code = printExp(data.exp.value).slice(OFFSET, -8))
+					} else {
+						return ''
+					}
+				},
+				set: code => {
+					const evalCode = `(def $view (sketch ${code} \n nil))`
 					let exp
 					try {
-						exp = readStr(evalCode, true)
+						exp = nonReactive(readStr(evalCode, true))
 					} catch (err) {
 						if (!(err instanceof BlankException)) {
 							printer.error(err)
 						}
-						exp = undefined
+						exp = null
 					}
-					return nonReactive(exp)
-				},
-				set: exp => {
-					data.code = printExp(exp.value).slice(OFFSET, -8)
+					data.exp = exp
 				}
 			}),
+			exp: false,
 			hasError: computed(() => {
-				return data.exp === undefined || data.hasRenderError
+				return data.exp === null || data.hasRenderError
 			}),
 			hasRenderError: false,
 			viewExp: computed(() => {
 				let ret: MalVal = null
-				const exp = data.exp.value
-				if (exp !== undefined) {
-					const options = {
-						width: ui.viewerSize[0],
-						height: ui.viewerSize[1],
-						updateConsole: true,
-						guideColor: ui.guideColor
-					}
-					try {
-						expNotEvaluated = false
-						const {output} = viewREP(exp, options)
-						ret = output
-					} catch (err) {
-						if (err instanceof LispError) {
-							printer.error(err.message)
-						} else {
-							printer.error(err)
-						}
+
+				if (!data.exp) {
+					return null
+				}
+
+				const options = {
+					width: ui.viewerSize[0],
+					height: ui.viewerSize[1],
+					updateConsole: true,
+					guideColor: ui.guideColor
+				}
+				try {
+					expNotEvaluated = false
+					const {output} = viewREP(data.exp.value, options)
+					ret = output
+				} catch (err) {
+					if (err instanceof LispError) {
+						printer.error(err.message)
+					} else {
+						printer.error(err)
 					}
 				}
 				return nonReactive(ret)
@@ -343,7 +349,7 @@ export default defineComponent({
 			selection: [0, 0],
 			selectedExp: computed({
 				get: () => {
-					if (data.exp.value === undefined) {
+					if (!data.exp) {
 						return null
 					}
 					const [start, end] = data.selection
@@ -413,15 +419,15 @@ export default defineComponent({
 
 		watch(
 			() => data.code,
-			() => {
-				if (data.code) {
-					localStorage.setItem('saved_code', data.code)
+			code => {
+				if (code.length > 0) {
+					localStorage.setItem('saved_code', code)
 				}
 			}
 		)
 
 		function onUpdateSelectedExp(exp: MalVal) {
-			if (data.exp.value === undefined) {
+			if (!data.exp) {
 				return
 			}
 
@@ -429,9 +435,12 @@ export default defineComponent({
 			expNotEvaluated = true
 
 			// Assign new exp
-			const root = data.exp.value as MalListNode
+			const root = data.exp.value
 			data.exp = nonReactive(root)
-			data.selectedExp = exp
+
+			if (isMalNode(exp)) {
+				data.selectedExp = exp
+			}
 		}
 
 		// Init App Handler
