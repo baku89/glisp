@@ -618,10 +618,6 @@ export default class Inspector extends Vue {
 		return v.trim() ? K(v) : null
 	}
 
-	private isSymbol(x: MalVal) {
-		return isSymbol(x)
-	}
-
 	private printExp(x: MalVal) {
 		return printExp(x)
 	}
