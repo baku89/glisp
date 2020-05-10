@@ -736,6 +736,9 @@ function trimByLength(
 function pathTrim(t1: number, t2: number, malPath: PathType) {
 	const path = getPaperPath(malPath)
 	const length = path.length
+	if (t1 > t2) {
+		;[t1, t2] = [t2, t1]
+	}
 	const start = t1 * length,
 		end = (1 - t2) * length
 	return trimByLength(start, end, malPath, path)
