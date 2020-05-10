@@ -80,7 +80,7 @@ import {
 	LispError
 } from '@/mal/types'
 
-import {replaceRange, nonReactive, NonReactive, delay} from '@/utils'
+import {replaceRange, nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
