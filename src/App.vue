@@ -318,7 +318,9 @@ export default defineComponent({
 			viewExp: computed(() => {
 				let ret: MalVal = null
 
-				if (!data.exp) {
+				const exp = data.exp
+
+				if (!exp) {
 					return null
 				}
 
@@ -330,7 +332,7 @@ export default defineComponent({
 				}
 				try {
 					expNotEvaluated = false
-					const {output} = viewREP(data.exp.value, options)
+					const {output} = viewREP(exp.value, options)
 					ret = output
 				} catch (err) {
 					if (err instanceof LispError) {
