@@ -206,14 +206,14 @@ export default class ViewHandles extends Vue {
 	}
 
 	private getWrappedElement(exp: any) {
-		let outer
+		let outer: MalNode
 
 		while (exp && (outer = exp[M_OUTER])) {
 			if (isVector(outer) && isKeyword(outer[0])) {
 				// Item
 				if (isMap(exp) && outer[1] === exp) {
 					// When the exp is an attribute
-					return (outer as MalNode)[M_OUTER] || null
+					return outer[M_OUTER] || null
 				} else {
 					return outer
 				}
