@@ -270,7 +270,11 @@
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
    :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [[pos]]
-                     [{:type "point"
+                     [{:type "path"
+                       :guide true
+                       :class "dashed"
+                       :path [:path :M [-80 0] :L [80 0] :M [0 -80] :L [0 80]]}
+                      {:type "point"
                        :class "translate"
                        :pos pos}])
              :on-drag (fn [{p :pos}]
@@ -284,7 +288,8 @@
    :params [{:type "number"}]
    :returns {:type "mat2d"}
    :handles {:draw (fn [[x]]
-                     [{:type "arrow" :pos [x 0]}])
+                     [{:type "path" :guide true :class "dashed" :path (line [0 -80] [0 80])}
+                      {:type "arrow" :pos [x 0]}])
              :on-drag (fn [{p :pos}]
                         [(.x p)])}}
   [x] [1 0 0 1 x 0])
@@ -321,10 +326,11 @@
    :returns {:type "mat2d"}
    :handles {:draw (fn [[angle]]
                      (let [dir (vec2/dir angle 80)]
-                       [{:type "path" :path (line [0 0] dir)}
-                        {:type "path" :path (circle [0 0] 80)}
+                       [{:type "path" :guide true :path (line [0 0] dir)}
+                        {:type "path" :guide true :class "dashed" :path (line [0 0] [80 0])}
+                        {:type "path" :guide true :class "dashed" :path (arc [0 0] 80 0 angle)}
                         {:type "point" :pos dir}]))
-             :on-drag (fn [{p :pos pp :prev-pos} [angle]]
+             :on-drag (fn [{p :pos pp :prev-pos} _ [angle]]
                         (let [angle-pp (vec2/angle pp)
                               aligned-p (vec2/rotate [0 0] (- angle-pp) p)
                               angle-delta (vec2/angle aligned-p)]

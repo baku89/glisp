@@ -15,10 +15,10 @@
                      [; center
                       {:type "point" :id :center :class "translate" :pos (vec2/scale-add [x y] [w h] .5)}
                       ; edges
-                      {:type "path" :id :left :class "hover" :path (line [x y] [x (+ y h)])}
-                      {:type "path" :id :top :class "hover" :path (line [x y] [(+ x w) y])}
-                      {:type "path" :id :right :class "hover" :path (line [(+ x w) y] (vec2/+ [x y] [w h]))}
-                      {:type "path" :id :bottom :class "hover" :path (line [x (+ y h)] (vec2/+ [x y] [w h]))}
+                      {:type "path" :id :left :path (line [x y] [x (+ y h)])}
+                      {:type "path" :id :top :path (line [x y] [(+ x w) y])}
+                      {:type "path" :id :right :path (line [(+ x w) y] (vec2/+ [x y] [w h]))}
+                      {:type "path" :id :bottom :path (line [x (+ y h)] (vec2/+ [x y] [w h]))}
                       ; corners
                       {:type "point" :id :top-left :pos [x y]}
                       {:type "point" :id :top-right :pos [(+ x w) y]}
@@ -166,7 +166,7 @@
    :params [{:type "vec2"}
             {:type "vec2"}]
    :handles {:draw (fn [[center [rx ry]] path]
-                     [{:type "path" :id :path :path path}
+                     [{:type "path" :guide true :path path}
                       {:type "arrow" :id :radius-x
                        :pos (vec2/+ center [rx 0])}
                       {:type "arrow" :id :radius-y

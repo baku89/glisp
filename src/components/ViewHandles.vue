@@ -1,22 +1,23 @@
 <template>
 	<svg class="ViewHandles">
 		<g class="ViewHandles__transform" :transform="transformStyle">
-			<template v-for="({type, id, transform, path, cls}, i) in handles">
+			<template v-for="({type, id, transform, path, cls, guide}, i) in handles">
 				<g
 					v-if="type === 'path'"
 					class="path"
 					:class="cls"
 					:key="i"
-					@mousedown="onMousedown(id, $event)"
+					@mousedown="!guide && onMousedown(id, $event)"
 				>
-					<path class="path__hover" :d="path" />
+					<path class="path__hover-zone" :d="path" />
 					<path class="path__display" :d="path" />
 				</g>
 				<g
 					v-else
 					:key="i"
+					:class="cls"
 					:transform="transform"
-					@mousedown="onMousedown(id, $event)"
+					@mousedown="!guide && onMousedown(id, $event)"
 				>
 					<path
 						v-if="type === 'arrow'"
@@ -46,7 +47,11 @@ import {
 	MalNode,
 	MalListNode,
 	M_EVAL_PARAMS,
-	isMalNode
+	isMalNode,
+	MalMap,
+	isList,
+	symbolFor,
+	M_OUTER_INDEX
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -56,6 +61,7 @@ const K_ALIAS = K('alias'),
 	K_HANDLES = K('handles'),
 	K_ID = K('id'),
 	K_META = K('meta'),
+	K_GUIDE = K('guide'),
 	K_POS = K('pos'),
 	K_PREV_POS = K('prev-pos'),
 	K_DELTA_POS = K('delta-pos'),
@@ -110,17 +116,22 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get evaluated(): MalVal {
-		return (this.exp as any)[M_EVAL] || null
+		return this.exp[M_EVAL] || null
 	}
 
 	private get transform(): mat2d {
-		if (this.exp !== null && this.exp instanceof Object) {
-			const wrappedElement = this.getWrappedElement(this.exp)
-			if (wrappedElement) {
-				return this.calcTransform(wrappedElement)
-			}
+		if (isMalNode(this.exp)) {
+			return this._calcTransform(this.exp)
+			// const wrappedElement = this.getWrappedElement(this.exp)
+			// if (wrappedElement) {
+			// 	return this.calcTransform(wrappedElement)
+			// }
 		}
 		return [1, 0, 0, 1, 0, 0]
+	}
+
+	private get arrTransform(): number[] {
+		return [...this.transform]
 	}
 
 	private get transformInv() {
@@ -144,11 +155,13 @@ export default class ViewHandles extends Vue {
 
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
-				const cls = h[K_CLASS]
+				const guide = !!h[K_GUIDE]
+				const cls = (h[K_CLASS] || '') + (guide ? ' guide' : '')
 
-				const ret: {[k: string]: string} = {
+				const ret: {[k: string]: string | boolean} = {
 					type,
 					cls,
+					guide,
 					id: h[K_ID],
 					transform: ''
 				}
@@ -187,44 +200,118 @@ export default class ViewHandles extends Vue {
 		window.removeEventListener('mouseup', this.onMouseup)
 	}
 
-	private calcTransform(exp: MalNode, xform: mat2d = mat2d.create()): mat2d {
-		if (
-			isVector(exp) &&
-			isKeyword(exp[0]) &&
-			isMap(exp[1]) &&
-			K_TRANSFORM in exp[1]
-		) {
-			let elXform = exp[1][K_TRANSFORM]
-			elXform = isMalNode(elXform) && elXform[M_EVAL] ? elXform : elXform
-
-			mat2d.multiply(xform, elXform as mat2d, xform)
+	private _calcTransform(exp: MalNode) {
+		// Collect ancestors
+		let ancestors: MalNode[] = []
+		for (let outer = exp[M_OUTER]; outer; outer = outer[M_OUTER]) {
+			ancestors.unshift(outer)
 		}
 
-		if (exp && exp[M_OUTER]) {
-			return this.calcTransform(exp[M_OUTER], xform)
-		} else {
-			return xform
-		}
-	}
+		const attrMatrices: mat2d[] = []
 
-	private getWrappedElement(exp: MalNode) {
-		let outer: MalNode
+		// If the exp is transform attrbute
+		for (let i = ancestors.length - 1; 0 < i; i--) {
+			const node = ancestors[i]
+			const outer = ancestors[i - 1]
 
-		while (exp && (outer = exp[M_OUTER])) {
-			if (isVector(outer) && isKeyword(outer[0])) {
-				// Item
-				if (isMap(exp) && outer[1] === exp) {
-					// When the exp is an attribute
-					return outer[M_OUTER] || null
-				} else {
-					return outer
+			if (
+				isVector(outer) &&
+				isKeyword(outer[0]) && // outer is element
+				isMap(node) &&
+				K_TRANSFORM in node
+			) {
+				const attrAncestors = ancestors.slice(i + 1)
+				attrAncestors.push(exp)
+
+				// Exclude attributes' part from ancestors
+				ancestors = ancestors.slice(0, i - 1)
+
+				// Calculate transform
+				for (let j = attrAncestors.length - 1; 0 < j; j--) {
+					const node = attrAncestors[j]
+					const outer = attrAncestors[j - 1]
+
+					if (isList(outer) && outer[0] === symbolFor('transform')) {
+						// Prepend matrix
+						const matrices = outer
+							.slice(1, node[M_OUTER_INDEX])
+							.map(xform =>
+								isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+							) as mat2d[]
+
+						attrMatrices.unshift(...matrices)
+					}
 				}
+
+				break
 			}
-			exp = outer
 		}
 
-		return null
+		// Extract the matrices from ancestors
+		const matrices = ancestors
+			.filter(
+				node =>
+					isVector(node) &&
+					isKeyword(node[0]) &&
+					isMap(node[1]) &&
+					K_TRANSFORM in node[1]
+			)
+			.map(node => ((node as MalVal[])[1] as MalMap)[K_TRANSFORM])
+			.map(xform =>
+				isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+			) as mat2d[]
+
+		// Append attribute matrices
+		matrices.push(...attrMatrices)
+
+		// Multiplies all matrices in order
+		const ret = matrices.reduce(
+			(xform, elXform) => mat2d.multiply(xform, xform, elXform),
+			mat2d.create()
+		)
+
+		return ret
 	}
+
+	// private calcTransform(exp: MalNode, xform: mat2d = mat2d.create()): mat2d {
+	// 	if (
+	// 		isVector(exp) &&
+	// 		isKeyword(exp[0]) &&
+	// 		isMap(exp[1]) &&
+	// 		K_TRANSFORM in exp[1]
+	// 	) {
+	// 		let elXform = exp[1][K_TRANSFORM]
+	// 		elXform =
+	// 			isMalNode(elXform) && elXform[M_EVAL] ? elXform[M_EVAL] : elXform
+
+	// 		mat2d.multiply(xform, elXform as mat2d, xform)
+	// 	}
+
+	// 	if (exp && exp[M_OUTER]) {
+	// 		return this.calcTransform(exp[M_OUTER], xform)
+	// 	} else {
+	// 		return xform
+	// 	}
+	// }
+
+	// private getWrappedElement(exp: MalNode) {
+	// 	let outer: MalNode
+
+	// 	while (exp && (outer = exp[M_OUTER])) {
+	// 		if (isVector(outer) && isKeyword(outer[0])) {
+	// 			// Item
+	// 			if (isMap(exp) && outer[1] === exp) {
+	// 				// When the exp is an attribute
+	// 				return outer[M_OUTER] || null
+	// 			} else {
+	// 				return outer
+	// 			}
+	// 		}
+	// 		exp = outer
+	// 	}
+
+	// 	return null
+	// }
 
 	private draggingId!: MalVal
 	private rawPrevPos!: number[]
@@ -308,7 +395,7 @@ export default class ViewHandles extends Vue {
 		stroke-width 1
 		fill var(--background)
 
-		&:hover
+		&:not(.guide):hover
 			stroke-width 3
 			fill var(--blue)
 
@@ -317,10 +404,10 @@ export default class ViewHandles extends Vue {
 		fill none
 
 	.path
-		&.hover:hover .path__display
+		&:not(.guide):hover .path__display
 			stroke-width 3
 
-		&__hover
+		&__hover-zone
 			stroke transparent
 			stroke-width 20
 
@@ -333,6 +420,6 @@ export default class ViewHandles extends Vue {
 	.path.dashed
 		stroke-dasharray 3 2
 
-		&.hover:hover
+		&:not(.guide):hover
 			stroke-dasharray none
 </style>

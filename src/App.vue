@@ -56,8 +56,7 @@ import {
 	reactive,
 	computed,
 	watch,
-	toRefs,
-	watchEffect
+	toRefs
 } from '@vue/composition-api'
 import Color from 'color'
 
@@ -126,7 +125,7 @@ interface Data {
 	hasError: boolean
 	hasRenderError: boolean
 	selection: [number, number]
-	selectedExp: MalVal
+	selectedExp: MalNode
 	selectedExpRange: [number, number] | null
 }
 

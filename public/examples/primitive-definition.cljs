@@ -26,6 +26,7 @@
       (let [rmin-angle (/ PI n)]
         [{:id :path
           :type "path"
+          :guide true
           :path path}
          {:id :center
           :type "point"
