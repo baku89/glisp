@@ -61,7 +61,7 @@ import {
 import Color from 'color'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import Editor from '@/components/Editor.vue'
+import Editor from '@/components/Editor'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
