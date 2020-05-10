@@ -11,9 +11,6 @@ import {
 	symbolFor as S,
 	isSymbol,
 	M_ISMACRO,
-	M_ENV,
-	M_PARAMS,
-	M_AST,
 	M_EVAL,
 	M_FN,
 	isMap,
@@ -261,26 +258,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			*/
 			default: {
 				// Apply Function
-				const [_fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
-
-				const fn = _fn as MalFunc
+				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
 
 				if (isMalFunc(fn) || typeof fn === 'function') {
 					;(exp as MalListNode)[M_EVAL_PARAMS] = args
-				}
-
-				if (isMalFunc(fn)) {
-					env = new Env(fn[M_ENV], fn[M_PARAMS], args)
 					const ret = fn(...args)
-					if (cache) {
-						;(exp as MalNode)[M_EVAL] = ret
-						;(exp as MalListNode)[M_FN] = fn
-					}
-					// exp = fn[M_AST]
-					// break // continue TCO loop
-					return ret
-				} else if (typeof fn === 'function') {
-					const ret = (fn as any)(...args)
 					if (cache) {
 						;(exp as MalNode)[M_EVAL] = ret
 						;(exp as MalListNode)[M_FN] = fn
