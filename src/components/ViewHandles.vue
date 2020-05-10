@@ -373,6 +373,10 @@ export default class ViewHandles extends Vue {
 
 		const onDrag = this.handleInfo[K_ON_DRAG]
 
+		if (typeof onDrag !== 'function') {
+			return
+		}
+
 		const viewRect = this.$el.getBoundingClientRect()
 		const rawPos = markMalVector([
 			e.clientX - viewRect.left,
