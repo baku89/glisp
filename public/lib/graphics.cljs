@@ -87,12 +87,14 @@
         (apply vector :g children))))
 
 ;; Transform
-(defmacro
-  view-center []
+(defmacro  view-center
+  {:doc "Returns a translation matrix to move the origin onto the center of view or artboard"
+   :returns {:type "mat2d"}
+   :handles {:draw (fn [_ mat]
+                     [{:type "point" :class "translate" :pos (slice mat 4)}])}}
+
+  []
   `(translate (vec2/scale $size .5)))
-(def view-center
-  (with-meta view-center
-    {:doc "Returns a translation matrix to move the origin onto the center of view or artboard"}))
 
 ;; Style
 (defn fill
