@@ -1,13 +1,30 @@
 <template>
 	<div class="Editor">
-		<div class="Editor__editor" ref="editor" />
+		<div class="Editor__editor" ref="editorEl" />
 	</div>
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue, Watch} from 'vue-property-decorator'
 import ace from 'brace'
-import {appHandler} from '../mal/console'
+import {appHandler} from '@/mal/console'
+import {
+	defineComponent,
+	onMounted,
+	ref,
+	Ref,
+	onBeforeUnmount,
+	computed,
+	watchEffect,
+	watch,
+	SetupContext
+} from '@vue/composition-api'
+
+interface Props {
+	value: string
+	selection: number[]
+	activeRange: number[] | null
+	dark: boolean
+}
 
 function replaceRange(
 	s: string,
@@ -18,39 +35,170 @@ function replaceRange(
 	return s.substring(0, start) + substitute + s.substring(end)
 }
 
-@Component
-export default class Editor extends Vue {
-	@Prop({type: String, required: true}) private value!: string
-	@Prop({type: Array, required: true}) private selection!: [number, number]
-	@Prop({required: true}) private activeRange!: [number, number] | null
-	@Prop({type: Boolean, default: false}) private dark!: boolean
+function getEditorSelection(editor: ace.Editor) {
+	const sel = editor.getSelection()
+	const doc = editor.getSession().doc
 
-	private editor!: ace.Editor
-	private activeRangeMarker!: number
+	const range = sel.getRange()
+	const start = doc.positionToIndex(range.start, 0)
+	const end = doc.positionToIndex(range.end, 0)
 
-	private editedByProp = false
+	return [start, end]
+}
 
-	private get theme() {
-		return this.dark ? 'tomorrow_night' : 'tomorrow'
+function convertToAceRange(editor: ace.Editor, start: number, end: number) {
+	const doc = editor.getSession().doc
+
+	const s = doc.indexToPosition(start, 0)
+	const e = doc.indexToPosition(end, 0)
+
+	const range = editor.getSelectionRange()
+	range.setStart(s.row, s.column)
+	range.setEnd(e.row, e.column)
+
+	return range
+}
+
+function setupWheelUpdators(editor: ace.Editor) {
+	// Updater
+	const sel = editor.getSelection()
+	const doc = editor.getSession().doc
+
+	const wheelSpeed = (e: MouseWheelEvent) => {
+		return (e.shiftKey ? 2 : e.altKey ? 0.02 : 0.5) / 10
 	}
 
-	private mounted() {
-		this.editor = ace.edit(this.$refs.editor as HTMLElement)
+	const Updaters = [
+		{
+			match: /^[-+]?[0-9]+$/,
+			parse: (s: string) => parseInt(s),
+			update: (val: number, e: MouseWheelEvent) =>
+				Math.round(val - e.deltaY * wheelSpeed(e)),
+			toString: (val: number) => val.toString()
+		},
+		{
+			match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
+			parse: (s: string) => parseFloat(s),
+			update: (val: number, e: MouseWheelEvent) =>
+				val - e.deltaY * wheelSpeed(e),
+			toString: (val: number) => val.toFixed(1)
+		},
+		{
+			// Int 2
+			match: /^[-+]?[0-9]+ [-+]?[0-9]+$/,
+			parse: (s: string) => s.split(' ').map(parseFloat),
+			update: ([x, y]: number[], e: MouseWheelEvent) => [
+				x - e.deltaX * wheelSpeed(e),
+				y - e.deltaY * wheelSpeed(e)
+			],
+			toString: (val: number[]) => val.map(v => v.toFixed(0)).join(' ')
+		},
+		{
+			// Float 2
+			match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+) [-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
+			parse: (s: string) => s.split(' ').map(parseFloat),
+			update: ([x, y]: number[], e: MouseWheelEvent) => [
+				x - e.deltaX * wheelSpeed(e),
+				y - e.deltaY * wheelSpeed(e)
+			],
+			toString: (val: number[]) => val.map(v => v.toFixed(1)).join(' ')
+		}
+	]
 
-		require('brace/theme/tomorrow')
-		require('brace/theme/tomorrow_night')
-		require('brace/mode/clojure')
+	let listener: any = null
 
-		this.editor.setTheme(`ace/theme/${this.theme}`)
-		this.editor.setValue(this.value, -1)
-		this.editor.$blockScrolling = Infinity
-		this.editor.setShowPrintMargin(false)
-		this.editor.setOption('displayIndentGuides', false)
+	sel.on('changeSelection', () => {
+		if (listener) {
+			window.removeEventListener('mousewheel', listener)
+		}
 
-		const session = this.editor.getSession()
+		const origStr = editor.getCopyText()
+
+		if (origStr.trim() === '') {
+			return
+		}
+
+		const updater = Updaters.find(({match}) => origStr.match(match))
+
+		if (updater) {
+			const [start, end] = getEditorSelection(editor)
+
+			let val = updater.parse(origStr)
+			const text = editor.getValue()
+
+			const range = sel.getRange()
+
+			listener = (e: WheelEvent) => {
+				val = updater.update(val as any, e)
+
+				const newStr = updater.toString(val as any)
+				const newText = replaceRange(text, start, end, newStr)
+
+				const newEnd = doc.indexToPosition(
+					end + (newStr.length - origStr.length),
+					0
+				)
+
+				range.setEnd(newEnd.row, newEnd.column)
+
+				editor.setValue(newText)
+				sel.setRange(range, false)
+			}
+
+			window.addEventListener('mousewheel', listener, {once: true})
+		}
+	})
+}
+
+function assignKeybinds(editor: ace.Editor) {
+	editor.commands.addCommand({
+		name: 'select-outer',
+		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
+		exec: () => {
+			console.log('sel')
+			appHandler.emit('select-outer')
+		}
+	})
+
+	editor.commands.addCommand({
+		name: 'eval-selected',
+		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
+		exec: () => {
+			appHandler.emit('eval-selected')
+		}
+	})
+}
+
+function setupBraceEditor(
+	props: Props,
+	context: SetupContext,
+	editorEl: Ref<HTMLElement | null>
+) {
+	require('brace/theme/tomorrow')
+	require('brace/theme/tomorrow_night')
+	require('brace/mode/clojure')
+
+	let editor: ace.Editor
+
+	const theme = computed(() => (props.dark ? 'tomorrow_night' : 'tomorrow'))
+	watchEffect(() => editor.setTheme(`ace/theme/${theme.value}`))
+
+	onMounted(() => {
+		if (!editorEl.value) return
+
+		editor = ace.edit(editorEl.value)
+
+		editor.setTheme(`ace/theme/${theme.value}`)
+		editor.setValue(props.value, -1)
+		editor.$blockScrolling = Infinity
+		editor.setShowPrintMargin(false)
+		editor.setOption('displayIndentGuides', false)
+
+		const session = editor.getSession()
 		session.setMode('ace/mode/clojure')
+		session.setUseWrapMode(true)
 
-		this.editor.setOptions({
+		editor.setOptions({
 			highlightActiveLine: false,
 			showGutter: false,
 			tabSize: 2,
@@ -58,207 +206,106 @@ export default class Editor extends Vue {
 			maxLines: Infinity
 		})
 
-		this.editor.getSession().setUseWrapMode(true)
+		// Watch props
+		let activeRangeMarker: number
+		watch(
+			() => props.activeRange,
+			value => {
+				editor.session.removeMarker(activeRangeMarker)
 
-		this.editor.on('change', this.onChange)
-		this.editor.on('changeSelection', this.onSelect)
-
-		this.editor.commands.addCommand({
-			name: 'select-outer',
-			bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
-			exec: () => {
-				console.log('sel')
-				appHandler.emit('select-outer')
-			}
-		})
-
-		this.editor.commands.addCommand({
-			name: 'eval-selected',
-			bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
-			exec: () => {
-				appHandler.emit('eval-selected')
-			}
-		})
-
-		// Updater
-
-		const sel = this.editor.getSelection()
-		const doc = this.editor.getSession().doc
-
-		const wheelSpeed = (e: MouseWheelEvent) => {
-			return (e.shiftKey ? 2 : e.altKey ? 0.02 : 0.5) / 10
-		}
-
-		const Updaters = [
-			{
-				match: /^[-+]?[0-9]+$/,
-				parse: (s: string) => parseInt(s),
-				update: (val: number, e: MouseWheelEvent) =>
-					Math.round(val - e.deltaY * wheelSpeed(e)),
-				toString: (val: number) => val.toString()
-			},
-			{
-				match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
-				parse: (s: string) => parseFloat(s),
-				update: (val: number, e: MouseWheelEvent) =>
-					val - e.deltaY * wheelSpeed(e),
-				toString: (val: number) => val.toFixed(1)
-			},
-			{
-				// Int 2
-				match: /^[-+]?[0-9]+ [-+]?[0-9]+$/,
-				parse: (s: string) => s.split(' ').map(parseFloat),
-				update: ([x, y]: number[], e: MouseWheelEvent) => [
-					x - e.deltaX * wheelSpeed(e),
-					y - e.deltaY * wheelSpeed(e)
-				],
-				toString: (val: number[]) => val.map(v => v.toFixed(0)).join(' ')
-			},
-			{
-				// Float 2
-				match: /^[-+]?([0-9]*\.[0-9]+|[0-9]+) [-+]?([0-9]*\.[0-9]+|[0-9]+)$/,
-				parse: (s: string) => s.split(' ').map(parseFloat),
-				update: ([x, y]: number[], e: MouseWheelEvent) => [
-					x - e.deltaX * wheelSpeed(e),
-					y - e.deltaY * wheelSpeed(e)
-				],
-				toString: (val: number[]) => val.map(v => v.toFixed(1)).join(' ')
-			}
-		]
-
-		let listener: any = null
-
-		sel.on('changeSelection', () => {
-			if (listener) {
-				window.removeEventListener('mousewheel', listener)
-			}
-
-			const origStr = this.editor.getCopyText()
-
-			if (origStr.trim() === '') {
-				return
-			}
-
-			const updater = Updaters.find(({match}) => origStr.match(match))
-
-			if (updater) {
-				const [start, end] = this.getSelection()
-
-				let val = updater.parse(origStr)
-				const text = this.editor.getValue()
-
-				const range = sel.getRange()
-
-				listener = (e: WheelEvent) => {
-					val = updater.update(val as any, e)
-
-					const newStr = updater.toString(val as any)
-					const newText = replaceRange(text, start, end, newStr)
-
-					const newEnd = doc.indexToPosition(
-						end + (newStr.length - origStr.length),
-						0
+				if (value !== null) {
+					const [start, end] = value
+					const range = convertToAceRange(editor, start, end)
+					activeRangeMarker = editor.session.addMarker(
+						range,
+						'active-range',
+						'text',
+						false
 					)
-
-					range.setEnd(newEnd.row, newEnd.column)
-
-					this.editor.setValue(newText)
-					sel.setRange(range, false)
 				}
-
-				window.addEventListener('mousewheel', listener, {once: true})
 			}
-		})
-	}
+		)
 
-	private beforeDestroy() {
-		this.editor.destroy()
-		this.editor.container.remove()
-	}
+		watch(
+			() => props.selection,
+			([start, end]) => {
+				const [oldStart, oldEnd] = getEditorSelection(editor)
 
-	private onChange() {
-		const value = this.editor.getValue()
-		this.$emit('input', value)
-	}
+				if (start !== oldStart || end !== oldEnd) {
+					const range = convertToAceRange(editor, start, end)
+					editor.selection.setRange(range, false)
+				}
+			}
+		)
 
-	private onSelect() {
-		const selection = this.getSelection()
-		this.$emit('select', selection)
-	}
-
-	private getSelection() {
-		const sel = this.editor.getSelection()
-		const doc = this.editor.getSession().doc
-
-		const range = sel.getRange()
-		const start = doc.positionToIndex(range.start, 0)
-		const end = doc.positionToIndex(range.end, 0)
-
-		return [start, end]
-	}
-
-	private convertToAceRange(start: number, end: number) {
-		const doc = this.editor.getSession().doc
-
-		const s = doc.indexToPosition(start, 0)
-		const e = doc.indexToPosition(end, 0)
-
-		const range = this.editor.getSelectionRange()
-		range.setStart(s.row, s.column)
-		range.setEnd(e.row, e.column)
-
-		return range
-	}
-
-	@Watch('value')
-	private onValueChanged(newValue: string) {
-		if (this.editor.getValue() !== newValue) {
-			this.editor.off('change', this.onChange)
-			this.editor.off('changeSelection', this.onSelect)
-
-			this.editor.setValue(newValue, -1)
-
-			this.editor.on('change', this.onChange)
-			this.editor.on('changeSelection', this.onSelect)
+		// Watch value
+		function onChange() {
+			const value = editor.getValue()
+			context.emit('input', value)
 		}
-	}
 
-	@Watch('lang')
-	private onLangChanged(lang: string) {
-		this.editor.getSession().setMode(`ace/mode/${lang}`)
-	}
-
-	@Watch('theme')
-	private onThemeChanged(theme: string) {
-		this.editor.setTheme(`ace/theme/${theme}`)
-	}
-
-	@Watch('activeRange')
-	private onChangeActiveRange(value: [number, number] | null) {
-		this.editor.session.removeMarker(this.activeRangeMarker)
-
-		if (value !== null) {
-			const [start, end] = value
-			const range = this.convertToAceRange(start, end)
-			this.activeRangeMarker = this.editor.session.addMarker(
-				range,
-				'active-range',
-				'text',
-				false
-			)
+		function onSelect() {
+			const selection = getEditorSelection(editor)
+			context.emit('select', selection)
 		}
-	}
 
-	@Watch('selection')
-	private onChangeSelection([start, end]: [number, number]) {
-		const [oldStart, oldEnd] = this.getSelection()
+		editor.on('change', onChange)
+		editor.on('changeSelection', onSelect)
 
-		if (start !== oldStart || end !== oldEnd) {
-			const range = this.convertToAceRange(start, end)
-			this.editor.selection.setRange(range, false)
-		}
-	}
+		watch(
+			() => props.value,
+			newValue => {
+				if (editor.getValue() !== newValue) {
+					editor.off('change', onChange)
+					editor.off('changeSelection', onSelect)
+
+					editor.setValue(newValue, -1)
+
+					editor.on('change', onChange)
+					editor.on('changeSelection', onSelect)
+				}
+			}
+		)
+
+		// Enable individual features
+		setupWheelUpdators(editor)
+		assignKeybinds(editor)
+	})
+
+	onBeforeUnmount(() => {
+		editor.destroy()
+		editor.container.remove()
+	})
 }
+
+export default defineComponent({
+	props: {
+		value: {
+			type: String,
+			required: true
+		},
+		selection: {
+			type: Array,
+			required: true
+		},
+		activeRange: {
+			required: true
+		},
+		dark: {
+			type: Boolean,
+			required: true
+		}
+	},
+	setup(props: Props, context) {
+		const editorEl: Ref<HTMLElement | null> = ref(null)
+
+		setupBraceEditor(props, context, editorEl)
+
+		return {
+			editorEl
+		}
+	}
+})
 </script>
 
 <style lang="stylus">
