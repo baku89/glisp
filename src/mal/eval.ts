@@ -26,7 +26,10 @@ import {
 	M_OUTER_INDEX,
 	M_ELMSTRS,
 	M_KEYS,
-	M_EVAL_PARAMS
+	M_EVAL_PARAMS,
+	M_ISSUGAR,
+	M_DELIMITERS,
+	MalNodeMap
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -287,37 +290,93 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 	}
 }
 
-// Cached Tree-shaking
-export function replaceExp(original: MalNode, replaced: MalVal) {
-	const outer = original[M_OUTER]
-	const index = original[M_OUTER_INDEX]
-	if (index !== undefined) {
-		// Set as child
-		if (Array.isArray(outer)) {
-			outer[index] = replaced
-		} else {
-			// hash map
-			const key = outer[M_KEYS][index]
-			outer[key] = replaced
-		}
+const MALNODELIST_SYMBOLS = [
+	M_ISSUGAR,
+	M_DELIMITERS,
+	M_ELMSTRS,
+	M_FN,
+	M_EVAL,
+	M_EVAL_PARAMS,
+	M_MACROEXPANDED,
+	M_OUTER,
+	M_OUTER_INDEX
+]
 
-		// Set outer recursively
-		saveOuter(replaced, outer, index)
+const MALNODEMAP_SYMBOLS = [
+	M_DELIMITERS,
+	M_ELMSTRS,
+	M_KEYS,
+	M_EVAL,
+	M_OUTER,
+	M_OUTER_INDEX
+]
 
-		// Refresh M_ELMSTRS of ancestors
-		let _outer = outer,
-			_index = index,
-			_exp = replaced
+function cloneMalNode(original: MalNode) {
+	let cloned: MalNode
 
-		while (_outer) {
-			_outer[M_ELMSTRS][_index] = printExp(_exp)
+	const isArray = Array.isArray(original)
 
-			// Go upward
-			_exp = _outer
-			_index = _outer[M_OUTER_INDEX]
-			_outer = _outer[M_OUTER]
+	if (isArray) {
+		cloned = [...(original as MalListNode)] as MalListNode
+		if (isVector(original)) {
+			markMalVector(cloned)
 		}
 	} else {
-		console.error('sdifsodfijsf')
+		cloned = {...original} as MalNodeMap
+	}
+
+	const symbols = isArray ? MALNODELIST_SYMBOLS : MALNODEMAP_SYMBOLS
+
+	for (const sym of symbols) {
+		if (sym in original) {
+			;(cloned as any)[sym] = (original as any)[sym]
+		}
+	}
+
+	return cloned
+}
+
+// Cached Tree-shaking
+export function replaceExp(original: MalNode, replaced: MalVal) {
+	const originalOuter = original[M_OUTER]
+	const index = original[M_OUTER_INDEX]
+
+	if (index === undefined || !isMalNode(originalOuter)) {
+		throw new LispError('Cannot execute replaceExp')
+		return
+	}
+
+	const outer = cloneMalNode(originalOuter)
+
+	// Set as child
+	if (Array.isArray(outer)) {
+		outer[index] = replaced
+	} else {
+		// hash map
+		const key = outer[M_KEYS][index]
+		outer[key] = replaced
+	}
+
+	// Set outer recursively
+	saveOuter(replaced, outer, index)
+
+	// Refresh M_ELMSTRS of ancestors
+	let _outer = outer,
+		_index = index,
+		_exp = replaced
+
+	while (_outer) {
+		_outer[M_ELMSTRS][_index] = printExp(_exp)
+
+		// Go upward
+		_exp = _outer
+		_index = _outer[M_OUTER_INDEX]
+		_outer = _outer[M_OUTER]
+
+		if (!_outer) {
+			return
+		}
+
+		_outer = cloneMalNode(_outer)
 	}
 }
