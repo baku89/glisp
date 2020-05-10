@@ -119,9 +119,10 @@ const DARK_COLORS = {
 
 interface Data {
 	code: string
-	exp: NonReactive<MalVal> | null | false
+	exp: NonReactive<MalVal> | null
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
+	hasParseError: boolean
 	hasRenderError: boolean
 	selection: [number, number]
 	selectedExp: MalNode
@@ -288,32 +289,12 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			code: computed({
-				get: () => {
-					if (data.exp) {
-						return (data.code = printExp(data.exp.value).slice(OFFSET, -8))
-					} else {
-						return ''
-					}
-				},
-				set: code => {
-					const evalCode = `(def $view (sketch ${code} \n nil))`
-					let exp
-					try {
-						exp = nonReactive(readStr(evalCode, true))
-					} catch (err) {
-						if (!(err instanceof BlankException)) {
-							printer.error(err)
-						}
-						exp = null
-					}
-					data.exp = exp
-				}
-			}),
-			exp: false,
+			code: '',
+			exp: null,
 			hasError: computed(() => {
-				return data.exp === null || data.hasRenderError
+				return data.hasParseError || data.hasRenderError
 			}),
+			hasParseError: false,
 			hasRenderError: false,
 			viewExp: computed(() => {
 				let ret: MalVal = null
@@ -402,6 +383,37 @@ export default defineComponent({
 				}
 			})
 		}) as Data
+
+		// Code <-> Exp Conversion
+		watch(
+			() => data.code,
+			code => {
+				const evalCode = `(def $view (sketch ${code} \n nil))`
+				let exp
+				try {
+					exp = nonReactive(readStr(evalCode, true))
+				} catch (err) {
+					if (!(err instanceof BlankException)) {
+						printer.error(err)
+					}
+					data.hasParseError = true
+					return
+				}
+				data.hasParseError = false
+				data.exp = exp
+			}
+		)
+
+		watch(
+			() => data.exp,
+			() => {
+				if (data.exp) {
+					data.code = printExp(data.exp.value).slice(OFFSET, -8)
+				} else {
+					data.code = ''
+				}
+			}
+		)
 
 		const {onSetupConsole} = parseURL(data, ui)
 
