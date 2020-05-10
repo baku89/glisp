@@ -1,33 +1,41 @@
 <template>
 	<svg class="ViewHandles">
-		<g class="ViewHandles__transform" :transform="transformStyle">
-			<template v-for="({type, id, transform, path, cls, guide}, i) in handles">
-				<g
-					v-if="type === 'path'"
-					class="path"
-					:class="cls"
-					:key="i"
-					@mousedown="!guide && onMousedown(id, $event)"
-				>
-					<path class="path__hover-zone" :d="path" />
-					<path class="path__display" :d="path" />
-				</g>
-				<g
-					v-else
-					:key="i"
-					:class="cls"
-					:transform="transform"
-					@mousedown="!guide && onMousedown(id, $event)"
-				>
-					<path
-						v-if="type === 'arrow'"
-						d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
-					/>
-					<path v-if="cls === 'translate'" d="M 12 0 H -12 M 0 12 V -12" />
-					<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
-				</g>
-			</template>
-		</g>
+		<template
+			v-for="({type, id, transform, yTransform, path, cls, guide},
+			i) in handles"
+		>
+			<g
+				v-if="type === 'path'"
+				class="path"
+				:class="cls"
+				:key="i"
+				:transform="transform"
+				@mousedown="!guide && onMousedown(id, $event)"
+			>
+				<path class="path__hover-zone" :d="path" />
+				<path class="path__display" :d="path" />
+			</g>
+			<g
+				v-else
+				class="marker"
+				:key="i"
+				:class="cls"
+				:transform="transform"
+				@mousedown="!guide && onMousedown(id, $event)"
+			>
+				<path
+					v-if="type === 'arrow'"
+					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
+				/>
+				<path v-if="cls === 'translate'" d="M 12 0 H -12" />
+				<path
+					v-if="cls === 'translate'"
+					:transform="yTransform"
+					d="M 0 12 V -12"
+				/>
+				<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+			</g>
+		</template>
 	</svg>
 </template>
 
@@ -119,88 +127,17 @@ export default class ViewHandles extends Vue {
 		return this.exp[M_EVAL] || null
 	}
 
-	private get transform(): mat2d {
-		if (isMalNode(this.exp)) {
-			return this._calcTransform(this.exp)
-			// const wrappedElement = this.getWrappedElement(this.exp)
-			// if (wrappedElement) {
-			// 	return this.calcTransform(wrappedElement)
-			// }
-		}
-		return [1, 0, 0, 1, 0, 0]
-	}
-
-	private get arrTransform(): number[] {
-		return [...this.transform]
-	}
-
 	private get transformInv() {
 		return mat2d.invert(mat2d.create(), this.transform)
 	}
 
-	private get transformStyle() {
-		return `matrix(${this.transform.join(',')})`
-	}
+	private get transform() {
+		const exp = this.exp
 
-	private get handles(): {type: string; id: any; style: any}[] | null {
-		if (this.handleInfo) {
-			const drawHandle = this.handleInfo[K_DRAW]
-
-			let handles
-			try {
-				handles = drawHandle(this.evaluatedParams, this.evaluated)
-			} catch (_) {
-				return null
-			}
-
-			return handles.map((h: any) => {
-				const type = h[K_TYPE]
-				const guide = !!h[K_GUIDE]
-				const cls = (h[K_CLASS] || '') + (guide ? ' guide' : '')
-
-				const ret: {[k: string]: string | boolean} = {
-					type,
-					cls,
-					guide,
-					id: h[K_ID],
-					transform: ''
-				}
-
-				if (type === 'point' || type === 'arrow') {
-					const [x, y] = h[K_POS]
-					ret.transform = `translate(${x}, ${y})`
-				}
-
-				if (type === 'arrow') {
-					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
-					ret.transform += ` rotate(${angle})`
-				}
-
-				if (type === 'path') {
-					ret.path = getSVGPathData(h[K_PATH])
-				}
-
-				return ret
-			})
-		} else {
-			return null
+		if (!isMalNode(this.exp)) {
+			return mat2d.create()
 		}
-	}
 
-	private mounted() {
-		this.rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
-	}
-
-	private beforeUnmount() {
-		this.unregisterMouseEvents()
-	}
-
-	private unregisterMouseEvents() {
-		window.removeEventListener('mousemove', this.onMousemove)
-		window.removeEventListener('mouseup', this.onMouseup)
-	}
-
-	private _calcTransform(exp: MalNode) {
 		// Collect ancestors
 		let ancestors: MalNode[] = []
 		for (let outer = exp[M_OUTER]; outer; outer = outer[M_OUTER]) {
@@ -271,6 +208,99 @@ export default class ViewHandles extends Vue {
 		)
 
 		return ret
+	}
+
+	private get transformStyle() {
+		return `matrix(${this.transform.join(',')})`
+	}
+
+	private get handles(): {type: string; id: any; style: any}[] | null {
+		if (this.handleInfo) {
+			const drawHandle = this.handleInfo[K_DRAW]
+
+			let handles
+			try {
+				handles = drawHandle(this.evaluatedParams, this.evaluated)
+			} catch (_) {
+				return null
+			}
+
+			// const compensateXform = mat2d.clone(this.transformInv)
+			// compensateXform[4] = 0
+			// compensateXform[5] = 0
+
+			return handles.map((h: any) => {
+				const type = h[K_TYPE]
+				const guide = !!h[K_GUIDE]
+				const cls = h[K_CLASS] || ''
+
+				const xform = mat2d.clone(this.transform)
+				let yRotate = 0
+
+				if (type === 'point' || type === 'arrow') {
+					const [x, y] = h[K_POS]
+					mat2d.translate(xform, xform, [x, y])
+				}
+
+				if (type === 'arrow') {
+					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
+					mat2d.rotate(xform, xform, angle)
+				}
+
+				if (type !== 'path') {
+					// Normalize axis X
+					const axis = vec2.fromValues(xform[0], xform[1])
+					vec2.normalize(axis, axis)
+					xform[0] = axis[0]
+					xform[1] = axis[1]
+
+					// Force axisY to be perpendicular to axisX
+					const origAxisY = vec2.fromValues(xform[2], xform[3])
+
+					vec2.set(axis, xform[0], xform[1])
+					vec2.rotate(axis, axis, [0, 0], Math.PI / 2)
+					xform[2] = axis[0]
+					xform[3] = axis[1]
+
+					// set Y rotation
+					if (cls === 'translate') {
+						const perpAxisYAngle = Math.atan2(axis[1], axis[0])
+						vec2.rotate(axis, origAxisY, [0, 0], -perpAxisYAngle)
+						yRotate = Math.atan2(axis[1], axis[0])
+					}
+				}
+
+				const ret: {[k: string]: string | boolean} = {
+					type,
+					cls: cls + (guide ? ' guide' : ''),
+					guide,
+					id: h[K_ID],
+					transform: `matrix(${xform.join(',')})`,
+					yTransform: `rotate(${(yRotate * 180) / Math.PI})`
+				}
+
+				if (type === 'path') {
+					ret.path = getSVGPathData(h[K_PATH])
+				}
+
+				return ret
+			})
+		} else {
+			return null
+		}
+	}
+
+	private mounted() {
+		this.rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+	}
+
+	private beforeUnmount() {
+		this.unregisterMouseEvents()
+	}
+
+	private unregisterMouseEvents() {
+		window.removeEventListener('mousemove', this.onMousemove)
+		window.removeEventListener('mouseup', this.onMouseup)
 	}
 
 	// private calcTransform(exp: MalNode, xform: mat2d = mat2d.create()): mat2d {
@@ -393,6 +423,7 @@ export default class ViewHandles extends Vue {
 	circle
 		stroke var(--blue)
 		stroke-width 1
+		vector-effect non-scaling-stroke
 		fill var(--background)
 
 		&:not(.guide):hover
@@ -401,6 +432,7 @@ export default class ViewHandles extends Vue {
 
 	path
 		stroke var(--blue)
+		vector-effect non-scaling-stroke
 		fill none
 
 	.path
