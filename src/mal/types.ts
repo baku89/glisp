@@ -46,7 +46,7 @@ export interface MalNodeMap extends MalMap {
 	[M_OUTER_INDEX]: number
 }
 
-export interface MalListNode extends Array<MalVal> {
+export interface MalNodeList extends Array<MalVal> {
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
@@ -58,7 +58,7 @@ export interface MalListNode extends Array<MalVal> {
 	[M_OUTER_INDEX]: number
 }
 
-export type MalNode = MalNodeMap | MalListNode
+export type MalNode = MalNodeMap | MalNodeList
 
 export const isMalNode = (v: MalVal): v is MalNode => v instanceof Object
 

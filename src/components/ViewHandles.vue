@@ -83,7 +83,7 @@ import {
 	isKeyword,
 	isMap,
 	MalNode,
-	MalListNode,
+	MalNodeList,
 	M_EVAL_PARAMS,
 	isMalNode,
 	MalMap,
@@ -145,9 +145,9 @@ export default class ViewHandles extends Vue {
 		if (
 			this.handleInfo &&
 			Array.isArray(this.exp) &&
-			(this.exp as MalListNode)[M_EVAL_PARAMS]
+			(this.exp as MalNodeList)[M_EVAL_PARAMS]
 		) {
-			return (this.exp as MalListNode)[M_EVAL_PARAMS]
+			return (this.exp as MalNodeList)[M_EVAL_PARAMS]
 		} else {
 			return []
 		}

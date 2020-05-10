@@ -20,7 +20,7 @@ import {
 	markMalVector,
 	MalNode,
 	isMalNode,
-	MalListNode,
+	MalNodeList,
 	M_MACROEXPANDED,
 	M_OUTER,
 	M_OUTER_INDEX,
@@ -56,7 +56,7 @@ function macroexpand(exp: MalVal, env: Env) {
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
-		;(exp as MalListNode)[M_FN] = fn
+		;(exp as MalNodeList)[M_FN] = fn
 		exp = fn(...exp.slice(1))
 	}
 	return exp
@@ -106,7 +106,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 		const expandedExp = macroexpand(exp, env)
 		if (cache && exp !== expandedExp) {
-			;(exp as MalListNode)[M_MACROEXPANDED] = expandedExp
+			;(exp as MalNodeList)[M_MACROEXPANDED] = expandedExp
 		}
 		exp = expandedExp
 
@@ -126,7 +126,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			case 'def': {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
-					;(exp as MalListNode)[M_FN] = env.get(S('def'))
+					;(exp as MalNodeList)[M_FN] = env.get(S('def'))
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
@@ -212,7 +212,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp[exp.length - 1]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalListNode)[M_MACROEXPANDED] = ret
+					;(exp as MalNodeList)[M_MACROEXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
@@ -222,7 +222,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = a2
-					;(exp as MalListNode)[M_MACROEXPANDED] = a2
+					;(exp as MalNodeList)[M_MACROEXPANDED] = a2
 				}
 				exp = ret
 				break // continue TCO loop
@@ -264,11 +264,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
 
 				if (isMalFunc(fn) || typeof fn === 'function') {
-					;(exp as MalListNode)[M_EVAL_PARAMS] = args
+					;(exp as MalNodeList)[M_EVAL_PARAMS] = args
 					const ret = fn(...args)
 					if (cache) {
 						;(exp as MalNode)[M_EVAL] = ret
-						;(exp as MalListNode)[M_FN] = fn
+						;(exp as MalNodeList)[M_FN] = fn
 					}
 					return ret
 				} else {
@@ -317,7 +317,7 @@ function cloneMalNode(original: MalNode) {
 	const isArray = Array.isArray(original)
 
 	if (isArray) {
-		cloned = [...(original as MalListNode)] as MalListNode
+		cloned = [...(original as MalNodeList)] as MalNodeList
 		if (isVector(original)) {
 			markMalVector(cloned)
 		}
