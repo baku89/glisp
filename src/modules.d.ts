@@ -60,3 +60,11 @@ declare module 'vue-markdown' {
 	export const VueMarkdown: any
 	export default VueMarkdown
 }
+
+declare module 'vue-color' {
+	export const Chrome: any
+}
+
+declare module 'vue-popperjs' {
+	export default const Popper: any
+}

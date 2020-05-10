@@ -631,7 +631,6 @@ export default class Inspector extends Vue {
 <style lang="stylus" scoped>
 .Inspector
 	position relative
-	overflow hidden
 	padding 1rem
 	height 100%
 	text-align left

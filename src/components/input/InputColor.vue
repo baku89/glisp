@@ -7,21 +7,40 @@
 			@input="onInputText"
 			@blur="onBlurText"
 		/>
-		<input
-			class="InputColor__color"
-			type="color"
-			:value="hexCode"
-			@input="onInputColor"
-		/>
+		<Popper
+			trigger="clickToOpen"
+			:append-to-body="true"
+			:options="{
+				placement: 'top',
+				modifiers: {offset: {offset: '0,10px'}}
+			}"
+		>
+			<ColorPicker
+				class="InputColor__picker"
+				:value="value"
+				@input="onInputColor"
+			/>
+			<button
+				class="InputColor__button"
+				slot="reference"
+				:style="{background: value}"
+			/>
+		</Popper>
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
 import Color from 'color'
+import {Chrome as ColorPicker} from 'vue-color'
+import Popper from 'vue-popperjs'
 
 export default defineComponent({
 	name: 'InputColor',
+	components: {
+		ColorPicker,
+		Popper
+	},
 	props: {
 		value: {
 			type: String,
@@ -42,10 +61,10 @@ export default defineComponent({
 			const val = (e.target as HTMLInputElement).value
 			try {
 				Color(val)
-				context.emit('input', val)
 			} catch (err) {
 				return
 			}
+			context.emit('input', val)
 		}
 
 		const onBlurText = (e: InputEvent) => {
@@ -54,9 +73,9 @@ export default defineComponent({
 			}
 		}
 
-		const onInputColor = (e: InputEvent) => {
-			const val = (e.target as HTMLInputElement).value
-			context.emit('input', val)
+		const onInputColor = (e: any) => {
+			// const val = (e.target as HTMLInputElement).value
+			context.emit('input', e.hex)
 		}
 
 		return {
@@ -69,9 +88,8 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 .InputColor
-	display flex
 
 	&__text
 		width 8em
@@ -80,29 +98,22 @@ export default defineComponent({
 		background transparent
 		color var(--green)
 
-	&__color
-		display inline-block
-		margin 0
+	&__button
+		display inline
 		margin-left 0.5em
-		padding 0
 		width 1.3em
 		height 1.3em
 		outline none
 		border 0
-		background transparent
 		vertical-align bottom
 		font-size inherit
-		appearance none
+		border 1px solid var(--comment)
+		border-radius 50%
 
-		&::-webkit-color-swatch-wrapper
-			margin 0
-			padding 0
-			background transparent
+	&__picker
+		z-index 1000
+		font-family 'Fira Code', monospace !important
 
-		&::-webkit-color-swatch
-			margin 0
-			padding 0
-			border none
-			border 1px solid var(--comment)
-			border-radius 50%
+		.vc-chrome-body
+			background-color var(--background) !important
 </style>
