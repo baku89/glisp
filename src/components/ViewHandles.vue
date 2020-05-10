@@ -45,7 +45,8 @@ import {
 	isMap,
 	MalNode,
 	MalListNode,
-	M_EVAL_PARAMS
+	M_EVAL_PARAMS,
+	isMalNode
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -115,10 +116,11 @@ export default class ViewHandles extends Vue {
 	private get transform(): mat2d {
 		if (this.exp !== null && this.exp instanceof Object) {
 			const wrappedElement = this.getWrappedElement(this.exp)
-			return this.calcTransform(wrappedElement)
-		} else {
-			return [1, 0, 0, 1, 0, 0]
+			if (wrappedElement) {
+				return this.calcTransform(wrappedElement)
+			}
 		}
+		return [1, 0, 0, 1, 0, 0]
 	}
 
 	private get transformInv() {
@@ -185,17 +187,17 @@ export default class ViewHandles extends Vue {
 		window.removeEventListener('mouseup', this.onMouseup)
 	}
 
-	private calcTransform(exp: any, xform: mat2d = mat2d.create()): mat2d {
+	private calcTransform(exp: MalNode, xform: mat2d = mat2d.create()): mat2d {
 		if (
 			isVector(exp) &&
 			isKeyword(exp[0]) &&
 			isMap(exp[1]) &&
-			exp[1][K_TRANSFORM] !== undefined
+			K_TRANSFORM in exp[1]
 		) {
-			let elXform = exp[1][K_TRANSFORM] as any
-			elXform = elXform[M_EVAL] || elXform
+			let elXform = exp[1][K_TRANSFORM]
+			elXform = isMalNode(elXform) && elXform[M_EVAL] ? elXform : elXform
 
-			mat2d.multiply(xform, elXform, xform)
+			mat2d.multiply(xform, elXform as mat2d, xform)
 		}
 
 		if (exp && exp[M_OUTER]) {
@@ -205,7 +207,7 @@ export default class ViewHandles extends Vue {
 		}
 	}
 
-	private getWrappedElement(exp: any) {
+	private getWrappedElement(exp: MalNode) {
 		let outer: MalNode
 
 		while (exp && (outer = exp[M_OUTER])) {
@@ -220,6 +222,8 @@ export default class ViewHandles extends Vue {
 			}
 			exp = outer
 		}
+
+		return null
 	}
 
 	private draggingId!: MalVal
