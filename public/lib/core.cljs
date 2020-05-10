@@ -111,6 +111,12 @@
                           :name ~(str original)
                           :meta (meta ~original))))))
 
+(defn fn-meta [f]
+  (def fm (meta f))
+  (def alias (get fm :alias))
+  (if alias
+    (get alias :meta)
+    fm))
 
 ;; Annotate the parameter of special forms
 (defn def

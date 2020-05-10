@@ -270,11 +270,7 @@
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
    :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [[pos]]
-                     [{:type "path"
-                       :guide true
-                       :class "dashed"
-                       :path [:path :M [-80 0] :L [80 0] :M [0 -80] :L [0 80]]}
-                      {:type "point"
+                     [{:type "point"
                        :class "translate"
                        :pos pos}])
              :on-drag (fn [{p :pos}]
@@ -304,9 +300,29 @@
 (defn mat2d/scale
   {:doc  "Returns scaling matrix"
    :params [{:label "Value" :type "vec2"}]
-   :returns {:type "mat2d"}}
-  [s]
-  [(.x s) 0 0 (.y s) 0 0])
+   :returns {:type "mat2d"}
+   :handles {:draw (fn [[[x y]]]
+                     (let [sx (* x 40)
+                           sy (* y 40)]
+                       [{:type "path" :class "dashed" :guide true
+                         :path [:path
+                                :M [0 0] :L [sx 0]
+                                :M [0 0] :L [0 sy]]}
+                        {:type "path"  :id :uniform :path (line [sx 0] [0 sy])}
+                        {:type "point" :id :non-uni :pos [sx sy] :class "translate"}
+                        {:type "point" :id :axis-x  :pos [sx 0]}
+                        {:type "point" :id :axis-y  :pos [0 sy]}]))
+             :on-drag (fn [{id :id p :pos} [[x y]] [[x0 y0]]]
+                        (let [$x (/ (.x p) 40)
+                              $y (/ (.y p) 40)]
+                          (case id
+                            :uniform [[(+ $x (* (/ x0 y0) $y))
+                                       (+ $y (* (/ y0 x0) $x))]]
+                            :non-uni [[$x $y]]
+                            :axis-x  [[$x y]]
+                            :axis-y  [[x $y]])))}}
+  [[x y]]
+  [x 0 0 y 0 0])
 
 (defn mat2d/scale-x
   {:doc "Returns scaling matrix"
@@ -327,7 +343,6 @@
    :handles {:draw (fn [[angle]]
                      (let [dir (vec2/dir angle 80)]
                        [{:type "path" :guide true :path (line [0 0] dir)}
-                        {:type "path" :guide true :class "dashed" :path (line [0 0] [80 0])}
                         {:type "path" :guide true :class "dashed" :path (arc [0 0] 80 0 angle)}
                         {:type "point" :pos dir}]))
              :on-drag (fn [{p :pos pp :prev-pos} _ [angle]]
@@ -354,16 +369,22 @@
    (+ (* a0 b4) (* a2 b5) a4)
    (+ (* a1 b4) (* a3 b5) a5)])
 
+
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
             &
             {:label "Matrices" :type "mat2d"}]
-   :returns "mat2d"}
+   :returns "mat2d"
+   :handles {:draw (fn [[p]]
+                     [{:type "point" :class "translate" :pos p}])
+             :on-drag (fn [{p :pos} [_ & xs]]
+                        `(~p ~@xs))}}
   [p & xs]
   (let [m-first (mat2d/translate p)
-        m-last (mat2d/translate (vec2/negate p))]
+        m-last (mat2d/translate (vec2/scale p -1))]
     (apply mat2d/transform `(~m-first ~@xs ~m-last))))
+
 
 (defn mat2d/transform
   {:doc "Multiplies the matrices and returns transform matrix"

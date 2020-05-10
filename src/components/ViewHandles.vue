@@ -1,5 +1,35 @@
 <template>
 	<svg class="ViewHandles">
+		<defs>
+			<marker
+				id="arrow-x"
+				viewBox="0 0 10 10"
+				refX="10"
+				refY="5"
+				markerUnits="strokeWidth"
+				markerWidth="10"
+				markerHeight="10"
+				orient="auto-start-reverse"
+			>
+				<path class="axis-x" d="M 0 0 L 10 5 L 0 10" />
+			</marker>
+			<marker
+				id="arrow-y"
+				viewBox="0 0 10 10"
+				refX="10"
+				refY="5"
+				markerUnits="strokeWidth"
+				markerWidth="10"
+				markerHeight="10"
+				orient="auto-start-reverse"
+			>
+				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
+			</marker>
+		</defs>
+		<g v-if="handleInfo" class="ViewHandles__axis" :transform="transformStyle">
+			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
+			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
+		</g>
 		<template
 			v-for="({type, id, transform, yTransform, path, cls, guide},
 			i) in handles"
@@ -168,15 +198,35 @@ export default class ViewHandles extends Vue {
 					const node = attrAncestors[j]
 					const outer = attrAncestors[j - 1]
 
-					if (isList(outer) && outer[0] === symbolFor('transform')) {
-						// Prepend matrix
-						const matrices = outer
-							.slice(1, node[M_OUTER_INDEX])
-							.map(xform =>
-								isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-							) as mat2d[]
+					if (isList(outer)) {
+						if (outer[0] === symbolFor('transform')) {
+							// Prepend matrices
+							const matrices = outer
+								.slice(1, node[M_OUTER_INDEX])
+								.map(xform =>
+									isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+								) as mat2d[]
 
-						attrMatrices.unshift(...matrices)
+							attrMatrices.unshift(...matrices)
+						} else if (outer[0] === symbolFor('pivot')) {
+							// Prepend matrices
+							const matrices = outer
+								.slice(2, node[M_OUTER_INDEX])
+								.map(xform =>
+									isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+								) as mat2d[]
+							attrMatrices.unshift(...matrices)
+
+							// Append pivot itself as translation matrix
+							const pivot =
+								isMalNode(outer[1]) && M_EVAL in outer[1]
+									? (outer[1][M_EVAL] as vec2)
+									: vec2.create()
+
+							const pivotMat = mat2d.fromTranslation(mat2d.create(), pivot)
+
+							attrMatrices.unshift(pivotMat)
+						}
 					}
 				}
 
@@ -214,20 +264,21 @@ export default class ViewHandles extends Vue {
 		return `matrix(${this.transform.join(',')})`
 	}
 
-	private get handles(): {type: string; id: any; style: any}[] | null {
+	private get handles() {
 		if (this.handleInfo) {
 			const drawHandle = this.handleInfo[K_DRAW]
 
 			let handles
 			try {
-				handles = drawHandle(this.evaluatedParams, this.evaluated)
-			} catch (_) {
+				handles = drawHandle(this.evaluatedParams, this.evaluated, this.params)
+			} catch (err) {
+				console.log(err)
 				return null
 			}
 
-			// const compensateXform = mat2d.clone(this.transformInv)
-			// compensateXform[4] = 0
-			// compensateXform[5] = 0
+			if (!Array.isArray(handles)) {
+				return null
+			}
 
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
@@ -302,46 +353,6 @@ export default class ViewHandles extends Vue {
 		window.removeEventListener('mousemove', this.onMousemove)
 		window.removeEventListener('mouseup', this.onMouseup)
 	}
-
-	// private calcTransform(exp: MalNode, xform: mat2d = mat2d.create()): mat2d {
-	// 	if (
-	// 		isVector(exp) &&
-	// 		isKeyword(exp[0]) &&
-	// 		isMap(exp[1]) &&
-	// 		K_TRANSFORM in exp[1]
-	// 	) {
-	// 		let elXform = exp[1][K_TRANSFORM]
-	// 		elXform =
-	// 			isMalNode(elXform) && elXform[M_EVAL] ? elXform[M_EVAL] : elXform
-
-	// 		mat2d.multiply(xform, elXform as mat2d, xform)
-	// 	}
-
-	// 	if (exp && exp[M_OUTER]) {
-	// 		return this.calcTransform(exp[M_OUTER], xform)
-	// 	} else {
-	// 		return xform
-	// 	}
-	// }
-
-	// private getWrappedElement(exp: MalNode) {
-	// 	let outer: MalNode
-
-	// 	while (exp && (outer = exp[M_OUTER])) {
-	// 		if (isVector(outer) && isKeyword(outer[0])) {
-	// 			// Item
-	// 			if (isMap(exp) && outer[1] === exp) {
-	// 				// When the exp is an attribute
-	// 				return outer[M_OUTER] || null
-	// 			} else {
-	// 				return outer
-	// 			}
-	// 		}
-	// 		exp = outer
-	// 	}
-
-	// 	return null
-	// }
 
 	private draggingId!: MalVal
 	private rawPrevPos!: number[]
@@ -434,6 +445,14 @@ export default class ViewHandles extends Vue {
 		stroke var(--blue)
 		vector-effect non-scaling-stroke
 		fill none
+
+		&.axis-x, &.axis-y
+			stroke-width
+
+		&.axis-x
+			stroke var(--red)
+		&.axis-y
+			stroke var(--green)
 
 	.path
 		&:not(.guide):hover .path__display
