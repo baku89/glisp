@@ -118,7 +118,6 @@ const DARK_COLORS = {
 }
 
 interface Data {
-	codeHasLoaded: boolean
 	code: string
 	exp: NonReactive<MalVal> | null | false
 	viewExp: NonReactive<MalVal> | null
@@ -196,7 +195,6 @@ function parseURL(data: Data, ui: UI) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
 		data.code = ret[0] as string
-		data.codeHasLoaded = true
 	})
 
 	return {onSetupConsole}
@@ -290,7 +288,6 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			codeHasLoaded: false,
 			code: computed({
 				get: () => {
 					if (data.exp) {
