@@ -48,8 +48,6 @@ const UNIT_QUAD_BEZIER = new Bezier([
 	{x: 0, y: 1}
 ])
 
-const M_PAPER_PATH = Symbol.for('paper-path')
-
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function createEmptyPath() {
