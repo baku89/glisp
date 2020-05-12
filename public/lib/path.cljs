@@ -50,7 +50,7 @@
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
     :handles {:draw (fn [[center radius] path]
-                      [{:type "path" :id :radius :class "hover" :path path}
+                      [{:type "path" :id :radius :path path}
                        {:type "arrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
                        {:type "point"
@@ -259,8 +259,8 @@
              {:label "Path" :type "path"}]
     :returns {:type "path"}
     :handles {:draw (fn [[start end path] trimmed-path]
-                      [{:type "path" :id :path-original :class "dashed" :path path}
-                       {:type "path" :id :path-trimmed :class "dashed" :path trimmed-path}
+                      [{:type "path" :id :path-original :class "dashed" :guide true :path path}
+                       {:type "path" :id :path-trimmed :class "dashed" :guide true :path trimmed-path}
                        {:type "point" :id :start :pos (path/position-at start path)}
                        {:type "point" :id :end :pos (path/position-at end path)}])
               :on-drag (fn [{id :id p :pos} [start end path] [_ _ evaluated-path]]
