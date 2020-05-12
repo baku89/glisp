@@ -1,5 +1,5 @@
 <template>
-	<svg class="ViewHandles" :class="{dragging: draggingIndex !== null}">
+	<svg class="ViewHandles">
 		<defs>
 			<marker
 				id="arrow-x"
@@ -26,46 +26,44 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g v-if="handleInfo" class="ViewHandles__axis" :transform="transformStyle">
+		<g
+			v-if="handlesHandler"
+			class="ViewHandles__axis"
+			:transform="axisTransform"
+		>
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
-		<template
+		<g
 			v-for="({type, id, transform, yTransform, path, cls, guide},
 			i) in handles"
+			:key="i"
+			:class="cls"
+			:hoverrable="draggingIndex === null && !guide"
+			:dragging="draggingIndex === i"
+			:transform="transform"
+			@mousedown="!guide && onMousedown(i, $event)"
 		>
-			<g
-				v-if="type === 'path'"
-				class="path"
-				:class="{...cls, guide}"
-				:key="i"
-				:transform="transform"
-				@mousedown="!guide && onMousedown(i, $event)"
-			>
-				<path class="path__hover-zone" :d="path" />
-				<path class="path__display" :d="path" />
-			</g>
-			<g
-				v-else
-				class="marker"
-				:key="i"
-				:class="cls"
-				:transform="transform"
-				@mousedown="!guide && onMousedown(i, $event)"
-			>
+			<template v-if="type === 'path'">
+				<path class="hover-zone" :d="path" />
+				<path class="display" :d="path" />
+			</template>
+			<template v-else>
 				<path
 					v-if="type === 'arrow'"
+					class="display"
 					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
 				/>
-				<path v-if="cls === 'translate'" d="M 12 0 H -12" />
+				<path v-if="cls === 'translate'" class="display" d="M 12 0 H -12" />
 				<path
 					v-if="cls === 'translate'"
+					class="display"
 					:transform="yTransform"
 					d="M 0 12 V -12"
 				/>
-				<circle class="point" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
-			</g>
-		</template>
+				<circle class="display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+			</template>
+		</g>
 	</svg>
 </template>
 
@@ -76,6 +74,7 @@ import {
 	M_META,
 	M_FN,
 	keywordFor as K,
+	symbolFor as S,
 	markMalVector,
 	M_EVAL,
 	M_OUTER,
@@ -86,9 +85,7 @@ import {
 	MalNodeList,
 	M_EVAL_PARAMS,
 	isMalNode,
-	MalMap,
 	isList,
-	symbolFor,
 	M_OUTER_INDEX
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
@@ -117,7 +114,7 @@ export default class ViewHandles extends Vue {
 
 	private rem = 0
 
-	private get handleInfo() {
+	private get handlesHandler() {
 		const exp = this.exp as any
 
 		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
@@ -134,7 +131,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get params(): MalVal[] {
-		if (this.handleInfo && Array.isArray(this.exp)) {
+		if (this.handlesHandler && Array.isArray(this.exp)) {
 			return this.exp.slice(1)
 		} else {
 			return []
@@ -143,7 +140,7 @@ export default class ViewHandles extends Vue {
 
 	private get evaluatedParams(): MalVal[] {
 		if (
-			this.handleInfo &&
+			this.handlesHandler &&
 			Array.isArray(this.exp) &&
 			(this.exp as MalNodeList)[M_EVAL_PARAMS]
 		) {
@@ -186,7 +183,7 @@ export default class ViewHandles extends Vue {
 				isKeyword(outer[0]) && // outer is element
 					isMap(node) &&
 					K_TRANSFORM in node) ||
-				(isList(outer) && outer[0] === symbolFor('path/transform'))
+				(isList(outer) && outer[0] === S('path/transform'))
 			) {
 				const attrAncestors = ancestors.slice(i + 1)
 				attrAncestors.push(exp)
@@ -200,7 +197,7 @@ export default class ViewHandles extends Vue {
 					const outer = attrAncestors[j - 1]
 
 					if (isList(outer)) {
-						if (outer[0] === symbolFor('transform')) {
+						if (outer[0] === S('transform')) {
 							// Prepend matrices
 							const matrices = outer
 								.slice(1, node[M_OUTER_INDEX])
@@ -209,7 +206,7 @@ export default class ViewHandles extends Vue {
 								) as mat2d[]
 
 							attrMatrices.unshift(...matrices)
-						} else if (outer[0] === symbolFor('pivot')) {
+						} else if (outer[0] === S('pivot')) {
 							// Prepend matrices
 							const matrices = outer
 								.slice(2, node[M_OUTER_INDEX])
@@ -246,7 +243,7 @@ export default class ViewHandles extends Vue {
 				) {
 					const matrix = node[1][K_TRANSFORM]
 					filtered.push(matrix)
-				} else if (isList(node) && node[0] === symbolFor('path/transform')) {
+				} else if (isList(node) && node[0] === S('path/transform')) {
 					const matrix = node[1]
 					filtered.push(matrix)
 				}
@@ -269,13 +266,13 @@ export default class ViewHandles extends Vue {
 		return ret
 	}
 
-	private get transformStyle() {
+	private get axisTransform() {
 		return `matrix(${this.transform.join(',')})`
 	}
 
 	private get handles() {
-		if (this.handleInfo) {
-			const drawHandle = this.handleInfo[K_DRAW]
+		if (this.handlesHandler) {
+			const drawHandle = this.handlesHandler[K_DRAW]
 
 			let handles
 			try {
@@ -307,7 +304,7 @@ export default class ViewHandles extends Vue {
 				}
 
 				if (type === 'arrow') {
-					const angle = ((h[K_ANGLE] || 0) / Math.PI) * 180
+					const angle = h[K_ANGLE] || 0
 					mat2d.rotate(xform, xform, angle)
 				}
 
@@ -368,6 +365,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private draggingIndex: number | null = null
+
 	private rawPrevPos!: number[]
 
 	private onMousedown(i: number, e: MouseEvent) {
@@ -380,11 +378,11 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (!this.handleInfo || !this.handles || this.draggingIndex === null) {
+		if (!this.handlesHandler || !this.handles || this.draggingIndex === null) {
 			return
 		}
 
-		const onDrag = this.handleInfo[K_ON_DRAG]
+		const onDrag = this.handlesHandler[K_ON_DRAG]
 
 		if (typeof onDrag !== 'function') {
 			return
@@ -440,6 +438,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMouseup() {
+		this.draggingIndex = null
 		this.unregisterMouseEvents()
 	}
 }
@@ -451,15 +450,14 @@ export default class ViewHandles extends Vue {
 	overflow hidden
 	height 100% a
 
-	circle
+
+	circle, path
 		stroke var(--blue)
 		stroke-width 1
 		vector-effect non-scaling-stroke
-		fill var(--background)
 
-		&:not(.guide):hover
-			stroke-width 3
-			fill var(--blue)
+	circle
+		fill var(--background)
 
 	path
 		stroke var(--blue)
@@ -467,30 +465,31 @@ export default class ViewHandles extends Vue {
 		fill none
 
 		&.axis-x, &.axis-y
-			stroke-width
+			stroke-width 1
 
 		&.axis-x
 			stroke var(--red)
 		&.axis-y
 			stroke var(--green)
 
-	.path
-		&:not(.guide):hover .path__display
+	// Hover behavior
+	*[hoverrable]:hover,
+	*[dragging]
+		path.display
 			stroke-width 3
 
-		&__hover-zone
-			stroke transparent
-			stroke-width 20
+		circle.display
+			fill var(--blue)
+
+		&.dashed
+			stroke-dasharray none
+
+	e// Hover Zone
+	.hover-zone
+		stroke transparent
+		stroke-width 20
 
 	// Dash
-	circle.dashed
+	.dashed
 		stroke-dasharray 3 2
-		&:hover
-			stroke-dasharray none
-
-	.path.dashed
-		stroke-dasharray 3 2
-
-		&:not(.guide):hover
-			stroke-dasharray none
 </style>
