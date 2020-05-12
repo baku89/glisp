@@ -1,5 +1,5 @@
 <template>
-	<svg class="ViewHandles">
+	<svg class="ViewHandles" :class="{dragging: draggingIndex !== null}">
 		<defs>
 			<marker
 				id="arrow-x"
@@ -37,10 +37,10 @@
 			<g
 				v-if="type === 'path'"
 				class="path"
-				:class="cls"
+				:class="{...cls, guide}"
 				:key="i"
 				:transform="transform"
-				@mousedown="!guide && onMousedown(id, $event)"
+				@mousedown="!guide && onMousedown(i, $event)"
 			>
 				<path class="path__hover-zone" :d="path" />
 				<path class="path__display" :d="path" />
@@ -51,7 +51,7 @@
 				:key="i"
 				:class="cls"
 				:transform="transform"
-				@mousedown="!guide && onMousedown(id, $event)"
+				@mousedown="!guide && onMousedown(i, $event)"
 			>
 				<path
 					v-if="type === 'arrow'"
@@ -176,16 +176,17 @@ export default class ViewHandles extends Vue {
 
 		const attrMatrices: mat2d[] = []
 
-		// If the exp is transform attrbute
+		// If the exp is transform attrbute of [:g]
 		for (let i = ancestors.length - 1; 0 < i; i--) {
 			const node = ancestors[i]
 			const outer = ancestors[i - 1]
 
 			if (
-				isVector(outer) &&
+				(isVector(outer) &&
 				isKeyword(outer[0]) && // outer is element
-				isMap(node) &&
-				K_TRANSFORM in node
+					isMap(node) &&
+					K_TRANSFORM in node) ||
+				(isList(outer) && outer[0] === symbolFor('path/transform'))
 			) {
 				const attrAncestors = ancestors.slice(i + 1)
 				attrAncestors.push(exp)
@@ -236,14 +237,22 @@ export default class ViewHandles extends Vue {
 
 		// Extract the matrices from ancestors
 		const matrices = ancestors
-			.filter(
-				node =>
+			.reduce((filtered, node) => {
+				if (
 					isVector(node) &&
 					isKeyword(node[0]) &&
 					isMap(node[1]) &&
 					K_TRANSFORM in node[1]
-			)
-			.map(node => ((node as MalVal[])[1] as MalMap)[K_TRANSFORM])
+				) {
+					const matrix = node[1][K_TRANSFORM]
+					filtered.push(matrix)
+				} else if (isList(node) && node[0] === symbolFor('path/transform')) {
+					const matrix = node[1]
+					filtered.push(matrix)
+				}
+
+				return filtered
+			}, [] as MalVal[])
 			.map(xform =>
 				isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
 			) as mat2d[]
@@ -283,7 +292,11 @@ export default class ViewHandles extends Vue {
 			return handles.map((h: any) => {
 				const type = h[K_TYPE]
 				const guide = !!h[K_GUIDE]
-				const cls = h[K_CLASS] || ''
+				const classList = ((h[K_CLASS] as string) || '').split(' ')
+				const cls = {} as {[name: string]: true}
+				for (const name of classList) {
+					cls[name] = true
+				}
 
 				const xform = mat2d.clone(this.transform)
 				let yRotate = 0
@@ -314,16 +327,16 @@ export default class ViewHandles extends Vue {
 					xform[3] = axis[1]
 
 					// set Y rotation
-					if (cls === 'translate') {
+					if (cls['translate']) {
 						const perpAxisYAngle = Math.atan2(axis[1], axis[0])
 						vec2.rotate(axis, origAxisY, [0, 0], -perpAxisYAngle)
 						yRotate = Math.atan2(axis[1], axis[0])
 					}
 				}
 
-				const ret: {[k: string]: string | boolean} = {
+				const ret: {[k: string]: string | boolean | object} = {
 					type,
-					cls: cls + (guide ? ' guide' : ''),
+					cls,
 					guide,
 					id: h[K_ID],
 					transform: `matrix(${xform.join(',')})`,
@@ -354,11 +367,11 @@ export default class ViewHandles extends Vue {
 		window.removeEventListener('mouseup', this.onMouseup)
 	}
 
-	private draggingId!: MalVal
+	private draggingIndex: number | null = null
 	private rawPrevPos!: number[]
 
-	private onMousedown(id: any, e: MouseEvent) {
-		this.draggingId = id
+	private onMousedown(i: number, e: MouseEvent) {
+		this.draggingIndex = i
 		window.addEventListener('mousemove', this.onMousemove)
 		window.addEventListener('mouseup', this.onMouseup)
 
@@ -367,7 +380,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (!this.handleInfo || !this.handles) {
+		if (!this.handleInfo || !this.handles || this.draggingIndex === null) {
 			return
 		}
 
@@ -397,8 +410,10 @@ export default class ViewHandles extends Vue {
 
 		const deltaPos = markMalVector([pos[0] - prevPos[0], pos[1] - prevPos[1]])
 
+		const handle = this.handles[this.draggingIndex]
+
 		const eventInfo = {
-			[K_ID]: this.draggingId === undefined ? null : this.draggingId,
+			[K_ID]: handle.id === undefined ? null : handle.id,
 			[K_POS]: pos,
 			[K_PREV_POS]: prevPos,
 			[K_DELTA_POS]: deltaPos
@@ -414,7 +429,8 @@ export default class ViewHandles extends Vue {
 
 		if (newParams) {
 			if (newParams[0] === K_CHANGE_ID) {
-				this.draggingId = newParams[1]
+				const newId = newParams[1]
+				this.draggingIndex = this.handles.findIndex(h => h.id === newId)
 				newParams = newParams[2] as MalVal[]
 			}
 
