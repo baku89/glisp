@@ -199,11 +199,20 @@
 (defn path/map-points
   {:doc "Maps each point in a path and returns a new one"
    :params [{:label "Function" :type "fn"}
-            {:type "path"}]}
+            {:type "path"}]
+   :returns {:type "path"}}
   [f path]
   (vec
    (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
                             (path/split-segments path)))))
+
+(defn path/transform
+  {:doc "Applies transforms for the vertex of input path"
+   :params [{:type "mat2d"
+             :type "path"}]
+   :returns {:type "path"}}
+  [transform path]
+  (path/map-points #(vec2/transform-mat2d % transform) path))
 
 (defn path/translate
   {:doc "Returns a translated path"
