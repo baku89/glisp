@@ -339,7 +339,17 @@ function getPropertyAtLength(
 	}
 	offset = clamp(offset, 0, paperPath.length)
 
-	return (paperPath as any)[methodName](offset)
+	if (paperPath instanceof paper.CompoundPath) {
+		for (const child of paperPath.children as paper.Path[]) {
+			if (offset <= child.length) {
+				// Might be buggy for a deep-nested compound path
+				return (child as any)[methodName](offset)
+			}
+			offset -= child.length
+		}
+	} else {
+		return (paperPath as any)[methodName](offset)
+	}
 }
 
 function normalAtLength(

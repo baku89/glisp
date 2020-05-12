@@ -273,7 +273,10 @@
     :handles {:draw (fn [[d orig-path] offset-path]
                       [{:type "path" :guide true
                         :class "dashed" :path orig-path}
-                       {:type "path" :path offset-path}])
+                       {:type "path" :path offset-path}
+                       {:type "arrow"
+                        :pos (path/position-at 0 offset-path)
+                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
               :on-drag (fn [{:pos p} [_ & xs] [_ orig-path]]
                          (let [near-t (path/nearest-offset p orig-path)
                                near-pt (path/position-at near-t orig-path)
