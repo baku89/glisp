@@ -329,7 +329,7 @@ export default defineComponent({
 			selection: [0, 0],
 			selectedExp: computed({
 				get: () => {
-					if (!data.exp) {
+					if (!data.exp || data.hasParseError) {
 						return null
 					}
 					const [start, end] = data.selection
