@@ -659,9 +659,13 @@ export default class Inspector extends Vue {
 
 	&__params
 		width 100%
+		position relative
+		table-layout fixed
+
+		tr, td
+			overflow hidden
 
 	&__param
-		position relative
 		margin 0.25em 0
 		height $param-height
 
@@ -670,6 +674,9 @@ export default class Inspector extends Vue {
 
 		td
 			padding 0
+			&:first-child
+				width 5em
+
 
 		.label
 			clear both
@@ -681,9 +688,6 @@ export default class Inspector extends Vue {
 
 		.value
 			width 99%
-
-		.input
-			float left
 
 		.exp
 			height $param-height
