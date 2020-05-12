@@ -94,13 +94,6 @@ function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 	return path
 }
 
-function convertToMalPath(path: PathType): PathType {
-	const ret = markMalVector(
-		path.map(x => (x instanceof Float32Array ? [...x] : x))
-	) as PathType
-	return ret
-}
-
 function getBezier(points: Vec2[]) {
 	const coords = points.map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
@@ -622,7 +615,7 @@ function offset(d: number, path: PathType) {
 	if (!Array.isArray(path) || path[0] !== K_PATH) {
 		throw new Error('Invalid path')
 	} else {
-		const ret: PathType = [K_PATH]
+		const ret: PathType = markMalVector([K_PATH])
 		const commands = path.slice(1)
 
 		//       loff   coff
@@ -690,7 +683,7 @@ function offset(d: number, path: PathType) {
 				continued = false
 			}
 		}
-		return convertToMalPath(ret)
+		return ret
 	}
 }
 

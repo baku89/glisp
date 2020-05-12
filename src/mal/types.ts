@@ -184,7 +184,8 @@ export const isList = (obj: MalVal): obj is MalVal[] =>
 
 // Vectors
 export const isVector = (obj: MalVal): obj is MalVal[] =>
-	Array.isArray(obj) && !!(obj as any)[M_ISVECTOR]
+	(Array.isArray(obj) && !!(obj as any)[M_ISVECTOR]) ||
+	obj instanceof Float32Array
 
 export function createMalVector<T>(_arr: Array<T>): Array<T> {
 	const arr = [..._arr]

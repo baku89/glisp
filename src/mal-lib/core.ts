@@ -92,6 +92,12 @@ const Exports = [
 	['vector', (...xs: MalVal[]) => createMalVector(xs)],
 	['vector?', isVector],
 	['vec', (a: MalVal[]) => createMalVector(a)],
+	['vec32', (a: MalVal[]) => new Float32Array(a as number[])],
+	[
+		'buffer?',
+		(a: MalVal) =>
+			a instanceof Object && (a as any).buffer instanceof ArrayBuffer
+	],
 	['sequential?', Array.isArray],
 	[
 		'seq',

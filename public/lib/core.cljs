@@ -169,7 +169,11 @@
    :params [{:label "Value" :type "any"}]
    :returns {:type "keyword"}}
   [x]
-  (cond (number? x) :number
+  (cond (list? x) :list
+        (vector? x) :vector
+        (map? x) :map
+        (buffer? x) :buffer
+        (number? x) :number
         (string? x) :string
         (boolean? x) :boolean
         (keyword? x) :keyword
