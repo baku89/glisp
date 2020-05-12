@@ -209,52 +209,12 @@
 
 ;; Path modifiers
 
-(defn path/map-points
-  {:doc "Maps each point in a path and returns a new one"
-   :params [{:label "Function" :type "fn"}
-            {:type "path"}]
-   :returns {:type "path"}}
-  [f path]
-  (vec
-   (apply concat :path (map (fn [[cmd & points]] `(~cmd ~@(map f points)))
-                            (path/split-segments path)))))
-
-(defn path/transform
-  {:doc "Applies transforms for the vertex of input path"
-   :params [{:type "mat2d"
-             :type "path"}]
-   :returns {:type "path"}}
-  [transform path]
-  (path/map-points #(vec2/transform-mat2d % transform) path))
-
-(defn path/translate
-  {:doc "Returns a translated path"
-   :params [{:label "Value" :type "vec2"} {:type "path"}]
-   :returns {:type "path"}}
-  [t path]
-  (path/map-points #(vec2/+ % t) path))
-
-(defn path/translate-x [tx path]
-  (path/map-points #(vec2/+ % [tx 0]) path))
-
-(defn path/translate-x [ty path]
-  (path/map-points #(vec2/+ % [0 ty]) path))
-
-(defn path/scale [s path]
-  (path/map-points #(vec2/* % s) path))
-
-(defn path/scale-x
-  {:doc "Returns a path scaled along x-axis"
-   :params [{:label "Value" :type "vec2"} {:type "path"}]
-   :returns {:type "path"}}
-  [sx path]
-  (path/map-points #(vec2/* % [sx 1]) path))
-
-(defn path/scale-y [sy path]
-  (path/map-points #(vec2/* % [1 y]) path))
-
-(defn path/rotate [origin angle path]
-  (path/map-points #(vec2/rotate origin angle %) path))
+(def path/transform
+  ^{:doc "Applies transform matrix for the vertex of input path"
+    :params [{:label "Matrix" :type "mat2d"}
+             {:label "Path" :type "path"}]
+    :returns {:type "path"}}
+  path/transform)
 
 (defn path/merge
   {:doc "Returns a merged path"

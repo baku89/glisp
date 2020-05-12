@@ -1,5 +1,5 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
-import {vec2, mat2d} from 'gl-matrix'
+import {vec2, mat2d, mat2} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
 import paper from 'paper'
@@ -285,6 +285,21 @@ function pathJoin(first: PathType, ...rest: PathType[]) {
 
 		ret.push(...opened)
 		vec2.copy(lastEnd, opened[opened.length - 1] as vec2)
+	}
+
+	return ret
+}
+
+function pathTransform(transform: mat2d, path: PathType) {
+	const ret = markMalVector([K_PATH])
+
+	for (const [cmd, ...pts] of iterateSegment(path.slice(1))) {
+		ret.push(cmd)
+		for (const pt of pts) {
+			const newPt = markMalVector(Array(2))
+			vec2.transformMat2d(newPt as vec2, pt as vec2, transform)
+			ret.push(newPt)
+		}
 	}
 
 	return ret
@@ -819,6 +834,7 @@ const Exports = [
 	['path/divide', createPolynominalBooleanOperator('divide')],
 
 	// Manipulation
+	['path/transform', pathTransform],
 	['path/trim', pathTrim],
 	['path/trim-by-length', trimByLength],
 	['path/flatten', pathFlatten],

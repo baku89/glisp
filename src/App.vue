@@ -71,7 +71,7 @@ import {
 	isMalNode,
 	M_OUTER,
 	MalNodeList,
-	M_MACROEXPANDED,
+	M_EXPANDED,
 	LispError
 } from '@/mal/types'
 
@@ -204,8 +204,8 @@ function bindsAppHandler(
 	appHandler.on('eval-selected', () => {
 		if (data.selectedExp && isMalNode(data.selectedExp)) {
 			let evaled
-			if (M_MACROEXPANDED in data.selectedExp) {
-				evaled = (data.selectedExp as MalNodeList)[M_MACROEXPANDED]
+			if (M_EXPANDED in data.selectedExp) {
+				evaled = (data.selectedExp as MalNodeList)[M_EXPANDED]
 			} else if (M_EVAL in data.selectedExp) {
 				evaled = data.selectedExp[M_EVAL]
 			}

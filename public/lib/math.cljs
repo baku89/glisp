@@ -273,7 +273,7 @@
                      [{:type "point"
                        :class "translate"
                        :pos pos}])
-             :on-drag (fn [{:pos pos}]
+             :on-drag (fn [{:pos p}]
                         [p])}}
   [[x y]]
   [1 0 0 1 x y])
@@ -284,16 +284,20 @@
    :params [{:type "number"}]
    :returns {:type "mat2d"}
    :handles {:draw (fn [[x]]
-                     [{:type "path" :guide true :class "dashed" :path (line [0 -80] [0 80])}
+                     [{:type "path" :guide true :class "dashed"
+                       :path (line [0 -80] [0 80])}
                       {:type "arrow" :pos [x 0]}])
-             :on-drag (fn [{:pos pos}]
-                        [(.x p)])}}
+             :on-drag (fn [{:pos p}]  [(.x p)])}}
   [x] [1 0 0 1 x 0])
 
 (defn mat2d/translate-y
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}}
+   :handles {:draw (fn [[y]]
+                     [{:type "path" :guide true :class "dashed"
+                       :path (line [-80 0] [80 0])}
+                      {:type "arrow" :pos [0 y] :angle HALF_PI}])
+             :on-drag (fn [{:pos p}]  [(.y p)])}}
   [y] [1 0 0 1 0 y])
 
 ;; mat2d/fromScaling, scale
@@ -355,20 +359,22 @@
         c (cos angle)]
     [c s (- s) c 0 0]))
 
-(defn mat2d/mul
-  {:doc "Multipies two mat2d's"
-   :params [{:label "a" :type "mat2d"}
-            {:label "b" :type "mat2d"}]
-   :returns {:type "mat2d"}}
-  [[a0 a1 a2 a3 a4 a5]
-   [b0 b1 b2 b3 b4 b5]]
-  [(+ (* a0 b0) (* a2 b1))
-   (+ (* a1 b0) (* a3 b1))
-   (+ (* a0 b2) (* a2 b3))
-   (+ (* a1 b2) (* a3 b3))
-   (+ (* a0 b4) (* a2 b5) a4)
-   (+ (* a1 b4) (* a3 b5) a5)])
-
+(def mat2d/*
+  ^{:doc "Multipies the mat2d's"
+    :params [&
+             {:label "Matrix" :type "mat2d"}]
+    :returns {:type "mat2d"}}
+  (let
+   [mul (fn
+          [[a0 a1 a2 a3 a4 a5]
+           [b0 b1 b2 b3 b4 b5]]
+          [(+ (* a0 b0) (* a2 b1))
+           (+ (* a1 b0) (* a3 b1))
+           (+ (* a0 b2) (* a2 b3))
+           (+ (* a1 b2) (* a3 b3))
+           (+ (* a0 b4) (* a2 b5) a4)
+           (+ (* a1 b4) (* a3 b5) a5)])]
+    (fn [& xs] (reduce mul mat2d/ident xs))))
 
 (defn mat2d/pivot
   {:doc "Pivot"
@@ -385,14 +391,6 @@
         m-last (mat2d/translate (vec2/scale p -1))]
     (apply mat2d/transform `(~m-first ~@xs ~m-last))))
 
-
-(defn mat2d/transform
-  {:doc "Multiplies the matrices and returns transform matrix"
-   :params [& {:label "Matrix" :type "mat2d"}]
-   :returns {:type "mat2d"}}
-  [& xs]
-  (reduce mat2d/mul mat2d/ident xs))
-
 (defalias translate mat2d/translate)
 (defalias translate-x mat2d/translate-x)
 (defalias translate-y mat2d/translate-y)
@@ -401,7 +399,6 @@
 (defalias scale-y mat2d/scale-y)
 (defalias rotate mat2d/rotate)
 (defalias pivot mat2d/pivot)
-(defalias transform mat2d/transform)
 
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/

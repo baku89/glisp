@@ -21,7 +21,7 @@ import {
 	MalNode,
 	isMalNode,
 	MalNodeList,
-	M_MACROEXPANDED,
+	M_EXPANDED,
 	M_OUTER,
 	M_OUTER_INDEX,
 	M_ELMSTRS,
@@ -106,7 +106,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 		const expandedExp = macroexpand(exp, env)
 		if (cache && exp !== expandedExp) {
-			;(exp as MalNodeList)[M_MACROEXPANDED] = expandedExp
+			;(exp as MalNodeList)[M_EXPANDED] = expandedExp
 		}
 		exp = expandedExp
 
@@ -214,7 +214,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp[exp.length - 1]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeList)[M_MACROEXPANDED] = ret
+					;(exp as MalNodeList)[M_EXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
@@ -224,7 +224,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = a2
-					;(exp as MalNodeList)[M_MACROEXPANDED] = a2
+					;(exp as MalNodeList)[M_EXPANDED] = a2
 				}
 				exp = ret
 				break // continue TCO loop
@@ -299,7 +299,7 @@ const MALNODELIST_SYMBOLS = [
 	M_FN,
 	M_EVAL,
 	M_EVAL_PARAMS,
-	M_MACROEXPANDED,
+	M_EXPANDED,
 	M_OUTER,
 	M_OUTER_INDEX
 ]
