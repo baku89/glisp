@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import Env from './env'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never
@@ -26,7 +27,7 @@ export type MalBind = (string | MalBind)[]
 
 export interface MalFunc {
 	(...args: MalVal[]): MalVal
-	[M_META]: MalVal
+	[M_META]?: MalVal
 	[M_AST]: MalVal
 	[M_ENV]: Env
 	[M_PARAMS]: MalBind
@@ -38,6 +39,7 @@ export class LispError extends Error {}
 export type MalMap = {[keyword: string]: MalVal}
 
 export interface MalNodeMap extends MalMap {
+	[M_META]?: MalVal
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
 	[M_KEYS]: string[]
@@ -47,6 +49,7 @@ export interface MalNodeMap extends MalMap {
 }
 
 export interface MalNodeList extends Array<MalVal> {
+	[M_META]?: MalVal
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
@@ -105,18 +108,15 @@ export function isEqual(a: MalVal, b: MalVal) {
 	}
 }
 
-export function cloneExp(obj: MalVal, newMeta?: MalVal): MalVal {
-	let newObj = null
+export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
+	let newObj: T
 	if (Array.isArray(obj)) {
-		newObj = [...obj]
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		newObj = [...obj] as any
 		if (isVector(obj)) {
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			markMalVector(newObj)
+			markMalVector(newObj as any)
 		}
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	} else if (isMap(obj)) {
-		newObj = {...obj}
+		newObj = {...(obj as MalMap)} as any
 	} else if (obj instanceof Function) {
 		// new function instance
 		const fn = (...args: any) => obj.apply(fn, args)
@@ -127,7 +127,7 @@ export function cloneExp(obj: MalVal, newMeta?: MalVal): MalVal {
 	}
 
 	if (typeof newMeta !== 'undefined') {
-		;(newObj as MalFunc)[M_META] = newMeta
+		;(newObj as MalNode)[M_META] = newMeta
 	}
 
 	return newObj

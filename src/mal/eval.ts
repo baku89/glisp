@@ -170,6 +170,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					env,
 					a1 as string[]
 				)
+			case 'fn-sugar':
+				return createMalFunc(
+					(...args) => evalExp(a1, new Env(env, [], args), cache),
+					a1,
+					env,
+					[]
+				)
 			case 'macro': {
 				const fnexp = [S('fn'), a1, a2]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc

@@ -215,9 +215,8 @@ function readForm(reader: Reader, saveStr: boolean): any {
 	// For syntaxtic sugars
 	const startIdx = reader.index
 
-	// Set trusy value if the form is syntaxic sugar.
-	// It'll set to true if it's unary operator, an offset array if the sugar takes more than one arguments
-	// the offset array is like [<end of arg0>, <start of arg1>] when tri operator
+	// Set offset array value if the form is syntaxic sugar.
+	// the offset array is like [<end of arg0>, <start of arg1>]
 	let sugar: number[] | null = null
 
 	switch (token) {
@@ -248,7 +247,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case '#':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('fn'), [], readForm(reader, saveStr)]
+			val = [S('fn-sugar'), readForm(reader, saveStr)]
 			break
 		case '^': {
 			reader.next()
@@ -386,10 +385,9 @@ export function findExpByRange(
 				return ret
 			}
 
-			try {
+			// For #() syntaxtic sugar
+			if (i < exp[M_ELMSTRS].length) {
 				offset += exp[M_ELMSTRS][i].length
-			} catch (err) {
-				console.error('sdfisd', exp, i)
 			}
 		}
 	} else {

@@ -18,7 +18,8 @@ import {
 	isVector,
 	isList,
 	MalAtom,
-	M_META
+	M_META,
+	isMalNode
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -26,6 +27,9 @@ import {partition} from '@/utils'
 function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new LispError('[with-meta] Need the metadata to attach')
+	}
+	if (!isMalNode(a)) {
+		throw new LispError('[with-meta] Object should not be atom')
 	}
 	const c = cloneExp(a)
 	;(c as any)[M_META] = m
