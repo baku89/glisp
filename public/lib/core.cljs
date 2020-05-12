@@ -217,17 +217,17 @@
     (fn [binds]
       (do 
         (def pairs (partition 2 binds))
-        (def value-pairs (filter #(symbol? (first %)) pairs))
+        (def entries (filter #(symbol? (first %)) pairs))
         (def options (->> pairs
                           (filter #(keyword? (first %)))
                           (apply concat)
                           (apply hash-map)))
-        [value-pairs options]))]
+        [entries options]))]
     
     (macro [binds & body]
-           (let [[value-pairs options] (destruct-binds binds)
-                 syms (map first value-pairs)
-                 colls (map second value-pairs)
+           (let [[entries options] (destruct-binds binds)
+                 syms (map first entries)
+                 colls (map second entries)
                  gen-lst `(combination/product ~@colls)]
              (if (contains? options :index)
                `(map-indexed (fn [~(get options :index) ~syms]
