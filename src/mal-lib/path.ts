@@ -13,8 +13,6 @@ import {
 	createMalVector,
 	markMalVector,
 	assocBang,
-	MalNodeList,
-	M_CACHE,
 	MalNode,
 	getMalNodeCache,
 	setMalNodeCache,
@@ -68,14 +66,41 @@ export function getSVGPathData(path: PathType) {
 	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
 }
 
-function getPaperPath(path: PathType): paper.Path {
+function createPaperPath(path: PathType): paper.Path {
 	const cache = getMalNodeCache(path as MalNode, 'paperPath')
 	if (cache) {
 		return cache
 	}
 
-	const d = getSVGPathData(path)
-	const paperPath = new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
+	if (path[0] === K_PATH) {
+		path = path.slice(1)
+	}
+
+	const paperPath = new paper.Path()
+
+	for (let i = 0; i < path.length; i++) {
+		switch (path[i]) {
+			case K_M:
+				paperPath.moveTo(new paper.Point(path[i + 1] as number[]))
+				i++
+				break
+			case K_L:
+				paperPath.lineTo(new paper.Point(path[i + 1] as number[]))
+				i++
+				break
+			case K_C:
+				paperPath.cubicCurveTo(
+					new paper.Point(path[i + 1] as number[]),
+					new paper.Point(path[i + 2] as number[]),
+					new paper.Point(path[i + 3] as number[])
+				)
+				i += 3
+				break
+			case K_Z:
+				paperPath.closePath()
+				break
+		}
+	}
 
 	setMalNodeCache(path as MalNode, 'paperPath', paperPath)
 
@@ -192,44 +217,6 @@ function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
 	return angle * rot
 }
 
-/**
- * Returns +1 if the path is clock-wise and -1 when CCW.
- * Returns 0 if the direction is indeterminate
- * like when the path is opened or 8-shaped.
- */
-function getPathRotation(path: PathType): number {
-	// Indeterminate case: the path is opened
-	if (!closedQ(path)) {
-		return 0
-	}
-
-	const segments = Array.from(iterateSegment(path))
-
-	// Remove the last (Z)
-	segments.pop()
-
-	// Indeterminate case: the vertex of the path is < 3
-	if (segments.length < 3) {
-		return 0
-	}
-
-	// Extract only vertex points
-	const points = segments.map(seg => seg[seg.length - 1]) as number[][]
-	const numpt = points.length
-
-	let rot = 0
-
-	for (let i = 0; i < numpt; i++) {
-		const last = points[(i - 1 + numpt) % numpt]
-		const curt = points[i]
-		const next = points[(i + 1) % numpt]
-
-		rot += getTurnAngle(last as vec2, curt as vec2, next as vec2)
-	}
-
-	return Math.sign(Math.round(rot))
-}
-
 function toBeziers(path: PathType) {
 	const ret: PathType = [K_PATH]
 
@@ -258,7 +245,7 @@ function toBeziers(path: PathType) {
 }
 
 function pathLength(_path: PathType) {
-	const path = getPaperPath(_path)
+	const path = createPaperPath(_path)
 	getMalPathFromPaper(path)
 	return path.length
 }
@@ -324,7 +311,7 @@ type NormalizedFunctionType = (
 ) => MalVal
 function convertToNormalizedFunction(f: NormalizedFunctionType) {
 	return (t: number, path: PathType) => {
-		const paperPath = getPaperPath(path)
+		const paperPath = createPaperPath(path)
 		return f(t * paperPath.length, path, paperPath)
 	}
 }
@@ -336,7 +323,7 @@ function getPropertyAtLength(
 	paperPath?: paper.Path
 ) {
 	if (!paperPath) {
-		paperPath = getPaperPath(path)
+		paperPath = createPaperPath(path)
 	}
 	offset = clamp(offset, 0, paperPath.length)
 
@@ -411,7 +398,7 @@ function aligningMatrixAtLength(
 	paperPath?: paper.Path
 ) {
 	if (!paperPath) {
-		paperPath = getPaperPath(path)
+		paperPath = createPaperPath(path)
 	}
 	offset = clamp(offset, 0, paperPath.length)
 
@@ -427,7 +414,7 @@ function aligningMatrixAtLength(
 
 // Iteration
 function pathFlatten(flatness: number, path: PathType) {
-	const paperPath = getPaperPath(path)
+	const paperPath = createPaperPath(path)
 	paperPath.flatten(flatness)
 	return getMalPathFromPaper(paperPath)
 }
@@ -441,7 +428,7 @@ function createPolynominalBooleanOperator(methodName: string) {
 			return paths[0]
 		}
 
-		const paperPaths = paths.map(getPaperPath) as paper.PathItem[]
+		const paperPaths = paths.map(createPaperPath) as paper.PathItem[]
 		const result = paperPaths
 			.slice(1)
 			.reduce((a, b) => (a as any)[methodName](b), paperPaths[0])
@@ -576,7 +563,7 @@ function offset(d: number, path: PathType, ...args: MalVal[]) {
 		cap: 'round',
 		...createHashMap(args)
 	} as OffsetOptions
-	const paperPath = getPaperPath(path)
+	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offset(paperPath, d, options)
 	return getMalPathFromPaper(offsetPath)
 }
@@ -587,7 +574,7 @@ function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
 		cap: 'round',
 		...createHashMap(args)
 	} as OffsetOptions
-	const paperPath = getPaperPath(path)
+	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
 	return getMalPathFromPaper(offsetPath)
 }
@@ -607,7 +594,7 @@ function trimByLength(
 	}
 
 	if (!path) {
-		path = getPaperPath(malPath)
+		path = createPaperPath(malPath)
 	}
 
 	// Convert end parameter to a distance from the beginning of path
@@ -647,7 +634,7 @@ function trimByLength(
  * Trim path by normalized T
  */
 function pathTrim(t1: number, t2: number, malPath: PathType) {
-	const path = getPaperPath(malPath)
+	const path = createPaperPath(malPath)
 	const length = path.length
 	if (t1 > t2) {
 		;[t1, t2] = [t2, t1]
@@ -751,7 +738,7 @@ function pathBounds(path: PathType) {
 }
 
 function nearestOffset(pos: number[], malPath: PathType) {
-	const path = getPaperPath(malPath)
+	const path = createPaperPath(malPath)
 	const location = path.getNearestLocation(new paper.Point(pos[0], pos[1]))
 
 	return location.offset / path.length
