@@ -113,8 +113,6 @@ export function isEqual(a: MalVal, b: MalVal) {
 			}
 		}
 		return true
-
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	} else if (isMap(a) && isMap(b)) {
 		if (a.size !== b.size) {
 			return false
