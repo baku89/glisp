@@ -66,5 +66,6 @@ declare module 'vue-color' {
 }
 
 declare module 'vue-popperjs' {
+	const Popper: any
 	export default Popper
 }
