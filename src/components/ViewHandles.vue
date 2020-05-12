@@ -26,11 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g
-			v-if="handlesHandler"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handlesHandler" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -275,7 +271,7 @@ export default class ViewHandles extends Vue {
 			try {
 				handles = drawHandle(this.evaluatedParams, this.evaluated, this.params)
 			} catch (err) {
-				console.log(err)
+				console.error('ViewHandles', err)
 				return null
 			}
 
@@ -447,7 +443,6 @@ export default class ViewHandles extends Vue {
 	overflow hidden
 	height 100% a
 
-
 	circle, path
 		stroke var(--blue)
 		stroke-width 1
@@ -466,12 +461,12 @@ export default class ViewHandles extends Vue {
 
 		&.axis-x
 			stroke var(--red)
+
 		&.axis-y
 			stroke var(--green)
 
 	// Hover behavior
-	*[hoverrable]:hover,
-	*[dragging]
+	*[hoverrable]:hover, *[dragging]
 		path.display
 			stroke-width 3
 
@@ -481,8 +476,7 @@ export default class ViewHandles extends Vue {
 		&.dashed
 			stroke-dasharray none
 
-	e// Hover Zone
-	.hover-zone
+	e, .hover-zone
 		stroke transparent
 		stroke-width 20
 
