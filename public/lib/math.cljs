@@ -9,13 +9,13 @@
             {:type "number" :desc "Normalized amount to interpolate between the two values"}]
    :returns {:type "number"}}
   [a b t] (+ b (* (- a b) t)))
-(defn deg
-  {:doc "Converts radians to degrees"
+(defn to-deg
+  {:doc "Converts an angles to degrees"
    :params [{:type "number"}]
    :returns {:type "number"}}
   [radians] (/ (* radians 180) PI))
-(defn rad
-  {:doc "Converts degrees to radians"
+(defn deg
+  {:doc "Represents an angle in degrees"
    :params [{:type "number"}]
    :returns {:type "number"}}
   [degrees] (/ (* degrees PI) 180))
@@ -374,7 +374,7 @@
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
             &
-            {:label "Matrices" :type "mat2d"}]
+            {:label "Matrix" :type "mat2d"}]
    :returns "mat2d"
    :handles {:draw (fn [[p]]
                      [{:type "point" :class "translate" :pos p}])
@@ -388,7 +388,7 @@
 
 (defn mat2d/transform
   {:doc "Multiplies the matrices and returns transform matrix"
-   :params [& {:label "Matrices" :type "mat2d"}]
+   :params [& {:label "Matrix" :type "mat2d"}]
    :returns {:type "mat2d"}}
   [& xs]
   (reduce mat2d/mul mat2d/ident xs))
