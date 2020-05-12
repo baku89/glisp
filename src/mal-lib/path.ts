@@ -765,6 +765,14 @@ function pathBounds(path: PathType) {
 
 	for (const [cmd, ...pts] of iterateCurve(path)) {
 		switch (cmd) {
+			case K_M: {
+				const pt = pts[0]
+				left = Math.min(left, pt[0])
+				top = Math.min(top, pt[1])
+				right = Math.max(right, pt[0])
+				bottom = Math.max(bottom, pt[1])
+				break
+			}
 			case K_L:
 				left = Math.min(left, pts[0][0], pts[1][0])
 				top = Math.min(top, pts[0][1], pts[1][1])
@@ -783,7 +791,7 @@ function pathBounds(path: PathType) {
 	}
 
 	if (isFinite(left + top + bottom + right)) {
-		return [left, top, right - left, bottom - top]
+		return markMalVector([left, top, right - left, bottom - top])
 	} else {
 		return null
 	}
