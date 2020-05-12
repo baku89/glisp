@@ -64,6 +64,21 @@ export interface MalNodeList extends Array<MalVal> {
 	[M_CACHE]: {[k: string]: any}
 }
 
+export function getMalNodeCache(node: MalNode, key: string): any | undefined {
+	if (node[M_CACHE] instanceof Object) {
+		return node[M_CACHE][key]
+	} else {
+		return undefined
+	}
+}
+
+export function setMalNodeCache(node: MalNode, key: string, value: any) {
+	if (!(node[M_CACHE] instanceof Object)) {
+		node[M_CACHE] = {}
+	}
+	node[M_CACHE][key] = value
+}
+
 export type MalNode = MalNodeMap | MalNodeList
 
 export const isMalNode = (v: MalVal): v is MalNode => v instanceof Object

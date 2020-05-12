@@ -15,7 +15,9 @@ import {
 	assocBang,
 	MalNodeList,
 	M_CACHE,
-	MalNode
+	MalNode,
+	getMalNodeCache,
+	setMalNodeCache
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -66,20 +68,15 @@ export function getSVGPathData(path: PathType) {
 }
 
 function getPaperPath(path: PathType): paper.Path {
-	if ((path as MalNode)[M_CACHE] instanceof Object) {
-		if ('paperPath' in (path as MalNode)[M_CACHE]) {
-			return (path as MalNode)[M_CACHE].paperPath
-		}
+	const cache = getMalNodeCache(path as MalNode, 'paperPath')
+	if (cache) {
+		return cache
 	}
 
 	const d = getSVGPathData(path)
 	const paperPath = new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
 
-	if (!((path as MalNode)[M_CACHE] instanceof Object)) {
-		;(path as MalNode)[M_CACHE] = {}
-	}
-
-	;(path as MalNode)[M_CACHE].paperPath = paperPath
+	setMalNodeCache(path as MalNode, 'paperPath', paperPath)
 
 	return paperPath
 }
