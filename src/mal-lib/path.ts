@@ -3,6 +3,7 @@ import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
 import paper from 'paper'
+import {PaperOffset, OffsetOptions} from 'paperjs-offset'
 import {
 	MalVal,
 	keywordFor as K,
@@ -10,7 +11,11 @@ import {
 	isKeyword,
 	LispError,
 	createMalVector,
-	markMalVector
+	markMalVector,
+	assocBang,
+	MalNodeList,
+	M_CACHE,
+	MalNode
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -42,6 +47,8 @@ const UNIT_QUAD_BEZIER = new Bezier([
 	{x: 0, y: 1}
 ])
 
+const M_PAPER_PATH = Symbol.for('paper-path')
+
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function createEmptyPath() {
@@ -59,9 +66,22 @@ export function getSVGPathData(path: PathType) {
 }
 
 function getPaperPath(path: PathType): paper.Path {
-	const d = getSVGPathData(path)
+	if ((path as MalNode)[M_CACHE] instanceof Object) {
+		if ('paperPath' in (path as MalNode)[M_CACHE]) {
+			return (path as MalNode)[M_CACHE].paperPath
+		}
+	}
 
-	return new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
+	const d = getSVGPathData(path)
+	const paperPath = new paper.Path().importSVG(`<path d="${d}"/>`) as paper.Path
+
+	if (!((path as MalNode)[M_CACHE] instanceof Object)) {
+		;(path as MalNode)[M_CACHE] = {}
+	}
+
+	;(path as MalNode)[M_CACHE].paperPath = paperPath
+
+	return paperPath
 }
 
 function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
@@ -534,157 +554,34 @@ function pathArc(
 			.flat()
 	])
 }
-function offsetSegmentBezier(d: number, ...points: Vec2[]): false | PathType {
-	const bezier = getBezier(points)
 
-	if (bezier.length() < EPSILON) {
-		return false
+function createHashMap(args: MalVal[]) {
+	for (let i = 0; i < args.length; i += 2) {
+		args[i] = (args[i] as string).slice(1)
 	}
-
-	const offset = bezier.offset(d)
-
-	const {x, y} = offset[0].points[0]
-
-	const ret = [K_M, [x, y]]
-
-	for (const seg of offset) {
-		const pts = seg.points
-		ret.push(K_C)
-		for (let i = 1; i < 4; i++) {
-			ret.push([pts[i].x, pts[i].y])
-		}
-	}
-
-	return ret
+	return assocBang({}, ...args)
 }
 
-function offsetSegmentLine(d: number, a: vec2, b: vec2): false | PathType {
-	if (vec2.equals(a, b)) {
-		return false
-	}
-
-	const dir = vec2.create()
-
-	vec2.sub(dir, b, a)
-	vec2.rotate(dir, dir, [0, 0], Math.PI / 2)
-	vec2.normalize(dir, dir)
-	vec2.scale(dir, dir, d)
-
-	const oa = vec2.create()
-	const ob = vec2.create()
-
-	vec2.add(oa, a, dir)
-	vec2.add(ob, b, dir)
-
-	return [K_M, oa, K_L, ob] as PathType
+function offset(d: number, path: PathType, ...args: MalVal[]) {
+	const options = {
+		join: 'round',
+		cap: 'round',
+		...createHashMap(args)
+	} as OffsetOptions
+	const paperPath = getPaperPath(path)
+	const offsetPath = PaperOffset.offset(paperPath, d, options)
+	return getMalPathFromPaper(offsetPath)
 }
 
-function offset(d: number, path: PathType) {
-	const dirLast = vec2.create()
-	const dirNext = vec2.create()
-
-	const isClockwise = getPathRotation(path) === 1
-
-	if (isClockwise) {
-		d *= -1
-	}
-
-	const makeRoundCorner = (origin: vec2, last: vec2, next: vec2) => {
-		// dont know why this order
-		vec2.sub(dirLast, last, origin)
-		vec2.sub(dirNext, next, origin)
-
-		if (d < 0) {
-			vec2.scale(dirLast, dirLast, -1)
-			vec2.scale(dirNext, dirNext, -1)
-		}
-
-		const angle = vec2.angle(dirLast, dirNext)
-
-		const start = Math.atan2(dirLast[1], dirLast[0])
-
-		// Determine turned left or right
-		vec2.rotate(dirLast, dirLast, [0, 0], HALF_PI)
-		const turn = Math.sign(vec2.dot(dirLast, dirNext))
-
-		const end = start + angle * turn
-
-		return pathArc(origin, d, start, end).slice(1) as PathType
-	}
-
-	if (!Array.isArray(path) || path[0] !== K_PATH) {
-		throw new Error('Invalid path')
-	} else {
-		const ret: PathType = markMalVector([K_PATH])
-		const commands = path.slice(1)
-
-		//       loff   coff
-		//----------|  /\
-		//          | /  \
-		//----------|/    \
-		//      lorig\     \
-		//            \     \
-
-		const lorig = vec2.create() // original last
-		const forig = vec2.create() // original first
-		const loff = vec2.create() // last offset
-		const coff = vec2.create() // current offset
-		const foff = vec2.create() // first offset
-
-		let continued = false
-
-		let cmd, points
-		for ([cmd, ...points] of iterateSegment(commands)) {
-			if (cmd === K_M) {
-				vec2.copy(forig, points[0] as vec2)
-				vec2.copy(lorig, forig)
-			} else if (cmd === K_L || cmd === K_C || cmd === K_Z) {
-				if (cmd === K_Z) {
-					points = forig as number[]
-				}
-
-				// off is like [:M [x y] :L [x y] ... ]
-				let off =
-					cmd === K_C
-						? offsetSegmentBezier(d, lorig, ...(points as Vec2[]))
-						: offsetSegmentLine(d, lorig, points as vec2)
-				if (off) {
-					vec2.copy(coff, off[1] as vec2)
-
-					if (continued) {
-						if (vec2.equals(loff, off[1] as vec2)) {
-							off = off.slice(2) // remove [:M [x y]]
-						} else {
-							// make a bevel
-							const corner = makeRoundCorner(lorig, loff, coff)
-							// (M [x y] # ...) + (M [x y] # ...)
-							off = [...corner.slice(2), ...off.slice(2)]
-							// make a chamfer Bevel
-							// off[0] = K_L
-						}
-					} else {
-						// First time to offset
-						continued = true
-						vec2.copy(foff, off[1] as vec2)
-					}
-					ret.push(...off)
-					vec2.copy(lorig, points[points.length - 1] as vec2)
-					vec2.copy(loff, off[off.length - 1] as vec2)
-				}
-			}
-
-			if (cmd === K_Z) {
-				// Make a bevel corner
-				const corner = makeRoundCorner(lorig, loff, foff)
-				ret.push(...corner.slice(3), K_Z)
-				// Chanfer
-				// ret.push(K_Z)
-
-				continued = false
-			}
-		}
-		return ret
-	}
+function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
+	const options = {
+		join: 'round',
+		cap: 'round',
+		...createHashMap(args)
+	} as OffsetOptions
+	const paperPath = getPaperPath(path)
+	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
+	return getMalPathFromPaper(offsetPath)
 }
 
 /**
@@ -809,6 +706,7 @@ const Exports = [
 	['path/join', pathJoin],
 	['path/to-beziers', toBeziers],
 	['path/offset', offset],
+	['path/offset-stroke', offsetStroke],
 	['path/length', pathLength],
 	['path/closed?', closedQ],
 

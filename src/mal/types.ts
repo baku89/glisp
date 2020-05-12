@@ -16,6 +16,7 @@ export const M_EXPANDED = Symbol.for('macroexpanded')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
+export const M_CACHE = Symbol.for('cache') // misc caches used by libraries
 
 // Stores string repsentation
 export const M_ISSUGAR = Symbol('issugar')
@@ -46,6 +47,7 @@ export interface MalNodeMap extends MalMap {
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
+	[M_CACHE]: {[k: string]: any}
 }
 
 export interface MalNodeList extends Array<MalVal> {
@@ -59,6 +61,7 @@ export interface MalNodeList extends Array<MalVal> {
 	[M_EXPANDED]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
+	[M_CACHE]: {[k: string]: any}
 }
 
 export type MalNode = MalNodeMap | MalNodeList
