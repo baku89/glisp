@@ -268,3 +268,20 @@
                            :start [(path/nearest-offset p evaluated-path) end path]
                            :end [start (path/nearest-offset p evaluated-path) path]))}}
   path/trim)
+
+(def path-boolean-meta
+  {:params [& {:label "Path" :type "path"}]
+   :handles {:draw (fn [[& paths]]
+                     (vec (map #(hash-map :type "path" :guide true :class "dashed" :path %) paths)))}})
+
+
+(def path/unite
+  ^(assoc path-boolean-meta :doc "Unites the paths") path/unite)
+(def path/intersect
+  ^(assoc path-boolean-meta :doc "Intersects the paths") path/intersect)
+(def path/subtract
+  ^(assoc path-boolean-meta :doc "Subtracts the paths") path/subtract)
+(def path/exclude
+  ^(assoc path-boolean-meta :doc "Excludes the paths") path/exclude)
+(def path/divide
+  ^(assoc path-boolean-meta :doc "Divides the paths") path/divide)
