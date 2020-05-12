@@ -140,7 +140,8 @@ export default function printExp(
 			}
 
 			if (!exp[M_DELIMITERS]) {
-				exp[M_DELIMITERS] = ['', ...Array(elmStrs.length - 1).fill(' '), '']
+				const spaceCount = Math.max(0, elmStrs.length - 1)
+				exp[M_DELIMITERS] = ['', ...Array(spaceCount).fill(' '), '']
 			}
 		}
 	}
