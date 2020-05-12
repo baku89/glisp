@@ -19,6 +19,14 @@ import {
 } from './types'
 import printExp from './printer'
 
+const S_QUOTE = S('quote')
+const S_QUASIQUOTE = S('quasiquote')
+const S_UNQUOTE = S('unquote')
+const S_SPLICE_UNQUOTE = S('splice-unquote')
+const S_FN_SUGAR = S('fn-sugar')
+const S_WITH_META_SUGAR = S('with-meta-sugar')
+const S_DEREF = S('deref')
+
 class Reader {
 	private tokens: string[] | [string, number][]
 	private str: string
@@ -227,27 +235,27 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case "'":
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('quote'), readForm(reader, saveStr)]
+			val = [S_QUOTE, readForm(reader, saveStr)]
 			break
 		case '`':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('quasiquote'), readForm(reader, saveStr)]
+			val = [S_QUASIQUOTE, readForm(reader, saveStr)]
 			break
 		case '~':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('unquote'), readForm(reader, saveStr)]
+			val = [S_UNQUOTE, readForm(reader, saveStr)]
 			break
 		case '~@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('splice-unquote'), readForm(reader, saveStr)]
+			val = [S_SPLICE_UNQUOTE, readForm(reader, saveStr)]
 			break
 		case '#':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('fn-sugar'), readForm(reader, saveStr)]
+			val = [S_FN_SUGAR, readForm(reader, saveStr)]
 			break
 		case '^': {
 			reader.next()
@@ -255,13 +263,13 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			const meta = readForm(reader, saveStr)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 			const expr = readForm(reader, saveStr)
-			val = [S('with-meta-sugar'), meta, expr]
+			val = [S_WITH_META_SUGAR, meta, expr]
 			break
 		}
 		case '@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S('deref'), readForm(reader, saveStr)]
+			val = [S_DEREF, readForm(reader, saveStr)]
 			break
 		// list
 		case ')':

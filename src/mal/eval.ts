@@ -35,18 +35,35 @@ import Env from './env'
 import printExp from './printer'
 import {saveOuter} from './reader'
 
+const S_DEF = S('def')
+const S_LET = S('let')
+const S_IF = S('if')
+const S_DO = S('do')
+const S_FN = S('fn')
+const S_FN_SUGAR = S('fn-sugar')
+const S_MACRO = S('macro')
+const S_MACROEXPAND = S('macroexpand')
+const S_QUOTE = S('quote')
+const S_UNQUOTE = S('unquote')
+const S_QUASIQUOTE = S('quasiquote')
+const S_SPLICE_UNQUOTE = S('splice-unquote')
+const S_TRY = S('try')
+const S_CATCH = S('catch')
+const S_CONCAT = S('concat')
+const S_CONS = S('cons')
+
 // eval
 const isPair = (x: MalVal) => Array.isArray(x) && x.length > 0
 
 function quasiquote(exp: any): MalVal {
 	if (!isPair(exp)) {
-		return [S('quote'), exp]
-	} else if (exp[0] === S('unquote')) {
+		return [S_QUOTE, exp]
+	} else if (exp[0] === S_UNQUOTE) {
 		return exp[1]
-	} else if (isPair(exp[0]) && exp[0][0] === S('splice-unquote')) {
-		return [S('concat'), exp[0][1], quasiquote(exp.slice(1))]
+	} else if (isPair(exp[0]) && exp[0][0] === S_SPLICE_UNQUOTE) {
+		return [S_CONCAT, exp[0][1], quasiquote(exp.slice(1))]
 	} else {
-		return [S('cons'), quasiquote(exp[0]), quasiquote(exp.slice(1))]
+		return [S_CONS, quasiquote(exp[0]), quasiquote(exp.slice(1))]
 	}
 }
 
@@ -122,16 +139,16 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		const [a0, a1, a2, a3] = exp
 
 		// Special Forms
-		switch (isSymbol(a0) ? (a0 as string).slice(1) : null) {
-			case 'def': {
+		switch (a0) {
+			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
-					;(exp as MalNodeList)[M_FN] = env.get(S('def'))
+					;(exp as MalNodeList)[M_FN] = env.get(S_DEF)
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
-			case 'let': {
+			case S_LET: {
 				const letEnv = new Env(env)
 				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
@@ -141,20 +158,20 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env = letEnv
-				const ret = exp.length === 3 ? a2 : [S('do'), ...exp.slice(2)]
+				const ret = exp.length === 3 ? a2 : [S_DO, ...exp.slice(2)]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				exp = ret
 				break // continue TCO loop
 			}
-			case 'quote':
+			case S_QUOTE:
 				// No need to cache M_EVAL
 				// if (cache) {
 				// 	;(exp as MalNode)[M_EVAL] = a1
 				// }
 				return a1
-			case 'quasiquote': {
+			case S_QUASIQUOTE: {
 				const ret = quasiquote(a1)
 				// No need to cache M_EVAL
 				// if (cache) {
@@ -163,34 +180,34 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			case 'fn':
+			case S_FN:
 				return createMalFunc(
 					(...args) => evalExp(a2, new Env(env, a1 as string[], args), cache),
 					a2,
 					env,
 					a1 as string[]
 				)
-			case 'fn-sugar':
+			case S_FN_SUGAR:
 				return createMalFunc(
 					(...args) => evalExp(a1, new Env(env, [], args), cache),
 					a1,
 					env,
 					[]
 				)
-			case 'macro': {
-				const fnexp = [S('fn'), a1, a2]
+			case S_MACRO: {
+				const fnexp = [S_FN, a1, a2]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true
 				return fn
 			}
-			case 'macroexpand': {
+			case S_MACROEXPAND: {
 				const ret = macroexpand(a1, env)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
-			case 'try':
+			case S_TRY:
 				try {
 					const ret = evalExp(a1, env, cache)
 					if (cache) {
@@ -199,7 +216,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					return ret
 				} catch (exc) {
 					let err = exc
-					if (a2 && Array.isArray(a2) && a2[0] === S('catch')) {
+					if (a2 && Array.isArray(a2) && a2[0] === S_CATCH) {
 						if (exc instanceof Error) {
 							err = exc.message
 						}
@@ -216,7 +233,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 						throw err
 					}
 				}
-			case 'do': {
+			case S_DO: {
 				evalAtom(exp.slice(1, -1), env, cache)
 				const ret = exp[exp.length - 1]
 				if (cache) {
@@ -226,7 +243,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			case 'if': {
+			case S_IF: {
 				const test = evalExp(a1, env, cache)
 				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
@@ -266,7 +283,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 						.join(' <- ') || 'not defined'
 				]
 				break
-			}
+			}s
 			*/
 			default: {
 				// Apply Function
