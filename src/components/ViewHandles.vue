@@ -54,13 +54,10 @@
 					class="display"
 					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
 				/>
-				<path v-if="cls === 'translate'" class="display" d="M 12 0 H -12" />
-				<path
-					v-if="cls === 'translate'"
-					class="display"
-					:transform="yTransform"
-					d="M 0 12 V -12"
-				/>
+				<template v-if="cls.translate">
+					<path class="display" d="M 12 0 H -12" />
+					<path class="display" :transform="yTransform" d="M 0 12 V -12" />
+				</template>
 				<circle class="display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 			</template>
 		</g>
