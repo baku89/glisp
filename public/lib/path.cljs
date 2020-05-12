@@ -259,30 +259,32 @@
 (def path/divide
   ^(assoc path-boolean-meta :doc "Divides the paths") path/divide)
 
+(def path-offset-meta
+  {:params [{:label "Offset" :type "number"}
+            {:label "Path" :type "path"}
+            &
+            {:keys [{:key :join :type "string" :default "round"
+                     :enum ["miter" "bevel" "round"]}
+                    {:key :cap :type "string" :default "round"
+                     :enum ["butt" "round"]}]}]
+   :returns {:type "path"}
+   :handles {:draw (fn [[d orig-path] offset-path]
+                     [{:type "path" :guide true
+                       :class "dashed" :path orig-path}
+                      {:type "path" :path offset-path}
+                      {:type "arrow"
+                       :pos (path/position-at 0 offset-path)
+                       :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
+             :on-drag (fn [{:pos p} [_ & xs] [_ orig-path]]
+                        (let [near-t (path/nearest-offset p orig-path)
+                              near-pt (path/position-at near-t orig-path)
+                              near-n (path/normal-at near-t orig-path)
+                              near-dir (vec2/- p near-pt)
+                              d-sign (sign (vec2/dot near-n near-dir))
+                              d (* (vec2/len near-dir) d-sign)]
+                          `(~d ~@xs)))}})
 
 (def path/offset
-  ^{:doc "Offsets a path"
-    :params [{:label "Offset" :type "number"}
-             {:label "Path" :type "path"}
-             &
-             {:keys [{:key :join :type "string" :default "round"
-                      :enum ["miter" "bevel" "round"]}
-                     {:key :cap :type "string" :default "round"
-                      :enum ["butt" "round"]}]}]
-    :returns {:type "path"}
-    :handles {:draw (fn [[d orig-path] offset-path]
-                      [{:type "path" :guide true
-                        :class "dashed" :path orig-path}
-                       {:type "path" :path offset-path}
-                       {:type "arrow"
-                        :pos (path/position-at 0 offset-path)
-                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
-              :on-drag (fn [{:pos p} [_ & xs] [_ orig-path]]
-                         (let [near-t (path/nearest-offset p orig-path)
-                               near-pt (path/position-at near-t orig-path)
-                               near-n (path/normal-at near-t orig-path)
-                               near-dir (vec2/- p near-pt)
-                               d-sign (sign (vec2/dot near-n near-dir))
-                               d (* (vec2/len near-dir) d-sign)]
-                           `(~d ~@xs)))}}
-  path/offset)
+  ^(assoc path-offset-meta :doc "Offsets a path") path/offset)
+(def path/offset-stroke
+  ^(assoc path-offset-meta :doc "Generates outline stroke from a path") path/offset-stroke)
