@@ -17,7 +17,7 @@ import printExp from '@/mal/printer'
 
 type Vec2 = number[] | vec2
 
-type PathType = (string | Vec2)[]
+export type PathType = (string | Vec2)[]
 type SegmentType = [string, ...Vec2[]]
 
 const EPSILON = 1e-5

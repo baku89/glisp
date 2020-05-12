@@ -8,7 +8,7 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
-import {iterateSegment} from '@/mal-lib/path'
+import {iterateSegment, PathType} from '@/mal-lib/path'
 import {ViewerSettings} from './index'
 
 const K_G = K('g'),
@@ -178,37 +178,25 @@ export default class CanvasRenderer {
 						ctx.restore()
 						break
 					}
-					case K_PATH: {
-						ctx.beginPath()
-						for (const [c, ...pts] of iterateSegment(rest)) {
-							const args = pts.flat()
-							switch (c) {
-								case K_M:
-									ctx.moveTo(...(args as [number, number]))
-									break
-								case K_L:
-									ctx.lineTo(...(args as [number, number]))
-									break
-								case K_C:
-									ctx.bezierCurveTo(
-										...(args as [
-											number,
-											number,
-											number,
-											number,
-											number,
-											number
-										])
-									)
-									break
-								case K_Z:
-									ctx.closePath()
-									break
-								default: {
-									throw new LispError(`Invalid d-path command: ${printExp(c)}`)
-								}
-							}
+					case K('clip'): {
+						const [clipPath, ...children] = rest
+						// Enable Clip
+						ctx.save()
+						const clipRegion = new Path2D()
+						this.drawPath(clipRegion, clipPath)
+						ctx.clip(clipRegion)
+
+						// Draw inner items
+						for (const child of children) {
+							this.draw(ret, child, styles, defaultStyle)
 						}
+
+						// Restore
+						ctx.restore()
+						break
+					}
+					case K_PATH: {
+						this.drawPath(ctx, exp as PathType)
 						// Apply Styles
 						this.applyDrawStyle(styles, defaultStyle)
 						break
@@ -276,6 +264,34 @@ export default class CanvasRenderer {
 		}
 
 		return ret
+	}
+
+	private drawPath(ctx: CanvasContext | Path2D, path: PathType) {
+		if (!(ctx instanceof Path2D)) {
+			ctx.beginPath()
+		}
+		for (const [c, ...pts] of iterateSegment(path.slice(1))) {
+			const args = pts.flat()
+			switch (c) {
+				case K_M:
+					ctx.moveTo(...(args as [number, number]))
+					break
+				case K_L:
+					ctx.lineTo(...(args as [number, number]))
+					break
+				case K_C:
+					ctx.bezierCurveTo(
+						...(args as [number, number, number, number, number, number])
+					)
+					break
+				case K_Z:
+					ctx.closePath()
+					break
+				default: {
+					throw new LispError(`Invalid d-path command: ${printExp(c)}`)
+				}
+			}
+		}
 	}
 
 	private createFillOrStrokeStyle(style: string | any[]) {
