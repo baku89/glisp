@@ -236,7 +236,7 @@
                        {:type "path" :id :path-trimmed :class "dashed" :guide true :path trimmed-path}
                        {:type "point" :id :start :pos (path/position-at start path)}
                        {:type "point" :id :end :pos (path/position-at end path)}])
-              :on-drag (fn [{id :id p :pos} [start end path] [_ _ evaluated-path]]
+              :on-drag (fn [{:id id :pos p} [start end path] [_ _ evaluated-path]]
                          (case id
                            :start [(path/nearest-offset p evaluated-path) end path]
                            :end [start (path/nearest-offset p evaluated-path) path]))}}
