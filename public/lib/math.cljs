@@ -389,7 +389,7 @@
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/scale p -1))]
-    (apply mat2d/transform `(~m-first ~@xs ~m-last))))
+    (apply mat2d/* `(~m-first ~@xs ~m-last))))
 
 (defalias translate mat2d/translate)
 (defalias translate-x mat2d/translate-x)
