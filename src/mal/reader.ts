@@ -386,7 +386,11 @@ export function findExpByRange(
 				return ret
 			}
 
-			offset += exp[M_ELMSTRS][i].length
+			try {
+				offset += exp[M_ELMSTRS][i].length
+			} catch (err) {
+				console.error('sdfisd', exp, i)
+			}
 		}
 	} else {
 		// Hash Map
