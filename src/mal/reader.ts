@@ -17,6 +17,7 @@ import {
 	M_ISSUGAR,
 	M_OUTER_INDEX,
 	MalSelection,
+	MalNodeSelection,
 	getMalFromSelection
 } from './types'
 import printExp from './printer'
@@ -362,12 +363,15 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 }
 
 export function getRangeOfExp2(sel: MalSelection): [number, number] | null {
-	function calcOffset([outer, index]: MalSelection): number {
+	function calcOffset({outer, index}: MalNodeSelection): number {
 		if (!outer) {
 			return 0
 		}
 
-		let offset = calcOffset([outer[M_OUTER], outer[M_OUTER_INDEX]])
+		let offset = calcOffset({
+			outer: outer[M_OUTER],
+			index: outer[M_OUTER_INDEX]
+		})
 
 		if (Array.isArray(outer)) {
 			offset +=
@@ -386,14 +390,11 @@ export function getRangeOfExp2(sel: MalSelection): [number, number] | null {
 		return offset
 	}
 
-	if (!isMalNode(sel[0])) {
-		return null
-	}
-
 	const exp = getMalFromSelection(sel)
 
 	const expLength = printExp(exp).length
-	const offset = calcOffset(sel)
+
+	const offset = 'root' in sel ? 0 : calcOffset(sel)
 
 	return [offset, offset + expLength]
 }

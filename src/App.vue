@@ -339,12 +339,21 @@ export default defineComponent({
 				}
 			}),
 			selectedExp2: computed(() => {
-				return data.selectedExp
-					? [data.selectedExp[M_OUTER], data.selectedExp[M_OUTER_INDEX]]
-					: null
+				if (data.selectedExp) {
+					if (data.selectedExp[M_OUTER]) {
+						return {
+							outer: data.selectedExp[M_OUTER],
+							index: data.selectedExp[M_OUTER_INDEX]
+						}
+					} else {
+						return {root: data.selectedExp}
+					}
+				} else {
+					null
+				}
 			}),
 			selectedExpRange: computed(() => {
-				const sel = data.selectedExp2 as MalNode
+				const sel = data.selectedExp2
 				if (sel) {
 					const ret = getRangeOfExp2(sel)
 					if (ret) {

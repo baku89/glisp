@@ -77,13 +77,27 @@ export type MalVal =
 	| MalVal[]
 	| MalNode
 
-export type MalSelection = [MalNode, number]
+export interface MalNodeSelection {
+	outer: MalNode
+	index: number
+}
 
-export function getMalFromSelection([node, index]: MalSelection) {
-	if (isMap(node)) {
-		return node[node[M_KEYS][index]]
+interface MalRootSelection {
+	root: MalVal
+}
+
+export type MalSelection = MalNodeSelection | MalRootSelection
+
+export function getMalFromSelection(sel: MalSelection) {
+	if ('root' in sel) {
+		return sel.root
 	} else {
-		return node[index]
+		const {outer, index} = sel
+		if (isMap(outer)) {
+			return outer[outer[M_KEYS][index]]
+		} else {
+			return outer[index]
+		}
 	}
 }
 
