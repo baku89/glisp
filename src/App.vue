@@ -6,11 +6,7 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -39,9 +35,7 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -50,6 +44,7 @@
 </template>
 
 <script lang="ts">
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import 'normalize.css'
 import {
 	defineComponent,
@@ -123,6 +118,7 @@ interface Data {
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
+	hasEvalError: boolean
 	hasRenderError: boolean
 	selection: [number, number]
 	selectedExp: MalNode
@@ -292,37 +288,13 @@ export default defineComponent({
 			code: '',
 			exp: null,
 			hasError: computed(() => {
-				return data.hasParseError || data.hasRenderError
+				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
 			hasParseError: false,
+			hasEvalError: computed(() => data.viewExp === null),
 			hasRenderError: false,
 			viewExp: computed(() => {
-				let ret: MalVal = null
-
-				const exp = data.exp
-
-				if (!exp) {
-					return null
-				}
-
-				const options = {
-					width: ui.viewerSize[0],
-					height: ui.viewerSize[1],
-					updateConsole: true,
-					guideColor: ui.guideColor
-				}
-				try {
-					expNotEvaluated = false
-					const {output} = viewREP(exp.value, options)
-					ret = output
-				} catch (err) {
-					if (err instanceof LispError) {
-						printer.error(err.message)
-					} else {
-						printer.error(err)
-					}
-				}
-				return nonReactive(ret)
+				return _evalExp()
 			}),
 
 			// Selection
@@ -332,20 +304,10 @@ export default defineComponent({
 					if (!data.exp || data.hasParseError) {
 						return null
 					}
+
+					evalExpIfNeeded()
+
 					const [start, end] = data.selection
-					if (expNotEvaluated) {
-						try {
-							expNotEvaluated = false
-							viewREP(data.exp.value, {
-								width: ui.viewerSize[0],
-								height: ui.viewerSize[1],
-								updateConsole: true,
-								guideColor: ui.guideColor
-							})
-						} catch (_) {
-							null
-						}
-					}
 					const selected = findExpByRange(
 						data.exp.value,
 						start + OFFSET,
@@ -383,6 +345,40 @@ export default defineComponent({
 				}
 			})
 		}) as Data
+
+		function _evalExp() {
+			const exp = data.exp
+
+			if (!exp) {
+				return null
+			}
+
+			const options = {
+				width: ui.viewerSize[0],
+				height: ui.viewerSize[1],
+				updateConsole: true,
+				guideColor: ui.guideColor
+			}
+
+			try {
+				expNotEvaluated = false
+				const viewExp = viewREP(exp.value, options).output
+				return nonReactive(viewExp)
+			} catch (err) {
+				if (err instanceof LispError) {
+					printer.error(err.message)
+				} else {
+					printer.error(err)
+				}
+			}
+			return null
+		}
+
+		function evalExpIfNeeded() {
+			if (expNotEvaluated) {
+				_evalExp()
+			}
+		}
 
 		// Code <-> Exp Conversion
 		watch(
