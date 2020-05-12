@@ -72,12 +72,19 @@ import {
 	M_OUTER,
 	MalNodeList,
 	M_EXPANDED,
-	LispError
+	LispError,
+	M_OUTER_INDEX,
+	MalSelection
 } from '@/mal/types'
 
 import {replaceRange, nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {BlankException, findExpByRange, getRangeOfExp} from '@/mal/reader'
+import {
+	BlankException,
+	findExpByRange,
+	getRangeOfExp,
+	getRangeOfExp2
+} from '@/mal/reader'
 import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
 import {replaceExp} from '@/mal/eval'
@@ -122,6 +129,7 @@ interface Data {
 	hasRenderError: boolean
 	selection: [number, number]
 	selectedExp: MalNode
+	selectedExp2: MalSelection
 	selectedExpRange: [number, number] | null
 }
 
@@ -330,10 +338,15 @@ export default defineComponent({
 					}
 				}
 			}),
+			selectedExp2: computed(() => {
+				return data.selectedExp
+					? [data.selectedExp[M_OUTER], data.selectedExp[M_OUTER_INDEX]]
+					: null
+			}),
 			selectedExpRange: computed(() => {
-				const selected = data.selectedExp as MalNode
-				if (selected) {
-					const ret = getRangeOfExp(selected)
+				const sel = data.selectedExp2 as MalNode
+				if (sel) {
+					const ret = getRangeOfExp2(sel)
 					if (ret) {
 						const [start, end] = ret
 						return [start - OFFSET, end - OFFSET]

@@ -77,6 +77,16 @@ export type MalVal =
 	| MalVal[]
 	| MalNode
 
+export type MalSelection = [MalNode, number]
+
+export function getMalFromSelection([node, index]: MalSelection) {
+	if (isMap(node)) {
+		return node[node[M_KEYS][index]]
+	} else {
+		return node[index]
+	}
+}
+
 // General Functions
 export function isEqual(a: MalVal, b: MalVal) {
 	if (Array.isArray(a) && Array.isArray(b)) {

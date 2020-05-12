@@ -15,7 +15,9 @@ import {
 	M_DELIMITERS,
 	M_KEYS,
 	M_ISSUGAR,
-	M_OUTER_INDEX
+	M_OUTER_INDEX,
+	MalSelection,
+	getMalFromSelection
 } from './types'
 import printExp from './printer'
 
@@ -357,6 +359,11 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 	const offset = calcOffset(exp)
 
 	return [offset, offset + expLength]
+}
+
+export function getRangeOfExp2(sel: MalSelection) {
+	const exp = getMalFromSelection(sel)
+	return getRangeOfExp(exp as MalNode)
 }
 
 export function findExpByRange(
