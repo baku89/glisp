@@ -17,7 +17,8 @@ import {
 	M_CACHE,
 	MalNode,
 	getMalNodeCache,
-	setMalNodeCache
+	setMalNodeCache,
+	isMap
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -656,6 +657,17 @@ function pathTrim(t1: number, t2: number, malPath: PathType) {
 	return trimByLength(start, end, malPath, path)
 }
 
+const canvasCtx = (() => {
+	const canvas = self.document
+		? document.createElement('canvas')
+		: new OffscreenCanvas(10, 10)
+	const ctx = canvas.getContext('2d')
+	if (!ctx) {
+		throw new Error('Cannot create canvas context')
+	}
+	return ctx
+})()
+
 /**
  * Calc path bounds
  */
@@ -667,31 +679,68 @@ function pathBounds(path: PathType) {
 		right = -Infinity,
 		bottom = -Infinity
 
-	for (const [cmd, ...pts] of iterateCurve(path)) {
-		switch (cmd) {
-			case K_M: {
-				const pt = pts[0]
-				left = Math.min(left, pt[0])
-				top = Math.min(top, pt[1])
-				right = Math.max(right, pt[0])
-				bottom = Math.max(bottom, pt[1])
-				break
-			}
-			case K_L:
-				left = Math.min(left, pts[0][0], pts[1][0])
-				top = Math.min(top, pts[0][1], pts[1][1])
-				right = Math.max(right, pts[0][0], pts[1][0])
-				bottom = Math.max(bottom, pts[0][1], pts[1][1])
-				break
-			case K_C: {
-				const {x, y} = getBezier(pts).bbox()
-				left = Math.min(left, x.min)
-				top = Math.min(top, y.min)
-				right = Math.max(right, x.max)
-				bottom = Math.max(bottom, y.max)
-				break
+	if (path[0] === K_PATH) {
+		for (const [cmd, ...pts] of iterateCurve(path)) {
+			switch (cmd) {
+				case K_M: {
+					const pt = pts[0]
+					left = Math.min(left, pt[0])
+					top = Math.min(top, pt[1])
+					right = Math.max(right, pt[0])
+					bottom = Math.max(bottom, pt[1])
+					break
+				}
+				case K_L:
+					left = Math.min(left, pts[0][0], pts[1][0])
+					top = Math.min(top, pts[0][1], pts[1][1])
+					right = Math.max(right, pts[0][0], pts[1][0])
+					bottom = Math.max(bottom, pts[0][1], pts[1][1])
+					break
+				case K_C: {
+					const {x, y} = getBezier(pts).bbox()
+					left = Math.min(left, x.min)
+					top = Math.min(top, y.min)
+					right = Math.max(right, x.max)
+					bottom = Math.max(bottom, y.max)
+					break
+				}
 			}
 		}
+	} else {
+		// text?
+
+		// Text representation:
+		// [:text "Text" [x y] {:option1 value1...}]
+		const [text, [x, y], options] = path.slice(1) as [
+			string,
+			[number, number],
+			...MalVal[]
+		]
+		const settings: any = {
+			size: 12,
+			font: 'Fira Code',
+			align: 'center',
+			baseline: 'middle'
+		}
+
+		if (isMap(options)) {
+			for (const [k, v] of Object.entries(options)) {
+				settings[(k as string).slice(1)] = v
+			}
+		}
+
+		canvasCtx.font = `${settings.size}px ${settings.font}`
+		canvasCtx.textAlign = settings.align as CanvasTextAlign
+		canvasCtx.textBaseline = settings.baseline as CanvasTextBaseline
+		const measure = canvasCtx.measureText(text as string)
+
+		// Might be bug
+		const yOffset = (24 / 1000) * settings.size
+
+		left = x - measure.actualBoundingBoxLeft
+		right = x + measure.actualBoundingBoxRight
+		top = y - measure.actualBoundingBoxAscent + yOffset
+		bottom = y + measure.actualBoundingBoxDescent + yOffset
 	}
 
 	if (isFinite(left + top + bottom + right)) {
