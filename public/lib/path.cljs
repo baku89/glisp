@@ -187,6 +187,17 @@
        (path/translate center)))
 (defalias ellipse path/ellipse)
 
+(defn path/ngon
+  {:doc "Generates a regular polygon"
+   :params [{:type "vec2"}
+            {:type "number" :constraints {:min 0}}
+            {:label "# of Vertices" :type "number" :constraints {:min 3 :step 1}}]}
+  [center radius n]
+  (let [angles (column 0 n (/ TWO_PI n))
+        vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
+    (apply polygon vertices)))
+(defalias ngon path/ngon)
+
 (defn path/point
   {:doc "Generates a point path"
    :params [{:label "Pos" :type "vec2"}]}

@@ -191,14 +191,13 @@ const Exports = [
 	],
 	[
 		'get',
-		(m: MalMap, a: string, notfound?: MalVal) =>
-			!isMap(m)
-				? null
-				: a in m
-				? m[a]
-				: notfound !== undefined
-				? notfound
-				: null
+		(m: MalMap, a: string, notfound: MalVal = null) => {
+			if (isMap(m)) {
+				return a in m ? m[a] : notfound
+			} else {
+				return notfound
+			}
+		}
 	],
 	[
 		'contains?',
@@ -206,6 +205,11 @@ const Exports = [
 	],
 	['keys', (a: MalMap) => Object.keys(a)],
 	['vals', (a: MalMap) => Object.values(a)],
+	[
+		'entries',
+		(a: MalMap) =>
+			markMalVector(Object.entries(a).map(pair => markMalVector(pair)))
+	],
 
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],

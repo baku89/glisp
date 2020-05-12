@@ -146,10 +146,27 @@
                     {:key :baseline :type "string" :default "middle"
                      :enum ["top" "hanging" "middle"
                             "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn [[_ pos]]
-                     [{:type "point"
-                       :class "translate"
-                       :pos pos}])
-             :on-drag (fn [{p :pos} params] (replace-nth params 1 p))}}
+   :handles {:draw (fn [[_ pos & xs]]
+                     (let [args (apply hash-map xs)
+                           size (get args :size 12)]
+                       [{:id :pos
+                         :type "point"
+                         :class "translate"
+                         :pos pos}
+                        {:id :size
+                         :type "path"
+                         :path (ngon pos size 4)}]))
+             :on-drag (fn [{id :id p :pos} params]
+                        (case id
+                          :pos (replace-nth params 1 p)
+                          :size (let [text-pos (slice params 0 2)
+                                      dir (vec2/- (nth params 1) p)
+                                      size (+ (abs (.x dir)) (abs (.y dir)))
+                                      args (->> (slice params 2)
+                                                (apply hash-map)
+                                                (#(assoc % :size size))
+                                                (entries)
+                                                (apply concat))]
+                                  (concat text-pos args))))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])
