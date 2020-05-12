@@ -24,13 +24,15 @@
                       {:type "point" :id :top-right :pos [(+ x w) y]}
                       {:type "point" :id :bottom-left :pos [x (+ y h)]}
                       {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
-             :on-drag (fn [{:id id :pos p :delta-pos dp} [pos size] [[_x _y] [_w _h]]]
+             :on-drag (fn [{:id id :pos p :delta-pos [dx dy]}
+                           [pos size] ; Before evaluated
+                           [[_x _y] [_w _h]]] ; evaluated
                         (case id
-                          :center [(vec2/+ [_x _y] dp) size]
-                          :left  [[(+ _x (.x dp)) _y] [(- _w (.x dp)) _h]]
-                          :top   [[_x (+ _y (.y dp))] [_w (- _h (.y dp))]]
-                          :right [pos [(+ _w (.x dp)) _h]]
-                          :bottom [pos [_w (+ _h (.y dp))]]
+                          :center [(vec2/+ [_x _y] [dx dy]) size]
+                          :left  [[(+ _x dx) _y] [(- _w dx) _h]]
+                          :top   [[_x (+ _y dy)] [_w (- _h dy)]]
+                          :right [pos [(+ _w dx) _h]]
+                          :bottom [pos [_w (+ _h dy)]]
                           :top-left [p (vec2/- (vec2/+ [_x _y] [_w _h]) p)]
                           :top-right [[_x (.y p)] [(- (.x p) _x) (- (+ _y _h) (.y p))]]
                           :bottom-left [[(.x p) _y] [(- (+ _x _w) (.x p)) (- (.y p) _y)]]
