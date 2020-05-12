@@ -1,5 +1,5 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
-import {vec2, mat2d, mat2} from 'gl-matrix'
+import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
 import paper from 'paper'
