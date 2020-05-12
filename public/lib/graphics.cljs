@@ -156,7 +156,7 @@
                         {:id :size
                          :type "path"
                          :path (ngon pos size 4)}]))
-             :on-drag (fn [{id :id p :pos} params]
+             :on-drag (fn [{:id id :pos p} params]
                         (case id
                           :pos (replace-nth params 1 p)
                           :size (let [text-pos (slice params 0 2)

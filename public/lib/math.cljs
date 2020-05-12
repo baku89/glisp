@@ -55,7 +55,7 @@
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [[val]] [{:type "point" :id :pos :class "translate" :pos val}])
-             :on-drag (fn [{pos :pos}] [pos])}}
+             :on-drag (fn [{:pos pos}] [pos])}}
   [x] x)
 
 (defn vec2?
@@ -273,7 +273,7 @@
                      [{:type "point"
                        :class "translate"
                        :pos pos}])
-             :on-drag (fn [{p :pos}]
+             :on-drag (fn [{:pos pos}]
                         [p])}}
   [[x y]]
   [1 0 0 1 x y])
@@ -286,7 +286,7 @@
    :handles {:draw (fn [[x]]
                      [{:type "path" :guide true :class "dashed" :path (line [0 -80] [0 80])}
                       {:type "arrow" :pos [x 0]}])
-             :on-drag (fn [{p :pos}]
+             :on-drag (fn [{:pos pos}]
                         [(.x p)])}}
   [x] [1 0 0 1 x 0])
 
@@ -312,7 +312,7 @@
                         {:type "point" :id :non-uni :pos [sx sy] :class "translate"}
                         {:type "point" :id :axis-x  :pos [sx 0]}
                         {:type "point" :id :axis-y  :pos [0 sy]}]))
-             :on-drag (fn [{id :id p :pos} [[x y]] [[x0 y0]]]
+             :on-drag (fn [{:id id :pos p} [[x y]] [[x0 y0]]]
                         (let [$x (/ (.x p) 40)
                               $y (/ (.y p) 40)]
                           (case id
@@ -345,7 +345,7 @@
                        [{:type "path" :guide true :path (line [0 0] dir)}
                         {:type "path" :guide true :class "dashed" :path (arc [0 0] 80 0 angle)}
                         {:type "point" :pos dir}]))
-             :on-drag (fn [{p :pos pp :prev-pos} _ [angle]]
+             :on-drag (fn [{:pos p :prev-pos pp} _ [angle]]
                         (let [angle-pp (vec2/angle pp)
                               aligned-p (vec2/rotate [0 0] (- angle-pp) p)
                               angle-delta (vec2/angle aligned-p)]
@@ -378,7 +378,7 @@
    :returns "mat2d"
    :handles {:draw (fn [[p]]
                      [{:type "point" :class "translate" :pos p}])
-             :on-drag (fn [{p :pos} [_ & xs]]
+             :on-drag (fn [{:pos p} [_ & xs]]
                         `(~p ~@xs))}}
   [p & xs]
   (let [m-first (mat2d/translate p)

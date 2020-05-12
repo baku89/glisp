@@ -24,7 +24,7 @@
                       {:type "point" :id :top-right :pos [(+ x w) y]}
                       {:type "point" :id :bottom-left :pos [x (+ y h)]}
                       {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
-             :on-drag (fn [{id :id p :pos dp :delta-pos} [pos size] [[_x _y] [_w _h]]]
+             :on-drag (fn [{:id id :pos p :delta-pos dp} [pos size] [[_x _y] [_w _h]]]
                         (case id
                           :center [(vec2/+ [_x _y] dp) size]
                           :left  [[(+ _x (.x dp)) _y] [(- _w (.x dp)) _h]]
@@ -57,7 +57,7 @@
                         :id :center
                         :class "translate"
                         :pos center}])
-              :on-drag (fn [{id :id p :pos} [center radius]]
+              :on-drag (fn [{:id id :pos p} [center radius]]
                          (case id
                            :center [p radius]
                            :radius [center (vec2/dist center p)]))}}
@@ -81,7 +81,7 @@
                      [{:type "path" :id :path :path path}
                       {:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :on-drag (fn [{id :id p :pos dp :delta-pos} [from to]]
+             :on-drag (fn [{:id id :pos p :delta-pos dp} [from to]]
                         (case id
                           :path [(vec2/+ from dp) (vec2/+ to dp)]
                           :from [p to]
@@ -116,7 +116,7 @@
               {:type "point"
                :id :end
                :pos (vec2/+ center (vec2/dir end r))}])
-     :on-drag (fn [{id :id p :pos} [center r start end]]
+     :on-drag (fn [{:id id :pos p} [center r start end]]
                 (case id
                   :center `(~p ~r ~start ~end)
                   :start (let [start (vec2/angle (vec2/- p center))]
@@ -143,7 +143,7 @@
                                                     (nth pts (inc i))
                                                     .5)})
                            (range (dec (count pts))))))
-             :on-drag (fn [{id :id p :pos} [& pts]]
+             :on-drag (fn [{:id id :pos p} [& pts]]
                         (let [[mode i] id]
                           (case mode
                             :edit (replace-nth pts i p)
@@ -176,7 +176,7 @@
                        :id :center
                        :class "translate"
                        :pos center}])
-             :on-drag (fn [{id :id p :pos} [center [rx ry]]]
+             :on-drag (fn [{:id id :pos p} [center [rx ry]]]
                         (case id
                           :center [p [rx ry]]
                           :radius-x [center [(abs (- (.x p) (.x center))) ry]]

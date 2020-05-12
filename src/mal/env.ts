@@ -54,7 +54,7 @@ export default class Env {
 					}
 				} else if (isMap(binds[i])) {
 					// Hashmap destruction
-					// binds: {name :name location :location} <-- exps: {:name "Baku" :location "Japan"}
+					// binds: {:name "Baku" :location "Japan"} <-- exps: {:name "Baku" :location "Japan"}
 					if (isMap(exps[i])) {
 						// Convert the two maps to list
 						// binds: [name location] <-- exps: ["Baku" "Japan"]
@@ -62,7 +62,7 @@ export default class Env {
 							hashBinds = [],
 							hashExps = []
 
-						for (const [sym, key] of entries) {
+						for (const [key, sym] of entries) {
 							if (!(key in (exps[i] as MalMap))) {
 								throw new LispError(
 									`ERROR: destruction keyword :${key.slice(

@@ -44,7 +44,7 @@
     :on-drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
-    (fn [{id :id pos :pos} [c n rmin rmax]]
+    (fn [{:id id :pos pos} [c n rmin rmax]]
       (case id
         :center [pos n rmin rmax]
         :rmin [c n (vec2/dist c pos) rmax]
