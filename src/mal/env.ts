@@ -13,11 +13,7 @@ export default class Env {
 	private data: {
 		[key: string]: MalVal
 	} = {}
-
-	private binding: {
-		[key: string]: MalVal[]
-	}
-
+	private bindings!: Env[]
 	private exps?: MalVal[]
 
 	public name = 'let'
@@ -27,12 +23,24 @@ export default class Env {
 		binds?: Binds,
 		exps?: MalVal[]
 	) {
+		if (this.root === this) {
+			this.bindings = []
+		}
+
 		if (exps) {
 			this.exps = exps
 		}
 
 		if (binds && exps) {
 			this.bindAll(binds, exps)
+		}
+	}
+
+	protected get root(): Env {
+		if (this.outer) {
+			return this.outer.root
+		} else {
+			return this
 		}
 	}
 
@@ -109,21 +117,35 @@ export default class Env {
 		// 	throw 'FIND not symbol'
 		// }
 
+		// First, search binding
+		const bindings = this.root.bindings
+		if (bindings.length > 0) {
+			const bindingEnv = bindings[bindings.length - 1]
+			const value = bindingEnv.find(key)
+			if (value !== undefined) {
+				return value
+			}
+		}
+
 		// eslint-disable-next-line no-prototype-builtins
 		if (this.data.hasOwnProperty(key)) {
 			return this.data[key]
-		} else if (
+		}
+
+		if (
 			key[1] === '%' &&
 			this.exps &&
 			this.exps.length >= (parseInt(key.slice(2)) || 0)
 		) {
 			const index = parseInt(key.slice(1)) || 0
 			return this.exps[index]
-		} else if (this.outer !== null) {
-			return this.outer.find(key)
-		} else {
-			return undefined
 		}
+
+		if (this.outer !== null) {
+			return this.outer.find(key)
+		}
+
+		return undefined
 	}
 
 	public hasOwn(key: string) {
@@ -150,7 +172,7 @@ export default class Env {
 	public getChain() {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		let _env: Env | null = this
-		const envs = []
+		const envs = [...this.root.bindings.reverse()]
 
 		do {
 			envs.push(_env)
@@ -162,5 +184,18 @@ export default class Env {
 
 	public setOuter(outer: Env) {
 		this.outer = outer
+	}
+
+	public pushBinding() {
+		const bindings = this.root.bindings
+		const outer = bindings.length > 0 ? bindings[bindings.length - 1] : null
+		const env = new Env(outer)
+		env.name = 'binding'
+		bindings.push(env)
+		return env
+	}
+
+	public popBinding() {
+		this.root.bindings.pop()
 	}
 }

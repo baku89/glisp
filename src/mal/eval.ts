@@ -153,9 +153,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				;(expanded as MalNode)[M_EVAL] = ret
 				return ret
 			}
-			case S('binding'): {
-				break
-			}
 			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
@@ -187,6 +184,30 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				exp = ret
 				break // continue TCO loop
+			}
+
+			case S('binding'): {
+				const bindingEnv = env.pushBinding()
+				let binds = a1 as MalVal[]
+				if (isList(binds)) {
+					const _binds = evalExp(binds, env, cache)
+					if (!Array.isArray(_binds)) {
+						throw new LispError('Evaluated binds is not a sequence')
+					}
+					binds = _binds
+				}
+				for (let i = 0; i < binds.length; i += 2) {
+					bindingEnv.bindAll(
+						binds[i] as any,
+						evalExp(binds[i + 1], bindingEnv, cache) as MalVal[]
+					)
+				}
+				const ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
+				env.popBinding()
+				return ret
 			}
 			case S_QUOTE:
 				// No need to cache M_EVAL
