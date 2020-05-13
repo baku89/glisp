@@ -150,7 +150,14 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
-				const binds = a1 as MalVal[]
+				let binds = a1 as MalVal[]
+				if (isList(binds)) {
+					const _binds = evalExp(binds, env, cache)
+					if (!Array.isArray(_binds)) {
+						throw new LispError('Evaluated binds is not a sequence')
+					}
+					binds = _binds
+				}
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,

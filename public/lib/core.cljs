@@ -132,7 +132,7 @@
   (try
     import
     (catch _
-           (let (seen (atom (hash-map __filename__ nil)))
+           (let [seen (atom (hash-map __filename__ nil))]
              (fn (filename)
                (if (not (contains? @seen filename))
                  (do
@@ -327,7 +327,7 @@
 (defn second [x] (first (rest x)))
 
 (def gensym
-  (let (counter (atom 0))
+  (let [counter (atom 0)]
     #(symbol (str "G__" (swap! counter inc)))))
 
 (defn replace-nth [coll idx val]
