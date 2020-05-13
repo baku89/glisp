@@ -1,6 +1,6 @@
 ;; Example: Transformation
 
-(background "#08101D")
+(background "#F5F5F5")
 
 (transform
  ;; Applies transformation to the draw context.
