@@ -8,7 +8,6 @@ export const M_AST = Symbol.for('ast')
 export const M_ENV = Symbol.for('env')
 export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
-export const M_MACRO_EVAL_FLAG = Symbol.for('macro-eval-flag')
 const M_ISVECTOR = Symbol.for('isvector')
 
 export const M_EVAL = Symbol.for('eval')
@@ -34,7 +33,6 @@ export interface MalFunc {
 	[M_ENV]: Env
 	[M_PARAMS]: MalBind
 	[M_ISMACRO]: boolean
-	[M_MACRO_EVAL_FLAG]: boolean[]
 }
 
 export class LispError extends Error {}
