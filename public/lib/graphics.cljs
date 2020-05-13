@@ -18,7 +18,9 @@
     (stroke $guide-color)
     (stroke $guide-color (first xs))))
 
-(defmacro g [attrs & xs]
+(defmacro g
+  {:transform (fn [attrs] (get attrs :transform mat2d/ident))}
+  [attrs & xs]
   `(transform ~(get attrs :transform mat2d/ident)
               ~`(style ~(get attrs :style {})
                        ~@xs)))
@@ -30,11 +32,12 @@
             [(symbol (str "$" (name k))) v])
           (entries style))))
 
-(defmacro
-  transform
-  [attrs & xs]
-  (let [$transform `(mat2d/* $transform ~attrs)]
-    (vec `(:transform ~attrs ~@xs))))
+(defmacro transform
+  {:transform (fn [matrix] matrix)}
+  [matrix & xs]
+  (let [__mat__ (eval-in-env matrix)]
+    `(let ~(vec `($transform (mat2d/* $transform ~__mat__)))
+       ~(vec `(:transform ~__mat__ ~@xs)))))
 
 (defmacro
   style

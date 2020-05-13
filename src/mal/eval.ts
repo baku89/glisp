@@ -29,10 +29,7 @@ import {
 	M_EVAL_PARAMS,
 	M_ISSUGAR,
 	M_DELIMITERS,
-	MalNodeMap,
-	keywordFor,
-	M_PARAMS,
-	M_MACRO_EVAL_FLAG
+	MalNodeMap
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -79,14 +76,6 @@ function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 		;(exp as MalNodeList)[M_FN] = fn
 
 		const params = exp.slice(1)
-		const evalFlags = fn[M_MACRO_EVAL_FLAG]
-
-		for (let i = 0; i < params.length; i++) {
-			if (evalFlags[i]) {
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
-				params[i] = evalExp(params[i], env, cache)
-			}
-		}
 		if (cache) {
 			;(exp as MalNodeList)[M_EVAL_PARAMS] = params
 		}
@@ -158,11 +147,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		switch (a0) {
 			case S('eval-in-env'): {
 				// Don't know why this should be nested
-				const ret = evalExp(evalExp(a1, env, cache), env, cache)
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = a2
-					;(exp as MalNodeList)[M_EXPANDED] = a2
-				}
+				const expanded = evalExp(a1, env, true)
+				const ret = evalExp(expanded, env, true)
+				;(exp as MalNode)[M_EVAL] = a2
+				;(expanded as MalNode)[M_EVAL] = ret
 				return ret
 			}
 			case S_DEF: {
@@ -213,8 +201,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				break // continue TCO loop
 			}
 			case S_FN:
+				if (!Array.isArray(a1)) {
+					throw new LispError('Second element of fn should be list')
+				}
 				return createMalFunc(
-					(...args) => evalExp(a2, new Env(env, a1 as string[], args), cache),
+					(...args) => evalExp(a2, new Env(env, a1 as any[], args), cache),
 					a2,
 					env,
 					a1 as string[]
@@ -230,15 +221,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				if (!Array.isArray(a1)) {
 					throw new LispError('Second element of macro should be list')
 				}
-				const evalFlags = a1.map(p => isList(p) && p[0] === S_UNQUOTE)
-				const fnexp = [
-					S_FN,
-					a1.map((p, i) => (evalFlags[i] ? (p as MalVal[])[1] : p)),
-					a2
-				]
+				const fnexp = [S_FN, a1, a2]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true
-				fn[M_MACRO_EVAL_FLAG] = evalFlags
 				return fn
 			}
 			case S_MACROEXPAND: {

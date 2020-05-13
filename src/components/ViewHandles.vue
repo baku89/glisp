@@ -164,52 +164,50 @@ export default class ViewHandles extends Vue {
 
 		// Collect ancestors
 		let ancestors: MalNode[] = []
-		for (let outer = exp[M_OUTER]; outer; outer = outer[M_OUTER]) {
+		for (let outer = exp; outer; outer = outer[M_OUTER]) {
 			ancestors.unshift(outer)
 		}
 
-		const attrMatrices: mat2d[] = []
+		const attrMatrices: MalVal[] = []
 
-		// If the exp is transform attrbute of [:g]
+		// If the exp is nested inside transform arguments
 		for (let i = ancestors.length - 1; 0 < i; i--) {
 			const node = ancestors[i]
 			const outer = ancestors[i - 1]
 
-			if (
-				(isVector(outer) &&
-				isKeyword(outer[0]) && // outer is element
-					isMap(node) &&
-					K_TRANSFORM in node) ||
-				(isList(outer) && outer[0] === S('path/transform'))
-			) {
-				const attrAncestors = ancestors.slice(i + 1)
-				attrAncestors.push(exp)
+			if (!isList(outer)) {
+				continue
+			}
 
+			const isAttrOfG =
+				outer[0] === S('g') &&
+				outer[1] === node &&
+				isMap(node) &&
+				K_TRANSFORM in node
+
+			const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
+
+			const isAttrOfPathTransform =
+				outer[0] === S('path/transform') && outer[1] === node
+
+			if (isAttrOfG || isAttrOfTransform || isAttrOfPathTransform) {
 				// Exclude attributes' part from ancestors
+				const attrAncestors = ancestors.slice(i)
 				ancestors = ancestors.slice(0, i - 1)
 
-				// Calculate transform
+				// Calculate transform compensation inside attribute
 				for (let j = attrAncestors.length - 1; 0 < j; j--) {
 					const node = attrAncestors[j]
 					const outer = attrAncestors[j - 1]
 
 					if (isList(outer)) {
-						if (outer[0] === S('transform')) {
+						if (outer[0] === S('mat2d/*')) {
 							// Prepend matrices
-							const matrices = outer
-								.slice(1, node[M_OUTER_INDEX])
-								.map(xform =>
-									isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-								) as mat2d[]
-
+							const matrices = outer.slice(1, node[M_OUTER_INDEX])
 							attrMatrices.unshift(...matrices)
 						} else if (outer[0] === S('pivot')) {
 							// Prepend matrices
-							const matrices = outer
-								.slice(2, node[M_OUTER_INDEX])
-								.map(xform =>
-									isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-								) as mat2d[]
+							const matrices = outer.slice(2, node[M_OUTER_INDEX])
 							attrMatrices.unshift(...matrices)
 
 							// Append pivot itself as translation matrix
@@ -220,7 +218,7 @@ export default class ViewHandles extends Vue {
 
 							const pivotMat = mat2d.fromTranslation(mat2d.create(), pivot)
 
-							attrMatrices.unshift(pivotMat)
+							attrMatrices.unshift(pivotMat as number[])
 						}
 					}
 				}
@@ -230,32 +228,30 @@ export default class ViewHandles extends Vue {
 		}
 
 		// Extract the matrices from ancestors
-		const matrices = ancestors
-			.reduce((filtered, node) => {
-				if (
-					isVector(node) &&
-					isKeyword(node[0]) &&
-					isMap(node[1]) &&
-					K_TRANSFORM in node[1]
-				) {
+		const matrices = ancestors.reduce((filtered, node) => {
+			if (isList(node)) {
+				if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
 					const matrix = node[1][K_TRANSFORM]
 					filtered.push(matrix)
-				} else if (isList(node) && node[0] === S('path/transform')) {
+				} else if (
+					node[0] === S('transform') ||
+					node[1] === S('path/transform')
+				) {
 					const matrix = node[1]
 					filtered.push(matrix)
 				}
+			}
 
-				return filtered
-			}, [] as MalVal[])
-			.map(xform =>
-				isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-			) as mat2d[]
+			return filtered
+		}, [] as MalVal[])
 
 		// Append attribute matrices
 		matrices.push(...attrMatrices)
 
 		// Multiplies all matrices in order
-		const ret = matrices.reduce(
+		const ret = (matrices.map(xform =>
+			isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+		) as mat2d[]).reduce(
 			(xform, elXform) => mat2d.multiply(xform, xform, elXform),
 			mat2d.create()
 		)
