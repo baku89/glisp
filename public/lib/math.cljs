@@ -311,11 +311,12 @@
                        [{:type "path" :class "dashed" :guide true
                          :path [:path
                                 :M [0 0] :L [sx 0]
-                                :M [0 0] :L [0 sy]]}
+                                :M [0 0] :L [0 sy]
+                                :M [sx 0] :L [0 (- sy)] :L [(- sx) 0] :L [0 sy]]}
                         {:type "path"  :id :uniform :path (line [sx 0] [0 sy])}
                         {:type "point" :id :non-uni :pos [sx sy] :class "translate"}
-                        {:type "point" :id :axis-x  :pos [sx 0]}
-                        {:type "point" :id :axis-y  :pos [0 sy]}]))
+                        {:type "arrow" :id :axis-x  :pos [sx 0]}
+                        {:type "arrow" :id :axis-y  :pos [0 sy] :angle HALF_PI}]))
              :on-drag (fn [{:id id :pos p} [[x y]] [[x0 y0]]]
                         (let [$x (/ (.x p) 40)
                               $y (/ (.y p) 40)]
@@ -331,12 +332,31 @@
 (defn mat2d/scale-x
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}}
+   :returns {:type "mat2d"}
+   :handles {:draw (fn [[x]]
+                     (let [sx (* x 40)]
+                       [{:type "path" :class "dashed" :guide true
+                         :path [:path
+                                :M [0 0] :L [sx 0]
+                                :L [0 -40] :L [(- sx) 0] :L [0 40] :L [sx 0]]}
+                        {:type "arrow" :pos [sx 0]}]))
+             :on-drag (fn [{:pos [px]}]
+                        [(/ px 40)])}}
   [sx] [sx 0 0 1 0 0])
+
 (defn mat2d/scale-y
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}}
+   :returns {:type "mat2d"}
+   :handles {:draw (fn [[y]]
+                     (let [sy (* y 40)]
+                       [{:type "path" :class "dashed" :guide true
+                         :path [:path
+                                :M [0 0] :L [0 sy]
+                                :L [-40 0] :L [0 (- sy)] :L [40 0] :L [0 sy]]}
+                        {:type "arrow" :pos [0 sy] :angle HALF_PI}]))
+             :on-drag (fn [{:pos [_ py]}]
+                        [(/ py 40)])}}
   [sy] [1 0 0 sy 0 0])
 
 ;; mat2d/fromRotation
