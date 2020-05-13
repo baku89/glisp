@@ -137,7 +137,7 @@ export default class Env {
 			this.exps &&
 			this.exps.length >= (parseInt(key.slice(2)) || 0)
 		) {
-			const index = parseInt(key.slice(1)) || 0
+			const index = parseInt(key.slice(2)) || 0
 			return this.exps[index]
 		}
 
