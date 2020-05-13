@@ -132,13 +132,14 @@ export default class Env {
 			return this.data[key]
 		}
 
+		let argIndex
 		if (
 			key[1] === '%' &&
 			this.exps &&
-			this.exps.length >= (parseInt(key.slice(2)) || 0)
+			this.exps.length >= (argIndex = parseInt(key.slice(2)) || 0)
 		) {
-			const index = parseInt(key.slice(2)) || 0
-			return this.exps[index]
+			console.log(argIndex)
+			return this.exps[argIndex]
 		}
 
 		if (this.outer !== null) {

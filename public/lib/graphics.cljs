@@ -35,15 +35,14 @@
 (defmacro transform
   {:transform (fn [matrix] matrix)}
   [matrix & xs]
-  (let [__mat__ (eval-in-env matrix)]
-    `(binding ~(vec `($transform (mat2d/* $transform ~__mat__)))
-       ~(vec `(:transform ~__mat__ ~@xs)))))
+  (let [_$transform (mat2d/* (eval-in-env matrix))]
+    `(binding ~(vec `($transform ~_$transform))
+       ~(vec `(:transform ~matrix ~@xs)))))
 
 (defmacro
   style
   [attrs & xs]
   (let [eval-attrs (eval-in-env attrs)
-        _ (prn eval-attrs)
         binds (if (sequential? eval-attrs)
                 (apply concat (map gen-style-binds eval-attrs))
                 (gen-style-binds eval-attrs))]

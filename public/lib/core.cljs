@@ -222,26 +222,28 @@
       (do 
         (def pairs (partition 2 binds))
         (def entries (filter #(symbol? (first %)) pairs))
-        (def options (->> pairs
-                          (filter #(keyword? (first %)))
-                          (apply concat)
-                          (apply hash-map)))
+        ;; (def options (->> pairs
+        ;;                   (filter (fn [[pf]] (keyword? pf)))
+        ;;                   (prn-pass)
+        ;;                   (apply concat)
+        ;;                   (apply hash-map)))
+        (def options (apply hash-map binds))
+        (prn options)
         [entries options]))
     construct-binds
     (fn [syms exps]
-      (apply concat (map-indexed (fn [i s] (vector s (nth exps i))) syms)))]
+      (do (prn syms exps)
+          (apply concat (map-indexed (fn [i s] (vector s (nth exps i))) syms))))]
     
     (macro [binds & body]
            (let [[entries options] (destruct-binds binds)
                  syms (map first entries)
                  colls (map #(eval-in-env (second %)) entries)
                  gen-lst (eval-in-env `(combination/product ~@colls))
-                 _ (prn gen-lst)]
-             (if (contains? options :index)
-               `(map-indexed (fn [~(get options :index) ~syms]
-                               (do ~@body))
-                             ~gen-lst)
-               (map #`(let ~(construct-binds syms %) ~@body) gen-lst))))))
+                 index-sym (get options :index)]
+             (if (nil? index-sym)
+               (map #`(let ~(construct-binds syms %) ~@body) gen-lst)
+               (map-indexed #`(let ~(conj (construct-binds syms %0) index-sym %1) ~@body) gen-lst))))))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)

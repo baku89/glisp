@@ -412,7 +412,7 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			code => {
-				const evalCode = `(sketch ${code} \n nil)`
+				const evalCode = `(sketch ${code}\nnil)`
 				let exp
 				try {
 					exp = nonReactive(readStr(evalCode, true))
@@ -432,7 +432,7 @@ export default defineComponent({
 			() => data.exp,
 			() => {
 				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET, -7)
+					data.code = printExp(data.exp.value).slice(OFFSET, -5)
 				} else {
 					data.code = ''
 				}

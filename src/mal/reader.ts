@@ -511,7 +511,12 @@ export default function readStr(str: string, saveStr = false): MalVal {
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
-	const exp = readForm(new Reader(tokens, str), saveStr)
+	const reader = new Reader(tokens, str)
+	const exp = readForm(reader, saveStr)
+
+	if (reader.index < tokens.length - 1) {
+		throw new LispError('Invalid end of file')
+	}
 
 	if (saveStr) {
 		saveOuter(exp, null)
@@ -519,3 +524,5 @@ export default function readStr(str: string, saveStr = false): MalVal {
 
 	return exp
 }
+
+window.readStr = readStr
