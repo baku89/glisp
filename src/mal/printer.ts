@@ -30,6 +30,24 @@ export const printer = {
 	clear: console.clear
 }
 
+function toFixed(x: number) {
+	if (Math.abs(x) < 1.0) {
+		const e = parseInt(x.toString().split('e-')[1])
+		if (e) {
+			x *= Math.pow(10, e - 1)
+			return '0.' + new Array(e).join('0') + x.toString().substring(2)
+		}
+	} else {
+		let e = parseInt(x.toString().split('+')[1])
+		if (e > 20) {
+			e -= 20
+			x /= Math.pow(10, e)
+			return x + new Array(e + 1).join('0')
+		}
+	}
+	return x.toString()
+}
+
 export default function printExp(
 	exp: MalVal,
 	printReadably = true,
@@ -122,7 +140,9 @@ export default function printExp(
 			const params = printExp(exp[M_PARAMS], _r, _c)
 			const body = printExp(exp[M_AST], _r, _c)
 			ret = `(${exp[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
-		} else if (typeof exp === 'number' || typeof exp === 'boolean') {
+		} else if (typeof exp === 'number') {
+			ret = toFixed(exp)
+		} else if (typeof exp === 'boolean') {
 			ret = exp.toString()
 		} else if (exp instanceof MalAtom) {
 			ret = '(atom ' + printExp(exp.val, _r, _c) + ')'
