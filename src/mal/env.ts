@@ -10,15 +10,23 @@ import {
 type Binds = (string | Binds)[]
 
 export default class Env {
-	public data: {
+	private data: {
 		[key: string]: MalVal
 	} = {}
+
+	private binding: {
+		[key: string]: MalVal[]
+	}
 
 	private exps?: MalVal[]
 
 	public name = 'let'
 
-	constructor(public outer: Env | null = null, binds?: Binds, exps?: MalVal[]) {
+	constructor(
+		protected outer: Env | null = null,
+		binds?: Binds,
+		exps?: MalVal[]
+	) {
 		if (exps) {
 			this.exps = exps
 		}
@@ -32,71 +40,66 @@ export default class Env {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
 		if (isSymbol(binds)) {
-			this.data[binds] = exps
+			this.set(binds, exps)
 		} else {
 			for (let i = 0; i < binds.length; i++) {
 				// Variable length arguments
 				if (binds[i] === S('&')) {
-					this.data[binds[i + 1] as string] = exps.slice(i)
+					this.set(binds[i + 1] as string, exps.slice(i))
 					break
 				}
 
 				if (Array.isArray(binds[i])) {
 					// List Destruction
-					if (Array.isArray(exps[i])) {
-						this.bindAll(binds[i] as Binds, exps[i] as MalVal[])
-					} else {
+					if (!Array.isArray(exps[i])) {
 						throw new LispError(
-							`Error: destruction parameter ['${(binds[i] as string[])
+							`Error: destruction parameter [${(binds[i] as string[])
 								.map(s => s.slice(1))
-								.join(' ')}'] is not specified as list`
+								.join(' ')}] is not specified as list`
 						)
 					}
+
+					this.bindAll(binds[i] as Binds, exps[i] as MalVal[])
 				} else if (isMap(binds[i])) {
 					// Hashmap destruction
-					// binds: {:name "Baku" :location "Japan"} <-- exps: {:name "Baku" :location "Japan"}
-					if (isMap(exps[i])) {
-						// Convert the two maps to list
-						// binds: [name location] <-- exps: ["Baku" "Japan"]
-						const entries = Object.entries(binds[i]) as [string, string][],
-							hashBinds = [],
-							hashExps = []
-
-						for (const [key, sym] of entries) {
-							if (!(key in (exps[i] as MalMap))) {
-								throw new LispError(
-									`ERROR: destruction keyword :${key.slice(
-										1
-									)} does not exist on the parameter`
-								)
-							}
-							hashBinds.push(sym)
-							hashExps.push((exps[i] as MalMap)[key])
-						}
-
-						this.bindAll(hashBinds, hashExps)
-					} else {
+					if (!isMap(exps[i])) {
 						throw new LispError(
 							`Error: destruction parameter {'${(binds[i] as string[])
 								.map(s => s.slice(1))
 								.join(' ')}'} is not specified as map`
 						)
 					}
+					// Convert the two maps to list
+					// binds: [name location] <-- exps: ["Baku" "Japan"]
+					const entries = Object.entries(binds[i]) as [string, string][],
+						hashBinds = [],
+						hashExps = []
+
+					for (const [key, sym] of entries) {
+						if (!(key in (exps[i] as MalMap))) {
+							throw new LispError(
+								`ERROR: destruction keyword :${key.slice(
+									1
+								)} does not exist on the parameter`
+							)
+						}
+						hashBinds.push(sym)
+						hashExps.push((exps[i] as MalMap)[key])
+					}
+
+					this.bindAll(hashBinds, hashExps)
 				} else if (exps[i] === undefined) {
 					throw new LispError(
 						`Error: parameter '${binds[i].slice(1)}' is not specified`
 					)
 				} else {
-					this.data[binds[i] as string] = exps[i]
+					this.set(binds[i] as string, exps[i])
 				}
 			}
 		}
 	}
 
 	public set(key: string, value: MalVal) {
-		// if (!isSymbol(key)) {
-		// 	throw 'SET not symbol' + key
-		// }
 		this.data[key] = value
 		return value
 	}
@@ -142,5 +145,22 @@ export default class Env {
 		}
 
 		return value
+	}
+
+	public getChain() {
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		let _env: Env | null = this
+		const envs = []
+
+		do {
+			envs.push(_env)
+			_env = _env.outer
+		} while (_env)
+
+		return envs
+	}
+
+	public setOuter(outer: Env) {
+		this.outer = outer
 	}
 }

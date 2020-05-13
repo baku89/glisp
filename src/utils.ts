@@ -1,3 +1,4 @@
+import uid from 'uid'
 import Case from 'case'
 import {MalVal, isKeyword, isSymbol} from '@/mal/types'
 import printExp from '@/mal/printer'
@@ -34,8 +35,11 @@ const valueSymbol = Symbol('NonReactive.value')
  * The utility class holds a value which does not need to be watched by Vue
  */
 export class NonReactive<T> {
+	private uid: string
+
 	constructor(value: T) {
 		;(this as any)[valueSymbol] = value
+		this.uid = uid()
 	}
 
 	public get value(): T {

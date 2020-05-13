@@ -46,7 +46,7 @@ export function viewREP(
 	viewEnv.set(S('$view'), output)
 
 	if (updateConsole) {
-		consoleEnv.outer = viewEnv
+		consoleEnv.setOuter(viewEnv)
 	}
 
 	return {

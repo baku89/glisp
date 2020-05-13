@@ -506,7 +506,7 @@ export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 	}
 }
 
-export default function readStr(str: string, saveStr = false) {
+export default function readStr(str: string, saveStr = false): MalVal {
 	const tokens = tokenize(str, saveStr) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()

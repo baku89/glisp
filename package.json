@@ -55,6 +55,7 @@
 		"svgpath": "^2.2.3",
 		"tslib": "^1.11.1",
 		"typescript": "~3.8.3",
+		"uid": "^1.0.0",
 		"vue-click-outside": "^1.0.7",
 		"vue-color": "^2.7.1",
 		"vue-markdown": "^2.2.4",

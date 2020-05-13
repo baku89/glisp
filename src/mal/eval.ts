@@ -153,6 +153,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				;(expanded as MalNode)[M_EVAL] = ret
 				return ret
 			}
+			case S('binding'): {
+				break
+			}
 			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
@@ -280,14 +283,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				break // continue TCO loop
 			}
 			case S('env-chain'): {
-				let _env: Env | null = env
-				const envs = []
-
-				do {
-					envs.push(_env)
-					_env = _env.outer
-				} while (_env)
-
+				const envs = env.getChain()
 				exp = [S('println'), envs.map(e => e.name).join(' <- ')]
 				break // continue TCO loop
 			} /*
