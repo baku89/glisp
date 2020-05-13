@@ -1,6 +1,6 @@
 import {replEnv} from './repl'
 import Env from './env'
-import {MalVal, symbolFor as S, createMalVector} from './types'
+import {MalVal, symbolFor as S, createMalVector, markMalVector} from './types'
 import readStr from './reader'
 import {consoleEnv} from './console'
 import evalExp from './eval'
@@ -30,7 +30,7 @@ export function viewREP(
 
 	viewEnv.set(S('$width'), width)
 	viewEnv.set(S('$height'), height)
-	viewEnv.set(S('$transform'), [1, 0, 0, 1, 0, 0])
+	viewEnv.set(S('$transform'), markMalVector([1, 0, 0, 1, 0, 0]))
 	viewEnv.set(S('$size'), createMalVector([width, height]))
 
 	if (guideColor) {

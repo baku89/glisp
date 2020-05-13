@@ -6,7 +6,11 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -35,7 +39,9 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -89,7 +95,7 @@ import {appHandler} from '@/mal/console'
 import {viewREP} from '@/mal/view'
 import {replaceExp} from '@/mal/eval'
 
-const OFFSET = 19 // length of "(def $view (sketch "
+const OFFSET = 8 // length of "(sketch "
 
 const BRIGHT_COLORS = {
 	'--currentline': '#efefef',
@@ -406,7 +412,7 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			code => {
-				const evalCode = `(def $view (sketch ${code} \n nil))`
+				const evalCode = `(sketch ${code} \n nil)`
 				let exp
 				try {
 					exp = nonReactive(readStr(evalCode, true))
@@ -426,7 +432,7 @@ export default defineComponent({
 			() => data.exp,
 			() => {
 				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET, -8)
+					data.code = printExp(data.exp.value).slice(OFFSET, -7)
 				} else {
 					data.code = ''
 				}
