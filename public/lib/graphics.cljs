@@ -147,8 +147,7 @@
   (let [params (case (count args)
                  0 {}
                  1 {:width (first args)}
-                 (apply hash-map (concat :width args)))
-        _ (prn params)]
+                 (apply hash-map (concat :width args)))]
     (->> params
          (seq params)
          (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
