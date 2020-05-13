@@ -155,7 +155,7 @@ const Exports = [
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
-	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
+	['map', (f: MalFunc, a: MalVal[]) => markMalVector(a.map(x => f(x)))],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
 	['partition', partition],
