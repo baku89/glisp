@@ -141,7 +141,7 @@
 ; (defn linear-gradient
 ;   {:doc "Define a linear gradient style to apply to fill or stroke"}
 ;   [x1 y1 x2 y2 & xs]
-;   (let (args (apply hash-map xs))
+;   (let [args (apply hash-map xs)]
 ;     (if (not (contains? args :stops))
 ;       (throw "[linear-gradient] odd number of arguments")
 ;       (vector :linear-gradient
