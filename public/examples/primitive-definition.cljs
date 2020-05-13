@@ -62,7 +62,7 @@
 
 (background "#4c5366")
 
-[:g {:style (stroke "#fb6a4c" 12)}
+[:style (stroke "#fb6a4c" 12)
   ;; Try click 'star' on below
   ;; then you can see the inspector
   ;; and handles on the view

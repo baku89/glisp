@@ -18,6 +18,28 @@
     (stroke $guide-color)
     (stroke $guide-color (first xs))))
 
+(defmacro g [attrs & xs]
+  (vec
+   `(:transform ~(get attrs :transform mat2d/ident)
+                ~(vec `(:style ~(get attrs :style {})
+                               ~@xs)))))
+
+(defn gen-style-binds [style]
+  (apply concat
+         (map
+          (fn [[k v]]
+            [(symbol (str "$" (name k))) v])
+          (entries style))))
+
+(defmacro
+  style
+  [attrs & xs]
+  (let [binds `(if (sequential? ~attrs)
+                 (apply concat (map gen-style-binds ~attrs))
+                 (gen-style-binds ~attrs))]
+    `(let ~binds
+       ~(vec `(:style ~attrs ~@xs)))))
+
 ;; Color
 (defn color
   {:doc "Creates a color string"}
@@ -78,13 +100,6 @@
             {:type "number" :desc "Step"}]}
   [from to step]
   (vec (map #(* % step) (range from (inc to)))))
-
-
-;; Group
-(defn g [& xs]
-  (let [children (apply concat (map #(if (element? %) [%] %) xs))]
-    (if (= 1 (count children)) (first children)
-        (apply vector :g children))))
 
 ;; Transform
 (defmacro  view-center

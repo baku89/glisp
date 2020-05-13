@@ -147,35 +147,37 @@ export default class CanvasRenderer {
 			} else {
 				const cmd = elm.replace(/#.*$/, '')
 
-				ctx.save()
-
 				switch (cmd) {
-					case K_G: {
-						const [attrs, children] = isMap(rest[0])
-							? [rest[0], rest.slice(1)]
-							: [{}, rest]
-
-						for (const [key, val] of Object.entries(attrs)) {
-							switch (key) {
-								case K_STYLE:
-									styles = [
-										...styles,
-										...((Array.isArray(val) ? val : [val]) as MalMap[])
-									]
-									break
-								case K_TRANSFORM:
-									ctx.transform(
-										...(val as [number, number, number, number, number, number])
-									)
-									break
-							}
+					case K_G:
+						for (const child of rest) {
+							this.draw(ret, child, styles, defaultStyle)
 						}
+						break
+					case K_TRANSFORM: {
+						const [mat, ...children] = rest as [number[], ...MalVal[]]
+
+						ctx.save()
+						ctx.transform(
+							...(mat as [number, number, number, number, number, number])
+						)
 
 						for (const child of children) {
 							this.draw(ret, child, styles, defaultStyle)
 						}
-
 						ctx.restore()
+
+						break
+					}
+					case K_STYLE: {
+						const [attrs, ...children] = rest
+						styles = [
+							...styles,
+							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
+						]
+
+						for (const child of children) {
+							this.draw(ret, child, styles, defaultStyle)
+						}
 						break
 					}
 					case K('clip'): {
@@ -296,14 +298,7 @@ export default class CanvasRenderer {
 
 	private createFillOrStrokeStyle(style: string | any[]) {
 		if (typeof style === 'string') {
-			switch (style) {
-				case K_FILL_COLOR:
-					return this.ctx.fillStyle
-				case K_STROKE_COLOR:
-					return this.ctx.strokeStyle
-				default:
-					return style
-			}
+			return style
 		} else if (Array.isArray(style)) {
 			const [type, params] = style as [string, MalMap]
 			switch (type) {

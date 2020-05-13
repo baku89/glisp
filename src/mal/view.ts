@@ -30,6 +30,7 @@ export function viewREP(
 
 	viewEnv.set(S('$width'), width)
 	viewEnv.set(S('$height'), height)
+	viewEnv.set(S('$transform'), [1, 0, 0, 1, 0, 0])
 	viewEnv.set(S('$size'), createMalVector([width, height]))
 
 	if (guideColor) {
@@ -42,6 +43,7 @@ export function viewREP(
 
 	const src = typeof str === 'string' ? readStr(str) : str
 	output = evalExp(src, viewEnv, true)
+	viewEnv.set(S('$view'), output)
 
 	if (updateConsole) {
 		consoleEnv.outer = viewEnv

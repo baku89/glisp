@@ -444,7 +444,7 @@
 ;; Combination
 (defn combination/product [& xs]
   (if (=  1 (count xs))
-    (map list (first xs))
+    (map vector (first xs))
     (apply concat
            (map
             (fn (R) (map #(cons R %) (last xs)))
