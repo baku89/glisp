@@ -266,17 +266,21 @@ export default class CanvasRenderer {
 			ctx.beginPath()
 		}
 		for (const [c, ...pts] of iterateSegment(path.slice(1))) {
-			const args = pts.flat()
 			switch (c) {
 				case K_M:
-					ctx.moveTo(...(args as [number, number]))
+					ctx.moveTo(pts[0][0], pts[0][1])
 					break
 				case K_L:
-					ctx.lineTo(...(args as [number, number]))
+					ctx.lineTo(pts[0][0], pts[0][1])
 					break
 				case K_C:
 					ctx.bezierCurveTo(
-						...(args as [number, number, number, number, number, number])
+						pts[0][0],
+						pts[0][1],
+						pts[1][0],
+						pts[1][1],
+						pts[2][0],
+						pts[2][1]
 					)
 					break
 				case K_Z:

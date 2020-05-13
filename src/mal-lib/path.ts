@@ -151,7 +151,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || isKeyword(path[i] as MalVal)) {
-			yield createMalVector(path.slice(start, i)) as SegmentType
+			yield path.slice(start, i) as SegmentType
 			start = i
 		}
 	}
@@ -287,18 +287,15 @@ function pathJoin(first: PathType, ...rest: PathType[]) {
 }
 
 function pathTransform(transform: mat2d, path: PathType) {
-	const ret = markMalVector([K_PATH])
-
-	for (const [cmd, ...pts] of iterateSegment(path.slice(1))) {
-		ret.push(cmd)
-		for (const pt of pts) {
-			const newPt = markMalVector(Array(2))
-			vec2.transformMat2d(newPt as vec2, pt as vec2, transform)
-			ret.push(newPt)
+	const ret = path.map(pt => {
+		if (typeof pt === 'string') {
+			return pt
+		} else {
+			return vec2.transformMat2d(vec2.create(), pt as vec2, transform)
 		}
-	}
+	})
 
-	return ret
+	return markMalVector(ret as MalVal[])
 }
 
 // Get Path Property
