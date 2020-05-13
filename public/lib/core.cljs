@@ -226,17 +226,22 @@
                           (filter #(keyword? (first %)))
                           (apply concat)
                           (apply hash-map)))
-        [entries options]))]
+        [entries options]))
+    construct-binds
+    (fn [syms exps]
+      (apply concat (map-indexed (fn [i s] (vector s (nth exps i))) syms)))]
     
     (macro [binds & body]
            (let [[entries options] (destruct-binds binds)
                  syms (map first entries)
-                 colls (map second entries)
-                 gen-lst `(combination/product ~@colls)]
+                 colls (map #(eval-in-env (second %)) entries)
+                 gen-lst (eval-in-env `(combination/product ~@colls))
+                 _ (prn gen-lst)]
              (if (contains? options :index)
                `(map-indexed (fn [~(get options :index) ~syms]
-                               (do ~@body)) ~gen-lst)
-               `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
+                               (do ~@body))
+                             ~gen-lst)
+               (map #`(let ~(construct-binds syms %) ~@body) gen-lst))))))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)
@@ -271,11 +276,6 @@
     (f
      (first xs)
      (foldr f init (rest xs)))))
-
-(defn map-indexed [f xs]
-  (map
-   #(f % (nth xs %))
-   (range (count xs))))
 
 (defmacro ->> [values & forms]
   (reduce

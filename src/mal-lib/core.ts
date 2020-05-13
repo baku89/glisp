@@ -156,6 +156,10 @@ const Exports = [
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
 	['map', (f: MalFunc, a: MalVal[]) => markMalVector(a.map(x => f(x)))],
+	[
+		'map-indexed',
+		(f: MalFunc, a: MalVal[]) => markMalVector(a.map((x, i) => f(i, x)))
+	],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
 	['partition', partition],
@@ -177,7 +181,7 @@ const Exports = [
 		}
 	],
 	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
-	['concat', (...args: MalVal[]) => [].concat(...(args as any))],
+	['concat', (...args: MalVal[]) => markMalVector([].concat(...(args as any)))],
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>

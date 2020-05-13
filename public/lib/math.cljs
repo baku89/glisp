@@ -464,10 +464,10 @@
 ;; Combination
 (defn combination/product [& xs]
   (if (=  1 (count xs))
-    (map vector (first xs))
+    (map #(vector %) (first xs))
     (apply concat
            (map
-            (fn (R) (map #(cons R %) (last xs)))
+            (fn (R) (map #(vec (cons R %)) (last xs)))
             (if (= 2 (count xs))
               (first xs)
               (apply combination/product (butlast xs)))))))

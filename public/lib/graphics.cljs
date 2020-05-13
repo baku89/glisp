@@ -36,16 +36,18 @@
   {:transform (fn [matrix] matrix)}
   [matrix & xs]
   (let [__mat__ (eval-in-env matrix)]
-    `(let ~(vec `($transform (mat2d/* $transform ~__mat__)))
+    `(binding ~(vec `($transform (mat2d/* $transform ~__mat__)))
        ~(vec `(:transform ~__mat__ ~@xs)))))
 
 (defmacro
   style
   [attrs & xs]
-  (let [binds `(if (sequential? ~attrs)
-                 (apply concat (map gen-style-binds ~attrs))
-                 (gen-style-binds ~attrs))]
-    `(let ~binds
+  (let [eval-attrs (eval-in-env attrs)
+        _ (prn eval-attrs)
+        binds (if (sequential? eval-attrs)
+                (apply concat (map gen-style-binds eval-attrs))
+                (gen-style-binds eval-attrs))]
+    `(binding ~binds
        ~(vec `(:style ~attrs ~@xs)))))
 
 ;; Color
