@@ -62,8 +62,10 @@
 
 (background "#4c5366")
 
-[:style (stroke "#fb6a4c" 12)
-  ;; Try click 'star' on below
-  ;; then you can see the inspector
-  ;; and handles on the view
- (star [200 200] 5 70 160)]
+(style
+ (stroke "#fb6a4c" 12)
+
+ ;; Try click 'star' on below
+ ;; then you can see the inspector
+ ;; and handles on the view
+ (star [200 200] 5 70 160))

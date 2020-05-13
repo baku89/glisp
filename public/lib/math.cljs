@@ -186,12 +186,12 @@
             {:type "vec2"}]
    :returns {:type "vec2"}}
   [center angle value]
-  (let (ox		(.x center)
-            oy		(.y center)
-            x			(- (.x value) ox)
-            y			(- (.y value) oy)
-            sinC	(sin angle)
-            cosC	(cos angle))
+  (let [ox		(.x center)
+        oy		(.y center)
+        x			(- (.x value) ox)
+        y			(- (.y value) oy)
+        sinC	(sin angle)
+        cosC	(cos angle)]
     [(+ ox (- (* x cosC) (* y sinC)))
      (+ oy (+ (* x sinC) (* y cosC)))]))
 

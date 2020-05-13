@@ -12,9 +12,9 @@
 
 (background "snow")
 
-[:g {:transform (view-center)
-     :style (stroke "salmon" 10)}
- (for [y (column -5 5 w)
-       x (column -5 5 w)
-       :index i]
-   (slash i [x y]))]
+(g {:transform (view-center)
+    :style (stroke "salmon" 10)}
+   (for [y (column -5 5 w)
+         x (column -5 5 w)
+         :index i]
+     (slash i [x y])))

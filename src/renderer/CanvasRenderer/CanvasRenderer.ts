@@ -139,20 +139,13 @@ export default class CanvasRenderer {
 			const [elm, ...rest] = exp as any[]
 
 			if (!isKeyword(elm)) {
-				throw new LispError(
-					`Invalid format of AST to render. \n First element of vectors should be keyword but ${printExp(
-						elm
-					)}`
-				)
+				for (const child of exp) {
+					this.draw(ret, child, styles, defaultStyle)
+				}
 			} else {
 				const cmd = elm.replace(/#.*$/, '')
 
 				switch (cmd) {
-					case K_G:
-						for (const child of rest) {
-							this.draw(ret, child, styles, defaultStyle)
-						}
-						break
 					case K_TRANSFORM: {
 						const [mat, ...children] = rest as [number[], ...MalVal[]]
 

@@ -19,10 +19,9 @@
     (stroke $guide-color (first xs))))
 
 (defmacro g [attrs & xs]
-  (vec
-   `(:transform ~(get attrs :transform mat2d/ident)
-                ~(vec `(:style ~(get attrs :style {})
-                               ~@xs)))))
+  `(transform ~(get attrs :transform mat2d/ident)
+              ~`(style ~(get attrs :style {})
+                       ~@xs)))
 
 (defn gen-style-binds [style]
   (apply concat
@@ -30,6 +29,12 @@
           (fn [[k v]]
             [(symbol (str "$" (name k))) v])
           (entries style))))
+
+(defmacro
+  transform
+  [attrs & xs]
+  (let [$transform `(mat2d/* $transform ~attrs)]
+    (vec `(:transform ~attrs ~@xs))))
 
 (defmacro
   style

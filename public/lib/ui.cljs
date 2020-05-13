@@ -28,7 +28,7 @@
 
 (defn sketch [& xs]
   (let [sketch-body (filter element? (slice xs (inc (last-index-of :start-sketch xs))))]
-    (vec (concat :g sketch-body))))
+    (vec sketch-body)))
 
 
 ;; Pens and Hands
