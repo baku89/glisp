@@ -87,7 +87,9 @@ function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 				params[i] = evalExp(params[i], env, cache)
 			}
 		}
-
+		if (cache) {
+			;(exp as MalNodeList)[M_EVAL_PARAMS] = params
+		}
 		exp = fn(...params)
 	}
 	return exp
@@ -154,6 +156,15 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 		// Special Forms
 		switch (a0) {
+			case S('eval-in-env'): {
+				// Don't know why this should be nested
+				const ret = evalExp(evalExp(a1, env, cache), env, cache)
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = a2
+					;(exp as MalNodeList)[M_EXPANDED] = a2
+				}
+				return ret
+			}
 			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
@@ -283,8 +294,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			/*
-			case 'env-chain': {
+			case S('env-chain'): {
 				let _env: Env | null = env
 				const envs = []
 
@@ -295,7 +305,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				exp = [S('println'), envs.map(e => e.name).join(' <- ')]
 				break // continue TCO loop
-			}
+			} /*
 			case 'which-env': {
 				let _env: Env | null = env
 				const envs = []
