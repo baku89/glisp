@@ -8,6 +8,7 @@ export const M_AST = Symbol.for('ast')
 export const M_ENV = Symbol.for('env')
 export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
+export const M_MACRO_EVAL_FLAG = Symbol.for('macro-eval-flag')
 const M_ISVECTOR = Symbol.for('isvector')
 
 export const M_EVAL = Symbol.for('eval')
@@ -33,6 +34,7 @@ export interface MalFunc {
 	[M_ENV]: Env
 	[M_PARAMS]: MalBind
 	[M_ISMACRO]: boolean
+	[M_MACRO_EVAL_FLAG]: boolean[]
 }
 
 export class LispError extends Error {}
@@ -55,7 +57,7 @@ export interface MalNodeList extends Array<MalVal> {
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
-	[M_FN]: MalVal // Reference to a function
+	[M_FN]: MalFunc | MalJSFunc // Reference to a function
 	[M_EVAL]: MalVal // Stores evaluted value of the node
 	[M_EVAL_PARAMS]: MalVal[] // Stores evaluated values of fn's parameters
 	[M_EXPANDED]: MalVal
@@ -239,7 +241,7 @@ export function markMalVector(arr: MalVal[]): MalVal[] {
 }
 
 // Maps
-export const isMap = (obj: MalVal): obj is MalMap =>
+export const isMap = (obj: MalVal | undefined): obj is MalMap =>
 	obj !== null &&
 	typeof obj === 'object' &&
 	!isMalFunc(obj) &&

@@ -80,7 +80,7 @@ class Reader {
 
 function tokenize(str: string, saveStr = false) {
 	// eslint-disable-next-line no-useless-escape
-	const re = /[\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
+	const re = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
 	const spaceRe = /^[\s,]*/
 	let spaceMatch = null,

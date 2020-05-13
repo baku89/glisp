@@ -29,7 +29,10 @@ import {
 	M_EVAL_PARAMS,
 	M_ISSUGAR,
 	M_DELIMITERS,
-	MalNodeMap
+	MalNodeMap,
+	keywordFor,
+	M_PARAMS,
+	M_MACRO_EVAL_FLAG
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -67,14 +70,25 @@ function quasiquote(exp: any): MalVal {
 	}
 }
 
-function macroexpand(exp: MalVal, env: Env) {
+function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0])) {
 		const fn = env.get(exp[0])
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
 		;(exp as MalNodeList)[M_FN] = fn
-		exp = fn(...exp.slice(1))
+
+		const params = exp.slice(1)
+		const evalFlags = fn[M_MACRO_EVAL_FLAG]
+
+		for (let i = 0; i < params.length; i++) {
+			if (evalFlags[i]) {
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
+				params[i] = evalExp(params[i], env, cache)
+			}
+		}
+
+		exp = fn(...params)
 	}
 	return exp
 }
@@ -121,7 +135,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			return evalAtom(exp, env, cache)
 		}
 
-		const expandedExp = macroexpand(exp, env)
+		const expandedExp = macroexpand(exp, env, cache)
 		if (cache && exp !== expandedExp) {
 			;(exp as MalNodeList)[M_EXPANDED] = expandedExp
 		}
@@ -143,7 +157,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
-					;(exp as MalNodeList)[M_FN] = env.get(S_DEF)
+					;(exp as MalNodeList)[M_FN] = env.get(S_DEF) as MalFunc
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
@@ -202,13 +216,22 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					[]
 				)
 			case S_MACRO: {
-				const fnexp = [S_FN, a1, a2]
+				if (!Array.isArray(a1)) {
+					throw new LispError('Second element of macro should be list')
+				}
+				const evalFlags = a1.map(p => isList(p) && p[0] === S_UNQUOTE)
+				const fnexp = [
+					S_FN,
+					a1.map((p, i) => (evalFlags[i] ? (p as MalVal[])[1] : p)),
+					a2
+				]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true
+				fn[M_MACRO_EVAL_FLAG] = evalFlags
 				return fn
 			}
 			case S_MACROEXPAND: {
-				const ret = macroexpand(a1, env)
+				const ret = macroexpand(a1, env, cache)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
