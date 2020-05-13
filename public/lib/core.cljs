@@ -217,33 +217,26 @@
              &
              {:label "Body" :type "code"}]}
   (let
-   [destruct-binds 
+   [destruct-binds
     (fn [binds]
-      (do 
+      (do
         (def pairs (partition 2 binds))
         (def entries (filter #(symbol? (first %)) pairs))
-        ;; (def options (->> pairs
-        ;;                   (filter (fn [[pf]] (keyword? pf)))
-        ;;                   (prn-pass)
-        ;;                   (apply concat)
-        ;;                   (apply hash-map)))
-        (def options (apply hash-map binds))
-        (prn options)
-        [entries options]))
-    construct-binds
-    (fn [syms exps]
-      (do (prn syms exps)
-          (apply concat (map-indexed (fn [i s] (vector s (nth exps i))) syms))))]
-    
+        (def options (->> pairs
+                          (filter #(keyword? (first %)))
+                          (apply concat)
+                          (apply hash-map)))
+        [entries options]))]
+
     (macro [binds & body]
            (let [[entries options] (destruct-binds binds)
                  syms (map first entries)
-                 colls (map #(eval-in-env (second %)) entries)
-                 gen-lst (eval-in-env `(combination/product ~@colls))
-                 index-sym (get options :index)]
-             (if (nil? index-sym)
-               (map #`(let ~(construct-binds syms %) ~@body) gen-lst)
-               (map-indexed #`(let ~(conj (construct-binds syms %0) index-sym %1) ~@body) gen-lst))))))
+                 colls (map second entries)
+                 gen-lst `(combination/product ~@colls)]
+             (if (contains? options :index)
+               `(map-indexed (fn [~(get options :index) ~syms]
+                               (do ~@body)) ~gen-lst)
+               `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
 
 (defmacro case [val & xs]
   (if (> (count xs) 0)

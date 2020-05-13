@@ -18,36 +18,43 @@
     (stroke $guide-color)
     (stroke $guide-color (first xs))))
 
-(defmacro g
-  {:transform (fn [attrs] (get attrs :transform mat2d/ident))}
+(defn g
   [attrs & xs]
-  `(transform ~(get attrs :transform mat2d/ident)
-              ~`(style ~(get attrs :style {})
-                       ~@xs)))
+  (transform (get attrs :transform mat2d/ident)
+             (apply style (concat (get attrs :style {})
+                                  xs))))
 
-(defn gen-style-binds [style]
-  (apply concat
-         (map
-          (fn [[k v]]
-            [(symbol (str "$" (name k))) v])
-          (entries style))))
+;; (defmacro transform
+;;   [matrix & xs]
+;;   (let [_$transform (mat2d/* (eval-in-env matrix))]
+;;     `(binding ~(vec `($transform ~_$transform))
+;;        ~(vec `(:transform ~matrix ~@xs)))))
 
-(defmacro transform
-  {:transform (fn [matrix] matrix)}
+(defn transform
   [matrix & xs]
-  (let [_$transform (mat2d/* (eval-in-env matrix))]
-    `(binding ~(vec `($transform ~_$transform))
-       ~(vec `(:transform ~matrix ~@xs)))))
+  (vec `(:transform ~matrix ~@xs)))
 
-(defmacro
-  style
+;; (defn gen-style-binds [style]
+;;   (apply concat
+;;          (map
+;;           (fn [[k v]]
+;;             [(symbol (str "$" (name k))) v])
+;;           (entries style))))
+;;           
+;; (defmacro
+;;   style
+;;   [attrs & xs]
+;;   (let [eval-attrs (eval-in-env attrs)
+;;         binds (if (sequential? eval-attrs)
+;;                 (apply concat (map gen-style-binds eval-attrs))
+;;                 (gen-style-binds eval-attrs))]
+;;     `(binding ~binds
+;;        ~(vec `(:style ~attrs ~@xs)))))
+
+(defn style
   [attrs & xs]
-  (let [eval-attrs (eval-in-env attrs)
-        binds (if (sequential? eval-attrs)
-                (apply concat (map gen-style-binds eval-attrs))
-                (gen-style-binds eval-attrs))]
-    `(binding ~binds
-       ~(vec `(:style ~attrs ~@xs)))))
+  (vec `(:style ~attrs ~@xs)))
+
 
 ;; Color
 (defn color
@@ -140,7 +147,8 @@
   (let [params (case (count args)
                  0 {}
                  1 {:width (first args)}
-                 (apply hash-map (concat :width args)))]
+                 (apply hash-map (concat :width args)))
+        _ (prn params)]
     (->> params
          (seq params)
          (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))

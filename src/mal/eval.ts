@@ -145,14 +145,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 		// Special Forms
 		switch (a0) {
-			case S('eval-in-env'): {
-				// Don't know why this should be nested
-				const expanded = evalExp(a1, env, true)
-				const ret = evalExp(expanded, env, true)
-				;(exp as MalNode)[M_EVAL] = a2
-				;(expanded as MalNode)[M_EVAL] = ret
-				return ret
-			}
 			case S_DEF: {
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
@@ -163,14 +155,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
-				let binds = a1 as MalVal[]
-				if (isList(binds)) {
-					const _binds = evalExp(binds, env, cache)
-					if (!Array.isArray(_binds)) {
-						throw new LispError('Evaluated binds is not a sequence')
-					}
-					binds = _binds
-				}
+				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,
@@ -185,17 +170,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-
 			case S('binding'): {
 				const bindingEnv = env.pushBinding()
-				let binds = a1 as MalVal[]
-				if (isList(binds)) {
-					const _binds = evalExp(binds, env, cache)
-					if (!Array.isArray(_binds)) {
-						throw new LispError('Evaluated binds is not a sequence')
-					}
-					binds = _binds
-				}
+				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
 						binds[i] as any,
@@ -207,6 +184,14 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				env.popBinding()
+				return ret
+			}
+			case S('eval-in-env'): {
+				// Don't know why this should be nested
+				const expanded = evalExp(a1, env, true)
+				const ret = evalExp(expanded, env, true)
+				;(exp as MalNode)[M_EVAL] = a2
+				;(expanded as MalNode)[M_EVAL] = ret
 				return ret
 			}
 			case S_QUOTE:

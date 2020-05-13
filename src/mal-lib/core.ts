@@ -181,7 +181,7 @@ const Exports = [
 		}
 	],
 	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
-	['concat', (...args: MalVal[]) => markMalVector([].concat(...(args as any)))],
+	['concat', (...args: MalVal[]) => [].concat(...(args as any))],
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>

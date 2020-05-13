@@ -138,7 +138,6 @@ export default class Env {
 			this.exps &&
 			this.exps.length >= (argIndex = parseInt(key.slice(2)) || 0)
 		) {
-			console.log(argIndex)
 			return this.exps[argIndex]
 		}
 
