@@ -2,15 +2,15 @@ const WorkerPlugin = require('worker-plugin')
 
 module.exports = {
 	publicPath: './',
-	productionSourceMap: true,
+	productionSourceMap: false,
 	devServer: {
 		writeToDisk: true
 	},
 	configureWebpack: {
-		plugins: [new WorkerPlugin()]
-		// output: {
-		// 	globalObject: 'self'
-		// }
+		plugins: [new WorkerPlugin()],
+		output: {
+			globalObject: 'self'
+		}
 	},
 	chainWebpack: config => {
 		config
@@ -24,6 +24,7 @@ module.exports = {
 
 		config.plugin('html').tap(args => {
 			args[0].excludeChunks = ['lib_core', 'lib_path']
+			args[0].hash = false
 			return args
 		})
 		config.plugins.delete('preload')
