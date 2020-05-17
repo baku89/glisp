@@ -157,8 +157,10 @@
                      (println
                       (join "\n"
                             (map #(join " "
-                                        (list (slice (str (first %) spaces) 0 param-width)
-                                              (slice (format "[%s]       " (slice (second %) 1)) 0 9)
+                                        (list (take param-width (str (first %) spaces))
+                                              (take 9
+                                                    (format "[%s]       "
+                                                             (drop 1 (second %))))
                                               (last %)))
                                  params)))
                      nil)
@@ -325,15 +327,37 @@
   (let [counter (atom 0)]
     #(symbol (str "G__" (swap! counter inc)))))
 
+;;  List 
+
 (defn replace-nth [coll idx val]
-  (let [ret (concat (slice coll 0 idx) [val] (slice coll (inc idx)))]
+  (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
     (cond (list? coll) ret
           (vector? coll) (vec ret))))
 
 (defn insert-nth [coll idx val]
-  (let [ret (concat (slice coll 0 idx) [val] (slice coll idx))]
+  (let [ret (concat (take idx coll) [val] (drop idx coll))]
     (cond (list? coll) ret
           (vector? coll) (vec ret))))
+
+(defn take
+  {:doc "Retruns a sequence of the first n items in coll"}
+  [n coll]
+  (slice coll 0 n))
+
+(defn drop
+  {:doc "Returns a sequence of all but the first n items in coll"}
+  [n coll]
+  (slice coll n))
+
+(defn take-last
+  {:doc "Returns a seq of the last n items in coll"}
+  [n coll]
+  (slice coll (- (count coll) n)))
+
+(defn drop-last
+  {:doc "Returns a sequence of all but the last n items in coll"}
+  [n coll]
+  (take (- (count coll) n) coll))
 
 ;; Load other cores
 (import "ui.cljs")

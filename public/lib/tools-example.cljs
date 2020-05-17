@@ -128,7 +128,7 @@
      (if needs-update
        (if just-down
          (push item x y)
-         (push (slice item 0 (- (count item) 2)) x y))
+         (push (take (- (count item) 2) item) x y))
        nil)
 
       ; Updated state

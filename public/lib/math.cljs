@@ -431,8 +431,8 @@
 (defn rect/width [r] (nth r 2))
 (defn rect/height [r] (nth r 3))
 
-(defn rect/point [r] (vec (slice r 0 2)))
-(defn rect/size [r] (vec (slice r 2)))
+(defn rect/point [r] (vec (take 2 r)))
+(defn rect/size [r] (vec (drop 2 r)))
 
 (def rect/top-left rect/point)
 (defn rect/bottom-right [r] (vec2/+ (rect/point r) (rect/size r)))

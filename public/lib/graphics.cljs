@@ -122,7 +122,7 @@
   {:doc "Returns a translation matrix to move the origin onto the center of view or artboard"
    :returns {:type "mat2d"}
    :handles {:draw (fn [_ mat]
-                     [{:type "point" :class "translate" :pos (slice mat 4)}])}}
+                     [{:type "point" :class "translate" :pos (take 4 mat)}])}}
 
   []
   `(translate (vec2/scale $size .5)))
@@ -190,10 +190,10 @@
              :on-drag (fn [{:id id :pos p} params]
                         (case id
                           :pos (replace-nth params 1 p)
-                          :size (let [text-pos (slice params 0 2)
+                          :size (let [text-pos (take 2 params)
                                       dir (vec2/- (nth params 1) p)
                                       size (+ (abs (.x dir)) (abs (.y dir)))
-                                      args (->> (slice params 2)
+                                      args (->> (take 2 params)
                                                 (apply hash-map)
                                                 (#(assoc % :size size))
                                                 (entries)
