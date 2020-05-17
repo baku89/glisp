@@ -53,7 +53,6 @@ const S_CONCAT = S('concat')
 const S_CONS = S('cons')
 
 // eval
-const isPair = (x: MalVal) => Array.isArray(x) && x.length > 0
 
 function quasiquote(exp: any): MalVal {
 	if (!isPair(exp)) {
@@ -64,6 +63,10 @@ function quasiquote(exp: any): MalVal {
 		return [S_CONCAT, exp[0][1], quasiquote(exp.slice(1))]
 	} else {
 		return [S_CONS, quasiquote(exp[0]), quasiquote(exp.slice(1))]
+	}
+
+	function isPair(x: MalVal) {
+		return Array.isArray(x) && x.length > 0
 	}
 }
 
