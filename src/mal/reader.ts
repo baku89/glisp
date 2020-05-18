@@ -524,5 +524,3 @@ export default function readStr(str: string, saveStr = false): MalVal {
 
 	return exp
 }
-
-window.readStr = readStr
