@@ -15,7 +15,6 @@ import {
 	MalJSFunc
 } from '@/mal/types'
 import {mat3} from 'gl-matrix'
-import {evalExp} from '@/mal'
 
 const ConsoleScope = new Scope(ViewScope, 'console', scope => {
 	function generateFilename(name?: string) {

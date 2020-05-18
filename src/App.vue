@@ -94,7 +94,6 @@ import {
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
-import EventEmitter from 'eventemitter3'
 
 const OFFSET = 8 // length of "(sketch "
 
