@@ -91,9 +91,10 @@ import {
 	getRangeOfExp,
 	getRangeOfExp2
 } from '@/mal/reader'
-import {appHandler} from '@/mal/console'
-import {viewREP} from '@/mal/view'
+import ViewScope from '@/scopes/view'
+import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
+import EventEmitter from 'eventemitter3'
 
 const OFFSET = 8 // length of "(sketch "
 
@@ -209,11 +210,8 @@ function parseURL(data: Data) {
 	return {onSetupConsole}
 }
 
-function bindsAppHandler(
-	data: Data,
-	onUpdateSelectedExp: (val: MalVal) => any
-) {
-	appHandler.on('eval-selected', () => {
+function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
+	ConsoleScope.def('eval-selected', () => {
 		if (data.selectedExp && isMalNode(data.selectedExp)) {
 			let evaled
 			if (M_EXPANDED in data.selectedExp) {
@@ -225,22 +223,25 @@ function bindsAppHandler(
 				onUpdateSelectedExp(evaled)
 			}
 		}
+		return null
 	})
 
-	appHandler.on('load-file', async (url: string) => {
-		const res = await fetch(url)
-		if (res.ok) {
-			data.code = await res.text()
-		} else {
-			printer.error(`Failed to load from "${url}"`)
-		}
+	ConsoleScope.def('load-file', (url: MalVal) => {
+		fetch(url as string).then(async res => {
+			if (res.ok) {
+				data.code = await res.text()
+			} else {
+				printer.error(`Failed to load from "${url}"`)
+			}
+		})
+		return null
 	})
 
-	appHandler.on('select-outer', () => {
+	ConsoleScope.def('select-outer', () => {
 		const {selection, selectedExp, selectedExpRange} = data
 
 		if (selectedExpRange === null) {
-			return
+			return null
 		}
 
 		if (
@@ -251,9 +252,11 @@ function bindsAppHandler(
 		} else if (isMalNode(selectedExp) && selectedExp[M_OUTER]) {
 			data.selectedExp = selectedExp[M_OUTER]
 		}
+
+		return null
 	})
 
-	appHandler.on('insert-exp', (item: MalVal) => {
+	ConsoleScope.def('insert-exp', (item: MalVal) => {
 		const itemStr = printExp(item)
 
 		const [start, end] = data.selection
@@ -261,6 +264,8 @@ function bindsAppHandler(
 
 		data.code = code
 		data.selection = selection
+
+		return null
 	})
 }
 
@@ -379,16 +384,15 @@ export default defineComponent({
 				return null
 			}
 
-			const options = {
+			ViewScope.setup({
 				width: ui.viewerSize[0],
 				height: ui.viewerSize[1],
-				updateConsole: true,
 				guideColor: ui.guideColor
-			}
+			})
 
 			try {
 				expNotEvaluated = false
-				const viewExp = viewREP(exp.value, options).output
+				const viewExp = ViewScope.eval(exp.value)
 				return nonReactive(viewExp)
 			} catch (err) {
 				if (err instanceof LispError) {
@@ -477,7 +481,7 @@ export default defineComponent({
 		}
 
 		// Init App Handler
-		bindsAppHandler(data, onUpdateSelectedExp)
+		bindsConsole(data, onUpdateSelectedExp)
 
 		return {
 			...toRefs(data as any),

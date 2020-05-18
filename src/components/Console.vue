@@ -4,8 +4,8 @@
 
 <script lang="ts">
 import {defineComponent, onMounted, ref, Ref} from '@vue/composition-api'
-import {consoleREP} from '@/mal/console'
 import {printer} from '@/mal/printer'
+import ConsoleScope from '../scopes/console'
 
 export default defineComponent({
 	name: 'Console',
@@ -47,7 +47,7 @@ export default defineComponent({
 			// Handle a command.
 			const handler = (line?: string) => {
 				if (line) {
-					consoleREP(line)
+					ConsoleScope.readEval(line)
 				}
 				jqconsole.Prompt(true, handler)
 			}

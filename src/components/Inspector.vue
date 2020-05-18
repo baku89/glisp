@@ -112,9 +112,9 @@ import {
 	cloneExp
 } from '@/mal/types'
 import printExp from '@/mal/printer'
-import {consoleEnv} from '@/mal/console'
 import InputComponents from '@/components/input'
 import {clamp, getParamLabel} from '@/utils'
+import ConsoleScope from '../scopes/console'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -197,7 +197,7 @@ export default class Inspector extends Vue {
 
 	private get fn() {
 		if (this.primitiveType) {
-			return consoleEnv.get(S(this.primitiveType + '/init'))
+			return ConsoleScope.var(`${this.primitiveType}/init`)
 		} else {
 			return (isList(this.value) && (this.value as any)[M_FN]) || null
 		}

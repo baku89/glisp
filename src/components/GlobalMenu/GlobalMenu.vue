@@ -28,7 +28,7 @@
 import {Component, Vue} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
-import {consoleREP} from '@/mal/console'
+import ConsoleScope from '@/scopes/console'
 
 @Component({
 	name: 'GlobalMenu',
@@ -82,7 +82,7 @@ export default class GlobalMenu extends Vue {
 		if (Array.isArray(content)) {
 			this.expandedIndex = i
 		} else {
-			consoleREP(content, true)
+			ConsoleScope.readEval(content)
 			this.expandedIndex = null
 		}
 	}

@@ -17,7 +17,6 @@ import {
 	SetupContext
 } from '@vue/composition-api'
 import ace from 'brace'
-import {appHandler} from '@/mal/console'
 
 require('brace/theme/tomorrow')
 require('brace/theme/tomorrow_night')
@@ -29,6 +28,7 @@ import {
 	setupWheelUpdators,
 	configureEditor
 } from './use'
+import ConsoleScope from '../../scopes/console'
 
 interface Props {
 	value: string
@@ -42,7 +42,7 @@ function assignKeybinds(editor: ace.Editor) {
 		name: 'select-outer',
 		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
 		exec: () => {
-			appHandler.emit('select-outer')
+			ConsoleScope.readEval('(select-outer)')
 		}
 	})
 
@@ -50,7 +50,7 @@ function assignKeybinds(editor: ace.Editor) {
 		name: 'eval-selected',
 		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
 		exec: () => {
-			appHandler.emit('eval-selected')
+			ConsoleScope.readEval('(eval-selected)')
 		}
 	})
 }
