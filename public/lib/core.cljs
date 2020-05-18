@@ -59,6 +59,9 @@
 ;; Defn
 
 (def defmacro
+  ^{:doc "Define a macro"
+    :params [{label: "Symbol", type: "symbol"}
+             {label: "Params", type: "any"}]}
   (macro [name params & body]
          (do
   ;; Destruction of meta, param, body
@@ -77,7 +80,11 @@
            `(def ~name (macro ~params ~body))
            `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
 
-(defmacro defn [name params & body]
+(defmacro defn
+  {:doc "Define a function"
+    :params [{label: "Symbol", type: "symbol"}
+             {label: "Params", type: "any"}]}
+  [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
   (if (false? (sequential? params))
