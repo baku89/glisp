@@ -6,7 +6,11 @@
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -35,7 +39,9 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -142,11 +148,9 @@ interface UI {
 	guideColor: string
 }
 
-function parseURL(data: Data, ui: UI) {
+function parseURL(data: Data) {
 	// URL
 	const url = new URL(location.href)
-
-	ui.compact = url.searchParams.has('compact')
 
 	if (url.searchParams.has('clear')) {
 		localStorage.removeItem('saved_code')
@@ -433,7 +437,7 @@ export default defineComponent({
 			}
 		)
 
-		const {onSetupConsole} = parseURL(data, ui)
+		const {onSetupConsole} = parseURL(data)
 
 		// Background and theme
 		function onSetBackground(bg: string) {
