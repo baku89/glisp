@@ -47,7 +47,10 @@ export default defineComponent({
 			// Handle a command.
 			const handler = (line?: string) => {
 				if (line) {
-					ConsoleScope.readEval(line)
+					const ret = ConsoleScope.readEval(line)
+					if (ret !== undefined) {
+						printer.return(ret)
+					}
 				}
 				jqconsole.Prompt(true, handler)
 			}

@@ -1,8 +1,9 @@
 import Env from './env'
-import readStr from './reader'
+import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {symbolFor as S, MalVal} from './types'
+import {symbolFor as S, MalVal, LispError} from './types'
+import {printer} from './printer'
 
 export default class Scope<T> {
 	public env!: Env
@@ -65,11 +66,29 @@ export default class Scope<T> {
 	}
 
 	public readEval(str: string) {
-		return this.eval(readStr(str))
+		try {
+			return this.eval(readStr(str))
+		} catch (err) {
+			printer.error(err)
+			throw err
+		}
 	}
 
 	public eval(exp: MalVal) {
-		return evalExp(exp, this.env)
+		try {
+			return evalExp(exp, this.env)
+		} catch (err) {
+			if (err instanceof BlankException) {
+				return null
+			}
+
+			if (err instanceof LispError) {
+				printer.error(err)
+			} else {
+				printer.error(err.stack)
+			}
+			throw err
+		}
 	}
 
 	public def(name: string, value: MalVal) {

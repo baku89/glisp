@@ -70,6 +70,7 @@ export default class GlobalMenu extends Vue {
 		[
 			'?',
 			[
+				['Help', '(open-link "https://baku89.github.io/glisp/")'],
 				['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
 				['Made by Baku Hashimoto', '(open-link "https://baku89.com")']
 			]
