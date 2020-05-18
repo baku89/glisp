@@ -45,6 +45,7 @@
 		"jquery": "^3.5.0",
 		"normalize.css": "^8.0.1",
 		"paper": "^0.12.4",
+		"paperjs-offset": "^1.0.8",
 		"perf_hooks": "^0.0.1",
 		"prettier": "^1.19.1",
 		"raw-loader": "^4.0.0",
