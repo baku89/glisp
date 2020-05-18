@@ -92,7 +92,7 @@ const Exports = [
 	['vector', (...xs: MalVal[]) => createMalVector(xs)],
 	['vector?', isVector],
 	['vec', (a: MalVal[]) => createMalVector(a)],
-	['vec32', (a: MalVal[]) => new Float32Array(a as number[])],
+	['f32', (a: MalVal[]) => new Float32Array(a as number[])],
 	[
 		'buffer?',
 		(a: MalVal) =>
