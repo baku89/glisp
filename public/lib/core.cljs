@@ -101,12 +101,6 @@
     `(def ~name (fn ~params ~body))
     `(def ~name (with-meta (fn ~params ~body) ~metadata))))
 
-(def defn
-  ^{:doc "Define a function"
-    :params [{label: "Symbol", type: "symbol"}
-             {label: "Params", type: "any"}]}
-  defn)
-
 (defmacro def- [& xs]
   `(do (def ~@xs) nil))
 
@@ -315,11 +309,17 @@
      (first xs)
      (foldr f init (rest xs)))))
 
-(defmacro ->> [values & forms]
+(defmacro ->> [expr & forms]
   (reduce
-   (fn (v form) `(~@form ~v))
-   values
+   (fn [v form] `(~@form ~v))
+   expr
    forms))
+
+(defmacro as-> [expr name & forms]
+  (reduce
+   (fn [prev-form form] `(let [~name ~prev-form] ~form))
+     expr
+     forms))
 
 (defn find-list [f lst]
   (do
