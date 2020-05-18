@@ -129,44 +129,44 @@
   ^{:doc "Create a variable"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Value" :type "any"}]}
-  'def)
+  (fn []))
 
 (def let
   ^{:doc "Creates a lexical scope"
    :parmas [{:label "Binds" :type "code"}
             &
             {:label "Expr" :type "code"}]}
-  'let)
+  (fn []))
 
 (def do
   ^{:doc "Evaluates *exprs* in order and returns the value of the last"
    :params [&
             {:label "Expr" :type "code"}]}
-  'do)
+  (fn []))
 
 (def if
   ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
   :params [{:label "Test" :type "code"}
            {:label "Then" :type "code"}
            {:label "Else" :type "code" :default nil}]}
-  'if)
+  (fn []))
 
 (defn quote
   ^{:doc "Yields the unevaluated *form*"
    :params [{:label "Form" :type "code"}]}
-  'quote)
+  (fn []))
 
 (def fn
   ^{:doc "Defines a function"
    :params [{:label "Params" :type "code"}
             {:label "Expr" :type "code"}]}
-  'fn)
+  (fn []))
 
 (defn macro
   ^{:doc "Defines a macro"
    :params [{:label "Params" :type "code"}
             {:label "Expr" :type "code"}]}
-  'macro)
+  (fn []))
 
 (defmacro macroview [exp]
   `(prn (macroexpand ~exp)))
