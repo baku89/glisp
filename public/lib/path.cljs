@@ -156,7 +156,7 @@
     [:path]
     (vec (concat :path
                  :M [(first pts)]
-                 (apply concat (map #`(:L ~%) (rest pts)))))))
+                 (apply concat (map #(cons :L [%]) (rest pts)))))))
 (defalias polyline path/polyline)
 
 (defn path/polygon [& pts]
