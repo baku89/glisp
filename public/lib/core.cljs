@@ -1,7 +1,6 @@
 (import-js-force "../js/lib_core.js")
 
 ;; Declare special forms as symbol
-(def do 'do)
 (def & '&)
 
 ;; Annotate JS Functions
@@ -119,11 +118,48 @@
     fm))
 
 ;; Annotate the parameter of special forms
-(defn def
-  {:doc "Create a variable"
+(def def
+  ^{:doc "Create a variable"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Value" :type "any"}]}
-  [])
+  'def)
+
+(def let
+  ^{:doc "Creates a lexical scope"
+   :parmas [{:label "Binds" :type "code"}
+            &
+            {:label "Expr" :type "code"}]}
+  'let)
+
+(def do
+  ^{:doc "Evaluates *exprs* in order and returns the value of the last"
+   :params [&
+            {:label "Expr" :type "code"}]}
+  'do)
+
+(def if
+  ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
+  :params [{:label "Test" :type "code"}
+           {:label "Then" :type "code"}
+           {:label "Else" :type "code" :default nil}]}
+  'if)
+
+(defn quote
+  ^{:doc "Yields the unevaluated *form*"
+   :params [{:label "Form" :type "code"}]}
+  'quote)
+
+(def fn
+  ^{:doc "Defines a function"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  'fn)
+
+(defn macro
+  ^{:doc "Defines a macro"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  'macro)
 
 (defmacro macroview [exp]
   `(prn (macroexpand ~exp)))
