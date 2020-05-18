@@ -220,7 +220,6 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 }
 
 function readForm(reader: Reader, saveStr: boolean): any {
-	const token = reader.peek()
 	let val
 
 	// For syntaxtic sugars
@@ -230,7 +229,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 	// the offset array is like [<end of arg0>, <start of arg1>]
 	let sugar: number[] | null = null
 
-	switch (token) {
+	switch (reader.peek()) {
 		// reader macros/transforms
 		case ';':
 			val = null
@@ -255,11 +254,24 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 			val = [S_SPLICE_UNQUOTE, readForm(reader, saveStr)]
 			break
-		case '#':
+		case '#': {
 			reader.next()
-			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_FN_SUGAR, readForm(reader, saveStr)]
+			const type = reader.peek()
+
+			if (type === '(') {
+				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
+				val = [S_FN_SUGAR, readForm(reader, saveStr)]
+			} else {
+				switch (type) {
+					case 'f32':
+						reader.next()
+						if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
+						val = [S('f32'), readVector(reader, saveStr)]
+						break
+				}
+			}
 			break
+		}
 		case '^': {
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
