@@ -427,6 +427,7 @@
 (def rect/top second)
 (defn rect/right [r] (+ (nth r 0) (nth r 2)))
 (defn rect/bottom [r] (+ (nth r 1) (nth r 3)))
+(defn rect/center [[x y w h]] [(+ x (/ w 2)) (+ y (/ h 2))])
 
 (defn rect/width [r] (nth r 2))
 (defn rect/height [r] (nth r 3))

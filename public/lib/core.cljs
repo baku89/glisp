@@ -1,7 +1,6 @@
 (import-js-force "../js/lib_core.js")
 
 ;; Declare special forms as symbol
-(def do 'do)
 (def & '&)
 
 ;; Annotate JS Functions
@@ -60,6 +59,9 @@
 ;; Defn
 
 (def defmacro
+  ^{:doc "Define a macro"
+    :params [{label: "Symbol", type: "symbol"}
+             {label: "Params", type: "any"}]}
   (macro [name params & body]
          (do
   ;; Destruction of meta, param, body
@@ -78,7 +80,11 @@
            `(def ~name (macro ~params ~body))
            `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
 
-(defmacro defn [name params & body]
+(defmacro defn
+  {:doc "Define a function"
+    :params [{label: "Symbol", type: "symbol"}
+             {label: "Params", type: "any"}]}
+  [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
   (if (false? (sequential? params))
@@ -94,12 +100,6 @@
   (if (nil? metadata)
     `(def ~name (fn ~params ~body))
     `(def ~name (with-meta (fn ~params ~body) ~metadata))))
-
-(def defn
-  ^{:doc "Define a function"
-    :params [{label: "Symbol", type: "symbol"}
-             {label: "Params", type: "any"}]}
-  defn)
 
 (defmacro def- [& xs]
   `(do (def ~@xs) nil))
@@ -119,11 +119,48 @@
     fm))
 
 ;; Annotate the parameter of special forms
-(defn def
-  {:doc "Create a variable"
+(def def
+  ^{:doc "Create a variable"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Value" :type "any"}]}
-  [])
+  (fn []))
+
+(def let
+  ^{:doc "Creates a lexical scope"
+   :parmas [{:label "Binds" :type "code"}
+            &
+            {:label "Expr" :type "code"}]}
+  (fn []))
+
+(def do
+  ^{:doc "Evaluates *exprs* in order and returns the value of the last"
+   :params [&
+            {:label "Expr" :type "code"}]}
+  (fn []))
+
+(def if
+  ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
+  :params [{:label "Test" :type "code"}
+           {:label "Then" :type "code"}
+           {:label "Else" :type "code" :default nil}]}
+  (fn []))
+
+(defn quote
+  ^{:doc "Yields the unevaluated *form*"
+   :params [{:label "Form" :type "code"}]}
+  (fn []))
+
+(def fn
+  ^{:doc "Defines a function"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  (fn []))
+
+(defn macro
+  ^{:doc "Defines a macro"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  (fn []))
 
 (defmacro macroview [exp]
   `(prn (macroexpand ~exp)))
@@ -274,11 +311,17 @@
      (first xs)
      (foldr f init (rest xs)))))
 
-(defmacro ->> [values & forms]
+(defmacro ->> [expr & forms]
   (reduce
-   (fn (v form) `(~@form ~v))
-   values
+   (fn [v form] `(~@form ~v))
+   expr
    forms))
+
+(defmacro as-> [expr name & forms]
+  (reduce
+   (fn [prev-form form] `(let [~name ~prev-form] ~form))
+     expr
+     forms))
 
 (defn find-list [f lst]
   (do

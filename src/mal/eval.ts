@@ -158,7 +158,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
-				const binds = a1 as MalVal[]
+				if (!Array.isArray(a1)) {
+					throw new LispError('Invalid bind-expr in let')
+				}
+				const binds = a1
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,
@@ -169,6 +172,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp.length === 3 ? a2 : [S_DO, ...exp.slice(2)]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNodeList)[M_FN] = env.get(S_LET) as MalFunc
 				}
 				exp = ret
 				break // continue TCO loop
@@ -272,6 +276,12 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					}
 				}
 			case S_DO: {
+				if (cache) {
+					;(exp as MalNodeList)[M_FN] = env.get(S_DO) as MalFunc
+				}
+				if (exp.length === 1) {
+					return null
+				}
 				evalAtom(exp.slice(1, -1), env, cache)
 				const ret = exp[exp.length - 1]
 				if (cache) {
@@ -286,6 +296,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = a2
+					;(exp as MalNodeList)[M_FN] = env.get(S_IF) as MalFunc
 					;(exp as MalNodeList)[M_EXPANDED] = a2
 				}
 				exp = ret
