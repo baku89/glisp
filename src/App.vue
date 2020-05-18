@@ -1,17 +1,12 @@
 <template>
-	<div id="app" class="app" :class="{compact: pane.compact}" :style="colors">
+	<div id="app" class="app" :class="{compact}" :style="colors">
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
-			<LayerView class="app__layer-view" :exp="exp" />
 			<div class="app__inspector" v-if="selectedExp">
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -39,10 +34,8 @@
 					<button
 						class="app__console-toggle"
 						:class="{error: hasError}"
-						@click="pane.compact = !pane.compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+						@click="compact = !compact"
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -58,13 +51,11 @@ import {
 	reactive,
 	computed,
 	watch,
-	toRefs,
-	ref
+	toRefs
 } from '@vue/composition-api'
 import Color from 'color'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import LayerView from '@/components/LayerView.vue'
 import Editor from '@/components/Editor'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
@@ -154,6 +145,8 @@ interface UI {
 function parseURL(data: Data, ui: UI) {
 	// URL
 	const url = new URL(location.href)
+
+	ui.compact = url.searchParams.has('compact')
 
 	if (url.searchParams.has('clear')) {
 		localStorage.removeItem('saved_code')
@@ -267,22 +260,10 @@ function bindsAppHandler(
 	})
 }
 
-function usePaneState() {
-	const url = new URL(location.href)
-
-	const pane = reactive({
-		compact: ref(url.searchParams.has('compact')),
-		layerViewExpnaded: true
-	})
-
-	return pane
-}
-
 export default defineComponent({
 	name: 'App',
 	components: {
 		GlobalMenu,
-		LayerView,
 		Editor,
 		Viewer,
 		Console,
@@ -494,18 +475,13 @@ export default defineComponent({
 		// Init App Handler
 		bindsAppHandler(data, onUpdateSelectedExp)
 
-		// Pane Layout
-		const pane = usePaneState()
-
 		return {
 			...toRefs(data as any),
 			onSetupConsole,
 			onUpdateSelectedExp,
 
 			...toRefs(ui as any),
-			onSetBackground,
-
-			pane
+			onSetBackground
 		}
 	}
 })
@@ -545,14 +521,9 @@ $compact-dur = 0.4s
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
 
-	&__content
-		position relative
+	&__content, position relative
 		display flex
 		height calc(100vh - 3.5rem)
-
-	&__layer-view
-		width 10rem
-		border-right 1px solid var(--comment)
 
 	&__inspector
 		position absolute
