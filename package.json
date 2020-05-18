@@ -9,8 +9,6 @@
 		"deploy": "node task.deploy.js"
 	},
 	"dependencies": {
-		"paperjs-offset": "^1.0.8",
-		"sprintf-js": "^1.1.2",
 		"vue": "^2.6.11",
 		"vue-class-component": "^7.2.3",
 		"vue-property-decorator": "^8.4.1"
@@ -34,6 +32,7 @@
 		"color": "^3.1.2",
 		"comlink": "^4.3.0",
 		"dateformat": "^3.0.3",
+		"docsify": "^4.11.3",
 		"eslint": "^6.7.2",
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",
@@ -45,11 +44,13 @@
 		"jquery": "^3.5.0",
 		"normalize.css": "^8.0.1",
 		"paper": "^0.12.4",
+		"paperjs-offset": "^1.0.8",
 		"perf_hooks": "^0.0.1",
 		"prettier": "^1.19.1",
 		"raw-loader": "^4.0.0",
 		"resize-sensor": "^0.0.6",
 		"seedrandom": "^3.0.5",
+		"sprintf-js": "^1.1.2",
 		"stylus": "^0.54.7",
 		"stylus-loader": "^3.0.2",
 		"svgpath": "^2.2.3",
