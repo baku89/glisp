@@ -21,53 +21,34 @@
     (stroke $guide-color)
     (stroke $guide-color (first xs))))
 
-(defn flatten-element [xs]
-  (case (count xs)
-    0 nil
-    1 (first xs)
-    (vec xs)))
-
 (defmacro g
   [attrs & xs]
-  `(let [_attrs ~attrs
-         _attr-transform (get _attrs :transform)
-         _attr-style (get _attrs :style)]
+  (let [_attrs (gensym)
+        _attr-transform (gensym)
+        _attr-style (gensym)]
+    `(let [~_attrs ~attrs
+           ~_attr-transform (get ~_attrs :transform)
+           ~_attr-style (get ~_attrs :style)]
 
-     (cond
-       (and _attr-transform _attr-style)
-       ~`(transform _attr-transform ~`(style _attr-style ~@xs))
+       (cond
+         (and ~_attr-transform ~_attr-style)
+         ~`(transform ~_attr-transform ~`(style ~_attr-style ~@xs))
 
-       _attr-transform
-       ~`(transform _attr-transform ~@xs)
+         ~_attr-transform
+         ~`(transform ~_attr-transform ~@xs)
 
-       _attr-style
-       ~`(style _attr-style ~@xs)
+         ~_attr-style
+         ~`(style ~_attr-style ~@xs)
 
-       :else
-       (vec ~xs))))
-
-  ;; (let [attr-transform (get attrs :transform)
-  ;;       attr-style (get attrs :style)]
-  ;;   (cond
-  ;;     (and attr-transform attr-style)
-  ;;     (apply transform `(~attr-transform
-  ;;                        ~(apply style `(~attr-style ~@xs))))
-
-  ;;     attr-transform
-  ;;     (apply transform (prn-pass `(~attr-transform ~@xs)))
-
-  ;;     attr-style
-  ;;     (apply style `(~attr-style ~@xs))
-
-  ;;     :else
-  ;;     (vec xs))))
+         :else
+         (vec ~xs)))))
 
 (defmacro transform
   [matrix & xs]
   (let [m (gensym)]
-    `(let [~m ~matrix
-           $transform (mat2d/* $transform ~m)]
-       ~`[:transform ~m ~@xs])))
+    `(let [~m ~matrix]
+       (binding [$transform (mat2d/* $transform ~m)]
+         ~`[:transform ~m ~@xs]))))
 
 ;; (defn gen-style-binds [style]
 ;;   (apply concat
@@ -88,7 +69,7 @@
 
 (defn style
   [attrs & xs]
-  (vec `(:style ~attrs ~@xs)))
+  `[:style ~attrs ~@xs])
 
 
 ;; Color

@@ -264,8 +264,7 @@
                  syms (map first entries)
                  colls (map second entries)
                  gen-lst `(combination/product ~@colls)
-                 index-sym (get options :index)
-                 _ (prn options index-sym)]
+                 index-sym (get options :index)]
              (if index-sym
                `(map-indexed (fn [~index-sym ~syms]
                                (do ~@body)) ~gen-lst)

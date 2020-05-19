@@ -207,7 +207,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
 						binds[i] as any,
-						evalExp(binds[i + 1], bindingEnv, cache) as MalVal[]
+						evalExp(binds[i + 1], env, cache) as MalVal[]
 					)
 				}
 				const ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
