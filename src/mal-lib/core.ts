@@ -28,6 +28,7 @@ function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new LispError('[with-meta] Need the metadata to attach')
 	}
+
 	if (!isMalNode(a)) {
 		throw new LispError('[with-meta] Object should not be atom')
 	}
@@ -37,28 +38,20 @@ function withMeta(a: MalVal, m: any) {
 }
 
 const Exports = [
+	['type', x => keywordFor(getType(x) as string)],
 	['nil?', (x: MalVal) => x === null],
 	['true?', (x: MalVal) => x === true],
 	['false?', (x: MalVal) => x === false],
 	['boolean?', (x: MalVal) => typeof x === 'boolean'],
 	['number?', (x: MalVal) => typeof x === 'number'],
 	['string?', isString],
-	[
-		'symbol',
-		(x: MalVal) => {
-			if (typeof x !== 'string') {
-				throw new LispError(`Cannot create a symbol from ${printExp(x)}`)
-			} else {
-				return S(x)
-			}
-		}
-	],
-	['symbol?', isSymbol],
 	['keyword?', isKeyword],
+	['fn?', (x: MalVal) => getType(x) === 'fn'],
+	['macro?', (x: MalVal) => getType(x) === 'macro'],
+
 	['keyword', keywordFor],
-	['fn?', (x: MalVal) => x instanceof Function && !(x as MalFunc)[M_ISMACRO]],
-	['macro?', (x: MalVal) => x instanceof Function && (x as MalFunc)[M_ISMACRO]],
-	['type', (x: MalVal) => keywordFor(getType(x) as string)],
+	['symbol', S],
+	['symbol?', isSymbol],
 
 	// // Compare
 	['=', (a: MalVal, b: MalVal) => a === b],
@@ -90,12 +83,6 @@ const Exports = [
 	['vector', (...xs: MalVal[]) => markMalVector(xs)],
 	['vector?', isVector],
 	['vec', (a: MalVal[]) => markMalVector([...a])],
-	['f32', (a: MalVal[]) => new Float32Array(a as number[])],
-	[
-		'buffer?',
-		(a: MalVal) =>
-			a instanceof Object && (a as any).buffer instanceof ArrayBuffer
-	],
 	['sequential?', Array.isArray],
 	[
 		'seq',

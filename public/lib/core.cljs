@@ -130,51 +130,48 @@
     fm))
 
 ;; Annotate the parameter of special forms
-;; (def def
-;;   ^{:doc "Create a variable"
-;;    :params [{:label "Symbol" :type "symbol"}
-;;             {:label "Value" :type "any"}]}
-;;   (fn []))
+(def def
+  ^{:doc "Create a variable"
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Value" :type "any"}]}
+  (fn [] nil))
 
-;; (def let
-;;   ^{:doc "Creates a lexical scope"
-;;    :parmas [{:label "Binds" :type "code"}
-;;             &
-;;             {:label "Expr" :type "code"}]}
-;;   (fn []))
+(def let
+  ^{:doc "Creates a lexical scope"
+   :parmas [{:label "Binds" :type "code"}
+            &
+            {:label "Expr" :type "code"}]}
+  (fn [] nil))
 
-;; (def do
-;;   ^{:doc "Evaluates *exprs* in order and returns the value of the last"
-;;    :params [&
-;;             {:label "Expr" :type "code"}]}
-;;   (fn []))
+(def do
+  ^{:doc "Evaluates *exprs* in order and returns the value of the last"
+   :params [&
+            {:label "Expr" :type "code"}]}
+  (fn [] nil))
 
-;; (def if
-;;   ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
-;;   :params [{:label "Test" :type "code"}
-;;            {:label "Then" :type "code"}
-;;            {:label "Else" :type "code" :default nil}]}
-;;   (fn []))
+(def if
+  ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
+  :params [{:label "Test" :type "code"}
+           {:label "Then" :type "code"}
+           {:label "Else" :type "code" :default nil}]}
+  (fn [] nil))
 
-;; (defn quote
-;;   ^{:doc "Yields the unevaluated *form*"
-;;    :params [{:label "Form" :type "code"}]}
-;;   (fn []))
+(def quote
+  ^{:doc "Yields the unevaluated *form*"
+   :params [{:label "Form" :type "code"}]}
+  (fn [] nil))
 
-;; (def fn
-;;   ^{:doc "Defines a function"
-;;    :params [{:label "Params" :type "code"}
-;;             {:label "Expr" :type "code"}]}
-;;   (fn []))
+(def fn
+  ^{:doc "Defines a function"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  (fn [] nil))
 
-;; (defn macro
-;;   ^{:doc "Defines a macro"
-;;    :params [{:label "Params" :type "code"}
-;;             {:label "Expr" :type "code"}]}
-;;   (fn []))
-
-(defmacro macroview [exp]
-  `(prn (macroexpand ~exp)))
+(def macro
+  ^{:doc "Defines a macro"
+   :params [{:label "Params" :type "code"}
+            {:label "Expr" :type "code"}]}
+  (fn [] nil))
 
 (def import
   (try
@@ -214,7 +211,7 @@
                      nil)
         :else (println "No document")))
 
-(def
+(def type
   ^{:doc "Retruns the type of `x` in keyword"
    :params [{:label "Value" :type "any"}]
    :returns {:type "keyword"}}

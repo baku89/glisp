@@ -218,7 +218,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_FN:
 				if (!Array.isArray(a1)) {
-					throw new LispError('Second element of fn should be list')
+					throw new LispError('First argument of fn should be list')
+				}
+				if (a2 === undefined) {
+					throw new LispError('Second argument of fn should be specified')
 				}
 				return createMalFunc(
 					(...args) => evalExp(a2, new Env(env, a1 as any[], args), cache),
@@ -234,9 +237,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					[]
 				)
 			case S_MACRO: {
-				if (!Array.isArray(a1)) {
-					throw new LispError('Second element of macro should be list')
-				}
 				const fnexp = [S_FN, a1, a2]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true

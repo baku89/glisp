@@ -263,8 +263,8 @@
    (= (count x) 6)))
 
 (defn mat2d/ident
-  ^{:doc "Returns ident matrix"
-    :params []}
+  {:doc "Returns ident matrix"
+   :params []}
   []
   [1 0 0 1 0 0])
 

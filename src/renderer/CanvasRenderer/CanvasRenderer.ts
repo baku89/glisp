@@ -135,7 +135,7 @@ export default class CanvasRenderer {
 	) {
 		const ctx = this.ctx
 
-		if (Array.isArray(exp)) {
+		if (Array.isArray(exp) && exp.length > 0) {
 			const [elm, ...rest] = exp as any[]
 
 			if (!isKeyword(elm)) {
