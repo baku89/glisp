@@ -255,8 +255,7 @@
          entries (filter #(symbol? (first %)) pairs)
          options (->> pairs
                       (filter #(keyword? (first %)))
-                      (flat)
-                      (prn-pass)
+                      (apply concat)
                       (apply hash-map))]
         [entries options]))]
 
@@ -322,8 +321,8 @@
   (do
     (if (sequential? lst)
       (if (f lst)
-        (flat `(~(list lst) ~@(map #(find-list f %) lst)))
-        (flat (map #(find-list f %) lst)))
+        (apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
+        (apply concat (map #(find-list f %) lst)))
       '())))
 
 

@@ -70,7 +70,7 @@
        ~`[:transform ~m ~@xs])))
 
 ;; (defn gen-style-binds [style]
-;;   (flat
+;;   (apply concat
 ;;          (map
 ;;           (fn [[k v]]
 ;;             [(symbol (str "$" (name k))) v])
@@ -81,7 +81,7 @@
 ;;   [attrs & xs]
 ;;   (let [eval-attrs (eval-in-env attrs)
 ;;         binds (if (sequential? eval-attrs)
-;;                 (flat (map gen-style-binds eval-attrs))
+;;                 (apply concat (map gen-style-binds eval-attrs))
 ;;                 (gen-style-binds eval-attrs))]
 ;;     `(binding ~binds
 ;;        ~(vec `(:style ~attrs ~@xs)))))
@@ -232,7 +232,7 @@
                                                 (apply hash-map)
                                                 (#(assoc % :size size))
                                                 (entries)
-                                                (flat))]
+                                                (apply concat))]
                                   (concat text-pos args))))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])

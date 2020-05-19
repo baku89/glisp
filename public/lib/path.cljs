@@ -221,7 +221,7 @@
    :params [& {:type "path"}]
    :returns {:type "path"}}
   [& paths]
-  `[:path ~@(flat (map rest paths))])
+  `[:path ~@(apply concat (map rest paths))])
 
 ;; Annotations for JS functions
 
