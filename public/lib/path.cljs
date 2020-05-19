@@ -152,11 +152,11 @@
                             :add [:change-id [:edit i]
                                   (insert-nth pts i p)])))}}
   [& pts]
-  (if (= 0 (count pts))
+  (if (zero? (count pts))
     [:path]
-    (vec (concat :path
-                 :M [(first pts)]
-                 (apply concat (map #(cons :L [%]) (rest pts)))))))
+    `[:path
+      :M ~(first pts)
+      ~@(apply concat (map #(list :L %) (rest pts)))]))
 (defalias polyline path/polyline)
 
 (defn path/polygon [& pts]
@@ -221,7 +221,7 @@
    :params [& {:type "path"}]
    :returns {:type "path"}}
   [& paths]
-  (vec (concat :path (apply concat (map rest paths)))))
+  `[:path ~@(flat (map rest paths))])
 
 ;; Annotations for JS functions
 
@@ -245,7 +245,12 @@
 (def path-boolean-meta
   {:params [& {:label "Path" :type "path"}]
    :handles {:draw (fn [[& paths]]
-                     (vec (map #(hash-map :type "path" :guide true :class "dashed" :path %) paths)))}})
+                     (map #(hash-map
+                            :type "path"
+                            :guide true
+                            :class "dashed"
+                            :path %)
+                          paths))}})
 
 
 (def path/unite
