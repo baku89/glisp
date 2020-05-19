@@ -8,6 +8,8 @@ import printExp, {printer} from './printer'
 export default class Scope<T> {
 	public env!: Env
 
+	private inner!: Scope<any>
+
 	constructor(
 		private outer: Scope<any> | null = null,
 		private name = 'repl',
@@ -17,11 +19,13 @@ export default class Scope<T> {
 		this.setup()
 
 		if (this.outer === null) {
-			this._initAsRoot()
+			this.initAsRoot()
+		} else {
+			this.outer.inner = this
 		}
 	}
 
-	private _initAsRoot() {
+	private initAsRoot() {
 		// Defining essential functions
 
 		ReplCore.forEach(([name, expr]) => {
@@ -64,6 +68,10 @@ export default class Scope<T> {
 
 		if (this.onSetup && option) {
 			this.onSetup(this, option)
+		}
+
+		if (this.inner) {
+			this.inner.env.setOuter(this.env)
 		}
 	}
 
