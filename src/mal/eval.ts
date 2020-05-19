@@ -330,7 +330,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				// Apply Function
 				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
 
-				if (isMalFunc(fn) || typeof fn === 'function') {
+				if (fn instanceof Function) {
 					;(exp as MalNodeList)[M_EVAL_PARAMS] = args
 					const ret = fn(...args)
 					if (cache) {

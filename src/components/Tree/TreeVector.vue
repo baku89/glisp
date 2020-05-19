@@ -11,13 +11,7 @@
 
 <script lang="ts">
 import {Component, Prop, Vue} from 'vue-property-decorator'
-import {
-	MalVal,
-	isKeyword,
-	isSymbol,
-	isVector,
-	createMalVector
-} from '@/mal/types'
+import {MalVal, markMalVector} from '@/mal/types'
 import {printExp} from '@/mal'
 
 import Tree from './Tree.vue'
@@ -44,7 +38,7 @@ export default class TreeVector extends Vue {
 	}
 
 	onInput(i: number, val: MalVal) {
-		const value = createMalVector(this.value)
+		const value = markMalVector([...this.value])
 		value[i] = val
 		this.$emit('input', value)
 	}

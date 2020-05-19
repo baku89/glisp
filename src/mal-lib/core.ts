@@ -14,12 +14,12 @@ import {
 	LispError,
 	M_ISMACRO,
 	MalFunc,
-	createMalVector,
 	isVector,
 	isList,
 	MalAtom,
 	M_META,
-	isMalNode
+	isMalNode,
+	getType
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -56,11 +56,9 @@ const Exports = [
 	['symbol?', isSymbol],
 	['keyword?', isKeyword],
 	['keyword', keywordFor],
-	['fn?', (x: MalVal) => typeof x === 'function' && !(x as MalFunc)[M_ISMACRO]],
-	[
-		'macro?',
-		(x: MalVal) => typeof x === 'function' && !!(x as MalFunc)[M_ISMACRO]
-	],
+	['fn?', (x: MalVal) => x instanceof Function && !(x as MalFunc)[M_ISMACRO]],
+	['macro?', (x: MalVal) => x instanceof Function && (x as MalFunc)[M_ISMACRO]],
+	['type', (x: MalVal) => keywordFor(getType(x) as string)],
 
 	// // Compare
 	['=', (a: MalVal, b: MalVal) => a === b],
@@ -89,9 +87,9 @@ const Exports = [
 	['list', (...xs: MalVal[]) => xs],
 	['list?', isList],
 
-	['vector', (...xs: MalVal[]) => createMalVector(xs)],
+	['vector', (...xs: MalVal[]) => markMalVector(xs)],
 	['vector?', isVector],
-	['vec', (a: MalVal[]) => createMalVector(a)],
+	['vec', (a: MalVal[]) => markMalVector([...a])],
 	['f32', (a: MalVal[]) => new Float32Array(a as number[])],
 	[
 		'buffer?',
@@ -107,7 +105,7 @@ const Exports = [
 			} else if (isString(a) && a.length > 0) {
 				return a.split('')
 			} else if (isMap(a)) {
-				return Object.entries(a).map(entry => createMalVector(entry))
+				return Object.entries(a).map(entry => markMalVector(entry))
 			} else {
 				return null
 			}
@@ -176,7 +174,7 @@ const Exports = [
 				args.forEach(arg => newList.unshift(arg))
 				return newList
 			} else if (isVector(lst)) {
-				return createMalVector([...lst, ...args])
+				return markMalVector([...lst, ...args])
 			}
 		}
 	],

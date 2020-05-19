@@ -310,7 +310,7 @@ export default defineComponent({
 			hasEvalError: computed(() => data.viewExp === null),
 			hasRenderError: false,
 			viewExp: computed(() => {
-				return _evalExp()
+				return evalExp()
 			}),
 
 			// Selection
@@ -376,7 +376,7 @@ export default defineComponent({
 			})
 		}) as Data
 
-		function _evalExp() {
+		function evalExp() {
 			const exp = data.exp
 
 			if (!exp) {
@@ -392,6 +392,7 @@ export default defineComponent({
 			try {
 				expNotEvaluated = false
 				const viewExp = ViewScope.eval(exp.value)
+				window.exp = exp.value
 				return nonReactive(viewExp)
 			} catch (err) {
 				if (err instanceof LispError) {
@@ -405,7 +406,7 @@ export default defineComponent({
 
 		function evalExpIfNeeded() {
 			if (expNotEvaluated) {
-				_evalExp()
+				evalExp()
 			}
 		}
 

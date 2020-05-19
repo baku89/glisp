@@ -10,7 +10,6 @@ import {
 	symbolFor as S,
 	isKeyword,
 	LispError,
-	createMalVector,
 	markMalVector,
 	assocBang,
 	MalNode,
@@ -533,9 +532,9 @@ function pathArc(
 		points = points.reverse()
 	}
 
-	points = points.map(pt => createMalVector(pt))
+	points = points.map(pt => markMalVector(pt) as number[])
 
-	return createMalVector([
+	return markMalVector([
 		K_PATH,
 		K_M,
 		points[0],

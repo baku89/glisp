@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, watch} from '@vue/composition-api'
-import {createMalVector, markMalVector} from '@/mal/types'
+import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 import {useDraggable} from '@/components/use'
 
@@ -42,7 +42,7 @@ export default defineComponent({
 		const dragEl: Ref<null | HTMLElement> = ref(null)
 
 		const onInput = (i: number, v: number) => {
-			const value = createMalVector([...props.value])
+			const value = markMalVector([...props.value])
 			value[i] = v
 
 			context.emit('input', value)

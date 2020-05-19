@@ -26,7 +26,7 @@ export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of lis
 
 export type MalBind = (string | MalBind)[]
 
-export interface MalFunc {
+export interface MalFunc extends Function {
 	(...args: MalVal[]): MalVal
 	[M_META]?: MalVal
 	[M_AST]: MalVal
@@ -51,6 +51,7 @@ export interface MalNodeMap extends MalMap {
 }
 
 export interface MalNodeList extends Array<MalVal> {
+	[M_ISVECTOR]: boolean
 	[M_META]?: MalVal
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
@@ -62,6 +63,63 @@ export interface MalNodeList extends Array<MalVal> {
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
 	[M_CACHE]: {[k: string]: any}
+}
+
+type MalTypeString =
+	// Collections
+	| 'list'
+	| 'vector'
+	| 'map'
+
+	// Atomics
+	| 'number'
+	| 'string'
+	| 'boolean'
+	| 'nil'
+	| 'symbol'
+	| 'keyword'
+	| 'atom'
+
+	// Functions
+	| 'fn'
+	| 'macro'
+
+export function getType(obj: MalVal): MalTypeString {
+	const _typeof = typeof obj
+	switch (_typeof) {
+		case 'object':
+			if (obj === null) {
+				return 'nil'
+			} else if (Array.isArray(obj)) {
+				const isvector = (obj as MalNodeList)[M_ISVECTOR]
+				return isvector ? 'vector' : 'list'
+			} else if (obj instanceof Float32Array) {
+				return 'vector'
+			} else if (obj instanceof MalAtom) {
+				return 'atom'
+			} else {
+				return 'map'
+			}
+		case 'function': {
+			const ismacro = (obj as MalFunc)[M_ISMACRO]
+			return ismacro ? 'macro' : 'fn'
+		}
+		case 'string':
+			switch ((obj as string)[0]) {
+				case SYMBOL_PREFIX:
+					return 'symbol'
+				case KEYWORD_PREFIX:
+					return 'keyword'
+				default:
+					return 'string'
+			}
+		case 'number':
+			return 'number'
+		case 'boolean':
+			return 'boolean'
+		default:
+			throw new LispError(`Invalid type '${_typeof}'`)
+	}
 }
 
 export function getMalNodeCache(node: MalNode, key: string): any | undefined {
@@ -196,42 +254,32 @@ const KEYWORD_PREFIX = '\u029e'
 const SYMBOL_PREFIX = '\u01a8'
 
 export const isMalFunc = (obj: MalVal): obj is MalFunc =>
-	obj && (obj as MalFunc)[M_AST] ? true : false
+	obj instanceof Function && (obj as MalFunc)[M_AST] ? true : false
 
 // String
 export const isString = (obj: MalVal): obj is string =>
-	typeof obj === 'string' &&
-	obj[0] !== SYMBOL_PREFIX &&
-	obj[0] !== KEYWORD_PREFIX
+	getType(obj) === 'string'
 
 // Symbol
 // Use \u01a8 as the prefix of symbol for AST object
 export const isSymbol = (obj: MalVal): obj is string =>
-	typeof obj === 'string' && obj[0] === SYMBOL_PREFIX
+	getType(obj) === 'symbol'
 
 export const symbolFor = (k: string) => SYMBOL_PREFIX + k
 
 // Keyword
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
 export const isKeyword = (obj: MalVal): obj is string =>
-	typeof obj === 'string' && obj[0] === KEYWORD_PREFIX
+	getType(obj) === 'keyword'
 
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: MalVal): obj is MalVal[] =>
-	Array.isArray(obj) && !(obj as any)[M_ISVECTOR]
+export const isList = (obj: MalVal): obj is MalVal[] => getType(obj) === 'list'
 
 // Vectors
 export const isVector = (obj: MalVal): obj is MalVal[] =>
-	(Array.isArray(obj) && !!(obj as any)[M_ISVECTOR]) ||
-	obj instanceof Float32Array
-
-export function createMalVector<T>(_arr: Array<T>): Array<T> {
-	const arr = [..._arr]
-	;(arr as any)[M_ISVECTOR] = true
-	return arr
-}
+	getType(obj) === 'vector'
 
 export function markMalVector(arr: MalVal[]): MalVal[] {
 	;(arr as any)[M_ISVECTOR] = true
@@ -239,12 +287,7 @@ export function markMalVector(arr: MalVal[]): MalVal[] {
 }
 
 // Maps
-export const isMap = (obj: MalVal | undefined): obj is MalMap =>
-	obj !== null &&
-	typeof obj === 'object' &&
-	!isMalFunc(obj) &&
-	!(obj instanceof MalAtom) && // eslint-disable-line @typescript-eslint/no-use-before-define
-	!Array.isArray(obj)
+export const isMap = (obj: MalVal): obj is MalMap => getType(obj) === 'map'
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
@@ -266,53 +309,6 @@ export class MalAtom {
 	constructor(val: MalVal) {
 		this.val = val
 	}
-}
-
-type MalTypeString =
-	| 'list'
-	| 'vector'
-	| 'map'
-	| 'nil'
-	| 'symbol'
-	| 'keyword'
-	| 'string'
-	| 'boolean'
-	| 'number'
-	| 'atom'
-
-export function getType(obj: MalVal): MalTypeString | null {
-	if (Array.isArray(obj)) {
-		if ((obj as any)[M_ISVECTOR]) {
-			return 'vector'
-		} else {
-			return 'list'
-		}
-	} else if (isMap(obj)) {
-		return 'map'
-	} else if (obj === null) {
-		return 'nil'
-	} else {
-		switch (typeof obj) {
-			case 'string':
-				switch (obj[0]) {
-					case SYMBOL_PREFIX:
-						return 'symbol'
-					case KEYWORD_PREFIX:
-						return 'keyword'
-					default:
-						return 'string'
-				}
-			case 'boolean':
-				return 'boolean'
-			case 'number':
-				return 'number'
-			case 'object':
-				if (obj instanceof MalAtom) {
-					return 'atom'
-				}
-		}
-	}
-	return null
 }
 
 // Namespace

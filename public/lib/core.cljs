@@ -3,6 +3,17 @@
 ;; Declare special forms as symbol
 (def & '&)
 
+;; Annotate Repl Core Functions
+(def prn
+  ^{:doc "Prints the objects to the console"
+    :params [& {:label "x" :type "any"}]}
+  prn)
+
+(def println
+  ^{:doc "Prints the string with newline"
+    :params [& {:label "Text" :type "any"}]}
+  println)
+
 ;; Annotate JS Functions
 (def +
   ^{:doc "Returns the sum of nums"
@@ -119,48 +130,48 @@
     fm))
 
 ;; Annotate the parameter of special forms
-(def def
-  ^{:doc "Create a variable"
-   :params [{:label "Symbol" :type "symbol"}
-            {:label "Value" :type "any"}]}
-  (fn []))
+;; (def def
+;;   ^{:doc "Create a variable"
+;;    :params [{:label "Symbol" :type "symbol"}
+;;             {:label "Value" :type "any"}]}
+;;   (fn []))
 
-(def let
-  ^{:doc "Creates a lexical scope"
-   :parmas [{:label "Binds" :type "code"}
-            &
-            {:label "Expr" :type "code"}]}
-  (fn []))
+;; (def let
+;;   ^{:doc "Creates a lexical scope"
+;;    :parmas [{:label "Binds" :type "code"}
+;;             &
+;;             {:label "Expr" :type "code"}]}
+;;   (fn []))
 
-(def do
-  ^{:doc "Evaluates *exprs* in order and returns the value of the last"
-   :params [&
-            {:label "Expr" :type "code"}]}
-  (fn []))
+;; (def do
+;;   ^{:doc "Evaluates *exprs* in order and returns the value of the last"
+;;    :params [&
+;;             {:label "Expr" :type "code"}]}
+;;   (fn []))
 
-(def if
-  ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
-  :params [{:label "Test" :type "code"}
-           {:label "Then" :type "code"}
-           {:label "Else" :type "code" :default nil}]}
-  (fn []))
+;; (def if
+;;   ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
+;;   :params [{:label "Test" :type "code"}
+;;            {:label "Then" :type "code"}
+;;            {:label "Else" :type "code" :default nil}]}
+;;   (fn []))
 
-(defn quote
-  ^{:doc "Yields the unevaluated *form*"
-   :params [{:label "Form" :type "code"}]}
-  (fn []))
+;; (defn quote
+;;   ^{:doc "Yields the unevaluated *form*"
+;;    :params [{:label "Form" :type "code"}]}
+;;   (fn []))
 
-(def fn
-  ^{:doc "Defines a function"
-   :params [{:label "Params" :type "code"}
-            {:label "Expr" :type "code"}]}
-  (fn []))
+;; (def fn
+;;   ^{:doc "Defines a function"
+;;    :params [{:label "Params" :type "code"}
+;;             {:label "Expr" :type "code"}]}
+;;   (fn []))
 
-(defn macro
-  ^{:doc "Defines a macro"
-   :params [{:label "Params" :type "code"}
-            {:label "Expr" :type "code"}]}
-  (fn []))
+;; (defn macro
+;;   ^{:doc "Defines a macro"
+;;    :params [{:label "Params" :type "code"}
+;;             {:label "Expr" :type "code"}]}
+;;   (fn []))
 
 (defmacro macroview [exp]
   `(prn (macroexpand ~exp)))
@@ -203,24 +214,11 @@
                      nil)
         :else (println "No document")))
 
-(defn type
-  {:doc "Retruns the type of `x` in keyword"
+(def
+  ^{:doc "Retruns the type of `x` in keyword"
    :params [{:label "Value" :type "any"}]
    :returns {:type "keyword"}}
-  [x]
-  (cond (list? x) :list
-        (vector? x) :vector
-        (map? x) :map
-        (buffer? x) :buffer
-        (number? x) :number
-        (string? x) :string
-        (boolean? x) :boolean
-        (keyword? x) :keyword
-        (symbol? x) :symbol
-        (atom? x) :atom
-        (nil? x) :nil
-        (fn? x) :fn
-        (macro? x) :macro))
+  type)
 
 (defn name
   {:doc "Returns the string name of string, symbol or keyword"

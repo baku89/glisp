@@ -1,20 +1,18 @@
 import {
 	MalVal,
 	MalAtom,
-	isMalFunc,
-	isKeyword,
-	isSymbol,
 	M_PARAMS,
 	M_AST,
-	isMap,
 	isList,
 	isVector,
-	M_ISMACRO,
 	isMalNode,
 	M_ELMSTRS,
 	M_DELIMITERS,
 	M_ISSUGAR,
-	M_KEYS
+	M_KEYS,
+	getType,
+	MalMap,
+	MalFunc
 } from './types'
 
 export const printer = {
@@ -105,53 +103,69 @@ export default function printExp(
 		// Calculate from zero
 
 		let elmStrs: string[] | null = null
+		getType(exp)
+		const _type = getType(exp)
 
-		if (isList(exp)) {
-			elmStrs = exp.map(e => printExp(e, _r, _c))
-			ret = '(' + elmStrs.join(' ') + ')'
-		} else if (isVector(exp)) {
-			elmStrs = exp.map(e => printExp(e, _r, _c))
-			ret = '[' + elmStrs.join(' ') + ']'
-		} else if (isMap(exp)) {
-			elmStrs = []
-			for (const k in exp) {
-				elmStrs.push(printExp(k, _r, _c), printExp(exp[k], _r, _c))
-			}
-			ret = '{' + elmStrs.join(' ') + '}'
-		} else if (typeof exp === 'string') {
-			if (isSymbol(exp)) {
-				ret = exp.slice(1)
-			} else if (isKeyword(exp)) {
-				ret = ':' + (exp as string).slice(1)
-			} else if (_r) {
+		switch (_type) {
+			case 'list':
+			case 'vector':
+				elmStrs = (exp as MalVal[]).map(e => printExp(e, _r, _c))
 				ret =
-					'"' +
-					(exp as string)
-						.replace(/\\/g, '\\\\')
-						.replace(/"/g, '\\"')
-						.replace(/\n/g, '\\n') +
-					'"'
-			} else {
-				ret = exp
+					(_type === 'list' ? '(' : '[') +
+					elmStrs.join(' ') +
+					(_type === 'list' ? ')' : ']')
+				break
+			case 'map':
+				elmStrs = []
+				for (const k in exp as MalMap) {
+					elmStrs.push(
+						printExp(k, _r, _c),
+						printExp((exp as MalMap)[k], _r, _c)
+					)
+				}
+				ret = `{${elmStrs.join(' ')}}`
+				break
+			case 'number':
+				ret = toFixed(exp as number)
+				break
+			case 'string':
+				if (_r) {
+					ret =
+						'"' +
+						(exp as string)
+							.replace(/\\/g, '\\\\')
+							.replace(/"/g, '\\"')
+							.replace(/\n/g, '\\n') +
+						'"'
+				} else {
+					ret = exp as string
+				}
+				break
+			case 'boolean':
+				ret = (exp as boolean).toString()
+				break
+			case 'nil':
+				ret = 'nil'
+				break
+			case 'symbol':
+				ret = (exp as string).slice(1)
+				break
+			case 'keyword':
+				ret = ':' + (exp as string).slice(1)
+				break
+			case 'atom':
+				ret = `(atom ${printExp((exp as MalAtom).val, _r, _c)})`
+				break
+			case 'fn':
+			case 'macro': {
+				if (M_AST in (exp as MalFunc)) {
+					const params = printExp((exp as MalFunc)[M_PARAMS], _r, _c)
+					const body = printExp((exp as MalFunc)[M_AST], _r, _c)
+					ret = `(${_type} ${params} ${body})`
+				} else {
+					ret = `(fn <JS Function>)`
+				}
 			}
-		} else if (exp === null) {
-			ret = 'nil'
-		} else if (isMalFunc(exp)) {
-			const params = printExp(exp[M_PARAMS], _r, _c)
-			const body = printExp(exp[M_AST], _r, _c)
-			ret = `(${exp[M_ISMACRO] ? 'macro' : 'fn'} ${params} ${body})`
-		} else if (typeof exp === 'number') {
-			ret = toFixed(exp)
-		} else if (typeof exp === 'boolean') {
-			ret = exp.toString()
-		} else if (exp instanceof MalAtom) {
-			ret = '(atom ' + printExp(exp.val, _r, _c) + ')'
-		} else if (typeof exp === 'function') {
-			ret = exp.toString()
-		} else if (exp === undefined) {
-			ret = '<undefined>'
-		} else {
-			ret = `<native objects>`
 		}
 
 		if (_c && isMalNode(exp) && elmStrs) {

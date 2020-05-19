@@ -1,4 +1,4 @@
-import {createMalVector, markMalVector} from '@/mal/types'
+import {markMalVector} from '@/mal/types'
 import Scope from '@/mal/scope'
 
 import ReplScope from './repl'
@@ -15,7 +15,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	scope.def('$width', width)
 	scope.def('$height', height)
 	scope.def('$transform', markMalVector([1, 0, 0, 1, 0, 0]))
-	scope.def('$size', createMalVector([width, height]))
+	scope.def('$size', markMalVector([width, height]))
 
 	if (guideColor) {
 		scope.def('$guide-color', guideColor)
@@ -25,7 +25,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 }
 
 export function createViewScope() {
-	return new Scope<ViewScopeOption>(ReplScope, 'view', onSetup)
+	return new Scope<ViewScopeOption>(ReplScope, 'view', onSetup, true)
 }
 
 export default createViewScope()

@@ -3,7 +3,7 @@ import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {symbolFor as S, MalVal, LispError} from './types'
-import {printer} from './printer'
+import printExp, {printer} from './printer'
 
 export default class Scope<T> {
 	public env!: Env
@@ -11,7 +11,8 @@ export default class Scope<T> {
 	constructor(
 		private outer: Scope<any> | null = null,
 		private name = 'repl',
-		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null
+		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null,
+		private cache = false
 	) {
 		this.setup()
 
@@ -22,6 +23,7 @@ export default class Scope<T> {
 
 	private _initAsRoot() {
 		// Defining essential functions
+
 		ReplCore.forEach(([name, expr]) => {
 			this.def(name, expr)
 		})
@@ -65,6 +67,13 @@ export default class Scope<T> {
 		}
 	}
 
+	public REP(str: string): void {
+		const ret = this.readEval(str)
+		if (ret !== undefined) {
+			printer.return(printExp(ret))
+		}
+	}
+
 	public readEval(str: string): MalVal | undefined {
 		try {
 			return this.eval(readStr(str))
@@ -85,7 +94,7 @@ export default class Scope<T> {
 
 	public eval(exp: MalVal): MalVal | undefined {
 		try {
-			return evalExp(exp, this.env)
+			return evalExp(exp, this.env, this.cache)
 		} catch (err) {
 			if (err instanceof LispError) {
 				printer.error(err)
