@@ -48,7 +48,6 @@ export default defineComponent({
 			const handler = (line?: string) => {
 				if (line) {
 					const ret = ConsoleScope.readEval(line)
-					console.log(ret)
 					if (ret !== undefined) {
 						printer.return(ret)
 					}

@@ -11,8 +11,7 @@ import {
 	LispError,
 	isKeyword,
 	symbolFor as S,
-	keywordFor,
-	MalJSFunc
+	keywordFor
 } from '@/mal/types'
 import {mat3} from 'gl-matrix'
 
