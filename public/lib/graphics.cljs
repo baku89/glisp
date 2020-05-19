@@ -22,38 +22,55 @@
     (stroke $guide-color (first xs))))
 
 (defn flatten-element [xs]
-  (prn xs)
   (case (count xs)
     0 nil
     1 (first xs)
     (vec xs)))
 
-(defn g
+(defmacro g
   [attrs & xs]
-  (if (or (contains? attrs :transform)
-          (contains? attrs :style))
-    (do
-      (def xs (if (contains? attrs :style)
-                (apply style `(~(get attrs :style)
-                               ~@xs))
-                xs))
-      (def xs  (if (contains? attrs :transform)
-                 (apply transform
-                        `(~(get attrs :transform)
-                          ~@xs))
-                 xs))
-      xs)
-    (flatten-element xs)))
+  `(let [_attrs ~attrs
+         _attr-transform (get _attrs :transform)
+         _attr-style (get _attrs :style)]
+
+     (cond
+       (and _attr-transform _attr-style)
+       ~`(transform _attr-transform ~`(style _attr-style ~@xs))
+
+       _attr-transform
+       ~`(transform _attr-transform ~@xs)
+
+       _attr-style
+       ~`(style _attr-style ~@xs)
+
+       :else
+       (vec ~xs))))
+
+  ;; (let [attr-transform (get attrs :transform)
+  ;;       attr-style (get attrs :style)]
+  ;;   (cond
+  ;;     (and attr-transform attr-style)
+  ;;     (apply transform `(~attr-transform
+  ;;                        ~(apply style `(~attr-style ~@xs))))
+
+  ;;     attr-transform
+  ;;     (apply transform (prn-pass `(~attr-transform ~@xs)))
+
+  ;;     attr-style
+  ;;     (apply style `(~attr-style ~@xs))
+
+  ;;     :else
+  ;;     (vec xs))))
 
 (defmacro transform
   [matrix & xs]
   (let [m (gensym)]
     `(let [~m ~matrix
            $transform (mat2d/* $transform ~m)]
-       ~(vec (concat :transform (list m) xs)))))
+       ~`[:transform ~m ~@xs])))
 
 ;; (defn gen-style-binds [style]
-;;   (apply concat
+;;   (flat
 ;;          (map
 ;;           (fn [[k v]]
 ;;             [(symbol (str "$" (name k))) v])
@@ -64,7 +81,7 @@
 ;;   [attrs & xs]
 ;;   (let [eval-attrs (eval-in-env attrs)
 ;;         binds (if (sequential? eval-attrs)
-;;                 (apply concat (map gen-style-binds eval-attrs))
+;;                 (flat (map gen-style-binds eval-attrs))
 ;;                 (gen-style-binds eval-attrs))]
 ;;     `(binding ~binds
 ;;        ~(vec `(:style ~attrs ~@xs)))))
@@ -215,7 +232,7 @@
                                                 (apply hash-map)
                                                 (#(assoc % :size size))
                                                 (entries)
-                                                (apply concat))]
+                                                (flat))]
                                   (concat text-pos args))))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])
