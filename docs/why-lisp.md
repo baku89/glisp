@@ -92,7 +92,7 @@ AfterEffects のプロジェクトファイルは XML 形式で保存するこ�
 (defn replicator
   [xform n path]
   (->> (reduce #(conj % (mat2d/* (last %) xform))
-               [mat2d/ident]
+               [(mat2d/ident)]
                (range (dec n)))
        (map #(transform % path))))
 

@@ -3,7 +3,7 @@
 (defn path/replicator
   [xform n path]
   (->> (reduce #(conj % (mat2d/* (last %) xform))
-               [mat2d/ident]
+               [(mat2d/ident)]
                (range (dec n)))
        (map #(path/transform % path))))
 

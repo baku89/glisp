@@ -247,7 +247,7 @@
    :returns {:type "mat2d"}}
   [& xs]
   (case (count xs)
-    0 mat2d/ident
+    0 (mat2d/ident)
     6 (vec xs)
     (throw "Invalid number of arguments")))
 
@@ -262,7 +262,11 @@
    (sequential? x)
    (= (count x) 6)))
 
-(def mat2d/ident [1 0 0 1 0 0])
+(defn mat2d/ident
+  ^{:doc "Returns ident matrix"
+    :params []}
+  []
+  [1 0 0 1 0 0])
 
 ;; mat2d/fromTranslation
 (defn mat2d/translate
@@ -394,7 +398,7 @@
            (+ (* a1 b2) (* a3 b3))
            (+ (* a0 b4) (* a2 b5) a4)
            (+ (* a1 b4) (* a3 b5) a5)])]
-    (fn [& xs] (reduce mul mat2d/ident xs))))
+    (fn [& xs] (reduce mul (mat2d/ident) xs))))
 
 (defn mat2d/pivot
   {:doc "Pivot"

@@ -26,11 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g
-			v-if="handlesHandler"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handlesHandler" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -75,8 +71,6 @@ import {
 	markMalVector,
 	M_EVAL,
 	M_OUTER,
-	isVector,
-	isKeyword,
 	isMap,
 	MalNode,
 	MalNodeList,

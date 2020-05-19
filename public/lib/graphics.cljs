@@ -20,7 +20,7 @@
 
 (defn g
   [attrs & xs]
-  (transform (get attrs :transform mat2d/ident)
+  (transform (get attrs :transform (mat2d/ident))
              (apply style (concat (get attrs :style {})
                                   xs))))
 
