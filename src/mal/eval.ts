@@ -29,7 +29,8 @@ import {
 	M_EVAL_PARAMS,
 	M_ISSUGAR,
 	M_DELIMITERS,
-	MalNodeMap
+	MalNodeMap,
+	getType
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -54,10 +55,12 @@ const S_CONS = S('cons')
 
 // eval
 
-function quasiquote(exp: any): MalVal {
+function quasiquote(exp: MalVal): MalVal {
 	if (!isPair(exp)) {
 		return [S_QUOTE, exp]
-	} else if (exp[0] === S_UNQUOTE) {
+	}
+
+	if (exp[0] === S_UNQUOTE) {
 		return exp[1]
 	} else if (isPair(exp[0]) && exp[0][0] === S_SPLICE_UNQUOTE) {
 		return [S_CONCAT, exp[0][1], quasiquote(exp.slice(1))]
@@ -65,7 +68,7 @@ function quasiquote(exp: any): MalVal {
 		return [S_CONS, quasiquote(exp[0]), quasiquote(exp.slice(1))]
 	}
 
-	function isPair(x: MalVal) {
+	function isPair(x: MalVal): x is MalVal[] {
 		return Array.isArray(x) && x.length > 0
 	}
 }
