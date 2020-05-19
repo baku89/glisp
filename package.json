@@ -7,7 +7,8 @@
 		"build": "vue-cli-service build",
 		"lint": "vue-cli-service lint",
 		"deploy": "node task.deploy.js",
-		"doc:serve": "docsify serve docs"
+		"doc:serve": "docsify serve docs",
+		"doc:deploy": "node task.deploy.js --docs"
 	},
 	"dependencies": {
 		"docsify": "^4.11.3",
