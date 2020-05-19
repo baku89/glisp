@@ -2,8 +2,7 @@ import Env from './env'
 import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {symbolFor as S, MalVal, LispError} from './types'
-import {printer} from './printer'
+import {symbolFor as S, MalVal} from './types'
 
 export default class Scope<T> {
 	public env!: Env
