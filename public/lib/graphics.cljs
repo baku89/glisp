@@ -1,11 +1,14 @@
-(defn artboard [id bounds & body]
-  [(keyword (str "artboard#" id)) bounds
+(defn set-id [id item]
+  (if (element? item)
+    (replace-nth item 0 (keyword (str (name (first item)) "#" id)))))
+
+(defn artboard [bounds & body]
+  [:artboard bounds
    (let
-    [$width (rect/width bounds)
-     $height (rect/height bounds)
-     $size (rect/size bounds)
-     background (fn (c) (fill c (rect [0 0] $size)))
-     frame-guide (guide (rect [.5 .5] (vec2/- $size [1 1])))]
+    [$size (rect/size bounds)
+     [$width $height] $size
+     background (fn [c] (fill c (rect [0 0] $size)))
+     frame-guide (guide/stroke (rect [.5 .5] (vec2/- $size [1 1])))]
      (translate (rect/point bounds)
                 (g [frame-guide] body)))])
 
@@ -21,8 +24,10 @@
 (defn g
   [attrs & xs]
   (transform (get attrs :transform (mat2d/ident))
-             (apply style (concat (get attrs :style {})
-                                  xs))))
+             (if (contains? attrs :style)
+               (apply style (concat (get attrs :style)
+                                    xs))
+               xs)))
 
 ;; (defmacro transform
 ;;   [matrix & xs]
