@@ -389,19 +389,15 @@ export default defineComponent({
 				guideColor: ui.guideColor
 			})
 
-			try {
-				expNotEvaluated = false
-				const viewExp = ViewScope.eval(exp.value)
-				window.exp = exp.value
+			expNotEvaluated = false
+			const viewExp = ViewScope.eval(exp.value)
+			if (viewExp !== undefined) {
+				ConsoleScope.def('$view', viewExp)
+				window.exp = exp.value[1]
 				return nonReactive(viewExp)
-			} catch (err) {
-				if (err instanceof LispError) {
-					printer.error(err.message)
-				} else {
-					printer.error(err)
-				}
+			} else {
+				return null
 			}
-			return null
 		}
 
 		function evalExpIfNeeded() {
