@@ -141,6 +141,26 @@ export type MalNode = MalNodeMap | MalNodeList
 
 export const isMalNode = (v: MalVal): v is MalNode => v instanceof Object
 
+export function getMeta(obj: MalVal) {
+	if (obj instanceof Object) {
+		return M_META in obj ? (obj as any)[M_META] : null
+	} else {
+		return null
+	}
+}
+
+export function withMeta(a: MalVal, m: any) {
+	if (m === undefined) {
+		throw new LispError('[with-meta] Need the metadata to attach')
+	}
+	if (!isMalNode(a)) {
+		throw new LispError('[with-meta] Object should not be atom')
+	}
+	const c = cloneExp(a)
+	;(c as MalNode)[M_META] = m
+	return c
+}
+
 export type MalVal =
 	| number
 	| string

@@ -12,30 +12,16 @@ import {
 	isKeyword,
 	keywordFor,
 	LispError,
-	M_ISMACRO,
 	MalFunc,
 	isVector,
 	isList,
 	MalAtom,
-	M_META,
-	isMalNode,
-	getType
+	getType,
+	getMeta,
+	withMeta
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
-
-function withMeta(a: MalVal, m: any) {
-	if (m === undefined) {
-		throw new LispError('[with-meta] Need the metadata to attach')
-	}
-
-	if (!isMalNode(a)) {
-		throw new LispError('[with-meta] Object should not be atom')
-	}
-	const c = cloneExp(a)
-	;(c as any)[M_META] = m
-	return c
-}
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -216,7 +202,7 @@ const Exports = [
 	['subs', (a: string, from: number, to?: number) => a.substr(from, to)],
 
 	// Meta
-	['meta', (a: MalVal) => (a as any)[M_META] || null],
+	['meta', getMeta],
 	['with-meta', withMeta],
 	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
 	[

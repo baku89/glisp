@@ -149,6 +149,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		// Special Forms
 		switch (a0) {
 			case S_DEF: {
+				if (a2 === undefined || a1 === undefined) {
+					console.log(exp)
+					throw new LispError('Invalid form of def')
+				}
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
 				if (cache) {
 					;(exp as MalNodeList)[M_FN] = env.get(S_DEF) as MalFunc
