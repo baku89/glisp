@@ -56,17 +56,34 @@ const S_CONS = S('cons')
 // eval
 
 function quasiquote(exp: MalVal): MalVal {
+	if (isMap(exp)) {
+		const ret: {[k: string]: MalVal} = {}
+		for (const [k, v] of Object.entries(exp)) {
+			ret[k] = quasiquote(v)
+		}
+		return ret
+	}
+
 	if (!isPair(exp)) {
 		return [S_QUOTE, exp]
 	}
 
 	if (exp[0] === S_UNQUOTE) {
 		return exp[1]
-	} else if (isPair(exp[0]) && exp[0][0] === S_SPLICE_UNQUOTE) {
-		return [S_CONCAT, exp[0][1], quasiquote(exp.slice(1))]
-	} else {
-		return [S_CONS, quasiquote(exp[0]), quasiquote(exp.slice(1))]
 	}
+
+	let ret = [
+		S_CONCAT,
+		...exp.map(e => {
+			if (isPair(e) && e[0] === S_SPLICE_UNQUOTE) {
+				return e[1]
+			} else {
+				return markMalVector([quasiquote(e)])
+			}
+		})
+	]
+	ret = isVector(exp) ? [S('vec'), ret] : ret
+	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
 		return Array.isArray(x) && x.length > 0
