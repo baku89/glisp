@@ -250,22 +250,25 @@
   (let
    [destruct-binds
     (fn [binds]
-      (do
-        (def pairs (partition 2 binds))
-        (def entries (filter #(symbol? (first %)) pairs))
-        (def options (->> pairs
-                          (filter #(keyword? (first %)))
-                          (apply concat)
-                          (apply hash-map)))
+      (let
+        [pairs (partition 2 binds)
+         entries (filter #(symbol? (first %)) pairs)
+         options (->> pairs
+                      (filter #(keyword? (first %)))
+                      (flat)
+                      (prn-pass)
+                      (apply hash-map))]
         [entries options]))]
 
     (macro [binds & body]
            (let [[entries options] (destruct-binds binds)
                  syms (map first entries)
                  colls (map second entries)
-                 gen-lst `(combination/product ~@colls)]
-             (if (contains? options :index)
-               `(map-indexed (fn [~(get options :index) ~syms]
+                 gen-lst `(combination/product ~@colls)
+                 index-sym (get options :index)
+                 _ (prn options index-sym)]
+             (if index-sym
+               `(map-indexed (fn [~index-sym ~syms]
                                (do ~@body)) ~gen-lst)
                `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
 
@@ -319,8 +322,8 @@
   (do
     (if (sequential? lst)
       (if (f lst)
-        (apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
-        (apply concat (map #(find-list f %) lst)))
+        (flat `(~(list lst) ~@(map #(find-list f %) lst)))
+        (flat (map #(find-list f %) lst)))
       '())))
 
 
