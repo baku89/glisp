@@ -112,9 +112,6 @@
     `(def ~name (fn ~params ~body))
     `(def ~name (with-meta (fn ~params ~body) ~metadata))))
 
-(defmacro def- [& xs]
-  `(do (def ~@xs) nil))
-
 (defmacro defalias [alias original]
   `(def ~alias (with-meta ~original
                  (hash-map
