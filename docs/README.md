@@ -5,10 +5,10 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 ## 使い方
 
 - [基本的な文法](syntax)
-- [ことはじめに](get-started)
+- [ことはじめ](get-started)
 
-## 書く
+## 考察
 
 - [なぜ Lisp なのか](why-lisp)
-- [ツールの直交性](orthographism)
-- [トランスフォーム](c01-transform)
+- [ツールの直交性](orthogonality)
+- [トランスフォーム](transform)

@@ -72,7 +72,7 @@ export default class Scope<T> {
 			if (err instanceof BlankException) {
 				return null
 			}
-			return err
+			throw err
 		}
 	}
 
