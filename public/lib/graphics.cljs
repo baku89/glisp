@@ -21,23 +21,36 @@
     (stroke $guide-color)
     (stroke $guide-color (first xs))))
 
+(defn flatten-element [xs]
+  (prn xs)
+  (case (count xs)
+    0 nil
+    1 (first xs)
+    (vec xs)))
+
 (defn g
   [attrs & xs]
-  (transform (get attrs :transform (mat2d/ident))
-             (if (contains? attrs :style)
-               (apply style (concat (get attrs :style)
-                                    xs))
-               xs)))
+  (if (or (contains? attrs :transform)
+          (contains? attrs :style))
+    (do
+      (def xs (if (contains? attrs :style)
+                (apply style `(~(get attrs :style)
+                               ~@xs))
+                xs))
+      (def xs  (if (contains? attrs :transform)
+                 (apply transform
+                        `(~(get attrs :transform)
+                          ~@xs))
+                 xs))
+      xs)
+    (flatten-element xs)))
 
-;; (defmacro transform
-;;   [matrix & xs]
-;;   (let [_$transform (mat2d/* (eval-in-env matrix))]
-;;     `(binding ~(vec `($transform ~_$transform))
-;;        ~(vec `(:transform ~matrix ~@xs)))))
-
-(defn transform
+(defmacro transform
   [matrix & xs]
-  (vec `(:transform ~matrix ~@xs)))
+  (let [m (gensym)]
+    `(let [~m ~matrix
+           $transform (mat2d/* $transform ~m)]
+       ~(vec (concat :transform (list m) xs)))))
 
 ;; (defn gen-style-binds [style]
 ;;   (apply concat
