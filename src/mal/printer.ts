@@ -163,7 +163,7 @@ export default function printExp(
 					const body = printExp((exp as MalFunc)[M_AST], _r, _c)
 					ret = `(${_type} ${params} ${body})`
 				} else {
-					ret = `(fn <JS Function>)`
+					ret = '<JS Function>'
 				}
 			}
 		}
