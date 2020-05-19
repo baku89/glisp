@@ -65,28 +65,21 @@ export default class Scope<T> {
 		}
 	}
 
-	public readEval(str: string) {
+	public readEval(str: string): MalVal | undefined {
 		try {
 			return this.eval(readStr(str))
-		} catch (err) {
-			printer.error(err)
-			throw err
-		}
-	}
-
-	public eval(exp: MalVal) {
-		try {
-			return evalExp(exp, this.env)
 		} catch (err) {
 			if (err instanceof BlankException) {
 				return null
 			}
+			return err
+		}
+	}
 
-			if (err instanceof LispError) {
-				printer.error(err)
-			} else {
-				printer.error(err.stack)
-			}
+	public eval(exp: MalVal): MalVal | undefined {
+		try {
+			return evalExp(exp, this.env)
+		} catch (err) {
 			throw err
 		}
 	}
