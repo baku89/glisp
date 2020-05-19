@@ -261,7 +261,14 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			if (type === '(') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				val = [S_FN_SUGAR, readForm(reader, saveStr)]
+			} else if (type[0] === '"') {
+				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
+				const meta = readForm(reader, saveStr)
+				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
+				const expr = readForm(reader, saveStr)
+				val = [S('set-id'), meta, expr]
 			} else {
+				console.log(type)
 				switch (type) {
 					case 'f32':
 						reader.next()
