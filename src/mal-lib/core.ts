@@ -134,8 +134,11 @@ const Exports = [
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
 	['partition', partition],
-	['index-of', (a: MalVal, coll: MalVal[]) => coll.indexOf(a)],
-	['last-index-of', (a: MalVal, coll: MalVal[]) => coll.lastIndexOf(a)],
+	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
+	[
+		'last-index-of',
+		(value: MalVal[] | string, a: string) => value.lastIndexOf(a)
+	],
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
 	['reverse', (coll: MalVal[]) => coll.reverse()],
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],

@@ -33,7 +33,7 @@
 ;;             el))))
 
 (defn sketch [& body]
-  (let [start-line-num (inc (last-index-of :start-sketch body))
+  (let [start-line-num (inc (last-index-of body :start-sketch))
         sketch-body (filter element? (drop start-line-num body))]
     (vec sketch-body)))
 
