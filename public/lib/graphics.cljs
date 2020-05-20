@@ -47,6 +47,11 @@
                 (guide/stroke (rect [.5 .5] (vec2/- *size* [1 1])))
                 body))])
 
+(defn tagname [body]
+  (let [fst (name (first body))
+        idx (index-of fst "#")]
+    (subs fst 0 (if (neg? idx) (count idx) idx))))
+
 
 (defn find-item [sel body]
   (first
@@ -55,20 +60,20 @@
 (defn get-abs-path [body]
   (if (vector? body)
     (if (keyword? (first body))
-      (let [tagname (name (first body))]
+      (let [tag (tagname body)]
         (cond
 
           ;; Path
-          (starts-with? tagname "path")
+          (= tag "path")
           body
 
           ;; Transform
-          (starts-with? tagname "transform")
+          (= tag "transform")
           (path/transform (second body)
                           (get-abs-path `[~@(slice body 2)]))
 
           ;; Artboard
-          (starts-with? tagname "artboard")
+          (= tag "artboard")
           (path/transform (translate (path/point (second body)))
                           (get-abs-path `[~@(slice body 2)]))
 
