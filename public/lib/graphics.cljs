@@ -47,9 +47,48 @@
                 (guide/stroke (rect [.5 .5] (vec2/- *size* [1 1])))
                 body))])
 
+
 (defn find-item [sel body]
   (first
    (find-list  #(= (first %) sel) body)))
+
+(defn get-abs-path [body]
+  (if (vector? body)
+    (if (keyword? (first body))
+      (let [tagname (name (first body))]
+        (cond
+
+          ;; Path
+          (starts-with? tagname "path")
+          body
+
+          ;; Transform
+          (starts-with? tagname "transform")
+          (path/transform (second body)
+                          (get-abs-path `[~@(slice body 2)]))
+
+          ;; Artboard
+          (starts-with? tagname "artboard")
+          (path/transform (translate (path/point (second body)))
+                          (get-abs-path `[~@(slice body 2)]))
+
+          ;; Style (offset stroke)
+          ;; NOTE: Path-offset looks buggy
+          ;; (and (starts-with? tagname "style")
+          ;;      (get (second body) :stroke))
+          ;; (prn-pass (path/offset-stroke 10 (get-abs-path `[~@(slice body 2)])))
+
+          :else
+          (get-abs-path `[~@(slice body 2)])))
+    ;; Just a vector
+      (->> body
+           (map get-abs-path)
+           (remove nil?)
+           (apply path/merge)))))
+
+(defn get-element-bounds [body]
+  (path/bounds (get-abs-path body)))
+
 
 (defn guide/stroke [& xs]
   (style (stroke *guide-color*)
