@@ -161,6 +161,11 @@ export default class CanvasRenderer {
 
 						break
 					}
+					case K_G:
+						for (const child of exp.slice(1)) {
+							this.draw(ret, child, styles, defaultStyle)
+						}
+						break
 					case K_STYLE: {
 						const [attrs, ...children] = rest
 						styles = [

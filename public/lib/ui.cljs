@@ -35,7 +35,7 @@
 (defn sketch [& body]
   (let [start-line-num (inc (last-index-of body :start-sketch))
         sketch-body (filter element? (drop start-line-num body))]
-    (vec sketch-body)))
+    `[:g :_ ~@sketch-body]))
 
 
 ;; Pens and Hands

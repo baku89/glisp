@@ -466,6 +466,7 @@
    [(max (rect/right a) (rect/right b))
     (max (rect/bottom a) (rect/bottom b))]))
 
+
 ;; Combination
 (defn combination/product [& xs]
   (if (=  1 (count xs))

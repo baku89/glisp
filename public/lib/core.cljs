@@ -338,7 +338,7 @@
 
 ;; Trivial
 (defn identity [x] x)
-(defn prn-pass [x] (do (prn x) x))
+(defn prn-pass [& xs] (do (apply prn xs) (first xs)))
 
 (defn zero?
   {:doc "Returns true if x is equal to 0"}

@@ -1,6 +1,6 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
-import {printer} from '@/mal/printer'
+import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 
 import createCanvasRender from '@/renderer/CanvasRenderer'
@@ -97,7 +97,7 @@ ConsoleScope.def('save', (...args: MalVal[]) => {
 	return null
 })
 
-ConsoleScope.def('export', (name: MalVal = null) => {
+ConsoleScope.def('export', (selector: MalVal = null) => {
 	const exec = async () => {
 		let x = 0,
 			y = 0,
@@ -105,32 +105,39 @@ ConsoleScope.def('export', (name: MalVal = null) => {
 			height = ConsoleScope.var('*height*') as number
 
 		const renderer = await createCanvasRender()
-		const $sketch = ConsoleScope.var('*sketch*')
 
-		const viewScope = createViewScope()
+		let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
 
-		viewScope.setup({width, height, guideColor: null})
-		let $view = viewScope.readEval(`(sketch ${$sketch} \n nil)`)
+		if (viewExp === undefined) {
+			throw new LispError('Invalid sketch')
+		}
 
-		if ($view) {
-			if (Array.isArray($view)) {
-				if (typeof name === 'string') {
-					$view = ConsoleScope.eval([
-						S('find-item'),
-						keywordFor(`artboard#${name}`),
-						$view
-					])
-					if ($view === null) {
-						throw new LispError(`Artboard "${name as string}" does not exist`)
-					} else {
-						;[x, y, width, height] = ($view as MalVal[])[1] as number[]
-					}
+		if (viewExp) {
+			if (typeof selector === 'string') {
+				viewExp = ConsoleScope.eval([
+					S('filter-elements'),
+					selector,
+					S('*view*')
+				])
+				console.log(viewExp)
+				if (!viewExp) {
+					throw new LispError(
+						`Element ${printExp(selector, true)} does not exist`
+					)
 				}
+				console.log('filtered', printExp(viewExp))
+				const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
+				if (!bounds) {
+					throw new LispError('Cannot retrieve bounds')
+				}
+				;[x, y, width, height] = bounds as number[]
 			}
+
+			console.log(printExp(viewExp))
 
 			renderer.resize(width, height, 1)
 			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])
-			await renderer.render($view, {viewTransform: xform})
+			await renderer.render(viewExp, {viewTransform: xform})
 			const image = await renderer.getImage()
 			const w = window.open('about:blank', 'Image for canvas')
 			w?.document.write(`<img src=${image} />`)

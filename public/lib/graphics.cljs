@@ -1,10 +1,10 @@
-(defn set-id [id item]
-  (if (element? item)
-    (replace-nth item 0 (keyword (str (name (first item)) "#" id)))))
+(defn set-id [id elm]
+  (if (element? elm)
+    (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
 
-(defn get-id [item]
-  (if (element? item)
-    (let [fst (name (first item))
+(defn get-id [elm]
+  (if (element? elm)
+    (let [fst (name (first elm))
           idx (index-of fst "#")]
       (if (<= 0 idx)
         (subs fst (inc idx))
@@ -55,7 +55,7 @@
                 body))])
 
 (defn tagtype [item]
-  (if (zero? (count (first item)))
+  (if (zero? (count (name (first item))))
     nil
     (let [fst (name (first item))
           idx (index-of fst "#")]
@@ -67,57 +67,91 @@
                          (count fst)
                          idx)))))))
 
+(defn gen-element-selector-pred [sel]
+  (let [dummy-tag [(keyword (name sel))]
+        tag (tagtype dummy-tag)
+        id (get-id dummy-tag)]
+    (cond
+      (and tag id) (fn [elm] (= (first elm)))
+      tag          (fn [elm] (= (tagtype elm) tag))
+      id           (fn [elm] (= (get-id elm) id))
+      :else        (fn [] true))))
 
 (defn find-element [sel body]
-  (let [tag (tagtype [sel])
-        id (get-id [sel])
-        pred (cond
-               (and tag id) #(= (first %))
-               tag          #(= (tagtype %) tag)
-               id           #(= (get-id %) id)
-               :else        (fn [] true))]
-    ;; Search
-    (first (find-elements pred body))))
+  (first (match-elements (gen-element-selector-pred sel) body)))
 
+(defn filter-elements [sel body]
+  (let [pred (gen-element-selector-pred sel)]
+    (if (sequential? body)
+      (if (element? body)
+        (if (<= 0 (index-of [:path :text :background] (tagtype body)))
+          ;; self-closing tags
+          (if (pred body) body nil)
+
+          ;; other tags such as :g
+          (if (pred body)
+            ;; Returns all of body
+            body
+
+            ;; Filter children
+            (let [children (slice body 2)
+                  filtered-chilren (filter-elements sel children)]
+              (if (nil? filtered-chilren)
+                ;; None of children matches
+                nil
+                ;; 
+                `[~@(slice body 0 2)
+                  ~@filtered-chilren]))))
+
+        ;; Not element yet still sequence
+        (let [filtered-chilren
+              (remove nil? (map #(filter-elements sel %) body))]
+          (if (zero? (count filtered-chilren))
+            nil
+            filtered-chilren)))
+
+      ;; Not a list
+      nil)))
 
 (def get-element-bounds
 
-  (let [get-abs-path
+  (let [get-merged-path
         (fn [body]
           (if (vector? body)
             (if (keyword? (first body))
               (let [tag (tagtype body)]
                 (cond
 
-          ;; Path
+                  ;; Path
                   (= tag :path)
                   body
 
-          ;; Transform
+                  ;; Transform
                   (= tag :transform)
                   (path/transform (second body)
-                                  (get-abs-path `[~@(slice body 2)]))
+                                  (get-merged-path `[~@(slice body 2)]))
 
-          ;; Artboard
+                  ;; Artboard
                   (= tag :artboard)
                   (let [bounds (second body)]
                     (rect (rect/point bounds) (rect/size bounds)))
 
-          ;; Style (offset stroke)
-          ;; NOTE: Path-offset looks buggy
-          ;; (and (starts-with? tagname "style")
-          ;;      (get (second body) :stroke))
-          ;; (prn-pass (path/offset-stroke 10 (get-abs-path `[~@(slice body 2)])))
+                  ;; Style (offset stroke)
+                  ;; NOTE: Path-offset looks buggy
+                  ;; (and (starts-with? tagname "style")
+                  ;;      (get (second body) :stroke))
+                  ;; (prn-pass (path/offset-stroke 10 (get-merged-path `[~@(slice body 2)])))
 
                   :else
-                  (get-abs-path `[~@(slice body 2)])))
-    ;; Just a vector
+                  (get-merged-path `[~@(slice body 2)])))
+
+              ;; Just a vector
               (->> body
-                   (map get-abs-path)
+                   (map get-merged-path)
                    (remove nil?)
                    (apply path/merge)))))]
 
-    (fn [body] (path/bounds (get-abs-path body)))))
+    (fn [body] (path/bounds (get-merged-path body)))))
 
 
 (defn guide/stroke [& xs]
@@ -202,7 +236,7 @@
 (defn enable-animation
   [& xs] (concat :enable-animation xs))
 
-(defn element? [a] (and (sequential? a) (keyword? (first a))))
+(defn element? [a] (and (vector? a) (keyword? (first a))))
 
 (defn column
   {:doc "Returns a vector of nums from *start* to *end* (both inclusive) that each of element is multiplied by *step*"
