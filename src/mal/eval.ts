@@ -170,7 +170,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		switch (a0) {
 			case S_DEF: {
 				if (a2 === undefined || a1 === undefined) {
-					console.log(exp)
 					throw new LispError('Invalid form of def')
 				}
 				const ret = env.set(a1 as string, evalExp(a2, env, cache))
@@ -202,7 +201,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				break // continue TCO loop
 			}
 			case S('binding'): {
-				const bindingEnv = env.pushBinding()
+				const bindingEnv = new Env()
 				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
@@ -210,6 +209,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 						evalExp(binds[i + 1], env, cache) as MalVal[]
 					)
 				}
+				env.pushBinding(bindingEnv)
 				const ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret

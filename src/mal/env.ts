@@ -186,11 +186,11 @@ export default class Env {
 		this.outer = outer
 	}
 
-	public pushBinding() {
+	public pushBinding(env: Env) {
 		const bindings = this.root.bindings
 		const outer = bindings.length > 0 ? bindings[bindings.length - 1] : null
-		const env = new Env(outer)
 		env.name = 'binding'
+		env.outer = outer
 		bindings.push(env)
 		return env
 	}
