@@ -2,7 +2,42 @@
   (if (element? item)
     (replace-nth item 0 (keyword (str (name (first item)) "#" id)))))
 
-(defn artboard [bounds & body]
+
+(defn apply-draw-handle [f & xs]
+  (let [hf (-> (fn-meta f)
+               (get :handles)
+               (get :draw))]
+    (if (fn? hf)
+      (apply hf xs)
+      (throw "Handle draw function does not exists"))))
+
+(defn apply-on-drag-handle [f & xs]
+  (let [hf (-> (fn-meta f)
+               (get :handles)
+               (get :on-drag))]
+    (if (fn? hf)
+      (apply hf xs)
+      (throw "Handle on-drag function does not exists"))))
+
+(defn artboard
+  {:doc "Creates an artboard"
+   :params [{:type "rect"}
+            &
+            {:type "code"}]
+   :handles {:draw (fn [[bounds]]
+                     (apply-draw-handle path/rect [[0 0] (rect/size bounds)]))
+             :on-drag (fn [info
+                           [bounds & body] ; Before evaluated
+                           [_bounds & _body]] ; evaluated
+                        (let
+                         [_point (rect/point _bounds) ;; Evaluated point
+                          _rect-args [[0 0] (rect/size _bounds)]
+                          [delta-pos new-size] (apply-on-drag-handle path/rect
+                                                                     info
+                                                                     _rect-args _rect-args)]
+                          `[[~@(vec2/+ _point delta-pos) ~@new-size] ~@body]))}}
+
+  [bounds & body]
   [:artboard bounds
    (binding
     [*size* (rect/size bounds)
