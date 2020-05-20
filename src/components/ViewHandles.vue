@@ -231,6 +231,9 @@ export default class ViewHandles extends Vue {
 				if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
 					const matrix = node[1][K_TRANSFORM]
 					filtered.push(matrix)
+				} else if (node[0] === S('artboard')) {
+					const matrix = [1, 0, 0, 1, ...(node[1] as number[]).slice(0, 2)]
+					filtered.push(matrix)
 				} else if (
 					node[0] === S('transform') ||
 					node[0] === S('path/transform')
