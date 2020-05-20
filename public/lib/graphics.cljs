@@ -4,22 +4,21 @@
 
 (defn artboard [bounds & body]
   [:artboard bounds
-   (let
-    [$size (rect/size bounds)
-     [$width $height] $size
-     background (fn [c] (fill c (rect [0 0] $size)))
-     frame-guide (guide/stroke (rect [.5 .5] (vec2/- $size [1 1])))]
-     (translate (rect/point bounds)
-                (g [frame-guide] body)))])
+   (binding
+    [*size* (rect/size bounds)
+     [*width* *height*] *size*
+     background (fn [c] (fill c (rect [0 0] *size*)))]
+     (transform (translate (rect/point bounds))
+                (guide/stroke (rect [.5 .5] (vec2/- *size* [1 1])))
+                body))])
 
 (defn find-item [sel body]
   (first
    (find-list  #(= (first %) sel) body)))
 
 (defn guide/stroke [& xs]
-  (if (zero? (count xs))
-    (stroke $guide-color)
-    (stroke $guide-color (first xs))))
+  (style (stroke *guide-color*)
+         xs))
 
 (defmacro g
   [attrs & xs]
@@ -42,30 +41,6 @@
 
          :else
          (vec ~xs)))))
-
-(defmacro transform
-  [matrix & xs]
-  (let [m (gensym)]
-    `(let [~m ~matrix]
-       (binding [$transform (mat2d/* $transform ~m)]
-         ~`[:transform ~m ~@xs]))))
-
-;; (defn gen-style-binds [style]
-;;   (apply concat
-;;          (map
-;;           (fn [[k v]]
-;;             [(symbol (str "$" (name k))) v])
-;;           (entries style))))
-;;           
-;; (defmacro
-;;   style
-;;   [attrs & xs]
-;;   (let [eval-attrs (eval-in-env attrs)
-;;         binds (if (sequential? eval-attrs)
-;;                 (apply concat (map gen-style-binds eval-attrs))
-;;                 (gen-style-binds eval-attrs))]
-;;     `(binding ~binds
-;;        ~(vec `(:style ~attrs ~@xs)))))
 
 (defn style
   [attrs & xs]
@@ -112,7 +87,7 @@
 (defmacro background
   [color]
   `(do
-     (def $background ~color)
+     (def *background* ~color)
      (vector :background ~color)))
 
 (def background
@@ -141,7 +116,7 @@
                      [{:type "point" :class "translate" :pos (take 4 mat)}])}}
 
   []
-  `(translate (vec2/scale $size .5)))
+  `(translate (vec2/scale *size* .5)))
 
 ;; Style
 (defn fill

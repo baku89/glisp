@@ -1,7 +1,8 @@
-import {markMalVector} from '@/mal/types'
+import {markMalVector, symbolFor as S} from '@/mal/types'
 import Scope from '@/mal/scope'
 
 import ReplScope from './repl'
+import Env from '@/mal/env'
 
 interface ViewScopeOption {
 	width: number
@@ -12,15 +13,20 @@ interface ViewScopeOption {
 function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	const {width, height, guideColor} = option
 
-	scope.def('*width*', width)
-	scope.def('*height*', height)
-	scope.def('*size*', markMalVector([width, height]))
+	const env = new Env()
+
+	env.set(S('*width*'), width)
+	env.set(S('*height*'), height)
+	env.set(S('*size*'), markMalVector([width, height]))
 
 	if (guideColor) {
-		scope.def('*guide-color*', guideColor)
+		env.set(S('*guide-color*'), guideColor)
 	} else {
-		scope.readEval('(defn guide (body) nil)')
+		env.set(S('guide/stroke'), () => null)
 	}
+
+	scope.popBinding()
+	scope.pushBinding(env)
 }
 
 export function createViewScope() {

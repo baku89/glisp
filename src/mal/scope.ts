@@ -117,6 +117,14 @@ export default class Scope<T> {
 		this.env.set(S(name), value)
 	}
 
+	public pushBinding(env: Env) {
+		this.env.pushBinding(env)
+	}
+
+	public popBinding() {
+		this.env.popBinding()
+	}
+
 	public var(name: string) {
 		return this.env.get(S(name))
 	}
