@@ -2,6 +2,13 @@
   (if (element? item)
     (replace-nth item 0 (keyword (str (name (first item)) "#" id)))))
 
+(defn get-id [item]
+  (if (element? item)
+    (let [fst (name (first item))
+          idx (index-of fst "#")]
+      (if (<= 0 idx)
+        (subs fst (inc idx))
+        nil))))
 
 (defn apply-draw-handle [f & xs]
   (let [hf (-> (fn-meta f)
@@ -47,35 +54,54 @@
                 (guide/stroke (rect [.5 .5] (vec2/- *size* [1 1])))
                 body))])
 
-(defn tagname [body]
-  (let [fst (name (first body))
-        idx (index-of fst "#")]
-    (subs fst 0 (if (neg? idx) (count idx) idx))))
+(defn tagtype [item]
+  (if (zero? (count (first item)))
+    nil
+    (let [fst (name (first item))
+          idx (index-of fst "#")]
+      (if (zero? idx)
+        nil
+        (keyword (subs fst
+                       0
+                       (if (neg? idx)
+                         (count fst)
+                         idx)))))))
 
 
-(defn find-item [sel body]
-  (first
-   (find-list  #(= (first %) sel) body)))
+(defn find-element [sel body]
+  (let [tag (tagtype [sel])
+        id (get-id [sel])
+        pred (cond
+               (and tag id) #(= (first %))
+               tag          #(= (tagtype %) tag)
+               id           #(= (get-id %) id)
+               :else        (fn [] true))]
+    ;; Search
+    (first (find-elements pred body))))
 
-(defn get-abs-path [body]
-  (if (vector? body)
-    (if (keyword? (first body))
-      (let [tag (tagname body)]
-        (cond
+
+(def get-element-bounds
+
+  (let [get-abs-path
+        (fn [body]
+          (if (vector? body)
+            (if (keyword? (first body))
+              (let [tag (tagtype body)]
+                (cond
 
           ;; Path
-          (= tag "path")
-          body
+                  (= tag :path)
+                  body
 
           ;; Transform
-          (= tag "transform")
-          (path/transform (second body)
-                          (get-abs-path `[~@(slice body 2)]))
+                  (= tag :transform)
+                  (path/transform (second body)
+                                  (get-abs-path `[~@(slice body 2)]))
 
           ;; Artboard
-          (= tag "artboard")
-          (path/transform (translate (path/point (second body)))
-                          (get-abs-path `[~@(slice body 2)]))
+                  (= tag :artboard)
+                  (let [bounds (second body)]
+                    (rect (rect/point bounds) (rect/size bounds)))
 
           ;; Style (offset stroke)
           ;; NOTE: Path-offset looks buggy
@@ -83,16 +109,15 @@
           ;;      (get (second body) :stroke))
           ;; (prn-pass (path/offset-stroke 10 (get-abs-path `[~@(slice body 2)])))
 
-          :else
-          (get-abs-path `[~@(slice body 2)])))
+                  :else
+                  (get-abs-path `[~@(slice body 2)])))
     ;; Just a vector
-      (->> body
-           (map get-abs-path)
-           (remove nil?)
-           (apply path/merge)))))
+              (->> body
+                   (map get-abs-path)
+                   (remove nil?)
+                   (apply path/merge)))))]
 
-(defn get-element-bounds [body]
-  (path/bounds (get-abs-path body)))
+    (fn [body] (path/bounds (get-abs-path body)))))
 
 
 (defn guide/stroke [& xs]

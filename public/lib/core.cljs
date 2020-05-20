@@ -326,13 +326,14 @@
   (apply concat (apply map xs)))
 
 
-(defn find-list [f lst]
-  (do
-    (if (sequential? lst)
-      (if (f lst)
-        (apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
-        (mapcat #(find-list f %) lst))
-      '())))
+(defn match-elements [pred lst]
+  (if (sequential? lst)
+    (if (and (element? lst) (pred lst))
+      ;; Match
+      [lst]
+      
+      ;; Not match but sequence
+      (remove nil? (mapcat #(match-elements pred %) lst)))))
 
 
 ;; Trivial
