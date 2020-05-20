@@ -231,7 +231,12 @@ export default class CanvasRenderer {
 						const color = rest[0]
 						ret.push(['set-background', color])
 						ctx.fillStyle = color
+
+						ctx.save()
+						ctx.resetTransform()
 						ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+						ctx.restore()
+
 						break
 					}
 					case K_ARTBOARD: {
