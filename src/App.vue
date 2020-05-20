@@ -1,16 +1,12 @@
 <template>
-	<div id="app" class="app" :class="{compact}" :style="colors">
+	<div id="app" class="app" :style="colors">
 		<GlobalMenu class="app__global-menu" />
 		<div class="app__content">
 			<div class="app__inspector" v-if="selectedExp">
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="app__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-				/>
+				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -19,12 +15,8 @@
 					@set-background="onSetBackground"
 				/>
 			</div>
-			<div class="app__control">
+			<div class="app__control" :class="{compact}">
 				<div class="app__editor">
-					<!-- <div class="app__editor-mode">
-					<button :class="{active: editorMode == 'code'}" @click="editorMode = 'code'">&lt;/&gt;</button>
-					<button :class="{active: editorMode == 'visual'}" @click="editorMode = 'visual'">👁</button>
-					</div>-->
 					<Editor
 						:value="code"
 						:selection="selection"
@@ -39,9 +31,7 @@
 						class="app__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
