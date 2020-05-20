@@ -26,7 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g v-if="handlesHandler" class="ViewHandles__axis" :transform="axisTransform">
+		<g v-if="handleHandlers" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -64,8 +64,6 @@
 import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
 	MalVal,
-	M_META,
-	M_FN,
 	keywordFor as K,
 	symbolFor as S,
 	markMalVector,
@@ -78,16 +76,16 @@ import {
 	isMalNode,
 	isList,
 	M_OUTER_INDEX,
-	MalMap
+	MalMap,
+	MalFunc
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
+import {fnMeta} from '@/mal-utils'
 
-const K_ALIAS = K('alias'),
-	K_ANGLE = K('angle'),
+const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
 	K_ID = K('id'),
-	K_META = K('meta'),
 	K_GUIDE = K('guide'),
 	K_POS = K('pos'),
 	K_PREV_POS = K('prev-pos'),
@@ -106,37 +104,39 @@ export default class ViewHandles extends Vue {
 
 	private rem = 0
 
-	private get handlesHandler() {
-		const exp = this.exp as any
+	private get fnInfo() {
+		return fnMeta(this.exp)
+	}
 
-		if (exp !== null && exp[M_FN] && exp[M_FN][M_META]) {
-			const meta = exp[M_FN][M_META]
-
-			if (meta[K_ALIAS] && meta[K_ALIAS][K_META]) {
-				return meta[K_ALIAS][K_META][K_HANDLES] || null
-			} else {
-				return meta[K_HANDLES] || null
-			}
+	private get handleHandlers() {
+		if (this.fnInfo && isMap(this.fnInfo.meta)) {
+			return this.fnInfo.meta[K_HANDLES] as MalMap
+		} else {
+			return null
 		}
-
-		return null
 	}
 
 	private get params(): MalVal[] {
-		if (this.handlesHandler && Array.isArray(this.exp)) {
-			return this.exp.slice(1)
+		if (this.handleHandlers && Array.isArray(this.exp)) {
+			if (this.fnInfo?.primitive) {
+				return [...this.exp]
+			} else {
+				return this.exp.slice(1)
+			}
 		} else {
 			return []
 		}
 	}
 
 	private get evaluatedParams(): MalVal[] {
-		if (
-			this.handlesHandler &&
-			Array.isArray(this.exp) &&
-			(this.exp as MalNodeList)[M_EVAL_PARAMS]
-		) {
-			return (this.exp as MalNodeList)[M_EVAL_PARAMS]
+		if (this.handleHandlers && Array.isArray(this.exp)) {
+			if (this.fnInfo?.primitive) {
+				return (this.exp as MalNode)[M_EVAL] as MalVal[]
+			} else if ((this.exp as MalNodeList)[M_EVAL_PARAMS]) {
+				return (this.exp as MalNodeList)[M_EVAL_PARAMS]
+			} else {
+				return []
+			}
 		} else {
 			return []
 		}
@@ -268,8 +268,8 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get handles() {
-		if (this.handlesHandler) {
-			const drawHandle = this.handlesHandler[K_DRAW]
+		if (this.handleHandlers) {
+			const drawHandle = this.handleHandlers[K_DRAW] as MalFunc
 
 			let handles
 			try {
@@ -375,11 +375,11 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (!this.handlesHandler || !this.handles || this.draggingIndex === null) {
+		if (!this.handleHandlers || !this.handles || this.draggingIndex === null) {
 			return
 		}
 
-		const onDrag = this.handlesHandler[K_ON_DRAG]
+		const onDrag = this.handleHandlers[K_ON_DRAG]
 
 		if (typeof onDrag !== 'function') {
 			return
@@ -412,7 +412,7 @@ export default class ViewHandles extends Vue {
 			[K_POS]: pos,
 			[K_PREV_POS]: prevPos,
 			[K_DELTA_POS]: deltaPos
-		}
+		} as MalMap
 
 		this.rawPrevPos = rawPos
 
@@ -429,7 +429,9 @@ export default class ViewHandles extends Vue {
 				newParams = newParams[2] as MalVal[]
 			}
 
-			const newExp = [(this.exp as any[])[0], ...newParams]
+			const newExp = this.fnInfo?.primitive
+				? newParams
+				: [(this.exp as any[])[0], ...newParams]
 			this.$emit('input', newExp)
 		}
 	}

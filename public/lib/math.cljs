@@ -54,8 +54,9 @@
 (defn vec2/init
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
-   :handles {:draw (fn [[val]] [{:type "point" :id :pos :class "translate" :pos val}])
-             :on-drag (fn [{:pos pos}] [pos])}}
+   :handles {:draw (fn [val]
+                     [{:type "point" :id :pos :class "translate" :pos val}])
+             :on-drag (fn [{:pos pos}] pos)}}
   [x] x)
 
 (defn vec2?
