@@ -119,7 +119,7 @@ export default class ViewHandles extends Vue {
 	private get params(): MalVal[] {
 		if (this.handleHandlers && Array.isArray(this.exp)) {
 			if (this.fnInfo?.primitive) {
-				return [...this.exp]
+				return [[...this.exp]]
 			} else {
 				return this.exp.slice(1)
 			}
@@ -131,15 +131,12 @@ export default class ViewHandles extends Vue {
 	private get evaluatedParams(): MalVal[] {
 		if (this.handleHandlers && Array.isArray(this.exp)) {
 			if (this.fnInfo?.primitive) {
-				return (this.exp as MalNode)[M_EVAL] as MalVal[]
+				return [(this.exp as MalNode)[M_EVAL]]
 			} else if ((this.exp as MalNodeList)[M_EVAL_PARAMS]) {
 				return (this.exp as MalNodeList)[M_EVAL_PARAMS]
-			} else {
-				return []
 			}
-		} else {
-			return []
 		}
+		return []
 	}
 
 	private get evaluated(): MalVal {

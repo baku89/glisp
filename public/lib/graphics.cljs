@@ -33,18 +33,20 @@
             {:label "Body" :type "code"}]
    :handles {:draw
              (fn [[{:bounds bounds}]] ; [{:bounds bounds}]
-               (apply-draw-handle path/rect [[0 0] (rect/size bounds)]))
+               (apply-draw-handle rect/init [`[0 0 ~@(rect/size bounds)]]))
              :on-drag
              (fn [info
                   [option & body] ; Before evaluated
                   [{:bounds _bounds}]] ; evaluated
                (let
                 [_point (rect/point _bounds) ;; Evaluated point
-                 _rect-args [[0 0] (rect/size _bounds)]
-                 [delta-pos new-size] (apply-on-drag-handle
-                                       path/rect
-                                       info
-                                       _rect-args _rect-args)
+                 _rect-args [`[0 0 ~@(rect/size _bounds)]]
+                 ret-bounds (apply-on-drag-handle
+                             rect/init
+                             info
+                             _rect-args _rect-args)
+                 delta-pos (rect/point ret-bounds)
+                 new-size (rect/size ret-bounds)
                  new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
                  new-option {:bounds new-bounds}
                  new-option (if (contains? option :background)

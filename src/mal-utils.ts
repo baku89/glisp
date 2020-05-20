@@ -14,11 +14,14 @@ import ConsoleScope from './scopes/console'
 
 function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
-		const isAllNumber = exp.every(v => typeof v === 'number')
+		const isAllNumber =
+			exp instanceof Float32Array || exp.every(v => typeof v === 'number')
 		if (isAllNumber) {
 			switch (exp.length) {
 				case 2:
 					return 'vec2'
+				case 4:
+					return 'rect'
 				case 6:
 					return 'mat2d'
 			}

@@ -54,7 +54,7 @@
 (defn vec2/init
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
-   :handles {:draw (fn [val]
+   :handles {:draw (fn [[val]]
                      [{:type "point" :id :pos :class "translate" :pos val}])
              :on-drag (fn [{:pos pos}] pos)}}
   [x] x)
@@ -427,6 +427,38 @@
 
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
+
+(defn rect/init
+  {:doc "Creates a rectangle"
+   :handles
+   {:draw (fn [[[x y w h]]]
+            [; center
+             {:type "point" :id :center :class "translate"
+              :pos (vec2/scale-add [x y] [w h] .5)}
+             ; edges
+             {:type "path" :id :left :path (line [x y] [x (+ y h)])}
+             {:type "path" :id :top :path (line [x y] [(+ x w) y])}
+             {:type "path" :id :right :path (line [(+ x w) y] (vec2/+ [x y] [w h]))}
+             {:type "path" :id :bottom :path (line [x (+ y h)] (vec2/+ [x y] [w h]))}
+             ; corners
+             {:type "point" :id :top-left :pos [x y]}
+             {:type "point" :id :top-right :pos [(+ x w) y]}
+             {:type "point" :id :bottom-left :pos [x (+ y h)]}
+             {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
+    :on-drag (fn [{:id id :pos p :delta-pos [dx dy]}
+                  [[x y w h]] ; Before evaluated
+                  [[_x _y _w _h]]] ; evaluated
+               (case id
+                 :center [(+ _x dx) (+ _y dy) w h]
+                 :left  [(+ _x dx) y (- _w dx) _h]
+                 :top   [x (+ _y dy) w (- _h dy)]
+                 :right [x y (+ _w dx) h]
+                 :bottom [x y w (+ _h dy)]
+                 :top-left `[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]
+                 :top-right [x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]
+                 :bottom-left [(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]
+                 :bottom-right `[~x ~y ~@(vec2/- p [_x _y])]))}}
+  [[x y w h]] [x y w h])
 
 (def rect/left first)
 (def rect/top second)
