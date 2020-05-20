@@ -1,19 +1,14 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
+import {mat3} from 'gl-matrix'
+
 import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
+import {MalVal, LispError, isKeyword, symbolFor as S} from '@/mal/types'
 
 import createCanvasRender from '@/renderer/CanvasRenderer'
 
-import ViewScope, {createViewScope} from './view'
-import {
-	MalVal,
-	LispError,
-	isKeyword,
-	symbolFor as S,
-	keywordFor
-} from '@/mal/types'
-import {mat3} from 'gl-matrix'
+import ViewScope from './view'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -99,11 +94,6 @@ ConsoleScope.def('save', (...args: MalVal[]) => {
 
 ConsoleScope.def('export', (selector: MalVal = null) => {
 	const exec = async () => {
-		let x = 0,
-			y = 0,
-			width = ConsoleScope.var('*width*') as number,
-			height = ConsoleScope.var('*height*') as number
-
 		const renderer = await createCanvasRender()
 
 		let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
@@ -119,21 +109,18 @@ ConsoleScope.def('export', (selector: MalVal = null) => {
 					selector,
 					S('*view*')
 				])
-				console.log(viewExp)
 				if (!viewExp) {
 					throw new LispError(
 						`Element ${printExp(selector, true)} does not exist`
 					)
 				}
-				console.log('filtered', printExp(viewExp))
-				const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
-				if (!bounds) {
-					throw new LispError('Cannot retrieve bounds')
-				}
-				;[x, y, width, height] = bounds as number[]
 			}
 
-			console.log(printExp(viewExp))
+			const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
+			if (!bounds) {
+				throw new LispError('Cannot retrieve bounds')
+			}
+			const [x, y, width, height] = bounds as number[]
 
 			renderer.resize(width, height, 1)
 			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])

@@ -26,11 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g
-			v-if="handlesHandler"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handlesHandler" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -81,7 +77,8 @@ import {
 	M_EVAL_PARAMS,
 	isMalNode,
 	isList,
-	M_OUTER_INDEX
+	M_OUTER_INDEX,
+	MalMap
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -232,7 +229,13 @@ export default class ViewHandles extends Vue {
 					const matrix = node[1][K_TRANSFORM]
 					filtered.push(matrix)
 				} else if (node[0] === S('artboard')) {
-					const matrix = [1, 0, 0, 1, ...(node[1] as number[]).slice(0, 2)]
+					const matrix = [
+						1,
+						0,
+						0,
+						1,
+						...((node[1] as MalMap)[K('bounds')] as number[]).slice(0, 2)
+					]
 					filtered.push(matrix)
 				} else if (
 					node[0] === S('transform') ||

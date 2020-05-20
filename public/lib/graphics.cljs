@@ -31,41 +31,26 @@
    :params [{:type "rect"}
             &
             {:type "code"}]
-   :handles {:draw (fn [[bounds]]
-                     (apply-draw-handle path/rect [[0 0] (rect/size bounds)]))
-             :on-drag (fn [info
-                           [bounds & body] ; Before evaluated
-                           [_bounds & _body]] ; evaluated
-                        (let
-                         [_point (rect/point _bounds) ;; Evaluated point
-                          _rect-args [[0 0] (rect/size _bounds)]
-                          [delta-pos new-size] (apply-on-drag-handle path/rect
-                                                                     info
-                                                                     _rect-args _rect-args)]
-                          `[[~@(vec2/+ _point delta-pos) ~@new-size] ~@body]))}}
+   :handles {:draw
+             (fn [& bounds] ; [{:bounds bounds}]
+               (do (prn bounds)
+                   (apply-draw-handle path/rect [[0 0] (rect/size bounds)])))
+             :on-drag
+             (fn [info
+                  [option & body] ; Before evaluated
+                  [{:bounds _bounds} & _]] ; evaluated
+               (let
+                [_point (rect/point _bounds) ;; Evaluated point
+                 _rect-args [[0 0] (rect/size _bounds)]
+                 [delta-pos new-size] (apply-on-drag-handle path/rect
+                                                            info
+                                                            _rect-args _rect-args)
+                 new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
+                 new-option (assoc option :bounds new-bounds)]
+                 `[~new-option ~@body]))}}
 
-  [bounds & body]
-  [:artboard bounds
-   (binding
-    [*size* (rect/size bounds)
-     [*width* *height*] *size*
-     background (fn [c] (fill c (rect [0 0] *size*)))]
-     (transform (translate (rect/point bounds))
-                (guide/stroke (rect [.5 .5] (vec2/- *size* [1 1])))
-                body))])
-
-(defn tagtype [item]
-  (if (zero? (count (name (first item))))
-    nil
-    (let [fst (name (first item))
-          idx (index-of fst "#")]
-      (if (zero? idx)
-        nil
-        (keyword (subs fst
-                       0
-                       (if (neg? idx)
-                         (count fst)
-                         idx)))))))
+  [options & xs]
+  nil)
 
 (defn gen-element-selector-pred [sel]
   (let [dummy-tag [(keyword (name sel))]
@@ -222,11 +207,9 @@
   [h s l]
   (format "rgb(%f,%f,%f)" (* (mod h 1) 360) (* s 100) (* l 100)))
 
-(defmacro background
+(defn background
   [color]
-  `(do
-     (def *background* ~color)
-     (vector :background ~color)))
+  `[:background ~color ~*inside-artboard*])
 
 (def background
   (with-meta background

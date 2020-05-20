@@ -229,7 +229,9 @@ export default class CanvasRenderer {
 					}
 					case K_BACKGROUND: {
 						const color = rest[0]
-						ret.push(['set-background', color])
+						if (!rest[1]) {
+							ret.push(['set-background', color])
+						}
 						ctx.fillStyle = color
 
 						ctx.save()

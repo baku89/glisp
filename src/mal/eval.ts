@@ -17,7 +17,7 @@ import {
 	MalMap,
 	isList,
 	isVector,
-	markMalVector,
+	markMalVector as V,
 	MalNode,
 	isMalNode,
 	MalNodeList,
@@ -79,7 +79,7 @@ function quasiquote(exp: MalVal): MalVal {
 			if (isPair(e) && e[0] === S_SPLICE_UNQUOTE) {
 				return e[1]
 			} else {
-				return markMalVector([quasiquote(e)])
+				return V([quasiquote(e)])
 			}
 		})
 	]
@@ -123,7 +123,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		if (cache) {
 			;(exp as MalNode)[M_EVAL] = ret
 		}
-		return isVector(exp) ? markMalVector(ret) : ret
+		return isVector(exp) ? V(ret) : ret
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {
@@ -239,7 +239,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env.pushBinding(bindingEnv)
 				let ret
 				try {
-					ret = markMalVector([
+					ret = V([
 						K('transform'),
 						matrix,
 						...xs.map(x => evalExp(x, env, cache))
@@ -254,7 +254,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S('style'): {
 				const styles = evalExp(a1, env, cache) as MalMap | MalMap[]
-				const reducedStyles = Array.isArray(styles)
+				const mergedStyle = Array.isArray(styles)
 					? styles.reduce((ret, s) => {
 							return {...ret, ...s}
 					  }, {})
@@ -263,7 +263,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				const bindingEnv = new Env()
 
-				for (const [prop, value] of Object.entries(reducedStyles)) {
+				for (const [prop, value] of Object.entries(mergedStyle)) {
 					const name = S(`*${prop.slice(1)}*`)
 					bindingEnv.set(name, value)
 				}
@@ -271,16 +271,66 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env.pushBinding(bindingEnv)
 				let ret
 				try {
-					ret = markMalVector([
-						K('style'),
-						styles,
-						...xs.map(x => evalExp(x, env, cache))
-					])
+					ret = V([K('style'), styles, ...xs.map(x => evalExp(x, env, cache))])
 				} finally {
 					env.popBinding()
 				}
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
+				}
+				return ret
+			}
+			case S('artboard'): {
+				const attrs = evalExp(a1, env, cache) as MalMap
+				const bounds = attrs[K('bounds')]
+				const background = attrs[K('background')]
+				const xs = exp.slice(2)
+
+				if (!Array.isArray(bounds) || bounds.length < 4) {
+					throw new LispError('Invalid bounds')
+				}
+
+				const [x, y, width, height] = bounds as number[]
+
+				const bindingEnv = new Env()
+				bindingEnv.set(S('*size*'), V([width, height]))
+				bindingEnv.set(S('*width*'), width)
+				bindingEnv.set(S('*height*'), height)
+				bindingEnv.set(S('*inside-artboard*'), true)
+
+				if (background) {
+					bindingEnv.set(S('*background*'), background)
+				}
+
+				env.pushBinding(bindingEnv)
+
+				let ret
+				try {
+					ret = evalExp(
+						V([
+							K('artboard'),
+							V([...bounds]),
+							[
+								S('transform'),
+								V([1, 0, 0, 1, x, y]),
+								...(background ? [V([K('background'), background, true])] : []),
+								...xs,
+								[
+									S('guide/stroke'),
+									[S('rect'), V([0.5, 0.5]), V([width - 1, height - 1])]
+								]
+							]
+						]),
+						env,
+						cache
+					)
+				} finally {
+					env.popBinding()
+				}
+
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNodeList)[M_FN] = env.get(S('artboard')) as MalFunc
 				}
 				return ret
 			}
@@ -477,7 +527,7 @@ function cloneMalNode(original: MalNode) {
 	if (isArray) {
 		cloned = [...(original as MalNodeList)] as MalNodeList
 		if (isVector(original)) {
-			markMalVector(cloned)
+			V(cloned)
 		}
 	} else {
 		cloned = {...original} as MalNodeMap

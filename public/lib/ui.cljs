@@ -7,6 +7,7 @@
 (def *guide-color* nil)
 (def *transform* [1, 0, 0, 1, 0, 0])
 
+(def *inside-artboard* false)
 (def *fill-color* nil)
 (def *stroke-color* nil)
 (def *stroke-width* 1)
