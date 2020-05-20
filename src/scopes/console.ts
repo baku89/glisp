@@ -86,9 +86,9 @@ ConsoleScope.def('prompt', (msg: MalVal) => {
 ConsoleScope.def('save', (...args: MalVal[]) => {
 	const filename = generateFilename(args[0] as string)
 
-	const $sketch = ConsoleScope.var('$sketch') as string
+	const sketch = ConsoleScope.var('*sketch*') as string
 
-	const file = new File([$sketch], filename, {
+	const file = new File([sketch], filename, {
 		type: 'text/plain;charset=utf-8'
 	})
 
@@ -101,11 +101,11 @@ ConsoleScope.def('export', (name: MalVal = null) => {
 	const exec = async () => {
 		let x = 0,
 			y = 0,
-			width = ConsoleScope.var('$width') as number,
-			height = ConsoleScope.var('$height') as number
+			width = ConsoleScope.var('*width*') as number,
+			height = ConsoleScope.var('*height*') as number
 
 		const renderer = await createCanvasRender()
-		const $sketch = ConsoleScope.var('$sketch')
+		const $sketch = ConsoleScope.var('*sketch*')
 
 		const viewScope = createViewScope()
 
@@ -143,7 +143,7 @@ ConsoleScope.def('export', (name: MalVal = null) => {
 })
 
 ConsoleScope.def('publish-gist', (...args: MalVal[]) => {
-	const code = ConsoleScope.var('$sketch') as string
+	const code = ConsoleScope.var('*sketch*') as string
 
 	// eslint-disable-next-line prefer-const
 	let {_: name, user, token} = createHashMap(args)

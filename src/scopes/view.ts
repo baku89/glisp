@@ -12,13 +12,12 @@ interface ViewScopeOption {
 function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	const {width, height, guideColor} = option
 
-	scope.def('$width', width)
-	scope.def('$height', height)
-	scope.def('$transform', markMalVector([1, 0, 0, 1, 0, 0]))
-	scope.def('$size', markMalVector([width, height]))
+	scope.def('*width*', width)
+	scope.def('*height*', height)
+	scope.def('*size*', markMalVector([width, height]))
 
 	if (guideColor) {
-		scope.def('$guide-color', guideColor)
+		scope.def('*guide-color*', guideColor)
 	} else {
 		scope.readEval('(defn guide (body) nil)')
 	}

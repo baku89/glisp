@@ -1,11 +1,17 @@
 ;; Graphics and UI
-(def $sketch "")
-(def $width 1000)
-(def $height 1000)
-(def $size [$width $height])
-(def $background nil)
-(def $guide-color nil)
-(def $line-width 1)
+(def *sketch* "")
+(def *width* 1000)
+(def *height* 1000)
+(def *size* [*width* *height*])
+(def *background* nil)
+(def *guide-color* nil)
+(def *transform* [1, 0, 0, 1, 0, 0])
+
+(def *fill-color* nil)
+(def *stroke-color* nil)
+(def *stroke-width* 1)
+(def *stroke-cap* "round")
+(def *stroke-join* "round")
 
 ;; Sketch
 ;; (defn normalize-element

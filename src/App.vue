@@ -392,7 +392,7 @@ export default defineComponent({
 			expNotEvaluated = false
 			const viewExp = ViewScope.eval(exp.value)
 			if (viewExp !== undefined) {
-				ConsoleScope.def('$view', viewExp)
+				ConsoleScope.def('*view*', viewExp)
 				window.exp = exp.value[1]
 				return nonReactive(viewExp)
 			} else {

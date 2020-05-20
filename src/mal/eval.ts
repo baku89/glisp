@@ -30,11 +30,12 @@ import {
 	M_ISSUGAR,
 	M_DELIMITERS,
 	MalNodeMap,
-	getType
+	keywordFor as K
 } from './types'
 import Env from './env'
 import printExp from './printer'
 import {saveOuter} from './reader'
+import {mat2d} from 'gl-matrix'
 
 const S_DEF = S('def')
 const S_LET = S('let')
@@ -210,11 +211,77 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env.pushBinding(bindingEnv)
-				const ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
+				let ret
+				try {
+					ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
+				} finally {
+					env.popBinding()
+				}
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
-				env.popBinding()
+				return ret
+			}
+			case S('transform'): {
+				const matrix = evalExp(a1, env, cache)
+				const xs = exp.slice(2)
+
+				const bindingEnv = new Env()
+				bindingEnv.set(
+					S('*transform*'),
+					mat2d.mul(
+						mat2d.create(),
+						env.get(S('*transform*')) as mat2d,
+						matrix as mat2d
+					) as MalVal[]
+				)
+
+				env.pushBinding(bindingEnv)
+				let ret
+				try {
+					ret = markMalVector([
+						K('transform'),
+						matrix,
+						...xs.map(x => evalExp(x, env, cache))
+					])
+				} finally {
+					env.popBinding()
+				}
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
+				return ret
+			}
+			case S('style'): {
+				const styles = evalExp(a1, env, cache) as MalMap | MalMap[]
+				const reducedStyles = Array.isArray(styles)
+					? styles.reduce((ret, s) => {
+							return {...ret, ...s}
+					  }, {})
+					: styles
+				const xs = exp.slice(2)
+
+				const bindingEnv = new Env()
+
+				for (const [prop, value] of Object.entries(reducedStyles)) {
+					const name = S(`*${prop.slice(1)}*`)
+					bindingEnv.set(name, value)
+				}
+
+				env.pushBinding(bindingEnv)
+				let ret
+				try {
+					ret = markMalVector([
+						K('style'),
+						styles,
+						...xs.map(x => evalExp(x, env, cache))
+					])
+				} finally {
+					env.popBinding()
+				}
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
 				return ret
 			}
 			case S('eval-in-env'): {
