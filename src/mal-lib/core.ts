@@ -165,10 +165,7 @@ const Exports = [
 	// Map
 	['hash-map', (...a: MalVal[]) => assocBang({}, ...a)],
 	['map?', isMap],
-	[
-		'assoc',
-		(m: MalMap, ...a: MalVal[]) => assocBang(cloneExp(m) as MalMap, ...a)
-	],
+	['assoc', (m: MalMap, ...a: MalVal[]) => ({...m, ...assocBang({}, ...a)})],
 	[
 		'dissoc',
 		(m: MalMap, ...a: string[]) => {
