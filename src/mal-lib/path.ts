@@ -56,7 +56,7 @@ function createEmptyPath() {
 paper.setup(new paper.Size(1, 1))
 
 export function getSVGPathData(path: PathType) {
-	if (path[0] === K_PATH) {
+	if (path[0].toString().startsWith(K_PATH)) {
 		path = path.slice(1)
 	}
 
@@ -69,7 +69,7 @@ function createPaperPath(path: PathType): paper.Path {
 		return cache
 	}
 
-	if (path[0] === K_PATH) {
+	if (path[0].toString().startsWith(K_PATH)) {
 		path = path.slice(1)
 	}
 
@@ -146,7 +146,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 		throw new LispError('Invalid path')
 	}
 
-	let start = path[0] === K_PATH ? 1 : 0
+	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || isKeyword(path[i] as MalVal)) {
@@ -250,7 +250,9 @@ function pathLength(_path: PathType) {
 function makeOpen(path: PathType) {
 	if (closedQ(path)) {
 		path = path.slice(0, path.length - 1)
-		const first = (path[0] === K_PATH ? path[2] : path[1]) as vec2
+		const first = (path[0].toString().startsWith(K_PATH)
+			? path[2]
+			: path[1]) as vec2
 		const last = path[path.length - 1] as vec2
 
 		// Add L command to connect to first points if the last Z has certain length
@@ -660,7 +662,7 @@ function pathBounds(path: PathType) {
 		right = -Infinity,
 		bottom = -Infinity
 
-	if (path[0] === K_PATH) {
+	if (path[0].toString().startsWith(K_PATH)) {
 		for (const [cmd, ...pts] of iterateCurve(path)) {
 			switch (cmd) {
 				case K_M: {
