@@ -57,6 +57,19 @@
   [options & xs]
   nil)
 
+(defn tagtype [item]
+  (if (zero? (count (name (first item))))
+    nil
+    (let [fst (name (first item))
+          idx (index-of fst "#")]
+      (if (zero? idx)
+        nil
+        (keyword (subs fst
+                       0
+                       (if (neg? idx)
+                         (count fst)
+                         idx)))))))
+
 (defn gen-element-selector-pred [sel]
   (let [dummy-tag [(keyword (name sel))]
         tag (tagtype dummy-tag)
