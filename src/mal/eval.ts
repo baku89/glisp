@@ -281,9 +281,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S('artboard'): {
-				const attrs = evalExp(a1, env, cache) as MalMap
-				const bounds = attrs[K('bounds')]
-				const background = attrs[K('background')]
+				const option = evalExp(a1, env, cache) as MalMap
+				const bounds = option[K('bounds')]
+				const background = option[K('background')]
 				const xs = exp.slice(2)
 
 				if (!Array.isArray(bounds) || bounds.length < 4) {
@@ -304,6 +304,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				env.pushBinding(bindingEnv)
 
+				const body = evalExp(V(exp.slice(2)), env, cache) as MalVal[]
+
 				let ret
 				try {
 					ret = evalExp(
@@ -314,7 +316,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 								S('transform'),
 								V([1, 0, 0, 1, x, y]),
 								...(background ? [V([K('background'), background, true])] : []),
-								...xs,
+								...body,
 								[
 									S('guide/stroke'),
 									[S('rect'), V([0.5, 0.5]), V([width - 1, height - 1])]
@@ -331,6 +333,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 					;(exp as MalNodeList)[M_FN] = env.get(S('artboard')) as MalFunc
+					;(exp as MalNodeList)[M_EVAL_PARAMS] = [option, ...body]
 				}
 				return ret
 			}

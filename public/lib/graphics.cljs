@@ -28,25 +28,30 @@
 
 (defn artboard
   {:doc "Creates an artboard"
-   :params [{:type "rect"}
+   :params [{:label "Options" :type "code"}
             &
-            {:type "code"}]
+            {:label "Body" :type "code"}]
    :handles {:draw
-             (fn [& bounds] ; [{:bounds bounds}]
-               (do (prn bounds)
-                   (apply-draw-handle path/rect [[0 0] (rect/size bounds)])))
+             (fn [[{:bounds bounds}]] ; [{:bounds bounds}]
+               (apply-draw-handle path/rect [[0 0] (rect/size bounds)]))
              :on-drag
              (fn [info
                   [option & body] ; Before evaluated
-                  [{:bounds _bounds} & _]] ; evaluated
+                  [{:bounds _bounds}]] ; evaluated
                (let
                 [_point (rect/point _bounds) ;; Evaluated point
                  _rect-args [[0 0] (rect/size _bounds)]
-                 [delta-pos new-size] (apply-on-drag-handle path/rect
-                                                            info
-                                                            _rect-args _rect-args)
+                 [delta-pos new-size] (apply-on-drag-handle
+                                       path/rect
+                                       info
+                                       _rect-args _rect-args)
                  new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
-                 new-option (assoc option :bounds new-bounds)]
+                 new-option {:bounds new-bounds}
+                 new-option (if (contains? option :background)
+                              (assoc new-option
+                                     :background
+                                     (get option :background))
+                              new-option)]
                  `[~new-option ~@body]))}}
 
   [options & xs]
