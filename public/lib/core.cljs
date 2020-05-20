@@ -310,6 +310,12 @@
    expr
    forms))
 
+(defmacro -> [expr & forms]
+  (reduce
+   (fn [v form] `(~(first form) ~v ~@(rest form)))
+   expr
+   forms))
+
 (defmacro as-> [expr name & forms]
   (reduce
    (fn [prev-form form] `(let [~name ~prev-form] ~form))
