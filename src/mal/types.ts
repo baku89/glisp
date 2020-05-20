@@ -308,7 +308,8 @@ export function markMalVector(arr: MalVal[]): MalVal[] {
 }
 
 // Maps
-export const isMap = (obj: MalVal): obj is MalMap => getType(obj) === 'map'
+export const isMap = (obj: MalVal | undefined): obj is MalMap =>
+	getType(obj) === 'map'
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {

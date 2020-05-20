@@ -8,7 +8,8 @@ import {
 	keywordFor as K,
 	MalMap,
 	MalNode,
-	isVector
+	isVector,
+	MalJSFunc
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 
@@ -32,7 +33,12 @@ export function getPrimitiveType(exp: MalVal): string | null {
 
 export function fnInfo(
 	exp: MalNode
-): {meta: MalVal; aliasFor: string | null; primitive: string | null} | null {
+): {
+	fn: MalFunc | MalJSFunc
+	meta: MalMap
+	aliasFor: string | null
+	primitive: string | null
+} | null {
 	if (isMalNode(exp) && Array.isArray(exp)) {
 		let fn = exp[M_FN]
 		let primitive = null
@@ -46,18 +52,21 @@ export function fnInfo(
 		}
 
 		if (fn && M_META in (fn as MalFunc)) {
-			const meta = (fn as MalFunc)[M_META] as MalVal
+			const meta = (fn as MalFunc)[M_META]
 
 			if (isMap(meta)) {
 				if (meta[K('alias')]) {
 					const alias = meta[K('alias')] as MalMap
-					return {
-						meta: alias[K('meta')],
-						aliasFor: alias[K('name')] as string,
-						primitive
-					}
+					const aliasMeta = alias[K('meta')]
+					if (isMap(aliasMeta))
+						return {
+							fn,
+							meta: aliasMeta,
+							aliasFor: alias[K('name')] as string,
+							primitive
+						}
 				} else {
-					return {meta, aliasFor: null, primitive}
+					return {fn, meta, aliasFor: null, primitive}
 				}
 			}
 		}

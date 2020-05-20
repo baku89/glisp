@@ -1,9 +1,12 @@
 <template>
 	<div class="Inspector">
-		<div class="Inspector__header" v-if="fn">
+		<div class="Inspector__header">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span v-if="aliasFor" class="alias">--> alias for {{ aliasFor }}</span>
+				<span
+					v-if="fnInfo && fnInfo.aliasFor"
+					class="alias"
+				>--> alias for {{ fnInfo.aliasFor }}</span>
 			</div>
 			<VueMarkdown :source="fnDoc" />
 		</div>
@@ -97,13 +100,16 @@ import {
 	isString,
 	isKeyword,
 	assocBang,
-	cloneExp
+	cloneExp,
+	MalNode,
+	isMap,
+	LispError
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import {clamp, getParamLabel} from '@/utils'
 import ConsoleScope from '../scopes/console'
-import {getPrimitiveType} from '../mal-utils'
+import {getPrimitiveType, fnInfo} from '../mal-utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -167,34 +173,19 @@ type MetaDescs = (Desc | string)[]
 	}
 })
 export default class Inspector extends Vue {
-	@Prop({required: true}) private value!: MalVal
+	@Prop({required: true}) private value!: MalNode
 
-	private get primitiveType(): string | null {
-		return getPrimitiveType(this.value)
-	}
-
-	private get fn() {
-		if (this.primitiveType) {
-			return ConsoleScope.var(`${this.primitiveType}/init`)
-		} else {
-			return (isList(this.value) && (this.value as any)[M_FN]) || null
-		}
-	}
-
-	private get fnOrigMeta() {
-		return this.fn && this.fn[M_META] ? this.fn[M_META] : null
-	}
-
-	private get aliasFor(): string | null {
-		return this.fnOrigMeta && K_ALIAS in this.fnOrigMeta
-			? this.fnOrigMeta[K_ALIAS][K_NAME]
-			: null
+	private get fnInfo() {
+		return fnInfo(this.value)
 	}
 
 	private get fnName(): string {
-		if (this.primitiveType) {
-			return this.primitiveType
-		} else if (this.fn) {
+		if (this.fnInfo?.primitive) {
+			return this.fnInfo.primitive
+		} else if (
+			this.fnInfo?.fn ||
+			(isList(this.value) && isSymbol(this.value[1]))
+		) {
 			return ((this.value as MalVal[])[0] as string).slice(1) || ''
 		} else {
 			return ''
@@ -202,27 +193,20 @@ export default class Inspector extends Vue {
 	}
 
 	private get fnParams(): MalVal[] {
-		if (this.primitiveType) {
+		if (this.fnInfo?.primitive) {
 			return [this.value]
-		} else if (this.fn) {
+		} else if (this.fnInfo) {
 			return (this.value as MalVal[]).slice(1)
 		} else {
 			return []
 		}
 	}
 
-	private get fnMeta() {
-		return this.aliasFor ? this.fnOrigMeta[K_ALIAS][K_META] : this.fnOrigMeta
-	}
-
 	private get fnDoc(): string {
-		if (this.fnMeta) {
-			return typeof this.fnMeta === 'string'
-				? this.fnMeta
-				: (this.fnMeta[K_DOC] as string) || ''
-		} else {
-			return ''
+		if (this.fnInfo?.meta) {
+			return this.fnInfo.meta[K_DOC] as string
 		}
+		return ''
 	}
 
 	private matchParameter(
@@ -294,21 +278,29 @@ export default class Inspector extends Vue {
 	}
 
 	private get paramDescs(): ParamDescs {
-		if (!this.fn || !this.fnParams) {
+		if (!this.fnInfo) {
 			return EmptyParamDescs
 		}
 
 		let paramDescs: ParamDescs | null = null
-		const fnMetaParams = isMalFunc(this.fn) ? this.fn[M_PARAMS] : null
+		const fnMetaParams = isMalFunc(this.fnInfo.fn)
+			? this.fnInfo.fn[M_PARAMS]
+			: null
 
 		// Check if the function has parmeter info as metadata
-		if (this.fnMeta && K_PARAMS in this.fnMeta) {
-			const metaDescs = this.fnMeta[K_PARAMS]
+		if (this.fnInfo && K_PARAMS in this.fnInfo.meta) {
+			const metaDescs = this.fnInfo.meta[K_PARAMS] as MetaDescs | MetaDescs[]
+
+			if (!Array.isArray(metaDescs)) {
+				throw new LispError('Invalid params scheme')
+			}
 
 			if (Array.isArray(metaDescs[0])) {
 				// Has overloads then try to match the parameter
-				for (const desc of metaDescs as MetaDescs[]) {
-					if ((paramDescs = this.matchParameter(this.fnParams, desc))) {
+				for (const desc of metaDescs) {
+					if (
+						(paramDescs = this.matchParameter(this.fnParams, desc as MetaDescs))
+					) {
 						break
 					}
 				}
@@ -483,7 +475,7 @@ export default class Inspector extends Vue {
 	}
 
 	private onParamInput(i: number, value: MalVal) {
-		if (!this.fnParams) {
+		if (!this.fnParams || !this.fnInfo) {
 			return
 		}
 
@@ -529,7 +521,7 @@ export default class Inspector extends Vue {
 
 		let newValue
 
-		if (this.primitiveType) {
+		if (this.fnInfo?.primitive) {
 			newValue = markMalVector(newParams[0])
 		} else {
 			newValue = [(this.value as MalVal[])[0], ...newParams]
@@ -539,7 +531,7 @@ export default class Inspector extends Vue {
 	}
 
 	private onParamDelete(i: number) {
-		if (!this.fnParams) {
+		if (!this.fnInfo) {
 			return
 		}
 
@@ -551,13 +543,15 @@ export default class Inspector extends Vue {
 	}
 
 	private onParamInsert(i: number) {
-		if (!this.fnParams) {
+		if (!this.fnInfo) {
 			return
 		}
 
 		const newParams = [...this.fnParams]
 
-		const descVariadic = this.fnMeta[K_PARAMS][this.variadicPos + 1]
+		const descVariadic = (this.fnInfo.meta[K_PARAMS] as MalVal[])[
+			this.variadicPos + 1
+		] as Desc
 
 		const imin = this.variadicPos
 		const imax = newParams.length - 1
