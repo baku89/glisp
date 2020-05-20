@@ -12,7 +12,7 @@
 
 (background "snow")
 
-(g {:transform (view-center)
+(g {:transform (translate (view-center))
     :style (stroke "salmon" 10)}
    (for [y (column -5 5 w)
          x (column -5 5 w)

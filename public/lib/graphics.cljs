@@ -214,12 +214,12 @@
 
 ;; Transform
 (defn  view-center
-  {:doc "Returns a translation matrix to move the origin onto the center of view or artboard"
-   :returns {:type "mat2d"}
+  {:doc "Returns the center of view or artboard"
+   :returns {:type "vec2"}
    :handles {:draw (fn [_ mat]
                      [{:type "point" :class "translate" :pos (take 4 mat)}])}}
   []
-  (translate (vec2/scale *size* .5)))
+  (vec2/scale *size* .5))
 
 ;; Style
 (defn fill
