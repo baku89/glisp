@@ -26,7 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g v-if="handleHandlers" class="ViewHandles__axis" :transform="axisTransform">
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -81,7 +81,7 @@ import {
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
-import {fnMeta} from '@/mal-utils'
+import {fnInfo} from '@/mal-utils'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -105,23 +105,25 @@ export default class ViewHandles extends Vue {
 	private rem = 0
 
 	private get fnInfo() {
-		return fnMeta(this.exp)
+		return fnInfo(this.exp)
 	}
 
-	private get handleHandlers() {
+	private get handleCallbacks() {
 		if (this.fnInfo && isMap(this.fnInfo.meta)) {
-			return this.fnInfo.meta[K_HANDLES] as MalMap
+			const handles = this.fnInfo.meta[K_HANDLES]
+			return isMap(handles) ? handles : null
 		} else {
 			return null
 		}
 	}
 
 	private get params(): MalVal[] {
-		if (this.handleHandlers && Array.isArray(this.exp)) {
+		if (this.handleCallbacks) {
+			const exp = this.exp as MalVal[]
 			if (this.fnInfo?.primitive) {
-				return [[...this.exp]]
+				return [[...exp]]
 			} else {
-				return this.exp.slice(1)
+				return exp.slice(1)
 			}
 		} else {
 			return []
@@ -129,11 +131,12 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get evaluatedParams(): MalVal[] {
-		if (this.handleHandlers && Array.isArray(this.exp)) {
+		if (this.handleCallbacks) {
+			const exp = this.exp as MalNodeList
 			if (this.fnInfo?.primitive) {
-				return [(this.exp as MalNode)[M_EVAL]]
-			} else if ((this.exp as MalNodeList)[M_EVAL_PARAMS]) {
-				return (this.exp as MalNodeList)[M_EVAL_PARAMS]
+				return [exp[M_EVAL]]
+			} else {
+				return exp[M_EVAL_PARAMS] || []
 			}
 		}
 		return []
@@ -178,7 +181,6 @@ export default class ViewHandles extends Vue {
 				K_TRANSFORM in node
 
 			const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
-
 			const isAttrOfPathTransform =
 				outer[0] === S('path/transform') && outer[1] === node
 
@@ -265,8 +267,8 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get handles() {
-		if (this.handleHandlers) {
-			const drawHandle = this.handleHandlers[K_DRAW] as MalFunc
+		if (this.handleCallbacks) {
+			const drawHandle = this.handleCallbacks[K_DRAW] as MalFunc
 
 			let handles
 			try {
@@ -372,11 +374,11 @@ export default class ViewHandles extends Vue {
 	}
 
 	private onMousemove(e: MouseEvent) {
-		if (!this.handleHandlers || !this.handles || this.draggingIndex === null) {
+		if (!this.handleCallbacks || !this.handles || this.draggingIndex === null) {
 			return
 		}
 
-		const onDrag = this.handleHandlers[K_ON_DRAG]
+		const onDrag = this.handleCallbacks[K_ON_DRAG]
 
 		if (typeof onDrag !== 'function') {
 			return

@@ -61,28 +61,16 @@
 						/>
 						<div v-else class="exp">{{ printExp(params[i].value) }}</div>
 					</div>
-					<button
-						class="delete"
-						v-if="i >= variadicPos"
-						@click="onParamDelete(i)"
-					>
+					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 						<i class="far fa-times-circle" />
 					</button>
-					<button
-						class="insert"
-						v-if="i >= variadicPos"
-						@click="onParamInsert(i)"
-					>
-						&lt;-- Insert
-					</button>
+					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
 				</td>
 			</tr>
 			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 				<td class="label"></td>
 				<td class="value">
-					<button class="add" @click="onParamInsert(params.length)">
-						+ Add
-					</button>
+					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
 				</td>
 			</tr>
 		</table>
@@ -115,6 +103,7 @@ import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import {clamp, getParamLabel} from '@/utils'
 import ConsoleScope from '../scopes/console'
+import {getPrimitiveType} from '../mal-utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -181,18 +170,7 @@ export default class Inspector extends Vue {
 	@Prop({required: true}) private value!: MalVal
 
 	private get primitiveType(): string | null {
-		if (isVector(this.value)) {
-			const isAllNumber = this.value.every(v => typeof v === 'number')
-			if (isAllNumber) {
-				switch (this.value.length) {
-					case 2:
-						return 'vec2'
-					case 6:
-						return 'mat2d'
-				}
-			}
-		}
-		return null
+		return getPrimitiveType(this.value)
 	}
 
 	private get fn() {
@@ -658,8 +636,8 @@ export default class Inspector extends Vue {
 			font-size 0.95em
 
 	&__params
-		width 100%
 		position relative
+		width 100%
 		table-layout fixed
 
 		tr, td
@@ -674,9 +652,9 @@ export default class Inspector extends Vue {
 
 		td
 			padding 0
+
 			&:first-child
 				width 5em
-
 
 		.label
 			clear both

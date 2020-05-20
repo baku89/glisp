@@ -83,6 +83,7 @@ type MalTypeString =
 	// Functions
 	| 'fn'
 	| 'macro'
+	| 'undefined'
 
 export function getType(obj: MalVal): MalTypeString {
 	const _typeof = typeof obj
@@ -118,7 +119,7 @@ export function getType(obj: MalVal): MalTypeString {
 		case 'boolean':
 			return 'boolean'
 		default:
-			throw new LispError(`Invalid type '${_typeof}'`)
+			return 'undefined'
 	}
 }
 

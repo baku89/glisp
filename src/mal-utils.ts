@@ -12,7 +12,7 @@ import {
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 
-function getPrimitiveType(exp: MalVal): string | null {
+export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
 		const isAllNumber =
 			exp instanceof Float32Array || exp.every(v => typeof v === 'number')
@@ -30,7 +30,7 @@ function getPrimitiveType(exp: MalVal): string | null {
 	return null
 }
 
-export function fnMeta(
+export function fnInfo(
 	exp: MalNode
 ): {meta: MalVal; aliasFor: string | null; primitive: string | null} | null {
 	if (isMalNode(exp) && Array.isArray(exp)) {
