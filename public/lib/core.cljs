@@ -322,12 +322,16 @@
      expr
      forms))
 
+(defn mapcat [& xs]
+  (apply concat (apply map xs)))
+
+
 (defn find-list [f lst]
   (do
     (if (sequential? lst)
       (if (f lst)
         (apply concat `(~(list lst) ~@(map #(find-list f %) lst)))
-        (apply concat (map #(find-list f %) lst)))
+        (mapcat #(find-list f %) lst))
       '())))
 
 
@@ -370,7 +374,6 @@
     #(symbol (str "G__" (swap! counter inc)))))
 
 ;;  List 
-
 (defn replace-nth [coll idx val]
   (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
     (cond (list? coll) ret
@@ -400,6 +403,21 @@
   {:doc "Returns a sequence of all but the last n items in coll"}
   [n coll]
   (take (- (count coll) n) coll))
+
+;; String
+(defn ends-with?
+  {:doc "True if *s* ends with substr"
+   :params [{:type "string"}
+            {:type "string"}]}
+  [s substr]
+  (= (subs s (- (count s) (count substr))) substr))
+
+(defn starts-with?
+  {:doc "True if *s* ends with substr"
+   :params [{:type "string"}
+            {:type "string"}]}
+  [s substr]
+  (= (subs s 0 (count substr)) substr))
 
 ;; Load other cores
 (import "ui.cljs")
