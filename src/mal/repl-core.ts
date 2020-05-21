@@ -81,7 +81,10 @@ const Exports = [
 	['.', jsMethodCall],
 
 	// Needed in import-force
-	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)]
+	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)],
+
+	['*is-node*', isNode],
+	['*host-language*', 'JavaScript']
 ] as [string, MalVal][]
 
 export default Exports
