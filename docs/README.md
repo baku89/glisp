@@ -12,3 +12,7 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [なぜ Lisp なのか](why-lisp)
 - [ツールの直交性](orthogonality)
 - [トランスフォーム](transform)
+- [描画ツリー](draw-tree)
+- [属性の継承](inheritance)
+- ハンドルを定義する
+- ドローイングツールを定義する
