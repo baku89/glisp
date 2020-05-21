@@ -1,13 +1,18 @@
 const path = require('path')
+const webpack = require('webpack')
+const CopyPlugin = require('webpack-copy-plugin')
 
 module.exports = {
-	entry: './src/repl.ts',
+	entry: {
+		index: './src/repl.ts',
+		'lib/core': './src/mal-lib/core.ts'
+	},
 	mode: 'development',
 	resolve: {
 		alias: {
-			'@': '/Users/baku/Sites/glisp/src'
+			'@': path.resolve(__dirname, 'src')
 		},
-		extensions: ['.tsx', '.ts', '.mjs', '.js', '.jsx', '.vue', '.json', '.wasm']
+		extensions: ['.tsx', '.ts', '.js']
 	},
 	module: {
 		rules: [
@@ -19,11 +24,21 @@ module.exports = {
 		]
 	},
 	target: 'node',
-	resolve: {
-		extensions: ['.tsx', '.ts', '.js']
-	},
 	output: {
-		filename: 'index.js',
-		path: path.resolve(__dirname, 'repl')
-	}
+		filename: '[name].js',
+		path: path.resolve(__dirname, 'repl'),
+		globalObject: 'this',
+		libraryTarget: 'umd',
+		libraryExport: ''
+	},
+	plugins: [
+		new webpack.IgnorePlugin(/jsdom$/),
+		new CopyPlugin([
+			{
+				from: path.resolve(__dirname, 'public/lib'),
+				to: path.resolve(__dirname, 'test'),
+				toType: ''
+			}
+		])
+	]
 }
