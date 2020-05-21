@@ -24,19 +24,19 @@
                       {:type "point" :id :top-right :pos [(+ x w) y]}
                       {:type "point" :id :bottom-left :pos [x (+ y h)]}
                       {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
-             :on-drag (fn [{:id id :pos p :delta-pos [dx dy]}
-                           [pos size] ; Before evaluated
-                           [[_x _y] [_w _h]]] ; evaluated
-                        (case id
-                          :center [(vec2/+ [_x _y] [dx dy]) size]
-                          :left  [[(+ _x dx) _y] [(- _w dx) _h]]
-                          :top   [[_x (+ _y dy)] [_w (- _h dy)]]
-                          :right [pos [(+ _w dx) _h]]
-                          :bottom [pos [_w (+ _h dy)]]
-                          :top-left [p (vec2/- (vec2/+ [_x _y] [_w _h]) p)]
-                          :top-right [[_x (.y p)] [(- (.x p) _x) (- (+ _y _h) (.y p))]]
-                          :bottom-left [[(.x p) _y] [(- (+ _x _w) (.x p)) (- (.y p) _y)]]
-                          :bottom-right [pos (vec2/- p [_x _y])]))}}
+             :drag (fn [{:id id :pos p :delta-pos [dx dy]}
+                        [pos size] ; Before evaluated
+                        [[_x _y] [_w _h]]] ; evaluated
+                     (case id
+                       :center [(vec2/+ [_x _y] [dx dy]) size]
+                       :left  [[(+ _x dx) _y] [(- _w dx) _h]]
+                       :top   [[_x (+ _y dy)] [_w (- _h dy)]]
+                       :right [pos [(+ _w dx) _h]]
+                       :bottom [pos [_w (+ _h dy)]]
+                       :top-left [p (vec2/- (vec2/+ [_x _y] [_w _h]) p)]
+                       :top-right [[_x (.y p)] [(- (.x p) _x) (- (+ _y _h) (.y p))]]
+                       :bottom-left [[(.x p) _y] [(- (+ _x _w) (.x p)) (- (.y p) _y)]]
+                       :bottom-right [pos (vec2/- p [_x _y])]))}}
   [[x y] [w h]]
   [:path
    :M [x y]
@@ -59,10 +59,10 @@
                         :id :center
                         :class "translate"
                         :pos center}])
-              :on-drag (fn [{:id id :pos p} [center radius]]
-                         (case id
-                           :center [p radius]
-                           :radius [center (vec2/dist center p)]))}}
+              :drag (fn [{:id id :pos p} [center radius]]
+                      (case id
+                        :center [p radius]
+                        :radius [center (vec2/dist center p)]))}}
   (let [K (/ (* 4 (- (sqrt 2) 1)) 3)]
     (fn [[x y] r]
       (let [k (* r K)]
@@ -83,11 +83,11 @@
                      [{:type "path" :id :path :path path}
                       {:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :on-drag (fn [{:id id :pos p :delta-pos dp} [from to]]
-                        (case id
-                          :path [(vec2/+ from dp) (vec2/+ to dp)]
-                          :from [p to]
-                          :to [from p]))}}
+             :drag (fn [{:id id :pos p :delta-pos dp} [from to]]
+                     (case id
+                       :path [(vec2/+ from dp) (vec2/+ to dp)]
+                       :from [p to]
+                       :to [from p]))}}
   [from to]
   [:path :M from :L to])
 
@@ -118,13 +118,13 @@
               {:type "point"
                :id :end
                :pos (vec2/+ center (vec2/dir end r))}])
-     :on-drag (fn [{:id id :pos p} [center r start end]]
-                (case id
-                  :center `(~p ~r ~start ~end)
-                  :start (let [start (vec2/angle (vec2/- p center))]
-                           `(~center ~r ~start ~end))
-                  :end (let [end (vec2/angle (vec2/- p center))]
-                         `(~center ~r ~start ~end))))}}
+     :drag (fn [{:id id :pos p} [center r start end]]
+             (case id
+               :center `(~p ~r ~start ~end)
+               :start (let [start (vec2/angle (vec2/- p center))]
+                        `(~center ~r ~start ~end))
+               :end (let [end (vec2/angle (vec2/- p center))]
+                      `(~center ~r ~start ~end))))}}
   path/arc)
 (defalias arc path/arc)
 
@@ -145,12 +145,12 @@
                                                     (nth pts (inc i))
                                                     .5)})
                            (range (dec (count pts))))))
-             :on-drag (fn [{:id id :pos p} [& pts]]
-                        (let [[mode i] id]
-                          (case mode
-                            :edit (replace-nth pts i p)
-                            :add [:change-id [:edit i]
-                                  (insert-nth pts i p)])))}}
+             :drag (fn [{:id id :pos p} [& pts]]
+                     (let [[mode i] id]
+                       (case mode
+                         :edit (replace-nth pts i p)
+                         :add [:change-id [:edit i]
+                               (insert-nth pts i p)])))}}
   [& pts]
   (if (zero? (count pts))
     [:path]
@@ -178,11 +178,11 @@
                        :id :center
                        :class "translate"
                        :pos center}])
-             :on-drag (fn [{:id id :pos p} [center [rx ry]]]
-                        (case id
-                          :center [p [rx ry]]
-                          :radius-x [center [(abs (- (.x p) (.x center))) ry]]
-                          :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}}
+             :drag (fn [{:id id :pos p} [center [rx ry]]]
+                     (case id
+                       :center [p [rx ry]]
+                       :radius-x [center [(abs (- (.x p) (.x center))) ry]]
+                       :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}}
   [center radius]
   (path/transform (mat2d/* (translate center)
                            (scale radius))
@@ -236,10 +236,10 @@
                        {:type "path" :id :path-trimmed :class "dashed" :guide true :path trimmed-path}
                        {:type "point" :id :start :pos (path/position-at start path)}
                        {:type "point" :id :end :pos (path/position-at end path)}])
-              :on-drag (fn [{:id id :pos p} [start end path] [_ _ evaluated-path]]
-                         (case id
-                           :start [(path/nearest-offset p evaluated-path) end path]
-                           :end [start (path/nearest-offset p evaluated-path) path]))}}
+              :drag (fn [{:id id :pos p} [start end path] [_ _ evaluated-path]]
+                      (case id
+                        :start [(path/nearest-offset p evaluated-path) end path]
+                        :end [start (path/nearest-offset p evaluated-path) path]))}}
   path/trim)
 
 (def path-boolean-meta
@@ -280,14 +280,14 @@
                       {:type "arrow"
                        :pos (path/position-at 0 offset-path)
                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
-             :on-drag (fn [{:pos p} [_ & xs] [_ orig-path]]
-                        (let [near-t (path/nearest-offset p orig-path)
-                              near-pt (path/position-at near-t orig-path)
-                              near-n (path/normal-at near-t orig-path)
-                              near-dir (vec2/- p near-pt)
-                              d-sign (sign (vec2/dot near-n near-dir))
-                              d (* (vec2/len near-dir) d-sign)]
-                          `(~d ~@xs)))}})
+             :drag (fn [{:pos p} [_ & xs] [_ orig-path]]
+                     (let [near-t (path/nearest-offset p orig-path)
+                           near-pt (path/position-at near-t orig-path)
+                           near-n (path/normal-at near-t orig-path)
+                           near-dir (vec2/- p near-pt)
+                           d-sign (sign (vec2/dot near-n near-dir))
+                           d (* (vec2/len near-dir) d-sign)]
+                       `(~d ~@xs)))}})
 
 (def path/offset
   ^(assoc path-offset-meta :doc "Offsets a path") path/offset)

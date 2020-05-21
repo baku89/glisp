@@ -21,7 +21,7 @@
 (defn apply-on-drag-handle [f & xs]
   (let [hf (-> (fn-meta f)
                (get :handles)
-               (get :on-drag))]
+               (get :drag))]
     (if (fn? hf)
       (apply hf xs)
       (throw "Handle on-drag function does not exists"))))
@@ -34,7 +34,7 @@
    :handles {:draw
              (fn [[{:bounds bounds}]] ; [{:bounds bounds}]
                (apply-draw-handle rect/init [`[0 0 ~@(rect/size bounds)]]))
-             :on-drag
+             :drag
              (fn [info
                   [option & body] ; Before evaluated
                   [{:bounds _bounds}]] ; evaluated
@@ -343,17 +343,17 @@
                         {:id :size
                          :type "path"
                          :path (ngon pos size 4)}]))
-             :on-drag (fn [{:id id :pos p} params]
-                        (case id
-                          :pos (replace-nth params 1 p)
-                          :size (let [text-pos (take 2 params)
-                                      dir (vec2/- (nth params 1) p)
-                                      size (+ (abs (.x dir)) (abs (.y dir)))
-                                      args (->> (take 2 params)
-                                                (apply hash-map)
-                                                (#(assoc % :size size))
-                                                (entries)
-                                                (apply concat))]
-                                  (concat text-pos args))))}}
+             :drag (fn [{:id id :pos p} params]
+                     (case id
+                       :pos (replace-nth params 1 p)
+                       :size (let [text-pos (take 2 params)
+                                   dir (vec2/- (nth params 1) p)
+                                   size (+ (abs (.x dir)) (abs (.y dir)))
+                                   args (->> (take 2 params)
+                                             (apply hash-map)
+                                             (#(assoc % :size size))
+                                             (entries)
+                                             (apply concat))]
+                               (concat text-pos args))))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])

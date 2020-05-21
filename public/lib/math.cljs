@@ -56,7 +56,7 @@
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [[val]]
                      [{:type "point" :id :pos :class "translate" :pos val}])
-             :on-drag (fn [{:pos pos}] pos)}}
+             :drag (fn [{:pos pos}] pos)}}
   [x] x)
 
 (defn vec2?
@@ -278,8 +278,8 @@
                      [{:type "point"
                        :class "translate"
                        :pos pos}])
-             :on-drag (fn [{:pos p}]
-                        [p])}}
+             :drag (fn [{:pos p}]
+                     [p])}}
   [[x y]]
   [1 0 0 1 x y])
 
@@ -292,7 +292,7 @@
                      [{:type "path" :guide true :class "dashed"
                        :path (line [0 -80] [0 80])}
                       {:type "arrow" :pos [x 0]}])
-             :on-drag (fn [{:pos p}]  [(.x p)])}}
+             :drag (fn [{:pos p}]  [(.x p)])}}
   [x] [1 0 0 1 x 0])
 
 (defn mat2d/translate-y
@@ -302,7 +302,7 @@
                      [{:type "path" :guide true :class "dashed"
                        :path (line [-80 0] [80 0])}
                       {:type "arrow" :pos [0 y] :angle HALF_PI}])
-             :on-drag (fn [{:pos p}]  [(.y p)])}}
+             :drag (fn [{:pos p}]  [(.y p)])}}
   [y] [1 0 0 1 0 y])
 
 ;; mat2d/fromScaling, scale
@@ -322,15 +322,15 @@
                         {:type "point" :id :non-uni :pos [sx sy] :class "translate"}
                         {:type "arrow" :id :axis-x  :pos [sx 0]}
                         {:type "arrow" :id :axis-y  :pos [0 sy] :angle HALF_PI}]))
-             :on-drag (fn [{:id id :pos p} [[x y]] [[x0 y0]]]
-                        (let [$x (/ (.x p) 40)
-                              $y (/ (.y p) 40)]
-                          (case id
-                            :uniform [[(+ $x (* (/ x0 y0) $y))
-                                       (+ $y (* (/ y0 x0) $x))]]
-                            :non-uni [[$x $y]]
-                            :axis-x  [[$x y]]
-                            :axis-y  [[x $y]])))}}
+             :drag (fn [{:id id :pos p} [[x y]] [[x0 y0]]]
+                     (let [$x (/ (.x p) 40)
+                           $y (/ (.y p) 40)]
+                       (case id
+                         :uniform [[(+ $x (* (/ x0 y0) $y))
+                                    (+ $y (* (/ y0 x0) $x))]]
+                         :non-uni [[$x $y]]
+                         :axis-x  [[$x y]]
+                         :axis-y  [[x $y]])))}}
   [[x y]]
   [x 0 0 y 0 0])
 
@@ -345,8 +345,8 @@
                                 :M [0 0] :L [sx 0]
                                 :L [0 -40] :L [(- sx) 0] :L [0 40] :L [sx 0]]}
                         {:type "arrow" :pos [sx 0]}]))
-             :on-drag (fn [{:pos [px]}]
-                        [(/ px 40)])}}
+             :drag (fn [{:pos [px]}]
+                     [(/ px 40)])}}
   [sx] [sx 0 0 1 0 0])
 
 (defn mat2d/scale-y
@@ -360,8 +360,8 @@
                                 :M [0 0] :L [0 sy]
                                 :L [-40 0] :L [0 (- sy)] :L [40 0] :L [0 sy]]}
                         {:type "arrow" :pos [0 sy] :angle HALF_PI}]))
-             :on-drag (fn [{:pos [_ py]}]
-                        [(/ py 40)])}}
+             :drag (fn [{:pos [_ py]}]
+                     [(/ py 40)])}}
   [sy] [1 0 0 sy 0 0])
 
 ;; mat2d/fromRotation
@@ -374,11 +374,11 @@
                        [{:type "path" :guide true :path (line [0 0] dir)}
                         {:type "path" :guide true :class "dashed" :path (arc [0 0] 80 0 angle)}
                         {:type "point" :pos dir}]))
-             :on-drag (fn [{:pos p :prev-pos pp} _ [angle]]
-                        (let [angle-pp (vec2/angle pp)
-                              aligned-p (vec2/rotate [0 0] (- angle-pp) p)
-                              angle-delta (vec2/angle aligned-p)]
-                          [(+ angle angle-delta)]))}}
+             :drag (fn [{:pos p :prev-pos pp} _ [angle]]
+                     (let [angle-pp (vec2/angle pp)
+                           aligned-p (vec2/rotate [0 0] (- angle-pp) p)
+                           angle-delta (vec2/angle aligned-p)]
+                       [(+ angle angle-delta)]))}}
   [angle]
   (let [s (sin angle)
         c (cos angle)]
@@ -409,8 +409,8 @@
    :returns "mat2d"
    :handles {:draw (fn [[p]]
                      [{:type "point" :class "translate" :pos p}])
-             :on-drag (fn [{:pos p} [_ & xs]]
-                        `(~p ~@xs))}}
+             :drag (fn [{:pos p} [_ & xs]]
+                     `(~p ~@xs))}}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/scale p -1))]
@@ -445,19 +445,19 @@
              {:type "point" :id :top-right :pos [(+ x w) y]}
              {:type "point" :id :bottom-left :pos [x (+ y h)]}
              {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
-    :on-drag (fn [{:id id :pos p :delta-pos [dx dy]}
-                  [[x y w h]] ; Before evaluated
-                  [[_x _y _w _h]]] ; evaluated
-               (case id
-                 :center [(+ _x dx) (+ _y dy) w h]
-                 :left  [(+ _x dx) y (- _w dx) _h]
-                 :top   [x (+ _y dy) w (- _h dy)]
-                 :right [x y (+ _w dx) h]
-                 :bottom [x y w (+ _h dy)]
-                 :top-left `[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]
-                 :top-right [x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]
-                 :bottom-left [(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]
-                 :bottom-right `[~x ~y ~@(vec2/- p [_x _y])]))}}
+    :drag (fn [{:id id :pos p :delta-pos [dx dy]}
+               [[x y w h]] ; Before evaluated
+               [[_x _y _w _h]]] ; evaluated
+            (case id
+              :center [(+ _x dx) (+ _y dy) w h]
+              :left  [(+ _x dx) y (- _w dx) _h]
+              :top   [x (+ _y dy) w (- _h dy)]
+              :right [x y (+ _w dx) h]
+              :bottom [x y w (+ _h dy)]
+              :top-left `[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]
+              :top-right [x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]
+              :bottom-left [(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]
+              :bottom-right `[~x ~y ~@(vec2/- p [_x _y])]))}}
   [[x y w h]] [x y w h])
 
 (def rect/left first)

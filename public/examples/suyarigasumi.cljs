@@ -10,11 +10,11 @@
              {:id :width
               :type "arrow" :pos [x0 (+ y width)]
               :angle HALF_PI}])
-    :on-drag (fn [{:id id :pos p} [x0 x1 y width]]
-               (case id
-                 :start [(.x p) x1 (.y p) width]
-                 :end [x0 (.x p) (.y p) width]
-                 :width [x0 x1 y (abs (- (.y p) y))]))}}
+    :drag (fn [{:id id :pos p} [x0 x1 y width]]
+            (case id
+              :start [(.x p) x1 (.y p) width]
+              :end [x0 (.x p) (.y p) width]
+              :width [x0 x1 y (abs (- (.y p) y))]))}}
   [x0 x1 y width]
   (path/offset-stroke width
                       (line [x0 y] [x1 y])))

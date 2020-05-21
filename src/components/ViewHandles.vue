@@ -93,7 +93,7 @@ const K_ANGLE = K('angle'),
 	K_TYPE = K('type'),
 	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
-	K_ON_DRAG = K('on-drag'),
+	K_DRAG = K('drag'),
 	K_CHANGE_ID = K('change-id'),
 	K_PATH = K('path'),
 	K_CLASS = K('class')
@@ -117,7 +117,7 @@ export default class ViewHandles extends Vue {
 		}
 	}
 
-	private get params(): MalVal[] {
+	private get unevaluatedParams(): MalVal[] {
 		if (this.handleCallbacks) {
 			const exp = this.exp as MalVal[]
 			if (this.fnInfo?.primitive) {
@@ -130,7 +130,7 @@ export default class ViewHandles extends Vue {
 		}
 	}
 
-	private get evaluatedParams(): MalVal[] {
+	private get params(): MalVal[] {
 		if (this.handleCallbacks) {
 			const exp = this.exp as MalNodeList
 			if (this.fnInfo?.primitive) {
@@ -142,7 +142,7 @@ export default class ViewHandles extends Vue {
 		return []
 	}
 
-	private get evaluated(): MalVal {
+	private get evaluatedValue(): MalVal {
 		return this.exp[M_EVAL] || null
 	}
 
@@ -228,13 +228,8 @@ export default class ViewHandles extends Vue {
 					const matrix = node[1][K_TRANSFORM]
 					filtered.push(matrix)
 				} else if (node[0] === S('artboard')) {
-					const matrix = [
-						1,
-						0,
-						0,
-						1,
-						...((node[1] as MalMap)[K('bounds')] as number[]).slice(0, 2)
-					]
+					const bounds = (node[1] as MalMap)[K('bounds')] as number[]
+					const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
 					filtered.push(matrix)
 				} else if (
 					node[0] === S('transform') ||
@@ -272,7 +267,11 @@ export default class ViewHandles extends Vue {
 
 			let handles
 			try {
-				handles = drawHandle(this.evaluatedParams, this.evaluated, this.params)
+				handles = drawHandle(
+					this.params,
+					this.evaluatedValue,
+					this.unevaluatedParams
+				)
 			} catch (err) {
 				console.error('ViewHandles', err)
 				return null
@@ -378,9 +377,9 @@ export default class ViewHandles extends Vue {
 			return
 		}
 
-		const onDrag = this.handleCallbacks[K_ON_DRAG]
+		const onDragHandle = this.handleCallbacks[K_DRAG]
 
-		if (typeof onDrag !== 'function') {
+		if (typeof onDragHandle !== 'function') {
 			return
 		}
 
@@ -410,15 +409,17 @@ export default class ViewHandles extends Vue {
 			[K_ID]: handle.id === undefined ? null : handle.id,
 			[K_POS]: pos,
 			[K_PREV_POS]: prevPos,
-			[K_DELTA_POS]: deltaPos
+			[K_DELTA_POS]: deltaPos,
+			[K('unevaluated-params')]: this.params,
+			[K('params')]: this.params
 		} as MalMap
 
 		this.rawPrevPos = rawPos
 
-		let newParams = onDrag(
+		let newParams = onDragHandle(
 			eventInfo,
 			this.params,
-			this.evaluatedParams
+			this.params
 		) as MalVal[]
 
 		if (newParams) {

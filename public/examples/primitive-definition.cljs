@@ -41,7 +41,7 @@
          {:id :rmax
           :type "arrow"
           :pos (vec2/+ c [rmax 0])}]))
-    :on-drag
+    :drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
     (fn [{:id id :pos pos} [c n rmin rmax]]
