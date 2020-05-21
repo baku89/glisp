@@ -159,8 +159,32 @@
     (fn [body] (path/bounds (get-merged-path body)))))
 
 
+
+(def guide/axis
+  (let [arrow (fn [from to color]
+                (style (stroke color 2)
+                       (def l (line from to))
+                       (transform (path/aligning-matrix-at 1 l)
+                                  (polyline [-5 -4] [0 0] [-5 4]))))]
+    (fn [center & _size]
+      (let [size (if (empty? _size)
+                   40
+                   (first _size))]
+        (transform
+         (translate center)
+
+         (arrow [0 0] [size 0] "tomato")
+         (arrow [0 0] [0 size] "limegreen")
+
+         (guide/dotted-stroke (polyline [size 0] [size size] [0 size])))))))
+
+
 (defn guide/stroke [& xs]
   (style (stroke *guide-color*)
+         xs))
+
+(defn guide/dotted-stroke [& xs]
+  (style (stroke *guide-color* 1 :dash [2 2])
          xs))
 
 (defmacro g
