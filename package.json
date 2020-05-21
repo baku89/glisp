@@ -14,7 +14,6 @@
 	},
 	"dependencies": {
 		"docsify": "^4.11.3",
-		"ffi-napi": "^3.0.0",
 		"vue": "^2.6.11",
 		"vue-class-component": "^7.2.3",
 		"vue-property-decorator": "^8.4.1"
@@ -54,6 +53,7 @@
 		"perf_hooks": "^0.0.1",
 		"prettier": "^1.19.1",
 		"raw-loader": "^4.0.0",
+		"readline-sync": "^1.4.10",
 		"resize-sensor": "^0.0.6",
 		"seedrandom": "^3.0.5",
 		"stylus": "^0.54.7",
@@ -69,6 +69,7 @@
 		"vue-resize": "^0.5.0",
 		"vue-template-compiler": "^2.6.11",
 		"webpack-cli": "^3.3.11",
+		"webpack-copy-plugin": "^0.0.4",
 		"worker-loader": "^2.0.0",
 		"worker-plugin": "^4.0.2"
 	}
