@@ -491,6 +491,11 @@ export default defineComponent({
 
 $compact-dur = 0.4s
 
+html, body
+	overflow hidden
+	height 100vh
+	--ease cubic-bezier(0.22, 0, 0.02, 1)
+
 .PageIndex
 	position relative
 	overflow hidden

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>(doc '(G L I S P))</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="description" content="Description" />
+		<meta
+			name="viewport"
+			content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+		/>
+		<link rel="stylesheet" href="//unpkg.com/docsify/lib/themes/buble.css" />
+		<link
+			rel="stylesheet"
+			href="//cdn.jsdelivr.net/npm/prismjs@1.20.0/themes/prism-tomorrow.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdelivr.net/gh/tonsky/FiraCode@4/distr/fira_code.css"
+		/>
+		<style>
+			code {
+				font-family: 'Fira Code', monospace, sans-serif !important;
+				line-height: 1.5em !important;
+				font-size: 0.8rem !important;
+			}
+
+			iframe.glisp-embed {
+				background: #f8f8f8;
+			}
+
+			.markdown-section > iframe {
+				border: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script>
+			function generateEmbedURL(sketch) {
+				const url = new URL('../embed.html', self.location.href)
+				url.searchParams.set('code', sketch)
+				return url.toString()
+			}
+
+			window.$docsify = {
+				name: "'(G L I S P)",
+				repo: 'baku89/glisp',
+				plugins: [
+					function(hook, vm) {
+						hook.afterEach((html, next) => {
+							html = html.replace(
+								/data-lang="cljs"/gi,
+								'data-lang="clojure" class="glisp-code"'
+							)
+							next(html)
+						})
+
+						hook.doneEach(() => {
+							const codeBlocks = document.querySelectorAll('pre.glisp-code')
+
+							codeBlocks.forEach(preEl => {
+								const parentEl = preEl.parentElement
+								const codeEl = preEl.firstChild
+
+								const index = [...parentEl.children].indexOf(preEl)
+
+								const iframeEl = document.createElement('iframe')
+								iframeEl.src = generateEmbedURL(codeEl.textContent)
+								iframeEl.classList.add('glisp-embed')
+								iframeEl.frameBorder = '0'
+								iframeEl.scrolling = 'no'
+
+								parentEl.replaceChild(iframeEl, preEl)
+							})
+						})
+					}
+				]
+			}
+			window.onmessage = e => {
+				const el = e.source.frameElement
+
+				el.style.height =
+					el.contentWindow.document.documentElement.scrollHeight + 'px'
+			}
+		</script>
+		<script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
+		<script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-clojure.min.js"></script>
+		<script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
+	</body>
+</html>

@@ -104,7 +104,7 @@ export default defineComponent({
 	},
 	setup() {
 		const ui = reactive({
-			background: 'whiteSmoke',
+			background: '#f8f8f8',
 			colors: BRIGHT_COLORS,
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
@@ -202,11 +202,13 @@ export default defineComponent({
 $compact-dur = 0.4s
 
 .PageEmbed
+	position relative
 	background var(--background)
 	color var(--foreground)
 	display flex
 	padding 1rem
 	min-height calc(102px + 4rem)
+	height auto
 
 	&:after
 		content ''
