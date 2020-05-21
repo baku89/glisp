@@ -69,3 +69,8 @@ declare module 'vue-popperjs' {
 	const Popper: any
 	export default Popper
 }
+
+declare module 'is-node' {
+	const isNode: boolean
+	export default isNode
+}

@@ -12,7 +12,7 @@ module.exports = {
 	configureWebpack: {
 		plugins: [new WorkerPlugin()],
 		output: {
-			globalObject: 'self',
+			globalObject: 'globalThis',
 			filename: '[name].js'
 		},
 		entry: {

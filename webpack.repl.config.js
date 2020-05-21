@@ -2,6 +2,7 @@ const path = require('path')
 
 module.exports = {
 	entry: './src/repl.ts',
+	mode: 'development',
 	resolve: {
 		alias: {
 			'@': '/Users/baku/Sites/glisp/src'

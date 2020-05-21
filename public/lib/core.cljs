@@ -174,7 +174,7 @@
   (try
     import
     (catch _
-           (let [seen (atom (hash-map __filename__ nil))]
+           (let [seen (atom (hash-map *filename* nil))]
              (fn (filename)
                (if (not (contains? @seen filename))
                  (do

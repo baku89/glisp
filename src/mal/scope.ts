@@ -4,6 +4,21 @@ import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {symbolFor as S, MalVal, LispError} from './types'
 import printExp, {printer} from './printer'
+import isNode from 'is-node'
+
+const normalizeURL = (() => {
+	if (isNode) {
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const path = require('path')
+		return (url: string, basename: string) => {
+			return path.join(path.dirname(basename), url)
+		}
+	} else {
+		return (url: string, basename: string) => {
+			return new URL(url, basename).href
+		}
+	}
+})()
 
 export default class Scope<T> {
 	public env!: Env
@@ -32,29 +47,38 @@ export default class Scope<T> {
 			this.def(name, expr)
 		})
 
+		this.def('normalize-url', (url: MalVal) => {
+			const basename = this.var('*filename*') as string
+			return normalizeURL(url as string, basename)
+		})
+
 		this.def('eval', (exp: MalVal) => {
 			return evalExp(exp, this.env)
 		})
 
 		this.def('import-js-force', (url: MalVal) => {
-			const filename = this.var('__filename__') as string
-			const absurl = new URL(url as string, filename).href
+			const basename = this.var('*filename*') as string
+			const absurl = normalizeURL(url as string, basename)
 			const text = slurp(absurl)
 			eval(text)
-			const exp = (self as any)['glisp_library']
+			const exp = (globalThis as any)['glisp_library']
 			return evalExp(exp, this.env)
 		})
 
-		this.readEval(
-			`(def __filename__ (js-eval "new URL('.', document.baseURI).href"))`
-		)
+		let filename: string
+		if (isNode) {
+			filename = '/Users/baku/Sites/glisp/repl/index.js'
+		} else {
+			filename = new URL('.', document.baseURI).href
+		}
+		this.def('*filename*', filename)
 
 		this.readEval(
 			`(def import-force
 				(fn [path]
-					(let [url (js-eval (format "new URL('%s', '%s')" path __filename__))]
+					(let [url (normalize-url path)]
 						(eval (read-string
-									(format "(do (def __filename__ \\"%s\\") %s \n nil)"
+									(format "(do (def *filename* \\"%s\\") %s \n nil)"
 													url
 													(slurp url)))))))`
 		)

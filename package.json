@@ -2,7 +2,6 @@
 	"name": "glisp",
 	"version": "0.1.0",
 	"private": true,
-	"main": "node ./repl/index.js",
 	"scripts": {
 		"serve": "vue-cli-service serve",
 		"build": "vue-cli-service build",
@@ -10,7 +9,8 @@
 		"deploy": "node task.deploy.js",
 		"doc:serve": "docsify serve docs",
 		"doc:deploy": "node task.deploy.js --docs",
-		"repl:build": "webpack --config webpack.repl.config.js"
+		"repl:build": "webpack --config webpack.repl.config.js",
+		"repl": "node ./repl/index.js"
 	},
 	"dependencies": {
 		"docsify": "^4.11.3",
@@ -45,6 +45,7 @@
 		"file-saver": "^2.0.2",
 		"ftp-deploy": "^2.3.7",
 		"gl-matrix": "^3.3.0",
+		"is-node": "^1.0.2",
 		"jq-console": "^2.13.2",
 		"jquery": "^3.5.0",
 		"normalize.css": "^8.0.1",

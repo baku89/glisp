@@ -4,6 +4,8 @@ node_modules
 
 /mal
 
+/repl/lib/*
+
 /task.deploy.js
 
 # local env files

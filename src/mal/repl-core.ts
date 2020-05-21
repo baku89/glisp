@@ -1,4 +1,5 @@
 import {vsprintf} from 'sprintf-js'
+import isNode from 'is-node'
 
 import {MalVal, LispError, symbolFor as S} from './types'
 import printExp, {printer} from './printer'
@@ -8,15 +9,25 @@ import interop from './interop'
 const S_AMP = S('&')
 
 // String functions
-export function slurp(url: string) {
-	const req = new XMLHttpRequest()
-	req.open('GET', url, false)
-	req.send()
-	if (req.status !== 200) {
-		throw new LispError(`Failed to slurp file: ${url}`)
+export const slurp = (() => {
+	if (isNode) {
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const fs = require('fs')
+		return (url: string) => {
+			return fs.readFileSync(url, 'UTF-8')
+		}
+	} else {
+		return (url: string) => {
+			const req = new XMLHttpRequest()
+			req.open('GET', url, false)
+			req.send()
+			if (req.status !== 200) {
+				throw new LispError(`Failed to slurp file: ${url}`)
+			}
+			return req.responseText
+		}
 	}
-	return req.responseText
-}
+})()
 
 // Interop
 function jsEval(str: string): MalVal {

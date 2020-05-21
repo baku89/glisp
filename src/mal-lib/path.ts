@@ -785,4 +785,4 @@ const Exports = [
 ] as [string, MalVal][]
 
 const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
-;(self as any)['glisp_library'] = Exp
+;(globalThis as any)['glisp_library'] = Exp

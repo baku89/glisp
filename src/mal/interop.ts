@@ -12,7 +12,7 @@ export default {
 				return [eval(match[1]), eval(str)]
 			}
 		} else {
-			return [window, eval(str)]
+			return [globalThis, eval(str)]
 		}
 	},
 
