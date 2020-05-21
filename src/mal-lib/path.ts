@@ -758,11 +758,8 @@ const Exports = [
 	['path/tangent-at', convertToNormalizedFunction(tangentAtLength)],
 	['path/angle-at-length', angleAtLength],
 	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
-	['path/aligning-matrix-at-length', aligningMatrixAtLength],
-	[
-		'path/aligning-matrix-at',
-		convertToNormalizedFunction(aligningMatrixAtLength)
-	],
+	['path/align-at-length', aligningMatrixAtLength],
+	['path/align-at', convertToNormalizedFunction(aligningMatrixAtLength)],
 
 	// Boolean
 	['path/unite', createPolynominalBooleanOperator('unite')],

@@ -164,7 +164,7 @@
   (let [arrow (fn [from to color]
                 (style (stroke color 2)
                        (def l (line from to))
-                       (transform (path/aligning-matrix-at 1 l)
+                       (transform (path/align-at 1 l)
                                   (polyline [-5 -4] [0 0] [-5 4]))))]
     (fn [& xs]
       (let [[center size] (case (count xs)
