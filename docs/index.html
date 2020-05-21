@@ -43,7 +43,12 @@
 		<div id="app"></div>
 		<script>
 			function generateEmbedURL(sketch) {
-				const url = new URL('https://baku89.com/glisp/embed')
+				const embedURL =
+					location.hostname === 'localhost'
+						? 'http://localhost:8080/embed.html'
+						: 'https://baku89.com/glisp/embed'
+
+				const url = new URL(embedURL)
 				url.searchParams.set('code', encodeURI(sketch))
 				return url.toString()
 			}
@@ -82,11 +87,21 @@
 					}
 				]
 			}
-			window.onmessage = e => {
-				const el = e.source.frameElement
 
-				el.style.height =
-					el.contentWindow.document.documentElement.scrollHeight + 'px'
+			function getFrameByEvent(event) {
+				return [].slice
+					.call(document.getElementsByTagName('iframe'))
+					.filter(function(iframe) {
+						return iframe.contentWindow === event.source
+					})[0]
+			}
+
+			window.onmessage = e => {
+				const [width, height] = e.data
+				const iframe = getFrameByEvent(event)
+
+				iframe.width = width
+				iframe.height = height
 			}
 		</script>
 		<script src="//unpkg.com/docsify/lib/docsify.min.js"></script>

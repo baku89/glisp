@@ -12,5 +12,6 @@ new Vue({
 
 const el = document.documentElement
 new ResizeSensor(el, () => {
-	window.parent.postMessage('resize', '*')
+	const data = [document.body.scrollWidth, document.body.scrollHeight]
+	window.parent.postMessage(data, '*')
 })
