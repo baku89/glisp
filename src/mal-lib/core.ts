@@ -22,6 +22,7 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
+import isNode from 'is-node'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -133,6 +134,7 @@ const Exports = [
 	],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
+	['sort', (coll: MalVal[]) => markMalVector(coll.sort())],
 	['partition', partition],
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
@@ -247,7 +249,28 @@ const Exports = [
 		}
 	],
 	// Random
-	['rnd', (a: MalVal) => seedrandom(a)()]
+	['rnd', (a: MalVal) => seedrandom(a)()],
+
+	// I/O
+	[
+		'spit',
+		(f: MalVal, content: MalVal) => {
+			if (isNode) {
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const fs = require('fs')
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const path = require('path')
+				fs.writeFileSync(
+					path.join(process.cwd(), f) as string,
+					content as string
+				)
+			} else {
+				throw new LispError('Cannot spit on browser')
+			}
+
+			return null
+		}
+	]
 ] as [string, MalVal][]
 
 // Expose Math

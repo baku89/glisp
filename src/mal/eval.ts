@@ -337,6 +337,20 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
+			case S('get-all-symbols'): {
+				const ret = V(env.getAllSymbols())
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
+				return ret
+			}
+			case S('var'): {
+				const ret = env.get(a1 as string)
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
+				return ret
+			}
 			case S('eval-in-env'): {
 				// Don't know why this should be nested
 				const expanded = evalExp(a1, env, true)

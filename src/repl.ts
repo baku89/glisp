@@ -1,7 +1,17 @@
 import readlineSync from 'readline-sync'
 import Scope from './mal/scope'
+import path from 'path'
 
 const replScope = new Scope()
+
+if (typeof process !== 'undefined' && 2 < process.argv.length) {
+	const filename = process.argv[2]
+
+	replScope.def('*ARGV*', process.argv.slice(3))
+	replScope.def('*filename*', filename)
+	replScope.REP(`(import "${filename}")`)
+	process.exit(0)
+}
 
 replScope.REP(`(str "Glisp [" *host-language* "]")`)
 

@@ -10,11 +10,7 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 ## リファレンス
 
 - [チートシート](cheatsheet)
-- [graphics](refs/graphics ':disabled'): グラフィックの操作
-- [path](refs/path): パス
-- [vec2](refs/vec2 ':disabled'): 座標
-- [mat2d](refs/mat2d ':disabled'): トランスフォーム
-- [color](refs/color ':disabled'): カラー
+- [関数](ref)
 
 ## 考察
 

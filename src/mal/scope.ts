@@ -84,6 +84,10 @@ export default class Scope<T> {
 		)
 		// Load core library as default
 		this.readEval('(import-force "./lib/core.cljs")')
+
+		if (isNode) {
+			this.def('*filename*', process.cwd())
+		}
 	}
 
 	public setup(option?: T) {

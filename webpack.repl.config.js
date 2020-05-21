@@ -3,6 +3,10 @@ const webpack = require('webpack')
 const CopyPlugin = require('webpack-copy-plugin')
 
 module.exports = {
+	node: {
+		__filename: false,
+		__dirname: false
+	},
 	entry: {
 		index: './src/repl.ts',
 		'lib/core': './src/mal-lib/core.ts'

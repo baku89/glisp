@@ -44,6 +44,15 @@ export default class Env {
 		}
 	}
 
+	protected getMergedData() {
+		const data = (this.outer?.getMergedData() || {}) as {[k: string]: MalVal}
+		return {...data, ...this.data}
+	}
+
+	public getAllSymbols() {
+		return Object.keys(this.getMergedData())
+	}
+
 	public bindAll(binds: Binds, exps: MalVal[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
