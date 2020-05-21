@@ -28,11 +28,11 @@ Houdini の場合は $T$・$R$・$S$ の適用順を自由に並べ替えるこ�
 
 だから、僕が思うベストなトランスフォーム UI は、それぞれの変形操作を好きな順に、いくつでも並べていける構造です。これをスタック式と呼ぶことにします。
 
-```clojure
+```cljs
 (transform
- (mat2d/* (translate [50 100])
-          (scale [1 2])
-          (rotate (deg 45)))
+ (mat2d/* (translate [50 10])
+          (rotate (deg 45))
+          (scale [1 1.5]))
  (guide/axis))
 ```
 
@@ -40,37 +40,44 @@ Houdini の場合は $T$・$R$・$S$ の適用順を自由に並べ替えるこ�
 
 AfterEffects のアンカーポイントを用いたトランスフォームは以下のように表現できます。
 
-```clojure
+```cljs
+;; 四角形の中心(20, 20)を軸に
+;; 回転、スケールが適用される
 (transform
- (mat2d/* (pivot [50 50]
-                 (translate [50 100])
-                 (scale [1 2])
-                 (rotate (deg 45))))
- (guide/axis))
+ (mat2d/* (pivot [20 20]
+                 (translate [0 0])
+                 (rotate (deg 60))
+                 (scale [1 1.5])))
+ (style (fill "crimson")
+  (rect [0 0] [40 40])))
 ```
 
 `pivot`という関数が登場していますが、上記のコードの`pivot`部分は以下と同じことです。
 
 ```clojure
-(mat2d/* (translate [-50 -50]) ;; アンカーポイントを原点へ
-         (mat2d/*  (translate [50 100])
-                   (scale [1 2])
-                   (rotate (deg 45)))
-         (translate [50 50])) ;; 元に戻す
+(mat2d/* (translate [-20 -20]) ;; アンカーポイントを原点へ
+         (mat2d/*  (translate [0 0])
+                   (rotate (deg 60))
+                   (scale [1 1.5]))
+         (translate [20 20])) ;; 元に戻す
 ```
 
 モーショングラフィックスの制作では、一つの図形を動かして回転させてさらにそこから動かして…といった、そのレイヤーのトランスフォームだけでは表現しきれない動かし方をするためにいくつものヌルを入れ子にすることがあります。しかしこの方法だと余計な親子関係を作らずとも、一つのトランスフォーム UI だけでそうした操作を表現することができます。
 
 ここまでに登場した `translate` も `mat2d/*` も、行列を返すただの関数でしかないので、オブジェクトのトランスフォームに限らず、例えばパスの頂点に対する変形操作も全く同じ方法と柔軟さで表現することが出来ます。
 
-```clojure
-(style (stroke "red")
+```cljs
+(style (stroke "orange" 4)
 
+ ;; path/transformは描画コンテクストではなく
+ ;; パスデータ自体にトランスフォームを適用するので
+ ;; スケールさせてもストロークが潰れない
  (path/transform
-  (mat2d/* (rotate 0)
+  (mat2d/* (translate [30 30])
+           (rotate (deg 20))
            (scale [1 2]))
 
-  (rect [0 0] [100 100])))
+  (rect [0 0] [20 20])))
 ```
 
 ## コンストレイント機能
@@ -81,6 +88,23 @@ AfterEffects のアンカーポイントを用いたトランスフォームは�
 
 スタック式だと、これまでと同様、新しい行列 `path/align-at` や `mat2d/look-at` を定義するだけでコトは済みます。
 
-```clojure
+```cljs
+;; (def a b) で、 var a = b; のように変数を宣言
+(def circle-path (circle [50 50] 36))
+
+;; def文自体もまた代入された値を返すため、
+;; :start-sketch で、それ以降の文のみスケッチに反映させるようにする
+:start-sketch
+
+(style (stroke "skyblue")
+ circle-path)
+
+(transform
+ ;; circle-pathの始点から40%の位置に沿わせるトランスフォーム値を設定
+ (path/align-at 0.4 circle-path)
+
+ (style (fill "crimson")
+  (ngon [0 0] 10 3)))
+
 
 ```

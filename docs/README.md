@@ -4,8 +4,17 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 
 ## 使い方
 
-- [基本的な文法](syntax)
-- [ことはじめ](get-started)
+- [Lisp の文法](syntax)
+- [はじめてのスケッチ](get-started)
+
+## リファレンス
+
+- [チートシート](cheatsheet)
+- [graphics](refs/graphics ':disabled'): グラフィックの操作
+- [path](refs/path): パス
+- [vec2](refs/vec2 ':disabled'): 座標
+- [mat2d](refs/mat2d ':disabled'): トランスフォーム
+- [color](refs/color ':disabled'): カラー
 
 ## 考察
 
@@ -13,6 +22,6 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [ツールの直交性](orthogonality)
 - [トランスフォーム](transform)
 - [描画ツリー](draw-tree)
-- [属性の継承](inheritance)
+- 属性の継承
 - ハンドルを定義する
 - ドローイングツールを定義する

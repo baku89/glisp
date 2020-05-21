@@ -203,10 +203,10 @@
    :params [{:label "Value" :type "vec2"}]
    :retruns {:type "vec2"}}
   [v]
-  (let [len (vec2/len v)])
-  (if (> len 0)
-    (vec2/scale v (/ len))
-    v))
+  (let [len (vec2/len v)]
+    (if (> len 0)
+      (vec2/scale v (/ len))
+      v)))
 
 (defn vec2/dot
   {:doc "Calculates the dot product of two vec2's"

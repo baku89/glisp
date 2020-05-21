@@ -50,7 +50,7 @@
 (def path/circle
   ^{:doc "Generate a circle path"
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
-             {:label "Radius" :type  "number" :desc "radius o fthe circle"}]
+             {:label "Radius" :type  "number" :desc "radius of the circle"}]
     :handles {:draw (fn [[center radius] path]
                       [{:type "path" :id :radius :path path}
                        {:type "arrow" :id :radius
