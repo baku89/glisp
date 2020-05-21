@@ -166,10 +166,11 @@
                        (def l (line from to))
                        (transform (path/aligning-matrix-at 1 l)
                                   (polyline [-5 -4] [0 0] [-5 4]))))]
-    (fn [center & _size]
-      (let [size (if (empty? _size)
-                   40
-                   (first _size))]
+    (fn [& xs]
+      (let [[center size] (case (count xs)
+                            0 [[0 0] 40]
+                            1 [(first xs) 40]
+                            xs)]
         (transform
          (translate center)
 
