@@ -1,6 +1,6 @@
 <template>
 	<div class="Editor">
-		<div class="Editor__editor" ref="editorEl" />
+		<div class="Editor__editor" ref="editorEl" :style="cssStyle" />
 	</div>
 </template>
 
@@ -167,6 +167,9 @@ export default defineComponent({
 		dark: {
 			type: Boolean,
 			default: false
+		},
+		cssStyle: {
+			default: ''
 		}
 	},
 	setup(props: Props, context) {

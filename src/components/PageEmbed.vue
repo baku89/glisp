@@ -6,7 +6,11 @@
 		:class="{error: hasError}"
 	>
 		<div class="PageEmbed__editor">
-			<Editor :value="code" @input="code = $event" />
+			<Editor
+				:value="code"
+				@input="code = $event"
+				cssStyle="line-height: 1.5"
+			/>
 		</div>
 		<div class="PageEmbed__viewer">
 			<Viewer
@@ -209,6 +213,7 @@ $compact-dur = 0.4s
 	padding 1rem
 	min-height calc(102px + 4rem)
 	height auto
+	border-left 2px solid #eee
 
 	&:after
 		content ''
