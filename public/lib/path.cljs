@@ -184,9 +184,9 @@
                           :radius-x [center [(abs (- (.x p) (.x center))) ry]]
                           :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}}
   [center radius]
-  (->> (circle [0 0] 1)
-       (path/scale radius)
-       (path/translate center)))
+  (path/transform (mat2d/* (translate center)
+                           (scale radius))
+                  (circle [0 0] 1)))
 (defalias ellipse path/ellipse)
 
 (defn path/ngon
