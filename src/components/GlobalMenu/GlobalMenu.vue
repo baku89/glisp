@@ -64,7 +64,8 @@ export default class GlobalMenu extends Vue {
 					'(load-file "./examples/primitive-definition.cljs")'
 				],
 				['Transformation', '(load-file "./examples/transformation.cljs")'],
-				['Replicator', '(load-file "./examples/replicator.cljs")']
+				['Replicator', '(load-file "./examples/replicator.cljs")'],
+				['Path Modification', '(load-file "./examples/path-modification.cljs")']
 			]
 		],
 		[

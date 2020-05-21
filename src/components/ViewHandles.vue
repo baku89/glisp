@@ -142,7 +142,7 @@ export default class ViewHandles extends Vue {
 		return []
 	}
 
-	private get evaluatedValue(): MalVal {
+	private get returnedValue(): MalVal {
 		return this.exp[M_EVAL] || null
 	}
 
@@ -265,13 +265,15 @@ export default class ViewHandles extends Vue {
 		if (this.handleCallbacks) {
 			const drawHandle = this.handleCallbacks[K_DRAW] as MalFunc
 
+			const options = {
+				[K('params')]: this.params,
+				[K('return')]: this.returnedValue,
+				[K('unevaluated-params')]: this.unevaluatedParams
+			}
+
 			let handles
 			try {
-				handles = drawHandle(
-					this.params,
-					this.evaluatedValue,
-					this.unevaluatedParams
-				)
+				handles = drawHandle(options)
 			} catch (err) {
 				console.error('ViewHandles', err)
 				return null
@@ -410,7 +412,7 @@ export default class ViewHandles extends Vue {
 			[K_POS]: pos,
 			[K_PREV_POS]: prevPos,
 			[K_DELTA_POS]: deltaPos,
-			[K('unevaluated-params')]: this.params,
+			[K('unevaluated-params')]: this.unevaluatedParams,
 			[K('params')]: this.params
 		} as MalMap
 

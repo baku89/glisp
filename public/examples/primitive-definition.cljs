@@ -22,7 +22,8 @@
    {:draw
     ;; Returns a list of handles with ID
     ;; from the function's parameters
-    (fn [[c n rmin rmax] path]
+    (fn [{:params [c n rmin rmax]
+          :return path}]
       (let [rmin-angle (/ PI n)]
         [{:id :path
           :type "path"
@@ -44,7 +45,8 @@
     :drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
-    (fn [{:id id :pos pos} [c n rmin rmax]]
+    (fn [{:id id :pos pos
+          :params [c n rmin rmax]}]
       (case id
         :center [pos n rmin rmax]
         :rmin [c n (vec2/dist c pos) rmax]
