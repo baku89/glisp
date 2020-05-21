@@ -2,16 +2,19 @@
 	"name": "glisp",
 	"version": "0.1.0",
 	"private": true,
+	"main": "node ./repl/index.js",
 	"scripts": {
 		"serve": "vue-cli-service serve",
 		"build": "vue-cli-service build",
 		"lint": "vue-cli-service lint",
 		"deploy": "node task.deploy.js",
 		"doc:serve": "docsify serve docs",
-		"doc:deploy": "node task.deploy.js --docs"
+		"doc:deploy": "node task.deploy.js --docs",
+		"repl:build": "webpack --config webpack.repl.config.js"
 	},
 	"dependencies": {
 		"docsify": "^4.11.3",
+		"ffi-napi": "^3.0.0",
 		"vue": "^2.6.11",
 		"vue-class-component": "^7.2.3",
 		"vue-property-decorator": "^8.4.1"
@@ -64,6 +67,7 @@
 		"vue-popperjs": "^2.3.0",
 		"vue-resize": "^0.5.0",
 		"vue-template-compiler": "^2.6.11",
+		"webpack-cli": "^3.3.11",
 		"worker-loader": "^2.0.0",
 		"worker-plugin": "^4.0.2"
 	}
