@@ -257,3 +257,5 @@ Object.getOwnPropertyNames(Math).forEach(k =>
 
 const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
 ;(globalThis as any)['glisp_library'] = Exp
+
+export default Exp
