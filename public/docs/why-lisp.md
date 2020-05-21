@@ -5,15 +5,15 @@
 Glisp が多くのクリエイティブコーディング環境と違うのは、それが**手続き的**ではなく**宣言的**であるということです。こうしたスケッチがあるとします。
 
 ```cljs
-(style (fill "salmon")
- (circle [100 100] 40))
+(style (fill "LightSeaGreen")
+ (circle [50 50] 40))
 ```
 
 Processing に慣れている方は、このような書き方のほうが馴染みがあるでしょう。
 
 ```js
-fill('salmon')
-circle(100, 100, 40)
+fill('LightSeaGreen')
+circle(50, 50, 40)
 ```
 
 それぞれの行は
@@ -24,8 +24,8 @@ circle(100, 100, 40)
 という**手続き**として解釈することができます。一方で Glisp のコードは「ここにこういうものがあります」という**宣言**からなるデータの集まりとして読み下すほうが自然です。HTML の文章構造にも似ています。冒頭の例は、SVG ではこのように表現できるでしょう。
 
 ```svg
-<g fill="salmon">
-  <circle cx="100" cy="100" r="40">
+<g fill="LightSeaGreen">
+  <circle cx="50" cy="50" r="40">
 </g>
 ```
 
@@ -34,10 +34,10 @@ circle(100, 100, 40)
 ```clojure
 ┬─ style
 ├─┬─ fill
-│ └─ "salmon"
+│ └─ "LightSeaGreen"
 └─┬ circle
-  ├─┬─ 100
-  │ └─ 100
+  ├─┬─ 50
+  │ └─ 50
   └─ 40
 ```
 
@@ -78,7 +78,8 @@ circle(100, 100, 40)
 2 の**エクスプレッション言語を埋め込む**という方法ですが 3DCG ソフトは Python、Adobe 系ソフトは JavaScript が使われることが多いようです。
 
 ```xml
-<circle cx:expression="100 + 20" cy="50" r="100">
+<circle center:expression="[thisComp.width / 2, thisComp.height]"
+        radius:expression="thisComp.width / 2">
 ```
 
 この方法の弱点は、ソフト開発者が API として開放した機能しかエクスプレッションから操作出来ないということ、エクスプレッションの編集はテキストの形でしかできないということです。
@@ -89,31 +90,30 @@ circle(100, 100, 40)
 
 1 の例は、Glisp の場合、クローナー機能自身をプロジェクトファイルの内側で実装することができます。
 
-```clojure
-;; replicator の定義（細かいので理解しなくていいです）
+```cljs
+;; replicator の定義
 (defn replicator
   [xform n path]
-  (->> (reduce #(conj % (mat2d/* (last %) xform))
-               [(mat2d/ident)]
-               (range (dec n)))
+  (->> (range n)
+       (map #(apply mat2d/* (repeat xform %)))
        (map #(transform % path))))
 
-(style (stroke "red")
+(style (stroke "tomato" 2)
 
- ;; X+方向に25ずつ移動させながら10個複製する
- (replicator (translate-x 25) 10
-  (circle [100 100] 50)))
+ ;; X+方向に10ずつ移動させながら5個複製する
+ (replicator (translate-x 10) 5
+  (circle [30 50] 20)))
 ```
 
 もちろん `replicator` 関数は、ソフトのロード時にプラグインとして読み込むことも可能でしょう。
 
 そして Glisp は、クローナー機能に限らず、`rect` 関数といったビルトインの図形や機能も全く同じように Lisp によって定義されています。つまり、ユーザーが定義した機能とプラグイン、ビルトイン機能の区別が無いということです。それらはすべて同じ Lisp によって書かれており、その違いは**「どのタイミングでロードされるか」**だけです。
 
-2 の場合も、Glisp ではこのようになります。エクスプレッション部分もアイテム定義部分も同じ Lisp で書かれているので、API という考え方がそもそもありません。また、エクスプレッションにあたる部分を GUI として表示することも容易です。
+2 の場合も、Glisp ではこのようになります。エクスプレッション部分もアイテム定義部分も同じ Lisp で書かれているので、API という考え方がそもそも必要ありません。また、エクスプレッションにあたる部分を GUI として表示することも容易です。
 
 ```cljs
-(style (fill "salmon")
- (circle [*width* *height*] *width*))
+(style (fill "plum")
+ (circle [(/ *width* 2) *height*] (/ *width* 2)))
 ```
 
 一歩踏み込んだ話をすると、Glisp ではソフト上のエクスポートといった機能もまた Lisp コマンドとして実行しています。つまり、ソフト操作のバッチ処理やスクリプティングにも Lisp が使えるということです。
