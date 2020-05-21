@@ -1,6 +1,6 @@
 (import "math.cljs")
 
-(import-js-force "../js/lib_path.js")
+(import-js-force "path.js")
 
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 

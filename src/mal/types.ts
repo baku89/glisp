@@ -79,13 +79,12 @@ type MalTypeString =
 	| 'symbol'
 	| 'keyword'
 	| 'atom'
-
 	// Functions
 	| 'fn'
 	| 'macro'
 	| 'undefined'
 
-export function getType(obj: MalVal): MalTypeString {
+export function getType(obj: MalVal | undefined): MalTypeString {
 	const _typeof = typeof obj
 	switch (_typeof) {
 		case 'object':
@@ -278,7 +277,7 @@ export const isMalFunc = (obj: MalVal): obj is MalFunc =>
 	obj instanceof Function && (obj as MalFunc)[M_AST] ? true : false
 
 // String
-export const isString = (obj: MalVal): obj is string =>
+export const isString = (obj: MalVal | undefined): obj is string =>
 	getType(obj) === 'string'
 
 // Symbol

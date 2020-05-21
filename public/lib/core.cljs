@@ -1,4 +1,4 @@
-(import-js-force "../js/lib_core.js")
+(import-js-force "core.js")
 
 ;; Declare special forms as symbol
 (def & '&)

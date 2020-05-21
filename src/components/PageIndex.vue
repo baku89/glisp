@@ -1,12 +1,16 @@
 <template>
-	<div id="app" class="app" :style="colors">
-		<GlobalMenu class="app__global-menu" />
-		<div class="app__content">
-			<div class="app__inspector" v-if="selectedExp">
+	<div id="app" class="PageIndex" :style="colors">
+		<GlobalMenu class="PageIndex__global-menu" />
+		<div class="PageIndex__content">
+			<div class="PageIndex__inspector" v-if="selectedExp">
 				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
-			<div class="app__viewer">
-				<ViewHandles class="view-handles" :exp="selectedExp" @input="onUpdateSelectedExp" />
+			<div class="PageIndex__viewer">
+				<ViewHandles
+					class="view-handles"
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
@@ -15,8 +19,8 @@
 					@set-background="onSetBackground"
 				/>
 			</div>
-			<div class="app__control" :class="{compact}">
-				<div class="app__editor">
+			<div class="PageIndex__control" :class="{compact}">
+				<div class="PageIndex__editor">
 					<Editor
 						:value="code"
 						:selection="selection"
@@ -26,12 +30,14 @@
 						@select="selection = $event"
 					/>
 				</div>
-				<div class="app__console">
+				<div class="PageIndex__console">
 					<button
-						class="app__console-toggle"
+						class="PageIndex__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -68,7 +74,6 @@ import {
 	M_OUTER,
 	MalNodeList,
 	M_EXPANDED,
-	LispError,
 	M_OUTER_INDEX,
 	MalSelection
 } from '@/mal/types'
@@ -179,7 +184,7 @@ function parseURL(data: Data) {
 		} else {
 			code =
 				localStorage.getItem('saved_code') ||
-				require('raw-loader!./default-canvas.cljs').default
+				require('raw-loader!@/default-canvas.cljs').default
 		}
 
 		return code
@@ -259,7 +264,7 @@ function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
 }
 
 export default defineComponent({
-	name: 'App',
+	name: 'PageIndex',
 	components: {
 		GlobalMenu,
 		Editor,
@@ -273,7 +278,7 @@ export default defineComponent({
 
 		const ui = reactive({
 			compact: false,
-			background: 'snow',
+			background: 'whiteSmoke',
 			dark: computed(() => {
 				try {
 					return Color(ui.background).isDark() as boolean
@@ -399,6 +404,7 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			code => {
+				ConsoleScope.def('*sketch*', data.code)
 				const evalCode = `(sketch ${code}\nnil)`
 				let exp
 				try {
@@ -481,29 +487,11 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-*, ::after, ::before
-	box-sizing border-box
-	outline none
-	-webkit-tap-highlight-color transparent
-
-html, body
-	overflow hidden
-	height 100vh
-	--ease cubic-bezier(0.22, 0, 0.02, 1)
-
-html
-	font-size 12px
-	font-family 'Fira Code', monospace
-
-button
-	outline none
-	border none
-	background none
-	user-select none
+@import "./style/common.styl"
 
 $compact-dur = 0.4s
 
-.app
+.PageIndex
 	position relative
 	overflow hidden
 	width 100%
@@ -511,8 +499,6 @@ $compact-dur = 0.4s
 	height 100vh
 	background var(--background)
 	color var(--foreground)
-	-webkit-font-smoothing antialiased
-	-moz-osx-font-smoothing grayscale
 
 	&__content, position relative
 		display flex
@@ -658,9 +644,9 @@ $compact-dur = 0.4s
 					bottom none
 					transform rotate(90deg)
 
-.compact .app__editor
+.compact .PageIndex__editor
 	height calc(100% - 2rem - 2.2rem - 1.5rem)
 
-.compact .app__console
+.compact .PageIndex__console
 	height 2.2rem
 </style>

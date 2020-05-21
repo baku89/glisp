@@ -19,18 +19,22 @@ function generateFilename(name?: string) {
 	return `${name}.cljs`
 }
 
+function copyToClipboard(str: string) {
+	navigator.clipboard.writeText(str).then(() => {
+		printer.log('Copied to clipboard')
+	})
+
+	return null
+}
+
 function generateCodeURL(codeURL: string) {
 	const url = new URL(location.href)
 	url.searchParams.set('code_url', codeURL)
 	const canvasURL = url.toString()
 
-	printer.log(`Canvas URL: ${canvasURL}`)
+	copyToClipboard(canvasURL)
 
-	navigator.clipboard.writeText(canvasURL).then(() => {
-		printer.log('Copied to clipboard')
-	})
-
-	return null
+	return `Canvas URL: ${canvasURL}`
 }
 
 function createHashMap(arr: MalVal[]) {
@@ -56,8 +60,12 @@ function createHashMap(arr: MalVal[]) {
 	return ret
 }
 
-ConsoleScope.def('gen-code-url', (codeURL: MalVal) => {
-	return generateCodeURL(codeURL as string)
+ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
+	return copyToClipboard(str as string)
+})
+
+ConsoleScope.def('gen-code-url', (url: MalVal) => {
+	return generateCodeURL(url as string)
 })
 
 ConsoleScope.def('open-link', (url: MalVal) => {
@@ -193,6 +201,18 @@ ConsoleScope.def('publish-gist', (...args: MalVal[]) => {
 	)
 
 	return null
+})
+
+ConsoleScope.def('gen-embed-url', () => {
+	const sketch = ConsoleScope.var('*sketch*') as string
+
+	const url = new URL('embed.html', self.location.href)
+	url.searchParams.set('code', sketch)
+	const urlString = url.toString()
+
+	copyToClipboard(urlString)
+
+	return `Embed URL: ${urlString}`
 })
 
 export default ConsoleScope

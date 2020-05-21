@@ -1,5 +1,6 @@
 const WorkerPlugin = require('worker-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
+const path = require('path')
 
 module.exports = {
 	publicPath: './',
@@ -7,31 +8,28 @@ module.exports = {
 	devServer: {
 		writeToDisk: true
 	},
+	filenameHashing: false,
 	configureWebpack: {
 		plugins: [new WorkerPlugin()],
 		output: {
-			globalObject: 'self'
+			globalObject: 'self',
+			filename: '[name].js'
+		},
+		entry: {
+			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
+			'lib/path': path.join(__dirname, 'src/mal-lib/path.ts')
 		}
 	},
-	chainWebpack: config => {
-		config
-			.entry('app')
-			.clear()
-			.add('./src/pages/main.ts')
-			.end()
-		config
-			.entry('lib_path')
-			.add('./src/mal-lib/path.ts')
-			.end()
-		config
-			.entry('lib_core')
-			.add('./src/mal-lib/core.ts')
-			.end()
-		config.plugin('html').tap(args => {
-			args[0].excludeChunks = ['embed', 'lib_path', 'lib_core']
-			return args
-		})
-		config.plugins.delete('preload')
-		config.plugins.delete('prefetch')
+	pages: {
+		'js/index': {
+			entry: 'src/pages/index.ts',
+			template: 'public/index.html',
+			filename: 'index.html'
+		},
+		'js/embed': {
+			entry: 'src/pages/embed.ts',
+			template: 'public/embed.html',
+			filename: 'embed.html'
+		}
 	}
 }

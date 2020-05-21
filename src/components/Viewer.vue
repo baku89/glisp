@@ -47,6 +47,7 @@ export default defineComponent({
 			required: true
 		},
 		guideColor: {
+			type: String,
 			required: true
 		}
 	},
@@ -91,7 +92,7 @@ export default defineComponent({
 
 				const exp = props.exp.value
 				const options = {
-					guideColor: props.guideColor
+					...(props.guideColor ? {guideColor: props.guideColor} : {})
 				}
 				let sidefxs
 

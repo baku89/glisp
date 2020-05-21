@@ -85,7 +85,6 @@ export default function printExp(
 		// Calculate from zero
 
 		let elmStrs: string[] | null = null
-		getType(exp)
 		const _type = getType(exp)
 
 		switch (_type) {
@@ -147,7 +146,11 @@ export default function printExp(
 				} else {
 					ret = '<JS Function>'
 				}
+				break
 			}
+			case 'undefined':
+				ret = '<undefined>'
+				break
 		}
 
 		if (_c && isMalNode(exp) && elmStrs) {
