@@ -207,7 +207,7 @@ ConsoleScope.def('gen-embed-url', () => {
 	const sketch = ConsoleScope.var('*sketch*') as string
 
 	const url = new URL('embed.html', self.location.href)
-	url.searchParams.set('code', sketch)
+	url.searchParams.set('code', encodeURI(sketch))
 	const urlString = url.toString()
 
 	copyToClipboard(urlString)

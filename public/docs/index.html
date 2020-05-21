@@ -44,7 +44,7 @@
 		<script>
 			function generateEmbedURL(sketch) {
 				const url = new URL('../embed.html', self.location.href)
-				url.searchParams.set('code', sketch)
+				url.searchParams.set('code', encodeURI(sketch))
 				return url.toString()
 			}
 
