@@ -30,7 +30,9 @@ import {
 	M_ISSUGAR,
 	M_DELIMITERS,
 	MalNodeMap,
-	keywordFor as K
+	keywordFor as K,
+	M_PARAMS,
+	markMalVector
 } from './types'
 import Env from './env'
 import printExp from './printer'
@@ -346,6 +348,14 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S('var'): {
 				const ret = env.get(a1 as string)
+				if (cache) {
+					;(exp as MalNode)[M_EVAL] = ret
+				}
+				return ret
+			}
+			case S('fn-params'): {
+				const fn = evalExp(a1, env, true)
+				const ret = isMalFunc(fn) ? markMalVector([...fn[M_PARAMS]]) : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}

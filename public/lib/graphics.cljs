@@ -268,9 +268,9 @@
 
 (defn column
   {:doc "Returns a vector of nums from *start* to *end* (both inclusive) that each of element is multiplied by *step*"
-   :params [{:type "number" :desc "From"}
-            {:type "number" :desc "To"}
-            {:type "number" :desc "Step"}]}
+   :params [{:label "From" :type "number" :desc "From"}
+            {:label "To" :type "number" :desc "To"}
+            {:label "Step" :type "number" :desc "Step"}]}
   [from to step]
   (vec (map #(* % step) (range from (inc to)))))
 
