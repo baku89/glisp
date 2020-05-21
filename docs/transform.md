@@ -86,7 +86,7 @@ AfterEffects のアンカーポイントを用いたトランスフォームは�
 
 ![](./transform_constraints.png)
 
-スタック式だと、これまでと同様、新しい行列 `path/align-at` や `mat2d/look-at` を定義するだけでコトは済みます。
+スタック式だと、これまでと同様、新しい行列 `path/align-at` や `mat2d/look-at` を定義するだけ事足ります。
 
 ```cljs
 ;; (def a b) で、 var a = b; のように変数を宣言
