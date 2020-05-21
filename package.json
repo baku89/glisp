@@ -10,6 +10,7 @@
 		"doc:serve": "docsify serve docs",
 		"doc:deploy": "node task.deploy.js --docs",
 		"repl:build": "webpack --config webpack.repl.config.js",
+		"repl:serve": "webpack --config webpack.repl.config.js --watch",
 		"repl": "node ./repl/index.js"
 	},
 	"dependencies": {
@@ -22,6 +23,7 @@
 		"@types/color": "^3.0.1",
 		"@types/file-saver": "^2.0.1",
 		"@types/jquery": "^3.3.34",
+		"@types/readline-sync": "^1.4.3",
 		"@typescript-eslint/eslint-plugin": "^2.26.0",
 		"@typescript-eslint/parser": "^2.26.0",
 		"@vue/cli-plugin-eslint": "~4.3.0",

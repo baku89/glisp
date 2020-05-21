@@ -7,7 +7,7 @@ module.exports = {
 		index: './src/repl.ts',
 		'lib/core': './src/mal-lib/core.ts'
 	},
-	mode: 'development',
+	mode: 'production',
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, 'src')

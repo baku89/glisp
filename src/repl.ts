@@ -3,7 +3,7 @@ import Scope from './mal/scope'
 
 const replScope = new Scope()
 
-replScope.REP(`(println (str "Mal [" *host-language* "]"))`)
+replScope.REP(`(str "Glisp [" *host-language* "]")`)
 
 while (true) {
 	const line = readlineSync.question('glisp> ')
