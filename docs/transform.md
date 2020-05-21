@@ -93,7 +93,8 @@ AfterEffects のアンカーポイントを用いたトランスフォームは�
 (def circle-path (circle [50 50] 36))
 
 ;; def文自体もまた代入された値を返すため、
-;; :start-sketch で、それ以降の文のみスケッチに反映させるようにする
+;; :start-sketchで、
+;; それ以降の文のみスケッチに反映させるようにする
 :start-sketch
 
 (style (stroke "skyblue")
@@ -105,6 +106,4 @@ AfterEffects のアンカーポイントを用いたトランスフォームは�
 
  (style (fill "crimson")
   (ngon [0 0] 10 3)))
-
-
 ```
