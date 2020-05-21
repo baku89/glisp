@@ -641,7 +641,7 @@ function pathTrim(t1: number, t2: number, malPath: PathType) {
 }
 
 const canvasCtx = (() => {
-	const canvas = self.document
+	const canvas = globalThis.document
 		? document.createElement('canvas')
 		: new OffscreenCanvas(10, 10)
 	const ctx = canvas.getContext('2d')

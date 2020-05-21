@@ -20,7 +20,7 @@ export function slurp(url: string) {
 
 // Interop
 function jsEval(str: string): MalVal {
-	return interop.jsToMal(self.eval(str.toString()))
+	return interop.jsToMal(eval(str.toString()))
 }
 
 function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
