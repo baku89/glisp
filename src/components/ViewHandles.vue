@@ -81,12 +81,12 @@ import {
 	isList,
 	M_OUTER_INDEX,
 	MalMap,
-	MalFunc,
-	M_DELIMITERS
+	MalFunc
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
 import {fnInfo} from '@/mal-utils'
+import {NonReactive} from '../utils'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -103,12 +103,12 @@ const K_ANGLE = K('angle'),
 
 @Component({})
 export default class ViewHandles extends Vue {
-	@Prop({required: true}) exp!: MalNodeList
+	@Prop({required: true}) exp!: NonReactive<MalNodeList>
 
 	private rem = 0
 
 	private get fnInfo() {
-		return fnInfo(this.exp)
+		return fnInfo(this.exp.value)
 	}
 
 	private get handleCallbacks() {
@@ -122,7 +122,7 @@ export default class ViewHandles extends Vue {
 
 	private get unevaluatedParams(): MalVal[] {
 		if (this.handleCallbacks) {
-			const exp = this.exp as MalVal[]
+			const exp = this.exp.value
 			if (this.fnInfo?.primitive) {
 				return [[...exp]]
 			} else {
@@ -135,7 +135,7 @@ export default class ViewHandles extends Vue {
 
 	private get params(): MalVal[] {
 		if (this.handleCallbacks) {
-			const exp = this.exp as MalNodeList
+			const exp = this.exp.value
 			if (this.fnInfo?.primitive) {
 				return [exp[M_EVAL]]
 			} else {
@@ -146,7 +146,7 @@ export default class ViewHandles extends Vue {
 	}
 
 	private get returnedValue(): MalVal {
-		return this.exp[M_EVAL] || null
+		return this.exp.value[M_EVAL] || null
 	}
 
 	private get transformInv() {
@@ -156,13 +156,13 @@ export default class ViewHandles extends Vue {
 	private get transform() {
 		const exp = this.exp
 
-		if (!isMalNode(this.exp)) {
+		if (!isMalNode(this.exp.value)) {
 			return mat2d.create()
 		}
 
 		// Collect ancestors
 		let ancestors: MalNode[] = []
-		for (let outer: MalNode = exp; outer; outer = outer[M_OUTER]) {
+		for (let outer: MalNode = exp.value; outer; outer = outer[M_OUTER]) {
 			ancestors.unshift(outer)
 		}
 
@@ -436,7 +436,7 @@ export default class ViewHandles extends Vue {
 
 			const newExp: MalNodeList = this.fnInfo?.primitive
 				? (newParams[0] as MalNodeList)
-				: ([(this.exp as any[])[0], ...newParams] as MalNodeList)
+				: ([this.exp.value[0], ...newParams] as MalNodeList)
 
 			this.$emit('input', newExp)
 		}

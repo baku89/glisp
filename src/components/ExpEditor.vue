@@ -6,7 +6,7 @@
 		:dark="dark"
 		:cssStyle="cssStyle"
 		@input="onInput"
-		@select="onSelection"
+		@select="onSelect"
 	/>
 </template>
 
@@ -17,33 +17,46 @@ import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
-import {MalVal, MalNode, symbolFor, isMalNode} from '../mal/types'
+import {MalVal, MalNode, symbolFor, isMalNode} from '@/mal/types'
+
+import Editor from './Editor'
 
 const OFFSET = 8 // length of "(sketch "
 
+interface Props {
+	exp: NonReactive<MalNode> | null
+	selectedExp: NonReactive<MalNode> | null
+	dark: boolean
+	evalExpIfNeeded: () => any
+	cssStyle: string
+}
+
 export default defineComponent({
+	components: {
+		Editor
+	},
 	props: {
 		exp: {
-			type: NonReactive,
-			required: true
+			required: true,
+			validator: p => p instanceof NonReactive || p === null
 		},
 		selectedExp: {
-			type: Object,
+			required: true,
+			validator: p => p instanceof NonReactive || p === null
+		},
+		evalExpIfNeeded: {
+			type: Function,
 			required: true
 		},
 		dark: {
 			type: Boolean,
 			required: false
 		},
-		evalExpIfNeeded: {
-			type: Function,
-			required: true
-		},
 		cssStyle: {
 			default: ''
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context) {
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			if (props.exp) {
@@ -56,8 +69,8 @@ export default defineComponent({
 		// selectedExp -> activeRange
 		const activeRange = computed(() => {
 			const sel = props.selectedExp
-			if (isMalNode(sel)) {
-				const ret = getRangeOfExp(sel)
+			if (sel && isMalNode(sel.value)) {
+				const ret = getRangeOfExp(sel.value)
 				if (ret) {
 					const [start, end] = ret
 					return [start - OFFSET, end - OFFSET]
@@ -88,10 +101,14 @@ export default defineComponent({
 		}
 
 		function onSelect([start, end]: [number, number]) {
+			if (!props.exp) {
+				return
+			}
+
 			props.evalExpIfNeeded()
 
 			const selectedExp = findExpByRange(
-				props.exp.value as MalNode,
+				props.exp.value,
 				start + OFFSET,
 				end + OFFSET
 			)
@@ -101,7 +118,7 @@ export default defineComponent({
 			) {
 				context.emit('select', null)
 			} else {
-				context.emit('select', selectedExp)
+				context.emit('select', nonReactive(selectedExp))
 			}
 		}
 
@@ -109,10 +126,7 @@ export default defineComponent({
 			code,
 			activeRange,
 			onInput,
-			onSelect,
-
-			dark: props.dark,
-			cssStyle: props.cssStyle
+			onSelect
 		}
 	}
 })

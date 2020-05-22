@@ -113,7 +113,7 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
-import {clamp, getParamLabel} from '@/utils'
+import {clamp, getParamLabel, NonReactive} from '@/utils'
 import {fnInfo, getPrimitiveType} from '../mal-utils'
 
 const K_DOC = K('doc'),
@@ -175,10 +175,14 @@ type MetaDescs = (Desc | string)[]
 	}
 })
 export default class Inspector extends Vue {
-	@Prop({required: true}) private value!: MalNode
+	@Prop({
+		required: true,
+		validator: p => p instanceof NonReactive
+	})
+	private exp!: NonReactive<MalNode>
 
 	private get fnInfo() {
-		return fnInfo(this.value)
+		return fnInfo(this.exp.value)
 	}
 
 	private get fnName(): string {
@@ -186,9 +190,9 @@ export default class Inspector extends Vue {
 			return this.fnInfo.primitive
 		} else if (
 			this.fnInfo?.fn ||
-			(isList(this.value) && isSymbol(this.value[1]))
+			(isList(this.exp.value) && isSymbol(this.exp.value[1]))
 		) {
-			return ((this.value as MalVal[])[0] as string).slice(1) || ''
+			return ((this.exp.value as MalVal[])[0] as string).slice(1) || ''
 		} else {
 			return ''
 		}
@@ -196,9 +200,9 @@ export default class Inspector extends Vue {
 
 	private get fnParams(): MalVal[] {
 		if (this.fnInfo?.primitive) {
-			return [this.value]
+			return [this.exp.value]
 		} else if (this.fnInfo) {
-			return (this.value as MalVal[]).slice(1)
+			return (this.exp.value as MalVal[]).slice(1)
 		} else {
 			return []
 		}
@@ -486,7 +490,7 @@ export default class Inspector extends Vue {
 		if (this.fnInfo?.primitive) {
 			newValue = markMalVector(newParams[0])
 		} else {
-			newValue = [(this.value as MalVal[])[0], ...newParams]
+			newValue = [(this.exp.value as MalVal[])[0], ...newParams]
 		}
 
 		this.$emit('input', newValue)
@@ -500,7 +504,7 @@ export default class Inspector extends Vue {
 		const newParams = [...this.fnParams]
 		newParams.splice(i, 1)
 
-		const newValue = [(this.value as MalVal[])[0], ...newParams]
+		const newValue = [(this.exp.value as MalVal[])[0], ...newParams]
 		this.$emit('input', newValue)
 	}
 
@@ -539,7 +543,7 @@ export default class Inspector extends Vue {
 
 		newParams.splice(i, 0, insertedValue)
 
-		const newValue = [(this.value as MalVal[])[0], ...newParams]
+		const newValue = [(this.exp.value as MalVal[])[0], ...newParams]
 		this.$emit('input', newValue)
 	}
 

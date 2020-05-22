@@ -3,10 +3,11 @@
 		<GlobalMenu class="PageIndex__global-menu" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
-				<Inspector :value="selectedExp" @input="onUpdateSelectedExp" />
+				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
 			<div class="PageIndex__viewer">
 				<ViewHandles
+					v-if="selectedExp"
 					class="view-handles"
 					:exp="selectedExp"
 					@input="onUpdateSelectedExp"
@@ -21,13 +22,13 @@
 			</div>
 			<div class="PageIndex__control" :class="{compact}">
 				<div class="PageIndex__editor">
-					<Editor
-						:value="code"
-						:selection="selection"
-						:activeRange="selectedExpRange"
+					<ExpEditor
+						:exp="exp"
+						:selectedExp="selectedExp"
 						:dark="dark"
-						@input="code = $event"
-						@select="selection = $event"
+						:evalExpIfNeeded="evalExpIfNeeded"
+						@input="exp = $event"
+						@select="selectedExp = $event"
 					/>
 				</div>
 				<div class="PageIndex__console">
@@ -58,7 +59,7 @@ import {
 import Color from 'color'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import Editor from '@/components/Editor'
+import ExpEditor from '@/components/ExpEditor.vue'
 import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
@@ -67,30 +68,19 @@ import ViewHandles from '@/components/ViewHandles.vue'
 import {printExp, readStr} from '@/mal'
 import {
 	MalVal,
-	symbolFor as S,
 	MalNode,
 	M_EVAL,
 	isMalNode,
 	M_OUTER,
 	MalNodeList,
-	M_EXPANDED,
-	M_OUTER_INDEX,
-	MalSelection
+	M_EXPANDED
 } from '@/mal/types'
 
-import {replaceRange, nonReactive, NonReactive} from '@/utils'
+import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
-import {
-	BlankException,
-	findExpByRange,
-	getRangeOfExp,
-	getRangeOfExp2
-} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
-
-const OFFSET = 8 // length of "(sketch "
 
 const BRIGHT_COLORS = {
 	'--currentline': '#efefef',
@@ -121,17 +111,13 @@ const DARK_COLORS = {
 }
 
 interface Data {
-	code: string
 	exp: NonReactive<MalVal> | null
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
-	selection: [number, number]
-	selectedExp: MalNode
-	selectedExp2: MalSelection
-	selectedExpRange: [number, number] | null
+	selectedExp: NonReactive<MalNode> | null
 }
 
 interface UI {
@@ -198,7 +184,8 @@ function parseURL(data: Data) {
 	})
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
-		data.code = ret[0] as string
+		const code = `(sketch ${ret[0]}\nnil)`
+		data.exp = nonReactive(readStr(code, true))
 	})
 
 	return {onSetupConsole}
@@ -206,12 +193,12 @@ function parseURL(data: Data) {
 
 function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
 	ConsoleScope.def('eval-selected', () => {
-		if (data.selectedExp && isMalNode(data.selectedExp)) {
+		if (data.selectedExp && data.selectedExp) {
 			let evaled
-			if (M_EXPANDED in data.selectedExp) {
-				evaled = (data.selectedExp as MalNodeList)[M_EXPANDED]
-			} else if (M_EVAL in data.selectedExp) {
-				evaled = data.selectedExp[M_EVAL]
+			if (M_EXPANDED in data.selectedExp.value) {
+				evaled = (data.selectedExp.value as MalNodeList)[M_EXPANDED]
+			} else if (M_EVAL in data.selectedExp.value) {
+				evaled = data.selectedExp.value[M_EVAL]
 			}
 			if (evaled !== undefined) {
 				onUpdateSelectedExp(evaled)
@@ -223,7 +210,9 @@ function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
 	ConsoleScope.def('load-file', (url: MalVal) => {
 		fetch(url as string).then(async res => {
 			if (res.ok) {
-				data.code = await res.text()
+				const code = await res.text()
+				console.log(code)
+				data.exp = nonReactive(readStr(`(sketch ${code}\nnil)`, true))
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
@@ -232,42 +221,33 @@ function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
 	})
 
 	ConsoleScope.def('select-outer', () => {
-		const {selection, selectedExp, selectedExpRange} = data
-
-		if (selectedExpRange === null) {
-			return null
-		}
-
-		if (
-			selection[0] !== selectedExpRange[0] ||
-			selection[1] !== selectedExpRange[1]
-		) {
-			data.selection = [...selectedExpRange] as [number, number]
-		} else if (isMalNode(selectedExp) && selectedExp[M_OUTER]) {
-			data.selectedExp = selectedExp[M_OUTER]
+		if (data.selectedExp && data.selectedExp.value[M_OUTER]) {
+			data.selectedExp = nonReactive(data.selectedExp.value[M_OUTER])
 		}
 
 		return null
 	})
 
-	ConsoleScope.def('insert-exp', (item: MalVal) => {
-		const itemStr = printExp(item)
+	// ConsoleScope.def('insert-exp', (item: MalVal) => {
+	// 	const itemStr = printExp(item)
 
-		const [start, end] = data.selection
-		const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
+	// 	const [start, end] = data.selection
+	// 	const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
 
-		data.code = code
-		data.selection = selection
+	// 	data.code = code
+	// 	data.selection = selection
 
-		return null
-	})
+	// 	return null
+	// })
 }
+
+const OFFSET = 8 // length of "(sketch "
 
 export default defineComponent({
 	name: 'PageIndex',
 	components: {
 		GlobalMenu,
-		Editor,
+		ExpEditor,
 		Viewer,
 		Console,
 		Inspector,
@@ -296,7 +276,6 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			code: '',
 			exp: null,
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
@@ -310,66 +289,14 @@ export default defineComponent({
 
 			// Selection
 			selection: [0, 0],
-			selectedExp: computed({
-				get: () => {
-					if (!data.exp || data.hasParseError) {
-						return null
-					}
-
-					evalExpIfNeeded()
-
-					const [start, end] = data.selection
-					const selected = findExpByRange(
-						data.exp.value,
-						start + OFFSET,
-						end + OFFSET
-					)
-					if (Array.isArray(selected) && selected[0] === S('sketch')) {
-						return null
-					} else {
-						return selected
-					}
-				},
-				set: (exp: MalVal) => {
-					const selection = getRangeOfExp(exp as MalNode)
-
-					if (selection) {
-						const [start, end] = selection
-						data.selection = [start - OFFSET, end - OFFSET]
-					} else {
-						data.selection = [0, 0]
-					}
-				}
-			}),
-			selectedExp2: computed(() => {
-				if (data.selectedExp) {
-					if (data.selectedExp[M_OUTER]) {
-						return {
-							outer: data.selectedExp[M_OUTER],
-							index: data.selectedExp[M_OUTER_INDEX]
-						}
-					} else {
-						return {root: data.selectedExp}
-					}
-				} else {
-					null
-				}
-			}),
-			selectedExpRange: computed(() => {
-				const sel = data.selectedExp2
-				if (sel) {
-					const ret = getRangeOfExp2(sel)
-					if (ret) {
-						const [start, end] = ret
-						return [start - OFFSET, end - OFFSET]
-					} else {
-						return null
-					}
-				} else {
-					return null
-				}
-			})
+			selectedExp: null
 		}) as Data
+
+		function evalExpIfNeeded() {
+			if (expNotEvaluated) {
+				evalExp()
+			}
+		}
 
 		function evalExp() {
 			const exp = data.exp
@@ -394,44 +321,6 @@ export default defineComponent({
 			}
 		}
 
-		function evalExpIfNeeded() {
-			if (expNotEvaluated) {
-				evalExp()
-			}
-		}
-
-		// Code <-> Exp Conversion
-		watch(
-			() => data.code,
-			code => {
-				ConsoleScope.def('*sketch*', data.code)
-				const evalCode = `(sketch ${code}\nnil)`
-				let exp
-				try {
-					exp = nonReactive(readStr(evalCode, true))
-				} catch (err) {
-					if (!(err instanceof BlankException)) {
-						printer.error(err)
-					}
-					data.hasParseError = true
-					return
-				}
-				data.hasParseError = false
-				data.exp = exp
-			}
-		)
-
-		watch(
-			() => data.exp,
-			() => {
-				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET, -5)
-				} else {
-					data.code = ''
-				}
-			}
-		)
-
 		const {onSetupConsole} = parseURL(data)
 
 		// Background and theme
@@ -445,29 +334,31 @@ export default defineComponent({
 			ui.background = bg
 		}
 
+		// Save code
 		watch(
-			() => data.code,
-			code => {
-				if (code.length > 0) {
-					localStorage.setItem('saved_code', code)
+			() => data.exp,
+			exp => {
+				if (exp) {
+					const code = printExp(exp.value)
+					localStorage.setItem('saved_code', code.slice(OFFSET, -5))
 				}
 			}
 		)
 
 		function onUpdateSelectedExp(exp: MalVal) {
-			if (!data.exp) {
+			if (!data.exp || !data.selectedExp) {
 				return
 			}
 
-			replaceExp(data.selectedExp as MalNode, exp)
+			replaceExp(data.selectedExp.value, exp)
 			expNotEvaluated = true
 
-			// Assign new exp
-			const root = data.exp.value
-			data.exp = nonReactive(root)
+			// Refresh reactivity
+			data.exp = nonReactive(data.exp.value)
 
 			if (isMalNode(exp)) {
-				data.selectedExp = exp
+				data.selectedExp = nonReactive(exp)
+				console.log('udpate selected')
 			}
 		}
 
@@ -478,6 +369,7 @@ export default defineComponent({
 			...toRefs(data as any),
 			onSetupConsole,
 			onUpdateSelectedExp,
+			evalExpIfNeeded,
 
 			...toRefs(ui as any),
 			onSetBackground
