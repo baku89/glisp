@@ -5,13 +5,14 @@
 		:activeRange="activeRange"
 		:dark="dark"
 		:cssStyle="cssStyle"
+		:selection.sync="selection"
 		@input="onInput"
 		@select="onSelect"
 	/>
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from '@vue/composition-api'
+import {defineComponent, computed, ref} from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
@@ -52,6 +53,8 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
+		const selection = ref([0, 0])
+
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			if (props.exp) {
@@ -88,10 +91,11 @@ export default defineComponent({
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
 				}
-				context.emit('update:hasError', true)
+				context.emit('update:hasParseError', true)
 				return
 			}
-			context.emit('update:hasError', true)
+			context.emit('update:hasParseError', false)
+			console.log('editor onInput')
 			context.emit('input', exp)
 		}
 
@@ -100,11 +104,20 @@ export default defineComponent({
 				return
 			}
 
+			console.log('editor onSelect')
+
 			const selectedExp = findExpByRange(
 				props.exp.value,
 				start + OFFSET,
 				end + OFFSET
 			)
+
+			// const isSame = props.selectedExp?.value === selectedExp
+
+			// if (isSame) {
+			// 	return
+			// }
+
 			if (
 				Array.isArray(selectedExp) &&
 				selectedExp[0] === symbolFor('sketch')
@@ -117,6 +130,7 @@ export default defineComponent({
 
 		return {
 			code,
+			selection,
 			activeRange,
 			onInput,
 			onSelect

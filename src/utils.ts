@@ -33,8 +33,13 @@ const valueSymbol = Symbol('NonReactive.value')
 /**
  * The utility class holds a value which does not need to be watched by Vue
  */
+let counter = 0
+
 export class NonReactive<T> {
+	private id: number
+
 	constructor(value: T) {
+		this.id = counter++
 		;(this as any)[valueSymbol] = value
 	}
 

@@ -278,7 +278,7 @@
 (defn element? [a] (and (vector? a) (keyword? (first a))))
 
 (defn column
-  {:doc "Returns a vector of nums from *start* to *end* (both inclusive) that each of element is multiplied by *step*"
+  {:doc "Returns a vector of nums from *from* to *to* (both inclusive) that each of element is multiplied by *step*"
    :params [{:label "From" :type "number" :desc "From"}
             {:label "To" :type "number" :desc "To"}
             {:label "Step" :type "number" :desc "Step"}]}

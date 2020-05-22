@@ -57,6 +57,8 @@ export default defineComponent({
 		const el: Ref<HTMLElement | null> = ref(null)
 		const canvas: Ref<HTMLCanvasElement | null> = ref(null)
 
+		let initialExp: MalVal
+
 		async function onResized() {
 			if (!el.value || !renderer) return
 
@@ -77,55 +79,69 @@ export default defineComponent({
 
 			renderer = await createCanvasRender(canvas.value)
 			onResized()
+			console.log('renderer setup finished')
+			if (initialExp) {
+				render(initialExp)
+			}
 		})
 
 		// onBeforeMount(() => {
 		// 	this.renderer.dispose()
 		// })
 
+		async function render(exp: MalVal) {
+			const options = {
+				...(props.guideColor ? {guideColor: props.guideColor} : {})
+			}
+			let sidefxs
+
+			try {
+				sidefxs = await (renderer as CanvasRendererType).render(exp, options)
+			} catch (err) {
+				if (err instanceof LispError) {
+					printer.error(err.message)
+				} else {
+					printer.error(err)
+				}
+				context.emit('render', false)
+				return
+			}
+
+			for (const [cmd, params] of sidefxs) {
+				switch (cmd) {
+					case 'set-background':
+						context.emit('set-background', params)
+						break
+					// case 'enable-animation': {
+					// 	const check = () => {
+					// 		this.renderer.isRendering
+					// 			? requestAnimationFrame(check)
+					// 			: this.update()
+					// 	}
+					// 	requestAnimationFrame(check)
+					// 	break
+					// }
+				}
+			}
+
+			context.emit('render', true)
+		}
+
 		watch(
 			() => props.exp,
 			async () => {
-				if (!props.exp || !renderer) {
+				if (!props.exp) {
+					return
+				}
+
+				if (!renderer) {
+					initialExp = props.exp.value
 					return
 				}
 
 				const exp = props.exp.value
-				const options = {
-					...(props.guideColor ? {guideColor: props.guideColor} : {})
-				}
-				let sidefxs
 
-				try {
-					sidefxs = await renderer.render(exp, options)
-				} catch (err) {
-					if (err instanceof LispError) {
-						printer.error(err.message)
-					} else {
-						printer.error(err)
-					}
-					context.emit('render', false)
-					return
-				}
-
-				for (const [cmd, params] of sidefxs) {
-					switch (cmd) {
-						case 'set-background':
-							context.emit('set-background', params)
-							break
-						// case 'enable-animation': {
-						// 	const check = () => {
-						// 		this.renderer.isRendering
-						// 			? requestAnimationFrame(check)
-						// 			: this.update()
-						// 	}
-						// 	requestAnimationFrame(check)
-						// 	break
-						// }
-					}
-				}
-
-				context.emit('render', true)
+				await render(exp)
 			}
 		)
 

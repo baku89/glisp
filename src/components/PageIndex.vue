@@ -26,8 +26,9 @@
 						:exp="exp"
 						:selectedExp="selectedExp"
 						:dark="dark"
+						:hasParseError.sync="hasParseError"
 						@input="updateExp"
-						@select="selectedExp = $event"
+						@select="onSelectExp"
 					/>
 				</div>
 				<div class="PageIndex__console">
@@ -192,7 +193,7 @@ function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 
 function bindsConsole(
 	data: Data,
-	onUpdateSelectedExp: (val: MalVal) => any,
+	onUpdateSelectedExp: (val: NonReactive<MalVal>) => any,
 	updateExp: (exp: NonReactive<MalVal>) => void
 ) {
 	ConsoleScope.def('eval-selected', () => {
@@ -204,7 +205,7 @@ function bindsConsole(
 				evaled = data.selectedExp.value[M_EVAL]
 			}
 			if (evaled !== undefined) {
-				onUpdateSelectedExp(evaled)
+				onUpdateSelectedExp(nonReactive(evaled))
 			}
 		}
 		return null
@@ -283,30 +284,35 @@ export default defineComponent({
 			hasParseError: false,
 			hasEvalError: computed(() => data.viewExp === null),
 			hasRenderError: false,
-			viewExp: null,
+			viewExp: computed(() => {
+				let viewExp: NonReactive<MalVal> | null = null
+
+				if (data.exp) {
+					ViewScope.setup({
+						width: ui.viewerSize[0],
+						height: ui.viewerSize[1],
+						guideColor: ui.guideColor
+					})
+
+					const ret = ViewScope.eval(data.exp.value)
+
+					console.log('eval', data.exp.value)
+
+					if (ret !== undefined) {
+						// ConsoleScope.def('*view*', ret)
+						viewExp = nonReactive(ret)
+					}
+				}
+
+				return viewExp
+			}),
 			// Selection
 			selectedExp: null
 		}) as Data
 
 		function updateExp(exp: NonReactive<MalVal> | null) {
-			let viewExp: NonReactive<MalVal> | null = null
-
-			if (exp) {
-				ViewScope.setup({
-					width: ui.viewerSize[0],
-					height: ui.viewerSize[1],
-					guideColor: ui.guideColor
-				})
-
-				const ret = ViewScope.eval(exp.value)
-				if (ret !== undefined) {
-					ConsoleScope.def('*view*', ret)
-					viewExp = nonReactive(ret)
-				}
-			}
-
+			console.log('updateExp')
 			data.exp = exp
-			data.viewExp = viewExp
 		}
 
 		const {onSetupConsole} = parseURL(updateExp)
@@ -333,7 +339,12 @@ export default defineComponent({
 			}
 		)
 
-		function onUpdateSelectedExp(exp: MalVal) {
+		function onSelectExp(exp: NonReactive<MalNode>) {
+			console.log('onSelectExp')
+			data.selectedExp = exp
+		}
+
+		function onUpdateSelectedExp(exp: NonReactive<MalVal>) {
 			if (!data.exp || !data.selectedExp) {
 				return
 			}
@@ -343,17 +354,17 @@ export default defineComponent({
 				'old=',
 				data.selectedExp.value,
 				'new=',
-				exp
+				exp.value
 			)
 
-			replaceExp(data.selectedExp.value, exp)
+			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
 			updateExp(nonReactive(data.exp.value))
 
-			if (isMalNode(exp)) {
+			if (isMalNode(exp.value)) {
 				console.log('update Selected Node', exp)
-				data.selectedExp = nonReactive(exp)
+				data.selectedExp = exp as NonReactive<MalNode>
 			}
 		}
 
@@ -367,7 +378,8 @@ export default defineComponent({
 
 			...toRefs(ui as any),
 			onSetBackground,
-			updateExp
+			updateExp,
+			onSelectExp
 		}
 	}
 })

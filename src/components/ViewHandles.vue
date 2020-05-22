@@ -86,7 +86,7 @@ import {
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
 import {fnInfo} from '@/mal-utils'
-import {NonReactive} from '../utils'
+import {NonReactive, nonReactive} from '../utils'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -438,7 +438,7 @@ export default class ViewHandles extends Vue {
 				? (newParams[0] as MalNodeList)
 				: ([this.exp.value[0], ...newParams] as MalNodeList)
 
-			this.$emit('input', newExp)
+			this.$emit('input', nonReactive(newExp))
 		}
 	}
 

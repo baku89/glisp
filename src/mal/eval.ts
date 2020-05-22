@@ -573,15 +573,15 @@ function cloneMalNode(original: MalNode) {
 
 // Cached Tree-shaking
 export function replaceExp(original: MalNode, replaced: MalVal) {
-	const originalOuter = original[M_OUTER]
+	console.log('replaceExp', original, replaced)
+
+	const outer = original[M_OUTER]
 	const index = original[M_OUTER_INDEX]
 
-	if (index === undefined || !isMalNode(originalOuter)) {
+	if (index === undefined || !isMalNode(outer)) {
 		throw new LispError('Cannot execute replaceExp')
 		return
 	}
-
-	const outer = cloneMalNode(originalOuter)
 
 	// Set as child
 	if (Array.isArray(outer)) {
@@ -592,26 +592,18 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		outer[key] = replaced
 	}
 
+	delete outer[M_ELMSTRS]
+
 	// Set outer recursively
 	saveOuter(replaced, outer, index)
 
 	// Refresh M_ELMSTRS of ancestors
-	let _outer = outer,
-		_index = index,
-		_exp = replaced
+	let _outer = outer
 
 	while (_outer) {
-		_outer[M_ELMSTRS][_index] = printExp(_exp)
+		delete _outer[M_ELMSTRS] //[_index] = printExp(_exp)
 
 		// Go upward
-		_exp = _outer
-		_index = _outer[M_OUTER_INDEX]
 		_outer = _outer[M_OUTER]
-
-		if (!_outer) {
-			return
-		}
-
-		_outer = cloneMalNode(_outer)
 	}
 }

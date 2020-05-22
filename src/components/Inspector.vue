@@ -122,11 +122,10 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
-import {clamp, getParamLabel, NonReactive} from '@/utils'
+import {clamp, getParamLabel, NonReactive, nonReactive} from '@/utils'
 import {fnInfo, getPrimitiveType} from '../mal-utils'
 
-const K_DOC = K('doc'),
-	K_PARAMS = K('params'),
+const K_PARAMS = K('params'),
 	K_TYPE = K('type'),
 	K_LABEL = K('label'),
 	K_CONSTRAINTS = K('constraints'),
@@ -190,7 +189,6 @@ export default class Inspector extends Vue {
 	private exp!: NonReactive<MalNode>
 
 	private get fnInfo() {
-		console.log('get fnInfo', this.exp.value)
 		return fnInfo(this.exp.value)
 	}
 
@@ -219,7 +217,7 @@ export default class Inspector extends Vue {
 
 	private get fnDoc(): string {
 		if (this.fnInfo?.meta) {
-			return this.fnInfo.meta[K_DOC] as string
+			return this.fnInfo.meta[K('doc')] as string
 		}
 		return ''
 	}
@@ -504,7 +502,7 @@ export default class Inspector extends Vue {
 			newValue = [(this.exp.value as MalVal[])[0], ...newParams]
 		}
 
-		this.$emit('input', newValue)
+		this.$emit('input', nonReactive(newValue))
 	}
 
 	private onParamDelete(i: number) {
@@ -516,7 +514,7 @@ export default class Inspector extends Vue {
 		newParams.splice(i, 1)
 
 		const newValue = [(this.exp.value as MalVal[])[0], ...newParams]
-		this.$emit('input', newValue)
+		this.$emit('input', nonReactive(newValue))
 	}
 
 	private onParamInsert(i: number) {
@@ -555,7 +553,7 @@ export default class Inspector extends Vue {
 		newParams.splice(i, 0, insertedValue)
 
 		const newValue = [(this.exp.value as MalVal[])[0], ...newParams]
-		this.$emit('input', newValue)
+		this.$emit('input', nonReactive(newValue))
 	}
 
 	// Use inside the template
