@@ -8,7 +8,7 @@
   (path/transform
    (mat2d/* (translate p)
             (scale-x (compare (rnd i) .5)))
-   (line (vec2 (- s)) (vec2 s))))
+   (line [(- s) (- s)] [s s])))
 
 (background "snow")
 
