@@ -26,7 +26,11 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
+		<g
+			v-if="handleCallbacks"
+			class="ViewHandles__axis"
+			:transform="axisTransform"
+		>
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -66,7 +70,7 @@ import {
 	MalVal,
 	keywordFor as K,
 	symbolFor as S,
-	markMalVector,
+	markMalVector as V,
 	M_EVAL,
 	M_OUTER,
 	isMap,
@@ -386,24 +390,22 @@ export default class ViewHandles extends Vue {
 		}
 
 		const viewRect = this.$el.getBoundingClientRect()
-		const rawPos = markMalVector([
+		const rawPos = V([
 			e.clientX - viewRect.left,
 			e.clientY - viewRect.top
 		]) as number[]
 
-		const pos = [0, 0]
+		const pos = V([0, 0]) as number[]
 		vec2.transformMat2d(pos as vec2, rawPos as vec2, this.transformInv)
-		markMalVector(pos)
 
-		const prevPos = [0, 0]
+		const prevPos = V([0, 0]) as number[]
 		vec2.transformMat2d(
 			prevPos as vec2,
 			this.rawPrevPos as vec2,
 			this.transformInv
 		)
-		markMalVector(prevPos)
 
-		const deltaPos = markMalVector([pos[0] - prevPos[0], pos[1] - prevPos[1]])
+		const deltaPos = V([pos[0] - prevPos[0], pos[1] - prevPos[1]])
 
 		const handle = this.handles[this.draggingIndex]
 
@@ -432,7 +434,7 @@ export default class ViewHandles extends Vue {
 			}
 
 			const newExp = this.fnInfo?.primitive
-				? newParams
+				? newParams[0]
 				: [(this.exp as any[])[0], ...newParams]
 			this.$emit('input', newExp)
 		}

@@ -56,7 +56,7 @@
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [{:params [x]}]
                      [{:type "point" :class "translate" :pos x}])
-             :drag (fn [{:pos pos}] pos)}}
+             :drag (fn [{:pos pos}] [pos])}}
   [x] x)
 
 (defn vec2?
@@ -453,15 +453,15 @@
                 :params [[_x _y _w _h]]
                 :unevaluated-params [[x y w h]]}]
             (case id
-              :center [(+ _x dx) (+ _y dy) w h]
-              :left  [(+ _x dx) y (- _w dx) _h]
-              :top   [x (+ _y dy) w (- _h dy)]
-              :right [x y (+ _w dx) h]
-              :bottom [x y w (+ _h dy)]
-              :top-left `[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]
-              :top-right [x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]
-              :bottom-left [(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]
-              :bottom-right `[~x ~y ~@(vec2/- p [_x _y])]))}}
+              :center [[(+ _x dx) (+ _y dy) w h]]
+              :left  [[(+ _x dx) y (- _w dx) _h]]
+              :top   [[x (+ _y dy) w (- _h dy)]]
+              :right [[x y (+ _w dx) h]]
+              :bottom [[x y w (+ _h dy)]]
+              :top-left [`[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]]
+              :top-right [[x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]]
+              :bottom-left [[(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]]
+              :bottom-right [`[~x ~y ~@(vec2/- p [_x _y])]]))}}
   [[x y w h]] [x y w h])
 
 (def rect/left first)
