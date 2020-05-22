@@ -12,7 +12,9 @@ import {
 	M_KEYS,
 	getType,
 	MalMap,
-	MalFunc
+	MalFunc,
+	MalNodeList,
+	MalNode
 } from './types'
 
 export const printer = {
@@ -31,7 +33,7 @@ export const printer = {
 export default function printExp(
 	exp: MalVal,
 	printReadably = true,
-	cache = false
+	cache = true
 ): string {
 	const _r = printReadably
 	const _c = cache
@@ -89,14 +91,27 @@ export default function printExp(
 
 		switch (_type) {
 			case 'list':
-			case 'vector':
+			case 'vector': {
 				elmStrs = (exp as MalVal[]).map(e => printExp(e, _r, _c))
-				ret =
-					(_type === 'list' ? '(' : '[') +
-					elmStrs.join(' ') +
-					(_type === 'list' ? ')' : ']')
+
+				let delimiters: string[]
+				if (M_DELIMITERS in (exp as MalNode)) {
+					delimiters = (exp as MalNode)[M_DELIMITERS]
+				} else {
+					const spaceCount = Math.max(0, elmStrs.length - 1)
+					delimiters = ['', ...Array(spaceCount).fill(' '), '']
+					;(exp as MalNode)[M_DELIMITERS] = delimiters
+				}
+
+				ret = _type === 'list' ? '(' : '['
+				for (let i = 0; i < elmStrs.length; i++) {
+					ret += delimiters[i] + elmStrs[i]
+				}
+				ret += delimiters[delimiters.length - 1]
+				ret += _type === 'list' ? ')' : ']'
 				break
-			case 'map':
+			}
+			case 'map': {
 				elmStrs = []
 				for (const k in exp as MalMap) {
 					elmStrs.push(
@@ -104,8 +119,24 @@ export default function printExp(
 						printExp((exp as MalMap)[k], _r, _c)
 					)
 				}
-				ret = `{${elmStrs.join(' ')}}`
+
+				let delimiters: string[]
+				if (M_DELIMITERS in (exp as MalNode)) {
+					delimiters = (exp as MalNode)[M_DELIMITERS]
+				} else {
+					const spaceCount = Math.max(0, elmStrs.length - 1)
+					delimiters = ['', ...Array(spaceCount).fill(' '), '']
+					;(exp as MalNode)[M_DELIMITERS] = delimiters
+				}
+
+				ret = '{'
+				for (let i = 0; i < elmStrs.length; i++) {
+					ret += delimiters[i] + elmStrs[i]
+				}
+				ret += delimiters[delimiters.length - 1]
+				ret += '}'
 				break
+			}
 			case 'number':
 				ret = (exp as number).toString()
 				break
@@ -156,11 +187,6 @@ export default function printExp(
 		if (_c && isMalNode(exp) && elmStrs) {
 			if (!exp[M_ELMSTRS]) {
 				exp[M_ELMSTRS] = elmStrs
-			}
-
-			if (!exp[M_DELIMITERS]) {
-				const spaceCount = Math.max(0, elmStrs.length - 1)
-				exp[M_DELIMITERS] = ['', ...Array(spaceCount).fill(' '), '']
 			}
 		}
 	}

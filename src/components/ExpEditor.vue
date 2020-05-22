@@ -117,11 +117,11 @@ export default defineComponent({
 
 			const selectedExp = findExpByRange(exp, start + OFFSET, end + OFFSET)
 
-			// const isSame = props.selectedExp?.value === selectedExp
+			const isSame = props.selectedExp?.value === selectedExp
 
-			// if (isSame) {
-			// 	return
-			// }
+			if (isSame) {
+				return
+			}
 
 			if (
 				Array.isArray(selectedExp) &&

@@ -27,7 +27,7 @@
 						:selectedExp="selectedExp"
 						:dark="dark"
 						:hasParseError.sync="hasParseError"
-						@input="updateExp"
+						@input="onUpdateExp"
 						@select="onSelectExp"
 					/>
 				</div>
@@ -127,7 +127,7 @@ interface UI {
 	guideColor: string
 }
 
-function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
+function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -183,7 +183,7 @@ function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
 		const code = `(sketch ${ret[0]}\nnil)`
-		updateExp(nonReactive(readStr(code, true)))
+		onUpdateExp(nonReactive(readStr(code, true)))
 	})
 
 	return {onSetupConsole}
@@ -192,7 +192,7 @@ function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 function bindsConsole(
 	data: Data,
 	onUpdateSelectedExp: (val: NonReactive<MalVal>) => any,
-	updateExp: (exp: NonReactive<MalVal>) => void
+	onUpdateExp: (exp: NonReactive<MalVal>) => void
 ) {
 	ConsoleScope.def('eval-selected', () => {
 		if (data.selectedExp) {
@@ -213,7 +213,8 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				updateExp(nonReactive(readStr(`(sketch ${code}\nnil)`, true)))
+				const exp = readStr(`(sketch ${code}\nnil)`, true)
+				onUpdateExp(nonReactive(exp))
 				data.selectedExp = null
 			} else {
 				printer.error(`Failed to load from "${url}"`)
@@ -309,12 +310,12 @@ export default defineComponent({
 			selectedExp: null
 		}) as Data
 
-		function updateExp(exp: NonReactive<MalVal> | null) {
-			console.log('updateExp')
+		function onUpdateExp(exp: NonReactive<MalVal> | null) {
+			console.log('onUpdateExp')
 			data.exp = exp
 		}
 
-		const {onSetupConsole} = parseURL(updateExp)
+		const {onSetupConsole} = parseURL(onUpdateExp)
 
 		// Background and theme
 		function onSetBackground(bg: string) {
@@ -359,7 +360,7 @@ export default defineComponent({
 			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
-			updateExp(nonReactive(data.exp.value))
+			onUpdateExp(nonReactive(data.exp.value))
 
 			if (isMalNode(exp.value)) {
 				console.log('update Selected Node', exp)
@@ -368,7 +369,7 @@ export default defineComponent({
 		}
 
 		// Init App Handler
-		bindsConsole(data, onUpdateSelectedExp, updateExp)
+		bindsConsole(data, onUpdateSelectedExp, onUpdateExp)
 
 		return {
 			...toRefs(data as any),
@@ -377,7 +378,7 @@ export default defineComponent({
 
 			...toRefs(ui as any),
 			onSetBackground,
-			updateExp,
+			onUpdateExp,
 			onSelectExp
 		}
 	}
