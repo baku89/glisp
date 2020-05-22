@@ -92,8 +92,6 @@ const K_ANGLE = K('angle'),
 	K_ID = K('id'),
 	K_GUIDE = K('guide'),
 	K_POS = K('pos'),
-	K_PREV_POS = K('prev-pos'),
-	K_DELTA_POS = K('delta-pos'),
 	K_TYPE = K('type'),
 	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
@@ -279,7 +277,7 @@ export default class ViewHandles extends Vue {
 			try {
 				handles = drawHandle(options)
 			} catch (err) {
-				console.error('ViewHandles', err)
+				console.error('ViewHandles draw', err)
 				return null
 			}
 
@@ -383,9 +381,9 @@ export default class ViewHandles extends Vue {
 			return
 		}
 
-		const onDragHandle = this.handleCallbacks[K_DRAG]
+		const dragHandle = this.handleCallbacks[K_DRAG]
 
-		if (typeof onDragHandle !== 'function') {
+		if (typeof dragHandle !== 'function') {
 			return
 		}
 
@@ -412,19 +410,21 @@ export default class ViewHandles extends Vue {
 		const eventInfo = {
 			[K_ID]: handle.id === undefined ? null : handle.id,
 			[K_POS]: pos,
-			[K_PREV_POS]: prevPos,
-			[K_DELTA_POS]: deltaPos,
+			[K('prev-pos')]: prevPos,
+			[K('delta-pos')]: deltaPos,
 			[K('unevaluated-params')]: this.unevaluatedParams,
 			[K('params')]: this.params
 		} as MalMap
 
 		this.rawPrevPos = rawPos
 
-		let newParams = onDragHandle(
-			eventInfo,
-			this.params,
-			this.params
-		) as MalVal[]
+		let newParams: MalVal[]
+		try {
+			newParams = dragHandle(eventInfo) as MalVal[]
+		} catch (err) {
+			console.error('ViewHandles onDrag', err)
+			return null
+		}
 
 		if (newParams) {
 			if (newParams[0] === K_CHANGE_ID) {
