@@ -49,8 +49,8 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
-						<InputRect
-							v-else-if="params[i].type === 'rect'"
+						<InputRect2d
+							v-else-if="params[i].type === 'rect2d'"
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>

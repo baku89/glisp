@@ -1,28 +1,28 @@
 <template>
-	<div class="InputRect">
+	<div class="InputRect2d">
 		[
 		<InputNumber
-			class="InputRect__el"
+			class="InputRect2d__el"
 			:value="value[0]"
 			@input="onInput(0, $event)"
 		/>
 		<InputNumber
-			class="InputRect__el"
+			class="InputRect2d__el"
 			:value="value[1]"
 			@input="onInput(1, $event)"
 		/>
 		<InputNumber
-			class="InputRect__el"
+			class="InputRect2d__el"
 			:value="value[2]"
 			@input="onInput(2, $event)"
 		/>
 		<InputNumber
-			class="InputRect__el"
+			class="InputRect2d__el"
 			:value="value[3]"
 			@input="onInput(3, $event)"
 		/>]
 		<button
-			class="InputRect__drag"
+			class="InputRect2d__drag"
 			:class="{dragging: drag.isDragging}"
 			ref="dragEl"
 		/>
@@ -40,7 +40,7 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'InputRect',
+	name: 'InputRect2d',
 	components: {InputNumber},
 	props: {
 		value: {
@@ -84,7 +84,7 @@ export default defineComponent({
 <style lang="stylus" scoped>
 @import './common.styl'
 
-.InputRect
+.InputRect2d
 	display flex
 	line-height $input-height
 

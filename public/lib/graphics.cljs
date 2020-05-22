@@ -33,20 +33,20 @@
             {:label "Body" :type "code"}]
    :handles {:draw
              (fn [[{:bounds bounds}]] ; [{:bounds bounds}]
-               (apply-draw-handle rect/init [`[0 0 ~@(rect/size bounds)]]))
+               (apply-draw-handle rect2d/init [`[0 0 ~@(rect2d/size bounds)]]))
              :drag
              (fn [info
                   [option & body] ; Before evaluated
                   [{:bounds _bounds}]] ; evaluated
                (let
-                [_point (rect/point _bounds) ;; Evaluated point
-                 _rect-args [`[0 0 ~@(rect/size _bounds)]]
+                [_point (rect2d/point _bounds) ;; Evaluated point
+                 _rect-args [`[0 0 ~@(rect2d/size _bounds)]]
                  ret-bounds (apply-on-drag-handle
-                             rect/init
+                             rect2d/init
                              info
                              _rect-args _rect-args)
-                 delta-pos (rect/point ret-bounds)
-                 new-size (rect/size ret-bounds)
+                 delta-pos (rect2d/point ret-bounds)
+                 new-size (rect2d/size ret-bounds)
                  new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
                  new-option {:bounds new-bounds}
                  new-option (if (contains? option :background)
@@ -139,7 +139,7 @@
                   ;; Artboard
                   (= tag :artboard)
                   (let [bounds (second body)]
-                    (rect (rect/point bounds) (rect/size bounds)))
+                    (rect (rect2d/point bounds) (rect2d/size bounds)))
 
                   ;; Style (offset stroke)
                   ;; NOTE: Path-offset looks buggy

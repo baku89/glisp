@@ -22,7 +22,7 @@ export function getPrimitiveType(exp: MalVal): string | null {
 				case 2:
 					return 'vec2'
 				case 4:
-					return 'rect'
+					return 'rect2d'
 				case 6:
 					return 'mat2d'
 			}
