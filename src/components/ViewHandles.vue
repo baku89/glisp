@@ -81,7 +81,8 @@ import {
 	isList,
 	M_OUTER_INDEX,
 	MalMap,
-	MalFunc
+	MalFunc,
+	M_DELIMITERS
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -102,7 +103,7 @@ const K_ANGLE = K('angle'),
 
 @Component({})
 export default class ViewHandles extends Vue {
-	@Prop({required: true}) exp!: MalNode
+	@Prop({required: true}) exp!: MalNodeList
 
 	private rem = 0
 
@@ -161,7 +162,7 @@ export default class ViewHandles extends Vue {
 
 		// Collect ancestors
 		let ancestors: MalNode[] = []
-		for (let outer = exp; outer; outer = outer[M_OUTER]) {
+		for (let outer: MalNode = exp; outer; outer = outer[M_OUTER]) {
 			ancestors.unshift(outer)
 		}
 
@@ -433,9 +434,10 @@ export default class ViewHandles extends Vue {
 				newParams = newParams[2] as MalVal[]
 			}
 
-			const newExp = this.fnInfo?.primitive
-				? newParams[0]
-				: [(this.exp as any[])[0], ...newParams]
+			const newExp: MalNodeList = this.fnInfo?.primitive
+				? (newParams[0] as MalNodeList)
+				: ([(this.exp as any[])[0], ...newParams] as MalNodeList)
+
 			this.$emit('input', newExp)
 		}
 	}
