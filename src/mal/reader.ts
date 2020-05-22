@@ -352,6 +352,8 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		const outer = exp[M_OUTER]
 		let offset = calcOffset(outer)
 
+		printExp(outer, true, true)
+
 		if (Array.isArray(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
@@ -375,7 +377,7 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		return null
 	}
 
-	const expLength = printExp(exp).length
+	const expLength = printExp(exp, true, true).length
 	const offset = calcOffset(exp)
 
 	return [offset, offset + expLength]

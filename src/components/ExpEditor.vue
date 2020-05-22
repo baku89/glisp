@@ -7,12 +7,18 @@
 		:cssStyle="cssStyle"
 		:selection.sync="selection"
 		@input="onInput"
-		@select="onSelect"
+		@update:selection="onSelect"
 	/>
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ref} from '@vue/composition-api'
+import {
+	defineComponent,
+	computed,
+	ref,
+	SetupContext,
+	Ref
+} from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
@@ -52,8 +58,8 @@ export default defineComponent({
 			default: ''
 		}
 	},
-	setup(props: Props, context) {
-		const selection = ref([0, 0])
+	setup(props: Props, context: SetupContext) {
+		const selection = ref([0, 0]) as Ref<[number, number]>
 
 		// Exp -> Code Conversion
 		const code = computed(() => {
@@ -86,7 +92,7 @@ export default defineComponent({
 			const evalCode = `(sketch ${code}\nnil)`
 			let exp
 			try {
-				exp = nonReactive(readStr(evalCode, true))
+				exp = readStr(evalCode, true)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
@@ -95,22 +101,21 @@ export default defineComponent({
 				return
 			}
 			context.emit('update:hasParseError', false)
-			console.log('editor onInput')
-			context.emit('input', exp)
+			context.emit('input', nonReactive(exp))
+
+			onSelect(selection.value, exp)
 		}
 
-		function onSelect([start, end]: [number, number]) {
-			if (!props.exp) {
+		function onSelect([start, end]: [number, number], exp?: MalVal) {
+			if (exp === undefined) {
+				exp = props.exp?.value
+			}
+
+			if (exp === undefined) {
 				return
 			}
 
-			console.log('editor onSelect')
-
-			const selectedExp = findExpByRange(
-				props.exp.value,
-				start + OFFSET,
-				end + OFFSET
-			)
+			const selectedExp = findExpByRange(exp, start + OFFSET, end + OFFSET)
 
 			// const isSame = props.selectedExp?.value === selectedExp
 

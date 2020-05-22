@@ -36,9 +36,7 @@
 						class="PageIndex__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -216,6 +214,7 @@ function bindsConsole(
 			if (res.ok) {
 				const code = await res.text()
 				updateExp(nonReactive(readStr(`(sketch ${code}\nnil)`, true)))
+				data.selectedExp = null
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
@@ -386,7 +385,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import "./style/common.styl"
+@import './style/common.styl'
 
 $compact-dur = 0.4s
 

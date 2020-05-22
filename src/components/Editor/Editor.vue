@@ -118,7 +118,7 @@ function setupBraceEditor(
 
 		function onSelect() {
 			const selection = getEditorSelection(editor)
-			context.emit('select', selection)
+			context.emit('update:selection', selection)
 		}
 
 		editor.on('change', onChange)
