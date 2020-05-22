@@ -262,6 +262,8 @@
   (format "rgb(%f,%f,%f)" (* (mod h 1) 360) (* s 100) (* l 100)))
 
 (defn background
+  {:doc "Set a backgrond color"
+   :params [{:labels "Color" :type "color"}]}
   [color]
   `[:background ~color ~*inside-artboard*])
 
