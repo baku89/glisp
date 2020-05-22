@@ -379,54 +379,6 @@ export default class Inspector extends Vue {
 		return paramDescs || EmptyParamDescs
 	}
 
-	private getInputType(value: MalVal, desc: Desc): string {
-		switch (desc[K_TYPE]) {
-			case 'number':
-				if (typeof value === 'number') return 'number'
-				break
-			case 'string':
-				if (isString(value)) {
-					if (K_ENUM in desc) {
-						return 'dropdown'
-					} else {
-						return 'string'
-					}
-				}
-				break
-			case 'color':
-				if (isString(value)) return 'color'
-				break
-			case 'vec2':
-				if (
-					Array.isArray(value) &&
-					typeof value[0] === 'number' &&
-					typeof value[1] === 'number'
-				) {
-					return 'vec2'
-				}
-				break
-			case 'rect':
-				if (
-					Array.isArray(value) &&
-					typeof value[0] === 'number' &&
-					typeof value[1] === 'number' &&
-					typeof value[2] === 'number' &&
-					typeof value[3] === 'number'
-				) {
-					return 'rect'
-				}
-				break
-		}
-
-		if (isSymbol(value)) {
-			return 'symbol'
-		} else if (isKeyword(value)) {
-			return 'keyword'
-		} else {
-			return 'exp'
-		}
-	}
-
 	private get variadicPos(): number {
 		if (this.paramDescs.rest && this.paramDescs.rest.type === 'variadic') {
 			return this.paramDescs.rest.pos
@@ -452,7 +404,7 @@ export default class Inspector extends Vue {
 
 					const isDefault = !(key in hm) && K_DEFAULT in desc
 					const value = isDefault ? desc[K_DEFAULT] : hm[key]
-					const type = this.getInputType(value, desc)
+					const type = this.matchInputTypeOfValueAndDesc(value, desc)
 
 					params.push({type, value, isDefault})
 				}
@@ -461,11 +413,22 @@ export default class Inspector extends Vue {
 
 			const isDefault = this.fnParams.length <= i && K_DEFAULT in desc
 			const value = isDefault ? desc[K_DEFAULT] : this.fnParams[i]
-			const type = this.getInputType(value, desc)
+			const type = this.matchInputTypeOfValueAndDesc(value, desc)
 
 			params.push({type, value, isDefault})
 		}
 		return params
+	}
+
+	private matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
+		const valueInputType = this.detectInputType(value)
+		if (valueInputType !== desc[K_TYPE]) {
+			if (desc[K_TYPE] === 'any') {
+				return valueInputType
+			}
+			return 'exp'
+		}
+		return desc[K_TYPE]
 	}
 
 	private onParamInput(i: number, value: MalVal) {
