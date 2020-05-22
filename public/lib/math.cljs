@@ -39,19 +39,19 @@
 ;; vec2
 ;; http://glmatrix.net/docs/module-vec2.html
 
-(defn vec2
-  {:doc "Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]"
-   :params [[{:label "x" :type "number" :default 0}]
-            [{:label "x" :type "number"}
-             {:label "y" :type "number"}]]
-   :returns {:type "vec2"}}
-  [& xs]
-  (case (count xs)
-    0 [0 0]
-    1 (let [v (first xs)] [v v])
-    2 (vec xs)))
+;; (defn vec2
+;;   {:doc "Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]"
+;;    :params [[{:label "x" :type "number" :default 0}]
+;;             [{:label "x" :type "number"}
+;;              {:label "y" :type "number"}]]
+;;    :returns {:type "vec2"}}
+;;   [& xs]
+;;   (case (count xs)
+;;     0 [0 0]
+;;     1 (let [v (first xs)] [v v])
+;;     2 (vec xs)))
 
-(defn vec2/init
+(defn vec2
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [{:params [x]}]
@@ -237,21 +237,6 @@
 ;; mat2d
 ;; http://glmatrix.net/docs/module-mat2d.html
 
-(defn mat2d
-  {:doc "Creates mat2d"
-   :params [{:label "a" :type "number"}
-            {:label "b" :type "number"}
-            {:label "c" :type "number"}
-            {:label "d" :type "number"}
-            {:label "tx" :type "number"}
-            {:label "ty" :type "number"}]
-   :returns {:type "mat2d"}}
-  [& xs]
-  (case (count xs)
-    0 (mat2d/ident)
-    6 (vec xs)
-    (throw "Invalid number of arguments")))
-
 (defn calc-dragged-rotation
   [& xs]
   (let [options (apply hash-map xs)
@@ -265,7 +250,7 @@
         angle-delta (vec2/angle aligned-p)]
     (+ angle angle-delta)))
 
-(defn mat2d/init
+(defn mat2d
   {:doc "Creates mat2d"
    :params [{:type "mat2d"}]
    :handles {:draw (fn [{:params [[a b c d tx ty]]}]
@@ -503,7 +488,7 @@
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
 
-(defn rect2d/init
+(defn rect2d
   {:doc "Creates a rectangle representing a region"
    :params [{:label "x" :type "rect2d"}]
    :handles

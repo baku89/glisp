@@ -47,7 +47,7 @@ export function fnInfo(
 		if (!fn) {
 			primitive = getPrimitiveType(exp)
 			if (primitive) {
-				fn = ConsoleScope.var(`${primitive}/init`) as MalFunc
+				fn = ConsoleScope.var(primitive) as MalFunc
 			}
 		}
 
