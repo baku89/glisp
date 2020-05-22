@@ -4,6 +4,7 @@ import InputNumber from './InputNumber.vue'
 import InputString from './InputString.vue'
 import InputVec2 from './InputVec2.vue'
 import InputRect2d from './InputRect2d.vue'
+import InputMat2d from './InputMat2d.vue'
 
 export default {
 	InputColor,
@@ -11,5 +12,6 @@ export default {
 	InputNumber,
 	InputString,
 	InputVec2,
-	InputRect2d
+	InputRect2d,
+	InputMat2d
 }

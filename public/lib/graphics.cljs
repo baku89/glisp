@@ -31,31 +31,40 @@
    :params [{:label "Options" :type "code"}
             &
             {:label "Body" :type "code"}]
-   :handles {:draw
-             (fn [[{:bounds bounds}]] ; [{:bounds bounds}]
-               (apply-draw-handle rect2d/init [`[0 0 ~@(rect2d/size bounds)]]))
-             :drag
-             (fn [info
-                  [option & body] ; Before evaluated
-                  [{:bounds _bounds}]] ; evaluated
-               (let
-                [_point (rect2d/point _bounds) ;; Evaluated point
-                 _rect-args [`[0 0 ~@(rect2d/size _bounds)]]
-                 ret-bounds (apply-on-drag-handle
-                             rect2d/init
-                             info
-                             _rect-args _rect-args)
-                 delta-pos (rect2d/point ret-bounds)
-                 new-size (rect2d/size ret-bounds)
-                 new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
-                 new-option {:bounds new-bounds}
-                 new-option (if (contains? option :background)
-                              (assoc new-option
-                                     :background
-                                     (get option :background))
-                              new-option)]
-                 `[~new-option ~@body]))}}
+  ;; Looks Buggy
+  ;;  :handles {:draw
+  ;;            (fn [info]
+  ;;              (let [{:params {:bounds bounds}} info
+  ;;                    _ (prn info)
+  ;;                    _params [`[0 0 ~@(rect2d/size bounds)]]
+  ;;                    _info (assoc info
+  ;;                                 :params _params
+  ;;                                 :unevaluated-params _params)]
 
+  ;;                (apply-draw-handle rect2d/init _info)))
+  ;;            :drag
+  ;;            (fn [info
+  ;;                 [option & body] ; Before evaluated
+  ;;                 [{:bounds _bounds}]] ; evaluated
+  ;;              (let
+  ;;               [_point (rect2d/point _bounds) ;; Evaluated point
+  ;;                _rect-args [`[0 0 ~@(rect2d/size _bounds)]]
+  ;;                ret-bounds (apply-on-drag-handle
+  ;;                            rect2d/init
+  ;;                            (assoc info
+  ;;                                   :params _rect-args
+  ;;                                   :unevaluated-params _rect-args))
+  ;;                delta-pos (rect2d/point ret-bounds)
+  ;;                new-size (rect2d/size ret-bounds)
+  ;;                new-bounds `[~@(vec2/+ _point delta-pos) ~@new-size]
+  ;;                new-option {:bounds new-bounds}
+  ;;                new-option (if (contains? option :background)
+  ;;                             (assoc new-option
+  ;;                                    :background
+  ;;                                    (get option :background))
+  ;;                             new-option)]
+  ;;                `[~new-option ~@body]))}}
+   }
   [options & xs]
   nil)
 

@@ -252,7 +252,65 @@
     6 (vec xs)
     (throw "Invalid number of arguments")))
 
-(def mat2d/init mat2d)
+(defn calc-dragged-rotation
+  [& xs]
+  (let [options (apply hash-map xs)
+        c (get options :center [0 0])
+        p (vec2/- (get options :pos) c)
+        pp (vec2/- (get options :prev-pos) c)
+        angle (get options :angle)
+
+        angle-pp (vec2/angle pp)
+        aligned-p (vec2/rotate [0 0] (- angle-pp) p)
+        angle-delta (vec2/angle aligned-p)]
+    (+ angle angle-delta)))
+
+(defn mat2d/init
+  {:doc "Creates mat2d"
+   :params [{:type "mat2d"}]
+   :handles {:draw (fn [{:params [[a b c d tx ty]]}]
+                     (let [t [tx ty]
+                           axis-x (vec2/scale-add t [a b] 80)
+                           axis-y (vec2/scale-add t [c d] 80)
+                           corner (vec2/scale-add t (vec2/+ [a b] [c d]) 80)]
+                       [{:id :axis-x :type "path" :class "axis-x" :guide true :path (line t axis-x)}
+                        {:id :axis-y :type "path" :class "axis-y" :guide true :path (line t axis-y)}
+                        {:id :r :type "path" :class "dashed" :path (circle t 40)}
+                        {:id :sx :type "path" :class "dashed" :path (line axis-x corner)}
+                        {:id :sy :type "path" :class "dashed" :path (line axis-y corner)}
+                        {:id :x :type "point" :pos axis-x}
+                        {:id :y :type "point" :pos axis-y}
+                        {:id :s :type "point" :pos corner}
+                        {:id :t :type "point" :class "translate" :pos t}]))
+             :drag (fn [{:id id
+                         :pos p
+                         :prev-pos pp
+                         :params [m]}]
+                     (let [t (take-last 2 m)
+                           x (take 2 m)
+                           y (slice m 2 4)]
+                       (case id
+                         :t [`[~@x ~@y ~@p]]
+                         :x [`[~@(vec2/scale (vec2/- p t) (/ 80)) ~@y ~@t]]
+                         :y [`[~@x ~@(vec2/scale (vec2/- p t) (/ 80)) ~@t]]
+
+                         :r (let [angle-delta (calc-dragged-rotation
+                                               :center t
+                                               :pos p
+                                               :prev-pos pp
+                                               :angle 0)
+                                  x (vec2/rotate [0 0] angle-delta x)
+                                  y (vec2/rotate [0 0] angle-delta y)]
+                              [`[~@x ~@y ~@t]])
+
+                         ;; Scale
+                         (let [s (vec2/scale (vec2/transform-mat2d p (mat2d/invert m)) (/ 80))]
+                           (case id
+                             :sx [`[~@(vec2/scale x (.x s)) ~@y ~@t]]
+                             :sy [`[~@x ~@(vec2/scale y (.y s)) ~@t]]
+                             :s [`[~@(vec2/scale x (.x s)) ~@(vec2/scale y (.y s)) ~@t]])))))}
+   :returns {:type "mat2d"}}
+  [x] x)
 
 (defn mat2d?
   {:doc "Checks if x is mat2d"
@@ -377,14 +435,29 @@
                         {:type "path" :guide true :class "dashed" :path (arc [0 0] 80 0 angle)}
                         {:type "point" :pos dir}]))
              :drag (fn [{:pos p :prev-pos pp :params [angle]}]
-                     (let [angle-pp (vec2/angle pp)
-                           aligned-p (vec2/rotate [0 0] (- angle-pp) p)
-                           angle-delta (vec2/angle aligned-p)]
-                       [(+ angle angle-delta)]))}}
+                     [(calc-dragged-rotation
+                       :pos p
+                       :prev-pos pp
+                       :angle angle)])}}
   [angle]
   (let [s (sin angle)
         c (cos angle)]
     [c s (- s) c 0 0]))
+
+(defn mat2d/invert
+  {:doc "Inverts `matrix`"
+   :params [{:label "Matrix" :type "mat2d"}]}
+  [[aa ab ac ad atx aty]]
+  (let [det (- (* aa ad) (* ab ac))]
+    (if (zero? det)
+      nil
+      (let [det-inv (/ det)]
+        [(* ad det-inv)
+         (* (- ab) det-inv)
+         (* (- ac) det-inv)
+         (* aa det-inv)
+         (* (- (* ac aty) (* ad atx)) det-inv)
+         (* (- (* ab atx) (* aa aty)) det-inv)]))))
 
 (def mat2d/*
   ^{:doc "Multipies the mat2d's"

@@ -468,14 +468,6 @@ export default class ViewHandles extends Vue {
 		vector-effect non-scaling-stroke
 		fill none
 
-		&.axis-x, &.axis-y
-			stroke-width 1
-
-		&.axis-x
-			stroke var(--red)
-
-		&.axis-y
-			stroke var(--green)
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]
@@ -492,7 +484,13 @@ export default class ViewHandles extends Vue {
 		stroke transparent
 		stroke-width 20
 
-	// Dash
+	// Classes
 	.dashed
 		stroke-dasharray 3 2
+
+	.axis-x, .axis-x .display
+		stroke var(--red) !important
+
+	.axis-y, .axis-y .display
+		stroke var(--green) !important
 </style>

@@ -54,6 +54,11 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
+						<InputMat2d
+							v-else-if="params[i].type === 'mat2d'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
 						<InputString
 							style="color: var(--purple)"
 							v-else-if="params[i].type === 'symbol'"
