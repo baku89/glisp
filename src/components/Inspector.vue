@@ -49,6 +49,11 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
+						<InputRect
+							v-else-if="params[i].type === 'rect'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
 						<InputString
 							style="color: var(--purple)"
 							v-else-if="params[i].type === 'symbol'"
@@ -86,12 +91,9 @@ import VueMarkdown from 'vue-markdown'
 
 import {
 	MalVal,
-	M_FN,
-	M_META,
 	isList,
 	isSymbol,
 	keywordFor as K,
-	isVector,
 	M_PARAMS,
 	isMalFunc,
 	markMalVector,
@@ -102,14 +104,12 @@ import {
 	assocBang,
 	cloneExp,
 	MalNode,
-	isMap,
 	LispError
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import {clamp, getParamLabel} from '@/utils'
-import ConsoleScope from '../scopes/console'
-import {getPrimitiveType, fnInfo} from '../mal-utils'
+import {fnInfo, getPrimitiveType} from '../mal-utils'
 
 const K_DOC = K('doc'),
 	K_PARAMS = K('params'),
@@ -119,10 +119,7 @@ const K_DOC = K('doc'),
 	K_DEFAULT = K('default'),
 	K_KEY = K('key'),
 	K_KEYS = K('keys'),
-	K_ALIAS = K('alias'),
-	K_ENUM = K('enum'),
-	K_NAME = K('name'),
-	K_META = K('meta')
+	K_ENUM = K('enum')
 
 const S_AMP = S('&')
 
@@ -260,21 +257,7 @@ export default class Inspector extends Vue {
 	}
 
 	private detectInputType(v: MalVal) {
-		const type = getType(v)
-
-		if (type === 'vector') {
-			const allNumber = (v as MalVal[]).every(v => typeof v === 'number')
-			if (allNumber) {
-				switch ((v as MalVal[]).length) {
-					case 2:
-						return 'vec2'
-					case 6:
-						return 'mat2d'
-				}
-			}
-		}
-
-		return type || 'any'
+		return getPrimitiveType(v) || getType(v) || 'any'
 	}
 
 	private get paramDescs(): ParamDescs {
@@ -420,6 +403,17 @@ export default class Inspector extends Vue {
 					typeof value[1] === 'number'
 				) {
 					return 'vec2'
+				}
+				break
+			case 'rect':
+				if (
+					Array.isArray(value) &&
+					typeof value[0] === 'number' &&
+					typeof value[1] === 'number' &&
+					typeof value[2] === 'number' &&
+					typeof value[3] === 'number'
+				) {
+					return 'rect'
 				}
 				break
 		}
