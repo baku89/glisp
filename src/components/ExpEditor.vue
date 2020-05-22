@@ -27,7 +27,6 @@ interface Props {
 	exp: NonReactive<MalNode> | null
 	selectedExp: NonReactive<MalNode> | null
 	dark: boolean
-	evalExpIfNeeded: () => any
 	cssStyle: string
 }
 
@@ -43,10 +42,6 @@ export default defineComponent({
 		selectedExp: {
 			required: true,
 			validator: p => p instanceof NonReactive || p === null
-		},
-		evalExpIfNeeded: {
-			type: Function,
-			required: true
 		},
 		dark: {
 			type: Boolean,
@@ -104,8 +99,6 @@ export default defineComponent({
 			if (!props.exp) {
 				return
 			}
-
-			props.evalExpIfNeeded()
 
 			const selectedExp = findExpByRange(
 				props.exp.value,

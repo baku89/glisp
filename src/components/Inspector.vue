@@ -104,8 +104,6 @@ import {
 	markMalVector,
 	getType,
 	symbolFor as S,
-	isString,
-	isKeyword,
 	assocBang,
 	cloneExp,
 	MalNode,
@@ -123,8 +121,7 @@ const K_DOC = K('doc'),
 	K_CONSTRAINTS = K('constraints'),
 	K_DEFAULT = K('default'),
 	K_KEY = K('key'),
-	K_KEYS = K('keys'),
-	K_ENUM = K('enum')
+	K_KEYS = K('keys')
 
 const S_AMP = S('&')
 
@@ -182,6 +179,7 @@ export default class Inspector extends Vue {
 	private exp!: NonReactive<MalNode>
 
 	private get fnInfo() {
+		console.log('get fnInfo', this.exp.value)
 		return fnInfo(this.exp.value)
 	}
 
@@ -434,6 +432,8 @@ export default class Inspector extends Vue {
 		if (valueInputType !== desc[K_TYPE]) {
 			if (desc[K_TYPE] === 'any') {
 				return valueInputType
+			} else if (desc[K_TYPE] === 'color' && valueInputType === 'string') {
+				return 'color'
 			}
 			return 'exp'
 		}

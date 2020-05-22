@@ -26,8 +26,7 @@
 						:exp="exp"
 						:selectedExp="selectedExp"
 						:dark="dark"
-						:evalExpIfNeeded="evalExpIfNeeded"
-						@input="exp = $event"
+						@input="updateExp"
 						@select="selectedExp = $event"
 					/>
 				</div>
@@ -129,7 +128,7 @@ interface UI {
 	guideColor: string
 }
 
-function parseURL(data: Data) {
+function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -185,15 +184,19 @@ function parseURL(data: Data) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
 		const code = `(sketch ${ret[0]}\nnil)`
-		data.exp = nonReactive(readStr(code, true))
+		updateExp(nonReactive(readStr(code, true)))
 	})
 
 	return {onSetupConsole}
 }
 
-function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
+function bindsConsole(
+	data: Data,
+	onUpdateSelectedExp: (val: MalVal) => any,
+	updateExp: (exp: NonReactive<MalVal>) => void
+) {
 	ConsoleScope.def('eval-selected', () => {
-		if (data.selectedExp && data.selectedExp) {
+		if (data.selectedExp) {
 			let evaled
 			if (M_EXPANDED in data.selectedExp.value) {
 				evaled = (data.selectedExp.value as MalNodeList)[M_EXPANDED]
@@ -211,8 +214,7 @@ function bindsConsole(data: Data, onUpdateSelectedExp: (val: MalVal) => any) {
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				console.log(code)
-				data.exp = nonReactive(readStr(`(sketch ${code}\nnil)`, true))
+				updateExp(nonReactive(readStr(`(sketch ${code}\nnil)`, true)))
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
@@ -254,8 +256,6 @@ export default defineComponent({
 		ViewHandles
 	},
 	setup() {
-		let expNotEvaluated = false
-
 		const ui = reactive({
 			compact: false,
 			background: 'whiteSmoke',
@@ -283,45 +283,33 @@ export default defineComponent({
 			hasParseError: false,
 			hasEvalError: computed(() => data.viewExp === null),
 			hasRenderError: false,
-			viewExp: computed(() => {
-				return evalExp()
-			}),
-
+			viewExp: null,
 			// Selection
-			selection: [0, 0],
 			selectedExp: null
 		}) as Data
 
-		function evalExpIfNeeded() {
-			if (expNotEvaluated) {
-				evalExp()
+		function updateExp(exp: NonReactive<MalVal> | null) {
+			let viewExp: NonReactive<MalVal> | null = null
+
+			if (exp) {
+				ViewScope.setup({
+					width: ui.viewerSize[0],
+					height: ui.viewerSize[1],
+					guideColor: ui.guideColor
+				})
+
+				const ret = ViewScope.eval(exp.value)
+				if (ret !== undefined) {
+					ConsoleScope.def('*view*', ret)
+					viewExp = nonReactive(ret)
+				}
 			}
+
+			data.exp = exp
+			data.viewExp = viewExp
 		}
 
-		function evalExp() {
-			const exp = data.exp
-
-			if (!exp) {
-				return null
-			}
-
-			ViewScope.setup({
-				width: ui.viewerSize[0],
-				height: ui.viewerSize[1],
-				guideColor: ui.guideColor
-			})
-
-			expNotEvaluated = false
-			const viewExp = ViewScope.eval(exp.value)
-			if (viewExp !== undefined) {
-				ConsoleScope.def('*view*', viewExp)
-				return nonReactive(viewExp)
-			} else {
-				return null
-			}
-		}
-
-		const {onSetupConsole} = parseURL(data)
+		const {onSetupConsole} = parseURL(updateExp)
 
 		// Background and theme
 		function onSetBackground(bg: string) {
@@ -350,29 +338,36 @@ export default defineComponent({
 				return
 			}
 
-			replaceExp(data.selectedExp.value, exp)
-			expNotEvaluated = true
+			console.log(
+				'onUpdateSelectedExp',
+				'old=',
+				data.selectedExp.value,
+				'new=',
+				exp
+			)
 
-			// Refresh reactivity
-			data.exp = nonReactive(data.exp.value)
+			replaceExp(data.selectedExp.value, exp)
+
+			// Refresh
+			updateExp(nonReactive(data.exp.value))
 
 			if (isMalNode(exp)) {
+				console.log('update Selected Node', exp)
 				data.selectedExp = nonReactive(exp)
-				console.log('udpate selected')
 			}
 		}
 
 		// Init App Handler
-		bindsConsole(data, onUpdateSelectedExp)
+		bindsConsole(data, onUpdateSelectedExp, updateExp)
 
 		return {
 			...toRefs(data as any),
 			onSetupConsole,
 			onUpdateSelectedExp,
-			evalExpIfNeeded,
 
 			...toRefs(ui as any),
-			onSetBackground
+			onSetBackground,
+			updateExp
 		}
 	}
 })
