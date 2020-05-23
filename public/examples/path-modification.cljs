@@ -21,7 +21,9 @@
 
 :start-sketch
 
-(g {:style (stroke "yellow" 4)
+(background "#BCDEDE")
+
+(g {:style (stroke "#F34386" 4)
     :transform (translate [62 198])}
 
    (def p
@@ -31,5 +33,5 @@
       (cloud 328 464 201 31)
       (cloud 361 707 245 21)))
 
-   (for [off [20 40]]
+   (for [off [20]]
      (path/offset off p)))

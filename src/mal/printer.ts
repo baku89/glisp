@@ -13,7 +13,6 @@ import {
 	getType,
 	MalMap,
 	MalFunc,
-	MalNodeList,
 	MalNode
 } from './types'
 
