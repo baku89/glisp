@@ -180,6 +180,9 @@
 (defn vec2/len [v]
   (hypot (.x v) (.y v)))
 
+(defn vec2/sqr-len [v]
+  (+ (pow (.x v) 2) (pow (.y v) 2)))
+
 (defn vec2/rotate
   {:doc "Rotates a vec2"
    :params [{:type "vec2"}
@@ -218,7 +221,18 @@
 (defn vec2/lerp
   {:doc "Performs a linear interpolation between two vec2's"
    :params [{:type "vec2"} {:type "vec2"} {:type "number"}]
-   :returns {:type "vec2"}}
+   :returns {:type "vec2"}
+   :handles {:draw (fn [{:params [a b t] :return p}]
+                     [{:type "path" :class "dashed"
+                       :guide true
+                       :path (line a b)}
+                      {:type "point" :pos p}])
+             :drag (fn [{:pos p :params [a b _]
+                         :unevaluated-params [$a $b _]}]
+                     (let [ab (vec2/- b a)]
+                       [$a $b
+                        (- 1 (/ (vec2/dot (vec2/- p a) ab)
+                                (vec2/sqr-len ab)))]))}}
   [a b t]
   [(lerp (.x a) (.x b) t)
    (lerp (.y a) (.y b) t)])
