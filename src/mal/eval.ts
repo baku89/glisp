@@ -603,7 +603,4 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		// Go upward
 		_outer = _outer[M_OUTER]
 	}
-
-	// print
-	console.log('replaced Exp', original)
 }

@@ -296,8 +296,6 @@ export default defineComponent({
 
 					const ret = ViewScope.eval(data.exp.value)
 
-					console.log('eval', data.exp.value)
-
 					if (ret !== undefined) {
 						// ConsoleScope.def('*view*', ret)
 						viewExp = nonReactive(ret)
@@ -311,7 +309,6 @@ export default defineComponent({
 		}) as Data
 
 		function onUpdateExp(exp: NonReactive<MalVal> | null) {
-			console.log('onUpdateExp')
 			data.exp = exp
 		}
 
@@ -340,7 +337,6 @@ export default defineComponent({
 		)
 
 		function onSelectExp(exp: NonReactive<MalNode>) {
-			console.log('onSelectExp')
 			data.selectedExp = exp
 		}
 
@@ -349,21 +345,12 @@ export default defineComponent({
 				return
 			}
 
-			console.log(
-				'onUpdateSelectedExp',
-				'old=',
-				data.selectedExp.value,
-				'new=',
-				exp.value
-			)
-
 			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
 			onUpdateExp(nonReactive(data.exp.value))
 
 			if (isMalNode(exp.value)) {
-				console.log('update Selected Node', exp)
 				data.selectedExp = exp as NonReactive<MalNode>
 			}
 		}
