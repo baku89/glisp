@@ -18,6 +18,7 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [ツールの直交性](orthogonality)
 - [トランスフォーム](transform)
 - [描画ツリー](draw-tree)
+- [UI の基本原則](principles)
 - 属性の継承
-- ハンドルを定義する
+- [ハンドルを定義する](defining-handle)
 - ドローイングツールを定義する
