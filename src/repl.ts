@@ -1,6 +1,5 @@
 import readlineSync from 'readline-sync'
 import Scope from './mal/scope'
-import path from 'path'
 
 const replScope = new Scope()
 
