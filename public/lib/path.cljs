@@ -124,25 +124,15 @@
                :pos (vec2/+ center (vec2/dir start r))}
               {:id :end :type "point"
                :pos (vec2/+ center (vec2/dir end r))}])
-     :drag (fn [{:id id
-                 :pos p
-                 :prev-pos pp
+     :drag (fn [{:id id :pos p
                  :params [center r start end]
                  :unevaluated-params [$center $r $start $end]}]
              (case id
                :radius [$center (vec2/dist center p) $start $end]
                :center [p $r $start $end]
-               :start (let [start (calc-dragged-rotation
-                                   :center center
-                                   :pos p
-                                   :prev-pos pp
-                                   :angle start)]
+               :start (let [start (vec2/angle (vec2/- p center))]
                         [$center $r start $end])
-               :end (let [end (calc-dragged-rotation
-                               :center center
-                               :pos p
-                               :prev-pos pp
-                               :angle end)]
+               :end (let [end (vec2/angle (vec2/- p center))]
                       [$center $r $start end])))}}
   path/arc)
 (defalias arc path/arc)
@@ -323,3 +313,9 @@
   ^(assoc path-offset-meta :doc "Offsets a path") path/offset)
 (def path/offset-stroke
   ^(assoc path-offset-meta :doc "Generates outline stroke from a path") path/offset-stroke)
+
+(def path/intersections
+  ^{:doc "Returns all intersections between two paths"
+    :params [{:label "a" :type "path"}
+             {:label "b" :type "path"}]}
+  path/intersections)

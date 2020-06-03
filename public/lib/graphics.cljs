@@ -289,7 +289,7 @@
 (defn  view-center
   {:doc "Returns the center of view or artboard"
    :returns {:type "vec2"}
-   :handles {:draw (fn [_ mat]
+   :handles {:draw (fn [{:return mat}]
                      [{:type "point" :class "translate" :pos (take 4 mat)}])}}
   []
   (vec2/scale *size* .5))

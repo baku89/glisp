@@ -740,6 +740,15 @@ function nearestOffset(pos: number[], malPath: PathType) {
 	return location.offset / path.length
 }
 
+function intersections(_a: PathType, _b: PathType) {
+	const a = createPaperPath(_a),
+		b = createPaperPath(_b)
+
+	return a
+		.getIntersections(b)
+		.map(cl => markMalVector([cl.point.x, cl.point.y]))
+}
+
 const Exports = [
 	['path/arc', pathArc],
 	['path/join', pathJoin],
@@ -781,7 +790,8 @@ const Exports = [
 			markMalVector(Array.from(iterateSegment(path) as any))
 	],
 	['path/bounds', pathBounds],
-	['path/nearest-offset', nearestOffset]
+	['path/nearest-offset', nearestOffset],
+	['path/intersections', intersections]
 ] as [string, MalVal][]
 
 const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
