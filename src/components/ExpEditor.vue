@@ -35,6 +35,7 @@ interface Props {
 	selectedExp: NonReactive<MalNode> | null
 	dark: boolean
 	cssStyle: string
+	hasParseError: boolean
 }
 
 export default defineComponent({
@@ -56,6 +57,9 @@ export default defineComponent({
 		},
 		cssStyle: {
 			default: ''
+		},
+		hasParseError: {
+			type: Boolean
 		}
 	},
 	setup(props: Props, context: SetupContext) {
@@ -98,20 +102,28 @@ export default defineComponent({
 					printer.error(err)
 				}
 				context.emit('update:hasParseError', true)
+				context.emit('select', null)
 				return
 			}
 			context.emit('update:hasParseError', false)
 			context.emit('input', nonReactive(exp))
 
-			onSelect(selection.value, exp)
+			onSelect(selection.value, exp, false)
 		}
 
-		function onSelect([start, end]: [number, number], exp?: MalVal) {
+		function onSelect(
+			[start, end]: [number, number],
+			exp?: MalVal,
+			hasParseError?: boolean
+		) {
 			if (exp === undefined) {
 				exp = props.exp?.value
 			}
+			if (hasParseError === undefined) {
+				hasParseError = props.hasParseError
+			}
 
-			if (exp === undefined) {
+			if (hasParseError || exp === undefined) {
 				return
 			}
 
