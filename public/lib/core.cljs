@@ -241,6 +241,13 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      (cons 'cond (rest (rest xs))))))
 
+(defn column
+  {:doc "Returns a vector of nums from *from* to *to* (both inclusive) that each of element is multiplied by *step*"
+   :params [{:label "From" :type "number" :desc "From"}
+            {:label "To" :type "number" :desc "To"}
+            {:label "Step" :type "number" :desc "Step"}]}
+  [from to step]
+  (vec (map #(* % step) (range from (inc to)))))
 
 (def for
   ^{:doc "Make a iteration loop"

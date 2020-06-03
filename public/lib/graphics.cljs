@@ -261,32 +261,20 @@
   [h s l]
   (format "rgb(%f,%f,%f)" (* (mod h 1) 360) (* s 100) (* l 100)))
 
-(defn background
-  {:doc "Set a backgrond color"
-   :params [{:labels "Color" :type "color"}]}
+(defn graphics/background
+  {:doc "Fill the entire view or artboard with a color"
+   :params [{:type "color" :desc "A background color"}]}
   [color]
   `[:background ~color ~*inside-artboard*])
-
-(def background
-  (with-meta background
-    {:doc "Fill the entire view or artboard with a color"
-     :params [{:type "color" :desc "A background color"}]}))
+(defalias background graphics/background)
 
 (defn enable-animation
   [& xs] (concat :enable-animation xs))
 
 (defn element? [a] (and (vector? a) (keyword? (first a))))
 
-(defn column
-  {:doc "Returns a vector of nums from *from* to *to* (both inclusive) that each of element is multiplied by *step*"
-   :params [{:label "From" :type "number" :desc "From"}
-            {:label "To" :type "number" :desc "To"}
-            {:label "Step" :type "number" :desc "Step"}]}
-  [from to step]
-  (vec (map #(* % step) (range from (inc to)))))
-
 ;; Transform
-(defn  view-center
+(defn view-center
   {:doc "Returns the center of view or artboard"
    :returns {:type "vec2"}
    :handles {:draw (fn [{:return mat}]
@@ -295,13 +283,20 @@
   (vec2/scale *size* .5))
 
 ;; Style
-(defn fill
+(defn graphics/fill
   {:doc "Creates a fill property"
    :params [{:label "Color" :type "color" :desc "Color to fill"}]}
   [color]
   {:fill true :fill-color color})
+(defalias fill graphics/fill)
 
-(defn stroke
+(defn graphics/no-fill
+  {:doc "Disables all the previous fill styles"
+   :params []}
+  [] {:fill false})
+(defalias no-fill graphics/no-fill)
+
+(defn graphics/stroke
   {:doc "Creates a stroke property"
    :params [{:label "Color" :type "color"}
             {:label "Width" :default 1 :type "number" :constraints {:min 0}}
@@ -320,6 +315,13 @@
          (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
          (apply concat [:stroke true :stroke-color color])
          (apply hash-map))))
+(defalias stroke graphics/stroke)
+
+(defn graphics/no-stroke
+  {:doc "Disables all the previous stroke styles"
+   :params []}
+  [] {:stroke false})
+(defalias no-stroke graphics/no-stroke)
 
 ; (defn linear-gradient
 ;   {:doc "Define a linear gradient style to apply to fill or stroke"}
@@ -332,7 +334,7 @@
 ;                         :stops (get args :stops))))))
 
 ;; Shape Functions
-(defn text
+(defn graphics/text
   {:doc "Generate a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
             {:type "vec2"}
@@ -344,7 +346,7 @@
                     {:key :baseline :type "string" :default "middle"
                      :enum ["top" "hanging" "middle"
                             "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn [[_ pos & xs]]
+   :handles {:draw (fn [{:params [_ pos & xs]}]
                      (let [args (apply hash-map xs)
                            size (get args :size 12)]
                        [{:id :pos
@@ -368,3 +370,5 @@
                                (concat text-pos args))))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])
+
+(defalias text graphics/text)

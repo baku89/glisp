@@ -97,6 +97,7 @@ export default class CanvasRenderer {
 			  }
 			: null
 
+		// Start drawing
 		return this.draw([], exp, [], defaultStyle)
 	}
 
@@ -341,27 +342,28 @@ export default class CanvasRenderer {
 		const isText = text !== undefined
 
 		const drawOrders = styles.map(s => ({
-			fill: !!s[K_FILL],
-			stroke: !!s[K_STROKE]
+			fill: s[K_FILL],
+			stroke: s[K_STROKE]
 		}))
 
-		let hasDrawnFill = false,
-			hasDrawnStroke = false
+		let ignoreFill = false,
+			ignoreStroke = false
+
 		for (let i = drawOrders.length - 1; i >= 0; i--) {
 			const order = drawOrders[i]
 
-			if (hasDrawnFill) {
+			if (ignoreFill) {
 				order.fill = false
 			}
-			if (hasDrawnStroke) {
+			if (ignoreStroke) {
 				order.stroke = false
 			}
 
-			if (order.fill) {
-				hasDrawnFill = true
+			if (order.fill === false) {
+				ignoreFill = true
 			}
-			if (order.stroke) {
-				hasDrawnStroke = true
+			if (order.stroke === false) {
+				ignoreStroke = true
 			}
 		}
 
