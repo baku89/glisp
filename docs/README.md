@@ -18,7 +18,10 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [ツールの直交性](orthogonality)
 - [トランスフォーム](transform)
 - [描画ツリー](draw-tree)
+- [ブレンドモードの分類](blend-modes)
 - [UI の基本原則](principles)
+- [操作の距離空間](distance-space)
+- [ツールの帯域幅](bandwidth)
 - 属性の継承
 - [ハンドルを定義する](defining-handle)
 - ドローイングツールを定義する

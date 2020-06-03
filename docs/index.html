@@ -124,12 +124,15 @@
 				const [width, height] = e.data
 				const iframe = getFrameByEvent(event)
 
-				iframe.width = width
-				iframe.height = height
+				if (width !== undefined && height !== undefined) {
+					iframe.width = width
+					iframe.height = height
+				}
 			}
 		</script>
 		<script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
 		<script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-clojure.min.js"></script>
 		<script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
+		<script src="http://localhost:8080/js/generator.js"></script>
 	</body>
 </html>
