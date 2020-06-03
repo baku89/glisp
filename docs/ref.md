@@ -31,6 +31,8 @@ Retruns the type of `x` in keyword
 | Value    | `any`     |              |
 
 **returns** `keyword`
+
+
 ### +
 
 Returns the sum of nums
@@ -42,6 +44,8 @@ Returns the sum of nums
 | & x      | `number`  |              |
 
 **returns** `number`
+
+
 ### -
 
 If no ys are supplied, returns the negation of x, else subtracts the ys from x
@@ -54,6 +58,8 @@ If no ys are supplied, returns the negation of x, else subtracts the ys from x
 | & y      | `number`  |              |
 
 **returns** `number`
+
+
 ### *
 
 Returns the product of nums
@@ -65,6 +71,8 @@ Returns the product of nums
 | & x      | `number`  |              |
 
 **returns** `number`
+
+
 ### /
 
 If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys
@@ -89,6 +97,8 @@ Modulus of num and div. Truncates toward negative infinity
 | y        | `number`  |              |
 
 **returns** `number`
+
+
 ### range
 
 Returns a vector of nums from *start* to *end* (exclusive), by *step*
@@ -114,6 +124,8 @@ Returns a vector of nums from *start* to *end* (exclusive), by *step*
 
 
 **returns** `vector`
+
+
 ### rnd
 
 Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*
@@ -128,6 +140,8 @@ Returns a random number between 0-1. Unlike *random*, always returns same value 
 | %3       | ``        |              |
 
 **returns** `number`
+
+
 ### defmacro
 
 Define a macro
@@ -239,6 +253,8 @@ Show the help of function
 | Function | `fn`      |              |
 
 **returns** `nil`
+
+
 ### name
 
 Returns the string name of string, symbol or keyword
@@ -250,6 +266,8 @@ Returns the string name of string, symbol or keyword
 | %0       | `any`     |              |
 
 **returns** `string`
+
+
 ### when
 
 Evaluates test. If true, evaluates body in an implicit do
@@ -366,6 +384,8 @@ Creates a color string
 ### color/gray
 
 **returns** `color`
+
+
 ### color/rgb
 
 **Parameter**
@@ -377,6 +397,8 @@ Creates a color string
 | Blue     | `number`  |              |
 
 **returns** `color`
+
+
 ### color/hsl
 
 **Parameter**
@@ -388,6 +410,8 @@ Creates a color string
 | Lightness | `number`  |              |
 
 **returns** `color`
+
+
 ### background
 
 Fill the entire view or artboard with a color
@@ -401,15 +425,15 @@ Fill the entire view or artboard with a color
 
 ### column
 
-Returns a vector of nums from *start* to *end* (both inclusive) that each of element is multiplied by *step*
+Returns a vector of nums from *from* to *to* (both inclusive) that each of element is multiplied by *step*
 
 **Parameter**
 
 | Name     | Type      | Description  |
 | -------- | --------- | :----------- |
-| %0       | `number`  | From         |
-| %1       | `number`  | To           |
-| %2       | `number`  | Step         |
+| From     | `number`  | From         |
+| To       | `number`  | To           |
+| Step     | `number`  | Step         |
 
 
 ### view-center
@@ -417,6 +441,8 @@ Returns a vector of nums from *start* to *end* (both inclusive) that each of ele
 Returns the center of view or artboard
 
 **returns** `vec2`
+
+
 ### fill
 
 Creates a fill property
@@ -467,6 +493,8 @@ Calculates a number between two numbers at a specific increment
 | %2       | `number`  | Normalized amount to interpolate between the two values |
 
 **returns** `number`
+
+
 ### to-deg
 
 Converts an angles to degrees
@@ -478,6 +506,8 @@ Converts an angles to degrees
 | %0       | `number`  |              |
 
 **returns** `number`
+
+
 ### deg
 
 Represents an angle in degrees
@@ -489,6 +519,8 @@ Represents an angle in degrees
 | %0       | `number`  |              |
 
 **returns** `number`
+
+
 ### .x
 
 Gets x value from vec2
@@ -500,6 +532,8 @@ Gets x value from vec2
 | Value    | `vec2`    |              |
 
 **returns** `number`
+
+
 ### .y
 
 Gets y value from vec2
@@ -511,25 +545,9 @@ Gets y value from vec2
 | Value    | `vec2`    |              |
 
 **returns** `number`
+
+
 ### vec2
-
-Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| x        | `number`  |              |
-
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| x        | `number`  |              |
-| y        | `number`  |              |
-
-
-**returns** `vec2`
-### vec2/init
 
 Creates vec2
 
@@ -551,6 +569,8 @@ Checks if x is vec2
 | %0       | `any`     |              |
 
 **returns** `boolean`
+
+
 ### vec2/+
 
 Adds two vec2's
@@ -563,6 +583,8 @@ Adds two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/-
 
 Subtracts *b* from *a*
@@ -575,6 +597,8 @@ Subtracts *b* from *a*
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/*
 
 Multiplies two vec2's
@@ -587,6 +611,8 @@ Multiplies two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/div
 
 Divides two vec2's
@@ -599,6 +625,8 @@ Divides two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/ceil
 
 Rounds a each element up to the next largest integer
@@ -610,6 +638,8 @@ Rounds a each element up to the next largest integer
 | Value    | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/floor
 
 Replaces a each element with a largest integer less than or equal to it
@@ -621,6 +651,8 @@ Replaces a each element with a largest integer less than or equal to it
 | Value    | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/min
 
 Returns the minimum of two vec2's
@@ -633,6 +665,8 @@ Returns the minimum of two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/max
 
 Returns the maximum of two vec2's
@@ -645,6 +679,8 @@ Returns the maximum of two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/dir
 
 Createsa a vec2 with specified angle and length
@@ -657,6 +693,8 @@ Createsa a vec2 with specified angle and length
 | Length   | `number`  |              |
 
 **returns** `vec2`
+
+
 ### vec2/angle
 
 Returns a angle of vec2 in radians
@@ -668,6 +706,8 @@ Returns a angle of vec2 in radians
 | Value    | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/scale
 
 Scales a vec2 by a scalar number
@@ -680,6 +720,8 @@ Scales a vec2 by a scalar number
 | Scale    | `number`  |              |
 
 **returns** `vec2`
+
+
 ### vec2/scale-add
 
 Adds two vec2's after scaling the second operand by a scalar value
@@ -693,6 +735,8 @@ Adds two vec2's after scaling the second operand by a scalar value
 | %2       | `number`  |              |
 
 **returns** `vec2`
+
+
 ### vec2/dist
 
 Calculate the distance between two vec2's
@@ -705,6 +749,8 @@ Calculate the distance between two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `number`
+
+
 ### vec2/rotate
 
 Rotates a vec2
@@ -718,6 +764,8 @@ Rotates a vec2
 | %2       | `vec2`    |              |
 
 **returns** `vec2`
+
+
 ### vec2/normalize
 
 Normalizes a vec2
@@ -741,6 +789,8 @@ Calculates the dot product of two vec2's
 | %1       | `vec2`    |              |
 
 **returns** `number`
+
+
 ### vec2/lerp
 
 Performs a linear interpolation between two vec2's
@@ -754,6 +804,8 @@ Performs a linear interpolation between two vec2's
 | %2       | `number`  |              |
 
 **returns** `vec2`
+
+
 ### vec2/transform-mat2d
 
 Transforms the vec2 with a mat2d
@@ -766,6 +818,8 @@ Transforms the vec2 with a mat2d
 | Matrix   | `mat2d`   |              |
 
 **returns** `vec2`
+
+
 ### mat2d
 
 Creates mat2d
@@ -774,30 +828,11 @@ Creates mat2d
 
 | Name     | Type      | Description  |
 | -------- | --------- | :----------- |
-| a        | `number`  |              |
-| b        | `number`  |              |
-| c        | `number`  |              |
-| d        | `number`  |              |
-| tx       | `number`  |              |
-| ty       | `number`  |              |
+| %0       | `mat2d`   |              |
 
 **returns** `mat2d`
-### mat2d/init
 
-Creates mat2d
 
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| a        | `number`  |              |
-| b        | `number`  |              |
-| c        | `number`  |              |
-| d        | `number`  |              |
-| tx       | `number`  |              |
-| ty       | `number`  |              |
-
-**returns** `mat2d`
 ### mat2d?
 
 Checks if x is mat2d
@@ -809,6 +844,8 @@ Checks if x is mat2d
 | %0       | `any`     |              |
 
 **returns** `boolean`
+
+
 ### mat2d/ident
 
 Returns ident matrix
@@ -830,6 +867,8 @@ Returns translation matrix
 | Value    | `vec2`    | Amount of translation |
 
 **returns** `null`
+
+
 ### mat2d/translate-x
 
 Returns translation matrix
@@ -841,6 +880,8 @@ Returns translation matrix
 | %0       | `number`  |              |
 
 **returns** `mat2d`
+
+
 ### mat2d/translate-y
 
 Returns translation matrix
@@ -863,6 +904,8 @@ Returns scaling matrix
 | Value    | `vec2`    |              |
 
 **returns** `mat2d`
+
+
 ### mat2d/scale-x
 
 Returns scaling matrix
@@ -874,6 +917,8 @@ Returns scaling matrix
 | %0       | `number`  |              |
 
 **returns** `mat2d`
+
+
 ### mat2d/scale-y
 
 Returns scaling matrix
@@ -885,6 +930,8 @@ Returns scaling matrix
 | %0       | `number`  |              |
 
 **returns** `mat2d`
+
+
 ### mat2d/rotate
 
 Returns rotation matrix
@@ -896,6 +943,19 @@ Returns rotation matrix
 | %0       | `number`  |              |
 
 **returns** `mat2d`
+
+
+### mat2d/invert
+
+Inverts `matrix`
+
+**Parameter**
+
+| Name     | Type      | Description  |
+| -------- | --------- | :----------- |
+| Matrix   | `mat2d`   |              |
+
+
 ### mat2d/*
 
 Multipies the mat2d's
@@ -907,6 +967,8 @@ Multipies the mat2d's
 | & Matrix | `mat2d`   |              |
 
 **returns** `mat2d`
+
+
 ### mat2d/pivot
 
 Pivot
@@ -919,6 +981,8 @@ Pivot
 | & Matrix | `mat2d`   |              |
 
 **returns** `null`
+
+
 ### translate
 
 Alias for `mat2d/translate`
@@ -959,7 +1023,7 @@ Alias for `mat2d/rotate`
 Alias for `mat2d/pivot`
 
 
-### rect/init
+### rect2d
 
 Creates a rectangle representing a region
 
@@ -967,265 +1031,5 @@ Creates a rectangle representing a region
 
 | Name     | Type      | Description  |
 | -------- | --------- | :----------- |
-| Value    | `rect`    |              |
+| x        | `rect2d`  |              |
 
-
-### path/arc
-
-Generate an arc path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Center   | `vec2`    | Coordinate of the arc's center |
-| Radius   | `number`  | The arc's radius |
-| Start    | `number`  | Angle to start the arc |
-| End      | `number`  | Angle to stop the arc |
-
-
-### path/transform
-
-Applies transform matrix for the vertex of input path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Matrix   | `mat2d`   |              |
-| Path     | `path`    |              |
-
-**returns** `path`
-### path/trim
-
-Trims a path by normalized range
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Start    | `number`  |              |
-| End      | `number`  |              |
-| Path     | `path`    |              |
-
-**returns** `path`
-### path/unite
-
-Unites the paths
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Path   | `path`    |              |
-
-
-### path/intersect
-
-Intersects the paths
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Path   | `path`    |              |
-
-
-### path/subtract
-
-Subtracts the paths
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Path   | `path`    |              |
-
-
-### path/exclude
-
-Excludes the paths
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Path   | `path`    |              |
-
-
-### path/divide
-
-Divides the paths
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Path   | `path`    |              |
-
-
-### path/offset
-
-Offsets a path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Offset   | `number`  |              |
-| Path     | `path`    |              |
-| & %3     | ``        |              |
-
-**returns** `path`
-### path/offset-stroke
-
-Generates outline stroke from a path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Offset   | `number`  |              |
-| Path     | `path`    |              |
-| & %3     | ``        |              |
-
-**returns** `path`
-### path/rect
-
-Generates a rect path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Pos      | `vec2`    | coordinate of top-left corner of the rectangle |
-| Size     | `vec2`    | size of the rectangle |
-
-**returns** `path`
-### rect
-
-Alias for `path/rect`
-
-
-### path/circle
-
-Generate a circle path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Center   | `vec2`    | the centre of the circle |
-| Radius   | `number`  | radius of the circle |
-
-
-### circle
-
-Alias for `path/circle`
-
-
-### path/line
-
-Generates a line segment path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| %0       | `vec2`    |              |
-| %1       | `vec2`    |              |
-
-
-### line
-
-Alias for `path/line`
-
-
-### arc
-
-Alias for `path/arc`
-
-
-### path/polyline
-
-Generates a polyline path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & Vertex | `vec2`    |              |
-
-
-### polyline
-
-Alias for `path/polyline`
-
-
-### polygon
-
-Alias for `path/polygon`
-
-
-### path/ellipse
-
-Generates an ellipse path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| %0       | `vec2`    |              |
-| %1       | `vec2`    |              |
-
-
-### ellipse
-
-Alias for `path/ellipse`
-
-
-### path/ngon
-
-Generates a regular polygon
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| %0       | `vec2`    |              |
-| %1       | `number`  |              |
-| # of Vertices | `number`  |              |
-
-
-### ngon
-
-Alias for `path/ngon`
-
-
-### path/point
-
-Generates a point path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| Pos      | `vec2`    |              |
-
-
-### point
-
-Alias for `path/point`
-
-
-### path/merge
-
-Returns a merged path
-
-**Parameter**
-
-| Name     | Type      | Description  |
-| -------- | --------- | :----------- |
-| & %1     | `path`    |              |
-
-**returns** `path`

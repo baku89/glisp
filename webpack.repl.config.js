@@ -1,6 +1,6 @@
 const path = require('path')
 const webpack = require('webpack')
-const CopyPlugin = require('webpack-copy-plugin')
+const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
 	node: {
@@ -9,7 +9,8 @@ module.exports = {
 	},
 	entry: {
 		index: './src/repl.ts',
-		'lib/core': './src/mal-lib/core.ts'
+		'lib/core': './src/mal-lib/core.ts',
+		'lib/path': './src/mal-lib/path.ts'
 	},
 	mode: 'production',
 	resolve: {
@@ -37,12 +38,13 @@ module.exports = {
 	},
 	plugins: [
 		new webpack.IgnorePlugin(/jsdom$/),
-		new CopyPlugin([
-			{
-				from: path.resolve(__dirname, 'public/lib'),
-				to: path.resolve(__dirname, 'test'),
-				toType: ''
-			}
-		])
+		new CopyPlugin({
+			patterns: [
+				{
+					from: 'public/lib',
+					to: 'lib'
+				}
+			]
+		})
 	]
 }
