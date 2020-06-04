@@ -18,7 +18,7 @@
       (apply hf xs)
       (throw "Handle draw function does not exists"))))
 
-(defn apply-on-drag-handle [f & xs]
+(defn apply-drag-handle [f & xs]
   (let [hf (-> (fn-meta f)
                (get :handles)
                (get :drag))]
@@ -49,7 +49,7 @@
   ;;              (let
   ;;               [_point (rect2d/point _bounds) ;; Evaluated point
   ;;                _rect-args [`[0 0 ~@(rect2d/size _bounds)]]
-  ;;                ret-bounds (apply-on-drag-handle
+  ;;                ret-bounds (apply-drag-handle
   ;;                            rect2d/init
   ;;                            (assoc info
   ;;                                   :params _rect-args
