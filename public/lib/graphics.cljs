@@ -286,8 +286,10 @@
 (defn graphics/fill
   {:doc "Creates a fill property"
    :params [{:label "Color" :type "color" :desc "Color to fill"}]}
-  [color]
-  {:fill true :fill-color color})
+  [& xs]
+  (if (zero? (count xs))
+    {:fill true}
+    {:fill true :fill-color (first xs)}))
 (defalias fill graphics/fill)
 
 (defn graphics/no-fill
@@ -356,7 +358,7 @@
                         {:id :size
                          :type "path"
                          :path (ngon pos size 4)}]))
-             :drag (fn [{:id id :pos p} params]
+             :drag (fn [{:id id :pos p :params params}]
                      (case id
                        :pos (replace-nth params 1 p)
                        :size (let [text-pos (take 2 params)
