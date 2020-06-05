@@ -1,5 +1,9 @@
 # GLISP
 
+<div align="center">
+	<img src="public/assets/logo.png" width="200" />
+</div>
+
 Glisp stands for Graphical Lisp.
 
 This project is the exploration of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP.
