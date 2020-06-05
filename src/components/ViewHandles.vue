@@ -26,11 +26,7 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -81,12 +77,17 @@ import {
 	isList,
 	M_OUTER_INDEX,
 	MalMap,
-	MalFunc
+	MalFunc,
+	isMalFunc,
+	M_FN,
+	malEquals,
+	getType
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
 import {fnInfo} from '@/mal-utils'
 import {NonReactive, nonReactive} from '../utils'
+import {printExp} from '../mal'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -427,19 +428,51 @@ export default class ViewHandles extends Vue {
 			return null
 		}
 
-		if (newParams) {
-			if (newParams[0] === K_CHANGE_ID) {
-				const newId = newParams[1]
-				this.draggingIndex = this.handles.findIndex(h => h.id === newId)
-				newParams = newParams[2] as MalVal[]
+		if (!newParams) {
+			return
+		}
+
+		if (newParams[0] === K_CHANGE_ID) {
+			const newId = newParams[1]
+			this.draggingIndex = this.handles.findIndex(h => h.id === newId)
+			newParams = newParams[2] as MalVal[]
+		}
+
+		for (let i = 0; i < newParams.length; i++) {
+			let newValue = newParams[i]
+			const unevaluated = this.unevaluatedParams[i] as MalVal[]
+
+			// if (malEquals(newValue, this.params[i])) {
+			// 	newValue = unevaluated
+			// }
+
+			if (unevaluated instanceof Object && M_FN in unevaluated) {
+				const info = fnInfo(unevaluated as MalNode)
+
+				if (info) {
+					const returnType =
+						info.meta[K('returns')] instanceof Object
+							? (info.meta[K('returns')] as MalMap)[K('type')] || null
+							: null
+
+					if (K('inverse') in info.meta && getType(newValue) === returnType) {
+						const inverseFn = info.meta[K('inverse')] as MalFunc
+
+						const fnName = unevaluated[0]
+						const fnParams = inverseFn(newValue) as MalVal[]
+						newValue = [fnName, ...fnParams]
+					}
+				}
 			}
 
-			const newExp: MalNodeList = this.fnInfo?.primitive
-				? (newParams[0] as MalNodeList)
-				: ([this.exp.value[0], ...newParams] as MalNodeList)
-
-			this.$emit('input', nonReactive(newExp))
+			newParams[i] = newValue
 		}
+
+		const newExp: MalNodeList = this.fnInfo?.primitive
+			? (newParams[0] as MalNodeList)
+			: ([this.exp.value[0], ...newParams] as MalNodeList)
+
+		this.$emit('input', nonReactive(newExp))
 	}
 
 	private onMouseup() {
@@ -467,7 +500,6 @@ export default class ViewHandles extends Vue {
 		stroke var(--blue)
 		vector-effect non-scaling-stroke
 		fill none
-
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]

@@ -358,13 +358,17 @@
 
 (defn  percent
   {:doc "Map the percentage value between 0-100 to normalized 0-1"
-   :params [{:type "number"}]}
+   :params [{:type "number"}]
+   :returns {:type "number"}
+   :inverse (fn [ret] [(* ret 100)])
+   }
   [value] (/ value 100))
 
 (defn compare
   {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
    :params [{:type "number"}
-            {:type "number"}]}
+            {:type "number"}]
+   :returns {:type "number"}}
   [x y]
   (cond (= x y) 0
         (> x y) 1

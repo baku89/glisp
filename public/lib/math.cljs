@@ -9,16 +9,33 @@
             {:type "number" :desc "Normalized amount to interpolate between the two values"}]
    :returns {:type "number"}}
   [a b t] (+ b (* (- a b) t)))
+
+;; Angle Units
 (defn to-deg
   {:doc "Converts an angles to degrees"
    :params [{:type "number"}]
    :returns {:type "number"}}
   [radians] (/ (* radians 180) PI))
+
 (defn deg
   {:doc "Represents an angle in degrees"
    :params [{:type "number"}]
-   :returns {:type "number"}}
+   :returns {:type "number"}
+   :inverse (fn [ret] [(to-deg ret)])}
   [degrees] (/ (* degrees PI) 180))
+
+(defn to-turn
+  {:doc "Converts an angles to turn"
+   :params [{:type "number"}]
+   :returns {:type "number"}}
+  [radians] (/ radians TWO_PI))
+
+(defn turn
+  {:doc "Represents an angle in a number of turns"
+   :params [{:type "number"}]
+   :returns {:type "number"}
+   :inverse (fn [ret] [(to-turn ret)])}
+  [turn] (* turn TWO_PI))
 
 
 (defn clamp
