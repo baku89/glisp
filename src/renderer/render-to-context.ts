@@ -76,7 +76,7 @@ export default function renderToContext(
 					}
 					case K('path'): {
 						drawPath(ctx, exp as PathType)
-						applyDrawStyle(styles, defaultStyle, exp)
+						applyDrawStyle(styles, defaultStyle, exp as PathType)
 						break
 					}
 					case K('text'): {
