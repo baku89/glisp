@@ -106,15 +106,20 @@ export default class GlobalMenu extends Vue {
 
 	h1
 		position relative
-		margin 0
+		overflow hidden
+		margin 0 0 0 0.5rem
 		padding 0rem
-		width 10rem
+		width 3.5rem
 		height 3.5rem
-		border-right 1px solid var(--comment)
+		background var(--foreground)
 		text-align center
-		letter-spacing 0.2em
-		font-size 1.1rem
+		text-indent 10rem
+		font-weight normal
 		line-height 3.5rem
+		mask-image url('./assets/logo.png')
+		mask-size 60% 60%
+		mask-repeat no-repeat
+		mask-position 50% 50%
 
 	&__menu
 		display flex
@@ -125,9 +130,9 @@ export default class GlobalMenu extends Vue {
 		padding 0 1.5rem
 		height 100%
 		color var(--comment)
-		font-size 1.1rem
+		// font-size 1.1rem
 		// background red
-		line-height 3.5rem
+		line-height 3.8rem
 		cursor pointer
 
 		&:hover, &.active

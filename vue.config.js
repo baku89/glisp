@@ -1,4 +1,5 @@
 const WorkerPlugin = require('worker-plugin')
+const CopyPlugin = require('copy-webpack-plugin')
 const path = require('path')
 
 module.exports = {
@@ -18,6 +19,13 @@ module.exports = {
 			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
 			'lib/path': path.join(__dirname, 'src/mal-lib/path.ts'),
 			'js/generator': path.join(__dirname, 'src/generator.ts')
+		}
+	},
+	css: {
+		loaderOptions: {
+			css: {
+				url: false
+			}
 		}
 	},
 	pages: {
