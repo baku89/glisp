@@ -205,9 +205,22 @@
   {:doc "Generates a regular polygon"
    :params [{:type "vec2"}
             {:type "number" :constraints {:min 0}}
-            {:label "# of Vertices" :type "number" :constraints {:min 3 :step 1}}]}
-  [center radius n]
-  (let [angles (column 0 n (/ TWO_PI n))
+            {:type "number" :constraints {:min 3 :step 1}}]
+   :handles {:draw (fn [{:params [center radius sides]}]
+                     [{:type "path" :guide true :class "dashed"
+                       :path (arc center (+ radius 40) (/ TWO_PI 100) (/ TWO_PI 3))}
+                      {:id :center :type "point" :class "translate" :pos center}
+                      {:id :radius :type "arrow" :pos (vec2/+ center [radius 0])}
+                      {:id :sides :type "point" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
+             :drag (fn [{:id id :pos p :params [center radius sides]}]
+                     (case id
+                       :center [p radius sides]
+                       :radius [center (abs (- (.x p) (.x center))) sides]
+                       :sides (let [angle (vec2/angle (vec2/- p center))
+                                    sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
+                                [center radius sides])))}}
+  [center radius sides]
+  (let [angles (column 0 sides (/ TWO_PI sides))
         vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
     (apply polygon vertices)))
 (defalias ngon path/ngon)
