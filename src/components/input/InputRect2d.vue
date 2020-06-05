@@ -30,25 +30,21 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, watch} from '@vue/composition-api'
+import {defineComponent, ref, Ref, watch, PropType} from '@vue/composition-api'
 import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 import {useDraggable} from '@/components/use'
-
-interface Props {
-	value: [number, number]
-}
 
 export default defineComponent({
 	name: 'InputRect2d',
 	components: {InputNumber},
 	props: {
 		value: {
-			type: Array,
+			type: Array as PropType<number[]>,
 			required: true
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const dragEl: Ref<null | HTMLElement> = ref(null)
 
 		const onInput = (i: number, v: number) => {

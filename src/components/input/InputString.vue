@@ -9,12 +9,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from '@vue/composition-api'
-
-interface Props {
-	value: string
-	validator?: (v: string) => string | null
-}
+import {defineComponent, PropType} from '@vue/composition-api'
 
 export default defineComponent({
 	name: 'InputString',
@@ -24,11 +19,11 @@ export default defineComponent({
 			required: true
 		},
 		validator: {
-			type: Function,
+			type: Function as PropType<(v: string) => string | null>,
 			required: false
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const onInput = (e: InputEvent) => {
 			let val: string | null = (e.target as HTMLInputElement).value
 

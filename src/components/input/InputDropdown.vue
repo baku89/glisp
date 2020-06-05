@@ -7,33 +7,25 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from '@vue/composition-api'
-
-type ValueType = string | number
-
-interface Props {
-	value: ValueType
-	values: ValueType[]
-	labels?: string[]
-}
+import {defineComponent, PropType} from '@vue/composition-api'
 
 export default defineComponent({
 	name: 'InputDropdown',
 	props: {
 		value: {
-			type: [String, Number],
+			type: [String, Number] as PropType<string | number>,
 			required: true
 		},
 		values: {
-			type: Array,
+			type: Array as PropType<string[] | number[]>,
 			required: true
 		},
 		labels: {
-			type: Array,
+			type: Array as PropType<string[]>,
 			required: false
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const onChange = (e: InputEvent) => {
 			const {selectedIndex} = e.target as HTMLSelectElement
 			const newValue = props.values[selectedIndex]

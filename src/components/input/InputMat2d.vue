@@ -42,24 +42,20 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from '@vue/composition-api'
+import {defineComponent, PropType} from '@vue/composition-api'
 import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
-
-interface Props {
-	value: [number, number]
-}
 
 export default defineComponent({
 	name: 'InputMat2d',
 	components: {InputNumber},
 	props: {
 		value: {
-			type: Array,
+			type: Array as PropType<number[]>,
 			required: true
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const onInput = (i: number, v: number) => {
 			const value = markMalVector([...props.value])
 			value[i] = v

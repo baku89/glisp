@@ -11,7 +11,8 @@ import {
 	onMounted,
 	onBeforeMount,
 	watch,
-	ref
+	ref,
+	PropType
 } from '@vue/composition-api'
 import ResizeSensor from 'resize-sensor'
 
@@ -19,11 +20,6 @@ import {MalVal, LispError} from '@/mal/types'
 import {printer} from '@/mal/printer'
 import {NonReactive} from '@/utils'
 import createCanvasRender, {CanvasRendererType} from '@/renderer/CanvasRenderer'
-
-interface Props {
-	exp: NonReactive<MalVal> | null
-	guideColor: string
-}
 
 function useResizeSensor(el: Ref<HTMLElement | null>, callback: () => any) {
 	let sensor: any
@@ -44,6 +40,7 @@ function useResizeSensor(el: Ref<HTMLElement | null>, callback: () => any) {
 export default defineComponent({
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true
 		},
 		guideColor: {
@@ -51,7 +48,7 @@ export default defineComponent({
 			required: true
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		let renderer: CanvasRendererType | null = null
 
 		const el: Ref<HTMLElement | null> = ref(null)
