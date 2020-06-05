@@ -331,3 +331,41 @@ export class MalAtom {
 		this.val = val
 	}
 }
+
+// General functions
+export function malEquals(a: MalVal, b: MalVal) {
+	const type = getType(a)
+	const typeB = getType(b)
+
+	if (type !== typeB) {
+		return false
+	}
+
+	switch (type) {
+		case 'list':
+		case 'vector':
+			if ((a as MalVal[]).length !== (b as MalVal[]).length) {
+				return false
+			}
+			for (let i = 0; i < (a as MalVal[]).length; i++) {
+				if (!malEquals((a as MalVal[])[i], (b as MalVal[])[i])) {
+					return false
+				}
+			}
+			return true
+		case 'map': {
+			const keys = Object.keys(a as MalMap)
+			if (keys.length !== Object.keys(b as MalMap).length) {
+				return false
+			}
+			for (const key of keys) {
+				if (!malEquals((a as MalMap)[key], (b as MalMap)[key])) {
+					return false
+				}
+			}
+			return true
+		}
+		default:
+			return a === b
+	}
+}
