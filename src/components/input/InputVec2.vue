@@ -48,7 +48,7 @@ export default defineComponent({
 			context.emit('input', value)
 		}
 
-		const {drag} = useDraggable(dragEl)
+		const drag = useDraggable(dragEl)
 
 		watch(
 			() => [drag.isDragging, drag.deltaX, drag.deltaY],
