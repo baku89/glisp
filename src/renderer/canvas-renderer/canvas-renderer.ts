@@ -64,7 +64,7 @@ export default class CanvasRenderer {
 			: null
 
 		// Start drawing
-		return renderToContext(this.ctx, [], exp, [], defaultStyle)
+		return renderToContext(this.ctx, exp, defaultStyle)
 	}
 
 	public async getImage() {

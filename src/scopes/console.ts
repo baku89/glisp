@@ -6,7 +6,7 @@ import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 import {MalVal, LispError, isKeyword, symbolFor as S} from '@/mal/types'
 
-import createCanvasRender from '@/renderer/CanvasRenderer'
+import createCanvasRender from '@/renderer/canvas-renderer'
 
 import ViewScope from './view'
 

@@ -16,17 +16,17 @@ type CanvasContext =
 
 export default function renderToContext(
 	ctx: CanvasContext,
-	ret: any[],
 	exp: MalVal,
-	styles: MalMap[],
-	defaultStyle: MalMap | null
+	defaultStyle: MalMap | null = null,
+	ret: any[] = [],
+	styles: MalMap[] = []
 ) {
 	if (Array.isArray(exp) && exp.length > 0) {
 		const [elm, ...rest] = exp as any[]
 
 		if (!isKeyword(elm)) {
 			for (const child of exp) {
-				renderToContext(ctx, ret, child, styles, defaultStyle)
+				renderToContext(ctx, child, defaultStyle, ret, styles)
 			}
 		} else {
 			const cmd = elm.replace(/#.*$/, '')
@@ -39,29 +39,22 @@ export default function renderToContext(
 					ctx.transform(
 						...(mat as [number, number, number, number, number, number])
 					)
-
-					for (const child of children) {
-						renderToContext(ctx, ret, child, styles, defaultStyle)
-					}
+					renderToContext(ctx, children, defaultStyle, ret, styles)
 					ctx.restore()
-
 					break
 				}
-				case K('g'):
-					for (const child of exp.slice(1)) {
-						renderToContext(ctx, ret, child, styles, defaultStyle)
-					}
+				case K('g'): {
+					const children = rest.slice(1)
+					renderToContext(ctx, children, defaultStyle, ret, styles)
 					break
+				}
 				case K('style'): {
 					const [attrs, ...children] = rest
 					styles = [
 						...styles,
 						...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
 					]
-
-					for (const child of children) {
-						renderToContext(ctx, ret, child, styles, defaultStyle)
-					}
+					renderToContext(ctx, children, defaultStyle, ret, styles)
 					break
 				}
 				case K('clip'): {
@@ -73,9 +66,7 @@ export default function renderToContext(
 					ctx.clip(clipRegion)
 
 					// Draw inner items
-					for (const child of children) {
-						renderToContext(ctx, ret, child, styles, defaultStyle)
-					}
+					renderToContext(ctx, children, defaultStyle, ret, styles)
 
 					// Restore
 					ctx.restore()
@@ -83,7 +74,6 @@ export default function renderToContext(
 				}
 				case K('path'): {
 					drawPath(ctx, exp as PathType)
-					// Apply Styles
 					applyDrawStyle(styles, defaultStyle)
 					break
 				}
@@ -128,7 +118,7 @@ export default function renderToContext(
 					break
 				}
 				case K('artboard'): {
-					const [region, body] = rest
+					const [region, children] = rest
 					const [x, y, w, h] = region
 
 					// Enable Clip
@@ -138,7 +128,7 @@ export default function renderToContext(
 					ctx.clip(clipRegion)
 
 					// Draw inner items
-					renderToContext(ctx, ret, body, styles, defaultStyle)
+					renderToContext(ctx, children, defaultStyle, ret, styles)
 
 					// Restore
 					ctx.restore()
