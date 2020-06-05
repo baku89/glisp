@@ -331,9 +331,3 @@ export class MalAtom {
 		this.val = val
 	}
 }
-
-// Namespace
-export interface MalNamespace {
-	jsObjects?: [string, any, any][]
-	malCode?: string
-}
