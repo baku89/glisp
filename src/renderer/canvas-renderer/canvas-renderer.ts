@@ -49,10 +49,6 @@ export default class CanvasRenderer {
 			ctx.transform(m[0], m[1], m[3], m[4], m[6], m[7])
 		}
 
-		// Set the default line cap
-		ctx.lineCap = 'round'
-		ctx.lineJoin = 'round'
-
 		// default style
 		const defaultStyle: MalMap | null = settings.guideColor
 			? {

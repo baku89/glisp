@@ -9,6 +9,7 @@ import {MalVal, LispError, isKeyword, symbolFor as S} from '@/mal/types'
 import createCanvasRender from '@/renderer/canvas-renderer'
 
 import ViewScope from './view'
+import renderToSvg from '@/renderer/render-to-svg'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -97,6 +98,14 @@ ConsoleScope.def('save', (...args: MalVal[]) => {
 
 	FileSaver.saveAs(file)
 
+	return null
+})
+
+ConsoleScope.def('copy-as-svg', () => {
+	const viewExp: MalVal | undefined = ConsoleScope.var('*view*')
+
+	const svg = renderToSvg(viewExp, 500, 500)
+	copyToClipboard(svg)
 	return null
 })
 

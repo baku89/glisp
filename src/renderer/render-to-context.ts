@@ -17,136 +17,140 @@ type CanvasContext =
 export default function renderToContext(
 	ctx: CanvasContext,
 	exp: MalVal,
-	defaultStyle: MalMap | null = null,
-	ret: any[] = [],
-	styles: MalMap[] = []
+	defaultStyle: MalMap | null = null
 ) {
-	if (Array.isArray(exp) && exp.length > 0) {
-		const [elm, ...rest] = exp as any[]
+	function draw(exp: MalVal, ret: any[], styles: MalMap[]) {
+		if (Array.isArray(exp) && exp.length > 0) {
+			const [elm, ...rest] = exp as any[]
 
-		if (!isKeyword(elm)) {
-			for (const child of exp) {
-				renderToContext(ctx, child, defaultStyle, ret, styles)
-			}
-		} else {
-			const cmd = elm.replace(/#.*$/, '')
+			if (!isKeyword(elm)) {
+				for (const child of exp) {
+					draw(child, ret, styles)
+				}
+			} else {
+				const cmd = elm.replace(/#.*$/, '')
 
-			switch (cmd) {
-				case K('transform'): {
-					const [mat, ...children] = rest as [number[], ...MalVal[]]
+				switch (cmd) {
+					case K('transform'): {
+						const [mat, ...children] = rest as [number[], ...MalVal[]]
 
-					ctx.save()
-					ctx.transform(
-						...(mat as [number, number, number, number, number, number])
-					)
-					renderToContext(ctx, children, defaultStyle, ret, styles)
-					ctx.restore()
-					break
-				}
-				case K('g'): {
-					const children = rest.slice(1)
-					renderToContext(ctx, children, defaultStyle, ret, styles)
-					break
-				}
-				case K('style'): {
-					const [attrs, ...children] = rest
-					styles = [
-						...styles,
-						...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
-					]
-					renderToContext(ctx, children, defaultStyle, ret, styles)
-					break
-				}
-				case K('clip'): {
-					const [clipPath, ...children] = rest
-					// Enable Clip
-					ctx.save()
-					const clipRegion = new Path2D()
-					drawPath(clipRegion, clipPath)
-					ctx.clip(clipRegion)
-
-					// Draw inner items
-					renderToContext(ctx, children, defaultStyle, ret, styles)
-
-					// Restore
-					ctx.restore()
-					break
-				}
-				case K('path'): {
-					drawPath(ctx, exp as PathType)
-					applyDrawStyle(styles, defaultStyle)
-					break
-				}
-				case K('text'): {
-					// Text representation:
-					// (:text "Text" x y {:option1 value1...})
-					const [text, [x, y], options] = rest
-					const settings: any = {
-						size: 12,
-						font: 'Fira Code',
-						align: 'center',
-						baseline: 'middle'
+						ctx.save()
+						ctx.transform(
+							...(mat as [number, number, number, number, number, number])
+						)
+						draw(children, ret, styles)
+						ctx.restore()
+						break
 					}
-
-					if (isMap(options)) {
-						for (const [k, v] of Object.entries(options)) {
-							settings[(k as string).slice(1)] = v
+					case K('g'): {
+						const children = rest.slice(1)
+						draw(children, ret, styles)
+						break
+					}
+					case K('style'): {
+						const [attrs, ...children] = rest
+						styles = [
+							...styles,
+							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
+						]
+						draw(children, ret, styles)
+						break
+					}
+					case K('clip'): {
+						const [clipPath, ...children] = rest
+						// Enable Clip
+						ctx.save()
+						drawPath(ctx, clipPath)
+						if (!ctx.resetTransform) {
+							ctx.fillStyle = 'blue'
+							ctx.fill()
 						}
+						ctx.clip()
+
+						// Draw inner items
+						draw(children, ret, styles)
+
+						// Restore
+						ctx.restore()
+						break
 					}
-
-					ctx.font = `${settings.size}px ${settings.font}`
-					ctx.textAlign = settings.align as CanvasTextAlign
-					ctx.textBaseline = settings.baseline as CanvasTextBaseline
-
-					// Apply Styles
-					applyDrawStyle(styles, defaultStyle, text, x, y)
-
-					break
-				}
-				case K('background'): {
-					const color = rest[0]
-					if (!rest[1]) {
-						ret.push(['set-background', color])
+					case K('path'): {
+						drawPath(ctx, exp as PathType)
+						applyDrawStyle(styles, defaultStyle, exp)
+						break
 					}
-					ctx.fillStyle = color
+					case K('text'): {
+						// Text representation:
+						// (:text "Text" x y {:option1 value1...})
+						const [text, [x, y], options] = rest
+						const settings: any = {
+							size: 12,
+							font: 'Fira Code',
+							align: 'center',
+							baseline: 'middle'
+						}
 
-					ctx.save()
-					ctx.resetTransform()
-					ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-					ctx.restore()
+						if (isMap(options)) {
+							for (const [k, v] of Object.entries(options)) {
+								settings[(k as string).slice(1)] = v
+							}
+						}
 
-					break
+						ctx.font = `${settings.size}px ${settings.font}`
+						ctx.textAlign = settings.align as CanvasTextAlign
+						ctx.textBaseline = settings.baseline as CanvasTextBaseline
+
+						// Apply Styles
+						applyDrawStyle(styles, defaultStyle, {text, x, y})
+
+						break
+					}
+					case K('artboard'): {
+						const [region, children] = rest
+						const [x, y, w, h] = region
+
+						// Enable Clip
+						ctx.save()
+						ctx.rect(x, y, w, h)
+						ctx.clip()
+
+						// Draw inner items
+						draw(children, ret, styles)
+
+						// Restore
+						ctx.restore()
+						break
+					}
+					case K('background'): {
+						const color = rest[0]
+						if (!rest[1]) {
+							ret.push(['set-background', color])
+						}
+
+						if (ctx.resetTransform) {
+							ctx.save()
+							ctx.fillStyle = color
+							ctx.resetTransform()
+							ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+							ctx.restore()
+						}
+
+						break
+					}
+					case K('enable-animation'): {
+						let fps = rest[0]
+						fps = 0.1 < fps && fps < 60 ? fps : -1
+						ret.push(['enable-animation', fps])
+						break
+					}
+					default:
+						throw new LispError(`Unknown rendering command ${printExp(cmd)}`)
 				}
-				case K('artboard'): {
-					const [region, children] = rest
-					const [x, y, w, h] = region
-
-					// Enable Clip
-					ctx.save()
-					const clipRegion = new Path2D()
-					clipRegion.rect(x, y, w, h)
-					ctx.clip(clipRegion)
-
-					// Draw inner items
-					renderToContext(ctx, children, defaultStyle, ret, styles)
-
-					// Restore
-					ctx.restore()
-					break
-				}
-				case K('enable-animation'): {
-					let fps = rest[0]
-					fps = 0.1 < fps && fps < 60 ? fps : -1
-					ret.push(['enable-animation', fps])
-					break
-				}
-				default:
-					throw new LispError(`Unknown rendering command ${printExp(cmd)}`)
 			}
 		}
-	}
 
-	// Functions
+		return ret
+	}
 
 	function drawPath(ctx: CanvasContext | Path2D, path: PathType) {
 		if (!(ctx instanceof Path2D)) {
@@ -206,12 +210,17 @@ export default function renderToContext(
 	function applyDrawStyle(
 		styles: MalMap[],
 		defaultStyle: MalMap | null,
-		text?: string,
-		x?: number,
-		y?: number
+		content:
+			| PathType
+			| {
+					text: string
+					x: number
+					y: number
+			  }
 	) {
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
-		const isText = text !== undefined
+		const isPath = Array.isArray(content),
+			isText = !isPath
 
 		const drawOrders = styles.map(s => ({
 			fill: s[K('fill')],
@@ -224,19 +233,11 @@ export default function renderToContext(
 		for (let i = drawOrders.length - 1; i >= 0; i--) {
 			const order = drawOrders[i]
 
-			if (ignoreFill) {
-				order.fill = false
-			}
-			if (ignoreStroke) {
-				order.stroke = false
-			}
+			if (ignoreFill) order.fill = false
+			if (ignoreStroke) order.stroke = false
 
-			if (order.fill === false) {
-				ignoreFill = true
-			}
-			if (order.stroke === false) {
-				ignoreStroke = true
-			}
+			if (order.fill === false) ignoreFill = true
+			if (order.stroke === false) ignoreStroke = true
 		}
 
 		ctx.save()
@@ -265,22 +266,28 @@ export default function renderToContext(
 			}
 
 			if (drawOrders[i].fill) {
-				if (isText) {
-					ctx.fillText(text as string, x as number, y as number)
-				} else {
+				if (Array.isArray(content)) {
+					drawPath(ctx, content)
 					ctx.fill()
+				} else {
+					ctx.fillText(content.text, content.x, content.y)
 				}
 			}
 			if (drawOrders[i].stroke) {
-				if (isText) {
-					ctx.strokeText(text as string, x as number, y as number)
-				} else {
+				if (Array.isArray(content)) {
+					drawPath(ctx, content)
 					ctx.stroke()
+				} else {
+					ctx.strokeText(content.text, content.x, content.y)
 				}
 			}
 		}
 		ctx.restore()
 	}
 
-	return ret
+	// Set the default line cap
+	ctx.lineCap = 'round'
+	ctx.lineJoin = 'round'
+
+	return draw(exp, [], [])
 }
