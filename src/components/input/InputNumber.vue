@@ -14,13 +14,14 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ref, Ref} from '@vue/composition-api'
+import {
+	defineComponent,
+	computed,
+	ref,
+	Ref,
+	PropType
+} from '@vue/composition-api'
 import {useDraggable, useKeyboardState} from '../use'
-
-interface Props {
-	value: number
-	validator?: (v: number) => number | null
-}
 
 export default defineComponent({
 	name: 'InputNumber',
@@ -30,11 +31,11 @@ export default defineComponent({
 			required: true
 		},
 		validator: {
-			type: Function,
+			type: Function as PropType<(v: number) => number | null>,
 			required: false
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		// Element references
 		const dragEl = ref(null)
 		const inputEl: Ref<null | HTMLInputElement> = ref(null)
