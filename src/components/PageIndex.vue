@@ -297,7 +297,7 @@ export default defineComponent({
 					const ret = ViewScope.eval(data.exp.value)
 
 					if (ret !== undefined) {
-						// ConsoleScope.def('*view*', ret)
+						ConsoleScope.def('*view*', ret)
 						viewExp = nonReactive(ret)
 					}
 				}
