@@ -367,8 +367,6 @@ export default class CanvasRenderer {
 			}
 		}
 
-		console.log(styles, drawOrders)
-
 		ctx.save()
 		for (let i = 0; i < styles.length; i++) {
 			const style = styles[i]
