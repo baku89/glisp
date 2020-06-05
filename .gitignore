@@ -8,6 +8,8 @@ node_modules
 
 /task.deploy.js
 
+/assets/**/*.ai
+
 # local env files
 .env.local
 .env.*.local
