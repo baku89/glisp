@@ -361,15 +361,14 @@
              :drag (fn [{:id id :pos p :params params}]
                      (case id
                        :pos (replace-nth params 1 p)
-                       :size (let [text-pos (take 2 params)
-                                   dir (vec2/- (nth params 1) p)
+                       :size (let [dir (vec2/- (nth params 1) p)
                                    size (+ (abs (.x dir)) (abs (.y dir)))
-                                   args (->> (take 2 params)
+                                   args (->> (drop 2 params)
                                              (apply hash-map)
                                              (#(assoc % :size size))
                                              (entries)
                                              (apply concat))]
-                               (concat text-pos args))))}}
+                               `[~@(take 2 params) ~@args])))}}
   [text pos & xs]
   [:text text pos (apply hash-map xs)])
 
