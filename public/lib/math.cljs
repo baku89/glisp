@@ -21,6 +21,15 @@
   [degrees] (/ (* degrees PI) 180))
 
 
+(defn clamp
+  {:doc "Clamp `x` between two other value"
+   :params [{:label "x" :type "number"}
+            {:label "Min" :type "number"}
+            {:label "max" :type "number"}]
+   :returns {:type "number"}}
+  [x _min _max]
+  (min (max _min x) _max))
+
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
 ;; http://glmatrix.net/docs/vec2.js.htm
