@@ -1,15 +1,21 @@
 <template>
-	<input
-		class="InputNumber"
-		type="number"
-		:value="value"
-		:step="step"
-		@input="onInput"
-	/>
+	<div class="InputNumber" :class="{editing}">
+		<div class="InputNumber__drag" ref="dragEl" />
+		<input
+			class="InputNumber__input"
+			type="number"
+			:value="value"
+			:step="step"
+			@input="onInput"
+			@blur="onBlur"
+			ref="inputEl"
+		/>
+	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from '@vue/composition-api'
+import {defineComponent, computed, ref, Ref} from '@vue/composition-api'
+import {useDraggable, useKeyboardState} from '../use'
 
 interface Props {
 	value: number
@@ -29,6 +35,41 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
+		// Element references
+		const dragEl = ref(null)
+		const inputEl: Ref<null | HTMLInputElement> = ref(null)
+
+		const {shift, alt} = useKeyboardState()
+
+		// Drag Events
+		useDraggable(dragEl, {
+			onClick() {
+				editing.value = true
+				if (inputEl.value) {
+					inputEl.value.focus()
+					inputEl.value.select()
+				}
+			},
+			onDrag({deltaX}) {
+				let inc = deltaX
+
+				if (shift.value) {
+					inc *= 10
+				}
+				if (alt.value) {
+					inc /= 10
+				}
+
+				update(props.value + inc)
+			}
+		})
+
+		function aaa(e: KeyboardEvent) {
+			console.log(e)
+		}
+
+		const editing = ref(false)
+
 		const step = computed(() => {
 			const float = props.value.toString().split('.')[1]
 			return float !== undefined
@@ -36,31 +77,42 @@ export default defineComponent({
 				: 1
 		})
 
-		const onInput = (e: InputEvent) => {
+		function onInput(e: InputEvent) {
 			const str = (e.target as HTMLInputElement).value
-			let val: number | null = parseFloat(str)
+			const val: number | null = parseFloat(str)
+			update(val)
+		}
 
-			if (isNaN(val)) {
+		function onBlur(e: InputEvent) {
+			const el = e.target as HTMLInputElement
+			el.value = props.value.toString()
+			editing.value = false
+		}
+
+		function update(val: number) {
+			if (!isFinite(val)) {
 				return
 			}
 
 			if (props.validator) {
-				val = props.validator(val)
-				if (typeof val !== 'number' || isNaN(val)) {
+				const validatedVal = props.validator(val)
+				if (typeof validatedVal !== 'number' || !isFinite(validatedVal)) {
 					return
 				}
+				val = validatedVal
 			}
 
 			context.emit('input', val)
 		}
 
-		const onBlur = (e: InputEvent) => {
-			const el = e.target as HTMLInputElement
-			el.value = props.value.toString()
-		}
-
 		return {
+			dragEl,
+			inputEl,
+
 			step,
+			editing,
+			aaa,
+
 			onInput,
 			onBlur
 		}
@@ -72,7 +124,23 @@ export default defineComponent({
 @import './common.styl'
 
 .InputNumber
-	input()
-	color var(--orange)
-	text-align right
+	position relative
+	width 6em
+
+	&__drag
+		position absolute
+		top 0
+		left 0
+		width 100%
+		height 100%
+		z-index 100
+
+	&.editing &__drag
+		display none
+
+	&__input
+		input()
+		width 100%
+		color var(--orange)
+		text-align right
 </style>
