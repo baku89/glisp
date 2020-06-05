@@ -64,10 +64,6 @@ export default defineComponent({
 			}
 		})
 
-		function aaa(e: KeyboardEvent) {
-			console.log(e)
-		}
-
 		const editing = ref(false)
 
 		const step = computed(() => {
@@ -111,7 +107,6 @@ export default defineComponent({
 
 			step,
 			editing,
-			aaa,
 
 			onInput,
 			onBlur
@@ -131,9 +126,9 @@ export default defineComponent({
 		position absolute
 		top 0
 		left 0
+		z-index 100
 		width 100%
 		height 100%
-		z-index 100
 
 	&.editing &__drag
 		display none
