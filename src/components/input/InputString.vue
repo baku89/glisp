@@ -1,11 +1,5 @@
 <template>
-	<input
-		class="InputString"
-		type="text"
-		:value="value"
-		@input="onInput"
-		@blur="onBlur"
-	/>
+	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
 </template>
 
 <script lang="ts">

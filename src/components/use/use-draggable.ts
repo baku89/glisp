@@ -29,7 +29,9 @@ export default function useDraggable(
 		startY: 0
 	})
 
-	let prevX: number, prevY: number
+	let prevX: number,
+		prevY: number,
+		hasDragged = false
 
 	function onMousedrag(e: MouseEvent) {
 		const {clientX, clientY} = e
@@ -41,13 +43,17 @@ export default function useDraggable(
 		prevX = clientX
 		prevY = clientY
 
+		if (Math.abs(drag.x) > 2 || Math.abs(drag.y) > 2) {
+			hasDragged = true
+		}
+
 		if (callbacks.onDrag) {
 			callbacks.onDrag(drag)
 		}
 	}
 
 	function onMouseup() {
-		if (Math.abs(drag.x) <= 2 && Math.abs(drag.y) <= 2 && callbacks.onClick) {
+		if (!hasDragged && callbacks.onClick) {
 			callbacks.onClick()
 		}
 
@@ -70,6 +76,7 @@ export default function useDraggable(
 		drag.startY = clientY
 		prevX = clientX
 		prevY = clientY
+		hasDragged = false
 
 		window.addEventListener('mousemove', onMousedrag)
 		window.addEventListener('mouseup', onMouseup)

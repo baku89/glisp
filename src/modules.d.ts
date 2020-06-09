@@ -74,3 +74,10 @@ declare module 'is-node' {
 	const isNode: boolean
 	export default isNode
 }
+
+declare module 'canvas2svg' {
+	export default class Canvas2Svg extends CanvasRenderingContext2D {
+		constructor(width: number, height: number)
+		public getSerializedSvg(flag: boolean): string
+	}
+}

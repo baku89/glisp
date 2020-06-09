@@ -1,4 +1,4 @@
-import CanvasRenderer from './CanvasRenderer'
+import CanvasRenderer from './canvas-renderer'
 import * as Comlink from 'comlink'
 import {mat3} from 'gl-matrix'
 

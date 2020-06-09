@@ -20,6 +20,13 @@ module.exports = {
 			'js/generator': path.join(__dirname, 'src/generator.ts')
 		}
 	},
+	css: {
+		loaderOptions: {
+			css: {
+				url: false
+			}
+		}
+	},
 	pages: {
 		'js/index': {
 			entry: 'src/pages/index.ts',

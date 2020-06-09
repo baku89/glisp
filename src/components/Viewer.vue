@@ -19,7 +19,9 @@ import ResizeSensor from 'resize-sensor'
 import {MalVal, LispError} from '@/mal/types'
 import {printer} from '@/mal/printer'
 import {NonReactive} from '@/utils'
-import createCanvasRender, {CanvasRendererType} from '@/renderer/CanvasRenderer'
+import createCanvasRender, {
+	CanvasRendererType
+} from '@/renderer/canvas-renderer'
 
 function useResizeSensor(el: Ref<HTMLElement | null>, callback: () => any) {
 	let sensor: any
@@ -76,7 +78,6 @@ export default defineComponent({
 
 			renderer = await createCanvasRender(canvas.value)
 			onResized()
-			console.log('renderer setup finished')
 			if (initialExp) {
 				render(initialExp)
 			}

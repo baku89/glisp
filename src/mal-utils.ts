@@ -9,7 +9,8 @@ import {
 	MalMap,
 	MalNode,
 	isVector,
-	MalJSFunc
+	MalJSFunc,
+	M_EVAL
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 
@@ -45,7 +46,7 @@ export function fnInfo(
 
 		// Check if primitive type
 		if (!fn) {
-			primitive = getPrimitiveType(exp)
+			primitive = getPrimitiveType(exp[M_EVAL] || exp)
 			if (primitive) {
 				fn = ConsoleScope.var(primitive) as MalFunc
 			}
