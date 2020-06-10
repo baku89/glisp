@@ -14,7 +14,8 @@ import {
 	computed,
 	watchEffect,
 	watch,
-	SetupContext
+	SetupContext,
+	PropType
 } from '@vue/composition-api'
 import ace from 'brace'
 
@@ -150,7 +151,6 @@ function setupBraceEditor(
 		editor.container.remove()
 	})
 }
-
 export default defineComponent({
 	props: {
 		value: {
@@ -158,10 +158,11 @@ export default defineComponent({
 			required: true
 		},
 		selection: {
-			type: Array,
+			type: Array as PropType<number[]>,
 			required: false
 		},
 		activeRange: {
+			type: Array as PropType<number[]>,
 			required: false
 		},
 		dark: {
@@ -169,10 +170,11 @@ export default defineComponent({
 			default: false
 		},
 		cssStyle: {
+			type: String,
 			default: ''
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const editorEl: Ref<HTMLElement | null> = ref(null)
 
 		setupBraceEditor(props, context, editorEl)

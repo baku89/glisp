@@ -17,7 +17,8 @@ import {
 	computed,
 	ref,
 	SetupContext,
-	Ref
+	Ref,
+	PropType
 } from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
@@ -30,39 +31,32 @@ import Editor from './Editor'
 
 const OFFSET = 8 // length of "(sketch "
 
-interface Props {
-	exp: NonReactive<MalNode> | null
-	selectedExp: NonReactive<MalNode> | null
-	dark: boolean
-	cssStyle: string
-	hasParseError: boolean
-}
-
 export default defineComponent({
 	components: {
 		Editor
 	},
 	props: {
 		exp: {
-			required: true,
-			validator: p => p instanceof NonReactive || p === null
+			type: Object as PropType<NonReactive<MalNode> | null>,
+			required: true
 		},
 		selectedExp: {
-			required: true,
-			validator: p => p instanceof NonReactive || p === null
+			type: Object as PropType<NonReactive<MalNode> | null>,
+			required: true
 		},
 		dark: {
 			type: Boolean,
 			required: false
 		},
 		cssStyle: {
+			type: String,
 			default: ''
 		},
 		hasParseError: {
 			type: Boolean
 		}
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context: SetupContext) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
 
 		// Exp -> Code Conversion

@@ -13,10 +13,6 @@ import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 import {useDraggable} from '@/components/use'
 
-interface Props {
-	value: [number, number]
-}
-
 export default defineComponent({
 	name: 'InputVec2',
 	components: {InputNumber},
@@ -26,7 +22,7 @@ export default defineComponent({
 			required: true
 		}
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		const dragEl: Ref<null | HTMLElement> = ref(null)
 
 		const onInput = (i: number, v: number) => {
