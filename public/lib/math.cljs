@@ -452,7 +452,7 @@
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
-   :params [{:type "number"}]
+   :params [{:type "angle"}]
    :returns {:type "mat2d"}
    :handles {:draw (fn [{:params [angle]}]
                      (let [dir (vec2/dir angle 80)]

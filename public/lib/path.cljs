@@ -108,10 +108,10 @@
               :type "number"
               :desc "The arc's radius"}
              {:label "Start"
-              :type "number"
+              :type "angle"
               :desc "Angle to start the arc"}
              {:label "End"
-              :type "number"
+              :type "angle"
               :desc "Angle to stop the arc"}]
     :handles
     {:draw (fn [{:params [center r start end]

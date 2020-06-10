@@ -44,6 +44,11 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
+						<InputAngle
+							v-else-if="params[i].type === 'angle'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
 						<InputVec2
 							v-else-if="params[i].type === 'vec2'"
 							:value="params[i].value"
@@ -426,16 +431,20 @@ export default class Inspector extends Vue {
 	}
 
 	private matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
-		const valueInputType = this.detectInputType(value)
-		if (valueInputType !== desc[K_TYPE]) {
-			if (desc[K_TYPE] === 'any') {
-				return valueInputType
-			} else if (desc[K_TYPE] === 'color' && valueInputType === 'string') {
+		const inputType = this.detectInputType(value)
+		const descType = desc[K_TYPE]
+		if (inputType !== descType) {
+			if (descType === 'any') {
+				return inputType
+			} else if (descType === 'color' && inputType === 'string') {
 				return 'color'
+			} else if (descType === 'angle' && inputType === 'number') {
+				return 'angle'
+			} else if (descType) {
+				return 'exp'
 			}
-			return 'exp'
 		}
-		return desc[K_TYPE]
+		return descType
 	}
 
 	private onParamInput(i: number, value: MalVal) {

@@ -5,6 +5,7 @@ import InputString from './InputString.vue'
 import InputVec2 from './InputVec2.vue'
 import InputRect2d from './InputRect2d.vue'
 import InputMat2d from './InputMat2d.vue'
+import InputAngle from './InputAngle.vue'
 
 export default {
 	InputColor,
@@ -13,5 +14,6 @@ export default {
 	InputString,
 	InputVec2,
 	InputRect2d,
-	InputMat2d
+	InputMat2d,
+	InputAngle
 }
