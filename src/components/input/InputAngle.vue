@@ -1,6 +1,11 @@
 <template>
 	<div class="InputAngle">
-		<InputNumber class="InputAngle__el" :value="value" @input="onInput" :validator="validator" />
+		<InputNumber
+			class="InputAngle__el"
+			:value="value"
+			@input="onInput"
+			:validator="validator"
+		/>
 		<button
 			class="InputAngle__drag"
 			:class="{dragging: drag.isDragging}"
@@ -22,7 +27,7 @@ export default defineComponent({
 	components: {InputNumber},
 	props: {
 		value: {
-			type: [Number],
+			type: Number,
 			required: true
 		},
 		validator: {
