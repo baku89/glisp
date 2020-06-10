@@ -1,4 +1,5 @@
 import {onBeforeUnmount, Ref, reactive, onMounted} from '@vue/composition-api'
+import mezr from 'mezr'
 
 interface DragData {
 	x: number
@@ -6,18 +7,19 @@ interface DragData {
 	deltaX: number
 	deltaY: number
 	isDragging: boolean
-	startX: number
-	startY: number
+	prevX: number
+	prevY: number
 }
 
-interface DraggableCallbacks {
+interface DraggableOptions {
+	coordinate?: 'center'
 	onClick?: () => void
 	onDrag?: (drag: DragData) => void
 }
 
 export default function useDraggable(
 	el: Ref<null | HTMLElement>,
-	callbacks: DraggableCallbacks = {}
+	options: DraggableOptions = {}
 ) {
 	const drag = reactive({
 		x: 0,
@@ -25,36 +27,39 @@ export default function useDraggable(
 		deltaX: 0,
 		deltaY: 0,
 		isDragging: false,
-		startX: 0,
-		startY: 0
+		prevX: 0,
+		prevY: 0
 	})
 
-	let prevX: number,
-		prevY: number,
+	let originX = 0,
+		originY = 0,
+		prevX = 0,
+		prevY = 0,
 		hasDragged = false
 
 	function onMousedrag(e: MouseEvent) {
 		const {clientX, clientY} = e
 
-		drag.x = clientX - drag.startX
-		drag.y = clientY - drag.startY
-		drag.deltaX = clientX - prevX
-		drag.deltaY = clientY - prevY
-		prevX = clientX
-		prevY = clientY
+		drag.x = clientX - originX
+		drag.y = clientY - originY
+		drag.deltaX = drag.x - prevX
+		drag.deltaY = drag.y - prevY
 
 		if (Math.abs(drag.x) > 2 || Math.abs(drag.y) > 2) {
 			hasDragged = true
 		}
 
-		if (callbacks.onDrag) {
-			callbacks.onDrag(drag)
+		if (options.onDrag) {
+			options.onDrag(drag)
 		}
+
+		drag.prevX = drag.x
+		drag.prevY = drag.y
 	}
 
 	function onMouseup() {
-		if (!hasDragged && callbacks.onClick) {
-			callbacks.onClick()
+		if (!hasDragged && options.onClick) {
+			options.onClick()
 		}
 
 		drag.isDragging = false
@@ -62,8 +67,8 @@ export default function useDraggable(
 		drag.y = 0
 		drag.deltaX = 0
 		drag.deltaY = 0
-		drag.startX = 0
-		drag.startY = 0
+		originX = 0
+		originY = 0
 		window.removeEventListener('mousemove', onMousedrag)
 		window.removeEventListener('mouseup', onMouseup)
 	}
@@ -72,10 +77,16 @@ export default function useDraggable(
 		const {clientX, clientY} = e
 
 		drag.isDragging = true
-		drag.startX = clientX
-		drag.startY = clientY
-		prevX = clientX
-		prevY = clientY
+		if (options.coordinate === 'center' && el.value) {
+			const {left, top, width, height} = el.value.getBoundingClientRect()
+			originX = left + width / 2
+			originY = top + height / 2
+		} else {
+			originX = clientX
+			originY = clientY
+		}
+		drag.prevX = prevX = 0
+		drag.prevY = prevY = 0
 		hasDragged = false
 
 		window.addEventListener('mousemove', onMousedrag)
