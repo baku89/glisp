@@ -51,9 +51,6 @@ export default defineComponent({
 		cssStyle: {
 			type: String,
 			default: ''
-		},
-		hasParseError: {
-			type: Boolean
 		}
 	},
 	setup(props, context: SetupContext) {
