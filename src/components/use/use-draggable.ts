@@ -52,8 +52,8 @@ export default function useDraggable(
 			options.onDrag(drag)
 		}
 
-		drag.prevX = drag.x
-		drag.prevY = drag.y
+		drag.prevX = prevX = drag.x
+		drag.prevY = prevY = drag.y
 	}
 
 	function onMouseup() {
