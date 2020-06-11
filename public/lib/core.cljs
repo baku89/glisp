@@ -416,6 +416,13 @@
   [n coll]
   (take (- (count coll) n) coll))
 
+(defn drop-nth
+  {:doc "Returns a sequence of all but the nth item in coll"}
+  [n coll]
+  (concat 
+    (take n coll)
+    (drop (inc n) coll)))
+
 ;; String
 (defn ends-with?
   {:doc "True if *s* ends with substr"
