@@ -1,5 +1,5 @@
 <template>
-	<svg class="ViewHandles">
+	<svg class="ViewHandles" ref="el">
 		<defs>
 			<marker
 				id="arrow-x"
@@ -44,6 +44,9 @@
 				<path class="hover-zone" :d="path" />
 				<path class="display" :d="path" />
 			</template>
+			<template v-if="type === 'bg'">
+				<rect x="0" y="0" width="10000" height="10000" fill="transparent" />
+			</template>
 			<template v-else>
 				<path
 					v-if="type === 'arrow'"
@@ -61,7 +64,6 @@
 </template>
 
 <script lang="ts">
-import {Component, Prop, Vue} from 'vue-property-decorator'
 import {
 	MalVal,
 	keywordFor as K,
@@ -78,16 +80,23 @@ import {
 	M_OUTER_INDEX,
 	MalMap,
 	MalFunc,
-	isMalFunc,
 	M_FN,
-	malEquals,
 	getType
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
-import {fnInfo} from '@/mal-utils'
+import {getFnInfo, FnInfoType} from '@/mal-utils'
 import {NonReactive, nonReactive} from '../utils'
-import {printExp} from '../mal'
+import {
+	defineComponent,
+	computed,
+	reactive,
+	toRefs,
+	onMounted,
+	onBeforeMount,
+	ref,
+	SetupContext
+} from '@vue/composition-api'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -102,384 +111,435 @@ const K_ANGLE = K('angle'),
 	K_PATH = K('path'),
 	K_CLASS = K('class')
 
-@Component({})
-export default class ViewHandles extends Vue {
-	@Prop({required: true}) exp!: NonReactive<MalNodeList>
+interface ClassList {
+	[name: string]: true
+}
 
-	private rem = 0
+interface Handle {
+	type: string
+	cls: ClassList
+	id: MalVal
+	guide: boolean
+	transform: string
+	yTransform: string
+	path?: string
+}
 
-	private get fnInfo() {
-		return fnInfo(this.exp.value)
-	}
+interface Data {
+	el: HTMLElement | null
+	rem: number
+	draggingIndex: number | null
+	rawPrevPos: number[]
+	fnInfo: FnInfoType | null
+	handleCallbacks: MalMap | null
+	params: MalVal[]
+	unevaluatedParams: MalVal[]
+	returnedValue: MalVal
+	transform: mat2d
+	transformInv: mat2d
+	axisTransform: string
+	handles: Handle[]
+}
 
-	private get handleCallbacks() {
-		if (this.fnInfo && isMap(this.fnInfo.meta)) {
-			const handles = this.fnInfo.meta[K_HANDLES]
-			return isMap(handles) ? handles : null
-		} else {
-			return null
+interface Prop {
+	exp: NonReactive<MalNodeList> | null
+}
+
+export default defineComponent({
+	props: {
+		exp: {
+			type: Object,
+			required: true,
+			validator: v => typeof v === 'object'
 		}
-	}
+	},
+	setup(prop: Prop, context: SetupContext) {
+		const state = reactive({
+			el: null,
+			rem: 0,
+			draggingIndex: null,
+			rawPrevPos: [0, 0],
+			fnInfo: computed(() => {
+				return prop.exp ? getFnInfo(prop.exp.value) : null
+			}),
+			handleCallbacks: computed(() => {
+				if (state.fnInfo && isMap(state.fnInfo.meta)) {
+					const ret = state.fnInfo.meta[K_HANDLES]
+					return isMap(ret) ? ret : null
+				} else {
+					return null
+				}
+			}),
+			params: computed(() => {
+				if (!prop.exp || !state.handleCallbacks) return []
 
-	private get unevaluatedParams(): MalVal[] {
-		if (this.handleCallbacks) {
-			const exp = this.exp.value
-			if (this.fnInfo?.primitive) {
-				return [[...exp]]
+				const exp = prop.exp.value
+				if (state.fnInfo?.primitive) {
+					return [exp[M_EVAL]]
+				} else {
+					return exp[M_EVAL_PARAMS] || []
+				}
+			}),
+			unevaluatedParams: computed(() => {
+				if (!prop.exp || !state.handleCallbacks) return []
+
+				const exp = prop.exp.value
+				if (state.fnInfo?.primitive) {
+					return [[...exp]]
+				} else {
+					return exp.slice(1)
+				}
+			}),
+			returnedValue: computed(() => {
+				return prop.exp ? prop.exp.value[M_EVAL] || null : null
+			}),
+			transform: computed(() => {
+				if (!prop.exp) return
+
+				const exp = prop.exp.value
+
+				if (!isMalNode(exp)) {
+					return mat2d.create()
+				}
+
+				// Collect ancestors
+				let ancestors: MalNode[] = []
+				for (let outer: MalNode = exp; outer; outer = outer[M_OUTER]) {
+					ancestors.unshift(outer)
+				}
+
+				const attrMatrices: MalVal[] = []
+
+				// If the exp is nested inside transform arguments
+				for (let i = ancestors.length - 1; 0 < i; i--) {
+					const node = ancestors[i]
+					const outer = ancestors[i - 1]
+
+					if (!isList(outer)) {
+						continue
+					}
+
+					const isAttrOfG =
+						outer[0] === S('g') &&
+						outer[1] === node &&
+						isMap(node) &&
+						K_TRANSFORM in node
+
+					const isAttrOfTransform =
+						outer[0] === S('transform') && outer[1] === node
+					const isAttrOfPathTransform =
+						outer[0] === S('path/transform') && outer[1] === node
+
+					if (isAttrOfG || isAttrOfTransform || isAttrOfPathTransform) {
+						// Exclude attributes' part from ancestors
+						const attrAncestors = ancestors.slice(i)
+						ancestors = ancestors.slice(0, i - 1)
+
+						// Calculate transform compensation inside attribute
+						for (let j = attrAncestors.length - 1; 0 < j; j--) {
+							const node = attrAncestors[j]
+							const outer = attrAncestors[j - 1]
+
+							if (isList(outer)) {
+								if (outer[0] === S('mat2d/*')) {
+									// Prepend matrices
+									const matrices = outer.slice(1, node[M_OUTER_INDEX])
+									attrMatrices.unshift(...matrices)
+								} else if (outer[0] === S('pivot')) {
+									// Prepend matrices
+									const matrices = outer.slice(2, node[M_OUTER_INDEX])
+									attrMatrices.unshift(...matrices)
+
+									// Append pivot itself as translation matrix
+									const pivot =
+										isMalNode(outer[1]) && M_EVAL in outer[1]
+											? (outer[1][M_EVAL] as vec2)
+											: vec2.create()
+
+									const pivotMat = mat2d.fromTranslation(mat2d.create(), pivot)
+
+									attrMatrices.unshift(pivotMat as number[])
+								}
+							}
+						}
+
+						break
+					}
+				}
+
+				// Extract the matrices from ancestors
+				const matrices = ancestors.reduce((filtered, node) => {
+					if (isList(node)) {
+						if (
+							node[0] === S('g') &&
+							isMap(node[1]) &&
+							K_TRANSFORM in node[1]
+						) {
+							const matrix = node[1][K_TRANSFORM]
+							filtered.push(matrix)
+						} else if (node[0] === S('artboard')) {
+							const bounds = (node[1] as MalMap)[K('bounds')] as number[]
+							const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
+							filtered.push(matrix)
+						} else if (
+							node[0] === S('transform') ||
+							node[0] === S('path/transform')
+						) {
+							const matrix = node[1]
+							filtered.push(matrix)
+						}
+					}
+
+					return filtered
+				}, [] as MalVal[])
+
+				// Append attribute matrices
+				matrices.push(...attrMatrices)
+
+				// Multiplies all matrices in order
+				const ret = (matrices.map(xform =>
+					isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
+				) as mat2d[]).reduce(
+					(xform, elXform) => mat2d.multiply(xform, xform, elXform),
+					mat2d.create()
+				)
+
+				return ret
+			}),
+			transformInv: computed(() =>
+				mat2d.invert(mat2d.create(), state.transform)
+			),
+			axisTransform: computed(() => `matrix(${state.transform.join(',')})`),
+			handles: computed(() => {
+				if (!state.handleCallbacks) return []
+
+				const drawHandle = state.handleCallbacks[K_DRAW] as MalFunc
+
+				const options = {
+					[K('params')]: state.params,
+					[K('return')]: state.returnedValue,
+					[K('unevaluated-params')]: state.unevaluatedParams
+				}
+
+				let handles
+				try {
+					handles = drawHandle(options)
+				} catch (err) {
+					console.error('ViewHandles draw', err)
+					return null
+				}
+
+				if (!Array.isArray(handles)) {
+					return null
+				}
+
+				return handles.map((h: any) => {
+					const type = h[K_TYPE]
+					const guide = !!h[K_GUIDE]
+					const classList = ((h[K_CLASS] as string) || '').split(' ')
+					const cls = {} as ClassList
+					for (const name of classList) {
+						cls[name] = true
+					}
+
+					const xform = mat2d.clone(state.transform)
+					let yRotate = 0
+
+					if (type === 'point' || type === 'arrow') {
+						const [x, y] = h[K_POS]
+						mat2d.translate(xform, xform, [x, y])
+					}
+
+					if (type === 'arrow') {
+						const angle = h[K_ANGLE] || 0
+						mat2d.rotate(xform, xform, angle)
+					}
+
+					if (type !== 'path') {
+						// Normalize axis X
+						const axis = vec2.fromValues(xform[0], xform[1])
+						vec2.normalize(axis, axis)
+						xform[0] = axis[0]
+						xform[1] = axis[1]
+
+						// Force axisY to be perpendicular to axisX
+						const origAxisY = vec2.fromValues(xform[2], xform[3])
+
+						vec2.set(axis, xform[0], xform[1])
+						vec2.rotate(axis, axis, [0, 0], Math.PI / 2)
+						xform[2] = axis[0]
+						xform[3] = axis[1]
+
+						// set Y rotation
+						if (cls['translate']) {
+							const perpAxisYAngle = Math.atan2(axis[1], axis[0])
+							vec2.rotate(axis, origAxisY, [0, 0], -perpAxisYAngle)
+							yRotate = Math.atan2(axis[1], axis[0])
+						}
+					}
+
+					const ret: Handle = {
+						type,
+						cls,
+						guide,
+						id: h[K_ID],
+						transform: type !== 'bg' ? `matrix(${xform.join(',')})` : '',
+						yTransform: `rotate(${(yRotate * 180) / Math.PI})`
+					}
+
+					if (type === 'path') {
+						ret.path = getSVGPathData(h[K_PATH])
+					}
+
+					return ret
+				})
+			})
+		}) as Data
+
+		function onMousedown(i: number, e: MouseEvent) {
+			if (!state.el) return
+
+			const type = state.handles[i] && state.handles[i].type
+
+			state.draggingIndex = i
+			const {left, top} = state.el.getBoundingClientRect()
+			state.rawPrevPos = [e.clientX - left, e.clientY - top]
+
+			if (type !== 'bg') {
+				window.addEventListener('mousemove', onMousemove)
+				window.addEventListener('mouseup', onMouseup)
 			} else {
-				return exp.slice(1)
-			}
-		} else {
-			return []
-		}
-	}
-
-	private get params(): MalVal[] {
-		if (this.handleCallbacks) {
-			const exp = this.exp.value
-			if (this.fnInfo?.primitive) {
-				return [exp[M_EVAL]]
-			} else {
-				return exp[M_EVAL_PARAMS] || []
+				onMousemove(e)
 			}
 		}
-		return []
-	}
 
-	private get returnedValue(): MalVal {
-		return this.exp.value[M_EVAL] || null
-	}
-
-	private get transformInv() {
-		return mat2d.invert(mat2d.create(), this.transform)
-	}
-
-	private get transform() {
-		const exp = this.exp
-
-		if (!isMalNode(this.exp.value)) {
-			return mat2d.create()
-		}
-
-		// Collect ancestors
-		let ancestors: MalNode[] = []
-		for (let outer: MalNode = exp.value; outer; outer = outer[M_OUTER]) {
-			ancestors.unshift(outer)
-		}
-
-		const attrMatrices: MalVal[] = []
-
-		// If the exp is nested inside transform arguments
-		for (let i = ancestors.length - 1; 0 < i; i--) {
-			const node = ancestors[i]
-			const outer = ancestors[i - 1]
-
-			if (!isList(outer)) {
-				continue
+		function onMousemove(e: MouseEvent) {
+			if (
+				!prop.exp ||
+				!state.handleCallbacks ||
+				state.draggingIndex === null ||
+				!state.el
+			) {
+				return
 			}
 
-			const isAttrOfG =
-				outer[0] === S('g') &&
-				outer[1] === node &&
-				isMap(node) &&
-				K_TRANSFORM in node
+			const dragHandle = state.handleCallbacks[K_DRAG]
 
-			const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
-			const isAttrOfPathTransform =
-				outer[0] === S('path/transform') && outer[1] === node
+			if (typeof dragHandle !== 'function') {
+				return
+			}
 
-			if (isAttrOfG || isAttrOfTransform || isAttrOfPathTransform) {
-				// Exclude attributes' part from ancestors
-				const attrAncestors = ancestors.slice(i)
-				ancestors = ancestors.slice(0, i - 1)
+			const viewRect = state.el.getBoundingClientRect()
+			const rawPos = V([
+				e.clientX - viewRect.left,
+				e.clientY - viewRect.top
+			]) as number[]
 
-				// Calculate transform compensation inside attribute
-				for (let j = attrAncestors.length - 1; 0 < j; j--) {
-					const node = attrAncestors[j]
-					const outer = attrAncestors[j - 1]
+			const pos = V([0, 0]) as number[]
+			vec2.transformMat2d(pos as vec2, rawPos as vec2, state.transformInv)
 
-					if (isList(outer)) {
-						if (outer[0] === S('mat2d/*')) {
-							// Prepend matrices
-							const matrices = outer.slice(1, node[M_OUTER_INDEX])
-							attrMatrices.unshift(...matrices)
-						} else if (outer[0] === S('pivot')) {
-							// Prepend matrices
-							const matrices = outer.slice(2, node[M_OUTER_INDEX])
-							attrMatrices.unshift(...matrices)
+			const prevPos = V([0, 0]) as number[]
+			vec2.transformMat2d(
+				prevPos as vec2,
+				state.rawPrevPos as vec2,
+				state.transformInv
+			)
 
-							// Append pivot itself as translation matrix
-							const pivot =
-								isMalNode(outer[1]) && M_EVAL in outer[1]
-									? (outer[1][M_EVAL] as vec2)
-									: vec2.create()
+			const deltaPos = V([pos[0] - prevPos[0], pos[1] - prevPos[1]])
 
-							const pivotMat = mat2d.fromTranslation(mat2d.create(), pivot)
+			const handle = state.handles[state.draggingIndex]
 
-							attrMatrices.unshift(pivotMat as number[])
+			const eventInfo = {
+				[K_ID]: handle.id === undefined ? null : handle.id,
+				[K_POS]: pos,
+				[K('prev-pos')]: prevPos,
+				[K('delta-pos')]: deltaPos,
+				[K('unevaluated-params')]: state.unevaluatedParams,
+				[K('params')]: state.params
+			} as MalMap
+
+			state.rawPrevPos = rawPos
+
+			let newParams: MalVal[]
+			try {
+				newParams = dragHandle(eventInfo) as MalVal[]
+			} catch (err) {
+				console.error('ViewHandles onDrag', err)
+				return null
+			}
+
+			if (!newParams) {
+				return
+			}
+
+			if (newParams[0] === K_CHANGE_ID) {
+				const newId = newParams[1]
+				state.draggingIndex = state.handles.findIndex(h => h.id === newId)
+				newParams = newParams[2] as MalVal[]
+			}
+
+			for (let i = 0; i < newParams.length; i++) {
+				let newValue = newParams[i]
+				const unevaluated = state.unevaluatedParams[i] as MalVal[]
+
+				// if (malEquals(newValue, this.params[i])) {
+				// 	newValue = unevaluated
+				// }
+
+				if (unevaluated instanceof Object && M_FN in unevaluated) {
+					const info = getFnInfo(unevaluated as MalNode)
+
+					if (info) {
+						const returnType =
+							info.meta[K('returns')] instanceof Object
+								? (info.meta[K('returns')] as MalMap)[K('type')] || null
+								: null
+
+						if (K('inverse') in info.meta && getType(newValue) === returnType) {
+							const inverseFn = info.meta[K('inverse')] as MalFunc
+
+							const fnName = unevaluated[0]
+							const fnParams = inverseFn(newValue) as MalVal[]
+							newValue = [fnName, ...fnParams]
 						}
 					}
 				}
 
-				break
-			}
-		}
-
-		// Extract the matrices from ancestors
-		const matrices = ancestors.reduce((filtered, node) => {
-			if (isList(node)) {
-				if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
-					const matrix = node[1][K_TRANSFORM]
-					filtered.push(matrix)
-				} else if (node[0] === S('artboard')) {
-					const bounds = (node[1] as MalMap)[K('bounds')] as number[]
-					const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
-					filtered.push(matrix)
-				} else if (
-					node[0] === S('transform') ||
-					node[0] === S('path/transform')
-				) {
-					const matrix = node[1]
-					filtered.push(matrix)
-				}
+				newParams[i] = newValue
 			}
 
-			return filtered
-		}, [] as MalVal[])
+			const newExp: MalNodeList = state.fnInfo?.primitive
+				? (newParams[0] as MalNodeList)
+				: ([prop.exp.value[0], ...newParams] as MalNodeList)
 
-		// Append attribute matrices
-		matrices.push(...attrMatrices)
-
-		// Multiplies all matrices in order
-		const ret = (matrices.map(xform =>
-			isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-		) as mat2d[]).reduce(
-			(xform, elXform) => mat2d.multiply(xform, xform, elXform),
-			mat2d.create()
-		)
-
-		return ret
-	}
-
-	private get axisTransform() {
-		return `matrix(${this.transform.join(',')})`
-	}
-
-	private get handles() {
-		if (this.handleCallbacks) {
-			const drawHandle = this.handleCallbacks[K_DRAW] as MalFunc
-
-			const options = {
-				[K('params')]: this.params,
-				[K('return')]: this.returnedValue,
-				[K('unevaluated-params')]: this.unevaluatedParams
-			}
-
-			let handles
-			try {
-				handles = drawHandle(options)
-			} catch (err) {
-				console.error('ViewHandles draw', err)
-				return null
-			}
-
-			if (!Array.isArray(handles)) {
-				return null
-			}
-
-			return handles.map((h: any) => {
-				const type = h[K_TYPE]
-				const guide = !!h[K_GUIDE]
-				const classList = ((h[K_CLASS] as string) || '').split(' ')
-				const cls = {} as {[name: string]: true}
-				for (const name of classList) {
-					cls[name] = true
-				}
-
-				const xform = mat2d.clone(this.transform)
-				let yRotate = 0
-
-				if (type === 'point' || type === 'arrow') {
-					const [x, y] = h[K_POS]
-					mat2d.translate(xform, xform, [x, y])
-				}
-
-				if (type === 'arrow') {
-					const angle = h[K_ANGLE] || 0
-					mat2d.rotate(xform, xform, angle)
-				}
-
-				if (type !== 'path') {
-					// Normalize axis X
-					const axis = vec2.fromValues(xform[0], xform[1])
-					vec2.normalize(axis, axis)
-					xform[0] = axis[0]
-					xform[1] = axis[1]
-
-					// Force axisY to be perpendicular to axisX
-					const origAxisY = vec2.fromValues(xform[2], xform[3])
-
-					vec2.set(axis, xform[0], xform[1])
-					vec2.rotate(axis, axis, [0, 0], Math.PI / 2)
-					xform[2] = axis[0]
-					xform[3] = axis[1]
-
-					// set Y rotation
-					if (cls['translate']) {
-						const perpAxisYAngle = Math.atan2(axis[1], axis[0])
-						vec2.rotate(axis, origAxisY, [0, 0], -perpAxisYAngle)
-						yRotate = Math.atan2(axis[1], axis[0])
-					}
-				}
-
-				const ret: {[k: string]: string | boolean | object} = {
-					type,
-					cls,
-					guide,
-					id: h[K_ID],
-					transform: `matrix(${xform.join(',')})`,
-					yTransform: `rotate(${(yRotate * 180) / Math.PI})`
-				}
-
-				if (type === 'path') {
-					ret.path = getSVGPathData(h[K_PATH])
-				}
-
-				return ret
-			})
-		} else {
-			return null
-		}
-	}
-
-	private mounted() {
-		this.rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
-	}
-
-	private beforeUnmount() {
-		this.unregisterMouseEvents()
-	}
-
-	private unregisterMouseEvents() {
-		window.removeEventListener('mousemove', this.onMousemove)
-		window.removeEventListener('mouseup', this.onMouseup)
-	}
-
-	private draggingIndex: number | null = null
-
-	private rawPrevPos!: number[]
-
-	private onMousedown(i: number, e: MouseEvent) {
-		this.draggingIndex = i
-		window.addEventListener('mousemove', this.onMousemove)
-		window.addEventListener('mouseup', this.onMouseup)
-
-		const viewRect = this.$el.getBoundingClientRect()
-		this.rawPrevPos = [e.clientX - viewRect.left, e.clientY - viewRect.top]
-	}
-
-	private onMousemove(e: MouseEvent) {
-		if (!this.handleCallbacks || !this.handles || this.draggingIndex === null) {
-			return
+			context.emit('input', nonReactive(newExp))
 		}
 
-		const dragHandle = this.handleCallbacks[K_DRAG]
-
-		if (typeof dragHandle !== 'function') {
-			return
+		function onMouseup() {
+			state.draggingIndex = null
+			unregisterMouseEvents()
 		}
 
-		const viewRect = this.$el.getBoundingClientRect()
-		const rawPos = V([
-			e.clientX - viewRect.left,
-			e.clientY - viewRect.top
-		]) as number[]
-
-		const pos = V([0, 0]) as number[]
-		vec2.transformMat2d(pos as vec2, rawPos as vec2, this.transformInv)
-
-		const prevPos = V([0, 0]) as number[]
-		vec2.transformMat2d(
-			prevPos as vec2,
-			this.rawPrevPos as vec2,
-			this.transformInv
-		)
-
-		const deltaPos = V([pos[0] - prevPos[0], pos[1] - prevPos[1]])
-
-		const handle = this.handles[this.draggingIndex]
-
-		const eventInfo = {
-			[K_ID]: handle.id === undefined ? null : handle.id,
-			[K_POS]: pos,
-			[K('prev-pos')]: prevPos,
-			[K('delta-pos')]: deltaPos,
-			[K('unevaluated-params')]: this.unevaluatedParams,
-			[K('params')]: this.params
-		} as MalMap
-
-		this.rawPrevPos = rawPos
-
-		let newParams: MalVal[]
-		try {
-			newParams = dragHandle(eventInfo) as MalVal[]
-		} catch (err) {
-			console.error('ViewHandles onDrag', err)
-			return null
+		function unregisterMouseEvents() {
+			window.removeEventListener('mousemove', onMousemove)
+			window.removeEventListener('mouseup', onMouseup)
 		}
 
-		if (!newParams) {
-			return
-		}
+		onBeforeMount(() => {
+			unregisterMouseEvents()
+		})
 
-		if (newParams[0] === K_CHANGE_ID) {
-			const newId = newParams[1]
-			this.draggingIndex = this.handles.findIndex(h => h.id === newId)
-			newParams = newParams[2] as MalVal[]
-		}
+		// REM
+		const rem = ref(0)
+		onMounted(() => {
+			rem.value = parseFloat(
+				getComputedStyle(document.documentElement).fontSize
+			)
+		})
 
-		for (let i = 0; i < newParams.length; i++) {
-			let newValue = newParams[i]
-			const unevaluated = this.unevaluatedParams[i] as MalVal[]
-
-			// if (malEquals(newValue, this.params[i])) {
-			// 	newValue = unevaluated
-			// }
-
-			if (unevaluated instanceof Object && M_FN in unevaluated) {
-				const info = fnInfo(unevaluated as MalNode)
-
-				if (info) {
-					const returnType =
-						info.meta[K('returns')] instanceof Object
-							? (info.meta[K('returns')] as MalMap)[K('type')] || null
-							: null
-
-					if (K('inverse') in info.meta && getType(newValue) === returnType) {
-						const inverseFn = info.meta[K('inverse')] as MalFunc
-
-						const fnName = unevaluated[0]
-						const fnParams = inverseFn(newValue) as MalVal[]
-						newValue = [fnName, ...fnParams]
-					}
-				}
-			}
-
-			newParams[i] = newValue
-		}
-
-		const newExp: MalNodeList = this.fnInfo?.primitive
-			? (newParams[0] as MalNodeList)
-			: ([this.exp.value[0], ...newParams] as MalNodeList)
-
-		this.$emit('input', nonReactive(newExp))
+		return {...toRefs(state as any), onMousedown, rem}
 	}
-
-	private onMouseup() {
-		this.draggingIndex = null
-		this.unregisterMouseEvents()
-	}
-}
+})
 </script>
 
 <style lang="stylus" scoped>
