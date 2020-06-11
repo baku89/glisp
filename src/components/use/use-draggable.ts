@@ -1,5 +1,4 @@
 import {onBeforeUnmount, Ref, reactive, onMounted} from '@vue/composition-api'
-import mezr from 'mezr'
 
 interface DragData {
 	x: number
