@@ -32,14 +32,14 @@ export function getPrimitiveType(exp: MalVal): string | null {
 	return null
 }
 
-export function fnInfo(
-	exp: MalNode
-): {
+export interface FnInfoType {
 	fn: MalFunc | MalJSFunc
 	meta: MalMap
 	aliasFor: string | null
 	primitive: string | null
-} | null {
+}
+
+export function getFnInfo(exp: MalNode): FnInfoType | null {
 	if (isMalNode(exp) && Array.isArray(exp)) {
 		let fn = exp[M_FN]
 		let primitive = null

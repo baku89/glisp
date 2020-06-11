@@ -3,10 +3,9 @@
 		<div class="Inspector__header">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span
-					v-if="fnInfo && fnInfo.aliasFor"
-					class="alias"
-				>--> alias for {{ fnInfo.aliasFor }}</span>
+				<span v-if="fnInfo && fnInfo.aliasFor" class="alias"
+					>--> alias for {{ fnInfo.aliasFor }}</span
+				>
 			</div>
 			<VueMarkdown :source="fnDoc" />
 		</div>
@@ -77,18 +76,32 @@
 							:validator="keywordValidator"
 							@input="onParamInput(i, $event)"
 						/>
-						<div v-else class="exp">{{ printExp(params[i].value, true, true) }}</div>
+						<div v-else class="exp">
+							{{ printExp(params[i].value, true, true) }}
+						</div>
 					</div>
-					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+					<button
+						class="delete"
+						v-if="i >= variadicPos"
+						@click="onParamDelete(i)"
+					>
 						<i class="far fa-times-circle" />
 					</button>
-					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+					<button
+						class="insert"
+						v-if="i >= variadicPos"
+						@click="onParamInsert(i)"
+					>
+						&lt;-- Insert
+					</button>
 				</td>
 			</tr>
 			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 				<td class="label"></td>
 				<td class="value">
-					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
+					<button class="add" @click="onParamInsert(params.length)">
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</table>
@@ -117,7 +130,7 @@ import {
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
 import {clamp, getParamLabel, NonReactive, nonReactive} from '@/utils'
-import {fnInfo, getPrimitiveType} from '../mal-utils'
+import {getFnInfo, getPrimitiveType} from '../mal-utils'
 
 const K_PARAMS = K('params'),
 	K_TYPE = K('type'),
@@ -183,7 +196,7 @@ export default class Inspector extends Vue {
 	private exp!: NonReactive<MalNode>
 
 	private get fnInfo() {
-		return fnInfo(this.exp.value)
+		return getFnInfo(this.exp.value)
 	}
 
 	private get fnName(): string {
