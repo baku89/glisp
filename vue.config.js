@@ -8,6 +8,11 @@ module.exports = {
 		writeToDisk: true
 	},
 	filenameHashing: false,
+	pluginOptions: {
+		electronBuilder: {
+			externals: ['electron']
+		}
+	},
 	configureWebpack: {
 		plugins: [new WorkerPlugin()],
 		output: {
@@ -18,6 +23,9 @@ module.exports = {
 			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
 			'lib/path': path.join(__dirname, 'src/mal-lib/path.ts'),
 			'js/generator': path.join(__dirname, 'src/generator.ts')
+		},
+		node: {
+			__dirname: false
 		}
 	},
 	css: {

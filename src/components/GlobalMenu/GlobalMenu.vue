@@ -1,5 +1,5 @@
 <template>
-	<div class="GlobalMenu">
+	<header class="GlobalMenu" :class="{dark}">
 		<h1>'(GLISP)</h1>
 		<div class="GlobalMenu__menu" v-click-outside="onClose">
 			<div
@@ -21,20 +21,24 @@
 				/>
 			</div>
 		</div>
-	</div>
+		<WindowTitleButtons v-if="hasWindowTitleButtons" :dark="dark" />
+	</header>
 </template>
 
 <script lang="ts">
-import {Component, Vue} from 'vue-property-decorator'
+import {Component, Vue, Prop} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
+import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
+import isElectron from 'is-electron'
 
 @Component({
 	name: 'GlobalMenu',
 	directives: {ClickOutside},
 	components: {
-		GlobalSubmenu
+		GlobalSubmenu,
+		WindowTitleButtons
 	}
 })
 export default class GlobalMenu extends Vue {
@@ -79,6 +83,11 @@ export default class GlobalMenu extends Vue {
 	]
 
 	private expandedIndex: number | null = null
+
+	private hasWindowTitleButtons = isElectron()
+
+	@Prop()
+	private dark!: boolean
 
 	private onClick(content: string | string[][], i: number) {
 		if (Array.isArray(content)) {
@@ -134,6 +143,8 @@ export default class GlobalMenu extends Vue {
 		// background red
 		line-height 3.8rem
 		cursor pointer
+
+		-webkit-app-region no-drag
 
 		&:hover, &.active
 			color var(--aqua)
