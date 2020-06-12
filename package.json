@@ -56,6 +56,7 @@
     "ftp-deploy": "^2.3.7",
     "gl-matrix": "^3.3.0",
     "hotkeys-js": "^3.8.1",
+    "is-electron": "^2.2.0",
     "is-node": "^1.0.2",
     "jq-console": "^2.13.2",
     "jquery": "^3.5.0",

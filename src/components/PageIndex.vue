@@ -1,6 +1,6 @@
 <template>
 	<div id="app" class="PageIndex" :style="colors">
-		<GlobalMenu class="PageIndex__global-menu" />
+		<GlobalMenu class="PageIndex__global-menu" :dark="dark" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
 				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" />
@@ -394,9 +394,11 @@ html, body
 	color var(--foreground)
 
 	&__global-menu
+	background-attachment fixed
 		-webkit-app-region drag
 
-	&__content, position relative
+	&__content
+		position relative
 		display flex
 		height calc(100vh - 3.5rem)
 
