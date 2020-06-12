@@ -6,6 +6,7 @@
 import {defineComponent, onMounted, ref, Ref} from '@vue/composition-api'
 import {printer} from '@/mal/printer'
 import ConsoleScope from '../scopes/console'
+import 'jq-console'
 
 const MAX_HISTORY_LENGTH = 1000
 

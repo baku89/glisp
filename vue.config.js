@@ -1,5 +1,6 @@
 const WorkerPlugin = require('worker-plugin')
 const path = require('path')
+const webpack = require('webpack')
 
 module.exports = {
 	publicPath: './',
@@ -14,7 +15,13 @@ module.exports = {
 		}
 	},
 	configureWebpack: {
-		plugins: [new WorkerPlugin()],
+		plugins: [
+			new WorkerPlugin(),
+			new webpack.ProvidePlugin({
+				$: 'jquery',
+				jQuery: 'jquery'
+			})
+		],
 		output: {
 			globalObject: 'globalThis',
 			filename: '[name].js'
