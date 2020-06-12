@@ -36,7 +36,9 @@
 						class="PageIndex__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -390,6 +392,9 @@ html, body
 	height 100vh
 	background var(--background)
 	color var(--foreground)
+
+	&__global-menu
+		-webkit-app-region drag
 
 	&__content, position relative
 		display flex
