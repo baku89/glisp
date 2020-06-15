@@ -5,7 +5,7 @@
 		:activeRange="activeRange"
 		:dark="dark"
 		:cssStyle="cssStyle"
-		:selection.sync="selection"
+		:selection="selection"
 		@input="onInput"
 		@update:selection="onSelect"
 	/>
@@ -55,6 +55,7 @@ export default defineComponent({
 	},
 	setup(props, context: SetupContext) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
+		const hasParseError = ref(false)
 
 		// Exp -> Code Conversion
 		const code = computed(() => {
@@ -73,48 +74,47 @@ export default defineComponent({
 				if (ret) {
 					const [start, end] = ret
 					return [start - OFFSET, end - OFFSET]
-				} else {
-					return null
 				}
-			} else {
-				return null
 			}
+			return null
 		})
 
 		// Event Handlers
+		let inputExp: NonReactive<MalVal> | null = null
+
 		function onInput(code: string) {
 			ConsoleScope.def('*sketch*', code)
-			const evalCode = `(sketch ${code}\nnil)`
 			let exp
 			try {
-				exp = readStr(evalCode, true)
+				exp = readStr(`(sketch ${code}\nnil)`, true)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
 				}
-				context.emit('update:hasParseError', true)
+				hasParseError.value = true
+				context.emit('update:hasParseError', hasParseError)
 				context.emit('select', null)
 				return
 			}
-			context.emit('update:hasParseError', false)
-			context.emit('input', nonReactive(exp))
-
-			onSelect(selection.value, exp, false)
+			hasParseError.value = false
+			context.emit('update:hasParseError', hasParseError)
+			inputExp = nonReactive(exp)
+			context.emit('input', inputExp)
 		}
 
-		function onSelect(
-			[start, end]: [number, number],
-			exp?: MalVal,
-			hasParseError?: boolean
-		) {
+		function onSelect([start, end]: [number, number], exp?: MalVal) {
+			selection.value = [start, end]
+
 			if (exp === undefined) {
-				exp = props.exp?.value
-			}
-			if (hasParseError === undefined) {
-				hasParseError = props.hasParseError
+				if (inputExp) {
+					exp = inputExp.value
+					inputExp = null
+				} else {
+					exp = props.exp?.value
+				}
 			}
 
-			if (hasParseError || exp === undefined) {
+			if (hasParseError.value || exp === undefined) {
 				return
 			}
 
