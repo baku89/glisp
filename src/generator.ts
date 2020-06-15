@@ -3,4 +3,4 @@
 
 console.log('Unco')
 
-window.generatorLoaded = true
+// window.generatorLoaded = true
