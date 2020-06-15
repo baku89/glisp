@@ -100,9 +100,12 @@
   {:doc "Adds two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
    :returns {:type "vec2"}}
-  [a b]
-  [(+ (.x a) (.x b))
-   (+ (.y a) (.y b))])
+  [& xs]
+  (reduce (fn [a b]
+            [(+ (.x a) (.x b))
+             (+ (.y a) (.y b))])
+          [0 0]
+          xs))
 
 (defn vec2/-
   {:doc "Subtracts *b* from *a*"
