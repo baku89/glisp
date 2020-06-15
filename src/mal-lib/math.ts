@@ -3,7 +3,12 @@ import {MalVal, symbolFor as S, markMalVector as V} from '@/mal/types'
 import hull from 'hull.js'
 
 const Exports = [
-	['convex-hull', (pts: number[]) => V(hull(pts, Infinity))]
+	[
+		'convex-hull',
+		(pts: number[], concavity: number | null = null) => {
+			return V(hull(pts, concavity === null ? Infinity : concavity))
+		}
+	]
 ] as [string, MalVal][]
 
 // Expose Math
