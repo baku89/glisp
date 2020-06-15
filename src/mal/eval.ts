@@ -580,6 +580,19 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		throw new LispError('Cannot execute replaceExp')
 	}
 
+	// // Inherit delimiters if possible
+	// if (isMalNode(original) && original[M_DELIMITERS] && isMalNode(replaced)) {
+	// 	replaced[M_DELIMITERS] = []
+	// 	console.log('sdfd', original, replaced)
+	// 	if (isList(original) && isList(replaced)) {
+	// 		for (let i = 0; i < replaced.length; i++) {
+	// 			const oi = Math.min(i, original.length - 2)
+	// 			replaced.push(original[M_DELIMITERS][oi])
+	// 		}
+	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
+	// 	}
+	// }
+
 	// Set as child
 	if (Array.isArray(outer)) {
 		outer[index] = replaced
