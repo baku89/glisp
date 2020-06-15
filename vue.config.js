@@ -24,6 +24,7 @@ module.exports = {
 		entry: {
 			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
 			'lib/path': path.join(__dirname, 'src/mal-lib/path.ts'),
+			'lib/math': path.join(__dirname, 'src/mal-lib/math.ts'),
 			'js/generator': path.join(__dirname, 'src/generator.ts')
 		},
 		node: {

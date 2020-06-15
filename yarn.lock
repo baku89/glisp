@@ -4375,6 +4375,10 @@ https-browserify@^1.0.0:
   resolved "https://registry.npm.taobao.org/https-browserify/download/https-browserify-1.0.0.tgz#ec06c10e0a34c0f2faf199f7fd7fc78fffd03c73"
   integrity sha1-7AbBDgo0wPL68Zn3/X/Hj//QPHM=
 
+hull.js@AndriiHeonia/hull:
+  version "1.0.0"
+  resolved "https://codeload.github.com/AndriiHeonia/hull/tar.gz/1ce2b416d538dd62b904f32b89cdec2fe7525cb9"
+
 human-signals@^1.1.1:
   version "1.1.1"
   resolved "https://registry.npm.taobao.org/human-signals/download/human-signals-1.1.1.tgz#c5b1cd14f50aeae09ab6c59fe63ba3395fe4dfa3"

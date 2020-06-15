@@ -1,3 +1,5 @@
+(import-js-force "math.js")
+
 (def TWO_PI (* PI 2))
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
