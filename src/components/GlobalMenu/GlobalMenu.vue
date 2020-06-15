@@ -1,5 +1,8 @@
 <template>
-	<header class="GlobalMenu" :class="{dark}">
+	<header
+		class="GlobalMenu"
+		:class="{dark, 'title-bar-macos': titleBar === 'macos'}"
+	>
 		<h1>'(GLISP)</h1>
 		<div class="GlobalMenu__menu" v-click-outside="onClose">
 			<div
@@ -21,7 +24,7 @@
 				/>
 			</div>
 		</div>
-		<WindowTitleButtons v-if="hasWindowTitleButtons" :dark="dark" />
+		<WindowTitleButtons v-if="titleBar === 'frameless'" :dark="dark" />
 	</header>
 </template>
 
@@ -32,6 +35,7 @@ import GlobalSubmenu from './GlobalSubmenu.vue'
 import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
+import {defineComponent} from '@vue/composition-api'
 
 @Component({
 	name: 'GlobalMenu',
@@ -84,7 +88,17 @@ export default class GlobalMenu extends Vue {
 
 	private expandedIndex: number | null = null
 
-	private hasWindowTitleButtons = isElectron()
+	mounted() {
+		// console.log(this.titleBar, require(), process.platform)
+		// if (isElectron()) {
+		// }
+	}
+
+	private titleBar = isElectron()
+		? process.platform === 'darwin'
+			? 'macos'
+			: 'frameless'
+		: null
 
 	@Prop()
 	private dark!: boolean
@@ -105,26 +119,30 @@ export default class GlobalMenu extends Vue {
 </script>
 
 <style lang="stylus" scoped>
+$height = 3.4rem
+
 .GlobalMenu
 	position relative
 	display flex
 	overflow visible
-	height 3.5rem
+	height $height
 	border-bottom 1px dashed var(--comment)
 	user-select none
+
+	&.title-bar-macos
+		padding-left 64px
 
 	h1
 		position relative
 		overflow hidden
 		margin 0 0 0 0.5rem
 		padding 0rem
-		width 3.5rem
-		height 3.5rem
+		width $height
+		height $height
 		background var(--foreground)
 		text-align center
 		text-indent 10rem
 		font-weight normal
-		line-height 3.5rem
 		mask-image url('./assets/logo.png')
 		mask-size 60% 60%
 		mask-repeat no-repeat
@@ -143,7 +161,6 @@ export default class GlobalMenu extends Vue {
 		// background red
 		line-height 3.8rem
 		cursor pointer
-
 		-webkit-app-region no-drag
 
 		&:hover, &.active

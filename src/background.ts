@@ -1,4 +1,5 @@
 import {app, protocol, BrowserWindow} from 'electron'
+import {platform} from 'os'
 import {
 	createProtocol,
 	installVueDevtools
@@ -16,7 +17,8 @@ protocol.registerSchemesAsPrivileged([
 
 function createWindow() {
 	// Create the browser window.
-	win = new BrowserWindow({
+	console.log(process.env.ELECTRON_NODE_INTEGRATION)
+	let options = {
 		width: 800,
 		height: 600,
 		frame: false,
@@ -24,21 +26,32 @@ function createWindow() {
 		webPreferences: {
 			// Use pluginOptions.nodeIntegration, leave this alone
 			// See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
-			nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION
+			// nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION
+			nodeIntegration: true
 		}
-	})
+	} as Electron.BrowserWindowConstructorOptions
+
+	options =
+		platform() === 'darwin'
+			? (options = {...options, titleBarStyle: 'hiddenInset'})
+			: (options = {...options, frame: false})
+	;(win as BrowserWindow) = new BrowserWindow(options)
 
 	if (process.env.WEBPACK_DEV_SERVER_URL) {
 		// Load the url of the dev server if in development mode
-		win.loadURL(process.env.WEBPACK_DEV_SERVER_URL as string)
-		if (!process.env.IS_TEST) win.webContents.openDevTools()
+		;(win as BrowserWindow).loadURL(
+			process.env.WEBPACK_DEV_SERVER_URL as string
+		)
+		if (!process.env.IS_TEST) {
+			;(win as BrowserWindow).webContents.openDevTools()
+		}
 	} else {
 		createProtocol('app')
 		// Load the index.html when not in development
-		win.loadURL('app://./index.html')
+		;(win as BrowserWindow).loadURL('app://./index.html')
 	}
 
-	win.on('closed', () => {
+	;(win as BrowserWindow).on('closed', () => {
 		win = null
 	})
 }
