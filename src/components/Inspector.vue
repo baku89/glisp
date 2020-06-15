@@ -125,10 +125,13 @@ import {
 	assocBang,
 	cloneExp,
 	MalNode,
-	LispError
+	LispError,
+	isMalNode,
+	MalMap
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
+import MalInputComponents from '@/components/mal-input'
 import {clamp, getParamLabel, NonReactive, nonReactive} from '@/utils'
 import {getFnInfo, getPrimitiveType} from '../mal-utils'
 
@@ -185,6 +188,7 @@ type MetaDescs = (Desc | string)[]
 	name: 'Inspector',
 	components: {
 		...InputComponents,
+		...MalInputComponents,
 		VueMarkdown
 	}
 })
@@ -280,6 +284,16 @@ export default class Inspector extends Vue {
 	}
 
 	private detectInputType(v: MalVal) {
+		// if (isMalNode(v)) {
+		// 	const info = getFnInfo(v)
+		// 	if (
+		// 		info &&
+		// 		info.meta[K('returns')] &&
+		// 		(info.meta[K('returns')] as MalMap)[K('type')]
+		// 	) {
+		// 		return (info.meta[K('returns')] as MalMap)[K('type')] as string
+		// 	}
+		// }
 		return getPrimitiveType(v) || getType(v) || 'any'
 	}
 
