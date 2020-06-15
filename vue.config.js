@@ -9,11 +9,6 @@ module.exports = {
 		writeToDisk: true
 	},
 	filenameHashing: false,
-	pluginOptions: {
-		electronBuilder: {
-			externals: ['electron']
-		}
-	},
 	configureWebpack: {
 		plugins: [
 			new WorkerPlugin(),
