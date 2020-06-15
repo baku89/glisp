@@ -31,17 +31,22 @@ import Editor from './Editor'
 
 const OFFSET = 8 // length of "(sketch "
 
+interface Props {
+	exp: NonReactive<MalNode> | null
+	selectedExp: NonReactive<MalNode> | null
+	dark: boolean
+	cssStyle?: string
+}
+
 export default defineComponent({
 	components: {
 		Editor
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalNode> | null>,
 			required: true
 		},
 		selectedExp: {
-			type: Object as PropType<NonReactive<MalNode> | null>,
 			required: true
 		},
 		dark: {
@@ -53,7 +58,7 @@ export default defineComponent({
 			default: ''
 		}
 	},
-	setup(props, context: SetupContext) {
+	setup(props: Props, context: SetupContext) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
 		const hasParseError = ref(false)
 

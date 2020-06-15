@@ -39,10 +39,14 @@ function useResizeSensor(el: Ref<HTMLElement | null>, callback: () => any) {
 	})
 }
 
+interface Props {
+	exp: NonReactive<MalVal> | null
+	guideColor: string
+}
+
 export default defineComponent({
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true
 		},
 		guideColor: {
@@ -50,7 +54,7 @@ export default defineComponent({
 			required: true
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context) {
 		let renderer: CanvasRendererType | null = null
 
 		const el: Ref<HTMLElement | null> = ref(null)
