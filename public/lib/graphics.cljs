@@ -373,3 +373,19 @@
   [:text text pos (apply hash-map xs)])
 
 (defalias text graphics/text)
+
+(defn graphics/point-cloud
+  {:doc "Creates vector of points"
+   :params [&
+            {:label "Point" :type "vec2"}]
+   :handles {:draw (fn [{:params pts}]
+                     (concat [{:id "new" :type "bg"}]
+                             (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts)))
+             :drag (fn [{:id id :pos p
+                         :unevaluated-params $pts}]
+                     (if (number? id)
+                       (replace-nth $pts id p)
+                       (concat $pts [p])))}}
+  [& pts]
+  (vec pts))
+(defalias point-cloud graphics/point-cloud)

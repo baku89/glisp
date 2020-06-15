@@ -21,6 +21,7 @@
   {:doc "Represents an angle in degrees"
    :params [{:type "number"}]
    :returns {:type "number"}
+   :unit {:suffix "°"}
    :inverse (fn [ret] [(to-deg ret)])}
   [degrees] (/ (* degrees PI) 180))
 
@@ -615,3 +616,18 @@
             (if (= 2 (count xs))
               (first xs)
               (apply combination/product (butlast xs)))))))
+
+(defn combination/combinations [coll n]
+  (cond
+    (< (count coll) n) []
+    (= n 1) (map vector coll)
+    :else
+    (vec
+     (apply
+      concat
+      (for [fst (drop-last (dec n) coll)
+            :index i]
+        (map
+         (fn [r] (vec (concat [fst] r)))
+         (combination/combinations (drop (inc i) coll)
+                                   (dec n))))))))
