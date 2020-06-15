@@ -5,7 +5,7 @@ import hull from 'hull.js'
 const Exports = [
 	[
 		'convex-hull',
-		(pts: number[], concavity: number | null = null) => {
+		(pts: [number, number][], concavity: number | null = null) => {
 			return V(hull(pts, concavity === null ? Infinity : concavity))
 		}
 	]
