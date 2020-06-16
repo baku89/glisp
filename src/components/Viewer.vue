@@ -23,13 +23,12 @@ import createCanvasRender, {
 	CanvasRendererType
 } from '@/renderer/canvas-renderer'
 
-function useResizeSensor(el: Ref<HTMLElement | null>, callback: () => any) {
+function useResizeSensor(el: Ref<HTMLElement | null>, onResized: () => any) {
 	let sensor: any
 
 	onMounted(() => {
 		if (!el.value) return
-
-		sensor = new ResizeSensor(el.value, callback)
+		sensor = new ResizeSensor(el.value, onResized)
 	})
 
 	onBeforeMount(() => {
