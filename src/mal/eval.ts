@@ -365,8 +365,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				// Don't know why this should be nested
 				const expanded = evalExp(a1, env, true)
 				const ret = evalExp(expanded, env, true)
-				;(exp as MalNode)[M_EVAL] = a2
-				;(expanded as MalNode)[M_EVAL] = ret
+
+				// ;(exp as MalNode)[M_EVAL] = a2
+				// ;(expanded as MalNode)[M_EVAL] = ret
 				return ret
 			}
 			case S_QUOTE:
