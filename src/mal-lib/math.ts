@@ -1,5 +1,4 @@
 import {MalVal, symbolFor as S, markMalVector as V} from '@/mal/types'
-
 import hull from 'hull.js'
 
 const Exports = [

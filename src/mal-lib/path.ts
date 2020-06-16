@@ -19,6 +19,7 @@ import {
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
+import Voronoi from 'voronoi'
 
 type Vec2 = number[] | vec2
 
@@ -749,8 +750,34 @@ function intersections(_a: PathType, _b: PathType) {
 		.map(cl => markMalVector([cl.point.x, cl.point.y]))
 }
 
+const voronoi = new Voronoi()
+function pathVoronoi(
+	mode: 'edge' | 'cell' = 'edge',
+	[left, top, width, height]: number[],
+	pts: number[][]
+) {
+	const bbox = {xl: left, xr: left + width, yt: top, yb: top + height}
+	const sites = pts.map(([x, y]) => ({x, y}), pts)
+
+	const diagram = voronoi.compute(sites, bbox)
+
+	if (mode === 'edge') {
+		return markMalVector([
+			K_PATH,
+			...diagram.edges
+				.map(({va, vb}) => [K_M, [va.x, va.y], K_L, [vb.x, vb.y]])
+				.flat()
+		])
+	}
+
+	return markMalVector([K_PATH])
+}
+
 const Exports = [
+	// Primitives
 	['path/arc', pathArc],
+	['path/voronoi', pathVoronoi],
+
 	['path/join', pathJoin],
 	['path/to-beziers', toBeziers],
 	['path/offset', offset],

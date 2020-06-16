@@ -9149,6 +9149,11 @@ vm-browserify@^1.0.1:
   resolved "https://registry.npm.taobao.org/vm-browserify/download/vm-browserify-1.1.2.tgz#78641c488b8e6ca91a75f511e7a3b32a86e5dda0"
   integrity sha1-eGQcSIuObKkadfUR56OzKobl3aA=
 
+voronoi@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/voronoi/-/voronoi-1.0.0.tgz#c083cafa98c4359a518018bfe88624cb227ac291"
+  integrity sha1-wIPK+pjENZpRgBi/6IYkyyJ6wpE=
+
 vue-class-component@^7.1.0, vue-class-component@^7.2.3:
   version "7.2.3"
   resolved "https://registry.npm.taobao.org/vue-class-component/download/vue-class-component-7.2.3.tgz?cache=0&sync_timestamp=1581576280878&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fvue-class-component%2Fdownload%2Fvue-class-component-7.2.3.tgz#a5b1abd53513a72ad51098752e2dedd499807cca"

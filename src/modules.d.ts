@@ -88,3 +88,44 @@ declare module 'hull.js' {
 		concavity?: number
 	): [number, number][]
 }
+
+declare module 'voronoi' {
+	export interface BBox {
+		xl: number
+		xr: number
+		yt: number
+		yb: number
+	}
+
+	export interface Vertex {
+		x: number
+		y: number
+	}
+
+	export interface Site extends Vertex {
+		voronoiId: number
+	}
+
+	export interface Edge {
+		va: Vertex
+		vb: Vertex
+	}
+
+	export interface Cell {
+		closedMe: boolean
+		halfedges: {
+			site: Vertex
+			edge: Edge
+		}[]
+		site: Site
+	}
+
+	export interface Diagram {
+		cells: Cell[]
+		edges: Edge[]
+	}
+
+	export default class Voronoi {
+		public compute(sites: Vertex[], bbox: BBox): Diagram
+	}
+}
