@@ -389,3 +389,17 @@
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)
+
+(defn pc/scatter
+  {:doc "Scatters points"
+   :params [{:type "vec2"}
+            {:type "number"}
+            {:type "number"}]}
+  [center radius n seed]
+  (let [seed-offset (rnd seed)]
+    (map (fn [i]
+           (vec2/+
+            center
+            (vec2/dir (* (rnd (+ i seed-offset)) TWO_PI)
+                      (* (rnd (+ i 0.5 seed-offset)) radius))))
+         (range n))))
