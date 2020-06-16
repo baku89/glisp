@@ -1,11 +1,6 @@
 <template>
 	<div class="InputAngle">
-		<InputNumber
-			class="InputAngle__el"
-			:value="value"
-			@input="onInput"
-			:validator="validator"
-		/>
+		<InputNumber class="InputAngle__el" :value="value" @input="onInput" :validator="validator" />
 		<button
 			class="InputAngle__drag"
 			:class="{dragging: drag.isDragging}"
@@ -79,7 +74,6 @@ export default defineComponent({
 
 	&__el
 		margin-right 0.5em
-		width 5em
 
 		&:last-child
 			margin-right 0

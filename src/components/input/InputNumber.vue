@@ -70,7 +70,7 @@ export default defineComponent({
 		const step = computed(() => {
 			const float = props.value.toString().split('.')[1]
 			return float !== undefined
-				? Math.min(Math.pow(10, -float.length), 0.1)
+				? Math.max(Math.pow(10, -float.length), 0.1)
 				: 1
 		})
 

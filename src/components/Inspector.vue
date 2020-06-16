@@ -3,9 +3,10 @@
 		<div class="Inspector__header">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span v-if="fnInfo && fnInfo.aliasFor" class="alias"
-					>--> alias for {{ fnInfo.aliasFor }}</span
-				>
+				<span
+					v-if="fnInfo && fnInfo.aliasFor"
+					class="alias"
+				>--> alias for {{ fnInfo.aliasFor }}</span>
 			</div>
 			<VueMarkdown :source="fnDoc" />
 		</div>
@@ -63,6 +64,11 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
+						<InputSeed
+							v-else-if="params[i].type === 'seed'"
+							:value="params[i].value"
+							@input="onParamInput(i, $event)"
+						/>
 						<InputString
 							style="color: var(--purple)"
 							v-else-if="params[i].type === 'symbol'"
@@ -76,32 +82,18 @@
 							:validator="keywordValidator"
 							@input="onParamInput(i, $event)"
 						/>
-						<div v-else class="exp">
-							{{ printExp(params[i].value, true, true) }}
-						</div>
+						<div v-else class="exp">{{ printExp(params[i].value, true, true) }}</div>
 					</div>
-					<button
-						class="delete"
-						v-if="i >= variadicPos"
-						@click="onParamDelete(i)"
-					>
+					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 						<i class="far fa-times-circle" />
 					</button>
-					<button
-						class="insert"
-						v-if="i >= variadicPos"
-						@click="onParamInsert(i)"
-					>
-						&lt;-- Insert
-					</button>
+					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
 				</td>
 			</tr>
 			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 				<td class="label"></td>
 				<td class="value">
-					<button class="add" @click="onParamInsert(params.length)">
-						+ Add
-					</button>
+					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
 				</td>
 			</tr>
 		</table>
@@ -467,6 +459,8 @@ export default class Inspector extends Vue {
 				return 'color'
 			} else if (descType === 'angle' && inputType === 'number') {
 				return 'angle'
+			} else if (descType === 'seed' && inputType === 'number') {
+				return 'seed'
 			} else if (descType) {
 				return 'exp'
 			}
