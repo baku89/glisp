@@ -394,7 +394,8 @@
   {:doc "Scatters points"
    :params [{:type "vec2"}
             {:type "number"}
-            {:type "number"}]}
+            {:type "number" :constraints {:min 0 :step 1}}
+            {:type "seed"}]}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
     (map (fn [i]
