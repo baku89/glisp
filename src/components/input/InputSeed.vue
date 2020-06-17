@@ -8,15 +8,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	watch,
-	PropType,
-	onMounted
-} from '@vue/composition-api'
-import {markMalVector} from '@/mal/types'
+import {defineComponent} from '@vue/composition-api'
 import InputNumber from './InputNumber.vue'
 
 export default defineComponent({

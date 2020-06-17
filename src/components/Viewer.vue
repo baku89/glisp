@@ -11,8 +11,7 @@ import {
 	onMounted,
 	onBeforeMount,
 	watch,
-	ref,
-	PropType
+	ref
 } from '@vue/composition-api'
 import ResizeSensor from 'resize-sensor'
 

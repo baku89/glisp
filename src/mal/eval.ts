@@ -27,9 +27,6 @@ import {
 	M_ELMSTRS,
 	M_KEYS,
 	M_EVAL_PARAMS,
-	M_ISSUGAR,
-	M_DELIMITERS,
-	MalNodeMap,
 	keywordFor as K,
 	M_PARAMS,
 	markMalVector
@@ -54,7 +51,6 @@ const S_SPLICE_UNQUOTE = S('splice-unquote')
 const S_TRY = S('try')
 const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
-const S_CONS = S('cons')
 
 // eval
 
@@ -286,7 +282,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const option = evalExp(a1, env, cache) as MalMap
 				const bounds = option[K('bounds')]
 				const background = option[K('background')]
-				const xs = exp.slice(2)
 
 				if (!Array.isArray(bounds) || bounds.length < 4) {
 					throw new LispError('Invalid bounds')
@@ -526,6 +521,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 	}
 }
 
+/*
 const MALNODELIST_SYMBOLS = [
 	M_ISSUGAR,
 	M_DELIMITERS,
@@ -571,6 +567,7 @@ function cloneMalNode(original: MalNode) {
 
 	return cloned
 }
+*/
 
 // Cached Tree-shaking
 export function replaceExp(original: MalNode, replaced: MalVal) {

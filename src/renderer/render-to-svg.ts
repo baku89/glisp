@@ -1,7 +1,6 @@
 import C2S from 'canvas2svg'
 import {MalVal} from '@/mal/types'
 import renderToContext from './render-to-context'
-import {readStr} from '@/mal'
 
 export default function renderToSvg(
 	view: MalVal,

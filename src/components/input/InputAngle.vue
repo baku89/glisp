@@ -1,6 +1,11 @@
 <template>
 	<div class="InputAngle">
-		<InputNumber class="InputAngle__el" :value="value" @input="onInput" :validator="validator" />
+		<InputNumber
+			class="InputAngle__el"
+			:value="value"
+			@input="onInput"
+			:validator="validator"
+		/>
 		<button
 			class="InputAngle__drag"
 			:class="{dragging: drag.isDragging}"
@@ -11,8 +16,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, watch, PropType} from '@vue/composition-api'
-import {markMalVector} from '@/mal/types'
+import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
 import InputNumber from './InputNumber.vue'
 import {useDraggable} from '@/components/use'
 import {vec2} from 'gl-matrix'

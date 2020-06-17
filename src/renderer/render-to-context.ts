@@ -219,8 +219,6 @@ export default function renderToContext(
 			  }
 	) {
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
-		const isPath = Array.isArray(content),
-			isText = !isPath
 
 		const drawOrders = styles.map(s => ({
 			fill: s[K('fill')],

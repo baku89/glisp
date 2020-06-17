@@ -191,30 +191,6 @@ function closedQ(path: PathType) {
 	return path.slice(-1)[0] === K_Z
 }
 
-/**
- * Returns:
- * A --- B----
- *        \  <- this angle
- *         \
- *          C
- * The returned value is signed and is positive angle if ABC is CW, else negative.
- */
-function getTurnAngle(from: vec2, through: vec2, to: vec2): number {
-	const AB = vec2.create()
-	const BC = vec2.create()
-
-	vec2.sub(AB, through, from)
-	vec2.sub(BC, to, through)
-
-	const angle = vec2.angle(AB, BC)
-
-	// Rotate AB 90 degrees in CW
-	vec2.rotate(AB, AB, [0, 0], HALF_PI)
-	const rot = Math.sign(vec2.dot(AB, BC))
-
-	return angle * rot
-}
-
 function toBeziers(path: PathType) {
 	const ret: PathType = [K_PATH]
 
