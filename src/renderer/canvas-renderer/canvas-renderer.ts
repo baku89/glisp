@@ -53,9 +53,9 @@ export default class CanvasRenderer {
 		const defaultStyle: MalMap | null = settings.guideColor
 			? {
 					[K('stroke')]: true,
-					[K('stroke_color')]: settings.guideColor,
-					[K('stroke_width')]: 1,
-					[K('stroke_dash')]: [2, 4]
+					[K('stroke-color')]: settings.guideColor,
+					[K('stroke-width')]: 1,
+					[K('stroke-dash')]: [2, 4]
 			  }
 			: null
 
