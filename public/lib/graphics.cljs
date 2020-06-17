@@ -390,12 +390,32 @@
   (vec pts))
 (defalias point-cloud graphics/point-cloud)
 
-(defn pc/scatter
+(defn point-cloud/scatter
   {:doc "Scatters points"
    :params [{:type "vec2"}
             {:type "number"}
             {:type "number" :constraints {:min 0 :step 1}}
-            {:type "seed"}]}
+            {:type "seed"}]
+   :handles {:draw (fn [{:params [center radius]
+                         :return ret}]
+                     [{:type "path" :guide true
+                       :path (apply concat
+                                    [:path]
+                                    (map #(vector :M (vec2/+ % [-2 -2]) :L (vec2/+ % [2  2])
+                                                  :M (vec2/+ % [-2  2]) :L (vec2/+ % [2 -2])) ret))}
+                      {:type "path" :id :radius :class "dashed" :path (circle center radius)}
+                      {:type "arrow" :id :radius
+                       :pos (vec2/+ center [radius 0])}
+                      {:type "point"
+                       :id :center
+                       :class "translate"
+                       :pos center}])
+             :drag (fn [{:id id :pos p
+                         :params [center radius]
+                         :unevaluated-params $params}]
+                     (case id
+                       :center (replace-nth $params 0 p)
+                       :radius (replace-nth $params 1 (vec2/dist center p))))}}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
     (map (fn [i]
