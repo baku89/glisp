@@ -268,7 +268,6 @@ function readForm(reader: Reader, saveStr: boolean): any {
 				const expr = readForm(reader, saveStr)
 				val = [S('set-id'), meta, expr]
 			} else {
-				console.log(type)
 				switch (type) {
 					case 'f32':
 						reader.next()

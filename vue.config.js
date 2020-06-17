@@ -39,6 +39,12 @@ module.exports = {
 			}
 		}
 	},
+	chainWebpack: config => {
+		config.plugin('html-js/index').tap(args => {
+			args[0].hash = true
+			return args
+		})
+	},
 	pages: {
 		'js/index': {
 			entry: 'src/pages/index.ts',

@@ -19,7 +19,9 @@ export const slurp = (() => {
 	} else {
 		return (url: string) => {
 			const req = new XMLHttpRequest()
-			req.open('GET', url, false)
+			const hashedUrl =
+				url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
+			req.open('GET', hashedUrl, false)
 			req.send()
 			if (req.status !== 200) {
 				throw new LispError(`Failed to slurp file: ${url}`)
