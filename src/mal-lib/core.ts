@@ -1,7 +1,7 @@
 import seedrandom from 'seedrandom'
 import {
 	MalVal,
-	markMalVector,
+	markMalVector as V,
 	symbolFor as S,
 	MalMap,
 	cloneExp,
@@ -67,9 +67,9 @@ const Exports = [
 	['list', (...xs: MalVal[]) => xs],
 	['list?', isList],
 
-	['vector', (...xs: MalVal[]) => markMalVector(xs)],
+	['vector', (...xs: MalVal[]) => V(xs)],
 	['vector?', isVector],
-	['vec', (a: MalVal[]) => markMalVector([...a])],
+	['vec', (a: MalVal[]) => V([...a])],
 	['sequential?', Array.isArray],
 	[
 		'seq',
@@ -79,7 +79,7 @@ const Exports = [
 			} else if (isString(a) && a.length > 0) {
 				return a.split('')
 			} else if (isMap(a)) {
-				return Object.entries(a).map(entry => markMalVector(entry))
+				return Object.entries(a).map(entry => V(entry))
 			} else {
 				return null
 			}
@@ -127,14 +127,11 @@ const Exports = [
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
-	['map', (f: MalFunc, a: MalVal[]) => markMalVector(a.map(x => f(x)))],
-	[
-		'map-indexed',
-		(f: MalFunc, a: MalVal[]) => markMalVector(a.map((x, i) => f(i, x)))
-	],
+	['map', (f: MalFunc, a: MalVal[]) => V(a.map(x => f(x)))],
+	['map-indexed', (f: MalFunc, a: MalVal[]) => V(a.map((x, i) => f(i, x)))],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
-	['sort', (coll: MalVal[]) => markMalVector(coll.sort())],
+	['sort', (coll: MalVal[]) => V(coll.sort())],
 	['partition', partition],
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
@@ -152,7 +149,7 @@ const Exports = [
 				args.forEach(arg => newList.unshift(arg))
 				return newList
 			} else if (isVector(lst)) {
-				return markMalVector([...lst, ...args])
+				return V([...lst, ...args])
 			}
 		}
 	],
@@ -192,11 +189,7 @@ const Exports = [
 	],
 	['keys', (a: MalMap) => Object.keys(a)],
 	['vals', (a: MalMap) => Object.values(a)],
-	[
-		'entries',
-		(a: MalMap) =>
-			markMalVector(Object.entries(a).map(pair => markMalVector(pair)))
-	],
+	['entries', (a: MalMap) => V(Object.entries(a).map(pair => V(pair)))],
 
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
@@ -245,7 +238,7 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return markMalVector(ret)
+			return V(ret)
 		}
 	],
 	// Random

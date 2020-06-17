@@ -73,23 +73,23 @@
   ^{:doc "Define a macro"
     :params [{label: "Symbol", type: "symbol"}
              {label: "Params", type: "any"}]}
-  (macro [name params & body]
+  (macro
+   [name params & body]
+   (do
+     ;; Destruction of meta, param, body
+     (def metadata nil)
+     (if (false? (sequential? params))
          (do
-  ;; Destruction of meta, param, body
-         (def metadata nil)
-         (if (false? (sequential? params))
-           (do
-             (def metadata params)
-             (def params (first body))
-             (def body (rest body))))
-  ;; Wrap with 'do if body has multiple lines
-         (if (= 1 (count body))
-           (def body (first body))
-           (def body `(do ~@body)))
-
-         (if (nil? metadata)
-           `(def ~name (macro ~params ~body))
-           `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
+           (def metadata params)
+           (def params (first body))
+           (def body (rest body))))
+     ; Wrap with 'do if body has multiple lines
+     (if (= 1 (count body))
+       (def body (first body))
+       (def body `(do ~@body)))
+     (if (nil? metadata)
+       `(def ~name (macro ~params ~body))
+       `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
 
 (defmacro defn
   {:doc "Define a function"
