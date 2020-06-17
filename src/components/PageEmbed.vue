@@ -49,20 +49,7 @@ import {printer} from '@/mal/printer'
 import {BlankException} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
-
-const BRIGHT_COLORS = {
-	'--currentline': '#efefef',
-	'--selection': '#d6d6d6',
-	'--foreground': '#4d4d4c',
-	'--comment': '#8e908c',
-	'--red': '#c82829',
-	'--orange': '#f5871f',
-	'--yellow': '#eab700',
-	'--green': '#718c00',
-	'--aqua': '#3e999f',
-	'--blue': '#4271ae',
-	'--purple': '#8959a8'
-}
+import {BRIGHT_COLORS} from '@/theme'
 
 const OFFSET = 8 // length of "(sketch "
 
