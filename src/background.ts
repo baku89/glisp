@@ -1,4 +1,4 @@
-import {app, protocol, BrowserWindow} from 'electron'
+import {app, protocol, BrowserWindow, ipcMain} from 'electron'
 import {platform} from 'os'
 import {
 	createProtocol,
@@ -8,7 +8,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let win: BrowserWindow | null
+let win: BrowserWindow
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -17,7 +17,6 @@ protocol.registerSchemesAsPrivileged([
 
 function createWindow() {
 	// Create the browser window.
-	console.log(process.env.ELECTRON_NODE_INTEGRATION)
 	let options = {
 		width: 800,
 		height: 600,
@@ -27,7 +26,8 @@ function createWindow() {
 			// Use pluginOptions.nodeIntegration, leave this alone
 			// See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
 			// nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION
-			nodeIntegration: true
+			nodeIntegration: true,
+			enableRemoteModule: true
 		}
 	} as Electron.BrowserWindowConstructorOptions
 
@@ -35,40 +35,30 @@ function createWindow() {
 		platform() === 'darwin'
 			? (options = {...options, titleBarStyle: 'hiddenInset'})
 			: (options = {...options, frame: false})
-	;(win as BrowserWindow) = new BrowserWindow(options)
+	win = new BrowserWindow(options)
 
 	if (process.env.WEBPACK_DEV_SERVER_URL) {
 		// Load the url of the dev server if in development mode
-		;(win as BrowserWindow).loadURL(
-			process.env.WEBPACK_DEV_SERVER_URL as string
-		)
+		win.loadURL(process.env.WEBPACK_DEV_SERVER_URL as string)
 		if (!process.env.IS_TEST) {
-			;(win as BrowserWindow).webContents.openDevTools()
+			win.webContents.openDevTools()
 		}
 	} else {
 		createProtocol('app')
 		// Load the index.html when not in development
-		;(win as BrowserWindow).loadURL('app://./index.html')
+		win.loadURL('app://./index.html')
 	}
-
-	;(win as BrowserWindow).on('closed', () => {
-		win = null
-	})
 }
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
-	// On macOS it is common for applications and their menu bar
-	// to stay active until the user quits explicitly with Cmd + Q
-	if (process.platform !== 'darwin') {
-		app.quit()
-	}
+	app.quit()
 })
 
 app.on('activate', () => {
 	// On macOS it's common to re-create a window in the app when the
 	// dock icon is clicked and there are no other windows open.
-	if (win === null) {
+	if (!win) {
 		createWindow()
 	}
 })
