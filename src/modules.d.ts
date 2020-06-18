@@ -129,3 +129,10 @@ declare module 'voronoi' {
 		public compute(sites: Vertex[], bbox: BBox): Diagram
 	}
 }
+
+declare module 'delaunator' {
+	export default class Delaunator {
+		public triangles: number[]
+		static from(points: [number, number][]): Delaunator
+	}
+}
