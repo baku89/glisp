@@ -71,18 +71,18 @@
 
 (def defmacro
   ^{:doc "Define a macro"
-    :params [{label: "Symbol", type: "symbol"}
-             {label: "Params", type: "any"}]}
+    :params [{:label "Symbol" :type "symbol"}
+             {:label "Params" :type "any"}]}
   (macro
    [name params & body]
    (do
      ;; Destruction of meta, param, body
      (def metadata nil)
      (if (false? (sequential? params))
-         (do
-           (def metadata params)
-           (def params (first body))
-           (def body (rest body))))
+       (do
+         (def metadata params)
+         (def params (first body))
+         (def body (rest body))))
      ; Wrap with 'do if body has multiple lines
      (if (= 1 (count body))
        (def body (first body))
@@ -93,8 +93,8 @@
 
 (defmacro defn
   {:doc "Define a function"
-    :params [{label: "Symbol", type: "symbol"}
-             {label: "Params", type: "any"}]}
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Params" :type "any"}]}
   [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
@@ -129,45 +129,45 @@
 ;; Annotate the parameter of special forms
 (def def
   ^{:doc "Create a variable"
-   :params [{:label "Symbol" :type "symbol"}
-            {:label "Value" :type "any"}]}
+    :params [{:label "Symbol" :type "symbol"}
+             {:label "Value" :type "any"}]}
   (fn [] nil))
 
 (def let
   ^{:doc "Creates a lexical scope"
-   :parmas [{:label "Binds" :type "code"}
-            &
-            {:label "Expr" :type "code"}]}
+    :parmas [{:label "Binds" :type "code"}
+             &
+             {:label "Expr" :type "code"}]}
   (fn [] nil))
 
 (def do
   ^{:doc "Evaluates *exprs* in order and returns the value of the last"
-   :params [&
-            {:label "Expr" :type "code"}]}
+    :params [&
+             {:label "Expr" :type "code"}]}
   (fn [] nil))
 
 (def if
   ^{:doc "Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil"
-  :params [{:label "Test" :type "code"}
-           {:label "Then" :type "code"}
-           {:label "Else" :type "code" :default nil}]}
+    :params [{:label "Test" :type "code"}
+             {:label "Then" :type "code"}
+             {:label "Else" :type "code" :default nil}]}
   (fn [] nil))
 
 (def quote
   ^{:doc "Yields the unevaluated *form*"
-   :params [{:label "Form" :type "code"}]}
+    :params [{:label "Form" :type "code"}]}
   (fn [] nil))
 
 (def fn
   ^{:doc "Defines a function"
-   :params [{:label "Params" :type "code"}
-            {:label "Expr" :type "code"}]}
+    :params [{:label "Params" :type "code"}
+             {:label "Expr" :type "code"}]}
   (fn [] nil))
 
 (def macro
   ^{:doc "Defines a macro"
-   :params [{:label "Params" :type "code"}
-            {:label "Expr" :type "code"}]}
+    :params [{:label "Params" :type "code"}
+             {:label "Expr" :type "code"}]}
   (fn [] nil))
 
 (def import
@@ -202,7 +202,7 @@
                                         (list (take param-width (str (first %) spaces))
                                               (take 9
                                                     (format "[%s]       "
-                                                             (drop 1 (second %))))
+                                                            (drop 1 (second %))))
                                               (last %)))
                                  params)))
                      nil)
@@ -210,8 +210,8 @@
 
 (def type
   ^{:doc "Retruns the type of `x` in keyword"
-   :params [{:label "Value" :type "any"}]
-   :returns {:type "keyword"}}
+    :params [{:label "Value" :type "any"}]
+    :returns {:type "keyword"}}
   type)
 
 (defn name
@@ -258,12 +258,12 @@
    [destruct-binds
     (fn [binds]
       (let
-        [pairs (partition 2 binds)
-         entries (filter #(symbol? (first %)) pairs)
-         options (->> pairs
-                      (filter #(keyword? (first %)))
-                      (apply concat)
-                      (apply hash-map))]
+       [pairs (partition 2 binds)
+        entries (filter #(symbol? (first %)) pairs)
+        options (->> pairs
+                     (filter #(keyword? (first %)))
+                     (apply concat)
+                     (apply hash-map))]
         [entries options]))]
 
     (macro [binds & body]
@@ -326,8 +326,8 @@
 (defmacro as-> [expr name & forms]
   (reduce
    (fn [prev-form form] `(let [~name ~prev-form] ~form))
-     expr
-     forms))
+   expr
+   forms))
 
 (defn mapcat [& xs]
   (apply concat (apply map xs)))
@@ -338,7 +338,7 @@
     (if (and (element? lst) (pred lst))
       ;; Match
       [lst]
-      
+
       ;; Not match but sequence
       (remove nil? (mapcat #(match-elements pred %) lst)))))
 
@@ -360,8 +360,7 @@
   {:doc "Map the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
    :returns {:type "number"}
-   :inverse (fn [ret] [(* ret 100)])
-   }
+   :inverse (fn [ret] [(* ret 100)])}
   [value] (/ value 100))
 
 (defn compare
@@ -419,9 +418,9 @@
 (defn drop-nth
   {:doc "Returns a sequence of all but the nth item in coll"}
   [n coll]
-  (concat 
-    (take n coll)
-    (drop (inc n) coll)))
+  (concat
+   (take n coll)
+   (drop (inc n) coll)))
 
 ;; String
 (defn ends-with?
