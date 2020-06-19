@@ -1,5 +1,5 @@
 import Case from 'case'
-import {MalVal, isKeyword, isSymbol} from '@/mal/types'
+import {MalVal, isKeyword} from '@/mal/types'
 import printExp from '@/mal/printer'
 
 export function replaceRange(
