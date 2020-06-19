@@ -24,7 +24,7 @@ export function clamp(value: number, min: number, max: number) {
  * @param exp A bind expression
  */
 export function getParamLabel(exp: MalVal) {
-	const str = isKeyword(exp) || isSymbol(exp) ? exp.slice(1) : printExp(exp)
+	const str = isKeyword(exp) ? exp.slice(1) : printExp(exp)
 	return str.length === 1 ? str : Case.capital(str)
 }
 

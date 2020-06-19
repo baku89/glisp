@@ -72,7 +72,7 @@
 						<InputString
 							style="color: var(--purple)"
 							v-else-if="params[i].type === 'symbol'"
-							:value="params[i].value.slice(1)"
+							:value="params[i].value.value"
 							:validator="symbolValidator"
 							@input="onParamInput(i, $event)"
 						/>
@@ -119,7 +119,8 @@ import {
 	MalNode,
 	LispError,
 	isMalNode,
-	MalMap
+	MalMap,
+	malEquals
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
@@ -230,7 +231,7 @@ export default class Inspector extends Vue {
 		metaDesc: MetaDescs,
 		forceMatch = false
 	): ParamDescs | null {
-		const restPos = metaDesc.indexOf(S_AMP)
+		const restPos = metaDesc.findIndex(d => malEquals(d, S_AMP))
 
 		if (restPos === -1) {
 			if (params.length === metaDesc.length || forceMatch) {
@@ -329,7 +330,7 @@ export default class Inspector extends Vue {
 
 			for (let i = 0; i < fnMetaParams.length; i++) {
 				// Variadic parameter
-				if (fnMetaParams[i] === S_AMP) {
+				if (malEquals(fnMetaParams[i], S_AMP)) {
 					for (let j = i; j < this.fnParams.length; j++) {
 						const type = this.fnParams
 							? this.detectInputType(this.fnParams[j])

@@ -6,8 +6,6 @@ import printExp, {printer} from './printer'
 import readStr from './reader'
 import interop from './interop'
 
-const S_AMP = S('&')
-
 // String functions
 export const slurp = (() => {
 	if (isNode) {
@@ -47,10 +45,6 @@ const Exports = [
 		'throw',
 		(msg: string) => {
 			throw new LispError(msg)
-		},
-		{
-			doc: 'Throw an error',
-			params: [{label: 'Message', type: 'string'}]
 		}
 	],
 
@@ -60,10 +54,6 @@ const Exports = [
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
 			return null
-		},
-		{
-			doc: 'Print the object to the shell',
-			params: [S_AMP, {label: 'Objects', type: 'any'}]
 		}
 	],
 	[

@@ -13,7 +13,8 @@ import {
 	getType,
 	MalMap,
 	MalFunc,
-	MalNode
+	MalNode,
+	MalSymbol
 } from './types'
 
 export const printer = {
@@ -159,7 +160,7 @@ export default function printExp(
 				ret = 'nil'
 				break
 			case 'symbol':
-				ret = (exp as string).slice(1)
+				ret = (exp as MalSymbol).value
 				break
 			case 'keyword':
 				ret = ':' + (exp as string).slice(1)

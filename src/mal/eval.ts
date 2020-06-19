@@ -29,18 +29,26 @@ import {
 	M_EVAL_PARAMS,
 	keywordFor as K,
 	M_PARAMS,
-	markMalVector
+	markMalVector,
+	MalSymbol,
+	MalBind
 } from './types'
 import Env from './env'
-import printExp from './printer'
 import {saveOuter} from './reader'
 import {mat2d} from 'gl-matrix'
+import {printExp} from '.'
 
 const S_DEF = S('def')
 const S_LET = S('let')
+const S_BINDING = S('binding')
 const S_IF = S('if')
 const S_DO = S('do')
 const S_FN = S('fn')
+const S_ARTBOARD = S('artboard')
+const S_STYLE = S('style')
+const S_TRANSFORM = S('transform')
+const S_GET_ALL_SYMBOLS = S('get-all-symbols')
+const S_FN_PARAMS = S('fn-params')
 const S_FN_SUGAR = S('fn-sugar')
 const S_MACRO = S('macro')
 const S_MACROEXPAND = S('macroexpand')
@@ -51,6 +59,8 @@ const S_SPLICE_UNQUOTE = S('splice-unquote')
 const S_TRY = S('try')
 const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
+const S_ENV_CHAIN = S('env-chain')
+const S_EVAL_IN_ENV = S('eval-in-env')
 
 // eval
 
@@ -149,6 +159,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			return evalAtom(exp, env, cache)
 		}
 
+		// Expand macro
 		const expandedExp = macroexpand(exp, env, cache)
 		if (cache && exp !== expandedExp) {
 			;(exp as MalNodeList)[M_EXPANDED] = expandedExp
@@ -166,13 +177,12 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		// Apply list
 		const [a0, a1, a2, a3] = exp
 
-		// Special Forms
 		switch (a0) {
 			case S_DEF: {
 				if (a2 === undefined || a1 === undefined) {
 					throw new LispError('Invalid form of def')
 				}
-				const ret = env.set(a1 as string, evalExp(a2, env, cache))
+				const ret = env.set(a1 as MalSymbol, evalExp(a2, env, cache))
 				if (cache) {
 					;(exp as MalNodeList)[M_FN] = env.get(S_DEF) as MalFunc
 					;(exp as MalNode)[M_EVAL] = ret
@@ -200,7 +210,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			case S('binding'): {
+			case S_BINDING: {
 				const bindingEnv = new Env()
 				const binds = a1 as MalVal[]
 				for (let i = 0; i < binds.length; i += 2) {
@@ -221,7 +231,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('transform'): {
+			case S_TRANSFORM: {
 				const matrix = evalExp(a1, env, cache)
 				const xs = exp.slice(2)
 
@@ -251,7 +261,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('style'): {
+			case S_STYLE: {
 				const styles = evalExp(a1, env, cache) as MalMap | MalMap[]
 				const mergedStyle = Array.isArray(styles)
 					? styles.reduce((ret, s) => {
@@ -279,7 +289,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('artboard'): {
+			case S_ARTBOARD: {
 				const option = evalExp(a1, env, cache) as MalMap
 				const bounds = option[K('bounds')]
 				const background = option[K('background')]
@@ -335,7 +345,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('get-all-symbols'): {
+			case S_GET_ALL_SYMBOLS: {
 				const ret = V(env.getAllSymbols())
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
@@ -343,13 +353,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S('var'): {
-				const ret = env.get(a1 as string)
+				const ret = env.get(a1 as MalSymbol)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S('fn-params'): {
+			case S_FN_PARAMS: {
 				const fn = evalExp(a1, env, true)
 				const ret = isMalFunc(fn) ? markMalVector([...fn[M_PARAMS]]) : null
 				if (cache) {
@@ -357,7 +367,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('eval-in-env'): {
+			case S_EVAL_IN_ENV: {
 				// Don't know why this should be nested
 				const expanded = evalExp(a1, env, true)
 				const ret = evalExp(expanded, env, true)
@@ -392,7 +402,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					(...args) => evalExp(a2, new Env(env, a1 as any[], args), cache),
 					a2,
 					env,
-					a1 as string[]
+					a1 as MalBind
 				)
 			case S_FN_SUGAR:
 				return createMalFunc(
@@ -429,7 +439,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 						}
 						const ret = evalExp(
 							a2[2],
-							new Env(env, [a2[1] as string], [err]),
+							new Env(env, [a2[1] as MalSymbol], [err]),
 							cache
 						)
 						if (cache) {
@@ -467,30 +477,29 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			case S('env-chain'): {
+			case S_ENV_CHAIN: {
 				const envs = env.getChain()
 				exp = [S('println'), envs.map(e => e.name).join(' <- ')]
 				break // continue TCO loop
-			} /*
-			case 'which-env': {
-				let _env: Env | null = env
-				const envs = []
+			}
+			// case 'which-env': {
+			// 	let _env: Env | null = env
+			// 	const envs = []
 
-				do {
-					envs.push(_env)
-					_env = _env.outer
-				} while (_env)
+			// 	do {
+			// 		envs.push(_env)
+			// 		_env = _env.outer
+			// 	} while (_env)
 
-				exp = [
-					S('println'),
-					envs
-						.filter(e => e.hasOwn(a1 as string))
-						.map(e => e.name)
-						.join(' <- ') || 'not defined'
-				]
-				break
-			}s
-			*/
+			// 	exp = [
+			// 		S('println'),
+			// 		envs
+			// 			.filter(e => e.hasOwn(a1 as MalSymbol))
+			// 			.map(e => e.name)
+			// 			.join(' <- ') || 'not defined'
+			// 	]
+			// 	break
+			// }
 			default: {
 				// Apply Function
 				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]

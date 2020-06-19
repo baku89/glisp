@@ -24,7 +24,7 @@ export const M_ELMSTRS = Symbol.for('elmstrs') // string representations of each
 export const M_KEYS = Symbol.for('keys') // keys of hashmap in order
 export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
-export type MalBind = (string | MalBind)[]
+export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
 
 export interface MalFunc extends Function {
 	(...args: MalVal[]): MalVal
@@ -95,6 +95,8 @@ export function getType(obj: MalVal | undefined): MalTypeString {
 				return isvector ? 'vector' : 'list'
 			} else if (obj instanceof Float32Array) {
 				return 'vector'
+			} else if ((obj as MalSymbol).type === 'symbol') {
+				return 'symbol'
 			} else if (obj instanceof MalAtom) {
 				return 'atom'
 			} else {
@@ -106,8 +108,6 @@ export function getType(obj: MalVal | undefined): MalTypeString {
 		}
 		case 'string':
 			switch ((obj as string)[0]) {
-				case SYMBOL_PREFIX:
-					return 'symbol'
 				case KEYWORD_PREFIX:
 					return 'keyword'
 				default:
@@ -166,6 +166,7 @@ export type MalVal =
 	| string
 	| boolean
 	| null
+	| MalSymbol
 	| MalAtom
 	| MalFunc
 	| MalJSFunc
@@ -271,7 +272,6 @@ export function createMalFunc(
 }
 
 const KEYWORD_PREFIX = '\u029e'
-const SYMBOL_PREFIX = '\u01a8'
 
 export const isMalFunc = (obj: MalVal): obj is MalFunc =>
 	obj instanceof Function && (obj as MalFunc)[M_AST] ? true : false
@@ -281,11 +281,36 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 	getType(obj) === 'string'
 
 // Symbol
-// Use \u01a8 as the prefix of symbol for AST object
-export const isSymbol = (obj: MalVal): obj is string =>
+export class MalSymbol {
+	static map =
+		((globalThis as any)['mal-symbols'] as Map<string, MalSymbol>) ||
+		new Map<string, MalSymbol>()
+
+	static get(value: string): MalSymbol {
+		let token = MalSymbol.map.get(value)
+		if (token) {
+			return token
+		}
+		token = new MalSymbol(value)
+		MalSymbol.map.set(value, token)
+		return token
+	}
+
+	private constructor(public value: string) {}
+
+	public type = 'symbol'
+
+	public toString() {
+		return this.value
+	}
+}
+;(globalThis as any)['mal-symbols'] = MalSymbol.map
+;(globalThis as any).MalSymbol = MalSymbol
+
+export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 	getType(obj) === 'symbol'
 
-export const symbolFor = (k: string) => SYMBOL_PREFIX + k
+export const symbolFor = MalSymbol.get
 
 // Keyword
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
@@ -365,6 +390,8 @@ export function malEquals(a: MalVal, b: MalVal) {
 			}
 			return true
 		}
+		case 'symbol':
+			return (a as MalSymbol).value === (b as MalSymbol).value
 		default:
 			return a === b
 	}

@@ -4,10 +4,11 @@ import {
 	symbolFor as S,
 	isSymbol,
 	isMap,
-	MalMap
+	MalMap,
+	MalSymbol,
+	MalBind
 } from './types'
-
-type Binds = (string | Binds)[]
+import {printExp} from '.'
 
 export default class Env {
 	private data: {
@@ -20,7 +21,7 @@ export default class Env {
 
 	constructor(
 		protected outer: Env | null = null,
-		binds?: Binds,
+		binds?: MalBind,
 		exps?: MalVal[]
 	) {
 		if (this.root === this) {
@@ -53,42 +54,47 @@ export default class Env {
 		return Object.keys(this.getMergedData())
 	}
 
-	public bindAll(binds: Binds, exps: MalVal[]) {
+	public bindAll(binds: MalBind, exps: MalVal[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
 		if (isSymbol(binds)) {
 			this.set(binds, exps)
 		} else {
 			for (let i = 0; i < binds.length; i++) {
+				const bind = binds[i]
 				// Variable length arguments
-				if (binds[i] === S('&')) {
-					this.set(binds[i + 1] as string, exps.slice(i))
+				if (isSymbol(bind) && bind.value === '&') {
+					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
 					break
 				}
 
-				if (Array.isArray(binds[i])) {
+				if (Array.isArray(bind)) {
 					// List Destruction
 					if (!Array.isArray(exps[i])) {
 						throw new LispError(
-							`Error: destruction parameter [${(binds[i] as string[])
-								.map(s => s.slice(1))
-								.join(' ')}] is not specified as list`
+							`Error: destruction parameter ${printExp(
+								bind,
+								true,
+								false
+							)} is not specified as list`
 						)
 					}
 
-					this.bindAll(binds[i] as Binds, exps[i] as MalVal[])
-				} else if (isMap(binds[i])) {
+					this.bindAll(bind as MalBind, exps[i] as MalVal[])
+				} else if (isMap(bind)) {
 					// Hashmap destruction
 					if (!isMap(exps[i])) {
 						throw new LispError(
-							`Error: destruction parameter {'${(binds[i] as string[])
-								.map(s => s.slice(1))
-								.join(' ')}'} is not specified as map`
+							`Error: destruction parameter '${printExp(
+								bind,
+								true,
+								false
+							)}'} is not specified as map`
 						)
 					}
 					// Convert the two maps to list
 					// binds: [name location] <-- exps: ["Baku" "Japan"]
-					const entries = Object.entries(binds[i]) as [string, string][],
+					const entries = Object.entries(bind),
 						hashBinds = [],
 						hashExps = []
 
@@ -106,23 +112,21 @@ export default class Env {
 
 					this.bindAll(hashBinds, hashExps)
 				} else if (exps[i] === undefined) {
-					throw new LispError(
-						`Error: parameter '${binds[i].slice(1)}' is not specified`
-					)
+					throw new LispError(`Error: parameter '${bind}' is not specified`)
 				} else {
-					this.set(binds[i] as string, exps[i])
+					this.set(bind, exps[i])
 				}
 			}
 		}
 	}
 
-	public set(key: string, value: MalVal) {
-		this.data[key] = value
+	public set(symbol: MalSymbol, value: MalVal) {
+		this.data[symbol.value] = value
 		return value
 	}
 
-	public find(key: string): MalVal | void {
-		// if (!isSymbol(key)) {
+	public find(symbol: MalSymbol): MalVal | void {
+		// if (!isSymbol(symbol)) {
 		// 	throw 'FIND not symbol'
 		// }
 
@@ -130,49 +134,50 @@ export default class Env {
 		const bindings = this.root.bindings
 		if (bindings.length > 0) {
 			const bindingEnv = bindings[bindings.length - 1]
-			const value = bindingEnv.find(key)
+			const value = bindingEnv.find(symbol)
 			if (value !== undefined) {
 				return value
 			}
 		}
 
 		// eslint-disable-next-line no-prototype-builtins
-		if (this.data.hasOwnProperty(key)) {
-			return this.data[key]
+		if (this.data.hasOwnProperty(symbol.value)) {
+			return this.data[symbol.value]
 		}
 
 		let argIndex
 		if (
-			key[1] === '%' &&
+			symbol.value[0] === '%' &&
 			this.exps &&
-			this.exps.length >= (argIndex = parseInt(key.slice(2)) || 0)
+			this.exps.length >= (argIndex = parseInt(symbol.value.slice(1)) || 0)
 		) {
 			return this.exps[argIndex]
 		}
 
 		if (this.outer !== null) {
-			return this.outer.find(key)
+			return this.outer.find(symbol)
 		}
 
 		return undefined
 	}
 
-	public hasOwn(key: string) {
-		// if (!isSymbol(key)) {
+	public hasOwn(symbol: MalSymbol) {
+		// if (!isSymbol(symbol)) {
 		// 	throw 'HASOWN not symbol'
 		// }
 		// eslint-disable-next-line no-prototype-builtins
-		return this.data.hasOwnProperty(key)
+		return this.data.hasOwnProperty(symbol.value)
 	}
 
-	public get(key: string): MalVal {
-		// if (!isSymbol(key)) {
+	public get(symbol: MalSymbol): MalVal {
+		// if (!isSymbol(symbol)) {
 		// 	throw 'get not symbol'
 		// }
-		const value = this.find(key)
+
+		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new LispError(`Symbol '${key.slice(1)}' not found`)
+			throw new LispError(`Symbol ${symbol} not found`)
 		}
 
 		return value
