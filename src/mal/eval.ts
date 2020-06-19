@@ -143,7 +143,8 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 
 export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 	// eslint-disable-next-line no-constant-condition
-	while (true) {
+	let counter = 0
+	while (counter++ < 1e6) {
 		if (!isList(exp)) {
 			return evalAtom(exp, env, cache)
 		}
@@ -519,6 +520,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 		}
 	}
+	if (counter >= 1e6) {
+		throw new Error('[EVAL] Exceed the maximum TCO stacks')
+	}
+
+	return null
 }
 
 /*
