@@ -291,16 +291,6 @@ export default class Inspector extends Vue {
 	}
 
 	private detectInputType(v: MalVal) {
-		// if (isMalNode(v)) {
-		// 	const info = getFnInfo(v)
-		// 	if (
-		// 		info &&
-		// 		info.meta[K('returns')] &&
-		// 		(info.meta[K('returns')] as MalMap)[K('type')]
-		// 	) {
-		// 		return (info.meta[K('returns')] as MalMap)[K('type')] as string
-		// 	}
-		// }
 		return getPrimitiveType(v) || getType(v) || 'any'
 	}
 
