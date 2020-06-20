@@ -88,14 +88,12 @@ export default class GlobalMenu extends Vue {
 
 	private expandedIndex: number | null = null
 
-	mounted() {
-		// console.log(this.titleBar, require(), process.platform)
-		// if (isElectron()) {
-		// }
+	private get platform() {
+		return eval('"process" in globalThis && globalThis.process.platform')
 	}
 
 	private titleBar = isElectron()
-		? process.platform === 'darwin'
+		? this.platform === 'darwin'
 			? 'macos'
 			: 'frameless'
 		: null
@@ -131,7 +129,7 @@ $height = 3.4rem
 	z-index 10
 
 	&.title-bar-macos
-		padding-left 64px
+		padding-left 70px
 
 	h1
 		position relative
