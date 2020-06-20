@@ -62,6 +62,8 @@ const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
 const S_ENV_CHAIN = S('env-chain')
 const S_EVAL_IN_ENV = S('eval-in-env')
+const S_VEC = S('vec')
+const S_VAR = S('var')
 
 // eval
 
@@ -92,7 +94,7 @@ function quasiquote(exp: MalVal): MalVal {
 			}
 		})
 	]
-	ret = isVector(exp) ? [S('vec'), ret] : ret
+	ret = isVector(exp) ? [S_VEC, ret] : ret
 	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
@@ -176,14 +178,15 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		}
 
 		// Apply list
-		const [a0, a1, a2, a3] = exp
+		const [first, a1, a2] = exp
 
-		switch (a0) {
+		switch (first) {
 			case S_DEF: {
-				if (a2 === undefined || a1 === undefined) {
+				const [, sym, value] = exp
+				if (!isSymbol(sym) || value === undefined) {
 					throw new LispError('Invalid form of def')
 				}
-				const ret = env.set(a1 as MalSymbol, evalExp(a2, env, cache))
+				const ret = env.set(sym, evalExp(value, env, cache))
 				if (cache) {
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEF) as MalFunc
 					;(exp as MalNode)[M_EVAL] = ret
@@ -192,10 +195,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
-				if (!Array.isArray(a1)) {
+				const [, binds] = exp
+				if (!isSeq(binds)) {
 					throw new LispError('Invalid bind-expr in let')
 				}
-				const binds = a1
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,
@@ -213,7 +216,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_BINDING: {
 				const bindingEnv = new Env()
-				const binds = a1 as MalVal[]
+				const [, binds] = exp
+				if (!isSeq(binds)) {
+					throw new LispError('Invalid bind-expr in binding')
+				}
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
 						binds[i] as any,
@@ -221,9 +227,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env.pushBinding(bindingEnv)
+				const body = exp.length === 3 ? exp[2] : [S_DO, ...exp.slice(2)]
 				let ret
 				try {
-					ret = evalExp([S_DO, ...exp.slice(2)], env, cache)
+					ret = evalExp(body, env, cache)
 				} finally {
 					env.popBinding()
 				}
@@ -233,7 +240,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S_TRANSFORM: {
-				const matrix = evalExp(a1, env, cache)
+				const matrix = evalExp(exp[1], env, cache)
 				const xs = exp.slice(2)
 
 				const bindingEnv = new Env()
@@ -263,13 +270,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S_STYLE: {
-				const styles = evalExp(a1, env, cache) as MalMap | MalMap[]
+				const [, _styles, ...body] = exp
+				const styles = evalExp(_styles, env, cache) as MalMap | MalMap[]
 				const mergedStyle = Array.isArray(styles)
 					? styles.reduce((ret, s) => {
 							return {...ret, ...s}
 					  }, {})
 					: styles
-				const xs = exp.slice(2)
 
 				const bindingEnv = new Env()
 
@@ -281,7 +288,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env.pushBinding(bindingEnv)
 				let ret
 				try {
-					ret = V([K('style'), styles, ...xs.map(x => evalExp(x, env, cache))])
+					ret = V([
+						K('style'),
+						styles,
+						...body.map(x => evalExp(x, env, cache))
+					])
 				} finally {
 					env.popBinding()
 				}
@@ -291,7 +302,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S_ARTBOARD: {
-				const option = evalExp(a1, env, cache) as MalMap
+				const [, _option, ..._body] = exp
+				const option = evalExp(_option, env, cache) as MalMap
 				const bounds = option[K('bounds')]
 				const background = option[K('background')]
 
@@ -313,7 +325,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				env.pushBinding(bindingEnv)
 
-				const body = evalExp(V(exp.slice(2)), env, cache) as MalVal[]
+				const body = evalExp(V(_body), env, cache) as MalVal[]
 
 				let ret
 				try {
@@ -353,15 +365,19 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return ret
 			}
-			case S('var'): {
-				const ret = env.get(a1 as MalSymbol)
+			case S_VAR: {
+				const [, sym] = exp
+				if (!isSymbol(sym)) {
+					throw new LispError('Invalid var')
+				}
+				const ret = env.get(sym)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
 			case S_FN_PARAMS: {
-				const fn = evalExp(a1, env, true)
+				const fn = evalExp(exp[1], env, true)
 				const ret = isMalFunc(fn) ? markMalVector([...fn[M_PARAMS]]) : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
@@ -370,7 +386,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_EVAL_IN_ENV: {
 				// Don't know why this should be nested
-				const expanded = evalExp(a1, env, true)
+				const expanded = evalExp(exp[1], env, true)
 				const ret = evalExp(expanded, env, true)
 
 				// ;(exp as MalNode)[M_EVAL] = a2
@@ -384,7 +400,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				// }
 				return a1
 			case S_QUASIQUOTE: {
-				const ret = quasiquote(a1)
+				const ret = quasiquote(exp[1])
 				// No need to cache M_EVAL
 				// if (cache) {
 				// 	;(exp as MalNode)[M_EVAL] = ret
@@ -392,19 +408,22 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_FN:
-				if (!Array.isArray(a1)) {
+			case S_FN: {
+				const [, params, body] = exp
+				if (!Array.isArray(params)) {
 					throw new LispError('First argument of fn should be list')
 				}
-				if (a2 === undefined) {
+				if (body === undefined) {
 					throw new LispError('Second argument of fn should be specified')
 				}
 				return createMalFunc(
-					(...args) => evalExp(a2, new Env(env, a1 as any[], args), cache),
-					a2,
+					(...args) =>
+						evalExp(body, new Env(env, params as any[], args), cache),
+					body,
 					env,
-					a1 as MalBind
+					params as MalBind
 				)
+			}
 			case S_FN_SUGAR:
 				return createMalFunc(
 					(...args) => evalExp(a1, new Env(env, [], args), cache),
@@ -413,7 +432,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					[]
 				)
 			case S_MACRO: {
-				const fnexp = [S_FN, a1, a2]
+				const [, params, body] = exp
+				const fnexp = [S_FN, params, body]
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true
 				return fn
@@ -468,12 +488,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				break // continue TCO loop
 			}
 			case S_IF: {
-				const test = evalExp(a1, env, cache)
-				const ret = test ? a2 : a3 !== undefined ? a3 : null
+				const [, _test, thenExp, elseExp] = exp
+				const test = evalExp(_test, env, cache)
+				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = a2
+					;(exp as MalNode)[M_EVAL] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
-					;(exp as MalNodeSeq)[M_EXPANDED] = a2
+					;(exp as MalNodeSeq)[M_EXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
