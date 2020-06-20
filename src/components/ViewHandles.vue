@@ -637,8 +637,8 @@ export default defineComponent({
 				} else {
 					// Translate
 					const delta = vec2.fromValues(-deltaX, -deltaY)
-					xform[4] -= deltaX
-					xform[5] -= deltaY
+					xform[4] -= deltaX / 2
+					xform[5] -= deltaY / 2
 				}
 
 				context.emit('update:view-transform', xform)
