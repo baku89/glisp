@@ -140,11 +140,11 @@ $height = 3.4rem
 		padding 0rem
 		width $height
 		height $height
-		background var(--foreground)
+		background var(--comment)
 		text-align center
 		text-indent 10rem
 		font-weight normal
-		mask-image url('./assets/logo.png')
+		mask-image embedurl('../../../public/assets/logo.png')
 		mask-size 60% 60%
 		mask-repeat no-repeat
 		mask-position 50% 50%
@@ -162,7 +162,7 @@ $height = 3.4rem
 		color var(--comment)
 		// font-size 1.1rem
 		// background red
-		line-height 3.8rem
+		line-height 3.4rem
 		cursor pointer
 		-webkit-app-region no-drag
 
