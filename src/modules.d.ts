@@ -136,3 +136,8 @@ declare module 'delaunator' {
 		static from(points: [number, number][]): Delaunator
 	}
 }
+
+declare module 'css-color-names' {
+	const csscolor: {[name: string]: string}
+	export default csscolor
+}
