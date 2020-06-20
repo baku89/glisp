@@ -126,8 +126,9 @@ $height = 3.4rem
 	display flex
 	overflow visible
 	height $height
-	border-bottom 1px dashed var(--comment)
+	border-bottom 1px solid var(--border)
 	user-select none
+	z-index 10
 
 	&.title-bar-macos
 		padding-left 64px
@@ -149,6 +150,8 @@ $height = 3.4rem
 		mask-position 50% 50%
 
 	&__menu
+		position relative
+		z-index 100
 		display flex
 		flex-grow 1
 

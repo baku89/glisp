@@ -603,6 +603,7 @@ export default class Inspector extends Vue {
 	text-align left
 	user-select none
 	$param-height = 1.4em
+	backdrop-filter blur(1rem)
 
 	&:before
 		position absolute

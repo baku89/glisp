@@ -623,7 +623,7 @@ export default defineComponent({
 .ViewHandles
 	position relative
 	overflow hidden
-	height 100% a
+	height 100%
 
 	.fill, .stroke
 		stroke var(--blue)
@@ -639,8 +639,8 @@ export default defineComponent({
 		fill none
 
 	&__viewport-axis
-		stroke var(--comment)
-		stroke-dasharray 1 3
+		stroke var(--border)
+		stroke-dasharray 2 2
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]

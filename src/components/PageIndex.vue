@@ -1,26 +1,26 @@
 <template>
 	<div id="app" class="PageIndex" :style="colors">
+		<Viewer
+			class="PageIndex__viewer"
+			:exp="viewExp"
+			:guide-color="guideColor"
+			:view-transform="viewTransform"
+			@resize="viewerSize = $event"
+			@render="hasRenderError = !$event"
+			@set-background="onSetBackground"
+		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="dark" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
 				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" />
 			</div>
-			<div class="PageIndex__viewer">
-				<ViewHandles
-					class="view-handles"
-					:exp="selectedExp"
-					:view-transform.sync="viewTransform"
-					@input="onUpdateSelectedExp"
-				/>
-				<Viewer
-					:exp="viewExp"
-					:guide-color="guideColor"
-					:view-transform="viewTransform"
-					@resize="viewerSize = $event"
-					@render="hasRenderError = !$event"
-					@set-background="onSetBackground"
-				/>
-			</div>
+			<ViewHandles
+				ref="elHandles"
+				class="PageIndex__view-handles"
+				:exp="selectedExp"
+				:view-transform.sync="viewHandlesTransform"
+				@input="onUpdateSelectedExp"
+			/>
 			<div class="PageIndex__control" :class="{compact}">
 				<div class="PageIndex__editor">
 					<ExpEditor
@@ -56,9 +56,11 @@ import {
 	computed,
 	watch,
 	toRefs,
-	ref
+	ref,
+	Ref
 } from '@vue/composition-api'
 import Color from 'color'
+import cssColors from 'css-color-names'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import ExpEditor from '@/components/ExpEditor.vue'
@@ -99,10 +101,12 @@ interface Data {
 interface UI {
 	compact: boolean
 	background: string
+	cssBackground: string
 	dark: boolean
 	colors: {[k: string]: string}
 	viewerSize: [number, number]
 	guideColor: string
+	viewHandlesTransform: mat2d
 }
 
 function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
@@ -235,24 +239,58 @@ export default defineComponent({
 		ViewHandles
 	},
 	setup() {
+		const elHandles: Ref<any | null> = ref(null)
+
 		const ui = reactive({
 			compact: false,
 			background: 'whiteSmoke',
+			cssBackground: computed(() => {
+				let background = ui.background.toLowerCase()
+				if (background in cssColors) {
+					background = cssColors[background] as string
+				}
+				return background
+			}),
 			dark: computed(() => {
 				try {
-					return Color(ui.background).isDark() as boolean
+					return Color(ui.cssBackground).isDark() as boolean
 				} catch (_) {
 					return false
 				}
 			}),
 			colors: computed(() => {
 				const colors = ui.dark ? DARK_COLORS : BRIGHT_COLORS
-				return {...colors, '--background': ui.background}
+				let border = colors['--comment']
+				let translucent = ui.cssBackground
+				try {
+					border = Color(ui.dark ? 'white' : 'black')
+						.fade(0.9)
+						.rgb()
+						.string()
+					translucent = Color(ui.cssBackground)
+						.fade(0.2)
+						.rgb()
+						.string()
+				} catch (_) {
+					null
+				}
+				return {
+					...colors,
+					'--background': ui.cssBackground,
+					'--translucent': translucent,
+					'--border': border
+				}
 			}),
-
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection']),
-			viewTransform: mat2d.identity(mat2d.create())
+			viewHandlesTransform: mat2d.identity(mat2d.create()),
+			viewTransform: computed(() => {
+				const {top} = elHandles.value?.$el.getBoundingClientRect() || {top: 0}
+				const xform = mat2d.clone(ui.viewHandlesTransform)
+				// mat2d.translate(xform, xform, [0, top])
+				xform[5] += top
+				return xform as mat2d
+			})
 		}) as UI
 
 		const data = reactive({
@@ -338,6 +376,7 @@ export default defineComponent({
 		bindsConsole(data, onUpdateSelectedExp, onUpdateExp)
 
 		return {
+			elHandles,
 			...toRefs(data as any),
 			onSetupConsole,
 			onUpdateSelectedExp,
@@ -356,6 +395,7 @@ export default defineComponent({
 
 $compact-dur = 0.4s
 
+
 html, body
 	overflow hidden
 	height 100vh
@@ -371,8 +411,10 @@ html, body
 	color var(--foreground)
 
 	&__global-menu
-	background-attachment fixed
+		background-attachment fixed
 		-webkit-app-region drag
+		backdrop-filter blur(1rem)
+		background var(--translucent)
 
 	&__content
 		position relative
@@ -385,97 +427,50 @@ html, body
 		left 1rem
 		z-index 1000
 		width 30rem
-		border 1px solid var(--comment)
+		border 1px solid var(--border)
 
 	&__viewer
-		position relative
+		position absolute !important
 		margin-right 1rem
-		width 60%
+		width 100%
+		height 100%
+		top 0
+		left 0
 
-		.view-handles
-			position absolute
-			top 0
-			left 0
-			z-index 100
-			width 100%
-			height 100%
-
-		&:after
-			position absolute
-			top 1rem
-			right -0.5rem
-			bottom @top
-			display block
-			width 1px
-			background var(--comment)
-			content ''
+	&__view-handles
+		width calc(100% - 30rem)
 
 	&__control
 		position relative
-		width calc(40% - 1rem)
+		width 30rem
+		border-left 1px solid var(--border)
+		display flex
+		flex-direction column
+		backdrop-filter blur(1rem)
+		background var(--translucent)
 
 	&__editor
-		position relative
-		margin 1rem 0.5rem 1rem 1rem
-		height calc(70% - 2rem)
+		padding 1rem 0.5rem 1rem 1rem
+		height 70%
 		transition height $compact-dur var(--ease)
-
-		&:after
-			position absolute
-			right 0
-			bottom -0.5rem
-			left -1rem
-			display block
-			height 1px
-			background var(--comment)
-			content ''
-
-	&__editor-mode
-		position absolute
-		top 0
-		right 0
-		z-index 100
-		display flex
-		padding 0 0.3rem
-		border 1px solid var(--comment)
-		border-radius 1.5rem
-		background var(--background)
-		font-size 2rem
-
-		button
-			display block
-			padding 0.3rem 0.5rem
-			color var(--comment)
-			line-height 1.5rem
-
-			&.active
-				color var(--blue)
-
-			&:first-child
-				font-size 0.7em
-
-			&:not(:first-child)
-				border-left 1px dotted var(--comment)
+		border-bottom 1px solid var(--border)
 
 	&__console
-		position absolute
-		bottom 0
-		margin 0.5rem 0.5rem 1rem 1rem
-		width calc(100% - 1.5rem)
-		height calc(30% - 1.5rem)
+		position relative
+		padding 0.5rem 0.5rem 1rem 1rem
 		transition height $compact-dur var(--ease)
+		flex-grow 1
 
 		&-toggle
 			$size = 2.5rem
 			position absolute
-			top -3rem
-			right 0
+			top -2rem
+			right .5rem
 			margin-top -0.5 * $size
 			width $size
 			height $size
 			border 1px solid var(--comment)
 			border-radius 0.5 * $size
-			background var(--background)
 			color var(--comment)
 			font-size 1.3rem
 			line-height 2.2rem

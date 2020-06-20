@@ -29,16 +29,17 @@ export default class GlobalSubmenu extends Vue {
 <style lang="stylus" scoped>
 .GlobalSubmenu
 	position relative
-	border 1px solid var(--comment)
+	border 1px solid var(--border)
 	border-radius 0.3rem
 	background var(--background)
 	white-space nowrap
 	user-select none
+	z-index 100
 
 	&__item
 		padding 0 1rem
 		height 3.2rem
-		border-bottom 1px dotted var(--comment)
+		border-bottom 1px dotted var(--border)
 		color var(--comment)
 		// background red
 		line-height 3.2rem
