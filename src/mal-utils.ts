@@ -11,9 +11,17 @@ import {
 	M_EVAL,
 	isSeq,
 	keywordFor,
-	getMeta
+	getMeta,
+	MalNodeSeq,
+	isMalFunc,
+	getType,
+	markMalVector as V,
+	isSymbol,
+	MalSymbol,
+	symbolFor as S
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
+import {replaceExp} from './mal/eval'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -108,4 +116,53 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 	}
 
 	return null
+}
+
+export function reverseEval(exp: MalVal, original: MalVal) {
+	// const meta = getMeta(original)
+
+	switch (getType(original)) {
+		case 'list': {
+			// find Inverse function
+			const info = getFnInfo(original as MalNodeSeq)
+			if (info) {
+				const returnType = getMapValue(info.meta, 'returns/type')
+				const inverseFn = getMapValue(info.meta, 'inverse')
+
+				if (isMalFunc(inverseFn) && getType(exp) === returnType) {
+					const fnName = (original as MalNodeSeq)[0]
+					const fnParams = inverseFn(exp)
+
+					if (isSeq(fnParams)) {
+						const newExp = [fnName, ...fnParams]
+
+						for (let i = 1; i < (original as MalNodeSeq).length; i++) {
+							newExp[i] = reverseEval(newExp[i], (original as MalNodeSeq)[i])
+						}
+						return newExp
+					}
+				}
+			}
+			break
+		}
+		case 'vector': {
+			if (isVector(exp) && exp.length === (original as MalNodeSeq).length) {
+				const newExp = V(
+					exp.map((e, i) => reverseEval(e, (original as MalNodeSeq)[i]))
+				)
+				return newExp
+			}
+			break
+		}
+		case 'symbol': {
+			const def = (original as MalSymbol).def
+			if (def && !isSymbol(exp)) {
+				replaceExp(def, [S('defvar'), original, exp])
+				return original
+			}
+			break
+		}
+	}
+
+	return exp
 }
