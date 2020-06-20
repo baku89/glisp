@@ -26,6 +26,10 @@
 				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
+		<g :transform="`matrix(${viewTransform.join(' ')})`">
+			<path class="ViewHandles__viewport-axis" d="M -5000 0 H 5000" />
+			<path class="ViewHandles__viewport-axis" d="M 0 -5000 V 5000" />
+		</g>
 		<g
 			v-if="handleCallbacks"
 			class="ViewHandles__axis"
@@ -613,6 +617,10 @@ export default defineComponent({
 		stroke var(--blue)
 		vector-effect non-scaling-stroke
 		fill none
+
+	path&__viewport-axis
+		stroke var(--comment)
+		stroke-dasharray 1 3
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]
