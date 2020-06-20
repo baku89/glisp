@@ -1,5 +1,5 @@
 <template>
-	<svg class="ViewHandles" ref="el" @wheel="onScroll">
+	<svg class="ViewHandles" ref="el">
 		<defs>
 			<marker
 				id="arrow-x"
@@ -48,7 +48,7 @@
 				<path class="hover-zone" :d="path" />
 				<path class="display" :d="path" />
 			</template>
-			<template v-if="type === 'bg'">
+			<template v-else-if="type === 'bg'">
 				<rect x="0" y="0" width="10000" height="10000" fill="transparent" />
 			</template>
 			<template v-else>
@@ -96,7 +96,7 @@ import {
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
 import {getFnInfo, FnInfoType, getMapValue} from '@/mal-utils'
-import {NonReactive, nonReactive} from '../utils'
+import {NonReactive, nonReactive} from '@/utils'
 import {
 	defineComponent,
 	computed,
@@ -105,9 +105,10 @@ import {
 	onMounted,
 	onBeforeMount,
 	ref,
-	SetupContext
+	SetupContext,
+	Ref
 } from '@vue/composition-api'
-import {replaceExp} from '../mal/eval'
+import {replaceExp} from '@/mal/eval'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -137,7 +138,6 @@ interface Handle {
 }
 
 interface Data {
-	el: HTMLElement | null
 	rem: number
 	draggingIndex: number | null
 	rawPrevPos: number[]
@@ -157,6 +157,20 @@ interface Prop {
 	viewTransform: Float32Array
 }
 
+interface UseGestureOptions {
+	onScroll?: (e: MouseWheelEvent) => any
+}
+
+function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
+	onMounted(() => {
+		if (!el.value) return
+
+		if (options.onScroll) {
+			el.value.addEventListener('wheel', options.onScroll)
+		}
+	})
+}
+
 export default defineComponent({
 	props: {
 		exp: {
@@ -169,8 +183,9 @@ export default defineComponent({
 		}
 	},
 	setup(prop: Prop, context: SetupContext) {
+		const el: Ref<HTMLElement | null> = ref(null)
+
 		const state = reactive({
-			el: null,
 			rem: 0,
 			draggingIndex: null,
 			rawPrevPos: [0, 0],
@@ -415,12 +430,12 @@ export default defineComponent({
 		}) as Data
 
 		function onMousedown(i: number, e: MouseEvent) {
-			if (!state.el) return
+			if (!el.value) return
 
 			const type = state.handles[i] && state.handles[i].type
 
 			state.draggingIndex = i
-			const {left, top} = state.el.getBoundingClientRect()
+			const {left, top} = el.value.getBoundingClientRect()
 			state.rawPrevPos = [e.clientX - left, e.clientY - top]
 
 			if (type !== 'bg') {
@@ -436,7 +451,7 @@ export default defineComponent({
 				!prop.exp ||
 				!state.handleCallbacks ||
 				state.draggingIndex === null ||
-				!state.el
+				!el.value
 			) {
 				return
 			}
@@ -447,7 +462,7 @@ export default defineComponent({
 				return
 			}
 
-			const viewRect = state.el.getBoundingClientRect()
+			const viewRect = el.value.getBoundingClientRect()
 			const rawPos = V([
 				e.clientX - viewRect.left,
 				e.clientY - viewRect.top
@@ -593,22 +608,44 @@ export default defineComponent({
 			)
 		})
 
-		function onScroll(e: MouseWheelEvent) {
-			// console.log(e)
-			const {deltaX, deltaY} = e
+		// Gestures for view transform
+		useGesture(el, {
+			onScroll(e: MouseWheelEvent) {
+				if (!el.value) return
 
-			const viewTransform = mat2d.create()
+				e.stopPropagation()
+				e.preventDefault()
 
-			mat2d.translate(
-				viewTransform,
-				prop.viewTransform as mat2d,
-				[-deltaX, -deltaY] as vec2
-			)
+				const {deltaX, deltaY} = e
 
-			context.emit('update:view-transform', viewTransform)
-		}
+				const xform = mat2d.clone(prop.viewTransform as mat2d)
 
-		return {...toRefs(state as any), onMousedown, onScroll, rem}
+				if (e.ctrlKey) {
+					// Scale
+					const deltaScale = 1 + -e.deltaY * 0.01
+					const {left, top} = el.value.getBoundingClientRect()
+					const pivot = vec2.fromValues(e.pageX - left, e.pageY - top)
+
+					const xformInv = mat2d.invert(mat2d.create(), xform)
+					vec2.transformMat2d(pivot, pivot, xformInv)
+
+					mat2d.translate(xform, xform, pivot)
+					mat2d.scale(xform, xform, [deltaScale, deltaScale])
+
+					vec2.negate(pivot, pivot)
+					mat2d.translate(xform, xform, pivot)
+				} else {
+					// Translate
+					const delta = vec2.fromValues(-deltaX, -deltaY)
+					xform[4] -= deltaX
+					xform[5] -= deltaY
+				}
+
+				context.emit('update:view-transform', xform)
+			}
+		})
+
+		return {el, ...toRefs(state as any), onMousedown, rem}
 	}
 })
 </script>
