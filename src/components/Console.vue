@@ -101,6 +101,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import 'style/common.styl'
+
 .Console
 	position relative
 	height 100%
@@ -115,8 +117,7 @@ export default defineComponent({
 			overflow hidden !important
 
 .jqconsole
-	font-family 'Fira Code', monospace !important
-	font-variant-ligatures normal !important
+	font-monospace()
 
 	&-cursor
 		background var(--selection)

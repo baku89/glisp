@@ -160,7 +160,7 @@ $height = 3.4rem
 		color var(--comment)
 		// font-size 1.1rem
 		// background red
-		line-height 3.4rem
+		line-height 3.5rem
 		cursor pointer
 		-webkit-app-region no-drag
 

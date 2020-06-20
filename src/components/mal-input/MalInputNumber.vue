@@ -46,7 +46,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import '../input/common.styl'
+@import '../style/common.styl'
 
 .MalInputNumber
 	display flex

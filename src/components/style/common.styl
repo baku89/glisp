@@ -1,16 +1,19 @@
-*, ::after, ::before
-	box-sizing border-box
-	outline none
-	-webkit-tap-highlight-color transparent
-
-html
-	font-size 12px
+font-monospace()
+	letter-spacing 0
 	font-family 'Fira Code', monospace
-	-webkit-font-smoothing antialiased
-	-moz-osx-font-smoothing grayscale
+	font-variant-ligatures normal !important
 
-button
-	outline none
+$input-height = 1.4em
+
+input()
+	width 6em
+	height $input-height
 	border none
-	background none
-	user-select none
+	border-bottom 1px dashed var(--comment)
+	background transparent
+	color var(--foreground)
+	font-size inherit
+
+translucent-bg()
+	background var(--translucent)
+	backdrop-filter blur(16px)

@@ -391,7 +391,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import './style/common.styl'
+@import 'style/global.styl'
+@import 'style/common.styl'
 
 $compact-dur = 0.4s
 
@@ -413,8 +414,7 @@ html, body
 	&__global-menu
 		background-attachment fixed
 		-webkit-app-region drag
-		backdrop-filter blur(1rem)
-		background var(--translucent)
+		translucent-bg()
 
 	&__content
 		position relative
@@ -446,8 +446,7 @@ html, body
 		border-left 1px solid var(--border)
 		display flex
 		flex-direction column
-		backdrop-filter blur(1rem)
-		background var(--translucent)
+		translucent-bg()
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
@@ -475,6 +474,7 @@ html, body
 			font-size 1.3rem
 			line-height 2.2rem
 			transition all $compact-dur var(--ease)
+			font-monospace()
 			--textcolor var(--comment)
 
 			&.error

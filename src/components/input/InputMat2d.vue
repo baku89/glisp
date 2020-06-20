@@ -71,7 +71,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
+@import '../style/common.styl'
 
 .InputMat2d
 	line-height $input-height

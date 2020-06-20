@@ -1,5 +1,11 @@
 <template>
-	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
+	<input
+		class="InputString"
+		type="text"
+		:value="value"
+		@input="onInput"
+		@blur="onBlur"
+	/>
 </template>
 
 <script lang="ts">
@@ -43,7 +49,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
+@import '../style/common.styl'
 
 .InputString
 	input()

@@ -185,11 +185,14 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import '../style/common.styl'
+
 .Editor
 	position relative
 	overflow-y scroll
 	width 100%
 	height 100%
+	font-monospace()
 
 	.active-range
 		position absolute

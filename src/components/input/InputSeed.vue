@@ -38,8 +38,6 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
-
 .InputSeed
 	display flex
 	align-items center

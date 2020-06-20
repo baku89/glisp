@@ -4,7 +4,8 @@
 			<div class="Inspector__name">
 				{{ fnName }}
 				<span v-if="fnInfo && fnInfo.aliasFor" class="alias"
-					>--> alias for {{ fnInfo.aliasFor }}</span
+					><span class="fira-code">--></span> alias for
+					{{ fnInfo.aliasFor }}</span
 				>
 			</div>
 			<VueMarkdown :source="fnDoc" />
@@ -596,6 +597,8 @@ export default class Inspector extends Vue {
 </script>
 
 <style lang="stylus" scoped>
+@import 'style/common.styl'
+
 .Inspector
 	position relative
 	padding 1rem
@@ -604,6 +607,9 @@ export default class Inspector extends Vue {
 	user-select none
 	$param-height = 1.4em
 	backdrop-filter blur(1rem)
+
+	.fira-code
+		font-monospace()
 
 	&:before
 		position absolute

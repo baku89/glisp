@@ -117,11 +117,12 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
+@import '../style/common.styl'
 
 .InputNumber
 	position relative
 	width 6em
+	font-monospace()
 
 	&__drag
 		position absolute

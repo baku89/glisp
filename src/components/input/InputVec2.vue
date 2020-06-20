@@ -65,7 +65,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
+@import '../style/common.styl'
 
 .InputVec2
 	display flex

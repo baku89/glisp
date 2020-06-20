@@ -40,7 +40,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-@import './common.styl'
+@import '../style/common.styl'
 
 $right-arrow-width = 1em
 
