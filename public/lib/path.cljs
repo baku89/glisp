@@ -13,7 +13,7 @@
    :returns {:type "path"}
    :handles {:draw (fn [{:params [[x y] [w h]]}]
                      [; center
-                      {:type "point" :id :center :class "translate" :pos (vec2/scale-add [x y] [w h] .5)}
+                      {:type "translate" :id :center :pos (vec2/scale-add [x y] [w h] .5)}
                       ; edges
                       {:type "path" :id :left :path (line [x y] [x (+ y h)])}
                       {:type "path" :id :top :path (line [x y] [(+ x w) y])}
@@ -56,9 +56,8 @@
                       [{:type "path" :id :radius :path path}
                        {:type "arrow" :id :radius
                         :pos (vec2/+ center [radius 0])}
-                       {:type "point"
+                       {:type "translate"
                         :id :center
-                        :class "translate"
                         :pos center}])
               :drag (fn [{:id id :pos p
                           :params [center radius]
@@ -118,7 +117,7 @@
                  :return path}]
              [{:id :radius :type "path"
                :path path}
-              {:id :center :type "point" :class "translate"
+              {:id :center :type "translate"
                :pos center}
               {:id :start :type "point"
                :pos (vec2/+ center (vec2/dir start r))}
@@ -185,9 +184,8 @@
                       {:type "arrow" :id :radius-y
                        :pos (vec2/+ center [0 ry])
                        :angle HALF_PI}
-                      {:type "point"
+                      {:type "translate"
                        :id :center
-                       :class "translate"
                        :pos center}])
              :drag (fn [{:id id :pos p
                          :params [center [rx ry]]}]
@@ -209,9 +207,9 @@
    :handles {:draw (fn [{:params [center radius sides]}]
                      [{:type "path" :guide true :class "dashed"
                        :path (arc center (+ radius 40) (/ TWO_PI 100) (/ TWO_PI 3))}
-                      {:id :center :type "point" :class "translate" :pos center}
+                      {:id :center :type "translate" :pos center}
                       {:id :radius :type "arrow" :pos (vec2/+ center [radius 0])}
-                      {:id :sides :type "point" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
+                      {:id :sides :type "dia" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
              :drag (fn [{:id id :pos p :params [center radius sides]}]
                      (case id
                        :center [p radius sides]

@@ -278,7 +278,7 @@
   {:doc "Returns the center of view or artboard"
    :returns {:type "vec2"}
    :handles {:draw (fn [{:return mat}]
-                     [{:type "point" :class "translate" :pos (take 4 mat)}])}}
+                     [{:type "translate" :pos (take 4 mat)}])}}
   []
   (vec2/scale *size* .5))
 
@@ -352,8 +352,7 @@
                      (let [args (apply hash-map xs)
                            size (get args :size 12)]
                        [{:id :pos
-                         :type "point"
-                         :class "translate"
+                         :type "translate"
                          :pos pos}
                         {:id :size
                          :type "path"
@@ -406,9 +405,8 @@
                       {:type "path" :id :radius :class "dashed" :path (circle center radius)}
                       {:type "arrow" :id :radius
                        :pos (vec2/+ center [radius 0])}
-                      {:type "point"
-                       :id :center
-                       :class "translate"
+                      {:id :center
+                       :type "translate"
                        :pos center}])
              :drag (fn [{:id id :pos p
                          :params [center radius]

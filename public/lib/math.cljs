@@ -84,7 +84,7 @@
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
    :handles {:draw (fn [{:params [x]}]
-                     [{:type "point" :class "translate" :pos x}])
+                     [{:type "translate" :pos x}])
              :drag (fn [{:pos pos}] [pos])}}
   [x] x)
 
@@ -312,7 +312,7 @@
                         {:id :x :type "point" :pos axis-x}
                         {:id :y :type "point" :pos axis-y}
                         {:id :s :type "point" :pos corner}
-                        {:id :t :type "point" :class "translate" :pos t}]))
+                        {:id :t :type "translate" :pos t}]))
              :drag (fn [{:id id
                          :pos p
                          :prev-pos pp
@@ -364,8 +364,7 @@
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
    :returns [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn [{:params [pos]}]
-                     [{:type "point"
-                       :class "translate"
+                     [{:type "translate"
                        :pos pos}])
              :drag (fn [{:pos p}]
                      [p])}}
@@ -408,7 +407,7 @@
                                 :M [0 0] :L [0 sy]
                                 :M [sx 0] :L [0 (- sy)] :L [(- sx) 0] :L [0 sy]]}
                         {:type "path"  :id :uniform :path (line [sx 0] [0 sy])}
-                        {:type "point" :id :non-uni :pos [sx sy] :class "translate"}
+                        {:type "translate" :id :non-uni :pos [sx sy]}
                         {:type "arrow" :id :axis-x  :pos [sx 0]}
                         {:type "arrow" :id :axis-y  :pos [0 sy] :angle HALF_PI}]))
              :drag (fn [{:id id :pos p
@@ -514,7 +513,7 @@
             {:label "Matrix" :type "mat2d"}]
    :returns "mat2d"
    :handles {:draw (fn [{:params [p]}]
-                     [{:type "point" :class "translate" :pos p}])
+                     [{:type "translate" :pos p}])
              :drag (fn [{:pos p :unevaluated-params [_ & xs]}]
                      `(~p ~@xs))}}
   [p & xs]
@@ -540,7 +539,7 @@
    :handles
    {:draw (fn [{:params [[x y w h]]}]
             [; center
-             {:type "point" :id :center :class "translate"
+             {:type "translate" :id :center
               :pos (vec2/scale-add [x y] [w h] .5)}
              ; edges
              {:type "path" :id :left :path (line [x y] [x (+ y h)])}

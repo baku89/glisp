@@ -11,7 +11,7 @@
 				markerHeight="10"
 				orient="auto-start-reverse"
 			>
-				<path class="axis-x" d="M 0 0 L 10 5 L 0 10" />
+				<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 			<marker
 				id="arrow-y"
@@ -23,7 +23,7 @@
 				markerHeight="10"
 				orient="auto-start-reverse"
 			>
-				<path class="axis-y" d="M 0 0 L 10 5 L 0 10" />
+				<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
 			</marker>
 		</defs>
 		<g :transform="`matrix(${viewTransform.join(' ')})`">
@@ -49,23 +49,36 @@
 			@mousedown="!guide && onMousedown(i, $event)"
 		>
 			<template v-if="type === 'path'">
-				<path class="hover-zone" :d="path" />
-				<path class="display" :d="path" />
+				<path class="stroke hover-zone" :d="path" />
+				<path class="stroke display" :d="path" />
 			</template>
 			<template v-else-if="type === 'bg'">
 				<rect x="0" y="0" width="10000" height="10000" fill="transparent" />
 			</template>
+			<template v-else-if="type === 'dia'">
+				<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
+			</template>
 			<template v-else>
 				<path
 					v-if="type === 'arrow'"
-					class="display"
+					class="stroke display"
 					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
 				/>
-				<template v-if="cls.translate">
-					<path class="display" d="M 12 0 H -12" />
-					<path class="display" :transform="yTransform" d="M 0 12 V -12" />
+				<template v-if="type === 'translate'">
+					<path class="stroke display" d="M 12 0 H -12" />
+					<path
+						class="stroke display"
+						:transform="yTransform"
+						d="M 0 12 V -12"
+					/>
 				</template>
-				<circle class="display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+				<circle
+					class="fill display"
+					:class="cls"
+					cx="0"
+					cy="0"
+					:r="rem * 0.5"
+				/>
 			</template>
 		</g>
 	</svg>
@@ -382,7 +395,7 @@ export default defineComponent({
 					const xform = mat2d.clone(state.transform)
 					let yRotate = 0
 
-					if (type === 'point' || type === 'arrow') {
+					if (/^point|arrow|translate|dia$/.test(type)) {
 						const [x, y] = h[K_POS]
 						mat2d.translate(xform, xform, [x, y])
 					}
@@ -390,6 +403,13 @@ export default defineComponent({
 					if (type === 'arrow') {
 						const angle = h[K_ANGLE] || 0
 						mat2d.rotate(xform, xform, angle)
+					}
+
+					if (type === 'dia') {
+						xform[0] = 1
+						xform[1] = 0
+						xform[2] = 0
+						xform[3] = 1
 					}
 
 					if (type !== 'path') {
@@ -408,7 +428,7 @@ export default defineComponent({
 						xform[3] = axis[1]
 
 						// set Y rotation
-						if (cls['translate']) {
+						if (type === 'translate') {
 							const perpAxisYAngle = Math.atan2(axis[1], axis[0])
 							vec2.rotate(axis, origAxisY, [0, 0], -perpAxisYAngle)
 							yRotate = Math.atan2(axis[1], axis[0])
@@ -420,7 +440,7 @@ export default defineComponent({
 						cls,
 						guide,
 						id: h[K_ID],
-						transform: type !== 'bg' ? `matrix(${xform.join(',')})` : '',
+						transform: `matrix(${xform.join(',')})`,
 						yTransform: `rotate(${(yRotate * 180) / Math.PI})`
 					}
 
@@ -605,29 +625,29 @@ export default defineComponent({
 	overflow hidden
 	height 100% a
 
-	circle, path
+	.fill, .stroke
 		stroke var(--blue)
 		stroke-width 1
 		vector-effect non-scaling-stroke
 
-	circle
+	.fill
 		fill var(--background)
 
-	path
+	.stroke
 		stroke var(--blue)
 		vector-effect non-scaling-stroke
 		fill none
 
-	path&__viewport-axis
+	&__viewport-axis
 		stroke var(--comment)
 		stroke-dasharray 1 3
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]
-		path.display
+		.stroke.display
 			stroke-width 3
 
-		circle.display
+		.fill.display
 			fill var(--blue)
 
 		&.dashed

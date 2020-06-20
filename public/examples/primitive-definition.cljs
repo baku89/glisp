@@ -30,8 +30,7 @@
           :guide true
           :path path}
          {:id :center
-          :type "point"
-          :class "translate"
+          :type "translate"
           :pos c}
          {:id :rmin
           :type "arrow"
