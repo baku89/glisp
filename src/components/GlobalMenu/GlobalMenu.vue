@@ -142,7 +142,7 @@ $height = 3.4rem
 		text-align center
 		text-indent 10rem
 		font-weight normal
-		mask-image embedurl('../../../public/assets/logo.png')
+		mask-image embedurl('../../../assets/logo.png')
 		mask-size 60% 60%
 		mask-repeat no-repeat
 		mask-position 50% 50%

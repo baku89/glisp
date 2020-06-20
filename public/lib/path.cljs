@@ -48,7 +48,7 @@
 
 
 (def path/circle
-  ^{:doc "Generate a circle path"
+  ^{:doc "Generates a circle path"
     :params [{:label "Center" :type "vec2"  :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :desc "radius of the circle" :constraints {:min 0}}]
     :handles {:draw (fn [{:params [center radius]
@@ -99,7 +99,7 @@
 (defalias line path/line)
 
 (def path/arc
-  ^{:doc "Generate an arc path"
+  ^{:doc "Generates an arc path"
     :params [{:label "Center"
               :type "vec2"
               :desc "Coordinate of the arc's center"}

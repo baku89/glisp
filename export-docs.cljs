@@ -32,7 +32,7 @@
                         (format "%s\n"))
                   params))
 
-      ;; Generate Table
+      ;; Generates Table
       (str
        "| Name     | Type      | Description  |\n"
        "| -------- | --------- | :----------- |\n"

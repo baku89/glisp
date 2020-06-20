@@ -337,7 +337,7 @@
 
 ;; Shape Functions
 (defn graphics/text
-  {:doc "Generate a text shape"
+  {:doc "Generates a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
             {:type "vec2"}
             &
