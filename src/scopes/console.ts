@@ -1,6 +1,6 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
-import {mat3} from 'gl-matrix'
+import {mat2d} from 'gl-matrix'
 
 import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
@@ -140,8 +140,8 @@ ConsoleScope.def('export', (selector: MalVal = null) => {
 			const [x, y, width, height] = bounds as number[]
 
 			renderer.resize(width, height, 1)
-			const xform = mat3.fromTranslation(mat3.create(), [-x, -y])
-			await renderer.render(viewExp, {viewTransform: xform})
+			const viewTransform = mat2d.fromTranslation(mat2d.create(), [-x, -y])
+			await renderer.render(viewExp, {viewTransform})
 			const image = await renderer.getImage()
 			const w = window.open('about:blank', 'Image for canvas')
 			w?.document.write(`<img src=${image} />`)

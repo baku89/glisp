@@ -1,5 +1,5 @@
 <template>
-	<svg class="ViewHandles" ref="el">
+	<svg class="ViewHandles" ref="el" @wheel="onScroll">
 		<defs>
 			<marker
 				id="arrow-x"
@@ -154,14 +154,18 @@ interface Data {
 
 interface Prop {
 	exp: NonReactive<MalNodeSeq> | null
+	viewTransform: Float32Array
 }
 
 export default defineComponent({
 	props: {
 		exp: {
-			type: Object,
 			required: true,
 			validator: v => typeof v === 'object'
+		},
+		viewTransform: {
+			type: Float32Array,
+			default: () => mat2d.identity(mat2d.create())
 		}
 	},
 	setup(prop: Prop, context: SetupContext) {
@@ -205,7 +209,7 @@ export default defineComponent({
 				return prop.exp ? prop.exp.value[M_EVAL] || null : null
 			}),
 			transform: computed(() => {
-				if (!prop.exp) return
+				if (!prop.exp) return prop.viewTransform
 
 				const exp = prop.exp.value
 
@@ -314,6 +318,9 @@ export default defineComponent({
 					(xform, elXform) => mat2d.multiply(xform, xform, elXform),
 					mat2d.create()
 				)
+
+				// pre-multiplies with viewTransform
+				mat2d.multiply(ret, prop.viewTransform as mat2d, ret)
 
 				return ret
 			}),
@@ -586,7 +593,22 @@ export default defineComponent({
 			)
 		})
 
-		return {...toRefs(state as any), onMousedown, rem}
+		function onScroll(e: MouseWheelEvent) {
+			// console.log(e)
+			const {deltaX, deltaY} = e
+
+			const viewTransform = mat2d.create()
+
+			mat2d.translate(
+				viewTransform,
+				prop.viewTransform as mat2d,
+				[-deltaX, -deltaY] as vec2
+			)
+
+			context.emit('update:view-transform', viewTransform)
+		}
+
+		return {...toRefs(state as any), onMousedown, onScroll, rem}
 	}
 })
 </script>

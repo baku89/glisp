@@ -21,6 +21,7 @@ import {NonReactive} from '@/utils'
 import createCanvasRender, {
 	CanvasRendererType
 } from '@/renderer/canvas-renderer'
+import {mat2d} from 'gl-matrix'
 
 function useResizeSensor(el: Ref<HTMLElement | null>, onResized: () => any) {
 	let sensor: any
@@ -40,6 +41,7 @@ function useResizeSensor(el: Ref<HTMLElement | null>, onResized: () => any) {
 interface Props {
 	exp: NonReactive<MalVal> | null
 	guideColor: string
+	viewTransform: mat2d
 }
 
 export default defineComponent({
@@ -50,6 +52,9 @@ export default defineComponent({
 		guideColor: {
 			type: String,
 			required: true
+		},
+		viewTransform: {
+			default: () => mat2d.identity(mat2d.create())
 		}
 	},
 	setup(props: Props, context) {
@@ -91,10 +96,11 @@ export default defineComponent({
 
 		async function render(exp: MalVal) {
 			const options = {
+				viewTransform: props.viewTransform,
 				...(props.guideColor ? {guideColor: props.guideColor} : {})
 			}
-			let sidefxs
 
+			let sidefxs
 			try {
 				sidefxs = await (renderer as CanvasRendererType).render(exp, options)
 			} catch (err) {
@@ -128,7 +134,7 @@ export default defineComponent({
 		}
 
 		watch(
-			() => props.exp,
+			() => [props.exp, props.viewTransform],
 			async () => {
 				if (!props.exp) {
 					return

@@ -7,14 +7,15 @@
 			</div>
 			<div class="PageIndex__viewer">
 				<ViewHandles
-					v-if="selectedExp"
 					class="view-handles"
 					:exp="selectedExp"
+					:view-transform.sync="viewTransform"
 					@input="onUpdateSelectedExp"
 				/>
 				<Viewer
 					:exp="viewExp"
 					:guide-color="guideColor"
+					:view-transform="viewTransform"
 					@resize="viewerSize = $event"
 					@render="hasRenderError = !$event"
 					@set-background="onSetBackground"
@@ -54,7 +55,8 @@ import {
 	reactive,
 	computed,
 	watch,
-	toRefs
+	toRefs,
+	ref
 } from '@vue/composition-api'
 import Color from 'color'
 
@@ -82,6 +84,7 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {BRIGHT_COLORS, DARK_COLORS} from '@/theme'
+import {mat2d} from 'gl-matrix'
 
 interface Data {
 	exp: NonReactive<MalVal> | null
@@ -248,7 +251,8 @@ export default defineComponent({
 			}),
 
 			viewerSize: [0, 0],
-			guideColor: computed(() => ui.colors['--selection'])
+			guideColor: computed(() => ui.colors['--selection']),
+			viewTransform: mat2d.identity(mat2d.create())
 		}) as UI
 
 		const data = reactive({

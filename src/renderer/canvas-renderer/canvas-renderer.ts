@@ -46,7 +46,7 @@ export default class CanvasRenderer {
 		// Apply view transform
 		if (settings.viewTransform) {
 			const m = settings.viewTransform
-			ctx.transform(m[0], m[1], m[3], m[4], m[6], m[7])
+			ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5])
 		}
 
 		// default style
