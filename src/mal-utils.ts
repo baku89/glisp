@@ -1,7 +1,6 @@
 import {
 	MalVal,
 	M_FN,
-	M_META,
 	isMap,
 	MalFunc,
 	keywordFor as K,
@@ -10,7 +9,9 @@ import {
 	isVector,
 	MalJSFunc,
 	M_EVAL,
-	isSeq
+	isSeq,
+	keywordFor,
+	getMeta
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 
@@ -30,6 +31,36 @@ export function getPrimitiveType(exp: MalVal): string | null {
 		}
 	}
 	return null
+}
+
+export function getMapValue(exp: MalVal | undefined, path: string): MalVal {
+	if (exp === undefined) {
+		return null
+	}
+
+	const keys = path.split('/').map(k => (/^[0-9]+$/.test(k) ? parseInt(k) : k))
+
+	while (keys.length > 0) {
+		const key = keys[0]
+
+		if (typeof key === 'number') {
+			if (!isSeq(exp) || exp[key] === undefined) {
+				return null
+			}
+			exp = exp[key]
+		} else {
+			// map key
+			const kw = keywordFor(key)
+			if (!isMap(exp) || !(kw in exp)) {
+				return null
+			}
+
+			exp = exp[kw]
+		}
+
+		keys.shift()
+	}
+	return exp
 }
 
 export interface FnInfoType {
@@ -52,23 +83,26 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 			}
 		}
 
-		if (fn && M_META in (fn as MalFunc)) {
-			const meta = (fn as MalFunc)[M_META]
+		const meta = getMeta(fn)
 
-			if (isMap(meta)) {
-				if (meta[K('alias')]) {
-					const alias = meta[K('alias')] as MalMap
-					const aliasMeta = alias[K('meta')]
-					if (isMap(aliasMeta))
-						return {
-							fn,
-							meta: aliasMeta,
-							aliasFor: alias[K('name')] as string,
-							primitive
-						}
-				} else {
-					return {fn, meta, aliasFor: null, primitive}
+		if (isMap(meta)) {
+			const alias = getMapValue(meta, 'alias')
+			if (isMap(alias)) {
+				// is alias
+				const aliasMeta = alias[K('meta')]
+				const aliasFor = alias[K('name')]
+
+				if (isMap(aliasMeta) && typeof aliasFor === 'string') {
+					return {
+						fn,
+						meta: aliasMeta,
+						aliasFor,
+						primitive
+					}
 				}
+			} else {
+				// is not alias
+				return {fn, meta, aliasFor: null, primitive}
 			}
 		}
 	}

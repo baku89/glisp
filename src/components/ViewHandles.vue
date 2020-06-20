@@ -85,11 +85,14 @@ import {
 	MalMap,
 	MalFunc,
 	M_FN,
-	getType
+	getType,
+	isMalFunc,
+	getMeta,
+	isVector
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
-import {getFnInfo, FnInfoType} from '@/mal-utils'
+import {getFnInfo, FnInfoType, getMapValue} from '@/mal-utils'
 import {NonReactive, nonReactive} from '../utils'
 import {
 	defineComponent,
@@ -490,24 +493,7 @@ export default defineComponent({
 				// 	newValue = unevaluated
 				// }
 
-				if (unevaluated instanceof Object && M_FN in unevaluated) {
-					const info = getFnInfo(unevaluated as MalNode)
-
-					if (info) {
-						const returnType =
-							info.meta[K('returns')] instanceof Object
-								? (info.meta[K('returns')] as MalMap)[K('type')] || null
-								: null
-
-						if (K('inverse') in info.meta && getType(newValue) === returnType) {
-							const inverseFn = info.meta[K('inverse')] as MalFunc
-
-							const fnName = unevaluated[0]
-							const fnParams = inverseFn(newValue) as MalVal[]
-							newValue = [fnName, ...fnParams]
-						}
-					}
-				}
+				newValue = revserseEval(newValue, unevaluated)
 
 				newParams[i] = newValue
 			}
@@ -517,6 +503,50 @@ export default defineComponent({
 				: ([prop.exp.value[0], ...newParams] as MalNodeSeq)
 
 			context.emit('input', nonReactive(newExp))
+
+			function revserseEval(exp: MalVal, original: MalVal) {
+				// const meta = getMeta(original)
+
+				switch (getType(original)) {
+					case 'list': {
+						// find Inverse function
+						const info = getFnInfo(original as MalNodeSeq)
+						if (info) {
+							const returnType = getMapValue(info.meta, 'returns/type')
+							const inverseFn = getMapValue(info.meta, 'inverse')
+
+							if (isMalFunc(inverseFn) && getType(exp) === returnType) {
+								const fnName = (original as MalNodeSeq)[0]
+								const fnParams = inverseFn(exp) as MalVal[]
+								const newExp = [fnName, ...fnParams]
+
+								for (let i = 1; i < (original as MalNodeSeq).length; i++) {
+									newExp[i] = revserseEval(
+										newExp[i],
+										(original as MalNodeSeq)[i]
+									)
+								}
+								return newExp
+							}
+						}
+						break
+					}
+					case 'vector': {
+						if (
+							isVector(exp) &&
+							exp.length === (original as MalNodeSeq).length
+						) {
+							const newExp = V(
+								exp.map((e, i) => revserseEval(e, (original as MalNodeSeq)[i]))
+							)
+							return newExp
+						}
+						break
+					}
+				}
+
+				return exp
+			}
 		}
 
 		function onMouseup() {
