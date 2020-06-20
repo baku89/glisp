@@ -121,6 +121,12 @@ function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 
 function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	if (isSymbol(exp)) {
+		if (cache) {
+			const def = env.getDef(exp)
+			if (def) {
+				exp.def = def
+			}
+		}
 		return env.get(exp)
 	} else if (Array.isArray(exp)) {
 		const ret = exp.map(x => {
@@ -182,16 +188,24 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 		switch (first) {
 			case S_DEF: {
-				const [, sym, value] = exp
-				if (!isSymbol(sym) || value === undefined) {
+				const [, sym, _value] = exp
+				if (!isSymbol(sym) || _value === undefined) {
 					throw new LispError('Invalid form of def')
 				}
-				const ret = env.set(sym, evalExp(value, env, cache))
+				const value = env.set(sym, evalExp(_value, env, cache))
 				if (cache) {
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEF) as MalFunc
-					;(exp as MalNode)[M_EVAL] = ret
 				}
-				return ret
+				return value
+			}
+			case S('defvar'): {
+				const [, sym, _value] = exp
+				if (!isSymbol(sym) || _value === undefined) {
+					throw new LispError('Invalid form of def!')
+				}
+				const value = evalExp(_value, env, cache)
+				env.set(sym, value, exp as MalNodeSeq)
+				return value
 			}
 			case S_LET: {
 				const letEnv = new Env(env)

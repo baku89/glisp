@@ -9,7 +9,8 @@ import {
 	MalBind,
 	isVector,
 	isSeq,
-	getType
+	getType,
+	MalNodeSeq
 } from './types'
 import {printExp} from '.'
 
@@ -17,6 +18,11 @@ export default class Env {
 	private data: {
 		[key: string]: MalVal
 	} = {}
+
+	private defs: {
+		[key: string]: MalNodeSeq
+	} = {}
+
 	private bindings!: Env[]
 	private exps?: MalVal[]
 
@@ -137,9 +143,25 @@ export default class Env {
 		}
 	}
 
-	public set(symbol: MalSymbol, value: MalVal) {
+	public set(symbol: MalSymbol, value: MalVal, def?: MalNodeSeq) {
 		this.data[symbol.value] = value
+		if (def) {
+			this.defs[symbol.value] = def
+		}
 		return value
+	}
+
+	public getDef(symbol: MalSymbol): MalNodeSeq | null {
+		// eslint-disable-next-line no-prototype-builtins
+		if (this.defs.hasOwnProperty(symbol.value)) {
+			return this.defs[symbol.value]
+		}
+
+		if (this.outer !== null) {
+			return this.outer.getDef(symbol)
+		}
+
+		return null
 	}
 
 	public find(symbol: MalSymbol): MalVal | void {

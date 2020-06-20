@@ -24,6 +24,8 @@ export const M_ELMSTRS = Symbol.for('elmstrs') // string representations of each
 export const M_KEYS = Symbol.for('keys') // keys of hashmap in order
 export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
+export const M_DEF = Symbol.for('def') // save def exp reference in symbol object
+
 export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
 
 export interface MalFunc extends Function {
@@ -307,6 +309,14 @@ export class MalSymbol {
 	private constructor(public value: string) {}
 
 	public type = 'symbol'
+
+	public set def(def: MalNodeSeq | null) {
+		;(this as any)[M_DEF] = def
+	}
+
+	public get def(): MalNodeSeq | null {
+		return (this as any)[M_DEF] || null
+	}
 
 	public toString() {
 		return this.value

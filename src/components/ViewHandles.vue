@@ -88,7 +88,10 @@ import {
 	getType,
 	isMalFunc,
 	getMeta,
-	isVector
+	isVector,
+	MalSymbol,
+	isSymbol,
+	isSeq
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -104,6 +107,7 @@ import {
 	ref,
 	SetupContext
 } from '@vue/composition-api'
+import {replaceExp} from '../mal/eval'
 
 const K_ANGLE = K('angle'),
 	K_HANDLES = K('handles'),
@@ -170,8 +174,8 @@ export default defineComponent({
 				return prop.exp ? getFnInfo(prop.exp.value) : null
 			}),
 			handleCallbacks: computed(() => {
-				if (state.fnInfo && isMap(state.fnInfo.meta)) {
-					const ret = state.fnInfo.meta[K_HANDLES]
+				if (state.fnInfo) {
+					const ret = getMapValue(state.fnInfo.meta, 'handles')
 					return isMap(ret) ? ret : null
 				} else {
 					return null
@@ -493,7 +497,7 @@ export default defineComponent({
 				// 	newValue = unevaluated
 				// }
 
-				newValue = revserseEval(newValue, unevaluated)
+				newValue = reverseEval(newValue, unevaluated)
 
 				newParams[i] = newValue
 			}
@@ -504,7 +508,7 @@ export default defineComponent({
 
 			context.emit('input', nonReactive(newExp))
 
-			function revserseEval(exp: MalVal, original: MalVal) {
+			function reverseEval(exp: MalVal, original: MalVal) {
 				// const meta = getMeta(original)
 
 				switch (getType(original)) {
@@ -517,16 +521,19 @@ export default defineComponent({
 
 							if (isMalFunc(inverseFn) && getType(exp) === returnType) {
 								const fnName = (original as MalNodeSeq)[0]
-								const fnParams = inverseFn(exp) as MalVal[]
-								const newExp = [fnName, ...fnParams]
+								const fnParams = inverseFn(exp)
 
-								for (let i = 1; i < (original as MalNodeSeq).length; i++) {
-									newExp[i] = revserseEval(
-										newExp[i],
-										(original as MalNodeSeq)[i]
-									)
+								if (isSeq(fnParams)) {
+									const newExp = [fnName, ...fnParams]
+
+									for (let i = 1; i < (original as MalNodeSeq).length; i++) {
+										newExp[i] = reverseEval(
+											newExp[i],
+											(original as MalNodeSeq)[i]
+										)
+									}
+									return newExp
 								}
-								return newExp
 							}
 						}
 						break
@@ -537,9 +544,17 @@ export default defineComponent({
 							exp.length === (original as MalNodeSeq).length
 						) {
 							const newExp = V(
-								exp.map((e, i) => revserseEval(e, (original as MalNodeSeq)[i]))
+								exp.map((e, i) => reverseEval(e, (original as MalNodeSeq)[i]))
 							)
 							return newExp
+						}
+						break
+					}
+					case 'symbol': {
+						const def = (original as MalSymbol).def
+						if (def && !isSymbol(exp)) {
+							replaceExp(def, [S('defvar'), original, exp])
+							return original
 						}
 						break
 					}
