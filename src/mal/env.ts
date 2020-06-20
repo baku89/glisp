@@ -6,7 +6,10 @@ import {
 	isMap,
 	MalMap,
 	MalSymbol,
-	MalBind
+	MalBind,
+	isVector,
+	isSeq,
+	getType
 } from './types'
 import {printExp} from '.'
 
@@ -62,59 +65,73 @@ export default class Env {
 		} else {
 			for (let i = 0; i < binds.length; i++) {
 				const bind = binds[i]
+				const exp = exps[i]
+
+				const bindType = getType(bind)
 				// Variable length arguments
-				if (isSymbol(bind) && bind.value === '&') {
+				if (bindType === 'symbol' && (bind as MalSymbol).value === '&') {
 					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
 					break
 				}
 
-				if (Array.isArray(bind)) {
-					// List Destruction
-					if (!Array.isArray(exps[i])) {
-						throw new LispError(
-							`Error: destruction parameter ${printExp(
-								bind,
-								true,
-								false
-							)} is not specified as list`
-						)
+				switch (bindType) {
+					case 'symbol': {
+						if (exp === undefined) {
+							throw new LispError(`Error: parameter '${bind}' is not specified`)
+						}
+						this.set(bind as MalSymbol, exp)
+						break
 					}
-
-					this.bindAll(bind as MalBind, exps[i] as MalVal[])
-				} else if (isMap(bind)) {
-					// Hashmap destruction
-					if (!isMap(exps[i])) {
-						throw new LispError(
-							`Error: destruction parameter '${printExp(
-								bind,
-								true,
-								false
-							)}'} is not specified as map`
-						)
-					}
-					// Convert the two maps to list
-					// binds: [name location] <-- exps: ["Baku" "Japan"]
-					const entries = Object.entries(bind),
-						hashBinds = [],
-						hashExps = []
-
-					for (const [key, sym] of entries) {
-						if (!(key in (exps[i] as MalMap))) {
+					case 'vector':
+					case 'list': {
+						// List Destruction
+						if (!isSeq(exp)) {
 							throw new LispError(
-								`ERROR: destruction keyword :${key.slice(
-									1
-								)} does not exist on the parameter`
+								`Error: destruction parameter ${printExp(
+									bind,
+									true,
+									false
+								)} is not specified as sequence`
 							)
 						}
-						hashBinds.push(sym)
-						hashExps.push((exps[i] as MalMap)[key])
-					}
 
-					this.bindAll(hashBinds, hashExps)
-				} else if (exps[i] === undefined) {
-					throw new LispError(`Error: parameter '${bind}' is not specified`)
-				} else {
-					this.set(bind, exps[i])
+						this.bindAll(bind as MalBind, exp as MalVal[])
+						break
+					}
+					case 'map': {
+						// Hashmap destruction
+						if (!isMap(exp)) {
+							throw new LispError(
+								`Error: destruction parameter '${printExp(
+									bind,
+									true,
+									false
+								)}'} is not specified as map`
+							)
+						}
+						// Convert the two maps to list
+						// binds: [name location] <-- exps: ["Baku" "Japan"]
+						const entries = Object.entries(bind),
+							hashBinds = [],
+							hashExps = []
+
+						for (const [key, sym] of entries) {
+							if (!(key in (exp as MalMap))) {
+								throw new LispError(
+									`ERROR: destruction keyword :${key.slice(
+										1
+									)} does not exist on the parameter`
+								)
+							}
+							hashBinds.push(sym)
+							hashExps.push((exp as MalMap)[key])
+						}
+
+						this.bindAll(hashBinds, hashExps)
+						break
+					}
+					default:
+						throw new LispError('Error: invalid bind expression')
 				}
 			}
 		}

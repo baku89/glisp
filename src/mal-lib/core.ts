@@ -18,7 +18,8 @@ import {
 	MalAtom,
 	getType,
 	getMeta,
-	withMeta
+	withMeta,
+	isSeq
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -70,11 +71,11 @@ const Exports = [
 	['vector', (...xs: MalVal[]) => V(xs)],
 	['vector?', isVector],
 	['vec', (a: MalVal[]) => V([...a])],
-	['sequential?', Array.isArray],
+	['sequential?', isSeq],
 	[
 		'seq',
 		(a: MalVal) => {
-			if (Array.isArray(a)) {
+			if (isSeq(a)) {
 				return [...a]
 			} else if (isString(a) && a.length > 0) {
 				return a.split('')
@@ -116,7 +117,7 @@ const Exports = [
 	[
 		'slice',
 		(a: MalVal[], start: number, end: number) => {
-			if (Array.isArray(a)) {
+			if (isSeq(a)) {
 				return a.slice(start, end)
 			} else {
 				throw new LispError(`[slice] ${printExp(a)} is not an array`)

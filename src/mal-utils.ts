@@ -4,13 +4,13 @@ import {
 	M_META,
 	isMap,
 	MalFunc,
-	isMalNode,
 	keywordFor as K,
 	MalMap,
 	MalNode,
 	isVector,
 	MalJSFunc,
-	M_EVAL
+	M_EVAL,
+	isSeq
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 
@@ -40,7 +40,7 @@ export interface FnInfoType {
 }
 
 export function getFnInfo(exp: MalNode): FnInfoType | null {
-	if (isMalNode(exp) && Array.isArray(exp)) {
+	if (isSeq(exp)) {
 		let fn = exp[M_FN]
 		let primitive = null
 

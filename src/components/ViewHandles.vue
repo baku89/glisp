@@ -77,7 +77,7 @@ import {
 	M_OUTER,
 	isMap,
 	MalNode,
-	MalNodeList,
+	MalNodeSeq,
 	M_EVAL_PARAMS,
 	isMalNode,
 	isList,
@@ -146,7 +146,7 @@ interface Data {
 }
 
 interface Prop {
-	exp: NonReactive<MalNodeList> | null
+	exp: NonReactive<MalNodeSeq> | null
 }
 
 export default defineComponent({
@@ -512,9 +512,9 @@ export default defineComponent({
 				newParams[i] = newValue
 			}
 
-			const newExp: MalNodeList = state.fnInfo?.primitive
-				? (newParams[0] as MalNodeList)
-				: ([prop.exp.value[0], ...newParams] as MalNodeList)
+			const newExp: MalNodeSeq = state.fnInfo?.primitive
+				? (newParams[0] as MalNodeSeq)
+				: ([prop.exp.value[0], ...newParams] as MalNodeSeq)
 
 			context.emit('input', nonReactive(newExp))
 		}

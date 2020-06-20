@@ -18,7 +18,8 @@ import {
 	M_OUTER_INDEX,
 	MalSelection,
 	MalNodeSelection,
-	getMalFromSelection
+	getMalFromSelection,
+	isSeq
 } from './types'
 import printExp from './printer'
 
@@ -353,14 +354,13 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 
 		printExp(outer, true, true)
 
-		if (Array.isArray(outer)) {
+		if (isSeq(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				(outer[M_ISSUGAR] ? 0 : 1) +
 				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
 				outer[M_ELMSTRS].slice(0, index).join('').length
-		} else {
-			// Map
+		} else if (isMap(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.length */ +
@@ -458,7 +458,7 @@ export function findExpByRange(
 				offset += exp[M_ELMSTRS][i].length
 			}
 		}
-	} else {
+	} else if (isMap(exp)) {
 		// Hash Map
 
 		let offset = 1 // length of '{'

@@ -20,7 +20,7 @@ import {
 	markMalVector as V,
 	MalNode,
 	isMalNode,
-	MalNodeList,
+	MalNodeSeq,
 	M_EXPANDED,
 	M_OUTER,
 	M_OUTER_INDEX,
@@ -31,7 +31,8 @@ import {
 	M_PARAMS,
 	markMalVector,
 	MalSymbol,
-	MalBind
+	MalBind,
+	isSeq
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -95,7 +96,7 @@ function quasiquote(exp: MalVal): MalVal {
 	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
-		return Array.isArray(x) && x.length > 0
+		return isSeq(x) && x.length > 0
 	}
 }
 
@@ -105,11 +106,11 @@ function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
-		;(exp as MalNodeList)[M_FN] = fn
+		;(exp as MalNodeSeq)[M_FN] = fn
 
 		const params = exp.slice(1)
 		if (cache) {
-			;(exp as MalNodeList)[M_EVAL_PARAMS] = params
+			;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
 		}
 		exp = fn(...params)
 	}
@@ -162,7 +163,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 		// Expand macro
 		const expandedExp = macroexpand(exp, env, cache)
 		if (cache && exp !== expandedExp) {
-			;(exp as MalNodeList)[M_EXPANDED] = expandedExp
+			;(exp as MalNodeSeq)[M_EXPANDED] = expandedExp
 		}
 		exp = expandedExp
 
@@ -184,7 +185,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				const ret = env.set(a1 as MalSymbol, evalExp(a2, env, cache))
 				if (cache) {
-					;(exp as MalNodeList)[M_FN] = env.get(S_DEF) as MalFunc
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEF) as MalFunc
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
@@ -205,7 +206,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp.length === 3 ? a2 : [S_DO, ...exp.slice(2)]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeList)[M_FN] = env.get(S_LET) as MalFunc
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_LET) as MalFunc
 				}
 				exp = ret
 				break // continue TCO loop
@@ -340,8 +341,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeList)[M_FN] = env.get(S('artboard')) as MalFunc
-					;(exp as MalNodeList)[M_EVAL_PARAMS] = [option, ...body]
+					;(exp as MalNodeSeq)[M_FN] = env.get(S('artboard')) as MalFunc
+					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
 				}
 				return ret
 			}
@@ -452,7 +453,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 			case S_DO: {
 				if (cache) {
-					;(exp as MalNodeList)[M_FN] = env.get(S_DO) as MalFunc
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_DO) as MalFunc
 				}
 				if (exp.length === 1) {
 					return null
@@ -461,7 +462,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp[exp.length - 1]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeList)[M_EXPANDED] = ret
+					;(exp as MalNodeSeq)[M_EXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
@@ -471,8 +472,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = test ? a2 : a3 !== undefined ? a3 : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = a2
-					;(exp as MalNodeList)[M_FN] = env.get(S_IF) as MalFunc
-					;(exp as MalNodeList)[M_EXPANDED] = a2
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
+					;(exp as MalNodeSeq)[M_EXPANDED] = a2
 				}
 				exp = ret
 				break // continue TCO loop
@@ -505,11 +506,11 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
 
 				if (fn instanceof Function) {
-					;(exp as MalNodeList)[M_EVAL_PARAMS] = args
+					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = args
 					const ret = fn(...args)
 					if (cache) {
 						;(exp as MalNode)[M_EVAL] = ret
-						;(exp as MalNodeList)[M_FN] = fn
+						;(exp as MalNodeSeq)[M_FN] = fn
 					}
 					return ret
 				} else {
@@ -537,7 +538,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 }
 
 /*
-const MALNODELIST_SYMBOLS = [
+const MalNodeSeq_SYMBOLS = [
 	M_ISSUGAR,
 	M_DELIMITERS,
 	M_ELMSTRS,
@@ -564,7 +565,7 @@ function cloneMalNode(original: MalNode) {
 	const isArray = Array.isArray(original)
 
 	if (isArray) {
-		cloned = [...(original as MalNodeList)] as MalNodeList
+		cloned = [...(original as MalNodeSeq)] as MalNodeSeq
 		if (isVector(original)) {
 			V(cloned)
 		}
@@ -572,7 +573,7 @@ function cloneMalNode(original: MalNode) {
 		cloned = {...original} as MalNodeMap
 	}
 
-	const symbols = isArray ? MALNODELIST_SYMBOLS : MALNODEMAP_SYMBOLS
+	const symbols = isArray ? MalNodeSeq_SYMBOLS : MALNODEMAP_SYMBOLS
 
 	for (const sym of symbols) {
 		if (sym in original) {

@@ -50,7 +50,7 @@ export interface MalNodeMap extends MalMap {
 	[M_CACHE]: {[k: string]: any}
 }
 
-export interface MalNodeList extends Array<MalVal> {
+export interface MalNodeSeq extends Array<MalVal> {
 	[M_ISVECTOR]: boolean
 	[M_META]?: MalVal
 	[M_ISSUGAR]: boolean
@@ -91,7 +91,7 @@ export function getType(obj: MalVal | undefined): MalTypeString {
 			if (obj === null) {
 				return 'nil'
 			} else if (Array.isArray(obj)) {
-				const isvector = (obj as MalNodeList)[M_ISVECTOR]
+				const isvector = (obj as MalNodeSeq)[M_ISVECTOR]
 				return isvector ? 'vector' : 'list'
 			} else if (obj instanceof Float32Array) {
 				return 'vector'
@@ -137,9 +137,17 @@ export function setMalNodeCache(node: MalNode, key: string, value: any) {
 	node[M_CACHE][key] = value
 }
 
-export type MalNode = MalNodeMap | MalNodeList
+export type MalNode = MalNodeMap | MalNodeSeq
 
-export const isMalNode = (v: MalVal): v is MalNode => v instanceof Object
+export const isMalNode = (v: MalVal): v is MalNode => {
+	const type = getType(v)
+	return type === 'list' || type === 'map' || type === 'vector'
+}
+
+export const isSeq = (v: MalVal): v is MalNodeSeq => {
+	const type = getType(v)
+	return type === 'list' || type === 'vector'
+}
 
 export function getMeta(obj: MalVal) {
 	if (obj instanceof Object) {
@@ -153,7 +161,7 @@ export function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new LispError('[with-meta] Need the metadata to attach')
 	}
-	if (!isMalNode(a)) {
+	if (!(a instanceof Object)) {
 		throw new LispError('[with-meta] Object should not be atom')
 	}
 	const c = cloneExp(a)

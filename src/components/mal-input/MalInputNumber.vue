@@ -17,13 +17,13 @@
 <script lang="ts">
 import {defineComponent, ref, Ref, watch, PropType} from '@vue/composition-api'
 import InputNumber from '../input/InputNumber.vue'
-import {MalNodeList} from '../../mal/types'
+import {MalNodeSeq} from '../../mal/types'
 export default defineComponent({
 	name: 'MalInputNumber',
 	components: {InputNumber},
 	props: {
 		exp: {
-			type: [Number, Array] as PropType<number | MalNodeList>,
+			type: [Number, Array] as PropType<number | MalNodeSeq>,
 			required: true
 		},
 		validator: {

@@ -72,7 +72,7 @@ import {
 	M_EVAL,
 	isMalNode,
 	M_OUTER,
-	MalNodeList,
+	MalNodeSeq,
 	M_EXPANDED
 } from '@/mal/types'
 
@@ -173,7 +173,7 @@ function bindsConsole(
 		if (data.selectedExp) {
 			let evaled
 			if (M_EXPANDED in data.selectedExp.value) {
-				evaled = (data.selectedExp.value as MalNodeList)[M_EXPANDED]
+				evaled = (data.selectedExp.value as MalNodeSeq)[M_EXPANDED]
 			} else if (M_EVAL in data.selectedExp.value) {
 				evaled = data.selectedExp.value[M_EVAL]
 			}
