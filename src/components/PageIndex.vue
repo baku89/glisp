@@ -379,6 +379,7 @@ html, body
 		position relative
 		display flex
 		flex-grow 1
+		height calc(100vh - 3.4rem)
 
 	&__inspector
 		position absolute
