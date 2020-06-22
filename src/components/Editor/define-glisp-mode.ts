@@ -28,7 +28,8 @@ import ace from 'brace'
 			'defvar',
 			'g',
 			'transform',
-			'style'
+			'style',
+			'path/transform'
 		]
 
 		this.$toIndent = function(str: string) {
