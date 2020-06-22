@@ -259,10 +259,9 @@
                        :guide true
                        :path (line a b)}
                       {:type "point" :pos p}])
-             :drag (fn [{:pos p :params [a b _]
-                         :unevaluated-params [$a $b _]}]
+             :drag (fn [{:pos p :params [a b t]}]
                      (let [ab (vec2/- b a)]
-                       [$a $b
+                       [a b
                         (- 1 (/ (vec2/dot (vec2/- p a) ab)
                                 (vec2/sqr-len ab)))]))}}
   [a b t]
@@ -411,16 +410,15 @@
                         {:type "arrow" :id :axis-x  :pos [sx 0]}
                         {:type "arrow" :id :axis-y  :pos [0 sy] :angle HALF_PI}]))
              :drag (fn [{:id id :pos p
-                         :params [[x y]]
-                         :unevaluated-params [[x0 y0]]}]
-                     (let [$x (/ (.x p) 40)
-                           $y (/ (.y p) 40)]
+                         :params [[x y]]}]
+                     (let [_x (/ (.x p) 40)
+                           _y (/ (.y p) 40)]
                        (case id
-                         :uniform [[(+ $x (* (/ x0 y0) $y))
-                                    (+ $y (* (/ y0 x0) $x))]]
-                         :non-uni [[$x $y]]
-                         :axis-x  [[$x y]]
-                         :axis-y  [[x $y]])))}}
+                         :uniform [[(+ _x (* (/ x y) _y))
+                                    (+ _y (* (/ y x) _x))]]
+                         :non-uni [[_x _y]]
+                         :axis-x  [[_x y]]
+                         :axis-y  [[x _y]])))}}
   [[x y]]
   [x 0 0 y 0 0])
 
@@ -514,7 +512,7 @@
    :returns "mat2d"
    :handles {:draw (fn [{:params [p]}]
                      [{:type "translate" :pos p}])
-             :drag (fn [{:pos p :unevaluated-params [_ & xs]}]
+             :drag (fn [{:pos p :params [_ & xs]}]
                      `(~p ~@xs))}}
   [p & xs]
   (let [m-first (mat2d/translate p)
@@ -553,18 +551,17 @@
              {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
     :drag (fn [{:id id :pos p
                 :delta-pos [dx dy]
-                :params [[_x _y _w _h]]
-                :unevaluated-params [[x y w h]]}]
+                :params [[x y w h]]}]
             (case id
-              :center [[(+ _x dx) (+ _y dy) w h]]
-              :left  [[(+ _x dx) y (- _w dx) _h]]
-              :top   [[x (+ _y dy) w (- _h dy)]]
-              :right [[x y (+ _w dx) h]]
-              :bottom [[x y w (+ _h dy)]]
-              :top-left [`[~@p ~@(vec2/- (vec2/+ [_x _y] [_w _h]) p)]]
-              :top-right [[x (.y p) (- (.x p) _x) (- (+ _y _h) (.y p))]]
-              :bottom-left [[(.x p) y (- (+ _x _w) (.x p)) (- (.y p) _y)]]
-              :bottom-right [`[~x ~y ~@(vec2/- p [_x _y])]]))}}
+              :center [[(+ x dx) (+ y dy) w h]]
+              :left  [[(+ x dx) y (- w dx) h]]
+              :top   [[x (+ y dy) w (- h dy)]]
+              :right [[x y (+ w dx) h]]
+              :bottom [[x y w (+ h dy)]]
+              :top-left [`[~@p ~@(vec2/- (vec2/+ [x y] [w h]) p)]]
+              :top-right [[x (.y p) (- (.x p) x) (- (+ y h) (.y p))]]
+              :bottom-left [[(.x p) y (- (+ x w) (.x p)) (- (.y p) y)]]
+              :bottom-right [`[~x ~y ~@(vec2/- p [x y])]]))}}
   [[x y w h]] [x y w h])
 
 (def rect2d/left first)

@@ -381,10 +381,10 @@
                      (concat [{:id "new" :type "bg"}]
                              (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts)))
              :drag (fn [{:id id :pos p
-                         :unevaluated-params $pts}]
+                         :params pts}]
                      (if (number? id)
-                       (replace-nth $pts id p)
-                       (concat $pts [p])))}}
+                       (replace-nth pts id p)
+                       (concat pts [p])))}}
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)
@@ -409,11 +409,10 @@
                        :type "translate"
                        :pos center}])
              :drag (fn [{:id id :pos p
-                         :params [center radius]
-                         :unevaluated-params $params}]
+                         :params [center radius n seed]}]
                      (case id
-                       :center (replace-nth $params 0 p)
-                       :radius (replace-nth $params 1 (vec2/dist center p))))}}
+                       :center [p radius n seed]
+                       :radius [center (vec2/dist center p) n seed]))}}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
     (map (fn [i]

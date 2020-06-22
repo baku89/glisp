@@ -367,8 +367,7 @@ export default defineComponent({
 
 				const options = {
 					[K('params')]: state.params,
-					[K('return')]: state.returnedValue,
-					[K('unevaluated-params')]: state.unevaluatedParams
+					[K('return')]: state.returnedValue
 				}
 
 				let handles
@@ -511,7 +510,6 @@ export default defineComponent({
 				[K_POS]: pos,
 				[K('prev-pos')]: prevPos,
 				[K('delta-pos')]: deltaPos,
-				[K('unevaluated-params')]: state.unevaluatedParams,
 				[K('params')]: state.params
 			} as MalMap
 
