@@ -634,10 +634,10 @@
                 [h v src]))
    :returns {:type "rect2d"}}
   [horiz vert r]
-  [(- (nth r 0) horiz)
-   (- (nth r 1) vert)
-   (+ (nth r 2) (* 2 horiz))
-   (+ (nth r 3) (* 2 vert))])
+  [(- (rect2d/left r) horiz)
+   (- (rect2d/top r) vert)
+   (+ (rect2d/width r) (* 2 horiz))
+   (+ (rect2d/height r) (* 2 vert))])
 
 (defn rect2d/union [a b]
   (rect2d/from-to
