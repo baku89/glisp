@@ -28,7 +28,8 @@ import {
 	M_META,
 	M_FN,
 	isMap,
-	MalVal
+	MalVal,
+	MalSymbol
 } from '../../mal/types'
 import printExp from '@/mal/printer'
 import {getMapValue, getFnInfo} from '../../mal-utils'
@@ -38,7 +39,9 @@ export default defineComponent({
 	components: {InputNumber},
 	props: {
 		value: {
-			type: [Number, Array] as PropType<number | MalNodeSeq>,
+			type: [Number, Array, Object] as PropType<
+				number | MalNodeSeq | MalSymbol
+			>,
 			required: true
 		},
 		validator: {
