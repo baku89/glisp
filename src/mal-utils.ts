@@ -166,7 +166,8 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 		case 'symbol': {
 			const def = (original as MalSymbol).def
 			if (def && !isSymbol(exp)) {
-				replaceExp(def, [S('defvar'), original, exp])
+				// NOTE: Making side-effects on the below line
+				replaceExp(def, [S('defvar'), original, reverseEval(exp, def[2])])
 				return original
 			}
 			break
