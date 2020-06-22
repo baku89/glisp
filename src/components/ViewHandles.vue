@@ -232,7 +232,7 @@ export default defineComponent({
 
 				const exp = prop.exp.value
 				if (state.fnInfo?.primitive) {
-					return [[...exp]]
+					return [exp]
 				} else {
 					return exp.slice(1)
 				}
@@ -534,6 +534,8 @@ export default defineComponent({
 				state.draggingIndex = state.handles.findIndex(h => h.id === newId)
 				newParams = newParams[2] as MalVal[]
 			}
+
+			console.log(newParams, state.unevaluatedParams)
 
 			for (let i = 0; i < newParams.length; i++) {
 				let newValue = newParams[i]
