@@ -18,6 +18,10 @@
 (def +
   ^{:doc "Returns the sum of nums"
     :params [& {:label "x" :type "number" :default 0}]
+    :inverse (fn [ret $xs xs]
+               (cond
+                 (= 1 (count $xs) [ret])
+                 (<= 2 (count $xs)) `[~@(butlast $xs) ~(- ret (apply + (butlast xs)))]))
     :returns {:type "number"}}
   +)
 
@@ -26,10 +30,8 @@
     :params [{:label "x" :type "number"}
              &
              {:label "y" :type "number"}]
-    :inverse (fn [out params]
-               (if (= 1 (count params))
-                 [(- out)]
-                 nil))
+    :inverse (fn [ret $xs xs]
+               (cond (= 1 (count $xs)) [(- ret)]))
     :returns {:type "number"}}
   -)
 
@@ -53,6 +55,34 @@
              {:label "y" :type "number"}]
     :returns {:type "number"}}
   mod)
+
+(def floor
+  ^{:doc "Returns the largest integer less than or equal to a number"
+    :params [{:label "x" :type "number"}]
+    :inverse (fn [ret] [ret])
+    :returns {:type "number"}}
+  floor)
+
+(def ceil
+  ^{:doc "Returns the next largest integer more than or equal to a number"
+    :params [{:label "x" :type "number"}]
+    :inverse (fn [ret] [ret])
+    :returns {:type "number"}}
+  ceil)
+
+(def round
+  ^{:doc "Returns the value of a number rounded to the nearest integer"
+    :params [{:label "x" :type "number"}]
+    :inverse (fn [ret] [ret])
+    :returns {:type "number"}}
+  round)
+
+(def sqrt
+  ^{:doc "Returns the square root of a number"
+    :params [{:label "x" :type "number"}]
+    :inverse (fn [ret] [(* ret ret)])
+    :returns {:type "number"}}
+  sqrt)
 
 (def range
   ^{:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
