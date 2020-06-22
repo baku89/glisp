@@ -103,7 +103,9 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 }
 
-function macroexpand(exp: MalVal, env: Env, cache: boolean) {
+function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
+	let exp = _exp
+
 	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0])) {
 		const fn = env.get(exp[0])
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
@@ -117,6 +119,11 @@ function macroexpand(exp: MalVal, env: Env, cache: boolean) {
 		}
 		exp = fn(...params)
 	}
+
+	if (cache && exp !== _exp) {
+		;(_exp as MalNodeSeq)[M_EXPANDED] = exp
+	}
+
 	return exp
 }
 
@@ -169,12 +176,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			return evalAtom(exp, env, cache)
 		}
 
-		// Expand macro
-		const expandedExp = macroexpand(exp, env, cache)
-		if (cache && exp !== expandedExp) {
-			;(exp as MalNodeSeq)[M_EXPANDED] = expandedExp
+		if (cache) {
+			delete (exp as MalNodeSeq)[M_EVAL]
+			delete (exp as MalNodeSeq)[M_FN]
 		}
-		exp = expandedExp
+
+		// Expand macro
+		exp = macroexpand(exp, env, cache)
 
 		if (!isList(exp)) {
 			return evalAtom(exp, env, cache)
@@ -370,7 +378,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_FN] = env.get(S('artboard')) as MalFunc
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
 					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
 				}
 				return ret
@@ -499,7 +507,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = exp[exp.length - 1]
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_EXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop
@@ -511,7 +518,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
-					;(exp as MalNodeSeq)[M_EXPANDED] = ret
 				}
 				exp = ret
 				break // continue TCO loop

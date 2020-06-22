@@ -71,8 +71,7 @@ import {
 	M_EVAL,
 	isMalNode,
 	M_OUTER,
-	MalNodeSeq,
-	M_EXPANDED
+	MalNodeSeq
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -175,9 +174,7 @@ function bindsConsole(
 	ConsoleScope.def('eval-selected', () => {
 		if (data.selectedExp) {
 			let evaled
-			if (M_EXPANDED in data.selectedExp.value) {
-				evaled = (data.selectedExp.value as MalNodeSeq)[M_EXPANDED]
-			} else if (M_EVAL in data.selectedExp.value) {
+			if (M_EVAL in data.selectedExp.value) {
 				evaled = data.selectedExp.value[M_EVAL]
 			}
 			if (evaled !== undefined) {
