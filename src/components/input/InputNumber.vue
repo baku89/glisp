@@ -121,7 +121,7 @@ export default defineComponent({
 
 .InputNumber
 	position relative
-	width 6em
+	width 4em
 	font-monospace()
 
 	&__drag
@@ -140,4 +140,13 @@ export default defineComponent({
 		width 100%
 		color var(--orange)
 		text-align right
+
+		/* Chrome, Safari, Edge, Opera */
+		&::-webkit-outer-spin-button, &::-webkit-inner-spin-button
+			margin 0
+			-webkit-appearance none
+
+		/* Firefox */
+		&[type=number]
+			-moz-appearance textfield
 </style>

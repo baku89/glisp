@@ -61,7 +61,6 @@ export default defineComponent({
 
 	&__el
 		margin-right 0.5em
-		width 5em
 
 		&:last-child
 			margin-right 0
