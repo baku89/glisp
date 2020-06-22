@@ -579,22 +579,65 @@
 (def rect2d/top-left rect2d/point)
 (defn rect2d/bottom-right [r] (vec2/+ (rect2d/point r) (rect2d/size r)))
 
-(defn rect2d/from-to [from to]
+(defn rect2d/from-to
+  {:doc "Creates a bound from two corners"
+   :inverse (fn [[x y w h]] [[x y] [(+ x w) (+ y h)]])
+   :handles {:draw (fn [{:params [from to] :return ret}]
+                     [{:type "path" :guide true :class "dashed"
+                       :path (rect ret)}
+                      {:id :from :type "translate" :pos from}
+                      {:id :to :type "translate" :pos to}])
+             :drag (fn [{:id id :pos p :params [from to]}]
+                     (case id
+                       :from [p to]
+                       :to [from p]))}
+   :returns {:type "rect2d"}}
+  [from to]
   [(min (.x from) (.x to))
    (min (.y from) (.y to))
    (abs (- (.x to) (.x from)))
    (abs (- (.y to) (.y from)))])
 
-(defn rect2d/expand [amount r]
-  (cond (number? amount) [(- (nth r 0) amount)
-                          (- (nth r 1) amount)
-                          (+ (nth r 2) (* 2 amount))
-                          (+ (nth r 3) (* 2 amount))]
-        (vec2? amount) [(- (nth r 0) (.x amount))
-                        (- (nth r 1) (.y amount))
-                        (+ (nth r 2) (* 2 (.x amount)))
-                        (+ (nth r 3) (* 2 (.y amount)))]
-        :else (throw "[rect2d/expand] Invalid amount")))
+(defn rect2d/expand
+  {:doc "Expands a bound by horizontal and vertical amounts"
+   :params [{:label "Horizontal" :type "number"}
+            {:label "Vertical" :type "number"}
+            {:label "Bound" :type "rect2d"}]
+   :handles {:draw (fn [{:params [h v r] :return ret}]
+                     (let [c (rect2d/center r)]
+                       [{:type "path" :guide true :class "dashed"
+                         :path (rect r)}
+                        {:id :left :type "arrow"
+                         :pos [(- (rect2d/left r) h) (.y c)]}
+                        {:id :right :type "arrow"
+                         :pos [(+ (rect2d/right r) h) (.y c)]}
+                        {:id :top :type "arrow" :angle HALF_PI
+                         :pos [(.x c) (- (rect2d/top r) v)]}
+                        {:id :bottom :type "arrow" :angle HALF_PI
+                         :pos [(.x c) (+ (rect2d/bottom r) v)]}]))
+             :drag (fn [{:id id :pos [px py] :params [h v r]}]
+                     (case id
+                       :left [(- (rect2d/left r) px) v r]
+                       :right [(- px (rect2d/right r)) v r]
+                       :top [h (- (rect2d/top r) py) r]
+                       :bottom [h (- py (rect2d/bottom r)) r]))}
+   :inverse (fn [ret [h v src]]
+              (let [old-ret (rect2d/expand h v src)
+                    h (if (!= (rect2d/left old-ret)
+                              (rect2d/left ret))
+                        (- (rect2d/left src) (rect2d/left ret))
+                        (- (rect2d/right ret) (rect2d/right src)))
+                    v (if (!= (rect2d/top old-ret)
+                              (rect2d/top ret))
+                        (- (rect2d/top src) (rect2d/top ret))
+                        (- (rect2d/bottom ret) (rect2d/bottom src)))]
+                [h v src]))
+   :returns {:type "rect2d"}}
+  [horiz vert r]
+  [(- (nth r 0) horiz)
+   (- (nth r 1) vert)
+   (+ (nth r 2) (* 2 horiz))
+   (+ (nth r 3) (* 2 vert))])
 
 (defn rect2d/union [a b]
   (rect2d/from-to

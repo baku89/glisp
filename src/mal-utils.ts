@@ -139,9 +139,9 @@ export function reverseEval(
 
 					if (isMalFunc(inverseFn)) {
 						const fnName = (original as MalNodeSeq)[0]
-						const fnOriginalParams = (original as MalNodeSeq).slice(1)
+						// const fnOriginalParams = (original as MalNodeSeq).slice(1)
 						const fnEvaluatedParams = (original as MalNodeSeq)[M_EVAL_PARAMS]
-						const fnParams = inverseFn(exp, fnOriginalParams, fnEvaluatedParams)
+						const fnParams = inverseFn(exp, fnEvaluatedParams)
 
 						if (isSeq(fnParams)) {
 							const newExp = [fnName, ...fnParams]

@@ -18,10 +18,10 @@
 (def +
   ^{:doc "Returns the sum of nums"
     :params [& {:label "x" :type "number" :default 0}]
-    :inverse (fn [ret $xs xs]
+    :inverse (fn [ret xs]
                (cond
-                 (= 1 (count $xs) [ret])
-                 (<= 2 (count $xs)) `[~@(butlast $xs) ~(- ret (apply + (butlast xs)))]))
+                 (= 1 (count xs) [ret])
+                 (<= 2 (count xs)) `[~@(butlast xs) ~(- ret (apply + (butlast xs)))]))
     :returns {:type "number"}}
   +)
 
