@@ -103,14 +103,22 @@
                :pos (vec2/+ center (vec2/dir start r))}
               {:id :end :type "point"
                :pos (vec2/+ center (vec2/dir end r))}])
-     :drag (fn [{:id id :pos p
+     :drag (fn [{:id id :pos p :prev-pos pp
                  :params [center r start end]}]
              (case id
                :radius [center (vec2/dist center p) start end]
                :center [p r start end]
-               :start (let [start (vec2/angle (vec2/- p center))]
+               :start (let [start (calc-dragged-rotation
+                                   :center center
+                                   :pos p
+                                   :prev-pos pp
+                                   :angle start)]
                         [center r start end])
-               :end (let [end (vec2/angle (vec2/- p center))]
+               :end (let [end (calc-dragged-rotation
+                               :center center
+                               :pos p
+                               :prev-pos pp
+                               :angle end)]
                       [center r start end])))}}
   path/arc)
 (defalias arc path/arc)
