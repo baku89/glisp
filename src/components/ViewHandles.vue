@@ -30,7 +30,11 @@
 			<path class="ViewHandles__viewport-axis stroke" d="M -5000 0 H 5000" />
 			<path class="ViewHandles__viewport-axis stroke" d="M 0 -5000 V 5000" />
 		</g>
-		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
+		<g
+			v-if="handleCallbacks"
+			class="ViewHandles__axis"
+			:transform="axisTransform"
+		>
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -62,9 +66,19 @@
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
+					<path
+						class="stroke display"
+						:transform="yTransform"
+						d="M 0 12 V -12"
+					/>
 				</template>
-				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+				<circle
+					class="fill display"
+					:class="cls"
+					cx="0"
+					cy="0"
+					:r="rem * 0.5"
+				/>
 			</template>
 		</g>
 	</svg>
@@ -86,15 +100,7 @@ import {
 	isList,
 	M_OUTER_INDEX,
 	MalMap,
-	MalFunc,
-	M_FN,
-	getType,
-	isMalFunc,
-	getMeta,
-	isVector,
-	MalSymbol,
-	isSymbol,
-	isSeq
+	MalFunc
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -111,10 +117,8 @@ import {
 	SetupContext,
 	Ref
 } from '@vue/composition-api'
-import {replaceExp} from '@/mal/eval'
 
 const K_ANGLE = K('angle'),
-	K_HANDLES = K('handles'),
 	K_ID = K('id'),
 	K_GUIDE = K('guide'),
 	K_POS = K('pos'),
@@ -162,14 +166,34 @@ interface Prop {
 
 interface UseGestureOptions {
 	onScroll?: (e: MouseWheelEvent) => any
+	onZoom?: (e: MouseWheelEvent) => any
 }
 
 function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
+	const isWindows = /win/i.test(navigator.platform)
+
 	onMounted(() => {
 		if (!el.value) return
 
-		if (options.onScroll) {
-			el.value.addEventListener('wheel', options.onScroll)
+		if (options.onScroll || options.onZoom) {
+			el.value.addEventListener('wheel', (e: MouseWheelEvent) => {
+				if (e.altKey || e.ctrlKey) {
+					if (options.onZoom) {
+						if (isWindows) {
+							e = {
+								pageX: e.pageX,
+								pageY: e.pageY,
+								deltaY: e.deltaY / 10
+							} as MouseWheelEvent
+						}
+						options.onZoom(e)
+					}
+				} else {
+					if (options.onScroll) {
+						options.onScroll(e)
+					}
+				}
+			})
 		}
 	})
 }
@@ -565,6 +589,28 @@ export default defineComponent({
 
 		// Gestures for view transform
 		useGesture(el, {
+			onZoom(e: MouseWheelEvent) {
+				if (!el.value) return
+
+				const xform = mat2d.clone(prop.viewTransform as mat2d)
+
+				// Scale
+				const deltaScale = 1 + -e.deltaY * 0.01
+
+				const {left, top} = el.value.getBoundingClientRect()
+				const pivot = vec2.fromValues(e.pageX - left, e.pageY - top)
+
+				const xformInv = mat2d.invert(mat2d.create(), xform)
+				vec2.transformMat2d(pivot, pivot, xformInv)
+
+				mat2d.translate(xform, xform, pivot)
+				mat2d.scale(xform, xform, [deltaScale, deltaScale])
+
+				vec2.negate(pivot, pivot)
+				mat2d.translate(xform, xform, pivot)
+
+				context.emit('update:view-transform', xform)
+			},
 			onScroll(e: MouseWheelEvent) {
 				if (!el.value) return
 
@@ -575,26 +621,9 @@ export default defineComponent({
 
 				const xform = mat2d.clone(prop.viewTransform as mat2d)
 
-				if (e.ctrlKey) {
-					// Scale
-					const deltaScale = 1 + -e.deltaY * 0.01
-					const {left, top} = el.value.getBoundingClientRect()
-					const pivot = vec2.fromValues(e.pageX - left, e.pageY - top)
-
-					const xformInv = mat2d.invert(mat2d.create(), xform)
-					vec2.transformMat2d(pivot, pivot, xformInv)
-
-					mat2d.translate(xform, xform, pivot)
-					mat2d.scale(xform, xform, [deltaScale, deltaScale])
-
-					vec2.negate(pivot, pivot)
-					mat2d.translate(xform, xform, pivot)
-				} else {
-					// Translate
-					const delta = vec2.fromValues(-deltaX, -deltaY)
-					xform[4] -= deltaX / 2
-					xform[5] -= deltaY / 2
-				}
+				// Translate
+				xform[4] -= deltaX / 2
+				xform[5] -= deltaY / 2
 
 				context.emit('update:view-transform', xform)
 			}
