@@ -122,7 +122,7 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 export function reverseEval(
 	exp: MalVal,
 	original: MalVal,
-	forceOverwrite = true
+	forceOverwrite = false
 ) {
 	// const meta = getMeta(original)
 
@@ -181,6 +181,11 @@ export function reverseEval(
 			}
 			break
 		}
+		case 'number':
+		case 'string':
+		case 'keyword':
+		case 'boolean':
+			return exp
 	}
 
 	return forceOverwrite ? exp : original
