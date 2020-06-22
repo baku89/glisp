@@ -200,10 +200,10 @@ import ace from 'brace'
 			'with-local-vars with-meta with-open with-out-str with-precision xml-seq ' +
 			'zero? zipmap'
 
-		const builtinFunctions =
-			clojureBuiltinFunctions + ' style transform g defvar path'
+		const builtinFunctions = clojureBuiltinFunctions + ' path'
 
-		const specialForms = 'throw try var def do fn macro if let loop quote recur'
+		const specialForms =
+			'throw try var def do fn macro if let loop quote recur style transform g defvar'
 
 		const keywordMapper = this.createKeywordMapper(
 			{
@@ -228,11 +228,6 @@ import ace from 'brace'
 				// 	token: 'identifier',
 				// 	regex: ''
 				// }
-				{
-					token: 'identifier', //parens
-					regex: '[\\(]',
-					next: 'fncall'
-				},
 				/*
 				{
 					token: 'keyword', //lists
@@ -280,7 +275,12 @@ import ace from 'brace'
 					regex: '[a-zA-Z_$\\/][a-zA-Z0-9_$\\-]*\\b'
 				},
 				{
-					token: 'keyword',
+					token: 'identifier', //parens
+					regex: '[\\(]',
+					next: 'fncall'
+				},
+				{
+					token: 'keyword.operator',
 					regex: '\\:[a-zA-Z_$][a-zA-Z0-9_$\\-]*\\b' // keyword
 				},
 				{
