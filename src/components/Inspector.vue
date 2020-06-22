@@ -676,6 +676,7 @@ export default class Inspector extends Vue {
 			text-overflow ellipsis
 			white-space nowrap
 			line-height $param-height
+			font-monospace()
 
 	button
 		height $param-height
