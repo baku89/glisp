@@ -40,6 +40,7 @@ import {mat2d} from 'gl-matrix'
 import {printExp} from '.'
 
 const S_DEF = S('def')
+const S_DEFVAR = S('defvar')
 const S_LET = S('let')
 const S_BINDING = S('binding')
 const S_IF = S('if')
@@ -198,7 +199,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				return value
 			}
-			case S('defvar'): {
+			case S_DEFVAR: {
 				const [, sym, _value] = exp
 				if (!isSymbol(sym) || _value === undefined) {
 					throw new LispError('Invalid form of def!')
