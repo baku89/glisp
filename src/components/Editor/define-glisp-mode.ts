@@ -22,6 +22,8 @@ import ace from 'brace'
 	;(function(this: any) {
 		this.lineCommentStart = ';'
 		this.minorIndentFunctions = [
+			'if',
+			'case',
 			'defn',
 			'defmacro',
 			'def',
