@@ -1,7 +1,5 @@
 import chroma from 'chroma-js'
 
-window.chroma = chroma
-
 export const BRIGHT_COLORS = {
 	'--currentline': '#efefef',
 	'--selection': '#d6d6d6',

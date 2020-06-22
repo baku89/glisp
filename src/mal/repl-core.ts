@@ -1,7 +1,7 @@
 import {vsprintf} from 'sprintf-js'
 import isNode from 'is-node'
 
-import {MalVal, LispError, symbolFor as S} from './types'
+import {MalVal, LispError} from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
 import interop from './interop'

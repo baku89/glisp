@@ -1,13 +1,11 @@
 import {
 	MalVal,
 	LispError,
-	symbolFor as S,
 	isSymbol,
 	isMap,
 	MalMap,
 	MalSymbol,
 	MalBind,
-	isVector,
 	isSeq,
 	getType,
 	MalNodeSeq

@@ -19,7 +19,6 @@ import {
 	isSymbol,
 	MalSymbol,
 	symbolFor as S,
-	M_PARAMS,
 	M_EVAL_PARAMS
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
