@@ -11,8 +11,6 @@ import {
 	ref,
 	Ref,
 	onBeforeUnmount,
-	computed,
-	watchEffect,
 	watch,
 	SetupContext,
 	PropType
@@ -35,7 +33,6 @@ interface Props {
 	value: string
 	selection?: number[]
 	activeRange?: number[]
-	dark?: boolean
 }
 
 function assignKeybinds(editor: ace.Editor) {
@@ -62,9 +59,6 @@ function setupBraceEditor(
 	editorEl: Ref<HTMLElement | null>
 ) {
 	let editor: ace.Editor
-
-	const theme = computed(() => (props.dark ? 'tomorrow_night' : 'tomorrow'))
-	watchEffect(() => editor.setTheme(`ace/theme/${theme.value}`))
 
 	onMounted(() => {
 		if (!editorEl.value) return
@@ -165,10 +159,6 @@ export default defineComponent({
 			type: Array as PropType<number[]>,
 			required: false
 		},
-		dark: {
-			type: Boolean,
-			default: false
-		},
 		cssStyle: {
 			type: String,
 			default: ''
@@ -193,6 +183,7 @@ export default defineComponent({
 	width 100%
 	height 100%
 	font-monospace()
+	 //var(--foreground) !important
 
 	.active-range
 		position absolute
@@ -202,12 +193,29 @@ export default defineComponent({
 	.ace_selection
 		opacity 0.5
 
+	// Theme overwriting by CSS
 	&__editor
 		position relative
 		width 100%
 		background transparent !important
 		font-size 1rem
+		color var(--foreground) !important
 
 	.ace_editor
 		font-family 'Fira Code', monospace, sans-serif !important
+
+	.ace_comment
+		color var(--comment) !important
+
+	.ace_keyword
+		color var(--purple) !important
+
+	.ace_constant
+		color var(--orange) !important
+
+	.ace_function
+		color var(--blue) !important
+
+	.ace_string
+		color var(--green) !important
 </style>

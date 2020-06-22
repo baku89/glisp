@@ -21,7 +21,7 @@
 
       ; just mouse down?
       just-down (and (not pp) p)
-      needs-update (or just-down (and p (or (not= x px) (not= y py)))))
+      needs-update (or just-down (and p (or (!= x px) (!= y py)))))
 
       (list
       ; Updated Item or nil if no needs to update
@@ -121,7 +121,7 @@
     p		(nth input 2)
 
     just-down (and (not pp) p)
-    needs-update (or just-down (and p (or (not= x px) (not= y py)))))
+    needs-update (or just-down (and p (or (!= x px) (!= y py)))))
 
     (list
       ; Updated Item or nil if no needs to update

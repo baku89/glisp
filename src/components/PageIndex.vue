@@ -1,5 +1,5 @@
 <template>
-	<div id="app" class="PageIndex" :style="colors">
+	<div id="app" class="PageIndex" :style="theme.colors">
 		<Viewer
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -9,7 +9,7 @@
 			@render="hasRenderError = !$event"
 			@set-background="onSetBackground"
 		/>
-		<GlobalMenu class="PageIndex__global-menu" :dark="dark" />
+		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
 				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" />
@@ -26,7 +26,6 @@
 					<ExpEditor
 						:exp="exp"
 						:selectedExp="selectedExp"
-						:dark="dark"
 						:hasParseError.sync="hasParseError"
 						@input="onUpdateExp"
 						@select="onSelectExp"
@@ -59,8 +58,6 @@ import {
 	ref,
 	Ref
 } from '@vue/composition-api'
-import Color from 'color'
-import cssColors from 'css-color-names'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import ExpEditor from '@/components/ExpEditor.vue'
@@ -85,7 +82,7 @@ import {printer} from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
-import {BRIGHT_COLORS, DARK_COLORS} from '@/theme'
+import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 
 interface Data {
@@ -101,9 +98,7 @@ interface Data {
 interface UI {
 	compact: boolean
 	background: string
-	cssBackground: string
-	dark: boolean
-	colors: {[k: string]: string}
+	theme: Theme
 	viewerSize: [number, number]
 	guideColor: string
 	viewHandlesTransform: mat2d
@@ -244,45 +239,11 @@ export default defineComponent({
 		const ui = reactive({
 			compact: false,
 			background: 'whiteSmoke',
-			cssBackground: computed(() => {
-				let background = ui.background.toLowerCase()
-				if (background in cssColors) {
-					background = cssColors[background] as string
-				}
-				return background
-			}),
-			dark: computed(() => {
-				try {
-					return Color(ui.cssBackground).isDark() as boolean
-				} catch (_) {
-					return false
-				}
-			}),
-			colors: computed(() => {
-				const colors = ui.dark ? DARK_COLORS : BRIGHT_COLORS
-				let border = colors['--comment']
-				let translucent = ui.cssBackground
-				try {
-					border = Color(ui.dark ? 'white' : 'black')
-						.fade(0.9)
-						.rgb()
-						.string()
-					translucent = Color(ui.cssBackground)
-						.fade(0.2)
-						.rgb()
-						.string()
-				} catch (_) {
-					null
-				}
-				return {
-					...colors,
-					'--background': ui.cssBackground,
-					'--translucent': translucent,
-					'--border': border
-				}
+			theme: computed(() => {
+				return computeTheme(ui.background)
 			}),
 			viewerSize: [0, 0],
-			guideColor: computed(() => ui.colors['--selection']),
+			guideColor: computed(() => ui.theme.colors['--selection']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {top: 0}
@@ -333,13 +294,9 @@ export default defineComponent({
 
 		// Background and theme
 		function onSetBackground(bg: string) {
-			try {
-				Color(bg)
-			} catch (err) {
-				return
+			if (isValidColorString(bg)) {
+				ui.background = bg
 			}
-
-			ui.background = bg
 		}
 
 		// Save code

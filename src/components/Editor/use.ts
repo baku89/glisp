@@ -1,4 +1,5 @@
 import ace from 'brace'
+import './define-glisp-mode'
 
 export function replaceStrByRange(
 	s: string,
@@ -43,7 +44,7 @@ export function configureEditor(editor: ace.Editor) {
 	editor.setOption('displayIndentGuides', false)
 
 	const session = editor.getSession()
-	session.setMode('ace/mode/clojure')
+	session.setMode('ace/mode/glisp')
 	session.setUseWrapMode(true)
 
 	editor.setOptions({

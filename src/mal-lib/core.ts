@@ -43,7 +43,7 @@ const Exports = [
 
 	// // Compare
 	['=', (a: MalVal, b: MalVal) => a === b],
-	['not=', (a: MalVal, b: MalVal) => a !== b],
+	['!=', (a: MalVal, b: MalVal) => a !== b],
 	['<', (a: number, b: number) => a < b],
 	['<=', (a: number, b: number) => a <= b],
 	['>', (a: number, b: number) => a > b],

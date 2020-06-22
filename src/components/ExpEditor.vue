@@ -3,7 +3,6 @@
 		class="ExpEditor"
 		:value="code"
 		:activeRange="activeRange"
-		:dark="dark"
 		:cssStyle="cssStyle"
 		:selection="selection"
 		@input="onInput"
@@ -17,8 +16,7 @@ import {
 	computed,
 	ref,
 	SetupContext,
-	Ref,
-	PropType
+	Ref
 } from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
@@ -34,7 +32,6 @@ const OFFSET = 8 // length of "(sketch "
 interface Props {
 	exp: NonReactive<MalNode> | null
 	selectedExp: NonReactive<MalNode> | null
-	dark: boolean
 	cssStyle?: string
 }
 
@@ -48,10 +45,6 @@ export default defineComponent({
 		},
 		selectedExp: {
 			required: true
-		},
-		dark: {
-			type: Boolean,
-			required: false
 		},
 		cssStyle: {
 			type: String,
