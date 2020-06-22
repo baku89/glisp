@@ -135,10 +135,9 @@ export function reverseEval(
 				// find Inverse function
 				const info = getFnInfo(original as MalNodeSeq)
 				if (info) {
-					const returnType = getMapValue(info.meta, 'returns/type')
 					const inverseFn = getMapValue(info.meta, 'inverse')
 
-					if (isMalFunc(inverseFn) && getType(exp) === returnType) {
+					if (isMalFunc(inverseFn)) {
 						const fnName = (original as MalNodeSeq)[0]
 						const fnOriginalParams = (original as MalNodeSeq).slice(1)
 						const fnEvaluatedParams = (original as MalNodeSeq)[M_EVAL_PARAMS]
