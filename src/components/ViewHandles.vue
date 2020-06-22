@@ -535,8 +535,6 @@ export default defineComponent({
 				newParams = newParams[2] as MalVal[]
 			}
 
-			console.log(newParams, state.unevaluatedParams)
-
 			for (let i = 0; i < newParams.length; i++) {
 				let newValue = newParams[i]
 				const unevaluated = state.unevaluatedParams[i] as MalVal[]
