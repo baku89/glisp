@@ -198,6 +198,10 @@
          xs))
 
 (defmacro g
+  {:doc "Creates a element group with attributes"
+   :params [{:label "Attribute" :type "exp"}
+            &
+            {:label "Body" :type "exp"}]}
   [attrs & xs]
   (let [_attrs (gensym)
         _attr-transform (gensym)
@@ -220,9 +224,18 @@
          (vec ~xs)))))
 
 (defn style
-  [attrs & xs]
-  `[:style ~attrs ~@xs])
+  {:doc "Applies a style to elements"
+   :params [{:label "Style" :type "exp"}
+            &
+            {:label "Body" :type "exp"}]}
+  [] (throw "Cannot call style as usual function call"))
 
+(defn transform
+  {:doc "Transforms elements"
+   :params [{:label "Transform" :type "mat2d"}
+            &
+            {:label "Body" :type "exp"}]}
+  [] (throw "Cannot call transform as usual function call"))
 
 ;; Color
 (defn color

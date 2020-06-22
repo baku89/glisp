@@ -281,6 +281,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
 				}
 				return ret
 			}
@@ -313,6 +314,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_STYLE) as MalFunc
 				}
 				return ret
 			}

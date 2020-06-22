@@ -12,7 +12,7 @@
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
-				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" />
+				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" @select="onSelectExp" />
 			</div>
 			<ViewHandles
 				ref="elHandles"
@@ -36,9 +36,7 @@
 						class="PageIndex__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
+					>{{ hasError ? '!' : '✓' }}</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -168,8 +166,11 @@ function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
 
 function bindsConsole(
 	data: Data,
-	onUpdateSelectedExp: (val: NonReactive<MalVal>) => any,
-	onUpdateExp: (exp: NonReactive<MalVal>) => void
+	callbacks: {
+		onUpdateSelectedExp: (val: NonReactive<MalVal>) => any
+		onUpdateExp: (exp: NonReactive<MalVal>) => void
+		selectOuterExp: () => void
+	}
 ) {
 	ConsoleScope.def('eval-selected', () => {
 		if (data.selectedExp) {
@@ -180,7 +181,7 @@ function bindsConsole(
 				evaled = data.selectedExp.value[M_EVAL]
 			}
 			if (evaled !== undefined) {
-				onUpdateSelectedExp(nonReactive(evaled))
+				callbacks.onUpdateSelectedExp(nonReactive(evaled))
 			}
 		}
 		return null
@@ -191,7 +192,7 @@ function bindsConsole(
 			if (res.ok) {
 				const code = await res.text()
 				const exp = readStr(`(sketch ${code}\nnil)`, true)
-				onUpdateExp(nonReactive(exp))
+				callbacks.onUpdateExp(nonReactive(exp))
 				data.selectedExp = null
 			} else {
 				printer.error(`Failed to load from "${url}"`)
@@ -201,10 +202,7 @@ function bindsConsole(
 	})
 
 	ConsoleScope.def('select-outer', () => {
-		if (data.selectedExp && data.selectedExp.value[M_OUTER]) {
-			data.selectedExp = nonReactive(data.selectedExp.value[M_OUTER])
-		}
-
+		callbacks.selectOuterExp()
 		return null
 	})
 
@@ -329,8 +327,21 @@ export default defineComponent({
 			}
 		}
 
+		function selectOuterExp() {
+			if (data.selectedExp && data.selectedExp.value[M_OUTER]) {
+				const outer = data.selectedExp.value[M_OUTER]
+				if (outer !== data.exp?.value) {
+					data.selectedExp = nonReactive(data.selectedExp.value[M_OUTER])
+				}
+			}
+		}
+
 		// Init App Handler
-		bindsConsole(data, onUpdateSelectedExp, onUpdateExp)
+		bindsConsole(data, {
+			onUpdateSelectedExp,
+			onUpdateExp,
+			selectOuterExp
+		})
 
 		return {
 			elHandles,
@@ -341,7 +352,8 @@ export default defineComponent({
 			...toRefs(ui as any),
 			onSetBackground,
 			onUpdateExp,
-			onSelectExp
+			onSelectExp,
+			selectOuterExp
 		}
 	}
 })
@@ -353,7 +365,6 @@ export default defineComponent({
 
 $compact-dur = 0.4s
 
-
 html, body
 	overflow hidden
 	height 100vh
@@ -361,14 +372,14 @@ html, body
 
 .PageIndex
 	position relative
+	display flex
+	flex-direction column
 	overflow hidden
 	width 100%
 	height 100%
 	height 100vh
 	background var(--background)
 	color var(--foreground)
-	display flex
-	flex-direction column
 
 	&__global-menu
 		background-attachment fixed
@@ -391,40 +402,40 @@ html, body
 
 	&__viewer
 		position absolute !important
+		top 0
+		left 0
 		margin-right 1rem
 		width 100%
 		height 100%
-		top 0
-		left 0
 
 	&__view-handles
 		width calc(100% - 30rem)
 
 	&__control
 		position relative
-		width 30rem
-		border-left 1px solid var(--border)
 		display flex
 		flex-direction column
+		width 30rem
+		border-left 1px solid var(--border)
 		translucent-bg()
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
 		height 70%
-		transition height $compact-dur var(--ease)
 		border-bottom 1px solid var(--border)
+		transition height $compact-dur var(--ease)
 
 	&__console
 		position relative
+		flex-grow 1
 		padding 0.5rem 0.5rem 1rem 1rem
 		transition height $compact-dur var(--ease)
-		flex-grow 1
 
 		&-toggle
 			$size = 2.5rem
 			position absolute
 			top -2rem
-			right .7rem
+			right 0.7rem
 			margin-top -0.5 * $size
 			width $size
 			height $size

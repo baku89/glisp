@@ -8,6 +8,9 @@
 					alias for
 					{{ fnInfo.aliasFor }}
 				</span>
+				<button class="Inspector__outer" v-if="outer" @click="onSelect(outer)">
+					<i class="fas fa-level-up-alt" />
+				</button>
 			</div>
 			<VueMarkdown :source="fnDoc" />
 		</div>
@@ -26,6 +29,7 @@
 							:value="params[i].value"
 							:validator="desc['validator']"
 							@input="onParamInput(i, $event)"
+							@select="onSelect(params[i].value)"
 						/>
 						<InputString
 							v-else-if="params[i].type === 'string'"
@@ -83,7 +87,7 @@
 							:validator="keywordValidator"
 							@input="onParamInput(i, $event)"
 						/>
-						<div v-else class="exp">{{ printExp(params[i].value, true, true) }}</div>
+						<MalExpButton v-else @click="onSelect(params[i].value)" :value="params[i].value" />
 					</div>
 					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 						<i class="far fa-times-circle" />
@@ -122,7 +126,8 @@ import {
 	isMalNode,
 	MalMap,
 	malEquals,
-	MalSymbol
+	MalSymbol,
+	M_OUTER
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import InputComponents from '@/components/input'
@@ -226,6 +231,13 @@ export default class Inspector extends Vue {
 			return this.fnInfo.meta[K('doc')] as string
 		}
 		return ''
+	}
+
+	private get outer(): MalVal | undefined {
+		if (this.exp.value[M_OUTER][M_OUTER]) {
+			return this.exp.value[M_OUTER]
+		}
+		return undefined
 	}
 
 	private matchParameter(
@@ -570,6 +582,11 @@ export default class Inspector extends Vue {
 		this.$emit('input', nonReactive(newValue))
 	}
 
+	private onSelect(exp: MalVal) {
+		console.log('exp')
+		this.$emit('select', nonReactive(exp))
+	}
+
 	// Use inside the template
 	private symbolValidator(v: string) {
 		return v.trim() ? S(v) : null
@@ -594,7 +611,6 @@ export default class Inspector extends Vue {
 	height 100%
 	text-align left
 	user-select none
-	$param-height = 1.4em
 	backdrop-filter blur(1rem)
 
 	.fira-code
@@ -613,6 +629,7 @@ export default class Inspector extends Vue {
 		opacity 0.8
 
 	&__header
+		position relative
 		margin-bottom 1em
 
 	&__name
@@ -623,6 +640,17 @@ export default class Inspector extends Vue {
 			color var(--comment)
 			font-weight normal
 			font-size 0.95em
+
+	&__outer
+		position absolute
+		top 0
+		right 0
+		color var(--comment)
+		opacity 0.6
+
+		&:hover
+			color var(--aqua)
+			opacity 1
 
 	&__params
 		position relative
@@ -656,16 +684,6 @@ export default class Inspector extends Vue {
 
 		.input
 			max-width 100%
-
-		.exp
-			overflow hidden
-			max-width 100%
-			height $param-height
-			color var(--comment)
-			text-overflow ellipsis
-			white-space nowrap
-			line-height $param-height
-			font-monospace()
 
 	button
 		height $param-height

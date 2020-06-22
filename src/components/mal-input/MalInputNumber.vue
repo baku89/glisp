@@ -7,7 +7,7 @@
 			:validator="validator"
 		/>
 		<span v-if="display.mode === 'unit' && display.suffix">{{display.suffix}}</span>
-		<div class="exp" v-if="display.mode === 'exp'">{{displayValue}}</div>
+		<MalExpButton v-if="display.mode === 'exp'" :value="value" @click="$emit('select')" />
 	</div>
 </template>
 
@@ -20,7 +20,8 @@ import {
 	PropType,
 	computed
 } from '@vue/composition-api'
-import InputNumber from '../input/InputNumber.vue'
+import InputNumber from '@/components/input/InputNumber.vue'
+import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {
 	MalNodeSeq,
 	isList,
@@ -30,13 +31,13 @@ import {
 	isMap,
 	MalVal,
 	MalSymbol
-} from '../../mal/types'
+} from '@/mal/types'
 import printExp from '@/mal/printer'
-import {getMapValue, getFnInfo} from '../../mal-utils'
+import {getMapValue, getFnInfo} from '@/mal-utils'
 
 export default defineComponent({
 	name: 'MalInputNumber',
-	components: {InputNumber},
+	components: {InputNumber, MalExpButton},
 	props: {
 		value: {
 			type: [Number, Array, Object] as PropType<
@@ -75,11 +76,11 @@ export default defineComponent({
 				case 'unit':
 					return (props.value as any)[1] as number
 				default:
-					return printExp(props.value, true, true)
+					return NaN
 			}
 		})
 
-		const onInput = (value: number) => {
+		function onInput(value: number) {
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
 				newExp = [(props.value as MalNodeSeq)[0], value]
@@ -87,10 +88,14 @@ export default defineComponent({
 			context.emit('input', newExp)
 		}
 
+		function onSelect() {
+			context.emit('select')
+		}
+
 		return {
-			onInput,
 			displayValue,
-			display
+			display,
+			onInput
 		}
 	}
 })

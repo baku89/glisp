@@ -4,6 +4,7 @@ font-monospace()
 	font-variant-ligatures normal !important
 
 $input-height = 1.4em
+$param-height = 1.4em
 
 input()
 	width 6em
@@ -13,6 +14,10 @@ input()
 	background transparent
 	color var(--foreground)
 	font-size inherit
+
+	&:focus
+		border-bottom-style solid
+		border-bottom-color var(--aqua)
 
 translucent-bg()
 	background var(--translucent)
