@@ -48,7 +48,7 @@ import {defineComponent} from '@vue/composition-api'
 export default class GlobalMenu extends Vue {
 	private menu = [
 		[
-			'Export',
+			'File',
 			[
 				['Export', '(export)'],
 				['Publish to Gist', '(publish-gist)'],
