@@ -3,10 +3,11 @@
 		<div class="Inspector__header">
 			<div class="Inspector__name">
 				{{ fnName }}
-				<span v-if="fnInfo && fnInfo.aliasFor" class="alias"
-					><span class="fira-code">--></span> alias for
-					{{ fnInfo.aliasFor }}</span
-				>
+				<span v-if="fnInfo && fnInfo.aliasFor" class="alias">
+					<span class="fira-code">--></span>
+					alias for
+					{{ fnInfo.aliasFor }}
+				</span>
 			</div>
 			<VueMarkdown :source="fnDoc" />
 		</div>
@@ -20,7 +21,7 @@
 				<td class="label">{{ desc['ʞlabel'] }}</td>
 				<td class="value">
 					<div class="input">
-						<InputNumber
+						<MalInputNumber
 							v-if="params[i].type === 'number'"
 							:value="params[i].value"
 							:validator="desc['validator']"
@@ -49,7 +50,7 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
-						<InputVec2
+						<MalInputVec2
 							v-else-if="params[i].type === 'vec2'"
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
@@ -82,32 +83,18 @@
 							:validator="keywordValidator"
 							@input="onParamInput(i, $event)"
 						/>
-						<div v-else class="exp">
-							{{ printExp(params[i].value, true, true) }}
-						</div>
+						<div v-else class="exp">{{ printExp(params[i].value, true, true) }}</div>
 					</div>
-					<button
-						class="delete"
-						v-if="i >= variadicPos"
-						@click="onParamDelete(i)"
-					>
+					<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 						<i class="far fa-times-circle" />
 					</button>
-					<button
-						class="insert"
-						v-if="i >= variadicPos"
-						@click="onParamInsert(i)"
-					>
-						&lt;-- Insert
-					</button>
+					<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
 				</td>
 			</tr>
 			<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 				<td class="label"></td>
 				<td class="value">
-					<button class="add" @click="onParamInsert(params.length)">
-						+ Add
-					</button>
+					<button class="add" @click="onParamInsert(params.length)">+ Add</button>
 				</td>
 			</tr>
 		</table>
@@ -461,6 +448,8 @@ export default class Inspector extends Vue {
 		if (inputType !== descType) {
 			if (descType === 'any') {
 				return inputType
+			} else if (/^number$/.test(descType)) {
+				return descType
 			} else if (descType === 'color' && inputType === 'string') {
 				return 'color'
 			} else if (descType === 'angle' && inputType === 'number') {

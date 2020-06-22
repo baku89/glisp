@@ -1,33 +1,21 @@
 <template>
-	<div class="InputVec2">
+	<div class="MalInputVec2">
 		[
-		<InputNumber
-			class="InputVec2__el"
-			:value="value[0]"
-			@input="onInput(0, $event)"
-		/>
-		<InputNumber
-			class="InputVec2__el"
-			:value="value[1]"
-			@input="onInput(1, $event)"
-		/>]
-		<button
-			class="InputVec2__drag"
-			:class="{dragging: drag.isDragging}"
-			ref="dragEl"
-		/>
+		<MalInputNumber class="MalInputVec2__el" :value="value[0]" @input="onInput(0, $event)" />
+		<MalInputNumber class="MalInputVec2__el" :value="value[1]" @input="onInput(1, $event)" />]
+		<button class="MalInputVec2__drag" :class="{dragging: drag.isDragging}" ref="dragEl" />
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
 import {markMalVector} from '@/mal/types'
-import InputNumber from './InputNumber.vue'
+import MalInputNumber from './MalInputNumber.vue'
 import {useDraggable} from '@/components/use'
 
 export default defineComponent({
-	name: 'InputVec2',
-	components: {InputNumber},
+	name: 'MalInputVec2',
+	components: {MalInputNumber},
 	props: {
 		value: {
 			type: Array as PropType<number[]>,
@@ -67,7 +55,7 @@ export default defineComponent({
 <style lang="stylus" scoped>
 @import '../style/common.styl'
 
-.InputVec2
+.MalInputVec2
 	display flex
 	line-height $input-height
 

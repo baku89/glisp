@@ -379,7 +379,9 @@
 
 ;; Trivial
 (defn identity [x] x)
-(def const identity)
+(defn const
+  {:params [{:type "any"}]}
+  [x] x)
 (defn prn-pass [& xs] (do (apply prn xs) (first xs)))
 
 (defn zero?
@@ -395,6 +397,7 @@
   {:doc "Map the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
    :returns {:type "number"}
+   :unit {:suffix "%"}
    :inverse (fn [ret] [(* ret 100)])}
   [value] (/ value 100))
 
