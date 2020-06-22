@@ -6,7 +6,11 @@
 			@input="onInput"
 			:validator="validator"
 		/>
-		<span v-if="display.mode === 'unit' && display.suffix">{{display.suffix}}</span>
+		<span
+			class="unit"
+			:class="{small: display.suffix && display.suffix.length >= 2}"
+			v-if="display.mode === 'unit' && display.suffix"
+		>{{display.suffix}}</span>
 		<MalExpButton v-if="display.mode === 'exp'" :value="value" @click="$emit('select')" />
 	</div>
 </template>
@@ -109,13 +113,14 @@ export default defineComponent({
 	align-items center
 	line-height $input-height
 
-	.exp
-		overflow hidden
-		max-width 100%
-		height $param-height
+	.unit
+		padding-left 0.3em
+		width 1rem
 		color var(--comment)
-		text-overflow ellipsis
-		white-space nowrap
-		line-height $param-height
-		font-monospace()
+
+		&.small
+			height $input-height
+			letter-spacing 0
+			font-size 0.75em
+			line-height $input-height * 1.2
 </style>
