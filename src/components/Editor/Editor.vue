@@ -183,7 +183,6 @@ export default defineComponent({
 	width 100%
 	height 100%
 	font-monospace()
-	 //var(--foreground) !important
 
 	.active-range
 		position absolute
@@ -198,8 +197,8 @@ export default defineComponent({
 		position relative
 		width 100%
 		background transparent !important
-		font-size 1rem
 		color var(--foreground) !important
+		font-size 1rem
 
 	.ace_editor
 		font-family 'Fira Code', monospace, sans-serif !important
@@ -208,13 +207,13 @@ export default defineComponent({
 		color var(--comment) !important
 
 	.ace_keyword
-		color var(--purple) !important
+		color var(--aqua) !important
 
 	.ace_constant
 		color var(--orange) !important
 
 	.ace_function
-		color var(--blue) !important
+		color var(--purple) !important
 
 	.ace_string
 		color var(--green) !important
