@@ -129,7 +129,7 @@ $height = 3.4rem
 	z-index 10
 
 	&.title-bar-macos
-		padding-left 70px
+		padding-left 74px
 
 	h1
 		position relative

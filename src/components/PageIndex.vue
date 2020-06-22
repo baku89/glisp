@@ -410,6 +410,8 @@ html, body
 	height 100vh
 	background var(--background)
 	color var(--foreground)
+	display flex
+	flex-direction column
 
 	&__global-menu
 		background-attachment fixed
@@ -419,7 +421,7 @@ html, body
 	&__content
 		position relative
 		display flex
-		height calc(100vh - 3.5rem)
+		flex-grow 1
 
 	&__inspector
 		position absolute
@@ -464,7 +466,7 @@ html, body
 			$size = 2.5rem
 			position absolute
 			top -2rem
-			right .5rem
+			right .7rem
 			margin-top -0.5 * $size
 			width $size
 			height $size

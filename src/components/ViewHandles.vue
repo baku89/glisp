@@ -27,16 +27,12 @@
 			</marker>
 		</defs>
 		<g :transform="`matrix(${viewTransform.join(' ')})`">
-			<path class="ViewHandles__viewport-axis" d="M -5000 0 H 5000" />
-			<path class="ViewHandles__viewport-axis" d="M 0 -5000 V 5000" />
+			<path class="ViewHandles__viewport-axis stroke" d="M -5000 0 H 5000" />
+			<path class="ViewHandles__viewport-axis stroke" d="M 0 -5000 V 5000" />
 		</g>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
-			<path class="axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
-			<path class="axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
+			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
+			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
 		<g
 			v-for="({type, id, transform, yTransform, path, cls, guide},
@@ -66,19 +62,9 @@
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path
-						class="stroke display"
-						:transform="yTransform"
-						d="M 0 12 V -12"
-					/>
+					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 				</template>
-				<circle
-					class="fill display"
-					:class="cls"
-					cx="0"
-					cy="0"
-					:r="rem * 0.5"
-				/>
+				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 			</template>
 		</g>
 	</svg>
@@ -639,7 +625,7 @@ export default defineComponent({
 		fill none
 
 	&__viewport-axis
-		stroke var(--border)
+		stroke var(--border) !important
 		stroke-dasharray 2 2
 
 	// Hover behavior

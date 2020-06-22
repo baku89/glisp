@@ -89,6 +89,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import "../style/common.styl"
+
 .InputColor
 
 	&__text
@@ -97,6 +99,7 @@ export default defineComponent({
 		border-bottom 1px dashed var(--comment)
 		background transparent
 		color var(--green)
+		font-monospace()
 
 	&__button
 		display inline
