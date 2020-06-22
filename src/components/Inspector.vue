@@ -49,7 +49,7 @@
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
 						/>
-						<InputAngle
+						<MalInputAngle
 							v-else-if="params[i].type === 'angle'"
 							:value="params[i].value"
 							@input="onParamInput(i, $event)"
@@ -460,7 +460,7 @@ export default class Inspector extends Vue {
 		if (inputType !== descType) {
 			if (descType === 'any') {
 				return inputType
-			} else if (/^number$/.test(descType)) {
+			} else if (/^number|angle$/.test(descType)) {
 				return descType
 			} else if (descType === 'color' && inputType === 'string') {
 				return 'color'

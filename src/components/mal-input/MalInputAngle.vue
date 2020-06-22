@@ -1,32 +1,37 @@
 <template>
-	<div class="InputAngle">
-		<InputNumber
-			class="InputAngle__el"
-			:value="value"
-			@input="onInput"
-			:validator="validator"
-		/>
+	<div class="MalInputAngle">
+		<MalInputNumber class="MalInputAngle__el" :value="value" @input="onInput" :validator="validator" />
 		<button
-			class="InputAngle__drag"
+			class="MalInputAngle__drag"
 			:class="{dragging: drag.isDragging}"
-			:style="{transform: `rotate(${value}rad)`}"
+			:style="{transform: `rotate(${evaluated}rad)`}"
 			ref="dragEl"
 		/>
 	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
-import InputNumber from './InputNumber.vue'
+import {
+	defineComponent,
+	ref,
+	Ref,
+	PropType,
+	computed
+} from '@vue/composition-api'
+import MalInputNumber from './MalInputNumber.vue'
 import {useDraggable} from '@/components/use'
 import {vec2} from 'gl-matrix'
+import {getMeta, isList, MalNodeSeq, MalSymbol, M_EVAL} from '../../mal/types'
+import {getMapValue, reverseEval} from '../../mal-utils'
 
 export default defineComponent({
-	name: 'InputAngle',
-	components: {InputNumber},
+	name: 'MalInputAngle',
+	components: {MalInputNumber},
 	props: {
 		value: {
-			type: Number,
+			type: [Number, Array, Object] as PropType<
+				number | MalNodeSeq | MalSymbol
+			>,
 			required: true
 		},
 		validator: {
@@ -34,8 +39,17 @@ export default defineComponent({
 			required: false
 		}
 	},
-	setup(prop, context) {
+	setup(props, context) {
 		const dragEl: Ref<null | HTMLElement> = ref(null)
+
+		const evaluated = computed(() => {
+			if (typeof props.value === 'number') {
+				return props.value as number
+			} else if (isList(props.value) && M_EVAL in props.value) {
+				return props.value[M_EVAL] as number
+			}
+			return 0
+		})
 
 		const onInput = (value: number) => {
 			context.emit('input', value)
@@ -53,16 +67,19 @@ export default defineComponent({
 					-prevAngle
 				)
 				const deltaAngle = Math.atan2(alignedPos[1], alignedPos[0])
+				const newAngle = evaluated.value + deltaAngle
 
-				const value = prop.value + deltaAngle
+				const value = reverseEval(newAngle, props.value)
+
 				context.emit('input', value)
 			}
 		})
 
 		return {
 			dragEl,
-			onInput,
-			drag
+			evaluated,
+			drag,
+			onInput
 		}
 	}
 })
@@ -71,7 +88,7 @@ export default defineComponent({
 <style lang="stylus" scoped>
 @import '../style/common.styl'
 
-.InputAngle
+.MalInputAngle
 	display flex
 	align-items center
 	line-height $input-height
