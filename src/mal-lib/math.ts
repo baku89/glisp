@@ -23,11 +23,6 @@ const Exports = [
 	]
 ] as [string, MalVal][]
 
-// Expose Math
-Object.getOwnPropertyNames(Math).forEach(k =>
-	Exports.push([k, (Math as any)[k]])
-)
-
 const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
 ;(globalThis as any)['glisp_library'] = Exp
 

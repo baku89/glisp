@@ -166,8 +166,7 @@ export function withMeta(a: MalVal, m: any) {
 	if (!(a instanceof Object)) {
 		throw new LispError('[with-meta] Object should not be atom')
 	}
-	const c = cloneExp(a)
-	;(c as MalNode)[M_META] = m
+	const c = cloneExp(a, m)
 	return c
 }
 
@@ -239,23 +238,33 @@ export function isEqual(a: MalVal, b: MalVal) {
 
 export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 	let newObj: T
-	if (Array.isArray(obj)) {
-		newObj = [...obj] as any
-		if (isVector(obj)) {
-			markMalVector(newObj as any)
+
+	const type = getType(obj)
+
+	switch (getType(obj)) {
+		case 'list':
+		case 'vector':
+			newObj = [...(obj as MalVal[])] as any
+			if (type === 'vector') {
+				markMalVector(newObj as any)
+			}
+			break
+		case 'map':
+			newObj = {...(obj as MalMap)} as any
+			break
+		case 'fn':
+		case 'macro': {
+			// new function instance
+			const fn = (...args: any) => (obj as Function)(...args)
+			// copy original properties
+			newObj = Object.assign(fn, obj)
+			break
 		}
-	} else if (isMap(obj)) {
-		newObj = {...(obj as MalMap)} as any
-	} else if (obj instanceof Function) {
-		// new function instance
-		const fn = (...args: any) => obj.apply(fn, args)
-		// copy original properties
-		newObj = Object.assign(fn, obj)
-	} else {
-		throw new LispError('[JS: cloneExp] Unsupported type for clone')
+		default:
+			throw new LispError('[JS: cloneExp] Unsupported type for clone')
 	}
 
-	if (typeof newMeta !== 'undefined') {
+	if (newMeta !== undefined) {
 		;(newObj as MalNode)[M_META] = newMeta
 	}
 

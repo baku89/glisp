@@ -120,7 +120,11 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 	return null
 }
 
-export function reverseEval(exp: MalVal, original: MalVal) {
+export function reverseEval(
+	exp: MalVal,
+	original: MalVal,
+	forceOverwrite = true
+) {
 	// const meta = getMeta(original)
 
 	switch (getType(original)) {
@@ -145,7 +149,11 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 							const newExp = [fnName, ...fnParams]
 
 							for (let i = 1; i < (original as MalNodeSeq).length; i++) {
-								newExp[i] = reverseEval(newExp[i], (original as MalNodeSeq)[i])
+								newExp[i] = reverseEval(
+									newExp[i],
+									(original as MalNodeSeq)[i],
+									forceOverwrite
+								)
 							}
 							return newExp
 						}
@@ -157,7 +165,9 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 		case 'vector': {
 			if (isVector(exp) && exp.length === (original as MalNodeSeq).length) {
 				const newExp = V(
-					exp.map((e, i) => reverseEval(e, (original as MalNodeSeq)[i]))
+					exp.map((e, i) =>
+						reverseEval(e, (original as MalNodeSeq)[i], forceOverwrite)
+					)
 				)
 				return newExp
 			}
@@ -167,12 +177,13 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 			const def = (original as MalSymbol).def
 			if (def && !isSymbol(exp)) {
 				// NOTE: Making side-effects on the below line
-				replaceExp(def, [S('defvar'), original, reverseEval(exp, def[2])])
+				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
+				replaceExp(def, [S('defvar'), original, newDefBody])
 				return original
 			}
 			break
 		}
 	}
 
-	return exp
+	return forceOverwrite ? exp : original
 }
