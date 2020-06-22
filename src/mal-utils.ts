@@ -18,7 +18,9 @@ import {
 	markMalVector as V,
 	isSymbol,
 	MalSymbol,
-	symbolFor as S
+	symbolFor as S,
+	M_PARAMS,
+	M_EVAL_PARAMS
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 import {replaceExp} from './mal/eval'
@@ -123,23 +125,30 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 
 	switch (getType(original)) {
 		case 'list': {
-			// find Inverse function
-			const info = getFnInfo(original as MalNodeSeq)
-			if (info) {
-				const returnType = getMapValue(info.meta, 'returns/type')
-				const inverseFn = getMapValue(info.meta, 'inverse')
+			// Check if the list is wrapped within const
+			if ((original as MalNodeSeq)[0] === S('const')) {
+				return original
+			} else {
+				// find Inverse function
+				const info = getFnInfo(original as MalNodeSeq)
+				if (info) {
+					const returnType = getMapValue(info.meta, 'returns/type')
+					const inverseFn = getMapValue(info.meta, 'inverse')
 
-				if (isMalFunc(inverseFn) && getType(exp) === returnType) {
-					const fnName = (original as MalNodeSeq)[0]
-					const fnParams = inverseFn(exp)
+					if (isMalFunc(inverseFn) && getType(exp) === returnType) {
+						const fnName = (original as MalNodeSeq)[0]
+						const fnOriginalParams = (original as MalNodeSeq).slice(1)
+						const fnEvaluatedParams = (original as MalNodeSeq)[M_EVAL_PARAMS]
+						const fnParams = inverseFn(exp, fnOriginalParams, fnEvaluatedParams)
 
-					if (isSeq(fnParams)) {
-						const newExp = [fnName, ...fnParams]
+						if (isSeq(fnParams)) {
+							const newExp = [fnName, ...fnParams]
 
-						for (let i = 1; i < (original as MalNodeSeq).length; i++) {
-							newExp[i] = reverseEval(newExp[i], (original as MalNodeSeq)[i])
+							for (let i = 1; i < (original as MalNodeSeq).length; i++) {
+								newExp[i] = reverseEval(newExp[i], (original as MalNodeSeq)[i])
+							}
+							return newExp
 						}
-						return newExp
 					}
 				}
 			}
