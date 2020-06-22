@@ -37,6 +37,7 @@
   {:doc "Represents an angle in a number of turns"
    :params [{:type "number"}]
    :returns {:type "number"}
+   :unit {:suffix "turn"}
    :inverse (fn [ret] [(to-turn ret)])}
   [turn] (* turn TWO_PI))
 
