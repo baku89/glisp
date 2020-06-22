@@ -26,6 +26,10 @@
     :params [{:label "x" :type "number"}
              &
              {:label "y" :type "number"}]
+    :inverse (fn [out params]
+               (if (= 1 (count params))
+                 [(- out)]
+                 nil))
     :returns {:type "number"}}
   -)
 
@@ -345,6 +349,7 @@
 
 ;; Trivial
 (defn identity [x] x)
+(def const identity)
 (defn prn-pass [& xs] (do (apply prn xs) (first xs)))
 
 (defn zero?
