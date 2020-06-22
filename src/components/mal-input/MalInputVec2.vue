@@ -77,19 +77,24 @@ export default defineComponent({
 		&:hover, &.dragging
 			background var(--comment)
 
-			&:before
-				border-color var(--background)
+			&:before, &:after
+				background var(--background)
 
-		&:before
+		&:before, &:after
 			position absolute
 			display block
-			border 1px solid var(--comment)
+			background var(--comment)
 			content ''
 
 		&:before
-			top 3px
+			top 6px
 			left 3px
 			width 6px
+			height 1px
+
+		&:after
+			top 3px
+			left 5px
+			width 1px
 			height 6px
-			border-radius 50%
 </style>
