@@ -125,7 +125,7 @@ export function computeTheme(background: string): Theme {
 		const t = fit(c, 0, 2, 1, 0)
 		const signed = t * (dark ? -1 : 1)
 		if (t !== 0) {
-			comment = comment.darken(signed * 4)
+			comment = comment.darken(signed * 3)
 			foreground = foreground.darken(signed * 2)
 			purple = purple.saturate(Math.abs(signed * 2)).darken(signed)
 			orange = chroma.mix(orange.saturate(t), yellow.darken(signed * 4), t)
