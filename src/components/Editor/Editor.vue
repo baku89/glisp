@@ -186,8 +186,7 @@ export default defineComponent({
 
 	.active-range
 		position absolute
-		background var(--yellow)
-		opacity 0.2
+		background var(--active-range)
 
 	.ace_selection
 		opacity 0.5

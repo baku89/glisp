@@ -1,4 +1,5 @@
 import chroma from 'chroma-js'
+import {vec2} from 'gl-matrix'
 
 const TOMORROW = {
 	'--currentline': '#efefef',
@@ -103,6 +104,15 @@ export function computeTheme(background: string): Theme {
 		.alpha(fit(s, 0, 1, 0.3, 0.9))
 		.css()
 
+	// .alpha(fit(s, 0, 1, 0.2, 0.4))
+	// .css()
+
+	const t = fit(vec2.dist([0, 1], [s, v]), 0, 0.4, 1, 0.2)
+	const activeRange = chroma
+		.mix(dark ? colors['--blue'] : 'white', colors['--yellow'], t, 'hsv')
+		.alpha(fit(s, 0, 1, 0.2, 0.4))
+		.css()
+
 	// If the bg is too saturated, set the translucent to grayish color
 	{
 		const dist = Math.sqrt(Math.pow(1 - s, 2) + Math.pow(1 - v, 2))
@@ -157,6 +167,7 @@ export function computeTheme(background: string): Theme {
 			'--highlight': colors['--blue'],
 			'--hover': colors['--aqua'],
 			'--warning': colors['--red'],
+			'--active-range': activeRange,
 
 			// For syntax highlighting
 			'--syntax-keyword': colors['--aqua'],
