@@ -19,33 +19,44 @@
   ^{:doc "Returns the sum of nums"
     :params [& {:label "x" :type "number" :default 0}]
     :inverse (fn [ret xs]
-               (cond
-                 (= 1 (count xs) [ret])
-                 (<= 2 (count xs)) `[~@(butlast xs) ~(- ret (apply + (butlast xs)))]))
+               (case (count xs)
+                 0 []
+                 1 [ret]
+                 `[~@(butlast xs) ~(- ret (apply + (butlast xs)))]))
     :returns {:type "number"}}
   +)
 
 (def -
-  ^{:doc "If no ys are supplied, returns the negation of x, else subtracts the ys from x"
-    :params [{:label "x" :type "number"}
-             &
-             {:label "y" :type "number"}]
-    :inverse (fn [ret $xs xs]
-               (cond (= 1 (count $xs)) [(- ret)]))
+  ^{:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
+    :params [&
+             {:label "x" :type "number"}]
+    :inverse (fn [ret xs]
+               (case (count xs)
+                 0 []
+                 1 [(- ret)]
+                 `[~@(butlast xs) ~(- (first xs) (apply + (slice xs 1 -1)) ret)]))
     :returns {:type "number"}}
   -)
 
 (def *
   ^{:doc "Returns the product of nums"
     :params [& {:label "x" :type "number" :default 1}]
+    :inverse (fn [ret xs]
+               (case (count xs)
+                 0 []
+                 1 [ret]
+                 `[~@(butlast xs) ~(/ ret (apply * (butlast xs)))]))
     :returns {:type "number"}}
   *)
 
 (def /
-  ^{:doc "If no ys are supplied, returns 1/x, else returns numerator divided by all of the ys"
-    :params [{:label "x" :type "number"}
-             &
-             {:label "y" :type "number" :default 1}]
+  ^{:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
+    :params [& {:label "x" :type "number"}]
+    :inverse (fn [ret xs]
+               (case (count xs)
+                 0 []
+                 1 [(/ ret)]
+                 `[~@(butlast xs) ~(/ (first xs) (apply * (slice xs 1 -1)) ret)]))
     :retruns {:type "number"}}
   /)
 

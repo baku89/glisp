@@ -53,14 +53,34 @@ const Exports = [
 	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
 	[
 		'-',
-		(x: number, ...ys: number[]) =>
-			ys.length ? ys.reduce((a, b) => a - b, x) : -x
+		(...xs: number[]) => {
+			switch (xs.length) {
+				case 0:
+					return 0
+				case 1:
+					return -xs[0]
+				case 2:
+					return xs[0] - xs[1]
+				default:
+					return xs.slice(1).reduce((a, b) => a - b, xs[0])
+			}
+		}
 	],
 	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
 	[
 		'/',
-		(x: number, ...ys: number[]) =>
-			ys.length ? ys.reduce((a, b) => a / b, x) : 1 / x
+		(...xs: number[]) => {
+			switch (xs.length) {
+				case 0:
+					return 1
+				case 1:
+					return 1 / xs[0]
+				case 2:
+					return xs[0] / xs[1]
+				default:
+					return xs.slice(1).reduce((a, b) => a / b, xs[0])
+			}
+		}
 	],
 	['mod', (x: number, y: number) => ((x % y) + y) % y],
 

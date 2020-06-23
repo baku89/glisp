@@ -47,6 +47,7 @@
    :params [{:label "x" :type "number"}
             {:label "Min" :type "number"}
             {:label "max" :type "number"}]
+   :inverse (fn [ret [x _min _max]] [ret _min _max])
    :returns {:type "number"}}
   [x _min _max]
   (min (max _min x) _max))
@@ -58,11 +59,13 @@
 (def .x
   ^{:doc "Gets x value from vec2"
     :params [{:label "Value" :type "vec2"}]
+    :inverse (fn [ret [[x y]]] [[ret y]])
     :returns {:type "number"}}
   first)
 (def .y
   ^{:doc "Gets y value from vec2"
     :params [{:label "Value" :type "vec2"}]
+    :inverse (fn [ret [[x y]]] [[x ret]])
     :returns {:type "number"}}
   second)
 
