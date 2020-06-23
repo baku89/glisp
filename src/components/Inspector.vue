@@ -14,7 +14,8 @@
 			</div>
 			<VueMarkdown class="Inspector__doc" :source="fnDoc" />
 		</div>
-		<ParamControl
+		<component
+			:is="inspectorName"
 			:exp="exp"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
@@ -37,7 +38,7 @@ import {
 
 import ParamControl from './ParamControl.vue'
 
-import CubicBezier from '@/components/inspectors/cubic-bezier.vue'
+import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
 import {getFnInfo} from '@/mal-utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
@@ -51,7 +52,7 @@ export default defineComponent({
 	components: {
 		VueMarkdown,
 		ParamControl,
-		'cubic-bezier': CubicBezier
+		...Inspectors
 	},
 	props: {
 		exp: {
@@ -91,6 +92,10 @@ export default defineComponent({
 			return undefined
 		})
 
+		const inspectorName = computed(() => {
+			return fnName.value in Inspectors ? fnName.value : 'ParamControl'
+		})
+
 		function onSelectOuter() {
 			context.emit('select', nonReactive(outer.value))
 		}
@@ -99,6 +104,7 @@ export default defineComponent({
 			fnInfo,
 			fnName,
 			fnDoc,
+			inspectorName,
 			outer,
 			onSelectOuter
 		}
