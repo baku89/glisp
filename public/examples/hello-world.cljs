@@ -6,9 +6,9 @@
 ;; https://github.com/stathissideris/dali/blob/master/doc/syntax.md
 
 (transform
- (translate [150 150])
+ (translate [50 0])
  ;; Imagine former line as:
- ;; <g style="transform: translate(150, 150)">
+ ;; <g transform="translate(150, 150)">
 
  ;; Circle
  (style (fill "#f2ff53")
@@ -16,4 +16,5 @@
 
  ;; Text
  (style (fill "#ff4684")
-        (text "Hello World" [0 0] :size 25)))
+        (text "Hello World" [0 0]
+              :size 25)))

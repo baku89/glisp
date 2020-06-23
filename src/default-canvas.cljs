@@ -1,5 +1,5 @@
 ;; Example: 10 PRINT CHR$(205.5+RND(1)); : GOTO 10
-;; https://10print.org/
+;; https://10print.org
 
 (def w 36)
 (def s (/ w 2))
@@ -12,9 +12,8 @@
 
 (background "snow")
 
-(g {:transform (translate [220 220])
-    :style (stroke "salmon" 10)}
-   (for [y (column -5 5 w)
-         x (column -5 5 w)
-         :index i]
-     (slash i [x y])))
+(style (stroke "salmon" 10)
+  (for [y (column -5 5 w)
+        x (column -5 5 w)
+        :index i]
+    (slash i [x y])))

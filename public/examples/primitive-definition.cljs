@@ -1,72 +1,38 @@
-;; Example: Primitive Definition
-;; Defining new type of primitives
-
-(defn star
-  {:doc "Generates a star path"
-
-   ;; Parameter annotation
-   :params
-   [{:label "Center" :type "vec2"}
-    {:label "Num of Vertices"
-     :type "number"
-     :constraints {:min 2 :step 1}}
-    {:label "Inner Radius"
-     :type "number"
-     :constraints {:min 0}}
-    {:label "Outer Radius"
-     :type "number"
-     :constraints {:min 0}}]
-
-   ;; Handles definition
-   :handles
-   {:draw
-    ;; Returns a list of handles with ID
-    ;; from the function's parameters
-    (fn [{:params [c n rmin rmax]
-          :return path}]
-      (let [rmin-angle (/ PI n)]
-        [{:id :path
-          :type "path"
-          :guide true
-          :path path}
-         {:id :center
-          :type "translate"
-          :pos c}
-         {:id :rmin
-          :type "arrow"
-          :pos (vec2/+
-                c
-                (vec2/dir rmin-angle rmin))
-          :angle rmin-angle}
-         {:id :rmax
-          :type "arrow"
-          :pos (vec2/+ c [rmax 0])}]))
-    :drag
-    ;; In turn, returns new parameters
-    ;; from the handle's ID and position
-    (fn [{:id id :pos pos
-          :params [c n rmin rmax]}]
-      (case id
-        :center [pos n rmin rmax]
-        :rmin [c n (vec2/dist c pos) rmax]
-        :rmax [c n rmin (vec2/dist c pos)]))}}
-
-  ;; Function body
-  [c n rmin rmax]
-  (apply polygon
-         (for [i (range (* n 2))]
-           (let [a (* (/ i n) PI)
-                 r (if (mod i 2) rmin rmax)]
-             (vec2/+ c (vec2/dir a r))))))
+(defn cloud
+  {:handles
+   {:draw (fn [{:params [x0 x1 y width]}]
+            [{:type "path" :path (line [x0 y] [x1 y])
+              :class "dashed"}
+             {:id :start
+              :type "point" :pos [x0 y]}
+             {:id :end
+              :type "point" :pos [x1 y]}
+             {:id :width
+              :type "arrow" :pos [x0 (+ y width)]
+              :angle HALF_PI}])
+    :drag (fn [{:id id :pos p :params [x0 x1 y width]}]
+            (case id
+              :start [(.x p) x1 (.y p) width]
+              :end [x0 (.x p) (.y p) width]
+              :width [x0 x1 y (abs (- (.y p) y))]))}}
+  [x0 x1 y width]
+  (path/offset-stroke width
+                      (line [x0 y] [x1 y])))
 
 :start-sketch
 
-(background "#4c5366")
+(background "#BCDEDE")
 
-(style
- (stroke "#fb6a4c" 12)
+(g {:style (stroke "#F34386" 4)
+    :transform (translate [62 198])}
 
- ;; Try click 'star' on below
- ;; then you can see the inspector
- ;; and handles on the view
- (star [200 200] 5 70 160))
+   (def p
+     (path/unite
+      (cloud -428 136 -261 41)
+      (cloud -205 294 -189 45)
+
+      (cloud -142 126 -122 31)
+      (cloud -73 300 -61 45)))
+
+   (for [off [10 20]]
+     (path/offset off p)))

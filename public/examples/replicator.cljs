@@ -11,12 +11,11 @@
 
 (background "#08101D")
 
-(g {:style (stroke "#CECCFF")
-    :transform (translate [250 250])}
+(style (stroke "#CECCFF")
 
-   (path/replicator
-    (mat2d/* (translate [30 -24])
-             (rotate 0.12176655678815762)
-             (scale [0.95 0.95]))
-    60
-    (circle [0 0] 150)))
+       (path/replicator
+        (mat2d/* (translate [30 -24])
+                 (rotate (deg 10))
+                 (scale [0.95 0.95]))
+        60
+        (circle [0 0] 150)))
