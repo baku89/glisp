@@ -88,23 +88,23 @@
 import {
 	MalVal,
 	keywordFor as K,
-	symbolFor as S,
 	markMalVector as V,
 	M_EVAL,
-	M_OUTER,
 	isMap,
-	MalNode,
 	MalNodeSeq,
 	M_EVAL_PARAMS,
-	isMalNode,
-	isList,
-	M_OUTER_INDEX,
 	MalMap,
 	MalFunc
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
-import {getFnInfo, FnInfoType, getMapValue, reverseEval} from '@/mal-utils'
+import {
+	getFnInfo,
+	FnInfoType,
+	getMapValue,
+	reverseEval,
+	computeExpTransform
+} from '@/mal-utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {
 	defineComponent,
@@ -123,7 +123,6 @@ const K_ANGLE = K('angle'),
 	K_GUIDE = K('guide'),
 	K_POS = K('pos'),
 	K_TYPE = K('type'),
-	K_TRANSFORM = K('transform'),
 	K_DRAW = K('draw'),
 	K_DRAG = K('drag'),
 	K_CHANGE_ID = K('change-id'),
@@ -159,7 +158,7 @@ interface Data {
 	handles: Handle[]
 }
 
-interface Prop {
+interface Props {
 	exp: NonReactive<MalNodeSeq> | null
 	viewTransform: Float32Array
 }
@@ -213,7 +212,7 @@ export default defineComponent({
 			default: () => mat2d.identity(mat2d.create())
 		}
 	},
-	setup(prop: Prop, context: SetupContext) {
+	setup(props: Props, context: SetupContext) {
 		const el: Ref<HTMLElement | null> = ref(null)
 
 		const state = reactive({
@@ -221,7 +220,7 @@ export default defineComponent({
 			draggingIndex: null,
 			rawPrevPos: [0, 0],
 			fnInfo: computed(() => {
-				return prop.exp ? getFnInfo(prop.exp.value) : null
+				return props.exp ? getFnInfo(props.exp.value) : null
 			}),
 			handleCallbacks: computed(() => {
 				if (state.fnInfo) {
@@ -232,9 +231,9 @@ export default defineComponent({
 				}
 			}),
 			params: computed(() => {
-				if (!prop.exp || !state.handleCallbacks) return []
+				if (!props.exp || !state.handleCallbacks) return []
 
-				const exp = prop.exp.value
+				const exp = props.exp.value
 				if (state.fnInfo?.primitive) {
 					return [exp[M_EVAL]]
 				} else {
@@ -242,9 +241,9 @@ export default defineComponent({
 				}
 			}),
 			unevaluatedParams: computed(() => {
-				if (!prop.exp || !state.handleCallbacks) return []
+				if (!props.exp || !state.handleCallbacks) return []
 
-				const exp = prop.exp.value
+				const exp = props.exp.value
 				if (state.fnInfo?.primitive) {
 					return [exp]
 				} else {
@@ -252,123 +251,18 @@ export default defineComponent({
 				}
 			}),
 			returnedValue: computed(() => {
-				return prop.exp ? prop.exp.value[M_EVAL] || null : null
+				return props.exp ? props.exp.value[M_EVAL] || null : null
 			}),
 			transform: computed(() => {
-				if (!prop.exp) return prop.viewTransform
-
-				const exp = prop.exp.value
-
-				if (!isMalNode(exp)) {
-					return mat2d.create()
+				if (!props.exp) {
+					return props.viewTransform
 				}
-
-				// Collect ancestors
-				let ancestors: MalNode[] = []
-				for (let outer: MalNode = exp; outer; outer = outer[M_OUTER]) {
-					ancestors.unshift(outer)
-				}
-
-				const attrMatrices: MalVal[] = []
-
-				// If the exp is nested inside transform arguments
-				for (let i = ancestors.length - 1; 0 < i; i--) {
-					const node = ancestors[i]
-					const outer = ancestors[i - 1]
-
-					if (!isList(outer)) {
-						continue
-					}
-
-					const isAttrOfG =
-						outer[0] === S('g') &&
-						outer[1] === node &&
-						isMap(node) &&
-						K_TRANSFORM in node
-
-					const isAttrOfTransform =
-						outer[0] === S('transform') && outer[1] === node
-					const isAttrOfPathTransform =
-						outer[0] === S('path/transform') && outer[1] === node
-
-					if (isAttrOfG || isAttrOfTransform || isAttrOfPathTransform) {
-						// Exclude attributes' part from ancestors
-						const attrAncestors = ancestors.slice(i)
-						ancestors = ancestors.slice(0, i - 1)
-
-						// Calculate transform compensation inside attribute
-						for (let j = attrAncestors.length - 1; 0 < j; j--) {
-							const node = attrAncestors[j]
-							const outer = attrAncestors[j - 1]
-
-							if (isList(outer)) {
-								if (outer[0] === S('mat2d/*')) {
-									// Prepend matrices
-									const matrices = outer.slice(1, node[M_OUTER_INDEX])
-									attrMatrices.unshift(...matrices)
-								} else if (outer[0] === S('pivot')) {
-									// Prepend matrices
-									const matrices = outer.slice(2, node[M_OUTER_INDEX])
-									attrMatrices.unshift(...matrices)
-
-									// Append pivot itself as translation matrix
-									const pivot =
-										isMalNode(outer[1]) && M_EVAL in outer[1]
-											? (outer[1][M_EVAL] as vec2)
-											: vec2.create()
-
-									const pivotMat = mat2d.fromTranslation(mat2d.create(), pivot)
-
-									attrMatrices.unshift(pivotMat as number[])
-								}
-							}
-						}
-
-						break
-					}
-				}
-
-				// Extract the matrices from ancestors
-				const matrices = ancestors.reduce((filtered, node) => {
-					if (isList(node)) {
-						if (
-							node[0] === S('g') &&
-							isMap(node[1]) &&
-							K_TRANSFORM in node[1]
-						) {
-							const matrix = node[1][K_TRANSFORM]
-							filtered.push(matrix)
-						} else if (node[0] === S('artboard')) {
-							const bounds = (node[1] as MalMap)[K('bounds')] as number[]
-							const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
-							filtered.push(matrix)
-						} else if (
-							node[0] === S('transform') ||
-							node[0] === S('path/transform')
-						) {
-							const matrix = node[1]
-							filtered.push(matrix)
-						}
-					}
-
-					return filtered
-				}, [] as MalVal[])
-
-				// Append attribute matrices
-				matrices.push(...attrMatrices)
-
-				// Multiplies all matrices in order
-				const ret = (matrices.map(xform =>
-					isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-				) as mat2d[]).reduce(
-					(xform, elXform) => mat2d.multiply(xform, xform, elXform),
-					mat2d.create()
-				)
+				const xform = computeExpTransform(props.exp.value)
 
 				// pre-multiplies with viewTransform
-				mat2d.multiply(ret, prop.viewTransform as mat2d, ret)
+				mat2d.multiply(xform, props.viewTransform as mat2d, xform)
 
-				return ret
+				return xform
 			}),
 			transformInv: computed(() =>
 				mat2d.invert(mat2d.create(), state.transform)
@@ -485,7 +379,7 @@ export default defineComponent({
 
 		function onMousemove(e: MouseEvent) {
 			if (
-				!prop.exp ||
+				!props.exp ||
 				!state.handleCallbacks ||
 				state.draggingIndex === null ||
 				!el.value
@@ -562,7 +456,7 @@ export default defineComponent({
 
 			const newExp: MalNodeSeq = state.fnInfo?.primitive
 				? (newParams[0] as MalNodeSeq)
-				: ([prop.exp.value[0], ...newParams] as MalNodeSeq)
+				: ([props.exp.value[0], ...newParams] as MalNodeSeq)
 
 			context.emit('input', nonReactive(newExp))
 		}
@@ -594,7 +488,7 @@ export default defineComponent({
 			onZoom(e: MouseWheelEvent) {
 				if (!el.value) return
 
-				const xform = mat2d.clone(prop.viewTransform as mat2d)
+				const xform = mat2d.clone(props.viewTransform as mat2d)
 
 				// Scale
 				const deltaScale = 1 + -e.deltaY * 0.01
@@ -617,7 +511,7 @@ export default defineComponent({
 				if (!el.value) return
 				const {deltaX, deltaY} = e
 
-				const xform = mat2d.clone(prop.viewTransform as mat2d)
+				const xform = mat2d.clone(props.viewTransform as mat2d)
 
 				// Translate
 				xform[4] -= deltaX / 2
