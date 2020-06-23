@@ -1,6 +1,6 @@
 import chroma from 'chroma-js'
 
-export const BRIGHT_COLORS = {
+const TOMORROW = {
 	'--currentline': '#efefef',
 	'--selection': '#d6d6d6',
 	'--foreground': '#4d4d4c',
@@ -14,7 +14,7 @@ export const BRIGHT_COLORS = {
 	'--purple': '#8959a8'
 }
 
-export const DARK_COLORS = {
+const TOMORROW_NIGHT = {
 	'--currentline': '#282a2e',
 	'--selection': '#373b41',
 	'--foreground': '#c5c8c6',
@@ -28,6 +28,36 @@ export const DARK_COLORS = {
 	'--purple': '#b294bb'
 }
 
+const TOMORROW_NIGHT_BRIGHT = {
+	'--background': '#000000',
+	'--currentline': '#2a2a2a',
+	'--selection': '#424242',
+	'--foreground': '#eaeaea',
+	'--comment': '#969896',
+	'--red': '#d54e53',
+	'--orange': '#e78c45',
+	'--yellow': '#e7c547',
+	'--green': '#b9ca4a',
+	'--aqua': '#70c0b1',
+	'--blue': '#7aa6da',
+	'--purple': '#c397d8'
+}
+
+const TOMORROW_NIGHT_EIGHTIES = {
+	'--background': '#2d2d2d',
+	'--currentline': '#393939',
+	'--selection': '#515151',
+	'--foreground': '#cccccc',
+	'--comment': '#999999',
+	'--red': '#f2777a',
+	'--orange': '#f99157',
+	'--yellow': '#ffcc66',
+	'--green': '#99cc99',
+	'--aqua': '#66cccc',
+	'--blue': '#6699cc',
+	'--purple': '#cc99cc'
+}
+
 export interface Theme {
 	dark: boolean
 	colors: {
@@ -36,12 +66,7 @@ export interface Theme {
 }
 
 export function isValidColorString(str: string) {
-	try {
-		chroma(str)
-	} catch (_) {
-		return false
-	}
-	return true
+	return chroma.valid(str)
 }
 
 function withOpacity(color: chroma.Color, opacity: number) {
@@ -51,20 +76,90 @@ function withOpacity(color: chroma.Color, opacity: number) {
 }
 
 export function computeTheme(background: string): Theme {
-	const bg = chroma(background)
-	const dark = bg.get('lab.l') < 60
-	const colors = dark ? DARK_COLORS : BRIGHT_COLORS
+	function fit(
+		value: number,
+		min0: number,
+		max0: number,
+		min1: number,
+		max1: number
+	) {
+		const t = (value - min0) / (max0 - min0)
+		const lerped = min1 + (max1 - min1) * t
+		return Math.max(
+			Math.min(min1, max1),
+			Math.min(Math.max(min1, max1), lerped)
+		)
+	}
 
-	const border = withOpacity(chroma(dark ? 'white' : 'black'), 0.2)
-	const translucent = withOpacity(bg, 0.8)
+	let bg = chroma(background)
+	const dark = bg.get('lab.l') < 55
+	const colors = dark ? TOMORROW_NIGHT_BRIGHT : TOMORROW
+
+	const border = chroma(dark ? 'white' : 'black')
+		.alpha(0.1)
+		.css()
+
+	// If the bg is too saturated, set the translucent to grayish color
+	{
+		const [, s, v] = bg.hsv()
+		const dist = Math.sqrt(Math.pow(1 - s, 2) + Math.pow(1 - v, 2))
+		const t = fit(dist, 0, 0.5, 2, 0) * (dark ? -1 : 1)
+
+		if (t !== 0) {
+			bg = bg.brighten(t)
+		}
+	}
+
+	// Grayish theme
+	let comment: chroma.Color | string = chroma(colors['--comment'])
+	let foreground: chroma.Color | string = chroma(colors['--foreground'])
+	let purple: chroma.Color | string = chroma(colors['--purple'])
+	let orange: chroma.Color | string = chroma(colors['--orange'])
+	const yellow: chroma.Color | string = chroma(colors['--yellow'])
+
+	{
+		const c = chroma.contrast('#8a8a8a', bg)
+		const t = fit(c, 0, 2, 1, 0)
+		const signed = t * (dark ? -1 : 1)
+		if (t !== 0) {
+			comment = comment.darken(signed * 4)
+			foreground = foreground.darken(signed * 2)
+			purple = purple.saturate(Math.abs(signed * 2)).darken(signed)
+			orange = chroma.mix(orange.saturate(t), yellow.darken(signed * 4), t)
+		}
+	}
+	comment = comment.css()
+	foreground = foreground.css()
+	purple = purple.css()
+	orange = orange.css()
+
+	// Set translucent
+	const translucent = bg.alpha(0.8).css()
 
 	return {
 		dark,
 		colors: {
 			...colors,
+
+			// For UI
+			'--comment': comment,
+			'--foreground': foreground,
+			'--purple': purple,
+			'--orange': orange,
+
 			'--background': background,
 			'--border': border,
-			'--translucent': translucent
+			'--translucent': translucent,
+			'--highlight': colors['--blue'],
+			'--hover': colors['--aqua'],
+			'--warning': colors['--red'],
+
+			// For syntax highlighting
+			'--syntax-keyword': colors['--aqua'],
+			'--syntax-comment': comment,
+			'--syntax-constant': orange,
+			'--syntax-string': colors['--green'],
+			'--syntax-function': purple
 		}
 	}
 }

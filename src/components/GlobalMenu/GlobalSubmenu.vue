@@ -46,7 +46,7 @@ export default class GlobalSubmenu extends Vue {
 		cursor pointer
 
 		&:hover
-			color var(--aqua)
+			color var(--hover)
 
 		&:last-child
 			border none

@@ -62,8 +62,8 @@ export default class TreeList extends Vue {
 		border-left 1px solid var(--comment)
 
 	&__atom
-		color var(--green)
+		color var(--syntax-constant)
 
 		&.symbol
-			color var(--blue)
+			color var(--highlight)
 </style>

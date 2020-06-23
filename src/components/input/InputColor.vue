@@ -98,7 +98,7 @@ export default defineComponent({
 		border none
 		border-bottom 1px dashed var(--comment)
 		background transparent
-		color var(--green)
+		color var(--syntax-string)
 		font-monospace()
 
 	&__button

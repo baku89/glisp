@@ -12,7 +12,11 @@
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<div class="PageIndex__content">
 			<div class="PageIndex__inspector" v-if="selectedExp">
-				<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" @select="onSelectExp" />
+				<Inspector
+					:exp="selectedExp"
+					@input="onUpdateSelectedExp"
+					@select="onSelectExp"
+				/>
 			</div>
 			<ViewHandles
 				ref="elHandles"
@@ -36,7 +40,9 @@
 						class="PageIndex__console-toggle"
 						:class="{error: hasError}"
 						@click="compact = !compact"
-					>{{ hasError ? '!' : '✓' }}</button>
+					>
+						{{ hasError ? '!' : '✓' }}
+					</button>
 					<Console :compact="compact" @setup="onSetupConsole" />
 				</div>
 			</div>
@@ -446,8 +452,8 @@ html, body
 			--textcolor var(--comment)
 
 			&.error
-				border-color var(--red)
-				background var(--red)
+				border-color var(--warning)
+				background var(--warning)
 				color var(--background)
 				--textcolor var(--background)
 

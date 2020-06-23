@@ -639,7 +639,7 @@ export default defineComponent({
 	height 100%
 
 	.fill, .stroke
-		stroke var(--blue)
+		stroke var(--highlight)
 		stroke-width 1
 		vector-effect non-scaling-stroke
 
@@ -647,7 +647,7 @@ export default defineComponent({
 		fill var(--background)
 
 	.stroke
-		stroke var(--blue)
+		stroke var(--highlight)
 		vector-effect non-scaling-stroke
 		fill none
 
@@ -661,7 +661,7 @@ export default defineComponent({
 			stroke-width 3
 
 		.fill.display
-			fill var(--blue)
+			fill var(--highlight)
 
 		&.dashed
 			stroke-dasharray none

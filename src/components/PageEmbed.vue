@@ -49,7 +49,7 @@ import {printer} from '@/mal/printer'
 import {BlankException} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
-import {BRIGHT_COLORS} from '@/theme'
+import {computeTheme} from '@/theme'
 
 const OFFSET = 8 // length of "(sketch "
 
@@ -96,7 +96,7 @@ export default defineComponent({
 	setup() {
 		const ui = reactive({
 			background: '#f8f8f8',
-			colors: BRIGHT_COLORS,
+			colors: computed(() => computeTheme(ui.background).colors),
 			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
 		}) as UI
@@ -247,5 +247,5 @@ $compact-dur = 0.4s
 			margin-top .1em
 
 		&:hover
-			color var(--aqua)
+			color var(--hover)
 </style>

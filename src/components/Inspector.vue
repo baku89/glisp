@@ -625,22 +625,10 @@ export default class Inspector extends Vue {
 	height 100%
 	text-align left
 	user-select none
-	backdrop-filter blur(1rem)
+	translucent-bg()
 
 	.fira-code
 		font-monospace()
-
-	&:before
-		position absolute
-		top 0
-		left 0
-		z-index -1
-		display block
-		width 100%
-		height 100%
-		background var(--background)
-		content ''
-		opacity 0.8
 
 	&__header
 		position relative
@@ -663,7 +651,7 @@ export default class Inspector extends Vue {
 		opacity 0.6
 
 		&:hover
-			color var(--aqua)
+			color var(--hover)
 			opacity 1
 
 	&__params
@@ -714,7 +702,7 @@ export default class Inspector extends Vue {
 			opacity 0.5
 
 			&:hover
-				color var(--red)
+				color var(--warning)
 
 		&.insert
 			// position absolute
@@ -725,7 +713,7 @@ export default class Inspector extends Vue {
 			transform translate(-1em, -66%)
 
 			&:hover
-				color var(--aqua)
+				color var(--hover)
 
 			&:before
 				position absolute
@@ -749,6 +737,6 @@ export default class Inspector extends Vue {
 			font-size 0.9em
 
 			&:hover
-				border-color var(--aqua)
-				color var(--aqua)
+				border-color var(--hover)
+				color var(--hover)
 </style>

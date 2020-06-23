@@ -165,10 +165,10 @@ $height = 3.4rem
 		-webkit-app-region no-drag
 
 		&:hover, &.active
-			color var(--aqua)
+			color var(--hover)
 
 			&:after
-				border-top-color var(--aqua) !important
+				border-top-color var(--hover) !important
 
 		&.has-submenu:after
 			display inline-block

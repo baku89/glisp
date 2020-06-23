@@ -53,5 +53,5 @@ export default defineComponent({
 
 .InputString
 	input()
-	color var(--green)
+	color var(--syntax-string)
 </style>

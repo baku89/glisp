@@ -102,14 +102,10 @@ export default defineComponent({
 		height 100%
 
 		&:hover
-			background rgba(0,0,0,0.1)
-			.dark &
-				background rgba(255, 255, 255, .1)
+			background var(--border)
 
 		&:active
-			background rgba(0,0,0,0.2)
-			.dark &
-				background rgba(255, 255, 255, .2)
+			background var(--border)
 
 		&.min
 			grid-column 1

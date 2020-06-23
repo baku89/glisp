@@ -204,17 +204,17 @@ export default defineComponent({
 		font-family 'Fira Code', monospace, sans-serif !important
 
 	.ace_comment
-		color var(--comment) !important
+		color var(--syntax-comment) !important
 
 	.ace_keyword
-		color var(--aqua) !important
+		color var(--syntax-keyword) !important
 
 	.ace_constant
-		color var(--orange) !important
+		color var(--syntax-constant) !important
 
 	.ace_function
-		color var(--purple) !important
+		color var(--syntax-function) !important
 
 	.ace_string
-		color var(--green) !important
+		color var(--syntax-string) !important
 </style>
