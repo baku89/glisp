@@ -22,7 +22,7 @@
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from '@vue/composition-api'
-import InputNumber from '@/components/input/InputNumber.vue'
+import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {MalNodeSeq, isList, getMeta, M_FN, MalVal, MalSymbol} from '@/mal/types'
 import {getMapValue} from '@/mal-utils'
@@ -78,6 +78,10 @@ export default defineComponent({
 				newExp = [(props.value as MalNodeSeq)[0], value]
 			}
 			context.emit('input', newExp)
+		}
+
+		function onSelect() {
+			context.emit('select')
 		}
 
 		return {
