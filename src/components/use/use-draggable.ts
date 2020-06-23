@@ -14,6 +14,7 @@ interface DraggableOptions {
 	coordinate?: 'center'
 	onClick?: () => void
 	onDrag?: (drag: DragData) => void
+	onDragStart?: (drag: DragData) => void
 }
 
 export default function useDraggable(
@@ -43,6 +44,10 @@ export default function useDraggable(
 		drag.y = clientY - originY
 		drag.deltaX = drag.x - prevX
 		drag.deltaY = drag.y - prevY
+
+		if (options.onDragStart && !hasDragged) {
+			options.onDragStart(drag)
+		}
 
 		if (Math.abs(drag.x) > 2 || Math.abs(drag.y) > 2) {
 			hasDragged = true

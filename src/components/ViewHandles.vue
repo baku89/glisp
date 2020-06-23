@@ -106,6 +106,7 @@ import {
 	computeExpTransform
 } from '@/mal-utils'
 import {NonReactive, nonReactive} from '@/utils'
+import {useRem} from '@/components/use'
 import {
 	defineComponent,
 	computed,
@@ -476,12 +477,7 @@ export default defineComponent({
 		})
 
 		// REM
-		const rem = ref(0)
-		onMounted(() => {
-			rem.value = parseFloat(
-				getComputedStyle(document.documentElement).fontSize
-			)
-		})
+		const rem = useRem()
 
 		// Gestures for view transform
 		useGesture(el, {
