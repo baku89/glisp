@@ -27,10 +27,17 @@ import {
 	computed,
 	onBeforeMount
 } from '@vue/composition-api'
-import {MalVal, isList, cloneExp, assocBang, keywordFor as K} from '@/mal/types'
+import {
+	MalVal,
+	isList,
+	cloneExp,
+	assocBang,
+	keywordFor as K,
+	getEvaluated
+} from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
-import {useDraggable} from '../use'
+import {useDraggable} from '@/components/use'
 
 const K_START = K('start'),
 	K_DURATION = K('duration'),
@@ -68,11 +75,13 @@ export default defineComponent({
 			) as {[key: string]: number}
 		})
 
-		const startTime = computed(() => options.value[K_START])
-		const endTime = computed(
-			() => options.value[K_START] + options.value[K_DURATION]
+		const startTime = computed(
+			() => getEvaluated(options.value[K_START]) as number
 		)
-		const duration = computed(() => endTime.value - startTime.value)
+		const duration = computed(
+			() => getEvaluated(options.value[K_DURATION]) as number
+		)
+		const endTime = computed(() => startTime.value + duration.value)
 		const fps = computed(() => options.value[K_FPS])
 		const normalizedPosition = computed(
 			() => (time.value - startTime.value) / duration.value

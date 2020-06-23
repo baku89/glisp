@@ -126,8 +126,11 @@
 (defn path/polyline
   {:doc "Generates a polyline path"
    :params [& {:label "Vertex" :type "vec2"}]
-   :handles {:draw (fn [{:params [& pts]}]
+   :handles {:draw (fn [{:params [& pts]
+                         :return ret}]
                      (concat
+                      [{:type "path" :guide true :class "dashed"
+                        :path ret}]
                       (map-indexed
                        (fn [i p] {:type "point"
                                   :id [:edit i]
@@ -145,8 +148,9 @@
                      (let [[mode i] id]
                        (case mode
                          :edit (replace-nth pts i p)
-                         :add [:change-id [:edit i]
-                               (insert-nth pts i p)])))}}
+                         :add ;[:change-id [:edit i]
+                         (insert-nth pts i p);]
+                         )))}}
   [& pts]
   (if (zero? (count pts))
     [:path]
@@ -236,7 +240,7 @@
 ;; Annotations for JS functions
 
 (def path/trim
-  ^{:doc "Trims a path by normalized range"
+  ^{:doc "Trims a path by a normalized range"
     :params [{:label "Start" :type "number" :constraints {:min 0 :max 1}}
              {:label "End" :type "number" :constraints {:min 0 :max 1}}
              {:label "Path" :type "path"}]
@@ -255,6 +259,20 @@
                         :start [(path/nearest-offset p path) end path]
                         :end [start (path/nearest-offset p path) path]))}}
   path/trim)
+
+(def path/position-at
+  ^{:doc "Returns a position of the specified offset on the path"
+    :params [{:label "Offset", :type "number" :constraints {:min 0 :max 1}}
+             {:label "Path" :type "path"}]
+    :handles {:draw (fn [{:params [t path]
+                          :return ret}]
+                      [{:type "path" :guide true :class "dashed" :path path}
+                       {:type "point" :pos ret}])
+              :drag (fn [{:pos p :params [t path]}]
+                      [(path/nearest-offset p path) path])}
+    :inverse (fn [ret [_ path]] [(path/nearest-offset ret path) path])
+    :returns {:type "vec2"}}
+  path/position-at)
 
 (def path-boolean-meta
   {:params [& {:label "Path" :type "path"}]
