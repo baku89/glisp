@@ -100,7 +100,7 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
-			const alias = getMapValue(meta, 'alias')
+			const alias = meta[K('alias')]
 			if (isMap(alias)) {
 				// is alias
 				const aliasMeta = alias[K('meta')]
