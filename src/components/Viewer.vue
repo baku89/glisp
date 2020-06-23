@@ -5,15 +5,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	Ref,
-	onMounted,
-	onBeforeMount,
-	watch,
-	ref
-} from '@vue/composition-api'
-import ResizeSensor from 'resize-sensor'
+import {defineComponent, Ref, onMounted, watch, ref} from '@vue/composition-api'
 
 import {MalVal, LispError} from '@/mal/types'
 import {printer} from '@/mal/printer'
@@ -22,21 +14,7 @@ import createCanvasRender, {
 	CanvasRendererType
 } from '@/renderer/canvas-renderer'
 import {mat2d} from 'gl-matrix'
-
-function useResizeSensor(el: Ref<HTMLElement | null>, onResized: () => any) {
-	let sensor: any
-
-	onMounted(() => {
-		if (!el.value) return
-		sensor = new ResizeSensor(el.value, onResized)
-	})
-
-	onBeforeMount(() => {
-		if (sensor) {
-			sensor.detach()
-		}
-	})
-}
+import {useResizeSensor} from '@/components/use'
 
 interface Props {
 	exp: NonReactive<MalVal> | null
@@ -65,11 +43,11 @@ export default defineComponent({
 
 		let initialExp: MalVal
 
-		async function onResized() {
-			if (!el.value || !renderer) return
+		async function onResized(el: HTMLElement) {
+			if (!renderer) return
 
-			const width = el.value.clientWidth
-			const height = el.value.clientHeight
+			const width = el.clientWidth
+			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
 			await renderer.resize(width, height, dpi)
 
@@ -79,12 +57,12 @@ export default defineComponent({
 		useResizeSensor(el, onResized)
 
 		onMounted(async () => {
-			if (!canvas.value) {
+			if (!canvas.value || !el.value) {
 				return
 			}
 
 			renderer = await createCanvasRender(canvas.value)
-			onResized()
+			onResized(el.value)
 			if (initialExp) {
 				render(initialExp)
 			}
