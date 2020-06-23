@@ -5,8 +5,7 @@ node_modules
 /mal
 
 /repl/lib/*
-
-/task.deploy.js
+/ftp.info.js
 
 # local env files
 .env.local
