@@ -7,7 +7,7 @@
 
 ```clojure
 ;; パスの定義
-(def p (rect [10 10] [50 50]))
+(def p (rect [10 10 50 50]))
 
 ;; トランスフォーム
 (translate [10 10])
@@ -29,7 +29,7 @@
 (style (stroke "blue" 20 :cap "round") p)
 
 ;; パス
-(rect [0 0] [20 20])
+(rect [0 0 20 20])
 (circle [0 0] 100)
 (line [0 0] [100 100])
 (ellipse [0 0] [40 60])

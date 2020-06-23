@@ -82,7 +82,7 @@ CSS と違うのは、「スタイルを有効にするかどうか」と、そ�
 (def fill-skyblue (fill "skyblue"))
 
 (style fill-skyblue
- (rect [10 10] [40 40]))
+ (rect [10 10 40 40]))
 
 (style [fill-skyblue (stroke "crimson" 5)]
  (circle [70 70] 20))
