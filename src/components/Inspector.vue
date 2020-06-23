@@ -597,7 +597,6 @@ export default class Inspector extends Vue {
 	}
 
 	private onSelect(exp: MalVal) {
-		console.log('exp')
 		this.$emit('select', nonReactive(exp))
 	}
 
