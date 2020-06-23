@@ -3,6 +3,7 @@ import InputDropdown from './InputDropdown.vue'
 import InputNumber from './InputNumber.vue'
 import InputString from './InputString.vue'
 import InputRect2d from './InputRect2d.vue'
+import InputRotery from './InputRotery.vue'
 import InputMat2d from './InputMat2d.vue'
 import InputSeed from './InputSeed.vue'
 
@@ -12,6 +13,7 @@ export default {
 	InputNumber,
 	InputString,
 	InputRect2d,
+	InputRotery,
 	InputMat2d,
 	InputSeed
 }
