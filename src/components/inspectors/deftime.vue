@@ -14,11 +14,7 @@
 				/>
 			</div>
 		</div>
-		<ParamControl
-			:exp="exp"
-			@input="$emit('input', $event)"
-			@select="$emit('select', $event)"
-		/>
+		<ParamControl :exp="exp" @input="$emit('input', $event)" @select="$emit('select', $event)" />
 	</div>
 </template>
 
@@ -77,6 +73,7 @@ export default defineComponent({
 			() => options.value[K_START] + options.value[K_DURATION]
 		)
 		const duration = computed(() => endTime.value - startTime.value)
+		const fps = computed(() => options.value[K_FPS])
 		const normalizedPosition = computed(
 			() => (time.value - startTime.value) / duration.value
 		)
@@ -104,6 +101,7 @@ export default defineComponent({
 					startTime.value,
 					endTime.value
 				)
+
 				updateTime(newTime)
 			}
 		})
@@ -124,6 +122,12 @@ export default defineComponent({
 
 			const currentTimestamp = performance.now()
 			const dt = (currentTimestamp - prevTimestamp) / 1000
+
+			// Wait until the next tick
+			if (fps.value !== 0 && dt < 1 / fps.value) {
+				return
+			}
+
 			let newTime = time.value + dt
 
 			// Loop
@@ -171,18 +175,18 @@ export default defineComponent({
 	position relative
 
 	&__control
-		margin-bottom .5rem
 		display flex
+		margin-bottom 0.5rem
 
 	&__toggle-play
-		color var(--comment)
-		border 1px solid var(--border)
+		margin-right 1.5rem
+		padding -1rem
 		width 2rem
 		height @width
+		border 1px solid var(--border)
 		border-radius 50%
+		color var(--comment)
 		text-align center
-		padding -1rem
-		margin-right 1.5rem
 		line-height calc(2rem - 2.5px)
 
 		&:hover
@@ -190,31 +194,31 @@ export default defineComponent({
 			color var(--highlight)
 
 		.fa-play
-			text-indent .1em
+			text-indent 0.1em
 
 	&__seekbar
-		flex-grow 1
-		margin-right .5rem
 		position relative
+		flex-grow 1
+		margin-right 0.5rem
 
 		&:before
-			content ''
 			position absolute
 			top 50%
 			left 0
 			width 100%
 			height 1px
 			background var(--comment)
+			content ''
 
 	&__current-time
 		position absolute
-		width 16px
-		height 16px
-		border-radius 50%
-		border 1px solid var(--comment)
-		margin -8px 0 0 -8px
 		top 50%
 		left 0%
+		margin -8px 0 0 -8px
+		width 16px
+		height 16px
+		border 1px solid var(--comment)
+		border-radius 50%
 		background var(--background)
 
 		&:hover, &[dragging]

@@ -171,7 +171,7 @@
             &
             {:keys [{:key :start :type "number" :default 0}
                     {:key :duration :type "number" :default 1 :constraints {:min 0}}
-                    {:key :fps :type "number" :default 0 :constraints {:min 0 :max 120 :step 1}}]}]}
+                    {:key :fps :label "FPS" :type "number" :default 0 :constraints {:min 0 :max 120 :step 1}}]}]}
   [sym time & _]
   `(def ~sym ~time))
 
