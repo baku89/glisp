@@ -150,6 +150,8 @@ export default defineComponent({
 			color var(--hover)
 			opacity 1
 
-	&__doc code
-		color var(--syntax-function)
+	&__doc
+		line-height 1.4
+		code
+			color var(--syntax-function)
 </style>
