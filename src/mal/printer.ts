@@ -14,7 +14,8 @@ import {
 	MalMap,
 	MalFunc,
 	MalNode,
-	MalSymbol
+	MalSymbol,
+	MalType
 } from './types'
 
 export const printer = {
@@ -90,8 +91,8 @@ export default function printExp(
 		const _type = getType(exp)
 
 		switch (_type) {
-			case 'list':
-			case 'vector': {
+			case MalType.List:
+			case MalType.Vector: {
 				elmStrs = (exp as MalVal[]).map(e => printExp(e, _r, _c))
 
 				let delimiters: string[]
@@ -103,15 +104,15 @@ export default function printExp(
 					;(exp as MalNode)[M_DELIMITERS] = delimiters
 				}
 
-				ret = _type === 'list' ? '(' : '['
+				ret = _type === MalType.List ? '(' : '['
 				for (let i = 0; i < elmStrs.length; i++) {
 					ret += delimiters[i] + elmStrs[i]
 				}
 				ret += delimiters[delimiters.length - 1]
-				ret += _type === 'list' ? ')' : ']'
+				ret += _type === MalType.List ? ')' : ']'
 				break
 			}
-			case 'map': {
+			case MalType.Map: {
 				elmStrs = []
 				for (const k in exp as MalMap) {
 					elmStrs.push(
@@ -137,10 +138,10 @@ export default function printExp(
 				ret += '}'
 				break
 			}
-			case 'number':
+			case MalType.Number:
 				ret = (exp as number).toString()
 				break
-			case 'string':
+			case MalType.String:
 				if (_r) {
 					ret =
 						'"' +
@@ -153,23 +154,23 @@ export default function printExp(
 					ret = exp as string
 				}
 				break
-			case 'boolean':
+			case MalType.Boolean:
 				ret = (exp as boolean).toString()
 				break
-			case 'nil':
+			case MalType.Nil:
 				ret = 'nil'
 				break
-			case 'symbol':
+			case MalType.Symbol:
 				ret = (exp as MalSymbol).value
 				break
-			case 'keyword':
+			case MalType.Keyword:
 				ret = ':' + (exp as string).slice(1)
 				break
-			case 'atom':
+			case MalType.Atom:
 				ret = `(atom ${printExp((exp as MalAtom).val, _r, _c)})`
 				break
-			case 'fn':
-			case 'macro': {
+			case MalType.Function:
+			case MalType.Macro: {
 				if (M_AST in (exp as MalFunc)) {
 					const params = printExp((exp as MalFunc)[M_PARAMS], _r, _c)
 					const body = printExp((exp as MalFunc)[M_AST], _r, _c)
@@ -179,7 +180,8 @@ export default function printExp(
 				}
 				break
 			}
-			case 'undefined':
+			default:
+				//case MalType.Undefined:
 				ret = '<undefined>'
 				break
 		}

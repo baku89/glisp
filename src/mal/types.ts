@@ -67,6 +67,29 @@ export interface MalNodeSeq extends Array<MalVal> {
 	[M_CACHE]: {[k: string]: any}
 }
 
+export enum MalType {
+	// Collections
+	List = 'list',
+	Vector = 'vector',
+	Map = 'map',
+
+	// Atoms
+	Number = 'number',
+	String = 'string',
+	Boolean = 'boolean',
+	Nil = 'nil',
+	Symbol = 'symbol',
+	Keyword = 'keyword',
+	Atom = 'atom',
+
+	// Functions
+	Function = 'fn',
+	Macro = 'macro',
+
+	// Others
+	Undefined = 'undefined'
+}
+
 type MalTypeString =
 	// Collections
 	| 'list'
@@ -86,41 +109,41 @@ type MalTypeString =
 	| 'macro'
 	| 'undefined'
 
-export function getType(obj: MalVal | undefined): MalTypeString {
+export function getType(obj: MalVal | undefined): MalType {
 	const _typeof = typeof obj
 	switch (_typeof) {
 		case 'object':
 			if (obj === null) {
-				return 'nil'
+				return MalType.Nil
 			} else if (Array.isArray(obj)) {
 				const isvector = (obj as MalNodeSeq)[M_ISVECTOR]
-				return isvector ? 'vector' : 'list'
+				return isvector ? MalType.Vector : MalType.List
 			} else if (obj instanceof Float32Array) {
-				return 'vector'
-			} else if ((obj as MalSymbol).type === 'symbol') {
-				return 'symbol'
+				return MalType.Vector
+			} else if ((obj as MalSymbol).type === MalType.Symbol) {
+				return MalType.Symbol
 			} else if (obj instanceof MalAtom) {
-				return 'atom'
+				return MalType.Atom
 			} else {
-				return 'map'
+				return MalType.Map
 			}
 		case 'function': {
 			const ismacro = (obj as MalFunc)[M_ISMACRO]
-			return ismacro ? 'macro' : 'fn'
+			return ismacro ? MalType.Macro : MalType.Function
 		}
 		case 'string':
 			switch ((obj as string)[0]) {
 				case KEYWORD_PREFIX:
-					return 'keyword'
+					return MalType.Keyword
 				default:
-					return 'string'
+					return MalType.String
 			}
 		case 'number':
-			return 'number'
+			return MalType.Number
 		case 'boolean':
-			return 'boolean'
+			return MalType.Boolean
 		default:
-			return 'undefined'
+			return MalType.Undefined
 	}
 }
 
@@ -143,12 +166,14 @@ export type MalNode = MalNodeMap | MalNodeSeq
 
 export const isMalNode = (v: MalVal): v is MalNode => {
 	const type = getType(v)
-	return type === 'list' || type === 'map' || type === 'vector'
+	return (
+		type === MalType.List || type === MalType.Map || type === MalType.Vector
+	)
 }
 
 export const isSeq = (v: MalVal): v is MalNodeSeq => {
 	const type = getType(v)
-	return type === 'list' || type === 'vector'
+	return type === MalType.List || type === MalType.Vector
 }
 
 export function getMeta(obj: MalVal) {
@@ -242,18 +267,18 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 	const type = getType(obj)
 
 	switch (getType(obj)) {
-		case 'list':
-		case 'vector':
+		case MalType.List:
+		case MalType.Vector:
 			newObj = [...(obj as MalVal[])] as any
-			if (type === 'vector') {
+			if (type === MalType.Vector) {
 				markMalVector(newObj as any)
 			}
 			break
-		case 'map':
+		case MalType.Map:
 			newObj = {...(obj as MalMap)} as any
 			break
-		case 'fn':
-		case 'macro': {
+		case MalType.Function:
+		case MalType.Macro: {
 			// new function instance
 			const fn = (...args: any) => (obj as Function)(...args)
 			// copy original properties
@@ -297,7 +322,7 @@ export const isMalFunc = (obj: MalVal): obj is MalFunc =>
 
 // String
 export const isString = (obj: MalVal | undefined): obj is string =>
-	getType(obj) === 'string'
+	getType(obj) === MalType.String
 
 // Symbol
 export class MalSymbol {
@@ -317,7 +342,7 @@ export class MalSymbol {
 
 	private constructor(public value: string) {}
 
-	public type = 'symbol'
+	public type = MalType.Symbol
 
 	public set def(def: MalNodeSeq | null) {
 		;(this as any)[M_DEF] = def
@@ -335,23 +360,24 @@ export class MalSymbol {
 ;(globalThis as any).MalSymbol = MalSymbol
 
 export const isSymbol = (obj: MalVal): obj is MalSymbol =>
-	getType(obj) === 'symbol'
+	getType(obj) === MalType.Symbol
 
 export const symbolFor = MalSymbol.get
 
 // Keyword
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
 export const isKeyword = (obj: MalVal): obj is string =>
-	getType(obj) === 'keyword'
+	getType(obj) === MalType.Keyword
 
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: MalVal): obj is MalVal[] => getType(obj) === 'list'
+export const isList = (obj: MalVal): obj is MalVal[] =>
+	getType(obj) === MalType.List
 
 // Vectors
 export const isVector = (obj: MalVal): obj is MalVal[] =>
-	getType(obj) === 'vector'
+	getType(obj) === MalType.Vector
 
 export function markMalVector(arr: MalVal[]): MalVal[] {
 	;(arr as any)[M_ISVECTOR] = true
@@ -360,7 +386,7 @@ export function markMalVector(arr: MalVal[]): MalVal[] {
 
 // Maps
 export const isMap = (obj: MalVal | undefined): obj is MalMap =>
-	getType(obj) === 'map'
+	getType(obj) === MalType.Map
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
@@ -394,8 +420,8 @@ export function malEquals(a: MalVal, b: MalVal) {
 	}
 
 	switch (type) {
-		case 'list':
-		case 'vector':
+		case MalType.List:
+		case MalType.Vector:
 			if ((a as MalVal[]).length !== (b as MalVal[]).length) {
 				return false
 			}
@@ -405,7 +431,7 @@ export function malEquals(a: MalVal, b: MalVal) {
 				}
 			}
 			return true
-		case 'map': {
+		case MalType.Map: {
 			const keys = Object.keys(a as MalMap)
 			if (keys.length !== Object.keys(b as MalMap).length) {
 				return false
@@ -417,7 +443,7 @@ export function malEquals(a: MalVal, b: MalVal) {
 			}
 			return true
 		}
-		case 'symbol':
+		case MalType.Symbol:
 			return (a as MalSymbol).value === (b as MalSymbol).value
 		default:
 			return a === b
