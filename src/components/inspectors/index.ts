@@ -1,5 +1,4 @@
-import CubicBezier from './cubic-bezier.vue'
-
 export default {
-	'cubic-bezier': CubicBezier
+	'cubic-bezier': require('./cubic-bezier').default,
+	deftime: require('./deftime').default
 }

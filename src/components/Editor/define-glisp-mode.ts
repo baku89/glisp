@@ -190,7 +190,7 @@ import ace from 'brace'
 			'sorted-set sorted-set-by sorted? special-form-anchor special-symbol? ' +
 			'split-at split-with str stream? string? struct struct-map subs subseq ' +
 			'subvec supers swap! symbol symbol? sync syntax-symbol-anchor take ' +
-			'take-last take-nth take-while test the-ns time to-array to-array-2d ' +
+			'take-last take-nth take-while test the-ns to-array to-array-2d ' +
 			'trampoline transient tree-seq true? type unchecked-add unchecked-dec ' +
 			'unchecked-divide unchecked-inc unchecked-multiply unchecked-negate ' +
 			'unchecked-remainder unchecked-subtract underive unquote ' +
