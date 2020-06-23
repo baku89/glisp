@@ -70,12 +70,6 @@ export function isValidColorString(str: string) {
 	return chroma.valid(str)
 }
 
-function withOpacity(color: chroma.Color, opacity: number) {
-	const rgba = color.rgba()
-	rgba[3] = opacity
-	return `rgba(${rgba.join(',')})`
-}
-
 export function computeTheme(background: string): Theme {
 	function fit(
 		value: number,

@@ -1,9 +1,4 @@
-import {
-	MalVal,
-	symbolFor as S,
-	markMalVector as V,
-	LispError
-} from '@/mal/types'
+import {MalVal, symbolFor as S, markMalVector as V} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'

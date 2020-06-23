@@ -17,7 +17,7 @@
 <script lang="ts">
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
-import InputComponents from '@/components/input'
+import InputComponents from '@/components/inputs'
 import {isList, MalNodeSeq, MalSymbol, M_EVAL} from '@/mal/types'
 import {reverseEval} from '@/mal-utils'
 

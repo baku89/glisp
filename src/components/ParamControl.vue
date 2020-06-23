@@ -122,7 +122,7 @@ import {
 	symbolFor as S,
 	cloneExp
 } from '@/mal/types'
-import InputComponents from '@/components/input'
+import InputComponents from '@/components/inputs'
 import MalInputComponents from '@/components/mal-input'
 import {getFnInfo, getPrimitiveType} from '../mal-utils'
 import {nonReactive, getParamLabel, clamp, NonReactive} from '../utils'

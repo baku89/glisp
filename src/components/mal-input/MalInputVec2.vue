@@ -1,9 +1,21 @@
 <template>
 	<div class="MalInputVec2">
 		[
-		<MalInputNumber class="MalInputVec2__el" :value="value[0]" @input="onInput(0, $event)" />
-		<MalInputNumber class="MalInputVec2__el" :value="value[1]" @input="onInput(1, $event)" />]
-		<button class="MalInputVec2__drag" :class="{dragging: drag.isDragging}" ref="dragEl" />
+		<MalInputNumber
+			class="MalInputVec2__el"
+			:value="value[0]"
+			@input="onInput(0, $event)"
+		/>
+		<MalInputNumber
+			class="MalInputVec2__el"
+			:value="value[1]"
+			@input="onInput(1, $event)"
+		/>]
+		<button
+			class="MalInputVec2__drag"
+			:class="{dragging: drag.isDragging}"
+			ref="dragEl"
+		/>
 	</div>
 </template>
 

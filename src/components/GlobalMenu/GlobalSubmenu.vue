@@ -3,7 +3,7 @@
 		<div
 			class="GlobalSubmenu__item"
 			v-for="[label, command] in menu"
-			@click="onClick(command)"
+			@click="$emit('click', command)"
 			:key="label"
 		>
 			{{ label }}
@@ -12,18 +12,17 @@
 </template>
 
 <script lang="ts">
-import {Component, Vue, Prop} from 'vue-property-decorator'
+import {defineComponent, PropType} from '@vue/composition-api'
 
-@Component({
-	name: 'GlobalSubmenu'
-})
-export default class GlobalSubmenu extends Vue {
-	@Prop({type: Array, required: true}) menu!: [string, string][]
-
-	onClick(command: string) {
-		this.$emit('click', command)
+export default defineComponent({
+	name: 'GlobalSubmenu',
+	props: {
+		menu: {
+			required: true,
+			type: Array as PropType<[string, string][]>
+		}
 	}
-}
+})
 </script>
 
 <style lang="stylus" scoped>
