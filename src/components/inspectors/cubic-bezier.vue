@@ -15,6 +15,8 @@
 			<line class="handle" x1="0" :y1="size[1]" :x2="c1[0]" :y2="c1[1]" />
 			<line class="handle" :x1="size[0]" y1="0" :x2="c2[0]" :y2="c2[1]" />
 
+			<line class="t" :x1="tx" y1="0" :x2="tx" :y2="size[1]" />
+
 			<circle
 				ref="c1El"
 				:cx="c1[0]"
@@ -42,7 +44,7 @@ import {
 	computed,
 	toRefs
 } from '@vue/composition-api'
-import {MalVal, isList} from '@/mal/types'
+import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'
@@ -78,6 +80,10 @@ export default defineComponent({
 			true
 		)
 
+		const tx = computed(
+			() => size.value[0] * (getEvaluated(props.exp.value[1]) as number)
+		)
+
 		const c1 = computed(() => {
 			return [
 				size.value[0] * (props.exp.value[2] as number),
@@ -105,7 +111,7 @@ export default defineComponent({
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = [...props.exp.value] as number[]
+				const exp = cloneExp(props.exp.value) as number[]
 
 				exp[2] = clamp(ox + dx, 0, 1)
 				exp[3] = oy + dy
@@ -123,7 +129,7 @@ export default defineComponent({
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = [...props.exp.value] as number[]
+				const exp = cloneExp(props.exp.value) as number[]
 
 				exp[4] = clamp(ox + dx, 0, 1)
 				exp[5] = oy + dy
@@ -140,6 +146,7 @@ export default defineComponent({
 			c1El,
 			c2El,
 			size,
+			tx,
 			c1,
 			c2,
 			radius,
@@ -184,4 +191,10 @@ export default defineComponent({
 
 		.curve
 			stroke-width 3
+
+		.t
+			stroke var(--red)
+
+			&:hover
+				stroke-width 3
 </style>
