@@ -244,7 +244,7 @@ export default defineComponent({
 				return computeTheme(ui.background)
 			}),
 			viewerSize: [0, 0],
-			guideColor: computed(() => ui.theme.colors['--selection']),
+			guideColor: computed(() => ui.theme.colors['--guide']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {top: 0}

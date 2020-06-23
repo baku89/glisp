@@ -92,16 +92,19 @@ export function computeTheme(background: string): Theme {
 	}
 
 	let bg = chroma(background)
+	const [, s, v] = bg.hsv()
 	const dark = bg.get('lab.l') < 55
 	const colors = dark ? TOMORROW_NIGHT_BRIGHT : TOMORROW
 
 	const border = chroma(dark ? 'white' : 'black')
 		.alpha(0.1)
 		.css()
+	const guide = chroma(dark ? 'white' : 'black')
+		.alpha(fit(s, 0, 1, 0.3, 0.9))
+		.css()
 
 	// If the bg is too saturated, set the translucent to grayish color
 	{
-		const [, s, v] = bg.hsv()
 		const dist = Math.sqrt(Math.pow(1 - s, 2) + Math.pow(1 - v, 2))
 		const t = fit(dist, 0, 0.5, 2, 0) * (dark ? -1 : 1)
 
@@ -149,6 +152,7 @@ export function computeTheme(background: string): Theme {
 
 			'--background': background,
 			'--border': border,
+			'--guide': guide,
 			'--translucent': translucent,
 			'--highlight': colors['--blue'],
 			'--hover': colors['--aqua'],

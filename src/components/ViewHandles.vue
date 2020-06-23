@@ -652,7 +652,7 @@ export default defineComponent({
 		fill none
 
 	&__viewport-axis
-		stroke var(--border) !important
+		stroke var(--guide) !important
 		stroke-dasharray 2 2
 
 	// Hover behavior
