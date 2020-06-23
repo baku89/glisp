@@ -112,10 +112,10 @@
     :returns {:type "number"}}
   rnd)
 
-;; Defn
-
+;; Declarations
+;; 
 (def defmacro
-  ^{:doc "Define a macro"
+  ^{:doc "Defines a macro"
     :params [{:label "Symbol" :type "symbol"}
              {:label "Params" :type "any"}]}
   (macro
@@ -137,7 +137,7 @@
        `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
 
 (defmacro defn
-  {:doc "Define a function"
+  {:doc "Defines a function"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Params" :type "any"}]}
   [name params & body]
@@ -164,6 +164,14 @@
                           :name ~(str original)
                           :meta (meta ~original))))))
 
+(defmacro deftime
+  {:doc "Defines a numeric variable with playback control"
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Time" :type "number"}]}
+  [sym time]
+  `(def ~sym ~time))
+
+
 (defn fn-meta [f]
   (def fm (meta f))
   (def alias (get fm :alias))
@@ -176,7 +184,13 @@
   ^{:doc "Create a variable"
     :params [{:label "Symbol" :type "symbol"}
              {:label "Value" :type "any"}]}
-  (fn [] nil))
+  (fn [] (throw "Cannot call the special form as function directly")))
+
+(def defvar
+  ^{:doc "Create a variable which can be changed by the backward-evaluation"
+    :params [{:label "Symbol" :type "symbol"}
+             {:label "Value" :type "any"}]}
+  (fn [] (throw "Cannot call the special form as function directly")))
 
 (def let
   ^{:doc "Creates a lexical scope"
