@@ -10,34 +10,22 @@
 			class="unit"
 			:class="{small: display.suffix && display.suffix.length >= 2}"
 			v-if="display.mode === 'unit' && display.suffix"
-		>{{display.suffix}}</span>
-		<MalExpButton v-if="display.mode === 'exp'" :value="value" @click="$emit('select')" />
+			>{{ display.suffix }}</span
+		>
+		<MalExpButton
+			v-if="display.mode === 'exp'"
+			:value="value"
+			@click="$emit('select')"
+		/>
 	</div>
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	watch,
-	PropType,
-	computed
-} from '@vue/composition-api'
+import {defineComponent, PropType, computed} from '@vue/composition-api'
 import InputNumber from '@/components/input/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
-import {
-	MalNodeSeq,
-	isList,
-	getMeta,
-	M_META,
-	M_FN,
-	isMap,
-	MalVal,
-	MalSymbol
-} from '@/mal/types'
-import printExp from '@/mal/printer'
-import {getMapValue, getFnInfo} from '@/mal-utils'
+import {MalNodeSeq, isList, getMeta, M_FN, MalVal, MalSymbol} from '@/mal/types'
+import {getMapValue} from '@/mal-utils'
 
 export default defineComponent({
 	name: 'MalInputNumber',
@@ -90,10 +78,6 @@ export default defineComponent({
 				newExp = [(props.value as MalNodeSeq)[0], value]
 			}
 			context.emit('input', newExp)
-		}
-
-		function onSelect() {
-			context.emit('select')
 		}
 
 		return {
