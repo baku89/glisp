@@ -74,7 +74,7 @@ export function getMapValue(exp: MalVal | undefined, path: string): MalVal {
 
 export interface FnInfoType {
 	fn: MalFunc | MalJSFunc
-	meta: MalMap
+	meta: MalMap | null
 	aliasFor: string | null
 	primitive: string | null
 }
@@ -113,6 +113,8 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 				// is not alias
 				return {fn, meta, aliasFor: null, primitive}
 			}
+		} else {
+			return {fn, meta: null, aliasFor: null, primitive}
 		}
 	}
 

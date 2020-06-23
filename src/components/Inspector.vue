@@ -319,7 +319,7 @@ export default class Inspector extends Vue {
 			: null
 
 		// Check if the function has parmeter info as metadata
-		if (this.fnInfo && K_PARAMS in this.fnInfo.meta) {
+		if (this.fnInfo && this.fnInfo.meta && K_PARAMS in this.fnInfo.meta) {
 			const metaDescs = this.fnInfo.meta[K_PARAMS] as MetaDescs | MetaDescs[]
 
 			if (!Array.isArray(metaDescs)) {
@@ -558,7 +558,7 @@ export default class Inspector extends Vue {
 	}
 
 	private onParamInsert(i: number) {
-		if (!this.fnInfo) {
+		if (!this.fnInfo?.meta) {
 			return
 		}
 
