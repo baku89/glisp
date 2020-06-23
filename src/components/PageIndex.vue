@@ -60,7 +60,8 @@ import {
 	watch,
 	toRefs,
 	ref,
-	Ref
+	Ref,
+	onMounted
 } from '@vue/composition-api'
 
 import GlobalMenu from '@/components/GlobalMenu'
@@ -286,6 +287,21 @@ export default defineComponent({
 			// Selection
 			selectedExp: null
 		}) as Data
+
+		// Centerize the origin of viewport on mounted
+		onMounted(() => {
+			if (!elHandles.value) return
+
+			const {top, right, bottom, left} = (elHandles.value
+				.$el as SVGElement).getBoundingClientRect()
+
+			const xform = mat2d.fromTranslation(mat2d.create(), [
+				(left + right) / 2,
+				(top + bottom) / 2
+			])
+
+			ui.viewHandlesTransform = xform
+		})
 
 		function onUpdateExp(exp: NonReactive<MalVal> | null) {
 			data.exp = exp
