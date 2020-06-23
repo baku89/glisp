@@ -52,6 +52,15 @@
   [x _min _max]
   (min (max _min x) _max))
 
+(def cubic-bezier
+  ^{:doc "Calcurates CSS's cubic-bezier"
+    :params [{:label "t" :type "number" :constraints {:min 0 :max 1}}
+             {:label "x1" :type "number" :constraints {:min 0 :max 1}}
+             {:label "y1" :type "number"}
+             {:label "x2" :type "number" :constraints {:min 0 :max 1}}
+             {:label "y2" :type "number"}]}
+  cubic-bezier)
+;; 
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
 ;; http://glmatrix.net/docs/vec2.js.htm
