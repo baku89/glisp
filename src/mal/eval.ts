@@ -129,13 +129,15 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 
 function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	if (isSymbol(exp)) {
+		const ret = env.get(exp)
 		if (cache) {
 			const def = env.getDef(exp)
 			if (def) {
 				exp.def = def
 			}
+			exp.evaluated = ret
 		}
-		return env.get(exp)
+		return ret
 	} else if (Array.isArray(exp)) {
 		const ret = exp.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -214,6 +216,9 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				}
 				const value = evalExp(_value, env, cache)
 				env.set(sym, value, exp as MalNodeSeq)
+				if (cache) {
+					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEFVAR) as MalFunc
+				}
 				return value
 			}
 			case S_LET: {

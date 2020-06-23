@@ -296,6 +296,14 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 	return newObj
 }
 
+export function getEvaluated(exp: MalVal) {
+	if (exp instanceof Object && M_EVAL in exp) {
+		return (exp as MalNode)[M_EVAL]
+	} else {
+		return exp
+	}
+}
+
 // Functions
 export function createMalFunc(
 	fn: (...args: MalVal[]) => MalVal,
@@ -350,6 +358,14 @@ export class MalSymbol {
 
 	public get def(): MalNodeSeq | null {
 		return (this as any)[M_DEF] || null
+	}
+
+	public set evaluated(value: MalVal) {
+		;(this as any)[M_EVAL] = value
+	}
+
+	public get evaluated(): MalVal {
+		return (this as any)[M_EVAL]
 	}
 
 	public toString() {
