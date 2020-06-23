@@ -236,7 +236,6 @@ const Exports = [
 	],
 
 	// Other useful functions in JS
-	['time-ms', Date.now],
 	[
 		'range',
 		(...args: number[]) => {
