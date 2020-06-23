@@ -67,6 +67,7 @@ export default class Scope<T> {
 
 		let filename: string
 		if (isNode) {
+			// NOTE: This should be fixed
 			filename = '/Users/baku/Sites/glisp/repl/index.js'
 		} else {
 			filename = new URL('.', document.baseURI).href
