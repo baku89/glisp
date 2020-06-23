@@ -12,7 +12,7 @@
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown :source="fnDoc" />
+			<VueMarkdown class="Inspector__doc" :source="fnDoc" />
 		</div>
 		<table class="Inspector__params">
 			<tr
@@ -615,7 +615,7 @@ export default class Inspector extends Vue {
 }
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 @import 'style/common.styl'
 
 .Inspector
@@ -652,6 +652,9 @@ export default class Inspector extends Vue {
 		&:hover
 			color var(--hover)
 			opacity 1
+
+	&__doc code
+		color var(--syntax-function)
 
 	&__params
 		position relative
