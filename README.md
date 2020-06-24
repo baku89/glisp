@@ -8,6 +8,12 @@
 	<img src="assets/logo.png" width="150" />
 </div> -->
 
+## Try it yourself
+
+> https://baku89.com/glisp/ (Chrome only)
+
+## What's Glisp?
+
 Glisp, an acronym for **G**raphical **LISP**, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP.
 This tool looks like the integration of Illustrator and Processing IDE at a glance. And in fact, it adopts both benefits of intuitiveness of direct manipulation on GUI and abstractness of programming language.
 
@@ -27,6 +33,8 @@ Information by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255
 
 - [Para](http://alumni.media.mit.edu/~jacobsj/para/) and [Dynamic Brush](http://jenniferjacobs.mat.ucsb.edu/#db) by [Jeninifer Jacobs](http://jenniferjacobs.mat.ucsb.edu/)
 - [Sketch-n-Sketch](https://ravichugh.github.io/sketch-n-sketch/)
+- [Ronin](https://100r.co/site/ronin.html) by Hundred Rabitts
+- [Quil](http://www.quil.info/)
 
 ## Development
 
