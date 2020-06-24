@@ -25,9 +25,10 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 ## デザインツールの考察
 
 - [なぜ Lisp なのか](why-lisp)
-- [ブートストラップ・ストラテジー](bootstrapping)
+- [ブートストラップ・ストラテジー](bootstrapping ':disabled')
 - [ツールの直交性](orthogonality)
-- [ブレンドモードの分類](blend-modes)
+- [動かし方の分類](classification-of-animating)
 - [UI の基本原則](principles)
-- [操作の距離空間](distance-space)
 - [インターフェースの帯域幅](bandwidth)
+- [操作の距離空間](distance-space ':disabled')
+- [ブレンドモードの分類](blend-modes)
