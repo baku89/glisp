@@ -14,7 +14,11 @@
 				/>
 			</div>
 		</div>
-		<ParamControl :exp="exp" @input="$emit('input', $event)" @select="$emit('select', $event)" />
+		<ParamControl
+			:exp="exp"
+			@input="$emit('input', $event)"
+			@select="$emit('select', $event)"
+		/>
 	</div>
 </template>
 
@@ -82,7 +86,7 @@ export default defineComponent({
 			() => getEvaluated(options.value[K_DURATION]) as number
 		)
 		const endTime = computed(() => startTime.value + duration.value)
-		const fps = computed(() => options.value[K_FPS])
+		const fps = computed(() => getEvaluated(options.value[K_FPS]) as number)
 		const normalizedPosition = computed(
 			() => (time.value - startTime.value) / duration.value
 		)
