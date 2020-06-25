@@ -153,4 +153,7 @@ export default defineComponent({
 		/* Firefox */
 		&[type=number]
 			-moz-appearance textfield
+
+	&.exp &__input
+		color var(--red)
 </style>

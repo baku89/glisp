@@ -4,6 +4,7 @@
 			class="MalInputAngle__input"
 			:value="value"
 			@input="onInput"
+			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
 		<InputRotery

@@ -1,14 +1,17 @@
 <template>
-	<div class="MalExpButton" @click="onClick">{{ str }}</div>
+	<div class="MalExpButton" :class="{compact}" @click="onClick">
+		{{ str }}
+	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
-import {MalVal} from '@/mal/types'
+import {MalVal, isList, M_FN} from '@/mal/types'
 import printExp from '@/mal/printer'
 
 interface Props {
 	value: MalVal
+	type: boolean
 }
 
 export default defineComponent({
@@ -16,11 +19,18 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true
+		},
+		compact: {
+			default: false
 		}
 	},
 	setup(props: Props, context) {
 		const str = computed(() => {
-			return printExp(props.value, true, true)
+			if (isList(props.value) && M_FN in props.value) {
+				return `ƒ(${printExp(props.value[0])})`
+			} else {
+				return printExp(props.value)
+			}
 		})
 
 		function onClick() {
@@ -41,11 +51,11 @@ export default defineComponent({
 .MalExpButton
 	overflow hidden
 	max-width 100%
-	height $param-height
+	height $input-height
 	color var(--comment)
 	text-overflow ellipsis
 	white-space nowrap
-	line-height $param-height
+	line-height $input-height
 	font-monospace()
 	cursor pointer
 

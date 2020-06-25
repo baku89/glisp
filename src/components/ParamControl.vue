@@ -21,6 +21,7 @@
 						:value="params[i].value"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputDropdown
 						v-else-if="params[i].type === 'dropdown'"
@@ -28,36 +29,43 @@
 						:values="desc['ʞenum']"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputColor
 						v-else-if="params[i].type === 'color'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<MalInputAngle
 						v-else-if="params[i].type === 'angle'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<MalInputVec2
 						v-else-if="params[i].type === 'vec2'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputRect2d
 						v-else-if="params[i].type === 'rect2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputMat2d
 						v-else-if="params[i].type === 'mat2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputSeed
 						v-else-if="params[i].type === 'seed'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputString
 						style="color: var(--syntax-symbol)"
@@ -65,6 +73,7 @@
 						:value="params[i].value.value"
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<InputString
 						style="color: var(--syntax-keyword)"
@@ -72,6 +81,7 @@
 						:value="params[i].value.slice(1)"
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
+						@select="onSelect(params[i].value)"
 					/>
 					<MalExpButton
 						v-else
@@ -585,14 +595,13 @@ export default defineComponent({
 	table-layout fixed
 
 	&__param
-		margin 0.25em 0
 		height $param-height
 
 		&.is-default
 			opacity 0.5
 
 		td
-			padding 0
+			padding 0.1em 0
 
 			&:first-child
 				width 5em

@@ -1,7 +1,7 @@
 <template>
 	<div class="MalInputNumber">
 		<InputNumber
-			v-if="display.mode !== 'exp'"
+			:class="{exp: display.mode === 'exp'}"
 			:value="displayValue"
 			@input="onInput"
 			:validator="innerValidator"
@@ -12,11 +12,10 @@
 			v-if="display.mode === 'unit' && display.suffix"
 			>{{ display.suffix }}</span
 		>
-		<MalExpButton
-			v-if="display.mode === 'exp'"
-			:value="value"
-			@click="$emit('select')"
-		/>
+		<template v-if="display.mode === 'exp'">
+			<span class="mono"> : </span>
+			<MalExpButton :value="value" @click="$emit('select', $event)" />
+		</template>
 	</div>
 </template>
 
@@ -24,8 +23,16 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
-import {MalNodeSeq, isList, M_FN, MalVal, MalSymbol} from '@/mal/types'
-import {getMapValue, getFnInfo} from '@/mal-utils'
+import {
+	MalNodeSeq,
+	isList,
+	M_FN,
+	MalVal,
+	MalSymbol,
+	M_EVAL,
+	getEvaluated
+} from '@/mal/types'
+import {getMapValue, getFnInfo, reverseEval} from '@/mal-utils'
 
 type Validator = (v: number) => number | null
 
@@ -86,7 +93,8 @@ export default defineComponent({
 				case 'unit':
 					return (props.value as any)[1] as number
 				default:
-					return NaN
+					// exp
+					return getEvaluated(props.value) as number
 			}
 		})
 
@@ -110,6 +118,8 @@ export default defineComponent({
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
 				newExp = [(props.value as MalNodeSeq)[0], value]
+			} else if (display.value.mode === 'exp') {
+				newExp = reverseEval(value, props.value)
 			}
 			context.emit('input', newExp)
 		}
@@ -131,6 +141,9 @@ export default defineComponent({
 	display flex
 	align-items center
 	line-height $input-height
+
+	.mono
+		font-monospace()
 
 	.unit
 		padding-left 0.3em
