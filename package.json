@@ -22,9 +22,7 @@
 	"dependencies": {
 		"docsify": "^4.11.3",
 		"paper-jsdom": "^0.12.7",
-		"vue": "^2.6.11",
-		"vue-class-component": "^7.2.3",
-		"vue-property-decorator": "^8.4.1"
+		"vue": "^2.6.11"
 	},
 	"devDependencies": {
 		"@types/chroma-js": "^2.0.0",

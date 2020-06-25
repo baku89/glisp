@@ -9185,11 +9185,6 @@ voronoi@^1.0.0:
   resolved "https://registry.yarnpkg.com/voronoi/-/voronoi-1.0.0.tgz#c083cafa98c4359a518018bfe88624cb227ac291"
   integrity sha1-wIPK+pjENZpRgBi/6IYkyyJ6wpE=
 
-vue-class-component@^7.1.0, vue-class-component@^7.2.3:
-  version "7.2.3"
-  resolved "https://registry.npm.taobao.org/vue-class-component/download/vue-class-component-7.2.3.tgz?cache=0&sync_timestamp=1581576280878&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fvue-class-component%2Fdownload%2Fvue-class-component-7.2.3.tgz#a5b1abd53513a72ad51098752e2dedd499807cca"
-  integrity sha1-pbGr1TUTpyrVEJh1Li3t1JmAfMo=
-
 vue-cli-plugin-electron-builder@~2.0.0-rc.1:
   version "2.0.0-rc.1"
   resolved "https://registry.npm.taobao.org/vue-cli-plugin-electron-builder/download/vue-cli-plugin-electron-builder-2.0.0-rc.1.tgz#cabea59d6afe4853ec8666469869f10f91254223"
@@ -9284,13 +9279,6 @@ vue-popperjs@^2.3.0:
   dependencies:
     opencollective-postinstall "^2.0.2"
     popper.js "^1.15.0"
-
-vue-property-decorator@^8.4.1:
-  version "8.4.1"
-  resolved "https://registry.npm.taobao.org/vue-property-decorator/download/vue-property-decorator-8.4.1.tgz#fd8045b8678e1348fed57f9149279e00e404ed38"
-  integrity sha1-/YBFuGeOE0j+1X+RSSeeAOQE7Tg=
-  dependencies:
-    vue-class-component "^7.1.0"
 
 vue-resize@^0.5.0:
   version "0.5.0"

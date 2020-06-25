@@ -29,91 +29,106 @@
 </template>
 
 <script lang="ts">
-import {Component, Vue, Prop} from 'vue-property-decorator'
 import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
 import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
-import {defineComponent} from '@vue/composition-api'
+import {defineComponent, ref, Ref} from '@vue/composition-api'
 
-@Component({
+export default defineComponent({
 	name: 'GlobalMenu',
 	directives: {ClickOutside},
 	components: {
 		GlobalSubmenu,
 		WindowTitleButtons
-	}
-})
-export default class GlobalMenu extends Vue {
-	private menu = [
-		[
-			'File',
+	},
+	props: {
+		dark: {
+			type: Boolean
+		}
+	},
+	setup() {
+		const menu = ref([
 			[
-				['Export', '(export)'],
-				['Publish to Gist', '(publish-gist)'],
-				['Save', '(save)']
-			]
-		],
-		[
-			'Edit',
-			[
-				['Eval Selected', '(eval-selected)'],
-				['Select Outer', '(select-outer)']
-			]
-		],
-		[
-			'Examples',
-			[
-				['10 PRINT CHR', '(load-file "./examples/10-print-chr.cljs")'],
-				['Hello World', '(load-file "./examples/hello-world.cljs")'],
+				'File',
 				[
-					'Primitive Definition',
-					'(load-file "./examples/primitive-definition.cljs")'
-				],
-				['Transformation', '(load-file "./examples/transformation.cljs")'],
-				['Replicator', '(load-file "./examples/replicator.cljs")'],
-				['Path Modification', '(load-file "./examples/path-modification.cljs")']
-			]
-		],
-		[
-			'?',
+					['Export', '(export)'],
+					['Publish to Gist', '(publish-gist)'],
+					['Save', '(save)']
+				]
+			],
 			[
-				['Documentation', '(open-link "https://baku89.com/glisp/docs/")'],
-				['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
-				['Made by Baku Hashimoto', '(open-link "https://baku89.com")']
+				'Edit',
+				[
+					['Eval Selected', '(eval-selected)'],
+					['Select Outer', '(select-outer)']
+				]
+			],
+			[
+				'Examples',
+				[
+					['10 PRINT CHR', '(load-file "./examples/10-print-chr.cljs")'],
+					['Hello World', '(load-file "./examples/hello-world.cljs")'],
+					[
+						'Primitive Definition',
+						'(load-file "./examples/primitive-definition.cljs")'
+					],
+					['Transformation', '(load-file "./examples/transformation.cljs")'],
+					['Replicator', '(load-file "./examples/replicator.cljs")'],
+					[
+						'Path Modification',
+						'(load-file "./examples/path-modification.cljs")'
+					]
+				]
+			],
+			[
+				'?',
+				[
+					['Documentation', '(open-link "https://baku89.com/glisp/docs/")'],
+					['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
+					['Made by Baku Hashimoto', '(open-link "https://baku89.com")']
+				]
 			]
-		]
-	]
+		])
 
-	private expandedIndex: number | null = null
+		const expandedIndex: Ref<number | null> = ref(null)
 
-	private get platform() {
-		return eval('"process" in globalThis && globalThis.process.platform')
-	}
+		const platform = ref(
+			eval('"process" in globalThis && globalThis.process.platform') as string
+		)
 
-	private titleBar = isElectron()
-		? this.platform === 'darwin'
-			? 'macos'
-			: 'frameless'
-		: null
+		const titleBar = ref(
+			isElectron()
+				? platform.value === 'darwin'
+					? 'macos'
+					: 'frameless'
+				: null
+		)
 
-	@Prop()
-	private dark!: boolean
+		function onClose() {
+			expandedIndex.value = null
+		}
 
-	private onClick(content: string | string[][], i: number) {
-		if (Array.isArray(content)) {
-			this.expandedIndex = i
-		} else {
-			ConsoleScope.readEval(content)
-			this.expandedIndex = null
+		function onClick(content: string | string[][], i: number) {
+			if (Array.isArray(content)) {
+				expandedIndex.value = i
+			} else {
+				ConsoleScope.readEval(content)
+				expandedIndex.value = null
+			}
+		}
+
+		return {
+			menu,
+			expandedIndex,
+			titleBar,
+			platform,
+			onClose,
+			onClick
 		}
 	}
-
-	private onClose() {
-		this.expandedIndex = null
-	}
-}
+})
 </script>
 
 <style lang="stylus" scoped>
