@@ -10,49 +10,55 @@
 			@set-background="onSetBackground"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<div class="PageIndex__content">
-			<div class="PageIndex__inspector" v-if="selectedExp">
-				<Inspector
-					:exp="selectedExp"
-					@input="onUpdateSelectedExp"
-					@select="onSelectExp"
-				/>
-			</div>
-			<ViewHandles
-				ref="elHandles"
-				class="PageIndex__view-handles"
-				:exp="selectedExp"
-				:view-transform.sync="viewHandlesTransform"
-				@input="onUpdateSelectedExp"
-			/>
-			<div class="PageIndex__control" :class="{compact}">
-				<div class="PageIndex__editor">
-					<ExpEditor
-						:exp="exp"
-						:selectedExp="selectedExp"
-						:hasParseError.sync="hasParseError"
-						@input="onUpdateExp"
+		<splitpanes class="PageIndex__content default-theme" vertical>
+			<pane :size="100 - controlPaneSize">
+				<div class="PageIndex__inspector" v-if="selectedExp">
+					<Inspector
+						:exp="selectedExp"
+						@input="onUpdateSelectedExp"
 						@select="onSelectExp"
 					/>
 				</div>
-				<div class="PageIndex__console">
-					<button
-						class="PageIndex__console-toggle"
-						:class="{error: hasError}"
-						@click="compact = !compact"
-					>
-						{{ hasError ? '!' : '✓' }}
-					</button>
-					<Console :compact="compact" @setup="onSetupConsole" />
+				<ViewHandles
+					ref="elHandles"
+					class="PageIndex__view-handles"
+					:exp="selectedExp"
+					:view-transform.sync="viewHandlesTransform"
+					@input="onUpdateSelectedExp"
+				/>
+			</pane>
+			<pane :size="controlPaneSize" max-size="80">
+				<div class="PageIndex__control" :class="{compact}">
+					<div class="PageIndex__editor">
+						<ExpEditor
+							:exp="exp"
+							:selectedExp="selectedExp"
+							:hasParseError.sync="hasParseError"
+							@input="onUpdateExp"
+							@select="onSelectExp"
+						/>
+					</div>
+					<div class="PageIndex__console">
+						<button
+							class="PageIndex__console-toggle"
+							:class="{error: hasError}"
+							@click="compact = !compact"
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
+						<Console :compact="compact" @setup="onSetupConsole" />
+					</div>
 				</div>
-			</div>
-		</div>
+			</pane>
+		</splitpanes>
 	</div>
 </template>
 
 <script lang="ts">
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import 'normalize.css'
+import {Splitpanes, Pane} from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
 import {
 	defineComponent,
 	reactive,
@@ -88,6 +94,7 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
+import {useRem} from './use'
 
 interface Data {
 	exp: NonReactive<MalVal> | null
@@ -105,7 +112,9 @@ interface UI {
 	theme: Theme
 	viewerSize: [number, number]
 	guideColor: string
+	viewTransform: mat2d
 	viewHandlesTransform: mat2d
+	controlPaneSize: number
 }
 
 function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
@@ -233,10 +242,14 @@ export default defineComponent({
 		Viewer,
 		Console,
 		Inspector,
-		ViewHandles
+		ViewHandles,
+		Splitpanes,
+		Pane
 	},
 	setup() {
 		const elHandles: Ref<any | null> = ref(null)
+
+		const rem = useRem()
 
 		const ui = reactive({
 			compact: false,
@@ -253,7 +266,8 @@ export default defineComponent({
 				// mat2d.translate(xform, xform, [0, top])
 				xform[5] += top
 				return xform as mat2d
-			})
+			}),
+			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100
 		}) as UI
 
 		const data = reactive({
@@ -407,8 +421,8 @@ html, body
 
 	&__content
 		position relative
-		display flex
-		flex-grow 1
+		// display flex
+		// flex-grow 1
 		height calc(100vh - 3.4rem)
 
 	&__inspector
@@ -428,14 +442,17 @@ html, body
 		height 100%
 
 	&__view-handles
-		width calc(100% - 30rem)
+		height 100%
+		// width calc(100% - 30rem)
+		width 100%
 
 	&__control
 		position relative
 		display flex
 		flex-direction column
-		width 30rem
-		border-left 1px solid var(--border)
+		width 100%
+		height 100%
+		// border-left 1px solid var(--border)
 		translucent-bg()
 
 	&__editor
@@ -509,4 +526,33 @@ html, body
 
 .compact .PageIndex__console
 	height 2.2rem
+
+// Overwrite splitpanes
+.splitpanes.default-theme
+	.splitpanes__pane
+		background transparent
+
+	.splitpanes__splitter
+		border-left-color var(--border)
+		border-right none
+		// translucent-bg()
+		background transparent
+		width 1rem
+		margin-right -1 * @width
+		z-index 10
+
+		&:before, &:after
+			height 19px
+			width 0
+			border-left 1px dotted var(--border)
+			background transparent
+			transition border-left-color .3s
+
+		&:hover
+			&:before, &:after
+				background-color transparent
+				border-left-color var(--highlight)
+
+		// &:before
+		// 	margin-left -1px
 </style>

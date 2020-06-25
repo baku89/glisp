@@ -141,3 +141,8 @@ declare module 'css-color-names' {
 	const csscolor: {[name: string]: string}
 	export default csscolor
 }
+
+declare module 'splitpanes' {
+	export const Splitpanes: any
+	export const Pane: any
+}

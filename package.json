@@ -76,6 +76,7 @@
 		"readline-sync": "^1.4.10",
 		"resize-sensor": "^0.0.6",
 		"seedrandom": "^3.0.5",
+		"splitpanes": "^2.2.1",
 		"stylus": "^0.54.7",
 		"stylus-loader": "^3.0.2",
 		"svgpath": "^2.2.3",
