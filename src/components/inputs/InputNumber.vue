@@ -155,5 +155,5 @@ export default defineComponent({
 			-moz-appearance textfield
 
 	&.exp &__input
-		color var(--syntax-keyword)
+		color var(--red)
 </style>

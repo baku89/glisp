@@ -85,10 +85,10 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			color var(--syntax-keyword)
+			color var(--red)
 
 			.MalExpButton__sign
-				background var(--syntax-keyword)
+				background var(--red)
 				color var(--background)
 				opacity 1
 

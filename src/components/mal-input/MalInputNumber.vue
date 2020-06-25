@@ -1,13 +1,13 @@
 <template>
 	<div class="MalInputNumber">
 		<MalExpButton
-			v-if="display.mode === 'exp' && compact"
+			v-if="display.isExp && compact"
 			:value="value"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>
 		<InputNumber
-			:class="{exp: display.mode === 'exp'}"
+			:class="{exp: display.isExp}"
 			:value="displayValue"
 			@input="onInput"
 			:validator="innerValidator"
@@ -16,11 +16,10 @@
 			class="unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-			>{{ display.unit }}</span
-		>
+		>{{ display.unit }}</span>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
-			v-if="display.mode === 'exp' && !compact"
+			v-if="display.isExp && !compact"
 			:value="value"
 			:compact="false"
 			@click="$emit('select', $event)"
@@ -67,12 +66,8 @@ export default defineComponent({
 	setup(props, context) {
 		const display = computed(() => {
 			if (typeof props.value === 'number') {
-				return {mode: 'number'}
-			} else if (
-				isList(props.value) &&
-				props.value.length === 2 &&
-				typeof props.value[1] === 'number'
-			) {
+				return {mode: 'number', isExp: false}
+			} else if (isList(props.value) && props.value.length === 2) {
 				const info = getFnInfo(props.value)
 
 				if (info) {
@@ -80,11 +75,12 @@ export default defineComponent({
 					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
-						return {mode: 'unit', unit, inverseFn}
+						const isExp = typeof (props.value as MalVal[])[1] !== 'number'
+						return {mode: 'unit', unit, inverseFn, isExp}
 					}
 				}
 			}
-			return {mode: 'exp'}
+			return {mode: 'exp', isExp: true}
 		})
 
 		const fn = computed(() => {
@@ -100,7 +96,7 @@ export default defineComponent({
 				case 'number':
 					return props.value as number
 				case 'unit':
-					return (props.value as any)[1] as number
+					return getEvaluated((props.value as MalVal[])[1]) as number
 				default:
 					// exp
 					return getEvaluated(props.value) as number
@@ -126,7 +122,8 @@ export default defineComponent({
 		function onInput(value: number) {
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
-				newExp = [(props.value as MalNodeSeq)[0], value]
+				const unitVal = reverseEval(value, (props.value as MalVal[])[1])
+				newExp = [(props.value as MalVal[])[0], unitVal]
 			} else if (display.value.mode === 'exp') {
 				newExp = reverseEval(value, props.value)
 			}
@@ -163,5 +160,5 @@ export default defineComponent({
 			line-height $input-height * 1.2
 
 	&__exp-after
-		margin-left .3rem
+		margin-left 0.3rem
 </style>
