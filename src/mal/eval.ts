@@ -421,7 +421,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				// ;(exp as MalNode)[M_EVAL] = a2
 				// ;(expanded as MalNode)[M_EVAL] = ret
-				return ret
+				exp = ret
+				break // continue TCO loop
 			}
 			case S_QUOTE:
 				// No need to cache M_EVAL
