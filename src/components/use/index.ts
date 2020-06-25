@@ -1,7 +1,7 @@
 import useDraggable from './use-draggable'
 import useKeyboardState from './use-keyboard-state'
 import useResizeSensor from './use-resize-sensor'
-import {onMounted, ref} from '@vue/composition-api'
+import {ref} from '@vue/composition-api'
 
 function useRem() {
 	const rem = ref(

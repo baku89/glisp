@@ -109,7 +109,6 @@
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
 import {
-	MalFunc,
 	MalNodeSeq,
 	getType,
 	MalVal,

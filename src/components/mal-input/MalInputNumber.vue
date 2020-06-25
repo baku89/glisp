@@ -24,9 +24,9 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
-import {MalNodeSeq, isList, M_FN, MalVal, MalSymbol, getMeta} from '@/mal/types'
+import {MalNodeSeq, isList, M_FN, MalVal, MalSymbol} from '@/mal/types'
 import {getMapValue, getFnInfo} from '@/mal-utils'
-import {printExp} from '../../mal'
+
 type Validator = (v: number) => number | null
 
 export default defineComponent({

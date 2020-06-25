@@ -16,8 +16,7 @@ import {
 	computed,
 	ref,
 	SetupContext,
-	Ref,
-	watch
+	Ref
 } from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
