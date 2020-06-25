@@ -1,19 +1,16 @@
 <template>
-	<div
-		class="MalExpButton"
-		@click="onClick"
-		:class="{equals: symbolType === '=', fn: symbolType === 'f'}"
-	>
-		<div class="MalExpButton__symbol">
-			{{ symbolType }}
-		</div>
+	<div class="MalExpButton" @click="onClick" :class="{selectable}">
+		<div
+			class="MalExpButton__sign"
+			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
+		>{{ sign }}</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
-import {MalVal, isList, M_FN} from '@/mal/types'
+import {MalVal, isList, M_FN, isSymbol} from '@/mal/types'
 import printExp from '@/mal/printer'
 
 interface Props {
@@ -32,16 +29,20 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
-		const symbolType = computed(() => {
+		const sign = computed(() => {
 			if (isList(props.value) && M_FN in props.value) {
 				return 'f'
+			} else if (isSymbol(props.value)) {
+				return 'x'
 			} else {
 				return '='
 			}
 		})
 
+		const selectable = computed(() => !isSymbol(props.value))
+
 		const str = computed(() => {
-			if (symbolType.value === 'f') {
+			if (sign.value === 'f') {
 				if (props.compact) {
 					return ''
 				} else {
@@ -53,13 +54,14 @@ export default defineComponent({
 		})
 
 		function onClick() {
-			if (symbolType.value === 'f') {
+			if (selectable.value) {
 				context.emit('click')
 			}
 		}
 
 		return {
-			symbolType,
+			sign,
+			selectable,
 			str,
 			onClick
 		}
@@ -79,37 +81,49 @@ export default defineComponent({
 	display flex
 	padding 2px
 
-	&.fn
+	&.selectable
 		cursor pointer
 
 		&:hover
 			color var(--syntax-keyword)
 
-			.MalExpButton__symbol
+			.MalExpButton__sign
 				background var(--syntax-keyword)
 				color var(--background)
 				opacity 1
 
-	&__symbol
+	&__sign
+		flex 1 0 1.1rem
+		padding 0.2em
 		width 1.1rem
 		height 1.1rem
-		flex 1 0 @width
-		text-align center
-		font-size .7em
-		line-height 1rem
-		padding .2em
+		border-radius 2px
 		background var(--comment)
 		color var(--background)
-		border-radius 2px
-		opacity .4
+		text-align center
+		opacity 0.8
 
-	&.equals &__symbols
-		font-size 1em
-		line-height .8em
+		&.fn, &.variable
+			font-weight bold
+			font-style italic
+			font-family 'EB Garamond', serif
+
+		&.fn
+			font-size 1rem
+			line-height 0.6rem
+
+		&.variable
+			font-size 1.2rem
+			line-height 0.5rem
+
+		&.equals
+			text-indent -0.05em
+			font-size 1.2rem
+			line-height 0.6rem
 
 	&__exp
+		flex 1 0 auto
 		margin-left 4px
 		text-overflow ellipsis
-		flex 1 0 auto
 		white-space nowrap
 </style>

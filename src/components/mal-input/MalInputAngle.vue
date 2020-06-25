@@ -2,16 +2,13 @@
 	<div class="MalInputAngle">
 		<MalInputNumber
 			class="MalInputAngle__input"
+			:compact="true"
 			:value="value"
 			@input="onInput"
 			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
-		<InputRotery
-			class="MalInputAngle__rotery"
-			:value="evaluated"
-			@input="onInput"
-		/>
+		<InputRotery class="MalInputAngle__rotery" :value="evaluated" @input="onInput" />
 	</div>
 </template>
 
