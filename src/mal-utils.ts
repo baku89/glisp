@@ -23,7 +23,8 @@ import {
 	isMalNode,
 	M_OUTER,
 	isList,
-	M_OUTER_INDEX
+	M_OUTER_INDEX,
+	MalType
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 import {replaceExp} from './mal/eval'
@@ -47,7 +48,11 @@ export function getPrimitiveType(exp: MalVal): string | null {
 	return null
 }
 
-export function getMapValue(exp: MalVal | undefined, path: string): MalVal {
+export function getMapValue(
+	exp: MalVal | undefined,
+	path: string,
+	type?: MalType
+): MalVal {
 	if (exp === undefined) {
 		return null
 	}
@@ -74,6 +79,12 @@ export function getMapValue(exp: MalVal | undefined, path: string): MalVal {
 
 		keys.shift()
 	}
+
+	// Type checking
+	if (type && getType(exp) !== type) {
+		return null
+	}
+
 	return exp
 }
 
@@ -100,22 +111,18 @@ export function getFnInfo(exp: MalNode): FnInfoType | null {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
-			const alias = meta[K('alias')]
-			if (isMap(alias)) {
-				// is alias
-				const aliasMeta = alias[K('meta')]
-				const aliasFor = alias[K('name')]
+			const alias = getMapValue(meta, 'alias')
 
-				if (isMap(aliasMeta) && typeof aliasFor === 'string') {
-					return {
-						fn,
-						meta: aliasMeta,
-						aliasFor,
-						primitive
-					}
+			if (getType(alias) === MalType.String) {
+				// is an alias
+				return {
+					fn,
+					meta,
+					aliasFor: alias as string,
+					primitive
 				}
 			} else {
-				// is not alias
+				// is not an alias
 				return {fn, meta, aliasFor: null, primitive}
 			}
 		} else {

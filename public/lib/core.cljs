@@ -159,10 +159,8 @@
 
 (defmacro defalias [alias original]
   `(def ~alias (with-meta ~original
-                 (hash-map
-                  :alias (hash-map
-                          :name ~(str original)
-                          :meta (meta ~original))))))
+                 (assoc (meta ~original)
+                        :alias ~(str original)))))
 
 (defmacro deftime
   {:doc "Defines a numeric variable with playback control"
