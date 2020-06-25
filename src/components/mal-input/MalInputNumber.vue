@@ -4,7 +4,7 @@
 			v-if="display.mode !== 'exp'"
 			:value="displayValue"
 			@input="onInput"
-			:validator="validator"
+			:validator="innerValidator"
 		/>
 		<span
 			class="unit"
@@ -24,8 +24,10 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
-import {MalNodeSeq, isList, getMeta, M_FN, MalVal, MalSymbol} from '@/mal/types'
-import {getMapValue} from '@/mal-utils'
+import {MalNodeSeq, isList, M_FN, MalVal, MalSymbol, getMeta} from '@/mal/types'
+import {getMapValue, getFnInfo} from '@/mal-utils'
+import {printExp} from '../../mal'
+type Validator = (v: number) => number | null
 
 export default defineComponent({
 	name: 'MalInputNumber',
@@ -38,7 +40,7 @@ export default defineComponent({
 			required: true
 		},
 		validator: {
-			type: Function as PropType<(v: number) => number | null>,
+			type: Function as PropType<Validator>,
 			required: false
 		}
 	},
@@ -51,14 +53,30 @@ export default defineComponent({
 				props.value.length === 2 &&
 				typeof props.value[1] === 'number'
 			) {
-				const meta = getMeta(props.value[M_FN])
-				const unit = getMapValue(meta, 'unit')
+				const info = getFnInfo(props.value)
 
-				const prefix = getMapValue(unit, 'prefix')
-				const suffix = getMapValue(unit, 'suffix')
-				return {mode: 'unit', prefix, suffix}
+				if (info) {
+					const inverseFn = getMapValue(info.meta, 'inverse')
+
+					if (inverseFn) {
+						const unit = getMapValue(info.meta, 'unit')
+
+						const prefix = getMapValue(unit, 'prefix')
+						const suffix = getMapValue(unit, 'suffix')
+
+						return {mode: 'unit', prefix, suffix, inverseFn}
+					}
+				}
 			}
 			return {mode: 'exp'}
+		})
+
+		const fn = computed(() => {
+			if (display.value.mode !== 'exp') {
+				return (props.value as MalNodeSeq)[M_FN]
+			} else {
+				return null
+			}
 		})
 
 		const displayValue = computed(() => {
@@ -72,6 +90,22 @@ export default defineComponent({
 			}
 		})
 
+		const innerValidator = computed(() => {
+			if (props.validator) {
+				switch (display.value.mode) {
+					case 'number':
+						return props.validator
+					case 'unit':
+						return (v: number) => {
+							return (display.value.inverseFn as any)(
+								(props.validator as any)((fn.value as any)(v))
+							)[0]
+						}
+				}
+			}
+			return undefined
+		})
+
 		function onInput(value: number) {
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
@@ -80,13 +114,10 @@ export default defineComponent({
 			context.emit('input', newExp)
 		}
 
-		function onSelect() {
-			context.emit('select')
-		}
-
 		return {
 			displayValue,
 			display,
+			innerValidator,
 			onInput
 		}
 	}

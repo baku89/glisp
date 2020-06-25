@@ -130,6 +130,8 @@ function readAtom(reader: Reader) {
 			return true
 		} else if (token === 'false') {
 			return false
+		} else if (token === 'NaN') {
+			return NaN
 		} else {
 			// symbol
 			return S(token as string)

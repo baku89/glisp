@@ -93,7 +93,11 @@ export default defineComponent({
 
 			if (props.validator) {
 				const validatedVal = props.validator(val)
-				if (typeof validatedVal !== 'number' || !isFinite(validatedVal)) {
+				if (
+					typeof validatedVal !== 'number' ||
+					isNaN(validatedVal) ||
+					!isFinite(validatedVal)
+				) {
 					return
 				}
 				val = validatedVal

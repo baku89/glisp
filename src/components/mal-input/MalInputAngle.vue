@@ -18,7 +18,7 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import InputComponents from '@/components/inputs'
-import {isList, MalNodeSeq, MalSymbol, M_EVAL} from '@/mal/types'
+import {isList, MalNodeSeq, MalSymbol, M_EVAL, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal-utils'
 
 export default defineComponent({
@@ -46,9 +46,12 @@ export default defineComponent({
 			return 0
 		})
 
-		const onInput = (_value: number) => {
-			// Executes backward evalution
-			const value = reverseEval(_value, props.value)
+		const onInput = (_value: MalVal) => {
+			let value = _value
+			if (typeof value === 'number') {
+				// Executes backward evalution
+				value = reverseEval(_value, props.value)
+			}
 			context.emit('input', value)
 		}
 
