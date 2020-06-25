@@ -1,5 +1,12 @@
 <template>
 	<div class="MalInputNumber">
+		<template v-if="display.mode === 'exp' && compact">
+			<MalExpButton
+				:value="value"
+				:compact="true"
+				@click="$emit('select', $event)"
+			/>
+		</template>
 		<InputNumber
 			:class="{exp: display.mode === 'exp'}"
 			:value="displayValue"
@@ -8,13 +15,17 @@
 		/>
 		<span
 			class="unit"
-			:class="{small: display.suffix && display.suffix.length >= 2}"
-			v-if="display.mode === 'unit' && display.suffix"
-			>{{ display.suffix }}</span
+			:class="{small: display.unit && display.unit.length >= 2}"
+			v-if="display.mode === 'unit'"
+			>{{ display.unit }}</span
 		>
-		<template v-if="display.mode === 'exp'">
+		<template v-if="display.mode === 'exp' && !compact">
 			<span class="mono"> : </span>
-			<MalExpButton :value="value" @click="$emit('select', $event)" />
+			<MalExpButton
+				:value="value"
+				:compact="false"
+				@click="$emit('select', $event)"
+			/>
 		</template>
 	</div>
 </template>
@@ -29,8 +40,8 @@ import {
 	M_FN,
 	MalVal,
 	MalSymbol,
-	M_EVAL,
-	getEvaluated
+	getEvaluated,
+	MalType
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval} from '@/mal-utils'
 
@@ -49,6 +60,10 @@ export default defineComponent({
 		validator: {
 			type: Function as PropType<Validator>,
 			required: false
+		},
+		compact: {
+			type: Boolean,
+			default: false
 		}
 	},
 	setup(props, context) {
@@ -63,15 +78,11 @@ export default defineComponent({
 				const info = getFnInfo(props.value)
 
 				if (info) {
-					const inverseFn = getMapValue(info.meta, 'inverse')
+					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Function)
+					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
-					if (inverseFn) {
-						const unit = getMapValue(info.meta, 'unit')
-
-						const prefix = getMapValue(unit, 'prefix')
-						const suffix = getMapValue(unit, 'suffix')
-
-						return {mode: 'unit', prefix, suffix, inverseFn}
+					if (inverseFn && unit) {
+						return {mode: 'unit', unit, inverseFn}
 					}
 				}
 			}

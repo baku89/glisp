@@ -19,7 +19,7 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import InputComponents from '@/components/inputs'
-import {isList, MalNodeSeq, MalSymbol, M_EVAL, MalVal} from '@/mal/types'
+import {MalNodeSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal-utils'
 
 export default defineComponent({
@@ -39,12 +39,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const evaluated = computed(() => {
-			if (typeof props.value === 'number') {
-				return props.value as number
-			} else if (isList(props.value) && M_EVAL in props.value) {
-				return props.value[M_EVAL] as number
-			}
-			return 0
+			return getEvaluated(props.value) as number
 		})
 
 		const onInput = (_value: MalVal) => {

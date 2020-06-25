@@ -23,7 +23,7 @@
   {:doc "Represents an angle in degrees"
    :params [{:type "number"}]
    :returns {:type "number"}
-   :unit {:suffix "°"}
+   :unit "°"
    :inverse (fn [ret] [(to-deg ret)])}
   [degrees] (/ (* degrees PI) 180))
 
@@ -37,7 +37,7 @@
   {:doc "Represents an angle in a number of turns"
    :params [{:type "number"}]
    :returns {:type "number"}
-   :unit {:suffix "turn"}
+   :unit "turn"
    :inverse (fn [ret] [(to-turn ret)])}
   [turn] (* turn TWO_PI))
 

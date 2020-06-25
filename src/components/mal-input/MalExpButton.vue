@@ -11,7 +11,7 @@ import printExp from '@/mal/printer'
 
 interface Props {
 	value: MalVal
-	type: boolean
+	compact: boolean
 }
 
 export default defineComponent({
@@ -27,7 +27,11 @@ export default defineComponent({
 	setup(props: Props, context) {
 		const str = computed(() => {
 			if (isList(props.value) && M_FN in props.value) {
-				return `ƒ(${printExp(props.value[0])})`
+				if (props.compact) {
+					return `=`
+				} else {
+					return `ƒ(${printExp(props.value[0])})`
+				}
 			} else {
 				return printExp(props.value)
 			}
@@ -58,6 +62,18 @@ export default defineComponent({
 	line-height $input-height
 	font-monospace()
 	cursor pointer
+
+	&.compact
+		width 1.1rem
+		height 1.1rem
+		text-align center
+		font-size .9em
+		line-height .7em
+		padding .2em
+		border-radius 2px
+		border 1px solid var(--border)
+		//color var(--background)
+
 
 	&:hover
 		color var(--hover)

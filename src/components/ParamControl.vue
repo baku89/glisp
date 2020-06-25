@@ -438,7 +438,7 @@ export default defineComponent({
 			if (inputType !== descType) {
 				if (descType === 'any') {
 					return inputType
-				} else if (/^number|angle$/.test(descType)) {
+				} else if (/^number|angle|vec2$/.test(descType)) {
 					return descType
 				} else if (descType === 'color' && inputType === 'string') {
 					return 'color'

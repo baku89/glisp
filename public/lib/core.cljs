@@ -424,7 +424,7 @@
   {:doc "Map the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
    :returns {:type "number"}
-   :unit {:suffix "%"}
+   :unit "%"
    :inverse (fn [ret] [(* ret 100)])}
   [value] (/ value 100))
 

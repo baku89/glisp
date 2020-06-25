@@ -4,12 +4,16 @@
 		<MalInputNumber
 			class="MalInputVec2__el"
 			:value="value[0]"
+			:compact="true"
 			@input="onInput(0, $event)"
+			@select="$emit('select', $event)"
 		/>
 		<MalInputNumber
 			class="MalInputVec2__el"
 			:value="value[1]"
+			:compact="true"
 			@input="onInput(1, $event)"
+			@select="$emit('select', $event)"
 		/>]
 		<button
 			class="MalInputVec2__drag"
@@ -21,9 +25,10 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
-import {markMalVector} from '@/mal/types'
+import {markMalVector, getEvaluated} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import {useDraggable} from '@/components/use'
+import {reverseEval} from '../../mal-utils'
 
 export default defineComponent({
 	name: 'MalInputVec2',
@@ -48,10 +53,16 @@ export default defineComponent({
 			onDrag({isDragging, deltaX, deltaY}) {
 				if (!isDragging) return
 
-				const newValue = markMalVector([...props.value]) as number[]
+				const newValue = markMalVector([
+					...(getEvaluated(props.value) as number[])
+				]) as number[]
+
 				newValue[0] += deltaX
 				newValue[1] += deltaY
-				context.emit('input', newValue)
+
+				const newExp = reverseEval(newValue, props.value)
+
+				context.emit('input', newExp)
 			}
 		})
 
@@ -72,7 +83,7 @@ export default defineComponent({
 	line-height $input-height
 
 	&__el
-		margin-right 0.5em
+		margin-right 1em
 
 		&:last-child
 			margin-right 0
