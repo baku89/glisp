@@ -1,12 +1,11 @@
 <template>
 	<div class="MalInputNumber">
-		<template v-if="display.mode === 'exp' && compact">
-			<MalExpButton
-				:value="value"
-				:compact="true"
-				@click="$emit('select', $event)"
-			/>
-		</template>
+		<MalExpButton
+			v-if="display.mode === 'exp' && compact"
+			:value="value"
+			:compact="true"
+			@click="$emit('select', $event)"
+		/>
 		<InputNumber
 			:class="{exp: display.mode === 'exp'}"
 			:value="displayValue"
@@ -19,14 +18,13 @@
 			v-if="display.mode === 'unit'"
 			>{{ display.unit }}</span
 		>
-		<template v-if="display.mode === 'exp' && !compact">
-			<span class="mono"> : </span>
-			<MalExpButton
-				:value="value"
-				:compact="false"
-				@click="$emit('select', $event)"
-			/>
-		</template>
+		<MalExpButton
+			class="MalInputNumber__exp-after"
+			v-if="display.mode === 'exp' && !compact"
+			:value="value"
+			:compact="false"
+			@click="$emit('select', $event)"
+		/>
 	</div>
 </template>
 
@@ -153,10 +151,7 @@ export default defineComponent({
 	align-items center
 	line-height $input-height
 
-	.mono
-		font-monospace()
-
-	.unit
+	&__unit
 		padding-left 0.3em
 		width 1rem
 		color var(--comment)
@@ -166,4 +161,7 @@ export default defineComponent({
 			letter-spacing 0
 			font-size 0.75em
 			line-height $input-height * 1.2
+
+	&__exp-after
+		margin-left .3rem
 </style>

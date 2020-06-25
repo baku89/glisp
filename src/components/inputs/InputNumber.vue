@@ -142,7 +142,7 @@ export default defineComponent({
 	&__input
 		input()
 		width 100%
-		color var(--orange)
+		color var(--syntax-constant)
 		text-align right
 
 		/* Chrome, Safari, Edge, Opera */
@@ -155,5 +155,5 @@ export default defineComponent({
 			-moz-appearance textfield
 
 	&.exp &__input
-		color var(--red)
+		color var(--syntax-keyword)
 </style>
