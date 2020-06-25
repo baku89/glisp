@@ -47,7 +47,7 @@
    :params [{:label "x" :type "number"}
             {:label "Min" :type "number"}
             {:label "max" :type "number"}]
-   :inverse (fn [ret [x _min _max]] [ret _min _max])
+   :inverse (fn [ret [x _min _max]] [(clamp ret _min _max) _min _max])
    :returns {:type "number"}}
   [x _min _max]
   (min (max _min x) _max))
