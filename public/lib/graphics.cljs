@@ -221,7 +221,7 @@
          ~`(style ~_attr-style ~@xs)
 
          :else
-         (vec ~xs)))))
+         `[:g :_ ~@xs]))))
 
 (defn style
   {:doc "Applies a style to elements"

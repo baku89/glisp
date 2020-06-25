@@ -323,8 +323,6 @@ export function createMalFunc(
 	return Object.assign(fn, attrs)
 }
 
-const KEYWORD_PREFIX = '\u029e'
-
 export const isMalFunc = (obj: MalVal): obj is MalFunc =>
 	obj instanceof Function && (obj as MalFunc)[M_AST] ? true : false
 
@@ -381,6 +379,9 @@ export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 export const symbolFor = MalSymbol.get
 
 // Keyword
+
+const KEYWORD_PREFIX = '\u029e'
+
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
 export const isKeyword = (obj: MalVal): obj is string =>
 	getType(obj) === MalType.Keyword
