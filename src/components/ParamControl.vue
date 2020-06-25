@@ -12,21 +12,21 @@
 					<MalInputNumber
 						v-if="params[i].type === 'number'"
 						:value="params[i].value"
-						:validator="desc['validator']"
+						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect(params[i].value)"
 					/>
 					<InputString
 						v-else-if="params[i].type === 'string'"
 						:value="params[i].value"
-						:validator="desc['validator']"
+						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
 					/>
 					<InputDropdown
 						v-else-if="params[i].type === 'dropdown'"
 						:value="params[i].value"
 						:values="desc['ʞenum']"
-						:validator="desc['validator']"
+						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
 					/>
 					<InputColor
@@ -60,13 +60,14 @@
 						@input="onParamInput(i, $event)"
 					/>
 					<InputString
-						style="color: var(--purple)"
+						style="color: var(--syntax-symbol)"
 						v-else-if="params[i].type === 'symbol'"
 						:value="params[i].value.value"
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
 					/>
 					<InputString
+						style="color: var(--syntax-keyword)"
 						v-else-if="params[i].type === 'keyword'"
 						:value="params[i].value.slice(1)"
 						:validator="keywordValidator"
@@ -292,7 +293,8 @@ export default defineComponent({
 						paramDescs = matchParameter(fnParams.value, metaDescs[0], true)
 					}
 				} else {
-					paramDescs = matchParameter(fnParams.value, metaDescs)
+					// Usually try to match parameter
+					paramDescs = matchParameter(fnParams.value, metaDescs, true)
 				}
 			} else if (fnMetaParams) {
 				// else use parameter info of MalFunc
