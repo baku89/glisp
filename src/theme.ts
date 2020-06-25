@@ -140,6 +140,16 @@ export function computeTheme(background: string): Theme {
 	purple = purple.css()
 	orange = orange.css()
 
+	// Compute highlighting color
+	let highlight: string, hover: string
+	if (chroma.contrast(colors['--blue'], bg) < 2.5) {
+		highlight = colors['--yellow']
+		hover = colors['--yellow']
+	} else {
+		highlight = colors['--blue']
+		hover = colors['--aqua']
+	}
+
 	// Set translucent
 	const translucent = bg.alpha(0.8).css()
 
@@ -158,8 +168,8 @@ export function computeTheme(background: string): Theme {
 			'--border': border,
 			'--guide': guide,
 			'--translucent': translucent,
-			'--highlight': colors['--blue'],
-			'--hover': colors['--aqua'],
+			'--highlight': highlight,
+			'--hover': hover,
 			'--warning': colors['--red'],
 			'--active-range': activeRange,
 
