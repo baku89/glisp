@@ -32,7 +32,9 @@ import {
 	markMalVector,
 	MalSymbol,
 	MalBind,
-	isSeq
+	isSeq,
+	M_ENV,
+	M_AST
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -552,17 +554,29 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			// 	break
 			// }
 			default: {
-				// Apply Function
-				const [fn, ...args] = evalAtom(exp, env, cache) as MalVal[]
+				// is a function call
+
+				// Evaluate all of parameters at first
+				const [fn, ...params] = evalAtom(exp, env, cache) as MalVal[]
 
 				if (fn instanceof Function) {
-					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = args
-					const ret = fn(...args)
-					if (cache) {
-						;(exp as MalNode)[M_EVAL] = ret
-						;(exp as MalNodeSeq)[M_FN] = fn
+					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
+
+					if (isMalFunc(fn)) {
+						if (cache) {
+							;(exp as MalNodeSeq)[M_FN] = fn
+						}
+						env = new Env(fn[M_ENV], fn[M_PARAMS], params)
+						exp = fn[M_AST]
+						break // continue TCO loop
+					} else {
+						const ret = fn(...params)
+						if (cache) {
+							;(exp as MalNodeSeq)[M_EVAL] = ret
+							;(exp as MalNodeSeq)[M_FN] = fn
+						}
+						return ret
 					}
-					return ret
 				} else {
 					let typename = ''
 
