@@ -306,8 +306,11 @@ export default defineComponent({
 		onMounted(() => {
 			if (!elHandles.value) return
 
-			const {top, right, bottom, left} = (elHandles.value
+			const {top, bottom} = (elHandles.value
 				.$el as SVGElement).getBoundingClientRect()
+
+			const left = 0
+			const right = window.innerWidth * (1 - ui.controlPaneSize / 100)
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
