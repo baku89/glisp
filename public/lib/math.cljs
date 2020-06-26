@@ -266,6 +266,10 @@
 (defn vec2/lerp
   {:doc "Performs a linear interpolation between two vec2's"
    :params [{:type "vec2"} {:type "vec2"} {:type "number"}]
+   :inverse (fn [ret [a b]]
+              [a b
+               (/ (vec2/dot (vec2/- b ret) (vec2/normalize (vec2/- b a)))
+                  (vec2/dist a b))])
    :returns {:type "vec2"}
    :handles {:draw (fn [{:params [a b t] :return p}]
                      [{:type "path" :class "dashed"
