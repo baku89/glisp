@@ -104,6 +104,7 @@ import {
 	SetupContext,
 	Ref
 } from '@vue/composition-api'
+import hotkeys from 'hotkeys-js'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -189,35 +190,42 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 		}
 
 		if (options.onMoveGrab) {
-			// Middle-button translation
-			el.value.addEventListener('mousedown', (e: MouseEvent) => {
-				let prevX: number, prevY: number
+			let prevX: number, prevY: number
 
-				if (e.button === 1) {
+			const onMiddleButtonDrag = (_e: MouseEvent) => {
+				const e = {
+					deltaX: _e.pageX - prevX,
+					deltaY: _e.pageY - prevY
+				} as MouseWheelEvent
+
+				prevX = _e.pageX
+				prevY = _e.pageY
+				;(options.onMoveGrab as any)(e)
+			}
+
+			const onMiddleButtonDragEnd = () => {
+				el.value?.removeEventListener('mousemove', onMiddleButtonDrag)
+
+				document.documentElement.style.cursor = 'default'
+			}
+
+			hotkeys('space', {keydown: true, keyup: true}, e => {
+				if (e.type === 'keydown') {
+					document.documentElement.style.cursor = 'grab'
+				} else if (e.type === 'keyup') {
+					document.documentElement.style.cursor = 'default'
+				}
+			})
+
+			// Middle-button/space translation
+			el.value.addEventListener('mousedown', (e: MouseEvent) => {
+				if (e.button === 1 || hotkeys.isPressed('space')) {
 					prevX = e.pageX
 					prevY = e.pageY
 
 					el.value?.addEventListener('mousemove', onMiddleButtonDrag)
 					el.value?.addEventListener('mouseup', onMiddleButtonDragEnd)
-
 					document.documentElement.style.cursor = 'grab'
-				}
-
-				function onMiddleButtonDrag(_e: MouseEvent) {
-					const e = {
-						deltaX: _e.pageX - prevX,
-						deltaY: _e.pageY - prevY
-					} as MouseWheelEvent
-
-					prevX = _e.pageX
-					prevY = _e.pageY
-					;(options.onMoveGrab as any)(e)
-				}
-
-				function onMiddleButtonDragEnd() {
-					el.value?.removeEventListener('mousemove', onMiddleButtonDrag)
-
-					document.documentElement.style.cursor = 'default'
 				}
 			})
 		}
