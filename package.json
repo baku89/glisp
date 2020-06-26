@@ -90,6 +90,7 @@
 		"vue-resize": "^0.5.0",
 		"vue-template-compiler": "^2.6.11",
 		"webpack-cli": "^3.3.11",
-		"worker-plugin": "^4.0.3"
+		"worker-plugin": "^4.0.3",
+		"yargs": "^15.3.1"
 	}
 }
