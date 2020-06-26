@@ -17,10 +17,6 @@ import {
 } from '@vue/composition-api'
 import ace from 'brace'
 
-require('brace/theme/tomorrow')
-require('brace/theme/tomorrow_night')
-require('brace/mode/clojure')
-
 import {
 	getEditorSelection,
 	convertToAceRange,
@@ -216,4 +212,10 @@ export default defineComponent({
 
 	.ace_string
 		color var(--syntax-string) !important
+
+	.ace_cursor
+		color var(--foreground) !important
+
+	.ace_bracket
+		border 1px solid var(--highlight) !important
 </style>
