@@ -39,7 +39,7 @@
 
 ;; パスの変形
 (def A (circle [0 0] 40))
-(def B (rect [ 20 20] [40 40]))
+(def B (rect [ 20 20 40 40]))
 
 (path/merge A B)
 (path/unite A B)
