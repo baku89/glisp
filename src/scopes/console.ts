@@ -173,6 +173,8 @@ ConsoleScope.def('publish-gist', (...args: MalVal[]) => {
 		}
 	}
 
+	localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
+
 	const filename = generateFilename(name as string)
 
 	async function publishToGist() {
@@ -196,8 +198,6 @@ ConsoleScope.def('publish-gist', (...args: MalVal[]) => {
 
 			const codeURL = data.files[filename].raw_url
 			generateCodeURL(codeURL)
-
-			localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
 		} else {
 			printer.error('Invalid username or token')
 		}

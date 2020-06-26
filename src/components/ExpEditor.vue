@@ -58,7 +58,9 @@ export default defineComponent({
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			if (props.exp) {
-				return printExp(props.exp.value as MalVal).slice(OFFSET, -5)
+				const code = printExp(props.exp.value as MalVal).slice(OFFSET, -5)
+				ConsoleScope.def('*sketch*', code)
+				return code
 			} else {
 				return ''
 			}
