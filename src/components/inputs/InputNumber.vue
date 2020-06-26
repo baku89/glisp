@@ -52,7 +52,7 @@ export default defineComponent({
 				}
 			},
 			onDrag({deltaX}) {
-				let inc = deltaX
+				let inc = deltaX / 5
 
 				if (shift.value) {
 					inc *= 10
