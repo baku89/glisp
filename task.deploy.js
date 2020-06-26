@@ -19,7 +19,7 @@ async function upload() {
 		await deploy({deleteRemote: false})
 	}
 
-	if (argv.doc) {
+	if (argv.docs) {
 		await deploy({
 			deleteRemote: true,
 			localSubdir: 'docs',
