@@ -35,7 +35,9 @@ function generateCodeURL(codeURL: string) {
 
 	copyToClipboard(canvasURL)
 
-	return `Canvas URL: ${canvasURL}`
+	printer.log(`Canvas URL: ${canvasURL}`)
+
+	return null
 }
 
 function createHashMap(arr: MalVal[]) {
@@ -221,7 +223,9 @@ ConsoleScope.def('gen-embed-url', () => {
 
 	copyToClipboard(urlString)
 
-	return `Embed URL: ${urlString}`
+	printer.log(`Embed URL: ${urlString}`)
+
+	return null
 })
 
 export default ConsoleScope
