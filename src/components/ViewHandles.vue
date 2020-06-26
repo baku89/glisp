@@ -30,11 +30,7 @@
 			<path class="ViewHandles__viewport-axis stroke" d="M -5000 0 H 5000" />
 			<path class="ViewHandles__viewport-axis stroke" d="M 0 -5000 V 5000" />
 		</g>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -66,19 +62,9 @@
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path
-						class="stroke display"
-						:transform="yTransform"
-						d="M 0 12 V -12"
-					/>
+					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 				</template>
-				<circle
-					class="fill display"
-					:class="cls"
-					cx="0"
-					cy="0"
-					:r="rem * 0.5"
-				/>
+				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 			</template>
 		</g>
 	</svg>
@@ -166,6 +152,7 @@ interface Props {
 
 interface UseGestureOptions {
 	onScroll?: (e: MouseWheelEvent) => any
+	onMoveGrab?: (e: MouseWheelEvent) => any
 	onZoom?: (e: MouseWheelEvent) => any
 }
 
@@ -176,6 +163,7 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 		if (!el.value) return
 
 		if (options.onScroll || options.onZoom) {
+			// Wheel scrolling
 			el.value.addEventListener('wheel', (e: MouseWheelEvent) => {
 				if (e.altKey || e.ctrlKey) {
 					if (options.onZoom) {
@@ -196,6 +184,40 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 						e.stopPropagation()
 						options.onScroll(e)
 					}
+				}
+			})
+		}
+
+		if (options.onMoveGrab) {
+			// Middle-button translation
+			el.value.addEventListener('mousedown', (e: MouseEvent) => {
+				let prevX: number, prevY: number
+
+				if (e.button === 1) {
+					prevX = e.pageX
+					prevY = e.pageY
+
+					el.value?.addEventListener('mousemove', onMiddleButtonDrag)
+					el.value?.addEventListener('mouseup', onMiddleButtonDragEnd)
+
+					document.documentElement.style.cursor = 'grab'
+				}
+
+				function onMiddleButtonDrag(_e: MouseEvent) {
+					const e = {
+						deltaX: _e.pageX - prevX,
+						deltaY: _e.pageY - prevY
+					} as MouseWheelEvent
+
+					prevX = _e.pageX
+					prevY = _e.pageY
+					;(options.onMoveGrab as any)(e)
+				}
+
+				function onMiddleButtonDragEnd() {
+					el.value?.removeEventListener('mousemove', onMiddleButtonDrag)
+
+					document.documentElement.style.cursor = 'default'
 				}
 			})
 		}
@@ -512,6 +534,15 @@ export default defineComponent({
 				// Translate
 				xform[4] -= deltaX / 2
 				xform[5] -= deltaY / 2
+
+				context.emit('update:view-transform', xform)
+			},
+			onMoveGrab({deltaX, deltaY}) {
+				const xform = mat2d.clone(props.viewTransform as mat2d)
+
+				// Translate
+				xform[4] += deltaX
+				xform[5] += deltaY
 
 				context.emit('update:view-transform', xform)
 			}
