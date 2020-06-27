@@ -8,7 +8,11 @@
 			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
-		<InputRotery class="MalInputAngle__rotery" :value="evaluated" @input="onInput" />
+		<InputRotery
+			class="MalInputAngle__rotery"
+			:value="evaluated"
+			@input="onInput"
+		/>
 	</div>
 </template>
 
@@ -56,7 +60,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 @import '../style/common.styl'
 
 .MalInputAngle

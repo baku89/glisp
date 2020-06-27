@@ -3,7 +3,9 @@
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
-		>{{ sign }}</div>
+		>
+			{{ sign }}
+		</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
@@ -69,7 +71,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 @import '../style/common.styl'
 
 .MalExpButton

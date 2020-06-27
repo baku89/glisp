@@ -37,7 +37,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 .InputSeed
 	display flex
 	align-items center

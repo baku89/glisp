@@ -573,7 +573,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 .ParamControl
 	position relative
 	width 100%

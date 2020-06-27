@@ -16,7 +16,8 @@
 			class="unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-		>{{ display.unit }}</span>
+			>{{ display.unit }}</span
+		>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
@@ -140,7 +141,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 @import '../style/common.styl'
 
 .MalInputNumber

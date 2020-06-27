@@ -120,7 +120,7 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 @import '../style/common.styl'
 
 .InputNumber
