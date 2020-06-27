@@ -18,8 +18,8 @@ protocol.registerSchemesAsPrivileged([
 function createWindow() {
 	// Create the browser window.
 	let options = {
-		width: 800,
-		height: 600,
+		width: 1280,
+		height: 720,
 		frame: false,
 		backgroundColor: '#FFF',
 		webPreferences: {
@@ -27,7 +27,9 @@ function createWindow() {
 			// See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
 			// nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION
 			nodeIntegration: true,
-			enableRemoteModule: true
+			nodeIntegrationInWorker: true,
+			enableRemoteModule: true,
+			spellcheck: false
 		}
 	} as Electron.BrowserWindowConstructorOptions
 
