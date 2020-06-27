@@ -119,6 +119,7 @@ import {
 	Ref
 } from '@vue/composition-api'
 import hotkeys from 'hotkeys-js'
+import isElectron from 'is-electron'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -167,8 +168,9 @@ interface Props {
 
 interface UseGestureOptions {
 	onScroll?: (e: MouseWheelEvent) => any
-	onMoveGrab?: (e: MouseWheelEvent) => any
+	onGrab?: (e: MouseWheelEvent) => any
 	onZoom?: (e: MouseWheelEvent) => any
+	onRotate?: (e: {rotation: number; pageX: number; pageY: number}) => any
 }
 
 function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
@@ -203,10 +205,11 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 			})
 		}
 
-		if (options.onMoveGrab) {
+		if (options.onGrab) {
+			const onGrab = options.onGrab
 			let prevX: number, prevY: number
 
-			const onMiddleButtonDrag = (_e: MouseEvent) => {
+			const onGrabMove = (_e: MouseEvent) => {
 				const e = {
 					deltaX: _e.pageX - prevX,
 					deltaY: _e.pageY - prevY
@@ -214,15 +217,27 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 
 				prevX = _e.pageX
 				prevY = _e.pageY
-				;(options.onMoveGrab as any)(e)
+				onGrab(e)
 			}
 
-			const onMiddleButtonDragEnd = () => {
-				el.value?.removeEventListener('mousemove', onMiddleButtonDrag)
-
+			const onGrabEnd = () => {
+				el.value?.removeEventListener('mousemove', onGrabMove)
 				document.documentElement.style.cursor = 'default'
 			}
 
+			// Middle-button/space translation
+			el.value.addEventListener('mousedown', (e: MouseEvent) => {
+				if (e.button === 1 || hotkeys.isPressed('space')) {
+					prevX = e.pageX
+					prevY = e.pageY
+
+					el.value?.addEventListener('mousemove', onGrabMove)
+					el.value?.addEventListener('mouseup', onGrabEnd)
+					document.documentElement.style.cursor = 'grab'
+				}
+			})
+
+			// Toggle cursor on pressing space
 			hotkeys('space', {keydown: true, keyup: true}, e => {
 				e.preventDefault()
 				e.stopPropagation()
@@ -234,17 +249,23 @@ function useGesture(el: Ref<HTMLElement | null>, options: UseGestureOptions) {
 				}
 			})
 
-			// Middle-button/space translation
-			el.value.addEventListener('mousedown', (e: MouseEvent) => {
-				if (e.button === 1 || hotkeys.isPressed('space')) {
-					prevX = e.pageX
-					prevY = e.pageY
+			// Rotation (only enabled in macos electron)
+			if (options.onRotate && isElectron()) {
+				const onRotate = options.onRotate
+				const ipc = eval("require('electron').ipcRenderer")
+				let pageX = 0,
+					pageY = 0
 
-					el.value?.addEventListener('mousemove', onMiddleButtonDrag)
-					el.value?.addEventListener('mouseup', onMiddleButtonDragEnd)
-					document.documentElement.style.cursor = 'grab'
-				}
-			})
+				window.addEventListener('mousemove', e => {
+					pageX = e.pageX
+					pageY = e.pageY
+				})
+
+				ipc.on('rotate-gesture', (e: any, rotation: number) => {
+					// const {x, y} = GetCursorPosition()
+					onRotate({rotation, pageX, pageY})
+				})
+			}
 		}
 	})
 }
@@ -358,9 +379,7 @@ export default defineComponent({
 					if (type === 'arrow') {
 						const angle = h[K_ANGLE] || 0
 						mat2d.rotate(xform, xform, angle)
-					}
-
-					if (type === 'dia') {
+					} else if (type === 'dia') {
 						xform[0] = 1
 						xform[1] = 0
 						xform[2] = 0
@@ -528,16 +547,16 @@ export default defineComponent({
 
 		// Gestures for view transform
 		useGesture(el, {
-			onZoom(e: MouseWheelEvent) {
+			onZoom({pageX, pageY, deltaY}: MouseWheelEvent) {
 				if (!el.value) return
 
 				const xform = mat2d.clone(props.viewTransform as mat2d)
 
 				// Scale
-				const deltaScale = 1 + -e.deltaY * 0.01
+				const deltaScale = 1 + -deltaY * 0.01
 
 				const {left, top} = el.value.getBoundingClientRect()
-				const pivot = vec2.fromValues(e.pageX - left, e.pageY - top)
+				const pivot = vec2.fromValues(pageX - left, pageY - top)
 
 				const xformInv = mat2d.invert(mat2d.create(), xform)
 				vec2.transformMat2d(pivot, pivot, xformInv)
@@ -550,10 +569,7 @@ export default defineComponent({
 
 				context.emit('update:view-transform', xform)
 			},
-			onScroll(e: MouseWheelEvent) {
-				if (!el.value) return
-				const {deltaX, deltaY} = e
-
+			onScroll({deltaX, deltaY}: MouseWheelEvent) {
 				const xform = mat2d.clone(props.viewTransform as mat2d)
 
 				// Translate
@@ -562,12 +578,36 @@ export default defineComponent({
 
 				context.emit('update:view-transform', xform)
 			},
-			onMoveGrab({deltaX, deltaY}) {
+			onGrab({deltaX, deltaY, pageX, pageY}) {
+				if (!el.value) return
 				const xform = mat2d.clone(props.viewTransform as mat2d)
 
-				// Translate
+				const {left, top} = el.value.getBoundingClientRect()
+				const pivot = vec2.fromValues(pageX - left, pageY - top)
+
+				// Translate (pixel by pixel)
 				xform[4] += deltaX
 				xform[5] += deltaY
+
+				context.emit('update:view-transform', xform)
+			},
+			onRotate({rotation, pageX, pageY}) {
+				if (!el.value) return
+
+				const {left, top} = el.value.getBoundingClientRect()
+				const pivot = vec2.fromValues(pageX - left, pageY - top)
+
+				const xform = mat2d.clone(props.viewTransform)
+
+				vec2.transformMat2d(pivot, pivot, mat2d.invert(mat2d.create(), xform))
+
+				// Rotate
+				const rad = (rotation * Math.PI) / 180
+				const rot = mat2d.fromRotation(mat2d.create(), -rad)
+
+				mat2d.translate(xform, xform, pivot)
+				mat2d.mul(xform, xform, rot)
+				mat2d.translate(xform, xform, vec2.negate(vec2.create(), pivot))
 
 				context.emit('update:view-transform', xform)
 			}
