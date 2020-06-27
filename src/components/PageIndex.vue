@@ -337,6 +337,7 @@ export default defineComponent({
 			}
 		)
 
+		// Events
 		function onSelectExp(exp: NonReactive<MalNode>) {
 			data.selectedExp = exp
 		}
