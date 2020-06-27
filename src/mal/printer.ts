@@ -73,7 +73,8 @@ export default function printExp(
 			ret = ''
 
 			for (let i = 0; i < count; i++) {
-				ret += delimiters[i * 2] + printExp(keys[i]) + delimiters[i * 2 + 1]
+				ret +=
+					delimiters[i * 2] + printExp(keys[i], _r, _c) + delimiters[i * 2 + 1]
 
 				if (!elmStrs[i]) {
 					elmStrs[i] = printExp(exp[keys[i]], _r, _c)
@@ -95,12 +96,14 @@ export default function printExp(
 			case MalType.Vector: {
 				elmStrs = (exp as MalVal[]).map(e => printExp(e, _r, _c))
 
+				// Retrieve delimiters
 				let delimiters: string[]
 				if (M_DELIMITERS in (exp as MalNode)) {
 					delimiters = (exp as MalNode)[M_DELIMITERS]
 				} else {
 					const spaceCount = Math.max(0, elmStrs.length - 1)
 					delimiters = ['', ...Array(spaceCount).fill(' '), '']
+					// Cache delimiters
 					;(exp as MalNode)[M_DELIMITERS] = delimiters
 				}
 
