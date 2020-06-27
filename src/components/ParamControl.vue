@@ -12,6 +12,7 @@
 					<MalInputNumber
 						v-if="params[i].type === 'number'"
 						:value="params[i].value"
+						:compact="true"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect(params[i].value)"
@@ -83,34 +84,18 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect(params[i].value)"
 					/>
-					<MalExpButton
-						v-else
-						@click="onSelect(params[i].value)"
-						:value="params[i].value"
-					/>
+					<MalExpButton v-else @click="onSelect(params[i].value)" :value="params[i].value" />
 				</div>
-				<button
-					class="delete"
-					v-if="i >= variadicPos"
-					@click="onParamDelete(i)"
-				>
+				<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 					<i class="far fa-times-circle" />
 				</button>
-				<button
-					class="insert"
-					v-if="i >= variadicPos"
-					@click="onParamInsert(i)"
-				>
-					&lt;-- Insert
-				</button>
+				<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 			<td class="label"></td>
 			<td class="value">
-				<button class="add" @click="onParamInsert(params.length)">
-					+ Add
-				</button>
+				<button class="add" @click="onParamInsert(params.length)">+ Add</button>
 			</td>
 		</tr>
 	</table>
