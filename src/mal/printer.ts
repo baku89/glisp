@@ -15,7 +15,10 @@ import {
 	MalFunc,
 	MalNode,
 	MalSymbol,
-	MalType
+	MalType,
+	symbolFor,
+	MalNodeSeq,
+	isSeq
 } from './types'
 
 export const printer = {
@@ -94,6 +97,23 @@ export default function printExp(
 		switch (_type) {
 			case MalType.List:
 			case MalType.Vector: {
+				// Syntax sugar
+				/*
+				if (_type === MalType.List && (exp as MalVal[]).length === 2) {
+					let isSugar = false
+					switch ((exp as MalVal[])[0]) {
+						case symbolFor('quote'):
+							ret = "'" + printExp((exp as MalVal[])[1], _r, _c)
+							isSugar = true
+							break
+					}
+
+					if (isSugar) {
+						break
+					}
+				}
+				*/
+
 				elmStrs = (exp as MalVal[]).map(e => printExp(e, _r, _c))
 
 				// Retrieve delimiters
