@@ -113,7 +113,7 @@ import ace from 'brace'
 		}
 
 		this.$id = 'ace/mode/glisp'
-		this.snippetFileId = 'ace/snippets/glisp'
+		// this.snippetFileId = 'ace/snippets/glisp'
 	}.call(Mode.prototype))
 
 	exports.Mode = Mode
@@ -225,23 +225,17 @@ import ace from 'brace'
 					regex: ';.*$'
 				},
 				// {
-				// 	token: 'identifier',
-				// 	regex: ''
-				// }
-				/*
-				{
-					token: 'keyword', //lists
-					regex: "[\\'\\(]"
-				},
-				{
-					token: 'keyword', //vectors
-					regex: '[\\[|\\]]'
-				},
-				{
-					token: 'keyword', //sets and maps
-					regex: '[\\{|\\}|\\#\\{|\\#\\}]'
-				},
-				*/
+				// 	token: 'keyword', //lists
+				// 	regex: "[\\'\\(]"
+				// },
+				// {
+				// 	token: 'keyword', //vectors
+				// 	regex: '[\\[|\\]]'
+				// },
+				// {
+				// 	token: 'keyword', //sets and maps
+				// 	regex: '[\\{|\\}|\\#\\{|\\#\\}]'
+				// },
 				{
 					token: 'keyword', // ampersands, metadata
 					regex: '[\\#\\^\\&]'
@@ -278,6 +272,10 @@ import ace from 'brace'
 					token: 'identifier', //parens
 					regex: '[\\(]',
 					next: 'fncall'
+				},
+				{
+					token: 'identifier', //parens end
+					regex: '[\\)]'
 				},
 				{
 					token: 'keyword.operator',
