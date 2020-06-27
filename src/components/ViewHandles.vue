@@ -120,6 +120,7 @@ import {
 } from '@vue/composition-api'
 import hotkeys from 'hotkeys-js'
 import isElectron from 'is-electron'
+import ConsoleScope from '@/scopes/console'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -611,6 +612,20 @@ export default defineComponent({
 
 				context.emit('update:view-transform', xform)
 			}
+		})
+
+		// Register app commands to ConsoleScope
+		ConsoleScope.def('reset-viewport', () => {
+			if (!el.value) return null
+
+			const {left, top, width, height} = el.value.getBoundingClientRect()
+
+			const xform = mat2d.create()
+			mat2d.fromTranslation(xform, vec2.fromValues(width / 2, height / 2))
+
+			context.emit('update:view-transform', xform)
+
+			return null
 		})
 
 		return {el, ...toRefs(state as any), onMousedown, rem}
