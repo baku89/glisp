@@ -77,7 +77,7 @@ ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
 })
 
 ConsoleScope.def(
-	'gen-code-url',
+	'generate-sketch-url',
 	withMeta(
 		(url: MalVal) => {
 			return generateCodeURL(url as string)
@@ -105,15 +105,7 @@ ConsoleScope.def('clear-console', () => {
 	return null
 })
 
-ConsoleScope.def('prompt', (msg: MalVal) => {
-	if (window) {
-		return window.prompt(msg as string)
-	} else {
-		return null
-	}
-})
-
-ConsoleScope.def('save', (...args: MalVal[]) => {
+ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 	const filename = generateFilename(args[0] as string)
 
 	const sketch = ConsoleScope.var('*sketch*') as string
@@ -140,7 +132,7 @@ ConsoleScope.def(
 	withMeta(
 		(...xs: MalVal[]) => {
 			interface Options {
-				format: 'png' | 'jpeg'
+				format: 'png' | 'jpeg' | 'webp'
 				scaling: 1
 				selector: null | string
 			}
