@@ -24,7 +24,8 @@ import {
 	M_OUTER,
 	isList,
 	M_OUTER_INDEX,
-	MalType
+	MalType,
+	isFunc
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 import {replaceExp} from './mal/eval'
@@ -95,19 +96,24 @@ export interface FnInfoType {
 	primitive: string | null
 }
 
-export function getFnInfo(exp: MalNode): FnInfoType | null {
+export function getFnInfo(exp: MalVal): FnInfoType | null {
+	let fn = null
 	if (isSeq(exp)) {
-		let fn = exp[M_FN]
-		let primitive = null
+		fn = exp[M_FN]
+	} else if (isFunc(exp)) {
+		fn = exp
+	}
 
-		// Check if primitive type
-		if (!fn) {
-			primitive = getPrimitiveType(exp[M_EVAL] || exp)
-			if (primitive) {
-				fn = ConsoleScope.var(primitive) as MalFunc
-			}
+	// Check if primitive type
+	let primitive = null
+	if (!fn && isMalNode(exp)) {
+		primitive = getPrimitiveType(exp[M_EVAL] || exp)
+		if (primitive) {
+			fn = ConsoleScope.var(primitive) as MalFunc
 		}
+	}
 
+	if (fn) {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
