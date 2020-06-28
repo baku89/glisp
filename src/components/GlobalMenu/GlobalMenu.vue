@@ -54,7 +54,7 @@ export default defineComponent({
 				'File',
 				[
 					['Download Sketch', '(download-sketch)'],
-					['Export Image', "(show-command-dialog 'export)"],
+					['Export Image', "(show-command-dialog 'export-image)"],
 					['Publish to Gist', "(show-command-dialog 'publish-gist)"],
 					['Generate Sketch URL', "(show-command-dialog 'generate-sketch-url)"]
 				]

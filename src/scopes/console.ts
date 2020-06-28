@@ -128,7 +128,7 @@ ConsoleScope.def('copy-as-svg', () => {
 })
 
 ConsoleScope.def(
-	'export',
+	'export-image',
 	withMeta(
 		(...xs: MalVal[]) => {
 			interface Options {
