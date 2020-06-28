@@ -30,7 +30,7 @@ export default defineComponent({
 	position relative
 	border 1px solid var(--border)
 	border-radius 0.3rem
-	background var(--background)
+	background var(--opaque)
 	white-space nowrap
 	user-select none
 	z-index 100
