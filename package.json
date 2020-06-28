@@ -85,6 +85,7 @@
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.1",
 		"vue-click-outside": "^1.0.7",
 		"vue-color": "^2.7.1",
+		"vue-js-modal": "^2.0.0-rc.3",
 		"vue-markdown": "^2.2.4",
 		"vue-popperjs": "^2.3.0",
 		"vue-resize": "^0.5.0",
