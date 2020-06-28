@@ -1,19 +1,19 @@
 <template>
-	<div class="CommandModal">
-		<div class="CommandModal__content">
-			<div class="CommandModal__header">
-				<div class="CommandModal__name">
+	<div class="CommandDialog">
+		<div class="CommandDialog__content">
+			<div class="CommandDialog__header">
+				<div class="CommandDialog__name">
 					{{ fnName }}
 				</div>
 				<VueMarkdown
-					class="CommandModal__doc"
+					class="CommandDialog__doc"
 					:source="fnDoc"
 					:anchorAttributes="{target: '_blank'}"
 				/>
 			</div>
 			<ParamControl :exp="editExp" :fn="fn" @input="onInput" />
 		</div>
-		<div class="CommandModal__buttons">
+		<div class="CommandDialog__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
 			<button class="button" @click="onClickExecute">Execute</button>
 		</div>
@@ -94,7 +94,7 @@ export default defineComponent({
 
 <style lang="stylus">
 
-.CommandModal
+.CommandDialog
 	position relative
 	height 100%
 	text-align left

@@ -11,15 +11,15 @@ import {
 	MalType
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import CommandModal from '@/components/CommandModal.vue'
+import CommandDialog from '@/components/CommandDialog.vue'
 import {getMapValue} from '@/mal-utils'
 import {printer} from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'
 
-export default function useCommandModal(context: SetupContext) {
+export default function useCommandDialog(context: SetupContext) {
 	const {$modal} = context.root
 
-	ConsoleScope.def('show-command-modal', (f: MalVal) => {
+	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !isSymbol(f)) {
 			throw new LispError(`${printExp(f)} is not a symbol`)
 		}
@@ -49,7 +49,7 @@ export default function useCommandModal(context: SetupContext) {
 
 		// Show Modal
 		$modal.show(
-			CommandModal,
+			CommandDialog,
 			{
 				exp,
 				fn

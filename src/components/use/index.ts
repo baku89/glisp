@@ -3,7 +3,7 @@ import {ref} from '@vue/composition-api'
 import useDraggable from './use-draggable'
 import useKeyboardState from './use-keyboard-state'
 import useResizeSensor from './use-resize-sensor'
-import useCommandModal from './use-command-modal'
+import useCommandDialog from './use-command-dialog'
 
 function useRem() {
 	const rem = ref(
@@ -17,5 +17,5 @@ export {
 	useKeyboardState,
 	useResizeSensor,
 	useRem,
-	useCommandModal
+	useCommandDialog
 }

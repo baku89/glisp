@@ -89,7 +89,7 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandModal} from './use'
+import {useRem, useCommandDialog} from './use'
 
 interface Data {
 	exp: NonReactive<MalVal> | null
@@ -376,7 +376,7 @@ export default defineComponent({
 			selectOuterExp
 		})
 
-		useCommandModal(context)
+		useCommandDialog(context)
 
 		return {
 			elHandles,
