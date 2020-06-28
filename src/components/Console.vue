@@ -42,8 +42,6 @@ export default defineComponent({
 			// eslint-disable-next-line no-undef
 			const jqconsole = ($(el.value) as any).jqconsole('', '>>>')
 
-			window.jqconsole = jqconsole
-
 			loadHistory(jqconsole)
 
 			// Change the logging target to native console to this
