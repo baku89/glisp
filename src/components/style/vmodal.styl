@@ -13,3 +13,19 @@ div.vm
 		border 1px solid var(--border)
 		background var(--opaque)
 		box-shadow 0 0 20px 20px var(--background)
+
+div.vmodal
+	&__transition
+		&-enter-active, &-leave-active
+			transition opacity 0.15s ease, transform 0.15s ease
+
+		&-enter, &-leave-to
+			opacity 0
+			transform scale(0.98)
+
+	&__overlay-transition
+		&-enter-active, &-leave-active
+			transition all 0.2s ease
+
+		&-enter, &-leave-to
+			backdrop-filter blur(0px)

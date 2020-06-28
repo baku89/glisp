@@ -56,7 +56,9 @@ export default function useCommandDialog(context: SetupContext) {
 			},
 			{
 				height: 'auto',
-				width: 400
+				width: 400,
+				transition: 'vmodal__transition',
+				overlayTransition: 'vmodal__overlay-transition'
 			}
 		)
 
