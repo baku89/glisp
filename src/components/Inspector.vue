@@ -12,7 +12,11 @@
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown class="Inspector__doc" :source="fnDoc" />
+			<VueMarkdown
+				class="Inspector__doc"
+				:source="fnDoc"
+				:anchorAttributes="{target: '_blank'}"
+			/>
 		</div>
 		<component
 			:is="inspectorName"
