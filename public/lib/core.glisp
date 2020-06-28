@@ -503,7 +503,7 @@
   (= (subs s 0 (count substr)) substr))
 
 ;; Load other cores
-(import "ui.cljs")
-(import "graphics.cljs")
-(import "math.cljs")
-(import "path.cljs")
+(import "ui.glisp")
+(import "graphics.glisp")
+(import "math.glisp")
+(import "path.glisp")

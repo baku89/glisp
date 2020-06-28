@@ -1,4 +1,4 @@
-(import "math.cljs")
+(import "math.glisp")
 
 (import-js-force "path.js")
 

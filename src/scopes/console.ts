@@ -25,7 +25,7 @@ function generateFilename(name?: string) {
 	if (!name) {
 		name = `sketch_${dateFormat('mmm-dd-yyyy_HH-MM-ss').toLowerCase()}`
 	}
-	return `${name}.cljs`
+	return `${name}.glisp`
 }
 
 function copyToClipboard(str: string) {

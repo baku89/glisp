@@ -68,17 +68,17 @@ export default defineComponent({
 			[
 				'Examples',
 				[
-					['10 PRINT CHR', '(load-file "./examples/10-print-chr.cljs")'],
-					['Hello World', '(load-file "./examples/hello-world.cljs")'],
+					['10 PRINT CHR', '(load-file "./examples/10-print-chr.glisp")'],
+					['Hello World', '(load-file "./examples/hello-world.glisp")'],
 					[
 						'Primitive Definition',
-						'(load-file "./examples/primitive-definition.cljs")'
+						'(load-file "./examples/primitive-definition.glisp")'
 					],
-					['Transformation', '(load-file "./examples/transformation.cljs")'],
-					['Replicator', '(load-file "./examples/replicator.cljs")'],
+					['Transformation', '(load-file "./examples/transformation.glisp")'],
+					['Replicator', '(load-file "./examples/replicator.glisp")'],
 					[
 						'Path Modification',
-						'(load-file "./examples/path-modification.cljs")'
+						'(load-file "./examples/path-modification.glisp")'
 					]
 				]
 			],

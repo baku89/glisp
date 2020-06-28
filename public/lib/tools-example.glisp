@@ -1,4 +1,4 @@
-(import "math.cljs")
+(import "math.glisp")
 
 (defpen pencil (state input)
   (do

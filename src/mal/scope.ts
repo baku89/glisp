@@ -84,7 +84,7 @@ export default class Scope<T> {
 													(slurp url)))))))`
 		)
 		// Load core library as default
-		this.readEval('(import-force "./lib/core.cljs")')
+		this.readEval('(import-force "./lib/core.glisp")')
 
 		if (isNode) {
 			this.def('*filename*', process.cwd())

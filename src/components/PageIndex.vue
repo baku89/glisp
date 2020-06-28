@@ -153,7 +153,7 @@ function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
 		} else {
 			code =
 				localStorage.getItem('saved_code') ||
-				require('raw-loader!@/default-canvas.cljs').default
+				require('raw-loader!@/default-canvas.glisp').default
 		}
 
 		return code
@@ -199,6 +199,7 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
+				console.log(url, code)
 				const exp = readStr(`(sketch ${code}\nnil)`, true)
 				callbacks.onUpdateExp(nonReactive(exp))
 				data.selectedExp = null
