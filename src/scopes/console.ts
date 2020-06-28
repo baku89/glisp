@@ -225,16 +225,14 @@ ConsoleScope.def(
 
 			publishToGist()
 
-			printer.log(
-				`Publishing to Gist... user=${user as string}, token=${token as string}`
-			)
+			printer.log(`Publishing to Gist... user=${user}, token=${token}`)
 
 			return null
 		},
 		{
 			[K(
 				'doc'
-			)]: 'Publishes the current sketch to Gist then generates Code URL.  \nPlease set `user` to your GitHub username and `token` to a personal access token that you can get from https://github.com/settings/tokens/new with **gist** option turned on',
+			)]: 'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can get from [Developer Settings](https://github.com/settings/tokens/new) with **gist** option turned on',
 			[K('params')]: V([
 				{
 					[K('label')]: 'Name',
