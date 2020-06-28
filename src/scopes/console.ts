@@ -37,14 +37,14 @@ function copyToClipboard(str: string) {
 	return null
 }
 
-function generateCodeURL(codeURL: string) {
+function generateSketchURL(codeURL: string) {
 	const url = new URL(location.href)
 	url.searchParams.set('code_url', codeURL)
 	const canvasURL = url.toString()
 
 	copyToClipboard(canvasURL)
 
-	printer.log(`Canvas URL: ${canvasURL}`)
+	printer.log(`Sketch URL: ${canvasURL}`)
 
 	return null
 }
@@ -80,7 +80,7 @@ ConsoleScope.def(
 	'generate-sketch-url',
 	withMeta(
 		(url: MalVal) => {
-			return generateCodeURL(url as string)
+			return generateSketchURL(url as string)
 		},
 		convertJSObjectToMalMap({
 			doc: 'Generates Code URL',
@@ -247,7 +247,7 @@ ConsoleScope.def(
 					const data = await res.json()
 
 					const codeURL = data.files[filename].raw_url
-					generateCodeURL(codeURL)
+					generateSketchURL(codeURL)
 				} else {
 					printer.error('Invalid username or token')
 				}
@@ -303,7 +303,7 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def('gen-embed-url', () => {
+ConsoleScope.def('generate-embed-url', () => {
 	const sketch = ConsoleScope.var('*sketch*') as string
 
 	const url = new URL('embed.html', globalThis.location.href)
