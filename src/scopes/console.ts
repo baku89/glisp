@@ -10,14 +10,15 @@ import {
 	isKeyword,
 	symbolFor as S,
 	keywordFor as K,
-	markMalVector as V,
-	withMeta
+	withMeta,
+	assocBang
 } from '@/mal/types'
 
 import createCanvasRender from '@/renderer/canvas-renderer'
 
 import ViewScope from './view'
 import renderToSvg from '@/renderer/render-to-svg'
+import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -81,16 +82,16 @@ ConsoleScope.def(
 		(url: MalVal) => {
 			return generateCodeURL(url as string)
 		},
-		{
-			[K('doc')]: 'Generates Code URL',
-			[K('params')]: V([
+		convertJSObjectToMalMap({
+			doc: 'Generates Code URL',
+			params: [
 				{
-					[K('label')]: 'Source',
-					[K('type')]: 'string'
+					label: 'Source',
+					type: 'string'
 				}
-			]),
-			[K('initial-params')]: ['']
-		}
+			],
+			'initial-params': ['']
+		})
 	)
 )
 
@@ -134,49 +135,88 @@ ConsoleScope.def('copy-as-svg', () => {
 	return null
 })
 
-ConsoleScope.def('export', (selector: MalVal = null) => {
-	const exec = async () => {
-		const renderer = await createCanvasRender()
+ConsoleScope.def(
+	'export',
+	withMeta(
+		(...xs: MalVal[]) => {
+			interface Options {
+				format: 'png' | 'jpeg'
+				scaling: 1
+				selector: null | string
+			}
 
-		let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
+			// Configure options
+			const options: Options = {
+				format: 'png',
+				scaling: 1,
+				selector: null,
+				...convertMalNodeToJSObject(assocBang({}, ...xs))
+			}
 
-		if (viewExp === undefined) {
-			throw new LispError('Invalid sketch')
-		}
+			console.log(xs, options)
 
-		if (viewExp) {
-			if (typeof selector === 'string') {
-				viewExp = ConsoleScope.eval([
-					S('filter-elements'),
-					selector,
-					S('*view*')
-				])
-				if (!viewExp) {
-					throw new LispError(
-						`Element ${printExp(selector, true)} does not exist`
-					)
+			const exec = async () => {
+				const renderer = await createCanvasRender()
+
+				let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
+
+				if (viewExp === undefined) {
+					throw new LispError('Invalid sketch')
+				}
+
+				if (viewExp) {
+					if (typeof options.selector === 'string') {
+						viewExp = ConsoleScope.eval([
+							S('filter-elements'),
+							options.selector,
+							S('*view*')
+						])
+						if (!viewExp) {
+							throw new LispError(
+								`Element ${printExp(options.selector, true)} does not exist`
+							)
+						}
+					}
+
+					const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
+					if (!bounds) {
+						throw new LispError('Cannot retrieve bounds')
+					}
+					const [x, y, width, height] = bounds as number[]
+
+					renderer.resize(width, height, options.scaling)
+					const viewTransform = mat2d.fromTranslation(mat2d.create(), [-x, -y])
+					await renderer.render(viewExp, {viewTransform})
+					const image = await renderer.getImage({format: options.format})
+					const w = window.open('about:blank', 'Image for canvas')
+					w?.document.write(`<img src=${image} />`)
 				}
 			}
 
-			const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
-			if (!bounds) {
-				throw new LispError('Cannot retrieve bounds')
-			}
-			const [x, y, width, height] = bounds as number[]
+			exec()
 
-			renderer.resize(width, height, 1)
-			const viewTransform = mat2d.fromTranslation(mat2d.create(), [-x, -y])
-			await renderer.render(viewExp, {viewTransform})
-			const image = await renderer.getImage()
-			const w = window.open('about:blank', 'Image for canvas')
-			w?.document.write(`<img src=${image} />`)
-		}
-	}
-
-	exec()
-
-	return null
-})
+			return null
+		},
+		convertJSObjectToMalMap({
+			doc: 'Renders and exports a sketch',
+			params: [
+				S('&'),
+				{
+					keys: [
+						{
+							key: K('format'),
+							type: 'dropdown',
+							enum: ['png', 'jpeg', 'webp']
+						},
+						{key: K('scaling'), type: 'number'},
+						{key: K('selector'), type: 'string'}
+					]
+				}
+			],
+			'initial-params': [K('format'), 'png', K('scaling'), 1, K('selector'), '']
+		})
+	)
+)
 
 ConsoleScope.def(
 	'publish-gist',
@@ -229,32 +269,31 @@ ConsoleScope.def(
 
 			return null
 		},
-		{
-			[K(
-				'doc'
-			)]: 'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
-			[K('params')]: V([
+		convertJSObjectToMalMap({
+			doc:
+				'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
+			params: [
 				{
-					[K('label')]: 'Name',
-					[K('type')]: 'string'
+					label: 'Name',
+					type: 'string'
 				},
 				S('&'),
 				{
-					[K('keys')]: V([
+					keys: [
 						{
-							[K('key')]: K('user'),
-							[K('label')]: 'User',
-							[K('type')]: 'string'
+							key: K('user'),
+							label: 'User',
+							type: 'string'
 						},
 						{
-							[K('key')]: K('token'),
-							[K('label')]: 'Token',
-							[K('type')]: 'string'
+							key: K('token'),
+							label: 'Token',
+							type: 'string'
 						}
-					])
+					]
 				}
-			]),
-			[K('initial-params')]: () => {
+			],
+			'initial-params': () => {
 				const sketchName = generateFilename()
 
 				let user = '',
@@ -270,7 +309,7 @@ ConsoleScope.def(
 
 				return [sketchName, K('user'), user, K('token'), token]
 			}
-		}
+		})
 	)
 )
 
