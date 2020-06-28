@@ -90,25 +90,6 @@ export enum MalType {
 	Undefined = 'undefined'
 }
 
-type MalTypeString =
-	// Collections
-	| 'list'
-	| 'vector'
-	| 'map'
-
-	// Atomics
-	| 'number'
-	| 'string'
-	| 'boolean'
-	| 'nil'
-	| 'symbol'
-	| 'keyword'
-	| 'atom'
-	// Functions
-	| 'fn'
-	| 'macro'
-	| 'undefined'
-
 export function getType(obj: MalVal | undefined): MalType {
 	const _typeof = typeof obj
 	switch (_typeof) {

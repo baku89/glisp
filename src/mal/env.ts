@@ -8,7 +8,8 @@ import {
 	MalBind,
 	isSeq,
 	getType,
-	MalNodeSeq
+	MalNodeSeq,
+	MalType
 } from './types'
 import {printExp} from '.'
 
@@ -73,21 +74,21 @@ export default class Env {
 
 				const bindType = getType(bind)
 				// Variable length arguments
-				if (bindType === 'symbol' && (bind as MalSymbol).value === '&') {
+				if (bindType === MalType.Symbol && (bind as MalSymbol).value === '&') {
 					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
 					break
 				}
 
 				switch (bindType) {
-					case 'symbol': {
+					case MalType.Symbol: {
 						if (exp === undefined) {
 							throw new LispError(`Error: parameter '${bind}' is not specified`)
 						}
 						this.set(bind as MalSymbol, exp)
 						break
 					}
-					case 'vector':
-					case 'list': {
+					case MalType.Vector:
+					case MalType.List: {
 						// List Destruction
 						if (!isSeq(exp)) {
 							throw new LispError(
@@ -102,7 +103,7 @@ export default class Env {
 						this.bindAll(bind as MalBind, exp as MalVal[])
 						break
 					}
-					case 'map': {
+					case MalType.Map: {
 						// Hashmap destruction
 						if (!isMap(exp)) {
 							throw new LispError(

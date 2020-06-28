@@ -147,7 +147,7 @@ export function reverseEval(
 	// const meta = getMeta(original)
 
 	switch (getType(original)) {
-		case 'list': {
+		case MalType.List: {
 			// Check if the list is wrapped within const
 			if ((original as MalNodeSeq)[0] === S('const')) {
 				return original
@@ -180,7 +180,7 @@ export function reverseEval(
 			}
 			break
 		}
-		case 'vector': {
+		case MalType.Vector: {
 			if (isVector(exp) && exp.length === (original as MalNodeSeq).length) {
 				const newExp = V(
 					exp.map((e, i) =>
@@ -191,7 +191,7 @@ export function reverseEval(
 			}
 			break
 		}
-		case 'symbol': {
+		case MalType.Symbol: {
 			const def = (original as MalSymbol).def
 			if (def && !isSymbol(exp)) {
 				// NOTE: Making side-effects on the below line
@@ -201,10 +201,10 @@ export function reverseEval(
 			}
 			break
 		}
-		case 'number':
-		case 'string':
-		case 'keyword':
-		case 'boolean':
+		case MalType.Number:
+		case MalType.String:
+		case MalType.Keyword:
+		case MalType.Boolean:
 			return exp
 	}
 
