@@ -150,7 +150,8 @@ export function computeTheme(background: string): Theme {
 		hover = colors['--aqua']
 	}
 
-	// Set translucent
+	// Set bg and translucent
+	const opaque = bg.css()
 	const translucent = bg.alpha(0.8).css()
 
 	return {
@@ -167,6 +168,7 @@ export function computeTheme(background: string): Theme {
 			'--background': background,
 			'--border': border,
 			'--guide': guide,
+			'--opaque': opaque,
 			'--translucent': translucent,
 			'--highlight': highlight,
 			'--hover': hover,

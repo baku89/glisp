@@ -141,7 +141,7 @@ $height = 3.4rem
 	height $height
 	border-bottom 1px solid var(--border)
 	user-select none
-	z-index 10
+	z-index 1
 
 	&.title-bar-macos
 		padding-left 74px
