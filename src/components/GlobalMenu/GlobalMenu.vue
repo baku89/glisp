@@ -53,8 +53,8 @@ export default defineComponent({
 			[
 				'File',
 				[
-					['Export', '(export)'],
-					['Publish to Gist', '(publish-gist)'],
+					['Export', "(show-command-dialog 'export)"],
+					['Publish to Gist', "(show-command-dialog 'publish-gist)"],
 					['Save', '(save)']
 				]
 			],
