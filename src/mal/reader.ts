@@ -19,7 +19,8 @@ import {
 	MalSelection,
 	MalNodeSelection,
 	getMalFromSelection,
-	isSeq
+	isSeq,
+	getName
 } from './types'
 import printExp from './printer'
 
@@ -500,6 +501,21 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 		return markMalVector(obj.map(v => convertJSObjectToMalMap(v)))
 	} else {
 		return obj
+	}
+}
+
+export function convertMalNodeToJSObject(exp: MalVal): any {
+	if (isMap(exp)) {
+		const ret: {[Key: string]: MalVal} = {}
+		for (const [key, value] of Object.entries(exp)) {
+			const jsKey = getName(key)
+			ret[jsKey] = convertMalNodeToJSObject(value)
+		}
+		return ret
+	} else if (isSeq(exp)) {
+		return (exp as MalVal[]).map(e => convertMalNodeToJSObject(e))
+	} else {
+		return exp
 	}
 }
 
