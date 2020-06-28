@@ -206,8 +206,8 @@ ConsoleScope.def(
 							type: 'dropdown',
 							enum: ['png', 'jpeg', 'webp']
 						},
-						{key: K('scaling'), type: 'number'},
-						{key: K('selector'), type: 'string'}
+						{key: K('scaling'), type: 'number', default: 1},
+						{key: K('selector'), type: 'string', default: ''}
 					]
 				}
 			],

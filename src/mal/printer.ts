@@ -31,6 +31,9 @@ export const printer = {
 	error: (...args: any) => {
 		console.error(...args)
 	},
+	pseudoExecute: (command: string) => {
+		console.log(command)
+	},
 	clear: console.clear
 }
 

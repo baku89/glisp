@@ -42,6 +42,8 @@ export default defineComponent({
 			// eslint-disable-next-line no-undef
 			const jqconsole = ($(el.value) as any).jqconsole('', '>>>')
 
+			window.jqconsole = jqconsole
+
 			loadHistory(jqconsole)
 
 			// Change the logging target to native console to this
@@ -58,6 +60,15 @@ export default defineComponent({
 			printer.error = (...args: Array<any>) => {
 				const str = args.join(' ')
 				jqconsole.Write(str + '\n', 'jqconsole-error')
+			}
+
+			printer.pseudoExecute = (command: string) => {
+				jqconsole.Write(`>>>${command}\n`, 'jqconsole-prompt')
+				// Add the command to history (with auto save)
+				const history = jqconsole.GetHistory()
+				history.push(command)
+				jqconsole.SetHistory(history)
+				jqsaveHistory(jqconsole)
 			}
 
 			printer.clear = () => {

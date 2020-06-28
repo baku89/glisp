@@ -48,6 +48,7 @@ import {getMapValue} from '@/mal-utils'
 import ConsoleScope from '@/scopes/console'
 import VueMarkdown from 'vue-markdown'
 import {printExp} from '@/mal'
+import {printer} from '@/mal/printer'
 
 interface Props {
 	exp: NonReactive<MalVal[]>
@@ -78,7 +79,13 @@ export default defineComponent({
 
 		function onClickExecute() {
 			context.emit('close')
-			ConsoleScope.readEval(printExp(editExp.value.value))
+			const command = printExp(editExp.value.value)
+
+			// Show the executed command in the console and add it to the history
+			printer.pseudoExecute(command)
+
+			// Execute
+			ConsoleScope.readEval(command)
 		}
 
 		return {
