@@ -163,7 +163,7 @@ ConsoleScope.def(
 				}
 
 				if (viewExp) {
-					if (typeof options.selector === 'string') {
+					if (options.selector) {
 						viewExp = ConsoleScope.eval([
 							S('filter-elements'),
 							options.selector,
