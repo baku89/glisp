@@ -84,12 +84,26 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect(params[i].value)"
 					/>
-					<MalExpButton v-else @click="onSelect(params[i].value)" :value="params[i].value" />
+					<MalExpButton
+						v-else
+						@click="onSelect(params[i].value)"
+						:value="params[i].value"
+					/>
 				</div>
-				<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+				<button
+					class="delete"
+					v-if="i >= variadicPos"
+					@click="onParamDelete(i)"
+				>
 					<i class="far fa-times-circle" />
 				</button>
-				<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+				<button
+					class="insert"
+					v-if="i >= variadicPos"
+					@click="onParamInsert(i)"
+				>
+					&lt;-- Insert
+				</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
@@ -115,7 +129,8 @@ import {
 	isMalFunc,
 	assocBang,
 	symbolFor as S,
-	cloneExp
+	cloneExp,
+	MalFunc
 } from '@/mal/types'
 import InputComponents from '@/components/inputs'
 import MalInputComponents from '@/components/mal-input'
@@ -124,6 +139,7 @@ import {nonReactive, getParamLabel, clamp, NonReactive} from '../utils'
 
 interface Props {
 	exp: NonReactive<MalNodeSeq>
+	fn: MalFunc
 }
 
 const K_PARAMS = K('params'),
@@ -177,7 +193,8 @@ type MetaDescs = (Desc | string)[]
 export default defineComponent({
 	name: 'ParamControl',
 	props: {
-		exp: {required: true}
+		exp: {required: true},
+		fn: {required: false}
 	},
 	components: {
 		...InputComponents,
@@ -185,7 +202,7 @@ export default defineComponent({
 	},
 	setup(props: Props, context) {
 		const fnInfo = computed(() => {
-			return getFnInfo(props.exp.value)
+			return getFnInfo(props.fn || props.exp.value)
 		})
 
 		// The parameter part of exp

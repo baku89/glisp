@@ -51,6 +51,7 @@
 				</div>
 			</pane>
 		</splitpanes>
+		<modals-container />
 	</div>
 </template>
 
@@ -67,7 +68,8 @@ import {
 	toRefs,
 	ref,
 	Ref,
-	onMounted
+	onMounted,
+	SetupContext
 } from '@vue/composition-api'
 
 import GlobalMenu from '@/components/GlobalMenu'
@@ -87,7 +89,7 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem} from './use'
+import {useRem, useCommandModal} from './use'
 
 interface Data {
 	exp: NonReactive<MalVal> | null
@@ -239,7 +241,7 @@ export default defineComponent({
 		Splitpanes,
 		Pane
 	},
-	setup() {
+	setup(_, context) {
 		const elHandles: Ref<any | null> = ref(null)
 
 		const rem = useRem()
@@ -373,6 +375,8 @@ export default defineComponent({
 			selectOuterExp
 		})
 
+		useCommandModal(context)
+
 		return {
 			elHandles,
 			...toRefs(data as any),
@@ -390,8 +394,10 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import 'style/global.styl'
 @import 'style/common.styl'
+
+@import 'style/global.styl'
+@import 'style/vmodal.styl'
 
 $compact-dur = 0.4s
 
