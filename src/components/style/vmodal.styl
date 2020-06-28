@@ -1,0 +1,15 @@
+// Styles to overwrite vue-modal-js
+@import './common.styl'
+
+div#modals-container
+	z-index 1000
+
+div.vm
+	&--overlay
+		background transparent
+		backdrop-filter blur(3px)
+
+	&--modal
+		border 1px solid var(--border)
+		background var(--opaque)
+		box-shadow 0 0 20px 20px var(--background)
