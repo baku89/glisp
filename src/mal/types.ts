@@ -285,6 +285,21 @@ export function getEvaluated(exp: MalVal) {
 	}
 }
 
+export function getName(exp: MalVal): string {
+	switch (getType(exp)) {
+		case MalType.String:
+			return exp as string
+		case MalType.Keyword:
+			return (exp as string).slice(1)
+		case MalType.Symbol:
+			return (exp as MalSymbol).value
+		default:
+			throw new LispError(
+				'getName() can only extract the name by string/keyword/symbol'
+			)
+	}
+}
+
 // Functions
 export function createMalFunc(
 	fn: (...args: MalVal[]) => MalVal,
@@ -363,7 +378,6 @@ export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 export const symbolFor = MalSymbol.get
 
 // Keyword
-
 const KEYWORD_PREFIX = '\u029e'
 
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
