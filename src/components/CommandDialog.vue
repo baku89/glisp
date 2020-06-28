@@ -78,7 +78,7 @@ export default defineComponent({
 
 		function onClickExecute() {
 			context.emit('close')
-			ConsoleScope.REP(printExp(editExp.value.value))
+			ConsoleScope.readEval(printExp(editExp.value.value))
 		}
 
 		return {
