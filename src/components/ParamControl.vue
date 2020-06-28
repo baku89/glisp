@@ -448,6 +448,8 @@ export default defineComponent({
 					return 'angle'
 				} else if (descType === 'seed' && inputType === 'number') {
 					return 'seed'
+				} else if (descType === 'dropdown') {
+					return 'dropdown'
 				} else if (descType) {
 					return 'exp'
 				}

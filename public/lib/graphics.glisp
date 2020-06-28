@@ -316,9 +316,9 @@
    :params [{:label "Color" :type "color"}
             {:label "Width" :default 1 :type "number" :constraints {:min 0}}
             &
-            {:keys [{:key :cap :type "string" :default "round"
+            {:keys [{:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round" "square"]}
-                    {:key :join :type "string" :default "round"
+                    {:key :join :type "dropdown" :default "round"
                      :enum ["bevel" "round" "miter"]}]}]}
   [color & args]
   (let [params (case (count args)
@@ -356,9 +356,9 @@
             &
             {:keys [{:key :size :type "number" :default 12}
                     {:key :font :type "string" :default "Fira Code"}
-                    {:key :align :type "string" :default "center"
+                    {:key :align :type "dropdown" :default "center"
                      :enum ["left" "center" "right" "start" "end"]}
-                    {:key :baseline :type "string" :default "middle"
+                    {:key :baseline :type "dropdown" :default "middle"
                      :enum ["top" "hanging" "middle"
                             "alphabetic" "ideographic" "bottom"]}]}]
    :handles {:draw (fn [{:params [_ pos & xs]}]

@@ -300,9 +300,9 @@
   {:params [{:label "Offset" :type "number"}
             {:label "Path" :type "path"}
             &
-            {:keys [{:key :join :type "string" :default "round"
+            {:keys [{:key :join :type "dropdown" :default "round"
                      :enum ["miter" "bevel" "round"]}
-                    {:key :cap :type "string" :default "round"
+                    {:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round"]}]}]
    :returns {:type "path"}
    :handles {:draw (fn [{:params [d path]
