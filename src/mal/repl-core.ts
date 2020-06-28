@@ -24,7 +24,6 @@ export const slurp = (() => {
 			if (req.status !== 200) {
 				throw new LispError(`Failed to slurp file: ${url}`)
 			}
-			console.log(url, req.responseText)
 			return req.responseText
 		}
 	}

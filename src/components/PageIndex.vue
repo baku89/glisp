@@ -199,7 +199,6 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				console.log(url, code)
 				const exp = readStr(`(sketch ${code}\nnil)`, true)
 				callbacks.onUpdateExp(nonReactive(exp))
 				data.selectedExp = null

@@ -409,7 +409,6 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 	}
 	for (let i = 0; i < args.length; i += 2) {
 		if (typeof args[i] !== 'string') {
-			console.log(args)
 			throw new LispError('Hash map can only use string/symbol/keyword as key')
 		}
 		hm[args[i]] = args[i + 1]

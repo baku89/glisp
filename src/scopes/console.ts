@@ -153,8 +153,6 @@ ConsoleScope.def(
 				...convertMalNodeToJSObject(assocBang({}, ...xs))
 			}
 
-			console.log(xs, options)
-
 			const exec = async () => {
 				const renderer = await createCanvasRender()
 
