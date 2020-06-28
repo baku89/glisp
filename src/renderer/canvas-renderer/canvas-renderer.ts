@@ -63,16 +63,18 @@ export default class CanvasRenderer {
 		return renderToContext(this.ctx, exp, defaultStyle)
 	}
 
-	public async getImage() {
+	public async getImage({format = 'png'} = {}) {
 		let blob: Blob
 
+		const imageType = `image/${format}`
+
 		if (this.canvas instanceof OffscreenCanvas) {
-			blob = await this.canvas.convertToBlob()
+			blob = await this.canvas.convertToBlob({type: imageType})
 		} else {
 			blob = await new Promise((resolve, reject) => {
 				;(this.canvas as HTMLCanvasElement).toBlob(blob => {
 					blob ? resolve(blob) : reject()
-				})
+				}, imageType)
 			})
 		}
 
