@@ -4,7 +4,15 @@ import {mat2d} from 'gl-matrix'
 
 import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
-import {MalVal, LispError, isKeyword, symbolFor as S} from '@/mal/types'
+import {
+	MalVal,
+	LispError,
+	isKeyword,
+	symbolFor as S,
+	keywordFor as K,
+	markMalVector as V,
+	withMeta
+} from '@/mal/types'
 
 import createCanvasRender from '@/renderer/canvas-renderer'
 
@@ -67,9 +75,24 @@ ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
 	return copyToClipboard(str as string)
 })
 
-ConsoleScope.def('gen-code-url', (url: MalVal) => {
-	return generateCodeURL(url as string)
-})
+ConsoleScope.def(
+	'gen-code-url',
+	withMeta(
+		(url: MalVal) => {
+			return generateCodeURL(url as string)
+		},
+		{
+			[K('doc')]: 'Generates Code URL',
+			[K('params')]: V([
+				{
+					[K('label')]: 'Source',
+					[K('type')]: 'string'
+				}
+			]),
+			[K('initial-params')]: ['']
+		}
+	)
+)
 
 ConsoleScope.def('open-link', (url: MalVal) => {
 	window.open(url as string, '_blank')
@@ -155,64 +178,103 @@ ConsoleScope.def('export', (selector: MalVal = null) => {
 	return null
 })
 
-ConsoleScope.def('publish-gist', (...args: MalVal[]) => {
-	const code = ConsoleScope.var('*sketch*') as string
+ConsoleScope.def(
+	'publish-gist',
+	withMeta(
+		(...args: MalVal[]) => {
+			const code = ConsoleScope.var('*sketch*') as string
 
-	// eslint-disable-next-line prefer-const
-	let {_: name, user, token} = createHashMap(args)
+			// eslint-disable-next-line prefer-const
+			const {_: name, user, token} = createHashMap(args)
 
-	if (typeof user !== 'string' || typeof token !== 'string') {
-		const saved = localStorage.getItem('gist_api_token')
-		if (saved !== null) {
-			;({user, token} = JSON.parse(saved) as {
-				user: string
-				token: string
-			})
-			printer.log('Using saved API key')
-		} else {
-			throw new LispError(`Parameters :user and :token must be specified.
+			if (typeof user !== 'string' || typeof token !== 'string') {
+				throw new LispError(`Parameters :user and :token must be specified.
 	Get the token from https://github.com/settings/tokens/new with 'gist' option turned on.`)
-		}
-	}
+			}
 
-	localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
+			localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
 
-	const filename = generateFilename(name as string)
+			const filename = generateFilename(name as string)
 
-	async function publishToGist() {
-		const res = await fetch('https://api.github.com/gists', {
-			method: 'POST',
-			headers: {
-				Authorization: 'Basic ' + btoa(`${user as string}:${token as string}`)
-			},
-			body: JSON.stringify({
-				public: true,
-				files: {
-					[filename]: {
-						content: code
-					}
+			async function publishToGist() {
+				const res = await fetch('https://api.github.com/gists', {
+					method: 'POST',
+					headers: {
+						Authorization:
+							'Basic ' + btoa(`${user as string}:${token as string}`)
+					},
+					body: JSON.stringify({
+						public: true,
+						files: {
+							[filename]: {
+								content: code
+							}
+						}
+					})
+				})
+
+				if (res.ok) {
+					const data = await res.json()
+
+					const codeURL = data.files[filename].raw_url
+					generateCodeURL(codeURL)
+				} else {
+					printer.error('Invalid username or token')
 				}
-			})
-		})
+			}
 
-		if (res.ok) {
-			const data = await res.json()
+			publishToGist()
 
-			const codeURL = data.files[filename].raw_url
-			generateCodeURL(codeURL)
-		} else {
-			printer.error('Invalid username or token')
+			printer.log(
+				`Publishing to Gist... user=${user as string}, token=${token as string}`
+			)
+
+			return null
+		},
+		{
+			[K(
+				'doc'
+			)]: 'Publishes the current sketch to Gist then generates Code URL.  \nPlease set `user` to your GitHub username and `token` to a personal access token that you can get from https://github.com/settings/tokens/new with **gist** option turned on',
+			[K('params')]: V([
+				{
+					[K('label')]: 'Name',
+					[K('type')]: 'string'
+				},
+				S('&'),
+				{
+					[K('keys')]: V([
+						{
+							[K('key')]: K('user'),
+							[K('label')]: 'User',
+							[K('type')]: 'string'
+						},
+						{
+							[K('key')]: K('token'),
+							[K('label')]: 'Token',
+							[K('type')]: 'string'
+						}
+					])
+				}
+			]),
+			[K('initial-params')]: () => {
+				const sketchName = generateFilename()
+
+				let user = '',
+					token = ''
+
+				const saved = localStorage.getItem('gist_api_token')
+				if (saved !== null) {
+					;({user, token} = JSON.parse(saved) as {
+						user: string
+						token: string
+					})
+				}
+
+				return [sketchName, K('user'), user, K('token'), token]
+			}
 		}
-	}
-
-	publishToGist()
-
-	printer.log(
-		`Publishing to Gist... user=${user as string}, token=${token as string}`
 	)
-
-	return null
-})
+)
 
 ConsoleScope.def('gen-embed-url', () => {
 	const sketch = ConsoleScope.var('*sketch*') as string
