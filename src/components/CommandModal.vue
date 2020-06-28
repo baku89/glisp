@@ -73,7 +73,6 @@ export default defineComponent({
 		const editExp: Ref<NonReactive<MalVal>> = ref(props.exp)
 
 		function onInput(newExp: NonReactive<MalVal>) {
-			console.log(newExp)
 			editExp.value = newExp
 		}
 
@@ -83,7 +82,7 @@ export default defineComponent({
 		}
 
 		return {
-			editExp: props.exp,
+			editExp,
 			fnName,
 			fnDoc,
 			onInput,
