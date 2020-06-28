@@ -176,7 +176,7 @@ export const isSeq = (v: MalVal): v is MalNodeSeq => {
 	return type === MalType.List || type === MalType.Vector
 }
 
-export function getMeta(obj: MalVal) {
+export function getMeta(obj: MalVal): MalVal {
 	if (obj instanceof Object) {
 		return M_META in obj ? (obj as any)[M_META] : null
 	} else {
@@ -323,7 +323,10 @@ export function createMalFunc(
 	return Object.assign(fn, attrs)
 }
 
-export const isMalFunc = (obj: MalVal): obj is MalFunc =>
+export const isFunc = (exp: MalVal | undefined): exp is MalFunc =>
+	exp instanceof Function
+
+export const isMalFunc = (obj: MalVal | undefined): obj is MalFunc =>
 	obj instanceof Function && (obj as MalFunc)[M_AST] ? true : false
 
 // String
@@ -411,6 +414,7 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 	}
 	for (let i = 0; i < args.length; i += 2) {
 		if (typeof args[i] !== 'string') {
+			console.log(args)
 			throw new LispError('Hash map can only use string/symbol/keyword as key')
 		}
 		hm[args[i]] = args[i + 1]
