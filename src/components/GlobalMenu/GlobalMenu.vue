@@ -1,8 +1,5 @@
 <template>
-	<header
-		class="GlobalMenu"
-		:class="{dark, 'title-bar-macos': titleBar === 'macos'}"
-	>
+	<header class="GlobalMenu" :class="{dark, 'title-bar-macos': titleBar === 'macos'}">
 		<h1>'(GLISP)</h1>
 		<div class="GlobalMenu__menu" v-click-outside="onClose">
 			<div
@@ -86,7 +83,7 @@ export default defineComponent({
 			[
 				'?',
 				[
-					['Documentation', '(open-link "https://baku89.com/glisp/docs/")'],
+					['Documentation', '(open-link "https://glisp.app/docs/")'],
 					['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
 					['Made by Baku Hashimoto', '(open-link "https://baku89.com")']
 				]
@@ -137,12 +134,12 @@ $height = 3.4rem
 
 .GlobalMenu
 	position relative
+	z-index 1
 	display flex
 	overflow visible
 	height $height
 	border-bottom 1px solid var(--border)
 	user-select none
-	z-index 1
 
 	&.title-bar-macos
 		padding-left 74px
