@@ -87,7 +87,6 @@ export default defineComponent({
 			let exp
 			try {
 				exp = readStr(`(sketch ${code}\nnil)`, true)
-				console.log(exp, code)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
