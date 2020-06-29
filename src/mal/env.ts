@@ -95,8 +95,7 @@ export default class Env {
 						this.set(bind as MalSymbol, exp)
 						break
 					}
-					case MalType.Vector:
-					case MalType.List: {
+					case MalType.Vector: {
 						// List Destruction
 						if (!isSeq(exp)) {
 							throw new LispError(
