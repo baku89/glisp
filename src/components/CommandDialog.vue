@@ -3,7 +3,11 @@
 		<div class="CommandDialog__content">
 			<div class="CommandDialog__header">
 				<div class="CommandDialog__name">{{ fnName }}</div>
-				<VueMarkdown class="CommandDialog__doc" :source="fnDoc" :anchorAttributes="{target: '_blank'}" />
+				<VueMarkdown
+					class="CommandDialog__doc"
+					:source="fnDoc"
+					:anchorAttributes="{target: '_blank'}"
+				/>
 			</div>
 			<ParamControl :exp="editExp" :fn="fn" @input="onInput" />
 		</div>
@@ -48,7 +52,8 @@ export default defineComponent({
 	props: {
 		exp: {
 			required: true,
-			validator: v => isList(v.value) && isSymbol(v.value[0])
+			validator: v =>
+				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0])
 		},
 		fn: {
 			type: Function,
