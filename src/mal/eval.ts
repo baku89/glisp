@@ -5,7 +5,7 @@ import {
 	MalFunc,
 	createMalFunc,
 	isMalFunc,
-	cloneExp,
+	MalFuncThis,
 	isKeyword,
 	LispError,
 	symbolFor as S,
@@ -119,7 +119,7 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		if (cache) {
 			;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
 		}
-		exp = fn(...params)
+		exp = fn.bind({callerEnv: Env})(...params)
 	}
 
 	if (cache && exp !== _exp && isList(_exp)) {
@@ -172,7 +172,12 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	}
 }
 
-export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
+export default function evalExp(
+	this: void | MalFuncThis,
+	exp: MalVal,
+	env: Env,
+	cache = false
+): MalVal {
 	// eslint-disable-next-line no-constant-condition
 	let counter = 0
 	while (counter++ < 1e6) {
@@ -407,7 +412,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S_FN_PARAMS: {
-				const fn = evalExp(exp[1], env, true)
+				const fn = evalExp(exp[1], env, cache)
 				const ret = isMalFunc(fn) ? L(...fn[M_PARAMS]) : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
@@ -416,9 +421,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_EVAL_IN_ENV: {
 				// Don't know why this should be nested
-				const expanded = evalExp(exp[1], env, true)
-				const ret = evalExp(expanded, env, true)
-
+				const expanded = evalExp(exp[1], env, cache)
+				const ret = evalExp(expanded, this ? this.callerEnv : env, cache)
 				// ;(exp as MalNode)[M_EVAL] = a2
 				// ;(expanded as MalNode)[M_EVAL] = ret
 				exp = ret
@@ -464,8 +468,17 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				)
 			case S_MACRO: {
 				const [, params, body] = exp
-				const fnexp = L(S_FN, params, body)
-				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
+				const fn = createMalFunc(
+					(...args) =>
+						evalExp.bind(this)(
+							body,
+							new Env(env, params as any[], args),
+							cache
+						),
+					body,
+					env,
+					params as MalBind
+				)
 				fn[M_ISMACRO] = true
 				return fn
 			}

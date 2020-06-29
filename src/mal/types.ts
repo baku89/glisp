@@ -46,8 +46,12 @@ export interface ExpandInfoEnv {
 
 export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv
 
+export interface MalFuncThis {
+	callerEnv: Env
+}
+
 export interface MalFunc extends Function {
-	(...args: MalVal[]): MalVal
+	(this: void | MalFuncThis, ...args: MalVal[]): MalVal
 	[M_META]?: MalVal
 	[M_AST]: MalVal
 	[M_ENV]: Env
@@ -367,8 +371,9 @@ export function getName(exp: MalVal): string {
 }
 
 // Functions
+
 export function createMalFunc(
-	fn: (...args: MalVal[]) => MalVal,
+	fn: (this: void | MalFuncThis, ...args: MalVal[]) => MalVal,
 	exp: MalVal,
 	env: Env,
 	params: MalBind,
