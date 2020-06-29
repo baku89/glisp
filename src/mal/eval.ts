@@ -224,8 +224,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
-				const [, binds] = exp
-				if (!isSeq(binds)) {
+				const [, binds, ...body] = exp
+				if (!isVector(binds)) {
 					throw new LispError('Invalid bind-expr in let')
 				}
 				for (let i = 0; i < binds.length; i += 2) {
@@ -235,7 +235,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env = letEnv
-				const ret = exp.length === 3 ? a2 : L(S_DO, ...exp.slice(2))
+				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_LET) as MalFunc
@@ -515,7 +515,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const test = evalExp(_test, env, cache)
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					;(exp as MalNodeSeq)[M_EVAL] = ret
+					;(exp as MalNodeSeq)[M_EXPANDED] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
 				}
 				exp = ret
