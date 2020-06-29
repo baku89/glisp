@@ -245,7 +245,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_BINDING: {
 				const bindingEnv = new Env()
-				const [, binds] = exp
+				const [, binds, ..._body] = exp
 				if (!isSeq(binds)) {
 					throw new LispError('Invalid bind-expr in binding')
 				}
@@ -256,7 +256,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env.pushBinding(bindingEnv)
-				const body = exp.length === 3 ? exp[2] : L(S_DO, ...exp.slice(2))
+				const body = _body.length === 1 ? _body[0] : L(S_DO, ..._body)
 				let ret
 				try {
 					ret = evalExp(body, env, cache)
