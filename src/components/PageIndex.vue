@@ -79,18 +79,7 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 
 import {printExp, readStr} from '@/mal'
-import {
-	MalVal,
-	MalNode,
-	M_EVAL,
-	isMalNode,
-	M_OUTER,
-	M_EXPAND,
-	isList,
-	isMalFunc,
-	isFunc,
-	expandExp
-} from '@/mal/types'
+import {MalVal, MalNode, isMalNode, M_OUTER, expandExp} from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'

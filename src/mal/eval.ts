@@ -20,7 +20,6 @@ import {
 	MalNode,
 	isMalNode,
 	MalNodeSeq,
-	M_EXPAND,
 	M_OUTER,
 	M_OUTER_INDEX,
 	M_ELMSTRS,
@@ -34,8 +33,6 @@ import {
 	M_ENV,
 	M_AST,
 	isVector,
-	getType,
-	MalType,
 	setExpandInfo,
 	ExpandType
 } from './types'
@@ -609,54 +606,6 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 	return null
 }
-
-/*
-const MalNodeSeq_SYMBOLS = [
-	M_ISSUGAR,
-	M_DELIMITERS,
-	M_ELMSTRS,
-	M_FN,
-	M_EVAL,
-	M_EVAL_PARAMS,
-	M_EXPAND,
-	M_OUTER,
-	M_OUTER_INDEX
-]
-
-const MALNODEMAP_SYMBOLS = [
-	M_DELIMITERS,
-	M_ELMSTRS,
-	M_KEYS,
-	M_EVAL,
-	M_OUTER,
-	M_OUTER_INDEX
-]
-
-function cloneMalNode(original: MalNode) {
-	let cloned: MalNode
-
-	const isArray = Array.isArray(original)
-
-	if (isArray) {
-		cloned = [...(original as MalNodeSeq)] as MalNodeSeq
-		if (isVector(original)) {
-			V(cloned)
-		}
-	} else {
-		cloned = {...original} as MalNodeMap
-	}
-
-	const symbols = isArray ? MalNodeSeq_SYMBOLS : MALNODEMAP_SYMBOLS
-
-	for (const sym of symbols) {
-		if (sym in original) {
-			;(cloned as any)[sym] = (original as any)[sym]
-		}
-	}
-
-	return cloned
-}
-*/
 
 // Cached Tree-shaking
 export function replaceExp(original: MalNode, replaced: MalVal) {

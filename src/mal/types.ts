@@ -12,11 +12,11 @@ export const M_ISLIST = Symbol.for('islist')
 
 export const M_EVAL = Symbol.for('eval')
 export const M_EVAL_PARAMS = Symbol.for('eval-params')
-export const M_EXPAND = Symbol.for('expand')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
 export const M_CACHE = Symbol.for('cache') // misc caches used by libraries
+const M_EXPAND = Symbol.for('expand')
 
 // Stores string repsentation
 export const M_ISSUGAR = Symbol('issugar')
