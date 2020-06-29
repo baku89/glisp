@@ -13,14 +13,14 @@
 						v-if="params[i].type === 'number'"
 						:value="params[i].value"
 						:compact="true"
-						:validator="desc.validator"
+						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
 					<InputString
 						v-else-if="params[i].type === 'string'"
 						:value="params[i].value"
-						:validator="desc.validator"
+						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
@@ -28,7 +28,7 @@
 						v-else-if="params[i].type === 'dropdown'"
 						:value="params[i].value"
 						:values="desc['ʞenum']"
-						:validator="desc.validator"
+						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
@@ -84,26 +84,12 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<MalExpButton
-						v-else
-						@click="onSelect($event)"
-						:value="params[i].value"
-					/>
+					<MalExpButton v-else @click="onSelect($event)" :value="params[i].value" />
 				</div>
-				<button
-					class="delete"
-					v-if="i >= variadicPos"
-					@click="onParamDelete(i)"
-				>
+				<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 					<i class="far fa-times-circle" />
 				</button>
-				<button
-					class="insert"
-					v-if="i >= variadicPos"
-					@click="onParamInsert(i)"
-				>
-					&lt;-- Insert
-				</button>
+				<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
@@ -146,7 +132,6 @@ interface Props {
 const K_PARAMS = K('params'),
 	K_TYPE = K('type'),
 	K_LABEL = K('label'),
-	K_CONSTRAINTS = K('constraints'),
 	K_DEFAULT = K('default'),
 	K_KEY = K('key'),
 	K_KEYS = K('keys')
@@ -365,33 +350,6 @@ export default defineComponent({
 					if (!(K_TYPE in desc)) {
 						desc[K_TYPE] = 'any'
 					}
-
-					// Make validator function
-					if (K_CONSTRAINTS in desc) {
-						const constraints = desc[K_CONSTRAINTS]
-
-						let validator = (v: any) => v
-
-						for (const [key, param] of Object.entries(constraints) as [
-							string,
-							number
-						][]) {
-							const _v = validator
-							switch (key.slice(1) as string) {
-								case 'min':
-									validator = (v: number) => Math.max(param, _v(v))
-									break
-								case 'max':
-									validator = (v: number) => Math.min(param, _v(v))
-									break
-								case 'step':
-									validator = (v: number) => Math.round(_v(v) / param) * param
-							}
-						}
-						desc['validator'] = validator
-						delete desc[K_CONSTRAINTS]
-					}
-
 					return desc
 				})
 			}

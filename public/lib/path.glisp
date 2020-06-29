@@ -28,7 +28,7 @@
     :params [{:label "Center" :type "vec2"
               :desc "the centre of the circle"}
              {:label "Radius" :type  "number"
-              :desc "radius of the circle" :constraints {:min 0}}]
+              :desc "radius of the circle" :validator #(max 0 %)}]
     :handles {:draw (fn [{:params [c r]
                           :return path}]
                       [{:type "path" :id :radius :path path}
@@ -193,8 +193,8 @@
 (defn path/ngon
   {:doc "Generates a regular polygon"
    :params [{:type "vec2"}
-            {:type "number" :constraints {:min 0}}
-            {:type "number" :constraints {:min 3 :step 1}}]
+            {:type "number" :validator #(max 0 %)}
+            {:type "number" :validator #(round (max 3 %))}]
    :handles {:draw (fn [{:params [center radius sides]}]
                      [{:type "path" :guide true :class "dashed"
                        :path (arc center (+ radius 40) (/ TWO_PI 100) (/ TWO_PI 3))}
@@ -241,8 +241,8 @@
 
 (def path/trim
   ^{:doc "Trims a path by a normalized range"
-    :params [{:label "Start" :type "number" :constraints {:min 0 :max 1}}
-             {:label "End" :type "number" :constraints {:min 0 :max 1}}
+    :params [{:label "Start" :type "number" :validator #(clamp % 0 1)}
+             {:label "End" :type "number" :validator #(clamp % 0 1)}
              {:label "Path" :type "path"}]
     :returns {:type "path"}
     :handles {:draw (fn [{:params [start end path]
@@ -262,7 +262,7 @@
 
 (def path/position-at
   ^{:doc "Returns a position of the specified offset on the path"
-    :params [{:label "Offset", :type "number" :constraints {:min 0 :max 1}}
+    :params [{:label "Offset", :type "number" :validator #(clamp % 0 1)}
              {:label "Path" :type "path"}]
     :handles {:draw (fn [{:params [t path]
                           :return ret}]

@@ -54,10 +54,10 @@
 
 (def cubic-bezier
   ^{:doc "Calcurates CSS's cubic-bezier"
-    :params [{:label "t" :type "number" :constraints {:min 0 :max 1}}
-             {:label "x1" :type "number" :constraints {:min 0 :max 1}}
+    :params [{:label "t" :type "number" :validator #(clamp % 0 1)}
+             {:label "x1" :type "number" :validator #(clamp % 0 1)}
              {:label "y1" :type "number"}
-             {:label "x2" :type "number" :constraints {:min 0 :max 1}}
+             {:label "x2" :type "number" :validator #(clamp % 0 1)}
              {:label "y2" :type "number"}]}
   cubic-bezier)
 ;; 

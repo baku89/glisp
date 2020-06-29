@@ -314,7 +314,8 @@
 (defn graphics/stroke
   {:doc "Creates a stroke property"
    :params [{:label "Color" :type "color"}
-            {:label "Width" :default 1 :type "number" :constraints {:min 0}}
+            {:label "Width" :default 1 :type "number"
+             :validator #(max 0 %)}
             &
             {:keys [{:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round" "square"]}
@@ -406,7 +407,7 @@
   {:doc "Scatters points"
    :params [{:type "vec2"}
             {:type "number"}
-            {:type "number" :constraints {:min 0 :step 1}}
+            {:type "number" :validator #(round (max 0 %))}
             {:type "seed"}]
    :handles {:draw (fn [{:params [center radius]
                          :return ret}]
