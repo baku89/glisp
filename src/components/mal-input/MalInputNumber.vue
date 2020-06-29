@@ -7,7 +7,7 @@
 			@click="$emit('select', $event)"
 		/>
 		<InputNumber
-			:class="{exp: display.isExp}"
+			:class="{exp: isExp || display.isExp}"
 			:value="displayValue"
 			@input="onInput"
 			:validator="innerValidator"
@@ -60,6 +60,10 @@ export default defineComponent({
 			required: false
 		},
 		compact: {
+			type: Boolean,
+			default: false
+		},
+		isExp: {
 			type: Boolean,
 			default: false
 		}

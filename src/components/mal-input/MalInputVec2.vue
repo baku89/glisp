@@ -1,20 +1,45 @@
 <template>
 	<div class="MalInputVec2">
-		[
-		<MalInputNumber
-			class="MalInputVec2__el"
-			:value="value[0]"
+		<MalExpButton
+			v-if="!isValueSeparated"
+			:value="value"
 			:compact="true"
-			@input="onInput(0, $event)"
-			@select="$emit('select', $event)"
+			@click="$emit('select', $event)"
 		/>
-		<MalInputNumber
-			class="MalInputVec2__el"
-			:value="value[1]"
-			:compact="true"
-			@input="onInput(1, $event)"
-			@select="$emit('select', $event)"
-		/>]
+		[
+		<template v-if="isValueSeparated">
+			<MalInputNumber
+				class="MalInputVec2__el"
+				:value="value[0]"
+				:compact="true"
+				@input="onInputElement(0, $event)"
+				@select="$emit('select', $event)"
+			/>
+			<MalInputNumber
+				class="MalInputVec2__el"
+				:value="value[1]"
+				:compact="true"
+				@input="onInputElement(1, $event)"
+				@select="$emit('select', $event)"
+			/>
+		</template>
+		<template v-else>
+			<MalInputNumber
+				class="MalInputVec2__el"
+				:isExp="true"
+				:value="getEvaluated(value)[0]"
+				:compact="true"
+				@input="onInputEvaluatedElement(0, $event)"
+			/>
+			<MalInputNumber
+				class="MalInputVec2__el"
+				:isExp="true"
+				:value="getEvaluated(value)[1]"
+				:compact="true"
+				@input="onInputEvaluatedElement(0, $event)"
+			/>
+		</template>
+		]
 		<button
 			class="MalInputVec2__drag"
 			:class="{dragging: drag.isDragging}"
@@ -24,29 +49,46 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
-import {getEvaluated} from '@/mal/types'
+import {
+	defineComponent,
+	ref,
+	Ref,
+	PropType,
+	computed
+} from '@vue/composition-api'
+import {getEvaluated, MalVal, isVector} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
+import MalExpButton from './MalExpButton.vue'
 import {useDraggable} from '@/components/use'
 import {reverseEval} from '../../mal-utils'
 
 export default defineComponent({
 	name: 'MalInputVec2',
-	components: {MalInputNumber},
+	components: {MalInputNumber, MalExpButton},
 	props: {
 		value: {
-			type: Array as PropType<number[]>,
+			type: [Array, Object] as PropType<MalVal>,
 			required: true
 		}
 	},
 	setup(props, context) {
 		const dragEl: Ref<null | HTMLElement> = ref(null)
 
-		const onInput = (i: number, v: number) => {
-			const value = [...props.value]
-			value[i] = v
+		const isValueSeparated = computed(
+			() => isVector(props.value) && props.value.length >= 2
+		)
 
+		function onInputElement(i: number, v: number) {
+			const value = [...(props.value as number[])]
+			value[i] = v
 			context.emit('input', value)
+		}
+
+		function onInputEvaluatedElement(i: number, v: number) {
+			const value = [...(getEvaluated(props.value) as number[])]
+			value[i] = v
+			const newExp = reverseEval(value, props.value)
+			context.emit('input', newExp)
 		}
 
 		const drag = useDraggable(dragEl, {
@@ -59,15 +101,17 @@ export default defineComponent({
 				newValue[1] += deltaY
 
 				const newExp = reverseEval(newValue, props.value)
-
 				context.emit('input', newExp)
 			}
 		})
 
 		return {
+			isValueSeparated,
 			dragEl,
-			onInput,
-			drag
+			onInputElement,
+			onInputEvaluatedElement,
+			drag,
+			getEvaluated
 		}
 	}
 })

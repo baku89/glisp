@@ -57,7 +57,7 @@ export default defineComponent({
 
 		function onClick() {
 			if (selectable.value) {
-				context.emit('click')
+				context.emit('click', props.value)
 			}
 		}
 
