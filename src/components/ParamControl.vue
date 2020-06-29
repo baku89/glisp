@@ -15,14 +15,14 @@
 						:compact="true"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputString
 						v-else-if="params[i].type === 'string'"
 						:value="params[i].value"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputDropdown
 						v-else-if="params[i].type === 'dropdown'"
@@ -30,43 +30,43 @@
 						:values="desc['ʞenum']"
 						:validator="desc.validator"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputColor
 						v-else-if="params[i].type === 'color'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<MalInputAngle
 						v-else-if="params[i].type === 'angle'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<MalInputVec2
 						v-else-if="params[i].type === 'vec2'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputRect2d
 						v-else-if="params[i].type === 'rect2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputMat2d
 						v-else-if="params[i].type === 'mat2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputSeed
 						v-else-if="params[i].type === 'seed'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputString
 						style="color: var(--syntax-symbol)"
@@ -74,7 +74,7 @@
 						:value="params[i].value.value"
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<InputString
 						style="color: var(--syntax-keyword)"
@@ -82,11 +82,11 @@
 						:value="params[i].value.slice(1)"
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
-						@select="onSelect(params[i].value)"
+						@select="onSelect($event)"
 					/>
 					<MalExpButton
 						v-else
-						@click="onSelect(params[i].value)"
+						@click="onSelect($event)"
 						:value="params[i].value"
 					/>
 				</div>
@@ -570,6 +570,7 @@ export default defineComponent({
 		}
 
 		function onSelect(exp: MalVal) {
+			console.log(exp)
 			context.emit('select', nonReactive(exp))
 		}
 
