@@ -1,9 +1,9 @@
 import ace from 'brace'
 import './define-glisp-mode'
 
-import 'brace/theme/tomorrow'
-import 'brace/theme/tomorrow_night'
-import 'brace/mode/clojure'
+// require('brace/theme/tomorrow')
+// require('brace/theme/tomorrow_night')
+require('brace/mode/clojure')
 
 export function replaceStrByRange(
 	s: string,
@@ -46,7 +46,7 @@ export function configureEditor(editor: ace.Editor) {
 	editor.$blockScrolling = Infinity
 	editor.setShowPrintMargin(false)
 	editor.setOption('displayIndentGuides', false)
-	editor.setTheme('tomorrow')
+	// editor.setTheme('tomorrow')
 
 	const session = editor.getSession()
 	// session.setMode('ace/mode/clojure')
