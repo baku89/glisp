@@ -566,5 +566,3 @@ export default function readStr(str: string, saveStr = true): MalVal {
 
 	return exp
 }
-
-window.readStr = readStr
