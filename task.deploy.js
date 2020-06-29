@@ -5,6 +5,8 @@ const argv = require('yargs').argv
 const fs = require('fs')
 const FtpInfo = require('./ftp.info.js')
 
+const siteURL = 'https://baku89.com/glisp'
+
 const gitHash = execSync('git rev-parse HEAD')
 	.toString()
 	.trim()
@@ -28,7 +30,7 @@ async function deploy(mode) {
 	const urlSuffix = mode === 'commit' ? `commit:${gitHash}` : 'docs'
 	const remoteRoot = `${FtpInfo.remoteRoot}/${urlSuffix}`
 	const localRoot = `${__dirname}/${mode === 'commit' ? 'dist' : 'docs'}/`
-	const publishedURL = `https://baku89.com/glisp/${urlSuffix}`
+	const publishedURL = `${siteURL}/${urlSuffix}`
 
 	console.log(`Start Uploading: ${publishedURL}`)
 
@@ -58,7 +60,7 @@ async function deploy(mode) {
 
 	// Update Commits.json
 	if (mode === 'commit') {
-		const res = await fetch('https://baku89.com/glisp/commits.json')
+		const res = await fetch(`${siteURL}/commits.json`)
 		const commits = await res.json()
 		if (commits.length === 0 || commits[commits.length - 1][0] !== gitHash) {
 			commits.push([gitHash, Date.now()])
