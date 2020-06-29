@@ -195,7 +195,7 @@ export default class Env {
 		if (
 			symbol.value[0] === '%' &&
 			this.exps &&
-			this.exps.length >= (argIndex = parseInt(symbol.value.slice(1)) || 0)
+			this.exps.length >= (argIndex = parseInt(symbol.value.slice(1)) - 1 || 0)
 		) {
 			return this.exps[argIndex]
 		}
