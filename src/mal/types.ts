@@ -12,7 +12,7 @@ export const M_ISLIST = Symbol.for('islist')
 
 export const M_EVAL = Symbol.for('eval')
 export const M_EVAL_PARAMS = Symbol.for('eval-params')
-export const M_EXPANDED = Symbol.for('macroexpanded')
+export const M_EXPAND = Symbol.for('expand')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
@@ -27,6 +27,24 @@ export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of lis
 export const M_DEF = Symbol.for('def') // save def exp reference in symbol object
 
 export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
+
+export enum ExpandType {
+	Constant = 1,
+	Env
+}
+
+export interface ExpandInfoConstant {
+	type: ExpandType.Constant
+	exp: MalVal
+}
+
+export interface ExpandInfoEnv {
+	type: ExpandType.Env
+	exp: MalVal
+	env: Env
+}
+
+export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv
 
 export interface MalFunc extends Function {
 	(...args: MalVal[]): MalVal
@@ -61,10 +79,58 @@ export interface MalNodeSeq extends Array<MalVal> {
 	[M_FN]: MalFunc | MalJSFunc // Reference to a function
 	[M_EVAL]: MalVal // Stores evaluted value of the node
 	[M_EVAL_PARAMS]: MalVal[] // Stores evaluated values of fn's parameters
-	[M_EXPANDED]: MalVal
+	[M_EXPAND]: ExpandInfo
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
 	[M_CACHE]: {[k: string]: any}
+}
+
+// Expand
+function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
+	const type = getType(exp)
+	switch (type) {
+		case MalType.List:
+		case MalType.Vector: {
+			let ret = (exp as MalVal[]).map(val => expandSymbolsInExp(val, env))
+			if (type === MalType.List) {
+				ret = createList(...ret)
+			}
+			return ret
+		}
+		case MalType.Map: {
+			const ret = {} as MalMap
+			Object.entries(exp as MalMap).forEach(([key, val]) => {
+				ret[key] = expandSymbolsInExp(val, env)
+			})
+			return ret
+		}
+		case MalType.Symbol:
+			if (env.hasOwn(exp as MalSymbol)) {
+				return env.get(exp as MalSymbol)
+			} else {
+				return exp
+			}
+		default:
+			return exp
+	}
+}
+
+export function setExpandInfo(exp: MalNodeSeq, info: ExpandInfo) {
+	exp[M_EXPAND] = info
+}
+
+export function expandExp(exp: MalVal) {
+	if (isList(exp) && M_EXPAND in exp) {
+		const info = exp[M_EXPAND]
+		switch (info.type) {
+			case ExpandType.Constant:
+				return info.exp
+			case ExpandType.Env:
+				return expandSymbolsInExp(info.exp, info.env)
+		}
+	} else {
+		return getEvaluated(exp)
+	}
 }
 
 export enum MalType {
@@ -387,7 +453,7 @@ export const isKeyword = (obj: MalVal): obj is string =>
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: MalVal): obj is MalVal[] =>
+export const isList = (obj: MalVal): obj is MalNodeSeq =>
 	getType(obj) === MalType.List
 
 export function createList(...coll: MalVal[]) {

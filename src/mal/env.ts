@@ -9,7 +9,8 @@ import {
 	isSeq,
 	getType,
 	MalNodeSeq,
-	MalType
+	MalType,
+	symbolFor
 } from './types'
 import {printExp} from '.'
 
@@ -56,6 +57,10 @@ export default class Env {
 	protected getMergedData() {
 		const data = (this.outer?.getMergedData() || {}) as {[k: string]: MalVal}
 		return {...data, ...this.data}
+	}
+
+	public getSymbolValuePairs(): [MalSymbol, MalVal][] {
+		return Object.entries(this.data).map(([str, v]) => [symbolFor(str), v])
 	}
 
 	public getAllSymbols() {

@@ -41,10 +41,10 @@ function assignKeybinds(editor: ace.Editor) {
 	})
 
 	editor.commands.addCommand({
-		name: 'eval-selected',
+		name: 'expand-selected',
 		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
 		exec: () => {
-			ConsoleScope.readEval('(eval-selected)')
+			ConsoleScope.readEval('(expand-selected)')
 		}
 	})
 }

@@ -20,7 +20,7 @@ import {
 	MalNode,
 	isMalNode,
 	MalNodeSeq,
-	M_EXPANDED,
+	M_EXPAND,
 	M_OUTER,
 	M_OUTER_INDEX,
 	M_ELMSTRS,
@@ -33,7 +33,11 @@ import {
 	isSeq,
 	M_ENV,
 	M_AST,
-	isVector
+	isVector,
+	getType,
+	MalType,
+	setExpandInfo,
+	ExpandType
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -121,8 +125,8 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		exp = fn(...params)
 	}
 
-	if (cache && exp !== _exp) {
-		;(_exp as MalNodeSeq)[M_EXPANDED] = exp
+	if (cache && exp !== _exp && isList(_exp)) {
+		setExpandInfo(_exp, {type: ExpandType.Constant, exp})
 	}
 
 	return exp
@@ -237,7 +241,13 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					// Might cause slowness to create function
+					setExpandInfo(exp as MalNodeSeq, {
+						type: ExpandType.Env,
+						exp: ret,
+						env: letEnv
+					})
+					;(exp as MalNodeSeq)[M_EVAL] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_LET) as MalFunc
 				}
 				exp = ret
@@ -516,7 +526,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				if (cache) {
 					;(exp as MalNodeSeq)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_EXPANDED] = ret
+					setExpandInfo(exp as MalNodeSeq, {
+						type: ExpandType.Constant,
+						exp: ret
+					})
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
 				}
 				exp = ret
@@ -564,6 +577,10 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					} else {
 						const ret = fn(...params)
 						if (cache) {
+							setExpandInfo(exp as MalNodeSeq, {
+								type: ExpandType.Constant,
+								exp: ret
+							})
 							;(exp as MalNodeSeq)[M_EVAL] = ret
 							;(exp as MalNodeSeq)[M_FN] = fn
 						}
@@ -601,7 +618,7 @@ const MalNodeSeq_SYMBOLS = [
 	M_FN,
 	M_EVAL,
 	M_EVAL_PARAMS,
-	M_EXPANDED,
+	M_EXPAND,
 	M_OUTER,
 	M_OUTER_INDEX
 ]

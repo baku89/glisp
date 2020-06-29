@@ -79,7 +79,18 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 
 import {printExp, readStr} from '@/mal'
-import {MalVal, MalNode, M_EVAL, isMalNode, M_OUTER} from '@/mal/types'
+import {
+	MalVal,
+	MalNode,
+	M_EVAL,
+	isMalNode,
+	M_OUTER,
+	M_EXPAND,
+	isList,
+	isMalFunc,
+	isFunc,
+	expandExp
+} from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
@@ -181,14 +192,11 @@ function bindsConsole(
 		selectOuterExp: () => void
 	}
 ) {
-	ConsoleScope.def('eval-selected', () => {
+	ConsoleScope.def('expand-selected', () => {
 		if (data.selectedExp) {
-			let evaled
-			if (M_EVAL in data.selectedExp.value) {
-				evaled = data.selectedExp.value[M_EVAL]
-			}
-			if (evaled !== undefined) {
-				callbacks.onUpdateSelectedExp(nonReactive(evaled))
+			const expanded = expandExp(data.selectedExp.value)
+			if (expanded !== undefined) {
+				callbacks.onUpdateSelectedExp(nonReactive(expanded))
 			}
 		}
 		return null

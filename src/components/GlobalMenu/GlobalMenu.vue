@@ -62,7 +62,7 @@ export default defineComponent({
 			[
 				'Edit',
 				[
-					['Eval Selected', '(eval-selected)'],
+					['Expand Selected', '(expand-selected)'],
 					['Select Outer', '(select-outer)']
 				]
 			],
