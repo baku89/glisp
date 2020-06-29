@@ -7,7 +7,7 @@
 		"build": "vue-cli-service build",
 		"lint": "vue-cli-service lint",
 		"deploy": "node task.deploy.js",
-		"build-deploy": "yarn build & yarn deploy",
+		"build-deploy": "yarn build; yarn deploy --commit",
 		"doc:deploy": "yarn deploy --docs",
 		"doc:serve": "docsify serve docs",
 		"electron:build": "vue-cli-service electron:build",
