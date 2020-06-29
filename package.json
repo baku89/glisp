@@ -65,6 +65,7 @@
 		"jq-console": "^2.13.2",
 		"jquery": "^3.5.1",
 		"keycode": "^2.2.0",
+		"node-fetch": "^2.6.0",
 		"normalize.css": "^8.0.1",
 		"paper": "^0.12.4",
 		"paperjs-offset": "^1.0.8",

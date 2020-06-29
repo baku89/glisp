@@ -1,70 +1,51 @@
 const FtpDeploy = require('ftp-deploy')
 const {execSync} = require('child_process')
+const fetch = require('node-fetch')
 const argv = require('yargs').argv
-
+const fs = require('fs')
 const FtpInfo = require('./ftp.info.js')
+
+const gitHash = execSync('git rev-parse HEAD')
+	.toString()
+	.trim()
+	.slice(0, 7)
 
 async function upload() {
 	// Upload to the subdirectory with git hash
 	if (argv.commit) {
-		const gitHash = execSync('git rev-parse HEAD')
-			.toString()
-			.trim()
-			.slice(0, 8)
-		await deploy({remoteSubdir: gitHash, deleteRemote: true})
-	}
-
-	// Upload to the root
-	if (argv.root) {
-		await deploy({deleteRemote: false})
+		await deploy('commit')
 	}
 
 	if (argv.docs) {
-		await deploy({
-			deleteRemote: true,
-			localSubdir: 'docs',
-			remoteSubdir: 'docs'
-		})
+		await deploy('doc')
 	}
 }
 upload()
 
-async function deploy({remoteSubdir, deleteRemote, localSubdir}) {
+async function deploy(mode) {
 	const ftpDeploy = new FtpDeploy()
 
-	const urlSuffix = remoteSubdir ? `/${remoteSubdir}` : ''
+	const urlSuffix = mode === 'commit' ? `commit:${gitHash}` : 'docs'
 	const remoteRoot = `${FtpInfo.remoteRoot}/${urlSuffix}`
-	const publishedURL = `https://baku89.com/glisp${urlSuffix}`
-
-	localSubdir = localSubdir || 'dist'
+	const localRoot = `${__dirname}/${mode === 'commit' ? 'dist' : 'docs'}/`
+	const publishedURL = `https://baku89.com/glisp/${urlSuffix}`
 
 	console.log(`Start Uploading: ${publishedURL}`)
 
 	const config = {
-		user: FtpInfo.user,
-		// Password optional, prompted if none given
-		password: FtpInfo.password,
-		host: FtpInfo.host,
-		port: FtpInfo.port,
-		localRoot: `${__dirname}/${localSubdir}/`,
+		...FtpInfo,
+		localRoot,
 		remoteRoot,
 		include: ['*', '**/*', '.htaccess'],
-		exclude: [
-			'dist/**/*.map',
-			'node_modules/**',
-			'node_modules/**/.*',
-			'.git/**'
-		],
+		exclude: ['**/*.map', 'node_modules/**', 'node_modules/**/.*', '.git/**'],
 		// delete ALL existing files at destination before uploading, if true
-		deleteRemote,
+		deleteRemote: true,
 		// Passive mode is forced (EPSV command is not sent)
 		forcePasv: true
 	}
 
 	ftpDeploy.on('uploading', function(data) {
-		// console.log(data.totalFilesCount); // total file count being transferred
-		// console.log(data.transferredFileCount); // number of files transferred
-		console.log(`[${remoteSubdir || 'ROOT'}]`, 'Uploading...', data.filename) // partial path with filename being uploaded
+		console.log(`[${urlSuffix}]`, 'Uploading...', data.filename)
 	})
 
 	// Upload
@@ -72,6 +53,29 @@ async function deploy({remoteSubdir, deleteRemote, localSubdir}) {
 		await ftpDeploy.deploy(config)
 		console.log(`Uploaded: ${publishedURL}`)
 	} catch (err) {
-		console.log(err)
+		console.error(err)
+	}
+
+	// Update Commits.json
+	if (mode === 'commit') {
+		const res = await fetch('https://baku89.com/glisp/commits.json')
+		const commits = await res.json()
+		if (commits.length === 0 || commits[commits.length - 1][0] !== gitHash) {
+			commits.push([gitHash, Date.now()])
+		}
+		fs.writeFileSync(`${localRoot}/commits.json`, JSON.stringify(commits))
+
+		try {
+			await ftpDeploy.deploy({
+				...FtpInfo,
+				localRoot,
+				remoteRoot: FtpInfo.remoteRoot,
+				include: ['commits.json'],
+				forcePasv: true
+			})
+			console.log('Updated commits.json')
+		} catch (err) {
+			console.error(err)
+		}
 	}
 }
