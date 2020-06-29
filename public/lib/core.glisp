@@ -407,6 +407,8 @@
 
 
 ;; Trivial
+(defn glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
+
 (defn identity [x] x)
 (defn const
   {:params [{:type "any"}]}
