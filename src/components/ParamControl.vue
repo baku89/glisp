@@ -121,7 +121,6 @@ import {
 	MalNodeSeq,
 	getType,
 	MalVal,
-	markMalVector as V,
 	keywordFor as K,
 	LispError,
 	M_PARAMS,
@@ -130,7 +129,9 @@ import {
 	assocBang,
 	symbolFor as S,
 	cloneExp,
-	MalFunc
+	MalFunc,
+	createList as L,
+	isVector
 } from '@/mal/types'
 import InputComponents from '@/components/inputs'
 import MalInputComponents from '@/components/mal-input'
@@ -179,13 +180,13 @@ const EmptyParamDescs = {
 
 const TypeDefaults = {
 	number: 0,
-	vec2: V([0, 0]),
-	path: V([K('path')])
+	vec2: [0, 0],
+	path: [K('path')]
 } as {[type: string]: MalVal}
 
 const InterpolateFuncs = {
 	number: (a: number, b: number) => (a + b) / 2,
-	vec2: (a: number[], b: number[]) => V([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])
+	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 } as {[type: string]: (...xs: MalVal[]) => MalVal}
 
 type MetaDescs = (Desc | string)[]
@@ -286,11 +287,11 @@ export default defineComponent({
 			if (fnInfo.value && fnInfo.value.meta && K_PARAMS in fnInfo.value.meta) {
 				const metaDescs = fnInfo.value.meta[K_PARAMS] as MetaDescs | MetaDescs[]
 
-				if (!Array.isArray(metaDescs)) {
+				if (!isVector(metaDescs)) {
 					throw new LispError('Invalid params scheme')
 				}
 
-				if (Array.isArray(metaDescs[0])) {
+				if (isVector(metaDescs[0])) {
 					// Has overloads then try to match the parameter
 					for (const desc of metaDescs) {
 						if (
@@ -301,7 +302,11 @@ export default defineComponent({
 					}
 					if (!paramDescs) {
 						// If no overloads matched, force apply first overload
-						paramDescs = matchParameter(fnParams.value, metaDescs[0], true)
+						paramDescs = matchParameter(
+							fnParams.value,
+							metaDescs[0] as MetaDescs,
+							true
+						)
 					}
 				} else {
 					// Usually try to match parameter
@@ -505,9 +510,9 @@ export default defineComponent({
 			let newValue
 
 			if (fnInfo.value?.primitive) {
-				newValue = V(newParams[0])
+				newValue = newParams[0]
 			} else {
-				newValue = [props.exp.value[0], ...newParams]
+				newValue = L(props.exp.value[0], ...newParams)
 			}
 
 			context.emit('input', nonReactive(newValue))
@@ -521,7 +526,7 @@ export default defineComponent({
 			const newParams = [...fnParams.value]
 			newParams.splice(i, 1)
 
-			const newValue = [props.exp.value[0], ...newParams]
+			const newValue = L(props.exp.value[0], ...newParams)
 			context.emit('input', nonReactive(newValue))
 		}
 
@@ -560,7 +565,7 @@ export default defineComponent({
 
 			newParams.splice(i, 0, insertedValue)
 
-			const newValue = [props.exp.value[0], ...newParams]
+			const newValue = L(props.exp.value[0], ...newParams)
 			context.emit('input', nonReactive(newValue))
 		}
 

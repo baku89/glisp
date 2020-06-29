@@ -1,4 +1,4 @@
-import {MalVal, symbolFor as S, markMalVector as V} from '@/mal/types'
+import {MalVal, symbolFor as S, createList as L} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
@@ -8,18 +8,18 @@ const Exports = [
 	[
 		'convex-hull',
 		(pts: [number, number][], concavity: number | null = null) => {
-			return V(hull(pts, concavity === null ? Infinity : concavity))
+			return hull(pts, concavity === null ? Infinity : concavity)
 		}
 	],
 	[
 		'delaunay',
 		(pts: [number, number][]) => {
 			const delaunay = Delaunator.from(pts)
-			return V(
-				partition(3, delaunay.triangles).map(([a, b, c]) => {
-					return V([V([...pts[a]]), V([...pts[b]]), V([...pts[c]])])
-				})
-			)
+			return partition(3, delaunay.triangles).map(([a, b, c]) => [
+				[...pts[a]],
+				[...pts[b]],
+				[...pts[c]]
+			])
 		}
 	],
 	[
@@ -31,7 +31,10 @@ const Exports = [
 	]
 ] as [string, MalVal][]
 
-const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
+const Exp = L(
+	S('do'),
+	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
+)
 ;(globalThis as any)['glisp_library'] = Exp
 
 export default Exp

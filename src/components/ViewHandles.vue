@@ -88,13 +88,14 @@
 import {
 	MalVal,
 	keywordFor as K,
-	markMalVector as V,
+	createList as L,
 	M_EVAL,
 	isMap,
 	MalNodeSeq,
 	M_EVAL_PARAMS,
 	MalMap,
-	MalFunc
+	MalFunc,
+	isVector
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/mal-lib/path'
@@ -356,7 +357,7 @@ export default defineComponent({
 					return null
 				}
 
-				if (!Array.isArray(handles)) {
+				if (!isVector(handles)) {
 					return null
 				}
 
@@ -421,6 +422,7 @@ export default defineComponent({
 
 					if (type === 'path') {
 						ret.path = getSVGPathData(h[K_PATH])
+						// console.log(h[K_PATH])
 					}
 
 					return ret
@@ -462,22 +464,19 @@ export default defineComponent({
 			}
 
 			const viewRect = el.value.getBoundingClientRect()
-			const rawPos = V([
-				e.clientX - viewRect.left,
-				e.clientY - viewRect.top
-			]) as number[]
+			const rawPos = [e.clientX - viewRect.left, e.clientY - viewRect.top]
 
-			const pos = V([0, 0]) as number[]
+			const pos = [0, 0]
 			vec2.transformMat2d(pos as vec2, rawPos as vec2, state.transformInv)
 
-			const prevPos = V([0, 0]) as number[]
+			const prevPos = [0, 0]
 			vec2.transformMat2d(
 				prevPos as vec2,
 				state.rawPrevPos as vec2,
 				state.transformInv
 			)
 
-			const deltaPos = V([pos[0] - prevPos[0], pos[1] - prevPos[1]])
+			const deltaPos = [pos[0] - prevPos[0], pos[1] - prevPos[1]]
 
 			const handle = state.handles[state.draggingIndex]
 
@@ -524,7 +523,7 @@ export default defineComponent({
 
 			const newExp: MalNodeSeq = state.fnInfo?.primitive
 				? (newParams[0] as MalNodeSeq)
-				: ([props.exp.value[0], ...newParams] as MalNodeSeq)
+				: (L(props.exp.value[0], ...newParams) as MalNodeSeq)
 
 			context.emit('input', nonReactive(newExp))
 		}
@@ -579,12 +578,9 @@ export default defineComponent({
 
 				context.emit('update:view-transform', xform)
 			},
-			onGrab({deltaX, deltaY, pageX, pageY}) {
+			onGrab({deltaX, deltaY}) {
 				if (!el.value) return
 				const xform = mat2d.clone(props.viewTransform as mat2d)
-
-				const {left, top} = el.value.getBoundingClientRect()
-				const pivot = vec2.fromValues(pageX - left, pageY - top)
 
 				// Translate (pixel by pixel)
 				xform[4] += deltaX
@@ -618,7 +614,7 @@ export default defineComponent({
 		ConsoleScope.def('reset-viewport', () => {
 			if (!el.value) return null
 
-			const {left, top, width, height} = el.value.getBoundingClientRect()
+			const {width, height} = el.value.getBoundingClientRect()
 
 			const xform = mat2d.create()
 			mat2d.fromTranslation(xform, vec2.fromValues(width / 2, height / 2))

@@ -15,10 +15,7 @@ import {
 	MalFunc,
 	MalNode,
 	MalSymbol,
-	MalType,
-	symbolFor,
-	MalNodeSeq,
-	isSeq
+	MalType
 } from './types'
 
 export const printer = {

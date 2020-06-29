@@ -1,4 +1,4 @@
-import {SetupContext, Ref} from '@vue/composition-api'
+import {SetupContext} from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import {
 	MalVal,

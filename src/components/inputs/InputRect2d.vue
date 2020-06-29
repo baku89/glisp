@@ -31,7 +31,6 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, watch, PropType} from '@vue/composition-api'
-import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 import {useDraggable} from '@/components/use'
 
@@ -48,7 +47,7 @@ export default defineComponent({
 		const dragEl: Ref<null | HTMLElement> = ref(null)
 
 		const onInput = (i: number, v: number) => {
-			const value = markMalVector([...props.value])
+			const value = [...props.value]
 			value[i] = v
 
 			context.emit('input', value)
@@ -61,7 +60,7 @@ export default defineComponent({
 			([isDragging, x, y]) => {
 				if (!isDragging) return
 
-				const newValue = markMalVector([...props.value]) as number[]
+				const newValue = [...props.value]
 				newValue[0] += x as number
 				newValue[1] += y as number
 				context.emit('input', newValue)

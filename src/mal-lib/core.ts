@@ -1,8 +1,8 @@
 import seedrandom from 'seedrandom'
 import {
 	MalVal,
-	markMalVector as V,
 	symbolFor as S,
+	createList as L,
 	MalMap,
 	cloneExp,
 	assocBang,
@@ -85,12 +85,13 @@ const Exports = [
 	['mod', (x: number, y: number) => ((x % y) + y) % y],
 
 	// Array
-	['list', (...xs: MalVal[]) => xs],
+	['list', (...coll: MalVal[]) => L(...coll)],
+	['lst', (coll: MalVal[]) => L(...coll)],
 	['list?', isList],
 
-	['vector', (...xs: MalVal[]) => V(xs)],
+	['vector', (...xs: MalVal[]) => xs],
 	['vector?', isVector],
-	['vec', (a: MalVal[]) => V([...a])],
+	['vec', (a: MalVal[]) => [...a]],
 	['sequential?', isSeq],
 	[
 		'seq',
@@ -100,7 +101,7 @@ const Exports = [
 			} else if (isString(a) && a.length > 0) {
 				return a.split('')
 			} else if (isMap(a)) {
-				return Object.entries(a).map(entry => V(entry))
+				return Object.entries(a)
 			} else {
 				return null
 			}
@@ -148,11 +149,11 @@ const Exports = [
 		'apply',
 		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
 	],
-	['map', (f: MalFunc, a: MalVal[]) => V(a.map(x => f(x)))],
-	['map-indexed', (f: MalFunc, a: MalVal[]) => V(a.map((x, i) => f(i, x)))],
+	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
+	['map-indexed', (f: MalFunc, a: MalVal[]) => a.map((x, i) => f(i, x))],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
-	['sort', (coll: MalVal[]) => V(coll.sort())],
+	['sort', (coll: MalVal[]) => coll.sort()],
 	['partition', partition],
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
@@ -166,11 +167,11 @@ const Exports = [
 		'conj',
 		(lst: MalVal, ...args: MalVal[]) => {
 			if (isList(lst)) {
-				const newList = [...lst]
+				const newList = L(...lst)
 				args.forEach(arg => newList.unshift(arg))
 				return newList
 			} else if (isVector(lst)) {
-				return V([...lst, ...args])
+				return [...lst, ...args]
 			}
 		}
 	],
@@ -210,7 +211,7 @@ const Exports = [
 	],
 	['keys', (a: MalMap) => Object.keys(a)],
 	['vals', (a: MalMap) => Object.values(a)],
-	['entries', (a: MalMap) => V(Object.entries(a).map(pair => V(pair)))],
+	['entries', (a: MalMap) => Object.entries(a)],
 
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
@@ -258,7 +259,7 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return V(ret)
+			return ret
 		}
 	],
 	// Random
@@ -291,7 +292,10 @@ Object.getOwnPropertyNames(Math).forEach(k =>
 	Exports.push([k, (Math as any)[k]])
 )
 
-const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
+const Exp = L(
+	S('do'),
+	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
+)
 ;(globalThis as any)['glisp_library'] = Exp
 
 export default Exp

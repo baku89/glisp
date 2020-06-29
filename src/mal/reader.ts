@@ -8,19 +8,21 @@ import {
 	isMap,
 	MalMap,
 	MalVal,
-	markMalVector,
 	M_OUTER,
 	isMalNode,
 	M_ELMSTRS,
 	M_DELIMITERS,
 	M_KEYS,
 	M_ISSUGAR,
+	M_ISLIST,
 	M_OUTER_INDEX,
 	MalSelection,
 	MalNodeSelection,
 	getMalFromSelection,
 	isSeq,
-	getName
+	getName,
+	createList as L,
+	MalNodeSeq
 } from './types'
 import printExp from './printer'
 
@@ -143,7 +145,7 @@ function readAtom(reader: Reader) {
 }
 
 // read list of tokens
-function readList(reader: Reader, saveStr: boolean, start = '(', end = ')') {
+function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 	const exp: any = []
 
 	let elmStrs: any = null,
@@ -199,13 +201,15 @@ function readList(reader: Reader, saveStr: boolean, start = '(', end = ')') {
 }
 
 // read vector of tokens
-function readVector(reader: Reader, saveStr: boolean) {
-	return markMalVector(readList(reader, saveStr, '[', ']'))
+function readList(reader: Reader, saveStr: boolean) {
+	const exp = readVector(reader, saveStr, '(', ')')
+	;(exp as MalNodeSeq)[M_ISLIST] = true
+	return exp
 }
 
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, saveStr: boolean) {
-	const lst = readList(reader, saveStr, '{', '}')
+	const lst = readVector(reader, saveStr, '{', '}')
 	const map = assocBang({}, ...lst) as MalNodeMap
 	if (saveStr) {
 		const keys = []
@@ -241,22 +245,22 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case "'":
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_QUOTE, readForm(reader, saveStr)]
+			val = L(S_QUOTE, readForm(reader, saveStr))
 			break
 		case '`':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_QUASIQUOTE, readForm(reader, saveStr)]
+			val = L(S_QUASIQUOTE, readForm(reader, saveStr))
 			break
 		case '~':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_UNQUOTE, readForm(reader, saveStr)]
+			val = L(S_UNQUOTE, readForm(reader, saveStr))
 			break
 		case '~@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_SPLICE_UNQUOTE, readForm(reader, saveStr)]
+			val = L(S_SPLICE_UNQUOTE, readForm(reader, saveStr))
 			break
 		case '#': {
 			reader.next()
@@ -264,19 +268,19 @@ function readForm(reader: Reader, saveStr: boolean): any {
 
 			if (type === '(') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-				val = [S_FN_SUGAR, readForm(reader, saveStr)]
+				val = L(S_FN_SUGAR, readForm(reader, saveStr))
 			} else if (type[0] === '"') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const meta = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
-				val = [S('set-id'), meta, expr]
+				val = L(S('set-id'), meta, expr)
 			} else {
 				switch (type) {
 					case 'f32':
 						reader.next()
 						if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-						val = [S('f32'), readVector(reader, saveStr)]
+						val = L(S('f32'), readVector(reader, saveStr))
 						break
 				}
 			}
@@ -288,13 +292,13 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			const meta = readForm(reader, saveStr)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 			const expr = readForm(reader, saveStr)
-			val = [S_WITH_META_SUGAR, meta, expr]
+			val = L(S_WITH_META_SUGAR, meta, expr)
 			break
 		}
 		case '@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = [S_DEREF, readForm(reader, saveStr)]
+			val = L(S_DEREF, readForm(reader, saveStr))
 			break
 		// list
 		case ')':
@@ -498,7 +502,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 		}
 		return ret
 	} else if (Array.isArray(obj)) {
-		return markMalVector(obj.map(v => convertJSObjectToMalMap(v)))
+		return obj.map(v => convertJSObjectToMalMap(v))
 	} else {
 		return obj
 	}
@@ -544,7 +548,7 @@ export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 	}
 }
 
-export default function readStr(str: string, saveStr = false): MalVal {
+export default function readStr(str: string, saveStr = true): MalVal {
 	const tokens = tokenize(str, saveStr) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()
@@ -562,3 +566,5 @@ export default function readStr(str: string, saveStr = false): MalVal {
 
 	return exp
 }
+
+window.readStr = readStr

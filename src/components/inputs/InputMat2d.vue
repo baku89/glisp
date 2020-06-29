@@ -43,7 +43,6 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from '@vue/composition-api'
-import {markMalVector} from '@/mal/types'
 import InputNumber from './InputNumber.vue'
 
 export default defineComponent({
@@ -57,7 +56,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const onInput = (i: number, v: number) => {
-			const value = markMalVector([...props.value])
+			const value = [...props.value]
 			value[i] = v
 
 			context.emit('input', value)

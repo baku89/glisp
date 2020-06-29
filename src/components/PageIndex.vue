@@ -68,8 +68,7 @@ import {
 	toRefs,
 	ref,
 	Ref,
-	onMounted,
-	SetupContext
+	onMounted
 } from '@vue/composition-api'
 
 import GlobalMenu from '@/components/GlobalMenu'
@@ -340,7 +339,7 @@ export default defineComponent({
 		)
 
 		// Events
-		function onSelectExp(exp: NonReactive<MalNode>) {
+		function onSelectExp(exp: NonReactive<MalNode> | null) {
 			data.selectedExp = exp
 		}
 

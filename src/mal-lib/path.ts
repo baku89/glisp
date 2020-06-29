@@ -10,12 +10,12 @@ import {
 	symbolFor as S,
 	isKeyword,
 	LispError,
-	markMalVector,
 	assocBang,
 	MalNode,
 	getMalNodeCache,
 	setMalNodeCache,
-	isMap
+	isMap,
+	createList as L
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -51,7 +51,7 @@ const UNIT_QUAD_BEZIER = new Bezier([
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function createEmptyPath() {
-	return markMalVector([K_PATH])
+	return [K_PATH]
 }
 
 paper.setup(new paper.Size(1, 1))
@@ -116,7 +116,7 @@ function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 		.unshort()
 		.iterate((seg, _, x, y) => {
 			let cmd = K(seg[0])
-			const pts = partition(2, seg.slice(1)).map(markMalVector) as number[][]
+			const pts = partition(2, seg.slice(1)) as number[][]
 
 			switch (cmd) {
 				case K_H:
@@ -273,7 +273,7 @@ function pathTransform(transform: mat2d, path: PathType) {
 		}
 	})
 
-	return markMalVector(ret as MalVal[])
+	return ret
 }
 
 // Get Path Property
@@ -324,7 +324,7 @@ function normalAtLength(
 		'getNormalAt',
 		paperPath
 	) as paper.Point
-	return markMalVector([ret.x, ret.y])
+	return [ret.x, ret.y]
 }
 
 function positionAtLength(
@@ -338,7 +338,7 @@ function positionAtLength(
 		'getLocationAt',
 		paperPath
 	) as paper.CurveLocation
-	return markMalVector([point.x, point.y])
+	return [point.x, point.y]
 }
 
 function tangentAtLength(
@@ -352,7 +352,7 @@ function tangentAtLength(
 		'getTangentAt',
 		paperPath
 	) as paper.Point
-	return markMalVector([ret.x, ret.y])
+	return [ret.x, ret.y]
 }
 
 function angleAtLength(offset: number, path: PathType, paperPath?: paper.Path) {
@@ -382,7 +382,7 @@ function aligningMatrixAtLength(
 
 	mat2d.rotate(mat, mat, tangent.angleInRadians)
 
-	return markMalVector([...mat])
+	return [...mat]
 }
 
 // Iteration
@@ -511,16 +511,14 @@ function pathArc(
 		points = points.reverse()
 	}
 
-	points = points.map(pt => markMalVector(pt) as number[])
-
-	return markMalVector([
+	return [
 		K_PATH,
 		K_M,
 		points[0],
 		...partition(3, points.slice(1))
 			.map(pts => [K_C, ...pts])
 			.flat()
-	])
+	]
 }
 
 function createHashMap(args: MalVal[]) {
@@ -704,7 +702,7 @@ function pathBounds(path: PathType) {
 	}
 
 	if (isFinite(left + top + bottom + right)) {
-		return markMalVector([left, top, right - left, bottom - top])
+		return [left, top, right - left, bottom - top]
 	} else {
 		return null
 	}
@@ -721,9 +719,7 @@ function intersections(_a: PathType, _b: PathType) {
 	const a = createPaperPath(_a),
 		b = createPaperPath(_b)
 
-	return a
-		.getIntersections(b)
-		.map(cl => markMalVector([cl.point.x, cl.point.y]))
+	return a.getIntersections(b).map(cl => [cl.point.x, cl.point.y])
 }
 
 const voronoi = new Voronoi()
@@ -738,15 +734,15 @@ function pathVoronoi(
 	const diagram = voronoi.compute(sites, bbox)
 
 	if (mode === 'edge') {
-		return markMalVector([
+		return [
 			K_PATH,
 			...diagram.edges
 				.map(({va, vb}) => [K_M, [va.x, va.y], K_L, [vb.x, vb.y]])
 				.flat()
-		])
+		]
 	}
 
-	return markMalVector([K_PATH])
+	return [K_PATH]
 }
 
 const Exports = [
@@ -789,13 +785,15 @@ const Exports = [
 	// Utility
 	[
 		'path/split-segments',
-		([, ...path]: PathType) =>
-			markMalVector(Array.from(iterateSegment(path) as any))
+		([, ...path]: PathType) => Array.from(iterateSegment(path) as any)
 	],
 	['path/bounds', pathBounds],
 	['path/nearest-offset', nearestOffset],
 	['path/intersections', intersections]
 ] as [string, MalVal][]
 
-const Exp = [S('do'), ...Exports.map(([sym, body]) => [S('def'), S(sym), body])]
+const Exp = L(
+	S('do'),
+	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
+)
 ;(globalThis as any)['glisp_library'] = Exp

@@ -15,10 +15,10 @@ import {
 	MalNodeSeq,
 	isMalFunc,
 	getType,
-	markMalVector as V,
 	isSymbol,
 	MalSymbol,
 	symbolFor as S,
+	createList as L,
 	M_EVAL_PARAMS,
 	isMalNode,
 	M_OUTER,
@@ -164,7 +164,7 @@ export function reverseEval(
 						const fnParams = inverseFn(exp, fnEvaluatedParams)
 
 						if (isSeq(fnParams)) {
-							const newExp = [fnName, ...fnParams]
+							const newExp = L(fnName, ...fnParams)
 
 							for (let i = 1; i < (original as MalNodeSeq).length; i++) {
 								newExp[i] = reverseEval(
@@ -182,11 +182,9 @@ export function reverseEval(
 		}
 		case MalType.Vector: {
 			if (isVector(exp) && exp.length === (original as MalNodeSeq).length) {
-				const newExp = V(
-					exp.map((e, i) =>
-						reverseEval(e, (original as MalNodeSeq)[i], forceOverwrite)
-					)
-				)
+				const newExp = exp.map((e, i) =>
+					reverseEval(e, (original as MalNodeSeq)[i], forceOverwrite)
+				) as MalVal[]
 				return newExp
 			}
 			break
@@ -196,7 +194,7 @@ export function reverseEval(
 			if (def && !isSymbol(exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
-				replaceExp(def, [S('defvar'), original, newDefBody])
+				replaceExp(def, L(S('defvar'), original, newDefBody))
 				return original
 			}
 			break

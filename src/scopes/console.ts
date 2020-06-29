@@ -10,6 +10,7 @@ import {
 	isKeyword,
 	symbolFor as S,
 	keywordFor as K,
+	createList as L,
 	withMeta,
 	assocBang
 } from '@/mal/types'
@@ -168,7 +169,7 @@ ConsoleScope.def(
 						}
 					}
 
-					const bounds = ConsoleScope.eval([S('get-element-bounds'), viewExp])
+					const bounds = ConsoleScope.eval(L(S('get-element-bounds'), viewExp))
 					if (!bounds) {
 						throw new LispError('Cannot retrieve bounds')
 					}

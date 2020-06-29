@@ -16,8 +16,7 @@ import {
 	isMap,
 	MalMap,
 	isList,
-	isVector,
-	markMalVector as V,
+	createList as L,
 	MalNode,
 	isMalNode,
 	MalNodeSeq,
@@ -29,12 +28,12 @@ import {
 	M_EVAL_PARAMS,
 	keywordFor as K,
 	M_PARAMS,
-	markMalVector,
 	MalSymbol,
 	MalBind,
 	isSeq,
 	M_ENV,
-	M_AST
+	M_AST,
+	isVector
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -65,8 +64,8 @@ const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
 const S_ENV_CHAIN = S('env-chain')
 const S_EVAL_IN_ENV = S('eval-in-env')
-const S_VEC = S('vec')
 const S_VAR = S('var')
+const S_LST = S('lst')
 
 // eval
 
@@ -80,24 +79,24 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (!isPair(exp)) {
-		return [S_QUOTE, exp]
+		return L(S_QUOTE, exp)
 	}
 
 	if (exp[0] === S_UNQUOTE) {
 		return exp[1]
 	}
 
-	let ret = [
+	let ret = L(
 		S_CONCAT,
 		...exp.map(e => {
 			if (isPair(e) && e[0] === S_SPLICE_UNQUOTE) {
 				return e[1]
 			} else {
-				return V([quasiquote(e)])
+				return [quasiquote(e)]
 			}
 		})
-	]
-	ret = isVector(exp) ? [S_VEC, ret] : ret
+	)
+	ret = isList(exp) ? L(S_LST, ret) : ret
 	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
@@ -152,7 +151,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		if (cache) {
 			;(exp as MalNode)[M_EVAL] = ret
 		}
-		return isVector(exp) ? V(ret) : ret
+		return isList(exp) ? L(...ret) : ret
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {
@@ -236,7 +235,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env = letEnv
-				const ret = exp.length === 3 ? a2 : [S_DO, ...exp.slice(2)]
+				const ret = exp.length === 3 ? a2 : L(S_DO, ...exp.slice(2))
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_LET) as MalFunc
@@ -257,7 +256,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 					)
 				}
 				env.pushBinding(bindingEnv)
-				const body = exp.length === 3 ? exp[2] : [S_DO, ...exp.slice(2)]
+				const body = exp.length === 3 ? exp[2] : L(S_DO, ...exp.slice(2))
 				let ret
 				try {
 					ret = evalExp(body, env, cache)
@@ -286,11 +285,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env.pushBinding(bindingEnv)
 				let ret
 				try {
-					ret = V([
-						K('transform'),
-						matrix,
-						...xs.map(x => evalExp(x, env, cache))
-					])
+					ret = [K('transform'), matrix, ...xs.map(x => evalExp(x, env, cache))]
 				} finally {
 					env.popBinding()
 				}
@@ -319,11 +314,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				env.pushBinding(bindingEnv)
 				let ret
 				try {
-					ret = V([
-						K('style'),
-						styles,
-						...body.map(x => evalExp(x, env, cache))
-					])
+					ret = [K('style'), styles, ...body.map(x => evalExp(x, env, cache))]
 				} finally {
 					env.popBinding()
 				}
@@ -346,7 +337,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				const [x, y, width, height] = bounds as number[]
 
 				const bindingEnv = new Env()
-				bindingEnv.set(S('*size*'), V([width, height]))
+				bindingEnv.set(S('*size*'), [width, height])
 				bindingEnv.set(S('*width*'), width)
 				bindingEnv.set(S('*height*'), height)
 				bindingEnv.set(S('*inside-artboard*'), true)
@@ -357,25 +348,25 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 
 				env.pushBinding(bindingEnv)
 
-				const body = evalExp(V(_body), env, cache) as MalVal[]
+				const body = evalExp(_body, env, cache) as MalVal[]
 
 				let ret
 				try {
 					ret = evalExp(
-						V([
+						L(
 							K('artboard'),
-							V([...bounds]),
-							[
+							[...bounds],
+							L(
 								S('transform'),
-								V([1, 0, 0, 1, x, y]),
-								...(background ? [V([K('background'), background, true])] : []),
+								[1, 0, 0, 1, x, y],
+								...(background ? [[K('background'), background, true]] : []),
 								...body,
-								[
+								L(
 									S('guide/stroke'),
-									[S('rect'), V([0.5, 0.5]), V([width - 1, height - 1])]
-								]
-							]
-						]),
+									L(S('rect'), [0.5, 0.5], [width - 1, height - 1])
+								)
+							)
+						),
 						env,
 						cache
 					)
@@ -391,7 +382,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				return ret
 			}
 			case S_GET_ALL_SYMBOLS: {
-				const ret = V(env.getAllSymbols())
+				const ret = env.getAllSymbols()
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
@@ -410,7 +401,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_FN_PARAMS: {
 				const fn = evalExp(exp[1], env, true)
-				const ret = isMalFunc(fn) ? markMalVector([...fn[M_PARAMS]]) : null
+				const ret = isMalFunc(fn) ? L(...fn[M_PARAMS]) : null
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
@@ -443,8 +434,8 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_FN: {
 				const [, params, body] = exp
-				if (!Array.isArray(params)) {
-					throw new LispError('First argument of fn should be list')
+				if (!isVector(params)) {
+					throw new LispError('First argument of fn should be vector')
 				}
 				if (body === undefined) {
 					throw new LispError('Second argument of fn should be specified')
@@ -466,7 +457,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 				)
 			case S_MACRO: {
 				const [, params, body] = exp
-				const fnexp = [S_FN, params, body]
+				const fnexp = L(S_FN, params, body)
 				const fn = cloneExp(evalExp(fnexp, env, cache)) as MalFunc
 				fn[M_ISMACRO] = true
 				return fn
@@ -532,7 +523,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			}
 			case S_ENV_CHAIN: {
 				const envs = env.getChain()
-				exp = [S('println'), envs.map(e => e.name).join(' <- ')]
+				exp = L(S('println'), envs.map(e => e.name).join(' <- '))
 				break // continue TCO loop
 			}
 			// case 'which-env': {
@@ -672,7 +663,7 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	// }
 
 	// Set as child
-	if (Array.isArray(outer)) {
+	if (isSeq(outer)) {
 		outer[index] = replaced
 	} else {
 		// hash map

@@ -8,7 +8,7 @@ export const M_AST = Symbol.for('ast')
 export const M_ENV = Symbol.for('env')
 export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
-const M_ISVECTOR = Symbol.for('isvector')
+export const M_ISLIST = Symbol.for('islist')
 
 export const M_EVAL = Symbol.for('eval')
 export const M_EVAL_PARAMS = Symbol.for('eval-params')
@@ -53,7 +53,7 @@ export interface MalNodeMap extends MalMap {
 }
 
 export interface MalNodeSeq extends Array<MalVal> {
-	[M_ISVECTOR]: boolean
+	[M_ISLIST]: boolean
 	[M_META]?: MalVal
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
@@ -97,8 +97,8 @@ export function getType(obj: MalVal | undefined): MalType {
 			if (obj === null) {
 				return MalType.Nil
 			} else if (Array.isArray(obj)) {
-				const isvector = (obj as MalNodeSeq)[M_ISVECTOR]
-				return isvector ? MalType.Vector : MalType.List
+				const islist = (obj as MalNodeSeq)[M_ISLIST]
+				return islist ? MalType.List : MalType.Vector
 			} else if (obj instanceof Float32Array) {
 				return MalType.Vector
 			} else if ((obj as MalSymbol).type === MalType.Symbol) {
@@ -251,8 +251,8 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 		case MalType.List:
 		case MalType.Vector:
 			newObj = [...(obj as MalVal[])] as any
-			if (type === MalType.Vector) {
-				markMalVector(newObj as any)
+			if (type === MalType.List) {
+				createList(...(newObj as any))
 			}
 			break
 		case MalType.Map:
@@ -390,14 +390,14 @@ export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 export const isList = (obj: MalVal): obj is MalVal[] =>
 	getType(obj) === MalType.List
 
+export function createList(...coll: MalVal[]) {
+	;(coll as MalNodeSeq)[M_ISLIST] = true
+	return coll
+}
+
 // Vectors
 export const isVector = (obj: MalVal): obj is MalVal[] =>
 	getType(obj) === MalType.Vector
-
-export function markMalVector(arr: MalVal[]): MalVal[] {
-	;(arr as any)[M_ISVECTOR] = true
-	return arr
-}
 
 // Maps
 export const isMap = (obj: MalVal | undefined): obj is MalMap =>

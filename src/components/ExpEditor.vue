@@ -23,7 +23,7 @@ import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
-import {MalVal, MalNode, symbolFor, isMalNode} from '@/mal/types'
+import {MalVal, MalNode, symbolFor, isMalNode, isList} from '@/mal/types'
 
 import Editor from './Editor'
 
@@ -59,7 +59,7 @@ export default defineComponent({
 		const code = computed(() => {
 			if (props.exp) {
 				const code = printExp(props.exp.value as MalVal).slice(OFFSET, -5)
-				ConsoleScope.def('*sketch*', code)
+				// ConsoleScope.def('*sketch*', code)
 				return code
 			} else {
 				return ''
@@ -87,6 +87,7 @@ export default defineComponent({
 			let exp
 			try {
 				exp = readStr(`(sketch ${code}\nnil)`, true)
+				console.log(exp, code)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
@@ -126,10 +127,7 @@ export default defineComponent({
 				return
 			}
 
-			if (
-				Array.isArray(selectedExp) &&
-				selectedExp[0] === symbolFor('sketch')
-			) {
+			if (isList(selectedExp) && selectedExp[0] === symbolFor('sketch')) {
 				context.emit('select', null)
 			} else {
 				context.emit('select', nonReactive(selectedExp))

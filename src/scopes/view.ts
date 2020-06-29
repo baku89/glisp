@@ -1,4 +1,4 @@
-import {markMalVector, symbolFor as S} from '@/mal/types'
+import {symbolFor as S} from '@/mal/types'
 import Scope from '@/mal/scope'
 
 import ReplScope from './repl'
@@ -17,7 +17,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 
 	env.set(S('*width*'), width)
 	env.set(S('*height*'), height)
-	env.set(S('*size*'), markMalVector([width, height]))
+	env.set(S('*size*'), [width, height])
 
 	if (guideColor) {
 		env.set(S('*guide-color*'), guideColor)

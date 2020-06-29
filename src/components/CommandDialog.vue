@@ -2,14 +2,8 @@
 	<div class="CommandDialog">
 		<div class="CommandDialog__content">
 			<div class="CommandDialog__header">
-				<div class="CommandDialog__name">
-					{{ fnName }}
-				</div>
-				<VueMarkdown
-					class="CommandDialog__doc"
-					:source="fnDoc"
-					:anchorAttributes="{target: '_blank'}"
-				/>
+				<div class="CommandDialog__name">{{ fnName }}</div>
+				<VueMarkdown class="CommandDialog__doc" :source="fnDoc" :anchorAttributes="{target: '_blank'}" />
 			</div>
 			<ParamControl :exp="editExp" :fn="fn" @input="onInput" />
 		</div>
@@ -25,21 +19,15 @@ import {
 	defineComponent,
 	ref,
 	Ref,
-	PropType,
 	computed,
 	SetupContext
 } from '@vue/composition-api'
 import ParamControl from './ParamControl.vue'
-import {NonReactive, nonReactive} from '@/utils'
+import {NonReactive} from '@/utils'
 import {
 	MalVal,
 	MalFunc,
 	getMeta,
-	MalType,
-	MalNodeSeq,
-	markMalVector as V,
-	MalMap,
-	isFunc,
 	MalSymbol,
 	isList,
 	isSymbol
@@ -100,7 +88,6 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-
 .CommandDialog
 	position relative
 	height 100%
@@ -140,6 +127,7 @@ export default defineComponent({
 
 	&__doc
 		line-height 1.4
+
 		code
 			color var(--syntax-function)
 
@@ -149,8 +137,8 @@ export default defineComponent({
 
 		.button
 			display block
-			padding 1rem
 			flex-grow 1
+			padding 1rem
 			border-right 1px solid var(--border)
 			color var(--comment)
 

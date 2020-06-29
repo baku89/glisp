@@ -37,7 +37,8 @@ import {
 	keywordFor as K,
 	MalNode,
 	MalSymbol,
-	M_OUTER
+	M_OUTER,
+	isMalNode
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
@@ -61,7 +62,7 @@ export default defineComponent({
 	props: {
 		exp: {
 			required: true,
-			validator: p => p instanceof NonReactive
+			validator: p => p instanceof NonReactive && isMalNode(p.value)
 		}
 	},
 	setup(props: Props, context: SetupContext) {
