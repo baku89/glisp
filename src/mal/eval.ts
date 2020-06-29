@@ -214,7 +214,7 @@ export default function evalExp(exp: MalVal, env: Env, cache = false): MalVal {
 			case S_DEFVAR: {
 				const [, sym, _value] = exp
 				if (!isSymbol(sym) || _value === undefined) {
-					throw new LispError('Invalid form of def!')
+					throw new LispError('Invalid form of defvar')
 				}
 				const value = evalExp(_value, env, cache)
 				env.set(sym, value, exp as MalNodeSeq)
