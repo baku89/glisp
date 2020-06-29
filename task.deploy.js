@@ -5,7 +5,7 @@ const argv = require('yargs').argv
 const fs = require('fs')
 const FtpInfo = require('./ftp.info.js')
 
-const siteURL = 'https://baku89.com/glisp'
+const siteURL = 'https://glisp.app'
 
 const gitHash = execSync('git rev-parse HEAD')
 	.toString()
