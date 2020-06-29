@@ -43,6 +43,7 @@ export default defineComponent({
 		const {shift, alt} = useKeyboardState()
 
 		// Drag Events
+		let startValue = 0
 		useDraggable(dragEl, {
 			onClick() {
 				editing.value = true
@@ -50,6 +51,9 @@ export default defineComponent({
 					inputEl.value.focus()
 					inputEl.value.select()
 				}
+			},
+			onDragStart() {
+				startValue = props.value
 			},
 			onDrag({deltaX}) {
 				let inc = deltaX / 5
@@ -61,7 +65,9 @@ export default defineComponent({
 					inc /= 10
 				}
 
-				update(props.value + inc)
+				startValue += inc
+
+				update(startValue)
 			}
 		})
 
