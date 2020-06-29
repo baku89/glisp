@@ -19,6 +19,9 @@ export default class Env {
 		[key: string]: MalVal
 	} = {}
 
+	/**
+	 * Stores a definition expression `(devar sym val)` for each symbol
+	 */
 	private defs: {
 		[key: string]: MalNodeSeq
 	} = {}
