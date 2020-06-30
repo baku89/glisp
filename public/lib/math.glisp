@@ -42,6 +42,15 @@
   [turn] (* turn TWO_PI))
 
 
+(defn hex2
+  {:doc "Represents a normalized 0-1 value in the range 0-255 (0xff)"
+   :params [{:type "number"}]
+   :inverse (fn [ret] [(* ret 255)])
+   :unit "FF"
+   :returns {:type "number"}}
+  [x] (/ x 255))
+
+
 (defn clamp
   {:doc "Clamp `x` between two other value"
    :params [{:label "x" :type "number"}
@@ -51,14 +60,6 @@
    :returns {:type "number"}}
   [x _min _max]
   (min (max _min x) _max))
-
-(defn hex2
-  {:doc "Represents a normalized 0-1 value in the range 0-255 (0xff)"
-   :params [{:type "number"}]
-   :inverse (fn [ret] (* ret 255))
-   :unit "FF"
-   :returns {:type "number"}}
-  [x] (/ x 255))
 
 
 (def cubic-bezier

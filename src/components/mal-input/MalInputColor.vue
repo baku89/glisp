@@ -237,7 +237,10 @@ export default defineComponent({
 
 			if (mode.value !== 'HEX') {
 				if (color.a < 0.9999) {
-					const a = reverseEval(color.a, (props.value as MalVal[])[4])
+					const a =
+						(props.value as MalVal[])[4] !== undefined
+							? reverseEval(color.a, (props.value as MalVal[])[4])
+							: color.a
 					;(value as MalVal[])[4] = a
 				} else {
 					value = L(...(value as MalVal[]).slice(0, 4))
