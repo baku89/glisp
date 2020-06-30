@@ -59,7 +59,7 @@ export default defineComponent({
 		const code = computed(() => {
 			if (props.exp) {
 				const code = printExp(props.exp.value as MalVal).slice(OFFSET, -5)
-				// ConsoleScope.def('*sketch*', code)
+				ConsoleScope.def('*sketch*', code)
 				return code
 			} else {
 				return ''
