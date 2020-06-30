@@ -577,25 +577,16 @@ export default function evalExp(
 				if (fn instanceof Function) {
 					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
 
-					if (isMalFunc(fn)) {
-						if (cache) {
-							;(exp as MalNodeSeq)[M_FN] = fn
-						}
-						env = new Env(fn[M_ENV], fn[M_PARAMS], params)
-						exp = fn[M_AST]
-						break // continue TCO loop
-					} else {
-						const ret = fn(...params)
-						if (cache) {
-							setExpandInfo(exp as MalNodeSeq, {
-								type: ExpandType.Constant,
-								exp: ret
-							})
-							;(exp as MalNodeSeq)[M_EVAL] = ret
-							;(exp as MalNodeSeq)[M_FN] = fn
-						}
-						return ret
+					const ret = fn(...params)
+					if (cache) {
+						setExpandInfo(exp as MalNodeSeq, {
+							type: ExpandType.Constant,
+							exp: ret
+						})
+						;(exp as MalNodeSeq)[M_EVAL] = ret
+						;(exp as MalNodeSeq)[M_FN] = fn
 					}
+					return ret
 				} else {
 					let typename = ''
 
