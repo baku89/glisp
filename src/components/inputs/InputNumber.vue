@@ -3,9 +3,8 @@
 		<div class="InputNumber__drag" ref="dragEl" />
 		<input
 			class="InputNumber__input"
-			type="number"
-			:value="value"
-			:step="step"
+			type="text"
+			:value="displayValue"
 			@input="onInput"
 			@blur="onBlur"
 			ref="inputEl"
@@ -80,6 +79,10 @@ export default defineComponent({
 				: 1
 		})
 
+		const displayValue = computed(() =>
+			props.value.toFixed(2).replace(/\.?[0]+$/, '')
+		)
+
 		function onInput(e: InputEvent) {
 			const str = (e.target as HTMLInputElement).value
 			const val: number | null = parseFloat(str)
@@ -116,6 +119,7 @@ export default defineComponent({
 			dragEl,
 			inputEl,
 
+			displayValue,
 			step,
 			editing,
 
