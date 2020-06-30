@@ -294,8 +294,8 @@ export default defineComponent({
 
 	&__el
 		margin-right 0.7em
-		width 3.2em
+		width 3.5em
 
 		&:last-child
-			margin-right 0
+			margin-right .3em
 </style>
