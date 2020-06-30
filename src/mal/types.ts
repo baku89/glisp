@@ -322,7 +322,7 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 		case MalType.Vector:
 			newObj = [...(obj as MalVal[])] as any
 			if (type === MalType.List) {
-				createList(...(newObj as any))
+				newObj = createList(...(newObj as any))
 			}
 			break
 		case MalType.Map:
