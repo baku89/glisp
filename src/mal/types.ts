@@ -337,11 +337,11 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 			break
 		}
 		default:
-			throw new LispError('[JS: cloneExp] Unsupported type for clone')
+			newObj = obj
 	}
 
-	if (newMeta !== undefined) {
-		;(newObj as MalNode)[M_META] = newMeta
+	if (newMeta !== undefined && isMalNode(newObj)) {
+		newObj[M_META] = newMeta
 	}
 
 	return newObj
