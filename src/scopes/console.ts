@@ -199,7 +199,12 @@ ConsoleScope.def(
 							type: 'dropdown',
 							enum: ['png', 'jpeg', 'webp']
 						},
-						{key: K('scaling'), type: 'number', default: 1},
+						{
+							key: K('scaling'),
+							type: 'number',
+							default: 1,
+							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2
+						},
 						{key: K('selector'), type: 'string', default: ''}
 					]
 				}
