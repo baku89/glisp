@@ -18,7 +18,6 @@ import {
 	SetupContext,
 	Ref
 } from '@vue/composition-api'
-import ConsoleScope from '@/scopes/console'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
@@ -58,9 +57,7 @@ export default defineComponent({
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			if (props.exp) {
-				const code = printExp(props.exp.value as MalVal).slice(OFFSET, -5)
-				ConsoleScope.def('*sketch*', code)
-				return code
+				return printExp(props.exp.value as MalVal).slice(OFFSET, -5)
 			} else {
 				return ''
 			}
@@ -83,7 +80,7 @@ export default defineComponent({
 		let inputExp: NonReactive<MalVal> | null = null
 
 		function onInput(code: string) {
-			ConsoleScope.def('*sketch*', code)
+			context.emit('input-code', code)
 			let exp
 			try {
 				exp = readStr(`(sketch ${code}\nnil)`, true)

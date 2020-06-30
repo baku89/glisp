@@ -13,11 +13,7 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="onUpdateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" @select="onSelectExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -35,6 +31,7 @@
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
 							@input="onUpdateExp"
+							@input-code="onInputCode"
 							@select="onSelectExp"
 						/>
 					</div>
@@ -43,9 +40,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -324,17 +319,6 @@ export default defineComponent({
 			}
 		}
 
-		// Save code
-		watch(
-			() => data.exp,
-			exp => {
-				if (exp) {
-					const code = printExp(exp.value)
-					localStorage.setItem('saved_code', code.slice(OFFSET, -5))
-				}
-			}
-		)
-
 		// Apply the theme
 		watch(
 			() => ui.theme.colors,
@@ -375,6 +359,23 @@ export default defineComponent({
 			}
 		}
 
+		// Save code
+		function onInputCode(code: string) {
+			localStorage.setItem('saved_code', code)
+			ConsoleScope.def('*sketch*', code)
+		}
+		watch(
+			() => data.exp,
+			exp => {
+				if (exp) {
+					const code = printExp(exp.value)
+					const sketch = code.slice(OFFSET, -5)
+					localStorage.setItem('saved_code', sketch)
+					ConsoleScope.def('*sketch*', sketch)
+				}
+			}
+		)
+
 		// Init App Handler
 		bindsConsole(data, {
 			onUpdateSelectedExp,
@@ -394,6 +395,7 @@ export default defineComponent({
 			onSetBackground,
 			onUpdateExp,
 			onSelectExp,
+			onInputCode,
 			selectOuterExp
 		}
 	}
@@ -402,7 +404,6 @@ export default defineComponent({
 
 <style lang="stylus">
 @import 'style/common.styl'
-
 @import 'style/global.styl'
 @import 'style/vmodal.styl'
 
@@ -452,9 +453,9 @@ html, body
 		height 100%
 
 	&__view-handles
-		height 100%
 		// width calc(100% - 30rem)
 		width 100%
+		height 100%
 
 	&__control
 		position relative
@@ -543,26 +544,23 @@ html, body
 		background transparent
 
 	.splitpanes__splitter
-		border-left-color var(--border)
+		z-index 10
+		margin-right -1rem
+		width 1rem
 		border-right none
+		border-left-color var(--border)
 		// translucent-bg()
 		background transparent
-		width 1rem
-		margin-right -1 * @width
-		z-index 10
 
 		&:before, &:after
-			height 19px
 			width 0
+			height 19px
 			border-left 1px dotted var(--border)
 			background transparent
-			transition border-left-color .3s
+			transition border-left-color 0.3s
 
 		&:hover
 			&:before, &:after
-				background-color transparent
 				border-left-color var(--highlight)
-
-		// &:before
-		// 	margin-left -1px
+				background-color transparent
 </style>
