@@ -18,15 +18,9 @@
 				:value="value"
 				:validator="validators[i]"
 				@input="onInputNumber(i, $event)"
-			/>
-			)
+			/>)
 		</div>
-		<InputColor
-			v-if="mode"
-			:value="pickerValue"
-			:mode="mode"
-			@input="onInputColor"
-		/>
+		<InputColor v-if="mode" :value="pickerValue" :mode="mode" @input="onInputColor" />
 	</div>
 </template>
 
@@ -255,17 +249,17 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import "../style/common.styl"
+@import '../style/common.styl'
 
 .MalInputColor
 	display flex
 	line-height $input-height
 
 	&__mode
-		width 3.2em
-		margin-right .5em
-		color var(--comment)
+		margin-right 0.5em
+		width 3.5em
 		border-bottom-color transparent
+		color var(--comment)
 		font-monospace()
 
 	&__text
@@ -276,8 +270,8 @@ export default defineComponent({
 		display flex
 
 	&__el
+		margin-right 0.7em
 		width 3.2em
-		margin-right .7em
 
 		&:last-child
 			margin-right 0
