@@ -342,7 +342,8 @@ export default defineComponent({
 				Object.entries(colors).forEach(([name, value]) => {
 					document.body.style.setProperty(name, value)
 				})
-			}
+			},
+			{immediate: true}
 		)
 
 		// Events
