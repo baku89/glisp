@@ -25,11 +25,13 @@ import {
 	isList,
 	M_OUTER_INDEX,
 	MalType,
-	isFunc
+	isFunc,
+	getEvaluated
 } from '@/mal/types'
 import ConsoleScope from './scopes/console'
 import {replaceExp} from './mal/eval'
 import {mat2d, vec2} from 'gl-matrix'
+import printExp from './mal/printer'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -306,9 +308,7 @@ export function computeExpTransform(exp: MalVal) {
 	matrices.push(...attrMatrices)
 
 	// Multiplies all matrices in order
-	const ret = (matrices.map(xform =>
-		isMalNode(xform) && M_EVAL in xform ? xform[M_EVAL] : xform
-	) as mat2d[]).reduce(
+	const ret = (matrices.map(xform => getEvaluated(xform)) as mat2d[]).reduce(
 		(xform, elXform) => mat2d.multiply(xform, xform, elXform),
 		mat2d.create()
 	)
