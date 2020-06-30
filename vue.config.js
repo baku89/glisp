@@ -42,6 +42,13 @@ module.exports = {
 	chainWebpack: config => {
 		config.plugin('html-js/index').tap(args => {
 			args[0].hash = true
+			args[0].minify = {
+				removeComments: false,
+				collapseWhitespace: false,
+				removeAttributeQuotes: false,
+				collapseBooleanAttributes: false,
+				removeScriptTypeAttributes: false
+			}
 			return args
 		})
 	},
