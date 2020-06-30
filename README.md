@@ -11,7 +11,7 @@
 Glisp, an acronym for **G**raphical **LISP**, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP.
 This tool looks like the integration of Illustrator and Processing IDE at a glance. And in fact, it adopts both benefits of intuitiveness of direct manipulation on GUI and abstractness of programming language.
 
-Glisp literally uses a Lisp-like code as a project file. And as the code-as-data concept of Lisp, its project file itself is the program to generate an output at the same time as it is a list of shapes. And even the large part of the app's built-in features are implemented by the same syntax of Lisp as a project file. By this nature so-called [homoiconicity](https://en.wikipedia.org/wiki/Homoiconicity), artists can dramatically hack the app and transform it into any tool which can be specialized for daily graphic design, illustration, generative art, drawing flow-chart, or whatever you want. I call such a design concept "purpose-agnostic". Compared to the most of existing design tools that are strictly optimized for a concrete genre of graphics such as printing or UI of smartphone apps, I believe the attitude that developers intentionally keep being agnostic on how a tool should be used by designers makes it further powerful.
+Glisp literally uses a Lisp-like code as a project file. As the code-as-data concept of Lisp, its project file itself is the program to generate an output at the same time as it is a list of shapes. And even the large part of the app's built-in features are implemented by Lisp as equivalent syntax as project files. By this nature so-called [homoiconicity](https://en.wikipedia.org/wiki/Homoiconicity), artists can dramatically hack the app and transform it into any tool which can be specialized for daily graphic design, illustration, generative art, drawing flow-chart, or whatever they want. I call such a design concept "purpose-agnostic". Compared to the most of existing design tools that are strictly optimized for a concrete genre of graphics such as printing or UI of smartphone apps, I believe the attitude that developers intentionally keep being agnostic on how a tool should be used by designers makes it further powerful.
 
 Developed by [Baku Hashimoto](https://baku89.com)
 
@@ -25,7 +25,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
 
 Below are all cool projects I've deeply inspired by.
 
-- Programming-like Drawing Apps
+- Programming-oriented Drawing Apps
 
   - [Para](http://alumni.media.mit.edu/~jacobsj/para/) and [Dynamic Brush](http://jenniferjacobs.mat.ucsb.edu/#db) by [Jeninifer Jacobs](http://jenniferjacobs.mat.ucsb.edu/)
   - [Sketch-n-Sketch](https://ravichugh.github.io/sketch-n-sketch/)
@@ -36,7 +36,13 @@ Below are all cool projects I've deeply inspired by.
   - [Quil](http://www.quil.info/)
   - [snek](https://github.com/inconvergent/snek) by [Anders Hoff](https://inconvergent.net/)
 
-Information by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20)
+- Past researches, products, and plugin-ins for generative design
+
+  - [Autoshop](http://www.signwave.co.uk/go/products/autoshop)
+  - [Auto-Illustrator](http://swai.signwave.co.uk/)
+  - [Scriptographer](https://scriptographer.org/) and [Paper.js](http://paperjs.org/) by [Jürg Lehni](http://juerglehni.com/)
+
+Informations by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20) and [Yasuhiro Tsuchiya](http://www.cbc-net.com/dots/yasuhiro_tsuchiya/tsuchiya_02/)
 
 ## Supporters
 
