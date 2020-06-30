@@ -32,7 +32,7 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputColor
+					<MalInputColor
 						v-else-if="params[i].type === 'color'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
@@ -84,12 +84,26 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<MalExpButton v-else @click="onSelect($event)" :value="params[i].value" />
+					<MalExpButton
+						v-else
+						@click="onSelect($event)"
+						:value="params[i].value"
+					/>
 				</div>
-				<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+				<button
+					class="delete"
+					v-if="i >= variadicPos"
+					@click="onParamDelete(i)"
+				>
 					<i class="far fa-times-circle" />
 				</button>
-				<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+				<button
+					class="insert"
+					v-if="i >= variadicPos"
+					@click="onParamInsert(i)"
+				>
+					&lt;-- Insert
+				</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
@@ -403,16 +417,10 @@ export default defineComponent({
 			if (inputType !== descType) {
 				if (descType === 'any') {
 					return inputType
-				} else if (/^number|angle|vec2$/.test(descType)) {
+				} else if (/^number|angle|vec2|color|dropdown$/.test(descType)) {
 					return descType
-				} else if (descType === 'color' && inputType === 'string') {
-					return 'color'
-				} else if (descType === 'angle' && inputType === 'number') {
-					return 'angle'
 				} else if (descType === 'seed' && inputType === 'number') {
 					return 'seed'
-				} else if (descType === 'dropdown') {
-					return 'dropdown'
 				} else if (descType) {
 					return 'exp'
 				}

@@ -1,25 +1,15 @@
 <template>
 	<div clas="InputColor">
-		<input
-			class="InputColor__text"
-			type="text"
-			:value="value"
-			@input="onInputText"
-			@blur="onBlurText"
-		/>
 		<Popper
 			trigger="clickToOpen"
 			:append-to-body="true"
+			:delay-on-mouse-out="250"
 			:options="{
 				placement: 'top',
 				modifiers: {offset: {offset: '0,10px'}}
 			}"
 		>
-			<ColorPicker
-				class="InputColor__picker"
-				:value="value"
-				@input="onInputColor"
-			/>
+			<ColorPicker class="InputColor__picker" :value="value" @input="onInput" />
 			<button
 				class="InputColor__button"
 				slot="reference"
@@ -30,8 +20,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from '@vue/composition-api'
-import Color from 'color'
+import {defineComponent} from '@vue/composition-api'
 import {Chrome as ColorPicker} from 'vue-color'
 import Popper from 'vue-popperjs'
 
@@ -48,41 +37,12 @@ export default defineComponent({
 		}
 	},
 	setup(props, context) {
-		const hexCode = computed(() => {
-			try {
-				const color = Color(props.value)
-				return color.hex()
-			} catch (err) {
-				return 'black'
-			}
-		})
-
-		const onInputText = (e: InputEvent) => {
-			const val = (e.target as HTMLInputElement).value
-			try {
-				Color(val)
-			} catch (err) {
-				return
-			}
-			context.emit('input', val)
-		}
-
-		const onBlurText = (e: InputEvent) => {
-			if (e.target) {
-				;(e.target as HTMLInputElement).value = props.value
-			}
-		}
-
-		const onInputColor = (e: any) => {
-			// const val = (e.target as HTMLInputElement).value
-			context.emit('input', e.hex)
+		const onInput = (e: any) => {
+			context.emit('input', e)
 		}
 
 		return {
-			hexCode,
-			onInputText,
-			onBlurText,
-			onInputColor
+			onInput
 		}
 	}
 })
@@ -92,14 +52,6 @@ export default defineComponent({
 @import "../style/common.styl"
 
 .InputColor
-
-	&__text
-		width 8em
-		border none
-		border-bottom 1px dashed var(--comment)
-		background transparent
-		color var(--syntax-string)
-		font-monospace()
 
 	&__button
 		display inline
@@ -115,8 +67,23 @@ export default defineComponent({
 
 	&__picker
 		z-index 1000
-		font-family 'Fira Code', monospace !important
+		border-radius 2px
+		box-shadow 0 0 20px 0 var(--translucent) !important
+
+		&:before
+			content ''
+			position absolute
+			top 0
+			left 0
+			width 100%
+			height 100%
+			border 1px solid var(--border)
+			pointer-events none
+			z-index 1000
 
 		.vc-chrome-body
-			background-color var(--background) !important
+			background-color var(--opaque) !important
+
+		.vc-chrome-fields-wrap
+			display none
 </style>
