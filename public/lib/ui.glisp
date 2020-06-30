@@ -6,6 +6,7 @@
 (def *background* nil)
 (def *guide-color* nil)
 (def *transform* [1, 0, 0, 1, 0, 0])
+(def *time-variables* [])
 
 (def *inside-artboard* false)
 (def *fill-color* nil)

@@ -173,7 +173,12 @@
                     {:key :fps :label "FPS" :type "number" :default 0
                      :validator #(round (clamp % 0 120))}]}]}
   [sym time & _]
-  `(def ~sym ~time))
+  `(do
+     (def *time-variables* (conj *time-variables* 'time))
+     (def ~sym ~time)))
+
+(defmacro eval-sketch-at-time [sym time]
+  `(eval (read-string (format "(do (defn deftime [] nil) (def %s %f) (sketch %s\nnil))" ~sym ~time *sketch*))))
 
 
 (defn fn-meta [f]
