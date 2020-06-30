@@ -137,7 +137,7 @@ export default defineComponent({
 			}
 
 			if (isList(props.value) && props.value.length >= 5) {
-				color = color.alpha(props.value[4] as number)
+				color = color.alpha(getEvaluated(props.value[4]) as number)
 			}
 
 			return color.css()
@@ -186,7 +186,7 @@ export default defineComponent({
 			}
 
 			if (color.alpha() < 1 && mode !== 'HEX') {
-				;(value as MalVal[]).push(color.alpha)
+				;(value as MalVal[]).push(color.alpha())
 			}
 
 			context.emit('input', value)
@@ -237,7 +237,8 @@ export default defineComponent({
 
 			if (mode.value !== 'HEX') {
 				if (color.a < 0.9999) {
-					;(value as MalVal[])[4] = color.a
+					const a = reverseEval(color.a, (props.value as MalVal[])[4])
+					;(value as MalVal[])[4] = a
 				} else {
 					value = L(...(value as MalVal[]).slice(0, 4))
 				}
@@ -279,7 +280,7 @@ export default defineComponent({
 		margin-right 0.2em
 
 	&__mode
-		margin-right 0.3em
+		margin-right 0.2em
 		width 3.5em
 		border-bottom-color transparent
 		color var(--comment)
@@ -294,7 +295,7 @@ export default defineComponent({
 
 	&__el
 		margin-right 0.7em
-		width 3.5em
+		width 3.3em
 
 		&:last-child
 			margin-right .3em
