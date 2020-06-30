@@ -478,6 +478,32 @@
                      [(/ py 40)])}}
   [sy] [1 0 0 sy 0 0])
 
+;; (defn mat2d/scale-uniform
+;;   {:doc  "Returns scaling matrix"
+;;    :params [{:label "Value" :type "number"}]
+;;    :returns {:type "mat2d"}
+;;    :handles {:draw (fn [{:params [scale]}]
+;;                      (let [s (* scale 40)]
+;;                        [{:type "path" :class "dashed" :guide true
+;;                          :path [:path
+;;                                 :M [0 0] :L [x 0]
+;;                                 :M [0 0] :L [0 s]
+;;                                 :M [s 0] :L [0 (- s)] :L [(- s) 0] :L [0 s]]}
+;;                         {:type "path"  :id :uniform :path (line [sx 0] [0 sy])}
+;;                         {:type "translate" :id :non-uni :pos [sx sy]}]))
+;;              :drag (fn [{:id id :pos p
+;;                          :params [[x y]]}]
+;;                      (let [_x (/ (.x p) 40)
+;;                            _y (/ (.y p) 40)]
+;;                        (case id
+;;                          :uniform [[(+ _x (* (/ x y) _y))
+;;                                     (+ _y (* (/ y x) _x))]]
+;;                          :non-uni [[_x _y]]
+;;                          :axis-x  [[_x y]]
+;;                          :axis-y  [[x _y]])))}}
+;;   [scale]
+;;   [scale 0 0 scale 0 0])
+
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
@@ -551,6 +577,7 @@
 (defalias scale mat2d/scale)
 (defalias scale-x mat2d/scale-x)
 (defalias scale-y mat2d/scale-y)
+;; (defalias scale-uniform mat2d/scale-uniform)
 (defalias rotate mat2d/rotate)
 (defalias pivot mat2d/pivot)
 
