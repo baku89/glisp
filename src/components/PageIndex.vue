@@ -27,8 +27,8 @@
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
-							preText="(sketch "
-							postText="\nnil)"
+							:preText="'(sketch '"
+							:postText="'\nnil)'"
 							:exp="exp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
