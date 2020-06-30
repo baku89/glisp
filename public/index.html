@@ -37,18 +37,18 @@
 		/>
 		<meta
 			property="og:url"
-			content='<?= "https://$_SERVER[HTTP_HOST]" . strtok($_SERVER["REQUEST_URI"], "?") ?>'
+			content="<?= 'https://' . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>"
 		/>
 		<meta
 			property="og:image"
-			content='<?= "https://$_SERVER[HTTP_HOST]" . strtok($_SERVER["REQUEST_URI"], "?") ?>ogp.png'
+			content="<?= 'https://' . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>ogp.png"
 		/>
 		<meta property="og:site_name" content="(glisp)" />
 		<meta property="og:locale" content="en_US" />
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta
 			name="twitter:site"
-			content='<?= "https://$_SERVER[HTTP_HOST]" . strtok($_SERVER["REQUEST_URI"], "?"") ?>'
+			content="<?= 'https://' . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>"
 		/>
 		<meta name="twitter:creator" content="_@baku89" />
 		<meta name="twitter:title" content="(glisp)" />
@@ -58,7 +58,7 @@
 		/>
 		<meta
 			name="twitter:image"
-			content='<?= "https://$_SERVER[HTTP_HOST]" . strtok($_SERVER["REQUEST_URI"], "?") ?>ogp.png'
+			content="<?= 'https://' . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?') ?>ogp.png"
 		/>
 		<!-- Web Fonts & Icons -->
 		<link
