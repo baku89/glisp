@@ -1,5 +1,12 @@
 <template>
 	<div class="MalInputColor">
+		<InputColor
+			class="MalInputColor__picker"
+			v-if="mode"
+			:value="pickerValue"
+			:mode="mode"
+			@input="onInputColor"
+		/>
 		<InputDropdown
 			class="MalInputColor__mode"
 			:value="mode"
@@ -20,7 +27,6 @@
 				@input="onInputNumber(i, $event)"
 			/>)
 		</div>
-		<InputColor v-if="mode" :value="pickerValue" :mode="mode" @input="onInputColor" />
 	</div>
 </template>
 
@@ -48,6 +54,7 @@ import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputDropdown from '../inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
+import {reverseEval} from '../../mal-utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL'
 
@@ -109,13 +116,18 @@ export default defineComponent({
 						: chroma('black')
 					break
 				case 'RGB': {
-					const [, r, g, b] = props.value as number[]
+					const [, r, g, b] = (props.value as MalVal[]).map(v =>
+						getEvaluated(v)
+					) as number[]
 					color = chroma(r * 255, g * 255, b * 255, 'rgb')
 					break
 				}
 				case 'HSL': {
-					let [, h] = props.value as number[]
-					const [, , s, l] = props.value as number[]
+					const evaluated = (props.value as MalVal[]).map(v =>
+						getEvaluated(v)
+					) as number[]
+					let [, h] = evaluated
+					const [, , s, l] = evaluated
 					if (isNaN(h)) {
 						h = 0
 					}
@@ -166,12 +178,14 @@ export default defineComponent({
 				case 'RGB':
 					value = L(S('rgb'), ...color.rgb().map(v => v / 255))
 					break
-				case 'HSL':
-					value = L(S('hsl'), ...color.hsl())
+				case 'HSL': {
+					const [h, s, l] = color.hsl()
+					value = L(S('hsl'), (h / 180) * Math.PI, s, l)
 					break
+				}
 			}
 
-			if (color.alpha() < 0 && mode !== 'HEX') {
+			if (color.alpha() < 1 && mode !== 'HEX') {
 				;(value as MalVal[]).push(color.alpha)
 			}
 
@@ -201,15 +215,21 @@ export default defineComponent({
 					}
 					break
 				case 'RGB': {
-					const {r, g, b} = color.rgba
-					;(value as MalVal[])[1] = r / 255
-					;(value as MalVal[])[2] = g / 255
-					;(value as MalVal[])[3] = b / 255
+					let {r, g, b} = color.rgba
+					r = reverseEval(r / 255, (props.value as MalVal[])[1])
+					g = reverseEval(g / 255, (props.value as MalVal[])[2])
+					b = reverseEval(b / 255, (props.value as MalVal[])[3])
+					;(value as MalVal[])[1] = r
+					;(value as MalVal[])[2] = g
+					;(value as MalVal[])[3] = b
 					break
 				}
 				case 'HSL': {
-					const {h, s, l} = color.hsl
-					;(value as MalVal[])[1] = (h / 180) * Math.PI
+					let {h, s, l} = color.hsl
+					h = reverseEval((h / 180) * Math.PI, (props.value as MalVal[])[1])
+					s = reverseEval(s, (props.value as MalVal[])[2])
+					l = reverseEval(l, (props.value as MalVal[])[3])
+					;(value as MalVal[])[1] = h
 					;(value as MalVal[])[2] = s
 					;(value as MalVal[])[3] = l
 				}
@@ -255,8 +275,11 @@ export default defineComponent({
 	display flex
 	line-height $input-height
 
+	&__picker
+		margin-right 0.2em
+
 	&__mode
-		margin-right 0.5em
+		margin-right 0.3em
 		width 3.5em
 		border-bottom-color transparent
 		color var(--comment)
