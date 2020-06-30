@@ -238,17 +238,6 @@
   [] (throw "Cannot call transform as usual function call"))
 
 ;; Color
-(defn color
-  {:doc "Creates a color string"}
-  [& xs]
-  (case (count xs)
-    1 (let [v (first xs)]
-        (if (number? v)
-          (color/gray v)
-          v))
-    3 (apply color/rgb xs)
-    "black"))
-
 (defn color? [x]
   (string? x))
 
@@ -258,21 +247,39 @@
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
 
+(defn validator-01 [x] (clamp x 0 1))
+(defn validator-zero-twopi [x] (clamp x 0 TWO_PI))
+
 (defn color/rgb
-  {:params [{:label "Red" :type "number"}
-            {:label "Green" :type "number"}
-            {:label "Blue" :type "number"}]
+  {:params [{:label "Red" :type "number" :validator validator-01}
+            {:label "Green" :type "number" :validator validator-01}
+            {:label "Blue" :type "number" :validator validator-01}
+            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
    :returns {:type "color"}}
-  [r g b]
-  (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255)))
+  [r g b & a]
+  (if (zero? (count a))
+    (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
+    (format "rgba(%f,%f,%f,%f)" (* r 255) (* g 255) (* b 255) (first a))))
+(defalias rgb color/rgb)
 
 (defn color/hsl
-  {:params [{:label "Hue" :type "number"}
-            {:label "Saturation" :type "number"}
-            {:label "Lightness" :type "number"}]
+  {:params [{:label "Hue" :type "number" :validator validator-zero-twopi}
+            {:label "Saturation" :type "number" :validator validator-01}
+            {:label "Lightness" :type "number" :validator validator-01}
+            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
    :returns {:type "color"}}
-  [h s l]
-  (format "rgb(%f,%f,%f)" (* (mod h 1) 360) (* s 100) (* l 100)))
+  [h s l & a]
+  (if (zero? (count a))
+    (format "hsl(%f,%s,%s)"
+            (mod (to-deg h) 360)
+            (str (* s 100) "%")
+            (str (* l 100) "%"))
+    (format "hsla(%f,%s,%s,%f)"
+            (mod (to-deg h) 360)
+            (str (* s 100) "%")
+            (str (* l 100) "%")
+            (first a))))
+(defalias hsl color/hsl)
 
 (defn graphics/background
   {:doc "Fill the entire view or artboard with a color"
