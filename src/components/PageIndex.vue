@@ -1,5 +1,5 @@
 <template>
-	<div id="app" class="PageIndex" :style="theme.colors">
+	<div id="app" class="PageIndex">
 		<Viewer
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -332,6 +332,16 @@ export default defineComponent({
 					const code = printExp(exp.value)
 					localStorage.setItem('saved_code', code.slice(OFFSET, -5))
 				}
+			}
+		)
+
+		// Apply the theme
+		watch(
+			() => ui.theme.colors,
+			colors => {
+				Object.entries(colors).forEach(([name, value]) => {
+					document.body.style.setProperty(name, value)
+				})
 			}
 		)
 
