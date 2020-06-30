@@ -340,8 +340,8 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 			newObj = obj
 	}
 
-	if (newMeta !== undefined && isMalNode(newObj)) {
-		newObj[M_META] = newMeta
+	if (newMeta !== undefined && newObj instanceof Object) {
+		;(newObj as any)[M_META] = newMeta
 	}
 
 	return newObj
