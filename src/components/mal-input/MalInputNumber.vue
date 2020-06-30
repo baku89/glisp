@@ -13,7 +13,7 @@
 			:validator="innerValidator"
 		/>
 		<span
-			class="unit"
+			class="MalInputNumber__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
 			>{{ display.unit }}</span
@@ -39,7 +39,8 @@ import {
 	MalVal,
 	MalSymbol,
 	getEvaluated,
-	MalType
+	MalType,
+	createList as L
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval} from '@/mal-utils'
 
@@ -128,7 +129,7 @@ export default defineComponent({
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
 				const unitVal = reverseEval(value, (props.value as MalVal[])[1])
-				newExp = [(props.value as MalVal[])[0], unitVal]
+				newExp = L((props.value as MalVal[])[0], unitVal)
 			} else if (display.value.mode === 'exp') {
 				newExp = reverseEval(value, props.value)
 			}
@@ -161,7 +162,7 @@ export default defineComponent({
 		&.small
 			height $input-height
 			letter-spacing 0
-			font-size 0.75em
+			font-size 0.8em
 			line-height $input-height * 1.2
 
 	&__exp-after
