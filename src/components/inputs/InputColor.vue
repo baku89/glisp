@@ -6,8 +6,9 @@
 			:delay-on-mouse-out="250"
 			:options="{
 				placement: 'top',
-				modifiers: {offset: {offset: '0,10px'}}
+				modifiers: {offset: {offset: '0px,10px'}}
 			}"
+			boundaries-selector="body"
 		>
 			<ColorPicker class="InputColor__picker" :value="value" @input="onInput" />
 			<button
@@ -49,10 +50,9 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import "../style/common.styl"
+@import '../style/common.styl'
 
 .InputColor
-
 	&__button
 		display inline
 		margin-left 0.5em
@@ -60,26 +60,27 @@ export default defineComponent({
 		height 1.3em
 		outline none
 		border 0
-		vertical-align bottom
-		font-size inherit
 		border 1px solid var(--comment)
 		border-radius 50%
+		vertical-align bottom
+		font-size inherit
 
 	&__picker
 		z-index 1000
 		border-radius 2px
+		left: 100px !important
 		box-shadow 0 0 20px 0 var(--translucent) !important
 
 		&:before
-			content ''
 			position absolute
 			top 0
 			left 0
+			z-index 1000
 			width 100%
 			height 100%
 			border 1px solid var(--border)
+			content ''
 			pointer-events none
-			z-index 1000
 
 		.vc-chrome-body
 			background-color var(--opaque) !important
