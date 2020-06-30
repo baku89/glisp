@@ -32,6 +32,8 @@ interface Props {
 	exp: NonReactive<MalNode> | null
 	selectedExp: NonReactive<MalNode> | null
 	cssStyle?: string
+	preText: string
+	postText: string
 }
 
 export default defineComponent({
@@ -48,6 +50,14 @@ export default defineComponent({
 		cssStyle: {
 			type: String,
 			default: ''
+		},
+		preText: {
+			type: String,
+			default: ''
+		},
+		postText: {
+			type: String,
+			default: ''
 		}
 	},
 	setup(props: Props, context: SetupContext) {
@@ -57,7 +67,10 @@ export default defineComponent({
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			if (props.exp) {
-				return printExp(props.exp.value as MalVal).slice(OFFSET, -5)
+				return printExp(props.exp.value as MalVal).slice(
+					props.preText.length,
+					-props.postText.length
+				)
 			} else {
 				return ''
 			}
@@ -83,7 +96,7 @@ export default defineComponent({
 			context.emit('input-code', code)
 			let exp
 			try {
-				exp = readStr(`(sketch ${code}\nnil)`, true)
+				exp = readStr(`${props.preText}${code}${props.postText}`, true)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
