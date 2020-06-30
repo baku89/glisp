@@ -49,6 +49,15 @@
 (path/offset 10 B)
 (path/offset-stroke 2 A)
 
+;; ベクタ操作
+[0 1]
+(vec2 [1 2])
+(.x [10 20])
+(.y [30 40])
+(vec2/+ [10 20] [30 40])
+(vec2/scale [2 3] 0.5)
+(vec2/normalize [20 20])
+
 ;; 画面全体の背景色
 (background "blue")
 
