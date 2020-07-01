@@ -43,13 +43,14 @@
 
 
 (defn hex2
-  {:doc "Represents a normalized 0-1 value in the range 0-255 (0xff)"
+  {:doc "Maps the 8-bit value between 0-255 (0xff) to a normalized 0-1"
    :params [{:type "number"}]
    :inverse (fn [ret] [(* ret 255)])
    :unit "FF"
    :returns {:type "number"}}
   [x] (/ x 255))
 
+;; Range remappers
 
 (defn clamp
   {:doc "Clamp `x` between two other value"
@@ -61,6 +62,39 @@
   [x _min _max]
   (min (max _min x) _max))
 
+(defn fit
+  {:doc "Maps the value in the range `omin`-`omax` and shifts it to the corresponding value in the new range `nmin`-`omax`."
+   :params [{:label "Value" :type "number"}
+            {:label "Old Min" :type "number"}
+            {:label "Old Max" :type "number"}
+            {:label "New Min" :type "number"}
+            {:label "New Max" :type "number"}]
+   :returns {:type "number"}}
+  [x omin omax nmin nmax]
+  (+ (* (- nmax nmin)
+        (/ (- x omin)
+           (- omax omin))) ;; t
+     nmin))
+
+(defn fit01
+  {:doc "Maps the value between 0-1 to `min`-`max`"
+   :params [{:label "Value" :type "number"}
+            {:label "Min" :type "number"}
+            {:label "Max" :type "number"}]
+   :returns {:type "number"}}
+  [x nmin nmax]
+  (+ nmin
+     (* x (- nmax nmin))))
+
+(defn fit11
+  {:doc "Maps the value between -1 - 1 to `min`-`max`"
+   :params [{:label "Value" :type "number"}
+            {:label "Min" :type "number"}
+            {:label "Max" :type "number"}]
+   :returns {:type "number"}}
+  [x nmin nmax]
+  (+ nmin
+     (* (/ (inc x) 2) (- nmax nmin))))
 
 (def cubic-bezier
   ^{:doc "Calcurates CSS's cubic-bezier"
