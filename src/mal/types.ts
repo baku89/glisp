@@ -160,7 +160,7 @@ export enum MalType {
 	Undefined = 'undefined'
 }
 
-export function getType(obj: MalVal | undefined): MalType {
+export function getType(obj: any): MalType {
 	const _typeof = typeof obj
 	switch (_typeof) {
 		case 'object':
@@ -215,14 +215,14 @@ export function setMalNodeCache(node: MalNode, key: string, value: any) {
 
 export type MalNode = MalNodeMap | MalNodeSeq
 
-export const isMalNode = (v: MalVal): v is MalNode => {
+export const isMalNode = (v: any): v is MalNode => {
 	const type = getType(v)
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector
 	)
 }
 
-export const isSeq = (v: MalVal): v is MalNodeSeq => {
+export const isSeq = (v: any): v is MalNodeSeq => {
 	const type = getType(v)
 	return type === MalType.List || type === MalType.Vector
 }
@@ -452,13 +452,13 @@ export const symbolFor = MalSymbol.get
 const KEYWORD_PREFIX = '\u029e'
 
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
-export const isKeyword = (obj: MalVal): obj is string =>
+export const isKeyword = (obj: any): obj is string =>
 	getType(obj) === MalType.Keyword
 
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: MalVal): obj is MalNodeSeq =>
+export const isList = (obj: any): obj is MalNodeSeq =>
 	getType(obj) === MalType.List
 
 export function createList(...coll: MalVal[]) {
@@ -467,12 +467,11 @@ export function createList(...coll: MalVal[]) {
 }
 
 // Vectors
-export const isVector = (obj: MalVal): obj is MalVal[] =>
+export const isVector = (obj: any): obj is MalVal[] =>
 	getType(obj) === MalType.Vector
 
 // Maps
-export const isMap = (obj: MalVal | undefined): obj is MalMap =>
-	getType(obj) === MalType.Map
+export const isMap = (obj: any): obj is MalMap => getType(obj) === MalType.Map
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
