@@ -223,19 +223,169 @@
          :else
          `[:g :_ ~@xs]))))
 
-(defn style
-  {:doc "Applies a style to elements"
-   :params [{:label "Style" :type "exp"}
-            &
-            {:label "Body" :type "exp"}]}
-  [] (throw "Cannot call style as usual function call"))
+;; ==================================== JS Implementation
+;; 	const matrix = evalExp(exp[1], env, cache)
+;; 	const xs = exp.slice(2)
 
-(defn transform
+;; 	const bindingEnv = new Env()
+;; 	bindingEnv.set(
+;; 		S('*transform*'),
+;; 		mat2d.mul(
+;; 			mat2d.create(),
+;; 			env.get(S('*transform*')) as mat2d,
+;; 			matrix as mat2d
+;; 		) as MalVal[]
+;; 	)
+
+;; 	env.pushBinding(bindingEnv)
+;; 	let ret
+;; 	try {
+;; 		ret = [K('transform'), matrix, ...xs.map(x => evalExp(x, env, cache))]
+;; 	} finally {
+;; 		env.popBinding()
+;; 	}
+;; 	if (cache) {
+;; 		;(exp as MalNode)[M_EVAL] = ret
+;; 		;(exp as MalNodeSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
+;; 	}
+;; 	return ret
+(defmacro transform
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
             &
             {:label "Body" :type "exp"}]}
-  [] (throw "Cannot call transform as usual function call"))
+  [xform & body]
+  (let [local-xform (eval-in-env xform)
+        global-xform (mat2d/* (eval-in-env *transform*)
+                              local-xform)]
+    `(binding [*transform* ~local-xform]
+       [:transform ~local-xform ~@body])))
+
+(defn merge-hash-map [xs]
+  (->> xs
+       (map entries)
+       (apply concat)
+       (apply concat)
+       (apply assoc {})))
+
+;; ==================================== JS Implementation
+; const [, _styles, ...body] = exp
+;; const styles = evalExp(_styles, env, cache) as MalMap | MalMap[]
+;; const mergedStyle = Array.isArray(styles)
+;; 	? styles.reduce((ret, s) => {
+;; 			return {...ret, ...s}
+;; 		}, {})
+;; 	: styles
+
+;; const bindingEnv = new Env()
+
+;; for (const [prop, value] of Object.entries(mergedStyle)) {
+;; 	const name = S(`*${prop.slice(1)}*`)
+;; 	bindingEnv.set(name, value)
+;; }
+
+;; env.pushBinding(bindingEnv)
+;; let ret
+;; try {
+;; 	ret = [K('style'), styles, ...body.map(x => evalExp(x, env, cache))]
+;; } finally {
+;; 	env.popBinding()
+;; }
+;; if (cache) {
+;; 	;(exp as MalNode)[M_EVAL] = ret
+;; 	;(exp as MalNodeSeq)[M_FN] = env.get(S_STYLE) as MalFunc
+;; }
+;; return ret
+
+;; ==================================== JS Implementation
+(defmacro style
+  {:doc "Applies a style to elements"
+   :params [{:label "Style" :type "exp"}
+            &
+            {:label "Body" :type "exp"}]}
+  [styles & body]
+  (let [evaluated-styles (eval-in-env (if (vector? styles)
+                                        styles
+                                        [styles]))
+        merged-style (merge-hash-map evaluated-styles)
+        binds (apply concat
+                     (map #(vector (symbol (str "*" (name (first %)) "*"))
+                                   (second %))
+                          (entries merged-style)))]
+    `(binding ~binds [:style ~merged-style ~@body])))
+
+
+;; const [, _option, ..._body] = exp
+;; const option = evalExp(_option, env, cache) as MalMap
+;; const bounds = option[K('bounds')]
+;; const background = option[K('background')]
+
+;; if (!Array.isArray(bounds) || bounds.length < 4) {
+;; 	throw new LispError('Invalid bounds')
+;; }
+
+;; const [x, y, width, height] = bounds as number[]
+
+;; const bindingEnv = new Env()
+;; bindingEnv.set(S('*size*'), [width, height])
+;; bindingEnv.set(S('*width*'), width)
+;; bindingEnv.set(S('*height*'), height)
+;; bindingEnv.set(S('*inside-artboard*'), true)
+
+;; if (background) {
+;; 	bindingEnv.set(S('*background*'), background)
+;; }
+
+;; env.pushBinding(bindingEnv)
+
+;; const body = evalExp(_body, env, cache) as MalVal[]
+
+;; let ret
+;; try {
+;; 	ret = evalExp(
+;; 		L(
+;; 			K('artboard'),
+;; 			[...bounds],
+;; 			L(
+;; 				S('transform'),
+;; 				[1, 0, 0, 1, x, y],
+;; 				...(background ? [[K('background'), background, true]] : []),
+;; 				...body,
+;; 				L(
+;; 					S('guide/stroke'),
+;; 					L(S('rect'), [0.5, 0.5], [width - 1, height - 1])
+;; 				)
+;; 			)
+;; 		),
+;; 		env,
+;; 		cache
+;; 	)
+;; } finally {
+;; 	env.popBinding()
+;; }
+
+;; if (cache) {
+;; 	;(exp as MalNode)[M_EVAL] = ret
+;; 	;(exp as MalNodeSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
+;; 	;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
+;; }
+;; return ret
+(defmacro artboard
+  [options & body]
+  (let [evaluated-options (eval-in-env options)
+        bounds (get evaluated-options :bounds [0 0 0 0])
+        offset (rect2d/point bounds)
+        bg (get evaluated-options :background)]
+    `(binding [*size* ~(rect2d/size bounds)
+               *width* ~(rect2d/width bounds)
+               *height* ~(rect2d/height bounds)
+               *inside-artboard* true
+               *background* ~(or bg *background*)]
+       [:clip (rect ~bounds)
+        ~(if bg `(style (fill ~bg) (rect ~bounds)))
+        (transform (translate ~offset)
+                   ~@body)])))
+
 
 ;; Color
 (defn color? [x]

@@ -38,7 +38,6 @@ import {
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
-import {mat2d} from 'gl-matrix'
 import {printExp} from '.'
 
 const S_DEF = S('def')
@@ -48,9 +47,6 @@ const S_BINDING = S('binding')
 const S_IF = S('if')
 const S_DO = S('do')
 const S_FN = S('fn')
-const S_ARTBOARD = S('artboard')
-const S_STYLE = S('style')
-const S_TRANSFORM = S('transform')
 const S_GET_ALL_SYMBOLS = S('get-all-symbols')
 const S_FN_PARAMS = S('fn-params')
 const S_FN_SUGAR = S('fn-sugar')
@@ -243,7 +239,6 @@ export default function evalExp(
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
 				if (cache) {
-					// Might cause slowness to create function
 					setExpandInfo(exp as MalNodeSeq, {
 						type: ExpandType.Env,
 						exp: ret,
@@ -277,119 +272,6 @@ export default function evalExp(
 				}
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
-				}
-				return ret
-			}
-			case S_TRANSFORM: {
-				const matrix = evalExp(exp[1], env, cache)
-				const xs = exp.slice(2)
-
-				const bindingEnv = new Env()
-				bindingEnv.set(
-					S('*transform*'),
-					mat2d.mul(
-						mat2d.create(),
-						env.get(S('*transform*')) as mat2d,
-						matrix as mat2d
-					) as MalVal[]
-				)
-
-				env.pushBinding(bindingEnv)
-				let ret
-				try {
-					ret = [K('transform'), matrix, ...xs.map(x => evalExp(x, env, cache))]
-				} finally {
-					env.popBinding()
-				}
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
-				}
-				return ret
-			}
-			case S_STYLE: {
-				const [, _styles, ...body] = exp
-				const styles = evalExp(_styles, env, cache) as MalMap | MalMap[]
-				const mergedStyle = Array.isArray(styles)
-					? styles.reduce((ret, s) => {
-							return {...ret, ...s}
-					  }, {})
-					: styles
-
-				const bindingEnv = new Env()
-
-				for (const [prop, value] of Object.entries(mergedStyle)) {
-					const name = S(`*${prop.slice(1)}*`)
-					bindingEnv.set(name, value)
-				}
-
-				env.pushBinding(bindingEnv)
-				let ret
-				try {
-					ret = [K('style'), styles, ...body.map(x => evalExp(x, env, cache))]
-				} finally {
-					env.popBinding()
-				}
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_STYLE) as MalFunc
-				}
-				return ret
-			}
-			case S_ARTBOARD: {
-				const [, _option, ..._body] = exp
-				const option = evalExp(_option, env, cache) as MalMap
-				const bounds = option[K('bounds')]
-				const background = option[K('background')]
-
-				if (!Array.isArray(bounds) || bounds.length < 4) {
-					throw new LispError('Invalid bounds')
-				}
-
-				const [x, y, width, height] = bounds as number[]
-
-				const bindingEnv = new Env()
-				bindingEnv.set(S('*size*'), [width, height])
-				bindingEnv.set(S('*width*'), width)
-				bindingEnv.set(S('*height*'), height)
-				bindingEnv.set(S('*inside-artboard*'), true)
-
-				if (background) {
-					bindingEnv.set(S('*background*'), background)
-				}
-
-				env.pushBinding(bindingEnv)
-
-				const body = evalExp(_body, env, cache) as MalVal[]
-
-				let ret
-				try {
-					ret = evalExp(
-						L(
-							K('artboard'),
-							[...bounds],
-							L(
-								S('transform'),
-								[1, 0, 0, 1, x, y],
-								...(background ? [[K('background'), background, true]] : []),
-								...body,
-								L(
-									S('guide/stroke'),
-									L(S('rect'), [0.5, 0.5], [width - 1, height - 1])
-								)
-							)
-						),
-						env,
-						cache
-					)
-				} finally {
-					env.popBinding()
-				}
-
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
-					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
 				}
 				return ret
 			}
