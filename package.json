@@ -10,6 +10,7 @@
 		"build-deploy": "yarn build; yarn deploy --commit",
 		"doc:deploy": "yarn deploy --docs",
 		"doc:serve": "docsify serve docs",
+		"doc:export-refs": "yarn repl export-refs.glisp",
 		"electron:build": "vue-cli-service electron:build",
 		"electron:serve": "vue-cli-service electron:serve",
 		"postinstall": "electron-builder install-app-deps",

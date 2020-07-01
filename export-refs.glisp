@@ -47,6 +47,15 @@
                  params)))
        "\n"))))
 
+(defn upper-case [text]
+  (js-eval (format "'%s'.toUpperCase()" text)))
+
+(defn capital-case [text]
+  (if (= 1 (count text))
+    text
+    (str (upper-case (subs text 0 1))
+         (subs text 1))))
+
 (defn gen-doc [sym m f]
   (apply
    str
@@ -56,25 +65,44 @@
 
     [(format "### %s\n\n" (name sym))
 
-     (prn (name sym) (fn-params f))
-
      (if (contains? m :doc)
        (format "%s\n\n" (get m :doc)))
 
-     (if (contains? m :alias)
-       (format "Alias for `%s`\n\n" (get (get m :alias) :name)))
-
-     (if (contains? m :params)
-       (format "**Parameter**\n\n"))
-     (gen-param-table (get m :params))
+     ;; Generate parameter table
+     (let [fparams (fn-params f)
+           params (or (get m :params)
+                      (map #(hash-map) fparams))
+           params (if (and fparams (>= (count fparams) (count params)))
+                    (for [p params :index i]
+                      (if (map? p)
+                        (apply hash-map
+                               (apply concat
+                                      [:label (capital-case
+                                               (print-str (nth fparams i)))]
+                                      (entries p)))
+                        p))
+                    params)]
+       (if (pos? (count params))
+         (str
+          "**Parameter**\n\n"
+          (gen-param-table params))))
 
      (if (contains? m :returns)
-       (format "**returns** `%s`\n\n" (get (get m :returns) :type)))])))
+       (format "**Returns**: `%s`\n\n" (get (get m :returns) :type)))
+
+     (if (contains? m :alias)
+       (format "**Alias:** `%s`\n\n" (get m :alias)))])))
+
 
 
 (def md (->> (get-all-symbols)
-             (map #(vector % (meta (eval %)) (eval %)))
-             (remove #(nil? (second %)))
+             (sort)
+             (map #(vector % (eval %)))
+             (map #(vector (first %)         ; symbol
+                           (meta (second %)) ; meta
+                           (second %)))      ; function reference
+             (remove #(nil? (second %))) ; Delete functions with no metadata
+             (remove #(get (second %) :alias-for)) ; Delete aliased functions
              (map #(apply gen-doc %))))
 
 (def txt (join "\n" md))

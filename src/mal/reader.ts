@@ -22,7 +22,8 @@ import {
 	isSeq,
 	getName,
 	createList as L,
-	MalNodeSeq
+	MalNodeSeq,
+	isSymbol
 } from './types'
 import printExp from './printer'
 
@@ -495,14 +496,17 @@ export function findExpByRange(
 }
 
 export function convertJSObjectToMalMap(obj: any): MalVal {
-	if (isMap(obj)) {
+	if (Array.isArray(obj)) {
+		const ret = obj.map(v => convertJSObjectToMalMap(v))
+		return ret
+	} else if (isSymbol(obj)) {
+		return obj
+	} else if (obj instanceof Object) {
 		const ret: MalMap = {}
 		for (const [key, value] of Object.entries(obj)) {
 			ret[keywordFor(key)] = convertJSObjectToMalMap(value)
 		}
 		return ret
-	} else if (Array.isArray(obj)) {
-		return obj.map(v => convertJSObjectToMalMap(v))
 	} else {
 		return obj
 	}
