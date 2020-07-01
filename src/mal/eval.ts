@@ -27,11 +27,8 @@ import {
 	M_EVAL_PARAMS,
 	keywordFor as K,
 	M_PARAMS,
-	MalSymbol,
 	MalBind,
 	isSeq,
-	M_ENV,
-	M_AST,
 	isVector,
 	setExpandInfo,
 	ExpandType
@@ -174,7 +171,6 @@ export default function evalExp(
 	env: Env,
 	cache = false
 ): MalVal {
-	// eslint-disable-next-line no-constant-condition
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
@@ -194,11 +190,11 @@ export default function evalExp(
 		}
 
 		if (exp.length === 0) {
-			return exp
+			throw new LispError('Invalid empty list')
 		}
 
 		// Apply list
-		const [first, a1, a2] = exp
+		const [first] = exp
 
 		switch (first) {
 			case S_DEF: {
@@ -310,18 +306,14 @@ export default function evalExp(
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_QUOTE:
+			case S_QUOTE: {
 				// No need to cache M_EVAL
-				// if (cache) {
-				// 	;(exp as MalNode)[M_EVAL] = a1
-				// }
-				return a1
+				const body = exp[1]
+				return body
+			}
 			case S_QUASIQUOTE: {
 				const ret = quasiquote(exp[1])
 				// No need to cache M_EVAL
-				// if (cache) {
-				// 	;(exp as MalNode)[M_EVAL] = ret
-				// }
 				exp = ret
 				break // continue TCO loop
 			}
@@ -341,13 +333,15 @@ export default function evalExp(
 					params as MalBind
 				)
 			}
-			case S_FN_SUGAR:
+			case S_FN_SUGAR: {
+				const body = exp[1]
 				return createMalFunc(
-					(...args) => evalExp(a1, new Env(env, [], args), cache),
-					a1,
+					(...args) => evalExp(body, new Env(env, [], args), cache),
+					body,
 					env,
 					[]
 				)
+			}
 			case S_MACRO: {
 				const [, params, body] = exp
 				const fn = createMalFunc(
@@ -365,30 +359,32 @@ export default function evalExp(
 				return fn
 			}
 			case S_MACROEXPAND: {
-				const ret = macroexpand(a1, env, cache)
+				const ret = macroexpand(exp[1], env, cache)
 				if (cache) {
 					;(exp as MalNode)[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_TRY:
+			case S_TRY: {
+				const [, testExp, catchExp] = exp
 				try {
-					const ret = evalExp(a1, env, cache)
+					const ret = evalExp(testExp, env, cache)
 					if (cache) {
 						;(exp as MalNode)[M_EVAL] = ret
 					}
 					return ret
 				} catch (exc) {
 					let err = exc
-					if (a2 && Array.isArray(a2) && a2[0] === S_CATCH) {
+					if (
+						isList(catchExp) &&
+						catchExp[0] === S_CATCH &&
+						isSymbol(catchExp[1])
+					) {
 						if (exc instanceof Error) {
 							err = exc.message
 						}
-						const ret = evalExp(
-							a2[2],
-							new Env(env, [a2[1] as MalSymbol], [err]),
-							cache
-						)
+						const [, errSym, errBody] = catchExp
+						const ret = evalExp(errBody, new Env(env, [errSym], [err]), cache)
 						if (cache) {
 							;(exp as MalNode)[M_EVAL] = ret
 						}
@@ -397,6 +393,7 @@ export default function evalExp(
 						throw err
 					}
 				}
+			}
 			case S_DO: {
 				if (cache) {
 					;(exp as MalNodeSeq)[M_FN] = env.get(S_DO) as MalFunc
