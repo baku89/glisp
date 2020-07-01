@@ -59,7 +59,7 @@ export interface MalFunc extends Function {
 	[M_ISMACRO]: boolean
 }
 
-export class LispError extends Error {}
+export class MalError extends Error {}
 
 export type MalMap = {[keyword: string]: MalVal}
 
@@ -244,10 +244,10 @@ export function getMeta(obj: MalVal): MalVal {
 
 export function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
-		throw new LispError('[with-meta] Need the metadata to attach')
+		throw new MalError('[with-meta] Need the metadata to attach')
 	}
 	if (!(a instanceof Object)) {
-		throw new LispError('[with-meta] Object should not be atom')
+		throw new MalError('[with-meta] Object should not be atom')
 	}
 	const c = cloneExp(a, m)
 	return c
@@ -371,7 +371,7 @@ export function getName(exp: MalVal): string {
 		case MalType.Symbol:
 			return (exp as MalSymbol).value
 		default:
-			throw new LispError(
+			throw new MalError(
 				'getName() can only extract the name by string/keyword/symbol'
 			)
 	}
@@ -482,11 +482,11 @@ export const isMap = (obj: any): obj is MalMap => getType(obj) === MalType.Map
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
-		throw new LispError('Odd number of map arguments')
+		throw new MalError('Odd number of map arguments')
 	}
 	for (let i = 0; i < args.length; i += 2) {
 		if (typeof args[i] !== 'string') {
-			throw new LispError('Hash map can only use string/symbol/keyword as key')
+			throw new MalError('Hash map can only use string/symbol/keyword as key')
 		}
 		hm[args[i]] = args[i + 1]
 	}

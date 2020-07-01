@@ -7,7 +7,7 @@ import {
 	isMalFunc,
 	MalFuncThis,
 	isKeyword,
-	LispError,
+	MalError,
 	symbolFor as S,
 	isSymbol,
 	M_ISMACRO,
@@ -190,7 +190,7 @@ export default function evalExp(
 		}
 
 		if (exp.length === 0) {
-			throw new LispError('Invalid empty list')
+			throw new MalError('Invalid empty list')
 		}
 
 		// Apply list
@@ -200,7 +200,7 @@ export default function evalExp(
 			case S_DEF: {
 				const [, sym, _value] = exp
 				if (!isSymbol(sym) || _value === undefined) {
-					throw new LispError('Invalid form of def')
+					throw new MalError('Invalid form of def')
 				}
 				const value = env.set(sym, evalExp(_value, env, cache))
 				if (cache) {
@@ -211,7 +211,7 @@ export default function evalExp(
 			case S_DEFVAR: {
 				const [, sym, _value] = exp
 				if (!isSymbol(sym) || _value === undefined) {
-					throw new LispError('Invalid form of defvar')
+					throw new MalError('Invalid form of defvar')
 				}
 				const value = evalExp(_value, env, cache)
 				env.set(sym, value, exp as MalNodeSeq)
@@ -224,7 +224,7 @@ export default function evalExp(
 				const letEnv = new Env(env)
 				const [, binds, ...body] = exp
 				if (!isVector(binds)) {
-					throw new LispError('Invalid bind-expr in let')
+					throw new MalError('Invalid bind-expr in let')
 				}
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
@@ -250,7 +250,7 @@ export default function evalExp(
 				const bindingEnv = new Env()
 				const [, binds, ..._body] = exp
 				if (!isSeq(binds)) {
-					throw new LispError('Invalid bind-expr in binding')
+					throw new MalError('Invalid bind-expr in binding')
 				}
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
@@ -281,7 +281,7 @@ export default function evalExp(
 			case S_VAR: {
 				const [, sym] = exp
 				if (!isSymbol(sym)) {
-					throw new LispError('Invalid var')
+					throw new MalError('Invalid var')
 				}
 				const ret = env.get(sym)
 				if (cache) {
@@ -316,10 +316,10 @@ export default function evalExp(
 			case S_FN: {
 				const [, params, body] = exp
 				if (!isVector(params)) {
-					throw new LispError('First argument of fn should be vector')
+					throw new MalError('First argument of fn should be vector')
 				}
 				if (body === undefined) {
-					throw new LispError('Second argument of fn should be specified')
+					throw new MalError('Second argument of fn should be specified')
 				}
 				return createMalFunc(
 					(...args) =>
@@ -470,7 +470,7 @@ export default function evalExp(
 					} else if (Array.isArray(fn)) {
 						typename = 'List '
 					}
-					throw new LispError(
+					throw new MalError(
 						`[EVAL] ${typename} ${printExp(
 							fn
 						)} is not a function. First element of list always should be a function.`
@@ -492,7 +492,7 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	const index = original[M_OUTER_INDEX]
 
 	if (index === undefined || !isMalNode(outer)) {
-		throw new LispError('Cannot execute replaceExp')
+		throw new MalError('Cannot execute replaceExp')
 	}
 
 	// // Inherit delimiters if possible

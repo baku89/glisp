@@ -2,7 +2,7 @@ import {SetupContext} from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
 import {
 	MalVal,
-	LispError,
+	MalError,
 	isFunc,
 	isSymbol,
 	getMeta,
@@ -22,7 +22,7 @@ export default function useCommandDialog(context: SetupContext) {
 
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !isSymbol(f)) {
-			throw new LispError(`${printExp(f)} is not a symbol`)
+			throw new MalError(`${printExp(f)} is not a symbol`)
 		}
 
 		// Retrieve default parameters

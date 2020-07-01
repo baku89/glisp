@@ -1,7 +1,7 @@
 import {
 	keywordFor,
 	assocBang,
-	LispError,
+	MalError,
 	symbolFor as S,
 	MalNode,
 	MalNodeMap,
@@ -124,7 +124,7 @@ function readAtom(reader: Reader) {
 				.slice(1, token.length - 1)
 				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 		} else if (token[0] === '"') {
-			throw new LispError("[READ] expected '\"', got EOF")
+			throw new MalError("[READ] expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return keywordFor(token.slice(1))
 		} else if (token === 'nil') {
@@ -154,7 +154,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 	let token = reader.next()
 
 	if (token !== start) {
-		throw new LispError(`[READ] expected '${start}'`)
+		throw new MalError(`[READ] expected '${start}'`)
 	}
 
 	if (saveStr) {
@@ -166,7 +166,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
-			throw new LispError(`[READ] expected '${end}', got EOF`)
+			throw new MalError(`[READ] expected '${end}', got EOF`)
 		}
 
 		if (saveStr) {
@@ -302,7 +302,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			break
 		// list
 		case ')':
-			throw new LispError("unexpected ')'")
+			throw new MalError("unexpected ')'")
 		case '(':
 			val = readList(reader, saveStr)
 			break
@@ -557,7 +557,7 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	const exp = readForm(reader, saveStr)
 
 	if (reader.index < tokens.length - 1) {
-		throw new LispError('Invalid end of file')
+		throw new MalError('Invalid end of file')
 	}
 
 	if (saveStr) {

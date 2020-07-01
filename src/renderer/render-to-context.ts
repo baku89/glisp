@@ -3,7 +3,7 @@ import {
 	keywordFor as K,
 	isMap,
 	isKeyword,
-	LispError,
+	MalError,
 	MalMap
 } from '@/mal/types'
 import {partition} from '@/utils'
@@ -137,7 +137,7 @@ export default function renderToContext(
 						break
 					}
 					default:
-						throw new LispError(`Unknown rendering command ${printExp(cmd)}`)
+						throw new MalError(`Unknown rendering command ${printExp(cmd)}`)
 				}
 			}
 		}
@@ -171,7 +171,7 @@ export default function renderToContext(
 					ctx.closePath()
 					break
 				default: {
-					throw new LispError(`Invalid d-path command: ${printExp(c)}`)
+					throw new MalError(`Invalid d-path command: ${printExp(c)}`)
 				}
 			}
 		}

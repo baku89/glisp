@@ -9,7 +9,7 @@ import {
 	keywordFor as K,
 	symbolFor as S,
 	isKeyword,
-	LispError,
+	MalError,
 	assocBang,
 	MalNode,
 	getMalNodeCache,
@@ -138,13 +138,13 @@ function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 function getBezier(points: Vec2[]) {
 	const coords = points.map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
-		throw new LispError('Invalid point count for cubic bezier')
+		throw new MalError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
 }
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
-		throw new LispError('Invalid path')
+		throw new MalError('Invalid path')
 	}
 
 	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0

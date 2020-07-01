@@ -108,7 +108,7 @@ import {
 	getType,
 	MalVal,
 	keywordFor as K,
-	LispError,
+	MalError,
 	M_PARAMS,
 	malEquals,
 	isMalFunc,
@@ -273,7 +273,7 @@ export default defineComponent({
 				const metaDescs = fnInfo.value.meta[K_PARAMS] as MetaDescs | MetaDescs[]
 
 				if (!isVector(metaDescs)) {
-					throw new LispError('Invalid params scheme')
+					throw new MalError('Invalid params scheme')
 				}
 
 				if (isVector(metaDescs[0])) {

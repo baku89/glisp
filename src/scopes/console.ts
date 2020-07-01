@@ -6,7 +6,7 @@ import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 import {
 	MalVal,
-	LispError,
+	MalError,
 	isKeyword,
 	symbolFor as S,
 	keywordFor as K,
@@ -152,7 +152,7 @@ ConsoleScope.def(
 				let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
 
 				if (viewExp === undefined) {
-					throw new LispError('Invalid sketch')
+					throw new MalError('Invalid sketch')
 				}
 
 				if (viewExp) {
@@ -163,7 +163,7 @@ ConsoleScope.def(
 							S('*view*')
 						])
 						if (!viewExp) {
-							throw new LispError(
+							throw new MalError(
 								`Element ${printExp(options.selector, true)} does not exist`
 							)
 						}
@@ -171,7 +171,7 @@ ConsoleScope.def(
 
 					const bounds = ConsoleScope.eval(L(S('get-element-bounds'), viewExp))
 					if (!bounds) {
-						throw new LispError('Cannot retrieve bounds')
+						throw new MalError('Cannot retrieve bounds')
 					}
 					const [x, y, width, height] = bounds as number[]
 
@@ -224,7 +224,7 @@ ConsoleScope.def(
 			const {_: name, user, token} = createHashMap(args)
 
 			if (typeof user !== 'string' || typeof token !== 'string') {
-				throw new LispError(`Parameters :user and :token must be specified.
+				throw new MalError(`Parameters :user and :token must be specified.
 	Get the token from https://github.com/settings/tokens/new with 'gist' option turned on.`)
 			}
 

@@ -2,7 +2,7 @@ import Env from './env'
 import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {symbolFor as S, MalVal, LispError} from './types'
+import {symbolFor as S, MalVal, MalError} from './types'
 import printExp, {printer} from './printer'
 import isNode from 'is-node'
 
@@ -119,7 +119,7 @@ export default class Scope<T> {
 				return null
 			}
 
-			if (err instanceof LispError) {
+			if (err instanceof MalError) {
 				printer.error(err)
 			} else {
 				printer.error(err.stack)
@@ -133,7 +133,7 @@ export default class Scope<T> {
 		try {
 			return evalExp(exp, this.env, this.cache)
 		} catch (err) {
-			if (err instanceof LispError) {
+			if (err instanceof MalError) {
 				printer.error(err)
 			} else {
 				printer.error(err.stack)

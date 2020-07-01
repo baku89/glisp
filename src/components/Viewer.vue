@@ -7,7 +7,7 @@
 <script lang="ts">
 import {defineComponent, Ref, onMounted, watch, ref} from '@vue/composition-api'
 
-import {MalVal, LispError} from '@/mal/types'
+import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
 import {NonReactive} from '@/utils'
 import createCanvasRender, {
@@ -87,7 +87,7 @@ export default defineComponent({
 			try {
 				sidefxs = await (renderer as CanvasRendererType).render(exp, options)
 			} catch (err) {
-				if (err instanceof LispError) {
+				if (err instanceof MalError) {
 					printer.error(err.message)
 				} else {
 					printer.error(err)

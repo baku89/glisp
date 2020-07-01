@@ -321,7 +321,7 @@
 ;; const background = option[K('background')]
 
 ;; if (!Array.isArray(bounds) || bounds.length < 4) {
-;; 	throw new LispError('Invalid bounds')
+;; 	throw new MalError('Invalid bounds')
 ;; }
 
 ;; const [x, y, width, height] = bounds as number[]

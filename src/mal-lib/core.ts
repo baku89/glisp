@@ -11,7 +11,7 @@ import {
 	isSymbol,
 	isKeyword,
 	keywordFor,
-	LispError,
+	MalError,
 	MalFunc,
 	isVector,
 	isList,
@@ -111,18 +111,18 @@ const Exports = [
 		'nth',
 		(a: MalVal[], i: number) => {
 			if (typeof i !== 'number') {
-				throw new LispError('[nth] Index should be specified by number')
+				throw new MalError('[nth] Index should be specified by number')
 			} else if (i < 0) {
 				if (-i <= a.length) {
 					return a[a.length - i]
 				} else {
-					throw new LispError('[nth] index out of range')
+					throw new MalError('[nth] index out of range')
 				}
 			} else {
 				if (i < a.length) {
 					return a[i]
 				} else {
-					throw new LispError('[nth] index out of range')
+					throw new MalError('[nth] index out of range')
 				}
 			}
 		}
@@ -141,7 +141,7 @@ const Exports = [
 			if (isSeq(a)) {
 				return a.slice(start, end)
 			} else {
-				throw new LispError(`[slice] ${printExp(a)} is not an array`)
+				throw new MalError(`[slice] ${printExp(a)} is not an array`)
 			}
 		}
 	],
@@ -282,7 +282,7 @@ const Exports = [
 					content as string
 				)
 			} else {
-				throw new LispError('Cannot spit on browser')
+				throw new MalError('Cannot spit on browser')
 			}
 
 			return null

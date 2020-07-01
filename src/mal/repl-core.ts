@@ -1,7 +1,7 @@
 import {vsprintf} from 'sprintf-js'
 import isNode from 'is-node'
 
-import {MalVal, LispError, withMeta, symbolFor as S} from './types'
+import {MalVal, MalError, withMeta, symbolFor as S} from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
 import interop from './interop'
@@ -22,7 +22,7 @@ export const slurp = (() => {
 			req.open('GET', hashedUrl, false)
 			req.send()
 			if (req.status !== 200) {
-				throw new LispError(`Failed to slurp file: ${url}`)
+				throw new MalError(`Failed to slurp file: ${url}`)
 			}
 			return req.responseText
 		}
@@ -46,7 +46,7 @@ const Exports = [
 	[
 		'throw',
 		(msg: string) => {
-			throw new LispError(msg)
+			throw new MalError(msg)
 		}
 	],
 

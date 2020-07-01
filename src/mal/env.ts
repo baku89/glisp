@@ -1,6 +1,6 @@
 import {
 	MalVal,
-	LispError,
+	MalError,
 	isSymbol,
 	isMap,
 	MalMap,
@@ -90,7 +90,7 @@ export default class Env {
 				switch (bindType) {
 					case MalType.Symbol: {
 						if (exp === undefined) {
-							throw new LispError(`Error: parameter '${bind}' is not specified`)
+							throw new MalError(`Error: parameter '${bind}' is not specified`)
 						}
 						this.set(bind as MalSymbol, exp)
 						break
@@ -98,7 +98,7 @@ export default class Env {
 					case MalType.Vector: {
 						// List Destruction
 						if (!isSeq(exp)) {
-							throw new LispError(
+							throw new MalError(
 								`Error: destruction parameter ${printExp(
 									bind,
 									true,
@@ -113,7 +113,7 @@ export default class Env {
 					case MalType.Map: {
 						// Hashmap destruction
 						if (!isMap(exp)) {
-							throw new LispError(
+							throw new MalError(
 								`Error: destruction parameter '${printExp(
 									bind,
 									true,
@@ -129,7 +129,7 @@ export default class Env {
 
 						for (const [key, sym] of entries) {
 							if (!(key in (exp as MalMap))) {
-								throw new LispError(
+								throw new MalError(
 									`ERROR: destruction keyword :${key.slice(
 										1
 									)} does not exist on the parameter`
@@ -143,7 +143,7 @@ export default class Env {
 						break
 					}
 					default:
-						throw new LispError('Error: invalid bind expression')
+						throw new MalError('Error: invalid bind expression')
 				}
 			}
 		}
@@ -222,7 +222,7 @@ export default class Env {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new LispError(`Symbol ${symbol} not found`)
+			throw new MalError(`Symbol ${symbol} not found`)
 		}
 
 		return value

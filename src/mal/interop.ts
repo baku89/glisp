@@ -1,4 +1,4 @@
-import {LispError} from './types'
+import {MalError} from './types'
 
 export default {
 	resolveJS(str: string): [any, any] {
@@ -7,7 +7,7 @@ export default {
 			const match = /^(.*)\.[^\.]*$/.exec(str)
 
 			if (match === null) {
-				throw new LispError('[interop.resolveJS] Cannot resolve')
+				throw new MalError('[interop.resolveJS] Cannot resolve')
 			} else {
 				return [eval(match[1]), eval(str)]
 			}
