@@ -251,7 +251,6 @@ export default defineComponent({
 			viewTransform: computed(() => {
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {top: 0}
 				const xform = mat2d.clone(ui.viewHandlesTransform)
-				// mat2d.translate(xform, xform, [0, top])
 				xform[5] += top
 				return xform as mat2d
 			}),
