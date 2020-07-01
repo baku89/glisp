@@ -3,16 +3,14 @@
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
-		>
-			{{ sign }}
-		</div>
+		>{{ sign }}</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
-import {MalVal, isList, M_FN, isSymbol} from '@/mal/types'
+import {MalVal, isList, M_FN, isSymbol, isMalNode} from '@/mal/types'
 import printExp from '@/mal/printer'
 
 interface Props {
@@ -41,7 +39,7 @@ export default defineComponent({
 			}
 		})
 
-		const selectable = computed(() => !isSymbol(props.value))
+		const selectable = computed(() => isMalNode(props.value))
 
 		const str = computed(() => {
 			if (sign.value === 'f') {
