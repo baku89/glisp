@@ -285,7 +285,7 @@ export default function evalExp(
 			}
 			case S_FN_PARAMS: {
 				const fn = evalExp(exp[1], env, cache)
-				const ret = isMalFunc(fn) ? L(...fn[M_PARAMS]) : null
+				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : null
 				if (cache) {
 					exp[M_FN] = env.get(S_FN_PARAMS) as MalFunc
 					origExp[M_EVAL] = ret
