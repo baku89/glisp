@@ -261,13 +261,6 @@
     `(binding [*transform* ~local-xform]
        [:transform ~local-xform ~@body])))
 
-(defn merge-hash-map [xs]
-  (->> xs
-       (map entries)
-       (apply concat)
-       (apply concat)
-       (apply assoc {})))
-
 ;; ==================================== JS Implementation
 ; const [, _styles, ...body] = exp
 ;; const styles = evalExp(_styles, env, cache) as MalMap | MalMap[]
@@ -471,15 +464,16 @@
             {:label "Width" :default 1 :type "number"
              :validator #(max 0 %)}
             &
-            {:keys [{:key :cap :type "dropdown" :default "round"
+            {:label "Options"
+             :keys [{:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round" "square"]}
                     {:key :join :type "dropdown" :default "round"
                      :enum ["bevel" "round" "miter"]}]}]}
-  [color & args]
-  (let [params (case (count args)
+  [color & options]
+  (let [params (case (count options)
                  0 {}
-                 1 {:width (first args)}
-                 (apply hash-map (concat :width args)))]
+                 1 {:width (first options)}
+                 (apply hash-map (concat :width options)))]
     (->> params
          (seq params)
          (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
