@@ -127,13 +127,13 @@ export default function renderToContext(
 							ret.push(['set-background', color])
 						}
 
-						if (ctx.resetTransform) {
-							ctx.save()
-							ctx.fillStyle = color
-							ctx.resetTransform()
-							ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-							ctx.restore()
-						}
+						// if (ctx.resetTransform) {
+						// 	ctx.save()
+						// 	ctx.fillStyle = color
+						// 	ctx.resetTransform()
+						// 	ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+						// 	ctx.restore()
+						// }
 						break
 					}
 					default:
