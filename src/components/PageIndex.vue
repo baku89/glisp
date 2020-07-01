@@ -206,18 +206,6 @@ function bindsConsole(
 		callbacks.selectOuterExp()
 		return null
 	})
-
-	// ConsoleScope.def('insert-exp', (item: MalVal) => {
-	// 	const itemStr = printExp(item)
-
-	// 	const [start, end] = data.selection
-	// 	const [code, ...selection] = replaceRange(data.code, start, end, itemStr)
-
-	// 	data.code = code
-	// 	data.selection = selection
-
-	// 	return null
-	// })
 }
 
 const OFFSET = 8 // length of "(sketch "
