@@ -11,6 +11,7 @@ type CanvasContext =
 export default class CanvasRenderer {
 	private ctx!: CanvasContext
 	private dpi!: number
+	private cachedExp!: MalVal
 
 	constructor(private canvas: Canvas) {
 		const ctx = this.canvas.getContext('2d')
@@ -28,9 +29,19 @@ export default class CanvasRenderer {
 		this.canvas.height = height * dpi
 	}
 
-	public async render(exp: MalVal, settings: ViewerSettings) {
+	public async render(exp: MalVal | undefined, settings: ViewerSettings) {
 		if (!this.dpi) {
 			throw new Error('trying to render before settings resolution')
+		}
+
+		// Use cached expression
+		if (exp === undefined) {
+			if (!this.cachedExp) {
+				throw new Error('Cannot render because there iss no cached exp')
+			}
+			exp = this.cachedExp
+		} else {
+			this.cachedExp = exp
 		}
 
 		const ctx = this.ctx

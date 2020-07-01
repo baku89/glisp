@@ -72,11 +72,16 @@ export default defineComponent({
 		// 	this.renderer.dispose()
 		// })
 
-		async function render(exp: MalVal) {
+		let prevExp: MalVal | undefined = undefined
+
+		async function render(_exp: MalVal) {
 			const options = {
 				viewTransform: props.viewTransform,
 				...(props.guideColor ? {guideColor: props.guideColor} : {})
 			}
+
+			const exp = prevExp === _exp ? undefined : _exp
+			prevExp = _exp
 
 			let sidefxs
 			try {
@@ -96,15 +101,6 @@ export default defineComponent({
 					case 'set-background':
 						context.emit('set-background', params)
 						break
-					// case 'enable-animation': {
-					// 	const check = () => {
-					// 		this.renderer.isRendering
-					// 			? requestAnimationFrame(check)
-					// 			: this.update()
-					// 	}
-					// 	requestAnimationFrame(check)
-					// 	break
-					// }
 				}
 			}
 
