@@ -31,11 +31,13 @@ import {
 	isSeq,
 	isVector,
 	setExpandInfo,
-	ExpandType
+	ExpandType,
+	getType
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
 import {printExp} from '.'
+import {capital} from 'case'
 
 const S_DEF = S('def')
 const S_DEFVAR = S('defvar')
@@ -463,15 +465,9 @@ export default function evalExp(
 					}
 					return ret
 				} else {
-					let typename = ''
-
-					if (isKeyword(fn)) {
-						typename = 'Keyword '
-					} else if (Array.isArray(fn)) {
-						typename = 'List '
-					}
+					const type = capital(getType(fn))
 					throw new MalError(
-						`[EVAL] ${typename} ${printExp(
+						`[EVAL] ${type} ${printExp(
 							fn
 						)} is not a function. First element of list always should be a function.`
 					)
