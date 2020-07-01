@@ -348,6 +348,8 @@ export default defineComponent({
 
 			if (isMalNode(exp.value)) {
 				data.selectedExp = exp as NonReactive<MalNode>
+			} else {
+				data.selectedExp = null
 			}
 		}
 
