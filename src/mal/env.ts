@@ -67,7 +67,7 @@ export default class Env {
 	}
 
 	public getAllSymbols() {
-		return Object.keys(this.getMergedData())
+		return Object.keys(this.getMergedData()).map(symbolFor)
 	}
 
 	public bindAll(binds: MalBind, exps: MalVal[]) {
