@@ -203,6 +203,9 @@ export default function evalExp(
 				}
 				const ret = env.set(sym, evalExp(form, env, cache))
 				if (cache) {
+					setExpandInfo(exp, {
+						type: ExpandType.Unchange
+					})
 					exp[M_FN] = env.get(S_DEF) as MalFunc
 					origExp[M_EVAL] = ret
 				}
@@ -466,10 +469,6 @@ export default function evalExp(
 
 					const ret = fn(...params)
 					if (cache) {
-						setExpandInfo(exp as MalNodeSeq, {
-							type: ExpandType.Constant,
-							exp: ret
-						})
 						origExp[M_EVAL] = ret
 						exp[M_FN] = fn
 					}

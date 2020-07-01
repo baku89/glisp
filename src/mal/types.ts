@@ -30,7 +30,8 @@ export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
 
 export enum ExpandType {
 	Constant = 1,
-	Env
+	Env,
+	Unchange
 }
 
 export interface ExpandInfoConstant {
@@ -44,7 +45,11 @@ export interface ExpandInfoEnv {
 	env: Env
 }
 
-export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv
+export interface ExpandInfoUnchange {
+	type: ExpandType.Unchange
+}
+
+export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv | ExpandInfoUnchange
 
 export interface MalFuncThis {
 	callerEnv: Env
@@ -131,6 +136,8 @@ export function expandExp(exp: MalVal) {
 				return info.exp
 			case ExpandType.Env:
 				return expandSymbolsInExp(info.exp, info.env)
+			case ExpandType.Unchange:
+				return exp
 		}
 	} else {
 		return getEvaluated(exp)
