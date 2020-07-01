@@ -8,7 +8,8 @@ import {
 	getMeta,
 	MalMap,
 	MalFunc,
-	MalType
+	MalType,
+	createList as L
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import CommandDialog from '@/components/CommandDialog.vue'
@@ -45,7 +46,7 @@ export default function useCommandDialog(context: SetupContext) {
 		}
 
 		// Create the expression with default parameters
-		const exp: NonReactive<MalVal> = nonReactive([f, ...initialParams])
+		const exp: NonReactive<MalVal> = nonReactive(L(f, ...initialParams))
 
 		// Show Modal
 		$modal.show(
