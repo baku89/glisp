@@ -206,7 +206,7 @@ const Exports = [
 			dummyFn,
 			convertJSObjectToMalMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
-				params: [{}]
+				params: []
 			})
 		)
 	],
@@ -228,8 +228,8 @@ const Exports = [
 		withMeta(
 			dummyFn,
 			convertJSObjectToMalMap({
-				doc: '',
-				params: [{}]
+				doc: 'Expands the macro',
+				params: []
 			})
 		)
 	],
@@ -238,8 +238,18 @@ const Exports = [
 		withMeta(
 			dummyFn,
 			convertJSObjectToMalMap({
-				doc: '',
-				params: [{}]
+				doc: 'Try',
+				params: []
+			})
+		)
+	],
+	[
+		'catch',
+		withMeta(
+			dummyFn,
+			convertJSObjectToMalMap({
+				doc: 'Catch',
+				params: []
 			})
 		)
 	],
@@ -273,8 +283,8 @@ const Exports = [
 		withMeta(
 			dummyFn,
 			convertJSObjectToMalMap({
-				doc: '',
-				params: [{}]
+				doc: 'Env chain',
+				params: []
 			})
 		)
 	]

@@ -173,15 +173,12 @@ export default function evalExp(
 	env: Env,
 	cache = true
 ): MalVal {
+	const origExp: MalNodeSeq = exp as MalNodeSeq
+
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
 			return evalAtom(exp, env, cache)
-		}
-
-		if (cache) {
-			delete (exp as MalNodeSeq)[M_EVAL]
-			delete (exp as MalNodeSeq)[M_FN]
 		}
 
 		// Expand macro
@@ -200,27 +197,29 @@ export default function evalExp(
 
 		switch (first) {
 			case S_DEF: {
-				const [, sym, _value] = exp
-				if (!isSymbol(sym) || _value === undefined) {
+				const [, sym, form] = exp
+				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const value = env.set(sym, evalExp(_value, env, cache))
+				const ret = env.set(sym, evalExp(form, env, cache))
 				if (cache) {
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEF) as MalFunc
+					exp[M_FN] = env.get(S_DEF) as MalFunc
+					origExp[M_EVAL] = ret
 				}
-				return value
+				return ret
 			}
 			case S_DEFVAR: {
-				const [, sym, _value] = exp
-				if (!isSymbol(sym) || _value === undefined) {
+				const [, sym, form] = exp
+				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of defvar')
 				}
-				const value = evalExp(_value, env, cache)
-				env.set(sym, value, exp as MalNodeSeq)
+				const ret = evalExp(form, env, cache)
+				env.set(sym, ret, exp)
 				if (cache) {
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_DEFVAR) as MalFunc
+					exp[M_FN] = env.get(S_DEFVAR) as MalFunc
+					origExp[M_EVAL] = ret
 				}
-				return value
+				return ret
 			}
 			case S_LET: {
 				const letEnv = new Env(env)
@@ -237,13 +236,12 @@ export default function evalExp(
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
 				if (cache) {
-					setExpandInfo(exp as MalNodeSeq, {
+					setExpandInfo(exp, {
 						type: ExpandType.Env,
 						exp: ret,
 						env: letEnv
 					})
-					;(exp as MalNodeSeq)[M_EVAL] = ret
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_LET) as MalFunc
+					exp[M_FN] = env.get(S_LET) as MalFunc
 				}
 				exp = ret
 				break // continue TCO loop
@@ -269,25 +267,16 @@ export default function evalExp(
 					env.popBinding()
 				}
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					exp[M_FN] = env.get(S_BINDING) as MalFunc
+					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
 			case S_GET_ALL_SYMBOLS: {
 				const ret = env.getAllSymbols()
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-				}
-				return ret
-			}
-			case S_VAR: {
-				const [, sym] = exp
-				if (!isSymbol(sym)) {
-					throw new MalError('Invalid var')
-				}
-				const ret = env.get(sym)
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					exp[M_FN] = env.get(S_GET_ALL_SYMBOLS) as MalFunc
+					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -295,23 +284,32 @@ export default function evalExp(
 				const fn = evalExp(exp[1], env, cache)
 				const ret = isMalFunc(fn) ? L(...fn[M_PARAMS]) : null
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					exp[M_FN] = env.get(S_FN_PARAMS) as MalFunc
+					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
 			case S_EVAL_IN_ENV: {
 				const expanded = evalExp(exp[1], env, cache)
+				if (cache) {
+					exp[M_FN] = env.get(S_EVAL_IN_ENV) as MalFunc
+				}
 				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
 			}
 			case S_QUOTE: {
-				// No need to cache M_EVAL
-				const body = exp[1]
-				return body
+				const ret = exp[1]
+				if (cache) {
+					exp[M_FN] = env.get(S_QUOTE) as MalFunc
+					origExp[M_EVAL] = ret
+				}
+				return ret
 			}
 			case S_QUASIQUOTE: {
 				const ret = quasiquote(exp[1])
-				// No need to cache M_EVAL
+				if (cache) {
+					exp[M_FN] = env.get(S_QUASIQUOTE) as MalFunc
+				}
 				exp = ret
 				break // continue TCO loop
 			}
@@ -323,26 +321,36 @@ export default function evalExp(
 				if (body === undefined) {
 					throw new MalError('Second argument of fn should be specified')
 				}
-				return createMalFunc(
+				const ret = createMalFunc(
 					(...args) =>
 						evalExp(body, new Env(env, params as any[], args), cache),
 					body,
 					env,
 					params as MalBind
 				)
+				if (cache) {
+					exp[M_FN] = env.get(S_FN) as MalFunc
+					origExp[M_EVAL] = ret
+				}
+				return ret
 			}
 			case S_FN_SUGAR: {
 				const body = exp[1]
-				return createMalFunc(
+				const ret = createMalFunc(
 					(...args) => evalExp(body, new Env(env, [], args), cache),
 					body,
 					env,
 					[]
 				)
+				if (cache) {
+					exp[M_FN] = env.get(S_FN_SUGAR) as MalFunc
+					origExp[M_EVAL] = ret
+				}
+				return ret
 			}
 			case S_MACRO: {
 				const [, params, body] = exp
-				const fn = createMalFunc(
+				const ret = createMalFunc(
 					(...args) =>
 						evalExp.bind(this)(
 							body,
@@ -353,13 +361,18 @@ export default function evalExp(
 					env,
 					params as MalBind
 				)
-				fn[M_ISMACRO] = true
-				return fn
+				ret[M_ISMACRO] = true
+				if (cache) {
+					exp[M_FN] = env.get(S_MACRO) as MalFunc
+					origExp[M_EVAL] = ret
+				}
+				return ret
 			}
 			case S_MACROEXPAND: {
 				const ret = macroexpand(exp[1], env, cache)
 				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
+					exp[M_FN] = env.get(S_MACROEXPAND) as MalFunc
+					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
@@ -368,7 +381,8 @@ export default function evalExp(
 				try {
 					const ret = evalExp(testExp, env, cache)
 					if (cache) {
-						;(exp as MalNode)[M_EVAL] = ret
+						exp[M_FN] = env.get(S_TRY) as MalFunc
+						origExp[M_EVAL] = ret
 					}
 					return ret
 				} catch (exc) {
@@ -384,7 +398,8 @@ export default function evalExp(
 						const [, errSym, errBody] = catchExp
 						const ret = evalExp(errBody, new Env(env, [errSym], [err]), cache)
 						if (cache) {
-							;(exp as MalNode)[M_EVAL] = ret
+							catchExp[M_FN] = env.get(S_CATCH) as MalFunc
+							origExp[M_EVAL] = ret
 						}
 						return ret
 					} else {
@@ -393,17 +408,14 @@ export default function evalExp(
 				}
 			}
 			case S_DO: {
-				// if (cache) {
-				// 	;(exp as MalNodeSeq)[M_FN] = env.get(S_DO) as MalFunc
-				// }
+				if (cache) {
+					exp[M_FN] = env.get(S_DO) as MalFunc
+				}
 				if (exp.length === 1) {
 					return null
 				}
 				evalAtom(exp.slice(1, -1), env, cache)
 				const ret = exp[exp.length - 1]
-				if (cache) {
-					;(exp as MalNode)[M_EVAL] = ret
-				}
 				exp = ret
 				break // continue TCO loop
 			}
@@ -412,21 +424,19 @@ export default function evalExp(
 				const test = evalExp(_test, env, cache)
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				if (cache) {
-					;(exp as MalNodeSeq)[M_EVAL] = ret
-					setExpandInfo(exp as MalNodeSeq, {
-						type: ExpandType.Constant,
-						exp: ret
-					})
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_IF) as MalFunc
+					exp[M_FN] = env.get(S_IF) as MalFunc
 				}
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_ENV_CHAIN: {
-				const envs = env.getChain()
-				exp = L(S('println'), envs.map(e => e.name).join(' <- '))
-				break // continue TCO loop
-			}
+			// case S_ENV_CHAIN: {
+			// 	if (cache) {
+			// 		exp[M_FN] = env.get(S_ENV_CHAIN) as MalFunc
+			// 	}
+			// 	const envs = env.getChain()
+			// 	exp = L(S('println'), envs.map(e => e.name).join(' <- '))
+			// 	break // continue TCO loop
+			// }
 			// case 'which-env': {
 			// 	let _env: Env | null = env
 			// 	const envs = []
@@ -452,7 +462,7 @@ export default function evalExp(
 				const [fn, ...params] = evalAtom(exp, env, cache) as MalVal[]
 
 				if (fn instanceof Function) {
-					;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
+					exp[M_EVAL_PARAMS] = params
 
 					const ret = fn(...params)
 					if (cache) {
@@ -460,8 +470,8 @@ export default function evalExp(
 							type: ExpandType.Constant,
 							exp: ret
 						})
-						;(exp as MalNodeSeq)[M_EVAL] = ret
-						;(exp as MalNodeSeq)[M_FN] = fn
+						origExp[M_EVAL] = ret
+						exp[M_FN] = fn
 					}
 					return ret
 				} else {
@@ -475,11 +485,8 @@ export default function evalExp(
 			}
 		}
 	}
-	if (counter >= 1e6) {
-		throw new Error('[EVAL] Exceed the maximum TCO stacks')
-	}
 
-	return null
+	throw new Error('[EVAL] Exceed the maximum TCO stacks')
 }
 
 // Cached Tree-shaking
