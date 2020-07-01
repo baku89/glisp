@@ -13,18 +13,14 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="onUpdateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
 					:exp="selectedExp"
 					:view-transform.sync="viewHandlesTransform"
-					@input="onUpdateSelectedExp"
+					@input="updateSelectedExp"
 				/>
 			</pane>
 			<pane :size="controlPaneSize" max-size="80">
@@ -36,7 +32,7 @@
 							:exp="exp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
-							@input="onUpdateExp"
+							@input="updateExp"
 							@input-code="onInputCode"
 							@select="onSelectExp"
 						/>
@@ -46,9 +42,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -114,7 +108,7 @@ interface UI {
 	controlPaneSize: number
 }
 
-function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
+function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -170,7 +164,7 @@ function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
 		const code = `(sketch ${ret[0]}\nnil)`
-		onUpdateExp(nonReactive(readStr(code, true)))
+		updateExp(nonReactive(readStr(code, true)))
 	})
 
 	return {onSetupConsole}
@@ -179,8 +173,8 @@ function parseURL(onUpdateExp: (exp: NonReactive<MalVal>) => void) {
 function bindsConsole(
 	data: Data,
 	callbacks: {
-		onUpdateSelectedExp: (val: NonReactive<MalVal>) => any
-		onUpdateExp: (exp: NonReactive<MalVal>) => void
+		updateSelectedExp: (val: NonReactive<MalVal>) => any
+		updateExp: (exp: NonReactive<MalVal>) => void
 		selectOuterExp: () => void
 	}
 ) {
@@ -188,7 +182,7 @@ function bindsConsole(
 		if (data.selectedExp) {
 			const expanded = expandExp(data.selectedExp.value)
 			if (expanded !== undefined) {
-				callbacks.onUpdateSelectedExp(nonReactive(expanded))
+				callbacks.updateSelectedExp(nonReactive(expanded))
 			}
 		}
 		return null
@@ -199,7 +193,7 @@ function bindsConsole(
 			if (res.ok) {
 				const code = await res.text()
 				const exp = readStr(`(sketch ${code}\nnil)`, true)
-				callbacks.onUpdateExp(nonReactive(exp))
+				callbacks.updateExp(nonReactive(exp))
 				data.selectedExp = null
 			} else {
 				printer.error(`Failed to load from "${url}"`)
@@ -313,11 +307,11 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
-		function onUpdateExp(exp: NonReactive<MalVal> | null) {
+		function updateExp(exp: NonReactive<MalVal> | null) {
 			data.exp = exp
 		}
 
-		const {onSetupConsole} = parseURL(onUpdateExp)
+		const {onSetupConsole} = parseURL(updateExp)
 
 		// Background and theme
 		function onSetBackground(bg: string) {
@@ -342,7 +336,7 @@ export default defineComponent({
 			data.selectedExp = exp
 		}
 
-		function onUpdateSelectedExp(exp: NonReactive<MalVal>) {
+		function updateSelectedExp(exp: NonReactive<MalVal>) {
 			if (!data.exp || !data.selectedExp) {
 				return
 			}
@@ -350,7 +344,7 @@ export default defineComponent({
 			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
-			onUpdateExp(nonReactive(data.exp.value))
+			updateExp(nonReactive(data.exp.value))
 
 			if (isMalNode(exp.value)) {
 				data.selectedExp = exp as NonReactive<MalNode>
@@ -383,8 +377,8 @@ export default defineComponent({
 
 		// Init App Handler
 		bindsConsole(data, {
-			onUpdateSelectedExp,
-			onUpdateExp,
+			updateSelectedExp,
+			updateExp,
 			selectOuterExp
 		})
 
@@ -394,11 +388,11 @@ export default defineComponent({
 			elHandles,
 			...toRefs(data as any),
 			onSetupConsole,
-			onUpdateSelectedExp,
+			updateSelectedExp,
 
 			...toRefs(ui as any),
 			onSetBackground,
-			onUpdateExp,
+			updateExp,
 			onSelectExp,
 			onInputCode,
 			selectOuterExp
