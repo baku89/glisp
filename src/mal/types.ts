@@ -9,6 +9,7 @@ export const M_ENV = Symbol.for('env')
 export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
 export const M_ISLIST = Symbol.for('islist')
+export const M_TYPE = Symbol.for('type')
 
 export const M_EVAL = Symbol.for('eval')
 export const M_EVAL_PARAMS = Symbol.for('eval-params')
@@ -185,7 +186,7 @@ export function getType(obj: any): MalType {
 				return islist ? MalType.List : MalType.Vector
 			} else if (obj instanceof Float32Array) {
 				return MalType.Vector
-			} else if ((obj as MalSymbol).type === MalType.Symbol) {
+			} else if ((obj as any)[M_TYPE] === MalType.Symbol) {
 				return MalType.Symbol
 			} else if (obj instanceof MalAtom) {
 				return MalType.Atom
@@ -430,9 +431,9 @@ export class MalSymbol {
 		return token
 	}
 
-	private constructor(public value: string) {}
-
-	public type = MalType.Symbol
+	private constructor(public value: string) {
+		;(this as any)[M_TYPE] = MalType.Symbol
+	}
 
 	public set def(def: MalNodeSeq | null) {
 		;(this as any)[M_DEF] = def
