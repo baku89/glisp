@@ -37,8 +37,8 @@ import {
 	keywordFor as K,
 	MalNode,
 	MalSymbol,
-	M_OUTER,
-	isMalNode
+	isMalNode,
+	getOuter
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
@@ -91,8 +91,9 @@ export default defineComponent({
 		})
 
 		const outer = computed(() => {
-			if (props.exp.value[M_OUTER] && props.exp.value[M_OUTER][M_OUTER]) {
-				return props.exp.value[M_OUTER]
+			const outer = getOuter(props.exp.value)
+			if (getOuter(outer)) {
+				return outer
 			}
 			return undefined
 		})

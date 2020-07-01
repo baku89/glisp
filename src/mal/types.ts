@@ -137,6 +137,13 @@ export function expandExp(exp: MalVal) {
 	}
 }
 
+export function getOuter(exp: any) {
+	if (isMalNode(exp) && M_OUTER in exp) {
+		return exp[M_OUTER]
+	}
+	return null
+}
+
 export enum MalType {
 	// Collections
 	List = 'list',

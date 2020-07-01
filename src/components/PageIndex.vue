@@ -13,7 +13,11 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="onUpdateSelectedExp" @select="onSelectExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="onUpdateSelectedExp"
+						@select="onSelectExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -42,7 +46,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -76,7 +82,7 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 
 import {printExp, readStr} from '@/mal'
-import {MalVal, MalNode, isMalNode, M_OUTER, expandExp} from '@/mal/types'
+import {MalVal, MalNode, isMalNode, expandExp, getOuter} from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
@@ -352,11 +358,9 @@ export default defineComponent({
 		}
 
 		function selectOuterExp() {
-			if (data.selectedExp && data.selectedExp.value[M_OUTER]) {
-				const outer = data.selectedExp.value[M_OUTER]
-				if (outer !== data.exp?.value) {
-					data.selectedExp = nonReactive(data.selectedExp.value[M_OUTER])
-				}
+			const outer = getOuter(data.selectedExp?.value)
+			if (outer && outer !== data.exp?.value) {
+				data.selectedExp = nonReactive(outer)
 			}
 		}
 
