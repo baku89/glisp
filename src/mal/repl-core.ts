@@ -1,7 +1,15 @@
 import {vsprintf} from 'sprintf-js'
 import isNode from 'is-node'
 
-import {MalVal, MalError, withMeta, symbolFor as S} from './types'
+import {
+	MalVal,
+	MalError,
+	withMeta,
+	symbolFor as S,
+	isMap,
+	keywordFor,
+	MalMap
+} from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
 import interop from './interop'
@@ -56,6 +64,12 @@ const Exports = [
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
 			return null
+		}
+	],
+	[
+		'print-str',
+		(...a: MalVal[]) => {
+			return a.map(e => printExp(e, true)).join(' ')
 		}
 	],
 	[
@@ -195,7 +209,7 @@ const Exports = [
 				doc: 'Defines a function',
 				params: [
 					{label: 'Params', type: 'code'},
-					{label: 'Expr', type: 'code'}
+					{label: 'Form', type: 'code'}
 				]
 			})
 		)
@@ -217,8 +231,8 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: '',
 				params: [
-					{label: 'Params', type: 'code'},
-					{label: 'Expr', type: 'code'}
+					{label: 'Param', type: 'code'},
+					{label: 'Form', type: 'code'}
 				]
 			})
 		)
@@ -258,8 +272,8 @@ const Exports = [
 		withMeta(
 			dummyFn,
 			convertJSObjectToMalMap({
-				doc: 'Evaluates *exprs* in order and returns the value of the last',
-				params: [S('&'), {label: 'Expr', type: 'code'}]
+				doc: 'Evaluates *forms* in order and returns the value of the last',
+				params: [S('&'), {label: 'Form', type: 'code'}]
 			})
 		)
 	],
