@@ -1,18 +1,12 @@
-import {toRefs, reactive} from '@vue/composition-api'
+import {toRefs, reactive, Ref} from '@vue/composition-api'
 import hotkeys from 'hotkeys-js'
 import keycode from 'keycode'
 
-let state: any
+let state: {[keycode: string]: Ref<boolean>}
 
 hotkeys('*', {keyup: true, keydown: true}, (e: KeyboardEvent) => {
 	if (!state) {
-		state = toRefs(
-			reactive({
-				shift: false,
-				alt: false,
-				ctrl: false
-			} as {[keycode: string]: boolean})
-		)
+		return
 	}
 
 	const code = keycode(e)
@@ -22,5 +16,13 @@ hotkeys('*', {keyup: true, keydown: true}, (e: KeyboardEvent) => {
 })
 
 export default function useKeyboardState() {
+	state = toRefs(
+		reactive({
+			shift: false,
+			alt: false,
+			ctrl: false
+		})
+	)
+
 	return state
 }
