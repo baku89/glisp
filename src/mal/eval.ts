@@ -169,7 +169,7 @@ export default function evalExp(
 	this: void | MalFuncThis,
 	exp: MalVal,
 	env: Env,
-	cache = false
+	cache = true
 ): MalVal {
 	let counter = 0
 	while (counter++ < 1e6) {
@@ -298,12 +298,9 @@ export default function evalExp(
 				return ret
 			}
 			case S_EVAL_IN_ENV: {
-				// Don't know why this should be nested
+				console.log('eval-in-env', cache)
 				const expanded = evalExp(exp[1], env, cache)
-				const ret = evalExp(expanded, this ? this.callerEnv : env, cache)
-				// ;(exp as MalNode)[M_EVAL] = a2
-				// ;(expanded as MalNode)[M_EVAL] = ret
-				exp = ret
+				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
 			}
 			case S_QUOTE: {
@@ -395,9 +392,9 @@ export default function evalExp(
 				}
 			}
 			case S_DO: {
-				if (cache) {
-					;(exp as MalNodeSeq)[M_FN] = env.get(S_DO) as MalFunc
-				}
+				// if (cache) {
+				// 	;(exp as MalNodeSeq)[M_FN] = env.get(S_DO) as MalFunc
+				// }
 				if (exp.length === 1) {
 					return null
 				}
