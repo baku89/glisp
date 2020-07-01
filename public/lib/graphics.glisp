@@ -288,9 +288,6 @@
   `[:background ~color ~*inside-artboard*])
 (defalias background graphics/background)
 
-(defn enable-animation
-  [& xs] (concat :enable-animation xs))
-
 (defn element? [a] (and (vector? a) (keyword? (first a))))
 
 ;; Transform

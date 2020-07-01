@@ -134,13 +134,6 @@ export default function renderToContext(
 							ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 							ctx.restore()
 						}
-
-						break
-					}
-					case K('enable-animation'): {
-						let fps = rest[0]
-						fps = 0.1 < fps && fps < 60 ? fps : -1
-						ret.push(['enable-animation', fps])
 						break
 					}
 					default:
