@@ -158,9 +158,13 @@
     `(def ~name (with-meta (fn ~params ~body) ~metadata))))
 
 (defmacro defalias [alias original]
-  `(def ~alias (with-meta ~original
-                 (assoc (meta ~original)
-                        :alias ~(str original)))))
+  `(do
+     (def ~original (with-meta ~original
+                      (assoc (meta ~original)
+                             :alias ~(str alias))))
+     (def ~alias (with-meta ~original
+                   (assoc (meta ~original)
+                          :alias-for ~(str original))))))
 
 (defmacro deftime
   {:doc "Defines a numeric variable with playback control"
@@ -183,7 +187,7 @@
 
 (defn fn-meta [f]
   (def fm (meta f))
-  (def alias (get fm :alias))
+  (def alias (get fm :alias-for))
   (if alias
     (get alias :meta)
     fm))
@@ -445,6 +449,14 @@
   (concat
    (take n coll)
    (drop (inc n) coll)))
+
+;; HashMap
+(defn merge-hash-map [xs]
+  (->> xs
+       (map entries)
+       (apply concat)
+       (apply concat)
+       (apply assoc {})))
 
 ;; String
 (defn ends-with?

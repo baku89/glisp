@@ -119,14 +119,14 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
-			const alias = getMapValue(meta, 'alias')
+			const aliasFor = getMapValue(meta, 'alias-for')
 
-			if (getType(alias) === MalType.String) {
+			if (typeof aliasFor === 'string') {
 				// is an alias
 				return {
 					fn,
 					meta,
-					aliasFor: alias as string,
+					aliasFor,
 					primitive
 				}
 			} else {
