@@ -31,7 +31,9 @@ import ace from 'brace'
 			'g',
 			'transform',
 			'style',
-			'path/transform'
+			'path/transform',
+			'artboard',
+			'clip'
 		]
 
 		this.$toIndent = function(str: string) {
