@@ -176,7 +176,10 @@ const Exports = [
 		}
 	],
 	['push', (a: MalVal[], ...b: MalVal[]) => [...a, ...b]],
-	['concat', (...args: MalVal[]) => [].concat(...(args as any))],
+	[
+		'concat',
+		(...args: MalVal[]) => [].concat(...(args.filter(v => isSeq(v)) as any[]))
+	],
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>
