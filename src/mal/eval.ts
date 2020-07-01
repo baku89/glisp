@@ -298,7 +298,6 @@ export default function evalExp(
 				return ret
 			}
 			case S_EVAL_IN_ENV: {
-				console.log('eval-in-env', cache)
 				const expanded = evalExp(exp[1], env, cache)
 				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
