@@ -177,7 +177,7 @@ const Exports = [
 	],
 	[
 		'concat',
-		(...args: MalVal[]) => [].concat(...(args.filter(v => isSeq(v)) as any[]))
+		(...args: MalVal[]) => [].concat(...(args.filter(v => v !== null) as any[]))
 	],
 	[
 		'join',
