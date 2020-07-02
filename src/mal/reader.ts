@@ -218,7 +218,7 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 
 		for (let i = 0; i < lst.length; i += 2) {
 			keys.push(lst[i])
-			elmStrs.push(lst[M_ELMSTRS][i + 1])
+			elmStrs.push(lst[M_ELMSTRS][i], lst[M_ELMSTRS][i + 1])
 		}
 
 		map[M_KEYS] = keys

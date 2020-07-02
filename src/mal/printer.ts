@@ -71,20 +71,16 @@ export default function printExp(
 			}
 		} else {
 			// Map
-			const keys = exp[M_KEYS]
-			const count = keys.length
+			const count = elmStrs.length
 			ret = ''
-
 			for (let i = 0; i < count; i++) {
-				ret +=
-					delimiters[i * 2] + printExp(keys[i], _r, _c) + delimiters[i * 2 + 1]
-
+				ret += delimiters[i]
 				if (!elmStrs[i]) {
-					elmStrs[i] = printExp(exp[keys[i]], _r, _c)
+					elmStrs[i] = printExp(exp[i], _r, _c)
 				}
 				ret += elmStrs[i]
 			}
-			ret += delimiters[delimiters.length - 1]
+			ret += delimiters[count]
 
 			ret = '{' + ret + '}'
 		}
