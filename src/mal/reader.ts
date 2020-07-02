@@ -499,7 +499,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 	if (Array.isArray(obj)) {
 		const ret = obj.map(v => convertJSObjectToMalMap(v))
 		return ret
-	} else if (isSymbol(obj)) {
+	} else if (isSymbol(obj) || obj instanceof Function) {
 		return obj
 	} else if (obj instanceof Object) {
 		const ret: MalMap = {}
