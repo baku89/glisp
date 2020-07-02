@@ -81,9 +81,8 @@ export default defineComponent({
 			const exp = prevExp === _exp ? undefined : _exp
 			prevExp = _exp
 
-			let sidefxs
 			try {
-				sidefxs = await (renderer as CanvasRendererType).render(exp, options)
+				await (renderer as CanvasRendererType).render(exp, options)
 			} catch (err) {
 				if (err instanceof MalError) {
 					printer.error(err.message)
@@ -92,14 +91,6 @@ export default defineComponent({
 				}
 				context.emit('render', false)
 				return
-			}
-
-			for (const [cmd, params] of sidefxs) {
-				switch (cmd) {
-					case 'set-background':
-						context.emit('set-background', params)
-						break
-				}
 			}
 
 			context.emit('render', true)

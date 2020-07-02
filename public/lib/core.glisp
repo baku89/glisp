@@ -112,6 +112,14 @@
     :returns {:type "number"}}
   rnd)
 
+(def swap!
+  ^{:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
+    :params [{:label "Atom" :type "atom"}
+             {:label "Fn" :type "fn"}
+             &
+             {:label "Params" :type "exp"}]}
+  swap!)
+
 ;; Declarations
 ;; 
 (def defmacro

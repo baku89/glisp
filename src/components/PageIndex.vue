@@ -6,7 +6,6 @@
 			:guide-color="guideColor"
 			:view-transform="viewTransform"
 			@render="hasRenderError = !$event"
-			@set-background="onSetBackground"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<splitpanes class="PageIndex__content default-theme" vertical>
@@ -81,7 +80,14 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 
 import {printExp, readStr} from '@/mal'
-import {MalVal, MalNode, isMalNode, expandExp, getOuter} from '@/mal/types'
+import {
+	MalVal,
+	MalNode,
+	isMalNode,
+	expandExp,
+	getOuter,
+	MalAtom
+} from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
@@ -302,13 +308,6 @@ export default defineComponent({
 
 		const {onSetupConsole} = parseURL(updateExp)
 
-		// Background and theme
-		function onSetBackground(bg: string) {
-			if (isValidColorString(bg)) {
-				ui.background = bg
-			}
-		}
-
 		// Apply the theme
 		watch(
 			() => ui.theme.colors,
@@ -366,6 +365,21 @@ export default defineComponent({
 			}
 		)
 
+		// Watch the mutable states
+		watch(
+			() => data.viewExp,
+			() => {
+				const bg = ConsoleScope.var('app-background') as MalAtom
+				if (
+					typeof bg.value === 'string' &&
+					isValidColorString(bg.value) &&
+					ui.background !== bg.value
+				) {
+					ui.background = bg.value
+				}
+			}
+		)
+
 		// Init App Handler
 		bindsConsole(data, {
 			updateSelectedExp,
@@ -382,7 +396,6 @@ export default defineComponent({
 			updateSelectedExp,
 
 			...toRefs(ui as any),
-			onSetBackground,
 			updateExp,
 			onSelectExp,
 			onInputCode,

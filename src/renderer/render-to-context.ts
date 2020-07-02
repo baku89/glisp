@@ -19,13 +19,13 @@ export default function renderToContext(
 	exp: MalVal,
 	defaultStyle: MalMap | null = null
 ) {
-	function draw(exp: MalVal, ret: any[], styles: MalMap[]) {
+	function draw(exp: MalVal, styles: MalMap[]) {
 		if (Array.isArray(exp) && exp.length > 0) {
 			const [elm, ...rest] = exp as any[]
 
 			if (!isKeyword(elm)) {
 				for (const child of exp) {
-					draw(child, ret, styles)
+					draw(child, styles)
 				}
 			} else {
 				const cmd = elm.replace(/#.*$/, '')
@@ -38,13 +38,13 @@ export default function renderToContext(
 						ctx.transform(
 							...(mat as [number, number, number, number, number, number])
 						)
-						draw(children, ret, styles)
+						draw(children, styles)
 						ctx.restore()
 						break
 					}
 					case K('g'): {
 						const children = rest.slice(1)
-						draw(children, ret, styles)
+						draw(children, styles)
 						break
 					}
 					case K('style'): {
@@ -53,7 +53,7 @@ export default function renderToContext(
 							...styles,
 							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
 						]
-						draw(children, ret, styles)
+						draw(children, styles)
 						break
 					}
 					case K('clip'): {
@@ -68,7 +68,7 @@ export default function renderToContext(
 						ctx.clip()
 
 						// Draw inner items
-						draw(children, ret, styles)
+						draw(children, styles)
 
 						// Restore
 						ctx.restore()
@@ -115,25 +115,10 @@ export default function renderToContext(
 						ctx.clip()
 
 						// Draw inner items
-						draw(children, ret, styles)
+						draw(children, styles)
 
 						// Restore
 						ctx.restore()
-						break
-					}
-					case K('background'): {
-						const color = rest[0]
-						if (!rest[1]) {
-							ret.push(['set-background', color])
-						}
-
-						// if (ctx.resetTransform) {
-						// 	ctx.save()
-						// 	ctx.fillStyle = color
-						// 	ctx.resetTransform()
-						// 	ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-						// 	ctx.restore()
-						// }
 						break
 					}
 					default:
@@ -141,8 +126,6 @@ export default function renderToContext(
 				}
 			}
 		}
-
-		return ret
 	}
 
 	function drawPath(ctx: CanvasContext | Path2D, path: PathType) {
@@ -280,5 +263,5 @@ export default function renderToContext(
 	ctx.lineCap = 'round'
 	ctx.lineJoin = 'round'
 
-	return draw(exp, [], [])
+	return draw(exp, [])
 }

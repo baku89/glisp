@@ -406,7 +406,7 @@
   {:doc "Fill the entire view or artboard with a color"
    :params [{:type "color" :desc "A background color"}]}
   [color]
-  `[:background ~color ~*inside-artboard*])
+  (reset! app-background color))
 (defalias background graphics/background)
 
 (defn element? [a] (and (vector? a) (keyword? (first a))))
