@@ -1,12 +1,11 @@
-# Glisp
-
 <div align="center">
-	<img src="assets/screenshot.png" />
-</div>
+  <img src="assets/logo.png" width="150" />
 
-<!-- <div align="center">
-	<img src="assets/logo.png" width="150" />
-</div> -->
+  <h1 style="text-align: center;">Glisp</h1>
+  <h3 style="text-align: center;">Lisp for Graphic Design / Computational Arts</h3>
+
+  <img src="assets/screenshot.png" />
+</div>
 
 - [Demo (Chrome Only)](https://glisp.app)
 - [Documentation (Japanese)](https://glisp.app/docs)
