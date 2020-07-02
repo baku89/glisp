@@ -11,12 +11,43 @@
 - [Demo (Chrome Only)](https://glisp.app)
 - [Documentation (Japanese)](https://glisp.app/docs)
 
-Glisp, an acronym for **G**raphical **LISP**, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP.
+Glisp, an acronym for **G**raphical **LISP**, is the prototyping project to experiment what if a design tool meets a way of creative coding, and obtain the self-bootstrapping power of LISP.
 This tool looks like the integration of Illustrator and Processing IDE at a glance. And in fact, it adopts both benefits of intuitiveness of direct manipulation on GUI and abstractness of programming language.
 
-Glisp literally uses a Lisp-like code as a project file. As the code-as-data concept of Lisp, its project file itself is the program to generate an output at the same time as it is a list of shapes. And even the large part of the app's built-in features are implemented by Lisp as equivalent syntax as project files. By this nature so-called [homoiconicity](https://en.wikipedia.org/wiki/Homoiconicity), artists can dramatically hack the app and transform it into any tool which can be specialized for daily graphic design, illustration, generative art, drawing flow-chart, or whatever they want. I call such a design concept "purpose-agnostic". Compared to the most of existing design tools that are strictly optimized for a concrete genre of graphics such as printing or UI of smartphone apps, I believe the attitude that developers intentionally keep being agnostic on how a tool should be used by designers makes it further powerful.
+Glisp literally uses a customized dialect of Lisp as a project file. As the [Code as Data](https://en.wikipedia.org/wiki/Code_as_data) concept of Lisp, the project file itself is the program to generate an output at the same time as a tree structure representing SVG-like list of shapes. And even the large part of the app's built-in features are implemented by the identical syntax to project files. By this nature so-called [homoiconicity](https://en.wikipedia.org/wiki/Homoiconicity), artists can dramatically hack the app and transform it into any tool which can be specialized in various realms of graphics -- daily graphic design, illustration, generative art, drawing flow-chart, or whatever they want. I call such a design concept "purpose-agnostic". Compared to the most of existing design tools that are strictly optimized for a concrete genre of graphics such as printing or UI of smartphone apps, I believe the attitude that developers intentionally keep being agnostic on how a tool should be used by designers makes it further powerful.
 
 Developed by [Baku Hashimoto](https://baku89.com)
+
+## Features list I've been fantasizing
+
+✨: High priority  
+🍡: Personally think it'd be cool  
+🌶️: Important but difficult to implement, while I have no clue how to do
+
+- [ ] UI enhancements
+  - [ ] ✨Selects path/group by clicking viewport
+  - [ ] ✨Transplants [Programmable Pen Tool](https://s.baku89.com/pentool/animation)
+  - [ ] Touch-screen support
+  - [ ] Much more intuitive interface for designers I prototyped [here](http://ui.baku89.com/)
+- [ ] Improve the GUI to allow non-programmers edit the project without seeing any Lisp code
+  - [ ] ✨Layer list view
+- [ ] Lisp interpreter optimization/ehnancement
+  - [ ] 🌶️ Incremental evaluation system to avoid the overhead by re-calculating entire project for each tweak
+  - [ ] [Incremental Lisp parser](https://hal.archives-ouvertes.fr/hal-01887230/document)
+  - [ ] 🌶️ Enables to refer other node's value by relative path without explicitly defining a symbol, like Houdini's `ch("../transform/tx")` expression
+  - [ ] Headless REPL environment to render images by command (partially supported)
+  - [ ] Standalone JS library to dynamically render the sketch embedded in a web page
+- [ ] Timeline features
+  - [ ] Video exporter
+  - [ ] AE-like layer view and curve editor
+  - [ ] 🍡 [Velocity/accelation based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
+- [ ] Raster image manipulation
+  - [ ] Writes custom filters in GLSL ([Interactive Shader Format](https://editor.isf.video/) might be useful)
+  - [ ] 🍡 Capture still image by video inputs to make a stop-motion
+- [ ] Abstraction of user inputs
+  - [ ] Not only mice and keyboards, add support to bind commands with any controller's inputs via OSC/MIDI on the fly during you design. The notion "remembering hot keys" will be vanished.
+  - [ ] 🍡 Wouldn't it be cool if we can even use Leap Motion to record an animation...?
+  - [ ] Input hooks. Qantizing, copying, flipping, and smoothing the mouse coordinate for instances.
 
 ## Helpful Repositories
 
