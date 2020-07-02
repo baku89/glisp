@@ -1,7 +1,5 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
-import {mat2d} from 'gl-matrix'
-
 import printExp, {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 import {
@@ -15,11 +13,10 @@ import {
 	assocBang
 } from '@/mal/types'
 
-import createCanvasRender from '@/renderer/canvas-renderer'
-
 import ViewScope from './view'
 import renderToSvg from '@/renderer/render-to-svg'
 import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
+import getRendereredImage from '@/renderer/get-rendererd-image'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -132,56 +129,46 @@ ConsoleScope.def(
 	'export-image',
 	withMeta(
 		(...xs: MalVal[]) => {
-			interface Options {
-				format: 'png' | 'jpeg' | 'webp'
-				scaling: 1
-				selector: null | string
-			}
-
-			// Configure options
-			const options: Options = {
-				format: 'png',
-				scaling: 1,
-				selector: null,
-				...convertMalNodeToJSObject(assocBang({}, ...xs))
-			}
-
 			const exec = async () => {
-				const renderer = await createCanvasRender()
-
 				let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
 
 				if (viewExp === undefined) {
 					throw new MalError('Invalid sketch')
 				}
 
-				if (viewExp) {
-					if (options.selector) {
-						viewExp = ConsoleScope.eval([
-							S('filter-elements'),
-							options.selector,
-							S('*view*')
-						])
-						if (!viewExp) {
-							throw new MalError(
-								`Element ${printExp(options.selector, true)} does not exist`
-							)
-						}
-					}
+				const options = convertMalNodeToJSObject(assocBang({}, ...xs))
 
-					const bounds = ConsoleScope.eval(L(S('get-element-bounds'), viewExp))
-					if (!bounds) {
-						throw new MalError('Cannot retrieve bounds')
+				if (options.selector) {
+					viewExp = ConsoleScope.eval([
+						S('filter-elements'),
+						options.selector,
+						S('*view*')
+					])
+					if (!viewExp) {
+						throw new MalError(
+							`Element ${printExp(options.selector, true)} does not exist`
+						)
 					}
-					const [x, y, width, height] = bounds as number[]
-
-					renderer.resize(width, height, options.scaling)
-					const viewTransform = mat2d.fromTranslation(mat2d.create(), [-x, -y])
-					await renderer.render(viewExp, {viewTransform})
-					const image = await renderer.getImage({format: options.format})
-					const w = window.open('about:blank', 'Image for canvas')
-					w?.document.write(`<img src=${image} />`)
 				}
+
+				const bounds = ConsoleScope.eval(
+					L(S('get-element-bounds'), viewExp)
+				) as number[]
+				if (!bounds) {
+					throw new MalError('Cannot retrieve bounds')
+				}
+
+				console.time('render')
+				const image = await getRendereredImage(viewExp, {
+					format: options.format,
+					scaling: options.scaling,
+					bounds
+				})
+
+				const w = window.open('about:blank', 'Image for canvas')
+				w?.document.write(`<img src=${image} />`)
+
+				console.timeEnd('render')
 			}
 
 			exec()
