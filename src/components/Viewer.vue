@@ -50,6 +50,8 @@ export default defineComponent({
 			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
 			await renderer.resize(width, height, dpi)
+
+			if (prevExp) render(prevExp)
 		}
 
 		useResizeSensor(el, onResized)
