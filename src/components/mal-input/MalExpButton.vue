@@ -32,7 +32,7 @@ export default defineComponent({
 	},
 	setup(props: Props, context) {
 		const sign = computed(() => {
-			if (isList(props.value) && M_FN in props.value) {
+			if (isList(props.value)) {
 				return 'f'
 			} else if (isSymbol(props.value)) {
 				return 'x'
