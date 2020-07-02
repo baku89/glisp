@@ -195,6 +195,22 @@ export function reverseEval(
 			}
 			break
 		}
+		case MalType.Map: {
+			if (isMap(exp)) {
+				const newExp = {...exp} as MalMap
+
+				Object.entries(original as MalMap).forEach(([key, value]) => {
+					if (key in exp) {
+						newExp[key] = reverseEval(exp[key], value, forceOverwrite)
+					} else {
+						newExp[key] = value
+					}
+				})
+
+				return newExp
+			}
+			break
+		}
 		case MalType.Symbol: {
 			const def = (original as MalSymbol).def
 			if (def && !isSymbol(exp)) {
