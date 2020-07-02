@@ -230,12 +230,12 @@ const Exports = [
 		(a: MalVal) => new MalAtom(a)
 	],
 	['atom?', (a: MalVal) => a instanceof MalAtom],
-	['deref', (atm: MalAtom) => atm.val],
-	['reset!', (atm: MalAtom, a: MalVal) => (atm.val = a)],
+	['deref', (atm: MalAtom) => atm.value],
+	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
 	[
 		'swap!',
 		(atm: MalAtom, fn: MalFunc, ...args: any) =>
-			(atm.val = fn(...[atm.val].concat(args)))
+			(atm.value = fn(atm.value, ...args))
 	],
 
 	// Other useful functions in JS

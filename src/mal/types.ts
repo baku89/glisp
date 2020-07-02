@@ -188,7 +188,7 @@ export function getType(obj: any): MalType {
 				return MalType.Vector
 			} else if ((obj as any)[M_TYPE] === MalType.Symbol) {
 				return MalType.Symbol
-			} else if (obj instanceof MalAtom) {
+			} else if ((obj as any)[M_TYPE] === MalType.Atom) {
 				return MalType.Atom
 			} else {
 				return MalType.Map
@@ -503,10 +503,8 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 
 // Atoms
 export class MalAtom {
-	public val: MalVal
-
-	constructor(val: MalVal) {
-		this.val = val
+	public constructor(public value: MalVal) {
+		;(this as any)[M_TYPE] = MalType.Atom
 	}
 }
 
