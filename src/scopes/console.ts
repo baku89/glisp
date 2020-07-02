@@ -13,7 +13,7 @@ import {
 	assocBang
 } from '@/mal/types'
 
-import ViewScope from './view'
+import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
 import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
 import getRendereredImage from '@/renderer/get-rendererd-image'
@@ -125,12 +125,19 @@ ConsoleScope.def('copy-as-svg', () => {
 	return null
 })
 
+const renderViewScope = createViewScope()
+let renderWindow: Window | null
+
 ConsoleScope.def(
 	'export-image',
 	withMeta(
 		(...xs: MalVal[]) => {
 			const exec = async () => {
-				let viewExp: MalVal | undefined = ConsoleScope.var('*view*')
+				const sketch = ConsoleScope.var('*sketch*') as string
+				const code = `(sketch ${sketch}\nnil)`
+
+				renderViewScope.setup({guideColor: null})
+				let viewExp = renderViewScope.readEval(code)
 
 				if (viewExp === undefined) {
 					throw new MalError('Invalid sketch')
@@ -139,11 +146,9 @@ ConsoleScope.def(
 				const options = convertMalNodeToJSObject(assocBang({}, ...xs))
 
 				if (options.selector) {
-					viewExp = ConsoleScope.eval([
-						S('filter-elements'),
-						options.selector,
-						S('*view*')
-					])
+					viewExp = ConsoleScope.eval(
+						L(S('filter-elements'), options.selector, viewExp)
+					)
 					if (!viewExp) {
 						throw new MalError(
 							`Element ${printExp(options.selector, true)} does not exist`
@@ -158,15 +163,21 @@ ConsoleScope.def(
 					throw new MalError('Cannot retrieve bounds')
 				}
 
-				console.time('render')
+				// Don't know why but below line should be inserted
+				// printExp(viewExp)
+
 				const image = await getRendereredImage(viewExp, {
 					format: options.format,
 					scaling: options.scaling,
 					bounds
 				})
 
-				const w = window.open('about:blank', 'Image for canvas')
-				w?.document.write(`<img src=${image} />`)
+				if (renderWindow) {
+					renderWindow.close()
+				}
+
+				renderWindow = window.open('about:blank', 'Image for canvas')
+				renderWindow?.document.write(`<img src=${image} />`)
 
 				console.timeEnd('render')
 			}
