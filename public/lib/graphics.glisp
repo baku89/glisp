@@ -210,7 +210,7 @@
 ;; 		;(exp as MalNodeSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
 ;; 	}
 ;; 	return ret
-(defmacro transform
+(defmacro graphics/transform
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
             &
@@ -221,6 +221,7 @@
                               local-xform)]
     `(binding [*transform* ~local-xform]
        [:transform ~local-xform ~@body])))
+(defalias transform graphics/transform)
 
 ;; ==================================== JS Implementation
 ; const [, _styles, ...body] = exp
@@ -252,7 +253,7 @@
 ;; return ret
 
 ;; ==================================== JS Implementation
-(defmacro style
+(defmacro graphics/style
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
             &
@@ -267,7 +268,7 @@
                                    (second %))
                           (entries merged-style)))]
     `(binding ~binds [:style ~merged-style ~@body])))
-
+(defalias style graphics/style)
 
 ;; const [, _option, ..._body] = exp
 ;; const option = evalExp(_option, env, cache) as MalMap
@@ -324,7 +325,7 @@
 ;; 	;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
 ;; }
 ;; return ret
-(defmacro artboard
+(defmacro graphics/artboard
   {:doc "Creates an artboard"
    :params [{:label "Options" :type "code"}
             &
@@ -346,7 +347,7 @@
                    ~@body
                    (guide/stroke ~(rect (rect2d/point-size [0.5 0.5]
                                                            (vec2/- size [1 1])))))])))
-
+(defalias artboard graphics/artboard)
 
 ;; Color
 (defn color? [x]
