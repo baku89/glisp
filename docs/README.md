@@ -2,6 +2,8 @@
 
 Glisp = **G**raphical **L**isp
 
+A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
+
 Lisp ベースのグラフィックデザインツール / クリエイティブコーディング環境を目指して開発しています。
 
 ## 使い方
