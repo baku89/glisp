@@ -7,6 +7,7 @@
 			:value="displayValue"
 			@input="onInput"
 			@blur="onBlur"
+			@keydown="onKeydown"
 			ref="inputEl"
 		/>
 	</div>
@@ -20,7 +21,9 @@ import {
 	Ref,
 	PropType
 } from '@vue/composition-api'
+import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
+import {KeyboardInputEvent} from 'electron'
 
 export default defineComponent({
 	name: 'InputNumber',
@@ -95,6 +98,30 @@ export default defineComponent({
 			editing.value = false
 		}
 
+		function onKeydown(e: KeyboardEvent) {
+			const key = keycode(e)
+
+			if (['up', 'down'].includes(key)) {
+				e.preventDefault()
+
+				let inc = 1
+				if (e.altKey) {
+					inc = 0.1
+				} else if (e.shiftKey) {
+					inc = 10
+				}
+
+				switch (key) {
+					case 'up':
+						update(props.value + inc)
+						break
+					case 'down':
+						update(props.value - inc)
+						break
+				}
+			}
+		}
+
 		function update(val: number) {
 			if (!isFinite(val)) {
 				return
@@ -124,7 +151,8 @@ export default defineComponent({
 			editing,
 
 			onInput,
-			onBlur
+			onBlur,
+			onKeydown
 		}
 	}
 })
