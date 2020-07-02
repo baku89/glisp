@@ -12,6 +12,7 @@ import {
 	withMeta,
 	assocBang
 } from '@/mal/types'
+import GIF from 'gif.js'
 
 import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
@@ -163,9 +164,6 @@ ConsoleScope.def(
 					throw new MalError('Cannot retrieve bounds')
 				}
 
-				// Don't know why but below line should be inserted
-				// printExp(viewExp)
-
 				const image = await getRendereredImage(viewExp, {
 					format: options.format,
 					scaling: options.scaling,
@@ -208,6 +206,151 @@ ConsoleScope.def(
 				}
 			],
 			'initial-params': [K('format'), 'png', K('scaling'), 1, K('selector'), '']
+		})
+	)
+)
+
+ConsoleScope.def(
+	'export-video',
+	withMeta(
+		(...xs: MalVal[]) => {
+			const options = {
+				format: 'gif',
+				scaling: 1,
+				symbol: 'time',
+				start: 0,
+				duration: 1,
+				fps: 24,
+				selector: '',
+				bounds: [0, 0, 100, 100],
+				...convertMalNodeToJSObject(assocBang({}, ...xs))
+			} as {
+				format: 'gif'
+				scaling: number
+				symbol: string
+				start: number
+				duration: number
+				fps: number
+				selector: string
+				bounds: number[]
+			}
+
+			const renderTime = async (time: number) => {
+				const sketch = ConsoleScope.var('*sketch*') as string
+				const code = `(sketch-at-time "${options.symbol}" ${time} ${sketch}\nnil)`
+
+				renderViewScope.setup({guideColor: null})
+				const viewExp = renderViewScope.readEval(code)
+				if (viewExp === undefined) {
+					throw new MalError('Invalid sketch')
+				}
+
+				// if (options.selector) {
+				// 	viewExp = ConsoleScope.eval(
+				// 		L(S('filter-elements'), options.selector, viewExp)
+				// 	)
+				// 	if (!viewExp) {
+				// 		throw new MalError(
+				// 			`Element ${printExp(options.selector, true)} does not exist`
+				// 		)
+				// 	}
+
+				// 	const bounds = ConsoleScope.eval(
+				// 		L(S('get-element-bounds'), viewExp)
+				// 	) as number[]
+
+				// 	if (!bounds) {
+				// 		throw new MalError('Cannot retrieve bounds')
+				// 	}
+
+				// 	options.bounds = bounds
+				// }
+
+				const image = await getRendereredImage(viewExp, {
+					format: options.format,
+					scaling: options.scaling,
+					bounds: options.bounds
+				})
+
+				return image
+			}
+
+			const exec = async () => {
+				const gif = new GIF({workers: 2, quality: 10})
+
+				const frameCount = Math.round(options.duration * options.fps)
+				const frameDuration = 1 / options.fps
+				const times = Array(frameCount)
+					.fill(0)
+					.map((_, i) => i * frameDuration)
+
+				const images = [] as string[]
+
+				for (const time of times) {
+					const data = (await renderTime(time)) as string
+					const img = new Image()
+					img.src = data
+					img.width = 100
+					img.height = 100
+					// gif.addFrame(img, {delay: frameDuration})
+					gif.addFrame(img, {delay: frameDuration})
+				}
+
+				gif.on('finished', (blob: Blob) => {
+					window.open(URL.createObjectURL(blob))
+				})
+
+				gif.render()
+			}
+
+			exec()
+
+			return null
+		},
+		convertJSObjectToMalMap({
+			doc: 'Exports a video',
+			params: [
+				S('&'),
+				{
+					keys: [
+						{
+							key: K('format'),
+							type: 'dropdown',
+							enum: ['gif']
+						},
+						{
+							key: K('scaling'),
+							type: 'number',
+							default: 1,
+							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2
+						},
+						{key: K('symbol'), type: 'string'},
+						{key: K('start'), type: 'number', default: 0},
+						{key: K('duration'), type: 'number', default: 1},
+						{key: K('fps'), type: 'number', default: 24},
+						{key: K('selector'), type: 'string', default: ''},
+						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]}
+					]
+				}
+			],
+			'initial-params': [
+				K('format'),
+				'gif',
+				K('scaling'),
+				1,
+				K('symbol'),
+				'time',
+				K('start'),
+				0,
+				K('duration'),
+				1,
+				K('fps'),
+				24,
+				K('selector'),
+				'',
+				K('bounds'),
+				[0, 0, 100, 100]
+			]
 		})
 	)
 )

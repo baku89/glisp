@@ -1,5 +1,8 @@
 <template>
-	<header class="GlobalMenu" :class="{dark, 'title-bar-macos': titleBar === 'macos'}">
+	<header
+		class="GlobalMenu"
+		:class="{dark, 'title-bar-macos': titleBar === 'macos'}"
+	>
 		<h1>'(GLISP)</h1>
 		<div class="GlobalMenu__menu" v-click-outside="onClose">
 			<div
@@ -51,9 +54,13 @@ export default defineComponent({
 				'File',
 				[
 					['Download Sketch', '(download-sketch)'],
-					['Export Image', "(show-command-dialog 'export-image)"],
-					['Publish to Gist', "(show-command-dialog 'publish-gist)"],
-					['Generate Sketch URL', "(show-command-dialog 'generate-sketch-url)"]
+					['Export Image...', "(show-command-dialog 'export-image)"],
+					['Export Video...', "(show-command-dialog 'export-video)"],
+					['Publish to Gist...', "(show-command-dialog 'publish-gist)"],
+					[
+						'Generate Sketch URL...',
+						"(show-command-dialog 'generate-sketch-url)"
+					]
 				]
 			],
 			[

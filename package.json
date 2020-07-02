@@ -58,6 +58,7 @@
 		"eventemitter3": "^4.0.0",
 		"file-saver": "^2.0.2",
 		"ftp-deploy": "^2.3.7",
+		"gif.js": "^0.2.0",
 		"gl-matrix": "^3.3.0",
 		"hotkeys-js": "^3.8.1",
 		"hull.js": "AndriiHeonia/hull",

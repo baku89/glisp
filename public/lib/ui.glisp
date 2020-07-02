@@ -40,6 +40,13 @@
     `[:g :_ ~@sketch-body]))
 
 
+(defmacro sketch-at-time [sym time & body]
+  `(let [deftime (fn [] nil)
+         ~(symbol sym) ~time]
+     (sketch ~@body)))
+
+  ;; `(eval (read-string (format "(do (defn deftime [] nil) (def %s %f) (sketch %s\nnil))" ~sym ~time sketch))))
+
 ;; Pens and Hands
 ;; (defmacro begin-draw
 ;;   {:private true}
