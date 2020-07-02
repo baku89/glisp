@@ -329,7 +329,20 @@
   {:doc "Creates an artboard"
    :params [{:label "Options" :type "code"}
             &
-            {:label "Body" :type "code"}]}
+            {:label "Body" :type "code"}]
+  ;;  :handles {:draw (fn [{:params [{:bounds bounds} & body]}]
+  ;;                    (let [info {:params [bounds]
+  ;;                                :return (rect bounds)}]
+  ;;                      (apply-draw-handle rect2d info)))
+  ;;            :drag (fn [info]
+  ;;                    (prn-pass (let [params (get info :params)
+  ;;                                    options (first params)
+  ;;                                    bounds (get options :bounds)
+  ;;                                    rect-info (assoc info :params [bounds])
+  ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
+  ;;                                    new-options (assoc options :bounds new-bounds)]
+  ;;                                `[~new-options ~@(rest params)])))}}
+   }
   [options & body]
   (let [evaluated-options (eval-in-env options)
         bounds (get evaluated-options :bounds [0 0 0 0])
