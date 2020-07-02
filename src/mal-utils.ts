@@ -31,20 +31,24 @@ import {
 import ConsoleScope from './scopes/console'
 import {replaceExp} from './mal/eval'
 import {mat2d, vec2} from 'gl-matrix'
-import printExp from './mal/printer'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
-		const isAllNumber =
-			exp instanceof Float32Array || exp.every(v => typeof v === 'number')
-		if (isAllNumber) {
-			switch (exp.length) {
-				case 2:
-					return 'vec2'
-				case 4:
-					return 'rect2d'
-				case 6:
-					return 'mat2d'
+		if (exp[0] === K('path')) {
+			return 'path'
+		}
+		if (exp.length <= 6) {
+			const isAllNumber =
+				exp instanceof Float32Array || exp.every(v => typeof v === 'number')
+			if (isAllNumber) {
+				switch (exp.length) {
+					case 2:
+						return 'vec2'
+					case 4:
+						return 'rect2d'
+					case 6:
+						return 'mat2d'
+				}
 			}
 		}
 	}
