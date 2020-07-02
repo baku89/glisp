@@ -10,21 +10,26 @@
                      (apply concat
                             {:type "path" :guide true :path path}
                             (let [segs (path/split-segments path)]
-                              (for [seg segs :index i]
-                                (let [[cmd & pts] seg]
-                                  (case cmd
-                                    :Z nil
-                                    :C [{:type "path" :guide true :class "dashed"
-                                         :path [:path
-                                                :M (last (nth segs (dec i)))
-                                                :L (first pts)
-                                                :M (last pts)
-                                                :L (second pts)]}
-                                        {:id [i 1] :type "point" :pos (first pts)}
-                                        {:id [i 2] :type "point" :pos (second pts)}
-                                        {:id [i 3] :type "point" :pos (last pts)}]
+                              ;; Draws Handles
+                              (concat
+                               (for [seg segs :index i]
+                                 (let [[cmd & pts] seg]
+                                   (if (= cmd :C)
+                                     [{:type "path" :guide true :class "dashed"
+                                       :path [:path
+                                              :M (last (nth segs (dec i)))
+                                              :L (first pts)
+                                              :M (last pts)
+                                              :L (second pts)]}])))
+                               (for [seg segs :index i]
+                                 (let [[cmd & pts] seg]
+                                   (case cmd
+                                     :Z nil
+                                     :C [{:id [i 1] :type "point" :pos (first pts)}
+                                         {:id [i 2] :type "point" :pos (second pts)}
+                                         {:id [i 3] :type "point" :pos (last pts)}]
                                     ; :M or :L
-                                    {:id [i 1] :type "point" :pos (first pts)}))))))
+                                     {:id [i 1] :type "point" :pos (first pts)})))))))
              :drag (fn [{:id [seg-idx el-idx]
                          :pos p
                          :params [path]}]
@@ -34,7 +39,7 @@
                                        el-idx
                                        p)]
                        `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}}
-  [p] p)
+  [path] path)
 
 ;; Shape functions
 
