@@ -248,8 +248,14 @@ export function computeExpTransform(exp: MalVal) {
 		const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
 		const isAttrOfPathTransform =
 			outer[0] === S('path/transform') && outer[1] === node
+		const isAttrOfArtboard = outer[0] === S('artboard') && outer[1] === node
 
-		if (isAttrOfG || isAttrOfTransform || isAttrOfPathTransform) {
+		if (
+			isAttrOfG ||
+			isAttrOfTransform ||
+			isAttrOfPathTransform ||
+			isAttrOfArtboard
+		) {
 			// Exclude attributes' part from ancestors
 			const attrAncestors = ancestors.slice(i)
 			ancestors = ancestors.slice(0, i - 1)
