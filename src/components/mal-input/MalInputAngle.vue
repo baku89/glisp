@@ -20,7 +20,7 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import InputComponents from '@/components/inputs'
-import {MalNodeSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
+import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal-utils'
 
 export default defineComponent({
@@ -28,9 +28,7 @@ export default defineComponent({
 	components: {MalInputNumber, InputRotery: InputComponents.InputRotery},
 	props: {
 		value: {
-			type: [Number, Array, Object] as PropType<
-				number | MalNodeSeq | MalSymbol
-			>,
+			type: [Number, Array, Object] as PropType<number | MalSeq | MalSymbol>,
 			required: true
 		},
 		validator: {

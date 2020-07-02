@@ -19,7 +19,7 @@ import {
 	createList as L,
 	MalNode,
 	isMalNode,
-	MalNodeSeq,
+	MalSeq,
 	M_OUTER,
 	M_OUTER_INDEX,
 	M_ELMSTRS,
@@ -108,11 +108,11 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
-		;(exp as MalNodeSeq)[M_FN] = fn
+		;(exp as MalSeq)[M_FN] = fn
 
 		const params = exp.slice(1)
 		if (cache) {
-			;(exp as MalNodeSeq)[M_EVAL_PARAMS] = params
+			;(exp as MalSeq)[M_EVAL_PARAMS] = params
 		}
 		exp = fn.bind({callerEnv: Env})(...params)
 	}
@@ -173,7 +173,7 @@ export default function evalExp(
 	env: Env,
 	cache = true
 ): MalVal {
-	const origExp: MalNodeSeq = exp as MalNodeSeq
+	const origExp: MalSeq = exp as MalSeq
 
 	let counter = 0
 	while (counter++ < 1e6) {

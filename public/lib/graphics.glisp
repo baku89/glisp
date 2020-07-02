@@ -203,7 +203,7 @@
 ;; 	}
 ;; 	if (cache) {
 ;; 		;(exp as MalNode)[M_EVAL] = ret
-;; 		;(exp as MalNodeSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
+;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
 ;; 	}
 ;; 	return ret
 (defmacro graphics/transform
@@ -244,7 +244,7 @@
 ;; }
 ;; if (cache) {
 ;; 	;(exp as MalNode)[M_EVAL] = ret
-;; 	;(exp as MalNodeSeq)[M_FN] = env.get(S_STYLE) as MalFunc
+;; 	;(exp as MalSeq)[M_FN] = env.get(S_STYLE) as MalFunc
 ;; }
 ;; return ret
 
@@ -317,8 +317,8 @@
 
 ;; if (cache) {
 ;; 	;(exp as MalNode)[M_EVAL] = ret
-;; 	;(exp as MalNodeSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
-;; 	;(exp as MalNodeSeq)[M_EVAL_PARAMS] = [option, ...body]
+;; 	;(exp as MalSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
+;; 	;(exp as MalSeq)[M_EVAL_PARAMS] = [option, ...body]
 ;; }
 ;; return ret
 (defmacro graphics/artboard

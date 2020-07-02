@@ -30,7 +30,11 @@
 			<path class="ViewHandles__viewport-axis stroke" d="M -5000 0 H 5000" />
 			<path class="ViewHandles__viewport-axis stroke" d="M 0 -5000 V 5000" />
 		</g>
-		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
+		<g
+			v-if="handleCallbacks"
+			class="ViewHandles__axis"
+			:transform="axisTransform"
+		>
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -62,9 +66,19 @@
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
+					<path
+						class="stroke display"
+						:transform="yTransform"
+						d="M 0 12 V -12"
+					/>
 				</template>
-				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+				<circle
+					class="fill display"
+					:class="cls"
+					cx="0"
+					cy="0"
+					:r="rem * 0.5"
+				/>
 			</template>
 		</g>
 	</svg>
@@ -77,7 +91,7 @@ import {
 	createList as L,
 	M_EVAL,
 	isMap,
-	MalNodeSeq,
+	MalSeq,
 	M_EVAL_PARAMS,
 	MalMap,
 	MalFunc,
@@ -150,7 +164,7 @@ interface Data {
 }
 
 interface Props {
-	exp: NonReactive<MalNodeSeq> | null
+	exp: NonReactive<MalSeq> | null
 	viewTransform: Float32Array
 }
 
@@ -507,9 +521,9 @@ export default defineComponent({
 				newParams[i] = newValue
 			}
 
-			const newExp: MalNodeSeq = state.fnInfo?.primitive
-				? (newParams[0] as MalNodeSeq)
-				: (L(props.exp.value[0], ...newParams) as MalNodeSeq)
+			const newExp: MalSeq = state.fnInfo?.primitive
+				? (newParams[0] as MalSeq)
+				: (L(props.exp.value[0], ...newParams) as MalSeq)
 
 			context.emit('input', nonReactive(newExp))
 		}

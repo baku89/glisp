@@ -84,12 +84,26 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<MalExpButton v-else @click="onSelect($event)" :value="params[i].value" />
+					<MalExpButton
+						v-else
+						@click="onSelect($event)"
+						:value="params[i].value"
+					/>
 				</div>
-				<button class="delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+				<button
+					class="delete"
+					v-if="i >= variadicPos"
+					@click="onParamDelete(i)"
+				>
 					<i class="far fa-times-circle" />
 				</button>
-				<button class="insert" v-if="i >= variadicPos" @click="onParamInsert(i)">&lt;-- Insert</button>
+				<button
+					class="insert"
+					v-if="i >= variadicPos"
+					@click="onParamInsert(i)"
+				>
+					&lt;-- Insert
+				</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
@@ -104,7 +118,7 @@
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
 import {
-	MalNodeSeq,
+	MalSeq,
 	getType,
 	MalVal,
 	keywordFor as K,
@@ -125,7 +139,7 @@ import {getFnInfo, getPrimitiveType} from '../mal-utils'
 import {nonReactive, getParamLabel, clamp, NonReactive} from '../utils'
 
 interface Props {
-	exp: NonReactive<MalNodeSeq>
+	exp: NonReactive<MalSeq>
 	fn: MalFunc
 }
 

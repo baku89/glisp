@@ -8,7 +8,7 @@ import {
 	MalBind,
 	isSeq,
 	getType,
-	MalNodeSeq,
+	MalSeq,
 	MalType,
 	symbolFor
 } from './types'
@@ -23,7 +23,7 @@ export default class Env {
 	 * Stores a definition expression `(devar sym val)` for each symbol
 	 */
 	private defs: {
-		[key: string]: MalNodeSeq
+		[key: string]: MalSeq
 	} = {}
 
 	private bindings!: Env[]
@@ -147,7 +147,7 @@ export default class Env {
 		}
 	}
 
-	public set(symbol: MalSymbol, value: MalVal, def?: MalNodeSeq) {
+	public set(symbol: MalSymbol, value: MalVal, def?: MalSeq) {
 		this.data[symbol.value] = value
 		if (def) {
 			this.defs[symbol.value] = def
@@ -155,7 +155,7 @@ export default class Env {
 		return value
 	}
 
-	public getDef(symbol: MalSymbol): MalNodeSeq | null {
+	public getDef(symbol: MalSymbol): MalSeq | null {
 		// eslint-disable-next-line no-prototype-builtins
 		if (this.defs.hasOwnProperty(symbol.value)) {
 			return this.defs[symbol.value]

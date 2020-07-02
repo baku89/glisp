@@ -33,7 +33,7 @@ import {defineComponent, PropType, computed} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {
-	MalNodeSeq,
+	MalSeq,
 	isList,
 	M_FN,
 	MalVal,
@@ -51,9 +51,7 @@ export default defineComponent({
 	components: {InputNumber, MalExpButton},
 	props: {
 		value: {
-			type: [Number, Array, Object] as PropType<
-				number | MalNodeSeq | MalSymbol
-			>,
+			type: [Number, Array, Object] as PropType<number | MalSeq | MalSymbol>,
 			required: true
 		},
 		validator: {
@@ -91,7 +89,7 @@ export default defineComponent({
 
 		const fn = computed(() => {
 			if (display.value.mode !== 'exp') {
-				return (props.value as MalNodeSeq)[M_FN]
+				return (props.value as MalSeq)[M_FN]
 			} else {
 				return null
 			}

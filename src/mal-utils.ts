@@ -12,7 +12,7 @@ import {
 	isSeq,
 	keywordFor,
 	getMeta,
-	MalNodeSeq,
+	MalSeq,
 	isMalFunc,
 	getType,
 	isSymbol,
@@ -155,27 +155,27 @@ export function reverseEval(
 	switch (getType(original)) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if ((original as MalNodeSeq)[0] === S('const')) {
+			if ((original as MalSeq)[0] === S('const')) {
 				return original
 			} else {
 				// find Inverse function
-				const info = getFnInfo(original as MalNodeSeq)
+				const info = getFnInfo(original as MalSeq)
 				if (info) {
 					const inverseFn = getMapValue(info.meta, 'inverse')
 
 					if (isMalFunc(inverseFn)) {
-						const fnName = (original as MalNodeSeq)[0]
-						// const fnOriginalParams = (original as MalNodeSeq).slice(1)
-						const fnEvaluatedParams = (original as MalNodeSeq)[M_EVAL_PARAMS]
+						const fnName = (original as MalSeq)[0]
+						// const fnOriginalParams = (original as MalSeq).slice(1)
+						const fnEvaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
 						const fnParams = inverseFn(exp, fnEvaluatedParams)
 
 						if (isSeq(fnParams)) {
 							const newExp = L(fnName, ...fnParams)
 
-							for (let i = 1; i < (original as MalNodeSeq).length; i++) {
+							for (let i = 1; i < (original as MalSeq).length; i++) {
 								newExp[i] = reverseEval(
 									newExp[i],
-									(original as MalNodeSeq)[i],
+									(original as MalSeq)[i],
 									forceOverwrite
 								)
 							}
@@ -187,9 +187,9 @@ export function reverseEval(
 			break
 		}
 		case MalType.Vector: {
-			if (isVector(exp) && exp.length === (original as MalNodeSeq).length) {
+			if (isVector(exp) && exp.length === (original as MalSeq).length) {
 				const newExp = exp.map((e, i) =>
-					reverseEval(e, (original as MalNodeSeq)[i], forceOverwrite)
+					reverseEval(e, (original as MalSeq)[i], forceOverwrite)
 				) as MalVal[]
 				return newExp
 			}

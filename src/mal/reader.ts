@@ -22,7 +22,7 @@ import {
 	isSeq,
 	getName,
 	createList as L,
-	MalNodeSeq,
+	MalSeq,
 	isSymbol
 } from './types'
 import printExp from './printer'
@@ -204,7 +204,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 // read vector of tokens
 function readList(reader: Reader, saveStr: boolean) {
 	const exp = readVector(reader, saveStr, '(', ')')
-	;(exp as MalNodeSeq)[M_ISLIST] = true
+	;(exp as MalSeq)[M_ISLIST] = true
 	return exp
 }
 

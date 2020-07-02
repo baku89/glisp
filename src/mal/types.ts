@@ -80,7 +80,7 @@ export interface MalNodeMap extends MalMap {
 	[M_CACHE]: {[k: string]: any}
 }
 
-export interface MalNodeSeq extends Array<MalVal> {
+export interface MalSeq extends Array<MalVal> {
 	[M_ISLIST]: boolean
 	[M_META]?: MalVal
 	[M_ISSUGAR]: boolean
@@ -125,7 +125,7 @@ function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
 	}
 }
 
-export function setExpandInfo(exp: MalNodeSeq, info: ExpandInfo) {
+export function setExpandInfo(exp: MalSeq, info: ExpandInfo) {
 	exp[M_EXPAND] = info
 }
 
@@ -182,7 +182,7 @@ export function getType(obj: any): MalType {
 			if (obj === null) {
 				return MalType.Nil
 			} else if (Array.isArray(obj)) {
-				const islist = (obj as MalNodeSeq)[M_ISLIST]
+				const islist = (obj as MalSeq)[M_ISLIST]
 				return islist ? MalType.List : MalType.Vector
 			} else if (obj instanceof Float32Array) {
 				return MalType.Vector
@@ -228,7 +228,7 @@ export function setMalNodeCache(node: MalNode, key: string, value: any) {
 	node[M_CACHE][key] = value
 }
 
-export type MalNode = MalNodeMap | MalNodeSeq
+export type MalNode = MalNodeMap | MalSeq
 
 export const isMalNode = (v: any): v is MalNode => {
 	const type = getType(v)
@@ -237,7 +237,7 @@ export const isMalNode = (v: any): v is MalNode => {
 	)
 }
 
-export const isSeq = (v: any): v is MalNodeSeq => {
+export const isSeq = (v: any): v is MalSeq => {
 	const type = getType(v)
 	return type === MalType.List || type === MalType.Vector
 }
@@ -435,11 +435,11 @@ export class MalSymbol {
 		;(this as any)[M_TYPE] = MalType.Symbol
 	}
 
-	public set def(def: MalNodeSeq | null) {
+	public set def(def: MalSeq | null) {
 		;(this as any)[M_DEF] = def
 	}
 
-	public get def(): MalNodeSeq | null {
+	public get def(): MalSeq | null {
 		return (this as any)[M_DEF] || null
 	}
 
@@ -473,11 +473,10 @@ export const isKeyword = (obj: any): obj is string =>
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: any): obj is MalNodeSeq =>
-	getType(obj) === MalType.List
+export const isList = (obj: any): obj is MalSeq => getType(obj) === MalType.List
 
 export function createList(...coll: MalVal[]) {
-	;(coll as MalNodeSeq)[M_ISLIST] = true
+	;(coll as MalSeq)[M_ISLIST] = true
 	return coll
 }
 
