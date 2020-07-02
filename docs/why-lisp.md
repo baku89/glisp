@@ -94,9 +94,10 @@ circle(50, 50, 40)
 ;; replicator の定義
 (defn replicator
   [xform n path]
-  (->> (range n)
-       (map #(apply mat2d/* (repeat xform %)))
-       (map #(transform % path))))
+  (->> (reduce #(conj % (mat2d/* (last %) xform))
+               [(mat2d/ident)]
+               (range (dec n)))
+       (map #(path/transform % path))))
 
 (style (stroke "tomato" 2)
 
