@@ -22,7 +22,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
 
 ✨: High priority  
 🍡: Personally think it'd be cool  
-🌶️: Important but difficult to implement, while I have no clue how to do
+🌶️: Important but I have no clue how to do
 
 - [ ] UI enhancements
   - [ ] ✨Selects path/group by clicking viewport
