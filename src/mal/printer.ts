@@ -82,8 +82,6 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const elmStrs = coll[M_ELMSTRS]
 			const delimiters = coll[M_DELIMITERS]
 
-			console.log(elmStrs, delimiters)
-
 			let ret = ''
 			for (let i = 0; i < elmStrs.length; i++) {
 				ret += delimiters[i] + elmStrs[i]
