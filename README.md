@@ -45,9 +45,9 @@ Developed by [Baku Hashimoto](https://baku89.com)
   - [ ] Writes custom filters in GLSL ([Interactive Shader Format](https://editor.isf.video/) might be useful)
   - [ ] 🍡 Captures still image from video input (e.g. webcam) to make a stop-motion
 - [ ] Abstraction of user inputs
-  - [ ] Not only mice and keyboards, add support to bind commands with any controller's inputs via OSC/MIDI on the fly during you design. The notion "remembering hot keys" will be vanished.
+  - [ ] Not only mice and keyboards, add support to bind commands with any controller's inputs via OSC/MIDI on the fly while you design. The notion "remembering hotkeys" will be vanished.
   - [ ] 🍡 Wouldn't it be cool if we can even use Leap Motion to record an animation...?
-  - [ ] Input hooks. Qantizing, copying, flipping, and smoothing the mouse coordinate for instances.
+  - [ ] Input hooks. Quantizing, copying, flipping, and smoothing the mouse coordinate for instances.
 
 ## Helpful Repositories
 
