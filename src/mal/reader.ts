@@ -360,7 +360,7 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		const outer = exp[M_OUTER]
 		let offset = calcOffset(outer)
 
-		printExp(outer, true, true)
+		printExp(outer, true)
 
 		if (isSeq(outer)) {
 			const index = exp[M_OUTER_INDEX]
@@ -373,8 +373,7 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 			offset +=
 				1 /* '{'.length */ +
 				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
-				outer[M_KEYS].slice(0, index + 1).join('').length +
-				outer[M_ELMSTRS].slice(0, index).join('').length
+				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
 		}
 
 		return offset
@@ -384,7 +383,7 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		return null
 	}
 
-	const expLength = printExp(exp, true, true).length
+	const expLength = printExp(exp, true).length
 	const offset = calcOffset(exp)
 
 	return [offset, offset + expLength]
@@ -438,14 +437,14 @@ export function findExpByRange(
 	}
 
 	// Creates a caches of children at the same time calculating length of exp
-	const expLen = printExp(exp, true, true).length
+	const expLen = printExp(exp, true).length
 
 	if (!(0 <= start && end <= expLen)) {
 		// Does not fit within the exp
 		return null
 	}
 
-	if (Array.isArray(exp)) {
+	if (isSeq(exp)) {
 		// Sequential
 
 		// Add the length of open-paren
@@ -476,19 +475,21 @@ export function findExpByRange(
 		const delimiters = exp[M_DELIMITERS]
 
 		// Search Children
-		// { <d0> <:e0>s <d1> <e1> ... }
 		for (let i = 0; i < keys.length; i++) {
 			const child = exp[keys[i]]
 
+			// Offsets
 			offset +=
-				delimiters[i * 2].length + keys[i].length + delimiters[i * 2 + 1].length
+				delimiters[i * 2].length + // delimiter before key
+				elmStrs[i * 2].length + // key
+				delimiters[i * 2 + 1].length // delimiter between key and value
 
 			const ret = findExpByRange(child, start - offset, end - offset)
 			if (ret !== null) {
 				return ret
 			}
 
-			offset += elmStrs[i].length
+			offset += elmStrs[i * 2 + 1].length
 		}
 	}
 

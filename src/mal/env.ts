@@ -101,8 +101,7 @@ export default class Env {
 							throw new MalError(
 								`Error: destruction parameter ${printExp(
 									bind,
-									true,
-									false
+									true
 								)} is not specified as sequence`
 							)
 						}
@@ -116,8 +115,7 @@ export default class Env {
 							throw new MalError(
 								`Error: destruction parameter '${printExp(
 									bind,
-									true,
-									false
+									true
 								)}'} is not specified as map`
 							)
 						}
