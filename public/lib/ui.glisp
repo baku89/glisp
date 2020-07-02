@@ -1,8 +1,8 @@
 ;; Graphics and UI
 (def *sketch* "")
-(def *width* 1000)
-(def *height* 1000)
-(def *size* [*width* *height*])
+(def *width* 0)
+(def *height* 0)
+(def *size* [0 0])
 (def *background* nil)
 (def *guide-color* nil)
 (def *transform* [1, 0, 0, 1, 0, 0])

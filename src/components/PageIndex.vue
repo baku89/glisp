@@ -5,7 +5,6 @@
 			:exp="viewExp"
 			:guide-color="guideColor"
 			:view-transform="viewTransform"
-			@resize="viewerSize = $event"
 			@render="hasRenderError = !$event"
 			@set-background="onSetBackground"
 		/>
@@ -13,7 +12,11 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="onSelectExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -42,7 +45,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -101,7 +106,6 @@ interface UI {
 	compact: boolean
 	background: string
 	theme: Theme
-	viewerSize: [number, number]
 	guideColor: string
 	viewTransform: mat2d
 	viewHandlesTransform: mat2d
@@ -233,7 +237,6 @@ export default defineComponent({
 			theme: computed(() => {
 				return computeTheme(ui.background)
 			}),
-			viewerSize: [0, 0],
 			guideColor: computed(() => ui.theme.colors['--guide']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
@@ -258,8 +261,6 @@ export default defineComponent({
 
 				if (data.exp) {
 					ViewScope.setup({
-						width: ui.viewerSize[0],
-						height: ui.viewerSize[1],
 						guideColor: ui.guideColor
 					})
 

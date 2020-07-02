@@ -5,19 +5,13 @@ import ReplScope from './repl'
 import Env from '@/mal/env'
 
 interface ViewScopeOption {
-	width: number
-	height: number
 	guideColor: string | null
 }
 
 function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
-	const {width, height, guideColor} = option
+	const {guideColor} = option
 
 	const env = new Env()
-
-	env.set(S('*width*'), width)
-	env.set(S('*height*'), height)
-	env.set(S('*size*'), [width, height])
 
 	if (guideColor) {
 		env.set(S('*guide-color*'), guideColor)
