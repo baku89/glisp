@@ -163,26 +163,22 @@
    :params [{:label "Attribute" :type "exp"}
             &
             {:label "Body" :type "exp"}]}
-  [attrs & xs]
-  (let [_attrs (gensym)
-        _attr-transform (gensym)
-        _attr-style (gensym)]
-    `(let [~_attrs ~attrs
-           ~_attr-transform (get ~_attrs :transform)
-           ~_attr-style (get ~_attrs :style)]
+  [_attrs & body]
+  (let [attrs (eval-in-env _attrs)
+        attr-transform (get attrs :transform)
+        attr-style (get attrs :style)]
+    (cond
+      (and attr-transform attr-style)
+      `(transform ~attr-transform (style ~attr-style ~@body))
 
-       (cond
-         (and ~_attr-transform ~_attr-style)
-         ~`(transform ~_attr-transform ~`(style ~_attr-style ~@xs))
+      attr-transform
+      `(transform ~attr-transform ~@body)
 
-         ~_attr-transform
-         ~`(transform ~_attr-transform ~@xs)
+      attr-style
+      `(style ~attr-style ~@body)
 
-         ~_attr-style
-         ~`(style ~_attr-style ~@xs)
-
-         :else
-         `[:g :_ ~@xs]))))
+      :else
+      `[:g :_ ~@body])))
 
 ;; ==================================== JS Implementation
 ;; 	const matrix = evalExp(exp[1], env, cache)
