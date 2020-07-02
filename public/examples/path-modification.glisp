@@ -28,10 +28,10 @@
 
    (def p
      (path/unite
-      (cloud 216 571 137 45)
-      (cloud 66 425 74 41)
-      (cloud 328 464 201 31)
-      (cloud 361 707 245 21)))
+      (cloud -428 136 -261 41)
+      (cloud -205 294 -189 45)
+      (cloud -142 126 -122 31)
+      (cloud -73 300 -61 45)))
 
-   (for [off [20]]
+   (for [off [10 20]]
      (path/offset off p)))
