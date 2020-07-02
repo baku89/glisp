@@ -16,7 +16,6 @@
 			<Viewer
 				:exp="viewExp"
 				:guide-color="guideColor"
-				@resize="viewerSize = $event"
 				@render="hasRenderError = !$event"
 			/>
 		</div>
@@ -66,7 +65,6 @@ interface Data {
 interface UI {
 	background: string
 	colors: {[k: string]: string}
-	viewerSize: [number, number]
 	guideColor: string
 }
 
@@ -97,7 +95,6 @@ export default defineComponent({
 		const ui = reactive({
 			background: '#f8f8f8',
 			colors: computed(() => computeTheme(ui.background).colors),
-			viewerSize: [0, 0],
 			guideColor: computed(() => ui.colors['--selection'])
 		}) as UI
 
@@ -127,14 +124,16 @@ export default defineComponent({
 			const exp = data.exp
 
 			if (!exp) {
-				return null
+				return []
 			}
 
 			ViewScope.setup({
-				width: ui.viewerSize[0],
-				height: ui.viewerSize[1],
 				guideColor: ui.guideColor
 			})
+
+			ViewScope.def('*width*', 100)
+			ViewScope.def('*height*', 100)
+			ViewScope.def('*size*', [100, 100])
 
 			const viewExp = ViewScope.eval(exp.value)
 			if (viewExp !== undefined) {
