@@ -97,7 +97,7 @@
      (* (/ (inc x) 2) (- nmax nmin))))
 
 (def cubic-bezier
-  ^{:doc "Calcurates CSS's cubic-bezier"
+  ^{:doc "Calculates CSS's cubic-bezier"
     :params [{:label "t" :type "number" :validator #(clamp % 0 1)}
              {:label "x1" :type "number" :validator #(clamp % 0 1)}
              {:label "y1" :type "number"}
