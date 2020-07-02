@@ -6,7 +6,6 @@ import {
 	M_ELMSTRS,
 	M_DELIMITERS,
 	getType,
-	MalMap,
 	MalFunc,
 	MalNode,
 	MalSymbol,
@@ -122,10 +121,8 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			return (exp as MalSymbol).value
 		case MalType.Keyword:
 			return ':' + (exp as string).slice(1)
-
 		case MalType.Atom:
-			return `(atom ${printExp((exp as MalAtom).val, _r)})`
-
+			return `(atom ${printExp((exp as MalAtom).value, _r)})`
 		case MalType.Function:
 		case MalType.Macro: {
 			if (M_AST in (exp as MalFunc)) {
