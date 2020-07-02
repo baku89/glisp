@@ -1,8 +1,8 @@
 <div align="center">
   <img src="assets/logo.png" width="150" />
 
-  <h1 style="text-align: center;">Glisp</h1>
-  <h3 style="text-align: center;">Lisp for Graphic Design / Computational Arts</h3>
+  <h1>Glisp</h1>
+  <h3>A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts</h3>
 
   <img src="assets/screenshot.png" />
 </div>
