@@ -361,8 +361,8 @@
 (defn odd? [x] (= (mod x 2) 1))
 (defn even? [x] (= (mod x 2) 0))
 
-(defn  percent
-  {:doc "Map the percentage value between 0-100 to normalized 0-1"
+(defn  pct
+  {:doc "Maps the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
    :returns {:type "number"}
    :unit "%"

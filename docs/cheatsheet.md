@@ -11,7 +11,7 @@
 
 ;; トランスフォーム
 (translate [10 10])
-(scale [(percent 50) 1])
+(scale [(pct 50) 1])
 (rotate (deg 45))
 (mat2d/* (translate-x 10) ; 複数のトランスフォームを組み合わる
          (rotate PI)
