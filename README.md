@@ -43,7 +43,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
   - [ ] 🍡 [Velocity/accelation based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
 - [ ] Raster image manipulation
   - [ ] Writes custom filters in GLSL ([Interactive Shader Format](https://editor.isf.video/) might be useful)
-  - [ ] 🍡 Capture still image by video inputs to make a stop-motion
+  - [ ] 🍡 Captures still image from video input (e.g. webcam) to make a stop-motion
 - [ ] Abstraction of user inputs
   - [ ] Not only mice and keyboards, add support to bind commands with any controller's inputs via OSC/MIDI on the fly during you design. The notion "remembering hot keys" will be vanished.
   - [ ] 🍡 Wouldn't it be cool if we can even use Leap Motion to record an animation...?
