@@ -550,6 +550,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import './style/common.styl'
+
 .ParamControl
 	position relative
 	width 100%
@@ -580,7 +582,7 @@ export default defineComponent({
 			width 99%
 
 		.input
-			max-width 100%
+			max-width calc(100% - 2rem)
 
 	button
 		height $param-height

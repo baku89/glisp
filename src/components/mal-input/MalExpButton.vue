@@ -3,7 +3,9 @@
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
-		>{{ sign }}</div>
+		>
+			{{ sign }}
+		</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
@@ -78,6 +80,7 @@ export default defineComponent({
 	color var(--comment)
 	line-height $input-height
 	font-monospace()
+	overflow hidden
 	display flex
 	padding 2px
 
