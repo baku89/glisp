@@ -221,8 +221,7 @@ ConsoleScope.def(
 				start: 0,
 				duration: 1,
 				fps: 24,
-				selector: '',
-				bounds: [0, 0, 100, 100],
+				bounds: [0, 0, 200, 200],
 				...convertMalNodeToJSObject(assocBang({}, ...xs))
 			} as {
 				format: 'gif'
@@ -231,7 +230,6 @@ ConsoleScope.def(
 				start: number
 				duration: number
 				fps: number
-				selector: string
 				bounds: number[]
 			}
 
@@ -245,27 +243,6 @@ ConsoleScope.def(
 					throw new MalError('Invalid sketch')
 				}
 
-				// if (options.selector) {
-				// 	viewExp = ConsoleScope.eval(
-				// 		L(S('filter-elements'), options.selector, viewExp)
-				// 	)
-				// 	if (!viewExp) {
-				// 		throw new MalError(
-				// 			`Element ${printExp(options.selector, true)} does not exist`
-				// 		)
-				// 	}
-
-				// 	const bounds = ConsoleScope.eval(
-				// 		L(S('get-element-bounds'), viewExp)
-				// 	) as number[]
-
-				// 	if (!bounds) {
-				// 		throw new MalError('Cannot retrieve bounds')
-				// 	}
-
-				// 	options.bounds = bounds
-				// }
-
 				const image = await getRendereredImage(viewExp, {
 					format: options.format,
 					scaling: options.scaling,
@@ -278,25 +255,29 @@ ConsoleScope.def(
 			const exec = async () => {
 				const gif = new GIF({workers: 2, quality: 10})
 
+				const startTime = performance.now()
+
 				const frameCount = Math.round(options.duration * options.fps)
 				const frameDuration = 1 / options.fps
 				const times = Array(frameCount)
 					.fill(0)
-					.map((_, i) => i * frameDuration)
+					.map((_, i) => [i * frameDuration, i])
 
-				const images = [] as string[]
-
-				for (const time of times) {
+				for (const [time, i] of times) {
 					const data = (await renderTime(time)) as string
 					const img = new Image()
 					img.src = data
-					img.width = 100
-					img.height = 100
-					// gif.addFrame(img, {delay: frameDuration})
-					gif.addFrame(img, {delay: frameDuration})
+					img.width = options.bounds[2] * options.scaling
+					img.height = options.bounds[3] * options.scaling
+					gif.addFrame(img, {delay: frameDuration * 1000})
+
+					printer.log(`Rendering... ${i + 1}/${frameCount} Frames`)
 				}
 
 				gif.on('finished', (blob: Blob) => {
+					const deltaTime = (performance.now() - startTime) / 1000
+					printer.log(`Render finished. ${deltaTime.toFixed(1)}s`)
+
 					window.open(URL.createObjectURL(blob))
 				})
 
@@ -328,7 +309,6 @@ ConsoleScope.def(
 						{key: K('start'), type: 'number', default: 0},
 						{key: K('duration'), type: 'number', default: 1},
 						{key: K('fps'), type: 'number', default: 24},
-						{key: K('selector'), type: 'string', default: ''},
 						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]}
 					]
 				}
@@ -346,10 +326,8 @@ ConsoleScope.def(
 				1,
 				K('fps'),
 				24,
-				K('selector'),
-				'',
 				K('bounds'),
-				[0, 0, 100, 100]
+				[0, 0, 200, 200]
 			]
 		})
 	)
