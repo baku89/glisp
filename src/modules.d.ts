@@ -146,3 +146,13 @@ declare module 'splitpanes' {
 	export const Splitpanes: any
 	export const Pane: any
 }
+
+declare module 'gif.js' {
+	export default class GIF {
+		constructor(options: any)
+
+		public addFrame(image: HTMLImageElement, options: any): void
+		public on(type: string, callback: (blob: Blob) => any): void
+		public render(): void
+	}
+}
