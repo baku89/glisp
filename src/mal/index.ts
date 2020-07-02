@@ -1,4 +1,2 @@
-import readStr from './reader'
-import printExp from './printer'
-
-export {readStr, printExp}
+export {default as readStr} from './reader'
+export {default as printExp} from './printer'

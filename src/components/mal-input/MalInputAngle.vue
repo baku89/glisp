@@ -8,24 +8,20 @@
 			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
-		<InputRotery
-			class="MalInputAngle__rotery"
-			:value="evaluated"
-			@input="onInput"
-		/>
+		<InputRotery class="MalInputAngle__rotery" :value="evaluated" @input="onInput" />
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
-import InputComponents from '@/components/inputs'
+import {InputRotery} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal-utils'
 
 export default defineComponent({
 	name: 'MalInputAngle',
-	components: {MalInputNumber, InputRotery: InputComponents.InputRotery},
+	components: {MalInputNumber, InputRotery},
 	props: {
 		value: {
 			type: [Number, Array, Object] as PropType<number | MalSeq | MalSymbol>,

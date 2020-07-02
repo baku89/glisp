@@ -1,21 +1,5 @@
-import {ref} from '@vue/composition-api'
-
-import useDraggable from './use-draggable'
-import useKeyboardState from './use-keyboard-state'
-import useResizeSensor from './use-resize-sensor'
-import useCommandDialog from './use-command-dialog'
-
-function useRem() {
-	const rem = ref(
-		parseFloat(getComputedStyle(document.documentElement).fontSize)
-	)
-	return rem
-}
-
-export {
-	useDraggable,
-	useKeyboardState,
-	useResizeSensor,
-	useRem,
-	useCommandDialog
-}
+export {default as useDraggable} from './use-draggable'
+export {default as useKeyboardState} from './use-keyboard-state'
+export {default as useResizeSensor} from './use-resize-sensor'
+export {default as useCommandDialog} from './use-command-dialog'
+export {default as useRem} from './use-rem'

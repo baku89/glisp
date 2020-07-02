@@ -1,19 +1,8 @@
-import InputColor from './InputColor.vue'
-import InputDropdown from './InputDropdown.vue'
-import InputNumber from './InputNumber.vue'
-import InputString from './InputString.vue'
-import InputRect2d from './InputRect2d.vue'
-import InputRotery from './InputRotery.vue'
-import InputMat2d from './InputMat2d.vue'
-import InputSeed from './InputSeed.vue'
-
-export default {
-	InputColor,
-	InputDropdown,
-	InputNumber,
-	InputString,
-	InputRect2d,
-	InputRotery,
-	InputMat2d,
-	InputSeed
-}
+export {default as InputColor} from './InputColor.vue'
+export {default as InputDropdown} from './InputDropdown.vue'
+export {default as InputNumber} from './InputNumber.vue'
+export {default as InputString} from './InputString.vue'
+export {default as InputRect2d} from './InputRect2d.vue'
+export {default as InputRotery} from './InputRotery.vue'
+export {default as InputMat2d} from './InputMat2d.vue'
+export {default as InputSeed} from './InputSeed.vue'
