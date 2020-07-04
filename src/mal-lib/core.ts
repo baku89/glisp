@@ -153,7 +153,7 @@ const Exports = [
 	['map-indexed', (f: MalFunc, a: MalVal[]) => a.map((x, i) => f(i, x))],
 	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
 	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
-	['sort', (coll: MalVal[]) => coll.sort()],
+	['sort', (coll: MalVal[]) => [...coll].sort()],
 	['partition', partition],
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
