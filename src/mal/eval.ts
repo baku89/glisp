@@ -18,7 +18,7 @@ import {
 	isList,
 	createList as L,
 	MalNode,
-	isMalNode,
+	isNode,
 	MalSeq,
 	M_OUTER,
 	M_OUTER_INDEX,
@@ -139,7 +139,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		const ret = exp.map(x => {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(x, env, cache)
-			if (cache && isMalNode(x)) {
+			if (cache && isNode(x)) {
 				x[M_EVAL] = ret
 			}
 			return ret
@@ -153,7 +153,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		for (const k in exp) {
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const ret = evalExp(exp[k], env, cache)
-			if (cache && isMalNode(exp[k])) {
+			if (cache && isNode(exp[k])) {
 				;(exp[k] as MalNode)[M_EVAL] = ret
 			}
 			hm[k] = ret
@@ -517,12 +517,12 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	const outer = original[M_OUTER]
 	const index = original[M_OUTER_INDEX]
 
-	if (index === undefined || !isMalNode(outer)) {
+	if (index === undefined || !isNode(outer)) {
 		throw new MalError('Cannot execute replaceExp')
 	}
 
 	// // Inherit delimiters if possible
-	// if (isMalNode(original) && original[M_DELIMITERS] && isMalNode(replaced)) {
+	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
 	// 	replaced[M_DELIMITERS] = []
 	// 	console.log('sdfd', original, replaced)
 	// 	if (isList(original) && isList(replaced)) {

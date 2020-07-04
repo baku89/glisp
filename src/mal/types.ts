@@ -146,7 +146,7 @@ export function expandExp(exp: MalVal) {
 }
 
 export function getOuter(exp: any) {
-	if (isMalNode(exp) && M_OUTER in exp) {
+	if (isNode(exp) && M_OUTER in exp) {
 		return exp[M_OUTER]
 	}
 	return null
@@ -230,7 +230,7 @@ export function setMalNodeCache(node: MalNode, key: string, value: any) {
 
 export type MalNode = MalNodeMap | MalSeq
 
-export const isMalNode = (v: any): v is MalNode => {
+export const isNode = (v: any): v is MalNode => {
 	const type = getType(v)
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector

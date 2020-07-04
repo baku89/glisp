@@ -22,7 +22,7 @@ import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
-import {MalVal, MalNode, symbolFor, isMalNode, isList} from '@/mal/types'
+import {MalVal, MalNode, symbolFor, isNode, isList} from '@/mal/types'
 
 import Editor from './Editor'
 
@@ -79,7 +79,7 @@ export default defineComponent({
 		// selectedExp -> activeRange
 		const activeRange = computed(() => {
 			const sel = props.selectedExp
-			if (sel && isMalNode(sel.value)) {
+			if (sel && isNode(sel.value)) {
 				const ret = getRangeOfExp(sel.value)
 				if (ret) {
 					const [start, end] = ret

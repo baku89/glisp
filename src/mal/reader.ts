@@ -9,7 +9,7 @@ import {
 	MalMap,
 	MalVal,
 	M_OUTER,
-	isMalNode,
+	isNode,
 	M_ELMSTRS,
 	M_DELIMITERS,
 	M_KEYS,
@@ -379,7 +379,7 @@ export function getRangeOfExp(exp: MalNode): [number, number] | null {
 		return offset
 	}
 
-	if (!isMalNode(exp)) {
+	if (!isNode(exp)) {
 		return null
 	}
 
@@ -431,7 +431,7 @@ export function findExpByRange(
 	start: number,
 	end: number
 ): MalNode | null {
-	if (!isMalNode(exp)) {
+	if (!isNode(exp)) {
 		// If Atom
 		return null
 	}
@@ -531,8 +531,8 @@ export function convertMalNodeToJSObject(exp: MalVal): any {
 export class BlankException extends Error {}
 
 export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
-	if (isMalNode(exp) && !(M_OUTER in exp)) {
-		if (isMalNode(outer) && index !== undefined) {
+	if (isNode(exp) && !(M_OUTER in exp)) {
+		if (isNode(outer) && index !== undefined) {
 			exp[M_OUTER] = outer
 			exp[M_OUTER_INDEX] = index
 		}

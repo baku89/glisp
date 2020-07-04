@@ -20,7 +20,7 @@ import {
 	symbolFor as S,
 	createList as L,
 	M_EVAL_PARAMS,
-	isMalNode,
+	isNode,
 	M_OUTER,
 	isList,
 	M_OUTER_INDEX,
@@ -112,7 +112,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 
 	// Check if primitive type
 	let primitive = null
-	if (!fn && isMalNode(exp)) {
+	if (!fn && isNode(exp)) {
 		primitive = getPrimitiveType(exp[M_EVAL] || exp)
 		if (primitive) {
 			fn = ConsoleScope.var(primitive) as MalFunc
@@ -234,7 +234,7 @@ export function reverseEval(
 const K_TRANSFORM = K('transform')
 
 export function computeExpTransform(exp: MalVal) {
-	if (!isMalNode(exp)) {
+	if (!isNode(exp)) {
 		return mat2d.identity(mat2d.create())
 	}
 
@@ -293,7 +293,7 @@ export function computeExpTransform(exp: MalVal) {
 
 						// Append pivot itself as translation matrix
 						const pivot =
-							isMalNode(outer[1]) && M_EVAL in outer[1]
+							isNode(outer[1]) && M_EVAL in outer[1]
 								? (outer[1][M_EVAL] as vec2)
 								: vec2.create()
 

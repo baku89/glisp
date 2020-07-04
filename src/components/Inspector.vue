@@ -12,11 +12,7 @@
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown
-				class="Inspector__doc"
-				:source="fnDoc"
-				:anchorAttributes="{target: '_blank'}"
-			/>
+			<VueMarkdown class="Inspector__doc" :source="fnDoc" :anchorAttributes="{target: '_blank'}" />
 		</div>
 		<component
 			:is="inspectorName"
@@ -37,7 +33,7 @@ import {
 	keywordFor as K,
 	MalNode,
 	MalSymbol,
-	isMalNode,
+	isNode,
 	getOuter
 } from '@/mal/types'
 
@@ -62,7 +58,7 @@ export default defineComponent({
 	props: {
 		exp: {
 			required: true,
-			validator: p => p instanceof NonReactive && isMalNode(p.value)
+			validator: p => p instanceof NonReactive && isNode(p.value)
 		}
 	},
 	setup(props: Props, context: SetupContext) {
@@ -158,6 +154,7 @@ export default defineComponent({
 
 	&__doc
 		line-height 1.4
+
 		code
 			color var(--syntax-function)
 </style>

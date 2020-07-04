@@ -11,11 +11,7 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -44,9 +40,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -83,7 +77,7 @@ import {printExp, readStr} from '@/mal'
 import {
 	MalVal,
 	MalNode,
-	isMalNode,
+	isNode,
 	expandExp,
 	getOuter,
 	MalAtom
@@ -334,7 +328,7 @@ export default defineComponent({
 			// Refresh
 			updateExp(nonReactive(data.exp.value))
 
-			if (isMalNode(exp.value)) {
+			if (isNode(exp.value)) {
 				data.selectedExp = exp as NonReactive<MalNode>
 			} else {
 				data.selectedExp = null
