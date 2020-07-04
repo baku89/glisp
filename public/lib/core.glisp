@@ -64,7 +64,9 @@
   ^{:doc "Modulus of num and div. Truncates toward negative infinity"
     :params [{:label "x" :type "number"}
              {:label "y" :type "number"}]
-    :returns {:type "number"}}
+    :returns {:type "number"}
+    :inverse (fn [ret [a b]]
+               [(mod ret b) b])}
   mod)
 
 (def floor
