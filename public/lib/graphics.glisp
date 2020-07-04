@@ -163,10 +163,10 @@
    :params [{:label "Attribute" :type "exp"}
             &
             {:label "Body" :type "exp"}]}
-  [_attrs & body]
-  (let [attrs (eval-in-env _attrs)
-        attr-transform (get attrs :transform)
-        attr-style (get attrs :style)]
+  [attrs & body]
+  (let [evaluated-attrs (eval-in-env attrs)
+        attr-transform (get evaluated-attrs :transform)
+        attr-style (get evaluated-attrs :style)]
     (cond
       (and attr-transform attr-style)
       `(transform ~attr-transform (style ~attr-style ~@body))
@@ -219,36 +219,6 @@
        [:transform ~local-xform ~@body])))
 (defalias transform graphics/transform)
 
-;; ==================================== JS Implementation
-; const [, _styles, ...body] = exp
-;; const styles = evalExp(_styles, env, cache) as MalMap | MalMap[]
-;; const mergedStyle = Array.isArray(styles)
-;; 	? styles.reduce((ret, s) => {
-;; 			return {...ret, ...s}
-;; 		}, {})
-;; 	: styles
-
-;; const bindingEnv = new Env()
-
-;; for (const [prop, value] of Object.entries(mergedStyle)) {
-;; 	const name = S(`*${prop.slice(1)}*`)
-;; 	bindingEnv.set(name, value)
-;; }
-
-;; env.pushBinding(bindingEnv)
-;; let ret
-;; try {
-;; 	ret = [K('style'), styles, ...body.map(x => evalExp(x, env, cache))]
-;; } finally {
-;; 	env.popBinding()
-;; }
-;; if (cache) {
-;; 	;(exp as MalNode)[M_EVAL] = ret
-;; 	;(exp as MalSeq)[M_FN] = env.get(S_STYLE) as MalFunc
-;; }
-;; return ret
-
-;; ==================================== JS Implementation
 (defmacro graphics/style
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
@@ -266,61 +236,6 @@
     `(binding ~binds [:style ~merged-style ~@body])))
 (defalias style graphics/style)
 
-;; const [, _option, ..._body] = exp
-;; const option = evalExp(_option, env, cache) as MalMap
-;; const bounds = option[K('bounds')]
-;; const background = option[K('background')]
-
-;; if (!Array.isArray(bounds) || bounds.length < 4) {
-;; 	throw new MalError('Invalid bounds')
-;; }
-
-;; const [x, y, width, height] = bounds as number[]
-
-;; const bindingEnv = new Env()
-;; bindingEnv.set(S('*size*'), [width, height])
-;; bindingEnv.set(S('*width*'), width)
-;; bindingEnv.set(S('*height*'), height)
-;; bindingEnv.set(S('*inside-artboard*'), true)
-
-;; if (background) {
-;; 	bindingEnv.set(S('*background*'), background)
-;; }
-
-;; env.pushBinding(bindingEnv)
-
-;; const body = evalExp(_body, env, cache) as MalVal[]
-
-;; let ret
-;; try {
-;; 	ret = evalExp(
-;; 		L(
-;; 			K('artboard'),
-;; 			[...bounds],
-;; 			L(
-;; 				S('transform'),
-;; 				[1, 0, 0, 1, x, y],
-;; 				...(background ? [[K('background'), background, true]] : []),
-;; 				...body,
-;; 				L(
-;; 					S('guide/stroke'),
-;; 					L(S('rect'), [0.5, 0.5], [width - 1, height - 1])
-;; 				)
-;; 			)
-;; 		),
-;; 		env,
-;; 		cache
-;; 	)
-;; } finally {
-;; 	env.popBinding()
-;; }
-
-;; if (cache) {
-;; 	;(exp as MalNode)[M_EVAL] = ret
-;; 	;(exp as MalSeq)[M_FN] = env.get(S_ARTBOARD) as MalFunc
-;; 	;(exp as MalSeq)[M_EVAL_PARAMS] = [option, ...body]
-;; }
-;; return ret
 (defmacro graphics/artboard
   {:doc "Creates an artboard"
    :params [{:label "Options" :type "code"}
