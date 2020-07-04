@@ -4,14 +4,6 @@
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
 
-(defn lerp
-  {:doc "Calculates a number between two numbers at a specific increment"
-   :params [{:type "number" :desc "First value"}
-            {:type "number" :desc "Second value"}
-            {:type "number" :desc "Normalized amount to interpolate between the two values"}]
-   :returns {:type "number"}}
-  [a b t] (+ b (* (- a b) t)))
-
 ;; Units
 (defn to-deg
   {:doc "Converts an angles to degrees"
@@ -50,7 +42,22 @@
    :returns {:type "number"}}
   [x] (/ x 255))
 
+(defn ms
+  {:doc "Converts the value in millseconds to seconds"
+   :params [{:type "number"}]
+   :inverse (fn [ret] (* ret 1000))
+   :unit "ms"
+   :returns {:type "number"}}
+  [x] (/ x 1000))
+
 ;; Range remappers
+(defn lerp
+  {:doc "Calculates a number between two numbers at a specific increment"
+   :params [{:type "number" :desc "First value"}
+            {:type "number" :desc "Second value"}
+            {:type "number" :desc "Normalized amount to interpolate between the two values"}]
+   :returns {:type "number"}}
+  [a b t] (+ b (* (- a b) t)))
 
 (defn clamp
   {:doc "Clamp `x` between two other value"
