@@ -23,7 +23,7 @@ import {
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
-import isNode from 'is-node'
+import isNodeJS from 'is-node'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -271,7 +271,7 @@ const Exports = [
 	[
 		'spit',
 		(f: MalVal, content: MalVal) => {
-			if (isNode) {
+			if (isNodeJS) {
 				// eslint-disable-next-line @typescript-eslint/no-var-requires
 				const fs = require('fs')
 				// eslint-disable-next-line @typescript-eslint/no-var-requires

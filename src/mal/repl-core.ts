@@ -1,5 +1,5 @@
 import {vsprintf} from 'sprintf-js'
-import isNode from 'is-node'
+import isNodeJS from 'is-node'
 
 import {
 	MalVal,
@@ -16,7 +16,7 @@ import interop from './interop'
 
 // String functions
 export const slurp = (() => {
-	if (isNode) {
+	if (isNodeJS) {
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const fs = require('fs')
 		return (url: string) => {
@@ -91,7 +91,7 @@ const Exports = [
 	// Needed in import-force
 	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)],
 
-	['*is-node*', isNode],
+	['*is-node*', isNodeJS],
 	['*host-language*', 'JavaScript'],
 
 	// Special forms annoations

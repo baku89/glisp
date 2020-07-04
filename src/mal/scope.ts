@@ -4,10 +4,10 @@ import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {symbolFor as S, MalVal, MalError} from './types'
 import printExp, {printer} from './printer'
-import isNode from 'is-node'
+import isNodeJS from 'is-node'
 
 const normalizeURL = (() => {
-	if (isNode) {
+	if (isNodeJS) {
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const path = require('path')
 		return (url: string, basename: string) => {
@@ -66,7 +66,7 @@ export default class Scope<T> {
 		})
 
 		let filename: string
-		if (isNode) {
+		if (isNodeJS) {
 			// NOTE: This should be fixed
 			filename = '/Users/baku/Sites/glisp/repl/index.js'
 		} else {
@@ -86,7 +86,7 @@ export default class Scope<T> {
 		// Load core library as default
 		this.readEval('(import-force "./lib/core.glisp")')
 
-		if (isNode) {
+		if (isNodeJS) {
 			this.def('*filename*', process.cwd())
 		}
 	}
