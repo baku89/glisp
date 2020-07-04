@@ -6,7 +6,6 @@
 (def *background* nil)
 (def *guide-color* nil)
 (def *transform* [1, 0, 0, 1, 0, 0])
-(def *time-variables* [])
 
 (def *inside-artboard* false)
 (def *fill-color* nil)
@@ -15,7 +14,9 @@
 (def *stroke-cap* "round")
 (def *stroke-join* "round")
 
+;; Atoms
 (def app-background (atom nil))
+(def *time-variables* (atom []))
 
 ;; Sketch
 ;; (defn normalize-element
@@ -36,9 +37,11 @@
 ;;             :else
 ;;             el))))
 
-(defn sketch [& body]
-  (let [start-line-num (inc (last-index-of body :start-sketch))
-        sketch-body (filter element? (drop start-line-num body))]
+(defmacro sketch [& body]
+  (reset! *time-variables* [])
+  (let [evaluated-body (eval-in-env body)
+        start-line-num (inc (last-index-of evaluated-body :start-sketch))
+        sketch-body (filter element? (drop start-line-num evaluated-body))]
     `[:g :_ ~@sketch-body]))
 
 

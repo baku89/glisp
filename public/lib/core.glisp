@@ -186,7 +186,7 @@
                      :validator #(round (clamp % 0 120))}]}]}
   [sym time & _]
   `(do
-     (def *time-variables* (conj *time-variables* 'time))
+     (swap! *time-variables* conj 'time)
      (def ~sym ~time)))
 
 
