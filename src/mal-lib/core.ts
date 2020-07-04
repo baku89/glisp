@@ -161,7 +161,7 @@ const Exports = [
 		(value: MalVal[] | string, a: string) => value.lastIndexOf(a)
 	],
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
-	['reverse', (coll: MalVal[]) => coll.reverse()],
+	['reverse', (coll: MalVal[]) => [...coll].reverse()],
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
 	[
 		'conj',
