@@ -226,7 +226,9 @@
   {:doc "Createsa a vec2 with specified angle and length"
    :params [{:label "Angle" :type "number"}
             {:label "Length" :type "number" :default 1}]
-   :returns {:type "vec2"}}
+   :returns {:type "vec2"}
+   :inverse (fn [ret [x y]]
+              [(vec2/angle ret) (vec2/dist ret [0 0])])}
   [a & xs]
   (case (count xs)
     0 [(cos a) (sin a)]
