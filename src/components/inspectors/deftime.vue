@@ -14,11 +14,7 @@
 				/>
 			</div>
 		</div>
-		<ParamControl
-			:exp="exp"
-			@input="$emit('input', $event)"
-			@select="$emit('select', $event)"
-		/>
+		<ParamControl :exp="exp" @input="$emit('input', $event)" @select="$emit('select', $event)" />
 	</div>
 </template>
 
@@ -29,7 +25,8 @@ import {
 	ref,
 	Ref,
 	computed,
-	onBeforeMount
+	onBeforeMount,
+	watch
 } from '@vue/composition-api'
 import {
 	MalVal,
@@ -87,8 +84,9 @@ export default defineComponent({
 		)
 		const endTime = computed(() => startTime.value + duration.value)
 		const fps = computed(() => getEvaluated(options.value[K_FPS]) as number)
-		const normalizedPosition = computed(
-			() => (time.value - startTime.value) / duration.value
+
+		const normalizedPosition = computed(() =>
+			clamp((time.value - startTime.value) / duration.value, 0, 1)
 		)
 
 		function updateTime(newTime: number) {
@@ -154,6 +152,18 @@ export default defineComponent({
 			prevTimestamp = currentTimestamp
 		}
 
+		// Clamp the current time within startTime...(startTime + duration)
+		watch(
+			() => [startTime.value, duration.value],
+			([startTime, duration]) => {
+				if (time.value < startTime || startTime + duration < time.value) {
+					const newTime = clamp(time.value, startTime, startTime + duration)
+					updateTime(newTime)
+				}
+			}
+		)
+
+		// Event hooks
 		function togglePlay() {
 			isPlaying.value = !isPlaying.value
 
