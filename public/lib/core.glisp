@@ -188,12 +188,12 @@
                      :validator #(round (clamp % 0 120))}]}]}
   [sym time & options]
   `(do
-     (def *time-variables*
-       (conj *time-variables* `[~sym
-                                ~(merge {:start 0
-                                         :duration 1
-                                         :fps 0}
-                                        (apply hash-map options))]))
+     (swap! *time-variables*
+            conj `[~sym
+                   ~(merge {:start 0
+                            :duration 1
+                            :fps 0}
+                           (apply hash-map options))])
      (def ~sym ~time)))
 
 
