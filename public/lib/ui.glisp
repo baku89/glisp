@@ -15,7 +15,7 @@
 (def *stroke-cap* "round")
 (def *stroke-join* "round")
 
-(def app-background (atom nil))
+(def *app-background* (atom nil))
 
 ;; Sketch
 ;; (defn normalize-element
