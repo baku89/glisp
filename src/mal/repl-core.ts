@@ -1,15 +1,7 @@
 import {vsprintf} from 'sprintf-js'
 import isNodeJS from 'is-node'
 
-import {
-	MalVal,
-	MalError,
-	withMeta,
-	symbolFor as S,
-	isMap,
-	keywordFor,
-	MalMap
-} from './types'
+import {MalVal, MalError, withMeta, symbolFor as S} from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
 import interop from './interop'
