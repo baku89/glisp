@@ -2,11 +2,21 @@
 	<div class="ListView">
 		<div
 			class="ListView__item"
-			v-for="[i, item] in items"
+			v-for="[i, label, children] in items"
 			:key="i"
-			@click="onClickItem(i)"
+			@click="children ? onClickItem(i) : null"
 		>
-			{{ item }}
+			<div class="ListView__label" :class="{clickable: !!children}">
+				<i class="ListView__icon fas" :class="{'fa-chevron-down': !!children}">
+					{{ !children ? '・' : '' }}
+				</i>
+				{{ label }}
+			</div>
+			<ListView
+				v-if="children"
+				:exp="children"
+				@select="$emit('select', $event)"
+			/>
 		</div>
 	</div>
 </template>
@@ -15,7 +25,7 @@
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal, isList, isVector, isSeq} from '@/mal/types'
-import {printExp} from '../mal'
+import {printExp} from '@/mal'
 
 export default defineComponent({
 	name: 'ListView',
@@ -30,9 +40,15 @@ export default defineComponent({
 			const exp = props.exp.value
 
 			if (isList(exp) && exp.length >= 1) {
-				return exp.slice(1).map((e, i) => [i + 1, printExp(e)])
+				return exp
+					.slice(1)
+					.map((e, i) => [
+						i + 1,
+						isList(e) ? printExp(e[0]) : printExp(e),
+						isList(e) ? nonReactive(e) : null
+					])
 			} else if (isVector(exp)) {
-				return exp.map((e, i) => [i, printExp(e)])
+				return exp.map((e, i) => [i, isSeq(e) ? nonReactive(e) : printExp(e)])
 			} else {
 				return [[0, printExp(exp)]]
 			}
@@ -44,7 +60,7 @@ export default defineComponent({
 			}
 		}
 
-		return {items, onClickItem}
+		return {items, onClickItem, NonReactive}
 	}
 })
 </script>
@@ -52,32 +68,40 @@ export default defineComponent({
 <style lang="stylus">
 
 .ListView
-	padding-top 1rem
 	width 100%
 
 	&__item
-		padding 1rem 1rem 1rem 2rem
+		padding-left 1.5rem
+
+	&__label
+		position relative
+		padding .7rem 1rem .7rem 0
 		white-space nowrap
-		cursor pointer
-		color var(--comment)
 		text-overflow ellipsis
 		overflow hidden
-		position relative
+		color var(--comment)
 
-		&:after
-			content ''
-			position absolute
-			top 0
-			left 0
-			width 100%
-			height 100%
-			background var(--yellow)
-			opacity 0
-			transition opacity .05s ease
-
-		&:hover
+		&.clickable
+			cursor pointer
 			color var(--foreground)
 
 			&:after
-				opacity .1
+				content ''
+				position absolute
+				top 0
+				left 0
+				width 100%
+				height 100%
+				background var(--yellow)
+				opacity 0
+				transition opacity .05s ease
+
+			&:hover
+				color var(--highlight)
+
+				&:after
+					opacity .1
+
+	&__icon
+		margin-right .6rem
 </style>

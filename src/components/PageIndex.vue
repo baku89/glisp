@@ -452,6 +452,7 @@ html, body
 		height calc(100vh - 3.4rem)
 
 	&__list-view
+		padding-top 1rem
 		position relative
 		width 100%
 		height 100%
