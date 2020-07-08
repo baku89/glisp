@@ -22,16 +22,32 @@ import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
-import {MalVal, MalNode, symbolFor, isNode, isList} from '@/mal/types'
+import {
+	MalVal,
+	MalNode,
+	symbolFor,
+	isNode,
+	isList,
+	M_DELIMITERS,
+	M_ELMSTRS,
+	getType,
+	MalType
+} from '@/mal/types'
 
 import Editor from './Editor'
 
+const EditMode = {
+	Node: 'node',
+	Elements: 'elements',
+	Params: 'params'
+} as const
+type EditMode = typeof EditMode[keyof typeof EditMode]
+
 interface Props {
-	exp: NonReactive<MalNode> | null
+	exp: NonReactive<MalVal>
 	selectedExp: NonReactive<MalNode> | null
-	cssStyle?: string
-	preText: string
-	postText: string
+	cssStyle: string
+	editMode: EditMode
 }
 
 export default defineComponent({
@@ -49,28 +65,76 @@ export default defineComponent({
 			type: String,
 			default: ''
 		},
-		preText: {
+		editMode: {
 			type: String,
-			default: ''
-		},
-		postText: {
-			type: String,
-			default: ''
+			default: EditMode.Params
 		}
 	},
 	setup(props: Props, context: SetupContext) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
 		const hasParseError = ref(false)
 
+		// Compute pre and post text
+		const preText = computed(() => {
+			const exp = props.exp.value as MalVal
+			switch (props.editMode) {
+				case EditMode.Node:
+					return ''
+				case EditMode.Params: {
+					if (!isList(exp) || exp.length < 1) {
+						throw new Error('Invalid fncall')
+					}
+					return '(' + exp[M_DELIMITERS][0] + exp[M_ELMSTRS][0]
+				}
+				case EditMode.Elements: {
+					switch (getType(exp)) {
+						case MalType.List:
+							return '('
+						case MalType.Vector:
+							return '['
+						case MalType.Map:
+							return '{'
+						default:
+							throw new Error('Invalid node')
+					}
+				}
+			}
+		})
+
+		const postText = computed(() => {
+			const exp = props.exp.value
+			switch (props.editMode) {
+				case EditMode.Node:
+					return ''
+				case EditMode.Params:
+					return ')'
+				case EditMode.Elements:
+					switch (getType(exp)) {
+						case MalType.List:
+							return ')'
+						case MalType.Vector:
+							return ']'
+						case MalType.Map:
+							return '}'
+						default:
+							throw new Error('Invalid node')
+					}
+			}
+		})
+
 		// Exp -> Code Conversion
 		const code = computed(() => {
-			if (props.exp) {
-				return printExp(props.exp.value as MalVal).slice(
-					props.preText.length,
-					-props.postText.length
-				)
-			} else {
-				return ''
+			const exp = props.exp.value as MalVal
+			const ret = printExp(exp)
+
+			switch (props.editMode) {
+				case EditMode.Node:
+					return ret
+				case EditMode.Params: {
+					return ret.slice(preText.value.length, -postText.value.length)
+				}
+				case EditMode.Elements:
+					return ret.slice(1, -1)
 			}
 		})
 
@@ -81,7 +145,7 @@ export default defineComponent({
 				const ret = getRangeOfExp(sel.value)
 				if (ret) {
 					const [start, end] = ret
-					return [start - props.preText.length, end - props.preText.length]
+					return [start - preText.value.length, end - preText.value.length]
 				}
 			}
 			return null
@@ -94,7 +158,7 @@ export default defineComponent({
 			context.emit('input-code', code)
 			let exp
 			try {
-				exp = readStr(`${props.preText}${code}${props.postText}`, true)
+				exp = readStr(`${preText.value}${code}${postText.value}`, true)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
@@ -118,7 +182,7 @@ export default defineComponent({
 					exp = inputExp.value
 					inputExp = null
 				} else {
-					exp = props.exp?.value
+					exp = props.exp.value
 				}
 			}
 
@@ -128,8 +192,8 @@ export default defineComponent({
 
 			const selectedExp = findExpByRange(
 				exp,
-				start + props.preText.length,
-				end + props.preText.length
+				start + preText.value.length,
+				end + preText.value.length
 			)
 
 			const isSame = props.selectedExp?.value === selectedExp
@@ -146,6 +210,8 @@ export default defineComponent({
 		}
 
 		return {
+			preText,
+			postText,
 			code,
 			selection,
 			activeRange,

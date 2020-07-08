@@ -11,7 +11,11 @@
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane :size="100 - controlPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="onSelectExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -25,13 +29,13 @@
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
-							:preText="'(sketch '"
-							:postText="'\nnil)'"
+							v-if="exp !== null"
 							:exp="exp"
 							:selectedExp="selectedExp"
+							editMode="params"
 							:hasParseError.sync="hasParseError"
 							@input="updateExp"
-							@input-code="onInputCode"
+							@inputCode="onInputCode"
 							@select="onSelectExp"
 						/>
 					</div>
@@ -40,7 +44,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
