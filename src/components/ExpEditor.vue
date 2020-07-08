@@ -84,12 +84,7 @@ export default defineComponent({
 					if (!isList(exp) || exp.length < 1) {
 						throw new Error('Invalid fncall')
 					}
-					return (
-						'(' +
-						exp[M_DELIMITERS][0] +
-						exp[M_ELMSTRS][0] +
-						exp[M_DELIMITERS][1]
-					)
+					return '(' + exp[M_DELIMITERS][0] + exp[M_ELMSTRS][0]
 				}
 				case EditMode.Elements: {
 					switch (getType(exp)) {
@@ -160,6 +155,7 @@ export default defineComponent({
 		let inputExp: NonReactive<MalVal> | null = null
 
 		function onInput(code: string) {
+			console.log(code)
 			context.emit('input-code', code)
 			let exp
 			try {
