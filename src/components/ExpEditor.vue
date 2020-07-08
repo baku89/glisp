@@ -26,8 +26,6 @@ import {MalVal, MalNode, symbolFor, isNode, isList} from '@/mal/types'
 
 import Editor from './Editor'
 
-const OFFSET = 8 // length of "(sketch "
-
 interface Props {
 	exp: NonReactive<MalNode> | null
 	selectedExp: NonReactive<MalNode> | null
@@ -83,7 +81,7 @@ export default defineComponent({
 				const ret = getRangeOfExp(sel.value)
 				if (ret) {
 					const [start, end] = ret
-					return [start - OFFSET, end - OFFSET]
+					return [start - props.preText.length, end - props.preText.length]
 				}
 			}
 			return null
@@ -128,7 +126,11 @@ export default defineComponent({
 				return
 			}
 
-			const selectedExp = findExpByRange(exp, start + OFFSET, end + OFFSET)
+			const selectedExp = findExpByRange(
+				exp,
+				start + props.preText.length,
+				end + props.preText.length
+			)
 
 			const isSame = props.selectedExp?.value === selectedExp
 
