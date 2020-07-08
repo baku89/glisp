@@ -33,14 +33,13 @@
 					@input="updateSelectedExp"
 				/>
 			</pane>
-			<pane :size="controlPaneSize" max-size="80">
+			<pane :size="controlPaneSize" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
 							v-if="exp !== null"
 							:exp="exp"
 							:selectedExp="selectedExp"
-							editMode="params"
 							:hasParseError.sync="hasParseError"
 							@input="updateExp"
 							@inputCode="onInputCode"
@@ -86,6 +85,7 @@ import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
+import ListView from '@/components/ListView.vue'
 
 import {printExp, readStr} from '@/mal'
 import {
@@ -124,6 +124,7 @@ interface UI {
 	viewTransform: mat2d
 	viewHandlesTransform: mat2d
 	controlPaneSize: number
+	listViewPaneSize: number
 }
 
 function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
@@ -181,7 +182,7 @@ function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 	})
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
-		const code = `(sketch ${ret[0]}\nnil)`
+		const code = `(sketch ${ret[0]}\n)`
 		updateExp(nonReactive(readStr(code, true)))
 	})
 
@@ -210,7 +211,7 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const exp = readStr(`(sketch ${code}\nnil)`, true)
+				const exp = readStr(`(sketch ${code}\n)`, true)
 				callbacks.updateExp(nonReactive(exp))
 				data.selectedExp = null
 			} else {
@@ -238,6 +239,7 @@ export default defineComponent({
 		Inspector,
 		ViewHandles,
 		Splitpanes,
+		ListView,
 		Pane
 	},
 	setup(_, context) {
@@ -254,12 +256,16 @@ export default defineComponent({
 			guideColor: computed(() => ui.theme.colors['--guide']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
-				const {top} = elHandles.value?.$el.getBoundingClientRect() || {top: 0}
+				const {top, left} = elHandles.value?.$el.getBoundingClientRect() || {
+					top: 0
+				}
 				const xform = mat2d.clone(ui.viewHandlesTransform)
+				xform[4] += left
 				xform[5] += top
 				return xform as mat2d
 			}),
-			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100
+			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
+			listViewPaneSize: ((20 * rem.value) / window.innerWidth) * 100
 		}) as UI
 
 		const data = reactive({
@@ -366,7 +372,7 @@ export default defineComponent({
 			exp => {
 				if (exp) {
 					const code = printExp(exp.value)
-					const sketch = code.slice(OFFSET, -5)
+					const sketch = code.slice(OFFSET, -2)
 					localStorage.setItem('saved_code', sketch)
 					ConsoleScope.def('*sketch*', sketch)
 				}
@@ -447,6 +453,14 @@ html, body
 		// flex-grow 1
 		height calc(100vh - 3.4rem)
 
+	&__list-view
+		position relative
+		width 100%
+		height 100%
+
+		translucent-bg()
+
+
 	&__inspector
 		position absolute
 		bottom 1rem
@@ -474,7 +488,6 @@ html, body
 		flex-direction column
 		width 100%
 		height 100%
-		// border-left 1px solid var(--border)
 		translucent-bg()
 
 	&__editor

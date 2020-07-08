@@ -67,7 +67,7 @@ export default defineComponent({
 		},
 		editMode: {
 			type: String,
-			default: EditMode.Params
+			default: EditMode.Node
 		}
 	},
 	setup(props: Props, context: SetupContext) {
@@ -155,7 +155,6 @@ export default defineComponent({
 		let inputExp: NonReactive<MalVal> | null = null
 
 		function onInput(code: string) {
-			console.log(code)
 			context.emit('input-code', code)
 			let exp
 			try {
