@@ -84,7 +84,12 @@ export default defineComponent({
 					if (!isList(exp) || exp.length < 1) {
 						throw new Error('Invalid fncall')
 					}
-					return '(' + exp[M_DELIMITERS][0] + exp[M_ELMSTRS][0]
+					return (
+						'(' +
+						exp[M_DELIMITERS][0] +
+						exp[M_ELMSTRS][0] +
+						exp[M_DELIMITERS][1]
+					)
 				}
 				case EditMode.Elements: {
 					switch (getType(exp)) {
