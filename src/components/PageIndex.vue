@@ -9,7 +9,15 @@
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<splitpanes class="PageIndex__content default-theme" vertical>
-			<pane :size="100 - controlPaneSize">
+			<pane :size="listViewPaneSize" :max-size="20">
+				<ListView
+					class="PageIndex__list-view"
+					v-if="exp !== null"
+					:exp="exp"
+					@select="onSelectExp"
+				/>
+			</pane>
+			<pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
 					<Inspector
 						:exp="selectedExp"
