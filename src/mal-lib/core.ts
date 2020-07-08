@@ -24,6 +24,7 @@ import {
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
+import {convertJSObjectToMalMap} from '@/mal/reader'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -214,6 +215,19 @@ const Exports = [
 	['keys', (a: MalMap) => Object.keys(a)],
 	['vals', (a: MalMap) => Object.values(a)],
 	['entries', (a: MalMap) => Object.entries(a)],
+	[
+		'merge',
+		withMeta(
+			(...xs: MalVal[]) => {
+				return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
+			},
+			convertJSObjectToMalMap({
+				doc:
+					'Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result',
+				params: [S('&'), {label: 'Map', type: 'map'}]
+			})
+		)
+	],
 
 	// String
 	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],

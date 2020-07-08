@@ -369,7 +369,7 @@ export default defineComponent({
 		watch(
 			() => data.viewExp,
 			() => {
-				const bg = ConsoleScope.var('app-background') as MalAtom
+				const bg = ConsoleScope.var('*app-background*') as MalAtom
 				if (
 					typeof bg.value === 'string' &&
 					isValidColorString(bg.value) &&

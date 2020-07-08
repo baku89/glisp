@@ -64,7 +64,9 @@
   ^{:doc "Modulus of num and div. Truncates toward negative infinity"
     :params [{:label "x" :type "number"}
              {:label "y" :type "number"}]
-    :returns {:type "number"}}
+    :returns {:type "number"}
+    :inverse (fn [ret [a b]]
+               [(mod ret b) b])}
   mod)
 
 (def floor
@@ -184,9 +186,14 @@
                      :validator #(max 0 %)}
                     {:key :fps :label "FPS" :type "number" :default 0
                      :validator #(round (clamp % 0 120))}]}]}
-  [sym time & _]
+  [sym time & options]
   `(do
-     (swap! *time-variables* conj 'time)
+     (swap! *time-variables*
+            conj `[~sym
+                   ~(merge {:start 0
+                            :duration 1
+                            :fps 0}
+                           (apply hash-map options))])
      (def ~sym ~time)))
 
 

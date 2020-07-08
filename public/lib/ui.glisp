@@ -15,7 +15,7 @@
 (def *stroke-join* "round")
 
 ;; Atoms
-(def app-background (atom nil))
+(def *app-background* (atom nil))
 (def *time-variables* (atom []))
 
 ;; Sketch
