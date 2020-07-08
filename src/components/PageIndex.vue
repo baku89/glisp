@@ -314,7 +314,7 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
-		function updateExp(exp: NonReactive<MalVal> | null) {
+		function updateExp(exp: NonReactive<MalVal>) {
 			data.exp = exp
 		}
 
