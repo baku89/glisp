@@ -12,7 +12,6 @@
 			<pane :size="listViewPaneSize" :max-size="20">
 				<ListView
 					class="PageIndex__list-view"
-					v-if="exp !== null"
 					:exp="exp"
 					@select="onSelectExp"
 				/>
@@ -37,7 +36,6 @@
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
-							v-if="exp !== null"
 							:exp="exp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
@@ -107,7 +105,7 @@ import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog} from './use'
 
 interface Data {
-	exp: NonReactive<MalVal> | null
+	exp: NonReactive<MalVal>
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -269,7 +267,7 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			exp: null,
+			exp: nonReactive(null),
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
