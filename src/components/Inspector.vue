@@ -119,11 +119,10 @@ export default defineComponent({
 
 .Inspector
 	position relative
-	padding 1rem
+	padding 1rem 0.5rem 1rem 1rem
 	height 100%
 	text-align left
 	user-select none
-	translucent-bg()
 
 	.fira-code
 		font-monospace()
