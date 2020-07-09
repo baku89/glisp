@@ -9,21 +9,10 @@
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<splitpanes class="PageIndex__content default-theme" vertical>
-			<pane :size="listViewPaneSize" :max-size="20">
-				<ListView
-					class="PageIndex__list-view"
-					:exp="exp"
-					@select="onSelectExp"
-				/>
+			<pane class="left" :size="listViewPaneSize" :max-size="30">
+				<ListView class="PageIndex__list-view" :exp="exp" @select="onSelectExp" />
 			</pane>
 			<pane :size="100 - controlPaneSize - listViewPaneSize">
-				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="onSelectExp"
-					/>
-				</div>
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
@@ -34,12 +23,16 @@
 			</pane>
 			<pane :size="controlPaneSize" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
+					<div class="PageIndex__inspector" v-if="selectedExp">
+						<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					</div>
 					<div class="PageIndex__editor">
 						<ExpEditor
-							:exp="exp"
+							v-if="selectedExp"
+							:exp="selectedExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
-							@input="updateExp"
+							@input="updateSelectedExp"
 							@inputCode="onInputCode"
 							@select="onSelectExp"
 						/>
@@ -49,9 +42,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -362,8 +353,8 @@ export default defineComponent({
 
 		// Save code
 		function onInputCode(code: string) {
-			localStorage.setItem('saved_code', code)
-			ConsoleScope.def('*sketch*', code)
+			// localStorage.setItem('saved_code', code)
+			// ConsoleScope.def('*sketch*', code)
 		}
 		watch(
 			() => data.exp,
@@ -452,21 +443,11 @@ html, body
 		height calc(100vh - 3.4rem)
 
 	&__list-view
-		padding-top 1rem
 		position relative
+		padding-top 1rem
 		width 100%
 		height 100%
-
 		translucent-bg()
-
-
-	&__inspector
-		position absolute
-		bottom 1rem
-		left 1rem
-		z-index 1000
-		width 30rem
-		border 1px solid var(--border)
 
 	&__viewer
 		position absolute !important
@@ -489,9 +470,17 @@ html, body
 		height 100%
 		translucent-bg()
 
+	&__inspector
+		// position absolute
+		// bottom 1rem
+		// left 1rem
+		// z-index 1000
+		// width 30rem
+		border-bottom 1px solid var(--border)
+
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
-		height 70%
+		height 50%
 		border-bottom 1px solid var(--border)
 		transition height $compact-dur var(--ease)
 
@@ -570,9 +559,7 @@ html, body
 		z-index 10
 		margin-right -1rem
 		width 1rem
-		border-right none
 		border-left-color var(--border)
-		// translucent-bg()
 		background transparent
 
 		&:before, &:after
@@ -586,4 +573,11 @@ html, body
 			&:before, &:after
 				border-left-color var(--highlight)
 				background-color transparent
+
+.splitpanes.default-theme
+	.left + .splitpanes__splitter
+		margin-right 0
+		margin-left -1rem
+		border-right 1px solid var(--border)
+		border-left none
 </style>
