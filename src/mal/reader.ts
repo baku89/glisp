@@ -351,9 +351,12 @@ function readForm(reader: Reader, saveStr: boolean): any {
 	return val
 }
 
-export function getRangeOfExp(exp: MalNode): [number, number] | null {
+export function getRangeOfExp(
+	exp: MalNode,
+	root?: MalNode
+): [number, number] | null {
 	function calcOffset(exp: MalNode): number {
-		if (!exp[M_OUTER]) {
+		if (!exp[M_OUTER] || exp[M_OUTER] === root) {
 			return 0
 		}
 
