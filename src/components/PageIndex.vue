@@ -11,9 +11,18 @@
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<splitpanes class="PageIndex__content default-theme" vertical>
 			<pane class="left" :size="listViewPaneSize" :max-size="30">
-				<ListView class="PageIndex__list-view" :exp="exp" @select="onSelectExp" />
+				<ListView
+					class="PageIndex__list-view"
+					:exp="exp"
+					:editingExp="editingExp"
+					:selectedExp="selectedExp"
+					@select="onSelectExp"
+				/>
 			</pane>
 			<pane :size="100 - controlPaneSize - listViewPaneSize">
+				<div class="PageIndex__inspector" v-if="selectedExp">
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+				</div>
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
@@ -24,16 +33,13 @@
 			</pane>
 			<pane :size="controlPaneSize" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
-					<div class="PageIndex__inspector" v-if="selectedExp">
-						<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
-					</div>
 					<div class="PageIndex__editor">
 						<ExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
-							@input="updateSelectedExp"
+							@input="updateEditingExp"
 							@inputCode="onInputCode"
 							@select="onSelectExp"
 						/>
@@ -104,7 +110,7 @@ interface Data {
 	hasEvalError: boolean
 	hasRenderError: boolean
 	selectedExp: NonReactive<MalNode> | null
-	editingExp: NonReactive<MalVal> | null
+	editingExp: NonReactive<MalNode> | null
 }
 
 interface UI {
@@ -205,7 +211,7 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const exp = readStr(toSketchCode(code))
+				const exp = readStr(toSketchCode(code)) as MalNode
 				const nonReactiveExp = nonReactive(exp)
 				callbacks.updateExp(nonReactiveExp)
 				data.selectedExp = null
@@ -355,6 +361,25 @@ export default defineComponent({
 			}
 		}
 
+		function updateEditingExp(exp: NonReactive<MalVal>) {
+			if (!data.exp || !data.editingExp) {
+				return
+			}
+
+			if (data.editingExp.value === data.exp.value) {
+				updateExp(exp)
+			} else {
+				replaceExp(data.editingExp.value, exp.value)
+				updateExp(nonReactive(data.exp.value))
+			}
+
+			if (isNode(exp.value)) {
+				data.editingExp = exp as NonReactive<MalNode>
+			} else {
+				data.editingExp = null
+			}
+		}
+
 		function selectOuterExp() {
 			const outer = getOuter(data.selectedExp?.value)
 			if (outer && outer !== data.exp?.value) {
@@ -408,6 +433,7 @@ export default defineComponent({
 			...toRefs(data as any),
 			onSetupConsole,
 			updateSelectedExp,
+			updateEditingExp,
 
 			...toRefs(ui as any),
 			updateExp,
@@ -459,6 +485,7 @@ html, body
 		width 100%
 		height 100%
 		translucent-bg()
+		overflow-y scroll
 
 	&__viewer
 		position absolute !important
@@ -473,6 +500,15 @@ html, body
 		width 100%
 		height 100%
 
+	&__inspector
+		position absolute
+		bottom 1rem
+		left 1rem
+		z-index 1000
+		width 30rem
+		border 1px solid var(--border)
+		translucent-bg()
+
 	&__control
 		position relative
 		display flex
@@ -480,14 +516,6 @@ html, body
 		width 100%
 		height 100%
 		translucent-bg()
-
-	&__inspector
-		// position absolute
-		// bottom 1rem
-		// left 1rem
-		// z-index 1000
-		// width 30rem
-		border-bottom 1px solid var(--border)
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
@@ -564,6 +592,7 @@ html, body
 // Overwrite splitpanes
 .splitpanes.default-theme
 	.splitpanes__pane
+		position relative
 		background transparent
 
 	.splitpanes__splitter
