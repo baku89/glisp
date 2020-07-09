@@ -1,20 +1,32 @@
 <template>
 	<div class="ListView">
 		<div
-			class="ListView__item"
-			v-for="[i, label, children] in items"
-			:key="i"
-			@click="children ? onClickItem(i) : null"
+			class="ListView__label"
+			:class="{clickable: !!items.children}"
+			@click="items.children && onClick()"
 		>
-			<div class="ListView__label" :class="{clickable: !!children}">
-				<i class="ListView__icon fas" :class="{'fa-chevron-down': !!children}">
-					{{ !children ? '・' : '' }}
-				</i>
-				{{ label }}
+			<div class="ListView__icon">
+				<i
+					v-if="items.icon.type === 'fontawesome'"
+					class="fas"
+					:class="items.icon.value"
+					:style="items.icon.style"
+				/>
+				<span v-if="items.icon.type === 'text'" :style="items.icon.style">{{items.icon.value}}</span>
+				<span
+					class="serif"
+					v-if="items.icon.type === 'serif'"
+					:style="items.icon.style"
+				>{{items.icon.value}}</span>
 			</div>
+			{{ items.label }}
+		</div>
+		<div class="ListView__children" v-if="items.children">
 			<ListView
-				v-if="children"
-				:exp="children"
+				v-for="(child, i) in items.children"
+				:key="i"
+				:exp="child"
+				:selectedExp="selectedExp"
 				@select="$emit('select', $event)"
 			/>
 		</div>
@@ -24,84 +36,126 @@
 <script lang="ts">
 import {defineComponent, PropType, computed} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {MalVal, isList, isVector, isSeq} from '@/mal/types'
+import {MalVal, isList, isVector, isSeq, MalType, getType} from '@/mal/types'
 import {printExp} from '@/mal'
+
+interface Props {
+	exp: NonReactive<MalVal>
+	selectedExp: NonReactive<MalVal> | null
+}
+
+const IconTexts = {
+	[MalType.Function]: {type: 'serif', value: 'f'},
+	[MalType.Number]: {type: 'text', value: '#'},
+	[MalType.String]: {
+		type: 'fontawesome',
+		value: 'fa-quote-right',
+		style: 'transform: scale(0.6);'
+	},
+	[MalType.Symbol]: {type: 'serif', value: 'x'}
+} as {[type: string]: {type: string; value: string; style?: string}}
 
 export default defineComponent({
 	name: 'ListView',
 	props: {
 		exp: {
-			type: NonReactive as PropType<NonReactive<MalVal>>,
+			required: true
+		},
+		selectedExp: {
 			required: true
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context) {
 		const items = computed(() => {
 			const exp = props.exp.value
 
-			if (isList(exp) && exp.length >= 1) {
-				return exp
-					.slice(1)
-					.map((e, i) => [
-						i + 1,
-						isList(e) ? printExp(e[0]) : printExp(e),
-						isList(e) ? nonReactive(e) : null
-					])
+			if (isList(exp)) {
+				return {
+					label: printExp(exp[0]),
+					icon: {type: 'fontawesome', value: 'fa-chevron-down'},
+					children: exp.slice(1).map(e => nonReactive(e))
+				}
 			} else if (isVector(exp)) {
-				return exp.map((e, i) => [i, isSeq(e) ? nonReactive(e) : printExp(e)])
+				return {
+					label: 'vector',
+					icon: {type: 'text', value: '[ ]'},
+					children: exp.map(e => nonReactive(e))
+				}
 			} else {
-				return [[0, printExp(exp)]]
+				return {
+					label: printExp(exp, false),
+					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
+					children: null
+				}
 			}
 		})
 
-		function onClickItem(i: number) {
-			if (isSeq(props.exp.value)) {
-				context.emit('select', nonReactive(props.exp.value[i]))
-			}
+		function onClick() {
+			context.emit('select', props.exp)
 		}
 
-		return {items, onClickItem, NonReactive}
+		return {items, onClick}
 	}
 })
 </script>
 
 <style lang="stylus">
-
 .ListView
+	padding-left 1rem
 	width 100%
-
-	&__item
-		padding-left 1.5rem
 
 	&__label
 		position relative
-		padding .7rem 1rem .7rem 0
-		white-space nowrap
-		text-overflow ellipsis
 		overflow hidden
+		padding 0.5rem 1rem 0.4rem 0
 		color var(--comment)
+		text-overflow ellipsis
+		white-space nowrap
 
 		&.clickable
-			cursor pointer
 			color var(--foreground)
+			cursor pointer
 
 			&:after
-				content ''
 				position absolute
 				top 0
 				left 0
 				width 100%
 				height 100%
 				background var(--yellow)
+				content ''
 				opacity 0
-				transition opacity .05s ease
+				transition opacity 0.05s ease
 
 			&:hover
 				color var(--highlight)
 
 				&:after
-					opacity .1
+					opacity 0.1
 
 	&__icon
-		margin-right .6rem
+		display inline-block
+		margin-right 0.2rem
+		width 1rem
+		color var(--comment)
+		text-align center
+		opacity 0.7
+
+		.serif
+			font-weight bold
+			font-style italic
+			font-family 'EB Garamond', serif
+			line-height 1rem
+
+	&__children
+		position relative
+
+		&:before
+			position absolute
+			top 0
+			left 0.4rem
+			width 0
+			height 100%
+			border-left 1px dotted var(--border)
+			content ''
 </style>

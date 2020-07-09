@@ -3,6 +3,7 @@
 		<Viewer
 			class="PageIndex__viewer"
 			:exp="viewExp"
+			:selectedExp="selectedExp"
 			:guide-color="guideColor"
 			:view-transform="viewTransform"
 			@render="hasRenderError = !$event"
@@ -28,8 +29,8 @@
 					</div>
 					<div class="PageIndex__editor">
 						<ExpEditor
-							v-if="selectedExp"
-							:exp="selectedExp"
+							v-if="editingExp"
+							:exp="editingExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
 							@input="updateSelectedExp"
@@ -103,6 +104,7 @@ interface Data {
 	hasEvalError: boolean
 	hasRenderError: boolean
 	selectedExp: NonReactive<MalNode> | null
+	editingExp: NonReactive<MalVal> | null
 }
 
 interface UI {
@@ -116,7 +118,11 @@ interface UI {
 	listViewPaneSize: number
 }
 
-function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
+function toSketchCode(code: string) {
+	return `(sketch\n${code}\n)`
+}
+
+function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -170,9 +176,8 @@ function parseURL(updateExp: (exp: NonReactive<MalVal>) => void) {
 		}
 	})
 
-	Promise.all([loadCodePromise, setupConsolePromise]).then(ret => {
-		const code = `(sketch ${ret[0]}\n)`
-		updateExp(nonReactive(readStr(code, true)))
+	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
+		onLoadExp(nonReactive(readStr(toSketchCode(code as string))))
 	})
 
 	return {onSetupConsole}
@@ -200,9 +205,11 @@ function bindsConsole(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const exp = readStr(`(sketch ${code}\n)`, true)
-				callbacks.updateExp(nonReactive(exp))
+				const exp = readStr(toSketchCode(code))
+				const nonReactiveExp = nonReactive(exp)
+				callbacks.updateExp(nonReactiveExp)
 				data.selectedExp = null
+				data.editingExp = nonReactiveExp
 			} else {
 				printer.error(`Failed to load from "${url}"`)
 			}
@@ -216,7 +223,7 @@ function bindsConsole(
 	})
 }
 
-const OFFSET = 8 // length of "(sketch "
+const OFFSET_START = 8 // length of "(sketch "
 
 export default defineComponent({
 	name: 'PageIndex',
@@ -284,7 +291,8 @@ export default defineComponent({
 				return viewExp
 			}),
 			// Selection
-			selectedExp: null
+			selectedExp: null,
+			editingExp: null
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -309,7 +317,10 @@ export default defineComponent({
 			data.exp = exp
 		}
 
-		const {onSetupConsole} = parseURL(updateExp)
+		const {onSetupConsole} = parseURL((exp: NonReactive<MalVal>) => {
+			updateExp(exp)
+			data.editingExp = exp
+		})
 
 		// Apply the theme
 		watch(
@@ -361,7 +372,7 @@ export default defineComponent({
 			exp => {
 				if (exp) {
 					const code = printExp(exp.value)
-					const sketch = code.slice(OFFSET, -2)
+					const sketch = code.slice(OFFSET_START, -2)
 					localStorage.setItem('saved_code', sketch)
 					ConsoleScope.def('*sketch*', sketch)
 				}
