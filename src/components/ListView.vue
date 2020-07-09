@@ -2,7 +2,7 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: !!items.children}"
+			:class="{clickable: !!items.children, selected}"
 			@click="items.children && onClick()"
 		>
 			<div class="ListView__icon">
@@ -27,6 +27,7 @@
 				:key="i"
 				:exp="child"
 				:selectedExp="selectedExp"
+				:editingExp="editingExp"
 				@select="$emit('select', $event)"
 			/>
 		</div>
@@ -42,6 +43,7 @@ import {printExp} from '@/mal'
 interface Props {
 	exp: NonReactive<MalVal>
 	selectedExp: NonReactive<MalVal> | null
+	editingExp: NonReactive<MalVal> | null
 }
 
 const IconTexts = {
@@ -52,7 +54,8 @@ const IconTexts = {
 		value: 'fa-quote-right',
 		style: 'transform: scale(0.6);'
 	},
-	[MalType.Symbol]: {type: 'serif', value: 'x'}
+	[MalType.Symbol]: {type: 'serif', value: 'x'},
+	[MalType.Keyword]: {type: 'serif', value: 'x'}
 } as {[type: string]: {type: string; value: string; style?: string}}
 
 export default defineComponent({
@@ -62,6 +65,9 @@ export default defineComponent({
 			required: true
 		},
 		selectedExp: {
+			required: true
+		},
+		editingExp: {
 			required: true
 		}
 	},
@@ -90,11 +96,15 @@ export default defineComponent({
 			}
 		})
 
+		const selected = computed(() => {
+			return props.selectedExp && props.exp.value === props.selectedExp.value
+		})
+
 		function onClick() {
 			context.emit('select', props.exp)
 		}
 
-		return {items, onClick}
+		return {items, selected, onClick}
 	}
 })
 </script>
@@ -106,7 +116,7 @@ export default defineComponent({
 
 	&__label
 		position relative
-		overflow hidden
+		// overflow hidden
 		padding 0.5rem 1rem 0.4rem 0
 		color var(--comment)
 		text-overflow ellipsis
@@ -119,8 +129,8 @@ export default defineComponent({
 			&:after
 				position absolute
 				top 0
-				left 0
-				width 100%
+				right 0
+				left -0.5rem
 				height 100%
 				background var(--yellow)
 				content ''
@@ -132,6 +142,9 @@ export default defineComponent({
 
 				&:after
 					opacity 0.1
+
+		&.selected
+			font-weight bold
 
 	&__icon
 		display inline-block
