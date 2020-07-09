@@ -1,23 +1,10 @@
 <template>
-	<div
-		id="app"
-		class="PageEmbed"
-		:style="{...colors, background}"
-		:class="{error: hasError}"
-	>
+	<div id="app" class="PageEmbed" :style="{...colors, background}" :class="{error: hasError}">
 		<div class="PageEmbed__editor">
-			<Editor
-				:value="code"
-				@input="code = $event"
-				cssStyle="line-height: 1.5"
-			/>
+			<Editor :value="code" @input="code = $event" cssStyle="line-height: 1.5" />
 		</div>
 		<div class="PageEmbed__viewer">
-			<Viewer
-				:exp="viewExp"
-				:guide-color="guideColor"
-				@render="hasRenderError = !$event"
-			/>
+			<Viewer :exp="viewExp" :guide-color="guideColor" @render="hasRenderError = !$event" />
 		</div>
 		<a class="PageEmbed__open-editor" :href="editorURL" target="_blank">
 			<i class="fas fa-external-link-alt"></i>
@@ -50,7 +37,8 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme} from '@/theme'
 
-const OFFSET = 8 // length of "(sketch "
+const OFFSET_START = 8 // length of "(sketch\n"
+const OFFSET_END = 2 // length of "/n)"
 
 interface Data {
 	code: string
@@ -148,7 +136,7 @@ export default defineComponent({
 		watch(
 			() => data.code,
 			code => {
-				const evalCode = `(sketch ${code}\nnil)`
+				const evalCode = `(sketch\n${code}\n)`
 				let exp
 				try {
 					exp = nonReactive(readStr(evalCode, true))
@@ -168,7 +156,7 @@ export default defineComponent({
 			() => data.exp,
 			() => {
 				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET, -5)
+					data.code = printExp(data.exp.value).slice(OFFSET_START, -OFFSET_END)
 				} else {
 					data.code = ''
 				}
@@ -187,32 +175,32 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import "./style/global.styl"
+@import './style/global.styl'
 
 $compact-dur = 0.4s
 
 .PageEmbed
 	position relative
-	background var(--background)
-	color var(--foreground)
 	display flex
 	padding 1rem
 	min-height calc(102px + 4rem)
 	height auto
 	border-left 2px solid #eee
+	background var(--background)
+	color var(--foreground)
 
 	&:after
-		content ''
-		display block
 		position absolute
-		pointer-events none
-		width 100%
-		height 100%
 		top 0
 		left 0
-		border .5em solid #ff5e5e
+		display block
+		width 100%
+		height 100%
+		border 0.5em solid #ff5e5e
+		content ''
 		opacity 0
-		transition opacity .1s ease
+		transition opacity 0.1s ease
+		pointer-events none
 
 	&.error:after
 		opacity 1
@@ -229,21 +217,21 @@ $compact-dur = 0.4s
 
 	&__open-editor
 		position absolute
-		display block
-		bottom 1rem
 		right 1rem
+		bottom 1rem
+		display block
 		color var(--selection)
 		font-size 1.1rem
-		transition all .2s ease
 		cursor pointer
+		transition all 0.2s ease
 
 		&:before
-			content 'Open in Editor'
-			font-size 1rem
-			vertical-align top
 			display inline-block
-			margin-right .7em
-			margin-top .1em
+			margin-top 0.1em
+			margin-right 0.7em
+			content 'Open in Editor'
+			vertical-align top
+			font-size 1rem
 
 		&:hover
 			color var(--hover)
