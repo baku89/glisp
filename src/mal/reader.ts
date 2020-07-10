@@ -276,14 +276,6 @@ function readForm(reader: Reader, saveStr: boolean): any {
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
 				val = L(S('set-id'), meta, expr)
-			} else {
-				switch (type) {
-					case 'f32':
-						reader.next()
-						if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-						val = L(S('f32'), readVector(reader, saveStr))
-						break
-				}
 			}
 			break
 		}
