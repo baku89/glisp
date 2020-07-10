@@ -6,7 +6,11 @@
 			:class="{clickable: items.clickable, selected}"
 			@click="items.clickable && onClick()"
 		>
-			<div class="ListView__icon" :class="{expanded}" @click="toggleExpanded()">
+			<div
+				class="ListView__icon"
+				:class="{expanded, expandable: items.expandable}"
+				@click="items.expandable && toggleExpanded()"
+			>
 				<i
 					v-if="items.icon.type === 'fontawesome'"
 					class="fas"
@@ -140,7 +144,11 @@ export default defineComponent({
 		})
 
 		const expanded = computed(() => {
-			return props.mode !== DisplayMode.Node ? true : ui.value.expanded
+			return props.mode !== DisplayMode.Node
+				? true
+				: items.value.expandable
+				? ui.value.expanded
+				: false
 		})
 
 		const items = computed(() => {
@@ -150,6 +158,7 @@ export default defineComponent({
 				return {
 					label: printExp(exp[0]),
 					clickable: true,
+					expandable: true,
 					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
 					children: exp.slice(1).map(e => nonReactive(e))
 				}
@@ -157,12 +166,15 @@ export default defineComponent({
 				return {
 					label: printExp(exp),
 					clickable: true,
-					icon: {type: 'text', value: '[ ]'}
+					expandable: false,
+					icon: {type: 'text', value: '[ ]'},
+					children: null
 				}
 			} else {
 				return {
 					label: printExp(exp, false),
 					clickable: false,
+					expandable: false,
 					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
 					children: null
 				}
@@ -281,7 +293,7 @@ export default defineComponent({
 		opacity 0.7
 		transition all .15s ease
 
-		&:hover
+		&.expandable:hover
 			opacity 1
 			color var(--highlight)
 
