@@ -1,6 +1,7 @@
 <template>
-	<div class="ListView">
+	<div class="ListView" :class="{destructed: mode !== 'node'}">
 		<div
+			v-if="mode === 'node'"
 			class="ListView__label"
 			:class="{clickable: items.clickable, selected}"
 			@click="items.clickable && onClick()"
@@ -39,15 +40,22 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from '@vue/composition-api'
+import {defineComponent, computed} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal, isList, isVector, isSeq, MalType, getType} from '@/mal/types'
 import {printExp} from '@/mal'
+
+enum DisplayMode {
+	Node = 'node',
+	Elements = 'elements',
+	Params = 'params'
+}
 
 interface Props {
 	exp: NonReactive<MalVal>
 	selectedExp: NonReactive<MalVal> | null
 	editingExp: NonReactive<MalVal> | null
+	mode: DisplayMode
 }
 
 const IconTexts = {
@@ -75,6 +83,9 @@ export default defineComponent({
 		},
 		editingExp: {
 			required: true
+		},
+		mode: {
+			default: DisplayMode.Node
 		}
 	},
 	setup(props: Props, context) {
@@ -116,6 +127,10 @@ export default defineComponent({
 		const expanded = computed(() => {
 			const exp = props.exp.value
 
+			if (props.mode !== DisplayMode.Node) {
+				return true
+			}
+
 			if (isList(exp)) {
 				return !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
 			}
@@ -155,6 +170,12 @@ export default defineComponent({
 	padding-left 1rem
 	width 100%
 	user-select none
+
+	&.destructed
+		padding-left 0
+
+		.ListView__children:before
+			display none
 
 	&__label
 		position relative

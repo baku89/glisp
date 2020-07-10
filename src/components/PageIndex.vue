@@ -18,6 +18,7 @@
 				<ListView
 					class="PageIndex__list-view"
 					:exp="exp"
+					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					@select="onSelectExp"
