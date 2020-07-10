@@ -23,6 +23,7 @@
 					:selectedExp="selectedExp"
 					@select="onSelectExp"
 					@update:exp="updateExp"
+					@update:editingExp="switchEditingExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
@@ -49,6 +50,7 @@
 							:exp="editingExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
+							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@inputCode="onInputCode"
 							@select="onSelectExp"
@@ -417,6 +419,10 @@ export default defineComponent({
 			ui.controlPaneSize = sizes[2].size
 		}
 
+		function switchEditingExp(exp: NonReactive<MalNode>) {
+			data.editingExp = exp
+		}
+
 		watch(
 			() => data.exp,
 			exp => {
@@ -459,6 +465,7 @@ export default defineComponent({
 			onSetupConsole,
 			updateSelectedExp,
 			updateEditingExp,
+			switchEditingExp,
 
 			...toRefs(ui as any),
 			updateExp,

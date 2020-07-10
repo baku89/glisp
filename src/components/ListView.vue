@@ -1,7 +1,6 @@
 <template>
-	<div class="ListView" :class="{destructed: mode !== 'node'}">
+	<div class="ListView">
 		<div
-			v-if="mode === 'node'"
 			class="ListView__label"
 			:class="{clickable: items.clickable, selected}"
 			@click="items.clickable && onClick()"
@@ -28,6 +27,11 @@
 				>
 			</div>
 			{{ items.label }}
+			<i
+				class="ListView__editing fas fa-code"
+				:class="{active: exp.value === editingExp.value}"
+				@click="onClickEditIcon"
+			/>
 		</div>
 		<div class="ListView__children" v-if="items.children && expanded">
 			<ListView
@@ -38,6 +42,7 @@
 				:editingExp="editingExp"
 				@select="$emit('select', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
+				@update:editingExp="$emit('update:editingExp', $event)"
 			/>
 		</div>
 	</div>
@@ -61,7 +66,7 @@ import {
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '../mal/eval'
-import {reconstructTree, saveOuter} from '../mal/reader'
+import {reconstructTree} from '@/mal/reader'
 
 enum DisplayMode {
 	Node = 'node',
@@ -157,8 +162,8 @@ export default defineComponent({
 			if (isList(exp)) {
 				return {
 					label: printExp(exp[0]),
-					clickable: true,
-					expandable: true,
+					clickable: props.mode === DisplayMode.Node,
+					expandable: props.mode === DisplayMode.Node,
 					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
 					children: exp.slice(1).map(e => nonReactive(e))
 				}
@@ -229,6 +234,11 @@ export default defineComponent({
 			context.emit('update:exp', nonReactive(newExp))
 		}
 
+		function onClickEditIcon(e: MouseEvent) {
+			e.stopPropagation()
+			context.emit('update:editingExp', props.exp)
+		}
+
 		return {
 			items,
 			selected,
@@ -236,7 +246,8 @@ export default defineComponent({
 			expanded,
 			ui,
 			toggleExpanded,
-			onUpdateChildExp
+			onUpdateChildExp,
+			onClickEditIcon
 		}
 	}
 })
@@ -307,6 +318,19 @@ export default defineComponent({
 			font-style italic
 			font-family 'EB Garamond', serif
 			line-height 1rem
+
+	&__editing
+		position absolute
+		right 1rem
+		color var(--comment)
+		opacity 0
+		cursor pointer
+
+		&:hover
+			opacity .5
+
+		&.active
+			opacity .7
 
 	&__children
 		position relative
