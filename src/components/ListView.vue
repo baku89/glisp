@@ -182,7 +182,9 @@ export default defineComponent({
 		})
 
 		const selected = computed(() => {
-			return props.selectedExp && props.exp.value === props.selectedExp.value
+			return (
+				props.selectedExp && expBody.value.value === props.selectedExp.value
+			)
 		})
 
 		function onClick() {
