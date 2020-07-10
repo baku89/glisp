@@ -205,12 +205,19 @@ export default defineComponent({
 				annotation[K_NAME] = ui.value.name
 			}
 
-			const newExp =
+			const newExp = nonReactive(
 				Object.keys(annotation).length > 0
 					? L(S_UI_ANNOTATE, annotation, expBody.value.value)
 					: expBody.value.value
+			)
 
-			context.emit('update:exp', nonReactive(newExp))
+			context.emit('update:exp', newExp)
+			if (
+				props.editingExp?.value === props.exp.value &&
+				props.editingExp?.value !== newExp.value
+			) {
+				context.emit('update:editingExp', newExp)
+			}
 		}
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
