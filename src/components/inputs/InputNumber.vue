@@ -23,7 +23,6 @@ import {
 } from '@vue/composition-api'
 import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
-import {KeyboardInputEvent} from 'electron'
 
 export default defineComponent({
 	name: 'InputNumber',
@@ -82,9 +81,9 @@ export default defineComponent({
 				: 1
 		})
 
-		const displayValue = computed(() =>
-			props.value.toFixed(2).replace(/\.?[0]+$/, '')
-		)
+		const displayValue = computed(() => {
+			return props.value.toFixed(2).replace(/\.?[0]+$/, '')
+		})
 
 		function onInput(e: InputEvent) {
 			const str = (e.target as HTMLInputElement).value
@@ -194,4 +193,7 @@ export default defineComponent({
 
 	&.exp &__input
 		color var(--red)
+
+	&.grayed-out &__input
+		color var(--comment)
 </style>

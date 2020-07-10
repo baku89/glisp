@@ -7,7 +7,10 @@
 			@click="$emit('select', $event)"
 		/>
 		<InputNumber
-			:class="{exp: isExp || display.isExp}"
+			:class="{
+				exp: isExp || display.isExp,
+				'grayed-out': display.mode === 'undefined'
+			}"
 			:value="displayValue"
 			@input="onInput"
 			:validator="innerValidator"
@@ -69,7 +72,9 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const display = computed(() => {
-			if (typeof props.value === 'number') {
+			if (props.value === undefined) {
+				return {mode: 'undefined', isExp: false}
+			} else if (typeof props.value === 'number') {
 				return {mode: 'number', isExp: false}
 			} else if (isList(props.value) && props.value.length === 2) {
 				const info = getFnInfo(props.value)
@@ -101,6 +106,8 @@ export default defineComponent({
 					return props.value as number
 				case 'unit':
 					return getEvaluated((props.value as MalVal[])[1]) as number
+				case 'undefined':
+					return 0
 				default:
 					// exp
 					return getEvaluated(props.value) as number
@@ -109,15 +116,14 @@ export default defineComponent({
 
 		const innerValidator = computed(() => {
 			if (props.validator) {
-				switch (display.value.mode) {
-					case 'number':
-						return props.validator
-					case 'unit':
-						return (v: number) => {
-							return (display.value.inverseFn as any)(
-								(props.validator as any)((fn.value as any)(v))
-							)[0]
-						}
+				if (display.value.mode === 'unit') {
+					return (v: number) => {
+						return (display.value.inverseFn as any)(
+							(props.validator as any)((fn.value as any)(v))
+						)[0]
+					}
+				} else {
+					return props.validator
 				}
 			}
 			return undefined
