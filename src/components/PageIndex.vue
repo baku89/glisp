@@ -21,6 +21,7 @@
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					@select="onSelectExp"
+					@update:exp="updateExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
@@ -239,7 +240,8 @@ function bindsConsole(
 	})
 }
 
-const OFFSET_START = 8 // length of "(sketch "
+const OFFSET_START = 8 // length of "(sketch\n"
+const OFFSET_END = 2 // length of "\n)"
 
 export default defineComponent({
 	name: 'PageIndex',
@@ -417,7 +419,7 @@ export default defineComponent({
 			exp => {
 				if (exp) {
 					const code = printExp(exp.value)
-					const sketch = code.slice(OFFSET_START, -2)
+					const sketch = code.slice(OFFSET_START, -OFFSET_END)
 					localStorage.setItem('saved_code', sketch)
 					ConsoleScope.def('*sketch*', sketch)
 				}
