@@ -545,7 +545,7 @@ html, body
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
-		height 50%
+		height 70%
 		border-bottom 1px solid var(--border)
 		transition height $compact-dur var(--ease)
 
@@ -610,10 +610,10 @@ html, body
 					transform rotate(90deg)
 
 .compact .PageIndex__editor
-	height calc(100% - 2rem - 2.2rem - 1.5rem)
+	height calc(100% - .4rem - 2rem - 1.5rem)
 
 .compact .PageIndex__console
-	height 2.2rem
+	height .4rem
 
 // Overwrite splitpanes
 .splitpanes.default-theme
