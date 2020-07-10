@@ -333,12 +333,15 @@ export default defineComponent({
 		})
 
 		function updateExp(exp: NonReactive<MalVal>) {
+			if (data.exp.value === data.editingExp?.value) {
+				data.editingExp = exp as NonReactive<MalNode>
+			}
 			data.exp = exp
 		}
 
 		const {onSetupConsole} = parseURL((exp: NonReactive<MalVal>) => {
 			updateExp(exp)
-			data.editingExp = exp
+			data.editingExp = exp as NonReactive<MalNode>
 		})
 
 		// Apply the theme
