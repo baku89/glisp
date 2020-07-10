@@ -10,7 +10,11 @@ import {
 	MalNode,
 	MalSymbol,
 	MalType,
-	isSeq
+	isSeq,
+	symbolFor,
+	isList,
+	MalSeq,
+	M_ISSUGAR
 } from './types'
 
 export const printer = {
@@ -37,6 +41,14 @@ function generateDefaultDelimiters(elementCount: number) {
 	}
 }
 
+const SUGAR_INFO = {
+	quote: {length: 2, prefix: "'"},
+	'ui-annotate': {length: 3, prefix: '#'},
+	'with-meta-sugar': {length: 3, prefix: '^'}
+} as {[name: string]: {length: number; prefix: string}}
+
+const SUGAR_SYMBOLS = Object.keys(SUGAR_INFO).map(s => symbolFor(s)) as MalVal[]
+
 export default function printExp(exp: MalVal, printReadably = true): string {
 	const _r = printReadably
 
@@ -49,12 +61,20 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 		case MalType.Map: {
 			const coll = exp as MalNode
 
+			const sugarInfo =
+				type === MalType.List && SUGAR_SYMBOLS.includes((coll as MalSeq)[0])
+					? SUGAR_INFO[((coll as MalSeq)[0] as MalSymbol).value]
+					: null
+
 			// Creates a cache if there's no element text cache
 			if (!(M_ELMSTRS in coll)) {
 				let elmStrs: string[]
 
 				if (isSeq(coll)) {
 					elmStrs = coll.map(e => printExp(e, _r))
+					if (sugarInfo) {
+						elmStrs[0] = ''
+					}
 				} else {
 					// NOTE: This might change the order of key
 					elmStrs = Object.entries(coll)
@@ -69,8 +89,15 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 				let delimiters: string[]
 
 				if (isSeq(coll)) {
-					delimiters = generateDefaultDelimiters(coll.length)
+					if (sugarInfo) {
+						// Syntatic sugar
+						const {length} = sugarInfo
+						delimiters = Array(length).fill('')
+					} else {
+						delimiters = generateDefaultDelimiters(coll.length)
+					}
 				} else {
+					// Map
 					delimiters = generateDefaultDelimiters(Object.keys(coll).length * 2)
 				}
 
@@ -81,6 +108,10 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const elmStrs = coll[M_ELMSTRS]
 			const delimiters = coll[M_DELIMITERS]
 
+			if (sugarInfo && !(M_ISSUGAR in coll)) {
+				;(coll as MalSeq)[M_ISSUGAR] = !!sugarInfo
+			}
+
 			let ret = ''
 			for (let i = 0; i < elmStrs.length; i++) {
 				ret += delimiters[i] + elmStrs[i]
@@ -89,7 +120,11 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 
 			switch (type) {
 				case MalType.List:
-					return '(' + ret + ')'
+					if (sugarInfo) {
+						return sugarInfo.prefix + ret
+					} else {
+						return '(' + ret + ')'
+					}
 				case MalType.Vector:
 					return '[' + ret + ']'
 				default:
