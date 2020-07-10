@@ -126,7 +126,7 @@ export default defineComponent({
 				return {
 					name: null,
 					expanded: false,
-					...{name: info[K_NAME], expanded: info[K_EXPANDED]}
+					...{name: info[K_NAME] || null, expanded: info[K_EXPANDED] || false}
 				}
 			}
 
