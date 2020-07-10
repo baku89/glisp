@@ -67,7 +67,7 @@ export default defineComponent({
 		},
 		editMode: {
 			type: String,
-			default: EditMode.Node
+			default: EditMode.Params
 		}
 	},
 	setup(props: Props, context: SetupContext) {
@@ -81,10 +81,11 @@ export default defineComponent({
 				case EditMode.Node:
 					return ''
 				case EditMode.Params: {
-					if (!isList(exp) || exp.length < 1) {
-						throw new Error('Invalid fncall')
-					}
-					return '(' + exp[M_DELIMITERS][0] + exp[M_ELMSTRS][0]
+					return (
+						'(' +
+						(exp as MalNode)[M_DELIMITERS][0] +
+						(exp as MalNode)[M_ELMSTRS][0]
+					)
 				}
 				case EditMode.Elements: {
 					switch (getType(exp)) {
@@ -122,6 +123,10 @@ export default defineComponent({
 			}
 		})
 
+		const endsDelimiter = computed(() => {
+			return props.editMode !== EditMode.Params ? ';__\n' : ''
+		})
+
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			const exp = props.exp.value as MalVal
@@ -131,7 +136,9 @@ export default defineComponent({
 				case EditMode.Node:
 					return ret
 				case EditMode.Params: {
-					return ret.slice(preText.value.length, -postText.value.length)
+					return ret
+						.replace(/;__\n/g, '')
+						.slice(preText.value.length, -postText.value.length)
 				}
 				case EditMode.Elements:
 					return ret.slice(1, -1)
@@ -145,7 +152,10 @@ export default defineComponent({
 				const ret = getRangeOfExp(sel.value)
 				if (ret) {
 					const [start, end] = ret
-					return [start - preText.value.length, end - preText.value.length]
+					return [
+						start - preText.value.length - endsDelimiter.value.length,
+						end - preText.value.length - endsDelimiter.value.length
+					]
 				}
 			}
 			return null
@@ -157,8 +167,12 @@ export default defineComponent({
 		function onInput(code: string) {
 			context.emit('input-code', code)
 			let exp
+
 			try {
-				exp = readStr(`${preText.value}${code}${postText.value}`, true)
+				exp = readStr(
+					`${preText.value}${endsDelimiter.value}${code}${endsDelimiter.value}${postText.value}`,
+					true
+				)
 			} catch (err) {
 				if (!(err instanceof BlankException)) {
 					printer.error(err)
@@ -192,8 +206,8 @@ export default defineComponent({
 
 			const selectedExp = findExpByRange(
 				exp,
-				start + preText.value.length,
-				end + preText.value.length
+				start + preText.value.length + endsDelimiter.value.length,
+				end + preText.value.length + endsDelimiter.value.length
 			)
 
 			const isSame = props.selectedExp?.value === selectedExp
