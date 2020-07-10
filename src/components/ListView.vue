@@ -33,7 +33,7 @@
 				:selectedExp="selectedExp"
 				:editingExp="editingExp"
 				@select="$emit('select', $event)"
-				@update:exp="onUpdateChildExp"
+				@update:exp="onUpdateChildExp(child, $event)"
 			/>
 		</div>
 	</div>
@@ -42,8 +42,21 @@
 <script lang="ts">
 import {defineComponent, computed} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {MalVal, isList, isVector, isSeq, MalType, getType} from '@/mal/types'
+import {
+	MalVal,
+	isList,
+	isVector,
+	MalType,
+	getType,
+	symbolFor as S,
+	keywordFor as K,
+	MalMap,
+	createList,
+	MalNode
+} from '@/mal/types'
 import {printExp} from '@/mal'
+import {convertJSObjectToMalMap} from '../mal/reader'
+import {replaceExp} from '../mal/eval'
 
 enum DisplayMode {
 	Node = 'node',
@@ -70,7 +83,9 @@ const IconTexts = {
 	[MalType.Keyword]: {type: 'serif', value: 'x'}
 } as {[type: string]: {type: string; value: string; style?: string}}
 
-const M_UI_LISTVIEW_EXPANDED = Symbol.for('ui-listview-expanded')
+const S_UI_ANNOTATE = S('ui-annotate')
+const K_NAME = K('name')
+const K_EXPANDED = K('expanded')
 
 export default defineComponent({
 	name: 'ListView',
@@ -89,8 +104,41 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
-		const items = computed(() => {
+		/**
+		 * the body of expression withouht ui-annotate wrapping
+		 */
+		const expBody = computed(() => {
 			const exp = props.exp.value
+			if (isList(exp) && exp[0] === S_UI_ANNOTATE) {
+				return nonReactive(exp[2])
+			} else {
+				return props.exp
+			}
+		})
+
+		/**
+		 * UI Annotations
+		 */
+		const ui = computed(() => {
+			const exp = props.exp.value
+			if (isList(exp) && exp[0] === S_UI_ANNOTATE) {
+				const info = exp[1] as MalMap
+				return {
+					name: null,
+					expanded: false,
+					...{name: info[K_NAME], expanded: info[K_EXPANDED]}
+				}
+			}
+
+			return {name: null, expanded: false}
+		})
+
+		const expanded = computed(() => {
+			return props.mode !== DisplayMode.Node ? true : ui.value.expanded
+		})
+
+		const items = computed(() => {
+			const exp = expBody.value.value
 
 			if (isList(exp)) {
 				return {
@@ -120,36 +168,28 @@ export default defineComponent({
 		})
 
 		function onClick() {
-			context.emit('select', props.exp)
+			context.emit('select', expBody.value)
 		}
-
-		// List expansion
-		const expanded = computed(() => {
-			const exp = props.exp.value
-
-			if (props.mode !== DisplayMode.Node) {
-				return true
-			}
-
-			if (isList(exp)) {
-				return !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
-			}
-
-			return false
-		})
 
 		function toggleExpanded() {
-			const exp = props.exp.value
-			const expanded = !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
+			const wrappedExp = createList(
+				S_UI_ANNOTATE,
+				{
+					...(convertJSObjectToMalMap(ui.value) as MalMap),
+					[K_EXPANDED]: !ui.value.expanded
+				},
+				expBody.value.value
+			)
 
-			if (isSeq(exp)) {
-				;(exp as any)[M_UI_LISTVIEW_EXPANDED] = !expanded
-			}
-
-			context.emit('update:exp', nonReactive(props.exp.value))
+			context.emit('update:exp', nonReactive(wrappedExp))
 		}
 
-		function onUpdateChildExp() {
+		function onUpdateChildExp(
+			original: NonReactive<MalNode>,
+			replaced: NonReactive<MalNode>
+		) {
+			replaceExp(original.value, replaced.value)
+
 			context.emit('update:exp', nonReactive(props.exp.value))
 		}
 
@@ -158,6 +198,7 @@ export default defineComponent({
 			selected,
 			onClick,
 			expanded,
+			ui,
 			toggleExpanded,
 			onUpdateChildExp
 		}
