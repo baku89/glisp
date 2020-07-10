@@ -12,7 +12,11 @@
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown class="Inspector__doc" :source="fnDoc" :anchorAttributes="{target: '_blank'}" />
+			<VueMarkdown
+				class="Inspector__doc"
+				:source="fnDoc"
+				:anchorAttributes="{target: '_blank'}"
+			/>
 		</div>
 		<component
 			:is="inspectorName"
@@ -34,7 +38,8 @@ import {
 	MalNode,
 	MalSymbol,
 	isNode,
-	getOuter
+	getOuter,
+	symbolFor as S
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
@@ -43,6 +48,8 @@ import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
 import {getFnInfo} from '@/mal-utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+
+const S_UI_ANNOTATE = S('ui-annotate')
 
 interface Props {
 	exp: NonReactive<MalNode>
@@ -87,7 +94,11 @@ export default defineComponent({
 		})
 
 		const outer = computed(() => {
-			const outer = getOuter(props.exp.value)
+			let outer = getOuter(props.exp.value)
+			if (isList(outer) && outer[0] === S_UI_ANNOTATE) {
+				outer = getOuter(outer)
+			}
+
 			if (getOuter(outer)) {
 				return outer
 			}
