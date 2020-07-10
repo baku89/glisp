@@ -6,7 +6,6 @@ import {
 	createMalFunc,
 	isMalFunc,
 	MalFuncThis,
-	isKeyword,
 	MalError,
 	symbolFor as S,
 	isSymbol,
@@ -25,7 +24,6 @@ import {
 	M_ELMSTRS,
 	M_KEYS,
 	M_EVAL_PARAMS,
-	keywordFor as K,
 	M_PARAMS,
 	MalBind,
 	isSeq,
@@ -62,6 +60,7 @@ const S_ENV_CHAIN = S('env-chain')
 const S_EVAL_IN_ENV = S('eval-in-env')
 const S_VAR = S('var')
 const S_LST = S('lst')
+const S_UI_ANNOTATE = S('ui-annotate')
 
 // eval
 
