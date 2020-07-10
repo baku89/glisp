@@ -53,12 +53,11 @@ import {
 	MalMap,
 	createList as L,
 	MalNode,
-	MalSeq,
-	cloneExp,
-	M_DELIMITERS
+	MalSeq
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '../mal/eval'
+import {reconstructTree, saveOuter} from '../mal/reader'
 
 enum DisplayMode {
 	Node = 'node',
@@ -187,29 +186,31 @@ export default defineComponent({
 				annotation[K_NAME] = ui.value.name
 			}
 
-			const wrappedExp =
+			const newExp =
 				Object.keys(annotation).length > 0
 					? L(S_UI_ANNOTATE, annotation, expBody.value.value)
 					: expBody.value.value
 
-			context.emit('update:exp', nonReactive(wrappedExp))
+			context.emit('update:exp', nonReactive(newExp))
 		}
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
 			const exp = props.exp.value as MalSeq
 
-			const newExpBody = L(...(expBody.value.value as MalSeq)) as MalSeq
-			newExpBody[i + 1] = replaced.value
-
-			newExpBody[M_DELIMITERS] = (expBody.value.value as MalSeq)[M_DELIMITERS]
+			replaceExp(
+				(expBody.value.value as MalSeq)[i + 1] as MalNode,
+				replaced.value
+			)
 
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, exp[1], newExpBody)
+				newExp = L(S_UI_ANNOTATE, exp[1], expBody.value.value)
 			} else {
-				newExp = newExpBody
+				newExp = expBody.value.value
 			}
+
+			reconstructTree(newExp)
 
 			context.emit('update:exp', nonReactive(newExp))
 		}
