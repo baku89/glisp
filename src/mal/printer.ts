@@ -42,10 +42,10 @@ function generateDefaultDelimiters(elementCount: number) {
 }
 
 const SUGAR_INFO = {
-	quote: {length: 2, prefix: "'"},
-	'ui-annotate': {length: 3, prefix: '#'},
-	'with-meta-sugar': {length: 3, prefix: '^'}
-} as {[name: string]: {length: number; prefix: string}}
+	quote: {prefix: "'"},
+	'ui-annotate': {prefix: '#'},
+	'with-meta-sugar': {prefix: '^'}
+} as {[name: string]: {prefix: string}}
 
 const SUGAR_SYMBOLS = Object.keys(SUGAR_INFO).map(s => symbolFor(s)) as MalVal[]
 
@@ -66,51 +66,50 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 					? SUGAR_INFO[((coll as MalSeq)[0] as MalSymbol).value]
 					: null
 
-			// Creates a cache if there's no element text cache
-			if (!(M_ELMSTRS in coll)) {
-				let elmStrs: string[]
+			if (sugarInfo && !(M_ISSUGAR in coll)) {
+				;(coll as MalSeq)[M_ISSUGAR] = true
+				coll[M_ELMSTRS] = [
+					sugarInfo.prefix,
+					...(coll as MalSeq).slice(1).map(e => printExp(e, _r))
+				]
+				coll[M_DELIMITERS] = Array((coll as MalSeq).length + 1).fill('')
+			} else {
+				// Creates a cache if there's no element text cache
+				if (!(M_ELMSTRS in coll)) {
+					let elmStrs: string[]
 
-				if (isSeq(coll)) {
-					elmStrs = coll.map(e => printExp(e, _r))
-					if (sugarInfo) {
-						elmStrs[0] = ''
-					}
-				} else {
-					// NOTE: This might change the order of key
-					elmStrs = Object.entries(coll)
-						.map(([key, value]) => [printExp(key, _r), printExp(value, _r)])
-						.flat()
-				}
-				coll[M_ELMSTRS] = elmStrs
-			}
-
-			// Creates a cache for delimiters if it does not exist
-			if (!(M_DELIMITERS in coll)) {
-				let delimiters: string[]
-
-				if (isSeq(coll)) {
-					if (sugarInfo) {
-						// Syntatic sugar
-						const {length} = sugarInfo
-						delimiters = Array(length).fill('')
+					if (isSeq(coll)) {
+						elmStrs = coll.map(e => printExp(e, _r))
+						if (sugarInfo) {
+							elmStrs[0] = ''
+						}
 					} else {
-						delimiters = generateDefaultDelimiters(coll.length)
+						// NOTE: This might change the order of key
+						elmStrs = Object.entries(coll)
+							.map(([key, value]) => [printExp(key, _r), printExp(value, _r)])
+							.flat()
 					}
-				} else {
-					// Map
-					delimiters = generateDefaultDelimiters(Object.keys(coll).length * 2)
+					coll[M_ELMSTRS] = elmStrs
 				}
 
-				coll[M_DELIMITERS] = delimiters
+				// Creates a cache for delimiters if it does not exist
+				if (!(M_DELIMITERS in coll)) {
+					let delimiters: string[]
+
+					if (isSeq(coll)) {
+						delimiters = generateDefaultDelimiters(coll.length)
+					} else {
+						// Map
+						delimiters = generateDefaultDelimiters(Object.keys(coll).length * 2)
+					}
+
+					coll[M_DELIMITERS] = delimiters
+				}
 			}
 
 			// Print using cache
 			const elmStrs = coll[M_ELMSTRS]
 			const delimiters = coll[M_DELIMITERS]
-
-			if (sugarInfo && !(M_ISSUGAR in coll)) {
-				;(coll as MalSeq)[M_ISSUGAR] = !!sugarInfo
-			}
 
 			let ret = ''
 			for (let i = 0; i < elmStrs.length; i++) {
@@ -121,7 +120,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			switch (type) {
 				case MalType.List:
 					if (sugarInfo) {
-						return sugarInfo.prefix + ret
+						return ret
 					} else {
 						return '(' + ret + ')'
 					}
