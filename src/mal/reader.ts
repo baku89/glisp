@@ -33,6 +33,7 @@ const S_UNQUOTE = S('unquote')
 const S_SPLICE_UNQUOTE = S('splice-unquote')
 const S_FN_SUGAR = S('fn-sugar')
 const S_WITH_META_SUGAR = S('with-meta-sugar')
+const S_UI_ANNOTATE = S('ui-annotate')
 const S_DEREF = S('deref')
 
 class Reader {
@@ -266,10 +267,15 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case '#': {
 			reader.next()
 			const type = reader.peek()
-
 			if (type === '(') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				val = L(S_FN_SUGAR, readForm(reader, saveStr))
+			} else if (type === '{') {
+				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
+				const annotation = readForm(reader, saveStr)
+				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
+				const expr = readForm(reader, saveStr)
+				val = L(S_UI_ANNOTATE, annotation, expr)
 			} else if (type[0] === '"') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const meta = readForm(reader, saveStr)
