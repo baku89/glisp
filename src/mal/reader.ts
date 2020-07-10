@@ -531,6 +531,33 @@ export function convertMalNodeToJSObject(exp: MalVal): any {
 
 export class BlankException extends Error {}
 
+export function reconstructTree(exp: MalVal) {
+	if (!isNode(exp)) {
+		return
+	} else {
+		if (isMap(exp)) {
+			const keys = Object.keys(exp)
+			exp[M_KEYS] = keys
+			keys.forEach((key, i) => {
+				const e = exp[key]
+				if (isNode(e)) {
+					e[M_OUTER] = exp
+					e[M_OUTER_INDEX] = i
+					reconstructTree(e)
+				}
+			})
+		} else {
+			exp.forEach((e, i) => {
+				if (isNode(e)) {
+					e[M_OUTER] = exp
+					e[M_OUTER_INDEX] = i
+					reconstructTree(e)
+				}
+			})
+		}
+	}
+}
+
 export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 	if (isNode(exp) && !(M_OUTER in exp)) {
 		if (isNode(outer) && index !== undefined) {
