@@ -5,7 +5,7 @@
 			:class="{clickable: items.clickable, selected}"
 			@click="items.clickable && onClick()"
 		>
-			<div class="ListView__icon" @click="toggleExpanded()">
+			<div class="ListView__icon" :class="{expanded}" @click="toggleExpanded()">
 				<i
 					v-if="items.icon.type === 'fontawesome'"
 					class="fas"
@@ -85,15 +85,14 @@ export default defineComponent({
 				return {
 					label: printExp(exp[0]),
 					clickable: true,
-					icon: {type: 'fontawesome', value: 'fa-chevron-down'},
+					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
 					children: exp.slice(1).map(e => nonReactive(e))
 				}
 			} else if (isVector(exp)) {
 				return {
-					label: 'vector',
+					label: printExp(exp),
 					clickable: true,
-					icon: {type: 'text', value: '[ ]'},
-					children: exp.map(e => nonReactive(e))
+					icon: {type: 'text', value: '[ ]'}
 				}
 			} else {
 				return {
@@ -117,7 +116,7 @@ export default defineComponent({
 		const expanded = computed(() => {
 			const exp = props.exp.value
 
-			if (isSeq(exp)) {
+			if (isList(exp)) {
 				return !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
 			}
 
@@ -196,8 +195,14 @@ export default defineComponent({
 		color var(--comment)
 		text-align center
 		opacity 0.7
+		transition all .15s ease
 
 		&:hover
+			opacity 1
+			color var(--highlight)
+
+		&.expanded
+			transform rotate(90deg)
 
 		.serif
 			font-weight bold
