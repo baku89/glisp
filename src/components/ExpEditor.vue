@@ -50,6 +50,9 @@ interface Props {
 	editMode: EditMode
 }
 
+const EDITOR_DELIMITER = ';__\n'
+const RE_EDITOR_DELIMITER = /;__\n/g
+
 export default defineComponent({
 	components: {
 		Editor
@@ -124,7 +127,7 @@ export default defineComponent({
 		})
 
 		const endsDelimiter = computed(() => {
-			return props.editMode !== EditMode.Params ? ';__\n' : ''
+			return props.editMode === EditMode.Params ? EDITOR_DELIMITER : ''
 		})
 
 		// Exp -> Code Conversion
@@ -137,7 +140,7 @@ export default defineComponent({
 					return ret
 				case EditMode.Params: {
 					return ret
-						.replace(/;__\n/g, '')
+						.replace(RE_EDITOR_DELIMITER, '')
 						.slice(preText.value.length, -postText.value.length)
 				}
 				case EditMode.Elements:

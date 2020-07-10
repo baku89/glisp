@@ -136,7 +136,7 @@ interface UI {
 }
 
 function toSketchCode(code: string) {
-	return `(sketch\n${code}\n)`
+	return `(sketch;__\n${code};__\n)`
 }
 
 function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
@@ -240,8 +240,8 @@ function bindsConsole(
 	})
 }
 
-const OFFSET_START = 8 // length of "(sketch\n"
-const OFFSET_END = 2 // length of "\n)"
+const OFFSET_START = 11 // length of "(sketch;__\n"
+const OFFSET_END = 5 // length of ";__\n)"
 
 export default defineComponent({
 	name: 'PageIndex',
