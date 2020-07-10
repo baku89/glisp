@@ -141,7 +141,6 @@ $height = 3.4rem
 
 .GlobalMenu
 	position relative
-	z-index 1
 	display flex
 	overflow visible
 	height $height

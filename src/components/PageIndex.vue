@@ -275,7 +275,6 @@ export default defineComponent({
 				}
 				const left = (ui.listViewPaneSize / 100) * window.innerWidth
 				const xform = mat2d.clone(ui.viewHandlesTransform)
-				console.log('viewTransform')
 				xform[4] += left
 				xform[5] += top
 				return xform as mat2d
@@ -492,6 +491,7 @@ html, body
 	color var(--foreground)
 
 	&__global-menu
+		z-index 100
 		background-attachment fixed
 		-webkit-app-region drag
 		translucent-bg()
