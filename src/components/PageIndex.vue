@@ -9,8 +9,12 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<splitpanes class="PageIndex__content default-theme" vertical>
-			<pane class="left" :size="listViewPaneSize" :max-size="30">
+		<Splitpanes
+			class="PageIndex__content default-theme"
+			vertical
+			@resize="onResizeSplitpanes"
+		>
+			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
 					:exp="exp"
@@ -18,10 +22,14 @@
 					:selectedExp="selectedExp"
 					@select="onSelectExp"
 				/>
-			</pane>
-			<pane :size="100 - controlPaneSize - listViewPaneSize">
+			</Pane>
+			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="onSelectExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -30,8 +38,8 @@
 					:view-transform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
 				/>
-			</pane>
-			<pane :size="controlPaneSize" :max-size="40">
+			</Pane>
+			<Pane :size="controlPaneSize" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
@@ -49,13 +57,15 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
-			</pane>
-		</splitpanes>
-		<modals-container />
+			</Pane>
+		</Splitpanes>
+		<ModalsContainer />
 	</div>
 </template>
 
@@ -258,10 +268,12 @@ export default defineComponent({
 			guideColor: computed(() => ui.theme.colors['--guide']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
-				const {top, left} = elHandles.value?.$el.getBoundingClientRect() || {
+				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
 					top: 0
 				}
+				const left = (ui.listViewPaneSize / 100) * window.innerWidth
 				const xform = mat2d.clone(ui.viewHandlesTransform)
+				console.log('viewTransform')
 				xform[4] += left
 				xform[5] += top
 				return xform as mat2d
@@ -392,6 +404,14 @@ export default defineComponent({
 			// localStorage.setItem('saved_code', code)
 			// ConsoleScope.def('*sketch*', code)
 		}
+
+		function onResizeSplitpanes(
+			sizes: {min: number; max: number; size: number}[]
+		) {
+			ui.listViewPaneSize = sizes[0].size
+			ui.controlPaneSize = sizes[2].size
+		}
+
 		watch(
 			() => data.exp,
 			exp => {
@@ -439,6 +459,7 @@ export default defineComponent({
 			updateExp,
 			onSelectExp,
 			onInputCode,
+			onResizeSplitpanes,
 			selectOuterExp
 		}
 	}
