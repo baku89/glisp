@@ -33,7 +33,7 @@
 				:selectedExp="selectedExp"
 				:editingExp="editingExp"
 				@select="$emit('select', $event)"
-				@update:exp="onUpdateChildExp(child, $event)"
+				@update:exp="onUpdateChildExp(i, $event)"
 			/>
 		</div>
 	</div>
@@ -51,11 +51,13 @@ import {
 	symbolFor as S,
 	keywordFor as K,
 	MalMap,
-	createList,
-	MalNode
+	createList as L,
+	MalNode,
+	MalSeq,
+	cloneExp,
+	M_DELIMITERS
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import {convertJSObjectToMalMap} from '../mal/reader'
 import {replaceExp} from '../mal/eval'
 
 enum DisplayMode {
@@ -104,13 +106,18 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
+		const hasAnnotation = computed(() => {
+			const exp = props.exp.value
+			return isList(exp) && exp[0] === S_UI_ANNOTATE
+		})
+
 		/**
 		 * the body of expression withouht ui-annotate wrapping
 		 */
 		const expBody = computed(() => {
 			const exp = props.exp.value
-			if (isList(exp) && exp[0] === S_UI_ANNOTATE) {
-				return nonReactive(exp[2])
+			if (hasAnnotation.value) {
+				return nonReactive((exp as MalSeq)[2])
 			} else {
 				return props.exp
 			}
@@ -121,8 +128,8 @@ export default defineComponent({
 		 */
 		const ui = computed(() => {
 			const exp = props.exp.value
-			if (isList(exp) && exp[0] === S_UI_ANNOTATE) {
-				const info = exp[1] as MalMap
+			if (hasAnnotation.value) {
+				const info = (exp as MalSeq)[1] as MalMap
 				return {
 					name: null,
 					expanded: false,
@@ -172,25 +179,39 @@ export default defineComponent({
 		}
 
 		function toggleExpanded() {
-			const wrappedExp = createList(
-				S_UI_ANNOTATE,
-				{
-					...(convertJSObjectToMalMap(ui.value) as MalMap),
-					[K_EXPANDED]: !ui.value.expanded
-				},
-				expBody.value.value
-			)
+			const annotation = {} as {[k: string]: MalVal}
+			if (!ui.value.expanded === true) {
+				annotation[K_EXPANDED] = true
+			}
+			if (ui.value.name !== null) {
+				annotation[K_NAME] = ui.value.name
+			}
+
+			const wrappedExp =
+				Object.keys(annotation).length > 0
+					? L(S_UI_ANNOTATE, annotation, expBody.value.value)
+					: expBody.value.value
 
 			context.emit('update:exp', nonReactive(wrappedExp))
 		}
 
-		function onUpdateChildExp(
-			original: NonReactive<MalNode>,
-			replaced: NonReactive<MalNode>
-		) {
-			replaceExp(original.value, replaced.value)
+		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
+			const exp = props.exp.value as MalSeq
 
-			context.emit('update:exp', nonReactive(props.exp.value))
+			const newExpBody = L(...(expBody.value.value as MalSeq)) as MalSeq
+			newExpBody[i + 1] = replaced.value
+
+			newExpBody[M_DELIMITERS] = (expBody.value.value as MalSeq)[M_DELIMITERS]
+
+			let newExp
+
+			if (hasAnnotation.value) {
+				newExp = L(S_UI_ANNOTATE, exp[1], newExpBody)
+			} else {
+				newExp = newExpBody
+			}
+
+			context.emit('update:exp', nonReactive(newExp))
 		}
 
 		return {
