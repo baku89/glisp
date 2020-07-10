@@ -2,26 +2,29 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: !!items.children, selected}"
-			@click="items.children && onClick()"
+			:class="{clickable: items.clickable, selected}"
+			@click="items.clickable && onClick()"
 		>
-			<div class="ListView__icon">
+			<div class="ListView__icon" @click="toggleExpanded()">
 				<i
 					v-if="items.icon.type === 'fontawesome'"
 					class="fas"
 					:class="items.icon.value"
 					:style="items.icon.style"
 				/>
-				<span v-if="items.icon.type === 'text'" :style="items.icon.style">{{items.icon.value}}</span>
+				<span v-if="items.icon.type === 'text'" :style="items.icon.style">{{
+					items.icon.value
+				}}</span>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-				>{{items.icon.value}}</span>
+					>{{ items.icon.value }}</span
+				>
 			</div>
 			{{ items.label }}
 		</div>
-		<div class="ListView__children" v-if="items.children">
+		<div class="ListView__children" v-if="items.children && expanded">
 			<ListView
 				v-for="(child, i) in items.children"
 				:key="i"
@@ -29,6 +32,7 @@
 				:selectedExp="selectedExp"
 				:editingExp="editingExp"
 				@select="$emit('select', $event)"
+				@update:exp="onUpdateChildExp"
 			/>
 		</div>
 	</div>
@@ -58,6 +62,8 @@ const IconTexts = {
 	[MalType.Keyword]: {type: 'serif', value: 'x'}
 } as {[type: string]: {type: string; value: string; style?: string}}
 
+const M_UI_LISTVIEW_EXPANDED = Symbol.for('ui-listview-expanded')
+
 export default defineComponent({
 	name: 'ListView',
 	props: {
@@ -78,18 +84,21 @@ export default defineComponent({
 			if (isList(exp)) {
 				return {
 					label: printExp(exp[0]),
+					clickable: true,
 					icon: {type: 'fontawesome', value: 'fa-chevron-down'},
 					children: exp.slice(1).map(e => nonReactive(e))
 				}
 			} else if (isVector(exp)) {
 				return {
 					label: 'vector',
+					clickable: true,
 					icon: {type: 'text', value: '[ ]'},
 					children: exp.map(e => nonReactive(e))
 				}
 			} else {
 				return {
 					label: printExp(exp, false),
+					clickable: false,
 					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
 					children: null
 				}
@@ -104,7 +113,40 @@ export default defineComponent({
 			context.emit('select', props.exp)
 		}
 
-		return {items, selected, onClick}
+		// List expansion
+		const expanded = computed(() => {
+			const exp = props.exp.value
+
+			if (isSeq(exp)) {
+				return !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
+			}
+
+			return false
+		})
+
+		function toggleExpanded() {
+			const exp = props.exp.value
+			const expanded = !!(exp as any)[M_UI_LISTVIEW_EXPANDED]
+
+			if (isSeq(exp)) {
+				;(exp as any)[M_UI_LISTVIEW_EXPANDED] = !expanded
+			}
+
+			context.emit('update:exp', nonReactive(props.exp.value))
+		}
+
+		function onUpdateChildExp() {
+			context.emit('update:exp', nonReactive(props.exp.value))
+		}
+
+		return {
+			items,
+			selected,
+			onClick,
+			expanded,
+			toggleExpanded,
+			onUpdateChildExp
+		}
 	}
 })
 </script>
@@ -113,10 +155,10 @@ export default defineComponent({
 .ListView
 	padding-left 1rem
 	width 100%
+	user-select none
 
 	&__label
 		position relative
-		// overflow hidden
 		padding 0.5rem 1rem 0.4rem 0
 		color var(--comment)
 		text-overflow ellipsis
@@ -136,6 +178,7 @@ export default defineComponent({
 				content ''
 				opacity 0
 				transition opacity 0.05s ease
+				pointer-events none
 
 			&:hover
 				color var(--highlight)
@@ -153,6 +196,8 @@ export default defineComponent({
 		color var(--comment)
 		text-align center
 		opacity 0.7
+
+		&:hover
 
 		.serif
 			font-weight bold
