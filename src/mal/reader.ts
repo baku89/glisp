@@ -390,43 +390,6 @@ export function getRangeOfExp(
 	return [offset, offset + expLength]
 }
 
-export function getRangeOfExp2(sel: MalSelection): [number, number] | null {
-	function calcOffset({outer, index}: MalNodeSelection): number {
-		if (!outer) {
-			return 0
-		}
-
-		let offset = calcOffset({
-			outer: outer[M_OUTER],
-			index: outer[M_OUTER_INDEX]
-		})
-
-		if (Array.isArray(outer)) {
-			offset +=
-				(outer[M_ISSUGAR] ? 0 : 1) +
-				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
-				outer[M_ELMSTRS].slice(0, index).join('').length
-		} else {
-			// Map
-			offset +=
-				1 /* '{'.length */ +
-				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
-				outer[M_KEYS].slice(0, index + 1).join('').length +
-				outer[M_ELMSTRS].slice(0, index).join('').length
-		}
-
-		return offset
-	}
-
-	const exp = getMalFromSelection(sel)
-
-	const expLength = printExp(exp).length
-
-	const offset = 'root' in sel ? 0 : calcOffset(sel)
-
-	return [offset, offset + expLength]
-}
-
 export function findExpByRange(
 	exp: MalVal,
 	start: number,
