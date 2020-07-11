@@ -9,11 +9,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -28,11 +24,7 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -61,9 +53,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -104,7 +94,9 @@ import {
 	isNode,
 	expandExp,
 	getOuter,
-	MalAtom
+	MalAtom,
+	createList,
+	symbolFor
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -287,7 +279,7 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			exp: nonReactive(null),
+			exp: nonReactive(createList(symbolFor('sketch'))),
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -618,10 +610,10 @@ html, body
 					transform rotate(90deg)
 
 .compact .PageIndex__editor
-	height calc(100% - .4rem - 2rem - 1.5rem)
+	height calc(100% - 0.4rem - 2rem - 1.5rem)
 
 .compact .PageIndex__console
-	height .4rem
+	height 0.4rem
 
 // Overwrite splitpanes
 .splitpanes.default-theme
