@@ -252,6 +252,8 @@
   {:doc "Scales a vec2 by a scalar number"
    :params [{:label "Value" :type "vec2"}
             {:label "Scale" :type "number"}]
+   :inverse (fn [ret [v sc]]
+              [(vec2/scale ret (/ sc)) sc])
    :returns {:type "vec2"}}
   [v s]
   [(* s (.x v))
