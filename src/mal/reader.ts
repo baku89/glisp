@@ -16,9 +16,6 @@ import {
 	M_ISSUGAR,
 	M_ISLIST,
 	M_OUTER_INDEX,
-	MalSelection,
-	MalNodeSelection,
-	getMalFromSelection,
 	isSeq,
 	getName,
 	createList as L,
@@ -353,15 +350,31 @@ export function getRangeOfExp(
 	exp: MalNode,
 	root?: MalNode
 ): [number, number] | null {
+	function isParent(parent: MalNode, child: MalNode): boolean {
+		if (parent === child) {
+			return true
+		}
+
+		const outer = child[M_OUTER]
+		if (!outer) {
+			return false
+		} else if (outer === parent) {
+			return true
+		} else {
+			return isParent(parent, outer)
+		}
+	}
+
 	function calcOffset(exp: MalNode): number {
-		if (!exp[M_OUTER] || exp[M_OUTER] === root) {
+		if (!exp[M_OUTER] || exp === root) {
 			return 0
 		}
 
 		const outer = exp[M_OUTER]
 		let offset = calcOffset(outer)
 
-		printExp(outer, true)
+		// Creates a delimiter cache
+		printExp(outer)
 
 		if (isSeq(outer)) {
 			const index = exp[M_OUTER_INDEX]
@@ -372,7 +385,7 @@ export function getRangeOfExp(
 		} else if (isMap(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
-				1 /* '{'.length */ +
+				1 /* '{'.   length */ +
 				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
 				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
 		}
@@ -380,7 +393,13 @@ export function getRangeOfExp(
 		return offset
 	}
 
-	if (!isNode(exp)) {
+	const isExpOutsideOfParent = root && !isParent(root, exp)
+
+	if (isExpOutsideOfParent) {
+		console.log('outside')
+	}
+
+	if (!isNode(exp) || isExpOutsideOfParent) {
 		return null
 	}
 
