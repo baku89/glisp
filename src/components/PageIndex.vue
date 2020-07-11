@@ -257,7 +257,7 @@ export default defineComponent({
 		const rem = useRem()
 
 		const ui = reactive({
-			compact: false,
+			compact: true,
 			background: 'whiteSmoke',
 			theme: computed(() => {
 				return computeTheme(ui.background)
@@ -275,7 +275,7 @@ export default defineComponent({
 				return xform as mat2d
 			}),
 			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
-			listViewPaneSize: ((20 * rem.value) / window.innerWidth) * 100
+			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100
 		}) as UI
 
 		const data = reactive({
