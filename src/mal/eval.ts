@@ -499,7 +499,7 @@ export default function evalExp(
 				} else {
 					const type = capital(getType(fn))
 					throw new MalError(
-						`[EVAL] ${type} ${printExp(
+						`${type} ${printExp(
 							fn
 						)} is not a function. First element of list always should be a function.`
 					)
@@ -508,7 +508,7 @@ export default function evalExp(
 		}
 	}
 
-	throw new Error('[EVAL] Exceed the maximum TCO stacks')
+	throw new Error('Exceed the maximum TCO stacks')
 }
 
 // Cached Tree-shaking

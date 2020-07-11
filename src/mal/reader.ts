@@ -123,7 +123,7 @@ function readAtom(reader: Reader) {
 				.slice(1, token.length - 1)
 				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 		} else if (token[0] === '"') {
-			throw new MalError("[READ] expected '\"', got EOF")
+			throw new MalError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return keywordFor(token.slice(1))
 		} else if (token === 'nil') {
@@ -153,7 +153,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 	let token = reader.next()
 
 	if (token !== start) {
-		throw new MalError(`[READ] expected '${start}'`)
+		throw new MalError(`Expected '${start}'`)
 	}
 
 	if (saveStr) {
@@ -165,7 +165,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
-			throw new MalError(`[READ] expected '${end}', got EOF`)
+			throw new MalError(`Expected '${end}', got EOF`)
 		}
 
 		if (saveStr) {
