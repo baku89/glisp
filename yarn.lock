@@ -9245,6 +9245,11 @@ vue-color@^2.7.1:
     material-colors "^1.0.0"
     tinycolor2 "^1.1.2"
 
+vue-composable@^1.0.0-dev.36:
+  version "1.0.0-dev.36"
+  resolved "https://registry.yarnpkg.com/vue-composable/-/vue-composable-1.0.0-dev.36.tgz#584b8453ed48ed784fa491e00afd8511ac894331"
+  integrity sha512-FaQq1WZeOIKwk50tt1n9z1DT7mH46DNT7J7qn0mhrlCPNWNqkvkCWt32MVCwFHFd8Rz3Y1+8apeBwrnxKcz4zw==
+
 vue-eslint-parser@^7.0.0:
   version "7.0.0"
   resolved "https://registry.npm.taobao.org/vue-eslint-parser/download/vue-eslint-parser-7.0.0.tgz#a4ed2669f87179dedd06afdd8736acbb3a3864d6"
