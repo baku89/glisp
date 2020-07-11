@@ -16,15 +16,16 @@
 					:class="items.icon.value"
 					:style="items.icon.style"
 				/>
-				<span v-if="items.icon.type === 'text'" :style="items.icon.style">{{
+				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">
+					{{
 					items.icon.value
-				}}</span>
+					}}
+				</span>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-					>{{ items.icon.value }}</span
-				>
+				>{{ items.icon.value }}</span>
 			</div>
 			{{ items.label }}
 			<i
@@ -114,6 +115,9 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context) {
+		/**
+		 * The flag whether the exp has UI annotaiton
+		 */
 		const hasAnnotation = computed(() => {
 			const exp = props.exp.value
 			return isList(exp) && exp[0] === S_UI_ANNOTATE
@@ -138,22 +142,10 @@ export default defineComponent({
 			const exp = props.exp.value
 			if (hasAnnotation.value) {
 				const info = (exp as MalSeq)[1] as MalMap
-				return {
-					name: null,
-					expanded: false,
-					...{name: info[K_NAME] || null, expanded: info[K_EXPANDED] || false}
-				}
+				return {name: info[K_NAME] || null, expanded: info[K_EXPANDED] || false}
 			}
 
 			return {name: null, expanded: false}
-		})
-
-		const expanded = computed(() => {
-			return props.mode !== DisplayMode.Node
-				? true
-				: items.value.expandable
-				? ui.value.expanded
-				: false
 		})
 
 		const items = computed(() => {
@@ -184,6 +176,14 @@ export default defineComponent({
 					children: null
 				}
 			}
+		})
+
+		const expanded = computed(() => {
+			return props.mode !== DisplayMode.Node
+				? true
+				: items.value.expandable
+				? ui.value.expanded
+				: false
 		})
 
 		const selected = computed(() => {
@@ -311,11 +311,11 @@ export default defineComponent({
 		color var(--comment)
 		text-align center
 		opacity 0.7
-		transition all .15s ease
+		transition all 0.15s ease
 
 		&.expandable:hover
-			opacity 1
 			color var(--highlight)
+			opacity 1
 
 		&.expanded
 			transform rotate(90deg)
@@ -334,10 +334,10 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			opacity .5
+			opacity 0.5
 
 		&.active
-			opacity .7
+			opacity 0.7
 
 	&__children
 		position relative
