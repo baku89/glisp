@@ -9,7 +9,11 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
+		<Splitpanes
+			class="PageIndex__content default-theme"
+			vertical
+			@resize="onResizeSplitpanes"
+		>
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -24,7 +28,11 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="onSelectExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -53,7 +61,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -78,6 +88,7 @@ import {
 	Ref,
 	onMounted
 } from '@vue/composition-api'
+import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import ExpEditor from '@/components/ExpEditor.vue'
@@ -106,7 +117,7 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog} from './use'
+import {useRem, useCommandDialog, useResizeSensor} from './use'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -256,6 +267,8 @@ export default defineComponent({
 
 		const rem = useRem()
 
+		const {width: windowWidth} = useOnResize(document.body)
+
 		const ui = reactive({
 			compact: true,
 			background: 'whiteSmoke',
@@ -268,7 +281,7 @@ export default defineComponent({
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
 					top: 0
 				}
-				const left = (ui.listViewPaneSize / 100) * window.innerWidth
+				const left = (ui.listViewPaneSize / 100) * windowWidth.value
 				const xform = mat2d.clone(ui.viewHandlesTransform)
 				xform[4] += left
 				xform[5] += top
