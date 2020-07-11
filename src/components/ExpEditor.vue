@@ -151,8 +151,8 @@ export default defineComponent({
 		// selectedExp -> activeRange
 		const activeRange = computed(() => {
 			const sel = props.selectedExp
-			if (sel && isNode(sel.value)) {
-				const ret = getRangeOfExp(sel.value)
+			if (sel && isNode(sel.value) && isNode(props.exp.value)) {
+				const ret = getRangeOfExp(sel.value, props.exp.value)
 				if (ret) {
 					const [start, end] = ret
 					return [
