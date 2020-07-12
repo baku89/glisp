@@ -120,6 +120,7 @@ import {
 	Ref
 } from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
+import {reconstructTree} from '../mal/reader'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -134,7 +135,8 @@ const K_ANGLE = K('angle'),
 	K_PREV_POS = K('prev-pos'),
 	K_DELTA_POS = K('delta-pos'),
 	K_PARAMS = K('params'),
-	K_RETURN = K('return')
+	K_RETURN = K('return'),
+	K_REPLACE = K('replace')
 
 interface ClassList {
 	[name: string]: true
@@ -146,7 +148,7 @@ interface Handle {
 	id: MalVal
 	guide: boolean
 	transform: string
-	yTransform: string
+	yTransform?: string
 	path?: string
 }
 
@@ -240,6 +242,10 @@ export default defineComponent({
 
 				const drawHandle = data.handleCallbacks[K_DRAW] as MalFunc
 
+				if (typeof drawHandle !== 'function') {
+					return null
+				}
+
 				const options = {
 					[K_PARAMS]: data.params,
 					[K_RETURN]: data.returnedValue
@@ -312,11 +318,12 @@ export default defineComponent({
 						cls,
 						guide,
 						id: h[K_ID],
-						transform: `matrix(${xform.join(',')})`,
-						yTransform: `rotate(${(yRotate * 180) / Math.PI})`
+						transform: `matrix(${xform.join(',')})`
 					}
 
-					if (type === 'path') {
+					if (type === 'translate') {
+						ret.yTransform = `rotate(${(yRotate * 180) / Math.PI})`
+					} else if (type === 'path') {
 						ret.path = getSVGPathData(h[K_PATH])
 					}
 
@@ -335,14 +342,14 @@ export default defineComponent({
 			data.rawPrevPos = [e.clientX - left, e.clientY - top]
 
 			if (type !== 'bg') {
-				window.addEventListener('mousemove', onMousemove)
+				window.addEventListener('mousemove', onMousedrag)
 				window.addEventListener('mouseup', onMouseup)
 			} else {
-				onMousemove(e)
+				onMousedrag(e)
 			}
 		}
 
-		function onMousemove(e: MouseEvent) {
+		function onMousedrag(e: MouseEvent) {
 			if (
 				!props.exp ||
 				!data.handleCallbacks ||
@@ -385,37 +392,71 @@ export default defineComponent({
 
 			data.rawPrevPos = rawPos
 
-			let newParams: MalVal[]
+			let result: MalVal
 			try {
-				newParams = dragHandle(eventInfo) as MalVal[]
+				result = dragHandle(eventInfo)
 			} catch (err) {
 				console.error('ViewHandles onDrag', err)
 				return null
 			}
 
-			if (!newParams) {
-				return
+			if (!isVector(result) && !isMap(result)) {
+				return null
 			}
 
-			if (newParams[0] === K_CHANGE_ID) {
-				const newId = newParams[1]
-				data.draggingIndex = data.handles.findIndex(h => h.id === newId)
-				newParams = newParams[2] as MalVal[]
+			// Parse the result
+			let newParams: MalVal[]
+			let updatedIndices: number[] | undefined = undefined
+
+			if (isMap(result)) {
+				const params = result[K_PARAMS]
+				const replace = result[K_REPLACE]
+				const changeId = result[K_CHANGE_ID]
+
+				if (isVector(params)) {
+					newParams = params
+				} else if (isVector(replace)) {
+					const pairs =
+						typeof replace[0] === 'number'
+							? [replace as [number, MalVal]]
+							: (replace as [number, MalVal][])
+					newParams = [...data.unevaluatedParams]
+					for (const [i, value] of pairs) {
+						newParams[i] = value
+					}
+					updatedIndices = pairs.map(([i]) => i)
+				} else {
+					return null
+				}
+
+				if (isVector(changeId)) {
+					const newId = newParams[1]
+					data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+				}
+			} else {
+				newParams = result
 			}
 
-			for (let i = 0; i < newParams.length; i++) {
+			if (!updatedIndices) {
+				updatedIndices = Array(newParams.length)
+					.fill(0)
+					.map((_, i) => i)
+			}
+
+			// Execute the backward evaluation
+			for (const i of updatedIndices) {
 				let newValue = newParams[i]
-				const unevaluated = data.unevaluatedParams[i] as MalVal[]
+				const unevaluated = data.unevaluatedParams[i]
 
 				// if (malEquals(newValue, this.params[i])) {
 				// 	newValue = unevaluated
 				// }
 
 				newValue = reverseEval(newValue, unevaluated)
-
 				newParams[i] = newValue
 			}
 
+			// Construct the new expression and send it to parent
 			const newExp: MalSeq = data.fnInfo?.primitive
 				? (newParams[0] as MalSeq)
 				: (L(props.exp.value[0], ...newParams) as MalSeq)
@@ -429,7 +470,7 @@ export default defineComponent({
 		}
 
 		function unregisterMouseEvents() {
-			window.removeEventListener('mousemove', onMousemove)
+			window.removeEventListener('mousemove', onMousedrag)
 			window.removeEventListener('mouseup', onMouseup)
 		}
 
