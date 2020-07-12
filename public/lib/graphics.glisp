@@ -164,7 +164,7 @@
             &
             {:label "Body" :type "exp"}]}
   [attrs & body]
-  (let [evaluated-attrs (eval-in-env attrs)
+  (let [evaluated-attrs (eval* attrs)
         attr-transform (get evaluated-attrs :transform)
         attr-style (get evaluated-attrs :style)]
     (cond
@@ -212,8 +212,8 @@
             &
             {:label "Body" :type "exp"}]}
   [xform & body]
-  (let [local-xform (eval-in-env xform)
-        global-xform (mat2d/* (eval-in-env *transform*)
+  (let [local-xform (eval* xform)
+        global-xform (mat2d/* (eval* *transform*)
                               local-xform)]
     `(binding [*transform* ~local-xform]
        [:transform ~local-xform ~@body])))
@@ -225,9 +225,9 @@
             &
             {:label "Body" :type "exp"}]}
   [styles & body]
-  (let [evaluated-styles (eval-in-env (if (vector? styles)
-                                        styles
-                                        [styles]))
+  (let [evaluated-styles (eval* (if (vector? styles)
+                                  styles
+                                  [styles]))
         merged-style (merge-hash-map evaluated-styles)
         binds (apply concat
                      (map #(vector (symbol (str "*" (name (first %)) "*"))
@@ -255,7 +255,7 @@
   ;;                                `[~new-options ~@(rest params)])))}}
    }
   [options & body]
-  (let [evaluated-options (eval-in-env options)
+  (let [evaluated-options (eval* options)
         bounds (get evaluated-options :bounds [0 0 0 0])
         size (rect2d/size bounds)
         offset (rect2d/point bounds)

@@ -39,7 +39,7 @@
 
 (defmacro sketch [& body]
   (reset! *time-variables* [])
-  (let [evaluated-body (eval-in-env body)
+  (let [evaluated-body (eval* body)
         start-line-num (inc (last-index-of evaluated-body :start-sketch))
         sketch-body (filter element? (drop start-line-num evaluated-body))]
     `[:g :_ ~@sketch-body]))

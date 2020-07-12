@@ -322,7 +322,7 @@ True if _s_ ends with substr
 
 Env chain
 
-### eval-in-env
+### eval\*
 
 Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes _eval_ normally
 

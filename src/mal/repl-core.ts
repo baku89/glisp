@@ -163,7 +163,7 @@ const Exports = [
 		)
 	],
 	[
-		'eval-in-env',
+		'eval*',
 		withMeta(
 			dummyFn,
 			convertJSObjectToMalMap({
