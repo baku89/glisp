@@ -77,8 +77,8 @@
               :drag (fn [{:id id :pos p
                           :params [c r]}]
                       (case id
-                        :center [p r]
-                        :radius [c (vec2/dist c p)]))}}
+                        :center {:replace [0 p]}
+                        :radius {:replace [1 (vec2/dist c p)]}))}}
   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
     (fn [[x y] r]
       (let [k (* r K)
@@ -108,8 +108,8 @@
                          :params [from to]}]
                      (case id
                        :path [(vec2/+ from dp) (vec2/+ to dp)]
-                       :from [p to]
-                       :to [from p]))}}
+                       :from {:replace [0 p]}
+                       :to {:replace [1 p]}))}}
   [from to]
   [:path :M from :L to])
 
@@ -143,20 +143,20 @@
      :drag (fn [{:id id :pos p :prev-pos pp
                  :params [center r start end]}]
              (case id
-               :radius [center (vec2/dist center p) start end]
-               :center [p r start end]
+               :center {:replace [0 p]}
+               :radius {:replace [1 (vec2/dist center p)]}
                :start (let [start (calc-dragged-rotation
                                    :center center
                                    :pos p
                                    :prev-pos pp
                                    :angle start)]
-                        [center r start end])
+                        {:replace [2 start]})
                :end (let [end (calc-dragged-rotation
                                :center center
                                :pos p
                                :prev-pos pp
                                :angle end)]
-                      [center r start end])))}}
+                      {:replace [3 end]})))}}
   path/arc)
 (defalias arc path/arc)
 
@@ -240,11 +240,11 @@
                       {:id :sides :type "dia" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
              :drag (fn [{:id id :pos p :params [center radius sides]}]
                      (case id
-                       :center [p radius sides]
-                       :radius [center (abs (- (.x p) (.x center))) sides]
+                       :center {:replace [0 p]}
+                       :radius {:replace [1 (abs (- (.x p) (.x center)))]}
                        :sides (let [angle (vec2/angle (vec2/- p center))
                                     sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
-                                [center radius sides])))}}
+                                {:replace [2 sides]})))}}
   [center radius sides]
   (let [angles (column 0 sides (/ TWO_PI sides))
         vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
