@@ -359,7 +359,7 @@
 (defn const
   {:params [{:type "any"}]}
   [x] x)
-(defn prn-pass [& xs] (do (apply prn xs) (first xs)))
+(defn spy [& xs] (do (apply prn xs) (first xs)))
 
 (defn zero?
   {:doc "Returns true if x is equal to 0"}

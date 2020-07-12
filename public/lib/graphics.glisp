@@ -115,7 +115,7 @@
                   ;; NOTE: Path-offset looks buggy
                   ;; (and (starts-with? tagname "style")
                   ;;      (get (second body) :stroke))
-                  ;; (prn-pass (path/offset-stroke 10 (get-merged-path `[~@(slice body 2)])))
+                  ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(slice body 2)])))
 
                   :else
                   (get-merged-path `[~@(slice body 2)])))
@@ -246,7 +246,7 @@
   ;;                                :return (rect bounds)}]
   ;;                      (apply-draw-handle rect2d info)))
   ;;            :drag (fn [info]
-  ;;                    (prn-pass (let [params (get info :params)
+  ;;                    (spy (let [params (get info :params)
   ;;                                    options (first params)
   ;;                                    bounds (get options :bounds)
   ;;                                    rect-info (assoc info :params [bounds])
