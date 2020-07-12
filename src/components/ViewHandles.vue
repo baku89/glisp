@@ -135,7 +135,8 @@ const K_ANGLE = K('angle'),
 	K_CLASS = K('class'),
 	K_PREV_POS = K('prev-pos'),
 	K_DELTA_POS = K('delta-pos'),
-	K_PARAMS = K('params')
+	K_PARAMS = K('params'),
+	K_RETURN = K('return')
 
 interface ClassList {
 	[name: string]: true
@@ -152,7 +153,6 @@ interface Handle {
 }
 
 interface Data {
-	rem: number
 	draggingIndex: number | null
 	rawPrevPos: number[]
 	fnInfo: FnInfoType | null
@@ -289,36 +289,35 @@ export default defineComponent({
 	setup(props: Props, context: SetupContext) {
 		const el: Ref<HTMLElement | null> = ref(null)
 
-		const state = reactive({
-			rem: 0,
+		const data = reactive({
 			draggingIndex: null,
 			rawPrevPos: [0, 0],
 			fnInfo: computed(() => {
 				return props.exp ? getFnInfo(props.exp.value) : null
 			}),
 			handleCallbacks: computed(() => {
-				if (state.fnInfo) {
-					const ret = getMapValue(state.fnInfo.meta, 'handles')
+				if (data.fnInfo) {
+					const ret = getMapValue(data.fnInfo.meta, 'handles')
 					return isMap(ret) ? ret : null
 				} else {
 					return null
 				}
 			}),
 			params: computed(() => {
-				if (!props.exp || !state.handleCallbacks) return []
+				if (!props.exp || !data.handleCallbacks) return []
 
 				const exp = props.exp.value
-				if (state.fnInfo?.primitive) {
+				if (data.fnInfo?.primitive) {
 					return [exp[M_EVAL]]
 				} else {
 					return exp[M_EVAL_PARAMS] || []
 				}
 			}),
 			unevaluatedParams: computed(() => {
-				if (!props.exp || !state.handleCallbacks) return []
+				if (!props.exp || !data.handleCallbacks) return []
 
 				const exp = props.exp.value
-				if (state.fnInfo?.primitive) {
+				if (data.fnInfo?.primitive) {
 					return [exp]
 				} else {
 					return exp.slice(1)
@@ -339,17 +338,17 @@ export default defineComponent({
 				return xform
 			}),
 			transformInv: computed(() =>
-				mat2d.invert(mat2d.create(), state.transform)
+				mat2d.invert(mat2d.create(), data.transform)
 			),
-			axisTransform: computed(() => `matrix(${state.transform.join(',')})`),
+			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {
-				if (!state.handleCallbacks) return []
+				if (!data.handleCallbacks) return []
 
-				const drawHandle = state.handleCallbacks[K_DRAW] as MalFunc
+				const drawHandle = data.handleCallbacks[K_DRAW] as MalFunc
 
 				const options = {
-					[K('params')]: state.params,
-					[K('return')]: state.returnedValue
+					[K_PARAMS]: data.params,
+					[K_RETURN]: data.returnedValue
 				}
 
 				let handles
@@ -373,7 +372,7 @@ export default defineComponent({
 						cls[name] = true
 					}
 
-					const xform = mat2d.clone(state.transform)
+					const xform = mat2d.clone(data.transform)
 					let yRotate = 0
 
 					if (/^point|arrow|translate|dia$/.test(type)) {
@@ -425,7 +424,6 @@ export default defineComponent({
 
 					if (type === 'path') {
 						ret.path = getSVGPathData(h[K_PATH])
-						// console.log(h[K_PATH])
 					}
 
 					return ret
@@ -436,11 +434,11 @@ export default defineComponent({
 		function onMousedown(i: number, e: MouseEvent) {
 			if (!el.value) return
 
-			const type = state.handles[i] && state.handles[i].type
+			const type = data.handles[i] && data.handles[i].type
 
-			state.draggingIndex = i
+			data.draggingIndex = i
 			const {left, top} = el.value.getBoundingClientRect()
-			state.rawPrevPos = [e.clientX - left, e.clientY - top]
+			data.rawPrevPos = [e.clientX - left, e.clientY - top]
 
 			if (type !== 'bg') {
 				window.addEventListener('mousemove', onMousemove)
@@ -453,14 +451,14 @@ export default defineComponent({
 		function onMousemove(e: MouseEvent) {
 			if (
 				!props.exp ||
-				!state.handleCallbacks ||
-				state.draggingIndex === null ||
+				!data.handleCallbacks ||
+				data.draggingIndex === null ||
 				!el.value
 			) {
 				return
 			}
 
-			const dragHandle = state.handleCallbacks[K_DRAG]
+			const dragHandle = data.handleCallbacks[K_DRAG]
 
 			if (typeof dragHandle !== 'function') {
 				return
@@ -470,28 +468,28 @@ export default defineComponent({
 			const rawPos = [e.clientX - viewRect.left, e.clientY - viewRect.top]
 
 			const pos = [0, 0]
-			vec2.transformMat2d(pos as vec2, rawPos as vec2, state.transformInv)
+			vec2.transformMat2d(pos as vec2, rawPos as vec2, data.transformInv)
 
 			const prevPos = [0, 0]
 			vec2.transformMat2d(
 				prevPos as vec2,
-				state.rawPrevPos as vec2,
-				state.transformInv
+				data.rawPrevPos as vec2,
+				data.transformInv
 			)
 
 			const deltaPos = [pos[0] - prevPos[0], pos[1] - prevPos[1]]
 
-			const handle = state.handles[state.draggingIndex]
+			const handle = data.handles[data.draggingIndex]
 
 			const eventInfo = {
 				[K_ID]: handle.id === undefined ? null : handle.id,
 				[K_POS]: pos,
 				[K_PREV_POS]: prevPos,
 				[K_DELTA_POS]: deltaPos,
-				[K_PARAMS]: state.params
+				[K_PARAMS]: data.params
 			} as MalMap
 
-			state.rawPrevPos = rawPos
+			data.rawPrevPos = rawPos
 
 			let newParams: MalVal[]
 			try {
@@ -507,13 +505,13 @@ export default defineComponent({
 
 			if (newParams[0] === K_CHANGE_ID) {
 				const newId = newParams[1]
-				state.draggingIndex = state.handles.findIndex(h => h.id === newId)
+				data.draggingIndex = data.handles.findIndex(h => h.id === newId)
 				newParams = newParams[2] as MalVal[]
 			}
 
 			for (let i = 0; i < newParams.length; i++) {
 				let newValue = newParams[i]
-				const unevaluated = state.unevaluatedParams[i] as MalVal[]
+				const unevaluated = data.unevaluatedParams[i] as MalVal[]
 
 				// if (malEquals(newValue, this.params[i])) {
 				// 	newValue = unevaluated
@@ -524,7 +522,7 @@ export default defineComponent({
 				newParams[i] = newValue
 			}
 
-			const newExp: MalSeq = state.fnInfo?.primitive
+			const newExp: MalSeq = data.fnInfo?.primitive
 				? (newParams[0] as MalSeq)
 				: (L(props.exp.value[0], ...newParams) as MalSeq)
 
@@ -532,7 +530,7 @@ export default defineComponent({
 		}
 
 		function onMouseup() {
-			state.draggingIndex = null
+			data.draggingIndex = null
 			unregisterMouseEvents()
 		}
 
@@ -627,7 +625,7 @@ export default defineComponent({
 			return null
 		})
 
-		return {el, ...toRefs(state as any), onMousedown, rem}
+		return {el, ...toRefs(data as any), onMousedown, rem}
 	}
 })
 </script>
