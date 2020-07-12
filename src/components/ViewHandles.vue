@@ -418,8 +418,8 @@ export default defineComponent({
 				} else if (isVector(replace)) {
 					const pairs =
 						typeof replace[0] === 'number'
-							? [replace as [number, MalVal]]
-							: (replace as [number, MalVal][])
+							? [(replace as any) as [number, MalVal]]
+							: ((replace as any) as [number, MalVal][])
 					newParams = [...data.unevaluatedParams]
 					for (const [i, value] of pairs) {
 						newParams[i] = value
