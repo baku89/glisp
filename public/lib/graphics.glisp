@@ -215,7 +215,7 @@
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
                               local-xform)]
-    `(binding [*transform* ~local-xform]
+    `(binding [*transform* ~global-xform]
        [:transform ~local-xform ~@body])))
 (defalias transform graphics/transform)
 
