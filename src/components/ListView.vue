@@ -17,15 +17,14 @@
 					:style="items.icon.style"
 				/>
 				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">
-					{{
-					items.icon.value
-					}}
+					{{ items.icon.value }}
 				</span>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-				>{{ items.icon.value }}</span>
+					>{{ items.icon.value }}</span
+				>
 			</div>
 			{{ items.label }}
 			<i
