@@ -27,8 +27,8 @@
 			</marker>
 		</defs>
 		<g :transform="`matrix(${viewTransform.join(' ')})`">
-			<path class="ViewHandles__viewport-axis stroke" d="M -5000 0 H 5000" />
-			<path class="ViewHandles__viewport-axis stroke" d="M 0 -5000 V 5000" />
+			<path class="ViewHandles__viewport-axis stroke" d="M -50000 0 H 50000" />
+			<path class="ViewHandles__viewport-axis stroke" d="M 0 -50000 V 50000" />
 		</g>
 		<g
 			v-if="handleCallbacks"
@@ -132,7 +132,10 @@ const K_ANGLE = K('angle'),
 	K_DRAG = K('drag'),
 	K_CHANGE_ID = K('change-id'),
 	K_PATH = K('path'),
-	K_CLASS = K('class')
+	K_CLASS = K('class'),
+	K_PREV_POS = K('prev-pos'),
+	K_DELTA_POS = K('delta-pos'),
+	K_PARAMS = K('params')
 
 interface ClassList {
 	[name: string]: true
@@ -483,9 +486,9 @@ export default defineComponent({
 			const eventInfo = {
 				[K_ID]: handle.id === undefined ? null : handle.id,
 				[K_POS]: pos,
-				[K('prev-pos')]: prevPos,
-				[K('delta-pos')]: deltaPos,
-				[K('params')]: state.params
+				[K_PREV_POS]: prevPos,
+				[K_DELTA_POS]: deltaPos,
+				[K_PARAMS]: state.params
 			} as MalMap
 
 			state.rawPrevPos = rawPos
