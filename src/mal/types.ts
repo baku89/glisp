@@ -473,7 +473,10 @@ export const isKeyword = (obj: any): obj is string =>
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: any): obj is MalSeq => getType(obj) === MalType.List
+export const isList = (obj: any): obj is MalVal[] => {
+	// below code is identical to `getType(obj) === MalType.List`
+	return Array.isArray(obj) && (obj as any)[M_ISLIST]
+}
 
 export function createList(...coll: MalVal[]) {
 	;(coll as MalSeq)[M_ISLIST] = true
@@ -481,8 +484,10 @@ export function createList(...coll: MalVal[]) {
 }
 
 // Vectors
-export const isVector = (obj: any): obj is MalVal[] =>
-	getType(obj) === MalType.Vector
+export const isVector = (obj: any): obj is MalVal[] => {
+	// below code is identical to `getType(obj) === MalType.Vector`
+	return Array.isArray(obj) && !(obj as any)[M_ISLIST]
+}
 
 // Maps
 export const isMap = (obj: any): obj is MalMap => getType(obj) === MalType.Map
