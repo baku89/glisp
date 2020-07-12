@@ -86,7 +86,8 @@ import {
 	toRefs,
 	ref,
 	Ref,
-	onMounted
+	onMounted,
+	toRef
 } from '@vue/composition-api'
 import {useOnResize} from 'vue-composable'
 
@@ -117,7 +118,7 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useResizeSensor} from './use'
+import {useRem, useCommandDialog, useResizeSensor, useHitDetector} from './use'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -454,6 +455,10 @@ export default defineComponent({
 				}
 			}
 		)
+
+		// HitDetector
+		const viewExp = toRef(data, 'viewExp')
+		useHitDetector(viewExp)
 
 		// Init App Handler
 		bindsConsole(data, {
