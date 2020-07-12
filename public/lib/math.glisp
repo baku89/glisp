@@ -254,6 +254,22 @@
             {:label "Scale" :type "number"}]
    :inverse (fn [ret [v sc]]
               [(vec2/scale ret (/ sc)) sc])
+   :handles {:draw (fn [{:params [v sc] :return p}]
+                     [{:type "path" :class "dashed"
+                       :guide true
+                       :path (line v [0 0])}
+                      {:type "path" :class "dashed"
+                       :guide true
+                       :path (line v (vec2/scale v sc))}
+                      {:id :scale :type "arrow" :pos p :angle (vec2/angle v)}
+                      {:id :end :type "point" :pos v}])
+             :drag (fn [{:id id :pos p :params [v sc]}]
+                     (let []
+                       (case id
+                         :scale
+                         [v (/ (vec2/dot p v) (vec2/sqr-len v))]
+                         :end
+                         [p sc])))}
    :returns {:type "vec2"}}
   [v s]
   [(* s (.x v))
