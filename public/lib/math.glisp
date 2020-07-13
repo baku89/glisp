@@ -652,7 +652,7 @@
 ;; http://paperjs.org/reference/rectangle/
 
 (defn rect2d
-  {:doc "Creates a rectangle representing a region"
+  {:doc "Creates a rectangle representing a area that is enclosed by its top-left point, width, and height"
    :params [{:label "x" :type "rect2d"}]
    :handles
    {:draw (fn {:params [[x y w h]]}
