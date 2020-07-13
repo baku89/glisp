@@ -7,7 +7,11 @@ import {
 	isList,
 	MalSeq,
 	isKeyword,
-	MalMap
+	MalMap,
+	symbolFor,
+	isSymbol,
+	getMeta,
+	MalType
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 
@@ -35,11 +39,21 @@ export class HitDetector {
 		this.ctx = ctx
 	}
 
-	private analyzeNode(
-		pos: vec2,
-		exp: MalVal,
-		hitStyle: MalMap
-	): false | MalVal {
+	private analyzeVector(pos: vec2, exp: MalVal[], hitStyle: MalMap) {
+		for (const child of exp.reverse()) {
+			const ret = this.analyzeNode(pos, child, hitStyle)
+			if (ret) {
+				return ret
+			}
+		}
+		return null
+	}
+
+	private analyzeNode(pos: vec2, exp: MalVal, hitStyle: MalMap): null | MalVal {
+		if (isList(exp) && isSymbol(exp[0]) && exp[0].value === 'ui-annotate') {
+			return this.analyzeNode(pos, exp[2], hitStyle)
+		}
+
 		const evaluated = getEvaluated(exp)
 		if (isVector(evaluated)) {
 			const command = evaluated[0]
@@ -70,14 +84,7 @@ export class HitDetector {
 					this.ctx.transform(
 						...(xform as [number, number, number, number, number, number])
 					)
-					for (const child of body.reverse()) {
-						const ret = this.analyzeNode(pos, child, hitStyle)
-						if (ret) {
-							return ret
-						}
-					}
-					this.ctx.restore()
-					break
+					return this.analyzeVector(pos, body, hitStyle)
 				}
 				case K_STYLE: {
 					const [, styles] = evaluated
@@ -86,13 +93,7 @@ export class HitDetector {
 					for (const s of (isVector(styles) ? styles : [styles]) as MalMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
 					}
-					for (const child of body.reverse()) {
-						const ret = this.analyzeNode(pos, child, mergedStyles)
-						if (ret) {
-							return ret
-						}
-					}
-					break
+					return this.analyzeVector(pos, body, mergedStyles)
 				}
 				default:
 					if (isKeyword(command)) {
@@ -106,18 +107,13 @@ export class HitDetector {
 					}
 			}
 		} else if (isList(exp)) {
-			for (const child of exp.slice(1).reverse()) {
-				const ret = this.analyzeNode(pos, child, hitStyle)
-				if (ret) {
-					return ret
-				}
-			}
+			return this.analyzeVector(pos, exp.slice(1), hitStyle)
 		}
 
-		return false
+		return null
 	}
 
-	public analyze(pos: vec2, exp: MalVal): false | MalVal {
+	public analyze(pos: vec2, exp: MalVal): MalVal {
 		this.ctx.resetTransform()
 		return this.analyzeNode(pos, exp, {})
 	}
