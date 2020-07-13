@@ -326,9 +326,13 @@ export default function evalExp(
 				break // continue TCO loop
 			}
 			case S_FN: {
-				const [, params, body] = exp
+				const [, , body] = exp
+				let [, params] = exp
+				if (isMap(params)) {
+					params = [params]
+				}
 				if (!isVector(params)) {
-					throw new MalError('First argument of fn should be vector')
+					throw new MalError('First argument of fn should be vector or map')
 				}
 				if (body === undefined) {
 					throw new MalError('Second argument of fn should be specified')
@@ -366,7 +370,17 @@ export default function evalExp(
 				if (cache) {
 					exp[M_FN] = env.get(S_MACRO) as MalFunc
 				}
-				const [, params, body] = exp
+				const [, , body] = exp
+				let [, params] = exp
+				if (isMap(params)) {
+					params = [params]
+				}
+				if (!isVector(params)) {
+					throw new MalError('First argument of macro should be vector or map')
+				}
+				if (body === undefined) {
+					throw new MalError('Second argument of macro should be specified')
+				}
 				const ret = createMalFunc(
 					(...args) =>
 						evalExp.bind(this)(
