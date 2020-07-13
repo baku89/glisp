@@ -22,7 +22,7 @@
                (case (count xs)
                  0 []
                  1 [ret]
-                 `[~@(butlast xs) ~(- ret (apply + (butlast xs)))]))
+                 {:replace [-1 (- ret (apply + (butlast xs)))]}))
     :returns {:type "number"}}
   +)
 
@@ -34,7 +34,9 @@
                (case (count xs)
                  0 []
                  1 [(- ret)]
-                 `[~@(butlast xs) ~(- (first xs) (apply + (slice xs 1 -1)) ret)]))
+                 {:replace [-1 (- (first xs)
+                                  (apply + (slice xs 1 -1))
+                                  ret)]}))
     :returns {:type "number"}}
   -)
 
@@ -45,7 +47,7 @@
                (case (count xs)
                  0 []
                  1 [ret]
-                 `[~@(butlast xs) ~(/ ret (apply * (butlast xs)))]))
+                 {:replace [-1 (/ ret (apply * (butlast xs)))]}))
     :returns {:type "number"}}
   *)
 
@@ -56,7 +58,7 @@
                (case (count xs)
                  0 []
                  1 [(/ ret)]
-                 `[~@(butlast xs) ~(/ (first xs) (apply * (slice xs 1 -1)) ret)]))
+                 {:replace [-1 (/ (first xs) (apply * (slice xs 1 -1)) ret)]}))
     :retruns {:type "number"}}
   /)
 
@@ -66,27 +68,27 @@
              {:label "y" :type "number"}]
     :returns {:type "number"}
     :inverse (fn {:return ret :params [a b]}
-               [(mod ret b) b])}
+               {:replace [0 (mod ret b)]})}
   mod)
 
 (def floor
   ^{:doc "Returns the largest integer less than or equal to a number"
     :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [ret])
+    :inverse (fn {:return ret} [(floor ret)])
     :returns {:type "number"}}
   floor)
 
 (def ceil
   ^{:doc "Returns the next largest integer more than or equal to a number"
     :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [ret])
+    :inverse (fn {:return ret} [(ceil ret)])
     :returns {:type "number"}}
   ceil)
 
 (def round
   ^{:doc "Returns the value of a number rounded to the nearest integer"
     :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [ret])
+    :inverse (fn {:return ret} [(round ret)])
     :returns {:type "number"}}
   round)
 
