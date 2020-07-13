@@ -395,10 +395,6 @@ export function getRangeOfExp(
 
 	const isExpOutsideOfParent = root && !isParent(root, exp)
 
-	if (isExpOutsideOfParent) {
-		console.log('outside')
-	}
-
 	if (!isNode(exp) || isExpOutsideOfParent) {
 		return null
 	}
