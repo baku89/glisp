@@ -46,9 +46,7 @@ import {
 	getEvaluated,
 	isList,
 	createList as L,
-	symbolFor as S,
-	cloneExp,
-	malEquals
+	symbolFor as S
 } from '@/mal/types'
 import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
