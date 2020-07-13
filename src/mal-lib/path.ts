@@ -38,7 +38,6 @@ const K_PATH = K('path'),
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
-// const TWO_PI = Math.PI * 2
 const HALF_PI = Math.PI / 2
 const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
 const UNIT_QUAD_BEZIER = new Bezier([
