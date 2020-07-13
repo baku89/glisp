@@ -210,7 +210,8 @@
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
             &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp"}]
+   :returns {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
@@ -223,7 +224,8 @@
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
             &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp"}]
+   :returns {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
                                   styles
@@ -253,7 +255,7 @@
   ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
   ;;                                    new-options (assoc options :bounds new-bounds)]
   ;;                                `[~new-options ~@(rest params)])))}}
-   }
+   :returns {:type "item"}}
   [options & body]
   (let [evaluated-options (eval* options)
         bounds (get evaluated-options :bounds [0 0 0 0])
