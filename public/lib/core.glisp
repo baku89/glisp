@@ -18,7 +18,7 @@
 (def +
   ^{:doc "Returns the sum of nums"
     :params [& {:label "x" :type "number" :default 0}]
-    :inverse (fn [ret xs]
+    :inverse (fn {:return ret :params xs}
                (case (count xs)
                  0 []
                  1 [ret]
@@ -30,7 +30,7 @@
   ^{:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
     :params [&
              {:label "x" :type "number"}]
-    :inverse (fn [ret xs]
+    :inverse (fn {:return ret :params xs}
                (case (count xs)
                  0 []
                  1 [(- ret)]
@@ -41,7 +41,7 @@
 (def *
   ^{:doc "Returns the product of nums"
     :params [& {:label "x" :type "number" :default 1}]
-    :inverse (fn [ret xs]
+    :inverse (fn {:return ret :params xs}
                (case (count xs)
                  0 []
                  1 [ret]
@@ -52,7 +52,7 @@
 (def /
   ^{:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
     :params [& {:label "x" :type "number"}]
-    :inverse (fn [ret xs]
+    :inverse (fn {:return ret :params xs}
                (case (count xs)
                  0 []
                  1 [(/ ret)]
@@ -65,35 +65,35 @@
     :params [{:label "x" :type "number"}
              {:label "y" :type "number"}]
     :returns {:type "number"}
-    :inverse (fn [ret [a b]]
+    :inverse (fn {:return ret :params [a b]}
                [(mod ret b) b])}
   mod)
 
 (def floor
   ^{:doc "Returns the largest integer less than or equal to a number"
     :params [{:label "x" :type "number"}]
-    :inverse (fn [ret] [ret])
+    :inverse (fn {:return ret} [ret])
     :returns {:type "number"}}
   floor)
 
 (def ceil
   ^{:doc "Returns the next largest integer more than or equal to a number"
     :params [{:label "x" :type "number"}]
-    :inverse (fn [ret] [ret])
+    :inverse (fn {:return ret} [ret])
     :returns {:type "number"}}
   ceil)
 
 (def round
   ^{:doc "Returns the value of a number rounded to the nearest integer"
     :params [{:label "x" :type "number"}]
-    :inverse (fn [ret] [ret])
+    :inverse (fn {:return ret} [ret])
     :returns {:type "number"}}
   round)
 
 (def sqrt
   ^{:doc "Returns the square root of a number"
     :params [{:label "x" :type "number"}]
-    :inverse (fn [ret] [(* ret ret)])
+    :inverse (fn {:return ret} [(* ret ret)])
     :returns {:type "number"}}
   sqrt)
 
@@ -375,7 +375,7 @@
    :params [{:type "number"}]
    :returns {:type "number"}
    :unit "%"
-   :inverse (fn [ret] [(* ret 100)])}
+   :inverse (fn {:return ret} [(* ret 100)])}
   [value] (/ value 100))
 
 (defn compare

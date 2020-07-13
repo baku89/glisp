@@ -16,7 +16,7 @@
    :params [{:type "number"}]
    :returns {:type "number"}
    :unit "°"
-   :inverse (fn [ret] [(to-deg ret)])}
+   :inverse (fn {:return ret} [(to-deg ret)])}
   [degrees] (/ (* degrees PI) 180))
 
 (defn to-turn
@@ -30,14 +30,14 @@
    :params [{:type "number"}]
    :returns {:type "number"}
    :unit "turn"
-   :inverse (fn [ret] [(to-turn ret)])}
+   :inverse (fn {:return ret} [(to-turn ret)])}
   [turn] (* turn TWO_PI))
 
 
 (defn hex2
   {:doc "Maps the 8-bit value between 0-255 (0xff) to a normalized 0-1"
    :params [{:type "number"}]
-   :inverse (fn [ret] [(* ret 255)])
+   :inverse (fn {:return ret} [(* ret 255)])
    :unit "FF"
    :returns {:type "number"}}
   [x] (/ x 255))
@@ -45,7 +45,7 @@
 (defn ms
   {:doc "Converts the value in millseconds to seconds"
    :params [{:type "number"}]
-   :inverse (fn [ret] (* ret 1000))
+   :inverse (fn {:return ret} (* ret 1000))
    :unit "ms"
    :returns {:type "number"}}
   [x] (/ x 1000))
@@ -64,7 +64,8 @@
    :params [{:label "x" :type "number"}
             {:label "Min" :type "number"}
             {:label "Max" :type "number"}]
-   :inverse (fn [ret [x _min _max]] [(clamp ret _min _max) _min _max])
+   :inverse (fn {:return ret :params [x _min _max]}
+              [(clamp ret _min _max) _min _max])
    :returns {:type "number"}}
   [x _min _max]
   (min (max _min x) _max))
@@ -119,13 +120,13 @@
 (def .x
   ^{:doc "Gets x value from vec2"
     :params [{:label "Value" :type "vec2"}]
-    :inverse (fn [ret [[x y]]] [[ret y]])
+    :inverse (fn {:return ret :params [[x y]]} [[ret y]])
     :returns {:type "number"}}
   first)
 (def .y
   ^{:doc "Gets y value from vec2"
     :params [{:label "Value" :type "vec2"}]
-    :inverse (fn [ret [[x y]]] [[x ret]])
+    :inverse (fn {:return ret :params [[x y]]} [[x ret]])
     :returns {:type "number"}}
   second)
 
@@ -234,7 +235,7 @@
    :params [{:label "Angle" :type "number"}
             {:label "Length" :type "number" :default 1}]
    :returns {:type "vec2"}
-   :inverse (fn [ret [x y]]
+   :inverse (fn {:return ret :params [x y]}
               [(vec2/angle ret) (vec2/dist ret [0 0])])}
   [a & xs]
   (case (count xs)
@@ -252,7 +253,7 @@
   {:doc "Scales a vec2 by a scalar number"
    :params [{:label "Value" :type "vec2"}
             {:label "Scale" :type "number"}]
-   :inverse (fn [ret [v sc]]
+   :inverse (fn {:return ret :params [v sc]}
               [(vec2/scale ret (/ sc)) sc])
    :handles {:draw (fn {:params [v sc] :return p}
                      [{:type "path" :class "dashed"
@@ -334,7 +335,7 @@
 (defn vec2/lerp
   {:doc "Performs a linear interpolation between two vec2's"
    :params [{:type "vec2"} {:type "vec2"} {:type "number"}]
-   :inverse (fn [ret [a b]]
+   :inverse (fn {:return ret :params [a b]}
               [a b
                (/ (vec2/dot (vec2/- b ret) (vec2/normalize (vec2/- b a)))
                   (vec2/dist a b))])
@@ -744,7 +745,7 @@
                        :right [(- px (rect2d/right r)) v r]
                        :top [h (- (rect2d/top r) py) r]
                        :bottom [h (- py (rect2d/bottom r)) r]))}
-   :inverse (fn [ret [h v src]]
+   :inverse (fn {:return ret :params [h v src]}
               (let [old-ret (rect2d/expand h v src)
                     h (if (!= (rect2d/left old-ret)
                               (rect2d/left ret))

@@ -307,7 +307,7 @@
                        {:type "point" :pos ret}])
               :drag (fn {:pos p :params [t path]}
                       [(path/nearest-offset p path) path])}
-    :inverse (fn [ret [_ path]] [(path/nearest-offset ret path) path])
+    :inverse (fn {:return ret :params [_ path]} [(path/nearest-offset ret path) path])
     :returns {:type "vec2"}}
   path/position-at)
 
