@@ -52,9 +52,9 @@ import {
 } from '@/mal/types'
 import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
-import InputDropdown from '../inputs/InputDropdown.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
-import {reverseEval} from '../../mal-utils'
+import {reverseEval} from '@/mal/utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL'
 

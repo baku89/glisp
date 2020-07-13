@@ -46,7 +46,7 @@ import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo} from '@/mal-utils'
+import {getFnInfo} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 
 const S_UI_ANNOTATE = S('ui-annotate')

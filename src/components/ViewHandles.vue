@@ -105,7 +105,7 @@ import {
 	getMapValue,
 	reverseEval,
 	computeExpTransform
-} from '@/mal-utils'
+} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
 import {

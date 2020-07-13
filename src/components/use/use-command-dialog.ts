@@ -13,7 +13,7 @@ import {
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import CommandDialog from '@/components/CommandDialog.vue'
-import {getMapValue} from '@/mal-utils'
+import {getMapValue} from '@/mal/utils'
 import {printer} from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'
 

@@ -28,8 +28,8 @@ import {
 	isFunc,
 	getEvaluated
 } from '@/mal/types'
-import ConsoleScope from './scopes/console'
-import {replaceExp} from './mal/eval'
+import ConsoleScope from '@/scopes/console'
+import {replaceExp} from './eval'
 import {mat2d, vec2} from 'gl-matrix'
 
 export function getPrimitiveType(exp: MalVal): string | null {

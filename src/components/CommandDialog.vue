@@ -36,7 +36,7 @@ import {
 	isList,
 	isSymbol
 } from '@/mal/types'
-import {getMapValue} from '@/mal-utils'
+import {getMapValue} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
 import VueMarkdown from 'vue-markdown'
 import {printExp} from '@/mal'

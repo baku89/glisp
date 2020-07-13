@@ -19,7 +19,8 @@
 			class="MalInputNumber__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-		>{{ display.unit }}</span>
+			>{{ display.unit }}</span
+		>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
@@ -44,7 +45,7 @@ import {
 	MalType,
 	createList as L
 } from '@/mal/types'
-import {getMapValue, getFnInfo, reverseEval} from '@/mal-utils'
+import {getMapValue, getFnInfo, reverseEval} from '@/mal/utils'
 
 type Validator = (v: number) => number | null
 
