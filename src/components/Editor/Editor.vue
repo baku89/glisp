@@ -73,8 +73,8 @@ function setupBraceEditor(
 					return
 				}
 
-				// NOTE: Make sure to update the marker, add marker inside setTimeout
-				setTimeout(() => {
+				// NOTE: Make sure to update the marker, add marker for next tick
+				context.root.$nextTick(() => {
 					const [start, end] = activeRange
 					const range = convertToAceRange(editor, start, end)
 					activeRangeMarker = editor.session.addMarker(
@@ -83,7 +83,7 @@ function setupBraceEditor(
 						'text',
 						false
 					)
-				}, 0)
+				})
 			}
 		)
 
