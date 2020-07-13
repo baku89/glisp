@@ -98,7 +98,7 @@ import {
 	isVector
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData} from '@/mal-lib/path'
+import {getSVGPathData} from '@/path-utils'
 import {
 	getFnInfo,
 	FnInfoType,

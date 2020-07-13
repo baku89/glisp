@@ -6,7 +6,7 @@ import {
 	keywordFor as K,
 	isList
 } from '@/mal/types'
-import {iterateSegment, PathType} from '@/mal-lib/path'
+import {iterateSegment, PathType} from '@/path-utils'
 
 const K_PATH = K('path'),
 	K_M = K('M'),

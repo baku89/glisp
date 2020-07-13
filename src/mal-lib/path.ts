@@ -2,13 +2,14 @@
 import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
+import Voronoi from 'voronoi'
 import paper from 'paper'
 import {PaperOffset, OffsetOptions} from 'paperjs-offset'
+
 import {
 	MalVal,
 	keywordFor as K,
 	symbolFor as S,
-	isKeyword,
 	MalError,
 	assocBang,
 	isMap,
@@ -16,12 +17,7 @@ import {
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
-import Voronoi from 'voronoi'
-
-type Vec2 = number[] | vec2
-
-export type PathType = (string | Vec2)[]
-type SegmentType = [string, ...Vec2[]]
+import {PathType, SegmentType, iterateSegment, Vec2} from '@/path-utils'
 
 const EPSILON = 1e-5
 
@@ -51,14 +47,6 @@ function createEmptyPath() {
 }
 
 paper.setup(new paper.Size(1, 1))
-
-export function getSVGPathData(path: PathType) {
-	if (path[0].toString().startsWith(K_PATH)) {
-		path = path.slice(1)
-	}
-
-	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
-}
 
 function createPaperPath(path: PathType): paper.Path {
 	if (path[0].toString().startsWith(K_PATH)) {
@@ -130,20 +118,6 @@ function getBezier(points: Vec2[]) {
 		throw new MalError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
-}
-export function* iterateSegment(path: PathType): Generator<SegmentType> {
-	if (!Array.isArray(path)) {
-		throw new MalError('Invalid path')
-	}
-
-	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
-
-	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || isKeyword(path[i] as MalVal)) {
-			yield path.slice(start, i) as SegmentType
-			start = i
-		}
-	}
 }
 
 /**

@@ -7,7 +7,7 @@ import {
 	MalMap
 } from '@/mal/types'
 import {partition} from '@/utils'
-import {iterateSegment, PathType} from '@/mal-lib/path'
+import {iterateSegment, PathType} from '@/path-utils'
 import printExp from '@/mal/printer'
 
 type CanvasContext =
