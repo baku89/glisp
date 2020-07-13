@@ -68,10 +68,7 @@ export default function useHitDetector(
 
 			// Do the hit detection
 			const ret = await detector.analyze(pos, exp.value.value)
-
-			if (ret) {
-				onSelectExp(nonReactive(ret as MalNode))
-			}
+			onSelectExp(ret ? nonReactive(ret as MalNode) : null)
 		}
 	)
 }
