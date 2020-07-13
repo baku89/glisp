@@ -16,7 +16,6 @@ export const M_EVAL_PARAMS = Symbol.for('eval-params')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
-export const M_CACHE = Symbol.for('cache') // misc caches used by libraries
 const M_EXPAND = Symbol.for('expand')
 
 // Stores string repsentation
@@ -77,7 +76,6 @@ export interface MalNodeMap extends MalMap {
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
-	[M_CACHE]: {[k: string]: any}
 }
 
 export interface MalSeq extends Array<MalVal> {
@@ -92,7 +90,6 @@ export interface MalSeq extends Array<MalVal> {
 	[M_EXPAND]: ExpandInfo
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
-	[M_CACHE]: {[k: string]: any}
 }
 
 // Expand
@@ -211,21 +208,6 @@ export function getType(obj: any): MalType {
 		default:
 			return MalType.Undefined
 	}
-}
-
-export function getMalNodeCache(node: MalNode, key: string): any | undefined {
-	if (node[M_CACHE] instanceof Object) {
-		return node[M_CACHE][key]
-	} else {
-		return undefined
-	}
-}
-
-export function setMalNodeCache(node: MalNode, key: string, value: any) {
-	if (!(node[M_CACHE] instanceof Object)) {
-		node[M_CACHE] = {}
-	}
-	node[M_CACHE][key] = value
 }
 
 export type MalNode = MalNodeMap | MalSeq
