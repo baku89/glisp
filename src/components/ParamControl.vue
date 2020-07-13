@@ -411,13 +411,15 @@ export default defineComponent({
 			return params
 		})
 
+		const PREFERENTIAL_TYPSE = new Set(['number', 'angle', 'vec2', 'color', 'dropdown'])
+
 		function matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
 			const inputType = detectInputType(value)
-			const descType = desc[K_TYPE]
+			const descType = desc[K_TYPE] as string
 			if (inputType !== descType) {
 				if (descType === 'any') {
 					return inputType
-				} else if (/^number|angle|vec2|color|dropdown$/.test(descType)) {
+				} else if (.has(descType)) {
 					return descType
 				} else if (descType === 'seed' && inputType === 'number') {
 					return 'seed'

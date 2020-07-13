@@ -169,6 +169,8 @@ interface Props {
 	viewTransform: mat2d
 }
 
+const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
+
 export default defineComponent({
 	props: {
 		exp: {
@@ -262,7 +264,7 @@ export default defineComponent({
 				}
 
 				return handles.map((h: any) => {
-					const type = h[K_TYPE]
+					const type = h[K_TYPE] as string
 					const guide = !!h[K_GUIDE]
 					const classList = ((h[K_CLASS] as string) || '').split(' ')
 					const cls = {} as ClassList
@@ -273,7 +275,7 @@ export default defineComponent({
 					const xform = mat2d.clone(data.transform)
 					let yRotate = 0
 
-					if (/^point|arrow|translate|dia$/.test(type)) {
+					if (POINTABLE_HANDLE_TYPES.has(type)) {
 						const [x, y] = h[K_POS]
 						mat2d.translate(xform, xform, [x, y])
 					}
