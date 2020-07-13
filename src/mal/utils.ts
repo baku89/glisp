@@ -160,28 +160,28 @@ export function reverseEval(
 			} else {
 				// find Inverse function
 				const info = getFnInfo(original as MalSeq)
-				if (info) {
-					const inverseFn = getMapValue(info.meta, 'inverse')
+				if (!info) break
+				const inverseFn = getMapValue(info.meta, 'inverse')
+				if (!isMalFunc(inverseFn)) break
 
-					if (isMalFunc(inverseFn)) {
-						const fnName = (original as MalSeq)[0]
-						// const fnOriginalParams = (original as MalSeq).slice(1)
-						const fnEvaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
-						const fnParams = inverseFn(exp, fnEvaluatedParams)
+				const fnName = (original as MalSeq)[0]
+				const evaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
+				const newParams = inverseFn({
+					[K('return')]: exp,
+					[K('params')]: evaluatedParams
+				})
 
-						if (isSeq(fnParams)) {
-							const newExp = L(fnName, ...fnParams)
+				if (isSeq(newParams)) {
+					const newExp = L(fnName, ...newParams)
 
-							for (let i = 1; i < (original as MalSeq).length; i++) {
-								newExp[i] = reverseEval(
-									newExp[i],
-									(original as MalSeq)[i],
-									forceOverwrite
-								)
-							}
-							return newExp
-						}
+					for (let i = 1; i < (original as MalSeq).length; i++) {
+						newExp[i] = reverseEval(
+							newExp[i],
+							(original as MalSeq)[i],
+							forceOverwrite
+						)
 					}
+					return newExp
 				}
 			}
 			break
