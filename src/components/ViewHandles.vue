@@ -421,7 +421,8 @@ export default defineComponent({
 							? [(replace as any) as [number, MalVal]]
 							: ((replace as any) as [number, MalVal][])
 					newParams = [...data.unevaluatedParams]
-					for (const [i, value] of pairs) {
+					for (const [si, value] of pairs) {
+						const i = si < 0 ? newParams.length - si : si
 						newParams[i] = value
 					}
 					updatedIndices = pairs.map(([i]) => i)
