@@ -14,6 +14,7 @@
 		"types": ["webpack-env", "jquery", "node"],
 		"typeRoots": ["node_modules/@types", "src"],
 		"paths": {
+			"*": ["src/@types/*"],
 			"@/*": ["src/*"]
 		},
 		"lib": ["esnext", "dom", "dom.iterable", "scripthost"]
