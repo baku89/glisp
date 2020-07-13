@@ -43,7 +43,12 @@ function generateDefaultDelimiters(elementCount: number) {
 const SUGAR_INFO = new Map<MalVal, {prefix: string}>([
 	[S('quote'), {prefix: "'"}],
 	[S('ui-annotate'), {prefix: '#@'}],
-	[S('with-meta-sugar'), {prefix: '^'}]
+	[S('with-meta-sugar'), {prefix: '^'}],
+	[S('fn-sugar'), {prefix: '#'}],
+	[S('quasiquote'), {prefix: '`'}],
+	[S('unquote'), {prefix: '~'}],
+	[S('unquote-splicing'), {prefix: '~@'}],
+	[S('deref'), {prefix: '@'}]
 ])
 
 export default function printExp(exp: MalVal, printReadably = true): string {
