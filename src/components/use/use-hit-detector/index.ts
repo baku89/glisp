@@ -66,7 +66,7 @@ export default function useHitDetector(
 				mat2d.invert(mat2d.create(), viewTransform.value)
 			)
 
-			// Do the hit detection
+			// Do the hit detection=
 			const ret = await detector.analyze(pos, exp.value.value)
 			onSelectExp(ret ? nonReactive(ret as MalNode) : null)
 		}
