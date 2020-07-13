@@ -5,7 +5,7 @@
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
 (defn path
-  {:doc "Creates path object"
+  {:doc "Creates a path object"
    :handles {:draw (fn {:params [path]}
                      (apply concat
                             {:type "path" :guide true :path path}
@@ -293,8 +293,8 @@
               :drag (fn {:id id :pos p
                          :params [start end path]}
                       (case id
-                        :start [(path/nearest-offset p path) end path]
-                        :end [start (path/nearest-offset p path) path]))}}
+                        :start {:replace [0 (path/nearest-offset p path)]}
+                        :end {:replace [1 (path/nearest-offset p path)]}))}}
   path/trim)
 
 (def path/position-at
@@ -306,7 +306,7 @@
                       [{:type "path" :guide true :class "dashed" :path path}
                        {:type "point" :pos ret}])
               :drag (fn {:pos p :params [t path]}
-                      [(path/nearest-offset p path) path])}
+                      {:replace [0 (path/nearest-offset p path)]})}
     :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
     :returns {:type "vec2"}}
   path/position-at)
@@ -358,7 +358,7 @@
                            near-dir (vec2/- p near-pt)
                            d-sign (sign (vec2/dot near-n near-dir))
                            d (* (vec2/len near-dir) d-sign)]
-                       `[~d ~path ~@options]))}})
+                       {:replace [0 d]}))}})
 
 (def path/offset
   ^(assoc path-offset-meta :doc "Offsets a path") path/offset)
