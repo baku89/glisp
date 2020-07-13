@@ -42,7 +42,7 @@ function generateDefaultDelimiters(elementCount: number) {
 
 const SUGAR_INFO = new Map<MalVal, {prefix: string}>([
 	[S('quote'), {prefix: "'"}],
-	[S('ui-annotate'), {prefix: '#'}],
+	[S('ui-annotate'), {prefix: '#@'}],
 	[S('with-meta-sugar'), {prefix: '^'}]
 ])
 
@@ -61,7 +61,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const sugarInfo =
 				type === MalType.List && SUGAR_INFO.get((coll as MalSeq)[0])
 
-			if (sugarInfo && !(M_ISSUGAR in coll)) {
+			if (sugarInfo /* && !(M_ISSUGAR in coll)*/) {
 				;(coll as MalSeq)[M_ISSUGAR] = true
 				coll[M_ELMSTRS] = [
 					sugarInfo.prefix,

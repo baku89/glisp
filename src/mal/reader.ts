@@ -267,7 +267,8 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			if (type === '(') {
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				val = L(S_FN_SUGAR, readForm(reader, saveStr))
-			} else if (type === '{') {
+			} else if (type === '@') {
+				reader.next()
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const annotation = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
