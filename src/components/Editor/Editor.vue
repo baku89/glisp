@@ -123,6 +123,14 @@ function setupBraceEditor(
 					editor.off('changeSelection', onSelect)
 
 					editor.setValue(newValue, -1)
+					if (props.selection) {
+						const range = convertToAceRange(
+							editor,
+							props.selection[0],
+							props.selection[0]
+						)
+						editor.selection.setRange(range, false)
+					}
 
 					editor.on('change', onChange)
 					editor.on('changeSelection', onSelect)
