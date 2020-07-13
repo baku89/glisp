@@ -9,15 +9,12 @@ import {
 	isSeq,
 	getType,
 	MalSeq,
-	MalType,
-	symbolFor
+	MalType
 } from './types'
 import {printExp} from '.'
 
 export default class Env {
-	private data: {
-		[key: string]: MalVal
-	} = {}
+	private data = new Map<MalSymbol, MalVal>()
 
 	/**
 	 * Stores a definition expression `(devar sym val)` for each symbol
@@ -57,17 +54,13 @@ export default class Env {
 		}
 	}
 
-	protected getMergedData() {
+	protected getMergedData(): Map<MalSymbol, MalVal> {
 		const data = (this.outer?.getMergedData() || {}) as {[k: string]: MalVal}
-		return {...data, ...this.data}
-	}
-
-	public getSymbolValuePairs(): [MalSymbol, MalVal][] {
-		return Object.entries(this.data).map(([str, v]) => [symbolFor(str), v])
+		return new Map({...data, ...this.data})
 	}
 
 	public getAllSymbols() {
-		return Object.keys(this.getMergedData()).map(symbolFor)
+		return Array.from(this.getMergedData().keys())
 	}
 
 	public bindAll(binds: MalBind, exps: MalVal[]) {
@@ -148,7 +141,7 @@ export default class Env {
 	}
 
 	public set(symbol: MalSymbol, value: MalVal, def?: MalSeq) {
-		this.data[symbol.value] = value
+		this.data.set(symbol, value)
 		if (def) {
 			this.defs[symbol.value] = def
 		}
@@ -183,9 +176,8 @@ export default class Env {
 			}
 		}
 
-		// eslint-disable-next-line no-prototype-builtins
-		if (this.data.hasOwnProperty(symbol.value)) {
-			return this.data[symbol.value]
+		if (this.data.has(symbol)) {
+			return this.data.get(symbol)
 		}
 
 		let argIndex
@@ -208,8 +200,7 @@ export default class Env {
 		// if (!isSymbol(symbol)) {
 		// 	throw 'HASOWN not symbol'
 		// }
-		// eslint-disable-next-line no-prototype-builtins
-		return this.data.hasOwnProperty(symbol.value)
+		return this.data.has(symbol)
 	}
 
 	public get(symbol: MalSymbol): MalVal {
