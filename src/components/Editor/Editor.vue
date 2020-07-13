@@ -73,14 +73,17 @@ function setupBraceEditor(
 					return
 				}
 
-				const [start, end] = activeRange
-				const range = convertToAceRange(editor, start, end)
-				activeRangeMarker = editor.session.addMarker(
-					range,
-					'active-range',
-					'text',
-					false
-				)
+				// NOTE: Make sure to update the marker, add marker inside setTimeout
+				setTimeout(() => {
+					const [start, end] = activeRange
+					const range = convertToAceRange(editor, start, end)
+					activeRangeMarker = editor.session.addMarker(
+						range,
+						'active-range',
+						'text',
+						false
+					)
+				}, 0)
 			}
 		)
 
