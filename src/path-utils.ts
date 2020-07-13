@@ -1,5 +1,5 @@
 import {vec2} from 'gl-matrix'
-import {MalError, isKeyword, MalVal, keywordFor as K} from '@/mal/types'
+import {MalError, isKeyword, MalVal, keywordFor as K, MalSeq} from '@/mal/types'
 
 const K_PATH = K('path')
 
@@ -29,4 +29,38 @@ export function getSVGPathData(path: PathType) {
 	}
 
 	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
+}
+
+const K_M = K('M'),
+	K_L = K('L'),
+	K_C = K('C'),
+	K_Z = K('Z')
+
+export function convertToPath2D(exp: PathType) {
+	const path = new Path2D()
+
+	for (const [cmd, ...pts] of iterateSegment(exp)) {
+		switch (cmd) {
+			case K_M:
+				path.moveTo(...(pts[0] as [number, number]))
+				break
+			case K_L:
+				path.lineTo(...(pts[0] as [number, number]))
+				break
+			case K_C:
+				path.bezierCurveTo(
+					pts[0][0],
+					pts[0][1],
+					pts[1][0],
+					pts[1][1],
+					pts[2][0],
+					pts[2][1]
+				)
+				break
+			case K_Z:
+				path.closePath()
+		}
+	}
+
+	return path
 }
