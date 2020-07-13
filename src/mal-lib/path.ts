@@ -11,9 +11,6 @@ import {
 	isKeyword,
 	MalError,
 	assocBang,
-	MalNode,
-	getMalNodeCache,
-	setMalNodeCache,
 	isMap,
 	createList as L
 } from '@/mal/types'
@@ -64,11 +61,6 @@ export function getSVGPathData(path: PathType) {
 }
 
 function createPaperPath(path: PathType): paper.Path {
-	const cache = getMalNodeCache(path as MalNode, 'paperPath')
-	if (cache) {
-		return cache
-	}
-
 	if (path[0].toString().startsWith(K_PATH)) {
 		path = path.slice(1)
 	}
@@ -98,8 +90,6 @@ function createPaperPath(path: PathType): paper.Path {
 				break
 		}
 	}
-
-	setMalNodeCache(path as MalNode, 'paperPath', paperPath)
 
 	return paperPath
 }
