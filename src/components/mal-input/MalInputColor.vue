@@ -56,6 +56,9 @@ import {reverseEval} from '@/mal/utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL'
 
+const COLOR_SPACE_FUNCTIONS = new Set([S('color/rgb'), S('color/hsl')])
+const COLOR_SPACE_SHORTHANDS = new Set([S('rgb'), S('hsl')])
+
 export default defineComponent({
 	components: {InputColor, InputString, InputDropdown, MalInputNumber},
 	props: {
@@ -79,9 +82,9 @@ export default defineComponent({
 				case MalType.List: {
 					const fst = (props.value as MalVal[])[0]
 					if (isSymbol(fst)) {
-						if (['color/rgb', 'color/hsl'].includes(fst.value)) {
+						if (COLOR_SPACE_FUNCTIONS.has(fst)) {
 							return fst.value.split('/')[1].toUpperCase()
-						} else if (['rgb', 'hsl'].includes(fst.value)) {
+						} else if (COLOR_SPACE_SHORTHANDS.has(fst)) {
 							return fst.value.toUpperCase()
 						}
 					}

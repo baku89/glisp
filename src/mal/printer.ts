@@ -11,8 +11,7 @@ import {
 	MalSymbol,
 	MalType,
 	isSeq,
-	symbolFor,
-	isList,
+	symbolFor as S,
 	MalSeq,
 	M_ISSUGAR
 } from './types'
@@ -41,13 +40,11 @@ function generateDefaultDelimiters(elementCount: number) {
 	}
 }
 
-const SUGAR_INFO = {
-	quote: {prefix: "'"},
-	'ui-annotate': {prefix: '#'},
-	'with-meta-sugar': {prefix: '^'}
-} as {[name: string]: {prefix: string}}
-
-const SUGAR_SYMBOLS = Object.keys(SUGAR_INFO).map(s => symbolFor(s)) as MalVal[]
+const SUGAR_INFO = new Map<MalVal, {prefix: string}>([
+	[S('quote'), {prefix: "'"}],
+	[S('ui-annotate'), {prefix: '#'}],
+	[S('with-meta-sugar'), {prefix: '^'}]
+])
 
 export default function printExp(exp: MalVal, printReadably = true): string {
 	const _r = printReadably
@@ -62,9 +59,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const coll = exp as MalNode
 
 			const sugarInfo =
-				type === MalType.List && SUGAR_SYMBOLS.includes((coll as MalSeq)[0])
-					? SUGAR_INFO[((coll as MalSeq)[0] as MalSymbol).value]
-					: null
+				type === MalType.List && SUGAR_INFO.get((coll as MalSeq)[0])
 
 			if (sugarInfo && !(M_ISSUGAR in coll)) {
 				;(coll as MalSeq)[M_ISSUGAR] = true
