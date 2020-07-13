@@ -300,7 +300,7 @@ import ace from 'brace'
 			fncall: [
 				{
 					token: 'function',
-					regex: '[\\s]*[\\S]+',
+					regex: '[\\s]*[^\\s\\(\\[\\{]+',
 					next: 'start'
 				}
 			],
