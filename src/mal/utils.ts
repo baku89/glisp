@@ -165,24 +165,66 @@ export function reverseEval(
 				if (!isMalFunc(inverseFn)) break
 
 				const fnName = (original as MalSeq)[0]
+				const originalParams = (original as MalSeq).slice(1)
 				const evaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
-				const newParams = inverseFn({
+
+				// Compute the original parameter
+				const result = inverseFn({
 					[K('return')]: exp,
 					[K('params')]: evaluatedParams
 				})
 
-				if (isSeq(newParams)) {
-					const newExp = L(fnName, ...newParams)
-
-					for (let i = 1; i < (original as MalSeq).length; i++) {
-						newExp[i] = reverseEval(
-							newExp[i],
-							(original as MalSeq)[i],
-							forceOverwrite
-						)
-					}
-					return newExp
+				if (!isVector(result) && !isMap(result)) {
+					return null
 				}
+
+				// Parse the result
+				let newParams: MalVal[]
+				let updatedIndices: number[] | undefined = undefined
+
+				if (isMap(result)) {
+					const params = result[K('params')]
+					const replace = result[K('replace')]
+
+					if (isVector(params)) {
+						newParams = params
+					} else if (isVector(replace)) {
+						newParams = [...originalParams]
+						const pairs = (typeof replace[0] === 'number'
+							? [(replace as any) as [number, MalVal]]
+							: ((replace as any) as [number, MalVal][])
+						).map(
+							([si, e]) =>
+								[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+						)
+						for (const [i, value] of pairs) {
+							newParams[i] = value
+						}
+						updatedIndices = pairs.map(([i]) => i)
+					} else {
+						return null
+					}
+				} else {
+					newParams = result
+				}
+
+				if (!updatedIndices) {
+					updatedIndices = Array(newParams.length)
+						.fill(0)
+						.map((_, i) => i)
+				}
+
+				for (const i of updatedIndices) {
+					newParams[i] = reverseEval(
+						newParams[i],
+						originalParams[i],
+						forceOverwrite
+					)
+				}
+
+				const newExp = L(fnName, ...newParams)
+
+				return newExp
 			}
 			break
 		}
