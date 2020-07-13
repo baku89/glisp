@@ -416,13 +416,15 @@ export default defineComponent({
 				if (isVector(params)) {
 					newParams = params
 				} else if (isVector(replace)) {
-					const pairs =
-						typeof replace[0] === 'number'
-							? [(replace as any) as [number, MalVal]]
-							: ((replace as any) as [number, MalVal][])
 					newParams = [...data.unevaluatedParams]
-					for (const [si, value] of pairs) {
-						const i = si < 0 ? newParams.length - si : si
+					const pairs = (typeof replace[0] === 'number'
+						? [(replace as any) as [number, MalVal]]
+						: ((replace as any) as [number, MalVal][])
+					).map(
+						([si, e]) =>
+							[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+					)
+					for (const [i, value] of pairs) {
 						newParams[i] = value
 					}
 					updatedIndices = pairs.map(([i]) => i)
