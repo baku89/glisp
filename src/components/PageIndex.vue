@@ -457,8 +457,12 @@ export default defineComponent({
 		)
 
 		// HitDetector
-		const viewExp = toRef(data, 'viewExp')
-		useHitDetector(viewExp)
+		useHitDetector(
+			elHandles,
+			toRef(data, 'exp'),
+			toRef(ui, 'viewTransform'),
+			onSelectExp
+		)
 
 		// Init App Handler
 		bindsConsole(data, {
