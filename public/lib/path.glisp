@@ -6,38 +6,39 @@
 
 (defn path
   {:doc "Creates a path object"
-   :handles {:draw (fn {:params [path]}
-                     (apply concat
-                            (let [segs (path/split-segments path)]
+   :handles
+   {:draw (fn {:params [path]}
+            (apply concat
+                   (let [segs (path/split-segments path)]
                               ;; Draws Handles
-                              (concat
-                               (for [seg segs :index i]
-                                 (let [[cmd & pts] seg]
-                                   (if (= cmd :C)
-                                     [{:type "path" :guide true :class "dashed"
-                                       :path [:path
-                                              :M (last (nth segs (dec i)))
-                                              :L (first pts)
-                                              :M (last pts)
-                                              :L (second pts)]}])))
-                               (for [seg segs :index i]
-                                 (let [[cmd & pts] seg]
-                                   (case cmd
-                                     :Z nil
-                                     :C [{:id [i 1] :type "point" :pos (first pts)}
-                                         {:id [i 2] :type "point" :pos (second pts)}
-                                         {:id [i 3] :type "point" :pos (last pts)}]
+                     (concat
+                      (for [seg segs :index i]
+                        (let [[cmd & pts] seg]
+                          (if (= cmd :C)
+                            [{:type "path" :guide true :class "dashed"
+                              :path [:path
+                                     :M (last (nth segs (dec i)))
+                                     :L (first pts)
+                                     :M (last pts)
+                                     :L (second pts)]}])))
+                      (for [seg segs :index i]
+                        (let [[cmd & pts] seg]
+                          (case cmd
+                            :Z nil
+                            :C [{:id [i 1] :type "point" :pos (first pts)}
+                                {:id [i 2] :type "point" :pos (second pts)}
+                                {:id [i 3] :type "point" :pos (last pts)}]
                                     ; :M or :L
-                                     {:id [i 1] :type "point" :pos (first pts)})))))))
-             :drag (fn {:id [seg-idx el-idx]
-                        :pos p
-                        :params [path]}
-                     (let [segs (path/split-segments path)
-                           edited-seg (replace-nth
-                                       (nth segs seg-idx)
-                                       el-idx
-                                       p)]
-                       `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}}
+                            {:id [i 1] :type "point" :pos (first pts)})))))))
+    :drag (fn {:id [seg-idx el-idx]
+               :pos p
+               :params [path]}
+            (let [segs (path/split-segments path)
+                  edited-seg (replace-nth
+                              (nth segs seg-idx)
+                              el-idx
+                              p)]
+              `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}}
   [path] path)
 
 ;; Shape functions
