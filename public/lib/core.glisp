@@ -250,8 +250,18 @@
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      `(cond ~@(rest (rest xs))))))
 
+(defmacro if-not
+  {:doc "Inverted version of *if*"
+   :params [{:label "Test" :type "exp"}
+            {:label "Else" :type "exp"}
+            {:label "Then" :type "exp" :default nil}]}
+  [test else & then]
+  (if (zero? (count then))
+    `(if ~test nil ~else)
+    `(if ~test ~(first then) ~else)))
+
 (defn column
-  {:doc "Returns a vector of nums from *from* to *to* (both inclusive) that each of element is multiplied by *step*"
+  {:doc "Returns a vector of numbers from *from* to *to* (both inclusive) with each of element is multiplied by *step*"
    :params [{:label "From" :type "number" :desc "From" :validator #(round %)}
             {:label "To" :type "number" :desc "To" :validator #(round %)}
             {:label "Step" :type "number" :desc "Step"}]}
