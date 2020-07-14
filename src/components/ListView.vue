@@ -162,7 +162,11 @@ export default defineComponent({
 					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
-					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
+					icon: {
+						type: 'fontawesome',
+						value: 'fa-chevron-right',
+						style: 'transform: scale(.8)'
+					},
 					children: exp.slice(1).map(e => nonReactive(e))
 				}
 			} else if (isVector(exp)) {
