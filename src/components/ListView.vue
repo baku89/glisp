@@ -16,17 +16,12 @@
 					:class="items.icon.value"
 					:style="items.icon.style"
 				/>
-				<span
-					v-else-if="items.icon.type === 'text'"
-					:style="items.icon.style"
-					>{{ items.icon.value }}</span
-				>
+				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">{{ items.icon.value }}</span>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-					>{{ items.icon.value }}</span
-				>
+				>{{ items.icon.value }}</span>
 			</div>
 			{{ items.label }}
 			<i
@@ -160,7 +155,7 @@ export default defineComponent({
 
 			if (isList(exp)) {
 				return {
-					label: printExp(exp[0]),
+					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
 					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
@@ -279,9 +274,9 @@ export default defineComponent({
 
 <style lang="stylus">
 .ListView
+	overflow hidden
 	// padding-left 1rem
 	width 100%
-	overflow hidden
 	user-select none
 
 	&.destructed
@@ -292,11 +287,11 @@ export default defineComponent({
 
 	&__label
 		position relative
-		padding 0.5rem .5rem 0.4rem .3rem
+		overflow hidden
+		padding 0.5rem 0.5rem 0.4rem 0.3rem
 		color var(--comment)
 		text-overflow ellipsis
 		white-space nowrap
-		overflow hidden
 
 		&:after
 			position absolute
@@ -380,7 +375,7 @@ export default defineComponent({
 		&:before
 			position absolute
 			top 0
-			left .8rem
+			left 0.8rem
 			width 0
 			height 100%
 			border-left 1px dotted var(--border)
