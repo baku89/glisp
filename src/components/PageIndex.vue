@@ -117,6 +117,7 @@ import {
 	MalType,
 	MalError,
 	isList,
+	isSeq,
 	MalSeq
 } from '@/mal/types'
 
@@ -253,7 +254,7 @@ function useBindConsole(
 		const fn = ViewScope.var(fnName)
 		const meta = getMeta(fn)
 		const returnType =
-			(getMapValue(meta, 'returns/type', MalType.String) as string) || ''
+			(getMapValue(meta, 'return/type', MalType.String) as string) || ''
 		const initialParams =
 			(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
 
@@ -267,7 +268,7 @@ function useBindConsole(
 			)
 		}
 
-		if (data.selectedExp && isList(data.selectedExp.value)) {
+		if (data.selectedExp && isSeq(data.selectedExp.value)) {
 			const newExp = cloneExp(data.selectedExp.value)
 			newExp.push(createList(symbolFor(fnName), ...initialParams))
 
