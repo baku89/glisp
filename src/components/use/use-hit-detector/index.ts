@@ -88,6 +88,11 @@ export default function useHitDetector(
 	let prevPos = vec2.fromValues(0, 0)
 	let draggingExp: NonReactive<MalVal> | null = null
 
+	function releaseDraggingExp() {
+		draggingExp = null
+		window.removeEventListener('mouseup', releaseDraggingExp)
+	}
+
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
@@ -115,16 +120,11 @@ export default function useHitDetector(
 
 			// On mouse down
 			const justMousedown = mousePressed.value && !prevMousePressed
-			const justMouseup = !mousePressed.value && prevMousePressed
 
 			if (justMousedown) {
 				onSelectExp(hitExp)
 				draggingExp = hitExp
-			}
-
-			// On mouse up
-			if (justMouseup) {
-				draggingExp = null
+				window.addEventListener('mouseup', releaseDraggingExp)
 			}
 
 			// On dragging
