@@ -18,14 +18,14 @@
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
-					@select="onSelectExp"
+					@select="setSelectedExp"
 					@update:exp="updateExp"
 					@update:editingExp="switchEditingExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -46,7 +46,7 @@
 							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@inputCode="onInputCode"
-							@select="onSelectExp"
+							@select="setSelectedExp"
 						/>
 					</div>
 					<div class="PageIndex__console">
@@ -200,12 +200,12 @@ function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
 	return {onSetupConsole}
 }
 
-function bindsConsole(
+function bindConsole(
 	data: Data,
 	callbacks: {
-		updateSelectedExp: (val: NonReactive<MalVal>) => any
 		updateExp: (exp: NonReactive<MalVal>) => void
-		selectOuterExp: () => void
+		setSelectedExp: (exp: NonReactive<MalNode> | null) => any
+		updateSelectedExp: (val: NonReactive<MalVal>) => any
 	}
 ) {
 	ConsoleScope.def('expand-selected', () => {
@@ -225,7 +225,7 @@ function bindsConsole(
 				const exp = readStr(toSketchCode(code)) as MalNode
 				const nonReactiveExp = nonReactive(exp)
 				callbacks.updateExp(nonReactiveExp)
-				data.selectedExp = null
+				callbacks.setSelectedExp(null)
 				data.editingExp = nonReactiveExp
 			} else {
 				printer.error(`Failed to load from "${url}"`)
@@ -235,7 +235,10 @@ function bindsConsole(
 	})
 
 	ConsoleScope.def('select-outer', () => {
-		callbacks.selectOuterExp()
+		const outer = getOuter(data.selectedExp?.value)
+		if (outer && outer !== data.exp?.value) {
+			callbacks.setSelectedExp(nonReactive(outer))
+		}
 		return null
 	})
 
@@ -372,11 +375,11 @@ export default defineComponent({
 		)
 
 		// Events
-		function onSelectExp(exp: NonReactive<MalNode> | null) {
+		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			data.selectedExp = exp
 		}
 
-		function onHoverExp(exp: NonReactive<MalNode> | null) {
+		function hoverExp(exp: NonReactive<MalNode> | null) {
 			data.hoveringExp = exp
 		}
 
@@ -413,13 +416,6 @@ export default defineComponent({
 				data.editingExp = exp as NonReactive<MalNode>
 			} else {
 				data.editingExp = null
-			}
-		}
-
-		function selectOuterExp() {
-			const outer = getOuter(data.selectedExp?.value)
-			if (outer && outer !== data.exp?.value) {
-				data.selectedExp = nonReactive(outer)
 			}
 		}
 
@@ -471,17 +467,16 @@ export default defineComponent({
 		useHitDetector(
 			elHandles,
 			toRef(data, 'exp'),
-			toRef(data, 'hoveringExp'),
 			toRef(ui, 'viewTransform'),
-			onSelectExp,
-			onHoverExp
+			setSelectedExp,
+			hoverExp
 		)
 
 		// Init App Handler
-		bindsConsole(data, {
-			updateSelectedExp,
+		bindConsole(data, {
 			updateExp,
-			selectOuterExp
+			setSelectedExp,
+			updateSelectedExp
 		})
 
 		useCommandDialog(context)
@@ -496,10 +491,9 @@ export default defineComponent({
 
 			...toRefs(ui as any),
 			updateExp,
-			onSelectExp,
+			setSelectedExp,
 			onInputCode,
-			onResizeSplitpanes,
-			selectOuterExp
+			onResizeSplitpanes
 		}
 	}
 })

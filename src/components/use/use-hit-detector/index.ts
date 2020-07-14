@@ -37,7 +37,6 @@ function useMouseButtons(el: Ref<any | null>) {
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
 	exp: Ref<NonReactive<MalVal> | null>,
-	hoveringExp: Ref<NonReactive<MalVal> | null>,
 	viewTransform: Ref<mat2d>,
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void
