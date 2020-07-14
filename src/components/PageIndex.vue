@@ -110,7 +110,14 @@ import {
 	MalAtom,
 	createList,
 	symbolFor,
-	cloneExp
+	cloneExp,
+	getName,
+	isFunc,
+	getMeta,
+	MalType,
+	MalError,
+	isList,
+	MalSeq
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -122,6 +129,7 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from './use'
 import AppScope from '../scopes/app'
+import {getMapValue} from '../mal/utils'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -234,10 +242,38 @@ function useBindConsole(
 			return null
 		}
 
-		const exp = cloneExp(data.selectedExp.value)
-
+		const exp = data.selectedExp.value
 		const newExp = createList(symbolFor('g'), {}, exp)
 		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		return null
+	})
+
+	AppScope.def('insert-item', (name: MalVal) => {
+		const fnName = getName(name)
+		const fn = ViewScope.var(fnName)
+		const meta = getMeta(fn)
+		const returnType =
+			(getMapValue(meta, 'returns/type', MalType.String) as string) || ''
+		const initialParams =
+			(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
+
+		if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
+			throw new MalError(`${fnName} is not a function that returns item/path`)
+		}
+
+		if (!initialParams) {
+			throw new MalError(
+				`Function ${fnName} does not have the :initial-params field`
+			)
+		}
+
+		if (data.selectedExp && isList(data.selectedExp.value)) {
+			const newExp = cloneExp(data.selectedExp.value)
+			newExp.push(createList(symbolFor(fnName), ...initialParams))
+
+			callbacks.updateSelectedExp(nonReactive(newExp))
+		}
 
 		return null
 	})
