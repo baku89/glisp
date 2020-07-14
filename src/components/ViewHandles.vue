@@ -30,11 +30,7 @@
 			<path class="ViewHandles__viewport-axis stroke" d="M -50000 0 H 50000" />
 			<path class="ViewHandles__viewport-axis stroke" d="M 0 -50000 V 50000" />
 		</g>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
@@ -72,19 +68,9 @@
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path
-						class="stroke display"
-						:transform="yTransform"
-						d="M 0 12 V -12"
-					/>
+					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 				</template>
-				<circle
-					class="fill display"
-					:class="cls"
-					cx="0"
-					cy="0"
-					:r="rem * 0.5"
-				/>
+				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 			</template>
 		</g>
 	</svg>
@@ -102,7 +88,8 @@ import {
 	MalMap,
 	MalFunc,
 	isVector,
-	getEvaluated
+	getEvaluated,
+	malEquals
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData, PathType} from '@/path-utils'
@@ -452,7 +439,9 @@ export default defineComponent({
 
 				if (isVector(changeId)) {
 					const newId = newParams[1]
-					data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+					data.draggingIndex = data.handles.findIndex(h =>
+						malEquals(h.id, newId)
+					)
 				}
 			} else {
 				newParams = result
