@@ -25,12 +25,12 @@ interface HitStyle {
 }
 
 export class HitDetector {
-	private ctx: OffscreenCanvasRenderingContext2D
+	private ctx: CanvasRenderingContext2D
 	private cachedExp: MalVal = null
 	private cachedPath2D = new WeakMap<MalSeq, Path2D>()
 
 	constructor() {
-		const canvas = new OffscreenCanvas(1, 1)
+		const canvas = document.createElement('canvas')
 		const ctx = canvas.getContext('2d')
 		if (!ctx) {
 			throw new Error('Cannot initialize OfscreenCanvasRenderingContext2D')
