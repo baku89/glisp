@@ -441,3 +441,68 @@ export function computeExpTransform(exp: MalVal) {
 
 	return ret
 }
+
+const K_PARAMS = K('params')
+const K_REPLACE = K('replace')
+
+export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
+	if (!isVector(modifier) && !isMap(modifier)) {
+		return null
+	}
+
+	// Parse the modifier
+	let newParams: MalVal[]
+	let updatedIndices: number[] | undefined = undefined
+
+	if (isMap(modifier)) {
+		const params = modifier[K_PARAMS]
+		const replace = modifier[K_REPLACE]
+
+		if (isVector(params)) {
+			newParams = [...params]
+		} else if (isVector(replace)) {
+			newParams = [...originalParams]
+			const pairs = (typeof replace[0] === 'number'
+				? [(replace as any) as [number, MalVal]]
+				: ((replace as any) as [number, MalVal][])
+			).map(
+				([si, e]) =>
+					[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+			)
+			for (const [i, value] of pairs) {
+				newParams[i] = value
+			}
+			updatedIndices = pairs.map(([i]) => i)
+		} else {
+			return null
+		}
+
+		// if (isVector(changeId)) {
+		// 	const newId = newParams[1]
+		// 	data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+		// }
+	} else {
+		newParams = modifier
+	}
+
+	if (!updatedIndices) {
+		updatedIndices = Array(newParams.length)
+			.fill(0)
+			.map((_, i) => i)
+	}
+
+	// Execute the backward evaluation
+	for (const i of updatedIndices) {
+		let newValue = newParams[i]
+		const unevaluated = originalParams[i]
+
+		// if (malEquals(newValue, this.params[i])) {
+		// 	newValue = unevaluated
+		// }
+
+		newValue = reverseEval(newValue, unevaluated)
+		newParams[i] = newValue
+	}
+
+	return newParams
+}
