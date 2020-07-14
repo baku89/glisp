@@ -1,22 +1,28 @@
-import {Ref, onMounted, onBeforeMount} from '@vue/composition-api'
+import {Ref, onMounted, onBeforeMount, isRef} from '@vue/composition-api'
 import ResizeSensor from 'resize-sensor'
 
 export default function useResizeSensor(
-	el: Ref<HTMLElement | null>,
+	element: Ref<HTMLElement | null> | HTMLElement,
 	onResized: (el: HTMLElement) => any,
 	immediate = false
 ) {
 	let sensor: any
 
-	onMounted(() => {
-		if (!el.value) return
-		sensor = new ResizeSensor(el.value, () =>
-			onResized(el.value as HTMLElement)
-		)
+	function setup(el: HTMLElement) {
+		sensor = new ResizeSensor(el, () => onResized(el))
 		if (immediate) {
-			onResized(el.value)
+			onResized(el)
 		}
-	})
+	}
+
+	if (isRef(element)) {
+		onMounted(() => {
+			if (!element.value) return
+			setup(element.value)
+		})
+	} else {
+		setup(element)
+	}
 
 	onBeforeMount(() => {
 		if (sensor) {
