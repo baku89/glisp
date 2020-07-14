@@ -370,3 +370,24 @@
     :params [{:label "a" :type "path"}
              {:label "b" :type "path"}]}
   path/intersections)
+
+(def path/nearest-offset
+  ^{:doc "Gets the offset (0-1) of nearest point on path"
+    :params [{:label "Pos" :type "vec2"}
+             {:label "Path" :type "path"}]
+    :returns {:type "number"}}
+  path/nearest-offset)
+
+(def path/nearest-point
+  ^{:doc "Gets the earest point on path"
+    :params [{:label "Pos" :type "vec2"}
+             {:label "Path" :type "path"}]
+    :returns {:type "vec2"}}
+  path/nearest-point)
+
+(def path/inside?
+  ^{:doc "Returns true if *pos* is inside *path*"
+    :params [{:label "Pos" :type "vec2"}
+             {:label "Path" :type "path"}]
+    :returns {:type "boolean"}}
+  path/inside?)
