@@ -9,11 +9,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -29,11 +25,7 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="setSelectedExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -62,9 +54,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -118,7 +108,12 @@ import {
 	MalError,
 	isList,
 	isSeq,
-	MalSeq
+	MalSeq,
+	M_FN,
+	isVector,
+	keywordFor as K,
+	M_EVAL_PARAMS,
+	getEvaluated
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -129,7 +124,12 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from './use'
 import AppScope from '../scopes/app'
-import {getMapValue, replaceExp} from '@/mal/utils'
+import {
+	getMapValue,
+	replaceExp,
+	applyParamModifier,
+	getFnInfo
+} from '@/mal/utils'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -521,13 +521,64 @@ export default defineComponent({
 			}
 		)
 
+		// transform selectedExp
+		function onTransformSelectedExp(xform: mat2d) {
+			if (!data.selectedExp) return
+
+			const selected = data.selectedExp.value
+
+			if (!isSeq(selected)) {
+				return
+			}
+
+			const fnInfo = getFnInfo(selected)
+
+			if (!fnInfo) {
+				return
+			}
+
+			const {meta, primitive} = fnInfo
+			const transformFn = getMapValue(meta, 'transform')
+
+			if (!isFunc(transformFn)) {
+				return
+			}
+
+			const originalParams = primitive
+				? [getEvaluated(selected)]
+				: selected[M_EVAL_PARAMS]
+			const payload = {
+				[K('params')]: originalParams,
+				[K('transform')]: xform as MalVal
+			}
+
+			const modifier = transformFn(payload)
+			let newParams: MalVal[] | null
+
+			if (primitive) {
+				newParams = modifier as MalSeq
+			} else {
+				newParams = applyParamModifier(modifier, originalParams)
+				if (!newParams) {
+					return
+				}
+			}
+
+			const newExp = primitive
+				? newParams[0]
+				: createList(selected[0], ...newParams)
+
+			updateSelectedExp(nonReactive(newExp))
+		}
+
 		// HitDetector
 		useHitDetector(
 			elHandles,
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
 			setSelectedExp,
-			hoverExp
+			hoverExp,
+			onTransformSelectedExp
 		)
 
 		// Setup scopes

@@ -75,14 +75,18 @@ export default function useHitDetector(
 	exp: Ref<NonReactive<MalVal> | null>,
 	viewTransform: Ref<mat2d>,
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
-	onHoverExp: (exp: NonReactive<MalNode> | null) => void
+	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
+	onTransformSelectedExp: (transform: mat2d) => void
 ) {
 	const detector = new HitDetector()
 
 	const {mouseX, mouseY} = useOnMouseMove(handleEl)
 	const {mousePressed} = useMouseButtons(handleEl)
 
+	let prevMousePressed = false
 	let prevExp: NonReactive<MalVal> | null = null
+	let prevPos = vec2.fromValues(0, 0)
+	let draggingExp: NonReactive<MalVal> | null = null
 
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
@@ -98,27 +102,45 @@ export default function useHitDetector(
 			)
 
 			// Do the hit detection
-			const isSame = prevExp === exp.value
+			const isSameExp = prevExp === exp.value
 
 			// console.time('hit')
 			const ret = await detector.analyze(
 				pos,
-				isSame ? undefined : exp.value.value
+				isSameExp ? undefined : exp.value.value
 			)
 			// console.timeEnd('hit')
 
 			const hitExp = ret ? nonReactive(ret as MalNode) : null
 
-			if (mousePressed.value) {
+			// On mouse down
+			const justMousedown = mousePressed.value && !prevMousePressed
+			const justMouseup = !mousePressed.value && prevMousePressed
+
+			if (justMousedown) {
 				onSelectExp(hitExp)
+				draggingExp = hitExp
+			}
+
+			// On mouse up
+			if (justMouseup) {
+				draggingExp = null
+			}
+
+			// On dragging
+			if (!justMousedown && mousePressed.value && draggingExp) {
+				const delta = vec2.sub(vec2.create(), pos, prevPos)
+				const xform = mat2d.fromTranslation(mat2d.create(), delta)
+				onTransformSelectedExp(xform)
 			}
 
 			// if (hoveringExp && hoveringExp.value.value !== ret)
 			onHoverExp(hitExp)
 
 			// Update
-			mousePressed.value = false
+			prevMousePressed = mousePressed.value
 			prevExp = exp.value
+			prevPos = pos
 		}
 	)
 }
