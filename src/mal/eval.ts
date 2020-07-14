@@ -30,7 +30,8 @@ import {
 	isVector,
 	setExpandInfo,
 	ExpandType,
-	getType
+	getType,
+	isSymbolFor
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -60,7 +61,6 @@ const S_ENV_CHAIN = S('env-chain')
 const S_EVAL_IN_ENV = S('eval*')
 const S_VAR = S('var')
 const S_LST = S('lst')
-const S_UI_ANNOTATE = S('ui-annotate')
 
 // eval
 
@@ -77,14 +77,14 @@ function quasiquote(exp: MalVal): MalVal {
 		return L(S_QUOTE, exp)
 	}
 
-	if (exp[0] === S_UNQUOTE) {
+	if (isSymbolFor(exp[0], 'unquote')) {
 		return exp[1]
 	}
 
 	let ret = L(
 		S_CONCAT,
 		...exp.map(e => {
-			if (isPair(e) && e[0] === S_SPLICE_UNQUOTE) {
+			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
 				return [quasiquote(e)]
@@ -194,8 +194,16 @@ export default function evalExp(
 		// Apply list
 		const [first] = exp
 
-		switch (first) {
-			case S_DEF: {
+		if (!isSymbol(first)) {
+			throw new MalError(
+				`${capital(getType(first))} ${printExp(
+					first
+				)} is not a function. First element of list always should be a function.`
+			)
+		}
+
+		switch (first.value) {
+			case 'def': {
 				if (cache) {
 					exp[M_FN] = env.get(S_DEF) as MalFunc
 				}
@@ -212,7 +220,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_DEFVAR: {
+			case 'defvar': {
 				if (cache) {
 					exp[M_FN] = env.get(S_DEFVAR) as MalFunc
 				}
@@ -227,7 +235,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_LET: {
+			case 'let': {
 				if (cache) {
 					exp[M_FN] = env.get(S_LET) as MalFunc
 				}
@@ -254,7 +262,7 @@ export default function evalExp(
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_BINDING: {
+			case 'binding': {
 				if (cache) {
 					exp[M_FN] = env.get(S_BINDING) as MalFunc
 				}
@@ -282,7 +290,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_GET_ALL_SYMBOLS: {
+			case 'get-all-symbols': {
 				const ret = env.getAllSymbols()
 				if (cache) {
 					exp[M_FN] = env.get(S_GET_ALL_SYMBOLS) as MalFunc
@@ -290,7 +298,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_FN_PARAMS: {
+			case 'fn-params': {
 				if (cache) {
 					exp[M_FN] = env.get(S_FN_PARAMS) as MalFunc
 				}
@@ -301,7 +309,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_EVAL_IN_ENV: {
+			case 'eval*': {
 				if (cache) {
 					exp[M_FN] = env.get(S_EVAL_IN_ENV) as MalFunc
 				}
@@ -309,7 +317,7 @@ export default function evalExp(
 				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
 			}
-			case S_QUOTE: {
+			case 'quote': {
 				const ret = exp[1]
 				if (cache) {
 					exp[M_FN] = env.get(S_QUOTE) as MalFunc
@@ -317,7 +325,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_QUASIQUOTE: {
+			case 'quasiquote': {
 				if (cache) {
 					exp[M_FN] = env.get(S_QUASIQUOTE) as MalFunc
 				}
@@ -325,7 +333,7 @@ export default function evalExp(
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_FN: {
+			case 'fn': {
 				const [, , body] = exp
 				let [, params] = exp
 				if (isMap(params)) {
@@ -350,7 +358,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_FN_SUGAR: {
+			case 'fn-sugar': {
 				if (cache) {
 					exp[M_FN] = env.get(S_FN_SUGAR) as MalFunc
 				}
@@ -366,7 +374,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_MACRO: {
+			case 'macro': {
 				if (cache) {
 					exp[M_FN] = env.get(S_MACRO) as MalFunc
 				}
@@ -398,7 +406,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_MACROEXPAND: {
+			case 'macroexpand': {
 				if (cache) {
 					exp[M_FN] = env.get(S_MACROEXPAND) as MalFunc
 				}
@@ -408,7 +416,7 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_TRY: {
+			case 'try': {
 				if (cache) {
 					exp[M_FN] = env.get(S_TRY) as MalFunc
 				}
@@ -423,7 +431,7 @@ export default function evalExp(
 					let err = exc
 					if (
 						isList(catchExp) &&
-						catchExp[0] === S_CATCH &&
+						isSymbolFor(catchExp[0], 'catch') &&
 						isSymbol(catchExp[1])
 					) {
 						if (cache) {
@@ -443,7 +451,7 @@ export default function evalExp(
 					}
 				}
 			}
-			case S_DO: {
+			case 'do': {
 				if (cache) {
 					exp[M_FN] = env.get(S_DO) as MalFunc
 				}
@@ -455,7 +463,7 @@ export default function evalExp(
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_IF: {
+			case 'if': {
 				if (cache) {
 					exp[M_FN] = env.get(S_IF) as MalFunc
 				}
@@ -510,13 +518,6 @@ export default function evalExp(
 					}
 
 					return ret
-				} else {
-					const type = capital(getType(fn))
-					throw new MalError(
-						`${type} ${printExp(
-							fn
-						)} is not a function. First element of list always should be a function.`
-					)
 				}
 			}
 		}

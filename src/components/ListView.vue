@@ -16,12 +16,17 @@
 					:class="items.icon.value"
 					:style="items.icon.style"
 				/>
-				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">{{ items.icon.value }}</span>
+				<span
+					v-else-if="items.icon.type === 'text'"
+					:style="items.icon.style"
+					>{{ items.icon.value }}</span
+				>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-				>{{ items.icon.value }}</span>
+					>{{ items.icon.value }}</span
+				>
 			</div>
 			{{ items.label }}
 			<i
@@ -60,7 +65,8 @@ import {
 	MalMap,
 	createList as L,
 	MalNode,
-	MalSeq
+	MalSeq,
+	isSymbolFor
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '../mal/eval'
@@ -121,7 +127,7 @@ export default defineComponent({
 		 */
 		const hasAnnotation = computed(() => {
 			const exp = props.exp.value
-			return isList(exp) && exp[0] === S_UI_ANNOTATE
+			return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
 		})
 
 		/**

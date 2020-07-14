@@ -442,6 +442,9 @@ export class MalSymbol {
 export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
 
+export const isSymbolFor = (obj: MalVal, name: string) =>
+	isSymbol(obj) && obj.value === name
+
 export const symbolFor = MalSymbol.get
 
 // Keyword

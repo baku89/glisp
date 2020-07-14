@@ -26,7 +26,8 @@ import {
 	M_OUTER_INDEX,
 	MalType,
 	isFunc,
-	getEvaluated
+	getEvaluated,
+	isSymbolFor
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from './eval'
@@ -155,7 +156,7 @@ export function reverseEval(
 	switch (getType(original)) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if ((original as MalSeq)[0] === S('const')) {
+			if (isSymbolFor((original as MalSeq)[0], 'const')) {
 				return original
 			} else {
 				// find Inverse function
@@ -298,15 +299,17 @@ export function computeExpTransform(exp: MalVal) {
 		}
 
 		const isAttrOfG =
-			outer[0] === S('g') &&
+			isSymbolFor(outer[0], 'g') &&
 			outer[1] === node &&
 			isMap(node) &&
 			K_TRANSFORM in node
 
-		const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
+		const isAttrOfTransform =
+			isSymbolFor(outer[0], 'transform') && outer[1] === node
 		const isAttrOfPathTransform =
-			outer[0] === S('path/transform') && outer[1] === node
-		const isAttrOfArtboard = outer[0] === S('artboard') && outer[1] === node
+			isSymbolFor(outer[0], 'path/transform') && outer[1] === node
+		const isAttrOfArtboard =
+			isSymbolFor(outer[0], 'artboard') && outer[1] === node
 
 		if (
 			isAttrOfG ||
@@ -324,11 +327,11 @@ export function computeExpTransform(exp: MalVal) {
 				const outer = attrAncestors[j - 1]
 
 				if (isList(outer)) {
-					if (outer[0] === S('mat2d/*')) {
+					if (isSymbolFor(outer[0], 'mat2d/*')) {
 						// Prepend matrices
 						const matrices = outer.slice(1, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
-					} else if (outer[0] === S('pivot')) {
+					} else if (isSymbolFor(outer[0], 'pivot')) {
 						// Prepend matrices
 						const matrices = outer.slice(2, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
@@ -353,16 +356,20 @@ export function computeExpTransform(exp: MalVal) {
 	// Extract the matrices from ancestors
 	const matrices = ancestors.reduce((filtered, node) => {
 		if (isList(node)) {
-			if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
+			if (
+				isSymbolFor(node[0], 'g') &&
+				isMap(node[1]) &&
+				K_TRANSFORM in node[1]
+			) {
 				const matrix = node[1][K_TRANSFORM]
 				filtered.push(matrix)
-			} else if (node[0] === S('artboard')) {
+			} else if (isSymbolFor(node[0], 'artboard')) {
 				const bounds = (node[1] as MalMap)[K('bounds')] as number[]
 				const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
 				filtered.push(matrix)
 			} else if (
-				node[0] === S('transform') ||
-				node[0] === S('path/transform')
+				isSymbolFor(node[0], 'transform') ||
+				isSymbolFor(node[0], 'path/transform')
 			) {
 				const matrix = node[1]
 				filtered.push(matrix)
