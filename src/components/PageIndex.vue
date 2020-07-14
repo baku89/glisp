@@ -110,6 +110,7 @@ import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useResizeSensor, useHitDetector} from './use'
+import {reconstructTree} from '../mal/reader'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -235,6 +236,19 @@ function bindsConsole(
 
 	ConsoleScope.def('select-outer', () => {
 		callbacks.selectOuterExp()
+		return null
+	})
+
+	ConsoleScope.def('group-selected', () => {
+		if (!data.selectedExp) {
+			return null
+		}
+
+		const exp = data.selectedExp.value
+
+		const newExp = createList(symbolFor('g'), {}, exp)
+		callbacks.updateSelectedExp(nonReactive(newExp))
+
 		return null
 	})
 }
