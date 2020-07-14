@@ -1,5 +1,11 @@
-import {Ref, watch, onUnmounted, ref, onMounted} from '@vue/composition-api'
-import {useOnMouseMove} from 'vue-composable'
+import {
+	Ref,
+	watch,
+	onUnmounted,
+	ref,
+	onMounted,
+	isRef
+} from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal, MalNode} from '@/mal/types'
@@ -34,6 +40,36 @@ function useMouseButtons(el: Ref<any | null>) {
 	return {mousePressed}
 }
 
+function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
+	const mouseX = ref(0)
+	const mouseY = ref(0)
+
+	function onMousemove(e: MouseEvent) {
+		mouseX.value = e.pageX
+		mouseY.value = e.pageY
+	}
+
+	function setup(el: HTMLElement) {
+		;(el as any).$el.addEventListener('mousemove', onMousemove)
+	}
+
+	if (isRef(el)) {
+		onMounted(() => {
+			if (!el.value) return
+			setup(el.value)
+		})
+	} else {
+		setup(el)
+	}
+
+	onUnmounted(() => {
+		const _el = isRef(el) ? el.value : el
+		;(_el as any).$el.removeEventListener('mousemove', onMousemove)
+	})
+
+	return {mouseX, mouseY}
+}
+
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
 	exp: Ref<NonReactive<MalVal> | null>,
@@ -43,7 +79,7 @@ export default function useHitDetector(
 ) {
 	const detector = new HitDetector()
 
-	const {mouseX, mouseY} = useOnMouseMove(document.body)
+	const {mouseX, mouseY} = useOnMouseMove(handleEl)
 	const {mousePressed} = useMouseButtons(handleEl)
 
 	let prevExp: NonReactive<MalVal> | null = null
@@ -64,10 +100,12 @@ export default function useHitDetector(
 			// Do the hit detection
 			const isSame = prevExp === exp.value
 
+			// console.time('hit')
 			const ret = await detector.analyze(
 				pos,
 				isSame ? undefined : exp.value.value
 			)
+			// console.timeEnd('hit')
 
 			const hitExp = ret ? nonReactive(ret as MalNode) : null
 
