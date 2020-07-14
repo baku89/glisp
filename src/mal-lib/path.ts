@@ -17,7 +17,13 @@ import {
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
-import {PathType, SegmentType, iterateSegment, Vec2} from '@/path-utils'
+import {
+	PathType,
+	SegmentType,
+	iterateSegment,
+	Vec2,
+	convertToPath2D
+} from '@/path-utils'
 
 const EPSILON = 1e-5
 
@@ -42,7 +48,7 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-function createEmptyPath() {
+function createEmptyPath(): PathType {
 	return [K_PATH]
 }
 
@@ -89,10 +95,21 @@ function createPaperPath(path: PathType): paper.Path {
 	return paperPath
 }
 
+const canvasContext = (() => {
+	const canvas = document.createElement('canvas')
+	const ctx = canvas.getContext('2d')
+
+	if (!ctx) {
+		throw 'Cannot initialize a canvas context'
+	}
+
+	return ctx
+})()
+
 function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 	const d = _path ? _path.pathData : ''
 
-	const path: PathType = createEmptyPath() as PathType
+	const path: PathType = createEmptyPath()
 
 	svgpath(d)
 		.abs()
@@ -681,8 +698,18 @@ function pathBounds(path: PathType) {
 function nearestOffset(pos: number[], malPath: PathType) {
 	const path = createPaperPath(malPath)
 	const location = path.getNearestLocation(new paper.Point(pos[0], pos[1]))
-
 	return location.offset / path.length
+}
+
+function nearestPoint(pos: number[], malPath: PathType) {
+	const path = createPaperPath(malPath)
+	const point = path.getNearestLocation(new paper.Point(pos[0], pos[1])).point
+	return [point.x, point.y]
+}
+
+function insideQ(pos: number[], malPath: PathType) {
+	const path = convertToPath2D(malPath)
+	return canvasContext.isPointInPath(path, pos[0], pos[1])
 }
 
 function intersections(_a: PathType, _b: PathType) {
@@ -759,6 +786,8 @@ const Exports = [
 	],
 	['path/bounds', pathBounds],
 	['path/nearest-offset', nearestOffset],
+	['path/nearest-point', nearestPoint],
+	['path/inside?', insideQ],
 	['path/intersections', intersections]
 ] as [string, MalVal][]
 
