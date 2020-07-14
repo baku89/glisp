@@ -332,6 +332,9 @@ export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
 			newExp = Object.assign(fn, obj) as T
 			break
 		}
+		case MalType.Symbol:
+			newExp = symbolFor((obj as MalSymbol).value) as T
+			break
 		default:
 			newExp = obj
 	}

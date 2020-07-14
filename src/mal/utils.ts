@@ -27,7 +27,8 @@ import {
 	MalType,
 	isFunc,
 	getEvaluated,
-	isSymbolFor
+	isSymbolFor,
+	cloneExp
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {replaceExp} from './eval'
@@ -260,7 +261,7 @@ export function reverseEval(
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 				replaceExp(def, L(S('defvar'), original, newDefBody))
-				return original
+				return cloneExp(original)
 			}
 			break
 		}
