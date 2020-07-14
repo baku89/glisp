@@ -279,7 +279,7 @@ export default defineComponent({
 
 <style lang="stylus">
 .ListView
-	padding-left 1rem
+	// padding-left 1rem
 	width 100%
 	overflow hidden
 	user-select none
@@ -292,7 +292,7 @@ export default defineComponent({
 
 	&__label
 		position relative
-		padding 0.5rem .5rem 0.4rem 0
+		padding 0.5rem .5rem 0.4rem .3rem
 		color var(--comment)
 		text-overflow ellipsis
 		white-space nowrap
@@ -302,7 +302,7 @@ export default defineComponent({
 			position absolute
 			top 0
 			right 0
-			left -0.5rem
+			left 0rem
 			height 100%
 			content ''
 			opacity 0
@@ -375,11 +375,12 @@ export default defineComponent({
 
 	&__children
 		position relative
+		padding-left 1rem
 
 		&:before
 			position absolute
 			top 0
-			left 0.4rem
+			left .8rem
 			width 0
 			height 100%
 			border-left 1px dotted var(--border)
