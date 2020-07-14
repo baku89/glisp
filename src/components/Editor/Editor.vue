@@ -17,36 +17,13 @@ import {
 } from '@vue/composition-api'
 import ace from 'brace'
 
-import {
-	getEditorSelection,
-	convertToAceRange,
-	setupWheelUpdators,
-	configureEditor
-} from './use'
-import ConsoleScope from '../../scopes/console'
+import {setupEditor} from './setup'
+import {getEditorSelection, convertToAceRange} from './utils'
 
 interface Props {
 	value: string
 	selection?: number[]
 	activeRange?: number[]
-}
-
-function assignKeybinds(editor: ace.Editor) {
-	editor.commands.addCommand({
-		name: 'select-outer',
-		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
-		exec: () => {
-			ConsoleScope.readEval('(select-outer)')
-		}
-	})
-
-	editor.commands.addCommand({
-		name: 'expand-selected',
-		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
-		exec: () => {
-			ConsoleScope.readEval('(expand-selected)')
-		}
-	})
 }
 
 function setupBraceEditor(
@@ -62,7 +39,7 @@ function setupBraceEditor(
 		editor = ace.edit(editorEl.value)
 		editor.setValue(props.value, -1)
 
-		// Watch props
+		// Update activeRange
 		let activeRangeMarker: number
 		watch(
 			() => props.activeRange,
@@ -87,6 +64,7 @@ function setupBraceEditor(
 			}
 		)
 
+		// Update selection
 		watch(
 			() => props.selection,
 			selection => {
@@ -142,9 +120,7 @@ function setupBraceEditor(
 		)
 
 		// Enable individual features
-		configureEditor(editor)
-		setupWheelUpdators(editor)
-		assignKeybinds(editor)
+		setupEditor(editor)
 	})
 
 	onBeforeUnmount(() => {
