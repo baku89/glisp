@@ -8,10 +8,7 @@ import {
 	MalSeq,
 	isKeyword,
 	MalMap,
-	symbolFor,
-	isSymbol,
-	getMeta,
-	MalType
+	isSymbol
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 
