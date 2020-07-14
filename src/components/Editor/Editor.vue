@@ -1,5 +1,5 @@
 <template>
-	<div class="Editor">
+	<div class="Editor" ref="rootEl">
 		<div class="Editor__editor" ref="editorEl" :style="cssStyle" />
 	</div>
 </template>
@@ -26,11 +26,8 @@ interface Props {
 	activeRange?: number[]
 }
 
-function setupBraceEditor(
-	props: Props,
-	context: SetupContext,
-	editorEl: Ref<HTMLElement | null>
-) {
+function useBraceEditor(props: Props, context: SetupContext) {
+	const editorEl: Ref<HTMLElement | null> = ref(null)
 	let editor: ace.Editor
 
 	onMounted(() => {
@@ -127,7 +124,10 @@ function setupBraceEditor(
 		editor.destroy()
 		editor.container.remove()
 	})
+
+	return {editorEl}
 }
+
 export default defineComponent({
 	props: {
 		value: {
@@ -148,10 +148,7 @@ export default defineComponent({
 		}
 	},
 	setup(props, context) {
-		const editorEl: Ref<HTMLElement | null> = ref(null)
-
-		setupBraceEditor(props, context, editorEl)
-
+		const {editorEl} = useBraceEditor(props, context)
 		return {editorEl}
 	}
 })
