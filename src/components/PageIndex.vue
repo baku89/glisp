@@ -9,7 +9,11 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
+		<Splitpanes
+			class="PageIndex__content default-theme"
+			vertical
+			@resize="onResizeSplitpanes"
+		>
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -25,7 +29,11 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="setSelectedExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -54,7 +62,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -109,8 +119,8 @@ import ConsoleScope from '@/scopes/console'
 import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useResizeSensor, useHitDetector} from './use'
-import {reconstructTree} from '../mal/reader'
+import {useRem, useCommandDialog, useHitDetector} from './use'
+import AppScope from '../scopes/app'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -208,7 +218,7 @@ function useBindConsole(
 		updateSelectedExp: (val: NonReactive<MalVal>) => any
 	}
 ) {
-	ConsoleScope.def('expand-selected', () => {
+	AppScope.def('expand-selected', () => {
 		if (data.selectedExp) {
 			const expanded = expandExp(data.selectedExp.value)
 			if (expanded !== undefined) {
@@ -234,7 +244,7 @@ function useBindConsole(
 		return null
 	})
 
-	ConsoleScope.def('select-outer', () => {
+	AppScope.def('select-outer', () => {
 		const outer = getOuter(data.selectedExp?.value)
 		if (outer && outer !== data.exp?.value) {
 			callbacks.setSelectedExp(nonReactive(outer))
@@ -242,7 +252,7 @@ function useBindConsole(
 		return null
 	})
 
-	ConsoleScope.def('group-selected', () => {
+	AppScope.def('group-selected', () => {
 		if (!data.selectedExp) {
 			return null
 		}
@@ -483,14 +493,19 @@ export default defineComponent({
 			hoverExp
 		)
 
-		// Init App Handler
+		// Setup scopes
 		useBindConsole(data, {
 			updateExp,
 			setSelectedExp,
 			updateSelectedExp
 		})
-
 		useCommandDialog(context)
+
+		// After setup, execute the app configuration code
+		AppScope.readEval(`(do
+			(register-keybind "ctrl+e" '(expand-selected))
+			(register-keybind "ctrl+p" '(select-outer))
+		)`)
 
 		return {
 			elHandles,

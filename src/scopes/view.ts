@@ -1,7 +1,7 @@
 import {symbolFor as S} from '@/mal/types'
 import Scope from '@/mal/scope'
 
-import ReplScope from './repl'
+import AppScope from './app'
 import Env from '@/mal/env'
 
 interface ViewScopeOption {
@@ -24,7 +24,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 }
 
 export function createViewScope() {
-	return new Scope<ViewScopeOption>(ReplScope, 'view', onSetup, true)
+	return new Scope<ViewScopeOption>(AppScope, 'view', onSetup, true)
 }
 
 export default createViewScope()

@@ -1,8 +1,6 @@
 import ace from 'brace'
-import ConsoleScope from '@/scopes/console'
 import './define-glisp-mode'
 import {useResizeSensor} from '@/components/use'
-import {use} from 'vue/types/umd'
 
 // require('brace/theme/tomorrow')
 // require('brace/theme/tomorrow_night')
@@ -29,24 +27,6 @@ function setupSettings(editor: ace.Editor) {
 	})
 }
 
-function setupKeybinds(editor: ace.Editor) {
-	editor.commands.addCommand({
-		name: 'select-outer',
-		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
-		exec: () => {
-			ConsoleScope.readEval('(select-outer)')
-		}
-	})
-
-	editor.commands.addCommand({
-		name: 'expand-selected',
-		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
-		exec: () => {
-			ConsoleScope.readEval('(expand-selected)')
-		}
-	})
-}
-
 function setupResizeHandler(editor: ace.Editor) {
 	useResizeSensor(editor.container, el => {
 		editor.resize(true)
@@ -55,6 +35,5 @@ function setupResizeHandler(editor: ace.Editor) {
 
 export function setupEditor(editor: ace.Editor) {
 	setupSettings(editor)
-	setupKeybinds(editor)
 	setupResizeHandler(editor)
 }
