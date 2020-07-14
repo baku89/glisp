@@ -109,7 +109,8 @@ import {
 	getOuter,
 	MalAtom,
 	createList,
-	symbolFor
+	symbolFor,
+	cloneExp
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -228,6 +229,19 @@ function useBindConsole(
 		return null
 	})
 
+	AppScope.def('group-selected', () => {
+		if (!data.selectedExp) {
+			return null
+		}
+
+		const exp = cloneExp(data.selectedExp.value)
+
+		const newExp = createList(symbolFor('g'), {}, exp)
+		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		return null
+	})
+
 	ConsoleScope.def('load-file', (url: MalVal) => {
 		fetch(url as string).then(async res => {
 			if (res.ok) {
@@ -249,19 +263,6 @@ function useBindConsole(
 		if (outer && outer !== data.exp?.value) {
 			callbacks.setSelectedExp(nonReactive(outer))
 		}
-		return null
-	})
-
-	AppScope.def('group-selected', () => {
-		if (!data.selectedExp) {
-			return null
-		}
-
-		const exp = data.selectedExp.value
-
-		const newExp = createList(symbolFor('g'), {}, exp)
-		callbacks.updateSelectedExp(nonReactive(newExp))
-
 		return null
 	})
 }
@@ -505,6 +506,7 @@ export default defineComponent({
 		AppScope.readEval(`(do
 			(register-keybind "ctrl+e" '(expand-selected))
 			(register-keybind "ctrl+p" '(select-outer))
+			(register-keybind "ctrl+g" '(group-selected))
 		)`)
 
 		return {
