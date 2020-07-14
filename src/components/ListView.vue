@@ -2,38 +2,41 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: items.clickable, selected, hovering}"
-			@click="items.clickable && onClick()"
-			@dblclick="items.clickable && onClickCodeButton($event)"
+			:class="{clickable: labelInfo.clickable, selected, hovering}"
+			@click="labelInfo.clickable && onClick()"
+			@dblclick="labelInfo.clickable && onClickCodeButton($event)"
 		>
 			<div
 				class="ListView__icon"
-				:class="{expanded, expandable: items.expandable}"
-				@click="items.expandable && toggleExpanded()"
+				:class="{expanded, expandable: labelInfo.expandable}"
+				@click="labelInfo.expandable && toggleExpanded()"
 			>
 				<i
-					v-if="items.icon.type === 'fontawesome'"
+					v-if="labelInfo.icon.type === 'fontawesome'"
 					class="fas"
-					:class="items.icon.value"
-					:style="items.icon.style"
+					:class="labelInfo.icon.value"
+					:style="labelInfo.icon.style"
 				/>
-				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">{{ items.icon.value }}</span>
+				<span
+					v-else-if="labelInfo.icon.type === 'text'"
+					:style="labelInfo.icon.style"
+				>{{ labelInfo.icon.value }}</span>
 				<span
 					class="serif"
-					v-if="items.icon.type === 'serif'"
-					:style="items.icon.style"
-				>{{ items.icon.value }}</span>
+					v-if="labelInfo.icon.type === 'serif'"
+					:style="labelInfo.icon.style"
+				>{{ labelInfo.icon.value }}</span>
 			</div>
-			{{ items.label }}
+			{{ labelInfo.label }}
 			<i
 				class="ListView__editing fas fa-code"
 				:class="{active: exp.value === editingExp.value}"
 				@click="onClickCodeButton"
 			/>
 		</div>
-		<div class="ListView__children" v-if="items.children && expanded">
+		<div class="ListView__children" v-if="labelInfo.children && expanded">
 			<ListView
-				v-for="(child, i) in items.children"
+				v-for="(child, i) in labelInfo.children"
 				:key="i"
 				:exp="child"
 				:selectedExp="selectedExp"
@@ -151,7 +154,7 @@ export default defineComponent({
 			return {name: null, expanded: false}
 		})
 
-		const items = computed(() => {
+		const labelInfo = computed(() => {
 			const exp = expBody.value.value
 
 			if (isList(exp)) {
@@ -184,7 +187,7 @@ export default defineComponent({
 		const expanded = computed(() => {
 			return props.mode !== DisplayMode.Node
 				? true
-				: items.value.expandable
+				: labelInfo.value.expandable
 				? ui.value.expanded
 				: false
 		})
@@ -259,7 +262,7 @@ export default defineComponent({
 		}
 
 		return {
-			items,
+			labelInfo,
 			selected,
 			hovering,
 			onClick,
