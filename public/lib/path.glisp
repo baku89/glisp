@@ -313,7 +313,7 @@
 
 (def path-boolean-meta
   {:params [& {:label "Path" :type "path"}]
-   :handles {:draw (fn [[& paths]]
+   :handles {:draw (fn {:params [& paths]}
                      (map #(hash-map
                             :type "path"
                             :guide true
