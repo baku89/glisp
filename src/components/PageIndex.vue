@@ -200,7 +200,7 @@ function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
 	return {onSetupConsole}
 }
 
-function bindConsole(
+function useBindConsole(
 	data: Data,
 	callbacks: {
 		updateExp: (exp: NonReactive<MalVal>) => void
@@ -388,12 +388,23 @@ export default defineComponent({
 				return
 			}
 
+			const isExpNode = isNode(exp.value)
+
 			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
 			updateExp(nonReactive(data.exp.value))
 
-			if (isNode(exp.value)) {
+			// Update the editing exp if necessary
+			if (
+				data.editingExp &&
+				data.editingExp.value === data.selectedExp.value &&
+				isExpNode
+			) {
+				data.editingExp = exp as NonReactive<MalNode>
+			}
+
+			if (isExpNode) {
 				data.selectedExp = exp as NonReactive<MalNode>
 			} else {
 				data.selectedExp = null
@@ -473,7 +484,7 @@ export default defineComponent({
 		)
 
 		// Init App Handler
-		bindConsole(data, {
+		useBindConsole(data, {
 			updateExp,
 			setSelectedExp,
 			updateSelectedExp
