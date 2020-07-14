@@ -47,9 +47,10 @@
   {:doc  "Generates a rect path"
    :params [{:label "Rect" :type "rect2d" :desc "the rectangle dimension"}]
    :returns {:type "path"}
-   :handles
-   {:draw (fn [e] (apply-draw-handle rect2d e))
-    :drag (fn [e] (apply-drag-handle rect2d e))}}
+   :handles {:draw (fn [e] (apply-draw-handle rect2d e))
+             :drag (fn [e] (apply-drag-handle rect2d e))}
+   :returns {:type "path"}
+   :initial-params [[-100 -100 200 200]]}
   [[x y w h]]
   [:path
    :M [x y]
@@ -78,7 +79,9 @@
                          :params [c r]}
                       (case id
                         :center {:replace [0 p]}
-                        :radius {:replace [1 (vec2/dist c p)]}))}}
+                        :radius {:replace [1 (vec2/dist c p)]}))}
+    :returns {:type "path"}
+    :initial-params [[0 0] 100]}
   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
     (fn [[x y] r]
       (let [k (* r K)
@@ -109,7 +112,9 @@
                      (case id
                        :path [(vec2/+ from dp) (vec2/+ to dp)]
                        :from {:replace [0 p]}
-                       :to {:replace [1 p]}))}}
+                       :to {:replace [1 p]}))}
+   :returns {:type "path"}
+   :initial-params [[0 0] [100 100]]}
   [from to]
   [:path :M from :L to])
 
@@ -129,34 +134,35 @@
              {:label "End"
               :type "angle"
               :desc "Angle to stop the arc"}]
-    :handles
-    {:draw (fn {:params [center r start end]
-                :return path}
-             [{:id :radius :type "path"
-               :path path}
-              {:id :center :type "translate"
-               :pos center}
-              {:id :start :type "point"
-               :pos (vec2/+ center (vec2/dir start r))}
-              {:id :end :type "point"
-               :pos (vec2/+ center (vec2/dir end r))}])
-     :drag (fn {:id id :pos p :prev-pos pp
-                :params [center r start end]}
-             (case id
-               :center {:replace [0 p]}
-               :radius {:replace [1 (vec2/dist center p)]}
-               :start (let [start (calc-dragged-rotation
-                                   :center center
-                                   :pos p
-                                   :prev-pos pp
-                                   :angle start)]
-                        {:replace [2 start]})
-               :end (let [end (calc-dragged-rotation
-                               :center center
-                               :pos p
-                               :prev-pos pp
-                               :angle end)]
-                      {:replace [3 end]})))}}
+    :handles {:draw (fn {:params [center r start end]
+                         :return path}
+                      [{:id :radius :type "path"
+                        :path path}
+                       {:id :center :type "translate"
+                        :pos center}
+                       {:id :start :type "point"
+                        :pos (vec2/+ center (vec2/dir start r))}
+                       {:id :end :type "point"
+                        :pos (vec2/+ center (vec2/dir end r))}])
+              :drag (fn {:id id :pos p :prev-pos pp
+                         :params [center r start end]}
+                      (case id
+                        :center {:replace [0 p]}
+                        :radius {:replace [1 (vec2/dist center p)]}
+                        :start (let [start (calc-dragged-rotation
+                                            :center center
+                                            :pos p
+                                            :prev-pos pp
+                                            :angle start)]
+                                 {:replace [2 start]})
+                        :end (let [end (calc-dragged-rotation
+                                        :center center
+                                        :pos p
+                                        :prev-pos pp
+                                        :angle end)]
+                               {:replace [3 end]})))}
+    :returns {:type "path"}
+    :initial-params [[0 0] 100 (deg 0) (deg 180)]}
   path/arc)
 (defalias arc path/arc)
 
@@ -187,7 +193,9 @@
                          :edit (replace-nth pts i p)
                          :add ;[:change-id [:edit i]
                          (insert-nth pts i p);]
-                         )))}}
+                         )))}
+   :returns {:type "path"}
+   :initial-params [[0 0]]}
   [& pts]
   (if (zero? (count pts))
     [:path]
@@ -220,7 +228,9 @@
                      (case id
                        :center [p [rx ry]]
                        :radius-x [center [(abs (- (.x p) (.x center))) ry]]
-                       :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}}
+                       :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}
+   :returns {:type "path"}
+   :initial-params [[0 0] [100 50]]}
   [center radius]
   (path/transform (mat2d/* (translate center)
                            (scale radius))
@@ -244,7 +254,9 @@
                        :radius {:replace [1 (abs (- (.x p) (.x center)))]}
                        :sides (let [angle (vec2/angle (vec2/- p center))
                                     sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
-                                {:replace [2 sides]})))}}
+                                {:replace [2 sides]})))}
+   :returns {:type "path"}
+   :initial-params [[0 0] 100 5]}
   [center radius sides]
   (let [angles (column 0 sides (/ TWO_PI sides))
         vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
@@ -253,7 +265,9 @@
 
 (defn path/point
   {:doc "Generates a point path"
-   :params [{:label "Pos" :type "vec2"}]}
+   :params [{:label "Pos" :type "vec2"}]
+   :returns {:type "path"}
+   :initial-params [[0 0]]}
   [p]
   [:path :M p :L p])
 (defalias point path/point)
