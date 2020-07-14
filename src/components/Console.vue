@@ -115,9 +115,9 @@ export default defineComponent({
 .Console
 	position relative
 	height 100%
-	line-height 1.2em
 	text-align left
 	font-size 1rem
+	line-height 1.2em
 
 	&.compact
 		overflow hidden
@@ -129,8 +129,15 @@ export default defineComponent({
 .jqconsole
 	font-monospace()
 
+	&-blurred
+		.jqconsole-cursor
+			background var(--selection)
+			opacity 0.4
+
 	&-cursor
-		background var(--selection)
+		background var(--foreground)
+		transform scaleX(0.2) translateX(-10%)
+		transform-origin 0 0
 
 	&-prompt, &-old-prompt
 		color var(--foreground)
