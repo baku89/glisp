@@ -16,7 +16,6 @@ export const M_EVAL_PARAMS = Symbol.for('eval-params')
 export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
-export const M_CACHE = Symbol.for('cache') // misc caches used by libraries
 const M_EXPAND = Symbol.for('expand')
 
 // Stores string repsentation
@@ -77,7 +76,6 @@ export interface MalNodeMap extends MalMap {
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
-	[M_CACHE]: {[k: string]: any}
 }
 
 export interface MalSeq extends Array<MalVal> {
@@ -92,7 +90,6 @@ export interface MalSeq extends Array<MalVal> {
 	[M_EXPAND]: ExpandInfo
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
-	[M_CACHE]: {[k: string]: any}
 }
 
 // Expand
@@ -213,21 +210,6 @@ export function getType(obj: any): MalType {
 	}
 }
 
-export function getMalNodeCache(node: MalNode, key: string): any | undefined {
-	if (node[M_CACHE] instanceof Object) {
-		return node[M_CACHE][key]
-	} else {
-		return undefined
-	}
-}
-
-export function setMalNodeCache(node: MalNode, key: string, value: any) {
-	if (!(node[M_CACHE] instanceof Object)) {
-		node[M_CACHE] = {}
-	}
-	node[M_CACHE][key] = value
-}
-
 export type MalNode = MalNodeMap | MalSeq
 
 export const isNode = (v: any): v is MalNode => {
@@ -259,6 +241,14 @@ export function withMeta(a: MalVal, m: any) {
 	}
 	const c = cloneExp(a, m)
 	return c
+}
+
+export function setMeta(a: MalVal, m: MalVal) {
+	if (!(a instanceof Object)) {
+		throw new MalError('[with-meta] Object should not be atom')
+	}
+	;(a as any)[M_META] = m
+	return a
 }
 
 export type MalVal =
@@ -328,38 +318,40 @@ export function isEqual(a: MalVal, b: MalVal) {
 }
 
 export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
-	let newObj: T
+	let newExp: T
 
 	const type = getType(obj)
 
 	switch (getType(obj)) {
 		case MalType.List:
+			newExp = createList(...(obj as MalVal[])) as T
+			break
 		case MalType.Vector:
-			newObj = [...(obj as MalVal[])] as any
-			if (type === MalType.List) {
-				newObj = createList(...(newObj as any)) as T
-			}
+			newExp = [...(obj as MalVal[])] as T
 			break
 		case MalType.Map:
-			newObj = {...(obj as MalMap)} as any
+			newExp = {...(obj as MalMap)} as T
 			break
 		case MalType.Function:
 		case MalType.Macro: {
 			// new function instance
 			const fn = (...args: any) => (obj as Function)(...args)
 			// copy original properties
-			newObj = Object.assign(fn, obj)
+			newExp = Object.assign(fn, obj) as T
 			break
 		}
+		case MalType.Symbol:
+			newExp = symbolFor((obj as MalSymbol).value) as T
+			break
 		default:
-			newObj = obj
+			newExp = obj
 	}
 
-	if (newMeta !== undefined && newObj instanceof Object) {
-		;(newObj as any)[M_META] = newMeta
+	if (newMeta !== undefined && newExp instanceof Object) {
+		;(newExp as any)[M_META] = newMeta
 	}
 
-	return newObj
+	return newExp
 }
 
 export function getEvaluated(exp: MalVal) {
@@ -417,21 +409,7 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 
 // Symbol
 export class MalSymbol {
-	static map =
-		((globalThis as any)['mal-symbols'] as Map<string, MalSymbol>) ||
-		new Map<string, MalSymbol>()
-
-	static get(value: string): MalSymbol {
-		let token = MalSymbol.map.get(value)
-		if (token) {
-			return token
-		}
-		token = new MalSymbol(value)
-		MalSymbol.map.set(value, token)
-		return token
-	}
-
-	private constructor(public value: string) {
+	public constructor(public value: string) {
 		;(this as any)[M_TYPE] = MalType.Symbol
 	}
 
@@ -455,13 +433,14 @@ export class MalSymbol {
 		return this.value
 	}
 }
-;(globalThis as any)['mal-symbols'] = MalSymbol.map
-;(globalThis as any).MalSymbol = MalSymbol
 
 export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
 
-export const symbolFor = MalSymbol.get
+export const isSymbolFor = (obj: MalVal, name: string) =>
+	isSymbol(obj) && obj.value === name
+
+export const symbolFor = (value: string) => new MalSymbol(value)
 
 // Keyword
 const KEYWORD_PREFIX = '\u029e'

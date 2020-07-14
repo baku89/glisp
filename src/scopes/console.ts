@@ -9,7 +9,7 @@ import {
 	symbolFor as S,
 	keywordFor as K,
 	createList as L,
-	withMeta,
+	setMeta,
 	assocBang
 } from '@/mal/types'
 import GIF from 'gif.js'
@@ -77,7 +77,7 @@ ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
 
 ConsoleScope.def(
 	'generate-sketch-url',
-	withMeta(
+	setMeta(
 		(url: MalVal) => {
 			return generateSketchURL(url as string)
 		},
@@ -131,7 +131,7 @@ let renderWindow: Window | null
 
 ConsoleScope.def(
 	'export-image',
-	withMeta(
+	setMeta(
 		(...xs: MalVal[]) => {
 			const exec = async () => {
 				const sketch = ConsoleScope.var('*sketch*') as string
@@ -212,7 +212,7 @@ ConsoleScope.def(
 
 ConsoleScope.def(
 	'export-video',
-	withMeta(
+	setMeta(
 		(...xs: MalVal[]) => {
 			const options = {
 				format: 'gif',
@@ -335,7 +335,7 @@ ConsoleScope.def(
 
 ConsoleScope.def(
 	'publish-gist',
-	withMeta(
+	setMeta(
 		(...args: MalVal[]) => {
 			const code = ConsoleScope.var('*sketch*') as string
 

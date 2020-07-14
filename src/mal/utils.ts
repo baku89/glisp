@@ -26,11 +26,16 @@ import {
 	M_OUTER_INDEX,
 	MalType,
 	isFunc,
-	getEvaluated
+	getEvaluated,
+	isSymbolFor,
+	cloneExp,
+	MalError,
+	M_KEYS,
+	M_ELMSTRS
 } from '@/mal/types'
-import ConsoleScope from './scopes/console'
-import {replaceExp} from './mal/eval'
+import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
+import {saveOuter} from './reader'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -53,6 +58,53 @@ export function getPrimitiveType(exp: MalVal): string | null {
 		}
 	}
 	return null
+}
+
+// Cached Tree-shaking
+export function replaceExp(original: MalNode, replaced: MalVal) {
+	const outer = original[M_OUTER]
+	const index = original[M_OUTER_INDEX]
+
+	if (index === undefined || !isNode(outer)) {
+		throw new MalError('Cannot execute replaceExp')
+	}
+
+	// // Inherit delimiters if possible
+	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
+	// 	replaced[M_DELIMITERS] = []
+	// 	console.log('sdfd', original, replaced)
+	// 	if (isList(original) && isList(replaced)) {
+	// 		for (let i = 0; i < replaced.length; i++) {
+	// 			const oi = Math.min(i, original.length - 2)
+	// 			replaced.push(original[M_DELIMITERS][oi])
+	// 		}
+	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
+	// 	}
+	// }
+
+	// Set as child
+	if (isSeq(outer)) {
+		outer[index] = replaced
+	} else {
+		// hash map
+		const key = outer[M_KEYS][index]
+		outer[key] = replaced
+	}
+
+	delete outer[M_ELMSTRS]
+
+	// Set outer recursively
+	saveOuter(replaced, outer, index)
+
+	// Refresh M_ELMSTRS of ancestors
+	let _outer = outer
+
+	while (_outer) {
+		delete _outer[M_ELMSTRS]
+
+		// Go upward
+		_outer = _outer[M_OUTER]
+	}
 }
 
 export function getMapValue(
@@ -155,34 +207,76 @@ export function reverseEval(
 	switch (getType(original)) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if ((original as MalSeq)[0] === S('const')) {
+			if (isSymbolFor((original as MalSeq)[0], 'const')) {
 				return original
 			} else {
 				// find Inverse function
 				const info = getFnInfo(original as MalSeq)
-				if (info) {
-					const inverseFn = getMapValue(info.meta, 'inverse')
+				if (!info) break
+				const inverseFn = getMapValue(info.meta, 'inverse')
+				if (!isMalFunc(inverseFn)) break
 
-					if (isMalFunc(inverseFn)) {
-						const fnName = (original as MalSeq)[0]
-						// const fnOriginalParams = (original as MalSeq).slice(1)
-						const fnEvaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
-						const fnParams = inverseFn(exp, fnEvaluatedParams)
+				const fnName = (original as MalSeq)[0]
+				const originalParams = (original as MalSeq).slice(1)
+				const evaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
 
-						if (isSeq(fnParams)) {
-							const newExp = L(fnName, ...fnParams)
+				// Compute the original parameter
+				const result = inverseFn({
+					[K('return')]: exp,
+					[K('params')]: evaluatedParams
+				})
 
-							for (let i = 1; i < (original as MalSeq).length; i++) {
-								newExp[i] = reverseEval(
-									newExp[i],
-									(original as MalSeq)[i],
-									forceOverwrite
-								)
-							}
-							return newExp
-						}
-					}
+				if (!isVector(result) && !isMap(result)) {
+					return null
 				}
+
+				// Parse the result
+				let newParams: MalVal[]
+				let updatedIndices: number[] | undefined = undefined
+
+				if (isMap(result)) {
+					const params = result[K('params')]
+					const replace = result[K('replace')]
+
+					if (isVector(params)) {
+						newParams = params
+					} else if (isVector(replace)) {
+						newParams = [...originalParams]
+						const pairs = (typeof replace[0] === 'number'
+							? [(replace as any) as [number, MalVal]]
+							: ((replace as any) as [number, MalVal][])
+						).map(
+							([si, e]) =>
+								[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+						)
+						for (const [i, value] of pairs) {
+							newParams[i] = value
+						}
+						updatedIndices = pairs.map(([i]) => i)
+					} else {
+						return null
+					}
+				} else {
+					newParams = result
+				}
+
+				if (!updatedIndices) {
+					updatedIndices = Array(newParams.length)
+						.fill(0)
+						.map((_, i) => i)
+				}
+
+				for (const i of updatedIndices) {
+					newParams[i] = reverseEval(
+						newParams[i],
+						originalParams[i],
+						forceOverwrite
+					)
+				}
+
+				const newExp = L(fnName, ...newParams)
+
+				return newExp
 			}
 			break
 		}
@@ -217,7 +311,7 @@ export function reverseEval(
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 				replaceExp(def, L(S('defvar'), original, newDefBody))
-				return original
+				return cloneExp(original)
 			}
 			break
 		}
@@ -256,15 +350,17 @@ export function computeExpTransform(exp: MalVal) {
 		}
 
 		const isAttrOfG =
-			outer[0] === S('g') &&
+			isSymbolFor(outer[0], 'g') &&
 			outer[1] === node &&
 			isMap(node) &&
 			K_TRANSFORM in node
 
-		const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
+		const isAttrOfTransform =
+			isSymbolFor(outer[0], 'transform') && outer[1] === node
 		const isAttrOfPathTransform =
-			outer[0] === S('path/transform') && outer[1] === node
-		const isAttrOfArtboard = outer[0] === S('artboard') && outer[1] === node
+			isSymbolFor(outer[0], 'path/transform') && outer[1] === node
+		const isAttrOfArtboard =
+			isSymbolFor(outer[0], 'artboard') && outer[1] === node
 
 		if (
 			isAttrOfG ||
@@ -282,11 +378,11 @@ export function computeExpTransform(exp: MalVal) {
 				const outer = attrAncestors[j - 1]
 
 				if (isList(outer)) {
-					if (outer[0] === S('mat2d/*')) {
+					if (isSymbolFor(outer[0], 'mat2d/*')) {
 						// Prepend matrices
 						const matrices = outer.slice(1, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
-					} else if (outer[0] === S('pivot')) {
+					} else if (isSymbolFor(outer[0], 'pivot')) {
 						// Prepend matrices
 						const matrices = outer.slice(2, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
@@ -311,16 +407,20 @@ export function computeExpTransform(exp: MalVal) {
 	// Extract the matrices from ancestors
 	const matrices = ancestors.reduce((filtered, node) => {
 		if (isList(node)) {
-			if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
+			if (
+				isSymbolFor(node[0], 'g') &&
+				isMap(node[1]) &&
+				K_TRANSFORM in node[1]
+			) {
 				const matrix = node[1][K_TRANSFORM]
 				filtered.push(matrix)
-			} else if (node[0] === S('artboard')) {
+			} else if (isSymbolFor(node[0], 'artboard')) {
 				const bounds = (node[1] as MalMap)[K('bounds')] as number[]
 				const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
 				filtered.push(matrix)
 			} else if (
-				node[0] === S('transform') ||
-				node[0] === S('path/transform')
+				isSymbolFor(node[0], 'transform') ||
+				isSymbolFor(node[0], 'path/transform')
 			) {
 				const matrix = node[1]
 				filtered.push(matrix)
@@ -340,4 +440,69 @@ export function computeExpTransform(exp: MalVal) {
 	)
 
 	return ret
+}
+
+const K_PARAMS = K('params')
+const K_REPLACE = K('replace')
+
+export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
+	if (!isVector(modifier) && !isMap(modifier)) {
+		return null
+	}
+
+	// Parse the modifier
+	let newParams: MalVal[]
+	let updatedIndices: number[] | undefined = undefined
+
+	if (isMap(modifier)) {
+		const params = modifier[K_PARAMS]
+		const replace = modifier[K_REPLACE]
+
+		if (isVector(params)) {
+			newParams = [...params]
+		} else if (isVector(replace)) {
+			newParams = [...originalParams]
+			const pairs = (typeof replace[0] === 'number'
+				? [(replace as any) as [number, MalVal]]
+				: ((replace as any) as [number, MalVal][])
+			).map(
+				([si, e]) =>
+					[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+			)
+			for (const [i, value] of pairs) {
+				newParams[i] = value
+			}
+			updatedIndices = pairs.map(([i]) => i)
+		} else {
+			return null
+		}
+
+		// if (isVector(changeId)) {
+		// 	const newId = newParams[1]
+		// 	data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+		// }
+	} else {
+		newParams = modifier
+	}
+
+	if (!updatedIndices) {
+		updatedIndices = Array(newParams.length)
+			.fill(0)
+			.map((_, i) => i)
+	}
+
+	// Execute the backward evaluation
+	for (const i of updatedIndices) {
+		let newValue = newParams[i]
+		const unevaluated = originalParams[i]
+
+		// if (malEquals(newValue, this.params[i])) {
+		// 	newValue = unevaluated
+		// }
+
+		newValue = reverseEval(newValue, unevaluated)
+		newParams[i] = newValue
+	}
+
+	return newParams
 }

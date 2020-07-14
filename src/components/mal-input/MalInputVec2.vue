@@ -60,7 +60,7 @@ import {getEvaluated, MalVal, isVector} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {useDraggable} from '@/components/use'
-import {reverseEval} from '../../mal-utils'
+import {reverseEval} from '@/mal/utils'
 
 export default defineComponent({
 	name: 'MalInputVec2',

@@ -115,6 +115,7 @@ export default defineComponent({
 .Console
 	position relative
 	height 100%
+	line-height 1.2em
 	text-align left
 	font-size 1rem
 

@@ -2,29 +2,28 @@
 import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
+import Voronoi from 'voronoi'
 import paper from 'paper'
 import {PaperOffset, OffsetOptions} from 'paperjs-offset'
+
 import {
 	MalVal,
 	keywordFor as K,
 	symbolFor as S,
-	isKeyword,
 	MalError,
 	assocBang,
-	MalNode,
-	getMalNodeCache,
-	setMalNodeCache,
 	isMap,
 	createList as L
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
-import Voronoi from 'voronoi'
-
-type Vec2 = number[] | vec2
-
-export type PathType = (string | Vec2)[]
-type SegmentType = [string, ...Vec2[]]
+import {
+	PathType,
+	SegmentType,
+	iterateSegment,
+	Vec2,
+	convertToPath2D
+} from '@/path-utils'
 
 const EPSILON = 1e-5
 
@@ -38,7 +37,6 @@ const K_PATH = K('path'),
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
-// const TWO_PI = Math.PI * 2
 const HALF_PI = Math.PI / 2
 const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
 const UNIT_QUAD_BEZIER = new Bezier([
@@ -50,24 +48,17 @@ const UNIT_QUAD_BEZIER = new Bezier([
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-function createEmptyPath() {
+function createEmptyPath(): PathType {
 	return [K_PATH]
 }
 
 paper.setup(new paper.Size(1, 1))
 
-export function getSVGPathData(path: PathType) {
-	if (path[0].toString().startsWith(K_PATH)) {
-		path = path.slice(1)
-	}
-
-	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
-}
+const PaperPathCaches = new WeakMap<PathType, paper.Path>()
 
 function createPaperPath(path: PathType): paper.Path {
-	const cache = getMalNodeCache(path as MalNode, 'paperPath')
-	if (cache) {
-		return cache
+	if (PaperPathCaches.has(path)) {
+		return PaperPathCaches.get(path) as paper.Path
 	}
 
 	if (path[0].toString().startsWith(K_PATH)) {
@@ -100,15 +91,25 @@ function createPaperPath(path: PathType): paper.Path {
 		}
 	}
 
-	setMalNodeCache(path as MalNode, 'paperPath', paperPath)
-
+	PaperPathCaches.set(path, paperPath)
 	return paperPath
 }
+
+const canvasContext = (() => {
+	const canvas = document.createElement('canvas')
+	const ctx = canvas.getContext('2d')
+
+	if (!ctx) {
+		throw 'Cannot initialize a canvas context'
+	}
+
+	return ctx
+})()
 
 function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 	const d = _path ? _path.pathData : ''
 
-	const path: PathType = createEmptyPath() as PathType
+	const path: PathType = createEmptyPath()
 
 	svgpath(d)
 		.abs()
@@ -141,20 +142,6 @@ function getBezier(points: Vec2[]) {
 		throw new MalError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
-}
-export function* iterateSegment(path: PathType): Generator<SegmentType> {
-	if (!Array.isArray(path)) {
-		throw new MalError('Invalid path')
-	}
-
-	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
-
-	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || isKeyword(path[i] as MalVal)) {
-			yield path.slice(start, i) as SegmentType
-			start = i
-		}
-	}
 }
 
 /**
@@ -711,8 +698,18 @@ function pathBounds(path: PathType) {
 function nearestOffset(pos: number[], malPath: PathType) {
 	const path = createPaperPath(malPath)
 	const location = path.getNearestLocation(new paper.Point(pos[0], pos[1]))
-
 	return location.offset / path.length
+}
+
+function nearestPoint(pos: number[], malPath: PathType) {
+	const path = createPaperPath(malPath)
+	const point = path.getNearestLocation(new paper.Point(pos[0], pos[1])).point
+	return [point.x, point.y]
+}
+
+function insideQ(pos: number[], malPath: PathType) {
+	const path = convertToPath2D(malPath)
+	return canvasContext.isPointInPath(path, pos[0], pos[1])
 }
 
 function intersections(_a: PathType, _b: PathType) {
@@ -789,6 +786,8 @@ const Exports = [
 	],
 	['path/bounds', pathBounds],
 	['path/nearest-offset', nearestOffset],
+	['path/nearest-point', nearestPoint],
+	['path/inside?', insideQ],
 	['path/intersections', intersections]
 ] as [string, MalVal][]
 

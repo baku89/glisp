@@ -30,14 +30,16 @@
 			<path class="ViewHandles__viewport-axis stroke" d="M -50000 0 H 50000" />
 			<path class="ViewHandles__viewport-axis stroke" d="M 0 -50000 V 50000" />
 		</g>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
+		<g v-if="handleCallbacks" class="ViewHandles__axis" :transform="axisTransform">
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
+		<path
+			class="stroke"
+			v-if="selectedPath"
+			:d="selectedPath"
+			:transform="`matrix(${transform.join(' ')})`"
+		/>
 		<g
 			v-for="({type, id, transform, yTransform, path, cls, guide},
 			i) in handles"
@@ -62,23 +64,13 @@
 				<path
 					v-if="type === 'arrow'"
 					class="stroke display"
-					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
+					d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
-					<path
-						class="stroke display"
-						:transform="yTransform"
-						d="M 0 12 V -12"
-					/>
+					<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 				</template>
-				<circle
-					class="fill display"
-					:class="cls"
-					cx="0"
-					cy="0"
-					:r="rem * 0.5"
-				/>
+				<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 			</template>
 		</g>
 	</svg>
@@ -95,17 +87,19 @@ import {
 	M_EVAL_PARAMS,
 	MalMap,
 	MalFunc,
-	isVector
+	isVector,
+	getEvaluated,
+	malEquals
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData} from '@/mal-lib/path'
+import {getSVGPathData, PathType} from '@/path-utils'
 import {
 	getFnInfo,
 	FnInfoType,
 	getMapValue,
 	reverseEval,
 	computeExpTransform
-} from '@/mal-utils'
+} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
 import {
@@ -113,14 +107,14 @@ import {
 	computed,
 	reactive,
 	toRefs,
-	onMounted,
 	onBeforeMount,
 	ref,
 	SetupContext,
 	Ref
 } from '@vue/composition-api'
+import {isPath} from '@/path-utils'
 import ConsoleScope from '@/scopes/console'
-import {reconstructTree} from '../mal/reader'
+import AppScope from '@/scopes/app'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -160,6 +154,7 @@ interface Data {
 	params: MalVal[]
 	unevaluatedParams: MalVal[]
 	returnedValue: MalVal
+	selectedPath: string | null
 	transform: mat2d
 	transformInv: mat2d
 	axisTransform: string
@@ -170,6 +165,8 @@ interface Props {
 	exp: NonReactive<MalSeq> | null
 	viewTransform: mat2d
 }
+
+const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
 export default defineComponent({
 	props: {
@@ -236,6 +233,14 @@ export default defineComponent({
 			transformInv: computed(() =>
 				mat2d.invert(mat2d.create(), data.transform)
 			),
+			selectedPath: computed(() => {
+				if (!props.exp) return null
+
+				const evaluated = getEvaluated(props.exp.value)
+				if (!isPath(evaluated)) return
+
+				return getSVGPathData(evaluated)
+			}),
 			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {
 				if (!data.handleCallbacks) return []
@@ -264,7 +269,7 @@ export default defineComponent({
 				}
 
 				return handles.map((h: any) => {
-					const type = h[K_TYPE]
+					const type = h[K_TYPE] as string
 					const guide = !!h[K_GUIDE]
 					const classList = ((h[K_CLASS] as string) || '').split(' ')
 					const cls = {} as ClassList
@@ -275,7 +280,7 @@ export default defineComponent({
 					const xform = mat2d.clone(data.transform)
 					let yRotate = 0
 
-					if (/^point|arrow|translate|dia$/.test(type)) {
+					if (POINTABLE_HANDLE_TYPES.has(type)) {
 						const [x, y] = h[K_POS]
 						mat2d.translate(xform, xform, [x, y])
 					}
@@ -416,11 +421,14 @@ export default defineComponent({
 				if (isVector(params)) {
 					newParams = params
 				} else if (isVector(replace)) {
-					const pairs =
-						typeof replace[0] === 'number'
-							? [replace as [number, MalVal]]
-							: (replace as [number, MalVal][])
 					newParams = [...data.unevaluatedParams]
+					const pairs = (typeof replace[0] === 'number'
+						? [(replace as any) as [number, MalVal]]
+						: ((replace as any) as [number, MalVal][])
+					).map(
+						([si, e]) =>
+							[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+					)
 					for (const [i, value] of pairs) {
 						newParams[i] = value
 					}
@@ -431,7 +439,9 @@ export default defineComponent({
 
 				if (isVector(changeId)) {
 					const newId = newParams[1]
-					data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+					data.draggingIndex = data.handles.findIndex(h =>
+						malEquals(h.id, newId)
+					)
 				}
 			} else {
 				newParams = result
@@ -477,9 +487,6 @@ export default defineComponent({
 		onBeforeMount(() => {
 			unregisterMouseEvents()
 		})
-
-		// REM
-		const rem = useRem()
 
 		// Gestures for view transform
 		useGesture(el, {
@@ -547,7 +554,7 @@ export default defineComponent({
 		})
 
 		// Register app commands to ConsoleScope
-		ConsoleScope.def('reset-viewport', () => {
+		AppScope.def('reset-viewport', () => {
 			if (!el.value) return null
 
 			const {width, height} = el.value.getBoundingClientRect()
@@ -559,6 +566,9 @@ export default defineComponent({
 
 			return null
 		})
+
+		// REM
+		const rem = useRem()
 
 		return {el, ...toRefs(data as any), onMousedown, rem}
 	}

@@ -39,14 +39,15 @@ import {
 	MalSymbol,
 	isNode,
 	getOuter,
-	symbolFor as S
+	symbolFor as S,
+	isSymbolFor
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo} from '@/mal-utils'
+import {getFnInfo} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 
 const S_UI_ANNOTATE = S('ui-annotate')
@@ -95,7 +96,7 @@ export default defineComponent({
 
 		const outer = computed(() => {
 			let outer = getOuter(props.exp.value)
-			if (isList(outer) && outer[0] === S_UI_ANNOTATE) {
+			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
 				outer = getOuter(outer)
 			}
 

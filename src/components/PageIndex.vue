@@ -9,11 +9,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -21,18 +17,15 @@
 					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
-					@select="onSelectExp"
+					:hoveringExp="hoveringExp"
+					@select="setSelectedExp"
 					@update:exp="updateExp"
 					@update:editingExp="switchEditingExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -53,7 +46,7 @@
 							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@inputCode="onInputCode"
-							@select="onSelectExp"
+							@select="setSelectedExp"
 						/>
 					</div>
 					<div class="PageIndex__console">
@@ -61,9 +54,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -108,17 +99,37 @@ import {
 	getOuter,
 	MalAtom,
 	createList,
-	symbolFor
+	symbolFor,
+	cloneExp,
+	getName,
+	isFunc,
+	getMeta,
+	MalType,
+	MalError,
+	isList,
+	isSeq,
+	MalSeq,
+	M_FN,
+	isVector,
+	keywordFor as K,
+	M_EVAL_PARAMS,
+	getEvaluated
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
-import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useResizeSensor, useHitDetector} from './use'
+import {useRem, useCommandDialog, useHitDetector} from './use'
+import AppScope from '../scopes/app'
+import {
+	getMapValue,
+	replaceExp,
+	applyParamModifier,
+	getFnInfo
+} from '@/mal/utils'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -129,6 +140,7 @@ interface Data {
 	hasRenderError: boolean
 	selectedExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalNode> | null
+	hoveringExp: NonReactive<MalNode> | null
 }
 
 interface UI {
@@ -207,21 +219,62 @@ function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
 	return {onSetupConsole}
 }
 
-function bindsConsole(
+function useBindConsole(
 	data: Data,
 	callbacks: {
-		updateSelectedExp: (val: NonReactive<MalVal>) => any
 		updateExp: (exp: NonReactive<MalVal>) => void
-		selectOuterExp: () => void
+		setSelectedExp: (exp: NonReactive<MalNode> | null) => any
+		updateSelectedExp: (val: NonReactive<MalVal>) => any
 	}
 ) {
-	ConsoleScope.def('expand-selected', () => {
+	AppScope.def('expand-selected', () => {
 		if (data.selectedExp) {
 			const expanded = expandExp(data.selectedExp.value)
 			if (expanded !== undefined) {
 				callbacks.updateSelectedExp(nonReactive(expanded))
 			}
 		}
+		return null
+	})
+
+	AppScope.def('group-selected', () => {
+		if (!data.selectedExp) {
+			return null
+		}
+
+		const exp = data.selectedExp.value
+		const newExp = createList(symbolFor('g'), {}, exp)
+		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		return null
+	})
+
+	AppScope.def('insert-item', (name: MalVal) => {
+		const fnName = getName(name)
+		const fn = ViewScope.var(fnName)
+		const meta = getMeta(fn)
+		const returnType =
+			(getMapValue(meta, 'return/type', MalType.String) as string) || ''
+		const initialParams =
+			(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
+
+		if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
+			throw new MalError(`${fnName} is not a function that returns item/path`)
+		}
+
+		if (!initialParams) {
+			throw new MalError(
+				`Function ${fnName} does not have the :initial-params field`
+			)
+		}
+
+		if (data.selectedExp && isSeq(data.selectedExp.value)) {
+			const newExp = cloneExp(data.selectedExp.value)
+			newExp.push(createList(symbolFor(fnName), ...initialParams))
+
+			callbacks.updateSelectedExp(nonReactive(newExp))
+		}
+
 		return null
 	})
 
@@ -232,7 +285,7 @@ function bindsConsole(
 				const exp = readStr(toSketchCode(code)) as MalNode
 				const nonReactiveExp = nonReactive(exp)
 				callbacks.updateExp(nonReactiveExp)
-				data.selectedExp = null
+				callbacks.setSelectedExp(null)
 				data.editingExp = nonReactiveExp
 			} else {
 				printer.error(`Failed to load from "${url}"`)
@@ -241,8 +294,11 @@ function bindsConsole(
 		return null
 	})
 
-	ConsoleScope.def('select-outer', () => {
-		callbacks.selectOuterExp()
+	AppScope.def('select-outer', () => {
+		const outer = getOuter(data.selectedExp?.value)
+		if (outer && outer !== data.exp?.value) {
+			callbacks.setSelectedExp(nonReactive(outer))
+		}
 		return null
 	})
 }
@@ -320,7 +376,8 @@ export default defineComponent({
 			}),
 			// Selection
 			selectedExp: null,
-			editingExp: null
+			editingExp: null,
+			hoveringExp: null
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -365,8 +422,12 @@ export default defineComponent({
 		)
 
 		// Events
-		function onSelectExp(exp: NonReactive<MalNode> | null) {
+		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			data.selectedExp = exp
+		}
+
+		function hoverExp(exp: NonReactive<MalNode> | null) {
+			data.hoveringExp = exp
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
@@ -374,12 +435,23 @@ export default defineComponent({
 				return
 			}
 
+			const isExpNode = isNode(exp.value)
+
 			replaceExp(data.selectedExp.value, exp.value)
 
 			// Refresh
 			updateExp(nonReactive(data.exp.value))
 
-			if (isNode(exp.value)) {
+			// Update the editing exp if necessary
+			if (
+				data.editingExp &&
+				data.editingExp.value === data.selectedExp.value &&
+				isExpNode
+			) {
+				data.editingExp = exp as NonReactive<MalNode>
+			}
+
+			if (isExpNode) {
 				data.selectedExp = exp as NonReactive<MalNode>
 			} else {
 				data.selectedExp = null
@@ -402,13 +474,6 @@ export default defineComponent({
 				data.editingExp = exp as NonReactive<MalNode>
 			} else {
 				data.editingExp = null
-			}
-		}
-
-		function selectOuterExp() {
-			const outer = getOuter(data.selectedExp?.value)
-			if (outer && outer !== data.exp?.value) {
-				data.selectedExp = nonReactive(outer)
 			}
 		}
 
@@ -456,18 +521,80 @@ export default defineComponent({
 			}
 		)
 
+		// transform selectedExp
+		function onTransformSelectedExp(xform: mat2d) {
+			if (!data.selectedExp) return
+
+			const selected = data.selectedExp.value
+
+			if (!isSeq(selected)) {
+				return
+			}
+
+			const fnInfo = getFnInfo(selected)
+
+			if (!fnInfo) {
+				return
+			}
+
+			const {meta, primitive} = fnInfo
+			const transformFn = getMapValue(meta, 'transform')
+
+			if (!isFunc(transformFn)) {
+				return
+			}
+
+			const originalParams = primitive
+				? [getEvaluated(selected)]
+				: selected[M_EVAL_PARAMS]
+			const payload = {
+				[K('params')]: originalParams,
+				[K('transform')]: xform as MalVal
+			}
+
+			const modifier = transformFn(payload)
+			let newParams: MalVal[] | null
+
+			if (primitive) {
+				newParams = modifier as MalSeq
+			} else {
+				newParams = applyParamModifier(modifier, originalParams)
+				if (!newParams) {
+					return
+				}
+			}
+
+			const newExp = primitive
+				? newParams[0]
+				: createList(selected[0], ...newParams)
+
+			updateSelectedExp(nonReactive(newExp))
+		}
+
 		// HitDetector
-		const viewExp = toRef(data, 'viewExp')
-		useHitDetector(viewExp)
+		useHitDetector(
+			elHandles,
+			toRef(data, 'exp'),
+			toRef(ui, 'viewTransform'),
+			setSelectedExp,
+			hoverExp,
+			onTransformSelectedExp
+		)
 
-		// Init App Handler
-		bindsConsole(data, {
-			updateSelectedExp,
+		// Setup scopes
+		useBindConsole(data, {
 			updateExp,
-			selectOuterExp
+			setSelectedExp,
+			updateSelectedExp
 		})
-
 		useCommandDialog(context)
+
+		// After setup, execute the app configuration code
+		AppScope.readEval(`(do
+			(register-keybind "ctrl+e" '(expand-selected))
+			(register-keybind "ctrl+p" '(select-outer))
+			(register-keybind "ctrl+g" '(group-selected))
+		)`)
 
 		return {
 			elHandles,
@@ -479,10 +606,9 @@ export default defineComponent({
 
 			...toRefs(ui as any),
 			updateExp,
-			onSelectExp,
+			setSelectedExp,
 			onInputCode,
-			onResizeSplitpanes,
-			selectOuterExp
+			onResizeSplitpanes
 		}
 	}
 })

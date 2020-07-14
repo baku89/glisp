@@ -24,6 +24,8 @@ import {
 import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
 
+const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
+
 export default defineComponent({
 	name: 'InputNumber',
 	props: {
@@ -100,7 +102,7 @@ export default defineComponent({
 		function onKeydown(e: KeyboardEvent) {
 			const key = keycode(e)
 
-			if (['up', 'down'].includes(key)) {
+			if (VERTICAL_ARROW_KEYS.has(key)) {
 				e.preventDefault()
 
 				let inc = 1

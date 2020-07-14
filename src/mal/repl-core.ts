@@ -1,7 +1,7 @@
 import {vsprintf} from 'sprintf-js'
 import isNodeJS from 'is-node'
 
-import {MalVal, MalError, withMeta, symbolFor as S} from './types'
+import {MalVal, MalError, setMeta, symbolFor as S} from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
 import interop from './interop'
@@ -17,9 +17,10 @@ export const slurp = (() => {
 	} else {
 		return (url: string) => {
 			const req = new XMLHttpRequest()
-			const hashedUrl =
-				url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
-			req.open('GET', hashedUrl, false)
+			// const hashedUrl =
+			// 	url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
+			// req.open('GET', hashedUrl, false)
+			req.open('GET', url, false)
 			req.send()
 			if (req.status !== 200) {
 				throw new MalError(`Failed to slurp file: ${url}`)
@@ -39,8 +40,6 @@ function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
 	const res = f.apply(obj, args)
 	return interop.jsToMal(res)
 }
-
-const dummyFn = () => null
 
 const Exports = [
 	[
@@ -90,8 +89,8 @@ const Exports = [
 	['&', S('&')],
 	[
 		'def',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Defines a variable',
 				params: [
@@ -103,8 +102,8 @@ const Exports = [
 	],
 	[
 		'defvar',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Creates a variable which can be changed by the bidirectional evaluation',
@@ -117,8 +116,8 @@ const Exports = [
 	],
 	[
 		'let',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Creates a lexical scope',
 				params: [
@@ -130,8 +129,8 @@ const Exports = [
 	],
 	[
 		'binding',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Creates a new binding',
 				params: [
@@ -143,8 +142,8 @@ const Exports = [
 	],
 	[
 		'get-all-symbols',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Gets all existing symbols',
 				params: [],
@@ -154,8 +153,8 @@ const Exports = [
 	],
 	[
 		'fn-params',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}]
@@ -164,8 +163,8 @@ const Exports = [
 	],
 	[
 		'eval*',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
@@ -175,8 +174,8 @@ const Exports = [
 	],
 	[
 		'quote',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'code'}]
@@ -185,8 +184,8 @@ const Exports = [
 	],
 	[
 		'quasiquote',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'code'}]
@@ -195,8 +194,8 @@ const Exports = [
 	],
 	[
 		'fn',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Defines a function',
 				params: [
@@ -208,8 +207,8 @@ const Exports = [
 	],
 	[
 		'fn-sugar',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: []
@@ -218,8 +217,8 @@ const Exports = [
 	],
 	[
 		'macro',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: '',
 				params: [
@@ -231,8 +230,8 @@ const Exports = [
 	],
 	[
 		'macroexpand',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Expands the macro',
 				params: []
@@ -241,8 +240,8 @@ const Exports = [
 	],
 	[
 		'try',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Try',
 				params: []
@@ -251,8 +250,8 @@ const Exports = [
 	],
 	[
 		'catch',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Catch',
 				params: []
@@ -261,8 +260,8 @@ const Exports = [
 	],
 	[
 		'do',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
 				params: [S('&'), {label: 'Form', type: 'code'}]
@@ -271,8 +270,8 @@ const Exports = [
 	],
 	[
 		'if',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil',
@@ -286,8 +285,8 @@ const Exports = [
 	],
 	[
 		'env-chain',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Env chain',
 				params: []

@@ -23,6 +23,7 @@ import {
 	isSymbol
 } from './types'
 import printExp from './printer'
+import {ReadStream} from 'fs'
 
 const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
@@ -265,15 +266,19 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			reader.next()
 			const type = reader.peek()
 			if (type === '(') {
+				// Syntactic sugar for anonymous function: #( )
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				val = L(S_FN_SUGAR, readForm(reader, saveStr))
-			} else if (type === '{') {
+			} else if (type === '@') {
+				// Syntactic sugar for ui-annotation #@
+				reader.next()
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const annotation = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
 				val = L(S_UI_ANNOTATE, annotation, expr)
 			} else if (type[0] === '"') {
+				// Syntactic sugar for set-id
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const meta = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
@@ -283,6 +288,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			break
 		}
 		case '^': {
+			// Syntactic sugar for with-meta
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 			const meta = readForm(reader, saveStr)
@@ -292,6 +298,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			break
 		}
 		case '@':
+			// Syntactic sugar for deref
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 			val = L(S_DEREF, readForm(reader, saveStr))
@@ -394,10 +401,6 @@ export function getRangeOfExp(
 	}
 
 	const isExpOutsideOfParent = root && !isParent(root, exp)
-
-	if (isExpOutsideOfParent) {
-		console.log('outside')
-	}
 
 	if (!isNode(exp) || isExpOutsideOfParent) {
 		return null

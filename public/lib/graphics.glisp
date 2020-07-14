@@ -210,7 +210,8 @@
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
             &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp"}]
+   :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
@@ -223,7 +224,8 @@
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
             &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp"}]
+   :return {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
                                   styles
@@ -241,7 +243,7 @@
    :params [{:label "Options" :type "code"}
             &
             {:label "Body" :type "code"}]
-  ;;  :handles {:draw (fn [{:params [{:bounds bounds} & body]}]
+  ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
   ;;                    (let [info {:params [bounds]
   ;;                                :return (rect bounds)}]
   ;;                      (apply-draw-handle rect2d info)))
@@ -253,7 +255,7 @@
   ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
   ;;                                    new-options (assoc options :bounds new-bounds)]
   ;;                                `[~new-options ~@(rest params)])))}}
-   }
+   :return {:type "item"}}
   [options & body]
   (let [evaluated-options (eval* options)
         bounds (get evaluated-options :bounds [0 0 0 0])
@@ -278,7 +280,7 @@
   (string? x))
 
 (defn color/gray
-  {:returns {:type "color"}}
+  {:return {:type "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
@@ -291,7 +293,7 @@
             {:label "Green" :type "number" :validator validator-01}
             {:label "Blue" :type "number" :validator validator-01}
             {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+   :return {:type "color"}}
   [r g b & a]
   (if (zero? (count a))
     (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
@@ -303,7 +305,7 @@
             {:label "Saturation" :type "number" :validator validator-01}
             {:label "Lightness" :type "number" :validator validator-01}
             {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+   :return {:type "color"}}
   [h s l & a]
   (if (zero? (count a))
     (format "hsl(%f,%s,%s)"
@@ -329,8 +331,8 @@
 ;; Transform
 (defn view-center
   {:doc "Returns the center of view or artboard"
-   :returns {:type "vec2"}
-   :handles {:draw (fn [{:return mat}]
+   :return {:type "vec2"}
+   :handles {:draw (fn {:return mat}
                      [{:type "translate" :pos (take 4 mat)}])}}
   []
   (vec2/scale *size* .5))
@@ -403,7 +405,7 @@
                     {:key :baseline :type "dropdown" :default "middle"
                      :enum ["top" "hanging" "middle"
                             "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn [{:params [_ pos & xs]}]
+   :handles {:draw (fn {:params [_ pos & xs]}
                      (let [args (apply hash-map xs)
                            size (get args :size 12)]
                        [{:id :pos
@@ -412,7 +414,7 @@
                         {:id :size
                          :type "path"
                          :path (ngon pos size 4)}]))
-             :drag (fn [{:id id :pos p :params params}]
+             :drag (fn {:id id :pos p :params params}
                      (case id
                        :pos (replace-nth params 1 p)
                        :size (let [dir (vec2/- (nth params 1) p)
@@ -432,11 +434,11 @@
   {:doc "Creates vector of points"
    :params [&
             {:label "Point" :type "vec2"}]
-   :handles {:draw (fn [{:params pts}]
+   :handles {:draw (fn {:params pts}
                      (concat [{:id "new" :type "bg"}]
                              (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts)))
-             :drag (fn [{:id id :pos p
-                         :params pts}]
+             :drag (fn {:id id :pos p
+                        :params pts}
                      (if (number? id)
                        (replace-nth pts id p)
                        (concat pts [p])))}}
@@ -450,8 +452,8 @@
             {:type "number"}
             {:type "number" :validator #(round (max 0 %))}
             {:type "seed"}]
-   :handles {:draw (fn [{:params [center radius]
-                         :return ret}]
+   :handles {:draw (fn {:params [center radius]
+                        :return ret}
                      [{:type "path" :guide true
                        :path (apply concat
                                     [:path]
@@ -463,8 +465,8 @@
                       {:id :center
                        :type "translate"
                        :pos center}])
-             :drag (fn [{:id id :pos p
-                         :params [center radius n seed]}]
+             :drag (fn {:id id :pos p
+                        :params [center radius n seed]}
                      (case id
                        :center [p radius n seed]
                        :radius [center (vec2/dist center p) n seed]))}}
