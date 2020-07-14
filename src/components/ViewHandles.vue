@@ -125,8 +125,9 @@ import {
 	SetupContext,
 	Ref
 } from '@vue/composition-api'
+import {isPath} from '@/path-utils'
 import ConsoleScope from '@/scopes/console'
-import AppScope from '../scopes/app'
+import AppScope from '@/scopes/app'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -166,7 +167,7 @@ interface Data {
 	params: MalVal[]
 	unevaluatedParams: MalVal[]
 	returnedValue: MalVal
-	selectedPath: string
+	selectedPath: string | null
 	transform: mat2d
 	transformInv: mat2d
 	axisTransform: string
@@ -246,14 +247,12 @@ export default defineComponent({
 				mat2d.invert(mat2d.create(), data.transform)
 			),
 			selectedPath: computed(() => {
-				if (!props.exp) return ''
+				if (!props.exp) return null
 
 				const evaluated = getEvaluated(props.exp.value)
-				if (!isVector(evaluated) || evaluated[0] !== K_PATH) {
-					return ''
-				}
+				if (!isPath(evaluated)) return
 
-				return getSVGPathData(evaluated as PathType)
+				return getSVGPathData(evaluated)
 			}),
 			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {

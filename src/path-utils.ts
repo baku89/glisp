@@ -1,5 +1,11 @@
 import {vec2} from 'gl-matrix'
-import {MalError, isKeyword, MalVal, keywordFor as K, MalSeq} from '@/mal/types'
+import {
+	MalError,
+	isKeyword,
+	MalVal,
+	keywordFor as K,
+	isVector
+} from '@/mal/types'
 
 const K_PATH = K('path')
 
@@ -7,6 +13,10 @@ export type Vec2 = number[] | vec2
 
 export type PathType = (string | Vec2)[]
 export type SegmentType = [string, ...Vec2[]]
+
+export function isPath(exp: any): exp is PathType {
+	return isVector(exp) && exp[0] === K_PATH
+}
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
