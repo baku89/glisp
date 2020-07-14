@@ -9,6 +9,24 @@
 			name="viewport"
 			content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
 		/>
+		<link
+			rel="apple-touch-icon"
+			sizes="180x180"
+			href="./favicon/apple-touch-icon.png"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="32x32"
+			href="./favicon/favicon-32x32.png"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="16x16"
+			href="./favicon/favicon-16x16.png"
+		/>
+		<link rel="manifest" href="./favicon/site.webmanifest" />
 		<link rel="stylesheet" href="//unpkg.com/docsify/lib/themes/buble.css" />
 		<link
 			rel="stylesheet"
@@ -23,7 +41,7 @@
 			href="https://cdn.jsdelivr.net/gh/tonsky/FiraCode@4/distr/fira_code.css"
 		/>
 		<link
-			href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;700&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600&:ital,wght@1,600&family=Merriweather:wght@300&display=swap"
 			rel="stylesheet"
 		/>
 
@@ -33,19 +51,49 @@
 			}
 			html,
 			body {
-				font-family: 'EB Garamond', Garamond, Georgia, yu-mincho-pr6n, YuMincho,
-					Yu Mincho, YuMincho, '游明朝', Hiragino Mincho ProN, 'HGS明朝E', serif;
+				font-family: 'Fira Sans', '游ゴシック体', YuGothic, '游ゴシック',
+					'Yu Gothic', sans-serif;
+			}
+			body {
 				font-size: 1rem;
+			}
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6 {
+				font-family: 'Merriweather', Garamond, Georgia, yu-mincho-pr6n, YuMincho,
+					Yu Mincho, YuMincho, '游明朝', Hiragino Mincho ProN, 'HGS明朝E', serif;
 			}
 			code {
 				font-family: 'Fira Code', 'Source Han Code JP', monospace, sans-serif !important;
+				font-size: 0.9em;
+			}
+			pre code {
 				line-height: 1.5em !important;
 				font-size: 12px !important;
 			}
-			.sidebar > h1 {
+			.app-name {
 				font-family: 'Fira Code', monospace, sans-serif !important;
 				letter-spacing: 0.3em;
 			}
+			.sidebar {
+				padding-top: 20px;
+			}
+			.app-name-link {
+				display: block;
+				margin-left: auto;
+				margin-right: auto;
+				width: 4rem;
+				height: 4rem;
+				overflow: hidden;
+			}
+			.sidebar li {
+				font-size: 0.9rem;
+				padding: 0em;
+			}
+
 			.markdown-section ol,
 			.markdown-section p,
 			.markdown-section ul {
@@ -79,6 +127,7 @@
 			window.$docsify = {
 				name: "'(GLISP)",
 				repo: 'baku89/glisp',
+				logo: './favicon/android-chrome-512x512.png',
 				plugins: [
 					function(hook, vm) {
 						hook.afterEach((html, next) => {
