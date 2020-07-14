@@ -43,7 +43,7 @@ export class HitDetector {
 
 	private getPath2D(exp: MalSeq) {
 		if (this.cachedPath2D.has(exp)) {
-			return this.cachedPath2D.get(exp)
+			return this.cachedPath2D.get(exp) as Path2D
 		} else {
 			const path = convertToPath2D(exp as PathType)
 			this.cachedPath2D.set(exp, path)
