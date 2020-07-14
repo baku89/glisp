@@ -1,5 +1,20 @@
 (import "math.glisp")
 
+;; (def path/arc (fn [] nil))
+;; (def path/transform (fn [] nil))
+;; (def path/trim (fn [] nil))
+;; (def path/position-at (fn [] nil))
+;; (def path/unite (fn [] nil))
+;; (def path/intersect (fn [] nil))
+;; (def path/subtract (fn [] nil))
+;; (def path/exclude (fn [] nil))
+;; (def path/divide (fn [] nil))
+;; (def path/offset (fn [] nil))
+;; (def path/offset-stroke (fn [] nil))
+;; (def path/intersections (fn [] nil))
+;; (def path/nearest-offset (fn [] nil))
+;; (def path/nearest-point (fn [] nil))
+;; (def path/inside? (fn [] nil))
 (import-js-force "path.js")
 
 (defn translate-first-param [{:params [c] :transform xform}]
