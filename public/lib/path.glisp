@@ -2,6 +2,9 @@
 
 (import-js-force "path.js")
 
+(defn translate-first-param [{:params [c] :transform xform}]
+  {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})
+
 (defn path? [a] (and (sequential? a) (= :path (first a))))
 
 (defn path
@@ -84,9 +87,7 @@
                         :radius {:replace [1 (vec2/dist c p)]}))}
     :return {:type "path"}
     :initial-params [[0 0] 100]
-    :transform (fn {:params [c]
-                    :transform xform}
-                 {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})}
+    :transform translate-first-param}
   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
     (fn [[x y] r]
       (let [k (* r K)
@@ -170,9 +171,7 @@
                                {:replace [3 end]})))}
     :return {:type "path"}
     :initial-params [[0 0] 100 (deg 0) (deg 180)]
-    :transform (fn {:params [c]
-                    :transform xform}
-                 {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})}
+    :transform translate-first-param}
   path/arc)
 (defalias arc path/arc)
 
@@ -237,7 +236,8 @@
                        :radius-x [center [(abs (- (.x p) (.x center))) ry]]
                        :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}
    :return {:type "path"}
-   :initial-params [[0 0] [100 50]]}
+   :initial-params [[0 0] [100 50]]
+   :transform translate-first-param}
   [center radius]
   (path/transform (mat2d/* (translate center)
                            (scale radius))
@@ -266,7 +266,8 @@
                                     sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
                                 {:replace [2 sides]})))}
    :return {:type "path"}
-   :initial-params [[0 0] 100 5]}
+   :initial-params [[0 0] 100 5]
+   :transform translate-first-param}
   [center radius sides]
   (let [angles (column 0 sides (/ TWO_PI sides))
         vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
