@@ -1,6 +1,8 @@
 import ace from 'brace'
 import ConsoleScope from '@/scopes/console'
 import './define-glisp-mode'
+import {useResizeSensor} from '@/components/use'
+import {use} from 'vue/types/umd'
 
 // require('brace/theme/tomorrow')
 // require('brace/theme/tomorrow_night')
@@ -45,7 +47,14 @@ function setupKeybinds(editor: ace.Editor) {
 	})
 }
 
+function setupResizeHandler(editor: ace.Editor) {
+	useResizeSensor(editor.container, el => {
+		editor.resize(true)
+	})
+}
+
 export function setupEditor(editor: ace.Editor) {
 	setupSettings(editor)
 	setupKeybinds(editor)
+	setupResizeHandler(editor)
 }
