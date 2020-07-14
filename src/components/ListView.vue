@@ -281,6 +281,7 @@ export default defineComponent({
 .ListView
 	padding-left 1rem
 	width 100%
+	overflow hidden
 	user-select none
 
 	&.destructed
@@ -291,10 +292,11 @@ export default defineComponent({
 
 	&__label
 		position relative
-		padding 0.5rem 1rem 0.4rem 0
+		padding 0.5rem .5rem 0.4rem 0
 		color var(--comment)
 		text-overflow ellipsis
 		white-space nowrap
+		overflow hidden
 
 		&:after
 			position absolute
