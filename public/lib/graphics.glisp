@@ -211,7 +211,7 @@
    :params [{:label "Transform" :type "mat2d"}
             &
             {:label "Body" :type "exp"}]
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
@@ -225,7 +225,7 @@
    :params [{:label "Style" :type "exp"}
             &
             {:label "Body" :type "exp"}]
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
                                   styles
@@ -255,7 +255,7 @@
   ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
   ;;                                    new-options (assoc options :bounds new-bounds)]
   ;;                                `[~new-options ~@(rest params)])))}}
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [options & body]
   (let [evaluated-options (eval* options)
         bounds (get evaluated-options :bounds [0 0 0 0])
@@ -280,7 +280,7 @@
   (string? x))
 
 (defn color/gray
-  {:returns {:type "color"}}
+  {:return {:type "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
@@ -293,7 +293,7 @@
             {:label "Green" :type "number" :validator validator-01}
             {:label "Blue" :type "number" :validator validator-01}
             {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+   :return {:type "color"}}
   [r g b & a]
   (if (zero? (count a))
     (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
@@ -305,7 +305,7 @@
             {:label "Saturation" :type "number" :validator validator-01}
             {:label "Lightness" :type "number" :validator validator-01}
             {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+   :return {:type "color"}}
   [h s l & a]
   (if (zero? (count a))
     (format "hsl(%f,%s,%s)"
@@ -331,7 +331,7 @@
 ;; Transform
 (defn view-center
   {:doc "Returns the center of view or artboard"
-   :returns {:type "vec2"}
+   :return {:type "vec2"}
    :handles {:draw (fn {:return mat}
                      [{:type "translate" :pos (take 4 mat)}])}}
   []

@@ -23,7 +23,7 @@
                  0 []
                  1 [ret]
                  {:replace [-1 (- ret (apply + (butlast xs)))]}))
-    :returns {:type "number"}}
+    :return {:type "number"}}
   +)
 
 (def -
@@ -37,7 +37,7 @@
                  {:replace [-1 (- (first xs)
                                   (apply + (slice xs 1 -1))
                                   ret)]}))
-    :returns {:type "number"}}
+    :return {:type "number"}}
   -)
 
 (def *
@@ -48,7 +48,7 @@
                  0 []
                  1 [ret]
                  {:replace [-1 (/ ret (apply * (butlast xs)))]}))
-    :returns {:type "number"}}
+    :return {:type "number"}}
   *)
 
 (def /
@@ -66,7 +66,7 @@
   ^{:doc "Modulus of num and div. Truncates toward negative infinity"
     :params [{:label "x" :type "number"}
              {:label "y" :type "number"}]
-    :returns {:type "number"}
+    :return {:type "number"}
     :inverse (fn {:return ret :params [a b]}
                {:replace [0 (mod ret b)]})}
   mod)
@@ -75,28 +75,28 @@
   ^{:doc "Returns the largest integer less than or equal to a number"
     :params [{:label "x" :type "number"}]
     :inverse (fn {:return ret} [(floor ret)])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   floor)
 
 (def ceil
   ^{:doc "Returns the next largest integer more than or equal to a number"
     :params [{:label "x" :type "number"}]
     :inverse (fn {:return ret} [(ceil ret)])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   ceil)
 
 (def round
   ^{:doc "Returns the value of a number rounded to the nearest integer"
     :params [{:label "x" :type "number"}]
     :inverse (fn {:return ret} [(round ret)])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   round)
 
 (def sqrt
   ^{:doc "Returns the square root of a number"
     :params [{:label "x" :type "number"}]
     :inverse (fn {:return ret} [(* ret ret)])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   sqrt)
 
 (def range
@@ -107,13 +107,13 @@
              [{:label "Start" :type "number"}
               {:label "End" :type "number"}
               {:label "Step" :type "number"}]]
-    :returns {:type "vector"}}
+    :return {:type "vector"}}
   range)
 
 (def rnd
   ^{:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
     :params [{:label "Seed" :type "number"}]
-    :returns {:type "number"}}
+    :return {:type "number"}}
   rnd)
 
 (def swap!
@@ -220,13 +220,13 @@
 (def type
   ^{:doc "Retruns the type of `x` in keyword"
     :params [{:label "Value" :type "any"}]
-    :returns {:type "keyword"}}
+    :return {:type "keyword"}}
   type)
 
 (defn name
   {:doc "Returns the string name of string, symbol or keyword"
    :params [{:type "any"}]
-   :returns {:type "string"}}
+   :return {:type "string"}}
   [x]
   (cond (string? x) x
         (symbol? x) (str x) ;; Might be hacky too as below
@@ -380,7 +380,7 @@
 (defn  pct
   {:doc "Maps the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
-   :returns {:type "number"}
+   :return {:type "number"}
    :unit "%"
    :inverse (fn {:return ret} [(* ret 100)])}
   [value] (/ value 100))
@@ -389,7 +389,7 @@
   {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
    :params [{:type "number"}
             {:type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x y]
   (cond (= x y) 0
         (> x y) 1

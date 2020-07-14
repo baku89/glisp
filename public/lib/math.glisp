@@ -8,13 +8,13 @@
 (defn to-deg
   {:doc "Converts an angles to degrees"
    :params [{:type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [radians] (/ (* radians 180) PI))
 
 (defn deg
   {:doc "Represents an angle in degrees"
    :params [{:type "number"}]
-   :returns {:type "number"}
+   :return {:type "number"}
    :unit "°"
    :inverse (fn {:return ret} [(to-deg ret)])}
   [degrees] (/ (* degrees PI) 180))
@@ -22,13 +22,13 @@
 (defn to-turn
   {:doc "Converts an angles to turn"
    :params [{:type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [radians] (/ radians TWO_PI))
 
 (defn turn
   {:doc "Represents an angle in a number of turns"
    :params [{:type "number"}]
-   :returns {:type "number"}
+   :return {:type "number"}
    :unit "turn"
    :inverse (fn {:return ret} [(to-turn ret)])}
   [turn] (* turn TWO_PI))
@@ -39,7 +39,7 @@
    :params [{:type "number"}]
    :inverse (fn {:return ret} [(* ret 255)])
    :unit "FF"
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x] (/ x 255))
 
 (defn ms
@@ -47,7 +47,7 @@
    :params [{:type "number"}]
    :inverse (fn {:return ret} (* ret 1000))
    :unit "ms"
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x] (/ x 1000))
 
 ;; Range remappers
@@ -56,7 +56,7 @@
    :params [{:type "number" :desc "First value"}
             {:type "number" :desc "Second value"}
             {:type "number" :desc "Normalized amount to interpolate between the two values"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [a b t] (+ b (* (- a b) t)))
 
 (defn clamp
@@ -66,7 +66,7 @@
             {:label "Max" :type "number"}]
    :inverse (fn {:return ret :params [x _min _max]}
               {:replace [0 (clamp ret _min _max)]})
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x _min _max]
   (min (max _min x) _max))
 
@@ -77,7 +77,7 @@
             {:label "Old Max" :type "number"}
             {:label "New Min" :type "number"}
             {:label "New Max" :type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x omin omax nmin nmax]
   (+ (* (- nmax nmin)
         (/ (- x omin)
@@ -89,7 +89,7 @@
    :params [{:label "Value" :type "number"}
             {:label "Min" :type "number"}
             {:label "Max" :type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x nmin nmax]
   (+ nmin
      (* x (- nmax nmin))))
@@ -99,7 +99,7 @@
    :params [{:label "Value" :type "number"}
             {:label "Min" :type "number"}
             {:label "Max" :type "number"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [x nmin nmax]
   (+ nmin
      (* (/ (inc x) 2) (- nmax nmin))))
@@ -121,13 +121,13 @@
   ^{:doc "Gets x value from vec2"
     :params [{:label "Value" :type "vec2"}]
     :inverse (fn {:return ret :params [[x y]]} [[ret y]])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   first)
 (def .y
   ^{:doc "Gets y value from vec2"
     :params [{:label "Value" :type "vec2"}]
     :inverse (fn {:return ret :params [[x y]]} [[x ret]])
-    :returns {:type "number"}}
+    :return {:type "number"}}
   second)
 
 ;; vec2
@@ -138,7 +138,7 @@
 ;;    :params [[{:label "x" :type "number" :default 0}]
 ;;             [{:label "x" :type "number"}
 ;;              {:label "y" :type "number"}]]
-;;    :returns {:type "vec2"}}
+;;    :return {:type "vec2"}}
 ;;   [& xs]
 ;;   (case (count xs)
 ;;     0 [0 0]
@@ -156,7 +156,7 @@
 (defn vec2?
   {:doc "Checks if x is vec2"
    :params [{:type "any"}]
-   :returns {:type "boolean"}}
+   :return {:type "boolean"}}
   [x]
   (and
    (sequential? x)
@@ -167,7 +167,7 @@
 (defn vec2/+
   {:doc "Adds two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [& xs]
   (reduce (fn [a b]
             [(+ (.x a) (.x b))
@@ -178,7 +178,7 @@
 (defn vec2/-
   {:doc "Subtracts *b* from *a*"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b]
   [(- (.x a) (.x b))
    (- (.y a) (.y b))])
@@ -186,7 +186,7 @@
 (defn vec2/*
   {:doc "Multiplies two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b]
   [(* (.x a) (.x b))
    (* (.y a) (.y b))])
@@ -194,7 +194,7 @@
 (defn vec2/div
   {:doc "Divides two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b]
   [(/ (.x a) (.x b))
    (/ (.y a) (.y b))])
@@ -202,28 +202,28 @@
 (defn vec2/ceil
   {:doc "Rounds a each element up to the next largest integer"
    :params [{:label "Value" :type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [v]
   [(ceil (.x v)) (ceil (.y v))])
 
 (defn vec2/floor
   {:doc "Replaces a each element with a largest integer less than or equal to it"
    :params [{:label "Value" :type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [v]
   [(floor (.x v)) (floor (.y v))])
 
 (defn vec2/min
   {:doc "Returns the minimum of two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b]
   [(min (.x a) (.y b)) (min (.y a) (.y b))])
 
 (defn vec2/max
   {:doc "Returns the maximum of two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b]
   [(max (.x a) (.y b)) (max (.y a) (.y b))])
 
@@ -234,7 +234,7 @@
   {:doc "Createsa a vec2 with specified angle and length"
    :params [{:label "Angle" :type "number"}
             {:label "Length" :type "number" :default 1}]
-   :returns {:type "vec2"}
+   :return {:type "vec2"}
    :inverse (fn {:return ret :params [x y]}
               [(vec2/angle ret) (vec2/dist ret [0 0])])}
   [a & xs]
@@ -245,7 +245,7 @@
 (defn vec2/angle
   {:doc "Returns a angle of vec2 in radians"
    :params [{:label "Value" :type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [[x y]]
   (atan2 y x))
 
@@ -268,7 +268,7 @@
                      (case id
                        :scale {:replace [1 (/ (vec2/dot p v) (vec2/sqr-len v))]}
                        :end {:replace [0 p]}))}
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [v s]
   [(* s (.x v))
    (* s (.y v))])
@@ -279,7 +279,7 @@
    :params [{:type "vec2"}
             {:type "vec2"}
             {:type "number"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [a b scale]
   [(+ (.x a) (* scale (.x b)))
    (+ (.y a) (* scale (.y b)))])
@@ -287,7 +287,7 @@
 (defn vec2/dist
   {:doc "Calculate the distance between two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [a b]
   (hypot (- (.x b) (.x a)) (- (.y b) (.y a))))
 
@@ -302,7 +302,7 @@
    :params [{:type "vec2"}
             {:type "number"}
             {:type "vec2"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [center angle value]
   (let [ox		(.x center)
         oy		(.y center)
@@ -328,7 +328,7 @@
 (defn vec2/dot
   {:doc "Calculates the dot product of two vec2's"
    :params [{:type "vec2"} {:type "vec2"}]
-   :returns {:type "number"}}
+   :return {:type "number"}}
   [a b]
   (+ (* (.x a) (.x b)) (* (.y a) (.y b))))
 
@@ -339,7 +339,7 @@
               {:relace [2 (/ (vec2/dot (vec2/- b ret)
                                        (vec2/normalize (vec2/- b a)))
                              (vec2/dist a b))]})
-   :returns {:type "vec2"}
+   :return {:type "vec2"}
    :handles {:draw (fn {:params [a b t] :return p}
                      [{:type "path" :class "dashed"
                        :guide true
@@ -365,7 +365,7 @@
   {:doc "Transforms the vec2 with a mat2d"
    :params [{:type "vec2"}
             {:label "Matrix" :type "mat2d"}]
-   :returns {:type "vec2"}}
+   :return {:type "vec2"}}
   [value m]
   (let [x (.x value)
         y (.y value)]
@@ -432,13 +432,13 @@
                              :sx [`[~@(vec2/scale x (.x s)) ~@y ~@t]]
                              :sy [`[~@x ~@(vec2/scale y (.y s)) ~@t]]
                              :s [`[~@(vec2/scale x (.x s)) ~@(vec2/scale y (.y s)) ~@t]])))))}
-   :returns {:type "mat2d"}}
+   :return {:type "mat2d"}}
   [x] x)
 
 (defn mat2d?
   {:doc "Checks if x is mat2d"
    :params [{:type "any"}]
-   :returns {:type "boolean"}}
+   :return {:type "boolean"}}
   [x]
   (and
    (sequential? x)
@@ -454,7 +454,7 @@
 (defn mat2d/translate
   {:doc "Returns translation matrix"
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
-   :returns [:type "mat2d" :desc "Transform matrix"]
+   :return [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn {:params [pos]}
                      [{:type "translate"
                        :pos pos}])
@@ -467,7 +467,7 @@
 (defn mat2d/translate-x
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}
+   :return {:type "mat2d"}
    :handles {:draw (fn {:params [x]}
                      [{:type "path" :guide true :class "dashed"
                        :path (line [0 -80] [0 80])}
@@ -489,7 +489,7 @@
 (defn mat2d/scale
   {:doc  "Returns scaling matrix"
    :params [{:label "Value" :type "vec2"}]
-   :returns {:type "mat2d"}
+   :return {:type "mat2d"}
    :handles {:draw (fn {:params [[x y]]}
                      (let [sx (* x 40)
                            sy (* y 40)]
@@ -518,7 +518,7 @@
 (defn mat2d/scale-x
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}
+   :return {:type "mat2d"}
    :handles {:draw (fn {:params [x]}
                      (let [sx (* x 40)]
                        [{:type "path" :class "dashed" :guide true
@@ -533,7 +533,7 @@
 (defn mat2d/scale-y
   {:doc "Returns scaling matrix"
    :params [{:type "number"}]
-   :returns {:type "mat2d"}
+   :return {:type "mat2d"}
    :handles {:draw (fn {:params [y]}
                      (let [sy (* y 40)]
                        [{:type "path" :class "dashed" :guide true
@@ -548,7 +548,7 @@
 ;; (defn mat2d/scale-uniform
 ;;   {:doc  "Returns scaling matrix"
 ;;    :params [{:label "Value" :type "number"}]
-;;    :returns {:type "mat2d"}
+;;    :return {:type "mat2d"}
 ;;    :handles {:draw (fn {:params [scale]}
 ;;                      (let [s (* scale 40)]
 ;;                        [{:type "path" :class "dashed" :guide true
@@ -575,7 +575,7 @@
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
    :params [{:type "angle"}]
-   :returns {:type "mat2d"}
+   :return {:type "mat2d"}
    :handles {:draw (fn {:params [angle]}
                      (let [dir (vec2/dir angle 80)]
                        [{:type "path" :guide true :path (line [0 0] dir)}
@@ -610,7 +610,7 @@
   ^{:doc "Multipies the mat2d's"
     :params [&
              {:label "Matrix" :type "mat2d"}]
-    :returns {:type "mat2d"}}
+    :return {:type "mat2d"}}
   (let
    [mul (fn
           [[a0 a1 a2 a3 a4 a5]
@@ -628,7 +628,7 @@
    :params [{:label "Pos" :type "vec2"}
             &
             {:label "Matrix" :type "mat2d"}]
-   :returns "mat2d"
+   :return "mat2d"
    :handles {:draw (fn {:params [p]}
                      [{:type "translate" :pos p}])
              :drag (fn {:pos p :params [_ & xs]}
@@ -715,7 +715,7 @@
                      (case id
                        :from [p to]
                        :to [from p]))}
-   :returns {:type "rect2d"}}
+   :return {:type "rect2d"}}
   [from to]
   [(min (.x from) (.x to))
    (min (.y from) (.y to))
@@ -756,7 +756,7 @@
                         (- (rect2d/top src) (rect2d/top ret))
                         (- (rect2d/bottom ret) (rect2d/bottom src)))]
                 [h v src]))
-   :returns {:type "rect2d"}}
+   :return {:type "rect2d"}}
   [horiz vert r]
   [(- (rect2d/left r) horiz)
    (- (rect2d/top r) vert)

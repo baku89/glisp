@@ -45,10 +45,10 @@
 (defn path/rect
   {:doc  "Generates a rect path"
    :params [{:label "Rect" :type "rect2d" :desc "the rectangle dimension"}]
-   :returns {:type "path"}
+   :return {:type "path"}
    :handles {:draw (fn [e] (apply-draw-handle rect2d e))
              :drag (fn [e] (apply-drag-handle rect2d e))}
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[-100 -100 200 200]]}
   [[x y w h]]
   [:path
@@ -78,7 +78,7 @@
                       (case id
                         :center {:replace [0 p]}
                         :radius {:replace [1 (vec2/dist c p)]}))}
-    :returns {:type "path"}
+    :return {:type "path"}
     :initial-params [[0 0] 100]}
   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
     (fn [[x y] r]
@@ -109,7 +109,7 @@
                      (case id
                        :from {:replace [0 p]}
                        :to {:replace [1 p]}))}
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[0 0] [100 100]]}
   [from to]
   [:path :M from :L to])
@@ -158,7 +158,7 @@
                                         :prev-pos pp
                                         :angle end)]
                                {:replace [3 end]})))}
-    :returns {:type "path"}
+    :return {:type "path"}
     :initial-params [[0 0] 100 (deg 0) (deg 180)]}
   path/arc)
 (defalias arc path/arc)
@@ -185,7 +185,7 @@
                      (let [[mode i] id]
                        (case mode
                          :edit  {:replace [i p]})))}
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[0 0]]}
   [& pts]
   (if (zero? (count pts))
@@ -219,7 +219,7 @@
                        :center [p [rx ry]]
                        :radius-x [center [(abs (- (.x p) (.x center))) ry]]
                        :radius-y [center [rx (abs (- (.y p) (.y center)))]]))}
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[0 0] [100 50]]}
   [center radius]
   (path/transform (mat2d/* (translate center)
@@ -248,7 +248,7 @@
                        :sides (let [angle (vec2/angle (vec2/- p center))
                                     sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
                                 {:replace [2 sides]})))}
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[0 0] 100 5]}
   [center radius sides]
   (let [angles (column 0 sides (/ TWO_PI sides))
@@ -259,7 +259,7 @@
 (defn path/point
   {:doc "Generates a point path"
    :params [{:label "Pos" :type "vec2"}]
-   :returns {:type "path"}
+   :return {:type "path"}
    :initial-params [[0 0]]}
   [p]
   [:path :M p :L p])
@@ -271,13 +271,13 @@
   ^{:doc "Applies transform matrix for the vertex of input path"
     :params [{:label "Matrix" :type "mat2d"}
              {:label "Path" :type "path"}]
-    :returns {:type "path"}}
+    :return {:type "path"}}
   path/transform)
 
 (defn path/merge
   {:doc "Returns a merged path"
    :params [& {:type "path"}]
-   :returns {:type "path"}}
+   :return {:type "path"}}
   [& paths]
   `[:path ~@(apply concat (map rest paths))])
 
@@ -288,7 +288,7 @@
     :params [{:label "Start" :type "number" :validator #(clamp % 0 1)}
              {:label "End" :type "number" :validator #(clamp % 0 1)}
              {:label "Path" :type "path"}]
-    :returns {:type "path"}
+    :return {:type "path"}
     :handles {:draw (fn {:params [start end path]
                          :return trimmed-path}
                       [{:type "path" :id :path-original :class "dashed" :guide true
@@ -315,7 +315,7 @@
               :drag (fn {:pos p :params [t path]}
                       {:replace [0 (path/nearest-offset p path)]})}
     :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
-    :returns {:type "vec2"}}
+    :return {:type "vec2"}}
   path/position-at)
 
 (def path-boolean-meta
@@ -348,7 +348,7 @@
                      :enum ["miter" "bevel" "round"]}
                     {:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round"]}]}]
-   :returns {:type "path"}
+   :return {:type "path"}
    :handles {:draw (fn {:params [d path]
                         :return offset-path}
                      [{:type "path" :guide true
@@ -381,19 +381,19 @@
   ^{:doc "Gets the offset (0-1) of nearest point on path"
     :params [{:label "Pos" :type "vec2"}
              {:label "Path" :type "path"}]
-    :returns {:type "number"}}
+    :return {:type "number"}}
   path/nearest-offset)
 
 (def path/nearest-point
   ^{:doc "Gets the earest point on path"
     :params [{:label "Pos" :type "vec2"}
              {:label "Path" :type "path"}]
-    :returns {:type "vec2"}}
+    :return {:type "vec2"}}
   path/nearest-point)
 
 (def path/inside?
   ^{:doc "Returns true if *pos* is inside *path*"
     :params [{:label "Pos" :type "vec2"}
              {:label "Path" :type "path"}]
-    :returns {:type "boolean"}}
+    :return {:type "boolean"}}
   path/inside?)

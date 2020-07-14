@@ -87,8 +87,8 @@
           "**Parameter**\n\n"
           (gen-param-table params))))
 
-     (if (contains? m :returns)
-       (format "**Returns**: `%s`\n\n" (get (get m :returns) :type)))
+     (if (contains? m :return)
+       (format "**Returns**: `%s`\n\n" (get (get m :return) :type)))
 
      (if (contains? m :alias)
        (format "**Alias:** `%s`\n\n" (get m :alias)))])))
