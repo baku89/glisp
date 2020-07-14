@@ -9,11 +9,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -21,6 +17,7 @@
 					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
+					:hoveringExp="hoveringExp"
 					@select="onSelectExp"
 					@update:exp="updateExp"
 					@update:editingExp="switchEditingExp"
@@ -28,11 +25,7 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="onSelectExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="onSelectExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -61,9 +54,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -129,6 +120,7 @@ interface Data {
 	hasRenderError: boolean
 	selectedExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalNode> | null
+	hoveringExp: NonReactive<MalNode> | null
 }
 
 interface UI {
@@ -320,7 +312,8 @@ export default defineComponent({
 			}),
 			// Selection
 			selectedExp: null,
-			editingExp: null
+			editingExp: null,
+			hoveringExp: null
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -367,6 +360,10 @@ export default defineComponent({
 		// Events
 		function onSelectExp(exp: NonReactive<MalNode> | null) {
 			data.selectedExp = exp
+		}
+
+		function onHoverExp(exp: NonReactive<MalNode> | null) {
+			data.hoveringExp = exp
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
@@ -460,8 +457,10 @@ export default defineComponent({
 		useHitDetector(
 			elHandles,
 			toRef(data, 'exp'),
+			toRef(data, 'hoveringExp'),
 			toRef(ui, 'viewTransform'),
-			onSelectExp
+			onSelectExp,
+			onHoverExp
 		)
 
 		// Init App Handler

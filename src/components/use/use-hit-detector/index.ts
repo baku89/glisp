@@ -37,26 +37,22 @@ function useMouseButtons(el: Ref<any | null>) {
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
 	exp: Ref<NonReactive<MalVal> | null>,
+	hoveringExp: Ref<NonReactive<MalVal> | null>,
 	viewTransform: Ref<mat2d>,
-	onSelectExp: (exp: NonReactive<MalNode> | null) => void
+	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
+	onHoverExp: (exp: NonReactive<MalNode> | null) => void
 ) {
 	const detector = new HitDetector()
 
 	const {mouseX, mouseY} = useOnMouseMove(document.body)
 	const {mousePressed} = useMouseButtons(handleEl)
 
-	watch(
-		() => [
-			exp.value,
-			viewTransform.value,
-			mouseX.value,
-			mouseY.value,
-			mousePressed.value
-		],
-		async () => {
-			if (!exp.value || !mousePressed.value) return
+	let prevExp: NonReactive<MalVal> | null = null
 
-			mousePressed.value = false
+	watch(
+		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
+		async () => {
+			if (!exp.value) return
 
 			const pos = vec2.fromValues(mouseX.value, mouseY.value)
 
@@ -66,9 +62,26 @@ export default function useHitDetector(
 				mat2d.invert(mat2d.create(), viewTransform.value)
 			)
 
-			// Do the hit detection=
-			const ret = await detector.analyze(pos, exp.value.value)
-			onSelectExp(ret ? nonReactive(ret as MalNode) : null)
+			// Do the hit detection
+			const isSame = prevExp === exp.value
+
+			const ret = await detector.analyze(
+				pos,
+				isSame ? undefined : exp.value.value
+			)
+
+			const hitExp = ret ? nonReactive(ret as MalNode) : null
+
+			if (mousePressed.value) {
+				onSelectExp(hitExp)
+			}
+
+			// if (hoveringExp && hoveringExp.value.value !== ret)
+			onHoverExp(hitExp)
+
+			// Update
+			mousePressed.value = false
+			prevExp = exp.value
 		}
 	)
 }

@@ -2,7 +2,7 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: items.clickable, selected}"
+			:class="{clickable: items.clickable, selected, hovering}"
 			@click="items.clickable && onClick()"
 		>
 			<div
@@ -16,15 +16,12 @@
 					:class="items.icon.value"
 					:style="items.icon.style"
 				/>
-				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">
-					{{ items.icon.value }}
-				</span>
+				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">{{ items.icon.value }}</span>
 				<span
 					class="serif"
 					v-if="items.icon.type === 'serif'"
 					:style="items.icon.style"
-					>{{ items.icon.value }}</span
-				>
+				>{{ items.icon.value }}</span>
 			</div>
 			{{ items.label }}
 			<i
@@ -40,6 +37,7 @@
 				:exp="child"
 				:selectedExp="selectedExp"
 				:editingExp="editingExp"
+				:hoveringExp="hoveringExp"
 				@select="$emit('select', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
@@ -78,6 +76,7 @@ interface Props {
 	exp: NonReactive<MalVal>
 	selectedExp: NonReactive<MalVal> | null
 	editingExp: NonReactive<MalVal> | null
+	hoveringExp: NonReactive<MalVal> | null
 	mode: DisplayMode
 }
 
@@ -90,7 +89,7 @@ const IconTexts = {
 		style: 'transform: scale(0.6);'
 	},
 	[MalType.Symbol]: {type: 'serif', value: 'x'},
-	[MalType.Keyword]: {type: 'serif', value: 'x'}
+	[MalType.Keyword]: {type: 'serif', value: 'K'}
 } as {[type: string]: {type: string; value: string; style?: string}}
 
 const S_UI_ANNOTATE = S('ui-annotate')
@@ -107,6 +106,9 @@ export default defineComponent({
 			required: true
 		},
 		editingExp: {
+			required: true
+		},
+		hoveringExp: {
 			required: true
 		},
 		mode: {
@@ -191,6 +193,15 @@ export default defineComponent({
 			)
 		})
 
+		const hovering = computed(() => {
+			return (
+				props.hoveringExp && expBody.value.value === props.hoveringExp.value
+			)
+		})
+
+		/**
+		 * Events
+		 */
 		function onClick() {
 			context.emit('select', expBody.value)
 		}
@@ -248,6 +259,7 @@ export default defineComponent({
 		return {
 			items,
 			selected,
+			hovering,
 			onClick,
 			expanded,
 			ui,
@@ -278,30 +290,45 @@ export default defineComponent({
 		text-overflow ellipsis
 		white-space nowrap
 
+		&:after
+			position absolute
+			top 0
+			right 0
+			left -0.5rem
+			height 100%
+			content ''
+			opacity 0
+			transition opacity 0.05s ease
+			pointer-events none
+
+		&:hover
+			&:after
+				opacity 0.15
+
 		&.clickable
 			color var(--foreground)
 			cursor pointer
 
-			&:after
-				position absolute
-				top 0
-				right 0
-				left -0.5rem
-				height 100%
-				background var(--yellow)
-				content ''
-				opacity 0
-				transition opacity 0.05s ease
-				pointer-events none
-
 			&:hover
 				color var(--highlight)
 
-				&:after
-					opacity 0.1
+			&:after
+				border 1px solid var(--highlight)
 
 		&.selected
+			color var(--highlight)
 			font-weight bold
+
+			&:after
+				background var(--highlight)
+				opacity 0.15
+
+		&.hovering
+			color var(--highlight)
+
+			&:after
+				border 1px solid var(--highlight)
+				opacity 0.15
 
 	&__icon
 		display inline-block
