@@ -184,7 +184,7 @@ export default function evalExp(
 		}
 
 		if (exp.length === 0) {
-			throw new MalError('Invalid empty list')
+			return null
 		}
 
 		// Apply list
