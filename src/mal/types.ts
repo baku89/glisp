@@ -310,38 +310,37 @@ export function isEqual(a: MalVal, b: MalVal) {
 }
 
 export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
-	let newObj: T
+	let newExp: T
 
 	const type = getType(obj)
 
 	switch (getType(obj)) {
 		case MalType.List:
+			newExp = createList(...(obj as MalVal[])) as T
+			break
 		case MalType.Vector:
-			newObj = [...(obj as MalVal[])] as any
-			if (type === MalType.List) {
-				newObj = createList(...(newObj as any)) as T
-			}
+			newExp = [...(obj as MalVal[])] as T
 			break
 		case MalType.Map:
-			newObj = {...(obj as MalMap)} as any
+			newExp = {...(obj as MalMap)} as T
 			break
 		case MalType.Function:
 		case MalType.Macro: {
 			// new function instance
 			const fn = (...args: any) => (obj as Function)(...args)
 			// copy original properties
-			newObj = Object.assign(fn, obj)
+			newExp = Object.assign(fn, obj) as T
 			break
 		}
 		default:
-			newObj = obj
+			newExp = obj
 	}
 
-	if (newMeta !== undefined && newObj instanceof Object) {
-		;(newObj as any)[M_META] = newMeta
+	if (newMeta !== undefined && newExp instanceof Object) {
+		;(newExp as any)[M_META] = newMeta
 	}
 
-	return newObj
+	return newExp
 }
 
 export function getEvaluated(exp: MalVal) {
