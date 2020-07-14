@@ -4,6 +4,7 @@
 			class="ListView__label"
 			:class="{clickable: items.clickable, selected, hovering}"
 			@click="items.clickable && onClick()"
+			@dblclick="items.clickable && onClickCodeButton($event)"
 		>
 			<div
 				class="ListView__icon"
@@ -27,7 +28,7 @@
 			<i
 				class="ListView__editing fas fa-code"
 				:class="{active: exp.value === editingExp.value}"
-				@click="onClickEditIcon"
+				@click="onClickCodeButton"
 			/>
 		</div>
 		<div class="ListView__children" v-if="items.children && expanded">
@@ -252,7 +253,7 @@ export default defineComponent({
 			context.emit('update:exp', nonReactive(newExp))
 		}
 
-		function onClickEditIcon(e: MouseEvent) {
+		function onClickCodeButton(e: MouseEvent) {
 			e.stopPropagation()
 			context.emit('update:editingExp', props.exp)
 		}
@@ -266,7 +267,7 @@ export default defineComponent({
 			ui,
 			toggleExpanded,
 			onUpdateChildExp,
-			onClickEditIcon
+			onClickCodeButton
 		}
 	}
 })
