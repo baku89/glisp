@@ -38,7 +38,11 @@
                               (nth segs seg-idx)
                               el-idx
                               p)]
-              `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}}
+              `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}
+   :transform (fn {:params [path]
+                   :transform xform}
+                [(path/transform xform path)])
+   :return {:type "path"}}
   [path] path)
 
 ;; Shape functions
@@ -60,7 +64,6 @@
    :Z])
 (defalias rect path/rect)
 
-
 (def path/circle
   ^{:doc "Generates a circle path"
     :params [{:label "Center" :type "vec2"
@@ -80,7 +83,10 @@
                         :center {:replace [0 p]}
                         :radius {:replace [1 (vec2/dist c p)]}))}
     :return {:type "path"}
-    :initial-params [[0 0] 100]}
+    :initial-params [[0 0] 100]
+    :transform (fn {:params [c]
+                    :transform xform}
+                 {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})}
   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
     (fn [[x y] r]
       (let [k (* r K)
@@ -111,10 +117,13 @@
                        :from {:replace [0 p]}
                        :to {:replace [1 p]}))}
    :return {:type "path"}
-   :initial-params [[0 0] [100 100]]}
+   :initial-params [[0 0] [100 100]]
+   :transform (fn {:params [from to]
+                   :transform xform}
+                (let [dp (mat2d/extract-translate xform)]
+                  [(vec2/+ from dp) (vec2/+ to dp)]))}
   [from to]
   [:path :M from :L to])
-
 (defalias line path/line)
 
 (def path/arc
@@ -160,7 +169,10 @@
                                         :angle end)]
                                {:replace [3 end]})))}
     :return {:type "path"}
-    :initial-params [[0 0] 100 (deg 0) (deg 180)]}
+    :initial-params [[0 0] 100 (deg 0) (deg 180)]
+    :transform (fn {:params [c]
+                    :transform xform}
+                 {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})}
   path/arc)
 (defalias arc path/arc)
 
@@ -187,7 +199,11 @@
                        (case mode
                          :edit  {:replace [i p]})))}
    :return {:type "path"}
-   :initial-params [[0 0]]}
+   :initial-params [[0 0]]
+   :transform (fn {:params pts
+                   :transform xform}
+                (let [dp (mat2d/extract-translate xform)]
+                  (map #(vec2/+ % dp) pts)))}
   [& pts]
   (if (zero? (count pts))
     [:path]

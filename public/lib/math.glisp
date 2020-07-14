@@ -648,6 +648,10 @@
 (defalias rotate mat2d/rotate)
 (defalias pivot mat2d/pivot)
 
+;; mat2d decomposer
+(defn mat2d/extract-translate [xform]
+  [(nth xform 4) (nth xform 5)])
+
 ;; Rect
 ;; http://paperjs.org/reference/rectangle/
 
