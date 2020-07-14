@@ -4,7 +4,7 @@
 			class="ListView__label"
 			:class="{clickable: labelInfo.clickable, selected, hovering}"
 			@click="labelInfo.clickable && onClick()"
-			@dblclick="labelInfo.clickable && onClickCodeButton($event)"
+			@dblclick="labelInfo.editable && onClickEditButton($event)"
 		>
 			<div
 				class="ListView__icon"
@@ -13,7 +13,6 @@
 			>
 				<i
 					v-if="labelInfo.icon.type === 'fontawesome'"
-					class="fas"
 					:class="labelInfo.icon.value"
 					:style="labelInfo.icon.style"
 				/>
@@ -29,9 +28,10 @@
 			</div>
 			{{ labelInfo.label }}
 			<i
+				v-if="labelInfo.editable"
 				class="ListView__editing fas fa-code"
 				:class="{active: exp.value === editingExp.value}"
-				@click="onClickCodeButton"
+				@click="onClickEditButton"
 			/>
 		</div>
 		<div class="ListView__children" v-if="labelInfo.children && expanded">
@@ -65,7 +65,8 @@ import {
 	createList as L,
 	MalNode,
 	MalSeq,
-	isSymbolFor
+	isSymbolFor,
+	isMap
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '@/mal/utils'
@@ -90,11 +91,11 @@ const IconTexts = {
 	[MalType.Number]: {type: 'text', value: '#'},
 	[MalType.String]: {
 		type: 'fontawesome',
-		value: 'fa-quote-right',
+		value: 'fas fa-quote-right',
 		style: 'transform: scale(0.6);'
 	},
 	[MalType.Symbol]: {type: 'serif', value: 'x'},
-	[MalType.Keyword]: {type: 'serif', value: 'K'}
+	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'}
 } as {[type: string]: {type: string; value: string; style?: string}}
 
 const S_UI_ANNOTATE = S('ui-annotate')
@@ -162,9 +163,10 @@ export default defineComponent({
 					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
+					editable: true,
 					icon: {
 						type: 'fontawesome',
-						value: 'fa-chevron-right',
+						value: 'fas fa-chevron-right',
 						style: 'transform: scale(.8)'
 					},
 					children: exp.slice(1).map(e => nonReactive(e))
@@ -174,7 +176,17 @@ export default defineComponent({
 					label: printExp(exp),
 					clickable: true,
 					expandable: false,
-					icon: {type: 'text', value: '[ ]'},
+					editable: true,
+					icon: {type: 'fontawesome', value: 'far fa-map'},
+					children: null
+				}
+			} else if (isMap(exp)) {
+				return {
+					label: printExp(exp),
+					clickable: true,
+					expandable: false,
+					editable: true,
+					icon: {type: 'text', value: '{ }'},
 					children: null
 				}
 			} else {
@@ -182,6 +194,7 @@ export default defineComponent({
 					label: printExp(exp, false),
 					clickable: false,
 					expandable: false,
+					editable: false,
 					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
 					children: null
 				}
@@ -260,7 +273,7 @@ export default defineComponent({
 			context.emit('update:exp', nonReactive(newExp))
 		}
 
-		function onClickCodeButton(e: MouseEvent) {
+		function onClickEditButton(e: MouseEvent) {
 			e.stopPropagation()
 			context.emit('update:editingExp', props.exp)
 		}
@@ -274,7 +287,7 @@ export default defineComponent({
 			ui,
 			toggleExpanded,
 			onUpdateChildExp,
-			onClickCodeButton
+			onClickEditButton
 		}
 	}
 })
