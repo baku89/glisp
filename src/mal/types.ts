@@ -398,21 +398,7 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 
 // Symbol
 export class MalSymbol {
-	static map =
-		((globalThis as any)['mal-symbols'] as Map<string, MalSymbol>) ||
-		new Map<string, MalSymbol>()
-
-	static get(value: string): MalSymbol {
-		let token = MalSymbol.map.get(value)
-		if (token) {
-			return token
-		}
-		token = new MalSymbol(value)
-		MalSymbol.map.set(value, token)
-		return token
-	}
-
-	private constructor(public value: string) {
+	public constructor(public value: string) {
 		;(this as any)[M_TYPE] = MalType.Symbol
 	}
 
@@ -436,8 +422,6 @@ export class MalSymbol {
 		return this.value
 	}
 }
-;(globalThis as any)['mal-symbols'] = MalSymbol.map
-;(globalThis as any).MalSymbol = MalSymbol
 
 export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
@@ -445,7 +429,7 @@ export const isSymbol = (obj: MalVal): obj is MalSymbol =>
 export const isSymbolFor = (obj: MalVal, name: string) =>
 	isSymbol(obj) && obj.value === name
 
-export const symbolFor = MalSymbol.get
+export const symbolFor = (value: string) => new MalSymbol(value)
 
 // Keyword
 const KEYWORD_PREFIX = '\u029e'
