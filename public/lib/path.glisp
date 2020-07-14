@@ -10,7 +10,7 @@
    {:draw (fn {:params [path]}
             (apply concat
                    (let [segs (path/split-segments path)]
-                              ;; Draws Handles
+                     ;; Draws Handles
                      (concat
                       (for [seg segs :index i]
                         (let [[cmd & pts] seg]
