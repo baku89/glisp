@@ -36,6 +36,7 @@ import {
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
 import {saveOuter} from './reader'
+import printExp from './printer'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -336,6 +337,11 @@ export function computeExpTransform(exp: MalVal) {
 	let ancestors: MalNode[] = []
 	for (let outer: MalNode = exp; outer; outer = outer[M_OUTER]) {
 		ancestors.unshift(outer)
+	}
+
+	// NOTE: Might be too makeshift
+	if (isList(exp) && isSymbolFor(exp[0], 'path/transform')) {
+		ancestors.pop()
 	}
 
 	const attrMatrices: MalVal[] = []
