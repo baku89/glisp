@@ -3,129 +3,7 @@
 ;; Declare special forms as symbol
 (def & '&)
 
-;; Annotate Repl Core Functions
-(def prn
-  ^{:doc "Prints the objects to the console"
-    :params [& {:label "x" :type "any"}]}
-  prn)
-
-(def println
-  ^{:doc "Prints the string with newline"
-    :params [& {:label "Text" :type "any"}]}
-  println)
-
-;; Annotate JS Functions
-(def +
-  ^{:doc "Returns the sum of nums"
-    :params [& {:label "x" :type "number" :default 0}]
-    :inverse (fn {:return ret :params xs}
-               (case (count xs)
-                 0 []
-                 1 [ret]
-                 {:replace [-1 (- ret (apply + (butlast xs)))]}))
-    :return {:type "number"}}
-  +)
-
-(def -
-  ^{:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
-    :params [&
-             {:label "x" :type "number"}]
-    :inverse (fn {:return ret :params xs}
-               (case (count xs)
-                 0 []
-                 1 [(- ret)]
-                 {:replace [-1 (- (first xs)
-                                  (apply + (slice xs 1 -1))
-                                  ret)]}))
-    :return {:type "number"}}
-  -)
-
-(def *
-  ^{:doc "Returns the product of nums"
-    :params [& {:label "x" :type "number" :default 1}]
-    :inverse (fn {:return ret :params xs}
-               (case (count xs)
-                 0 []
-                 1 [ret]
-                 {:replace [-1 (/ ret (apply * (butlast xs)))]}))
-    :return {:type "number"}}
-  *)
-
-(def /
-  ^{:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
-    :params [& {:label "x" :type "number"}]
-    :inverse (fn {:return ret :params xs}
-               (case (count xs)
-                 0 []
-                 1 [(/ ret)]
-                 {:replace [-1 (/ (first xs) (apply * (slice xs 1 -1)) ret)]}))
-    :retruns {:type "number"}}
-  /)
-
-(def mod
-  ^{:doc "Modulus of num and div. Truncates toward negative infinity"
-    :params [{:label "x" :type "number"}
-             {:label "y" :type "number"}]
-    :return {:type "number"}
-    :inverse (fn {:return ret :params [a b]}
-               {:replace [0 (mod ret b)]})}
-  mod)
-
-(def floor
-  ^{:doc "Returns the largest integer less than or equal to a number"
-    :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [(floor ret)])
-    :return {:type "number"}}
-  floor)
-
-(def ceil
-  ^{:doc "Returns the next largest integer more than or equal to a number"
-    :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [(ceil ret)])
-    :return {:type "number"}}
-  ceil)
-
-(def round
-  ^{:doc "Returns the value of a number rounded to the nearest integer"
-    :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [(round ret)])
-    :return {:type "number"}}
-  round)
-
-(def sqrt
-  ^{:doc "Returns the square root of a number"
-    :params [{:label "x" :type "number"}]
-    :inverse (fn {:return ret} [(* ret ret)])
-    :return {:type "number"}}
-  sqrt)
-
-(def range
-  ^{:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
-    :params [[{:label "End" :type "number"}]
-             [{:label "Start" :type "number"}
-              {:label "End" :type "number"}]
-             [{:label "Start" :type "number"}
-              {:label "End" :type "number"}
-              {:label "Step" :type "number"}]]
-    :return {:type "vector"}}
-  range)
-
-(def rnd
-  ^{:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
-    :params [{:label "Seed" :type "number"}]
-    :return {:type "number"}}
-  rnd)
-
-(def swap!
-  ^{:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
-    :params [{:label "Atom" :type "atom"}
-             {:label "Fn" :type "fn"}
-             &
-             {:label "Params" :type "exp"}]}
-  swap!)
-
 ;; Declarations
-;; 
 (def defmacro
   ^{:doc "Defines a macro"
     :params [{:label "Symbol" :type "symbol"}
@@ -177,6 +55,9 @@
      (def ~alias (with-meta ~original
                    (assoc (meta ~original)
                           :alias-for ~(str original))))))
+
+(defmacro annotate-fn! [sym meta]
+  `(def ~sym (set-meta! ~sym ~meta)))
 
 (defmacro deftime
   {:doc "Defines a numeric variable with playback control"
@@ -476,6 +357,134 @@
             {:type "string"}]}
   [s substr]
   (= (subs s 0 (count substr)) substr))
+
+;; Annotate Repl Core Functions
+(annotate-fn!
+ prn
+ {:doc "Prints the objects to the console"
+  :params [& {:label "x" :type "any"}]})
+
+(annotate-fn!
+ println
+ {:doc "Prints the string with newline"
+  :params [& {:label "Text" :type "any"}]})
+
+;; Annotate JS Functions
+(annotate-fn!
+ +
+ {:doc "Returns the sum of nums"
+  :params [& {:label "x" :type "number" :default 0}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [ret]
+               {:replace [-1 (- ret (apply + (butlast xs)))]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ -
+ {:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
+  :params [&
+           {:label "x" :type "number"}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [(- ret)]
+               {:replace [-1 (- (first xs)
+                                (apply + (slice xs 1 -1))
+                                ret)]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ *
+ {:doc "Returns the product of nums"
+  :params [& {:label "x" :type "number" :default 1}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [ret]
+               {:replace [-1 (/ ret (apply * (butlast xs)))]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ /
+ {:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
+  :params [& {:label "x" :type "number"}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [(/ ret)]
+               {:replace [-1 (/ (first xs)
+                                (apply * (slice xs 1 -1)) ret)]}))
+  :retruns {:type "number"}})
+
+(annotate-fn!
+ mod
+ {:doc "Modulus of num and div. Truncates toward negative infinity"
+  :params [{:label "x" :type "number"}
+           {:label "y" :type "number"}]
+  :return {:type "number"}
+  :inverse (fn {:return ret :params [a b]}
+             {:replace [0 (mod ret b)]})})
+
+(annotate-fn!
+ floor
+ {:doc "Returns the largest integer less than or equal to a number"
+  :params [{:label "x" :type "number"}]
+  :inverse (fn {:return ret} [(floor ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ ceil
+ {:doc "Returns the next largest integer more than or equal to a number"
+  :params [{:label "x" :type "number"}]
+  :inverse (fn {:return ret} [(ceil ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ round
+ {:doc "Returns the value of a number rounded to the nearest integer"
+  :params [{:label "x" :type "number"}]
+  :inverse (fn {:return ret} [(round ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ sqrt
+ {:doc "Returns the square root of a number"
+  :params [{:label "x" :type "number"}]
+  :inverse (fn {:return ret} [(* ret ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ range
+ {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
+  :params [[{:label "End" :type "number"}]
+           [{:label "Start" :type "number"}
+            {:label "End" :type "number"}]
+           [{:label "Start" :type "number"}
+            {:label "End" :type "number"}
+            {:label "Step" :type "number"}]]
+  :return {:type "vector"}})
+
+(annotate-fn!
+ merge
+ {:doc
+  "Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result"
+  :params [& {:label "Map" :type "map"}]})
+
+(annotate-fn!
+ rnd
+ {:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
+  :params [{:label "Seed" :type "number"}]
+  :return {:type "number"}})
+
+(annotate-fn!
+ swap!
+ {:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
+  :params [{:label "Atom" :type "atom"}
+           {:label "Fn" :type "fn"}
+           &
+           {:label "Params" :type "exp"}]})
 
 ;; Load other cores
 (import "ui.glisp")

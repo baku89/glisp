@@ -19,12 +19,12 @@ import {
 	getType,
 	getMeta,
 	withMeta,
-	isSeq
+	isSeq,
+	setMeta
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
-import {convertJSObjectToMalMap} from '@/mal/reader'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -217,16 +217,9 @@ const Exports = [
 	['entries', (a: MalMap) => Object.entries(a)],
 	[
 		'merge',
-		withMeta(
-			(...xs: MalVal[]) => {
-				return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
-			},
-			convertJSObjectToMalMap({
-				doc:
-					'Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result',
-				params: [S('&'), {label: 'Map', type: 'map'}]
-			})
-		)
+		(...xs: MalVal[]) => {
+			return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
+		}
 	],
 
 	// String
@@ -236,7 +229,9 @@ const Exports = [
 
 	// Meta
 	['meta', getMeta],
+	['console.log', console.log],
 	['with-meta', withMeta],
+	['set-meta!', setMeta],
 	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
 	[
 		// Atom

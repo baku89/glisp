@@ -243,6 +243,14 @@ export function withMeta(a: MalVal, m: any) {
 	return c
 }
 
+export function setMeta(a: MalVal, m: MalVal) {
+	if (!(a instanceof Object)) {
+		throw new MalError('[with-meta] Object should not be atom')
+	}
+	;(a as any)[M_META] = m
+	return a
+}
+
 export type MalVal =
 	| number
 	| string

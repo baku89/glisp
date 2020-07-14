@@ -267,12 +267,12 @@
 
 ;; Path modifiers
 
-(def path/transform
-  ^{:doc "Applies transform matrix for the vertex of input path"
-    :params [{:label "Matrix" :type "mat2d"}
-             {:label "Path" :type "path"}]
-    :return {:type "path"}}
-  path/transform)
+(annotate-fn!
+ path/transform
+ {:doc "Applies transform matrix for the vertex of input path"
+  :params [{:label "Matrix" :type "mat2d"}
+           {:label "Path" :type "path"}]
+  :return {:type "path"}})
 
 (defn path/merge
   {:doc "Returns a merged path"
@@ -283,40 +283,40 @@
 
 ;; Annotations for JS functions
 
-(def path/trim
-  ^{:doc "Trims a path by a normalized range"
-    :params [{:label "Start" :type "number" :validator #(clamp % 0 1)}
-             {:label "End" :type "number" :validator #(clamp % 0 1)}
-             {:label "Path" :type "path"}]
-    :return {:type "path"}
-    :handles {:draw (fn {:params [start end path]
-                         :return trimmed-path}
-                      [{:type "path" :id :path-original :class "dashed" :guide true
-                        :path path}
-                       {:type "path" :id :path-trimmed :guide true
-                        :path trimmed-path}
-                       {:type "point" :id :start :pos (path/position-at start path)}
-                       {:type "point" :id :end :pos (path/position-at end path)}])
-              :drag (fn {:id id :pos p
-                         :params [start end path]}
-                      (case id
-                        :start {:replace [0 (path/nearest-offset p path)]}
-                        :end {:replace [1 (path/nearest-offset p path)]}))}}
-  path/trim)
+(annotate-fn!
+ path/trim
+ {:doc "Trims a path by a normalized range"
+  :params [{:label "Start" :type "number" :validator #(clamp % 0 1)}
+           {:label "End" :type "number" :validator #(clamp % 0 1)}
+           {:label "Path" :type "path"}]
+  :return {:type "path"}
+  :handles {:draw (fn {:params [start end path]
+                       :return trimmed-path}
+                    [{:type "path" :id :path-original :class "dashed" :guide true
+                      :path path}
+                     {:type "path" :id :path-trimmed :guide true
+                      :path trimmed-path}
+                     {:type "point" :id :start :pos (path/position-at start path)}
+                     {:type "point" :id :end :pos (path/position-at end path)}])
+            :drag (fn {:id id :pos p
+                       :params [start end path]}
+                    (case id
+                      :start {:replace [0 (path/nearest-offset p path)]}
+                      :end {:replace [1 (path/nearest-offset p path)]}))}})
 
-(def path/position-at
-  ^{:doc "Returns a position of the specified offset on the path"
-    :params [{:label "Offset", :type "number" :validator #(clamp % 0 1)}
-             {:label "Path" :type "path"}]
-    :handles {:draw (fn {:params [t path]
-                         :return ret}
-                      [{:type "path" :guide true :class "dashed" :path path}
-                       {:type "point" :pos ret}])
-              :drag (fn {:pos p :params [t path]}
-                      {:replace [0 (path/nearest-offset p path)]})}
-    :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
-    :return {:type "vec2"}}
-  path/position-at)
+(annotate-fn!
+ path/position-at
+ {:doc "Returns a position of the specified offset on the path"
+  :params [{:label "Offset", :type "number" :validator #(clamp % 0 1)}
+           {:label "Path" :type "path"}]
+  :handles {:draw (fn {:params [t path]
+                       :return ret}
+                    [{:type "path" :guide true :class "dashed" :path path}
+                     {:type "point" :pos ret}])
+            :drag (fn {:pos p :params [t path]}
+                    {:replace [0 (path/nearest-offset p path)]})}
+  :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
+  :return {:type "vec2"}})
 
 (def path-boolean-meta
   {:params [& {:label "Path" :type "path"}]
@@ -329,16 +329,26 @@
                           paths))}})
 
 
-(def path/unite
-  ^(assoc path-boolean-meta :doc "Unites the paths") path/unite)
-(def path/intersect
-  ^(assoc path-boolean-meta :doc "Intersects the paths") path/intersect)
-(def path/subtract
-  ^(assoc path-boolean-meta :doc "Subtracts the paths") path/subtract)
-(def path/exclude
-  ^(assoc path-boolean-meta :doc "Excludes the paths") path/exclude)
-(def path/divide
-  ^(assoc path-boolean-meta :doc "Divides the paths") path/divide)
+(annotate-fn!
+ path/unite
+ (assoc path-boolean-meta :doc "Unites the paths"))
+
+(annotate-fn!
+ path/intersect
+ (assoc path-boolean-meta :doc "Intersects the paths"))
+
+(annotate-fn!
+ path/subtract
+ (assoc path-boolean-meta :doc "Subtracts the paths"))
+
+(annotate-fn!
+ path/exclude
+ (assoc path-boolean-meta :doc "Excludes the paths"))
+
+(annotate-fn!
+ path/divide
+ (assoc path-boolean-meta :doc "Divides the paths"))
+
 
 (def path-offset-meta
   {:params [{:label "Offset" :type "number"}
@@ -366,34 +376,38 @@
                            d (* (vec2/len near-dir) d-sign)]
                        {:replace [0 d]}))}})
 
-(def path/offset
-  ^(assoc path-offset-meta :doc "Offsets a path") path/offset)
-(def path/offset-stroke
-  ^(assoc path-offset-meta :doc "Generates outline stroke from a path") path/offset-stroke)
+(annotate-fn!
+ path/offset
+ (assoc path-offset-meta :doc "Offsets a path"))
 
-(def path/intersections
-  ^{:doc "Returns all intersections between two paths"
-    :params [{:label "a" :type "path"}
-             {:label "b" :type "path"}]}
-  path/intersections)
+(annotate-fn!
+ path/offset-stroke
+ (assoc path-offset-meta :doc "Generates outline stroke from a path"))
 
-(def path/nearest-offset
-  ^{:doc "Gets the offset (0-1) of nearest point on path"
-    :params [{:label "Pos" :type "vec2"}
-             {:label "Path" :type "path"}]
-    :return {:type "number"}}
-  path/nearest-offset)
+(annotate-fn!
+ path/intersections
+ {:doc "Returns all intersections between two paths"
+  :params [{:label "a" :type "path"}
+           {:label "b" :type "path"}]}
+ path/intersections)
 
-(def path/nearest-point
-  ^{:doc "Gets the earest point on path"
-    :params [{:label "Pos" :type "vec2"}
-             {:label "Path" :type "path"}]
-    :return {:type "vec2"}}
-  path/nearest-point)
+(annotate-fn!
+ path/nearest-offset
+ {:doc "Gets the offset (0-1) of nearest point on path"
+  :params [{:label "Pos" :type "vec2"}
+           {:label "Path" :type "path"}]
+  :return {:type "number"}})
 
-(def path/inside?
-  ^{:doc "Returns true if *pos* is inside *path*"
-    :params [{:label "Pos" :type "vec2"}
-             {:label "Path" :type "path"}]
-    :return {:type "boolean"}}
-  path/inside?)
+(annotate-fn!
+ path/nearest-point
+ {:doc "Gets the earest point on path"
+  :params [{:label "Pos" :type "vec2"}
+           {:label "Path" :type "path"}]
+  :return {:type "vec2"}})
+
+(annotate-fn!
+ path/inside?
+ {:doc "Returns true if *pos* is inside *path*"
+  :params [{:label "Pos" :type "vec2"}
+           {:label "Path" :type "path"}]
+  :return {:type "boolean"}})
