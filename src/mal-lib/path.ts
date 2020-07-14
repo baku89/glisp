@@ -48,7 +48,13 @@ function createEmptyPath() {
 
 paper.setup(new paper.Size(1, 1))
 
+const PaperPathCaches = new WeakMap<PathType, paper.Path>()
+
 function createPaperPath(path: PathType): paper.Path {
+	if (PaperPathCaches.has(path)) {
+		return PaperPathCaches.get(path) as paper.Path
+	}
+
 	if (path[0].toString().startsWith(K_PATH)) {
 		path = path.slice(1)
 	}
@@ -79,6 +85,7 @@ function createPaperPath(path: PathType): paper.Path {
 		}
 	}
 
+	PaperPathCaches.set(path, paperPath)
 	return paperPath
 }
 
