@@ -3,9 +3,8 @@
 		<Viewer
 			class="PageIndex__viewer"
 			:exp="viewExp"
-			:selectedExp="selectedExp"
-			:guide-color="guideColor"
-			:view-transform="viewTransform"
+			:guideColor="guideColor"
+			:viewTransform="viewTransform"
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
@@ -31,7 +30,7 @@
 					ref="elHandles"
 					class="PageIndex__view-handles"
 					:exp="selectedExp"
-					:view-transform.sync="viewHandlesTransform"
+					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
 				/>
 			</Pane>
