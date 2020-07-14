@@ -38,6 +38,12 @@
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
+		<path
+			class="stroke"
+			v-if="selectedPath"
+			:d="selectedPath"
+			:transform="`matrix(${transform.join(' ')})`"
+		/>
 		<g
 			v-for="({type, id, transform, yTransform, path, cls, guide},
 			i) in handles"
@@ -95,10 +101,11 @@ import {
 	M_EVAL_PARAMS,
 	MalMap,
 	MalFunc,
-	isVector
+	isVector,
+	getEvaluated
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData} from '@/path-utils'
+import {getSVGPathData, PathType} from '@/path-utils'
 import {
 	getFnInfo,
 	FnInfoType,
@@ -119,6 +126,7 @@ import {
 	Ref
 } from '@vue/composition-api'
 import ConsoleScope from '@/scopes/console'
+import AppScope from '../scopes/app'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -158,6 +166,7 @@ interface Data {
 	params: MalVal[]
 	unevaluatedParams: MalVal[]
 	returnedValue: MalVal
+	selectedPath: string
 	transform: mat2d
 	transformInv: mat2d
 	axisTransform: string
@@ -236,6 +245,16 @@ export default defineComponent({
 			transformInv: computed(() =>
 				mat2d.invert(mat2d.create(), data.transform)
 			),
+			selectedPath: computed(() => {
+				if (!props.exp) return ''
+
+				const evaluated = getEvaluated(props.exp.value)
+				if (!isVector(evaluated) || evaluated[0] !== K_PATH) {
+					return ''
+				}
+
+				return getSVGPathData(evaluated as PathType)
+			}),
 			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {
 				if (!data.handleCallbacks) return []
@@ -481,9 +500,6 @@ export default defineComponent({
 			unregisterMouseEvents()
 		})
 
-		// REM
-		const rem = useRem()
-
 		// Gestures for view transform
 		useGesture(el, {
 			onZoom({pageX, pageY, deltaY}: MouseWheelEvent) {
@@ -550,7 +566,7 @@ export default defineComponent({
 		})
 
 		// Register app commands to ConsoleScope
-		ConsoleScope.def('reset-viewport', () => {
+		AppScope.def('reset-viewport', () => {
 			if (!el.value) return null
 
 			const {width, height} = el.value.getBoundingClientRect()
@@ -562,6 +578,9 @@ export default defineComponent({
 
 			return null
 		})
+
+		// REM
+		const rem = useRem()
 
 		return {el, ...toRefs(data as any), onMousedown, rem}
 	}
