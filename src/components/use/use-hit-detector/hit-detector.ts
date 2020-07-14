@@ -17,7 +17,7 @@ const K_PATH = K('path'),
 	K_STYLE = K('style'),
 	K_FILL = K('fill'),
 	K_STROKE = K('stroke'),
-	K_STROKE_WIDTH = K('stroke-wdith')
+	K_STROKE_WIDTH = K('stroke-width')
 
 interface HitStyle {
 	fill: boolean
