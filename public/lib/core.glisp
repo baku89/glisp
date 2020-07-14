@@ -286,7 +286,12 @@
                                (do ~@body)) ~gen-lst)
                `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
 
-(defmacro case [val & xs]
+(defmacro case
+  {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
+   :params [{:label "Value" :type "any"}
+            &
+            {:label "Cond" :type "any"}]}
+  [val & xs]
   (if (> (count xs) 0)
     (if (= (count xs) 1)
       (first xs)
