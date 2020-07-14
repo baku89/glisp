@@ -124,12 +124,11 @@ import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
-import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from './use'
 import AppScope from '../scopes/app'
-import {getMapValue} from '../mal/utils'
+import {getMapValue, replaceExp} from '@/mal/utils'
 
 interface Data {
 	exp: NonReactive<MalVal>

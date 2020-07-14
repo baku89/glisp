@@ -19,10 +19,6 @@ import {
 	MalNode,
 	isNode,
 	MalSeq,
-	M_OUTER,
-	M_OUTER_INDEX,
-	M_ELMSTRS,
-	M_KEYS,
 	M_EVAL_PARAMS,
 	M_PARAMS,
 	MalBind,
@@ -524,51 +520,4 @@ export default function evalExp(
 	}
 
 	throw new Error('Exceed the maximum TCO stacks')
-}
-
-// Cached Tree-shaking
-export function replaceExp(original: MalNode, replaced: MalVal) {
-	const outer = original[M_OUTER]
-	const index = original[M_OUTER_INDEX]
-
-	if (index === undefined || !isNode(outer)) {
-		throw new MalError('Cannot execute replaceExp')
-	}
-
-	// // Inherit delimiters if possible
-	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
-	// 	replaced[M_DELIMITERS] = []
-	// 	console.log('sdfd', original, replaced)
-	// 	if (isList(original) && isList(replaced)) {
-	// 		for (let i = 0; i < replaced.length; i++) {
-	// 			const oi = Math.min(i, original.length - 2)
-	// 			replaced.push(original[M_DELIMITERS][oi])
-	// 		}
-	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
-	// 	}
-	// }
-
-	// Set as child
-	if (isSeq(outer)) {
-		outer[index] = replaced
-	} else {
-		// hash map
-		const key = outer[M_KEYS][index]
-		outer[key] = replaced
-	}
-
-	delete outer[M_ELMSTRS]
-
-	// Set outer recursively
-	saveOuter(replaced, outer, index)
-
-	// Refresh M_ELMSTRS of ancestors
-	let _outer = outer
-
-	while (_outer) {
-		delete _outer[M_ELMSTRS]
-
-		// Go upward
-		_outer = _outer[M_OUTER]
-	}
 }
