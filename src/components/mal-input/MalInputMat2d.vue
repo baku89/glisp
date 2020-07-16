@@ -1,0 +1,183 @@
+<template>
+	<div class="MalInputMat2d">
+		<MalExpButton v-if="!isValueSeparated" :value="value" @click="$emit('select', $event)" />
+		<div class="MalInputMat2d__value" v-if="isValueSeparated">
+			<div class="MalInputMat2d__split">
+				⎥
+				<br />⎥
+				<br />⎥
+			</div>
+			<MalInputNumber
+				class="MalInputMat2d__el"
+				:value="value[0]"
+				@input="onInputElement(0, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+			<MalInputNumber
+				class="MalInputMat2d__el"
+				:value="value[2]"
+				@input="onInputElement(2, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+			<MalInputNumber
+				class="MalInputMat2d__el t"
+				:value="value[4]"
+				@input="onInputElement(4, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+			<MalInputNumber
+				class="MalInputMat2d__el"
+				:value="value[1]"
+				@input="onInputElement(1, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+			<MalInputNumber
+				class="MalInputMat2d__el"
+				:value="value[3]"
+				@input="onInputElement(3, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+			<MalInputNumber
+				class="MalInputMat2d__el t"
+				:value="value[5]"
+				@input="onInputElement(5, $event)"
+				@select="$emit('select', $event)"
+				:compact="true"
+			/>
+		</div>
+		<InputTranslate v-if="isValueSeparated" :value="evaluated.slice(4)" @input="onInputTranslate" />
+	</div>
+</template>
+
+<script lang="ts">
+import {
+	defineComponent,
+	ref,
+	Ref,
+	watch,
+	PropType,
+	computed,
+	isReactive,
+	toRef
+} from '@vue/composition-api'
+import {InputNumber, InputTranslate} from '@/components/inputs'
+import MalInputNumber from './MalInputNumber.vue'
+import MalExpButton from './MalExpButton.vue'
+import {useNumericVectorUpdator} from '@/components/use'
+import {reverseEval} from '@/mal/utils'
+
+export default defineComponent({
+	name: 'MalInputMat2d',
+	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
+	props: {
+		value: {
+			type: Array as PropType<number[]>,
+			required: true
+		}
+	},
+	setup(props, context) {
+		const {
+			isValueSeparated,
+			evaluated,
+			onInputElement,
+			onInputEvaluatedElement
+		} = useNumericVectorUpdator(toRef(props, 'value'), context)
+
+		function onInputTranslate(value: number[]) {
+			const newValue = [...evaluated.value.slice(0, 4), ...value]
+			const newExp = reverseEval(newValue, props.value)
+			context.emit('input', newExp)
+		}
+
+		return {
+			isValueSeparated,
+			evaluated,
+			onInputElement,
+			onInputEvaluatedElement,
+			onInputTranslate
+		}
+	}
+})
+</script>
+
+<style lang="stylus">
+@import '../style/common.styl'
+
+.MalInputMat2d
+	display flex
+	align-items center
+	line-height $input-height
+
+	&__value
+		position relative
+		display grid
+		padding 0 0.9rem
+		grid-template-columns auto auto auto
+		grid-row-gap 0.3rem
+		grid-column-gap 0.6rem
+
+		&:before, &:after, ~/__split
+			position absolute
+			top 0.2rem
+			display block
+			font-size 1rem
+			line-height 1rem
+			font-monospace()
+
+		&:before
+			left 0
+			content '⎡\a⎢\a⎣'
+			white-space pre
+
+		&:after
+			right 0
+			content '⎤\a⎥\a⎦'
+			white-space pre
+
+		~/__split
+			right 3.9rem
+			text-align center
+			transform scaleY(0.9)
+
+	&__el
+		width 3rem
+
+		&.t
+			margin-left 0.3rem
+
+	&__drag
+		position relative
+		margin-left 0.5rem
+		width 1.1rem
+		height @width
+		border 1px solid var(--comment)
+
+		&:hover, &.dragging
+			background var(--comment)
+
+			&:before, &:after
+				background var(--background)
+
+		&:before, &:after
+			position absolute
+			display block
+			background var(--comment)
+			content ''
+
+		&:before
+			top 2px
+			left calc(50% - 0.5px)
+			width 1px
+			height calc(100% - 4px)
+
+		&:after
+			top calc(50% - 0.5px)
+			left 2px
+			width calc(100% - 4px)
+			height 1px
+</style>
