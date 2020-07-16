@@ -542,11 +542,9 @@ export default defineComponent({
 				return
 			}
 
-			const originalParams = primitive
-				? [getEvaluated(selected)]
-				: selected.slice(1).map(getEvaluated)
+			const originalParams = primitive ? [selected] : selected.slice(1)
 			const payload = {
-				[K('params')]: originalParams,
+				[K('params')]: originalParams.map(getEvaluated),
 				[K('transform')]: xform as MalVal
 			}
 
