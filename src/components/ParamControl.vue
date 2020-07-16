@@ -50,13 +50,13 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputRect2d
+					<MalInputRect2d
 						v-else-if="params[i].type === 'rect2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputMat2d
+					<MalInputMat2d
 						v-else-if="params[i].type === 'mat2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
@@ -415,6 +415,8 @@ export default defineComponent({
 			'number',
 			'angle',
 			'vec2',
+			'rect2d',
+			'mat2d',
 			'color',
 			'dropdown'
 		])
