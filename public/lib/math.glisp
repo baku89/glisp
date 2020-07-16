@@ -727,7 +727,7 @@
    (abs (- (.y to) (.y from)))])
 
 (defn rect2d/expand
-  {:doc "Expands a bound by horizontal and vertical amounts"
+  {:doc "Expands a rect2d by specified horizontal and vertical amounts"
    :params [{:label "Horizontal" :type "number"}
             {:label "Vertical" :type "number"}
             {:label "Bound" :type "rect2d"}]
