@@ -157,7 +157,7 @@ export interface FnInfoType {
 
 export function getFnInfo(exp: MalVal): FnInfoType | null {
 	let fn = null
-	if (isSeq(exp)) {
+	if (isList(exp)) {
 		fn = exp[M_FN]
 	} else if (isFunc(exp)) {
 		fn = exp
@@ -176,9 +176,9 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
-			const aliasFor = getMapValue(meta, 'alias-for')
+			const aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
 
-			if (typeof aliasFor === 'string') {
+			if (aliasFor) {
 				// is an alias
 				return {
 					fn,
