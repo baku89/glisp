@@ -177,7 +177,7 @@ export default defineComponent({
 					clickable: true,
 					expandable: false,
 					editable: true,
-					icon: {type: 'fontawesome', value: 'far fa-map'},
+					icon: {type: 'text', value: '[ ]'},
 					children: null
 				}
 			} else if (isMap(exp)) {
@@ -186,7 +186,7 @@ export default defineComponent({
 					clickable: true,
 					expandable: false,
 					editable: true,
-					icon: {type: 'text', value: '{ }'},
+					icon: {type: 'fontawesome', value: 'far fa-map'},
 					children: null
 				}
 			} else {
