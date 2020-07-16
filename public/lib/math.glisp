@@ -708,8 +708,8 @@
   `[~@point ~@size])
 
 (defn rect2d/from-to
-  {:doc "Creates a bound from two corners"
-   :inverse (fn [[x y w h]] [[x y] [(+ x w) (+ y h)]])
+  {:doc "Creates a rect2d from two corners"
+   :inverse (fn {:return [x y w h]} [[x y] [(+ x w) (+ y h)]])
    :handles {:draw (fn {:params [from to] :return ret}
                      [{:type "path" :guide true :class "dashed"
                        :path (rect ret)}
