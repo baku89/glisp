@@ -584,7 +584,7 @@ export default defineComponent({
 	&__label
 		clear both
 		padding-right 1em
-		width 5em
+		width 5.5em
 		height $param-height
 		color var(--comment)
 		white-space nowrap
