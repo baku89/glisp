@@ -84,7 +84,6 @@ import {
 	M_EVAL,
 	isMap,
 	MalSeq,
-	M_EVAL_PARAMS,
 	MalMap,
 	MalFunc,
 	isVector,
@@ -203,7 +202,7 @@ export default defineComponent({
 				if (data.fnInfo?.primitive) {
 					return [exp[M_EVAL]]
 				} else {
-					return exp[M_EVAL_PARAMS] || []
+					return exp.slice(1).map(getEvaluated) || []
 				}
 			}),
 			unevaluatedParams: computed(() => {

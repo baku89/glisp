@@ -19,7 +19,6 @@ import {
 	MalNode,
 	isNode,
 	MalSeq,
-	M_EVAL_PARAMS,
 	M_PARAMS,
 	MalBind,
 	isSeq,
@@ -106,9 +105,6 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		;(exp as MalSeq)[M_FN] = fn
 
 		const params = exp.slice(1)
-		if (cache) {
-			;(exp as MalSeq)[M_EVAL_PARAMS] = params
-		}
 		exp = fn.bind({callerEnv: Env})(...params)
 	}
 
@@ -503,7 +499,6 @@ export default function evalExp(
 
 				if (fn instanceof Function) {
 					if (cache) {
-						exp[M_EVAL_PARAMS] = params
 						exp[M_FN] = fn
 					}
 

@@ -19,7 +19,6 @@ import {
 	MalSymbol,
 	symbolFor as S,
 	createList as L,
-	M_EVAL_PARAMS,
 	isNode,
 	M_OUTER,
 	isList,
@@ -219,7 +218,7 @@ export function reverseEval(
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
-				const evaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
+				const evaluatedParams = originalParams.map(getEvaluated)
 
 				// Compute the original parameter
 				const result = inverseFn({

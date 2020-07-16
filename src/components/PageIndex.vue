@@ -111,7 +111,6 @@ import {
 	M_FN,
 	isVector,
 	keywordFor as K,
-	M_EVAL_PARAMS,
 	getEvaluated
 } from '@/mal/types'
 
@@ -545,7 +544,7 @@ export default defineComponent({
 
 			const originalParams = primitive
 				? [getEvaluated(selected)]
-				: selected[M_EVAL_PARAMS]
+				: selected.slice(1).map(getEvaluated)
 			const payload = {
 				[K('params')]: originalParams,
 				[K('transform')]: xform as MalVal
