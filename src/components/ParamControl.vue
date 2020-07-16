@@ -6,9 +6,9 @@
 			class="ParamControl__param"
 			:class="{'is-default': params[i].isDefault}"
 		>
-			<td class="label">{{ desc['ʞlabel'] }}</td>
-			<td class="value">
-				<div class="input">
+			<td class="ParamControl__label">{{ desc['ʞlabel'] }}</td>
+			<td class="ParamControl__value">
+				<div class="ParamControl__input">
 					<MalInputNumber
 						v-if="params[i].type === 'number'"
 						:value="params[i].value"
@@ -84,32 +84,22 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<MalExpButton
-						v-else
-						@click="onSelect($event)"
-						:value="params[i].value"
-					/>
+					<MalExpButton v-else @click="onSelect($event)" :value="params[i].value" />
 				</div>
-				<button
-					class="delete"
-					v-if="i >= variadicPos"
-					@click="onParamDelete(i)"
-				>
+				<button class="ParamControl__button delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
 					<i class="far fa-times-circle" />
 				</button>
 				<button
-					class="insert"
+					class="ParamControl__button insert"
 					v-if="i >= variadicPos"
 					@click="onParamInsert(i)"
-				>
-					&lt;-- Insert
-				</button>
+				>Insert</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
-			<td class="label"></td>
-			<td class="value">
-				<button class="add" @click="onParamInsert(params.length)">+ Add</button>
+			<td class="ParamControl__label"></td>
+			<td class="ParamControl__value">
+				<button class="ParamControl__button add" @click="onParamInsert(params.length)">+ Add</button>
 			</td>
 		</tr>
 	</table>
@@ -582,34 +572,34 @@ export default defineComponent({
 	table-layout fixed
 
 	&__param
+		position relative
 		height $param-height
 
 		&.is-default
 			opacity 0.5
 
-		td
+		& > td
 			padding 0.1em 0
 
-			&:first-child
-				width 5em
-
-		.label
-			clear both
-			padding-right 1em
-			height $param-height
-			color var(--comment)
-			white-space nowrap
-			line-height $param-height
-
-		.value
-			display flex
-			width 99%
-
-		.input
-			max-width calc(100% - 2rem)
-
-	button
+	&__label
+		clear both
+		padding-right 1em
+		width 5em
 		height $param-height
+		color var(--comment)
+		white-space nowrap
+		line-height $param-height
+
+	&__value
+		display flex
+		align-items center
+		width 99%
+
+	&__input
+		max-width calc(100% - 2rem)
+
+	&__button
+		height 100%
 		color var(--comment)
 		line-height $param-height
 		cursor pointer
@@ -626,17 +616,19 @@ export default defineComponent({
 				color var(--warning)
 
 		&.insert
-			// position absolute
-			position relative
-			// background blue
+			align-self start
 			font-weight normal
 			opacity 0
 			transform translate(-1em, -66%)
 
+			&:before
+				content '<-- '
+				font-monospace()
+
 			&:hover
 				color var(--hover)
 
-			&:before
+			&:after
 				position absolute
 				top 50%
 				right 0
