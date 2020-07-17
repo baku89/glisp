@@ -234,10 +234,11 @@ export function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new MalError('[with-meta] Need the metadata to attach')
 	}
-	if (!(a instanceof Object)) {
+	if (!isNode(a)) {
 		throw new MalError('[with-meta] Object should not be atom')
 	}
-	const c = cloneExp(a, m)
+	const c = cloneExp(a)
+	c[M_META] = m
 	return c
 }
 
@@ -315,41 +316,49 @@ export function isEqual(a: MalVal, b: MalVal) {
 	}
 }
 
-export function cloneExp<T extends MalVal>(obj: T, newMeta?: MalVal): T {
+export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 	let newExp: T
 
-	const type = getType(obj)
+	const type = getType(exp)
 
-	switch (getType(obj)) {
-		case MalType.List:
-			newExp = createList(...(obj as MalVal[])) as T
+	switch (getType(exp)) {
+		case MalType.List: {
+			const children = deep
+				? (exp as MalVal[]).map(e => cloneExp(e, true))
+				: (exp as MalVal[])
+			return createList(...children) as T
 			break
-		case MalType.Vector:
-			newExp = [...(obj as MalVal[])] as T
+		}
+		case MalType.Vector: {
+			const children = deep
+				? (exp as MalVal[]).map(e => cloneExp(e, true))
+				: (exp as MalVal[])
+			return [...children] as T
 			break
-		case MalType.Map:
-			newExp = {...(obj as MalMap)} as T
-			break
+		}
+		case MalType.Map: {
+			const ret = deep
+				? Object.fromEntries(
+						Object.entries(exp as MalMap).map(([k, v]) => [
+							k,
+							cloneExp(v, true)
+						])
+				  )
+				: {...(exp as MalMap)}
+			return ret as T
+		}
 		case MalType.Function:
 		case MalType.Macro: {
 			// new function instance
-			const fn = (...args: any) => (obj as Function)(...args)
+			const fn = (...args: MalSeq) => (exp as Function)(...args)
 			// copy original properties
-			newExp = Object.assign(fn, obj) as T
-			break
+			return Object.assign(fn, exp) as T
 		}
 		case MalType.Symbol:
-			newExp = symbolFor((obj as MalSymbol).value) as T
-			break
+			return symbolFor((exp as MalSymbol).value) as T
 		default:
-			newExp = obj
+			return exp
 	}
-
-	if (newMeta !== undefined && newExp instanceof Object) {
-		;(newExp as any)[M_META] = newMeta
-	}
-
-	return newExp
 }
 
 export function getEvaluated(exp: MalVal) {
