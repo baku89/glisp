@@ -132,19 +132,6 @@
 
 ;; vec2
 ;; http://glmatrix.net/docs/module-vec2.html
-
-;; (defn vec2
-;;   {:doc "Creates vec2. Returns [0 0] if no parameter has specified, [x x] if only `x` has specified, else [x y]"
-;;    :params [[{:label "x" :type "number" :default 0}]
-;;             [{:label "x" :type "number"}
-;;              {:label "y" :type "number"}]]
-;;    :return {:type "vec2"}}
-;;   [& xs]
-;;   (case (count xs)
-;;     0 [0 0]
-;;     1 (let [v (first xs)] [v v])
-;;     2 (vec xs)))
-
 (defn vec2
   {:doc "Creates vec2"
    :params [{:label "Value" :type "vec2" :default [0 0]}]
