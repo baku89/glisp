@@ -363,7 +363,9 @@
              :keys [{:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round" "square"]}
                     {:key :join :type "dropdown" :default "round"
-                     :enum ["bevel" "round" "miter"]}]}]}
+                     :enum ["bevel" "round" "miter"]}]}]
+   :compact-params [{:label "" :type "color"}
+                    {:label "W" :type "number" :default 1}]}
   [color & options]
   (let [params (case (count options)
                  0 {}
