@@ -1,11 +1,14 @@
 <template>
-	<div class="Inspector-style">
+	<div class="Inspector-style" :class="{dragging}">
 		<Draggable
 			:value="styles"
+			v-bind="dragOptions"
+			@start="dragging = true"
+			@end="dragging = false"
 			@input="sortStyles"
 			handle=".Inspector-style__handle"
 		>
-			<TransitionGroup>
+			<TransitionGroup type="transition" :name="!dragging ? 'flip-list' : null">
 				<div
 					class="Inspector-style__style"
 					v-for="(style, i) in styles"
@@ -42,7 +45,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from '@vue/composition-api'
+import {
+	defineComponent,
+	SetupContext,
+	computed,
+	ref
+} from '@vue/composition-api'
 import Draggable from 'vuedraggable'
 import {
 	MalVal,
@@ -117,7 +125,24 @@ export default defineComponent({
 			context.emit('input', nonReactive(newExp))
 		}
 
-		return {styles, updateStyleAt, sortStyles, appendStyle, deleteStyleAt}
+		const dragOptions = ref({
+			animation: 200,
+			group: 'description',
+			disable: false,
+			ghostClass: 'ghost'
+		})
+
+		const dragging = ref(false)
+
+		return {
+			styles,
+			updateStyleAt,
+			sortStyles,
+			appendStyle,
+			deleteStyleAt,
+			dragOptions,
+			dragging
+		}
 	}
 })
 </script>
@@ -143,6 +168,9 @@ export default defineComponent({
 
 		~/__style:hover &
 			opacity 1
+
+		~/.dragging &
+			opacity 0 !important
 
 	&__delete
 		color var(--comment)
@@ -177,4 +205,7 @@ export default defineComponent({
 		&:hover
 			border-color var(--highlight)
 			color var(--highlight)
+
+.flip-list-move
+	transition: transform 0.5s
 </style>
