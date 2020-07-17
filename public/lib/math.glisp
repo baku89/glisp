@@ -754,8 +754,8 @@
                       {:id :to :type "translate" :pos to}])
              :drag (fn {:id id :pos p :params [from to]}
                      (case id
-                       :from [p to]
-                       :to [from p]))}
+                       :from {:replace [0 p]}
+                       :to {:replace [1 p]}))}
    :return {:type "rect2d"}}
   [from to]
   [(min (.x from) (.x to))
