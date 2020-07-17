@@ -68,11 +68,12 @@
 (defn path/rect
   {:doc  "Generates a rect path"
    :params [{:label "Rect" :type "rect2d" :desc "the rectangle dimension"}]
-   :return {:type "path"}
    :handles {:draw (fn [e] (apply-draw-handle rect2d e))
              :drag (fn [e] (apply-drag-handle rect2d e))}
-   :return {:type "path"}
-   :initial-params [[-100 -100 200 200]]}
+   :transform (fn {:params [[x y w h]] :transform xform}
+                [`[~@(vec2/transform-mat2d [x y] xform) ~w ~h]])
+   :initial-params [[-100 -100 200 200]]
+   :return {:type "path"}}
   [[x y w h]]
   [:path
    :M [x y]
