@@ -6,6 +6,7 @@ import {
 	expandExp,
 	symbolFor as S,
 	createList as L,
+	keywordFor as K,
 	getName,
 	getMeta,
 	isFunc,
@@ -16,13 +17,15 @@ import {
 	getOuter,
 	isList,
 	isSymbolFor,
-	MalSeq
+	MalSeq,
+	getEvaluated
 } from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+import {getMapValue, getFnInfo, applyParamModifier} from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
+import {mat2d} from 'gl-matrix'
 
 export default function useAppCommands(
 	data: {
@@ -135,6 +138,56 @@ export default function useAppCommands(
 		)
 
 		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
+
+		return true
+	})
+
+	AppScope.def('transform-selected', (xform: MalVal) => {
+		if (!data.selectedExp) {
+			throw new MalError('No selection')
+		}
+		const selected = data.selectedExp.value
+
+		if (!isList(selected)) {
+			return false
+		}
+
+		const fnInfo = getFnInfo(selected)
+
+		if (!fnInfo) {
+			return false
+		}
+
+		const {meta, primitive} = fnInfo
+		const transformFn = getMapValue(meta, 'transform')
+
+		if (!isFunc(transformFn)) {
+			return false
+		}
+
+		const originalParams = primitive ? [selected] : selected.slice(1)
+		const payload = {
+			[K('params')]: originalParams.map(getEvaluated),
+			[K('transform')]: xform as MalVal
+		}
+
+		const modifier = transformFn(payload)
+		let newParams: MalVal[] | null
+
+		if (primitive) {
+			newParams = modifier as MalSeq
+		} else {
+			newParams = applyParamModifier(modifier, originalParams)
+			if (!newParams) {
+				return false
+			}
+		}
+
+		const newExp = primitive ? newParams[0] : L(selected[0], ...newParams)
+
+		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		console.log('se')
 
 		return true
 	})

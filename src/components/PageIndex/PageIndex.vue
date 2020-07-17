@@ -374,50 +374,9 @@ export default defineComponent({
 
 		// transform selectedExp
 		function onTransformSelectedExp(xform: mat2d) {
-			if (!data.selectedExp) return
-
-			const selected = data.selectedExp.value
-
-			if (!isSeq(selected)) {
-				return
-			}
-
-			const fnInfo = getFnInfo(selected)
-
-			if (!fnInfo) {
-				return
-			}
-
-			const {meta, primitive} = fnInfo
-			const transformFn = getMapValue(meta, 'transform')
-
-			if (!isFunc(transformFn)) {
-				return
-			}
-
-			const originalParams = primitive ? [selected] : selected.slice(1)
-			const payload = {
-				[K('params')]: originalParams.map(getEvaluated),
-				[K('transform')]: xform as MalVal
-			}
-
-			const modifier = transformFn(payload)
-			let newParams: MalVal[] | null
-
-			if (primitive) {
-				newParams = modifier as MalSeq
-			} else {
-				newParams = applyParamModifier(modifier, originalParams)
-				if (!newParams) {
-					return
-				}
-			}
-
-			const newExp = primitive
-				? newParams[0]
-				: createList(selected[0], ...newParams)
-
-			updateSelectedExp(nonReactive(newExp))
+			ConsoleScope.eval(
+				createList(symbolFor('transform-selected'), xform as MalVal[])
+			)
 		}
 
 		// HitDetector
