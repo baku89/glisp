@@ -241,6 +241,14 @@
             (first xs)
             (rest xs))))
 
+(defn vec2/uniform
+  {:doc "Creates vec2 whose elements are both `value`"
+   :params [{:type "number"}]
+   :inverse (fn {:return [x y]} [(/ (+ x y) 2)])
+   :return {:type "vec2"}}
+  [value]
+  [value value])
+
 (defn vec2/ceil
   {:doc "Rounds a each element up to the next largest integer"
    :params [{:label "Value" :type "vec2"}]
