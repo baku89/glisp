@@ -121,14 +121,18 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useHitDetector} from './use'
-import AppScope from '../scopes/app'
+import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
+import AppScope from '@/scopes/app'
 import {
 	getMapValue,
 	replaceExp,
 	applyParamModifier,
 	getFnInfo
 } from '@/mal/utils'
+
+import {toSketchCode} from './utils'
+import useAppCommands from './use-app-commands'
+import useURLParser from './use-url-parser'
 
 interface Data {
 	exp: NonReactive<MalVal>
@@ -151,183 +155,6 @@ interface UI {
 	viewHandlesTransform: mat2d
 	controlPaneSize: number
 	listViewPaneSize: number
-}
-
-function toSketchCode(code: string) {
-	return `(sketch;__\n${code};__\n)`
-}
-
-function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
-	// URL
-	const url = new URL(location.href)
-
-	if (url.searchParams.has('clear')) {
-		localStorage.removeItem('saved_code')
-		url.searchParams.delete('clear')
-		history.pushState({}, document.title, url.pathname + url.search)
-	}
-
-	// Load initial codes
-	const loadCodePromise = (async () => {
-		let code = ''
-
-		const queryCodeURL = url.searchParams.get('code_url')
-		const queryCode = url.searchParams.get('code')
-
-		if (queryCodeURL) {
-			const codeURL = decodeURI(queryCodeURL)
-			url.searchParams.delete('code_url')
-			url.searchParams.delete('code')
-
-			const res = await fetch(codeURL)
-			if (res.ok) {
-				code = await res.text()
-
-				if (codeURL.startsWith('http')) {
-					code = `;; Loaded from "${codeURL}"\n\n${code}`
-				}
-			} else {
-				printer.error(`Failed to load from "${codeURL}"`)
-			}
-
-			history.pushState({}, document.title, url.pathname + url.search)
-		} else if (queryCode) {
-			code = decodeURI(queryCode)
-			url.searchParams.delete('code')
-			history.pushState({}, document.title, url.pathname + url.search)
-		} else {
-			code =
-				localStorage.getItem('saved_code') ||
-				require('raw-loader!@/default-canvas.glisp').default
-		}
-
-		return code
-	})()
-
-	let onSetupConsole
-	const setupConsolePromise = new Promise(resolve => {
-		onSetupConsole = () => {
-			resolve()
-		}
-	})
-
-	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
-		onLoadExp(nonReactive(readStr(toSketchCode(code as string))))
-	})
-
-	return {onSetupConsole}
-}
-
-function useAppCommands(
-	data: Data,
-	callbacks: {
-		updateExp: (exp: NonReactive<MalVal>) => void
-		setSelectedExp: (exp: NonReactive<MalNode> | null) => any
-		updateSelectedExp: (val: NonReactive<MalVal>) => any
-	}
-) {
-	AppScope.def('expand-selected', () => {
-		if (data.selectedExp) {
-			const expanded = expandExp(data.selectedExp.value)
-			if (expanded !== undefined) {
-				callbacks.updateSelectedExp(nonReactive(expanded))
-			}
-		}
-		return null
-	})
-
-	AppScope.def('group-selected', () => {
-		if (!data.selectedExp) {
-			return null
-		}
-
-		const exp = data.selectedExp.value
-		const newExp = createList(symbolFor('g'), {}, exp)
-		callbacks.updateSelectedExp(nonReactive(newExp))
-
-		return null
-	})
-
-	AppScope.def('insert-item', (name: MalVal) => {
-		const fnName = getName(name)
-		const fn = ViewScope.var(fnName)
-		const meta = getMeta(fn)
-		const returnType =
-			(getMapValue(meta, 'return/type', MalType.String) as string) || ''
-		const initialParams =
-			(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
-
-		if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
-			throw new MalError(`${fnName} is not a function that returns item/path`)
-		}
-
-		if (!initialParams) {
-			throw new MalError(
-				`Function ${fnName} does not have the :initial-params field`
-			)
-		}
-
-		if (data.selectedExp && isSeq(data.selectedExp.value)) {
-			const newExp = cloneExp(data.selectedExp.value)
-			newExp.push(createList(symbolFor(fnName), ...initialParams))
-
-			callbacks.updateSelectedExp(nonReactive(newExp))
-		}
-
-		return null
-	})
-
-	ConsoleScope.def('load-file', (url: MalVal) => {
-		fetch(url as string).then(async res => {
-			if (res.ok) {
-				const code = await res.text()
-				const exp = readStr(toSketchCode(code)) as MalNode
-				const nonReactiveExp = nonReactive(exp)
-				callbacks.updateExp(nonReactiveExp)
-				callbacks.setSelectedExp(null)
-				data.editingExp = nonReactiveExp
-			} else {
-				printer.error(`Failed to load from "${url}"`)
-			}
-		})
-		return null
-	})
-
-	AppScope.def('select-outer', () => {
-		const outer = getOuter(data.selectedExp?.value)
-		if (outer && outer !== data.exp?.value) {
-			callbacks.setSelectedExp(nonReactive(outer))
-		}
-		return null
-	})
-
-	AppScope.def('wrap-selected', (wrapper: MalVal) => {
-		if (!data.selectedExp) {
-			throw new MalError('No slections')
-		}
-		if (!isList(wrapper)) {
-			throw new MalError(`${printExp(wrapper)} is not a list`)
-		}
-
-		const selected = data.selectedExp.value
-		let shouldDuplicate = false
-
-		const newSelectedExp = createList(
-			...wrapper.map(e => {
-				if (isSymbolFor(e, '%')) {
-					const ret = shouldDuplicate ? cloneExp(selected, true) : selected
-					shouldDuplicate = true
-					return ret
-				} else {
-					return e
-				}
-			})
-		)
-
-		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
-
-		return true
-	})
 }
 
 const OFFSET_START = 11 // length of "(sketch;__\n"
@@ -432,7 +259,7 @@ export default defineComponent({
 			data.exp = exp
 		}
 
-		const {onSetupConsole} = parseURL((exp: NonReactive<MalVal>) => {
+		const {onSetupConsole} = useURLParser((exp: NonReactive<MalVal>) => {
 			updateExp(exp)
 			data.editingExp = exp as NonReactive<MalNode>
 		})
@@ -640,9 +467,9 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import 'style/common.styl'
-@import 'style/global.styl'
-@import 'style/vmodal.styl'
+@import '../style/common.styl'
+@import '../style/global.styl'
+@import '../style/vmodal.styl'
 
 $compact-dur = 0.4s
 

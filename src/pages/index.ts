@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import VueCompositionApi from '@vue/composition-api'
-import App from '@/components/PageIndex.vue'
+import App from '@/components/PageIndex'
 import VModal from 'vue-js-modal'
 
 Vue.config.productionTip = false
