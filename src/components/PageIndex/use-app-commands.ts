@@ -18,7 +18,8 @@ import {
 	isList,
 	isSymbolFor,
 	MalSeq,
-	getEvaluated
+	getEvaluated,
+	getType
 } from '@/mal/types'
 import {getMapValue, getFnInfo, applyParamModifier} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -61,31 +62,46 @@ export default function useAppCommands(
 		return null
 	})
 
-	AppScope.def('insert-item', (name: MalVal) => {
-		const fnName = getName(name)
-		const fn = ViewScope.var(fnName)
-		const meta = getMeta(fn)
-		const returnType =
-			(getMapValue(meta, 'return/type', MalType.String) as string) || ''
-		const initialParams =
-			(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
+	AppScope.def('insert-item', (exp: MalVal) => {
+		const type = getType(exp)
 
-		if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
-			throw new MalError(`${fnName} is not a function that returns item/path`)
+		if (!data.selectedExp || !isSeq(data.selectedExp.value)) {
+			throw new MalError('No insertable selection')
 		}
 
-		if (!initialParams) {
-			throw new MalError(
-				`Function ${fnName} does not have the :initial-params field`
-			)
+		let newExp: MalVal
+
+		if (type === MalType.String || type === MalType.Symbol) {
+			const fnName = getName(exp)
+			const fn = ViewScope.var(fnName)
+			const meta = getMeta(fn)
+			const returnType =
+				(getMapValue(meta, 'return/type', MalType.String) as string) || ''
+			const initialParams =
+				(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
+
+			if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
+				throw new MalError(`${fnName} is not a function that returns item/path`)
+			}
+
+			if (!initialParams) {
+				throw new MalError(
+					`Function ${fnName} does not have the :initial-params field`
+				)
+			}
+
+			newExp = L(S(fnName), ...initialParams)
+		} else if (type === MalType.List) {
+			newExp = exp
+		} else {
+			throw new MalError('Invalid argument')
 		}
 
-		if (data.selectedExp && isSeq(data.selectedExp.value)) {
-			const newExp = cloneExp(data.selectedExp.value)
-			newExp.push(L(S(fnName), ...initialParams))
+		// Insert
+		const newSelectedExp = cloneExp(data.selectedExp.value)
+		newSelectedExp.push(newExp)
 
-			callbacks.updateSelectedExp(nonReactive(newExp))
-		}
+		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
 
 		return null
 	})
