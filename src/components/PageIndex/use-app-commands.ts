@@ -113,7 +113,7 @@ export default function useAppCommands(
 
 	AppScope.def('wrap-selected', (wrapper: MalVal) => {
 		if (!data.selectedExp) {
-			throw new MalError('No slections')
+			throw new MalError('No selection')
 		}
 		if (!isList(wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
