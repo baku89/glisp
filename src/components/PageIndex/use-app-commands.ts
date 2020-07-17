@@ -148,8 +148,8 @@ export default function useAppCommands(
 		}
 		const selected = data.selectedExp.value
 
-		if (!isList(selected)) {
-			return false
+		if (!isSeq(selected)) {
+			throw new MalError('Untransformable expression')
 		}
 
 		const fnInfo = getFnInfo(selected)
@@ -162,6 +162,10 @@ export default function useAppCommands(
 		const transformFn = getMapValue(meta, 'transform')
 
 		if (!isFunc(transformFn)) {
+			throw new MalError(
+				`Function ${fnInfo.primitive ||
+					printExp(selected[0])} does not have transform function`
+			)
 			return false
 		}
 
@@ -186,8 +190,6 @@ export default function useAppCommands(
 		const newExp = primitive ? newParams[0] : L(selected[0], ...newParams)
 
 		callbacks.updateSelectedExp(nonReactive(newExp))
-
-		console.log('se')
 
 		return true
 	})
