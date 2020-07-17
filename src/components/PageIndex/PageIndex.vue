@@ -390,6 +390,10 @@ export default defineComponent({
 			(register-keybind "mod+e" '(expand-selected))
 			(register-keybind "mod+p" '(select-outer))
 			(register-keybind "mod+g" '(group-selected))
+			(register-keybind "up" '(transform-selected (translate [0 -1])))
+			(register-keybind "down" '(transform-selected (translate [0 1])))
+			(register-keybind "right" '(transform-selected (translate [1 0])))
+			(register-keybind "left" '(transform-selected (translate [-1 0])))
 		)`)
 
 		return {
