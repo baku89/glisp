@@ -711,7 +711,7 @@
   {:doc "Creates a rect2d from two corners"
    :inverse (fn {:return [x y w h]} [[x y] [(+ x w) (+ y h)]])
    :handles {:draw (fn {:params [from to] :return ret}
-                     [{:type "path" :guide true :class "dashed"
+                     [{:type "path" :guide true
                        :path (rect ret)}
                       {:id :from :type "translate" :pos from}
                       {:id :to :type "translate" :pos to}])
@@ -730,11 +730,13 @@
   {:doc "Expands a rect2d by specified horizontal and vertical amounts"
    :params [{:label "Horizontal" :type "number"}
             {:label "Vertical" :type "number"}
-            {:label "Bound" :type "rect2d"}]
+            {:label "Rect" :type "rect2d"}]
    :handles {:draw (fn {:params [h v r] :return ret}
                      (let [c (rect2d/center r)]
                        [{:type "path" :guide true :class "dashed"
                          :path (rect r)}
+                        {:type "path" :guide true
+                         :path (rect ret)}
                         {:id :left :type "arrow"
                          :pos [(- (rect2d/left r) h) (.y c)]}
                         {:id :right :type "arrow"
@@ -745,10 +747,10 @@
                          :pos [(.x c) (+ (rect2d/bottom r) v)]}]))
              :drag (fn {:id id :pos [px py] :params [h v r]}
                      (case id
-                       :left [(- (rect2d/left r) px) v r]
-                       :right [(- px (rect2d/right r)) v r]
-                       :top [h (- (rect2d/top r) py) r]
-                       :bottom [h (- py (rect2d/bottom r)) r]))}
+                       :left {:replace [0 (- (rect2d/left r) px)]}
+                       :right {:replace [0 (- px (rect2d/right r))]}
+                       :top {:replace [1 (- (rect2d/top r) py)]}
+                       :bottom {:replace [1 (- py (rect2d/bottom r))]}))}
    :inverse (fn {:return ret :params [h v src]}
               (let [old-ret (rect2d/expand h v src)
                     h (if (!= (rect2d/left old-ret)
@@ -767,7 +769,11 @@
    (+ (rect2d/width r) (* 2 horiz))
    (+ (rect2d/height r) (* 2 vert))])
 
-(defn rect2d/union [a b]
+(defn rect2d/union
+  {:doc "Returns a new rect2d containing two rect2d's"
+   :params [{:type "rect2d"}
+            {:type "rect2d"}]}
+  [a b]
   (rect2d/from-to
    [(min (rect2d/left a) (rect2d/left b))
     (min (rect2d/top a) (rect2d/top b))]
