@@ -230,14 +230,22 @@ export function getMeta(obj: MalVal): MalVal {
 	}
 }
 
+const TYPES_SUPPORT_META = new Set([
+	MalType.Function,
+	MalType.Macro,
+	MalType.List,
+	MalType.Vector,
+	MalType.Map
+])
+
 export function withMeta(a: MalVal, m: any) {
 	if (m === undefined) {
 		throw new MalError('[with-meta] Need the metadata to attach')
 	}
-	if (!isNode(a)) {
+	if (!TYPES_SUPPORT_META.has(getType(a))) {
 		throw new MalError('[with-meta] Object should not be atom')
 	}
-	const c = cloneExp(a)
+	const c = cloneExp(a as MalNode)
 	c[M_META] = m
 	return c
 }
