@@ -99,34 +99,22 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 import ListView from '@/components/ListView.vue'
 
-import {printExp, readStr} from '@/mal'
+import {printExp} from '@/mal'
 import {
 	MalVal,
 	MalNode,
 	isNode,
-	expandExp,
-	getOuter,
 	MalAtom,
 	createList,
 	symbolFor,
-	cloneExp,
-	getName,
 	isFunc,
-	getMeta,
-	MalType,
-	MalError,
-	isList,
 	isSeq,
 	MalSeq,
-	M_FN,
-	isVector,
 	keywordFor as K,
-	getEvaluated,
-	isSymbolFor
+	getEvaluated
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
-import {printer} from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
@@ -140,7 +128,6 @@ import {
 	getFnInfo
 } from '@/mal/utils'
 
-import {toSketchCode} from './utils'
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 
