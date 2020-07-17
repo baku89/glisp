@@ -1,6 +1,7 @@
 import ace from 'brace'
 import './define-glisp-mode'
 import {useResizeSensor} from '@/components/use'
+import ConsoleScope from '@/scopes/console'
 
 // require('brace/theme/tomorrow')
 // require('brace/theme/tomorrow_night')
@@ -33,7 +34,26 @@ function setupResizeHandler(editor: ace.Editor) {
 	})
 }
 
+function setupKeybinds(editor: ace.Editor) {
+	editor.commands.addCommand({
+		name: 'select-outer',
+		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
+		exec: () => {
+			ConsoleScope.readEval('(select-outer)')
+		}
+	})
+
+	editor.commands.addCommand({
+		name: 'expand-selected',
+		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
+		exec: () => {
+			ConsoleScope.readEval('(expand-selected)')
+		}
+	})
+}
+
 export function setupEditor(editor: ace.Editor) {
 	setupSettings(editor)
 	setupResizeHandler(editor)
+	setupKeybinds(editor)
 }
