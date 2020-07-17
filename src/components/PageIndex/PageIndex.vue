@@ -8,7 +8,11 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
+		<Splitpanes
+			class="PageIndex__content default-theme"
+			vertical
+			@resize="onResizeSplitpanes"
+		>
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -24,7 +28,11 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
+					<Inspector
+						:exp="selectedExp"
+						@input="updateSelectedExp"
+						@select="setSelectedExp"
+					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -53,7 +61,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -443,9 +453,9 @@ export default defineComponent({
 
 		// After setup, execute the app configuration code
 		AppScope.readEval(`(do
-			(register-keybind "ctrl+e" '(expand-selected))
-			(register-keybind "ctrl+p" '(select-outer))
-			(register-keybind "ctrl+g" '(group-selected))
+			(register-keybind "mod+e" '(expand-selected))
+			(register-keybind "mod+p" '(select-outer))
+			(register-keybind "mod+g" '(group-selected))
 		)`)
 
 		return {

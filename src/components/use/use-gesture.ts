@@ -1,6 +1,7 @@
 import {Ref, onMounted} from '@vue/composition-api'
-import hotkeys from 'hotkeys-js'
+import Mousetrap from 'mousetrap'
 import isElectron from 'is-electron'
+import hotkeys from 'hotkeys-js'
 
 interface UseGestureOptions {
 	onScroll?: (e: MouseWheelEvent) => any

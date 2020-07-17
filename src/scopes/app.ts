@@ -1,8 +1,8 @@
 import Scope from '@/mal/scope'
+import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
 import hotkeys from 'hotkeys-js'
-import {MalVal, isList, MalError, MalJSFunc} from '@/mal/types'
-import {printExp} from '@/mal'
+import {MalVal, isList, MalError} from '@/mal/types'
 
 function onSetup() {
 	AppScope.readEval('(unregister-all-keybinds)')
@@ -26,15 +26,15 @@ AppScope.def('register-keybind', (keybind: MalVal, exp: MalVal) => {
 		AppScope.eval(exp)
 	}
 
-	hotkeys(keybind, {}, callback)
+	Mousetrap.bind(keybind, callback)
 	Keybinds.push([keybind, callback])
 
 	return null
 })
 
 AppScope.def('unregister-all-keybinds', () => {
-	for (const [keybind, callback] of Keybinds) {
-		hotkeys.unbind(keybind, callback)
+	for (const [keybind] of Keybinds) {
+		Mousetrap.unbind(keybind)
 	}
 
 	Keybinds.length = 0
