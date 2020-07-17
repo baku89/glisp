@@ -249,7 +249,9 @@
 
 
 ;; Trivial
-(defn ui-annotate [info item] item)
+(defn ui-annotate [info item]
+  (if-not (get info :hidden false)
+    item))
 
 (defn glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
 

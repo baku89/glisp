@@ -2,7 +2,12 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: labelInfo.clickable, selected, hovering}"
+			:class="{
+				clickable: labelInfo.clickable,
+				hidden: ui.hidden,
+				selected,
+				hovering
+			}"
 			@click="labelInfo.clickable && onClick()"
 			@dblclick="labelInfo.editable && onClickEditButton($event)"
 		>
@@ -19,12 +24,14 @@
 				<span
 					v-else-if="labelInfo.icon.type === 'text'"
 					:style="labelInfo.icon.style"
-				>{{ labelInfo.icon.value }}</span>
+					>{{ labelInfo.icon.value }}</span
+				>
 				<span
 					class="serif"
 					v-if="labelInfo.icon.type === 'serif'"
 					:style="labelInfo.icon.style"
-				>{{ labelInfo.icon.value }}</span>
+					>{{ labelInfo.icon.value }}</span
+				>
 			</div>
 			{{ labelInfo.label }}
 			<i
@@ -101,6 +108,7 @@ const IconTexts = {
 const S_UI_ANNOTATE = S('ui-annotate')
 const K_NAME = K('name')
 const K_EXPANDED = K('expanded')
+const K_HIDDEN = K('hidden')
 
 export default defineComponent({
 	name: 'ListView',
@@ -149,10 +157,14 @@ export default defineComponent({
 			const exp = props.exp.value
 			if (hasAnnotation.value) {
 				const info = (exp as MalSeq)[1] as MalMap
-				return {name: info[K_NAME] || null, expanded: info[K_EXPANDED] || false}
+				return {
+					name: info[K_NAME] || null,
+					expanded: info[K_EXPANDED] || false,
+					hidden: info[K_HIDDEN] || false
+				}
 			}
 
-			return {name: null, expanded: false}
+			return {name: null, expanded: false, hidden: false}
 		})
 
 		const labelInfo = computed(() => {
@@ -328,6 +340,9 @@ export default defineComponent({
 		&:hover
 			&:after
 				opacity 0.15
+
+		&.hidden
+			text-decoration line-through
 
 		&.clickable
 			color var(--foreground)
