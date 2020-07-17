@@ -1,20 +1,24 @@
 <template>
-	<div class="deftime">
-		<div class="deftime__control">
-			<button class="deftime__toggle-play" @click="togglePlay">
+	<div class="Inspector-deftime">
+		<div class="Inspector-deftime__control">
+			<button class="Inspector-deftime__toggle-play" @click="togglePlay">
 				<i class="fas fa-pause" v-if="isPlaying" />
 				<i class="fas fa-play" v-else />
 			</button>
-			<div class="deftime__seekbar" ref="seekbarRef">
+			<div class="Inspector-deftime__seekbar" ref="seekbarRef">
 				<button
-					class="deftime__current-time"
+					class="Inspector-deftime__current-time"
 					ref="currentTimeRef"
 					:dragging="isSeeking"
 					:style="{left: `${normalizedPosition * 100}%`}"
 				/>
 			</div>
 		</div>
-		<ParamControl :exp="exp" @input="$emit('input', $event)" @select="$emit('select', $event)" />
+		<ParamControl
+			:exp="exp"
+			@input="$emit('input', $event)"
+			@select="$emit('select', $event)"
+		/>
 	</div>
 </template>
 
@@ -49,7 +53,7 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'deftime',
+	name: 'Inspector-deftime',
 	components: {
 		ParamControl
 	},
@@ -194,7 +198,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '../style/common.styl'
 
-.deftime
+.Inspector-deftime
 	position relative
 
 	&__control

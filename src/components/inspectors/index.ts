@@ -1,4 +1,4 @@
 export default {
-	'cubic-bezier': require('./cubic-bezier').default,
-	deftime: require('./deftime').default
+	'Inspector-cubic-bezier': require('./cubic-bezier').default,
+	'Inspector-deftime': require('./deftime').default
 }

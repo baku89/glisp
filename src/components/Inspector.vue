@@ -50,8 +50,6 @@ import {NonReactive, nonReactive} from '@/utils'
 import {getFnInfo} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 
-const S_UI_ANNOTATE = S('ui-annotate')
-
 interface Props {
 	exp: NonReactive<MalNode>
 }
@@ -107,7 +105,8 @@ export default defineComponent({
 		})
 
 		const inspectorName = computed(() => {
-			return fnName.value in Inspectors ? fnName.value : 'ParamControl'
+			const customInspector = `Inspector-${fnName.value}`
+			return customInspector in Inspectors ? customInspector : 'ParamControl'
 		})
 
 		function onSelectOuter() {

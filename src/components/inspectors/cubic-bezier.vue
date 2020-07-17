@@ -1,11 +1,11 @@
 <template>
-	<div class="cubic-bezier">
+	<div class="Inspector-cubic-bezier">
 		<ParamControl
 			:exp="exp"
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
 		/>
-		<svg class="cubic-bezier__svg" ref="svgEl">
+		<svg class="Inspector-cubic-bezier__svg" ref="svgEl">
 			<line class="diagonal" x1="0" :y1="size[1]" :x2="size[1]" y2="0" />
 			<path
 				class="curve"
@@ -54,7 +54,7 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'cubic-bezier',
+	name: 'Inspector-cubic-bezier',
 	components: {
 		ParamControl
 	},
@@ -160,7 +160,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '../style/common.styl'
 
-.cubic-bezier
+.Inspector-cubic-bezier
 	position relative
 	display flex
 
