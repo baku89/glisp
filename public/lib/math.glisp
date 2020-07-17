@@ -165,8 +165,13 @@
    (number? (.y x))))
 
 (defn vec2/+
-  {:doc "Adds two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]
+  {:doc "Adds vec2's"
+   :params [& {:label "Value" :type "vec2"}]
+   :inverse (fn {:return ret :params xs}
+              (case (count xs)
+                0 []
+                1 [ret]
+                {:replace [-1 (vec2/- ret (apply vec2/+ (butlast xs)))]}))
    :return {:type "vec2"}}
   [& xs]
   (reduce (fn [a b]
@@ -176,28 +181,65 @@
           xs))
 
 (defn vec2/-
-  {:doc "Subtracts *b* from *a*"
-   :params [{:type "vec2"} {:type "vec2"}]
+  {:doc "Subtracts vec2's"
+   :params [& {:label "Value" :type "vec2"}]
+   :inverse (fn {:return ret :params xs}
+              (case (count xs)
+                0 []
+                1 [(vec2/scale ret -1)]
+                {:replace [-1 (vec2/- (first xs)
+                                      (apply vec2/+ (slice xs 1 -1))
+                                      ret)]}))
    :return {:type "vec2"}}
-  [a b]
-  [(- (.x a) (.x b))
-   (- (.y a) (.y b))])
+  [& xs]
+  (case (count xs)
+    0 [0 0]
+    1 (vec2/scale (first xs) -1)
+    (reduce (fn [a b]
+              [(- (.x a) (.x b))
+               (- (.y a) (.y b))])
+            (first xs)
+            (rest xs))))
 
 (defn vec2/*
-  {:doc "Multiplies two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]
+  {:doc "Multiplies vec2's"
+   :params [& {:label "Value" :type "vec2"}]
+   :inverse (fn {:return ret :params xs}
+              (case (count xs)
+                0 []
+                1 [ret]
+                {:replace [-1 (vec2/div ret (apply vec2/* (butlast xs)))]}))
    :return {:type "vec2"}}
-  [a b]
-  [(* (.x a) (.x b))
-   (* (.y a) (.y b))])
+  [& xs]
+  (case (count xs)
+    0 [1 1]
+    1 (first xs)
+    (reduce (fn [a b]
+              [(* (.x a) (.x b))
+               (* (.y a) (.y b))])
+            [1 1]
+            xs)))
 
 (defn vec2/div
-  {:doc "Divides two vec2's"
-   :params [{:type "vec2"} {:type "vec2"}]
+  {:doc "Divides vec2's"
+   :params [& {:label "Value" :type "vec2"}]
+   :inverse (fn {:return ret :params xs}
+              (case (count xs)
+                0 []
+                1 [(vec2/div ret)]
+                {:replace [-1 (vec2/div (first xs)
+                                        (apply vec2/* (slice xs 1 -1)) ret)]}))
    :return {:type "vec2"}}
-  [a b]
-  [(/ (.x a) (.x b))
-   (/ (.y a) (.y b))])
+  [& xs]
+  (case (count xs)
+    0 [1 1]
+    1 [(/ (.x (first xs)))
+       (/ (.y (first xs)))]
+    (reduce (fn [a b]
+              [(/ (.x a) (.x b))
+               (/ (.y a) (.y b))])
+            (first xs)
+            (rest xs))))
 
 (defn vec2/ceil
   {:doc "Rounds a each element up to the next largest integer"
