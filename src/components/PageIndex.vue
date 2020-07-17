@@ -111,7 +111,8 @@ import {
 	M_FN,
 	isVector,
 	keywordFor as K,
-	getEvaluated
+	getEvaluated,
+	isSymbolFor
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -298,6 +299,34 @@ function useBindConsole(
 			callbacks.setSelectedExp(nonReactive(outer))
 		}
 		return null
+	})
+
+	AppScope.def('wrap-selected', (wrapper: MalVal) => {
+		if (!data.selectedExp) {
+			throw new MalError('No slections')
+		}
+		if (!isList(wrapper)) {
+			throw new MalError(`${printExp(wrapper)} is not a list`)
+		}
+
+		const selected = data.selectedExp.value
+		let shouldDuplicate = false
+
+		const newSelectedExp = createList(
+			...wrapper.map(e => {
+				if (isSymbolFor(e, '%')) {
+					const ret = shouldDuplicate ? cloneExp(selected, true) : selected
+					shouldDuplicate = true
+					return ret
+				} else {
+					return e
+				}
+			})
+		)
+
+		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
+
+		return true
 	})
 }
 
