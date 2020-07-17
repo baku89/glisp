@@ -105,13 +105,8 @@ import {
 	MalNode,
 	isNode,
 	MalAtom,
-	createList,
-	symbolFor,
-	isFunc,
-	isSeq,
-	MalSeq,
-	keywordFor as K,
-	getEvaluated
+	createList as L,
+	symbolFor as S
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -121,12 +116,7 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
-import {
-	getMapValue,
-	replaceExp,
-	applyParamModifier,
-	getFnInfo
-} from '@/mal/utils'
+import {replaceExp} from '@/mal/utils'
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
@@ -200,7 +190,7 @@ export default defineComponent({
 		}) as UI
 
 		const data = reactive({
-			exp: nonReactive(createList(symbolFor('sketch'))),
+			exp: nonReactive(L(S('sketch'))),
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -374,9 +364,7 @@ export default defineComponent({
 
 		// transform selectedExp
 		function onTransformSelectedExp(xform: mat2d) {
-			ConsoleScope.eval(
-				createList(symbolFor('transform-selected'), xform as MalVal[])
-			)
+			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
 		}
 
 		// HitDetector
