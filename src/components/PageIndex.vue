@@ -218,7 +218,7 @@ function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
 	return {onSetupConsole}
 }
 
-function useBindConsole(
+function useAppCommands(
 	data: Data,
 	callbacks: {
 		updateExp: (exp: NonReactive<MalVal>) => void
@@ -607,7 +607,7 @@ export default defineComponent({
 		)
 
 		// Setup scopes
-		useBindConsole(data, {
+		useAppCommands(data, {
 			updateExp,
 			setSelectedExp,
 			updateSelectedExp
