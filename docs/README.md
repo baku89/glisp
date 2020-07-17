@@ -1,31 +1,34 @@
 # Glisp
 
+<img src="./favicon/android-chrome-512x512.png" style="width: 256px; margin: 0 auto; display: block;" />
+
 Glisp = **G**raphical **L**isp
 
 A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 Lisp ベースのグラフィックデザインツール / クリエイティブコーディング環境を目指して開発しています。
 
-## 使い方
+## ことはじめ
 
-- [Lisp の文法](syntax)
+- [Glisp の文法](syntax)
 - [はじめてのスケッチ](get-started)
+
+## 機能について
+
 - [スタイルの応用](styles)
+- [トランスフォーム](transform)
+- [描画ツリー](draw-tree)
+- プリミティブ
+- [ハンドル](defining-handle)
+- Docstring
+- 逆評価
+- 編集モード
+- 単位系
 
 ## リファレンス
 
 - [チートシート](cheatsheet)
 - [関数](ref)
-
-## 機能のこと
-
-- [トランスフォーム](transform)
-- [描画ツリー](draw-tree)
-- プリミティブ
-- [ハンドル](defining-handle)
-- 逆評価
-- ドローイングツール
-- 単位系
 
 ## デザインツールの考察
 
