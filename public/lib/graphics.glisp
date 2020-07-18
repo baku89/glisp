@@ -340,7 +340,8 @@
 ;; Style
 (defn graphics/fill
   {:doc "Creates a fill property"
-   :params [{:label "Color" :type "color" :desc "Color to fill"}]}
+   :params [{:label "Color" :type "color" :desc "Color to fill"}]
+   :compact-params [{:type "color"}]}
   [& xs]
   (if (zero? (count xs))
     {:fill true}
