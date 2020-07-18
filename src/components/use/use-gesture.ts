@@ -1,5 +1,4 @@
 import {Ref, onMounted} from '@vue/composition-api'
-import Mousetrap from 'mousetrap'
 import isElectron from 'is-electron'
 import hotkeys from 'hotkeys-js'
 
