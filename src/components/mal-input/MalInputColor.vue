@@ -198,7 +198,7 @@ export default defineComponent({
 					break
 				case 'HSL': {
 					const [h, s, l] = color.hsl()
-					value = L(S('hsl'), (h / 180) * Math.PI, s, l)
+					value = L(S('hsl'), ((h || 0) / 180) * Math.PI, s, l)
 					break
 				}
 			}
