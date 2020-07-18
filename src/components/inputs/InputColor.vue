@@ -10,7 +10,7 @@
 			}"
 			boundaries-selector="body"
 		>
-			<ColorPicker class="InputColor__picker" :value="value" @input="onInput" />
+			<ColorPicker class="InputColor__picker" :value="value" @input="$emit('input', $event)" />
 			<button class="InputColor__button" slot="reference">
 				<span class="InputColor__color-preview" :style="{background: value}" />
 			</button>
@@ -36,13 +36,7 @@ export default defineComponent({
 		}
 	},
 	setup(props, context) {
-		const onInput = (e: any) => {
-			context.emit('input', e)
-		}
-
-		return {
-			onInput
-		}
+		return {}
 	}
 })
 </script>
@@ -52,7 +46,9 @@ export default defineComponent({
 
 .InputColor
 	&__button
+		position relative
 		display block
+		overflow hidden
 		margin-left 0.5em
 		width 1.3em
 		height 1.3em
@@ -60,29 +56,24 @@ export default defineComponent({
 		border 0
 		border 1px solid var(--comment)
 		border-radius 50%
+		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
+		background-position 0 0, 5px 0, 5px -5px, 0px 5px
+		background-size 10px 10px
 		vertical-align bottom
 		font-size inherit
-		position relative
-		overflow hidden
-		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
-		background-size 10px 10px
-		background-position 0 0, 5px 0, 5px -5px, 0px 5px
 
 	&__color-preview
-		display block
 		position absolute
 		top 0
 		left 0
+		display block
 		width 100%
 		height 100%
-		// background transparent !important
-
-
 
 	&__picker
+		left 100px !important
 		z-index 1000
 		border-radius 2px
-		left: 100px !important
 		box-shadow 0 0 20px 0 var(--translucent) !important
 
 		&:before

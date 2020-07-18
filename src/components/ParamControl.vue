@@ -17,14 +17,14 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputString
+					<MalInputString
 						v-else-if="params[i].type === 'string'"
 						:value="params[i].value"
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputDropdown
+					<MalInputDropdown
 						v-else-if="params[i].type === 'dropdown'"
 						:value="params[i].value"
 						:values="desc['ʞenum']"
@@ -62,13 +62,13 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputSeed
+					<MalInputSeed
 						v-else-if="params[i].type === 'seed'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputString
+					<MalInputString
 						style="color: var(--syntax-symbol)"
 						v-else-if="params[i].type === 'symbol'"
 						:value="params[i].value.value"
@@ -76,10 +76,10 @@
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<InputString
+					<MalInputString
 						style="color: var(--syntax-keyword)"
 						v-else-if="params[i].type === 'keyword'"
-						:value="params[i].value.slice(1)"
+						:value="params[i].value.value.slice(1)"
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
@@ -123,7 +123,6 @@ import {
 	createList as L,
 	isVector
 } from '@/mal/types'
-import * as InputComponents from '@/components/inputs'
 import * as MalInputComponents from '@/components/mal-input'
 import {getFnInfo, getPrimitiveType} from '@/mal/utils'
 import {nonReactive, getParamLabel, clamp, NonReactive} from '@/utils'
@@ -150,7 +149,7 @@ type RestType = null | 'variadic' | 'keyword'
 
 interface Param {
 	type: string
-	value: MalVal[]
+	value: NonReactive<MalVal[]>
 	isDefault: boolean
 }
 
@@ -187,7 +186,6 @@ export default defineComponent({
 		fn: {required: false}
 	},
 	components: {
-		...InputComponents,
 		...MalInputComponents
 	},
 	setup(props: Props, context) {
@@ -384,7 +382,7 @@ export default defineComponent({
 						const key = desc[K_KEY]
 
 						const isDefault = !(key in hm) && K_DEFAULT in desc
-						const value = isDefault ? desc[K_DEFAULT] : hm[key]
+						const value = nonReactive(isDefault ? desc[K_DEFAULT] : hm[key])
 						const type = matchInputTypeOfValueAndDesc(value, desc)
 
 						params.push({type, value, isDefault})
@@ -393,7 +391,9 @@ export default defineComponent({
 				}
 
 				const isDefault = fnParams.value.length <= i && K_DEFAULT in desc
-				const value = isDefault ? desc[K_DEFAULT] : fnParams.value[i]
+				const value = nonReactive(
+					isDefault ? desc[K_DEFAULT] : fnParams.value[i]
+				)
 				const type = matchInputTypeOfValueAndDesc(value, desc)
 
 				params.push({type, value, isDefault})
@@ -408,7 +408,8 @@ export default defineComponent({
 			'rect2d',
 			'mat2d',
 			'color',
-			'dropdown'
+			'dropdown',
+			'seed'
 		])
 
 		function matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
@@ -428,7 +429,7 @@ export default defineComponent({
 			return descType
 		}
 
-		function onParamInput(i: number, value: MalVal) {
+		function onParamInput(i: number, value: NonReactive<MalVal>) {
 			if (!fnInfo.value) {
 				return
 			}
@@ -449,7 +450,7 @@ export default defineComponent({
 					const param = restParams[j]
 					const desc = restDescs[j]
 
-					const v = j === restIndex ? value : param.value
+					const v = j === restIndex ? value.value : param.value.value
 					const isDefault = v === desc[K_DEFAULT]
 
 					if (!isDefault) {
@@ -461,7 +462,7 @@ export default defineComponent({
 				newParams.push(...fnParams.value.slice(0, rest.pos), ...modifiedParams)
 			} else {
 				newParams.push(...fnParams.value)
-				newParams[i] = value
+				newParams[i] = value.value
 			}
 			// Check if the parameters can be made shorter
 			if (!rest || newParams.length <= rest.pos) {
@@ -535,8 +536,8 @@ export default defineComponent({
 			context.emit('input', nonReactive(newValue))
 		}
 
-		function onSelect(exp: MalVal) {
-			context.emit('select', nonReactive(exp))
+		function onSelect(exp: NonReactive<MalVal>) {
+			context.emit('select', exp)
 		}
 
 		// Use inside the template

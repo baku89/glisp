@@ -2,21 +2,21 @@
 	<div class="MalInputVec2">
 		<MalExpButton
 			v-if="!isValueSeparated"
-			:value="value"
+			:value="value.value"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>[
 		<template v-if="isValueSeparated">
 			<MalInputNumber
 				class="MalInputVec2__el"
-				:value="value[0]"
+				:value="nonReactiveValues[0]"
 				:compact="true"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
 			/>
 			<MalInputNumber
 				class="MalInputVec2__el"
-				:value="value[1]"
+				:value="nonReactiveValues[1]"
 				:compact="true"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
@@ -46,26 +46,42 @@ import {
 	Ref,
 	PropType,
 	computed,
-	toRef
+	toRef,
+	SetupContext
 } from '@vue/composition-api'
-import {getEvaluated, MalVal, isVector, MalSeq} from '@/mal/types'
+import {
+	getEvaluated,
+	MalVal,
+	isVector,
+	MalSeq,
+	isSeq,
+	MalSymbol,
+	isSymbol
+} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import {useDraggable, useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
+import {NonReactive, nonReactive} from '@/utils'
+
+interface Props {
+	value: NonReactive<MalSeq | MalSymbol>
+}
 
 export default defineComponent({
 	name: 'MalInputVec2',
 	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
 	props: {
 		value: {
-			type: [Array, Object] as PropType<MalVal>,
-			required: true
+			required: true,
+			validator: x =>
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context: SetupContext) {
 		const {
+			nonReactiveValues,
 			isValueSeparated,
 			evaluated,
 			onInputElement,
@@ -73,11 +89,12 @@ export default defineComponent({
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
-			const newExp = reverseEval(value, props.value)
-			context.emit('input', newExp)
+			const newExp = reverseEval(value, props.value.value)
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
+			nonReactiveValues,
 			isValueSeparated,
 			evaluated,
 			onInputElement,

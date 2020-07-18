@@ -9,12 +9,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import {MalVal, isList, M_FN, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
+import {NonReactive} from '@/utils'
 
 interface Props {
-	value: MalVal
+	value: NonReactive<MalVal>
 	compact: boolean
 }
 
@@ -22,34 +23,35 @@ export default defineComponent({
 	name: 'MalExpButton',
 	props: {
 		value: {
-			required: true
+			required: true,
+			validator: v => v instanceof NonReactive
 		},
 		compact: {
 			default: false
 		}
 	},
-	setup(props: Props, context) {
+	setup(props: Props, context: SetupContext) {
 		const sign = computed(() => {
-			if (isList(props.value)) {
+			if (isList(props.value.value)) {
 				return 'f'
-			} else if (isSymbol(props.value)) {
+			} else if (isSymbol(props.value.value)) {
 				return 'x'
 			} else {
 				return '='
 			}
 		})
 
-		const selectable = computed(() => isNode(props.value))
+		const selectable = computed(() => isNode(props.value.value))
 
 		const str = computed(() => {
 			if (sign.value === 'f') {
 				if (props.compact) {
 					return ''
 				} else {
-					return `(${printExp((props.value as MalVal[])[0])})`
+					return `(${printExp((props.value.value as MalVal[])[0])})`
 				}
 			} else {
-				return printExp(props.value)
+				return printExp(props.value.value)
 			}
 		})
 

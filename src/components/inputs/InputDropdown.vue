@@ -1,8 +1,10 @@
 <template>
 	<select class="InputDropdown" :value="value" @change="onChange">
-		<option v-for="(value, index) in values" :key="index" :value="value">{{
+		<option v-for="(value, index) in values" :key="index" :value="value">
+			{{
 			labels ? labels[index] : value
-		}}</option>
+			}}
+		</option>
 	</select>
 </template>
 
@@ -26,7 +28,7 @@ export default defineComponent({
 		}
 	},
 	setup(props, context) {
-		const onChange = (e: InputEvent) => {
+		function onChange(e: InputEvent) {
 			const {selectedIndex} = e.target as HTMLSelectElement
 			const newValue = props.values[selectedIndex]
 			context.emit('input', newValue)

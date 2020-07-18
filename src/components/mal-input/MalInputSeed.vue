@@ -1,14 +1,14 @@
 <template>
-	<div class="MalInputAngle">
+	<div class="MalInputSeed">
 		<MalInputNumber
-			class="MalInputAngle__input"
+			class="MalInputSeed__input"
 			:compact="true"
 			:value="value"
 			@input="onInput($event.value)"
 			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
-		<InputRotery class="MalInputAngle__rotery" :value="evaluated" @input="onInput" />
+		<InputSeed class="MalInputSeed__shuffle" @input="onInput" />
 	</div>
 </template>
 
@@ -20,7 +20,7 @@ import {
 	SetupContext
 } from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
-import {InputRotery} from '@/components/inputs'
+import {InputSeed} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
@@ -31,8 +31,8 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'MalInputAngle',
-	components: {MalInputNumber, InputRotery},
+	name: 'MalInputSeed',
+	components: {MalInputNumber, InputSeed},
 	props: {
 		value: {
 			required: true,
@@ -43,10 +43,6 @@ export default defineComponent({
 		}
 	},
 	setup(props: Props, context: SetupContext) {
-		const evaluated = computed(() => {
-			return getEvaluated(props.value.value) as number
-		})
-
 		function onInput(value: MalVal) {
 			let newExp = value
 			if (typeof newExp === 'number') {
@@ -57,7 +53,6 @@ export default defineComponent({
 		}
 
 		return {
-			evaluated,
 			onInput
 		}
 	}
@@ -67,7 +62,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputAngle
+.MalInputSeed
 	display flex
 	align-items center
 	line-height $input-height
@@ -75,6 +70,6 @@ export default defineComponent({
 	&__input
 		margin-right 0.5em
 
-	&__rotery
+	&__shuffle
 		margin-left 0.5rem
 </style>

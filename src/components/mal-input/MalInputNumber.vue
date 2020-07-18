@@ -2,7 +2,7 @@
 	<div class="MalInputNumber">
 		<MalExpButton
 			v-if="display.isExp && compact"
-			:value="display.mode !== 'unit' ? value : value[1]"
+			:value="display.mode !== 'unit' ? value.value : value.value[1]"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>
@@ -19,8 +19,7 @@
 			class="MalInputNumber__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-			>{{ display.unit }}</span
-		>
+		>{{ display.unit }}</span>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
@@ -32,7 +31,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from '@vue/composition-api'
+import {
+	defineComponent,
+	PropType,
+	computed,
+	SetupContext
+} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {
@@ -46,19 +50,25 @@ import {
 	createList as L
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval} from '@/mal/utils'
+import {NonReactive, nonReactive} from '@/utils'
 
-type Validator = (v: number) => number | null
+interface Props {
+	value: NonReactive<MalSymbol | number | MalSeq>
+	validator: (v: number) => number | null
+	compact: boolean
+	isExp: boolean
+}
 
 export default defineComponent({
 	name: 'MalInputNumber',
 	components: {InputNumber, MalExpButton},
 	props: {
 		value: {
-			type: [Number, Array, Object] as PropType<number | MalSeq | MalSymbol>,
-			required: true
+			required: true,
+			validator: x => x instanceof NonReactive
 		},
 		validator: {
-			type: Function as PropType<Validator>,
+			type: Function,
 			required: false
 		},
 		compact: {
@@ -70,21 +80,21 @@ export default defineComponent({
 			default: false
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context: SetupContext) {
 		const display = computed(() => {
-			if (props.value === undefined) {
+			if (props.value.value === undefined) {
 				return {mode: 'undefined', isExp: false}
-			} else if (typeof props.value === 'number') {
+			} else if (typeof props.value.value === 'number') {
 				return {mode: 'number', isExp: false}
-			} else if (isList(props.value) && props.value.length === 2) {
-				const info = getFnInfo(props.value)
+			} else if (isList(props.value.value) && props.value.value.length === 2) {
+				const info = getFnInfo(props.value.value)
 
 				if (info) {
 					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Function)
 					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
-						const isExp = typeof (props.value as MalVal[])[1] !== 'number'
+						const isExp = typeof (props.value.value as MalVal[])[1] !== 'number'
 						return {mode: 'unit', unit, inverseFn, isExp}
 					}
 				}
@@ -94,7 +104,7 @@ export default defineComponent({
 
 		const fn = computed(() => {
 			if (display.value.mode !== 'exp') {
-				return (props.value as MalSeq)[M_FN]
+				return (props.value.value as MalSeq)[M_FN]
 			} else {
 				return null
 			}
@@ -103,14 +113,14 @@ export default defineComponent({
 		const displayValue = computed(() => {
 			switch (display.value.mode) {
 				case 'number':
-					return props.value as number
+					return props.value.value as number
 				case 'unit':
-					return getEvaluated((props.value as MalVal[])[1]) as number
+					return getEvaluated((props.value.value as MalVal[])[1]) as number
 				case 'undefined':
 					return 0
 				default:
 					// exp
-					return getEvaluated(props.value) as number
+					return getEvaluated(props.value.value) as number
 			}
 		})
 
@@ -132,12 +142,12 @@ export default defineComponent({
 		function onInput(value: number) {
 			let newExp: MalVal = value
 			if (display.value.mode === 'unit') {
-				const unitVal = reverseEval(value, (props.value as MalVal[])[1])
-				newExp = L((props.value as MalVal[])[0], unitVal)
+				const unitVal = reverseEval(value, (props.value.value as MalVal[])[1])
+				newExp = L((props.value.value as MalVal[])[0], unitVal)
 			} else if (display.value.mode === 'exp') {
-				newExp = reverseEval(value, props.value)
+				newExp = reverseEval(value, props.value.value)
 			}
-			context.emit('input', newExp)
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {

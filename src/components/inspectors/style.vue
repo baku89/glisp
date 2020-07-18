@@ -13,7 +13,7 @@
 			<tr class="Inspector-style__style" v-for="(style, i) in styles" :key="i">
 				<td class="Inspector-style__label">{{ labels[i] }}</td>
 				<td class="Inspector-style__input">
-					<MalExpButton :value="style" @click="$emit('select', nonReactive($event))" :compact="true" />
+					<MalExpButton :value="style" @click="$emit('select', $event)" :compact="true" />
 					<MalInputParam
 						class="Inspector-style__param"
 						:value="style"
@@ -74,25 +74,28 @@ export default defineComponent({
 	setup(props: Props, context: SetupContext) {
 		const styles = computed(() => {
 			const styles = props.exp.value[1]
-			return isVector(styles) ? styles : [styles]
+			return (isVector(styles) ? styles : [styles]).map(nonReactive)
 		})
 
 		const labels = computed(() => {
-			return styles.value.map(s => getParamLabel((s as MalSeq)[0]))
+			return styles.value.map(s => getParamLabel((s.value as MalSeq)[0]))
 		})
 
-		function updateStyleAt(style: MalSeq, i: number) {
+		function updateStyleAt(style: NonReactive<MalSeq>, i: number) {
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = [...styles.value]
-			newStyles[i] = style
+			const newStyles = styles.value.map(s => s.value)
+			newStyles[i] = style.value
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			context.emit('input', nonReactive(newExp))
 		}
 
-		function sortStyles(sortedStyles: MalSeq[]) {
+		function sortStyles(sortedStyles: NonReactive<MalSeq[]>[]) {
 			const newExp = cloneExp(props.exp.value)
-			newExp[1] = sortedStyles.length == 1 ? sortedStyles[0] : sortedStyles
+			newExp[1] =
+				sortedStyles.length == 1
+					? sortedStyles[0].value
+					: sortedStyles.map(s => s.value)
 
 			context.emit('input', nonReactive(newExp))
 		}
@@ -102,7 +105,7 @@ export default defineComponent({
 				type === 'fill' ? L(S('fill'), '#000000') : L(S('stroke'), '#000000', 1)
 
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = [...styles.value]
+			const newStyles = styles.value.map(s => s.value)
 			newStyles.push(style)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
@@ -111,7 +114,7 @@ export default defineComponent({
 
 		function deleteStyleAt(i: number) {
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = [...styles.value]
+			const newStyles = styles.value.map(s => s.value)
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
@@ -135,8 +138,7 @@ export default defineComponent({
 			appendStyle,
 			deleteStyleAt,
 			dragOptions,
-			dragging,
-			nonReactive
+			dragging
 		}
 	}
 })

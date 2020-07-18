@@ -1,11 +1,5 @@
 <template>
-	<input
-		class="InputString"
-		type="text"
-		:value="value"
-		@input="onInput"
-		@blur="onBlur"
-	/>
+	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
 </template>
 
 <script lang="ts">
@@ -24,7 +18,7 @@ export default defineComponent({
 		}
 	},
 	setup(props, context) {
-		const onInput = (e: InputEvent) => {
+		function onInput(e: InputEvent) {
 			let val: string | null = (e.target as HTMLInputElement).value
 
 			if (props.validator) {
@@ -35,7 +29,7 @@ export default defineComponent({
 			context.emit('input', val)
 		}
 
-		const onBlur = (e: InputEvent) => {
+		function onBlur(e: InputEvent) {
 			const el = e.target as HTMLInputElement
 			el.value = props.value
 		}

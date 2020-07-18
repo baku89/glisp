@@ -9,42 +9,42 @@
 			</div>
 			<MalInputNumber
 				class="MalInputMat2d__el"
-				:value="value[0]"
+				:value="nonReactiveValues[0]"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
-				:value="value[2]"
+				:value="nonReactiveValues[2]"
 				@input="onInputElement(2, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el t"
-				:value="value[4]"
+				:value="nonReactiveValues[4]"
 				@input="onInputElement(4, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
-				:value="value[1]"
+				:value="nonReactiveValues[1]"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
-				:value="value[3]"
+				:value="nonReactiveValues[3]"
 				@input="onInputElement(3, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el t"
-				:value="value[5]"
+				:value="nonReactiveValues[5]"
 				@input="onInputElement(5, $event)"
 				@select="$emit('select', $event)"
 				:compact="true"
@@ -63,25 +63,34 @@ import {
 	PropType,
 	computed,
 	isReactive,
-	toRef
+	toRef,
+	SetupContext
 } from '@vue/composition-api'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
+import {NonReactive, nonReactive} from '@/utils'
+import {isSeq, MalSeq, isSymbol, MalSymbol} from '@/mal/types'
+
+interface Props {
+	value: NonReactive<MalSeq | MalSymbol>
+}
 
 export default defineComponent({
 	name: 'MalInputMat2d',
 	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
 	props: {
 		value: {
-			type: Array as PropType<number[]>,
-			required: true
+			required: true,
+			validator: x =>
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
 		}
 	},
-	setup(props, context) {
+	setup(props: Props, context: SetupContext) {
 		const {
+			nonReactiveValues,
 			isValueSeparated,
 			evaluated,
 			onInputElement,
@@ -90,11 +99,12 @@ export default defineComponent({
 
 		function onInputTranslate(value: number[]) {
 			const newValue = [...evaluated.value.slice(0, 4), ...value]
-			const newExp = reverseEval(newValue, props.value)
-			context.emit('input', newExp)
+			const newExp = reverseEval(newValue, props.value.value)
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
+			nonReactiveValues,
 			isValueSeparated,
 			evaluated,
 			onInputElement,
