@@ -158,7 +158,7 @@ export default defineComponent({
 
 		const hexValue = computed(() => {
 			if (!mode.value || !chromaColor.value) return null
-			return chromaColor.value.hex()
+			return chromaColor.value.hex().slice(0, 7)
 		})
 
 		const validators = computed(() => {
