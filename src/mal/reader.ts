@@ -23,7 +23,6 @@ import {
 	isSymbol
 } from './types'
 import printExp from './printer'
-import {ReadStream} from 'fs'
 
 const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
