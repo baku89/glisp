@@ -7,26 +7,30 @@
 			:mode="mode"
 			@input="onInputColor"
 		/>
-		<InputDropdown
-			class="MalInputColor__mode"
-			:value="mode"
-			:values="['HEX', 'RGB', 'HSL']"
-			@input="onInputMode"
-		/>
-		<div class="MalInputColor__text" v-if="mode === 'HEX'">
-			<InputString :value="displayValues" @input="onInputText" />
-		</div>
-		<div class="MalInputColor__elements" v-else-if="mode">
-			(
-			<MalInputNumber
-				v-for="(value, i) in displayValues"
-				:key="i"
-				class="MalInputColor__el"
-				:value="value"
-				:validator="validators[i]"
-				@input="onInputNumber(i, $event)"
-			/>)
-		</div>
+		<div class="MalInputColor__hex" v-if="compact">{{ hexValue }}</div>
+		<template v-else>
+			<InputDropdown
+				class="MalInputColor__mode"
+				:value="mode"
+				:values="['HEX', 'RGB', 'HSL']"
+				@input="onInputMode"
+			/>
+			<div class="MalInputColor__text" v-if="mode === 'HEX'">
+				<InputString :value="displayValues" @input="onInputText" />
+			</div>
+			<div class="MalInputColor__elements" v-else-if="mode">
+				(
+				<MalInputNumber
+					v-for="(value, i) in displayValues"
+					:key="i"
+					:compact="true"
+					class="MalInputColor__el"
+					:value="value"
+					:validator="validators[i]"
+					@input="onInputNumber(i, $event)"
+				/>)
+			</div>
+		</template>
 	</div>
 </template>
 
@@ -56,8 +60,8 @@ import {reverseEval} from '@/mal/utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL'
 
-const COLOR_SPACE_FUNCTIONS = new Set([S('color/rgb'), S('color/hsl')])
-const COLOR_SPACE_SHORTHANDS = new Set([S('rgb'), S('hsl')])
+const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
+const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
 
 export default defineComponent({
 	components: {InputColor, InputString, InputDropdown, MalInputNumber},
@@ -65,6 +69,9 @@ export default defineComponent({
 		value: {
 			type: [String, Array] as PropType<MalVal>,
 			required: true
+		},
+		compact: {
+			default: false
 		}
 	},
 	setup(props, context) {
@@ -82,9 +89,9 @@ export default defineComponent({
 				case MalType.List: {
 					const fst = (props.value as MalVal[])[0]
 					if (isSymbol(fst)) {
-						if (COLOR_SPACE_FUNCTIONS.has(fst)) {
+						if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
 							return fst.value.split('/')[1].toUpperCase()
-						} else if (COLOR_SPACE_SHORTHANDS.has(fst)) {
+						} else if (COLOR_SPACE_SHORTHANDS.has(fst.value)) {
 							return fst.value.toUpperCase()
 						}
 					}
@@ -106,7 +113,7 @@ export default defineComponent({
 			}
 		})
 
-		const pickerValue = computed(() => {
+		const chromaColor = computed(() => {
 			if (!mode.value) return null
 
 			let color: chroma.Color
@@ -141,7 +148,17 @@ export default defineComponent({
 				color = color.alpha(getEvaluated(props.value[4]) as number)
 			}
 
-			return color.css()
+			return color
+		})
+
+		const pickerValue = computed(() => {
+			if (!mode.value || !chromaColor.value) return null
+			return chromaColor.value.css()
+		})
+
+		const hexValue = computed(() => {
+			if (!mode.value || !chromaColor.value) return null
+			return chromaColor.value.hex()
 		})
 
 		const validators = computed(() => {
@@ -262,6 +279,7 @@ export default defineComponent({
 		return {
 			mode,
 			displayValues,
+			hexValue,
 			validators,
 			pickerValue,
 			onInputMode,
@@ -282,6 +300,12 @@ export default defineComponent({
 
 	&__picker
 		margin-right 0.2em
+
+	&__hex
+		margin-left .3rem
+		color var(--comment)
+		font-monospace()
+
 
 	&__mode
 		margin-right 0.2em
