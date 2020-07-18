@@ -710,19 +710,18 @@
              {:type "point" :id :top-right :pos [(+ x w) y]}
              {:type "point" :id :bottom-left :pos [x (+ y h)]}
              {:type "point" :id :bottom-right :pos (vec2/+ [x y] [w h])}])
-    :drag (fn {:id id :pos p
-               :delta-pos [dx dy]
+    :drag (fn {:id id :pos [px py]
                :params [[x y w h]]}
             (case id
-              :center [[(+ x dx) (+ y dy) w h]]
-              :left  [[(+ x dx) y (- w dx) h]]
-              :top   [[x (+ y dy) w (- h dy)]]
-              :right [[x y (+ w dx) h]]
-              :bottom [[x y w (+ h dy)]]
-              :top-left [`[~@p ~@(vec2/- (vec2/+ [x y] [w h]) p)]]
-              :top-right [[x (.y p) (- (.x p) x) (- (+ y h) (.y p))]]
-              :bottom-left [[(.x p) y (- (+ x w) (.x p)) (- (.y p) y)]]
-              :bottom-right [`[~x ~y ~@(vec2/- p [x y])]]))}}
+              :center [[(- px (/ w 2)) (- py (/ h 2)) w h]]
+              :left  [[px y (- (+ x w) px) h]]
+              :top   [[x py w (- (+ y h) py)]]
+              :right [[x y (- px x) h]]
+              :bottom [[x y w (- py y)]]
+              :top-left [[px py (- (+ x w) px) (- (+ y h) py)]]
+              :top-right [[x py (- px x) (- (+ y h) py)]]
+              :bottom-left [[px y (- (+ x w) px) (- py y)]]
+              :bottom-right [[x y (- px x) (- py y)]]))}}
   [[x y w h]] [x y w h])
 
 (def rect2d/left first)
