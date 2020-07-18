@@ -48,7 +48,7 @@ export default function useGesture(
 			const onGrab = options.onGrab
 			let prevX: number, prevY: number
 
-			function onGrabMove(_e: MouseEvent) {
+			const onGrabMove = (_e: MouseEvent) => {
 				const e = {
 					deltaX: _e.pageX - prevX,
 					deltaY: _e.pageY - prevY
@@ -59,7 +59,7 @@ export default function useGesture(
 				onGrab(e)
 			}
 
-			function onGrabEnd() {
+			const onGrabEnd = () => {
 				el.value?.removeEventListener('mousemove', onGrabMove)
 				document.documentElement.style.cursor = 'default'
 			}
