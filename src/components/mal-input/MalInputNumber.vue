@@ -2,7 +2,7 @@
 	<div class="MalInputNumber">
 		<MalExpButton
 			v-if="display.isExp && compact"
-			:value="display.mode !== 'unit' ? value.value : value.value[1]"
+			:value="value"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>
@@ -23,7 +23,7 @@
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
-			:value="display.mode !== 'unit' ? value : value[1]"
+			:value="value"
 			:compact="false"
 			@click="$emit('select', $event)"
 		/>
