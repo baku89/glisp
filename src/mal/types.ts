@@ -210,14 +210,14 @@ export function getType(obj: any): MalType {
 
 export type MalNode = MalNodeMap | MalSeq
 
-export const isNode = (v: any): v is MalNode => {
+export const isNode = (v: MalVal | undefined): v is MalNode => {
 	const type = getType(v)
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector
 	)
 }
 
-export const isSeq = (v: any): v is MalSeq => {
+export const isSeq = (v: MalVal | undefined): v is MalSeq => {
 	const type = getType(v)
 	return type === MalType.List || type === MalType.Vector
 }
@@ -449,7 +449,7 @@ export class MalSymbol {
 	}
 }
 
-export const isSymbol = (obj: MalVal): obj is MalSymbol =>
+export const isSymbol = (obj: MalVal | undefined): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
 
 export const isSymbolFor = (obj: MalVal, name: string) =>
@@ -461,13 +461,13 @@ export const symbolFor = (value: string) => new MalSymbol(value)
 const KEYWORD_PREFIX = '\u029e'
 
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
-export const isKeyword = (obj: any): obj is string =>
+export const isKeyword = (obj: MalVal | undefined): obj is string =>
 	getType(obj) === MalType.Keyword
 
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-export const isList = (obj: any): obj is MalSeq => {
+export const isList = (obj: MalVal | undefined): obj is MalSeq => {
 	// below code is identical to `getType(obj) === MalType.List`
 	return Array.isArray(obj) && (obj as any)[M_ISLIST]
 }
@@ -478,13 +478,14 @@ export function createList(...coll: MalVal[]) {
 }
 
 // Vectors
-export const isVector = (obj: any): obj is MalSeq => {
+export const isVector = (obj: MalVal | undefined): obj is MalSeq => {
 	// below code is identical to `getType(obj) === MalType.Vector`
 	return Array.isArray(obj) && !(obj as any)[M_ISLIST]
 }
 
 // Maps
-export const isMap = (obj: any): obj is MalMap => getType(obj) === MalType.Map
+export const isMap = (obj: MalVal | undefined): obj is MalMap =>
+	getType(obj) === MalType.Map
 
 export function assocBang(hm: MalMap, ...args: any[]) {
 	if (args.length % 2 === 1) {
