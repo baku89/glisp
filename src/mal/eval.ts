@@ -11,7 +11,6 @@ import {
 	isSymbol,
 	M_ISMACRO,
 	M_EVAL,
-	M_FN,
 	isMap,
 	MalMap,
 	isList,
@@ -102,7 +101,7 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
-		;(exp as MalSeq)[M_FN] = fn
+		exp[0].evaluated = fn
 
 		const params = exp.slice(1)
 		exp = fn.bind({callerEnv: Env})(...params)
@@ -197,7 +196,7 @@ export default function evalExp(
 		switch (first.value) {
 			case 'def': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DEF) as MalFunc
+					first.evaluated = env.get(S_DEF)
 				}
 				const [, sym, form] = exp
 				if (!isSymbol(sym) || form === undefined) {
@@ -214,7 +213,7 @@ export default function evalExp(
 			}
 			case 'defvar': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DEFVAR) as MalFunc
+					first.evaluated = env.get(S_DEFVAR)
 				}
 				const [, sym, form] = exp
 				if (!isSymbol(sym) || form === undefined) {
@@ -229,7 +228,7 @@ export default function evalExp(
 			}
 			case 'let': {
 				if (cache) {
-					exp[M_FN] = env.get(S_LET) as MalFunc
+					first.evaluated = env.get(S_LET)
 				}
 				const letEnv = new Env(env)
 				const [, binds, ...body] = exp
@@ -256,7 +255,7 @@ export default function evalExp(
 			}
 			case 'binding': {
 				if (cache) {
-					exp[M_FN] = env.get(S_BINDING) as MalFunc
+					first.evaluated = env.get(S_BINDING)
 				}
 				const bindingEnv = new Env()
 				const [, binds, ..._body] = exp
@@ -285,14 +284,14 @@ export default function evalExp(
 			case 'get-all-symbols': {
 				const ret = env.getAllSymbols()
 				if (cache) {
-					exp[M_FN] = env.get(S_GET_ALL_SYMBOLS) as MalFunc
+					first.evaluated = env.get(S_GET_ALL_SYMBOLS)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
 			case 'fn-params': {
 				if (cache) {
-					exp[M_FN] = env.get(S_FN_PARAMS) as MalFunc
+					first.evaluated = env.get(S_FN_PARAMS)
 				}
 				const fn = evalExp(exp[1], env, cache)
 				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : null
@@ -303,7 +302,7 @@ export default function evalExp(
 			}
 			case 'eval*': {
 				if (cache) {
-					exp[M_FN] = env.get(S_EVAL_IN_ENV) as MalFunc
+					first.evaluated = env.get(S_EVAL_IN_ENV)
 				}
 				const expanded = evalExp(exp[1], env, cache)
 				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
@@ -312,14 +311,14 @@ export default function evalExp(
 			case 'quote': {
 				const ret = exp[1]
 				if (cache) {
-					exp[M_FN] = env.get(S_QUOTE) as MalFunc
+					first.evaluated = env.get(S_QUOTE)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
 			case 'quasiquote': {
 				if (cache) {
-					exp[M_FN] = env.get(S_QUASIQUOTE) as MalFunc
+					first.evaluated = env.get(S_QUASIQUOTE)
 				}
 				const ret = quasiquote(exp[1])
 				exp = ret
@@ -345,14 +344,14 @@ export default function evalExp(
 					params as MalBind
 				)
 				if (cache) {
-					exp[M_FN] = env.get(S_FN) as MalFunc
+					first.evaluated = env.get(S_FN)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
 			case 'fn-sugar': {
 				if (cache) {
-					exp[M_FN] = env.get(S_FN_SUGAR) as MalFunc
+					first.evaluated = env.get(S_FN_SUGAR)
 				}
 				const body = exp[1]
 				const ret = createMalFunc(
@@ -368,7 +367,7 @@ export default function evalExp(
 			}
 			case 'macro': {
 				if (cache) {
-					exp[M_FN] = env.get(S_MACRO) as MalFunc
+					first.evaluated = env.get(S_MACRO)
 				}
 				const [, , body] = exp
 				let [, params] = exp
@@ -400,7 +399,7 @@ export default function evalExp(
 			}
 			case 'macroexpand': {
 				if (cache) {
-					exp[M_FN] = env.get(S_MACROEXPAND) as MalFunc
+					first.evaluated = env.get(S_MACROEXPAND)
 				}
 				const ret = macroexpand(exp[1], env, cache)
 				if (cache) {
@@ -410,7 +409,7 @@ export default function evalExp(
 			}
 			case 'try': {
 				if (cache) {
-					exp[M_FN] = env.get(S_TRY) as MalFunc
+					first.evaluated = env.get(S_TRY)
 				}
 				const [, testExp, catchExp] = exp
 				try {
@@ -427,7 +426,7 @@ export default function evalExp(
 						isSymbol(catchExp[1])
 					) {
 						if (cache) {
-							catchExp[M_FN] = env.get(S_CATCH) as MalFunc
+							first.evaluated = env.get(S_CATCH)
 						}
 						if (exc instanceof Error) {
 							err = exc.message
@@ -445,7 +444,7 @@ export default function evalExp(
 			}
 			case 'do': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DO) as MalFunc
+					first.evaluated = env.get(S_DO)
 				}
 				if (exp.length === 1) {
 					return null
@@ -457,7 +456,7 @@ export default function evalExp(
 			}
 			case 'if': {
 				if (cache) {
-					exp[M_FN] = env.get(S_IF) as MalFunc
+					first.evaluated = env.get(S_IF)
 				}
 				const [, _test, thenExp, elseExp] = exp
 				const test = evalExp(_test, env, cache)
@@ -499,7 +498,7 @@ export default function evalExp(
 
 				if (fn instanceof Function) {
 					if (cache) {
-						exp[M_FN] = fn
+						first.evaluated = fn
 					}
 
 					const ret = fn(...params)

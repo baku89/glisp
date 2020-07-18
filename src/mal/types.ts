@@ -12,7 +12,6 @@ export const M_ISLIST = Symbol.for('islist')
 export const M_TYPE = Symbol.for('type')
 
 export const M_EVAL = Symbol.for('eval')
-export const M_FN = Symbol.for('fn')
 export const M_OUTER = Symbol.for('outer')
 export const M_OUTER_INDEX = Symbol.for('outer-key')
 const M_EXPAND = Symbol.for('expand')
@@ -83,7 +82,6 @@ export interface MalSeq extends Array<MalVal> {
 	[M_ISSUGAR]: boolean
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
-	[M_FN]: MalFunc | MalJSFunc // Reference to a function
 	[M_EVAL]: MalVal // Stores evaluted value of the node
 	[M_EXPAND]: ExpandInfo
 	[M_OUTER]: MalNode

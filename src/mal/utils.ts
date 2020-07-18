@@ -1,6 +1,5 @@
 import {
 	MalVal,
-	M_FN,
 	isMap,
 	MalFunc,
 	keywordFor as K,
@@ -155,12 +154,7 @@ export interface FnInfoType {
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | null {
-	let fn = null
-	if (isList(exp)) {
-		fn = exp[M_FN]
-	} else if (isFunc(exp)) {
-		fn = exp
-	}
+	let fn = isFunc(exp) ? exp : getFn(exp)
 
 	// Check if primitive type
 	let primitive = null
@@ -510,4 +504,18 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	}
 
 	return newParams
+}
+
+export function getFn(exp: MalVal) {
+	if (!isList(exp)) {
+		throw new MalError(`${printExp(exp)} is not a function application`)
+	}
+
+	const first = getEvaluated(exp[0])
+
+	if (!isFunc(first)) {
+		throw new Error(`${printExp(exp[0])} is not a function`)
+	}
+
+	return first
 }

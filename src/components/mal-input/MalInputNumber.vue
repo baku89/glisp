@@ -19,7 +19,8 @@
 			class="MalInputNumber__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-		>{{ display.unit }}</span>
+			>{{ display.unit }}</span
+		>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
@@ -42,14 +43,13 @@ import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {
 	MalSeq,
 	isList,
-	M_FN,
 	MalVal,
 	MalSymbol,
 	getEvaluated,
 	MalType,
 	createList as L
 } from '@/mal/types'
-import {getMapValue, getFnInfo, reverseEval} from '@/mal/utils'
+import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
 interface Props {
@@ -104,7 +104,7 @@ export default defineComponent({
 
 		const fn = computed(() => {
 			if (display.value.mode !== 'exp') {
-				return (props.value.value as MalSeq)[M_FN]
+				return getFn(props.value.value)
 			} else {
 				return null
 			}

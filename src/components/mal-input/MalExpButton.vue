@@ -3,14 +3,16 @@
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
-		>{{ sign }}</div>
+		>
+			{{ sign }}
+		</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
-import {MalVal, isList, M_FN, isSymbol, isNode} from '@/mal/types'
+import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {NonReactive} from '@/utils'
 
