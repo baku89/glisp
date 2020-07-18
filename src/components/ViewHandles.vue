@@ -200,7 +200,7 @@ export default defineComponent({
 
 				const exp = props.exp.value
 				if (data.fnInfo?.primitive) {
-					return [exp[M_EVAL]]
+					return [getEvaluated(exp)]
 				} else {
 					return exp.slice(1).map(getEvaluated) || []
 				}
@@ -216,7 +216,7 @@ export default defineComponent({
 				}
 			}),
 			returnedValue: computed(() => {
-				return props.exp ? props.exp.value[M_EVAL] || null : null
+				return props.exp ? getEvaluated(props.exp.value) : null
 			}),
 			transform: computed(() => {
 				if (!props.exp) {
