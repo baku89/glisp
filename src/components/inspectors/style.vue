@@ -1,6 +1,8 @@
 <template>
 	<div class="Inspector-style" :class="{dragging}">
 		<Draggable
+			tag="table"
+			class="Inspector-style__table"
 			:value="styles"
 			v-bind="dragOptions"
 			@start="dragging = true"
@@ -8,25 +10,31 @@
 			@input="sortStyles"
 			handle=".Inspector-style__handle"
 		>
-			<TransitionGroup type="transition" :name="!dragging ? 'flip-list' : null">
-				<div
-					class="Inspector-style__style"
-					v-for="(style, i) in styles"
-					:key="i"
-				>
-					<ParamControl
-						:exp="style"
+			<tr class="Inspector-style__style" v-for="(style, i) in styles" :key="i">
+				<td class="Inspector-style__label">
+					{{ labels[i] }}
+				</td>
+				<td class="Inspector-style__input">
+					<MalExpButton
+						:value="style"
+						@click="$emit('select', nonReactive($event))"
+						:compact="true"
+					/>
+					<MalInputParam
+						class="Inspector-style__param"
+						:value="style"
 						@input="updateStyleAt($event, i)"
-						@select="$emit('select', $event)"
 					/>
 					<i
 						class="Inspector-style__delete far fa-times-circle"
 						@click="deleteStyleAt(i)"
 					/>
 					<i class="Inspector-style__handle fa fa-align-justify handle"></i>
-				</div>
-			</TransitionGroup>
+				</td>
+			</tr>
+			<!-- </TransitionGroup> -->
 		</Draggable>
+
 		<div class="Inspector-style__append">
 			<button
 				class="Inspector-style__append-button"
@@ -61,9 +69,9 @@ import {
 	createList as L,
 	symbolFor as S
 } from '@/mal/types'
-import {NonReactive, nonReactive} from '@/utils'
-import ParamControl from '@/components/ParamControl.vue'
-import {printExp} from '../../mal'
+import {NonReactive, nonReactive, getParamLabel} from '@/utils'
+import MalInputParam from '@/components/mal-input/MalInputParam.vue'
+import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 
 interface Props {
 	exp: NonReactive<MalVal[]>
@@ -73,7 +81,8 @@ export default defineComponent({
 	name: 'Inspector-style',
 	components: {
 		Draggable,
-		ParamControl
+		MalInputParam,
+		MalExpButton
 	},
 	props: {
 		exp: {
@@ -84,22 +93,25 @@ export default defineComponent({
 	setup(props: Props, context: SetupContext) {
 		const styles = computed(() => {
 			const styles = props.exp.value[1]
-			return (isVector(styles) ? styles : [styles]).map(s => nonReactive(s))
+			return isVector(styles) ? styles : [styles]
 		})
 
-		function updateStyleAt(style: NonReactive<MalSeq>, i: number) {
+		const labels = computed(() => {
+			return styles.value.map(s => getParamLabel((s as MalSeq)[0]))
+		})
+
+		function updateStyleAt(style: MalSeq, i: number) {
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
-			newStyles[i] = style.value
+			const newStyles = [...styles.value]
+			newStyles[i] = style
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			context.emit('input', nonReactive(newExp))
 		}
 
-		function sortStyles(styles: NonReactive<MalSeq>[]) {
+		function sortStyles(styles: MalSeq[]) {
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.map(s => s.value)
-			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
+			newExp[1] = styles.length == 1 ? styles[0] : styles
 
 			context.emit('input', nonReactive(newExp))
 		}
@@ -109,7 +121,7 @@ export default defineComponent({
 				type === 'fill' ? L(S('fill'), '#000000') : L(S('stroke'), '#000000', 1)
 
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
+			const newStyles = [...styles.value]
 			newStyles.push(style)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
@@ -118,7 +130,7 @@ export default defineComponent({
 
 		function deleteStyleAt(i: number) {
 			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
+			const newStyles = [...styles.value]
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
@@ -126,7 +138,7 @@ export default defineComponent({
 		}
 
 		const dragOptions = ref({
-			animation: 200,
+			animation: 100,
 			group: 'description',
 			disable: false,
 			ghostClass: 'ghost'
@@ -136,12 +148,14 @@ export default defineComponent({
 
 		return {
 			styles,
+			labels,
 			updateStyleAt,
 			sortStyles,
 			appendStyle,
 			deleteStyleAt,
 			dragOptions,
-			dragging
+			dragging,
+			nonReactive
 		}
 	}
 })
@@ -151,17 +165,34 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .Inspector-style
+	&__table
+		width 100%
+		padding 0
+		margin 0
+		border-collapse: collapse
+
 	&__style
+		padding 0
+		margin 0
+
+	&__label, &__input
+		margin 0
+		padding .5rem 0
+		// border-bottom 1px dotted var(--border)
+
+	&__label
+		width 5rem
+		color var(--comment)
+
+	&__input
 		display flex
 		align-items center
-		padding-bottom .5rem
-		margin-bottom .5rem
-		border-bottom 1px dotted var(--border)
 
-		& > *
-			display block
+	&__param
+		flex-grow 1
 
 	&__delete, &__handle
+		display block
 		opacity 0
 		margin-right 0.5rem
 		transition opacity .05s ease
@@ -205,7 +236,4 @@ export default defineComponent({
 		&:hover
 			border-color var(--highlight)
 			color var(--highlight)
-
-.flip-list-move
-	transition: transform 0.5s
 </style>

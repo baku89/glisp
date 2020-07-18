@@ -29,10 +29,9 @@ import {
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalNodeToJSObject} from '@/mal/reader'
-import {NonReactive, nonReactive} from '@/utils'
 
 interface Props {
-	value: NonReactive<MalSeq>
+	value: MalSeq
 }
 
 export default defineComponent({
@@ -48,10 +47,10 @@ export default defineComponent({
 	},
 	setup(props: Props, context: SetupContext) {
 		const params = computed(() => {
-			return props.value.value.slice(1)
+			return props.value.slice(1)
 		})
 
-		const fn = computed(() => getEvaluated(props.value.value[0]))
+		const fn = computed(() => getEvaluated(props.value[0]))
 
 		const schemes = computed(
 			() =>
@@ -61,10 +60,10 @@ export default defineComponent({
 		)
 
 		function onInputParam(value: MalVal, i: number) {
-			const newExp = cloneExp(props.value.value)
+			const newExp = cloneExp(props.value)
 			newExp[i + 1] = value
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		return {params, schemes, onInputParam}
