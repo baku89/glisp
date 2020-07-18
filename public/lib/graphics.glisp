@@ -235,7 +235,7 @@
                      (map #(vector (symbol (str "*" (name (first %)) "*"))
                                    (second %))
                           (entries merged-style)))]
-    `(binding ~binds [:style ~merged-style ~@body])))
+    `(binding ~binds [:style ~evaluated-styles ~@body])))
 (defalias style graphics/style)
 
 (defmacro graphics/artboard
