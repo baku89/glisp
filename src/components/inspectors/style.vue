@@ -11,24 +11,15 @@
 			handle=".Inspector-style__handle"
 		>
 			<tr class="Inspector-style__style" v-for="(style, i) in styles" :key="i">
-				<td class="Inspector-style__label">
-					{{ labels[i] }}
-				</td>
+				<td class="Inspector-style__label">{{ labels[i] }}</td>
 				<td class="Inspector-style__input">
-					<MalExpButton
-						:value="style"
-						@click="$emit('select', nonReactive($event))"
-						:compact="true"
-					/>
+					<MalExpButton :value="style" @click="$emit('select', nonReactive($event))" :compact="true" />
 					<MalInputParam
 						class="Inspector-style__param"
 						:value="style"
 						@input="updateStyleAt($event, i)"
 					/>
-					<i
-						class="Inspector-style__delete far fa-times-circle"
-						@click="deleteStyleAt(i)"
-					/>
+					<i class="Inspector-style__delete far fa-times-circle" @click="deleteStyleAt(i)" />
 					<i class="Inspector-style__handle fa fa-align-justify handle"></i>
 				</td>
 			</tr>
@@ -36,18 +27,8 @@
 		</Draggable>
 
 		<div class="Inspector-style__append">
-			<button
-				class="Inspector-style__append-button"
-				@click="appendStyle('fill')"
-			>
-				+ Add Fill
-			</button>
-			<button
-				class="Inspector-style__append-button"
-				@click="appendStyle('stroke')"
-			>
-				+ Add Stroke
-			</button>
+			<button class="Inspector-style__append-button" @click="appendStyle('fill')">+ Add Fill</button>
+			<button class="Inspector-style__append-button" @click="appendStyle('stroke')">+ Add Stroke</button>
 		</div>
 	</div>
 </template>
@@ -109,9 +90,9 @@ export default defineComponent({
 			context.emit('input', nonReactive(newExp))
 		}
 
-		function sortStyles(styles: MalSeq[]) {
+		function sortStyles(sortedStyles: MalSeq[]) {
 			const newExp = cloneExp(props.exp.value)
-			newExp[1] = styles.length == 1 ? styles[0] : styles
+			newExp[1] = sortedStyles.length == 1 ? sortedStyles[0] : sortedStyles
 
 			context.emit('input', nonReactive(newExp))
 		}
@@ -166,18 +147,18 @@ export default defineComponent({
 
 .Inspector-style
 	&__table
-		width 100%
-		padding 0
 		margin 0
-		border-collapse: collapse
+		padding 0
+		width 100%
+		border-collapse collapse
 
 	&__style
-		padding 0
 		margin 0
+		padding 0
 
 	&__label, &__input
 		margin 0
-		padding .5rem 0
+		padding 0.5rem 0
 		// border-bottom 1px dotted var(--border)
 
 	&__label
@@ -193,9 +174,9 @@ export default defineComponent({
 
 	&__delete, &__handle
 		display block
-		opacity 0
 		margin-right 0.5rem
-		transition opacity .05s ease
+		opacity 0
+		transition opacity 0.05s ease
 
 		~/__style:hover &
 			opacity 1
@@ -212,8 +193,8 @@ export default defineComponent({
 			color var(--warning)
 
 	&__handle
-		color var(--comment)
 		height 100%
+		color var(--comment)
 		cursor all-scroll
 
 	&__append
@@ -221,8 +202,7 @@ export default defineComponent({
 		justify-content center
 
 	&__append-button
-		cursor pointer
-		line-height $param-height
+		margin 0 0.5rem
 		margin-top 0.3em
 		padding 0.2em 0.6em
 		height auto
@@ -230,8 +210,8 @@ export default defineComponent({
 		border-radius 3px
 		color var(--comment)
 		font-size 0.9em
-		margin 0 .5rem
-
+		line-height $param-height
+		cursor pointer
 
 		&:hover
 			border-color var(--highlight)
