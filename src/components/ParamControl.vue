@@ -69,9 +69,9 @@
 						@select="onSelect($event)"
 					/>
 					<MalInputString
-						style="color: var(--syntax-symbol)"
+						:style="{color: 'var(--purple)'}"
 						v-else-if="params[i].type === 'symbol'"
-						:value="params[i].value.value"
+						:value="nonReactive(params[i].value.value.value)"
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
@@ -79,27 +79,42 @@
 					<MalInputString
 						style="color: var(--syntax-keyword)"
 						v-else-if="params[i].type === 'keyword'"
-						:value="params[i].value.value.slice(1)"
+						:value="nonReactive(params[i].value.value.slice(1))"
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
 					/>
-					<MalExpButton v-else @click="onSelect($event)" :value="params[i].value" />
+					<MalExpButton
+						v-else
+						@click="onSelect($event)"
+						:value="params[i].value"
+					/>
 				</div>
-				<button class="ParamControl__button delete" v-if="i >= variadicPos" @click="onParamDelete(i)">
+				<button
+					class="ParamControl__button delete"
+					v-if="i >= variadicPos"
+					@click="onParamDelete(i)"
+				>
 					<i class="far fa-times-circle" />
 				</button>
 				<button
 					class="ParamControl__button insert"
 					v-if="i >= variadicPos"
 					@click="onParamInsert(i)"
-				>Insert</button>
+				>
+					Insert
+				</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 			<td class="ParamControl__label"></td>
 			<td class="ParamControl__value">
-				<button class="ParamControl__button add" @click="onParamInsert(params.length)">+ Add</button>
+				<button
+					class="ParamControl__button add"
+					@click="onParamInsert(params.length)"
+				>
+					+ Add
+				</button>
 			</td>
 		</tr>
 	</table>
@@ -121,7 +136,8 @@ import {
 	cloneExp,
 	MalFunc,
 	createList as L,
-	isVector
+	isVector,
+	getEvaluated
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-input'
 import {getFnInfo, getPrimitiveType} from '@/mal/utils'
@@ -383,7 +399,7 @@ export default defineComponent({
 
 						const isDefault = !(key in hm) && K_DEFAULT in desc
 						const value = nonReactive(isDefault ? desc[K_DEFAULT] : hm[key])
-						const type = matchInputTypeOfValueAndDesc(value, desc)
+						const type = matchInputTypeOfValueAndDesc(value.value, desc)
 
 						params.push({type, value, isDefault})
 					}
@@ -394,7 +410,7 @@ export default defineComponent({
 				const value = nonReactive(
 					isDefault ? desc[K_DEFAULT] : fnParams.value[i]
 				)
-				const type = matchInputTypeOfValueAndDesc(value, desc)
+				const type = matchInputTypeOfValueAndDesc(value.value, desc)
 
 				params.push({type, value, isDefault})
 			}
@@ -558,7 +574,8 @@ export default defineComponent({
 			onParamInsert,
 			onSelect,
 			keywordValidator,
-			symbolValidator
+			symbolValidator,
+			nonReactive
 		}
 	}
 })
