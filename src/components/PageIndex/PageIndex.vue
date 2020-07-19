@@ -264,7 +264,12 @@ export default defineComponent({
 
 		// Events
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
-			data.selectedExp = exp
+			if (exp && exp.value === data.exp.value) {
+				// Prevent to select the root `sketch`
+				data.selectedExp = null
+			} else {
+				data.selectedExp = exp
+			}
 		}
 
 		function hoverExp(exp: NonReactive<MalNode> | null) {
