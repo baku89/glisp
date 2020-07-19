@@ -50,7 +50,6 @@ const S_TRY = S('try')
 const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
 const S_EVAL_IN_ENV = S('eval*')
-const S_VAR = S('var')
 const S_LST = S('lst')
 
 function quasiquote(exp: MalVal): MalVal {
