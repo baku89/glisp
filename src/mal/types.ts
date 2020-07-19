@@ -29,7 +29,7 @@ export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
 export enum ExpandType {
 	Constant = 1,
 	Env,
-	Unchange,
+	Unchange
 }
 
 export interface ExpandInfoConstant {
@@ -94,7 +94,7 @@ function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
 	switch (type) {
 		case MalType.List:
 		case MalType.Vector: {
-			let ret = (exp as MalVal[]).map((val) => expandSymbolsInExp(val, env))
+			let ret = (exp as MalVal[]).map(val => expandSymbolsInExp(val, env))
 			if (type === MalType.List) {
 				ret = createList(...ret)
 			}
@@ -165,7 +165,7 @@ export enum MalType {
 	Macro = 'macro',
 
 	// Others
-	Undefined = 'undefined',
+	Undefined = 'undefined'
 }
 
 export function getType(obj: any): MalType {
@@ -233,7 +233,7 @@ const TYPES_SUPPORT_META = new Set([
 	MalType.Macro,
 	MalType.List,
 	MalType.Vector,
-	MalType.Map,
+	MalType.Map
 ])
 
 export function withMeta(a: MalVal, m: any) {
@@ -330,14 +330,14 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 	switch (getType(exp)) {
 		case MalType.List: {
 			const children = deep
-				? (exp as MalVal[]).map((e) => cloneExp(e, true))
+				? (exp as MalVal[]).map(e => cloneExp(e, true))
 				: (exp as MalVal[])
 			return createList(...children) as T
 			break
 		}
 		case MalType.Vector: {
 			const children = deep
-				? (exp as MalVal[]).map((e) => cloneExp(e, true))
+				? (exp as MalVal[]).map(e => cloneExp(e, true))
 				: (exp as MalVal[])
 			return [...children] as T
 			break
@@ -347,7 +347,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? Object.fromEntries(
 						Object.entries(exp as MalMap).map(([k, v]) => [
 							k,
-							cloneExp(v, true),
+							cloneExp(v, true)
 						])
 				  )
 				: {...(exp as MalMap)}
@@ -356,7 +356,9 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 		case MalType.Function:
 		case MalType.Macro: {
 			// new function instance
-			const fn = (...args: MalSeq) => (exp as MalFunc)(...args)
+			const fn = function(this: MalFuncThis, ...args: MalSeq) {
+				return (exp as MalFunc).apply(this, args)
+			}
 			// copy original properties
 			return Object.assign(fn, exp) as T
 		}
@@ -405,7 +407,7 @@ export function createMalFunc(
 		[M_ENV]: env,
 		[M_PARAMS]: params,
 		[M_META]: meta,
-		[M_ISMACRO]: ismacro,
+		[M_ISMACRO]: ismacro
 	}
 	return Object.assign(fn, attrs)
 }
