@@ -57,6 +57,17 @@
 			body {
 				font-size: 1rem;
 			}
+			a {
+				text-decoration: none;
+				border-bottom: 1px solid #ccc;
+			}
+			a:link,
+			a:visited {
+				color: #555;
+			}
+			.anchor {
+				border-bottom: none;
+			}
 			h1,
 			h2,
 			h3,
@@ -89,6 +100,9 @@
 				height: 4rem;
 				overflow: hidden;
 			}
+			.sidebar > h1 a {
+				border-bottom: none;
+			}
 			.sidebar li {
 				font-size: 0.9rem;
 				padding: 0em;
@@ -107,6 +121,13 @@
 
 			.markdown-section > iframe {
 				border: none;
+			}
+			:root {
+				--theme-color: #444;
+			}
+			.markdown-section li {
+				list-style-type: circle;
+				margin-bottom: 0.2em;
 			}
 		</style>
 	</head>
@@ -129,7 +150,7 @@
 				repo: 'baku89/glisp',
 				logo: './favicon/android-chrome-512x512.png',
 				plugins: [
-					function(hook, vm) {
+					function (hook, vm) {
 						hook.afterEach((html, next) => {
 							html = html.replace(
 								/data-lang="cljs"/gi,
@@ -141,7 +162,7 @@
 						hook.doneEach(() => {
 							const codeBlocks = document.querySelectorAll('pre.glisp-code')
 
-							codeBlocks.forEach(preEl => {
+							codeBlocks.forEach((preEl) => {
 								const parentEl = preEl.parentElement
 								const codeEl = preEl.firstChild
 
@@ -156,19 +177,19 @@
 								parentEl.replaceChild(iframeEl, preEl)
 							})
 						})
-					}
-				]
+					},
+				],
 			}
 
 			function getFrameByEvent(event) {
 				return [].slice
 					.call(document.getElementsByTagName('iframe'))
-					.filter(function(iframe) {
+					.filter(function (iframe) {
 						return iframe.contentWindow === event.source
 					})[0]
 			}
 
-			window.onmessage = e => {
+			window.onmessage = (e) => {
 				const [width, height] = e.data
 				const iframe = getFrameByEvent(event)
 
