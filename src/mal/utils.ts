@@ -59,7 +59,20 @@ export function getPrimitiveType(exp: MalVal): string | null {
 	return null
 }
 
-// Cached Tree-shaking
+type WatchOnReplacedCallback = (newExp: MalVal) => any
+
+const ExpWatcher = new WeakMap<MalNode, WatchOnReplacedCallback>()
+
+export function watchOnReplaced(
+	exp: MalNode,
+	callback: WatchOnReplacedCallback
+) {
+	ExpWatcher.set(exp, callback)
+}
+
+/**
+ * Cached Tree-shaking
+ */
 export function replaceExp(original: MalNode, replaced: MalVal) {
 	const outer = original[M_OUTER]
 	const index = original[M_OUTER_INDEX]
@@ -103,6 +116,12 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 
 		// Go upward
 		_outer = _outer[M_OUTER]
+	}
+
+	// Execute a callback if necessary
+	if (ExpWatcher.has(original)) {
+		const callback = ExpWatcher.get(original) as WatchOnReplacedCallback
+		callback(original)
 	}
 }
 
@@ -508,13 +527,15 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 
 export function getFn(exp: MalVal) {
 	if (!isList(exp)) {
-		throw new MalError(`${printExp(exp)} is not a function application`)
+		//throw new MalError(`${printExp(exp)} is not a function application`)
+		return undefined
 	}
 
 	const first = getEvaluated(exp[0])
 
 	if (!isFunc(first)) {
-		throw new Error(`${printExp(exp[0])} is not a function`)
+		// throw new Error(`${printExp(exp[0])} is not a function`)
+		return undefined
 	}
 
 	return first
