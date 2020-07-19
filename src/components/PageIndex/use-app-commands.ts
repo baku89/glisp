@@ -19,14 +19,13 @@ import {
 	isSymbolFor,
 	MalSeq,
 	getEvaluated,
-	getType
+	getType,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, applyParamModifier} from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
-import {mat2d} from 'gl-matrix'
 
 export default function useAppCommands(
 	data: {
@@ -179,8 +178,9 @@ export default function useAppCommands(
 
 		if (!isFunc(transformFn)) {
 			throw new MalError(
-				`Function ${fnInfo.primitive ||
-					printExp(selected[0])} does not have transform function`
+				`Function ${
+					fnInfo.primitive || printExp(selected[0])
+				} does not have transform function`
 			)
 			return false
 		}
@@ -188,7 +188,7 @@ export default function useAppCommands(
 		const originalParams = primitive ? [selected] : selected.slice(1)
 		const payload = {
 			[K('params')]: originalParams.map(getEvaluated),
-			[K('transform')]: xform as MalVal
+			[K('transform')]: xform as MalVal,
 		}
 
 		const modifier = transformFn(payload)

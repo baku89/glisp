@@ -56,7 +56,7 @@ export default class Env {
 		const merged = this.outer
 			? new Map({...this.outer.data, ...this.data})
 			: this.data
-		return Array.from(merged.keys()).map((v) => symbolFor(v))
+		return Array.from(merged.keys()).map(v => symbolFor(v))
 	}
 
 	public bindAll(binds: MalBind, exps: MalVal[]) {

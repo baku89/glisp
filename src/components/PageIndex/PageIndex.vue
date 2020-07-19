@@ -87,7 +87,7 @@ import {
 	ref,
 	Ref,
 	onMounted,
-	toRef
+	toRef,
 } from '@vue/composition-api'
 import {useOnResize} from 'vue-composable'
 
@@ -106,7 +106,7 @@ import {
 	isNode,
 	MalAtom,
 	createList as L,
-	symbolFor as S
+	symbolFor as S,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -158,7 +158,7 @@ export default defineComponent({
 		ViewHandles,
 		Splitpanes,
 		ListView,
-		Pane
+		Pane,
 	},
 	setup(_, context) {
 		const elHandles: Ref<any | null> = ref(null)
@@ -177,7 +177,7 @@ export default defineComponent({
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
-					top: 0
+					top: 0,
 				}
 				const left = (ui.listViewPaneSize / 100) * windowWidth.value
 				const xform = mat2d.clone(ui.viewHandlesTransform)
@@ -186,7 +186,7 @@ export default defineComponent({
 				return xform as mat2d
 			}),
 			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
-			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100
+			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100,
 		}) as UI
 
 		const data = reactive({
@@ -202,7 +202,7 @@ export default defineComponent({
 
 				if (data.exp) {
 					ViewScope.setup({
-						guideColor: ui.guideColor
+						guideColor: ui.guideColor,
 					})
 
 					const ret = ViewScope.eval(data.exp.value)
@@ -218,7 +218,7 @@ export default defineComponent({
 			// Selection
 			selectedExp: null,
 			editingExp: null,
-			hoveringExp: null
+			hoveringExp: null,
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -233,7 +233,7 @@ export default defineComponent({
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
-				(top + bottom) / 2
+				(top + bottom) / 2,
 			])
 
 			ui.viewHandlesTransform = xform
@@ -386,7 +386,7 @@ export default defineComponent({
 		useAppCommands(data, {
 			updateExp,
 			setSelectedExp,
-			updateSelectedExp
+			updateSelectedExp,
 		})
 		useCommandDialog(context)
 
@@ -413,9 +413,9 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onInputCode,
-			onResizeSplitpanes
+			onResizeSplitpanes,
 		}
-	}
+	},
 })
 </script>
 

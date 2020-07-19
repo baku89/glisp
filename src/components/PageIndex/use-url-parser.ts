@@ -53,7 +53,7 @@ export default function useURLParser(
 	})()
 
 	let onSetupConsole
-	const setupConsolePromise = new Promise((resolve) => {
+	const setupConsolePromise = new Promise(resolve => {
 		onSetupConsole = () => {
 			resolve()
 		}

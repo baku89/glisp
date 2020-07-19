@@ -10,7 +10,7 @@
 				v-for="([label, content], i) in menu"
 				:class="{
 					'has-submenu': Array.isArray(content),
-					active: expandedIndex === i
+					active: expandedIndex === i,
 				}"
 				@click="onClick(content, i)"
 				:key="label"
@@ -41,12 +41,12 @@ export default defineComponent({
 	directives: {ClickOutside},
 	components: {
 		GlobalSubmenu,
-		WindowTitleButtons
+		WindowTitleButtons,
 	},
 	props: {
 		dark: {
-			type: Boolean
-		}
+			type: Boolean,
+		},
 	},
 	setup() {
 		const menu = ref([
@@ -59,16 +59,16 @@ export default defineComponent({
 					['Publish to Gist...', "(show-command-dialog 'publish-gist)"],
 					[
 						'Generate Sketch URL...',
-						"(show-command-dialog 'generate-sketch-url)"
-					]
-				]
+						"(show-command-dialog 'generate-sketch-url)",
+					],
+				],
 			],
 			[
 				'Edit',
 				[
 					['Expand Selected', '(expand-selected)'],
-					['Select Outer', '(select-outer)']
-				]
+					['Select Outer', '(select-outer)'],
+				],
 			],
 			[
 				'Examples',
@@ -77,24 +77,24 @@ export default defineComponent({
 					['Hello World', '(load-file "./examples/hello-world.glisp")'],
 					[
 						'Primitive Definition',
-						'(load-file "./examples/primitive-definition.glisp")'
+						'(load-file "./examples/primitive-definition.glisp")',
 					],
 					['Transformation', '(load-file "./examples/transformation.glisp")'],
 					['Replicator', '(load-file "./examples/replicator.glisp")'],
 					[
 						'Path Modification',
-						'(load-file "./examples/path-modification.glisp")'
-					]
-				]
+						'(load-file "./examples/path-modification.glisp")',
+					],
+				],
 			],
 			[
 				'?',
 				[
 					['Documentation', '(open-link "https://glisp.app/docs/")'],
 					['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
-					['Made by Baku Hashimoto', '(open-link "https://baku89.com")']
-				]
-			]
+					['Made by Baku Hashimoto', '(open-link "https://baku89.com")'],
+				],
+			],
 		])
 
 		const expandedIndex: Ref<number | null> = ref(null)
@@ -130,9 +130,9 @@ export default defineComponent({
 			titleBar,
 			platform,
 			onClose,
-			onClick
+			onClick,
 		}
-	}
+	},
 })
 </script>
 

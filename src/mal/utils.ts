@@ -28,7 +28,7 @@ import {
 	cloneExp,
 	MalError,
 	M_KEYS,
-	M_ELMSTRS
+	M_ELMSTRS,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
@@ -194,7 +194,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 					fn,
 					meta,
 					aliasFor,
-					primitive
+					primitive,
 				}
 			} else {
 				// is not an alias
@@ -234,7 +234,7 @@ export function reverseEval(
 				// Compute the original parameter
 				const result = inverseFn({
 					[K('return')]: exp,
-					[K('params')]: evaluatedParams
+					[K('params')]: evaluatedParams,
 				})
 
 				if (!isVector(result) && !isMap(result)) {
