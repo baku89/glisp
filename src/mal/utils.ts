@@ -12,7 +12,6 @@ import {
 	keywordFor,
 	getMeta,
 	MalSeq,
-	isMalFunc,
 	getType,
 	isSymbol,
 	MalSymbol,
@@ -34,7 +33,6 @@ import {
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
 import {saveOuter} from './reader'
-import printExp from './printer'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -178,7 +176,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 	// Check if primitive type
 	let primitive = null
 	if (!fn && isNode(exp)) {
-		primitive = getPrimitiveType(exp[M_EVAL] || exp)
+		primitive = getPrimitiveType(getEvaluated(exp))
 		if (primitive) {
 			fn = ConsoleScope.var(primitive) as MalFunc
 		}
