@@ -26,7 +26,7 @@ import {
 	getType,
 	isSymbolFor,
 	M_AST,
-	M_ENV
+	M_ENV,
 } from './types'
 import Env from './env'
 import {printExp} from '.'
@@ -71,7 +71,7 @@ function quasiquote(exp: MalVal): MalVal {
 
 	let ret = L(
 		S_CONCAT,
-		...exp.map(e => {
+		...exp.map((e) => {
 			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
@@ -123,7 +123,7 @@ function evalAtom(
 		}
 		return ret
 	} else if (Array.isArray(exp)) {
-		const ret = exp.map(x => {
+		const ret = exp.map((x) => {
 			const ret = evalExp.call(this, x, env, cache)
 			if (cache && isNode(x)) {
 				x[M_EVAL] = ret
@@ -200,7 +200,7 @@ export default function evalExp(
 				const ret = env.set(sym, evalExp.call(this, form, env, cache))
 				if (cache) {
 					setExpandInfo(exp, {
-						type: ExpandType.Unchange
+						type: ExpandType.Unchange,
 					})
 					origExp[M_EVAL] = ret
 				}
@@ -242,7 +242,7 @@ export default function evalExp(
 					setExpandInfo(exp, {
 						type: ExpandType.Env,
 						exp: ret,
-						env: letEnv
+						env: letEnv,
 					})
 				}
 				exp = ret
@@ -252,7 +252,7 @@ export default function evalExp(
 				if (cache) {
 					first.evaluated = env.get(S_BINDING)
 				}
-				const bindingEnv = new Env()
+				const bindingEnv = new Env(undefined, undefined, undefined, 'binding')
 				const [, binds, ..._body] = exp
 				if (!isSeq(binds)) {
 					throw new MalError('Invalid bind-expr in binding')
@@ -335,7 +335,7 @@ export default function evalExp(
 					throw new MalError('Second argument of fn should be specified')
 				}
 				const ret = createMalFunc(
-					function(...args) {
+					function (...args) {
 						return evalExp.call(
 							this,
 							body,
@@ -359,7 +359,7 @@ export default function evalExp(
 				}
 				const body = exp[1]
 				const ret = createMalFunc(
-					function(...args) {
+					function (...args) {
 						return evalExp.call(this, body, new Env(env, [], args), cache)
 					},
 					body,
@@ -387,7 +387,7 @@ export default function evalExp(
 					throw new MalError('Second argument of macro should be specified')
 				}
 				const ret = createMalFunc(
-					function(...args) {
+					function (...args) {
 						return evalExp.call(
 							this,
 							body,
@@ -488,19 +488,18 @@ export default function evalExp(
 						first.evaluated = fn
 					}
 
-					// if (isMalFunc(fn)) {
-					// 	// continue TCO loop
-					// 	console.log('call fn', first.value)
-					// 	env = new Env(fn[M_ENV], fn[M_PARAMS], params)
-					// 	exp = fn[M_AST]
-					// 	break
-					// } else {
-					const ret = fn.apply({callerEnv: env}, params)
-					if (cache) {
-						origExp[M_EVAL] = ret
+					if (isMalFunc(fn)) {
+						env = new Env(fn[M_ENV], fn[M_PARAMS], params, first.value)
+						exp = fn[M_AST]
+						break
+						// continue TCO loop
+					} else {
+						const ret = fn.apply({callerEnv: env}, params)
+						if (cache) {
+							origExp[M_EVAL] = ret
+						}
+						return ret
 					}
-					return ret
-					// }
 				}
 			}
 		}

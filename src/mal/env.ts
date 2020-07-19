@@ -10,7 +10,7 @@ import {
 	getType,
 	MalSeq,
 	MalType,
-	symbolFor
+	symbolFor,
 } from './types'
 import {printExp} from '.'
 
@@ -25,12 +25,11 @@ export default class Env {
 	private bindings!: Env[]
 	private exps?: MalVal[]
 
-	public name = 'let'
-
 	constructor(
 		protected outer: Env | null = null,
 		binds?: MalBind,
-		exps?: MalVal[]
+		exps?: MalVal[],
+		public name = 'let'
 	) {
 		if (this.root === this) {
 			this.bindings = []
@@ -57,7 +56,7 @@ export default class Env {
 		const merged = this.outer
 			? new Map({...this.outer.data, ...this.data})
 			: this.data
-		return Array.from(merged.keys()).map(v => symbolFor(v))
+		return Array.from(merged.keys()).map((v) => symbolFor(v))
 	}
 
 	public bindAll(binds: MalBind, exps: MalVal[]) {
@@ -80,7 +79,9 @@ export default class Env {
 				switch (bindType) {
 					case MalType.Symbol: {
 						if (exp === undefined) {
-							throw new MalError(`Error: parameter '${bind}' is not specified`)
+							throw new MalError(
+								`[${this.name}] parameter '${bind}' is not specified`
+							)
 						}
 						this.set(bind as MalSymbol, exp)
 						break
@@ -89,7 +90,7 @@ export default class Env {
 						// List Destruction
 						if (!isSeq(exp)) {
 							throw new MalError(
-								`Error: destruction parameter ${printExp(
+								`[${this.name}] The destruction parameter ${printExp(
 									bind,
 									true
 								)} is not specified as sequence`
@@ -103,7 +104,7 @@ export default class Env {
 						// Hashmap destruction
 						if (!isMap(exp)) {
 							throw new MalError(
-								`Error: destruction parameter '${printExp(
+								`[${this.name}] The destruction parameter '${printExp(
 									bind,
 									true
 								)}'} is not specified as map`
@@ -118,7 +119,7 @@ export default class Env {
 						for (const [key, sym] of entries) {
 							if (!(key in (exp as MalMap))) {
 								throw new MalError(
-									`ERROR: destruction keyword :${key.slice(
+									`[${this.name}] The destruction keyword :${key.slice(
 										1
 									)} does not exist on the parameter`
 								)
@@ -131,7 +132,7 @@ export default class Env {
 						break
 					}
 					default:
-						throw new MalError('Error: invalid bind expression')
+						throw new MalError(`[${this.name}] Invalid bind expression`)
 				}
 			}
 		}
@@ -208,7 +209,7 @@ export default class Env {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new MalError(`Symbol ${symbol} not found`)
+			throw new MalError(`[${this.name}] Symbol ${symbol} not found`)
 		}
 
 		return value
