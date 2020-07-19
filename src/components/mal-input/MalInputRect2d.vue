@@ -56,8 +56,8 @@
 				class="MalInputRect2d__el exp"
 				:value="evaluated[3]"
 				@input="onInputEvaluatedElement(3, $event)"
-			/>
-		</template>]
+			/> </template
+		>]
 		<InputTranslate :value="evaluated.slice(0, 2)" @input="onInputTranslate" />
 	</div>
 </template>
@@ -104,8 +104,6 @@ export default defineComponent({
 			onInputElement,
 			onInputEvaluatedElement
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
-
-		console.log(nonReactiveValues)
 
 		function onInputTranslate(value: number[]) {
 			const newValue = [...value, ...evaluated.value.slice(2)]
