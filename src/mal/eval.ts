@@ -96,11 +96,7 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 			break
 		}
 		exp[0].evaluated = fn
-
-		const params = exp.slice(1)
-		console.log('call a macro!!!!', exp[0].value, env)
-		// exp = fn.bind({callerEnv: env})(...params)
-		exp = fn.apply({callerEnv: env}, params)
+		exp = fn.apply({callerEnv: env}, exp.slice(1))
 	}
 
 	if (cache && exp !== _exp && isList(_exp)) {
@@ -110,7 +106,12 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 	return exp
 }
 
-function evalAtom(exp: MalVal, env: Env, cache: boolean) {
+function evalAtom(
+	this: void | MalFuncThis,
+	exp: MalVal,
+	env: Env,
+	cache: boolean
+) {
 	if (isSymbol(exp)) {
 		const ret = env.get(exp)
 		if (cache) {
@@ -123,8 +124,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		return ret
 	} else if (Array.isArray(exp)) {
 		const ret = exp.map(x => {
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			const ret = evalExp(x, env, cache)
+			const ret = evalExp.call(this, x, env, cache)
 			if (cache && isNode(x)) {
 				x[M_EVAL] = ret
 			}
@@ -137,8 +137,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			const ret = evalExp(exp[k], env, cache)
+			const ret = evalExp.call(this, exp[k], env, cache)
 			if (cache && isNode(exp[k])) {
 				;(exp[k] as MalNode)[M_EVAL] = ret
 			}
@@ -164,14 +163,14 @@ export default function evalExp(
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
-			return evalAtom(exp, env, cache)
+			return evalAtom.call(this, exp, env, cache)
 		}
 
 		// Expand macro
 		exp = macroexpand(exp, env, cache)
 
 		if (!isList(exp)) {
-			return evalAtom(exp, env, cache)
+			return evalAtom.call(this, exp, env, cache)
 		}
 
 		if (exp.length === 0) {
@@ -198,7 +197,7 @@ export default function evalExp(
 				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const ret = env.set(sym, evalExp(form, env, cache))
+				const ret = env.set(sym, evalExp.call(this, form, env, cache))
 				if (cache) {
 					setExpandInfo(exp, {
 						type: ExpandType.Unchange
@@ -215,7 +214,7 @@ export default function evalExp(
 				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of defvar')
 				}
-				const ret = evalExp(form, env, cache)
+				const ret = evalExp.call(this, form, env, cache)
 				env.set(sym, ret, exp)
 				if (cache) {
 					origExp[M_EVAL] = ret
@@ -234,7 +233,7 @@ export default function evalExp(
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,
-						evalExp(binds[i + 1], letEnv, cache) as MalVal[]
+						evalExp.call(this, binds[i + 1], letEnv, cache) as MalVal[]
 					)
 				}
 				env = letEnv
@@ -261,14 +260,14 @@ export default function evalExp(
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
 						binds[i] as any,
-						evalExp(binds[i + 1], env, cache) as MalVal[]
+						evalExp.call(this, binds[i + 1], env, cache) as MalVal[]
 					)
 				}
 				env.pushBinding(bindingEnv)
 				const body = _body.length === 1 ? _body[0] : L(S_DO, ..._body)
 				let ret
 				try {
-					ret = evalExp(body, env, cache)
+					ret = evalExp.call(this, body, env, cache)
 				} finally {
 					env.popBinding()
 				}
@@ -289,7 +288,7 @@ export default function evalExp(
 				if (cache) {
 					first.evaluated = env.get(S_FN_PARAMS)
 				}
-				const fn = evalExp(exp[1], env, cache)
+				const fn = evalExp.call(this, exp[1], env, cache)
 				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : null
 				if (cache) {
 					origExp[M_EVAL] = ret
@@ -300,8 +299,11 @@ export default function evalExp(
 				if (cache) {
 					first.evaluated = env.get(S_EVAL_IN_ENV)
 				}
-				const expanded = evalExp(exp[1], env, cache)
-				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
+				// if (!this) {
+				// 	throw new MalError('Cannot find the caller env')
+				// }
+				const expanded = evalExp.call(this, exp[1], env, cache)
+				exp = evalExp.call(this, expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
 			}
 			case 'quote': {
@@ -333,8 +335,14 @@ export default function evalExp(
 					throw new MalError('Second argument of fn should be specified')
 				}
 				const ret = createMalFunc(
-					(...args) =>
-						evalExp(body, new Env(env, params as any[], args), cache),
+					function(...args) {
+						return evalExp.call(
+							this,
+							body,
+							new Env(env, params as any[], args),
+							cache
+						)
+					},
 					body,
 					env,
 					params as MalBind
@@ -352,7 +360,7 @@ export default function evalExp(
 				const body = exp[1]
 				const ret = createMalFunc(
 					function(...args) {
-						return evalExp(body, new Env(env, [], args), cache)
+						return evalExp.call(this, body, new Env(env, [], args), cache)
 					},
 					body,
 					env,
@@ -380,8 +388,8 @@ export default function evalExp(
 				}
 				const ret = createMalFunc(
 					function(...args) {
-						console.log('called a macro', this)
-						return evalExp.bind(this)(
+						return evalExp.call(
+							this,
 							body,
 							new Env(env, params as any[], args),
 							cache
@@ -413,7 +421,7 @@ export default function evalExp(
 				}
 				const [, testExp, catchExp] = exp
 				try {
-					const ret = evalExp(testExp, env, cache)
+					const ret = evalExp.call(this, testExp, env, cache)
 					if (cache) {
 						origExp[M_EVAL] = ret
 					}
@@ -432,7 +440,12 @@ export default function evalExp(
 							err = exc.message
 						}
 						const [, errSym, errBody] = catchExp
-						const ret = evalExp(errBody, new Env(env, [errSym], [err]), cache)
+						const ret = evalExp.call(
+							this,
+							errBody,
+							new Env(env, [errSym], [err]),
+							cache
+						)
 						if (cache) {
 							origExp[M_EVAL] = ret
 						}
@@ -449,7 +462,7 @@ export default function evalExp(
 				if (exp.length === 1) {
 					return null
 				}
-				evalAtom(exp.slice(1, -1), env, cache)
+				evalExp.call(this, exp.slice(1, -1), env, cache)
 				const ret = exp[exp.length - 1]
 				exp = ret
 				break // continue TCO loop
@@ -459,7 +472,7 @@ export default function evalExp(
 					first.evaluated = env.get(S_IF)
 				}
 				const [, _test, thenExp, elseExp] = exp
-				const test = evalExp(_test, env, cache)
+				const test = evalExp.call(this, _test, env, cache)
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				exp = ret
 				break // continue TCO loop
@@ -468,7 +481,7 @@ export default function evalExp(
 				// is a function call
 
 				// Evaluate all of parameters at first
-				const [fn, ...params] = evalAtom(exp, env, cache) as MalVal[]
+				const [fn, ...params] = evalAtom.call(this, exp, env, cache) as MalVal[]
 
 				if (fn instanceof Function) {
 					if (cache) {
