@@ -25,7 +25,9 @@ import {
 	setExpandInfo,
 	ExpandType,
 	getType,
-	isSymbolFor
+	isSymbolFor,
+	M_AST,
+	M_ENV
 } from './types'
 import Env from './env'
 import {saveOuter} from './reader'
@@ -501,13 +503,18 @@ export default function evalExp(
 						first.evaluated = fn
 					}
 
-					const ret = fn(...params)
-
-					if (cache) {
-						origExp[M_EVAL] = ret
+					if (isMalFunc(fn)) {
+						// continue TCO loop
+						env = new Env(fn[M_ENV], fn[M_PARAMS], params)
+						exp = fn[M_AST]
+						break
+					} else {
+						const ret = fn(...params)
+						if (cache) {
+							origExp[M_EVAL] = ret
+						}
+						return ret
 					}
-
-					return ret
 				}
 			}
 		}
