@@ -46,14 +46,14 @@ export default function useURLParser(
 		} else {
 			code =
 				localStorage.getItem('saved_code') ||
-				require('raw-loader!@/default-canvas.glisp').default
+				require('raw-loader!@/default-canvas.glisp').default // eslint-disable-line @typescript-eslint/no-var-requires
 		}
 
 		return code
 	})()
 
 	let onSetupConsole
-	const setupConsolePromise = new Promise(resolve => {
+	const setupConsolePromise = new Promise((resolve) => {
 		onSetupConsole = () => {
 			resolve()
 		}
