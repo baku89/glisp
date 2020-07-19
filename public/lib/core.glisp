@@ -24,7 +24,7 @@
        (def body `(do ~@body)))
      (if (nil? metadata)
        `(def ~name (macro ~params ~body))
-       `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
+       `(def ~name (set-meta! (macro ~params ~body) ~metadata))))))
 
 (defmacro defn
   {:doc "Defines a function"
@@ -45,7 +45,7 @@
 
   (if (nil? metadata)
     `(def ~name (fn ~params ~body))
-    `(def ~name (with-meta (fn ~params ~body) ~metadata))))
+    `(def ~name (set-meta! (fn ~params ~body) ~metadata))))
 
 (defmacro defalias [alias original]
   `(do
