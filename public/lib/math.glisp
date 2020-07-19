@@ -491,6 +491,7 @@
 (defn mat2d/translate
   {:doc "Returns translation matrix"
    :params [{:label "Value" :type "vec2" :desc "Amount of translation"}]
+   :initial-params [[0 0]]
    :return [:type "mat2d" :desc "Transform matrix"]
    :handles {:draw (fn {:params [pos]}
                      [{:type "translate"
@@ -505,6 +506,7 @@
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
    :return {:type "mat2d"}
+   :initial-params [0]
    :handles {:draw (fn {:params [x]}
                      [{:type "path" :guide true :class "dashed"
                        :path (line [0 -80] [0 80])}
@@ -515,6 +517,7 @@
 (defn mat2d/translate-y
   {:doc "Returns translation matrix"
    :params [{:type "number"}]
+   :initial-params [0]
    :handles {:draw (fn {:params [y]}
                      [{:type "path" :guide true :class "dashed"
                        :path (line [-80 0] [80 0])}
@@ -526,6 +529,7 @@
 (defn mat2d/scale
   {:doc  "Returns scaling matrix"
    :params [{:label "Value" :type "vec2"}]
+   :initial-params [[1 1]]
    :return {:type "mat2d"}
    :handles {:draw (fn {:params [[x y]]}
                      (let [sx (* x 40)
@@ -613,6 +617,7 @@
   {:doc "Returns rotation matrix"
    :params [{:type "angle"}]
    :return {:type "mat2d"}
+   :initial-params [0]
    :handles {:draw (fn {:params [angle]}
                      (let [dir (vec2/dir angle 80)]
                        [{:type "path" :guide true :path (line [0 0] dir)}

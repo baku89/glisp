@@ -285,9 +285,9 @@
    :initial-params [[0 0] 100 5]
    :transform translate-first-param}
   [center radius sides]
-  (let [angles (column 0 sides (/ TWO_PI sides))
+  (let [angles (column 0 (dec sides) (/ TWO_PI sides))
         vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
-    (apply polygon vertices)))
+    `(polygon ~@vertices)))
 (defalias ngon path/ngon)
 
 (defn path/point
