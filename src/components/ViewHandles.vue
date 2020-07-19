@@ -139,7 +139,6 @@ const K_ANGLE = K('angle'),
 	K_PATH = K('path'),
 	K_CLASS = K('class'),
 	K_PREV_POS = K('prev-pos'),
-	K_DELTA_POS = K('delta-pos'),
 	K_PARAMS = K('params'),
 	K_RETURN = K('return'),
 	K_REPLACE = K('replace')
@@ -395,15 +394,12 @@ export default defineComponent({
 				data.transformInv
 			)
 
-			const deltaPos = [pos[0] - prevPos[0], pos[1] - prevPos[1]]
-
 			const handle = data.handles[data.draggingIndex]
 
 			const eventInfo = {
 				[K_ID]: handle.id === undefined ? null : handle.id,
 				[K_POS]: pos,
 				[K_PREV_POS]: prevPos,
-				[K_DELTA_POS]: deltaPos,
 				[K_PARAMS]: data.params
 			} as MalMap
 

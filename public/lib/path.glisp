@@ -128,7 +128,7 @@
                         :return path}
                      [{:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :drag (fn {:id id :pos p :delta-pos dp
+             :drag (fn {:id id :pos p
                         :params [from to]}
                      (case id
                        :from {:replace [0 p]}
