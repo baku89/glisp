@@ -227,7 +227,7 @@ export function reverseEval(
 				const info = getFnInfo(original as MalSeq)
 				if (!info) break
 				const inverseFn = getMapValue(info.meta, 'inverse')
-				if (!isMalFunc(inverseFn)) break
+				if (!isFunc(inverseFn)) break
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
