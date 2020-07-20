@@ -1,5 +1,9 @@
 <template>
-	<button class="InputTranslate" :class="{dragging: drag.isDragging}" ref="el" />
+	<button
+		class="InputTranslate"
+		:class="{dragging: drag.isDragging}"
+		ref="el"
+	/>
 </template>
 
 <script lang="ts">
@@ -12,8 +16,8 @@ export default defineComponent({
 	props: {
 		value: {
 			type: Array as PropType<number[]>,
-			required: true
-		}
+			required: true,
+		},
 	},
 	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
@@ -28,14 +32,14 @@ export default defineComponent({
 				newValue[1] += deltaY
 
 				context.emit('input', newValue)
-			}
+			},
 		})
 
 		return {
 			el,
-			drag
+			drag,
 		}
-	}
+	},
 })
 </script>
 

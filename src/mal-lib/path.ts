@@ -13,7 +13,7 @@ import {
 	MalError,
 	assocBang,
 	isMap,
-	createList as L
+	createList as L,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -22,7 +22,7 @@ import {
 	SegmentType,
 	iterateSegment,
 	Vec2,
-	convertToPath2D
+	convertToPath2D,
 } from '@/path-utils'
 
 const EPSILON = 1e-5
@@ -43,7 +43,7 @@ const UNIT_QUAD_BEZIER = new Bezier([
 	{x: 1, y: 0},
 	{x: 1, y: KAPPA},
 	{x: KAPPA, y: 1},
-	{x: 0, y: 1}
+	{x: 0, y: 1},
 ])
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
@@ -433,7 +433,7 @@ function pathArc(
 				.slice(1)
 				.map(p => [
 					x + r * (p.x * cos - p.y * sin),
-					y + r * (p.x * sin + p.y * cos)
+					y + r * (p.x * sin + p.y * cos),
 				])
 		)
 	} else {
@@ -451,7 +451,7 @@ function pathArc(
 					.slice(1)
 					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
-						y + r * (p.x * sin + p.y * cos)
+						y + r * (p.x * sin + p.y * cos),
 					])
 			)
 		}
@@ -460,7 +460,7 @@ function pathArc(
 		const qpoints: number[][] = [
 			[r, KAPPA * r],
 			[KAPPA * r, r],
-			[0, r]
+			[0, r],
 		]
 
 		// Add arc by every quadrant
@@ -471,7 +471,7 @@ function pathArc(
 			points.push(
 				...qpoints.map(([px, py]) => [
 					x + px * cos - py * sin,
-					y + px * sin + py * cos
+					y + px * sin + py * cos,
 				])
 			)
 		}
@@ -488,7 +488,7 @@ function pathArc(
 					.slice(1)
 					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
-						y + r * (p.x * sin + p.y * cos)
+						y + r * (p.x * sin + p.y * cos),
 					])
 			)
 		}
@@ -504,7 +504,7 @@ function pathArc(
 		points[0],
 		...partition(3, points.slice(1))
 			.map(pts => [K_C, ...pts])
-			.flat()
+			.flat(),
 	]
 }
 
@@ -519,7 +519,7 @@ function offset(d: number, path: PathType, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...createHashMap(args)
+		...createHashMap(args),
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offset(paperPath, d, options)
@@ -530,7 +530,7 @@ function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...createHashMap(args)
+		...createHashMap(args),
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
@@ -665,7 +665,7 @@ function pathBounds(path: PathType) {
 			size: 12,
 			font: 'Fira Code',
 			align: 'center',
-			baseline: 'middle'
+			baseline: 'middle',
 		}
 
 		if (isMap(options)) {
@@ -735,7 +735,7 @@ function pathVoronoi(
 			K_PATH,
 			...diagram.edges
 				.map(({va, vb}) => [K_M, [va.x, va.y], K_L, [vb.x, vb.y]])
-				.flat()
+				.flat(),
 		]
 	}
 
@@ -782,13 +782,13 @@ const Exports = [
 	// Utility
 	[
 		'path/split-segments',
-		([, ...path]: PathType) => Array.from(iterateSegment(path) as any)
+		([, ...path]: PathType) => Array.from(iterateSegment(path) as any),
 	],
 	['path/bounds', pathBounds],
 	['path/nearest-offset', nearestOffset],
 	['path/nearest-point', nearestPoint],
 	['path/inside?', insideQ],
-	['path/intersections', intersections]
+	['path/intersections', intersections],
 ] as [string, MalVal][]
 
 const Exp = L(

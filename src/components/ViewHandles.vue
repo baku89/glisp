@@ -101,16 +101,16 @@ import {
 	MalFunc,
 	isVector,
 	getEvaluated,
-	malEquals
+	malEquals,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData, PathType} from '@/path-utils'
+import {getSVGPathData} from '@/path-utils'
 import {
 	getFnInfo,
 	FnInfoType,
 	getMapValue,
 	reverseEval,
-	computeExpTransform
+	computeExpTransform,
 } from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
@@ -122,7 +122,7 @@ import {
 	onBeforeMount,
 	ref,
 	SetupContext,
-	Ref
+	Ref,
 } from '@vue/composition-api'
 import {isPath} from '@/path-utils'
 import ConsoleScope from '@/scopes/console'
@@ -183,12 +183,12 @@ export default defineComponent({
 	props: {
 		exp: {
 			required: true,
-			validator: v => typeof v === 'object'
+			// validator: v => v instanceof NonReactive,
 		},
 		viewTransform: {
 			type: Float32Array,
-			default: () => mat2d.identity(mat2d.create())
-		}
+			default: () => mat2d.identity(mat2d.create()),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const el: Ref<HTMLElement | null> = ref(null)
@@ -264,7 +264,7 @@ export default defineComponent({
 
 				const options = {
 					[K_PARAMS]: data.params,
-					[K_RETURN]: data.returnedValue
+					[K_RETURN]: data.returnedValue,
 				}
 
 				let handles
@@ -334,7 +334,7 @@ export default defineComponent({
 						cls,
 						guide,
 						id: h[K_ID],
-						transform: `matrix(${xform.join(',')})`
+						transform: `matrix(${xform.join(',')})`,
 					}
 
 					if (type === 'translate') {
@@ -345,7 +345,7 @@ export default defineComponent({
 
 					return ret
 				})
-			})
+			}),
 		}) as Data
 
 		function onMousedown(i: number, e: MouseEvent) {
@@ -400,7 +400,7 @@ export default defineComponent({
 				[K_ID]: handle.id === undefined ? null : handle.id,
 				[K_POS]: pos,
 				[K_PREV_POS]: prevPos,
-				[K_PARAMS]: data.params
+				[K_PARAMS]: data.params,
 			} as MalMap
 
 			data.rawPrevPos = rawPos
@@ -558,7 +558,7 @@ export default defineComponent({
 				mat2d.translate(xform, xform, vec2.negate(vec2.create(), pivot))
 
 				context.emit('update:view-transform', xform)
-			}
+			},
 		})
 
 		// Register app commands to ConsoleScope
@@ -579,7 +579,7 @@ export default defineComponent({
 		const rem = useRem()
 
 		return {el, ...toRefs(data as any), onMousedown, rem}
-	}
+	},
 })
 </script>
 

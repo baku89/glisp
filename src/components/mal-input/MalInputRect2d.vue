@@ -72,7 +72,7 @@ import {
 	computed,
 	isReactive,
 	toRef,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import MalInputNumber from './MalInputNumber.vue'
@@ -93,8 +93,8 @@ export default defineComponent({
 		value: {
 			required: true,
 			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
-		}
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const {
@@ -102,7 +102,7 @@ export default defineComponent({
 			isValueSeparated,
 			evaluated,
 			onInputElement,
-			onInputEvaluatedElement
+			onInputEvaluatedElement,
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
@@ -117,9 +117,9 @@ export default defineComponent({
 			evaluated,
 			onInputElement,
 			onInputEvaluatedElement,
-			onInputTranslate
+			onInputTranslate,
 		}
-	}
+	},
 })
 </script>
 

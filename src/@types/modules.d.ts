@@ -6,11 +6,11 @@ declare module 'vue-click-outside' {
 }
 
 declare module 'seedrandom' {
-	export default function(initialSeed: any): () => number
+	export default function (initialSeed: any): () => number
 }
 
 declare module 'dateformat' {
-	export default function(format: string): string
+	export default function (format: string): string
 }
 
 declare module 'bezier-js' {

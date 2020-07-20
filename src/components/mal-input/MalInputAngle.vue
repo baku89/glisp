@@ -8,7 +8,11 @@
 			@select="$emit('select', $event)"
 			:validator="validator"
 		/>
-		<InputRotery class="MalInputAngle__rotery" :value="evaluated" @input="onInput" />
+		<InputRotery
+			class="MalInputAngle__rotery"
+			:value="evaluated"
+			@input="onInput"
+		/>
 	</div>
 </template>
 
@@ -17,7 +21,7 @@ import {
 	defineComponent,
 	PropType,
 	computed,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
@@ -36,11 +40,11 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const evaluated = computed(() => {
@@ -58,9 +62,9 @@ export default defineComponent({
 
 		return {
 			evaluated,
-			onInput
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

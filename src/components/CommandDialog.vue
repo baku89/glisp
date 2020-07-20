@@ -24,7 +24,7 @@ import {
 	ref,
 	Ref,
 	computed,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import ParamControl from './ParamControl.vue'
 import {NonReactive} from '@/utils'
@@ -34,7 +34,7 @@ import {
 	getMeta,
 	MalSymbol,
 	isList,
-	isSymbol
+	isSymbol,
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
@@ -53,12 +53,12 @@ export default defineComponent({
 		exp: {
 			required: true,
 			validator: v =>
-				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0])
+				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0]),
 		},
 		fn: {
 			type: Function,
-			required: true
-		}
+			required: true,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const meta = getMeta(props.fn)
@@ -86,9 +86,9 @@ export default defineComponent({
 			fnName,
 			fnDoc,
 			onInput,
-			onClickExecute
+			onClickExecute,
 		}
-	}
+	},
 })
 </script>
 

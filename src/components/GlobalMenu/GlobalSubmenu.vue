@@ -19,9 +19,9 @@ export default defineComponent({
 	props: {
 		menu: {
 			required: true,
-			type: Array as PropType<[string, string][]>
-		}
-	}
+			type: Array as PropType<[string, string][]>,
+		},
+	},
 })
 </script>
 

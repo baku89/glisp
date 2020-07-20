@@ -6,7 +6,7 @@
 				clickable: labelInfo.clickable,
 				hidden: ui.hidden,
 				selected,
-				hovering
+				hovering,
 			}"
 			@click="labelInfo.clickable && onClick()"
 			@dblclick="labelInfo.editable && onClickEditButton($event)"
@@ -73,7 +73,7 @@ import {
 	MalNode,
 	MalSeq,
 	isSymbolFor,
-	isMap
+	isMap,
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '@/mal/utils'
@@ -82,7 +82,7 @@ import {reconstructTree} from '@/mal/reader'
 enum DisplayMode {
 	Node = 'node',
 	Elements = 'elements',
-	Params = 'params'
+	Params = 'params',
 }
 
 interface Props {
@@ -99,10 +99,10 @@ const IconTexts = {
 	[MalType.String]: {
 		type: 'fontawesome',
 		value: 'fas fa-quote-right',
-		style: 'transform: scale(0.6);'
+		style: 'transform: scale(0.6);',
 	},
 	[MalType.Symbol]: {type: 'serif', value: 'x'},
-	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'}
+	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
 } as {[type: string]: {type: string; value: string; style?: string}}
 
 const S_UI_ANNOTATE = S('ui-annotate')
@@ -114,20 +114,20 @@ export default defineComponent({
 	name: 'ListView',
 	props: {
 		exp: {
-			required: true
+			required: true,
 		},
 		selectedExp: {
-			required: true
+			required: true,
 		},
 		editingExp: {
-			required: true
+			required: true,
 		},
 		hoveringExp: {
-			required: true
+			required: true,
 		},
 		mode: {
-			default: DisplayMode.Node
-		}
+			default: DisplayMode.Node,
+		},
 	},
 	setup(props: Props, context) {
 		/**
@@ -160,7 +160,7 @@ export default defineComponent({
 				return {
 					name: info[K_NAME] || null,
 					expanded: info[K_EXPANDED] || false,
-					hidden: info[K_HIDDEN] || false
+					hidden: info[K_HIDDEN] || false,
 				}
 			}
 
@@ -179,9 +179,9 @@ export default defineComponent({
 					icon: {
 						type: 'fontawesome',
 						value: 'fas fa-chevron-right',
-						style: 'transform: scale(.8)'
+						style: 'transform: scale(.8)',
 					},
-					children: exp.slice(1).map(e => nonReactive(e))
+					children: exp.slice(1).map(e => nonReactive(e)),
 				}
 			} else if (isVector(exp)) {
 				return {
@@ -190,7 +190,7 @@ export default defineComponent({
 					expandable: false,
 					editable: true,
 					icon: {type: 'text', value: '[ ]'},
-					children: null
+					children: null,
 				}
 			} else if (isMap(exp)) {
 				return {
@@ -199,7 +199,7 @@ export default defineComponent({
 					expandable: false,
 					editable: true,
 					icon: {type: 'fontawesome', value: 'far fa-map'},
-					children: null
+					children: null,
 				}
 			} else {
 				return {
@@ -208,7 +208,7 @@ export default defineComponent({
 					expandable: false,
 					editable: false,
 					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
-					children: null
+					children: null,
 				}
 			}
 		})
@@ -299,9 +299,9 @@ export default defineComponent({
 			ui,
 			toggleExpanded,
 			onUpdateChildExp,
-			onClickEditButton
+			onClickEditButton,
 		}
-	}
+	},
 })
 </script>
 

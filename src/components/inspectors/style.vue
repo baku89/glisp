@@ -13,13 +13,20 @@
 			<tr class="Inspector-style__style" v-for="(style, i) in styles" :key="i">
 				<td class="Inspector-style__label">{{ labels[i] }}</td>
 				<td class="Inspector-style__input">
-					<MalExpButton :value="style" @click="$emit('select', $event)" :compact="true" />
+					<MalExpButton
+						:value="style"
+						@click="$emit('select', $event)"
+						:compact="true"
+					/>
 					<MalInputParam
 						class="Inspector-style__param"
 						:value="style"
 						@input="updateStyleAt($event, i)"
 					/>
-					<i class="Inspector-style__delete far fa-times-circle" @click="deleteStyleAt(i)" />
+					<i
+						class="Inspector-style__delete far fa-times-circle"
+						@click="deleteStyleAt(i)"
+					/>
 					<i class="Inspector-style__handle fa fa-align-justify handle"></i>
 				</td>
 			</tr>
@@ -27,8 +34,18 @@
 		</Draggable>
 
 		<div class="Inspector-style__append">
-			<button class="Inspector-style__append-button" @click="appendStyle('fill')">+ Add Fill</button>
-			<button class="Inspector-style__append-button" @click="appendStyle('stroke')">+ Add Stroke</button>
+			<button
+				class="Inspector-style__append-button"
+				@click="appendStyle('fill')"
+			>
+				+ Add Fill
+			</button>
+			<button
+				class="Inspector-style__append-button"
+				@click="appendStyle('stroke')"
+			>
+				+ Add Stroke
+			</button>
 		</div>
 	</div>
 </template>
@@ -38,7 +55,7 @@ import {
 	defineComponent,
 	SetupContext,
 	computed,
-	ref
+	ref,
 } from '@vue/composition-api'
 import Draggable from 'vuedraggable'
 import {
@@ -48,7 +65,7 @@ import {
 	MalSeq,
 	cloneExp,
 	createList as L,
-	symbolFor as S
+	symbolFor as S,
 } from '@/mal/types'
 import {NonReactive, nonReactive, getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-input/MalInputParam.vue'
@@ -63,13 +80,13 @@ export default defineComponent({
 	components: {
 		Draggable,
 		MalInputParam,
-		MalExpButton
+		MalExpButton,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value)
-		}
+			validator: x => x instanceof NonReactive && isList(x.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const styles = computed(() => {
@@ -125,7 +142,7 @@ export default defineComponent({
 			animation: 100,
 			group: 'description',
 			disable: false,
-			ghostClass: 'ghost'
+			ghostClass: 'ghost',
 		})
 
 		const dragging = ref(false)
@@ -138,9 +155,9 @@ export default defineComponent({
 			appendStyle,
 			deleteStyleAt,
 			dragOptions,
-			dragging
+			dragging,
 		}
-	}
+	},
 })
 </script>
 

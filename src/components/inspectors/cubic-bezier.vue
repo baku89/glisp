@@ -42,7 +42,7 @@ import {
 	ref,
 	Ref,
 	computed,
-	toRefs
+	toRefs,
 } from '@vue/composition-api'
 import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
@@ -56,13 +56,13 @@ interface Props {
 export default defineComponent({
 	name: 'Inspector-cubic-bezier',
 	components: {
-		ParamControl
+		ParamControl,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value)
-		}
+			validator: x => x instanceof NonReactive && isList(x.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const svgEl: Ref<null | HTMLElement> = ref(null)
@@ -87,14 +87,14 @@ export default defineComponent({
 		const c1 = computed(() => {
 			return [
 				size.value[0] * (props.exp.value[2] as number),
-				size.value[1] * (1 - (props.exp.value[3] as number))
+				size.value[1] * (1 - (props.exp.value[3] as number)),
 			]
 		})
 
 		const c2 = computed(() => {
 			return [
 				size.value[0] * (props.exp.value[4] as number),
-				size.value[1] * (1 - (props.exp.value[5] as number))
+				size.value[1] * (1 - (props.exp.value[5] as number)),
 			]
 		})
 
@@ -117,7 +117,7 @@ export default defineComponent({
 				exp[3] = oy + dy
 
 				context.emit('input', nonReactive(exp))
-			}
+			},
 		})
 
 		const c2Drag = useDraggable(c2El, {
@@ -135,7 +135,7 @@ export default defineComponent({
 				exp[5] = oy + dy
 
 				context.emit('input', nonReactive(exp))
-			}
+			},
 		})
 
 		const rem = useRem()
@@ -151,9 +151,9 @@ export default defineComponent({
 			c2,
 			radius,
 			isDraggingC1: toRefs(c1Drag).isDragging,
-			isDraggingC2: toRefs(c2Drag).isDragging
+			isDraggingC2: toRefs(c2Drag).isDragging,
 		}
-	}
+	},
 })
 </script>
 

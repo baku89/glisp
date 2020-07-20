@@ -17,7 +17,7 @@ import {
 	defineComponent,
 	PropType,
 	computed,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
@@ -36,11 +36,11 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: MalVal) {
@@ -53,9 +53,9 @@ export default defineComponent({
 		}
 
 		return {
-			onInput
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

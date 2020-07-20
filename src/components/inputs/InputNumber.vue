@@ -19,7 +19,7 @@ import {
 	computed,
 	ref,
 	Ref,
-	PropType
+	PropType,
 } from '@vue/composition-api'
 import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
@@ -31,12 +31,12 @@ export default defineComponent({
 	props: {
 		value: {
 			type: Number,
-			required: true
+			required: true,
 		},
 		validator: {
 			type: Function as PropType<(v: number) => number | null>,
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props, context) {
 		// Element references
@@ -71,7 +71,7 @@ export default defineComponent({
 				startValue += inc
 
 				update(startValue)
-			}
+			},
 		})
 
 		const editing = ref(false)
@@ -153,9 +153,9 @@ export default defineComponent({
 
 			onInput,
 			onBlur,
-			onKeydown
+			onKeydown,
 		}
-	}
+	},
 })
 </script>
 

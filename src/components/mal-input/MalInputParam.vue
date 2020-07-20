@@ -1,7 +1,9 @@
 <template>
 	<div class="MalInputParam">
 		<div class="MalInputParam__param" v-for="(scheme, i) in schemes" :key="i">
-			<div class="MalInputParam__label" v-if="scheme.label">{{ scheme.label }}</div>
+			<div class="MalInputParam__label" v-if="scheme.label">
+				{{ scheme.label }}
+			</div>
 			<component
 				class="MalInputParam__input"
 				:is="scheme.type"
@@ -24,7 +26,7 @@ import {
 	getMeta,
 	MalVal,
 	cloneExp,
-	isList
+	isList,
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalNodeToJSObject} from '@/mal/reader'
@@ -38,13 +40,13 @@ export default defineComponent({
 	name: 'MalInputParam',
 	components: {
 		number: MalInputNumber,
-		color: MalInputColor
+		color: MalInputColor,
 	},
 	props: {
 		value: {
 			required: true,
-			validator: v => v instanceof NonReactive && isList(v.value)
-		}
+			validator: v => v instanceof NonReactive && isList(v.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const params = computed(() => {
@@ -68,7 +70,7 @@ export default defineComponent({
 		}
 
 		return {params, schemes, updateParamAt}
-	}
+	},
 })
 </script>
 

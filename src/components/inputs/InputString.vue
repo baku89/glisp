@@ -1,5 +1,11 @@
 <template>
-	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
+	<input
+		class="InputString"
+		type="text"
+		:value="value"
+		@input="onInput"
+		@blur="onBlur"
+	/>
 </template>
 
 <script lang="ts">
@@ -10,12 +16,12 @@ export default defineComponent({
 	props: {
 		value: {
 			type: String,
-			required: true
+			required: true,
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props, context) {
 		function onInput(e: InputEvent) {
@@ -36,9 +42,9 @@ export default defineComponent({
 
 		return {
 			onInput,
-			onBlur
+			onBlur,
 		}
-	}
+	},
 })
 </script>
 

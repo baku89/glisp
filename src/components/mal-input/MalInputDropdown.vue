@@ -1,5 +1,10 @@
 <template>
-	<InputDropdown :value="value.value" :values="values" :labels="labels" @input="onInput" />
+	<InputDropdown
+		:value="value.value"
+		:values="values"
+		:labels="labels"
+		@input="onInput"
+	/>
 </template>
 
 <script lang="ts">
@@ -18,21 +23,21 @@ interface Props {
 export default defineComponent({
 	name: 'MalInputDropdown',
 	components: {
-		InputDropdown
+		InputDropdown,
 	},
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		values: {
 			type: Array,
-			required: true
+			required: true,
 		},
 		labels: {
 			type: Array,
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: string) {
@@ -40,6 +45,6 @@ export default defineComponent({
 		}
 
 		return {onInput}
-	}
+	},
 })
 </script>

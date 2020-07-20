@@ -11,7 +11,7 @@ import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
 import {NonReactive} from '@/utils'
 import createCanvasRender, {
-	CanvasRendererType
+	CanvasRendererType,
 } from '@/renderer/canvas-renderer'
 import {mat2d} from 'gl-matrix'
 import {useResizeSensor} from '@/components/use'
@@ -25,15 +25,15 @@ interface Props {
 export default defineComponent({
 	props: {
 		exp: {
-			required: true
+			required: true,
 		},
 		guideColor: {
 			type: String,
-			required: true
+			required: true,
 		},
 		viewTransform: {
-			default: () => mat2d.identity(mat2d.create())
-		}
+			default: () => mat2d.identity(mat2d.create()),
+		},
 	},
 	setup(props: Props, context) {
 		let renderer: CanvasRendererType | null = null
@@ -77,7 +77,7 @@ export default defineComponent({
 		async function render(_exp: MalVal) {
 			const options = {
 				viewTransform: props.viewTransform,
-				...(props.guideColor ? {guideColor: props.guideColor} : {})
+				...(props.guideColor ? {guideColor: props.guideColor} : {}),
 			}
 
 			const exp = prevExp === _exp ? undefined : _exp
@@ -118,9 +118,9 @@ export default defineComponent({
 
 		return {
 			el,
-			canvas
+			canvas,
 		}
-	}
+	},
 })
 </script>
 

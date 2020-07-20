@@ -18,16 +18,16 @@ InputString
 export default defineComponent({
 	name: 'MalInputString',
 	components: {
-		InputString
+		InputString,
 	},
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: string) {
@@ -35,6 +35,6 @@ export default defineComponent({
 		}
 
 		return {onInput}
-	}
+	},
 })
 </script>

@@ -40,7 +40,7 @@ import {
 	isNode,
 	getOuter,
 	symbolFor as S,
-	isSymbolFor
+	isSymbolFor,
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
@@ -59,13 +59,13 @@ export default defineComponent({
 	components: {
 		VueMarkdown,
 		ParamControl,
-		...Inspectors
+		...Inspectors,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: p => p instanceof NonReactive && isNode(p.value)
-		}
+			validator: p => p instanceof NonReactive && isNode(p.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const fnInfo = computed(() => {
@@ -119,9 +119,9 @@ export default defineComponent({
 			fnDoc,
 			inspectorName,
 			outer,
-			onSelectOuter
+			onSelectOuter,
 		}
-	}
+	},
 })
 </script>
 

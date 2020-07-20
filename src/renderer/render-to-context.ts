@@ -4,7 +4,7 @@ import {
 	isMap,
 	isKeyword,
 	MalError,
-	MalMap
+	MalMap,
 } from '@/mal/types'
 import {partition} from '@/utils'
 import {iterateSegment, PathType} from '@/path-utils'
@@ -51,7 +51,7 @@ export default function renderToContext(
 						const [attrs, ...children] = rest
 						styles = [
 							...styles,
-							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[])
+							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[]),
 						]
 						draw(children, styles)
 						break
@@ -87,7 +87,7 @@ export default function renderToContext(
 							size: 12,
 							font: 'Fira Code',
 							align: 'center',
-							baseline: 'middle'
+							baseline: 'middle',
 						}
 
 						if (isMap(options)) {
@@ -198,7 +198,7 @@ export default function renderToContext(
 
 		const drawOrders = styles.map(s => ({
 			fill: s[K('fill')],
-			stroke: s[K('stroke')]
+			stroke: s[K('stroke')],
 		}))
 
 		let ignoreFill = false,

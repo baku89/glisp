@@ -15,9 +15,9 @@ export default defineComponent({
 		}
 
 		return {
-			shuffle
+			shuffle,
 		}
-	}
+	},
 })
 </script>
 

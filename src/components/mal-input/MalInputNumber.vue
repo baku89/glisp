@@ -9,7 +9,7 @@
 		<InputNumber
 			:class="{
 				exp: isExp || display.isExp,
-				'grayed-out': display.mode === 'undefined'
+				'grayed-out': display.mode === 'undefined',
 			}"
 			:value="displayValue"
 			@input="onInput"
@@ -36,7 +36,7 @@ import {
 	defineComponent,
 	PropType,
 	computed,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
@@ -47,7 +47,7 @@ import {
 	MalSymbol,
 	getEvaluated,
 	MalType,
-	createList as L
+	createList as L,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
@@ -65,20 +65,20 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
 			type: Function,
-			required: false
+			required: false,
 		},
 		compact: {
 			type: Boolean,
-			default: false
+			default: false,
 		},
 		isExp: {
 			type: Boolean,
-			default: false
-		}
+			default: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const display = computed(() => {
@@ -154,9 +154,9 @@ export default defineComponent({
 			displayValue,
 			display,
 			innerValidator,
-			onInput
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

@@ -30,7 +30,7 @@ import {
 	Ref,
 	computed,
 	onBeforeMount,
-	watch
+	watch,
 } from '@vue/composition-api'
 import {
 	MalVal,
@@ -38,7 +38,7 @@ import {
 	cloneExp,
 	assocBang,
 	keywordFor as K,
-	getEvaluated
+	getEvaluated,
 } from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
@@ -55,13 +55,13 @@ interface Props {
 export default defineComponent({
 	name: 'Inspector-deftime',
 	components: {
-		ParamControl
+		ParamControl,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value)
-		}
+			validator: x => x instanceof NonReactive && isList(x.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const currentTimeRef: Ref<HTMLElement | null> = ref(null)
@@ -118,7 +118,7 @@ export default defineComponent({
 				)
 
 				updateTime(newTime)
-			}
+			},
 		})
 
 		const isSeeking = computed(() => {
@@ -189,9 +189,9 @@ export default defineComponent({
 			normalizedPosition,
 			isPlaying,
 			isSeeking,
-			togglePlay
+			togglePlay,
 		}
-	}
+	},
 })
 </script>
 

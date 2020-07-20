@@ -47,7 +47,7 @@ import {
 	PropType,
 	computed,
 	toRef,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import {
 	getEvaluated,
@@ -56,7 +56,7 @@ import {
 	MalSeq,
 	isSeq,
 	MalSymbol,
-	isSymbol
+	isSymbol,
 } from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -76,8 +76,8 @@ export default defineComponent({
 		value: {
 			required: true,
 			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
-		}
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const {
@@ -85,7 +85,7 @@ export default defineComponent({
 			isValueSeparated,
 			evaluated,
 			onInputElement,
-			onInputEvaluatedElement
+			onInputEvaluatedElement,
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
@@ -99,9 +99,9 @@ export default defineComponent({
 			evaluated,
 			onInputElement,
 			onInputEvaluatedElement,
-			onInputTranslate
+			onInputTranslate,
 		}
-	}
+	},
 })
 </script>
 
