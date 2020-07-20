@@ -9,7 +9,7 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 ## Getting Started
 
 - [Grammar of Glisp](syntax-en)
-- [First Sketch](get-started)
+- [First Sketch](get-started-en)
 
 ## Functionality
 
