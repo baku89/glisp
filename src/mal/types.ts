@@ -29,7 +29,7 @@ export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
 export enum ExpandType {
 	Constant = 1,
 	Env,
-	Unchange
+	Unchange,
 }
 
 export interface ExpandInfoConstant {
@@ -134,7 +134,7 @@ export function expandExp(exp: MalVal) {
 				return exp
 		}
 	} else {
-		return getEvaluated(exp)
+		return getEvaluated(exp, false)
 	}
 }
 
@@ -165,7 +165,7 @@ export enum MalType {
 	Macro = 'macro',
 
 	// Others
-	Undefined = 'undefined'
+	Undefined = 'undefined',
 }
 
 export function getType(obj: any): MalType {
@@ -233,7 +233,7 @@ const TYPES_SUPPORT_META = new Set([
 	MalType.Macro,
 	MalType.List,
 	MalType.Vector,
-	MalType.Map
+	MalType.Map,
 ])
 
 export function withMeta(a: MalVal, m: any) {
@@ -347,7 +347,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? Object.fromEntries(
 						Object.entries(exp as MalMap).map(([k, v]) => [
 							k,
-							cloneExp(v, true)
+							cloneExp(v, true),
 						])
 				  )
 				: {...(exp as MalMap)}
@@ -356,7 +356,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 		case MalType.Function:
 		case MalType.Macro: {
 			// new function instance
-			const fn = function(this: MalFuncThis, ...args: MalSeq) {
+			const fn = function (this: MalFuncThis, ...args: MalSeq) {
 				return (exp as MalFunc).apply(this, args)
 			}
 			// copy original properties
@@ -369,9 +369,14 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 	}
 }
 
-export function getEvaluated(exp: MalVal) {
+export function getEvaluated(exp: MalVal, deep = true): MalVal {
 	if (exp instanceof Object && M_EVAL in exp) {
-		return (exp as MalNode)[M_EVAL]
+		const evaluated = (exp as MalNode)[M_EVAL]
+		if (isList(evaluated) && deep) {
+			return getEvaluated(evaluated, deep)
+		} else {
+			return evaluated
+		}
 	} else {
 		return exp
 	}
@@ -407,7 +412,7 @@ export function createMalFunc(
 		[M_ENV]: env,
 		[M_PARAMS]: params,
 		[M_META]: meta,
-		[M_ISMACRO]: ismacro
+		[M_ISMACRO]: ismacro,
 	}
 	return Object.assign(fn, attrs)
 }
