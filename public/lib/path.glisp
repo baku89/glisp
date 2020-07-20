@@ -195,24 +195,10 @@
   {:doc "Generates a polyline path"
    :params [& {:label "Vertex" :type "vec2"}]
    :handles {:draw (fn {:params [& pts]}
-                     (concat
-                      (map-indexed
-                       (fn [i p] {:type "point"
-                                  :id [:edit i]
-                                  :pos p})
-                       pts)
-                      (map (fn [i] {:type "point"
-                                    :id [:add (inc i)]
-                                    :class "dashed"
-                                    :pos (vec2/lerp (nth pts i)
-                                                    (nth pts (inc i))
-                                                    .5)})
-                           (range (dec (count pts))))))
-             :drag (fn {:id id :pos p
-                        :params [& pts]}
-                     (let [[mode i] id]
-                       (case mode
-                         :edit  {:replace [i p]})))}
+                     (for [pt pts :index i]
+                       {:type "point" :id i :pos pt}))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}
    :return {:type "path"}
    :initial-params [[0 0]]
    :transform (fn {:params pts
@@ -227,7 +213,17 @@
       ~@(apply concat (map #(list :L %) (rest pts)))]))
 (defalias polyline path/polyline)
 
-(defn path/polygon [& pts]
+(defn path/polygon
+  {:doc "Generates a polygon path"
+   :params [& {:label "Vertex" :type "vec2"}]
+   :handles {:draw (fn {:params [& pts]}
+                     (for [pt pts :index i]
+                       {:type "point" :id i :pos pt}))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}
+   :initial-params []
+   :return {:type "vec2"}}
+  [& pts]
   (conj (apply polyline pts) :Z))
 (defalias polygon path/polygon)
 
