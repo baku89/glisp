@@ -214,7 +214,7 @@ export default defineComponent({
 				if (data.fnInfo?.primitive) {
 					return [getEvaluated(exp)]
 				} else {
-					return exp.slice(1).map(getEvaluated) || []
+					return exp.slice(1).map(e => getEvaluated(e)) || []
 				}
 			}),
 			unevaluatedParams: computed(() => {

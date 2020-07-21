@@ -187,7 +187,7 @@ export default function useAppCommands(
 
 		const originalParams = primitive ? [selected] : selected.slice(1)
 		const payload = {
-			[K('params')]: originalParams.map(getEvaluated),
+			[K('params')]: originalParams.map(p => getEvaluated(p)),
 			[K('transform')]: xform as MalVal,
 		}
 

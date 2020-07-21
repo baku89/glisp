@@ -229,7 +229,7 @@ export function reverseEval(
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
-				const evaluatedParams = originalParams.map(getEvaluated)
+				const evaluatedParams = originalParams.map(e => getEvaluated(e))
 
 				// Compute the original parameter
 				const result = inverseFn({
