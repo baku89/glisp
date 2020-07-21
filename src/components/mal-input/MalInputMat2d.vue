@@ -62,17 +62,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	watch,
-	PropType,
-	computed,
-	isReactive,
-	toRef,
-	SetupContext,
-} from '@vue/composition-api'
+import {defineComponent, toRef, SetupContext} from '@vue/composition-api'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'

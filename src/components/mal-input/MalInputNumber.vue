@@ -32,12 +32,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	PropType,
-	computed,
-	SetupContext,
-} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
 import {

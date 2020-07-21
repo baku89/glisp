@@ -24,12 +24,12 @@ function setupSettings(editor: ace.Editor) {
 		showGutter: false,
 		tabSize: 2,
 		useSoftTabs: false,
-		maxLines: Infinity
+		maxLines: Infinity,
 	})
 }
 
 function setupResizeHandler(editor: ace.Editor) {
-	useResizeSensor(editor.container, el => {
+	useResizeSensor(editor.container, () => {
 		editor.resize(true)
 	})
 }
@@ -40,7 +40,7 @@ function setupKeybinds(editor: ace.Editor) {
 		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
 		exec: () => {
 			ConsoleScope.readEval('(select-outer)')
-		}
+		},
 	})
 
 	editor.commands.addCommand({
@@ -48,7 +48,7 @@ function setupKeybinds(editor: ace.Editor) {
 		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
 		exec: () => {
 			ConsoleScope.readEval('(expand-selected)')
-		}
+		},
 	})
 }
 

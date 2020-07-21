@@ -13,15 +13,10 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	PropType,
-	computed,
-	SetupContext,
-} from '@vue/composition-api'
+import {defineComponent, SetupContext} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 

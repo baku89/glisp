@@ -11,7 +11,6 @@ import {
 	MalSymbol,
 	MalType,
 	isSeq,
-	symbolFor as S,
 	MalSeq,
 	M_ISSUGAR,
 	isSymbol,

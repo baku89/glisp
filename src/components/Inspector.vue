@@ -39,7 +39,6 @@ import {
 	MalSymbol,
 	isNode,
 	getOuter,
-	symbolFor as S,
 	isSymbolFor,
 } from '@/mal/types'
 

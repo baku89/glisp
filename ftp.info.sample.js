@@ -3,5 +3,5 @@ module.exports = {
 	password: 'password',
 	host: 'host.com',
 	port: 21,
-	remoteRoot: '/public_html'
+	remoteRoot: '/public_html',
 }

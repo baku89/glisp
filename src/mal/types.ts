@@ -323,10 +323,6 @@ export function isEqual(a: MalVal, b: MalVal) {
 }
 
 export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
-	let newExp: T
-
-	const type = getType(exp)
-
 	switch (getType(exp)) {
 		case MalType.List: {
 			const children = deep

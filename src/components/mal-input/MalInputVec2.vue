@@ -40,28 +40,12 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	PropType,
-	computed,
-	toRef,
-	SetupContext,
-} from '@vue/composition-api'
-import {
-	getEvaluated,
-	MalVal,
-	isVector,
-	MalSeq,
-	isSeq,
-	MalSymbol,
-	isSymbol,
-} from '@/mal/types'
+import {defineComponent, toRef, SetupContext} from '@vue/composition-api'
+import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber, InputTranslate} from '@/components/inputs'
-import {useDraggable, useNumericVectorUpdator} from '@/components/use'
+import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 

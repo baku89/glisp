@@ -38,7 +38,6 @@
 import chroma from 'chroma-js'
 import {
 	defineComponent,
-	PropType,
 	computed,
 	ComputedRef,
 	SetupContext,

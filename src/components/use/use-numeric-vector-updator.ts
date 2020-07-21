@@ -44,6 +44,6 @@ export default function useNumericVectorUpdator(
 		isValueSeparated,
 		evaluated,
 		onInputElement,
-		onInputEvaluatedElement
+		onInputEvaluatedElement,
 	}
 }

@@ -28,7 +28,7 @@ export default function useDraggable(
 		deltaY: 0,
 		isDragging: false,
 		prevX: 0,
-		prevY: 0
+		prevY: 0,
 	})
 
 	let originX = 0,

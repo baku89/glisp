@@ -29,7 +29,7 @@ export default function useGesture(
 							e = {
 								pageX: e.pageX,
 								pageY: e.pageY,
-								deltaY: e.deltaY / 10
+								deltaY: e.deltaY / 10,
 							} as MouseWheelEvent
 						}
 						options.onZoom(e)
@@ -51,7 +51,7 @@ export default function useGesture(
 			const onGrabMove = (_e: MouseEvent) => {
 				const e = {
 					deltaX: _e.pageX - prevX,
-					deltaY: _e.pageY - prevY
+					deltaY: _e.pageY - prevY,
 				} as MouseWheelEvent
 
 				prevX = _e.pageX

@@ -125,7 +125,6 @@ import {
 	Ref,
 } from '@vue/composition-api'
 import {isPath} from '@/path-utils'
-import ConsoleScope from '@/scopes/console'
 import AppScope from '@/scopes/app'
 
 const K_ANGLE = K('angle'),

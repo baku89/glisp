@@ -17,12 +17,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	PropType,
-	computed,
-	SetupContext,
-} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'

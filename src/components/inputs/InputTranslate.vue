@@ -26,7 +26,7 @@ export default defineComponent({
 			onDrag({isDragging, deltaX, deltaY}) {
 				if (!isDragging) return
 
-				const newValue = [...props.value]
+				const newValue = vec2.fromValues(props.value[0], props.value[1])
 
 				newValue[0] += deltaX
 				newValue[1] += deltaY

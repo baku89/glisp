@@ -1,7 +1,7 @@
 import ace from 'brace'
 
 // Mode
-;(ace as any).define('ace/mode/glisp', function(
+;(ace as any).define('ace/mode/glisp', function (
 	this: any,
 	acequire: any,
 	exports: any
@@ -13,13 +13,13 @@ import ace from 'brace'
 	const MatchingParensOutdent = acequire('./matching_parens_outdent')
 		.MatchingParensOutdent
 
-	const Mode = function(this: any) {
+	const Mode = function (this: any) {
 		this.HighlightRules = GlispHighlightRules
 		this.$outdent = new MatchingParensOutdent()
 		this.$behaviour = this.$defaultBehaviour
 	}
 	oop.inherits(Mode, TextMode)
-	;(function(this: any) {
+	;(function (this: any) {
 		this.lineCommentStart = ';'
 		this.minorIndentFunctions = [
 			'if',
@@ -33,13 +33,13 @@ import ace from 'brace'
 			'style',
 			'path/transform',
 			'artboard',
-			'clip'
+			'clip',
 		]
 
-		this.$toIndent = function(str: string) {
+		this.$toIndent = function (str: string) {
 			return str
 				.split('')
-				.map(function(ch) {
+				.map(function (ch) {
 					if (/\s/.exec(ch)) {
 						return ch
 					} else {
@@ -49,7 +49,7 @@ import ace from 'brace'
 				.join('')
 		}
 
-		this.$calculateIndent = function(line: string, tab: any) {
+		this.$calculateIndent = function (line: string, tab: any) {
 			let baseIndent = this.$getIndent(line) as string
 			let delta = 0
 			let isParen, ch, i
@@ -102,15 +102,15 @@ import ace from 'brace'
 			}
 		}
 
-		this.getNextLineIndent = function(state: any, line: any, tab: any) {
+		this.getNextLineIndent = function (state: any, line: any, tab: any) {
 			return this.$calculateIndent(line, tab)
 		}
 
-		this.checkOutdent = function(state: any, line: any, input: any) {
+		this.checkOutdent = function (state: any, line: any, input: any) {
 			return this.$outdent.checkOutdent(line, input)
 		}
 
-		this.autoOutdent = function(state: any, doc: any, row: any) {
+		this.autoOutdent = function (state: any, doc: any, row: any) {
 			this.$outdent.autoOutdent(doc, row)
 		}
 
@@ -122,7 +122,7 @@ import ace from 'brace'
 })
 
 // Highlight Rule
-;(ace as any).define('ace/mode/glisp_highlight_rules', function(
+;(ace as any).define('ace/mode/glisp_highlight_rules', function (
 	this: any,
 	acequire: any,
 	exports: any
@@ -131,7 +131,7 @@ import ace from 'brace'
 	const TextHighlightRules = acequire('ace/mode/text_highlight_rules')
 		.TextHighlightRules
 
-	const GlispHighlightRules = function(this: any) {
+	const GlispHighlightRules = function (this: any) {
 		const clojureBuiltinFunctions = ''
 
 		const builtinFunctions = clojureBuiltinFunctions
@@ -142,7 +142,7 @@ import ace from 'brace'
 		const keywordMapper = this.createKeywordMapper(
 			{
 				function: specialForms,
-				'support.function': builtinFunctions
+				'support.function': builtinFunctions,
 			},
 			'identifier',
 			false,
@@ -156,7 +156,7 @@ import ace from 'brace'
 			start: [
 				{
 					token: 'comment',
-					regex: ';.*$'
+					regex: ';.*$',
 				},
 				// {
 				// 	token: 'keyword', //lists
@@ -172,15 +172,15 @@ import ace from 'brace'
 				// },
 				{
 					token: 'keyword', // ampersands, metadata
-					regex: '[\\#\\^\\&]'
+					regex: '[\\#\\^\\&]',
 				},
 				{
 					token: 'keyword', // anonymous fn syntactic sugar
-					regex: '[%][0-9]*'
+					regex: '[%][0-9]*',
 				},
 				{
 					token: 'keyword', // deref reader macro
-					regex: '[@]'
+					regex: '[@]',
 				},
 				// {
 				// 	token: 'constant.numeric', // hex
@@ -188,38 +188,38 @@ import ace from 'brace'
 				// },
 				{
 					token: 'constant.numeric', // float
-					regex: '[+-]?\\d+(?:(?:\\.\\d*)?(?:[eE][+-]?\\d+)?)?\\b'
+					regex: '[+-]?\\d+(?:(?:\\.\\d*)?(?:[eE][+-]?\\d+)?)?\\b',
 				},
 				{
 					token: 'constant.language',
-					regex: 'true|false|nil'
+					regex: 'true|false|nil',
 				},
 				{
 					token: 'function',
-					regex: '[\\+|\\-|\\*|\\/||=|!=|<=|>=|<|>]' // functions begin with symbols
+					regex: '[\\+|\\-|\\*|\\/||=|!=|<=|>=|<|>]', // functions begin with symbols
 				},
 				{
 					token: keywordMapper,
-					regex: '[a-zA-Z_$\\/][a-zA-Z0-9_$\\-]*\\b'
+					regex: '[a-zA-Z_$\\/][a-zA-Z0-9_$\\-]*\\b',
 				},
 				{
 					token: 'identifier', //parens
 					regex: '[\\(]',
-					next: 'fncall'
+					next: 'fncall',
 				},
 				{
 					token: 'identifier', //parens end
-					regex: '[\\)]'
+					regex: '[\\)]',
 				},
 				{
 					token: 'keyword.operator',
-					regex: '\\:[a-zA-Z_$][a-zA-Z0-9_$\\-]*\\b' // keyword
+					regex: '\\:[a-zA-Z_$][a-zA-Z0-9_$\\-]*\\b', // keyword
 				},
 				{
 					token: 'string', // single line
 					regex: '"',
-					next: 'string'
-				}
+					next: 'string',
+				},
 				// {
 				// 	token: 'constant', // symbol
 				// 	regex: /:[^()\[\]{}'"\^%`,;\s]+/ // eslint-disable-line no-useless-escape
@@ -233,24 +233,24 @@ import ace from 'brace'
 				{
 					token: 'function',
 					regex: '[\\s]*[^\\s\\(\\[\\{]+',
-					next: 'start'
-				}
+					next: 'start',
+				},
 			],
 			string: [
 				{
 					token: 'constant.language.escape',
-					regex: '\\\\.|\\\\$'
+					regex: '\\\\.|\\\\$',
 				},
 				{
 					token: 'string',
-					regex: '[^"\\\\]+'
+					regex: '[^"\\\\]+',
 				},
 				{
 					token: 'string',
 					regex: '"',
-					next: 'start'
-				}
-			]
+					next: 'start',
+				},
+			],
 		}
 	}
 

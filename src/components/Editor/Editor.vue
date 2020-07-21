@@ -13,7 +13,7 @@ import {
 	onBeforeUnmount,
 	watch,
 	SetupContext,
-	PropType
+	PropType,
 } from '@vue/composition-api'
 import ace from 'brace'
 
@@ -132,25 +132,25 @@ export default defineComponent({
 	props: {
 		value: {
 			type: String,
-			required: true
+			required: true,
 		},
 		selection: {
 			type: Array as PropType<number[]>,
-			required: false
+			required: false,
 		},
 		activeRange: {
 			type: Array as PropType<number[]>,
-			required: false
+			required: false,
 		},
 		cssStyle: {
 			type: String,
-			default: ''
-		}
+			default: '',
+		},
 	},
 	setup(props, context) {
 		const {editorEl} = useBraceEditor(props, context)
 		return {editorEl}
-	}
+	},
 })
 </script>
 

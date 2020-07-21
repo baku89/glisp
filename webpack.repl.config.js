@@ -5,29 +5,29 @@ const CopyPlugin = require('copy-webpack-plugin')
 module.exports = {
 	node: {
 		__filename: false,
-		__dirname: false
+		__dirname: false,
 	},
 	entry: {
 		index: './src/repl.ts',
 		'lib/core': './src/mal-lib/core.ts',
 		'lib/path': './src/mal-lib/path.ts',
-		'lib/math': './src/mal-lib/math.ts'
+		'lib/math': './src/mal-lib/math.ts',
 	},
 	mode: 'production',
 	resolve: {
 		alias: {
-			'@': path.resolve(__dirname, 'src')
+			'@': path.resolve(__dirname, 'src'),
 		},
-		extensions: ['.tsx', '.ts', '.js']
+		extensions: ['.tsx', '.ts', '.js'],
 	},
 	module: {
 		rules: [
 			{
 				test: /\.tsx?$/,
 				use: 'ts-loader',
-				exclude: /node_modules/
-			}
-		]
+				exclude: /node_modules/,
+			},
+		],
 	},
 	target: 'node',
 	output: {
@@ -35,7 +35,7 @@ module.exports = {
 		path: path.resolve(__dirname, 'repl'),
 		globalObject: 'this',
 		libraryTarget: 'umd',
-		libraryExport: ''
+		libraryExport: '',
 	},
 	plugins: [
 		new webpack.IgnorePlugin(/jsdom$/),
@@ -43,9 +43,9 @@ module.exports = {
 			patterns: [
 				{
 					from: 'public/lib',
-					to: 'lib'
-				}
-			]
-		})
-	]
+					to: 'lib',
+				},
+			],
+		}),
+	],
 }

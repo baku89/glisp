@@ -5,7 +5,7 @@
 <script lang="ts">
 import {defineComponent, SetupContext} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {MalVal, MalSeq, MalSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 
 interface Props {
