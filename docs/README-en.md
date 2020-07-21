@@ -13,7 +13,7 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 ## Functionality
 
-- [Applying Styles](styles)
+- [Applying Styles](styles-en)
 - [Transformation](transform)
 - [Draw Tree](draw-tree)
 - Primitives
