@@ -61,7 +61,7 @@ type WatchOnReplacedCallback = (newExp: MalVal) => any
 
 const ExpWatcher = new WeakMap<MalNode, WatchOnReplacedCallback>()
 
-export function watchOnReplaced(
+export function watchExpOnReplace(
 	exp: MalNode,
 	callback: WatchOnReplacedCallback
 ) {
