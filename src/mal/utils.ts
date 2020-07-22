@@ -79,19 +79,6 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		throw new MalError('Cannot execute replaceExp')
 	}
 
-	// // Inherit delimiters if possible
-	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
-	// 	replaced[M_DELIMITERS] = []
-	// 	console.log('sdfd', original, replaced)
-	// 	if (isList(original) && isList(replaced)) {
-	// 		for (let i = 0; i < replaced.length; i++) {
-	// 			const oi = Math.min(i, original.length - 2)
-	// 			replaced.push(original[M_DELIMITERS][oi])
-	// 		}
-	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
-	// 	}
-	// }
-
 	// Set as child
 	if (isSeq(outer)) {
 		outer[index] = replaced
