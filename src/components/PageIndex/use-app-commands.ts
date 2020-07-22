@@ -29,12 +29,12 @@ import ViewScope from '@/scopes/view'
 
 export default function useAppCommands(
 	data: {
-		exp: NonReactive<MalVal>
+		exp: NonReactive<MalNode>
 		selectedExp: NonReactive<MalNode> | null
 		editingExp: NonReactive<MalNode> | null
 	},
 	callbacks: {
-		updateExp: (exp: NonReactive<MalVal>) => void
+		updateExp: (exp: NonReactive<MalNode>) => void
 		setSelectedExp: (exp: NonReactive<MalNode> | null) => any
 		updateSelectedExp: (val: NonReactive<MalVal>) => any
 	}
