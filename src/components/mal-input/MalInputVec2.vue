@@ -2,7 +2,7 @@
 	<div class="MalInputVec2">
 		<MalExpButton
 			v-if="!isValueSeparated"
-			:value="value.value"
+			:value="value"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>[
