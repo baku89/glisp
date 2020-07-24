@@ -30,7 +30,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
   - [ ] Much more intuitive interface for designers I prototyped [here](http://ui.baku89.com/)
 - [ ] Improve the GUI to allow non-programmers edit the project without seeing any Lisp code
   - [ ] ✨Layer list view
-- [ ] Lisp interpreter optimization/ehnancement
+- [ ] Lisp interpreter optimization/enhancement
   - [ ] 🌶️ Incremental evaluation system to avoid the overhead by re-calculating entire project for each tweak
   - [ ] [Incremental Lisp parser](https://hal.archives-ouvertes.fr/hal-01887230/document)
   - [ ] 🌶️ Enables to refer other node's value by relative path without explicitly defining a symbol, like Houdini's `ch("../transform/tx")` expression
@@ -39,7 +39,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
 - [ ] Timeline features
   - [ ] Video exporter
   - [ ] AE-like layer view and curve editor
-  - [ ] 🍡 [Velocity/accelation based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
+  - [ ] 🍡 [Velocity/acceleration based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
 - [ ] Raster image manipulation
   - [ ] Writes custom filters in GLSL ([Interactive Shader Format](https://editor.isf.video/) might be useful)
   - [ ] 🍡 Captures still image from video input (e.g. webcam) to make a stop-motion
@@ -75,7 +75,7 @@ Below are all cool projects I've deeply inspired by.
   - [Auto-Illustrator](http://swai.signwave.co.uk/)
   - [Scriptographer](https://scriptographer.org/) and [Paper.js](http://paperjs.org/) by [Jürg Lehni](http://juerglehni.com/)
 
-Informations by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20) and [Yasuhiro Tsuchiya](http://www.cbc-net.com/dots/yasuhiro_tsuchiya/tsuchiya_02/)
+Information by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20) and [Yasuhiro Tsuchiya](http://www.cbc-net.com/dots/yasuhiro_tsuchiya/tsuchiya_02/)
 
 ## Supporters
 
@@ -96,4 +96,4 @@ The project adopts Vue-CLI.
 
 ## LICENSE
 
-This repository is published under an MIT License. See the included [LISENCE file](/LICENSE).
+This repository is published under an MIT License. See the included [LICENSE file](/LICENSE).
