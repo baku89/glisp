@@ -15,7 +15,7 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 - [Applying Styles](styles-en)
 - [Transformation](transform-en)
-- [Draw Tree](draw-tree)
+- [Draw Tree](draw-tree-en)
 - Primitives
 - [Handles](defining-handle)
 - Docstring
