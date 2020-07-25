@@ -72,4 +72,4 @@ You can find detailed explanation in [transformation](transform-en).
 
 In the above examples, you can open the editor by pressing **Open in Editor**. In Glisp, in addition to edit the code as a text, parameters can be adjusted and edited in the viewer and in the inspector at the bottom left of the window. With functions supporting these features, the inspector and handles automatically show up when the inside of the parentheses of the function is selected by the cursor.
 
-![a gif animation of handle demonstration](handles.gif)
+![a gif animation of handle demonstration](<(./_media/handles.gif)>)
