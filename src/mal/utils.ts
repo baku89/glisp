@@ -32,6 +32,7 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
+import {printExp} from '.'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -76,8 +77,8 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	// Execute a callback if necessary
 	if (ExpWatcher.has(original)) {
 		const callbacks = ExpWatcher.get(original) as WatchOnReplacedCallback[]
+		ExpWatcher.delete(original)
 		for (const cb of callbacks) {
-			// ExpWatcher.delete(original)
 			cb(replaced)
 		}
 	}
