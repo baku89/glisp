@@ -1,10 +1,6 @@
 # Glisp
 
-<img src="./favicon/android-chrome-512x512.png" style="width: 256px; margin: 0 auto; display: block;" />
-
 Glisp = **G**raphical **L**isp
-
-A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 Lisp ベースのグラフィックデザインツール / クリエイティブコーディング環境を目指して開発しています。
 

@@ -148,6 +148,7 @@
 			window.$docsify = {
 				name: "'(GLISP)",
 				repo: 'baku89/glisp',
+				coverpage: true,
 				logo: './favicon/android-chrome-512x512.png',
 				plugins: [
 					function (hook, vm) {
@@ -162,7 +163,7 @@
 						hook.doneEach(() => {
 							const codeBlocks = document.querySelectorAll('pre.glisp-code')
 
-							codeBlocks.forEach((preEl) => {
+							codeBlocks.forEach(preEl => {
 								const parentEl = preEl.parentElement
 								const codeEl = preEl.firstChild
 
@@ -189,7 +190,7 @@
 					})[0]
 			}
 
-			window.onmessage = (e) => {
+			window.onmessage = e => {
 				const [width, height] = e.data
 				const iframe = getFrameByEvent(event)
 
