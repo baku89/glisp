@@ -17,7 +17,7 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 - [Transformation](transform-en)
 - [Draw Tree](draw-tree-en)
 - Primitives
-- [Handles](defining-handle)
+- Handles
 - Docstring
 - Inverse Evaluation
 - Edit Mode
@@ -25,10 +25,10 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 ## Reference
 
-- [Cheat Sheet](cheatsheet)
+- [Cheat Sheet](cheatsheet-en)
 - [Function List](ref)
 
-## Studying Design Tools
+## Studying Design Tools (in Japanese)
 
 - [Why Lisp?](why-lisp)
 - [Making making of better making](https://baku89.com/2020/06/26/c-activity)
