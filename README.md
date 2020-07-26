@@ -83,6 +83,8 @@ This projects are supported by these kindful people. I'd be appreciated if you w
 
 [Sponsor @baku89 on GitHub Sponsors](https://github.com/sponsors/baku89#sponsors)
 
+And I especially appreciate [Naoto HIEDA](https://naotohieda.com/) for his contribution to examples, suggestions, and English translation.
+
 ## Development
 
 The project adopts Vue-CLI.
@@ -94,8 +96,6 @@ The project adopts Vue-CLI.
 - _Preview the documentaiton_: `yarn doc:serve`
 - _Launch the electron app for development_: `yarn electron:serve`
 - _Build the Electron app_: `yarn electron:build`
-
-## Supporters
 
 ## LICENSE
 
