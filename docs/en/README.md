@@ -6,16 +6,16 @@ Glisp = **G**raphical **L**isp
 
 A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
-## Getting Started
+<h2>Getting Started</h2>
 
-- [Grammar of Glisp](syntax-en)
-- [First Sketch](get-started-en)
+- [Grammar of Glisp](en/syntax)
+- [First Sketch](en/get-started)
 
-## Functionality
+<h2>Functionality</h2>
 
-- [Applying Styles](styles-en)
-- [Transformation](transform-en)
-- [Draw Tree](draw-tree-en)
+- [Applying Styles](en/styles)
+- [Transformation](en/transform)
+- [Draw Tree](en/draw-tree)
 - Primitives
 - Handles
 - Docstring
@@ -23,12 +23,12 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 - Edit Mode
 - Units
 
-## Reference
+<h2>Reference</h2>
 
-- [Cheat Sheet](cheatsheet-en)
+- [Cheat Sheet](en/cheatsheet)
 - [Function List](ref)
 
-## Studying Design Tools (in Japanese)
+<h2>Studying Design Tools (in Japanese)</h2>
 
 - [Why Lisp?](why-lisp)
 - [Making making of better making](https://baku89.com/2020/06/26/c-activity)

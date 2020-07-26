@@ -8,12 +8,12 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 Lisp ベースのグラフィックデザインツール / クリエイティブコーディング環境を目指して開発しています。
 
-## ことはじめ
+<h2>ことはじめ</h2>
 
 - [Glisp の文法](syntax)
 - [はじめてのスケッチ](get-started)
 
-## 機能について
+<h2>機能について</h2>
 
 - [スタイルの応用](styles)
 - [トランスフォーム](transform)
@@ -25,12 +25,12 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - 編集モード
 - 単位系
 
-## リファレンス
+<h2>リファレンス</h2>
 
 - [チートシート](cheatsheet)
 - [関数](ref)
 
-## デザインツールの考察
+<h2>デザインツールの考察</h2>
 
 - [なぜ Lisp なのか](why-lisp)
 - [マシな作り方の作り方を作る](https://baku89.com/2020/06/26/c-activity)
