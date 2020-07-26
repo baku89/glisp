@@ -70,6 +70,10 @@ export function watchExpOnReplace(
 	ExpWatcher.set(exp, callbacks)
 }
 
+export function unwatchExpOnReplace(exp: MalNode) {
+	ExpWatcher.delete(exp)
+}
+
 /**
  * Cached Tree-shaking
  */

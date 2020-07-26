@@ -106,7 +106,7 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
-import {replaceExp, watchExpOnReplace} from '@/mal/utils'
+import {replaceExp, watchExpOnReplace, unwatchExpOnReplace} from '@/mal/utils'
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
@@ -230,6 +230,8 @@ export default defineComponent({
 		})
 
 		function updateExp(exp: NonReactive<MalNode>) {
+			unwatchExpOnReplace(data.exp.value)
+
 			data.exp = exp
 			watchExpOnReplace(exp.value, newExp => {
 				if (!isNode(newExp)) {
@@ -257,6 +259,12 @@ export default defineComponent({
 
 		// Events
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
+			// Unregister the previous exp from the event emitter
+			if (data.selectedExp) {
+				unwatchExpOnReplace(data.selectedExp.value)
+			}
+
+			// Update
 			if (exp && exp.value === data.exp.value) {
 				// Prevent to select the root `sketch`
 				data.selectedExp = null
@@ -338,6 +346,11 @@ export default defineComponent({
 		}
 
 		function setEditingExp(exp: NonReactive<MalNode>) {
+			// Unregister the previous exp from the event emitter
+			if (data.editingExp) {
+				unwatchExpOnReplace(data.editingExp.value)
+			}
+
 			data.editingExp = exp
 			watchExpOnReplace(exp.value, newExp => {
 				if (isNode(newExp)) {
