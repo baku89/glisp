@@ -4,7 +4,7 @@ import {
 	isKeyword,
 	MalVal,
 	keywordFor as K,
-	isVector
+	isVector,
 } from '@/mal/types'
 
 const K_PATH = K('path')

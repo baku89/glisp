@@ -8,5 +8,5 @@ Vue.use(VueCompositionApi)
 Vue.use(VModal, {dynamic: true})
 
 new Vue({
-	render: h => h(App)
+	render: h => h(App),
 }).$mount('#app')

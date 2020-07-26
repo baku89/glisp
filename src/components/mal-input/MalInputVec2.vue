@@ -2,7 +2,7 @@
 	<div class="MalInputVec2">
 		<MalExpButton
 			v-if="!isValueSeparated"
-			:value="value.value"
+			:value="value"
 			:compact="true"
 			@click="$emit('select', $event)"
 		/>[
@@ -40,28 +40,12 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	PropType,
-	computed,
-	toRef,
-	SetupContext
-} from '@vue/composition-api'
-import {
-	getEvaluated,
-	MalVal,
-	isVector,
-	MalSeq,
-	isSeq,
-	MalSymbol,
-	isSymbol
-} from '@/mal/types'
+import {defineComponent, toRef, SetupContext} from '@vue/composition-api'
+import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber, InputTranslate} from '@/components/inputs'
-import {useDraggable, useNumericVectorUpdator} from '@/components/use'
+import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
@@ -76,8 +60,8 @@ export default defineComponent({
 		value: {
 			required: true,
 			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
-		}
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const {
@@ -85,7 +69,7 @@ export default defineComponent({
 			isValueSeparated,
 			evaluated,
 			onInputElement,
-			onInputEvaluatedElement
+			onInputEvaluatedElement,
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
@@ -99,9 +83,9 @@ export default defineComponent({
 			evaluated,
 			onInputElement,
 			onInputEvaluatedElement,
-			onInputTranslate
+			onInputTranslate,
 		}
-	}
+	},
 })
 </script>
 

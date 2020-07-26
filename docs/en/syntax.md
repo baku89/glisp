@@ -74,7 +74,7 @@ Just to add, `;` is for commenting out.
 
 Lists can be nested. In this case, they are evaluated from the innermost, first list. Imagine that a list is replaced by a value as it is evaluated. The following shows how the whole line is gradually evaluated (`Ctrl+E` forces the editor to evaluate the line selected by the cursor).
 
-![demonstrating gradual evaluation in the editor](../evaluation.gif)
+![demonstrating gradual evaluation in the editor](../_media/evaluation.gif)
 
 ## Vector
 

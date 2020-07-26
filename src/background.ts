@@ -1,8 +1,8 @@
-import {app, protocol, BrowserWindow, ipcMain} from 'electron'
+import {app, protocol, BrowserWindow} from 'electron'
 import {platform} from 'os'
 import {
 	createProtocol,
-	installVueDevtools
+	installVueDevtools,
 } from 'vue-cli-plugin-electron-builder/lib'
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
@@ -12,7 +12,7 @@ let win: BrowserWindow
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
-	{scheme: 'app', privileges: {secure: true, standard: true}}
+	{scheme: 'app', privileges: {secure: true, standard: true}},
 ])
 
 function createWindow() {
@@ -29,8 +29,8 @@ function createWindow() {
 			nodeIntegration: true,
 			nodeIntegrationInWorker: true,
 			enableRemoteModule: true,
-			spellcheck: false
-		}
+			spellcheck: false,
+		},
 	} as Electron.BrowserWindowConstructorOptions
 
 	options =

@@ -13,15 +13,10 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	PropType,
-	computed,
-	SetupContext
-} from '@vue/composition-api'
+import {defineComponent, SetupContext} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
@@ -36,11 +31,11 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: MalVal) {
@@ -53,9 +48,9 @@ export default defineComponent({
 		}
 
 		return {
-			onInput
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

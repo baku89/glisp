@@ -20,7 +20,7 @@ export default function useKeyboardState() {
 		reactive({
 			shift: false,
 			alt: false,
-			ctrl: false
+			ctrl: false,
 		})
 	)
 

@@ -26,13 +26,13 @@ import {
 	getEvaluated,
 	isSymbolFor,
 	cloneExp,
-	MalError,
 	M_KEYS,
-	M_ELMSTRS,
+	MalNodeMap,
+	M_DELIMITERS,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
-import {saveOuter} from './reader'
+import {printExp} from '.'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -59,68 +59,70 @@ export function getPrimitiveType(exp: MalVal): string | null {
 
 type WatchOnReplacedCallback = (newExp: MalVal) => any
 
-const ExpWatcher = new WeakMap<MalNode, WatchOnReplacedCallback>()
+const ExpWatcher = new WeakMap<MalNode, WatchOnReplacedCallback[]>()
 
-export function watchOnReplaced(
+export function watchExpOnReplace(
 	exp: MalNode,
 	callback: WatchOnReplacedCallback
 ) {
-	ExpWatcher.set(exp, callback)
+	const callbacks = ExpWatcher.get(exp) || []
+	callbacks.push(callback)
+	ExpWatcher.set(exp, callbacks)
+}
+
+export function unwatchExpOnReplace(exp: MalNode) {
+	ExpWatcher.delete(exp)
 }
 
 /**
  * Cached Tree-shaking
  */
 export function replaceExp(original: MalNode, replaced: MalVal) {
+	// Execute a callback if necessary
+	if (ExpWatcher.has(original)) {
+		const callbacks = ExpWatcher.get(original) as WatchOnReplacedCallback[]
+		ExpWatcher.delete(original)
+		for (const cb of callbacks) {
+			cb(replaced)
+		}
+	}
+
 	const outer = original[M_OUTER]
 	const index = original[M_OUTER_INDEX]
 
 	if (index === undefined || !isNode(outer)) {
-		throw new MalError('Cannot execute replaceExp')
+		// Is the root exp
+		return
 	}
 
-	// // Inherit delimiters if possible
-	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
-	// 	replaced[M_DELIMITERS] = []
-	// 	console.log('sdfd', original, replaced)
-	// 	if (isList(original) && isList(replaced)) {
-	// 		for (let i = 0; i < replaced.length; i++) {
-	// 			const oi = Math.min(i, original.length - 2)
-	// 			replaced.push(original[M_DELIMITERS][oi])
-	// 		}
-	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
-	// 	}
-	// }
+	const newOuter = cloneExp(outer)
 
-	// Set as child
-	if (isSeq(outer)) {
-		outer[index] = replaced
+	// Set replaced as new child
+	if (isSeq(newOuter)) {
+		// Sequence
+		newOuter[index] = replaced
+		for (let i = 0; i < newOuter.length; i++) {
+			if (isNode(newOuter[i])) {
+				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
+				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+			}
+		}
 	} else {
-		// hash map
-		const key = outer[M_KEYS][index]
-		outer[key] = replaced
+		// Hash map
+		const keys = (outer as MalNodeMap)[M_KEYS]
+		const key = keys[index]
+		newOuter[key] = replaced
+		for (let i = 0; i < keys.length; i++) {
+			if (isNode(newOuter[i])) {
+				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
+				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+			}
+		}
 	}
 
-	delete outer[M_ELMSTRS]
+	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
 
-	// Set outer recursively
-	saveOuter(replaced, outer, index)
-
-	// Refresh M_ELMSTRS of ancestors
-	let _outer = outer
-
-	while (_outer) {
-		delete _outer[M_ELMSTRS]
-
-		// Go upward
-		_outer = _outer[M_OUTER]
-	}
-
-	// Execute a callback if necessary
-	if (ExpWatcher.has(original)) {
-		const callback = ExpWatcher.get(original) as WatchOnReplacedCallback
-		callback(original)
-	}
+	replaceExp(outer, newOuter)
 }
 
 export function getMapValue(
@@ -229,7 +231,7 @@ export function reverseEval(
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
-				const evaluatedParams = originalParams.map(getEvaluated)
+				const evaluatedParams = originalParams.map(e => getEvaluated(e))
 
 				// Compute the original parameter
 				const result = inverseFn({

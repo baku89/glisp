@@ -8,11 +8,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -23,16 +19,12 @@
 					:hoveringExp="hoveringExp"
 					@select="setSelectedExp"
 					@update:exp="updateExp"
-					@update:editingExp="switchEditingExp"
+					@update:editingExp="setEditingExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="setSelectedExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -61,9 +53,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -116,13 +106,13 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
-import {replaceExp} from '@/mal/utils'
+import {replaceExp, watchExpOnReplace, unwatchExpOnReplace} from '@/mal/utils'
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 
 interface Data {
-	exp: NonReactive<MalVal>
+	exp: NonReactive<MalNode>
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -239,16 +229,21 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
-		function updateExp(exp: NonReactive<MalVal>) {
-			if (data.exp.value === data.editingExp?.value) {
-				data.editingExp = exp as NonReactive<MalNode>
-			}
+		function updateExp(exp: NonReactive<MalNode>) {
+			unwatchExpOnReplace(data.exp.value)
+
 			data.exp = exp
+			watchExpOnReplace(exp.value, newExp => {
+				if (!isNode(newExp)) {
+					throw new Error('Non-collection value cannot set to be exp')
+				}
+				updateExp(nonReactive(newExp))
+			})
 		}
 
-		const {onSetupConsole} = useURLParser((exp: NonReactive<MalVal>) => {
+		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
 			updateExp(exp)
-			data.editingExp = exp as NonReactive<MalNode>
+			setEditingExp(exp as NonReactive<MalNode>)
 		})
 
 		// Apply the theme
@@ -264,11 +259,24 @@ export default defineComponent({
 
 		// Events
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
+			// Unregister the previous exp from the event emitter
+			if (data.selectedExp) {
+				unwatchExpOnReplace(data.selectedExp.value)
+			}
+
+			// Update
 			if (exp && exp.value === data.exp.value) {
 				// Prevent to select the root `sketch`
 				data.selectedExp = null
 			} else {
 				data.selectedExp = exp
+				if (exp && isNode(exp.value)) {
+					watchExpOnReplace(exp.value, newExp => {
+						if (isNode(newExp)) {
+							setSelectedExp(nonReactive(newExp))
+						}
+					})
+				}
 			}
 		}
 
@@ -281,45 +289,46 @@ export default defineComponent({
 				return
 			}
 
-			const isExpNode = isNode(exp.value)
-
 			replaceExp(data.selectedExp.value, exp.value)
 
-			// Refresh
-			updateExp(nonReactive(data.exp.value))
-
-			// Update the editing exp if necessary
-			if (
-				data.editingExp &&
-				data.editingExp.value === data.selectedExp.value &&
-				isExpNode
-			) {
-				data.editingExp = exp as NonReactive<MalNode>
-			}
-
-			if (isExpNode) {
+			if (isNode(exp.value)) {
 				data.selectedExp = exp as NonReactive<MalNode>
+				watchExp(exp.value)
 			} else {
 				data.selectedExp = null
+			}
+
+			function watchExp(exp: MalNode) {
+				watchExpOnReplace(exp, newExp => {
+					if (isNode(newExp)) {
+						data.selectedExp = nonReactive(newExp)
+						watchExp(newExp)
+					}
+				})
 			}
 		}
 
 		function updateEditingExp(exp: NonReactive<MalVal>) {
-			if (!data.exp || !data.editingExp) {
+			if (!data.editingExp) {
 				return
 			}
 
-			if (data.editingExp.value === data.exp.value) {
-				updateExp(exp)
-			} else {
-				replaceExp(data.editingExp.value, exp.value)
-				updateExp(nonReactive(data.exp.value))
-			}
+			replaceExp(data.editingExp.value, exp.value)
 
 			if (isNode(exp.value)) {
 				data.editingExp = exp as NonReactive<MalNode>
+				watchExp(exp.value)
 			} else {
 				data.editingExp = null
+			}
+
+			function watchExp(exp: MalNode) {
+				watchExpOnReplace(exp, newExp => {
+					if (isNode(newExp)) {
+						data.editingExp = nonReactive(newExp)
+						watchExp(newExp)
+					}
+				})
 			}
 		}
 
@@ -336,8 +345,18 @@ export default defineComponent({
 			ui.controlPaneSize = sizes[2].size
 		}
 
-		function switchEditingExp(exp: NonReactive<MalNode>) {
+		function setEditingExp(exp: NonReactive<MalNode>) {
+			// Unregister the previous exp from the event emitter
+			if (data.editingExp) {
+				unwatchExpOnReplace(data.editingExp.value)
+			}
+
 			data.editingExp = exp
+			watchExpOnReplace(exp.value, newExp => {
+				if (isNode(newExp)) {
+					setEditingExp(nonReactive(newExp))
+				}
+			})
 		}
 
 		watch(
@@ -407,7 +426,7 @@ export default defineComponent({
 			onSetupConsole,
 			updateSelectedExp,
 			updateEditingExp,
-			switchEditingExp,
+			setEditingExp,
 
 			...toRefs(ui as any),
 			updateExp,

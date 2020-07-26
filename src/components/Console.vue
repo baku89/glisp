@@ -30,8 +30,8 @@ export default defineComponent({
 	props: {
 		compact: {
 			type: Boolean,
-			required: true
-		}
+			required: true,
+		},
 	},
 	setup(props, context) {
 		const el = ref(null) as Ref<null | HTMLElement>
@@ -105,7 +105,7 @@ export default defineComponent({
 		})
 
 		return {el}
-	}
+	},
 })
 </script>
 

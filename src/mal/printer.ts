@@ -11,10 +11,9 @@ import {
 	MalSymbol,
 	MalType,
 	isSeq,
-	symbolFor as S,
 	MalSeq,
 	M_ISSUGAR,
-	isSymbol
+	isSymbol,
 } from './types'
 
 export const printer = {
@@ -30,7 +29,7 @@ export const printer = {
 	pseudoExecute: (command: string) => {
 		console.log(command)
 	},
-	clear: console.clear
+	clear: console.clear,
 }
 
 function generateDefaultDelimiters(elementCount: number) {
@@ -49,7 +48,7 @@ const SUGAR_INFO = new Map<string, {prefix: string}>([
 	['quasiquote', {prefix: '`'}],
 	['unquote', {prefix: '~'}],
 	['unquote-splicing', {prefix: '~@'}],
-	['deref', {prefix: '@'}]
+	['deref', {prefix: '@'}],
 ])
 
 export default function printExp(exp: MalVal, printReadably = true): string {
@@ -76,7 +75,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 				;(coll as MalSeq)[M_ISSUGAR] = true
 				coll[M_ELMSTRS] = [
 					sugarInfo.prefix,
-					...(coll as MalSeq).slice(1).map(e => printExp(e, _r))
+					...(coll as MalSeq).slice(1).map(e => printExp(e, _r)),
 				]
 				coll[M_DELIMITERS] = Array((coll as MalSeq).length + 1).fill('')
 			} else {
@@ -139,7 +138,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 		}
 		// Atoms
 		case MalType.Number:
-			return (exp as number).toString()
+			return (exp as number).toString().replace(/(\.[0-9]{4})([0-9]+)$/, '$1')
 		case MalType.String:
 			if (_r) {
 				return (

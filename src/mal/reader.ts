@@ -20,7 +20,7 @@ import {
 	getName,
 	createList as L,
 	MalSeq,
-	isSymbol
+	isSymbol,
 } from './types'
 import printExp from './printer'
 

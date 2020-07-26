@@ -9,7 +9,7 @@ import {
 	MalMap,
 	MalFunc,
 	MalType,
-	createList as L
+	createList as L,
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import CommandDialog from '@/components/CommandDialog.vue'
@@ -53,13 +53,13 @@ export default function useCommandDialog(context: SetupContext) {
 			CommandDialog,
 			{
 				exp,
-				fn
+				fn,
 			},
 			{
 				height: 'auto',
 				width: 400,
 				transition: 'vmodal__transition',
-				overlayTransition: 'vmodal__overlay-transition'
+				overlayTransition: 'vmodal__overlay-transition',
 			}
 		)
 

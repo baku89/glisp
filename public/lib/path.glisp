@@ -1,21 +1,23 @@
 (import "math.glisp")
 
-;; (def path/arc (fn [] nil))
-;; (def path/transform (fn [] nil))
-;; (def path/trim (fn [] nil))
-;; (def path/position-at (fn [] nil))
-;; (def path/unite (fn [] nil))
-;; (def path/intersect (fn [] nil))
-;; (def path/subtract (fn [] nil))
-;; (def path/exclude (fn [] nil))
-;; (def path/divide (fn [] nil))
-;; (def path/offset (fn [] nil))
-;; (def path/offset-stroke (fn [] nil))
-;; (def path/intersections (fn [] nil))
-;; (def path/nearest-offset (fn [] nil))
-;; (def path/nearest-point (fn [] nil))
-;; (def path/inside? (fn [] nil))
-(import-js-force "path.js")
+(def path/arc (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/transform (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/trim (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/position-at (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/unite (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/intersect (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/subtract (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/exclude (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/divide (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/offset (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/offset-stroke (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/intersections (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/nearest-offset (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/nearest-point (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/inside? (fn [] (throw "This function is not supported in Node.js environment")))
+
+(if-not *is-node*
+  (import-js-force "path.js"))
 
 (defn translate-first-param [{:params [c] :transform xform}]
   {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})
@@ -84,7 +86,22 @@
 (defalias rect path/rect)
 
 (def path/circle
-  ^{:doc "Generates a circle path"
+  (set-meta!
+   (let [K (/ (* 4 (dec (sqrt 2))) 3)]
+     (fn [[x y] r]
+       (let [k (* r K)
+             x+r (+ x r)
+             x-r (- x r)
+             y+r (+ y r)
+             y-r (- y r)]
+         [:path
+          :M [x+r y]			 ; right
+          :C [x+r (+ y k)] [(+ x k) y+r] [x y+r] ; bottom
+          :C [(- x k) y+r] [x-r (+ y k)] [x-r y] ; left
+          :C [x-r (- y k)] [(- x k) y-r] [x y-r] ; top
+          :C [(+ x k) y-r] [x+r (- y k)] [x+r y] ; right
+          :Z])))
+   {:doc "Generates a circle path"
     :params [{:label "Center" :type "vec2"
               :desc "the centre of the circle"}
              {:label "Radius" :type  "number"
@@ -103,22 +120,28 @@
                         :radius {:replace [1 (vec2/dist c p)]}))}
     :return {:type "path"}
     :initial-params [[0 0] 100]
-    :transform translate-first-param}
-  (let [K (/ (* 4 (dec (sqrt 2))) 3)]
-    (fn [[x y] r]
-      (let [k (* r K)
-            x+r (+ x r)
-            x-r (- x r)
-            y+r (+ y r)
-            y-r (- y r)]
-        [:path
-         :M [x+r y]			 ; right
-         :C [x+r (+ y k)] [(+ x k) y+r] [x y+r] ; bottom
-         :C [(- x k) y+r] [x-r (+ y k)] [x-r y] ; left
-         :C [x-r (- y k)] [(- x k) y-r] [x y-r] ; top
-         :C [(+ x k) y-r] [x+r (- y k)] [x+r y] ; right
-         :Z]))))
+    :transform translate-first-param}))
 (defalias circle path/circle)
+
+(defn path/circumcircle
+  [A B C]
+  (let [a (vec2/dist B C)
+        b (vec2/dist C A)
+        c (vec2/dist A B)
+        a2 (* a a) b2 (* b b) c2 (* c c)
+        a-len (* a2 (+ (- a2) b2 c2))
+        b-len (* b2 (+ a2 (- b2) c2))
+        c-len (* c2 (+ a2 b2 (- c2)))
+        center (vec2/scale
+                (vec2/+
+                 (vec2/scale A a-len)
+                 (vec2/+
+                  (vec2/scale B b-len)
+                  (vec2/scale C c-len)))
+                (/ (+ a-len b-len c-len)))
+        radius (vec2/dist center A)]
+    `(circle ~center ~radius)))
+(defalias circumcircle path/circumcircle)
 
 (defn path/line
   {:doc "Generates a line segment path"
@@ -195,24 +218,10 @@
   {:doc "Generates a polyline path"
    :params [& {:label "Vertex" :type "vec2"}]
    :handles {:draw (fn {:params [& pts]}
-                     (concat
-                      (map-indexed
-                       (fn [i p] {:type "point"
-                                  :id [:edit i]
-                                  :pos p})
-                       pts)
-                      (map (fn [i] {:type "point"
-                                    :id [:add (inc i)]
-                                    :class "dashed"
-                                    :pos (vec2/lerp (nth pts i)
-                                                    (nth pts (inc i))
-                                                    .5)})
-                           (range (dec (count pts))))))
-             :drag (fn {:id id :pos p
-                        :params [& pts]}
-                     (let [[mode i] id]
-                       (case mode
-                         :edit  {:replace [i p]})))}
+                     (for [pt pts :index i]
+                       {:type "point" :id i :pos pt}))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}
    :return {:type "path"}
    :initial-params [[0 0]]
    :transform (fn {:params pts
@@ -227,7 +236,17 @@
       ~@(apply concat (map #(list :L %) (rest pts)))]))
 (defalias polyline path/polyline)
 
-(defn path/polygon [& pts]
+(defn path/polygon
+  {:doc "Generates a polygon path"
+   :params [& {:label "Vertex" :type "vec2"}]
+   :handles {:draw (fn {:params [& pts]}
+                     (for [pt pts :index i]
+                       {:type "point" :id i :pos pt}))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}
+   :initial-params []
+   :return {:type "vec2"}}
+  [& pts]
   (conj (apply polyline pts) :Z))
 (defalias polygon path/polygon)
 
@@ -259,6 +278,13 @@
                            (scale radius))
                   (circle [0 0] 1)))
 (defalias ellipse path/ellipse)
+
+(defn ngon [center radius sides]
+  (let [angles (range 0 TWO_PI (/ TWO_PI sides))
+        vertices (map #(vec2/+ center
+                               (vec2/dir % radius))
+                      angles)]
+    `(polygon ~@vertices)))
 
 (defn path/ngon
   {:doc "Generates a regular polygon"

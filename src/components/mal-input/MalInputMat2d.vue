@@ -1,11 +1,14 @@
 <template>
 	<div class="MalInputMat2d">
-		<MalExpButton v-if="!isValueSeparated" :value="value" @click="$emit('select', $event)" />
+		<MalExpButton
+			v-if="!isValueSeparated"
+			:value="value"
+			@click="$emit('select', $event)"
+		/>
 		<div class="MalInputMat2d__value" v-if="isValueSeparated">
 			<div class="MalInputMat2d__split">
 				⎥
-				<br />⎥
-				<br />⎥
+				<br />⎥ <br />⎥
 			</div>
 			<MalInputNumber
 				class="MalInputMat2d__el"
@@ -50,22 +53,16 @@
 				:compact="true"
 			/>
 		</div>
-		<InputTranslate v-if="isValueSeparated" :value="evaluated.slice(4)" @input="onInputTranslate" />
+		<InputTranslate
+			v-if="isValueSeparated"
+			:value="evaluated.slice(4)"
+			@input="onInputTranslate"
+		/>
 	</div>
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	watch,
-	PropType,
-	computed,
-	isReactive,
-	toRef,
-	SetupContext
-} from '@vue/composition-api'
+import {defineComponent, toRef, SetupContext} from '@vue/composition-api'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -85,8 +82,8 @@ export default defineComponent({
 		value: {
 			required: true,
 			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value))
-		}
+				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const {
@@ -94,7 +91,7 @@ export default defineComponent({
 			isValueSeparated,
 			evaluated,
 			onInputElement,
-			onInputEvaluatedElement
+			onInputEvaluatedElement,
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
@@ -109,9 +106,9 @@ export default defineComponent({
 			evaluated,
 			onInputElement,
 			onInputEvaluatedElement,
-			onInputTranslate
+			onInputTranslate,
 		}
-	}
+	},
 })
 </script>
 

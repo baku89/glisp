@@ -5,7 +5,7 @@
 <script lang="ts">
 import {defineComponent, SetupContext} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {MalVal, MalSeq, MalSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 
 interface Props {
@@ -18,16 +18,16 @@ InputString
 export default defineComponent({
 	name: 'MalInputString',
 	components: {
-		InputString
+		InputString,
 	},
 	props: {
 		value: {
 			required: true,
-			validator: x => x instanceof NonReactive
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: string) {
@@ -35,6 +35,6 @@ export default defineComponent({
 		}
 
 		return {onInput}
-	}
+	},
 })
 </script>

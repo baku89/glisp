@@ -77,7 +77,7 @@
 						@select="onSelect($event)"
 					/>
 					<MalInputString
-						style="color: var(--syntax-keyword)"
+						style="color: var(--syntax-keyword);"
 						v-else-if="params[i].type === 'keyword'"
 						:value="nonReactive(params[i].value.value.slice(1))"
 						:validator="keywordValidator"
@@ -137,7 +137,6 @@ import {
 	MalFunc,
 	createList as L,
 	isVector,
-	getEvaluated
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-input'
 import {getFnInfo, getPrimitiveType} from '@/mal/utils'
@@ -179,18 +178,18 @@ interface ParamDescs {
 
 const EmptyParamDescs = {
 	descs: [],
-	rest: null
+	rest: null,
 }
 
 const TypeDefaults = {
 	number: 0,
 	vec2: [0, 0],
-	path: [K('path')]
+	path: [K('path')],
 } as {[type: string]: MalVal}
 
 const InterpolateFuncs = {
 	number: (a: number, b: number) => (a + b) / 2,
-	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
 } as {[type: string]: (...xs: MalVal[]) => MalVal}
 
 type MetaDescs = (Desc | string)[]
@@ -199,10 +198,10 @@ export default defineComponent({
 	name: 'ParamControl',
 	props: {
 		exp: {required: true},
-		fn: {required: false}
+		fn: {required: false},
 	},
 	components: {
-		...MalInputComponents
+		...MalInputComponents,
 	},
 	setup(props: Props, context) {
 		const fnInfo = computed(() => {
@@ -249,7 +248,7 @@ export default defineComponent({
 					const keys = restDesc[K_KEYS] as [string, Desc][]
 					const keywordsDescs = keys.map((desc: Desc) => {
 						const predefinedDesc = {
-							[K_LABEL]: getParamLabel(desc[K_KEY])
+							[K_LABEL]: getParamLabel(desc[K_KEY]),
 						}
 						return {...predefinedDesc, ...desc}
 					})
@@ -257,8 +256,8 @@ export default defineComponent({
 						descs: [...requiredDescs, ...keywordsDescs] as Desc[],
 						rest: {
 							pos: restPos,
-							type: 'keyword'
-						}
+							type: 'keyword',
+						},
 					}
 				} else {
 					// Variadic args
@@ -269,8 +268,8 @@ export default defineComponent({
 						descs: [...requiredDescs, ...restDescs] as Desc[],
 						rest: {
 							pos: restPos,
-							type: 'variadic'
-						}
+							type: 'variadic',
+						},
 					}
 				}
 			}
@@ -328,7 +327,7 @@ export default defineComponent({
 								: 'any'
 							descs.push({
 								[K_TYPE]: type,
-								[K_LABEL]: j === i ? getParamLabel(fnMetaParams[i + 1]) : ''
+								[K_LABEL]: j === i ? getParamLabel(fnMetaParams[i + 1]) : '',
 							})
 						}
 						break
@@ -342,7 +341,7 @@ export default defineComponent({
 
 				paramDescs = {
 					descs,
-					rest: null
+					rest: null,
 				}
 			}
 
@@ -425,7 +424,7 @@ export default defineComponent({
 			'mat2d',
 			'color',
 			'dropdown',
-			'seed'
+			'seed',
 		])
 
 		function matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
@@ -575,9 +574,9 @@ export default defineComponent({
 			onSelect,
 			keywordValidator,
 			symbolValidator,
-			nonReactive
+			nonReactive,
 		}
-	}
+	},
 })
 </script>
 

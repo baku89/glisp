@@ -46,7 +46,7 @@ const Exports = [
 		'throw',
 		(msg: string) => {
 			throw new MalError(msg)
-		}
+		},
 	],
 
 	// Standard Output
@@ -55,20 +55,20 @@ const Exports = [
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
 			return null
-		}
+		},
 	],
 	[
 		'print-str',
 		(...a: MalVal[]) => {
 			return a.map(e => printExp(e, true)).join(' ')
-		}
+		},
 	],
 	[
 		'println',
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, false)))
 			return null
-		}
+		},
 	],
 
 	// I/O
@@ -95,10 +95,10 @@ const Exports = [
 				doc: 'Defines a variable',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
-					{label: 'Value', type: 'any'}
-				]
+					{label: 'Value', type: 'any'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'defvar',
@@ -109,10 +109,10 @@ const Exports = [
 					'Creates a variable which can be changed by the bidirectional evaluation',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
-					{label: 'Value', type: 'any'}
-				]
+					{label: 'Value', type: 'any'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'let',
@@ -122,10 +122,10 @@ const Exports = [
 				doc: 'Creates a lexical scope',
 				params: [
 					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'}
-				]
+					{label: 'Body', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'binding',
@@ -135,10 +135,10 @@ const Exports = [
 				doc: 'Creates a new binding',
 				params: [
 					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'}
-				]
+					{label: 'Body', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'get-all-symbols',
@@ -147,9 +147,9 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: 'Gets all existing symbols',
 				params: [],
-				return: {type: 'vector'}
+				return: {type: 'vector'},
 			})
-		)
+		),
 	],
 	[
 		'fn-params',
@@ -157,9 +157,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Gets the list of a function parameter',
-				params: [{label: 'Function', type: 'symbol'}]
+				params: [{label: 'Function', type: 'symbol'}],
 			})
-		)
+		),
 	],
 	[
 		'eval*',
@@ -168,9 +168,9 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'quote',
@@ -178,9 +178,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Yields the unevaluated *form*',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'quasiquote',
@@ -188,9 +188,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Quasiquote',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'fn',
@@ -200,10 +200,10 @@ const Exports = [
 				doc: 'Defines a function',
 				params: [
 					{label: 'Params', type: 'code'},
-					{label: 'Form', type: 'code'}
-				]
+					{label: 'Form', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'fn-sugar',
@@ -211,9 +211,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'macro',
@@ -223,10 +223,10 @@ const Exports = [
 				doc: '',
 				params: [
 					{label: 'Param', type: 'code'},
-					{label: 'Form', type: 'code'}
-				]
+					{label: 'Form', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'macroexpand',
@@ -234,9 +234,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Expands the macro',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'try',
@@ -244,9 +244,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Try',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'catch',
@@ -254,9 +254,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Catch',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'do',
@@ -264,9 +264,9 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
-				params: [S('&'), {label: 'Form', type: 'code'}]
+				params: [S('&'), {label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'if',
@@ -278,10 +278,10 @@ const Exports = [
 				params: [
 					{label: 'Test', type: 'code'},
 					{label: 'Then', type: 'code'},
-					{label: 'Else', type: 'code', default: null}
-				]
+					{label: 'Else', type: 'code', default: null},
+				],
 			})
-		)
+		),
 	],
 	[
 		'env-chain',
@@ -289,10 +289,10 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Env chain',
-				params: []
+				params: [],
 			})
-		)
-	]
+		),
+	],
 ] as [string, MalVal][]
 
 export default Exports

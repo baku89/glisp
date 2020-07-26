@@ -26,11 +26,11 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: v => v instanceof NonReactive
+			validator: v => v instanceof NonReactive,
 		},
 		compact: {
-			default: false
-		}
+			default: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const sign = computed(() => {
@@ -67,9 +67,9 @@ export default defineComponent({
 			sign,
 			selectable,
 			str,
-			onClick
+			onClick,
 		}
-	}
+	},
 })
 </script>
 

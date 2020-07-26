@@ -12,7 +12,7 @@ const TOMORROW = {
 	'--green': '#718c00',
 	'--aqua': '#3e999f',
 	'--blue': '#4271ae',
-	'--purple': '#8959a8'
+	'--purple': '#8959a8',
 }
 
 // const TOMORROW_NIGHT = {
@@ -41,7 +41,7 @@ const TOMORROW_NIGHT_BRIGHT = {
 	'--green': '#b9ca4a',
 	'--aqua': '#70c0b1',
 	'--blue': '#7aa6da',
-	'--purple': '#c397d8'
+	'--purple': '#c397d8',
 }
 
 // const TOMORROW_NIGHT_EIGHTIES = {
@@ -180,7 +180,7 @@ export function computeTheme(background: string): Theme {
 			'--syntax-comment': comment,
 			'--syntax-constant': orange,
 			'--syntax-string': colors['--green'],
-			'--syntax-function': purple
-		}
+			'--syntax-function': purple,
+		},
 	}
 }

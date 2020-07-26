@@ -1,10 +1,23 @@
 <template>
-	<div id="app" class="PageEmbed" :style="{...colors, background}" :class="{error: hasError}">
+	<div
+		id="app"
+		class="PageEmbed"
+		:style="{...colors, background}"
+		:class="{error: hasError}"
+	>
 		<div class="PageEmbed__editor">
-			<Editor :value="code" @input="code = $event" cssStyle="line-height: 1.5" />
+			<Editor
+				:value="code"
+				@input="code = $event"
+				cssStyle="line-height: 1.5"
+			/>
 		</div>
 		<div class="PageEmbed__viewer">
-			<Viewer :exp="viewExp" :guide-color="guideColor" @render="hasRenderError = !$event" />
+			<Viewer
+				:exp="viewExp"
+				:guide-color="guideColor"
+				@render="hasRenderError = !$event"
+			/>
 		</div>
 		<a class="PageEmbed__open-editor" :href="editorURL" target="_blank">
 			<i class="fas fa-external-link-alt"></i>
@@ -21,7 +34,7 @@ import {
 	reactive,
 	computed,
 	watch,
-	toRefs
+	toRefs,
 } from '@vue/composition-api'
 
 import Editor from '@/components/Editor'
@@ -77,13 +90,13 @@ export default defineComponent({
 	name: 'PageEmbed',
 	components: {
 		Editor,
-		Viewer
+		Viewer,
 	},
 	setup() {
 		const ui = reactive({
 			background: '#f8f8f8',
 			colors: computed(() => computeTheme(ui.background).colors),
-			guideColor: computed(() => ui.colors['--selection'])
+			guideColor: computed(() => ui.colors['--selection']),
 		}) as UI
 
 		const data = reactive({
@@ -97,7 +110,7 @@ export default defineComponent({
 			hasRenderError: false,
 			viewExp: computed(() => {
 				return evalExp()
-			})
+			}),
 		}) as Data
 
 		const editorURL = computed(() => {
@@ -116,7 +129,7 @@ export default defineComponent({
 			}
 
 			ViewScope.setup({
-				guideColor: ui.guideColor
+				guideColor: ui.guideColor,
 			})
 
 			ViewScope.def('*width*', 100)
@@ -168,9 +181,9 @@ export default defineComponent({
 		return {
 			...toRefs(data as any),
 			...toRefs(ui as any),
-			editorURL
+			editorURL,
 		}
-	}
+	},
 })
 </script>
 

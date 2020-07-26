@@ -34,13 +34,13 @@ export default class Scope<T> {
 		this.setup()
 
 		if (this.outer === null) {
-			this.initAsRoot()
+			this.initAsRepl()
 		} else {
 			this.outer.inner = this
 		}
 	}
 
-	private initAsRoot() {
+	private initAsRepl() {
 		// Defining essential functions
 
 		ReplCore.forEach(([name, expr]) => {

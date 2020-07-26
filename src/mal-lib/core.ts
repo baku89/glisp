@@ -20,7 +20,7 @@ import {
 	getMeta,
 	withMeta,
 	isSeq,
-	setMeta
+	setMeta,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -65,7 +65,7 @@ const Exports = [
 				default:
 					return xs.slice(1).reduce((a, b) => a - b, xs[0])
 			}
-		}
+		},
 	],
 	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
 	[
@@ -81,7 +81,7 @@ const Exports = [
 				default:
 					return xs.slice(1).reduce((a, b) => a / b, xs[0])
 			}
-		}
+		},
 	],
 	['mod', (x: number, y: number) => ((x % y) + y) % y],
 
@@ -106,7 +106,7 @@ const Exports = [
 			} else {
 				return null
 			}
-		}
+		},
 	],
 	[
 		'nth',
@@ -126,13 +126,13 @@ const Exports = [
 					throw new MalError('[nth] index out of range')
 				}
 			}
-		}
+		},
 	],
 	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
 	['rest', (a: MalVal[]) => (a === null ? [] : a.slice(1))],
 	[
 		'last',
-		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null)
+		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null),
 	],
 	['butlast', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
 	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
@@ -144,11 +144,12 @@ const Exports = [
 			} else {
 				throw new MalError(`[slice] ${printExp(a)} is not an array`)
 			}
-		}
+		},
 	],
 	[
 		'apply',
-		(f: MalFunc, ...a: MalVal[]) => f(...a.slice(0, -1).concat(a[a.length - 1]))
+		(f: MalFunc, ...a: MalVal[]) =>
+			f(...a.slice(0, -1).concat(a[a.length - 1])),
 	],
 	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
 	['map-indexed', (f: MalFunc, a: MalVal[]) => a.map((x, i) => f(i, x))],
@@ -159,7 +160,7 @@ const Exports = [
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
 		'last-index-of',
-		(value: MalVal[] | string, a: string) => value.lastIndexOf(a)
+		(value: MalVal[] | string, a: string) => value.lastIndexOf(a),
 	],
 	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
 	['reverse', (coll: MalVal[]) => [...coll].reverse()],
@@ -174,16 +175,17 @@ const Exports = [
 			} else if (isVector(lst)) {
 				return [...lst, ...args]
 			}
-		}
+		},
 	],
 	[
 		'concat',
-		(...args: MalVal[]) => [].concat(...(args.filter(v => v !== null) as any[]))
+		(...args: MalVal[]) =>
+			[].concat(...(args.filter(v => v !== null) as any[])),
 	],
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>
-			coll.map(v => printExp(v, false)).join(separator)
+			coll.map(v => printExp(v, false)).join(separator),
 	],
 
 	// Map
@@ -196,7 +198,7 @@ const Exports = [
 			const n = cloneExp(m) as MalMap
 			a.forEach(k => delete n[k])
 			return n
-		}
+		},
 	],
 	[
 		'get',
@@ -206,11 +208,11 @@ const Exports = [
 			} else {
 				return notfound
 			}
-		}
+		},
 	],
 	[
 		'contains?',
-		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false)
+		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false),
 	],
 	['keys', (a: MalMap) => Object.keys(a)],
 	['vals', (a: MalMap) => Object.values(a)],
@@ -219,7 +221,7 @@ const Exports = [
 		'merge',
 		(...xs: MalVal[]) => {
 			return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
-		}
+		},
 	],
 
 	// String
@@ -236,7 +238,7 @@ const Exports = [
 	[
 		// Atom
 		'atom',
-		(a: MalVal) => new MalAtom(a)
+		(a: MalVal) => new MalAtom(a),
 	],
 	['atom?', (a: MalVal) => a instanceof MalAtom],
 	['deref', (atm: MalAtom) => atm.value],
@@ -244,7 +246,7 @@ const Exports = [
 	[
 		'swap!',
 		(atm: MalAtom, fn: MalFunc, ...args: any) =>
-			(atm.value = fn(atm.value, ...args))
+			(atm.value = fn(atm.value, ...args)),
 	],
 
 	// Other useful functions in JS
@@ -271,7 +273,7 @@ const Exports = [
 				}
 			}
 			return ret
-		}
+		},
 	],
 	// Random
 	['rnd', (a: MalVal) => seedrandom(a)()],
@@ -294,8 +296,8 @@ const Exports = [
 			}
 
 			return null
-		}
-	]
+		},
+	],
 ] as [string, MalVal][]
 
 // Expose Math

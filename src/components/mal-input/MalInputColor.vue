@@ -38,10 +38,9 @@
 import chroma from 'chroma-js'
 import {
 	defineComponent,
-	PropType,
 	computed,
 	ComputedRef,
-	SetupContext
+	SetupContext,
 } from '@vue/composition-api'
 import {
 	MalVal,
@@ -52,7 +51,7 @@ import {
 	isList,
 	createList as L,
 	symbolFor as S,
-	MalSeq
+	MalSeq,
 } from '@/mal/types'
 import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
@@ -75,11 +74,11 @@ export default defineComponent({
 	props: {
 		value: {
 			required: true,
-			validator: v => v instanceof NonReactive
+			validator: v => v instanceof NonReactive,
 		},
 		compact: {
-			default: false
-		}
+			default: false,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const mode = computed(() => {
@@ -177,14 +176,14 @@ export default defineComponent({
 						validatorZeroOne,
 						validatorZeroOne,
 						validatorZeroOne,
-						validatorZeroOne
+						validatorZeroOne,
 					]
 				case 'HSL':
 					return [
 						validatorZeroTwoPI,
 						validatorZeroOne,
 						validatorZeroOne,
-						validatorZeroOne
+						validatorZeroOne,
 					]
 			}
 
@@ -299,9 +298,9 @@ export default defineComponent({
 			changeMode,
 			onInputText,
 			onInputNumber,
-			onInputColor
+			onInputColor,
 		}
-	}
+	},
 })
 </script>
 

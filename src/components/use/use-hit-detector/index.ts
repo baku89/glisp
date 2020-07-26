@@ -4,7 +4,7 @@ import {
 	onUnmounted,
 	ref,
 	onMounted,
-	isRef
+	isRef,
 } from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'

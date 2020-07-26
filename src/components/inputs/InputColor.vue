@@ -6,11 +6,15 @@
 			:delay-on-mouse-out="250"
 			:options="{
 				placement: 'top',
-				modifiers: {offset: {offset: '0px,10px'}}
+				modifiers: {offset: {offset: '0px,10px'}},
 			}"
 			boundaries-selector="body"
 		>
-			<ColorPicker class="InputColor__picker" :value="value" @input="$emit('input', $event)" />
+			<ColorPicker
+				class="InputColor__picker"
+				:value="value"
+				@input="$emit('input', $event)"
+			/>
 			<button class="InputColor__button" slot="reference">
 				<span class="InputColor__color-preview" :style="{background: value}" />
 			</button>
@@ -27,17 +31,14 @@ export default defineComponent({
 	name: 'InputColor',
 	components: {
 		ColorPicker,
-		Popper
+		Popper,
 	},
 	props: {
 		value: {
 			type: String,
-			required: true
-		}
+			required: true,
+		},
 	},
-	setup(props, context) {
-		return {}
-	}
 })
 </script>
 

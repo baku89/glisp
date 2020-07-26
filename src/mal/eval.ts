@@ -71,7 +71,7 @@ function quasiquote(exp: MalVal): MalVal {
 
 	let ret = L(
 		S_CONCAT,
-		...exp.map((e) => {
+		...exp.map(e => {
 			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
@@ -123,7 +123,7 @@ function evalAtom(
 		}
 		return ret
 	} else if (Array.isArray(exp)) {
-		const ret = exp.map((x) => {
+		const ret = exp.map(x => {
 			const ret = evalExp.call(this, x, env, cache)
 			if (cache && isNode(x)) {
 				x[M_EVAL] = ret
@@ -159,6 +159,10 @@ export default function evalExp(
 	cache = true
 ): MalVal {
 	const origExp: MalSeq = exp as MalSeq
+
+	if (isList(exp) && isSymbolFor(exp[0], 'circumcircle')) {
+		console.log('start')
+	}
 
 	let counter = 0
 	while (counter++ < 1e6) {
@@ -481,7 +485,7 @@ export default function evalExp(
 				// is a function call
 
 				// Evaluate all of parameters at first
-				const [fn, ...params] = evalAtom.call(this, exp, env, cache) as MalVal[]
+				const [fn, ...params] = exp.map(e => evalExp.call(this, e, env, cache))
 
 				if (fn instanceof Function) {
 					if (cache) {
@@ -491,8 +495,8 @@ export default function evalExp(
 					if (isMalFunc(fn)) {
 						env = new Env(fn[M_ENV], fn[M_PARAMS], params, first.value)
 						exp = fn[M_AST]
-						break
 						// continue TCO loop
+						break
 					} else {
 						const ret = fn.apply({callerEnv: env}, params)
 						if (cache) {

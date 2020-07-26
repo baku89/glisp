@@ -10,7 +10,7 @@ import {
 	keywordFor as K,
 	createList as L,
 	setMeta,
-	assocBang
+	assocBang,
 } from '@/mal/types'
 import GIF from 'gif.js'
 
@@ -86,10 +86,10 @@ ConsoleScope.def(
 			params: [
 				{
 					label: 'Source',
-					type: 'string'
-				}
+					type: 'string',
+				},
 			],
-			'initial-params': ['']
+			'initial-params': [''],
 		})
 	)
 )
@@ -110,7 +110,7 @@ ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 	const sketch = ConsoleScope.var('*sketch*') as string
 
 	const file = new File([sketch], filename, {
-		type: 'text/plain;charset=utf-8'
+		type: 'text/plain;charset=utf-8',
 	})
 
 	FileSaver.saveAs(file)
@@ -167,7 +167,7 @@ ConsoleScope.def(
 				const image = await getRendereredImage(viewExp, {
 					format: options.format,
 					scaling: options.scaling,
-					bounds
+					bounds,
 				})
 
 				if (renderWindow) {
@@ -193,19 +193,26 @@ ConsoleScope.def(
 						{
 							key: K('format'),
 							type: 'dropdown',
-							enum: ['png', 'jpeg', 'webp']
+							enum: ['png', 'jpeg', 'webp'],
 						},
 						{
 							key: K('scaling'),
 							type: 'number',
 							default: 1,
-							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2
+							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 						},
-						{key: K('selector'), type: 'string', default: ''}
-					]
-				}
+						{key: K('selector'), type: 'string', default: ''},
+					],
+				},
 			],
-			'initial-params': [K('format'), 'png', K('scaling'), 1, K('selector'), '']
+			'initial-params': [
+				K('format'),
+				'png',
+				K('scaling'),
+				1,
+				K('selector'),
+				'',
+			],
 		})
 	)
 )
@@ -222,7 +229,7 @@ ConsoleScope.def(
 				duration: 1,
 				fps: 24,
 				bounds: [0, 0, 200, 200],
-				...convertMalNodeToJSObject(assocBang({}, ...xs))
+				...convertMalNodeToJSObject(assocBang({}, ...xs)),
 			} as {
 				format: 'gif'
 				scaling: number
@@ -246,7 +253,7 @@ ConsoleScope.def(
 				const image = await getRendereredImage(viewExp, {
 					format: options.format,
 					scaling: options.scaling,
-					bounds: options.bounds
+					bounds: options.bounds,
 				})
 
 				return image
@@ -297,21 +304,21 @@ ConsoleScope.def(
 						{
 							key: K('format'),
 							type: 'dropdown',
-							enum: ['gif']
+							enum: ['gif'],
 						},
 						{
 							key: K('scaling'),
 							type: 'number',
 							default: 1,
-							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2
+							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 						},
 						{key: K('symbol'), type: 'string'},
 						{key: K('start'), type: 'number', default: 0},
 						{key: K('duration'), type: 'number', default: 1},
 						{key: K('fps'), type: 'number', default: 24},
-						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]}
-					]
-				}
+						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]},
+					],
+				},
 			],
 			'initial-params': [
 				K('format'),
@@ -327,8 +334,8 @@ ConsoleScope.def(
 				K('fps'),
 				24,
 				K('bounds'),
-				[0, 0, 200, 200]
-			]
+				[0, 0, 200, 200],
+			],
 		})
 	)
 )
@@ -356,16 +363,16 @@ ConsoleScope.def(
 					method: 'POST',
 					headers: {
 						Authorization:
-							'Basic ' + btoa(`${user as string}:${token as string}`)
+							'Basic ' + btoa(`${user as string}:${token as string}`),
 					},
 					body: JSON.stringify({
 						public: true,
 						files: {
 							[filename]: {
-								content: code
-							}
-						}
-					})
+								content: code,
+							},
+						},
+					}),
 				})
 
 				if (res.ok) {
@@ -390,7 +397,7 @@ ConsoleScope.def(
 			params: [
 				{
 					label: 'Name',
-					type: 'string'
+					type: 'string',
 				},
 				S('&'),
 				{
@@ -398,15 +405,15 @@ ConsoleScope.def(
 						{
 							key: K('user'),
 							label: 'User',
-							type: 'string'
+							type: 'string',
 						},
 						{
 							key: K('token'),
 							label: 'Token',
-							type: 'string'
-						}
-					]
-				}
+							type: 'string',
+						},
+					],
+				},
 			],
 			'initial-params': () => {
 				const sketchName = generateFilename()
@@ -423,7 +430,7 @@ ConsoleScope.def(
 				}
 
 				return [sketchName, K('user'), user, K('token'), token]
-			}
+			},
 		})
 	)
 )
