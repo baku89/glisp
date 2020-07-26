@@ -2,7 +2,7 @@
 
 ## Conventional, fixed UI
 
-![](././_media/transform_uis.png)
+![](../_media/transform_uis.png)
 
 All applications have a UI to set a transformation (alignment) of an element. There might be some slight difference, transformation is applied in the following order: **translate**, **rotate**, **scale**. When $T$, $R$, $S$ denote transformation matrices, respectively, the final transformation matrix is
 
@@ -18,7 +18,7 @@ $$
 
 In Houdini, the order of the multiplication of $T$, $R$, $S$ can be configured by the user.
 
-![](././_media/transform_houdini.png)
+![](../_media/transform_houdini.png)
 
 ## Stackable transfromation
 
@@ -84,7 +84,7 @@ Since `translate` and `mat2d/*` are simply functions that return a matrix, not o
 
 In addition to the basic transformations described above, there are more functions such as "following the path" and "direct to the point". These operations are often implemented as constraint operations, but every application seems to have a struggle integrating it to the transformation UI.
 
-![](././_media/transform_constraints.png)
+![](../_media/transform_constraints.png)
 
 Stacking facilitates it, as seen before, by defining new functions, `path/align-at` and `mat2d/look-at`, respectively, which return a matrix.
 

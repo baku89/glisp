@@ -1,6 +1,6 @@
 # Cheat Sheet
 
-Please find [Grammar of Lisp](../syntax-en) for the basic grammar.  
+Please find [Grammar of Lisp](en/syntax) for the basic grammar.  
 This document is merely a cheat sheet.
 
 ### Sketch

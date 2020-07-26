@@ -66,10 +66,10 @@ Function `translate` returns a transformation value of parallel translation (whi
 
 As `rotate` takes an argument of radians, here function `deg` converts the unit from degree to radian.
 
-You can find detailed explanation in [transformation](transform-en).
+You can find detailed explanation in [transformation](en/transform).
 
 ## Inspector and handles
 
 In the above examples, you can open the editor by pressing **Open in Editor**. In Glisp, in addition to edit the code as a text, parameters can be adjusted and edited in the viewer and in the inspector at the bottom left of the window. With functions supporting these features, the inspector and handles automatically show up when the inside of the parentheses of the function is selected by the cursor.
 
-![a gif animation of handle demonstration](<(./_media/handles.gif)>)
+![a gif animation of handle demonstration](../_media/handles.gif)

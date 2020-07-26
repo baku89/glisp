@@ -1,6 +1,6 @@
 # Applying Styles
 
-As explained in the [First Sketch](get-started-en), an element is rendered only when a style is applied. A style consists of several properties such as color and thickness, and they can be inherited, drawn and referenced based on some rules.
+As explained in the [First Sketch](en/get-started), an element is rendered only when a style is applied. A style consists of several properties such as color and thickness, and they can be inherited, drawn and referenced based on some rules.
 
 ## Referring to a property
 
