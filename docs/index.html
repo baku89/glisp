@@ -150,6 +150,7 @@
 				repo: 'baku89/glisp',
 				coverpage: true,
 				logo: './favicon/android-chrome-512x512.png',
+				loadNavbar: true,
 				plugins: [
 					function (hook, vm) {
 						hook.afterEach((html, next) => {
@@ -181,7 +182,7 @@
 					},
 				],
 				loadSidebar: true,
-	      subMaxLevel: 2,
+				subMaxLevel: 2,
 			}
 
 			function getFrameByEvent(event) {

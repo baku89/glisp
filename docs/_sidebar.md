@@ -33,5 +33,3 @@
   - [インターフェースの帯域幅](bandwidth)
   - [操作の距離空間](distance-space ':disabled')
   - [ブレンドモードの分類](blend-modes)
-
-- [English](en/)

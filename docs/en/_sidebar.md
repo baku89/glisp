@@ -21,5 +21,3 @@
 
   - [Cheat Sheet](en/cheatsheet)
   - [Function List](ref)
-
-- [日本語](README)
