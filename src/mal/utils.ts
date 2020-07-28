@@ -59,19 +59,28 @@ export function getPrimitiveType(exp: MalVal): string | null {
 
 type WatchOnReplacedCallback = (newExp: MalVal) => any
 
-const ExpWatcher = new WeakMap<MalNode, WatchOnReplacedCallback[]>()
+const ExpWatcher = new WeakMap<MalNode, Set<WatchOnReplacedCallback>>()
 
 export function watchExpOnReplace(
 	exp: MalNode,
 	callback: WatchOnReplacedCallback
 ) {
-	const callbacks = ExpWatcher.get(exp) || []
-	callbacks.push(callback)
+	const callbacks = ExpWatcher.get(exp) || new Set()
+	callbacks.add(callback)
 	ExpWatcher.set(exp, callbacks)
 }
 
-export function unwatchExpOnReplace(exp: MalNode) {
-	ExpWatcher.delete(exp)
+export function unwatchExpOnReplace(
+	exp: MalNode,
+	callback: WatchOnReplacedCallback
+) {
+	const callbacks = ExpWatcher.get(exp)
+	if (callbacks) {
+		callbacks.delete(callback)
+		if (callbacks.size === 0) {
+			ExpWatcher.delete(exp)
+		}
+	}
 }
 
 /**
@@ -80,7 +89,7 @@ export function unwatchExpOnReplace(exp: MalNode) {
 export function replaceExp(original: MalNode, replaced: MalVal) {
 	// Execute a callback if necessary
 	if (ExpWatcher.has(original)) {
-		const callbacks = ExpWatcher.get(original) as WatchOnReplacedCallback[]
+		const callbacks = ExpWatcher.get(original) as Set<WatchOnReplacedCallback>
 		ExpWatcher.delete(original)
 		for (const cb of callbacks) {
 			cb(replaced)

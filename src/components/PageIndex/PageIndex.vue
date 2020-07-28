@@ -8,11 +8,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<Splitpanes class="PageIndex__content default-theme" vertical @resize="onResizeSplitpanes">
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
 				<ListView
 					class="PageIndex__list-view"
@@ -28,11 +24,7 @@
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
 				<div class="PageIndex__inspector" v-if="selectedExp">
-					<Inspector
-						:exp="selectedExp"
-						@input="updateSelectedExp"
-						@select="setSelectedExp"
-					/>
+					<Inspector :exp="selectedExp" @input="updateSelectedExp" @select="setSelectedExp" />
 				</div>
 				<ViewHandles
 					ref="elHandles"
@@ -61,9 +53,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -240,15 +230,17 @@ export default defineComponent({
 		})
 
 		function updateExp(exp: NonReactive<MalNode>) {
-			unwatchExpOnReplace(data.exp.value)
+			unwatchExpOnReplace(data.exp.value, onReplaced)
 
 			data.exp = exp
-			watchExpOnReplace(exp.value, newExp => {
+			watchExpOnReplace(exp.value, onReplaced)
+
+			function onReplaced(newExp: MalVal) {
 				if (!isNode(newExp)) {
 					throw new Error('Non-collection value cannot set to be exp')
 				}
 				updateExp(nonReactive(newExp))
-			})
+			}
 		}
 
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
@@ -271,7 +263,7 @@ export default defineComponent({
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			// Unregister the previous exp from the event emitter
 			if (data.selectedExp) {
-				unwatchExpOnReplace(data.selectedExp.value)
+				unwatchExpOnReplace(data.selectedExp.value, onReplaced)
 			}
 
 			// Update
@@ -281,11 +273,13 @@ export default defineComponent({
 			} else {
 				data.selectedExp = exp
 				if (exp && isNode(exp.value)) {
-					watchExpOnReplace(exp.value, newExp => {
-						if (isNode(newExp)) {
-							setSelectedExp(nonReactive(newExp))
-						}
-					})
+					watchExpOnReplace(exp.value, onReplaced)
+				}
+			}
+
+			function onReplaced(newExp: MalVal) {
+				if (isNode(newExp)) {
+					setSelectedExp(nonReactive(newExp))
 				}
 			}
 		}
@@ -295,26 +289,27 @@ export default defineComponent({
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
-			if (!data.exp || !data.selectedExp) {
+			if (!data.selectedExp) {
 				return
 			}
 
+			unwatchExpOnReplace(data.selectedExp.value, onReplaced)
 			replaceExp(data.selectedExp.value, exp.value)
 
 			if (isNode(exp.value)) {
 				data.selectedExp = exp as NonReactive<MalNode>
-				watchExp(exp.value)
+				watchExpOnReplace(exp.value, onReplaced)
 			} else {
 				data.selectedExp = null
 			}
 
-			function watchExp(exp: MalNode) {
-				watchExpOnReplace(exp, newExp => {
-					if (isNode(newExp)) {
-						data.selectedExp = nonReactive(newExp)
-						watchExp(newExp)
-					}
-				})
+			function onReplaced(newExp: MalVal) {
+				if (isNode(newExp)) {
+					data.selectedExp = nonReactive(newExp)
+					watchExpOnReplace(newExp, onReplaced)
+				} else {
+					data.selectedExp = null
+				}
 			}
 		}
 
@@ -323,22 +318,23 @@ export default defineComponent({
 				return
 			}
 
+			unwatchExpOnReplace(data.editingExp.value, onReplaced)
 			replaceExp(data.editingExp.value, exp.value)
 
 			if (isNode(exp.value)) {
 				data.editingExp = exp as NonReactive<MalNode>
-				watchExp(exp.value)
+				watchExpOnReplace(exp.value, onReplaced)
 			} else {
 				data.editingExp = null
 			}
 
-			function watchExp(exp: MalNode) {
-				watchExpOnReplace(exp, newExp => {
-					if (isNode(newExp)) {
-						data.editingExp = nonReactive(newExp)
-						watchExp(newExp)
-					}
-				})
+			function onReplaced(newExp: MalVal) {
+				if (isNode(newExp)) {
+					data.editingExp = nonReactive(newExp)
+					watchExpOnReplace(newExp, onReplaced)
+				} else {
+					data.editingExp = null
+				}
 			}
 		}
 
@@ -358,15 +354,17 @@ export default defineComponent({
 		function setEditingExp(exp: NonReactive<MalNode>) {
 			// Unregister the previous exp from the event emitter
 			if (data.editingExp) {
-				unwatchExpOnReplace(data.editingExp.value)
+				unwatchExpOnReplace(data.editingExp.value, onReplaced)
 			}
 
 			data.editingExp = exp
-			watchExpOnReplace(exp.value, newExp => {
+			watchExpOnReplace(exp.value, onReplaced)
+
+			function onReplaced(newExp: MalVal) {
 				if (isNode(newExp)) {
 					setEditingExp(nonReactive(newExp))
 				}
-			})
+			}
 		}
 
 		watch(
