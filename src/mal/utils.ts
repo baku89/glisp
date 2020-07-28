@@ -97,13 +97,17 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 		}
 
 		const [index, ...rest] = keys
-		if (isSeq(exp)) {
-			return find(exp[index], rest)
-		} else if (isMap(exp)) {
-			const keys = (exp as MalNodeMap)[M_KEYS]
-			return find(exp[keys[index]], rest)
+
+		const expBody =
+			isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
+
+		if (isSeq(expBody)) {
+			return find(expBody[index], rest)
+		} else if (isMap(expBody)) {
+			const keys = (expBody as MalNodeMap)[M_KEYS]
+			return find(expBody[keys[index]], rest)
 		} else {
-			return exp
+			return expBody
 		}
 	}
 }
@@ -114,8 +118,12 @@ export function generateExpAbsPath(exp: MalNode) {
 	function seek(exp: MalNode, path: string): string {
 		const outer = getOuter(exp)
 		if (outer) {
-			const index = exp[M_OUTER_INDEX]
-			return seek(outer, index + '/' + path)
+			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+				return seek(outer, path)
+			} else {
+				const index = exp[M_OUTER_INDEX]
+				return seek(outer, index + '/' + path)
+			}
 		} else {
 			return '/' + path
 		}
