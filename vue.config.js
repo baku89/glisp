@@ -1,6 +1,7 @@
 const WorkerPlugin = require('worker-plugin')
 const path = require('path')
 const webpack = require('webpack')
+const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
 	publicPath: './',
@@ -51,6 +52,18 @@ module.exports = {
 			}
 			return args
 		})
+
+		// Copy logo.png to dist
+		config.plugin('copy-assets').use(CopyPlugin, [
+			{
+				patterns: [
+					{
+						from: 'assets/logo.png',
+						to: '.',
+					},
+				],
+			},
+		])
 	},
 	pages: {
 		'js/index': {
