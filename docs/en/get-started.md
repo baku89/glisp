@@ -66,7 +66,7 @@ Function `translate` returns a transformation value of parallel translation (whi
 
 As `rotate` takes an argument of radians, here function `deg` converts the unit from degree to radian.
 
-You can find detailed explanation in [transformation](en/transform).
+You can find detailed explanation in [transformation](transform).
 
 ## Inspector and handles
 
