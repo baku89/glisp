@@ -151,6 +151,10 @@
 				coverpage: true,
 				logo: './favicon/android-chrome-512x512.png',
 				loadNavbar: true,
+				loadSidebar: true,
+				subMaxLevel: 2,
+				relativePath: true,
+				auto2top: true,
 				plugins: [
 					function (hook, vm) {
 						hook.afterEach((html, next) => {
@@ -181,8 +185,6 @@
 						})
 					},
 				],
-				loadSidebar: true,
-				subMaxLevel: 2,
 			}
 
 			function getFrameByEvent(event) {
