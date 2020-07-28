@@ -256,12 +256,6 @@ export default defineComponent({
 			)
 
 			context.emit('update:exp', newExp)
-			if (
-				props.editingExp?.value === props.exp.value &&
-				props.editingExp?.value !== newExp.value
-			) {
-				context.emit('update:editingExp', newExp)
-			}
 		}
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
