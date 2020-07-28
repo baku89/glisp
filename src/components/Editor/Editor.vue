@@ -68,17 +68,15 @@ function useBraceEditor(props: Props, context: SetupContext) {
 					return
 				}
 
-				setBySelf = true
-
 				const [start, end] = selection
 				const [oldStart, oldEnd] = getEditorSelection(editor)
 
 				if (start !== oldStart || end !== oldEnd) {
+					setBySelf = true
 					const range = convertToAceRange(editor, start, end)
 					editor.selection.setRange(range, false)
+					setBySelf = false
 				}
-
-				setBySelf = false
 			}
 		)
 
@@ -97,14 +95,14 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		}
 
 		editor.on('change', onChange)
-		editor.selection.on('changeSelection', onChangeSelection)
+		editor.on('changeSelection', onChangeSelection)
 
 		// Watch the value and update the editor
 		watch(
 			() => props.value,
 			newValue => {
-				setBySelf = true
 				if (editor.getValue() !== newValue) {
+					setBySelf = true
 					editor.setValue(newValue, -1)
 					if (props.selection) {
 						const range = convertToAceRange(
@@ -114,8 +112,8 @@ function useBraceEditor(props: Props, context: SetupContext) {
 						)
 						editor.selection.setRange(range, false)
 					}
+					setBySelf = false
 				}
-				setBySelf = false
 			},
 			{immediate: true}
 		)
