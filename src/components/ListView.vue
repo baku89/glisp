@@ -74,6 +74,7 @@ import {
 	MalSeq,
 	isSymbolFor,
 	isMap,
+	cloneExp,
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {replaceExp} from '@/mal/utils'
@@ -259,19 +260,16 @@ export default defineComponent({
 		}
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
-			const exp = props.exp.value as MalSeq
+			const newExpBody = cloneExp(expBody.value.value) as MalSeq
 
-			replaceExp(
-				(expBody.value.value as MalSeq)[i + 1] as MalNode,
-				replaced.value
-			)
+			;(newExpBody as MalSeq)[i + 1] = replaced.value
 
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, exp[1], expBody.value.value)
+				newExp = L(S_UI_ANNOTATE, (props.exp.value as MalSeq)[1], newExpBody)
 			} else {
-				newExp = expBody.value.value
+				newExp = newExpBody
 			}
 
 			reconstructTree(newExp)
