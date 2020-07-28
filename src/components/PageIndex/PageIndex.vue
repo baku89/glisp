@@ -405,6 +405,10 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
+
+			selectedStr: computed(() =>
+				data.selectedExp ? printExp(data.selectedExp.value) : '--'
+			),
 		}
 	},
 })

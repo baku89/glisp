@@ -102,6 +102,7 @@ import {
 	isVector,
 	getEvaluated,
 	malEquals,
+	M_DELIMITERS,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/path-utils'

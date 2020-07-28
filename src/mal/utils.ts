@@ -92,14 +92,14 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 	return find(root, keys)
 
 	function find(exp: MalVal, keys: number[]): MalVal {
-		if (keys.length === 0) {
-			return exp
-		}
-
 		const [index, ...rest] = keys
 
 		const expBody =
 			isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
+
+		if (keys.length === 0) {
+			return expBody
+		}
 
 		if (isSeq(expBody)) {
 			return find(expBody[index], rest)
