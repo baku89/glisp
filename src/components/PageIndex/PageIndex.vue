@@ -294,7 +294,7 @@ export default defineComponent({
 			}
 		}
 
-		function hoverExp(exp: NonReactive<MalNode> | null) {
+		function setHoverExp(exp: NonReactive<MalNode> | null) {
 			data.hoveringExp = exp
 		}
 
@@ -415,7 +415,7 @@ export default defineComponent({
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
 			setSelectedExp,
-			hoverExp,
+			setHoverExp,
 			onTransformSelectedExp
 		)
 
