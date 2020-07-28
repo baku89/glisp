@@ -1,5 +1,3 @@
-- [(doc 'glisp)](/)
-
 - ことはじめ
 
   - [Glisp の文法](syntax)

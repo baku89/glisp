@@ -1,5 +1,3 @@
-- [(doc 'glisp)](en/README)
-
 - Getting Started
 
   - [Grammar of Glisp](en/syntax)
