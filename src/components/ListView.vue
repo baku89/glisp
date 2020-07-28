@@ -279,7 +279,7 @@ export default defineComponent({
 
 		function onClickEditButton(e: MouseEvent) {
 			e.stopPropagation()
-			context.emit('update:editingExp', props.exp)
+			context.emit('update:editingExp', expBody.value)
 		}
 
 		return {
