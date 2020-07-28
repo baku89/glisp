@@ -34,7 +34,6 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		if (!editorEl.value) return
 
 		editor = ace.edit(editorEl.value)
-		editor.setValue(props.value, -1)
 
 		// Update activeRange
 		let activeRangeMarker: number
@@ -69,6 +68,8 @@ function useBraceEditor(props: Props, context: SetupContext) {
 					return
 				}
 
+				setBySelf = true
+
 				const [start, end] = selection
 				const [oldStart, oldEnd] = getEditorSelection(editor)
 
@@ -76,30 +77,34 @@ function useBraceEditor(props: Props, context: SetupContext) {
 					const range = convertToAceRange(editor, start, end)
 					editor.selection.setRange(range, false)
 				}
+
+				setBySelf = false
 			}
 		)
 
-		// Watch value
+		let setBySelf = false
+
 		function onChange() {
+			if (setBySelf) return
 			const value = editor.getValue()
 			context.emit('input', value)
 		}
 
-		function onSelect() {
+		function onChangeSelection() {
+			if (setBySelf) return
 			const selection = getEditorSelection(editor)
 			context.emit('update:selection', selection)
 		}
 
 		editor.on('change', onChange)
-		editor.on('changeSelection', onSelect)
+		editor.selection.on('changeSelection', onChangeSelection)
 
+		// Watch the value and update the editor
 		watch(
 			() => props.value,
 			newValue => {
+				setBySelf = true
 				if (editor.getValue() !== newValue) {
-					editor.off('change', onChange)
-					editor.off('changeSelection', onSelect)
-
 					editor.setValue(newValue, -1)
 					if (props.selection) {
 						const range = convertToAceRange(
@@ -109,11 +114,10 @@ function useBraceEditor(props: Props, context: SetupContext) {
 						)
 						editor.selection.setRange(range, false)
 					}
-
-					editor.on('change', onChange)
-					editor.on('changeSelection', onSelect)
 				}
-			}
+				setBySelf = false
+			},
+			{immediate: true}
 		)
 
 		// Enable individual features
