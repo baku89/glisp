@@ -29,6 +29,7 @@ import {
 	M_KEYS,
 	MalNodeMap,
 	M_DELIMITERS,
+	getOuter,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
@@ -79,6 +80,44 @@ export function unwatchExpOnReplace(
 		callbacks.delete(callback)
 		if (callbacks.size === 0) {
 			ExpWatcher.delete(exp)
+		}
+	}
+}
+
+export function getExpByPath(root: MalNode, path: string): MalVal {
+	const keys = path
+		.split('/')
+		.filter(k => k !== '')
+		.map(k => parseInt(k))
+	return find(root, keys)
+
+	function find(exp: MalVal, keys: number[]): MalVal {
+		if (keys.length === 0) {
+			return exp
+		}
+
+		const [index, ...rest] = keys
+		if (isSeq(exp)) {
+			return find(exp[index], rest)
+		} else if (isMap(exp)) {
+			const keys = (exp as MalNodeMap)[M_KEYS]
+			return find(exp[keys[index]], rest)
+		} else {
+			return exp
+		}
+	}
+}
+
+export function generateExpAbsPath(exp: MalNode) {
+	return seek(exp, '')
+
+	function seek(exp: MalNode, path: string): string {
+		const outer = getOuter(exp)
+		if (outer) {
+			const index = exp[M_OUTER_INDEX]
+			return seek(outer, index + '/' + path)
+		} else {
+			return '/' + path
 		}
 	}
 }

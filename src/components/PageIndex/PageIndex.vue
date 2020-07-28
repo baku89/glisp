@@ -52,7 +52,6 @@
 							:hasParseError.sync="hasParseError"
 							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
 							@input="updateEditingExp"
-							@inputCode="onInputCode"
 							@select="setSelectedExp"
 						/>
 					</div>
@@ -116,7 +115,13 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
-import {replaceExp, watchExpOnReplace, unwatchExpOnReplace} from '@/mal/utils'
+import {
+	replaceExp,
+	watchExpOnReplace,
+	unwatchExpOnReplace,
+	generateExpAbsPath,
+	getExpByPath,
+} from '@/mal/utils'
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
@@ -131,6 +136,8 @@ interface Data {
 	selectedExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalNode> | null
 	hoveringExp: NonReactive<MalNode> | null
+	selectedPath: string
+	editingPath: string
 }
 
 interface UI {
@@ -216,9 +223,21 @@ export default defineComponent({
 				return viewExp
 			}),
 			// Selection
-			selectedExp: null,
-			editingExp: null,
+			selectedExp: computed(() =>
+				data.selectedPath
+					? nonReactive(getExpByPath(data.exp.value, data.selectedPath))
+					: null
+			),
+			editingExp: computed(() =>
+				data.editingPath
+					? nonReactive(getExpByPath(data.exp.value, data.editingPath))
+					: null
+			),
 			hoveringExp: null,
+
+			// Paths
+			selectedPath: '',
+			editingPath: '',
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -239,20 +258,6 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
-		function updateExp(exp: NonReactive<MalNode>) {
-			unwatchExpOnReplace(data.exp.value, onReplaced)
-
-			data.exp = exp
-			watchExpOnReplace(exp.value, onReplaced)
-
-			function onReplaced(newExp: MalVal) {
-				if (!isNode(newExp)) {
-					throw new Error('Non-collection value cannot set to be exp')
-				}
-				updateExp(nonReactive(newExp))
-			}
-		}
-
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
 			updateExp(exp)
 			setEditingExp(exp as NonReactive<MalNode>)
@@ -270,111 +275,61 @@ export default defineComponent({
 		)
 
 		// Events
-		function setSelectedExp(exp: NonReactive<MalNode> | null) {
-			// Unregister the previous exp from the event emitter
-			if (data.selectedExp) {
-				unwatchExpOnReplace(data.selectedExp.value, onReplaced)
-			}
 
-			// Update
-			if (exp && exp.value === data.exp.value) {
-				// Prevent to select the root `sketch`
-				data.selectedExp = null
-			} else {
-				data.selectedExp = exp
-				if (exp && isNode(exp.value)) {
-					watchExpOnReplace(exp.value, onReplaced)
-				}
-			}
+		// Exp
+		function updateExp(exp: NonReactive<MalNode>) {
+			unwatchExpOnReplace(data.exp.value, onReplaced)
+			data.exp = exp
+			watchExpOnReplace(exp.value, onReplaced)
 
 			function onReplaced(newExp: MalVal) {
 				if (isNode(newExp)) {
-					setSelectedExp(nonReactive(newExp))
+					updateExp(nonReactive(newExp))
 				}
 			}
 		}
 
-		function setHoverExp(exp: NonReactive<MalNode> | null) {
-			data.hoveringExp = exp
+		// SelectedExp
+		function setSelectedExp(exp: NonReactive<MalNode> | null) {
+			if (exp) {
+				data.selectedPath = generateExpAbsPath(exp.value)
+			} else {
+				data.selectedPath = ''
+			}
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
 			if (!data.selectedExp) {
 				return
 			}
-
-			unwatchExpOnReplace(data.selectedExp.value, onReplaced)
 			replaceExp(data.selectedExp.value, exp.value)
+		}
 
-			if (isNode(exp.value)) {
-				data.selectedExp = exp as NonReactive<MalNode>
-				watchExpOnReplace(exp.value, onReplaced)
+		// Editing
+		function setEditingExp(exp: NonReactive<MalNode>) {
+			if (exp) {
+				data.editingPath = generateExpAbsPath(exp.value)
 			} else {
-				data.selectedExp = null
-			}
-
-			function onReplaced(newExp: MalVal) {
-				if (isNode(newExp)) {
-					data.selectedExp = nonReactive(newExp)
-					watchExpOnReplace(newExp, onReplaced)
-				} else {
-					data.selectedExp = null
-				}
+				data.editingPath = ''
 			}
 		}
 
 		function updateEditingExp(exp: NonReactive<MalVal>) {
-			if (!data.editingExp) {
-				return
-			}
-
-			unwatchExpOnReplace(data.editingExp.value, onReplaced)
+			if (!data.editingExp) return
 			replaceExp(data.editingExp.value, exp.value)
-
-			if (isNode(exp.value)) {
-				data.editingExp = exp as NonReactive<MalNode>
-				watchExpOnReplace(exp.value, onReplaced)
-			} else {
-				data.editingExp = null
-			}
-
-			function onReplaced(newExp: MalVal) {
-				if (isNode(newExp)) {
-					data.editingExp = nonReactive(newExp)
-					watchExpOnReplace(newExp, onReplaced)
-				} else {
-					data.editingExp = null
-				}
-			}
 		}
 
-		// Save code
-		function onInputCode(code: string) {
-			// localStorage.setItem('saved_code', code)
-			// ConsoleScope.def('*sketch*', code)
+		// Hovering
+		function setHoveringExp(exp: NonReactive<MalNode> | null) {
+			data.hoveringExp = exp
 		}
 
+		// Others
 		function onResizeSplitpanes(
 			sizes: {min: number; max: number; size: number}[]
 		) {
 			ui.listViewPaneSize = sizes[0].size
 			ui.controlPaneSize = sizes[2].size
-		}
-
-		function setEditingExp(exp: NonReactive<MalNode>) {
-			// Unregister the previous exp from the event emitter
-			if (data.editingExp) {
-				unwatchExpOnReplace(data.editingExp.value, onReplaced)
-			}
-
-			data.editingExp = exp
-			watchExpOnReplace(exp.value, onReplaced)
-
-			function onReplaced(newExp: MalVal) {
-				if (isNode(newExp)) {
-					setEditingExp(nonReactive(newExp))
-				}
-			}
 		}
 
 		watch(
@@ -415,7 +370,7 @@ export default defineComponent({
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
 			setSelectedExp,
-			setHoverExp,
+			setHoveringExp,
 			onTransformSelectedExp
 		)
 
@@ -449,7 +404,6 @@ export default defineComponent({
 			...toRefs(ui as any),
 			updateExp,
 			setSelectedExp,
-			onInputCode,
 			onResizeSplitpanes,
 		}
 	},
