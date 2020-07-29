@@ -71,7 +71,7 @@ export default function useHitDetector(
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
 	onTransformSelectedExp: (transform: mat2d) => void,
-	tagHistory: (tag: string) => any
+	endTweak: () => any
 ) {
 	const detector = new HitDetector()
 
@@ -132,7 +132,7 @@ export default function useHitDetector(
 			onHoverExp(hitExp)
 
 			if (justMouseup) {
-				tagHistory('undo')
+				endTweak()
 			}
 
 			// Update
