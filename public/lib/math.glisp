@@ -55,7 +55,7 @@
   {:doc "Calculates a number between two numbers at a specific increment"
    :params [{:type "number" :desc "First value"}
             {:type "number" :desc "Second value"}
-            {:type "number" :desc "Normalized amount to interpolate between the two values"}]
+            {:type "number" :desc "Normalized amount to interpolate between the two values" :validator clamp01}]
    :return {:type "number"}}
   [a b t] (+ a (* (- b a) t)))
 
@@ -79,37 +79,29 @@
 
 (defn fit
   {:doc "Maps the value in the range `omin`-`omax` and shifts it to the corresponding value in the new range `nmin`-`omax`."
-   :params [{:label "Value" :type "number"}
-            {:label "Old Min" :type "number"}
+   :params [{:label "Old Min" :type "number"}
             {:label "Old Max" :type "number"}
             {:label "New Min" :type "number"}
-            {:label "New Max" :type "number"}]
+            {:label "New Max" :type "number"}
+            {:label "Value" :type "number"}]
    :return {:type "number"}}
-  [x omin omax nmin nmax]
+  [omin omax nmin nmax x]
   (+ (* (- nmax nmin)
         (/ (- x omin)
            (- omax omin))) ;; t
      nmin))
 
-(defn fit01
-  {:doc "Maps the value between 0-1 to `min`-`max`"
-   :params [{:label "Value" :type "number"}
-            {:label "Min" :type "number"}
-            {:label "Max" :type "number"}]
-   :return {:type "number"}}
-  [x nmin nmax]
-  (+ nmin
-     (* x (- nmax nmin))))
+(defalias fit01 lerp)
 
 (defn fit11
   {:doc "Maps the value between -1 - 1 to `min`-`max`"
-   :params [{:label "Value" :type "number"}
-            {:label "Min" :type "number"}
-            {:label "Max" :type "number"}]
+   :params [{:label "Min" :type "number"}
+            {:label "Max" :type "number"}
+            {:label "Value" :type "number"}]
    :return {:type "number"}}
-  [x nmin nmax]
-  (+ nmin
-     (* (/ (inc x) 2) (- nmax nmin))))
+  [_min _max x]
+  (+ _min
+     (* (/ (inc x) 2) (- _max _min))))
 
 (annotate-fn!
  cubic-bezier
