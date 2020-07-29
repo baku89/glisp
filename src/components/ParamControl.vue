@@ -6,9 +6,9 @@
 			class="ParamControl__param"
 			:class="{'is-default': params[i].isDefault}"
 		>
-			<td class="label">{{ desc['ʞlabel'] }}</td>
-			<td class="value">
-				<div class="input">
+			<td class="ParamControl__label">{{ desc['ʞlabel'] }}</td>
+			<td class="ParamControl__value">
+				<div class="ParamControl__input">
 					<MalInputNumber
 						v-if="params[i].type === 'number'"
 						:value="params[i].value"
@@ -16,100 +16,116 @@
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputString
+					<MalInputString
 						v-else-if="params[i].type === 'string'"
 						:value="params[i].value"
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputDropdown
+					<MalInputDropdown
 						v-else-if="params[i].type === 'dropdown'"
 						:value="params[i].value"
 						:values="desc['ʞenum']"
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputColor
 						v-else-if="params[i].type === 'color'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputAngle
 						v-else-if="params[i].type === 'angle'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputVec2
 						v-else-if="params[i].type === 'vec2'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputRect2d
+					<MalInputRect2d
 						v-else-if="params[i].type === 'rect2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputMat2d
+					<MalInputMat2d
 						v-else-if="params[i].type === 'mat2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputSeed
+					<MalInputSeed
 						v-else-if="params[i].type === 'seed'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputString
-						style="color: var(--syntax-symbol)"
+					<MalInputString
+						:style="{color: 'var(--purple)'}"
 						v-else-if="params[i].type === 'symbol'"
-						:value="params[i].value.value"
+						:value="nonReactive(params[i].value.value.value)"
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
-					<InputString
-						style="color: var(--syntax-keyword)"
+					<MalInputString
+						style="color: var(--syntax-keyword);"
 						v-else-if="params[i].type === 'keyword'"
-						:value="params[i].value.slice(1)"
+						:value="nonReactive(params[i].value.value.slice(1))"
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalExpButton
 						v-else
-						@click="onSelect($event)"
 						:value="params[i].value"
+						@click="onSelect($event)"
 					/>
 				</div>
 				<button
-					class="delete"
+					class="ParamControl__button delete"
 					v-if="i >= variadicPos"
 					@click="onParamDelete(i)"
 				>
 					<i class="far fa-times-circle" />
 				</button>
 				<button
-					class="insert"
+					class="ParamControl__button insert"
 					v-if="i >= variadicPos"
 					@click="onParamInsert(i)"
 				>
-					&lt;-- Insert
+					Insert
 				</button>
 			</td>
 		</tr>
 		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
-			<td class="label"></td>
-			<td class="value">
-				<button class="add" @click="onParamInsert(params.length)">+ Add</button>
+			<td class="ParamControl__label"></td>
+			<td class="ParamControl__value">
+				<button
+					class="ParamControl__button add"
+					@click="onParamInsert(params.length)"
+				>
+					+ Add
+				</button>
 			</td>
 		</tr>
 	</table>
@@ -131,9 +147,8 @@ import {
 	cloneExp,
 	MalFunc,
 	createList as L,
-	isVector
+	isVector,
 } from '@/mal/types'
-import * as InputComponents from '@/components/inputs'
 import * as MalInputComponents from '@/components/mal-input'
 import {getFnInfo, getPrimitiveType} from '@/mal/utils'
 import {nonReactive, getParamLabel, clamp, NonReactive} from '@/utils'
@@ -160,7 +175,7 @@ type RestType = null | 'variadic' | 'keyword'
 
 interface Param {
 	type: string
-	value: MalVal[]
+	value: NonReactive<MalVal[]>
 	isDefault: boolean
 }
 
@@ -174,18 +189,18 @@ interface ParamDescs {
 
 const EmptyParamDescs = {
 	descs: [],
-	rest: null
+	rest: null,
 }
 
 const TypeDefaults = {
 	number: 0,
 	vec2: [0, 0],
-	path: [K('path')]
+	path: [K('path')],
 } as {[type: string]: MalVal}
 
 const InterpolateFuncs = {
 	number: (a: number, b: number) => (a + b) / 2,
-	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
 } as {[type: string]: (...xs: MalVal[]) => MalVal}
 
 type MetaDescs = (Desc | string)[]
@@ -194,11 +209,10 @@ export default defineComponent({
 	name: 'ParamControl',
 	props: {
 		exp: {required: true},
-		fn: {required: false}
+		fn: {required: false},
 	},
 	components: {
-		...InputComponents,
-		...MalInputComponents
+		...MalInputComponents,
 	},
 	setup(props: Props, context) {
 		const fnInfo = computed(() => {
@@ -245,7 +259,7 @@ export default defineComponent({
 					const keys = restDesc[K_KEYS] as [string, Desc][]
 					const keywordsDescs = keys.map((desc: Desc) => {
 						const predefinedDesc = {
-							[K_LABEL]: getParamLabel(desc[K_KEY])
+							[K_LABEL]: getParamLabel(desc[K_KEY]),
 						}
 						return {...predefinedDesc, ...desc}
 					})
@@ -253,8 +267,8 @@ export default defineComponent({
 						descs: [...requiredDescs, ...keywordsDescs] as Desc[],
 						rest: {
 							pos: restPos,
-							type: 'keyword'
-						}
+							type: 'keyword',
+						},
 					}
 				} else {
 					// Variadic args
@@ -265,8 +279,8 @@ export default defineComponent({
 						descs: [...requiredDescs, ...restDescs] as Desc[],
 						rest: {
 							pos: restPos,
-							type: 'variadic'
-						}
+							type: 'variadic',
+						},
 					}
 				}
 			}
@@ -324,7 +338,7 @@ export default defineComponent({
 								: 'any'
 							descs.push({
 								[K_TYPE]: type,
-								[K_LABEL]: j === i ? getParamLabel(fnMetaParams[i + 1]) : ''
+								[K_LABEL]: j === i ? getParamLabel(fnMetaParams[i + 1]) : '',
 							})
 						}
 						break
@@ -338,7 +352,7 @@ export default defineComponent({
 
 				paramDescs = {
 					descs,
-					rest: null
+					rest: null,
 				}
 			}
 
@@ -394,8 +408,8 @@ export default defineComponent({
 						const key = desc[K_KEY]
 
 						const isDefault = !(key in hm) && K_DEFAULT in desc
-						const value = isDefault ? desc[K_DEFAULT] : hm[key]
-						const type = matchInputTypeOfValueAndDesc(value, desc)
+						const value = nonReactive(isDefault ? desc[K_DEFAULT] : hm[key])
+						const type = matchInputTypeOfValueAndDesc(value.value, desc)
 
 						params.push({type, value, isDefault})
 					}
@@ -403,8 +417,10 @@ export default defineComponent({
 				}
 
 				const isDefault = fnParams.value.length <= i && K_DEFAULT in desc
-				const value = isDefault ? desc[K_DEFAULT] : fnParams.value[i]
-				const type = matchInputTypeOfValueAndDesc(value, desc)
+				const value = nonReactive(
+					isDefault ? desc[K_DEFAULT] : fnParams.value[i]
+				)
+				const type = matchInputTypeOfValueAndDesc(value.value, desc)
 
 				params.push({type, value, isDefault})
 			}
@@ -415,8 +431,11 @@ export default defineComponent({
 			'number',
 			'angle',
 			'vec2',
+			'rect2d',
+			'mat2d',
 			'color',
-			'dropdown'
+			'dropdown',
+			'seed',
 		])
 
 		function matchInputTypeOfValueAndDesc(value: MalVal, desc: Desc): string {
@@ -436,7 +455,7 @@ export default defineComponent({
 			return descType
 		}
 
-		function onParamInput(i: number, value: MalVal) {
+		function onParamInput(i: number, value: NonReactive<MalVal>) {
 			if (!fnInfo.value) {
 				return
 			}
@@ -457,7 +476,7 @@ export default defineComponent({
 					const param = restParams[j]
 					const desc = restDescs[j]
 
-					const v = j === restIndex ? value : param.value
+					const v = j === restIndex ? value.value : param.value.value
 					const isDefault = v === desc[K_DEFAULT]
 
 					if (!isDefault) {
@@ -469,7 +488,7 @@ export default defineComponent({
 				newParams.push(...fnParams.value.slice(0, rest.pos), ...modifiedParams)
 			} else {
 				newParams.push(...fnParams.value)
-				newParams[i] = value
+				newParams[i] = value.value
 			}
 			// Check if the parameters can be made shorter
 			if (!rest || newParams.length <= rest.pos) {
@@ -543,8 +562,8 @@ export default defineComponent({
 			context.emit('input', nonReactive(newValue))
 		}
 
-		function onSelect(exp: MalVal) {
-			context.emit('select', nonReactive(exp))
+		function onSelect(exp: NonReactive<MalVal>) {
+			context.emit('select', exp)
 		}
 
 		// Use inside the template
@@ -565,9 +584,10 @@ export default defineComponent({
 			onParamInsert,
 			onSelect,
 			keywordValidator,
-			symbolValidator
+			symbolValidator,
+			nonReactive,
 		}
-	}
+	},
 })
 </script>
 
@@ -580,34 +600,34 @@ export default defineComponent({
 	table-layout fixed
 
 	&__param
+		position relative
 		height $param-height
 
 		&.is-default
 			opacity 0.5
 
-		td
+		& > td
 			padding 0.1em 0
 
-			&:first-child
-				width 5em
-
-		.label
-			clear both
-			padding-right 1em
-			height $param-height
-			color var(--comment)
-			white-space nowrap
-			line-height $param-height
-
-		.value
-			display flex
-			width 99%
-
-		.input
-			max-width calc(100% - 2rem)
-
-	button
+	&__label
+		clear both
+		padding-right 1em
+		width 5.5em
 		height $param-height
+		color var(--comment)
+		white-space nowrap
+		line-height $param-height
+
+	&__value
+		display flex
+		align-items center
+		width 99%
+
+	&__input
+		max-width calc(100% - 2rem)
+
+	&__button
+		height 100%
 		color var(--comment)
 		line-height $param-height
 		cursor pointer
@@ -624,17 +644,19 @@ export default defineComponent({
 				color var(--warning)
 
 		&.insert
-			// position absolute
-			position relative
-			// background blue
+			align-self start
 			font-weight normal
 			opacity 0
 			transform translate(-1em, -66%)
 
+			&:before
+				content '<-- '
+				font-monospace()
+
 			&:hover
 				color var(--hover)
 
-			&:before
+			&:after
 				position absolute
 				top 50%
 				right 0

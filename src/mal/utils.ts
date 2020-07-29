@@ -1,6 +1,5 @@
 import {
 	MalVal,
-	M_FN,
 	isMap,
 	MalFunc,
 	keywordFor as K,
@@ -13,24 +12,28 @@ import {
 	keywordFor,
 	getMeta,
 	MalSeq,
-	isMalFunc,
 	getType,
 	isSymbol,
 	MalSymbol,
 	symbolFor as S,
 	createList as L,
-	M_EVAL_PARAMS,
 	isNode,
 	M_OUTER,
 	isList,
 	M_OUTER_INDEX,
 	MalType,
 	isFunc,
-	getEvaluated
+	getEvaluated,
+	isSymbolFor,
+	cloneExp,
+	M_KEYS,
+	MalNodeMap,
+	M_DELIMITERS,
+	getOuter,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
-import {replaceExp} from './eval'
 import {mat2d, vec2} from 'gl-matrix'
+import {printExp} from '.'
 
 export function getPrimitiveType(exp: MalVal): string | null {
 	if (isVector(exp)) {
@@ -53,6 +56,129 @@ export function getPrimitiveType(exp: MalVal): string | null {
 		}
 	}
 	return null
+}
+
+type WatchOnReplacedCallback = (newExp: MalVal) => any
+
+const ExpWatcher = new WeakMap<MalNode, Set<WatchOnReplacedCallback>>()
+
+export function watchExpOnReplace(
+	exp: MalNode,
+	callback: WatchOnReplacedCallback
+) {
+	const callbacks = ExpWatcher.get(exp) || new Set()
+	callbacks.add(callback)
+	ExpWatcher.set(exp, callbacks)
+}
+
+export function unwatchExpOnReplace(
+	exp: MalNode,
+	callback: WatchOnReplacedCallback
+) {
+	const callbacks = ExpWatcher.get(exp)
+	if (callbacks) {
+		callbacks.delete(callback)
+		if (callbacks.size === 0) {
+			ExpWatcher.delete(exp)
+		}
+	}
+}
+
+export function getExpByPath(root: MalNode, path: string): MalVal {
+	const keys = path
+		.split('/')
+		.filter(k => k !== '')
+		.map(k => parseInt(k))
+	return find(root, keys)
+
+	function find(exp: MalVal, keys: number[]): MalVal {
+		const [index, ...rest] = keys
+
+		const expBody =
+			isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
+
+		if (keys.length === 0) {
+			return expBody
+		}
+
+		if (isSeq(expBody)) {
+			return find(expBody[index], rest)
+		} else if (isMap(expBody)) {
+			const keys = (expBody as MalNodeMap)[M_KEYS]
+			return find(expBody[keys[index]], rest)
+		} else {
+			return expBody
+		}
+	}
+}
+
+export function generateExpAbsPath(exp: MalNode) {
+	return seek(exp, '')
+
+	function seek(exp: MalNode, path: string): string {
+		const outer = getOuter(exp)
+		if (outer) {
+			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+				return seek(outer, path)
+			} else {
+				const index = exp[M_OUTER_INDEX]
+				return seek(outer, index + '/' + path)
+			}
+		} else {
+			return '/' + path
+		}
+	}
+}
+
+/**
+ * Cached Tree-shaking
+ */
+export function replaceExp(original: MalNode, replaced: MalVal) {
+	// Execute a callback if necessary
+	if (ExpWatcher.has(original)) {
+		const callbacks = ExpWatcher.get(original) as Set<WatchOnReplacedCallback>
+		ExpWatcher.delete(original)
+		for (const cb of callbacks) {
+			cb(replaced)
+		}
+	}
+
+	const outer = original[M_OUTER]
+	const index = original[M_OUTER_INDEX]
+
+	if (index === undefined || !isNode(outer)) {
+		// Is the root exp
+		return
+	}
+
+	const newOuter = cloneExp(outer)
+
+	// Set replaced as new child
+	if (isSeq(newOuter)) {
+		// Sequence
+		newOuter[index] = replaced
+		for (let i = 0; i < newOuter.length; i++) {
+			if (isNode(newOuter[i])) {
+				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
+				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+			}
+		}
+	} else {
+		// Hash map
+		const keys = (outer as MalNodeMap)[M_KEYS]
+		const key = keys[index]
+		newOuter[key] = replaced
+		for (let i = 0; i < keys.length; i++) {
+			if (isNode(newOuter[i])) {
+				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
+				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+			}
+		}
+	}
+
+	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
+
+	replaceExp(outer, newOuter)
 }
 
 export function getMapValue(
@@ -103,17 +229,12 @@ export interface FnInfoType {
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | null {
-	let fn = null
-	if (isSeq(exp)) {
-		fn = exp[M_FN]
-	} else if (isFunc(exp)) {
-		fn = exp
-	}
+	let fn = isFunc(exp) ? exp : getFn(exp)
 
 	// Check if primitive type
 	let primitive = null
 	if (!fn && isNode(exp)) {
-		primitive = getPrimitiveType(exp[M_EVAL] || exp)
+		primitive = getPrimitiveType(getEvaluated(exp))
 		if (primitive) {
 			fn = ConsoleScope.var(primitive) as MalFunc
 		}
@@ -123,15 +244,15 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 		const meta = getMeta(fn)
 
 		if (isMap(meta)) {
-			const aliasFor = getMapValue(meta, 'alias-for')
+			const aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
 
-			if (typeof aliasFor === 'string') {
+			if (aliasFor) {
 				// is an alias
 				return {
 					fn,
 					meta,
 					aliasFor,
-					primitive
+					primitive,
 				}
 			} else {
 				// is not an alias
@@ -155,23 +276,23 @@ export function reverseEval(
 	switch (getType(original)) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if ((original as MalSeq)[0] === S('const')) {
+			if (isSymbolFor((original as MalSeq)[0], 'const')) {
 				return original
 			} else {
 				// find Inverse function
 				const info = getFnInfo(original as MalSeq)
 				if (!info) break
 				const inverseFn = getMapValue(info.meta, 'inverse')
-				if (!isMalFunc(inverseFn)) break
+				if (!isFunc(inverseFn)) break
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
-				const evaluatedParams = (original as MalSeq)[M_EVAL_PARAMS]
+				const evaluatedParams = originalParams.map(e => getEvaluated(e))
 
 				// Compute the original parameter
 				const result = inverseFn({
 					[K('return')]: exp,
-					[K('params')]: evaluatedParams
+					[K('params')]: evaluatedParams,
 				})
 
 				if (!isVector(result) && !isMap(result)) {
@@ -259,7 +380,7 @@ export function reverseEval(
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 				replaceExp(def, L(S('defvar'), original, newDefBody))
-				return original
+				return cloneExp(original)
 			}
 			break
 		}
@@ -286,6 +407,11 @@ export function computeExpTransform(exp: MalVal) {
 		ancestors.unshift(outer)
 	}
 
+	// NOTE: Might be too makeshift
+	if (isList(exp) && isSymbolFor(exp[0], 'path/transform')) {
+		ancestors.pop()
+	}
+
 	const attrMatrices: MalVal[] = []
 
 	// If the exp is nested inside transform arguments
@@ -298,15 +424,17 @@ export function computeExpTransform(exp: MalVal) {
 		}
 
 		const isAttrOfG =
-			outer[0] === S('g') &&
+			isSymbolFor(outer[0], 'g') &&
 			outer[1] === node &&
 			isMap(node) &&
 			K_TRANSFORM in node
 
-		const isAttrOfTransform = outer[0] === S('transform') && outer[1] === node
+		const isAttrOfTransform =
+			isSymbolFor(outer[0], 'transform') && outer[1] === node
 		const isAttrOfPathTransform =
-			outer[0] === S('path/transform') && outer[1] === node
-		const isAttrOfArtboard = outer[0] === S('artboard') && outer[1] === node
+			isSymbolFor(outer[0], 'path/transform') && outer[1] === node
+		const isAttrOfArtboard =
+			isSymbolFor(outer[0], 'artboard') && outer[1] === node
 
 		if (
 			isAttrOfG ||
@@ -324,11 +452,11 @@ export function computeExpTransform(exp: MalVal) {
 				const outer = attrAncestors[j - 1]
 
 				if (isList(outer)) {
-					if (outer[0] === S('mat2d/*')) {
+					if (isSymbolFor(outer[0], 'mat2d/*')) {
 						// Prepend matrices
 						const matrices = outer.slice(1, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
-					} else if (outer[0] === S('pivot')) {
+					} else if (isSymbolFor(outer[0], 'pivot')) {
 						// Prepend matrices
 						const matrices = outer.slice(2, node[M_OUTER_INDEX])
 						attrMatrices.unshift(...matrices)
@@ -353,16 +481,20 @@ export function computeExpTransform(exp: MalVal) {
 	// Extract the matrices from ancestors
 	const matrices = ancestors.reduce((filtered, node) => {
 		if (isList(node)) {
-			if (node[0] === S('g') && isMap(node[1]) && K_TRANSFORM in node[1]) {
+			if (
+				isSymbolFor(node[0], 'g') &&
+				isMap(node[1]) &&
+				K_TRANSFORM in node[1]
+			) {
 				const matrix = node[1][K_TRANSFORM]
 				filtered.push(matrix)
-			} else if (node[0] === S('artboard')) {
+			} else if (isSymbolFor(node[0], 'artboard')) {
 				const bounds = (node[1] as MalMap)[K('bounds')] as number[]
 				const matrix = [1, 0, 0, 1, ...bounds.slice(0, 2)]
 				filtered.push(matrix)
 			} else if (
-				node[0] === S('transform') ||
-				node[0] === S('path/transform')
+				isSymbolFor(node[0], 'transform') ||
+				isSymbolFor(node[0], 'path/transform')
 			) {
 				const matrix = node[1]
 				filtered.push(matrix)
@@ -382,4 +514,111 @@ export function computeExpTransform(exp: MalVal) {
 	)
 
 	return ret
+}
+
+const K_PARAMS = K('params')
+const K_REPLACE = K('replace')
+
+export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
+	if (!isVector(modifier) && !isMap(modifier)) {
+		return null
+	}
+
+	// Parse the modifier
+	let newParams: MalVal[]
+	let updatedIndices: number[] | undefined = undefined
+
+	if (isMap(modifier)) {
+		const params = modifier[K_PARAMS]
+		const replace = modifier[K_REPLACE]
+
+		if (isVector(params)) {
+			newParams = [...params]
+		} else if (isVector(replace)) {
+			newParams = [...originalParams]
+			const pairs = (typeof replace[0] === 'number'
+				? [(replace as any) as [number, MalVal]]
+				: ((replace as any) as [number, MalVal][])
+			).map(
+				([si, e]) =>
+					[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+			)
+			for (const [i, value] of pairs) {
+				newParams[i] = value
+			}
+			updatedIndices = pairs.map(([i]) => i)
+		} else {
+			return null
+		}
+
+		// if (isVector(changeId)) {
+		// 	const newId = newParams[1]
+		// 	data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+		// }
+	} else {
+		newParams = modifier
+	}
+
+	if (!updatedIndices) {
+		updatedIndices = Array(newParams.length)
+			.fill(0)
+			.map((_, i) => i)
+	}
+
+	// Execute the backward evaluation
+	for (const i of updatedIndices) {
+		let newValue = newParams[i]
+		const unevaluated = originalParams[i]
+
+		// if (malEquals(newValue, this.params[i])) {
+		// 	newValue = unevaluated
+		// }
+
+		newValue = reverseEval(newValue, unevaluated)
+		newParams[i] = newValue
+	}
+
+	return newParams
+}
+
+export function getFn(exp: MalVal) {
+	if (!isList(exp)) {
+		//throw new MalError(`${printExp(exp)} is not a function application`)
+		return undefined
+	}
+
+	const first = getEvaluated(exp[0])
+
+	if (!isFunc(first)) {
+		// throw new Error(`${printExp(exp[0])} is not a function`)
+		return undefined
+	}
+
+	return first
+}
+
+export function copyDelimiters(target: MalVal, original: MalVal) {
+	if (isSeq(target) && isSeq(original) && M_DELIMITERS in original) {
+		const delimiters = [...original[M_DELIMITERS]]
+
+		const lengthDiff = target.length - original.length
+
+		if (lengthDiff < 0) {
+			if (original.length === 1) {
+				delimiters.pop()
+			} else {
+				delimiters.splice(delimiters.length - 1 + lengthDiff, -lengthDiff)
+			}
+		} else if (lengthDiff > 0) {
+			if (original.length === 0) {
+				delimiters.push('')
+			} else {
+				const filler = delimiters[delimiters.length - 2] || ' '
+				const newDelimiters = Array(lengthDiff).fill(filler)
+				delimiters.splice(delimiters.length - 1, 0, ...newDelimiters)
+			}
+		}
+
+		target[M_DELIMITERS] = delimiters
+	}
 }

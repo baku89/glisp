@@ -38,6 +38,12 @@
 			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
 			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 		</g>
+		<path
+			class="stroke"
+			v-if="selectedPath"
+			:d="selectedPath"
+			:transform="`matrix(${transform.join(' ')})`"
+		/>
 		<g
 			v-for="({type, id, transform, yTransform, path, cls, guide},
 			i) in handles"
@@ -52,9 +58,6 @@
 				<path class="stroke hover-zone" :d="path" />
 				<path class="stroke display" :d="path" />
 			</template>
-			<template v-else-if="type === 'bg'">
-				<rect x="0" y="0" width="10000" height="10000" fill="transparent" />
-			</template>
 			<template v-else-if="type === 'dia'">
 				<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
 			</template>
@@ -62,7 +65,7 @@
 				<path
 					v-if="type === 'arrow'"
 					class="stroke display"
-					d="M 20 0 H -20 M -14 -5 L -20 0 L -14 5 M 14 -5 L 20 0 L 14 5"
+					d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
 				/>
 				<template v-if="type === 'translate'">
 					<path class="stroke display" d="M 12 0 H -12" />
@@ -89,13 +92,15 @@ import {
 	MalVal,
 	keywordFor as K,
 	createList as L,
-	M_EVAL,
 	isMap,
 	MalSeq,
-	M_EVAL_PARAMS,
 	MalMap,
 	MalFunc,
-	isVector
+	isVector,
+	getEvaluated,
+	malEquals,
+	getType,
+	M_DELIMITERS,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/path-utils'
@@ -104,7 +109,8 @@ import {
 	FnInfoType,
 	getMapValue,
 	reverseEval,
-	computeExpTransform
+	computeExpTransform,
+	copyDelimiters,
 } from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
@@ -116,9 +122,10 @@ import {
 	onBeforeMount,
 	ref,
 	SetupContext,
-	Ref
+	Ref,
 } from '@vue/composition-api'
-import ConsoleScope from '@/scopes/console'
+import {isPath} from '@/path-utils'
+import AppScope from '@/scopes/app'
 
 const K_ANGLE = K('angle'),
 	K_ID = K('id'),
@@ -131,7 +138,6 @@ const K_ANGLE = K('angle'),
 	K_PATH = K('path'),
 	K_CLASS = K('class'),
 	K_PREV_POS = K('prev-pos'),
-	K_DELTA_POS = K('delta-pos'),
 	K_PARAMS = K('params'),
 	K_RETURN = K('return'),
 	K_REPLACE = K('replace')
@@ -158,6 +164,7 @@ interface Data {
 	params: MalVal[]
 	unevaluatedParams: MalVal[]
 	returnedValue: MalVal
+	selectedPath: string | null
 	transform: mat2d
 	transformInv: mat2d
 	axisTransform: string
@@ -175,12 +182,12 @@ export default defineComponent({
 	props: {
 		exp: {
 			required: true,
-			validator: v => typeof v === 'object'
+			// validator: v => v instanceof NonReactive,
 		},
 		viewTransform: {
 			type: Float32Array,
-			default: () => mat2d.identity(mat2d.create())
-		}
+			default: () => mat2d.identity(mat2d.create()),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const el: Ref<HTMLElement | null> = ref(null)
@@ -204,9 +211,9 @@ export default defineComponent({
 
 				const exp = props.exp.value
 				if (data.fnInfo?.primitive) {
-					return [exp[M_EVAL]]
+					return [getEvaluated(exp)]
 				} else {
-					return exp[M_EVAL_PARAMS] || []
+					return exp.slice(1).map(e => getEvaluated(e)) || []
 				}
 			}),
 			unevaluatedParams: computed(() => {
@@ -220,7 +227,7 @@ export default defineComponent({
 				}
 			}),
 			returnedValue: computed(() => {
-				return props.exp ? props.exp.value[M_EVAL] || null : null
+				return props.exp ? getEvaluated(props.exp.value) : null
 			}),
 			transform: computed(() => {
 				if (!props.exp) {
@@ -236,6 +243,14 @@ export default defineComponent({
 			transformInv: computed(() =>
 				mat2d.invert(mat2d.create(), data.transform)
 			),
+			selectedPath: computed(() => {
+				if (!props.exp) return null
+
+				const evaluated = getEvaluated(props.exp.value)
+				if (!isPath(evaluated)) return
+
+				return getSVGPathData(evaluated)
+			}),
 			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {
 				if (!data.handleCallbacks) return []
@@ -248,7 +263,7 @@ export default defineComponent({
 
 				const options = {
 					[K_PARAMS]: data.params,
-					[K_RETURN]: data.returnedValue
+					[K_RETURN]: data.returnedValue,
 				}
 
 				let handles
@@ -318,7 +333,7 @@ export default defineComponent({
 						cls,
 						guide,
 						id: h[K_ID],
-						transform: `matrix(${xform.join(',')})`
+						transform: `matrix(${xform.join(',')})`,
 					}
 
 					if (type === 'translate') {
@@ -329,24 +344,18 @@ export default defineComponent({
 
 					return ret
 				})
-			})
+			}),
 		}) as Data
 
 		function onMousedown(i: number, e: MouseEvent) {
 			if (!el.value) return
 
-			const type = data.handles[i] && data.handles[i].type
-
 			data.draggingIndex = i
 			const {left, top} = el.value.getBoundingClientRect()
 			data.rawPrevPos = [e.clientX - left, e.clientY - top]
 
-			if (type !== 'bg') {
-				window.addEventListener('mousemove', onMousedrag)
-				window.addEventListener('mouseup', onMouseup)
-			} else {
-				onMousedrag(e)
-			}
+			window.addEventListener('mousemove', onMousedrag)
+			window.addEventListener('mouseup', onMouseup)
 		}
 
 		function onMousedrag(e: MouseEvent) {
@@ -378,16 +387,13 @@ export default defineComponent({
 				data.transformInv
 			)
 
-			const deltaPos = [pos[0] - prevPos[0], pos[1] - prevPos[1]]
-
 			const handle = data.handles[data.draggingIndex]
 
 			const eventInfo = {
 				[K_ID]: handle.id === undefined ? null : handle.id,
 				[K_POS]: pos,
 				[K_PREV_POS]: prevPos,
-				[K_DELTA_POS]: deltaPos,
-				[K_PARAMS]: data.params
+				[K_PARAMS]: data.params,
 			} as MalMap
 
 			data.rawPrevPos = rawPos
@@ -434,7 +440,9 @@ export default defineComponent({
 
 				if (isVector(changeId)) {
 					const newId = newParams[1]
-					data.draggingIndex = data.handles.findIndex(h => h.id === newId)
+					data.draggingIndex = data.handles.findIndex(h =>
+						malEquals(h.id, newId)
+					)
 				}
 			} else {
 				newParams = result
@@ -464,12 +472,16 @@ export default defineComponent({
 				? (newParams[0] as MalSeq)
 				: (L(props.exp.value[0], ...newParams) as MalSeq)
 
+			// Copy the delimiter if possible
+			copyDelimiters(newExp, props.exp.value)
+
 			context.emit('input', nonReactive(newExp))
 		}
 
 		function onMouseup() {
 			data.draggingIndex = null
 			unregisterMouseEvents()
+			context.emit('tag-history', 'undo')
 		}
 
 		function unregisterMouseEvents() {
@@ -480,9 +492,6 @@ export default defineComponent({
 		onBeforeMount(() => {
 			unregisterMouseEvents()
 		})
-
-		// REM
-		const rem = useRem()
 
 		// Gestures for view transform
 		useGesture(el, {
@@ -546,11 +555,11 @@ export default defineComponent({
 				mat2d.translate(xform, xform, vec2.negate(vec2.create(), pivot))
 
 				context.emit('update:view-transform', xform)
-			}
+			},
 		})
 
 		// Register app commands to ConsoleScope
-		ConsoleScope.def('reset-viewport', () => {
+		AppScope.def('reset-viewport', () => {
 			if (!el.value) return null
 
 			const {width, height} = el.value.getBoundingClientRect()
@@ -563,8 +572,16 @@ export default defineComponent({
 			return null
 		})
 
-		return {el, ...toRefs(data as any), onMousedown, rem}
-	}
+		// REM
+		const rem = useRem()
+
+		return {
+			el,
+			...toRefs(data as any),
+			onMousedown,
+			rem,
+		}
+	},
 })
 </script>
 

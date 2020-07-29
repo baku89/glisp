@@ -40,8 +40,8 @@ export default defineComponent({
 	props: {
 		dark: {
 			type: Boolean,
-			required: true
-		}
+			required: true,
+		},
 	},
 	setup() {
 		const {remote} = eval("require('electron')") as {
@@ -80,7 +80,7 @@ export default defineComponent({
 		}
 
 		return {onClickMin, onClickMax, onClickRestore, onClickClose, maximized}
-	}
+	},
 })
 </script>
 

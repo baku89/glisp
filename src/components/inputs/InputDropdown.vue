@@ -1,8 +1,8 @@
 <template>
 	<select class="InputDropdown" :value="value" @change="onChange">
-		<option v-for="(value, index) in values" :key="index" :value="value">{{
-			labels ? labels[index] : value
-		}}</option>
+		<option v-for="(value, index) in values" :key="index" :value="value">
+			{{ labels ? labels[index] : value }}
+		</option>
 	</select>
 </template>
 
@@ -14,28 +14,29 @@ export default defineComponent({
 	props: {
 		value: {
 			type: [String, Number] as PropType<string | number>,
-			required: true
+			required: true,
 		},
 		values: {
 			type: Array as PropType<string[] | number[]>,
-			required: true
+			required: true,
 		},
 		labels: {
 			type: Array as PropType<string[]>,
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props, context) {
-		const onChange = (e: InputEvent) => {
+		function onChange(e: InputEvent) {
 			const {selectedIndex} = e.target as HTMLSelectElement
 			const newValue = props.values[selectedIndex]
 			context.emit('input', newValue)
+			context.emit('end-tweak')
 		}
 
 		return {
-			onChange
+			onChange,
 		}
-	}
+	},
 })
 </script>
 

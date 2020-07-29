@@ -8,10 +8,7 @@ import {
 	MalSeq,
 	isKeyword,
 	MalMap,
-	symbolFor,
 	isSymbol,
-	getMeta,
-	MalType
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 
@@ -20,7 +17,7 @@ const K_PATH = K('path'),
 	K_STYLE = K('style'),
 	K_FILL = K('fill'),
 	K_STROKE = K('stroke'),
-	K_STROKE_WIDTH = K('stroke-wdith')
+	K_STROKE_WIDTH = K('stroke-width')
 
 interface HitStyle {
 	fill: boolean
@@ -28,15 +25,27 @@ interface HitStyle {
 }
 
 export class HitDetector {
-	private ctx: OffscreenCanvasRenderingContext2D
+	private ctx: CanvasRenderingContext2D
+	private cachedExp: MalVal = null
+	private cachedPath2D = new WeakMap<MalSeq, Path2D>()
 
 	constructor() {
-		const canvas = new OffscreenCanvas(1, 1)
+		const canvas = document.createElement('canvas')
 		const ctx = canvas.getContext('2d')
 		if (!ctx) {
 			throw new Error('Cannot initialize OfscreenCanvasRenderingContext2D')
 		}
 		this.ctx = ctx
+	}
+
+	private getPath2D(exp: MalSeq) {
+		if (this.cachedPath2D.has(exp)) {
+			return this.cachedPath2D.get(exp) as Path2D
+		} else {
+			const path = convertToPath2D(exp as PathType)
+			this.cachedPath2D.set(exp, path)
+			return path
+		}
 	}
 
 	private analyzeVector(pos: vec2, exp: MalVal[], hitStyle: MalMap) {
@@ -60,7 +69,7 @@ export class HitDetector {
 
 			switch (command) {
 				case K_PATH: {
-					const path = convertToPath2D(evaluated as PathType)
+					const path = this.getPath2D(evaluated)
 					const hasFill = !!hitStyle[K_FILL]
 					const hasStroke = !!hitStyle[K_STROKE]
 					if (hasFill) {
@@ -113,7 +122,8 @@ export class HitDetector {
 		return null
 	}
 
-	public analyze(pos: vec2, exp: MalVal): MalVal {
+	public analyze(pos: vec2, exp: MalVal = this.cachedExp) {
+		this.cachedExp = exp
 		this.ctx.resetTransform()
 		return this.analyzeNode(pos, exp, {})
 	}

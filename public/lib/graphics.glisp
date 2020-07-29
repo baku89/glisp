@@ -1,3 +1,5 @@
+(import "math.glisp")
+
 (defn set-id [id elm]
   (if (element? elm)
     (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
@@ -211,13 +213,14 @@
    :params [{:label "Transform" :type "mat2d"}
             &
             {:label "Body" :type "exp"}]
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
                               local-xform)]
+    ;; NOTE: This is not efficient since `xform` will be evaluated twice
     `(binding [*transform* ~global-xform]
-       [:transform ~local-xform ~@body])))
+       [:transform ~xform ~@body])))
 (defalias transform graphics/transform)
 
 (defmacro graphics/style
@@ -225,7 +228,7 @@
    :params [{:label "Style" :type "exp"}
             &
             {:label "Body" :type "exp"}]
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
                                   styles
@@ -235,7 +238,7 @@
                      (map #(vector (symbol (str "*" (name (first %)) "*"))
                                    (second %))
                           (entries merged-style)))]
-    `(binding ~binds [:style ~merged-style ~@body])))
+    `(binding ~binds [:style ~evaluated-styles ~@body])))
 (defalias style graphics/style)
 
 (defmacro graphics/artboard
@@ -255,7 +258,7 @@
   ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
   ;;                                    new-options (assoc options :bounds new-bounds)]
   ;;                                `[~new-options ~@(rest params)])))}}
-   :returns {:type "item"}}
+   :return {:type "item"}}
   [options & body]
   (let [evaluated-options (eval* options)
         bounds (get evaluated-options :bounds [0 0 0 0])
@@ -280,20 +283,17 @@
   (string? x))
 
 (defn color/gray
-  {:returns {:type "color"}}
+  {:return {:type "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
 
-(defn validator-01 [x] (clamp x 0 1))
-(defn validator-zero-twopi [x] (clamp x 0 TWO_PI))
-
 (defn color/rgb
-  {:params [{:label "Red" :type "number" :validator validator-01}
-            {:label "Green" :type "number" :validator validator-01}
-            {:label "Blue" :type "number" :validator validator-01}
-            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+  {:params [{:label "Red" :type "number" :validator clamp01}
+            {:label "Green" :type "number" :validator clamp01}
+            {:label "Blue" :type "number" :validator clamp01}
+            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
+   :return {:type "color"}}
   [r g b & a]
   (if (zero? (count a))
     (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
@@ -301,11 +301,11 @@
 (defalias rgb color/rgb)
 
 (defn color/hsl
-  {:params [{:label "Hue" :type "number" :validator validator-zero-twopi}
-            {:label "Saturation" :type "number" :validator validator-01}
-            {:label "Lightness" :type "number" :validator validator-01}
-            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
-   :returns {:type "color"}}
+  {:params [{:label "Hue" :type "number" :validator #(clamp 0 TWO_PI %)}
+            {:label "Saturation" :type "number" :validator clamp01}
+            {:label "Lightness" :type "number" :validator clamp01}
+            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
+   :return {:type "color"}}
   [h s l & a]
   (if (zero? (count a))
     (format "hsl(%f,%s,%s)"
@@ -331,7 +331,7 @@
 ;; Transform
 (defn view-center
   {:doc "Returns the center of view or artboard"
-   :returns {:type "vec2"}
+   :return {:type "vec2"}
    :handles {:draw (fn {:return mat}
                      [{:type "translate" :pos (take 4 mat)}])}}
   []
@@ -340,7 +340,8 @@
 ;; Style
 (defn graphics/fill
   {:doc "Creates a fill property"
-   :params [{:label "Color" :type "color" :desc "Color to fill"}]}
+   :params [{:label "Color" :type "color" :desc "Color to fill"}]
+   :compact-params [{:type "color"}]}
   [& xs]
   (if (zero? (count xs))
     {:fill true}
@@ -363,7 +364,9 @@
              :keys [{:key :cap :type "dropdown" :default "round"
                      :enum ["butt" "round" "square"]}
                     {:key :join :type "dropdown" :default "round"
-                     :enum ["bevel" "round" "miter"]}]}]}
+                     :enum ["bevel" "round" "miter"]}]}]
+   :compact-params [{:label "" :type "color"}
+                    {:label "W" :type "number" :default 1}]}
   [color & options]
   (let [params (case (count options)
                  0 {}
@@ -435,13 +438,9 @@
    :params [&
             {:label "Point" :type "vec2"}]
    :handles {:draw (fn {:params pts}
-                     (concat [{:id "new" :type "bg"}]
-                             (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts)))
-             :drag (fn {:id id :pos p
-                        :params pts}
-                     (if (number? id)
-                       (replace-nth pts id p)
-                       (concat pts [p])))}}
+                     (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}}
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)

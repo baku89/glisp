@@ -1,5 +1,11 @@
-import {Ref, watch, onUnmounted, ref, onMounted} from '@vue/composition-api'
-import {useOnMouseMove} from 'vue-composable'
+import {
+	Ref,
+	watch,
+	onUnmounted,
+	ref,
+	onMounted,
+	unref,
+} from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal, MalNode} from '@/mal/types'
@@ -34,30 +40,57 @@ function useMouseButtons(el: Ref<any | null>) {
 	return {mousePressed}
 }
 
+function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
+	const mouseX = ref(0)
+	const mouseY = ref(0)
+
+	function onMousemove(e: MouseEvent) {
+		mouseX.value = e.pageX
+		mouseY.value = e.pageY
+	}
+
+	onMounted(() => {
+		const _el = unref(el)
+		if (_el) {
+			;(_el as any).$el.addEventListener('mousemove', onMousemove)
+		}
+	})
+
+	onUnmounted(() => {
+		const _el = unref(el)
+		;(_el as any).$el.removeEventListener('mousemove', onMousemove)
+	})
+
+	return {mouseX, mouseY}
+}
+
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
-	exp: Ref<NonReactive<MalVal> | null>,
+	exp: Ref<NonReactive<MalNode>>,
 	viewTransform: Ref<mat2d>,
-	onSelectExp: (exp: NonReactive<MalNode> | null) => void
+	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
+	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
+	onTransformSelectedExp: (transform: mat2d) => void,
+	endTweak: () => any
 ) {
 	const detector = new HitDetector()
 
-	const {mouseX, mouseY} = useOnMouseMove(document.body)
+	const {mouseX, mouseY} = useOnMouseMove(handleEl)
 	const {mousePressed} = useMouseButtons(handleEl)
 
+	let prevMousePressed = false
+	let prevExp: MalNode | null = null
+	let prevPos = vec2.fromValues(0, 0)
+	let draggingExp: NonReactive<MalVal> | null = null
+
+	function releaseDraggingExp() {
+		draggingExp = null
+		window.removeEventListener('mouseup', releaseDraggingExp)
+	}
+
 	watch(
-		() => [
-			exp.value,
-			viewTransform.value,
-			mouseX.value,
-			mouseY.value,
-			mousePressed.value
-		],
+		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
-			if (!exp.value || !mousePressed.value) return
-
-			mousePressed.value = false
-
 			const pos = vec2.fromValues(mouseX.value, mouseY.value)
 
 			vec2.transformMat2d(
@@ -66,9 +99,46 @@ export default function useHitDetector(
 				mat2d.invert(mat2d.create(), viewTransform.value)
 			)
 
-			// Do the hit detection=
-			const ret = await detector.analyze(pos, exp.value.value)
-			onSelectExp(ret ? nonReactive(ret as MalNode) : null)
+			// Do the hit detection
+			// NOTE: the below line somehow does not work so temporarily set to false whenever
+			const isSameExp = false // prevExp === exp.value.value
+
+			// console.time('hit')
+			const ret = await detector.analyze(
+				pos,
+				isSameExp ? undefined : exp.value.value
+			)
+			// console.timeEnd('hit')
+
+			const hitExp = ret ? nonReactive(ret as MalNode) : null
+
+			const justMousedown = mousePressed.value && !prevMousePressed
+			const justMouseup = !mousePressed.value && prevMousePressed
+
+			if (justMousedown) {
+				onSelectExp(hitExp)
+				draggingExp = hitExp
+				window.addEventListener('mouseup', releaseDraggingExp)
+			}
+
+			// On dragging
+			if (!justMousedown && mousePressed.value && draggingExp) {
+				const delta = vec2.sub(vec2.create(), pos, prevPos)
+				const xform = mat2d.fromTranslation(mat2d.create(), delta)
+				onTransformSelectedExp(xform)
+			}
+
+			// if (hoveringExp && hoveringExp.value.value !== ret)
+			onHoverExp(hitExp)
+
+			if (justMouseup) {
+				endTweak()
+			}
+
+			// Update
+			prevMousePressed = mousePressed.value
+			prevExp = exp.value.value
+			prevPos = pos
 		}
 	)
 }

@@ -1,7 +1,7 @@
 import {vsprintf} from 'sprintf-js'
 import isNodeJS from 'is-node'
 
-import {MalVal, MalError, withMeta, symbolFor as S} from './types'
+import {MalVal, MalError, setMeta, symbolFor as S} from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
 import interop from './interop'
@@ -41,14 +41,12 @@ function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
 	return interop.jsToMal(res)
 }
 
-const dummyFn = () => null
-
 const Exports = [
 	[
 		'throw',
 		(msg: string) => {
 			throw new MalError(msg)
-		}
+		},
 	],
 
 	// Standard Output
@@ -57,20 +55,20 @@ const Exports = [
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
 			return null
-		}
+		},
 	],
 	[
 		'print-str',
 		(...a: MalVal[]) => {
 			return a.map(e => printExp(e, true)).join(' ')
-		}
+		},
 	],
 	[
 		'println',
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, false)))
 			return null
-		}
+		},
 	],
 
 	// I/O
@@ -91,210 +89,210 @@ const Exports = [
 	['&', S('&')],
 	[
 		'def',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Defines a variable',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
-					{label: 'Value', type: 'any'}
-				]
+					{label: 'Value', type: 'any'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'defvar',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Creates a variable which can be changed by the bidirectional evaluation',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
-					{label: 'Value', type: 'any'}
-				]
+					{label: 'Value', type: 'any'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'let',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Creates a lexical scope',
 				params: [
 					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'}
-				]
+					{label: 'Body', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'binding',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Creates a new binding',
 				params: [
 					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'}
-				]
+					{label: 'Body', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'get-all-symbols',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Gets all existing symbols',
 				params: [],
-				return: {type: 'vector'}
+				return: {type: 'vector'},
 			})
-		)
+		),
 	],
 	[
 		'fn-params',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Gets the list of a function parameter',
-				params: [{label: 'Function', type: 'symbol'}]
+				params: [{label: 'Function', type: 'symbol'}],
 			})
-		)
+		),
 	],
 	[
 		'eval*',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'quote',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Yields the unevaluated *form*',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'quasiquote',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Quasiquote',
-				params: [{label: 'Form', type: 'code'}]
+				params: [{label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'fn',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Defines a function',
 				params: [
 					{label: 'Params', type: 'code'},
-					{label: 'Form', type: 'code'}
-				]
+					{label: 'Form', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'fn-sugar',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'macro',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: '',
 				params: [
 					{label: 'Param', type: 'code'},
-					{label: 'Form', type: 'code'}
-				]
+					{label: 'Form', type: 'code'},
+				],
 			})
-		)
+		),
 	],
 	[
 		'macroexpand',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Expands the macro',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'try',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Try',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'catch',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Catch',
-				params: []
+				params: [],
 			})
-		)
+		),
 	],
 	[
 		'do',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
-				params: [S('&'), {label: 'Form', type: 'code'}]
+				params: [S('&'), {label: 'Form', type: 'code'}],
 			})
-		)
+		),
 	],
 	[
 		'if',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc:
 					'Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil',
 				params: [
 					{label: 'Test', type: 'code'},
 					{label: 'Then', type: 'code'},
-					{label: 'Else', type: 'code', default: null}
-				]
+					{label: 'Else', type: 'code', default: null},
+				],
 			})
-		)
+		),
 	],
 	[
 		'env-chain',
-		withMeta(
-			dummyFn,
+		setMeta(
+			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Env chain',
-				params: []
+				params: [],
 			})
-		)
-	]
+		),
+	],
 ] as [string, MalVal][]
 
 export default Exports

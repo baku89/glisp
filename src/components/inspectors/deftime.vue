@@ -1,20 +1,24 @@
 <template>
-	<div class="deftime">
-		<div class="deftime__control">
-			<button class="deftime__toggle-play" @click="togglePlay">
+	<div class="Inspector-deftime">
+		<div class="Inspector-deftime__control">
+			<button class="Inspector-deftime__toggle-play" @click="togglePlay">
 				<i class="fas fa-pause" v-if="isPlaying" />
 				<i class="fas fa-play" v-else />
 			</button>
-			<div class="deftime__seekbar" ref="seekbarRef">
+			<div class="Inspector-deftime__seekbar" ref="seekbarRef">
 				<button
-					class="deftime__current-time"
+					class="Inspector-deftime__current-time"
 					ref="currentTimeRef"
 					:dragging="isSeeking"
 					:style="{left: `${normalizedPosition * 100}%`}"
 				/>
 			</div>
 		</div>
-		<ParamControl :exp="exp" @input="$emit('input', $event)" @select="$emit('select', $event)" />
+		<ParamControl
+			:exp="exp"
+			@input="$emit('input', $event)"
+			@select="$emit('select', $event)"
+		/>
 	</div>
 </template>
 
@@ -26,7 +30,7 @@ import {
 	Ref,
 	computed,
 	onBeforeMount,
-	watch
+	watch,
 } from '@vue/composition-api'
 import {
 	MalVal,
@@ -34,7 +38,7 @@ import {
 	cloneExp,
 	assocBang,
 	keywordFor as K,
-	getEvaluated
+	getEvaluated,
 } from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
@@ -49,15 +53,15 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'deftime',
+	name: 'Inspector-deftime',
 	components: {
-		ParamControl
+		ParamControl,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value)
-		}
+			validator: x => x instanceof NonReactive && isList(x.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const currentTimeRef: Ref<HTMLElement | null> = ref(null)
@@ -114,7 +118,7 @@ export default defineComponent({
 				)
 
 				updateTime(newTime)
-			}
+			},
 		})
 
 		const isSeeking = computed(() => {
@@ -185,16 +189,16 @@ export default defineComponent({
 			normalizedPosition,
 			isPlaying,
 			isSeeking,
-			togglePlay
+			togglePlay,
 		}
-	}
+	},
 })
 </script>
 
 <style lang="stylus">
 @import '../style/common.styl'
 
-.deftime
+.Inspector-deftime
 	position relative
 
 	&__control

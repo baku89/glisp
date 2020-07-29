@@ -4,57 +4,64 @@
 			class="MalInputAngle__input"
 			:compact="true"
 			:value="value"
-			@input="onInput"
-			@select="$emit('select', $event)"
 			:validator="validator"
+			@input="onInput($event.value)"
+			@select="$emit('select', $event)"
+			@end-tweak="$emit('end-tweak')"
 		/>
 		<InputRotery
 			class="MalInputAngle__rotery"
 			:value="evaluated"
 			@input="onInput"
+			@end-tweak="$emit('end-tweak')"
 		/>
 	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+import {NonReactive, nonReactive} from '@/utils'
+
+interface Props {
+	value: NonReactive<number | MalSeq | MalSymbol>
+	validator: (v: number) => number | null
+}
 
 export default defineComponent({
 	name: 'MalInputAngle',
 	components: {MalInputNumber, InputRotery},
 	props: {
 		value: {
-			type: [Number, Array, Object] as PropType<number | MalSeq | MalSymbol>,
-			required: true
+			required: true,
+			validator: x => x instanceof NonReactive,
 		},
 		validator: {
-			type: Function as PropType<(v: number) => number | null>,
-			required: false
-		}
+			required: false,
+		},
 	},
-	setup(props, context) {
+	setup(props: Props, context: SetupContext) {
 		const evaluated = computed(() => {
-			return getEvaluated(props.value) as number
+			return getEvaluated(props.value.value) as number
 		})
 
-		const onInput = (_value: MalVal) => {
-			let value = _value
-			if (typeof value === 'number') {
+		function onInput(value: MalVal) {
+			let newExp = value
+			if (typeof newExp === 'number') {
 				// Executes backward evalution
-				value = reverseEval(_value, props.value)
+				newExp = reverseEval(newExp, props.value.value)
 			}
-			context.emit('input', value)
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
 			evaluated,
-			onInput
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

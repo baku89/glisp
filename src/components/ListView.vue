@@ -2,44 +2,53 @@
 	<div class="ListView">
 		<div
 			class="ListView__label"
-			:class="{clickable: items.clickable, selected}"
-			@click="items.clickable && onClick()"
+			:class="{
+				clickable: labelInfo.clickable,
+				hidden: ui.hidden,
+				selected,
+				hovering,
+			}"
+			@click="labelInfo.clickable && onClick()"
+			@dblclick="labelInfo.editable && onClickEditButton($event)"
 		>
 			<div
 				class="ListView__icon"
-				:class="{expanded, expandable: items.expandable}"
-				@click="items.expandable && toggleExpanded()"
+				:class="{expanded, expandable: labelInfo.expandable}"
+				@click="labelInfo.expandable && toggleExpanded()"
 			>
 				<i
-					v-if="items.icon.type === 'fontawesome'"
-					class="fas"
-					:class="items.icon.value"
-					:style="items.icon.style"
+					v-if="labelInfo.icon.type === 'fontawesome'"
+					:class="labelInfo.icon.value"
+					:style="labelInfo.icon.style"
 				/>
-				<span v-else-if="items.icon.type === 'text'" :style="items.icon.style">
-					{{ items.icon.value }}
-				</span>
+				<span
+					v-else-if="labelInfo.icon.type === 'text'"
+					:style="labelInfo.icon.style"
+					>{{ labelInfo.icon.value }}</span
+				>
 				<span
 					class="serif"
-					v-if="items.icon.type === 'serif'"
-					:style="items.icon.style"
-					>{{ items.icon.value }}</span
+					v-if="labelInfo.icon.type === 'serif'"
+					:style="labelInfo.icon.style"
+					>{{ labelInfo.icon.value }}</span
 				>
 			</div>
-			{{ items.label }}
+			{{ labelInfo.label }}
 			<i
+				v-if="labelInfo.editable"
 				class="ListView__editing fas fa-code"
-				:class="{active: exp.value === editingExp.value}"
-				@click="onClickEditIcon"
+				:class="{active: editing}"
+				@click="onClickEditButton"
 			/>
 		</div>
-		<div class="ListView__children" v-if="items.children && expanded">
+		<div class="ListView__children" v-if="labelInfo.children && expanded">
 			<ListView
-				v-for="(child, i) in items.children"
+				v-for="(child, i) in labelInfo.children"
 				:key="i"
 				:exp="child"
 				:selectedExp="selectedExp"
 				:editingExp="editingExp"
+				:hoveringExp="hoveringExp"
 				@select="$emit('select', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
@@ -62,22 +71,26 @@ import {
 	MalMap,
 	createList as L,
 	MalNode,
-	MalSeq
+	MalSeq,
+	isSymbolFor,
+	isMap,
+	cloneExp,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import {replaceExp} from '../mal/eval'
+import {replaceExp} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 
 enum DisplayMode {
 	Node = 'node',
 	Elements = 'elements',
-	Params = 'params'
+	Params = 'params',
 }
 
 interface Props {
 	exp: NonReactive<MalVal>
 	selectedExp: NonReactive<MalVal> | null
 	editingExp: NonReactive<MalVal> | null
+	hoveringExp: NonReactive<MalVal> | null
 	mode: DisplayMode
 }
 
@@ -86,32 +99,36 @@ const IconTexts = {
 	[MalType.Number]: {type: 'text', value: '#'},
 	[MalType.String]: {
 		type: 'fontawesome',
-		value: 'fa-quote-right',
-		style: 'transform: scale(0.6);'
+		value: 'fas fa-quote-right',
+		style: 'transform: scale(0.6);',
 	},
 	[MalType.Symbol]: {type: 'serif', value: 'x'},
-	[MalType.Keyword]: {type: 'serif', value: 'x'}
+	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
 } as {[type: string]: {type: string; value: string; style?: string}}
 
 const S_UI_ANNOTATE = S('ui-annotate')
 const K_NAME = K('name')
 const K_EXPANDED = K('expanded')
+const K_HIDDEN = K('hidden')
 
 export default defineComponent({
 	name: 'ListView',
 	props: {
 		exp: {
-			required: true
+			required: true,
 		},
 		selectedExp: {
-			required: true
+			required: true,
 		},
 		editingExp: {
-			required: true
+			required: true,
+		},
+		hoveringExp: {
+			required: true,
 		},
 		mode: {
-			default: DisplayMode.Node
-		}
+			default: DisplayMode.Node,
+		},
 	},
 	setup(props: Props, context) {
 		/**
@@ -119,7 +136,7 @@ export default defineComponent({
 		 */
 		const hasAnnotation = computed(() => {
 			const exp = props.exp.value
-			return isList(exp) && exp[0] === S_UI_ANNOTATE
+			return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
 		})
 
 		/**
@@ -141,38 +158,58 @@ export default defineComponent({
 			const exp = props.exp.value
 			if (hasAnnotation.value) {
 				const info = (exp as MalSeq)[1] as MalMap
-				return {name: info[K_NAME] || null, expanded: info[K_EXPANDED] || false}
+				return {
+					name: info[K_NAME] || null,
+					expanded: info[K_EXPANDED] || false,
+					hidden: info[K_HIDDEN] || false,
+				}
 			}
 
-			return {name: null, expanded: false}
+			return {name: null, expanded: false, hidden: false}
 		})
 
-		const items = computed(() => {
+		const labelInfo = computed(() => {
 			const exp = expBody.value.value
 
 			if (isList(exp)) {
 				return {
-					label: printExp(exp[0]),
+					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
-					icon: {type: 'fontawesome', value: 'fa-chevron-right'},
-					children: exp.slice(1).map(e => nonReactive(e))
+					editable: true,
+					icon: {
+						type: 'fontawesome',
+						value: 'fas fa-chevron-right',
+						style: 'transform: scale(.8)',
+					},
+					children: exp.slice(1).map(e => nonReactive(e)),
 				}
 			} else if (isVector(exp)) {
 				return {
 					label: printExp(exp),
 					clickable: true,
 					expandable: false,
+					editable: true,
 					icon: {type: 'text', value: '[ ]'},
-					children: null
+					children: null,
+				}
+			} else if (isMap(exp)) {
+				return {
+					label: printExp(exp),
+					clickable: true,
+					expandable: false,
+					editable: true,
+					icon: {type: 'fontawesome', value: 'far fa-map'},
+					children: null,
 				}
 			} else {
 				return {
 					label: printExp(exp, false),
 					clickable: false,
 					expandable: false,
+					editable: false,
 					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
-					children: null
+					children: null,
 				}
 			}
 		})
@@ -180,7 +217,7 @@ export default defineComponent({
 		const expanded = computed(() => {
 			return props.mode !== DisplayMode.Node
 				? true
-				: items.value.expandable
+				: labelInfo.value.expandable
 				? ui.value.expanded
 				: false
 		})
@@ -191,6 +228,19 @@ export default defineComponent({
 			)
 		})
 
+		const hovering = computed(() => {
+			return (
+				props.hoveringExp && expBody.value.value === props.hoveringExp.value
+			)
+		})
+
+		const editing = computed(() => {
+			return props.editingExp && expBody.value.value === props.editingExp.value
+		})
+
+		/**
+		 * Events
+		 */
 		function onClick() {
 			context.emit('select', expBody.value)
 		}
@@ -211,28 +261,19 @@ export default defineComponent({
 			)
 
 			context.emit('update:exp', newExp)
-			if (
-				props.editingExp?.value === props.exp.value &&
-				props.editingExp?.value !== newExp.value
-			) {
-				context.emit('update:editingExp', newExp)
-			}
 		}
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
-			const exp = props.exp.value as MalSeq
+			const newExpBody = cloneExp(expBody.value.value) as MalSeq
 
-			replaceExp(
-				(expBody.value.value as MalSeq)[i + 1] as MalNode,
-				replaced.value
-			)
+			;(newExpBody as MalSeq)[i + 1] = replaced.value
 
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, exp[1], expBody.value.value)
+				newExp = L(S_UI_ANNOTATE, (props.exp.value as MalSeq)[1], newExpBody)
 			} else {
-				newExp = expBody.value.value
+				newExp = newExpBody
 			}
 
 			reconstructTree(newExp)
@@ -240,28 +281,31 @@ export default defineComponent({
 			context.emit('update:exp', nonReactive(newExp))
 		}
 
-		function onClickEditIcon(e: MouseEvent) {
+		function onClickEditButton(e: MouseEvent) {
 			e.stopPropagation()
-			context.emit('update:editingExp', props.exp)
+			context.emit('update:editingExp', expBody.value)
 		}
 
 		return {
-			items,
+			labelInfo,
 			selected,
+			hovering,
+			editing,
 			onClick,
 			expanded,
 			ui,
 			toggleExpanded,
 			onUpdateChildExp,
-			onClickEditIcon
+			onClickEditButton,
 		}
-	}
+	},
 })
 </script>
 
 <style lang="stylus">
 .ListView
-	padding-left 1rem
+	overflow hidden
+	// padding-left 1rem
 	width 100%
 	user-select none
 
@@ -273,35 +317,54 @@ export default defineComponent({
 
 	&__label
 		position relative
-		padding 0.5rem 1rem 0.4rem 0
+		overflow hidden
+		padding 0.5rem 0.5rem 0.4rem 0.3rem
 		color var(--comment)
 		text-overflow ellipsis
 		white-space nowrap
+
+		&:after
+			position absolute
+			top 0
+			right 0
+			left 0rem
+			height 100%
+			content ''
+			opacity 0
+			transition opacity 0.05s ease
+			pointer-events none
+
+		&:hover
+			&:after
+				opacity 0.15
+
+		&.hidden
+			text-decoration line-through
 
 		&.clickable
 			color var(--foreground)
 			cursor pointer
 
-			&:after
-				position absolute
-				top 0
-				right 0
-				left -0.5rem
-				height 100%
-				background var(--yellow)
-				content ''
-				opacity 0
-				transition opacity 0.05s ease
-				pointer-events none
-
 			&:hover
 				color var(--highlight)
 
-				&:after
-					opacity 0.1
+			&:after
+				border 1px solid var(--highlight)
 
 		&.selected
+			color var(--highlight)
 			font-weight bold
+
+			&:after
+				background var(--highlight)
+				opacity 0.15
+
+		&.hovering
+			color var(--highlight)
+
+			&:after
+				border 1px solid var(--highlight)
+				opacity 0.15
 
 	&__icon
 		display inline-block
@@ -340,11 +403,12 @@ export default defineComponent({
 
 	&__children
 		position relative
+		padding-left 1rem
 
 		&:before
 			position absolute
 			top 0
-			left 0.4rem
+			left 0.8rem
 			width 0
 			height 100%
 			border-left 1px dotted var(--border)

@@ -13,11 +13,17 @@ import {
 	MalError,
 	assocBang,
 	isMap,
-	createList as L
+	createList as L,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
-import {PathType, SegmentType, iterateSegment, Vec2} from '@/path-utils'
+import {
+	PathType,
+	SegmentType,
+	iterateSegment,
+	Vec2,
+	convertToPath2D,
+} from '@/path-utils'
 
 const EPSILON = 1e-5
 
@@ -37,18 +43,24 @@ const UNIT_QUAD_BEZIER = new Bezier([
 	{x: 1, y: 0},
 	{x: 1, y: KAPPA},
 	{x: KAPPA, y: 1},
-	{x: 0, y: 1}
+	{x: 0, y: 1},
 ])
 
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-function createEmptyPath() {
+function createEmptyPath(): PathType {
 	return [K_PATH]
 }
 
 paper.setup(new paper.Size(1, 1))
 
+const PaperPathCaches = new WeakMap<PathType, paper.Path>()
+
 function createPaperPath(path: PathType): paper.Path {
+	if (PaperPathCaches.has(path)) {
+		return PaperPathCaches.get(path) as paper.Path
+	}
+
 	if (path[0].toString().startsWith(K_PATH)) {
 		path = path.slice(1)
 	}
@@ -79,13 +91,25 @@ function createPaperPath(path: PathType): paper.Path {
 		}
 	}
 
+	PaperPathCaches.set(path, paperPath)
 	return paperPath
 }
+
+const canvasContext = (() => {
+	const canvas = document.createElement('canvas')
+	const ctx = canvas.getContext('2d')
+
+	if (!ctx) {
+		throw 'Cannot initialize a canvas context'
+	}
+
+	return ctx
+})()
 
 function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
 	const d = _path ? _path.pathData : ''
 
-	const path: PathType = createEmptyPath() as PathType
+	const path: PathType = createEmptyPath()
 
 	svgpath(d)
 		.abs()
@@ -409,7 +433,7 @@ function pathArc(
 				.slice(1)
 				.map(p => [
 					x + r * (p.x * cos - p.y * sin),
-					y + r * (p.x * sin + p.y * cos)
+					y + r * (p.x * sin + p.y * cos),
 				])
 		)
 	} else {
@@ -427,7 +451,7 @@ function pathArc(
 					.slice(1)
 					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
-						y + r * (p.x * sin + p.y * cos)
+						y + r * (p.x * sin + p.y * cos),
 					])
 			)
 		}
@@ -436,7 +460,7 @@ function pathArc(
 		const qpoints: number[][] = [
 			[r, KAPPA * r],
 			[KAPPA * r, r],
-			[0, r]
+			[0, r],
 		]
 
 		// Add arc by every quadrant
@@ -447,7 +471,7 @@ function pathArc(
 			points.push(
 				...qpoints.map(([px, py]) => [
 					x + px * cos - py * sin,
-					y + px * sin + py * cos
+					y + px * sin + py * cos,
 				])
 			)
 		}
@@ -464,7 +488,7 @@ function pathArc(
 					.slice(1)
 					.map(p => [
 						x + r * (p.x * cos - p.y * sin),
-						y + r * (p.x * sin + p.y * cos)
+						y + r * (p.x * sin + p.y * cos),
 					])
 			)
 		}
@@ -480,7 +504,7 @@ function pathArc(
 		points[0],
 		...partition(3, points.slice(1))
 			.map(pts => [K_C, ...pts])
-			.flat()
+			.flat(),
 	]
 }
 
@@ -495,7 +519,7 @@ function offset(d: number, path: PathType, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...createHashMap(args)
+		...createHashMap(args),
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offset(paperPath, d, options)
@@ -506,7 +530,7 @@ function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...createHashMap(args)
+		...createHashMap(args),
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
@@ -641,7 +665,7 @@ function pathBounds(path: PathType) {
 			size: 12,
 			font: 'Fira Code',
 			align: 'center',
-			baseline: 'middle'
+			baseline: 'middle',
 		}
 
 		if (isMap(options)) {
@@ -674,8 +698,18 @@ function pathBounds(path: PathType) {
 function nearestOffset(pos: number[], malPath: PathType) {
 	const path = createPaperPath(malPath)
 	const location = path.getNearestLocation(new paper.Point(pos[0], pos[1]))
-
 	return location.offset / path.length
+}
+
+function nearestPoint(pos: number[], malPath: PathType) {
+	const path = createPaperPath(malPath)
+	const point = path.getNearestLocation(new paper.Point(pos[0], pos[1])).point
+	return [point.x, point.y]
+}
+
+function insideQ(pos: number[], malPath: PathType) {
+	const path = convertToPath2D(malPath)
+	return canvasContext.isPointInPath(path, pos[0], pos[1])
 }
 
 function intersections(_a: PathType, _b: PathType) {
@@ -701,7 +735,7 @@ function pathVoronoi(
 			K_PATH,
 			...diagram.edges
 				.map(({va, vb}) => [K_M, [va.x, va.y], K_L, [vb.x, vb.y]])
-				.flat()
+				.flat(),
 		]
 	}
 
@@ -748,11 +782,13 @@ const Exports = [
 	// Utility
 	[
 		'path/split-segments',
-		([, ...path]: PathType) => Array.from(iterateSegment(path) as any)
+		([, ...path]: PathType) => Array.from(iterateSegment(path) as any),
 	],
 	['path/bounds', pathBounds],
 	['path/nearest-offset', nearestOffset],
-	['path/intersections', intersections]
+	['path/nearest-point', nearestPoint],
+	['path/inside?', insideQ],
+	['path/intersections', intersections],
 ] as [string, MalVal][]
 
 const Exp = L(

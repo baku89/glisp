@@ -8,7 +8,9 @@
 </div>
 
 - [Demo (Chrome Only)](https://glisp.app)
-- [Documentation (Japanese)](https://glisp.app/docs)
+- Documentation
+  - [🇺🇸 English](https://glisp.app/docs/en)
+  - [🇯🇵 日本語](https://glisp.app/docs)
 
 Glisp, an acronym for **G**raphical **LISP**, is the prototyping project to experiment what if a design tool meets a way of creative coding, and obtain the self-bootstrapping power of LISP.
 This tool looks like the integration of Illustrator and Processing IDE at a glance. And in fact, it adopts both benefits of intuitiveness of direct manipulation on GUI and abstractness of programming language.
@@ -30,7 +32,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
   - [ ] Much more intuitive interface for designers I prototyped [here](http://ui.baku89.com/)
 - [ ] Improve the GUI to allow non-programmers edit the project without seeing any Lisp code
   - [ ] ✨Layer list view
-- [ ] Lisp interpreter optimization/ehnancement
+- [ ] Lisp interpreter optimization/enhancement
   - [ ] 🌶️ Incremental evaluation system to avoid the overhead by re-calculating entire project for each tweak
   - [ ] [Incremental Lisp parser](https://hal.archives-ouvertes.fr/hal-01887230/document)
   - [ ] 🌶️ Enables to refer other node's value by relative path without explicitly defining a symbol, like Houdini's `ch("../transform/tx")` expression
@@ -39,7 +41,7 @@ Developed by [Baku Hashimoto](https://baku89.com)
 - [ ] Timeline features
   - [ ] Video exporter
   - [ ] AE-like layer view and curve editor
-  - [ ] 🍡 [Velocity/accelation based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
+  - [ ] 🍡 [Velocity/acceleration based easing editor](https://www.youtube.com/watch?v=6aBBHjqAc4Y)
 - [ ] Raster image manipulation
   - [ ] Writes custom filters in GLSL ([Interactive Shader Format](https://editor.isf.video/) might be useful)
   - [ ] 🍡 Captures still image from video input (e.g. webcam) to make a stop-motion
@@ -75,13 +77,15 @@ Below are all cool projects I've deeply inspired by.
   - [Auto-Illustrator](http://swai.signwave.co.uk/)
   - [Scriptographer](https://scriptographer.org/) and [Paper.js](http://paperjs.org/) by [Jürg Lehni](http://juerglehni.com/)
 
-Informations by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20) and [Yasuhiro Tsuchiya](http://www.cbc-net.com/dots/yasuhiro_tsuchiya/tsuchiya_02/)
+Information by [Tomoya Matsuura](https://twitter.com/tomoya_nonymous/status/1255647212580646912?s=20) and [Yasuhiro Tsuchiya](http://www.cbc-net.com/dots/yasuhiro_tsuchiya/tsuchiya_02/)
 
 ## Supporters
 
 This projects are supported by these kindful people. I'd be appreciated if you would support me to cups of coffee:)
 
 [Sponsor @baku89 on GitHub Sponsors](https://github.com/sponsors/baku89#sponsors)
+
+And I especially appreciate [Naoto HIEDA](https://naotohieda.com/) for his contribution to examples, suggestions, and English translation.
 
 ## Development
 
@@ -91,9 +95,10 @@ The project adopts Vue-CLI.
 - _Launch server for development_: `yarn serve`
 - _Build_: `yarn build`
 - _Lint_: `yarn lint`
-
-## Supporters
+- _Preview the documentaiton_: `yarn doc:serve`
+- _Launch the electron app for development_: `yarn electron:serve`
+- _Build the Electron app_: `yarn electron:build`
 
 ## LICENSE
 
-This repository is published under an MIT License. See the included [LISENCE file](/LICENSE).
+This repository is published under an MIT License. See the included [LICENSE file](/LICENSE).

@@ -11,7 +11,7 @@ export function replaceRange(
 	return [
 		s.substring(0, start) + substitute + s.substring(end),
 		start,
-		end + (substitute.length - (end - start))
+		end + (substitute.length - (end - start)),
 	]
 }
 

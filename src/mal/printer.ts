@@ -11,9 +11,9 @@ import {
 	MalSymbol,
 	MalType,
 	isSeq,
-	symbolFor as S,
 	MalSeq,
-	M_ISSUGAR
+	M_ISSUGAR,
+	isSymbol,
 } from './types'
 
 export const printer = {
@@ -29,7 +29,7 @@ export const printer = {
 	pseudoExecute: (command: string) => {
 		console.log(command)
 	},
-	clear: console.clear
+	clear: console.clear,
 }
 
 function generateDefaultDelimiters(elementCount: number) {
@@ -40,15 +40,15 @@ function generateDefaultDelimiters(elementCount: number) {
 	}
 }
 
-const SUGAR_INFO = new Map<MalVal, {prefix: string}>([
-	[S('quote'), {prefix: "'"}],
-	[S('ui-annotate'), {prefix: '#@'}],
-	[S('with-meta-sugar'), {prefix: '^'}],
-	[S('fn-sugar'), {prefix: '#'}],
-	[S('quasiquote'), {prefix: '`'}],
-	[S('unquote'), {prefix: '~'}],
-	[S('unquote-splicing'), {prefix: '~@'}],
-	[S('deref'), {prefix: '@'}]
+const SUGAR_INFO = new Map<string, {prefix: string}>([
+	['quote', {prefix: "'"}],
+	['ui-annotate', {prefix: '#@'}],
+	['with-meta-sugar', {prefix: '^'}],
+	['fn-sugar', {prefix: '#'}],
+	['quasiquote', {prefix: '`'}],
+	['unquote', {prefix: '~'}],
+	['unquote-splicing', {prefix: '~@'}],
+	['deref', {prefix: '@'}],
 ])
 
 export default function printExp(exp: MalVal, printReadably = true): string {
@@ -64,13 +64,18 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const coll = exp as MalNode
 
 			const sugarInfo =
-				type === MalType.List && SUGAR_INFO.get((coll as MalSeq)[0])
+				type === MalType.List &&
+				SUGAR_INFO.get(
+					isSymbol((coll as MalSeq)[0])
+						? ((coll as MalSeq)[0] as MalSymbol).value
+						: ''
+				)
 
 			if (sugarInfo /* && !(M_ISSUGAR in coll)*/) {
 				;(coll as MalSeq)[M_ISSUGAR] = true
 				coll[M_ELMSTRS] = [
 					sugarInfo.prefix,
-					...(coll as MalSeq).slice(1).map(e => printExp(e, _r))
+					...(coll as MalSeq).slice(1).map(e => printExp(e, _r)),
 				]
 				coll[M_DELIMITERS] = Array((coll as MalSeq).length + 1).fill('')
 			} else {
@@ -79,7 +84,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 					let elmStrs: string[]
 
 					if (isSeq(coll)) {
-						elmStrs = coll.map(e => printExp(e, _r))
+						elmStrs = Array.from(coll).map(e => printExp(e, _r))
 						if (sugarInfo) {
 							elmStrs[0] = ''
 						}
@@ -133,7 +138,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 		}
 		// Atoms
 		case MalType.Number:
-			return (exp as number).toString()
+			return (exp as number).toString().replace(/(\.[0-9]{4})([0-9]+)$/, '$1')
 		case MalType.String:
 			if (_r) {
 				return (

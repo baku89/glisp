@@ -15,6 +15,7 @@ interface DraggableOptions {
 	onClick?: () => void
 	onDrag?: (drag: DragData) => void
 	onDragStart?: (drag: DragData) => void
+	onDragEnd?: (drag?: DragData) => void
 }
 
 export default function useDraggable(
@@ -28,7 +29,7 @@ export default function useDraggable(
 		deltaY: 0,
 		isDragging: false,
 		prevX: 0,
-		prevY: 0
+		prevY: 0,
 	})
 
 	let originX = 0,
@@ -64,6 +65,10 @@ export default function useDraggable(
 	function onMouseup() {
 		if (!hasDragged && options.onClick) {
 			options.onClick()
+		}
+
+		if (hasDragged && options.onDragEnd) {
+			options.onDragEnd(drag)
 		}
 
 		drag.isDragging = false

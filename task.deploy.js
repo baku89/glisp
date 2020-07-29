@@ -7,10 +7,7 @@ const FtpInfo = require('./ftp.info.js')
 
 const siteURL = 'https://glisp.app'
 
-const gitHash = execSync('git rev-parse HEAD')
-	.toString()
-	.trim()
-	.slice(0, 7)
+const gitHash = execSync('git rev-parse HEAD').toString().trim().slice(0, 7)
 
 async function upload() {
 	// Upload to the subdirectory with git hash
@@ -43,10 +40,10 @@ async function deploy(mode) {
 		// delete ALL existing files at destination before uploading, if true
 		deleteRemote: true,
 		// Passive mode is forced (EPSV command is not sent)
-		forcePasv: true
+		forcePasv: true,
 	}
 
-	ftpDeploy.on('uploading', function(data) {
+	ftpDeploy.on('uploading', function (data) {
 		console.log(`[${urlSuffix}]`, 'Uploading...', data.filename)
 	})
 
@@ -73,7 +70,7 @@ async function deploy(mode) {
 				localRoot,
 				remoteRoot: FtpInfo.remoteRoot,
 				include: ['commits.json'],
-				forcePasv: true
+				forcePasv: true,
 			})
 			console.log('Updated commits.json')
 		} catch (err) {

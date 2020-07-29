@@ -16,15 +16,15 @@ export default defineComponent({
 	props: {
 		value: {
 			type: String,
-			required: true
+			required: true,
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
-			required: false
-		}
+			required: false,
+		},
 	},
 	setup(props, context) {
-		const onInput = (e: InputEvent) => {
+		function onInput(e: InputEvent) {
 			let val: string | null = (e.target as HTMLInputElement).value
 
 			if (props.validator) {
@@ -35,16 +35,17 @@ export default defineComponent({
 			context.emit('input', val)
 		}
 
-		const onBlur = (e: InputEvent) => {
+		function onBlur(e: InputEvent) {
 			const el = e.target as HTMLInputElement
 			el.value = props.value
+			context.emit('end-tweak')
 		}
 
 		return {
 			onInput,
-			onBlur
+			onBlur,
 		}
-	}
+	},
 })
 </script>
 

@@ -3,9 +3,8 @@
 		<Viewer
 			class="PageIndex__viewer"
 			:exp="viewExp"
-			:selectedExp="selectedExp"
-			:guide-color="guideColor"
-			:view-transform="viewTransform"
+			:guideColor="guideColor"
+			:viewTransform="viewTransform"
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
@@ -21,9 +20,10 @@
 					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
-					@select="onSelectExp"
+					:hoveringExp="hoveringExp"
+					@select="setSelectedExp"
 					@update:exp="updateExp"
-					@update:editingExp="switchEditingExp"
+					@update:editingExp="setEditingExp"
 				/>
 			</Pane>
 			<Pane :size="100 - controlPaneSize - listViewPaneSize">
@@ -31,15 +31,17 @@
 					<Inspector
 						:exp="selectedExp"
 						@input="updateSelectedExp"
-						@select="onSelectExp"
+						@select="setSelectedExp"
+						@end-tweak="tagHistory"
 					/>
 				</div>
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
 					:exp="selectedExp"
-					:view-transform.sync="viewHandlesTransform"
+					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
+					@tag-history="tagHistory"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -52,8 +54,7 @@
 							:hasParseError.sync="hasParseError"
 							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
 							@input="updateEditingExp"
-							@inputCode="onInputCode"
-							@select="onSelectExp"
+							@select="setSelectedExp"
 						/>
 					</div>
 					<div class="PageIndex__console">
@@ -69,7 +70,6 @@
 				</div>
 			</Pane>
 		</Splitpanes>
-		<ModalsContainer />
 	</div>
 </template>
 
@@ -87,7 +87,7 @@ import {
 	ref,
 	Ref,
 	onMounted,
-	toRef
+	toRef,
 } from '@vue/composition-api'
 import {useOnResize} from 'vue-composable'
 
@@ -99,29 +99,44 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
 import ListView from '@/components/ListView.vue'
 
-import {printExp, readStr} from '@/mal'
+import {printExp} from '@/mal'
 import {
 	MalVal,
 	MalNode,
 	isNode,
-	expandExp,
-	getOuter,
 	MalAtom,
-	createList,
-	symbolFor
+	createList as L,
+	symbolFor as S,
+	MalError,
+	isKeyword,
+	getName,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
-import {printer} from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
-import {replaceExp} from '@/mal/eval'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useResizeSensor, useHitDetector} from './use'
+import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
+import AppScope from '@/scopes/app'
+import {
+	replaceExp,
+	watchExpOnReplace,
+	unwatchExpOnReplace,
+	generateExpAbsPath,
+	getExpByPath,
+} from '@/mal/utils'
+
+import useAppCommands from './use-app-commands'
+import useURLParser from './use-url-parser'
+import {reconstructTree} from '@/mal/reader'
+import {webviewTag} from 'electron'
+
+type ExpHistory = [NonReactive<MalNode>, Set<string>]
 
 interface Data {
-	exp: NonReactive<MalVal>
+	exp: NonReactive<MalNode>
+	expHistory: ExpHistory[]
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -129,6 +144,9 @@ interface Data {
 	hasRenderError: boolean
 	selectedExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalNode> | null
+	hoveringExp: NonReactive<MalNode> | null
+	selectedPath: string
+	editingPath: string
 }
 
 interface UI {
@@ -140,111 +158,6 @@ interface UI {
 	viewHandlesTransform: mat2d
 	controlPaneSize: number
 	listViewPaneSize: number
-}
-
-function toSketchCode(code: string) {
-	return `(sketch;__\n${code};__\n)`
-}
-
-function parseURL(onLoadExp: (exp: NonReactive<MalVal>) => void) {
-	// URL
-	const url = new URL(location.href)
-
-	if (url.searchParams.has('clear')) {
-		localStorage.removeItem('saved_code')
-		url.searchParams.delete('clear')
-		history.pushState({}, document.title, url.pathname + url.search)
-	}
-
-	// Load initial codes
-	const loadCodePromise = (async () => {
-		let code = ''
-
-		const queryCodeURL = url.searchParams.get('code_url')
-		const queryCode = url.searchParams.get('code')
-
-		if (queryCodeURL) {
-			const codeURL = decodeURI(queryCodeURL)
-			url.searchParams.delete('code_url')
-			url.searchParams.delete('code')
-
-			const res = await fetch(codeURL)
-			if (res.ok) {
-				code = await res.text()
-
-				if (codeURL.startsWith('http')) {
-					code = `;; Loaded from "${codeURL}"\n\n${code}`
-				}
-			} else {
-				printer.error(`Failed to load from "${codeURL}"`)
-			}
-
-			history.pushState({}, document.title, url.pathname + url.search)
-		} else if (queryCode) {
-			code = decodeURI(queryCode)
-			url.searchParams.delete('code')
-			history.pushState({}, document.title, url.pathname + url.search)
-		} else {
-			code =
-				localStorage.getItem('saved_code') ||
-				require('raw-loader!@/default-canvas.glisp').default
-		}
-
-		return code
-	})()
-
-	let onSetupConsole
-	const setupConsolePromise = new Promise(resolve => {
-		onSetupConsole = () => {
-			resolve()
-		}
-	})
-
-	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
-		onLoadExp(nonReactive(readStr(toSketchCode(code as string))))
-	})
-
-	return {onSetupConsole}
-}
-
-function bindsConsole(
-	data: Data,
-	callbacks: {
-		updateSelectedExp: (val: NonReactive<MalVal>) => any
-		updateExp: (exp: NonReactive<MalVal>) => void
-		selectOuterExp: () => void
-	}
-) {
-	ConsoleScope.def('expand-selected', () => {
-		if (data.selectedExp) {
-			const expanded = expandExp(data.selectedExp.value)
-			if (expanded !== undefined) {
-				callbacks.updateSelectedExp(nonReactive(expanded))
-			}
-		}
-		return null
-	})
-
-	ConsoleScope.def('load-file', (url: MalVal) => {
-		fetch(url as string).then(async res => {
-			if (res.ok) {
-				const code = await res.text()
-				const exp = readStr(toSketchCode(code)) as MalNode
-				const nonReactiveExp = nonReactive(exp)
-				callbacks.updateExp(nonReactiveExp)
-				data.selectedExp = null
-				data.editingExp = nonReactiveExp
-			} else {
-				printer.error(`Failed to load from "${url}"`)
-			}
-		})
-		return null
-	})
-
-	ConsoleScope.def('select-outer', () => {
-		callbacks.selectOuterExp()
-		return null
-	})
 }
 
 const OFFSET_START = 11 // length of "(sketch;__\n"
@@ -261,7 +174,7 @@ export default defineComponent({
 		ViewHandles,
 		Splitpanes,
 		ListView,
-		Pane
+		Pane,
 	},
 	setup(_, context) {
 		const elHandles: Ref<any | null> = ref(null)
@@ -280,7 +193,7 @@ export default defineComponent({
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
-					top: 0
+					top: 0,
 				}
 				const left = (ui.listViewPaneSize / 100) * windowWidth.value
 				const xform = mat2d.clone(ui.viewHandlesTransform)
@@ -289,11 +202,12 @@ export default defineComponent({
 				return xform as mat2d
 			}),
 			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
-			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100
+			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100,
 		}) as UI
 
 		const data = reactive({
-			exp: nonReactive(createList(symbolFor('sketch'))),
+			exp: nonReactive(L(S('sketch'))),
+			expHistory: [],
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -305,7 +219,7 @@ export default defineComponent({
 
 				if (data.exp) {
 					ViewScope.setup({
-						guideColor: ui.guideColor
+						guideColor: ui.guideColor,
 					})
 
 					const ret = ViewScope.eval(data.exp.value)
@@ -319,8 +233,21 @@ export default defineComponent({
 				return viewExp
 			}),
 			// Selection
-			selectedExp: null,
-			editingExp: null
+			selectedExp: computed(() =>
+				data.selectedPath
+					? nonReactive(getExpByPath(data.exp.value, data.selectedPath))
+					: null
+			),
+			editingExp: computed(() =>
+				data.editingPath
+					? nonReactive(getExpByPath(data.exp.value, data.editingPath))
+					: null
+			),
+			hoveringExp: null,
+
+			// Paths
+			selectedPath: '',
+			editingPath: '',
 		}) as Data
 
 		// Centerize the origin of viewport on mounted
@@ -335,22 +262,16 @@ export default defineComponent({
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
-				(top + bottom) / 2
+				(top + bottom) / 2,
 			])
 
 			ui.viewHandlesTransform = xform
 		})
 
-		function updateExp(exp: NonReactive<MalVal>) {
-			if (data.exp.value === data.editingExp?.value) {
-				data.editingExp = exp as NonReactive<MalNode>
-			}
-			data.exp = exp
-		}
-
-		const {onSetupConsole} = parseURL((exp: NonReactive<MalVal>) => {
-			updateExp(exp)
-			data.editingExp = exp as NonReactive<MalNode>
+		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
+			updateExp(exp, false)
+			data.expHistory = [[exp, new Set(['undo'])]]
+			setEditingExp(exp)
 		})
 
 		// Apply the theme
@@ -365,68 +286,65 @@ export default defineComponent({
 		)
 
 		// Events
-		function onSelectExp(exp: NonReactive<MalNode> | null) {
-			data.selectedExp = exp
+
+		// Exp
+		function updateExp(exp: NonReactive<MalNode>, tagHistory = true) {
+			unwatchExpOnReplace(data.exp.value, onReplaced)
+			if (tagHistory) {
+				data.expHistory.push([exp, new Set()])
+			}
+			data.exp = exp
+			watchExpOnReplace(exp.value, onReplaced)
+
+			function onReplaced(newExp: MalVal) {
+				if (!isNode(newExp)) {
+					throw new Error('data.exp cannot be non-node value')
+				}
+				updateExp(nonReactive(newExp))
+			}
+		}
+
+		// SelectedExp
+		function setSelectedExp(exp: NonReactive<MalNode> | null) {
+			if (exp) {
+				data.selectedPath = generateExpAbsPath(exp.value)
+			} else {
+				data.selectedPath = ''
+			}
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
-			if (!data.exp || !data.selectedExp) {
+			if (!data.selectedExp) {
 				return
 			}
-
 			replaceExp(data.selectedExp.value, exp.value)
+		}
 
-			// Refresh
-			updateExp(nonReactive(data.exp.value))
-
-			if (isNode(exp.value)) {
-				data.selectedExp = exp as NonReactive<MalNode>
+		// Editing
+		function setEditingExp(exp: NonReactive<MalNode>) {
+			if (exp) {
+				data.editingPath = generateExpAbsPath(exp.value)
 			} else {
-				data.selectedExp = null
+				data.editingPath = ''
 			}
 		}
 
 		function updateEditingExp(exp: NonReactive<MalVal>) {
-			if (!data.exp || !data.editingExp) {
-				return
-			}
-
-			if (data.editingExp.value === data.exp.value) {
-				updateExp(exp)
-			} else {
-				replaceExp(data.editingExp.value, exp.value)
-				updateExp(nonReactive(data.exp.value))
-			}
-
-			if (isNode(exp.value)) {
-				data.editingExp = exp as NonReactive<MalNode>
-			} else {
-				data.editingExp = null
-			}
+			if (!data.editingExp) return
+			replaceExp(data.editingExp.value, exp.value)
 		}
 
-		function selectOuterExp() {
-			const outer = getOuter(data.selectedExp?.value)
-			if (outer && outer !== data.exp?.value) {
-				data.selectedExp = nonReactive(outer)
-			}
+		// Hovering
+		function setHoveringExp(exp: NonReactive<MalNode> | null) {
+			data.hoveringExp = exp
 		}
 
-		// Save code
-		function onInputCode(code: string) {
-			// localStorage.setItem('saved_code', code)
-			// ConsoleScope.def('*sketch*', code)
-		}
-
+		// Others
 		function onResizeSplitpanes(
 			sizes: {min: number; max: number; size: number}[]
 		) {
 			ui.listViewPaneSize = sizes[0].size
 			ui.controlPaneSize = sizes[2].size
-		}
-
-		function switchEditingExp(exp: NonReactive<MalNode>) {
-			data.editingExp = exp
 		}
 
 		watch(
@@ -456,22 +374,95 @@ export default defineComponent({
 			}
 		)
 
+		// transform selectedExp
+		function onTransformSelectedExp(xform: mat2d) {
+			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
+		}
+
 		// HitDetector
 		useHitDetector(
 			elHandles,
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
-			onSelectExp
+			setSelectedExp,
+			setHoveringExp,
+			onTransformSelectedExp,
+			tagHistory
 		)
 
-		// Init App Handler
-		bindsConsole(data, {
-			updateSelectedExp,
-			updateExp,
-			selectOuterExp
+		// History
+		function undoExp(tag?: string) {
+			let index = -1
+			if (tag) {
+				for (let i = data.expHistory.length - 2; i >= 0; i--) {
+					if (data.expHistory[i][1].has(tag)) {
+						index = i
+						break
+					}
+				}
+			} else {
+				if (data.expHistory.length > 2) {
+					index = data.expHistory.length - 2
+				}
+			}
+
+			if (index === -1) {
+				return false
+			}
+
+			const [prev] = data.expHistory[index]
+			data.expHistory.length = index + 1
+			reconstructTree(prev.value)
+			updateExp(prev, false)
+
+			return true
+		}
+
+		AppScope.def('revert-history', (arg: MalVal) => {
+			if (typeof arg !== 'string') {
+				return undoExp()
+			} else {
+				const tag = getName(arg)
+				return undoExp(tag)
+			}
 		})
 
+		function tagHistory(tag = 'undo') {
+			if (data.expHistory.length > 0) {
+				data.expHistory[data.expHistory.length - 1][1].add(tag)
+			}
+		}
+
+		AppScope.def('tag-history', (tag: MalVal) => {
+			if (!(typeof tag === 'string' || isKeyword(tag))) {
+				throw new MalError('tag is not a string')
+			}
+			tagHistory(getName(tag))
+			return true
+		})
+
+		// Setup scopes
+		useAppCommands(data, {
+			updateExp,
+			setSelectedExp,
+			updateSelectedExp,
+		})
 		useCommandDialog(context)
+
+		// After setup, execute the app configuration code
+		AppScope.readEval(`(do
+			(register-keybind "mod+e" '(expand-selected))
+			(register-keybind "mod+p" '(select-outer))
+			(register-keybind "mod+g" '(group-selected))
+			(register-keybind "up" '(transform-selected (translate [0 -1])))
+			(register-keybind "down" '(transform-selected (translate [0 1])))
+			(register-keybind "right" '(transform-selected (translate [1 0])))
+			(register-keybind "left" '(transform-selected (translate [-1 0])))
+			(register-keybind "mod+z" '(revert-history :undo))
+			(register-keybind "mod+alt+z" '(revert-history))
+			(register-keybind "mod+s" '(download-sketch))
+			)
+		)`)
 
 		return {
 			elHandles,
@@ -479,23 +470,21 @@ export default defineComponent({
 			onSetupConsole,
 			updateSelectedExp,
 			updateEditingExp,
-			switchEditingExp,
-
+			setEditingExp,
 			...toRefs(ui as any),
 			updateExp,
-			onSelectExp,
-			onInputCode,
+			setSelectedExp,
 			onResizeSplitpanes,
-			selectOuterExp
+			tagHistory,
 		}
-	}
+	},
 })
 </script>
 
 <style lang="stylus">
-@import 'style/common.styl'
-@import 'style/global.styl'
-@import 'style/vmodal.styl'
+@import '../style/common.styl'
+@import '../style/global.styl'
+@import '../style/vmodal.styl'
 
 $compact-dur = 0.4s
 

@@ -1,4 +1,9 @@
+import CubicBezier from './cubic-bezier.vue'
+import Deftime from './deftime.vue'
+import Style from './style.vue'
+
 export default {
-	'cubic-bezier': require('./cubic-bezier').default,
-	deftime: require('./deftime').default
+	'Inspector-cubic-bezier': CubicBezier,
+	'Inspector-deftime': Deftime,
+	'Inspector-style': Style,
 }

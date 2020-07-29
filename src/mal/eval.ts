@@ -2,7 +2,6 @@
 
 import {
 	MalVal,
-	MalFunc,
 	createMalFunc,
 	isMalFunc,
 	MalFuncThis,
@@ -11,7 +10,6 @@ import {
 	isSymbol,
 	M_ISMACRO,
 	M_EVAL,
-	M_FN,
 	isMap,
 	MalMap,
 	isList,
@@ -19,21 +17,18 @@ import {
 	MalNode,
 	isNode,
 	MalSeq,
-	M_OUTER,
-	M_OUTER_INDEX,
-	M_ELMSTRS,
-	M_KEYS,
-	M_EVAL_PARAMS,
 	M_PARAMS,
 	MalBind,
 	isSeq,
 	isVector,
 	setExpandInfo,
 	ExpandType,
-	getType
+	getType,
+	isSymbolFor,
+	M_AST,
+	M_ENV,
 } from './types'
 import Env from './env'
-import {saveOuter} from './reader'
 import {printExp} from '.'
 import {capital} from 'case'
 
@@ -50,19 +45,12 @@ const S_FN_SUGAR = S('fn-sugar')
 const S_MACRO = S('macro')
 const S_MACROEXPAND = S('macroexpand')
 const S_QUOTE = S('quote')
-const S_UNQUOTE = S('unquote')
 const S_QUASIQUOTE = S('quasiquote')
-const S_SPLICE_UNQUOTE = S('splice-unquote')
 const S_TRY = S('try')
 const S_CATCH = S('catch')
 const S_CONCAT = S('concat')
-const S_ENV_CHAIN = S('env-chain')
 const S_EVAL_IN_ENV = S('eval*')
-const S_VAR = S('var')
 const S_LST = S('lst')
-const S_UI_ANNOTATE = S('ui-annotate')
-
-// eval
 
 function quasiquote(exp: MalVal): MalVal {
 	if (isMap(exp)) {
@@ -77,14 +65,14 @@ function quasiquote(exp: MalVal): MalVal {
 		return L(S_QUOTE, exp)
 	}
 
-	if (exp[0] === S_UNQUOTE) {
+	if (isSymbolFor(exp[0], 'unquote')) {
 		return exp[1]
 	}
 
 	let ret = L(
 		S_CONCAT,
 		...exp.map(e => {
-			if (isPair(e) && e[0] === S_SPLICE_UNQUOTE) {
+			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
 				return [quasiquote(e)]
@@ -107,13 +95,8 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
 		}
-		;(exp as MalSeq)[M_FN] = fn
-
-		const params = exp.slice(1)
-		if (cache) {
-			;(exp as MalSeq)[M_EVAL_PARAMS] = params
-		}
-		exp = fn.bind({callerEnv: Env})(...params)
+		exp[0].evaluated = fn
+		exp = fn.apply({callerEnv: env}, exp.slice(1))
 	}
 
 	if (cache && exp !== _exp && isList(_exp)) {
@@ -123,7 +106,12 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 	return exp
 }
 
-function evalAtom(exp: MalVal, env: Env, cache: boolean) {
+function evalAtom(
+	this: void | MalFuncThis,
+	exp: MalVal,
+	env: Env,
+	cache: boolean
+) {
 	if (isSymbol(exp)) {
 		const ret = env.get(exp)
 		if (cache) {
@@ -136,8 +124,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 		return ret
 	} else if (Array.isArray(exp)) {
 		const ret = exp.map(x => {
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			const ret = evalExp(x, env, cache)
+			const ret = evalExp.call(this, x, env, cache)
 			if (cache && isNode(x)) {
 				x[M_EVAL] = ret
 			}
@@ -150,8 +137,7 @@ function evalAtom(exp: MalVal, env: Env, cache: boolean) {
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
-			const ret = evalExp(exp[k], env, cache)
+			const ret = evalExp.call(this, exp[k], env, cache)
 			if (cache && isNode(exp[k])) {
 				;(exp[k] as MalNode)[M_EVAL] = ret
 			}
@@ -174,62 +160,74 @@ export default function evalExp(
 ): MalVal {
 	const origExp: MalSeq = exp as MalSeq
 
+	if (isList(exp) && isSymbolFor(exp[0], 'circumcircle')) {
+		console.log('start')
+	}
+
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
-			return evalAtom(exp, env, cache)
+			return evalAtom.call(this, exp, env, cache)
 		}
 
 		// Expand macro
 		exp = macroexpand(exp, env, cache)
 
 		if (!isList(exp)) {
-			return evalAtom(exp, env, cache)
+			return evalAtom.call(this, exp, env, cache)
 		}
 
 		if (exp.length === 0) {
-			throw new MalError('Invalid empty list')
+			return null
 		}
 
 		// Apply list
 		const [first] = exp
 
-		switch (first) {
-			case S_DEF: {
+		if (!isSymbol(first)) {
+			throw new MalError(
+				`${capital(getType(first))} ${printExp(
+					first
+				)} is not a function. First element of list always should be a function.`
+			)
+		}
+
+		switch (first.value) {
+			case 'def': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DEF) as MalFunc
+					first.evaluated = env.get(S_DEF)
 				}
 				const [, sym, form] = exp
 				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const ret = env.set(sym, evalExp(form, env, cache))
+				const ret = env.set(sym, evalExp.call(this, form, env, cache))
 				if (cache) {
 					setExpandInfo(exp, {
-						type: ExpandType.Unchange
+						type: ExpandType.Unchange,
 					})
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_DEFVAR: {
+			case 'defvar': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DEFVAR) as MalFunc
+					first.evaluated = env.get(S_DEFVAR)
 				}
 				const [, sym, form] = exp
 				if (!isSymbol(sym) || form === undefined) {
 					throw new MalError('Invalid form of defvar')
 				}
-				const ret = evalExp(form, env, cache)
+				const ret = evalExp.call(this, form, env, cache)
 				env.set(sym, ret, exp)
 				if (cache) {
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_LET: {
+			case 'let': {
 				if (cache) {
-					exp[M_FN] = env.get(S_LET) as MalFunc
+					first.evaluated = env.get(S_LET)
 				}
 				const letEnv = new Env(env)
 				const [, binds, ...body] = exp
@@ -239,7 +237,7 @@ export default function evalExp(
 				for (let i = 0; i < binds.length; i += 2) {
 					letEnv.bindAll(
 						binds[i] as any,
-						evalExp(binds[i + 1], letEnv, cache) as MalVal[]
+						evalExp.call(this, binds[i + 1], letEnv, cache) as MalVal[]
 					)
 				}
 				env = letEnv
@@ -248,17 +246,17 @@ export default function evalExp(
 					setExpandInfo(exp, {
 						type: ExpandType.Env,
 						exp: ret,
-						env: letEnv
+						env: letEnv,
 					})
 				}
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_BINDING: {
+			case 'binding': {
 				if (cache) {
-					exp[M_FN] = env.get(S_BINDING) as MalFunc
+					first.evaluated = env.get(S_BINDING)
 				}
-				const bindingEnv = new Env()
+				const bindingEnv = new Env(undefined, undefined, undefined, 'binding')
 				const [, binds, ..._body] = exp
 				if (!isSeq(binds)) {
 					throw new MalError('Invalid bind-expr in binding')
@@ -266,14 +264,14 @@ export default function evalExp(
 				for (let i = 0; i < binds.length; i += 2) {
 					bindingEnv.bindAll(
 						binds[i] as any,
-						evalExp(binds[i + 1], env, cache) as MalVal[]
+						evalExp.call(this, binds[i + 1], env, cache) as MalVal[]
 					)
 				}
 				env.pushBinding(bindingEnv)
 				const body = _body.length === 1 ? _body[0] : L(S_DO, ..._body)
 				let ret
 				try {
-					ret = evalExp(body, env, cache)
+					ret = evalExp.call(this, body, env, cache)
 				} finally {
 					env.popBinding()
 				}
@@ -282,50 +280,53 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_GET_ALL_SYMBOLS: {
+			case 'get-all-symbols': {
 				const ret = env.getAllSymbols()
 				if (cache) {
-					exp[M_FN] = env.get(S_GET_ALL_SYMBOLS) as MalFunc
+					first.evaluated = env.get(S_GET_ALL_SYMBOLS)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_FN_PARAMS: {
+			case 'fn-params': {
 				if (cache) {
-					exp[M_FN] = env.get(S_FN_PARAMS) as MalFunc
+					first.evaluated = env.get(S_FN_PARAMS)
 				}
-				const fn = evalExp(exp[1], env, cache)
+				const fn = evalExp.call(this, exp[1], env, cache)
 				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : null
 				if (cache) {
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_EVAL_IN_ENV: {
+			case 'eval*': {
 				if (cache) {
-					exp[M_FN] = env.get(S_EVAL_IN_ENV) as MalFunc
+					first.evaluated = env.get(S_EVAL_IN_ENV)
 				}
-				const expanded = evalExp(exp[1], env, cache)
-				exp = evalExp(expanded, this ? this.callerEnv : env, cache)
+				// if (!this) {
+				// 	throw new MalError('Cannot find the caller env')
+				// }
+				const expanded = evalExp.call(this, exp[1], env, cache)
+				exp = evalExp.call(this, expanded, this ? this.callerEnv : env, cache)
 				break // continue TCO loop
 			}
-			case S_QUOTE: {
+			case 'quote': {
 				const ret = exp[1]
 				if (cache) {
-					exp[M_FN] = env.get(S_QUOTE) as MalFunc
+					first.evaluated = env.get(S_QUOTE)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_QUASIQUOTE: {
+			case 'quasiquote': {
 				if (cache) {
-					exp[M_FN] = env.get(S_QUASIQUOTE) as MalFunc
+					first.evaluated = env.get(S_QUASIQUOTE)
 				}
 				const ret = quasiquote(exp[1])
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_FN: {
+			case 'fn': {
 				const [, , body] = exp
 				let [, params] = exp
 				if (isMap(params)) {
@@ -338,25 +339,33 @@ export default function evalExp(
 					throw new MalError('Second argument of fn should be specified')
 				}
 				const ret = createMalFunc(
-					(...args) =>
-						evalExp(body, new Env(env, params as any[], args), cache),
+					function (...args) {
+						return evalExp.call(
+							this,
+							body,
+							new Env(env, params as any[], args),
+							cache
+						)
+					},
 					body,
 					env,
 					params as MalBind
 				)
 				if (cache) {
-					exp[M_FN] = env.get(S_FN) as MalFunc
+					first.evaluated = env.get(S_FN)
 					origExp[M_EVAL] = ret
 				}
 				return ret
 			}
-			case S_FN_SUGAR: {
+			case 'fn-sugar': {
 				if (cache) {
-					exp[M_FN] = env.get(S_FN_SUGAR) as MalFunc
+					first.evaluated = env.get(S_FN_SUGAR)
 				}
 				const body = exp[1]
 				const ret = createMalFunc(
-					(...args) => evalExp(body, new Env(env, [], args), cache),
+					function (...args) {
+						return evalExp.call(this, body, new Env(env, [], args), cache)
+					},
 					body,
 					env,
 					[]
@@ -366,9 +375,9 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_MACRO: {
+			case 'macro': {
 				if (cache) {
-					exp[M_FN] = env.get(S_MACRO) as MalFunc
+					first.evaluated = env.get(S_MACRO)
 				}
 				const [, , body] = exp
 				let [, params] = exp
@@ -382,12 +391,14 @@ export default function evalExp(
 					throw new MalError('Second argument of macro should be specified')
 				}
 				const ret = createMalFunc(
-					(...args) =>
-						evalExp.bind(this)(
+					function (...args) {
+						return evalExp.call(
+							this,
 							body,
 							new Env(env, params as any[], args),
 							cache
-						),
+						)
+					},
 					body,
 					env,
 					params as MalBind
@@ -398,9 +409,9 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_MACROEXPAND: {
+			case 'macroexpand': {
 				if (cache) {
-					exp[M_FN] = env.get(S_MACROEXPAND) as MalFunc
+					first.evaluated = env.get(S_MACROEXPAND)
 				}
 				const ret = macroexpand(exp[1], env, cache)
 				if (cache) {
@@ -408,13 +419,13 @@ export default function evalExp(
 				}
 				return ret
 			}
-			case S_TRY: {
+			case 'try': {
 				if (cache) {
-					exp[M_FN] = env.get(S_TRY) as MalFunc
+					first.evaluated = env.get(S_TRY)
 				}
 				const [, testExp, catchExp] = exp
 				try {
-					const ret = evalExp(testExp, env, cache)
+					const ret = evalExp.call(this, testExp, env, cache)
 					if (cache) {
 						origExp[M_EVAL] = ret
 					}
@@ -423,17 +434,22 @@ export default function evalExp(
 					let err = exc
 					if (
 						isList(catchExp) &&
-						catchExp[0] === S_CATCH &&
+						isSymbolFor(catchExp[0], 'catch') &&
 						isSymbol(catchExp[1])
 					) {
 						if (cache) {
-							catchExp[M_FN] = env.get(S_CATCH) as MalFunc
+							first.evaluated = env.get(S_CATCH)
 						}
 						if (exc instanceof Error) {
 							err = exc.message
 						}
 						const [, errSym, errBody] = catchExp
-						const ret = evalExp(errBody, new Env(env, [errSym], [err]), cache)
+						const ret = evalExp.call(
+							this,
+							errBody,
+							new Env(env, [errSym], [err]),
+							cache
+						)
 						if (cache) {
 							origExp[M_EVAL] = ret
 						}
@@ -443,131 +459,55 @@ export default function evalExp(
 					}
 				}
 			}
-			case S_DO: {
+			case 'do': {
 				if (cache) {
-					exp[M_FN] = env.get(S_DO) as MalFunc
+					first.evaluated = env.get(S_DO)
 				}
 				if (exp.length === 1) {
 					return null
 				}
-				evalAtom(exp.slice(1, -1), env, cache)
+				evalExp.call(this, exp.slice(1, -1), env, cache)
 				const ret = exp[exp.length - 1]
 				exp = ret
 				break // continue TCO loop
 			}
-			case S_IF: {
+			case 'if': {
 				if (cache) {
-					exp[M_FN] = env.get(S_IF) as MalFunc
+					first.evaluated = env.get(S_IF)
 				}
 				const [, _test, thenExp, elseExp] = exp
-				const test = evalExp(_test, env, cache)
+				const test = evalExp.call(this, _test, env, cache)
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
 				exp = ret
 				break // continue TCO loop
 			}
-			// case S_ENV_CHAIN: {
-			// 	if (cache) {
-			// 		exp[M_FN] = env.get(S_ENV_CHAIN) as MalFunc
-			// 	}
-			// 	const envs = env.getChain()
-			// 	exp = L(S('println'), envs.map(e => e.name).join(' <- '))
-			// 	break // continue TCO loop
-			// }
-			// case 'which-env': {
-			// 	let _env: Env | null = env
-			// 	const envs = []
-
-			// 	do {
-			// 		envs.push(_env)
-			// 		_env = _env.outer
-			// 	} while (_env)
-
-			// 	exp = [
-			// 		S('println'),
-			// 		envs
-			// 			.filter(e => e.hasOwn(a1 as MalSymbol))
-			// 			.map(e => e.name)
-			// 			.join(' <- ') || 'not defined'
-			// 	]
-			// 	break
-			// }
 			default: {
 				// is a function call
 
 				// Evaluate all of parameters at first
-				const [fn, ...params] = evalAtom(exp, env, cache) as MalVal[]
+				const [fn, ...params] = exp.map(e => evalExp.call(this, e, env, cache))
 
 				if (fn instanceof Function) {
 					if (cache) {
-						exp[M_EVAL_PARAMS] = params
-						exp[M_FN] = fn
+						first.evaluated = fn
 					}
 
-					const ret = fn(...params)
-
-					if (cache) {
-						origExp[M_EVAL] = ret
+					if (isMalFunc(fn)) {
+						env = new Env(fn[M_ENV], fn[M_PARAMS], params, first.value)
+						exp = fn[M_AST]
+						// continue TCO loop
+						break
+					} else {
+						const ret = fn.apply({callerEnv: env}, params)
+						if (cache) {
+							origExp[M_EVAL] = ret
+						}
+						return ret
 					}
-
-					return ret
-				} else {
-					const type = capital(getType(fn))
-					throw new MalError(
-						`${type} ${printExp(
-							fn
-						)} is not a function. First element of list always should be a function.`
-					)
 				}
 			}
 		}
 	}
 
 	throw new Error('Exceed the maximum TCO stacks')
-}
-
-// Cached Tree-shaking
-export function replaceExp(original: MalNode, replaced: MalVal) {
-	const outer = original[M_OUTER]
-	const index = original[M_OUTER_INDEX]
-
-	if (index === undefined || !isNode(outer)) {
-		throw new MalError('Cannot execute replaceExp')
-	}
-
-	// // Inherit delimiters if possible
-	// if (isNode(original) && original[M_DELIMITERS] && isNode(replaced)) {
-	// 	replaced[M_DELIMITERS] = []
-	// 	console.log('sdfd', original, replaced)
-	// 	if (isList(original) && isList(replaced)) {
-	// 		for (let i = 0; i < replaced.length; i++) {
-	// 			const oi = Math.min(i, original.length - 2)
-	// 			replaced.push(original[M_DELIMITERS][oi])
-	// 		}
-	// 		replaced.push(original[M_DELIMITERS][original.length - 1])
-	// 	}
-	// }
-
-	// Set as child
-	if (isSeq(outer)) {
-		outer[index] = replaced
-	} else {
-		// hash map
-		const key = outer[M_KEYS][index]
-		outer[key] = replaced
-	}
-
-	delete outer[M_ELMSTRS]
-
-	// Set outer recursively
-	saveOuter(replaced, outer, index)
-
-	// Refresh M_ELMSTRS of ancestors
-	let _outer = outer
-
-	while (_outer) {
-		delete _outer[M_ELMSTRS]
-
-		// Go upward
-		_outer = _outer[M_OUTER]
-	}
 }

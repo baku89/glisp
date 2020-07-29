@@ -16,7 +16,7 @@ import {
 	computed,
 	ref,
 	SetupContext,
-	Ref
+	Ref,
 } from '@vue/composition-api'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
@@ -31,7 +31,7 @@ import {
 	M_DELIMITERS,
 	M_ELMSTRS,
 	getType,
-	MalType
+	MalType,
 } from '@/mal/types'
 
 import Editor from './Editor'
@@ -39,7 +39,7 @@ import Editor from './Editor'
 const EditMode = {
 	Node: 'node',
 	Elements: 'elements',
-	Params: 'params'
+	Params: 'params',
 } as const
 type EditMode = typeof EditMode[keyof typeof EditMode]
 
@@ -55,23 +55,23 @@ const RE_EDITOR_DELIMITER = /;__\n/g
 
 export default defineComponent({
 	components: {
-		Editor
+		Editor,
 	},
 	props: {
 		exp: {
-			required: true
+			required: true,
 		},
 		selectedExp: {
-			required: true
+			required: true,
 		},
 		cssStyle: {
 			type: String,
-			default: ''
+			default: '',
 		},
 		editMode: {
 			type: String,
-			default: EditMode.Params
-		}
+			default: EditMode.Params,
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
@@ -157,7 +157,7 @@ export default defineComponent({
 					const [start, end] = ret
 					return [
 						start - preText.value.length - endsDelimiter.value.length,
-						end - preText.value.length - endsDelimiter.value.length
+						end - preText.value.length - endsDelimiter.value.length,
 					]
 				}
 			}
@@ -233,8 +233,8 @@ export default defineComponent({
 			selection,
 			activeRange,
 			onInput,
-			onSelect
+			onSelect,
 		}
-	}
+	},
 })
 </script>

@@ -21,8 +21,9 @@
 		<component
 			:is="inspectorName"
 			:exp="exp"
-			@input="$emit('input', $event)"
+			@input="onInput"
 			@select="$emit('select', $event)"
+			@end-tweak="$emit('end-tweak')"
 		/>
 	</div>
 </template>
@@ -39,17 +40,15 @@ import {
 	MalSymbol,
 	isNode,
 	getOuter,
-	symbolFor as S
+	isSymbolFor,
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo} from '@/mal/utils'
+import {getFnInfo, copyDelimiters} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
-
-const S_UI_ANNOTATE = S('ui-annotate')
 
 interface Props {
 	exp: NonReactive<MalNode>
@@ -60,13 +59,13 @@ export default defineComponent({
 	components: {
 		VueMarkdown,
 		ParamControl,
-		...Inspectors
+		...Inspectors,
 	},
 	props: {
 		exp: {
 			required: true,
-			validator: p => p instanceof NonReactive && isNode(p.value)
-		}
+			validator: p => p instanceof NonReactive && isNode(p.value),
+		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const fnInfo = computed(() => {
@@ -95,7 +94,7 @@ export default defineComponent({
 
 		const outer = computed(() => {
 			let outer = getOuter(props.exp.value)
-			if (isList(outer) && outer[0] === S_UI_ANNOTATE) {
+			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
 				outer = getOuter(outer)
 			}
 
@@ -106,11 +105,17 @@ export default defineComponent({
 		})
 
 		const inspectorName = computed(() => {
-			return fnName.value in Inspectors ? fnName.value : 'ParamControl'
+			const customInspector = `Inspector-${fnName.value}`
+			return customInspector in Inspectors ? customInspector : 'ParamControl'
 		})
 
 		function onSelectOuter() {
 			context.emit('select', nonReactive(outer.value))
+		}
+
+		function onInput(newExp: NonReactive<MalVal>) {
+			copyDelimiters(newExp.value, props.exp.value)
+			context.emit('input', newExp)
 		}
 
 		return {
@@ -119,9 +124,10 @@ export default defineComponent({
 			fnDoc,
 			inspectorName,
 			outer,
-			onSelectOuter
+			onSelectOuter,
+			onInput,
 		}
-	}
+	},
 })
 </script>
 

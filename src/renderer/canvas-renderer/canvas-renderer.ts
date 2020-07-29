@@ -66,7 +66,7 @@ export default class CanvasRenderer {
 					[K('stroke')]: true,
 					[K('stroke-color')]: settings.guideColor,
 					[K('stroke-width')]: 1,
-					[K('stroke-dash')]: [2, 4]
+					[K('stroke-dash')]: [2, 4],
 			  }
 			: null
 

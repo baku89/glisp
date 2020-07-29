@@ -1,5 +1,5 @@
 <template>
-	<div class="Editor">
+	<div class="Editor" ref="rootEl">
 		<div class="Editor__editor" ref="editorEl" :style="cssStyle" />
 	</div>
 </template>
@@ -13,17 +13,12 @@ import {
 	onBeforeUnmount,
 	watch,
 	SetupContext,
-	PropType
+	PropType,
 } from '@vue/composition-api'
 import ace from 'brace'
 
-import {
-	getEditorSelection,
-	convertToAceRange,
-	setupWheelUpdators,
-	configureEditor
-} from './use'
-import ConsoleScope from '../../scopes/console'
+import {setupEditor} from './setup'
+import {getEditorSelection, convertToAceRange} from './utils'
 
 interface Props {
 	value: string
@@ -31,38 +26,16 @@ interface Props {
 	activeRange?: number[]
 }
 
-function assignKeybinds(editor: ace.Editor) {
-	editor.commands.addCommand({
-		name: 'select-outer',
-		bindKey: {win: 'Ctrl-p', mac: 'Command-p'},
-		exec: () => {
-			ConsoleScope.readEval('(select-outer)')
-		}
-	})
-
-	editor.commands.addCommand({
-		name: 'expand-selected',
-		bindKey: {win: 'Ctrl-e', mac: 'Command-e'},
-		exec: () => {
-			ConsoleScope.readEval('(expand-selected)')
-		}
-	})
-}
-
-function setupBraceEditor(
-	props: Props,
-	context: SetupContext,
-	editorEl: Ref<HTMLElement | null>
-) {
+function useBraceEditor(props: Props, context: SetupContext) {
+	const editorEl: Ref<HTMLElement | null> = ref(null)
 	let editor: ace.Editor
 
 	onMounted(() => {
 		if (!editorEl.value) return
 
 		editor = ace.edit(editorEl.value)
-		editor.setValue(props.value, -1)
 
-		// Watch props
+		// Update activeRange
 		let activeRangeMarker: number
 		watch(
 			() => props.activeRange,
@@ -87,6 +60,7 @@ function setupBraceEditor(
 			}
 		)
 
+		// Update selection
 		watch(
 			() => props.selection,
 			selection => {
@@ -98,33 +72,37 @@ function setupBraceEditor(
 				const [oldStart, oldEnd] = getEditorSelection(editor)
 
 				if (start !== oldStart || end !== oldEnd) {
+					setBySelf = true
 					const range = convertToAceRange(editor, start, end)
 					editor.selection.setRange(range, false)
+					setBySelf = false
 				}
 			}
 		)
 
-		// Watch value
+		let setBySelf = false
+
 		function onChange() {
+			if (setBySelf) return
 			const value = editor.getValue()
 			context.emit('input', value)
 		}
 
-		function onSelect() {
+		function onChangeSelection() {
+			if (setBySelf) return
 			const selection = getEditorSelection(editor)
 			context.emit('update:selection', selection)
 		}
 
 		editor.on('change', onChange)
-		editor.on('changeSelection', onSelect)
+		editor.on('changeSelection', onChangeSelection)
 
+		// Watch the value and update the editor
 		watch(
 			() => props.value,
 			newValue => {
 				if (editor.getValue() !== newValue) {
-					editor.off('change', onChange)
-					editor.off('changeSelection', onSelect)
-
+					setBySelf = true
 					editor.setValue(newValue, -1)
 					if (props.selection) {
 						const range = convertToAceRange(
@@ -134,50 +112,47 @@ function setupBraceEditor(
 						)
 						editor.selection.setRange(range, false)
 					}
-
-					editor.on('change', onChange)
-					editor.on('changeSelection', onSelect)
+					setBySelf = false
 				}
-			}
+			},
+			{immediate: true}
 		)
 
 		// Enable individual features
-		configureEditor(editor)
-		setupWheelUpdators(editor)
-		assignKeybinds(editor)
+		setupEditor(editor)
 	})
 
 	onBeforeUnmount(() => {
 		editor.destroy()
 		editor.container.remove()
 	})
+
+	return {editorEl}
 }
+
 export default defineComponent({
 	props: {
 		value: {
 			type: String,
-			required: true
+			required: true,
 		},
 		selection: {
 			type: Array as PropType<number[]>,
-			required: false
+			required: false,
 		},
 		activeRange: {
 			type: Array as PropType<number[]>,
-			required: false
+			required: false,
 		},
 		cssStyle: {
 			type: String,
-			default: ''
-		}
+			default: '',
+		},
 	},
 	setup(props, context) {
-		const editorEl: Ref<HTMLElement | null> = ref(null)
-
-		setupBraceEditor(props, context, editorEl)
-
+		const {editorEl} = useBraceEditor(props, context)
 		return {editorEl}
-	}
+	},
 })
 </script>
 

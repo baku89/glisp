@@ -20,10 +20,9 @@ import {
 	getName,
 	createList as L,
 	MalSeq,
-	isSymbol
+	isSymbol,
 } from './types'
 import printExp from './printer'
-import {ReadStream} from 'fs'
 
 const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
@@ -543,29 +542,6 @@ export function reconstructTree(exp: MalVal) {
 	}
 }
 
-export function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
-	if (isNode(exp) && !(M_OUTER in exp)) {
-		if (isNode(outer) && index !== undefined) {
-			exp[M_OUTER] = outer
-			exp[M_OUTER_INDEX] = index
-		}
-
-		if (isMap(exp) && !(M_KEYS in exp)) {
-			exp[M_KEYS] = Object.keys(exp)
-		}
-
-		const children: MalVal[] | null = Array.isArray(exp)
-			? exp
-			: isMap(exp)
-			? exp[M_KEYS].map(k => exp[k])
-			: null
-
-		if (children) {
-			children.forEach((child, index) => saveOuter(child, exp, index))
-		}
-	}
-}
-
 export default function readStr(str: string, saveStr = true): MalVal {
 	const tokens = tokenize(str, saveStr) as string[]
 	if (tokens.length === 0) {
@@ -583,4 +559,27 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	}
 
 	return exp
+
+	function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
+		if (isNode(exp) && !(M_OUTER in exp)) {
+			if (isNode(outer) && index !== undefined) {
+				exp[M_OUTER] = outer
+				exp[M_OUTER_INDEX] = index
+			}
+
+			if (isMap(exp) && !(M_KEYS in exp)) {
+				exp[M_KEYS] = Object.keys(exp)
+			}
+
+			const children: MalVal[] | null = Array.isArray(exp)
+				? exp
+				: isMap(exp)
+				? exp[M_KEYS].map(k => exp[k])
+				: null
+
+			if (children) {
+				children.forEach((child, index) => saveOuter(child, exp, index))
+			}
+		}
+	}
 }

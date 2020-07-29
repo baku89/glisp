@@ -36,5 +36,5 @@ export default {
 		})
 
 		return JSON.parse(str)
-	}
+	},
 }

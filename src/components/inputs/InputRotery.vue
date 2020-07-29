@@ -17,8 +17,8 @@ export default defineComponent({
 	props: {
 		value: {
 			type: Number,
-			required: true
-		}
+			required: true,
+		},
 	},
 	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
@@ -38,14 +38,17 @@ export default defineComponent({
 				const value = props.value + delta
 
 				context.emit('input', value)
-			}
+			},
+			onDragEnd() {
+				context.emit('end-tweak')
+			},
 		})
 
 		return {
 			el,
-			drag
+			drag,
 		}
-	}
+	},
 })
 </script>
 
