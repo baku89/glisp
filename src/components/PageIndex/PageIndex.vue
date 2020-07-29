@@ -288,7 +288,7 @@ export default defineComponent({
 		function updateExp(exp: NonReactive<MalNode>, addHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
 			if (addHistory) {
-				data.expHistory.push([data.exp, undefined])
+				data.expHistory.push([exp, undefined])
 			}
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
