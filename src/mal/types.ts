@@ -329,7 +329,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
 			const cloned = createList(...children)
-			cloned[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			cloned[M_DELIMITERS] = [...(exp as MalSeq)[M_DELIMITERS]]
 			return cloned as T
 		}
 		case MalType.Vector: {
@@ -337,7 +337,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
 			const cloned = createList(...children)
-			cloned[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			cloned[M_DELIMITERS] = [...(exp as MalSeq)[M_DELIMITERS]]
 			return cloned as T
 		}
 		case MalType.Map: {
@@ -349,7 +349,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 						])
 				  )
 				: {...(exp as MalMap)}
-			;(cloned as MalNodeMap)[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			;(cloned as MalNodeMap)[M_DELIMITERS] = [...(exp as MalSeq)[M_DELIMITERS]]
 			return cloned as T
 		}
 		case MalType.Function:
