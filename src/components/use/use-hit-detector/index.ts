@@ -4,7 +4,6 @@ import {
 	onUnmounted,
 	ref,
 	onMounted,
-	isRef,
 	unref,
 } from '@vue/composition-api'
 
