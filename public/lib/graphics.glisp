@@ -438,13 +438,9 @@
    :params [&
             {:label "Point" :type "vec2"}]
    :handles {:draw (fn {:params pts}
-                     (concat [{:id "new" :type "bg"}]
-                             (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts)))
-             :drag (fn {:id id :pos p
-                        :params pts}
-                     (if (number? id)
-                       (replace-nth pts id p)
-                       (concat pts [p])))}}
+                     (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
+             :drag (fn {:id i :pos p}
+                     {:replace [i p]})}}
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)

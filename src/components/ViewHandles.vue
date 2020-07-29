@@ -58,9 +58,6 @@
 				<path class="stroke hover-zone" :d="path" />
 				<path class="stroke display" :d="path" />
 			</template>
-			<template v-else-if="type === 'bg'">
-				<rect x="0" y="0" width="10000" height="10000" fill="transparent" />
-			</template>
 			<template v-else-if="type === 'dia'">
 				<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
 			</template>
@@ -350,18 +347,12 @@ export default defineComponent({
 		function onMousedown(i: number, e: MouseEvent) {
 			if (!el.value) return
 
-			const type = data.handles[i] && data.handles[i].type
-
 			data.draggingIndex = i
 			const {left, top} = el.value.getBoundingClientRect()
 			data.rawPrevPos = [e.clientX - left, e.clientY - top]
 
-			if (type !== 'bg') {
-				window.addEventListener('mousemove', onMousedrag)
-				window.addEventListener('mouseup', onMouseup)
-			} else {
-				onMousedrag(e)
-			}
+			window.addEventListener('mousemove', onMousedrag)
+			window.addEventListener('mouseup', onMouseup)
 		}
 
 		function onMousedrag(e: MouseEvent) {
