@@ -598,12 +598,27 @@ export function getFn(exp: MalVal) {
 }
 
 export function copyDelimiters(target: MalVal, original: MalVal) {
-	if (
-		isSeq(target) &&
-		isSeq(original) &&
-		target.length === original.length &&
-		M_DELIMITERS in original
-	) {
-		target[M_DELIMITERS] = [...original[M_DELIMITERS]]
+	if (isSeq(target) && isSeq(original) && M_DELIMITERS in original) {
+		const delimiters = [...original[M_DELIMITERS]]
+
+		const lengthDiff = target.length - original.length
+
+		if (lengthDiff < 0) {
+			if (original.length === 1) {
+				delimiters.pop()
+			} else {
+				delimiters.splice(delimiters.length - 1 + lengthDiff, -lengthDiff)
+			}
+		} else if (lengthDiff > 0) {
+			if (original.length === 0) {
+				delimiters.push('')
+			} else {
+				const filler = delimiters[delimiters.length - 2] || ' '
+				const newDelimiters = Array(lengthDiff).fill(filler)
+				delimiters.splice(delimiters.length - 1, 0, ...newDelimiters)
+			}
+		}
+
+		target[M_DELIMITERS] = delimiters
 	}
 }
