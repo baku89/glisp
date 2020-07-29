@@ -1,3 +1,5 @@
+(import "math.glisp")
+
 (defn set-id [id elm]
   (if (element? elm)
     (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
@@ -285,14 +287,13 @@
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
 
-(defn validator-01 [x] (clamp 0 1 x))
 (defn validator-zero-twopi [x] (clamp 0 TWO_PI x))
 
 (defn color/rgb
-  {:params [{:label "Red" :type "number" :validator validator-01}
-            {:label "Green" :type "number" :validator validator-01}
-            {:label "Blue" :type "number" :validator validator-01}
-            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
+  {:params [{:label "Red" :type "number" :validator clamp01}
+            {:label "Green" :type "number" :validator clamp01}
+            {:label "Blue" :type "number" :validator clamp01}
+            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
    :return {:type "color"}}
   [r g b & a]
   (if (zero? (count a))
@@ -302,9 +303,9 @@
 
 (defn color/hsl
   {:params [{:label "Hue" :type "number" :validator validator-zero-twopi}
-            {:label "Saturation" :type "number" :validator validator-01}
-            {:label "Lightness" :type "number" :validator validator-01}
-            {:label "Alpha" :type "number" :validator validator-01 :default 1}]
+            {:label "Saturation" :type "number" :validator clamp01}
+            {:label "Lightness" :type "number" :validator clamp01}
+            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
    :return {:type "color"}}
   [h s l & a]
   (if (zero? (count a))

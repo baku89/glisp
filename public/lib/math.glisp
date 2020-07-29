@@ -70,6 +70,13 @@
   [_min _max value]
   (min (max _min value) _max))
 
+(defn clamp01
+  {:doc "Clamp the value between 0-1"
+   :params [{:label "Value" :type "number"}]
+   :inverse (fn {:return ret} [(clamp01 ret)])
+   :return {:type "number"}}
+  [value] (min (max 0 value) 1))
+
 (defn fit
   {:doc "Maps the value in the range `omin`-`omax` and shifts it to the corresponding value in the new range `nmin`-`omax`."
    :params [{:label "Value" :type "number"}
@@ -106,10 +113,10 @@
 
 (def cubic-bezier
   ^{:doc "Calculates CSS's cubic-bezier"
-    :params [{:label "t" :type "number" :validator #(clamp 0 1 %)}
-             {:label "x1" :type "number" :validator #(clamp 0 1 %)}
+    :params [{:label "t" :type "number" :validator clamp01}
+             {:label "x1" :type "number" :validator clamp01}
              {:label "y1" :type "number"}
-             {:label "x2" :type "number" :validator #(clamp 0 1 %)}
+             {:label "x2" :type "number" :validator clamp01}
              {:label "y2" :type "number"}]}
   cubic-bezier)
 ;; 
