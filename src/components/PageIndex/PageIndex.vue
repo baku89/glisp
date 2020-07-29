@@ -388,29 +388,40 @@ export default defineComponent({
 		)
 
 		// History
-		function undoExp(marker: string) {
+		function undoExp(marker?: string) {
 			let index = -1
-			for (let i = data.expHistory.length - 2; i >= 0; i--) {
-				if (data.expHistory[i][1] === marker) {
-					index = i
-					break
+			if (marker) {
+				for (let i = data.expHistory.length - 2; i >= 0; i--) {
+					if (data.expHistory[i][1] === marker) {
+						index = i
+						break
+					}
+				}
+			} else {
+				if (data.expHistory.length > 2) {
+					index = data.expHistory.length - 2
 				}
 			}
 
 			if (index === -1) {
-				return
+				return false
 			}
 
 			const [prev] = data.expHistory[index]
 			data.expHistory.length = index + 1
 			reconstructTree(prev.value)
 			updateExp(prev, false)
-			return null
+
+			return true
 		}
 
-		AppScope.def('undo', () => {
-			undoExp('undo')
-			return null
+		AppScope.def('undo', (arg: MalVal) => {
+			if (arg === null) {
+				return undoExp()
+			} else {
+				const marker = typeof arg === 'string' ? arg : 'undo'
+				return undoExp(marker)
+			}
 		})
 
 		function markHistory(marker: string) {
@@ -436,7 +447,8 @@ export default defineComponent({
 			(register-keybind "down" '(transform-selected (translate [0 1])))
 			(register-keybind "right" '(transform-selected (translate [1 0])))
 			(register-keybind "left" '(transform-selected (translate [-1 0])))
-			(register-keybind "mod+z" '(undo)))
+			(register-keybind "mod+z" '(undo))
+			(register-keybind "mod+alt+z" '(undo nil)))
 		)`)
 
 		return {
