@@ -108,7 +108,6 @@ import {
 	MalAtom,
 	createList as L,
 	symbolFor as S,
-	MalJSFunc,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -205,7 +204,7 @@ export default defineComponent({
 
 		const data = reactive({
 			exp: nonReactive(L(S('sketch'))),
-			expHistory: markRaw([]),
+			expHistory: [],
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
