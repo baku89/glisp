@@ -40,7 +40,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@mark-history="markHistory"
+					@tag-history="tagHistory"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -384,15 +384,15 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			markHistory
+			tagHistory
 		)
 
 		// History
-		function undoExp(marker?: string) {
+		function undoExp(tag?: string) {
 			let index = -1
-			if (marker) {
+			if (tag) {
 				for (let i = data.expHistory.length - 2; i >= 0; i--) {
-					if (data.expHistory[i][1] === marker) {
+					if (data.expHistory[i][1] === tag) {
 						index = i
 						break
 					}
@@ -419,14 +419,14 @@ export default defineComponent({
 			if (arg === null) {
 				return undoExp()
 			} else {
-				const marker = typeof arg === 'string' ? arg : 'undo'
-				return undoExp(marker)
+				const tag = typeof arg === 'string' ? arg : 'undo'
+				return undoExp(tag)
 			}
 		})
 
-		function markHistory(marker: string) {
+		function tagHistory(tag: string) {
 			if (data.expHistory.length > 0) {
-				data.expHistory[data.expHistory.length - 1][1] = marker
+				data.expHistory[data.expHistory.length - 1][1] = tag
 			}
 		}
 
@@ -462,7 +462,7 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
-			markHistory,
+			tagHistory,
 		}
 	},
 })
