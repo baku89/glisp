@@ -68,7 +68,6 @@
 				</div>
 			</Pane>
 		</Splitpanes>
-		<ModalsContainer />
 	</div>
 </template>
 
