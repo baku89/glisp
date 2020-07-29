@@ -5,6 +5,7 @@ import {
 	ref,
 	onMounted,
 	isRef,
+	unref,
 } from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
@@ -12,6 +13,7 @@ import {MalVal, MalNode} from '@/mal/types'
 
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
+import {printExp} from '@/mal'
 
 function useMouseButtons(el: Ref<any | null>) {
 	const mousePressed = ref(false)
@@ -66,7 +68,7 @@ function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
 
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
-	exp: Ref<NonReactive<MalVal> | null>,
+	exp: Ref<NonReactive<MalNode>>,
 	viewTransform: Ref<mat2d>,
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
@@ -78,7 +80,7 @@ export default function useHitDetector(
 	const {mousePressed} = useMouseButtons(handleEl)
 
 	let prevMousePressed = false
-	let prevExp: NonReactive<MalVal> | null = null
+	let prevExp: MalNode | null = null
 	let prevPos = vec2.fromValues(0, 0)
 	let draggingExp: NonReactive<MalVal> | null = null
 
@@ -90,8 +92,6 @@ export default function useHitDetector(
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
-			if (!exp.value) return
-
 			const pos = vec2.fromValues(mouseX.value, mouseY.value)
 
 			vec2.transformMat2d(
@@ -101,7 +101,8 @@ export default function useHitDetector(
 			)
 
 			// Do the hit detection
-			const isSameExp = prevExp === exp.value
+			// NOTE: the below line somehow does not work so temporarily set to false whenever
+			const isSameExp = false // prevExp === exp.value.value
 
 			// console.time('hit')
 			const ret = await detector.analyze(
@@ -133,7 +134,7 @@ export default function useHitDetector(
 
 			// Update
 			prevMousePressed = mousePressed.value
-			prevExp = exp.value
+			prevExp = exp.value.value
 			prevPos = pos
 		}
 	)
