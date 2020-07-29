@@ -124,6 +124,7 @@ import {
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
+import {reconstructTree} from '@/mal/reader'
 
 interface Data {
 	exp: NonReactive<MalNode>
