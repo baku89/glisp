@@ -218,8 +218,9 @@
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
                               local-xform)]
+    ;; NOTE: This is not efficient since `xform` will be evaluated twice
     `(binding [*transform* ~global-xform]
-       [:transform ~local-xform ~@body])))
+       [:transform ~xform ~@body])))
 (defalias transform graphics/transform)
 
 (defmacro graphics/style
