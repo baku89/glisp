@@ -448,7 +448,9 @@ export default defineComponent({
 			(register-keybind "right" '(transform-selected (translate [1 0])))
 			(register-keybind "left" '(transform-selected (translate [-1 0])))
 			(register-keybind "mod+z" '(undo))
-			(register-keybind "mod+alt+z" '(undo nil)))
+			(register-keybind "mod+alt+z" '(undo nil))
+			(register-keybind "mod+s" '(download-sketch))
+			)
 		)`)
 
 		return {
