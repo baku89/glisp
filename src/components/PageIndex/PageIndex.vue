@@ -32,7 +32,7 @@
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
-						@end-tweak="tagHistory"
+						@end-tweak="tagHistory('undo')"
 					/>
 				</div>
 				<ViewHandles
@@ -41,7 +41,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@tag-history="tagHistory"
+					@tag-history="tagHistory('undo')"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -288,9 +288,9 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: NonReactive<MalNode>, tagHistory = true) {
+		function updateExp(exp: NonReactive<MalNode>, pushHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
-			if (tagHistory) {
+			if (pushHistory) {
 				data.expHistory.push([exp, new Set()])
 			}
 			data.exp = exp
@@ -387,7 +387,7 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			tagHistory
+			() => tagHistory('undo')
 		)
 
 		// History
@@ -427,7 +427,7 @@ export default defineComponent({
 			}
 		})
 
-		function tagHistory(tag = 'undo') {
+		function tagHistory(tag: string) {
 			if (data.expHistory.length > 0) {
 				data.expHistory[data.expHistory.length - 1][1].add(tag)
 			}

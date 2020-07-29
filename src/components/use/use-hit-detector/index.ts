@@ -71,7 +71,7 @@ export default function useHitDetector(
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
 	onTransformSelectedExp: (transform: mat2d) => void,
-	endTweak: () => any
+	onEndTweak: () => any
 ) {
 	const detector = new HitDetector()
 
@@ -132,7 +132,7 @@ export default function useHitDetector(
 			onHoverExp(hitExp)
 
 			if (justMouseup) {
-				endTweak()
+				onEndTweak()
 			}
 
 			// Update
