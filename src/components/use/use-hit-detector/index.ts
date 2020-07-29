@@ -12,7 +12,6 @@ import {MalVal, MalNode} from '@/mal/types'
 
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
-import {printExp} from '@/mal'
 
 function useMouseButtons(el: Ref<any | null>) {
 	const mousePressed = ref(false)
