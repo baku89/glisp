@@ -235,8 +235,6 @@ export default defineComponent({
 				}
 				const xform = computeExpTransform(props.exp.value)
 
-				console.log('xform', xform.join(' '))
-
 				// pre-multiplies with viewTransform
 				mat2d.multiply(xform, props.viewTransform as mat2d, xform)
 
@@ -584,7 +582,6 @@ export default defineComponent({
 			...toRefs(data as any),
 			onMousedown,
 			rem,
-			str: computed(() => data.transform.join(' ')),
 		}
 	},
 })
