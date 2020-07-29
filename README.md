@@ -8,7 +8,9 @@
 </div>
 
 - [Demo (Chrome Only)](https://glisp.app)
-- [Documentation (Japanese)](https://glisp.app/docs)
+- Documentation
+  - [🇺🇸 English](https://glisp.app/docs/en)
+  - [🇯🇵 日本語](https://glisp.app/docs)
 
 Glisp, an acronym for **G**raphical **LISP**, is the prototyping project to experiment what if a design tool meets a way of creative coding, and obtain the self-bootstrapping power of LISP.
 This tool looks like the integration of Illustrator and Processing IDE at a glance. And in fact, it adopts both benefits of intuitiveness of direct manipulation on GUI and abstractness of programming language.

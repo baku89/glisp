@@ -68,7 +68,7 @@
                     {:key :duration :type "number" :default 1
                      :validator #(max 0 %)}
                     {:key :fps :label "FPS" :type "number" :default 0
-                     :validator #(round (clamp % 0 120))}]}]}
+                     :validator #(round (clamp 0 120 %))}]}]}
   [sym time & options]
   `(do
      (swap! *time-variables*

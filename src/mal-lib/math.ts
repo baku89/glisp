@@ -24,7 +24,7 @@ const Exports = [
 	],
 	[
 		'cubic-bezier',
-		(t: number, x1: number, y1: number, x2: number, y2: number) => {
+		(x1: number, y1: number, x2: number, y2: number, t: number) => {
 			const easing = BezierEasing(x1, y1, x2, y2)
 			return easing(Math.min(Math.max(0, t), 1))
 		},

@@ -4,7 +4,7 @@ import {
 	onUnmounted,
 	ref,
 	onMounted,
-	isRef,
+	unref,
 } from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
@@ -49,21 +49,15 @@ function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
 		mouseY.value = e.pageY
 	}
 
-	function setup(el: HTMLElement) {
-		;(el as any).$el.addEventListener('mousemove', onMousemove)
-	}
-
-	if (isRef(el)) {
-		onMounted(() => {
-			if (!el.value) return
-			setup(el.value)
-		})
-	} else {
-		setup(el)
-	}
+	onMounted(() => {
+		const _el = unref(el)
+		if (_el) {
+			;(_el as any).$el.addEventListener('mousemove', onMousemove)
+		}
+	})
 
 	onUnmounted(() => {
-		const _el = isRef(el) ? el.value : el
+		const _el = unref(el)
 		;(_el as any).$el.removeEventListener('mousemove', onMousemove)
 	})
 
@@ -72,7 +66,7 @@ function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
 
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
-	exp: Ref<NonReactive<MalVal> | null>,
+	exp: Ref<NonReactive<MalNode>>,
 	viewTransform: Ref<mat2d>,
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
@@ -84,7 +78,7 @@ export default function useHitDetector(
 	const {mousePressed} = useMouseButtons(handleEl)
 
 	let prevMousePressed = false
-	let prevExp: NonReactive<MalVal> | null = null
+	let prevExp: MalNode | null = null
 	let prevPos = vec2.fromValues(0, 0)
 	let draggingExp: NonReactive<MalVal> | null = null
 
@@ -96,8 +90,6 @@ export default function useHitDetector(
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
-			if (!exp.value) return
-
 			const pos = vec2.fromValues(mouseX.value, mouseY.value)
 
 			vec2.transformMat2d(
@@ -107,7 +99,8 @@ export default function useHitDetector(
 			)
 
 			// Do the hit detection
-			const isSameExp = prevExp === exp.value
+			// NOTE: the below line somehow does not work so temporarily set to false whenever
+			const isSameExp = false // prevExp === exp.value.value
 
 			// console.time('hit')
 			const ret = await detector.analyze(
@@ -139,7 +132,7 @@ export default function useHitDetector(
 
 			// Update
 			prevMousePressed = mousePressed.value
-			prevExp = exp.value
+			prevExp = exp.value.value
 			prevPos = pos
 		}
 	)

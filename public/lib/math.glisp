@@ -55,63 +55,62 @@
   {:doc "Calculates a number between two numbers at a specific increment"
    :params [{:type "number" :desc "First value"}
             {:type "number" :desc "Second value"}
-            {:type "number" :desc "Normalized amount to interpolate between the two values"}]
+            {:type "number" :desc "Normalized amount to interpolate between the two values" :validator clamp01}]
    :return {:type "number"}}
-  [a b t] (+ b (* (- a b) t)))
+  [a b t] (+ a (* (- b a) t)))
 
 (defn clamp
   {:doc "Clamp `x` between two other value"
-   :params [{:label "x" :type "number"}
-            {:label "Min" :type "number"}
-            {:label "Max" :type "number"}]
-   :inverse (fn {:return ret :params [x _min _max]}
-              {:replace [0 (clamp ret _min _max)]})
+   :params [{:label "Min" :type "number"}
+            {:label "Max" :type "number"}
+            {:label "Value" :type "number"}]
+   :inverse (fn {:return ret :params [_min _max]}
+              {:replace [2 (clamp _min _max ret)]})
    :return {:type "number"}}
-  [x _min _max]
-  (min (max _min x) _max))
+  [_min _max value]
+  (min (max _min value) _max))
+
+(defn clamp01
+  {:doc "Clamp the value between 0-1"
+   :params [{:label "Value" :type "number"}]
+   :inverse (fn {:return ret} [(clamp01 ret)])
+   :return {:type "number"}}
+  [value] (min (max 0 value) 1))
 
 (defn fit
   {:doc "Maps the value in the range `omin`-`omax` and shifts it to the corresponding value in the new range `nmin`-`omax`."
-   :params [{:label "Value" :type "number"}
-            {:label "Old Min" :type "number"}
+   :params [{:label "Old Min" :type "number"}
             {:label "Old Max" :type "number"}
             {:label "New Min" :type "number"}
-            {:label "New Max" :type "number"}]
+            {:label "New Max" :type "number"}
+            {:label "Value" :type "number"}]
    :return {:type "number"}}
-  [x omin omax nmin nmax]
+  [omin omax nmin nmax x]
   (+ (* (- nmax nmin)
         (/ (- x omin)
            (- omax omin))) ;; t
      nmin))
 
-(defn fit01
-  {:doc "Maps the value between 0-1 to `min`-`max`"
-   :params [{:label "Value" :type "number"}
-            {:label "Min" :type "number"}
-            {:label "Max" :type "number"}]
-   :return {:type "number"}}
-  [x nmin nmax]
-  (+ nmin
-     (* x (- nmax nmin))))
+(defalias fit01 lerp)
 
 (defn fit11
   {:doc "Maps the value between -1 - 1 to `min`-`max`"
-   :params [{:label "Value" :type "number"}
-            {:label "Min" :type "number"}
-            {:label "Max" :type "number"}]
+   :params [{:label "Min" :type "number"}
+            {:label "Max" :type "number"}
+            {:label "Value" :type "number"}]
    :return {:type "number"}}
-  [x nmin nmax]
-  (+ nmin
-     (* (/ (inc x) 2) (- nmax nmin))))
+  [_min _max x]
+  (+ _min
+     (* (/ (inc x) 2) (- _max _min))))
 
-(def cubic-bezier
-  ^{:doc "Calculates CSS's cubic-bezier"
-    :params [{:label "t" :type "number" :validator #(clamp % 0 1)}
-             {:label "x1" :type "number" :validator #(clamp % 0 1)}
-             {:label "y1" :type "number"}
-             {:label "x2" :type "number" :validator #(clamp % 0 1)}
-             {:label "y2" :type "number"}]}
-  cubic-bezier)
+(annotate-fn!
+ cubic-bezier
+ {:doc "Calculates CSS's cubic-bezier"
+  :params [{:label "x1" :type "number" :validator clamp01}
+           {:label "y1" :type "number"}
+           {:label "x2" :type "number" :validator clamp01}
+           {:label "y2" :type "number"}
+           {:label "t" :type "number" :validator clamp01}]})
 ;; 
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix

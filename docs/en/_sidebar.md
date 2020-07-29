@@ -1,15 +1,13 @@
-- [(doc 'glisp)](en/README)
-
 - Getting Started
 
-  - [Grammar of Glisp](en/syntax)
-  - [First Sketch](en/get-started)
+  - [Grammar of Glisp](syntax)
+  - [First Sketch](get-started)
 
 - Functionality
 
-  - [Applying Styles](en/styles)
-  - [Transformation](en/transform)
-  - [Draw Tree](en/draw-tree)
+  - [Applying Styles](styles)
+  - [Transformation](transform)
+  - [Draw Tree](draw-tree)
   - Primitives
   - Handles
   - Docstring
@@ -19,5 +17,5 @@
 
 - Reference
 
-  - [Cheat Sheet](en/cheatsheet)
+  - [Cheat Sheet](cheatsheet)
   - [Function List](ref)

@@ -305,7 +305,7 @@
                        :center {:replace [0 p]}
                        :radius {:replace [1 (abs (- (.x p) (.x center)))]}
                        :sides (let [angle (vec2/angle (vec2/- p center))
-                                    sides (round (/ TWO_PI (clamp angle (/ TWO_PI 100) (/ TWO_PI 3))))]
+                                    sides (round (/ TWO_PI (clamp (turn (/ 100)) (turn (/ 3)) angle)))]
                                 {:replace [2 sides]})))}
    :return {:type "path"}
    :initial-params [[0 0] 100 5]
@@ -346,8 +346,8 @@
 (annotate-fn!
  path/trim
  {:doc "Trims a path by a normalized range"
-  :params [{:label "Start" :type "number" :validator #(clamp % 0 1)}
-           {:label "End" :type "number" :validator #(clamp % 0 1)}
+  :params [{:label "Start" :type "number" :validator clamp01}
+           {:label "End" :type "number" :validator clamp01}
            {:label "Path" :type "path"}]
   :return {:type "path"}
   :handles {:draw (fn {:params [start end path]
@@ -367,7 +367,7 @@
 (annotate-fn!
  path/position-at
  {:doc "Returns a position of the specified offset on the path"
-  :params [{:label "Offset", :type "number" :validator #(clamp % 0 1)}
+  :params [{:label "Offset", :type "number" :validator clamp01}
            {:label "Path" :type "path"}]
   :handles {:draw (fn {:params [t path]
                        :return ret}

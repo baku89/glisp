@@ -283,9 +283,10 @@ export default defineComponent({
 			watchExpOnReplace(exp.value, onReplaced)
 
 			function onReplaced(newExp: MalVal) {
-				if (isNode(newExp)) {
-					updateExp(nonReactive(newExp))
+				if (!isNode(newExp)) {
+					throw new Error('data.exp cannot be non-node value')
 				}
+				updateExp(nonReactive(newExp))
 			}
 		}
 
