@@ -21,7 +21,7 @@
 		<component
 			:is="inspectorName"
 			:exp="exp"
-			@input="$emit('input', $event)"
+			@input="onInput"
 			@select="$emit('select', $event)"
 		/>
 	</div>
@@ -46,7 +46,7 @@ import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo} from '@/mal/utils'
+import {getFnInfo, copyDelimiters} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 
 interface Props {
@@ -112,6 +112,11 @@ export default defineComponent({
 			context.emit('select', nonReactive(outer.value))
 		}
 
+		function onInput(newExp: NonReactive<MalVal>) {
+			copyDelimiters(newExp.value, props.exp.value)
+			context.emit('input', newExp)
+		}
+
 		return {
 			fnInfo,
 			fnName,
@@ -119,6 +124,7 @@ export default defineComponent({
 			inspectorName,
 			outer,
 			onSelectOuter,
+			onInput,
 		}
 	},
 })

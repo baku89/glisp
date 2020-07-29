@@ -21,7 +21,12 @@ import {
 	getEvaluated,
 	getType,
 } from '@/mal/types'
-import {getMapValue, getFnInfo, applyParamModifier} from '@/mal/utils'
+import {
+	getMapValue,
+	getFnInfo,
+	applyParamModifier,
+	copyDelimiters,
+} from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
@@ -204,6 +209,8 @@ export default function useAppCommands(
 		}
 
 		const newExp = primitive ? newParams[0] : L(selected[0], ...newParams)
+
+		copyDelimiters(newExp, data.selectedExp.value)
 
 		callbacks.updateSelectedExp(nonReactive(newExp))
 

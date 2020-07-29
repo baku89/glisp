@@ -596,3 +596,14 @@ export function getFn(exp: MalVal) {
 
 	return first
 }
+
+export function copyDelimiters(target: MalVal, original: MalVal) {
+	if (
+		isSeq(target) &&
+		isSeq(original) &&
+		target.length === original.length &&
+		M_DELIMITERS in original
+	) {
+		target[M_DELIMITERS] = [...original[M_DELIMITERS]]
+	}
+}

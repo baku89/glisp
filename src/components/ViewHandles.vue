@@ -99,6 +99,8 @@ import {
 	isVector,
 	getEvaluated,
 	malEquals,
+	getType,
+	M_DELIMITERS,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/path-utils'
@@ -108,6 +110,7 @@ import {
 	getMapValue,
 	reverseEval,
 	computeExpTransform,
+	copyDelimiters,
 } from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
@@ -468,6 +471,9 @@ export default defineComponent({
 			const newExp: MalSeq = data.fnInfo?.primitive
 				? (newParams[0] as MalSeq)
 				: (L(props.exp.value[0], ...newParams) as MalSeq)
+
+			// Copy the delimiter if possible
+			copyDelimiters(newExp, props.exp.value)
 
 			context.emit('input', nonReactive(newExp))
 		}
