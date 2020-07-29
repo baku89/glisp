@@ -32,7 +32,7 @@
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
-						@end-tweak="tagHistory('undo')"
+						@end-tweak="tagExpHistory('undo')"
 					/>
 				</div>
 				<ViewHandles
@@ -41,7 +41,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@tag-history="tagHistory('undo')"
+					@tag-history="tagExpHistory('undo')"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -131,12 +131,10 @@ import {
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 import useCompactScrollbar from './use-compact-scrollbar'
-
-type ExpHistory = [NonReactive<MalNode>, Set<string>]
+import useExpHistory from './use-exp-history'
 
 interface Data {
 	exp: NonReactive<MalNode>
-	expHistory: ExpHistory[]
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -207,7 +205,6 @@ export default defineComponent({
 
 		const data = reactive({
 			exp: nonReactive(L(S('sketch'))),
-			expHistory: [],
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -268,9 +265,14 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
+		const {pushExpHistory, tagExpHistory} = useExpHistory(
+			toRef(data, 'exp'),
+			updateExp
+		)
+
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
 			updateExp(exp, false)
-			data.expHistory = [[exp, new Set(['undo'])]]
+			pushExpHistory(exp, 'undo')
 			setEditingExp(exp)
 		})
 
@@ -291,7 +293,7 @@ export default defineComponent({
 		function updateExp(exp: NonReactive<MalNode>, pushHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
 			if (pushHistory) {
-				data.expHistory.push([exp, new Set()])
+				pushExpHistory(exp)
 			}
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
@@ -387,59 +389,8 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			() => tagHistory('undo')
+			() => tagExpHistory('undo')
 		)
-
-		// History
-		function undoExp(tag?: string) {
-			let index = -1
-			if (tag) {
-				for (let i = data.expHistory.length - 2; i >= 0; i--) {
-					if (data.expHistory[i][1].has(tag)) {
-						index = i
-						break
-					}
-				}
-			} else {
-				if (data.expHistory.length > 2) {
-					index = data.expHistory.length - 2
-				}
-			}
-
-			if (index === -1) {
-				return false
-			}
-
-			const [prev] = data.expHistory[index]
-			data.expHistory.length = index + 1
-			reconstructTree(prev.value)
-			updateExp(prev, false)
-
-			return true
-		}
-
-		AppScope.def('revert-history', (arg: MalVal) => {
-			if (typeof arg !== 'string') {
-				return undoExp()
-			} else {
-				const tag = getName(arg)
-				return undoExp(tag)
-			}
-		})
-
-		function tagHistory(tag: string) {
-			if (data.expHistory.length > 0) {
-				data.expHistory[data.expHistory.length - 1][1].add(tag)
-			}
-		}
-
-		AppScope.def('tag-history', (tag: MalVal) => {
-			if (!(typeof tag === 'string' || isKeyword(tag))) {
-				throw new MalError('tag is not a string')
-			}
-			tagHistory(getName(tag))
-			return true
-		})
 
 		// Setup scopes
 		useAppCommands(data, {
@@ -478,7 +429,7 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
-			tagHistory,
+			tagExpHistory,
 		}
 	},
 })
