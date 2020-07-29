@@ -4,6 +4,13 @@
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
 
+(defn clamp01
+  {:doc "Clamp the value between 0-1"
+   :params [{:label "Value" :type "number"}]
+   :inverse (fn {:return ret} [(clamp01 ret)])
+   :return {:type "number"}}
+  [value] (min (max 0 value) 1))
+
 ;; Units
 (defn to-deg
   {:doc "Converts an angles to degrees"
@@ -69,13 +76,6 @@
    :return {:type "number"}}
   [_min _max value]
   (min (max _min value) _max))
-
-(defn clamp01
-  {:doc "Clamp the value between 0-1"
-   :params [{:label "Value" :type "number"}]
-   :inverse (fn {:return ret} [(clamp01 ret)])
-   :return {:type "number"}}
-  [value] (min (max 0 value) 1))
 
 (defn fit
   {:doc "Maps the value in the range `omin`-`omax` and shifts it to the corresponding value in the new range `nmin`-`omax`."
