@@ -49,21 +49,15 @@ function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
 		mouseY.value = e.pageY
 	}
 
-	function setup(el: HTMLElement) {
-		;(el as any).$el.addEventListener('mousemove', onMousemove)
-	}
-
-	if (isRef(el)) {
-		onMounted(() => {
-			if (!el.value) return
-			setup(el.value)
-		})
-	} else {
-		setup(el)
-	}
+	onMounted(() => {
+		const _el = unref(el)
+		if (_el) {
+			;(_el as any).$el.addEventListener('mousemove', onMousemove)
+		}
+	})
 
 	onUnmounted(() => {
-		const _el = isRef(el) ? el.value : el
+		const _el = unref(el)
 		;(_el as any).$el.removeEventListener('mousemove', onMousemove)
 	})
 
