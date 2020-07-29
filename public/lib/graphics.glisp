@@ -285,8 +285,8 @@
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
 
-(defn validator-01 [x] (clamp x 0 1))
-(defn validator-zero-twopi [x] (clamp x 0 TWO_PI))
+(defn validator-01 [x] (clamp 0 1 x))
+(defn validator-zero-twopi [x] (clamp 0 TWO_PI x))
 
 (defn color/rgb
   {:params [{:label "Red" :type "number" :validator validator-01}
