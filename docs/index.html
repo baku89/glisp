@@ -122,9 +122,6 @@
 			.markdown-section > iframe {
 				border: none;
 			}
-			:root {
-				--theme-color: #444;
-			}
 			.markdown-section li {
 				list-style-type: circle;
 				margin-bottom: 0.2em;
@@ -155,6 +152,7 @@
 				subMaxLevel: 2,
 				relativePath: true,
 				auto2top: true,
+				themeColor: '#444',
 				plugins: [
 					function (hook, vm) {
 						hook.afterEach((html, next) => {
