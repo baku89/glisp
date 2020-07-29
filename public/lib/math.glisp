@@ -401,6 +401,8 @@
   {:doc "Transforms the vec2 with a mat2d"
    :params [{:label "Matrix" :type "mat2d"}
             {:label "Pos" :type "vec2"}]
+   :inverse (fn {:return ret :params [m]}
+              (vec2/transform-mat2d (mat2d/invert m) ret))
    :return {:type "vec2"}}
   [m v]
   (let [x (.x v)
