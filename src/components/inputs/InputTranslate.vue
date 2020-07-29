@@ -15,7 +15,7 @@ export default defineComponent({
 	name: 'InputTranslate',
 	props: {
 		value: {
-			type: Array as PropType<number[]>,
+			type: [Array, Float32Array] as PropType<number[] | Float32Array>,
 			required: true,
 		},
 	},
@@ -32,6 +32,9 @@ export default defineComponent({
 				newValue[1] += deltaY
 
 				context.emit('input', newValue)
+			},
+			onDragEnd() {
+				context.emit('end-tweak')
 			},
 		})
 

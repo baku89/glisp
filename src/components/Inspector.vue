@@ -23,6 +23,7 @@
 			:exp="exp"
 			@input="onInput"
 			@select="$emit('select', $event)"
+			@end-tweak="$emit('end-tweak')"
 		/>
 	</div>
 </template>

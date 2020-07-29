@@ -35,7 +35,11 @@
 			/>
 		</template>
 		]
-		<InputTranslate :value="evaluated" @input="onInputTranslate" />
+		<InputTranslate
+			:value="evaluated"
+			@input="onInputTranslate"
+			@end-tweak="$emit('end-tweak')"
+		/>
 	</div>
 </template>
 

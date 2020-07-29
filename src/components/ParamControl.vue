@@ -49,6 +49,7 @@
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputRect2d
 						v-else-if="params[i].type === 'rect2d'"

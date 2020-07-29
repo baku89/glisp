@@ -32,6 +32,7 @@
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
+						@end-tweak="tagHistory"
 					/>
 				</div>
 				<ViewHandles
@@ -424,7 +425,7 @@ export default defineComponent({
 			}
 		})
 
-		function tagHistory(tag: string) {
+		function tagHistory(tag = 'undo') {
 			if (data.expHistory.length > 0) {
 				data.expHistory[data.expHistory.length - 1][1] = tag
 			}
