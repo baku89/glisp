@@ -32,7 +32,7 @@
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
-						@end-tweak="tagLastHistory"
+						@end-tweak="tagHistory"
 					/>
 				</div>
 				<ViewHandles
@@ -41,7 +41,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@tag-history="tagLastHistory"
+					@tag-history="tagHistory"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -107,6 +107,9 @@ import {
 	MalAtom,
 	createList as L,
 	symbolFor as S,
+	MalError,
+	isKeyword,
+	getName,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -127,8 +130,9 @@ import {
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 import {reconstructTree} from '@/mal/reader'
+import {webviewTag} from 'electron'
 
-type ExpHistory = [NonReactive<MalNode>, string | undefined]
+type ExpHistory = [NonReactive<MalNode>, Set<string>]
 
 interface Data {
 	exp: NonReactive<MalNode>
@@ -266,7 +270,7 @@ export default defineComponent({
 
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
 			updateExp(exp, false)
-			data.expHistory = [[exp, 'undo']]
+			data.expHistory = [[exp, new Set(['undo'])]]
 			setEditingExp(exp)
 		})
 
@@ -284,10 +288,10 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: NonReactive<MalNode>, addHistory = true) {
+		function updateExp(exp: NonReactive<MalNode>, tagHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
-			if (addHistory) {
-				data.expHistory.push([exp, undefined])
+			if (tagHistory) {
+				data.expHistory.push([exp, new Set()])
 			}
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
@@ -383,7 +387,7 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			tagLastHistory
+			tagHistory
 		)
 
 		// History
@@ -391,7 +395,7 @@ export default defineComponent({
 			let index = -1
 			if (tag) {
 				for (let i = data.expHistory.length - 2; i >= 0; i--) {
-					if (data.expHistory[i][1] === tag) {
+					if (data.expHistory[i][1].has(tag)) {
 						index = i
 						break
 					}
@@ -414,21 +418,28 @@ export default defineComponent({
 			return true
 		}
 
-		AppScope.def('undo', (arg: MalVal) => {
-			if (arg === null) {
+		AppScope.def('revert-history', (arg: MalVal) => {
+			if (typeof arg !== 'string') {
 				return undoExp()
 			} else {
-				const tag = typeof arg === 'string' ? arg : 'undo'
+				const tag = getName(arg)
 				return undoExp(tag)
 			}
 		})
 
-		function tagLastHistory(tag = 'undo') {
-			console.log('undo', tag)
+		function tagHistory(tag = 'undo') {
 			if (data.expHistory.length > 0) {
-				data.expHistory[data.expHistory.length - 1][1] = tag
+				data.expHistory[data.expHistory.length - 1][1].add(tag)
 			}
 		}
+
+		AppScope.def('tag-history', (tag: MalVal) => {
+			if (!(typeof tag === 'string' || isKeyword(tag))) {
+				throw new MalError('tag is not a string')
+			}
+			tagHistory(getName(tag))
+			return true
+		})
 
 		// Setup scopes
 		useAppCommands(data, {
@@ -447,8 +458,8 @@ export default defineComponent({
 			(register-keybind "down" '(transform-selected (translate [0 1])))
 			(register-keybind "right" '(transform-selected (translate [1 0])))
 			(register-keybind "left" '(transform-selected (translate [-1 0])))
-			(register-keybind "mod+z" '(undo))
-			(register-keybind "mod+alt+z" '(undo nil))
+			(register-keybind "mod+z" '(revert-history :undo))
+			(register-keybind "mod+alt+z" '(revert-history))
 			(register-keybind "mod+s" '(download-sketch))
 			)
 		)`)
@@ -464,7 +475,7 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
-			tagLastHistory,
+			tagHistory,
 		}
 	},
 })
