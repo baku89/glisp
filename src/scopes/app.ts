@@ -3,6 +3,7 @@ import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
 import hotkeys from 'hotkeys-js'
 import {MalVal, isList, MalError} from '@/mal/types'
+import ConsoleScope from './console'
 
 function onSetup() {
 	AppScope.readEval('(unregister-all-keybinds)')
@@ -23,7 +24,7 @@ AppScope.def('register-keybind', (keybind: MalVal, exp: MalVal) => {
 	const callback = (e: KeyboardEvent) => {
 		e.stopPropagation()
 		e.preventDefault()
-		AppScope.eval(exp)
+		ConsoleScope.eval(exp)
 	}
 
 	Mousetrap.bind(keybind, callback)
