@@ -326,20 +326,22 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 	switch (getType(exp)) {
 		case MalType.List: {
 			const children = deep
-				? (exp as MalVal[]).map(e => cloneExp(e, true))
-				: (exp as MalVal[])
-			return createList(...children) as T
-			break
+				? (exp as MalSeq).map(e => cloneExp(e, true))
+				: (exp as MalSeq)
+			const cloned = createList(...children)
+			cloned[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			return cloned as T
 		}
 		case MalType.Vector: {
 			const children = deep
-				? (exp as MalVal[]).map(e => cloneExp(e, true))
-				: (exp as MalVal[])
-			return [...children] as T
-			break
+				? (exp as MalSeq).map(e => cloneExp(e, true))
+				: (exp as MalSeq)
+			const cloned = createList(...children)
+			cloned[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			return cloned as T
 		}
 		case MalType.Map: {
-			const ret = deep
+			const cloned = deep
 				? Object.fromEntries(
 						Object.entries(exp as MalMap).map(([k, v]) => [
 							k,
@@ -347,7 +349,8 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 						])
 				  )
 				: {...(exp as MalMap)}
-			return ret as T
+			;(cloned as MalNodeMap)[M_DELIMITERS] = (exp as MalSeq)[M_DELIMITERS]
+			return cloned as T
 		}
 		case MalType.Function:
 		case MalType.Macro: {
@@ -475,7 +478,7 @@ export const isList = (obj: MalVal | undefined): obj is MalSeq => {
 
 export function createList(...coll: MalVal[]) {
 	;(coll as MalSeq)[M_ISLIST] = true
-	return coll
+	return coll as MalSeq
 }
 
 // Vectors
