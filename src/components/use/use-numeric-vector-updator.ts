@@ -16,7 +16,7 @@ export default function useNumericVectorUpdator(
 		if (!isValueSeparated.value) {
 			return []
 		} else {
-			return (exp.value.value as MalSeq).map(nonReactive)
+			return Array.from(exp.value.value as MalSeq).map(nonReactive)
 		}
 	})
 
