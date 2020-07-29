@@ -484,7 +484,10 @@ export function createList(...coll: MalVal[]) {
 // Vectors
 export const isVector = (obj: MalVal | undefined): obj is MalSeq => {
 	// below code is identical to `getType(obj) === MalType.Vector`
-	return Array.isArray(obj) && !(obj as any)[M_ISLIST]
+	return (
+		(Array.isArray(obj) && !(obj as any)[M_ISLIST]) ||
+		obj instanceof Float32Array
+	)
 }
 
 // Maps
