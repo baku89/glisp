@@ -1,6 +1,7 @@
 - ことはじめ
 
-  - [Glisp の文法](syntax)
+  - [Glisp とは?](about)
+  - [構文](syntax)
   - [はじめてのスケッチ](get-started)
 
 - 機能について

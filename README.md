@@ -4,7 +4,7 @@
   <h1>Glisp</h1>
   <h3>A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts</h3>
 
-  <img src="assets/screenshot.png" />
+  <img src="docs/_media/screenshot.png" />
 </div>
 
 - [Demo (Chrome Only)](https://glisp.app)

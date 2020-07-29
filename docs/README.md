@@ -6,7 +6,8 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 
 <h2>ことはじめ</h2>
 
-- [Glisp の文法](syntax)
+- [Glisp とは?](about)
+- [構文](syntax)
 - [はじめてのスケッチ](get-started)
 
 <h2>機能について</h2>
