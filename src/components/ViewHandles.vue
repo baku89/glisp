@@ -102,7 +102,6 @@ import {
 	isVector,
 	getEvaluated,
 	malEquals,
-	M_DELIMITERS,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/path-utils'
@@ -235,6 +234,8 @@ export default defineComponent({
 					return props.viewTransform
 				}
 				const xform = computeExpTransform(props.exp.value)
+
+				console.log('xform', xform.join(' '))
 
 				// pre-multiplies with viewTransform
 				mat2d.multiply(xform, props.viewTransform as mat2d, xform)
@@ -578,7 +579,13 @@ export default defineComponent({
 		// REM
 		const rem = useRem()
 
-		return {el, ...toRefs(data as any), onMousedown, rem}
+		return {
+			el,
+			...toRefs(data as any),
+			onMousedown,
+			rem,
+			str: computed(() => data.transform.join(' ')),
+		}
 	},
 })
 </script>
