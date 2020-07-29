@@ -57,7 +57,7 @@
             {:type "number" :desc "Second value"}
             {:type "number" :desc "Normalized amount to interpolate between the two values"}]
    :return {:type "number"}}
-  [a b t] (+ b (* (- a b) t)))
+  [a b t] (+ a (* (- b a) t)))
 
 (defn clamp
   {:doc "Clamp `x` between two other value"
