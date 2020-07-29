@@ -25,8 +25,8 @@
 
   - [なぜ Lisp なのか](why-lisp)
   - [マシな作り方の作り方を作る](https://baku89.com/2020/06/26/c-activity)
-  - [ブートストラップ・ストラテジー](bootstrapping ':disabled')
-  - [ツールの直交性](orthogonality)
+  - [ブートストラップ](bootstrapping ':disabled')
+  - [直交性](orthogonality)
   - [動かし方の分類](classification-of-animating)
   - [UI の基本原則](principles)
   - [インターフェースの帯域幅](bandwidth)
