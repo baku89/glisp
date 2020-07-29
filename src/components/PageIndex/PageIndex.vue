@@ -119,6 +119,7 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
+import {reconstructTree} from '@/mal/reader'
 import {
 	replaceExp,
 	watchExpOnReplace,
@@ -129,8 +130,7 @@ import {
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
-import {reconstructTree} from '@/mal/reader'
-import {webviewTag} from 'electron'
+import useCompactScrollbar from './use-compact-scrollbar'
 
 type ExpHistory = [NonReactive<MalNode>, Set<string>]
 
@@ -448,6 +448,9 @@ export default defineComponent({
 			updateSelectedExp,
 		})
 		useCommandDialog(context)
+
+		// Scrollbar
+		useCompactScrollbar()
 
 		// After setup, execute the app configuration code
 		AppScope.readEval(`(do
