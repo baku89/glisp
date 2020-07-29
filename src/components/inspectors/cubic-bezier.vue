@@ -81,20 +81,20 @@ export default defineComponent({
 		)
 
 		const tx = computed(
-			() => size.value[0] * (getEvaluated(props.exp.value[1]) as number)
+			() => size.value[0] * (getEvaluated(props.exp.value[5]) as number)
 		)
 
 		const c1 = computed(() => {
 			return [
-				size.value[0] * (props.exp.value[2] as number),
-				size.value[1] * (1 - (props.exp.value[3] as number)),
+				size.value[0] * (props.exp.value[1] as number),
+				size.value[1] * (1 - (props.exp.value[2] as number)),
 			]
 		})
 
 		const c2 = computed(() => {
 			return [
-				size.value[0] * (props.exp.value[4] as number),
-				size.value[1] * (1 - (props.exp.value[5] as number)),
+				size.value[0] * (props.exp.value[3] as number),
+				size.value[1] * (1 - (props.exp.value[4] as number)),
 			]
 		})
 
@@ -104,8 +104,8 @@ export default defineComponent({
 
 		const c1Drag = useDraggable(c1El, {
 			onDragStart() {
-				ox = props.exp.value[2] as number
-				oy = props.exp.value[3] as number
+				ox = props.exp.value[1] as number
+				oy = props.exp.value[2] as number
 			},
 			onDrag(e) {
 				const dx = e.x / size.value[0]
@@ -113,8 +113,8 @@ export default defineComponent({
 
 				const exp = cloneExp(props.exp.value) as number[]
 
-				exp[2] = clamp(ox + dx, 0, 1)
-				exp[3] = oy + dy
+				exp[1] = clamp(ox + dx, 0, 1)
+				exp[2] = oy + dy
 
 				context.emit('input', nonReactive(exp))
 			},
@@ -122,8 +122,8 @@ export default defineComponent({
 
 		const c2Drag = useDraggable(c2El, {
 			onDragStart() {
-				ox = props.exp.value[4] as number
-				oy = props.exp.value[5] as number
+				ox = props.exp.value[3] as number
+				oy = props.exp.value[4] as number
 			},
 			onDrag(e) {
 				const dx = e.x / size.value[0]
@@ -131,8 +131,8 @@ export default defineComponent({
 
 				const exp = cloneExp(props.exp.value) as number[]
 
-				exp[4] = clamp(ox + dx, 0, 1)
-				exp[5] = oy + dy
+				exp[3] = clamp(ox + dx, 0, 1)
+				exp[4] = oy + dy
 
 				context.emit('input', nonReactive(exp))
 			},

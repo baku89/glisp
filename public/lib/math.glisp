@@ -111,14 +111,14 @@
   (+ nmin
      (* (/ (inc x) 2) (- nmax nmin))))
 
-(def cubic-bezier
-  ^{:doc "Calculates CSS's cubic-bezier"
-    :params [{:label "t" :type "number" :validator clamp01}
-             {:label "x1" :type "number" :validator clamp01}
-             {:label "y1" :type "number"}
-             {:label "x2" :type "number" :validator clamp01}
-             {:label "y2" :type "number"}]}
-  cubic-bezier)
+(annotate-fn!
+ cubic-bezier
+ {:doc "Calculates CSS's cubic-bezier"
+  :params [{:label "x1" :type "number" :validator clamp01}
+           {:label "y1" :type "number"}
+           {:label "x2" :type "number" :validator clamp01}
+           {:label "y2" :type "number"}
+           {:label "t" :type "number" :validator clamp01}]})
 ;; 
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
