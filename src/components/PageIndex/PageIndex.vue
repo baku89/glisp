@@ -40,6 +40,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
+					@mark-history="markHistory"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -86,6 +87,7 @@ import {
 	Ref,
 	onMounted,
 	toRef,
+	markRaw,
 } from '@vue/composition-api'
 import {useOnResize} from 'vue-composable'
 
@@ -105,6 +107,7 @@ import {
 	MalAtom,
 	createList as L,
 	symbolFor as S,
+	MalJSFunc,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -126,8 +129,11 @@ import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 import {reconstructTree} from '@/mal/reader'
 
+type ExpHistory = [NonReactive<MalNode>, string | undefined]
+
 interface Data {
 	exp: NonReactive<MalNode>
+	expHistory: ExpHistory[]
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -198,6 +204,7 @@ export default defineComponent({
 
 		const data = reactive({
 			exp: nonReactive(L(S('sketch'))),
+			expHistory: markRaw([]),
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -259,8 +266,9 @@ export default defineComponent({
 		})
 
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
-			updateExp(exp)
-			setEditingExp(exp as NonReactive<MalNode>)
+			updateExp(exp, false)
+			data.expHistory = [[exp, 'undo']]
+			setEditingExp(exp)
 		})
 
 		// Apply the theme
@@ -277,8 +285,11 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: NonReactive<MalNode>) {
+		function updateExp(exp: NonReactive<MalNode>, addHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
+			if (addHistory) {
+				data.expHistory.push([data.exp, undefined])
+			}
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
 
@@ -372,8 +383,41 @@ export default defineComponent({
 			toRef(ui, 'viewTransform'),
 			setSelectedExp,
 			setHoveringExp,
-			onTransformSelectedExp
+			onTransformSelectedExp,
+			markHistory
 		)
+
+		// History
+		function undoExp(marker: string) {
+			let index = -1
+			for (let i = data.expHistory.length - 2; i >= 0; i--) {
+				if (data.expHistory[i][1] === marker) {
+					index = i
+					break
+				}
+			}
+
+			if (index === -1) {
+				return
+			}
+
+			const [prev] = data.expHistory[index]
+			data.expHistory.length = index + 1
+			reconstructTree(prev.value)
+			updateExp(prev, false)
+			return null
+		}
+
+		AppScope.def('undo', () => {
+			undoExp('undo')
+			return null
+		})
+
+		function markHistory(marker: string) {
+			if (data.expHistory.length > 0) {
+				data.expHistory[data.expHistory.length - 1][1] = marker
+			}
+		}
 
 		// Setup scopes
 		useAppCommands(data, {
@@ -392,6 +436,7 @@ export default defineComponent({
 			(register-keybind "down" '(transform-selected (translate [0 1])))
 			(register-keybind "right" '(transform-selected (translate [1 0])))
 			(register-keybind "left" '(transform-selected (translate [-1 0])))
+			(register-keybind "mod+z" '(undo)))
 		)`)
 
 		return {
@@ -401,11 +446,11 @@ export default defineComponent({
 			updateSelectedExp,
 			updateEditingExp,
 			setEditingExp,
-
 			...toRefs(ui as any),
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
+			markHistory,
 		}
 	},
 })

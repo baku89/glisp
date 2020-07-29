@@ -475,6 +475,7 @@ export default defineComponent({
 		function onMouseup() {
 			data.draggingIndex = null
 			unregisterMouseEvents()
+			context.emit('mark-history', 'undo')
 		}
 
 		function unregisterMouseEvents() {

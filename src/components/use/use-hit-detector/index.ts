@@ -70,7 +70,8 @@ export default function useHitDetector(
 	viewTransform: Ref<mat2d>,
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
-	onTransformSelectedExp: (transform: mat2d) => void
+	onTransformSelectedExp: (transform: mat2d) => void,
+	markHistory: (marker: string) => any
 ) {
 	const detector = new HitDetector()
 
@@ -111,8 +112,8 @@ export default function useHitDetector(
 
 			const hitExp = ret ? nonReactive(ret as MalNode) : null
 
-			// On mouse down
 			const justMousedown = mousePressed.value && !prevMousePressed
+			const justMouseup = !mousePressed.value && prevMousePressed
 
 			if (justMousedown) {
 				onSelectExp(hitExp)
@@ -129,6 +130,10 @@ export default function useHitDetector(
 
 			// if (hoveringExp && hoveringExp.value.value !== ret)
 			onHoverExp(hitExp)
+
+			if (justMouseup) {
+				markHistory('undo')
+			}
 
 			// Update
 			prevMousePressed = mousePressed.value
