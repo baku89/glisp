@@ -38,6 +38,7 @@ export default defineComponent({
 		function onBlur(e: InputEvent) {
 			const el = e.target as HTMLInputElement
 			el.value = props.value
+			context.emit('end-tweak')
 		}
 
 		return {

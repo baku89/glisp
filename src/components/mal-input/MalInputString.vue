@@ -1,5 +1,10 @@
 <template>
-	<InputString :value="value.value" :validator="validator" @input="onInput" />
+	<InputString
+		:value="value.value"
+		:validator="validator"
+		@input="onInput"
+		@end-tweak="$emit('end-tweak')"
+	/>
 </template>
 
 <script lang="ts">

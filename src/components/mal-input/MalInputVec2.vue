@@ -13,6 +13,7 @@
 				:compact="true"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputVec2__el"
@@ -20,6 +21,7 @@
 				:compact="true"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
 		<template v-else>
@@ -27,11 +29,13 @@
 				class="MalInputVec2__el exp"
 				:value="evaluated[0]"
 				@input="onInputEvaluatedElement(0, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<InputNumber
 				class="MalInputVec2__el exp"
 				:value="evaluated[1]"
 				@input="onInputEvaluatedElement(1, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
 		]

@@ -72,6 +72,9 @@ export default defineComponent({
 
 				update(startValue)
 			},
+			onDragEnd() {
+				context.emit('end-tweak')
+			},
 		})
 
 		const editing = ref(false)

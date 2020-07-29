@@ -30,6 +30,7 @@ export default defineComponent({
 			const {selectedIndex} = e.target as HTMLSelectElement
 			const newValue = props.values[selectedIndex]
 			context.emit('input', newValue)
+			context.emit('end-tweak')
 		}
 
 		return {

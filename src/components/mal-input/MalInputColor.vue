@@ -6,6 +6,7 @@
 			:value="pickerValue"
 			:mode="mode"
 			@input="onInputColor"
+			@end-tweak="$emit('end-tweak')"
 		/>
 		<div class="MalInputColor__hex" v-if="compact">{{ hexValue }}</div>
 		<template v-else>
@@ -14,9 +15,14 @@
 				:value="mode"
 				:values="['HEX', 'RGB', 'HSL']"
 				@input="changeMode"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<div class="MalInputColor__text" v-if="mode === 'HEX'">
-				<InputString :value="displayValues" @input="onInputText" />
+				<InputString
+					:value="displayValues"
+					@input="onInputText"
+					@end-tweak="$emit('end-tweak')"
+				/>
 			</div>
 			<div class="MalInputColor__elements" v-else-if="mode">
 				(
@@ -28,6 +34,7 @@
 					:value="value"
 					:validator="validators[i]"
 					@input="onInputNumber(i, $event)"
+					@end-tweak="$emit('end-tweak')"
 				/>)
 			</div>
 		</template>

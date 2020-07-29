@@ -13,50 +13,57 @@
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[0]"
+				:compact="true"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[2]"
+				:compact="true"
 				@input="onInputElement(2, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el t"
 				:value="nonReactiveValues[4]"
+				:compact="true"
 				@input="onInputElement(4, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[1]"
+				:compact="true"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[3]"
+				:compact="true"
 				@input="onInputElement(3, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<MalInputNumber
 				class="MalInputMat2d__el t"
 				:value="nonReactiveValues[5]"
+				:compact="true"
 				@input="onInputElement(5, $event)"
 				@select="$emit('select', $event)"
-				:compact="true"
+				@end-tweak="$emit('end-tweak')"
 			/>
 		</div>
 		<InputTranslate
 			v-if="isValueSeparated"
 			:value="evaluated.slice(4)"
 			@input="onInputTranslate"
+			@end-tweak="$emit('end-tweak')"
 		/>
 	</div>
 </template>

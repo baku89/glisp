@@ -32,7 +32,7 @@
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
-						@end-tweak="tagHistory"
+						@end-tweak="tagLastHistory"
 					/>
 				</div>
 				<ViewHandles
@@ -41,7 +41,7 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@tag-history="tagHistory"
+					@tag-history="tagLastHistory"
 				/>
 			</Pane>
 			<Pane :size="controlPaneSize" :max-size="40">
@@ -88,7 +88,6 @@ import {
 	Ref,
 	onMounted,
 	toRef,
-	markRaw,
 } from '@vue/composition-api'
 import {useOnResize} from 'vue-composable'
 
@@ -384,7 +383,7 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			tagHistory
+			tagLastHistory
 		)
 
 		// History
@@ -424,7 +423,8 @@ export default defineComponent({
 			}
 		})
 
-		function tagHistory(tag = 'undo') {
+		function tagLastHistory(tag = 'undo') {
+			console.log('undo', tag)
 			if (data.expHistory.length > 0) {
 				data.expHistory[data.expHistory.length - 1][1] = tag
 			}
@@ -464,7 +464,7 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
-			tagHistory,
+			tagLastHistory,
 		}
 	},
 })

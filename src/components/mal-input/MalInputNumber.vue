@@ -12,8 +12,9 @@
 				'grayed-out': display.mode === 'undefined',
 			}"
 			:value="displayValue"
-			@input="onInput"
 			:validator="innerValidator"
+			@input="onInput"
+			@end-tweak="$emit('end-tweak', $event)"
 		/>
 		<span
 			class="MalInputNumber__unit"

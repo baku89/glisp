@@ -39,6 +39,9 @@ export default defineComponent({
 
 				context.emit('input', value)
 			},
+			onDragEnd() {
+				context.emit('end-tweak')
+			},
 		})
 
 		return {

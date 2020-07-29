@@ -42,6 +42,7 @@ export default defineComponent({
 	setup(props: Props, context: SetupContext) {
 		function onInput(value: string) {
 			context.emit('input', nonReactive(value))
+			context.emit('end-tweak')
 		}
 
 		return {onInput}

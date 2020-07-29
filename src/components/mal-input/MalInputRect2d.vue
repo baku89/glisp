@@ -12,6 +12,7 @@
 				:value="nonReactiveValues[0]"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 				:compact="true"
 			/>
 			<MalInputNumber
@@ -19,6 +20,7 @@
 				:value="nonReactiveValues[1]"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 				:compact="true"
 			/>
 			<MalInputNumber
@@ -26,6 +28,7 @@
 				:value="nonReactiveValues[2]"
 				@input="onInputElement(2, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 				:compact="true"
 			/>
 			<MalInputNumber
@@ -33,6 +36,7 @@
 				:value="nonReactiveValues[3]"
 				@input="onInputElement(3, $event)"
 				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
 				:compact="true"
 			/>
 		</template>
@@ -41,24 +45,32 @@
 				class="MalInputRect2d__el exp"
 				:value="evaluated[0]"
 				@input="onInputEvaluatedElement(0, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<InputNumber
 				class="MalInputRect2d__el exp"
 				:value="evaluated[1]"
 				@input="onInputEvaluatedElement(1, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<InputNumber
 				class="MalInputRect2d__el exp"
 				:value="evaluated[2]"
 				@input="onInputEvaluatedElement(2, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 			<InputNumber
 				class="MalInputRect2d__el exp"
 				:value="evaluated[3]"
 				@input="onInputEvaluatedElement(3, $event)"
+				@end-tweak="$emit('end-tweak')"
 			/> </template
 		>]
-		<InputTranslate :value="evaluated.slice(0, 2)" @input="onInputTranslate" />
+		<InputTranslate
+			:value="evaluated.slice(0, 2)"
+			@input="onInputTranslate"
+			@end-tweak="$emit('end-tweak')"
+		/>
 	</div>
 </template>
 

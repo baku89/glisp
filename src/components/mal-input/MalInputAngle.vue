@@ -4,14 +4,16 @@
 			class="MalInputAngle__input"
 			:compact="true"
 			:value="value"
+			:validator="validator"
 			@input="onInput($event.value)"
 			@select="$emit('select', $event)"
-			:validator="validator"
+			@end-tweak="$emit('end-tweak')"
 		/>
 		<InputRotery
 			class="MalInputAngle__rotery"
 			:value="evaluated"
 			@input="onInput"
+			@end-tweak="$emit('end-tweak')"
 		/>
 	</div>
 </template>

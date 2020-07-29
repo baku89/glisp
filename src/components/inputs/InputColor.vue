@@ -9,6 +9,7 @@
 				modifiers: {offset: {offset: '0px,10px'}},
 			}"
 			boundaries-selector="body"
+			@hide="$emit('end-tweak')"
 		>
 			<ColorPicker
 				class="InputColor__picker"

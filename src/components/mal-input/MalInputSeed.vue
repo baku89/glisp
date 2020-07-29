@@ -4,9 +4,10 @@
 			class="MalInputSeed__input"
 			:compact="true"
 			:value="value"
+			:validator="validator"
 			@input="onInput($event.value)"
 			@select="$emit('select', $event)"
-			:validator="validator"
+			@end-tweak="$emit('end-tweak')"
 		/>
 		<InputSeed class="MalInputSeed__shuffle" @input="onInput" />
 	</div>
@@ -45,6 +46,7 @@ export default defineComponent({
 				newExp = reverseEval(newExp, props.value.value)
 			}
 			context.emit('input', nonReactive(newExp))
+			context.emit('end-tweak')
 		}
 
 		return {

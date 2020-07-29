@@ -16,6 +16,7 @@
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputString
 						v-else-if="params[i].type === 'string'"
@@ -23,6 +24,7 @@
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputDropdown
 						v-else-if="params[i].type === 'dropdown'"
@@ -31,18 +33,21 @@
 						:validator="desc['ʞvalidator']"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputColor
 						v-else-if="params[i].type === 'color'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputAngle
 						v-else-if="params[i].type === 'angle'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputVec2
 						v-else-if="params[i].type === 'vec2'"
@@ -56,18 +61,21 @@
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputMat2d
 						v-else-if="params[i].type === 'mat2d'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputSeed
 						v-else-if="params[i].type === 'seed'"
 						:value="params[i].value"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputString
 						:style="{color: 'var(--purple)'}"
@@ -76,6 +84,7 @@
 						:validator="symbolValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalInputString
 						style="color: var(--syntax-keyword);"
@@ -84,11 +93,12 @@
 						:validator="keywordValidator"
 						@input="onParamInput(i, $event)"
 						@select="onSelect($event)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<MalExpButton
 						v-else
-						@click="onSelect($event)"
 						:value="params[i].value"
+						@click="onSelect($event)"
 					/>
 				</div>
 				<button
