@@ -37,7 +37,7 @@
 			<i
 				v-if="labelInfo.editable"
 				class="ListView__editing fas fa-code"
-				:class="{active: exp.value === editingExp.value}"
+				:class="{active: editing}"
 				@click="onClickEditButton"
 			/>
 		</div>
@@ -234,6 +234,10 @@ export default defineComponent({
 			)
 		})
 
+		const editing = computed(() => {
+			return props.editingExp && expBody.value.value === props.editingExp.value
+		})
+
 		/**
 		 * Events
 		 */
@@ -286,6 +290,7 @@ export default defineComponent({
 			labelInfo,
 			selected,
 			hovering,
+			editing,
 			onClick,
 			expanded,
 			ui,
