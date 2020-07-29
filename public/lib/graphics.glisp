@@ -287,8 +287,6 @@
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
 
-(defn validator-zero-twopi [x] (clamp 0 TWO_PI x))
-
 (defn color/rgb
   {:params [{:label "Red" :type "number" :validator clamp01}
             {:label "Green" :type "number" :validator clamp01}
@@ -302,7 +300,7 @@
 (defalias rgb color/rgb)
 
 (defn color/hsl
-  {:params [{:label "Hue" :type "number" :validator validator-zero-twopi}
+  {:params [{:label "Hue" :type "number" :validator #(clamp 0 TWO_PI %)}
             {:label "Saturation" :type "number" :validator clamp01}
             {:label "Lightness" :type "number" :validator clamp01}
             {:label "Alpha" :type "number" :validator clamp01 :default 1}]
