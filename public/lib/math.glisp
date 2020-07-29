@@ -399,12 +399,12 @@
 
 (defn vec2/transform-mat2d
   {:doc "Transforms the vec2 with a mat2d"
-   :params [{:type "vec2"}
-            {:label "Matrix" :type "mat2d"}]
+   :params [{:label "Matrix" :type "mat2d"}
+            {:label "Pos" :type "vec2"}]
    :return {:type "vec2"}}
-  [value m]
-  (let [x (.x value)
-        y (.y value)]
+  [m v]
+  (let [x (.x v)
+        y (.y v)]
     [(+ (* (nth m 0) x) (* (nth m 2) y) (nth m 4))
      (+ (* (nth m 1) x) (* (nth m 3) y) (nth m 5))]))
 
@@ -463,7 +463,7 @@
                               [`[~@x ~@y ~@t]])
 
                          ;; Scale
-                         (let [s (vec2/scale (vec2/transform-mat2d p (mat2d/invert m)) (/ 80))]
+                         (let [s (vec2/scale (vec2/transform-mat2d (mat2d/invert m) p) (/ 80))]
                            (case id
                              :sx [`[~@(vec2/scale x (.x s)) ~@y ~@t]]
                              :sy [`[~@x ~@(vec2/scale y (.y s)) ~@t]]

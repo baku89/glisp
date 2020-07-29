@@ -73,7 +73,7 @@
    :handles {:draw (fn [e] (apply-draw-handle rect2d e))
              :drag (fn [e] (apply-drag-handle rect2d e))}
    :transform (fn {:params [[x y w h]] :transform xform}
-                [`[~@(vec2/transform-mat2d [x y] xform) ~w ~h]])
+                [`[~@(vec2/transform-mat2d xform [x y]) ~w ~h]])
    :initial-params [[-100 -100 200 200]]
    :return {:type "path"}}
   [[x y w h]]
