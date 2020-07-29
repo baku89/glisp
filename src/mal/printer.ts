@@ -84,7 +84,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 					let elmStrs: string[]
 
 					if (isSeq(coll)) {
-						elmStrs = coll.map(e => printExp(e, _r))
+						elmStrs = Array.from(coll).map(e => printExp(e, _r))
 						if (sugarInfo) {
 							elmStrs[0] = ''
 						}
