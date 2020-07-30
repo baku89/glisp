@@ -14,7 +14,7 @@
 ここでは、外側の `fill` 関数で設定された `"pink"` を、シンボル `*fill-color*` によって参照しています。（「\*」で挟まれた変数名は、グローバル変数のようなシンボルを表しています。）同様に`*stroke-color*` や、 `*stroke-width*`、`*stroke-cap*` で線のプロパティにアクセスすることもできます。これはフローチャートなど、縁取りと同じ色でテキストを塗るときにも便利です。
 
 ```cljs
-(style (stroke "royalblue")
+(style (stroke "royalblue" 2)
  (ngon [50 50] 40 4)
 
  (style [(no-stroke) (fill *stroke-color*)]
@@ -24,9 +24,9 @@
 ここで `no-stroke` 関数が登場していますが、これによって、それ以前に適用された塗りを無効にすることができます。以下のようなイメージです。
 
 ```clojure
-(stroke "royalblue") -> (no-stroke) -> (fill *stroke-color*)
+(stroke "royalblue" 2) -> (no-stroke) -> (fill *stroke-color*)
 ^^^^^^^^^^^^^^^^^^^^                   ^^^^^^^^^^^^^^^^^^^^^
-no-stroke によって打ち消される      打ち消されてもなお *stroke-color* は "royalblue" に設定されている
+no-stroke によって打ち消される     打ち消されてもなお *stroke-color* は "royalblue" に設定されている
 ```
 
 こうすることで、Hello というテキストに線が適用され、太くなってしまうのを防ぎます。これは矢印を描くときにも使えます。
@@ -59,7 +59,7 @@ CSS と違うのは、「スタイルを有効にするかどうか」と、そ�
  (style (fill)
   (text "Hello" [50 50]))
 
- (style (stroke "pink")
+ (style (stroke "pink" 2)
   (circle [50 50] 40)))
 ```
 

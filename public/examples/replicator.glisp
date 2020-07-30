@@ -11,7 +11,7 @@
 
 (background "#08101D")
 
-(style (stroke "#CECCFF")
+(style (stroke "#CECCFF" 1)
 
        (path/replicator
         (mat2d/* (translate [30 -24])

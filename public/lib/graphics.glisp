@@ -153,7 +153,7 @@
 
 
 (defn guide/stroke [& xs]
-  (style (stroke *guide-color*)
+  (style (stroke *guide-color* 1)
          xs))
 
 (defn guide/dotted-stroke [& xs]
@@ -357,7 +357,7 @@
 (defn graphics/stroke
   {:doc "Creates a stroke property"
    :params [{:label "Color" :type "color"}
-            {:label "Width" :default 1 :type "number"
+            {:label "Width" :type "number"
              :validator #(max 0 %)}
             &
             {:label "Options"
@@ -366,16 +366,13 @@
                     {:key :join :type "dropdown" :default "round"
                      :enum ["bevel" "round" "miter"]}]}]
    :compact-params [{:label "" :type "color"}
-                    {:label "W" :type "number" :default 1}]}
-  [color & options]
-  (let [params (case (count options)
-                 0 {}
-                 1 {:width (first options)}
-                 (apply hash-map (concat :width options)))]
+                    {:label "W" :type "number"}]}
+  [color width & options]
+  (let [params (apply hash-map options)]
     (->> params
          (seq params)
          (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
-         (apply concat [:stroke true :stroke-color color])
+         (apply concat [:stroke true :stroke-color color :stroke-width width])
          (apply hash-map))))
 (defalias stroke graphics/stroke)
 

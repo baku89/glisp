@@ -97,7 +97,7 @@ Stacking facilitates it, as seen before, by defining new functions, `path/align-
 ;; are reflected in the sketch
 :start-sketch
 
-(style (stroke "skyblue")
+(style (stroke "skyblue" 2)
  circle-path)
 
 (transform

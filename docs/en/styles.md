@@ -14,7 +14,7 @@ Inside `style` function, applied style properties can be accessed.
 Here, the symbol `*fill-color*` refers to the string `"pink"` set by `fill` function in the outer scope (variable names surrounded by `*` denote a symbol similar to global variables). Similarly, line properties can accessed by `*stroke-color*`, `*stroke-width*` and `*stroke-cap*`. This is useful, for example, for a flowchart whose outline and text colors are filled with the same color.
 
 ```cljs
-(style (stroke "royalblue")
+(style (stroke "royalblue" 2)
  (ngon [50 50] 40 4)
 
  (style [(no-stroke) (fill *stroke-color*)]
@@ -24,7 +24,7 @@ Here, the symbol `*fill-color*` refers to the string `"pink"` set by `fill` func
 Here, `no-stroke` function is used, which cancels the previous stroke styles. The following is an explanation.
 
 ```clojure
-(stroke "royalblue") -> (no-stroke) -> (fill *stroke-color*)
+(stroke "royalblue" 2) -> (no-stroke) -> (fill *stroke-color*)
 ^^^^^^^^^^^^^^^^^^^^                   ^^^^^^^^^^^^^^^^^^^^^
 no-stroke is cancelled      even though stroke is cancelled, *stroke-color* remains as "royalblue"
 ```
@@ -59,7 +59,7 @@ Unlike CSS, a property whether the style is enabled and a style property for the
  (style (fill)
   (text "Hello" [50 50]))
 
- (style (stroke "pink")
+ (style (stroke "pink" 2)
   (circle [50 50] 40)))
 ```
 
