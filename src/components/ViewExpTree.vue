@@ -81,7 +81,6 @@ import {reconstructTree} from '@/mal/reader'
 enum DisplayMode {
 	Node = 'node',
 	Elements = 'elements',
-	Params = 'params',
 }
 
 interface Props {
