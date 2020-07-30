@@ -20,6 +20,7 @@ import {
 	ref,
 	Ref,
 	PropType,
+	toRef,
 } from '@vue/composition-api'
 import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
@@ -47,7 +48,7 @@ export default defineComponent({
 
 		// Drag Events
 		let startValue = 0
-		useDraggable(dragEl, {
+		const drag = useDraggable(dragEl, {
 			onClick() {
 				editing.value = true
 				if (inputEl.value) {
@@ -87,7 +88,11 @@ export default defineComponent({
 		})
 
 		const displayValue = computed(() => {
-			return props.value.toFixed(2).replace(/\.?[0]+$/, '')
+			const value = props.value
+			const tweaking = drag.isDragging
+			return tweaking
+				? value.toFixed(1)
+				: value.toFixed(2).replace(/\.?[0]+$/, '')
 		})
 
 		function onInput(e: InputEvent) {
