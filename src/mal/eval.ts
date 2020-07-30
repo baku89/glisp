@@ -160,10 +160,6 @@ export default function evalExp(
 ): MalVal {
 	const origExp: MalSeq = exp as MalSeq
 
-	if (isList(exp) && isSymbolFor(exp[0], 'circumcircle')) {
-		console.log('start')
-	}
-
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
