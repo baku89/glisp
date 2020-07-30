@@ -20,7 +20,6 @@ import {
 	ref,
 	Ref,
 	PropType,
-	toRef,
 } from '@vue/composition-api'
 import keycode from 'keycode'
 import {useDraggable, useKeyboardState} from '../use'
