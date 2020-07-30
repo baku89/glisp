@@ -106,13 +106,8 @@ export class HitDetector {
 				}
 				default:
 					if (isKeyword(command)) {
-						const [, , ...body] = exp as MalSeq
-						for (const child of body.reverse()) {
-							const ret = this.analyzeNode(pos, child, hitStyle)
-							if (ret) {
-								return ret
-							}
-						}
+						const body = (exp as MalSeq).slice(1)
+						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}
 		} else if (isList(exp)) {
