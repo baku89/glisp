@@ -9,7 +9,6 @@
 				hovering,
 			}"
 			@click="labelInfo.clickable && onClick()"
-			@dblclick="labelInfo.editable && onClickEditButton($event)"
 		>
 			<div
 				class="ViewExpTree__icon"
