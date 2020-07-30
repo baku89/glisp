@@ -1,6 +1,6 @@
 <template>
 	<div id="app" class="PageIndex">
-		<Viewer
+		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
 			:guideColor="guideColor"
@@ -93,7 +93,7 @@ import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import ExpEditor from '@/components/ExpEditor.vue'
-import Viewer from '@/components/Viewer.vue'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
@@ -162,7 +162,7 @@ export default defineComponent({
 	components: {
 		GlobalMenu,
 		ExpEditor,
-		Viewer,
+		ViewCanvas,
 		Console,
 		Inspector,
 		ViewHandles,

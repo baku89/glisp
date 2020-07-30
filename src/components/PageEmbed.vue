@@ -13,7 +13,7 @@
 			/>
 		</div>
 		<div class="PageEmbed__viewer">
-			<Viewer
+			<ViewCanvas
 				:exp="viewExp"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
@@ -38,7 +38,7 @@ import {
 } from '@vue/composition-api'
 
 import Editor from '@/components/Editor'
-import Viewer from '@/components/Viewer.vue'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 
 import {printExp, readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
@@ -90,7 +90,7 @@ export default defineComponent({
 	name: 'PageEmbed',
 	components: {
 		Editor,
-		Viewer,
+		ViewCanvas,
 	},
 	setup() {
 		const ui = reactive({
