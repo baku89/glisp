@@ -77,7 +77,6 @@ import {
 	cloneExp,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import {replaceExp} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 
 enum DisplayMode {

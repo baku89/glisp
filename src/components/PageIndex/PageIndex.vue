@@ -107,9 +107,6 @@ import {
 	MalAtom,
 	createList as L,
 	symbolFor as S,
-	MalError,
-	isKeyword,
-	getName,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -119,7 +116,6 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
 import AppScope from '@/scopes/app'
-import {reconstructTree} from '@/mal/reader'
 import {
 	replaceExp,
 	watchExpOnReplace,
