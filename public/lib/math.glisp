@@ -827,10 +827,13 @@
   {:doc "Creates a new rect2d by the center position and  size"
    :params [{:label "Center" :type "vec2"}
             {:label "Size" :type "vec2" :ui "size"}]
+   :inverse (fn {:return [x y w h]}
+              [[(+ x (/ w 2)) (+ y (/ h 2))]
+               [w h]])
    :return {:type "rect2d"}}
-  [[x y] [w h]]
-  [(- x (/ w 2))
-   (- y (/ h 2))
+  [[cx cy] [w h]]
+  [(- cx (/ w 2))
+   (- cy (/ h 2))
    w
    h])
 
