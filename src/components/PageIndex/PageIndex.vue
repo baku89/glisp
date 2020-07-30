@@ -14,7 +14,7 @@
 			@resize="onResizeSplitpanes"
 		>
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
-				<ListView
+				<ViewExpTree
 					class="PageIndex__list-view"
 					:exp="exp"
 					mode="params"
@@ -97,7 +97,7 @@ import Viewer from '@/components/Viewer.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
-import ListView from '@/components/ListView.vue'
+import ViewExpTree from '@/components/ViewExpTree.vue'
 
 import {printExp} from '@/mal'
 import {
@@ -167,7 +167,7 @@ export default defineComponent({
 		Inspector,
 		ViewHandles,
 		Splitpanes,
-		ListView,
+		ViewExpTree,
 		Pane,
 	},
 	setup(_, context) {
