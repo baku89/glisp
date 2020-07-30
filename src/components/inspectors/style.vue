@@ -71,6 +71,7 @@ import {
 import {NonReactive, nonReactive, getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-input/MalInputParam.vue'
 import MalExpButton from '@/components/mal-input/MalExpButton.vue'
+import {reconstructTree} from '../../mal/reader'
 
 interface Props {
 	exp: NonReactive<MalVal[]>
@@ -105,6 +106,7 @@ export default defineComponent({
 			newStyles[i] = style.value
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
+			reconstructTree(newExp)
 			context.emit('input', nonReactive(newExp))
 		}
 
@@ -115,6 +117,7 @@ export default defineComponent({
 					? sortedStyles[0].value
 					: sortedStyles.map(s => s.value)
 
+			reconstructTree(newExp)
 			context.emit('input', nonReactive(newExp))
 			context.emit('end-tweak')
 		}
@@ -128,6 +131,7 @@ export default defineComponent({
 			newStyles.push(style)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
+			reconstructTree(newExp)
 			context.emit('input', nonReactive(newExp))
 			context.emit('end-tweak')
 		}
@@ -138,6 +142,7 @@ export default defineComponent({
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
+			reconstructTree(newExp)
 			context.emit('input', nonReactive(newExp))
 			context.emit('end-tweak')
 		}
