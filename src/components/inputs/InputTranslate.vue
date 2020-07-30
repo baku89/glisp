@@ -3,6 +3,7 @@
 		class="InputTranslate"
 		:class="{dragging: drag.isDragging}"
 		ref="el"
+		@keydown="onKeydown"
 	/>
 </template>
 
@@ -10,6 +11,9 @@
 import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
 import {useDraggable} from '@/components/use/'
 import {vec2} from 'gl-matrix'
+import keycode from 'keycode'
+
+const ARROW_KEYS = new Set(['up', 'down', 'left', 'right'])
 
 export default defineComponent({
 	name: 'InputTranslate',
@@ -22,25 +26,59 @@ export default defineComponent({
 	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
 
+		function update(deltaX: number, deltaY: number) {
+			const newValue = vec2.fromValues(props.value[0], props.value[1])
+
+			newValue[0] += deltaX
+			newValue[1] += deltaY
+
+			context.emit('input', newValue)
+		}
+
 		const drag = useDraggable(el, {
 			onDrag({isDragging, deltaX, deltaY}) {
 				if (!isDragging) return
 
-				const newValue = vec2.fromValues(props.value[0], props.value[1])
-
-				newValue[0] += deltaX
-				newValue[1] += deltaY
-
-				context.emit('input', newValue)
+				update(deltaX, deltaY)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
 			},
 		})
 
+		function onKeydown(e: KeyboardEvent) {
+			const key = keycode(e)
+
+			if (ARROW_KEYS.has(key)) {
+				e.preventDefault()
+
+				let inc = 1
+				if (e.altKey) {
+					inc = 0.1
+				} else if (e.shiftKey) {
+					inc = 10
+				}
+
+				switch (key) {
+					case 'left':
+						update(-inc, 0)
+						break
+					case 'right':
+						update(inc, 0)
+						break
+					case 'up':
+						update(0, -inc)
+						break
+					case 'down':
+						update(0, inc)
+				}
+			}
+		}
+
 		return {
 			el,
 			drag,
+			onKeydown,
 		}
 	},
 })
@@ -57,8 +95,15 @@ export default defineComponent({
 	border 1px solid var(--comment)
 	border-radius 2px
 
+	&:focus
+		border-color var(--highlight)
+
+		&:before, &:after
+			background var(--highlight)
+
 	&:hover, &.dragging
-		background var(--comment)
+		background var(--highlight)
+		border-color var(--highlight)
 
 		&:before, &:after
 			background var(--background)
