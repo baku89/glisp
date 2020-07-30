@@ -16,7 +16,9 @@ By this design, Glisp can cherry-pick both advantages of "repetitive, manual app
 
 Another important design concept of Glisp is the principle of providing **functions to build functions**, rather than the functions for a concrete purpose. Even as for the vector graphics editor, the existing apps tend to be designed for a specific genre and purpose in mind. Take Adobe products as an example:
 
--**InDesign**: book design -**Illustrator**: flyers, illustrations, and diagrams -**XD** UI/UX design
+- **InDesign**: book design
+- **Illustrator**: flyers, illustrations, and diagrams
+- **XD** UI/UX design
 
 This sort of specialization is especially efficient as long as you use it within its proper usage. But once you try something strange, such the limitation often lets you take hacky and detour way. And you also have to use various tools according to the type of tasks.
 
