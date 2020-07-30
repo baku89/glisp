@@ -22,6 +22,7 @@
 						class="Inspector-style__param"
 						:value="style"
 						@input="updateStyleAt($event, i)"
+						@end-tweak="$emit('end-tweak')"
 					/>
 					<i
 						class="Inspector-style__delete far fa-times-circle"
@@ -115,6 +116,7 @@ export default defineComponent({
 					: sortedStyles.map(s => s.value)
 
 			context.emit('input', nonReactive(newExp))
+			context.emit('end-tweak')
 		}
 
 		function appendStyle(type: 'fill' | 'stroke') {
@@ -127,6 +129,7 @@ export default defineComponent({
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			context.emit('input', nonReactive(newExp))
+			context.emit('end-tweak')
 		}
 
 		function deleteStyleAt(i: number) {
@@ -136,6 +139,7 @@ export default defineComponent({
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			context.emit('input', nonReactive(newExp))
+			context.emit('end-tweak')
 		}
 
 		const dragOptions = ref({

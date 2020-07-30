@@ -10,6 +10,7 @@
 				:value="params[i]"
 				:compact="true"
 				@input="updateParamAt($event, i)"
+				@end-tweak="$emit('end-tweak')"
 			/>
 		</div>
 	</div>
