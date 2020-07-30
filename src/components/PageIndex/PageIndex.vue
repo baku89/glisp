@@ -4,8 +4,8 @@
 			class="PageIndex__view-handles-axes"
 			name="view-handles-axes"
 			:style="{
-				left: `${listViewPaneSize}%`,
-				right: `${controlPaneSize}%`,
+				left: `${paneSizeInPercent.layers}%`,
+				right: `${paneSizeInPercent.control}%`,
 			}"
 		/>
 		<ViewCanvas
@@ -21,7 +21,7 @@
 			vertical
 			@resize="onResizeSplitpanes"
 		>
-			<Pane class="left" :size="listViewPaneSize" :max-size="30">
+			<Pane class="left" :size="paneSizeInPercent.layers" :max-size="30">
 				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
@@ -33,7 +33,7 @@
 					@update:editingExp="setEditingExp"
 				/>
 			</Pane>
-			<Pane :size="100 - controlPaneSize - listViewPaneSize">
+			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
 				<div class="PageIndex__inspector" v-if="selectedExp">
 					<Inspector
 						:exp="selectedExp"
@@ -51,7 +51,7 @@
 					@tag-history="tagExpHistory('undo')"
 				/>
 			</Pane>
-			<Pane :size="controlPaneSize" :max-size="40">
+			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<ExpEditor
@@ -157,8 +157,6 @@ interface UI {
 	guideColor: string
 	viewTransform: mat2d
 	viewHandlesTransform: mat2d
-	controlPaneSize: number
-	listViewPaneSize: number
 }
 
 const OFFSET_START = 11 // length of "(sketch;__\n"
@@ -196,14 +194,12 @@ export default defineComponent({
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
 					top: 0,
 				}
-				const left = (ui.listViewPaneSize / 100) * windowWidth.value
+				const left = paneSizeInPixel.layers
 				const xform = mat2d.clone(ui.viewHandlesTransform)
 				xform[4] += left
 				xform[5] += top
 				return xform as mat2d
 			}),
-			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
-			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100,
 		}) as UI
 
 		const data = reactive({
@@ -258,7 +254,7 @@ export default defineComponent({
 				.$el as SVGElement).getBoundingClientRect()
 
 			const left = 0
-			const right = window.innerWidth * (1 - ui.controlPaneSize / 100)
+			const right = window.innerWidth - paneSizeInPixel.control
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
@@ -345,14 +341,31 @@ export default defineComponent({
 			data.hoveringExp = exp
 		}
 
-		// Others
+		// Splitpanes
+		const paneSizeInPixel = reactive({
+			layers: 15 * rem.value,
+			control: 30 * rem.value,
+		})
+
+		const paneSizeInPercent = reactive({
+			layers: computed(
+				() => (paneSizeInPixel.layers / windowWidth.value) * 100
+			),
+			control: computed(
+				() => (paneSizeInPixel.control / windowWidth.value) * 100
+			),
+		})
+
 		function onResizeSplitpanes(
 			sizes: {min: number; max: number; size: number}[]
 		) {
-			ui.listViewPaneSize = sizes[0].size
-			ui.controlPaneSize = sizes[2].size
+			const [layers, , control] = sizes.map(s => s.size)
+
+			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
+			paneSizeInPixel.control = windowWidth.value * (control / 100)
 		}
 
+		// Save code
 		watch(
 			() => data.exp,
 			exp => {
@@ -434,6 +447,8 @@ export default defineComponent({
 			setSelectedExp,
 			onResizeSplitpanes,
 			tagExpHistory,
+
+			paneSizeInPercent,
 		}
 	},
 })
