@@ -823,6 +823,17 @@
     (max (rect2d/bottom a) (rect2d/bottom b))]))
 
 
+(defn rect2d/centered
+  {:doc "Creates a new rect2d by the center position and  size"
+   :params [{:label "Center" :type "vec2"}
+            {:label "Size" :type "vec2" :ui "size"}]
+   :return {:type "rect2d"}}
+  [[x y] [w h]]
+  [(- x (/ w 2))
+   (- y (/ h 2))
+   w
+   h])
+
 ;; Combination
 (defn combination/product [& xs]
   (if (=  1 (count xs))
