@@ -14,10 +14,9 @@
 			@resize="onResizeSplitpanes"
 		>
 			<Pane class="left" :size="listViewPaneSize" :max-size="30">
-				<ViewExpTree
+				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
-					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
@@ -52,7 +51,7 @@
 							:exp="editingExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
-							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
+							:editMode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@select="setSelectedExp"
 						/>
@@ -97,7 +96,7 @@ import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
-import ViewExpTree from '@/components/ViewExpTree.vue'
+import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
 import {
@@ -167,7 +166,7 @@ export default defineComponent({
 		Inspector,
 		ViewHandles,
 		Splitpanes,
-		ViewExpTree,
+		PaneLayers,
 		Pane,
 	},
 	setup(_, context) {
@@ -468,7 +467,6 @@ html, body
 
 	&__list-view
 		position relative
-		padding-top 1rem
 		width 100%
 		height 100%
 		translucent-bg()
