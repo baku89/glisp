@@ -6,7 +6,8 @@ A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
 
 <h2>Getting Started</h2>
 
-- [Grammar of Glisp](syntax)
+- [What's Glisp?](about)
+- [Syntax](syntax)
 - [First Sketch](get-started)
 
 <h2>Functionality</h2>

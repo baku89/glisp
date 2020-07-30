@@ -1,6 +1,7 @@
 - Getting Started
 
-  - [Grammar of Glisp](syntax)
+  - [What's Glisp?](about)
+  - [Syntax](syntax)
   - [First Sketch](get-started)
 
 - Functionality
