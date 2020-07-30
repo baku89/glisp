@@ -304,7 +304,8 @@ export default defineComponent({
 		// SelectedExp
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
-				data.selectedPath = generateExpAbsPath(exp.value)
+				const path = generateExpAbsPath(exp.value)
+				data.selectedPath = path !== '/' ? path : ''
 			} else {
 				data.selectedPath = ''
 			}
