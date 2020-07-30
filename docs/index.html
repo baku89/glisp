@@ -176,6 +176,21 @@
 								/data-lang="cljs"/gi,
 								'data-lang="clojure" class="glisp-code"'
 							)
+
+							// Set the logo link to the root of each language
+							const logoLink = document.querySelector('.app-name-link')
+
+							const lang = location.hash
+								.slice(1)
+								.split('/')
+								.filter(p => !!p)[0]
+
+							if (['en'].includes(lang)) {
+								logoLink.href = `#/${lang}/`
+							} else {
+								logoLink.href = '.'
+							}
+
 							next(html)
 						})
 
