@@ -1,5 +1,13 @@
 <template>
 	<div id="app" class="PageIndex">
+		<PortalTarget
+			class="PageIndex__view-handles-axes"
+			name="view-handles-axes"
+			:style="{
+				left: `${listViewPaneSize}%`,
+				right: `${controlPaneSize}%`,
+			}"
+		/>
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -472,6 +480,12 @@ html, body
 		height 100%
 		translucent-bg()
 		overflow-y scroll
+
+	&__view-handles-axes
+		position absolute !important
+		top 3.4rem
+		height calc(100vh - 3.4rem)
+
 
 	&__viewer
 		position absolute !important

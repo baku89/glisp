@@ -1,90 +1,104 @@
 <template>
-	<svg class="ViewHandles" ref="el">
-		<defs>
-			<marker
-				id="arrow-x"
-				viewBox="0 0 10 10"
-				refX="10"
-				refY="5"
-				markerUnits="strokeWidth"
-				markerWidth="10"
-				markerHeight="10"
-				orient="auto-start-reverse"
-			>
-				<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
-			</marker>
-			<marker
-				id="arrow-y"
-				viewBox="0 0 10 10"
-				refX="10"
-				refY="5"
-				markerUnits="strokeWidth"
-				markerWidth="10"
-				markerHeight="10"
-				orient="auto-start-reverse"
-			>
-				<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
-			</marker>
-		</defs>
-		<g :transform="`matrix(${viewTransform.join(' ')})`">
-			<path class="ViewHandles__viewport-axis stroke" d="M -50000 0 H 50000" />
-			<path class="ViewHandles__viewport-axis stroke" d="M 0 -50000 V 50000" />
-		</g>
-		<g
-			v-if="handleCallbacks"
-			class="ViewHandles__axis"
-			:transform="axisTransform"
-		>
-			<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
-			<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
-		</g>
-		<path
-			class="stroke"
-			v-if="selectedPath"
-			:d="selectedPath"
-			:transform="`matrix(${transform.join(' ')})`"
-		/>
-		<g
-			v-for="({type, id, transform, yTransform, path, cls, guide},
-			i) in handles"
-			:key="i"
-			:class="cls"
-			:hoverrable="draggingIndex === null && !guide"
-			:dragging="draggingIndex === i"
-			:transform="transform"
-			@mousedown="!guide && onMousedown(i, $event)"
-		>
-			<template v-if="type === 'path'">
-				<path class="stroke hover-zone" :d="path" />
-				<path class="stroke display" :d="path" />
-			</template>
-			<template v-else-if="type === 'dia'">
-				<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
-			</template>
-			<template v-else>
-				<path
-					v-if="type === 'arrow'"
-					class="stroke display"
-					d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
-				/>
-				<template v-if="type === 'translate'">
-					<path class="stroke display" d="M 12 0 H -12" />
+	<div class="ViewHandles" ref="el">
+		<Portal to="view-handles-axes">
+			<svg class="ViewHandles__axes-portal">
+				<defs>
+					<marker
+						id="arrow-x"
+						viewBox="0 0 10 10"
+						refX="10"
+						refY="5"
+						markerUnits="strokeWidth"
+						markerWidth="10"
+						markerHeight="10"
+						orient="auto-start-reverse"
+					>
+						<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
+					</marker>
+					<marker
+						id="arrow-y"
+						viewBox="0 0 10 10"
+						refX="10"
+						refY="5"
+						markerUnits="strokeWidth"
+						markerWidth="10"
+						markerHeight="10"
+						orient="auto-start-reverse"
+					>
+						<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
+					</marker>
+				</defs>
+				<g :transform="`matrix(${viewTransform.join(' ')})`">
+					<path class="ViewHandles__axis stroke" d="M -50000 0 H 50000" />
+					<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
+				</g>
+				<g
+					class="ViewHandles__gnomon"
+					v-if="handleCallbacks"
+					:transform="axisTransform"
+				>
 					<path
+						class="stroke axis-x"
+						marker-end="url(#arrow-x)"
+						d="M 0 0 H 200"
+					/>
+					<path
+						class="stroke axis-y"
+						marker-end="url(#arrow-y)"
+						d="M 0 0 V 200"
+					/>
+				</g>
+			</svg>
+		</Portal>
+		<svg class="ViewHandles__handles">
+			<path
+				class="stroke"
+				v-if="selectedPath"
+				:d="selectedPath"
+				:transform="`matrix(${transform.join(' ')})`"
+			/>
+			<g
+				v-for="({type, id, transform, yTransform, path, cls, guide},
+				i) in handles"
+				:key="i"
+				:class="cls"
+				:hoverrable="draggingIndex === null && !guide"
+				:dragging="draggingIndex === i"
+				:transform="transform"
+				@mousedown="!guide && onMousedown(i, $event)"
+			>
+				<template v-if="type === 'path'">
+					<path class="stroke hover-zone" :d="path" />
+					<path class="stroke display" :d="path" />
+				</template>
+				<template v-else-if="type === 'dia'">
+					<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
+				</template>
+				<template v-else>
+					<path
+						v-if="type === 'arrow'"
 						class="stroke display"
-						:transform="yTransform"
-						d="M 0 12 V -12"
+						d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
+					/>
+					<template v-if="type === 'translate'">
+						<path class="stroke display" d="M 12 0 H -12" />
+						<path
+							class="stroke display"
+							:transform="yTransform"
+							d="M 0 12 V -12"
+						/>
+					</template>
+					<circle
+						class="fill display"
+						:class="cls"
+						cx="0"
+						cy="0"
+						:r="rem * 0.5"
 					/>
 				</template>
-				<circle
-					class="fill display"
-					:class="cls"
-					cx="0"
-					cy="0"
-					:r="rem * 0.5"
-				/>
-			</template>
-		</g>
-	</svg>
+			</g>
+		</svg>
+	</div>
 </template>
 
 <script lang="ts">
@@ -99,8 +113,6 @@ import {
 	isVector,
 	getEvaluated,
 	malEquals,
-	getType,
-	M_DELIMITERS,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {getSVGPathData} from '@/path-utils'
@@ -591,22 +603,51 @@ export default defineComponent({
 	overflow hidden
 	height 100%
 
-	.fill, .stroke
-		stroke var(--highlight)
-		stroke-width 1
-		vector-effect non-scaling-stroke
+	// Portal
+	&__axes-portal
+		position relative
+		width 100%
+		height 100%
+		overflow hidden
 
-	.fill
-		fill var(--background)
-
-	.stroke
-		stroke var(--highlight)
-		vector-effect non-scaling-stroke
-		fill none
-
-	&__viewport-axis
+	&__axis
 		stroke var(--guide) !important
 		stroke-dasharray 1 4
+
+	// Handles
+	&__handles
+		position relative
+		width 100%
+		height 100%
+		overflow hidden
+
+	// Styles
+	&, &__axes-portal
+		.fill, .stroke
+			stroke var(--highlight)
+			stroke-width 1
+			vector-effect non-scaling-stroke
+
+		.fill
+			fill var(--background)
+
+		.stroke
+			stroke var(--highlight)
+			vector-effect non-scaling-stroke
+			fill none
+
+		// Classes
+		.dashed
+			stroke-dasharray 3 2
+
+		.axis-x, .axis-y
+			opacity 0.5
+
+		.axis-x, .axis-x .display
+			stroke var(--red) !important
+
+		.axis-y, .axis-y .display
+			stroke var(--green) !important
 
 	// Hover behavior
 	*[hoverrable]:hover, *[dragging]
@@ -622,17 +663,4 @@ export default defineComponent({
 	e, .hover-zone
 		stroke transparent
 		stroke-width 20
-
-	// Classes
-	.dashed
-		stroke-dasharray 3 2
-
-	.axis-x, .axis-y
-		opacity 0.5
-
-	.axis-x, .axis-x .display
-		stroke var(--red) !important
-
-	.axis-y, .axis-y .display
-		stroke var(--green) !important
 </style>

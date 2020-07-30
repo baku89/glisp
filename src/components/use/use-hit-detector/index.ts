@@ -17,7 +17,9 @@ function useMouseButtons(el: Ref<any | null>) {
 	const mousePressed = ref(false)
 
 	function onMouseEvent(e: MouseEvent) {
-		if (e.target !== el.value?.$el) {
+		// NOTE: This is makeshift and might occur bugs in the future
+		// Ignore the click event when clicked handles directly
+		if (!/svg/i.test((e.target as any)?.tagName)) {
 			return
 		}
 		if (e.button === 0) {
