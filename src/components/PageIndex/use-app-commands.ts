@@ -31,6 +31,7 @@ import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
+import {reconstructTree} from '@/mal/reader'
 
 export default function useAppCommands(
 	data: {
@@ -209,6 +210,7 @@ export default function useAppCommands(
 		}
 
 		const newExp = primitive ? newParams[0] : L(selected[0], ...newParams)
+		reconstructTree(newExp)
 
 		copyDelimiters(newExp, data.selectedExp.value)
 
