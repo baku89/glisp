@@ -7,7 +7,9 @@
 (def defmacro
   ^{:doc "Defines a macro"
     :params [{:label "Symbol" :type "symbol"}
-             {:label "Params" :type "any"}]}
+             {:label "Params" :type "any"}
+             &
+             {:label "Body" :type "exp"}]}
   (macro
    [name params & body]
    (do
@@ -29,7 +31,9 @@
 (defmacro defn
   {:doc "Defines a function"
    :params [{:label "Symbol" :type "symbol"}
-            {:label "Params" :type "any"}]}
+            {:label "Params" :type "exp"}
+            &
+            {:label "Body" :type "exp"}]}
   [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
