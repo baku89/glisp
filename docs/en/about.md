@@ -2,7 +2,7 @@
 
 ![Screenshot](../_media/screenshot.png)
 
-In short, Glisp is a project to explore **the next-generation design tool that is extremely extensible, flexible, and can be used in various ways**. Mainly developed by [Baku Hashimoto](https://baku89.com), it is developed as open source with the cooperation of many [contributers](https://github.com/baku89/glisp/graphs/contributors) and [sponsors](https://github.com/sponsors/baku89?o=sd&sc=t).
+In short, Glisp is a project to explore **the next-generation design tool that is extremely extensible, flexible, and can be used in various ways**. Mainly developed by [Baku Hashimoto](https://baku89.com), it has been developed as open source with the cooperation of many [contributers](https://github.com/baku89/glisp/graphs/contributors) and [sponsors](https://github.com/sponsors/baku89?o=sd&sc=t).
 
 At present, it is still a prototype, though, we will eventually develop it into a general-purpose vector graphics tool that anyone can use.
 
