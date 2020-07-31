@@ -152,7 +152,9 @@
 
 (defn vec2/+
   {:doc "Adds vec2's"
-   :params [{:label "Value" :type "vec2" :variadic true}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -168,7 +170,9 @@
 
 (defn vec2/-
   {:doc "Subtracts vec2's"
-   :params [{:label "Value" :type "vec2" :variadic true}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -189,7 +193,9 @@
 
 (defn vec2/*
   {:doc "Multiplies vec2's"
-   :params [{:label "Value" :type "vec2" :variadic true}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -208,7 +214,9 @@
 
 (defn vec2/div
   {:doc "Divides vec2's"
-   :params [{:label "Value" :type "vec2" :variadic true}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -651,7 +659,9 @@
 
 (def mat2d/*
   ^{:doc "Multipies the mat2d's"
-    :params [{:label "Matrix" :type "mat2d" :variadic true}]
+    :params [{:type "vector"
+              :variadic true
+              :items {:label "Matrix" :type "mat2d"}}]
     :return {:type "mat2d"}}
   (let
    [mul (fn
@@ -668,7 +678,9 @@
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
-            {:label "Matrix" :type "mat2d" :variadic true}]
+            {:type "vector"
+             :variadic true
+             :items {:label "Matrix" :type "mat2d"}}]
    :return "mat2d"
    :handles {:draw (fn {:params [p]}
                      [{:type "translate" :pos p}])

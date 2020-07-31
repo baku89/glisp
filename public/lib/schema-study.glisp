@@ -35,8 +35,9 @@
 
 ;; Vector
 {:type "vector"
- :on-insert (fn {:value val :index index} new-val)
  :items {:type "number"}}
+
+
 
 ;; Vector (default)
 {:type "vector"

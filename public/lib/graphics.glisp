@@ -163,7 +163,9 @@
 (defmacro g
   {:doc "Creates a element group with attributes"
    :params [{:label "Attribute" :type "exp"}
-            {:label "Body" :type "exp" :variadic true}]}
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]}
   [attrs & body]
   (let [evaluated-attrs (eval* attrs)
         attr-transform (get evaluated-attrs :transform)
@@ -210,7 +212,9 @@
 (defmacro graphics/transform
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
-            {:label "Body" :type "exp" :variadic true}]
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]
    :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
@@ -224,7 +228,9 @@
 (defmacro graphics/style
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
-            {:label "Body" :type "exp" :variadic true}]
+            {:type "vector"
+             :variadic true
+             :items  {:label "Body" :type "exp"}}]
    :return {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
@@ -240,8 +246,10 @@
 
 (defmacro graphics/artboard
   {:doc "Creates an artboard"
-   :params [{:label "Options" :type "code"}
-            {:label "Body" :type "code" :variadic true}]
+   :params [{:label "Options" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]
   ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
   ;;                    (let [info {:params [bounds]
   ;;                                :return (rect bounds)}]
@@ -431,7 +439,9 @@
 
 (defn graphics/point-cloud
   {:doc "Creates vector of points"
-   :params [{:label "Point" :type "vec2" :variadic true}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Point" :type "vec2"}}]
    :handles {:draw (fn {:params pts}
                      (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
              :drag (fn {:id i :pos p}
