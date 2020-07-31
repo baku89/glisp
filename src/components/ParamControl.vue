@@ -10,7 +10,7 @@
 			<td class="ParamControl__value">
 				<div class="ParamControl__input">
 					<component
-						:is="schema.ui"
+						:is="'ui-' + schema.ui"
 						v-bind="schema"
 						@input="onParamInput(i, $event)"
 						@select="$emit('select', $event)"
@@ -106,22 +106,22 @@ export default defineComponent({
 		fn: {required: false},
 	},
 	components: {
-		number: MalInputComponents.MalInputNumber,
-		//slider: MalInputComponents.MalInputSlider,
-		angle: MalInputComponents.MalInputAngle,
-		seed: MalInputComponents.MalInputSeed,
-		string: MalInputComponents.MalInputString,
-		color: MalInputComponents.MalInputColor,
-		dropdown: MalInputComponents.MalInputDropdown,
-		keyword: MalInputComponents.MalInputKeyword,
-		// symbol: MalInputComponents.MalInputSymbol,
-		// boolean: MalInputComponents.MalInputBoolean,
-		vec2: MalInputComponents.MalInputVec2,
-		rect2d: MalInputComponents.MalInputRect2d,
-		mat2d: MalInputComponents.MalInputMat2d,
-		// path: MalInputComponents.MalInputPath,
-		exp: MalInputComponents.MalExpButton,
-		//any: MalInputComponents.MalExpButton,
+		'ui-number': MalInputComponents.MalInputNumber,
+		// 'ui-slider': MalInputComponents.MalInputSlider,
+		'ui-angle': MalInputComponents.MalInputAngle,
+		'ui-seed': MalInputComponents.MalInputSeed,
+		'ui-string': MalInputComponents.MalInputString,
+		'ui-color': MalInputComponents.MalInputColor,
+		'ui-dropdown': MalInputComponents.MalInputDropdown,
+		'ui-keyword': MalInputComponents.MalInputKeyword,
+		'ui-symbol': MalInputComponents.MalInputSymbol,
+		// 'ui-boolean': MalInputComponents.MalInputBoolean,
+		'ui-vec2': MalInputComponents.MalInputVec2,
+		'ui-rect2d': MalInputComponents.MalInputRect2d,
+		'ui-mat2d': MalInputComponents.MalInputMat2d,
+		// 'ui-path': MalInputComponents.MalInputPath,
+		'ui-exp': MalInputComponents.MalExpButton,
+		// 'ui-any': MalInputComponents.MalInputAny,
 	},
 	setup(props: Props, context: SetupContext) {
 		const fnInfo = computed(() => {
