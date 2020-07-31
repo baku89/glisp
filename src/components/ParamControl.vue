@@ -4,7 +4,7 @@
 			v-for="(schema, i) in uiSchema"
 			:key="i"
 			class="ParamControl__param"
-			:class="{'is-default': /*params[i].isDefault*/ false}"
+			:class="{'is-default': schema.isDefault}"
 		>
 			<td class="ParamControl__label">{{ schema.label }}</td>
 			<td class="ParamControl__value">
@@ -30,7 +30,7 @@
 					@click="onParamInsert(i)"
 				>
 					Insert
-				</button> -->
+				</button>-->
 			</td>
 		</tr>
 		<!-- <tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
@@ -184,7 +184,6 @@ export default defineComponent({
 		}
 
 		return {
-			schema,
 			uiSchema,
 			onParamInput,
 		}

@@ -19,14 +19,18 @@ interface SchemaBase {
 	type: string
 	ui: string
 	label: string
-	value?: NonReactive<any>
+
+	// Properties for uiSchema
+	value?: NonReactive<MalVal>
+	default?: MalVal
+	isDefault?: boolean
 }
 
 /**
  * Schema for primitive value
  */
 
-interface SchemaPrimitiveBase<T> extends SchemaBase {
+interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
 	value?: NonReactive<T>
 	default?: T
 	variadic?: false
@@ -320,7 +324,9 @@ export function generateUISchemaParams(
 
 		// Set value with wrapped by nonReactive
 		schema.value = nonReactive(value as any)
-		;(schema as any).rawValue = value
+		if ('default' in schema) {
+			schema.isDefault = value === schema.default
+		}
 	}
 
 	return uiSchema
