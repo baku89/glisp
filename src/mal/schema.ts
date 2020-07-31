@@ -198,11 +198,22 @@ export function generateSchemaParamLabel(
 
 	const schemaParams = [..._schemaParams]
 
-	const labels = fn[M_PARAMS].map(p => getParamLabel(printExp(p)))
+	const labels = fn[M_PARAMS].map(p => getParamLabel(p)).filter(p => p !== '&')
 
 	for (let i = 0; i < schemaParams.length; i++) {
-		if (!schemaParams[i].label) {
-			schemaParams[i] = {...schemaParams[i], label: labels[i]}
+		const schema = schemaParams[i]
+
+		if (schema.variadic) {
+			if (schema.type == 'vector' && !schema.items.label) {
+				schemaParams[i] = {
+					...schema,
+					items: {...schema.items, label: labels[i]},
+				}
+			}
+		} else {
+			if (!schema.label) {
+				schemaParams[i] = {...schema, label: labels[i]}
+			}
 		}
 	}
 
