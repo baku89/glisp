@@ -1,0 +1,38 @@
+;; 静的なパラメーター
+
+;; 基本構造
+{:type "number|string|keyword|symbol|boolean|map|vector|vec2|rect2d|mat2d|path|color"
+ :ui "angle|seed|dropdown"
+ :label "Label"
+ :validator validator-fn ;; value -> modified-value or nil (invalid)
+
+ ;; ui: slider
+ :range [0 1]
+
+ ;; ui: dropdown
+ :values [0 1 2]
+ :labels ["Zero" "One" "Two"]}
+
+
+;; 関数適用
+
+(circle [0 0] 100)
+
+{:type "list"
+ :value  [;; :type === :ui の時省略可能
+          {:label "Center" :type "vec2" :ui "vec2"}
+          {:label "Radius" :type "number" :ui "number"}]}
+
+
+;; マップ
+
+{:type "map"
+ :value [{:key "width" :label "Width" ...}
+         {:key "height" :label "Height" ...}]}
+
+;; ベクタ
+{:type "vector"
+ :insert (fn {:value val :index index} new-val)
+ :value []}
+
+
