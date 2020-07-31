@@ -1,107 +1,23 @@
 <template>
 	<table class="ParamControl">
 		<tr
-			v-for="(desc, i) in paramDescs.descs"
+			v-for="(schema, i) in uiSchema"
 			:key="i"
 			class="ParamControl__param"
-			:class="{'is-default': params[i].isDefault}"
+			:class="{'is-default': /*params[i].isDefault*/ false}"
 		>
-			<td class="ParamControl__label">{{ desc['ʞlabel'] }}</td>
+			<td class="ParamControl__label">{{ schema.label }}</td>
 			<td class="ParamControl__value">
 				<div class="ParamControl__input">
-					<MalInputNumber
-						v-if="params[i].type === 'number'"
-						:value="params[i].value"
-						:compact="true"
-						:validator="desc['ʞvalidator']"
+					<component
+						:is="schema.ui"
+						v-bind="schema"
 						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
+						@select="$emit('select', $event)"
 						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputString
-						v-else-if="params[i].type === 'string'"
-						:value="params[i].value"
-						:validator="desc['ʞvalidator']"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputDropdown
-						v-else-if="params[i].type === 'dropdown'"
-						:value="params[i].value"
-						:values="desc['ʞenum']"
-						:validator="desc['ʞvalidator']"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputColor
-						v-else-if="params[i].type === 'color'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputAngle
-						v-else-if="params[i].type === 'angle'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputVec2
-						v-else-if="params[i].type === 'vec2'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputRect2d
-						v-else-if="params[i].type === 'rect2d'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputMat2d
-						v-else-if="params[i].type === 'mat2d'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputSeed
-						v-else-if="params[i].type === 'seed'"
-						:value="params[i].value"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputString
-						:style="{color: 'var(--purple)'}"
-						v-else-if="params[i].type === 'symbol'"
-						:value="nonReactive(params[i].value.value.value)"
-						:validator="symbolValidator"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalInputString
-						style="color: var(--syntax-keyword);"
-						v-else-if="params[i].type === 'keyword'"
-						:value="nonReactive(params[i].value.value.slice(1))"
-						:validator="keywordValidator"
-						@input="onParamInput(i, $event)"
-						@select="onSelect($event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-					<MalExpButton
-						v-else
-						:value="params[i].value"
-						@click="onSelect($event)"
 					/>
 				</div>
-				<button
+				<!-- <button
 					class="ParamControl__button delete"
 					v-if="i >= variadicPos"
 					@click="onParamDelete(i)"
@@ -114,10 +30,10 @@
 					@click="onParamInsert(i)"
 				>
 					Insert
-				</button>
+				</button> -->
 			</td>
 		</tr>
-		<tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
+		<!-- <tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
 			<td class="ParamControl__label"></td>
 			<td class="ParamControl__value">
 				<button
@@ -127,83 +43,61 @@
 					+ Add
 				</button>
 			</td>
-		</tr>
+		</tr>-->
 	</table>
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from '@vue/composition-api'
-import {
-	MalSeq,
-	getType,
-	MalVal,
-	keywordFor as K,
-	MalError,
-	M_PARAMS,
-	malEquals,
-	isMalFunc,
-	assocBang,
-	symbolFor as S,
-	cloneExp,
-	MalFunc,
-	createList as L,
-	isVector,
-} from '@/mal/types'
+import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {MalSeq, MalVal, MalFunc, createList as L, isVector} from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-input'
-import {getFnInfo, getStructType} from '@/mal/utils'
-import {nonReactive, getParamLabel, clamp, NonReactive} from '@/utils'
+import {getFnInfo, getMapValue} from '@/mal/utils'
+import {nonReactive, NonReactive} from '@/utils'
+import {generateSchemaParamLabel, generateUISchemaParams} from '../mal/schema'
+import {convertMalNodeToJSObject} from '@/mal/reader'
 
 interface Props {
 	exp: NonReactive<MalSeq>
 	fn: MalFunc
 }
 
-const K_PARAMS = K('params'),
-	K_TYPE = K('type'),
-	K_LABEL = K('label'),
-	K_DEFAULT = K('default'),
-	K_KEY = K('key'),
-	K_KEYS = K('keys')
+// interface Desc {
+// 	[keyword: string]: any
+// }
 
-const S_AMP = S('&')
+// type RestType = null | 'variadic' | 'keyword'
 
-interface Desc {
-	[keyword: string]: any
-}
+// interface Param {
+// 	type: string
+// 	value: NonReactive<MalVal[]>
+// 	isDefault: boolean
+// }
 
-type RestType = null | 'variadic' | 'keyword'
+// interface ParamDescs {
+// 	descs: Desc[]
+// 	rest: null | {
+// 		pos: number
+// 		type: RestType
+// 	}
+// }
 
-interface Param {
-	type: string
-	value: NonReactive<MalVal[]>
-	isDefault: boolean
-}
+// const EmptyParamDescs = {
+// 	descs: [],
+// 	rest: null,
+// }
 
-interface ParamDescs {
-	descs: Desc[]
-	rest: null | {
-		pos: number
-		type: RestType
-	}
-}
+// const TypeDefaults = {
+// 	number: 0,
+// 	vec2: [0, 0],
+// 	path: [K('path')],
+// } as {[type: string]: MalVal}
 
-const EmptyParamDescs = {
-	descs: [],
-	rest: null,
-}
+// const InterpolateFuncs = {
+// 	number: (a: number, b: number) => (a + b) / 2,
+// 	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+// } as {[type: string]: (...xs: MalVal[]) => MalVal}
 
-const TypeDefaults = {
-	number: 0,
-	vec2: [0, 0],
-	path: [K('path')],
-} as {[type: string]: MalVal}
-
-const InterpolateFuncs = {
-	number: (a: number, b: number) => (a + b) / 2,
-	vec2: (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
-} as {[type: string]: (...xs: MalVal[]) => MalVal}
-
-type MetaDescs = (Desc | string)[]
+// type MetaDescs = (Desc | string)[]
 
 export default defineComponent({
 	name: 'ParamControl',
@@ -212,25 +106,85 @@ export default defineComponent({
 		fn: {required: false},
 	},
 	components: {
-		...MalInputComponents,
+		number: MalInputComponents.MalInputNumber,
+		//slider: MalInputComponents.MalInputSlider,
+		angle: MalInputComponents.MalInputAngle,
+		seed: MalInputComponents.MalInputSeed,
+		string: MalInputComponents.MalInputString,
+		color: MalInputComponents.MalInputColor,
+		dropdown: MalInputComponents.MalInputDropdown,
+		// keyword: MalInputComponents.MalInputKeyword,
+		// symbol: MalInputComponents.MalInputSymbol,
+		// boolean: MalInputComponents.MalInputBoolean,
+		vec2: MalInputComponents.MalInputVec2,
+		rect2d: MalInputComponents.MalInputRect2d,
+		mat2d: MalInputComponents.MalInputMat2d,
+		// path: MalInputComponents.MalInputPath,
+		exp: MalInputComponents.MalExpButton,
+		//any: MalInputComponents.MalExpButton,
 	},
-	setup(props: Props, context) {
+	setup(props: Props, context: SetupContext) {
 		const fnInfo = computed(() => {
-			return getFnInfo(props.fn || props.exp.value)
+			const ret = getFnInfo(props.fn || props.exp.value)
+			if (!ret) {
+				throw new Error('Cannot retrieve function reference')
+			}
+			return ret
 		})
 
-		// The parameter part of exp
-		const fnParams = computed(() => {
-			if (fnInfo.value) {
-				if (fnInfo.value.structType) {
-					return [props.exp.value]
-				} else {
-					return props.exp.value.slice(1)
-				}
+		const params = computed(() => {
+			if (fnInfo.value.structType) {
+				return [props.exp.value]
 			} else {
-				return []
+				return props.exp.value.slice(1)
 			}
 		})
+
+		const schema = computed(() => {
+			const meta = fnInfo.value.meta
+			const malSchema = getMapValue(meta, 'params')
+			if (!isVector(malSchema)) {
+				throw new Error('Invalid shema')
+			}
+
+			// Convert to JS Object
+			const rawSchema = convertMalNodeToJSObject(malSchema)
+
+			// Add label
+			const labeledSchema = generateSchemaParamLabel(
+				rawSchema as any,
+				fnInfo.value.fn as any
+			)
+
+			return labeledSchema
+		})
+
+		const uiSchema = computed(() => {
+			const ret = generateUISchemaParams(schema.value, params.value)
+			return ret
+		})
+
+		function onParamInput(i: number, value: NonReactive<MalVal>) {
+			const newParams = [...params.value]
+			newParams[i] = value.value
+
+			const newExp = fnInfo.value.structType
+				? newParams[0]
+				: L(props.exp.value[0], ...newParams)
+
+			context.emit('input', nonReactive(newExp))
+		}
+
+		return {
+			uiSchema,
+			onParamInput,
+		}
+
+		/*
+
+
+		// The parameter part of exp
+
 
 		function detectInputType(v: MalVal) {
 			return getStructType(v) || getType(v) || 'any'
@@ -455,62 +409,6 @@ export default defineComponent({
 			return descType
 		}
 
-		function onParamInput(i: number, value: NonReactive<MalVal>) {
-			if (!fnInfo.value) {
-				return
-			}
-
-			const {descs, rest} = paramDescs.value
-
-			// Clone the required part of params
-			const newParams = []
-			if (rest && rest.type === 'keyword' && rest.pos <= i) {
-				const restIndex = i - rest.pos
-
-				const restDescs = descs.slice(rest.pos)
-				const restParams = params.value.slice(rest.pos)
-
-				// Figure out which parameters have modified
-				const modifiedParams = []
-				for (let j = 0; j < restParams.length; j++) {
-					const param = restParams[j]
-					const desc = restDescs[j]
-
-					const v = j === restIndex ? value.value : param.value.value
-					const isDefault = v === desc[K_DEFAULT]
-
-					if (!isDefault) {
-						const key = desc[K_KEY]
-						modifiedParams.push(key, v)
-					}
-				}
-
-				newParams.push(...fnParams.value.slice(0, rest.pos), ...modifiedParams)
-			} else {
-				newParams.push(...fnParams.value)
-				newParams[i] = value.value
-			}
-			// Check if the parameters can be made shorter
-			if (!rest || newParams.length <= rest.pos) {
-				for (let j = newParams.length - 1; 0 <= j; j--) {
-					if (newParams[j] !== descs[j][K_DEFAULT]) {
-						break
-					}
-					newParams.pop()
-				}
-			}
-
-			let newValue
-
-			if (fnInfo.value?.structType) {
-				newValue = newParams[0]
-			} else {
-				newValue = L(props.exp.value[0], ...newParams)
-			}
-
-			context.emit('input', nonReactive(newValue))
-		}
-
 		function onParamDelete(i: number) {
 			if (!fnInfo.value) {
 				return
@@ -562,10 +460,6 @@ export default defineComponent({
 			context.emit('input', nonReactive(newValue))
 		}
 
-		function onSelect(exp: NonReactive<MalVal>) {
-			context.emit('select', exp)
-		}
-
 		// Use inside the template
 		function symbolValidator(v: string) {
 			return v.trim() ? S(v) : null
@@ -587,6 +481,7 @@ export default defineComponent({
 			symbolValidator,
 			nonReactive,
 		}
+		*/
 	},
 })
 </script>
