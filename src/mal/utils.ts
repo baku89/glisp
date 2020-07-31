@@ -33,9 +33,8 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
-import {printExp} from '.'
 
-export function getPrimitiveType(exp: MalVal): string | null {
+export function getStructType(exp: MalVal): StructTypes | null {
 	if (isVector(exp)) {
 		if (exp[0] === K('path')) {
 			return 'path'
@@ -221,22 +220,24 @@ export function getMapValue(
 	return exp
 }
 
+type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
+
 export interface FnInfoType {
 	fn: MalFunc | MalJSFunc
-	meta: MalMap | null
-	aliasFor: string | null
-	primitive: string | null
+	meta?: MalMap | null
+	aliasFor?: string
+	structType?: StructTypes
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | null {
 	let fn = isFunc(exp) ? exp : getFn(exp)
 
-	// Check if primitive type
-	let primitive = null
+	// Check if the exp is struct
+	let structType = null
 	if (!fn && isNode(exp)) {
-		primitive = getPrimitiveType(getEvaluated(exp))
-		if (primitive) {
-			fn = ConsoleScope.var(primitive) as MalFunc
+		structType = getStructType(getEvaluated(exp))
+		if (structType) {
+			fn = ConsoleScope.var(structType) as MalFunc
 		}
 	}
 
@@ -252,14 +253,13 @@ export function getFnInfo(exp: MalVal): FnInfoType | null {
 					fn,
 					meta,
 					aliasFor,
-					primitive,
 				}
 			} else {
 				// is not an alias
-				return {fn, meta, aliasFor: null, primitive}
+				return {fn, meta}
 			}
 		} else {
-			return {fn, meta: null, aliasFor: null, primitive}
+			return {fn}
 		}
 	}
 

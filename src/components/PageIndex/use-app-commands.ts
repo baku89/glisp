@@ -179,19 +179,19 @@ export default function useAppCommands(
 			return false
 		}
 
-		const {meta, primitive} = fnInfo
+		const {meta, structType} = fnInfo
 		const transformFn = getMapValue(meta, 'transform')
 
 		if (!isFunc(transformFn)) {
 			throw new MalError(
 				`Function ${
-					fnInfo.primitive || printExp(selected[0])
+					fnInfo.structType || printExp(selected[0])
 				} does not have transform function`
 			)
 			return false
 		}
 
-		const originalParams = primitive ? [selected] : selected.slice(1)
+		const originalParams = structType ? [selected] : selected.slice(1)
 		const payload = {
 			[K('params')]: originalParams.map(p => getEvaluated(p)),
 			[K('transform')]: xform as MalVal,
@@ -200,7 +200,7 @@ export default function useAppCommands(
 		const modifier = transformFn(payload)
 		let newParams: MalVal[] | null
 
-		if (primitive) {
+		if (structType) {
 			newParams = modifier as MalSeq
 		} else {
 			newParams = applyParamModifier(modifier, originalParams)
@@ -209,7 +209,7 @@ export default function useAppCommands(
 			}
 		}
 
-		const newExp = primitive ? newParams[0] : L(selected[0], ...newParams)
+		const newExp = structType ? newParams[0] : L(selected[0], ...newParams)
 		reconstructTree(newExp)
 
 		copyDelimiters(newExp, data.selectedExp.value)

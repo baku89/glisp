@@ -150,7 +150,7 @@ import {
 	isVector,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-input'
-import {getFnInfo, getPrimitiveType} from '@/mal/utils'
+import {getFnInfo, getStructType} from '@/mal/utils'
 import {nonReactive, getParamLabel, clamp, NonReactive} from '@/utils'
 
 interface Props {
@@ -222,7 +222,7 @@ export default defineComponent({
 		// The parameter part of exp
 		const fnParams = computed(() => {
 			if (fnInfo.value) {
-				if (fnInfo.value.primitive) {
+				if (fnInfo.value.structType) {
 					return [props.exp.value]
 				} else {
 					return props.exp.value.slice(1)
@@ -233,7 +233,7 @@ export default defineComponent({
 		})
 
 		function detectInputType(v: MalVal) {
-			return getPrimitiveType(v) || getType(v) || 'any'
+			return getStructType(v) || getType(v) || 'any'
 		}
 
 		function matchParameter(
@@ -502,7 +502,7 @@ export default defineComponent({
 
 			let newValue
 
-			if (fnInfo.value?.primitive) {
+			if (fnInfo.value?.structType) {
 				newValue = newParams[0]
 			} else {
 				newValue = L(props.exp.value[0], ...newParams)

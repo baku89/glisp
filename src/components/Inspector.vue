@@ -73,8 +73,8 @@ export default defineComponent({
 		})
 
 		const fnName = computed(() => {
-			if (fnInfo.value?.primitive) {
-				return fnInfo.value.primitive
+			if (fnInfo.value?.structType) {
+				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
 				(isList(props.exp.value) && isSymbol(props.exp.value[0]))

@@ -222,7 +222,7 @@ export default defineComponent({
 				if (!props.exp || !data.handleCallbacks) return []
 
 				const exp = props.exp.value
-				if (data.fnInfo?.primitive) {
+				if (data.fnInfo?.structType) {
 					return [getEvaluated(exp)]
 				} else {
 					return exp.slice(1).map(e => getEvaluated(e)) || []
@@ -232,7 +232,7 @@ export default defineComponent({
 				if (!props.exp || !data.handleCallbacks) return []
 
 				const exp = props.exp.value
-				if (data.fnInfo?.primitive) {
+				if (data.fnInfo?.structType) {
 					return [exp]
 				} else {
 					return exp.slice(1)
@@ -480,7 +480,7 @@ export default defineComponent({
 			}
 
 			// Construct the new expression and send it to parent
-			const newExp: MalSeq = data.fnInfo?.primitive
+			const newExp: MalSeq = data.fnInfo?.structType
 				? (newParams[0] as MalSeq)
 				: (L(props.exp.value[0], ...newParams) as MalSeq)
 
