@@ -182,17 +182,9 @@ interface SchemaMap extends SchemaBase {
 type Schema = SchemaVector | SchemaMap | SchemaPrimitive
 
 /**
- * Schema for Parameters
- */
-export type SchemaParams = Schema[]
-
-/**
  * Set the labels of schema by the parameters of Function references
  */
-export function generateSchemaParamLabel(
-	_schemaParams: SchemaParams,
-	fn: MalFunc
-) {
+export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
 	if (!isMalFunc(fn)) {
 		return _schemaParams
 	}
@@ -241,7 +233,7 @@ export function extractParams(exp: MalSeq): MalSeq {
  * Generates UISchema for the parameter of function application
  */
 export function generateUISchemaParams(
-	schemaParams: SchemaParams,
+	schemaParams: Schema[],
 	params: MalVal[]
 ) {
 	// Check if zero
@@ -338,7 +330,7 @@ export function generateUISchemaParams(
  * Computes the original parameters from UIParamSchema and updated value
  */
 export function updateParamsByUISchema(
-	schemaParams: SchemaParams,
+	schemaParams: Schema[],
 	params: MalVal[],
 	index: number,
 	value: MalVal
