@@ -15,17 +15,21 @@ import {
 import {getStructType} from './utils'
 import printExp from './printer'
 
+interface SchemaBase {
+	type: string
+	ui: string
+	label: string
+	value?: NonReactive<any>
+}
+
 /**
  * Schema for primitive value
  */
 
-interface SchemaPrimitiveBase<T> {
-	type: string
-	ui: string
-	label: string
+interface SchemaPrimitiveBase<T> extends SchemaBase {
 	value?: NonReactive<T>
 	default?: T
-	variadic?: true
+	variadic?: false
 	validator: (input: T) => T | null
 }
 
@@ -156,9 +160,30 @@ type SchemaPrimitive =
 	| SchemaExp
 
 /**
+ * Schema for vector / map
+ */
+interface SchemaVector extends SchemaBase {
+	type: 'vector'
+	variadic?: boolean
+	items: SchemaPrimitive
+}
+
+interface SchemaMap extends SchemaBase {
+	type: 'map'
+	variadic?: boolean
+	items: SchemaPrimitive
+}
+
+/**
+ * All Schema
+ */
+
+type Schema = SchemaVector | SchemaMap | SchemaPrimitive
+
+/**
  * Schema for Parameters
  */
-export type SchemaParams = SchemaPrimitive[]
+export type SchemaParams = Schema[]
 
 /**
  * Set the labels of schema by the parameters of Function references
@@ -219,18 +244,23 @@ export function generateUISchemaParams(
 	const uiSchema = /* deepClone( */ schemaParams /* ) */
 
 	// Normalize the schema to fixed if it's valiadic
-	const isVariadic = !!uiSchema[uiSchema.length - 1].variadic
-	if (isVariadic) {
+	const lastSchema = uiSchema[uiSchema.length - 1]
+
+	if (lastSchema.variadic === true) {
 		// Check if parameters is too short
 		if (params.length < uiSchema.length - 1) {
 			throw new Error('The parameters is too short')
 		}
-		// Duplicate the lastSchema
-		const lastSchema = uiSchema[uiSchema.length - 1]
-		delete lastSchema.variadic
 
-		while (uiSchema.length < params.length) {
-			uiSchema.push({...lastSchema})
+		// Delete the last {:type "vector" :variadic true}
+		uiSchema.pop()
+
+		if (lastSchema.type === 'vector') {
+			const variadicSchema = lastSchema.items
+
+			while (uiSchema.length < params.length) {
+				uiSchema.push({...variadicSchema})
+			}
 		}
 	}
 
@@ -258,7 +288,14 @@ export function generateUISchemaParams(
 			default:
 				// Check if the type mathces
 				if (valueType !== schema.type) {
-					console.log(valueType, schema.type)
+					console.log(
+						'value=',
+						evaluated,
+						valueType,
+						'schema=',
+						schema.type,
+						uiSchema
+					)
 					throw new Error('Exp does not match to the schema')
 				}
 		}
