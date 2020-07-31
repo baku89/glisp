@@ -761,6 +761,8 @@
 
 (defn rect2d/from-to
   {:doc "Creates a rect2d from two corners"
+   :params [{:type "vec2"}
+            {:type "vec2"}]
    :inverse (fn {:return [x y w h]} [[x y] [(+ x w) (+ y h)]])
    :handles {:draw (fn {:params [from to] :return ret}
                      [{:type "path" :guide true
