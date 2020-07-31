@@ -69,8 +69,8 @@ import {
 	symbolFor as S,
 } from '@/mal/types'
 import {NonReactive, nonReactive, getParamLabel} from '@/utils'
-import MalInputParam from '@/components/mal-input/MalInputParam.vue'
-import MalExpButton from '@/components/mal-input/MalExpButton.vue'
+import MalInputParam from '@/components/mal-inputs/MalInputParam.vue'
+import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {reconstructTree} from '../../mal/reader'
 
 interface Props {

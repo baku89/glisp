@@ -99,7 +99,7 @@ import {
 import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import MalExpEditor from '@/components/mal-input/MalExpEditor.vue'
+import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'

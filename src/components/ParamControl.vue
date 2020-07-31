@@ -50,7 +50,7 @@
 <script lang="ts">
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import {MalSeq, MalVal, MalFunc, createList as L, isVector} from '@/mal/types'
-import * as MalInputComponents from '@/components/mal-input'
+import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
 import {nonReactive, NonReactive} from '@/utils'
 import {generateSchemaParamLabel, generateUISchemaParams} from '../mal/schema'

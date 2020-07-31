@@ -18,8 +18,8 @@
 
 <script lang="ts">
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
-import MalInputNumber from '@/components/mal-input/MalInputNumber.vue'
-import MalInputColor from '@/components/mal-input/MalInputColor.vue'
+import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
+import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
 import {
 	MalSeq,
 	getEvaluated,
