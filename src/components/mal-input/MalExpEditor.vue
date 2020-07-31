@@ -1,6 +1,6 @@
 <template>
 	<Editor
-		class="ExpEditor"
+		class="MalExpEditor"
 		:value="code"
 		:activeRange="activeRange"
 		:cssStyle="cssStyle"
@@ -34,7 +34,7 @@ import {
 	MalType,
 } from '@/mal/types'
 
-import Editor from './Editor'
+import Editor from '@/components/GlispEditor'
 
 const EditMode = {
 	Node: 'node',

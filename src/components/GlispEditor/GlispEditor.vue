@@ -131,6 +131,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 }
 
 export default defineComponent({
+	name: 'GlispEditor',
 	props: {
 		value: {
 			type: String,

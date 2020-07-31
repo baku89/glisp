@@ -6,7 +6,7 @@
 		:class="{error: hasError}"
 	>
 		<div class="PageEmbed__editor">
-			<Editor
+			<GlispEditor
 				:value="code"
 				@input="code = $event"
 				cssStyle="line-height: 1.5"
@@ -37,7 +37,7 @@ import {
 	toRefs,
 } from '@vue/composition-api'
 
-import Editor from '@/components/Editor'
+import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 
 import {printExp, readStr} from '@/mal'
@@ -89,7 +89,7 @@ function parseURL(data: Data) {
 export default defineComponent({
 	name: 'PageEmbed',
 	components: {
-		Editor,
+		GlispEditor,
 		ViewCanvas,
 	},
 	setup() {

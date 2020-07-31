@@ -54,7 +54,7 @@
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
-						<ExpEditor
+						<MalExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
 							:selectedExp="selectedExp"
@@ -99,7 +99,7 @@ import {
 import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import ExpEditor from '@/components/ExpEditor.vue'
+import MalExpEditor from '@/components/mal-input/MalExpEditor.vue'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
@@ -166,7 +166,7 @@ export default defineComponent({
 	name: 'PageIndex',
 	components: {
 		GlobalMenu,
-		ExpEditor,
+		MalExpEditor,
 		ViewCanvas,
 		Console,
 		Inspector,
