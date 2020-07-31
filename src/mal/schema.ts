@@ -10,6 +10,7 @@ import {
 	symbolFor,
 	MalFunc,
 	M_PARAMS,
+	isMalFunc,
 } from './types'
 import {getStructType} from './utils'
 import printExp from './printer'
@@ -166,11 +167,13 @@ export function generateSchemaParamLabel(
 	_schemaParams: SchemaParams,
 	fn: MalFunc
 ) {
+	if (!isMalFunc(fn)) {
+		return _schemaParams
+	}
+
 	const schemaParams = [..._schemaParams]
 
-	const labels = fn[M_PARAMS].map(p => getParamLabel(printExp(p))).filter(
-		p => p !== '&'
-	)
+	const labels = fn[M_PARAMS].map(p => getParamLabel(printExp(p)))
 
 	for (let i = 0; i < schemaParams.length; i++) {
 		if (!schemaParams[i].label) {
