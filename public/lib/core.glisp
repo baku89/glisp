@@ -8,8 +8,7 @@
   ^{:doc "Defines a macro"
     :params [{:label "Symbol" :type "symbol"}
              {:label "Params" :type "any"}
-             &
-             {:label "Body" :type "exp"}]}
+             {:label "Body" :type "exp" :variadic true}]}
   (macro
    [name params & body]
    (do
@@ -32,8 +31,7 @@
   {:doc "Defines a function"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Params" :type "exp"}
-            &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp" :variadic true}]}
   [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
@@ -67,12 +65,13 @@
   {:doc "Defines a numeric variable with playback control"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Time" :type "number"}
-            &
-            {:keys [{:key :start :type "number" :default 0}
-                    {:key :duration :type "number" :default 1
-                     :validator #(max 0 %)}
-                    {:key :fps :label "FPS" :type "number" :default 0
-                     :validator #(round (clamp 0 120 %))}]}]}
+            {:variadic true
+             :type "map"
+             :items [{:key :start :type "number" :default 0}
+                     {:key :duration :type "number" :default 1
+                      :validator #(max 0 %)}
+                     {:key :fps :label "FPS" :type "number" :default 0
+                      :validator #(round (clamp 0 120 %))}]}]}
   [sym time & options]
   `(do
      (swap! *time-variables*
@@ -121,10 +120,9 @@
 ;; Conditionals
 (defmacro when
   {:doc "Evaluates test. If true, evaluates body in an implicit do"
-   :params [{:type "code"}
-            &
-            {:type "code"}]}
-  [test & body]
+   :params [{:type "exp"}
+            {:type "exp"}]}
+  [test body]
   (list 'if test (cons 'do body)))
 
 (defmacro cond [& xs]
@@ -156,8 +154,7 @@
 (def for
   ^{:doc "Make a iteration loop"
     :params [{:label "Binds" :type "code"}
-             &
-             {:label "Body" :type "code"}]}
+             {:label "Body" :type "code" :variadic true}]}
   (let
    [destruct-binds
     (fn [binds]
@@ -184,8 +181,7 @@
 (defmacro case
   {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
    :params [{:label "Value" :type "any"}
-            &
-            {:label "Cond" :type "any"}]}
+            {:label "Cond" :type "any" :variadic true}]}
   [val & xs]
   (if (> (count xs) 0)
     (if (= (count xs) 1)
@@ -379,7 +375,7 @@
 (annotate-fn!
  +
  {:doc "Returns the sum of nums"
-  :params [& {:label "x" :type "number" :default 0}]
+  :params [{:variadic true :label "x" :type "number" :default 0}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -390,8 +386,7 @@
 (annotate-fn!
  -
  {:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
-  :params [&
-           {:label "x" :type "number"}]
+  :params [{:label "x" :type "number" :variadic true}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -404,7 +399,7 @@
 (annotate-fn!
  *
  {:doc "Returns the product of nums"
-  :params [& {:label "x" :type "number" :default 1}]
+  :params [{:label "x" :type "number" :variadic true}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -415,7 +410,7 @@
 (annotate-fn!
  /
  {:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
-  :params [& {:label "x" :type "number"}]
+  :params [{:label "x" :type "number" :variadic true}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -489,8 +484,7 @@
  {:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
   :params [{:label "Atom" :type "atom"}
            {:label "Fn" :type "fn"}
-           &
-           {:label "Params" :type "exp"}]})
+           {:label "Params" :type "exp" :variadic true}]})
 
 ;; Load other cores
 (import "ui.glisp")

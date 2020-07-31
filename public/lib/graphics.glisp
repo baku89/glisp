@@ -163,8 +163,7 @@
 (defmacro g
   {:doc "Creates a element group with attributes"
    :params [{:label "Attribute" :type "exp"}
-            &
-            {:label "Body" :type "exp"}]}
+            {:label "Body" :type "exp" :variadic true}]}
   [attrs & body]
   (let [evaluated-attrs (eval* attrs)
         attr-transform (get evaluated-attrs :transform)
@@ -211,8 +210,7 @@
 (defmacro graphics/transform
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
-            &
-            {:label "Body" :type "exp"}]
+            {:label "Body" :type "exp" :variadic true}]
    :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
@@ -226,8 +224,7 @@
 (defmacro graphics/style
   {:doc "Applies a style to elements"
    :params [{:label "Style" :type "exp"}
-            &
-            {:label "Body" :type "exp"}]
+            {:label "Body" :type "exp" :variadic true}]
    :return {:type "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
@@ -244,8 +241,7 @@
 (defmacro graphics/artboard
   {:doc "Creates an artboard"
    :params [{:label "Options" :type "code"}
-            &
-            {:label "Body" :type "code"}]
+            {:label "Body" :type "code" :variadic true}]
   ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
   ;;                    (let [info {:params [bounds]
   ;;                                :return (rect bounds)}]
@@ -283,7 +279,7 @@
   (string? x))
 
 (defn color/gray
-  {:return {:type "color"}}
+  {:return {:type "string" :ui "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%f,%f,%f)" b b b))
@@ -293,7 +289,7 @@
             {:label "Green" :type "number" :validator clamp01}
             {:label "Blue" :type "number" :validator clamp01}
             {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "color"}}
+   :return {:type "string" :ui "color"}}
   [r g b & a]
   (if (zero? (count a))
     (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
@@ -305,7 +301,7 @@
             {:label "Saturation" :type "number" :validator clamp01}
             {:label "Lightness" :type "number" :validator clamp01}
             {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "color"}}
+   :return {:type "string" :ui "color"}}
   [h s l & a]
   (if (zero? (count a))
     (format "hsl(%f,%s,%s)"
@@ -321,7 +317,7 @@
 
 (defn graphics/background
   {:doc "Fill the entire view or artboard with a color"
-   :params [{:type "color" :desc "A background color"}]}
+   :params [{:type "string" :ui "color" :desc "A background color"}]}
   [color]
   (reset! *app-background* color))
 (defalias background graphics/background)
@@ -340,8 +336,8 @@
 ;; Style
 (defn graphics/fill
   {:doc "Creates a fill property"
-   :params [{:label "Color" :type "color" :desc "Color to fill"}]
-   :compact-params [{:type "color"}]}
+   :params [{:label "Color" :type "string" :ui "color" :desc "Color to fill"}]
+   :compact-params [{:type "string" :ui "color"}]}
   [& xs]
   (if (zero? (count xs))
     {:fill true}
@@ -356,16 +352,18 @@
 
 (defn graphics/stroke
   {:doc "Creates a stroke property"
-   :params [{:label "Color" :type "color"}
+   :params [{:label "Color" :type "string" :ui "color"}
             {:label "Width" :type "number"
              :validator #(max 0 %)}
-            &
-            {:label "Options"
-             :keys [{:key :cap :type "dropdown" :default "round"
-                     :enum ["butt" "round" "square"]}
-                    {:key :join :type "dropdown" :default "round"
-                     :enum ["bevel" "round" "miter"]}]}]
-   :compact-params [{:label "" :type "color"}
+            {:variadic true
+             :type "map"
+             :items [{:key :cap :type "string"
+                      :ui "dropdown" :default "round"
+                      :values ["butt" "round" "square"]}
+                     {:key :join :type "string"
+                      :ui "dropdown" :default "round"
+                      :values ["bevel" "round" "miter"]}]}]
+   :compact-params [{:label "" :type "string" :ui "color"}
                     {:label "W" :type "number"}]}
   [color width & options]
   (let [params (apply hash-map options)]
@@ -397,14 +395,15 @@
   {:doc "Generates a text shape"
    :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
             {:type "vec2"}
-            &
-            {:keys [{:key :size :type "number" :default 12}
-                    {:key :font :type "string" :default "Fira Code"}
-                    {:key :align :type "dropdown" :default "center"
-                     :enum ["left" "center" "right" "start" "end"]}
-                    {:key :baseline :type "dropdown" :default "middle"
-                     :enum ["top" "hanging" "middle"
-                            "alphabetic" "ideographic" "bottom"]}]}]
+            {:type "map"
+             :variadic true
+             :items [{:key :size :type "number" :default 12}
+                     {:key :font :type "string" :default "Fira Code"}
+                     {:key :align :type "string" :ui "dropdown" :default "center"
+                      :values ["left" "center" "right" "start" "end"]}
+                     {:key :baseline :type "string" :ui "dropdown" :default "middle"
+                      :values ["top" "hanging" "middle"
+                               "alphabetic" "ideographic" "bottom"]}]}]
    :handles {:draw (fn {:params [_ pos & xs]}
                      (let [args (apply hash-map xs)
                            size (get args :size 12)]
@@ -432,8 +431,7 @@
 
 (defn graphics/point-cloud
   {:doc "Creates vector of points"
-   :params [&
-            {:label "Point" :type "vec2"}]
+   :params [{:label "Point" :type "vec2" :variadic true}]
    :handles {:draw (fn {:params pts}
                      (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
              :drag (fn {:id i :pos p}
@@ -447,7 +445,7 @@
    :params [{:type "vec2"}
             {:type "number"}
             {:type "number" :validator #(round (max 0 %))}
-            {:type "seed"}]
+            {:type "number" :ui "seed"}]
    :handles {:draw (fn {:params [center radius]
                         :return ret}
                      [{:type "path" :guide true

@@ -175,10 +175,12 @@
               :type "number"
               :desc "The arc's radius"}
              {:label "Start"
-              :type "angle"
+              :type "number"
+              :ui "angle"
               :desc "Angle to start the arc"}
              {:label "End"
-              :type "angle"
+              :type "number"
+              :ui "angle"
               :desc "Angle to stop the arc"}]
     :handles {:draw (fn {:params [center r start end]
                          :return path}
@@ -413,11 +415,12 @@
 (def path-offset-meta
   {:params [{:label "Offset" :type "number"}
             {:label "Path" :type "path"}
-            &
-            {:keys [{:key :join :type "dropdown" :default "round"
-                     :enum ["miter" "bevel" "round"]}
-                    {:key :cap :type "dropdown" :default "round"
-                     :enum ["butt" "round"]}]}]
+            {:variadic true
+             :type "map"
+             :items [{:key :join :type "string" :ui "dropdown" :default "round"
+                      :values ["miter" "bevel" "round"]}
+                     {:key :cap :type "string" :ui "dropdown" :default "round"
+                      :values ["butt" "round"]}]}]
    :return {:type "path"}
    :handles {:draw (fn {:params [d path]
                         :return offset-path}

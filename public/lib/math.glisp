@@ -152,7 +152,7 @@
 
 (defn vec2/+
   {:doc "Adds vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:label "Value" :type "vec2" :variadic true}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -168,7 +168,7 @@
 
 (defn vec2/-
   {:doc "Subtracts vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:label "Value" :type "vec2" :variadic true}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -189,7 +189,7 @@
 
 (defn vec2/*
   {:doc "Multiplies vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:label "Value" :type "vec2" :variadic true}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -208,7 +208,7 @@
 
 (defn vec2/div
   {:doc "Divides vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:label "Value" :type "vec2" :variadic true}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -616,7 +616,7 @@
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
-   :params [{:type "angle"}]
+   :params [{:type "number" :ui "angle"}]
    :return {:type "mat2d"}
    :initial-params [0]
    :handles {:draw (fn {:params [angle]}
@@ -651,8 +651,7 @@
 
 (def mat2d/*
   ^{:doc "Multipies the mat2d's"
-    :params [&
-             {:label "Matrix" :type "mat2d"}]
+    :params [{:label "Matrix" :type "mat2d" :variadic true}]
     :return {:type "mat2d"}}
   (let
    [mul (fn
@@ -669,8 +668,7 @@
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
-            &
-            {:label "Matrix" :type "mat2d"}]
+            {:label "Matrix" :type "mat2d" :variadic true}]
    :return "mat2d"
    :handles {:draw (fn {:params [p]}
                      [{:type "translate" :pos p}])
