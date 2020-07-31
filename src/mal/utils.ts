@@ -224,46 +224,37 @@ type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
 
 export interface FnInfoType {
 	fn: MalFunc | MalJSFunc
-	meta?: MalMap | null
+	meta?: MalVal
 	aliasFor?: string
 	structType?: StructTypes
 }
 
-export function getFnInfo(exp: MalVal): FnInfoType | null {
+export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	let fn = isFunc(exp) ? exp : getFn(exp)
 
+	let meta = undefined
+	let aliasFor = undefined
+	let structType: StructTypes | undefined = undefined
+
 	// Check if the exp is struct
-	let structType = null
-	if (!fn && isNode(exp)) {
+	if (!fn) {
 		structType = getStructType(getEvaluated(exp))
 		if (structType) {
 			fn = ConsoleScope.var(structType) as MalFunc
 		}
 	}
 
-	if (fn) {
-		const meta = getMeta(fn)
-
-		if (isMap(meta)) {
-			const aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
-
-			if (aliasFor) {
-				// is an alias
-				return {
-					fn,
-					meta,
-					aliasFor,
-				}
-			} else {
-				// is not an alias
-				return {fn, meta}
-			}
-		} else {
-			return {fn}
-		}
+	if (!fn) {
+		return undefined
 	}
 
-	return null
+	meta = getMeta(fn)
+
+	if (isMap(meta)) {
+		aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
+	}
+
+	return {fn, meta, aliasFor, structType}
 }
 
 export function reverseEval(
