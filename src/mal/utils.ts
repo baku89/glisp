@@ -34,7 +34,7 @@ import {
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
 
-export function getStructType(exp: MalVal): StructTypes | null {
+export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (isVector(exp)) {
 		if (exp[0] === K('path')) {
 			return 'path'
@@ -54,7 +54,7 @@ export function getStructType(exp: MalVal): StructTypes | null {
 			}
 		}
 	}
-	return null
+	return undefined
 }
 
 type WatchOnReplacedCallback = (newExp: MalVal) => any
