@@ -622,8 +622,3 @@ export function copyDelimiters(target: MalVal, original: MalVal) {
 		target[M_DELIMITERS] = delimiters
 	}
 }
-
-export function generateParamUISchema(exp: MalVal, schema: MalVal) {
-	// FUnction schema
-	// if (isList(exp) && )
-}
