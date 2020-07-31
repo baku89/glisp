@@ -113,7 +113,7 @@ export default defineComponent({
 		string: MalInputComponents.MalInputString,
 		color: MalInputComponents.MalInputColor,
 		dropdown: MalInputComponents.MalInputDropdown,
-		// keyword: MalInputComponents.MalInputKeyword,
+		keyword: MalInputComponents.MalInputKeyword,
 		// symbol: MalInputComponents.MalInputSymbol,
 		// boolean: MalInputComponents.MalInputBoolean,
 		vec2: MalInputComponents.MalInputVec2,
