@@ -53,7 +53,11 @@ import {MalSeq, MalVal, MalFunc, createList as L, isVector} from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
 import {nonReactive, NonReactive} from '@/utils'
-import {generateSchemaParamLabel, generateUISchemaParams} from '../mal/schema'
+import {
+	generateSchemaParamLabel,
+	generateUISchemaParams,
+	updateParamsByUISchema,
+} from '../mal/schema'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 
 interface Props {
@@ -165,8 +169,12 @@ export default defineComponent({
 		})
 
 		function onParamInput(i: number, value: NonReactive<MalVal>) {
-			const newParams = [...params.value]
-			newParams[i] = value.value
+			const newParams = updateParamsByUISchema(
+				schema.value,
+				params.value,
+				i,
+				value.value
+			)
 
 			const newExp = fnInfo.value.structType
 				? newParams[0]
@@ -176,6 +184,7 @@ export default defineComponent({
 		}
 
 		return {
+			schema,
 			uiSchema,
 			onParamInput,
 		}

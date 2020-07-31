@@ -11,9 +11,9 @@ import {
 	MalFunc,
 	M_PARAMS,
 	isMalFunc,
+	assocBang,
 } from './types'
 import {getStructType} from './utils'
-import printExp from './printer'
 
 interface SchemaBase {
 	type: string
@@ -30,6 +30,7 @@ interface SchemaPrimitiveBase<T> extends SchemaBase {
 	value?: NonReactive<T>
 	default?: T
 	variadic?: false
+	key?: string
 	validator: (input: T) => T | null
 }
 
@@ -171,7 +172,7 @@ interface SchemaVector extends SchemaBase {
 interface SchemaMap extends SchemaBase {
 	type: 'map'
 	variadic?: boolean
-	items: SchemaPrimitive
+	items: SchemaPrimitive[]
 }
 
 /**
@@ -252,12 +253,13 @@ export function generateUISchemaParams(
 	}
 
 	// Deep clone the schema
-	const uiSchema = /* deepClone( */ schemaParams /* ) */
+	// const uiSchema = /* deepClone( */ schemaParams /* ) */
+	const uiSchema = [...schemaParams]
 
-	// Normalize the schema to fixed if it's valiadic
+	// Flatten the schema if it is variadic
 	const lastSchema = uiSchema[uiSchema.length - 1]
 
-	if (lastSchema.variadic === true) {
+	if (lastSchema.variadic) {
 		// Check if parameters is too short
 		if (params.length < uiSchema.length - 1) {
 			throw new Error('The parameters is too short')
@@ -272,6 +274,24 @@ export function generateUISchemaParams(
 			while (uiSchema.length < params.length) {
 				uiSchema.push({...variadicSchema})
 			}
+		} else if (lastSchema.type === 'map') {
+			const restParams = params.slice(uiSchema.length)
+			const restMap = assocBang({}, ...restParams)
+			params = params.slice(0, uiSchema.length)
+
+			for (const schema of lastSchema.items) {
+				if (!schema.label) {
+					schema.label = getParamLabel(schema.key as string)
+				}
+
+				const newSchema = {...schema}
+				delete newSchema.key
+				uiSchema.push(newSchema)
+
+				params.push(restMap[schema.key as string] || (schema.default as any))
+			}
+		} else {
+			throw new Error('Invalid type for the variadic argument')
 		}
 	}
 
@@ -299,14 +319,6 @@ export function generateUISchemaParams(
 			default:
 				// Check if the type mathces
 				if (valueType !== schema.type) {
-					console.log(
-						'value=',
-						evaluated,
-						valueType,
-						'schema=',
-						schema.type,
-						uiSchema
-					)
 					throw new Error('Exp does not match to the schema')
 				}
 		}
@@ -314,9 +326,51 @@ export function generateUISchemaParams(
 		// Force set the UI type
 		schema.ui = schema.ui || schema.type
 
-		// NOTE: needs an appropreate typing
+		// Set value with wrapped by nonReactive
 		schema.value = nonReactive(value as any)
+		;(schema as any).rawValue = value
 	}
 
 	return uiSchema
+}
+
+/**
+ * Computes the original parameters from UIParamSchema and updated value
+ */
+export function updateParamsByUISchema(
+	schemaParams: SchemaParams,
+	params: MalVal[],
+	index: number,
+	value: MalVal
+) {
+	const lastSchema = schemaParams[schemaParams.length - 1]
+
+	if (!!lastSchema.variadic && lastSchema.type === 'map') {
+		const restPos = schemaParams.length - 1
+		const restMap = assocBang({}, ...params.slice(restPos))
+		const newParams = [...params.slice(0, restPos)]
+		const items = lastSchema.items
+
+		if (index < restPos) {
+			// Update the list part
+			newParams[index] = value
+		} else {
+			// Update the map part
+			const schema = items[index - restPos]
+			const key = schema.key as string
+			// NOTE: Might occur error
+			if (value === schema.default) {
+				delete restMap[key]
+			} else {
+				restMap[key] = value
+			}
+		}
+
+		newParams.push(...Object.entries(restMap).flat())
+		return newParams
+	} else {
+		const newParams = [...params]
+		newParams[index] = value
+		return newParams
+	}
 }
