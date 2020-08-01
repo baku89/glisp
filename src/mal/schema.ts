@@ -170,6 +170,7 @@ type SchemaPrimitive =
 export interface SchemaVector extends SchemaBase {
 	type: 'vector'
 	variadic?: boolean
+	insert?: MalFunc
 	items: SchemaPrimitive
 }
 

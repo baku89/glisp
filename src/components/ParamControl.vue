@@ -205,9 +205,17 @@ export default defineComponent({
 
 			const type = variadicSchema.type
 
-			const value = ('default' in variadicSchema
-				? variadicSchema.default
-				: TypeDefaults[type]) as MalVal
+			// Compute value
+			let value = TypeDefaults[type]
+
+			if (vectorSchema.insert) {
+				value = (vectorSchema.insert as any)({
+					[K('params')]: params.value.slice(vectorVariadicPos.value),
+					[K('index')]: i - vectorVariadicPos.value,
+				})
+			} else if ('default' in variadicSchema) {
+				value = variadicSchema.default as MalVal
+			}
 
 			newParams.splice(i, 0, value)
 			const newValue = L(props.exp.value[0], ...newParams)

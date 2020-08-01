@@ -218,7 +218,16 @@
 
 (defn path/polyline
   {:doc "Generates a polyline path"
-   :params [& {:label "Vertex" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :insert (fn {:params pts :index i}
+                       (if (zero? (count pts))
+                         [0 0]
+                         (case i
+                           0 (first pts)
+                           (count pts) (last pts)
+                           (vec2/lerp (nth pts (dec i)) (nth pts i) .5))))
+             :items {:label "Point" :type "vec2"}}]
    :handles {:draw (fn {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
@@ -240,7 +249,16 @@
 
 (defn path/polygon
   {:doc "Generates a polygon path"
-   :params [& {:label "Vertex" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :insert (fn {:params pts :index i}
+                       (if (zero? (count pts))
+                         [0 0]
+                         (vec2/lerp
+                          (nth pts (mod (dec i) (count pts)))
+                          (nth pts (mod i (count pts)))
+                          .5)))
+             :items {:label "Point" :type "vec2"}}]
    :handles {:draw (fn {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
