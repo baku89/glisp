@@ -265,7 +265,11 @@
              :drag (fn {:id i :pos p}
                      {:replace [i p]})}
    :initial-params []
-   :return {:type "vec2"}}
+   :transform (fn {:params pts
+                   :transform xform}
+                (let [dp (mat2d/extract-translate xform)]
+                  (map #(vec2/+ % dp) pts)))
+   :return {:type "path"}}
   [& pts]
   (conj (apply polyline pts) :Z))
 (defalias polygon path/polygon)
