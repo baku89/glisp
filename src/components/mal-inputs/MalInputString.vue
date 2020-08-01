@@ -1,17 +1,24 @@
 <template>
-	<InputString
-		:value="value.value"
-		:validator="validator"
-		@input="onInput"
-		@end-tweak="$emit('end-tweak')"
-	/>
+	<div class="MalInputString">
+		<MalExpButton v-if="isExp" :value="value" :compact="true" @click="$emit('select', $event)" />
+		<InputString
+			:value="evaluated"
+			:validator="validator"
+			:class="{exp: isExp}"
+			@input="onInput"
+			@end-tweak="$emit('end-tweak')"
+		/>
+	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext} from '@vue/composition-api'
+import {defineComponent, SetupContext, computed} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {MalSeq, MalSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
 import {InputString} from '@/components/inputs'
+import {reverseEval} from '@/mal/utils'
+import {reconstructTree} from '@/mal/reader'
+import MalExpButton from './MalExpButton.vue'
 
 interface Props {
 	value: NonReactive<string | MalSeq | MalSymbol>
@@ -22,6 +29,7 @@ export default defineComponent({
 	name: 'MalInputString',
 	components: {
 		InputString,
+		MalExpButton,
 	},
 	props: {
 		value: {
@@ -33,11 +41,27 @@ export default defineComponent({
 		},
 	},
 	setup(props: Props, context: SetupContext) {
+		const isExp = computed(() => typeof props.value.value !== 'string')
+		const evaluated = computed(() => getEvaluated(props.value.value))
+
 		function onInput(value: string) {
-			context.emit('input', nonReactive(value))
+			let newValue: MalVal = value
+
+			if (isExp.value) {
+				newValue = reverseEval(value, props.value.value)
+				reconstructTree(newValue)
+			}
+
+			context.emit('input', nonReactive(newValue))
+			context.emit('end-tweak')
 		}
 
-		return {onInput}
+		return {isExp, evaluated, onInput}
 	},
 })
 </script>
+
+<style lang="stylus">
+.MalInputString
+	display flex
+</style>
