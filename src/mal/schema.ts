@@ -167,13 +167,13 @@ type SchemaPrimitive =
 /**
  * Schema for vector / map
  */
-interface SchemaVector extends SchemaBase {
+export interface SchemaVector extends SchemaBase {
 	type: 'vector'
 	variadic?: boolean
 	items: SchemaPrimitive
 }
 
-interface SchemaMap extends SchemaBase {
+export interface SchemaMap extends SchemaBase {
 	type: 'map'
 	variadic?: boolean
 	items: SchemaPrimitive[]
@@ -183,7 +183,7 @@ interface SchemaMap extends SchemaBase {
  * All Schema
  */
 
-type Schema = SchemaVector | SchemaMap | SchemaPrimitive
+export type Schema = SchemaVector | SchemaMap | SchemaPrimitive
 
 /**
  * Set the labels of schema by the parameters of Function references
