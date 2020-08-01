@@ -210,7 +210,11 @@
     (first xs)
     `(if ~(first xs) (and ~@(rest xs)) false)))
 
-(defn not [a] (if a false true))
+(defn not
+  {:doc "Returns true if value is falsy, false otherwise"
+   :params [{:type "boolean"}]
+   :return {:type "boolean"}}
+  [value] (if value false true))
 
 
 ;; Functioal Language Features
