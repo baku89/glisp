@@ -1,4 +1,5 @@
 import {MalError} from './types'
+import {convertJSObjectToMalMap} from './reader'
 
 export default {
 	resolveJS(str: string): [any, any] {
@@ -21,20 +22,21 @@ export default {
 			return null
 		}
 
-		const cache: any[] = []
+		// const cache: any[] = []
 
-		const str = JSON.stringify(obj, (key, value) => {
-			if (typeof value === 'object' && value !== null) {
-				if (cache.indexOf(value) !== -1) {
-					// Circular reference found, discard key
-					return
-				}
-				// Store value in our collection
-				cache.push(value)
-			}
-			return value
-		})
+		// const str = JSON.stringify(obj, (key, value) => {
+		// 	if (typeof value === 'object' && value !== null) {
+		// 		if (cache.indexOf(value) !== -1) {
+		// 			// Circular reference found, discard key
+		// 			return
+		// 		}
+		// 		// Store value in our collection
+		// 		cache.push(value)
+		// 	}
+		// 	return value
+		// })
+		// return JSON.parse(str)
 
-		return JSON.parse(str)
+		return convertJSObjectToMalMap(obj)
 	},
 }
