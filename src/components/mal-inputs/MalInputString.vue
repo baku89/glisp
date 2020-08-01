@@ -18,8 +18,6 @@ interface Props {
 	validator: (v: string) => string | null
 }
 
-InputString
-
 export default defineComponent({
 	name: 'MalInputString',
 	components: {
