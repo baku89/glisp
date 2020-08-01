@@ -57,7 +57,7 @@ import {
 	SchemaVector,
 	Schema,
 } from '../mal/schema'
-import {convertMalNodeToJSObject} from '@/mal/reader'
+import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
 
 interface Props {
 	exp: NonReactive<MalSeq>
@@ -168,6 +168,8 @@ export default defineComponent({
 				? newParams[0]
 				: L(props.exp.value[0], ...newParams)
 
+			reconstructTree(newExp)
+
 			context.emit('input', nonReactive(newExp))
 		}
 
@@ -191,16 +193,21 @@ export default defineComponent({
 			}
 
 			newParams.splice(i, 0, value)
-			const newValue = L(props.exp.value[0], ...newParams)
-			context.emit('input', nonReactive(newValue))
+			const newExp = L(props.exp.value[0], ...newParams)
+
+			reconstructTree(newExp)
+
+			context.emit('input', nonReactive(newExp))
 		}
 
 		function onParamDelete(i: number) {
 			const newParams = [...params.value]
 			newParams.splice(i, 1)
 
-			const newValue = L(props.exp.value[0], ...newParams)
-			context.emit('input', nonReactive(newValue))
+			const newExp = L(props.exp.value[0], ...newParams)
+			reconstructTree(newExp)
+
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
