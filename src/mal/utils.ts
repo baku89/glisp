@@ -33,9 +33,8 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
-import {printExp} from '.'
 
-export function getPrimitiveType(exp: MalVal): string | null {
+export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (isVector(exp)) {
 		if (exp[0] === K('path')) {
 			return 'path'
@@ -55,7 +54,7 @@ export function getPrimitiveType(exp: MalVal): string | null {
 			}
 		}
 	}
-	return null
+	return undefined
 }
 
 type WatchOnReplacedCallback = (newExp: MalVal) => any
@@ -221,49 +220,41 @@ export function getMapValue(
 	return exp
 }
 
+type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
+
 export interface FnInfoType {
 	fn: MalFunc | MalJSFunc
-	meta: MalMap | null
-	aliasFor: string | null
-	primitive: string | null
+	meta?: MalVal
+	aliasFor?: string
+	structType?: StructTypes
 }
 
-export function getFnInfo(exp: MalVal): FnInfoType | null {
+export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	let fn = isFunc(exp) ? exp : getFn(exp)
 
-	// Check if primitive type
-	let primitive = null
-	if (!fn && isNode(exp)) {
-		primitive = getPrimitiveType(getEvaluated(exp))
-		if (primitive) {
-			fn = ConsoleScope.var(primitive) as MalFunc
+	let meta = undefined
+	let aliasFor = undefined
+	let structType: StructTypes | undefined = undefined
+
+	// Check if the exp is struct
+	if (!fn) {
+		structType = getStructType(getEvaluated(exp))
+		if (structType) {
+			fn = ConsoleScope.var(structType) as MalFunc
 		}
 	}
 
-	if (fn) {
-		const meta = getMeta(fn)
-
-		if (isMap(meta)) {
-			const aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
-
-			if (aliasFor) {
-				// is an alias
-				return {
-					fn,
-					meta,
-					aliasFor,
-					primitive,
-				}
-			} else {
-				// is not an alias
-				return {fn, meta, aliasFor: null, primitive}
-			}
-		} else {
-			return {fn, meta: null, aliasFor: null, primitive}
-		}
+	if (!fn) {
+		return undefined
 	}
 
-	return null
+	meta = getMeta(fn)
+
+	if (isMap(meta)) {
+		aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
+	}
+
+	return {fn, meta, aliasFor, structType}
 }
 
 export function reverseEval(

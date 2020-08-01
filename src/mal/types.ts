@@ -456,7 +456,7 @@ export class MalSymbol {
 export const isSymbol = (obj: MalVal | undefined): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
 
-export const isSymbolFor = (obj: MalVal, name: string) =>
+export const isSymbolFor = (obj: any, name: string): obj is MalSymbol =>
 	isSymbol(obj) && obj.value === name
 
 export const symbolFor = (value: string) => new MalSymbol(value)

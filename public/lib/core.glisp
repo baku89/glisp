@@ -7,7 +7,10 @@
 (def defmacro
   ^{:doc "Defines a macro"
     :params [{:label "Symbol" :type "symbol"}
-             {:label "Params" :type "any"}]}
+             {:label "Params" :type "any"}
+             {:type "vector"
+              :variadic true
+              :items {:label "Body" :type "exp"}}]}
   (macro
    [name params & body]
    (do
@@ -29,7 +32,10 @@
 (defmacro defn
   {:doc "Defines a function"
    :params [{:label "Symbol" :type "symbol"}
-            {:label "Params" :type "any"}]}
+            {:label "Params" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]}
   [name params & body]
   ;; Destruction of meta, param, body
   (def metadata nil)
@@ -63,12 +69,13 @@
   {:doc "Defines a numeric variable with playback control"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Time" :type "number"}
-            &
-            {:keys [{:key :start :type "number" :default 0}
-                    {:key :duration :type "number" :default 1
-                     :validator #(max 0 %)}
-                    {:key :fps :label "FPS" :type "number" :default 0
-                     :validator #(round (clamp 0 120 %))}]}]}
+            {:type "map"
+             :variadic true
+             :items [{:key :start :type "number" :default 0}
+                     {:key :duration :type "number" :default 1
+                      :validator #(max 0 %)}
+                     {:key :fps :label "FPS" :type "number" :default 0
+                      :validator #(round (clamp 0 120 %))}]}]}
   [sym time & options]
   `(do
      (swap! *time-variables*
@@ -117,10 +124,9 @@
 ;; Conditionals
 (defmacro when
   {:doc "Evaluates test. If true, evaluates body in an implicit do"
-   :params [{:type "code"}
-            &
-            {:type "code"}]}
-  [test & body]
+   :params [{:type "exp"}
+            {:type "exp"}]}
+  [test body]
   (list 'if test (cons 'do body)))
 
 (defmacro cond [& xs]
@@ -151,9 +157,10 @@
 
 (def for
   ^{:doc "Make a iteration loop"
-    :params [{:label "Binds" :type "code"}
-             &
-             {:label "Body" :type "code"}]}
+    :params [{:label "Binds" :type "exp"}
+             {:type "vector"
+              :variadic true
+              :items {:label "Body" :type "exp"}}]}
   (let
    [destruct-binds
     (fn [binds]
@@ -180,8 +187,9 @@
 (defmacro case
   {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
    :params [{:label "Value" :type "any"}
-            &
-            {:label "Cond" :type "any"}]}
+            {:type "vector"
+             :variadic true
+             :items {:label "Cond" :type "any"}}]}
   [val & xs]
   (if (> (count xs) 0)
     (if (= (count xs) 1)
@@ -202,7 +210,12 @@
     (first xs)
     `(if ~(first xs) (and ~@(rest xs)) false)))
 
-(defn not [a] (if a false true))
+(defn not
+  {:doc "Returns true if value is falsy, false otherwise"
+   :params [{:type "boolean"}]
+   :inverse (fn {:return ret} [(not ret)])
+   :return {:type "boolean"}}
+  [value] (if value false true))
 
 
 ;; Functioal Language Features
@@ -364,18 +377,24 @@
 (annotate-fn!
  prn
  {:doc "Prints the objects to the console"
-  :params [& {:label "x" :type "any"}]})
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Value" :type "any"}}]})
 
 (annotate-fn!
  println
  {:doc "Prints the string with newline"
-  :params [& {:label "Text" :type "any"}]})
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Text" :type "any"}}]})
 
 ;; Annotate JS Functions
 (annotate-fn!
  +
  {:doc "Returns the sum of nums"
-  :params [& {:label "x" :type "number" :default 0}]
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -386,8 +405,9 @@
 (annotate-fn!
  -
  {:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
-  :params [&
-           {:label "x" :type "number"}]
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -400,7 +420,9 @@
 (annotate-fn!
  *
  {:doc "Returns the product of nums"
-  :params [& {:label "x" :type "number" :default 1}]
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -411,7 +433,9 @@
 (annotate-fn!
  /
  {:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
-  :params [& {:label "x" :type "number"}]
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
   :inverse (fn {:return ret :params xs}
              (case (count xs)
                0 []
@@ -423,8 +447,8 @@
 (annotate-fn!
  mod
  {:doc "Modulus of num and div. Truncates toward negative infinity"
-  :params [{:label "x" :type "number"}
-           {:label "y" :type "number"}]
+  :params [{:label "Number" :type "number"}
+           {:label "Divisor" :type "number"}]
   :return {:type "number"}
   :inverse (fn {:return ret :params [a b]}
              {:replace [0 (mod ret b)]})})
@@ -432,40 +456,50 @@
 (annotate-fn!
  floor
  {:doc "Returns the largest integer less than or equal to a number"
-  :params [{:label "x" :type "number"}]
+  :params [{:label "Number" :type "number"}]
   :inverse (fn {:return ret} [(floor ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  ceil
  {:doc "Returns the next largest integer more than or equal to a number"
-  :params [{:label "x" :type "number"}]
+  :params [{:label "Number" :type "number"}]
   :inverse (fn {:return ret} [(ceil ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  round
  {:doc "Returns the value of a number rounded to the nearest integer"
-  :params [{:label "x" :type "number"}]
+  :params [{:label "Number" :type "number"}]
   :inverse (fn {:return ret} [(round ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  sqrt
  {:doc "Returns the square root of a number"
-  :params [{:label "x" :type "number"}]
+  :params [{:label "Number" :type "number"}]
   :inverse (fn {:return ret} [(* ret ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  range
  {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
-  :params [[{:label "End" :type "number"}]
-           [{:label "Start" :type "number"}
-            {:label "End" :type "number"}]
-           [{:label "Start" :type "number"}
-            {:label "End" :type "number"}
-            {:label "Step" :type "number"}]]
+  :params {:type "dynamic"
+           :to-schema
+           (fn [{:params xs}]
+             (let [[start end step] (case (count xs)
+                                      1 [0 (first xs) 1]
+                                      2 [(first xs) (second xs) 1]
+                                      3 xs)]
+               [{:label "Start" :type "number" :value start :default 0}
+                {:label "End" :type "number" :value end}
+                {:label "Step" :type "number" :value step :default 1}]))
+           :to-params
+           (fn {:values [start end step]}
+             (cond
+               (and (= 0 start) (= 1 step)) [end]
+               (= 1 step) [start end]
+               :else [start end step]))}
   :return {:type "vector"}})
 
 (annotate-fn!
@@ -485,8 +519,9 @@
  {:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
   :params [{:label "Atom" :type "atom"}
            {:label "Fn" :type "fn"}
-           &
-           {:label "Params" :type "exp"}]})
+           {:type "vector"
+            :variadic true
+            :items {:label "Params" :type "exp"}}]})
 
 ;; Load other cores
 (import "ui.glisp")

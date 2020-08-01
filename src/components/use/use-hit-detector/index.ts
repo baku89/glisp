@@ -17,7 +17,9 @@ function useMouseButtons(el: Ref<any | null>) {
 	const mousePressed = ref(false)
 
 	function onMouseEvent(e: MouseEvent) {
-		if (e.target !== el.value?.$el) {
+		// NOTE: This is makeshift and might occur bugs in the future
+		// Ignore the click event when clicked handles directly
+		if (!/svg/i.test((e.target as any)?.tagName)) {
 			return
 		}
 		if (e.button === 0) {
@@ -71,7 +73,7 @@ export default function useHitDetector(
 	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
 	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
 	onTransformSelectedExp: (transform: mat2d) => void,
-	endTweak: () => any
+	onEndTweak: () => any
 ) {
 	const detector = new HitDetector()
 
@@ -132,7 +134,7 @@ export default function useHitDetector(
 			onHoverExp(hitExp)
 
 			if (justMouseup) {
-				endTweak()
+				onEndTweak()
 			}
 
 			// Update

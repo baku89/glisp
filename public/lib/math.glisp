@@ -152,7 +152,9 @@
 
 (defn vec2/+
   {:doc "Adds vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -168,7 +170,9 @@
 
 (defn vec2/-
   {:doc "Subtracts vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -189,7 +193,9 @@
 
 (defn vec2/*
   {:doc "Multiplies vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -208,7 +214,9 @@
 
 (defn vec2/div
   {:doc "Divides vec2's"
-   :params [& {:label "Value" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Value" :type "vec2"}}]
    :inverse (fn {:return ret :params xs}
               (case (count xs)
                 0 []
@@ -616,7 +624,7 @@
 ;; mat2d/fromRotation
 (defn mat2d/rotate
   {:doc "Returns rotation matrix"
-   :params [{:type "angle"}]
+   :params [{:type "number" :ui "angle"}]
    :return {:type "mat2d"}
    :initial-params [0]
    :handles {:draw (fn {:params [angle]}
@@ -651,8 +659,9 @@
 
 (def mat2d/*
   ^{:doc "Multipies the mat2d's"
-    :params [&
-             {:label "Matrix" :type "mat2d"}]
+    :params [{:type "vector"
+              :variadic true
+              :items {:label "Matrix" :type "mat2d"}}]
     :return {:type "mat2d"}}
   (let
    [mul (fn
@@ -669,8 +678,9 @@
 (defn mat2d/pivot
   {:doc "Pivot"
    :params [{:label "Pos" :type "vec2"}
-            &
-            {:label "Matrix" :type "mat2d"}]
+            {:type "vector"
+             :variadic true
+             :items {:label "Matrix" :type "mat2d"}}]
    :return "mat2d"
    :handles {:draw (fn {:params [p]}
                      [{:type "translate" :pos p}])
@@ -751,6 +761,8 @@
 
 (defn rect2d/from-to
   {:doc "Creates a rect2d from two corners"
+   :params [{:type "vec2"}
+            {:type "vec2"}]
    :inverse (fn {:return [x y w h]} [[x y] [(+ x w) (+ y h)]])
    :handles {:draw (fn {:params [from to] :return ret}
                      [{:type "path" :guide true
@@ -822,6 +834,20 @@
    [(max (rect2d/right a) (rect2d/right b))
     (max (rect2d/bottom a) (rect2d/bottom b))]))
 
+
+(defn rect2d/centered
+  {:doc "Creates a new rect2d by the center position and  size"
+   :params [{:label "Center" :type "vec2"}
+            {:label "Size" :type "vec2" :ui "size"}]
+   :inverse (fn {:return [x y w h]}
+              [[(+ x (/ w 2)) (+ y (/ h 2))]
+               [w h]])
+   :return {:type "rect2d"}}
+  [[cx cy] [w h]]
+  [(- cx (/ w 2))
+   (- cy (/ h 2))
+   w
+   h])
 
 ;; Combination
 (defn combination/product [& xs]

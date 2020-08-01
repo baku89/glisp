@@ -5,6 +5,7 @@ interface DragData {
 	y: number
 	deltaX: number
 	deltaY: number
+	isMousedown: boolean
 	isDragging: boolean
 	prevX: number
 	prevY: number
@@ -27,6 +28,7 @@ export default function useDraggable(
 		y: 0,
 		deltaX: 0,
 		deltaY: 0,
+		isMousedown: false,
 		isDragging: false,
 		prevX: 0,
 		prevY: 0,
@@ -35,8 +37,7 @@ export default function useDraggable(
 	let originX = 0,
 		originY = 0,
 		prevX = 0,
-		prevY = 0,
-		hasDragged = false
+		prevY = 0
 
 	function onMousedrag(e: MouseEvent) {
 		const {clientX, clientY} = e
@@ -46,12 +47,12 @@ export default function useDraggable(
 		drag.deltaX = drag.x - prevX
 		drag.deltaY = drag.y - prevY
 
-		if (options.onDragStart && !hasDragged) {
+		if (options.onDragStart && !drag.isDragging) {
 			options.onDragStart(drag)
 		}
 
 		if (Math.abs(drag.x) > 2 || Math.abs(drag.y) > 2) {
-			hasDragged = true
+			drag.isDragging = true
 		}
 
 		if (options.onDrag) {
@@ -63,14 +64,15 @@ export default function useDraggable(
 	}
 
 	function onMouseup() {
-		if (!hasDragged && options.onClick) {
+		if (!drag.isDragging && options.onClick) {
 			options.onClick()
 		}
 
-		if (hasDragged && options.onDragEnd) {
+		if (drag.isDragging && options.onDragEnd) {
 			options.onDragEnd(drag)
 		}
 
+		drag.isMousedown = false
 		drag.isDragging = false
 		drag.x = 0
 		drag.y = 0
@@ -85,7 +87,7 @@ export default function useDraggable(
 	function onMousedown(e: MouseEvent) {
 		const {clientX, clientY} = e
 
-		drag.isDragging = true
+		drag.isMousedown = true
 		if (options.coordinate === 'center' && el.value) {
 			const {left, top, width, height} = el.value.getBoundingClientRect()
 			originX = left + width / 2
@@ -96,7 +98,6 @@ export default function useDraggable(
 		}
 		drag.prevX = prevX = 0
 		drag.prevY = prevY = 0
-		hasDragged = false
 
 		window.addEventListener('mousemove', onMousedrag)
 		window.addEventListener('mouseup', onMouseup)

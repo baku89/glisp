@@ -175,10 +175,12 @@
               :type "number"
               :desc "The arc's radius"}
              {:label "Start"
-              :type "angle"
+              :type "number"
+              :ui "angle"
               :desc "Angle to start the arc"}
              {:label "End"
-              :type "angle"
+              :type "number"
+              :ui "angle"
               :desc "Angle to stop the arc"}]
     :handles {:draw (fn {:params [center r start end]
                          :return path}
@@ -216,7 +218,16 @@
 
 (defn path/polyline
   {:doc "Generates a polyline path"
-   :params [& {:label "Vertex" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :insert (fn {:params pts :index i}
+                       (if (zero? (count pts))
+                         [0 0]
+                         (case i
+                           0 (first pts)
+                           (count pts) (last pts)
+                           (vec2/lerp (nth pts (dec i)) (nth pts i) .5))))
+             :items {:label "Point" :type "vec2"}}]
    :handles {:draw (fn {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
@@ -238,14 +249,27 @@
 
 (defn path/polygon
   {:doc "Generates a polygon path"
-   :params [& {:label "Vertex" :type "vec2"}]
+   :params [{:type "vector"
+             :variadic true
+             :insert (fn {:params pts :index i}
+                       (if (zero? (count pts))
+                         [0 0]
+                         (vec2/lerp
+                          (nth pts (mod (dec i) (count pts)))
+                          (nth pts (mod i (count pts)))
+                          .5)))
+             :items {:label "Point" :type "vec2"}}]
    :handles {:draw (fn {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
              :drag (fn {:id i :pos p}
                      {:replace [i p]})}
    :initial-params []
-   :return {:type "vec2"}}
+   :transform (fn {:params pts
+                   :transform xform}
+                (let [dp (mat2d/extract-translate xform)]
+                  (map #(vec2/+ % dp) pts)))
+   :return {:type "path"}}
   [& pts]
   (conj (apply polyline pts) :Z))
 (defalias polygon path/polygon)
@@ -413,11 +437,12 @@
 (def path-offset-meta
   {:params [{:label "Offset" :type "number"}
             {:label "Path" :type "path"}
-            &
-            {:keys [{:key :join :type "dropdown" :default "round"
-                     :enum ["miter" "bevel" "round"]}
-                    {:key :cap :type "dropdown" :default "round"
-                     :enum ["butt" "round"]}]}]
+            {:variadic true
+             :type "map"
+             :items [{:key :join :type "string" :ui "dropdown" :default "round"
+                      :values ["miter" "bevel" "round"]}
+                     {:key :cap :type "string" :ui "dropdown" :default "round"
+                      :values ["butt" "round"]}]}]
    :return {:type "path"}
    :handles {:draw (fn {:params [d path]
                         :return offset-path}

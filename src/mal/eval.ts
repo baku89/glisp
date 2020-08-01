@@ -160,24 +160,31 @@ export default function evalExp(
 ): MalVal {
 	const origExp: MalSeq = exp as MalSeq
 
-	if (isList(exp) && isSymbolFor(exp[0], 'circumcircle')) {
-		console.log('start')
-	}
-
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
-			return evalAtom.call(this, exp, env, cache)
+			const ret = evalAtom.call(this, exp, env, cache)
+			if (cache && isNode(origExp)) {
+				origExp[M_EVAL] = ret
+			}
+			return ret
 		}
 
 		// Expand macro
 		exp = macroexpand(exp, env, cache)
 
 		if (!isList(exp)) {
-			return evalAtom.call(this, exp, env, cache)
+			const ret = evalAtom.call(this, exp, env, cache)
+			if (cache && isNode(origExp)) {
+				origExp[M_EVAL] = ret
+			}
+			return ret
 		}
 
 		if (exp.length === 0) {
+			if (cache && isNode(origExp)) {
+				origExp[M_EVAL] = null
+			}
 			return null
 		}
 
@@ -464,6 +471,9 @@ export default function evalExp(
 					first.evaluated = env.get(S_DO)
 				}
 				if (exp.length === 1) {
+					if (cache && isNode(origExp)) {
+						origExp[M_EVAL] = null
+					}
 					return null
 				}
 				evalExp.call(this, exp.slice(1, -1), env, cache)

@@ -6,7 +6,8 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 
 <h2>ことはじめ</h2>
 
-- [Glisp の文法](syntax)
+- [Glisp とは?](about)
+- [構文](syntax)
 - [はじめてのスケッチ](get-started)
 
 <h2>機能について</h2>
@@ -17,6 +18,7 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - プリミティブ
 - [ハンドル](defining-handle)
 - Docstring
+- [スキーマ](schema)
 - 逆評価
 - 編集モード
 - 単位系
@@ -30,8 +32,8 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 
 - [なぜ Lisp なのか](why-lisp)
 - [マシな作り方の作り方を作る](https://baku89.com/2020/06/26/c-activity)
-- [ブートストラップ性](bootstrapping ':disabled')
-- [ツールの直交性](orthogonality)
+- [ブートストラップ](bootstrapping ':disabled')
+- [直交性](orthogonality)
 - [動かし方の分類](classification-of-animating)
 - [UI の基本原則](principles)
 - [インターフェースの帯域幅](bandwidth ':disabled')

@@ -24,7 +24,6 @@
 
 ;; スタイル
 (style (fill "red") p)
-(style (stroke "blue") p)
 (style (stroke "blue" 20) p) ; -> width = 20
 (style (stroke "blue" 20 :cap "round") p)
 

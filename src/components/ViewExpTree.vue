@@ -1,7 +1,7 @@
 <template>
-	<div class="ListView">
+	<div class="ViewExpTree">
 		<div
-			class="ListView__label"
+			class="ViewExpTree__label"
 			:class="{
 				clickable: labelInfo.clickable,
 				hidden: ui.hidden,
@@ -9,10 +9,9 @@
 				hovering,
 			}"
 			@click="labelInfo.clickable && onClick()"
-			@dblclick="labelInfo.editable && onClickEditButton($event)"
 		>
 			<div
-				class="ListView__icon"
+				class="ViewExpTree__icon"
 				:class="{expanded, expandable: labelInfo.expandable}"
 				@click="labelInfo.expandable && toggleExpanded()"
 			>
@@ -36,13 +35,13 @@
 			{{ labelInfo.label }}
 			<i
 				v-if="labelInfo.editable"
-				class="ListView__editing fas fa-code"
+				class="ViewExpTree__editing fas fa-code"
 				:class="{active: editing}"
 				@click="onClickEditButton"
 			/>
 		</div>
-		<div class="ListView__children" v-if="labelInfo.children && expanded">
-			<ListView
+		<div class="ViewExpTree__children" v-if="labelInfo.children && expanded">
+			<ViewExpTree
 				v-for="(child, i) in labelInfo.children"
 				:key="i"
 				:exp="child"
@@ -77,13 +76,11 @@ import {
 	cloneExp,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import {replaceExp} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 
 enum DisplayMode {
 	Node = 'node',
 	Elements = 'elements',
-	Params = 'params',
 }
 
 interface Props {
@@ -112,7 +109,7 @@ const K_EXPANDED = K('expanded')
 const K_HIDDEN = K('hidden')
 
 export default defineComponent({
-	name: 'ListView',
+	name: 'ViewExpTree',
 	props: {
 		exp: {
 			required: true,
@@ -303,7 +300,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-.ListView
+.ViewExpTree
 	overflow hidden
 	// padding-left 1rem
 	width 100%
@@ -312,7 +309,7 @@ export default defineComponent({
 	&.destructed
 		padding-left 0
 
-		.ListView__children:before
+		.ViewExpTree__children:before
 			display none
 
 	&__label

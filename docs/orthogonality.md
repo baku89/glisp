@@ -1,4 +1,4 @@
-# ツールの直交性
+# 直交性
 
 ポール・グレアム氏のテキスト [On Lisp](http://www.asahi-net.or.jp/~kc7k-nd/onlispjhtml/returningFunctions.html) にこのような一節がありました。
 

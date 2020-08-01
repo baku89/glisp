@@ -1,6 +1,6 @@
 <template>
-	<div class="Viewer" ref="el">
-		<canvas class="Viewer__canvas" ref="canvas" />
+	<div class="ViewCanvas" ref="el">
+		<canvas class="ViewCanvas__canvas" ref="canvas" />
 	</div>
 </template>
 
@@ -125,7 +125,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus" scoped>
-.Viewer
+.ViewCanvas
 	position relative
 	height 100%
 

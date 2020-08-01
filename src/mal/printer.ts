@@ -138,7 +138,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 		}
 		// Atoms
 		case MalType.Number:
-			return (exp as number).toString().replace(/(\.[0-9]{4})([0-9]+)$/, '$1')
+			return (exp as number).toFixed(4).replace(/\.?[0]+$/, '')
 		case MalType.String:
 			if (_r) {
 				return (

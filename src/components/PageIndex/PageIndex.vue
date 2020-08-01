@@ -1,6 +1,14 @@
 <template>
 	<div id="app" class="PageIndex">
-		<Viewer
+		<PortalTarget
+			class="PageIndex__view-handles-axes"
+			name="view-handles-axes"
+			:style="{
+				left: `${paneSizeInPercent.layers}%`,
+				right: `${paneSizeInPercent.control}%`,
+			}"
+		/>
+		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
 			:guideColor="guideColor"
@@ -13,11 +21,10 @@
 			vertical
 			@resize="onResizeSplitpanes"
 		>
-			<Pane class="left" :size="listViewPaneSize" :max-size="30">
-				<ListView
+			<Pane class="left" :size="paneSizeInPercent.layers" :max-size="30">
+				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
-					mode="params"
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
@@ -26,13 +33,13 @@
 					@update:editingExp="setEditingExp"
 				/>
 			</Pane>
-			<Pane :size="100 - controlPaneSize - listViewPaneSize">
+			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
 				<div class="PageIndex__inspector" v-if="selectedExp">
 					<Inspector
 						:exp="selectedExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
-						@end-tweak="tagHistory"
+						@end-tweak="tagExpHistory('undo')"
 					/>
 				</div>
 				<ViewHandles
@@ -41,18 +48,18 @@
 					:exp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
-					@tag-history="tagHistory"
+					@tag-history="tagExpHistory('undo')"
 				/>
 			</Pane>
-			<Pane :size="controlPaneSize" :max-size="40">
+			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
-						<ExpEditor
+						<MalExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
 							:selectedExp="selectedExp"
 							:hasParseError.sync="hasParseError"
-							:editMode="editingExp.value === exp.value ? 'params' : 'node'"
+							:editMode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@select="setSelectedExp"
 						/>
@@ -92,12 +99,12 @@ import {
 import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
-import ExpEditor from '@/components/ExpEditor.vue'
-import Viewer from '@/components/Viewer.vue'
+import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles.vue'
-import ListView from '@/components/ListView.vue'
+import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
 import {
@@ -107,9 +114,6 @@ import {
 	MalAtom,
 	createList as L,
 	symbolFor as S,
-	MalError,
-	isKeyword,
-	getName,
 } from '@/mal/types'
 
 import {nonReactive, NonReactive} from '@/utils'
@@ -129,14 +133,11 @@ import {
 
 import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
-import {reconstructTree} from '@/mal/reader'
-import {webviewTag} from 'electron'
-
-type ExpHistory = [NonReactive<MalNode>, Set<string>]
+import useCompactScrollbar from './use-compact-scrollbar'
+import useExpHistory from './use-exp-history'
 
 interface Data {
 	exp: NonReactive<MalNode>
-	expHistory: ExpHistory[]
 	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
@@ -156,8 +157,6 @@ interface UI {
 	guideColor: string
 	viewTransform: mat2d
 	viewHandlesTransform: mat2d
-	controlPaneSize: number
-	listViewPaneSize: number
 }
 
 const OFFSET_START = 11 // length of "(sketch;__\n"
@@ -167,13 +166,13 @@ export default defineComponent({
 	name: 'PageIndex',
 	components: {
 		GlobalMenu,
-		ExpEditor,
-		Viewer,
+		MalExpEditor,
+		ViewCanvas,
 		Console,
 		Inspector,
 		ViewHandles,
 		Splitpanes,
-		ListView,
+		PaneLayers,
 		Pane,
 	},
 	setup(_, context) {
@@ -195,19 +194,16 @@ export default defineComponent({
 				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
 					top: 0,
 				}
-				const left = (ui.listViewPaneSize / 100) * windowWidth.value
+				const left = paneSizeInPixel.layers
 				const xform = mat2d.clone(ui.viewHandlesTransform)
 				xform[4] += left
 				xform[5] += top
 				return xform as mat2d
 			}),
-			controlPaneSize: ((30 * rem.value) / window.innerWidth) * 100,
-			listViewPaneSize: ((15 * rem.value) / window.innerWidth) * 100,
 		}) as UI
 
 		const data = reactive({
 			exp: nonReactive(L(S('sketch'))),
-			expHistory: [],
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -258,7 +254,7 @@ export default defineComponent({
 				.$el as SVGElement).getBoundingClientRect()
 
 			const left = 0
-			const right = window.innerWidth * (1 - ui.controlPaneSize / 100)
+			const right = window.innerWidth - paneSizeInPixel.control
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
@@ -268,9 +264,14 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
+		const {pushExpHistory, tagExpHistory} = useExpHistory(
+			toRef(data, 'exp'),
+			updateExp
+		)
+
 		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
 			updateExp(exp, false)
-			data.expHistory = [[exp, new Set(['undo'])]]
+			pushExpHistory(exp, 'undo')
 			setEditingExp(exp)
 		})
 
@@ -288,10 +289,10 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: NonReactive<MalNode>, tagHistory = true) {
+		function updateExp(exp: NonReactive<MalNode>, pushHistory = true) {
 			unwatchExpOnReplace(data.exp.value, onReplaced)
-			if (tagHistory) {
-				data.expHistory.push([exp, new Set()])
+			if (pushHistory) {
+				pushExpHistory(exp)
 			}
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
@@ -307,7 +308,8 @@ export default defineComponent({
 		// SelectedExp
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
-				data.selectedPath = generateExpAbsPath(exp.value)
+				const path = generateExpAbsPath(exp.value)
+				data.selectedPath = path !== '/' ? path : ''
 			} else {
 				data.selectedPath = ''
 			}
@@ -339,14 +341,31 @@ export default defineComponent({
 			data.hoveringExp = exp
 		}
 
-		// Others
+		// Splitpanes
+		const paneSizeInPixel = reactive({
+			layers: 15 * rem.value,
+			control: 30 * rem.value,
+		})
+
+		const paneSizeInPercent = reactive({
+			layers: computed(
+				() => (paneSizeInPixel.layers / windowWidth.value) * 100
+			),
+			control: computed(
+				() => (paneSizeInPixel.control / windowWidth.value) * 100
+			),
+		})
+
 		function onResizeSplitpanes(
 			sizes: {min: number; max: number; size: number}[]
 		) {
-			ui.listViewPaneSize = sizes[0].size
-			ui.controlPaneSize = sizes[2].size
+			const [layers, , control] = sizes.map(s => s.size)
+
+			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
+			paneSizeInPixel.control = windowWidth.value * (control / 100)
 		}
 
+		// Save code
 		watch(
 			() => data.exp,
 			exp => {
@@ -387,59 +406,8 @@ export default defineComponent({
 			setSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			tagHistory
+			() => tagExpHistory('undo')
 		)
-
-		// History
-		function undoExp(tag?: string) {
-			let index = -1
-			if (tag) {
-				for (let i = data.expHistory.length - 2; i >= 0; i--) {
-					if (data.expHistory[i][1].has(tag)) {
-						index = i
-						break
-					}
-				}
-			} else {
-				if (data.expHistory.length > 2) {
-					index = data.expHistory.length - 2
-				}
-			}
-
-			if (index === -1) {
-				return false
-			}
-
-			const [prev] = data.expHistory[index]
-			data.expHistory.length = index + 1
-			reconstructTree(prev.value)
-			updateExp(prev, false)
-
-			return true
-		}
-
-		AppScope.def('revert-history', (arg: MalVal) => {
-			if (typeof arg !== 'string') {
-				return undoExp()
-			} else {
-				const tag = getName(arg)
-				return undoExp(tag)
-			}
-		})
-
-		function tagHistory(tag = 'undo') {
-			if (data.expHistory.length > 0) {
-				data.expHistory[data.expHistory.length - 1][1].add(tag)
-			}
-		}
-
-		AppScope.def('tag-history', (tag: MalVal) => {
-			if (!(typeof tag === 'string' || isKeyword(tag))) {
-				throw new MalError('tag is not a string')
-			}
-			tagHistory(getName(tag))
-			return true
-		})
 
 		// Setup scopes
 		useAppCommands(data, {
@@ -448,6 +416,9 @@ export default defineComponent({
 			updateSelectedExp,
 		})
 		useCommandDialog(context)
+
+		// Scrollbar
+		useCompactScrollbar()
 
 		// After setup, execute the app configuration code
 		AppScope.readEval(`(do
@@ -475,7 +446,9 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			onResizeSplitpanes,
-			tagHistory,
+			tagExpHistory,
+
+			paneSizeInPercent,
 		}
 	},
 })
@@ -518,11 +491,16 @@ html, body
 
 	&__list-view
 		position relative
-		padding-top 1rem
 		width 100%
 		height 100%
 		translucent-bg()
 		overflow-y scroll
+
+	&__view-handles-axes
+		position absolute !important
+		top 3.4rem
+		height calc(100vh - 3.4rem)
+
 
 	&__viewer
 		position absolute !important

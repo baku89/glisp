@@ -6,14 +6,14 @@
 		:class="{error: hasError}"
 	>
 		<div class="PageEmbed__editor">
-			<Editor
+			<GlispEditor
 				:value="code"
 				@input="code = $event"
 				cssStyle="line-height: 1.5"
 			/>
 		</div>
 		<div class="PageEmbed__viewer">
-			<Viewer
+			<ViewCanvas
 				:exp="viewExp"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
@@ -37,8 +37,8 @@ import {
 	toRefs,
 } from '@vue/composition-api'
 
-import Editor from '@/components/Editor'
-import Viewer from '@/components/Viewer.vue'
+import GlispEditor from '@/components/GlispEditor'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 
 import {printExp, readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
@@ -89,8 +89,8 @@ function parseURL(data: Data) {
 export default defineComponent({
 	name: 'PageEmbed',
 	components: {
-		Editor,
-		Viewer,
+		GlispEditor,
+		ViewCanvas,
 	},
 	setup() {
 		const ui = reactive({

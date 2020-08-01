@@ -47,7 +47,7 @@ import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo, copyDelimiters} from '@/mal/utils'
+import {getFnInfo, copyDelimiters, getMapValue} from '@/mal/utils'
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 
 interface Props {
@@ -73,8 +73,8 @@ export default defineComponent({
 		})
 
 		const fnName = computed(() => {
-			if (fnInfo.value?.primitive) {
-				return fnInfo.value.primitive
+			if (fnInfo.value?.structType) {
+				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
 				(isList(props.exp.value) && isSymbol(props.exp.value[0]))
@@ -87,7 +87,7 @@ export default defineComponent({
 
 		const fnDoc = computed(() => {
 			if (fnInfo.value?.meta) {
-				return fnInfo.value.meta[K('doc')] as string
+				return getMapValue(fnInfo.value.meta, 'doc') as string
 			}
 			return ''
 		})

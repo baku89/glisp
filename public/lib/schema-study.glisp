@@ -1,0 +1,63 @@
+;; 静的なパラメーター
+
+;; 基本構造
+{;; 共通
+ :type "number|string|keyword|symbol|boolean|map|vector|vec2|rect2d|mat2d|path|color"
+ :ui "angle|seed|dropdown"
+ :label "Label"
+ :validator validator-fn ;; value -> modified-value or nil (invalid)
+
+ ;; UI Specific options
+
+ ;;slider
+ :range [0 1]
+
+ ;; dropdown
+ :values [0 1 2]
+ :labels ["Zero" "One" "Two"]}
+
+
+;; Function Application (List)
+
+(circle [0 0] 100)
+
+
+{:type "params"
+ :items  [;; :type === :ui の時省略可能
+          {:label "Center" :type "vec2" :ui "vec2"}
+          {:label "Radius" :type "number" :ui "number"}]}
+
+
+;; Map
+{:type "map"
+ :items [{:key "width" :label "Width" ...}
+         {:key "height" :label "Height" ...}]}
+
+;; Vector
+{:type "vector"
+ :items {:type "number"}}
+
+
+
+;; Vector (default)
+{:type "vector"
+ :items {:type "any"}}
+
+;; Dynamic
+
+;; Example: range
+{:type "dynamic"
+ :items {:type "any"}
+ :to-schema (fn {:params xs}
+              (let [[start end step] (case (count xs)
+                                       1 [0 (first xs) 1]
+                                       2 [(start xs) (second xs) 1]
+                                       3 xs)]
+                [{:label "Start" :type "number" :value start :default 0}
+                 {:label "End" :type "number" :value end}
+                 {:label "Step" :type "number" :value step :default 1}]))
+ :to-value (fn {:value [start end step]}
+             (cond
+               (and (= 0 start) (= 1 step)) [end]
+               (= 1 step) [start end]
+               [start end step]))}

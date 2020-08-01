@@ -97,7 +97,7 @@ AfterEffects のアンカーポイントを用いたトランスフォームは�
 ;; それ以降の文のみスケッチに反映させるようにする
 :start-sketch
 
-(style (stroke "skyblue")
+(style (stroke "skyblue" 2)
  circle-path)
 
 (transform
