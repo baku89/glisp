@@ -213,6 +213,7 @@
 (defn not
   {:doc "Returns true if value is falsy, false otherwise"
    :params [{:type "boolean"}]
+   :inverse (fn {:return ret} [(not ret)])
    :return {:type "boolean"}}
   [value] (if value false true))
 
