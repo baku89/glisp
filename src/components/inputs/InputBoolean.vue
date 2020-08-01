@@ -77,4 +77,5 @@ export default defineComponent({
 
 	&.exp > &__frame
 		border-color var(--red)
+		color var(--red)
 </style>
