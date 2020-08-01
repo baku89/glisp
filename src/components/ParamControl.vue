@@ -1,36 +1,38 @@
 <template>
 	<table class="ParamControl">
-		<tr
-			v-for="(schema, i) in uiSchema"
-			:key="i"
-			class="ParamControl__param"
-			:class="{'is-default': schema.isDefault}"
-		>
-			<td class="ParamControl__label">{{ schema.label }}</td>
-			<td class="ParamControl__value">
-				<div class="ParamControl__input">
-					<component
-						:is="'ui-' + schema.ui"
-						v-bind="schema"
-						@input="onParamInput(i, $event)"
-						@select="$emit('select', $event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-				</div>
-				<template v-if="isVectorVariadic && i >= vectorVariadicPos">
-					<button class="ParamControl__button delete" @click="onParamDelete(i)">
-						<i class="far fa-times-circle" />
-					</button>
-					<button class="ParamControl__button insert" @click="onParamInsert(i)">Insert</button>
-				</template>
-			</td>
-		</tr>
-		<tr v-if="isVectorVariadic">
-			<td class="ParamControl__label"></td>
-			<td class="ParamControl__value">
-				<button class="ParamControl__button add" @click="onParamInsert(uiSchema.length)">+ Add</button>
-			</td>
-		</tr>
+		<template v-if="uiSchema">
+			<tr
+				v-for="(schema, i) in uiSchema"
+				:key="i"
+				class="ParamControl__param"
+				:class="{'is-default': schema.isDefault}"
+			>
+				<td class="ParamControl__label">{{ schema.label }}</td>
+				<td class="ParamControl__value">
+					<div class="ParamControl__input">
+						<component
+							:is="'ui-' + schema.ui"
+							v-bind="schema"
+							@input="onParamInput(i, $event)"
+							@select="$emit('select', $event)"
+							@end-tweak="$emit('end-tweak')"
+						/>
+					</div>
+					<template v-if="isVectorVariadic && i >= vectorVariadicPos">
+						<button class="ParamControl__button delete" @click="onParamDelete(i)">
+							<i class="far fa-times-circle" />
+						</button>
+						<button class="ParamControl__button insert" @click="onParamInsert(i)">Insert</button>
+					</template>
+				</td>
+			</tr>
+			<tr v-if="isVectorVariadic">
+				<td class="ParamControl__label"></td>
+				<td class="ParamControl__value">
+					<button class="ParamControl__button add" @click="onParamInsert(uiSchema.length)">+ Add</button>
+				</td>
+			</tr>
+		</template>
 	</table>
 </template>
 
@@ -53,6 +55,7 @@ import {
 	generateUISchemaParams,
 	updateParamsByUISchema,
 	SchemaVector,
+	Schema,
 } from '../mal/schema'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 
@@ -144,15 +147,18 @@ export default defineComponent({
 
 		// UISchema
 		const uiSchema = computed(() => {
-			const ret = generateUISchemaParams(schema.value, params.value)
-			return ret
+			try {
+				return generateUISchemaParams(schema.value, params.value)
+			} catch (e) {
+				return undefined
+			}
 		})
 
 		// Updator
 		function onParamInput(i: number, value: NonReactive<MalVal>) {
 			const newParams = updateParamsByUISchema(
 				schema.value,
-				uiSchema.value,
+				uiSchema.value as Schema[],
 				params.value,
 				i,
 				value.value
