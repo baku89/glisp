@@ -86,7 +86,7 @@ export default defineComponent({
 		'ui-dropdown': MalInputComponents.MalInputDropdown,
 		'ui-keyword': MalInputComponents.MalInputKeyword,
 		'ui-symbol': MalInputComponents.MalInputSymbol,
-		// 'ui-boolean': MalInputComponents.MalInputBoolean,
+		'ui-boolean': MalInputComponents.MalInputBoolean,
 		'ui-vec2': MalInputComponents.MalInputVec2,
 		'ui-rect2d': MalInputComponents.MalInputRect2d,
 		'ui-mat2d': MalInputComponents.MalInputMat2d,

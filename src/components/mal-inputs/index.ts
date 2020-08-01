@@ -1,4 +1,5 @@
 export {default as MalInputAngle} from './MalInputAngle.vue'
+export {default as MalInputBoolean} from './MalInputBoolean.vue'
 export {default as MalInputColor} from './MalInputColor.vue'
 export {default as MalInputDropdown} from './MalInputDropdown.vue'
 export {default as MalInputKeyword} from './MalInputKeyword.vue'
