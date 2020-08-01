@@ -475,12 +475,22 @@
 (annotate-fn!
  range
  {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
-  :params [[{:label "End" :type "number"}]
-           [{:label "Start" :type "number"}
-            {:label "End" :type "number"}]
-           [{:label "Start" :type "number"}
-            {:label "End" :type "number"}
-            {:label "Step" :type "number"}]]
+  :params {:type "dynamic"
+           :to-schema
+           (fn [{:params xs}]
+             (let [[start end step] (case (count xs)
+                                      1 [0 (first xs) 1]
+                                      2 [(first xs) (second xs) 1]
+                                      3 xs)]
+               [{:label "Start" :type "number" :value start :default 0}
+                {:label "End" :type "number" :value end}
+                {:label "Step" :type "number" :value step :default 1}]))
+           :to-params
+           (fn {:values [start end step]}
+             (cond
+               (and (= 0 start) (= 1 step)) [end]
+               (= 1 step) [start end]
+               :else [start end step]))}
   :return {:type "vector"}})
 
 (annotate-fn!

@@ -12,8 +12,10 @@ import {
 	M_PARAMS,
 	isMalFunc,
 	assocBang,
+	keywordFor as K,
 } from './types'
 import {getStructType} from './utils'
+import {convertJSObjectToMalMap, convertMalNodeToJSObject} from './reader'
 
 interface SchemaBase {
 	type: string
@@ -180,6 +182,12 @@ export interface SchemaMap extends SchemaBase {
 	items: SchemaPrimitive[]
 }
 
+export interface SchemaDynamic extends SchemaBase {
+	type: 'dynamic'
+	'to-schema': MalFunc
+	'to-params': MalFunc
+}
+
 /**
  * All Schema
  */
@@ -234,13 +242,7 @@ export function extractParams(exp: MalSeq): MalSeq {
 	}
 }
 
-/**
- * Generates UISchema for the parameter of function application
- */
-export function generateUISchemaParams(
-	schemaParams: Schema[],
-	params: MalVal[]
-) {
+function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 	// Check if zero
 	if (schemaParams.length === 0) {
 		if (params.length !== 0) {
@@ -333,10 +335,45 @@ export function generateUISchemaParams(
 	return uiSchema
 }
 
+function generateDynamicUISchemaParams(
+	schemaParams: SchemaDynamic,
+	params: MalVal[]
+) {
+	const toSchema = schemaParams['to-schema']
+
+	const uiSchema = convertMalNodeToJSObject(
+		toSchema({[K('params')]: params})
+	) as Schema[]
+
+	for (const schema of uiSchema) {
+		const value = schema.value as MalVal
+		schema.value = nonReactive(value)
+
+		// Force set the UI type
+		schema.ui = schema.ui || schema.type
+
+		if ('default' in schema) {
+			schema.isDefault = value === schema.default
+		}
+	}
+	return uiSchema
+}
+
 /**
- * Computes the original parameters from UIParamSchema and updated value
+ * Generates UISchema for the parameter of function application
  */
-export function updateParamsByUISchema(
+export function generateUISchemaParams(
+	schemaParams: Schema[] | SchemaDynamic,
+	params: MalVal[]
+) {
+	if (!Array.isArray(schemaParams)) {
+		return generateDynamicUISchemaParams(schemaParams, params)
+	} else {
+		return generateFixedUISchemaParams(schemaParams, params)
+	}
+}
+
+function updateParamsByFixedUISchema(
 	schemaParams: Schema[],
 	params: MalVal[],
 	index: number,
@@ -371,5 +408,34 @@ export function updateParamsByUISchema(
 		const newParams = [...params]
 		newParams[index] = value
 		return newParams
+	}
+}
+
+function updateParamsByDynamicUISchema(
+	schuema: SchemaDynamic,
+	uiSchema: Schema[],
+	index: number,
+	value: MalVal
+) {
+	const params = uiSchema.map(s => s.value?.value as MalVal)
+	params[index] = value
+	const toParams = schuema['to-params']
+	return toParams({[K('values')]: params}) as MalVal[]
+}
+
+/**
+ * Computes the original parameters from UIParamSchema and updated value
+ */
+export function updateParamsByUISchema(
+	schema: Schema[] | SchemaDynamic,
+	uiSchema: Schema[],
+	params: MalVal[],
+	index: number,
+	value: MalVal
+) {
+	if (!Array.isArray(schema)) {
+		return updateParamsByDynamicUISchema(schema, uiSchema, index, value)
+	} else {
+		return updateParamsByFixedUISchema(schema, params, index, value)
 	}
 }
