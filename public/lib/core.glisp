@@ -377,12 +377,16 @@
 (annotate-fn!
  prn
  {:doc "Prints the objects to the console"
-  :params [& {:label "Number" :type "any"}]})
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Value" :type "any"}}]})
 
 (annotate-fn!
  println
  {:doc "Prints the string with newline"
-  :params [& {:label "Text" :type "any"}]})
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Text" :type "any"}}]})
 
 ;; Annotate JS Functions
 (annotate-fn!
