@@ -17,39 +17,33 @@
 						@end-tweak="$emit('end-tweak')"
 					/>
 				</div>
-				<!-- <button
-					class="ParamControl__button delete"
-					v-if="i >= variadicPos"
-					@click="onParamDelete(i)"
-				>
-					<i class="far fa-times-circle" />
-				</button>
-				<button
-					class="ParamControl__button insert"
-					v-if="i >= variadicPos"
-					@click="onParamInsert(i)"
-				>
-					Insert
-				</button>-->
+				<template v-if="isVectorVariadic && i >= vectorVariadicPos">
+					<button class="ParamControl__button delete" @click="onParamDelete(i)">
+						<i class="far fa-times-circle" />
+					</button>
+					<button class="ParamControl__button insert" @click="onParamInsert(i)">Insert</button>
+				</template>
 			</td>
 		</tr>
-		<!-- <tr v-if="paramDescs.rest && paramDescs.rest.type === 'variadic'">
+		<tr v-if="isVectorVariadic">
 			<td class="ParamControl__label"></td>
 			<td class="ParamControl__value">
-				<button
-					class="ParamControl__button add"
-					@click="onParamInsert(params.length)"
-				>
-					+ Add
-				</button>
+				<button class="ParamControl__button add" @click="onParamInsert(uiSchema.length)">+ Add</button>
 			</td>
-		</tr>-->
+		</tr>
 	</table>
 </template>
 
 <script lang="ts">
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
-import {MalSeq, MalVal, MalFunc, createList as L, isVector} from '@/mal/types'
+import {
+	MalSeq,
+	MalVal,
+	MalFunc,
+	createList as L,
+	isVector,
+	keywordFor as K,
+} from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
 import {nonReactive, NonReactive} from '@/utils'
@@ -57,6 +51,7 @@ import {
 	generateSchemaParamLabel,
 	generateUISchemaParams,
 	updateParamsByUISchema,
+	SchemaVector,
 } from '../mal/schema'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 
@@ -90,11 +85,11 @@ interface Props {
 // 	rest: null,
 // }
 
-// const TypeDefaults = {
-// 	number: 0,
-// 	vec2: [0, 0],
-// 	path: [K('path')],
-// } as {[type: string]: MalVal}
+const TypeDefaults = {
+	number: 0,
+	vec2: [0, 0],
+	path: [K('path')],
+} as {[type: string]: MalVal}
 
 // const InterpolateFuncs = {
 // 	number: (a: number, b: number) => (a + b) / 2,
@@ -163,11 +158,31 @@ export default defineComponent({
 			return labeledSchema
 		})
 
+		// Vector variadic
+		const isVectorVariadic = computed(() => {
+			if (schema.value.length > 0) {
+				const lastSchema = schema.value[schema.value.length - 1]
+				return !!lastSchema.variadic && lastSchema.type === 'vector'
+			} else {
+				return false
+			}
+		})
+
+		const vectorVariadicPos = computed(() => {
+			if (isVectorVariadic.value) {
+				return schema.value.length - 1
+			} else {
+				return -1
+			}
+		})
+
+		// UISchema
 		const uiSchema = computed(() => {
 			const ret = generateUISchemaParams(schema.value, params.value)
 			return ret
 		})
 
+		// Updator
 		function onParamInput(i: number, value: NonReactive<MalVal>) {
 			const newParams = updateParamsByUISchema(
 				schema.value,
@@ -183,9 +198,37 @@ export default defineComponent({
 			context.emit('input', nonReactive(newExp))
 		}
 
+		function onParamInsert(i: number) {
+			const newParams = [...params.value]
+			const vectorSchema = schema.value[schema.value.length - 1] as SchemaVector
+			const variadicSchema = vectorSchema.items
+
+			const type = variadicSchema.type
+
+			const value = ('default' in variadicSchema
+				? variadicSchema.default
+				: TypeDefaults[type]) as MalVal
+
+			newParams.splice(i, 0, value)
+			const newValue = L(props.exp.value[0], ...newParams)
+			context.emit('input', nonReactive(newValue))
+		}
+
+		function onParamDelete(i: number) {
+			const newParams = [...params.value]
+			newParams.splice(i, 1)
+
+			const newValue = L(props.exp.value[0], ...newParams)
+			context.emit('input', nonReactive(newValue))
+		}
+
 		return {
+			isVectorVariadic,
+			vectorVariadicPos,
 			uiSchema,
 			onParamInput,
+			onParamInsert,
+			onParamDelete,
 		}
 
 		/*
