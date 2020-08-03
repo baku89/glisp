@@ -19,17 +19,30 @@
 						/>
 					</div>
 					<template v-if="isVectorVariadic && i >= vectorVariadicPos">
-						<button class="ParamControl__button delete" @click="onParamDelete(i)">
+						<button
+							class="ParamControl__button delete"
+							@click="onParamDelete(i)"
+						>
 							<i class="far fa-times-circle" />
 						</button>
-						<button class="ParamControl__button insert" @click="onParamInsert(i)">Insert</button>
+						<button
+							class="ParamControl__button insert"
+							@click="onParamInsert(i)"
+						>
+							Insert
+						</button>
 					</template>
 				</td>
 			</tr>
 			<tr v-if="isVectorVariadic">
 				<td class="ParamControl__label"></td>
 				<td class="ParamControl__value">
-					<button class="ParamControl__button add" @click="onParamInsert(uiSchema.length)">+ Add</button>
+					<button
+						class="ParamControl__button add"
+						@click="onParamInsert(uiSchema.length)"
+					>
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</template>
@@ -43,9 +56,7 @@ import {
 	MalVal,
 	MalFunc,
 	createList as L,
-	isVector,
 	keywordFor as K,
-	isMap,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
