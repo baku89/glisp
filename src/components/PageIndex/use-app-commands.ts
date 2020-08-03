@@ -234,14 +234,21 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('paste-from-clipboard', () => {
+		let outer: MalSeq, index: number
+
 		if (!data.selectedExp) {
-			return false
-		}
+			;[outer, index] = [
+				data.exp.value as MalSeq,
+				(data.exp.value as MalSeq).length - 1,
+			]
+		} else {
+			const [_outer, _index] = getUIOuterInfo(data.selectedExp.value)
 
-		const [outer, index] = getUIOuterInfo(data.selectedExp.value)
+			if (!isSeq(_outer)) {
+				return false
+			}
 
-		if (!isSeq(outer)) {
-			return false
+			;[outer, index] = [_outer, _index]
 		}
 
 		const newOuter = cloneExp(outer)
