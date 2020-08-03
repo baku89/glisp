@@ -159,6 +159,7 @@ type SchemaPrimitive =
 	| SchemaString
 	| SchemaKeyword
 	| SchemaSymbol
+	| SchemaBoolean
 	| SchemaVec2
 	| SchemaRect2d
 	| SchemaMat2d
@@ -314,6 +315,7 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 				schema.type = valueType as any
 				break
 			case 'exp':
+			case 'boolean':
 				break
 			default:
 				// Check if the type mathces
