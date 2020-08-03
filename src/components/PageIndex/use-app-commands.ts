@@ -14,13 +14,11 @@ import {
 	MalError,
 	cloneExp,
 	isSeq,
-	getOuter,
 	isList,
 	isSymbolFor,
 	MalSeq,
 	getEvaluated,
 	getType,
-	M_OUTER_INDEX,
 	M_KEYS,
 } from '@/mal/types'
 import {
@@ -29,6 +27,7 @@ import {
 	applyParamModifier,
 	copyDelimiters,
 	replaceExp,
+	getUIOuterInfo,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
@@ -131,7 +130,7 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('select-outer', () => {
-		const outer = getOuter(data.selectedExp?.value)
+		const [outer] = getUIOuterInfo(data.selectedExp?.value)
 		if (outer && outer !== data.exp?.value) {
 			callbacks.setSelectedExp(nonReactive(outer))
 		}
@@ -220,17 +219,6 @@ export default function useAppCommands(
 
 		return true
 	})
-
-	function getUIOuterInfo(exp: MalNode): [MalNode | null, number] {
-		let outer = getOuter(exp)
-
-		if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
-			exp = outer
-			outer = getOuter(exp)
-		}
-
-		return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
-	}
 
 	AppScope.def('delete-selected', () => {
 		if (!data.selectedExp) {

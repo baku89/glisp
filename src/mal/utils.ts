@@ -129,6 +129,25 @@ export function generateExpAbsPath(exp: MalNode) {
 	}
 }
 
+export function getUIOuterInfo(
+	_exp: MalVal | undefined
+): [MalNode | null, number] {
+	if (!isNode(_exp)) {
+		return [null, -1]
+	}
+
+	let exp = _exp
+
+	let outer = getOuter(exp)
+
+	if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+		exp = outer
+		outer = getOuter(exp)
+	}
+
+	return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
+}
+
 /**
  * Cached Tree-shaking
  */
