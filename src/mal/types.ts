@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import Env from './env'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never

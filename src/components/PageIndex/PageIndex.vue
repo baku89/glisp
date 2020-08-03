@@ -81,7 +81,6 @@
 </template>
 
 <script lang="ts">
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import 'normalize.css'
 import {Splitpanes, Pane} from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
