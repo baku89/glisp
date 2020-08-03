@@ -150,6 +150,7 @@ export default defineComponent({
 			try {
 				return generateUISchemaParams(schema.value, params.value)
 			} catch (e) {
+				console.log(e)
 				return undefined
 			}
 		})
