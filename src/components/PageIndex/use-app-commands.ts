@@ -20,12 +20,15 @@ import {
 	MalSeq,
 	getEvaluated,
 	getType,
+	M_OUTER_INDEX,
+	M_KEYS,
 } from '@/mal/types'
 import {
 	getMapValue,
 	getFnInfo,
 	applyParamModifier,
 	copyDelimiters,
+	replaceExp,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
@@ -214,6 +217,46 @@ export default function useAppCommands(
 		copyDelimiters(newExp, data.selectedExp.value)
 
 		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		return true
+	})
+
+	function getUIOuterInfo(exp: MalNode): [MalNode | null, number] {
+		let outer = getOuter(exp)
+
+		if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+			exp = outer
+			outer = getOuter(exp)
+		}
+
+		return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
+	}
+
+	AppScope.def('delete-selected', () => {
+		if (!data.selectedExp) {
+			return false
+		}
+		const exp = data.selectedExp.value
+		const [outer, index] = getUIOuterInfo(exp)
+
+		if (!outer) {
+			return false
+		}
+
+		const newOuter = cloneExp(outer)
+
+		if (isSeq(newOuter)) {
+			newOuter.splice(index, 1)
+		} else {
+			const keys = newOuter[M_KEYS]
+			delete newOuter[keys[index]]
+		}
+
+		copyDelimiters(newOuter, outer)
+
+		callbacks.setSelectedExp(null)
+
+		replaceExp(outer, newOuter)
 
 		return true
 	})

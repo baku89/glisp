@@ -432,6 +432,8 @@ export default defineComponent({
 			(register-keybind "mod+z" '(revert-history :undo))
 			(register-keybind "mod+alt+z" '(revert-history))
 			(register-keybind "mod+s" '(download-sketch))
+			(register-keybind "backspace" '(delete-selected))
+			(register-keybind "delete" '(delete-selected))
 			)
 		)`)
 
