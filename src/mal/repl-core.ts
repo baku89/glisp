@@ -121,8 +121,8 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: 'Creates a lexical scope',
 				params: [
-					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'},
+					{label: 'Binds', type: 'exp'},
+					{label: 'Body', type: 'exp'},
 				],
 			})
 		),
@@ -134,8 +134,8 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: 'Creates a new binding',
 				params: [
-					{label: 'Binds', type: 'code'},
-					{label: 'Body', type: 'code'},
+					{label: 'Binds', type: 'exp'},
+					{label: 'Body', type: 'exp'},
 				],
 			})
 		),
@@ -168,7 +168,7 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
-				params: [{label: 'Form', type: 'code'}],
+				params: [{label: 'Form', type: 'exp'}],
 			})
 		),
 	],
@@ -178,7 +178,7 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Yields the unevaluated *form*',
-				params: [{label: 'Form', type: 'code'}],
+				params: [{label: 'Form', type: 'exp'}],
 			})
 		),
 	],
@@ -188,7 +188,7 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Quasiquote',
-				params: [{label: 'Form', type: 'code'}],
+				params: [{label: 'Form', type: 'exp'}],
 			})
 		),
 	],
@@ -199,8 +199,8 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: 'Defines a function',
 				params: [
-					{label: 'Params', type: 'code'},
-					{label: 'Form', type: 'code'},
+					{label: 'Params', type: 'exp'},
+					{label: 'Form', type: 'exp'},
 				],
 			})
 		),
@@ -222,8 +222,8 @@ const Exports = [
 			convertJSObjectToMalMap({
 				doc: '',
 				params: [
-					{label: 'Param', type: 'code'},
-					{label: 'Form', type: 'code'},
+					{label: 'Param', type: 'exp'},
+					{label: 'Form', type: 'exp'},
 				],
 			})
 		),
@@ -264,7 +264,13 @@ const Exports = [
 			() => null,
 			convertJSObjectToMalMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
-				params: [S('&'), {label: 'Form', type: 'code'}],
+				params: [
+					{
+						type: 'vector',
+						variadic: true,
+						items: {label: 'Form', type: 'any'},
+					},
+				],
 			})
 		),
 	],
@@ -273,12 +279,11 @@ const Exports = [
 		setMeta(
 			() => null,
 			convertJSObjectToMalMap({
-				doc:
-					'Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil',
+				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
-					{label: 'Test', type: 'code'},
-					{label: 'Then', type: 'code'},
-					{label: 'Else', type: 'code', default: null},
+					{label: 'Test', type: 'boolean'},
+					{label: 'Then', type: 'any'},
+					{label: 'Else', type: 'any', default: null},
 				],
 			})
 		),
