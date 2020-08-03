@@ -294,6 +294,14 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 		} else {
 			throw new Error('Invalid type for the variadic argument')
 		}
+	} else {
+		// Fill the params with the default values if possible
+		for (let i = params.length; i < uiSchema.length; i++) {
+			if (!('default' in uiSchema[i])) {
+				break
+			}
+			params.push(uiSchema[i].default as MalVal)
+		}
 	}
 
 	// Check if the exp is the same length as the params
@@ -410,6 +418,17 @@ function updateParamsByFixedUISchema(
 	} else {
 		const newParams = cloneExp(params)
 		newParams[index] = value
+
+		// Shorten the parameters as much as possible
+		for (let i = schemaParams.length - 1; i >= 0; i--) {
+			if (!('default' in schemaParams[i])) {
+				break
+			}
+			if (schemaParams[i].default === newParams[i]) {
+				newParams.pop()
+			}
+		}
+
 		return newParams
 	}
 }
