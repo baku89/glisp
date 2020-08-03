@@ -188,7 +188,6 @@ export default function useAppCommands(
 					fnInfo.structType || printExp(selected[0])
 				} does not have transform function`
 			)
-			return false
 		}
 
 		const originalParams = structType ? [selected] : selected.slice(1)
