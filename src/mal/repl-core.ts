@@ -282,8 +282,8 @@ const Exports = [
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
 					{label: 'Test', type: 'boolean'},
-					{label: 'Then', type: 'any'},
-					{label: 'Else', type: 'any', default: null},
+					{label: 'Then', type: 'exp'},
+					{label: 'Else', type: 'exp', default: null},
 				],
 			})
 		),
