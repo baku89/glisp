@@ -1,5 +1,12 @@
 import {Ref, computed, SetupContext} from '@vue/composition-api'
-import {MalVal, getEvaluated, MalSeq, MalSymbol, isVector} from '@/mal/types'
+import {
+	MalVal,
+	getEvaluated,
+	MalSeq,
+	MalSymbol,
+	isVector,
+	cloneExp,
+} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
@@ -27,13 +34,13 @@ export default function useNumericVectorUpdator(
 			return
 		}
 
-		const newExp = [...(exp.value.value as MalSeq)]
+		const newExp = cloneExp(exp.value.value as MalSeq)
 		newExp[i] = v.value
 		context.emit('input', nonReactive(newExp))
 	}
 
 	function onInputEvaluatedElement(i: number, v: number) {
-		const value = [...evaluated.value]
+		const value = cloneExp(exp.value.value as MalSeq)
 		value[i] = v
 		const newExp = reverseEval(value, exp.value.value)
 		context.emit('input', nonReactive(newExp))

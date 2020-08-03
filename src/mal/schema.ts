@@ -13,6 +13,7 @@ import {
 	isMalFunc,
 	assocBang,
 	keywordFor as K,
+	cloneExp,
 } from './types'
 import {getStructType} from './utils'
 import {convertJSObjectToMalMap, convertMalNodeToJSObject} from './reader'
@@ -407,7 +408,7 @@ function updateParamsByFixedUISchema(
 		newParams.push(...Object.entries(restMap).flat())
 		return newParams
 	} else {
-		const newParams = [...params]
+		const newParams = cloneExp(params)
 		newParams[index] = value
 		return newParams
 	}
