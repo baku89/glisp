@@ -433,6 +433,10 @@ export default defineComponent({
 			(register-keybind "mod+s" '(download-sketch))
 			(register-keybind "backspace" '(delete-selected))
 			(register-keybind "delete" '(delete-selected))
+			(register-keybind "mod+c" '(copy-selected))
+			(register-keybind "mod+v" '(paste-from-clipboard))
+			(register-keybind "mod+x" '(do (copy-selected) (delete-selected)))
+			(register-keybind "mod+d" '(do (copy-selected) (paste-from-clipboard)))
 			)
 		)`)
 

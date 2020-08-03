@@ -20,6 +20,7 @@ import {
 	getEvaluated,
 	getType,
 	M_KEYS,
+	isNode,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -220,6 +221,46 @@ export default function useAppCommands(
 		return true
 	})
 
+	AppScope.def('copy-selected', () => {
+		if (!data.selectedExp) {
+			return false
+		}
+
+		const code = printExp(data.selectedExp.value)
+
+		navigator.clipboard.writeText(code)
+
+		return true
+	})
+
+	AppScope.def('paste-from-clipboard', () => {
+		if (!data.selectedExp) {
+			return false
+		}
+
+		const [outer, index] = getUIOuterInfo(data.selectedExp.value)
+
+		if (!isSeq(outer)) {
+			return false
+		}
+
+		const newOuter = cloneExp(outer)
+
+		navigator.clipboard.readText().then((str: string) => {
+			const exp = readStr(str)
+
+			newOuter.splice(index + 1, 0, exp)
+			copyDelimiters(newOuter, outer)
+
+			reconstructTree(newOuter)
+			replaceExp(outer, newOuter)
+
+			callbacks.setSelectedExp(isNode(exp) ? nonReactive(exp) : null)
+		})
+
+		return null
+	})
+
 	AppScope.def('delete-selected', () => {
 		if (!data.selectedExp) {
 			return false
@@ -241,6 +282,7 @@ export default function useAppCommands(
 		}
 
 		copyDelimiters(newOuter, outer)
+		reconstructTree(newOuter)
 
 		callbacks.setSelectedExp(null)
 
