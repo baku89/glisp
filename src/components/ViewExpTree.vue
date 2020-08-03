@@ -176,8 +176,7 @@ export default defineComponent({
 					editable: true,
 					icon: {
 						type: 'fontawesome',
-						value: 'fas fa-chevron-right',
-						style: 'transform: scale(.8)',
+						value: 'fas fa-caret-right',
 					},
 					children: exp.slice(1).map(e => nonReactive(e)),
 				}

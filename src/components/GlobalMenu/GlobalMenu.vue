@@ -9,13 +9,13 @@
 				class="GlobalMenu__item"
 				v-for="([label, content], i) in menu"
 				:class="{
-					'has-submenu': Array.isArray(content),
 					active: expandedIndex === i,
 				}"
 				@click="onClick(content, i)"
 				:key="label"
 			>
 				{{ label }}
+				<i class="fas fa-caret-down" />
 				<GlobalSubmenu
 					class="GlobalMenu__submenu"
 					v-if="expandedIndex === i"
@@ -185,21 +185,6 @@ $height = 3.4rem
 
 		&:hover, &.active
 			color var(--hover)
-
-			&:after
-				border-top-color var(--hover) !important
-
-		&.has-submenu:after
-			display inline-block
-			margin-bottom 0.1em
-			margin-left 0.2em
-			width 0
-			height 0
-			border-width 0.5em 0.3em 0 0.3em
-			border-style solid
-			border-color var(--comment) transparent transparent transparent
-			content ''
-			vertical-align middle
 
 	&__submenu
 		position absolute
