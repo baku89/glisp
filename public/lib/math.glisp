@@ -663,6 +663,11 @@
     :params [{:type "vector"
               :variadic true
               :items {:label "Matrix" :type "mat2d"}}]
+    :viewport-transform (fn [& xs]
+                          (reductions mat2d/*
+                                      (mat2d/ident)
+                                      (concat [(mat2d/ident)]
+                                              (butlast xs))))
     :return {:type "mat2d"}}
   (let
    [mul (fn
@@ -686,7 +691,9 @@
    :handles {:draw (fn {:params [p]}
                      [{:type "translate" :pos p}])
              :drag (fn {:pos p :params [_ & xs]}
-                     `(~p ~@xs))}}
+                     `(~p ~@xs))}
+   :viewport-transform (fn [p & xs]
+                         `[nil ~@(repeat (translate p) (count xs))])}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/scale p -1))]

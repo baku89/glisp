@@ -165,7 +165,11 @@
    :params [{:label "Attribute" :type "exp"}
             {:type "vector"
              :variadic true
-             :items {:label "Body" :type "exp"}}]}
+             :items {:label "Body" :type "exp"}}]
+   :viewport-transform (fn [attrs & body]
+                         (if (contains? attrs :transform)
+                           (spy `[nil ~@(repeat (get attrs :transform)
+                                                (count body))])))}
   [attrs & body]
   (let [attr-transform (get attrs :transform)
         attr-style (get attrs :style)]
@@ -215,6 +219,8 @@
             {:type "vector"
              :variadic true
              :items {:label "Body" :type "exp"}}]
+   :viewport-transform (fn [xform & body]
+                         `[nil ~@(repeat xform (count body))])
    :transform (fn {:params [xform & body]
                    :transform delta-xform}
                 {:replace [0 (mat2d/* xform delta-xform)]})
