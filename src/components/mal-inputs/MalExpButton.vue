@@ -14,7 +14,8 @@
 import {defineComponent, computed, SetupContext} from '@vue/composition-api'
 import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
-import {NonReactive} from '@/utils'
+import {NonReactive, nonReactive} from '@/utils'
+import {getUIBodyExp} from '@/mal/utils'
 
 interface Props {
 	value: NonReactive<MalVal>
@@ -45,21 +46,23 @@ export default defineComponent({
 
 		const selectable = computed(() => isNode(props.value.value))
 
+		const expBody = computed(() => nonReactive(getUIBodyExp(props.value.value)))
+
 		const str = computed(() => {
 			if (sign.value === 'f') {
 				if (props.compact) {
 					return ''
 				} else {
-					return `(${printExp((props.value.value as MalVal[])[0])})`
+					return `(${printExp((expBody.value.value as MalVal[])[0])})`
 				}
 			} else {
-				return printExp(props.value.value)
+				return printExp(expBody.value.value)
 			}
 		})
 
 		function onClick() {
 			if (selectable.value) {
-				context.emit('click', props.value)
+				context.emit('click', expBody.value)
 			}
 		}
 
