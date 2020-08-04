@@ -2,7 +2,7 @@
 
 [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)や、Google の[Material Design](https://material.io/design)、あるいは「驚き最小の原則」のように、UI を設計する指針はいくつかありますが、プロが使うデザインソフトウェアは、市井の人たちが生活の中でカジュアルに使う道具とはまた違った考え方が必要になるはずです。体系立てられるほど整理はついていませんが、デザインソフトウェアを設計する上での基本原則になりそうな考え方・ルールを雑多に書き残しておきます。
 
-## アグノスティック・デザイン
+## 不可知論的デザイン
 
 - 使われ方を想定して機能を具体化しすぎない
   - ✗「これはコマ撮りのためのソフトで…」
