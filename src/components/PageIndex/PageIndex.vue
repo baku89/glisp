@@ -28,7 +28,7 @@
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
-					@select="setActiveExp"
+					@select="setSelectExp"
 					@update:exp="updateExp"
 					@update:editingExp="setEditingExp"
 				/>
@@ -309,6 +309,11 @@ export default defineComponent({
 		}
 
 		// SelectedExp
+		function setSelectExp(exp: NonReactive<MalNode>[]) {
+			console.log('pageindex', exp)
+			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
+		}
+
 		function setActiveExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
 				const path = generateExpAbsPath(exp.value)
@@ -460,6 +465,7 @@ export default defineComponent({
 			setEditingExp,
 			...toRefs(ui as any),
 			updateExp,
+			setSelectExp,
 			setActiveExp,
 			onResizeSplitpanes,
 			tagExpHistory,

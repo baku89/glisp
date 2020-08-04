@@ -5,10 +5,11 @@
 			:class="{
 				clickable: labelInfo.clickable,
 				hidden: ui.hidden,
+				active,
 				selected,
 				hovering,
 			}"
-			@click="labelInfo.clickable && onClick()"
+			@click="labelInfo.clickable && onClick($event)"
 		>
 			<div
 				class="ViewExpTree__icon"
@@ -50,6 +51,7 @@
 				:editingExp="editingExp"
 				:hoveringExp="hoveringExp"
 				@select="$emit('select', $event)"
+				@toggle-selection="$emit('toggle-selection', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
 			/>
@@ -86,7 +88,7 @@ enum DisplayMode {
 
 interface Props {
 	exp: NonReactive<MalVal>
-	expSelection: Set<NonReactive<MalNode>>
+	expSelection: Set<MalNode>
 	activeExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalVal> | null
 	hoveringExp: NonReactive<MalVal> | null
@@ -223,11 +225,12 @@ export default defineComponent({
 				: false
 		})
 
+		const active = computed(() => {
+			return props.activeExp && expBody.value.value === props.activeExp.value
+		})
+
 		const selected = computed(() => {
-			return (
-				(props.activeExp && expBody.value.value === props.activeExp.value) ||
-				props.expSelection.has(expBody.value as NonReactive<MalNode>)
-			)
+			return props.expSelection.has(expBody.value.value as MalNode)
 		})
 
 		const hovering = computed(() => {
@@ -243,8 +246,8 @@ export default defineComponent({
 		/**
 		 * Events
 		 */
-		function onClick() {
-			context.emit('select', expBody.value)
+		function onClick(e: MouseEvent) {
+			context.emit(e.ctrlKey ? 'toggle-selection' : 'select', expBody.value)
 		}
 
 		function toggleExpanded() {
@@ -290,6 +293,7 @@ export default defineComponent({
 
 		return {
 			labelInfo,
+			active,
 			selected,
 			hovering,
 			editing,
@@ -353,13 +357,20 @@ export default defineComponent({
 			&:after
 				border 1px solid var(--highlight)
 
-		&.selected
+		&.active
 			color var(--highlight)
 			font-weight bold
 
 			&:after
 				background var(--highlight)
 				opacity 0.15
+
+		&.selected
+			color var(--highlight)
+
+			&:after
+				background var(--highlight)
+				opacity .08
 
 		&.hovering
 			color var(--highlight)

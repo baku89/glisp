@@ -1,5 +1,5 @@
 <template>
-	<div class="PaneLayers">
+	<div class="PaneLayers" @click="deselectAll" ref="el">
 		<div class="PaneLayers__header">
 			<div class="PaneLayers__title">Layers</div>
 			<i
@@ -17,7 +17,8 @@
 				:activeExp="activeExp"
 				:editingExp="editingExp"
 				:hoveringExp="hoveringExp"
-				@select="$emit('select', $event)"
+				@select="selectSingleExp"
+				@toggle-selection="toggleSelectedExp"
 				@update:exp="onUpdateChildExp(i, $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
 			/>
@@ -26,7 +27,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {
+	defineComponent,
+	computed,
+	SetupContext,
+	Ref,
+	ref,
+} from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
 import {
 	MalNode,
@@ -65,6 +72,8 @@ export default defineComponent({
 		},
 	},
 	setup(props: Props, context: SetupContext) {
+		const el: Ref<null | HTMLElement> = ref(null)
+
 		/**
 		 * The flag whether the exp has UI annotaiton
 		 */
@@ -98,7 +107,7 @@ export default defineComponent({
 		})
 
 		const expSelection = computed(() => {
-			return new Set(props.selectedExp.slice(1))
+			return new Set(props.selectedExp.slice(1).map(s => s.value))
 		})
 
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
@@ -116,13 +125,44 @@ export default defineComponent({
 			context.emit('update:editingExp', props.exp)
 		}
 
+		// Selection manipulation
+		function selectSingleExp(exp: NonReactive<MalNode>) {
+			console.log('select single')
+			context.emit('select', [exp])
+		}
+
+		function toggleSelectedExp(exp: NonReactive<MalNode>) {
+			const newSelection = [...props.selectedExp]
+
+			const index = newSelection.findIndex(s => s.value === exp.value)
+
+			if (index !== -1) {
+				newSelection.splice(index, 1)
+			} else {
+				newSelection.unshift(exp)
+			}
+
+			context.emit('select', newSelection)
+		}
+
+		function deselectAll(e: MouseEvent) {
+			if (e.target === el.value) {
+				context.emit('select', [])
+			}
+		}
+
 		return {
+			el,
 			children,
 			onUpdateChildExp,
 			editing,
 			activeExp,
 			expSelection,
 			onClickEditButton,
+
+			selectSingleExp,
+			toggleSelectedExp,
+			deselectAll,
 		}
 	},
 })
@@ -136,6 +176,7 @@ export default defineComponent({
 	&__header
 		position relative
 		padding 1rem 1.2rem .5rem
+		user-select none
 
 
 	&__title
