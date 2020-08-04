@@ -215,6 +215,9 @@
             {:type "vector"
              :variadic true
              :items {:label "Body" :type "exp"}}]
+   :transform (fn {:params [xform & body]
+                   :transform delta-xform}
+                {:replace [0 (mat2d/* xform delta-xform)]})
    :return {:type "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
