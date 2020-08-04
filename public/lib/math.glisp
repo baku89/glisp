@@ -506,7 +506,8 @@
                      [{:type "translate"
                        :pos pos}])
              :drag (fn {:pos p}
-                     [p])}}
+                     [p])}
+   :inverse (fn {:return ret} (spy [(mat2d/extract-translate ret)]))}
   [[x y]]
   [1 0 0 1 x y])
 
