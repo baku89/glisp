@@ -219,15 +219,27 @@
 
 
 ;; Functioal Language Features
-(defn reduce [f init xs]
-  (if (empty? xs) init (reduce f (f init (first xs)) (rest xs))))
+(defn reduce
+  {:doc "Executes a reducer function on each element of **coll**, resulting in single output value"
+   :params [{:label "Reducer" :type "exp"}
+            {:label "Initial" :type "any"}
+            {:label "Coll" :type "any"}]}
+  [f init coll]
+  (if (empty? coll)
+    init
+    (reduce f (f init (first coll)) (rest coll))))
 
-(defn foldr [f init x]
-  (if (empty? xs)
+(defn foldr
+  {:doc "Executes a foldr function on each element of **coll**, resulting in single output value"
+   :params [{:label "Foldr" :type "exp"}
+            {:label "Initial" :type "any"}
+            {:label "Coll" :type "any"}]}
+  [f init coll]
+  (if (empty? coll)
     init
     (f
-     (first xs)
-     (foldr f init (rest xs)))))
+     (first coll)
+     (foldr f init (rest coll)))))
 
 (defmacro ->> [expr & forms]
   (reduce
