@@ -3,7 +3,7 @@
 		<MalExpButton
 			v-if="!isValueSeparated"
 			:value="value"
-			@click="$emit('select', $event)"
+			@select="$emit('select', $event)"
 		/>
 		<div class="MalInputMat2d__value" v-if="isValueSeparated">
 			<div class="MalInputMat2d__split">

@@ -4,7 +4,7 @@
 			v-if="!isValueSeparated"
 			:value="value"
 			:compact="true"
-			@click="$emit('select', $event)"
+			@select="$emit('select', $event)"
 		/>[
 		<template v-if="isValueSeparated">
 			<MalInputNumber

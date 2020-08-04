@@ -15,7 +15,7 @@
 				<td class="Inspector-style__input">
 					<MalExpButton
 						:value="style"
-						@click="$emit('select', $event)"
+						@select="$emit('select', $event)"
 						:compact="true"
 					/>
 					<MalInputParam

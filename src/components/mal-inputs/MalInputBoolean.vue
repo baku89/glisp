@@ -6,7 +6,11 @@
 			:value="evaluated"
 			@input="onInput"
 		/>
-		<MalExpButton v-if="isExp" :value="value" @click="$emit('select', $event)" />
+		<MalExpButton
+			v-if="isExp"
+			:value="value"
+			@select="$emit('select', $event)"
+		/>
 	</div>
 </template>
 

@@ -62,7 +62,7 @@ export default defineComponent({
 
 		function onClick() {
 			if (selectable.value) {
-				context.emit('click', expBody.value)
+				context.emit('select', expBody.value)
 			}
 		}
 

@@ -4,7 +4,7 @@
 			v-if="display.isExp && compact"
 			:value="value"
 			:compact="true"
-			@click="$emit('select', $event)"
+			@select="$emit('select', $event)"
 		/>
 		<InputNumber
 			:class="{
@@ -27,7 +27,7 @@
 			v-if="display.isExp && !compact"
 			:value="value"
 			:compact="false"
-			@click="$emit('select', $event)"
+			@select="$emit('select', $event)"
 		/>
 	</div>
 </template>

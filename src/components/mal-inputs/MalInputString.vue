@@ -1,6 +1,11 @@
 <template>
 	<div class="MalInputString">
-		<MalExpButton v-if="isExp" :value="value" :compact="true" @click="$emit('select', $event)" />
+		<MalExpButton
+			v-if="isExp"
+			:value="value"
+			:compact="true"
+			@select="$emit('select', $event)"
+		/>
 		<InputString
 			:value="evaluated"
 			:validator="validator"
