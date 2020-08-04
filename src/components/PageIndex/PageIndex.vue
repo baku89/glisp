@@ -309,7 +309,6 @@ export default defineComponent({
 
 		// SelectedExp
 		function setSelectExp(exp: NonReactive<MalNode>[]) {
-			console.log('pageindex', exp)
 			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
 		}
 
