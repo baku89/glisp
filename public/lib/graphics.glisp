@@ -160,16 +160,15 @@
   (style (stroke *guide-color* 1 :dash [2 2])
          xs))
 
-(defmacro g
+(defn graphics/g
   {:doc "Creates a element group with attributes"
    :params [{:label "Attribute" :type "exp"}
             {:type "vector"
              :variadic true
              :items {:label "Body" :type "exp"}}]}
   [attrs & body]
-  (let [evaluated-attrs (eval* attrs)
-        attr-transform (get evaluated-attrs :transform)
-        attr-style (get evaluated-attrs :style)]
+  (let [attr-transform (get attrs :transform)
+        attr-style (get attrs :style)]
     (cond
       (and attr-transform attr-style)
       `(transform ~attr-transform (style ~attr-style ~@body))
@@ -182,6 +181,7 @@
 
       :else
       `[:g :_ ~@body])))
+(defalias g graphics/g)
 
 ;; ==================================== JS Implementation
 ;; 	const matrix = evalExp(exp[1], env, cache)
