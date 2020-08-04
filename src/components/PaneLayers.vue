@@ -35,14 +35,7 @@ import {
 	ref,
 } from '@vue/composition-api'
 import {NonReactive, nonReactive} from '@/utils'
-import {
-	MalNode,
-	MalVal,
-	MalSeq,
-	cloneExp,
-	isList,
-	isSymbolFor,
-} from '@/mal/types'
+import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
