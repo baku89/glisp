@@ -127,7 +127,6 @@ export default defineComponent({
 
 		// Selection manipulation
 		function selectSingleExp(exp: NonReactive<MalNode>) {
-			console.log('select single')
 			context.emit('select', [exp])
 		}
 
