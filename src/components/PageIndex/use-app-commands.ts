@@ -35,6 +35,7 @@ import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import {reconstructTree} from '@/mal/reader'
+import repl from '@/scopes/repl'
 
 export default function useAppCommands(
 	data: {
@@ -45,8 +46,7 @@ export default function useAppCommands(
 	},
 	callbacks: {
 		updateExp: (exp: NonReactive<MalNode>) => void
-		setSelectedExp: (exp: NonReactive<MalNode> | null) => any
-		updateSelectedExp: (val: NonReactive<MalVal>) => any
+		setActiveExp: (exp: NonReactive<MalNode> | null) => any
 	}
 ) {
 	AppScope.def('expand-selected', () => {
@@ -55,9 +55,11 @@ export default function useAppCommands(
 		}
 
 		const expanded = expandExp(data.activeExp.value)
-		if (expanded !== undefined) {
-			callbacks.updateSelectedExp(nonReactive(expanded))
+		if (expanded === undefined) {
+			return false
 		}
+
+		replaceExp(data.activeExp.value, expanded)
 
 		return true
 	})
@@ -69,7 +71,10 @@ export default function useAppCommands(
 
 		const exp = data.activeExp.value
 		const newExp = L(S('g'), {}, exp)
-		callbacks.updateSelectedExp(nonReactive(newExp))
+
+		replaceExp(data.activeExp.value, newExp)
+
+		reconstructTree(newExp)
 
 		return true
 	})
@@ -114,10 +119,10 @@ export default function useAppCommands(
 		}
 
 		// Insert
-		const newSelectedExp = cloneExp(data.activeExp.value)
-		newSelectedExp.push(newExp)
+		const newActiveExp = cloneExp(data.activeExp.value)
+		newActiveExp.push(newExp)
 
-		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
+		replaceExp(data.activeExp.value, newActiveExp)
 
 		return null
 	})
@@ -129,7 +134,7 @@ export default function useAppCommands(
 				const exp = readStr(toSketchCode(code)) as MalNode
 				const nonReactiveExp = nonReactive(exp)
 				callbacks.updateExp(nonReactiveExp)
-				callbacks.setSelectedExp(null)
+				callbacks.setActiveExp(null)
 				data.editingExp = nonReactiveExp
 			} else {
 				throw new MalError(`Failed to load from "${url}"`)
@@ -145,7 +150,7 @@ export default function useAppCommands(
 
 		const [outer] = getUIOuterInfo(data.activeExp.value)
 		if (outer && outer !== data.exp?.value) {
-			callbacks.setSelectedExp(nonReactive(outer))
+			callbacks.setActiveExp(nonReactive(outer))
 		}
 		return true
 	})
@@ -175,7 +180,7 @@ export default function useAppCommands(
 
 		reconstructTree(newExp)
 
-		callbacks.updateSelectedExp(nonReactive(newExp))
+		replaceExp(data.activeExp.value, newExp)
 
 		return true
 	})
@@ -231,7 +236,7 @@ export default function useAppCommands(
 
 		copyDelimiters(newExp, data.activeExp.value)
 
-		callbacks.updateSelectedExp(nonReactive(newExp))
+		replaceExp(data.activeExp.value, newExp)
 
 		return true
 	})
@@ -277,7 +282,7 @@ export default function useAppCommands(
 			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
-			callbacks.setSelectedExp(isNode(exp) ? nonReactive(exp) : null)
+			callbacks.setActiveExp(isNode(exp) ? nonReactive(exp) : null)
 		})
 
 		return null
@@ -306,7 +311,7 @@ export default function useAppCommands(
 		copyDelimiters(newOuter, outer)
 		reconstructTree(newOuter)
 
-		callbacks.setSelectedExp(null)
+		callbacks.setActiveExp(null)
 
 		replaceExp(outer, newOuter)
 

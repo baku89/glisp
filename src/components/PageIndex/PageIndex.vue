@@ -28,7 +28,7 @@
 					:editingExp="editingExp"
 					:selectedExp="activeExp"
 					:hoveringExp="hoveringExp"
-					@select="setSelectedExp"
+					@select="setActiveExp"
 					@update:exp="updateExp"
 					@update:editingExp="setEditingExp"
 				/>
@@ -38,7 +38,7 @@
 					<Inspector
 						:exp="activeExp"
 						@input="updateSelectedExp"
-						@select="setSelectedExp"
+						@select="setActiveExp"
 						@end-tweak="tagExpHistory('undo')"
 					/>
 				</div>
@@ -61,7 +61,7 @@
 							:hasParseError.sync="hasParseError"
 							:editMode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
-							@select="setSelectedExp"
+							@select="setActiveExp"
 						/>
 					</div>
 					<div class="PageIndex__console">
@@ -309,7 +309,7 @@ export default defineComponent({
 		}
 
 		// SelectedExp
-		function setSelectedExp(exp: NonReactive<MalNode> | null) {
+		function setActiveExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
 				const path = generateExpAbsPath(exp.value)
 				data.selectedPath = path !== '/' ? [path] : []
@@ -406,7 +406,7 @@ export default defineComponent({
 			elHandles,
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
-			setSelectedExp,
+			setActiveExp,
 			setHoveringExp,
 			onTransformSelectedExp,
 			() => tagExpHistory('undo')
@@ -415,8 +415,7 @@ export default defineComponent({
 		// Setup scopes
 		useAppCommands(data, {
 			updateExp,
-			setSelectedExp,
-			updateSelectedExp,
+			setActiveExp,
 		})
 		useCommandDialog(context)
 
@@ -461,7 +460,7 @@ export default defineComponent({
 			setEditingExp,
 			...toRefs(ui as any),
 			updateExp,
-			setSelectedExp,
+			setActiveExp,
 			onResizeSplitpanes,
 			tagExpHistory,
 
