@@ -35,7 +35,6 @@ import {toSketchCode} from './utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import {reconstructTree} from '@/mal/reader'
-import repl from '@/scopes/repl'
 
 export default function useAppCommands(
 	data: {
