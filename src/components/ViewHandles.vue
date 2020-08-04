@@ -115,7 +115,7 @@ import {
 	malEquals,
 } from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData} from '@/path-utils'
+import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {
 	getFnInfo,
 	FnInfoType,
@@ -137,7 +137,6 @@ import {
 	SetupContext,
 	Ref,
 } from '@vue/composition-api'
-import {isPath} from '@/path-utils'
 import AppScope from '@/scopes/app'
 
 const K_ANGLE = K('angle'),
@@ -257,12 +256,10 @@ export default defineComponent({
 				mat2d.invert(mat2d.create(), data.transform)
 			),
 			selectedPath: computed(() => {
-				if (!props.exp) return null
+				if (!props.exp) return ''
 
 				const evaluated = getEvaluated(props.exp.value)
-				if (!isPath(evaluated)) return
-
-				return getSVGPathData(evaluated)
+				return getSVGPathDataRecursive(evaluated)
 			}),
 			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {

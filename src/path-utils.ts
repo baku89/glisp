@@ -1,4 +1,4 @@
-import {vec2} from 'gl-matrix'
+import {vec2, mat2d} from 'gl-matrix'
 import {
 	MalError,
 	isKeyword,
@@ -30,6 +30,50 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 			yield path.slice(start, i) as SegmentType
 			start = i
 		}
+	}
+}
+
+export function getSVGPathDataRecursive(exp: MalVal): string {
+	return convertPath(exp, mat2d.create())
+
+	function convertPath(exp: MalVal, transform?: mat2d): string {
+		if (!isVector(exp)) {
+			return ''
+		}
+
+		switch (exp[0]) {
+			case K('path'):
+				return getSVGPathData(transformPath(exp as PathType, transform))
+			case K('style'): {
+				return exp
+					.slice(2)
+					.map(e => convertPath(e, transform))
+					.join(' ')
+			}
+			case K('transform'): {
+				const newTransform = mat2d.mul(
+					mat2d.create(),
+					transform || mat2d.create(),
+					exp[1] as mat2d
+				)
+				return exp
+					.slice(2)
+					.map(e => convertPath(e, newTransform))
+					.join(' ')
+			}
+		}
+
+		return ''
+	}
+
+	function transformPath(path: PathType, transform?: mat2d) {
+		return !transform
+			? path
+			: (path.map(p =>
+					isVector(p as MalVal)
+						? vec2.transformMat2d(vec2.create(), p as vec2, transform)
+						: p
+			  ) as PathType)
 	}
 }
 
