@@ -94,8 +94,7 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 	function find(exp: MalVal, keys: number[]): MalVal {
 		const [index, ...rest] = keys
 
-		const expBody =
-			isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
+		const expBody = getUIBodyExp(exp)
 
 		if (keys.length === 0) {
 			return expBody
@@ -200,9 +199,13 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	replaceExp(outer, newOuter)
 }
 
-export function getUIExp(exp: MalNode) {
+export function getUIAnnotationExp(exp: MalNode) {
 	const outer = getOuter(exp)
 	return isList(outer) && isSymbolFor(outer[0], 'ui-annotate') ? outer : exp
+}
+
+export function getUIBodyExp(exp: MalVal) {
+	return isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
 }
 
 export function deleteExp(exp: MalNode) {

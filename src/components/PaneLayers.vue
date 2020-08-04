@@ -46,6 +46,7 @@ import {
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
+import {getUIBodyExp} from '../mal/utils'
 
 interface Props {
 	exp: NonReactive<MalSeq>
@@ -75,24 +76,9 @@ export default defineComponent({
 		const el: Ref<null | HTMLElement> = ref(null)
 
 		/**
-		 * The flag whether the exp has UI annotaiton
-		 */
-		const hasAnnotation = computed(() => {
-			const exp = props.exp.value
-			return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
-		})
-
-		/**
 		 * the body of expression withouht ui-annotate wrapping
 		 */
-		const expBody = computed(() => {
-			const exp = props.exp.value
-			if (hasAnnotation.value) {
-				return nonReactive((exp as MalSeq)[2])
-			} else {
-				return props.exp
-			}
-		})
+		const expBody = computed(() => nonReactive(getUIBodyExp(props.exp.value)))
 
 		const children = computed(() => {
 			return props.exp.value.slice(1).map(nonReactive)

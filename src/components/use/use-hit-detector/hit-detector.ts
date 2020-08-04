@@ -11,6 +11,7 @@ import {
 	isSymbol,
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
+import {getUIBodyExp} from '@/mal/utils'
 
 const K_PATH = K('path'),
 	K_TRANSFORM = K('transform'),
@@ -59,9 +60,7 @@ export class HitDetector {
 	}
 
 	private analyzeNode(pos: vec2, exp: MalVal, hitStyle: MalMap): null | MalVal {
-		if (isList(exp) && isSymbol(exp[0]) && exp[0].value === 'ui-annotate') {
-			return this.analyzeNode(pos, exp[2], hitStyle)
-		}
+		exp = getUIBodyExp(exp)
 
 		const evaluated = getEvaluated(exp)
 		if (isVector(evaluated)) {

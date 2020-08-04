@@ -28,7 +28,7 @@ import {
 	copyDelimiters,
 	replaceExp,
 	getUIOuterInfo,
-	getUIExp,
+	getUIAnnotationExp,
 	deleteExp,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -292,7 +292,7 @@ export default function useAppCommands(
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		const exp = getUIExp(data.activeExp.value)
+		const exp = getUIAnnotationExp(data.activeExp.value)
 
 		deleteExp(exp)
 
