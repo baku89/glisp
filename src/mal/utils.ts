@@ -7,7 +7,6 @@ import {
 	MalNode,
 	isVector,
 	MalJSFunc,
-	M_EVAL,
 	isSeq,
 	keywordFor,
 	getMeta,
