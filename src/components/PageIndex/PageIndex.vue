@@ -26,7 +26,7 @@
 					class="PageIndex__list-view"
 					:exp="exp"
 					:editingExp="editingExp"
-					:selectedExp="selectedExp"
+					:selectedExp="activeExp"
 					:hoveringExp="hoveringExp"
 					@select="setSelectedExp"
 					@update:exp="updateExp"
@@ -34,9 +34,9 @@
 				/>
 			</Pane>
 			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
-				<div class="PageIndex__inspector" v-if="selectedExp">
+				<div class="PageIndex__inspector" v-if="activeExp">
 					<Inspector
-						:exp="selectedExp"
+						:exp="activeExp"
 						@input="updateSelectedExp"
 						@select="setSelectedExp"
 						@end-tweak="tagExpHistory('undo')"
@@ -45,7 +45,7 @@
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
-					:exp="selectedExp"
+					:exp="activeExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@input="updateSelectedExp"
 					@tag-history="tagExpHistory('undo')"
@@ -57,7 +57,7 @@
 						<MalExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
-							:selectedExp="selectedExp"
+							:selectedExp="activeExp"
 							:hasParseError.sync="hasParseError"
 							:editMode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
@@ -142,10 +142,11 @@ interface Data {
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
-	selectedExp: NonReactive<MalNode> | null
+	selectedExp: NonReactive<MalNode>[]
+	activeExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalNode> | null
 	hoveringExp: NonReactive<MalNode> | null
-	selectedPath: string
+	selectedPath: string[]
 	editingPath: string
 }
 
@@ -229,9 +230,12 @@ export default defineComponent({
 			}),
 			// Selection
 			selectedExp: computed(() =>
-				data.selectedPath
-					? nonReactive(getExpByPath(data.exp.value, data.selectedPath))
-					: null
+				data.selectedPath.map(path =>
+					nonReactive(getExpByPath(data.exp.value, path))
+				)
+			),
+			activeExp: computed(() =>
+				data.selectedExp.length === 0 ? null : data.selectedExp[0]
 			),
 			editingExp: computed(() =>
 				data.editingPath
@@ -241,7 +245,7 @@ export default defineComponent({
 			hoveringExp: null,
 
 			// Paths
-			selectedPath: '',
+			selectedPath: [],
 			editingPath: '',
 		}) as Data
 
@@ -308,17 +312,17 @@ export default defineComponent({
 		function setSelectedExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
 				const path = generateExpAbsPath(exp.value)
-				data.selectedPath = path !== '/' ? path : ''
+				data.selectedPath = path !== '/' ? [path] : []
 			} else {
-				data.selectedPath = ''
+				data.selectedPath = []
 			}
 		}
 
 		function updateSelectedExp(exp: NonReactive<MalVal>) {
-			if (!data.selectedExp) {
+			if (data.selectedExp.length === 0) {
 				return
 			}
-			replaceExp(data.selectedExp.value, exp.value)
+			replaceExp(data.selectedExp[0].value, exp.value)
 		}
 
 		// Editing

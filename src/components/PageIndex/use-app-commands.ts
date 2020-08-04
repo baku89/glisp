@@ -39,7 +39,8 @@ import {reconstructTree} from '@/mal/reader'
 export default function useAppCommands(
 	data: {
 		exp: NonReactive<MalNode>
-		selectedExp: NonReactive<MalNode> | null
+		selectedExp: NonReactive<MalNode>[]
+		activeExp: NonReactive<MalNode> | null
 		editingExp: NonReactive<MalNode> | null
 	},
 	callbacks: {
@@ -49,31 +50,38 @@ export default function useAppCommands(
 	}
 ) {
 	AppScope.def('expand-selected', () => {
-		if (data.selectedExp) {
-			const expanded = expandExp(data.selectedExp.value)
-			if (expanded !== undefined) {
-				callbacks.updateSelectedExp(nonReactive(expanded))
-			}
+		if (!data.activeExp) {
+			return false
 		}
-		return null
+
+		const expanded = expandExp(data.activeExp.value)
+		if (expanded !== undefined) {
+			callbacks.updateSelectedExp(nonReactive(expanded))
+		}
+
+		return true
 	})
 
 	AppScope.def('group-selected', () => {
-		if (!data.selectedExp) {
-			return null
+		if (!data.activeExp) {
+			throw new MalError('No selection')
 		}
 
-		const exp = data.selectedExp.value
+		const exp = data.activeExp.value
 		const newExp = L(S('g'), {}, exp)
 		callbacks.updateSelectedExp(nonReactive(newExp))
 
-		return null
+		return true
 	})
 
 	AppScope.def('insert-item', (exp: MalVal) => {
+		if (!data.activeExp) {
+			throw new MalError('No selection')
+		}
+
 		const type = getType(exp)
 
-		if (!data.selectedExp || !isSeq(data.selectedExp.value)) {
+		if (!data.selectedExp || !isSeq(data.activeExp.value)) {
 			throw new MalError('No insertable selection')
 		}
 
@@ -106,7 +114,7 @@ export default function useAppCommands(
 		}
 
 		// Insert
-		const newSelectedExp = cloneExp(data.selectedExp.value)
+		const newSelectedExp = cloneExp(data.activeExp.value)
 		newSelectedExp.push(newExp)
 
 		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
@@ -131,28 +139,32 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('select-outer', () => {
-		const [outer] = getUIOuterInfo(data.selectedExp?.value)
+		if (!data.activeExp) {
+			throw new MalError('No selection')
+		}
+
+		const [outer] = getUIOuterInfo(data.activeExp.value)
 		if (outer && outer !== data.exp?.value) {
 			callbacks.setSelectedExp(nonReactive(outer))
 		}
-		return null
+		return true
 	})
 
 	AppScope.def('wrap-selected', (wrapper: MalVal) => {
-		if (!data.selectedExp) {
+		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
 		if (!isList(wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 
-		const selected = data.selectedExp.value
+		const exp = data.activeExp.value
 		let shouldDuplicate = false
 
-		const newSelectedExp = L(
+		const newExp = L(
 			...wrapper.map(e => {
 				if (isSymbolFor(e, '%')) {
-					const ret = shouldDuplicate ? cloneExp(selected, true) : selected
+					const ret = shouldDuplicate ? cloneExp(exp, true) : exp
 					shouldDuplicate = true
 					return ret
 				} else {
@@ -161,22 +173,25 @@ export default function useAppCommands(
 			})
 		)
 
-		callbacks.updateSelectedExp(nonReactive(newSelectedExp))
+		reconstructTree(newExp)
+
+		callbacks.updateSelectedExp(nonReactive(newExp))
 
 		return true
 	})
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
-		if (!data.selectedExp) {
+		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		const selected = data.selectedExp.value
 
-		if (!isSeq(selected)) {
+		const exp = data.activeExp.value
+
+		if (!isSeq(exp)) {
 			throw new MalError('Untransformable expression')
 		}
 
-		const fnInfo = getFnInfo(selected)
+		const fnInfo = getFnInfo(exp)
 
 		if (!fnInfo) {
 			return false
@@ -188,12 +203,12 @@ export default function useAppCommands(
 		if (!isFunc(transformFn)) {
 			throw new MalError(
 				`Function ${
-					fnInfo.structType || printExp(selected[0])
+					fnInfo.structType || printExp(exp[0])
 				} does not have transform function`
 			)
 		}
 
-		const originalParams = structType ? [selected] : selected.slice(1)
+		const originalParams = structType ? [exp] : exp.slice(1)
 		const payload = {
 			[K('params')]: originalParams.map(p => getEvaluated(p)),
 			[K('transform')]: xform as MalVal,
@@ -211,10 +226,10 @@ export default function useAppCommands(
 			}
 		}
 
-		const newExp = structType ? newParams[0] : L(selected[0], ...newParams)
+		const newExp = structType ? newParams[0] : L(exp[0], ...newParams)
 		reconstructTree(newExp)
 
-		copyDelimiters(newExp, data.selectedExp.value)
+		copyDelimiters(newExp, data.activeExp.value)
 
 		callbacks.updateSelectedExp(nonReactive(newExp))
 
@@ -222,11 +237,11 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('copy-selected', () => {
-		if (!data.selectedExp) {
-			return false
+		if (!data.activeExp) {
+			throw new MalError('No selection')
 		}
 
-		const code = printExp(data.selectedExp.value)
+		const code = printExp(data.activeExp.value)
 
 		navigator.clipboard.writeText(code)
 
@@ -236,13 +251,13 @@ export default function useAppCommands(
 	AppScope.def('paste-from-clipboard', () => {
 		let outer: MalSeq, index: number
 
-		if (!data.selectedExp) {
+		if (!data.activeExp) {
 			;[outer, index] = [
 				data.exp.value as MalSeq,
 				(data.exp.value as MalSeq).length - 1,
 			]
 		} else {
-			const [_outer, _index] = getUIOuterInfo(data.selectedExp.value)
+			const [_outer, _index] = getUIOuterInfo(data.activeExp.value)
 
 			if (!isSeq(_outer)) {
 				return false
@@ -269,10 +284,10 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('delete-selected', () => {
-		if (!data.selectedExp) {
-			return false
+		if (!data.activeExp) {
+			throw new MalError('No selection')
 		}
-		const exp = data.selectedExp.value
+		const exp = data.activeExp.value
 		const [outer, index] = getUIOuterInfo(exp)
 
 		if (!outer) {
