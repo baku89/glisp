@@ -35,18 +35,10 @@
 				<g
 					class="ViewHandles__gnomon"
 					v-if="handleCallbacks"
-					:transform="axisTransform"
+					:transform="transformStyle"
 				>
-					<path
-						class="stroke axis-x"
-						marker-end="url(#arrow-x)"
-						d="M 0 0 H 200"
-					/>
-					<path
-						class="stroke axis-y"
-						marker-end="url(#arrow-y)"
-						d="M 0 0 V 200"
-					/>
+					<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
+					<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
 				</g>
 			</svg>
 		</Portal>
@@ -82,19 +74,9 @@
 					/>
 					<template v-if="type === 'translate'">
 						<path class="stroke display" d="M 12 0 H -12" />
-						<path
-							class="stroke display"
-							:transform="yTransform"
-							d="M 0 12 V -12"
-						/>
+						<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 					</template>
-					<circle
-						class="fill display"
-						:class="cls"
-						cx="0"
-						cy="0"
-						:r="rem * 0.5"
-					/>
+					<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
 				</template>
 			</g>
 		</svg>
@@ -179,7 +161,7 @@ interface Data {
 	selectedPath: string | null
 	transform: mat2d
 	transformInv: mat2d
-	axisTransform: string
+	transformStyle: string
 	handles: Handle[]
 }
 
@@ -261,7 +243,7 @@ export default defineComponent({
 				const evaluated = getEvaluated(props.exp.value)
 				return getSVGPathDataRecursive(evaluated)
 			}),
-			axisTransform: computed(() => `matrix(${data.transform.join(',')})`),
+			transformStyle: computed(() => `matrix(${data.transform.join(',')})`),
 			handles: computed(() => {
 				if (!data.handleCallbacks) return []
 
@@ -597,68 +579,68 @@ export default defineComponent({
 
 <style lang="stylus" scoped>
 .ViewHandles
-	position relative
-	overflow hidden
-	height 100%
+  position relative
+  overflow hidden
+  height 100%
 
-	// Portal
-	&__axes-portal
-		position relative
-		width 100%
-		height 100%
-		overflow hidden
+  // Portal
+  &__axes-portal
+    position relative
+    overflow hidden
+    width 100%
+    height 100%
 
-	&__axis
-		stroke var(--guide) !important
-		stroke-dasharray 1 4
+  &__axis
+    stroke var(--guide) !important
+    stroke-dasharray 1 4
 
-	// Handles
-	&__handles
-		position relative
-		width 100%
-		height 100%
-		overflow hidden
+  // Handles
+  &__handles
+    position relative
+    overflow hidden
+    width 100%
+    height 100%
 
-	// Styles
-	&, &__axes-portal
-		.fill, .stroke
-			stroke var(--highlight)
-			stroke-width 1
-			vector-effect non-scaling-stroke
+  // Styles
+  &, &__axes-portal
+    .fill, .stroke
+      stroke var(--highlight)
+      stroke-width 1
+      vector-effect non-scaling-stroke
 
-		.fill
-			fill var(--background)
+    .fill
+      fill var(--background)
 
-		.stroke
-			stroke var(--highlight)
-			vector-effect non-scaling-stroke
-			fill none
+    .stroke
+      stroke var(--highlight)
+      vector-effect non-scaling-stroke
+      fill none
 
-		// Classes
-		.dashed
-			stroke-dasharray 3 2
+    // Classes
+    .dashed
+      stroke-dasharray 3 2
 
-		.axis-x, .axis-y
-			opacity 0.5
+    .axis-x, .axis-y
+      opacity 0.5
 
-		.axis-x, .axis-x .display
-			stroke var(--red) !important
+    .axis-x, .axis-x .display
+      stroke var(--red) !important
 
-		.axis-y, .axis-y .display
-			stroke var(--green) !important
+    .axis-y, .axis-y .display
+      stroke var(--green) !important
 
-	// Hover behavior
-	*[hoverrable]:hover, *[dragging]
-		.stroke.display
-			stroke-width 3
+  // Hover behavior
+  *[hoverrable]:hover, *[dragging]
+    .stroke.display
+      stroke-width 3
 
-		.fill.display
-			fill var(--highlight)
+    .fill.display
+      fill var(--highlight)
 
-		&.dashed
-			stroke-dasharray none
+    &.dashed
+      stroke-dasharray none
 
-	e, .hover-zone
-		stroke transparent
-		stroke-width 20
+  e, .hover-zone
+    stroke transparent
+    stroke-width 20
 </style>

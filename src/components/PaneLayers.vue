@@ -148,14 +148,13 @@ export default defineComponent({
 
 <style lang="stylus">
 .PaneLayers
-	overflow: hidden
+	overflow hidden
 	padding-left 2px
 
 	&__header
 		position relative
-		padding 1rem 1.2rem .5rem
+		padding 1rem 1.2rem 0.5rem
 		user-select none
-
 
 	&__title
 		font-weight bold
