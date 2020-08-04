@@ -45,7 +45,8 @@
 				v-for="(child, i) in labelInfo.children"
 				:key="i"
 				:exp="child"
-				:selectedExp="selectedExp"
+				:expSelection="expSelection"
+				:activeExp="activeExp"
 				:editingExp="editingExp"
 				:hoveringExp="hoveringExp"
 				@select="$emit('select', $event)"
@@ -85,7 +86,8 @@ enum DisplayMode {
 
 interface Props {
 	exp: NonReactive<MalVal>
-	selectedExp: NonReactive<MalVal> | null
+	expSelection: Set<NonReactive<MalNode>>
+	activeExp: NonReactive<MalNode> | null
 	editingExp: NonReactive<MalVal> | null
 	hoveringExp: NonReactive<MalVal> | null
 	mode: DisplayMode
@@ -114,7 +116,10 @@ export default defineComponent({
 		exp: {
 			required: true,
 		},
-		selectedExp: {
+		expSelection: {
+			required: true,
+		},
+		activeExp: {
 			required: true,
 		},
 		editingExp: {
@@ -220,7 +225,8 @@ export default defineComponent({
 
 		const selected = computed(() => {
 			return (
-				props.selectedExp && expBody.value.value === props.selectedExp.value
+				(props.activeExp && expBody.value.value === props.activeExp.value) ||
+				props.expSelection.has(expBody.value as NonReactive<MalNode>)
 			)
 		})
 

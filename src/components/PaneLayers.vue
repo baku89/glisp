@@ -13,7 +13,8 @@
 				v-for="(child, i) in children"
 				:key="i"
 				:exp="child"
-				:selectedExp="selectedExp"
+				:expSelection="expSelection"
+				:activeExp="activeExp"
 				:editingExp="editingExp"
 				:hoveringExp="hoveringExp"
 				@select="$emit('select', $event)"
@@ -41,7 +42,7 @@ import ViewExpTree from './ViewExpTree.vue'
 
 interface Props {
 	exp: NonReactive<MalSeq>
-	selectedExp: NonReactive<MalVal> | null
+	selectedExp: NonReactive<MalVal>[]
 	editingExp: NonReactive<MalVal> | null
 	hoveringExp: NonReactive<MalVal> | null
 }
@@ -92,6 +93,14 @@ export default defineComponent({
 			return props.editingExp && expBody.value.value === props.editingExp.value
 		})
 
+		const activeExp = computed(() => {
+			return props.selectedExp.length === 0 ? null : props.selectedExp[0]
+		})
+
+		const expSelection = computed(() => {
+			return new Set(props.selectedExp.slice(1))
+		})
+
 		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
 			const newExp = cloneExp(props.exp.value)
 
@@ -107,7 +116,14 @@ export default defineComponent({
 			context.emit('update:editingExp', props.exp)
 		}
 
-		return {children, onUpdateChildExp, editing, onClickEditButton}
+		return {
+			children,
+			onUpdateChildExp,
+			editing,
+			activeExp,
+			expSelection,
+			onClickEditButton,
+		}
 	},
 })
 </script>

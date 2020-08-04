@@ -26,7 +26,7 @@
 					class="PageIndex__list-view"
 					:exp="exp"
 					:editingExp="editingExp"
-					:selectedExp="activeExp"
+					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
 					@select="setActiveExp"
 					@update:exp="updateExp"
