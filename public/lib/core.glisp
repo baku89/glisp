@@ -229,6 +229,12 @@
     init
     (reduce f (f init (first coll)) (rest coll))))
 
+(defn reductions
+  [f init coll]
+  (rest (reduce (fn [c v] (conj c (f (last c) v)))
+                [init]
+                coll)))
+
 (defn foldr
   {:doc "Executes a foldr function on each element of **coll**, resulting in single output value"
    :params [{:label "Foldr" :type "exp"}
