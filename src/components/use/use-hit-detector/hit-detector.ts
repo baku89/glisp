@@ -93,7 +93,9 @@ export class HitDetector {
 					this.ctx.transform(
 						...(xform as [number, number, number, number, number, number])
 					)
-					return this.analyzeVector(pos, body, hitStyle)
+					const ret = this.analyzeVector(pos, body, hitStyle)
+					this.ctx.restore()
+					return ret
 				}
 				case K_STYLE: {
 					const [, styles] = evaluated
