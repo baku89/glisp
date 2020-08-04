@@ -123,8 +123,9 @@ import {
 	reverseEval,
 	computeExpTransform,
 	copyDelimiters,
+	replaceExp,
 } from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
+import {NonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
 import {
 	defineComponent,
@@ -487,7 +488,7 @@ export default defineComponent({
 			// Copy the delimiter if possible
 			copyDelimiters(newExp, props.exp.value)
 
-			context.emit('input', nonReactive(newExp))
+			replaceExp(props.exp.value, newExp)
 		}
 
 		function onMouseup() {

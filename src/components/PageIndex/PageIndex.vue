@@ -47,7 +47,6 @@
 					class="PageIndex__view-handles"
 					:exp="activeExp"
 					:viewTransform.sync="viewHandlesTransform"
-					@input="updateSelectedExp"
 					@tag-history="tagExpHistory('undo')"
 				/>
 			</Pane>
