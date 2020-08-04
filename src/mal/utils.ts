@@ -33,6 +33,7 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d, vec2} from 'gl-matrix'
+import {reconstructTree} from './reader'
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (isVector(exp)) {
@@ -197,6 +198,36 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
 
 	replaceExp(outer, newOuter)
+}
+
+export function getUIExp(exp: MalNode) {
+	const outer = getOuter(exp)
+	return isList(outer) && isSymbolFor(outer[0], 'ui-annotate') ? outer : exp
+}
+
+export function deleteExp(exp: MalNode) {
+	const outer = exp[M_OUTER]
+	const index = exp[M_OUTER_INDEX]
+
+	if (!outer) {
+		return false
+	}
+
+	const newOuter = cloneExp(outer)
+
+	if (isSeq(newOuter)) {
+		newOuter.splice(index, 1)
+	} else {
+		const keys = newOuter[M_KEYS]
+		delete newOuter[keys[index]]
+	}
+
+	copyDelimiters(newOuter, outer)
+	reconstructTree(newOuter)
+
+	replaceExp(outer, newOuter)
+
+	return true
 }
 
 export function getMapValue(

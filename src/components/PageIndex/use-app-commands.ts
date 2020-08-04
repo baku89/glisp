@@ -19,7 +19,6 @@ import {
 	MalSeq,
 	getEvaluated,
 	getType,
-	M_KEYS,
 	isNode,
 } from '@/mal/types'
 import {
@@ -29,6 +28,8 @@ import {
 	copyDelimiters,
 	replaceExp,
 	getUIOuterInfo,
+	getUIExp,
+	deleteExp,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
@@ -291,28 +292,11 @@ export default function useAppCommands(
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		const exp = data.activeExp.value
-		const [outer, index] = getUIOuterInfo(exp)
+		const exp = getUIExp(data.activeExp.value)
 
-		if (!outer) {
-			return false
-		}
-
-		const newOuter = cloneExp(outer)
-
-		if (isSeq(newOuter)) {
-			newOuter.splice(index, 1)
-		} else {
-			const keys = newOuter[M_KEYS]
-			delete newOuter[keys[index]]
-		}
-
-		copyDelimiters(newOuter, outer)
-		reconstructTree(newOuter)
+		deleteExp(exp)
 
 		callbacks.setActiveExp(null)
-
-		replaceExp(outer, newOuter)
 
 		return true
 	})
