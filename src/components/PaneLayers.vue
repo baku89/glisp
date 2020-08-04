@@ -39,7 +39,7 @@ import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
-import {getUIBodyExp} from '../mal/utils'
+import {getUIBodyExp} from '@/mal/utils'
 
 interface Props {
 	exp: NonReactive<MalSeq>
