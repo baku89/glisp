@@ -337,7 +337,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 			const children = deep
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
-			const cloned = createList(...children)
+			const cloned = [...children]
 			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
 				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 			}
