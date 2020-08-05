@@ -89,7 +89,7 @@ export default defineComponent({
 
 .InputTranslate
 	position relative
-	width 1.4rem
+	width $button-height
 	height @width !important
 	border-radius 2px
 	background var(--button)

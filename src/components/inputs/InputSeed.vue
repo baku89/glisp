@@ -18,14 +18,16 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import '../style/common.styl'
+
 .InputSeed
 	display block
 	padding 0
-	width 1.4rem
-	height 1.4rem
+	width $button-height
+	height $button-height
 	color var(--button)
 	text-align center
-	line-height 1.4rem
+	line-height $button-height
 	cursor pointer
 
 	&:hover, &:focus

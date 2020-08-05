@@ -308,7 +308,7 @@ export default defineComponent({
 				transform translateY(-50%)
 
 		&.add
-			height $input-height
+			height $button-height
 			border-radius 2px
 			background var(--button)
 			color var(--background)

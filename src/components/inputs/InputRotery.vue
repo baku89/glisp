@@ -57,8 +57,8 @@ export default defineComponent({
 
 .InputRotery
 	position relative
-	width 1.4rem
-	height 1.4rem
+	width $button-height
+	height $button-height
 	border-radius 50%
 	background var(--button)
 
