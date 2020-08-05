@@ -4,19 +4,15 @@
 
 <script lang="ts">
 import {defineComponent} from '@vue/composition-api'
-import InputNumber from './InputNumber.vue'
 
 export default defineComponent({
 	name: 'InputSeed',
-	components: {InputNumber},
 	setup(prop, context) {
 		function shuffle() {
 			context.emit('input', Math.random())
 		}
 
-		return {
-			shuffle,
-		}
+		return {shuffle}
 	},
 })
 </script>
