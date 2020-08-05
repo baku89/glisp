@@ -1,5 +1,5 @@
 <template>
-	<i class="InputSeed fas fa-redo-alt" @click="shuffle" />
+	<button class="InputSeed fas fa-redo-alt" @click="shuffle" />
 </template>
 
 <script lang="ts">
@@ -24,13 +24,14 @@ export default defineComponent({
 <style lang="stylus">
 .InputSeed
 	display block
-	width 16px
-	height 16px
+	padding 0
+	width 1.4rem
+	height 1.4rem
 	color var(--comment)
 	text-align center
-	line-height 16px
+	line-height 1.4rem
 	cursor pointer
 
-	&:hover
+	&:hover, &:focus
 		color var(--hover)
 </style>
