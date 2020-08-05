@@ -529,7 +529,7 @@
 (annotate-fn!
  rnd
  {:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
-  :params [{:label "Seed" :type "number"}]
+  :params [{:label "Seed" :type "number" :ui "seed"}]
   :return {:type "number"}})
 
 (annotate-fn!
