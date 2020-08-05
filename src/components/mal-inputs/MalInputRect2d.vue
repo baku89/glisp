@@ -135,7 +135,7 @@ export default defineComponent({
 	line-height $input-height
 
 	&__el
-		margin-left 0.3em
+		margin-left 0.2em
 		width 3em
 
 		&:first-child

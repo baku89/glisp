@@ -333,7 +333,7 @@ export default defineComponent({
 		font-monospace()
 
 	&__text
-		display flext
+		width 6rem
 		font-monospace()
 
 	&__elements

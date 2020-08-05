@@ -54,6 +54,7 @@ export default defineComponent({
 
 .InputString
 	input()
+	max-width 100%
 	width 12.6rem
 	color var(--syntax-string)
 

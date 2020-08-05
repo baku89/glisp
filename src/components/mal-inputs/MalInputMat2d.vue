@@ -126,10 +126,10 @@ export default defineComponent({
 	&__value
 		position relative
 		display grid
-		padding 0 0.9rem
+		margin-right $input-horiz-margin
 		grid-template-columns auto auto auto
 		grid-row-gap 0.4rem
-		grid-column-gap 0.4rem
+		grid-column-gap 0.3rem
 
 	&__el
 		width 4rem
