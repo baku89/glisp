@@ -23,7 +23,7 @@ export default defineComponent({
 	padding 0
 	width 1.4rem
 	height 1.4rem
-	color var(--comment)
+	color var(--button)
 	text-align center
 	line-height 1.4rem
 	cursor pointer

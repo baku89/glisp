@@ -98,8 +98,11 @@ export function computeTheme(background: string): Theme {
 		.alpha(fit(s, 0, 1, 0.3, 0.9))
 		.css()
 
-	// .alpha(fit(s, 0, 1, 0.2, 0.4))
-	// .css()
+	const button = dark ? '#777' : '#bbb'
+
+	const input = chroma(dark ? 'white' : 'black')
+		.alpha(0.03)
+		.css()
 
 	const t = fit(vec2.dist([0, 1], [s, v]), 0, 0.4, 1, 0.2)
 	const activeRange = chroma
@@ -164,6 +167,8 @@ export function computeTheme(background: string): Theme {
 			'--foreground': foreground,
 			'--purple': purple,
 			'--orange': orange,
+			'--input': input,
+			'--button': button,
 
 			'--background': background,
 			'--border': border,

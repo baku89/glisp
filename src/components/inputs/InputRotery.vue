@@ -60,7 +60,7 @@ export default defineComponent({
 	width 1.4rem
 	height 1.4rem
 	border-radius 50%
-	background #bbb
+	background var(--button)
 
 	&:before
 		position absolute

@@ -92,7 +92,7 @@ export default defineComponent({
 	width 1.4rem
 	height @width !important
 	border-radius 2px
-	background #bbb
+	background var(--button)
 	transition background 0.1s ease
 
 	&:focus
