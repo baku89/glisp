@@ -187,13 +187,15 @@ ConsoleScope.def(
 		convertJSObjectToMalMap({
 			doc: 'Renders and exports a sketch',
 			params: [
-				S('&'),
 				{
-					keys: [
+					type: 'map',
+					variadic: 'true',
+					items: [
 						{
 							key: K('format'),
-							type: 'dropdown',
-							enum: ['png', 'jpeg', 'webp'],
+							type: 'string',
+							ui: 'dropdown',
+							values: ['png', 'jpeg', 'webp'],
 						},
 						{
 							key: K('scaling'),
@@ -298,13 +300,15 @@ ConsoleScope.def(
 		convertJSObjectToMalMap({
 			doc: 'Exports a video',
 			params: [
-				S('&'),
 				{
-					keys: [
+					type: 'map',
+					variadic: true,
+					items: [
 						{
 							key: K('format'),
-							type: 'dropdown',
-							enum: ['gif'],
+							type: 'string',
+							ui: 'dropdown',
+							values: ['gif'],
 						},
 						{
 							key: K('scaling'),
@@ -315,7 +319,7 @@ ConsoleScope.def(
 						{key: K('symbol'), type: 'string'},
 						{key: K('start'), type: 'number', default: 0},
 						{key: K('duration'), type: 'number', default: 1},
-						{key: K('fps'), type: 'number', default: 24},
+						{key: K('fps'), label: 'FPS', type: 'number', default: 24},
 						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]},
 					],
 				},
@@ -399,9 +403,10 @@ ConsoleScope.def(
 					label: 'Name',
 					type: 'string',
 				},
-				S('&'),
 				{
-					keys: [
+					type: 'map',
+					variadic: true,
+					items: [
 						{
 							key: K('user'),
 							label: 'User',
