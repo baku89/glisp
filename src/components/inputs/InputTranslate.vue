@@ -89,29 +89,22 @@ export default defineComponent({
 
 .InputTranslate
 	position relative
-	margin-left 0.5rem
-	width 1.2rem
+	width 1.4rem
 	height @width !important
-	border 1px solid var(--comment)
 	border-radius 2px
+	background #bbb
+	transition background 0.1s ease
 
 	&:focus
-		border-color var(--highlight)
-
-		&:before, &:after
-			background var(--highlight)
+		background var(--highlight)
 
 	&:hover, &.dragging
 		background var(--highlight)
-		border-color var(--highlight)
-
-		&:before, &:after
-			background var(--background)
 
 	&:before, &:after
 		position absolute
 		display block
-		background var(--comment)
+		background var(--background) !important
 		content ''
 		transform translate(-50%, -50%)
 

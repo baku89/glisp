@@ -25,7 +25,6 @@
 				/>
 			</div>
 			<div class="MalInputColor__elements" v-else-if="mode">
-				(
 				<MalInputNumber
 					v-for="(value, i) in displayValues"
 					:key="i"
@@ -35,7 +34,7 @@
 					:validator="validators[i]"
 					@input="onInputNumber(i, $event)"
 					@end-tweak="$emit('end-tweak')"
-				/>)
+				/>
 			</div>
 		</template>
 	</div>
@@ -319,7 +318,7 @@ export default defineComponent({
 	line-height $input-height
 
 	&__picker
-		margin-right 0.2em
+		margin-right 0.5rem
 
 	&__hex
 		margin-left 0.3rem
@@ -327,8 +326,8 @@ export default defineComponent({
 		font-monospace()
 
 	&__mode
-		margin-right 0.2em
-		width 3.5em
+		margin-right $input-horiz-margin
+		width 3.7em
 		border-bottom-color transparent
 		color var(--comment)
 		font-monospace()
@@ -341,7 +340,7 @@ export default defineComponent({
 		display flex
 
 	&__el
-		margin-right 0.7em
+		margin-right 0.2em
 		width 3.3em
 
 		&:last-child

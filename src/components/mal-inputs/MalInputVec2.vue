@@ -5,7 +5,7 @@
 			:value="value"
 			:compact="true"
 			@select="$emit('select', $event)"
-		/>[
+		/>
 		<template v-if="isValueSeparated">
 			<MalInputNumber
 				class="MalInputVec2__el"
@@ -38,8 +38,9 @@
 				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
-		]
+
 		<InputTranslate
+			class="MalInputVec2__translate"
 			:value="evaluated"
 			@input="onInputTranslate"
 			@end-tweak="$emit('end-tweak')"
@@ -102,8 +103,9 @@ export default defineComponent({
 
 .MalInputVec2
 	display flex
+	align-items center
 	line-height $input-height
 
 	&__el
-		margin 0 0.3rem
+		margin-right 0.6rem
 </style>

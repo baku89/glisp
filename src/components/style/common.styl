@@ -3,21 +3,37 @@ font-monospace()
 	font-family 'Fira Code', monospace
 	font-variant-ligatures normal !important
 
-$input-height = 1.4em
-$param-height = 1.4em
+$input-height = 1.8em
+$input-horiz-margin = 0.6rem
+$input-transition = border-color 0.1s ease
 
 input()
 	width 6em
 	height $input-height
 	border none
-	border-bottom 1px dashed var(--comment)
-	background transparent
+	border 1px solid transparent
+	border-radius 2px
+	background rgba(0, 0, 0, 0.03)
 	color var(--foreground)
 	font-size inherit
+	transition $input-transition
+
+	&:hover
+		border-color var(--hover)
 
 	&:focus
-		border-bottom-style solid
-		border-bottom-color var(--hover)
+		border-color var(--hover)
+
+input-border()
+	border 1px solid transparent
+	border-radius 2px
+	transition $input-transition
+
+	&:hover
+		border-color var(--hover)
+
+	&:focus
+		border-color var(--hover)
 
 translucent-bg()
 	background var(--translucent)

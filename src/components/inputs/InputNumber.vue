@@ -171,7 +171,7 @@ export default defineComponent({
 
 .InputNumber
 	position relative
-	width 4em
+	width 6rem
 	font-monospace()
 
 	&__drag
@@ -181,6 +181,10 @@ export default defineComponent({
 		z-index 100
 		width 100%
 		height 100%
+		border 1px solid transparent
+		border-radius 2px
+		transition border-color 0.1s ease
+		input-border()
 
 	&.editing &__drag
 		display none

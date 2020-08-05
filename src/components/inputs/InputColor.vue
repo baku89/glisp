@@ -51,13 +51,10 @@ export default defineComponent({
 		position relative
 		display block
 		overflow hidden
-		margin-left 0.5em
-		width 1.3em
-		height 1.3em
+		width $input-height
+		height $input-height
 		outline none
 		border 0
-		border 1px solid var(--comment)
-		border-radius 50%
 		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
 		background-position 0 0, 5px 0, 5px -5px, 0px 5px
 		background-size 10px 10px
@@ -71,6 +68,7 @@ export default defineComponent({
 		display block
 		width 100%
 		height 100%
+		input-border()
 
 	&__picker
 		left 100px !important

@@ -5,7 +5,7 @@
 			:value="value"
 			:compact="true"
 			@select="$emit('select', $event)"
-		/>[
+		/>
 		<template v-if="isValueSeparated">
 			<MalInputNumber
 				class="MalInputRect2d__el"
@@ -64,9 +64,10 @@
 				:value="evaluated[3]"
 				@input="onInputEvaluatedElement(3, $event)"
 				@end-tweak="$emit('end-tweak')"
-			/> </template
-		>]
+			/>
+		</template>
 		<InputTranslate
+			class="MalInputRect2d__translate"
 			:value="evaluated.slice(0, 2)"
 			@input="onInputTranslate"
 			@end-tweak="$emit('end-tweak')"
@@ -130,40 +131,16 @@ export default defineComponent({
 
 .MalInputRect2d
 	display flex
+	align-items center
 	line-height $input-height
 
 	&__el
-		margin 0 0.3em
+		margin-left 0.3em
 		width 3em
 
-	&__drag
-		position relative
-		margin-left 0.5rem
-		width 1.2rem
-		height @width
-		border 1px solid var(--comment)
+		&:first-child
+			margin-left 0
 
-		&:hover, &.dragging
-			background var(--comment)
-
-			&:before, &:after
-				background var(--background)
-
-		&:before, &:after
-			position absolute
-			display block
-			background var(--comment)
-			content ''
-
-		&:before
-			top 2px
-			left calc(50% - 0.5px)
-			width 1px
-			height calc(100% - 4px)
-
-		&:after
-			top calc(50% - 0.5px)
-			left 2px
-			width calc(100% - 4px)
-			height 1px
+	&__translate
+		margin-left $input-horiz-margin
 </style>

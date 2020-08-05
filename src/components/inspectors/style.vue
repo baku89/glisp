@@ -38,15 +38,11 @@
 			<button
 				class="Inspector-style__append-button"
 				@click="appendStyle('fill')"
-			>
-				+ Add Fill
-			</button>
+			>+ Add Fill</button>
 			<button
 				class="Inspector-style__append-button"
 				@click="appendStyle('stroke')"
-			>
-				+ Add Stroke
-			</button>
+			>+ Add Stroke</button>
 		</div>
 	</div>
 </template>
@@ -214,7 +210,7 @@ export default defineComponent({
 
 	&__delete
 		color var(--comment)
-		line-height $param-height
+		line-height $input-height
 		cursor pointer
 
 		&:hover
@@ -238,7 +234,7 @@ export default defineComponent({
 		border-radius 3px
 		color var(--comment)
 		font-size 0.9em
-		line-height $param-height
+		line-height $input-height
 		cursor pointer
 
 		&:hover

@@ -19,18 +19,13 @@
 						/>
 					</div>
 					<template v-if="isVectorVariadic && i >= vectorVariadicPos">
-						<button
-							class="ParamControl__button delete"
-							@click="onParamDelete(i)"
-						>
+						<button class="ParamControl__button delete" @click="onParamDelete(i)">
 							<i class="far fa-times-circle" />
 						</button>
 						<button
 							class="ParamControl__button insert"
 							@click="onParamInsert(i)"
-						>
-							Insert
-						</button>
+						>Insert</button>
 					</template>
 				</td>
 			</tr>
@@ -40,9 +35,7 @@
 					<button
 						class="ParamControl__button add"
 						@click="onParamInsert(uiSchema.length)"
-					>
-						+ Add
-					</button>
+					>+ Add</button>
 				</td>
 			</tr>
 		</template>
@@ -244,13 +237,12 @@ export default defineComponent({
 
 	&__param
 		position relative
-		height $param-height
 
 		&.is-default
 			opacity 0.5
 
 		& > td
-			padding 0.1em 0
+			padding 0.2em 0
 
 	&__label
 		clear both

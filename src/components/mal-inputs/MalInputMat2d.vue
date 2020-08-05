@@ -6,10 +6,6 @@
 			@select="$emit('select', $event)"
 		/>
 		<div class="MalInputMat2d__value" v-if="isValueSeparated">
-			<div class="MalInputMat2d__split">
-				⎥
-				<br />⎥ <br />⎥
-			</div>
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[0]"
@@ -132,66 +128,9 @@ export default defineComponent({
 		display grid
 		padding 0 0.9rem
 		grid-template-columns auto auto auto
-		grid-row-gap 0.3rem
-		grid-column-gap 0.6rem
-
-		&:before, &:after, ~/__split
-			position absolute
-			top 0.2rem
-			display block
-			font-size 1rem
-			line-height 1rem
-			font-monospace()
-
-		&:before
-			left 0
-			content '⎡\a⎢\a⎣'
-			white-space pre
-
-		&:after
-			right 0
-			content '⎤\a⎥\a⎦'
-			white-space pre
-
-		~/__split
-			right 3.9rem
-			text-align center
-			transform scaleY(0.9)
+		grid-row-gap 0.4rem
+		grid-column-gap 0.4rem
 
 	&__el
-		width 3rem
-
-		&.t
-			margin-left 0.3rem
-
-	&__drag
-		position relative
-		margin-left 0.5rem
-		width 1.1rem
-		height @width
-		border 1px solid var(--comment)
-
-		&:hover, &.dragging
-			background var(--comment)
-
-			&:before, &:after
-				background var(--background)
-
-		&:before, &:after
-			position absolute
-			display block
-			background var(--comment)
-			content ''
-
-		&:before
-			top 2px
-			left calc(50% - 0.5px)
-			width 1px
-			height calc(100% - 4px)
-
-		&:after
-			top calc(50% - 0.5px)
-			left 2px
-			width calc(100% - 4px)
-			height 1px
+		width 4rem
 </style>
