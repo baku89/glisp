@@ -24,14 +24,12 @@
 				<span
 					v-else-if="labelInfo.icon.type === 'text'"
 					:style="labelInfo.icon.style"
-					>{{ labelInfo.icon.value }}</span
-				>
+				>{{ labelInfo.icon.value }}</span>
 				<span
 					class="serif"
 					v-if="labelInfo.icon.type === 'serif'"
 					:style="labelInfo.icon.style"
-					>{{ labelInfo.icon.value }}</span
-				>
+				>{{ labelInfo.icon.value }}</span>
 			</div>
 			{{ labelInfo.label }}
 			<i
@@ -324,7 +322,7 @@ export default defineComponent({
 	&__label
 		position relative
 		overflow hidden
-		padding 0.5rem 0.5rem 0.4rem 0.3rem
+		padding 0.6rem 0.5rem 0.6rem 0.3rem
 		color var(--comment)
 		text-overflow ellipsis
 		white-space nowrap
@@ -358,19 +356,20 @@ export default defineComponent({
 				border 1px solid var(--highlight)
 
 		&.active
+			background var(--input)
 			color var(--highlight)
 			font-weight bold
 
 			&:after
 				background var(--highlight)
-				opacity 0.15
+				opacity 0.1
 
 		&.selected
 			color var(--highlight)
 
 			&:after
 				background var(--highlight)
-				opacity .08
+				opacity 0.08
 
 		&.hovering
 			color var(--highlight)
