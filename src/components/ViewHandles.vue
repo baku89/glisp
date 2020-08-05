@@ -37,8 +37,16 @@
 					v-if="handleCallbacks"
 					:transform="transformStyle"
 				>
-					<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
-					<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
+					<path
+						class="stroke axis-x"
+						marker-end="url(#arrow-x)"
+						d="M 0 0 H 200"
+					/>
+					<path
+						class="stroke axis-y"
+						marker-end="url(#arrow-y)"
+						d="M 0 0 V 200"
+					/>
 				</g>
 			</svg>
 		</Portal>
@@ -74,9 +82,19 @@
 					/>
 					<template v-if="type === 'translate'">
 						<path class="stroke display" d="M 12 0 H -12" />
-						<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
+						<path
+							class="stroke display"
+							:transform="yTransform"
+							d="M 0 12 V -12"
+						/>
 					</template>
-					<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
+					<circle
+						class="fill display"
+						:class="cls"
+						cx="0"
+						cy="0"
+						:r="rem * 0.5"
+					/>
 				</template>
 			</g>
 		</svg>
