@@ -1,5 +1,11 @@
 <template>
-	<input class="InputString" type="text" :value="value" @input="onInput" @blur="onBlur" />
+	<input
+		class="InputString"
+		type="text"
+		:value="value"
+		@input="onInput"
+		@blur="onBlur"
+	/>
 </template>
 
 <script lang="ts">
@@ -48,6 +54,7 @@ export default defineComponent({
 
 .InputString
 	input()
+	width 12.6rem
 	color var(--syntax-string)
 
 	&.exp
