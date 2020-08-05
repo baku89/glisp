@@ -103,7 +103,13 @@ export class HitDetector {
 					for (const s of (isVector(styles) ? styles : [styles]) as MalMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
 					}
-					return this.analyzeVector(pos, body, mergedStyles)
+					const ret = this.analyzeVector(pos, body, mergedStyles)
+					// if (ret && body.length === 1) {
+					// 	return exp
+					// } else {
+					// 	return ret
+					// }
+					return ret
 				}
 				default:
 					if (isKeyword(command)) {
