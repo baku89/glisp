@@ -6,10 +6,14 @@ const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 export function useAutoStep(
 	value: Ref<number>,
 	validator: Ref<undefined | ((v: number) => number | null)>,
-	isDragging: Ref<boolean>,
-	isEditing: Ref<boolean>,
+	tweaking: Ref<boolean>,
 	context: SetupContext
 ) {
+	const displayValue = computed(() => {
+		const v = value.value
+		return tweaking.value ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
+	})
+
 	function onInput(e: InputEvent) {
 		const str = (e.target as HTMLInputElement).value
 		const val: number | null = parseFloat(str)
@@ -18,8 +22,7 @@ export function useAutoStep(
 
 	function onBlur(e: InputEvent) {
 		const el = e.target as HTMLInputElement
-		el.value = value.value.toString()
-		isEditing.value = false
+		el.value = displayValue.value
 	}
 
 	function onKeydown(e: KeyboardEvent) {
@@ -72,11 +75,7 @@ export function useAutoStep(
 				? Math.max(Math.pow(10, -float.length), 0.1)
 				: 1
 		}),
-		displayValue: computed(() => {
-			const v = value.value
-			const tweaking = isDragging.value
-			return tweaking ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
-		}),
+		displayValue,
 		onInput,
 		onBlur,
 		onKeydown,
