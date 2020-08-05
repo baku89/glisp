@@ -28,7 +28,9 @@
 							class="ParamControl__button insert"
 							tabindex="-1"
 							@click="onParamInsert(i)"
-						>Insert</button>
+						>
+							Insert
+						</button>
 					</template>
 				</td>
 			</tr>
@@ -39,7 +41,9 @@
 						class="ParamControl__button add"
 						tabindex="-1"
 						@click="onParamInsert(uiSchema.length)"
-					>+ Add</button>
+					>
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</template>
@@ -104,14 +108,12 @@ export default defineComponent({
 	},
 	setup(props: Props, context: SetupContext) {
 		const fnInfo = computed(() => {
-			const ret = getFnInfo(props.fn || props.exp.value)
-			if (!ret) {
-				throw new Error('Cannot retrieve function reference')
-			}
-			return ret
+			return getFnInfo(props.fn || props.exp.value)
 		})
 
 		const params = computed(() => {
+			if (!fnInfo.value) return []
+
 			if (fnInfo.value.structType) {
 				return [props.exp.value]
 			} else {
@@ -120,6 +122,8 @@ export default defineComponent({
 		})
 
 		const schema = computed(() => {
+			if (!fnInfo.value) return [] as Schema[]
+
 			const meta = fnInfo.value.meta
 			const malSchema = getMapValue(meta, 'params')
 
@@ -165,6 +169,8 @@ export default defineComponent({
 
 		// Updator
 		function onParamInput(i: number, value: NonReactive<MalVal>) {
+			if (!fnInfo.value) return
+
 			const newParams = updateParamsByUISchema(
 				schema.value,
 				uiSchema.value as Schema[],
