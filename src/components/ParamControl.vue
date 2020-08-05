@@ -58,6 +58,9 @@ import {
 	MalFunc,
 	createList as L,
 	keywordFor as K,
+	symbolFor,
+	cloneExp,
+	keywordFor,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
@@ -78,8 +81,16 @@ interface Props {
 
 const TypeDefaults = {
 	number: 0,
+	string: '',
+	symbol: symbolFor('_'),
+	keyword: keywordFor('_'),
+	boolean: false,
 	vec2: [0, 0],
+	rect2d: [0, 0, 1, 1],
+	mat2d: [1, 0, 0, 1, 0, 0],
 	path: [K('path')],
+	exp: null,
+	any: null,
 } as {[type: string]: MalVal}
 
 export default defineComponent({
@@ -196,7 +207,7 @@ export default defineComponent({
 			const type = variadicSchema.type
 
 			// Compute value
-			let value = TypeDefaults[type]
+			let value = cloneExp(TypeDefaults[type])
 
 			if (vectorSchema.insert) {
 				value = (vectorSchema.insert as any)({
