@@ -14,14 +14,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	computed,
-	ref,
-	Ref,
-	PropType,
-	toRef,
-} from '@vue/composition-api'
+import {defineComponent, ref, Ref, PropType, toRef} from '@vue/composition-api'
 import {useDraggable, useKeyboardState} from '../use'
 import {useAutoStep} from './use-number'
 
