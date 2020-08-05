@@ -1,8 +1,8 @@
 <template>
-	<div class="InputNumber" :class="{editing}">
-		<div class="InputNumber__drag" ref="dragEl" />
+	<div class="InputSlider" :class="{editing}">
+		<div class="InputSlider__drag" ref="dragEl" />
 		<input
-			class="InputNumber__input"
+			class="InputSlider__input"
 			type="text"
 			:value="displayValue"
 			@input="onInput"
@@ -10,6 +10,7 @@
 			@keydown="onKeydown"
 			ref="inputEl"
 		/>
+		<div class="InputSlider__slider" :style="sliderStyle" />
 	</div>
 </template>
 
@@ -26,11 +27,23 @@ import {useDraggable, useKeyboardState} from '../use'
 import {useAutoStep} from './use-number'
 
 export default defineComponent({
-	name: 'InputNumber',
+	name: 'InputSlider',
 	props: {
 		value: {
 			type: Number,
 			required: true,
+		},
+		min: {
+			type: Number,
+			default: 0,
+		},
+		max: {
+			type: Number,
+			default: 1,
+		},
+		clamped: {
+			type: Boolean,
+			default: false,
 		},
 		validator: {
 			type: Function as PropType<(v: number) => number | null>,
@@ -39,7 +52,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		// Element references
-		const dragEl = ref(null)
+		const dragEl: Ref<null | HTMLElement> = ref(null)
 		const inputEl: Ref<null | HTMLInputElement> = ref(null)
 
 		const {shift, alt} = useKeyboardState()
@@ -58,7 +71,9 @@ export default defineComponent({
 				startValue = props.value
 			},
 			onDrag({deltaX}) {
-				let inc = deltaX / 5
+				if (!dragEl.value) return
+
+				let inc = ((props.max - props.min) * deltaX) / dragEl.value.clientWidth
 
 				if (shift.value) {
 					inc *= 10
@@ -93,6 +108,16 @@ export default defineComponent({
 			context
 		)
 
+		const sliderStyle = computed(() => {
+			const t = (props.value - props.min) / (props.max - props.min)
+			const borderRadius = t < 1 ? 0 : '2px'
+			return {
+				width: `${t * 100}%`,
+				borderTopRightRadius: borderRadius,
+				borderButtonRightRadius: borderRadius,
+			}
+		})
+
 		return {
 			dragEl,
 			inputEl,
@@ -105,6 +130,8 @@ export default defineComponent({
 			onBlur,
 			onKeydown,
 			update,
+
+			sliderStyle,
 		}
 	},
 })
@@ -113,7 +140,16 @@ export default defineComponent({
 <style lang="stylus">
 @import './use-number.styl'
 
-.InputNumber
-	width 6rem
+.InputSlider
+	width 12.6rem
 	use-number()
+	overflow hidden
+
+	&__slider
+		position absolute
+		top 0
+		left 0
+		height 100%
+		border-radius 2px
+		background var(--input)
 </style>

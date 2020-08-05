@@ -64,7 +64,7 @@ import {
 	updateParamsByUISchema,
 	SchemaVector,
 	Schema,
-} from '../mal/schema'
+} from '@/mal/schema'
 import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
 
 interface Props {
@@ -86,7 +86,7 @@ export default defineComponent({
 	},
 	components: {
 		'ui-number': MalInputComponents.MalInputNumber,
-		// 'ui-slider': MalInputComponents.MalInputSlider,
+		'ui-slider': MalInputComponents.MalInputSlider,
 		'ui-angle': MalInputComponents.MalInputAngle,
 		'ui-seed': MalInputComponents.MalInputSeed,
 		'ui-string': MalInputComponents.MalInputString,
@@ -98,7 +98,7 @@ export default defineComponent({
 		'ui-vec2': MalInputComponents.MalInputVec2,
 		'ui-rect2d': MalInputComponents.MalInputRect2d,
 		'ui-mat2d': MalInputComponents.MalInputMat2d,
-		// 'ui-path': MalInputComponents.MalInputPath,
+		'ui-path': MalInputComponents.MalExpButton,
 		'ui-exp': MalInputComponents.MalExpButton,
 		// 'ui-any': MalInputComponents.MalInputAny,
 	},
