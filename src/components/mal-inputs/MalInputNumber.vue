@@ -20,8 +20,7 @@
 			class="MalInputNumber__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-			>{{ display.unit }}</span
-		>
+		>{{ display.unit }}</span>
 		<MalExpButton
 			class="MalInputNumber__exp-after"
 			v-if="display.isExp && !compact"
@@ -44,6 +43,7 @@ import {
 	getEvaluated,
 	MalType,
 	createList as L,
+	keywordFor as K,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
@@ -124,9 +124,9 @@ export default defineComponent({
 			if (props.validator) {
 				if (display.value.mode === 'unit') {
 					return (v: number) => {
-						return (display.value.inverseFn as any)(
-							(props.validator as any)((fn.value as any)(v))
-						)[0]
+						return (display.value.inverseFn as any)({
+							[K('return')]: (props.validator as any)((fn.value as any)(v)),
+						})[0]
 					}
 				} else {
 					return props.validator
