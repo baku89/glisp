@@ -15,10 +15,10 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [スタイルの応用](styles)
 - [トランスフォーム](transform)
 - [描画ツリー](draw-tree)
-- プリミティブ
+- パス関数
+- メタデータ
 - [ハンドル](defining-handle)
-- Docstring
-- [スキーマ](schema)
+- スキーマ
 - 逆評価
 - 編集モード
 - 単位系
@@ -36,6 +36,6 @@ Lisp ベースのグラフィックデザインツール / クリエイティブ
 - [直交性](orthogonality)
 - [動かし方の分類](classification-of-animating)
 - [UI の基本原則](principles)
-- [インターフェースの帯域幅](bandwidth ':disabled')
+- [インターフェースの帯域幅](bandwidth)
 - [操作の距離空間](distance-space ':disabled')
 - [ブレンドモードの分類](blend-modes)
