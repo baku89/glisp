@@ -1,8 +1,10 @@
 <template>
 	<select class="InputDropdown" :value="value" @change="onChange">
-		<option v-for="(value, index) in values" :key="index" :value="value">
-			{{ labels ? labels[index] : value }}
-		</option>
+		<option
+			v-for="(value, index) in values"
+			:key="index"
+			:value="value"
+		>{{ labels ? labels[index] : value }}</option>
 	</select>
 </template>
 
@@ -48,5 +50,9 @@ $right-arrow-width = 1em
 .InputDropdown
 	position relative
 	input()
-	padding-left 0
+	padding 0
+
+	&.simple
+		text-align-last center
+		appearance none
 </style>

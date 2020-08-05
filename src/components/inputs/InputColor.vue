@@ -54,12 +54,26 @@ export default defineComponent({
 		width $input-height
 		height $input-height
 		outline none
-		border 0
 		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
 		background-position 0 0, 5px 0, 5px -5px, 0px 5px
 		background-size 10px 10px
 		vertical-align bottom
 		font-size inherit
+
+		&:after
+			position absolute
+			top 0
+			left 0
+			width 100%
+			height 100%
+			border 1px solid var(--border)
+			border-radius 2px
+			content ''
+			transition border-color 0.1s ease
+
+		&:hover, &:focus
+			&:after
+				border-color var(--hover)
 
 	&__color-preview
 		position absolute

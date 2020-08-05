@@ -11,7 +11,7 @@
 		<div class="MalInputColor__hex" v-if="compact">{{ hexValue }}</div>
 		<template v-else>
 			<InputDropdown
-				class="MalInputColor__mode"
+				class="MalInputColor__mode simple"
 				:value="mode"
 				:values="['HEX', 'RGB', 'HSL']"
 				@input="changeMode"
@@ -333,7 +333,7 @@ export default defineComponent({
 		font-monospace()
 
 	&__text
-		display flex
+		display flext
 		font-monospace()
 
 	&__elements
