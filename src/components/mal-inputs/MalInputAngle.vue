@@ -74,8 +74,5 @@ export default defineComponent({
 	line-height $input-height
 
 	&__input
-		margin-right 0.5em
-
-	&__rotery
-		margin-left 0.5rem
+		margin-right $input-horiz-margin
 </style>

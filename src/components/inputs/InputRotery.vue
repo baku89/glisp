@@ -57,23 +57,23 @@ export default defineComponent({
 
 .InputRotery
 	position relative
-	width 16px
-	height 16px
-	border 1px solid var(--comment)
+	width 1.4rem
+	height 1.4rem
 	border-radius 50%
+	background #bbb
 
 	&:before
 		position absolute
-		display block
-		background var(--comment)
-		content ''
 		top calc(50% - 0.25px)
 		left 50%
+		display block
 		width 50%
 		height 0.5px
+		background var(--background)
+		content ''
 
-	&:hover, &.dragging
-		background var(--comment)
+	&:hover, &:focus, &.dragging
+		background var(--hover)
 
 		&:before
 			background var(--background)

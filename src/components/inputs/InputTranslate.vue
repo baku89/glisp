@@ -96,10 +96,10 @@ export default defineComponent({
 	transition background 0.1s ease
 
 	&:focus
-		background var(--highlight)
+		background var(--hover)
 
 	&:hover, &.dragging
-		background var(--highlight)
+		background var(--hover)
 
 	&:before, &:after
 		position absolute
