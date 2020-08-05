@@ -3,9 +3,7 @@
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
-		>
-			{{ sign }}
-		</div>
+		>{{ sign }}</div>
 		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
 	</div>
 </template>
@@ -53,7 +51,7 @@ export default defineComponent({
 				if (props.compact) {
 					return ''
 				} else {
-					return `(${printExp((expBody.value.value as MalVal[])[0])})`
+					return `${printExp((expBody.value.value as MalVal[])[0])}`
 				}
 			} else {
 				return printExp(expBody.value.value)
@@ -86,8 +84,9 @@ export default defineComponent({
 	line-height $input-height
 	font-monospace()
 	display flex
+	display flex
+	align-items center
 	overflow hidden
-	padding 2px
 
 	&.selectable
 		cursor pointer
