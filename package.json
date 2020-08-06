@@ -22,7 +22,6 @@
 	"main": "background.js",
 	"dependencies": {
 		"docsify": "^4.11.4",
-		"paper-jsdom": "^0.12.7",
 		"vue": "^2.6.11"
 	},
 	"devDependencies": {
@@ -72,9 +71,8 @@
 		"mousetrap": "^1.6.5",
 		"node-fetch": "^2.6.0",
 		"normalize.css": "^8.0.1",
-		"paper": "^0.12.4",
+		"paper": "^0.12.11",
 		"paperjs-offset": "^1.0.8",
-		"perf_hooks": "^0.0.1",
 		"portal-vue": "^2.1.7",
 		"prettier": "^2.0.5",
 		"raw-loader": "^4.0.1",
@@ -85,9 +83,7 @@
 		"stylus": "^0.54.8",
 		"stylus-loader": "^3.0.2",
 		"svgpath": "^2.3.0",
-		"tslib": "^2.0.0",
 		"typescript": "^3.9.7",
-		"uid": "^1.0.0",
 		"voronoi": "^1.0.0",
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
 		"vue-click-outside": "^1.1.0",
