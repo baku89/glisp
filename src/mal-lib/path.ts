@@ -23,6 +23,7 @@ import {
 	iterateSegment,
 	Vec2,
 	convertToPath2D,
+	getSVGPathData,
 } from '@/path-utils'
 
 const EPSILON = 1e-5
@@ -54,9 +55,9 @@ function createEmptyPath(): PathType {
 
 paper.setup(new paper.Size(1, 1))
 
-const PaperPathCaches = new WeakMap<PathType, paper.Path>()
+const PaperPathCaches = new WeakMap<PathType, paper.CompoundPath>()
 
-function createPaperPath(path: PathType): paper.Path {
+function createPaperPath(path: PathType): paper.CompoundPath {
 	if (PaperPathCaches.has(path)) {
 		return PaperPathCaches.get(path) as paper.Path
 	}
@@ -65,31 +66,33 @@ function createPaperPath(path: PathType): paper.Path {
 		path = path.slice(1)
 	}
 
-	const paperPath = new paper.Path()
+	// const paperPath = new paper.Path()
+	const svgpath = getSVGPathData(path)
+	const paperPath = new paper.CompoundPath(svgpath)
 
-	for (let i = 0; i < path.length; i++) {
-		switch (path[i]) {
-			case K_M:
-				paperPath.moveTo(new paper.Point(path[i + 1] as number[]))
-				i++
-				break
-			case K_L:
-				paperPath.lineTo(new paper.Point(path[i + 1] as number[]))
-				i++
-				break
-			case K_C:
-				paperPath.cubicCurveTo(
-					new paper.Point(path[i + 1] as number[]),
-					new paper.Point(path[i + 2] as number[]),
-					new paper.Point(path[i + 3] as number[])
-				)
-				i += 3
-				break
-			case K_Z:
-				paperPath.closePath()
-				break
-		}
-	}
+	// for (let i = 0; i < path.length; i++) {
+	// 	switch (path[i]) {
+	// 		case K_M:
+	// 			paperPath.moveTo(new paper.Point(path[i + 1] as number[]))
+	// 			i++
+	// 			break
+	// 		case K_L:
+	// 			paperPath.lineTo(new paper.Point(path[i + 1] as number[]))
+	// 			i++
+	// 			break
+	// 		case K_C:
+	// 			paperPath.cubicCurveTo(
+	// 				new paper.Point(path[i + 1] as number[]),
+	// 				new paper.Point(path[i + 2] as number[]),
+	// 				new paper.Point(path[i + 3] as number[])
+	// 			)
+	// 			i += 3
+	// 			break
+	// 		case K_Z:
+	// 			paperPath.closePath()
+	// 			break
+	// 	}
+	// }
 
 	PaperPathCaches.set(path, paperPath)
 	return paperPath
