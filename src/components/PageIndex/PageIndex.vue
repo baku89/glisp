@@ -68,9 +68,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -101,7 +99,7 @@ import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
-import ViewHandles from '@/components/ViewHandles.vue'
+import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
@@ -520,7 +518,6 @@ html, body
 		position absolute !important
 		top 3.4rem
 		height calc(100vh - 3.4rem)
-
 
 	&__viewer
 		position absolute !important
