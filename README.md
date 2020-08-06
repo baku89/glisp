@@ -2,7 +2,7 @@
   <img src="assets/logo.png" width="150" />
 
   <h1>Glisp</h1>
-  <h3>A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts</h3>
+  <h3>A Lisp-based Design Tool Bridging Graphic Design and Computational Arts</h3>
 
   <img src="docs/_media/screenshot.png" />
 </div>

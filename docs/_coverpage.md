@@ -4,7 +4,7 @@
 
 # Glisp
 
-A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
+A Lisp-based Design Tool Bridging Graphic Design and Computational Arts.
 
 [Demo](https://glisp.app)
 [GitHub](https://github.com/docsifyjs/docsify/)

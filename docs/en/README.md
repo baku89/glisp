@@ -2,7 +2,7 @@
 
 Glisp = **G**raphical **L**isp
 
-A Lisp-based Design Tool Bridging Hand-crafted Graphics and Computational Arts.
+A Lisp-based Design Tool Bridging Graphic Design and Computational Arts.
 
 <h2>Getting Started</h2>
 
