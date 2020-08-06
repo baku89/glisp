@@ -1,5 +1,5 @@
 <template>
-	<div class="InputNumber" :class="{editing}">
+	<div class="InputNumber" :class="{tweaking}">
 		<div class="InputNumber__drag" ref="dragEl" />
 		<input
 			class="InputNumber__input"
@@ -41,7 +41,6 @@ export default defineComponent({
 		let startValue = 0
 		const drag = useDraggable(dragEl, {
 			onClick() {
-				editing.value = true
 				if (inputEl.value) {
 					inputEl.value.focus()
 					inputEl.value.select()
@@ -69,7 +68,7 @@ export default defineComponent({
 			},
 		})
 
-		const editing = ref(false)
+		const tweaking = toRef(drag, 'isDragging')
 
 		const {
 			step,
@@ -81,8 +80,7 @@ export default defineComponent({
 		} = useAutoStep(
 			toRef(props, 'value'),
 			toRef(props, 'validator'),
-			toRef(drag, 'isDragging'),
-			editing,
+			tweaking,
 			context
 		)
 
@@ -92,7 +90,7 @@ export default defineComponent({
 
 			displayValue,
 			step,
-			editing,
+			tweaking,
 
 			onInput,
 			onBlur,

@@ -1,5 +1,5 @@
 <template>
-	<div class="InputSlider" :class="{editing}">
+	<div class="InputSlider" :class="{tweaking}">
 		<div class="InputSlider__drag" ref="dragEl" />
 		<input
 			class="InputSlider__input"
@@ -61,7 +61,6 @@ export default defineComponent({
 		let startValue = 0
 		const drag = useDraggable(dragEl, {
 			onClick() {
-				editing.value = true
 				if (inputEl.value) {
 					inputEl.value.focus()
 					inputEl.value.select()
@@ -91,7 +90,7 @@ export default defineComponent({
 			},
 		})
 
-		const editing = ref(false)
+		const tweaking = toRef(drag, 'isDragging')
 
 		const {
 			step,
@@ -103,8 +102,7 @@ export default defineComponent({
 		} = useAutoStep(
 			toRef(props, 'value'),
 			toRef(props, 'validator'),
-			toRef(drag, 'isDragging'),
-			editing,
+			tweaking,
 			context
 		)
 
@@ -124,7 +122,7 @@ export default defineComponent({
 
 			displayValue,
 			step,
-			editing,
+			tweaking,
 
 			onInput,
 			onBlur,
@@ -150,6 +148,24 @@ export default defineComponent({
 		top 0
 		left 0
 		height 100%
-		border-radius 2px
-		background var(--input)
+		z-index -1
+		border-right 3px solid transparent
+		transition border-right-color .1s ease
+
+		&:after
+			content ''
+			position absolute
+			top 0
+			left 0
+			width 100%
+			height 100%
+			background var(--bwbase)
+			opacity .07
+			transition opacity .1s ease
+
+
+		~/.tweaking &
+			border-right-color var(--hover)
+			&:after
+				opacity .1
 </style>

@@ -91,6 +91,8 @@ export function computeTheme(background: string): Theme {
 	const dark = bg.get('lab.l') < 55
 	const colors = dark ? TOMORROW_NIGHT_BRIGHT : TOMORROW
 
+	const bwbase = dark ? 'white' : 'black'
+
 	const border = chroma(dark ? 'white' : 'black')
 		.alpha(0.1)
 		.css()
@@ -163,6 +165,7 @@ export function computeTheme(background: string): Theme {
 			...colors,
 
 			// For UI
+			'--bwbase': bwbase,
 			'--comment': comment,
 			'--foreground': foreground,
 			'--purple': purple,
