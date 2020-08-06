@@ -93,7 +93,7 @@ export default defineComponent({
 	height @width !important
 	border-radius 2px
 	background var(--button)
-	transition background 0.1s ease
+	input-transition(background)
 
 	&:focus
 		background var(--hover)

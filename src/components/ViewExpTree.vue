@@ -1,7 +1,6 @@
 <template>
 	<div class="ViewExpTree">
 		<div
-			class="ViewExpTree__label"
 			:class="{
 				clickable: labelInfo.clickable,
 				hidden: ui.hidden,
@@ -10,48 +9,49 @@
 				hovering,
 			}"
 			@click="labelInfo.clickable && onClick($event)"
+			class="ViewExpTree__label"
 		>
 			<div
-				class="ViewExpTree__icon"
 				:class="{expanded, expandable: labelInfo.expandable}"
 				@click="labelInfo.expandable && toggleExpanded()"
+				class="ViewExpTree__icon"
 			>
 				<i
-					v-if="labelInfo.icon.type === 'fontawesome'"
 					:class="labelInfo.icon.value"
 					:style="labelInfo.icon.style"
+					v-if="labelInfo.icon.type === 'fontawesome'"
 				/>
 				<span
-					v-else-if="labelInfo.icon.type === 'text'"
 					:style="labelInfo.icon.style"
+					v-else-if="labelInfo.icon.type === 'text'"
 				>{{ labelInfo.icon.value }}</span>
 				<span
+					:style="labelInfo.icon.style"
 					class="serif"
 					v-if="labelInfo.icon.type === 'serif'"
-					:style="labelInfo.icon.style"
 				>{{ labelInfo.icon.value }}</span>
 			</div>
 			{{ labelInfo.label }}
 			<i
-				v-if="labelInfo.editable"
-				class="ViewExpTree__editing fas fa-code"
 				:class="{active: editing}"
 				@click="onClickEditButton"
+				class="ViewExpTree__editing fas fa-code"
+				v-if="labelInfo.editable"
 			/>
 		</div>
 		<div class="ViewExpTree__children" v-if="labelInfo.children && expanded">
 			<ViewExpTree
-				v-for="(child, i) in labelInfo.children"
-				:key="i"
-				:exp="child"
-				:expSelection="expSelection"
 				:activeExp="activeExp"
 				:editingExp="editingExp"
+				:exp="child"
+				:expSelection="expSelection"
 				:hoveringExp="hoveringExp"
+				:key="i"
 				@select="$emit('select', $event)"
 				@toggle-selection="$emit('toggle-selection', $event)"
-				@update:exp="onUpdateChildExp(i, $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
+				@update:exp="onUpdateChildExp(i, $event)"
+				v-for="(child, i) in labelInfo.children"
 			/>
 		</div>
 	</div>
@@ -308,121 +308,121 @@ export default defineComponent({
 
 <style lang="stylus">
 .ViewExpTree
-	overflow hidden
-	// padding-left 1rem
-	width 100%
-	user-select none
+  overflow hidden
+  // padding-left 1rem
+  width 100%
+  user-select none
 
-	&.destructed
-		padding-left 0
+  &.destructed
+    padding-left 0
 
-		.ViewExpTree__children:before
-			display none
+    .ViewExpTree__children:before
+      display none
 
-	&__label
-		position relative
-		overflow hidden
-		padding 0.6rem 0.5rem 0.6rem 0.3rem
-		color var(--comment)
-		text-overflow ellipsis
-		white-space nowrap
+  &__label
+    position relative
+    overflow hidden
+    padding 0.6rem 0.5rem 0.6rem 0.3rem
+    color var(--comment)
+    text-overflow ellipsis
+    white-space nowrap
 
-		&:after
-			position absolute
-			top 0
-			right 0
-			left 0rem
-			height 100%
-			content ''
-			opacity 0
-			transition opacity 0.05s ease
-			pointer-events none
+    &:after
+      position absolute
+      top 0
+      right 0
+      left 0rem
+      height 100%
+      content ''
+      opacity 0
+      transition opacity 0.05s ease
+      pointer-events none
 
-		&:hover
-			&:after
-				opacity 0.15
+    &:hover
+      &:after
+        opacity 0.15
 
-		&.hidden
-			text-decoration line-through
+    &.hidden
+      text-decoration line-through
 
-		&.clickable
-			color var(--foreground)
-			cursor pointer
+    &.clickable
+      color var(--foreground)
+      cursor pointer
 
-			&:hover
-				color var(--highlight)
+      &:hover
+        color var(--highlight)
 
-			&:after
-				border 1px solid var(--highlight)
+      &:after
+        border 1px solid var(--highlight)
 
-		&.active
-			background var(--input)
-			color var(--highlight)
-			font-weight bold
+    &.active
+      background var(--input)
+      color var(--highlight)
+      font-weight bold
 
-			&:after
-				background var(--highlight)
-				opacity 0.1
+      &:after
+        background var(--highlight)
+        opacity 0.1
 
-		&.selected
-			color var(--highlight)
+    &.selected
+      color var(--highlight)
 
-			&:after
-				background var(--highlight)
-				opacity 0.08
+      &:after
+        background var(--highlight)
+        opacity 0.08
 
-		&.hovering
-			color var(--highlight)
+    &.hovering
+      color var(--highlight)
 
-			&:after
-				border 1px solid var(--highlight)
-				opacity 0.15
+      &:after
+        border 1px solid var(--highlight)
+        opacity 0.15
 
-	&__icon
-		display inline-block
-		margin-right 0.2rem
-		width 1rem
-		color var(--comment)
-		text-align center
-		opacity 0.7
-		transition all 0.15s ease
+  &__icon
+    display inline-block
+    margin-right 0.2rem
+    width 1rem
+    color var(--comment)
+    text-align center
+    opacity 0.7
+    input-transition()
 
-		&.expandable:hover
-			color var(--highlight)
-			opacity 1
+    &.expandable:hover
+      color var(--highlight)
+      opacity 1
 
-		&.expanded
-			transform rotate(90deg)
+    &.expanded
+      transform rotate(90deg)
 
-		.serif
-			font-weight bold
-			font-style italic
-			font-family 'EB Garamond', serif
-			line-height 1rem
+    .serif
+      font-weight bold
+      font-style italic
+      font-family 'EB Garamond', serif
+      line-height 1rem
 
-	&__editing
-		position absolute
-		right 1rem
-		color var(--comment)
-		opacity 0
-		cursor pointer
+  &__editing
+    position absolute
+    right 1rem
+    color var(--comment)
+    opacity 0
+    cursor pointer
 
-		&:hover
-			opacity 0.5
+    &:hover
+      opacity 0.5
 
-		&.active
-			opacity 0.7
+    &.active
+      opacity 0.7
 
-	&__children
-		position relative
-		padding-left 1rem
+  &__children
+    position relative
+    padding-left 1rem
 
-		&:before
-			position absolute
-			top 0
-			left 0.8rem
-			width 0
-			height 100%
-			border-left 1px dotted var(--border)
-			content ''
+    &:before
+      position absolute
+      top 0
+      left 0.8rem
+      width 0
+      height 100%
+      border-left 1px dotted var(--border)
+      content ''
 </style>

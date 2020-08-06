@@ -150,7 +150,7 @@ export default defineComponent({
 		height 100%
 		z-index -1
 		border-right 3px solid transparent
-		transition border-right-color .1s ease
+		input-transition(border-right-color)
 
 		&:after
 			content ''
@@ -161,7 +161,7 @@ export default defineComponent({
 			height 100%
 			background var(--bwbase)
 			opacity .07
-			transition opacity .1s ease
+			input-transition(opacity)
 
 
 		~/.tweaking &

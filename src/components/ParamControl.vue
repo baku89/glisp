@@ -287,6 +287,7 @@ export default defineComponent({
 		color var(--comment)
 		line-height $param-height
 		cursor pointer
+		input-transition()
 
 		&:hover
 			opacity 1 !important
@@ -326,6 +327,7 @@ export default defineComponent({
 
 		&.add
 			height $button-height
+			padding-top .2rem
 			border-radius 2px
 			background var(--button)
 			color var(--background)

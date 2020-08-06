@@ -211,7 +211,7 @@ $compact-dur = 0.4s
 		border 0.5em solid #ff5e5e
 		content ''
 		opacity 0
-		transition opacity 0.1s ease
+		input-transition(opacity)
 		pointer-events none
 
 	&.error:after

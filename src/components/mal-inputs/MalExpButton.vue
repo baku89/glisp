@@ -92,6 +92,7 @@ export default defineComponent({
 
 	&.selectable
 		cursor pointer
+		input-transition(color)
 
 		&:hover
 			color var(--red)
@@ -99,7 +100,6 @@ export default defineComponent({
 			.MalExpButton__sign
 				background var(--red)
 				color var(--background)
-				opacity 1
 
 	&__sign
 		flex 1 0 1.1rem
@@ -110,6 +110,7 @@ export default defineComponent({
 		background var(--button)
 		color var(--background)
 		text-align center
+		input-transition(all)
 
 		&.fn, &.variable
 			font-weight bold

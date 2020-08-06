@@ -6,7 +6,9 @@ font-monospace()
 $input-height = 1.8rem
 $button-height = 1.4rem
 $input-horiz-margin = 0.6rem
-$input-transition = border-color 0.1s ease
+
+input-transition($prop = all)
+	transition $prop 0.1s ease
 
 input()
 	width 6em
@@ -17,7 +19,7 @@ input()
 	background var(--input)
 	color var(--foreground)
 	font-size inherit
-	transition $input-transition
+	input-transition(border-color)
 
 	&:hover
 		border-color var(--hover)
@@ -28,7 +30,7 @@ input()
 input-border()
 	border 1px solid transparent
 	border-radius 2px
-	transition $input-transition
+	input-transition(border-color)
 
 	&:hover
 		border-color var(--hover)

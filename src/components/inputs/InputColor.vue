@@ -69,7 +69,7 @@ export default defineComponent({
 			border 1px solid var(--border)
 			border-radius 2px
 			content ''
-			transition border-color 0.1s ease
+			input-transition(border-color)
 
 		&:hover, &:focus
 			&:after
