@@ -61,7 +61,8 @@ const K_ANGLE = K('angle'),
 	K_REPLACE = K('replace')
 
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
-interface Data {
+
+interface HandleData {
 	draggingIndex: number | null
 	rawPrevPos: number[]
 	fnInfo: FnInfoType | null
@@ -230,7 +231,7 @@ export default function useHandle(
 				return ret
 			})
 		}),
-	}) as Data
+	}) as HandleData
 
 	function onMousedown(i: number, e: MouseEvent) {
 		if (!el.value) return

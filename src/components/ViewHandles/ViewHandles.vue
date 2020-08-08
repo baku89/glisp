@@ -28,7 +28,7 @@
 						<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
 					</marker>
 				</defs>
-				<g :transform="`matrix(${viewTransform.join(' ')})`">
+				<g :transform="viewAxisStyle">
 					<path class="ViewHandles__axis stroke" d="M -50000 0 H 50000" />
 					<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
 				</g>
@@ -50,7 +50,7 @@
 				:transform="`matrix(${transform.join(' ')})`"
 			/>
 			<g
-				v-for="({type, id, transform, yTransform, path, cls, guide},
+				v-for="({type, transform, yTransform, path, cls, guide},
 				i) in handles"
 				:key="i"
 				:class="cls"
@@ -63,16 +63,18 @@
 					<path class="stroke hover-zone" :d="path" />
 					<path class="stroke display" :d="path" />
 				</template>
-				<template v-else-if="type === 'dia'">
-					<path class="fill display" d="M 7 0 L 0 7 L -7 0 L 0 -7 Z" />
-				</template>
+				<path
+					v-else-if="type === 'dia'"
+					class="fill display"
+					d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
+				/>
 				<template v-else>
 					<path
 						v-if="type === 'arrow'"
 						class="stroke display"
 						d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
 					/>
-					<template v-if="type === 'translate'">
+					<template v-else-if="type === 'translate'">
 						<path class="stroke display" d="M 12 0 H -12" />
 						<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
 					</template>
@@ -142,6 +144,10 @@ export default defineComponent({
 	},
 	setup(props: Props, context: SetupContext) {
 		const el: Ref<HTMLElement | null> = ref(null)
+
+		const viewAxisStyle = computed(
+			() => `matrix(${props.viewTransform.join(' ')})`
+		)
 
 		const handleData = useHandle(
 			toRef(props, 'exp'),
@@ -234,6 +240,7 @@ export default defineComponent({
 
 		return {
 			el,
+			viewAxisStyle,
 			...handleData,
 			rem,
 		}
