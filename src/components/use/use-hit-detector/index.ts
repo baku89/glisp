@@ -12,6 +12,7 @@ import {MalVal, MalNode} from '@/mal/types'
 
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
+import useKeyboardState from '../use-keyboard-state'
 
 function useMouseButtons(el: Ref<any | null>) {
 	const mousePressed = ref(false)
@@ -70,15 +71,18 @@ export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
 	exp: Ref<NonReactive<MalNode>>,
 	viewTransform: Ref<mat2d>,
-	onSelectExp: (exp: NonReactive<MalNode> | null) => void,
-	onHoverExp: (exp: NonReactive<MalNode> | null) => void,
-	onTransformSelectedExp: (transform: mat2d) => void,
-	onEndTweak: () => any
+	setActiveExp: (exp: NonReactive<MalNode> | null) => void,
+	toggleSelectedExp: (exp: NonReactive<MalNode>) => void,
+	setHoverExp: (exp: NonReactive<MalNode> | null) => void,
+	transformSelectedExp: (transform: mat2d) => void,
+	endTweak: () => any
 ) {
 	const detector = new HitDetector()
 
 	const {mouseX, mouseY} = useOnMouseMove(handleEl)
 	const {mousePressed} = useMouseButtons(handleEl)
+
+	const keyboardState = useKeyboardState()
 
 	let prevMousePressed = false
 	let prevExp: MalNode | null = null
@@ -118,7 +122,11 @@ export default function useHitDetector(
 			const justMouseup = !mousePressed.value && prevMousePressed
 
 			if (justMousedown) {
-				onSelectExp(hitExp)
+				if (keyboardState['ctrl'].value && hitExp) {
+					toggleSelectedExp(hitExp)
+				} else {
+					setActiveExp(hitExp)
+				}
 				draggingExp = hitExp
 				window.addEventListener('mouseup', releaseDraggingExp)
 			}
@@ -127,14 +135,14 @@ export default function useHitDetector(
 			if (!justMousedown && mousePressed.value && draggingExp) {
 				const delta = vec2.sub(vec2.create(), pos, prevPos)
 				const xform = mat2d.fromTranslation(mat2d.create(), delta)
-				onTransformSelectedExp(xform)
+				transformSelectedExp(xform)
 			}
 
 			// if (hoveringExp && hoveringExp.value.value !== ret)
-			onHoverExp(hitExp)
+			setHoverExp(hitExp)
 
 			if (justMouseup) {
-				onEndTweak()
+				endTweak()
 			}
 
 			// Update

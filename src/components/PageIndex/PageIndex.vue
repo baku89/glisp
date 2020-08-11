@@ -28,7 +28,7 @@
 					:editingExp="editingExp"
 					:selectedExp="selectedExp"
 					:hoveringExp="hoveringExp"
-					@select="setSelectExp"
+					@select="setSelectedExp"
 					@update:exp="updateExp"
 					@update:editingExp="setEditingExp"
 				/>
@@ -69,9 +69,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -309,8 +307,18 @@ export default defineComponent({
 		}
 
 		// SelectedExp
-		function setSelectExp(exp: NonReactive<MalNode>[]) {
+		function setSelectedExp(exp: NonReactive<MalNode>[]) {
 			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
+		}
+		function toggleSelectedExp(exp: NonReactive<MalNode>) {
+			const selectedExp = [...data.selectedExp]
+			const index = selectedExp.findIndex(e => e.value === exp.value)
+			if (index >= 0) {
+				selectedExp.splice(index, 1)
+			} else {
+				selectedExp.push(exp)
+			}
+			setSelectedExp(selectedExp)
 		}
 
 		function setActiveExp(exp: NonReactive<MalNode> | null) {
@@ -411,6 +419,7 @@ export default defineComponent({
 			toRef(data, 'exp'),
 			toRef(ui, 'viewTransform'),
 			setActiveExp,
+			toggleSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
 			() => tagExpHistory('undo')
@@ -464,7 +473,7 @@ export default defineComponent({
 			setEditingExp,
 			...toRefs(ui as any),
 			updateExp,
-			setSelectExp,
+			setSelectedExp,
 			setActiveExp,
 			onResizeSplitpanes,
 			tagExpHistory,
