@@ -18,7 +18,6 @@ const M_EXPAND = Symbol.for('expand')
 // Stores string repsentation
 export const M_ISSUGAR = Symbol('issugar')
 export const M_ELMSTRS = Symbol.for('elmstrs') // string representations of each elements
-export const M_KEYS = Symbol.for('keys') // keys of hashmap in order
 export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
 export const M_DEF = Symbol.for('def') // save def exp reference in symbol object
@@ -69,7 +68,6 @@ export interface MalNodeMap extends MalMap {
 	[M_META]?: MalVal
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
-	[M_KEYS]: string[]
 	[M_EVAL]: MalVal
 	[M_OUTER]: MalNode
 	[M_OUTER_INDEX]: number
@@ -285,7 +283,7 @@ export function getMalFromSelection(sel: MalSelection) {
 	} else {
 		const {outer, index} = sel
 		if (isMap(outer)) {
-			return outer[outer[M_KEYS][index]]
+			return outer[Object.keys(outer)[index]]
 		} else {
 			return outer[index]
 		}

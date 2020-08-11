@@ -25,7 +25,6 @@ import {
 	getEvaluated,
 	isSymbolFor,
 	cloneExp,
-	M_KEYS,
 	MalNodeMap,
 	M_DELIMITERS,
 	getOuter,
@@ -102,7 +101,7 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 		if (isSeq(expBody)) {
 			return find(expBody[index], rest)
 		} else if (isMap(expBody)) {
-			const keys = (expBody as MalNodeMap)[M_KEYS]
+			const keys = Object.keys(expBody as MalNodeMap)
 			return find(expBody[keys[index]], rest)
 		} else {
 			return expBody
@@ -182,7 +181,7 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		}
 	} else {
 		// Hash map
-		const keys = (outer as MalNodeMap)[M_KEYS]
+		const keys = Object.keys(outer as MalNodeMap)
 		const key = keys[index]
 		newOuter[key] = replaced
 		for (let i = 0; i < keys.length; i++) {
@@ -220,8 +219,8 @@ export function deleteExp(exp: MalNode) {
 	if (isSeq(newOuter)) {
 		newOuter.splice(index, 1)
 	} else {
-		const keys = newOuter[M_KEYS]
-		delete newOuter[keys[index]]
+		const key = Object.keys(newOuter)[index]
+		delete newOuter[key]
 	}
 
 	copyDelimiters(newOuter, outer)

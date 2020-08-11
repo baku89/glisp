@@ -12,7 +12,6 @@ import {
 	isNode,
 	M_ELMSTRS,
 	M_DELIMITERS,
-	M_KEYS,
 	M_ISSUGAR,
 	M_ISLIST,
 	M_OUTER_INDEX,
@@ -215,11 +214,9 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 		const elmStrs = []
 
 		for (let i = 0; i < lst.length; i += 2) {
-			keys.push(lst[i])
 			elmStrs.push(lst[M_ELMSTRS][i], lst[M_ELMSTRS][i + 1])
 		}
 
-		map[M_KEYS] = keys
 		map[M_ELMSTRS] = elmStrs
 		map[M_DELIMITERS] = lst[M_DELIMITERS]
 	}
@@ -455,7 +452,7 @@ export function findExpByRange(
 
 		let offset = 1 // length of '{'
 
-		const keys = exp[M_KEYS]
+		const keys = Object.keys(exp)
 		const elmStrs = exp[M_ELMSTRS]
 		const delimiters = exp[M_DELIMITERS]
 
@@ -521,7 +518,6 @@ export function reconstructTree(exp: MalVal) {
 	} else {
 		if (isMap(exp)) {
 			const keys = Object.keys(exp)
-			exp[M_KEYS] = keys
 			keys.forEach((key, i) => {
 				const e = exp[key]
 				if (isNode(e)) {
@@ -567,14 +563,10 @@ export default function readStr(str: string, saveStr = true): MalVal {
 				exp[M_OUTER_INDEX] = index
 			}
 
-			if (isMap(exp) && !(M_KEYS in exp)) {
-				exp[M_KEYS] = Object.keys(exp)
-			}
-
 			const children: MalVal[] | null = Array.isArray(exp)
 				? exp
 				: isMap(exp)
-				? exp[M_KEYS].map(k => exp[k])
+				? Object.keys(exp).map(k => exp[k])
 				: null
 
 			if (children) {
