@@ -9,20 +9,27 @@ hotkeys('*', {keyup: true, keydown: true}, (e: KeyboardEvent) => {
 		return
 	}
 
-	const code = keycode(e)
+	let code = keycode(e)
+
+	if (code.includes('command')) {
+		code = 'ctrl'
+	}
+
 	if (code in state) {
 		state[code].value = e.type === 'keydown'
 	}
 })
 
 export default function useKeyboardState() {
-	state = toRefs(
-		reactive({
-			shift: false,
-			alt: false,
-			ctrl: false,
-		})
-	)
+	if (!state) {
+		state = toRefs(
+			reactive({
+				shift: false,
+				alt: false,
+				ctrl: false,
+			})
+		)
+	}
 
 	return state
 }
