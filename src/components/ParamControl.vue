@@ -28,9 +28,7 @@
 							class="ParamControl__button insert"
 							tabindex="-1"
 							@click="onParamInsert(i)"
-						>
-							Insert
-						</button>
+						>Insert</button>
 					</template>
 				</td>
 			</tr>
@@ -41,9 +39,7 @@
 						class="ParamControl__button add"
 						tabindex="-1"
 						@click="onParamInsert(uiSchema.length)"
-					>
-						+ Add
-					</button>
+					>+ Add</button>
 				</td>
 			</tr>
 		</template>
@@ -61,6 +57,7 @@ import {
 	symbolFor,
 	cloneExp,
 	keywordFor,
+	isNode,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
@@ -138,16 +135,18 @@ export default defineComponent({
 			const meta = fnInfo.value.meta
 			const malSchema = getMapValue(meta, 'params')
 
+			if (!isNode(malSchema)) {
+				return undefined
+			}
+
 			// Convert to JS Object
-			const schema = convertMalNodeToJSObject(malSchema)
+			let schema = convertMalNodeToJSObject(malSchema)
 
 			// Add label
-			const labeledSchema = generateSchemaParamLabel(
-				schema as any,
-				fnInfo.value.fn as any
-			)
-
-			return labeledSchema
+			if (Array.isArray(schema)) {
+				schema = generateSchemaParamLabel(schema as any, fnInfo.value.fn as any)
+			}
+			return schema
 		})
 
 		// Vector variadic
@@ -170,10 +169,13 @@ export default defineComponent({
 
 		// UISchema
 		const uiSchema = computed(() => {
+			if (!schema.value) {
+				return undefined
+			}
 			try {
 				return generateUISchemaParams(schema.value, params.value)
 			} catch (e) {
-				console.log(e)
+				console.error(e)
 				return undefined
 			}
 		})
@@ -326,8 +328,8 @@ export default defineComponent({
 				transform translateY(-50%)
 
 		&.add
+			padding-top 0.2rem
 			height $button-height
-			padding-top .2rem
 			border-radius 2px
 			background var(--button)
 			color var(--background)
