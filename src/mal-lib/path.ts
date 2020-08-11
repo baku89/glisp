@@ -59,7 +59,7 @@ const PaperPathCaches = new WeakMap<PathType, paper.CompoundPath>()
 
 function createPaperPath(path: PathType): paper.CompoundPath {
 	if (PaperPathCaches.has(path)) {
-		return PaperPathCaches.get(path) as paper.Path
+		return PaperPathCaches.get(path) as paper.CompoundPath
 	}
 
 	if (path[0].toString().startsWith(K_PATH)) {
@@ -69,30 +69,6 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 	// const paperPath = new paper.Path()
 	const svgpath = getSVGPathData(path)
 	const paperPath = new paper.CompoundPath(svgpath)
-
-	// for (let i = 0; i < path.length; i++) {
-	// 	switch (path[i]) {
-	// 		case K_M:
-	// 			paperPath.moveTo(new paper.Point(path[i + 1] as number[]))
-	// 			i++
-	// 			break
-	// 		case K_L:
-	// 			paperPath.lineTo(new paper.Point(path[i + 1] as number[]))
-	// 			i++
-	// 			break
-	// 		case K_C:
-	// 			paperPath.cubicCurveTo(
-	// 				new paper.Point(path[i + 1] as number[]),
-	// 				new paper.Point(path[i + 2] as number[]),
-	// 				new paper.Point(path[i + 3] as number[])
-	// 			)
-	// 			i += 3
-	// 			break
-	// 		case K_Z:
-	// 			paperPath.closePath()
-	// 			break
-	// 	}
-	// }
 
 	PaperPathCaches.set(path, paperPath)
 	return paperPath
@@ -109,7 +85,9 @@ const canvasContext = (() => {
 	return ctx
 })()
 
-function getMalPathFromPaper(_path: paper.Path | paper.PathItem): PathType {
+function getMalPathFromPaper(
+	_path: paper.CompoundPath | paper.PathItem
+): PathType {
 	const d = _path ? _path.pathData : ''
 
 	const path: PathType = createEmptyPath()
