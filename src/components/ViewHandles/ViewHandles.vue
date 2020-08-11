@@ -5,25 +5,25 @@
 				<defs>
 					<marker
 						id="arrow-x"
-						viewBox="0 0 10 10"
-						refX="10"
-						refY="5"
+						markerHeight="10"
 						markerUnits="strokeWidth"
 						markerWidth="10"
-						markerHeight="10"
 						orient="auto-start-reverse"
+						refX="10"
+						refY="5"
+						viewBox="0 0 10 10"
 					>
 						<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
 					</marker>
 					<marker
 						id="arrow-y"
-						viewBox="0 0 10 10"
-						refX="10"
-						refY="5"
+						markerHeight="10"
 						markerUnits="strokeWidth"
 						markerWidth="10"
-						markerHeight="10"
 						orient="auto-start-reverse"
+						refX="10"
+						refY="5"
+						viewBox="0 0 10 10"
 					>
 						<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
 					</marker>
@@ -33,109 +33,89 @@
 					<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
 				</g>
 				<g
+					:transform="transformStyle"
 					class="ViewHandles__gnomon"
 					v-if="handleCallbacks"
-					:transform="transformStyle"
 				>
-					<path class="stroke axis-x" marker-end="url(#arrow-x)" d="M 0 0 H 200" />
-					<path class="stroke axis-y" marker-end="url(#arrow-y)" d="M 0 0 V 200" />
+					<path class="stroke axis-x" d="M 0 0 H 200" marker-end="url(#arrow-x)" />
+					<path class="stroke axis-y" d="M 0 0 V 200" marker-end="url(#arrow-y)" />
 				</g>
 			</svg>
 		</Portal>
 		<svg class="ViewHandles__handles">
-			<path
-				class="stroke"
-				v-if="selectedPath"
-				:d="selectedPath"
-				:transform="`matrix(${transform.join(' ')})`"
-			/>
-			<g
-				v-for="({type, transform, yTransform, path, cls, guide},
-				i) in handles"
-				:key="i"
-				:class="cls"
-				:hoverrable="draggingIndex === null && !guide"
-				:dragging="draggingIndex === i"
-				:transform="transform"
-				@mousedown="!guide && onMousedown(i, $event)"
-			>
-				<template v-if="type === 'path'">
-					<path class="stroke hover-zone" :d="path" />
-					<path class="stroke display" :d="path" />
-				</template>
+			<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
 				<path
-					v-else-if="type === 'dia'"
-					class="fill display"
-					d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
+					:d="selectedPath[selectedIndex]"
+					:transform="`matrix(${transform[selectedIndex].join(' ')})`"
+					class="stroke"
+					v-if="selectedPath[selectedIndex]"
 				/>
-				<template v-else>
-					<path
-						v-if="type === 'arrow'"
-						class="stroke display"
-						d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
-					/>
-					<template v-else-if="type === 'translate'">
-						<path class="stroke display" d="M 12 0 H -12" />
-						<path class="stroke display" :transform="yTransform" d="M 0 12 V -12" />
+				<g
+					:class="cls"
+					:dragging="draggingIndex && draggingIndex[0] === selectedIndex && draggingIndex[1] === handleIndex"
+					:hoverrable="draggingIndex === null && !guide"
+					:key="handleIndex"
+					:transform="transform"
+					@mousedown="!guide && onMousedown([selectedIndex, handleIndex], $event)"
+					v-for="({type, transform, yTransform, path, cls, guide}, handleIndex) in handles[selectedIndex]"
+				>
+					<template v-if="type === 'path'">
+						<path :d="path" class="stroke hover-zone" />
+						<path :d="path" class="stroke display" />
 					</template>
-					<circle class="fill display" :class="cls" cx="0" cy="0" :r="rem * 0.5" />
-				</template>
+					<path
+						class="fill display"
+						d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
+						v-else-if="type === 'dia'"
+					/>
+					<template v-else>
+						<path
+							class="stroke display"
+							d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
+							v-if="type === 'arrow'"
+						/>
+						<template v-else-if="type === 'translate'">
+							<path class="stroke display" d="M 12 0 H -12" />
+							<path :transform="yTransform" class="stroke display" d="M 0 12 V -12" />
+						</template>
+						<circle :class="cls" :r="rem * 0.5" class="fill display" cx="0" cy="0" />
+					</template>
+				</g>
 			</g>
 		</svg>
 	</div>
 </template>
 
 <script lang="ts">
-import {
-	MalVal,
-	keywordFor as K,
-	createList as L,
-	isMap,
-	MalSeq,
-	MalMap,
-	MalFunc,
-	isVector,
-	getEvaluated,
-	malEquals,
-} from '@/mal/types'
+import {MalSeq, MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
-import {
-	getFnInfo,
-	FnInfoType,
-	getMapValue,
-	reverseEval,
-	computeExpTransform,
-	copyDelimiters,
-	replaceExp,
-} from '@/mal/utils'
 import {NonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
 import {
 	defineComponent,
 	computed,
-	reactive,
-	toRefs,
-	onBeforeMount,
 	ref,
 	SetupContext,
 	Ref,
 	toRef,
 } from '@vue/composition-api'
 import AppScope from '@/scopes/app'
-import {convertMalNodeToJSObject} from '@/mal/reader'
 import useHandle from './use-handle'
 
 interface Props {
-	exp: NonReactive<MalSeq> | null
+	activeExp: NonReactive<MalSeq> | null
+	selectedExp: NonReactive<MalNode>[]
 	viewTransform: mat2d
 }
 
 export default defineComponent({
 	props: {
-		exp: {
+		activeExp: {
 			required: true,
 			// validator: v => v instanceof NonReactive,
+		},
+		selectedExp: {
+			required: true,
 		},
 		viewTransform: {
 			type: Float32Array,
@@ -150,7 +130,7 @@ export default defineComponent({
 		)
 
 		const handleData = useHandle(
-			toRef(props, 'exp'),
+			toRef(props, 'selectedExp'),
 			toRef(props, 'viewTransform'),
 			el,
 			context
@@ -250,68 +230,68 @@ export default defineComponent({
 
 <style lang="stylus" scoped>
 .ViewHandles
-	position relative
-	overflow hidden
-	height 100%
+  position relative
+  overflow hidden
+  height 100%
 
-	// Portal
-	&__axes-portal
-		position relative
-		overflow hidden
-		width 100%
-		height 100%
+  // Portal
+  &__axes-portal
+    position relative
+    overflow hidden
+    width 100%
+    height 100%
 
-	&__axis
-		stroke var(--guide) !important
-		stroke-dasharray 1 4
+  &__axis
+    stroke var(--guide) !important
+    stroke-dasharray 1 4
 
-	// Handles
-	&__handles
-		position relative
-		overflow hidden
-		width 100%
-		height 100%
+  // Handles
+  &__handles
+    position relative
+    overflow hidden
+    width 100%
+    height 100%
 
-	// Styles
-	&, &__axes-portal
-		.fill, .stroke
-			stroke var(--highlight)
-			stroke-width 1
-			vector-effect non-scaling-stroke
+  // Styles
+  &, &__axes-portal
+    .fill, .stroke
+      stroke var(--highlight)
+      stroke-width 1
+      vector-effect non-scaling-stroke
 
-		.fill
-			fill var(--background)
+    .fill
+      fill var(--background)
 
-		.stroke
-			stroke var(--highlight)
-			vector-effect non-scaling-stroke
-			fill none
+    .stroke
+      stroke var(--highlight)
+      vector-effect non-scaling-stroke
+      fill none
 
-		// Classes
-		.dashed
-			stroke-dasharray 3 2
+    // Classes
+    .dashed
+      stroke-dasharray 3 2
 
-		.axis-x, .axis-y
-			opacity 0.5
+    .axis-x, .axis-y
+      opacity 0.5
 
-		.axis-x, .axis-x .display
-			stroke var(--red) !important
+    .axis-x, .axis-x .display
+      stroke var(--red) !important
 
-		.axis-y, .axis-y .display
-			stroke var(--green) !important
+    .axis-y, .axis-y .display
+      stroke var(--green) !important
 
-	// Hover behavior
-	*[hoverrable]:hover, *[dragging]
-		.stroke.display
-			stroke-width 3
+  // Hover behavior
+  *[hoverrable]:hover, *[dragging]
+    .stroke.display
+      stroke-width 3
 
-		.fill.display
-			fill var(--highlight)
+    .fill.display
+      fill var(--highlight)
 
-		&.dashed
-			stroke-dasharray none
+    &.dashed
+      stroke-dasharray none
 
-	e, .hover-zone
-		stroke transparent
-		stroke-width 20
+  e, .hover-zone
+    stroke transparent
+    stroke-width 20
 </style>

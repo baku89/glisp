@@ -45,7 +45,8 @@
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
-					:exp="activeExp"
+					:activeExp="activeExp"
+					:selectedExp="selectedExp"
 					:viewTransform.sync="viewHandlesTransform"
 					@tag-history="tagExpHistory('undo')"
 				/>
@@ -68,7 +69,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
