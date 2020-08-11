@@ -141,6 +141,14 @@
              :drag (fn {:pos pos} [pos])}}
   [x] x)
 
+(defn vec2/size
+  {:doc "Creates vec2 representing size"
+   :params [{:type "number"}
+            {:type "number"}
+            {:type "any"}]}
+  [x y ratio]
+  [x y])
+
 (defn vec2?
   {:doc "Checks if x is vec2"
    :params [{:type "any"}]
