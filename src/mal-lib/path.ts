@@ -548,21 +548,13 @@ function trimByLength(start: number, end: number, path: PathType) {
 		return getMalPathFromPaper(paperPath)
 	} else {
 		const childPath = paperPath.children[0] as paper.Path
-
 		const cloned = childPath.clone()
 
-		const l = paperPath.length
-
 		const trimmed = cloned.splitAt(start)
-
-		console.log('before=', l, 'after=', paperPath.length)
-
 		if (!trimmed) {
 			return createEmptyPath()
 		}
-
 		trimmed.splitAt(end - start)
-
 		if (!trimmed) {
 			return createEmptyPath()
 		}
