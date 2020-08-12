@@ -143,11 +143,23 @@
 
 (defn vec2/size
   {:doc "Creates vec2 representing size"
-   :params [{:type "number"}
-            {:type "number"}
-            {:type "any"}]}
-  [x y ratio]
-  [x y])
+   :params [{:label "Size" :type "vec2"}
+            {:type "any"}]
+   :inverse (fn {:return [x y] :params [size ratio]}
+              (if (or (= ratio false) (= ratio 0))
+                [[x y] ratio]
+                (let [x-changed (!= x (.x size))
+                      y-changed (!= y (.y size))]
+                  (cond (and x-changed (not y-changed))
+                        [[x (* x ratio)] ratio]
+
+                        (and (not x-changed) y-changed)
+                        [[(/ y ratio) y] ratio]
+
+                        :else
+                        [[x y] ratio]))))}
+  [size ratio]
+  size)
 
 (defn vec2?
   {:doc "Checks if x is vec2"
