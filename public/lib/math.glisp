@@ -145,11 +145,11 @@
   {:doc "Creates vec2 representing size"
    :params [{:label "Size" :type "vec2"}
             {:type "any"}]
-   :inverse (fn {:return [x y] :params [size ratio]}
+   :inverse (fn {:return [x y] :params [[ox oy] ratio]}
               (if (or (= ratio false) (= ratio 0))
                 [[x y] ratio]
-                (let [x-changed (!= x (.x size))
-                      y-changed (!= y (.y size))]
+                (let [x-changed (!= x ox)
+                      y-changed (!= y oy)]
                   (cond (and x-changed (not y-changed))
                         [[x (* x ratio)] ratio]
 
@@ -157,7 +157,9 @@
                         [[(/ y ratio) y] ratio]
 
                         :else
-                        [[x y] ratio]))))}
+                        (let [sd (spy (max (/ x ox) (/ y oy)))]
+                          [[(* x sd) (* y sd)] ratio])))))
+   :return {:type "vec2"}}
   [size ratio]
   size)
 
@@ -788,6 +790,11 @@
 (defn rect2d/bottom-right [r] (vec2/+ (rect2d/point r) (rect2d/size r)))
 
 (defn rect2d/point-size
+  {:doc "Creates a rect2d from top-left corner and size"
+   :params [{:type "vec2"}
+            {:type "vec2" :ui "size2d"}]
+   :inverse (fn {:return [x y w h]} [[x y] [w h]])
+   :return {:type "rect2d"}}
   [point size]
   `[~@point ~@size])
 
