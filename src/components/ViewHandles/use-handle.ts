@@ -91,8 +91,12 @@ export default function useHandle(
 		fnInfo: computed(() => selectedExp.value.map(e => getFnInfo(e.value))),
 		handleCallbacks: computed(() =>
 			data.fnInfo.map(fi => {
-				const ret = getMapValue(fi.meta, 'handles')
-				return isMap(ret) ? ret : null
+				if (!fi) {
+					return undefined
+				} else {
+					const ret = getMapValue(fi.meta, 'handles')
+					return isMap(ret) ? ret : undefined
+				}
 			})
 		),
 		params: computed(() =>
