@@ -44,6 +44,7 @@ import {
 	MalType,
 	createList as L,
 	keywordFor as K,
+	MalFunc,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
@@ -102,7 +103,7 @@ export default defineComponent({
 			if (display.value.mode !== 'exp') {
 				return getFn(props.value.value)
 			} else {
-				return null
+				return undefined
 			}
 		})
 
@@ -137,13 +138,15 @@ export default defineComponent({
 
 		function onInput(value: number) {
 			let newExp: MalVal = value
+			let rawValue: number = value
 			if (display.value.mode === 'unit') {
 				const unitVal = reverseEval(value, (props.value.value as MalVal[])[1])
 				newExp = L((props.value.value as MalVal[])[0], unitVal)
+				rawValue = fn.value ? ((fn as any).value(value) as number) : value
 			} else if (display.value.mode === 'exp') {
 				newExp = reverseEval(value, props.value.value)
 			}
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', nonReactive(newExp), rawValue)
 		}
 
 		return {
