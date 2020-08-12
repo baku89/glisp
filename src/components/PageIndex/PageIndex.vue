@@ -132,6 +132,7 @@ import useAppCommands from './use-app-commands'
 import useURLParser from './use-url-parser'
 import useCompactScrollbar from './use-compact-scrollbar'
 import useExpHistory from './use-exp-history'
+import {reconstructTree} from '@/mal/reader'
 
 interface Data {
 	exp: NonReactive<MalNode>
@@ -295,6 +296,8 @@ export default defineComponent({
 			if (pushHistory) {
 				pushExpHistory(exp)
 			}
+			// NOTE: might be redundant
+			reconstructTree(exp.value)
 			data.exp = exp
 			watchExpOnReplace(exp.value, onReplaced)
 
