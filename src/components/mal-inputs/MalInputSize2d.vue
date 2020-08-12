@@ -24,11 +24,6 @@
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<button
-				class="MalInputSize2d__link-button fas"
-				:class="{'fa-link': ratio !== false, 'fa-unlink': ratio === false}"
-				@click="onClickLinkButton"
-			/>
 		</template>
 		<template v-else>
 			<InputNumber
@@ -44,6 +39,11 @@
 				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
+		<button
+			class="MalInputSize2d__link-button fas"
+			:class="{'fa-link': ratio !== false, 'fa-unlink': ratio === false}"
+			@click="onClickLinkButton"
+		/>
 	</div>
 </template>
 
@@ -165,10 +165,34 @@ export default defineComponent({
 			context.emit('input', nonReactive(newExp))
 		}
 
-		function onInputEvaluatedElement(i: number, v: number) {
-			const value = cloneExp(exp.value.value as MalSeq)
-			value[i] = v
-			const newExp = reverseEval(value, exp.value.value)
+		function onInputEvaluatedElement(index: number, v: number) {
+			const newSize = [...evaluated.value]
+			const prevValue = newSize[index]
+			newSize[index] = v
+
+			const r = evaluated.value[1] / evaluated.value[0]
+
+			if (ratio.value !== false) {
+				const anotherIndex = index === 0 ? 1 : 0
+
+				let anotherValue: number = newSize[anotherIndex]
+				if (r === 0) {
+					anotherValue = anotherIndex === 0 ? anotherValue : 0
+				} else if (Math.abs(r) === Infinity) {
+					anotherValue = anotherIndex === 0 ? 0 : anotherValue
+				} else {
+					anotherValue = anotherIndex === 0 ? (1 / r) * v : r * v
+				}
+				newSize[anotherIndex] = anotherValue
+			}
+
+			const newSizeExp = reverseEval(newSize, size.value.value)
+
+			const newExp = createList(
+				symbolFor('vec2/size'),
+				newSizeExp,
+				ratio.value === false ? false : r
+			)
 			context.emit('input', nonReactive(newExp))
 		}
 
