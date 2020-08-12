@@ -372,8 +372,8 @@
 (annotate-fn!
  path/trim
  {:doc "Trims a path by a normalized range"
-  :params [{:label "Start" :type "number" :validator clamp01}
-           {:label "End" :type "number" :validator clamp01}
+  :params [{:label "Start" :type "number" :ui "slider" :validator clamp01}
+           {:label "End" :type "number" :ui "slider" :validator clamp01}
            {:label "Path" :type "path"}]
   :return {:type "path"}
   :handles {:draw (fn {:params [start end path]
@@ -389,6 +389,14 @@
                     (case id
                       :start {:replace [0 (path/nearest-offset p path)]}
                       :end {:replace [1 (path/nearest-offset p path)]}))}})
+
+(annotate-fn!
+ path/trim-by-length
+ {:doc "Trims a path by offset lengths"
+  :params [{:label "Start" :type "number"}
+           {:label "End" :type "number"}
+           {:label "Path" :type "path"}]
+  :return {:type "path"}})
 
 (annotate-fn!
  path/position-at
@@ -498,3 +506,10 @@
   :params [{:label "Pos" :type "vec2"}
            {:label "Path" :type "path"}]
   :return {:type "boolean"}})
+
+(annotate-fn!
+ path/align-at-length
+ {:doc "Returns a matrix composed of tangent and position at the point of `offset` in `path`"
+  :params [{:label "Offset" :type "number"}
+           {:label "Path" :type "path"}]
+  :return {:type "mat2d"}})

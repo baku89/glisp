@@ -66,7 +66,6 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 		path = path.slice(1)
 	}
 
-	// const paperPath = new paper.Path()
 	const svgpath = getSVGPathData(path)
 	const paperPath = new paper.CompoundPath(svgpath)
 
@@ -115,6 +114,30 @@ function getMalPathFromPaper(
 		})
 
 	return path
+}
+
+function getChildPaperPathByLength(path: paper.CompoundPath, offset: number) {
+	offset = clamp(offset, 0, path.length)
+
+	let totalLength = 0
+
+	const childPath = (path.children as paper.Path[]).find(p => {
+		if (offset - totalLength <= p.length) {
+			return true
+		} else {
+			totalLength += p.length
+			return false
+		}
+	})
+
+	if (!childPath) {
+		return undefined
+	}
+
+	return {
+		offset: offset - totalLength,
+		path: childPath,
+	}
 }
 
 function getBezier(points: Vec2[]) {
@@ -245,40 +268,30 @@ function pathTransform(transform: mat2d, path: PathType) {
 }
 
 // Get Path Property
-type NormalizedFunctionType = (
-	t: number,
-	path: PathType,
-	paperPath?: paper.Path
-) => MalVal
-function convertToNormalizedFunction(f: NormalizedFunctionType) {
+type LengthBasedFunctionType = (t: number, path: PathType) => MalVal
+function convertToNormalizedFunction(f: LengthBasedFunctionType) {
 	return (t: number, path: PathType) => {
 		const paperPath = createPaperPath(path)
-		return f(t * paperPath.length, path, paperPath)
+		return f(t * paperPath.length, path)
 	}
 }
 
 function getPropertyAtLength(
 	offset: number,
 	path: PathType,
-	methodName: string,
-	paperPath?: paper.Path
+	methodName: 'getTangentAt' | 'getLocationAt' | 'getNormalAt'
 ) {
-	if (!paperPath) {
-		paperPath = createPaperPath(path)
-	}
-	offset = clamp(offset, 0, paperPath.length)
+	const paperPath = createPaperPath(path)
 
-	if (paperPath instanceof paper.CompoundPath) {
-		for (const child of paperPath.children as paper.Path[]) {
-			if (offset <= child.length) {
-				// Might be buggy for a deep-nested compound path
-				return (child as any)[methodName](offset)
-			}
-			offset -= child.length
-		}
-	} else {
-		return (paperPath as any)[methodName](offset)
+	const ret = getChildPaperPathByLength(paperPath, offset)
+
+	if (!ret) {
+		return undefined
 	}
+
+	const {offset: childOffset, path: childPath} = ret
+
+	return childPath[methodName](childOffset)
 }
 
 function normalAtLength(
@@ -286,12 +299,7 @@ function normalAtLength(
 	path: PathType,
 	paperPath?: paper.Path
 ) {
-	const ret = getPropertyAtLength(
-		offset,
-		path,
-		'getNormalAt',
-		paperPath
-	) as paper.Point
+	const ret = getPropertyAtLength(offset, path, 'getNormalAt') as paper.Point
 	return [ret.x, ret.y]
 }
 
@@ -303,8 +311,7 @@ function positionAtLength(
 	const {point} = getPropertyAtLength(
 		offset,
 		path,
-		'getLocationAt',
-		paperPath
+		'getLocationAt'
 	) as paper.CurveLocation
 	return [point.x, point.y]
 }
@@ -314,12 +321,7 @@ function tangentAtLength(
 	path: PathType,
 	paperPath?: paper.Path
 ) {
-	const ret = getPropertyAtLength(
-		offset,
-		path,
-		'getTangentAt',
-		paperPath
-	) as paper.Point
+	const ret = getPropertyAtLength(offset, path, 'getTangentAt') as paper.Point
 	return [ret.x, ret.y]
 }
 
@@ -327,30 +329,30 @@ function angleAtLength(offset: number, path: PathType, paperPath?: paper.Path) {
 	const tangent = getPropertyAtLength(
 		offset,
 		path,
-		'getTangentAt',
-		paperPath
+		'getTangentAt'
 	) as paper.Point
 	return tangent.angleInRadians
 }
 
-function aligningMatrixAtLength(
-	offset: number,
-	path: PathType,
-	paperPath?: paper.Path
-) {
-	if (!paperPath) {
-		paperPath = createPaperPath(path)
-	}
-	offset = clamp(offset, 0, paperPath.length)
+function alignMatrixAtLength(offset: number, path: PathType): MalVal {
+	const paperPath = createPaperPath(path)
 
-	const tangent = paperPath.getTangentAt(offset)
-	const {point} = paperPath.getLocationAt(offset)
+	const ret = getChildPaperPathByLength(paperPath, offset)
+
+	if (!ret) {
+		return mat2d.create() as MalVal
+	}
+
+	const {offset: childOffset, path: childPath} = ret
+
+	const tangent = childPath.getTangentAt(childOffset)
+	const {point} = childPath.getLocationAt(childOffset)
 
 	const mat = mat2d.fromTranslation(mat2d.create(), [point.x, point.y])
 
 	mat2d.rotate(mat, mat, tangent.angleInRadians)
 
-	return [...mat]
+	return mat as MalVal
 }
 
 // Iteration
@@ -521,23 +523,16 @@ function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
 /**
  * Trim path by relative length from each ends
  */
-function trimByLength(
-	start: number,
-	end: number,
-	malPath: PathType,
-	path: null | paper.Path
-) {
+function trimByLength(start: number, end: number, path: PathType) {
 	// In case no change
 	if (start < EPSILON && end < EPSILON) {
-		return malPath
+		return path
 	}
 
-	if (!path) {
-		path = createPaperPath(malPath)
-	}
+	const paperPath = createPaperPath(path)
 
 	// Convert end parameter to a distance from the beginning of path
-	const length = path.length
+	const length = paperPath.length
 	end = length - end
 
 	// Make positiove
@@ -549,38 +544,45 @@ function trimByLength(
 		return createEmptyPath()
 	}
 
-	// Make Open
-	if (path.closed) {
-		path.splitAt(0)
+	if (paperPath.children.length > 1) {
+		return getMalPathFromPaper(paperPath)
+	} else {
+		const childPath = paperPath.children[0] as paper.Path
+
+		const cloned = childPath.clone()
+
+		const l = paperPath.length
+
+		const trimmed = cloned.splitAt(start)
+
+		console.log('before=', l, 'after=', paperPath.length)
+
+		if (!trimmed) {
+			return createEmptyPath()
+		}
+
+		trimmed.splitAt(end - start)
+
+		if (!trimmed) {
+			return createEmptyPath()
+		}
+
+		return getMalPathFromPaper(trimmed)
 	}
-
-	const trimmed = path.splitAt(start)
-
-	if (!trimmed) {
-		return createEmptyPath()
-	}
-
-	trimmed.splitAt(end - start)
-
-	if (!trimmed) {
-		return createEmptyPath()
-	}
-
-	return getMalPathFromPaper(trimmed)
 }
 
 /**
  * Trim path by normalized T
  */
-function pathTrim(t1: number, t2: number, malPath: PathType) {
-	const path = createPaperPath(malPath)
-	const length = path.length
+function pathTrim(t1: number, t2: number, path: PathType) {
+	const paperPath = createPaperPath(path)
+	const length = paperPath.length
 	if (t1 > t2) {
 		;[t1, t2] = [t2, t1]
 	}
 	const start = t1 * length,
 		end = (1 - t2) * length
-	return trimByLength(start, end, malPath, path)
+	return trimByLength(start, end, path)
 }
 
 const canvasCtx = (() => {
@@ -744,8 +746,8 @@ const Exports = [
 	['path/tangent-at', convertToNormalizedFunction(tangentAtLength)],
 	['path/angle-at-length', angleAtLength],
 	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
-	['path/align-at-length', aligningMatrixAtLength],
-	['path/align-at', convertToNormalizedFunction(aligningMatrixAtLength)],
+	['path/align-at-length', alignMatrixAtLength],
+	['path/align-at', convertToNormalizedFunction(alignMatrixAtLength)],
 
 	// Boolean
 	['path/unite', createPolynominalBooleanOperator('unite')],
