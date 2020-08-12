@@ -20,7 +20,7 @@
 				class="MalInputSize2d__el"
 				:value="nonReactiveValues[1]"
 				:compact="true"
-				@input="(...$event) => onInputElement(0, ...$event)"
+				@input="(...$event) => onInputElement(1, ...$event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
