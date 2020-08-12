@@ -277,7 +277,7 @@
 (defn path/ellipse
   {:doc "Generates an ellipse path"
    :params [{:type "vec2"}
-            {:type "vec2"}]
+            {:type "vec2" :ui "size2d"}]
    :handles {:draw (fn {:params [center [rx ry]]
                         :return path}
                      [{:type "arrow" :id :radius-x
