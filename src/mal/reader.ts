@@ -131,7 +131,7 @@ function readAtom(reader: Reader) {
 			return true
 		} else if (token === 'false') {
 			return false
-		} else if (/^NaN$|^\-?Infinity$/.test(token)) {
+		} else if (/^NaN$|^-?Infinity$/.test(token)) {
 			return parseFloat(token)
 		} else {
 			// symbol
