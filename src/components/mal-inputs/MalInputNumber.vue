@@ -1,6 +1,7 @@
 <template>
 	<div class="MalInputNumber">
 		<MalExpButton
+			class="MalInputNumber__exp-button"
 			v-if="display.isExp && compact"
 			:value="value"
 			:compact="true"
@@ -163,9 +164,15 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .MalInputNumber
+	position relative
 	display flex
 	align-items center
 	line-height $input-height
+
+	&__exp-button
+		position absolute
+		left 0.4rem
+		z-index 200
 
 	&__unit
 		padding-left 0.3em

@@ -1,6 +1,7 @@
 <template>
 	<div class="MalInputSize2d">
 		<MalExpButton
+			class="MalInputSize2d__exp-button"
 			v-if="!isValueSeparated"
 			:value="size"
 			:compact="true"
@@ -206,7 +207,7 @@ export default defineComponent({
 	align-items center
 	line-height $input-height
 
-	&__el
+	&__el, &__exp-button
 		margin-right 0.6rem
 
 	&__link-button

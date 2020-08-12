@@ -1,6 +1,7 @@
 <template>
 	<div class="MalInputVec2">
 		<MalExpButton
+			class="MalInputVec2__exp-button"
 			v-if="!isValueSeparated"
 			:value="value"
 			:compact="true"
@@ -106,6 +107,6 @@ export default defineComponent({
 	align-items center
 	line-height $input-height
 
-	&__el
+	&__el, &__exp-button
 		margin-right 0.6rem
 </style>
