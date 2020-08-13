@@ -37,8 +37,16 @@
 					class="ViewHandles__gnomon"
 					v-if="handleCallbacks"
 				>
-					<path class="stroke axis-x" d="M 0 0 H 200" marker-end="url(#arrow-x)" />
-					<path class="stroke axis-y" d="M 0 0 V 200" marker-end="url(#arrow-y)" />
+					<path
+						class="stroke axis-x"
+						d="M 0 0 H 200"
+						marker-end="url(#arrow-x)"
+					/>
+					<path
+						class="stroke axis-y"
+						d="M 0 0 V 200"
+						marker-end="url(#arrow-y)"
+					/>
 				</g>
 			</svg>
 		</Portal>
@@ -52,12 +60,19 @@
 				/>
 				<g
 					:class="cls"
-					:dragging="draggingIndex && draggingIndex[0] === selectedIndex && draggingIndex[1] === handleIndex"
+					:dragging="
+						draggingIndex &&
+						draggingIndex[0] === selectedIndex &&
+						draggingIndex[1] === handleIndex
+					"
 					:hoverrable="draggingIndex === null && !guide"
 					:key="handleIndex"
 					:transform="transform"
-					@mousedown="!guide && onMousedown([selectedIndex, handleIndex], $event)"
-					v-for="({type, transform, yTransform, path, cls, guide}, handleIndex) in handles[selectedIndex]"
+					@mousedown="
+						!guide && onMousedown([selectedIndex, handleIndex], $event)
+					"
+					v-for="({type, transform, yTransform, path, cls, guide},
+					handleIndex) in handles[selectedIndex]"
 				>
 					<template v-if="type === 'path'">
 						<path :d="path" class="stroke hover-zone" />
@@ -76,9 +91,19 @@
 						/>
 						<template v-else-if="type === 'translate'">
 							<path class="stroke display" d="M 12 0 H -12" />
-							<path :transform="yTransform" class="stroke display" d="M 0 12 V -12" />
+							<path
+								:transform="yTransform"
+								class="stroke display"
+								d="M 0 12 V -12"
+							/>
 						</template>
-						<circle :class="cls" :r="rem * 0.5" class="fill display" cx="0" cy="0" />
+						<circle
+							:class="cls"
+							:r="rem * 0.5"
+							class="fill display"
+							cx="0"
+							cy="0"
+						/>
 					</template>
 				</g>
 			</g>

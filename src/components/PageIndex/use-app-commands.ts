@@ -20,6 +20,7 @@ import {
 	getEvaluated,
 	getType,
 	isNode,
+	symbolFor,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -47,6 +48,7 @@ export default function useAppCommands(
 	callbacks: {
 		updateExp: (exp: NonReactive<MalNode>) => void
 		setActiveExp: (exp: NonReactive<MalNode> | null) => any
+		setSelectedExp: (exp: NonReactive<MalNode>[]) => void
 	}
 ) {
 	AppScope.def('expand-selected', () => {
@@ -60,21 +62,6 @@ export default function useAppCommands(
 		}
 
 		replaceExp(data.activeExp.value, expanded)
-
-		return true
-	})
-
-	AppScope.def('group-selected', () => {
-		if (!data.activeExp) {
-			throw new MalError('No selection')
-		}
-
-		const exp = data.activeExp.value
-		const newExp = L(S('g'), {}, exp)
-
-		replaceExp(data.activeExp.value, newExp)
-
-		reconstructTree(newExp)
 
 		return true
 	})
@@ -289,14 +276,33 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('delete-selected', () => {
-		if (!data.activeExp) {
-			throw new MalError('No selection')
+		for (const _exp of data.selectedExp) {
+			const exp = getUIAnnotationExp(_exp.value)
+			deleteExp(exp)
 		}
-		const exp = getUIAnnotationExp(data.activeExp.value)
 
-		deleteExp(exp)
+		callbacks.setSelectedExp([])
 
-		callbacks.setActiveExp(null)
+		return true
+	})
+
+	AppScope.def('group-selected', () => {
+		if (data.selectedExp.length === 0) {
+			return false
+		}
+
+		const [first, ...rest] = data.selectedExp.map(e => e.value)
+
+		for (const exp of rest) {
+			deleteExp(getUIAnnotationExp(exp))
+		}
+
+		const group = L(symbolFor('g'), {}, first, ...rest)
+		reconstructTree(group)
+
+		replaceExp(first, group)
+
+		callbacks.setActiveExp(nonReactive(group))
 
 		return true
 	})

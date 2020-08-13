@@ -69,7 +69,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -432,6 +434,7 @@ export default defineComponent({
 		useAppCommands(data, {
 			updateExp,
 			setActiveExp,
+			setSelectedExp,
 		})
 		useCommandDialog(context)
 
