@@ -173,57 +173,47 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
-		if (!data.activeExp) {
-			throw new MalError('No selection')
-		}
-
-		const exp = data.activeExp.value
-
-		if (!isSeq(exp)) {
-			throw new MalError('Untransformable expression')
-		}
-
-		const fnInfo = getFnInfo(exp)
-
-		if (!fnInfo) {
-			return false
-		}
-
-		const {meta, structType} = fnInfo
-		const transformFn = getMapValue(meta, 'transform')
-
-		if (!isFunc(transformFn)) {
-			throw new MalError(
-				`Function ${
-					fnInfo.structType || printExp(exp[0])
-				} does not have transform function`
-			)
-		}
-
-		const originalParams = structType ? [exp] : exp.slice(1)
-		const payload = {
-			[K('params')]: originalParams.map(p => getEvaluated(p)),
-			[K('transform')]: xform as MalVal,
-		}
-
-		const modifier = transformFn(payload)
-		let newParams: MalVal[] | null
-
-		if (structType) {
-			newParams = modifier as MalSeq
-		} else {
-			newParams = applyParamModifier(modifier, originalParams)
-			if (!newParams) {
+		for (const {value: exp} of data.selectedExp) {
+			if (!isSeq(exp)) {
 				return false
 			}
+
+			const fnInfo = getFnInfo(exp)
+
+			if (!fnInfo) {
+				return false
+			}
+
+			const {meta, structType} = fnInfo
+			const transformFn = getMapValue(meta, 'transform')
+
+			if (!isFunc(transformFn)) {
+				return false
+			}
+
+			const originalParams = structType ? [exp] : exp.slice(1)
+			const payload = {
+				[K('params')]: originalParams.map(p => getEvaluated(p)),
+				[K('transform')]: xform as MalVal,
+			}
+
+			const modifier = transformFn(payload)
+			let newParams: MalVal[] | null
+
+			if (structType) {
+				newParams = modifier as MalSeq
+			} else {
+				newParams = applyParamModifier(modifier, originalParams)
+				if (!newParams) {
+					return false
+				}
+			}
+
+			const newExp = structType ? newParams[0] : L(exp[0], ...newParams)
+			copyDelimiters(newExp, exp)
+
+			replaceExp(exp, newExp)
 		}
-
-		const newExp = structType ? newParams[0] : L(exp[0], ...newParams)
-		reconstructTree(newExp)
-
-		copyDelimiters(newExp, data.activeExp.value)
-
-		replaceExp(data.activeExp.value, newExp)
 
 		return true
 	})
@@ -298,7 +288,6 @@ export default function useAppCommands(
 		}
 
 		const group = L(symbolFor('g'), {}, first, ...rest)
-		reconstructTree(group)
 
 		replaceExp(first, group)
 

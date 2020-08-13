@@ -481,6 +481,12 @@ export const isList = (obj: MalVal | undefined): obj is MalSeq => {
 
 export function createList(...coll: MalVal[]) {
 	;(coll as MalSeq)[M_ISLIST] = true
+	coll.forEach((child, i) => {
+		if (isNode(child)) {
+			child[M_OUTER] = coll as MalSeq
+			child[M_OUTER_INDEX] = i
+		}
+	})
 	return coll as MalSeq
 }
 
@@ -491,6 +497,15 @@ export const isVector = (obj: MalVal | undefined): obj is MalSeq => {
 		(Array.isArray(obj) && !(obj as any)[M_ISLIST]) ||
 		obj instanceof Float32Array
 	)
+}
+export function createVector(...coll: MalVal[]) {
+	coll.forEach((child, i) => {
+		if (isNode(child)) {
+			child[M_OUTER] = coll as MalSeq
+			child[M_OUTER_INDEX] = i
+		}
+	})
+	return coll as MalSeq
 }
 
 // Maps
