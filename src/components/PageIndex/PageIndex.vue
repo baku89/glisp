@@ -120,7 +120,12 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem, useCommandDialog, useHitDetector} from '@/components/use'
+import {
+	useRem,
+	useCommandDialog,
+	useHitDetector,
+	useSettingsDialog,
+} from '@/components/use'
 import AppScope from '@/scopes/app'
 import {
 	replaceExp,
@@ -437,38 +442,10 @@ export default defineComponent({
 			setSelectedExp,
 		})
 		useCommandDialog(context)
+		useSettingsDialog(context)
 
 		// Scrollbar
 		useCompactScrollbar()
-
-		// After setup, execute the app configuration code
-		AppScope.readEval(`(do
-			(register-keybind "mod+e" '(do (expand-selected) (tag-history :undo)))
-			(register-keybind "mod+p" '(select-outer))
-			(register-keybind "mod+g" '(do (group-selected) (tag-history :undo)))
-			(register-keybind "up" '(do (transform-selected (translate [0 -1])) (tag-history :undo)))
-			(register-keybind "down" '(do (transform-selected (translate [0 1])) (tag-history :undo)))
-			(register-keybind "right" '(do (transform-selected (translate [1 0])) (tag-history :undo)))
-			(register-keybind "left" '(do (transform-selected (translate [-1 0])) (tag-history :undo)))
-			(register-keybind "shift+up" '(do (transform-selected (translate [0 -10])) (tag-history :undo)))
-			(register-keybind "shift+down" '(do (transform-selected (translate [0 10])) (tag-history :undo)))
-			(register-keybind "shift+right" '(do (transform-selected (translate [10 0])) (tag-history :undo)))
-			(register-keybind "shift+left" '(do (transform-selected (translate [-10 0])) (tag-history :undo)))
-			(register-keybind "alt+up" '(do (transform-selected (translate [0 -0.1])) (tag-history :undo)))
-			(register-keybind "alt+down" '(do (transform-selected (translate [0 0.1])) (tag-history :undo)))
-			(register-keybind "alt+right" '(do (transform-selected (translate [0.1 0])) (tag-history :undo)))
-			(register-keybind "alt+left" '(do (transform-selected (translate [-0.1 0])) (tag-history :undo)))
-			(register-keybind "mod+z" '(revert-history :undo))
-			(register-keybind "mod+alt+z" '(revert-history))
-			(register-keybind "mod+s" '(download-sketch))
-			(register-keybind "backspace" '(do (delete-selected) (tag-history :undo)))
-			(register-keybind "delete" '(do (delete-selected) (tag-history :undo)))
-			(register-keybind "mod+c" '(copy-selected))
-			(register-keybind "mod+v" '(do (paste-from-clipboard) (tag-history :undo)))
-			(register-keybind "mod+x" '(do (copy-selected) (delete-selected) (tag-history :undo)))
-			(register-keybind "mod+d" '(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
-			)
-		)`)
 
 		return {
 			elHandles,
@@ -588,7 +565,7 @@ html, body
 			width $size
 			height $size
 			border 1px solid var(--comment)
-			border-radius 0.5 * $size
+			border-radius 50%
 			color var(--comment)
 			font-size 1.3rem
 			line-height 2.2rem
