@@ -1,5 +1,5 @@
 <template>
-	<div class="GlispEditor" ref="rootEl">
+	<div class="GlispEditor">
 		<div class="GlispEditor__editor" ref="editorEl" :style="cssStyle" />
 	</div>
 </template>
