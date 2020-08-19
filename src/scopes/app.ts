@@ -1,7 +1,6 @@
 import Scope from '@/mal/scope'
 import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
-import hotkeys from 'hotkeys-js'
 import {MalVal, isList, MalError} from '@/mal/types'
 import ConsoleScope from './console'
 
