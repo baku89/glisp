@@ -1,5 +1,9 @@
 <template>
 	<div class="DialogSettings">
+		<div class="DialogSettings__header">
+			<div class="DialogSettings__name">Settings</div>
+			<button class="DialogSettings__header-button" @click="resetSettings">Reset</button>
+		</div>
 		<div class="DialogSettings__editor">
 			<GlispEditor v-model="code" />
 			<div
@@ -9,7 +13,6 @@
 		</div>
 		<div class="DialogSettings__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
-			<button class="button" @click="resetSettings">Reset</button>
 			<button class="button bold" @click="updateSettings">Update</button>
 		</div>
 	</div>
@@ -79,6 +82,19 @@ export default defineComponent({
 	text-align left
 	user-select none
 	translucent-bg()
+
+	&__header
+		display flex
+		margin 2rem 2rem 0.5em
+
+	&__header-button
+		labeled-button()
+
+	&__name
+		flex-grow 1
+		color var(--foreground)
+		font-weight bold
+		line-height $button-height
 
 	&__editor
 		position relative

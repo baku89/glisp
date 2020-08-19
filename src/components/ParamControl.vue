@@ -330,13 +330,5 @@ export default defineComponent({
 				transform translateY(-50%)
 
 		&.add
-			padding-top 0.2rem
-			height $button-height
-			border-radius 2px
-			background var(--button)
-			color var(--background)
-			font-size 0.9em
-
-			&:hover, &:focus
-				background var(--hover)
+			labeled-button()
 </style>

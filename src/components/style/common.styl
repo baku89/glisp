@@ -41,3 +41,15 @@ input-border()
 translucent-bg()
 	background var(--translucent)
 	backdrop-filter blur(16px)
+
+labeled-button()
+	padding-top 0.2rem
+	height $button-height
+	border-radius 2px
+	background var(--button)
+	color var(--background)
+	font-size 0.9em
+	input-transition(all)
+
+	&:hover, &:focus
+		background var(--hover)
