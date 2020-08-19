@@ -99,6 +99,7 @@ export default defineComponent({
 		color var(--comment)
 		text-align center
 		line-height 2.2rem
+		transition all 0.2s var(--ease)
 
 		&.error
 			border-color var(--warning)
