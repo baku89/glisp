@@ -1,7 +1,7 @@
 <template>
 	<div class="SettingsDialog">
 		<div class="SettingsDialog__editor">
-			<GlispEditor :value="code" />
+			<GlispEditor v-model="code" />
 			<div
 				class="SettingsDialog__error-indicator"
 				:class="{error: hasParseError}"
@@ -21,18 +21,18 @@ import {defineComponent, ref, computed} from '@vue/composition-api'
 import {readStr} from '@/mal'
 import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
+	.default as string
+
 export default defineComponent({
 	name: 'SettingsDialog',
 	components: {GlispEditor},
-	props: {
-		code: {
-			type: String,
-			required: true,
-		},
-	},
-	setup(props) {
+	setup() {
+		const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
+
 		const hasParseError = computed(() => {
-			const codeStr = props.code
+			const codeStr = code.value
 			try {
 				readStr(`(do\n${codeStr}\n)`, false)
 			} catch (e) {
@@ -42,8 +42,7 @@ export default defineComponent({
 		})
 
 		function resetSettings() {
-			// code.value = DEFAULT_SETTINGS
-			updateSettings()
+			code.value = DEFAULT_SETTINGS
 		}
 
 		function updateSettings() {
@@ -51,7 +50,7 @@ export default defineComponent({
 				alert('Cannot update the settings because of the parsing error.')
 				return
 			}
-			localStorage.setItem('settings', props.code)
+			localStorage.setItem('settings', code.value)
 			if (
 				confirm(
 					'Are you sure you want to reload the editor to reflect the settings?'
@@ -62,6 +61,7 @@ export default defineComponent({
 		}
 
 		return {
+			code,
 			hasParseError,
 			resetSettings,
 			updateSettings,

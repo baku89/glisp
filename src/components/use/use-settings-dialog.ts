@@ -15,11 +15,9 @@ export default function useCommandDialog(context: SetupContext) {
 	AppScope.readEval(`(do ${settings}\n)`)
 
 	ConsoleScope.def('show-settings', () => {
-		const code = localStorage.getItem('settings') || DEFAULT_SETTINGS
-
 		$modal.show(
 			SettingsDialog,
-			{code},
+			{},
 			{
 				width: 800,
 			}
