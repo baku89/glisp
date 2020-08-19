@@ -1,20 +1,16 @@
 <template>
 	<div class="SettingsDialog">
 		<div class="SettingsDialog__editor">
-			<GlispEditor class="CommandDialog__doc" :value="code" />
+			<GlispEditor :value="code" />
 			<div
 				class="SettingsDialog__error-indicator"
 				:class="{error: hasParseError}"
-			>
-				{{ hasParseError ? '!' : '✓' }}
-			</div>
+			>{{ hasParseError ? '!' : '✓' }}</div>
 		</div>
 		<div class="SettingsDialog__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
 			<button class="button" @click="resetSettings">Reset</button>
-			<button class="button bold" @click="updateSettings">
-				Update
-			</button>
+			<button class="button bold" @click="updateSettings">Update</button>
 		</div>
 	</div>
 </template>
@@ -23,7 +19,7 @@
 import Vue from 'vue'
 import {defineComponent, ref, computed} from '@vue/composition-api'
 import {readStr} from '@/mal'
-import GlispEditor from '@/components/GlispEditor'
+import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
 
 export default defineComponent({
 	name: 'SettingsDialog',
@@ -65,7 +61,11 @@ export default defineComponent({
 			}
 		}
 
-		return {hasParseError, resetSettings, updateSettings}
+		return {
+			hasParseError,
+			resetSettings,
+			updateSettings,
+		}
 	},
 })
 </script>
@@ -82,30 +82,29 @@ export default defineComponent({
 
 	&__editor
 		position relative
-		height 40vh
 		padding 1rem
+		height 40vh
 
 	&__error-indicator
 		$size = 2.5rem
+		position absolute
+		right 2rem
+		bottom 1rem
 		width $size
 		height $size
-		position absolute
-		bottom 1rem
-		right 2rem
 		border-radius 50%
 		--textcolor var(--comment)
 		font-monospace()
-		color var(--comment)
-		line-height 2.2rem
 		border 1px solid var(--comment)
+		color var(--comment)
 		text-align center
+		line-height 2.2rem
 
 		&.error
 			border-color var(--warning)
 			background var(--warning)
 			color var(--background)
 			--textcolor var(--background)
-
 
 	&__buttons
 		display flex
