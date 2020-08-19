@@ -1,5 +1,5 @@
 <template>
-	<Editor
+	<GlispEditor
 		class="MalExpEditor"
 		:value="code"
 		:activeRange="activeRange"
@@ -34,7 +34,7 @@ import {
 	MalType,
 } from '@/mal/types'
 
-import Editor from '@/components/GlispEditor'
+import GlispEditor from '@/components/GlispEditor'
 
 const EditMode = {
 	Node: 'node',
@@ -55,7 +55,7 @@ const RE_EDITOR_DELIMITER = /;__\n/g
 
 export default defineComponent({
 	components: {
-		Editor,
+		GlispEditor,
 	},
 	props: {
 		exp: {
