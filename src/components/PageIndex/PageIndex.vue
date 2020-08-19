@@ -208,9 +208,9 @@ export default defineComponent({
 
 		const data = reactive({
 			exp: nonReactive(L(S('sketch'))),
-			hasError: computed(() => {
-				return data.hasParseError || data.hasEvalError || data.hasRenderError
-			}),
+			hasError: computed(
+				() => data.hasParseError || data.hasEvalError || data.hasRenderError
+			),
 			hasParseError: false,
 			hasEvalError: computed(() => data.viewExp === null),
 			hasRenderError: false,
