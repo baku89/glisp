@@ -1,0 +1,52 @@
+;; Keybinds
+(register-keybind "mod+e" '(do (expand-selected) (tag-history :undo)))
+(register-keybind "mod+p" '(select-outer))
+(register-keybind "mod+g" '(do (group-selected) (tag-history :undo)))
+(register-keybind "up" '(do (transform-selected (translate [0 -1])) (tag-history :undo)))
+(register-keybind "down" '(do (transform-selected (translate [0 1])) (tag-history :undo)))
+(register-keybind "right" '(do (transform-selected (translate [1 0])) (tag-history :undo)))
+(register-keybind "left" '(do (transform-selected (translate [-1 0])) (tag-history :undo)))
+(register-keybind "shift+up" '(do (transform-selected (translate [0 -10])) (tag-history :undo)))
+(register-keybind "shift+down" '(do (transform-selected (translate [0 10])) (tag-history :undo)))
+(register-keybind "shift+right" '(do (transform-selected (translate [10 0])) (tag-history :undo)))
+(register-keybind "shift+left" '(do (transform-selected (translate [-10 0])) (tag-history :undo)))
+(register-keybind "alt+up" '(do (transform-selected (translate [0 -0.1])) (tag-history :undo)))
+(register-keybind "alt+down" '(do (transform-selected (translate [0 0.1])) (tag-history :undo)))
+(register-keybind "alt+right" '(do (transform-selected (translate [0.1 0])) (tag-history :undo)))
+(register-keybind "alt+left" '(do (transform-selected (translate [-0.1 0])) (tag-history :undo)))
+(register-keybind "mod+z" '(revert-history :undo))
+(register-keybind "mod+alt+z" '(revert-history))
+(register-keybind "mod+s" '(download-sketch))
+(register-keybind "backspace" '(do (delete-selected) (tag-history :undo)))
+(register-keybind "delete" '(do (delete-selected) (tag-history :undo)))
+(register-keybind "mod+c" '(copy-selected))
+(register-keybind "mod+v" '(do (paste-from-clipboard) (tag-history :undo)))
+(register-keybind "mod+x" '(do (copy-selected) (delete-selected) (tag-history :undo)))
+(register-keybind "mod+d" '(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
+
+;; Global Menu
+(register-global-menu
+ [["File"
+   [["Download Sketch" '(download-sketch)]
+    ["Export Image..." '(show-command-dialog 'export-image)]
+    ["Export Video..." '(show-command-dialog 'export-video)]
+    ["Publish to Gist..." '(show-command-dialog 'publish-gist)]
+    ["Generate Sketch URL..."
+     '(show-command-dialog 'generate-sketch-url)]
+    ["Settings..." '(show-settings)]]]
+  ["Edit"
+   [["Expand Selected" '(expand-selected)]
+    ["Select Outer" '(select-outer)]]]
+  ["Examples"
+   [["10 PRINT CHR" '(load-file "./examples/10-print-chr.glisp")]
+    ["Hello World" '(load-file "./examples/hello-world.glisp")]
+    ["Primitive Definition"
+     '(load-file "./examples/primitive-definition.glisp")]
+    ["Transformation" '(load-file "./examples/transformation.glisp")]
+    ["Replicator" '(load-file "./examples/replicator.glisp")]
+    ["Path Modification"
+     '(load-file "./examples/path-modification.glisp")]]]
+  ["?"
+   [["Documentation" '(open-link "https://glisp.app/docs/")]
+    ["Jump to Repo" '(open-link "https://github.com/baku89/glisp")]
+    ["Made by Baku Hashimoto" '(open-link "https://baku89.com")]]]])
