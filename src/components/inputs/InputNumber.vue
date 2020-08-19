@@ -6,6 +6,7 @@
 			type="text"
 			:value="displayValue"
 			@input="onInput"
+			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
 			ref="inputEl"
@@ -16,7 +17,7 @@
 <script lang="ts">
 import {defineComponent, ref, Ref, PropType, toRef} from '@vue/composition-api'
 import {useDraggable, useKeyboardState} from '../use'
-import {useAutoStep} from './use-number'
+import useNumberInput from './use-number-input'
 
 export default defineComponent({
 	name: 'InputNumber',
@@ -74,10 +75,11 @@ export default defineComponent({
 			step,
 			displayValue,
 			onInput,
+			onFocus,
 			onBlur,
 			onKeydown,
 			update,
-		} = useAutoStep(
+		} = useNumberInput(
 			toRef(props, 'value'),
 			toRef(props, 'validator'),
 			tweaking,
@@ -93,6 +95,7 @@ export default defineComponent({
 			tweaking,
 
 			onInput,
+			onFocus,
 			onBlur,
 			onKeydown,
 			update,
@@ -102,7 +105,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import './use-number.styl'
+@import './use-number-input.styl'
 
 .InputNumber
 	width 6rem

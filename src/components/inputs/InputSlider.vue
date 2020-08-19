@@ -24,7 +24,7 @@ import {
 	toRef,
 } from '@vue/composition-api'
 import {useDraggable, useKeyboardState} from '../use'
-import {useAutoStep} from './use-number'
+import useNumberInput from './use-number-input'
 
 export default defineComponent({
 	name: 'InputSlider',
@@ -99,7 +99,7 @@ export default defineComponent({
 			onBlur,
 			onKeydown,
 			update,
-		} = useAutoStep(
+		} = useNumberInput(
 			toRef(props, 'value'),
 			toRef(props, 'validator'),
 			tweaking,
@@ -136,7 +136,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import './use-number.styl'
+@import './use-number-input.styl'
 
 .InputSlider
 	width 12.6rem
@@ -147,25 +147,25 @@ export default defineComponent({
 		position absolute
 		top 0
 		left 0
-		height 100%
 		z-index -1
+		height 100%
 		border-right 3px solid transparent
 		input-transition(border-right-color)
 
 		&:after
-			content ''
 			position absolute
 			top 0
 			left 0
 			width 100%
 			height 100%
 			background var(--bwbase)
-			opacity .07
+			content ''
+			opacity 0.07
 			input-transition(opacity)
-
 
 		~/.tweaking &
 			border-right-color var(--hover)
+
 			&:after
-				opacity .1
+				opacity 0.1
 </style>

@@ -3,7 +3,7 @@ import keycode from 'keycode'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
-export function useAutoStep(
+export default function useNumber(
 	value: Ref<number>,
 	validator: Ref<undefined | ((v: number) => number | null)>,
 	tweaking: Ref<boolean>,
@@ -14,10 +14,19 @@ export function useAutoStep(
 		return tweaking.value ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
 	})
 
+	const step = computed(() => {
+		const float = value.value.toString().split('.')[1]
+		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
+	})
+
 	function onInput(e: InputEvent) {
 		const str = (e.target as HTMLInputElement).value
 		const val: number | null = parseFloat(str)
 		update(val)
+	}
+
+	function onFocus() {
+		console.log('onFocus')
 	}
 
 	function onBlur(e: InputEvent) {
@@ -69,14 +78,10 @@ export function useAutoStep(
 		context.emit('input', val)
 	}
 	return {
-		step: computed(() => {
-			const float = value.value.toString().split('.')[1]
-			return float !== undefined
-				? Math.max(Math.pow(10, -float.length), 0.1)
-				: 1
-		}),
+		step,
 		displayValue,
 		onInput,
+		onFocus,
 		onBlur,
 		onKeydown,
 		update,
