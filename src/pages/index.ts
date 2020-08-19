@@ -6,7 +6,14 @@ import PortalVue from 'portal-vue'
 
 Vue.config.productionTip = false
 Vue.use(VueCompositionApi)
-Vue.use(VModal, {dynamic: true})
+Vue.use(VModal, {
+	dynamicDefaults: {
+		height: 'auto',
+		width: 400,
+		transition: 'vmodal__transition',
+		overlayTransition: 'vmodal__overlay-transition',
+	},
+})
 Vue.use(PortalVue)
 
 new Vue({

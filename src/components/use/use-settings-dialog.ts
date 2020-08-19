@@ -21,10 +21,7 @@ export default function useCommandDialog(context: SetupContext) {
 			SettingsDialog,
 			{code},
 			{
-				height: 'auto',
 				width: 800,
-				transition: 'vmodal__transition',
-				overlayTransition: 'vmodal__overlay-transition',
 			}
 		)
 
