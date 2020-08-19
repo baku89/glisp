@@ -54,6 +54,7 @@ const EDITOR_DELIMITER = ';__\n'
 const RE_EDITOR_DELIMITER = /;__\n/g
 
 export default defineComponent({
+	name: 'MalExpEditor',
 	components: {
 		GlispEditor,
 	},

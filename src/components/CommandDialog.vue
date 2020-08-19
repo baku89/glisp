@@ -48,6 +48,7 @@ interface Props {
 }
 
 export default defineComponent({
+	name: 'CommandDialog',
 	components: {ParamControl, VueMarkdown},
 	props: {
 		exp: {
