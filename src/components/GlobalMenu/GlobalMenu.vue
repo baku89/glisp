@@ -35,6 +35,8 @@ import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
 import {defineComponent, ref, Ref} from '@vue/composition-api'
+import AppScope from '@/scopes/app'
+import {isVector, MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'GlobalMenu',
@@ -49,53 +51,7 @@ export default defineComponent({
 		},
 	},
 	setup() {
-		const menu = ref([
-			[
-				'File',
-				[
-					['Download Sketch', '(download-sketch)'],
-					['Export Image...', "(show-command-dialog 'export-image)"],
-					['Export Video...', "(show-command-dialog 'export-video)"],
-					['Publish to Gist...', "(show-command-dialog 'publish-gist)"],
-					[
-						'Generate Sketch URL...',
-						"(show-command-dialog 'generate-sketch-url)",
-					],
-				],
-			],
-			[
-				'Edit',
-				[
-					['Expand Selected', '(expand-selected)'],
-					['Select Outer', '(select-outer)'],
-				],
-			],
-			[
-				'Examples',
-				[
-					['10 PRINT CHR', '(load-file "./examples/10-print-chr.glisp")'],
-					['Hello World', '(load-file "./examples/hello-world.glisp")'],
-					[
-						'Primitive Definition',
-						'(load-file "./examples/primitive-definition.glisp")',
-					],
-					['Transformation', '(load-file "./examples/transformation.glisp")'],
-					['Replicator', '(load-file "./examples/replicator.glisp")'],
-					[
-						'Path Modification',
-						'(load-file "./examples/path-modification.glisp")',
-					],
-				],
-			],
-			[
-				'?',
-				[
-					['Documentation', '(open-link "https://glisp.app/docs/")'],
-					['Jump to Repo', '(open-link "https://github.com/baku89/glisp")'],
-					['Made by Baku Hashimoto', '(open-link "https://baku89.com")'],
-				],
-			],
-		])
+		const menu = ref(AppScope.var('*global-menu*') || [])
 
 		const expandedIndex: Ref<number | null> = ref(null)
 
@@ -115,11 +71,11 @@ export default defineComponent({
 			expandedIndex.value = null
 		}
 
-		function onClick(content: string | string[][], i: number) {
-			if (Array.isArray(content)) {
+		function onClick(content: MalVal, i: number) {
+			if (isVector(content)) {
 				expandedIndex.value = i
 			} else {
-				ConsoleScope.readEval(content)
+				ConsoleScope.eval(content)
 				expandedIndex.value = null
 			}
 		}

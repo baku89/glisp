@@ -43,4 +43,12 @@ AppScope.def('unregister-all-keybinds', () => {
 	return null
 })
 
+AppScope.def('register-global-menu', (menu: MalVal) => {
+	console.log(menu)
+
+	AppScope.def('*global-menu*', menu)
+
+	return null
+})
+
 export default AppScope

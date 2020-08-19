@@ -13,13 +13,14 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from '@vue/composition-api'
+import {MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'GlobalSubmenu',
 	props: {
 		menu: {
 			required: true,
-			type: Array as PropType<[string, string][]>,
+			type: Array as PropType<[string, MalVal][]>,
 		},
 	},
 })
