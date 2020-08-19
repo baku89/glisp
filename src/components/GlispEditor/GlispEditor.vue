@@ -1,6 +1,6 @@
 <template>
-	<div class="Editor" ref="rootEl">
-		<div class="Editor__editor" ref="editorEl" :style="cssStyle" />
+	<div class="GlispEditor" ref="rootEl">
+		<div class="GlispEditor__editor" ref="editorEl" :style="cssStyle" />
 	</div>
 </template>
 
@@ -160,7 +160,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '../style/common.styl'
 
-.Editor
+.GlispEditor
 	position relative
 	overflow-y scroll
 	width 100%
