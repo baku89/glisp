@@ -12,12 +12,12 @@ import {
 	createList as L,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import CommandDialog from '@/components/CommandDialog.vue'
+import DialogCommand from '@/components/dialogs/DialogCommand.vue'
 import {getMapValue} from '@/mal/utils'
 import {printer} from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'
 
-export default function useCommandDialog(context: SetupContext) {
+export default function useDialogCommand(context: SetupContext) {
 	const {$modal} = context.root
 
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
@@ -50,7 +50,7 @@ export default function useCommandDialog(context: SetupContext) {
 
 		// Show Modal
 		$modal.show(
-			CommandDialog,
+			DialogCommand,
 			{
 				exp,
 				fn,

@@ -1,17 +1,17 @@
 <template>
-	<div class="CommandDialog">
-		<div class="CommandDialog__content">
-			<div class="CommandDialog__header">
-				<div class="CommandDialog__name">{{ fnName }}</div>
+	<div class="DialogCommand">
+		<div class="DialogCommand__content">
+			<div class="DialogCommand__header">
+				<div class="DialogCommand__name">{{ fnName }}</div>
 				<VueMarkdown
-					class="CommandDialog__doc"
+					class="DialogCommand__doc"
 					:source="fnDoc"
 					:anchorAttributes="{target: '_blank'}"
 				/>
 			</div>
 			<ParamControl :exp="editExp" :fn="fn" @input="onInput" />
 		</div>
-		<div class="CommandDialog__buttons">
+		<div class="DialogCommand__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
 			<button class="button" @click="onClickExecute">Execute</button>
 		</div>
@@ -26,7 +26,7 @@ import {
 	computed,
 	SetupContext,
 } from '@vue/composition-api'
-import ParamControl from './ParamControl.vue'
+import ParamControl from '@/components/ParamControl.vue'
 import {NonReactive} from '@/utils'
 import {
 	MalVal,
@@ -48,7 +48,7 @@ interface Props {
 }
 
 export default defineComponent({
-	name: 'CommandDialog',
+	name: 'DialogCommand',
 	components: {ParamControl, VueMarkdown},
 	props: {
 		exp: {
@@ -94,7 +94,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-.CommandDialog
+.DialogCommand
 	position relative
 	height 100%
 	text-align left

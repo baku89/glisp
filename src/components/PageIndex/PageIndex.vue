@@ -69,9 +69,7 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>
-							{{ hasError ? '!' : '✓' }}
-						</button>
+						>{{ hasError ? '!' : '✓' }}</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -122,9 +120,9 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {
 	useRem,
-	useCommandDialog,
+	useDialogCommand,
 	useHitDetector,
-	useSettingsDialog,
+	useDialogSettings,
 } from '@/components/use'
 import AppScope from '@/scopes/app'
 import {
@@ -441,8 +439,8 @@ export default defineComponent({
 			setActiveExp,
 			setSelectedExp,
 		})
-		useCommandDialog(context)
-		useSettingsDialog(context)
+		useDialogCommand(context)
+		useDialogSettings(context)
 
 		// Scrollbar
 		useCompactScrollbar()

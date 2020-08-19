@@ -1,13 +1,13 @@
 <template>
-	<div class="SettingsDialog">
-		<div class="SettingsDialog__editor">
+	<div class="DialogSettings">
+		<div class="DialogSettings__editor">
 			<GlispEditor v-model="code" />
 			<div
-				class="SettingsDialog__error-indicator"
+				class="DialogSettings__error-indicator"
 				:class="{error: hasParseError}"
 			>{{ hasParseError ? '!' : '✓' }}</div>
 		</div>
-		<div class="SettingsDialog__buttons">
+		<div class="DialogSettings__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
 			<button class="button" @click="resetSettings">Reset</button>
 			<button class="button bold" @click="updateSettings">Update</button>
@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
 	.default as string
 
 export default defineComponent({
-	name: 'SettingsDialog',
+	name: 'DialogSettings',
 	components: {GlispEditor},
 	setup() {
 		const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
@@ -71,9 +71,9 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import './style/common.styl'
+@import '../style/common.styl'
 
-.SettingsDialog
+.DialogSettings
 	position relative
 	height 100%
 	text-align left
