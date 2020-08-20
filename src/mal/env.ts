@@ -70,9 +70,15 @@ export default class Env {
 				const exp = exps[i]
 
 				const bindType = getType(bind)
-				// Variable length arguments
+
 				if (bindType === MalType.Symbol && (bind as MalSymbol).value === '&') {
+					// rest arguments
 					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
+					i++
+					continue
+				} else if (bind === keywordFor('as')) {
+					// :as destruction
+					this.set(binds[i + 1] as MalSymbol, [...exps])
 					break
 				}
 

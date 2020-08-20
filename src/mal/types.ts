@@ -22,7 +22,12 @@ export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of lis
 
 export const M_DEF = Symbol.for('def') // save def exp reference in symbol object
 
-export type MalBind = (MalSymbol | {[k: string]: MalSymbol} | MalBind)[]
+export type MalBind = (
+	| MalSymbol
+	| string
+	| {[k: string]: MalSymbol}
+	| MalBind
+)[]
 
 export enum ExpandType {
 	Constant = 1,
