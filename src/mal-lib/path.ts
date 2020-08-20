@@ -25,6 +25,7 @@ import {
 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
+import {merge} from 'jquery'
 
 const EPSILON = 1e-5
 
@@ -156,20 +157,19 @@ function getBezier(points: Vec2[]) {
  * [Z prev-pos first-pos]
  */
 export function* iterateCurve(path: PathType): Generator<SegmentType> {
-	const first = vec2.create(),
-		prev = vec2.create()
+	let first, prev
 
 	for (const [cmd, ...points] of iterateSegment(path)) {
 		switch (cmd) {
 			case K_M:
 				yield [K_M, ...points]
-				vec2.copy(first, points[0] as vec2)
-				vec2.copy(prev, first)
+				first = points[0]
+				prev = points[0]
 				break
 			case K_L:
 			case K_C:
 				yield [cmd, prev, ...points] as SegmentType
-				vec2.copy(prev, points[points.length - 1] as vec2)
+				prev = points[points.length - 1]
 				break
 			case K_Z:
 				yield [K_Z, prev, first] as SegmentType
@@ -232,27 +232,40 @@ function makeOpen(path: PathType) {
 	return path
 }
 
-function pathJoin(first: PathType, ...rest: PathType[]) {
-	const ret = makeOpen(first)
+function pathJoin(...paths: PathType[]) {
+	let mergedPath = paths
+		.map(p => p.slice(1))
+		.flat()
+		.map((v, i) => (i > 0 && v === K_M ? K_L : v))
+		.filter(v => v !== K_Z)
 
-	const lastEnd = vec2.fromValues(...(ret[ret.length - 1] as [number, number]))
-	const start = vec2.create()
+	// Delete zero-length :L command
+	mergedPath = Array.from(iterateCurve(mergedPath))
+		.filter(
+			c => !(c[0] === K_L && vec2.dist(c[1] as vec2, c[2] as vec2) < EPSILON)
+		)
+		.map(c => (c[0] === K_M ? c : [c[0], ...c.slice(2)]))
+		.flat()
 
-	for (const path of rest) {
-		let opened = makeOpen(path).slice(1) // remove K_PATH
-		vec2.copy(start, opened[1] as vec2) // retrieve M x y
+	// close path if possible
+	if (mergedPath.length >= 4) {
+		const segs = Array.from(iterateSegment(mergedPath))
+		const lastSeg = segs[segs.length - 1]
+		const firstPt = segs[0][1] as vec2
+		const lastPt = lastSeg[lastSeg.length - 1] as vec2
 
-		if (vec2.dist(lastEnd, start) < EPSILON) {
-			opened = opened.slice(3) // Remove M if both ends are ident
-		} else {
-			opened[0] = K_L
+		if (vec2.dist(firstPt, lastPt) < EPSILON) {
+			if (lastSeg[0] === K_L) {
+				segs.splice(segs.length - 1, 1, [K_Z])
+			} else if (lastSeg[0] === K_C) {
+				segs.push([K_Z])
+			}
+
+			mergedPath = segs.flat()
 		}
-
-		ret.push(...opened)
-		vec2.copy(lastEnd, opened[opened.length - 1] as vec2)
 	}
 
-	return ret
+	return [K_PATH, ...mergedPath]
 }
 
 function pathTransform(transform: mat2d, path: PathType) {
