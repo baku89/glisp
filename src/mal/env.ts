@@ -11,6 +11,7 @@ import {
 	MalSeq,
 	MalType,
 	symbolFor,
+	keywordFor,
 } from './types'
 import {printExp} from '.'
 
@@ -118,20 +119,25 @@ export default class Env {
 						}
 						// Convert the two maps to list
 						// binds: [name location] <-- exps: ["Baku" "Japan"]
-						const entries = Object.entries(bind),
-							hashBinds = [],
+						const hashBinds = [] as MalBind,
 							hashExps = []
 
-						for (const [key, sym] of entries) {
-							if (!(key in (exp as MalMap))) {
-								throw new MalError(
-									`[${this.name}] The destruction keyword :${key.slice(
-										1
-									)} does not exist on the parameter`
-								)
+						for (const [key, sym] of Object.entries(bind)) {
+							if (key === keywordFor('as')) {
+								// :as destruction
+								hashBinds.push(sym)
+								hashExps.push(exp)
+							} else {
+								if (!(key in (exp as MalMap))) {
+									throw new MalError(
+										`[${this.name}] The destruction keyword :${key.slice(
+											1
+										)} does not exist on the parameter`
+									)
+								}
+								hashBinds.push(sym)
+								hashExps.push((exp as MalMap)[key])
 							}
-							hashBinds.push(sym)
-							hashExps.push((exp as MalMap)[key])
 						}
 
 						this.bindAll(hashBinds, hashExps)
