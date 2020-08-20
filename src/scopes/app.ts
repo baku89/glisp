@@ -5,7 +5,7 @@ import {MalVal, isList, MalError} from '@/mal/types'
 import ConsoleScope from './console'
 
 function onSetup() {
-	AppScope.readEval('(unregister-all-keybinds)')
+	AppScope.readEval('(unset-all-keybinds)')
 }
 
 const AppScope = new Scope(ReplScope, 'app', onSetup)
@@ -15,9 +15,9 @@ type KeybindCallback = (e: KeyboardEvent) => void
 
 const Keybinds: [string, KeybindCallback][] = []
 
-AppScope.def('register-keybind', (keybind: MalVal, exp: MalVal) => {
+AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	if (typeof keybind !== 'string' || !isList(exp)) {
-		throw new MalError('Invalid argument for register-keybind')
+		throw new MalError('Invalid argument for set-keybind')
 	}
 
 	const callback = (e: KeyboardEvent) => {
@@ -32,7 +32,7 @@ AppScope.def('register-keybind', (keybind: MalVal, exp: MalVal) => {
 	return null
 })
 
-AppScope.def('unregister-all-keybinds', () => {
+AppScope.def('unset-all-keybinds', () => {
 	for (const [keybind] of Keybinds) {
 		Mousetrap.unbind(keybind)
 	}
@@ -43,7 +43,7 @@ AppScope.def('unregister-all-keybinds', () => {
 })
 
 AppScope.def('*global-menu*', [])
-AppScope.def('register-global-menu', (menu: MalVal) => {
+AppScope.def('set-global-menu', (menu: MalVal) => {
 	AppScope.def('*global-menu*', menu)
 	return null
 })
