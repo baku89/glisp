@@ -1,0 +1,7 @@
+(defmode pencil
+  {:press (fn []
+            {:path (insert-path '(polyline))})
+   :drag (fn [{:path path :pos pos}]
+           {:path (replace-path
+                   path
+                   (apply list (concat path pos)))})})
