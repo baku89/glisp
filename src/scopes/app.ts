@@ -13,8 +13,6 @@ const AppScope = new Scope(ReplScope, 'app', onSetup)
 // Keybinds
 type KeybindCallback = (e: KeyboardEvent) => void
 
-const Keybinds: [string, KeybindCallback][] = []
-
 AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	if (typeof keybind !== 'string' || !isList(exp)) {
 		throw new MalError('Invalid argument for set-keybind')
@@ -27,17 +25,12 @@ AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	}
 
 	Mousetrap.bind(keybind, callback)
-	Keybinds.push([keybind, callback])
 
 	return null
 })
 
 AppScope.def('unset-all-keybinds', () => {
-	for (const [keybind] of Keybinds) {
-		Mousetrap.unbind(keybind)
-	}
-
-	Keybinds.length = 0
+	Mousetrap.reset()
 
 	return null
 })
