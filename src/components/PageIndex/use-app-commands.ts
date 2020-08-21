@@ -31,6 +31,7 @@ import {
 	getUIOuterInfo,
 	getUIAnnotationExp,
 	deleteExp,
+	generateExpAbsPath,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
@@ -78,7 +79,7 @@ export default function useAppCommands(
 			throw new MalError('No insertable selection')
 		}
 
-		let newExp: MalVal
+		let newExp: MalSeq
 
 		if (type === MalType.String || type === MalType.Symbol) {
 			const fnName = getName(exp)
@@ -101,10 +102,12 @@ export default function useAppCommands(
 
 			newExp = L(S(fnName), ...initialParams)
 		} else if (type === MalType.List) {
-			newExp = exp
+			newExp = exp as MalSeq
 		} else {
 			throw new MalError('Invalid argument')
 		}
+
+		reconstructTree(newExp)
 
 		// Insert
 		const newActiveExp = cloneExp(activeExp)
@@ -112,7 +115,7 @@ export default function useAppCommands(
 
 		replaceExp(activeExp, newActiveExp)
 
-		return null
+		return generateExpAbsPath(newExp)
 	})
 
 	AppScope.def('load-file', (url: MalVal) => {
