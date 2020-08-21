@@ -21,8 +21,8 @@
 	},
 	"main": "background.js",
 	"dependencies": {
-		"docsify": "^4.11.4",
-		"vue": "^2.6.11"
+		"docsify": "^4.11.5",
+		"vue": "^2.6.12"
 	},
 	"devDependencies": {
 		"@types/chroma-js": "^2.0.0",
@@ -64,7 +64,7 @@
 		"gif.js": "^0.2.0",
 		"gl-matrix": "^3.3.0",
 		"hotkeys-js": "^3.8.1",
-		"hull.js": "AndriiHeonia/hull",
+		"hull.js": "^1.0.0",
 		"is-electron": "^2.2.0",
 		"is-node": "^1.0.2",
 		"jq-console": "^2.13.2",
@@ -91,7 +91,7 @@
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
 		"vue-click-outside": "^1.1.0",
 		"vue-color": "^2.7.1",
-		"vue-composable": "^1.0.0-beta.1",
+		"vue-composable": "^1.0.0-dev.37",
 		"vue-js-modal": "^2.0.0-rc.6",
 		"vue-markdown": "^2.2.4",
 		"vue-popperjs": "^2.3.0",
