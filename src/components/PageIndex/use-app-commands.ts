@@ -67,13 +67,14 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('insert-item', (exp: MalVal) => {
-		if (!data.activeExp) {
-			throw new MalError('No selection')
+		let activeExp = data.exp.value
+		if (data.activeExp) {
+			activeExp = data.activeExp.value
 		}
 
 		const type = getType(exp)
 
-		if (!data.selectedExp || !isSeq(data.activeExp.value)) {
+		if (!isSeq(activeExp)) {
 			throw new MalError('No insertable selection')
 		}
 
@@ -106,10 +107,10 @@ export default function useAppCommands(
 		}
 
 		// Insert
-		const newActiveExp = cloneExp(data.activeExp.value)
+		const newActiveExp = cloneExp(activeExp)
 		newActiveExp.push(newExp)
 
-		replaceExp(data.activeExp.value, newActiveExp)
+		replaceExp(activeExp, newActiveExp)
 
 		return null
 	})
