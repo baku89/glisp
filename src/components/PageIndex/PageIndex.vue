@@ -357,6 +357,7 @@ export default defineComponent({
 		function updateEditingExp(exp: NonReactive<MalVal>) {
 			if (!data.editingExp) return
 			replaceExp(data.editingExp.value, exp.value)
+			pushExpHistory(data.exp, 'undo')
 		}
 
 		// Hovering
