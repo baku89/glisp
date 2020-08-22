@@ -4,7 +4,9 @@
   (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
 
 (defmode polyline
-  {:setup (fn [] {:item nil})
+  {:label "Polyline"
+   :icon {:type "character" :value "⏢"}
+   :setup (fn [] {:item nil})
    :press (fn {:item item :pos pos}
             {:item
              (if (nil? item)
