@@ -1,9 +1,9 @@
 (def *modes* (atom []))
 
-(defmacro defmode [mode-name handlers]
+(defn defmode [mode-name handlers]
   (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
 
-(defmode polyline
+(defmode "polyline"
   {:label "Polyline"
    :icon {:type "character" :value "⏢"}
    :setup (fn [] {:item nil})
@@ -13,7 +13,7 @@
                (insert-item '(polyline pos))
                (replace-item item (conj item pos)))})})
 
-(defmode select
+(defmode "select"
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
    :move (fn {:pos pos}
