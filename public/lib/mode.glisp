@@ -12,3 +12,10 @@
              (if (nil? item)
                (insert-item '(polyline pos))
                (replace-item item (conj item pos)))})})
+
+(defmode select
+  {:label "Select"
+   :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
+   :move (fn {:pos pos}
+           (when-let [item (detect-hit pos)]
+             (hover-item item)))})
