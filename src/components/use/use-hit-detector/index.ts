@@ -20,14 +20,13 @@ export default function useHitDetector(
 ) {
 	const detector = new HitDetector()
 
-	const {mouseX, mouseY, mousePressed} = useMouseEvents(
-		handleEl,
-		(e: MouseEvent) => {
+	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
+		ignorePredicate(e: MouseEvent) {
 			// NOTE: This is makeshift and might occur bugs in the future
 			// Ignore the click event when clicked handles directly
 			return !/svg/i.test((e.target as any)?.tagName)
-		}
-	)
+		},
+	})
 
 	const keyboardState = useKeyboardState()
 

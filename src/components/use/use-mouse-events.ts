@@ -2,7 +2,19 @@ import {Ref, onUnmounted, ref, onMounted, unref} from '@vue/composition-api'
 
 export default function useMouseEvents(
 	target: Ref<HTMLElement | any | null> | HTMLElement,
-	ignorePredicate?: (e: MouseEvent) => boolean
+	{
+		ignorePredicate,
+		onMove,
+		onDown,
+		onDrag,
+		onUp,
+	}: {
+		ignorePredicate?: (e: MouseEvent) => boolean
+		onMove?: (e: MouseEvent) => any
+		onDown?: (e: MouseEvent) => any
+		onDrag?: (e: MouseEvent) => any
+		onUp?: (e: MouseEvent) => any
+	}
 ) {
 	const mouseX = ref(0)
 	const mouseY = ref(0)
@@ -13,6 +25,11 @@ export default function useMouseEvents(
 	function onMouseMove(e: MouseEvent) {
 		mouseX.value = e.pageX
 		mouseY.value = e.pageY
+		if (!mousePressed.value && onMove) {
+			onMove(e)
+		} else if (mousePressed.value && onDrag) {
+			onDrag(e)
+		}
 	}
 
 	function onMouseToggle(e: MouseEvent) {
@@ -20,7 +37,13 @@ export default function useMouseEvents(
 			return
 		}
 		if (e.button === 0) {
-			mousePressed.value = e.type === 'mousedown'
+			const pressed = e.type === 'mousedown'
+			mousePressed.value = pressed
+			if (pressed && onDown) {
+				onDown(e)
+			} else if (!pressed && onUp) {
+				onUp(e)
+			}
 		}
 	}
 
