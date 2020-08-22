@@ -1,11 +1,4 @@
-import {
-	Ref,
-	watch,
-	onUnmounted,
-	ref,
-	onMounted,
-	unref,
-} from '@vue/composition-api'
+import {Ref, watch} from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal, MalNode} from '@/mal/types'
@@ -13,54 +6,7 @@ import {MalVal, MalNode} from '@/mal/types'
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
 import useKeyboardState from '../use-keyboard-state'
-
-function useMouseEvent(target: Ref<HTMLElement | any | null> | HTMLElement) {
-	const mouseX = ref(0)
-	const mouseY = ref(0)
-	const mousePressed = ref(false)
-
-	let targetEl: HTMLElement | undefined
-
-	function onMouseMove(e: MouseEvent) {
-		mouseX.value = e.pageX
-		mouseY.value = e.pageY
-	}
-
-	function onMouseToggle(e: MouseEvent) {
-		// NOTE: This is makeshift and might occur bugs in the future
-		// Ignore the click event when clicked handles directly
-		if (!/svg/i.test((e.target as any)?.tagName)) {
-			return
-		}
-		if (e.button === 0) {
-			mousePressed.value = e.type === 'mousedown'
-		}
-	}
-
-	onMounted(() => {
-		const el = unref(target)
-		targetEl =
-			el instanceof HTMLElement
-				? el
-				: el instanceof Object && el.$el instanceof HTMLElement
-				? el.$el
-				: undefined
-
-		if (!targetEl) return
-		targetEl.addEventListener('mousemove', onMouseMove)
-		targetEl.addEventListener('mousedown', onMouseToggle)
-		window.addEventListener('mouseup', onMouseToggle)
-	})
-
-	onUnmounted(() => {
-		if (!targetEl) return
-		targetEl.removeEventListener('mousemove', onMouseMove)
-		targetEl.removeEventListener('mousedown', onMouseToggle)
-		window.removeEventListener('mouseup', onMouseToggle)
-	})
-
-	return {mouseX, mouseY, mousePressed}
-}
+import useMouseEvents from '../use-mouse-events'
 
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
@@ -74,7 +20,14 @@ export default function useHitDetector(
 ) {
 	const detector = new HitDetector()
 
-	const {mouseX, mouseY, mousePressed} = useMouseEvent(handleEl)
+	const {mouseX, mouseY, mousePressed} = useMouseEvents(
+		handleEl,
+		(e: MouseEvent) => {
+			// NOTE: This is makeshift and might occur bugs in the future
+			// Ignore the click event when clicked handles directly
+			return !/svg/i.test((e.target as any)?.tagName)
+		}
+	)
 
 	const keyboardState = useKeyboardState()
 
