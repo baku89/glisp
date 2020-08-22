@@ -11,7 +11,6 @@ function onSetup() {
 const AppScope = new Scope(ReplScope, 'app', onSetup)
 
 // Keybinds
-type KeybindCallback = (e: KeyboardEvent) => void
 
 AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	if (typeof keybind !== 'string' || !isList(exp)) {
@@ -26,19 +25,29 @@ AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 
 	Mousetrap.bind(keybind, callback)
 
-	return null
+	return true
+})
+
+AppScope.def('trigger-keybind', (keybind: MalVal) => {
+	if (typeof keybind !== 'string') {
+		throw new MalError('Keybind should be string')
+	}
+
+	Mousetrap.trigger(keybind)
+
+	return true
 })
 
 AppScope.def('unset-all-keybinds', () => {
 	Mousetrap.reset()
 
-	return null
+	return true
 })
 
 AppScope.def('*global-menu*', [])
 AppScope.def('set-global-menu', (menu: MalVal) => {
 	AppScope.def('*global-menu*', menu)
-	return null
+	return true
 })
 
 export default AppScope
