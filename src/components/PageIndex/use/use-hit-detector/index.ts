@@ -5,8 +5,8 @@ import {MalVal, MalNode} from '@/mal/types'
 
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
-import useKeyboardState from '../use-keyboard-state'
-import useMouseEvents from '../use-mouse-events'
+import useKeyboardState from '@/components/use/use-keyboard-state'
+import useMouseEvents from '@/components/use/use-mouse-events'
 
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,

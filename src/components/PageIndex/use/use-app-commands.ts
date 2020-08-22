@@ -35,7 +35,7 @@ import {
 	getExpByPath,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
-import {toSketchCode} from './utils'
+import {toSketchCode} from '../utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import {reconstructTree} from '@/mal/reader'

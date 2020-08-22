@@ -118,12 +118,7 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {
-	useRem,
-	useDialogCommand,
-	useHitDetector,
-	useDialogSettings,
-} from '@/components/use'
+import {useRem} from '@/components/use'
 import AppScope from '@/scopes/app'
 import {
 	replaceExp,
@@ -133,10 +128,15 @@ import {
 	getExpByPath,
 } from '@/mal/utils'
 
-import useAppCommands from './use-app-commands'
-import useURLParser from './use-url-parser'
-import useCompactScrollbar from './use-compact-scrollbar'
-import useExpHistory from './use-exp-history'
+import {
+	useAppCommands,
+	useURLParser,
+	useCompactScrollbar,
+	useExpHistory,
+	useDialogCommand,
+	useDialogSettings,
+	useHitDetector,
+} from './use'
 import {reconstructTree} from '@/mal/reader'
 
 interface Data {

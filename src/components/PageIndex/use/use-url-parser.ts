@@ -1,7 +1,7 @@
 import {MalError, MalNode, isNode} from '@/mal/types'
 import {nonReactive, NonReactive} from '@/utils'
 import {readStr} from '@/mal'
-import {toSketchCode} from './utils'
+import {toSketchCode} from '../utils'
 
 export default function useURLParser(
 	onLoadExp: (exp: NonReactive<MalNode>) => void
