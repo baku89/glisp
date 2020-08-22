@@ -14,10 +14,19 @@ import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
 import useKeyboardState from '../use-keyboard-state'
 
-function useMouseButtons(el: Ref<any | null>) {
+function useMouseEvent(target: Ref<HTMLElement | any | null> | HTMLElement) {
+	const mouseX = ref(0)
+	const mouseY = ref(0)
 	const mousePressed = ref(false)
 
-	function onMouseEvent(e: MouseEvent) {
+	let targetEl: HTMLElement | undefined
+
+	function onMouseMove(e: MouseEvent) {
+		mouseX.value = e.pageX
+		mouseY.value = e.pageY
+	}
+
+	function onMouseToggle(e: MouseEvent) {
 		// NOTE: This is makeshift and might occur bugs in the future
 		// Ignore the click event when clicked handles directly
 		if (!/svg/i.test((e.target as any)?.tagName)) {
@@ -29,42 +38,28 @@ function useMouseButtons(el: Ref<any | null>) {
 	}
 
 	onMounted(() => {
-		if (!el.value) return
-		el.value.$el.addEventListener('mousedown', onMouseEvent)
-		window.addEventListener('mouseup', onMouseEvent)
+		const el = unref(target)
+		targetEl =
+			el instanceof HTMLElement
+				? el
+				: el instanceof Object && el.$el instanceof HTMLElement
+				? el.$el
+				: undefined
+
+		if (!targetEl) return
+		targetEl.addEventListener('mousemove', onMouseMove)
+		targetEl.addEventListener('mousedown', onMouseToggle)
+		window.addEventListener('mouseup', onMouseToggle)
 	})
 
 	onUnmounted(() => {
-		if (!el.value) return
-		el.value.$el.removeEventListener('mousedown', onMouseEvent)
-		window.removeEventListener('mouseup', onMouseEvent)
+		if (!targetEl) return
+		targetEl.removeEventListener('mousemove', onMouseMove)
+		targetEl.removeEventListener('mousedown', onMouseToggle)
+		window.removeEventListener('mouseup', onMouseToggle)
 	})
 
-	return {mousePressed}
-}
-
-function useOnMouseMove(el: Ref<HTMLElement | null> | HTMLElement) {
-	const mouseX = ref(0)
-	const mouseY = ref(0)
-
-	function onMousemove(e: MouseEvent) {
-		mouseX.value = e.pageX
-		mouseY.value = e.pageY
-	}
-
-	onMounted(() => {
-		const _el = unref(el)
-		if (_el) {
-			;(_el as any).$el.addEventListener('mousemove', onMousemove)
-		}
-	})
-
-	onUnmounted(() => {
-		const _el = unref(el)
-		;(_el as any).$el.removeEventListener('mousemove', onMousemove)
-	})
-
-	return {mouseX, mouseY}
+	return {mouseX, mouseY, mousePressed}
 }
 
 export default function useHitDetector(
@@ -79,8 +74,7 @@ export default function useHitDetector(
 ) {
 	const detector = new HitDetector()
 
-	const {mouseX, mouseY} = useOnMouseMove(handleEl)
-	const {mousePressed} = useMouseButtons(handleEl)
+	const {mouseX, mouseY, mousePressed} = useMouseEvent(handleEl)
 
 	const keyboardState = useKeyboardState()
 
