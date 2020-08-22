@@ -1,7 +1,15 @@
 import ConsoleScope from '@/scopes/console'
+import ReplScope from '@/scopes/repl'
 import {convertMalNodeToJSObject} from '@/mal/reader'
-import {ref, Ref, computed, watch} from '@vue/composition-api'
-import {MalAtom, MalMap, assocBang, keywordFor} from '@/mal/types'
+import {ref, Ref, computed, watch, markRaw} from '@vue/composition-api'
+import {
+	MalAtom,
+	MalMap,
+	assocBang,
+	keywordFor,
+	createList,
+	MalFunc,
+} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 
@@ -27,9 +35,11 @@ export function useModes(
 	viewTransform: Ref<mat2d>
 ) {
 	const modes = ref(
-		convertMalNodeToJSObject(
-			(ConsoleScope.var('*modes*') as MalAtom).value
-		) as Mode[]
+		markRaw(
+			convertMalNodeToJSObject(
+				(ConsoleScope.var('*modes*') as MalAtom).value
+			) as Mode[]
+		)
 	)
 
 	let state: MalMap
@@ -45,7 +55,7 @@ export function useModes(
 
 	const activeMode = computed(() =>
 		activeModeIndex.value !== undefined
-			? modes.value[activeModeIndex.value]
+			? markRaw(modes.value[activeModeIndex.value])
 			: undefined
 	)
 
@@ -64,17 +74,17 @@ export function useModes(
 
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
-			state = handler(
-				assocBang(
-					state,
-					K_EVENT_TYPE,
-					type,
-					K_POS,
-					pos.value,
-					K_MOUSE_PRESSED,
-					mousePressed.value
-				)
+			console.log(type, state)
+			const params = assocBang(
+				state,
+				K_EVENT_TYPE,
+				type,
+				K_POS,
+				pos.value,
+				K_MOUSE_PRESSED,
+				mousePressed.value
 			)
+			state = handler(params)
 		}
 	}
 
@@ -82,8 +92,9 @@ export function useModes(
 	watch(
 		() => activeMode.value,
 		mode => {
-			if (mode && mode.handlers.setup) {
-				state = mode.handlers.setup()
+			if (mode) {
+				console.log('setup')
+				state = mode.handlers.setup ? mode.handlers.setup() : ({} as MalMap)
 			}
 		}
 	)
