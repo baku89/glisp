@@ -50,6 +50,27 @@
 					:viewTransform.sync="viewHandlesTransform"
 					@tag-history="tagExpHistory('undo')"
 				/>
+				<div class="PageIndex__modes">
+					<button
+						class="PageIndex__modes-button"
+						v-for="({name, handlers}, i) in modes"
+						:key="name"
+						:class="{active: i === activeModeIndex}"
+						@click="activeModeIndex = i"
+					>
+						<span
+							class="icon"
+							v-if="handlers.icon.type === 'character'"
+						>{{handlers.icon.value}}</span>
+						<i
+							class="icon"
+							v-else-if="handlers.icon.type === 'fontawesome'"
+							:class="handlers.icon.value"
+						/>
+
+						<span class="label">{{handlers.label}}</span>
+					</button>
+				</div>
 			</Pane>
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
@@ -138,6 +159,7 @@ import {
 	useHitDetector,
 } from './use'
 import {reconstructTree} from '@/mal/reader'
+import {useModes} from './use/use-modes'
 
 interface Data {
 	exp: NonReactive<MalNode>
@@ -422,11 +444,16 @@ export default defineComponent({
 			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
 		}
 
+		const viewTransform = toRef(ui, 'viewTransform')
+
+		// Modes
+		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
+
 		// HitDetector
 		useHitDetector(
 			elHandles,
 			toRef(data, 'exp'),
-			toRef(ui, 'viewTransform'),
+			viewTransform,
 			setActiveExp,
 			toggleSelectedExp,
 			setHoveringExp,
@@ -459,6 +486,10 @@ export default defineComponent({
 			setActiveExp,
 			onResizeSplitpanes,
 			tagExpHistory,
+
+			// modes
+			modes,
+			activeModeIndex,
 
 			paneSizeInPercent,
 		}
@@ -534,6 +565,52 @@ html, body
 		width 30rem
 		border 1px solid var(--border)
 		translucent-bg()
+
+	&__modes
+		position absolute
+		top 1rem
+		left 1rem
+		display flex
+		flex-direction column
+
+		&-button
+			$width = 2.5rem
+			position relative
+			display flex
+			overflow hidden
+			margin-bottom 0.4rem
+			padding 0
+			width $width
+			height $width
+			border-radius (0.5 * $width)rem
+			background var(--foreground)
+			color var(--background)
+			text-align center
+			line-height $width
+			transition all 0.1s ease
+			transform-origin 0.5 * $width 0.5 * $width
+
+			&:hover, &.active
+				width auto
+
+			&:hover
+				background var(--hover)
+				transform scale(1.1)
+
+			& > .icon
+				display block
+				flex 0 0 $width
+				width $width
+				height $width
+				font-weight bold
+				font-size 1.2rem
+				line-height $width
+
+			& > .label
+				display block
+				padding-right 1rem
+				width auto
+				height $width
 
 	&__control
 		position relative

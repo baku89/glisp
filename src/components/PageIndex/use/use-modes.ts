@@ -7,10 +7,13 @@ import useMouseEvents from '@/components/use/use-mouse-events'
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
+const K_MOUSE_PRESSED = keywordFor('mouse-pressed')
 
 interface Mode {
 	name: string
 	handlers: {
+		label: string
+		icon: {type: 'character' | 'fontawesome'; value: string}
 		setup?: () => MalMap
 		move?: (state: MalMap) => MalMap
 		press?: (state: MalMap) => MalMap
@@ -61,7 +64,17 @@ export function useModes(
 
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
-			state = handler(assocBang(state, K_EVENT_TYPE, type, K_POS, pos.value))
+			state = handler(
+				assocBang(
+					state,
+					K_EVENT_TYPE,
+					type,
+					K_POS,
+					pos.value,
+					K_MOUSE_PRESSED,
+					mousePressed.value
+				)
+			)
 		}
 	}
 
