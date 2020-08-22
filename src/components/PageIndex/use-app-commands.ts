@@ -32,6 +32,7 @@ import {
 	getUIAnnotationExp,
 	deleteExp,
 	generateExpAbsPath,
+	getExpByPath,
 } from '@/mal/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from './utils'
@@ -116,6 +117,22 @@ export default function useAppCommands(
 		replaceExp(activeExp, newActiveExp)
 
 		return generateExpAbsPath(newExp)
+	})
+
+	AppScope.def('replace-item', (path: MalVal, replaced: MalVal) => {
+		if (typeof path !== 'string') {
+			throw new Error('Path should be string')
+		}
+
+		const original = getExpByPath(data.exp.value, path)
+
+		if (!isNode(original)) {
+			throw new MalError('The original should be node')
+		}
+
+		replaceExp(original, replaced)
+
+		return true
 	})
 
 	AppScope.def('load-file', (url: MalVal) => {
