@@ -1,7 +1,12 @@
-(defmode pencil
-  {:press (fn []
-            {:path (insert-path '(polyline))})
-   :drag (fn [{:path path :pos pos}]
-           {:path (replace-path
-                   path
-                   (apply list (concat path pos)))})})
+(def *modes* (atom []))
+
+(defmacro defmode [mode-name handlers]
+  (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
+
+(defmode polyline
+  {:setup (fn [] {:item nil})
+   :press (fn {:item item :pos pos}
+            {:item
+             (if (nil? item)
+               (insert-item '(polyline pos))
+               (replace-item item (conj item pos)))})})
