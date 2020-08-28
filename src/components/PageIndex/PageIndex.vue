@@ -50,7 +50,7 @@
 					:viewTransform.sync="viewHandlesTransform"
 					@tag-history="tagExpHistory('undo')"
 				/>
-				<div class="PageIndex__modes">
+				<!-- <div class="PageIndex__modes">
 					<button
 						class="PageIndex__modes-button"
 						v-for="({name, handlers}, i) in modes"
@@ -70,7 +70,7 @@
 
 						<span class="label">{{handlers.label}}</span>
 					</button>
-				</div>
+				</div>-->
 			</Pane>
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
