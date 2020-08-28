@@ -11,6 +11,7 @@ export default function useURLParser(
 
 	if (url.searchParams.has('clear')) {
 		localStorage.removeItem('saved_code')
+		localStorage.removeItem('settings')
 		url.searchParams.delete('clear')
 		history.pushState({}, document.title, url.pathname + url.search)
 	}
