@@ -564,6 +564,7 @@ html, body
 		left 1rem
 		display flex
 		flex-direction column
+		pointer-events none
 
 		&-button
 			$width = 2.5rem
@@ -581,6 +582,7 @@ html, body
 			line-height $width
 			transition all 0.1s ease
 			transform-origin 0.5 * $width 0.5 * $width
+			pointer-events all
 
 			&:hover, &.active
 				width auto
