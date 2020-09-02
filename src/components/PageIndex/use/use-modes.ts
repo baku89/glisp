@@ -5,6 +5,9 @@ import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
+import {useKeyboardState} from '@/components/use'
+
+useKeyboardState()
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
