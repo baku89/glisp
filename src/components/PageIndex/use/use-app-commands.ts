@@ -72,6 +72,8 @@ export default function useAppCommands(
 		let activeExp = data.exp.value
 		if (data.activeExp) {
 			activeExp = data.activeExp.value
+		} else {
+			activeExp = data.exp.value
 		}
 
 		const type = getType(exp)
