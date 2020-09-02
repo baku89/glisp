@@ -6,8 +6,7 @@ import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
 import {useKeyboardState} from '@/components/use'
-
-useKeyboardState()
+import {getHTMLElement} from '@/utils'
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
@@ -30,6 +29,9 @@ export function useModes(
 	handleEl: Ref<HTMLElement | null>,
 	viewTransform: Ref<mat2d>
 ) {
+	// Force enable keyboard state to retrieve modifiers
+	useKeyboardState()
+
 	const modes = ref(
 		markRaw(
 			convertMalNodeToJSObject(
@@ -46,9 +48,12 @@ export function useModes(
 		onDrag: () => executeMouseHandler('drag'),
 		onUp: () => executeMouseHandler('release'),
 		ignorePredicate(e: MouseEvent) {
-			// NOTE: This is makeshift and might occur bugs in the future
-			// Ignore the click event when clicked handles directly
-			return !/svg/i.test((e.target as any)?.tagName)
+			const root = getHTMLElement(handleEl)
+			if (!root) return true
+			const target = e.target as HTMLElement
+			// NOTE: Makeshift
+			const svg = root.children[1]
+			return target !== svg && svg.contains(target)
 		},
 	})
 
