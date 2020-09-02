@@ -143,6 +143,21 @@
          (let [~binding-form ~test-sym]
            (do ~@body))))))
 
+(defmacro if-let
+  {:doc "*bindings* => *binding-form* *test*  
+         If *test* is true, evaluates *then* with *bounding-form* bound to the value of *test*, if not, yields *else*"
+   :params [{:label "Bind" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:type "exp"}}]}
+  [[binding-form test] then else]
+  (let [test-sym (gensym)]
+    `(let [~test-sym ~test]
+       (if ~test-sym
+         (let [~binding-form ~test-sym]
+           ~then)
+         ~else))))
+
 (defmacro cond [& xs]
   (if (> (count xs) 0)
     (list
