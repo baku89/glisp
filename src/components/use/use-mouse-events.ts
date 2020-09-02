@@ -1,4 +1,5 @@
 import {Ref, onUnmounted, ref, onMounted, unref} from '@vue/composition-api'
+import {getHTMLElement} from '@/utils'
 
 export default function useMouseEvents(
 	target: Ref<HTMLElement | any | null> | HTMLElement,
@@ -48,13 +49,7 @@ export default function useMouseEvents(
 	}
 
 	onMounted(() => {
-		const el = unref(target)
-		targetEl =
-			el instanceof HTMLElement
-				? el
-				: el instanceof Object && el.$el instanceof HTMLElement
-				? el.$el
-				: undefined
+		targetEl = getHTMLElement(target)
 
 		if (!targetEl) return
 		targetEl.addEventListener('mousemove', onMouseMove)

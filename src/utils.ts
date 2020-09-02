@@ -1,6 +1,7 @@
 import Case from 'case'
 import {MalVal, isKeyword} from '@/mal/types'
 import printExp from '@/mal/printer'
+import {Ref, unref} from '@vue/composition-api'
 
 export function replaceRange(
 	s: string,
@@ -64,4 +65,15 @@ export function partition(n: number, coll: any[]) {
 
 export function delay(ms: number) {
 	return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+export function getHTMLElement(
+	el: Ref<HTMLElement | any | null> | HTMLElement
+): HTMLElement | undefined {
+	const _el = unref(el)
+	return _el instanceof HTMLElement
+		? _el
+		: _el instanceof Object && _el.$el instanceof HTMLElement
+		? _el.$el
+		: undefined
 }
