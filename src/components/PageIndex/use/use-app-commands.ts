@@ -134,7 +134,7 @@ export default function useAppCommands(
 
 		replaceExp(original, replaced)
 
-		return true
+		return path
 	})
 
 	AppScope.def('load-file', (url: MalVal) => {
