@@ -1,7 +1,7 @@
 import ConsoleScope from '@/scopes/console'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 import {ref, Ref, computed, watch, markRaw} from '@vue/composition-api'
-import {MalAtom, MalMap, assocBang, keywordFor} from '@/mal/types'
+import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
@@ -82,7 +82,10 @@ export function useModes(
 				K_MOUSE_PRESSED,
 				mousePressed.value
 			)
-			state = handler(params)
+			const updatedState = handler(params)
+			if (isMap(updatedState)) {
+				state = updatedState
+			}
 		}
 	}
 
