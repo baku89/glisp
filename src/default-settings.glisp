@@ -69,6 +69,17 @@
                 {:item item
                  :path path})))})
 
+(defmode "circle"
+  {:label "Circle"
+   :icon {:type "character" :value "○"}
+   :press (fn {:pos pos}
+            {:center pos
+             :path (insert-item `(circle ~pos 0))})
+   :drag (fn {:center center :path path :pos pos}
+           (do
+             (replace-item path `(circle ~center ~(vec2/dist center pos)))
+             {:path path :center center}))})
+
 (defmode "select"
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
