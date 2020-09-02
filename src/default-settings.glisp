@@ -55,6 +55,19 @@
 ;; Modes
 (reset! *modes* [])
 
+(defmode "select"
+  {:label "Select"
+   :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
+   :setup (fn [] {:path nil})
+   :move (fn {:pos pos}
+           {:path (detect-hit pos)})
+   :press (fn {:path path :pos pos}
+            (do (select-items (if path [path] []))
+                {:prev-pos pos}))
+   :drag (fn {:prev-pos prev-pos :pos pos}
+           (do (transform-selected (translate (vec2/- pos prev-pos)))
+               {:prev-pos pos}))})
+
 (defmode "polyline"
   {:label "Polyline"
    :icon {:type "character" :value "⏢"}
@@ -79,13 +92,3 @@
            (do
              (replace-item path `(circle ~center ~(vec2/dist center pos)))
              {:path path :center center}))})
-
-(defmode "select"
-  {:label "Select"
-   :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
-   :move (fn {:pos pos}
-           (when-let [path (detect-hit pos)]
-             {:path (hover-items [path])}))
-   :press (fn [e]
-            (if (contains? e :path)
-              (select-items [(get e :path)])))})
