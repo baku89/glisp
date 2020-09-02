@@ -62,11 +62,30 @@
    :move (fn {:pos pos}
            {:path (detect-hit pos)})
    :press (fn {:path path :pos pos}
-            (do (select-items (if path [path] []))
-                {:prev-pos pos}))
-   :drag (fn {:prev-pos prev-pos :pos pos}
-           (do (transform-selected (translate (vec2/- pos prev-pos)))
-               {:prev-pos pos}))})
+            (let [already-selected (item-selected? path)]
+              (if path
+                (if (modifier-pressed? :ctrl)
+                  (if-not already-selected
+                    (toggle-item-selection path))
+                  (select-items [path]))
+                (select-items []))
+              {:path path
+               :prev-pos pos
+               :dragged false
+               :deselect already-selected}))
+   :drag (fn {:prev-pos prev-pos
+              :pos pos :path path
+              :deselect deselect}
+           (do (transform-selected
+                (translate (vec2/- pos prev-pos)))
+               {:prev-pos pos
+                :path path
+                :deselect false}))
+   :release (fn {:path path :deselect deselect}
+              (when (and deselect
+                         (modifier-pressed? :ctrl))
+                (toggle-item-selection path)
+                {:path path}))})
 
 (defmode "polyline"
   {:label "Polyline"

@@ -158,6 +158,47 @@ export default function useAppCommands(
 		return false
 	})
 
+	AppScope.def('item-selected?', (path: MalVal) => {
+		if (typeof path !== 'string') {
+			return false
+		}
+
+		const item = getExpByPath(data.exp.value, path)
+
+		if (!isNode(item)) {
+			return false
+		}
+
+		const index = data.selectedExp.findIndex(s => s.value === item)
+
+		return index !== -1
+	})
+
+	AppScope.def('toggle-item-selection', (path: MalVal) => {
+		if (typeof path !== 'string') {
+			return false
+		}
+
+		const item = getExpByPath(data.exp.value, path)
+
+		if (!isNode(item)) {
+			return false
+		}
+
+		const index = data.selectedExp.findIndex(s => s.value === item)
+
+		const items = [...data.selectedExp]
+		if (index === -1) {
+			items.push(nonReactive(item))
+		} else {
+			items.splice(index, 1)
+		}
+
+		callbacks.setSelectedExp(items)
+
+		return true
+	})
+
 	AppScope.def('load-file', (url: MalVal) => {
 		fetch(url as string).then(async res => {
 			if (res.ok) {

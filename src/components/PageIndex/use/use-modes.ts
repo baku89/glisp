@@ -72,7 +72,6 @@ export function useModes(
 
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
-			console.log(type, state)
 			const params = assocBang(
 				state,
 				K_EVENT_TYPE,
