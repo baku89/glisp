@@ -21,6 +21,7 @@ import {
 	getType,
 	isNode,
 	symbolFor,
+	isVector,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -135,6 +136,26 @@ export default function useAppCommands(
 		replaceExp(original, replaced)
 
 		return path
+	})
+
+	AppScope.def('select-items', (paths: MalVal) => {
+		if (isVector(paths)) {
+			const items: NonReactive<MalNode>[] = []
+
+			for (const path of paths) {
+				if (typeof path !== 'string') {
+					return false
+				}
+				const item = getExpByPath(data.exp.value, path)
+				if (!isNode(item)) {
+					return false
+				}
+				items.push(nonReactive(item))
+			}
+
+			callbacks.setSelectedExp(items)
+		}
+		return false
 	})
 
 	AppScope.def('load-file', (url: MalVal) => {
