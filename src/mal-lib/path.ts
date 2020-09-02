@@ -25,7 +25,6 @@ import {
 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
-import {merge} from 'jquery'
 
 const EPSILON = 1e-5
 
@@ -215,23 +214,6 @@ function pathLength(_path: PathType) {
 	return path.length
 }
 
-function makeOpen(path: PathType) {
-	if (closedQ(path)) {
-		path = path.slice(0, path.length - 1)
-		const first = (path[0].toString().startsWith(K_PATH)
-			? path[2]
-			: path[1]) as vec2
-		const last = path[path.length - 1] as vec2
-
-		// Add L command to connect to first points if the last Z has certain length
-		if (vec2.dist(first, last) > EPSILON) {
-			path.push(K_L, first)
-		}
-	}
-
-	return path
-}
-
 function pathJoin(...paths: PathType[]) {
 	let mergedPath = paths
 		.map(p => p.slice(1))
@@ -307,20 +289,12 @@ function getPropertyAtLength(
 	return childPath[methodName](childOffset)
 }
 
-function normalAtLength(
-	offset: number,
-	path: PathType,
-	paperPath?: paper.Path
-) {
+function normalAtLength(offset: number, path: PathType) {
 	const ret = getPropertyAtLength(offset, path, 'getNormalAt') as paper.Point
 	return [ret.x, ret.y]
 }
 
-function positionAtLength(
-	offset: number,
-	path: PathType,
-	paperPath?: paper.Path
-) {
+function positionAtLength(offset: number, path: PathType) {
 	const {point} = getPropertyAtLength(
 		offset,
 		path,
@@ -329,16 +303,12 @@ function positionAtLength(
 	return [point.x, point.y]
 }
 
-function tangentAtLength(
-	offset: number,
-	path: PathType,
-	paperPath?: paper.Path
-) {
+function tangentAtLength(offset: number, path: PathType) {
 	const ret = getPropertyAtLength(offset, path, 'getTangentAt') as paper.Point
 	return [ret.x, ret.y]
 }
 
-function angleAtLength(offset: number, path: PathType, paperPath?: paper.Path) {
+function angleAtLength(offset: number, path: PathType) {
 	const tangent = getPropertyAtLength(
 		offset,
 		path,

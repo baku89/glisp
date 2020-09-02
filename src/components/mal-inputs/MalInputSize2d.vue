@@ -48,12 +48,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	toRef,
-	SetupContext,
-	computed,
-} from '@vue/composition-api'
+import {defineComponent, SetupContext, computed} from '@vue/composition-api'
 import {
 	MalSeq,
 	isSeq,
@@ -70,8 +65,7 @@ import {
 } from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
-import {InputNumber, InputTranslate} from '@/components/inputs'
-import {useNumericVectorUpdator} from '@/components/use'
+import {InputNumber} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
@@ -136,7 +130,6 @@ export default defineComponent({
 			}
 
 			const newSize = cloneExp(size.value.value as MalSeq)
-			const prevValue = newSize[index]
 			newSize[index] = v.value
 
 			const r = evaluated.value[1] / evaluated.value[0]
@@ -167,7 +160,6 @@ export default defineComponent({
 
 		function onInputEvaluatedElement(index: number, v: number) {
 			const newSize = [...evaluated.value]
-			const prevValue = newSize[index]
 			newSize[index] = v
 
 			const r = evaluated.value[1] / evaluated.value[0]

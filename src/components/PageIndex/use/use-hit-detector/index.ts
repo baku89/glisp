@@ -31,7 +31,6 @@ export default function useHitDetector(
 	const keyboardState = useKeyboardState()
 
 	let prevMousePressed = false
-	let prevExp: MalNode | null = null
 	let prevPos = vec2.fromValues(0, 0)
 	let draggingExp: NonReactive<MalVal> | null = null
 
@@ -52,15 +51,7 @@ export default function useHitDetector(
 			)
 
 			// Do the hit detection
-			// NOTE: the below line somehow does not work so temporarily set to false whenever
-			const isSameExp = false // prevExp === exp.value.value
-
-			// console.time('hit')
-			const ret = await detector.analyze(
-				pos,
-				isSameExp ? undefined : exp.value.value
-			)
-			// console.timeEnd('hit')
+			const ret = await detector.analyze(pos, exp.value.value)
 
 			const hitExp = ret ? nonReactive(ret as MalNode) : null
 
@@ -93,7 +84,6 @@ export default function useHitDetector(
 
 			// Update
 			prevMousePressed = mousePressed.value
-			prevExp = exp.value.value
 			prevPos = pos
 		}
 	)

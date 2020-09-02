@@ -210,7 +210,6 @@ function readHashMap(reader: Reader, saveStr: boolean) {
 	const lst = readVector(reader, saveStr, '{', '}')
 	const map = assocBang({}, ...lst) as MalNodeMap
 	if (saveStr) {
-		const keys = []
 		const elmStrs = []
 
 		for (let i = 0; i < lst.length; i += 2) {

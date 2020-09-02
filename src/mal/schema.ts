@@ -16,7 +16,7 @@ import {
 	cloneExp,
 } from './types'
 import {getStructType} from './utils'
-import {convertJSObjectToMalMap, convertMalNodeToJSObject} from './reader'
+import {convertMalNodeToJSObject} from './reader'
 
 interface SchemaBase {
 	type: string
