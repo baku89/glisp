@@ -23,6 +23,7 @@
 (set-keybind "mod+v" '(do (paste-from-clipboard) (tag-history :undo)))
 (set-keybind "mod+x" '(do (copy-selected) (delete-selected) (tag-history :undo)))
 (set-keybind "mod+d" '(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
+(set-keybind "esc" '(reset-mode))
 
 ;; Global Menu
 (set-global-menu

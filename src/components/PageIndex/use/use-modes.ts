@@ -4,6 +4,7 @@ import {ref, Ref, computed, watch, markRaw} from '@vue/composition-api'
 import {MalAtom, MalMap, assocBang, keywordFor} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
+import AppScope from '@/scopes/app'
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
@@ -86,11 +87,21 @@ export function useModes(
 	}
 
 	// Execute setup
+	AppScope.def('reset-mode', () => {
+		if (activeMode.value) {
+			state = activeMode.value.handlers.setup
+				? activeMode.value.handlers.setup()
+				: ({} as MalMap)
+			return true
+		} else {
+			return false
+		}
+	})
+
 	watch(
 		() => activeMode.value,
 		mode => {
 			if (mode) {
-				console.log('setup')
 				state = mode.handlers.setup ? mode.handlers.setup() : ({} as MalMap)
 			}
 		}
