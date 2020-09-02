@@ -1,12 +1,14 @@
 import {Ref, watch} from '@vue/composition-api'
 
 import {NonReactive, nonReactive} from '@/utils'
-import {MalVal, MalNode} from '@/mal/types'
+import {MalVal, MalNode, isSeq, isNode} from '@/mal/types'
 
 import {HitDetector} from './hit-detector'
 import {vec2, mat2d} from 'gl-matrix'
 import useKeyboardState from '@/components/use/use-keyboard-state'
 import useMouseEvents from '@/components/use/use-mouse-events'
+import AppScope from '@/scopes/app'
+import {generateExpAbsPath} from '@/mal/utils'
 
 export default function useHitDetector(
 	handleEl: Ref<HTMLElement | null>,
@@ -40,6 +42,30 @@ export default function useHitDetector(
 		window.removeEventListener('mouseup', releaseDraggingExp)
 	}
 
+	AppScope.def('detect-hit', (pos: MalVal) => {
+		if (
+			isSeq(pos) &&
+			typeof pos[0] === 'number' &&
+			typeof pos[1] === 'number'
+		) {
+			const p = vec2.clone(pos as any)
+
+			// vec2.transformMat2d(
+			// 	p,
+			// 	p,
+			// 	mat2d.invert(mat2d.create(), viewTransform.value)
+			// )
+
+			const ret = detector.analyze(p, exp.value.value)
+
+			if (isNode(ret)) {
+				return generateExpAbsPath(ret)
+			}
+		}
+
+		return false
+	})
+
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
@@ -54,7 +80,7 @@ export default function useHitDetector(
 			)
 
 			// Do the hit detection
-			const ret = await detector.analyze(pos, exp.value.value)
+			const ret = detector.analyze(pos, exp.value.value)
 
 			const hitExp = ret ? nonReactive(ret as MalNode) : null
 
