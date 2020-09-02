@@ -71,10 +71,10 @@
                 (select-items []))
               {:path path
                :prev-pos pos
-               :dragged false
                :deselect already-selected}))
    :drag (fn {:prev-pos prev-pos
-              :pos pos :path path
+              :pos pos
+              :path path
               :deselect deselect}
            (do (transform-selected
                 (translate (vec2/- pos prev-pos)))
