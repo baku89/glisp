@@ -84,5 +84,8 @@
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
    :move (fn {:pos pos}
-           (when-let [item (detect-hit pos)]
-             (hover-item item)))})
+           (when-let [path (detect-hit pos)]
+             {:path (hover-items [path])}))
+   :press (fn [e]
+            (if (contains? e :path)
+              (select-items [(get e :path)])))})
