@@ -446,6 +446,11 @@ export default defineComponent({
 
 		const viewTransform = toRef(ui, 'viewTransform')
 
+		// Modes
+		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
+
+		const hitEnabled = computed(() => activeModeIndex.value === undefined)
+
 		// HitDetector
 		useHitDetector(
 			elHandles,
@@ -455,7 +460,8 @@ export default defineComponent({
 			toggleSelectedExp,
 			setHoveringExp,
 			onTransformSelectedExp,
-			() => tagExpHistory('undo')
+			() => tagExpHistory('undo'),
+			hitEnabled
 		)
 
 		// Setup scopes
@@ -469,9 +475,6 @@ export default defineComponent({
 
 		// Scrollbar
 		useCompactScrollbar()
-
-		// Modes
-		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
 
 		return {
 			elHandles,

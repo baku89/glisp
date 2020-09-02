@@ -1,15 +1,7 @@
 import ConsoleScope from '@/scopes/console'
-import ReplScope from '@/scopes/repl'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 import {ref, Ref, computed, watch, markRaw} from '@vue/composition-api'
-import {
-	MalAtom,
-	MalMap,
-	assocBang,
-	keywordFor,
-	createList,
-	MalFunc,
-} from '@/mal/types'
+import {MalAtom, MalMap, assocBang, keywordFor} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 
@@ -49,6 +41,11 @@ export function useModes(
 		onDown: () => executeMouseHandler('press'),
 		onDrag: () => executeMouseHandler('drag'),
 		onUp: () => executeMouseHandler('release'),
+		ignorePredicate(e: MouseEvent) {
+			// NOTE: This is makeshift and might occur bugs in the future
+			// Ignore the click event when clicked handles directly
+			return !/svg/i.test((e.target as any)?.tagName)
+		},
 	})
 
 	const activeModeIndex: Ref<number | undefined> = ref(undefined)

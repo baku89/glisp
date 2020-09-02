@@ -16,7 +16,8 @@ export default function useHitDetector(
 	toggleSelectedExp: (exp: NonReactive<MalNode>) => void,
 	setHoverExp: (exp: NonReactive<MalNode> | null) => void,
 	transformSelectedExp: (transform: mat2d) => void,
-	endTweak: () => any
+	endTweak: () => any,
+	enabled: Ref<boolean>
 ) {
 	const detector = new HitDetector()
 
@@ -42,6 +43,8 @@ export default function useHitDetector(
 	watch(
 		() => [viewTransform.value, mouseX.value, mouseY.value, mousePressed.value],
 		async () => {
+			if (!enabled.value) return
+
 			const pos = vec2.fromValues(mouseX.value, mouseY.value)
 
 			vec2.transformMat2d(
