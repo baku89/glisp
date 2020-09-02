@@ -126,8 +126,8 @@
   {:doc "Evaluates test. If true, evaluates body in an implicit do"
    :params [{:type "exp"}
             {:type "exp"}]}
-  [test body]
-  (list 'if test (cons 'do body)))
+  [test & body]
+  `(if ~test (do ~@body)))
 
 (defmacro when-let
   {:doc "*bindings* => *binding-form* *test*  
