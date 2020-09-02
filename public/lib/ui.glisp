@@ -14,6 +14,11 @@
 (def *stroke-cap* "round")
 (def *stroke-join* "round")
 
+(def *modes* (atom []))
+
+(defn defmode [mode-name handlers]
+  (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
+
 ;; Atoms
 (def *app-background* (atom nil))
 (def *time-variables* (atom []))

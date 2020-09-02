@@ -50,3 +50,27 @@
    [["Documentation" '(open-link "https://glisp.app/docs/")]
     ["Jump to Repo" '(open-link "https://github.com/baku89/glisp")]
     ["Made by Baku Hashimoto" '(open-link "https://baku89.com")]]]])
+
+;; Modes
+(reset! *modes* [])
+
+(defmode "polyline"
+  {:label "Polyline"
+   :icon {:type "character" :value "⏢"}
+   :setup (fn [] {:item nil :path nil})
+   :press (fn {:item item :pos pos :path path}
+            (if (nil? item)
+              (let [item `(polyline ~pos)]
+                {:item item
+                 :path (insert-item item)})
+              (let [item (lst (concat item [pos]))]
+                (replace-item path item)
+                {:item item
+                 :path path})))})
+
+(defmode "select"
+  {:label "Select"
+   :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
+   :move (fn {:pos pos}
+           (when-let [item (detect-hit pos)]
+             (hover-item item)))})

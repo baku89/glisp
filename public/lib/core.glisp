@@ -560,4 +560,3 @@
 (import "graphics.glisp")
 (import "math.glisp")
 (import "path.glisp")
-(import "mode.glisp")
