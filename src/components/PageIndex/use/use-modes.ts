@@ -49,7 +49,7 @@ export function useModes(
 		},
 	})
 
-	const activeModeIndex: Ref<number | undefined> = ref(undefined)
+	const activeModeIndex: Ref<number | undefined> = ref(0)
 
 	const activeMode = computed(() =>
 		activeModeIndex.value !== undefined
@@ -107,7 +107,8 @@ export function useModes(
 			if (mode) {
 				state = mode.handlers.setup ? mode.handlers.setup() : ({} as MalMap)
 			}
-		}
+		},
+		{immediate: true}
 	)
 
 	return {
