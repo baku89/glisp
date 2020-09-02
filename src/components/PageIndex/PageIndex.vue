@@ -463,17 +463,7 @@ export default defineComponent({
 		const hitEnabled = computed(() => activeModeIndex.value === undefined)
 
 		// HitDetector
-		useHitDetector(
-			elHandles,
-			toRef(data, 'exp'),
-			viewTransform,
-			setActiveExp,
-			toggleSelectedExp,
-			setHoveringExp,
-			onTransformSelectedExp,
-			() => tagExpHistory('undo'),
-			hitEnabled
-		)
+		useHitDetector(toRef(data, 'exp'))
 
 		return {
 			elHandles,
