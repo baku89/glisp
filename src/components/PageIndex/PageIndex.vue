@@ -445,6 +445,17 @@ export default defineComponent({
 		}
 
 		const viewTransform = toRef(ui, 'viewTransform')
+		// Setup scopes
+		useAppCommands(data, {
+			updateExp,
+			setActiveExp,
+			setSelectedExp,
+		})
+		useDialogCommand(context)
+		useDialogSettings(context)
+
+		// Scrollbar
+		useCompactScrollbar()
 
 		// Modes
 		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
@@ -463,18 +474,6 @@ export default defineComponent({
 			() => tagExpHistory('undo'),
 			hitEnabled
 		)
-
-		// Setup scopes
-		useAppCommands(data, {
-			updateExp,
-			setActiveExp,
-			setSelectedExp,
-		})
-		useDialogCommand(context)
-		useDialogSettings(context)
-
-		// Scrollbar
-		useCompactScrollbar()
 
 		return {
 			elHandles,
