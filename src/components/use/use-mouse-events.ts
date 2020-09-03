@@ -35,7 +35,10 @@ export default function useMouseEvents(
 
 	function onMouseToggle(e: MouseEvent) {
 		const pressed = e.type === 'mousedown'
-		if (pressed && ignorePredicate && ignorePredicate(e)) {
+		if (
+			(pressed && ignorePredicate && ignorePredicate(e)) ||
+			(!pressed && !mousePressed.value)
+		) {
 			return
 		}
 		if (e.button === 0) {
