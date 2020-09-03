@@ -116,6 +116,7 @@ export default function useAppCommands(
 		// Insert
 		const newActiveExp = cloneExp(activeExp)
 		newActiveExp.push(newExp)
+		copyDelimiters(newActiveExp, activeExp)
 
 		replaceExp(activeExp, newActiveExp)
 
