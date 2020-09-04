@@ -41,6 +41,7 @@ import {
 	isNode,
 	getOuter,
 	isSymbolFor,
+	MalType,
 } from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
@@ -87,7 +88,12 @@ export default defineComponent({
 
 		const fnDoc = computed(() => {
 			if (fnInfo.value?.meta) {
-				return getMapValue(fnInfo.value.meta, 'doc') as string
+				return getMapValue(
+					fnInfo.value.meta,
+					'doc',
+					MalType.String,
+					''
+				) as string
 			}
 			return ''
 		})
