@@ -45,20 +45,20 @@
                         (let [[cmd & pts] seg]
                           (case cmd
                             :Z nil
-                            :C [{:id [i 1] :type "point" :pos (first pts)}
-                                {:id [i 2] :type "point" :pos (second pts)}
-                                {:id [i 3] :type "point" :pos (last pts)}]
-                                    ; :M or :L
-                            {:id [i 1] :type "point" :pos (first pts)})))))))
-    :drag (fn {:id [seg-idx el-idx]
+                            :C [{:id [i :handle-out] :type "point" :pos (first pts)}
+                                {:id [i :handle-in] :type "point" :pos (second pts)}
+                                {:id [i :anchor] :type "point" :pos (last pts)}]
+                            ; :M or :L
+                            {:id [i :anchor] :type "point" :pos (first pts)})))))))
+
+    :drag (fn {:id [seg-idx vtx-type]
                :pos p
+               :prev-pos pp
                :params [path]}
-            (let [segs (path/split-segments path)
-                  edited-seg (replace-nth
-                              (nth segs seg-idx)
-                              el-idx
-                              p)]
-              `[[:path ~@(apply concat (replace-nth segs seg-idx edited-seg))]]))}
+            (let [delta (vec2/- p pp)]
+              (if (= vtx-type :anchor)
+                [(path/drag-anchor path seg-idx delta)]
+                [(path/drag-handle path seg-idx vtx-type delta)])))}
    :transform (fn {:params [path]
                    :transform xform}
                 [(path/transform xform path)])

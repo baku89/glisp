@@ -14,6 +14,7 @@ import {
 	assocBang,
 	isMap,
 	createList as L,
+	isVector,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -25,6 +26,8 @@ import {
 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
+import {net} from 'electron'
+import {nextTick} from 'vue/types/umd'
 
 const EPSILON = 1e-5
 
@@ -175,6 +178,174 @@ export function* iterateCurve(path: PathType): Generator<SegmentType> {
 				break
 		}
 	}
+}
+
+function dragAnchor(path: PathType, index: number, delta: vec2) {
+	const segs = Array.from(iterateSegment(path))
+	const draggingSeg = segs[index]
+
+	let origAnchor: vec2
+
+	if (draggingSeg[0] === K_C) {
+		// Anchor itself
+		origAnchor = vec2.clone(draggingSeg[3] as vec2)
+		const anchor = vec2.add(vec2.create(), origAnchor, delta)
+		draggingSeg[3] = anchor
+
+		// In Handle
+		const inHandle = vec2.clone(draggingSeg[2] as vec2)
+		vec2.add(inHandle, inHandle, delta)
+		draggingSeg[2] = inHandle
+	} else {
+		origAnchor = vec2.clone(draggingSeg[1] as vec2)
+		const anchor = vec2.add(vec2.create(), origAnchor, delta)
+		draggingSeg[1] = anchor
+	}
+
+	// Out handle
+	let nextIndex = index + 1 < segs.length ? index + 1 : null
+
+	if (nextIndex !== null && segs[nextIndex][0] === K_Z) {
+		for (nextIndex = index - 1; nextIndex >= 0; nextIndex--) {
+			if (segs[nextIndex][0] === K_M) {
+				if (vec2.dist(origAnchor, segs[nextIndex][1] as vec2) < EPSILON) {
+					// Start Anchor
+					const startAnchor = vec2.clone(segs[nextIndex][1] as vec2)
+					vec2.add(startAnchor, startAnchor, delta)
+					segs[nextIndex][1] = startAnchor
+					nextIndex++
+				} else {
+					nextIndex = null
+				}
+				break
+			}
+		}
+	}
+	if (nextIndex !== null) {
+		if (segs[nextIndex][0] === K_C) {
+			const outHandle = vec2.clone(segs[nextIndex][1] as vec2)
+			vec2.add(outHandle, outHandle, delta)
+			segs[nextIndex][1] = outHandle
+		}
+	}
+
+	return [K_PATH, ...segs.flat()]
+}
+
+function dragHandle(
+	path: PathType,
+	index: number,
+	type: string,
+	delta: vec2,
+	breakCorner = false
+) {
+	const segs = Array.from(iterateSegment(path))
+	const draggingSeg = segs[index]
+
+	if (type === K('handle-in')) {
+		const origInHandle = vec2.clone(draggingSeg[2] as vec2)
+		const inHandle = vec2.add(vec2.create(), origInHandle, delta)
+		draggingSeg[2] = inHandle
+
+		// Out handle
+		let nextIndex = index + 1 < segs.length ? index + 1 : null
+
+		if (nextIndex !== null && segs[nextIndex][0] === K_Z) {
+			for (nextIndex = index - 1; nextIndex >= 0; nextIndex--) {
+				if (segs[nextIndex][0] === K_M) {
+					if (
+						vec2.dist(draggingSeg[3] as vec2, segs[nextIndex][1] as vec2) <
+						EPSILON
+					) {
+						nextIndex++
+					} else {
+						nextIndex = null
+					}
+					break
+				}
+			}
+		}
+
+		if (nextIndex !== null && segs[nextIndex][0] === K_C) {
+			const anchor = draggingSeg[3] as vec2
+			const outHandle = vec2.clone(segs[nextIndex][1] as vec2)
+			const outHandleDir = vec2.sub(vec2.create(), outHandle, anchor)
+
+			const isSmooth =
+				Math.abs(
+					vec2.angle(
+						vec2.sub(vec2.create(), anchor, origInHandle),
+						outHandleDir
+					)
+				) < EPSILON
+
+			if (isSmooth) {
+				const dir = vec2.normalize(
+					vec2.create(),
+					vec2.sub(vec2.create(), anchor, inHandle)
+				)
+				const scale =
+					vec2.dist(anchor, inHandle) / vec2.dist(anchor, origInHandle)
+				const len = vec2.len(outHandleDir) * scale
+
+				segs[nextIndex][1] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
+			}
+		}
+	} else if (type === K('handle-out')) {
+		console.log('handle-out')
+		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
+		const outHandle = vec2.add(vec2.create(), origOutHandle, delta)
+		draggingSeg[1] = outHandle
+
+		// In handle
+		let prevIndex = index - 1 >= 0 ? index - 1 : null
+
+		if (prevIndex !== null && segs[prevIndex][0] === K_M) {
+			const anchor = segs[prevIndex][1] as vec2
+
+			for (prevIndex = index + 1; prevIndex < segs.length; prevIndex++) {
+				if (segs[prevIndex][0] === K_Z) {
+					if (
+						!(
+							segs[--prevIndex][0] === K_C &&
+							vec2.dist(segs[prevIndex][3] as vec2, anchor) < EPSILON
+						)
+					) {
+						prevIndex = null
+					}
+					break
+				}
+			}
+		}
+
+		if (prevIndex !== null && segs[prevIndex][0] === K_C) {
+			const anchor = segs[prevIndex][3] as vec2
+			const inHandle = vec2.clone(segs[prevIndex][2] as vec2)
+			const inHandleDir = vec2.sub(vec2.create(), inHandle, anchor)
+
+			const isSmooth =
+				Math.abs(
+					vec2.angle(
+						vec2.sub(vec2.create(), anchor, origOutHandle),
+						inHandleDir
+					)
+				) < EPSILON
+
+			if (isSmooth) {
+				const dir = vec2.normalize(
+					vec2.create(),
+					vec2.sub(vec2.create(), anchor, outHandle)
+				)
+				const scale =
+					vec2.dist(anchor, outHandle) / vec2.dist(anchor, origOutHandle)
+				const len = vec2.len(inHandleDir) * scale
+
+				segs[prevIndex][2] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
+			}
+		}
+	}
+
+	return [K_PATH, ...segs.flat()]
 }
 
 function closedQ(path: PathType) {
@@ -711,6 +882,10 @@ const Exports = [
 	['path/offset-stroke', offsetStroke],
 	['path/length', pathLength],
 	['path/closed?', closedQ],
+
+	// Modify
+	['path/drag-anchor', dragAnchor],
+	['path/drag-handle', dragHandle],
 
 	// Get Property
 	['path/position-at-length', positionAtLength],
