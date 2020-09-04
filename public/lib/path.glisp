@@ -349,6 +349,51 @@
   [:path :M p :L p])
 (defalias point path/point)
 
+(defn parallel-line?
+  [p0 p1 p2 p3]
+  (= 1 (abs (vec2/dot (vec2/normalize (vec2/- p1 p0))
+                      (vec2/normalize (vec2/- p3 p2))))))
+
+(defn line-intersection
+  [p0 p1 p2 p3]
+  (if-not (parallel-line? p0 p1 p2 p3)
+    (let [a1 (/ (- (.y p2) (.y p1)) (- (.x p2) (.x p1)))
+          a3 (/ (- (.y p4) (.y p3)) (- (.x p4) (.x p3)))
+          x (/ (+ (* a1 x1) (- y1) (- (* a3 x3)) y3) (/ a1 a3))
+          y (+ (* (- y2 y1) (/ (- x2 x1)) (- x x1)) y1)]
+      [x y])))
+
+(defn path/quadratic-bezier
+  {:doc "Generates a quadratic bezier curve"
+   :params [{:type "vector"
+             :variadic true
+             :items {:label "Pos" :type "vec2"}}]
+   :handles
+   {:draw (fn {:params pts}
+            (concat
+             [{:type "path" :class "dashed" :guide true
+               :path (apply polyline pts)}]
+             (for [pt pts :index i]
+               {:type "point" :id i :pos pt})))
+    :drag (fn {:id i :pos pos :params pts}
+            {:replace [i pos]})}
+   :return {:type "path"}}
+  [& pts]
+  (if (zero? (count pts))
+    [:path]
+    (concat
+     [:path :M (first pts)]
+     (apply concat
+            (for [i (range 1 (dec (count pts)) 2)]
+              (let [q0 (nth pts (dec i))
+                    q1 (nth pts i)
+                    q2 (nth pts (inc i))
+                    _ (prn q0 q1 q2)]
+                [:C
+                 (vec2/lerp q0 q1 (/ 2 3))
+                 (vec2/lerp q2 q1 (/ 2 3))
+                 q2]))))))
+
 ;; Path modifiers
 
 (annotate-fn!
