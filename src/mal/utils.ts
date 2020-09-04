@@ -234,10 +234,11 @@ export function deleteExp(exp: MalNode) {
 export function getMapValue(
 	exp: MalVal | undefined,
 	path: string,
-	type?: MalType
+	type?: MalType,
+	defaultValue?: MalVal
 ): MalVal {
 	if (exp === undefined) {
-		return null
+		return defaultValue !== undefined ? defaultValue : null
 	}
 
 	const keys = path.split('/').map(k => (/^[0-9]+$/.test(k) ? parseInt(k) : k))
@@ -247,14 +248,14 @@ export function getMapValue(
 
 		if (typeof key === 'number') {
 			if (!isSeq(exp) || exp[key] === undefined) {
-				return null
+				return defaultValue !== undefined ? defaultValue : null
 			}
 			exp = exp[key]
 		} else {
 			// map key
 			const kw = keywordFor(key)
 			if (!isMap(exp) || !(kw in exp)) {
-				return null
+				return defaultValue !== undefined ? defaultValue : null
 			}
 
 			exp = exp[kw]
@@ -265,7 +266,7 @@ export function getMapValue(
 
 	// Type checking
 	if (type && getType(exp) !== type) {
-		return null
+		return defaultValue !== undefined ? defaultValue : null
 	}
 
 	return exp
