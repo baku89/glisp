@@ -410,7 +410,7 @@
 ;; Shape Functions
 (defn graphics/text
   {:doc "Generates a text shape"
-   :params [{:type "string" :desc "the alphanumeric symbols to be displayed"}
+   :params [{:type "string" :multiline true}
             {:type "vec2"}
             {:type "map"
              :variadic true

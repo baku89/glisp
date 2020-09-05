@@ -10,6 +10,7 @@
 			:value="evaluated"
 			:validator="validator"
 			:class="{exp: isExp}"
+			:multiline="multiline"
 			@input="onInput"
 			@end-tweak="$emit('end-tweak')"
 		/>
@@ -43,6 +44,10 @@ export default defineComponent({
 		},
 		validator: {
 			required: false,
+		},
+		multiline: {
+			required: false,
+			default: false,
 		},
 	},
 	setup(props: Props, context: SetupContext) {
