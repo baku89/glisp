@@ -806,15 +806,17 @@ function pathBounds(path: PathType) {
 		canvasCtx.font = `${settings.size}px ${settings.font}`
 		canvasCtx.textAlign = settings.align as CanvasTextAlign
 		canvasCtx.textBaseline = settings.baseline as CanvasTextBaseline
-		const measure = canvasCtx.measureText(text as string)
 
-		// Might be bug
-		const yOffset = (24 / 1000) * settings.size
+		const lines = text.split('\n')
 
-		left = x - measure.actualBoundingBoxLeft
-		right = x + measure.actualBoundingBoxRight
-		top = y - measure.actualBoundingBoxAscent + yOffset
-		bottom = y + measure.actualBoundingBoxDescent + yOffset
+		for (let i = 0; i < lines.length; i++) {
+			const measure = canvasCtx.measureText(lines[i])
+			const yOffset = i * settings.size
+			left = Math.min(left, x - measure.actualBoundingBoxLeft)
+			right = Math.max(right, x + measure.actualBoundingBoxRight)
+			top = Math.min(top, y + yOffset - measure.actualBoundingBoxAscent)
+			bottom = Math.max(bottom, y + yOffset + measure.actualBoundingBoxDescent)
+		}
 	}
 
 	if (isFinite(left + top + bottom + right)) {
