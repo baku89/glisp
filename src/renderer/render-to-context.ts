@@ -101,7 +101,12 @@ export default function renderToContext(
 						ctx.textBaseline = settings.baseline as CanvasTextBaseline
 
 						// Apply Styles
-						applyDrawStyle(styles, defaultStyle, {text, x, y})
+						applyDrawStyle(styles, defaultStyle, {
+							text,
+							x,
+							y,
+							size: settings.size,
+						})
 
 						break
 					}
@@ -192,6 +197,7 @@ export default function renderToContext(
 					text: string
 					x: number
 					y: number
+					size: number
 			  }
 	) {
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
@@ -244,7 +250,10 @@ export default function renderToContext(
 					drawPath(ctx, content)
 					ctx.fill()
 				} else {
-					ctx.fillText(content.text, content.x, content.y)
+					const lines = content.text.split('\n')
+					for (let i = 0; i < lines.length; i++) {
+						ctx.fillText(lines[i], content.x, content.y + content.size * i)
+					}
 				}
 			}
 			if (drawOrders[i].stroke) {
@@ -252,7 +261,10 @@ export default function renderToContext(
 					drawPath(ctx, content)
 					ctx.stroke()
 				} else {
-					ctx.strokeText(content.text, content.x, content.y)
+					const lines = content.text.split('\n')
+					for (let i = 0; i < lines.length; i++) {
+						ctx.strokeText(lines[i], content.x, content.y + content.size * i)
+					}
 				}
 			}
 		}
