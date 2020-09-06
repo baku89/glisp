@@ -93,21 +93,37 @@
    :setup (fn [] {:item nil :path nil})
    :press (fn {:item item :pos pos :path path}
             (if (nil? item)
-              (let [item `(polyline ~pos)]
+              (let [item `(polyline ~pos)
+                    path (insert-item item)]
+                (tag-history :undo)
                 {:item item
-                 :path (insert-item item)})
+                 :path path})
               (let [item (lst (concat item [pos]))]
                 (replace-item path item)
+                (tag-history :undo)
                 {:item item
                  :path path})))})
 
 (defmode "circle"
   {:label "Circle"
-   :icon {:type "character" :value "○"}
+   :icon {:type "character" :value "●"}
    :press (fn {:pos pos}
             {:center pos
              :path (insert-item `(circle ~pos 0))})
    :drag (fn {:center center :path path :pos pos}
            (do
              (replace-item path `(circle ~center ~(vec2/dist center pos)))
-             {:path path :center center}))})
+             {:path path :center center}))
+   :release (fn [] (tag-history :undo))})
+
+(defmode "rectangle"
+  {:label "Rectangle"
+   :icon {:type "character" :value "■"}
+   :press (fn {:pos pos}
+            {:origin pos
+             :path (insert-item `(rect [~@pos 0 0]))})
+   :drag (fn {:origin origin :path path :pos pos}
+           (do
+             (replace-item path `(rect ~(rect2d/from-to origin pos)))
+             {:path path :origin origin}))
+   :release (fn [] (tag-history :undo))})
