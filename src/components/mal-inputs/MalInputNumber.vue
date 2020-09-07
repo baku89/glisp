@@ -9,11 +9,10 @@
 		/>
 		<InputNumber
 			:class="{
-				exp: isExp || display.isExp,
+				exp: display.isExp,
 				'grayed-out': display.mode === 'undefined',
 			}"
 			:value="displayValue"
-			:validator="innerValidator"
 			@input="onInput"
 			@end-tweak="$emit('end-tweak', $event)"
 		/>
@@ -49,12 +48,12 @@ import {
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
+import {readStr} from '@/mal'
 
 interface Props {
 	value: NonReactive<MalSymbol | number | MalSeq>
-	validator: (v: number) => number | null
+	validator?: (v: number) => number | null
 	compact: boolean
-	isExp: boolean
 }
 
 export default defineComponent({
@@ -73,16 +72,10 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
-		isExp: {
-			type: Boolean,
-			default: false,
-		},
 	},
 	setup(props: Props, context: SetupContext) {
 		const display = computed(() => {
-			if (props.value.value === undefined) {
-				return {mode: 'undefined', isExp: false}
-			} else if (typeof props.value.value === 'number') {
+			if (typeof props.value.value === 'number') {
 				return {mode: 'number', isExp: false}
 			} else if (isList(props.value.value) && props.value.value.length === 2) {
 				const info = getFnInfo(props.value.value)
@@ -122,38 +115,56 @@ export default defineComponent({
 			}
 		})
 
-		const innerValidator = computed(() => {
-			if (props.validator) {
+		function onInput(value: number | string) {
+			let newExp: MalVal = value
+
+			// Parse if necessary
+			if (typeof value === 'string') {
+				let ret
+				try {
+					ret = readStr(value)
+				} catch (e) {
+					return
+				}
+				newExp = ret
+			}
+
+			// Validate
+			if (props.validator && typeof value === 'number') {
+				let validated
 				if (display.value.mode === 'unit') {
-					return (v: number) => {
-						return (display.value.inverseFn as any)({
-							[K('return')]: (props.validator as any)((fn.value as any)(v)),
-						})[0]
-					}
+					const unitValue = (fn.value as any)(value as any)
+					validated = (display.value.inverseFn as any)({
+						[K('return')]: props.validator(unitValue),
+					})[0]
 				} else {
-					return props.validator
+					validated = props.validator(value)
+				}
+				if (typeof validated === 'number') {
+					newExp = validated
 				}
 			}
-			return undefined
-		})
 
-		function onInput(value: number) {
-			let newExp: MalVal = value
-			let rawValue: number = value
+			// Reverse evaluation
 			if (display.value.mode === 'unit') {
-				const unitVal = reverseEval(value, (props.value.value as MalVal[])[1])
-				newExp = L((props.value.value as MalVal[])[0], unitVal)
-				rawValue = fn.value ? ((fn as any).value(value) as number) : value
+				const unitValue =
+					typeof newExp === 'number'
+						? reverseEval(newExp, (props.value.value as MalVal[])[1])
+						: newExp
+				newExp = L((props.value.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
-				newExp = reverseEval(value, props.value.value)
+				newExp =
+					typeof newExp === 'number'
+						? reverseEval(newExp, props.value.value)
+						: newExp
 			}
-			context.emit('input', nonReactive(newExp), rawValue)
+
+			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
 			displayValue,
 			display,
-			innerValidator,
 			onInput,
 		}
 	},

@@ -5,8 +5,6 @@
 			class="InputNumber__input"
 			type="text"
 			:value="displayValue"
-			@input="onInput"
-			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
 			ref="inputEl"
@@ -25,10 +23,6 @@ export default defineComponent({
 		value: {
 			type: Number,
 			required: true,
-		},
-		validator: {
-			type: Function as PropType<(v: number) => number | null>,
-			required: false,
 		},
 	},
 	setup(props, context) {
@@ -71,17 +65,8 @@ export default defineComponent({
 
 		const tweaking = toRef(drag, 'isDragging')
 
-		const {
-			step,
-			displayValue,
-			onInput,
-			onFocus,
-			onBlur,
-			onKeydown,
-			update,
-		} = useNumberInput(
+		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
 			toRef(props, 'value'),
-			toRef(props, 'validator'),
 			tweaking,
 			context
 		)
@@ -94,8 +79,6 @@ export default defineComponent({
 			step,
 			tweaking,
 
-			onInput,
-			onFocus,
 			onBlur,
 			onKeydown,
 			update,

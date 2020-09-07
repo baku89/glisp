@@ -5,7 +5,6 @@ const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 export default function useNumber(
 	value: Ref<number>,
-	validator: Ref<undefined | ((v: number) => number | null)>,
 	tweaking: Ref<boolean>,
 	context: SetupContext
 ) {
@@ -19,25 +18,23 @@ export default function useNumber(
 		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
 	})
 
-	function onInput(e: InputEvent) {
+	function onConfirm(e: Event) {
 		const str = (e.target as HTMLInputElement).value
-		const val: number | null = parseFloat(str)
+		const num = parseFloat(str)
+		const val = isNaN(num) ? str : num
 		update(val)
 	}
 
-	function onFocus() {
-		console.log('onFocus')
-	}
-
-	function onBlur(e: InputEvent) {
-		const el = e.target as HTMLInputElement
-		el.value = displayValue.value
+	function onBlur(e: Event) {
+		onConfirm(e)
 	}
 
 	function onKeydown(e: KeyboardEvent) {
 		const key = keycode(e)
 
-		if (VERTICAL_ARROW_KEYS.has(key)) {
+		if (key === 'enter') {
+			onConfirm(e)
+		} else if (VERTICAL_ARROW_KEYS.has(key)) {
 			e.preventDefault()
 
 			let inc = 1
@@ -58,30 +55,12 @@ export default function useNumber(
 		}
 	}
 
-	function update(val: number) {
-		if (!isFinite(val)) {
-			return
-		}
-
-		if (validator.value) {
-			const validatedVal = validator.value(val)
-			if (
-				typeof validatedVal !== 'number' ||
-				isNaN(validatedVal) ||
-				!isFinite(validatedVal)
-			) {
-				return
-			}
-			val = validatedVal
-		}
-
+	function update(val: number | string) {
 		context.emit('input', val)
 	}
 	return {
 		step,
 		displayValue,
-		onInput,
-		onFocus,
 		onBlur,
 		onKeydown,
 		update,
