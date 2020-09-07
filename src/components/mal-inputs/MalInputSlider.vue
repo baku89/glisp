@@ -8,14 +8,12 @@
 		/>
 		<InputSlider
 			:class="{
-				exp: isExp || display.isExp,
-				'grayed-out': display.mode === 'undefined',
+				exp: display.isExp,
 			}"
 			:value="displayValue"
 			:max="innerMax"
 			:min="innerMin"
 			:clamped="clamped"
-			:validator="innerValidator"
 			@input="onInput"
 			@end-tweak="$emit('end-tweak', $event)"
 		/>
@@ -50,6 +48,7 @@ import {
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
+import {readStr} from '@/mal'
 
 interface Props {
 	value: NonReactive<MalSymbol | number | MalSeq>
@@ -78,10 +77,6 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
-		isExp: {
-			type: Boolean,
-			default: false,
-		},
 		min: {
 			type: Number,
 			default: 0,
@@ -97,9 +92,7 @@ export default defineComponent({
 	},
 	setup(props: Props, context: SetupContext) {
 		const display = computed(() => {
-			if (props.value.value === undefined) {
-				return {mode: 'undefined', isExp: false}
-			} else if (typeof props.value.value === 'number') {
+			if (typeof props.value.value === 'number') {
 				return {mode: 'number', isExp: false}
 			} else if (isList(props.value.value) && props.value.value.length === 2) {
 				const info = getFnInfo(props.value.value)
@@ -131,27 +124,10 @@ export default defineComponent({
 					return props.value.value as number
 				case 'unit':
 					return getEvaluated((props.value.value as MalVal[])[1]) as number
-				case 'undefined':
-					return 0
 				default:
 					// exp
 					return getEvaluated(props.value.value) as number
 			}
-		})
-
-		const innerValidator = computed(() => {
-			if (props.validator) {
-				if (display.value.mode === 'unit') {
-					return (v: number) => {
-						return (display.value.inverseFn as any)({
-							[K('return')]: (props.validator as any)((fn.value as any)(v)),
-						})[0]
-					}
-				} else {
-					return props.validator
-				}
-			}
-			return undefined
 		})
 
 		const innerMin = computed(() => {
@@ -174,21 +150,56 @@ export default defineComponent({
 			}
 		})
 
-		function onInput(value: number) {
+		function onInput(value: number | string) {
 			let newExp: MalVal = value
-			if (display.value.mode === 'unit') {
-				const unitVal = reverseEval(value, (props.value.value as MalVal[])[1])
-				newExp = L((props.value.value as MalVal[])[0], unitVal)
-			} else if (display.value.mode === 'exp') {
-				newExp = reverseEval(value, props.value.value)
+
+			// Parse if necessary
+			if (typeof value === 'string') {
+				let ret
+				try {
+					ret = readStr(value)
+				} catch (e) {
+					return
+				}
+				newExp = ret
 			}
+
+			// Validate
+			if (props.validator && typeof value === 'number') {
+				let validated
+				if (display.value.mode === 'unit') {
+					const unitValue = (fn.value as any)(value as any)
+					validated = (display.value.inverseFn as any)({
+						[K('return')]: props.validator(unitValue),
+					})[0]
+				} else {
+					validated = props.validator(value)
+				}
+				if (typeof validated === 'number') {
+					newExp = validated
+				}
+			}
+
+			// Reverse evaluation
+			if (display.value.mode === 'unit') {
+				const unitValue =
+					typeof newExp === 'number'
+						? reverseEval(newExp, (props.value.value as MalVal[])[1])
+						: newExp
+				newExp = L((props.value.value as MalVal[])[0], unitValue)
+			} else if (display.value.mode === 'exp') {
+				newExp =
+					typeof newExp === 'number'
+						? reverseEval(newExp, props.value.value)
+						: newExp
+			}
+
 			context.emit('input', nonReactive(newExp))
 		}
 
 		return {
 			displayValue,
 			display,
-			innerValidator,
 			innerMin,
 			innerMax,
 			onInput,

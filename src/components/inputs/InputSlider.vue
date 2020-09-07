@@ -5,7 +5,6 @@
 			class="InputSlider__input"
 			type="text"
 			:value="displayValue"
-			@input="onInput"
 			@blur="onBlur"
 			@keydown="onKeydown"
 			ref="inputEl"
@@ -44,10 +43,6 @@ export default defineComponent({
 		clamped: {
 			type: Boolean,
 			default: false,
-		},
-		validator: {
-			type: Function as PropType<(v: number) => number | null>,
-			required: false,
 		},
 	},
 	setup(props, context) {
@@ -92,16 +87,8 @@ export default defineComponent({
 
 		const tweaking = toRef(drag, 'isDragging')
 
-		const {
-			step,
-			displayValue,
-			onInput,
-			onBlur,
-			onKeydown,
-			update,
-		} = useNumberInput(
+		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
 			toRef(props, 'value'),
-			toRef(props, 'validator'),
 			tweaking,
 			context
 		)
@@ -124,7 +111,6 @@ export default defineComponent({
 			step,
 			tweaking,
 
-			onInput,
 			onBlur,
 			onKeydown,
 			update,
