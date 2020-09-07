@@ -348,8 +348,16 @@
         (> x y) 1
         (< x y) -1))
 
-(defn inc [x] (+ x 1))
-(defn dec [x] (- x 1))
+(defn inc
+  {:params [{:type "number"}]
+   :inverse (fn {:return ret} [(dec ret)])
+   :return {:type "number"}}
+  [x] (+ x 1))
+(defn dec
+  {:params [{:type "number"}]
+   :inverse (fn {:return ret} [(inc ret)])
+   :return {:type "number"}}
+  [x] (- x 1))
 
 (defn empty? [x] (= (count x) 0))
 
