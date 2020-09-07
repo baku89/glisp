@@ -10,7 +10,6 @@
 		<InputNumber
 			:class="{
 				exp: display.isExp,
-				'grayed-out': display.mode === 'undefined',
 			}"
 			:value="displayValue"
 			@input="onInput"
@@ -107,8 +106,6 @@ export default defineComponent({
 					return props.value.value as number
 				case 'unit':
 					return getEvaluated((props.value.value as MalVal[])[1]) as number
-				case 'undefined':
-					return 0
 				default:
 					// exp
 					return getEvaluated(props.value.value) as number
