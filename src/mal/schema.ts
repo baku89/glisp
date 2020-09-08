@@ -125,7 +125,7 @@ interface SchemaVec2Default extends SchemaPrimitiveBase<MalSeq> {
 }
 
 interface SchemaVec2Size extends SchemaVec2Default {
-	ui: 'size'
+	ui: 'size2d'
 }
 
 type SchemaVec2 = SchemaVec2Default | SchemaVec2Size
@@ -361,15 +361,15 @@ function generateDynamicUISchemaParams(
 		toSchema({[K('params')]: params})
 	) as Schema[]
 
-	for (const schema of uiSchema) {
-		const value = schema.value as MalVal
-		schema.value = nonReactive(value)
+	for (const sch of uiSchema) {
+		const value = sch.value as MalVal
+		sch.value = nonReactive(value)
 
 		// Force set the UI type
-		schema.ui = schema.ui || schema.type
+		sch.ui = sch.ui || sch.type
 
-		if ('default' in schema) {
-			schema.isDefault = value === schema.default
+		if ('default' in sch) {
+			sch.isDefault = value === sch.default
 		}
 	}
 	return uiSchema
