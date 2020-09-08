@@ -64,7 +64,7 @@ import {getFnInfo, getMapValue} from '@/mal/utils'
 import {nonReactive, NonReactive} from '@/utils'
 import {
 	generateSchemaParamLabel,
-	generateUISchemaParams,
+	generateUISchema,
 	updateParamsByUISchema,
 	SchemaVector,
 	Schema,
@@ -175,7 +175,7 @@ export default defineComponent({
 				return undefined
 			}
 			try {
-				return generateUISchemaParams(schema.value, params.value)
+				return generateUISchema(schema.value, params.value)
 			} catch (e) {
 				console.error(e)
 				return undefined

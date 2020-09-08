@@ -244,7 +244,7 @@ export function extractParams(exp: MalSeq): MalSeq {
 	}
 }
 
-function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
+function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 	// Check if zero
 	if (schemaParams.length === 0) {
 		if (params.length !== 0) {
@@ -346,7 +346,7 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 	return uiSchema
 }
 
-function generateDynamicUISchemaParams(
+function generateDynamicUISchema(
 	schemaParams: SchemaDynamic,
 	params: MalVal[]
 ) {
@@ -373,14 +373,14 @@ function generateDynamicUISchemaParams(
 /**
  * Generates UISchema for the parameter of function application
  */
-export function generateUISchemaParams(
+export function generateUISchema(
 	schemaParams: Schema[] | SchemaDynamic,
 	params: MalVal[]
 ) {
 	if (!Array.isArray(schemaParams)) {
-		return generateDynamicUISchemaParams(schemaParams, params)
+		return generateDynamicUISchema(schemaParams, params)
 	} else {
-		return generateFixedUISchemaParams(schemaParams, params)
+		return generateFixedUISchema(schemaParams, params)
 	}
 }
 
