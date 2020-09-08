@@ -18,25 +18,53 @@
 
 
 ;; Function Application (List)
-
-(circle [0 0] 100)
-
-
-{:type "params"
+{:type "list"
+ :fn 'circle
  :items  [;; :type === :ui の時省略可能
           {:label "Center" :type "vec2" :ui "vec2"}
           {:label "Radius" :type "number" :ui "number"}]}
 
+(circle [0 0] 100)
+
+;; Nested parameter
+{:type "list"
+ :fn 'interpolate-linear
+ :item [{:type "number" :label "t"}
+        {:type "vector"
+         :items [{:type "number" :label "Time"}
+                 {:type "number" :label "Value"}]}]}
+
+(interpolate-linear .1 [0.0 10
+                        0.5 100
+                        1.0 -20])
+
+;; Rest parameter
+{:type "list"
+ :fn '+
+ :item [{:type "vector"
+         :variadic true
+         :items {:type "number"}}]}
+
+(+ 1 2 3 4 5)
 
 ;; Map
 {:type "map"
  :items [{:key "width" :label "Width" ...}
          {:key "height" :label "Height" ...}]}
 
+{:width 10 :height 20}
+
 ;; Vector
 {:type "vector"
  :items {:type "number"}}
 
+[0 1 2 3 4]
+
+{:type "vector"
+ :items [{:type "number"}
+         {:type "string"}]}
+
+[10 "A" 20 "B" 30 "C"]
 
 
 ;; Vector (default)
