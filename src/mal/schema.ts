@@ -309,19 +309,14 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 		throw new Error("The length of exp does not match with schema's")
 	}
 
-	// Delete the superfluous params
-	if (params.length > uiSchema.length) {
-		params = params.slice(0, uiSchema.length)
-	}
-
 	// Extract the parameters from the list
 	const evaluatedParams = params.map(p => getEvaluated(p))
 
 	// Assign the value
-	for (let i = 0; i < params.length; i++) {
+	for (let i = 0; i < uiSchema.length; i++) {
+		const sch = uiSchema[i]
 		const value = params[i]
 		const evaluated = evaluatedParams[i]
-		const sch = uiSchema[i]
 		const valueType = getStructType(evaluated) || getType(evaluated)
 
 		switch (sch.type) {
