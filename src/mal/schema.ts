@@ -266,7 +266,7 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 			throw new Error('The parameters is too short')
 		}
 
-		// Delete the last {:type "vector" :variadic true}
+		// Delete the last variadic schema itself
 		uiSchema.pop()
 
 		if (lastSchema.type === 'vector') {
@@ -280,16 +280,16 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 			const restMap = assocBang({}, ...restParams)
 			params = params.slice(0, uiSchema.length)
 
-			for (const schema of lastSchema.items) {
-				if (!schema.label) {
-					schema.label = getParamLabel(schema.key as string)
+			for (const sch of lastSchema.items) {
+				if (!sch.label) {
+					sch.label = getParamLabel(sch.key as string)
 				}
 
-				const newSchema = {...schema}
-				delete newSchema.key
-				uiSchema.push(newSchema)
+				const newSch = {...sch}
+				delete newSch.key
+				uiSchema.push(newSch)
 
-				params.push(restMap[schema.key as string] || (schema.default as any))
+				params.push(restMap[sch.key as string] || (sch.default as any))
 			}
 		} else {
 			throw new Error('Invalid type for the variadic argument')
@@ -305,8 +305,13 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 	}
 
 	// Check if the exp is the same length as the params
-	if (params.length !== uiSchema.length) {
+	if (params.length < uiSchema.length) {
 		throw new Error("The length of exp does not match with schema's")
+	}
+
+	// Delete the superfluous params
+	if (params.length > uiSchema.length) {
+		params = params.slice(0, uiSchema.length)
 	}
 
 	// Extract the parameters from the list
@@ -316,30 +321,30 @@ function generateFixedUISchemaParams(schemaParams: Schema[], params: MalVal[]) {
 	for (let i = 0; i < params.length; i++) {
 		const value = params[i]
 		const evaluated = evaluatedParams[i]
-		const schema = uiSchema[i]
+		const sch = uiSchema[i]
 		const valueType = getStructType(evaluated) || getType(evaluated)
 
-		switch (schema.type) {
+		switch (sch.type) {
 			case 'any':
-				schema.type = valueType as any
+				sch.type = valueType as any
 				break
 			case 'exp':
 			case 'boolean':
 				break
 			default:
 				// Check if the type mathces
-				if (valueType !== schema.type) {
+				if (valueType !== sch.type) {
 					throw new Error('Exp does not match to the schema')
 				}
 		}
 
 		// Force set the UI type
-		schema.ui = schema.ui || schema.type
+		sch.ui = sch.ui || sch.type
 
 		// Set value with wrapped by nonReactive
-		schema.value = nonReactive(value as any)
-		if ('default' in schema) {
-			schema.isDefault = value === schema.default
+		sch.value = nonReactive(value as any)
+		if ('default' in sch) {
+			sch.isDefault = value === sch.default
 		}
 	}
 
@@ -386,13 +391,14 @@ export function generateUISchemaParams(
 
 function updateParamsByFixedUISchema(
 	schemaParams: Schema[],
+	uiSchema: Schema[],
 	params: MalVal[],
 	index: number,
 	value: MalVal
 ) {
 	const lastSchema = schemaParams[schemaParams.length - 1]
 
-	if (!!lastSchema.variadic && lastSchema.type === 'map') {
+	if (lastSchema.variadic && lastSchema.type === 'map') {
 		const restPos = schemaParams.length - 1
 		const restMap = assocBang({}, ...params.slice(restPos))
 		const newParams = [...params.slice(0, restPos)]
@@ -458,6 +464,6 @@ export function updateParamsByUISchema(
 	if (!Array.isArray(schema)) {
 		return updateParamsByDynamicUISchema(schema, uiSchema, index, value)
 	} else {
-		return updateParamsByFixedUISchema(schema, params, index, value)
+		return updateParamsByFixedUISchema(schema, uiSchema, params, index, value)
 	}
 }
