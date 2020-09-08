@@ -245,13 +245,14 @@ export function extractParams(exp: MalSeq): MalSeq {
 }
 
 function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
-	// Check if zero
-	if (schemaParams.length === 0) {
-		if (params.length !== 0) {
-			throw new Error('The number of parameters should be zero')
-		}
-		return []
-	}
+	// NOTE: don't know why the below code is needed so commented out for now
+	// // Check if zero
+	// if (schemaParams.length === 0) {
+	// 	if (params.length !== 0) {
+	// 		throw new Error('The number of parameters should be zero')
+	// 	}
+	// 	return []
+	// }
 
 	// Deep clone the schema
 	// const uiSchema = /* deepClone( */ schemaParams /* ) */
