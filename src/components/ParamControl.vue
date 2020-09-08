@@ -2,17 +2,17 @@
 	<table class="ParamControl">
 		<template v-if="uiSchema">
 			<tr
-				v-for="(schema, i) in uiSchema"
+				v-for="(sch, i) in uiSchema"
 				:key="i"
 				class="ParamControl__param"
-				:class="{'is-default': schema.isDefault}"
+				:class="{'is-default': sch.isDefault}"
 			>
-				<td class="ParamControl__label">{{ schema.label }}</td>
+				<td class="ParamControl__label">{{ sch.label }}</td>
 				<td class="ParamControl__value">
 					<div class="ParamControl__input">
 						<component
-							:is="'ui-' + schema.ui"
-							v-bind="schema"
+							:is="'ui-' + sch.ui"
+							v-bind="sch"
 							@input="onParamInput(i, $event)"
 							@select="$emit('select', $event)"
 							@end-tweak="$emit('end-tweak')"
