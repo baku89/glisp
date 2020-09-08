@@ -5,7 +5,7 @@
 				v-for="(sch, i) in uiSchema"
 				:key="i"
 				class="ParamControl__param"
-				:class="{'is-default': sch.isDefault}"
+				:class="{'is-default': sch.isDefault, 'is-invalid': sch.isInvalid}"
 			>
 				<td class="ParamControl__label">{{ sch.label }}</td>
 				<td class="ParamControl__value">
@@ -265,6 +265,12 @@ export default defineComponent({
 
 		&.is-default
 			opacity 0.5
+
+		&.is-invalid .ParamControl__label
+			color var(--red)
+
+			&:after
+				content ' ⚠'
 
 		& > td
 			padding 0.2em 0

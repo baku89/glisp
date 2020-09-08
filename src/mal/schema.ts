@@ -27,6 +27,7 @@ interface SchemaBase {
 	value?: NonReactive<MalVal>
 	default?: MalVal
 	isDefault?: boolean
+	isInvalid?: boolean
 }
 
 /**
@@ -190,6 +191,18 @@ export interface SchemaDynamic extends SchemaBase {
 	'to-params': MalFunc
 }
 
+const DEFAULT_VALUE = {
+	number: 0,
+	boolean: true,
+	string: '',
+	keyword: K('_'),
+	symbol: symbolFor('_'),
+	color: '#000000',
+	vec2: [0, 0],
+	rect2d: [0, 0, 0, 0],
+	mat2d: [1, 0, 0, 1, 0, 0],
+}
+
 /**
  * All Schema
  */
@@ -245,18 +258,8 @@ export function extractParams(exp: MalSeq): MalSeq {
 }
 
 function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
-	// NOTE: don't know why the below code is needed so commented out for now
-	// // Check if zero
-	// if (schemaParams.length === 0) {
-	// 	if (params.length !== 0) {
-	// 		throw new Error('The number of parameters should be zero')
-	// 	}
-	// 	return []
-	// }
-
 	// Deep clone the schema
-	// const uiSchema = /* deepClone( */ schemaParams /* ) */
-	const uiSchema = [...schemaParams]
+	const uiSchema = schemaParams.map(sch => ({...sch}))
 
 	// Flatten the schema if it is variadic
 	const lastSchema = uiSchema[uiSchema.length - 1]
@@ -264,7 +267,12 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 	if (lastSchema.variadic) {
 		// Check if parameters is too short
 		if (params.length < uiSchema.length - 1) {
-			throw new Error('The parameters is too short')
+			params = [...params]
+			for (let i = params.length; i < uiSchema.length - 1; i++) {
+				uiSchema[i].isInvalid = true
+				params.push((DEFAULT_VALUE as any)[uiSchema[i].ui || uiSchema[i].type])
+			}
+			console.log('too short', uiSchema)
 		}
 
 		// Delete the last variadic schema itself
@@ -305,19 +313,25 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 		}
 	}
 
-	// Check if the exp is the same length as the params
-	if (params.length < uiSchema.length) {
-		throw new Error("The length of exp does not match with schema's")
-	}
-
 	// Extract the parameters from the list
 	const evaluatedParams = params.map(p => getEvaluated(p))
 
 	// Assign the value
 	for (let i = 0; i < uiSchema.length; i++) {
 		const sch = uiSchema[i]
-		const value = params[i]
-		const evaluated = evaluatedParams[i]
+
+		// Force set the UI type
+		sch.ui = sch.ui || sch.type
+
+		// Get value
+		sch.isInvalid = sch.isInvalid || i >= params.length
+		let value: MalVal = !sch.isInvalid
+			? params[i]
+			: 'default' in sch
+			? sch.default
+			: (DEFAULT_VALUE as any)[sch.ui]
+
+		const evaluated: MalVal = !sch.isInvalid ? evaluatedParams[i] : value
 		const valueType = getStructType(evaluated) || getType(evaluated)
 
 		switch (sch.type) {
@@ -330,15 +344,14 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 			default:
 				// Check if the type mathces
 				if (valueType !== sch.type) {
-					throw new Error('Exp does not match to the schema')
+					sch.isInvalid = true
+					value =
+						'default' in sch ? sch.default : (DEFAULT_VALUE as any)[sch.ui]
 				}
 		}
 
-		// Force set the UI type
-		sch.ui = sch.ui || sch.type
-
 		// Set value with wrapped by nonReactive
-		sch.value = nonReactive(value as any)
+		sch.value = nonReactive(value)
 		if ('default' in sch) {
 			sch.isDefault = value === sch.default
 		}
@@ -418,7 +431,7 @@ function updateParamsByFixedUISchema(
 		newParams.push(...Object.entries(restMap).flat())
 		return newParams
 	} else {
-		const newParams = cloneExp(params)
+		const newParams = uiSchema.map(sch => sch.value?.value) as MalVal[]
 		newParams[index] = value
 
 		// Shorten the parameters as much as possible
