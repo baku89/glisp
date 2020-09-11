@@ -599,6 +599,7 @@
 
 ;; Load other cores
 (import "ui.glisp")
+(import "color.glisp")
 (import "graphics.glisp")
 (import "math.glisp")
 (import "path.glisp")

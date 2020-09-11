@@ -291,47 +291,6 @@
                                                            (vec2/- size [1 1])))))])))
 (defalias artboard graphics/artboard)
 
-;; Color
-(defn color? [x]
-  (string? x))
-
-(defn color/gray
-  {:return {:type "string" :ui "color"}}
-  [v]
-  (def b (* v 255))
-  (format "rgb(%f,%f,%f)" b b b))
-
-(defn color/rgb
-  {:params [{:label "Red" :type "number" :validator clamp01}
-            {:label "Green" :type "number" :validator clamp01}
-            {:label "Blue" :type "number" :validator clamp01}
-            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "string" :ui "color"}}
-  [r g b & a]
-  (if (zero? (count a))
-    (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
-    (format "rgba(%f,%f,%f,%f)" (* r 255) (* g 255) (* b 255) (first a))))
-(defalias rgb color/rgb)
-
-(defn color/hsl
-  {:params [{:label "Hue" :type "number" :validator #(clamp 0 TWO_PI %)}
-            {:label "Saturation" :type "number" :validator clamp01}
-            {:label "Lightness" :type "number" :validator clamp01}
-            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "string" :ui "color"}}
-  [h s l & a]
-  (if (zero? (count a))
-    (format "hsl(%f,%s,%s)"
-            (mod (to-deg h) 360)
-            (str (* s 100) "%")
-            (str (* l 100) "%"))
-    (format "hsla(%f,%s,%s,%f)"
-            (mod (to-deg h) 360)
-            (str (* s 100) "%")
-            (str (* l 100) "%")
-            (first a))))
-(defalias hsl color/hsl)
-
 (defn graphics/background
   {:doc "Fill the entire view or artboard with a color"
    :params [{:type "string" :ui "color" :desc "A background color"}]}
