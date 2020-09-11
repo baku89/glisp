@@ -413,6 +413,15 @@ function updateParamsByFixedUISchema(
 		const newParams = [...params.slice(0, restPos)]
 		const items = lastSchema.items
 
+		// Fill the lacking params
+		for (let i = newParams.length; i < index; i++) {
+			newParams.push(
+				'default' in uiSchema[i]
+					? (uiSchema[i].default as MalVal)
+					: (uiSchema[i].value?.value as MalVal)
+			)
+		}
+
 		if (index < restPos) {
 			// Update the list part
 			newParams[index] = value
