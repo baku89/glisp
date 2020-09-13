@@ -67,3 +67,11 @@
            {:label "Value" :type "number" :default 1}]
   :return {:type "string" :ui "color"}})
 
+(annotate-fn!
+ color/invert
+ {:doc "Inverts the color"
+  :params [{:label "Color" :type "string" :ui "color"}
+           {:label "mode" :type "string" :ui "dropdown" :default "rgb"
+            :values ["rgb" "hsl"]}]
+  :invert (fn {:return ret :params [_ mode]}
+            [(color/invert ret mode)])})
