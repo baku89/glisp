@@ -9,7 +9,7 @@
   {:return {:type "string" :ui "color"}}
   [v]
   (def b (* v 255))
-  (format "rgb(%f,%f,%f)" b b b))
+  (format "rgb(%d,%d,%d)" b b b))
 
 (defn color/rgb
   {:params [{:label "Red" :type "number" :validator clamp01}
@@ -19,8 +19,8 @@
    :return {:type "string" :ui "color"}}
   [r g b & a]
   (if (zero? (count a))
-    (format "rgb(%f,%f,%f)" (* r 255) (* g 255) (* b 255))
-    (format "rgba(%f,%f,%f,%f)" (* r 255) (* g 255) (* b 255) (first a))))
+    (format "rgb(%d,%d,%d)" (* r 255) (* g 255) (* b 255))
+    (format "rgba(%d,%d,%d,%d)" (* r 255) (* g 255) (* b 255) (first a))))
 (defalias rgb color/rgb)
 
 (defn color/hsl
@@ -31,11 +31,11 @@
    :return {:type "string" :ui "color"}}
   [h s l & a]
   (if (zero? (count a))
-    (format "hsl(%f,%s,%s)"
+    (format "hsl(%d,%s,%s)"
             (mod (to-deg h) 360)
             (str (* s 100) "%")
             (str (* l 100) "%"))
-    (format "hsla(%f,%s,%s,%f)"
+    (format "hsla(%d,%s,%s,%f)"
             (mod (to-deg h) 360)
             (str (* s 100) "%")
             (str (* l 100) "%")
