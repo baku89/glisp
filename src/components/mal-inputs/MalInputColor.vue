@@ -133,6 +133,9 @@ export default defineComponent({
 					}
 					return 'EXP'
 				}
+				case MalType.Symbol: {
+					return 'EXP'
+				}
 			}
 			return 'HEX'
 		}) as ComputedRef<ColorMode>
