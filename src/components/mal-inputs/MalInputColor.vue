@@ -276,10 +276,9 @@ export default defineComponent({
 			rgba: {r: number; g: number; b: number}
 			hsl: {h: number; s: number; l: number}
 		}) {
-			let value: MalVal =
-				typeof props.value === 'string'
-					? ''
-					: L(...(props.value.value as MalVal[]))
+			let value: MalVal = isList(props.value.value)
+				? L(...props.value.value)
+				: ''
 
 			switch (mode.value) {
 				case 'HEX':
