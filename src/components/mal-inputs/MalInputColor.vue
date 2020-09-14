@@ -10,32 +10,48 @@
 		/>
 		<div class="MalInputColor__hex" v-if="compact">{{ hexValue }}</div>
 		<template v-else>
-			<InputDropdown
-				class="MalInputColor__mode simple"
-				:value="mode"
-				:values="['HEX', 'RGB', 'HSL']"
-				@input="changeMode"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<div class="MalInputColor__text" v-if="mode === 'HEX'">
+			<template v-if="mode === 'EXP'">
 				<InputString
+					class="MalInputColor__text exp"
 					:value="displayValues"
 					@input="onInputText"
 					@end-tweak="$emit('end-tweak')"
 				/>
-			</div>
-			<div class="MalInputColor__elements" v-else-if="mode">
-				<MalInputNumber
-					v-for="(value, i) in displayValues"
-					:key="i"
-					:compact="true"
-					class="MalInputColor__el"
+				<MalExpButton
+					class="MalInputColor__exp"
 					:value="value"
-					:validator="validators[i]"
-					@input="onInputNumber(i, $event)"
+					:compact="false"
+					@select="$emit('select', $event)"
+				/>
+			</template>
+			<template v-else>
+				<InputDropdown
+					class="MalInputColor__mode simple"
+					:value="mode"
+					:values="['HEX', 'RGB', 'HSL']"
+					@input="changeMode"
 					@end-tweak="$emit('end-tweak')"
 				/>
-			</div>
+				<InputString
+					v-if="mode === 'HEX'"
+					class="MalInputColor__text"
+					:value="displayValues"
+					@input="onInputText"
+					@end-tweak="$emit('end-tweak')"
+				/>
+				<div class="MalInputColor__elements" v-else-if="mode">
+					<MalInputNumber
+						v-for="(value, i) in displayValues"
+						:key="i"
+						:compact="true"
+						class="MalInputColor__el"
+						:value="value"
+						:validator="validators[i]"
+						@input="onInputNumber(i, $event)"
+						@end-tweak="$emit('end-tweak')"
+					/>
+				</div>
+			</template>
 		</template>
 	</div>
 </template>
@@ -63,10 +79,11 @@ import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
+import MalExpButton from './MalExpButton.vue'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '../../utils'
 
-type ColorMode = 'HEX' | 'RGB' | 'HSL'
+type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 
 const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
 const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
@@ -76,7 +93,14 @@ interface Props {
 }
 
 export default defineComponent({
-	components: {InputColor, InputString, InputDropdown, MalInputNumber},
+	name: 'MalInputColor',
+	components: {
+		InputColor,
+		InputString,
+		InputDropdown,
+		MalInputNumber,
+		MalExpButton,
+	},
 	props: {
 		value: {
 			required: true,
@@ -107,15 +131,15 @@ export default defineComponent({
 							return fst.value.toUpperCase()
 						}
 					}
-					break
+					return 'EXP'
 				}
 			}
 			return 'HEX'
-		}) as ComputedRef<ColorMode | null>
+		}) as ComputedRef<ColorMode>
 
 		const displayValues = computed(() => {
-			if (mode.value === null) {
-				return null
+			if (mode.value === 'EXP') {
+				return getEvaluated(props.value.value) as string
 			}
 
 			if (typeof props.value.value === 'string') {
@@ -126,8 +150,6 @@ export default defineComponent({
 		})
 
 		const chromaColor = computed(() => {
-			if (!mode.value) return null
-
 			const value = props.value.value
 
 			let color: chroma.Color
@@ -156,9 +178,13 @@ export default defineComponent({
 					color = chroma((h / Math.PI) * 180, s, l, 'hsl')
 					break
 				}
+				case 'EXP': {
+					color = chroma(getEvaluated(value) as string)
+					break
+				}
 			}
 
-			if (isList(value) && value.length >= 5) {
+			if (mode.value !== 'EXP' && isList(value) && value.length >= 5) {
 				color = color.alpha(getEvaluated(value[4]) as number)
 			}
 
@@ -225,7 +251,13 @@ export default defineComponent({
 		}
 
 		function onInputText(str: string) {
-			context.emit('input', nonReactive(str))
+			if (mode.value !== 'EXP') {
+				context.emit('input', nonReactive(str))
+			} else {
+				// Inverse evaluation
+				const newExp = reverseEval(str, props.value.value)
+				context.emit('input', nonReactive(newExp))
+			}
 		}
 
 		function onInputNumber(i: number, v: NonReactive<number>) {
@@ -234,7 +266,13 @@ export default defineComponent({
 			context.emit('input', nonReactive(newExp))
 		}
 
-		function onInputColor(color: any) {
+		function onInputColor(color: {
+			a: number
+			hex: string
+			hex8: string
+			rgba: {r: number; g: number; b: number}
+			hsl: {h: number; s: number; l: number}
+		}) {
 			let value: MalVal =
 				typeof props.value === 'string'
 					? ''
@@ -250,9 +288,9 @@ export default defineComponent({
 					break
 				case 'RGB': {
 					let {r, g, b} = color.rgba
-					r = reverseEval(r / 255, (props.value.value as MalVal[])[1])
-					g = reverseEval(g / 255, (props.value.value as MalVal[])[2])
-					b = reverseEval(b / 255, (props.value.value as MalVal[])[3])
+					r = reverseEval(r / 255, (props.value.value as MalVal[])[1]) as number
+					g = reverseEval(g / 255, (props.value.value as MalVal[])[2]) as number
+					b = reverseEval(b / 255, (props.value.value as MalVal[])[3]) as number
 					;(value as MalVal[])[1] = r
 					;(value as MalVal[])[2] = g
 					;(value as MalVal[])[3] = b
@@ -263,16 +301,22 @@ export default defineComponent({
 					h = reverseEval(
 						(h / 180) * Math.PI,
 						(props.value.value as MalVal[])[1]
-					)
-					s = reverseEval(s, (props.value.value as MalVal[])[2])
-					l = reverseEval(l, (props.value.value as MalVal[])[3])
+					) as number
+					s = reverseEval(s, (props.value.value as MalVal[])[2]) as number
+					l = reverseEval(l, (props.value.value as MalVal[])[3]) as number
 					;(value as MalVal[])[1] = h
 					;(value as MalVal[])[2] = s
 					;(value as MalVal[])[3] = l
+					break
+				}
+				case 'EXP': {
+					// Inverse evaluation
+					value = reverseEval(color.hex8, props.value.value)
+					break
 				}
 			}
 
-			if (mode.value !== 'HEX') {
+			if (mode.value === 'RGB' || mode.value === 'HSL') {
 				if (color.a < 0.9999) {
 					const a =
 						(props.value.value as MalVal[])[4] !== undefined
@@ -345,4 +389,7 @@ export default defineComponent({
 
 		&:last-child
 			margin-right 0.3em
+
+	&__exp
+		margin-left 0.3rem
 </style>
