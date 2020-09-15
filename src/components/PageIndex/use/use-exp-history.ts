@@ -8,7 +8,6 @@ import AppScope from '@/scopes/app'
 type Commit = [NonReactive<MalNode>, Set<string>]
 
 export default function useExpHistory(
-	exp: Ref<NonReactive<MalNode>>,
 	updateExp: (exp: NonReactive<MalNode>, pushHistory?: boolean) => any
 ) {
 	const history: Ref<Commit[]> = ref([])

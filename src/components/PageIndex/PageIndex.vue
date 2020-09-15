@@ -294,7 +294,6 @@ export default defineComponent({
 		})
 
 		const {pushExpHistory, tagExpHistory} = useExpHistory(
-			toRef(data, 'exp'),
 			updateExp
 		)
 
