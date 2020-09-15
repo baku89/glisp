@@ -217,9 +217,7 @@ export default defineComponent({
 			guideColor: computed(() => ui.theme.colors['--guide']),
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
-				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
-					top: 0,
-				}
+				const top = elHandles.value?.$el.getBoundingClientRect().top || 0
 				const left = paneSizeInPixel.layers
 				const xform = mat2d.clone(ui.viewHandlesTransform)
 				xform[4] += left
@@ -275,6 +273,30 @@ export default defineComponent({
 			editingPath: '',
 		}) as Data
 
+		// Splitpanes
+		const paneSizeInPixel = reactive({
+			layers: 15 * rem.value,
+			control: 30 * rem.value,
+		})
+
+		const paneSizeInPercent = reactive({
+			layers: computed(
+				() => (paneSizeInPixel.layers / windowWidth.value) * 100
+			),
+			control: computed(
+				() => (paneSizeInPixel.control / windowWidth.value) * 100
+			),
+		})
+
+		function onResizeSplitpanes(
+			sizes: {min: number; max: number; size: number}[]
+		) {
+			const [layers, , control] = sizes.map(s => s.size)
+
+			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
+			paneSizeInPixel.control = windowWidth.value * (control / 100)
+		}
+
 		// Centerize the origin of viewport on mounted
 		onMounted(() => {
 			if (!elHandles.value) return
@@ -293,7 +315,17 @@ export default defineComponent({
 			ui.viewHandlesTransform = xform
 		})
 
+		const viewTransform = toRef(ui, 'viewTransform')
+
+		// Modes
+		const {modes, modeState, activeModeIndex, setupModes} = useModes(
+			elHandles,
+			viewTransform
+		)
+
 		const {pushExpHistory, tagExpHistory} = useExpHistory(
+			activeModeIndex,
+			modeState,
 			updateExp
 		)
 
@@ -301,6 +333,7 @@ export default defineComponent({
 			updateExp(exp, false)
 			pushExpHistory(exp, 'undo')
 			setEditingExp(exp)
+			setupModes()
 		})
 
 		// Apply the theme
@@ -386,30 +419,6 @@ export default defineComponent({
 			data.hoveringExp = exp
 		}
 
-		// Splitpanes
-		const paneSizeInPixel = reactive({
-			layers: 15 * rem.value,
-			control: 30 * rem.value,
-		})
-
-		const paneSizeInPercent = reactive({
-			layers: computed(
-				() => (paneSizeInPixel.layers / windowWidth.value) * 100
-			),
-			control: computed(
-				() => (paneSizeInPixel.control / windowWidth.value) * 100
-			),
-		})
-
-		function onResizeSplitpanes(
-			sizes: {min: number; max: number; size: number}[]
-		) {
-			const [layers, , control] = sizes.map(s => s.size)
-
-			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
-			paneSizeInPixel.control = windowWidth.value * (control / 100)
-		}
-
 		// Save code
 		watch(
 			() => data.exp,
@@ -443,7 +452,6 @@ export default defineComponent({
 			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
 		}
 
-		const viewTransform = toRef(ui, 'viewTransform')
 		// Setup scopes
 		useAppCommands(data, {
 			updateExp,
@@ -455,9 +463,6 @@ export default defineComponent({
 
 		// Scrollbar
 		useCompactScrollbar()
-
-		// Modes
-		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
 
 		const hitEnabled = computed(() => activeModeIndex.value === undefined)
 

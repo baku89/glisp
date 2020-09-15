@@ -1,33 +1,52 @@
-import {MalNode, getName, MalVal, MalError, isKeyword} from '@/mal/types'
+import {
+	MalNode,
+	getName,
+	MalVal,
+	MalError,
+	isKeyword,
+	MalMap,
+} from '@/mal/types'
 
-import {Ref, ref} from '@vue/composition-api'
+import {Ref} from '@vue/composition-api'
 import {NonReactive} from '@/utils'
 import {reconstructTree} from '@/mal/reader'
 import AppScope from '@/scopes/app'
 
-type Commit = [NonReactive<MalNode>, Set<string>]
+type Commit = {
+	tag: Set<string>
+	exp: NonReactive<MalNode>
+	activeModeIndex: number | undefined
+	modeState: NonReactive<MalMap>
+}
 
 export default function useExpHistory(
+	activeModeIndex: Ref<number | undefined>,
+	modeState: Ref<NonReactive<MalMap>>,
 	updateExp: (exp: NonReactive<MalNode>, pushHistory?: boolean) => any
 ) {
-	const history: Ref<Commit[]> = ref([])
+	const history: Commit[] = []
 
-	function pushExpHistory(newExp: NonReactive<MalNode>, tag?: string) {
-		history.value.push([newExp, new Set(tag ? [tag] : undefined)])
+	function pushExpHistory(exp: NonReactive<MalNode>, tag?: string) {
+		history.push({
+			tag: new Set(tag ? [tag] : undefined),
+			exp,
+			activeModeIndex: activeModeIndex.value,
+			modeState: modeState.value,
+		})
 	}
 
 	function undoExp(tag?: string) {
 		let index = -1
 		if (tag) {
-			for (let i = history.value.length - 2; i >= 0; i--) {
-				if (history.value[i][1].has(tag)) {
+			for (let i = history.length - 2; i >= 0; i--) {
+				if (history[i].tag.has(tag)) {
 					index = i
 					break
 				}
 			}
 		} else {
-			if (history.value.length > 2) {
-				index = history.value.length - 2
+			if (history.length > 2) {
+				index = history.length - 2
 			}
 		}
 
@@ -35,17 +54,19 @@ export default function useExpHistory(
 			return false
 		}
 
-		const [prev] = history.value[index]
-		history.value.length = index + 1
-		reconstructTree(prev.value)
-		updateExp(prev, false)
+		const commit = history[index]
+		history.length = index + 1
+		reconstructTree(commit.exp.value)
+		updateExp(commit.exp, false)
+		activeModeIndex.value = commit.activeModeIndex
+		modeState.value = commit.modeState
 
 		return true
 	}
 
 	function tagExpHistory(tag: string) {
-		if (history.value.length > 0) {
-			history.value[history.value.length - 1][1].add(tag)
+		if (history.length > 0) {
+			history[history.length - 1].tag.add(tag)
 		}
 	}
 

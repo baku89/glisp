@@ -6,7 +6,7 @@ import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
 import {useKeyboardState} from '@/components/use'
-import {getHTMLElement} from '@/utils'
+import {getHTMLElement, nonReactive, NonReactive} from '@/utils'
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
@@ -32,15 +32,17 @@ export function useModes(
 	// Force enable keyboard state to retrieve modifiers
 	useKeyboardState()
 
-	const modes = ref(
-		markRaw(
+	const modes: Ref<Mode[]> = ref([])
+
+	function setupModes() {
+		modes.value = markRaw(
 			convertMalNodeToJSObject(
 				(ConsoleScope.var('*modes*') as MalAtom).value
 			) as Mode[]
 		)
-	)
+	}
 
-	let state: MalMap
+	const modeState: Ref<NonReactive<MalMap>> = ref(nonReactive({}))
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),
@@ -81,7 +83,7 @@ export function useModes(
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
 			const params = assocBang(
-				state,
+				modeState.value.value,
 				K_EVENT_TYPE,
 				type,
 				K_POS,
@@ -91,7 +93,7 @@ export function useModes(
 			)
 			const updatedState = handler(params)
 			if (isMap(updatedState)) {
-				state = updatedState
+				modeState.value = nonReactive(updatedState)
 			}
 		}
 	}
@@ -99,9 +101,9 @@ export function useModes(
 	// Execute setup
 	AppScope.def('reset-mode', () => {
 		if (activeMode.value) {
-			state = activeMode.value.handlers.setup
-				? activeMode.value.handlers.setup()
-				: ({} as MalMap)
+			modeState.value = nonReactive(
+				activeMode.value.handlers.setup ? activeMode.value.handlers.setup() : {}
+			)
 			return true
 		} else {
 			return false
@@ -112,7 +114,9 @@ export function useModes(
 		() => activeMode.value,
 		mode => {
 			if (mode) {
-				state = mode.handlers.setup ? mode.handlers.setup() : ({} as MalMap)
+				modeState.value = nonReactive(
+					mode.handlers.setup ? mode.handlers.setup() : {}
+				)
 			}
 		},
 		{immediate: true}
@@ -120,7 +124,9 @@ export function useModes(
 
 	return {
 		modes,
+		modeState,
 		activeModeIndex,
 		activeMode,
+		setupModes,
 	}
 }
