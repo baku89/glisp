@@ -566,8 +566,7 @@ html, body
 		position absolute
 		top 1rem
 		left 1rem
-		display flex
-		flex-direction column
+		width 10rem
 		pointer-events none
 
 		&-button
