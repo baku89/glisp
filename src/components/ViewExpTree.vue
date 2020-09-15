@@ -78,6 +78,7 @@ import {
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {reconstructTree} from '@/mal/reader'
+import {isUIAnnotation} from '@/mal/utils'
 
 enum DisplayMode {
 	Node = 'node',
@@ -137,8 +138,7 @@ export default defineComponent({
 		 * The flag whether the exp has UI annotaiton
 		 */
 		const hasAnnotation = computed(() => {
-			const exp = props.exp.value
-			return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
+			return isUIAnnotation(props.exp.value)
 		})
 
 		/**

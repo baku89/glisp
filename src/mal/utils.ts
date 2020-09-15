@@ -33,6 +33,10 @@ import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
 import {reconstructTree} from './reader'
 
+export function isUIAnnotation(exp: MalVal): exp is MalSeq {
+	return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
+}
+
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (isVector(exp)) {
 		if (exp[0] === K('path')) {
@@ -115,7 +119,7 @@ export function generateExpAbsPath(exp: MalNode) {
 	function seek(exp: MalNode, path: string): string {
 		const outer = getOuter(exp)
 		if (outer) {
-			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+			if (isUIAnnotation(outer)) {
 				return seek(outer, path)
 			} else {
 				const index = exp[M_OUTER_INDEX]
@@ -138,7 +142,7 @@ export function getUIOuterInfo(
 
 	let outer = getOuter(exp)
 
-	if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
+	if (isUIAnnotation(outer)) {
 		exp = outer
 		outer = getOuter(exp)
 	}
@@ -199,11 +203,11 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 
 export function getUIAnnotationExp(exp: MalNode) {
 	const outer = getOuter(exp)
-	return isList(outer) && isSymbolFor(outer[0], 'ui-annotate') ? outer : exp
+	return isUIAnnotation(outer) ? outer : exp
 }
 
 export function getUIBodyExp(exp: MalVal) {
-	return isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
+	return isUIAnnotation(exp) ? exp[2] : exp
 }
 
 export function deleteExp(exp: MalNode) {
