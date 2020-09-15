@@ -43,6 +43,13 @@ export default function useExpHistory(
 		return true
 	}
 
+	function tagExpHistory(tag: string) {
+		if (history.value.length > 0) {
+			history.value[history.value.length - 1][1].add(tag)
+		}
+	}
+
+	// Register to AppScope
 	AppScope.def('revert-history', (arg: MalVal) => {
 		if (typeof arg !== 'string') {
 			return undoExp()
@@ -51,12 +58,6 @@ export default function useExpHistory(
 			return undoExp(tag)
 		}
 	})
-
-	function tagExpHistory(tag: string) {
-		if (history.value.length > 0) {
-			history.value[history.value.length - 1][1].add(tag)
-		}
-	}
 
 	AppScope.def('tag-history', (tag: MalVal) => {
 		if (!(typeof tag === 'string' || isKeyword(tag))) {
