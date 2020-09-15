@@ -18,13 +18,15 @@
 				:anchorAttributes="{target: '_blank'}"
 			/>
 		</div>
-		<component
-			:is="inspectorName"
-			:exp="exp"
-			@input="onInput"
-			@select="$emit('select', $event)"
-			@end-tweak="$emit('end-tweak')"
-		/>
+		<div class="Inspector__body">
+			<component
+				:is="inspectorName"
+				:exp="exp"
+				@input="onInput"
+				@select="$emit('select', $event)"
+				@end-tweak="$emit('end-tweak')"
+			/>
+		</div>
 	</div>
 </template>
 
@@ -179,4 +181,8 @@ export default defineComponent({
 
 		code
 			color var(--syntax-function)
+
+	&__body
+		overflow-y scroll
+		max-height 20rem
 </style>
