@@ -1,5 +1,5 @@
 import chroma from 'chroma-js'
-import { symbolFor as S, createList as L, MalVal } from '@/mal/types'
+import {symbolFor as S, createList as L, MalVal} from '@/mal/types'
 
 const Exports = [
 	[
@@ -36,12 +36,12 @@ const Exports = [
 				const [h, s, l] = c.hsl()
 				return chroma((h + 180) % 360, 1 - s, 1 - l, 'hsl').hex()
 			}
-		}
-	]
+		},
+	],
 ] as [string, MalVal][]
 
 const Exp = L(
 	S('do'),
 	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
 )
-	; (globalThis as any)['glisp_library'] = Exp
+;(globalThis as any)['glisp_library'] = Exp
