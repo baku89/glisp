@@ -577,6 +577,14 @@
   :return {:type "vector"}})
 
 (annotate-fn!
+  nth
+  {:doc "Returns the value at the *index*"
+ :params [{:label "Collection" :type "exp" :initial []}
+          {:label "Index" :type "number" :validator round}]
+ :inverse (fn {:return ret :params [coll i]}
+            [(replace-nth coll i ret) i])})
+
+(annotate-fn!
  merge
  {:doc
   "Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result"
