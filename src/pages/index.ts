@@ -1,21 +1,14 @@
-import Vue from 'vue'
-import VueCompositionApi from '@vue/composition-api'
+import { createApp } from 'vue'
 import App from '@/components/PageIndex'
-import VModal from 'vue-js-modal'
-import PortalVue from 'portal-vue'
 
-Vue.config.productionTip = false
-Vue.use(VueCompositionApi)
-Vue.use(VModal, {
-	dynamicDefaults: {
-		height: 'auto',
-		width: 400,
-		transition: 'vmodal__transition',
-		overlayTransition: 'vmodal__overlay-transition',
-	},
-})
-Vue.use(PortalVue)
+const app = createApp(App as any)
 
-new Vue({
-	render: h => h(App),
-}).$mount('#app')
+// app.use(VModal, {
+// 	dynamicDefaults: {
+// 		height: 'auto',
+// 		width: 400,
+// 		transition: 'vmodal__transition',
+// 		overlayTransition: 'vmodal__overlay-transition',
+// 	},
+// })
+app.mount('#app')
