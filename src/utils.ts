@@ -1,7 +1,7 @@
 import Case from 'case'
 import {MalVal, isKeyword} from '@/mal/types'
 import printExp from '@/mal/printer'
-import {Ref, unref} from '@vue/composition-api'
+import { Ref, unref } from 'vue'
 
 export function replaceRange(
 	s: string,
