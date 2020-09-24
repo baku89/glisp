@@ -47,7 +47,7 @@
 					class="PageIndex__view-handles"
 					:activeExp="activeExp"
 					:selectedExp="selectedExp"
-					:viewTransform.sync="viewHandlesTransform"
+					v-model:viewTransform="viewHandlesTransform"
 					@tag-history="tagExpHistory('undo')"
 				/>
 				<div class="PageIndex__modes">
@@ -79,7 +79,7 @@
 							v-if="editingExp"
 							:exp="editingExp"
 							:selectedExp="activeExp"
-							:hasParseError.sync="hasParseError"
+							v-model:hasParseError="hasParseError"
 							:editMode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@select="setActiveExp"
