@@ -18,7 +18,6 @@ import {printer} from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'
 
 export default function useDialogCommand(context: SetupContext) {
-	const {$modal} = context.root
 
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !isSymbol(f)) {
@@ -49,14 +48,14 @@ export default function useDialogCommand(context: SetupContext) {
 		const exp: NonReactive<MalVal> = nonReactive(L(f, ...initialParams))
 
 		// Show Modal
-		$modal.show(
-			DialogCommand,
-			{
-				exp,
-				fn,
-			},
-			{}
-		)
+		// $modal.show(
+		// 	DialogCommand,
+		// 	{
+		// 		exp,
+		// 		fn,
+		// 	},
+		// 	{}
+		// )
 
 		return null
 	})

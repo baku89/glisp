@@ -7,21 +7,20 @@ import AppScope from '@/scopes/app'
 const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
 	.default as string
 
-export default function useDialogCommand(context: SetupContext) {
-	const {$modal} = context.root
+export default function useDialogCommand(context: SetupContext) {	
 
 	const settings = localStorage.getItem('settings') || DEFAULT_SETTINGS
 
 	AppScope.readEval(`(do ${settings}\n)`)
 
 	ConsoleScope.def('show-settings', () => {
-		$modal.show(
-			DialogSettings,
-			{},
-			{
-				width: 800,
-			}
-		)
+		// $modal.show(
+		// 	DialogSettings,
+		// 	{},
+		// 	{
+		// 		width: 800,
+		// 	}
+		// )
 
 		return null
 	})
