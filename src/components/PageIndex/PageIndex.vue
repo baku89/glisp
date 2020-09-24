@@ -140,7 +140,6 @@ import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem} from '@/components/use'
-import AppScope from '@/scopes/app'
 import {
 	replaceExp,
 	watchExpOnReplace,
