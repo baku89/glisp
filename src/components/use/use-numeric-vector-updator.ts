@@ -1,4 +1,4 @@
-import {Ref, computed, SetupContext} from '@vue/composition-api'
+import {Ref, computed, SetupContext} from 'vue'
 import {
 	MalVal,
 	getEvaluated,

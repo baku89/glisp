@@ -26,7 +26,7 @@ import {
 	onBeforeMount,
 	SetupContext,
 	toRefs,
-} from '@vue/composition-api'
+} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {vec2, mat2d} from 'gl-matrix'
 import {NonReactive} from '@/utils'

@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, PropType} from '@vue/composition-api'
+import {defineComponent, ref, Ref, PropType} from 'vue'
 import {useDraggable} from '@/components/use/'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'

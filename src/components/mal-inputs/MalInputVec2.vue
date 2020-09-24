@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, toRef, SetupContext} from '@vue/composition-api'
+import {defineComponent, toRef, SetupContext} from 'vue'
 import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'

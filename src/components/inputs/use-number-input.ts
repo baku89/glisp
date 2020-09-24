@@ -1,4 +1,4 @@
-import {Ref, computed, SetupContext} from '@vue/composition-api'
+import {Ref, computed, SetupContext} from 'vue'
 import keycode from 'keycode'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])

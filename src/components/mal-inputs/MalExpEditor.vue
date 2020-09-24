@@ -17,7 +17,7 @@ import {
 	ref,
 	SetupContext,
 	Ref,
-} from '@vue/composition-api'
+} from 'vue'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'

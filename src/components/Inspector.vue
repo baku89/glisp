@@ -56,7 +56,7 @@ import {
 	getMapValue,
 	isUIAnnotation,
 } from '@/mal/utils'
-import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from 'vue'
 
 interface Props {
 	exp: NonReactive<MalNode>

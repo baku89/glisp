@@ -1,4 +1,4 @@
-import {Ref, onMounted} from '@vue/composition-api'
+import {Ref, onMounted} from 'vue'
 import isElectron from 'is-electron'
 import hotkeys from 'hotkeys-js'
 

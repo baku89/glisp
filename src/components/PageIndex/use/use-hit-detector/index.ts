@@ -1,4 +1,4 @@
-import {Ref} from '@vue/composition-api'
+import {Ref} from 'vue'
 import {NonReactive} from '@/utils'
 import {MalVal, MalNode, isSeq, isNode} from '@/mal/types'
 import {HitDetector} from './hit-detector'

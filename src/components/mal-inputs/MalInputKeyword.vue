@@ -12,7 +12,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from '@vue/composition-api'
+import {defineComponent, SetupContext, computed} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getName, keywordFor} from '@/mal/types'
 import {InputString} from '@/components/inputs'

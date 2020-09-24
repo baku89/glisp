@@ -1,6 +1,6 @@
 import ConsoleScope from '@/scopes/console'
 import {convertMalNodeToJSObject} from '@/mal/reader'
-import {ref, Ref, computed, watch, markRaw} from '@vue/composition-api'
+import {ref, Ref, computed, watch, markRaw} from 'vue'
 import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'

@@ -31,7 +31,7 @@ import {
 	computed,
 	onBeforeMount,
 	watch,
-} from '@vue/composition-api'
+} from 'vue'
 import {
 	MalVal,
 	isList,

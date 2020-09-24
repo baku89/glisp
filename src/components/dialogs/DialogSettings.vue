@@ -19,8 +19,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
-import {defineComponent, ref, computed} from '@vue/composition-api'
+import {defineComponent, ref, computed} from 'vue'
 import {readStr} from '@/mal'
 import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
 

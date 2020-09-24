@@ -1,4 +1,4 @@
-import {SetupContext} from '@vue/composition-api'
+import {SetupContext} from 'vue'
 import ConsoleScope from '@/scopes/console'
 import DialogSettings from '@/components/dialogs/DialogSettings.vue'
 import AppScope from '@/scopes/app'

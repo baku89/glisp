@@ -53,7 +53,7 @@ import {
 	SetupContext,
 	computed,
 	ref,
-} from '@vue/composition-api'
+} from 'vue'
 import Draggable from 'vuedraggable'
 import {
 	MalVal,

@@ -25,7 +25,7 @@ import {
 	Ref,
 	computed,
 	SetupContext,
-} from '@vue/composition-api'
+} from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
 import {NonReactive} from '@/utils'
 import {

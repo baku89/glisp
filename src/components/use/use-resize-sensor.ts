@@ -1,4 +1,4 @@
-import {Ref, onMounted, onBeforeMount, unref} from '@vue/composition-api'
+import {Ref, onMounted, onBeforeMount, unref} from 'vue'
 import ResizeSensor from 'resize-sensor'
 
 export default function useResizeSensor(

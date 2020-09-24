@@ -7,7 +7,7 @@ import {
 	MalMap,
 } from '@/mal/types'
 
-import {Ref} from '@vue/composition-api'
+import {Ref} from 'vue'
 import {NonReactive} from '@/utils'
 import {reconstructTree} from '@/mal/reader'
 import AppScope from '@/scopes/app'

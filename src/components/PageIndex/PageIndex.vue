@@ -113,7 +113,7 @@ import {
 	Ref,
 	onMounted,
 	toRef,
-} from '@vue/composition-api'
+} from 'vue'
 import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'

@@ -63,7 +63,7 @@ import {
 	computed,
 	ComputedRef,
 	SetupContext,
-} from '@vue/composition-api'
+} from 'vue'
 import {
 	MalVal,
 	MalType,

@@ -34,7 +34,7 @@ import {
 	computed,
 	watch,
 	toRefs,
-} from '@vue/composition-api'
+} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'

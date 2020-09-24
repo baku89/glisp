@@ -1,4 +1,4 @@
-import {onBeforeUnmount, Ref, reactive, onMounted} from '@vue/composition-api'
+import {onBeforeUnmount, Ref, reactive, onMounted} from 'vue'
 
 interface DragData {
 	x: number
