@@ -18,18 +18,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 import MalExpButton from './MalExpButton.vue'
-
-interface Props {
-	value: NonReactive<string | MalSeq | MalSymbol>
-	validator: (v: string) => string | null
-}
 
 export default defineComponent({
 	name: 'MalInputString',
@@ -39,10 +34,13 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<string | MalSeq | MalSymbol>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<string | MalSeq | MalSymbol>) =>
+				x instanceof NonReactive,
 		},
 		validator: {
+			type: Function as PropType<(v: string) => string | null>,
 			required: false,
 		},
 		multiline: {
@@ -50,7 +48,7 @@ export default defineComponent({
 			default: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const isExp = computed(() => typeof props.value.value !== 'string')
 		const evaluated = computed(() => getEvaluated(props.value.value))
 

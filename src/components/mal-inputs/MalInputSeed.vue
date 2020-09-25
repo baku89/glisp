@@ -14,31 +14,28 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext} from 'vue'
+import {defineComponent, PropType} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
-interface Props {
-	value: NonReactive<number | MalSeq | MalSymbol>
-	validator: (v: number) => number | null
-}
-
 export default defineComponent({
 	name: 'MalInputSeed',
 	components: {MalInputNumber, InputSeed},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<number | MalSeq | MalSymbol>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<number | MalSeq | MalSymbol>) =>
+				x instanceof NonReactive,
 		},
 		validator: {
 			required: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		function onInput(value: MalVal) {
 			let newExp = value
 			if (typeof newExp === 'number') {

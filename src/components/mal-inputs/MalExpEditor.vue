@@ -11,13 +11,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	computed,
-	ref,
-	SetupContext,
-	Ref,
-} from 'vue'
+import {defineComponent, computed, ref, Ref, PropType} from 'vue'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
@@ -43,13 +37,6 @@ const EditMode = {
 } as const
 type EditMode = typeof EditMode[keyof typeof EditMode]
 
-interface Props {
-	exp: NonReactive<MalVal>
-	selectedExp: NonReactive<MalNode> | null
-	cssStyle: string
-	editMode: EditMode
-}
-
 const EDITOR_DELIMITER = ';__\n'
 const RE_EDITOR_DELIMITER = /;__\n/g
 
@@ -60,9 +47,11 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal>>,
 			required: true,
 		},
 		selectedExp: {
+			type: Object as PropType<NonReactive<MalNode> | null>,
 			required: true,
 		},
 		cssStyle: {
@@ -70,11 +59,11 @@ export default defineComponent({
 			default: '',
 		},
 		editMode: {
-			type: String,
+			type: String as PropType<EditMode>,
 			default: EditMode.Params,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const selection = ref([0, 0]) as Ref<[number, number]>
 		const hasParseError = ref(false)
 

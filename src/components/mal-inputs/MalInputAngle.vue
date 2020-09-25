@@ -19,31 +19,28 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
-interface Props {
-	value: NonReactive<number | MalSeq | MalSymbol>
-	validator: (v: number) => number | null
-}
-
 export default defineComponent({
 	name: 'MalInputAngle',
 	components: {MalInputNumber, InputRotery},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<number | MalSeq | MalSymbol>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<number | MalSeq | MalSymbol>) =>
+				x instanceof NonReactive,
 		},
 		validator: {
 			required: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const evaluated = computed(() => {
 			return getEvaluated(props.value.value) as number
 		})

@@ -28,7 +28,9 @@
 							class="ParamControl__button insert"
 							tabindex="-1"
 							@click="onParamInsert(i)"
-						>Insert</button>
+						>
+							Insert
+						</button>
 					</template>
 				</td>
 			</tr>
@@ -39,7 +41,9 @@
 						class="ParamControl__button add"
 						tabindex="-1"
 						@click="onParamInsert(uiSchema.length)"
-					>+ Add</button>
+					>
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</template>
@@ -47,7 +51,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import {
 	MalSeq,
 	MalVal,
@@ -71,11 +75,6 @@ import {
 } from '@/mal/schema'
 import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
 
-interface Props {
-	exp: NonReactive<MalSeq>
-	fn: MalFunc
-}
-
 const TypeDefaults = {
 	number: 0,
 	string: '',
@@ -94,8 +93,8 @@ const TypeDefaults = {
 export default defineComponent({
 	name: 'ParamControl',
 	props: {
-		exp: {required: true},
-		fn: {required: false},
+		exp: {type: Object as PropType<NonReactive<MalSeq>>, required: true},
+		fn: {type: Function as PropType<MalFunc>, required: false},
 	},
 	components: {
 		'ui-number': MalInputComponents.MalInputNumber,
@@ -116,7 +115,7 @@ export default defineComponent({
 		'ui-exp': MalInputComponents.MalExpButton,
 		// 'ui-any': MalInputComponents.MalInputAny,
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const fnInfo = computed(() => {
 			return getFnInfo(props.fn || props.exp.value)
 		})

@@ -15,17 +15,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
+import {defineComponent, PropType, computed} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 import {InputBoolean} from '@/components/inputs'
 import MalExpButton from './MalExpButton.vue'
-
-interface Props {
-	value: NonReactive<boolean | MalSeq | MalSymbol>
-}
 
 export default defineComponent({
 	name: 'MalInputBoolean',
@@ -35,11 +31,13 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<boolean | MalSeq | MalSymbol>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<boolean | MalSeq | MalSymbol>) =>
+				x instanceof NonReactive,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const isExp = computed(() => typeof props.value.value !== 'boolean')
 		const evaluated = computed(() =>
 			getEvaluated(props.value.value) ? true : false

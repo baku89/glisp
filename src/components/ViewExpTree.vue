@@ -58,7 +58,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {
 	MalVal,
@@ -85,15 +85,6 @@ enum DisplayMode {
 	Elements = 'elements',
 }
 
-interface Props {
-	exp: NonReactive<MalVal>
-	expSelection: Set<MalNode>
-	activeExp: NonReactive<MalNode> | null
-	editingExp: NonReactive<MalVal> | null
-	hoveringExp: NonReactive<MalVal> | null
-	mode: DisplayMode
-}
-
 const IconTexts = {
 	[MalType.Function]: {type: 'serif', value: 'f'},
 	[MalType.Number]: {type: 'text', value: '#'},
@@ -115,25 +106,31 @@ export default defineComponent({
 	name: 'ViewExpTree',
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal>>,
 			required: true,
 		},
 		expSelection: {
+			type: Set as PropType<Set<MalNode>>,
 			required: true,
 		},
 		activeExp: {
+			type: Object as PropType<NonReactive<MalNode> | null>,
 			required: true,
 		},
 		editingExp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true,
 		},
 		hoveringExp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true,
 		},
 		mode: {
+			type: Object as PropType<DisplayMode>,
 			default: DisplayMode.Node,
 		},
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		/**
 		 * The flag whether the exp has UI annotaiton
 		 */

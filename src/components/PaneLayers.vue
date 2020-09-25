@@ -27,13 +27,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	computed,
-	SetupContext,
-	Ref,
-	ref,
-} from 'vue'
+import {defineComponent, computed, Ref, ref, PropType} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
@@ -53,19 +47,23 @@ export default defineComponent({
 	components: {ViewExpTree},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalSeq>>,
 			required: true,
 		},
 		selectedExp: {
+			type: Object as PropType<NonReactive<MalVal>[]>,
 			required: true,
 		},
 		editingExp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true,
 		},
 		hoveringExp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
 
 		/**

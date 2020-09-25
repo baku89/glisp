@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, toRef, SetupContext} from 'vue'
+import {defineComponent, toRef, PropType} from 'vue'
 import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -59,21 +59,18 @@ import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
-interface Props {
-	value: NonReactive<MalSeq | MalSymbol>
-}
-
 export default defineComponent({
 	name: 'MalInputVec2',
 	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,
 			required: true,
-			validator: x =>
+			validator: (x: NonReactive<MalSeq | MalSymbol>) =>
 				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const {
 			nonReactiveValues,
 			isValueSeparated,

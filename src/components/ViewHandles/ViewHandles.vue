@@ -116,38 +116,27 @@ import {MalSeq, MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {NonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
-import {
-	defineComponent,
-	computed,
-	ref,
-	SetupContext,
-	Ref,
-	toRef,
-} from 'vue'
+import {defineComponent, computed, ref, Ref, toRef, PropType} from 'vue'
 import AppScope from '@/scopes/app'
 import useHandle from './use-handle'
-
-interface Props {
-	activeExp: NonReactive<MalSeq> | null
-	selectedExp: NonReactive<MalNode>[]
-	viewTransform: mat2d
-}
 
 export default defineComponent({
 	props: {
 		activeExp: {
+			type: Object as PropType<NonReactive<MalSeq> | null>,
 			required: true,
-			// validator: v => v instanceof NonReactive,
+			validator: (v: NonReactive<MalSeq> | null) => v instanceof NonReactive,
 		},
 		selectedExp: {
+			type: Object as PropType<NonReactive<MalNode>[]>,
 			required: true,
 		},
 		viewTransform: {
-			type: Float32Array,
+			type: Float32Array as PropType<mat2d>,
 			default: () => mat2d.identity(mat2d.create()),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const el: Ref<HTMLElement | null> = ref(null)
 
 		const viewAxisStyle = computed(

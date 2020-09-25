@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, Ref, onMounted, watch, ref} from 'vue'
+import {defineComponent, Ref, onMounted, watch, ref, PropType} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
@@ -16,15 +16,10 @@ import createCanvasRender, {
 import {mat2d} from 'gl-matrix'
 import {useResizeSensor} from '@/components/use'
 
-interface Props {
-	exp: NonReactive<MalVal> | null
-	guideColor: string
-	viewTransform: mat2d
-}
-
 export default defineComponent({
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal> | null>,
 			required: true,
 		},
 		guideColor: {
@@ -32,10 +27,11 @@ export default defineComponent({
 			required: true,
 		},
 		viewTransform: {
+			type: Object as PropType<mat2d>,
 			default: () => mat2d.identity(mat2d.create()),
 		},
 	},
-	setup(props: Props, context) {
+	setup(props, context) {
 		let renderer: CanvasRendererType | null = null
 
 		const el: Ref<HTMLElement | null> = ref(null)

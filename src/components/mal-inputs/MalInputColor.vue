@@ -57,13 +57,8 @@
 </template>
 
 <script lang="ts">
+import {defineComponent, computed, ComputedRef, PropType} from 'vue'
 import chroma from 'chroma-js'
-import {
-	defineComponent,
-	computed,
-	ComputedRef,
-	SetupContext,
-} from 'vue'
 import {
 	MalVal,
 	MalType,
@@ -88,10 +83,6 @@ type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
 const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
 
-interface Props {
-	value: NonReactive<string | MalSeq>
-}
-
 export default defineComponent({
 	name: 'MalInputColor',
 	components: {
@@ -103,14 +94,15 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<string | MalSeq>>,
 			required: true,
-			validator: v => v instanceof NonReactive,
+			validator: (v: NonReactive<string | MalSeq>) => v instanceof NonReactive,
 		},
 		compact: {
 			default: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const mode = computed(() => {
 			switch (getType(props.value.value)) {
 				case MalType.String: {

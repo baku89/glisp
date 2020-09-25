@@ -48,15 +48,9 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	SetupContext,
-	computed,
-	ref,
-} from 'vue'
+import {defineComponent, computed, ref, PropType} from 'vue'
 import Draggable from 'vuedraggable'
 import {
-	MalVal,
 	isList,
 	isVector,
 	MalSeq,
@@ -70,7 +64,7 @@ import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {reconstructTree} from '../../mal/reader'
 
 interface Props {
-	exp: NonReactive<MalVal[]>
+	exp:
 }
 
 export default defineComponent({
@@ -82,11 +76,12 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalSeq>>,
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value),
+			validator: (x: NonReactive<MalSeq>) => x instanceof NonReactive && isList(x.value),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const styles = computed(() => {
 			const styles = props.exp.value[1]
 			return (isVector(styles) ? styles : [styles]).map(nonReactive)

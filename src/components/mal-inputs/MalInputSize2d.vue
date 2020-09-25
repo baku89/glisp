@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
+import {defineComponent, PropType, computed} from 'vue'
 import {
 	MalSeq,
 	isSeq,
@@ -69,21 +69,18 @@ import {InputNumber} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 
-interface Props {
-	value: NonReactive<MalSeq | MalSymbol>
-}
-
 export default defineComponent({
 	name: 'MalInputSize2d',
 	components: {MalInputNumber, MalExpButton, InputNumber},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,
 			required: true,
-			validator: x =>
+			validator: (x: NonReactive<MalSeq | MalSymbol>) =>
 				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const isSizeFunc = computed(
 			() =>
 				isList(props.value.value) &&

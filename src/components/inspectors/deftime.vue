@@ -25,20 +25,20 @@
 <script lang="ts">
 import {
 	defineComponent,
-	SetupContext,
 	ref,
 	Ref,
 	computed,
 	onBeforeMount,
 	watch,
+	PropType,
 } from 'vue'
 import {
-	MalVal,
 	isList,
 	cloneExp,
 	assocBang,
 	keywordFor as K,
 	getEvaluated,
+	MalSeq,
 } from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
@@ -48,10 +48,6 @@ const K_START = K('start'),
 	K_DURATION = K('duration'),
 	K_FPS = K('fps')
 
-interface Props {
-	exp: NonReactive<MalVal[]>
-}
-
 export default defineComponent({
 	name: 'Inspector-deftime',
 	components: {
@@ -59,11 +55,13 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalSeq>>,
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value),
+			validator: (x: NonReactive<MalSeq>) =>
+				x instanceof NonReactive && isList(x.value),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const currentTimeRef: Ref<HTMLElement | null> = ref(null)
 		const seekbarRef: Ref<HTMLElement | null> = ref(null)
 

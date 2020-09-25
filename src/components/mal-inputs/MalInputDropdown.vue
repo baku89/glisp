@@ -8,17 +8,10 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext} from 'vue'
+import {defineComponent, PropType} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal} from '@/mal/types'
-import {PropType} from 'vue'
 import {InputDropdown} from '@/components/inputs'
-
-interface Props {
-	value: NonReactive<MalVal>
-	values: PropType<string[] | number[]>
-	labels: string[]
-}
 
 export default defineComponent({
 	name: 'MalInputDropdown',
@@ -27,20 +20,21 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalVal>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<MalVal>) => x instanceof NonReactive,
 		},
 		values: {
-			type: Array,
+			type: Array as PropType<string[] | number[]>,
 			required: true,
 		},
 		labels: {
-			type: Array,
+			type: Array as PropType<string[]>,
 			required: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
-		function onInput(value: string) {
+	setup(props, context) {
+		function onInput(value: string | number) {
 			context.emit('input', nonReactive(value))
 			context.emit('end-tweak')
 		}

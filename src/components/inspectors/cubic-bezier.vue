@@ -36,22 +36,11 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	SetupContext,
-	ref,
-	Ref,
-	computed,
-	toRefs,
-} from 'vue'
+import {defineComponent, ref, Ref, computed, toRefs, PropType} from 'vue'
 import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'
-
-interface Props {
-	exp: NonReactive<MalVal[]>
-}
 
 export default defineComponent({
 	name: 'Inspector-cubic-bezier',
@@ -60,11 +49,13 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal[]>>,
 			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value),
+			validator: (x: NonReactive<MalVal[]>) =>
+				x instanceof NonReactive && isList(x.value),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const svgEl: Ref<null | HTMLElement> = ref(null)
 		const c1El: Ref<null | HTMLElement> = ref(null)
 		const c2El: Ref<null | HTMLElement> = ref(null)

@@ -24,7 +24,7 @@ import {
 	ref,
 	Ref,
 	computed,
-	SetupContext,
+	SetupContext,, PropType
 } from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
 import {NonReactive} from '@/utils'
@@ -42,26 +42,23 @@ import VueMarkdown from 'vue-markdown'
 import {printExp} from '@/mal'
 import {printer} from '@/mal/printer'
 
-interface Props {
-	exp: NonReactive<MalVal[]>
-	fn: MalFunc
-}
 
 export default defineComponent({
 	name: 'DialogCommand',
 	components: {ParamControl, VueMarkdown},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalVal[]>>,
 			required: true,
 			validator: v =>
 				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0]),
 		},
 		fn: {
-			type: Function,
+			type: Function as PropType<MalFunc>,
 			required: true,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context: SetupContext) {
 		const meta = getMeta(props.fn)
 		const fnName = computed(() => (props.exp.value[0] as MalSymbol).value)
 		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')

@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
 import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
 import {
@@ -33,10 +33,6 @@ import {getMapValue} from '@/mal/utils'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 import {NonReactive, nonReactive} from '@/utils'
 
-interface Props {
-	value: NonReactive<MalSeq>
-}
-
 export default defineComponent({
 	name: 'MalInputParam',
 	components: {
@@ -45,11 +41,13 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalSeq>>,
 			required: true,
-			validator: v => v instanceof NonReactive && isList(v.value),
+			validator: (v: NonReactive<MalSeq>) =>
+				v instanceof NonReactive && isList(v.value),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const params = computed(() => {
 			return props.value.value.slice(1).map(nonReactive)
 		})

@@ -11,29 +11,25 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'
 import {getUIBodyExp} from '@/mal/utils'
 
-interface Props {
-	value: NonReactive<MalVal>
-	compact: boolean
-}
-
 export default defineComponent({
 	name: 'MalExpButton',
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalVal>>,
 			required: true,
-			validator: v => v instanceof NonReactive,
+			validator: (v: NonReactive<MalVal>) => v instanceof NonReactive,
 		},
 		compact: {
 			default: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const sign = computed(() => {
 			if (isList(props.value.value)) {
 				return 'f'

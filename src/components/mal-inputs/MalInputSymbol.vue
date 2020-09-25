@@ -11,15 +11,10 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
+import {defineComponent, PropType, computed} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getName, symbolFor} from '@/mal/types'
 import {InputString} from '@/components/inputs'
-
-interface Props {
-	value: NonReactive<string | MalSeq | MalSymbol>
-	validator: (v: string) => string | null
-}
 
 export default defineComponent({
 	name: 'MalInputSymbol',
@@ -28,14 +23,17 @@ export default defineComponent({
 	},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<string | MalSeq | MalSymbol>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<string | MalSeq | MalSymbol>) =>
+				x instanceof NonReactive,
 		},
 		validator: {
+			type: Function as PropType<(v: string) => string | null>,
 			required: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const displayValue = computed(() => {
 			return getName(props.value.value)
 		})

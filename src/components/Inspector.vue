@@ -56,11 +56,7 @@ import {
 	getMapValue,
 	isUIAnnotation,
 } from '@/mal/utils'
-import {defineComponent, computed, SetupContext} from 'vue'
-
-interface Props {
-	exp: NonReactive<MalNode>
-}
+import {defineComponent, computed, PropType} from 'vue'
 
 export default defineComponent({
 	name: 'Inspector',
@@ -71,11 +67,13 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
+			type: Object as PropType<NonReactive<MalNode>>,
 			required: true,
-			validator: p => p instanceof NonReactive && isNode(p.value),
+			validator: (p: NonReactive<MalNode>) =>
+				p instanceof NonReactive && isNode(p.value),
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const fnInfo = computed(() => {
 			return getFnInfo(props.exp.value)
 		})

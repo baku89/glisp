@@ -31,7 +31,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
+import {defineComponent, computed, PropType} from 'vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {
@@ -49,30 +49,25 @@ import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {NonReactive, nonReactive} from '@/utils'
 import {readStr} from '@/mal'
 
-interface Props {
-	value: NonReactive<MalSymbol | number | MalSeq>
-	validator?: (v: number) => number | null
-	compact: boolean
-}
-
 export default defineComponent({
 	name: 'MalInputNumber',
 	components: {InputNumber, MalExpButton},
 	props: {
 		value: {
+			type: Object as PropType<NonReactive<MalSymbol | number | MalSeq>>,
 			required: true,
-			validator: x => x instanceof NonReactive,
+			validator: (x: NonReactive<MalSymbol | number | MalSeq>) =>
+				x instanceof NonReactive,
 		},
 		validator: {
-			type: Function,
+			type: Function as PropType<(v: number) => number | null>,
 			required: false,
 		},
 		compact: {
-			type: Boolean,
 			default: false,
 		},
 	},
-	setup(props: Props, context: SetupContext) {
+	setup(props, context) {
 		const display = computed(() => {
 			if (typeof props.value.value === 'number') {
 				return {mode: 'number', isExp: false}
