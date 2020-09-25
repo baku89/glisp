@@ -19,13 +19,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	computed,
-	SetupContext,, PropType
-} from 'vue'
+import {defineComponent, ref, Ref, computed, PropType} from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
 import {NonReactive} from '@/utils'
 import {
@@ -42,7 +36,6 @@ import VueMarkdown from 'vue-markdown'
 import {printExp} from '@/mal'
 import {printer} from '@/mal/printer'
 
-
 export default defineComponent({
 	name: 'DialogCommand',
 	components: {ParamControl, VueMarkdown},
@@ -58,7 +51,7 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	setup(props, context: SetupContext) {
+	setup(props, context) {
 		const meta = getMeta(props.fn)
 		const fnName = computed(() => (props.exp.value[0] as MalSymbol).value)
 		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
