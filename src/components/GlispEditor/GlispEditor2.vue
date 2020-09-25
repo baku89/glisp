@@ -14,6 +14,7 @@ import {
 	watch,
 	SetupContext,
 	PropType,
+	nextTick,
 } from 'vue'
 import ace from 'brace'
 
@@ -47,7 +48,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 				}
 
 				// NOTE: Make sure to update the marker, add marker for next tick
-				context.root.$nextTick(() => {
+				nextTick(() => {
 					const [start, end] = activeRange
 					const range = convertToAceRange(editor, start, end)
 					activeRangeMarker = editor.session.addMarker(
