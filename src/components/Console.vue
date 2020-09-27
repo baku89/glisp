@@ -34,7 +34,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const el = ref(null) as Ref<null | HTMLElement>
+		const el = ref<null | HTMLElement>(null)
 
 		onMounted(() => {
 			if (!el.value) return

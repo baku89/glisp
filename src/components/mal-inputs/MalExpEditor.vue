@@ -64,7 +64,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const selection = ref([0, 0]) as Ref<[number, number]>
+		const selection = ref<[number, number]>([0, 0])
 		const hasParseError = ref(false)
 
 		// Compute pre and post text

@@ -64,7 +64,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const el: Ref<null | HTMLElement> = ref(null)
+		const el = ref<null | HTMLElement>(null)
 
 		/**
 		 * the body of expression withouht ui-annotate wrapping
