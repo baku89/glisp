@@ -32,7 +32,7 @@ export function useModes(
 	// Force enable keyboard state to retrieve modifiers
 	useKeyboardState()
 
-	const modes: Ref<Mode[]> = ref([])
+	const modes = ref<Mode[]>([])
 
 	function setupModes() {
 		modes.value = markRaw(
@@ -42,7 +42,7 @@ export function useModes(
 		)
 	}
 
-	const modeState: Ref<NonReactive<MalMap>> = ref(nonReactive({}))
+	const modeState = ref<NonReactive<MalMap>>(nonReactive({}))
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),
@@ -59,7 +59,7 @@ export function useModes(
 		},
 	})
 
-	const activeModeIndex: Ref<number | undefined> = ref(0)
+	const activeModeIndex = ref<number | undefined>(0)
 
 	const activeMode = computed(() =>
 		activeModeIndex.value !== undefined

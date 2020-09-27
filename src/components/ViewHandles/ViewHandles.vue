@@ -137,7 +137,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const el: Ref<HTMLElement | null> = ref(null)
+		const el = ref<HTMLElement | null>(null)
 
 		const viewAxisStyle = computed(
 			() => `matrix(${props.viewTransform.join(' ')})`

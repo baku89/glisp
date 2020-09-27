@@ -24,7 +24,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const el: Ref<null | HTMLElement> = ref(null)
+		const el = ref<null | HTMLElement>(null)
 
 		function update(deltaX: number, deltaY: number) {
 			const newValue = vec2.fromValues(props.value[0], props.value[1])

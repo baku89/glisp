@@ -43,7 +43,7 @@ export default defineComponent({
 		exp: {
 			type: Object as PropType<NonReactive<MalVal[]>>,
 			required: true,
-			validator: v =>
+			validator: (v: NonReactive<MalVal[]>) =>
 				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0]),
 		},
 		fn: {
@@ -55,7 +55,7 @@ export default defineComponent({
 		const meta = getMeta(props.fn)
 		const fnName = computed(() => (props.exp.value[0] as MalSymbol).value)
 		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
-		const editExp: Ref<NonReactive<MalVal>> = ref(props.exp)
+		const editExp: Ref = ref<NonReactive<MalVal>>(props.exp)
 
 		function onInput(newExp: NonReactive<MalVal>) {
 			editExp.value = newExp

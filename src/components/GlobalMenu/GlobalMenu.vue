@@ -53,7 +53,7 @@ export default defineComponent({
 	setup() {
 		const menu = ref<any[]>((AppScope.var('*global-menu*') as MalSeq) || [])
 
-		const expandedIndex: Ref<number | null> = ref(null)
+		const expandedIndex = ref<number | null>(null)
 
 		const platform = ref(
 			eval('"process" in globalThis && globalThis.process.platform') as string

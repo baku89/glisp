@@ -28,7 +28,7 @@ interface Props {
 }
 
 function useBraceEditor(props: Props, context: SetupContext) {
-	const editorEl: Ref<HTMLElement | null> = ref(null)
+	const editorEl: Ref = ref<HTMLElement | null>(null)
 	let editor: ace.Editor
 
 	onMounted(() => {

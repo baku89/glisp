@@ -18,14 +18,7 @@
 </template>
 
 <script lang="ts">
-import {
-	computed,
-	defineComponent,
-	PropType,
-	ref,
-	Ref,
-	watch,
-} from 'vue'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 const INPUT_LINE_HEIGHT_REM = 1.8
 
@@ -46,7 +39,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const textareaEl: Ref<null | HTMLTextAreaElement> = ref(null)
+		const textareaEl = ref<null | HTMLTextAreaElement>(null)
 		const textareaHeight = computed(() => {
 			const lineCount = props.value.split(/\r\n|\r|\n/).length
 			return lineCount * INPUT_LINE_HEIGHT_REM + 'rem'

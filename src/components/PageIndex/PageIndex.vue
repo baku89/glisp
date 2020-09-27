@@ -203,7 +203,7 @@ export default defineComponent({
 		Pane,
 	},
 	setup(_, context) {
-		const elHandles: Ref<any | null> = ref(null)
+		const elHandles = ref<null | HTMLElement>(null)
 
 		const rem = useRem()
 

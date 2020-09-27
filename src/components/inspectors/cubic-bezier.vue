@@ -56,9 +56,9 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const svgEl: Ref<null | HTMLElement> = ref(null)
-		const c1El: Ref<null | HTMLElement> = ref(null)
-		const c2El: Ref<null | HTMLElement> = ref(null)
+		const svgEl = ref<null | HTMLElement>(null)
+		const c1El = ref<null | HTMLElement>(null)
+		const c2El = ref<null | HTMLElement>(null)
 
 		const size = ref([0, 0])
 

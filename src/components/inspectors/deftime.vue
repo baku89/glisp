@@ -62,8 +62,8 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const currentTimeRef: Ref<HTMLElement | null> = ref(null)
-		const seekbarRef: Ref<HTMLElement | null> = ref(null)
+		const currentTimeEl = ref<HTMLElement | null>(null)
+		const seekbarEl = ref<HTMLElement | null>(null)
 
 		const isPlaying = ref(false)
 
@@ -100,14 +100,14 @@ export default defineComponent({
 		// Seek
 		let dragStartTime: number
 
-		const currentTimeDrag = useDraggable(currentTimeRef, {
+		const currentTimeDrag = useDraggable(currentTimeEl, {
 			onDragStart() {
 				dragStartTime = time.value
 			},
 			onDrag(e) {
-				if (!seekbarRef.value) return
+				if (!seekbarEl.value) return
 
-				const width = seekbarRef.value.getBoundingClientRect().width
+				const width = seekbarEl.value.getBoundingClientRect().width
 				const dt = (e.x / width) * duration.value
 				const newTime = clamp(
 					dragStartTime + dt,
@@ -182,8 +182,8 @@ export default defineComponent({
 		})
 
 		return {
-			currentTimeRef,
-			seekbarRef,
+			currentTimeEl,
+			seekbarEl,
 			normalizedPosition,
 			isPlaying,
 			isSeeking,

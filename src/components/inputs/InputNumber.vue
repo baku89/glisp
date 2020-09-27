@@ -27,8 +27,8 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		// Element references
-		const dragEl = ref(null)
-		const inputEl: Ref<null | HTMLInputElement> = ref(null)
+		const dragEl = ref<null | HTMLElement>(null)
+		const inputEl = ref<null | HTMLInputElement>(null)
 
 		const {shift, alt} = useKeyboardState()
 

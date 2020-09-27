@@ -34,8 +34,8 @@ export default defineComponent({
 	setup(props, context) {
 		let renderer: CanvasRendererType | null = null
 
-		const el: Ref<HTMLElement | null> = ref(null)
-		const canvas: Ref<HTMLCanvasElement | null> = ref(null)
+		const el = ref<HTMLElement | null>(null)
+		const canvas = ref<HTMLCanvasElement | null>(null)
 
 		let initialExp: MalVal
 

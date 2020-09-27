@@ -14,14 +14,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	computed,
-	ref,
-	Ref,
-	PropType,
-	toRef,
-} from 'vue'
+import {defineComponent, computed, ref, PropType, toRef} from 'vue'
 import {useDraggable, useKeyboardState} from '../use'
 import useNumberInput from './use-number-input'
 
@@ -47,8 +40,8 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		// Element references
-		const dragEl: Ref<null | HTMLElement> = ref(null)
-		const inputEl: Ref<null | HTMLInputElement> = ref(null)
+		const dragEl = ref<null | HTMLElement>(null)
+		const inputEl = ref<null | HTMLInputElement>(null)
 
 		const {shift, alt} = useKeyboardState()
 
