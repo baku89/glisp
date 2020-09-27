@@ -36,7 +36,7 @@ import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
 import {defineComponent, ref, Ref} from 'vue'
 import AppScope from '@/scopes/app'
-import {isVector, MalVal} from '@/mal/types'
+import {isVector, MalSeq, MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'GlobalMenu',
@@ -51,7 +51,7 @@ export default defineComponent({
 		},
 	},
 	setup() {
-		const menu = ref(AppScope.var('*global-menu*') || [])
+		const menu = ref<any[]>((AppScope.var('*global-menu*') as MalSeq) || [])
 
 		const expandedIndex: Ref<number | null> = ref(null)
 
