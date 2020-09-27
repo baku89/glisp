@@ -58,17 +58,16 @@
 						:class="{active: i === activeModeIndex}"
 						@click="activeModeIndex = i"
 					>
-						<span
-							class="icon"
-							v-if="handlers.icon.type === 'character'"
-						>{{handlers.icon.value}}</span>
+						<span class="icon" v-if="handlers.icon.type === 'character'">{{
+							handlers.icon.value
+						}}</span>
 						<i
 							class="icon"
 							v-else-if="handlers.icon.type === 'fontawesome'"
 							:class="handlers.icon.value"
 						/>
 
-						<span class="label">{{handlers.label}}</span>
+						<span class="label">{{ handlers.label }}</span>
 					</button>
 				</div>
 			</Pane>
@@ -90,7 +89,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -113,6 +114,7 @@ import {
 	Ref,
 	onMounted,
 	toRef,
+	ComputedRef,
 } from 'vue'
 import {useOnResize} from 'vue-composable'
 
