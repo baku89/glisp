@@ -3,9 +3,9 @@ import isElectron from 'is-electron'
 import hotkeys from 'hotkeys-js'
 
 interface UseGestureOptions {
-	onScroll?: (e: MouseWheelEvent) => any
-	onGrab?: (e: MouseWheelEvent) => any
-	onZoom?: (e: MouseWheelEvent) => any
+	onScroll?: (e: WheelEvent) => any
+	onGrab?: (e: WheelEvent) => any
+	onZoom?: (e: WheelEvent) => any
 	onRotate?: (e: {rotation: number; pageX: number; pageY: number}) => any
 }
 
@@ -20,7 +20,7 @@ export default function useGesture(
 
 		if (options.onScroll || options.onZoom) {
 			// Wheel scrolling
-			el.value.addEventListener('wheel', (e: MouseWheelEvent) => {
+			el.value.addEventListener('wheel', (e: WheelEvent) => {
 				if (e.altKey || e.ctrlKey) {
 					if (options.onZoom) {
 						e.preventDefault()
@@ -30,7 +30,7 @@ export default function useGesture(
 								pageX: e.pageX,
 								pageY: e.pageY,
 								deltaY: e.deltaY / 10,
-							} as MouseWheelEvent
+							} as WheelEvent
 						}
 						options.onZoom(e)
 					}
@@ -52,7 +52,7 @@ export default function useGesture(
 				const e = {
 					deltaX: _e.pageX - prevX,
 					deltaY: _e.pageY - prevY,
-				} as MouseWheelEvent
+				} as WheelEvent
 
 				prevX = _e.pageX
 				prevY = _e.pageY

@@ -152,7 +152,7 @@ export default defineComponent({
 
 		// Gestures for view transform
 		useGesture(el, {
-			onZoom({pageX, pageY, deltaY}: MouseWheelEvent) {
+			onZoom({pageX, pageY, deltaY}: WheelEvent) {
 				if (!el.value) return
 
 				const xform = mat2d.clone(props.viewTransform as mat2d)
@@ -174,7 +174,7 @@ export default defineComponent({
 
 				context.emit('update:view-transform', xform)
 			},
-			onScroll({deltaX, deltaY}: MouseWheelEvent) {
+			onScroll({deltaX, deltaY}: WheelEvent) {
 				const xform = mat2d.clone(props.viewTransform as mat2d)
 
 				// Translate
