@@ -162,17 +162,17 @@ import {useModes} from './use/use-modes'
 
 interface Data {
 	exp: NonReactive<MalNode>
-	viewExp: NonReactive<MalVal> | null
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
+	viewExp: NonReactive<MalVal> | null
+	selectedPath: string[]
 	selectedExp: NonReactive<MalNode>[]
 	activeExp: NonReactive<MalNode> | null
+	editingPath: string
 	editingExp: NonReactive<MalNode> | null
 	hoveringExp: NonReactive<MalNode> | null
-	selectedPath: string[]
-	editingPath: string
 }
 
 interface UI {
@@ -252,6 +252,7 @@ export default defineComponent({
 				return viewExp
 			}),
 			// Selection
+			selectedPath: [] as string[],
 			selectedExp: computed(() =>
 				data.selectedPath.map(path =>
 					nonReactive(getExpByPath(data.exp.value, path))
@@ -260,16 +261,16 @@ export default defineComponent({
 			activeExp: computed(() =>
 				data.selectedExp.length === 0 ? null : data.selectedExp[0]
 			),
+
+			editingPath: '',
 			editingExp: computed(() =>
 				data.editingPath
-					? nonReactive(getExpByPath(data.exp.value, data.editingPath))
+					? nonReactive(
+							getExpByPath(data.exp.value, data.editingPath) as MalNode
+					  )
 					: null
 			),
 			hoveringExp: null,
-
-			// Paths
-			selectedPath: [],
-			editingPath: '',
 		}) as Data
 
 		// Splitpanes
