@@ -379,5 +379,6 @@ export default function useHandle(
 		transformStyle,
 		selectedPath,
 		onMousedown,
+		handleCallbacks,
 	}
 }
