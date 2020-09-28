@@ -95,7 +95,6 @@
 <script lang="ts">
 import 'normalize.css'
 import GlobalPanes from '@/components/layouts/GlobalPanes.vue'
-import 'splitpanes/dist/splitpanes.css'
 import {
 	defineComponent,
 	reactive,
