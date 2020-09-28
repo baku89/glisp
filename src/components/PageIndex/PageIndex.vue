@@ -1,5 +1,6 @@
 <template>
 	<div id="app" class="PageIndex">
+		<div id="view-handles-axes" class="PageIndex__view-handles-axes" />
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -8,11 +9,7 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<GlobalPanes
-			class="PageIndex__content default-theme"
-			vertical
-			@resize="onResizeSplitpanes"
-		>
+		<GlobalPanes class="PageIndex__content">
 			<template #left>
 				<PaneLayers
 					class="PageIndex__list-view"
