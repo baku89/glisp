@@ -93,6 +93,7 @@
 		"vue-color": "^2.7.1",
 		"vue-popperjs": "^2.3.0",
 		"vuedraggable": "^2.24.0",
+		"webpack": "^4.44.2",
 		"webpack-cli": "^3.3.12",
 		"worker-plugin": "^5.0.0",
 		"yargs": "^16.0.3"
