@@ -112,7 +112,7 @@
 </template>
 
 <script lang="ts">
-import {MalSeq, MalNode} from '@/mal/types'
+import {MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {NonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'

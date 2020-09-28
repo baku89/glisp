@@ -128,7 +128,6 @@ import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
-import {useRem} from '@/components/use'
 import {
 	replaceExp,
 	watchExpOnReplace,
