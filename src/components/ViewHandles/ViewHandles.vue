@@ -122,11 +122,6 @@ import useHandle from './use-handle'
 
 export default defineComponent({
 	props: {
-		activeExp: {
-			type: Object as PropType<NonReactive<MalSeq> | null>,
-			required: true,
-			validator: (v: NonReactive<MalSeq> | null) => v instanceof NonReactive,
-		},
 		selectedExp: {
 			type: Object as PropType<NonReactive<MalNode>[]>,
 			required: true,

@@ -37,7 +37,6 @@
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
-					:activeExp="activeExp"
 					:selectedExp="selectedExp"
 					v-model:viewTransform="viewHandlesTransform"
 					@tag-history="tagExpHistory('undo')"
