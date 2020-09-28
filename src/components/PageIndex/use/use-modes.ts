@@ -1,6 +1,6 @@
 import ConsoleScope from '@/scopes/console'
 import {convertMalNodeToJSObject} from '@/mal/reader'
-import {ref, Ref, computed, watch, markRaw} from 'vue'
+import {ref, Ref, computed, watch} from 'vue'
 import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
@@ -35,11 +35,9 @@ export function useModes(
 	const modes = ref<Mode[]>([])
 
 	function setupModes() {
-		modes.value = markRaw(
-			convertMalNodeToJSObject(
-				(ConsoleScope.var('*modes*') as MalAtom).value
-			) as Mode[]
-		)
+		modes.value = convertMalNodeToJSObject(
+			(ConsoleScope.var('*modes*') as MalAtom).value
+		) as Mode[]
 	}
 
 	const modeState = ref<NonReactive<MalMap>>(nonReactive({}))
@@ -63,7 +61,7 @@ export function useModes(
 
 	const activeMode = computed(() =>
 		activeModeIndex.value !== undefined
-			? markRaw(modes.value[activeModeIndex.value])
+			? modes.value[activeModeIndex.value]
 			: undefined
 	)
 
