@@ -1,13 +1,5 @@
 <template>
 	<div id="app" class="PageIndex">
-		<!-- <PortalTarget
-			class="PageIndex__view-handles-axes"
-			name="view-handles-axes"
-			:style="{
-				left: `${paneSizeInPercent.layers}%`,
-				right: `${paneSizeInPercent.control}%`,
-			}"
-		/> -->
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -16,12 +8,12 @@
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<Splitpanes
+		<GlobalPanes
 			class="PageIndex__content default-theme"
 			vertical
 			@resize="onResizeSplitpanes"
 		>
-			<Pane class="left" :size="paneSizeInPercent.layers" :max-size="30">
+			<template #left>
 				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
@@ -32,8 +24,8 @@
 					@update:exp="updateExp"
 					@update:editingExp="setEditingExp"
 				/>
-			</Pane>
-			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
+			</template>
+			<template #main>
 				<div class="PageIndex__inspector" v-if="activeExp">
 					<Inspector
 						:exp="activeExp"
@@ -70,13 +62,9 @@
 						<span class="label">{{ handlers.label }}</span>
 					</button>
 				</div>
-			</Pane>
-			<Pane :size="paneSizeInPercent.control" :max-size="40">
-				<div
-					class="PageIndex__control"
-					:class="{compact}"
-					:style="{width: `${paneSizeInPercent.layers}px`}"
-				>
+			</template>
+			<template #right>
+				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
 						<MalExpEditor
 							v-if="editingExp"
@@ -99,14 +87,14 @@
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
-			</Pane>
-		</Splitpanes>
+			</template>
+		</GlobalPanes>
 	</div>
 </template>
 
 <script lang="ts">
 import 'normalize.css'
-import {Splitpanes, Pane} from '@/components/layouts/splitpanes'
+import GlobalPanes from '@/components/layouts/GlobalPanes.vue'
 import 'splitpanes/dist/splitpanes.css'
 import {
 	defineComponent,
@@ -199,9 +187,8 @@ export default defineComponent({
 		Console,
 		Inspector,
 		ViewHandles,
-		Splitpanes,
 		PaneLayers,
-		Pane,
+		GlobalPanes,
 	},
 	setup(_, context) {
 		const elHandles = ref<null | any>(null)
@@ -221,7 +208,7 @@ export default defineComponent({
 			viewHandlesTransform: mat2d.identity(mat2d.create()),
 			viewTransform: computed(() => {
 				const top = elHandles.value?.$el.getBoundingClientRect().top || 0
-				const left = paneSizeInPixel.layers
+				const left = 0 //paneSizeInPixel.layers
 				const xform = mat2d.clone(ui.viewHandlesTransform)
 				xform[4] += left
 				xform[5] += top
@@ -277,30 +264,6 @@ export default defineComponent({
 			hoveringExp: null,
 		}) as any
 
-		// Splitpanes
-		const paneSizeInPixel = reactive({
-			layers: 15 * rem.value,
-			control: 30 * rem.value,
-		})
-
-		const paneSizeInPercent = reactive({
-			layers: computed(
-				() => (paneSizeInPixel.layers / windowWidth.value) * 100
-			),
-			control: computed(
-				() => (paneSizeInPixel.control / windowWidth.value) * 100
-			),
-		})
-
-		function onResizeSplitpanes(
-			sizes: {min: number; max: number; size: number}[]
-		) {
-			const [layers, , control] = sizes.map(s => s.size)
-
-			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
-			paneSizeInPixel.control = windowWidth.value * (control / 100)
-		}
-
 		// Centerize the origin of viewport on mounted
 		onMounted(() => {
 			if (!elHandles.value) return
@@ -309,7 +272,7 @@ export default defineComponent({
 				.$el as SVGElement).getBoundingClientRect()
 
 			const left = 0
-			const right = window.innerWidth - paneSizeInPixel.control
+			const right = window.innerWidth - 0 //paneSizeInPixel.control
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [
 				(left + right) / 2,
@@ -462,14 +425,11 @@ export default defineComponent({
 			updateExp,
 			setSelectedExp,
 			setActiveExp,
-			onResizeSplitpanes,
 			tagExpHistory,
 
 			// modes
 			modes,
 			activeModeIndex,
-
-			paneSizeInPercent,
 		}
 	},
 })
