@@ -18,8 +18,8 @@ import {defineComponent, ref} from 'vue'
 export default defineComponent({
 	name: 'GlobalPanes',
 	setup() {
-		const leftWidth = ref(20)
-		const rightWidth = ref(20)
+		const leftWidth = ref(15)
+		const rightWidth = ref(30)
 
 		return {
 			leftWidth,
