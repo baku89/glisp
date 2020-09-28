@@ -1,6 +1,6 @@
 <template>
 	<div class="ViewHandles" ref="el">
-		<Portal to="view-handles-axes">
+		<teleport to="#view-handles-axes">
 			<svg class="ViewHandles__axes-portal">
 				<defs>
 					<marker
@@ -49,7 +49,7 @@
 					/>
 				</g>
 			</svg>
-		</Portal>
+		</teleport>
 		<svg class="ViewHandles__handles">
 			<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
 				<path
