@@ -373,16 +373,6 @@ export default defineComponent({
 		function setSelectedExp(exp: NonReactive<MalNode>[]) {
 			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
 		}
-		function toggleSelectedExp(exp: NonReactive<MalNode>) {
-			const selectedExp = [...data.selectedExp]
-			const index = selectedExp.findIndex(e => e.value === exp.value)
-			if (index >= 0) {
-				selectedExp.splice(index, 1)
-			} else {
-				selectedExp.push(exp)
-			}
-			setSelectedExp(selectedExp)
-		}
 
 		function setActiveExp(exp: NonReactive<MalNode> | null) {
 			if (exp) {
@@ -415,11 +405,6 @@ export default defineComponent({
 			pushExpHistory(data.exp, 'undo')
 		}
 
-		// Hovering
-		function setHoveringExp(exp: NonReactive<MalNode> | null) {
-			data.hoveringExp = exp
-		}
-
 		// Save code
 		watch(
 			() => data.exp,
@@ -448,11 +433,6 @@ export default defineComponent({
 			}
 		)
 
-		// transform selectedExp
-		function onTransformSelectedExp(xform: mat2d) {
-			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
-		}
-
 		// Setup scopes
 		useAppCommands(data, {
 			updateExp,
@@ -464,8 +444,6 @@ export default defineComponent({
 
 		// Scrollbar
 		useCompactScrollbar()
-
-		const hitEnabled = computed(() => activeModeIndex.value === undefined)
 
 		// HitDetector
 		useHitDetector(toRef(data, 'exp'))
