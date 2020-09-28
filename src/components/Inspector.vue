@@ -12,11 +12,9 @@
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown
-				class="Inspector__doc"
-				:source="fnDoc"
-				:anchorAttributes="{target: '_blank'}"
-			/>
+			<div class="Inspector__doc">
+				{{ fnDoc }}
+			</div>
 		</div>
 		<div class="Inspector__body">
 			<component
@@ -31,8 +29,6 @@
 </template>
 
 <script lang="ts">
-import VueMarkdown from 'vue-markdown'
-
 import {
 	MalVal,
 	isList,
@@ -59,7 +55,6 @@ import {defineComponent, computed, PropType} from 'vue'
 export default defineComponent({
 	name: 'Inspector',
 	components: {
-		VueMarkdown,
 		ParamControl,
 		...Inspectors,
 	},
