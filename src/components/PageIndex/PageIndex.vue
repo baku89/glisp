@@ -72,7 +72,11 @@
 				</div>
 			</Pane>
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
-				<div class="PageIndex__control" :class="{compact}">
+				<div
+					class="PageIndex__control"
+					:class="{compact}"
+					:style="{width: `${paneSizeInPercent.layers}px`}"
+				>
 					<div class="PageIndex__editor">
 						<MalExpEditor
 							v-if="editingExp"
@@ -102,7 +106,7 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {Splitpanes, Pane} from 'splitpanes'
+import {Splitpanes, Pane} from '@/components/layouts/splitpanes'
 import 'splitpanes/dist/splitpanes.css'
 import {
 	defineComponent,
@@ -114,7 +118,6 @@ import {
 	onMounted,
 	toRef,
 } from 'vue'
-// import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
