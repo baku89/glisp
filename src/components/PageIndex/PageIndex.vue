@@ -191,11 +191,6 @@ export default defineComponent({
 	setup(_, context) {
 		const elHandles = ref<null | any>(null)
 
-		const rem = useRem()
-
-		// const {width: windowWidth} = useOnResize(document.body)
-		const windowWidth = ref(window.innerWidth)
-
 		const ui = reactive({
 			compact: true,
 			background: 'whiteSmoke',
