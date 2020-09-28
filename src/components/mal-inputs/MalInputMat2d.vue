@@ -66,7 +66,7 @@
 
 <script lang="ts">
 import {defineComponent, toRef, PropType} from 'vue'
-import {InputNumber, InputTranslate} from '@/components/inputs'
+import {InputTranslate} from '@/components/inputs'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {useNumericVectorUpdator} from '@/components/use'
@@ -76,7 +76,7 @@ import {isSeq, MalSeq, isSymbol, MalSymbol} from '@/mal/types'
 
 export default defineComponent({
 	name: 'MalInputMat2d',
-	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
+	components: {MalInputNumber, MalExpButton, InputTranslate},
 	props: {
 		value: {
 			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,

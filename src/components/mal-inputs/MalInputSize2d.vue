@@ -98,7 +98,7 @@ export default defineComponent({
 
 		const ratio = computed(() => {
 			const value = props.value.value
-			if (isSizeFunc) {
+			if (isSizeFunc.value) {
 				return (value as MalSeq)[2] as number | false
 			} else {
 				return false

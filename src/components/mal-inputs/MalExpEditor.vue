@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ref, Ref, PropType} from 'vue'
+import {defineComponent, computed, ref, PropType} from 'vue'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
 import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
@@ -30,12 +30,11 @@ import {
 
 import GlispEditor from '@/components/GlispEditor'
 
-const EditMode = {
-	Node: 'node',
-	Elements: 'elements',
-	Params: 'params',
-} as const
-type EditMode = typeof EditMode[keyof typeof EditMode]
+enum EditMode {
+	Node = 'node',
+	Elements = 'elements',
+	Params = 'params',
+}
 
 const EDITOR_DELIMITER = ';__\n'
 const RE_EDITOR_DELIMITER = /;__\n/g

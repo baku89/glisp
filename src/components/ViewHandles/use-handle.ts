@@ -4,7 +4,6 @@ import {
 	getFnInfo,
 	computeExpTransform,
 	getMapValue,
-	FnInfoType,
 	replaceExp,
 } from '@/mal/utils'
 import {
@@ -56,21 +55,6 @@ const K_ANGLE = K('angle'),
 
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
-interface HandleData {
-	draggingIndex: [number, number] | null
-	rawPrevPos: number[]
-	fnInfo: (FnInfoType | undefined)[]
-	handleCallbacks: (MalMap | null)[]
-	params: MalVal[][]
-	unevaluatedParams: MalVal[][]
-	returnedValue: MalVal[]
-	transform: mat2d[]
-	transformInv: mat2d[]
-	transformStyle: string[]
-	selectedPath: string[]
-	handles: Handle[][]
-}
-
 export default function useHandle(
 	selectedExp: Ref<NonReactive<MalNode>[]>,
 	viewTransform: Ref<mat2d>,
@@ -114,7 +98,7 @@ export default function useHandle(
 		selectedExp.value.map(e => getEvaluated(e.value))
 	)
 	const transform = computed(() =>
-		selectedExp.value.map((e, i) => {
+		selectedExp.value.map(e => {
 			const xform = computeExpTransform(e.value)
 			// pre-multiplies with viewTransform
 			mat2d.multiply(xform, viewTransform.value as mat2d, xform)
@@ -392,6 +376,8 @@ export default function useHandle(
 	return {
 		draggingIndex,
 		handles,
+		transformStyle,
+		selectedPath,
 		onMousedown,
 	}
 }

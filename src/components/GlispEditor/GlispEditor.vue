@@ -9,7 +9,6 @@ import {
 	defineComponent,
 	onMounted,
 	ref,
-	Ref,
 	onBeforeUnmount,
 	watch,
 	SetupContext,

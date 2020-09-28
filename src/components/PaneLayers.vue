@@ -27,20 +27,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, Ref, ref, PropType} from 'vue'
+import {defineComponent, computed, ref, PropType} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
 import {getUIBodyExp} from '@/mal/utils'
-
-interface Props {
-	exp: NonReactive<MalSeq>
-	selectedExp: NonReactive<MalVal>[]
-	editingExp: NonReactive<MalVal> | null
-	hoveringExp: NonReactive<MalVal> | null
-}
 
 export default defineComponent({
 	name: 'PaneLayers',

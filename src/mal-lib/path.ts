@@ -233,8 +233,8 @@ function dragHandle(
 	path: PathType,
 	index: number,
 	type: string,
-	delta: vec2,
-	breakCorner = false
+	delta: vec2
+	// breakCorner = false
 ) {
 	const segs = Array.from(iterateSegment(path))
 	const draggingSeg = segs[index]

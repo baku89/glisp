@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ref, PropType, toRef} from 'vue'
+import {defineComponent, computed, ref, toRef} from 'vue'
 import {useDraggable, useKeyboardState} from '../use'
 import useNumberInput from './use-number-input'
 

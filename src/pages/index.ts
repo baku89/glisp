@@ -1,7 +1,7 @@
-import { createApp } from 'vue'
+import {createApp} from 'vue'
 import App from '@/components/PageIndex'
 
-const app = createApp(App as any)
+createApp(App).mount('#app')
 
 // app.use(VModal, {
 // 	dynamicDefaults: {
@@ -11,4 +11,3 @@ const app = createApp(App as any)
 // 		overlayTransition: 'vmodal__overlay-transition',
 // 	},
 // })
-app.mount('#app')

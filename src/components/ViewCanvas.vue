@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, Ref, onMounted, watch, ref, PropType} from 'vue'
+import {defineComponent, onMounted, watch, ref, PropType} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'

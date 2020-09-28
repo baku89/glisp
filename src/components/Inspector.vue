@@ -37,12 +37,10 @@ import {
 	MalVal,
 	isList,
 	isSymbol,
-	keywordFor as K,
 	MalNode,
 	MalSymbol,
 	isNode,
 	getOuter,
-	isSymbolFor,
 	MalType,
 } from '@/mal/types'
 

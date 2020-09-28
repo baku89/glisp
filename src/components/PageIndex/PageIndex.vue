@@ -111,12 +111,10 @@ import {
 	watch,
 	toRefs,
 	ref,
-	Ref,
 	onMounted,
 	toRef,
-	ComputedRef,
 } from 'vue'
-import {useOnResize} from 'vue-composable'
+// import {useOnResize} from 'vue-composable'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
@@ -203,11 +201,12 @@ export default defineComponent({
 		Pane,
 	},
 	setup(_, context) {
-		const elHandles = ref<null | HTMLElement>(null)
+		const elHandles = ref<null | any>(null)
 
 		const rem = useRem()
 
-		const {width: windowWidth} = useOnResize(document.body)
+		// const {width: windowWidth} = useOnResize(document.body)
+		const windowWidth = ref(window.innerWidth)
 
 		const ui = reactive({
 			compact: true,
@@ -227,7 +226,7 @@ export default defineComponent({
 			}),
 		}) as UI
 
-		const data = reactive({
+		const data: Data = reactive({
 			exp: nonReactive(L(S('sketch'))),
 			hasError: computed(
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
@@ -273,7 +272,7 @@ export default defineComponent({
 					: null
 			),
 			hoveringExp: null,
-		}) as Data
+		}) as any
 
 		// Splitpanes
 		const paneSizeInPixel = reactive({
@@ -327,7 +326,7 @@ export default defineComponent({
 
 		const {pushExpHistory, tagExpHistory} = useExpHistory(
 			activeModeIndex,
-			modeState,
+			modeState as any,
 			updateExp
 		)
 

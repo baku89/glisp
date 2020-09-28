@@ -1,10 +1,8 @@
 <template>
 	<select class="InputDropdown" :value="value" @change="onChange">
-		<option
-			v-for="(value, index) in values"
-			:key="index"
-			:value="value"
-		>{{ labels ? labels[index] : value }}</option>
+		<option v-for="(value, index) in values" :key="index" :value="value">
+			{{ labels ? labels[index] : value }}
+		</option>
 	</select>
 </template>
 

@@ -8,7 +8,6 @@ import {
 	MalSeq,
 	isKeyword,
 	MalMap,
-	isSymbol,
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
@@ -19,11 +18,6 @@ const K_PATH = K('path'),
 	K_FILL = K('fill'),
 	K_STROKE = K('stroke'),
 	K_STROKE_WIDTH = K('stroke-width')
-
-interface HitStyle {
-	fill: boolean
-	stroke: false | number
-}
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D

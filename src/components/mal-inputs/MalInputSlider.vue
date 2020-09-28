@@ -21,7 +21,8 @@
 			class="MalInputSlider__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			v-if="display.mode === 'unit'"
-		>{{ display.unit }}</span>
+			>{{ display.unit }}</span
+		>
 		<MalExpButton
 			class="MalInputSlider__exp-after"
 			v-if="display.isExp && !compact"

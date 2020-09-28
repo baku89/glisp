@@ -24,12 +24,14 @@
 				<span
 					:style="labelInfo.icon.style"
 					v-else-if="labelInfo.icon.type === 'text'"
-				>{{ labelInfo.icon.value }}</span>
+					>{{ labelInfo.icon.value }}</span
+				>
 				<span
 					:style="labelInfo.icon.style"
 					class="serif"
 					v-if="labelInfo.icon.type === 'serif'"
-				>{{ labelInfo.icon.value }}</span>
+					>{{ labelInfo.icon.value }}</span
+				>
 			</div>
 			{{ labelInfo.label }}
 			<i
@@ -72,7 +74,6 @@ import {
 	createList as L,
 	MalNode,
 	MalSeq,
-	isSymbolFor,
 	isMap,
 	cloneExp,
 } from '@/mal/types'

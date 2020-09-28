@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, ref, Ref} from 'vue'
+import {defineComponent, onMounted, ref} from 'vue'
 import {printer} from '@/mal/printer'
 import ConsoleScope from '../scopes/console'
 import 'jq-console'

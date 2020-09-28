@@ -83,7 +83,7 @@ export function useModes(
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
 			const params = assocBang(
-				modeState.value.value,
+				modeState.value.value as any,
 				K_EVENT_TYPE,
 				type,
 				K_POS,
@@ -93,7 +93,7 @@ export function useModes(
 			)
 			const updatedState = handler(params)
 			if (isMap(updatedState)) {
-				modeState.value = nonReactive(updatedState)
+				modeState.value = nonReactive(updatedState) as any
 			}
 		}
 	}
@@ -102,7 +102,9 @@ export function useModes(
 	AppScope.def('reset-mode', () => {
 		if (activeMode.value) {
 			modeState.value = nonReactive(
-				activeMode.value.handlers.setup ? activeMode.value.handlers.setup() : {}
+				activeMode.value.handlers.setup
+					? activeMode.value.handlers.setup()
+					: ({} as any)
 			)
 			return true
 		} else {
@@ -115,7 +117,7 @@ export function useModes(
 		mode => {
 			if (mode) {
 				modeState.value = nonReactive(
-					mode.handlers.setup ? mode.handlers.setup() : {}
+					mode.handlers.setup ? mode.handlers.setup() : ({} as any)
 				)
 			}
 		},

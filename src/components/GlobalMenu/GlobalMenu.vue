@@ -34,7 +34,7 @@ import GlobalSubmenu from './GlobalSubmenu.vue'
 import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
-import {defineComponent, ref, Ref} from 'vue'
+import {defineComponent, ref} from 'vue'
 import AppScope from '@/scopes/app'
 import {isVector, MalSeq, MalVal} from '@/mal/types'
 

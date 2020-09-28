@@ -45,7 +45,7 @@ export default defineComponent({
 	},
 	setup() {
 		const {remote} = eval("require('electron')") as {
-			remote: Electron.Remote
+			remote: any
 		}
 
 		const win = remote.getCurrentWindow()
@@ -88,18 +88,18 @@ export default defineComponent({
 // Window Button (Windows only)
 .WindowTitleButtons
 	display grid
-	grid-template-columns: repeat(3, 46px)
 	height 100%
-	-webkit-app-region: no-drag
 	user-select none
+	grid-template-columns repeat(3, 46px)
+	-webkit-app-region no-drag
 
 	button
-		grid-row 1 / span 1
 		display flex
 		justify-content center
 		align-items center
 		width 100%
 		height 100%
+		grid-row 1 / span 1
 
 		&:hover
 			background var(--border)
@@ -115,10 +115,12 @@ export default defineComponent({
 
 		&.close
 			grid-column 3
+
 			&:hover
 				background #E81123 !important
+
 			&:active
-				background: #F1707A !important;
+				background #F1707A !important
 
 	path
 		fill var(--foreground)

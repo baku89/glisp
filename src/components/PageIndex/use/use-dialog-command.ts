@@ -9,16 +9,15 @@ import {
 	MalMap,
 	MalFunc,
 	MalType,
-	createList as L,
+	// createList as L,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import DialogCommand from '@/components/dialogs/DialogCommand.vue'
+// import DialogCommand from '@/components/dialogs/DialogCommand.vue'
 import {getMapValue} from '@/mal/utils'
 import {printer} from '@/mal/printer'
-import {NonReactive, nonReactive} from '@/utils'
+// import {NonReactive, nonReactive} from '@/utils'
 
 export default function useDialogCommand(context: SetupContext) {
-
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !isSymbol(f)) {
 			throw new MalError(`${printExp(f)} is not a symbol`)
@@ -45,7 +44,7 @@ export default function useDialogCommand(context: SetupContext) {
 		}
 
 		// Create the expression with default parameters
-		const exp: NonReactive<MalVal> = nonReactive(L(f, ...initialParams))
+		// const exp: NonReactive<MalVal> = nonReactive(L(f, ...initialParams))
 
 		// Show Modal
 		// $modal.show(

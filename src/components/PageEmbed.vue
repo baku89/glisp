@@ -28,13 +28,7 @@
 <script lang="ts">
 import 'normalize.css'
 
-import {
-	defineComponent,
-	reactive,
-	computed,
-	watch,
-	toRefs,
-} from 'vue'
+import {defineComponent, reactive, computed, watch, toRefs} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'

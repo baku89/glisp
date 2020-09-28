@@ -16,9 +16,14 @@
 				:value="value"
 				@input="$emit('input', $event)"
 			/>
-			<button class="InputColor__button" slot="reference">
-				<span class="InputColor__color-preview" :style="{background: value}" />
-			</button>
+			<template v-slot:reference>
+				<button class="InputColor__button">
+					<span
+						class="InputColor__color-preview"
+						:style="{background: value}"
+					/>
+				</button>
+			</template>
 		</Popper>
 	</div>
 </template>
