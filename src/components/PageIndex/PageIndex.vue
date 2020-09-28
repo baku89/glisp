@@ -1,13 +1,13 @@
 <template>
 	<div id="app" class="PageIndex">
-		<PortalTarget
+		<!-- <PortalTarget
 			class="PageIndex__view-handles-axes"
 			name="view-handles-axes"
 			:style="{
 				left: `${paneSizeInPercent.layers}%`,
 				right: `${paneSizeInPercent.control}%`,
 			}"
-		/>
+		/> -->
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
