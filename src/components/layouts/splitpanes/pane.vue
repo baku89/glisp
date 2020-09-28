@@ -1,65 +1,66 @@
 <template>
-	<div class="splitpanes__pane" :style="style">
+	<div ref="el" :data-uid="uid" class="splitpanes__pane" :style="style">
 		<slot />
 	</div>
 </template>
 
-<script>
+<script lang="ts">
 import {
 	computed,
 	defineComponent,
+	inject,
 	onMounted,
 	onUnmounted,
 	ref,
 	watch,
 } from 'vue'
+import generateUID from 'uid'
 
 export default defineComponent({
 	name: 'pane',
 	props: {
-		size: {type: [Number, String], default: null},
-		minSize: {type: [Number, String], default: 0},
-		maxSize: {type: [Number, String], default: 100},
+		size: {type: Number, default: null},
+		minSize: {type: Number, default: 0},
+		maxSize: {type: Number, default: 100},
 	},
-	setup(props) {
+	setup(props, context) {
+		const uid = ref(generateUID())
+		const el = ref<null | HTMLElement>(null)
+
 		const style = ref({})
 
-		const sizeNumber = computed(() =>
-			props.size ? parseFloat(props.size) : null
-		)
-		const minSizeNumber = computed(() => parseFloat(props.minSize))
-		const maxSizeNumber = computed(() => parseFloat(props.maxSize))
+		const {requestUpdate, onPaneAdd, onPaneRemove} = inject('splitpanes') as any
 
 		onMounted(() => {
-			this.$parent.onPaneAdd(this)
+			onPaneAdd(el, props)
 		})
 
 		onUnmounted(() => {
-			this.$parent.onPaneRemove(this)
+			onPaneRemove(el)
 		})
 
-		function update(_style) {
+		function update(_style: any) {
 			style.value = _style
 		}
 
-		console.log(this.$parent.requestUpdate)
-
 		watch(
-			() => sizeNumber.value,
-			size => this.$parent.requestUpdate({target: this, size})
+			() => props.size,
+			size => requestUpdate({target: this, size: size})
 		)
 
 		watch(
-			() => minSizeNumber.value,
-			min => this.$parent.requestUpdate({target: this, min})
+			() => props.minSize,
+			min => requestUpdate({target: this, min})
 		)
 
 		watch(
-			() => maxSizeNumber.value,
-			max => this.$parent.requestUpdate({target: this, max})
+			() => props.maxSize,
+			max => requestUpdate({target: this, max})
 		)
 
 		return {
+			uid,
+			el,
 			style,
 			update,
 		}
