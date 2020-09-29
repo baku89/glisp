@@ -190,6 +190,40 @@ export class MalKeyword {
 	}
 }
 
+export class MalList {
+	readonly type: MalType.List = MalType.List
+
+	private delimiters: string[] | undefined = undefined
+	private str: string | undefined = undefined
+
+	constructor(private readonly value: MalVal[]) {}
+
+	toString() {
+		if (this.str === undefined) {
+			if (!this.delimiters) {
+				this.delimiters =
+					this.value.length === 0
+						? []
+						: ['', ...Array(this.value.length - 1).fill(' '), '']
+			}
+
+			let str = ''
+			for (let i = 0; i < this.value.length; i++) {
+				str += this.delimiters[i] + this.value[i]?.toString()
+			}
+			str += this.delimiters[this.delimiters.length - 1]
+
+			this.str = '[' + str + ']'
+		}
+
+		return this.str
+	}
+
+	static create(...value: MalVal[]) {
+		return value.length === 0 ? MalNil.create() : new MalList(value)
+	}
+}
+
 export function createBoolean(value: boolean) {
 	return value
 }
