@@ -1,6 +1,5 @@
 <template>
 	<div id="app" class="PageIndex">
-		<div id="view-handles-axes" class="PageIndex__view-handles-axes" />
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"

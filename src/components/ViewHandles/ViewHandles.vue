@@ -1,7 +1,7 @@
 <template>
 	<div class="ViewHandles" ref="el">
 		<teleport to="#view-handles-axes">
-			<svg class="ViewHandles__axes-portal">
+			<svg class="ViewHandles__axes-teleport" :style="axesTeleportStyle">
 				<defs>
 					<marker
 						id="arrow-x"
@@ -134,6 +134,19 @@ export default defineComponent({
 	setup(props, context) {
 		const el = ref<HTMLElement | null>(null)
 
+		const axesTeleportStyle = computed(() => {
+			if (!el.value) return {}
+
+			const {x, y, width, height} = el.value.getBoundingClientRect()
+
+			return {
+				left: `${x}px`,
+				top: `${y}px`,
+				width: `${width}px`,
+				height: `${height}px`,
+			}
+		})
+
 		const viewAxisStyle = computed(
 			() => `matrix(${props.viewTransform.join(' ')})`
 		)
@@ -229,6 +242,7 @@ export default defineComponent({
 
 		return {
 			el,
+			axesTeleportStyle,
 			viewAxisStyle,
 			...handleData,
 			rem,
@@ -244,11 +258,9 @@ export default defineComponent({
 	height 100%
 
 	// Portal
-	&__axes-portal
-		position relative
+	&__axes-teleport
+		position fixed
 		overflow hidden
-		width 100%
-		height 100%
 
 	&__axis
 		stroke var(--guide) !important
@@ -262,7 +274,7 @@ export default defineComponent({
 		height 100%
 
 	// Styles
-	&, &__axes-portal
+	&, &__axes-teleport
 		.fill, .stroke
 			stroke var(--highlight)
 			stroke-width 1
