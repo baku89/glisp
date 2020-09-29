@@ -13,6 +13,7 @@
 				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
+					b
 					:editing-exp="editingExp"
 					:selected-exp="selectedExp"
 					:hovering-exp="hoveringExp"
@@ -413,7 +414,7 @@ html, body
 	width 100%
 	height 100%
 	height 100vh
-	background var(--background)
+	// background var(--background)
 	color var(--foreground)
 
 	&__global-menu
@@ -434,11 +435,6 @@ html, body
 		height 100%
 		translucent-bg()
 		overflow-y scroll
-
-	&__view-handles-axes
-		position absolute !important
-		top 3.4rem
-		height calc(100vh - 3.4rem)
 
 	&__viewer
 		position absolute !important

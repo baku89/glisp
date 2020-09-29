@@ -1,114 +1,110 @@
 <template>
-	<div class="ViewHandles" ref="el">
-		<teleport to="#view-handles-axes">
-			<svg class="ViewHandles__axes-teleport" :style="axesTeleportStyle">
-				<defs>
-					<marker
-						id="arrow-x"
-						markerHeight="10"
-						markerUnits="strokeWidth"
-						markerWidth="10"
-						orient="auto-start-reverse"
-						refX="10"
-						refY="5"
-						viewBox="0 0 10 10"
-					>
-						<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
-					</marker>
-					<marker
-						id="arrow-y"
-						markerHeight="10"
-						markerUnits="strokeWidth"
-						markerWidth="10"
-						orient="auto-start-reverse"
-						refX="10"
-						refY="5"
-						viewBox="0 0 10 10"
-					>
-						<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
-					</marker>
-				</defs>
-				<g :transform="viewAxisStyle">
-					<path class="ViewHandles__axis stroke" d="M -50000 0 H 50000" />
-					<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
-				</g>
-				<g
-					:transform="transformStyle"
-					class="ViewHandles__gnomon"
-					v-if="handleCallbacks"
+	<teleport to="#view-handles-axes">
+		<svg class="ViewHandles__axes-teleport" :style="axesTeleportStyle">
+			<defs>
+				<marker
+					id="arrow-x"
+					markerHeight="10"
+					markerUnits="strokeWidth"
+					markerWidth="10"
+					orient="auto-start-reverse"
+					refX="10"
+					refY="5"
+					viewBox="0 0 10 10"
 				>
-					<path
-						class="stroke axis-x"
-						d="M 0 0 H 200"
-						marker-end="url(#arrow-x)"
-					/>
-					<path
-						class="stroke axis-y"
-						d="M 0 0 V 200"
-						marker-end="url(#arrow-y)"
-					/>
-				</g>
-			</svg>
-		</teleport>
-		<svg class="ViewHandles__handles">
-			<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
+					<path class="stroke axis-x" d="M 0 0 L 10 5 L 0 10" />
+				</marker>
+				<marker
+					id="arrow-y"
+					markerHeight="10"
+					markerUnits="strokeWidth"
+					markerWidth="10"
+					orient="auto-start-reverse"
+					refX="10"
+					refY="5"
+					viewBox="0 0 10 10"
+				>
+					<path class="stroke axis-y" d="M 0 0 L 10 5 L 0 10" />
+				</marker>
+			</defs>
+			<g :transform="viewAxisStyle">
+				<path class="ViewHandles__axis stroke" d="M -50000 0 H 50000" />
+				<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
+			</g>
+			<g
+				:transform="transformStyle"
+				class="ViewHandles__gnomon"
+				v-if="handleCallbacks"
+			>
 				<path
-					:d="selectedPath[selectedIndex]"
-					:transform="`matrix(${transform[selectedIndex].join(' ')})`"
-					class="stroke"
-					v-if="selectedPath[selectedIndex]"
+					class="stroke axis-x"
+					d="M 0 0 H 200"
+					marker-end="url(#arrow-x)"
 				/>
-				<g
-					:class="cls"
-					:dragging="
-						draggingIndex &&
-						draggingIndex[0] === selectedIndex &&
-						draggingIndex[1] === handleIndex
-					"
-					:hoverrable="draggingIndex === null && !guide"
-					:key="handleIndex"
-					:transform="transform"
-					@mousedown="
-						!guide && onMousedown([selectedIndex, handleIndex], $event)
-					"
-					v-for="({type, transform, yTransform, path, cls, guide},
-					handleIndex) in handles[selectedIndex]"
-				>
-					<template v-if="type === 'path'">
-						<path :d="path" class="stroke hover-zone" />
-						<path :d="path" class="stroke display" />
-					</template>
-					<path
-						class="fill display"
-						d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
-						v-else-if="type === 'dia'"
-					/>
-					<template v-else>
-						<path
-							class="stroke display"
-							d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
-							v-if="type === 'arrow'"
-						/>
-						<template v-else-if="type === 'translate'">
-							<path class="stroke display" d="M 12 0 H -12" />
-							<path
-								:transform="yTransform"
-								class="stroke display"
-								d="M 0 12 V -12"
-							/>
-						</template>
-						<circle
-							:class="cls"
-							:r="rem * 0.5"
-							class="fill display"
-							cx="0"
-							cy="0"
-						/>
-					</template>
-				</g>
+				<path
+					class="stroke axis-y"
+					d="M 0 0 V 200"
+					marker-end="url(#arrow-y)"
+				/>
 			</g>
 		</svg>
-	</div>
+	</teleport>
+	<svg class="ViewHandles" ref="el">
+		<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
+			<path
+				:d="selectedPath[selectedIndex]"
+				:transform="`matrix(${transform[selectedIndex].join(' ')})`"
+				class="stroke"
+				v-if="selectedPath[selectedIndex]"
+			/>
+			<g
+				:class="cls"
+				:dragging="
+					draggingIndex &&
+					draggingIndex[0] === selectedIndex &&
+					draggingIndex[1] === handleIndex
+				"
+				:hoverrable="draggingIndex === null && !guide"
+				:key="handleIndex"
+				:transform="transform"
+				@mousedown="!guide && onMousedown([selectedIndex, handleIndex], $event)"
+				v-for="({type, transform, yTransform, path, cls, guide},
+				handleIndex) in handles[selectedIndex]"
+			>
+				<template v-if="type === 'path'">
+					<path :d="path" class="stroke hover-zone" />
+					<path :d="path" class="stroke display" />
+				</template>
+				<path
+					class="fill display"
+					d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
+					v-else-if="type === 'dia'"
+				/>
+				<template v-else>
+					<path
+						class="stroke display"
+						d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
+						v-if="type === 'arrow'"
+					/>
+					<template v-else-if="type === 'translate'">
+						<path class="stroke display" d="M 12 0 H -12" />
+						<path
+							:transform="yTransform"
+							class="stroke display"
+							d="M 0 12 V -12"
+						/>
+					</template>
+					<circle
+						:class="cls"
+						:r="rem * 0.5"
+						class="fill display"
+						cx="0"
+						cy="0"
+					/>
+				</template>
+			</g>
+		</g>
+	</svg>
 </template>
 
 <script lang="ts">
@@ -268,23 +264,18 @@ export default defineComponent({
 .ViewHandles
 	position relative
 	overflow hidden
+	width 100%
 	height 100%
 
-	// Portal
+	// Teleport
 	&__axes-teleport
 		position fixed
 		overflow hidden
+		background var(--background)
 
 	&__axis
 		stroke var(--guide) !important
 		stroke-dasharray 1 4
-
-	// Handles
-	&__handles
-		position relative
-		overflow hidden
-		width 100%
-		height 100%
 
 	// Styles
 	&, &__axes-teleport
