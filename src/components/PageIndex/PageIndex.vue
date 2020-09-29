@@ -32,11 +32,11 @@
 					/>
 				</div>
 				<ViewHandles
-					ref="elHandles"
 					class="PageIndex__view-handles"
 					:selected-exp="selectedExp"
 					v-model:view-transform="viewTransform"
 					@tag-history="tagExpHistory('undo')"
+					@setup="handleEl = $event"
 				/>
 				<div class="PageIndex__modes">
 					<button
@@ -99,6 +99,7 @@ import {
 	toRefs,
 	ref,
 	toRef,
+	onMounted,
 } from 'vue'
 
 import GlobalMenu from '@/components/GlobalMenu'
@@ -183,8 +184,6 @@ export default defineComponent({
 		GlobalPanes,
 	},
 	setup(_, context) {
-		const elHandles = ref<null | any>(null)
-
 		const ui = reactive({
 			compact: true,
 			background: 'whiteSmoke',
@@ -244,8 +243,9 @@ export default defineComponent({
 		}) as any
 
 		// Modes
+		const handleEl = ref<null | HTMLElement>(null)
 		const {modes, modeState, activeModeIndex, setupModes} = useModes(
-			elHandles,
+			handleEl,
 			toRef(ui, 'viewTransform')
 		)
 
@@ -374,7 +374,7 @@ export default defineComponent({
 		useHitDetector(toRef(data, 'exp'))
 
 		return {
-			elHandles,
+			handleEl,
 			...toRefs(data),
 			onSetupConsole,
 			updateSelectedExp,

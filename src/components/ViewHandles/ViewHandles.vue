@@ -247,6 +247,8 @@ export default defineComponent({
 
 			const xform = mat2d.fromTranslation(mat2d.create(), [x, y])
 			context.emit('update:view-transform', xform)
+
+			context.emit('setup', el.value)
 		})
 
 		return {

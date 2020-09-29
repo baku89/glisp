@@ -2,7 +2,7 @@ import {Ref, onUnmounted, ref, onMounted} from 'vue'
 import {getHTMLElement} from '@/utils'
 
 export default function useMouseEvents(
-	target: Ref<HTMLElement | any | null> | HTMLElement,
+	target: Ref<HTMLElement | null> | HTMLElement,
 	{
 		ignorePredicate,
 		onMove,
