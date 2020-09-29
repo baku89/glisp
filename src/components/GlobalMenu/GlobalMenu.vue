@@ -4,7 +4,7 @@
 		:class="{dark, 'title-bar-macos': titleBar === 'macos'}"
 	>
 		<h1>'(GLISP)</h1>
-		<div class="GlobalMenu__menu" v-click-outside="onClose">
+		<div class="GlobalMenu__menu">
 			<div
 				class="GlobalMenu__item"
 				v-for="([label, content], i) in menu"
@@ -29,7 +29,6 @@
 </template>
 
 <script lang="ts">
-import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
 import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
@@ -40,7 +39,6 @@ import {isVector, MalSeq, MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'GlobalMenu',
-	directives: {ClickOutside},
 	components: {
 		GlobalSubmenu,
 		WindowTitleButtons,

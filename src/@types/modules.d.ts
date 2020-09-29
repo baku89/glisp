@@ -1,10 +1,3 @@
-declare module 'vue-click-outside' {
-	import {DirectiveFunction} from 'vue'
-	const VueClickOutside: DirectiveFunction
-
-	export default VueClickOutside
-}
-
 declare module 'seedrandom' {
 	export default function (initialSeed: any): () => number
 }
