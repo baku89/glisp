@@ -25,6 +25,9 @@ import {
 	createNumber,
 	createString,
 	createVector,
+	isList,
+	createMap,
+	isKeyword,
 } from './types'
 import printExp from './printer'
 
@@ -486,8 +489,11 @@ export function findExpByRange(
 
 export function convertJSObjectToMalMap(obj: any): MalVal {
 	if (Array.isArray(obj)) {
-		const ret = obj.map(v => convertJSObjectToMalMap(v))
-		return ret
+		if (isList(obj)) {
+			return obj
+		} else {
+			return createVector(...obj.map(v => convertJSObjectToMalMap(v)))
+		}
 	} else if (isSymbol(obj) || obj instanceof Function) {
 		return obj
 	} else if (obj instanceof Object) {
@@ -495,8 +501,24 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 		for (const [key, value] of Object.entries(obj)) {
 			ret[keywordFor(key)] = convertJSObjectToMalMap(value)
 		}
-		return ret
+		return createMap(ret)
+	} else if (obj === null) {
+		return createNil()
 	} else {
+		switch (typeof obj) {
+			case 'number':
+				return createNumber(obj)
+			case 'string':
+				if (isKeyword(obj)) {
+					return obj
+				} else {
+					return createString(obj)
+				}
+			case 'undefined':
+				return createNil()
+			case 'boolean':
+				return createBoolean(obj)
+		}
 		return obj
 	}
 }
