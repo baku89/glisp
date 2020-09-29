@@ -13,7 +13,6 @@
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
 import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
-import {nonReactive, NonReactive} from '@/utils'
 import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
 import {
@@ -46,11 +45,11 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal>>,
+			type: Object as PropType<MalVal>,
 			required: true,
 		},
 		selectedExp: {
-			type: Object as PropType<NonReactive<MalNode> | undefined>,
+			type: Object as PropType<MalNode | undefined>,
 			default: undefined,
 		},
 		cssStyle: {
@@ -68,7 +67,7 @@ export default defineComponent({
 
 		// Compute pre and post text
 		const preText = computed(() => {
-			const exp = props.exp.value as MalVal
+			const exp = props.exp as MalVal
 			switch (props.editMode) {
 				case EditMode.Node:
 					return ''
@@ -95,7 +94,7 @@ export default defineComponent({
 		})
 
 		const postText = computed(() => {
-			const exp = props.exp.value
+			const exp = props.exp
 			switch (props.editMode) {
 				case EditMode.Node:
 					return ''
@@ -121,7 +120,7 @@ export default defineComponent({
 
 		// Exp -> Code Conversion
 		const code = computed(() => {
-			const exp = props.exp.value as MalVal
+			const exp = props.exp as MalVal
 			const ret = printExp(exp)
 
 			switch (props.editMode) {
@@ -140,8 +139,8 @@ export default defineComponent({
 		// selectedExp -> activeRange
 		const activeRange = computed(() => {
 			const sel = props.selectedExp
-			if (sel && isNode(sel.value) && isNode(props.exp.value)) {
-				const ret = getRangeOfExp(sel.value, props.exp.value)
+			if (sel && isNode(sel) && isNode(props.exp)) {
+				const ret = getRangeOfExp(sel, props.exp)
 				if (ret) {
 					const [start, end] = ret
 					return [
@@ -154,7 +153,7 @@ export default defineComponent({
 		})
 
 		// Event Handlers
-		let inputExp: NonReactive<MalVal> | null = null
+		let inputExp: MalVal | null = null
 
 		function onInput(code: string) {
 			context.emit('input-code', code)
@@ -176,7 +175,7 @@ export default defineComponent({
 			}
 			hasParseError.value = false
 			context.emit('update:hasParseError', hasParseError)
-			inputExp = nonReactive(exp)
+			inputExp = exp
 			context.emit('input', inputExp)
 		}
 
@@ -185,10 +184,10 @@ export default defineComponent({
 
 			if (exp === undefined) {
 				if (inputExp) {
-					exp = inputExp.value
+					exp = inputExp
 					inputExp = null
 				} else {
-					exp = props.exp.value
+					exp = props.exp
 				}
 			}
 
@@ -202,7 +201,7 @@ export default defineComponent({
 				end + preText.value.length + endsDelimiter.value.length
 			)
 
-			const isSame = props.selectedExp?.value === selectedExp
+			const isSame = props.selectedExp === selectedExp
 
 			if (isSame) {
 				return
@@ -211,7 +210,7 @@ export default defineComponent({
 			if (isList(selectedExp) && selectedExp[0] === symbolFor('sketch')) {
 				context.emit('select', null)
 			} else {
-				context.emit('select', nonReactive(selectedExp))
+				context.emit('select', selectedExp)
 			}
 		}
 

@@ -120,7 +120,6 @@ import {
 	symbolFor as S,
 } from '@/mal/types'
 
-import {nonReactive, NonReactive} from '@/utils'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
@@ -146,18 +145,18 @@ import {reconstructTree} from '@/mal/reader'
 import {useModes} from './use/use-modes'
 
 interface Data {
-	exp: NonReactive<MalNode>
+	exp: MalNode
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
-	viewExp: NonReactive<MalVal> | undefined
+	viewExp: MalVal | undefined
 	selectedPath: string[]
-	selectedExp: NonReactive<MalNode>[]
-	activeExp: NonReactive<MalNode> | undefined
+	selectedExp: MalNode[]
+	activeExp: MalNode | undefined
 	editingPath: string
-	editingExp: NonReactive<MalNode> | undefined
-	hoveringExp: NonReactive<MalNode> | undefined
+	editingExp: MalNode | undefined
+	hoveringExp: MalNode | undefined
 }
 
 interface UI {
@@ -195,7 +194,7 @@ export default defineComponent({
 		}) as UI
 
 		const data: Data = reactive({
-			exp: nonReactive(L(S('sketch'))),
+			exp: L(S('sketch')),
 			hasError: computed(
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
 			),
@@ -203,18 +202,18 @@ export default defineComponent({
 			hasEvalError: computed(() => data.viewExp === undefined),
 			hasRenderError: false,
 			viewExp: computed(() => {
-				let viewExp: NonReactive<MalVal> | undefined = undefined
+				let viewExp: MalVal | undefined = undefined
 
 				if (data.exp) {
 					ViewScope.setup({
 						guideColor: ui.guideColor,
 					})
 
-					const ret = ViewScope.eval(data.exp.value)
+					const ret = ViewScope.eval(data.exp)
 
 					if (ret !== undefined) {
 						ConsoleScope.def('*view*', ret)
-						viewExp = nonReactive(ret)
+						viewExp = ret
 					}
 				}
 
@@ -223,9 +222,7 @@ export default defineComponent({
 			// Selection
 			selectedPath: [] as string[],
 			selectedExp: computed(() =>
-				data.selectedPath.map(path =>
-					nonReactive(getExpByPath(data.exp.value, path))
-				)
+				data.selectedPath.map(path => getExpByPath(data.exp, path))
 			),
 			activeExp: computed(() =>
 				data.selectedExp.length === 0 ? undefined : data.selectedExp[0]
@@ -234,9 +231,7 @@ export default defineComponent({
 			editingPath: '',
 			editingExp: computed(() =>
 				data.editingPath
-					? nonReactive(
-							getExpByPath(data.exp.value, data.editingPath) as MalNode
-					  )
+					? (getExpByPath(data.exp, data.editingPath) as MalNode)
 					: undefined
 			),
 			hoveringExp: undefined,
@@ -255,7 +250,7 @@ export default defineComponent({
 			updateExp
 		)
 
-		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
+		const {onSetupConsole} = useURLParser((exp: MalNode) => {
 			updateExp(exp, false)
 			pushExpHistory(exp, 'undo')
 			setEditingExp(exp)
@@ -276,57 +271,57 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: NonReactive<MalNode>, pushHistory = true) {
-			unwatchExpOnReplace(data.exp.value, onReplaced)
+		function updateExp(exp: MalNode, pushHistory = true) {
+			unwatchExpOnReplace(data.exp, onReplaced)
 			if (pushHistory) {
 				pushExpHistory(exp)
 			}
 			// NOTE: might be redundant
-			reconstructTree(exp.value)
+			reconstructTree(exp)
 			data.exp = exp
-			watchExpOnReplace(exp.value, onReplaced)
+			watchExpOnReplace(exp, onReplaced)
 
 			function onReplaced(newExp: MalVal) {
 				if (!isNode(newExp)) {
 					throw new Error('data.exp cannot be non-node value')
 				}
-				updateExp(nonReactive(newExp))
+				updateExp(newExp)
 			}
 		}
 
 		// SelectedExp
-		function setSelectedExp(exp: NonReactive<MalNode>[]) {
-			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
+		function setSelectedExp(exp: MalNode[]) {
+			data.selectedPath = exp.map(generateExpAbsPath)
 		}
 
-		function setActiveExp(exp: NonReactive<MalNode> | undefined) {
+		function setActiveExp(exp: MalNode | undefined) {
 			if (exp) {
-				const path = generateExpAbsPath(exp.value)
+				const path = generateExpAbsPath(exp)
 				data.selectedPath = path !== '/' ? [path] : []
 			} else {
 				data.selectedPath = []
 			}
 		}
 
-		function updateSelectedExp(exp: NonReactive<MalVal>) {
+		function updateSelectedExp(exp: MalVal) {
 			if (data.selectedExp.length === 0) {
 				return
 			}
-			replaceExp(data.selectedExp[0].value, exp.value)
+			replaceExp(data.selectedExp[0], exp)
 		}
 
 		// Editing
-		function setEditingExp(exp: NonReactive<MalNode>) {
+		function setEditingExp(exp: MalNode) {
 			if (exp) {
-				data.editingPath = generateExpAbsPath(exp.value)
+				data.editingPath = generateExpAbsPath(exp)
 			} else {
 				data.editingPath = ''
 			}
 		}
 
-		function updateEditingExp(exp: NonReactive<MalVal>) {
+		function updateEditingExp(exp: MalVal) {
 			if (!data.editingExp) return
-			replaceExp(data.editingExp.value, exp.value)
+			replaceExp(data.editingExp, exp)
 			pushExpHistory(data.exp, 'undo')
 		}
 
@@ -335,7 +330,7 @@ export default defineComponent({
 			() => data.exp,
 			exp => {
 				if (exp) {
-					const code = printExp(exp.value)
+					const code = printExp(exp)
 					const sketch = code.slice(OFFSET_START, -OFFSET_END)
 					localStorage.setItem('saved_code', sketch)
 					ConsoleScope.def('*sketch*', sketch)

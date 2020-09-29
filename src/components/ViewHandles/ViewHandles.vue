@@ -110,7 +110,6 @@
 <script lang="ts">
 import {MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {NonReactive} from '@/utils'
 import {useRem, useGesture, useResizeSensor} from '@/components/use'
 import {
 	defineComponent,
@@ -127,7 +126,7 @@ import useHandle from './use-handle'
 export default defineComponent({
 	props: {
 		selectedExp: {
-			type: Array as PropType<NonReactive<MalNode>[]>,
+			type: Array as PropType<MalNode[]>,
 			required: true,
 		},
 		viewTransform: {

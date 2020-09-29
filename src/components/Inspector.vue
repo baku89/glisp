@@ -43,7 +43,6 @@ import {
 import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
-import {NonReactive, nonReactive} from '@/utils'
 import {
 	getFnInfo,
 	copyDelimiters,
@@ -60,15 +59,13 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalNode>>,
+			type: Object as PropType<MalNode>,
 			required: true,
-			validator: (p: NonReactive<MalNode>) =>
-				p instanceof NonReactive && isNode(p.value),
 		},
 	},
 	setup(props, context) {
 		const fnInfo = computed(() => {
-			return getFnInfo(props.exp.value)
+			return getFnInfo(props.exp)
 		})
 
 		const fnName = computed(() => {
@@ -76,9 +73,9 @@ export default defineComponent({
 				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
-				(isList(props.exp.value) && isSymbol(props.exp.value[0]))
+				(isList(props.exp) && isSymbol(props.exp[0]))
 			) {
-				return ((props.exp.value as MalVal[])[0] as MalSymbol).value || ''
+				return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
 			} else {
 				return ''
 			}
@@ -97,7 +94,7 @@ export default defineComponent({
 		})
 
 		const outer = computed(() => {
-			let outer = getOuter(props.exp.value)
+			let outer = getOuter(props.exp)
 			if (isUIAnnotation(outer)) {
 				outer = getOuter(outer)
 			}
@@ -114,11 +111,11 @@ export default defineComponent({
 		})
 
 		function onSelectOuter() {
-			context.emit('select', nonReactive(outer.value))
+			context.emit('select', outer.value)
 		}
 
-		function onInput(newExp: NonReactive<MalVal>) {
-			copyDelimiters(newExp.value, props.exp.value)
+		function onInput(newExp: MalVal) {
+			copyDelimiters(newExp, props.exp)
 			context.emit('input', newExp)
 		}
 

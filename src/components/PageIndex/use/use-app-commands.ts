@@ -1,5 +1,4 @@
 import AppScope from '@/scopes/app'
-import {NonReactive, nonReactive} from '@/utils'
 import {
 	MalVal,
 	MalNode,
@@ -43,15 +42,15 @@ import {reconstructTree} from '@/mal/reader'
 
 export default function useAppCommands(
 	data: {
-		exp: NonReactive<MalNode>
-		selectedExp: NonReactive<MalNode>[]
-		activeExp: NonReactive<MalNode> | undefined
-		editingExp: NonReactive<MalNode> | undefined
+		exp: MalNode
+		selectedExp: MalNode[]
+		activeExp: MalNode | undefined
+		editingExp: MalNode | undefined
 	},
 	callbacks: {
-		updateExp: (exp: NonReactive<MalNode>) => any
-		setActiveExp: (exp: NonReactive<MalNode> | undefined) => any
-		setSelectedExp: (exp: NonReactive<MalNode>[]) => any
+		updateExp: (exp: MalNode) => any
+		setActiveExp: (exp: MalNode | undefined) => any
+		setSelectedExp: (exp: MalNode[]) => any
 	}
 ) {
 	AppScope.def('expand-selected', () => {
@@ -59,22 +58,22 @@ export default function useAppCommands(
 			return false
 		}
 
-		const expanded = expandExp(data.activeExp.value)
+		const expanded = expandExp(data.activeExp)
 		if (expanded === undefined) {
 			return false
 		}
 
-		replaceExp(data.activeExp.value, expanded)
+		replaceExp(data.activeExp, expanded)
 
 		return true
 	})
 
 	AppScope.def('insert-item', (exp: MalVal) => {
-		let activeExp = data.exp.value
+		let activeExp = data.exp
 		if (data.activeExp) {
-			activeExp = data.activeExp.value
+			activeExp = data.activeExp
 		} else {
-			activeExp = data.exp.value
+			activeExp = data.exp
 		}
 
 		const type = getType(exp)
@@ -128,7 +127,7 @@ export default function useAppCommands(
 			throw new Error('Path should be string')
 		}
 
-		const original = getExpByPath(data.exp.value, path)
+		const original = getExpByPath(data.exp, path)
 
 		if (!isNode(original)) {
 			throw new MalError('The original should be node')
@@ -141,17 +140,17 @@ export default function useAppCommands(
 
 	AppScope.def('select-items', (paths: MalVal) => {
 		if (isVector(paths)) {
-			const items: NonReactive<MalNode>[] = []
+			const items: MalNode[] = []
 
 			for (const path of paths) {
 				if (typeof path !== 'string') {
 					return false
 				}
-				const item = getExpByPath(data.exp.value, path)
+				const item = getExpByPath(data.exp, path)
 				if (!isNode(item)) {
 					return false
 				}
-				items.push(nonReactive(item))
+				items.push(item)
 			}
 
 			callbacks.setSelectedExp(items)
@@ -164,13 +163,13 @@ export default function useAppCommands(
 			return false
 		}
 
-		const item = getExpByPath(data.exp.value, path)
+		const item = getExpByPath(data.exp, path)
 
 		if (!isNode(item)) {
 			return false
 		}
 
-		const index = data.selectedExp.findIndex(s => s.value === item)
+		const index = data.selectedExp.findIndex(s => s === item)
 
 		return index !== -1
 	})
@@ -180,17 +179,17 @@ export default function useAppCommands(
 			return false
 		}
 
-		const item = getExpByPath(data.exp.value, path)
+		const item = getExpByPath(data.exp, path)
 
 		if (!isNode(item)) {
 			return false
 		}
 
-		const index = data.selectedExp.findIndex(s => s.value === item)
+		const index = data.selectedExp.findIndex(s => s === item)
 
 		const items = [...data.selectedExp]
 		if (index === -1) {
-			items.push(nonReactive(item))
+			items.push(item)
 		} else {
 			items.splice(index, 1)
 		}
@@ -205,10 +204,9 @@ export default function useAppCommands(
 			if (res.ok) {
 				const code = await res.text()
 				const exp = readStr(toSketchCode(code)) as MalNode
-				const nonReactiveExp = nonReactive(exp)
-				callbacks.updateExp(nonReactiveExp)
+				callbacks.updateExp(exp)
 				callbacks.setActiveExp(undefined)
-				data.editingExp = nonReactiveExp
+				data.editingExp = exp
 			} else {
 				throw new MalError(`Failed to load from "${url}"`)
 			}
@@ -221,9 +219,9 @@ export default function useAppCommands(
 			throw new MalError('No selection')
 		}
 
-		const [outer] = getUIOuterInfo(data.activeExp.value)
-		if (outer && outer !== data.exp?.value) {
-			callbacks.setActiveExp(nonReactive(outer))
+		const [outer] = getUIOuterInfo(data.activeExp)
+		if (outer && outer !== data.exp) {
+			callbacks.setActiveExp(outer)
 		}
 		return true
 	})
@@ -236,7 +234,7 @@ export default function useAppCommands(
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 
-		const exp = data.activeExp.value
+		const exp = data.activeExp
 		let shouldDuplicate = false
 
 		const newExp = L(
@@ -253,13 +251,13 @@ export default function useAppCommands(
 
 		reconstructTree(newExp)
 
-		replaceExp(data.activeExp.value, newExp)
+		replaceExp(data.activeExp, newExp)
 
 		return true
 	})
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
-		for (const {value: exp} of data.selectedExp) {
+		for (const exp of data.selectedExp) {
 			if (!isSeq(exp)) {
 				return false
 			}
@@ -309,7 +307,7 @@ export default function useAppCommands(
 			throw new MalError('No selection')
 		}
 
-		const code = printExp(data.activeExp.value)
+		const code = printExp(data.activeExp)
 
 		navigator.clipboard.writeText(code)
 
@@ -320,12 +318,9 @@ export default function useAppCommands(
 		let outer: MalSeq, index: number
 
 		if (!data.activeExp) {
-			;[outer, index] = [
-				data.exp.value as MalSeq,
-				(data.exp.value as MalSeq).length - 1,
-			]
+			;[outer, index] = [data.exp as MalSeq, (data.exp as MalSeq).length - 1]
 		} else {
-			const [_outer, _index] = getUIOuterInfo(data.activeExp.value)
+			const [_outer, _index] = getUIOuterInfo(data.activeExp)
 
 			if (!isSeq(_outer)) {
 				return false
@@ -345,7 +340,7 @@ export default function useAppCommands(
 			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
-			callbacks.setActiveExp(isNode(exp) ? nonReactive(exp) : undefined)
+			callbacks.setActiveExp(isNode(exp) ? exp : undefined)
 		})
 
 		return null
@@ -353,7 +348,7 @@ export default function useAppCommands(
 
 	AppScope.def('delete-selected', () => {
 		for (const _exp of data.selectedExp) {
-			const exp = getUIAnnotationExp(_exp.value)
+			const exp = getUIAnnotationExp(_exp)
 			deleteExp(exp)
 		}
 
@@ -367,7 +362,7 @@ export default function useAppCommands(
 			return false
 		}
 
-		const [first, ...rest] = data.selectedExp.map(e => e.value)
+		const [first, ...rest] = data.selectedExp
 
 		for (const exp of rest) {
 			deleteExp(getUIAnnotationExp(exp))
@@ -377,7 +372,7 @@ export default function useAppCommands(
 
 		replaceExp(first, group)
 
-		callbacks.setActiveExp(nonReactive(group))
+		callbacks.setActiveExp(group)
 
 		return true
 	})

@@ -36,7 +36,6 @@ import ViewCanvas from '@/components/ViewCanvas.vue'
 import {printExp, readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
 
-import {nonReactive, NonReactive} from '@/utils'
 import {printer} from '@/mal/printer'
 import {BlankException} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
@@ -48,8 +47,8 @@ const OFFSET_END = 2 // length of "/n)"
 
 interface Data {
 	code: string
-	exp: NonReactive<MalVal> | null
-	viewExp: NonReactive<MalVal> | null
+	exp: MalVal | undefined
+	viewExp: MalVal | undefined
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
@@ -92,9 +91,9 @@ export default defineComponent({
 			guideColor: computed(() => ui.colors['--selection']),
 		}) as UI
 
-		const data = reactive({
+		const data: Data = reactive({
 			code: '',
-			exp: null,
+			exp: undefined,
 			hasError: computed(() => {
 				return data.hasParseError || data.hasEvalError || data.hasRenderError
 			}),
@@ -104,7 +103,7 @@ export default defineComponent({
 			viewExp: computed(() => {
 				return evalExp()
 			}),
-		}) as Data
+		}) as any
 
 		const editorURL = computed(() => {
 			// data.code
@@ -129,10 +128,10 @@ export default defineComponent({
 			ViewScope.def('*height*', 100)
 			ViewScope.def('*size*', [100, 100])
 
-			const viewExp = ViewScope.eval(exp.value)
+			const viewExp = ViewScope.eval(exp)
 			if (viewExp !== undefined) {
 				ConsoleScope.def('*view*', viewExp)
-				return nonReactive(viewExp)
+				return viewExp
 			} else {
 				return null
 			}
@@ -145,7 +144,7 @@ export default defineComponent({
 				const evalCode = `(sketch\n${code}\n)`
 				let exp
 				try {
-					exp = nonReactive(readStr(evalCode, true))
+					exp = readStr(evalCode, true)
 				} catch (err) {
 					if (!(err instanceof BlankException)) {
 						printer.error(err)
@@ -162,7 +161,7 @@ export default defineComponent({
 			() => data.exp,
 			() => {
 				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET_START, -OFFSET_END)
+					data.code = printExp(data.exp).slice(OFFSET_START, -OFFSET_END)
 				} else {
 					data.code = ''
 				}

@@ -1,11 +1,8 @@
 import {MalError, MalNode, isNode} from '@/mal/types'
-import {nonReactive, NonReactive} from '@/utils'
 import {readStr} from '@/mal'
 import {toSketchCode} from '../utils'
 
-export default function useURLParser(
-	onLoadExp: (exp: NonReactive<MalNode>) => void
-) {
+export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -63,7 +60,7 @@ export default function useURLParser(
 	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
 		const exp = readStr(toSketchCode(code as string))
 		if (isNode(exp)) {
-			onLoadExp(nonReactive(exp))
+			onLoadExp(exp)
 		}
 	})
 

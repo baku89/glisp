@@ -51,23 +51,20 @@
 
 <script lang="ts">
 import {defineComponent, toRef, PropType} from 'vue'
-import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol, isSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber, InputTranslate} from '@/components/inputs'
 import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 
 export default defineComponent({
 	name: 'MalInputVec2',
 	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,
+			type: Object as PropType<MalSeq | MalSymbol>,
 			required: true,
-			validator: (x: NonReactive<MalSeq | MalSymbol>) =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
 		},
 	},
 	setup(props, context) {
@@ -80,8 +77,8 @@ export default defineComponent({
 		} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
 		function onInputTranslate(value: number[]) {
-			const newExp = reverseEval(value, props.value.value)
-			context.emit('input', nonReactive(newExp))
+			const newExp = reverseEval(value, props.value)
+			context.emit('input', newExp)
 		}
 
 		return {

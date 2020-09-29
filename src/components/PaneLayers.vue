@@ -28,7 +28,6 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
@@ -40,19 +39,19 @@ export default defineComponent({
 	components: {ViewExpTree},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalSeq>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
 		},
 		selectedExp: {
-			type: Array as PropType<NonReactive<MalVal>[]>,
+			type: Array as PropType<MalVal[]>,
 			required: true,
 		},
 		editingExp: {
-			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			type: Object as PropType<MalVal | undefined>,
 			default: undefined,
 		},
 		hoveringExp: {
-			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			type: Object as PropType<MalVal | undefined>,
 			default: undefined,
 		},
 	},
@@ -62,14 +61,14 @@ export default defineComponent({
 		/**
 		 * the body of expression withouht ui-annotate wrapping
 		 */
-		const expBody = computed(() => nonReactive(getUIBodyExp(props.exp.value)))
+		const expBody = computed(() => getUIBodyExp(props.exp))
 
 		const children = computed(() => {
-			return props.exp.value.slice(1).map(nonReactive)
+			return props.exp.slice(1)
 		})
 
 		const editing = computed(() => {
-			return props.editingExp && expBody.value.value === props.editingExp.value
+			return props.editingExp && expBody.value === props.editingExp
 		})
 
 		const activeExp = computed(() => {
@@ -77,17 +76,17 @@ export default defineComponent({
 		})
 
 		const expSelection = computed(() => {
-			return new Set(props.selectedExp.slice(1).map(s => s.value))
+			return new Set(props.selectedExp.slice(1))
 		})
 
-		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
-			const newExp = cloneExp(props.exp.value)
+		function onUpdateChildExp(i: number, replaced: MalNode) {
+			const newExp = cloneExp(props.exp)
 
-			newExp[i + 1] = replaced.value
+			newExp[i + 1] = replaced
 
 			reconstructTree(newExp)
 
-			context.emit('update:exp', nonReactive(newExp))
+			context.emit('update:exp', newExp)
 		}
 
 		function onClickEditButton(e: MouseEvent) {
@@ -96,14 +95,14 @@ export default defineComponent({
 		}
 
 		// Selection manipulation
-		function selectSingleExp(exp: NonReactive<MalNode>) {
+		function selectSingleExp(exp: MalNode) {
 			context.emit('select', [exp])
 		}
 
-		function toggleSelectedExp(exp: NonReactive<MalNode>) {
+		function toggleSelectedExp(exp: MalNode) {
 			const newSelection = [...props.selectedExp]
 
-			const index = newSelection.findIndex(s => s.value === exp.value)
+			const index = newSelection.findIndex(s => s === exp)
 
 			if (index !== -1) {
 				newSelection.splice(index, 1)

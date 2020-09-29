@@ -8,25 +8,24 @@ import {
 } from '@/mal/types'
 
 import {Ref} from 'vue'
-import {NonReactive} from '@/utils'
 import {reconstructTree} from '@/mal/reader'
 import AppScope from '@/scopes/app'
 
 type Commit = {
 	tag: Set<string>
-	exp: NonReactive<MalNode>
+	exp: MalNode
 	activeModeIndex: number | undefined
-	modeState: NonReactive<MalMap>
+	modeState: MalMap
 }
 
 export default function useExpHistory(
 	activeModeIndex: Ref<number | undefined>,
-	modeState: Ref<NonReactive<MalMap>>,
-	updateExp: (exp: NonReactive<MalNode>, pushHistory?: boolean) => any
+	modeState: Ref<MalMap>,
+	updateExp: (exp: MalNode, pushHistory?: boolean) => any
 ) {
 	const history: Commit[] = []
 
-	function pushExpHistory(exp: NonReactive<MalNode>, tag?: string) {
+	function pushExpHistory(exp: MalNode, tag?: string) {
 		history.push({
 			tag: new Set(tag ? [tag] : undefined),
 			exp,
@@ -56,7 +55,7 @@ export default function useExpHistory(
 
 		const commit = history[index]
 		history.length = index + 1
-		reconstructTree(commit.exp.value)
+		reconstructTree(commit.exp)
 		updateExp(commit.exp, false)
 		activeModeIndex.value = commit.activeModeIndex
 		modeState.value = commit.modeState

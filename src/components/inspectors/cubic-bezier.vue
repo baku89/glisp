@@ -37,8 +37,8 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, toRefs, PropType} from 'vue'
-import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
-import {NonReactive, nonReactive, clamp} from '@/utils'
+import {MalVal, isList, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
+import {clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'
 
@@ -49,10 +49,8 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal[]>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
-			validator: (x: NonReactive<MalVal[]>) =>
-				x instanceof NonReactive && isList(x.value),
 		},
 	},
 	setup(props, context) {
@@ -72,20 +70,20 @@ export default defineComponent({
 		)
 
 		const tx = computed(
-			() => size.value[0] * (getEvaluated(props.exp.value[5]) as number)
+			() => size.value[0] * (getEvaluated(props.exp[5]) as number)
 		)
 
 		const c1 = computed(() => {
 			return [
-				size.value[0] * (props.exp.value[1] as number),
-				size.value[1] * (1 - (props.exp.value[2] as number)),
+				size.value[0] * (props.exp[1] as number),
+				size.value[1] * (1 - (props.exp[2] as number)),
 			]
 		})
 
 		const c2 = computed(() => {
 			return [
-				size.value[0] * (props.exp.value[3] as number),
-				size.value[1] * (1 - (props.exp.value[4] as number)),
+				size.value[0] * (props.exp[3] as number),
+				size.value[1] * (1 - (props.exp[4] as number)),
 			]
 		})
 
@@ -95,37 +93,37 @@ export default defineComponent({
 
 		const c1Drag = useDraggable(c1El, {
 			onDragStart() {
-				ox = props.exp.value[1] as number
-				oy = props.exp.value[2] as number
+				ox = props.exp[1] as number
+				oy = props.exp[2] as number
 			},
 			onDrag(e) {
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = cloneExp(props.exp.value) as number[]
+				const exp = cloneExp(props.exp) as number[]
 
 				exp[1] = clamp(ox + dx, 0, 1)
 				exp[2] = oy + dy
 
-				context.emit('input', nonReactive(exp))
+				context.emit('input', exp)
 			},
 		})
 
 		const c2Drag = useDraggable(c2El, {
 			onDragStart() {
-				ox = props.exp.value[3] as number
-				oy = props.exp.value[4] as number
+				ox = props.exp[3] as number
+				oy = props.exp[4] as number
 			},
 			onDrag(e) {
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = cloneExp(props.exp.value) as number[]
+				const exp = cloneExp(props.exp) as number[]
 
 				exp[3] = clamp(ox + dx, 0, 1)
 				exp[4] = oy + dy
 
-				context.emit('input', nonReactive(exp))
+				context.emit('input', exp)
 			},
 		})
 

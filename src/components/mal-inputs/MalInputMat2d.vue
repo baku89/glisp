@@ -71,7 +71,6 @@ import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 import {isSeq, MalSeq, isSymbol, MalSymbol} from '@/mal/types'
 
 export default defineComponent({
@@ -79,10 +78,8 @@ export default defineComponent({
 	components: {MalInputNumber, MalExpButton, InputTranslate},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,
+			type: Object as PropType<MalSeq | MalSymbol>,
 			required: true,
-			validator: (x: NonReactive<MalSeq | MalSymbol>) =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
 		},
 	},
 	setup(props, context) {
@@ -96,8 +93,8 @@ export default defineComponent({
 
 		function onInputTranslate(value: number[]) {
 			const newValue = [...evaluated.value.slice(0, 4), ...value]
-			const newExp = reverseEval(newValue, props.value.value)
-			context.emit('input', nonReactive(newExp))
+			const newExp = reverseEval(newValue, props.value)
+			context.emit('input', newExp)
 		}
 
 		return {

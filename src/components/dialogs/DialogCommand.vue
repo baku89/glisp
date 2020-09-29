@@ -21,14 +21,13 @@
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, PropType} from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
-import {NonReactive} from '@/utils'
 import {
 	MalVal,
 	MalFunc,
 	getMeta,
 	MalSymbol,
 	isList,
-	isSymbol,
+	isSymbol,, MalSeq
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
@@ -41,10 +40,8 @@ export default defineComponent({
 	components: {ParamControl, VueMarkdown},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal[]>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
-			validator: (v: NonReactive<MalVal[]>) =>
-				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0]),
 		},
 		fn: {
 			type: Function as PropType<MalFunc>,
@@ -53,17 +50,17 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const meta = getMeta(props.fn)
-		const fnName = computed(() => (props.exp.value[0] as MalSymbol).value)
+		const fnName = computed(() => (props.exp[0] as MalSymbol).value)
 		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
-		const editExp: Ref = ref<NonReactive<MalVal>>(props.exp)
+		const editExp: Ref = ref<MalSeq>(props.exp)
 
-		function onInput(newExp: NonReactive<MalVal>) {
+		function onInput(newExp: MalVal) {
 			editExp.value = newExp
 		}
 
 		function onClickExecute() {
 			context.emit('close')
-			const command = printExp(editExp.value.value)
+			const command = printExp(editExp.value)
 
 			// Show the executed command in the console and add it to the history
 			printer.pseudoExecute(command)

@@ -6,7 +6,7 @@ import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
 import {useKeyboardState} from '@/components/use'
-import {getHTMLElement, nonReactive, NonReactive} from '@/utils'
+import {getHTMLElement} from '@/utils'
 
 const K_EVENT_TYPE = keywordFor('event-type')
 const K_POS = keywordFor('pos')
@@ -40,7 +40,7 @@ export function useModes(
 		) as Mode[]
 	}
 
-	const modeState = ref<NonReactive<MalMap>>(nonReactive({}))
+	const modeState = ref<MalMap>({})
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),
@@ -82,7 +82,7 @@ export function useModes(
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
 			const params = assocBang(
-				modeState.value.value as any,
+				modeState.value as any,
 				K_EVENT_TYPE,
 				type,
 				K_POS,
@@ -92,7 +92,7 @@ export function useModes(
 			)
 			const updatedState = handler(params)
 			if (isMap(updatedState)) {
-				modeState.value = nonReactive(updatedState) as any
+				modeState.value = updatedState as any
 			}
 		}
 	}
@@ -100,11 +100,10 @@ export function useModes(
 	// Execute setup
 	AppScope.def('reset-mode', () => {
 		if (activeMode.value) {
-			modeState.value = nonReactive(
-				activeMode.value.handlers.setup
-					? activeMode.value.handlers.setup()
-					: ({} as any)
-			)
+			modeState.value = activeMode.value.handlers.setup
+				? activeMode.value.handlers.setup()
+				: ({} as any)
+
 			return true
 		} else {
 			return false
@@ -115,9 +114,9 @@ export function useModes(
 		() => activeMode.value,
 		mode => {
 			if (mode) {
-				modeState.value = nonReactive(
-					mode.handlers.setup ? mode.handlers.setup() : ({} as any)
-				)
+				modeState.value = mode.handlers.setup
+					? mode.handlers.setup()
+					: ({} as any)
 			}
 		},
 		{immediate: true}

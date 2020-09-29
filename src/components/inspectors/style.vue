@@ -38,11 +38,15 @@
 			<button
 				class="Inspector-style__append-button"
 				@click="appendStyle('fill')"
-			>+ Add Fill</button>
+			>
+				+ Add Fill
+			</button>
 			<button
 				class="Inspector-style__append-button"
 				@click="appendStyle('stroke')"
-			>+ Add Stroke</button>
+			>
+				+ Add Stroke
+			</button>
 		</div>
 	</div>
 </template>
@@ -58,7 +62,7 @@ import {
 	createList as L,
 	symbolFor as S,
 } from '@/mal/types'
-import {NonReactive, nonReactive, getParamLabel} from '@/utils'
+import { getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-inputs/MalInputParam.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {reconstructTree} from '../../mal/reader'
@@ -76,40 +80,39 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalSeq>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
-			validator: (x: NonReactive<MalSeq>) => x instanceof NonReactive && isList(x.value),
 		},
 	},
 	setup(props, context) {
 		const styles = computed(() => {
-			const styles = props.exp.value[1]
-			return (isVector(styles) ? styles : [styles]).map(nonReactive)
+			const styles = props.exp[1]
+			return (isVector(styles) ? styles : [styles])
 		})
 
 		const labels = computed(() => {
-			return styles.value.map(s => getParamLabel((s.value as MalSeq)[0]))
+			return styles.value.map(s => getParamLabel((s as MalSeq)[0]))
 		})
 
-		function updateStyleAt(style: NonReactive<MalSeq>, i: number) {
-			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
-			newStyles[i] = style.value
+		function updateStyleAt(style: MalSeq, i: number) {
+			const newExp = cloneExp(props.exp)
+			const newStyles = [...styles.value]
+			newStyles[i] = style
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			reconstructTree(newExp)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
-		function sortStyles(sortedStyles: NonReactive<MalSeq[]>[]) {
-			const newExp = cloneExp(props.exp.value)
+		function sortStyles(sortedStyles: MalSeq[][]) {
+			const newExp = cloneExp(props.exp)
 			newExp[1] =
 				sortedStyles.length == 1
-					? sortedStyles[0].value
-					: sortedStyles.map(s => s.value)
+					? sortedStyles[0]
+					: [...sortedStyles]
 
 			reconstructTree(newExp)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 			context.emit('end-tweak')
 		}
 
@@ -117,24 +120,24 @@ export default defineComponent({
 			const style =
 				type === 'fill' ? L(S('fill'), '#000000') : L(S('stroke'), '#000000', 1)
 
-			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
+			const newExp = cloneExp(props.exp)
+			const newStyles = [...styles.value]
 			newStyles.push(style)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			reconstructTree(newExp)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 			context.emit('end-tweak')
 		}
 
 		function deleteStyleAt(i: number) {
-			const newExp = cloneExp(props.exp.value)
-			const newStyles = styles.value.map(s => s.value)
+			const newExp = cloneExp(props.exp)
+			const newStyles = [...styles.value]
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			reconstructTree(newExp)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 			context.emit('end-tweak')
 		}
 

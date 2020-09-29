@@ -14,16 +14,14 @@
 import {defineComponent, computed, PropType} from 'vue'
 import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
-import {NonReactive, nonReactive} from '@/utils'
 import {getUIBodyExp} from '@/mal/utils'
 
 export default defineComponent({
 	name: 'MalExpButton',
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalVal>>,
+			type: Object as PropType<MalVal>,
 			required: true,
-			validator: (v: NonReactive<MalVal>) => v instanceof NonReactive,
 		},
 		compact: {
 			default: false,
@@ -31,28 +29,28 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const sign = computed(() => {
-			if (isList(props.value.value)) {
+			if (isList(props.value)) {
 				return 'f'
-			} else if (isSymbol(props.value.value)) {
+			} else if (isSymbol(props.value)) {
 				return 'x'
 			} else {
 				return '='
 			}
 		})
 
-		const selectable = computed(() => isNode(props.value.value))
+		const selectable = computed(() => isNode(props.value))
 
-		const expBody = computed(() => nonReactive(getUIBodyExp(props.value.value)))
+		const expBody = computed(() => getUIBodyExp(props.value))
 
 		const str = computed(() => {
 			if (sign.value === 'f') {
 				if (props.compact) {
 					return ''
 				} else {
-					return `${printExp((expBody.value.value as MalVal[])[0])}`
+					return `${printExp((expBody.value as MalVal[])[0])}`
 				}
 			} else {
-				return printExp(expBody.value.value)
+				return printExp(expBody.value)
 			}
 		})
 

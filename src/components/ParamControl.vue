@@ -65,7 +65,6 @@ import {
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
-import {nonReactive, NonReactive} from '@/utils'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -93,7 +92,7 @@ const TypeDefaults = {
 export default defineComponent({
 	name: 'ParamControl',
 	props: {
-		exp: {type: Object as PropType<NonReactive<MalSeq>>, required: true},
+		exp: {type: Object as PropType<MalSeq>, required: true},
 		fn: {type: Function as PropType<MalFunc>, required: false},
 	},
 	components: {
@@ -117,16 +116,16 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const fnInfo = computed(() => {
-			return getFnInfo(props.fn || props.exp.value)
+			return getFnInfo(props.fn || props.exp)
 		})
 
 		const params = computed(() => {
 			if (!fnInfo.value) return []
 
 			if (fnInfo.value.structType) {
-				return [props.exp.value]
+				return [props.exp]
 			} else {
-				return props.exp.value.slice(1)
+				return props.exp.slice(1)
 			}
 		})
 
@@ -182,7 +181,7 @@ export default defineComponent({
 		})
 
 		// Updator
-		function onParamInput(i: number, value: NonReactive<MalVal>) {
+		function onParamInput(i: number, value: MalVal) {
 			if (!fnInfo.value) return
 
 			const newParams = updateParamsByUISchema(
@@ -190,16 +189,16 @@ export default defineComponent({
 				uiSchema.value as Schema[],
 				params.value,
 				i,
-				value.value
+				value
 			)
 
 			const newExp = fnInfo.value.structType
 				? newParams[0]
-				: L(props.exp.value[0], ...newParams)
+				: L(props.exp[0], ...newParams)
 
 			reconstructTree(newExp)
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		function onParamInsert(i: number) {
@@ -222,21 +221,21 @@ export default defineComponent({
 			}
 
 			newParams.splice(i, 0, value)
-			const newExp = L(props.exp.value[0], ...newParams)
+			const newExp = L(props.exp[0], ...newParams)
 
 			reconstructTree(newExp)
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		function onParamDelete(i: number) {
 			const newParams = [...params.value]
 			newParams.splice(i, 1)
 
-			const newExp = L(props.exp.value[0], ...newParams)
+			const newExp = L(props.exp[0], ...newParams)
 			reconstructTree(newExp)
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		return {

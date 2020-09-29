@@ -40,7 +40,7 @@ import {
 	getEvaluated,
 	MalSeq,
 } from '@/mal/types'
-import {NonReactive, nonReactive, clamp} from '@/utils'
+import {clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
 import {useDraggable} from '@/components/use'
 
@@ -55,10 +55,8 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalSeq>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
-			validator: (x: NonReactive<MalSeq>) =>
-				x instanceof NonReactive && isList(x.value),
 		},
 	},
 	setup(props, context) {
@@ -68,13 +66,13 @@ export default defineComponent({
 		const isPlaying = ref(false)
 
 		const time = computed(() => {
-			return props.exp.value[2] as number
+			return props.exp[2] as number
 		})
 
 		const options = computed(() => {
 			return assocBang(
 				{[K_START]: 0, [K_DURATION]: 1, [K_FPS]: 0},
-				...props.exp.value.slice(3)
+				...props.exp.slice(3)
 			) as {[key: string]: number}
 		})
 
@@ -92,9 +90,9 @@ export default defineComponent({
 		)
 
 		function updateTime(newTime: number) {
-			const exp = cloneExp(props.exp.value)
+			const exp = cloneExp(props.exp)
 			;(exp[2] as number) = newTime
-			context.emit('input', nonReactive(exp))
+			context.emit('input', exp)
 		}
 
 		// Seek

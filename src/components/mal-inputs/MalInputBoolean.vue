@@ -16,7 +16,6 @@
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
@@ -31,27 +30,23 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<boolean | MalSeq | MalSymbol>>,
+			type: [Boolean, Object] as PropType<boolean | MalSeq | MalSymbol>,
 			required: true,
-			validator: (x: NonReactive<boolean | MalSeq | MalSymbol>) =>
-				x instanceof NonReactive,
 		},
 	},
 	setup(props, context) {
-		const isExp = computed(() => typeof props.value.value !== 'boolean')
-		const evaluated = computed(() =>
-			getEvaluated(props.value.value) ? true : false
-		)
+		const isExp = computed(() => typeof props.value !== 'boolean')
+		const evaluated = computed(() => (getEvaluated(props.value) ? true : false))
 
 		function onInput(value: boolean) {
 			let newValue: MalVal = value
 
 			if (isExp.value) {
-				newValue = reverseEval(value, props.value.value)
+				newValue = reverseEval(value, props.value)
 				reconstructTree(newValue)
 			}
 
-			context.emit('input', nonReactive(newValue))
+			context.emit('input', newValue)
 			context.emit('end-tweak')
 		}
 

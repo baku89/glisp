@@ -19,7 +19,6 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
@@ -34,10 +33,10 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<string | MalSeq | MalSymbol>>,
+			type: [Number, MalSymbol, Object] as PropType<
+				string | MalSeq | MalSymbol
+			>,
 			required: true,
-			validator: (x: NonReactive<string | MalSeq | MalSymbol>) =>
-				x instanceof NonReactive,
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
@@ -49,18 +48,18 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const isExp = computed(() => typeof props.value.value !== 'string')
-		const evaluated = computed(() => getEvaluated(props.value.value))
+		const isExp = computed(() => typeof props.value !== 'string')
+		const evaluated = computed(() => getEvaluated(props.value))
 
 		function onInput(value: string) {
 			let newValue: MalVal = value
 
 			if (isExp.value) {
-				newValue = reverseEval(value, props.value.value)
+				newValue = reverseEval(value, props.value)
 				reconstructTree(newValue)
 			}
 
-			context.emit('input', nonReactive(newValue))
+			context.emit('input', newValue)
 			context.emit('end-tweak')
 		}
 

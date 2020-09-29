@@ -76,7 +76,6 @@ import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '../../utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 
@@ -94,9 +93,8 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<string | MalSeq>>,
+			type: [String, Array] as PropType<string | MalSeq>,
 			required: true,
-			validator: (v: NonReactive<string | MalSeq>) => v instanceof NonReactive,
 		},
 		compact: {
 			default: false,
@@ -104,10 +102,10 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const mode = computed(() => {
-			switch (getType(props.value.value)) {
+			switch (getType(props.value)) {
 				case MalType.String: {
 					{
-						const str = props.value.value as string
+						const str = props.value as string
 						if (chroma.valid(str)) {
 							return 'HEX'
 						}
@@ -115,7 +113,7 @@ export default defineComponent({
 					}
 				}
 				case MalType.List: {
-					const fst = (props.value.value as MalVal[])[0]
+					const fst = (props.value as MalVal[])[0]
 					if (isSymbol(fst)) {
 						if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
 							return fst.value.split('/')[1].toUpperCase()
@@ -134,18 +132,18 @@ export default defineComponent({
 
 		const displayValues = computed(() => {
 			if (mode.value === 'EXP') {
-				return getEvaluated(props.value.value) as string
+				return getEvaluated(props.value) as string
 			}
 
-			if (typeof props.value.value === 'string') {
-				return props.value.value
-			} else if (isList(props.value.value)) {
-				return props.value.value.slice(1).map(nonReactive)
+			if (typeof props.value === 'string') {
+				return props.value
+			} else if (isList(props.value)) {
+				return props.value.slice(1)
 			}
 		})
 
 		const chromaColor = computed(() => {
-			const value = props.value.value
+			const value = props.value
 
 			let color: chroma.Color
 			switch (mode.value) {
@@ -242,23 +240,23 @@ export default defineComponent({
 				;(value as MalVal[]).push(color.alpha())
 			}
 
-			context.emit('input', nonReactive(value))
+			context.emit('input', value)
 		}
 
 		function onInputText(str: string) {
 			if (mode.value !== 'EXP') {
-				context.emit('input', nonReactive(str))
+				context.emit('input', str)
 			} else {
 				// Inverse evaluation
-				const newExp = reverseEval(str, props.value.value)
-				context.emit('input', nonReactive(newExp))
+				const newExp = reverseEval(str, props.value)
+				context.emit('input', newExp)
 			}
 		}
 
-		function onInputNumber(i: number, v: NonReactive<number>) {
-			const newExp = L(...(props.value.value as MalVal[]))
-			newExp[i + 1] = v.value
-			context.emit('input', nonReactive(newExp))
+		function onInputNumber(i: number, v: number) {
+			const newExp = L(...(props.value as MalVal[]))
+			newExp[i + 1] = v
+			context.emit('input', newExp)
 		}
 
 		function onInputColor(color: {
@@ -268,9 +266,7 @@ export default defineComponent({
 			rgba: {r: number; g: number; b: number}
 			hsl: {h: number; s: number; l: number}
 		}) {
-			let value: MalVal = isList(props.value.value)
-				? L(...props.value.value)
-				: ''
+			let value: MalVal = isList(props.value) ? L(...props.value) : ''
 
 			switch (mode.value) {
 				case 'HEX':
@@ -282,9 +278,9 @@ export default defineComponent({
 					break
 				case 'RGB': {
 					let {r, g, b} = color.rgba
-					r = reverseEval(r / 255, (props.value.value as MalVal[])[1]) as number
-					g = reverseEval(g / 255, (props.value.value as MalVal[])[2]) as number
-					b = reverseEval(b / 255, (props.value.value as MalVal[])[3]) as number
+					r = reverseEval(r / 255, (props.value as MalVal[])[1]) as number
+					g = reverseEval(g / 255, (props.value as MalVal[])[2]) as number
+					b = reverseEval(b / 255, (props.value as MalVal[])[3]) as number
 					;(value as MalVal[])[1] = r
 					;(value as MalVal[])[2] = g
 					;(value as MalVal[])[3] = b
@@ -294,10 +290,10 @@ export default defineComponent({
 					let {h, s, l} = color.hsl
 					h = reverseEval(
 						(h / 180) * Math.PI,
-						(props.value.value as MalVal[])[1]
+						(props.value as MalVal[])[1]
 					) as number
-					s = reverseEval(s, (props.value.value as MalVal[])[2]) as number
-					l = reverseEval(l, (props.value.value as MalVal[])[3]) as number
+					s = reverseEval(s, (props.value as MalVal[])[2]) as number
+					l = reverseEval(l, (props.value as MalVal[])[3]) as number
 					;(value as MalVal[])[1] = h
 					;(value as MalVal[])[2] = s
 					;(value as MalVal[])[3] = l
@@ -305,7 +301,7 @@ export default defineComponent({
 				}
 				case 'EXP': {
 					// Inverse evaluation
-					value = reverseEval(color.hex8, props.value.value)
+					value = reverseEval(color.hex8, props.value)
 					break
 				}
 			}
@@ -313,8 +309,8 @@ export default defineComponent({
 			if (mode.value === 'RGB' || mode.value === 'HSL') {
 				if (color.a < 0.9999) {
 					const a =
-						(props.value.value as MalVal[])[4] !== undefined
-							? reverseEval(color.a, (props.value.value as MalVal[])[4])
+						(props.value as MalVal[])[4] !== undefined
+							? reverseEval(color.a, (props.value as MalVal[])[4])
 							: color.a
 					;(value as MalVal[])[4] = a
 				} else {
@@ -322,7 +318,7 @@ export default defineComponent({
 				}
 			}
 
-			context.emit('input', nonReactive(value))
+			context.emit('input', value)
 		}
 
 		function validatorZeroOne(x: number) {

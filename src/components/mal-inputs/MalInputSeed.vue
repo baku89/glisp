@@ -19,17 +19,14 @@ import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 
 export default defineComponent({
 	name: 'MalInputSeed',
 	components: {MalInputNumber, InputSeed},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<number | MalSeq | MalSymbol>>,
+			type: [Number, Object] as PropType<number | MalSeq | MalSymbol>,
 			required: true,
-			validator: (x: NonReactive<number | MalSeq | MalSymbol>) =>
-				x instanceof NonReactive,
 		},
 		validator: {
 			required: false,
@@ -40,9 +37,9 @@ export default defineComponent({
 			let newExp = value
 			if (typeof newExp === 'number') {
 				// Executes backward evalution
-				newExp = reverseEval(newExp, props.value.value)
+				newExp = reverseEval(newExp, props.value)
 			}
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 			context.emit('end-tweak')
 		}
 

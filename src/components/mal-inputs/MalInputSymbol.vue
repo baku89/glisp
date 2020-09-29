@@ -12,7 +12,6 @@
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {MalSeq, MalSymbol, getName, symbolFor} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 
@@ -23,10 +22,10 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<string | MalSeq | MalSymbol>>,
+			type: [String, Object, MalSymbol] as PropType<
+				string | MalSeq | MalSymbol
+			>,
 			required: true,
-			validator: (x: NonReactive<string | MalSeq | MalSymbol>) =>
-				x instanceof NonReactive,
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
@@ -35,7 +34,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const displayValue = computed(() => {
-			return getName(props.value.value)
+			return getName(props.value)
 		})
 
 		function symbolValidator(str: string): string {
@@ -44,7 +43,7 @@ export default defineComponent({
 
 		function onInput(str: string) {
 			const value = symbolFor(str)
-			context.emit('input', nonReactive(value))
+			context.emit('input', value)
 		}
 
 		return {displayValue, symbolValidator, onInput}

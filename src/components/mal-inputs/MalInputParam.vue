@@ -31,7 +31,6 @@ import {
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalNodeToJSObject} from '@/mal/reader'
-import {NonReactive, nonReactive} from '@/utils'
 
 export default defineComponent({
 	name: 'MalInputParam',
@@ -41,18 +40,16 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalSeq>>,
+			type: Object as PropType<MalSeq>,
 			required: true,
-			validator: (v: NonReactive<MalSeq>) =>
-				v instanceof NonReactive && isList(v.value),
 		},
 	},
 	setup(props, context) {
 		const params = computed(() => {
-			return props.value.value.slice(1).map(nonReactive)
+			return props.value.slice(1)
 		})
 
-		const fn = computed(() => getEvaluated(props.value.value[0]))
+		const fn = computed(() => getEvaluated(props.value[0]))
 
 		const schemes = computed(
 			() =>
@@ -61,11 +58,11 @@ export default defineComponent({
 				) || null
 		)
 
-		function updateParamAt(value: NonReactive<MalVal>, i: number) {
-			const newExp = cloneExp(props.value.value)
-			newExp[i + 1] = value.value
+		function updateParamAt(value: MalVal, i: number) {
+			const newExp = cloneExp(props.value)
+			newExp[i + 1] = value
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		return {params, schemes, updateParamAt}

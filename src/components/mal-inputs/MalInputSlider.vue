@@ -48,7 +48,6 @@ import {
 	keywordFor as K,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 import {readStr} from '@/mal'
 
 export default defineComponent({
@@ -56,10 +55,8 @@ export default defineComponent({
 	components: {InputSlider, MalExpButton},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalSymbol | number | MalSeq>>,
+			type: [Number, Object] as PropType<MalSymbol | number | MalSeq>,
 			required: true,
-			validator: (x: NonReactive<MalSymbol | number | MalSeq>) =>
-				x instanceof NonReactive,
 		},
 
 		validator: {
@@ -85,17 +82,17 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const display = computed(() => {
-			if (typeof props.value.value === 'number') {
+			if (typeof props.value === 'number') {
 				return {mode: 'number', isExp: false}
-			} else if (isList(props.value.value) && props.value.value.length === 2) {
-				const info = getFnInfo(props.value.value)
+			} else if (isList(props.value) && props.value.length === 2) {
+				const info = getFnInfo(props.value)
 
 				if (info) {
 					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Function)
 					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
-						const isExp = typeof (props.value.value as MalVal[])[1] !== 'number'
+						const isExp = typeof (props.value as MalVal[])[1] !== 'number'
 						return {mode: 'unit', unit, inverseFn, isExp}
 					}
 				}
@@ -105,7 +102,7 @@ export default defineComponent({
 
 		const fn = computed(() => {
 			if (display.value.mode !== 'exp') {
-				return getFn(props.value.value)
+				return getFn(props.value)
 			} else {
 				return null
 			}
@@ -114,12 +111,12 @@ export default defineComponent({
 		const displayValue = computed(() => {
 			switch (display.value.mode) {
 				case 'number':
-					return props.value.value as number
+					return props.value as number
 				case 'unit':
-					return getEvaluated((props.value.value as MalVal[])[1]) as number
+					return getEvaluated((props.value as MalVal[])[1]) as number
 				default:
 					// exp
-					return getEvaluated(props.value.value) as number
+					return getEvaluated(props.value) as number
 			}
 		})
 
@@ -177,17 +174,15 @@ export default defineComponent({
 			if (display.value.mode === 'unit') {
 				const unitValue =
 					typeof newExp === 'number'
-						? reverseEval(newExp, (props.value.value as MalVal[])[1])
+						? reverseEval(newExp, (props.value as MalVal[])[1])
 						: newExp
-				newExp = L((props.value.value as MalVal[])[0], unitValue)
+				newExp = L((props.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
 				newExp =
-					typeof newExp === 'number'
-						? reverseEval(newExp, props.value.value)
-						: newExp
+					typeof newExp === 'number' ? reverseEval(newExp, props.value) : newExp
 			}
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		return {

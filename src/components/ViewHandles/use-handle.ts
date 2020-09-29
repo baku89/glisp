@@ -21,7 +21,6 @@ import {
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {vec2, mat2d} from 'gl-matrix'
-import {NonReactive} from '@/utils'
 import {reconstructTree} from '@/mal/reader'
 
 interface ClassList {
@@ -56,14 +55,14 @@ const K_ANGLE = K('angle'),
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
 export default function useHandle(
-	selectedExp: Ref<NonReactive<MalNode>[]>,
+	selectedExp: Ref<MalNode[]>,
 	viewTransform: Ref<mat2d>,
 	viewEl: Ref<HTMLElement | null>,
 	context: SetupContext
 ) {
 	const draggingIndex = ref<[number, number] | null>(null)
 	const rawPrevPos = ref([0, 0])
-	const fnInfo = computed(() => selectedExp.value.map(e => getFnInfo(e.value)))
+	const fnInfo = computed(() => selectedExp.value.map(e => getFnInfo(e)))
 	const handleCallbacks = computed(() =>
 		fnInfo.value.map(fi => {
 			if (!fi) {
@@ -76,7 +75,7 @@ export default function useHandle(
 	)
 	const params = computed(() =>
 		fnInfo.value.map((fi, i) => {
-			const e = selectedExp.value[i].value
+			const e = selectedExp.value[i]
 			if (isMap(e) || !fi) {
 				return []
 			}
@@ -87,7 +86,7 @@ export default function useHandle(
 	)
 	const unevaluatedParams = computed(() =>
 		fnInfo.value.map((fi, i) => {
-			const e = selectedExp.value[i].value
+			const e = selectedExp.value[i]
 			if (isMap(e) || !fi) {
 				return []
 			}
@@ -95,11 +94,11 @@ export default function useHandle(
 		})
 	)
 	const returnedValue = computed(() =>
-		selectedExp.value.map(e => getEvaluated(e.value))
+		selectedExp.value.map(e => getEvaluated(e))
 	)
 	const transform = computed(() =>
 		selectedExp.value.map(e => {
-			const xform = computeExpTransform(e.value)
+			const xform = computeExpTransform(e)
 			// pre-multiplies with viewTransform
 			mat2d.multiply(xform, viewTransform.value as mat2d, xform)
 
@@ -254,7 +253,7 @@ export default function useHandle(
 
 		const xformInv = transformInv.value[selectedIndex]
 		const fi = fnInfo.value[selectedIndex]
-		const exp = selectedExp.value[selectedIndex].value
+		const exp = selectedExp.value[selectedIndex]
 		const _params = params.value[selectedIndex]
 		const _unevaluatedParams = unevaluatedParams.value[selectedIndex]
 

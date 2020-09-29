@@ -15,8 +15,7 @@ import {printExp} from '@/mal'
 // import DialogCommand from '@/components/dialogs/DialogCommand.vue'
 import {getMapValue} from '@/mal/utils'
 import {printer} from '@/mal/printer'
-// import {NonReactive, nonReactive} from '@/utils'
-
+//
 export default function useDialogCommand(context: SetupContext) {
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !isSymbol(f)) {
@@ -44,7 +43,7 @@ export default function useDialogCommand(context: SetupContext) {
 		}
 
 		// Create the expression with default parameters
-		// const exp: NonReactive<MalVal> = nonReactive(L(f, ...initialParams))
+		// const exp: MalVal = nonReactive(L(f, ...initialParams))
 
 		// Show Modal
 		// $modal.show(

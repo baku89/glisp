@@ -67,37 +67,32 @@ import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 
 export default defineComponent({
 	name: 'MalInputSize2d',
 	components: {MalInputNumber, MalExpButton, InputNumber},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalSeq | MalSymbol>>,
+			type: Object as PropType<MalSeq | MalSymbol>,
 			required: true,
-			validator: (x: NonReactive<MalSeq | MalSymbol>) =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
 		},
 	},
 	setup(props, context) {
 		const isSizeFunc = computed(
-			() =>
-				isList(props.value.value) &&
-				isSymbolFor(props.value.value[0], 'vec2/size')
+			() => isList(props.value) && isSymbolFor(props.value[0], 'vec2/size')
 		)
 
 		const size = computed(() => {
-			const value = props.value.value
+			const value = props.value
 			if (isSizeFunc.value) {
-				return nonReactive((value as MalSeq)[1])
+				return (value as MalSeq)[1]
 			} else {
 				return props.value
 			}
 		})
 
 		const ratio = computed(() => {
-			const value = props.value.value
+			const value = props.value
 			if (isSizeFunc.value) {
 				return (value as MalSeq)[2] as number | false
 			} else {
@@ -105,29 +100,25 @@ export default defineComponent({
 			}
 		})
 
-		const isValueSeparated = computed(() => isVector(size.value.value))
+		const isValueSeparated = computed(() => isVector(size.value))
 
 		const nonReactiveValues = computed(() => {
 			if (!isValueSeparated.value) {
 				return []
 			} else {
-				return Array.from(size.value.value as MalSeq).map(nonReactive)
+				return Array.from(size.value as MalSeq)
 			}
 		})
 
-		const evaluated = computed(() => getEvaluated(size.value.value) as number[])
+		const evaluated = computed(() => getEvaluated(size.value) as number[])
 
-		function onInputElement(
-			index: number,
-			v: NonReactive<MalVal>,
-			num: number
-		) {
+		function onInputElement(index: number, v: MalVal, num: number) {
 			if (!isValueSeparated.value) {
 				return
 			}
 
-			const newSize = cloneExp(size.value.value as MalSeq)
-			newSize[index] = v.value
+			const newSize = cloneExp(size.value as MalSeq)
+			newSize[index] = v
 
 			const r = evaluated.value[1] / evaluated.value[0]
 
@@ -152,7 +143,7 @@ export default defineComponent({
 				newSize,
 				ratio.value === false ? false : r
 			)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		function onInputEvaluatedElement(index: number, v: number) {
@@ -175,27 +166,23 @@ export default defineComponent({
 				newSize[anotherIndex] = anotherValue
 			}
 
-			const newSizeExp = reverseEval(newSize, size.value.value)
+			const newSizeExp = reverseEval(newSize, size.value)
 
 			const newExp = createList(
 				symbolFor('vec2/size'),
 				newSizeExp,
 				ratio.value === false ? false : r
 			)
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		function onClickLinkButton() {
 			const newRatio =
 				ratio.value === false ? evaluated.value[1] / evaluated.value[0] : false
 
-			const newExp = createList(
-				symbolFor('vec2/size'),
-				size.value.value,
-				newRatio
-			)
+			const newExp = createList(symbolFor('vec2/size'), size.value, newRatio)
 
-			context.emit('input', nonReactive(newExp))
+			context.emit('input', newExp)
 		}
 
 		return {

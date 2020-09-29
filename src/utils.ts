@@ -29,31 +29,6 @@ export function getParamLabel(exp: MalVal) {
 	return str.length === 1 ? str : Case.capital(str)
 }
 
-/**
- * The utility class holds a value which does not need to be watched by Vue
- */
-const ValueSymbol = Symbol('NonReactive.value')
-// let counter = 0
-export class NonReactive<T> {
-	// private id: number
-
-	constructor(value: T) {
-		// this.id = counter++
-		;(this as any)[ValueSymbol] = value
-	}
-
-	public get value(): T {
-		return (this as any)[ValueSymbol]
-	}
-}
-
-/**
- * Creates NonReactive object
- */
-export function nonReactive<T>(value: T): NonReactive<T> {
-	return new NonReactive(value)
-}
-
 export function partition(n: number, coll: any[]) {
 	const ret = []
 

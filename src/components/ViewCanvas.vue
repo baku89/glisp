@@ -9,7 +9,6 @@ import {defineComponent, onMounted, watch, ref, PropType} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
-import {NonReactive} from '@/utils'
 import createCanvasRender, {
 	CanvasRendererType,
 } from '@/renderer/canvas-renderer'
@@ -19,7 +18,7 @@ import {useResizeSensor} from '@/components/use'
 export default defineComponent({
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
+			type: Object as PropType<MalVal | undefined>,
 			required: true,
 		},
 		guideColor: {
@@ -102,11 +101,11 @@ export default defineComponent({
 				}
 
 				if (!renderer) {
-					initialExp = props.exp.value
+					initialExp = props.exp
 					return
 				}
 
-				const exp = props.exp.value
+				const exp = props.exp
 
 				await render(exp)
 			}

@@ -1,4 +1,4 @@
-import {getParamLabel, NonReactive, nonReactive} from '@/utils'
+import {getParamLabel} from '@/utils'
 import AppScope from '@/scopes/app'
 import {
 	MalVal,
@@ -23,7 +23,7 @@ interface SchemaBase {
 	label: string
 
 	// Properties for uiSchema
-	value?: NonReactive<MalVal>
+	value?: MalVal
 	default?: MalVal
 	initial?: MalVal
 	isDefault?: boolean
@@ -35,7 +35,7 @@ interface SchemaBase {
  */
 
 interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
-	value?: NonReactive<T>
+	value?: T
 	default?: T
 	variadic?: false
 	key?: string
@@ -361,7 +361,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 		}
 
 		// Set value with wrapped by nonReactive
-		sch.value = nonReactive(value)
+		sch.value = value
 		if ('default' in sch) {
 			sch.isDefault = value === sch.default
 		}
@@ -382,7 +382,7 @@ function generateDynamicUISchema(
 
 	for (const sch of uiSchema) {
 		const value = sch.value as MalVal
-		sch.value = nonReactive(value)
+		sch.value = value
 
 		// Force set the UI type
 		sch.ui = sch.ui || sch.type
@@ -428,7 +428,7 @@ function updateParamsByFixedUISchema(
 			newParams.push(
 				'default' in uiSchema[i]
 					? (uiSchema[i].default as MalVal)
-					: (uiSchema[i].value?.value as MalVal)
+					: (uiSchema[i].value as MalVal)
 			)
 		}
 
@@ -450,7 +450,7 @@ function updateParamsByFixedUISchema(
 		newParams.push(...Object.entries(restMap).flat())
 		return newParams
 	} else {
-		const newParams = uiSchema.map(sch => sch.value?.value) as MalVal[]
+		const newParams = uiSchema.map(sch => sch.value) as MalVal[]
 		newParams[index] = value
 
 		// Shorten the parameters as much as possible
@@ -473,7 +473,7 @@ function updateParamsByDynamicUISchema(
 	index: number,
 	value: MalVal
 ) {
-	const params = uiSchema.map(s => s.value?.value as MalVal)
+	const params = uiSchema.map(s => s.value as MalVal)
 	params[index] = value
 	const toParams = schuema['to-params']
 	return toParams({[K('values')]: params}) as MalVal[]

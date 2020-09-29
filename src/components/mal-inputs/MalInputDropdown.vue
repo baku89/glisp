@@ -9,7 +9,6 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {MalVal} from '@/mal/types'
 import {InputDropdown} from '@/components/inputs'
 
@@ -20,9 +19,8 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<NonReactive<MalVal>>,
+			type: Object as PropType<MalVal>,
 			required: true,
-			validator: (x: NonReactive<MalVal>) => x instanceof NonReactive,
 		},
 		values: {
 			type: Array as PropType<string[] | number[]>,
@@ -35,7 +33,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		function onInput(value: string | number) {
-			context.emit('input', nonReactive(value))
+			context.emit('input', value)
 			context.emit('end-tweak')
 		}
 

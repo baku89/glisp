@@ -61,7 +61,6 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
 import {
 	MalVal,
 	isList,
@@ -107,7 +106,7 @@ export default defineComponent({
 	name: 'ViewExpTree',
 	props: {
 		exp: {
-			type: Object as PropType<NonReactive<MalVal>>,
+			type: Object as PropType<MalVal>,
 			required: true,
 		},
 		expSelection: {
@@ -115,15 +114,15 @@ export default defineComponent({
 			required: true,
 		},
 		activeExp: {
-			type: Object as PropType<NonReactive<MalNode> | undefined>,
+			type: Object as PropType<MalNode | undefined>,
 			default: undefined,
 		},
 		editingExp: {
-			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			type: Object as PropType<MalVal | undefined>,
 			default: undefined,
 		},
 		hoveringExp: {
-			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			type: Object as PropType<MalVal | undefined>,
 			default: undefined,
 		},
 		mode: {
@@ -136,16 +135,16 @@ export default defineComponent({
 		 * The flag whether the exp has UI annotaiton
 		 */
 		const hasAnnotation = computed(() => {
-			return isUIAnnotation(props.exp.value)
+			return isUIAnnotation(props.exp)
 		})
 
 		/**
 		 * the body of expression withouht ui-annotate wrapping
 		 */
 		const expBody = computed(() => {
-			const exp = props.exp.value
+			const exp = props.exp
 			if (hasAnnotation.value) {
-				return nonReactive((exp as MalSeq)[2])
+				return (exp as MalSeq)[2]
 			} else {
 				return props.exp
 			}
@@ -155,7 +154,7 @@ export default defineComponent({
 		 * UI Annotations
 		 */
 		const ui = computed(() => {
-			const exp = props.exp.value
+			const exp = props.exp
 			if (hasAnnotation.value) {
 				const info = (exp as MalSeq)[1] as MalMap
 				return {
@@ -169,7 +168,7 @@ export default defineComponent({
 		})
 
 		const labelInfo = computed(() => {
-			const exp = expBody.value.value
+			const exp = expBody.value
 
 			if (isList(exp)) {
 				return {
@@ -181,7 +180,7 @@ export default defineComponent({
 						type: 'fontawesome',
 						value: 'fas fa-caret-right',
 					},
-					children: exp.slice(1).map(e => nonReactive(e)),
+					children: exp.slice(1),
 				}
 			} else if (isVector(exp)) {
 				return {
@@ -222,21 +221,19 @@ export default defineComponent({
 		})
 
 		const active = computed(() => {
-			return props.activeExp && expBody.value.value === props.activeExp.value
+			return props.activeExp && expBody.value === props.activeExp
 		})
 
 		const selected = computed(() => {
-			return props.expSelection.has(expBody.value.value as MalNode)
+			return props.expSelection.has(expBody.value as MalNode)
 		})
 
 		const hovering = computed(() => {
-			return (
-				props.hoveringExp && expBody.value.value === props.hoveringExp.value
-			)
+			return props.hoveringExp && expBody.value === props.hoveringExp
 		})
 
 		const editing = computed(() => {
-			return props.editingExp && expBody.value.value === props.editingExp.value
+			return props.editingExp && expBody.value === props.editingExp
 		})
 
 		/**
@@ -256,31 +253,30 @@ export default defineComponent({
 				annotation[K_NAME] = ui.value.name
 			}
 
-			const newExp = nonReactive(
+			const newExp =
 				Object.keys(annotation).length > 0
-					? L(S_UI_ANNOTATE, annotation, expBody.value.value)
-					: expBody.value.value
-			)
+					? L(S_UI_ANNOTATE, annotation, expBody.value)
+					: expBody.value
 
 			context.emit('update:exp', newExp)
 		}
 
-		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
-			const newExpBody = cloneExp(expBody.value.value) as MalSeq
+		function onUpdateChildExp(i: number, replaced: MalNode) {
+			const newExpBody = cloneExp(expBody.value) as MalSeq
 
-			;(newExpBody as MalSeq)[i + 1] = replaced.value
+			;(newExpBody as MalSeq)[i + 1] = replaced
 
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, (props.exp.value as MalSeq)[1], newExpBody)
+				newExp = L(S_UI_ANNOTATE, (props.exp as MalSeq)[1], newExpBody)
 			} else {
 				newExp = newExpBody
 			}
 
 			reconstructTree(newExp)
 
-			context.emit('update:exp', nonReactive(newExp))
+			context.emit('update:exp', newExp)
 		}
 
 		function onClickEditButton(e: MouseEvent) {
