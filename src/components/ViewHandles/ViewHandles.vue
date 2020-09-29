@@ -49,7 +49,7 @@
 			</g> -->
 		</svg>
 	</teleport>
-	<svg class="ViewHandles" ref="el">
+	<svg class="ViewHandles" ref="el" v-bind="$attrs">
 		<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
 			<path
 				:d="selectedPath[selectedIndex]"
