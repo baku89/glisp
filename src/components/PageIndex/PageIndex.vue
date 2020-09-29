@@ -165,7 +165,6 @@ interface UI {
 	theme: Theme
 	guideColor: string
 	viewTransform: mat2d
-	viewHandlesTransform: mat2d
 }
 
 const OFFSET_START = 11 // length of "(sketch;__\n"
