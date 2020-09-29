@@ -1,6 +1,6 @@
 <template>
 	<teleport to="#view-handles-axes">
-		<svg class="ViewHandles__axes-teleport" :style="axesTeleportStyle">
+		<svg class="ViewHandles__axes" :style="axesTeleportStyle">
 			<defs>
 				<marker
 					id="arrow-x"
@@ -111,8 +111,16 @@
 import {MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {NonReactive} from '@/utils'
-import {useRem, useGesture} from '@/components/use'
-import {defineComponent, computed, ref, toRef, PropType, onMounted} from 'vue'
+import {useRem, useGesture, useResizeSensor} from '@/components/use'
+import {
+	defineComponent,
+	computed,
+	ref,
+	toRef,
+	PropType,
+	onMounted,
+	reactive,
+} from 'vue'
 import AppScope from '@/scopes/app'
 import useHandle from './use-handle'
 
@@ -130,10 +138,21 @@ export default defineComponent({
 	setup(props, context) {
 		const el = ref<HTMLElement | null>(null)
 
-		const axesTeleportStyle = computed(() => {
-			if (!el.value) return {}
+		const elBounds = reactive({x: 0, y: 0, width: 0, height: 0})
+		useResizeSensor(
+			el,
+			_el => {
+				const {x, y, width, height} = _el.getBoundingClientRect()
+				elBounds.x = x
+				elBounds.y = y
+				elBounds.width = width
+				elBounds.height = height
+			},
+			true
+		)
 
-			const {x, y, width, height} = el.value.getBoundingClientRect()
+		const axesTeleportStyle = computed(() => {
+			const {x, y, width, height} = elBounds
 
 			return {
 				left: `${x}px`,
@@ -143,9 +162,16 @@ export default defineComponent({
 			}
 		})
 
-		const viewAxisStyle = computed(
-			() => `matrix(${props.viewTransform.join(' ')})`
-		)
+		const viewAxisStyle = computed(() => {
+			const xform = mat2d.fromTranslation(mat2d.create(), [
+				-elBounds.x,
+				-elBounds.y,
+			])
+
+			mat2d.multiply(xform, xform, props.viewTransform)
+
+			return `matrix(${xform.join(' ')})`
+		})
 
 		const handleData = useHandle(
 			toRef(props, 'selectedExp'),
@@ -270,7 +296,7 @@ export default defineComponent({
 	height 100%
 
 	// Teleport
-	&__axes-teleport
+	&__axes
 		position fixed
 		overflow hidden
 		background var(--background)
@@ -280,7 +306,7 @@ export default defineComponent({
 		stroke-dasharray 1 4
 
 	// Styles
-	&, &__axes-teleport
+	&, &__axes
 		.fill, .stroke
 			stroke var(--highlight)
 			stroke-width 1
