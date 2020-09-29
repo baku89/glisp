@@ -202,9 +202,9 @@ export function getType(obj: any): MalType {
 				return islist ? MalType.List : MalType.Vector
 			} else if (obj instanceof Float32Array) {
 				return MalType.Vector
-			} else if ((obj as any)[M_TYPE] === MalType.Symbol) {
+			} else if (obj.type === MalType.Symbol) {
 				return MalType.Symbol
-			} else if ((obj as any)[M_TYPE] === MalType.Atom) {
+			} else if (obj.type === MalType.Atom) {
 				return MalType.Atom
 			} else {
 				return MalType.Map
@@ -457,27 +457,29 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 
 // Symbol
 export class MalSymbol {
-	public constructor(public value: string) {
-		;(this as any)[M_TYPE] = MalType.Symbol
+	public readonly type: MalType.Symbol = MalType.Symbol
+	private [M_DEF]: MalSeq | null
+	private [M_EVAL]: MalVal
+
+	constructor(public readonly value: string) {}
+
+	set def(def: MalSeq | null) {
+		this[M_DEF] = def
 	}
 
-	public set def(def: MalSeq | null) {
-		;(this as any)[M_DEF] = def
+	get def(): MalSeq | null {
+		return this[M_DEF] || null
 	}
 
-	public get def(): MalSeq | null {
-		return (this as any)[M_DEF] || null
+	set evaluated(value: MalVal) {
+		this[M_EVAL] = value
 	}
 
-	public set evaluated(value: MalVal) {
-		;(this as any)[M_EVAL] = value
+	get evaluated(): MalVal {
+		return this[M_EVAL]
 	}
 
-	public get evaluated(): MalVal {
-		return (this as any)[M_EVAL]
-	}
-
-	public toString() {
+	toString() {
 		return this.value
 	}
 }
@@ -553,9 +555,8 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 
 // Atoms
 export class MalAtom {
-	public constructor(public value: MalVal) {
-		;(this as any)[M_TYPE] = MalType.Atom
-	}
+	public readonly type: MalType.Atom = MalType.Atom
+	public constructor(public value: MalVal) {}
 }
 
 // General functions
