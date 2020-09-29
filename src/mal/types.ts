@@ -23,6 +23,29 @@ export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of lis
 
 export const M_DEF = Symbol.for('def') // save def exp reference in symbol object
 
+export enum MalType {
+	// Collections
+	List = 'list',
+	Vector = 'vector',
+	Map = 'map',
+
+	// Atoms
+	Number = 'number',
+	String = 'string',
+	Boolean = 'boolean',
+	Nil = 'nil',
+	Symbol = 'symbol',
+	Keyword = 'keyword',
+	Atom = 'atom',
+
+	// Functions
+	Function = 'fn',
+	Macro = 'macro',
+
+	// Others
+	Undefined = 'undefined',
+}
+
 export type MalBind = (
 	| MalSymbol
 	| string
@@ -57,17 +80,24 @@ export interface MalFuncThis {
 	callerEnv: Env
 }
 
-interface MalBase {
-	type: MalType
+abstract class MalBase {
+	constructor() {}
+
+	abstract type: MalType
+	abstract toString(): string
 }
 
 export class MalNumber {
 	type: MalType.Number = MalType.Number
 
-	private constructor(public value: number) {}
+	private constructor(public readonly value: number) {}
 
 	valueOf() {
 		return this.value
+	}
+
+	toString() {
+		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
 	}
 
 	static create(value: number) {
@@ -78,10 +108,14 @@ export class MalNumber {
 export class MalString {
 	type: MalType.String = MalType.String
 
-	private constructor(public value: string) {}
+	private constructor(public readonly value: string) {}
 
 	valueOf() {
 		return this.value
+	}
+
+	toString() {
+		return `"${this.value}"`
 	}
 
 	static create(value: string) {
@@ -98,6 +132,10 @@ export class MalBoolean {
 		return this.value
 	}
 
+	toString() {
+		return this.value.toString()
+	}
+
 	static create(value: boolean) {
 		return new MalBoolean(value)
 	}
@@ -112,6 +150,10 @@ export class MalNil {
 
 	valueOf() {
 		return null
+	}
+
+	toString() {
+		return 'nil'
 	}
 
 	private static instance?: MalNil
@@ -233,29 +275,6 @@ export function getOuter(exp: any) {
 		return exp[M_OUTER]
 	}
 	return null
-}
-
-export enum MalType {
-	// Collections
-	List = 'list',
-	Vector = 'vector',
-	Map = 'map',
-
-	// Atoms
-	Number = 'number',
-	String = 'string',
-	Boolean = 'boolean',
-	Nil = 'nil',
-	Symbol = 'symbol',
-	Keyword = 'keyword',
-	Atom = 'atom',
-
-	// Functions
-	Function = 'fn',
-	Macro = 'macro',
-
-	// Others
-	Undefined = 'undefined',
 }
 
 export function getType(obj: any): MalType {
