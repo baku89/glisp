@@ -377,6 +377,7 @@ export default function useHandle(
 		draggingIndex,
 		handles,
 		transformStyle,
+		transform,
 		selectedPath,
 		onMousedown,
 		handleCallbacks,

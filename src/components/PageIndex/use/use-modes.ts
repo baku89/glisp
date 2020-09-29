@@ -50,9 +50,8 @@ export function useModes(
 		ignorePredicate(e: MouseEvent) {
 			const root = getHTMLElement(handleEl)
 			if (!root) return true
-			const target = e.target as HTMLElement
-			// NOTE: Makeshift
-			const svg = root.children[1]
+			const target = e.target
+			const svg = root.querySelector('svg')
 			return target !== svg && svg.contains(target)
 		},
 	})
