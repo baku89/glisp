@@ -31,7 +31,7 @@
 				<path class="ViewHandles__axis stroke" d="M -50000 0 H 50000" />
 				<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
 			</g>
-			<g
+			<!-- <g
 				:transform="transformStyle"
 				class="ViewHandles__gnomon"
 				v-if="handleCallbacks"
@@ -46,7 +46,7 @@
 					d="M 0 0 V 200"
 					marker-end="url(#arrow-y)"
 				/>
-			</g>
+			</g> -->
 		</svg>
 	</teleport>
 	<svg class="ViewHandles" ref="el">
