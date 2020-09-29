@@ -1,4 +1,10 @@
-import {MalVal, symbolFor as S, createList as L} from '@/mal/types'
+import {
+	MalVal,
+	symbolFor as S,
+	createList as L,
+	createVector,
+	createNumber,
+} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
@@ -8,25 +14,31 @@ const Exports = [
 	[
 		'convex-hull',
 		(pts: [number, number][], concavity: number | null = null) => {
-			return hull(pts, concavity === null ? Infinity : concavity)
+			return createVector(
+				...hull(pts, concavity === null ? Infinity : concavity).map(([a, b]) =>
+					createVector(a, b)
+				)
+			)
 		},
 	],
 	[
 		'delaunay',
 		(pts: [number, number][]) => {
 			const delaunay = Delaunator.from(pts)
-			return partition(3, delaunay.triangles).map(([a, b, c]) => [
-				[...pts[a]],
-				[...pts[b]],
-				[...pts[c]],
-			])
+			return createVector(
+				...partition(3, delaunay.triangles).map(([a, b, c]) => [
+					[...pts[a]],
+					[...pts[b]],
+					[...pts[c]],
+				])
+			)
 		},
 	],
 	[
 		'cubic-bezier',
 		(x1: number, y1: number, x2: number, y2: number, t: number) => {
 			const easing = BezierEasing(x1, y1, x2, y2)
-			return easing(Math.min(Math.max(0, t), 1))
+			return createNumber(easing(Math.min(Math.max(0, t), 1)))
 		},
 	],
 ] as [string, MalVal][]
