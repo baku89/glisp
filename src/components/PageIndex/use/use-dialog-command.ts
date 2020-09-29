@@ -42,6 +42,8 @@ export default function useDialogCommand(context: SetupContext) {
 			initialParams = initialParams() as MalVal[]
 		}
 
+		context
+
 		// Create the expression with default parameters
 		// const exp: MalVal = nonReactive(L(f, ...initialParams))
 

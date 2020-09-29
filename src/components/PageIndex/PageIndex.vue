@@ -99,7 +99,6 @@ import {
 	toRefs,
 	ref,
 	toRef,
-	onMounted,
 } from 'vue'
 
 import GlobalMenu from '@/components/GlobalMenu'

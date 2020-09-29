@@ -51,7 +51,7 @@
 
 <script lang="ts">
 import {defineComponent, toRef, PropType} from 'vue'
-import {MalSeq, MalSymbol, isSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol} from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {InputNumber, InputTranslate} from '@/components/inputs'

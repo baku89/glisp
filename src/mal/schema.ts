@@ -92,7 +92,7 @@ interface SchemaStringDropdown extends SchemaStringDefault {
 type SchemaString =
 	| SchemaStringDefault
 	| SchemaStringColor
-	| SchemaStringDefault
+	| SchemaStringDropdown
 
 // Keyword
 interface SchemaKeywordDefault extends SchemaPrimitiveBase<string> {

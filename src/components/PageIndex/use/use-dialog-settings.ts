@@ -12,6 +12,8 @@ export default function useDialogCommand(context: SetupContext) {
 
 	AppScope.readEval(`(do ${settings}\n)`)
 
+	context
+
 	ConsoleScope.def('show-settings', () => {
 		// $modal.show(
 		// 	DialogSettings,

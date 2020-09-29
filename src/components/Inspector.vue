@@ -35,7 +35,6 @@ import {
 	isSymbol,
 	MalNode,
 	MalSymbol,
-	isNode,
 	getOuter,
 	MalType,
 } from '@/mal/types'

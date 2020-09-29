@@ -71,7 +71,7 @@ import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {useNumericVectorUpdator} from '@/components/use'
 import {reverseEval} from '@/mal/utils'
-import {isSeq, MalSeq, isSymbol, MalSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol} from '@/mal/types'
 
 export default defineComponent({
 	name: 'MalInputMat2d',

@@ -51,9 +51,7 @@
 import {defineComponent, PropType, computed} from 'vue'
 import {
 	MalSeq,
-	isSeq,
 	MalSymbol,
-	isSymbol,
 	isVector,
 	getEvaluated,
 	isList,
