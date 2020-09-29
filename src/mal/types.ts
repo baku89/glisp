@@ -57,6 +57,73 @@ export interface MalFuncThis {
 	callerEnv: Env
 }
 
+interface MalBase {
+	type: MalType
+}
+
+export class MalNumber {
+	type: MalType.Number = MalType.Number
+
+	private constructor(public value: number) {}
+
+	valueOf() {
+		return this.value
+	}
+
+	static create(value: number) {
+		return new MalNumber(value)
+	}
+}
+
+export class MalString {
+	type: MalType.String = MalType.String
+
+	private constructor(public value: string) {}
+
+	valueOf() {
+		return this.value
+	}
+
+	static create(value: string) {
+		return new MalString(value)
+	}
+}
+
+export class MalBoolean {
+	type: MalType.Boolean = MalType.Boolean
+
+	private constructor(public value: boolean) {}
+
+	valueOf() {
+		return this.value
+	}
+
+	static create(value: boolean) {
+		return new MalBoolean(value)
+	}
+}
+
+export class MalNil {
+	type: MalType.Nil = MalType.Nil
+
+	private constructor() {
+		null
+	}
+
+	valueOf() {
+		return null
+	}
+
+	private static instance?: MalNil
+
+	static create() {
+		if (this.instance) return this.instance
+
+		this.instance = new MalNil()
+		return this.instance
+	}
+}
+
 export function createBoolean(value: boolean) {
 	return value
 }
