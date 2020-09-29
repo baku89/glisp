@@ -92,6 +92,7 @@
 		"voronoi": "^1.0.0",
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
 		"vue-click-outside": "^1.1.0",
+		"vue-color": "^2.7.1",
 		"vuedraggable": "^2.24.0",
 		"webpack": "^4.44.2",
 		"webpack-cli": "^3.3.12",
