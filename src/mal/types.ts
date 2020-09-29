@@ -548,7 +548,7 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 		}
 		hm[args[i]] = args[i + 1]
 	}
-	return hm
+	return createMap(hm)
 }
 
 // Atoms

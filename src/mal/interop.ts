@@ -1,4 +1,4 @@
-import {MalError} from './types'
+import {createNil, MalError} from './types'
 import {convertJSObjectToMalMap} from './reader'
 
 export default {
@@ -19,7 +19,7 @@ export default {
 
 	jsToMal(obj: any) {
 		if (obj === null || obj === undefined) {
-			return null
+			return createNil()
 		}
 
 		// const cache: any[] = []

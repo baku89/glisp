@@ -25,6 +25,7 @@ import {
 	createBoolean,
 	createNumber,
 	createNil,
+	createString,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -175,15 +176,22 @@ const Exports = [
 		(f: MalFunc, a: MalVal[]) => createVector(...a.filter(x => !f(x))),
 	],
 	['sort', (coll: MalVal[]) => createVector(...[...coll].sort())],
-	['partition', partition],
-	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
+	[
+		'partition',
+		(n: number, coll: MalVal[]) =>
+			createVector(...partition(n, coll).map(x => createVector(...x))),
+	],
+	[
+		'index-of',
+		(value: MalVal[] | string, a: string) => createNumber(value.indexOf(a)),
+	],
 	[
 		'last-index-of',
-		(value: MalVal[] | string, a: string) => value.lastIndexOf(a),
+		(value: MalVal[] | string, a: string) => createNumber(value.lastIndexOf(a)),
 	],
 	['repeat', (a: MalVal, n: number) => createVector(...Array(n).fill(a))],
-	['reverse', (coll: MalVal[]) => [...coll].reverse()],
-	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
+	['reverse', (coll: MalVal[]) => createVector(...[...coll].reverse())],
+	['cons', (a: MalVal, b: MalVal) => createVector(...[a].concat(b))],
 	[
 		'conj',
 		(lst: MalVal, ...args: MalVal[]) => {
@@ -192,7 +200,7 @@ const Exports = [
 				args.forEach(arg => newList.unshift(arg))
 				return newList
 			} else if (isVector(lst)) {
-				return [...lst, ...args]
+				return createVector(...lst, ...args)
 			}
 		},
 	],
@@ -204,12 +212,12 @@ const Exports = [
 	[
 		'join',
 		(separator: string, coll: MalVal[]) =>
-			coll.map(v => printExp(v, false)).join(separator),
+			createString(coll.map(v => printExp(v, false)).join(separator)),
 	],
 
 	// Map
 	['hash-map', (...a: MalVal[]) => assocBang({}, ...a)],
-	['map?', isMap],
+	['map?', (x: MalVal) => createBoolean(isMap(x))],
 	['assoc', (m: MalMap, ...a: MalVal[]) => ({...m, ...assocBang({}, ...a)})],
 	[
 		'dissoc',
@@ -221,7 +229,7 @@ const Exports = [
 	],
 	[
 		'get',
-		(m: MalMap, a: string, notfound: MalVal = null) => {
+		(m: MalMap, a: string, notfound: MalVal = createNil()) => {
 			if (isMap(m)) {
 				return a in m ? m[a] : notfound
 			} else {
@@ -231,26 +239,46 @@ const Exports = [
 	],
 	[
 		'contains?',
-		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false),
+		(m: MalMap, a: MalVal) =>
+			createBoolean(typeof a === 'string' ? a in m : false),
 	],
 	['keys', (a: MalMap) => createVector(...Object.keys(a))],
 	['vals', (a: MalMap) => createVector(...Object.values(a))],
-	['entries', (a: MalMap) => Object.entries(a)],
+	[
+		'entries',
+		(a: MalMap) =>
+			createVector(...Object.entries(a).map(x => createVector(...x))),
+	],
 	[
 		'merge',
 		(...xs: MalVal[]) => {
-			return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
+			return xs.filter(isMap).reduce((ret, m) => assocBang(ret, m), {})
 		},
 	],
 
 	// String
-	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
-	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
-	['subs', (a: string, from: number, to?: number) => a.substr(from, to)],
+	[
+		'pr-str',
+		(...a: MalVal[]) => createString(a.map(e => printExp(e, true)).join(' ')),
+	],
+	[
+		'str',
+		(...a: MalVal[]) => createString(a.map(e => printExp(e, false)).join('')),
+	],
+	[
+		'subs',
+		(a: string, from: number, to?: number) => createString(a.substr(from, to)),
+	],
 
 	// Meta
 	['meta', getMeta],
-	['console.log', console.log],
+	[
+		'console.log',
+		(...xs: MalVal[]) => {
+			console.log(...xs)
+			return createNil()
+		},
+	],
 	['with-meta', withMeta],
 	['set-meta!', setMeta],
 	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
@@ -259,7 +287,7 @@ const Exports = [
 		'atom',
 		(a: MalVal) => new MalAtom(a),
 	],
-	['atom?', (a: MalVal) => a instanceof MalAtom],
+	['atom?', (a: MalVal) => createBoolean(a instanceof MalAtom)],
 	['deref', (atm: MalAtom) => atm.value],
 	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
 	[
@@ -291,11 +319,11 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return ret
+			return createVector(...ret)
 		},
 	],
 	// Random
-	['rnd', (a: MalVal) => seedrandom(a)()],
+	['rnd', (a: MalVal) => createNumber(seedrandom(a)())],
 
 	// I/O
 	[
@@ -314,7 +342,7 @@ const Exports = [
 				throw new MalError('Cannot spit on browser')
 			}
 
-			return null
+			return createNil()
 		},
 	],
 ] as [string, MalVal][]
