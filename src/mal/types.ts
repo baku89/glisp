@@ -88,7 +88,7 @@ abstract class MalBase {
 }
 
 export class MalNumber {
-	type: MalType.Number = MalType.Number
+	readonly type: MalType.Number = MalType.Number
 
 	private constructor(public readonly value: number) {}
 
@@ -106,7 +106,7 @@ export class MalNumber {
 }
 
 export class MalString {
-	type: MalType.String = MalType.String
+	readonly type: MalType.String = MalType.String
 
 	private constructor(public readonly value: string) {}
 
@@ -124,9 +124,9 @@ export class MalString {
 }
 
 export class MalBoolean {
-	type: MalType.Boolean = MalType.Boolean
+	readonly type: MalType.Boolean = MalType.Boolean
 
-	private constructor(public value: boolean) {}
+	private constructor(public readonly value: boolean) {}
 
 	valueOf() {
 		return this.value
@@ -142,7 +142,7 @@ export class MalBoolean {
 }
 
 export class MalNil {
-	type: MalType.Nil = MalType.Nil
+	readonly type: MalType.Nil = MalType.Nil
 
 	private constructor() {
 		null
@@ -167,7 +167,7 @@ export class MalNil {
 }
 
 export class MalKeyword {
-	type: MalType.Keyword = MalType.Keyword
+	readonly type: MalType.Keyword = MalType.Keyword
 
 	private constructor(private readonly value: string) {}
 
