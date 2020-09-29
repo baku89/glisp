@@ -166,6 +166,30 @@ export class MalNil {
 	}
 }
 
+export class MalKeyword {
+	type: MalType.Keyword = MalType.Keyword
+
+	private constructor(private readonly value: string) {}
+
+	toString() {
+		return this.value
+	}
+
+	private static map = new Map<string, MalKeyword>()
+
+	static create(value: string) {
+		const cached = this.map.get(value)
+		if (cached) {
+			return cached
+		}
+
+		const token = new MalKeyword(value)
+		this.map.set(value, token)
+
+		return token
+	}
+}
+
 export function createBoolean(value: boolean) {
 	return value
 }
