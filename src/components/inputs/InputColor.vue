@@ -31,7 +31,7 @@
 <script lang="ts">
 import {defineComponent} from 'vue'
 import {Chrome as ColorPicker} from 'vue-color'
-import Popper from 'vue-popperjs'
+import Popper from '@/components/layouts/Popper.vue'
 
 export default defineComponent({
 	name: 'InputColor',
