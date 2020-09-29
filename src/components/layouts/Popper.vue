@@ -283,8 +283,6 @@ export default defineComponent({
 			data.appendedToBody = false
 			data.popperOptions = Object.assign(data.popperOptions, props.options)
 
-			console.log(context.slots)
-
 			// data.referenceElm = props.reference || context.slots.reference[0].elm
 			// data.popper = context.slots.default[0].elm
 			switch (props.trigger) {

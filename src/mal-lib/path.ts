@@ -289,7 +289,6 @@ function dragHandle(
 			}
 		}
 	} else if (type === K('handle-out')) {
-		console.log('handle-out')
 		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
 		const outHandle = vec2.add(vec2.create(), origOutHandle, delta)
 		draggingSeg[1] = outHandle
