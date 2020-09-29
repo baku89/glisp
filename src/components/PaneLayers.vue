@@ -44,16 +44,16 @@ export default defineComponent({
 			required: true,
 		},
 		selectedExp: {
-			type: Object as PropType<NonReactive<MalVal>[]>,
+			type: Array as PropType<NonReactive<MalVal>[]>,
 			required: true,
 		},
 		editingExp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			default: undefined,
 		},
 		hoveringExp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			default: undefined,
 		},
 	},
 	setup(props, context) {
@@ -73,7 +73,7 @@ export default defineComponent({
 		})
 
 		const activeExp = computed(() => {
-			return props.selectedExp.length === 0 ? null : props.selectedExp[0]
+			return props.selectedExp.length === 0 ? undefined : props.selectedExp[0]
 		})
 
 		const expSelection = computed(() => {

@@ -151,13 +151,13 @@ interface Data {
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
-	viewExp: NonReactive<MalVal> | null
+	viewExp: NonReactive<MalVal> | undefined
 	selectedPath: string[]
 	selectedExp: NonReactive<MalNode>[]
-	activeExp: NonReactive<MalNode> | null
+	activeExp: NonReactive<MalNode> | undefined
 	editingPath: string
-	editingExp: NonReactive<MalNode> | null
-	hoveringExp: NonReactive<MalNode> | null
+	editingExp: NonReactive<MalNode> | undefined
+	hoveringExp: NonReactive<MalNode> | undefined
 }
 
 interface UI {
@@ -211,10 +211,10 @@ export default defineComponent({
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
 			),
 			hasParseError: false,
-			hasEvalError: computed(() => data.viewExp === null),
+			hasEvalError: computed(() => data.viewExp === undefined),
 			hasRenderError: false,
 			viewExp: computed(() => {
-				let viewExp: NonReactive<MalVal> | null = null
+				let viewExp: NonReactive<MalVal> | undefined = undefined
 
 				if (data.exp) {
 					ViewScope.setup({
@@ -239,7 +239,7 @@ export default defineComponent({
 				)
 			),
 			activeExp: computed(() =>
-				data.selectedExp.length === 0 ? null : data.selectedExp[0]
+				data.selectedExp.length === 0 ? undefined : data.selectedExp[0]
 			),
 
 			editingPath: '',
@@ -248,9 +248,9 @@ export default defineComponent({
 					? nonReactive(
 							getExpByPath(data.exp.value, data.editingPath) as MalNode
 					  )
-					: null
+					: undefined
 			),
-			hoveringExp: null,
+			hoveringExp: undefined,
 		}) as any
 
 		// Centerize the origin of viewport on mounted
@@ -329,7 +329,7 @@ export default defineComponent({
 			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
 		}
 
-		function setActiveExp(exp: NonReactive<MalNode> | null) {
+		function setActiveExp(exp: NonReactive<MalNode> | undefined) {
 			if (exp) {
 				const path = generateExpAbsPath(exp.value)
 				data.selectedPath = path !== '/' ? [path] : []

@@ -115,19 +115,19 @@ export default defineComponent({
 			required: true,
 		},
 		activeExp: {
-			type: Object as PropType<NonReactive<MalNode> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalNode> | undefined>,
+			default: undefined,
 		},
 		editingExp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			default: undefined,
 		},
 		hoveringExp: {
-			type: Object as PropType<NonReactive<MalVal> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalVal> | undefined>,
+			default: undefined,
 		},
 		mode: {
-			type: Object as PropType<DisplayMode>,
+			type: String as PropType<DisplayMode>,
 			default: DisplayMode.Node,
 		},
 	},

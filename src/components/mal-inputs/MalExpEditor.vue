@@ -50,8 +50,8 @@ export default defineComponent({
 			required: true,
 		},
 		selectedExp: {
-			type: Object as PropType<NonReactive<MalNode> | null>,
-			required: true,
+			type: Object as PropType<NonReactive<MalNode> | undefined>,
+			default: undefined,
 		},
 		cssStyle: {
 			type: String,

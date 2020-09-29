@@ -45,13 +45,13 @@ export default function useAppCommands(
 	data: {
 		exp: NonReactive<MalNode>
 		selectedExp: NonReactive<MalNode>[]
-		activeExp: NonReactive<MalNode> | null
-		editingExp: NonReactive<MalNode> | null
+		activeExp: NonReactive<MalNode> | undefined
+		editingExp: NonReactive<MalNode> | undefined
 	},
 	callbacks: {
-		updateExp: (exp: NonReactive<MalNode>) => void
-		setActiveExp: (exp: NonReactive<MalNode> | null) => any
-		setSelectedExp: (exp: NonReactive<MalNode>[]) => void
+		updateExp: (exp: NonReactive<MalNode>) => any
+		setActiveExp: (exp: NonReactive<MalNode> | undefined) => any
+		setSelectedExp: (exp: NonReactive<MalNode>[]) => any
 	}
 ) {
 	AppScope.def('expand-selected', () => {
@@ -207,7 +207,7 @@ export default function useAppCommands(
 				const exp = readStr(toSketchCode(code)) as MalNode
 				const nonReactiveExp = nonReactive(exp)
 				callbacks.updateExp(nonReactiveExp)
-				callbacks.setActiveExp(null)
+				callbacks.setActiveExp(undefined)
 				data.editingExp = nonReactiveExp
 			} else {
 				throw new MalError(`Failed to load from "${url}"`)
@@ -345,7 +345,7 @@ export default function useAppCommands(
 			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
-			callbacks.setActiveExp(isNode(exp) ? nonReactive(exp) : null)
+			callbacks.setActiveExp(isNode(exp) ? nonReactive(exp) : undefined)
 		})
 
 		return null

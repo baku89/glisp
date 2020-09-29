@@ -123,7 +123,7 @@ import useHandle from './use-handle'
 export default defineComponent({
 	props: {
 		selectedExp: {
-			type: Object as PropType<NonReactive<MalNode>[]>,
+			type: Array as PropType<NonReactive<MalNode>[]>,
 			required: true,
 		},
 		viewTransform: {
