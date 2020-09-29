@@ -43,15 +43,15 @@
 		</div>
 		<div class="ViewExpTree__children" v-if="labelInfo.children && expanded">
 			<ViewExpTree
-				:activeExp="activeExp"
-				:editingExp="editingExp"
+				:active-exp="activeExp"
+				:editing-exp="editingExp"
 				:exp="child"
 				:expSelection="expSelection"
-				:hoveringExp="hoveringExp"
+				:hovering-exp="hoveringExp"
 				:key="i"
 				@select="$emit('select', $event)"
 				@toggle-selection="$emit('toggle-selection', $event)"
-				@update:editingExp="$emit('update:editingExp', $event)"
+				@update:editing-exp="$emit('update:editing-exp', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
 				v-for="(child, i) in labelInfo.children"
 			/>
@@ -285,7 +285,7 @@ export default defineComponent({
 
 		function onClickEditButton(e: MouseEvent) {
 			e.stopPropagation()
-			context.emit('update:editingExp', expBody.value)
+			context.emit('update:editing-exp', expBody.value)
 		}
 
 		return {

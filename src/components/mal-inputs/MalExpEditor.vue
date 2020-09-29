@@ -2,8 +2,8 @@
 	<GlispEditor
 		class="MalExpEditor"
 		:value="code"
-		:activeRange="activeRange"
-		:cssStyle="cssStyle"
+		:active-range="activeRange"
+		:css-style="cssStyle"
 		:selection="selection"
 		@input="onInput"
 		@update:selection="onSelect"

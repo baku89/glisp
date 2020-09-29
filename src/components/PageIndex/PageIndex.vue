@@ -3,8 +3,8 @@
 		<ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
-			:guideColor="guideColor"
-			:viewTransform="viewTransform"
+			:guide-color="guideColor"
+			:view-transform="viewTransform"
 			@render="hasRenderError = !$event"
 		/>
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
@@ -13,12 +13,12 @@
 				<PaneLayers
 					class="PageIndex__list-view"
 					:exp="exp"
-					:editingExp="editingExp"
-					:selectedExp="selectedExp"
-					:hoveringExp="hoveringExp"
+					:editing-exp="editingExp"
+					:selected-exp="selectedExp"
+					:hovering-exp="hoveringExp"
 					@select="setSelectedExp"
 					@update:exp="updateExp"
-					@update:editingExp="setEditingExp"
+					@update:editing-exp="setEditingExp"
 				/>
 			</template>
 			<template #main>
@@ -64,9 +64,9 @@
 						<MalExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
-							:selectedExp="activeExp"
-							v-model:hasParseError="hasParseError"
-							:editMode="editingPath === '/' ? 'params' : 'node'"
+							:selected-exp="activeExp"
+							v-model:has-parse-error="hasParseError"
+							:edit-mode="editingPath === '/' ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@select="setActiveExp"
 						/>
@@ -97,7 +97,6 @@ import {
 	watch,
 	toRefs,
 	ref,
-	onMounted,
 	toRef,
 } from 'vue'
 
@@ -375,12 +374,12 @@ export default defineComponent({
 
 		return {
 			elHandles,
-			...toRefs(data as any),
+			...toRefs(data),
 			onSetupConsole,
 			updateSelectedExp,
 			updateEditingExp,
 			setEditingExp,
-			...toRefs(ui as any),
+			...toRefs(ui),
 			updateExp,
 			setSelectedExp,
 			setActiveExp,

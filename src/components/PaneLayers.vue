@@ -13,14 +13,14 @@
 				v-for="(child, i) in children"
 				:key="i"
 				:exp="child"
-				:expSelection="expSelection"
-				:activeExp="activeExp"
-				:editingExp="editingExp"
-				:hoveringExp="hoveringExp"
+				:exp-selection="expSelection"
+				:active-exp="activeExp"
+				:editing-exp="editingExp"
+				:hovering-exp="hoveringExp"
 				@select="selectSingleExp"
 				@toggle-selection="toggleSelectedExp"
 				@update:exp="onUpdateChildExp(i, $event)"
-				@update:editingExp="$emit('update:editingExp', $event)"
+				@update:editing-exp="$emit('update:editing-exp', $event)"
 			/>
 		</div>
 	</div>
@@ -92,7 +92,7 @@ export default defineComponent({
 
 		function onClickEditButton(e: MouseEvent) {
 			e.stopPropagation()
-			context.emit('update:editingExp', props.exp)
+			context.emit('update:editing-exp', props.exp)
 		}
 
 		// Selection manipulation
