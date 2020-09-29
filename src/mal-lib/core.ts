@@ -21,6 +21,10 @@ import {
 	withMeta,
 	isSeq,
 	setMeta,
+	createVector,
+	createBoolean,
+	createNumber,
+	createNil,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -28,83 +32,83 @@ import isNodeJS from 'is-node'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
-	['nil?', (x: MalVal) => x === null],
-	['true?', (x: MalVal) => x === true],
-	['false?', (x: MalVal) => x === false],
-	['boolean?', (x: MalVal) => typeof x === 'boolean'],
-	['number?', (x: MalVal) => typeof x === 'number'],
-	['string?', isString],
-	['keyword?', isKeyword],
-	['fn?', (x: MalVal) => getType(x) === 'fn'],
-	['macro?', (x: MalVal) => getType(x) === 'macro'],
+	['nil?', (x: MalVal) => createBoolean(x === null)],
+	['true?', (x: MalVal) => createBoolean(x === true)],
+	['false?', (x: MalVal) => createBoolean(x === false)],
+	['boolean?', (x: MalVal) => createBoolean(typeof x === 'boolean')],
+	['number?', (x: MalVal) => createBoolean(typeof x === 'number')],
+	['string?', (x: MalVal) => createBoolean(isString(x))],
+	['keyword?', (x: MalVal) => createBoolean(isKeyword(x))],
+	['fn?', (x: MalVal) => createBoolean(getType(x) === 'fn')],
+	['macro?', (x: MalVal) => createBoolean(getType(x) === 'macro')],
 
 	['keyword', keywordFor],
 	['symbol', S],
-	['symbol?', isSymbol],
+	['symbol?', (x: MalVal) => createBoolean(isSymbol(x))],
 
 	// // Compare
-	['=', (a: MalVal, b: MalVal) => a === b],
-	['!=', (a: MalVal, b: MalVal) => a !== b],
-	['<', (a: number, b: number) => a < b],
-	['<=', (a: number, b: number) => a <= b],
-	['>', (a: number, b: number) => a > b],
-	['>=', (a: number, b: number) => a >= b],
+	['=', (a: MalVal, b: MalVal) => createBoolean(a === b)],
+	['!=', (a: MalVal, b: MalVal) => createBoolean(a !== b)],
+	['<', (a: number, b: number) => createBoolean(a < b)],
+	['<=', (a: number, b: number) => createBoolean(a <= b)],
+	['>', (a: number, b: number) => createBoolean(a > b)],
+	['>=', (a: number, b: number) => createBoolean(a >= b)],
 
 	// Calculus
-	['+', (...a: number[]) => a.reduce((x, y) => x + y, 0)],
+	['+', (...a: number[]) => createNumber(a.reduce((x, y) => x + y, 0))],
 	[
 		'-',
 		(...xs: number[]) => {
 			switch (xs.length) {
 				case 0:
-					return 0
+					return createNumber(0)
 				case 1:
-					return -xs[0]
+					return createNumber(-xs[0])
 				case 2:
-					return xs[0] - xs[1]
+					return createNumber(xs[0] - xs[1])
 				default:
-					return xs.slice(1).reduce((a, b) => a - b, xs[0])
+					return createNumber(xs.slice(1).reduce((a, b) => a - b, xs[0]))
 			}
 		},
 	],
-	['*', (...args: number[]) => args.reduce((a, b) => a * b, 1)],
+	['*', (...args: number[]) => createNumber(args.reduce((a, b) => a * b, 1))],
 	[
 		'/',
 		(...xs: number[]) => {
 			switch (xs.length) {
 				case 0:
-					return 1
+					return createNumber(1)
 				case 1:
-					return 1 / xs[0]
+					return createNumber(1 / xs[0])
 				case 2:
-					return xs[0] / xs[1]
+					return createNumber(xs[0] / xs[1])
 				default:
-					return xs.slice(1).reduce((a, b) => a / b, xs[0])
+					return createNumber(xs.slice(1).reduce((a, b) => a / b, xs[0]))
 			}
 		},
 	],
-	['mod', (x: number, y: number) => ((x % y) + y) % y],
+	['mod', (x: number, y: number) => createNumber(((x % y) + y) % y)],
 
 	// Array
 	['list', (...coll: MalVal[]) => L(...coll)],
 	['lst', (coll: MalVal[]) => L(...coll)],
-	['list?', isList],
+	['list?', (x: MalVal) => createBoolean(isList(x))],
 
-	['vector', (...xs: MalVal[]) => xs],
-	['vector?', isVector],
-	['vec', (a: MalVal[]) => [...a]],
-	['sequential?', isSeq],
+	['vector', (...xs: MalVal[]) => createVector(...xs)],
+	['vector?', (x: MalVal) => createBoolean(isVector(x))],
+	['vec', (a: MalVal[]) => createVector(...a)],
+	['sequential?', (x: MalVal) => createBoolean(isSeq(x))],
 	[
 		'seq',
 		(a: MalVal) => {
 			if (isSeq(a)) {
-				return [...a]
+				return createVector(...a)
 			} else if (isString(a) && a.length > 0) {
-				return a.split('')
+				return createVector(...a.split(''))
 			} else if (isMap(a)) {
-				return Object.entries(a)
+				return createVector(...Object.entries(a).map(x => createVector(...x)))
 			} else {
-				return null
+				return createNil()
 			}
 		},
 	],
@@ -128,19 +132,28 @@ const Exports = [
 			}
 		},
 	],
-	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
-	['rest', (a: MalVal[]) => (a === null ? [] : a.slice(1))],
+	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : createNil())],
+	[
+		'rest',
+		(a: MalVal[]) =>
+			a === null ? createVector() : createVector(...a.slice(1)),
+	],
 	[
 		'last',
-		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null),
+		(a: MalVal[]) =>
+			a !== null && a.length > 0 ? a[a.length - 1] : createNil(),
 	],
-	['butlast', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
-	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
+	[
+		'butlast',
+		(a: MalVal[]) =>
+			a === null ? [] : createVector(...a.slice(0, a.length - 1)),
+	],
+	['count', (a: MalVal[]) => createNumber(a === null ? 0 : a.length)],
 	[
 		'slice',
 		(a: MalVal[], start: number, end: number) => {
 			if (isSeq(a)) {
-				return a.slice(start, end)
+				return createVector(...a.slice(start, end))
 			} else {
 				throw new MalError(`[slice] ${printExp(a)} is not an array`)
 			}
@@ -151,18 +164,24 @@ const Exports = [
 		(f: MalFunc, ...a: MalVal[]) =>
 			f(...a.slice(0, -1).concat(a[a.length - 1])),
 	],
-	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
-	['map-indexed', (f: MalFunc, a: MalVal[]) => a.map((x, i) => f(i, x))],
-	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
-	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
-	['sort', (coll: MalVal[]) => [...coll].sort()],
+	['map', (f: MalFunc, a: MalVal[]) => createVector(...a.map(x => f(x)))],
+	[
+		'map-indexed',
+		(f: MalFunc, a: MalVal[]) => createVector(...a.map((x, i) => f(i, x))),
+	],
+	['filter', (f: MalFunc, a: MalVal[]) => createVector(...a.filter(x => f(x)))],
+	[
+		'remove',
+		(f: MalFunc, a: MalVal[]) => createVector(...a.filter(x => !f(x))),
+	],
+	['sort', (coll: MalVal[]) => createVector(...[...coll].sort())],
 	['partition', partition],
 	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
 	[
 		'last-index-of',
 		(value: MalVal[] | string, a: string) => value.lastIndexOf(a),
 	],
-	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
+	['repeat', (a: MalVal, n: number) => createVector(...Array(n).fill(a))],
 	['reverse', (coll: MalVal[]) => [...coll].reverse()],
 	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
 	[
@@ -180,7 +199,7 @@ const Exports = [
 	[
 		'concat',
 		(...args: MalVal[]) =>
-			[].concat(...(args.filter(v => v !== null) as any[])),
+			createVector(...[].concat(...(args.filter(v => v !== null) as any[]))),
 	],
 	[
 		'join',
@@ -214,8 +233,8 @@ const Exports = [
 		'contains?',
 		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false),
 	],
-	['keys', (a: MalMap) => Object.keys(a)],
-	['vals', (a: MalMap) => Object.values(a)],
+	['keys', (a: MalMap) => createVector(...Object.keys(a))],
+	['vals', (a: MalMap) => createVector(...Object.values(a))],
 	['entries', (a: MalMap) => Object.entries(a)],
 	[
 		'merge',

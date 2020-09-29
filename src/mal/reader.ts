@@ -20,6 +20,11 @@ import {
 	createList as L,
 	MalSeq,
 	isSymbol,
+	createNil,
+	createBoolean,
+	createNumber,
+	createString,
+	createVector,
 } from './types'
 import printExp from './printer'
 
@@ -112,27 +117,29 @@ function readAtom(reader: Reader) {
 	if (typeof token === 'string') {
 		if (token.match(/^[-+]?[0-9]+$/)) {
 			// integer
-			return parseInt(token, 10)
+			return createNumber(parseInt(token, 10))
 		} else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
 			// float
-			return parseFloat(token)
+			return createNumber(parseFloat(token))
 		} else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
 			// string
-			return token
-				.slice(1, token.length - 1)
-				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
+			return createString(
+				token
+					.slice(1, token.length - 1)
+					.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
+			)
 		} else if (token[0] === '"') {
 			throw new MalError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return keywordFor(token.slice(1))
 		} else if (token === 'nil') {
-			return null
+			return createNil()
 		} else if (token === 'true') {
-			return true
+			return createBoolean(true)
 		} else if (token === 'false') {
-			return false
+			return createBoolean(false)
 		} else if (/^NaN$|^-?Infinity$/.test(token)) {
-			return parseFloat(token)
+			return createNumber(parseFloat(token))
 		} else {
 			// symbol
 			return S(token as string)
@@ -144,7 +151,7 @@ function readAtom(reader: Reader) {
 
 // read list of tokens
 function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
-	const exp: any = []
+	const exp: any = createVector()
 
 	let elmStrs: any = null,
 		delimiters: string[] | null = null

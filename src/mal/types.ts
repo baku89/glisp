@@ -9,6 +9,7 @@ export const M_PARAMS = Symbol.for('params')
 export const M_ISMACRO = Symbol.for('ismacro')
 export const M_ISLIST = Symbol.for('islist')
 export const M_TYPE = Symbol.for('type')
+export const M_VALUE = Symbol.for('value')
 
 export const M_EVAL = Symbol.for('eval')
 export const M_OUTER = Symbol.for('outer')
@@ -54,6 +55,26 @@ export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv | ExpandInfoUnchange
 
 export interface MalFuncThis {
 	callerEnv: Env
+}
+
+export function createBoolean(value: boolean) {
+	return value
+}
+
+export function createNumber(value: number) {
+	return value
+}
+
+export function createString(value: string) {
+	return value
+}
+
+export function createNil() {
+	return null
+}
+
+export function createMap(map: any) {
+	return map as MalMap
 }
 
 export interface MalFunc extends Function {
