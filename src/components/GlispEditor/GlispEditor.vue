@@ -14,6 +14,7 @@ import {
 	SetupContext,
 	PropType,
 	nextTick,
+	unref,
 } from 'vue'
 import ace from 'brace'
 
@@ -33,7 +34,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 	onMounted(() => {
 		if (!editorEl.value) return
 
-		editor = ace.edit(editorEl.value)
+		editor = ace.edit(unref(editorEl.value))
 
 		// Update activeRange
 		let activeRangeMarker: number
