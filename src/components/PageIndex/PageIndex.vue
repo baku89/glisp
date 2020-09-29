@@ -33,8 +33,8 @@
 				<ViewHandles
 					ref="elHandles"
 					class="PageIndex__view-handles"
-					:selectedExp="selectedExp"
-					v-model:viewTransform="viewHandlesTransform"
+					:selected-exp="selectedExp"
+					v-model:view-transform="viewTransform"
 					@tag-history="tagExpHistory('undo')"
 				/>
 				<div class="PageIndex__modes">
@@ -193,15 +193,7 @@ export default defineComponent({
 				return computeTheme(ui.background)
 			}),
 			guideColor: computed(() => ui.theme.colors['--guide']),
-			viewHandlesTransform: mat2d.identity(mat2d.create()),
-			viewTransform: computed(() => {
-				const top = elHandles.value?.$el.getBoundingClientRect().top || 0
-				const left = 0 //paneSizeInPixel.layers
-				const xform = mat2d.clone(ui.viewHandlesTransform)
-				xform[4] += left
-				xform[5] += top
-				return xform as mat2d
-			}),
+			viewTransform: mat2d.create(),
 		}) as UI
 
 		const data: Data = reactive({
@@ -252,30 +244,10 @@ export default defineComponent({
 			hoveringExp: undefined,
 		}) as any
 
-		// Centerize the origin of viewport on mounted
-		onMounted(() => {
-			if (!elHandles.value) return
-
-			const {top, bottom} = (elHandles.value
-				.$el as SVGElement).getBoundingClientRect()
-
-			const left = 0
-			const right = window.innerWidth - 0 //paneSizeInPixel.control
-
-			const xform = mat2d.fromTranslation(mat2d.create(), [
-				(left + right) / 2,
-				(top + bottom) / 2,
-			])
-
-			ui.viewHandlesTransform = xform
-		})
-
-		const viewTransform = toRef(ui, 'viewTransform')
-
 		// Modes
 		const {modes, modeState, activeModeIndex, setupModes} = useModes(
 			elHandles,
-			viewTransform
+			toRef(ui, 'viewTransform')
 		)
 
 		const {pushExpHistory, tagExpHistory} = useExpHistory(

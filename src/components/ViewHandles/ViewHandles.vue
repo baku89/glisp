@@ -116,7 +116,7 @@ import {MalNode} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {NonReactive} from '@/utils'
 import {useRem, useGesture} from '@/components/use'
-import {defineComponent, computed, ref, toRef, PropType} from 'vue'
+import {defineComponent, computed, ref, toRef, PropType, onMounted} from 'vue'
 import AppScope from '@/scopes/app'
 import useHandle from './use-handle'
 
@@ -157,6 +157,9 @@ export default defineComponent({
 			el,
 			context
 		)
+
+		// REM
+		const rem = useRem()
 
 		// Gestures for view transform
 		useGesture(el, {
@@ -237,8 +240,18 @@ export default defineComponent({
 			return null
 		})
 
-		// REM
-		const rem = useRem()
+		// Hooks
+		onMounted(() => {
+			if (!el.value) return
+
+			const {left, top, width, height} = el.value.getBoundingClientRect()
+
+			const x = left + width / 2
+			const y = top + height / 2
+
+			const xform = mat2d.fromTranslation(mat2d.create(), [x, y])
+			context.emit('update:view-transform', xform)
+		})
 
 		return {
 			el,
