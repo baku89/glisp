@@ -52,7 +52,7 @@ export function useModes(
 			if (!root) return true
 			const target = e.target
 			const svg = root.querySelector('svg')
-			return target !== svg && svg.contains(target)
+			return svg && target !== svg && svg.contains(target)
 		},
 	})
 
