@@ -270,7 +270,7 @@ export interface FnInfoType {
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | undefined {
-	let fn = isFunc(exp) ? exp : getFn(exp)
+	let fn = MalFunc.is(exp) ? exp : getFn(exp)
 
 	let meta = undefined
 	let aliasFor = undefined
@@ -278,7 +278,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 
 	// Check if the exp is struct
 	if (!fn) {
-		structType = getStructType(getEvaluated(exp))
+		structType = getStructType(exp.evaluated)
 		if (structType) {
 			fn = ConsoleScope.var(structType) as MalFunc
 		}
@@ -301,20 +301,20 @@ export function reverseEval(
 	exp: MalVal,
 	original: MalVal,
 	forceOverwrite = false
-) {
+): MalVal {
 	// const meta = getMeta(original)
 
 	switch (original.type) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if (MalSymbol.isFor((original as MalSeq)[0], 'const')) {
+			if (MalSymbol.isFor((original as MalList).fn, 'const')) {
 				return original
 			} else {
 				// find Inverse function
 				const info = getFnInfo(original as MalSeq)
 				if (!info) break
 				const inverseFn = getMapValue(info.meta, 'inverse')
-				if (!isFunc(inverseFn)) break
+				if (!MalFunc.is(inverseFn)) break
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
@@ -451,7 +451,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		const meta = getMeta(getEvaluated(node[0]))
 		const viewportFn = getMapValue(meta, 'viewport-transform')
 
-		if (!isFunc(viewportFn)) {
+		if (!MalFunc.is(viewportFn)) {
 			continue
 		}
 
