@@ -55,6 +55,7 @@ export abstract class MalVal {
 	abstract get evaluated(): MalVal
 	abstract clone(): MalVal
 	abstract print(readably: boolean): string
+	abstract toJS(): any
 
 	toString() {
 		this.print(true)
@@ -83,7 +84,11 @@ export class MalNumber extends MalVal {
 		return this.value
 	}
 
-	print(readably = true) {
+	toJS() {
+		return this.value
+	}
+
+	print() {
 		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
 	}
 
@@ -119,6 +124,10 @@ export class MalString extends MalVal {
 		return `"${this.value}"`
 	}
 
+	toJS() {
+		return this.value
+	}
+
 	clone() {
 		return new MalString(this.value)
 	}
@@ -149,6 +158,10 @@ export class MalBoolean extends MalVal {
 
 	print(readably = true) {
 		return this.value.toString()
+	}
+
+	toJS() {
+		return this.value
 	}
 
 	clone() {
@@ -184,6 +197,10 @@ export class MalNil extends MalVal {
 		return 'nil'
 	}
 
+	toJS() {
+		return null
+	}
+
 	clone() {
 		return new MalNil()
 	}
@@ -210,6 +227,10 @@ export class MalKeyword extends MalVal {
 
 	print(readably = true) {
 		return ':' + this.value
+	}
+
+	toJS() {
+		return this
 	}
 
 	clone() {
@@ -339,6 +360,10 @@ export class MalVector extends MalVal {
 		return this.str
 	}
 
+	toJS() {
+		return this.value.map(x => x.toJS())
+	}
+
 	clone() {
 		const list = new MalVector(this.value.map(v => v.clone()))
 		if (this.delimiters) {
@@ -405,6 +430,14 @@ export class MalMap extends MalVal {
 		return this.str
 	}
 
+	toJS() {
+		const ret: {[key: string]: any} = {}
+		this.entries().forEach(([k, v]) => {
+			ret[k] = v.toJS()
+		})
+		return ret
+	}
+
 	clone() {
 		const list = new MalMap(this.value)
 		if (this.delimiters) {
@@ -416,6 +449,14 @@ export class MalMap extends MalVal {
 
 	entries() {
 		return Object.entries(this.value)
+	}
+
+	keys() {
+		return Object.keys(this.value)
+	}
+
+	values() {
+		return Object.values(this.value)
 	}
 
 	static is(value: MalVal): value is MalMap {
@@ -446,7 +487,7 @@ export class MalMap extends MalVal {
 }
 
 type MalF = (
-	this: MalFuncThis | void,
+	// this: MalFuncThis | void,
 	...args: (MalVal | undefined)[]
 ) => MalVal
 
@@ -472,6 +513,10 @@ export class MalFunc extends MalVal {
 		} else {
 			return `#<JS Function>`
 		}
+	}
+
+	toJS() {
+		return this.value
 	}
 
 	clone() {
@@ -658,6 +703,10 @@ export class MalSymbol extends MalVal {
 		return this.value
 	}
 
+	toJS() {
+		return this
+	}
+
 	clone() {
 		return new MalSymbol(this.value)
 	}
@@ -692,5 +741,9 @@ export class MalAtom extends MalVal {
 
 	print(readably = true): string {
 		return `(atom ${this.value?.print(readably)})readably`
+	}
+
+	toJS() {
+		return this
 	}
 }
