@@ -156,13 +156,8 @@ export class MalNil {
 		return 'nil'
 	}
 
-	private static instance?: MalNil
-
 	static create() {
-		if (this.instance) return this.instance
-
-		this.instance = new MalNil()
-		return this.instance
+		return new MalNil()
 	}
 }
 
@@ -207,9 +202,43 @@ export class MalList {
 						: ['', ...Array(this.value.length - 1).fill(' '), '']
 			}
 
-			let str = ''
+			let str = this.delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.delimiters[i] + this.value[i]?.toString()
+				str += this.delimiters[i + 1] + this.value[i]?.toString()
+			}
+			str += this.delimiters[this.delimiters.length - 1]
+
+			this.str = '(' + str + ')'
+		}
+
+		return this.str
+	}
+
+	static create(...value: MalVal[]) {
+		return value.length === 0 ? MalNil.create() : new MalList(value)
+	}
+}
+
+export class MalVector {
+	readonly type: MalType.Vector = MalType.Vector
+
+	private delimiters: string[] | undefined = undefined
+	private str: string | undefined = undefined
+
+	constructor(private readonly value: MalVal[]) {}
+
+	toString() {
+		if (this.str === undefined) {
+			if (!this.delimiters) {
+				this.delimiters =
+					this.value.length === 0
+						? ['']
+						: ['', ...Array(this.value.length - 1).fill(' '), '']
+			}
+
+			let str = this.delimiters[0]
+			for (let i = 0; i < this.value.length; i++) {
+				str += this.delimiters[i + 1] + this.value[i]?.toString()
 			}
 			str += this.delimiters[this.delimiters.length - 1]
 
@@ -220,7 +249,63 @@ export class MalList {
 	}
 
 	static create(...value: MalVal[]) {
-		return value.length === 0 ? MalNil.create() : new MalList(value)
+		return new MalVector(value)
+	}
+}
+
+export class MalHashMap {
+	readonly type: MalType.Map = MalType.Map
+
+	private delimiters: string[] | undefined = undefined
+	private str: string | undefined = undefined
+
+	private value!: {[key: string]: MalVal}
+
+	constructor(value: MalVal[]) {
+		for (let i = 0; i + 1 < value.length; i += 1) {
+			const k = value[i]
+			const v = value[i + 1]
+			if (isKeyword(k) || isString(k)) {
+				this.value[getName(k)] = v
+			} else {
+				throw new MalError(
+					`Unexpected key symbol: ${getType(k)}, expected: keyword or string`
+				)
+			}
+		}
+	}
+
+	toString() {
+		if (this.str === undefined) {
+			const entries = Object.entries(this.value)
+
+			if (!this.delimiters) {
+				const size = entries.length
+				this.delimiters =
+					this.value.length === 0
+						? ['']
+						: ['', ...Array(size * 2 - 1).fill(' '), '']
+			}
+
+			let str = ''
+			for (let i = 0; i < entries.length; i++) {
+				const [k, v] = entries[i]
+				str +=
+					this.delimiters[2 * i + 1] +
+					`:${k}` +
+					this.delimiters[2 * 1 + 2] +
+					v?.toString()
+			}
+			str += this.delimiters[this.delimiters.length - 1]
+
+			this.str = '{' + str + '}'
+		}
+
+		return this.str
+	}
+
+	static create(...value: MalVal[]) {
+		return new MalHashMap(value)
 	}
 }
 
