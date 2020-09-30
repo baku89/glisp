@@ -32,10 +32,8 @@
 import {
 	MalVal,
 	MalList,
-	MalSymbol.isType(,
 	MalColl,
 	MalSymbol,
-	getOuter,
 	MalType,
 } from '@/mal/types'
 
@@ -72,7 +70,7 @@ export default defineComponent({
 				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
-				(MalList.isType((props.exp) && MalSymbol.isType((props.exp[0]))
+				(MalList.is((props.exp) && MalSymbol.is((props.exp[0]))
 			) {
 				return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
 			} else {

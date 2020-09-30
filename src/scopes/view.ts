@@ -1,4 +1,4 @@
-import {MalSymbol} from '@/mal/types'
+import {MalFunc, MalNil, MalSymbol} from '@/mal/types'
 import Scope from '@/mal/scope'
 
 import AppScope from './app'
@@ -16,7 +16,10 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	if (guideColor) {
 		env.set(MalSymbol.create('*guide-color*'), guideColor)
 	} else {
-		env.set(MalSymbol.create('guide/stroke'), () => null)
+		env.set(
+			MalSymbol.create('guide/stroke'),
+			MalFunc.create(() => MalNil.create())
+		)
 	}
 
 	scope.popBinding()

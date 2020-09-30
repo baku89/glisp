@@ -69,11 +69,9 @@ export default defineComponent({
 			) as {[key: string]: number}
 		})
 
-		const startTime = computed(
-			() => getEvaluated(options.value[K_START]) as number
-		)
+		const startTime = computed(() => options.value[K_START].evaluated as number)
 		const duration = computed(
-			() => getEvaluated(options.value[K_DURATION]) as number
+			() => options.value[K_DURATION].evaluated as number
 		)
 		const endTime = computed(() => startTime.value + duration.value)
 		const fps = computed(() => getEvaluated(options.value[K_FPS]) as number)

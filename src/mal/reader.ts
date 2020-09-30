@@ -13,7 +13,6 @@ import {
 	MalString,
 	MalVector,
 	MalList,
-	createMap,
 	MalKeyword,
 } from './types'
 
@@ -379,7 +378,7 @@ export function getRangeOfExp(
 				(outer[M_ISSUGAR] ? 0 : 1) +
 				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
 				outer[M_ELMSTRS].slice(0, index).join('').length
-		} else if (MalMap.isType(outer)) {
+		} else if (MalMap.is(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.   length */ +
@@ -441,7 +440,7 @@ export function findExpByRange(
 				offset += exp[M_ELMSTRS][i].length
 			}
 		}
-	} else if (MalMap.isType(exp)) {
+	} else if (MalMap.is(exp)) {
 		// Hash Map
 
 		let offset = 1 // length of '{'
@@ -472,44 +471,41 @@ export function findExpByRange(
 	return exp
 }
 
-export function convertJSObjectToMalMap(obj: any): MalVal {
-	if (Array.isArray(obj)) {
-		if (MalList.isType((obj)) {
-			return obj
-		} else {
-			return MalVector.create(...obj.map(v => convertJSObjectToMalMap(v)))
-		}
-	} else if (MalSymbol.isType((obj) || obj instanceof Function) {
+export function jsToMal(obj: any): MalVal {
+	if (obj instanceof MalVal) {
 		return obj
+	}
+
+	if (Array.isArray(obj)) {
+		// Vector
+		return MalVector.create(...obj.map(jsToMal))
 	} else if (obj instanceof Object) {
-		const ret: MalMap = {}
+		// Map
+		const ret: {[k: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(obj)) {
-			ret[MalKeyword.create(key)] = convertJSObjectToMalMap(value)
+			ret[key] = jsToMal(value)
 		}
-		return createMap(ret)
+		return MalMap.create(ret)
 	} else if (obj === null) {
+		// Nil
 		return MalNil.create()
 	} else {
 		switch (typeof obj) {
 			case 'number':
 				return MalNumber.create(obj)
 			case 'string':
-				if (MalKeyword.isType(obj)) {
-					return obj
-				} else {
-					return MalString.create(obj)
-				}
+				return MalString.create(obj)
 			case 'undefined':
 				return MalNil.create()
 			case 'boolean':
 				return MalBoolean.create(obj)
 		}
-		return obj
+		throw new Error('Cannot convert to Mal')
 	}
 }
 
 export function convertMalCollToJSObject(exp: MalVal): any {
-	if (MalMap.isType(exp)) {
+	if (MalMap.is(exp)) {
 		const ret: {[Key: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(exp)) {
 			const jsKey = getName(key)
@@ -529,7 +525,7 @@ export function reconstructTree(exp: MalVal) {
 	if (!isMalColl(exp)) {
 		return
 	} else {
-		if (MalMap.isType(exp)) {
+		if (MalMap.is(exp)) {
 			const keys = Object.keys(exp)
 			keys.forEach((key, i) => {
 				const e = exp[key]
@@ -578,7 +574,7 @@ export default function readStr(str: string, saveStr = true): MalVal {
 
 			const children: MalVal[] | null = Array.isArray(exp)
 				? exp
-				: MalMap.isType(exp)
+				: MalMap.is(exp)
 				? Object.keys(exp).map(k => exp[k])
 				: null
 

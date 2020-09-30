@@ -4,14 +4,13 @@ import isNodeJS from 'is-node'
 import {
 	MalVal,
 	MalError,
-	setMeta,
 	MalSymbol,
-	MalBoolean
-	createNil,
-	MalString
+	MalBoolean,
+	MalString,
+	MalNil,
 } from './types'
 import printExp, {printer} from './printer'
-import readStr, {convertJSObjectToMalMap} from './reader'
+import readStr, {jsToMal} from './reader'
 import interop from './interop'
 
 // String functions
@@ -103,7 +102,7 @@ const Exports = [
 		'def',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Defines a variable',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
@@ -116,7 +115,7 @@ const Exports = [
 		'defvar',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc:
 					'Creates a variable which can be changed by the bidirectional evaluation',
 				params: [
@@ -130,7 +129,7 @@ const Exports = [
 		'let',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Creates a lexical scope',
 				params: [
 					{label: 'Binds', type: 'exp'},
@@ -143,7 +142,7 @@ const Exports = [
 		'binding',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Creates a new binding',
 				params: [
 					{label: 'Binds', type: 'exp'},
@@ -156,7 +155,7 @@ const Exports = [
 		'get-all-symbols',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Gets all existing symbols',
 				params: [],
 				return: {type: 'vector'},
@@ -167,7 +166,7 @@ const Exports = [
 		'fn-params',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
 			})
@@ -177,7 +176,7 @@ const Exports = [
 		'eval*',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 				params: [{label: 'Form', type: 'exp'}],
@@ -188,7 +187,7 @@ const Exports = [
 		'quote',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
 			})
@@ -198,7 +197,7 @@ const Exports = [
 		'quasiquote',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
 			})
@@ -208,7 +207,7 @@ const Exports = [
 		'fn',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Defines a function',
 				params: [
 					{label: 'Params', type: 'exp'},
@@ -221,7 +220,7 @@ const Exports = [
 		'fn-sugar',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
 			})
@@ -231,7 +230,7 @@ const Exports = [
 		'macro',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: '',
 				params: [
 					{label: 'Param', type: 'exp'},
@@ -244,7 +243,7 @@ const Exports = [
 		'macroexpand',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Expands the macro',
 				params: [],
 			})
@@ -254,7 +253,7 @@ const Exports = [
 		'try',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Try',
 				params: [],
 			})
@@ -264,7 +263,7 @@ const Exports = [
 		'catch',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Catch',
 				params: [],
 			})
@@ -274,7 +273,7 @@ const Exports = [
 		'do',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
 				params: [
 					{
@@ -290,7 +289,7 @@ const Exports = [
 		'if',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
 					{label: 'Test', type: 'boolean'},
@@ -304,7 +303,7 @@ const Exports = [
 		'env-chain',
 		setMeta(
 			() => MalNil.create(),
-			convertJSObjectToMalMap({
+			jsToMal({
 				doc: 'Env chain',
 				params: [],
 			})

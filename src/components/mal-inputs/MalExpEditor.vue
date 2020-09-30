@@ -205,7 +205,7 @@ export default defineComponent({
 			}
 
 			if (
-				MalList.isType((selectedExp) &&
+				MalList.is((selectedExp) &&
 				selectedExp[0] === MalSymbol.create('sketch')
 			) {
 				context.emit('select', null)

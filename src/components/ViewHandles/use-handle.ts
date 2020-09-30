@@ -137,7 +137,7 @@ export default function useHandle(
 				return []
 			}
 
-			if (!MalVector.isType(handles)) {
+			if (!MalVector.is(handles)) {
 				return []
 			}
 
@@ -286,7 +286,7 @@ export default function useHandle(
 			return null
 		}
 
-		if (!MalVector.isType(result) && !isMap(result)) {
+		if (!MalVector.is(result) && !isMap(result)) {
 			return null
 		}
 
@@ -299,9 +299,9 @@ export default function useHandle(
 			const replace = result[K_REPLACE]
 			const changeId = result[K_CHANGE_ID]
 
-			if (MalVector.isType(retParams)) {
+			if (MalVector.is(retParams)) {
 				newParams = retParams
-			} else if (MalVector.isType(replace)) {
+			} else if (MalVector.is(replace)) {
 				newParams = [..._unevaluatedParams]
 				const pairs = (typeof replace[0] === 'number'
 					? [(replace as any) as [number, MalVal]]
@@ -318,7 +318,7 @@ export default function useHandle(
 				return null
 			}
 
-			if (MalVector.isType(changeId)) {
+			if (MalVector.is(changeId)) {
 				const newId = newParams[1]
 				draggingIndex.value = [
 					selectedIndex,

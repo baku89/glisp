@@ -62,21 +62,16 @@ import chroma from 'chroma-js'
 import {
 	MalVal,
 	MalType,
-	getType,
-	MalSymbol.isType(,
-	getEvaluated,
-	MalList,
-	MalList,
 	MalSymbol,
+	MalList,
 	MalSeq,
+	MalString
 } from '@/mal/types'
 import InputColor from '@/components/inputs/InputColor.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
-import {reverseEval} from '@/mal/utils'
-import { MalSeq, MalString } from '@/mal/types'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 
@@ -94,7 +89,7 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<MalSeq | MalString>,
+			type: Object as PropType<MalSeq | MalString | MalSymbol>,
 			required: true,
 		},
 		compact: {
@@ -115,7 +110,7 @@ export default defineComponent({
 				}
 				case MalType.List: {
 					const fst = (props.value as MalVal[])[0]
-					if (MalSymbol.isType((fst)) {
+					if (MalSymbol.is((fst)) {
 						if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
 							return fst.value.split('/')[1].toUpperCase()
 						} else if (COLOR_SPACE_SHORTHANDS.has(fst.value)) {
@@ -133,12 +128,12 @@ export default defineComponent({
 
 		const displayValues = computed(() => {
 			if (mode.value === 'EXP') {
-				return getEvaluated(props.value) as string
+				return props.value.evaluated as string
 			}
 
 			if (typeof props.value === 'string') {
 				return props.value
-			} else if (MalList.isType((props.value)) {
+			} else if (MalList.is((props.value)) {
 				return props.value.slice(1)
 			}
 		})
@@ -178,7 +173,7 @@ export default defineComponent({
 				}
 			}
 
-			if (mode.value !== 'EXP' && MalList.isType((value) && value.length >= 5) {
+			if (mode.value !== 'EXP' && MalList.is((value) && value.length >= 5) {
 				color = color.alpha(getEvaluated(value[4]) as number)
 			}
 
@@ -267,7 +262,7 @@ export default defineComponent({
 			rgba: {r: number; g: number; b: number}
 			hsl: {h: number; s: number; l: number}
 		}) {
-			let value: MalVal = MalList.isType((props.value) ? L(...props.value) : ''
+			let value: MalVal = MalList.is((props.value) ? L(...props.value) : ''
 
 			switch (mode.value) {
 				case 'HEX':

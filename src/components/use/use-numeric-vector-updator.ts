@@ -16,7 +16,7 @@ export default function useNumericVectorUpdator(
 	exp: Ref<MalSeq | MalSymbol>,
 	context: SetupContext
 ) {
-	const isValueSeparated = computed(() => MalVector.isType(exp.value))
+	const isValueSeparated = computed(() => MalVector.is(exp.value))
 
 	const nonReactiveValues = computed(() => {
 		if (!isValueSeparated.value) {

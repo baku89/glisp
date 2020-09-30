@@ -14,7 +14,7 @@ import {
 	cloneExp,
 	isMalSeq,
 	MalList,
-	MalSymbol.isType(For,
+	MalSymbol.is(For,
 	MalSeq,
 	getEvaluated,
 	getType,
@@ -139,7 +139,7 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('select-items', (paths: MalVal) => {
-		if (MalVector.isType(paths)) {
+		if (MalVector.is(paths)) {
 			const items: MalColl[] = []
 
 			for (const path of paths) {
@@ -230,7 +230,7 @@ export default function useAppCommands(
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		if (!MalList.isType((wrapper)) {
+		if (!MalList.is((wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 
@@ -239,7 +239,7 @@ export default function useAppCommands(
 
 		const newExp = L(
 			...wrapper.map(e => {
-				if (isMalSymbol.create(e, '%')) {
+				if (MalSymbol.isFor(e, '%')) {
 					const ret = shouldDuplicate ? cloneExp(exp, true) : exp
 					shouldDuplicate = true
 					return ret

@@ -70,7 +70,7 @@ export default defineComponent({
 		}
 
 		function onClick(content: MalVal, i: number) {
-			if (MalVector.isType(content)) {
+			if (MalVector.is(content)) {
 				expandedIndex.value = i
 			} else {
 				ConsoleScope.eval(content)

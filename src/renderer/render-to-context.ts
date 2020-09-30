@@ -23,7 +23,7 @@ export default function renderToContext(
 		if (Array.isArray(exp) && exp.length > 0) {
 			const [elm, ...rest] = exp as any[]
 
-			if (!MalKeyword.isType(elm)) {
+			if (!MalKeyword.is(elm)) {
 				for (const child of exp) {
 					draw(child, styles)
 				}

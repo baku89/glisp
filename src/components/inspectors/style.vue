@@ -87,7 +87,7 @@ export default defineComponent({
 	setup(props, context) {
 		const styles = computed(() => {
 			const styles = props.exp[1]
-			return (MalVector.isType(styles) ? styles : [styles])
+			return (MalVector.is(styles) ? styles : [styles])
 		})
 
 		const labels = computed(() => {

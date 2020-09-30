@@ -8,7 +8,6 @@ import {
 	getEvaluated,
 	MalList,
 	symbolFor,
-	M_PARAMS,
 	isMalFunc,
 	assocBang,
 	MalKeyword,

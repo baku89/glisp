@@ -1,4 +1,4 @@
-import {MalError, MalColl, isNode} from '@/mal/types'
+import {MalError, MalColl, isMalColl} from '@/mal/types'
 import {readStr} from '@/mal'
 import {toSketchCode} from '../utils'
 
@@ -59,7 +59,7 @@ export default function useURLParser(onLoadExp: (exp: MalColl) => void) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
 		const exp = readStr(toSketchCode(code as string))
-		if (isNode(exp)) {
+		if (isMalColl(exp)) {
 			onLoadExp(exp)
 		}
 	})

@@ -58,7 +58,7 @@ export class HitDetector {
 		exp = getUIBodyExp(exp)
 
 		const evaluated = getEvaluated(exp)
-		if (MalVector.isType(evaluated)) {
+		if (MalVector.is(evaluated)) {
 			const command = evaluated[0]
 
 			switch (command) {
@@ -95,7 +95,7 @@ export class HitDetector {
 					const [, styles] = evaluated
 					const [, , ...body] = exp as MalSeq
 					let mergedStyles = {...hitStyle}
-					for (const s of (MalVector.isType(styles)
+					for (const s of (MalVector.is(styles)
 						? styles
 						: [styles]) as MalMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
@@ -109,12 +109,12 @@ export class HitDetector {
 					return ret
 				}
 				default:
-					if (MalKeyword.isType(command)) {
+					if (MalKeyword.is(command)) {
 						const body = (exp as MalSeq).slice(1)
 						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}
-		} else if (MalList.isType((exp)) {
+		} else if (MalList.is((exp)) {
 			return this.analyzeVector(pos, exp.slice(1), hitStyle)
 		}
 

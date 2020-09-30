@@ -1,5 +1,5 @@
 import {createNil, MalError} from './types'
-import {convertJSObjectToMalMap} from './reader'
+import {jsToMal} from './reader'
 
 export default {
 	resolveJMalSymbol.create(str: string): [any, any] {
@@ -37,6 +37,6 @@ export default {
 		// })
 		// return JSON.parse(str)
 
-		return convertJSObjectToMalMap(obj)
+		return jsToMal(obj)
 	},
 }

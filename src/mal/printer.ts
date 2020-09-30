@@ -1,19 +1,12 @@
 import {
 	MalVal,
 	MalAtom,
-	M_PARAMS,
-	M_AST,
-	M_ELMSTRS,
-	M_DELIMITERS,
-	getType,
 	MalFunc,
 	MalColl,
 	MalSymbol,
 	MalType,
 	isMalSeq,
 	MalSeq,
-	M_ISSUGAR,
-	MalSymbol.isType(,
 } from './types'
 
 export const printer = {
@@ -66,7 +59,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const sugarInfo =
 				type === MalType.List &&
 				SUGAR_INFO.get(
-					MalSymbol.isType(((coll as MalSeq)[0])
+					MalSymbol.is(((coll as MalSeq)[0])
 						? ((coll as MalSeq)[0] as MalSymbol).value
 						: ''
 				)

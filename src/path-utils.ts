@@ -9,7 +9,7 @@ export type PathType = (MalKeyword | MalVector)[]
 export type SegmentType = [MalKeyword, ...MalVector[]]
 
 export function isPath(exp: any): exp is PathType {
-	return MalVector.isType(exp) && exp[0] === K_PATH
+	return MalVector.is(exp) && exp[0] === K_PATH
 }
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
@@ -20,7 +20,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || MalKeyword.isType(path[i] as MalVal)) {
+		if (i === l || MalKeyword.is(path[i] as MalVal)) {
 			yield path.slice(start, i) as SegmentType
 			start = i
 		}
@@ -31,7 +31,7 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 	return convertPath(exp, mat2d.create())
 
 	function convertPath(exp: MalVal, transform?: mat2d): string {
-		if (!MalVector.isType(exp)) {
+		if (!MalVector.is(exp)) {
 			return ''
 		}
 
@@ -64,7 +64,7 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 		return !transform
 			? path
 			: (path.map(p =>
-					MalVector.isType(p as MalVal)
+					MalVector.is(p as MalVal)
 						? vec2.transformMat2d(vec2.create(), p as vec2, transform)
 						: p
 			  ) as PathType)
@@ -76,9 +76,7 @@ export function getSVGPathData(path: PathType) {
 		path = path.slice(1)
 	}
 
-	return path
-		.map(x => (MalKeyword.isType(x as MalVal) ? x.slice(1) : x))
-		.join(' ')
+	return path.map(x => (MalKeyword.is(x as MalVal) ? x.slice(1) : x)).join(' ')
 }
 
 const K_M = MalKeyword.create('M'),

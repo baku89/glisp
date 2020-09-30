@@ -170,7 +170,7 @@ export default defineComponent({
 		const labelInfo = computed(() => {
 			const exp = expBody.value
 
-			if (MalList.isType((exp)) {
+			if (MalList.is((exp)) {
 				return {
 					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
@@ -182,7 +182,7 @@ export default defineComponent({
 					},
 					children: exp.slice(1),
 				}
-			} else if (MalVector.isType(exp)) {
+			} else if (MalVector.is(exp)) {
 				return {
 					label: printExp(exp),
 					clickable: true,

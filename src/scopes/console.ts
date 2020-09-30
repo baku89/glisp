@@ -15,7 +15,7 @@ import GIF from 'gif.js'
 
 import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
-import {convertJSObjectToMalMap, convertMalCollToJSObject} from '@/mal/reader'
+import {jsToMal, convertMalCollToJSObject} from '@/mal/reader'
 import getRendereredImage from '@/renderer/get-rendererd-image'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
@@ -57,7 +57,7 @@ ConsoleScope.def(
 		(url: MalVal) => {
 			return generateSketchURL(url as string)
 		},
-		convertJSObjectToMalMap({
+		jsToMal({
 			doc: 'Generates Code URL',
 			params: [
 				{
@@ -160,7 +160,7 @@ ConsoleScope.def(
 
 			return MalNil.create()
 		},
-		convertJSObjectToMalMap({
+		jsToMal({
 			doc: 'Renders and exports a sketch',
 			params: [
 				{
@@ -273,7 +273,7 @@ ConsoleScope.def(
 
 			return MalNil.create()
 		},
-		convertJSObjectToMalMap({
+		jsToMal({
 			doc: 'Exports a video',
 			params: [
 				{
@@ -380,7 +380,7 @@ ConsoleScope.def(
 
 			return MalNil.create()
 		},
-		convertJSObjectToMalMap({
+		jsToMal({
 			doc:
 				'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
 			params: [

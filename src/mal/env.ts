@@ -1,11 +1,11 @@
 import {
 	MalVal,
 	MalError,
-	MalSymbol.isType(,
+	MalSymbol,
 	isMap,
 	MalMap,
 	MalSymbol,
-	MalBind,
+	MalVal,
 	isMalSeq,
 	getType,
 	MalSeq,
@@ -28,7 +28,7 @@ export default class Env {
 
 	constructor(
 		protected outer: Env | null = null,
-		binds?: MalBind,
+		binds?: MalVal,
 		exps?: MalVal[],
 		public name = 'let'
 	) {
@@ -60,10 +60,10 @@ export default class Env {
 		return Array.from(merged.keys()).map(v => MalSymbol.create(v))
 	}
 
-	public bindAll(binds: MalBind, exps: MalVal[]) {
+	public bindAll(binds: MalVal, exps: MalVal[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
-		if (MalSymbol.isType((binds)) {
+		if (MalSymbol.is((binds)) {
 			this.set(binds, exps)
 		} else {
 			for (let i = 0; i < binds.length; i++) {
@@ -104,7 +104,7 @@ export default class Env {
 							)
 						}
 
-						this.bindAll(bind as MalBind, exp as MalVal[])
+						this.bindAll(bind as MalVal, exp as MalVal[])
 						break
 					}
 					case MalType.Map: {
@@ -119,7 +119,7 @@ export default class Env {
 						}
 						// Convert the two maps to list
 						// binds: [name location] <-- exps: ["Baku" "Japan"]
-						const hashBinds = [] as MalBind,
+						const hashBinds = [] as MalVal,
 							hashExps = []
 
 						for (const [key, sym] of Object.entries(bind)) {
@@ -172,7 +172,7 @@ export default class Env {
 	}
 
 	public find(symbol: MalSymbol): MalVal | void {
-		// if (!MalSymbol.isType((symbol)) {
+		// if (!MalSymbol.is((symbol)) {
 		// 	throw 'FIND not symbol'
 		// }
 
@@ -207,14 +207,14 @@ export default class Env {
 	}
 
 	public hasOwn(symbol: MalSymbol) {
-		// if (!MalSymbol.isType((symbol)) {
+		// if (!MalSymbol.is((symbol)) {
 		// 	throw 'HASOWN not symbol'
 		// }
 		return this.data.has(symbol.value)
 	}
 
 	public get(symbol: MalSymbol): MalVal {
-		// if (!MalSymbol.isType((symbol)) {
+		// if (!MalSymbol.is((symbol)) {
 		// 	throw 'get not symbol'
 		// }
 

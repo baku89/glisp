@@ -55,7 +55,7 @@ import {defineComponent, computed, PropType} from 'vue'
 import {
 	MalSeq,
 	MalVal,
-	MalFunction,
+	MalFunc,
 	MalList,
 	MalKeyword,
 	MalNumber,
@@ -113,7 +113,7 @@ export default defineComponent({
 	name: 'ParamControl',
 	props: {
 		exp: {type: Object as PropType<MalSeq>, required: true},
-		fn: {type: Object as PropType<MalFunction>, required: false},
+		fn: {type: Object as PropType<MalFunc>, required: false},
 	},
 	components: {
 		'ui-number': MalInputComponents.MalInputNumber,

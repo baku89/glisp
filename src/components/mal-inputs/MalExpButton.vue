@@ -12,7 +12,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {MalVal, MalList, MalSymbol.isType(, isNode} from '@/mal/types'
+import {MalVal, MalList, MalSymbol, isMalColl} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {getUIBodyExp} from '@/mal/utils'
 
@@ -29,16 +29,16 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const sign = computed(() => {
-			if (MalList.isType((props.value)) {
+			if (MalList.is((props.value)) {
 				return 'f'
-			} else if (MalSymbol.isType((props.value)) {
+			} else if (MalSymbol.is((props.value)) {
 				return 'x'
 			} else {
 				return '='
 			}
 		})
 
-		const selectable = computed(() => isNode(props.value))
+		const selectable = computed(() => isMalColl(props.value))
 
 		const expBody = computed(() => getUIBodyExp(props.value))
 

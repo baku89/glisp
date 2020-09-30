@@ -54,7 +54,7 @@ import {
 	MalSymbol,
 	getEvaluated,
 	MalList,
-	MalSymbol.isType(For,
+	MalSymbol.is(For,
 	MalVal,
 	cloneExp,
 	MalList,, MalVector
@@ -76,7 +76,7 @@ export default defineComponent({
 	setup(props, context) {
 		const isSizeFunc = computed(
 			() =>
-				MalList.isType((props.value) && isMalSymbol.create(props.value[0], 'vec2/size')
+				MalList.is((props.value) && MalSymbol.isFor(props.value[0], 'vec2/size')
 		)
 
 		const size = computed(() => {
@@ -97,7 +97,7 @@ export default defineComponent({
 			}
 		})
 
-		const isValueSeparated = computed(() => MalVector.isType(size.value))
+		const isValueSeparated = computed(() => MalVector.is(size.value))
 
 		const nonReactiveValues = computed(() => {
 			if (!isValueSeparated.value) {

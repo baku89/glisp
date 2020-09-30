@@ -20,13 +20,6 @@ export enum MalType {
 	Macro = 'macro',
 }
 
-export type MalBind = (
-	| MalSymbol
-	| string
-	| {[k: string]: MalSymbol}
-	| MalBind
-)[]
-
 export enum ExpandType {
 	Constant = 1,
 	Env,
@@ -55,15 +48,19 @@ export interface MalFuncThis {
 }
 
 export abstract class MalVal {
-	parent: {ref: MalColl; index: number} | undefined = undefined
+	parent: MalColl | undefined = undefined
 
 	abstract type: MalType
-	abstract value: any
+	abstract readonly value: any
 	abstract get evaluated(): MalVal
-	abstract toString(): string
 	abstract clone(): MalVal
+	abstract print(readably: boolean): string
 	
-	static isType(_: MalVal): boolean {
+	toString() {
+		this.print(true)
+	}
+	
+	static is(_: MalVal): boolean {
 		return false
 	}
 }
@@ -86,7 +83,7 @@ export class MalNumber extends MalVal {
 		return this.value
 	}
 
-	toString() {
+	print(readably = true) {
 		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
 	}
 
@@ -94,7 +91,7 @@ export class MalNumber extends MalVal {
 		return new MalNumber(this.value)
 	}
 
-	static isType(value: MalVal) : value is MalNumber {
+	static is(value: MalVal) : value is MalNumber {
 		return value.type === MalType.Number
 	}
 
@@ -118,7 +115,7 @@ export class MalString extends MalVal {
 		return this.value
 	}
 
-	toString() {
+	print(readably = true) {
 		return `"${this.value}"`
 	}
 
@@ -126,7 +123,7 @@ export class MalString extends MalVal {
 		return new MalString(this.value)
 	}	
 
-	static isType(value: MalVal) : value is MalString {
+	static is(value: MalVal) : value is MalString {
 		return value.type === MalType.String
 	}
 
@@ -150,7 +147,7 @@ export class MalBoolean extends MalVal {
 		return this.value
 	}
 
-	toString() {
+	print(readably = true) {
 		return this.value.toString()
 	}
 
@@ -158,7 +155,7 @@ export class MalBoolean extends MalVal {
 		return new MalBoolean(this.value)
 	}
 
-	static isType(value: MalVal) : value is MalBoolean {
+	static is(value: MalVal) : value is MalBoolean {
 		return value.type === MalType.Boolean
 	}
 
@@ -169,6 +166,7 @@ export class MalBoolean extends MalVal {
 
 export class MalNil extends MalVal {
 	readonly type: MalType.Nil = MalType.Nil
+	readonly value = null
 
 	private constructor() {
 		super()
@@ -182,7 +180,7 @@ export class MalNil extends MalVal {
 		return null
 	}
 
-	toString() {
+	print(readably = true) {
 		return 'nil'
 	}
 
@@ -190,7 +188,7 @@ export class MalNil extends MalVal {
 		return new MalNil()
 	}
 
-	static isType(value: MalVal) : value is MalNil {
+	static is(value: MalVal) : value is MalNil {
 		return value.type === MalType.Nil
 	}
 
@@ -210,15 +208,15 @@ export class MalKeyword extends MalVal {
 		return this
 	}
 
-	toString() {
-		return this.value
+	print(readably = true) {
+		return ':' + this.value
 	}
 
 	clone() {
 		return new MalKeyword(this.value)
 	}
 
-	static isType(value: MalVal) : value is MalKeyword {
+	static is(value: MalVal) : value is MalKeyword {
 		return value.type === MalType.Keyword
 	}
 
@@ -234,6 +232,10 @@ export class MalKeyword extends MalVal {
 		this.map.set(value, token)
 
 		return token
+	}
+
+	static isFor(value: MalVal, name: string) {
+		return value.type === MalType.Keyword && value.value === name
 	}
 }
 
@@ -256,7 +258,7 @@ export class MalList extends MalVal {
 		return this._evaluated || this
 	}
 
-	toString() {
+	print(readably = true) {
 		if (this.str === undefined) {
 			if (!this.delimiters) {
 				this.delimiters =
@@ -267,7 +269,7 @@ export class MalList extends MalVal {
 
 			let str = this.delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.delimiters[i + 1] + this.value[i]?.toString()
+				str += this.delimiters[i + 1] + this.value[i]?.print(readably)
 			}
 			str += this.delimiters[this.delimiters.length - 1]
 
@@ -286,7 +288,7 @@ export class MalList extends MalVal {
 		return list
 	}
 
-	static isType(value: MalVal) : value is MalList {
+	static is(value: MalVal) : value is MalList {
 		return value.type === MalType.List
 	}
 
@@ -314,7 +316,7 @@ export class MalVector extends MalVal {
 		return this._evaluated || this
 	}
 
-	toString() {
+	print(readably = true) {
 		if (this.str === undefined) {
 			if (!this.delimiters) {
 				this.delimiters =
@@ -325,7 +327,7 @@ export class MalVector extends MalVal {
 
 			let str = this.delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.delimiters[i + 1] + this.value[i]?.toString()
+				str += this.delimiters[i + 1] + this.value[i]?.print(readably)
 			}
 			str += this.delimiters[this.delimiters.length - 1]
 
@@ -344,7 +346,7 @@ export class MalVector extends MalVal {
 		return list
 	}
 
-	static isType(value: MalVal) : value is MalVector {
+	static is(value: MalVal) : value is MalVector {
 		return value.type === MalType.Vector
 	}
 
@@ -372,7 +374,7 @@ export class MalMap extends MalVal {
 		return this._evaluated || this
 	}
 
-	toString() {
+	print(readably = true) {
 		if (this.str === undefined) {
 			const entries = Object.entries(this.value)
 
@@ -391,7 +393,7 @@ export class MalMap extends MalVal {
 					this.delimiters[2 * i + 1] +
 					`:${k}` +
 					this.delimiters[2 * 1 + 2] +
-					v?.toString()
+					v?.print(readably)
 			}
 			str += this.delimiters[this.delimiters.length - 1]
 
@@ -410,7 +412,7 @@ export class MalMap extends MalVal {
 		return list
 	}
 
-	static isType(value: MalVal) : value is MalMap {
+	static is(value: MalVal) : value is MalMap {
 		return value.type === MalType.Map
 	}
 
@@ -424,7 +426,7 @@ export class MalMap extends MalVal {
 		for (let i = 0; i + 1 < coll.length; i += 1) {
 			const k = coll[i]
 			const v = coll[i + 1]
-			if (MalKeyword.isType(k) || MalString.isType(k)) {
+			if (MalKeyword.is(k) || MalString.is(k)) {
 				map[getName(k)] = v
 			} else {
 				throw new MalError(
@@ -442,7 +444,7 @@ type MalF = (
 	...args: (MalVal | undefined)[]
 ) => MalVal
 
-export class MalFunction extends MalVal {
+export class MalFunc extends MalVal {
 	readonly type: MalType = MalType.Function
 
 	exp!: MalVal | undefined
@@ -458,7 +460,7 @@ export class MalFunction extends MalVal {
 		return this
 	}
 
-	toString() {
+	print(readably = true) {
 		if (this.exp) {
 			return `(fn ${this.params.toString()} ${MalVal})`
 		} else {
@@ -467,7 +469,7 @@ export class MalFunction extends MalVal {
 	}
 
 	clone() {
-		const f = new MalFunction(this.value)
+		const f = new MalFunc(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
 		f.params = this.params.clone()
@@ -476,12 +478,12 @@ export class MalFunction extends MalVal {
 		return f
 	}
 
-	static isType(value: MalVal) : value is MalFunction {
+	static is(value: MalVal) : value is MalFunc {
 		return value.type === MalType.Function
 	}
 
 	static create(value: MalF) {
-		return new MalFunction(value)
+		return new MalFunc(value)
 	}
 
 	static fromMal(
@@ -491,7 +493,7 @@ export class MalFunction extends MalVal {
 		params: MalVal,
 		meta: MalVal = MalNil.create(),
 	) {
-		const f = new MalFunction(func)
+		const f = new MalFunc(func)
 
 		f.exp = exp
 		f.env = env
@@ -502,7 +504,7 @@ export class MalFunction extends MalVal {
 	}
 }
 
-export class MalMacro extends MalFunction {
+export class MalMacro extends MalFunc {
 	readonly type = MalType.Macro
 
 	protected constructor(value: MalF) {
@@ -580,7 +582,7 @@ export function setExpandInfo(exp: MalSeq, info: ExpandInfo) {
 }
 
 export function expandExp(exp: MalVal) {
-	if (MalList.isType((exp) && M_EXPAND in exp) {
+	if (MalList.is((exp) && M_EXPAND in exp) {
 		const info = exp[M_EXPAND]
 		switch (info.type) {
 			case ExpandType.Constant:
@@ -650,7 +652,7 @@ export class MalSymbol extends MalVal {
 		return this._def || undefined
 	}
 
-	toString() {
+	print() {
 		return this.value
 	}
 
@@ -660,6 +662,10 @@ export class MalSymbol extends MalVal {
 
 	static create(identifier: string) {
 		return new MalSymbol(identifier)
+	}
+
+	static isFor(value: MalVal, name: string) {
+		return value.type === MalType.Symbol && value.value === name
 	}
 }
 
@@ -678,8 +684,8 @@ export class MalAtom extends MalVal {
 		return new MalAtom(this.value.clone())
 	}
 
-	toString(): string {
-		return `(atom ${this.value?.toString()})`
+	print(readably = true): string {
+		return `(atom ${this.value?.print(readably)})readably`
 	}
 
 	
