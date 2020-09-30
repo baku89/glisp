@@ -232,7 +232,7 @@ export class MalList extends MalVal {
 	}
 
 	static create(...value: MalVal[]) {
-		return value.length === 0 ? MalNil.create() : new MalList(value)
+		return new MalList(value)
 	}
 }
 
