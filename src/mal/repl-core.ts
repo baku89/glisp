@@ -8,10 +8,10 @@ import {
 	MalBoolean,
 	MalString,
 	MalNil,
+	MalNumber,
 } from './types'
 import printExp, {printer} from './printer'
 import readStr, {jsToMal} from './reader'
-import interop from './interop'
 
 // String functions
 export const slurp = (() => {
@@ -36,17 +36,6 @@ export const slurp = (() => {
 		}
 	}
 })()
-
-// Interop
-function jsEval(str: string): MalVal {
-	return interop.jsToMal(eval(str.toString()))
-}
-
-function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
-	const [obj, f] = interop.resolveJMalSymbol.create(objMethodStr)
-	const res = f.apply(obj, args)
-	return interop.jsToMal(res)
-}
 
 const Exports = [
 	[
@@ -80,17 +69,22 @@ const Exports = [
 
 	// I/O
 	['read-string', readStr],
-	['slurp', (x: string) => MalString.create(slurp(x))],
+	['slurp', (x: MalString) => MalString.create(slurp(x.value))],
 
 	// Interop
-	['js-eval', jsEval],
+	['js-eval', (x: MalString) => jsToMal(eval(x.value.toString()))],
 	// ['.', jsMethodCall],
 
 	// Needed in import-force
 	[
 		'format',
-		(fmt: string, ...xs: (number | string)[]) =>
-			MalString.create(vsprintf(fmt, xs)),
+		(fmt: MalString, ...xs: (MalNumber | MalString)[]) =>
+			MalString.create(
+				vsprintf(
+					fmt.value,
+					xs.map(x => x.toJS())
+				)
+			),
 	],
 
 	['*is-node*', MalBoolean.create(isNodeJS)],
