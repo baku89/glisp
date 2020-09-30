@@ -30,7 +30,7 @@ import {
 	MalList.isType(,
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
-import {convertMalNodeToJSObject} from '@/mal/reader'
+import {convertMalCollToJSObject} from '@/mal/reader'
 
 export default defineComponent({
 	name: 'MalInputParam',
@@ -53,7 +53,7 @@ export default defineComponent({
 
 		const schemes = computed(
 			() =>
-				convertMalNodeToJSObject(
+				convertMalCollToJSObject(
 					getMapValue(getMeta(fn.value), 'compact-params', MalType.Vector)
 				) || null
 		)

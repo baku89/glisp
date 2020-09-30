@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts">
-import {MalNode} from '@/mal/types'
+import {MalColl} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {useRem, useGesture, useResizeSensor} from '@/components/use'
 import {
@@ -126,7 +126,7 @@ import useHandle from './use-handle'
 export default defineComponent({
 	props: {
 		selectedExp: {
-			type: Array as PropType<MalNode[]>,
+			type: Array as PropType<MalColl[]>,
 			required: true,
 		},
 		viewTransform: {

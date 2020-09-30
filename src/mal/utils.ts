@@ -4,7 +4,7 @@ import {
 	MalFunc,
 	MalKeyword,
 	MalMap,
-	MalNode,
+	MalColl,
 	MalVector,
 	MalJSFunc,
 	isSeq,
@@ -25,7 +25,7 @@ import {
 	getEvaluated,
 	MalSymbol.isType(For,
 	cloneExp,
-	MalNodeMap,
+	MalCollMap,
 	M_DELIMITERS,
 	getOuter,
 } from '@/mal/types'
@@ -62,10 +62,10 @@ export function getStructType(exp: MalVal): StructTypes | undefined {
 
 type WatchOnReplacedCallback = (newExp: MalVal) => any
 
-const ExpWatcher = new WeakMap<MalNode, Set<WatchOnReplacedCallback>>()
+const ExpWatcher = new WeakMap<MalColl, Set<WatchOnReplacedCallback>>()
 
 export function watchExpOnReplace(
-	exp: MalNode,
+	exp: MalColl,
 	callback: WatchOnReplacedCallback
 ) {
 	const callbacks = ExpWatcher.get(exp) || new Set()
@@ -74,7 +74,7 @@ export function watchExpOnReplace(
 }
 
 export function unwatchExpOnReplace(
-	exp: MalNode,
+	exp: MalColl,
 	callback: WatchOnReplacedCallback
 ) {
 	const callbacks = ExpWatcher.get(exp)
@@ -86,7 +86,7 @@ export function unwatchExpOnReplace(
 	}
 }
 
-export function getExpByPath(root: MalNode, path: string): MalVal {
+export function getExpByPath(root: MalColl, path: string): MalVal {
 	const keys = path
 		.split('/')
 		.filter(k => k !== '')
@@ -105,7 +105,7 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 		if (isSeq(expBody)) {
 			return find(expBody[index], rest)
 		} else if (isMap(expBody)) {
-			const keys = Object.keys(expBody as MalNodeMap)
+			const keys = Object.keys(expBody as MalCollMap)
 			return find(expBody[keys[index]], rest)
 		} else {
 			return expBody
@@ -113,10 +113,10 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 	}
 }
 
-export function generateExpAbsPath(exp: MalNode) {
+export function generateExpAbsPath(exp: MalColl) {
 	return seek(exp, '')
 
-	function seek(exp: MalNode, path: string): string {
+	function seek(exp: MalColl, path: string): string {
 		const outer = getOuter(exp)
 		if (outer) {
 			if (isUIAnnotation(outer)) {
@@ -133,7 +133,7 @@ export function generateExpAbsPath(exp: MalNode) {
 
 export function getUIOuterInfo(
 	_exp: MalVal | undefined
-): [MalNode | null, number] {
+): [MalColl | null, number] {
 	if (!isNode(_exp)) {
 		return [null, -1]
 	}
@@ -153,7 +153,7 @@ export function getUIOuterInfo(
 /**
  * Cached Tree-shaking
  */
-export function replaceExp(original: MalNode, replaced: MalVal) {
+export function replaceExp(original: MalColl, replaced: MalVal) {
 	// Execute a callback if necessary
 	if (ExpWatcher.has(original)) {
 		const callbacks = ExpWatcher.get(original) as Set<WatchOnReplacedCallback>
@@ -179,19 +179,19 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		newOuter[index] = replaced
 		for (let i = 0; i < newOuter.length; i++) {
 			if (isNode(newOuter[i])) {
-				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
-				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
+				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
 			}
 		}
 	} else {
 		// Hash map
-		const keys = Object.keys(outer as MalNodeMap)
+		const keys = Object.keys(outer as MalCollMap)
 		const key = keys[index]
 		newOuter[key] = replaced
 		for (let i = 0; i < keys.length; i++) {
 			if (isNode(newOuter[i])) {
-				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
-				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
+				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
+				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
 			}
 		}
 	}
@@ -201,7 +201,7 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	replaceExp(outer, newOuter)
 }
 
-export function getUIAnnotationExp(exp: MalNode) {
+export function getUIAnnotationExp(exp: MalColl) {
 	const outer = getOuter(exp)
 	return isUIAnnotation(outer) ? outer : exp
 }
@@ -210,7 +210,7 @@ export function getUIBodyExp(exp: MalVal) {
 	return isUIAnnotation(exp) ? exp[2] : exp
 }
 
-export function deleteExp(exp: MalNode) {
+export function deleteExp(exp: MalColl) {
 	const outer = exp[M_OUTER]
 	const index = exp[M_OUTER_INDEX]
 
@@ -447,8 +447,8 @@ export function computeExpTransform(exp: MalVal): mat2d {
 	}
 
 	// Collect ancestors with index
-	const ancestors: [MalNode, number][] = []
-	for (let _exp: MalNode = exp; _exp[M_OUTER]; _exp = _exp[M_OUTER]) {
+	const ancestors: [MalColl, number][] = []
+	for (let _exp: MalColl = exp; _exp[M_OUTER]; _exp = _exp[M_OUTER]) {
 		ancestors.unshift([_exp[M_OUTER], _exp[M_OUTER_INDEX]])
 	}
 

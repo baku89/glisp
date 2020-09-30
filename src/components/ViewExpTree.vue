@@ -71,7 +71,7 @@ import {
 	MalKeyword,
 	MalMap,
 	MalList,
-	MalNode,
+	MalColl,
 	MalSeq,
 	isMap,
 	cloneExp,
@@ -110,11 +110,11 @@ export default defineComponent({
 			required: true,
 		},
 		expSelection: {
-			type: Set as PropType<Set<MalNode>>,
+			type: Set as PropType<Set<MalColl>>,
 			required: true,
 		},
 		activeExp: {
-			type: Object as PropType<MalNode | undefined>,
+			type: Object as PropType<MalColl | undefined>,
 			default: undefined,
 		},
 		editingExp: {
@@ -225,7 +225,7 @@ export default defineComponent({
 		})
 
 		const selected = computed(() => {
-			return props.expSelection.has(expBody.value as MalNode)
+			return props.expSelection.has(expBody.value as MalColl)
 		})
 
 		const hovering = computed(() => {
@@ -261,7 +261,7 @@ export default defineComponent({
 			context.emit('update:exp', newExp)
 		}
 
-		function onUpdateChildExp(i: number, replaced: MalNode) {
+		function onUpdateChildExp(i: number, replaced: MalColl) {
 			const newExpBody = cloneExp(expBody.value) as MalSeq
 
 			;(newExpBody as MalSeq)[i + 1] = replaced

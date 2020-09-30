@@ -479,61 +479,14 @@ export function expandExp(exp: MalVal) {
 	}
 }
 
-export function getOuter(exp: any) {
-	if (isNode(exp) && M_OUTER in exp) {
-		return exp[M_OUTER]
-	}
-	return null
-}
-
-export function getType(obj: any): MalType {
-	const _typeof = typeof obj
-	switch (_typeof) {
-		case 'object':
-			if (obj === null) {
-				return MalType.Nil
-			} else if (Array.isArray(obj)) {
-				const islist = (obj as MalSeq)[M_ISLIST]
-				return islist ? MalType.List : MalType.Vector
-			} else if (obj instanceof Float32Array) {
-				return MalType.Vector
-			} else if (obj.type === MalType.Symbol) {
-				return MalType.Symbol
-			} else if (obj.type === MalType.Atom) {
-				return MalType.Atom
-			} else {
-				return MalType.Map
-			}
-		case 'function': {
-			const ismacro = (obj as MalFunc)[M_ISMACRO]
-			return ismacro ? MalType.Macro : MalType.Function
-		}
-		case 'string':
-			switch ((obj as string)[0]) {
-				case KEYWORD_PREFIX:
-					return MalType.Keyword
-				default:
-					return MalType.String
-			}
-		case 'number':
-			return MalType.Number
-		case 'boolean':
-			return MalType.Boolean
-		default:
-			return MalType.Undefined
-	}
-}
-
-export type MalNode = MalNodeMap | MalSeq
-
-export const isNode = (v: MalVal | undefined): v is MalNode => {
-	const type = getType(v)
+export const isMalColl = (v: MalVal | undefined): v is MalColl => {
+	const type = v?.type
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector
 	)
 }
 
-export const isSeq = (v: MalVal | undefined): v is MalVector | MalList => {
+export const isMalSeq = (v: MalVal | undefined): v is MalSeq => {
 	return v?.type === MalType.Vector || v?.type === MalType.List
 }
 
@@ -560,7 +513,7 @@ export function withMeta(a: MalVal, m: any) {
 	if (!TYPES_SUPPORT_META.has(getType(a))) {
 		throw new MalError('[with-meta] Object should not be atom')
 	}
-	const c = cloneExp(a as MalNode)
+	const c = cloneExp(a as MalColl)
 	c[M_META] = m
 	return c
 }
@@ -573,8 +526,8 @@ export function setMeta(a: MalVal, m: MalVal) {
 	return a
 }
 
-export interface MalNodeSelection {
-	outer: MalNode
+export interface MalCollSelection {
+	outer: MalColl
 	index: number
 }
 
@@ -582,7 +535,7 @@ interface MalRootSelection {
 	root: MalVal
 }
 
-export type MalSelection = MalNodeSelection | MalRootSelection
+export type MalSelection = MalCollSelection | MalRootSelection
 
 export function getMalFromSelection(sel: MalSelection) {
 	if ('root' in sel) {
@@ -633,8 +586,8 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
 			const cloned = MalList.create(...children)
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
+			if (Array.isArray((exp as MalColl)[M_DELIMITERS])) {
+				;(cloned as MalColl)[M_DELIMITERS] = [...(exp as MalColl)[M_DELIMITERS]]
 			}
 			return cloned as T
 		}
@@ -643,8 +596,8 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
 			const cloned = MalVector.create(...children)
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
+			if (Array.isArray((exp as MalColl)[M_DELIMITERS])) {
+				;(cloned as MalColl)[M_DELIMITERS] = [...(exp as MalColl)[M_DELIMITERS]]
 			}
 			return cloned as T
 		}
@@ -657,8 +610,8 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 						])
 				  )
 				: {...(exp as MalMap)}
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
+			if (Array.isArray((exp as MalColl)[M_DELIMITERS])) {
+				;(cloned as MalColl)[M_DELIMITERS] = [...(exp as MalColl)[M_DELIMITERS]]
 			}
 			return cloned as T
 		}
@@ -680,7 +633,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 
 export function getEvaluated(exp: MalVal, deep = true): MalVal {
 	if (exp instanceof Object && M_EVAL in exp) {
-		const evaluated = (exp as MalNode)[M_EVAL]
+		const evaluated = (exp as MalColl)[M_EVAL]
 		if (MalList.isType((evaluated) && deep) {
 			return getEvaluated(evaluated, deep)
 		} else {

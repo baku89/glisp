@@ -3,7 +3,7 @@ import {
 	assocBang,
 	MalError,
 	MalSymbol,
-	MalNode,
+	MalColl,
 	isMap,
 	MalMap,
 	MalVal,
@@ -355,10 +355,10 @@ function readForm(reader: Reader, saveStr: boolean): any {
 }
 
 export function getRangeOfExp(
-	exp: MalNode,
-	root?: MalNode
+	exp: MalColl,
+	root?: MalColl
 ): [number, number] | null {
-	function isParent(parent: MalNode, child: MalNode): boolean {
+	function isParent(parent: MalColl, child: MalColl): boolean {
 		if (parent === child) {
 			return true
 		}
@@ -373,7 +373,7 @@ export function getRangeOfExp(
 		}
 	}
 
-	function calcOffset(exp: MalNode): number {
+	function calcOffset(exp: MalColl): number {
 		if (!exp[M_OUTER] || exp === root) {
 			return 0
 		}
@@ -417,7 +417,7 @@ export function findExpByRange(
 	exp: MalVal,
 	start: number,
 	end: number
-): MalNode | null {
+): MalColl | null {
 	if (!isNode(exp)) {
 		// If Atom
 		return null
@@ -519,16 +519,16 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 	}
 }
 
-export function convertMalNodeToJSObject(exp: MalVal): any {
+export function convertMalCollToJSObject(exp: MalVal): any {
 	if (isMap(exp)) {
 		const ret: {[Key: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(exp)) {
 			const jsKey = getName(key)
-			ret[jsKey] = convertMalNodeToJSObject(value)
+			ret[jsKey] = convertMalCollToJSObject(value)
 		}
 		return ret
 	} else if (isSeq(exp)) {
-		return (exp as MalVal[]).map(e => convertMalNodeToJSObject(e))
+		return (exp as MalVal[]).map(e => convertMalCollToJSObject(e))
 	} else {
 		return exp
 	}

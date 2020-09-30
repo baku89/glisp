@@ -28,7 +28,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
+import {MalColl, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
@@ -79,7 +79,7 @@ export default defineComponent({
 			return new Set(props.selectedExp.slice(1))
 		})
 
-		function onUpdateChildExp(i: number, replaced: MalNode) {
+		function onUpdateChildExp(i: number, replaced: MalColl) {
 			const newExp = cloneExp(props.exp)
 
 			newExp[i + 1] = replaced
@@ -95,11 +95,11 @@ export default defineComponent({
 		}
 
 		// Selection manipulation
-		function selectSingleExp(exp: MalNode) {
+		function selectSingleExp(exp: MalColl) {
 			context.emit('select', [exp])
 		}
 
-		function toggleSelectedExp(exp: MalNode) {
+		function toggleSelectedExp(exp: MalColl) {
 			const newSelection = [...props.selectedExp]
 
 			const index = newSelection.findIndex(s => s === exp)

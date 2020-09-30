@@ -33,7 +33,7 @@ import {
 	MalVal,
 	MalList.isType(,
 	MalSymbol.isType(,
-	MalNode,
+	MalColl,
 	MalSymbol,
 	getOuter,
 	MalType,
@@ -58,7 +58,7 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<MalNode>,
+			type: Object as PropType<MalColl>,
 			required: true,
 		},
 	},

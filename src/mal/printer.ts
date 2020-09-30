@@ -7,7 +7,7 @@ import {
 	M_DELIMITERS,
 	getType,
 	MalFunc,
-	MalNode,
+	MalColl,
 	MalSymbol,
 	MalType,
 	isSeq,
@@ -61,7 +61,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 		case MalType.List:
 		case MalType.Vector:
 		case MalType.Map: {
-			const coll = exp as MalNode
+			const coll = exp as MalColl
 
 			const sugarInfo =
 				type === MalType.List &&

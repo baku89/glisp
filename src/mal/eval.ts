@@ -12,7 +12,7 @@ import {
 	isMap,
 	MalMap,
 	MalList,
-	MalNode,
+	MalColl,
 	isNode,
 	MalSeq,
 	M_PARAMS,
@@ -129,7 +129,7 @@ function evalAtom(
 			return ret
 		})
 		if (cache) {
-			;(exp as MalNode)[M_EVAL] = ret
+			;(exp as MalColl)[M_EVAL] = ret
 		}
 		return MalList.isType((exp) ? L(...ret) : ret
 	} else if (isMap(exp)) {
@@ -137,12 +137,12 @@ function evalAtom(
 		for (const k in exp) {
 			const ret = evalExp.call(this, exp[k], env, cache)
 			if (cache && isNode(exp[k])) {
-				;(exp[k] as MalNode)[M_EVAL] = ret
+				;(exp[k] as MalColl)[M_EVAL] = ret
 			}
 			hm[k] = ret
 		}
 		if (cache) {
-			;(exp as MalNode)[M_EVAL] = hm
+			;(exp as MalColl)[M_EVAL] = hm
 		}
 		return hm
 	} else {

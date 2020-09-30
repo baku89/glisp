@@ -110,7 +110,7 @@ import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
-import {MalVal, MalNode, isNode, MalAtom, MalList, MalSymbol} from '@/mal/types'
+import {MalVal, MalColl, isNode, MalAtom, MalList, MalSymbol} from '@/mal/types'
 
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
@@ -137,18 +137,18 @@ import {reconstructTree} from '@/mal/reader'
 import {useModes} from './use/use-modes'
 
 interface Data {
-	exp: MalNode
+	exp: MalColl
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
 	hasRenderError: boolean
 	viewExp: MalVal | undefined
 	selectedPath: string[]
-	selectedExp: MalNode[]
-	activeExp: MalNode | undefined
+	selectedExp: MalColl[]
+	activeExp: MalColl | undefined
 	editingPath: string
-	editingExp: MalNode | undefined
-	hoveringExp: MalNode | undefined
+	editingExp: MalColl | undefined
+	hoveringExp: MalColl | undefined
 }
 
 interface UI {
@@ -223,7 +223,7 @@ export default defineComponent({
 			editingPath: '',
 			editingExp: computed(() =>
 				data.editingPath
-					? (getExpByPath(data.exp, data.editingPath) as MalNode)
+					? (getExpByPath(data.exp, data.editingPath) as MalColl)
 					: undefined
 			),
 			hoveringExp: undefined,
@@ -242,7 +242,7 @@ export default defineComponent({
 			updateExp
 		)
 
-		const {onSetupConsole} = useURLParser((exp: MalNode) => {
+		const {onSetupConsole} = useURLParser((exp: MalColl) => {
 			updateExp(exp, false)
 			pushExpHistory(exp, 'undo')
 			setEditingExp(exp)
@@ -263,7 +263,7 @@ export default defineComponent({
 		// Events
 
 		// Exp
-		function updateExp(exp: MalNode, pushHistory = true) {
+		function updateExp(exp: MalColl, pushHistory = true) {
 			unwatchExpOnReplace(data.exp, onReplaced)
 			if (pushHistory) {
 				pushExpHistory(exp)
@@ -282,11 +282,11 @@ export default defineComponent({
 		}
 
 		// SelectedExp
-		function setSelectedExp(exp: MalNode[]) {
+		function setSelectedExp(exp: MalColl[]) {
 			data.selectedPath = exp.map(generateExpAbsPath)
 		}
 
-		function setActiveExp(exp: MalNode | undefined) {
+		function setActiveExp(exp: MalColl | undefined) {
 			if (exp) {
 				const path = generateExpAbsPath(exp)
 				data.selectedPath = path !== '/' ? [path] : []
@@ -303,7 +303,7 @@ export default defineComponent({
 		}
 
 		// Editing
-		function setEditingExp(exp: MalNode) {
+		function setEditingExp(exp: MalColl) {
 			if (exp) {
 				data.editingPath = generateExpAbsPath(exp)
 			} else {

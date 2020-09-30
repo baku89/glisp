@@ -14,7 +14,7 @@ import {
 	MalKeyword,
 } from './types'
 import {getStructType} from './utils'
-import {convertMalNodeToJSObject} from './reader'
+import {convertMalCollToJSObject} from './reader'
 
 interface SchemaBase {
 	type: string
@@ -375,7 +375,7 @@ function generateDynamicUISchema(
 ) {
 	const toSchema = schemaParams['to-schema']
 
-	const uiSchema = convertMalNodeToJSObject(
+	const uiSchema = convertMalCollToJSObject(
 		toSchema({[MalKeyword.create('params')]: params})
 	) as Schema[]
 

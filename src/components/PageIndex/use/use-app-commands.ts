@@ -1,7 +1,7 @@
 import AppScope from '@/scopes/app'
 import {
 	MalVal,
-	MalNode,
+	MalColl,
 	expandExp,
 	MalSymbol,
 	MalList,
@@ -42,15 +42,15 @@ import {reconstructTree} from '@/mal/reader'
 
 export default function useAppCommands(
 	data: {
-		exp: MalNode
-		selectedExp: MalNode[]
-		activeExp: MalNode | undefined
-		editingExp: MalNode | undefined
+		exp: MalColl
+		selectedExp: MalColl[]
+		activeExp: MalColl | undefined
+		editingExp: MalColl | undefined
 	},
 	callbacks: {
-		updateExp: (exp: MalNode) => any
-		setActiveExp: (exp: MalNode | undefined) => any
-		setSelectedExp: (exp: MalNode[]) => any
+		updateExp: (exp: MalColl) => any
+		setActiveExp: (exp: MalColl | undefined) => any
+		setSelectedExp: (exp: MalColl[]) => any
 	}
 ) {
 	AppScope.def('expand-selected', () => {
@@ -140,7 +140,7 @@ export default function useAppCommands(
 
 	AppScope.def('select-items', (paths: MalVal) => {
 		if (MalVector.isType(paths)) {
-			const items: MalNode[] = []
+			const items: MalColl[] = []
 
 			for (const path of paths) {
 				if (typeof path !== 'string') {
@@ -203,7 +203,7 @@ export default function useAppCommands(
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const exp = readStr(toSketchCode(code)) as MalNode
+				const exp = readStr(toSketchCode(code)) as MalColl
 				callbacks.updateExp(exp)
 				callbacks.setActiveExp(undefined)
 				data.editingExp = exp

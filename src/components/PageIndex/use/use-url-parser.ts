@@ -1,8 +1,8 @@
-import {MalError, MalNode, isNode} from '@/mal/types'
+import {MalError, MalColl, isNode} from '@/mal/types'
 import {readStr} from '@/mal'
 import {toSketchCode} from '../utils'
 
-export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
+export default function useURLParser(onLoadExp: (exp: MalColl) => void) {
 	// URL
 	const url = new URL(location.href)
 

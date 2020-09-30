@@ -16,7 +16,7 @@ import {
 	MalVector,
 	malEquals,
 	MalList,
-	MalNode,
+	MalColl,
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
@@ -55,7 +55,7 @@ const K_ANGLE = MalKeyword.create('angle'),
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
 export default function useHandle(
-	selectedExp: Ref<MalNode[]>,
+	selectedExp: Ref<MalColl[]>,
 	viewTransform: Ref<mat2d>,
 	viewEl: Ref<HTMLElement | null>,
 	context: SetupContext

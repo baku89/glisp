@@ -16,7 +16,7 @@ import GIF from 'gif.js'
 
 import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
-import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
+import {convertJSObjectToMalMap, convertMalCollToJSObject} from '@/mal/reader'
 import getRendereredImage from '@/renderer/get-rendererd-image'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
@@ -144,7 +144,7 @@ ConsoleScope.def(
 					throw new MalError('Invalid sketch')
 				}
 
-				const options = convertMalNodeToJSObject(assocBang({}, ...xs))
+				const options = convertMalCollToJSObject(assocBang({}, ...xs))
 
 				if (options.selector) {
 					viewExp = ConsoleScope.eval(
@@ -231,7 +231,7 @@ ConsoleScope.def(
 				duration: 1,
 				fps: 24,
 				bounds: [0, 0, 200, 200],
-				...convertMalNodeToJSObject(assocBang({}, ...xs)),
+				...convertMalCollToJSObject(assocBang({}, ...xs)),
 			} as {
 				format: 'gif'
 				scaling: number

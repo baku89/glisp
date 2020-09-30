@@ -1,5 +1,5 @@
 import ConsoleScope from '@/scopes/console'
-import {convertMalNodeToJSObject} from '@/mal/reader'
+import {convertMalCollToJSObject} from '@/mal/reader'
 import {ref, Ref, computed, watch} from 'vue'
 import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
@@ -35,12 +35,12 @@ export function useModes(
 	const modes = ref<Mode[]>([])
 
 	function setupModes() {
-		modes.value = convertMalNodeToJSObject(
+		modes.value = convertMalCollToJSObject(
 			(ConsoleScope.var('*modes*') as MalAtom).value
 		) as Mode[]
 	}
 
-	const modeState = ref<MalMap>({})
+	const modeState = ref<MalMap>(MalMap.create())
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),

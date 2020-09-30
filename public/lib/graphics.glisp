@@ -209,7 +209,7 @@
 ;; 		env.popBinding()
 ;; 	}
 ;; 	if (cache) {
-;; 		;(exp as MalNode)[M_EVAL] = ret
+;; 		;(exp as MalColl)[M_EVAL] = ret
 ;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
 ;; 	}
 ;; 	return ret

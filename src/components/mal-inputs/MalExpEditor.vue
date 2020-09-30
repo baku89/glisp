@@ -17,7 +17,7 @@ import {BlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
 import {
 	MalVal,
-	MalNode,
+	MalColl,
 	MalSymbol,
 	isNode,
 	MalList.isType(,
@@ -49,7 +49,7 @@ export default defineComponent({
 			required: true,
 		},
 		selectedExp: {
-			type: Object as PropType<MalNode | undefined>,
+			type: Object as PropType<MalColl | undefined>,
 			default: undefined,
 		},
 		cssStyle: {
@@ -74,8 +74,8 @@ export default defineComponent({
 				case EditMode.Params: {
 					return (
 						'(' +
-						(exp as MalNode)[M_DELIMITERS][0] +
-						(exp as MalNode)[M_ELMSTRS][0]
+						(exp as MalColl)[M_DELIMITERS][0] +
+						(exp as MalColl)[M_ELMSTRS][0]
 					)
 				}
 				case EditMode.Elements: {

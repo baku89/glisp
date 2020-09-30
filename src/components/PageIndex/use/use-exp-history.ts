@@ -1,5 +1,5 @@
 import {
-	MalNode,
+	MalColl,
 	getName,
 	MalVal,
 	MalError,
@@ -13,7 +13,7 @@ import AppScope from '@/scopes/app'
 
 type Commit = {
 	tag: Set<string>
-	exp: MalNode
+	exp: MalColl
 	activeModeIndex: number | undefined
 	modeState: MalMap
 }
@@ -21,11 +21,11 @@ type Commit = {
 export default function useExpHistory(
 	activeModeIndex: Ref<number | undefined>,
 	modeState: Ref<MalMap>,
-	updateExp: (exp: MalNode, pushHistory?: boolean) => any
+	updateExp: (exp: MalColl, pushHistory?: boolean) => any
 ) {
 	const history: Commit[] = []
 
-	function pushExpHistory(exp: MalNode, tag?: string) {
+	function pushExpHistory(exp: MalColl, tag?: string) {
 		history.push({
 			tag: new Set(tag ? [tag] : undefined),
 			exp,

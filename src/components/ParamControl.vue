@@ -76,7 +76,7 @@ import {
 	SchemaVector,
 	Schema,
 } from '@/mal/schema'
-import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
+import {convertMalCollToJSObject, reconstructTree} from '@/mal/reader'
 
 const TypeDefaults = {
 	number: MalNumber.create(0),
@@ -161,7 +161,7 @@ export default defineComponent({
 			}
 
 			// Convert to JS Object
-			let schema = convertMalNodeToJSObject(malSchema)
+			let schema = convertMalCollToJSObject(malSchema)
 
 			// Add label
 			if (Array.isArray(schema)) {
