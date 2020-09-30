@@ -18,9 +18,6 @@ export enum MalType {
 	// Functions
 	Function = 'fn',
 	Macro = 'macro',
-
-	// Others
-	Undefined = 'undefined',
 }
 
 export type MalBind = (
@@ -61,6 +58,7 @@ export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
+	abstract get evaluated(): MalVal
 	abstract toString(): string
 	abstract clone(): MalVal
 	
@@ -77,6 +75,10 @@ export class MalNumber extends MalVal {
 
 	private constructor(public readonly value: number) {
 		super()
+	}
+
+	get evaluated() {
+		return this
 	}
 
 	valueOf() {
@@ -107,6 +109,10 @@ export class MalString extends MalVal {
 		super()
 	}
 
+	get evaluated() {
+		return this
+	}
+
 	valueOf() {
 		return this.value
 	}
@@ -133,6 +139,10 @@ export class MalBoolean extends MalVal {
 
 	private constructor(public readonly value: boolean) {
 		super()
+	}
+
+	get evaluated() {
+		return this
 	}
 
 	valueOf() {
@@ -163,6 +173,10 @@ export class MalNil extends MalVal {
 		super()
 	}
 
+	get evaluated() {
+		return this
+	}
+
 	valueOf() {
 		return null
 	}
@@ -189,6 +203,10 @@ export class MalKeyword extends MalVal {
 
 	private constructor(public readonly value: string) {
 		super()
+	}
+
+	get evaluated() {
+		return this
 	}
 
 	toString() {
@@ -222,11 +240,19 @@ export class MalList extends MalVal {
 	readonly type: MalType.List = MalType.List
 
 	public delimiters: string[] | undefined = undefined
-	public evaluated: MalVal | undefined = undefined
-	private str: string | undefined = undefined
+	public str: string | undefined = undefined
+	private _evaluated: MalVal | undefined = undefined
 
 	constructor(private readonly value: MalVal[]) {
 		super()
+	}
+
+	set evaluated(value: MalVal) {
+		this._evaluated = value
+	}
+
+	get evaluated(): MalVal {
+		return this._evaluated || this
 	}
 
 	toString() {
@@ -272,11 +298,19 @@ export class MalVector extends MalVal {
 	readonly type: MalType.Vector = MalType.Vector
 
 	public delimiters: string[] | undefined = undefined
-	public evaluated: MalVector | undefined = undefined
-	private str: string | undefined = undefined
+	public str: string | undefined = undefined
+	private _evaluated: MalVector | undefined = undefined
 
 	constructor(private readonly value: MalVal[]) {
 		super()
+	}
+
+	set evaluated(value: MalVector) {
+		this._evaluated = value
+	}
+
+	get evaluated(): MalVector {
+		return this._evaluated || this
 	}
 
 	toString() {
@@ -322,11 +356,19 @@ export class MalMap extends MalVal {
 	readonly type: MalType.Map = MalType.Map
 
 	public delimiters: string[] | undefined = undefined
-	public evaluated: MalMap | undefined = undefined
-	private str: string | undefined = undefined
+	public str: string | undefined = undefined
+	public _evaluated: MalMap | undefined = undefined
 
-	constructor(readonly value: {[key: string]: MalVal}) {
+	constructor(readonly value: {[key: string]: MalVal} | T) {
 		super()
+	}
+
+	set evaluated(value: MalMap) {
+		this._evaluated = value
+	}
+
+	get evaluated(): MalMap {
+		return this._evaluated || this
 	}
 
 	toString() {
@@ -411,6 +453,10 @@ export class MalFunction extends MalVal {
 
 	private constructor() {
 		super()
+	}
+
+	get evaluated() {
+		return this
 	}
 
 	toString() {
@@ -518,7 +564,7 @@ export function expandExp(exp: MalVal) {
 				return exp
 		}
 	} else {
-		return getEvaluated(exp, false)
+		return exp.evaluated
 	}
 }
 
@@ -552,23 +598,36 @@ export function getName(exp: MalVal): string {
 // Symbol
 export class MalSymbol extends MalVal {
 	public readonly type: MalType.Symbol = MalType.Symbol
-	private [M_DEF]: MalSeq | null
-	public evaluated: MalVal | undefined = undefined
+	private _def!: MalSeq | undefined
+	private _evaluated!: MalVal | undefined
 
 	private constructor(public readonly value: string) {
 		super()
 	}
 
-	set def(def: MalSeq | null) {
-		this[M_DEF] = def
+	set evaluated(value: MalVal) {
+		this._evaluated = value
 	}
 
-	get def(): MalSeq | null {
-		return this[M_DEF] || null
+	get evaluated(): MalVal {
+		return this._evaluated || this
+	}
+
+
+	set def(def: MalSeq | undefined) {
+		this._def = def
+	}
+
+	get def(): MalSeq | undefined {
+		return this._def || undefined
 	}
 
 	toString() {
 		return this.value
+	}
+
+	clone() {
+		return new MalSymbol(this.value)
 	}
 
 	static create(identifier: string) {
@@ -581,6 +640,14 @@ export class MalAtom extends MalVal {
 	public readonly type: MalType.Atom = MalType.Atom
 	public constructor(public value: MalVal) {
 		super()
+	}
+
+	get evaluated() {
+		return this.value
+	}
+
+	clone() {
+		return new MalAtom(this.value.clone())
 	}
 
 	toString(): string {

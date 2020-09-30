@@ -55,7 +55,7 @@
 import {defineComponent, computed, ref, PropType} from 'vue'
 import Draggable from 'vuedraggable'
 import {
-	MalList.isType(,
+	MalList,
 	MalVector,
 	MalSeq,
 	cloneExp,

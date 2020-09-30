@@ -31,7 +31,7 @@
 <script lang="ts">
 import {
 	MalVal,
-	MalList.isType(,
+	MalList,
 	MalSymbol.isType(,
 	MalColl,
 	MalSymbol,

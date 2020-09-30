@@ -12,7 +12,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {MalVal, MalList.isType(, MalSymbol.isType(, isNode} from '@/mal/types'
+import {MalVal, MalList, MalSymbol.isType(, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {getUIBodyExp} from '@/mal/utils'
 

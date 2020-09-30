@@ -37,7 +37,7 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, toRefs, PropType} from 'vue'
-import {MalVal, MalList.isType(, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
+import {MalVal, MalList, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
 import {clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'

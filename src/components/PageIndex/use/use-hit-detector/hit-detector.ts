@@ -4,7 +4,7 @@ import {
 	getEvaluated,
 	MalVector,
 	MalKeyword,
-	MalList.isType(,
+	MalList,
 	MalSeq,
 	MalKeyword,
 	MalMap,

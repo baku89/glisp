@@ -20,7 +20,7 @@ import {
 	MalColl,
 	MalSymbol,
 	isNode,
-	MalList.isType(,
+	MalList,
 	M_DELIMITERS,
 	M_ELMSTRS,
 	getType,

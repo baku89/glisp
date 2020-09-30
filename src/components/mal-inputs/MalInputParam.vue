@@ -27,7 +27,7 @@ import {
 	getMeta,
 	MalVal,
 	cloneExp,
-	MalList.isType(,
+	MalList,
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalCollToJSObject} from '@/mal/reader'

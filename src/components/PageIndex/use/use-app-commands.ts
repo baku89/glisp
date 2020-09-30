@@ -13,7 +13,7 @@ import {
 	MalError,
 	cloneExp,
 	isMalSeq,
-	MalList.isType(,
+	MalList,
 	MalSymbol.isType(For,
 	MalSeq,
 	getEvaluated,

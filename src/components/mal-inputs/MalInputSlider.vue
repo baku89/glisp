@@ -39,7 +39,7 @@ import InputSlider from '@/components/inputs/InputSlider.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {
 	MalSeq,
-	MalList.isType(,
+	MalList,
 	MalVal,
 	MalSymbol,
 	getEvaluated,

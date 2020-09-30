@@ -65,7 +65,7 @@ import {
 	getType,
 	MalSymbol.isType(,
 	getEvaluated,
-	MalList.isType(,
+	MalList,
 	MalList,
 	MalSymbol,
 	MalSeq,

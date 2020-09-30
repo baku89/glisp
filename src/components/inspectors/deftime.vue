@@ -32,14 +32,7 @@ import {
 	watch,
 	PropType,
 } from 'vue'
-import {
-	MalList.isType(,
-	cloneExp,
-	assocBang,
-	MalKeyword,
-	getEvaluated,
-	MalSeq,
-} from '@/mal/types'
+import {MalList, MalKeyword, MalSeq} from '@/mal/types'
 import {clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
 import {useDraggable} from '@/components/use'
@@ -90,7 +83,7 @@ export default defineComponent({
 		)
 
 		function updateTime(newTime: number) {
-			const exp = cloneExp(props.exp)
+			const exp = props.exp.clone()
 			;(exp[2] as number) = newTime
 			context.emit('input', exp)
 		}

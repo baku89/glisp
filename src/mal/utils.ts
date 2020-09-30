@@ -18,7 +18,7 @@ import {
 	MalList,
 	isNode,
 	M_OUTER,
-	MalList.isType(,
+	MalList,
 	M_OUTER_INDEX,
 	MalType,
 	isFunc,

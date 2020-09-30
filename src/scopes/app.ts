@@ -1,7 +1,7 @@
 import Scope from '@/mal/scope'
 import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
-import {MalVal, MalList.isType(, MalError} from '@/mal/types'
+import {MalVal, MalList, MalError} from '@/mal/types'
 import ConsoleScope from './console'
 
 function onSetup() {

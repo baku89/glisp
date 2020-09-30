@@ -63,7 +63,7 @@
 import {defineComponent, computed, PropType} from 'vue'
 import {
 	MalVal,
-	MalList.isType(,
+	MalList,
 	MalVector,
 	MalType,
 	getType,

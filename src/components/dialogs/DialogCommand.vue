@@ -26,7 +26,7 @@ import {
 	MalFunc,
 	getMeta,
 	MalSymbol,
-	MalList.isType(,
+	MalList,
 	MalSymbol.isType(,, MalSeq
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'

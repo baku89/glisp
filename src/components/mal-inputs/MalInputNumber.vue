@@ -37,7 +37,7 @@ import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {
 	MalSeq,
-	MalList.isType(,
+	MalList,
 	MalVal,
 	MalSymbol,
 	getEvaluated,

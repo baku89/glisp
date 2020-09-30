@@ -53,7 +53,7 @@ import {
 	MalSeq,
 	MalSymbol,
 	getEvaluated,
-	MalList.isType(,
+	MalList,
 	MalSymbol.isType(For,
 	MalVal,
 	cloneExp,
