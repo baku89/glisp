@@ -1,5 +1,3 @@
-/* eslint-ignore @typescript-eslint/no-use-before-define */
-
 import {
 	MalVal,
 	MalFuncThis,
