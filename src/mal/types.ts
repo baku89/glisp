@@ -1,7 +1,5 @@
 import Env from './env'
 
-export type MalJSFunc = (...args: MalVal[]) => MalVal | never
-
 export const M_META = Symbol.for('meta')
 export const M_AST = Symbol.for('ast')
 export const M_ENV = Symbol.for('env')
@@ -87,7 +85,8 @@ abstract class MalVal {
 	abstract toString(): string
 }
 
-type MalColl = MalList | MalVector | MalHashMap
+type MalColl = MalList | MalVector | MalMap
+type MalSeq = MalList | MalVal
 
 export class MalNumber extends MalVal {
 	readonly type: MalType.Number = MalType.Number
@@ -269,11 +268,11 @@ export class MalVector extends MalVal {
 	}
 }
 
-export class MalHashMap extends MalVal {
+export class MalMap extends MalVal {
 	readonly type: MalType.Map = MalType.Map
 
 	public delimiters: string[] | undefined = undefined
-	public evaluated: MalHashMap | undefined = undefined
+	public evaluated: MalMap | undefined = undefined
 	private str: string | undefined = undefined
 
 	private value!: {[key: string]: MalVal}
@@ -324,7 +323,7 @@ export class MalHashMap extends MalVal {
 	}
 
 	static create(...value: MalVal[]) {
-		return new MalHashMap(value)
+		return new MalMap(value)
 	}
 }
 
@@ -334,11 +333,13 @@ type MalF = (
 ) => MalVal
 
 export class MalFunction extends MalVal {
-	type: MalType.Function = MalType.Function
+	readonly type: MalType.Function = MalType.Function
+	value!: MalF
 
 	ast!: MalVal | undefined
+	env!: Env
 	params!: MalVal
-	func!: MalF
+	meta!: MalVal
 	isMacro!: boolean
 
 	private constructor() {
@@ -356,8 +357,28 @@ export class MalFunction extends MalVal {
 
 	static create(func: MalF) {
 		const f = new MalFunction()
-		f.func = func
+		f.value = func
 		f.isMacro = false
+	}
+
+	static fromMal(
+		func: MalF,
+		exp: MalVal,
+		env: Env,
+		params: MalVal,
+		meta: MalVal = MalNil.create(),
+		isMacro = false
+	): MalFunction {
+
+		const f = new MalFunction()
+
+		f.value = func
+		f.env = env
+		f.params = params
+		f.meta = meta
+		f.isMacro = isMacro
+
+		return f
 	}
 }
 
@@ -381,39 +402,7 @@ export function createMap(map: any) {
 	return map as MalMap
 }
 
-export interface MalFunc extends Function {
-	(this: void | MalFuncThis, ...args: MalVal[]): MalVal
-	[M_META]?: MalVal
-	[M_AST]: MalVal
-	[M_ENV]: Env
-	[M_PARAMS]: MalBind
-	[M_ISMACRO]: boolean
-}
-
 export class MalError extends Error {}
-
-export type MalMap = {[keyword: string]: MalVal}
-
-export interface MalNodeMap extends MalMap {
-	[M_META]?: MalVal
-	[M_DELIMITERS]: string[]
-	[M_ELMSTRS]: string[]
-	[M_EVAL]: MalVal
-	[M_OUTER]: MalNode
-	[M_OUTER_INDEX]: number
-}
-
-export interface MalSeq extends Array<MalVal> {
-	[M_ISLIST]: boolean
-	[M_META]?: MalVal
-	[M_ISSUGAR]: boolean
-	[M_DELIMITERS]: string[]
-	[M_ELMSTRS]: string[]
-	[M_EVAL]: MalVal // Stores evaluted value of the node
-	[M_EXPAND]: ExpandInfo
-	[M_OUTER]: MalNode
-	[M_OUTER_INDEX]: number
-}
 
 // Expand
 function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
@@ -519,16 +508,15 @@ export const isNode = (v: MalVal | undefined): v is MalNode => {
 	)
 }
 
-export const isSeq = (v: MalVal | undefined): v is MalSeq => {
-	const type = getType(v)
-	return type === MalType.List || type === MalType.Vector
+export const isSeq = (v: MalVal | undefined): v is MalVector | MalList => {
+	return v?.type === MalType.Vector || v?.type === MalType.List
 }
 
 export function getMeta(obj: MalVal): MalVal {
 	if (obj instanceof Object) {
 		return M_META in obj ? (obj as any)[M_META] : null
 	} else {
-		return null
+		return MalNil.create()
 	}
 }
 
@@ -679,11 +667,11 @@ export function getEvaluated(exp: MalVal, deep = true): MalVal {
 }
 
 export function getName(exp: MalVal): string {
-	switch (getType(exp)) {
+	switch (exp.type) {
 		case MalType.String:
-			return exp as string
+			return (exp as MalString).value
 		case MalType.Keyword:
-			return (exp as string).slice(1)
+			return (exp as MalKeyword).value
 		case MalType.Symbol:
 			return (exp as MalSymbol).value
 		default:
@@ -695,23 +683,7 @@ export function getName(exp: MalVal): string {
 
 // Functions
 
-export function createMalFunc(
-	fn: (this: void | MalFuncThis, ...args: MalVal[]) => MalVal,
-	exp: MalVal,
-	env: Env,
-	params: MalBind,
-	meta = null,
-	ismacro = false
-): MalFunc {
-	const attrs = {
-		[M_AST]: exp,
-		[M_ENV]: env,
-		[M_PARAMS]: params,
-		[M_META]: meta,
-		[M_ISMACRO]: ismacro,
-	}
-	return Object.assign(fn, attrs)
-}
+export function createMalFunc = MalFunction.fromMal
 
 export const isFunc = (exp: MalVal | undefined): exp is MalFunc =>
 	exp instanceof Function
@@ -754,49 +726,22 @@ export const isSymbolFor = (obj: any, name: string): obj is MalSymbol =>
 
 export const symbolFor = (value: string) => new MalSymbol(value)
 
-// Keyword
-const KEYWORD_PREFIX = '\u029e'
-
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
-export const isKeyword = (obj: MalVal | undefined): obj is string =>
-	getType(obj) === MalType.Keyword
+export const isKeyword = (obj: MalVal | undefined): obj is MalKeyword =>
+	obj?.type === MalType.Keyword
 
-export const keywordFor = (k: string) => KEYWORD_PREFIX + k
+export const keywordFor = MalKeyword.create
 
 // List
-export const isList = (obj: MalVal | undefined): obj is MalSeq => {
+export const isList = (obj: MalVal | undefined): obj is MalList => {
+	return obj?.type === MalType.Vector
 	// below code is identical to `getType(obj) === MalType.List`
-	return Array.isArray(obj) && (obj as any)[M_ISLIST]
-}
-
-export function createList(...coll: MalVal[]) {
-	;(coll as MalSeq)[M_ISLIST] = true
-	coll.forEach((child, i) => {
-		if (isNode(child)) {
-			child[M_OUTER] = coll as MalSeq
-			child[M_OUTER_INDEX] = i
-		}
-	})
-	return coll as MalSeq
+	// return Array.isArray(obj) && (obj as any)[M_ISLIST]
 }
 
 // Vectors
-export const isVector = (obj: MalVal | undefined): obj is MalSeq => {
-	// below code is identical to `getType(obj) === MalType.Vector`
-	return (
-		(Array.isArray(obj) && !(obj as any)[M_ISLIST]) ||
-		obj instanceof Float32Array
-	)
-}
-export function createVector(...coll: MalVal[]) {
-	coll.forEach((child, i) => {
-		if (isNode(child)) {
-			child[M_OUTER] = coll as MalSeq
-			child[M_OUTER_INDEX] = i
-		}
-	})
-	return coll as MalSeq
-}
+export const isVector = (obj: MalVal | undefined): obj is MalVector =>
+	obj?.type === MalType.Vector
 
 // Maps
 export const isMap = (obj: MalVal | undefined): obj is MalMap =>
