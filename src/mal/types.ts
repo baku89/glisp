@@ -701,7 +701,7 @@ export class MalSymbol extends MalVal {
 	private [M_DEF]: MalSeq | null
 	public evaluated: MalVal | undefined = undefined
 
-	constructor(public readonly value: string) {
+	private constructor(public readonly value: string) {
 		super()
 	}
 
@@ -715,6 +715,10 @@ export class MalSymbol extends MalVal {
 
 	toString() {
 		return this.value
+	}
+
+	static create(identifier: string) {
+		return new MalSymbol(identifier)
 	}
 }
 
