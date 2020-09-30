@@ -16,7 +16,7 @@ export enum MalType {
 	Atom = 'atom',
 
 	// Functions
-	Function = 'fn',
+	Func = 'fn',
 	Macro = 'macro',
 }
 
@@ -451,7 +451,7 @@ type MalF = (
 ) => MalVal
 
 export class MalFunc extends MalVal {
-	readonly type: MalType = MalType.Function
+	readonly type: MalType = MalType.Func
 
 	exp!: MalVal | undefined
 	env!: Env
@@ -485,7 +485,7 @@ export class MalFunc extends MalVal {
 	}
 
 	static is(value: MalVal): value is MalFunc {
-		return value.type === MalType.Function
+		return value.type === MalType.Func
 	}
 
 	static create(value: MalF) {

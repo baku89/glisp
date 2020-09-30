@@ -155,7 +155,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			return ':' + (exp as string).slice(1)
 		case MalType.Atom:
 			return `(atom ${printExp((exp as MalAtom).value, _r)})`
-		case MalType.Function:
+		case MalType.Func:
 		case MalType.Macro: {
 			if (M_AST in (exp as MalFunc)) {
 				const params = printExp((exp as MalFunc)[M_PARAMS], _r)

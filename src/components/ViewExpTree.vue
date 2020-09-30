@@ -82,7 +82,7 @@ enum DisplayMode {
 }
 
 const IconTexts = {
-	[MalType.Function]: {type: 'serif', value: 'f'},
+	[MalType.Func]: {type: 'serif', value: 'f'},
 	[MalType.Number]: {type: 'text', value: '#'},
 	[MalType.String]: {
 		type: 'fontawesome',

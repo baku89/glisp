@@ -87,7 +87,7 @@ export default defineComponent({
 				const info = getFnInfo(props.value)
 
 				if (info) {
-					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Function)
+					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Func)
 					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
