@@ -3,17 +3,15 @@ import {
 	MalError,
 	MalSymbol,
 	MalMap,
-	isMalSeq,
-	MalType,
-	MalVector, MalKeyword
+	MalVector,
+	MalKeyword,
 } from './types'
-import {printExp} from '.'
 
 export default class Env {
 	private data = new Map<string, MalVal>()
 
 	private bindings!: Env[]
-	private exps?: MalVal
+	private exps?: MalVal[]
 
 	constructor(
 		protected outer: Env | null = null,
@@ -55,7 +53,7 @@ export default class Env {
 	 */
 	public bindAll(binds: MalVal, exps: MalVal) {
 		if (MalSymbol.is(binds)) {
-			this.set(binds, exps)
+			this.set(binds.value, exps)
 		} else if (MalVector.is(binds)) {
 			if (!MalVector.is(exps)) {
 				throw new MalError('Bind vector error')
@@ -65,104 +63,51 @@ export default class Env {
 				const bind = binds.value[i]
 				const exp = exps.value[i]
 
-				const bindType = bind.type
-
 				if (MalSymbol.isFor(bind, '&')) {
 					// rest arguments
 					this.set(
-						binds.value[i + 1] as MalSymbol,
+						(binds.value[i + 1] as MalSymbol).value,
 						MalVector.create(...exps.value.slice(i))
 					)
 					i++
 					continue
-
-				} else if ( MalKeyword.isFor(bind, 'as')) {
+				} else if (MalKeyword.isFor(bind, 'as')) {
 					// :as destruction
-					this.set(binds.value[i + 1] as MalSymbol, exp)
+					this.set((binds.value[i + 1] as MalSymbol).value, exp)
 					break
 				}
 
 				this.bindAll(bind, exp)
-
-				switch (bindType) {
-					case MalType.Symbol: {
-						if (exp === undefined) {
-							throw new MalError(
-								`[${this.name}] parameter '${bind}' is not specified`
-							)
-						}
-						this.set(bind as MalSymbol, exp)
-						break
-					}
-					case MalType.Vector: {
-						// List Destruction
-						if (!isMalSeq(exp)) {
-							throw new MalError(
-								`[${this.name}] The destruction parameter ${printExp(
-									bind,
-									true
-								)} is not specified as sequence`
-							)
-						}
-
-						this.bindAll(bind as MalVal, exp as MalVal[])
-						break
-					}
-					case MalType.Map: {
-						// Hashmap destruction
-						if (!MalMap.is(exp)) {
-							throw new MalError(
-								`[${this.name}] The destruction parameter '${printExp(
-									bind,
-									true
-								)}'} is not specified as map`
-							)
-						}
-						// Convert the two maps to list
-						// binds: [name location] <-- exps: ["Baku" "Japan"]
-						const hashBinds = [] as MalVal,
-							hashExps = []
-
-						for (const [key, sym] of Object.entries(bind)) {
-							if (key === keywordFor('as')) {
-								// :as destruction
-								hashBinds.push(sym)
-								hashExps.push(exp)
-							} else {
-								if (!(key in (exp as MalMap))) {
-									throw new MalError(
-										`[${this.name}] The destruction keyword :${key.slice(
-											1
-										)} does not exist on the parameter`
-									)
-								}
-								hashBinds.push(sym)
-								hashExps.push((exp as MalMap)[key])
-							}
-						}
-
-						this.bindAll(hashBinds, hashExps)
-						break
-					}
-					default:
-						throw new MalError(`[${this.name}] Invalid bind expression`)
-				}
 			}
 		} else if (MalMap.is(binds)) {
 			if (!MalMap.is(exps)) {
 				throw new MalError('Bind map error')
 			}
 
-			for (Mal)
+			for (const [key, bind] of binds.entries()) {
+				if (key === 'as') {
+					// :as destruction
+					if (!MalSymbol.is(bind)) throw new MalError('Invalid :as')
+					this.set(bind.value, exps)
+					continue
+				} else {
+					if (!(key in exps.value)) {
+						throw new MalError(
+							`[${this.name}] The destruction keyword :${key} does not exist on the parameter`
+						)
+					}
+					this.bindAll(bind, exps.value[key])
+				}
+			}
 		}
 	}
 
-	public set(symbol: MalSymbol, value: MalVal) {
-		this.data.set(symbol.value, value)
+	public set(symbol: string, value: MalVal) {
+		this.data.set(symbol, value)
 		return value
 	}
 
-	public find(symbol: MalSymbol): MalVal | void {
+	public find(symbol: string): MalVal | void {
 		// First, search binding
 		const bindings = this.root.bindings
 		if (bindings.length > 0) {
@@ -173,15 +118,15 @@ export default class Env {
 			}
 		}
 
-		if (this.data.has(symbol.value)) {
-			return this.data.get(symbol.value)
+		if (this.data.has(symbol)) {
+			return this.data.get(symbol)
 		}
 
 		let argIndex
 		if (
-			symbol.value[0] === '%' &&
+			symbol.startsWith('%') &&
 			this.exps &&
-			this.exps.length >= (argIndex = parseInt(symbol.value.slice(1)) - 1 || 0)
+			this.exps.length >= (argIndex = parseInt(symbol.slice(1)) - 1 || 0)
 		) {
 			return this.exps[argIndex]
 		}
@@ -193,18 +138,11 @@ export default class Env {
 		return undefined
 	}
 
-	public hasOwn(symbol: MalSymbol) {
-		// if (!MalSymbol.is(symbol)) {
-		// 	throw 'HASOWN not symbol'
-		// }
-		return this.data.has(symbol.value)
+	public hasOwn(symbol: string) {
+		return this.data.has(symbol)
 	}
 
-	public get(symbol: MalSymbol): MalVal {
-		// if (!MalSymbol.is(symbol)) {
-		// 	throw 'get not symbol'
-		// }
-
+	public get(symbol: string): MalVal {
 		const value = this.find(symbol)
 
 		if (value === undefined) {

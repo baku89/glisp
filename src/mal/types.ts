@@ -225,7 +225,7 @@ export class MalKeyword extends MalVal {
 		return this
 	}
 
-	print(readably = true) {
+	print() {
 		return ':' + this.value
 	}
 
@@ -597,10 +597,6 @@ export class MalMacro extends MalFunc {
 
 		return m
 	}
-}
-
-export function createMap(map: any) {
-	return map as MalMap
 }
 
 export class MalError extends Error {}

@@ -113,7 +113,7 @@ import {printExp} from '@/mal'
 import {
 	MalVal,
 	MalColl,
-	isNode,
+	isMalColl,
 	MalAtom,
 	MalList,
 	MalSymbol,
@@ -194,7 +194,7 @@ export default defineComponent({
 		}) as UI
 
 		const data: Data = reactive({
-			exp: L(MalSymbol.create('sketch')),
+			exp: MalList.create(MalSymbol.create('sketch')),
 			hasError: computed(
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
 			),
@@ -282,7 +282,7 @@ export default defineComponent({
 			watchExpOnReplace(exp, onReplaced)
 
 			function onReplaced(newExp: MalVal) {
-				if (!isNode(newExp)) {
+				if (!isMalColl(newExp)) {
 					throw new Error('data.exp cannot be non-node value')
 				}
 				updateExp(newExp)

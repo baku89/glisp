@@ -49,7 +49,7 @@ export default defineComponent({
 		},
 	},
 	setup() {
-		const menu = ref<any[]>((AppScope.var('*global-menu*') as MalSeq) || [])
+		const menu = ref((AppScope.var('*global-menu*') as MalSeq).toJS() || [])
 
 		const expandedIndex = ref<number | null>(null)
 

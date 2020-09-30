@@ -7,9 +7,9 @@ import {
 	MalError,
 	MalSymbol,
 	MalKeyword,
-	setMeta,
-	assocBang,
 	MalNil,
+	MalList,
+	MalMap,
 } from '@/mal/types'
 import GIF from 'gif.js'
 
@@ -48,14 +48,14 @@ function generateSketchURL(codeURL: string) {
 }
 
 ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
-	return copyToClipboard(str as string)
+	return copyToClipboard(str.value as string)
 })
 
 ConsoleScope.def(
 	'generate-sketch-url',
 	setMeta(
 		(url: MalVal) => {
-			return generateSketchURL(url as string)
+			return generateSketchURL(url.value as string)
 		},
 		jsToMal({
 			doc: 'Generates Code URL',
@@ -71,7 +71,7 @@ ConsoleScope.def(
 )
 
 ConsoleScope.def('open-link', (url: MalVal) => {
-	window.open(url as string, '_blank')
+	window.open(url.value as string, '_blank')
 	return `Open URL: ${url}`
 })
 
@@ -83,7 +83,7 @@ ConsoleScope.def('clear-console', () => {
 ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 	const filename = generateFilename(args[0] as string)
 
-	const sketch = ConsoleScope.var('*sketch*') as string
+	const sketch = ConsoleScope.var('*sketch*').value as string
 
 	const file = new File([sketch], filename, {
 		type: 'text/plain;charset=utf-8',
@@ -110,7 +110,7 @@ ConsoleScope.def(
 	setMeta(
 		(...xs: MalVal[]) => {
 			const exec = async () => {
-				const sketch = ConsoleScope.var('*sketch*') as string
+				const sketch = ConsoleScope.var('*sketch*').value as string
 				const code = `(sketch ${sketch}\nnil)`
 
 				renderViewScope.setup({guideColor: null})
@@ -120,11 +120,15 @@ ConsoleScope.def(
 					throw new MalError('Invalid sketch')
 				}
 
-				const options = convertMalCollToJSObject(assocBang({}, ...xs))
+				const options = MalMap.fromMalColl(...xs).value
 
 				if (options.selector) {
 					viewExp = ConsoleScope.eval(
-						L(MalSymbol.create('filter-elements'), options.selector, viewExp)
+						MalList.create(
+							MalSymbol.create('filter-elements'),
+							options.selector,
+							viewExp
+						)
 					)
 					if (!viewExp) {
 						throw new MalError(
@@ -134,15 +138,15 @@ ConsoleScope.def(
 				}
 
 				const bounds = ConsoleScope.eval(
-					L(MalSymbol.create('get-element-bounds'), viewExp)
-				) as number[]
+					MalList.create(MalSymbol.create('get-element-bounds'), viewExp)
+				)?.toJS() as number[]
 				if (!bounds) {
 					throw new MalError('Cannot retrieve bounds')
 				}
 
 				const image = await getRendereredImage(viewExp, {
-					format: options.format,
-					scaling: options.scaling,
+					format: options.format.value as string,
+					scaling: options.scaling.value as number,
 					bounds,
 				})
 
@@ -207,7 +211,7 @@ ConsoleScope.def(
 				duration: 1,
 				fps: 24,
 				bounds: [0, 0, 200, 200],
-				...convertMalCollToJSObject(assocBang({}, ...xs)),
+				...MalMap.fromMalColl(...xs).toJS(),
 			} as {
 				format: 'gif'
 				scaling: number
@@ -219,7 +223,7 @@ ConsoleScope.def(
 			}
 
 			const renderTime = async (time: number) => {
-				const sketch = ConsoleScope.var('*sketch*') as string
+				const sketch = ConsoleScope.var('*sketch*').value as string
 				const code = `(sketch-at-time "${options.symbol}" ${time} ${sketch}\nnil)`
 
 				renderViewScope.setup({guideColor: null})
@@ -333,10 +337,14 @@ ConsoleScope.def(
 	'publish-gist',
 	setMeta(
 		(...args: MalVal[]) => {
-			const code = ConsoleScope.var('*sketch*') as string
+			const code = ConsoleScope.var('*sketch*').value as string
 
 			// eslint-disable-next-line prefer-const
-			const {_: name, user, token} = createHashMap(args)
+			const {name, user, token} = MalMap.fromMalColl(...args).toJS() as {
+				name: string
+				user: string
+				token: string
+			}
 
 			if (typeof user !== 'string' || typeof token !== 'string') {
 				throw new MalError(`Parameters :user and :token must be specified.
@@ -345,14 +353,13 @@ ConsoleScope.def(
 
 			localStorage.setItem('gist_api_token', JSON.stringify({user, token}))
 
-			const filename = generateFilename(name as string)
+			const filename = generateFilename(name)
 
 			async function publishToGist() {
 				const res = await fetch('https://api.github.com/gists', {
 					method: 'POST',
 					headers: {
-						Authorization:
-							'Basic ' + btoa(`${user as string}:${token as string}`),
+						Authorization: 'Basic ' + btoa(`${user}:${token}`),
 					},
 					body: JSON.stringify({
 						public: true,
@@ -432,7 +439,7 @@ ConsoleScope.def(
 )
 
 ConsoleScope.def('generate-embed-url', () => {
-	const sketch = ConsoleScope.var('*sketch*') as string
+	const sketch = ConsoleScope.var('*sketch*').value as string
 
 	const url = new URL('embed.html', globalThis.location.href)
 	url.searchParams.set('code', encodeURI(sketch))
