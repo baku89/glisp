@@ -244,7 +244,7 @@ export class MalList extends MalVal {
 	public str: string | undefined = undefined
 	private _evaluated: MalVal | undefined = undefined
 
-	constructor(private readonly value: MalVal[]) {
+	constructor(public readonly value: MalVal[]) {
 		super()
 	}
 
@@ -302,7 +302,7 @@ export class MalVector extends MalVal {
 	public str: string | undefined = undefined
 	private _evaluated: MalVector | undefined = undefined
 
-	constructor(private readonly value: MalVal[]) {
+	constructor(public readonly value: MalVal[]) {
 		super()
 	}
 
