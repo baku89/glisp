@@ -83,14 +83,20 @@ export interface MalFuncThis {
 abstract class MalBase {
 	constructor() {}
 
+	parent: {ref: MalColl; index: number} | undefined = undefined
+
 	abstract type: MalType
 	abstract toString(): string
 }
 
-export class MalNumber {
+type MalColl = MalList | MalVector | MalHashMap
+
+export class MalNumber extends MalBase {
 	readonly type: MalType.Number = MalType.Number
 
-	private constructor(public readonly value: number) {}
+	private constructor(public readonly value: number) {
+		super()
+	}
 
 	valueOf() {
 		return this.value
@@ -105,10 +111,12 @@ export class MalNumber {
 	}
 }
 
-export class MalString {
+export class MalString extends MalBase {
 	readonly type: MalType.String = MalType.String
 
-	private constructor(public readonly value: string) {}
+	private constructor(public readonly value: string) {
+		super()
+	}
 
 	valueOf() {
 		return this.value
@@ -123,10 +131,12 @@ export class MalString {
 	}
 }
 
-export class MalBoolean {
+export class MalBoolean extends MalBase {
 	readonly type: MalType.Boolean = MalType.Boolean
 
-	private constructor(public readonly value: boolean) {}
+	private constructor(public readonly value: boolean) {
+		super()
+	}
 
 	valueOf() {
 		return this.value
@@ -141,11 +151,11 @@ export class MalBoolean {
 	}
 }
 
-export class MalNil {
+export class MalNil extends MalBase {
 	readonly type: MalType.Nil = MalType.Nil
 
 	private constructor() {
-		null
+		super()
 	}
 
 	valueOf() {
@@ -161,10 +171,12 @@ export class MalNil {
 	}
 }
 
-export class MalKeyword {
+export class MalKeyword extends MalBase {
 	readonly type: MalType.Keyword = MalType.Keyword
 
-	private constructor(private readonly value: string) {}
+	private constructor(private readonly value: string) {
+		super()
+	}
 
 	toString() {
 		return this.value
@@ -185,13 +197,15 @@ export class MalKeyword {
 	}
 }
 
-export class MalList {
+export class MalList extends MalBase {
 	readonly type: MalType.List = MalType.List
 
 	private delimiters: string[] | undefined = undefined
 	private str: string | undefined = undefined
 
-	constructor(private readonly value: MalVal[]) {}
+	constructor(private readonly value: MalVal[]) {
+		super()
+	}
 
 	toString() {
 		if (this.str === undefined) {
@@ -219,13 +233,15 @@ export class MalList {
 	}
 }
 
-export class MalVector {
+export class MalVector extends MalBase {
 	readonly type: MalType.Vector = MalType.Vector
 
 	private delimiters: string[] | undefined = undefined
 	private str: string | undefined = undefined
 
-	constructor(private readonly value: MalVal[]) {}
+	constructor(private readonly value: MalVal[]) {
+		super()
+	}
 
 	toString() {
 		if (this.str === undefined) {
@@ -253,7 +269,7 @@ export class MalVector {
 	}
 }
 
-export class MalHashMap {
+export class MalHashMap extends MalBase {
 	readonly type: MalType.Map = MalType.Map
 
 	private delimiters: string[] | undefined = undefined
@@ -262,6 +278,8 @@ export class MalHashMap {
 	private value!: {[key: string]: MalVal}
 
 	constructor(value: MalVal[]) {
+		super()
+
 		for (let i = 0; i + 1 < value.length; i += 1) {
 			const k = value[i]
 			const v = value[i + 1]
