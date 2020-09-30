@@ -42,7 +42,7 @@ import {
 	MalSymbol,
 	MalType,
 	MalKeyword,
-	MalNumber,
+	MalNumber,, MalMap
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -85,10 +85,9 @@ export default defineComponent({
 
 		const fn = computed(() => {
 			if (display.value.mode !== 'exp') {
-				return getFn(props.value)
-			} else {
-				return undefined
+				return getFn(props.value) || null
 			}
+			return null
 		})
 
 		const displayValue = computed(() => {
@@ -117,10 +116,10 @@ export default defineComponent({
 			if (props.validator && typeof value === 'number') {
 				let validated
 				if (display.value.mode === 'unit') {
-					const unitValue = (fn.value as any)(value as any)
-					validated = (display.value.inverseFn as any)({
-						[MalKeyword.create('return')]: props.validator(unitValue),
-					})[0]
+					const unitValue = fn.value(value as any)
+					validated = (display.value.inverseFn as any)(MalMap.create({
+						return: props.validator(unitValue),
+					}))[0]
 				} else {
 					validated = props.validator(value)
 				}

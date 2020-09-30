@@ -5,7 +5,7 @@
 			:compact="true"
 			:value="value"
 			:validator="validator"
-			@input="onInput($event.value)"
+			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
 			@end-tweak="$emit('end-tweak')"
 		/>
@@ -22,7 +22,7 @@
 import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
+import {MalList, MalNumber, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 export default defineComponent({
@@ -30,7 +30,7 @@ export default defineComponent({
 	components: {MalInputNumber, InputRotery},
 	props: {
 		value: {
-			type: [Number, Array, MalSymbol] as PropType<number | MalSeq | MalSymbol>,
+			type: Object as PropType<MalNumber | MalList | MalSymbol>,
 			required: true,
 		},
 		validator: {
@@ -39,11 +39,12 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const evaluated = computed(() => {
-			return getEvaluated(props.value) as number
+			const evaluated = props.value.evaluated
+			return MalNumber.is(evaluated) ? evaluated : NaN
 		})
 
 		function onInput(value: MalVal) {
-			let newExp = value
+			let newExp: MalVal = value
 			if (typeof newExp === 'number') {
 				// Executes backward evalution
 				newExp = reverseEval(newExp, props.value)
