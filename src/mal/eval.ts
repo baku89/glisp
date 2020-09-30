@@ -167,7 +167,7 @@ export default function evalExp(
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const ret = env.set(sym, evalExp.call(this, form, env))
+				const ret = env.set(sym.value, evalExp.call(this, form, env))
 				setExpandInfo(exp, {
 					type: ExpandType.Unchange,
 				})
@@ -181,7 +181,7 @@ export default function evalExp(
 					throw new MalError('Invalid form of defvar')
 				}
 				const ret = evalExp.call(this, form, env)
-				env.set(sym, ret, exp)
+				env.set(sym.value, ret)
 				origExp.evaluated = ret
 				return ret
 			}
@@ -196,7 +196,7 @@ export default function evalExp(
 				for (let i = 0; i < binds.value.length; i += 2) {
 					letEnv.bindAll(
 						binds.value[i],
-						evalExp.call(this, binds.value[i + 1], letEnv) as MalVal[]
+						evalExp.call(this, binds.value[i + 1], letEnv)
 					)
 				}
 				env = letEnv
@@ -296,7 +296,7 @@ export default function evalExp(
 				first.evaluated = env.get('fn-sugar')
 				const body = exp.value[1]
 				const ret = MalFunc.fromMal(
-					function (...args) {
+					(...args) => {
 						return evalExp.call(this, body, new Env(env, [], args))
 					},
 					body,
