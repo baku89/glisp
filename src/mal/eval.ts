@@ -52,13 +52,13 @@ function quasiquote(exp: MalVal): MalVal {
 		return MalList.create(S_QUOTE, exp)
 	}
 
-	if (MalSymbol.isFor(exp[0], 'unquote')) {
+	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
 		return exp[1]
 	}
 
 	let ret = MalList.create(
 		S_CONCAT,
-		...exp.map(e => {
+		...exp.value.map(e => {
 			if (isPair(e) && MalSymbol.isFor(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
@@ -69,8 +69,8 @@ function quasiquote(exp: MalVal): MalVal {
 	ret = MalList.is((exp) ? L(S_LST, ret) : ret
 	return ret
 
-	function isPair(x: MalVal): x is MalVal[] {
-		return isMalSeq(x) && x.length > 0
+	function isPair(x: MalVal): x is MalSeq {
+		return isMalSeq(x) && x.value.length > 0
 	}
 }
 
@@ -118,9 +118,9 @@ function evalAtom(
 			return ret
 		})
 		if (cache) {
-			exp.evaluated = ret\
+			exp.evaluated = ret
 		}
-		return MalList.is((exp) ? L(...ret) : ret
+		return MalList.is((exp) ? MalList.create(...ret) : ret
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {

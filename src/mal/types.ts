@@ -1,3 +1,4 @@
+import { createBlock } from 'vue'
 import Env from './env'
 
 export enum MalType {
@@ -362,7 +363,7 @@ export class MalMap extends MalVal {
 	public str: string | undefined = undefined
 	public _evaluated: MalMap | undefined = undefined
 
-	constructor(readonly value: {[key: string]: MalVal} | T) {
+	constructor(readonly value: {[key: string]: MalVal}) {
 		super()
 	}
 
@@ -381,7 +382,7 @@ export class MalMap extends MalVal {
 			if (!this.delimiters) {
 				const size = entries.length
 				this.delimiters =
-					this.value.length === 0
+					entries.length === 0
 						? ['']
 						: ['', ...Array(size * 2 - 1).fill(' '), '']
 			}
@@ -553,18 +554,15 @@ function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
 	switch (type) {
 		case MalType.List:
 		case MalType.Vector: {
-			let ret = (exp as MalVal[]).map(val => expandSymbolsInExp(val, env))
-			if (type === MalType.List) {
-				ret = MalList.create(...ret)
-			}
-			return ret
+			let arr = (exp as MalSeq).value.map(val => expandSymbolsInExp(val, env))
+			return type === MalType.List ? MalList.create(...arr) : MalVector.create(...arr)
 		}
 		case MalType.Map: {
-			const ret = {} as MalMap
+			const map: {[k: string]: MalVal} = {}
 			Object.entries(exp as MalMap).forEach(([key, val]) => {
-				ret[key] = expandSymbolsInExp(val, env)
+				map[key] = expandSymbolsInExp(val, env)
 			})
-			return ret
+			return MalMap.create(map)
 		}
 		case MalType.Symbol:
 			if (env.hasOwn(exp as MalSymbol)) {
