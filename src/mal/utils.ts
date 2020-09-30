@@ -7,7 +7,7 @@ import {
 	MalColl,
 	MalVector,
 	MalJSFunc,
-	isSeq,
+	isMalSeq,
 	keywordFor,
 	getMeta,
 	MalSeq,
@@ -102,7 +102,7 @@ export function getExpByPath(root: MalColl, path: string): MalVal {
 			return expBody
 		}
 
-		if (isSeq(expBody)) {
+		if (isMalSeq(expBody)) {
 			return find(expBody[index], rest)
 		} else if (isMap(expBody)) {
 			const keys = Object.keys(expBody as MalCollMap)
@@ -174,7 +174,7 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 	const newOuter = cloneExp(outer)
 
 	// Set replaced as new child
-	if (isSeq(newOuter)) {
+	if (isMalSeq(newOuter)) {
 		// Sequence
 		newOuter[index] = replaced
 		for (let i = 0; i < newOuter.length; i++) {
@@ -220,7 +220,7 @@ export function deleteExp(exp: MalColl) {
 
 	const newOuter = cloneExp(outer)
 
-	if (isSeq(newOuter)) {
+	if (isMalSeq(newOuter)) {
 		newOuter.splice(index, 1)
 	} else {
 		const key = Object.keys(newOuter)[index]
@@ -251,7 +251,7 @@ export function getMapValue(
 		const key = keys[0]
 
 		if (typeof key === 'number') {
-			if (!isSeq(exp) || exp[key] === undefined) {
+			if (!isMalSeq(exp) || exp[key] === undefined) {
 				return defaultValue !== undefined ? defaultValue : null
 			}
 			exp = exp[key]
@@ -563,7 +563,7 @@ export function getFn(exp: MalVal) {
 }
 
 export function copyDelimiters(target: MalVal, original: MalVal) {
-	if (isSeq(target) && isSeq(original) && M_DELIMITERS in original) {
+	if (isMalSeq(target) && isMalSeq(original) && M_DELIMITERS in original) {
 		const delimiters = [...original[M_DELIMITERS]]
 
 		const lengthDiff = target.length - original.length

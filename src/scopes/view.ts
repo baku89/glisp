@@ -1,4 +1,4 @@
-import {symbolFor as S} from '@/mal/types'
+import {MalSymbol} from '@/mal/types'
 import Scope from '@/mal/scope'
 
 import AppScope from './app'

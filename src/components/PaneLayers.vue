@@ -80,7 +80,7 @@ export default defineComponent({
 		})
 
 		function onUpdateChildExp(i: number, replaced: MalColl) {
-			const newExp = cloneExp(props.exp)
+			const newExp = props.exp.clone()
 
 			newExp[i + 1] = replaced
 

@@ -10,7 +10,7 @@ import {
 	MalColl,
 	MalSymbol,
 	MalType,
-	isSeq,
+	isMalSeq,
 	MalSeq,
 	M_ISSUGAR,
 	MalSymbol.isType(,
@@ -83,7 +83,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 				if (!(M_ELMSTRS in coll)) {
 					let elmStrs: string[]
 
-					if (isSeq(coll)) {
+					if (isMalSeq(coll)) {
 						elmStrs = Array.from(coll).map(e => printExp(e, _r))
 						if (sugarInfo) {
 							elmStrs[0] = ''
@@ -101,7 +101,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 				if (!(M_DELIMITERS in coll)) {
 					let delimiters: string[]
 
-					if (isSeq(coll)) {
+					if (isMalSeq(coll)) {
 						delimiters = generateDefaultDelimiters(coll.length)
 					} else {
 						// Map

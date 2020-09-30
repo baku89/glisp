@@ -1,5 +1,5 @@
 import {Ref} from 'vue'
-import {MalVal, MalColl, isSeq, isNode} from '@/mal/types'
+import {MalVal, MalColl, isMalSeq, isNode} from '@/mal/types'
 import {HitDetector} from './hit-detector'
 import {vec2} from 'gl-matrix'
 import AppScope from '@/scopes/app'
@@ -10,7 +10,7 @@ export default function useHitDetector(exp: Ref<MalColl>) {
 
 	AppScope.def('detect-hit', (pos: MalVal) => {
 		if (
-			isSeq(pos) &&
+			isMalSeq(pos) &&
 			typeof pos[0] === 'number' &&
 			typeof pos[1] === 'number'
 		) {

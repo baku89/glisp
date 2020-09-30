@@ -12,7 +12,7 @@ import {
 	MalType,
 	MalError,
 	cloneExp,
-	isSeq,
+	isMalSeq,
 	MalList.isType(,
 	MalSymbol.isType(For,
 	MalSeq,
@@ -78,7 +78,7 @@ export default function useAppCommands(
 
 		const type = getType(exp)
 
-		if (!isSeq(activeExp)) {
+		if (!isMalSeq(activeExp)) {
 			throw new MalError('No insertable selection')
 		}
 
@@ -258,7 +258,7 @@ export default function useAppCommands(
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
 		for (const exp of data.selectedExp) {
-			if (!isSeq(exp)) {
+			if (!isMalSeq(exp)) {
 				return false
 			}
 
@@ -322,7 +322,7 @@ export default function useAppCommands(
 		} else {
 			const [_outer, _index] = getUIOuterInfo(data.activeExp)
 
-			if (!isSeq(_outer)) {
+			if (!isMalSeq(_outer)) {
 				return false
 			}
 

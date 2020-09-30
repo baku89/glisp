@@ -110,7 +110,15 @@ import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
-import {MalVal, MalColl, isNode, MalAtom, MalList, MalSymbol} from '@/mal/types'
+import {
+	MalVal,
+	MalColl,
+	isNode,
+	MalAtom,
+	MalList,
+	MalSymbol,
+	MalString,
+} from '@/mal/types'
 
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
@@ -137,7 +145,7 @@ import {reconstructTree} from '@/mal/reader'
 import {useModes} from './use/use-modes'
 
 interface Data {
-	exp: MalColl
+	exp: MalVal
 	hasError: boolean
 	hasParseError: boolean
 	hasEvalError: boolean
@@ -145,10 +153,10 @@ interface Data {
 	viewExp: MalVal | undefined
 	selectedPath: string[]
 	selectedExp: MalColl[]
-	activeExp: MalColl | undefined
+	activeExp: MalVal | undefined
 	editingPath: string
-	editingExp: MalColl | undefined
-	hoveringExp: MalColl | undefined
+	editingExp: MalVal | undefined
+	hoveringExp: MalVal | undefined
 }
 
 interface UI {
@@ -325,7 +333,7 @@ export default defineComponent({
 					const code = printExp(exp)
 					const sketch = code.slice(OFFSET_START, -OFFSET_END)
 					localStorage.setItem('saved_code', sketch)
-					ConsoleScope.def('*sketch*', sketch)
+					ConsoleScope.def('*sketch*', MalString.create(sketch))
 				}
 			}
 		)

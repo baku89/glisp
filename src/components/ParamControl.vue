@@ -60,8 +60,7 @@ import {
 	MalKeyword,
 	MalNumber,
 	MalSymbol,
-	cloneExp,
-	isNode,
+	isMalColl,
 	MalVector,
 	MalBoolean,
 	MalNil,
@@ -95,7 +94,7 @@ const TypeDefaults = {
 		MalNumber.create(1),
 		MalNumber.create(0),
 		MalNumber.create(0),
-		1,
+		MalNumber.create(1),
 		MalNumber.create(0),
 		MalNumber.create(0)
 	),
@@ -114,7 +113,7 @@ export default defineComponent({
 	name: 'ParamControl',
 	props: {
 		exp: {type: Object as PropType<MalSeq>, required: true},
-		fn: {type: Function as PropType<MalFunc>, required: false},
+		fn: {type: Object as PropType<MalFunction>, required: false},
 	},
 	components: {
 		'ui-number': MalInputComponents.MalInputNumber,
@@ -155,8 +154,7 @@ export default defineComponent({
 
 			const meta = fnInfo.value.meta
 			const malSchema = getMapValue(meta, 'params')
-
-			if (!isNode(malSchema)) {
+		
 				return undefined
 			}
 
@@ -230,7 +228,7 @@ export default defineComponent({
 			const type = variadicSchema.type
 
 			// Compute value
-			let value = cloneExp(TypeDefaults[type])
+			let value = TypeDefaults[type].clone()
 
 			if (vectorSchema.insert) {
 				value = (vectorSchema.insert as any)({

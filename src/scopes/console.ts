@@ -5,12 +5,11 @@ import Scope from '@/mal/scope'
 import {
 	MalVal,
 	MalError,
-	MalKeyword,
 	MalSymbol,
 	MalKeyword,
-	MalList,
 	setMeta,
 	assocBang,
+	MalNil,
 } from '@/mal/types'
 import GIF from 'gif.js'
 
@@ -33,7 +32,7 @@ function copyToClipboard(str: string) {
 		printer.log('Copied to clipboard')
 	})
 
-	return null
+	return MalNil.create()
 }
 
 function generateSketchURL(codeURL: string) {
@@ -45,30 +44,7 @@ function generateSketchURL(codeURL: string) {
 
 	printer.log(`Sketch URL: ${canvasURL}`)
 
-	return null
-}
-
-function createHashMap(arr: MalVal[]) {
-	const ret: {[key: string]: MalVal | MalVal[]} = {}
-	const counts: {[key: string]: number} = {}
-
-	counts['_'] = 0
-
-	for (let i = 0, keyword = '_'; i < arr.length; i++) {
-		if (isKeyword(arr[i])) {
-			keyword = (arr[i] as string).slice(1)
-			counts[keyword] = 0
-		} else {
-			if (++counts[keyword] === 1) {
-				ret[keyword] = arr[i]
-			} else if (counts[keyword] === 2) {
-				ret[keyword] = [ret[keyword], arr[i]]
-			} else {
-				;(ret[keyword] as MalVal[]).push(arr[i])
-			}
-		}
-	}
-	return ret
+	return MalNil.create()
 }
 
 ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
@@ -101,7 +77,7 @@ ConsoleScope.def('open-link', (url: MalVal) => {
 
 ConsoleScope.def('clear-console', () => {
 	printer.clear()
-	return null
+	return MalNil.create()
 })
 
 ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
@@ -115,7 +91,7 @@ ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 
 	FileSaver.saveAs(file)
 
-	return null
+	return MalNil.create()
 })
 
 ConsoleScope.def('copy-as-svg', () => {
@@ -123,7 +99,7 @@ ConsoleScope.def('copy-as-svg', () => {
 
 	const svg = renderToSvg(viewExp, 500, 500)
 	copyToClipboard(svg)
-	return null
+	return MalNil.create()
 })
 
 const renderViewScope = createViewScope()
@@ -182,7 +158,7 @@ ConsoleScope.def(
 
 			exec()
 
-			return null
+			return MalNil.create()
 		},
 		convertJSObjectToMalMap({
 			doc: 'Renders and exports a sketch',
@@ -295,7 +271,7 @@ ConsoleScope.def(
 
 			exec()
 
-			return null
+			return MalNil.create()
 		},
 		convertJSObjectToMalMap({
 			doc: 'Exports a video',
@@ -402,7 +378,7 @@ ConsoleScope.def(
 
 			printer.log(`Publishing to Gist... user=${user}, token=${token}`)
 
-			return null
+			return MalNil.create()
 		},
 		convertJSObjectToMalMap({
 			doc:
@@ -466,7 +442,7 @@ ConsoleScope.def('generate-embed-url', () => {
 
 	printer.log(`Embed URL: ${urlString}`)
 
-	return null
+	return MalNil.create()
 })
 
 export default ConsoleScope

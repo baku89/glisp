@@ -11,6 +11,7 @@ import {
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
+import { MalMap, MalVector } from '@/mal/types'
 
 const K_PATH = MalKeyword.create('path'),
 	K_TRANSFORM = MalKeyword.create('transform'),
@@ -33,7 +34,7 @@ export class HitDetector {
 		this.ctx = ctx
 	}
 
-	private getPath2D(exp: MalSeq) {
+	private getPath2D(exp: MalVector) {
 		if (this.cachedPath2D.has(exp)) {
 			return this.cachedPath2D.get(exp) as Path2D
 		} else {

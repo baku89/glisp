@@ -1,5 +1,5 @@
 import Case from 'case'
-import {MalVal, isKeyword} from '@/mal/types'
+import {MalVal, MalKeyword} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {Ref, unref} from 'vue'
 
@@ -25,7 +25,7 @@ export function clamp(value: number, min: number, max: number) {
  * @param exp A bind expression
  */
 export function getParamLabel(exp: MalVal) {
-	const str = isKeyword(exp) ? exp.slice(1) : printExp(exp)
+	const str = MalKeyword.isType(exp) ? exp.value : printExp(exp)
 	return str.length === 1 ? str : Case.capital(str)
 }
 

@@ -1,10 +1,4 @@
-import {
-	MalVal,
-	MalSymbol,
-	MalList,
-	MalVector
-	MalNumber,
-} from '@/mal/types'
+import {MalVal, MalSymbol, MalVector, MalNumber} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
@@ -16,7 +10,7 @@ const Exports = [
 		(pts: [number, number][], concavity: number | null = null) => {
 			return MalVector.create(
 				...hull(pts, concavity === null ? Infinity : concavity).map(([a, b]) =>
-					MalVector.create(a, b)
+					MalVector.create(MalNumber.create(a), MalNumber.create(b))
 				)
 			)
 		},
@@ -27,9 +21,9 @@ const Exports = [
 			const delaunay = Delaunator.from(pts)
 			return MalVector.create(
 				...partition(3, delaunay.triangles).map(([a, b, c]) => [
-					[...pts[a]],
-					[...pts[b]],
-					[...pts[c]],
+					MalVector.create(...pts[a]),
+					MalVector.create(...pts[b]),
+					MalVector.create(...pts[c]),
 				])
 			)
 		},
@@ -45,7 +39,9 @@ const Exports = [
 
 const Exp = L(
 	MalSymbol.create('do'),
-	...Exports.map(([sym, body]) => L(MalSymbol.create('def'), MalSymbol.create(sym), body))
+	...Exports.map(([sym, body]) =>
+		L(MalSymbol.create('def'), MalSymbol.create(sym), body)
+	)
 )
 ;(globalThis as any)['glisp_library'] = Exp
 

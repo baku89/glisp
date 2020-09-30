@@ -1,29 +1,18 @@
 import {
-	keywordFor,
-	assocBang,
 	MalError,
 	MalSymbol,
 	MalColl,
-	isMap,
 	MalMap,
 	MalVal,
-	M_OUTER,
-	isNode,
-	M_ELMSTRS,
-	M_DELIMITERS,
-	M_ISSUGAR,
-	M_OUTER_INDEX,
-	isSeq,
+	isMalColl,
+	isMalSeq,
 	getName,
-	MalList,
-	MalSeq,
-	MalSymbol.isType(,
 	MalNil,
 	MalBoolean,
 	MalNumber,
 	MalString,
 	MalVector,
-	MalList.isType(,
+	MalList,
 	createMap,
 	MalKeyword,
 } from './types'
@@ -133,7 +122,7 @@ function readAtom(reader: Reader) {
 		} else if (token[0] === '"') {
 			throw new MalError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
-			return keywordFor(token.slice(1))
+			return MalKeyword.create(token.slice(1))
 		} else if (token === 'nil') {
 			return MalNil.create()
 		} else if (token === 'true') {
@@ -223,7 +212,7 @@ function readList(reader: Reader, saveStr: boolean) {
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, saveStr: boolean) {
 	const {coll, delimiters} = readColl(reader, saveStr, '{', '}')
-	const map = MalMap.create(...coll)
+	const map = MalMap.fromMalColl(...coll)
 	map.delimiters = delimiters
 	return map
 }
@@ -384,13 +373,13 @@ export function getRangeOfExp(
 		// Creates a delimiter cache
 		printExp(outer)
 
-		if (isSeq(outer)) {
+		if (isMalSeq(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				(outer[M_ISSUGAR] ? 0 : 1) +
 				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
 				outer[M_ELMSTRS].slice(0, index).join('').length
-		} else if (isMap(outer)) {
+		} else if (MalMap.isType(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.   length */ +
@@ -403,7 +392,7 @@ export function getRangeOfExp(
 
 	const isExpOutsideOfParent = root && !isParent(root, exp)
 
-	if (!isNode(exp) || isExpOutsideOfParent) {
+	if (!isMalColl(exp) || isExpOutsideOfParent) {
 		return null
 	}
 
@@ -418,7 +407,7 @@ export function findExpByRange(
 	start: number,
 	end: number
 ): MalColl | null {
-	if (!isNode(exp)) {
+	if (!isMalColl(exp)) {
 		// If Atom
 		return null
 	}
@@ -431,7 +420,7 @@ export function findExpByRange(
 		return null
 	}
 
-	if (isSeq(exp)) {
+	if (isMalSeq(exp)) {
 		// Sequential
 
 		// Add the length of open-paren
@@ -452,7 +441,7 @@ export function findExpByRange(
 				offset += exp[M_ELMSTRS][i].length
 			}
 		}
-	} else if (isMap(exp)) {
+	} else if (MalMap.isType(exp)) {
 		// Hash Map
 
 		let offset = 1 // length of '{'
@@ -495,7 +484,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 	} else if (obj instanceof Object) {
 		const ret: MalMap = {}
 		for (const [key, value] of Object.entries(obj)) {
-			ret[keywordFor(key)] = convertJSObjectToMalMap(value)
+			ret[MalKeyword.create(key)] = convertJSObjectToMalMap(value)
 		}
 		return createMap(ret)
 	} else if (obj === null) {
@@ -505,7 +494,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 			case 'number':
 				return MalNumber.create(obj)
 			case 'string':
-				if (isKeyword(obj)) {
+				if (MalKeyword.isType(obj)) {
 					return obj
 				} else {
 					return MalString.create(obj)
@@ -520,14 +509,14 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 }
 
 export function convertMalCollToJSObject(exp: MalVal): any {
-	if (isMap(exp)) {
+	if (MalMap.isType(exp)) {
 		const ret: {[Key: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(exp)) {
 			const jsKey = getName(key)
 			ret[jsKey] = convertMalCollToJSObject(value)
 		}
 		return ret
-	} else if (isSeq(exp)) {
+	} else if (isMalSeq(exp)) {
 		return (exp as MalVal[]).map(e => convertMalCollToJSObject(e))
 	} else {
 		return exp
@@ -537,14 +526,14 @@ export function convertMalCollToJSObject(exp: MalVal): any {
 export class BlankException extends Error {}
 
 export function reconstructTree(exp: MalVal) {
-	if (!isNode(exp)) {
+	if (!isMalColl(exp)) {
 		return
 	} else {
-		if (isMap(exp)) {
+		if (MalMap.isType(exp)) {
 			const keys = Object.keys(exp)
 			keys.forEach((key, i) => {
 				const e = exp[key]
-				if (isNode(e)) {
+				if (isMalColl(e)) {
 					e[M_OUTER] = exp
 					e[M_OUTER_INDEX] = i
 					reconstructTree(e)
@@ -552,7 +541,7 @@ export function reconstructTree(exp: MalVal) {
 			})
 		} else {
 			exp.forEach((e, i) => {
-				if (isNode(e)) {
+				if (isMalColl(e)) {
 					e[M_OUTER] = exp
 					e[M_OUTER_INDEX] = i
 					reconstructTree(e)
@@ -581,15 +570,15 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	return exp
 
 	function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
-		if (isNode(exp) && !(M_OUTER in exp)) {
-			if (isNode(outer) && index !== undefined) {
+		if (isMalColl(exp) && !(M_OUTER in exp)) {
+			if (isMalColl(outer) && index !== undefined) {
 				exp[M_OUTER] = outer
 				exp[M_OUTER_INDEX] = index
 			}
 
 			const children: MalVal[] | null = Array.isArray(exp)
 				? exp
-				: isMap(exp)
+				: MalMap.isType(exp)
 				? Object.keys(exp).map(k => exp[k])
 				: null
 

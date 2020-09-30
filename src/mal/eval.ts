@@ -17,7 +17,7 @@ import {
 	MalSeq,
 	M_PARAMS,
 	MalBind,
-	isSeq,
+	isMalSeq,
 	MalVector,
 	setExpandInfo,
 	ExpandType,
@@ -81,7 +81,7 @@ function quasiquote(exp: MalVal): MalVal {
 	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
-		return isSeq(x) && x.length > 0
+		return isMalSeq(x) && x.length > 0
 	}
 }
 
@@ -263,7 +263,7 @@ export default function evalExp(
 				}
 				const bindingEnv = new Env(undefined, undefined, undefined, 'binding')
 				const [, binds, ..._body] = exp
-				if (!isSeq(binds)) {
+				if (!isMalSeq(binds)) {
 					throw new MalError('Invalid bind-expr in binding')
 				}
 				for (let i = 0; i < binds.length; i += 2) {

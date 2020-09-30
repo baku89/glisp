@@ -6,7 +6,7 @@ import {
 	MalMap,
 	MalSymbol,
 	MalBind,
-	isSeq,
+	isMalSeq,
 	getType,
 	MalSeq,
 	MalType,
@@ -95,7 +95,7 @@ export default class Env {
 					}
 					case MalType.Vector: {
 						// List Destruction
-						if (!isSeq(exp)) {
+						if (!isMalSeq(exp)) {
 							throw new MalError(
 								`[${this.name}] The destruction parameter ${printExp(
 									bind,

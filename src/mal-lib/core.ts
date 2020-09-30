@@ -13,7 +13,7 @@ import {
 	getType,
 	getMeta,
 	withMeta,
-	isSeq,
+	isMalSeq,
 	setMeta,
 	MalVector,
 	MalBoolean,
@@ -93,11 +93,11 @@ const Exports = [
 	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
 	['vector?', (x: MalVal) => MalBoolean.create(MalVector.isType(x))],
 	['vec', (a: MalVal[]) => MalVector.create(...a)],
-	['sequential?', (x: MalVal) => MalBoolean.create(isSeq(x))],
+	['sequential?', (x: MalVal) => MalBoolean.create(isMalSeq(x))],
 	[
 		'seq',
 		(a: MalVal) => {
-			if (isSeq(a)) {
+			if (isMalSeq(a)) {
 				return MalVector.create(...a)
 			} else if (isString(a) && a.length > 0) {
 				return MalVector.create(...a.split(''))
@@ -153,7 +153,7 @@ const Exports = [
 	[
 		'slice',
 		(a: MalVal[], start: number, end: number) => {
-			if (isSeq(a)) {
+			if (isMalSeq(a)) {
 				return MalVector.create(...a.slice(start, end))
 			} else {
 				throw new MalError(`[slice] ${printExp(a)} is not an array`)

@@ -4,13 +4,14 @@ import {
 	MalVal,
 	MalError,
 	isFunc,
-	MalSymbol.isType(,
+	MalSymbol,
 	getMeta,
 	MalMap,
-	MalFunc,
+	MalFuncion,
 	MalType,
 	// MalList,
 } from '@/mal/types'
+
 import {printExp} from '@/mal'
 // import DialogCommand from '@/components/dialogs/DialogCommand.vue'
 import {getMapValue} from '@/mal/utils'
@@ -29,7 +30,7 @@ export default function useDialogCommand(context: SetupContext) {
 			| MalMap[]
 			| null
 		let initialParams = getMapValue(meta, 'initial-params') as
-			| MalFunc
+			| MalFuncion
 			| MalVal[]
 			| null
 
