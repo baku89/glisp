@@ -376,7 +376,7 @@ export function reverseEval(
 					)
 				}
 
-				const newExp = L(fnName, ...newParams)
+				const newExp = MalList.create(fnName, ...newParams)
 
 				return newExp
 			}

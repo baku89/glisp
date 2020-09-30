@@ -175,7 +175,7 @@ export default defineComponent({
 					typeof newExp === 'number'
 						? reverseEval(newExp, (props.value as MalVal[])[1])
 						: newExp
-				newExp = L((props.value as MalVal[])[0], unitValue)
+				newExp = MalList.create((props.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
 				newExp =
 					typeof newExp === 'number' ? reverseEval(newExp, props.value) : newExp

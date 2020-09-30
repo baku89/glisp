@@ -98,7 +98,7 @@ export default function useAppCommands(
 				)
 			}
 
-			newExp = L(MalSymbol.create(fnName), ...initialParams)
+			newExp = MalList.create(MalSymbol.create(fnName), ...initialParams)
 		} else if (type === MalType.List) {
 			newExp = exp as MalSeq
 		} else {
@@ -289,7 +289,9 @@ export default function useAppCommands(
 				}
 			}
 
-			const newExp = structType ? newParams[0] : L(exp[0], ...newParams)
+			const newExp = structType
+				? newParams[0]
+				: MalList.create(exp[0], ...newParams)
 			copyDelimiters(newExp, exp)
 
 			replaceExp(exp, newExp)
@@ -364,7 +366,7 @@ export default function useAppCommands(
 			deleteExp(getUIAnnotationExp(exp))
 		}
 
-		const group = L(MalSymbol.create('g'), {}, first, ...rest)
+		const group = MalList.create(MalSymbol.create('g'), {}, first, ...rest)
 
 		replaceExp(first, group)
 

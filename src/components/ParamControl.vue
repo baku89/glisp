@@ -213,7 +213,7 @@ export default defineComponent({
 
 			const newExp = fnInfo.value.structType
 				? newParams[0]
-				: L(props.exp[0], ...newParams)
+				: MalList.create(props.exp[0], ...newParams)
 
 			reconstructTree(newExp)
 
@@ -242,7 +242,7 @@ export default defineComponent({
 			}
 
 			newParams.splice(i, 0, value)
-			const newExp = L(props.exp[0], ...newParams)
+			const newExp = MalList.create(props.exp[0], ...newParams)
 
 			reconstructTree(newExp)
 
@@ -253,7 +253,7 @@ export default defineComponent({
 			const newParams = [...params.value]
 			newParams.splice(i, 1)
 
-			const newExp = L(props.exp[0], ...newParams)
+			const newExp = MalList.create(props.exp[0], ...newParams)
 			reconstructTree(newExp)
 
 			context.emit('input', newExp)

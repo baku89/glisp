@@ -1,4 +1,4 @@
-import {MalVal, MalSymbol, MalVector, MalNumber} from '@/mal/types'
+import {MalVal, MalSymbol, MalVector, MalNumber, MalList} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
@@ -37,10 +37,10 @@ const Exports = [
 	],
 ] as [string, MalVal][]
 
-const Exp = L(
+const Exp = MalList.create(
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		L(MalSymbol.create('def'), MalSymbol.create(sym), body)
+		MalList.create(MalSymbol.create('def'), MalSymbol.create(sym), body)
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp

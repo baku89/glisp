@@ -921,10 +921,10 @@ const Exports = [
 	['path/intersections', intersections],
 ] as [string, MalVal][]
 
-const Exp = L(
+const Exp = MalList.create(
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		L(MalSymbol.create('def'), MalSymbol.create(sym), body)
+		MalList.create(MalSymbol.create('def'), MalSymbol.create(sym), body)
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp
