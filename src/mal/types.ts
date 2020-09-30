@@ -328,7 +328,10 @@ export class MalHashMap extends MalVal {
 	}
 }
 
-type MalF = (...args: (MalVal | undefined)[]) => MalVal
+type MalF = (
+	this: MalFuncThis | void,
+	...args: (MalVal | undefined)[]
+) => MalVal
 
 export class MalFunction extends MalVal {
 	type: MalType.Function = MalType.Function
