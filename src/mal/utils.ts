@@ -436,8 +436,8 @@ export function computeExpTransform(exp: MalVal): mat2d {
 
 	// Collect ancestors with index
 	const ancestors: [MalColl, number][] = []
-	for (let _exp: MalColl = exp; _exp[M_OUTE.parent; _exp = _exp[M_OUTE.parent) {
-		ancestors.unshift([_exp[M_OUTE.parent, _exp[M_OUTER_INDEX]])
+	for (let _exp: MalColl = exp; _exp.parent; _exp = _exp.parent) {
+		ancestors.unshift([_exp.parent, _exp[M_OUTER_INDEX]])
 	}
 
 	const xform = mat2d.create()
@@ -447,7 +447,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 			continue
 		}
 
-		const meta = getMeta(getEvaluated(node[0]))
+		const meta = getMeta(node.value[0].evaluated)
 		const viewportFn = getMapValue(meta, 'viewport-transform')
 
 		if (!MalFunc.is(viewportFn)) {
@@ -486,9 +486,9 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 		const replace = modifier[K_REPLACE]
 
 		if (MalVector.is(params)) {
-			newParams = [...params]
+			newParams = params.clone(false)
 		} else if (MalVector.is(replace)) {
-			newParams = [...originalParams]
+			newParams = originalParams.clone(false)
 			const pairs = (typeof replace[0] === 'number'
 				? [(replace as any) as [number, MalVal]]
 				: ((replace as any) as [number, MalVal][])
