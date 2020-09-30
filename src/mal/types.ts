@@ -703,12 +703,14 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 	getType(obj) === MalType.String
 
 // Symbol
-export class MalSymbol {
+export class MalSymbol extends MalBase {
 	public readonly type: MalType.Symbol = MalType.Symbol
 	private [M_DEF]: MalSeq | null
-	private [M_EVAL]: MalVal
+	public evaluated: MalVal | undefined = undefined
 
-	constructor(public readonly value: string) {}
+	constructor(public readonly value: string) {
+		super()
+	}
 
 	set def(def: MalSeq | null) {
 		this[M_DEF] = def
@@ -716,14 +718,6 @@ export class MalSymbol {
 
 	get def(): MalSeq | null {
 		return this[M_DEF] || null
-	}
-
-	set evaluated(value: MalVal) {
-		this[M_EVAL] = value
-	}
-
-	get evaluated(): MalVal {
-		return this[M_EVAL]
 	}
 
 	toString() {
@@ -801,9 +795,15 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 }
 
 // Atoms
-export class MalAtom {
+export class MalAtom extends MalBase {
 	public readonly type: MalType.Atom = MalType.Atom
-	public constructor(public value: MalVal) {}
+	public constructor(public value: MalVal) {
+		super()
+	}
+
+	toString(): string {
+		return `(atom ${this.value?.toString()})`
+	}
 }
 
 // General functions
