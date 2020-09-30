@@ -2,18 +2,16 @@
 
 import {
 	MalVal,
-	createMalFunc,
 	isMalFunc,
 	MalFuncThis,
 	MalError,
-	symbolFor as S,
+	MalSymbol,
 	isSymbol,
 	M_ISMACRO,
 	M_EVAL,
 	isMap,
 	MalMap,
-	isList,
-	createList as L,
+	MalList,
 	MalNode,
 	isNode,
 	MalSeq,
@@ -24,35 +22,33 @@ import {
 	setExpandInfo,
 	ExpandType,
 	getType,
-	isSymbolFor,
 	M_AST,
 	M_ENV,
 	isFunc,
-	MalSymbol,
 } from './types'
 import Env from './env'
 import {printExp} from '.'
 import {capital} from 'case'
 
-const S_DEF = S('def')
-const S_DEFVAR = S('defvar')
-const S_LET = S('let')
-const S_BINDING = S('binding')
-const S_IF = S('if')
-const S_DO = S('do')
-const S_FN = S('fn')
-const S_GET_ALL_SYMBOLS = S('get-all-symbols')
-const S_FN_PARAMS = S('fn-params')
-const S_FN_SUGAR = S('fn-sugar')
-const S_MACRO = S('macro')
-const S_MACROEXPAND = S('macroexpand')
-const S_QUOTE = S('quote')
-const S_QUASIQUOTE = S('quasiquote')
-const S_TRY = S('try')
-const S_CATCH = S('catch')
-const S_CONCAT = S('concat')
-const S_EVAL_IN_ENV = S('eval*')
-const S_LST = S('lst')
+const S_DEF = MalSymbol.create('def')
+const S_DEFVAR = MalSymbol.create('defvar')
+const S_LET = MalSymbol.create('let')
+const S_BINDING = MalSymbol.create('binding')
+const S_IF = MalSymbol.create('if')
+const S_DO = MalSymbol.create('do')
+const S_FN = MalSymbol.create('fn')
+const S_GET_ALL_SYMBOLS = MalSymbol.create('get-all-symbols')
+const S_FN_PARAMS = MalSymbol.create('fn-params')
+const S_FN_SUGAR = MalSymbol.create('fn-sugar')
+const S_MACRO = MalSymbol.create('macro')
+const S_MACROEXPAND = MalSymbol.create('macroexpand')
+const S_QUOTE = MalSymbol.create('quote')
+const S_QUASIQUOTE = MalSymbol.create('quasiquote')
+const S_TRY = MalSymbol.create('try')
+const S_CATCH = MalSymbol.create('catch')
+const S_CONCAT = MalSymbol.create('concat')
+const S_EVAL_IN_ENV = MalSymbol.create('eval*')
+const S_LST = MalSymbol.create('lst')
 
 function quasiquote(exp: MalVal): MalVal {
 	if (isMap(exp)) {
@@ -67,14 +63,14 @@ function quasiquote(exp: MalVal): MalVal {
 		return L(S_QUOTE, exp)
 	}
 
-	if (isSymbolFor(exp[0], 'unquote')) {
+	if (isMalSymbol.create(exp[0], 'unquote')) {
 		return exp[1]
 	}
 
 	let ret = L(
 		S_CONCAT,
 		...exp.map(e => {
-			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
+			if (isPair(e) && isMalSymbol.create(e[0], 'splice-unquote')) {
 				return e[1]
 			} else {
 				return [quasiquote(e)]
@@ -443,7 +439,7 @@ export default function evalExp(
 					let err = exc
 					if (
 						isList(catchExp) &&
-						isSymbolFor(catchExp[0], 'catch') &&
+						isMalSymbol.create(catchExp[0], 'catch') &&
 						isSymbol(catchExp[1])
 					) {
 						if (cache) {

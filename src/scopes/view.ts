@@ -14,9 +14,9 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	const env = new Env()
 
 	if (guideColor) {
-		env.set(S('*guide-color*'), guideColor)
+		env.set(MalSymbol.create('*guide-color*'), guideColor)
 	} else {
-		env.set(S('guide/stroke'), () => null)
+		env.set(MalSymbol.create('guide/stroke'), () => null)
 	}
 
 	scope.popBinding()

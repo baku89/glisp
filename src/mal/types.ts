@@ -78,15 +78,16 @@ export interface MalFuncThis {
 	callerEnv: Env
 }
 
-abstract class MalVal {
+export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
 	abstract toString(): string
+	abstract isType(value: MalVal): boolean
 }
 
-type MalColl = MalList | MalVector | MalMap
-type MalSeq = MalList | MalVal
+export type MalColl = MalList | MalVector | MalMap
+export type MalSeq = MalList | MalVal
 
 export class MalNumber extends MalVal {
 	readonly type: MalType.Number = MalType.Number
@@ -101,6 +102,10 @@ export class MalNumber extends MalVal {
 
 	toString() {
 		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
+	}
+
+	isType(value: MalVal) : value is MalNumber {
+		return value.type === MalType.Number
 	}
 
 	static create(value: number) {
@@ -382,22 +387,6 @@ export class MalFunction extends MalVal {
 	}
 }
 
-export function createBoolean(value: boolean) {
-	return value
-}
-
-export function createNumber(value: number) {
-	return value
-}
-
-export function createString(value: string) {
-	return value
-}
-
-export function createNil() {
-	return null
-}
-
 export function createMap(map: any) {
 	return map as MalMap
 }
@@ -412,7 +401,7 @@ function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
 		case MalType.Vector: {
 			let ret = (exp as MalVal[]).map(val => expandSymbolsInExp(val, env))
 			if (type === MalType.List) {
-				ret = createList(...ret)
+				ret = MalList.create(...ret)
 			}
 			return ret
 		}
@@ -607,7 +596,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 			const children = deep
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
-			const cloned = createList(...children)
+			const cloned = MalList.create(...children)
 			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
 				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 			}
@@ -617,7 +606,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 			const children = deep
 				? (exp as MalSeq).map(e => cloneExp(e, true))
 				: (exp as MalSeq)
-			const cloned = createVector(...children)
+			const cloned = MalVector.create(...children)
 			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
 				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 			}
@@ -647,7 +636,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 			return Object.assign(fn, exp) as T
 		}
 		case MalType.Symbol:
-			return symbolFor((exp as MalSymbol).value) as T
+			return MalSymbol.create((exp as MalSymbol).value) as T
 		default:
 			return exp
 	}
@@ -728,7 +717,7 @@ export const isSymbol = (obj: MalVal | undefined): obj is MalSymbol =>
 export const isSymbolFor = (obj: any, name: string): obj is MalSymbol =>
 	isSymbol(obj) && obj.value === name
 
-export const symbolFor = (value: string) => new MalSymbol(value)
+export const symbolFor = MalSymbol.create
 
 // Use \u029e as the prefix of keyword instead of colon (:) for AST object
 export const isKeyword = (obj: MalVal | undefined): obj is MalKeyword =>

@@ -59,8 +59,8 @@ import {
 	isVector,
 	MalSeq,
 	cloneExp,
-	createList as L,
-	symbolFor as S,
+	MalList,
+	MalSymbol,
 } from '@/mal/types'
 import { getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-inputs/MalInputParam.vue'
@@ -118,7 +118,7 @@ export default defineComponent({
 
 		function appendStyle(type: 'fill' | 'stroke') {
 			const style =
-				type === 'fill' ? L(S('fill'), '#000000') : L(S('stroke'), '#000000', 1)
+				type === 'fill' ? L(MalSymbol.create('fill'), '#000000') : L(MalSymbol.create('stroke'), '#000000', 1)
 
 			const newExp = cloneExp(props.exp)
 			const newStyles = [...styles.value]

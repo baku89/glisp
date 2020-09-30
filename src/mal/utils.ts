@@ -2,7 +2,7 @@ import {
 	MalVal,
 	isMap,
 	MalFunc,
-	keywordFor as K,
+	MalKeyword,
 	MalMap,
 	MalNode,
 	isVector,
@@ -14,8 +14,8 @@ import {
 	getType,
 	isSymbol,
 	MalSymbol,
-	symbolFor as S,
-	createList as L,
+	MalSymbol,
+	MalList,
 	isNode,
 	M_OUTER,
 	isList,
@@ -34,12 +34,12 @@ import {mat2d} from 'gl-matrix'
 import {reconstructTree} from './reader'
 
 export function isUIAnnotation(exp: MalVal): exp is MalSeq {
-	return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
+	return isList(exp) && isMalSymbol.create(exp[0], 'ui-annotate')
 }
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (isVector(exp)) {
-		if (exp[0] === K('path')) {
+		if (exp[0] === MalKeyword.create('path')) {
 			return 'path'
 		}
 		if (exp.length <= 6) {
@@ -323,7 +323,7 @@ export function reverseEval(
 	switch (getType(original)) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
-			if (isSymbolFor((original as MalSeq)[0], 'const')) {
+			if (isMalSymbol.create((original as MalSeq)[0], 'const')) {
 				return original
 			} else {
 				// find Inverse function
@@ -338,8 +338,8 @@ export function reverseEval(
 
 				// Compute the original parameter
 				const result = inverseFn({
-					[K('return')]: exp,
-					[K('params')]: evaluatedParams,
+					[MalKeyword.create('return')]: exp,
+					[MalKeyword.create('params')]: evaluatedParams,
 				})
 
 				if (!isVector(result) && !isMap(result)) {
@@ -351,8 +351,8 @@ export function reverseEval(
 				let updatedIndices: number[] | undefined = undefined
 
 				if (isMap(result)) {
-					const params = result[K('params')]
-					const replace = result[K('replace')]
+					const params = result[MalKeyword.create('params')]
+					const replace = result[MalKeyword.create('replace')]
 
 					if (isVector(params)) {
 						newParams = params
@@ -426,7 +426,7 @@ export function reverseEval(
 			if (def && !isSymbol(exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
-				replaceExp(def, L(S('defvar'), original, newDefBody))
+				replaceExp(def, L(MalSymbol.create('defvar'), original, newDefBody))
 				return cloneExp(original)
 			}
 			break
@@ -481,8 +481,8 @@ export function computeExpTransform(exp: MalVal): mat2d {
 	return xform
 }
 
-const K_PARAMS = K('params')
-const K_REPLACE = K('replace')
+const K_PARAMS = MalKeyword.create('params')
+const K_REPLACE = MalKeyword.create('replace')
 
 export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	if (!isVector(modifier) && !isMap(modifier)) {

@@ -9,7 +9,7 @@ import {
 	MalMap,
 	MalFunc,
 	MalType,
-	// createList as L,
+	// MalList,
 } from '@/mal/types'
 import {printExp} from '@/mal'
 // import DialogCommand from '@/components/dialogs/DialogCommand.vue'

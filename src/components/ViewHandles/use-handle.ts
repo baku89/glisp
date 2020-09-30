@@ -12,10 +12,10 @@ import {
 	isMap,
 	MalMap,
 	MalVal,
-	keywordFor as K,
+	MalKeyword,
 	isVector,
 	malEquals,
-	createList as L,
+	MalList,
 	MalNode,
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
@@ -37,20 +37,20 @@ interface Handle {
 	path?: string
 }
 
-const K_ANGLE = K('angle'),
-	K_ID = K('id'),
-	K_GUIDE = K('guide'),
-	K_POS = K('pos'),
-	K_TYPE = K('type'),
-	K_DRAW = K('draw'),
-	K_DRAG = K('drag'),
-	K_CHANGE_ID = K('change-id'),
-	K_PATH = K('path'),
-	K_CLASS = K('class'),
-	K_PREV_POS = K('prev-pos'),
-	K_PARAMS = K('params'),
-	K_RETURN = K('return'),
-	K_REPLACE = K('replace')
+const K_ANGLE = MalKeyword.create('angle'),
+	K_ID = MalKeyword.create('id'),
+	K_GUIDE = MalKeyword.create('guide'),
+	K_POS = MalKeyword.create('pos'),
+	K_TYPE = MalKeyword.create('type'),
+	K_DRAW = MalKeyword.create('draw'),
+	K_DRAG = MalKeyword.create('drag'),
+	K_CHANGE_ID = MalKeyword.create('change-id'),
+	K_PATH = MalKeyword.create('path'),
+	K_CLASS = MalKeyword.create('class'),
+	K_PREV_POS = MalKeyword.create('prev-pos'),
+	K_PARAMS = MalKeyword.create('params'),
+	K_RETURN = MalKeyword.create('return'),
+	K_REPLACE = MalKeyword.create('replace')
 
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 

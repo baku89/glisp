@@ -67,10 +67,10 @@ import {
 	isVector,
 	MalType,
 	getType,
-	symbolFor as S,
-	keywordFor as K,
+	MalSymbol,
+	MalKeyword,
 	MalMap,
-	createList as L,
+	MalList,
 	MalNode,
 	MalSeq,
 	isMap,
@@ -97,10 +97,10 @@ const IconTexts = {
 	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
 } as {[type: string]: {type: string; value: string; style?: string}}
 
-const S_UI_ANNOTATE = S('ui-annotate')
-const K_NAME = K('name')
-const K_EXPANDED = K('expanded')
-const K_HIDDEN = K('hidden')
+const S_UI_ANNOTATE = MalSymbol.create('ui-annotate')
+const K_NAME = MalKeyword.create('name')
+const K_EXPANDED = MalKeyword.create('expanded')
+const K_HIDDEN = MalKeyword.create('hidden')
 
 export default defineComponent({
 	name: 'ViewExpTree',

@@ -110,14 +110,7 @@ import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
 
 import {printExp} from '@/mal'
-import {
-	MalVal,
-	MalNode,
-	isNode,
-	MalAtom,
-	createList as L,
-	symbolFor as S,
-} from '@/mal/types'
+import {MalVal, MalNode, isNode, MalAtom, MalList, MalSymbol} from '@/mal/types'
 
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
@@ -193,7 +186,7 @@ export default defineComponent({
 		}) as UI
 
 		const data: Data = reactive({
-			exp: L(S('sketch')),
+			exp: L(MalSymbol.create('sketch')),
 			hasError: computed(
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
 			),

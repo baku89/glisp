@@ -6,13 +6,12 @@ import {
 	MalSymbol,
 	getType,
 	getEvaluated,
-	createList,
+	MalList,
 	symbolFor,
-	MalFunc,
 	M_PARAMS,
 	isMalFunc,
 	assocBang,
-	keywordFor as K,
+	MalKeyword,
 } from './types'
 import {getStructType} from './utils'
 import {convertMalNodeToJSObject} from './reader'
@@ -195,8 +194,8 @@ const DEFAULT_VALUE = {
 	number: 0,
 	boolean: true,
 	string: '',
-	keyword: K('_'),
-	symbol: symbolFor('_'),
+	keyword: MalKeyword.create('_'),
+	symbol: MalSymbol.create('_'),
 	color: '#000000',
 	vec2: [0, 0],
 	rect2d: [0, 0, 0, 0],
@@ -249,9 +248,9 @@ export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
 export function extractParams(exp: MalSeq): MalSeq {
 	const structType = getStructType(exp)
 	if (structType) {
-		const structSymbol = symbolFor(structType)
+		const structSymbol = MalSymbol.create(structType)
 		structSymbol.evaluated = AppScope.var(structType) as MalFunc
-		return createList(structType, exp)
+		return MalList.create(structType, exp)
 	} else {
 		return exp
 	}
@@ -377,7 +376,7 @@ function generateDynamicUISchema(
 	const toSchema = schemaParams['to-schema']
 
 	const uiSchema = convertMalNodeToJSObject(
-		toSchema({[K('params')]: params})
+		toSchema({[MalKeyword.create('params')]: params})
 	) as Schema[]
 
 	for (const sch of uiSchema) {
@@ -476,7 +475,7 @@ function updateParamsByDynamicUISchema(
 	const params = uiSchema.map(s => s.value as MalVal)
 	params[index] = value
 	const toParams = schuema['to-params']
-	return toParams({[K('values')]: params}) as MalVal[]
+	return toParams({[MalKeyword.create('values')]: params}) as MalVal[]
 }
 
 /**

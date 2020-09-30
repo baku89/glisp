@@ -2,7 +2,7 @@ import Env from './env'
 import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {symbolFor as S, MalVal, MalError} from './types'
+import {MalSymbol, MalVal, MalError} from './types'
 import printExp, {printer} from './printer'
 import isNodeJS from 'is-node'
 
@@ -143,7 +143,7 @@ export default class Scope<T> {
 	}
 
 	public def(name: string, value: MalVal) {
-		this.env.set(S(name), value)
+		this.env.set(MalSymbol.create(name), value)
 	}
 
 	public pushBinding(env: Env) {
@@ -155,6 +155,6 @@ export default class Scope<T> {
 	}
 
 	public var(name: string) {
-		return this.env.get(S(name))
+		return this.env.get(MalSymbol.create(name))
 	}
 }

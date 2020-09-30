@@ -66,8 +66,8 @@ import {
 	isSymbol,
 	getEvaluated,
 	isList,
-	createList as L,
-	symbolFor as S,
+	MalList,
+	MalSymbol,
 	MalSeq,
 } from '@/mal/types'
 import InputColor from '@/components/inputs/InputColor.vue'
@@ -227,11 +227,11 @@ export default defineComponent({
 					value = color.hex('auto')
 					break
 				case 'RGB':
-					value = L(S('rgb'), ...color.rgb().map(v => v / 255))
+					value = L(MalSymbol.create('rgb'), ...color.rgb().map(v => v / 255))
 					break
 				case 'HSL': {
 					const [h, s, l] = color.hsl()
-					value = L(S('hsl'), ((h || 0) / 180) * Math.PI, s, l)
+					value = L(MalSymbol.create('hsl'), ((h || 0) / 180) * Math.PI, s, l)
 					break
 				}
 			}

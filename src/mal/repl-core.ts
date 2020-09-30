@@ -5,10 +5,10 @@ import {
 	MalVal,
 	MalError,
 	setMeta,
-	symbolFor as S,
-	createBoolean,
+	MalSymbol,
+	MalBoolean
 	createNil,
-	createString,
+	MalString
 } from './types'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
@@ -44,7 +44,7 @@ function jsEval(str: string): MalVal {
 }
 
 function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
-	const [obj, f] = interop.resolveJS(objMethodStr)
+	const [obj, f] = interop.resolveJMalSymbol.create(objMethodStr)
 	const res = f.apply(obj, args)
 	return interop.jsToMal(res)
 }
@@ -62,26 +62,26 @@ const Exports = [
 		'prn',
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, true)))
-			return createNil()
+			return MalNil.create()
 		},
 	],
 	[
 		'print-str',
 		(...a: MalVal[]) => {
-			return createString(a.map(e => printExp(e, true)).join(' '))
+			return MalString.create(a.map(e => printExp(e, true)).join(' '))
 		},
 	],
 	[
 		'println',
 		(...a: MalVal[]) => {
 			printer.log(...a.map(e => printExp(e, false)))
-			return createNil()
+			return MalNil.create()
 		},
 	],
 
 	// I/O
 	['read-string', readStr],
-	['slurp', (x: string) => createString(slurp(x))],
+	['slurp', (x: string) => MalString.create(slurp(x))],
 
 	// Interop
 	['js-eval', jsEval],
@@ -91,18 +91,18 @@ const Exports = [
 	[
 		'format',
 		(fmt: string, ...xs: (number | string)[]) =>
-			createString(vsprintf(fmt, xs)),
+			MalString.create(vsprintf(fmt, xs)),
 	],
 
-	['*is-node*', createBoolean(isNodeJS)],
-	['*host-language*', createString('JavaScript')],
+	['*is-node*', MalBoolean.create(isNodeJS)],
+	['*host-language*', MalString.create('JavaScript')],
 
 	// Special forms annoations
-	['&', S('&')],
+	['&', MalSymbol.create('&')],
 	[
 		'def',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Defines a variable',
 				params: [
@@ -115,7 +115,7 @@ const Exports = [
 	[
 		'defvar',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc:
 					'Creates a variable which can be changed by the bidirectional evaluation',
@@ -129,7 +129,7 @@ const Exports = [
 	[
 		'let',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Creates a lexical scope',
 				params: [
@@ -142,7 +142,7 @@ const Exports = [
 	[
 		'binding',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Creates a new binding',
 				params: [
@@ -155,7 +155,7 @@ const Exports = [
 	[
 		'get-all-symbols',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Gets all existing symbols',
 				params: [],
@@ -166,7 +166,7 @@ const Exports = [
 	[
 		'fn-params',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
@@ -176,7 +176,7 @@ const Exports = [
 	[
 		'eval*',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
@@ -187,7 +187,7 @@ const Exports = [
 	[
 		'quote',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
@@ -197,7 +197,7 @@ const Exports = [
 	[
 		'quasiquote',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
@@ -207,7 +207,7 @@ const Exports = [
 	[
 		'fn',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Defines a function',
 				params: [
@@ -220,7 +220,7 @@ const Exports = [
 	[
 		'fn-sugar',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
@@ -230,7 +230,7 @@ const Exports = [
 	[
 		'macro',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: '',
 				params: [
@@ -243,7 +243,7 @@ const Exports = [
 	[
 		'macroexpand',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Expands the macro',
 				params: [],
@@ -253,7 +253,7 @@ const Exports = [
 	[
 		'try',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Try',
 				params: [],
@@ -263,7 +263,7 @@ const Exports = [
 	[
 		'catch',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Catch',
 				params: [],
@@ -273,7 +273,7 @@ const Exports = [
 	[
 		'do',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
 				params: [
@@ -289,7 +289,7 @@ const Exports = [
 	[
 		'if',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
@@ -303,7 +303,7 @@ const Exports = [
 	[
 		'env-chain',
 		setMeta(
-			() => createNil(),
+			() => MalNil.create(),
 			convertJSObjectToMalMap({
 				doc: 'Env chain',
 				params: [],

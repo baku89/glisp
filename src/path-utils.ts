@@ -1,13 +1,7 @@
 import {vec2, mat2d} from 'gl-matrix'
-import {
-	MalError,
-	isKeyword,
-	MalVal,
-	keywordFor as K,
-	isVector,
-} from '@/mal/types'
+import {MalError, isKeyword, MalVal, MalKeyword, isVector} from '@/mal/types'
 
-const K_PATH = K('path')
+const K_PATH = MalKeyword.create('path')
 
 export type Vec2 = number[] | vec2
 
@@ -42,15 +36,15 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 		}
 
 		switch (exp[0]) {
-			case K('path'):
+			case MalKeyword.create('path'):
 				return getSVGPathData(transformPath(exp as PathType, transform))
-			case K('style'): {
+			case MalKeyword.create('style'): {
 				return exp
 					.slice(2)
 					.map(e => convertPath(e, transform))
 					.join(' ')
 			}
-			case K('transform'): {
+			case MalKeyword.create('transform'): {
 				const newTransform = mat2d.mul(
 					mat2d.create(),
 					transform || mat2d.create(),
@@ -85,10 +79,10 @@ export function getSVGPathData(path: PathType) {
 	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
 }
 
-const K_M = K('M'),
-	K_L = K('L'),
-	K_C = K('C'),
-	K_Z = K('Z')
+const K_M = MalKeyword.create('M'),
+	K_L = MalKeyword.create('L'),
+	K_C = MalKeyword.create('C'),
+	K_Z = MalKeyword.create('Z')
 
 export function convertToPath2D(exp: PathType) {
 	const path = new Path2D()

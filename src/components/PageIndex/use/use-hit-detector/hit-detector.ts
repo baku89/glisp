@@ -3,7 +3,7 @@ import {
 	MalVal,
 	getEvaluated,
 	isVector,
-	keywordFor as K,
+	MalKeyword,
 	isList,
 	MalSeq,
 	isKeyword,
@@ -12,12 +12,12 @@ import {
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
 
-const K_PATH = K('path'),
-	K_TRANSFORM = K('transform'),
-	K_STYLE = K('style'),
-	K_FILL = K('fill'),
-	K_STROKE = K('stroke'),
-	K_STROKE_WIDTH = K('stroke-width')
+const K_PATH = MalKeyword.create('path'),
+	K_TRANSFORM = MalKeyword.create('transform'),
+	K_STYLE = MalKeyword.create('style'),
+	K_FILL = MalKeyword.create('fill'),
+	K_STROKE = MalKeyword.create('stroke'),
+	K_STROKE_WIDTH = MalKeyword.create('stroke-width')
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D

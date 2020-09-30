@@ -1,6 +1,6 @@
 import {
 	MalVal,
-	keywordFor as K,
+	MalKeyword,
 	isMap,
 	isKeyword,
 	MalError,
@@ -31,7 +31,7 @@ export default function renderToContext(
 				const cmd = elm.replace(/#.*$/, '')
 
 				switch (cmd) {
-					case K('transform'): {
+					case MalKeyword.create('transform'): {
 						const [mat, ...children] = rest as [number[], ...MalVal[]]
 
 						ctx.save()
@@ -42,12 +42,12 @@ export default function renderToContext(
 						ctx.restore()
 						break
 					}
-					case K('g'): {
+					case MalKeyword.create('g'): {
 						const children = rest.slice(1)
 						draw(children, styles)
 						break
 					}
-					case K('style'): {
+					case MalKeyword.create('style'): {
 						const [attrs, ...children] = rest
 						styles = [
 							...styles,
@@ -56,7 +56,7 @@ export default function renderToContext(
 						draw(children, styles)
 						break
 					}
-					case K('clip'): {
+					case MalKeyword.create('clip'): {
 						const [clipPath, ...children] = rest
 						// Enable Clip
 						ctx.save()
@@ -74,12 +74,12 @@ export default function renderToContext(
 						ctx.restore()
 						break
 					}
-					case K('path'): {
+					case MalKeyword.create('path'): {
 						drawPath(ctx, exp as PathType)
 						applyDrawStyle(styles, defaultStyle, exp as PathType)
 						break
 					}
-					case K('text'): {
+					case MalKeyword.create('text'): {
 						// Text representation:
 						// (:text "Text" x y {:option1 value1...})
 						const [text, [x, y], options] = rest
@@ -110,7 +110,7 @@ export default function renderToContext(
 
 						break
 					}
-					case K('artboard'): {
+					case MalKeyword.create('artboard'): {
 						const [region, children] = rest
 						const [x, y, w, h] = region
 
@@ -139,13 +139,13 @@ export default function renderToContext(
 		}
 		for (const [c, ...pts] of iterateSegment(path.slice(1))) {
 			switch (c) {
-				case K('M'):
+				case MalKeyword.create('M'):
 					ctx.moveTo(pts[0][0], pts[0][1])
 					break
-				case K('L'):
+				case MalKeyword.create('L'):
 					ctx.lineTo(pts[0][0], pts[0][1])
 					break
-				case K('C'):
+				case MalKeyword.create('C'):
 					ctx.bezierCurveTo(
 						pts[0][0],
 						pts[0][1],
@@ -155,7 +155,7 @@ export default function renderToContext(
 						pts[2][1]
 					)
 					break
-				case K('Z'):
+				case MalKeyword.create('Z'):
 					ctx.closePath()
 					break
 				default: {
@@ -171,9 +171,14 @@ export default function renderToContext(
 		} else if (Array.isArray(style)) {
 			const [type, params] = style as [string, MalMap]
 			switch (type) {
-				case K('linear-gradient'): {
-					const [x0, y0, x1, y1] = params[K('points')] as number[]
-					const stops = params[K('stops')] as (string | number)[]
+				case MalKeyword.create('linear-gradient'): {
+					const [x0, y0, x1, y1] = params[
+						MalKeyword.create('points')
+					] as number[]
+					const stops = params[MalKeyword.create('stops')] as (
+						| string
+						| number
+					)[]
 					const grad = ctx.createLinearGradient(x0, y0, x1, y1)
 					for (const [offset, color] of partition(2, stops)) {
 						if (typeof offset !== 'number' || typeof color !== 'string') {
@@ -203,8 +208,8 @@ export default function renderToContext(
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
 
 		const drawOrders = styles.map(s => ({
-			fill: s[K('fill')],
-			stroke: s[K('stroke')],
+			fill: s[MalKeyword.create('fill')],
+			stroke: s[MalKeyword.create('stroke')],
 		}))
 
 		let ignoreFill = false,
@@ -225,22 +230,22 @@ export default function renderToContext(
 			const style = styles[i]
 			for (const [k, v] of Object.entries(style)) {
 				switch (k) {
-					case K('fill-color'):
+					case MalKeyword.create('fill-color'):
 						ctx.fillStyle = createContextStyle(v as string)
 						break
-					case K('stroke-color'):
+					case MalKeyword.create('stroke-color'):
 						ctx.strokeStyle = createContextStyle(v as string)
 						break
-					case K('stroke-width'):
+					case MalKeyword.create('stroke-width'):
 						ctx.lineWidth = v as number
 						break
-					case K('stroke-cap'):
+					case MalKeyword.create('stroke-cap'):
 						ctx.lineCap = v as CanvasLineCap
 						break
-					case K('stroke-join'):
+					case MalKeyword.create('stroke-join'):
 						ctx.lineJoin = v as CanvasLineJoin
 						break
-					case K('stroke-dash'):
+					case MalKeyword.create('stroke-dash'):
 						ctx.setLineDash(v as number[])
 				}
 			}

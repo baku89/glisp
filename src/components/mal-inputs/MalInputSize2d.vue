@@ -52,14 +52,12 @@ import {defineComponent, PropType, computed} from 'vue'
 import {
 	MalSeq,
 	MalSymbol,
-	isVector,
 	getEvaluated,
 	isList,
 	isSymbolFor,
 	MalVal,
 	cloneExp,
-	createList,
-	symbolFor,
+	MalList,
 } from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -77,7 +75,8 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const isSizeFunc = computed(
-			() => isList(props.value) && isSymbolFor(props.value[0], 'vec2/size')
+			() =>
+				isList(props.value) && isMalSymbol.create(props.value[0], 'vec2/size')
 		)
 
 		const size = computed(() => {
@@ -136,8 +135,8 @@ export default defineComponent({
 				newSize[anotherIndex] = anotherValue
 			}
 
-			const newExp = createList(
-				symbolFor('vec2/size'),
+			const newExp = MalList.create(
+				MalSymbol.create('vec2/size'),
 				newSize,
 				ratio.value === false ? false : r
 			)
@@ -166,8 +165,8 @@ export default defineComponent({
 
 			const newSizeExp = reverseEval(newSize, size.value)
 
-			const newExp = createList(
-				symbolFor('vec2/size'),
+			const newExp = MalList.create(
+				MalSymbol.create('vec2/size'),
 				newSizeExp,
 				ratio.value === false ? false : r
 			)
@@ -178,7 +177,11 @@ export default defineComponent({
 			const newRatio =
 				ratio.value === false ? evaluated.value[1] / evaluated.value[0] : false
 
-			const newExp = createList(symbolFor('vec2/size'), size.value, newRatio)
+			const newExp = MalList.create(
+				MalSymbol.create('vec2/size'),
+				size.value,
+				newRatio
+			)
 
 			context.emit('input', newExp)
 		}

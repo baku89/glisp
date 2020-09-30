@@ -6,9 +6,9 @@ import {
 	MalVal,
 	MalError,
 	isKeyword,
-	symbolFor as S,
-	keywordFor as K,
-	createList as L,
+	MalSymbol,
+	MalKeyword,
+	MalList,
 	setMeta,
 	assocBang,
 } from '@/mal/types'
@@ -148,7 +148,7 @@ ConsoleScope.def(
 
 				if (options.selector) {
 					viewExp = ConsoleScope.eval(
-						L(S('filter-elements'), options.selector, viewExp)
+						L(MalSymbol.create('filter-elements'), options.selector, viewExp)
 					)
 					if (!viewExp) {
 						throw new MalError(
@@ -158,7 +158,7 @@ ConsoleScope.def(
 				}
 
 				const bounds = ConsoleScope.eval(
-					L(S('get-element-bounds'), viewExp)
+					L(MalSymbol.create('get-element-bounds'), viewExp)
 				) as number[]
 				if (!bounds) {
 					throw new MalError('Cannot retrieve bounds')
@@ -192,27 +192,27 @@ ConsoleScope.def(
 					variadic: 'true',
 					items: [
 						{
-							key: K('format'),
+							key: MalKeyword.create('format'),
 							type: 'string',
 							ui: 'dropdown',
 							values: ['png', 'jpeg', 'webp'],
 						},
 						{
-							key: K('scaling'),
+							key: MalKeyword.create('scaling'),
 							type: 'number',
 							default: 1,
 							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 						},
-						{key: K('selector'), type: 'string', default: ''},
+						{key: MalKeyword.create('selector'), type: 'string', default: ''},
 					],
 				},
 			],
 			'initial-params': [
-				K('format'),
+				MalKeyword.create('format'),
 				'png',
-				K('scaling'),
+				MalKeyword.create('scaling'),
 				1,
-				K('selector'),
+				MalKeyword.create('selector'),
 				'',
 			],
 		})
@@ -305,39 +305,48 @@ ConsoleScope.def(
 					variadic: true,
 					items: [
 						{
-							key: K('format'),
+							key: MalKeyword.create('format'),
 							type: 'string',
 							ui: 'dropdown',
 							values: ['gif'],
 						},
 						{
-							key: K('scaling'),
+							key: MalKeyword.create('scaling'),
 							type: 'number',
 							default: 1,
 							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 						},
-						{key: K('symbol'), type: 'string'},
-						{key: K('start'), type: 'number', default: 0},
-						{key: K('duration'), type: 'number', default: 1},
-						{key: K('fps'), label: 'FPS', type: 'number', default: 24},
-						{key: K('bounds'), type: 'rect2d', default: [0, 0, 100, 100]},
+						{key: MalKeyword.create('symbol'), type: 'string'},
+						{key: MalKeyword.create('start'), type: 'number', default: 0},
+						{key: MalKeyword.create('duration'), type: 'number', default: 1},
+						{
+							key: MalKeyword.create('fps'),
+							label: 'FPS',
+							type: 'number',
+							default: 24,
+						},
+						{
+							key: MalKeyword.create('bounds'),
+							type: 'rect2d',
+							default: [0, 0, 100, 100],
+						},
 					],
 				},
 			],
 			'initial-params': [
-				K('format'),
+				MalKeyword.create('format'),
 				'gif',
-				K('scaling'),
+				MalKeyword.create('scaling'),
 				1,
-				K('symbol'),
+				MalKeyword.create('symbol'),
 				'time',
-				K('start'),
+				MalKeyword.create('start'),
 				0,
-				K('duration'),
+				MalKeyword.create('duration'),
 				1,
-				K('fps'),
+				MalKeyword.create('fps'),
 				24,
-				K('bounds'),
+				MalKeyword.create('bounds'),
 				[0, 0, 200, 200],
 			],
 		})
@@ -408,12 +417,12 @@ ConsoleScope.def(
 					variadic: true,
 					items: [
 						{
-							key: K('user'),
+							key: MalKeyword.create('user'),
 							label: 'User',
 							type: 'string',
 						},
 						{
-							key: K('token'),
+							key: MalKeyword.create('token'),
 							label: 'Token',
 							type: 'string',
 						},
@@ -434,7 +443,13 @@ ConsoleScope.def(
 					})
 				}
 
-				return [sketchName, K('user'), user, K('token'), token]
+				return [
+					sketchName,
+					MalKeyword.create('user'),
+					user,
+					MalKeyword.create('token'),
+					token,
+				]
 			},
 		})
 	)

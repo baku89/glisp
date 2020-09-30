@@ -55,13 +55,17 @@ import {defineComponent, computed, PropType} from 'vue'
 import {
 	MalSeq,
 	MalVal,
-	MalFunc,
-	createList as L,
-	keywordFor as K,
-	symbolFor,
+	MalFunction,
+	MalList,
+	MalKeyword,
+	MalNumber,
+	MalSymbol,
 	cloneExp,
-	keywordFor,
 	isNode,
+	MalVector,
+	MalBoolean,
+	MalNil,
+	MalString,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
 import {getFnInfo, getMapValue} from '@/mal/utils'
@@ -75,18 +79,35 @@ import {
 import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
 
 const TypeDefaults = {
-	number: 0,
-	string: '',
-	symbol: symbolFor('_'),
-	keyword: keywordFor('_'),
-	boolean: false,
-	vec2: [0, 0],
-	rect2d: [0, 0, 1, 1],
-	mat2d: [1, 0, 0, 1, 0, 0],
-	size2d: L(symbolFor('vec2/size'), 1, 1, false),
-	path: [K('path')],
-	exp: null,
-	any: null,
+	number: MalNumber.create(0),
+	string: MalString.create(''),
+	symbol: MalSymbol.create('_'),
+	keyword: MalKeyword.create('_'),
+	boolean: MalBoolean.create(false),
+	vec2: MalVector.create(MalNumber.create(0), MalNumber.create(0)),
+	rect2d: MalVector.create(
+		MalNumber.create(0),
+		MalNumber.create(0),
+		MalNumber.create(1),
+		MalNumber.create(1)
+	),
+	mat2d: MalVector.create(
+		MalNumber.create(1),
+		MalNumber.create(0),
+		MalNumber.create(0),
+		1,
+		MalNumber.create(0),
+		MalNumber.create(0)
+	),
+	size2d: MalList.create(
+		MalSymbol.create('vec2/size'),
+		MalNumber.create(1),
+		MalNumber.create(1),
+		MalBoolean.create(false)
+	),
+	path: MalVector.create(MalKeyword.create('path')),
+	exp: MalNil.create(),
+	any: MalNil.create(),
 } as {[type: string]: MalVal}
 
 export default defineComponent({
@@ -213,8 +234,10 @@ export default defineComponent({
 
 			if (vectorSchema.insert) {
 				value = (vectorSchema.insert as any)({
-					[K('params')]: params.value.slice(vectorVariadicPos.value),
-					[K('index')]: i - vectorVariadicPos.value,
+					[MalKeyword.create('params')]: params.value.slice(
+						vectorVariadicPos.value
+					),
+					[MalKeyword.create('index')]: i - vectorVariadicPos.value,
 				})
 			} else if ('default' in variadicSchema) {
 				value = variadicSchema.default as MalVal

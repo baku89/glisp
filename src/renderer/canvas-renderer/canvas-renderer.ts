@@ -1,4 +1,4 @@
-import {MalVal, keywordFor as K, MalMap} from '@/mal/types'
+import {MalVal, MalKeyword, MalMap} from '@/mal/types'
 import {ViewerSettings} from './index'
 import renderToContext from '../render-to-context'
 
@@ -63,10 +63,10 @@ export default class CanvasRenderer {
 		// default style
 		const defaultStyle: MalMap | null = settings.guideColor
 			? {
-					[K('stroke')]: true,
-					[K('stroke-color')]: settings.guideColor,
-					[K('stroke-width')]: 1,
-					[K('stroke-dash')]: [2, 4],
+					[MalKeyword.create('stroke')]: true,
+					[MalKeyword.create('stroke-color')]: settings.guideColor,
+					[MalKeyword.create('stroke-width')]: 1,
+					[MalKeyword.create('stroke-dash')]: [2, 4],
 			  }
 			: null
 

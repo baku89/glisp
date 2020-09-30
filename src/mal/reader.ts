@@ -2,9 +2,8 @@ import {
 	keywordFor,
 	assocBang,
 	MalError,
-	symbolFor as S,
+	MalSymbol,
 	MalNode,
-	MalNodeMap,
 	isMap,
 	MalMap,
 	MalVal,
@@ -17,28 +16,29 @@ import {
 	M_OUTER_INDEX,
 	isSeq,
 	getName,
-	createList as L,
+	MalList,
 	MalSeq,
 	isSymbol,
-	createNil,
-	createBoolean,
-	createNumber,
-	createString,
-	createVector,
+	MalNil,
+	MalBoolean,
+	MalNumber,
+	MalString,
+	MalVector,
 	isList,
 	createMap,
 	isKeyword,
 } from './types'
+
 import printExp from './printer'
 
-const S_QUOTE = S('quote')
-const S_QUASIQUOTE = S('quasiquote')
-const S_UNQUOTE = S('unquote')
-const S_SPLICE_UNQUOTE = S('splice-unquote')
-const S_FN_SUGAR = S('fn-sugar')
-const S_WITH_META_SUGAR = S('with-meta-sugar')
-const S_UI_ANNOTATE = S('ui-annotate')
-const S_DEREF = S('deref')
+const S_QUOTE = MalSymbol.create('quote')
+const S_QUASIQUOTE = MalSymbol.create('quasiquote')
+const S_UNQUOTE = MalSymbol.create('unquote')
+const S_SPLICE_UNQUOTE = MalSymbol.create('splice-unquote')
+const S_FN_SUGAR = MalSymbol.create('fn-sugar')
+const S_WITH_META_SUGAR = MalSymbol.create('with-meta-sugar')
+const S_UI_ANNOTATE = MalSymbol.create('ui-annotate')
+const S_DEREF = MalSymbol.create('deref')
 
 class Reader {
 	private tokens: string[] | [string, number][]
@@ -120,13 +120,13 @@ function readAtom(reader: Reader) {
 	if (typeof token === 'string') {
 		if (token.match(/^[-+]?[0-9]+$/)) {
 			// integer
-			return createNumber(parseInt(token, 10))
+			return MalNumber.create(parseInt(token, 10))
 		} else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
 			// float
-			return createNumber(parseFloat(token))
+			return MalNumber.create(parseFloat(token))
 		} else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
 			// string
-			return createString(
+			return MalString.create(
 				token
 					.slice(1, token.length - 1)
 					.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
@@ -136,16 +136,16 @@ function readAtom(reader: Reader) {
 		} else if (token[0] === ':') {
 			return keywordFor(token.slice(1))
 		} else if (token === 'nil') {
-			return createNil()
+			return MalNil.create()
 		} else if (token === 'true') {
-			return createBoolean(true)
+			return MalBoolean.create(true)
 		} else if (token === 'false') {
-			return createBoolean(false)
+			return MalBoolean.create(false)
 		} else if (/^NaN$|^-?Infinity$/.test(token)) {
-			return createNumber(parseFloat(token))
+			return MalNumber.create(parseFloat(token))
 		} else {
 			// symbol
-			return S(token as string)
+			return MalSymbol.create(token as string)
 		}
 	} else {
 		return token
@@ -154,7 +154,7 @@ function readAtom(reader: Reader) {
 
 // read list of tokens
 function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
-	const exp: any = createVector()
+	const exp: any = MalVector.create()
 
 	let elmStrs: any = null,
 		delimiters: string[] | null = null
@@ -250,22 +250,22 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case "'":
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_QUOTE, readForm(reader, saveStr))
+			val = MalList.create(S_QUOTE, readForm(reader, saveStr))
 			break
 		case '`':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_QUASIQUOTE, readForm(reader, saveStr))
+			val = MalList.create(S_QUASIQUOTE, readForm(reader, saveStr))
 			break
 		case '~':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_UNQUOTE, readForm(reader, saveStr))
+			val = MalList.create(S_UNQUOTE, readForm(reader, saveStr))
 			break
 		case '~@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_SPLICE_UNQUOTE, readForm(reader, saveStr))
+			val = MalList.create(S_SPLICE_UNQUOTE, readForm(reader, saveStr))
 			break
 		case '#': {
 			reader.next()
@@ -273,7 +273,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			if (type === '(') {
 				// Syntactic sugar for anonymous function: #( )
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-				val = L(S_FN_SUGAR, readForm(reader, saveStr))
+				val = MalList.create(S_FN_SUGAR, readForm(reader, saveStr))
 			} else if (type === '@') {
 				// Syntactic sugar for ui-annotation #@
 				reader.next()
@@ -281,14 +281,14 @@ function readForm(reader: Reader, saveStr: boolean): any {
 				const annotation = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
-				val = L(S_UI_ANNOTATE, annotation, expr)
+				val = MalList.create(S_UI_ANNOTATE, annotation, expr)
 			} else if (type[0] === '"') {
 				// Syntactic sugar for set-id
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				const meta = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
-				val = L(S('set-id'), meta, expr)
+				val = MalList.create(MalSymbol.create('set-id'), meta, expr)
 			}
 			break
 		}
@@ -299,14 +299,14 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			const meta = readForm(reader, saveStr)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 			const expr = readForm(reader, saveStr)
-			val = L(S_WITH_META_SUGAR, meta, expr)
+			val = MalList.create(S_WITH_META_SUGAR, meta, expr)
 			break
 		}
 		case '@':
 			// Syntactic sugar for deref
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_DEREF, readForm(reader, saveStr))
+			val = MalList.create(S_DEREF, readForm(reader, saveStr))
 			break
 		// list
 		case ')':
@@ -492,7 +492,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 		if (isList(obj)) {
 			return obj
 		} else {
-			return createVector(...obj.map(v => convertJSObjectToMalMap(v)))
+			return MalVector.create(...obj.map(v => convertJSObjectToMalMap(v)))
 		}
 	} else if (isSymbol(obj) || obj instanceof Function) {
 		return obj
@@ -503,21 +503,21 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 		}
 		return createMap(ret)
 	} else if (obj === null) {
-		return createNil()
+		return MalNil.create()
 	} else {
 		switch (typeof obj) {
 			case 'number':
-				return createNumber(obj)
+				return MalNumber.create(obj)
 			case 'string':
 				if (isKeyword(obj)) {
 					return obj
 				} else {
-					return createString(obj)
+					return MalString.create(obj)
 				}
 			case 'undefined':
-				return createNil()
+				return MalNil.create()
 			case 'boolean':
-				return createBoolean(obj)
+				return MalBoolean.create(obj)
 		}
 		return obj
 	}

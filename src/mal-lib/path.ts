@@ -8,12 +8,12 @@ import {PaperOffset, OffsetOptions} from 'paperjs-offset'
 
 import {
 	MalVal,
-	keywordFor as K,
-	symbolFor as S,
+	MalKeyword,
+	MalSymbol,
 	MalError,
 	assocBang,
 	isMap,
-	createList as L,
+	MalList,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -28,13 +28,13 @@ import {
 
 const EPSILON = 1e-5
 
-const K_PATH = K('path'),
-	K_M = K('M'),
-	K_L = K('L'),
-	K_C = K('C'),
-	K_Z = K('Z'),
-	K_H = K('H'),
-	K_V = K('V')
+const K_PATH = MalKeyword.create('path'),
+	K_M = MalKeyword.create('M'),
+	K_L = MalKeyword.create('L'),
+	K_C = MalKeyword.create('C'),
+	K_Z = MalKeyword.create('Z'),
+	K_H = MalKeyword.create('H'),
+	K_V = MalKeyword.create('V')
 
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
@@ -96,7 +96,7 @@ function getMalPathFromPaper(
 		.unarc()
 		.unshort()
 		.iterate((seg, _, x, y) => {
-			let cmd = K(seg[0])
+			let cmd = MalKeyword.create(seg[0])
 			const pts = partition(2, seg.slice(1)) as number[][]
 
 			switch (cmd) {
@@ -239,7 +239,7 @@ function dragHandle(
 	const segs = Array.from(iterateSegment(path))
 	const draggingSeg = segs[index]
 
-	if (type === K('handle-in')) {
+	if (type === MalKeyword.create('handle-in')) {
 		const origInHandle = vec2.clone(draggingSeg[2] as vec2)
 		const inHandle = vec2.add(vec2.create(), origInHandle, delta)
 		draggingSeg[2] = inHandle
@@ -288,7 +288,7 @@ function dragHandle(
 				segs[nextIndex][1] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
 			}
 		}
-	} else if (type === K('handle-out')) {
+	} else if (type === MalKeyword.create('handle-out')) {
 		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
 		const outHandle = vec2.add(vec2.create(), origOutHandle, delta)
 		draggingSeg[1] = outHandle
@@ -923,7 +923,9 @@ const Exports = [
 ] as [string, MalVal][]
 
 const Exp = L(
-	S('do'),
-	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
+	MalSymbol.create('do'),
+	...Exports.map(([sym, body]) =>
+		L(MalSymbol.create('def'), MalSymbol.create(sym), body)
+	)
 )
 ;(globalThis as any)['glisp_library'] = Exp

@@ -18,7 +18,7 @@ import printExp, {printer} from '@/mal/printer'
 import {
 	MalVal,
 	MalNode,
-	symbolFor,
+	MalSymbol,
 	isNode,
 	isList,
 	M_DELIMITERS,
@@ -207,7 +207,10 @@ export default defineComponent({
 				return
 			}
 
-			if (isList(selectedExp) && selectedExp[0] === symbolFor('sketch')) {
+			if (
+				isList(selectedExp) &&
+				selectedExp[0] === MalSymbol.create('sketch')
+			) {
 				context.emit('select', null)
 			} else {
 				context.emit('select', selectedExp)

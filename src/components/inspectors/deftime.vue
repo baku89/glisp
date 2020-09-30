@@ -36,7 +36,7 @@ import {
 	isList,
 	cloneExp,
 	assocBang,
-	keywordFor as K,
+	MalKeyword,
 	getEvaluated,
 	MalSeq,
 } from '@/mal/types'
@@ -44,9 +44,9 @@ import {clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
 import {useDraggable} from '@/components/use'
 
-const K_START = K('start'),
-	K_DURATION = K('duration'),
-	K_FPS = K('fps')
+const K_START = MalKeyword.create('start'),
+	K_DURATION = MalKeyword.create('duration'),
+	K_FPS = MalKeyword.create('fps')
 
 export default defineComponent({
 	name: 'Inspector-deftime',

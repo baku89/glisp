@@ -44,8 +44,8 @@ import {
 	MalSymbol,
 	getEvaluated,
 	MalType,
-	createList as L,
-	keywordFor as K,
+	MalList,
+	MalKeyword,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -123,7 +123,7 @@ export default defineComponent({
 		const innerMin = computed(() => {
 			if (display.value.mode === 'unit') {
 				return (display.value.inverseFn as any)({
-					[K('return')]: props.min,
+					[MalKeyword.create('return')]: props.min,
 				})[0]
 			} else {
 				return props.min
@@ -133,7 +133,7 @@ export default defineComponent({
 		const innerMax = computed(() => {
 			if (display.value.mode === 'unit') {
 				return (display.value.inverseFn as any)({
-					[K('return')]: props.max,
+					[MalKeyword.create('return')]: props.max,
 				})[0]
 			} else {
 				return props.max
@@ -160,7 +160,7 @@ export default defineComponent({
 				if (display.value.mode === 'unit') {
 					const unitValue = (fn.value as any)(value as any)
 					validated = (display.value.inverseFn as any)({
-						[K('return')]: props.validator(unitValue),
+						[MalKeyword.create('return')]: props.validator(unitValue),
 					})[0]
 				} else {
 					validated = props.validator(value)

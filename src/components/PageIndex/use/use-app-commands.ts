@@ -3,9 +3,9 @@ import {
 	MalVal,
 	MalNode,
 	expandExp,
-	symbolFor as S,
-	createList as L,
-	keywordFor as K,
+	MalSymbol,
+	MalList,
+	MalKeyword,
 	getName,
 	getMeta,
 	isFunc,
@@ -103,7 +103,7 @@ export default function useAppCommands(
 				)
 			}
 
-			newExp = L(S(fnName), ...initialParams)
+			newExp = L(MalSymbol.create(fnName), ...initialParams)
 		} else if (type === MalType.List) {
 			newExp = exp as MalSeq
 		} else {
@@ -239,7 +239,7 @@ export default function useAppCommands(
 
 		const newExp = L(
 			...wrapper.map(e => {
-				if (isSymbolFor(e, '%')) {
+				if (isMalSymbol.create(e, '%')) {
 					const ret = shouldDuplicate ? cloneExp(exp, true) : exp
 					shouldDuplicate = true
 					return ret
@@ -277,8 +277,8 @@ export default function useAppCommands(
 
 			const originalParams = structType ? [exp] : exp.slice(1)
 			const payload = {
-				[K('params')]: originalParams.map(p => getEvaluated(p)),
-				[K('transform')]: xform as MalVal,
+				[MalKeyword.create('params')]: originalParams.map(p => getEvaluated(p)),
+				[MalKeyword.create('transform')]: xform as MalVal,
 			}
 
 			const modifier = transformFn(payload)
@@ -368,7 +368,7 @@ export default function useAppCommands(
 			deleteExp(getUIAnnotationExp(exp))
 		}
 
-		const group = L(symbolFor('g'), {}, first, ...rest)
+		const group = L(MalSymbol.create('g'), {}, first, ...rest)
 
 		replaceExp(first, group)
 

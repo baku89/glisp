@@ -2,7 +2,7 @@ import {createNil, MalError} from './types'
 import {convertJSObjectToMalMap} from './reader'
 
 export default {
-	resolveJS(str: string): [any, any] {
+	resolveJMalSymbol.create(str: string): [any, any] {
 		if (str.match(/\./)) {
 			// eslint-disable-next-line no-useless-escape
 			const match = /^(.*)\.[^\.]*$/.exec(str)
@@ -19,7 +19,7 @@ export default {
 
 	jsToMal(obj: any) {
 		if (obj === null || obj === undefined) {
-			return createNil()
+			return MalNil.create()
 		}
 
 		// const cache: any[] = []
