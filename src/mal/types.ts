@@ -80,7 +80,7 @@ export interface MalFuncThis {
 	callerEnv: Env
 }
 
-abstract class MalBase {
+abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
@@ -89,7 +89,7 @@ abstract class MalBase {
 
 type MalColl = MalList | MalVector | MalHashMap
 
-export class MalNumber extends MalBase {
+export class MalNumber extends MalVal {
 	readonly type: MalType.Number = MalType.Number
 
 	private constructor(public readonly value: number) {
@@ -109,7 +109,7 @@ export class MalNumber extends MalBase {
 	}
 }
 
-export class MalString extends MalBase {
+export class MalString extends MalVal {
 	readonly type: MalType.String = MalType.String
 
 	private constructor(public readonly value: string) {
@@ -129,7 +129,7 @@ export class MalString extends MalBase {
 	}
 }
 
-export class MalBoolean extends MalBase {
+export class MalBoolean extends MalVal {
 	readonly type: MalType.Boolean = MalType.Boolean
 
 	private constructor(public readonly value: boolean) {
@@ -149,7 +149,7 @@ export class MalBoolean extends MalBase {
 	}
 }
 
-export class MalNil extends MalBase {
+export class MalNil extends MalVal {
 	readonly type: MalType.Nil = MalType.Nil
 
 	private constructor() {
@@ -169,7 +169,7 @@ export class MalNil extends MalBase {
 	}
 }
 
-export class MalKeyword extends MalBase {
+export class MalKeyword extends MalVal {
 	readonly type: MalType.Keyword = MalType.Keyword
 
 	private constructor(private readonly value: string) {
@@ -195,7 +195,7 @@ export class MalKeyword extends MalBase {
 	}
 }
 
-export class MalList extends MalBase {
+export class MalList extends MalVal {
 	readonly type: MalType.List = MalType.List
 
 	public delimiters: string[] | undefined = undefined
@@ -232,7 +232,7 @@ export class MalList extends MalBase {
 	}
 }
 
-export class MalVector extends MalBase {
+export class MalVector extends MalVal {
 	readonly type: MalType.Vector = MalType.Vector
 
 	public delimiters: string[] | undefined = undefined
@@ -269,7 +269,7 @@ export class MalVector extends MalBase {
 	}
 }
 
-export class MalHashMap extends MalBase {
+export class MalHashMap extends MalVal {
 	readonly type: MalType.Map = MalType.Map
 
 	public delimiters: string[] | undefined = undefined
@@ -325,6 +325,36 @@ export class MalHashMap extends MalBase {
 
 	static create(...value: MalVal[]) {
 		return new MalHashMap(value)
+	}
+}
+
+type MalF = (...args: (MalVal | undefined)[]) => MalVal
+
+export class MalFunction extends MalVal {
+	type: MalType.Function = MalType.Function
+
+	ast!: MalVal | undefined
+	params!: MalVal
+	func!: MalF
+	isMacro!: boolean
+
+	private constructor() {
+		super()
+	}
+
+	toString() {
+		if (this.ast) {
+			const keyword = this.isMacro ? 'macro' : 'fn'
+			return `(${keyword} ${this.params.toString()} ${MalVal})`
+		} else {
+			return `#<JS Function>`
+		}
+	}
+
+	static create(func: MalF) {
+		const f = new MalFunction()
+		f.func = func
+		f.isMacro = false
 	}
 }
 
@@ -527,19 +557,6 @@ export function setMeta(a: MalVal, m: MalVal) {
 	return a
 }
 
-export type MalVal =
-	| number
-	| string
-	| boolean
-	| null
-	| MalSymbol
-	| MalAtom
-	| MalFunc
-	| MalJSFunc
-	| MalMap
-	| MalVal[]
-	| MalNode
-
 export interface MalNodeSelection {
 	outer: MalNode
 	index: number
@@ -704,7 +721,7 @@ export const isString = (obj: MalVal | undefined): obj is string =>
 	getType(obj) === MalType.String
 
 // Symbol
-export class MalSymbol extends MalBase {
+export class MalSymbol extends MalVal {
 	public readonly type: MalType.Symbol = MalType.Symbol
 	private [M_DEF]: MalSeq | null
 	public evaluated: MalVal | undefined = undefined
@@ -796,7 +813,7 @@ export function assocBang(hm: MalMap, ...args: any[]) {
 }
 
 // Atoms
-export class MalAtom extends MalBase {
+export class MalAtom extends MalVal {
 	public readonly type: MalType.Atom = MalType.Atom
 	public constructor(public value: MalVal) {
 		super()
