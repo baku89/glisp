@@ -11,7 +11,7 @@ import {
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
-import { MalMap, MalVector } from '@/mal/types'
+import {MalMap, MalVector} from '@/mal/types'
 
 const K_PATH = MalKeyword.create('path'),
 	K_TRANSFORM = MalKeyword.create('transform'),
@@ -114,7 +114,7 @@ export class HitDetector {
 						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}
-		} else if (MalList.is((exp)) {
+		} else if (MalList.is(exp)) {
 			return this.analyzeVector(pos, exp.slice(1), hitStyle)
 		}
 

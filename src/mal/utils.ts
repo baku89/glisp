@@ -34,7 +34,7 @@ import {mat2d} from 'gl-matrix'
 import {reconstructTree} from './reader'
 
 export function isUIAnnotation(exp: MalVal): exp is MalSeq {
-	return MalList.is((exp) && MalSymbol.isFor(exp[0], 'ui-annotate')
+	return MalList.is(exp) && MalSymbol.isFor(exp[0], 'ui-annotate')
 }
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
@@ -423,7 +423,7 @@ export function reverseEval(
 		}
 		case MalType.Symbol: {
 			const def = (original as MalSymbol).def
-			if (def && !MalSymbol.is((exp)) {
+			if (def && !MalSymbol.is(exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 				replaceExp(def, L(MalSymbol.create('defvar'), original, newDefBody))
@@ -455,7 +455,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 	const xform = mat2d.create()
 
 	for (const [node, index] of ancestors) {
-		if (!MalList.is((node)) {
+		if (!MalList.is(node)) {
 			continue
 		}
 
@@ -547,7 +547,7 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 }
 
 export function getFn(exp: MalVal) {
-	if (!MalList.is((exp)) {
+	if (!MalList.is(exp)) {
 		//throw new MalError(`${printExp(exp)} is not a function application`)
 		return undefined
 	}

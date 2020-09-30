@@ -84,7 +84,7 @@ export default defineComponent({
 		const display = computed(() => {
 			if (typeof props.value === 'number') {
 				return {mode: 'number', isExp: false}
-			} else if (MalList.is((props.value) && props.value.length === 2) {
+			} else if (MalList.is(props.value) && props.value.length === 2) {
 				const info = getFnInfo(props.value)
 
 				if (info) {

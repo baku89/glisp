@@ -29,13 +29,7 @@
 </template>
 
 <script lang="ts">
-import {
-	MalVal,
-	MalList,
-	MalColl,
-	MalSymbol,
-	MalType,
-} from '@/mal/types'
+import {MalVal, MalList, MalColl, MalSymbol, MalType} from '@/mal/types'
 
 import ParamControl from './ParamControl.vue'
 
@@ -70,7 +64,7 @@ export default defineComponent({
 				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
-				(MalList.is((props.exp) && MalSymbol.is((props.exp[0]))
+				(MalList.is(props.exp) && MalSymbol.is(props.exp[0]))
 			) {
 				return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
 			} else {

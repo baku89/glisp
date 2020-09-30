@@ -1,4 +1,4 @@
-import { createBlock } from 'vue'
+import {createBlock} from 'vue'
 import Env from './env'
 
 export enum MalType {
@@ -56,11 +56,11 @@ export abstract class MalVal {
 	abstract get evaluated(): MalVal
 	abstract clone(): MalVal
 	abstract print(readably: boolean): string
-	
+
 	toString() {
 		this.print(true)
 	}
-	
+
 	static is(_: MalVal): boolean {
 		return false
 	}
@@ -92,7 +92,7 @@ export class MalNumber extends MalVal {
 		return new MalNumber(this.value)
 	}
 
-	static is(value: MalVal) : value is MalNumber {
+	static is(value: MalVal): value is MalNumber {
 		return value.type === MalType.Number
 	}
 
@@ -122,9 +122,9 @@ export class MalString extends MalVal {
 
 	clone() {
 		return new MalString(this.value)
-	}	
+	}
 
-	static is(value: MalVal) : value is MalString {
+	static is(value: MalVal): value is MalString {
 		return value.type === MalType.String
 	}
 
@@ -156,7 +156,7 @@ export class MalBoolean extends MalVal {
 		return new MalBoolean(this.value)
 	}
 
-	static is(value: MalVal) : value is MalBoolean {
+	static is(value: MalVal): value is MalBoolean {
 		return value.type === MalType.Boolean
 	}
 
@@ -189,7 +189,7 @@ export class MalNil extends MalVal {
 		return new MalNil()
 	}
 
-	static is(value: MalVal) : value is MalNil {
+	static is(value: MalVal): value is MalNil {
 		return value.type === MalType.Nil
 	}
 
@@ -217,22 +217,12 @@ export class MalKeyword extends MalVal {
 		return new MalKeyword(this.value)
 	}
 
-	static is(value: MalVal) : value is MalKeyword {
+	static is(value: MalVal): value is MalKeyword {
 		return value.type === MalType.Keyword
 	}
 
-	private static map = new Map<string, MalKeyword>()
-
-	static create(value: string) {
-		const cached = this.map.get(value)
-		if (cached) {
-			return cached
-		}
-
-		const token = new MalKeyword(value)
-		this.map.set(value, token)
-
-		return token
+	static create(name: string) {
+		return new MalKeyword(name)
 	}
 
 	static isFor(value: MalVal, name: string) {
@@ -257,6 +247,10 @@ export class MalList extends MalVal {
 
 	get evaluated(): MalVal {
 		return this._evaluated || this
+	}
+
+	get params() {
+		return this.value.slice(1)
 	}
 
 	print(readably = true) {
@@ -289,7 +283,7 @@ export class MalList extends MalVal {
 		return list
 	}
 
-	static is(value: MalVal) : value is MalList {
+	static is(value: MalVal): value is MalList {
 		return value.type === MalType.List
 	}
 
@@ -347,7 +341,7 @@ export class MalVector extends MalVal {
 		return list
 	}
 
-	static is(value: MalVal) : value is MalVector {
+	static is(value: MalVal): value is MalVector {
 		return value.type === MalType.Vector
 	}
 
@@ -413,7 +407,11 @@ export class MalMap extends MalVal {
 		return list
 	}
 
-	static is(value: MalVal) : value is MalMap {
+	entries() {
+		return Object.entries(this.value)
+	}
+
+	static is(value: MalVal): value is MalMap {
 		return value.type === MalType.Map
 	}
 
@@ -479,7 +477,7 @@ export class MalFunc extends MalVal {
 		return f
 	}
 
-	static is(value: MalVal) : value is MalFunc {
+	static is(value: MalVal): value is MalFunc {
 		return value.type === MalType.Function
 	}
 
@@ -491,8 +489,8 @@ export class MalFunc extends MalVal {
 		func: MalF,
 		exp: MalVal,
 		env: Env,
-		params: MalVal,
-		meta: MalVal = MalNil.create(),
+		params: MalVal = MalVector.create(),
+		meta: MalVal = MalNil.create()
 	) {
 		const f = new MalFunc(func)
 
@@ -529,9 +527,8 @@ export class MalMacro extends MalFunc {
 		exp: MalVal,
 		env: Env,
 		params: MalVal,
-		meta: MalVal = MalNil.create(),
+		meta: MalVal = MalNil.create()
 	) {
-
 		const m = new MalMacro(func)
 		m.exp = exp
 		m.env = env
@@ -555,7 +552,9 @@ function expandSymbolsInExp(exp: MalVal, env: Env): MalVal {
 		case MalType.List:
 		case MalType.Vector: {
 			let arr = (exp as MalSeq).value.map(val => expandSymbolsInExp(val, env))
-			return type === MalType.List ? MalList.create(...arr) : MalVector.create(...arr)
+			return type === MalType.List
+				? MalList.create(...arr)
+				: MalVector.create(...arr)
 		}
 		case MalType.Map: {
 			const map: {[k: string]: MalVal} = {}
@@ -580,7 +579,7 @@ export function setExpandInfo(exp: MalSeq, info: ExpandInfo) {
 }
 
 export function expandExp(exp: MalVal) {
-	if (MalList.is((exp) && M_EXPAND in exp) {
+	if (MalList.is(exp) && M_EXPAND in exp) {
 		const info = exp[M_EXPAND]
 		switch (info.type) {
 			case ExpandType.Constant:
@@ -606,7 +605,6 @@ export const isMalSeq = (value: MalVal | undefined): value is MalSeq => {
 	const type = value?.type
 	return type === MalType.Vector || type === MalType.List
 }
-
 
 export function getName(exp: MalVal): string {
 	switch (exp.type) {
@@ -641,7 +639,6 @@ export class MalSymbol extends MalVal {
 		return this._evaluated || this
 	}
 
-
 	set def(def: MalSeq | undefined) {
 		this._def = def
 	}
@@ -660,6 +657,10 @@ export class MalSymbol extends MalVal {
 
 	static create(identifier: string) {
 		return new MalSymbol(identifier)
+	}
+
+	static is(value: MalVal | undefined): value is MalSymbol {
+		return value?.type === MalType.Symbol
 	}
 
 	static isFor(value: MalVal, name: string) {
@@ -685,6 +686,4 @@ export class MalAtom extends MalVal {
 	print(readably = true): string {
 		return `(atom ${this.value?.print(readably)})readably`
 	}
-
-	
 }

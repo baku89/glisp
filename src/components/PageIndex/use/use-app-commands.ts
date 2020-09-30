@@ -230,7 +230,7 @@ export default function useAppCommands(
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		if (!MalList.is((wrapper)) {
+		if (!MalList.is(wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 

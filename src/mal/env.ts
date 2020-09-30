@@ -2,16 +2,10 @@ import {
 	MalVal,
 	MalError,
 	MalSymbol,
-	isMap,
 	MalMap,
-	MalSymbol,
-	MalVal,
 	isMalSeq,
-	getType,
 	MalSeq,
 	MalType,
-	symbolFor,
-	keywordFor,
 } from './types'
 import {printExp} from '.'
 
@@ -63,7 +57,7 @@ export default class Env {
 	public bindAll(binds: MalVal, exps: MalVal[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
-		if (MalSymbol.is((binds)) {
+		if (MalSymbol.is(binds)) {
 			this.set(binds, exps)
 		} else {
 			for (let i = 0; i < binds.length; i++) {
@@ -172,7 +166,7 @@ export default class Env {
 	}
 
 	public find(symbol: MalSymbol): MalVal | void {
-		// if (!MalSymbol.is((symbol)) {
+		// if (!MalSymbol.is(symbol)) {
 		// 	throw 'FIND not symbol'
 		// }
 
@@ -207,14 +201,14 @@ export default class Env {
 	}
 
 	public hasOwn(symbol: MalSymbol) {
-		// if (!MalSymbol.is((symbol)) {
+		// if (!MalSymbol.is(symbol)) {
 		// 	throw 'HASOWN not symbol'
 		// }
 		return this.data.has(symbol.value)
 	}
 
 	public get(symbol: MalSymbol): MalVal {
-		// if (!MalSymbol.is((symbol)) {
+		// if (!MalSymbol.is(symbol)) {
 		// 	throw 'get not symbol'
 		// }
 

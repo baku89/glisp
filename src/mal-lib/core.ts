@@ -29,7 +29,7 @@ const Exports = [
 
 	['keyword', (x: MalString) => MalKeyword.create(x.value)],
 	['symbol', (x: MalString) => MalSymbol.create(x.value)],
-	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is((x)))],
+	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is(x)))],
 
 	// // Compare
 	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a === b)],
@@ -80,7 +80,7 @@ const Exports = [
 	// Array
 	['list', (...coll: MalVal[]) => L(...coll)],
 	['lst', (coll: MalVal[]) => L(...coll)],
-	['list?', (x: MalVal) => MalBoolean.create(MalList.is((x))],
+	['list?', (x: MalVal) => MalBoolean.create(MalList.is(x))],
 
 	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
 	['vector?', (x: MalVal) => MalBoolean.create(MalVector.is(x))],
@@ -191,7 +191,7 @@ const Exports = [
 	[
 		'conj',
 		(lst: MalVal, ...args: MalVal[]) => {
-			if (MalList.is((lst)) {
+			if (MalList.is(lst)) {
 				const newList = L(...lst)
 				args.forEach(arg => newList.unshift(arg))
 				return newList

@@ -59,7 +59,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const sugarInfo =
 				type === MalType.List &&
 				SUGAR_INFO.get(
-					MalSymbol.is(((coll as MalSeq)[0])
+					MalSymbol.is((coll as MalSeq)[0])
 						? ((coll as MalSeq)[0] as MalSymbol).value
 						: ''
 				)

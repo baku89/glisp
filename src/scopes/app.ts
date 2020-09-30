@@ -13,7 +13,7 @@ const AppScope = new Scope(ReplScope, 'app', onSetup)
 // Keybinds
 
 AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
-	if (typeof keybind !== 'string' || !MalList.is((exp)) {
+	if (typeof keybind !== 'string' || !MalList.is(exp)) {
 		throw new MalError('Invalid argument for set-keybind')
 	}
 

@@ -29,9 +29,9 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const sign = computed(() => {
-			if (MalList.is((props.value)) {
+			if (MalList.is(props.value)) {
 				return 'f'
-			} else if (MalSymbol.is((props.value)) {
+			} else if (MalSymbol.is(props.value)) {
 				return 'x'
 			} else {
 				return '='
