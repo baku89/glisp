@@ -128,6 +128,10 @@ export class MalString extends MalVal {
 		return `"${this.value}"`
 	}
 
+	isType(value: MalVal) : value is MalString {
+		return value.type === MalType.String
+	}
+
 	static create(value: string) {
 		return new MalString(value)
 	}
@@ -146,6 +150,10 @@ export class MalBoolean extends MalVal {
 
 	toString() {
 		return this.value.toString()
+	}
+
+	isType(value: MalVal) : value is MalBoolean {
+		return value.type === MalType.Boolean
 	}
 
 	static create(value: boolean) {
@@ -168,6 +176,10 @@ export class MalNil extends MalVal {
 		return 'nil'
 	}
 
+	isType(value: MalVal) : value is MalNil {
+		return value.type === MalType.Nil
+	}
+
 	static create() {
 		return new MalNil()
 	}
@@ -182,6 +194,10 @@ export class MalKeyword extends MalVal {
 
 	toString() {
 		return this.value
+	}
+
+	isType(value: MalVal) : value is MalKeyword {
+		return value.type === MalType.Keyword
 	}
 
 	private static map = new Map<string, MalKeyword>()
@@ -231,6 +247,10 @@ export class MalList extends MalVal {
 		return this.str
 	}
 
+	isType(value: MalVal) : value is MalList {
+		return value.type === MalType.List
+	}
+
 	static create(...value: MalVal[]) {
 		return new MalList(value)
 	}
@@ -266,6 +286,10 @@ export class MalVector extends MalVal {
 		}
 
 		return this.str
+	}
+
+	isType(value: MalVal) : value is MalVector {
+		return value.type === MalType.Vector
 	}
 
 	static create(...value: MalVal[]) {
@@ -327,6 +351,10 @@ export class MalMap extends MalVal {
 		return this.str
 	}
 
+	isType(value: MalVal) : value is MalMap {
+		return value.type === MalType.Map
+	}
+
 	static create(...value: MalVal[]) {
 		return new MalMap(value)
 	}
@@ -341,7 +369,7 @@ export class MalFunction extends MalVal {
 	readonly type: MalType.Function = MalType.Function
 	value!: MalF
 
-	ast!: MalVal | undefined
+	exp!: MalVal | undefined
 	env!: Env
 	params!: MalVal
 	meta!: MalVal
@@ -352,12 +380,16 @@ export class MalFunction extends MalVal {
 	}
 
 	toString() {
-		if (this.ast) {
+		if (this.exp) {
 			const keyword = this.isMacro ? 'macro' : 'fn'
 			return `(${keyword} ${this.params.toString()} ${MalVal})`
 		} else {
 			return `#<JS Function>`
 		}
+	}
+
+	isType(value: MalVal) : value is MalFunction {
+		return value.type === MalType.Function
 	}
 
 	static create(func: MalF) {
@@ -378,6 +410,7 @@ export class MalFunction extends MalVal {
 		const f = new MalFunction()
 
 		f.value = func
+		f.exp = exp
 		f.env = env
 		f.params = params
 		f.meta = meta
