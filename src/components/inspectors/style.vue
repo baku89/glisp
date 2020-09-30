@@ -58,7 +58,7 @@ import {
 	MalList,
 	MalVector,
 	MalSeq,
-	MalSymbol,, MalString, MalNumber
+	MalSymbol, MalString, MalNumber
 } from '@/mal/types'
 import { getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-inputs/MalInputParam.vue'

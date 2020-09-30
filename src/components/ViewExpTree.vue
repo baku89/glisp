@@ -70,7 +70,9 @@ import {
 	MalKeyword,
 	MalMap,
 	MalColl,
-	MalSeq,, MalBoolean, MalString
+	MalSeq,
+	MalBoolean,
+	MalString,
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {reconstructTree} from '@/mal/reader'

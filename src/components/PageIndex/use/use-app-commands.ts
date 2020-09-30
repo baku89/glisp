@@ -12,7 +12,8 @@ import {
 	isMalSeq,
 	MalSeq,
 	isMalColl,
-	MalVector,, MalString
+	MalVector,
+	MalString,
 } from '@/mal/types'
 import {
 	getMapValue,
