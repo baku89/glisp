@@ -13,7 +13,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {MalSeq, MalSymbol, getName, keywordFor} from '@/mal/types'
+import {MalSeq, MalSymbol, MalList, MalKeyword, MalType} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 
 export default defineComponent({
@@ -23,7 +23,7 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: [String, Object] as PropType<string | MalSeq | MalSymbol>,
+			type: [Object] as PropType<MalList | MalKeyword | MalSymbol>,
 			required: true,
 		},
 		validator: {
@@ -32,7 +32,8 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const displayValue = computed(() => {
-			return getName(props.value)
+			const evaluated = props.value.evaluated
+			return evaluated.type === MalType.Keyword ? evaluated.value : ''
 		})
 
 		function keywordValidator(str: string): string {
@@ -40,7 +41,7 @@ export default defineComponent({
 		}
 
 		function onInput(str: string) {
-			const value = keywordFor(str)
+			const value = MalKeyword.create(str)
 			context.emit('input', value)
 		}
 
