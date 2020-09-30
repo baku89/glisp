@@ -2,7 +2,7 @@ import {
 	MalVal,
 	MalKeyword,
 	isMap,
-	isKeyword,
+	MalKeyword,
 	MalError,
 	MalMap,
 } from '@/mal/types'

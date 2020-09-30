@@ -1,7 +1,7 @@
 import Scope from '@/mal/scope'
 import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
-import {MalVal, isList, MalError} from '@/mal/types'
+import {MalVal, MalList.isType(, MalError} from '@/mal/types'
 import ConsoleScope from './console'
 
 function onSetup() {
@@ -13,7 +13,7 @@ const AppScope = new Scope(ReplScope, 'app', onSetup)
 // Keybinds
 
 AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
-	if (typeof keybind !== 'string' || !isList(exp)) {
+	if (typeof keybind !== 'string' || !MalList.isType((exp)) {
 		throw new MalError('Invalid argument for set-keybind')
 	}
 

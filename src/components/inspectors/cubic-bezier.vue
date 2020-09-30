@@ -37,7 +37,7 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, toRefs, PropType} from 'vue'
-import {MalVal, isList, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
+import {MalVal, MalList.isType(, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
 import {clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'
@@ -155,11 +155,10 @@ export default defineComponent({
 
 	&__svg
 		flex 0 0 15rem
+		margin-left 0.5rem
 		width 15rem
 		height 15rem
 		border 1px solid var(--border)
-		margin-left .5rem
-
 
 		circle
 			fill var(--background)

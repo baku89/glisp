@@ -37,7 +37,7 @@ import InputNumber from '@/components/inputs/InputNumber.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
 import {
 	MalSeq,
-	isList,
+	MalList.isType(,
 	MalVal,
 	MalSymbol,
 	getEvaluated,
@@ -68,7 +68,7 @@ export default defineComponent({
 		const display = computed(() => {
 			if (typeof props.value === 'number') {
 				return {mode: 'number', isExp: false}
-			} else if (isList(props.value) && props.value.length === 2) {
+			} else if (MalList.isType((props.value) && props.value.length === 2) {
 				const info = getFnInfo(props.value)
 
 				if (info) {

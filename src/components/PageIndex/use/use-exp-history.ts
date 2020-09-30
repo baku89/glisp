@@ -3,7 +3,7 @@ import {
 	getName,
 	MalVal,
 	MalError,
-	isKeyword,
+	MalKeyword,
 	MalMap,
 } from '@/mal/types'
 

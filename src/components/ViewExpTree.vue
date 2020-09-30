@@ -63,8 +63,8 @@
 import {defineComponent, computed, PropType} from 'vue'
 import {
 	MalVal,
-	isList,
-	isVector,
+	MalList.isType(,
+	MalVector,
 	MalType,
 	getType,
 	MalSymbol,
@@ -170,7 +170,7 @@ export default defineComponent({
 		const labelInfo = computed(() => {
 			const exp = expBody.value
 
-			if (isList(exp)) {
+			if (MalList.isType((exp)) {
 				return {
 					label: exp[0] ? printExp(exp[0]) : '<empty>',
 					clickable: props.mode === DisplayMode.Node,
@@ -182,7 +182,7 @@ export default defineComponent({
 					},
 					children: exp.slice(1),
 				}
-			} else if (isVector(exp)) {
+			} else if (MalVector.isType(exp)) {
 				return {
 					label: printExp(exp),
 					clickable: true,

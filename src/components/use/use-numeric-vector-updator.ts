@@ -4,7 +4,7 @@ import {
 	getEvaluated,
 	MalSeq,
 	MalSymbol,
-	isVector,
+	MalVector,
 	cloneExp,
 } from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
@@ -16,7 +16,7 @@ export default function useNumericVectorUpdator(
 	exp: Ref<MalSeq | MalSymbol>,
 	context: SetupContext
 ) {
-	const isValueSeparated = computed(() => isVector(exp.value))
+	const isValueSeparated = computed(() => MalVector.isType(exp.value))
 
 	const nonReactiveValues = computed(() => {
 		if (!isValueSeparated.value) {

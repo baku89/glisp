@@ -53,11 +53,11 @@ import {
 	MalSeq,
 	MalSymbol,
 	getEvaluated,
-	isList,
-	isSymbolFor,
+	MalList.isType(,
+	MalSymbol.isType(For,
 	MalVal,
 	cloneExp,
-	MalList,
+	MalList,, MalVector
 } from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -76,7 +76,7 @@ export default defineComponent({
 	setup(props, context) {
 		const isSizeFunc = computed(
 			() =>
-				isList(props.value) && isMalSymbol.create(props.value[0], 'vec2/size')
+				MalList.isType((props.value) && isMalSymbol.create(props.value[0], 'vec2/size')
 		)
 
 		const size = computed(() => {
@@ -97,7 +97,7 @@ export default defineComponent({
 			}
 		})
 
-		const isValueSeparated = computed(() => isVector(size.value))
+		const isValueSeparated = computed(() => MalVector.isType(size.value))
 
 		const nonReactiveValues = computed(() => {
 			if (!isValueSeparated.value) {

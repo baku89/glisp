@@ -5,7 +5,7 @@ import Scope from '@/mal/scope'
 import {
 	MalVal,
 	MalError,
-	isKeyword,
+	MalKeyword,
 	MalSymbol,
 	MalKeyword,
 	MalList,

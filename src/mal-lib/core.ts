@@ -8,31 +8,23 @@ import {
 	assocBang,
 	isMap,
 	isString,
-	isSymbol,
-	isKeyword,
-	keywordFor,
 	MalError,
-	MalFunc,
-	isVector,
-	isList,
 	MalAtom,
 	getType,
 	getMeta,
 	withMeta,
 	isSeq,
 	setMeta,
-	MalVector
-	MalBoolean
-	MalNumber
-	createNil,
-	MalString
+	MalVector,
+	MalBoolean,
+	MalString, MalKeyword
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
 
 const Exports = [
-	['type', x => keywordFor(getType(x) as string)],
+	['type', x => MalKeyword.create((getType(x) as string))],
 	['nil?', (x: MalVal) => MalBoolean.create(x === null)],
 	['true?', (x: MalVal) => MalBoolean.create(x === true)],
 	['false?', (x: MalVal) => MalBoolean.create(x === false)],
@@ -45,7 +37,7 @@ const Exports = [
 
 	['keyword', keywordFor],
 	['symbol', S],
-	['symbol?', (x: MalVal) => MalBoolean.create(isSymbol(x))],
+	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.isType((x))],
 
 	// // Compare
 	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a === b)],
@@ -96,10 +88,10 @@ const Exports = [
 	// Array
 	['list', (...coll: MalVal[]) => L(...coll)],
 	['lst', (coll: MalVal[]) => L(...coll)],
-	['list?', (x: MalVal) => MalBoolean.create(isList(x))],
+	['list?', (x: MalVal) => MalBoolean.create(MalList.isType((x))],
 
 	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
-	['vector?', (x: MalVal) => MalBoolean.create(isVector(x))],
+	['vector?', (x: MalVal) => MalBoolean.create(MalVector.isType(x))],
 	['vec', (a: MalVal[]) => MalVector.create(...a)],
 	['sequential?', (x: MalVal) => MalBoolean.create(isSeq(x))],
 	[
@@ -207,11 +199,11 @@ const Exports = [
 	[
 		'conj',
 		(lst: MalVal, ...args: MalVal[]) => {
-			if (isList(lst)) {
+			if (MalList.isType((lst)) {
 				const newList = L(...lst)
 				args.forEach(arg => newList.unshift(arg))
 				return newList
-			} else if (isVector(lst)) {
+			} else if (MalVector.isType(lst)) {
 				return MalVector.create(...lst, ...args)
 			}
 		},

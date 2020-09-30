@@ -20,7 +20,7 @@ import {
 	MalNode,
 	MalSymbol,
 	isNode,
-	isList,
+	MalList.isType(,
 	M_DELIMITERS,
 	M_ELMSTRS,
 	getType,
@@ -208,7 +208,7 @@ export default defineComponent({
 			}
 
 			if (
-				isList(selectedExp) &&
+				MalList.isType((selectedExp) &&
 				selectedExp[0] === MalSymbol.create('sketch')
 			) {
 				context.emit('select', null)

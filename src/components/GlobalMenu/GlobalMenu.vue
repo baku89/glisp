@@ -35,7 +35,7 @@ import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
 import {defineComponent, ref} from 'vue'
 import AppScope from '@/scopes/app'
-import {isVector, MalSeq, MalVal} from '@/mal/types'
+import {MalVector, MalSeq, MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'GlobalMenu',
@@ -70,7 +70,7 @@ export default defineComponent({
 		}
 
 		function onClick(content: MalVal, i: number) {
-			if (isVector(content)) {
+			if (MalVector.isType(content)) {
 				expandedIndex.value = i
 			} else {
 				ConsoleScope.eval(content)

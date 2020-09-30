@@ -33,7 +33,7 @@ import {
 	PropType,
 } from 'vue'
 import {
-	isList,
+	MalList.isType(,
 	cloneExp,
 	assocBang,
 	MalKeyword,

@@ -55,8 +55,8 @@
 import {defineComponent, computed, ref, PropType} from 'vue'
 import Draggable from 'vuedraggable'
 import {
-	isList,
-	isVector,
+	MalList.isType(,
+	MalVector,
 	MalSeq,
 	cloneExp,
 	MalList,
@@ -87,7 +87,7 @@ export default defineComponent({
 	setup(props, context) {
 		const styles = computed(() => {
 			const styles = props.exp[1]
-			return (isVector(styles) ? styles : [styles])
+			return (MalVector.isType(styles) ? styles : [styles])
 		})
 
 		const labels = computed(() => {

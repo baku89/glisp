@@ -2,11 +2,11 @@ import {vec2} from 'gl-matrix'
 import {
 	MalVal,
 	getEvaluated,
-	isVector,
+	MalVector,
 	MalKeyword,
-	isList,
+	MalList.isType(,
 	MalSeq,
-	isKeyword,
+	MalKeyword,
 	MalMap,
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
@@ -57,7 +57,7 @@ export class HitDetector {
 		exp = getUIBodyExp(exp)
 
 		const evaluated = getEvaluated(exp)
-		if (isVector(evaluated)) {
+		if (MalVector.isType(evaluated)) {
 			const command = evaluated[0]
 
 			switch (command) {
@@ -94,7 +94,9 @@ export class HitDetector {
 					const [, styles] = evaluated
 					const [, , ...body] = exp as MalSeq
 					let mergedStyles = {...hitStyle}
-					for (const s of (isVector(styles) ? styles : [styles]) as MalMap[]) {
+					for (const s of (MalVector.isType(styles)
+						? styles
+						: [styles]) as MalMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
 					}
 					const ret = this.analyzeVector(pos, body, mergedStyles)
@@ -111,7 +113,7 @@ export class HitDetector {
 						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}
-		} else if (isList(exp)) {
+		} else if (MalList.isType((exp)) {
 			return this.analyzeVector(pos, exp.slice(1), hitStyle)
 		}
 

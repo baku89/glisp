@@ -13,7 +13,7 @@ import {
 	MalMap,
 	MalVal,
 	MalKeyword,
-	isVector,
+	MalVector,
 	malEquals,
 	MalList,
 	MalNode,
@@ -137,7 +137,7 @@ export default function useHandle(
 				return []
 			}
 
-			if (!isVector(handles)) {
+			if (!MalVector.isType(handles)) {
 				return []
 			}
 
@@ -286,7 +286,7 @@ export default function useHandle(
 			return null
 		}
 
-		if (!isVector(result) && !isMap(result)) {
+		if (!MalVector.isType(result) && !isMap(result)) {
 			return null
 		}
 
@@ -299,9 +299,9 @@ export default function useHandle(
 			const replace = result[K_REPLACE]
 			const changeId = result[K_CHANGE_ID]
 
-			if (isVector(retParams)) {
+			if (MalVector.isType(retParams)) {
 				newParams = retParams
-			} else if (isVector(replace)) {
+			} else if (MalVector.isType(replace)) {
 				newParams = [..._unevaluatedParams]
 				const pairs = (typeof replace[0] === 'number'
 					? [(replace as any) as [number, MalVal]]
@@ -318,7 +318,7 @@ export default function useHandle(
 				return null
 			}
 
-			if (isVector(changeId)) {
+			if (MalVector.isType(changeId)) {
 				const newId = newParams[1]
 				draggingIndex.value = [
 					selectedIndex,

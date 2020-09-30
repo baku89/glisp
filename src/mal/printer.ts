@@ -13,7 +13,7 @@ import {
 	isSeq,
 	MalSeq,
 	M_ISSUGAR,
-	isSymbol,
+	MalSymbol.isType(,
 } from './types'
 
 export const printer = {
@@ -66,7 +66,7 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 			const sugarInfo =
 				type === MalType.List &&
 				SUGAR_INFO.get(
-					isSymbol((coll as MalSeq)[0])
+					MalSymbol.isType(((coll as MalSeq)[0])
 						? ((coll as MalSeq)[0] as MalSymbol).value
 						: ''
 				)

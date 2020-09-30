@@ -5,25 +5,25 @@ import {
 	MalKeyword,
 	MalMap,
 	MalNode,
-	isVector,
+	MalVector,
 	MalJSFunc,
 	isSeq,
 	keywordFor,
 	getMeta,
 	MalSeq,
 	getType,
-	isSymbol,
+	MalSymbol.isType(,
 	MalSymbol,
 	MalSymbol,
 	MalList,
 	isNode,
 	M_OUTER,
-	isList,
+	MalList.isType(,
 	M_OUTER_INDEX,
 	MalType,
 	isFunc,
 	getEvaluated,
-	isSymbolFor,
+	MalSymbol.isType(For,
 	cloneExp,
 	MalNodeMap,
 	M_DELIMITERS,
@@ -34,11 +34,11 @@ import {mat2d} from 'gl-matrix'
 import {reconstructTree} from './reader'
 
 export function isUIAnnotation(exp: MalVal): exp is MalSeq {
-	return isList(exp) && isMalSymbol.create(exp[0], 'ui-annotate')
+	return MalList.isType((exp) && isMalSymbol.create(exp[0], 'ui-annotate')
 }
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
-	if (isVector(exp)) {
+	if (MalVector.isType(exp)) {
 		if (exp[0] === MalKeyword.create('path')) {
 			return 'path'
 		}
@@ -342,7 +342,7 @@ export function reverseEval(
 					[MalKeyword.create('params')]: evaluatedParams,
 				})
 
-				if (!isVector(result) && !isMap(result)) {
+				if (!MalVector.isType(result) && !isMap(result)) {
 					return null
 				}
 
@@ -354,9 +354,9 @@ export function reverseEval(
 					const params = result[MalKeyword.create('params')]
 					const replace = result[MalKeyword.create('replace')]
 
-					if (isVector(params)) {
+					if (MalVector.isType(params)) {
 						newParams = params
-					} else if (isVector(replace)) {
+					} else if (MalVector.isType(replace)) {
 						newParams = [...originalParams]
 						const pairs = (typeof replace[0] === 'number'
 							? [(replace as any) as [number, MalVal]]
@@ -397,7 +397,7 @@ export function reverseEval(
 			break
 		}
 		case MalType.Vector: {
-			if (isVector(exp) && exp.length === (original as MalSeq).length) {
+			if (MalVector.isType(exp) && exp.length === (original as MalSeq).length) {
 				const newExp = exp.map((e, i) =>
 					reverseEval(e, (original as MalSeq)[i], forceOverwrite)
 				) as MalVal[]
@@ -423,7 +423,7 @@ export function reverseEval(
 		}
 		case MalType.Symbol: {
 			const def = (original as MalSymbol).def
-			if (def && !isSymbol(exp)) {
+			if (def && !MalSymbol.isType((exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 				replaceExp(def, L(MalSymbol.create('defvar'), original, newDefBody))
@@ -455,7 +455,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 	const xform = mat2d.create()
 
 	for (const [node, index] of ancestors) {
-		if (!isList(node)) {
+		if (!MalList.isType((node)) {
 			continue
 		}
 
@@ -471,7 +471,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		const evaluatedParams = node.slice(1).map(x => getEvaluated(x))
 		const paramXforms = viewportFn(...evaluatedParams) as MalVal
 
-		if (!isVector(paramXforms) || !paramXforms[index - 1]) {
+		if (!MalVector.isType(paramXforms) || !paramXforms[index - 1]) {
 			continue
 		}
 
@@ -485,7 +485,7 @@ const K_PARAMS = MalKeyword.create('params')
 const K_REPLACE = MalKeyword.create('replace')
 
 export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
-	if (!isVector(modifier) && !isMap(modifier)) {
+	if (!MalVector.isType(modifier) && !isMap(modifier)) {
 		return null
 	}
 
@@ -497,9 +497,9 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 		const params = modifier[K_PARAMS]
 		const replace = modifier[K_REPLACE]
 
-		if (isVector(params)) {
+		if (MalVector.isType(params)) {
 			newParams = [...params]
-		} else if (isVector(replace)) {
+		} else if (MalVector.isType(replace)) {
 			newParams = [...originalParams]
 			const pairs = (typeof replace[0] === 'number'
 				? [(replace as any) as [number, MalVal]]
@@ -516,7 +516,7 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 			return null
 		}
 
-		// if (isVector(changeId)) {
+		// if (MalVector.isType(changeId)) {
 		// 	const newId = newParams[1]
 		// 	data.draggingIndex = data.handles.findIndex(h => h.id === newId)
 		// }
@@ -547,7 +547,7 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 }
 
 export function getFn(exp: MalVal) {
-	if (!isList(exp)) {
+	if (!MalList.isType((exp)) {
 		//throw new MalError(`${printExp(exp)} is not a function application`)
 		return undefined
 	}

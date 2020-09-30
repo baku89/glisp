@@ -6,7 +6,7 @@ import {
 	MalFuncThis,
 	MalError,
 	MalSymbol,
-	isSymbol,
+	MalSymbol.isType(,
 	M_ISMACRO,
 	M_EVAL,
 	isMap,
@@ -18,7 +18,7 @@ import {
 	M_PARAMS,
 	MalBind,
 	isSeq,
-	isVector,
+	MalVector,
 	setExpandInfo,
 	ExpandType,
 	getType,
@@ -77,7 +77,7 @@ function quasiquote(exp: MalVal): MalVal {
 			}
 		})
 	)
-	ret = isList(exp) ? L(S_LST, ret) : ret
+	ret = MalList.isType((exp) ? L(S_LST, ret) : ret
 	return ret
 
 	function isPair(x: MalVal): x is MalVal[] {
@@ -88,7 +88,7 @@ function quasiquote(exp: MalVal): MalVal {
 function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 	let exp = _exp
 
-	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0])) {
+	while (MalList.isType((exp) && MalSymbol.isType((exp[0]) && env.find(exp[0])) {
 		const fn = env.get(exp[0])
 		if (!isMalFunc(fn) || !fn[M_ISMACRO]) {
 			break
@@ -97,7 +97,7 @@ function macroexpand(_exp: MalVal, env: Env, cache: boolean) {
 		exp = fn.apply({callerEnv: env}, exp.slice(1))
 	}
 
-	if (cache && exp !== _exp && isList(_exp)) {
+	if (cache && exp !== _exp && MalList.isType((_exp)) {
 		setExpandInfo(_exp, {type: ExpandType.Constant, exp})
 	}
 
@@ -110,7 +110,7 @@ function evalAtom(
 	env: Env,
 	cache: boolean
 ) {
-	if (isSymbol(exp)) {
+	if (MalSymbol.isType((exp)) {
 		const ret = env.get(exp)
 		if (cache) {
 			const def = env.getDef(exp)
@@ -131,7 +131,7 @@ function evalAtom(
 		if (cache) {
 			;(exp as MalNode)[M_EVAL] = ret
 		}
-		return isList(exp) ? L(...ret) : ret
+		return MalList.isType((exp) ? L(...ret) : ret
 	} else if (isMap(exp)) {
 		const hm: MalMap = {}
 		for (const k in exp) {
@@ -160,7 +160,7 @@ export default function evalExp(
 
 	let counter = 0
 	while (counter++ < 1e6) {
-		if (!isList(exp)) {
+		if (!MalList.isType((exp)) {
 			const ret = evalAtom.call(this, exp, env, cache)
 			if (cache && isNode(origExp)) {
 				origExp[M_EVAL] = ret
@@ -171,7 +171,7 @@ export default function evalExp(
 		// Expand macro
 		exp = macroexpand(exp, env, cache)
 
-		if (!isList(exp)) {
+		if (!MalList.isType((exp)) {
 			const ret = evalAtom.call(this, exp, env, cache)
 			if (cache && isNode(origExp)) {
 				origExp[M_EVAL] = ret
@@ -189,7 +189,7 @@ export default function evalExp(
 		// Apply list
 		const [first] = exp
 
-		if (!isSymbol(first) && !isFunc(first)) {
+		if (!MalSymbol.isType((first) && !isFunc(first)) {
 			throw new MalError(
 				`${capital(getType(first))} ${printExp(
 					first
@@ -197,13 +197,13 @@ export default function evalExp(
 			)
 		}
 
-		switch (isSymbol(first) ? first.value : first) {
+		switch (MalSymbol.isType((first) ? first.value : first) {
 			case 'def': {
 				if (cache) {
 					;(first as MalSymbol).evaluated = env.get(S_DEF)
 				}
 				const [, sym, form] = exp
-				if (!isSymbol(sym) || form === undefined) {
+				if (!MalSymbol.isType((sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
 				const ret = env.set(sym, evalExp.call(this, form, env, cache))
@@ -220,7 +220,7 @@ export default function evalExp(
 					;(first as MalSymbol).evaluated = env.get(S_DEFVAR)
 				}
 				const [, sym, form] = exp
-				if (!isSymbol(sym) || form === undefined) {
+				if (!MalSymbol.isType((sym) || form === undefined) {
 					throw new MalError('Invalid form of defvar')
 				}
 				const ret = evalExp.call(this, form, env, cache)
@@ -236,7 +236,7 @@ export default function evalExp(
 				}
 				const letEnv = new Env(env)
 				const [, binds, ...body] = exp
-				if (!isVector(binds)) {
+				if (!MalVector.isType(binds)) {
 					throw new MalError('Invalid bind-expr in let')
 				}
 				for (let i = 0; i < binds.length; i += 2) {
@@ -337,7 +337,7 @@ export default function evalExp(
 				if (isMap(params)) {
 					params = [params]
 				}
-				if (!isVector(params)) {
+				if (!MalVector.isType(params)) {
 					throw new MalError('First argument of fn should be vector or map')
 				}
 				if (body === undefined) {
@@ -389,7 +389,7 @@ export default function evalExp(
 				if (isMap(params)) {
 					params = [params]
 				}
-				if (!isVector(params)) {
+				if (!MalVector.isType(params)) {
 					throw new MalError('First argument of macro should be vector or map')
 				}
 				if (body === undefined) {
@@ -438,9 +438,9 @@ export default function evalExp(
 				} catch (exc) {
 					let err = exc
 					if (
-						isList(catchExp) &&
+						MalList.isType((catchExp) &&
 						isMalSymbol.create(catchExp[0], 'catch') &&
-						isSymbol(catchExp[1])
+						MalSymbol.isType((catchExp[1])
 					) {
 						if (cache) {
 							;(first as MalSymbol).evaluated = env.get(S_CATCH)
@@ -505,7 +505,7 @@ export default function evalExp(
 							fn[M_ENV],
 							fn[M_PARAMS],
 							params,
-							isSymbol(first) ? first.value : undefined
+							MalSymbol.isType((first) ? first.value : undefined
 						)
 						exp = fn[M_AST]
 						// continue TCO loop

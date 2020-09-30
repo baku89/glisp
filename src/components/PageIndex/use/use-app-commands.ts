@@ -13,14 +13,14 @@ import {
 	MalError,
 	cloneExp,
 	isSeq,
-	isList,
-	isSymbolFor,
+	MalList.isType(,
+	MalSymbol.isType(For,
 	MalSeq,
 	getEvaluated,
 	getType,
 	isNode,
 	symbolFor,
-	isVector,
+	MalVector,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -139,7 +139,7 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('select-items', (paths: MalVal) => {
-		if (isVector(paths)) {
+		if (MalVector.isType(paths)) {
 			const items: MalNode[] = []
 
 			for (const path of paths) {
@@ -230,7 +230,7 @@ export default function useAppCommands(
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
-		if (!isList(wrapper)) {
+		if (!MalList.isType((wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 

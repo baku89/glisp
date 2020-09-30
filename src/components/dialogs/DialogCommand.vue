@@ -26,8 +26,8 @@ import {
 	MalFunc,
 	getMeta,
 	MalSymbol,
-	isList,
-	isSymbol,, MalSeq
+	MalList.isType(,
+	MalSymbol.isType(,, MalSeq
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'

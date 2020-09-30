@@ -31,8 +31,8 @@
 <script lang="ts">
 import {
 	MalVal,
-	isList,
-	isSymbol,
+	MalList.isType(,
+	MalSymbol.isType(,
 	MalNode,
 	MalSymbol,
 	getOuter,
@@ -72,7 +72,7 @@ export default defineComponent({
 				return fnInfo.value.structType
 			} else if (
 				fnInfo.value?.fn ||
-				(isList(props.exp) && isSymbol(props.exp[0]))
+				(MalList.isType((props.exp) && MalSymbol.isType((props.exp[0]))
 			) {
 				return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
 			} else {

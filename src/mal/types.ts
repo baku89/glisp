@@ -83,7 +83,10 @@ export abstract class MalVal {
 
 	abstract type: MalType
 	abstract toString(): string
-	abstract isType(value: MalVal): boolean
+	
+	static isType(value: MalVal): boolean {
+		return false
+	}
 }
 
 export type MalColl = MalList | MalVector | MalMap
@@ -104,7 +107,7 @@ export class MalNumber extends MalVal {
 		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
 	}
 
-	isType(value: MalVal) : value is MalNumber {
+	static isType(value: MalVal) : value is MalNumber {
 		return value.type === MalType.Number
 	}
 
@@ -128,7 +131,7 @@ export class MalString extends MalVal {
 		return `"${this.value}"`
 	}
 
-	isType(value: MalVal) : value is MalString {
+	static isType(value: MalVal) : value is MalString {
 		return value.type === MalType.String
 	}
 
@@ -152,7 +155,7 @@ export class MalBoolean extends MalVal {
 		return this.value.toString()
 	}
 
-	isType(value: MalVal) : value is MalBoolean {
+	static isType(value: MalVal) : value is MalBoolean {
 		return value.type === MalType.Boolean
 	}
 
@@ -176,7 +179,7 @@ export class MalNil extends MalVal {
 		return 'nil'
 	}
 
-	isType(value: MalVal) : value is MalNil {
+	static isType(value: MalVal) : value is MalNil {
 		return value.type === MalType.Nil
 	}
 
@@ -196,7 +199,7 @@ export class MalKeyword extends MalVal {
 		return this.value
 	}
 
-	isType(value: MalVal) : value is MalKeyword {
+	static isType(value: MalVal) : value is MalKeyword {
 		return value.type === MalType.Keyword
 	}
 
@@ -247,7 +250,7 @@ export class MalList extends MalVal {
 		return this.str
 	}
 
-	isType(value: MalVal) : value is MalList {
+	static isType(value: MalVal) : value is MalList {
 		return value.type === MalType.List
 	}
 
@@ -288,7 +291,7 @@ export class MalVector extends MalVal {
 		return this.str
 	}
 
-	isType(value: MalVal) : value is MalVector {
+	static isType(value: MalVal) : value is MalVector {
 		return value.type === MalType.Vector
 	}
 
@@ -351,7 +354,7 @@ export class MalMap extends MalVal {
 		return this.str
 	}
 
-	isType(value: MalVal) : value is MalMap {
+	static isType(value: MalVal) : value is MalMap {
 		return value.type === MalType.Map
 	}
 
@@ -388,7 +391,7 @@ export class MalFunction extends MalVal {
 		}
 	}
 
-	isType(value: MalVal) : value is MalFunction {
+	static isType(value: MalVal) : value is MalFunction {
 		return value.type === MalType.Function
 	}
 
@@ -461,7 +464,7 @@ export function setExpandInfo(exp: MalSeq, info: ExpandInfo) {
 }
 
 export function expandExp(exp: MalVal) {
-	if (isList(exp) && M_EXPAND in exp) {
+	if (MalList.isType((exp) && M_EXPAND in exp) {
 		const info = exp[M_EXPAND]
 		switch (info.type) {
 			case ExpandType.Constant:
@@ -678,7 +681,7 @@ export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
 export function getEvaluated(exp: MalVal, deep = true): MalVal {
 	if (exp instanceof Object && M_EVAL in exp) {
 		const evaluated = (exp as MalNode)[M_EVAL]
-		if (isList(evaluated) && deep) {
+		if (MalList.isType((evaluated) && deep) {
 			return getEvaluated(evaluated, deep)
 		} else {
 			return evaluated
@@ -744,11 +747,11 @@ export class MalSymbol extends MalVal {
 	}
 }
 
-export const isSymbol = (obj: MalVal | undefined): obj is MalSymbol =>
+export const MalSymbol.isType( = (obj: MalVal | undefined): obj is MalSymbol =>
 	getType(obj) === MalType.Symbol
 
-export const isSymbolFor = (obj: any, name: string): obj is MalSymbol =>
-	isSymbol(obj) && obj.value === name
+export const MalSymbol.isType(For = (obj: any, name: string): obj is MalSymbol =>
+	MalSymbol.isType((obj) && obj.value === name
 
 export const symbolFor = MalSymbol.create
 
@@ -759,7 +762,7 @@ export const isKeyword = (obj: MalVal | undefined): obj is MalKeyword =>
 export const keywordFor = MalKeyword.create
 
 // List
-export const isList = (obj: MalVal | undefined): obj is MalList => {
+export const MalList.isType( = (obj: MalVal | undefined): obj is MalList => {
 	return obj?.type === MalType.Vector
 	// below code is identical to `getType(obj) === MalType.List`
 	// return Array.isArray(obj) && (obj as any)[M_ISLIST]

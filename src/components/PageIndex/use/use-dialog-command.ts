@@ -4,7 +4,7 @@ import {
 	MalVal,
 	MalError,
 	isFunc,
-	isSymbol,
+	MalSymbol.isType(,
 	getMeta,
 	MalMap,
 	MalFunc,
@@ -18,7 +18,7 @@ import {printer} from '@/mal/printer'
 //
 export default function useDialogCommand(context: SetupContext) {
 	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
-		if (f === undefined || !isSymbol(f)) {
+		if (f === undefined || !MalSymbol.isType((f)) {
 			throw new MalError(`${printExp(f)} is not a symbol`)
 		}
 

@@ -17,15 +17,15 @@ import {
 	getName,
 	MalList,
 	MalSeq,
-	isSymbol,
+	MalSymbol.isType(,
 	MalNil,
 	MalBoolean,
 	MalNumber,
 	MalString,
 	MalVector,
-	isList,
+	MalList.isType(,
 	createMap,
-	isKeyword,
+	MalKeyword,
 } from './types'
 
 import printExp from './printer'
@@ -485,12 +485,12 @@ export function findExpByRange(
 
 export function convertJSObjectToMalMap(obj: any): MalVal {
 	if (Array.isArray(obj)) {
-		if (isList(obj)) {
+		if (MalList.isType((obj)) {
 			return obj
 		} else {
 			return MalVector.create(...obj.map(v => convertJSObjectToMalMap(v)))
 		}
-	} else if (isSymbol(obj) || obj instanceof Function) {
+	} else if (MalSymbol.isType((obj) || obj instanceof Function) {
 		return obj
 	} else if (obj instanceof Object) {
 		const ret: MalMap = {}
