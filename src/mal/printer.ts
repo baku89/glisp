@@ -54,7 +54,7 @@ const SUGAR_INFO = new Map<string, {prefix: string}>([
 export default function printExp(exp: MalVal, printReadably = true): string {
 	const _r = printReadably
 
-	const type = getType(exp)
+	const type = exp)
 
 	switch (type) {
 		// Collection

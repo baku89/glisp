@@ -80,7 +80,7 @@ export default function useExpHistory(
 	})
 
 	AppScope.def('tag-history', (tag: MalVal) => {
-		if (!(typeof tag === 'string' || isKeyword(tag))) {
+		if (!(typeof tag === 'string' || MalKeyword.isType(tag))) {
 			throw new MalError('tag is not a string/keyword')
 		}
 		tagExpHistory(getName(tag))

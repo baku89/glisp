@@ -76,6 +76,7 @@ import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
 import {reverseEval} from '@/mal/utils'
+import { MalSeq, MalString } from '@/mal/types'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 
@@ -93,7 +94,7 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: [String, Array] as PropType<string | MalSeq>,
+			type: Object as PropType<MalSeq | MalString>,
 			required: true,
 		},
 		compact: {
@@ -102,7 +103,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const mode = computed(() => {
-			switch (getType(props.value)) {
+			switch (props.value.type) {
 				case MalType.String: {
 					{
 						const str = props.value as string

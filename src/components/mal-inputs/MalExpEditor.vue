@@ -19,11 +19,8 @@ import {
 	MalVal,
 	MalColl,
 	MalSymbol,
-	isNode,
+	isMalColl,
 	MalList,
-	M_DELIMITERS,
-	M_ELMSTRS,
-	getType,
 	MalType,
 } from '@/mal/types'
 
@@ -101,7 +98,7 @@ export default defineComponent({
 				case EditMode.Params:
 					return ')'
 				case EditMode.Elements:
-					switch (getType(exp)) {
+					switch (exp.type) {
 						case MalType.List:
 							return ')'
 						case MalType.Vector:
@@ -139,7 +136,7 @@ export default defineComponent({
 		// selectedExp -> activeRange
 		const activeRange = computed(() => {
 			const sel = props.selectedExp
-			if (sel && isNode(sel) && isNode(props.exp)) {
+			if (sel && isMalColl(sel) && isMalColl(props.exp)) {
 				const ret = getRangeOfExp(sel, props.exp)
 				if (ret) {
 					const [start, end] = ret

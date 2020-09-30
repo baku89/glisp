@@ -109,7 +109,7 @@ export class HitDetector {
 					return ret
 				}
 				default:
-					if (isKeyword(command)) {
+					if (MalKeyword.isType(command)) {
 						const body = (exp as MalSeq).slice(1)
 						return this.analyzeVector(pos, body, hitStyle)
 					}

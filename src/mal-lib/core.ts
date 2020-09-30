@@ -4,20 +4,12 @@ import {
 	MalSymbol,
 	MalList,
 	MalMap,
-	cloneExp,
-	assocBang,
-	isMap,
-	isString,
 	MalError,
 	MalAtom,
-	getType,
-	getMeta,
-	withMeta,
 	isMalSeq,
-	setMeta,
 	MalVector,
 	MalBoolean,
-	MalString, MalKeyword
+	MalString, MalKeyword, MalNil, MalNumber
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -25,17 +17,17 @@ import isNodeJS from 'is-node'
 
 const Exports = [
 	['type', x => MalKeyword.create((getType(x) as string))],
-	['nil?', (x: MalVal) => MalBoolean.create(x === null)],
-	['true?', (x: MalVal) => MalBoolean.create(x === true)],
-	['false?', (x: MalVal) => MalBoolean.create(x === false)],
-	['boolean?', (x: MalVal) => MalBoolean.create(typeof x === 'boolean')],
-	['number?', (x: MalVal) => MalBoolean.create(typeof x === 'number')],
-	['string?', (x: MalVal) => MalBoolean.create(isString(x))],
-	['keyword?', (x: MalVal) => MalBoolean.create(isKeyword(x))],
+	['nil?', (x: MalVal) => MalBoolean.create(MalNil.isType(x))],
+	['true?', (x: MalVal) => MalBoolean.create(x.value === true)],
+	['false?', (x: MalVal) => MalBoolean.create(x.value === false)],
+	['boolean?', (x: MalVal) => MalBoolean.create(MalBoolean.isType(x))],
+	['number?', (x: MalVal) => MalBoolean.create(MalNumber.isType(x))],
+	['string?', (x: MalVal) => MalBoolean.create(MalString.isType(x))],
+	['keyword?', (x: MalVal) => MalBoolean.create(MalKeyword.isType(x))],
 	['fn?', (x: MalVal) => MalBoolean.create(getType(x) === 'fn')],
 	['macro?', (x: MalVal) => MalBoolean.create(getType(x) === 'macro')],
 
-	['keyword', keywordFor],
+	['keyword', (x: MalString) => MalKeyword.create(x.value)],
 	['symbol', S],
 	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.isType((x))],
 

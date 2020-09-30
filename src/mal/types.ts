@@ -58,6 +58,7 @@ export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
+	abstract value: any
 	abstract get evaluated(): MalVal
 	abstract toString(): string
 	abstract clone(): MalVal
@@ -68,7 +69,7 @@ export abstract class MalVal {
 }
 
 export type MalColl = MalList | MalVector | MalMap
-export type MalSeq = MalList | MalVal
+export type MalSeq = MalList | MalVector
 
 export class MalNumber extends MalVal {
 	readonly type: MalType.Number = MalType.Number
@@ -442,16 +443,14 @@ type MalF = (
 ) => MalVal
 
 export class MalFunction extends MalVal {
-	readonly type: MalType.Function = MalType.Function
-	value!: MalF
+	readonly type: MalType = MalType.Function
 
 	exp!: MalVal | undefined
 	env!: Env
 	params!: MalVal
 	meta!: MalVal
-	isMacro!: boolean
 
-	private constructor() {
+	protected constructor(readonly value: MalF) {
 		super()
 	}
 
@@ -461,21 +460,18 @@ export class MalFunction extends MalVal {
 
 	toString() {
 		if (this.exp) {
-			const keyword = this.isMacro ? 'macro' : 'fn'
-			return `(${keyword} ${this.params.toString()} ${MalVal})`
+			return `(fn ${this.params.toString()} ${MalVal})`
 		} else {
 			return `#<JS Function>`
 		}
 	}
 
 	clone() {
-		const f = new MalFunction()
-		f.value = this.value
+		const f = new MalFunction(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
 		f.params = this.params.clone()
 		f.meta = this.meta.clone()
-		f.isMacro = this.isMacro
 
 		return f
 	}
@@ -484,10 +480,8 @@ export class MalFunction extends MalVal {
 		return value.type === MalType.Function
 	}
 
-	static create(func: MalF) {
-		const f = new MalFunction()
-		f.value = func
-		f.isMacro = false
+	static create(value: MalF) {
+		return new MalFunction(value)
 	}
 
 	static fromMal(
@@ -496,19 +490,52 @@ export class MalFunction extends MalVal {
 		env: Env,
 		params: MalVal,
 		meta: MalVal = MalNil.create(),
-		isMacro = false
-	): MalFunction {
+	) {
+		const f = new MalFunction(func)
 
-		const f = new MalFunction()
-
-		f.value = func
 		f.exp = exp
 		f.env = env
 		f.params = params
 		f.meta = meta
-		f.isMacro = isMacro
 
 		return f
+	}
+}
+
+export class MalMacro extends MalFunction {
+	readonly type = MalType.Macro
+
+	protected constructor(value: MalF) {
+		super(value)
+	}
+
+	toString() {
+		if (this.exp) {
+			return `(macro ${this.params.toString()} ${MalVal})`
+		} else {
+			return `#<JS Macro>`
+		}
+	}
+
+	static create(value: MalF) {
+		return new MalMacro(value)
+	}
+
+	static fromMal(
+		func: MalF,
+		exp: MalVal,
+		env: Env,
+		params: MalVal,
+		meta: MalVal = MalNil.create(),
+	) {
+
+		const m = new MalMacro(func)
+		m.exp = exp
+		m.env = env
+		m.params = params
+		m.meta = meta
+
+		return m
 	}
 }
 
@@ -568,15 +595,16 @@ export function expandExp(exp: MalVal) {
 	}
 }
 
-export const isMalColl = (v: MalVal | undefined): v is MalColl => {
-	const type = v?.type
+export const isMalColl = (value: MalVal | undefined): value is MalColl => {
+	const type = value?.type
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector
 	)
 }
 
-export const isMalSeq = (v: MalVal | undefined): v is MalSeq => {
-	return v?.type === MalType.Vector || v?.type === MalType.List
+export const isMalSeq = (value: MalVal | undefined): value is MalSeq => {
+	const type = value?.type
+	return type === MalType.Vector || type === MalType.List
 }
 
 
