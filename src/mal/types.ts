@@ -81,8 +81,6 @@ export interface MalFuncThis {
 }
 
 abstract class MalBase {
-	constructor() {}
-
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
