@@ -336,7 +336,6 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		delimiters.push('')
 
 		val.delimiters = delimiters
-		val[M_ELMSTRS] = elmStrs
 	}
 
 	return val
@@ -351,7 +350,7 @@ export function getRangeOfExp(
 			return true
 		}
 
-		const outer = child[M_OUTER]
+		const outer = child.parent
 		if (!outer) {
 			return false
 		} else if (outer === parent) {
@@ -362,11 +361,11 @@ export function getRangeOfExp(
 	}
 
 	function calcOffset(exp: MalColl): number {
-		if (!exp[M_OUTER] || exp === root) {
+		if (!exp.parent || exp === root) {
 			return 0
 		}
 
-		const outer = exp[M_OUTER]
+		const outer = exp.parent
 		let offset = calcOffset(outer)
 
 		// Creates a delimiter cache
@@ -528,9 +527,9 @@ export function reconstructTree(exp: MalVal) {
 		if (MalMap.is(exp)) {
 			const keys = Object.keys(exp)
 			keys.forEach((key, i) => {
-				const e = exp[key]
+				const e = exp.value[key]
 				if (isMalColl(e)) {
-					e[M_OUTER] = exp
+					e.parent = exp
 					e[M_OUTER_INDEX] = i
 					reconstructTree(e)
 				}
@@ -538,7 +537,7 @@ export function reconstructTree(exp: MalVal) {
 		} else {
 			exp.forEach((e, i) => {
 				if (isMalColl(e)) {
-					e[M_OUTER] = exp
+					e.parent = exp
 					e[M_OUTER_INDEX] = i
 					reconstructTree(e)
 				}
@@ -568,7 +567,7 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
 		if (isMalColl(exp) && !(M_OUTER in exp)) {
 			if (isMalColl(outer) && index !== undefined) {
-				exp[M_OUTER] = outer
+				exp.parent = outer
 				exp[M_OUTER_INDEX] = index
 			}
 

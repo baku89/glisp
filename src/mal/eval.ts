@@ -19,24 +19,9 @@ import Env from './env'
 import {printExp} from '.'
 import {capital} from 'case'
 
-const S_DEF = MalSymbol.create('def')
-const S_DEFVAR = MalSymbol.create('defvar')
-const S_LET = MalSymbol.create('let')
-const S_BINDING = MalSymbol.create('binding')
-const S_IF = MalSymbol.create('if')
 const S_DO = MalSymbol.create('do')
-const S_FN = MalSymbol.create('fn')
-const S_GET_ALL_SYMBOLS = MalSymbol.create('get-all-symbols')
-const S_FN_PARAMS = MalSymbol.create('fn-params')
-const S_FN_SUGAR = MalSymbol.create('fn-sugar')
-const S_MACRO = MalSymbol.create('macro')
-const S_MACROEXPAND = MalSymbol.create('macroexpand')
 const S_QUOTE = MalSymbol.create('quote')
-const S_QUASIQUOTE = MalSymbol.create('quasiquote')
-const S_TRY = MalSymbol.create('try')
-const S_CATCH = MalSymbol.create('catch')
 const S_CONCAT = MalSymbol.create('concat')
-const S_EVAL_IN_ENV = MalSymbol.create('eval*')
 const S_LST = MalSymbol.create('lst')
 
 function quasiquote(exp: MalVal): MalVal {
@@ -77,12 +62,8 @@ function quasiquote(exp: MalVal): MalVal {
 function macroexpand(_exp: MalVal, env: Env) {
 	let exp = _exp
 
-	while (
-		MalList.is(exp) &&
-		MalSymbol.is(exp.value[0]) &&
-		env.find(exp.value[0] as MalSymbol)
-	) {
-		const fn = env.get(exp.value[0] as MalSymbol)
+	while (MalList.is(exp) && MalSymbol.is(exp.fn) && env.find(exp.fn.value)) {
+		const fn = env.get(exp.fn.value)
 		if (!MalMacro.is(fn)) {
 			break
 		}
@@ -99,7 +80,7 @@ function macroexpand(_exp: MalVal, env: Env) {
 
 function evalAtom(this: void | MalFuncThis, exp: MalVal, env: Env) {
 	if (MalSymbol.is(exp)) {
-		const ret = env.get(exp)
+		const ret = env.get(exp.value)
 		exp.evaluated = ret
 		return ret
 	} else if (MalVector.is(exp)) {
@@ -181,7 +162,7 @@ export default function evalExp(
 
 		switch (first.value) {
 			case 'def': {
-				first.evaluated = env.get(S_DEF)
+				first.evaluated = env.get('def')
 				const [, sym, form] = exp.value
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
@@ -194,7 +175,7 @@ export default function evalExp(
 				return ret
 			}
 			case 'defvar': {
-				first.evaluated = env.get(S_DEFVAR)
+				first.evaluated = env.get('defvar')
 				const [, sym, form] = exp.value
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of defvar')
@@ -205,7 +186,7 @@ export default function evalExp(
 				return ret
 			}
 			case 'let': {
-				first.evaluated = env.get(S_LET)
+				first.evaluated = env.get('let')
 
 				const letEnv = new Env(env)
 				const [, binds, ...body] = exp.value
@@ -214,12 +195,12 @@ export default function evalExp(
 				}
 				for (let i = 0; i < binds.value.length; i += 2) {
 					letEnv.bindAll(
-						binds[i],
-						evalExp.call(this, binds[i + 1], letEnv) as MalVal[]
+						binds.value[i],
+						evalExp.call(this, binds.value[i + 1], letEnv) as MalVal[]
 					)
 				}
 				env = letEnv
-				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
+				const ret = body.length === 1 ? body[0] : MalList.create(S_DO, ...body)
 				setExpandInfo(exp, {
 					type: ExpandType.Env,
 					exp: ret,
@@ -229,17 +210,21 @@ export default function evalExp(
 				break // continue TCO loop
 			}
 			case 'binding': {
-				first.evaluated = env.get(S_BINDING)
+				first.evaluated = env.get('binding')
 				const bindingEnv = new Env(undefined, undefined, undefined, 'binding')
 				const [, binds, ..._body] = exp.value
 				if (!isMalSeq(binds)) {
 					throw new MalError('Invalid bind-expr in binding')
 				}
 				for (let i = 0; i < binds.value.length; i += 2) {
-					bindingEnv.bindAll(binds[i], evalExp.call(this, binds[i + 1], env))
+					bindingEnv.bindAll(
+						binds.value[i],
+						evalExp.call(this, binds.value[i + 1], env)
+					)
 				}
 				env.pushBinding(bindingEnv)
-				const body = _body.length === 1 ? _body[0] : L(S_DO, ..._body)
+				const body =
+					_body.length === 1 ? _body[0] : MalList.create(S_DO, ..._body)
 				let ret
 				try {
 					ret = evalExp.call(this, body, env)
@@ -251,19 +236,19 @@ export default function evalExp(
 			}
 			case 'get-all-symbols': {
 				const ret = env.getAllSymbols()
-				first.evaluated = env.get(S_GET_ALL_SYMBOLS)
+				first.evaluated = env.get('get-all-symbols')
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'fn-params': {
-				first.evaluated = env.get(S_FN_PARAMS)
+				first.evaluated = env.get('fn-params')
 				const fn = evalExp.call(this, exp.value[1], env)
-				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : MalNil.create()
+				const ret = MalFunc.is(fn) ? fn.params : MalNil.create()
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'eval*': {
-				first.evaluated = env.get(S_EVAL_IN_ENV)
+				first.evaluated = env.get('eval*')
 				// if (!this) {
 				// 	throw new MalError('Cannot find the caller env')
 				// }
@@ -273,12 +258,12 @@ export default function evalExp(
 			}
 			case 'quote': {
 				const ret = exp.value[1]
-				first.evaluated = env.get(S_QUOTE)
+				first.evaluated = env.get('quote')
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'quasiquote': {
-				first.evaluated = env.get(S_QUASIQUOTE)
+				first.evaluated = env.get('quasiquote')
 				const ret = quasiquote(exp.value[1])
 				exp = ret
 				break // continue TCO loop
@@ -303,12 +288,12 @@ export default function evalExp(
 					env,
 					params as MalVal
 				)
-				first.evaluated = env.get(S_FN)
+				first.evaluated = env.get('fn')
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'fn-sugar': {
-				first.evaluated = env.get(S_FN_SUGAR)
+				first.evaluated = env.get('fn-sugar')
 				const body = exp.value[1]
 				const ret = MalFunc.fromMal(
 					function (...args) {
@@ -321,7 +306,7 @@ export default function evalExp(
 				return ret
 			}
 			case 'macro': {
-				first.evaluated = env.get(S_MACRO)
+				first.evaluated = env.get('macro')
 				const [, , body] = exp.value
 				let [, params] = exp.value
 				if (MalMap.is(params)) {
@@ -334,7 +319,7 @@ export default function evalExp(
 					throw new MalError('Second argument of macro should be specified')
 				}
 				const ret = MalMacro.fromMal(
-					function (...args) {
+					(...args) => {
 						return evalExp.call(this, body, new Env(env, params, args))
 					},
 					body,
@@ -345,13 +330,13 @@ export default function evalExp(
 				return ret
 			}
 			case 'macroexpand': {
-				first.evaluated = env.get(S_MACROEXPAND)
+				first.evaluated = env.get('macroexpand')
 				const ret = macroexpand(exp.value[1], env)
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'try': {
-				first.evaluated = env.get(S_TRY)
+				first.evaluated = env.get('try')
 				const [, testExp, catchExp] = exp.value
 				try {
 					const ret = evalExp.call(this, testExp, env)
@@ -364,7 +349,7 @@ export default function evalExp(
 						MalSymbol.isFor(catchExp.value[0], 'catch') &&
 						MalSymbol.is(catchExp.value[1])
 					) {
-						first.evaluated = env.get(S_CATCH)
+						first.evaluated = env.get('catch')
 						if (exc instanceof Error) {
 							err = exc.message
 						}
@@ -378,7 +363,7 @@ export default function evalExp(
 				}
 			}
 			case 'do': {
-				first.evaluated = env.get(S_DO)
+				first.evaluated = env.get('do')
 				if (exp.value.length === 1) {
 					if (isMalColl(origExp)) {
 						origExp.evaluated = MalNil.create()
@@ -391,7 +376,7 @@ export default function evalExp(
 				break // continue TCO loop
 			}
 			case 'if': {
-				first.evaluated = env.get(S_IF)
+				first.evaluated = env.get('if')
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = evalExp.call(this, _test, env)
 				const ret = test

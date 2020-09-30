@@ -121,7 +121,14 @@ export class MalString extends MalVal {
 	}
 
 	print(readably = true) {
-		return `"${this.value}"`
+		return readably
+			? '"' +
+					this.value
+						.replace(/\\/g, '\\\\')
+						.replace(/"/g, '\\"')
+						.replace(/\n/g, '\\n') +
+					'"'
+			: this.value
 	}
 
 	toJS() {
@@ -156,7 +163,7 @@ export class MalBoolean extends MalVal {
 		return this.value
 	}
 
-	print(readably = true) {
+	print() {
 		return this.value.toString()
 	}
 
@@ -193,7 +200,7 @@ export class MalNil extends MalVal {
 		return null
 	}
 
-	print(readably = true) {
+	print() {
 		return 'nil'
 	}
 
@@ -496,7 +503,7 @@ export class MalMap extends MalVal {
 
 type MalF = (
 	// this: MalFuncThis | void,
-	...args: (MalVal | undefined)[]
+	...args: MalVal[]
 ) => MalVal
 
 export class MalFunc extends MalVal {
@@ -515,7 +522,7 @@ export class MalFunc extends MalVal {
 		return this
 	}
 
-	print(readably = true) {
+	print() {
 		if (this.exp) {
 			return `(fn ${this.params.toString()} ${MalVal})`
 		} else {
