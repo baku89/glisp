@@ -2,7 +2,6 @@ import {vec2} from 'gl-matrix'
 import {
 	MalVal,
 	MalVector,
-	MalKeyword,
 	MalList,
 	MalSeq,
 	MalKeyword,
@@ -56,9 +55,10 @@ export class HitDetector {
 	private analyzeNode(pos: vec2, exp: MalVal, hitStyle: MalMap): null | MalVal {
 		exp = getUIBodyExp(exp)
 
-		const evaluated = getEvaluated(exp)
+		const evaluated = exp.evaluated
+
 		if (MalVector.is(evaluated)) {
-			const command = evaluated[0]
+			const command = evaluated.value[0]
 
 			switch (command) {
 				case K_PATH: {

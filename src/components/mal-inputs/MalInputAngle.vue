@@ -22,7 +22,7 @@
 import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputRotery} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 export default defineComponent({

@@ -70,7 +70,7 @@ export default defineComponent({
 		)
 
 		const tx = computed(
-			() => size.value[0] * (getEvaluated(props.exp[5]) as number)
+			() => size.value[0] * (props.value.exp[5].evaluated.value as number)
 		)
 
 		const c1 = computed(() => {

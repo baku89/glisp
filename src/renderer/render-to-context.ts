@@ -1,11 +1,4 @@
-import {
-	MalVal,
-	MalKeyword,
-	isMap,
-	MalKeyword,
-	MalError,
-	MalMap,
-} from '@/mal/types'
+import {MalVal, MalKeyword, MalKeyword, MalError, MalMap} from '@/mal/types'
 import {partition} from '@/utils'
 import {iterateSegment, PathType} from '@/path-utils'
 import printExp from '@/mal/printer'
@@ -90,7 +83,7 @@ export default function renderToContext(
 							baseline: 'middle',
 						}
 
-						if (isMap(options)) {
+						if (MalMap.is(options)) {
 							for (const [k, v] of Object.entries(options)) {
 								settings[(k as string).slice(1)] = v
 							}

@@ -9,7 +9,7 @@ import {
 	symbolFor,
 	isMalFunc,
 	assocBang,
-	MalKeyword,
+	MalKeyword,, MalMap
 } from './types'
 import {getStructType} from './utils'
 import {convertMalCollToJSObject} from './reader'
@@ -315,7 +315,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 	}
 
 	// Extract the parameters from the list
-	const evaluatedParams = params.map(p => getEvaluated(p))
+	const evaluatedParams = params.map(p => p.evaluated)
 
 	// Assign the value
 	for (let i = 0; i < uiSchema.length; i++) {
@@ -374,7 +374,7 @@ function generateDynamicUISchema(
 	const toSchema = schemaParams['to-schema']
 
 	const uiSchema = convertMalCollToJSObject(
-		toSchema({[MalKeyword.create('params')]: params})
+		toSchema(MalMap.create({parmas}))
 	) as Schema[]
 
 	for (const sch of uiSchema) {

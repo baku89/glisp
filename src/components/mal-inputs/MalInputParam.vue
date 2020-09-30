@@ -20,7 +20,7 @@
 import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
 import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
-import {MalSeq, MalType, getMeta, MalVal, cloneExp, MalList} from '@/mal/types'
+import {MalSeq, MalType, MalVal, MalList} from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalCollToJSObject} from '@/mal/reader'
 
@@ -32,16 +32,16 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: Object as PropType<MalSeq>,
+			type: Object as PropType<MalList>,
 			required: true,
 		},
 	},
 	setup(props, context) {
 		const params = computed(() => {
-			return props.value.slice(1)
+			return props.value.params
 		})
 
-		const fn = computed(() => getEvaluated(props.value[0]))
+		const fn = computed(() => props.value[0].evaluated)
 
 		const schemes = computed(
 			() =>
@@ -51,8 +51,8 @@ export default defineComponent({
 		)
 
 		function updateParamAt(value: MalVal, i: number) {
-			const newExp = cloneExp(props.value)
-			newExp[i + 1] = value
+			const newExp = props.value.clone()
+			newExp.value[i + 1] = value
 
 			context.emit('input', newExp)
 		}

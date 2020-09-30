@@ -1,5 +1,5 @@
 import {Ref, computed, SetupContext} from 'vue'
-import {MalVal, MalSeq, MalSymbol, MalVector, cloneExp} from '@/mal/types'
+import {MalVal, MalSeq, MalSymbol, MalVector} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 /**
@@ -19,20 +19,20 @@ export default function useNumericVectorUpdator(
 		}
 	})
 
-	const evaluated = computed(() => getEvaluated(exp.value) as number[])
+	const evaluated = computed(() => exp.value.evaluated as number[])
 
 	function onInputElement(i: number, v: MalVal) {
 		if (!isValueSeparated.value) {
 			return
 		}
 
-		const newExp = cloneExp(exp.value as MalSeq)
+		const newExp = exp.value.evaluated as MalSeq
 		newExp[i] = v
 		context.emit('input', newExp)
 	}
 
 	function onInputEvaluatedElement(i: number, v: number) {
-		const value = cloneExp(exp.value as MalSeq)
+		const value = exp.value.evaluated as MalSeq
 		value[i] = v
 		const newExp = reverseEval(value, exp.value)
 		context.emit('input', newExp)

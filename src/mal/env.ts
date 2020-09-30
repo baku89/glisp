@@ -110,7 +110,7 @@ export default class Env {
 					}
 					case MalType.Map: {
 						// Hashmap destruction
-						if (!isMap(exp)) {
+						if (!MalMap.is(exp)) {
 							throw new MalError(
 								`[${this.name}] The destruction parameter '${printExp(
 									bind,

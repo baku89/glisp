@@ -8,14 +8,12 @@ import {
 } from '@/mal/utils'
 import {
 	MalSeq,
-	isMap,
 	MalMap,
 	MalVal,
-	MalKeyword,
 	MalVector,
-	malEquals,
-	MalList,
 	MalColl,
+	MalNil,
+	MalList,
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
@@ -36,21 +34,6 @@ interface Handle {
 	path?: string
 }
 
-const K_ANGLE = MalKeyword.create('angle'),
-	K_ID = MalKeyword.create('id'),
-	K_GUIDE = MalKeyword.create('guide'),
-	K_POS = MalKeyword.create('pos'),
-	K_TYPE = MalKeyword.create('type'),
-	K_DRAW = MalKeyword.create('draw'),
-	K_DRAG = MalKeyword.create('drag'),
-	K_CHANGE_ID = MalKeyword.create('change-id'),
-	K_PATH = MalKeyword.create('path'),
-	K_CLASS = MalKeyword.create('class'),
-	K_PREV_POS = MalKeyword.create('prev-pos'),
-	K_PARAMS = MalKeyword.create('params'),
-	K_RETURN = MalKeyword.create('return'),
-	K_REPLACE = MalKeyword.create('replace')
-
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
 export default function useHandle(
@@ -68,33 +51,29 @@ export default function useHandle(
 				return undefined
 			} else {
 				const ret = getMapValue(fi.meta, 'handles')
-				return isMap(ret) ? ret : undefined
+				return MalMap.is(ret) ? ret : undefined
 			}
 		})
 	)
 	const params = computed(() =>
 		fnInfo.value.map((fi, i) => {
 			const e = selectedExp.value[i]
-			if (isMap(e) || !fi) {
+			if (MalMap.is(e) || !fi) {
 				return []
 			}
-			return fi.structType
-				? [getEvaluated(e)]
-				: e.slice(1).map(e => getEvaluated(e))
+			return fi.structType ? [e.evaluated] : e.slice(1).map(e => e.evaluated)
 		})
 	)
 	const unevaluatedParams = computed(() =>
 		fnInfo.value.map((fi, i) => {
 			const e = selectedExp.value[i]
-			if (isMap(e) || !fi) {
+			if (MalMap.is(e) || !fi) {
 				return []
 			}
 			return fi.structType ? [e] : e.slice(1)
 		})
 	)
-	const returnedValue = computed(() =>
-		selectedExp.value.map(e => getEvaluated(e))
-	)
+	const returnedValue = computed(() => selectedExp.value.map(e => e.evaluated))
 	const transform = computed(() =>
 		selectedExp.value.map(e => {
 			const xform = computeExpTransform(e)
@@ -117,15 +96,15 @@ export default function useHandle(
 		handleCallbacks.value.map((cb, index) => {
 			if (!cb) return []
 
-			const drawHandle = cb[K_DRAW]
+			const drawHandle = cb.draw
 
 			if (typeof drawHandle !== 'function') {
 				return []
 			}
 
 			const options = {
-				[K_PARAMS]: params.value[index],
-				[K_RETURN]: returnedValue.value[index],
+				params: params.value[index],
+				return: returnedValue.value[index],
 			}
 
 			let handles
@@ -141,9 +120,9 @@ export default function useHandle(
 			}
 
 			return handles.map((h: any) => {
-				const type = h[K_TYPE] as string
-				const guide = !!h[K_GUIDE]
-				const classList = ((h[K_CLASS] as string) || '')
+				const type = h.type as string
+				const guide = !!h.guide
+				const classList = ((h.class as string) || '')
 					.split(' ')
 					.filter(c => !!c)
 				const cls = {} as ClassList
@@ -155,12 +134,12 @@ export default function useHandle(
 				let yRotate = 0
 
 				if (POINTABLE_HANDLE_TYPES.has(type)) {
-					const [x, y] = h[K_POS]
+					const [x, y] = h.pos
 					mat2d.translate(xform, xform, [x, y])
 				}
 
 				if (type === 'arrow') {
-					const angle = h[K_ANGLE] || 0
+					const angle = h.angle || 0
 					mat2d.rotate(xform, xform, angle)
 				} else if (type === 'dia') {
 					xform[0] = 1
@@ -241,7 +220,7 @@ export default function useHandle(
 			return
 		}
 
-		const dragHandle = cbs[K_DRAG]
+		const dragHandle = cbs.drag
 
 		if (typeof dragHandle !== 'function') {
 			return
@@ -256,7 +235,7 @@ export default function useHandle(
 		const _params = params.value[selectedIndex]
 		const _unevaluatedParams = unevaluatedParams.value[selectedIndex]
 
-		if (!fi || isMap(exp)) {
+		if (!fi || MalMap.is(exp)) {
 			return
 		}
 
@@ -268,12 +247,12 @@ export default function useHandle(
 
 		const handle = handles.value[selectedIndex][handleIndex]
 
-		const eventInfo = {
-			[K_ID]: handle.id === undefined ? null : handle.id,
-			[K_POS]: pos,
-			[K_PREV_POS]: prevPos,
-			[K_PARAMS]: _params,
-		} as MalMap
+		const eventInfo = MalMap.create({
+			id: handle.id === undefined ? MalNil.create() : handle.id,
+			pos: pos,
+			'prev-pos': prevPos,
+			params: _params,
+		})
 
 		rawPrevPos.value = rawPos
 
@@ -285,7 +264,7 @@ export default function useHandle(
 			return null
 		}
 
-		if (!MalVector.is(result) && !isMap(result)) {
+		if (!MalVector.is(result) && !MalMap.is(result)) {
 			return null
 		}
 
@@ -293,10 +272,10 @@ export default function useHandle(
 		let newParams: MalVal[]
 		let updatedIndices: number[] | undefined = undefined
 
-		if (isMap(result)) {
-			const retParams = result[K_PARAMS]
-			const replace = result[K_REPLACE]
-			const changeId = result[K_CHANGE_ID]
+		if (MalMap.is(result)) {
+			const retParams = result.value.params
+			const replace = result.value.replace
+			const changeId = result.value['change-id']
 
 			if (MalVector.is(retParams)) {
 				newParams = retParams
@@ -346,7 +325,7 @@ export default function useHandle(
 		// Construct the new expression and send it to parent
 		const newExp: MalSeq = fi.structType
 			? (newParams[0] as MalSeq)
-			: (L(exp[0], ...newParams) as MalSeq)
+			: (MalList.create(exp.value[0], ...newParams) as MalSeq)
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, exp)

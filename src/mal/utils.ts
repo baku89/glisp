@@ -11,23 +11,24 @@ import {
 	MalList,
 	isMalColl,
 	MalType,
+	MalNumber,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
 import {reconstructTree} from './reader'
 
-export function isUIAnnotation(exp: MalVal): exp is MalSeq {
-	return MalList.is(exp) && MalSymbol.isFor(exp[0], 'ui-annotate')
+export function isUIAnnotation(exp: MalVal | undefined): exp is MalList {
+	return MalList.is(exp) && MalSymbol.isFor(exp.value[0], 'ui-annotate')
 }
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (MalVector.is(exp)) {
-		if (exp[0] === MalKeyword.create('path')) {
+		if (exp.value[0] === MalKeyword.create('path')) {
 			return 'path'
 		}
 		if (exp.length <= 6) {
 			const isAllNumber =
-				exp instanceof Float32Array || exp.every(v => typeof v === 'number')
+				exp instanceof Float32Array || exp.value.every(MalNumber.is)
 			if (isAllNumber) {
 				switch (exp.length) {
 					case 2:
@@ -87,7 +88,7 @@ export function getExpByPath(root: MalColl, path: string): MalVal {
 
 		if (isMalSeq(expBody)) {
 			return find(expBody[index], rest)
-		} else if (isMap(expBody)) {
+		} else if (MalMap.is(expBody)) {
 			const keys = Object.keys(expBody as MalCollMap)
 			return find(expBody[keys[index]], rest)
 		} else {
@@ -100,7 +101,7 @@ export function generateExpAbsPath(exp: MalColl) {
 	return seek(exp, '')
 
 	function seek(exp: MalColl, path: string): string {
-		const outer = getOuter(exp)
+		const outer = exp.parent
 		if (outer) {
 			if (isUIAnnotation(outer)) {
 				return seek(outer, path)
@@ -127,7 +128,7 @@ export function getUIOuterInfo(
 
 	if (isUIAnnotation(outer)) {
 		exp = outer
-		outer = getOuter(exp)
+		outer = exp.parent
 	}
 
 	return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
@@ -185,7 +186,7 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 }
 
 export function getUIAnnotationExp(exp: MalColl) {
-	const outer = getOuter(exp)
+	const outer = exp.parent
 	return isUIAnnotation(outer) ? outer : exp
 }
 
@@ -241,7 +242,7 @@ export function getMapValue(
 		} else {
 			// map key
 			const kw = keywordFor(key)
-			if (!isMap(exp) || !(kw in exp)) {
+			if (!MalMap.is(exp) || !(kw in exp)) {
 				return defaultValue !== undefined ? defaultValue : null
 			}
 
@@ -252,7 +253,7 @@ export function getMapValue(
 	}
 
 	// Type checking
-	if (type && getType(exp) !== type) {
+	if (type && exp.type !== type) {
 		return defaultValue !== undefined ? defaultValue : null
 	}
 
@@ -289,7 +290,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 
 	meta = getMeta(fn)
 
-	if (isMap(meta)) {
+	if (MalMap.is(meta)) {
 		aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
 	}
 
@@ -303,7 +304,7 @@ export function reverseEval(
 ) {
 	// const meta = getMeta(original)
 
-	switch (getType(original)) {
+	switch (original.type) {
 		case MalType.List: {
 			// Check if the list is wrapped within const
 			if (MalSymbol.isFor((original as MalSeq)[0], 'const')) {
@@ -320,12 +321,14 @@ export function reverseEval(
 				const evaluatedParams = originalParams.map(e => getEvaluated(e))
 
 				// Compute the original parameter
-				const result = inverseFn({
-					[MalKeyword.create('return')]: exp,
-					[MalKeyword.create('params')]: evaluatedParams,
-				})
+				const result = inverseFn(
+					MalMap.create({
+						return: exp,
+						params: evaluatedParams,
+					})
+				)
 
-				if (!MalVector.is(result) && !isMap(result)) {
+				if (!MalVector.is(result) && !MalMap.is(result)) {
 					return null
 				}
 
@@ -333,7 +336,7 @@ export function reverseEval(
 				let newParams: MalVal[]
 				let updatedIndices: number[] | undefined = undefined
 
-				if (isMap(result)) {
+				if (MalMap.is(result)) {
 					const params = result[MalKeyword.create('params')]
 					const replace = result[MalKeyword.create('replace')]
 
@@ -389,7 +392,7 @@ export function reverseEval(
 			break
 		}
 		case MalType.Map: {
-			if (isMap(exp)) {
+			if (MalMap.is(exp)) {
 				const newExp = {...exp} as MalMap
 
 				Object.entries(original as MalMap).forEach(([key, value]) => {
@@ -409,8 +412,11 @@ export function reverseEval(
 			if (def && !MalSymbol.is(exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
-				replaceExp(def, L(MalSymbol.create('defvar'), original, newDefBody))
-				return cloneExp(original)
+				replaceExp(
+					def,
+					MalList.create(MalSymbol.create('defvar'), original, newDefBody)
+				)
+				return original.clone()
 			}
 			break
 		}
@@ -468,7 +474,7 @@ const K_PARAMS = MalKeyword.create('params')
 const K_REPLACE = MalKeyword.create('replace')
 
 export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
-	if (!MalVector.is(modifier) && !isMap(modifier)) {
+	if (!MalVector.is(modifier) && !MalMap.is(modifier)) {
 		return null
 	}
 
@@ -476,7 +482,7 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	let newParams: MalVal[]
 	let updatedIndices: number[] | undefined = undefined
 
-	if (isMap(modifier)) {
+	if (MalMap.is(modifier)) {
 		const params = modifier[K_PARAMS]
 		const replace = modifier[K_REPLACE]
 
@@ -531,23 +537,21 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 
 export function getFn(exp: MalVal) {
 	if (!MalList.is(exp)) {
-		//throw new MalError(`${printExp(exp)} is not a function application`)
 		return undefined
 	}
 
-	const first = getEvaluated(exp[0])
+	const fn = exp.fn
 
-	if (!isFunc(first)) {
-		// throw new Error(`${printExp(exp[0])} is not a function`)
+	if (!MalFunc.is(fn)) {
 		return undefined
 	}
 
-	return first
+	return fn
 }
 
 export function copyDelimiters(target: MalVal, original: MalVal) {
 	if (isMalSeq(target) && isMalSeq(original) && M_DELIMITERS in original) {
-		const delimiters = [...original[M_DELIMITERS]]
+		const delimiters = [...original.delimiters]
 
 		const lengthDiff = target.length - original.length
 
@@ -567,6 +571,6 @@ export function copyDelimiters(target: MalVal, original: MalVal) {
 			}
 		}
 
-		target[M_DELIMITERS] = delimiters
+		target.delimiters = delimiters
 	}
 }

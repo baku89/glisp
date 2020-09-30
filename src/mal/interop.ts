@@ -1,5 +1,4 @@
-import {createNil, MalError} from './types'
-import {jsToMal} from './reader'
+import {MalNil, MalError} from './types'
 
 export default {
 	resolveJMalSymbol.create(str: string): [any, any] {

@@ -71,12 +71,12 @@ export default defineComponent({
 				case EditMode.Params: {
 					return (
 						'(' +
-						(exp as MalColl)[M_DELIMITERS][0] +
+						(exp as MalColl).delimiters[0] +
 						(exp as MalColl)[M_ELMSTRS][0]
 					)
 				}
 				case EditMode.Elements: {
-					switch (getType(exp)) {
+					switch (exp.type) {
 						case MalType.List:
 							return '('
 						case MalType.Vector:

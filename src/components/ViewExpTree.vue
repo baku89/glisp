@@ -189,7 +189,7 @@ export default defineComponent({
 					icon: {type: 'text', value: '[ ]'},
 					children: null,
 				}
-			} else if (isMap(exp)) {
+			} else if (MalMap.is(exp)) {
 				return {
 					label: printExp(exp),
 					clickable: true,
@@ -204,7 +204,7 @@ export default defineComponent({
 					clickable: false,
 					expandable: false,
 					editable: false,
-					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
+					icon: IconTexts[exp.value] || {type: 'text', value: '・'},
 					children: null,
 				}
 			}

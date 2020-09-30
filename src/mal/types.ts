@@ -269,6 +269,10 @@ export class MalList extends MalVal {
 		return this._evaluated || this
 	}
 
+	get fn() {
+		return this.value[0]
+	}
+
 	get params() {
 		return this.value.slice(1)
 	}
@@ -296,6 +300,10 @@ export class MalList extends MalVal {
 		}
 
 		return this.str
+	}
+
+	toJS() {
+		return this
 	}
 
 	clone() {

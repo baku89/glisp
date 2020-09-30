@@ -1,7 +1,7 @@
 import ConsoleScope from '@/scopes/console'
 import {convertMalCollToJSObject} from '@/mal/reader'
 import {ref, Ref, computed, watch} from 'vue'
-import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
+import {MalAtom, MalMap, assocBang, keywordFor, MalMap.is} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
@@ -91,7 +91,7 @@ export function useModes(
 				mousePressed.value
 			)
 			const updatedState = handler(params)
-			if (isMap(updatedState)) {
+			if (MalMap.is(updatedState)) {
 				modeState.value = updatedState as any
 			}
 		}

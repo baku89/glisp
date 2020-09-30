@@ -41,7 +41,6 @@ import {
 	MalVal,
 	MalSymbol,
 	MalType,
-	MalList,
 	MalKeyword,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'

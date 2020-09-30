@@ -12,7 +12,6 @@ import {
 	MalSymbol,
 	MalError,
 	assocBang,
-	isMap,
 	MalList,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
@@ -793,7 +792,7 @@ function pathBounds(path: PathType) {
 			baseline: 'middle',
 		}
 
-		if (isMap(options)) {
+		if (MalMap.is(options)) {
 			for (const [k, v] of Object.entries(options)) {
 				settings[(k as string).slice(1)] = v
 			}

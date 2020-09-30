@@ -3,6 +3,7 @@ import Scope from '@/mal/scope'
 
 import AppScope from './app'
 import Env from '@/mal/env'
+import {jsToMal} from '@/mal/reader'
 
 interface ViewScopeOption {
 	guideColor: string | null
@@ -14,7 +15,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	const env = new Env()
 
 	if (guideColor) {
-		env.set(MalSymbol.create('*guide-color*'), guideColor)
+		env.set(MalSymbol.create('*guide-color*'), jsToMal(guideColor))
 	} else {
 		env.set(
 			MalSymbol.create('guide/stroke'),

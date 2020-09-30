@@ -335,7 +335,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 
 		delimiters.push('')
 
-		val[M_DELIMITERS] = delimiters
+		val.delimiters = delimiters
 		val[M_ELMSTRS] = elmStrs
 	}
 
@@ -376,13 +376,13 @@ export function getRangeOfExp(
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				(outer[M_ISSUGAR] ? 0 : 1) +
-				outer[M_DELIMITERS].slice(0, index + 1).join('').length +
+				outer.delimiters.slice(0, index + 1).join('').length +
 				outer[M_ELMSTRS].slice(0, index).join('').length
 		} else if (MalMap.is(outer)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.   length */ +
-				outer[M_DELIMITERS].slice(0, (index + 1) * 2).join('').length +
+				outer.delimiters.slice(0, (index + 1) * 2).join('').length +
 				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
 		}
 
@@ -428,7 +428,7 @@ export function findExpByRange(
 		// Search Children
 		for (let i = 0; i < exp.length; i++) {
 			const child = exp[i]
-			offset += exp[M_DELIMITERS][i].length
+			offset += exp.delimiters[i].length
 
 			const ret = findExpByRange(child, start - offset, end - offset)
 			if (ret !== null) {
@@ -447,7 +447,7 @@ export function findExpByRange(
 
 		const keys = Object.keys(exp)
 		const elmStrs = exp[M_ELMSTRS]
-		const delimiters = exp[M_DELIMITERS]
+		const delimiters = exp.delimiters
 
 		// Search Children
 		for (let i = 0; i < keys.length; i++) {

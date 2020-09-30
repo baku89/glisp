@@ -14,6 +14,8 @@ import {
 	isMalColl,
 	MalVector,
 	MalString,
+	MalBoolean,
+	MalNil,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -58,7 +60,7 @@ export default function useAppCommands(
 
 		replaceExp(data.activeExp, expanded)
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('insert-item', (exp: MalVal) => {
@@ -189,11 +191,11 @@ export default function useAppCommands(
 
 		callbacks.setSelectedExp(items)
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('load-file', (url: MalVal) => {
-		fetch(url as string).then(async res => {
+		fetch(url.value as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
 				const exp = readStr(toSketchCode(code)) as MalColl
@@ -204,7 +206,8 @@ export default function useAppCommands(
 				throw new MalError(`Failed to load from "${url}"`)
 			}
 		})
-		return null
+
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('select-outer', () => {
@@ -216,7 +219,7 @@ export default function useAppCommands(
 		if (outer && outer !== data.exp) {
 			callbacks.setActiveExp(outer)
 		}
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('wrap-selected', (wrapper: MalVal) => {
@@ -230,10 +233,10 @@ export default function useAppCommands(
 		const exp = data.activeExp
 		let shouldDuplicate = false
 
-		const newExp = L(
-			...wrapper.map(e => {
+		const newExp = MalList.create(
+			...wrapper.value.map(e => {
 				if (MalSymbol.isFor(e, '%')) {
-					const ret = shouldDuplicate ? cloneExp(exp, true) : exp
+					const ret = shouldDuplicate ? exp.clone() : exp
 					shouldDuplicate = true
 					return ret
 				} else {
@@ -246,7 +249,7 @@ export default function useAppCommands(
 
 		replaceExp(data.activeExp, newExp)
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
@@ -292,7 +295,7 @@ export default function useAppCommands(
 			replaceExp(exp, newExp)
 		}
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('copy-selected', () => {
@@ -304,7 +307,7 @@ export default function useAppCommands(
 
 		navigator.clipboard.writeText(code)
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('paste-from-clipboard', () => {
@@ -322,12 +325,12 @@ export default function useAppCommands(
 			;[outer, index] = [_outer, _index]
 		}
 
-		const newOuter = cloneExp(outer)
+		const newOuter = outer.clone()
 
 		navigator.clipboard.readText().then((str: string) => {
 			const exp = readStr(str)
 
-			newOuter.splice(index + 1, 0, exp)
+			newOuter.value.splice(index + 1, 0, exp)
 			copyDelimiters(newOuter, outer)
 
 			reconstructTree(newOuter)
@@ -336,7 +339,7 @@ export default function useAppCommands(
 			callbacks.setActiveExp(isMalColl(exp) ? exp : undefined)
 		})
 
-		return null
+		return MalNil.create()
 	})
 
 	AppScope.def('delete-selected', () => {
@@ -347,7 +350,7 @@ export default function useAppCommands(
 
 		callbacks.setSelectedExp([])
 
-		return true
+		return MalBoolean.create(true)
 	})
 
 	AppScope.def('group-selected', () => {
@@ -367,6 +370,6 @@ export default function useAppCommands(
 
 		callbacks.setActiveExp(group)
 
-		return true
+		return MalBoolean.create(true)
 	})
 }
