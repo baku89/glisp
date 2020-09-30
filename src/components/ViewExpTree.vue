@@ -255,7 +255,7 @@ export default defineComponent({
 
 			const newExp =
 				Object.keys(annotation).length > 0
-					? L(S_UI_ANNOTATE, annotation, expBody.value)
+					? MalList.create(S_UI_ANNOTATE, annotation, expBody.value)
 					: expBody.value
 
 			context.emit('update:exp', newExp)
@@ -269,7 +269,11 @@ export default defineComponent({
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, (props.exp as MalSeq)[1], newExpBody)
+				newExp = MalList.create(
+					S_UI_ANNOTATE,
+					(props.exp as MalSeq)[1],
+					newExpBody
+				)
 			} else {
 				newExp = newExpBody
 			}
