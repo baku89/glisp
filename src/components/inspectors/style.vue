@@ -58,9 +58,7 @@ import {
 	MalList,
 	MalVector,
 	MalSeq,
-	cloneExp,
-	MalList,
-	MalSymbol,
+	MalSymbol,, MalString, MalNumber
 } from '@/mal/types'
 import { getParamLabel} from '@/utils'
 import MalInputParam from '@/components/mal-inputs/MalInputParam.vue'
@@ -80,14 +78,14 @@ export default defineComponent({
 	},
 	props: {
 		exp: {
-			type: Object as PropType<MalSeq>,
+			type: Object as PropType<MalList>,
 			required: true,
 		},
 	},
 	setup(props, context) {
 		const styles = computed(() => {
-			const styles = props.exp[1]
-			return (MalVector.is(styles) ? styles : [styles])
+			const styles = props.exp.value[1]
+			return (MalVector.is(styles) ? styles.value : [styles])
 		})
 
 		const labels = computed(() => {
@@ -95,18 +93,18 @@ export default defineComponent({
 		})
 
 		function updateStyleAt(style: MalSeq, i: number) {
-			const newExp = cloneExp(props.exp)
-			const newStyles = [...styles.value]
+			const newExp = props.exp.clone()
+			const newStyles = MalVector.create(...styles.value)
 			newStyles[i] = style
-			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
+			newExp.value[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
 			reconstructTree(newExp)
 			context.emit('input', newExp)
 		}
 
 		function sortStyles(sortedStyles: MalSeq[][]) {
-			const newExp = cloneExp(props.exp)
-			newExp[1] =
+			const newExp = props.exp.clone()
+			newExp.value[1] =
 				sortedStyles.length == 1
 					? sortedStyles[0]
 					: [...sortedStyles]
@@ -118,12 +116,12 @@ export default defineComponent({
 
 		function appendStyle(type: 'fill' | 'stroke') {
 			const style =
-				type === 'fill' ? L(MalSymbol.create('fill'), '#000000') : L(MalSymbol.create('stroke'), '#000000', 1)
+				type === 'fill' ? MalList.create(MalSymbol.create('fill'),  MalString.create('#000000')) : MalList.create(MalSymbol.create('stroke'), MalString.create('#000000'), MalNumber.create(1))
 
-			const newExp = cloneExp(props.exp)
-			const newStyles = [...styles.value]
-			newStyles.push(style)
-			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
+			const newExp = props.exp.clone()
+			const newStyles = MalVector.create(...styles.value)
+			newStyles.value.push(style)
+			newExp.value[1] = newStyles.length == 1 ? newStyles.value[0] : newStyles
 
 			reconstructTree(newExp)
 			context.emit('input', newExp)
@@ -131,8 +129,8 @@ export default defineComponent({
 		}
 
 		function deleteStyleAt(i: number) {
-			const newExp = cloneExp(props.exp)
-			const newStyles = [...styles.value]
+			const newExp = props.exp.clone()
+			const newStyles = MalVector.create(...styles.value)
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 

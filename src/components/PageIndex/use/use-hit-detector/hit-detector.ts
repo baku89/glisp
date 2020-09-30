@@ -1,7 +1,6 @@
 import {vec2} from 'gl-matrix'
 import {
 	MalVal,
-	getEvaluated,
 	MalVector,
 	MalKeyword,
 	MalList,

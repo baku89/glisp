@@ -37,7 +37,7 @@
 
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, toRefs, PropType} from 'vue'
-import {MalVal, MalList, getEvaluated, cloneExp, MalSeq} from '@/mal/types'
+import {MalVal, MalList, MalSeq} from '@/mal/types'
 import {clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'
 import ParamControl from '@/components/ParamControl.vue'
@@ -100,7 +100,7 @@ export default defineComponent({
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = cloneExp(props.exp) as number[]
+				const exp = props.exp.clone() as number[]
 
 				exp[1] = clamp(ox + dx, 0, 1)
 				exp[2] = oy + dy
@@ -118,7 +118,7 @@ export default defineComponent({
 				const dx = e.x / size.value[0]
 				const dy = e.y / -size.value[1]
 
-				const exp = cloneExp(props.exp) as number[]
+				const exp = props.exp.clone() as number[]
 
 				exp[3] = clamp(ox + dx, 0, 1)
 				exp[4] = oy + dy

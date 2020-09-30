@@ -20,15 +20,7 @@
 import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
 import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
-import {
-	MalSeq,
-	getEvaluated,
-	MalType,
-	getMeta,
-	MalVal,
-	cloneExp,
-	MalList,
-} from '@/mal/types'
+import {MalSeq, MalType, getMeta, MalVal, cloneExp, MalList} from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import {convertMalCollToJSObject} from '@/mal/reader'
 

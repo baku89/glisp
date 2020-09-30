@@ -66,15 +66,11 @@ import {
 	MalList,
 	MalVector,
 	MalType,
-	getType,
 	MalSymbol,
 	MalKeyword,
 	MalMap,
-	MalList,
 	MalColl,
-	MalSeq,
-	isMap,
-	cloneExp,
+	MalSeq,, MalBoolean, MalString
 } from '@/mal/types'
 import {printExp} from '@/mal'
 import {reconstructTree} from '@/mal/reader'
@@ -247,10 +243,10 @@ export default defineComponent({
 		function toggleExpanded() {
 			const annotation = {} as {[k: string]: MalVal}
 			if (!ui.value.expanded === true) {
-				annotation[K_EXPANDED] = true
+				annotation.expanded = MalBoolean.create(true)
 			}
 			if (ui.value.name !== null) {
-				annotation[K_NAME] = ui.value.name
+				annotation.name = MalString.create(ui.value.name)
 			}
 
 			const newExp =
@@ -262,7 +258,7 @@ export default defineComponent({
 		}
 
 		function onUpdateChildExp(i: number, replaced: MalColl) {
-			const newExpBody = cloneExp(expBody.value) as MalSeq
+			const newExpBody = expBody.value.clone()
 
 			;(newExpBody as MalSeq)[i + 1] = replaced
 

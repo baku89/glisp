@@ -21,14 +21,7 @@
 <script lang="ts">
 import {defineComponent, ref, Ref, computed, PropType} from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
-import {
-	MalVal,
-	MalFunc,
-	getMeta,
-	MalSymbol,
-	MalList,
-	MalSymbol,, MalSeq
-} from '@/mal/types'
+import {MalVal, MalFunc, MalSymbol, MalList, MalSeq} from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
 import VueMarkdown from 'vue-markdown'

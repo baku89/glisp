@@ -1,12 +1,5 @@
 import {Ref, computed, SetupContext} from 'vue'
-import {
-	MalVal,
-	getEvaluated,
-	MalSeq,
-	MalSymbol,
-	MalVector,
-	cloneExp,
-} from '@/mal/types'
+import {MalVal, MalSeq, MalSymbol, MalVector, cloneExp} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 /**

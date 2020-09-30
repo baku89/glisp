@@ -5,7 +5,6 @@ import {
 	MalSeq,
 	MalSymbol,
 	getType,
-	getEvaluated,
 	MalList,
 	symbolFor,
 	isMalFunc,

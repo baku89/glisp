@@ -1,4 +1,3 @@
-import {createBlock} from 'vue'
 import Env from './env'
 
 export enum MalType {
@@ -253,6 +252,10 @@ export class MalList extends MalVal {
 		return this.value.slice(1)
 	}
 
+	get length() {
+		return this.value.length
+	}
+
 	print(readably = true) {
 		if (this.str === undefined) {
 			if (!this.delimiters) {
@@ -309,6 +312,10 @@ export class MalVector extends MalVal {
 
 	get evaluated(): MalVector {
 		return this._evaluated || this
+	}
+
+	get length() {
+		return this.value.length
 	}
 
 	print(readably = true) {

@@ -52,12 +52,11 @@ import {defineComponent, PropType, computed} from 'vue'
 import {
 	MalSeq,
 	MalSymbol,
-	getEvaluated,
-	MalList,
-	MalSymbol.is(For,
 	MalVal,
-	cloneExp,
-	MalList,, MalVector
+	MalList,
+	MalVector,
+	MalNumber,
+	MalBoolean,
 } from '@/mal/types'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
@@ -76,13 +75,14 @@ export default defineComponent({
 	setup(props, context) {
 		const isSizeFunc = computed(
 			() =>
-				MalList.is(props.value) && MalSymbol.isFor(props.value[0], 'vec2/size')
+				MalList.is(props.value) &&
+				MalSymbol.isFor(props.value.value[0], 'vec2/size')
 		)
 
 		const size = computed(() => {
 			const value = props.value
 			if (isSizeFunc.value) {
-				return (value as MalSeq)[1]
+				return (value as MalList).value[1]
 			} else {
 				return props.value
 			}
@@ -91,7 +91,7 @@ export default defineComponent({
 		const ratio = computed(() => {
 			const value = props.value
 			if (isSizeFunc.value) {
-				return (value as MalSeq)[2] as number | false
+				return (value as MalList).value[2].value
 			} else {
 				return false
 			}
@@ -107,14 +107,14 @@ export default defineComponent({
 			}
 		})
 
-		const evaluated = computed(() => getEvaluated(size.value) as number[])
+		const evaluated = computed(() => size.value.evaluated)
 
 		function onInputElement(index: number, v: MalVal, num: number) {
 			if (!isValueSeparated.value) {
 				return
 			}
 
-			const newSize = cloneExp(size.value as MalSeq)
+			const newSize = size.value.clone()
 			newSize[index] = v
 
 			const r = evaluated.value[1] / evaluated.value[0]
@@ -138,7 +138,7 @@ export default defineComponent({
 			const newExp = MalList.create(
 				MalSymbol.create('vec2/size'),
 				newSize,
-				ratio.value === false ? false : r
+				ratio.value === false ? MalBoolean.create(false) : MalNumber.create(r)
 			)
 			context.emit('input', newExp)
 		}
@@ -168,14 +168,16 @@ export default defineComponent({
 			const newExp = MalList.create(
 				MalSymbol.create('vec2/size'),
 				newSizeExp,
-				ratio.value === false ? false : r
+				ratio.value === false ? MalBoolean.create(false) : MalNumber.create(r)
 			)
 			context.emit('input', newExp)
 		}
 
 		function onClickLinkButton() {
 			const newRatio =
-				ratio.value === false ? evaluated.value[1] / evaluated.value[0] : false
+				ratio.value === false
+					? MalNumber.create(evaluated.value[1] / evaluated.value[0])
+					: MalBoolean.create(false)
 
 			const newExp = MalList.create(
 				MalSymbol.create('vec2/size'),

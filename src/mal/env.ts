@@ -4,26 +4,21 @@ import {
 	MalSymbol,
 	MalMap,
 	isMalSeq,
-	MalSeq,
 	MalType,
+	MalVector, MalKeyword
 } from './types'
 import {printExp} from '.'
 
 export default class Env {
 	private data = new Map<string, MalVal>()
 
-	/**
-	 * Stores a definition expression `(devar sym val)` for each symbol
-	 */
-	private defs = new Map<string, MalSeq>()
-
 	private bindings!: Env[]
-	private exps?: MalVal[]
+	private exps?: MalVal
 
 	constructor(
 		protected outer: Env | null = null,
 		binds?: MalVal,
-		exps?: MalVal[],
+		exps?: MalVal,
 		public name = 'let'
 	) {
 		if (this.root === this) {
@@ -54,28 +49,40 @@ export default class Env {
 		return Array.from(merged.keys()).map(v => MalSymbol.create(v))
 	}
 
-	public bindAll(binds: MalVal, exps: MalVal[]) {
-		// Returns a new Env with symbols in binds bound to
-		// corresponding values in exps
+	/**
+	 * Returns a new Env with symbols in binds bound to
+	 * corresponding values in exps
+	 */
+	public bindAll(binds: MalVal, exps: MalVal) {
 		if (MalSymbol.is(binds)) {
 			this.set(binds, exps)
-		} else {
-			for (let i = 0; i < binds.length; i++) {
-				const bind = binds[i]
-				const exp = exps[i]
+		} else if (MalVector.is(binds)) {
+			if (!MalVector.is(exps)) {
+				throw new MalError('Bind vector error')
+			}
 
-				const bindType = getType(bind)
+			for (let i = 0; i < binds.value.length; i++) {
+				const bind = binds.value[i]
+				const exp = exps.value[i]
 
-				if (bindType === MalType.Symbol && (bind as MalSymbol).value === '&') {
+				const bindType = bind.type
+
+				if (MalSymbol.isFor(bind, '&')) {
 					// rest arguments
-					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
+					this.set(
+						binds.value[i + 1] as MalSymbol,
+						MalVector.create(...exps.value.slice(i))
+					)
 					i++
 					continue
-				} else if (bind === keywordFor('as')) {
+
+				} else if ( MalKeyword.isFor(bind, 'as')) {
 					// :as destruction
-					this.set(binds[i + 1] as MalSymbol, [...exps])
+					this.set(binds.value[i + 1] as MalSymbol, exp)
 					break
 				}
+
+				this.bindAll(bind, exp)
 
 				switch (bindType) {
 					case MalType.Symbol: {
@@ -141,35 +148,21 @@ export default class Env {
 						throw new MalError(`[${this.name}] Invalid bind expression`)
 				}
 			}
+		} else if (MalMap.is(binds)) {
+			if (!MalMap.is(exps)) {
+				throw new MalError('Bind map error')
+			}
+
+			for (Mal)
 		}
 	}
 
-	public set(symbol: MalSymbol, value: MalVal, def?: MalSeq) {
+	public set(symbol: MalSymbol, value: MalVal) {
 		this.data.set(symbol.value, value)
-		if (def) {
-			this.defs.set(symbol.value, def)
-		}
 		return value
 	}
 
-	public getDef(symbol: MalSymbol): MalSeq | null {
-		// eslint-disable-next-line no-prototype-builtins
-		if (this.defs.has(symbol.value)) {
-			return this.defs.get(symbol.value) as MalSeq
-		}
-
-		if (this.outer !== null) {
-			return this.outer.getDef(symbol)
-		}
-
-		return null
-	}
-
 	public find(symbol: MalSymbol): MalVal | void {
-		// if (!MalSymbol.is(symbol)) {
-		// 	throw 'FIND not symbol'
-		// }
-
 		// First, search binding
 		const bindings = this.root.bindings
 		if (bindings.length > 0) {

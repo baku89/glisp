@@ -5,7 +5,6 @@ import {
 	MalSymbol,
 	MalMap,
 	MalList,
-	MalColl,
 	isMalColl,
 	MalSeq,
 	isMalSeq,
@@ -14,7 +13,7 @@ import {
 	ExpandType,
 	MalMacro,
 	MalNil,
-	MalFunc,, MalNumber, MalAtom, MalBoolean, MalString, MalKeyword
+	MalFunc,
 } from './types'
 import Env from './env'
 import {printExp} from '.'
@@ -237,10 +236,7 @@ export default function evalExp(
 					throw new MalError('Invalid bind-expr in binding')
 				}
 				for (let i = 0; i < binds.value.length; i += 2) {
-					bindingEnv.bindAll(
-						binds[i],
-						evalExp.call(this, binds[i + 1], env)
-					)
+					bindingEnv.bindAll(binds[i], evalExp.call(this, binds[i + 1], env))
 				}
 				env.pushBinding(bindingEnv)
 				const body = _body.length === 1 ? _body[0] : L(S_DO, ..._body)
@@ -256,18 +252,18 @@ export default function evalExp(
 			case 'get-all-symbols': {
 				const ret = env.getAllSymbols()
 				first.evaluated = env.get(S_GET_ALL_SYMBOLS)
-					origExp.evaluated = ret
+				origExp.evaluated = ret
 				return ret
 			}
 			case 'fn-params': {
-					first.evaluated = env.get(S_FN_PARAMS)
+				first.evaluated = env.get(S_FN_PARAMS)
 				const fn = evalExp.call(this, exp.value[1], env)
 				const ret = isMalFunc(fn) ? [...fn[M_PARAMS]] : MalNil.create()
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'eval*': {
-					first.evaluated = env.get(S_EVAL_IN_ENV)
+				first.evaluated = env.get(S_EVAL_IN_ENV)
 				// if (!this) {
 				// 	throw new MalError('Cannot find the caller env')
 				// }
@@ -277,12 +273,12 @@ export default function evalExp(
 			}
 			case 'quote': {
 				const ret = exp.value[1]
-					first.evaluated = env.get(S_QUOTE)
-					origExp.evaluated = ret
+				first.evaluated = env.get(S_QUOTE)
+				origExp.evaluated = ret
 				return ret
 			}
 			case 'quasiquote': {
-					first.evaluated = env.get(S_QUASIQUOTE)
+				first.evaluated = env.get(S_QUASIQUOTE)
 				const ret = quasiquote(exp.value[1])
 				exp = ret
 				break // continue TCO loop
@@ -307,16 +303,12 @@ export default function evalExp(
 					env,
 					params as MalVal
 				)
-				if (cache) {
-					first.evaluated = env.get(S_FN)
-					origExp.evaluated = ret
-				}
+				first.evaluated = env.get(S_FN)
+				origExp.evaluated = ret
 				return ret
 			}
 			case 'fn-sugar': {
-				if (cache) {
-					first.evaluated = env.get(S_FN_SUGAR)
-				}
+				first.evaluated = env.get(S_FN_SUGAR)
 				const body = exp.value[1]
 				const ret = MalFunc.fromMal(
 					function (...args) {
@@ -359,15 +351,11 @@ export default function evalExp(
 				return ret
 			}
 			case 'try': {
-				if (cache) {
-					first.evaluated = env.get(S_TRY)
-				}
+				first.evaluated = env.get(S_TRY)
 				const [, testExp, catchExp] = exp.value
 				try {
 					const ret = evalExp.call(this, testExp, env)
-					if (cache) {
-						origExp.evaluated = ret
-					}
+					origExp.evaluated = ret
 					return ret
 				} catch (exc) {
 					let err = exc
@@ -376,22 +364,13 @@ export default function evalExp(
 						MalSymbol.isFor(catchExp.value[0], 'catch') &&
 						MalSymbol.is(catchExp.value[1])
 					) {
-						if (cache) {
-							first.evaluated = env.get(S_CATCH)
-						}
+						first.evaluated = env.get(S_CATCH)
 						if (exc instanceof Error) {
 							err = exc.message
 						}
 						const [, errSym, errBody] = catchExp.value
-						const ret = evalExp.call(
-							this,
-							errBody,
-							new Env(env, [errSym], [err]),
-							cache
-						)
-						if (cache) {
-							origExp.evaluated = ret
-						}
+						const ret = evalExp.call(this, errBody, new Env(env, errSym, err))
+						origExp.evaluated = ret
 						return ret
 					} else {
 						throw err

@@ -28,7 +28,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import {MalColl, MalVal, MalSeq, cloneExp} from '@/mal/types'
+import {MalColl, MalVal, MalSeq} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'

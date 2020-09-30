@@ -8,7 +8,6 @@ import {
 } from '@/mal/utils'
 import {
 	MalSeq,
-	getEvaluated,
 	isMap,
 	MalMap,
 	MalVal,

@@ -7,20 +7,12 @@ import {
 	MalList,
 	MalKeyword,
 	getName,
-	getMeta,
-	isFunc,
 	MalType,
 	MalError,
-	cloneExp,
 	isMalSeq,
-	MalList,
-	MalSymbol.is(For,
 	MalSeq,
-	getEvaluated,
-	getType,
-	isNode,
-	symbolFor,
-	MalVector,
+	isMalColl,
+	MalVector,, MalString
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -76,7 +68,7 @@ export default function useAppCommands(
 			activeExp = data.exp
 		}
 
-		const type = getType(exp)
+		const type = exp.type
 
 		if (!isMalSeq(activeExp)) {
 			throw new MalError('No insertable selection')
@@ -113,23 +105,23 @@ export default function useAppCommands(
 		reconstructTree(newExp)
 
 		// Insert
-		const newActiveExp = cloneExp(activeExp)
+		const newActiveExp = activeExp.clone()
 		newActiveExp.push(newExp)
 		copyDelimiters(newActiveExp, activeExp)
 
 		replaceExp(activeExp, newActiveExp)
 
-		return generateExpAbsPath(newExp)
+		return MalString.create(generateExpAbsPath(newExp))
 	})
 
 	AppScope.def('replace-item', (path: MalVal, replaced: MalVal) => {
-		if (typeof path !== 'string') {
+		if (!MalString.is(path)) {
 			throw new Error('Path should be string')
 		}
 
-		const original = getExpByPath(data.exp, path)
+		const original = getExpByPath(data.exp, path.value)
 
-		if (!isNode(original)) {
+		if (!isMalColl(original)) {
 			throw new MalError('The original should be node')
 		}
 
@@ -147,7 +139,7 @@ export default function useAppCommands(
 					return false
 				}
 				const item = getExpByPath(data.exp, path)
-				if (!isNode(item)) {
+				if (!isMalColl(item)) {
 					return false
 				}
 				items.push(item)
@@ -165,7 +157,7 @@ export default function useAppCommands(
 
 		const item = getExpByPath(data.exp, path)
 
-		if (!isNode(item)) {
+		if (!isMalColl(item)) {
 			return false
 		}
 
@@ -181,7 +173,7 @@ export default function useAppCommands(
 
 		const item = getExpByPath(data.exp, path)
 
-		if (!isNode(item)) {
+		if (!isMalColl(item)) {
 			return false
 		}
 
@@ -340,7 +332,7 @@ export default function useAppCommands(
 			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
-			callbacks.setActiveExp(isNode(exp) ? exp : undefined)
+			callbacks.setActiveExp(isMalColl(exp) ? exp : undefined)
 		})
 
 		return null

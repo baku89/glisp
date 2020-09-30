@@ -1,33 +1,16 @@
 import {
 	MalVal,
-	isMap,
 	MalFunc,
 	MalKeyword,
 	MalMap,
 	MalColl,
 	MalVector,
-	MalJSFunc,
 	isMalSeq,
-	keywordFor,
-	getMeta,
 	MalSeq,
-	getType,
-	MalSymbol,
-	MalSymbol,
 	MalSymbol,
 	MalList,
-	isNode,
-	M_OUTER,
-	MalList,
-	M_OUTER_INDEX,
+	isMalColl,
 	MalType,
-	isFunc,
-	getEvaluated,
-	MalSymbol.is(For,
-	cloneExp,
-	MalCollMap,
-	M_DELIMITERS,
-	getOuter,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
@@ -134,13 +117,13 @@ export function generateExpAbsPath(exp: MalColl) {
 export function getUIOuterInfo(
 	_exp: MalVal | undefined
 ): [MalColl | null, number] {
-	if (!isNode(_exp)) {
+	if (!isMalColl(_exp)) {
 		return [null, -1]
 	}
 
 	let exp = _exp
 
-	let outer = getOuter(exp)
+	let outer = exp.parent
 
 	if (isUIAnnotation(outer)) {
 		exp = outer
@@ -163,22 +146,22 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		}
 	}
 
-	const outer = original[M_OUTER]
+	const outer = original.parent
 	const index = original[M_OUTER_INDEX]
 
-	if (index === undefined || !isNode(outer)) {
+	if (index === undefined || !isMalColl(outer)) {
 		// Is the root exp
 		return
 	}
 
-	const newOuter = cloneExp(outer)
+	const newOuter = outer.clone()
 
 	// Set replaced as new child
 	if (isMalSeq(newOuter)) {
 		// Sequence
 		newOuter[index] = replaced
 		for (let i = 0; i < newOuter.length; i++) {
-			if (isNode(newOuter[i])) {
+			if (isMalColl(newOuter[i])) {
 				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
 				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
 			}
@@ -189,14 +172,14 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		const key = keys[index]
 		newOuter[key] = replaced
 		for (let i = 0; i < keys.length; i++) {
-			if (isNode(newOuter[i])) {
+			if (isMalColl(newOuter[i])) {
 				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
 				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
 			}
 		}
 	}
 
-	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
+	newOuter.delimiters = oute.delimiters
 
 	replaceExp(outer, newOuter)
 }
@@ -218,7 +201,7 @@ export function deleteExp(exp: MalColl) {
 		return false
 	}
 
-	const newOuter = cloneExp(outer)
+	const newOuter = outer.clone()
 
 	if (isMalSeq(newOuter)) {
 		newOuter.splice(index, 1)
@@ -442,7 +425,7 @@ export function reverseEval(
 }
 
 export function computeExpTransform(exp: MalVal): mat2d {
-	if (!isNode(exp)) {
+	if (!isMalColl(exp)) {
 		return mat2d.create()
 	}
 

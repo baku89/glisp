@@ -42,7 +42,6 @@ import {
 	MalList,
 	MalVal,
 	MalSymbol,
-	getEvaluated,
 	MalType,
 	MalList,
 	MalKeyword,

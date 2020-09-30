@@ -3,7 +3,6 @@ import ConsoleScope from '@/scopes/console'
 import {
 	MalVal,
 	MalError,
-	isFunc,
 	MalSymbol,
 	getMeta,
 	MalMap,
