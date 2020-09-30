@@ -12,7 +12,7 @@
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from 'vue'
-import {MalSeq, MalSymbol, getName, symbolFor} from '@/mal/types'
+import {MalSeq, MalSymbol, getName, MalList} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 
 export default defineComponent({
@@ -22,19 +22,14 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: [String, Object, MalSymbol] as PropType<
-				string | MalSeq | MalSymbol
-			>,
+			type: Object as PropType<MalSymbol | MalList | MalSymbol>,
 			required: true,
-		},
-		validator: {
-			type: Function as PropType<(v: string) => string | null>,
-			required: false,
 		},
 	},
 	setup(props, context) {
 		const displayValue = computed(() => {
-			return getName(props.value)
+			const evaluated = props.value.evaluated
+			return MalSymbol.is(evaluated) ? evaluated.value : ''
 		})
 
 		function symbolValidator(str: string): string {
