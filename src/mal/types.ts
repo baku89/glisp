@@ -313,8 +313,8 @@ export class MalList extends MalVal {
 		return this
 	}
 
-	clone() {
-		const list = new MalList(this.value.map(v => v.clone()))
+	clone(deep = true) {
+		const list = new MalList(deep ? this.value.map(v => v.clone()) : this.value)
 		if (this.delimiters) {
 			list.delimiters = [...this.delimiters]
 		}
@@ -379,8 +379,10 @@ export class MalVector extends MalVal {
 		return this.value.map(x => x.toJS())
 	}
 
-	clone() {
-		const list = new MalVector(this.value.map(v => v.clone()))
+	clone(deep = true) {
+		const list = new MalVector(
+			deep ? this.value.map(v => v.clone()) : this.value
+		)
 		if (this.delimiters) {
 			list.delimiters = [...this.delimiters]
 		}
@@ -453,8 +455,12 @@ export class MalMap extends MalVal {
 		return ret
 	}
 
-	clone() {
-		const list = new MalMap(this.value)
+	clone(deep = true) {
+		const list = new MalMap(
+			deep
+				? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
+				: {...this.value}
+		)
 		if (this.delimiters) {
 			list.delimiters = [...this.delimiters]
 		}
