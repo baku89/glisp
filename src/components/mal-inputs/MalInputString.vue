@@ -19,7 +19,14 @@
 
 <script lang="ts">
 import {defineComponent, computed, PropType} from 'vue'
-import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
+import {
+	MalList,
+	MalSeq,
+	MalString,
+	MalSymbol,
+	MalType,
+	MalVal,
+} from '@/mal/types'
 import {InputString} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
@@ -33,13 +40,11 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: [Number, MalSymbol, Object] as PropType<
-				string | MalSeq | MalSymbol
-			>,
+			type: Object as PropType<MalString | MalList | MalSymbol>,
 			required: true,
 		},
 		validator: {
-			type: Function as PropType<(v: string) => string | null>,
+			type: Function as PropType<(v: MalString) => MalString | null>,
 			required: false,
 		},
 		multiline: {
@@ -48,14 +53,18 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const isExp = computed(() => typeof props.value !== 'string')
-		const evaluated = computed(() => getEvaluated(props.value))
+		const isExp = computed(() => !MalString.is(props.value))
+
+		const evaluated = computed(() => {
+			const evaluated = props.value.evaluated
+			return MalString.is(evaluated) ? evaluated.value : ''
+		})
 
 		function onInput(value: string) {
-			let newValue: MalVal = value
+			let newValue: MalVal = MalString.create(value)
 
 			if (isExp.value) {
-				newValue = reverseEval(value, props.value)
+				newValue = reverseEval(newValue, props.value)
 				reconstructTree(newValue)
 			}
 
