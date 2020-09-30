@@ -200,7 +200,7 @@ export class MalKeyword extends MalBase {
 export class MalList extends MalBase {
 	readonly type: MalType.List = MalType.List
 
-	private delimiters: string[] | undefined = undefined
+	public delimiters: string[] | undefined = undefined
 	private str: string | undefined = undefined
 
 	constructor(private readonly value: MalVal[]) {
@@ -236,7 +236,7 @@ export class MalList extends MalBase {
 export class MalVector extends MalBase {
 	readonly type: MalType.Vector = MalType.Vector
 
-	private delimiters: string[] | undefined = undefined
+	public delimiters: string[] | undefined = undefined
 	private str: string | undefined = undefined
 
 	constructor(private readonly value: MalVal[]) {
@@ -272,7 +272,7 @@ export class MalVector extends MalBase {
 export class MalHashMap extends MalBase {
 	readonly type: MalType.Map = MalType.Map
 
-	private delimiters: string[] | undefined = undefined
+	public delimiters: string[] | undefined = undefined
 	private str: string | undefined = undefined
 
 	private value!: {[key: string]: MalVal}
