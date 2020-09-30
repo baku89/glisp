@@ -17,7 +17,7 @@
 import {defineComponent, PropType} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
+import {MalList, MalNumber, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 export default defineComponent({
@@ -25,7 +25,7 @@ export default defineComponent({
 	components: {MalInputNumber, InputSeed},
 	props: {
 		value: {
-			type: [Number, Object] as PropType<number | MalSeq | MalSymbol>,
+			type: Object as PropType<MalNumber | MalList | MalSymbol>,
 			required: true,
 		},
 		validator: {
@@ -34,7 +34,8 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		function onInput(value: MalVal) {
-			let newExp = value
+			let newExp: MalVal = value
+
 			if (typeof newExp === 'number') {
 				// Executes backward evalution
 				newExp = reverseEval(newExp, props.value)

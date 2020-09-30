@@ -42,6 +42,7 @@ import {
 	MalSymbol,
 	MalType,
 	MalKeyword,
+	MalNumber,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -51,11 +52,11 @@ export default defineComponent({
 	components: {InputNumber, MalExpButton},
 	props: {
 		value: {
-			type: [Number, Object] as PropType<MalSymbol | number | MalSeq>,
+			type: Object as PropType<MalNumber | MalList | MalSymbol>,
 			required: true,
 		},
 		validator: {
-			type: Function as PropType<(v: number) => number | null>,
+			type: Function as PropType<(v: MalNumber) => MalNumber | null>,
 			required: false,
 		},
 		compact: {
@@ -64,7 +65,7 @@ export default defineComponent({
 	},
 	setup(props, context) {
 		const display = computed(() => {
-			if (typeof props.value === 'number') {
+			if (MalNumber.is(props.value)) {
 				return {mode: 'number', isExp: false}
 			} else if (MalList.is(props.value) && props.value.length === 2) {
 				const info = getFnInfo(props.value)
@@ -74,7 +75,7 @@ export default defineComponent({
 					const unit = getMapValue(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
-						const isExp = typeof (props.value as MalVal[])[1] !== 'number'
+						const isExp = !MalNumber.is(props.value.value[1])
 						return {mode: 'unit', unit, inverseFn, isExp}
 					}
 				}
@@ -91,15 +92,11 @@ export default defineComponent({
 		})
 
 		const displayValue = computed(() => {
-			switch (display.value.mode) {
-				case 'number':
-					return props.value as number
-				case 'unit':
-					return getEvaluated((props.value as MalVal[])[1]) as number
-				default:
-					// exp
-					return getEvaluated(props.value) as number
-			}
+			const evaluated =
+				display.value.mode !== 'unit'
+					? props.value.evaluated
+					: (props.value as MalList).value[1].evaluated
+			return MalNumber.is(evaluated) ? evaluated.value : NaN
 		})
 
 		function onInput(value: number | string) {
