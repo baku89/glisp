@@ -16,7 +16,7 @@
 
 <script lang="ts">
 import {defineComponent, PropType, computed} from 'vue'
-import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
+import {MalBoolean, MalList, MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
 import {InputBoolean} from '@/components/inputs'
@@ -30,19 +30,22 @@ export default defineComponent({
 	},
 	props: {
 		value: {
-			type: [Boolean, Object] as PropType<boolean | MalSeq | MalSymbol>,
+			type: Object as PropType<MalBoolean | MalList | MalSymbol>,
 			required: true,
 		},
 	},
 	setup(props, context) {
-		const isExp = computed(() => typeof props.value !== 'boolean')
-		const evaluated = computed(() => (getEvaluated(props.value) ? true : false))
+		const isExp = computed(() => !MalBoolean.is(props.value))
+
+		const evaluated = computed(() =>
+			props.value.evaluated.value ? true : false
+		)
 
 		function onInput(value: boolean) {
-			let newValue: MalVal = value
+			let newValue: MalVal = MalBoolean.create(value)
 
 			if (isExp.value) {
-				newValue = reverseEval(value, props.value)
+				newValue = reverseEval(newValue, props.value)
 				reconstructTree(newValue)
 			}
 
