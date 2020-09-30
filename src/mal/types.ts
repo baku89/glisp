@@ -172,7 +172,7 @@ export class MalNil extends MalVal {
 export class MalKeyword extends MalVal {
 	readonly type: MalType.Keyword = MalType.Keyword
 
-	private constructor(private readonly value: string) {
+	private constructor(public readonly value: string) {
 		super()
 	}
 
