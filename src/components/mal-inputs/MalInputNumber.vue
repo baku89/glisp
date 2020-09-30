@@ -120,7 +120,7 @@ export default defineComponent({
 			if (props.validator && typeof value === 'number') {
 				let validated
 				if (display.value.mode === 'unit') {
-					const unitValue = (fn.value as MalFunc).value(newExp)
+					const unitValue = (fn.value as MalFunc).value(newExp) as MalNumber
 					validated = (display.value.inverseFn as any)(
 						MalMap.create({
 							return: props.validator(unitValue),

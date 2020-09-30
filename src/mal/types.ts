@@ -48,7 +48,7 @@ export interface MalFuncThis {
 }
 
 export abstract class MalVal {
-	parent: MalColl | undefined = undefined
+	parent: {ref: MalColl; index: number} | undefined = undefined
 
 	abstract type: MalType
 	abstract readonly value: any
