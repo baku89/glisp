@@ -12,7 +12,6 @@ import {
 	M_ELMSTRS,
 	M_DELIMITERS,
 	M_ISSUGAR,
-	M_ISLIST,
 	M_OUTER_INDEX,
 	isSeq,
 	getName,
@@ -153,11 +152,11 @@ function readAtom(reader: Reader) {
 }
 
 // read list of tokens
-function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
-	const exp: any = MalVector.create()
+function readColl(reader: Reader, saveStr: boolean, start = '[', end = ']') {
+	const coll: MalVal[] = []
 
 	let elmStrs: any = null,
-		delimiters: string[] | null = null
+		delimiters: string[] | undefined = undefined
 
 	let token = reader.next()
 
@@ -185,8 +184,7 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 			elmStart = reader.offset()
 		}
 
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		exp.push(readForm(reader, saveStr))
+		coll.push(readForm(reader, saveStr))
 
 		if (saveStr) {
 			const elm = reader.getStr(elmStart, reader.prevEndOffset())
@@ -198,37 +196,35 @@ function readVector(reader: Reader, saveStr: boolean, start = '[', end = ']') {
 		// Save a delimiter between a last element and a end tag
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters?.push(delimiter)
-
-		// Save string information
-		exp[M_DELIMITERS] = delimiters
-		exp[M_ELMSTRS] = elmStrs
 	}
 
 	reader.next()
-	return exp
+	return {
+		coll,
+		delimiters,
+	}
 }
 
 // read vector of tokens
+function readVector(reader: Reader, saveStr: boolean) {
+	const {coll, delimiters} = readColl(reader, saveStr, '[', ']')
+	const list = MalVector.create(...coll)
+	list.delimiters = delimiters
+	return list
+}
+
 function readList(reader: Reader, saveStr: boolean) {
-	const exp = readVector(reader, saveStr, '(', ')')
-	;(exp as MalSeq)[M_ISLIST] = true
-	return exp
+	const {coll, delimiters} = readColl(reader, saveStr, '(', ')')
+	const list = MalList.create(...coll)
+	list.delimiters = delimiters
+	return list
 }
 
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, saveStr: boolean) {
-	const lst = readVector(reader, saveStr, '{', '}')
-	const map = assocBang({}, ...lst) as MalNodeMap
-	if (saveStr) {
-		const elmStrs = []
-
-		for (let i = 0; i < lst.length; i += 2) {
-			elmStrs.push(lst[M_ELMSTRS][i], lst[M_ELMSTRS][i + 1])
-		}
-
-		map[M_ELMSTRS] = elmStrs
-		map[M_DELIMITERS] = lst[M_DELIMITERS]
-	}
+	const {coll, delimiters} = readColl(reader, saveStr, '{', '}')
+	const map = MalMap.create(...coll)
+	map.delimiters = delimiters
 	return map
 }
 
