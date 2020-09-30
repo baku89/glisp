@@ -2,7 +2,7 @@ import Env from './env'
 import readStr, {BlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {MalSymbol, MalVal, MalError} from './types'
+import {MalVal, MalError, MalString, MalF, MalNil, MalFunc} from './types'
 import printExp, {printer} from './printer'
 import isNodeJS from 'is-node'
 
@@ -28,8 +28,7 @@ export default class Scope<T> {
 	constructor(
 		private outer: Scope<any> | null = null,
 		private name = 'repl',
-		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null,
-		private cache = false
+		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null
 	) {
 		this.setup()
 
@@ -47,18 +46,18 @@ export default class Scope<T> {
 			this.def(name, expr)
 		})
 
-		this.def('normalize-url', (url: MalVal) => {
-			const basename = this.var('*filename*') as string
-			return normalizeURL(url as string, basename)
+		this.defn('normalize-url', (url: MalVal) => {
+			const basename = this.var('*filename*').value as string
+			return MalString.create(normalizeURL(url.value as string, basename))
 		})
 
-		this.def('eval', (exp: MalVal) => {
+		this.defn('eval', (exp: MalVal) => {
 			return evalExp(exp, this.env)
 		})
 
-		this.def('import-js-force', (url: MalVal) => {
-			const basename = this.var('*filename*') as string
-			const absurl = normalizeURL(url as string, basename)
+		this.defn('import-js-force', (url: MalVal) => {
+			const basename = this.var('*filename*').value as string
+			const absurl = normalizeURL(url.value as string, basename)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
@@ -72,7 +71,7 @@ export default class Scope<T> {
 		} else {
 			filename = new URL('.', document.baseURI).href
 		}
-		this.def('*filename*', filename)
+		this.def('*filename*', MalString.create(filename))
 
 		this.readEval(
 			`(def import-force
@@ -87,7 +86,7 @@ export default class Scope<T> {
 		this.readEval('(import-force "./lib/core.glisp")')
 
 		if (isNodeJS) {
-			this.def('*filename*', process.cwd())
+			this.def('*filename*', MalString.create(process.cwd()))
 		}
 	}
 
@@ -116,7 +115,7 @@ export default class Scope<T> {
 			return this.eval(readStr(str))
 		} catch (err) {
 			if (err instanceof BlankException) {
-				return null
+				return MalNil.create()
 			}
 
 			if (err instanceof MalError) {
@@ -131,7 +130,7 @@ export default class Scope<T> {
 
 	public eval(exp: MalVal): MalVal | undefined {
 		try {
-			return evalExp(exp, this.env, this.cache)
+			return evalExp(exp, this.env)
 		} catch (err) {
 			if (err instanceof MalError) {
 				printer.error(err)
@@ -143,7 +142,12 @@ export default class Scope<T> {
 	}
 
 	public def(name: string, value: MalVal) {
-		this.env.set(MalSymbol.create(name), value)
+		this.env.set(name, value)
+	}
+
+	public defn(name: string, fn: MalF) {
+		const f = MalFunc.create(fn)
+		this.env.set(name, f)
 	}
 
 	public pushBinding(env: Env) {
@@ -155,6 +159,6 @@ export default class Scope<T> {
 	}
 
 	public var(name: string) {
-		return this.env.get(MalSymbol.create(name))
+		return this.env.get(name)
 	}
 }

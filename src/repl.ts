@@ -1,13 +1,15 @@
 import readlineSync from 'readline-sync'
+import {jsToMal} from './mal/reader'
 import Scope from './mal/scope'
+import {MalString} from './mal/types'
 
 const replScope = new Scope()
 
 if (typeof process !== 'undefined' && 2 < process.argv.length) {
 	const filename = process.argv[2]
 
-	replScope.def('*ARGV*', process.argv.slice(3))
-	replScope.def('*filename*', filename)
+	replScope.def('*ARGV*', jsToMal(process.argv.slice(3).map))
+	replScope.def('*filename*', MalString.create(filename))
 	replScope.REP(`(import "${filename}")`)
 	process.exit(0)
 }

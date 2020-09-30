@@ -9,15 +9,13 @@ import {
 	MalSeq,
 	isMalSeq,
 	MalVector,
-	setExpandInfo,
-	ExpandType,
 	MalMacro,
 	MalNil,
 	MalFunc,
 } from './types'
 import Env from './env'
-import {printExp} from '.'
 import {capital} from 'case'
+import {setExpandInfo, ExpandType} from './expand'
 
 const S_DO = MalSymbol.create('do')
 const S_QUOTE = MalSymbol.create('quote')
@@ -154,9 +152,9 @@ export default function evalExp(
 
 		if (!MalSymbol.is(first)) {
 			throw new MalError(
-				`${capital(first.type)} ${printExp(
-					first
-				)} is not a function. First element of list always should be a function.`
+				`${capital(
+					first.type
+				)} ${first.print()} is not a function. First element of list always should be a function.`
 			)
 		}
 
@@ -235,7 +233,7 @@ export default function evalExp(
 				return ret
 			}
 			case 'get-all-symbols': {
-				const ret = env.getAllSymbols()
+				const ret = MalVector.create(...env.getAllSymbols())
 				first.evaluated = env.get('get-all-symbols')
 				origExp.evaluated = ret
 				return ret
@@ -281,7 +279,7 @@ export default function evalExp(
 					throw new MalError('Second argument of fn should be specified')
 				}
 				const ret = MalFunc.fromMal(
-					function (...args) {
+					(...args) => {
 						return evalExp.call(this, body, new Env(env, params, args))
 					},
 					body,
@@ -393,14 +391,13 @@ export default function evalExp(
 				// Evaluate all of parameters at first
 				const [fn, ...params] = exp.value.map(e => evalExp.call(this, e, env))
 
-				if (fn instanceof Function) {
+				if (MalFunc.is(fn)) {
 					first.evaluated = fn
 					if (MalFunc.is(fn)) {
 						env = new Env(
 							fn.env,
 							fn.params,
 							params,
-
 							MalSymbol.is(first) ? first.value : undefined
 						)
 						exp = fn.exp
