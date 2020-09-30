@@ -11,8 +11,8 @@ import {
 	MalKeyword,
 	MalSymbol,
 	MalError,
-	assocBang,
 	MalList,
+	MalNumber,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -230,15 +230,15 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 
 function dragHandle(
 	path: PathType,
-	index: number,
-	type: string,
+	index: MalNumber,
+	type: MalKeyword,
 	delta: vec2
 	// breakCorner = false
 ) {
 	const segs = Array.from(iterateSegment(path))
 	const draggingSeg = segs[index]
 
-	if (type === MalKeyword.create('handle-in')) {
+	if (MalKeyword.isFor(type, 'handle-in')) {
 		const origInHandle = vec2.clone(draggingSeg[2] as vec2)
 		const inHandle = vec2.add(vec2.create(), origInHandle, delta)
 		draggingSeg[2] = inHandle

@@ -23,12 +23,12 @@ export function isUIAnnotation(exp: MalVal | undefined): exp is MalList {
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (MalVector.is(exp)) {
-		if (exp.value[0] === MalKeyword.create('path')) {
+		if (MalKeyword.isFor(exp.value[0], 'path')) {
 			return 'path'
 		}
 		if (exp.length <= 6) {
 			const isAllNumber =
-				exp instanceof Float32Array || exp.value.every(MalNumber.is)
+				exp.value instanceof Float32Array || exp.value.every(MalNumber.is)
 			if (isAllNumber) {
 				switch (exp.length) {
 					case 2:
@@ -195,7 +195,7 @@ export function getUIBodyExp(exp: MalVal) {
 }
 
 export function deleteExp(exp: MalColl) {
-	const outer = exp[M_OUTER]
+	const outer = exp.parent
 	const index = exp[M_OUTER_INDEX]
 
 	if (!outer) {
@@ -263,7 +263,7 @@ export function getMapValue(
 type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
 
 export interface FnInfoType {
-	fn: MalFunc | MalJSFunc
+	fn: MalFunc
 	meta?: MalVal
 	aliasFor?: string
 	structType?: StructTypes
@@ -337,8 +337,7 @@ export function reverseEval(
 				let updatedIndices: number[] | undefined = undefined
 
 				if (MalMap.is(result)) {
-					const params = result[MalKeyword.create('params')]
-					const replace = result[MalKeyword.create('replace')]
+					const {params, replace} = result.value
 
 					if (MalVector.is(params)) {
 						newParams = params
@@ -437,8 +436,8 @@ export function computeExpTransform(exp: MalVal): mat2d {
 
 	// Collect ancestors with index
 	const ancestors: [MalColl, number][] = []
-	for (let _exp: MalColl = exp; _exp[M_OUTER]; _exp = _exp[M_OUTER]) {
-		ancestors.unshift([_exp[M_OUTER], _exp[M_OUTER_INDEX]])
+	for (let _exp: MalColl = exp; _exp[M_OUTE.parent; _exp = _exp[M_OUTE.parent) {
+		ancestors.unshift([_exp[M_OUTE.parent, _exp[M_OUTER_INDEX]])
 	}
 
 	const xform = mat2d.create()
@@ -457,7 +456,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 
 		// Execute the viewport transform function
 
-		const evaluatedParams = node.slice(1).map(x => getEvaluated(x))
+		const evaluatedParams = node.params.map(x => getEvaluated(x))
 		const paramXforms = viewportFn(...evaluatedParams) as MalVal
 
 		if (!MalVector.is(paramXforms) || !paramXforms[index - 1]) {
@@ -550,7 +549,7 @@ export function getFn(exp: MalVal) {
 }
 
 export function copyDelimiters(target: MalVal, original: MalVal) {
-	if (isMalSeq(target) && isMalSeq(original) && M_DELIMITERS in original) {
+	if (isMalSeq(target) && isMalSeq(original) && original.delimiters) {
 		const delimiters = [...original.delimiters]
 
 		const lengthDiff = target.length - original.length

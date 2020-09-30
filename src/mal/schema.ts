@@ -4,12 +4,10 @@ import {
 	MalVal,
 	MalSeq,
 	MalSymbol,
-	getType,
 	MalList,
-	symbolFor,
-	isMalFunc,
-	assocBang,
-	MalKeyword,, MalMap
+	MalKeyword,
+	MalMap,
+	MalFunc,
 } from './types'
 import {getStructType} from './utils'
 import {convertMalCollToJSObject} from './reader'
@@ -210,13 +208,13 @@ export type Schema = SchemaVector | SchemaMap | SchemaPrimitive
  * Set the labels of schema by the parameters of Function references
  */
 export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
-	if (!isMalFunc(fn)) {
+	if (!MalFunc.is(fn)) {
 		return _schemaParams
 	}
 
 	const schemaParams = [..._schemaParams]
 
-	const labels = fn[M_PARAMS].map(p => getParamLabel(p)).filter(p => p !== '&')
+	const labels = fn.params.map(p => getParamLabel(p)).filter(p => p !== '&')
 
 	for (let i = 0; i < schemaParams.length; i++) {
 		const schema = schemaParams[i]
@@ -335,7 +333,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 			: (DEFAULT_VALUE as any)[sch.ui]
 
 		const evaluated: MalVal = !sch.isInvalid ? evaluatedParams[i] : value
-		const valueType = getStructType(evaluated) || getType(evaluated)
+		const valueType = getStructType(evaluated) || evaluated.type
 
 		switch (sch.type) {
 			case 'any':

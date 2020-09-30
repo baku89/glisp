@@ -42,7 +42,9 @@ import {
 	MalSymbol,
 	MalType,
 	MalKeyword,
-	MalNumber,, MalMap
+	MalNumber,
+	MalMap,
+	MalFunc,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -99,7 +101,7 @@ export default defineComponent({
 		})
 
 		function onInput(value: number | string) {
-			let newExp: MalVal = value
+			let newExp: MalVal
 
 			// Parse if necessary
 			if (typeof value === 'string') {
@@ -110,34 +112,38 @@ export default defineComponent({
 					return
 				}
 				newExp = ret
+			} else {
+				newExp = MalNumber.create(value)
 			}
 
 			// Validate
 			if (props.validator && typeof value === 'number') {
 				let validated
 				if (display.value.mode === 'unit') {
-					const unitValue = fn.value(value as any)
-					validated = (display.value.inverseFn as any)(MalMap.create({
-						return: props.validator(unitValue),
-					}))[0]
+					const unitValue = (fn.value as MalFunc).value(newExp)
+					validated = (display.value.inverseFn as any)(
+						MalMap.create({
+							return: props.validator(unitValue),
+						})
+					)[0]
 				} else {
-					validated = props.validator(value)
+					validated = props.validator(newExp)
 				}
-				if (typeof validated === 'number') {
+				if (validated) {
 					newExp = validated
 				}
 			}
 
 			// Reverse evaluation
 			if (display.value.mode === 'unit') {
-				const unitValue =
-					typeof newExp === 'number'
-						? reverseEval(newExp, (props.value as MalVal[])[1])
-						: newExp
+				const unitValue = MalNumber.is(newExp)
+					? reverseEval(newExp, (props.value as MalVal[])[1])
+					: newExp
 				newExp = MalList.create((props.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
-				newExp =
-					typeof newExp === 'number' ? reverseEval(newExp, props.value) : newExp
+				newExp = MalNumber.is(newExp)
+					? reverseEval(newExp, props.value)
+					: newExp
 			}
 
 			context.emit('input', newExp)

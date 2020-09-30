@@ -44,7 +44,7 @@ import {
 	MalSymbol,
 	MalType,
 	MalList,
-	MalKeyword,
+	MalKeyword,, MalNumber
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
@@ -54,12 +54,12 @@ export default defineComponent({
 	components: {InputSlider, MalExpButton},
 	props: {
 		value: {
-			type: [Number, Object] as PropType<MalSymbol | number | MalSeq>,
+			type: Object as PropType<MalSymbol | MalNumber | MalList>,
 			required: true,
 		},
 
 		validator: {
-			type: Function as PropType<(v: number) => number | null>,
+			type: Function as PropType<(v: MalNumber) => MalNumber | null>,
 			required: false,
 		},
 		compact: {

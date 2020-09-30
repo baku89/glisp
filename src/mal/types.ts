@@ -478,7 +478,7 @@ export class MalMap extends MalVal {
 		return value?.type === MalType.Map
 	}
 
-	static create(value: {[key: string]: MalVal}) {
+	static create(value: {[key: string]: MalVal} = {}) {
 		return new MalMap(value)
 	}
 
