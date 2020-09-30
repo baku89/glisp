@@ -61,7 +61,7 @@ export abstract class MalVal {
 		this.print(true)
 	}
 
-	static is(_: MalVal): boolean {
+	static is(_: MalVal | undefined): boolean {
 		return false
 	}
 }
@@ -96,8 +96,8 @@ export class MalNumber extends MalVal {
 		return new MalNumber(this.value)
 	}
 
-	static is(value: MalVal): value is MalNumber {
-		return value.type === MalType.Number
+	static is(value: MalVal | undefined): value is MalNumber {
+		return value?.type === MalType.Number
 	}
 
 	static create(value: number) {
@@ -132,8 +132,8 @@ export class MalString extends MalVal {
 		return new MalString(this.value)
 	}
 
-	static is(value: MalVal): value is MalString {
-		return value.type === MalType.String
+	static is(value: MalVal | undefined): value is MalString {
+		return value?.type === MalType.String
 	}
 
 	static create(value: string) {
@@ -168,8 +168,8 @@ export class MalBoolean extends MalVal {
 		return new MalBoolean(this.value)
 	}
 
-	static is(value: MalVal): value is MalBoolean {
-		return value.type === MalType.Boolean
+	static is(value: MalVal | undefined): value is MalBoolean {
+		return value?.type === MalType.Boolean
 	}
 
 	static create(value: boolean) {
@@ -205,8 +205,8 @@ export class MalNil extends MalVal {
 		return new MalNil()
 	}
 
-	static is(value: MalVal): value is MalNil {
-		return value.type === MalType.Nil
+	static is(value: MalVal | undefined): value is MalNil {
+		return value?.type === MalType.Nil
 	}
 
 	static create() {
@@ -237,8 +237,8 @@ export class MalKeyword extends MalVal {
 		return new MalKeyword(this.value)
 	}
 
-	static is(value: MalVal): value is MalKeyword {
-		return value.type === MalType.Keyword
+	static is(value: MalVal | undefined): value is MalKeyword {
+		return value?.type === MalType.Keyword
 	}
 
 	static create(name: string) {
@@ -246,7 +246,7 @@ export class MalKeyword extends MalVal {
 	}
 
 	static isFor(value: MalVal, name: string) {
-		return value.type === MalType.Keyword && value.value === name
+		return value?.type === MalType.Keyword && value.value === name
 	}
 }
 
@@ -307,8 +307,8 @@ export class MalList extends MalVal {
 		return list
 	}
 
-	static is(value: MalVal): value is MalList {
-		return value.type === MalType.List
+	static is(value: MalVal | undefined): value is MalList {
+		return value?.type === MalType.List
 	}
 
 	static create(...value: MalVal[]) {
@@ -373,8 +373,8 @@ export class MalVector extends MalVal {
 		return list
 	}
 
-	static is(value: MalVal): value is MalVector {
-		return value.type === MalType.Vector
+	static is(value: MalVal | undefined): value is MalVector {
+		return value?.type === MalType.Vector
 	}
 
 	static create(...value: MalVal[]) {
@@ -459,8 +459,8 @@ export class MalMap extends MalVal {
 		return Object.values(this.value)
 	}
 
-	static is(value: MalVal): value is MalMap {
-		return value.type === MalType.Map
+	static is(value: MalVal | undefined): value is MalMap {
+		return value?.type === MalType.Map
 	}
 
 	static create(value: {[key: string]: MalVal}) {
@@ -529,8 +529,8 @@ export class MalFunc extends MalVal {
 		return f
 	}
 
-	static is(value: MalVal): value is MalFunc {
-		return value.type === MalType.Func
+	static is(value: MalVal | undefined): value is MalFunc {
+		return value?.type === MalType.Func
 	}
 
 	static create(value: MalF) {
@@ -720,7 +720,7 @@ export class MalSymbol extends MalVal {
 	}
 
 	static isFor(value: MalVal, name: string) {
-		return value.type === MalType.Symbol && value.value === name
+		return value?.type === MalType.Symbol && value.value === name
 	}
 }
 
