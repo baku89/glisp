@@ -1,7 +1,7 @@
 import readlineSync from 'readline-sync'
-import {jsToMal} from './mal/reader'
 import Scope from './mal/scope'
 import {MalString} from './mal/types'
+import {jsToMal} from './mal/utils'
 
 const replScope = new Scope()
 

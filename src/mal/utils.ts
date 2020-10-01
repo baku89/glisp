@@ -18,6 +18,7 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
+import printExp from './printer'
 
 export function isUIAnnotation(exp: MalVal | undefined): exp is MalList {
 	return MalList.is(exp) && MalSymbol.isFor(exp.value[0], 'ui-annotate')
@@ -99,10 +100,10 @@ export function getExpByPath(root: MalColl, path: string): MalVal {
 	}
 }
 
-export function generateExpAbsPath(exp: MalColl) {
+export function generateExpAbsPath(exp: MalVal) {
 	return seek(exp, '')
 
-	function seek(exp: MalColl, path: string): string {
+	function seek(exp: MalVal, path: string): string {
 		if (exp.parent) {
 			const {ref: parent, index} = exp.parent
 			if (isUIAnnotation(parent)) {
@@ -285,11 +286,8 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 		return undefined
 	}
 
-	meta = getMeta(fn)
-
-	if (MalMap.is(meta)) {
-		aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
-	}
+	meta = fn.meta
+	aliasFor = getMapValue(meta, 'alias-for', MalString)
 
 	return {fn, meta, aliasFor, structType}
 }
@@ -479,8 +477,8 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	let updatedIndices: number[] | undefined = undefined
 
 	if (MalMap.is(modifier)) {
-		const params = modifier[K_PARAMS]
-		const replace = modifier[K_REPLACE]
+		const params = modifier.get('params')
+		const replace = modifier.get('params')
 
 		if (MalVector.is(params)) {
 			newParams = params.clone(false)
@@ -608,24 +606,24 @@ export function getRangeOfExp(
 			return 0
 		}
 
-		const outer = exp.parent
-		let offset = calcOffset(outer)
+		const parent = exp.parent.ref
+		let offset = calcOffset(parent)
 
 		// Creates a delimiter cache
-		printExp(outer)
+		printExp(parent)
 
-		if (isMalSeq(outer)) {
+		if (isMalSeq(parent)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
-				(outer[M_ISSUGAR] ? 0 : 1) +
-				outer.delimiters.slice(0, index + 1).join('').length +
-				outer[M_ELMSTRS].slice(0, index).join('').length
-		} else if (MalMap.is(outer)) {
+				(parent[M_ISSUGAR] ? 0 : 1) +
+				parent.delimiters.slice(0, index + 1).join('').length +
+				parent[M_ELMSTRS].slice(0, index).join('').length
+		} else if (MalMap.is(parent)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
 				1 /* '{'.   length */ +
-				outer.delimiters.slice(0, (index + 1) * 2).join('').length +
-				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
+				parent.delimiters.slice(0, (index + 1) * 2).join('').length +
+				parent[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
 		}
 
 		return offset
@@ -665,11 +663,11 @@ export function findExpByRange(
 		// Sequential
 
 		// Add the length of open-paren
-		let offset = exp[M_ISSUGAR] ? 0 : 1
+		let offset = exp.isSugar ? 0 : 1
 
 		// Search Children
 		for (let i = 0; i < exp.length; i++) {
-			const child = exp[i]
+			const child = exp.value[i]
 			offset += exp.delimiters[i].length
 
 			const ret = findExpByRange(child, start - offset, end - offset)

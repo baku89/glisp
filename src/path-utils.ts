@@ -1,12 +1,7 @@
 import {vec2, mat2d} from 'gl-matrix'
 import {MalError, MalKeyword, MalVal, MalVector} from '@/mal/types'
 
-const K_PATH = MalKeyword.create('path')
-
 export type Vec2 = number[] | vec2
-
-export type PathType = (MalKeyword | MalVector)[]
-export type SegmentType = [MalKeyword, ...MalVector[]]
 
 export function isPath(exp: any): exp is PathType {
 	return MalVector.is(exp) && exp[0] === K_PATH

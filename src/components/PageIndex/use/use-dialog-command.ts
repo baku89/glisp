@@ -4,9 +4,8 @@ import {
 	MalVal,
 	MalError,
 	MalSymbol,
-	getMeta,
 	MalMap,
-	MalFuncion,
+	MalFunc,
 	MalType,
 	// MalList,
 } from '@/mal/types'
@@ -17,7 +16,7 @@ import {getMapValue} from '@/mal/utils'
 import {printer} from '@/mal/printer'
 //
 export default function useDialogCommand(context: SetupContext) {
-	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
+	ConsoleScope.defn('show-command-dialog', (f: MalVal) => {
 		if (f === undefined || !MalSymbol.is(f)) {
 			throw new MalError(`${printExp(f)} is not a symbol`)
 		}
@@ -29,7 +28,7 @@ export default function useDialogCommand(context: SetupContext) {
 			| MalMap[]
 			| null
 		let initialParams = getMapValue(meta, 'initial-params') as
-			| MalFuncion
+			| MalFunc
 			| MalVal[]
 			| null
 

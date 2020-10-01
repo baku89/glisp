@@ -9,18 +9,13 @@ import {
 } from '@/mal/types'
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
-import {MalMap, MalVector} from '@/mal/types'
 
 const K_PATH = MalKeyword.create('path'),
 	K_TRANSFORM = MalKeyword.create('transform'),
-	K_STYLE = MalKeyword.create('style'),
-	K_FILL = MalKeyword.create('fill'),
-	K_STROKE = MalKeyword.create('stroke'),
-	K_STROKE_WIDTH = MalKeyword.create('stroke-width')
+	K_STYLE = MalKeyword.create('style')
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
-	private cachedExp: MalVal = null
 	private cachedPath2D = new WeakMap<MalSeq, Path2D>()
 
 	constructor() {
@@ -63,15 +58,18 @@ export class HitDetector {
 			switch (command) {
 				case K_PATH: {
 					const path = this.getPath2D(evaluated)
-					const hasFill = !!hitStyle[K_FILL]
-					const hasStroke = !!hitStyle[K_STROKE]
+					const hasFill = !!hitStyle.value.fill
+					const hasStroke = !!hitStyle.value.stroke
 					if (hasFill) {
 						if (this.ctx.isPointInPath(path, pos[0], pos[1])) {
 							return exp
 						}
 					}
 					if (hasStroke || (!hasFill && !hasStroke)) {
-						const width = Math.max((hitStyle[K_STROKE_WIDTH] as number) || 0, 4)
+						const width = Math.max(
+							(hitStyle.value['stroke-width'].value as number) || 0,
+							4
+						)
 						this.ctx.lineWidth = width
 						if (this.ctx.isPointInStroke(path, pos[0], pos[1])) {
 							return exp
@@ -80,8 +78,8 @@ export class HitDetector {
 					break
 				}
 				case K_TRANSFORM: {
-					const [, xform] = evaluated
-					const [, , ...body] = exp as MalSeq
+					const [, xform] = evaluated.value
+					const [, , ...body] = (exp as MalSeq).value
 					this.ctx.save()
 					this.ctx.transform(
 						...(xform as [number, number, number, number, number, number])
@@ -109,20 +107,19 @@ export class HitDetector {
 				}
 				default:
 					if (MalKeyword.is(command)) {
-						const body = (exp as MalSeq).slice(1)
+						const body = (exp as MalSeq).value.slice(1)
 						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}
 		} else if (MalList.is(exp)) {
-			return this.analyzeVector(pos, exp.slice(1), hitStyle)
+			return this.analyzeVector(pos, exp.value.slice(1), hitStyle)
 		}
 
 		return null
 	}
 
-	public analyze(pos: vec2, exp: MalVal = this.cachedExp) {
-		this.cachedExp = exp
+	public analyze(pos: vec2, exp: MalVal) {
 		this.ctx.resetTransform()
-		return this.analyzeNode(pos, exp, {})
+		return this.analyzeNode(pos, exp, MalMap.create())
 	}
 }

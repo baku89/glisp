@@ -1,5 +1,5 @@
 import {Ref} from 'vue'
-import {MalVal, MalColl, isMalSeq, isNode} from '@/mal/types'
+import {MalVal, MalColl, isMalSeq, isMalColl, MalBoolean} from '@/mal/types'
 import {HitDetector} from './hit-detector'
 import {vec2} from 'gl-matrix'
 import AppScope from '@/scopes/app'
@@ -8,7 +8,7 @@ import {generateExpAbsPath} from '@/mal/utils'
 export default function useHitDetector(exp: Ref<MalColl>) {
 	const detector = new HitDetector()
 
-	AppScope.def('detect-hit', (pos: MalVal) => {
+	AppScope.defn('detect-hit', (pos: MalVal) => {
 		if (
 			isMalSeq(pos) &&
 			typeof pos[0] === 'number' &&
@@ -17,11 +17,11 @@ export default function useHitDetector(exp: Ref<MalColl>) {
 			const p = vec2.clone(pos as any)
 			const ret = detector.analyze(p, exp.value)
 
-			if (isNode(ret)) {
+			if (ret) {
 				return generateExpAbsPath(ret)
 			}
 		}
 
-		return false
+		return MalBoolean.create(false)
 	})
 }

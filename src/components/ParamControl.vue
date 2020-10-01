@@ -67,7 +67,7 @@ import {
 	MalString,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
-import {getFnInfo, getMapValue} from '@/mal/utils'
+import {getFnInfo, getMapValue, jsToMal, reconstructTree} from '@/mal/utils'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -75,7 +75,6 @@ import {
 	SchemaVector,
 	Schema,
 } from '@/mal/schema'
-import {convertMalCollToJSObject, reconstructTree} from '@/mal/reader'
 
 const TypeDefaults = {
 	number: MalNumber.create(0),
@@ -145,7 +144,7 @@ export default defineComponent({
 			if (fnInfo.value.structType) {
 				return [props.exp]
 			} else {
-				return props.exp.slice(1)
+				return props.exp.value.slice(1)
 			}
 		})
 
@@ -154,12 +153,13 @@ export default defineComponent({
 
 			const meta = fnInfo.value.meta
 			const malSchema = getMapValue(meta, 'params')
-		
+
+			if (!isMalColl(malSchema)) {
 				return undefined
 			}
 
 			// Convert to JS Object
-			let schema = convertMalCollToJSObject(malSchema)
+			let schema = jsToMal(malSchema)
 
 			// Add label
 			if (Array.isArray(schema)) {

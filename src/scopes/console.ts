@@ -15,8 +15,8 @@ import GIF from 'gif.js'
 
 import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
-import {jsToMal, convertMalCollToJSObject} from '@/mal/reader'
 import getRendereredImage from '@/renderer/get-rendererd-image'
+import {jsToMal} from '@/mal/utils'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -47,11 +47,11 @@ function generateSketchURL(codeURL: string) {
 	return MalNil.create()
 }
 
-ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
+ConsoleScope.defn('copy-to-clipboard', (str: MalVal) => {
 	return copyToClipboard(str.value as string)
 })
 
-ConsoleScope.def(
+ConsoleScope.defn(
 	'generate-sketch-url',
 	setMeta(
 		(url: MalVal) => {
@@ -70,17 +70,17 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def('open-link', (url: MalVal) => {
+ConsoleScope.defn('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')
 	return `Open URL: ${url}`
 })
 
-ConsoleScope.def('clear-console', () => {
+ConsoleScope.defn('clear-console', () => {
 	printer.clear()
 	return MalNil.create()
 })
 
-ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
+ConsoleScope.defn('download-sketch', (...args: MalVal[]) => {
 	const filename = generateFilename(args[0] as string)
 
 	const sketch = ConsoleScope.var('*sketch*').value as string
@@ -94,7 +94,7 @@ ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 	return MalNil.create()
 })
 
-ConsoleScope.def('copy-as-svg', () => {
+ConsoleScope.defn('copy-as-svg', () => {
 	const viewExp: MalVal | undefined = ConsoleScope.var('*view*')
 
 	const svg = renderToSvg(viewExp, 500, 500)
@@ -105,7 +105,7 @@ ConsoleScope.def('copy-as-svg', () => {
 const renderViewScope = createViewScope()
 let renderWindow: Window | null
 
-ConsoleScope.def(
+ConsoleScope.defn(
 	'export-image',
 	setMeta(
 		(...xs: MalVal[]) => {
@@ -199,7 +199,7 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def(
+ConsoleScope.defn(
 	'export-video',
 	setMeta(
 		(...xs: MalVal[]) => {
@@ -333,7 +333,7 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def(
+ConsoleScope.defn(
 	'publish-gist',
 	setMeta(
 		(...args: MalVal[]) => {
@@ -438,7 +438,7 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def('generate-embed-url', () => {
+ConsoleScope.defn('generate-embed-url', () => {
 	const sketch = ConsoleScope.var('*sketch*').value as string
 
 	const url = new URL('embed.html', globalThis.location.href)
