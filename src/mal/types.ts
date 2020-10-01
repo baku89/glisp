@@ -236,8 +236,8 @@ export class MalKeyword extends MalVal {
 export class MalList extends MalVal {
 	readonly type: MalType.List = MalType.List
 
-	public delimiters: string[] | undefined = undefined
-	public str: string | undefined = undefined
+	private _delimiters: string[] | undefined
+	public str: string | undefined
 	public isSugar: boolean = false
 
 	private _evaluated: MalVal | undefined = undefined
@@ -266,20 +266,30 @@ export class MalList extends MalVal {
 		return this.value.length
 	}
 
+	set delimiters(v: string[]) {
+		this._delimiters = v
+	}
+
+	get delimiters(): string[] {
+		let delimiters = this._delimiters
+		if (!delimiters) {
+			delimiters = this._delimiters =
+				this.value.length === 0
+					? []
+					: ['', ...Array(this.value.length - 1).fill(' '), '']
+		}
+		return delimiters
+	}
+
 	print(readably = true) {
 		if (this.str === undefined) {
-			if (!this.delimiters) {
-				this.delimiters =
-					this.value.length === 0
-						? []
-						: ['', ...Array(this.value.length - 1).fill(' '), '']
-			}
+			const delimiters = this.delimiters
 
-			let str = this.delimiters[0]
+			let str = delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.delimiters[i + 1] + this.value[i]?.print(readably)
+				str += delimiters[i + 1] + this.value[i]?.print(readably)
 			}
-			str += this.delimiters[this.delimiters.length - 1]
+			str += delimiters[delimiters.length - 1]
 
 			this.str = '(' + str + ')'
 		}
@@ -321,7 +331,7 @@ export class MalList extends MalVal {
 export class MalVector extends MalVal {
 	readonly type: MalType.Vector = MalType.Vector
 
-	public delimiters: string[] | undefined = undefined
+	private _delimiters: string[] | undefined = undefined
 	public str: string | undefined = undefined
 	private _evaluated: MalVector | undefined = undefined
 
@@ -335,6 +345,21 @@ export class MalVector extends MalVal {
 
 	get evaluated(): MalVector {
 		return this._evaluated || this
+	}
+
+	set delimiters(v: string[]) {
+		this._delimiters = v
+	}
+
+	get delimiters(): string[] {
+		let delimiters = this._delimiters
+		if (!delimiters) {
+			delimiters = this._delimiters =
+				this.value.length === 0
+					? []
+					: ['', ...Array(this.value.length - 1).fill(' '), '']
+		}
+		return delimiters
 	}
 
 	get length() {
@@ -398,7 +423,7 @@ export class MalVector extends MalVal {
 export class MalMap extends MalVal {
 	readonly type: MalType.Map = MalType.Map
 
-	public delimiters: string[] | undefined = undefined
+	private _delimiters: string[] | undefined = undefined
 	public str: string | undefined = undefined
 	public _evaluated: MalMap | undefined = undefined
 
@@ -418,28 +443,36 @@ export class MalMap extends MalVal {
 		return this.value[typeof key === 'string' ? key : this.keys()[key]]
 	}
 
+	set delimiters(v: string[]) {
+		this._delimiters = v
+	}
+
+	get delimiters(): string[] {
+		let delimiters = this._delimiters
+		if (!delimiters) {
+			const size = this.entries().length
+			delimiters = this._delimiters =
+				size === 0 ? [''] : ['', ...Array(size * 2 - 1).fill(' '), '']
+		}
+		return delimiters
+	}
+
 	print(readably = true) {
 		if (this.str === undefined) {
 			const entries = this.entries()
 
-			if (!this.delimiters) {
-				const size = entries.length
-				this.delimiters =
-					entries.length === 0
-						? ['']
-						: ['', ...Array(size * 2 - 1).fill(' '), '']
-			}
+			const delimiters = this.delimiters
 
 			let str = ''
 			for (let i = 0; i < entries.length; i++) {
 				const [k, v] = entries[i]
 				str +=
-					this.delimiters[2 * i + 1] +
+					delimiters[2 * i + 1] +
 					`:${k}` +
-					this.delimiters[2 * 1 + 2] +
+					delimiters[2 * 1 + 2] +
 					v?.print(readably)
 			}
-			str += this.delimiters[this.delimiters.length - 1]
+			str += delimiters[delimiters.length - 1]
 
 			this.str = '{' + str + '}'
 		}
