@@ -1,11 +1,4 @@
-import {
-	MalColl,
-	getName,
-	MalVal,
-	MalError,
-	MalKeyword,
-	MalMap,
-} from '@/mal/types'
+import {MalColl, MalVal, MalError, MalMap, MalBoolean} from '@/mal/types'
 
 import {Ref} from 'vue'
 import {reconstructTree} from '@/mal/reader'
@@ -70,21 +63,18 @@ export default function useExpHistory(
 	}
 
 	// Register to AppScope
-	AppScope.def('revert-history', (arg: MalVal) => {
-		if (typeof arg !== 'string') {
-			return undoExp()
-		} else {
-			const tag = getName(arg)
-			return undoExp(tag)
-		}
+	AppScope.defn('revert-history', (tag: MalVal) => {
+		return MalBoolean.create(
+			undoExp(typeof tag.value === 'string' ? tag.value : undefined)
+		)
 	})
 
-	AppScope.def('tag-history', (tag: MalVal) => {
-		if (!(typeof tag === 'string' || MalKeyword.is(tag))) {
-			throw new MalError('tag is not a string/keyword')
+	AppScope.defn('tag-history', (tag: MalVal) => {
+		if (typeof tag.value !== 'string') {
+			throw new MalError('tag is not a string/keyword/symbol')
 		}
-		tagExpHistory(getName(tag))
-		return true
+		tagExpHistory(tag.value)
+		return MalBoolean.create(true)
 	})
 
 	return {pushExpHistory, tagExpHistory}
