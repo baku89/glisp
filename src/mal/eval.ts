@@ -17,22 +17,17 @@ import Env from './env'
 import {capital} from 'case'
 import {setExpandInfo, ExpandType} from './expand'
 
-const S_DO = MalSymbol.create('do')
-const S_QUOTE = MalSymbol.create('quote')
-const S_CONCAT = MalSymbol.create('concat')
-const S_LST = MalSymbol.create('lst')
-
 function quasiquote(exp: MalVal): MalVal {
 	if (MalMap.is(exp)) {
 		const ret: {[k: string]: MalVal} = {}
-		for (const [k, v] of Object.entries(exp)) {
+		for (const [k, v] of exp.entries()) {
 			ret[k] = quasiquote(v)
 		}
 		return MalMap.create(ret)
 	}
 
 	if (!isPair(exp)) {
-		return MalList.create(S_QUOTE, exp)
+		return MalList.create(MalSymbol.create('quote'), exp)
 	}
 
 	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
@@ -40,7 +35,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	let ret = MalList.create(
-		S_CONCAT,
+		MalSymbol.create('concat'),
 		...exp.value.map(e => {
 			if (isPair(e) && MalSymbol.isFor(e.value[0], 'splice-unquote')) {
 				return e.value[1]
@@ -49,7 +44,7 @@ function quasiquote(exp: MalVal): MalVal {
 			}
 		})
 	)
-	ret = MalList.is(exp) ? MalList.create(S_LST, ret) : ret
+	ret = MalList.is(exp) ? MalList.create(MalSymbol.create('lst'), ret) : ret
 	return ret
 
 	function isPair(x: MalVal): x is MalSeq {
@@ -198,7 +193,10 @@ export default function evalExp(
 					)
 				}
 				env = letEnv
-				const ret = body.length === 1 ? body[0] : MalList.create(S_DO, ...body)
+				const ret =
+					body.length === 1
+						? body[0]
+						: MalList.create(MalSymbol.create('do'), ...body)
 				setExpandInfo(exp, {
 					type: ExpandType.Env,
 					exp: ret,
@@ -222,7 +220,9 @@ export default function evalExp(
 				}
 				env.pushBinding(bindingEnv)
 				const body =
-					_body.length === 1 ? _body[0] : MalList.create(S_DO, ..._body)
+					_body.length === 1
+						? _body[0]
+						: MalList.create(MalSymbol.create('do'), ..._body)
 				let ret
 				try {
 					ret = evalExp.call(this, body, env)

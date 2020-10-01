@@ -17,15 +17,6 @@ import {
 
 import printExp from './printer'
 
-const S_QUOTE = MalSymbol.create('quote')
-const S_QUASIQUOTE = MalSymbol.create('quasiquote')
-const S_UNQUOTE = MalSymbol.create('unquote')
-const S_SPLICE_UNQUOTE = MalSymbol.create('splice-unquote')
-const S_FN_SUGAR = MalSymbol.create('fn-sugar')
-const S_WITH_META_SUGAR = MalSymbol.create('with-meta-sugar')
-const S_UI_ANNOTATE = MalSymbol.create('ui-annotate')
-const S_DEREF = MalSymbol.create('deref')
-
 class Reader {
 	private tokens: string[] | [string, number][]
 	private str: string
@@ -233,22 +224,31 @@ function readForm(reader: Reader, saveStr: boolean): any {
 		case "'":
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(S_QUOTE, readForm(reader, saveStr))
+			val = MalList.create(MalSymbol.create('quote'), readForm(reader, saveStr))
 			break
 		case '`':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(S_QUASIQUOTE, readForm(reader, saveStr))
+			val = MalList.create(
+				MalSymbol.create('quasiquote'),
+				readForm(reader, saveStr)
+			)
 			break
 		case '~':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(S_UNQUOTE, readForm(reader, saveStr))
+			val = MalList.create(
+				MalSymbol.create('unquote'),
+				readForm(reader, saveStr)
+			)
 			break
 		case '~@':
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(S_SPLICE_UNQUOTE, readForm(reader, saveStr))
+			val = MalList.create(
+				MalSymbol.create('splice-unquote'),
+				readForm(reader, saveStr)
+			)
 			break
 		case '#': {
 			reader.next()
@@ -256,7 +256,10 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			if (type === '(') {
 				// Syntactic sugar for anonymous function: #( )
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-				val = MalList.create(S_FN_SUGAR, readForm(reader, saveStr))
+				val = MalList.create(
+					MalSymbol.create('fn-sugar'),
+					readForm(reader, saveStr)
+				)
 			} else if (type === '@') {
 				// Syntactic sugar for ui-annotation #@
 				reader.next()
@@ -264,7 +267,7 @@ function readForm(reader: Reader, saveStr: boolean): any {
 				const annotation = readForm(reader, saveStr)
 				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 				const expr = readForm(reader, saveStr)
-				val = MalList.create(S_UI_ANNOTATE, annotation, expr)
+				val = MalList.create(MalSymbol.create('ui-annotate'), annotation, expr)
 			} else if (type[0] === '"') {
 				// Syntactic sugar for set-id
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
@@ -282,14 +285,14 @@ function readForm(reader: Reader, saveStr: boolean): any {
 			const meta = readForm(reader, saveStr)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
 			const expr = readForm(reader, saveStr)
-			val = MalList.create(S_WITH_META_SUGAR, meta, expr)
+			val = MalList.create(MalSymbol.create('with-meta-sugar'), meta, expr)
 			break
 		}
 		case '@':
 			// Syntactic sugar for deref
 			reader.next()
 			if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(S_DEREF, readForm(reader, saveStr))
+			val = MalList.create(MalSymbol.create('deref'), readForm(reader, saveStr))
 			break
 		// list
 		case ')':
