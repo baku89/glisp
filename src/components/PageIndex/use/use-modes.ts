@@ -1,15 +1,16 @@
 import ConsoleScope from '@/scopes/console'
 import {ref, Ref, computed, watch} from 'vue'
-import {MalAtom, MalMap} from '@/mal/types'
+import {MalBoolean, MalKeyword, MalMap, MalString} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
 import {useKeyboardState} from '@/components/use'
 import {getHTMLElement} from '@/utils'
+import {jsToMal} from '@/mal/utils'
 
-const K_EVENT_TYPE = keywordFor('event-type')
-const K_POS = keywordFor('pos')
-const K_MOUSE_PRESSED = keywordFor('mouse-pressed')
+const K_EVENT_TYPE = MalKeyword.create('event-type')
+const K_POS = MalKeyword.create('pos')
+const K_MOUSE_PRESSED = MalKeyword.create('mouse-pressed')
 
 interface Mode {
 	name: string
@@ -34,9 +35,7 @@ export function useModes(
 	const modes = ref<Mode[]>([])
 
 	function setupModes() {
-		modes.value = convertMalCollToJSObject(
-			(ConsoleScope.var('*modes*') as MalAtom).value
-		) as Mode[]
+		modes.value = ConsoleScope.var('*modes*').toJS() as Mode[]
 	}
 
 	const modeState = ref<MalMap>(MalMap.create())
@@ -80,15 +79,15 @@ export function useModes(
 
 		const handler = activeMode.value.handlers[type]
 		if (handler) {
-			const params = assocBang(
-				modeState.value as any,
+			const params = modeState.value.assoc(
 				K_EVENT_TYPE,
-				type,
+				MalString.create(type),
 				K_POS,
-				pos.value,
+				jsToMal(pos.value),
 				K_MOUSE_PRESSED,
-				mousePressed.value
+				MalBoolean.create(mousePressed.value)
 			)
+
 			const updatedState = handler(params)
 			if (MalMap.is(updatedState)) {
 				modeState.value = updatedState as any
@@ -97,15 +96,15 @@ export function useModes(
 	}
 
 	// Execute setup
-	AppScope.def('reset-mode', () => {
+	AppScope.defn('reset-mode', () => {
 		if (activeMode.value) {
 			modeState.value = activeMode.value.handlers.setup
 				? activeMode.value.handlers.setup()
 				: ({} as any)
 
-			return true
+			return MalBoolean.create(true)
 		} else {
-			return false
+			return MalBoolean.create(false)
 		}
 	})
 
