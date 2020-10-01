@@ -6,7 +6,6 @@ import {
 	MalVal,
 	isMalColl,
 	isMalSeq,
-	getName,
 	MalNil,
 	MalBoolean,
 	MalNumber,
@@ -503,48 +502,7 @@ export function jsToMal(obj: any): MalVal {
 	}
 }
 
-export function convertMalCollToJSObject(exp: MalVal): any {
-	if (MalMap.is(exp)) {
-		const ret: {[Key: string]: MalVal} = {}
-		for (const [key, value] of Object.entries(exp)) {
-			const jsKey = getName(key)
-			ret[jsKey] = convertMalCollToJSObject(value)
-		}
-		return ret
-	} else if (isMalSeq(exp)) {
-		return (exp as MalVal[]).map(e => convertMalCollToJSObject(e))
-	} else {
-		return exp
-	}
-}
-
 export class BlankException extends Error {}
-
-export function reconstructTree(exp: MalVal) {
-	if (!isMalColl(exp)) {
-		return
-	} else {
-		if (MalMap.is(exp)) {
-			const keys = Object.keys(exp)
-			keys.forEach((key, i) => {
-				const e = exp.value[key]
-				if (isMalColl(e)) {
-					e.parent = exp
-					e[M_OUTER_INDEX] = i
-					reconstructTree(e)
-				}
-			})
-		} else {
-			exp.forEach((e, i) => {
-				if (isMalColl(e)) {
-					e.parent = exp
-					e[M_OUTER_INDEX] = i
-					reconstructTree(e)
-				}
-			})
-		}
-	}
-}
 
 export default function readStr(str: string, saveStr = true): MalVal {
 	const tokens = tokenize(str, saveStr) as string[]
@@ -559,27 +517,26 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	}
 
 	if (saveStr) {
-		saveOuter(exp, null)
+		reconstructTree(exp)
 	}
 
 	return exp
+}
 
-	function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
-		if (isMalColl(exp) && !(M_OUTER in exp)) {
-			if (isMalColl(outer) && index !== undefined) {
-				exp.parent = outer
-				exp[M_OUTER_INDEX] = index
-			}
+export function reconstructTree(exp: MalVal) {
+	seek(exp)
 
-			const children: MalVal[] | null = Array.isArray(exp)
-				? exp
-				: MalMap.is(exp)
-				? Object.keys(exp).map(k => exp[k])
-				: null
+	function seek(exp: MalVal, parent?: {ref: MalColl; index: number}) {
+		if (parent) {
+			exp.parent = parent
+		}
 
-			if (children) {
-				children.forEach((child, index) => saveOuter(child, exp, index))
-			}
+		if (isMalSeq(exp)) {
+			exp.value.forEach((child, index) => seek(child, {ref: exp, index}))
+		} else if (MalMap.is(exp)) {
+			exp
+				.entries()
+				.forEach(([, child], index) => seek(child, {ref: exp, index}))
 		}
 	}
 }
