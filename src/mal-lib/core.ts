@@ -53,16 +53,18 @@ const Exports = [
 	],
 	[
 		'-',
-		(...xs: number[]) => {
+		(...xs: MalNumber[]) => {
 			switch (xs.length) {
 				case 0:
 					return MalNumber.create(0)
 				case 1:
-					return MalNumber.create(-xs[0])
+					return MalNumber.create(-xs[0].value)
 				case 2:
-					return MalNumber.create(xs[0] - xs[1])
+					return MalNumber.create(xs[0].value - xs[1].value)
 				default:
-					return MalNumber.create(xs.slice(1).reduce((a, b) => a - b, xs[0]))
+					return MalNumber.create(
+						xs.slice(1).reduce((a, b) => a - b.value, xs[0].value)
+					)
 			}
 		},
 	],
@@ -104,7 +106,7 @@ const Exports = [
 
 	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
 	['vector?', (x: MalVal) => MalBoolean.create(MalVector.is(x))],
-	['vec', (a: MalVal[]) => MalVector.create(...a)],
+	['vec', (a: MalSeq) => MalVector.create(...a.value)],
 	['sequential?', (x: MalVal) => MalBoolean.create(isMalSeq(x))],
 	[
 		'seq',
@@ -126,17 +128,17 @@ const Exports = [
 	],
 	[
 		'nth',
-		(a: MalVal[], index: MalNumber) => {
-			if (!MalNumber.is(i)) {
+		(a: MalSeq, index: MalNumber) => {
+			if (!MalNumber.is(index)) {
 				throw new MalError('index argument to nth must be a number')
 			}
 
 			const i = index.value
 
 			if (i < 0 && -i <= a.length) {
-				return a[a.length - i]
+				return a.get(a.length - i)
 			} else if (i < a.length) {
-				return a[i]
+				return a.get(i)
 			}
 
 			throw new MalError('index out of range')
@@ -144,24 +146,22 @@ const Exports = [
 	],
 	[
 		'first',
-		(a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : MalNil.create()),
+		(a: MalSeq) => (a !== null && a.length > 0 ? a.get(0) : MalNil.create()),
 	],
 	[
 		'rest',
-		(a: MalVal[]) =>
-			a === null ? MalVector.create() : MalVector.create(...a.slice(1)),
+		(a: MalSeq) =>
+			a === null ? MalVector.create() : MalVector.create(...a.value.slice(1)),
 	],
 	[
 		'last',
-		(a: MalVal[]) =>
-			a !== null && a.length > 0 ? a[a.length - 1] : MalNil.create(),
+		(a: MalSeq) => (a.length > 0 ? a.get(a.length - 1) : MalNil.create()),
 	],
 	[
 		'butlast',
-		(a: MalVal[]) =>
-			a === null ? [] : MalVector.create(...a.slice(0, a.length - 1)),
+		(a: MalSeq) => MalVector.create(...a.value.slice(0, a.length - 1)),
 	],
-	['count', (a: MalVal[]) => MalNumber.create(a === null ? 0 : a.length)],
+	['count', (a: MalSeq) => MalNumber.create(a === null ? 0 : a.length)],
 	[
 		'slice',
 		(a: MalSeq, start: MalNumber, end: MalNumber) => {
@@ -174,8 +174,11 @@ const Exports = [
 	],
 	[
 		'apply',
-		(f: MalFunc, ...a: MalVal[]) =>
-			f.value(...a.slice(0, -1).concat(a[a.length - 1])),
+		(f: MalFunc, ...a: MalSeq[]) => {
+			const args: MalVal[] = []
+			a.forEach(x => args.push(...x.value))
+			return f.value(...args)
+		},
 	],
 	[
 		'map',
@@ -202,8 +205,10 @@ const Exports = [
 	['sort', (coll: MalSeq) => MalVector.create(...[...coll.value].sort())],
 	[
 		'partition',
-		(n: number, coll: MalVal[]) =>
-			MalVector.create(...partition(n, coll).map(x => MalVector.create(...x))),
+		(n: MalNumber, coll: MalSeq) =>
+			MalVector.create(
+				...partition(n.value, coll.value).map(x => MalVector.create(...x))
+			),
 	],
 	[
 		'index-of',
@@ -218,7 +223,7 @@ const Exports = [
 		(a: MalVal, n: MalNumber) =>
 			MalVector.create(...Array(n).map(() => a.clone())),
 	],
-	['reverse', (coll: MalVal[]) => MalVector.create(...[...coll].reverse())],
+	['reverse', (coll: MalSeq) => MalVector.create(...[...coll.value].reverse())],
 	['cons', (a: MalVal, b: MalVal) => MalVector.create(...[a].concat(b))],
 	[
 		'conj',
@@ -237,8 +242,10 @@ const Exports = [
 	],
 	[
 		'join',
-		(separator: MalString, coll: MalVal[]) =>
-			MalString.create(coll.map(v => printExp(v, false)).join(separator.value)),
+		(separator: MalString, coll: MalSeq) =>
+			MalString.create(
+				coll.value.map(v => printExp(v, false)).join(separator.value)
+			),
 	],
 
 	// Map
@@ -294,8 +301,8 @@ const Exports = [
 	],
 	[
 		'subs',
-		(a: string, from: number, to?: number) =>
-			MalString.create(a.substr(from, to)),
+		(a: MalString, from: MalNumber, to?: MalNumber) =>
+			MalString.create(a.value.substr(from.value, to?.value)),
 	],
 
 	// Meta
@@ -346,7 +353,7 @@ const Exports = [
 		},
 	],
 	// Random
-	['rnd', (a: MalVal) => MalNumber.create(seedrandom(a)())],
+	['rnd', (a: MalVal) => MalNumber.create(seedrandom(a.toJS())())],
 
 	// I/O
 	[
