@@ -152,7 +152,7 @@ export default defineComponent({
 			if (!fnInfo.value) return [] as Schema[]
 
 			const meta = fnInfo.value.meta
-			const malSchema = getExpByPath(meta, 'params')
+			const malSchema = meta ? getExpByPath(meta, 'params')
 
 			if (!isMalColl(malSchema)) {
 				return undefined

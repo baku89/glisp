@@ -14,7 +14,7 @@ import {
 	MalNumber,
 	MalNil,
 	MalString,
-	MalBoolean,
+	MalBoolean,, MalMacro, MalAtom
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
@@ -47,11 +47,76 @@ export function getStructType(exp: MalVal): StructTypes | undefined {
 	return undefined
 }
 
-export function getExpByPath<T extends MalVal>(
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Number
+): MalNumber | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.String
+): MalString | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Boolean
+): MalBoolean | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Nil
+): MalNil | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Keyword
+): MalKeyword | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Symbol
+): MalSymbol | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.List
+): MalList | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Vector
+): MalVector | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Map
+): MalMap | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Func
+): MalFunc | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Macro
+): MalMacro | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Vector
+): MalVector | null
+export function getExpByPath(
+	base: MalVal,
+	path: string,
+	type: MalType.Atom
+): MalAtom | null
+export function getExpByPath(
 	base: MalVal,
 	path: string,
 	type?: MalType
-): T | null {
+): MalVal | null {
 	const keys = path
 		.split('/')
 		.filter(k => k !== '')
