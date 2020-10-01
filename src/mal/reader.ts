@@ -160,7 +160,6 @@ function readColl(reader: Reader, start = '[', end = ']') {
 function readVector(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '[', ']')
 	const vec = MalVector.create(...coll)
-	console.log(delimiters, 'da')
 	vec.delimiters = delimiters
 	return vec
 }
