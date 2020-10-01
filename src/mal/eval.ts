@@ -34,18 +34,18 @@ function quasiquote(exp: MalVal): MalVal {
 		return exp.value[1]
 	}
 
-	let ret = MalList.create(
+	const ret = MalList.create(
 		MalSymbol.create('concat'),
 		...exp.value.map(e => {
 			if (isPair(e) && MalSymbol.isFor(e.value[0], 'splice-unquote')) {
 				return e.value[1]
 			} else {
-				return MalVector.create(quasiquote(e))
+				return quasiquote(e)
 			}
 		})
 	)
-	ret = MalList.is(exp) ? MalList.create(MalSymbol.create('lst'), ret) : ret
-	return ret
+
+	return MalList.is(exp) ? MalList.create(MalSymbol.create('lst'), ret) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
 		return isMalSeq(x) && x.value.length > 0
