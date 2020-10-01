@@ -156,7 +156,7 @@ export default class Env {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new MalError(`[${this.name}] Symbol ${symbol} not found`)
+			throw new MalError(`[${this.name}] Use of undeclared symbol ${symbol}`)
 		}
 
 		return value
