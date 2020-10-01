@@ -14,7 +14,8 @@ module.exports = {
 		// 'lib/path': './src/mal-lib/path.ts',
 		// 'lib/math': './src/mal-lib/math.ts',
 	},
-	mode: 'production',
+	mode: 'development',
+	devtool: ' source-map',
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, 'src'),
@@ -33,7 +34,7 @@ module.exports = {
 						options: {
 							extensions: ['.js', '.jsx', '.vue', '.ts', '.tsx'],
 							cache: true,
-							emitWarning: false,
+							emitWarning: true,
 							emitError: false,
 							formatter: undefined,
 						},
@@ -64,7 +65,6 @@ module.exports = {
 		libraryExport: '',
 	},
 	plugins: [
-		new webpack.IgnorePlugin(/jsdom$/),
 		new CopyPlugin({
 			patterns: [
 				{

@@ -15,7 +15,7 @@
 		"electron:serve": "vue-cli-service electron:serve",
 		"postinstall": "electron-builder install-app-deps",
 		"postuninstall": "electron-builder install-app-deps",
-		"repl": "node ./repl/index.js",
+		"repl": "node --enable-source-maps ./repl/index.js ",
 		"repl:serve": "webpack --config repl.config.js --watch",
 		"repl:build": "webpack --config repl.config.js"
 	},
