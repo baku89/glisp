@@ -741,6 +741,8 @@ export function jsToMal(obj: any): MalVal {
 				return MalNil.create()
 			case 'boolean':
 				return MalBoolean.create(obj)
+			case 'function':
+				return MalFunc.create((...xs) => jsToMal(obj(...xs)))
 		}
 		throw new Error('Cannot convert to Mal')
 	}
