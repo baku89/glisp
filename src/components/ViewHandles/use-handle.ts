@@ -4,7 +4,8 @@ import {
 	getFnInfo,
 	computeExpTransform,
 	replaceExp,
-	jsToMal, getExpByPath
+	jsToMal,
+	getExpByPath,
 } from '@/mal/utils'
 import {
 	MalSeq,
@@ -13,7 +14,8 @@ import {
 	MalVector,
 	MalColl,
 	MalNil,
-	MalList,, MalType
+	MalList,
+	MalType,
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 // import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
@@ -44,7 +46,7 @@ export default function useHandle(
 	const draggingIndex = ref<[number, number] | null>(null)
 	const rawPrevPos = ref([0, 0])
 	const fnInfo = computed(() => selectedExp.value.map(e => getFnInfo(e)))
-	
+
 	const handleCallbacks = computed(() =>
 		fnInfo.value.map(fi => {
 			if (fi?.meta) {

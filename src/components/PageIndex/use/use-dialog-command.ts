@@ -6,7 +6,7 @@
 // 	MalSymbol,
 // 	MalMap,
 // 	MalFunc,
-// 	MalType,, MalVector
+// 	MalType, MalVector
 // 	// MalList,
 // } from '@/mal/types'
 

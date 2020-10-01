@@ -9,7 +9,8 @@ import {
 	MalMap,
 	MalFunc,
 	MalVector,
-	MalString,, MalNumber
+	MalString,
+	MalNumber,
 } from './types'
 import {getStructType, jsToMal} from './utils'
 
@@ -39,7 +40,7 @@ interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
 }
 
 // Number
-interface SchemaNumberDefault extends SchemaPrimitiveBase<MalNumber> {
+interface SchemaNumberDefault extends SchemaPrimitiveBase<number> {
 	type: 'number'
 	default?: number
 }

@@ -9,7 +9,9 @@ import {
 	MalKeyword,
 	MalNil,
 	MalList,
-	MalMap,, MalString, MalFunc
+	MalMap,
+	MalString,
+	MalFunc,
 } from '@/mal/types'
 import GIF from 'gif.js'
 

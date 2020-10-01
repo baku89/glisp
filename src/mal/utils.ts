@@ -14,7 +14,9 @@ import {
 	MalNumber,
 	MalNil,
 	MalString,
-	MalBoolean,, MalMacro, MalAtom
+	MalBoolean,
+	MalMacro,
+	MalAtom,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'

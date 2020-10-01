@@ -129,7 +129,8 @@ import {
 	watchExpOnReplace,
 	unwatchExpOnReplace,
 	generateExpAbsPath,
-	getExpByPath,, reconstructTree
+	getExpByPath,
+	reconstructTree,
 } from '@/mal/utils'
 
 import {
