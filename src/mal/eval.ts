@@ -71,38 +71,6 @@ function macroexpand(_exp: MalVal, env: Env) {
 	return exp
 }
 
-function evalAtom(
-	this: void | MalFuncThis,
-	exp: Exclude<MalVal, MalList>,
-	env: Env
-) {
-	if (MalSymbol.is(exp)) {
-		const ret = env.get(exp.value)
-		exp.evaluated = ret
-		return ret
-	} else if (MalVector.is(exp)) {
-		const ret = MalVector.create(
-			...exp.value.map(x => {
-				return evalExp.call(this, x, env)
-			})
-		)
-		exp.evaluated = ret
-		return ret
-	} else if (MalMap.is(exp)) {
-		const hm: {[k: string]: MalVal} = {}
-
-		for (const [k, v] of exp.entries()) {
-			hm[k] = evalExp.call(this, v, env)
-		}
-
-		const ret = MalMap.create(hm)
-		exp.evaluated = ret
-		return ret
-	}
-
-	return exp
-}
-
 export default function evalExp(
 	this: void | MalFuncThis,
 	exp: MalVal,
@@ -111,14 +79,31 @@ export default function evalExp(
 	const origExp = exp
 
 	let counter = 0
-	while (counter++ < 1e6) {
+	while (counter++ < 1e7) {
 		// Expand macro
 		exp = macroexpand(exp, env)
 
 		if (!MalList.is(exp)) {
-			const ret = evalAtom.call(this, exp, env)
-			origExp.evaluated = ret
-			return ret
+			let ret: MalVal | null = null
+
+			if (MalSymbol.is(exp)) {
+				ret = env.get(exp.value)
+			} else if (MalVector.is(exp)) {
+				ret = MalVector.create(
+					...exp.value.map(x => evalExp.call(this, x, env))
+				)
+			} else if (MalMap.is(exp)) {
+				ret = MalMap.create(
+					Object.fromEntries(
+						exp.entries().map(([k, v]) => [k, evalExp.call(this, v, env)])
+					)
+				)
+			}
+
+			if (ret) {
+				origExp.evaluated = ret
+			}
+			return ret || exp
 		}
 
 		if (exp.value.length === 0) {

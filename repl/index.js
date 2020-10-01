@@ -1,4 +1,5876 @@
-!function(e,t){if("object"==typeof exports&&"object"==typeof module)module.exports=t();else if("function"==typeof define&&define.amd)define([],t);else{var n=t();for(var r in n)("object"==typeof exports?exports:e)[r]=n[r]}}(this,(function(){return function(e){var t={};function n(r){if(t[r])return t[r].exports;var s=t[r]={i:r,l:!1,exports:{}};return e[r].call(s.exports,s,s.exports,n),s.l=!0,s.exports}return n.m=e,n.c=t,n.d=function(e,t,r){n.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:r})},n.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},n.t=function(e,t){if(1&t&&(e=n(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var r=Object.create(null);if(n.r(r),Object.defineProperty(r,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var s in e)n.d(r,s,function(t){return e[t]}.bind(null,s));return r},n.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return n.d(t,"a",t),t},n.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},n.p="",n(n.s=37)}([function(e,t,n){"use strict";n.d(t,"b",(function(){return s})),n.d(t,"e",(function(){return i})),n.d(t,"m",(function(){return o})),n.d(t,"h",(function(){return a})),n.d(t,"g",(function(){return c})),n.d(t,"f",(function(){return l})),n.d(t,"k",(function(){return _})),n.d(t,"l",(function(){return f})),n.d(t,"i",(function(){return d})),n.d(t,"d",(function(){return h})),n.d(t,"j",(function(){return b})),n.d(t,"c",(function(){return O})),n.d(t,"a",(function(){return y})),n.d(t,"o",(function(){return g})),n.d(t,"I",(function(){return v})),n.d(t,"p",(function(){return m})),n.d(t,"w",(function(){return w})),n.d(t,"B",(function(){return M})),n.d(t,"C",(function(){return j})),n.d(t,"u",(function(){return P})),n.d(t,"L",(function(){return x})),n.d(t,"J",(function(){return k})),n.d(t,"r",(function(){return A})),n.d(t,"v",(function(){return C})),n.d(t,"t",(function(){return S})),n.d(t,"z",(function(){return I})),n.d(t,"D",(function(){return B})),n.d(t,"E",(function(){return T})),n.d(t,"F",(function(){return K})),n.d(t,"K",(function(){return L})),n.d(t,"x",(function(){return W})),n.d(t,"H",(function(){return q})),n.d(t,"y",(function(){return $})),n.d(t,"s",(function(){return F})),n.d(t,"G",(function(){return N})),n.d(t,"A",(function(){return V})),n.d(t,"q",(function(){return z})),n.d(t,"n",(function(){return J}));const r=Symbol.for("meta"),s=Symbol.for("ast"),i=Symbol.for("env"),o=Symbol.for("params"),a=Symbol.for("ismacro"),c=Symbol.for("islist"),u=Symbol.for("type"),l=Symbol.for("eval"),_=Symbol.for("outer"),f=Symbol.for("outer-key"),p=Symbol.for("expand"),d=Symbol("issugar"),h=Symbol.for("elmstrs"),b=Symbol.for("keys"),O=Symbol.for("delimiters"),E=Symbol.for("def");var y,m;!function(e){e[e.Constant=1]="Constant",e[e.Env=2]="Env",e[e.Unchange=3]="Unchange"}(y||(y={}));class g extends Error{}function v(e,t){e[p]=t}function w(e){switch(typeof e){case"object":if(null===e)return m.Nil;if(Array.isArray(e)){return e[c]?m.List:m.Vector}return e instanceof Float32Array?m.Vector:e[u]===m.Symbol?m.Symbol:e[u]===m.Atom?m.Atom:m.Map;case"function":return e[a]?m.Macro:m.Function;case"string":switch(e[0]){case U:return m.Keyword;default:return m.String}case"number":return m.Number;case"boolean":return m.Boolean;default:return m.Undefined}}!function(e){e.List="list",e.Vector="vector",e.Map="map",e.Number="number",e.String="string",e.Boolean="boolean",e.Nil="nil",e.Symbol="symbol",e.Keyword="keyword",e.Atom="atom",e.Function="fn",e.Macro="macro",e.Undefined="undefined"}(m||(m={}));const M=e=>{const t=w(e);return t===m.List||t===m.Map||t===m.Vector},j=e=>{const t=w(e);return t===m.List||t===m.Vector};function P(e){return e instanceof Object&&r in e?e[r]:null}const D=new Set([m.Function,m.Macro,m.List,m.Vector,m.Map]);function x(e,t){if(void 0===t)throw new g("[with-meta] Need the metadata to attach");if(!D.has(w(e)))throw new g("[with-meta] Object should not be atom");const n=A(e);return n[r]=t,n}function k(e,t){if(!(e instanceof Object))throw new g("[with-meta] Object should not be atom");return e[r]=t,e}function A(e,t=!1){switch(w(e)){case m.List:return F(...t?e.map(e=>A(e,!0)):e);case m.Vector:return[...t?e.map(e=>A(e,!0)):e];case m.Map:return t?Object.fromEntries(Object.entries(e).map(([e,t])=>[e,A(t,!0)])):Object.assign({},e);case m.Function:case m.Macro:{const t=function(...t){return e.apply(this,t)};return Object.assign(t,e)}case m.Symbol:return MalList.create(e.value);default:return e}}function C(e){switch(w(e)){case m.String:return e;case m.Keyword:return e.slice(1);case m.Symbol:return e.value;default:throw new g("getName() can only extract the name by string/keyword/symbol")}}function S(e,t,n,c,u=null,l=!1){const _={[s]:t,[i]:n,[o]:c,[r]:u,[a]:l};return Object.assign(e,_)}const I=e=>!!(e instanceof Function&&e[s]),B=e=>w(e)===m.String;class R{constructor(e){this.value=e,this[u]=m.Symbol}set def(e){this[E]=e}get def(){return this[E]||null}set evaluated(e){this[l]=e}get evaluated(){return this[l]}toString(){return this.value}}const T=e=>w(e)===m.Symbol,K=(e,t)=>T(e)&&e.value===t,L=e=>new R(e),U="ʞ",W=e=>w(e)===m.Keyword,q=e=>U+e,$=e=>Array.isArray(e)&&e[c];function F(...e){return e[c]=!0,e}const N=e=>Array.isArray(e)&&!e[c],V=e=>w(e)===m.Map;function z(e,...t){if(t.length%2==1)throw new g("Odd number of map arguments");for(let n=0;n<t.length;n+=2){if("string"!=typeof t[n])throw new g("Hash map can only use string/symbol/keyword as key");e[t[n]]=t[n+1]}return e}class J{constructor(e){this.value=e,this[u]=m.Atom}}},,function(e,t,n){"use strict";n.d(t,"b",(function(){return s})),n.d(t,"a",(function(){return a}));var r=n(0);const s={log:(...e)=>{console.info(...e)},return:(...e)=>{console.log(...e)},error:(...e)=>{console.error(...e)},pseudoExecute:e=>{console.log(e)},clear:console.clear};function i(e){return 0===e?[""]:["",...Array(e-1).fill(" "),""]}const o=new Map([["quote",{prefix:"'"}],["ui-annotate",{prefix:"#@"}],["with-meta-sugar",{prefix:"^"}],["fn-sugar",{prefix:"#"}],["quasiquote",{prefix:"`"}],["unquote",{prefix:"~"}],["unquote-splicing",{prefix:"~@"}],["deref",{prefix:"@"}]]);function a(e,t=!0){const n=t,s=Object(r.w)(e);switch(s){case r.p.List:case r.p.Vector:case r.p.Map:{const t=e,c=s===r.p.List&&o.get(Object(r.E)(t[0])?t[0].value:"");if(c)t[r.i]=!0,t[r.d]=[c.prefix,...t.slice(1).map(e=>a(e,n))],t[r.c]=Array(t.length+1).fill("");else{if(!(r.d in t)){let e;Object(r.C)(t)?(e=t.map(e=>a(e,n)),c&&(e[0]="")):e=Object.entries(t).map(([e,t])=>[a(e,n),a(t,n)]).flat(),t[r.d]=e}if(!(r.c in t)){let e;e=Object(r.C)(t)?i(t.length):i(2*Object.keys(t).length),t[r.c]=e}}const u=t[r.d],l=t[r.c];let _="";for(let e=0;e<u.length;e++)_+=l[e]+u[e];switch(_+=l[l.length-1],s){case r.p.List:return c?_:"("+_+")";case r.p.Vector:return"["+_+"]";default:return"{"+_+"}"}}case r.p.Number:return e.toString().replace(/(\.[0-9]{4})([0-9]+)$/,"$1");case r.p.String:return n?'"'+e.replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\n/g,"\\n")+'"':e;case r.p.Boolean:return e.toString();case r.p.Nil:return"nil";case r.p.Symbol:return e.value;case r.p.Keyword:return":"+e.slice(1);case r.p.Atom:return`(atom ${a(e.value,n)})`;case r.p.Function:case r.p.Macro:if(r.b in e){return`(${s} ${a(e[r.m],n)} ${a(e[r.b],n)})`}return"<JS Function>";default:return"<undefined>"}}},function(e,t,n){"use strict";n.d(t,"b",(function(){return h})),n.d(t,"a",(function(){return b})),n.d(t,"c",(function(){return O}));var r=n(0);n(2);const s=Object(r.K)("quote"),i=Object(r.K)("quasiquote"),o=Object(r.K)("unquote"),a=Object(r.K)("splice-unquote"),c=Object(r.K)("fn-sugar"),u=Object(r.K)("with-meta-sugar"),l=Object(r.K)("ui-annotate"),_=Object(r.K)("deref");class f{constructor(e,t){this.tokens=[...e],this.str=t,this.strlen=t.length,this._index=0}next(){const e=this.tokens[this._index++];return Array.isArray(e)?e[0]:e}peek(e=this._index){const t=this.tokens[e];return Array.isArray(t)?t[0]:t}get index(){return this._index}getStr(e,t){return this.str.slice(e,t)}offset(e=this._index){const t=this.tokens[e];return void 0!==t?t[1]:this.strlen}endOffset(e=this._index){const t=this.tokens[e];return void 0!==t?t[1]+t[0].length:this.strlen}prevEndOffset(){return this.endOffset(this._index-1)}}function p(e,t,n="[",s="]"){const i=[];let o=null,a=null,c=e.next();if(c!==n)throw new r.o(`Expected '${n}'`);t&&(o=[],a=[]);let u=0;for(;(c=e.peek())!==s;){if(!c)throw new r.o(`Expected '${s}', got EOF`);if(t){const t=e.getStr(e.prevEndOffset(),e.offset());null==a||a.push(t),u=e.offset()}if(i.push(d(e,t)),t){const t=e.getStr(u,e.prevEndOffset());null==o||o.push(t)}}if(t){const t=e.getStr(e.prevEndOffset(),e.offset());null==a||a.push(t),i[r.c]=a,i[r.d]=o}return e.next(),i}function d(e,t){let n;const f=e.index;let h=null;switch(e.peek()){case";":n=null;break;case"'":e.next(),t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(s,d(e,t));break;case"`":e.next(),t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(i,d(e,t));break;case"~":e.next(),t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(o,d(e,t));break;case"~@":e.next(),t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(a,d(e,t));break;case"#":{e.next();const s=e.peek();if("("===s)t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(c,d(e,t));else if("@"===s){e.next(),t&&(h=[e.prevEndOffset(),e.offset()]);const s=d(e,t);h&&h.push(e.prevEndOffset(),e.offset());const i=d(e,t);n=Object(r.s)(l,s,i)}else if('"'===s[0]){t&&(h=[e.prevEndOffset(),e.offset()]);const s=d(e,t);h&&h.push(e.prevEndOffset(),e.offset());const i=d(e,t);n=Object(r.s)(Object(r.K)("set-id"),s,i)}break}case"^":{e.next(),t&&(h=[e.prevEndOffset(),e.offset()]);const s=d(e,t);h&&h.push(e.prevEndOffset(),e.offset());const i=d(e,t);n=Object(r.s)(u,s,i);break}case"@":e.next(),t&&(h=[e.prevEndOffset(),e.offset()]),n=Object(r.s)(_,d(e,t));break;case")":throw new r.o("unexpected ')'");case"(":n=function(e,t){const n=p(e,t,"(",")");return n[r.g]=!0,n}(e,t);break;case"]":throw new Error("unexpected ']'");case"[":n=p(e,t);break;case"}":throw new Error("unexpected '}'");case"{":n=function(e,t){const n=p(e,t,"{","}"),s=Object(r.q)({},...n);if(t){const e=[],t=[];for(let s=0;s<n.length;s+=2)e.push(n[s]),t.push(n[r.d][s],n[r.d][s+1]);s[r.j]=e,s[r.d]=t,s[r.c]=n[r.c]}return s}(e,t);break;default:n=function(e){const t=e.next();if("string"==typeof t){if(t.match(/^[-+]?[0-9]+$/))return parseInt(t,10);if(t.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/))return parseFloat(t);if(t.match(/^"(?:\\.|[^\\"])*"$/))return t.slice(1,t.length-1).replace(/\\(.)/g,(e,t)=>"n"===t?"\n":t);if('"'===t[0])throw new r.o("Expected '\"', got EOF");return":"===t[0]?Object(r.H)(t.slice(1)):"nil"===t?null:"true"===t||"false"!==t&&("NaN"===t?NaN:Object(r.K)(t))}return t}(e)}if(h){const t=e.peek(f),s=e.prevEndOffset();n[r.i]=!0;const i=[""],o=[t];h.push(s);for(let t=0;t<h.length-1;t+=2)i.push(e.getStr(h[t],h[t+1])),o.push(e.getStr(h[t+1],h[t+2]));i.push(""),n[r.c]=i,n[r.d]=o}return n}function h(e){if(Array.isArray(e)){return e.map(e=>h(e))}if(Object(r.E)(e)||e instanceof Function)return e;if(e instanceof Object){const t={};for(const[n,s]of Object.entries(e))t[Object(r.H)(n)]=h(s);return t}return e}class b extends Error{}function O(e,t=!0){const n=function(e,t=!1){const n=/[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g;let r=null;const s=/^[\s,]*/;let i=null,o=null;const a=[];for(;(r=n.exec(e))&&""!=r[1];)";"!==r[1][0]&&(t?(i=s.exec(r[0]),o=i?i[0].length:0,a.push([r[1],r.index+o])):a.push(r[1]));return a}(e,t);if(0===n.length)throw new b;const s=new f(n,e),i=d(s,t);if(s.index<n.length-1)throw new r.o("Invalid end of file");return t&&function e(t,n,s){if(Object(r.B)(t)&&!(r.k in t)){Object(r.B)(n)&&void 0!==s&&(t[r.k]=n,t[r.l]=s),Object(r.A)(t)&&!(r.j in t)&&(t[r.j]=Object.keys(t));const i=Array.isArray(t)?t:Object(r.A)(t)?t[r.j].map(e=>t[e]):null;i&&i.forEach((n,r)=>e(n,t,r))}}(i,null),i}},,,function(e,t,n){
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(this, function() {
+return /******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId]) {
+/******/ 			return installedModules[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			i: moduleId,
+/******/ 			l: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.l = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// define getter function for harmony exports
+/******/ 	__webpack_require__.d = function(exports, name, getter) {
+/******/ 		if(!__webpack_require__.o(exports, name)) {
+/******/ 			Object.defineProperty(exports, name, { enumerable: true, get: getter });
+/******/ 		}
+/******/ 	};
+/******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__webpack_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = __webpack_require__(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;
+/******/ 		var ns = Object.create(null);
+/******/ 		__webpack_require__.r(ns);
+/******/ 		Object.defineProperty(ns, 'default', { enumerable: true, value: value });
+/******/ 		if(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));
+/******/ 		return ns;
+/******/ 	};
+/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = function(module) {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			function getDefault() { return module['default']; } :
+/******/ 			function getModuleExports() { return module; };
+/******/ 		__webpack_require__.d(getter, 'a', getter);
+/******/ 		return getter;
+/******/ 	};
+/******/
+/******/ 	// Object.prototype.hasOwnProperty.call
+/******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(__webpack_require__.s = "./src/repl.ts");
+/******/ })
+/************************************************************************/
+/******/ ({
+
+/***/ "./node_modules/ansi-styles/index.js":
+/*!*******************************************!*\
+  !*** ./node_modules/ansi-styles/index.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(module) {
+
+const wrapAnsi16 = (fn, offset) => (...args) => {
+	const code = fn(...args);
+	return `\u001B[${code + offset}m`;
+};
+
+const wrapAnsi256 = (fn, offset) => (...args) => {
+	const code = fn(...args);
+	return `\u001B[${38 + offset};5;${code}m`;
+};
+
+const wrapAnsi16m = (fn, offset) => (...args) => {
+	const rgb = fn(...args);
+	return `\u001B[${38 + offset};2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+};
+
+const ansi2ansi = n => n;
+const rgb2rgb = (r, g, b) => [r, g, b];
+
+const setLazyProperty = (object, property, get) => {
+	Object.defineProperty(object, property, {
+		get: () => {
+			const value = get();
+
+			Object.defineProperty(object, property, {
+				value,
+				enumerable: true,
+				configurable: true
+			});
+
+			return value;
+		},
+		enumerable: true,
+		configurable: true
+	});
+};
+
+/** @type {typeof import('color-convert')} */
+let colorConvert;
+const makeDynamicStyles = (wrap, targetSpace, identity, isBackground) => {
+	if (colorConvert === undefined) {
+		colorConvert = __webpack_require__(/*! color-convert */ "./node_modules/ansi-styles/node_modules/color-convert/index.js");
+	}
+
+	const offset = isBackground ? 10 : 0;
+	const styles = {};
+
+	for (const [sourceSpace, suite] of Object.entries(colorConvert)) {
+		const name = sourceSpace === 'ansi16' ? 'ansi' : sourceSpace;
+		if (sourceSpace === targetSpace) {
+			styles[name] = wrap(identity, offset);
+		} else if (typeof suite === 'object') {
+			styles[name] = wrap(suite[targetSpace], offset);
+		}
+	}
+
+	return styles;
+};
+
+function assembleStyles() {
+	const codes = new Map();
+	const styles = {
+		modifier: {
+			reset: [0, 0],
+			// 21 isn't widely supported and 22 does the same thing
+			bold: [1, 22],
+			dim: [2, 22],
+			italic: [3, 23],
+			underline: [4, 24],
+			inverse: [7, 27],
+			hidden: [8, 28],
+			strikethrough: [9, 29]
+		},
+		color: {
+			black: [30, 39],
+			red: [31, 39],
+			green: [32, 39],
+			yellow: [33, 39],
+			blue: [34, 39],
+			magenta: [35, 39],
+			cyan: [36, 39],
+			white: [37, 39],
+
+			// Bright color
+			blackBright: [90, 39],
+			redBright: [91, 39],
+			greenBright: [92, 39],
+			yellowBright: [93, 39],
+			blueBright: [94, 39],
+			magentaBright: [95, 39],
+			cyanBright: [96, 39],
+			whiteBright: [97, 39]
+		},
+		bgColor: {
+			bgBlack: [40, 49],
+			bgRed: [41, 49],
+			bgGreen: [42, 49],
+			bgYellow: [43, 49],
+			bgBlue: [44, 49],
+			bgMagenta: [45, 49],
+			bgCyan: [46, 49],
+			bgWhite: [47, 49],
+
+			// Bright color
+			bgBlackBright: [100, 49],
+			bgRedBright: [101, 49],
+			bgGreenBright: [102, 49],
+			bgYellowBright: [103, 49],
+			bgBlueBright: [104, 49],
+			bgMagentaBright: [105, 49],
+			bgCyanBright: [106, 49],
+			bgWhiteBright: [107, 49]
+		}
+	};
+
+	// Alias bright black as gray (and grey)
+	styles.color.gray = styles.color.blackBright;
+	styles.bgColor.bgGray = styles.bgColor.bgBlackBright;
+	styles.color.grey = styles.color.blackBright;
+	styles.bgColor.bgGrey = styles.bgColor.bgBlackBright;
+
+	for (const [groupName, group] of Object.entries(styles)) {
+		for (const [styleName, style] of Object.entries(group)) {
+			styles[styleName] = {
+				open: `\u001B[${style[0]}m`,
+				close: `\u001B[${style[1]}m`
+			};
+
+			group[styleName] = styles[styleName];
+
+			codes.set(style[0], style[1]);
+		}
+
+		Object.defineProperty(styles, groupName, {
+			value: group,
+			enumerable: false
+		});
+	}
+
+	Object.defineProperty(styles, 'codes', {
+		value: codes,
+		enumerable: false
+	});
+
+	styles.color.close = '\u001B[39m';
+	styles.bgColor.close = '\u001B[49m';
+
+	setLazyProperty(styles.color, 'ansi', () => makeDynamicStyles(wrapAnsi16, 'ansi16', ansi2ansi, false));
+	setLazyProperty(styles.color, 'ansi256', () => makeDynamicStyles(wrapAnsi256, 'ansi256', ansi2ansi, false));
+	setLazyProperty(styles.color, 'ansi16m', () => makeDynamicStyles(wrapAnsi16m, 'rgb', rgb2rgb, false));
+	setLazyProperty(styles.bgColor, 'ansi', () => makeDynamicStyles(wrapAnsi16, 'ansi16', ansi2ansi, true));
+	setLazyProperty(styles.bgColor, 'ansi256', () => makeDynamicStyles(wrapAnsi256, 'ansi256', ansi2ansi, true));
+	setLazyProperty(styles.bgColor, 'ansi16m', () => makeDynamicStyles(wrapAnsi16m, 'rgb', rgb2rgb, true));
+
+	return styles;
+}
+
+// Make the export immutable
+Object.defineProperty(module, 'exports', {
+	enumerable: true,
+	get: assembleStyles
+});
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/module.js */ "./node_modules/webpack/buildin/module.js")(module)))
+
+/***/ }),
+
+/***/ "./node_modules/ansi-styles/node_modules/color-convert/conversions.js":
+/*!****************************************************************************!*\
+  !*** ./node_modules/ansi-styles/node_modules/color-convert/conversions.js ***!
+  \****************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* MIT license */
+/* eslint-disable no-mixed-operators */
+const cssKeywords = __webpack_require__(/*! color-name */ "./node_modules/color-name/index.js");
+
+// NOTE: conversions should only return primitive values (i.e. arrays, or
+//       values that give correct `typeof` results).
+//       do not use box values types (i.e. Number(), String(), etc.)
+
+const reverseKeywords = {};
+for (const key of Object.keys(cssKeywords)) {
+	reverseKeywords[cssKeywords[key]] = key;
+}
+
+const convert = {
+	rgb: {channels: 3, labels: 'rgb'},
+	hsl: {channels: 3, labels: 'hsl'},
+	hsv: {channels: 3, labels: 'hsv'},
+	hwb: {channels: 3, labels: 'hwb'},
+	cmyk: {channels: 4, labels: 'cmyk'},
+	xyz: {channels: 3, labels: 'xyz'},
+	lab: {channels: 3, labels: 'lab'},
+	lch: {channels: 3, labels: 'lch'},
+	hex: {channels: 1, labels: ['hex']},
+	keyword: {channels: 1, labels: ['keyword']},
+	ansi16: {channels: 1, labels: ['ansi16']},
+	ansi256: {channels: 1, labels: ['ansi256']},
+	hcg: {channels: 3, labels: ['h', 'c', 'g']},
+	apple: {channels: 3, labels: ['r16', 'g16', 'b16']},
+	gray: {channels: 1, labels: ['gray']}
+};
+
+module.exports = convert;
+
+// Hide .channels and .labels properties
+for (const model of Object.keys(convert)) {
+	if (!('channels' in convert[model])) {
+		throw new Error('missing channels property: ' + model);
+	}
+
+	if (!('labels' in convert[model])) {
+		throw new Error('missing channel labels property: ' + model);
+	}
+
+	if (convert[model].labels.length !== convert[model].channels) {
+		throw new Error('channel and label counts mismatch: ' + model);
+	}
+
+	const {channels, labels} = convert[model];
+	delete convert[model].channels;
+	delete convert[model].labels;
+	Object.defineProperty(convert[model], 'channels', {value: channels});
+	Object.defineProperty(convert[model], 'labels', {value: labels});
+}
+
+convert.rgb.hsl = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const min = Math.min(r, g, b);
+	const max = Math.max(r, g, b);
+	const delta = max - min;
+	let h;
+	let s;
+
+	if (max === min) {
+		h = 0;
+	} else if (r === max) {
+		h = (g - b) / delta;
+	} else if (g === max) {
+		h = 2 + (b - r) / delta;
+	} else if (b === max) {
+		h = 4 + (r - g) / delta;
+	}
+
+	h = Math.min(h * 60, 360);
+
+	if (h < 0) {
+		h += 360;
+	}
+
+	const l = (min + max) / 2;
+
+	if (max === min) {
+		s = 0;
+	} else if (l <= 0.5) {
+		s = delta / (max + min);
+	} else {
+		s = delta / (2 - max - min);
+	}
+
+	return [h, s * 100, l * 100];
+};
+
+convert.rgb.hsv = function (rgb) {
+	let rdif;
+	let gdif;
+	let bdif;
+	let h;
+	let s;
+
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const v = Math.max(r, g, b);
+	const diff = v - Math.min(r, g, b);
+	const diffc = function (c) {
+		return (v - c) / 6 / diff + 1 / 2;
+	};
+
+	if (diff === 0) {
+		h = 0;
+		s = 0;
+	} else {
+		s = diff / v;
+		rdif = diffc(r);
+		gdif = diffc(g);
+		bdif = diffc(b);
+
+		if (r === v) {
+			h = bdif - gdif;
+		} else if (g === v) {
+			h = (1 / 3) + rdif - bdif;
+		} else if (b === v) {
+			h = (2 / 3) + gdif - rdif;
+		}
+
+		if (h < 0) {
+			h += 1;
+		} else if (h > 1) {
+			h -= 1;
+		}
+	}
+
+	return [
+		h * 360,
+		s * 100,
+		v * 100
+	];
+};
+
+convert.rgb.hwb = function (rgb) {
+	const r = rgb[0];
+	const g = rgb[1];
+	let b = rgb[2];
+	const h = convert.rgb.hsl(rgb)[0];
+	const w = 1 / 255 * Math.min(r, Math.min(g, b));
+
+	b = 1 - 1 / 255 * Math.max(r, Math.max(g, b));
+
+	return [h, w * 100, b * 100];
+};
+
+convert.rgb.cmyk = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+
+	const k = Math.min(1 - r, 1 - g, 1 - b);
+	const c = (1 - r - k) / (1 - k) || 0;
+	const m = (1 - g - k) / (1 - k) || 0;
+	const y = (1 - b - k) / (1 - k) || 0;
+
+	return [c * 100, m * 100, y * 100, k * 100];
+};
+
+function comparativeDistance(x, y) {
+	/*
+		See https://en.m.wikipedia.org/wiki/Euclidean_distance#Squared_Euclidean_distance
+	*/
+	return (
+		((x[0] - y[0]) ** 2) +
+		((x[1] - y[1]) ** 2) +
+		((x[2] - y[2]) ** 2)
+	);
+}
+
+convert.rgb.keyword = function (rgb) {
+	const reversed = reverseKeywords[rgb];
+	if (reversed) {
+		return reversed;
+	}
+
+	let currentClosestDistance = Infinity;
+	let currentClosestKeyword;
+
+	for (const keyword of Object.keys(cssKeywords)) {
+		const value = cssKeywords[keyword];
+
+		// Compute comparative distance
+		const distance = comparativeDistance(rgb, value);
+
+		// Check if its less, if so set as closest
+		if (distance < currentClosestDistance) {
+			currentClosestDistance = distance;
+			currentClosestKeyword = keyword;
+		}
+	}
+
+	return currentClosestKeyword;
+};
+
+convert.keyword.rgb = function (keyword) {
+	return cssKeywords[keyword];
+};
+
+convert.rgb.xyz = function (rgb) {
+	let r = rgb[0] / 255;
+	let g = rgb[1] / 255;
+	let b = rgb[2] / 255;
+
+	// Assume sRGB
+	r = r > 0.04045 ? (((r + 0.055) / 1.055) ** 2.4) : (r / 12.92);
+	g = g > 0.04045 ? (((g + 0.055) / 1.055) ** 2.4) : (g / 12.92);
+	b = b > 0.04045 ? (((b + 0.055) / 1.055) ** 2.4) : (b / 12.92);
+
+	const x = (r * 0.4124) + (g * 0.3576) + (b * 0.1805);
+	const y = (r * 0.2126) + (g * 0.7152) + (b * 0.0722);
+	const z = (r * 0.0193) + (g * 0.1192) + (b * 0.9505);
+
+	return [x * 100, y * 100, z * 100];
+};
+
+convert.rgb.lab = function (rgb) {
+	const xyz = convert.rgb.xyz(rgb);
+	let x = xyz[0];
+	let y = xyz[1];
+	let z = xyz[2];
+
+	x /= 95.047;
+	y /= 100;
+	z /= 108.883;
+
+	x = x > 0.008856 ? (x ** (1 / 3)) : (7.787 * x) + (16 / 116);
+	y = y > 0.008856 ? (y ** (1 / 3)) : (7.787 * y) + (16 / 116);
+	z = z > 0.008856 ? (z ** (1 / 3)) : (7.787 * z) + (16 / 116);
+
+	const l = (116 * y) - 16;
+	const a = 500 * (x - y);
+	const b = 200 * (y - z);
+
+	return [l, a, b];
+};
+
+convert.hsl.rgb = function (hsl) {
+	const h = hsl[0] / 360;
+	const s = hsl[1] / 100;
+	const l = hsl[2] / 100;
+	let t2;
+	let t3;
+	let val;
+
+	if (s === 0) {
+		val = l * 255;
+		return [val, val, val];
+	}
+
+	if (l < 0.5) {
+		t2 = l * (1 + s);
+	} else {
+		t2 = l + s - l * s;
+	}
+
+	const t1 = 2 * l - t2;
+
+	const rgb = [0, 0, 0];
+	for (let i = 0; i < 3; i++) {
+		t3 = h + 1 / 3 * -(i - 1);
+		if (t3 < 0) {
+			t3++;
+		}
+
+		if (t3 > 1) {
+			t3--;
+		}
+
+		if (6 * t3 < 1) {
+			val = t1 + (t2 - t1) * 6 * t3;
+		} else if (2 * t3 < 1) {
+			val = t2;
+		} else if (3 * t3 < 2) {
+			val = t1 + (t2 - t1) * (2 / 3 - t3) * 6;
+		} else {
+			val = t1;
+		}
+
+		rgb[i] = val * 255;
+	}
+
+	return rgb;
+};
+
+convert.hsl.hsv = function (hsl) {
+	const h = hsl[0];
+	let s = hsl[1] / 100;
+	let l = hsl[2] / 100;
+	let smin = s;
+	const lmin = Math.max(l, 0.01);
+
+	l *= 2;
+	s *= (l <= 1) ? l : 2 - l;
+	smin *= lmin <= 1 ? lmin : 2 - lmin;
+	const v = (l + s) / 2;
+	const sv = l === 0 ? (2 * smin) / (lmin + smin) : (2 * s) / (l + s);
+
+	return [h, sv * 100, v * 100];
+};
+
+convert.hsv.rgb = function (hsv) {
+	const h = hsv[0] / 60;
+	const s = hsv[1] / 100;
+	let v = hsv[2] / 100;
+	const hi = Math.floor(h) % 6;
+
+	const f = h - Math.floor(h);
+	const p = 255 * v * (1 - s);
+	const q = 255 * v * (1 - (s * f));
+	const t = 255 * v * (1 - (s * (1 - f)));
+	v *= 255;
+
+	switch (hi) {
+		case 0:
+			return [v, t, p];
+		case 1:
+			return [q, v, p];
+		case 2:
+			return [p, v, t];
+		case 3:
+			return [p, q, v];
+		case 4:
+			return [t, p, v];
+		case 5:
+			return [v, p, q];
+	}
+};
+
+convert.hsv.hsl = function (hsv) {
+	const h = hsv[0];
+	const s = hsv[1] / 100;
+	const v = hsv[2] / 100;
+	const vmin = Math.max(v, 0.01);
+	let sl;
+	let l;
+
+	l = (2 - s) * v;
+	const lmin = (2 - s) * vmin;
+	sl = s * vmin;
+	sl /= (lmin <= 1) ? lmin : 2 - lmin;
+	sl = sl || 0;
+	l /= 2;
+
+	return [h, sl * 100, l * 100];
+};
+
+// http://dev.w3.org/csswg/css-color/#hwb-to-rgb
+convert.hwb.rgb = function (hwb) {
+	const h = hwb[0] / 360;
+	let wh = hwb[1] / 100;
+	let bl = hwb[2] / 100;
+	const ratio = wh + bl;
+	let f;
+
+	// Wh + bl cant be > 1
+	if (ratio > 1) {
+		wh /= ratio;
+		bl /= ratio;
+	}
+
+	const i = Math.floor(6 * h);
+	const v = 1 - bl;
+	f = 6 * h - i;
+
+	if ((i & 0x01) !== 0) {
+		f = 1 - f;
+	}
+
+	const n = wh + f * (v - wh); // Linear interpolation
+
+	let r;
+	let g;
+	let b;
+	/* eslint-disable max-statements-per-line,no-multi-spaces */
+	switch (i) {
+		default:
+		case 6:
+		case 0: r = v;  g = n;  b = wh; break;
+		case 1: r = n;  g = v;  b = wh; break;
+		case 2: r = wh; g = v;  b = n; break;
+		case 3: r = wh; g = n;  b = v; break;
+		case 4: r = n;  g = wh; b = v; break;
+		case 5: r = v;  g = wh; b = n; break;
+	}
+	/* eslint-enable max-statements-per-line,no-multi-spaces */
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.cmyk.rgb = function (cmyk) {
+	const c = cmyk[0] / 100;
+	const m = cmyk[1] / 100;
+	const y = cmyk[2] / 100;
+	const k = cmyk[3] / 100;
+
+	const r = 1 - Math.min(1, c * (1 - k) + k);
+	const g = 1 - Math.min(1, m * (1 - k) + k);
+	const b = 1 - Math.min(1, y * (1 - k) + k);
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.xyz.rgb = function (xyz) {
+	const x = xyz[0] / 100;
+	const y = xyz[1] / 100;
+	const z = xyz[2] / 100;
+	let r;
+	let g;
+	let b;
+
+	r = (x * 3.2406) + (y * -1.5372) + (z * -0.4986);
+	g = (x * -0.9689) + (y * 1.8758) + (z * 0.0415);
+	b = (x * 0.0557) + (y * -0.2040) + (z * 1.0570);
+
+	// Assume sRGB
+	r = r > 0.0031308
+		? ((1.055 * (r ** (1.0 / 2.4))) - 0.055)
+		: r * 12.92;
+
+	g = g > 0.0031308
+		? ((1.055 * (g ** (1.0 / 2.4))) - 0.055)
+		: g * 12.92;
+
+	b = b > 0.0031308
+		? ((1.055 * (b ** (1.0 / 2.4))) - 0.055)
+		: b * 12.92;
+
+	r = Math.min(Math.max(0, r), 1);
+	g = Math.min(Math.max(0, g), 1);
+	b = Math.min(Math.max(0, b), 1);
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.xyz.lab = function (xyz) {
+	let x = xyz[0];
+	let y = xyz[1];
+	let z = xyz[2];
+
+	x /= 95.047;
+	y /= 100;
+	z /= 108.883;
+
+	x = x > 0.008856 ? (x ** (1 / 3)) : (7.787 * x) + (16 / 116);
+	y = y > 0.008856 ? (y ** (1 / 3)) : (7.787 * y) + (16 / 116);
+	z = z > 0.008856 ? (z ** (1 / 3)) : (7.787 * z) + (16 / 116);
+
+	const l = (116 * y) - 16;
+	const a = 500 * (x - y);
+	const b = 200 * (y - z);
+
+	return [l, a, b];
+};
+
+convert.lab.xyz = function (lab) {
+	const l = lab[0];
+	const a = lab[1];
+	const b = lab[2];
+	let x;
+	let y;
+	let z;
+
+	y = (l + 16) / 116;
+	x = a / 500 + y;
+	z = y - b / 200;
+
+	const y2 = y ** 3;
+	const x2 = x ** 3;
+	const z2 = z ** 3;
+	y = y2 > 0.008856 ? y2 : (y - 16 / 116) / 7.787;
+	x = x2 > 0.008856 ? x2 : (x - 16 / 116) / 7.787;
+	z = z2 > 0.008856 ? z2 : (z - 16 / 116) / 7.787;
+
+	x *= 95.047;
+	y *= 100;
+	z *= 108.883;
+
+	return [x, y, z];
+};
+
+convert.lab.lch = function (lab) {
+	const l = lab[0];
+	const a = lab[1];
+	const b = lab[2];
+	let h;
+
+	const hr = Math.atan2(b, a);
+	h = hr * 360 / 2 / Math.PI;
+
+	if (h < 0) {
+		h += 360;
+	}
+
+	const c = Math.sqrt(a * a + b * b);
+
+	return [l, c, h];
+};
+
+convert.lch.lab = function (lch) {
+	const l = lch[0];
+	const c = lch[1];
+	const h = lch[2];
+
+	const hr = h / 360 * 2 * Math.PI;
+	const a = c * Math.cos(hr);
+	const b = c * Math.sin(hr);
+
+	return [l, a, b];
+};
+
+convert.rgb.ansi16 = function (args, saturation = null) {
+	const [r, g, b] = args;
+	let value = saturation === null ? convert.rgb.hsv(args)[2] : saturation; // Hsv -> ansi16 optimization
+
+	value = Math.round(value / 50);
+
+	if (value === 0) {
+		return 30;
+	}
+
+	let ansi = 30
+		+ ((Math.round(b / 255) << 2)
+		| (Math.round(g / 255) << 1)
+		| Math.round(r / 255));
+
+	if (value === 2) {
+		ansi += 60;
+	}
+
+	return ansi;
+};
+
+convert.hsv.ansi16 = function (args) {
+	// Optimization here; we already know the value and don't need to get
+	// it converted for us.
+	return convert.rgb.ansi16(convert.hsv.rgb(args), args[2]);
+};
+
+convert.rgb.ansi256 = function (args) {
+	const r = args[0];
+	const g = args[1];
+	const b = args[2];
+
+	// We use the extended greyscale palette here, with the exception of
+	// black and white. normal palette only has 4 greyscale shades.
+	if (r === g && g === b) {
+		if (r < 8) {
+			return 16;
+		}
+
+		if (r > 248) {
+			return 231;
+		}
+
+		return Math.round(((r - 8) / 247) * 24) + 232;
+	}
+
+	const ansi = 16
+		+ (36 * Math.round(r / 255 * 5))
+		+ (6 * Math.round(g / 255 * 5))
+		+ Math.round(b / 255 * 5);
+
+	return ansi;
+};
+
+convert.ansi16.rgb = function (args) {
+	let color = args % 10;
+
+	// Handle greyscale
+	if (color === 0 || color === 7) {
+		if (args > 50) {
+			color += 3.5;
+		}
+
+		color = color / 10.5 * 255;
+
+		return [color, color, color];
+	}
+
+	const mult = (~~(args > 50) + 1) * 0.5;
+	const r = ((color & 1) * mult) * 255;
+	const g = (((color >> 1) & 1) * mult) * 255;
+	const b = (((color >> 2) & 1) * mult) * 255;
+
+	return [r, g, b];
+};
+
+convert.ansi256.rgb = function (args) {
+	// Handle greyscale
+	if (args >= 232) {
+		const c = (args - 232) * 10 + 8;
+		return [c, c, c];
+	}
+
+	args -= 16;
+
+	let rem;
+	const r = Math.floor(args / 36) / 5 * 255;
+	const g = Math.floor((rem = args % 36) / 6) / 5 * 255;
+	const b = (rem % 6) / 5 * 255;
+
+	return [r, g, b];
+};
+
+convert.rgb.hex = function (args) {
+	const integer = ((Math.round(args[0]) & 0xFF) << 16)
+		+ ((Math.round(args[1]) & 0xFF) << 8)
+		+ (Math.round(args[2]) & 0xFF);
+
+	const string = integer.toString(16).toUpperCase();
+	return '000000'.substring(string.length) + string;
+};
+
+convert.hex.rgb = function (args) {
+	const match = args.toString(16).match(/[a-f0-9]{6}|[a-f0-9]{3}/i);
+	if (!match) {
+		return [0, 0, 0];
+	}
+
+	let colorString = match[0];
+
+	if (match[0].length === 3) {
+		colorString = colorString.split('').map(char => {
+			return char + char;
+		}).join('');
+	}
+
+	const integer = parseInt(colorString, 16);
+	const r = (integer >> 16) & 0xFF;
+	const g = (integer >> 8) & 0xFF;
+	const b = integer & 0xFF;
+
+	return [r, g, b];
+};
+
+convert.rgb.hcg = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const max = Math.max(Math.max(r, g), b);
+	const min = Math.min(Math.min(r, g), b);
+	const chroma = (max - min);
+	let grayscale;
+	let hue;
+
+	if (chroma < 1) {
+		grayscale = min / (1 - chroma);
+	} else {
+		grayscale = 0;
+	}
+
+	if (chroma <= 0) {
+		hue = 0;
+	} else
+	if (max === r) {
+		hue = ((g - b) / chroma) % 6;
+	} else
+	if (max === g) {
+		hue = 2 + (b - r) / chroma;
+	} else {
+		hue = 4 + (r - g) / chroma;
+	}
+
+	hue /= 6;
+	hue %= 1;
+
+	return [hue * 360, chroma * 100, grayscale * 100];
+};
+
+convert.hsl.hcg = function (hsl) {
+	const s = hsl[1] / 100;
+	const l = hsl[2] / 100;
+
+	const c = l < 0.5 ? (2.0 * s * l) : (2.0 * s * (1.0 - l));
+
+	let f = 0;
+	if (c < 1.0) {
+		f = (l - 0.5 * c) / (1.0 - c);
+	}
+
+	return [hsl[0], c * 100, f * 100];
+};
+
+convert.hsv.hcg = function (hsv) {
+	const s = hsv[1] / 100;
+	const v = hsv[2] / 100;
+
+	const c = s * v;
+	let f = 0;
+
+	if (c < 1.0) {
+		f = (v - c) / (1 - c);
+	}
+
+	return [hsv[0], c * 100, f * 100];
+};
+
+convert.hcg.rgb = function (hcg) {
+	const h = hcg[0] / 360;
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	if (c === 0.0) {
+		return [g * 255, g * 255, g * 255];
+	}
+
+	const pure = [0, 0, 0];
+	const hi = (h % 1) * 6;
+	const v = hi % 1;
+	const w = 1 - v;
+	let mg = 0;
+
+	/* eslint-disable max-statements-per-line */
+	switch (Math.floor(hi)) {
+		case 0:
+			pure[0] = 1; pure[1] = v; pure[2] = 0; break;
+		case 1:
+			pure[0] = w; pure[1] = 1; pure[2] = 0; break;
+		case 2:
+			pure[0] = 0; pure[1] = 1; pure[2] = v; break;
+		case 3:
+			pure[0] = 0; pure[1] = w; pure[2] = 1; break;
+		case 4:
+			pure[0] = v; pure[1] = 0; pure[2] = 1; break;
+		default:
+			pure[0] = 1; pure[1] = 0; pure[2] = w;
+	}
+	/* eslint-enable max-statements-per-line */
+
+	mg = (1.0 - c) * g;
+
+	return [
+		(c * pure[0] + mg) * 255,
+		(c * pure[1] + mg) * 255,
+		(c * pure[2] + mg) * 255
+	];
+};
+
+convert.hcg.hsv = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	const v = c + g * (1.0 - c);
+	let f = 0;
+
+	if (v > 0.0) {
+		f = c / v;
+	}
+
+	return [hcg[0], f * 100, v * 100];
+};
+
+convert.hcg.hsl = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	const l = g * (1.0 - c) + 0.5 * c;
+	let s = 0;
+
+	if (l > 0.0 && l < 0.5) {
+		s = c / (2 * l);
+	} else
+	if (l >= 0.5 && l < 1.0) {
+		s = c / (2 * (1 - l));
+	}
+
+	return [hcg[0], s * 100, l * 100];
+};
+
+convert.hcg.hwb = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+	const v = c + g * (1.0 - c);
+	return [hcg[0], (v - c) * 100, (1 - v) * 100];
+};
+
+convert.hwb.hcg = function (hwb) {
+	const w = hwb[1] / 100;
+	const b = hwb[2] / 100;
+	const v = 1 - b;
+	const c = v - w;
+	let g = 0;
+
+	if (c < 1) {
+		g = (v - c) / (1 - c);
+	}
+
+	return [hwb[0], c * 100, g * 100];
+};
+
+convert.apple.rgb = function (apple) {
+	return [(apple[0] / 65535) * 255, (apple[1] / 65535) * 255, (apple[2] / 65535) * 255];
+};
+
+convert.rgb.apple = function (rgb) {
+	return [(rgb[0] / 255) * 65535, (rgb[1] / 255) * 65535, (rgb[2] / 255) * 65535];
+};
+
+convert.gray.rgb = function (args) {
+	return [args[0] / 100 * 255, args[0] / 100 * 255, args[0] / 100 * 255];
+};
+
+convert.gray.hsl = function (args) {
+	return [0, 0, args[0]];
+};
+
+convert.gray.hsv = convert.gray.hsl;
+
+convert.gray.hwb = function (gray) {
+	return [0, 100, gray[0]];
+};
+
+convert.gray.cmyk = function (gray) {
+	return [0, 0, 0, gray[0]];
+};
+
+convert.gray.lab = function (gray) {
+	return [gray[0], 0, 0];
+};
+
+convert.gray.hex = function (gray) {
+	const val = Math.round(gray[0] / 100 * 255) & 0xFF;
+	const integer = (val << 16) + (val << 8) + val;
+
+	const string = integer.toString(16).toUpperCase();
+	return '000000'.substring(string.length) + string;
+};
+
+convert.rgb.gray = function (rgb) {
+	const val = (rgb[0] + rgb[1] + rgb[2]) / 3;
+	return [val / 255 * 100];
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/ansi-styles/node_modules/color-convert/index.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/ansi-styles/node_modules/color-convert/index.js ***!
+  \**********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const conversions = __webpack_require__(/*! ./conversions */ "./node_modules/ansi-styles/node_modules/color-convert/conversions.js");
+const route = __webpack_require__(/*! ./route */ "./node_modules/ansi-styles/node_modules/color-convert/route.js");
+
+const convert = {};
+
+const models = Object.keys(conversions);
+
+function wrapRaw(fn) {
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
+		}
+
+		if (arg0.length > 1) {
+			args = arg0;
+		}
+
+		return fn(args);
+	};
+
+	// Preserve .conversion property if there is one
+	if ('conversion' in fn) {
+		wrappedFn.conversion = fn.conversion;
+	}
+
+	return wrappedFn;
+}
+
+function wrapRounded(fn) {
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
+		}
+
+		if (arg0.length > 1) {
+			args = arg0;
+		}
+
+		const result = fn(args);
+
+		// We're assuming the result is an array here.
+		// see notice in conversions.js; don't use box types
+		// in conversion functions.
+		if (typeof result === 'object') {
+			for (let len = result.length, i = 0; i < len; i++) {
+				result[i] = Math.round(result[i]);
+			}
+		}
+
+		return result;
+	};
+
+	// Preserve .conversion property if there is one
+	if ('conversion' in fn) {
+		wrappedFn.conversion = fn.conversion;
+	}
+
+	return wrappedFn;
+}
+
+models.forEach(fromModel => {
+	convert[fromModel] = {};
+
+	Object.defineProperty(convert[fromModel], 'channels', {value: conversions[fromModel].channels});
+	Object.defineProperty(convert[fromModel], 'labels', {value: conversions[fromModel].labels});
+
+	const routes = route(fromModel);
+	const routeModels = Object.keys(routes);
+
+	routeModels.forEach(toModel => {
+		const fn = routes[toModel];
+
+		convert[fromModel][toModel] = wrapRounded(fn);
+		convert[fromModel][toModel].raw = wrapRaw(fn);
+	});
+});
+
+module.exports = convert;
+
+
+/***/ }),
+
+/***/ "./node_modules/ansi-styles/node_modules/color-convert/route.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/ansi-styles/node_modules/color-convert/route.js ***!
+  \**********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const conversions = __webpack_require__(/*! ./conversions */ "./node_modules/ansi-styles/node_modules/color-convert/conversions.js");
+
+/*
+	This function routes a model to all other models.
+
+	all functions that are routed have a property `.conversion` attached
+	to the returned synthetic function. This property is an array
+	of strings, each with the steps in between the 'from' and 'to'
+	color models (inclusive).
+
+	conversions that are not possible simply are not included.
+*/
+
+function buildGraph() {
+	const graph = {};
+	// https://jsperf.com/object-keys-vs-for-in-with-closure/3
+	const models = Object.keys(conversions);
+
+	for (let len = models.length, i = 0; i < len; i++) {
+		graph[models[i]] = {
+			// http://jsperf.com/1-vs-infinity
+			// micro-opt, but this is simple.
+			distance: -1,
+			parent: null
+		};
+	}
+
+	return graph;
+}
+
+// https://en.wikipedia.org/wiki/Breadth-first_search
+function deriveBFS(fromModel) {
+	const graph = buildGraph();
+	const queue = [fromModel]; // Unshift -> queue -> pop
+
+	graph[fromModel].distance = 0;
+
+	while (queue.length) {
+		const current = queue.pop();
+		const adjacents = Object.keys(conversions[current]);
+
+		for (let len = adjacents.length, i = 0; i < len; i++) {
+			const adjacent = adjacents[i];
+			const node = graph[adjacent];
+
+			if (node.distance === -1) {
+				node.distance = graph[current].distance + 1;
+				node.parent = current;
+				queue.unshift(adjacent);
+			}
+		}
+	}
+
+	return graph;
+}
+
+function link(from, to) {
+	return function (args) {
+		return to(from(args));
+	};
+}
+
+function wrapConversion(toModel, graph) {
+	const path = [graph[toModel].parent, toModel];
+	let fn = conversions[graph[toModel].parent][toModel];
+
+	let cur = graph[toModel].parent;
+	while (graph[cur].parent) {
+		path.unshift(graph[cur].parent);
+		fn = link(conversions[graph[cur].parent][cur], fn);
+		cur = graph[cur].parent;
+	}
+
+	fn.conversion = path;
+	return fn;
+}
+
+module.exports = function (fromModel) {
+	const graph = deriveBFS(fromModel);
+	const conversion = {};
+
+	const models = Object.keys(graph);
+	for (let len = models.length, i = 0; i < len; i++) {
+		const toModel = models[i];
+		const node = graph[toModel];
+
+		if (node.parent === null) {
+			// No possible conversion, or this node is the source model.
+			continue;
+		}
+
+		conversion[toModel] = wrapConversion(toModel, graph);
+	}
+
+	return conversion;
+};
+
+
+
+/***/ }),
+
+/***/ "./node_modules/case/dist/Case.js":
+/*!****************************************!*\
+  !*** ./node_modules/case/dist/Case.js ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
 /*! Case - v1.6.2 - 2020-03-24
 * Copyright (c) 2020 Nathan Bubna; Licensed MIT, GPL */
-(function(){"use strict";var t=function(e,t){return t=t||"",e.replace(/(^|-)/g,"$1\\u"+t).replace(/,/g,"\\u"+t)},n=t("20-26,28-2F,3A-40,5B-60,7B-7E,A0-BF,D7,F7","00"),r="a-z"+t("DF-F6,F8-FF","00"),s="A-Z"+t("C0-D6,D8-DE","00"),i=function(e,t,i,o){return e=e||n,t=t||r,i=i||s,o=o||"A|An|And|As|At|But|By|En|For|If|In|Of|On|Or|The|To|Vs?\\.?|Via",{capitalize:new RegExp("(^|["+e+"])(["+t+"])","g"),pascal:new RegExp("(^|["+e+"])+(["+t+i+"])","g"),fill:new RegExp("["+e+"]+(.|$)","g"),sentence:new RegExp('(^\\s*|[\\?\\!\\.]+"?\\s+"?|,\\s+")(['+t+"])","g"),improper:new RegExp("\\b("+o+")\\b","g"),relax:new RegExp("([^"+i+"])(["+i+"]*)(["+i+"])(?=[^"+i+"]|$)","g"),upper:new RegExp("^[^"+t+"]+$"),hole:/[^\s]\s[^\s]/,apostrophe:/'/g,room:new RegExp("["+e+"]")}},o=i(),a={re:o,unicodes:t,regexps:i,types:[],up:String.prototype.toUpperCase,low:String.prototype.toLowerCase,cap:function(e){return a.up.call(e.charAt(0))+e.slice(1)},decap:function(e){return a.low.call(e.charAt(0))+e.slice(1)},deapostrophe:function(e){return e.replace(o.apostrophe,"")},fill:function(e,t,n){return null!=t&&(e=e.replace(o.fill,(function(e,n){return n?t+n:""}))),n&&(e=a.deapostrophe(e)),e},prep:function(e,t,n,r){if(e=null==e?"":e+"",!r&&o.upper.test(e)&&(e=a.low.call(e)),!t&&!o.hole.test(e)){var s=a.fill(e," ");o.hole.test(s)&&(e=s)}return n||o.room.test(e)||(e=e.replace(o.relax,a.relax)),e},relax:function(e,t,n,r){return t+" "+(n?n+" ":"")+r}},c={_:a,of:function(e){for(var t=0,n=a.types.length;t<n;t++)if(c[a.types[t]].apply(c,arguments)===e)return a.types[t]},flip:function(e){return e.replace(/\w/g,(function(e){return(e==a.up.call(e)?a.low:a.up).call(e)}))},random:function(e){return e.replace(/\w/g,(function(e){return(Math.round(Math.random())?a.up:a.low).call(e)}))},type:function(e,t){c[e]=t,a.types.push(e)}},u={lower:function(e,t,n){return a.fill(a.low.call(a.prep(e,t)),t,n)},snake:function(e){return c.lower(e,"_",!0)},constant:function(e){return c.upper(e,"_",!0)},camel:function(e){return a.decap(c.pascal(e))},kebab:function(e){return c.lower(e,"-",!0)},upper:function(e,t,n){return a.fill(a.up.call(a.prep(e,t,!1,!0)),t,n)},capital:function(e,t,n){return a.fill(a.prep(e).replace(o.capitalize,(function(e,t,n){return t+a.up.call(n)})),t,n)},header:function(e){return c.capital(e,"-",!0)},pascal:function(e){return a.fill(a.prep(e,!1,!0).replace(o.pascal,(function(e,t,n){return a.up.call(n)})),"",!0)},title:function(e){return c.capital(e).replace(o.improper,(function(e,t,n,r){return n>0&&n<r.lastIndexOf(" ")?a.low.call(e):e}))},sentence:function(e,t,n){return e=c.lower(e).replace(o.sentence,(function(e,t,n){return t+a.up.call(n)})),t&&t.forEach((function(t){e=e.replace(new RegExp("\\b"+c.lower(t)+"\\b","g"),a.cap)})),n&&n.forEach((function(t){e=e.replace(new RegExp("(\\b"+c.lower(t)+"\\. +)(\\w)"),(function(e,t,n){return t+a.low.call(n)}))})),e}};for(var l in u.squish=u.pascal,c.default=c,u)c.type(l,u[l]);var _="function"==typeof _?_:function(){};_(e.exports?e.exports=c:this.Case=c)}).call(this)},function(e,t,n){"use strict";e.exports=!("undefined"==typeof process||!process.versions||!process.versions.node)},function(e,t,n){"use strict";n.d(t,"a",(function(){return i}));var r=n(0),s=n(13);class i{constructor(e=null,t,n,r="let"){this.outer=e,this.name=r,this.data=new Map,this.defs=new Map,this.root===this&&(this.bindings=[]),n&&(this.exps=n),t&&n&&this.bindAll(t,n)}get root(){return this.outer?this.outer.root:this}getAllSymbols(){const e=this.outer?new Map(Object.assign(Object.assign({},this.outer.data),this.data)):this.data;return Array.from(e.keys()).map(e=>Object(r.K)(e))}bindAll(e,t){if(Object(r.E)(e))this.set(e,t);else for(let n=0;n<e.length;n++){const i=e[n],o=t[n],a=Object(r.w)(i);if(a===r.p.Symbol&&"&"===i.value){this.set(e[n+1],t.slice(n));break}switch(a){case r.p.Symbol:if(void 0===o)throw new r.o(`[${this.name}] parameter '${i}' is not specified`);this.set(i,o);break;case r.p.Vector:if(!Object(r.C)(o))throw new r.o(`[${this.name}] The destruction parameter ${Object(s.a)(i,!0)} is not specified as sequence`);this.bindAll(i,o);break;case r.p.Map:{if(!Object(r.A)(o))throw new r.o(`[${this.name}] The destruction parameter '${Object(s.a)(i,!0)}'} is not specified as map`);const e=Object.entries(i),t=[],n=[];for(const[s,i]of e){if(!(s in o))throw new r.o(`[${this.name}] The destruction keyword :${s.slice(1)} does not exist on the parameter`);t.push(i),n.push(o[s])}this.bindAll(t,n);break}default:throw new r.o(`[${this.name}] Invalid bind expression`)}}}set(e,t,n){return this.data.set(e.value,t),n&&this.defs.set(e.value,n),t}getDef(e){return this.defs.has(e.value)?this.defs.get(e.value):null!==this.outer?this.outer.getDef(e):null}find(e){const t=this.root.bindings;if(t.length>0){const n=t[t.length-1].find(e);if(void 0!==n)return n}if(this.data.has(e.value))return this.data.get(e.value);let n;return"%"===e.value[0]&&this.exps&&this.exps.length>=(n=parseInt(e.value.slice(1))-1||0)?this.exps[n]:null!==this.outer?this.outer.find(e):void 0}hasOwn(e){return this.data.has(e.value)}get(e){const t=this.find(e);if(void 0===t)throw new r.o(`[${this.name}] Symbol ${e} not found`);return t}getChain(){let e=this;const t=[...this.root.bindings.reverse()];do{t.push(e),e=e.outer}while(e);return t}setOuter(e){this.outer=e}pushBinding(e){const t=this.root.bindings,n=t.length>0?t[t.length-1]:null;return e.name="binding",e.outer=n,t.push(e),e}popBinding(){this.root.bindings.pop()}}},,function(e,t){e.exports=require("path")},function(e,t){e.exports=require("fs")},,function(e,t,n){"use strict";n(3);var r=n(2);n.d(t,"a",(function(){return r.a}))},function(e,t,n){"use strict";n.d(t,"a",(function(){return k}));var r=n(0),s=n(8),i=n(13),o=n(6);const a=Object(r.K)("def"),c=Object(r.K)("defvar"),u=Object(r.K)("let"),l=Object(r.K)("binding"),_=Object(r.K)("if"),f=Object(r.K)("do"),p=Object(r.K)("fn"),d=Object(r.K)("get-all-symbols"),h=Object(r.K)("fn-params"),b=Object(r.K)("fn-sugar"),O=Object(r.K)("macro"),E=Object(r.K)("macroexpand"),y=Object(r.K)("quote"),m=Object(r.K)("quasiquote"),g=Object(r.K)("try"),v=Object(r.K)("catch"),w=Object(r.K)("concat"),M=Object(r.K)("eval*"),j=Object(r.K)("lst");function P(e){if(Object(r.A)(e)){const t={};for(const[n,r]of Object.entries(e))t[n]=P(r);return t}if(!n(e))return Object(r.s)(y,e);if(Object(r.F)(e[0],"unquote"))return e[1];let t=Object(r.s)(w,...e.map(e=>n(e)&&Object(r.F)(e[0],"splice-unquote")?e[1]:[P(e)]));return t=Object(r.y)(e)?Object(r.s)(j,t):t,t;function n(e){return Object(r.C)(e)&&e.length>0}}function D(e,t,n){let s=e;for(;Object(r.y)(s)&&Object(r.E)(s[0])&&t.find(s[0]);){const e=t.get(s[0]);if(!Object(r.z)(e)||!e[r.h])break;s[0].evaluated=e,s=e.apply({callerEnv:t},s.slice(1))}return n&&s!==e&&Object(r.y)(e)&&Object(r.I)(e,{type:r.a.Constant,exp:s}),s}function x(e,t,n){if(Object(r.E)(e)){const r=t.get(e);if(n){const n=t.getDef(e);n&&(e.def=n),e.evaluated=r}return r}if(Array.isArray(e)){const s=e.map(e=>{const s=k.call(this,e,t,n);return n&&Object(r.B)(e)&&(e[r.f]=s),s});return n&&(e[r.f]=s),Object(r.y)(e)?Object(r.s)(...s):s}if(Object(r.A)(e)){const s={};for(const i in e){const o=k.call(this,e[i],t,n);n&&Object(r.B)(e[i])&&(e[i][r.f]=o),s[i]=o}return n&&(e[r.f]=s),s}return e}function k(e,t,n=!0){const w=e;Object(r.y)(e)&&Object(r.F)(e[0],"circumcircle")&&console.log("start");let j=0;for(;j++<1e6;){if(!Object(r.y)(e))return x.call(this,e,t,n);if(e=D(e,t,n),!Object(r.y)(e))return x.call(this,e,t,n);if(0===e.length)return null;const[j]=e;if(!Object(r.E)(j))throw new r.o(`${Object(o.capital)(Object(r.w)(j))} ${Object(i.a)(j)} is not a function. First element of list always should be a function.`);switch(j.value){case"def":{n&&(j.evaluated=t.get(a));const[,s,i]=e;if(!Object(r.E)(s)||void 0===i)throw new r.o("Invalid form of def");const o=t.set(s,k.call(this,i,t,n));return n&&(Object(r.I)(e,{type:r.a.Unchange}),w[r.f]=o),o}case"defvar":{n&&(j.evaluated=t.get(c));const[,s,i]=e;if(!Object(r.E)(s)||void 0===i)throw new r.o("Invalid form of defvar");const o=k.call(this,i,t,n);return t.set(s,o,e),n&&(w[r.f]=o),o}case"let":{n&&(j.evaluated=t.get(u));const i=new s.a(t),[,o,...a]=e;if(!Object(r.G)(o))throw new r.o("Invalid bind-expr in let");for(let e=0;e<o.length;e+=2)i.bindAll(o[e],k.call(this,o[e+1],i,n));t=i;const c=1===a.length?a[0]:Object(r.s)(f,...a);n&&Object(r.I)(e,{type:r.a.Env,exp:c,env:i}),e=c;break}case"binding":{n&&(j.evaluated=t.get(l));const i=new s.a(void 0,void 0,void 0,"binding"),[,o,...a]=e;if(!Object(r.C)(o))throw new r.o("Invalid bind-expr in binding");for(let e=0;e<o.length;e+=2)i.bindAll(o[e],k.call(this,o[e+1],t,n));t.pushBinding(i);const c=1===a.length?a[0]:Object(r.s)(f,...a);let u;try{u=k.call(this,c,t,n)}finally{t.popBinding()}return n&&(w[r.f]=u),u}case"get-all-symbols":{const e=t.getAllSymbols();return n&&(j.evaluated=t.get(d),w[r.f]=e),e}case"fn-params":{n&&(j.evaluated=t.get(h));const s=k.call(this,e[1],t,n),i=Object(r.z)(s)?[...s[r.m]]:null;return n&&(w[r.f]=i),i}case"eval*":{n&&(j.evaluated=t.get(M));const r=k.call(this,e[1],t,n);e=k.call(this,r,this?this.callerEnv:t,n);break}case"quote":{const s=e[1];return n&&(j.evaluated=t.get(y),w[r.f]=s),s}case"quasiquote":n&&(j.evaluated=t.get(m)),e=P(e[1]);break;case"fn":{const[,,i]=e;let[,o]=e;if(Object(r.A)(o)&&(o=[o]),!Object(r.G)(o))throw new r.o("First argument of fn should be vector or map");if(void 0===i)throw new r.o("Second argument of fn should be specified");const a=Object(r.t)((function(...e){return k.call(this,i,new s.a(t,o,e),n)}),i,t,o);return n&&(j.evaluated=t.get(p),w[r.f]=a),a}case"fn-sugar":{n&&(j.evaluated=t.get(b));const i=e[1],o=Object(r.t)((function(...e){return k.call(this,i,new s.a(t,[],e),n)}),i,t,[]);return n&&(w[r.f]=o),o}case"macro":{n&&(j.evaluated=t.get(O));const[,,i]=e;let[,o]=e;if(Object(r.A)(o)&&(o=[o]),!Object(r.G)(o))throw new r.o("First argument of macro should be vector or map");if(void 0===i)throw new r.o("Second argument of macro should be specified");const a=Object(r.t)((function(...e){return k.call(this,i,new s.a(t,o,e),n)}),i,t,o);return a[r.h]=!0,n&&(w[r.f]=a),a}case"macroexpand":{n&&(j.evaluated=t.get(E));const s=D(e[1],t,n);return n&&(w[r.f]=s),s}case"try":{n&&(j.evaluated=t.get(g));const[,i,o]=e;try{const e=k.call(this,i,t,n);return n&&(w[r.f]=e),e}catch(e){let i=e;if(Object(r.y)(o)&&Object(r.F)(o[0],"catch")&&Object(r.E)(o[1])){n&&(j.evaluated=t.get(v)),e instanceof Error&&(i=e.message);const[,a,c]=o,u=k.call(this,c,new s.a(t,[a],[i]),n);return n&&(w[r.f]=u),u}throw i}}case"do":if(n&&(j.evaluated=t.get(f)),1===e.length)return null;k.call(this,e.slice(1,-1),t,n),e=e[e.length-1];break;case"if":{n&&(j.evaluated=t.get(_));const[,r,s,i]=e;e=k.call(this,r,t,n)?s:void 0!==i?i:null;break}default:{const[i,...o]=e.map(e=>k.call(this,e,t,n));if(i instanceof Function){if(n&&(j.evaluated=i),Object(r.z)(i)){t=new s.a(i[r.e],i[r.m],o,j.value),e=i[r.b];break}{const e=i.apply({callerEnv:t},o);return n&&(w[r.f]=e),e}}}}}throw new Error("Exceed the maximum TCO stacks")}},function(module,__webpack_exports__,__webpack_require__){"use strict";var _types__WEBPACK_IMPORTED_MODULE_0__=__webpack_require__(0);__webpack_exports__.a={resolveJS(str){if(str.match(/\./)){const match=/^(.*)\.[^\.]*$/.exec(str);if(null===match)throw new _types__WEBPACK_IMPORTED_MODULE_0__.o("[interop.resolveJS] Cannot resolve");return[eval(match[1]),eval(str)]}return[globalThis,eval(str)]},jsToMal(e){if(null==e)return null;const t=[],n=JSON.stringify(e,(e,n)=>{if("object"==typeof n&&null!==n){if(-1!==t.indexOf(n))return;t.push(n)}return n});return JSON.parse(n)}}},function(e,t){e.exports=require("crypto")},function(module,__webpack_exports__,__webpack_require__){"use strict";__webpack_require__.d(__webpack_exports__,"b",(function(){return slurp}));var sprintf_js__WEBPACK_IMPORTED_MODULE_0__=__webpack_require__(24),sprintf_js__WEBPACK_IMPORTED_MODULE_0___default=__webpack_require__.n(sprintf_js__WEBPACK_IMPORTED_MODULE_0__),is_node__WEBPACK_IMPORTED_MODULE_1__=__webpack_require__(7),is_node__WEBPACK_IMPORTED_MODULE_1___default=__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_1__),_types__WEBPACK_IMPORTED_MODULE_2__=__webpack_require__(0),_printer__WEBPACK_IMPORTED_MODULE_3__=__webpack_require__(2),_reader__WEBPACK_IMPORTED_MODULE_4__=__webpack_require__(3),_interop__WEBPACK_IMPORTED_MODULE_5__=__webpack_require__(15);const slurp=(()=>{if(is_node__WEBPACK_IMPORTED_MODULE_1___default.a){const e=__webpack_require__(11);return t=>e.readFileSync(t,"UTF-8")}return e=>{const t=new XMLHttpRequest;if(t.open("GET",e,!1),t.send(),200!==t.status)throw new _types__WEBPACK_IMPORTED_MODULE_2__.o(`Failed to slurp file: ${e}`);return t.responseText}})();function jsEval(str){return _interop__WEBPACK_IMPORTED_MODULE_5__.a.jsToMal(eval(str.toString()))}function jsMethodCall(e,...t){const[n,r]=_interop__WEBPACK_IMPORTED_MODULE_5__.a.resolveJS(e),s=r.apply(n,t);return _interop__WEBPACK_IMPORTED_MODULE_5__.a.jsToMal(s)}const Exports=[["throw",e=>{throw new _types__WEBPACK_IMPORTED_MODULE_2__.o(e)}],["prn",(...e)=>(_printer__WEBPACK_IMPORTED_MODULE_3__.b.log(...e.map(e=>Object(_printer__WEBPACK_IMPORTED_MODULE_3__.a)(e,!0))),null)],["print-str",(...e)=>e.map(e=>Object(_printer__WEBPACK_IMPORTED_MODULE_3__.a)(e,!0)).join(" ")],["println",(...e)=>(_printer__WEBPACK_IMPORTED_MODULE_3__.b.log(...e.map(e=>Object(_printer__WEBPACK_IMPORTED_MODULE_3__.a)(e,!1))),null)],["read-string",_reader__WEBPACK_IMPORTED_MODULE_4__.c],["slurp",slurp],["js-eval",jsEval],[".",jsMethodCall],["format",(e,...t)=>Object(sprintf_js__WEBPACK_IMPORTED_MODULE_0__.vsprintf)(e,t)],["*is-node*",is_node__WEBPACK_IMPORTED_MODULE_1___default.a],["*host-language*","JavaScript"],["&",Object(_types__WEBPACK_IMPORTED_MODULE_2__.K)("&")],["def",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Defines a variable",params:[{label:"Symbol",type:"symbol"},{label:"Value",type:"any"}]}))],["defvar",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Creates a variable which can be changed by the bidirectional evaluation",params:[{label:"Symbol",type:"symbol"},{label:"Value",type:"any"}]}))],["let",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Creates a lexical scope",params:[{label:"Binds",type:"code"},{label:"Body",type:"code"}]}))],["binding",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Creates a new binding",params:[{label:"Binds",type:"code"},{label:"Body",type:"code"}]}))],["get-all-symbols",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Gets all existing symbols",params:[],return:{type:"vector"}}))],["fn-params",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Gets the list of a function parameter",params:[{label:"Function",type:"symbol"}]}))],["eval*",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally",params:[{label:"Form",type:"code"}]}))],["quote",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Yields the unevaluated *form*",params:[{label:"Form",type:"code"}]}))],["quasiquote",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Quasiquote",params:[{label:"Form",type:"code"}]}))],["fn",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Defines a function",params:[{label:"Params",type:"code"},{label:"Form",type:"code"}]}))],["fn-sugar",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"syntactic sugar for (fn [] *form*)",params:[]}))],["macro",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"",params:[{label:"Param",type:"code"},{label:"Form",type:"code"}]}))],["macroexpand",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Expands the macro",params:[]}))],["try",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Try",params:[]}))],["catch",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Catch",params:[]}))],["do",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Evaluates *forms* in order and returns the value of the last",params:[Object(_types__WEBPACK_IMPORTED_MODULE_2__.K)("&"),{label:"Form",type:"code"}]}))],["if",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Evaluates *test*. If truthy, evaluates and yields *then*, otherwise, evaluates and yields *else*. If *else* is not supplied it defaults to nil",params:[{label:"Test",type:"code"},{label:"Then",type:"code"},{label:"Else",type:"code",default:null}]}))],["env-chain",Object(_types__WEBPACK_IMPORTED_MODULE_2__.J)(()=>null,Object(_reader__WEBPACK_IMPORTED_MODULE_4__.b)({doc:"Env chain",params:[]}))]];__webpack_exports__.a=Exports},,,,,function(e,t,n){"use strict";var r,s,i,o,a,c,u="win32"===process.platform,l="The current environment doesn't support interactive reading from TTY.",_=n(11),f=process.binding("tty_wrap").TTY,p=n(38),d=n(10),h={prompt:"> ",hideEchoBack:!1,mask:"*",limit:[],limitMessage:"Input another, please.$<( [)limit(])>",defaultInput:"",trueValue:[],falseValue:[],caseSensitive:!1,keepWhitespace:!1,encoding:"utf8",bufferSize:1024,print:void 0,history:!0,cd:!1,phContent:void 0,preCheck:void 0},b="none",O=!1,E=0,y="",m=[],g=!1,v=!1,w=!1;function M(e){return o.concat((t={display:"string",displayOnly:"boolean",keyIn:"boolean",hideEchoBack:"boolean",mask:"string",limit:"string",caseSensitive:"boolean"},n=[],Object.keys(t).forEach((function(r){"boolean"===t[r]?e[r]&&n.push("--"+r):"string"===t[r]&&e[r]&&n.push("--"+r,e[r].replace(/[^\w\u0080-\uFFFF]/g,(function(e){return"#"+e.charCodeAt(0)+";"})))})),n));var t,n}function j(e){var t,r,s={},c={env:process.env,encoding:e.encoding};if(i||(u?process.env.PSModulePath?(i="powershell.exe",o=["-ExecutionPolicy","Bypass","-File",__dirname+"\\read.ps1"]):(i="cscript.exe",o=["//nologo",__dirname+"\\read.cs.js"]):(i="/bin/sh",o=[__dirname+"/read.sh"])),u&&!process.env.PSModulePath&&(c.stdio=[process.stdin]),p.execFileSync){t=M(e),w&&w("execFileSync",t);try{s.input=p.execFileSync(i,t,c)}catch(e){r=e.stderr?(e.stderr+"").trim():"",s.error=new Error(l+(r?"\n"+r:"")),s.error.method="execFileSync",s.error.program=i,s.error.args=t,s.error.extMessage=r,s.error.exitCode=e.status,s.error.code=e.code,s.error.signal=e.signal}}else s=function(e,t){function r(e){var t,r,s="";for(a=a||n(39).tmpdir();;){t=d.join(a,e+s);try{r=_.openSync(t,"wx")}catch(e){if("EEXIST"===e.code){s++;continue}throw e}_.closeSync(r);break}return t}var s,o,c,f,h,b,O,y,m={},g=r("readline-sync.stdout"),v=r("readline-sync.stderr"),j=r("readline-sync.exit"),P=r("readline-sync.done"),D=n(16);(b=D.createHash("sha256")).update(""+process.pid+E+++Math.random()),y=b.digest("hex"),O=D.createDecipher("aes-256-cbc",y),s=M(e),u?(o=process.env.ComSpec||"cmd.exe",process.env.Q='"',c=["/V:ON","/S","/C","(%Q%"+o+"%Q% /V:ON /S /C %Q%%Q%"+i+"%Q%"+s.map((function(e){return" %Q%"+e+"%Q%"})).join("")+" & (echo !ERRORLEVEL!)>%Q%"+j+"%Q%%Q%) 2>%Q%"+v+"%Q% |%Q%"+process.execPath+"%Q% %Q%"+__dirname+"\\encrypt.js%Q% %Q%aes-256-cbc%Q% %Q%"+y+"%Q% >%Q%"+g+"%Q% & (echo 1)>%Q%"+P+"%Q%"]):(o="/bin/sh",c=["-c",'("'+i+'"'+s.map((function(e){return" '"+e.replace(/'/g,"'\\''")+"'"})).join("")+'; echo $?>"'+j+'") 2>"'+v+'" |"'+process.execPath+'" "'+__dirname+'/encrypt.js" "aes-256-cbc" "'+y+'" >"'+g+'"; echo 1 >"'+P+'"']),w&&w("_execFileSync",s);try{p.spawn(o,c,t)}catch(e){m.error=new Error(e.message),m.error.method="_execFileSync - spawn",m.error.program=o,m.error.args=c}for(;"1"!==_.readFileSync(P,{encoding:e.encoding}).trim(););return"0"===(f=_.readFileSync(j,{encoding:e.encoding}).trim())?m.input=O.update(_.readFileSync(g,{encoding:"binary"}),"hex",e.encoding)+O.final(e.encoding):(h=_.readFileSync(v,{encoding:e.encoding}).trim(),m.error=new Error(l+(h?"\n"+h:"")),m.error.method="_execFileSync",m.error.program=o,m.error.args=c,m.error.extMessage=h,m.error.exitCode=+f),_.unlinkSync(g),_.unlinkSync(v),_.unlinkSync(j),_.unlinkSync(P),m}(e,c);return s.error||(s.input=s.input.replace(/^\s*'|'\s*$/g,""),e.display=""),s}function P(e){var t="",n=e.display,i=!e.display&&e.keyIn&&e.hideEchoBack&&!e.mask;function o(){var t=j(e);if(t.error)throw t.error;return t.input}return v&&v(e),function(){var e,t,n;function i(){return e||(e=process.binding("fs"),t=(t=process.binding("constants"))&&t.fs&&"number"==typeof t.fs.O_RDWR?t.fs:t),e}if("string"==typeof b)if(b=null,u){if((n=function(e){var t=process.version.replace(/^\D+/,"").split("."),n=0;return(t[0]=+t[0])&&(n+=1e4*t[0]),(t[1]=+t[1])&&(n+=100*t[1]),(t[2]=+t[2])&&(n+=t[2]),n}())>=20302&&n<40204||n>=5e4&&n<50100||n>=50600&&n<60200||!process.stdin.isTTY)try{b=i().open("CONIN$",t.O_RDWR,parseInt("0666",8)),s=new f(b,!0)}catch(e){}else process.stdin.pause(),b=process.stdin.fd,s=process.stdin._handle;if(process.stdout.isTTY)r=process.stdout.fd;else{try{r=_.openSync("\\\\.\\CON","w")}catch(e){}if("number"!=typeof r)try{r=i().open("CONOUT$",t.O_RDWR,parseInt("0666",8))}catch(e){}}}else{if(process.stdin.isTTY){process.stdin.pause();try{b=_.openSync("/dev/tty","r"),s=process.stdin._handle}catch(e){}}else try{b=_.openSync("/dev/tty","r"),s=new f(b,!1)}catch(e){}if(process.stdout.isTTY)r=process.stdout.fd;else try{r=_.openSync("/dev/tty","w")}catch(e){}}}(),function(){var n,a,u,l,f,p,d,h=!e.hideEchoBack&&!e.keyIn;function E(e){return e===O||0===s.setRawMode(e)&&(O=e,!0)}if(c="",!g&&s&&("number"==typeof r||!e.display&&h)){if(e.display&&(_.writeSync(r,e.display),e.display=""),!e.displayOnly)if(E(!h)){for(l=e.keyIn?1:e.bufferSize,u=Buffer.allocUnsafe&&Buffer.alloc?Buffer.alloc(l):new Buffer(l),e.keyIn&&e.limit&&(a=new RegExp("[^"+e.limit+"]","g"+(e.caseSensitive?"":"i")));;){f=0;try{f=_.readSync(b,u,0,l)}catch(e){if("EOF"!==e.code)return E(!1),void(t+=o())}if(f>0?(p=u.toString(e.encoding,0,f),c+=p):(p="\n",c+=String.fromCharCode(0)),p&&"string"==typeof(d=(p.match(/^(.*?)[\r\n]/)||[])[1])&&(p=d,n=!0),p&&(p=p.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,"")),p&&a&&(p=p.replace(a,"")),p&&(h||(e.hideEchoBack?e.mask&&_.writeSync(r,new Array(p.length+1).join(e.mask)):_.writeSync(r,p)),t+=p),!e.keyIn&&n||e.keyIn&&t.length>=l)break}h||i||_.writeSync(r,"\n"),E(!1)}else t=o()}else t=o()}(),e.print&&!i&&e.print(n+(e.displayOnly?"":(e.hideEchoBack?new Array(t.length+1).join(e.mask):t)+"\n"),e.encoding),e.displayOnly?"":y=e.keepWhitespace||e.keyIn?t:t.trim()}function D(e,t){var n=[];return function e(r){null!=r&&(Array.isArray(r)?r.forEach(e):t&&!t(r)||n.push(r))}(e),n}function x(e){return e.replace(/[\x00-\x7f]/g,(function(e){return"\\x"+("00"+e.charCodeAt().toString(16)).substr(-2)}))}function k(){var e,t,n=Array.prototype.slice.call(arguments);return n.length&&"boolean"==typeof n[0]&&(t=n.shift())&&(e=Object.keys(h),n.unshift(h)),n.reduce((function(n,r){return null==r||(r.hasOwnProperty("noEchoBack")&&!r.hasOwnProperty("hideEchoBack")&&(r.hideEchoBack=r.noEchoBack,delete r.noEchoBack),r.hasOwnProperty("noTrim")&&!r.hasOwnProperty("keepWhitespace")&&(r.keepWhitespace=r.noTrim,delete r.noTrim),t||(e=Object.keys(r)),e.forEach((function(e){var t;if(r.hasOwnProperty(e))switch(t=r[e],e){case"mask":case"limitMessage":case"defaultInput":case"encoding":(t=null!=t?t+"":"")&&"limitMessage"!==e&&(t=t.replace(/[\r\n]/g,"")),n[e]=t;break;case"bufferSize":isNaN(t=parseInt(t,10))||"number"!=typeof t||(n[e]=t);break;case"displayOnly":case"keyIn":case"hideEchoBack":case"caseSensitive":case"keepWhitespace":case"history":case"cd":n[e]=!!t;break;case"limit":case"trueValue":case"falseValue":n[e]=D(t,(function(e){var t=typeof e;return"string"===t||"number"===t||"function"===t||e instanceof RegExp})).map((function(e){return"string"==typeof e?e.replace(/[\r\n]/g,""):e}));break;case"print":case"phContent":case"preCheck":n[e]="function"==typeof t?t:void 0;break;case"prompt":case"display":n[e]=null!=t?t:""}}))),n}),{})}function A(e,t,n){return t.some((function(t){var r=typeof t;return"string"===r?n?e===t:e.toLowerCase()===t.toLowerCase():"number"===r?parseFloat(e)===t:"function"===r?t(e):t instanceof RegExp&&t.test(e)}))}function C(e,t){var n=d.normalize(u?(process.env.HOMEDRIVE||"")+(process.env.HOMEPATH||""):process.env.HOME||"").replace(/[/\\]+$/,"");return e=d.normalize(e),t?e.replace(/^~(?=\/|\\|$)/,n):e.replace(new RegExp("^"+x(n)+"(?=\\/|\\\\|$)",u?"i":""),"~")}function S(e,t){var n="(?:\\(([\\s\\S]*?)\\))?(\\w+|.-.)(?:\\(([\\s\\S]*?)\\))?",r=new RegExp("(\\$)?(\\$<"+n+">)","g"),s=new RegExp("(\\$)?(\\$\\{"+n+"\\})","g");function i(e,n,r,s,i,o){var a;return n||"string"!=typeof(a=t(i))?r:a?(s||"")+a+(o||""):""}return e.replace(r,i).replace(s,i)}function I(e,t,n){var r,s,i=[],o=-1,a=0,c="";function u(e,t){return t.length>3?(e.push(t[0]+"..."+t[t.length-1]),s=!0):t.length&&(e=e.concat(t)),e}return r=e.reduce((function(e,t){return e.concat((t+"").split(""))}),[]).reduce((function(e,r){var s,l;return t||(r=r.toLowerCase()),s=/^\d$/.test(r)?1:/^[A-Z]$/.test(r)?2:/^[a-z]$/.test(r)?3:0,n&&0===s?c+=r:(l=r.charCodeAt(0),s&&s===o&&l===a+1?i.push(r):(e=u(e,i),i=[r],o=s),a=l),e}),[]),r=u(r,i),c&&(r.push(c),s=!0),{values:r,suppressed:s}}function B(e,t){return e.join(e.length>2?", ":t?" / ":"/")}function R(e,t){var n,r,s,i={};if(t.phContent&&(n=t.phContent(e,t)),"string"!=typeof n)switch(e){case"hideEchoBack":case"mask":case"defaultInput":case"caseSensitive":case"keepWhitespace":case"encoding":case"bufferSize":case"history":case"cd":n=t.hasOwnProperty(e)?"boolean"==typeof t[e]?t[e]?"on":"off":t[e]+"":"";break;case"limit":case"trueValue":case"falseValue":r=t[t.hasOwnProperty(e+"Src")?e+"Src":e],n=B(r=t.keyIn?(i=I(r,t.caseSensitive)).values:r.filter((function(e){var t=typeof e;return"string"===t||"number"===t})),i.suppressed);break;case"limitCount":case"limitCountNotZero":n=(n=t[t.hasOwnProperty("limitSrc")?"limitSrc":"limit"].length)||"limitCountNotZero"!==e?n+"":"";break;case"lastInput":n=y;break;case"cwd":case"CWD":case"cwdHome":n=process.cwd(),"CWD"===e?n=d.basename(n):"cwdHome"===e&&(n=C(n));break;case"date":case"time":case"localeDate":case"localeTime":n=(new Date)["to"+e.replace(/^./,(function(e){return e.toUpperCase()}))+"String"]();break;default:"string"==typeof(s=(e.match(/^history_m(\d+)$/)||[])[1])&&(n=m[m.length-s]||"")}return n}function T(e){var t,n,r,s,i=/^(.)-(.)$/.exec(e),o="";if(!i)return null;for(s=(t=i[1].charCodeAt(0))<(n=i[2].charCodeAt(0))?1:-1,r=t;r!==n+s;r+=s)o+=String.fromCharCode(r);return o}function K(e){var t,n,r=new RegExp(/(\s*)(?:("|')(.*?)(?:\2|$)|(\S+))/g),s="",i=[];for(e=e.trim();t=r.exec(e);)n=t[3]||t[4]||"",t[1]&&(i.push(s),s=""),s+=n;return s&&i.push(s),i}function MalList.create(e,t){return!(!t.trueValue.length||!A(e,t.trueValue,t.caseSensitive))||(!t.falseValue.length||!A(e,t.falseValue,t.caseSensitive))&&e}function U(e){var t,n,r,s,i,o,a;function c(t){return R(t,e)}function u(t){e.display+=(/[^\r\n]$/.test(e.display)?"\n":"")+t}for(e.limitSrc=e.limit,e.displaySrc=e.display,e.limit="",e.display=S(e.display+"",c);;){if(t=P(e),n=!1,r="",e.defaultInput&&!t&&(t=e.defaultInput),e.history&&((s=/^\s*!(?:!|-1)(:p)?\s*$/.exec(t))?(i=m[0]||"",s[1]?n=!0:t=i,u(i+"\n"),n||(e.displayOnly=!0,P(e),e.displayOnly=!1)):t&&t!==m[m.length-1]&&(m=[t])),!n&&e.cd&&t)switch((o=K(t))[0].toLowerCase()){case"cd":if(o[1])try{process.chdir(C(o[1],!0))}catch(e){u(e+"")}n=!0;break;case"pwd":u(process.cwd()),n=!0}if(!n&&e.preCheck&&(t=(a=e.preCheck(t,e)).res,a.forceNext&&(n=!0)),!n){if(!e.limitSrc.length||A(t,e.limitSrc,e.caseSensitive))break;e.limitMessage&&(r=S(e.limitMessage,c))}u((r?r+"\n":"")+S(e.displaySrc+"",c))}return MalList.create(t,e)}function W(e,n,r){var s;return t.question(e,k({limitMessage:"Input valid number, please."},n,{limit:function(e){return s=r(e),!isNaN(s)&&"number"==typeof s},cd:!1})),s}function q(e,t){var n={},r={};return"object"==typeof e?(Object.keys(e).forEach((function(n){"function"==typeof e[n]&&(r[t.caseSensitive?n:n.toLowerCase()]=e[n])})),n.preCheck=function(e){var s;return n.args=K(e),s=n.args[0]||"",t.caseSensitive||(s=s.toLowerCase()),n.hRes="_"!==s&&r.hasOwnProperty(s)?r[s].apply(e,n.args.slice(1)):r.hasOwnProperty("_")?r._.apply(e,n.args):null,{res:e,forceNext:!1}},r.hasOwnProperty("_")||(n.limit=function(){var e=n.args[0]||"";return t.caseSensitive||(e=e.toLowerCase()),r.hasOwnProperty(e)})):n.preCheck=function(t){return n.args=K(t),n.hRes="function"!=typeof e||e.apply(t,n.args),{res:t,forceNext:!1}},n}function $(e,n,r){var s;return null==e&&(e="Are you sure? "),n&&!1===n.guide||!(e+="")||(e=e.replace(/\s*:?\s*$/,"")+" [y/n]: "),"boolean"==typeof(s=t.keyIn(e,k(n,{hideEchoBack:!1,limit:r,trueValue:"y",falseValue:"n",caseSensitive:!1})))?s:""}function F(e,n){var r;return n.length&&((r={})[e]=n[0]),t.setDefaultOptions(r)[e]}t._DBG_set_useExt=function(e){g=e},t._DBG_set_checkOptions=function(e){v=e},t._DBG_set_checkMethod=function(e){w=e},t._DBG_clearHistory=function(){y="",m=[]},t.setDefaultOptions=function(e){return h=k(!0,e),k(!0)},t.question=function(e,t){return U(k(k(!0,t),{display:e}))},t.prompt=function(e){var t=k(!0,e);return t.display=t.prompt,U(t)},t.keyIn=function(e,t){var n=k(k(!0,t),{display:e,keyIn:!0,keepWhitespace:!0});return n.limitSrc=n.limit.filter((function(e){var t=typeof e;return"string"===t||"number"===t})).map((function(e){return S(e+"",T)})),n.limit=x(n.limitSrc.join("")),["trueValue","falseValue"].forEach((function(e){n[e]=n[e].reduce((function(e,t){var n=typeof t;return"string"===n||"number"===n?e=e.concat((t+"").split("")):e.push(t),e}),[])})),n.display=S(n.display+"",(function(e){return R(e,n)})),L(P(n),n)},t.questionEMail=function(e,n){return null==e&&(e="Input e-mail address: "),t.question(e,k({hideEchoBack:!1,limit:/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,limitMessage:"Input valid e-mail address, please.",trueValue:null,falseValue:null},n,{keepWhitespace:!1,cd:!1}))},t.questionNewPassword=function(e,n){var r,s,i,o,a,c,u,l,_,f,p=k({hideEchoBack:!0,mask:"*",limitMessage:"It can include: $<charlist>\nAnd the length must be: $<length>",trueValue:null,falseValue:null,caseSensitive:!0},n,{history:!1,cd:!1,phContent:function(e){return"charlist"===e?r.text:"length"===e?s+"..."+i:null}});for(o=S((n=n||{}).charlist?n.charlist+"":"$<!-~>",T),(isNaN(s=parseInt(n.min,10))||"number"!=typeof s)&&(s=12),(isNaN(i=parseInt(n.max,10))||"number"!=typeof i)&&(i=24),u=new RegExp("^["+x(o)+"]{"+s+","+i+"}$"),(r=I([o],p.caseSensitive,!0)).text=B(r.values,r.suppressed),a=null!=n.confirmMessage?n.confirmMessage:"Reinput a same one to confirm it: ",c=null!=n.unmatchMessage?n.unmatchMessage:"It differs from first one. Hit only the Enter key if you want to retry from first one.",null==e&&(e="Input new password: "),l=p.limitMessage;!f;)p.limit=u,p.limitMessage=l,_=t.question(e,p),p.limit=[_,""],p.limitMessage=c,f=t.question(a,p);return _},t.questionInt=function(e,t){return W(e,t,(function(e){return parseInt(e,10)}))},t.questionFloat=function(e,t){return W(e,t,parseFloat)},t.questionPath=function(e,n){var r,s="",i=k({hideEchoBack:!1,limitMessage:"$<error(\n)>Input valid path, please.$<( Min:)min>$<( Max:)max>",history:!0,cd:!0},n,{keepWhitespace:!1,limit:function(e){var t,i,o;function a(e){e.split(/\/|\\/).reduce((function(e,t){var n=d.resolve(e+=t+d.sep);if(_.existsSync(n)){if(!_.statSync(n).isDirectory())throw new Error("Non directory already exists: "+n)}else _.mkdirSync(n);return e}),"")}e=C(e,!0),s="";try{if(t=_.existsSync(e),r=t?_.realpathSync(e):d.resolve(e),!n.hasOwnProperty("exists")&&!t||"boolean"==typeof n.exists&&n.exists!==t)return s=(t?"Already exists":"No such file or directory")+": "+r,!1;if(!t&&n.create&&(n.isDirectory?a(r):(a(d.dirname(r)),_.closeSync(_.openSync(r,"w"))),r=_.realpathSync(r)),t&&(n.min||n.max||n.isFile||n.isDirectory)){if(i=_.statSync(r),n.isFile&&!i.isFile())return s="Not file: "+r,!1;if(n.isDirectory&&!i.isDirectory())return s="Not directory: "+r,!1;if(n.min&&i.size<+n.min||n.max&&i.size>+n.max)return s="Size "+i.size+" is out of range: "+r,!1}if("function"==typeof n.validate&&!0!==(o=n.validate(r)))return"string"==typeof o&&(s=o),!1}catch(e){return s=e+"",!1}return!0},phContent:function(e){return"error"===e?s:"min"!==e&&"max"!==e?null:n.hasOwnProperty(e)?n[e]+"":""}});return n=n||{},null==e&&(e='Input path (you can "cd" and "pwd"): '),t.question(e,i),r},t.promptCL=function(e,n){var r=k({hideEchoBack:!1,limitMessage:"Requested command is not available.",caseSensitive:!1,history:!0},n),s=q(e,r);return r.limit=s.limit,r.preCheck=s.preCheck,t.prompt(r),s.args},t.promptLoop=function(e,n){for(var r=k({hideEchoBack:!1,trueValue:null,falseValue:null,caseSensitive:!1,history:!0},n);!e(t.prompt(r)););},t.promptCLLoop=function(e,n){var r=k({hideEchoBack:!1,limitMessage:"Requested command is not available.",caseSensitive:!1,history:!0},n),s=q(e,r);for(r.limit=s.limit,r.preCheck=s.preCheck;t.prompt(r),!s.hRes;);},t.promptSimShell=function(e){return t.prompt(k({hideEchoBack:!1,history:!0},e,{prompt:u?"$<cwd>>":(process.env.USER||"")+(process.env.HOSTNAME?"@"+process.env.HOSTNAME.replace(/\..*$/,""):"")+":$<cwdHome>$ "}))},t.keyInYN=function(e,t){return $(e,t)},t.keyInYNStrict=function(e,t){return $(e,t,"yn")},t.keyInPause=function(e,n){null==e&&(e="Continue..."),n&&!1===n.guide||!(e+="")||(e=e.replace(/\s+$/,"")+" (Hit any key)"),t.keyIn(e,k({limit:null},n,{hideEchoBack:!0,mask:""}))},t.keyInSelect=function(e,n,r){var s=k({hideEchoBack:!1},r,{trueValue:null,falseValue:null,caseSensitive:!1,phContent:function(t){return"itemsCount"===t?e.length+"":"firstItem"===t?(e[0]+"").trim():"lastItem"===t?(e[e.length-1]+"").trim():null}}),i="",o={},a=49,c="\n";if(!Array.isArray(e)||!e.length||e.length>35)throw"`items` must be Array (max length: 35).";return e.forEach((function(e,t){var n=String.fromCharCode(a);i+=n,o[n]=t,c+="["+n+"] "+(e+"").trim()+"\n",a=57===a?97:a+1})),r&&!1===r.cancel||(i+="0",o[0]=-1,c+="[0] "+(r&&null!=r.cancel&&"boolean"!=typeof r.cancel?(r.cancel+"").trim():"CANCEL")+"\n"),s.limit=i,c+="\n",null==n&&(n="Choose one from list: "),(n+="")&&(r&&!1===r.guide||(n=n.replace(/\s*:?\s*$/,"")+" [$<limit>]: "),c+=n),o[t.keyIn(c,s).toLowerCase()]},t.getRawInput=function(){return c},t.setPrint=function(){return F("print",arguments)},t.setPrompt=function(){return F("prompt",arguments)},t.setEncoding=function(){return F("encoding",arguments)},t.setMask=function(){return F("mask",arguments)},t.setBufferSize=function(){return F("bufferSize",arguments)}},function(module,__webpack_exports__,__webpack_require__){"use strict";__webpack_require__.d(__webpack_exports__,"a",(function(){return Scope}));var _env__WEBPACK_IMPORTED_MODULE_0__=__webpack_require__(8),_reader__WEBPACK_IMPORTED_MODULE_1__=__webpack_require__(3),_eval__WEBPACK_IMPORTED_MODULE_2__=__webpack_require__(14),_repl_core__WEBPACK_IMPORTED_MODULE_3__=__webpack_require__(17),_types__WEBPACK_IMPORTED_MODULE_4__=__webpack_require__(0),_printer__WEBPACK_IMPORTED_MODULE_5__=__webpack_require__(2),is_node__WEBPACK_IMPORTED_MODULE_6__=__webpack_require__(7),is_node__WEBPACK_IMPORTED_MODULE_6___default=__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_6__);const normalizeURL=(()=>{if(is_node__WEBPACK_IMPORTED_MODULE_6___default.a){const e=__webpack_require__(10);return(t,n)=>e.join(e.dirname(n),t)}return(e,t)=>new URL(e,t).href})();class Scope{constructor(e=null,t="repl",n=null,r=!1){this.outer=e,this.name=t,this.onSetup=n,this.cache=r,this.setup(),null===this.outer?this.initAsRepl():this.outer.inner=this}initAsRepl(){let filename;_repl_core__WEBPACK_IMPORTED_MODULE_3__.a.forEach(([e,t])=>{this.def(e,t)}),this.def("normalize-url",e=>{const t=this.var("*filename*");return normalizeURL(e,t)}),this.def("eval",e=>Object(_eval__WEBPACK_IMPORTED_MODULE_2__.a)(e,this.env)),this.def("import-js-force",url=>{const basename=this.var("*filename*"),absurl=normalizeURL(url,basename),text=Object(_repl_core__WEBPACK_IMPORTED_MODULE_3__.b)(absurl);eval(text);const exp=globalThis.glisp_library;return Object(_eval__WEBPACK_IMPORTED_MODULE_2__.a)(exp,this.env)}),filename=is_node__WEBPACK_IMPORTED_MODULE_6___default.a?"/Users/baku/Sites/glisp/repl/index.js":new URL(".",document.baseURI).href,this.def("*filename*",filename),this.readEval('(def import-force\n\t\t\t\t(fn [path]\n\t\t\t\t\t(let [url (normalize-url path)]\n\t\t\t\t\t\t(eval (read-string\n\t\t\t\t\t\t\t\t\t(format "(do (def *filename* \\"%s\\") %s \n nil)"\n\t\t\t\t\t\t\t\t\t\t\t\t\turl\n\t\t\t\t\t\t\t\t\t\t\t\t\t(slurp url)))))))'),this.readEval('(import-force "./lib/core.glisp")'),is_node__WEBPACK_IMPORTED_MODULE_6___default.a&&this.def("*filename*",process.cwd())}setup(e){var t;this.env=new _env__WEBPACK_IMPORTED_MODULE_0__.a(null===(t=this.outer)||void 0===t?void 0:t.env),this.env.name=this.name,this.onSetup&&e&&this.onSetup(this,e),this.inner&&this.inner.env.setOuter(this.env)}REP(e){const t=this.readEval(e);void 0!==t&&_printer__WEBPACK_IMPORTED_MODULE_5__.b.return(Object(_printer__WEBPACK_IMPORTED_MODULE_5__.a)(t))}readEval(e){try{return this.eval(Object(_reader__WEBPACK_IMPORTED_MODULE_1__.c)(e))}catch(e){return e instanceof _reader__WEBPACK_IMPORTED_MODULE_1__.a?null:void(e instanceof _types__WEBPACK_IMPORTED_MODULE_4__.o?_printer__WEBPACK_IMPORTED_MODULE_5__.b.error(e):_printer__WEBPACK_IMPORTED_MODULE_5__.b.error(e.stack))}}eval(e){try{return Object(_eval__WEBPACK_IMPORTED_MODULE_2__.a)(e,this.env,this.cache)}catch(e){return void(e instanceof _types__WEBPACK_IMPORTED_MODULE_4__.o?_printer__WEBPACK_IMPORTED_MODULE_5__.b.error(e):_printer__WEBPACK_IMPORTED_MODULE_5__.b.error(e.stack))}}def(e,t){this.env.set(Object(_types__WEBPACK_IMPORTED_MODULE_4__.K)(e),t)}pushBinding(e){this.env.pushBinding(e)}popBinding(){this.env.popBinding()}var(e){return this.env.get(Object(_types__WEBPACK_IMPORTED_MODULE_4__.K)(e))}}},function(e,t,n){!function(e){var n={not_string:/[^s]/,number:/[diefg]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^\)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijosuxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[\+\-]/};function r(){var e=arguments[0],t=r.cache;return t[e]&&t.hasOwnProperty(e)||(t[e]=r.parse(e)),r.format.call(null,t[e],arguments)}r.format=function(e,t){var i,o,a,c,u,l,_,f,p=1,d=e.length,h="",b=[],O=!0,E="";for(o=0;o<d;o++)if("string"===(h=s(e[o])))b[b.length]=e[o];else if("array"===h){if((c=e[o])[2])for(i=t[p],a=0;a<c[2].length;a++){if(!i.hasOwnProperty(c[2][a]))throw new Error(r("[sprintf] property '%s' does not exist",c[2][a]));i=i[c[2][a]]}else i=c[1]?t[c[1]]:t[p++];if("function"==s(i)&&(i=i()),n.not_string.test(c[8])&&n.not_json.test(c[8])&&"number"!=s(i)&&isNaN(i))throw new TypeError(r("[sprintf] expecting number but found %s",s(i)));switch(n.number.test(c[8])&&(O=i>=0),c[8]){case"b":i=i.toString(2);break;case"c":i=String.fromCharCode(i);break;case"d":case"i":i=parseInt(i,10);break;case"j":i=JSON.stringify(i,null,c[6]?parseInt(c[6]):0);break;case"e":i=c[7]?i.toExponential(c[7]):i.toExponential();break;case"f":i=c[7]?parseFloat(i).toFixed(c[7]):parseFloat(i);break;case"g":i=c[7]?parseFloat(i).toPrecision(c[7]):parseFloat(i);break;case"o":i=i.toString(8);break;case"s":i=(i=String(i))&&c[7]?i.substring(0,c[7]):i;break;case"u":i>>>=0;break;case"x":i=i.toString(16);break;case"X":i=i.toString(16).toUpperCase()}n.json.test(c[8])?b[b.length]=i:(!n.number.test(c[8])||O&&!c[3]?E="":(E=O?"+":"-",i=i.toString().replace(n.sign,"")),l=c[4]?"0"===c[4]?"0":c[4].charAt(1):" ",_=c[6]-(E+i).length,u=c[6]&&_>0?(f=l,Array(_+1).join(f)):"",b[b.length]=c[5]?E+i+u:"0"===l?E+u+i:u+E+i)}return b.join("")},r.cache={},r.parse=function(e){for(var t=e,r=[],s=[],i=0;t;){if(null!==(r=n.text.exec(t)))s[s.length]=r[0];else if(null!==(r=n.modulo.exec(t)))s[s.length]="%";else{if(null===(r=n.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(r[2]){i|=1;var o=[],a=r[2],c=[];if(null===(c=n.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(o[o.length]=c[1];""!==(a=a.substring(c[0].length));)if(null!==(c=n.key_access.exec(a)))o[o.length]=c[1];else{if(null===(c=n.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");o[o.length]=c[1]}r[2]=o}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");s[s.length]=r}t=t.substring(r[0].length)}return s};function s(e){return Object.prototype.toString.call(e).slice(8,-1).toLowerCase()}t.sprintf=r,t.vsprintf=function(e,t,n){return(n=(t||[]).slice(0)).splice(0,0,e),r.apply(null,n)}}("undefined"==typeof window||window)},,,,,,,,,,,,,function(e,t,n){"use strict";n.r(t);var r=n(22),s=n.n(r);const i=new(n(23).a);if("undefined"!=typeof process&&2<process.argv.length){const e=process.argv[2];i.def("*ARGV*",process.argv.slice(3)),i.def("*filename*",e),i.REP(`(import "${e}")`),process.exit(0)}for(i.REP('(str "Glisp [" *host-language* "]")');;){const e=s.a.question("glisp> ");if(null==e)break;if(""!==e)try{i.REP(e)}catch(e){console.error("Error:",e)}}},function(e,t){e.exports=require("child_process")},function(e,t){e.exports=require("os")}])}));
+(function() {
+    "use strict";
+    var unicodes = function(s, prefix) {
+        prefix = prefix || '';
+        return s.replace(/(^|-)/g, '$1\\u'+prefix).replace(/,/g, '\\u'+prefix);
+    },
+    basicSymbols = unicodes('20-26,28-2F,3A-40,5B-60,7B-7E,A0-BF,D7,F7', '00'),
+    baseLowerCase = 'a-z'+unicodes('DF-F6,F8-FF', '00'),
+    baseUpperCase = 'A-Z'+unicodes('C0-D6,D8-DE', '00'),
+    improperInTitle = 'A|An|And|As|At|But|By|En|For|If|In|Of|On|Or|The|To|Vs?\\.?|Via',
+    regexps = function(symbols, lowers, uppers, impropers) {
+        symbols = symbols || basicSymbols;
+        lowers = lowers || baseLowerCase;
+        uppers = uppers || baseUpperCase;
+        impropers = impropers || improperInTitle;
+        return {
+            capitalize: new RegExp('(^|['+symbols+'])(['+lowers+'])', 'g'),
+            pascal: new RegExp('(^|['+symbols+'])+(['+lowers+uppers+'])', 'g'),
+            fill: new RegExp('['+symbols+']+(.|$)','g'),
+            sentence: new RegExp('(^\\s*|[\\?\\!\\.]+"?\\s+"?|,\\s+")(['+lowers+'])', 'g'),
+            improper: new RegExp('\\b('+impropers+')\\b', 'g'),
+            relax: new RegExp('([^'+uppers+'])(['+uppers+']*)(['+uppers+'])(?=[^'+uppers+']|$)', 'g'),
+            upper: new RegExp('^[^'+lowers+']+$'),
+            hole: /[^\s]\s[^\s]/,
+            apostrophe: /'/g,
+            room: new RegExp('['+symbols+']')
+        };
+    },
+    re = regexps(),
+    _ = {
+        re: re,
+        unicodes: unicodes,
+        regexps: regexps,
+        types: [],
+        up: String.prototype.toUpperCase,
+        low: String.prototype.toLowerCase,
+        cap: function(s) {
+            return _.up.call(s.charAt(0))+s.slice(1);
+        },
+        decap: function(s) {
+            return _.low.call(s.charAt(0))+s.slice(1);
+        },
+        deapostrophe: function(s) {
+            return s.replace(re.apostrophe, '');
+        },
+        fill: function(s, fill, deapostrophe) {
+            if (fill != null) {
+                s = s.replace(re.fill, function(m, next) {
+                    return next ? fill + next : '';
+                });
+            }
+            if (deapostrophe) {
+                s = _.deapostrophe(s);
+            }
+            return s;
+        },
+        prep: function(s, fill, pascal, upper) {
+            s = s == null ? '' : s + '';// force to string
+            if (!upper && re.upper.test(s)) {
+                s = _.low.call(s);
+            }
+            if (!fill && !re.hole.test(s)) {
+                var holey = _.fill(s, ' ');
+                if (re.hole.test(holey)) {
+                    s = holey;
+                }
+            }
+            if (!pascal && !re.room.test(s)) {
+                s = s.replace(re.relax, _.relax);
+            }
+            return s;
+        },
+        relax: function(m, before, acronym, caps) {
+            return before + ' ' + (acronym ? acronym+' ' : '') + caps;
+        }
+    },
+    Case = {
+        _: _,
+        of: function(s) {
+            for (var i=0,m=_.types.length; i<m; i++) {
+                if (Case[_.types[i]].apply(Case, arguments) === s){ return _.types[i]; }
+            }
+        },
+        flip: function(s) {
+            return s.replace(/\w/g, function(l) {
+                return (l == _.up.call(l) ? _.low : _.up).call(l);
+            });
+        },
+        random: function(s) {
+            return s.replace(/\w/g, function(l) {
+                return (Math.round(Math.random()) ? _.up : _.low).call(l);
+            });
+        },
+        type: function(type, fn) {
+            Case[type] = fn;
+            _.types.push(type);
+        }
+    },
+    types = {
+        lower: function(s, fill, deapostrophe) {
+            return _.fill(_.low.call(_.prep(s, fill)), fill, deapostrophe);
+        },
+        snake: function(s) {
+            return Case.lower(s, '_', true);
+        },
+        constant: function(s) {
+            return Case.upper(s, '_', true);
+        },
+        camel: function(s) {
+            return _.decap(Case.pascal(s));
+        },
+        kebab: function(s) {
+            return Case.lower(s, '-', true);
+        },
+        upper: function(s, fill, deapostrophe) {
+            return _.fill(_.up.call(_.prep(s, fill, false, true)), fill, deapostrophe);
+        },
+        capital: function(s, fill, deapostrophe) {
+            return _.fill(_.prep(s).replace(re.capitalize, function(m, border, letter) {
+                return border+_.up.call(letter);
+            }), fill, deapostrophe);
+        },
+        header: function(s) {
+            return Case.capital(s, '-', true);
+        },
+        pascal: function(s) {
+            return _.fill(_.prep(s, false, true).replace(re.pascal, function(m, border, letter) {
+                return _.up.call(letter);
+            }), '', true);
+        },
+        title: function(s) {
+            return Case.capital(s).replace(re.improper, function(small, p, i, s) {
+                return i > 0 && i < s.lastIndexOf(' ') ? _.low.call(small) : small;
+            });
+        },
+        sentence: function(s, names, abbreviations) {
+            s = Case.lower(s).replace(re.sentence, function(m, prelude, letter) {
+                return prelude + _.up.call(letter);
+            });
+            if (names) {
+                names.forEach(function(name) {
+                    s = s.replace(new RegExp('\\b'+Case.lower(name)+'\\b', "g"), _.cap);
+                });
+            }
+            if (abbreviations) {
+                abbreviations.forEach(function(abbr) {
+                    s = s.replace(new RegExp('(\\b'+Case.lower(abbr)+'\\. +)(\\w)'), function(m, abbrAndSpace, letter) {
+                        return abbrAndSpace + _.low.call(letter);
+                    });
+                });
+            }
+            return s;
+        }
+    };
+
+    // TODO: Remove "squish" in a future breaking release.
+    types.squish = types.pascal;
+    
+    // Allow import default
+    Case.default = Case;
+
+    for (var type in types) {
+        Case.type(type, types[type]);
+    }
+    // export Case (AMD, commonjs, or global)
+    var define = typeof define === "function" ? define : function(){};
+    define( true && module.exports ? module.exports = Case : this.Case = Case);
+
+}).call(this);
+
+
+/***/ }),
+
+/***/ "./node_modules/chalk/node_modules/has-flag/index.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/chalk/node_modules/has-flag/index.js ***!
+  \***********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+module.exports = (flag, argv = process.argv) => {
+	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/chalk/node_modules/supports-color/index.js":
+/*!*****************************************************************!*\
+  !*** ./node_modules/chalk/node_modules/supports-color/index.js ***!
+  \*****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+const os = __webpack_require__(/*! os */ "os");
+const tty = __webpack_require__(/*! tty */ "tty");
+const hasFlag = __webpack_require__(/*! has-flag */ "./node_modules/chalk/node_modules/has-flag/index.js");
+
+const {env} = process;
+
+let forceColor;
+if (hasFlag('no-color') ||
+	hasFlag('no-colors') ||
+	hasFlag('color=false') ||
+	hasFlag('color=never')) {
+	forceColor = 0;
+} else if (hasFlag('color') ||
+	hasFlag('colors') ||
+	hasFlag('color=true') ||
+	hasFlag('color=always')) {
+	forceColor = 1;
+}
+
+if ('FORCE_COLOR' in env) {
+	if (env.FORCE_COLOR === 'true') {
+		forceColor = 1;
+	} else if (env.FORCE_COLOR === 'false') {
+		forceColor = 0;
+	} else {
+		forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
+	}
+}
+
+function translateLevel(level) {
+	if (level === 0) {
+		return false;
+	}
+
+	return {
+		level,
+		hasBasic: true,
+		has256: level >= 2,
+		has16m: level >= 3
+	};
+}
+
+function supportsColor(haveStream, streamIsTTY) {
+	if (forceColor === 0) {
+		return 0;
+	}
+
+	if (hasFlag('color=16m') ||
+		hasFlag('color=full') ||
+		hasFlag('color=truecolor')) {
+		return 3;
+	}
+
+	if (hasFlag('color=256')) {
+		return 2;
+	}
+
+	if (haveStream && !streamIsTTY && forceColor === undefined) {
+		return 0;
+	}
+
+	const min = forceColor || 0;
+
+	if (env.TERM === 'dumb') {
+		return min;
+	}
+
+	if (process.platform === 'win32') {
+		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
+		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
+		const osRelease = os.release().split('.');
+		if (
+			Number(osRelease[0]) >= 10 &&
+			Number(osRelease[2]) >= 10586
+		) {
+			return Number(osRelease[2]) >= 14931 ? 3 : 2;
+		}
+
+		return 1;
+	}
+
+	if ('CI' in env) {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+			return 1;
+		}
+
+		return min;
+	}
+
+	if ('TEAMCITY_VERSION' in env) {
+		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+	}
+
+	if (env.COLORTERM === 'truecolor') {
+		return 3;
+	}
+
+	if ('TERM_PROGRAM' in env) {
+		const version = parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
+
+		switch (env.TERM_PROGRAM) {
+			case 'iTerm.app':
+				return version >= 3 ? 3 : 2;
+			case 'Apple_Terminal':
+				return 2;
+			// No default
+		}
+	}
+
+	if (/-256(color)?$/i.test(env.TERM)) {
+		return 2;
+	}
+
+	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+		return 1;
+	}
+
+	if ('COLORTERM' in env) {
+		return 1;
+	}
+
+	return min;
+}
+
+function getSupportLevel(stream) {
+	const level = supportsColor(stream, stream && stream.isTTY);
+	return translateLevel(level);
+}
+
+module.exports = {
+	supportsColor: getSupportLevel,
+	stdout: translateLevel(supportsColor(true, tty.isatty(1))),
+	stderr: translateLevel(supportsColor(true, tty.isatty(2)))
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/chalk/source/index.js":
+/*!********************************************!*\
+  !*** ./node_modules/chalk/source/index.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+const ansiStyles = __webpack_require__(/*! ansi-styles */ "./node_modules/ansi-styles/index.js");
+const {stdout: stdoutColor, stderr: stderrColor} = __webpack_require__(/*! supports-color */ "./node_modules/chalk/node_modules/supports-color/index.js");
+const {
+	stringReplaceAll,
+	stringEncaseCRLFWithFirstIndex
+} = __webpack_require__(/*! ./util */ "./node_modules/chalk/source/util.js");
+
+const {isArray} = Array;
+
+// `supportsColor.level` → `ansiStyles.color[name]` mapping
+const levelMapping = [
+	'ansi',
+	'ansi',
+	'ansi256',
+	'ansi16m'
+];
+
+const styles = Object.create(null);
+
+const applyOptions = (object, options = {}) => {
+	if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
+		throw new Error('The `level` option should be an integer from 0 to 3');
+	}
+
+	// Detect level if not set manually
+	const colorLevel = stdoutColor ? stdoutColor.level : 0;
+	object.level = options.level === undefined ? colorLevel : options.level;
+};
+
+class ChalkClass {
+	constructor(options) {
+		// eslint-disable-next-line no-constructor-return
+		return chalkFactory(options);
+	}
+}
+
+const chalkFactory = options => {
+	const chalk = {};
+	applyOptions(chalk, options);
+
+	chalk.template = (...arguments_) => chalkTag(chalk.template, ...arguments_);
+
+	Object.setPrototypeOf(chalk, Chalk.prototype);
+	Object.setPrototypeOf(chalk.template, chalk);
+
+	chalk.template.constructor = () => {
+		throw new Error('`chalk.constructor()` is deprecated. Use `new chalk.Instance()` instead.');
+	};
+
+	chalk.template.Instance = ChalkClass;
+
+	return chalk.template;
+};
+
+function Chalk(options) {
+	return chalkFactory(options);
+}
+
+for (const [styleName, style] of Object.entries(ansiStyles)) {
+	styles[styleName] = {
+		get() {
+			const builder = createBuilder(this, createStyler(style.open, style.close, this._styler), this._isEmpty);
+			Object.defineProperty(this, styleName, {value: builder});
+			return builder;
+		}
+	};
+}
+
+styles.visible = {
+	get() {
+		const builder = createBuilder(this, this._styler, true);
+		Object.defineProperty(this, 'visible', {value: builder});
+		return builder;
+	}
+};
+
+const usedModels = ['rgb', 'hex', 'keyword', 'hsl', 'hsv', 'hwb', 'ansi', 'ansi256'];
+
+for (const model of usedModels) {
+	styles[model] = {
+		get() {
+			const {level} = this;
+			return function (...arguments_) {
+				const styler = createStyler(ansiStyles.color[levelMapping[level]][model](...arguments_), ansiStyles.color.close, this._styler);
+				return createBuilder(this, styler, this._isEmpty);
+			};
+		}
+	};
+}
+
+for (const model of usedModels) {
+	const bgModel = 'bg' + model[0].toUpperCase() + model.slice(1);
+	styles[bgModel] = {
+		get() {
+			const {level} = this;
+			return function (...arguments_) {
+				const styler = createStyler(ansiStyles.bgColor[levelMapping[level]][model](...arguments_), ansiStyles.bgColor.close, this._styler);
+				return createBuilder(this, styler, this._isEmpty);
+			};
+		}
+	};
+}
+
+const proto = Object.defineProperties(() => {}, {
+	...styles,
+	level: {
+		enumerable: true,
+		get() {
+			return this._generator.level;
+		},
+		set(level) {
+			this._generator.level = level;
+		}
+	}
+});
+
+const createStyler = (open, close, parent) => {
+	let openAll;
+	let closeAll;
+	if (parent === undefined) {
+		openAll = open;
+		closeAll = close;
+	} else {
+		openAll = parent.openAll + open;
+		closeAll = close + parent.closeAll;
+	}
+
+	return {
+		open,
+		close,
+		openAll,
+		closeAll,
+		parent
+	};
+};
+
+const createBuilder = (self, _styler, _isEmpty) => {
+	const builder = (...arguments_) => {
+		if (isArray(arguments_[0]) && isArray(arguments_[0].raw)) {
+			// Called as a template literal, for example: chalk.red`2 + 3 = {bold ${2+3}}`
+			return applyStyle(builder, chalkTag(builder, ...arguments_));
+		}
+
+		// Single argument is hot path, implicit coercion is faster than anything
+		// eslint-disable-next-line no-implicit-coercion
+		return applyStyle(builder, (arguments_.length === 1) ? ('' + arguments_[0]) : arguments_.join(' '));
+	};
+
+	// We alter the prototype because we must return a function, but there is
+	// no way to create a function with a different prototype
+	Object.setPrototypeOf(builder, proto);
+
+	builder._generator = self;
+	builder._styler = _styler;
+	builder._isEmpty = _isEmpty;
+
+	return builder;
+};
+
+const applyStyle = (self, string) => {
+	if (self.level <= 0 || !string) {
+		return self._isEmpty ? '' : string;
+	}
+
+	let styler = self._styler;
+
+	if (styler === undefined) {
+		return string;
+	}
+
+	const {openAll, closeAll} = styler;
+	if (string.indexOf('\u001B') !== -1) {
+		while (styler !== undefined) {
+			// Replace any instances already present with a re-opening code
+			// otherwise only the part of the string until said closing code
+			// will be colored, and the rest will simply be 'plain'.
+			string = stringReplaceAll(string, styler.close, styler.open);
+
+			styler = styler.parent;
+		}
+	}
+
+	// We can move both next actions out of loop, because remaining actions in loop won't have
+	// any/visible effect on parts we add here. Close the styling before a linebreak and reopen
+	// after next line to fix a bleed issue on macOS: https://github.com/chalk/chalk/pull/92
+	const lfIndex = string.indexOf('\n');
+	if (lfIndex !== -1) {
+		string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
+	}
+
+	return openAll + string + closeAll;
+};
+
+let template;
+const chalkTag = (chalk, ...strings) => {
+	const [firstString] = strings;
+
+	if (!isArray(firstString) || !isArray(firstString.raw)) {
+		// If chalk() was called by itself or with a string,
+		// return the string itself as a string.
+		return strings.join(' ');
+	}
+
+	const arguments_ = strings.slice(1);
+	const parts = [firstString.raw[0]];
+
+	for (let i = 1; i < firstString.length; i++) {
+		parts.push(
+			String(arguments_[i - 1]).replace(/[{}\\]/g, '\\$&'),
+			String(firstString.raw[i])
+		);
+	}
+
+	if (template === undefined) {
+		template = __webpack_require__(/*! ./templates */ "./node_modules/chalk/source/templates.js");
+	}
+
+	return template(chalk, parts.join(''));
+};
+
+Object.defineProperties(Chalk.prototype, styles);
+
+const chalk = Chalk(); // eslint-disable-line new-cap
+chalk.supportsColor = stdoutColor;
+chalk.stderr = Chalk({level: stderrColor ? stderrColor.level : 0}); // eslint-disable-line new-cap
+chalk.stderr.supportsColor = stderrColor;
+
+module.exports = chalk;
+
+
+/***/ }),
+
+/***/ "./node_modules/chalk/source/templates.js":
+/*!************************************************!*\
+  !*** ./node_modules/chalk/source/templates.js ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+const TEMPLATE_REGEX = /(?:\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi;
+const STYLE_REGEX = /(?:^|\.)(\w+)(?:\(([^)]*)\))?/g;
+const STRING_REGEX = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/;
+const ESCAPE_REGEX = /\\(u(?:[a-f\d]{4}|{[a-f\d]{1,6}})|x[a-f\d]{2}|.)|([^\\])/gi;
+
+const ESCAPES = new Map([
+	['n', '\n'],
+	['r', '\r'],
+	['t', '\t'],
+	['b', '\b'],
+	['f', '\f'],
+	['v', '\v'],
+	['0', '\0'],
+	['\\', '\\'],
+	['e', '\u001B'],
+	['a', '\u0007']
+]);
+
+function unescape(c) {
+	const u = c[0] === 'u';
+	const bracket = c[1] === '{';
+
+	if ((u && !bracket && c.length === 5) || (c[0] === 'x' && c.length === 3)) {
+		return String.fromCharCode(parseInt(c.slice(1), 16));
+	}
+
+	if (u && bracket) {
+		return String.fromCodePoint(parseInt(c.slice(2, -1), 16));
+	}
+
+	return ESCAPES.get(c) || c;
+}
+
+function parseArguments(name, arguments_) {
+	const results = [];
+	const chunks = arguments_.trim().split(/\s*,\s*/g);
+	let matches;
+
+	for (const chunk of chunks) {
+		const number = Number(chunk);
+		if (!Number.isNaN(number)) {
+			results.push(number);
+		} else if ((matches = chunk.match(STRING_REGEX))) {
+			results.push(matches[2].replace(ESCAPE_REGEX, (m, escape, character) => escape ? unescape(escape) : character));
+		} else {
+			throw new Error(`Invalid Chalk template style argument: ${chunk} (in style '${name}')`);
+		}
+	}
+
+	return results;
+}
+
+function parseStyle(style) {
+	STYLE_REGEX.lastIndex = 0;
+
+	const results = [];
+	let matches;
+
+	while ((matches = STYLE_REGEX.exec(style)) !== null) {
+		const name = matches[1];
+
+		if (matches[2]) {
+			const args = parseArguments(name, matches[2]);
+			results.push([name].concat(args));
+		} else {
+			results.push([name]);
+		}
+	}
+
+	return results;
+}
+
+function buildStyle(chalk, styles) {
+	const enabled = {};
+
+	for (const layer of styles) {
+		for (const style of layer.styles) {
+			enabled[style[0]] = layer.inverse ? null : style.slice(1);
+		}
+	}
+
+	let current = chalk;
+	for (const [styleName, styles] of Object.entries(enabled)) {
+		if (!Array.isArray(styles)) {
+			continue;
+		}
+
+		if (!(styleName in current)) {
+			throw new Error(`Unknown Chalk style: ${styleName}`);
+		}
+
+		current = styles.length > 0 ? current[styleName](...styles) : current[styleName];
+	}
+
+	return current;
+}
+
+module.exports = (chalk, temporary) => {
+	const styles = [];
+	const chunks = [];
+	let chunk = [];
+
+	// eslint-disable-next-line max-params
+	temporary.replace(TEMPLATE_REGEX, (m, escapeCharacter, inverse, style, close, character) => {
+		if (escapeCharacter) {
+			chunk.push(unescape(escapeCharacter));
+		} else if (style) {
+			const string = chunk.join('');
+			chunk = [];
+			chunks.push(styles.length === 0 ? string : buildStyle(chalk, styles)(string));
+			styles.push({inverse, styles: parseStyle(style)});
+		} else if (close) {
+			if (styles.length === 0) {
+				throw new Error('Found extraneous } in Chalk template literal');
+			}
+
+			chunks.push(buildStyle(chalk, styles)(chunk.join('')));
+			chunk = [];
+			styles.pop();
+		} else {
+			chunk.push(character);
+		}
+	});
+
+	chunks.push(chunk.join(''));
+
+	if (styles.length > 0) {
+		const errMessage = `Chalk template literal is missing ${styles.length} closing bracket${styles.length === 1 ? '' : 's'} (\`}\`)`;
+		throw new Error(errMessage);
+	}
+
+	return chunks.join('');
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/chalk/source/util.js":
+/*!*******************************************!*\
+  !*** ./node_modules/chalk/source/util.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const stringReplaceAll = (string, substring, replacer) => {
+	let index = string.indexOf(substring);
+	if (index === -1) {
+		return string;
+	}
+
+	const substringLength = substring.length;
+	let endIndex = 0;
+	let returnValue = '';
+	do {
+		returnValue += string.substr(endIndex, index - endIndex) + substring + replacer;
+		endIndex = index + substringLength;
+		index = string.indexOf(substring, endIndex);
+	} while (index !== -1);
+
+	returnValue += string.substr(endIndex);
+	return returnValue;
+};
+
+const stringEncaseCRLFWithFirstIndex = (string, prefix, postfix, index) => {
+	let endIndex = 0;
+	let returnValue = '';
+	do {
+		const gotCR = string[index - 1] === '\r';
+		returnValue += string.substr(endIndex, (gotCR ? index - 1 : index) - endIndex) + prefix + (gotCR ? '\r\n' : '\n') + postfix;
+		endIndex = index + 1;
+		index = string.indexOf('\n', endIndex);
+	} while (index !== -1);
+
+	returnValue += string.substr(endIndex);
+	return returnValue;
+};
+
+module.exports = {
+	stringReplaceAll,
+	stringEncaseCRLFWithFirstIndex
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/color-name/index.js":
+/*!******************************************!*\
+  !*** ./node_modules/color-name/index.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+module.exports = {
+	"aliceblue": [240, 248, 255],
+	"antiquewhite": [250, 235, 215],
+	"aqua": [0, 255, 255],
+	"aquamarine": [127, 255, 212],
+	"azure": [240, 255, 255],
+	"beige": [245, 245, 220],
+	"bisque": [255, 228, 196],
+	"black": [0, 0, 0],
+	"blanchedalmond": [255, 235, 205],
+	"blue": [0, 0, 255],
+	"blueviolet": [138, 43, 226],
+	"brown": [165, 42, 42],
+	"burlywood": [222, 184, 135],
+	"cadetblue": [95, 158, 160],
+	"chartreuse": [127, 255, 0],
+	"chocolate": [210, 105, 30],
+	"coral": [255, 127, 80],
+	"cornflowerblue": [100, 149, 237],
+	"cornsilk": [255, 248, 220],
+	"crimson": [220, 20, 60],
+	"cyan": [0, 255, 255],
+	"darkblue": [0, 0, 139],
+	"darkcyan": [0, 139, 139],
+	"darkgoldenrod": [184, 134, 11],
+	"darkgray": [169, 169, 169],
+	"darkgreen": [0, 100, 0],
+	"darkgrey": [169, 169, 169],
+	"darkkhaki": [189, 183, 107],
+	"darkmagenta": [139, 0, 139],
+	"darkolivegreen": [85, 107, 47],
+	"darkorange": [255, 140, 0],
+	"darkorchid": [153, 50, 204],
+	"darkred": [139, 0, 0],
+	"darksalmon": [233, 150, 122],
+	"darkseagreen": [143, 188, 143],
+	"darkslateblue": [72, 61, 139],
+	"darkslategray": [47, 79, 79],
+	"darkslategrey": [47, 79, 79],
+	"darkturquoise": [0, 206, 209],
+	"darkviolet": [148, 0, 211],
+	"deeppink": [255, 20, 147],
+	"deepskyblue": [0, 191, 255],
+	"dimgray": [105, 105, 105],
+	"dimgrey": [105, 105, 105],
+	"dodgerblue": [30, 144, 255],
+	"firebrick": [178, 34, 34],
+	"floralwhite": [255, 250, 240],
+	"forestgreen": [34, 139, 34],
+	"fuchsia": [255, 0, 255],
+	"gainsboro": [220, 220, 220],
+	"ghostwhite": [248, 248, 255],
+	"gold": [255, 215, 0],
+	"goldenrod": [218, 165, 32],
+	"gray": [128, 128, 128],
+	"green": [0, 128, 0],
+	"greenyellow": [173, 255, 47],
+	"grey": [128, 128, 128],
+	"honeydew": [240, 255, 240],
+	"hotpink": [255, 105, 180],
+	"indianred": [205, 92, 92],
+	"indigo": [75, 0, 130],
+	"ivory": [255, 255, 240],
+	"khaki": [240, 230, 140],
+	"lavender": [230, 230, 250],
+	"lavenderblush": [255, 240, 245],
+	"lawngreen": [124, 252, 0],
+	"lemonchiffon": [255, 250, 205],
+	"lightblue": [173, 216, 230],
+	"lightcoral": [240, 128, 128],
+	"lightcyan": [224, 255, 255],
+	"lightgoldenrodyellow": [250, 250, 210],
+	"lightgray": [211, 211, 211],
+	"lightgreen": [144, 238, 144],
+	"lightgrey": [211, 211, 211],
+	"lightpink": [255, 182, 193],
+	"lightsalmon": [255, 160, 122],
+	"lightseagreen": [32, 178, 170],
+	"lightskyblue": [135, 206, 250],
+	"lightslategray": [119, 136, 153],
+	"lightslategrey": [119, 136, 153],
+	"lightsteelblue": [176, 196, 222],
+	"lightyellow": [255, 255, 224],
+	"lime": [0, 255, 0],
+	"limegreen": [50, 205, 50],
+	"linen": [250, 240, 230],
+	"magenta": [255, 0, 255],
+	"maroon": [128, 0, 0],
+	"mediumaquamarine": [102, 205, 170],
+	"mediumblue": [0, 0, 205],
+	"mediumorchid": [186, 85, 211],
+	"mediumpurple": [147, 112, 219],
+	"mediumseagreen": [60, 179, 113],
+	"mediumslateblue": [123, 104, 238],
+	"mediumspringgreen": [0, 250, 154],
+	"mediumturquoise": [72, 209, 204],
+	"mediumvioletred": [199, 21, 133],
+	"midnightblue": [25, 25, 112],
+	"mintcream": [245, 255, 250],
+	"mistyrose": [255, 228, 225],
+	"moccasin": [255, 228, 181],
+	"navajowhite": [255, 222, 173],
+	"navy": [0, 0, 128],
+	"oldlace": [253, 245, 230],
+	"olive": [128, 128, 0],
+	"olivedrab": [107, 142, 35],
+	"orange": [255, 165, 0],
+	"orangered": [255, 69, 0],
+	"orchid": [218, 112, 214],
+	"palegoldenrod": [238, 232, 170],
+	"palegreen": [152, 251, 152],
+	"paleturquoise": [175, 238, 238],
+	"palevioletred": [219, 112, 147],
+	"papayawhip": [255, 239, 213],
+	"peachpuff": [255, 218, 185],
+	"peru": [205, 133, 63],
+	"pink": [255, 192, 203],
+	"plum": [221, 160, 221],
+	"powderblue": [176, 224, 230],
+	"purple": [128, 0, 128],
+	"rebeccapurple": [102, 51, 153],
+	"red": [255, 0, 0],
+	"rosybrown": [188, 143, 143],
+	"royalblue": [65, 105, 225],
+	"saddlebrown": [139, 69, 19],
+	"salmon": [250, 128, 114],
+	"sandybrown": [244, 164, 96],
+	"seagreen": [46, 139, 87],
+	"seashell": [255, 245, 238],
+	"sienna": [160, 82, 45],
+	"silver": [192, 192, 192],
+	"skyblue": [135, 206, 235],
+	"slateblue": [106, 90, 205],
+	"slategray": [112, 128, 144],
+	"slategrey": [112, 128, 144],
+	"snow": [255, 250, 250],
+	"springgreen": [0, 255, 127],
+	"steelblue": [70, 130, 180],
+	"tan": [210, 180, 140],
+	"teal": [0, 128, 128],
+	"thistle": [216, 191, 216],
+	"tomato": [255, 99, 71],
+	"turquoise": [64, 224, 208],
+	"violet": [238, 130, 238],
+	"wheat": [245, 222, 179],
+	"white": [255, 255, 255],
+	"whitesmoke": [245, 245, 245],
+	"yellow": [255, 255, 0],
+	"yellowgreen": [154, 205, 50]
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/is-node/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/is-node/index.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+// Coding standard for this project defined @ https://github.com/MatthewSH/standards/blob/master/JavaScript.md
+
+
+exports = module.exports = !!(typeof process !== 'undefined' && process.versions && process.versions.node);
+
+
+/***/ }),
+
+/***/ "./node_modules/readline-sync/lib/readline-sync.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/readline-sync/lib/readline-sync.js ***!
+  \*********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*
+ * readlineSync
+ * https://github.com/anseki/readline-sync
+ *
+ * Copyright (c) 2019 anseki
+ * Licensed under the MIT license.
+ */
+
+
+
+var
+  IS_WIN = process.platform === 'win32',
+
+  ALGORITHM_CIPHER = 'aes-256-cbc',
+  ALGORITHM_HASH = 'sha256',
+  DEFAULT_ERR_MSG = 'The current environment doesn\'t support interactive reading from TTY.',
+
+  fs = __webpack_require__(/*! fs */ "fs"),
+  TTY = process.binding('tty_wrap').TTY,
+  childProc = __webpack_require__(/*! child_process */ "child_process"),
+  pathUtil = __webpack_require__(/*! path */ "path"),
+
+  defaultOptions = {
+    /* eslint-disable key-spacing */
+    prompt:             '> ',
+    hideEchoBack:       false,
+    mask:               '*',
+    limit:              [],
+    limitMessage:       'Input another, please.$<( [)limit(])>',
+    defaultInput:       '',
+    trueValue:          [],
+    falseValue:         [],
+    caseSensitive:      false,
+    keepWhitespace:     false,
+    encoding:           'utf8',
+    bufferSize:         1024,
+    print:              void 0,
+    history:            true,
+    cd:                 false,
+    phContent:          void 0,
+    preCheck:           void 0
+    /* eslint-enable key-spacing */
+  },
+
+  fdR = 'none',
+  isRawMode = false,
+  salt = 0,
+  lastInput = '',
+  inputHistory = [],
+  _DBG_useExt = false,
+  _DBG_checkOptions = false,
+  _DBG_checkMethod = false,
+  fdW, ttyR, extHostPath, extHostArgs, tempdir, rawInput;
+
+function getHostArgs(options) {
+  // Send any text to crazy Windows shell safely.
+  function encodeArg(arg) {
+    return arg.replace(/[^\w\u0080-\uFFFF]/g, function(chr) {
+      return '#' + chr.charCodeAt(0) + ';';
+    });
+  }
+
+  return extHostArgs.concat((function(conf) {
+    var args = [];
+    Object.keys(conf).forEach(function(optionName) {
+      if (conf[optionName] === 'boolean') {
+        if (options[optionName]) { args.push('--' + optionName); }
+      } else if (conf[optionName] === 'string') {
+        if (options[optionName]) {
+          args.push('--' + optionName, encodeArg(options[optionName]));
+        }
+      }
+    });
+    return args;
+  })({
+    /* eslint-disable key-spacing */
+    display:        'string',
+    displayOnly:    'boolean',
+    keyIn:          'boolean',
+    hideEchoBack:   'boolean',
+    mask:           'string',
+    limit:          'string',
+    caseSensitive:  'boolean'
+    /* eslint-enable key-spacing */
+  }));
+}
+
+// piping via files (for Node.js v0.10-)
+function _execFileSync(options, execOptions) {
+
+  function getTempfile(name) {
+    var suffix = '',
+      filepath, fd;
+    tempdir = tempdir || __webpack_require__(/*! os */ "os").tmpdir();
+
+    while (true) {
+      filepath = pathUtil.join(tempdir, name + suffix);
+      try {
+        fd = fs.openSync(filepath, 'wx');
+      } catch (e) {
+        if (e.code === 'EEXIST') {
+          suffix++;
+          continue;
+        } else {
+          throw e;
+        }
+      }
+      fs.closeSync(fd);
+      break;
+    }
+    return filepath;
+  }
+
+  var res = {},
+    pathStdout = getTempfile('readline-sync.stdout'),
+    pathStderr = getTempfile('readline-sync.stderr'),
+    pathExit = getTempfile('readline-sync.exit'),
+    pathDone = getTempfile('readline-sync.done'),
+    crypto = __webpack_require__(/*! crypto */ "crypto"),
+    hostArgs, shellPath, shellArgs, exitCode, extMessage, shasum, decipher, password;
+
+  shasum = crypto.createHash(ALGORITHM_HASH);
+  shasum.update('' + process.pid + (salt++) + Math.random());
+  password = shasum.digest('hex');
+  decipher = crypto.createDecipher(ALGORITHM_CIPHER, password);
+
+  hostArgs = getHostArgs(options);
+  if (IS_WIN) {
+    shellPath = process.env.ComSpec || 'cmd.exe';
+    process.env.Q = '"'; // The quote (") that isn't escaped.
+    // `()` for ignore space by echo
+    shellArgs = ['/V:ON', '/S', '/C',
+      '(%Q%' + shellPath + '%Q% /V:ON /S /C %Q%' + /* ESLint bug? */ // eslint-disable-line no-path-concat
+        '%Q%' + extHostPath + '%Q%' +
+          hostArgs.map(function(arg) { return ' %Q%' + arg + '%Q%'; }).join('') +
+        ' & (echo !ERRORLEVEL!)>%Q%' + pathExit + '%Q%%Q%) 2>%Q%' + pathStderr + '%Q%' +
+      ' |%Q%' + process.execPath + '%Q% %Q%' + __dirname + '\\encrypt.js%Q%' +
+        ' %Q%' + ALGORITHM_CIPHER + '%Q% %Q%' + password + '%Q%' +
+        ' >%Q%' + pathStdout + '%Q%' +
+      ' & (echo 1)>%Q%' + pathDone + '%Q%'];
+  } else {
+    shellPath = '/bin/sh';
+    shellArgs = ['-c',
+      // Use `()`, not `{}` for `-c` (text param)
+      '("' + extHostPath + '"' + /* ESLint bug? */ // eslint-disable-line no-path-concat
+          hostArgs.map(function(arg) { return " '" + arg.replace(/'/g, "'\\''") + "'"; }).join('') +
+        '; echo $?>"' + pathExit + '") 2>"' + pathStderr + '"' +
+      ' |"' + process.execPath + '" "' + __dirname + '/encrypt.js"' +
+        ' "' + ALGORITHM_CIPHER + '" "' + password + '"' +
+        ' >"' + pathStdout + '"' +
+      '; echo 1 >"' + pathDone + '"'];
+  }
+  if (_DBG_checkMethod) { _DBG_checkMethod('_execFileSync', hostArgs); }
+  try {
+    childProc.spawn(shellPath, shellArgs, execOptions);
+  } catch (e) {
+    res.error = new Error(e.message);
+    res.error.method = '_execFileSync - spawn';
+    res.error.program = shellPath;
+    res.error.args = shellArgs;
+  }
+
+  while (fs.readFileSync(pathDone, {encoding: options.encoding}).trim() !== '1') {} // eslint-disable-line no-empty
+  if ((exitCode =
+      fs.readFileSync(pathExit, {encoding: options.encoding}).trim()) === '0') {
+    res.input =
+      decipher.update(fs.readFileSync(pathStdout, {encoding: 'binary'}),
+        'hex', options.encoding) +
+      decipher.final(options.encoding);
+  } else {
+    extMessage = fs.readFileSync(pathStderr, {encoding: options.encoding}).trim();
+    res.error = new Error(DEFAULT_ERR_MSG + (extMessage ? '\n' + extMessage : ''));
+    res.error.method = '_execFileSync';
+    res.error.program = shellPath;
+    res.error.args = shellArgs;
+    res.error.extMessage = extMessage;
+    res.error.exitCode = +exitCode;
+  }
+
+  fs.unlinkSync(pathStdout);
+  fs.unlinkSync(pathStderr);
+  fs.unlinkSync(pathExit);
+  fs.unlinkSync(pathDone);
+
+  return res;
+}
+
+function readlineExt(options) {
+  var res = {},
+    execOptions = {env: process.env, encoding: options.encoding},
+    hostArgs, extMessage;
+
+  if (!extHostPath) {
+    if (IS_WIN) {
+      if (process.env.PSModulePath) { // Windows PowerShell
+        extHostPath = 'powershell.exe';
+        extHostArgs = ['-ExecutionPolicy', 'Bypass',
+          '-File', __dirname + '\\read.ps1']; // eslint-disable-line no-path-concat
+      } else { // Windows Script Host
+        extHostPath = 'cscript.exe';
+        extHostArgs = ['//nologo', __dirname + '\\read.cs.js']; // eslint-disable-line no-path-concat
+      }
+    } else {
+      extHostPath = '/bin/sh';
+      extHostArgs = [__dirname + '/read.sh']; // eslint-disable-line no-path-concat
+    }
+  }
+  if (IS_WIN && !process.env.PSModulePath) { // Windows Script Host
+    // ScriptPW (Win XP and Server2003) needs TTY stream as STDIN.
+    // In this case, If STDIN isn't TTY, an error is thrown.
+    execOptions.stdio = [process.stdin];
+  }
+
+  if (childProc.execFileSync) {
+    hostArgs = getHostArgs(options);
+    if (_DBG_checkMethod) { _DBG_checkMethod('execFileSync', hostArgs); }
+    try {
+      res.input = childProc.execFileSync(extHostPath, hostArgs, execOptions);
+    } catch (e) { // non-zero exit code
+      extMessage = e.stderr ? (e.stderr + '').trim() : '';
+      res.error = new Error(DEFAULT_ERR_MSG + (extMessage ? '\n' + extMessage : ''));
+      res.error.method = 'execFileSync';
+      res.error.program = extHostPath;
+      res.error.args = hostArgs;
+      res.error.extMessage = extMessage;
+      res.error.exitCode = e.status;
+      res.error.code = e.code;
+      res.error.signal = e.signal;
+    }
+  } else {
+    res = _execFileSync(options, execOptions);
+  }
+  if (!res.error) {
+    res.input = res.input.replace(/^\s*'|'\s*$/g, '');
+    options.display = '';
+  }
+
+  return res;
+}
+
+/*
+  display:            string
+  displayOnly:        boolean
+  keyIn:              boolean
+  hideEchoBack:       boolean
+  mask:               string
+  limit:              string (pattern)
+  caseSensitive:      boolean
+  keepWhitespace:     boolean
+  encoding, bufferSize, print
+*/
+function _readlineSync(options) {
+  var input = '',
+    displaySave = options.display,
+    silent = !options.display && options.keyIn && options.hideEchoBack && !options.mask;
+
+  function tryExt() {
+    var res = readlineExt(options);
+    if (res.error) { throw res.error; }
+    return res.input;
+  }
+
+  if (_DBG_checkOptions) { _DBG_checkOptions(options); }
+
+  (function() { // open TTY
+    var fsB, constants, verNum;
+
+    function getFsB() {
+      if (!fsB) {
+        fsB = process.binding('fs'); // For raw device path
+        constants = process.binding('constants');
+        // for v6.3.0+
+        constants = constants && constants.fs && typeof constants.fs.O_RDWR === 'number'
+          ? constants.fs : constants;
+      }
+      return fsB;
+    }
+
+    if (typeof fdR !== 'string') { return; }
+    fdR = null;
+
+    if (IS_WIN) {
+      // iojs-v2.3.2+ input stream can't read first line. (#18)
+      // ** Don't get process.stdin before check! **
+      // Fixed v5.1.0
+      // Fixed v4.2.4
+      // It regressed again in v5.6.0, it is fixed in v6.2.0.
+      verNum = (function(ver) { // getVerNum
+        var nums = ver.replace(/^\D+/, '').split('.');
+        var verNum = 0;
+        if ((nums[0] = +nums[0])) { verNum += nums[0] * 10000; }
+        if ((nums[1] = +nums[1])) { verNum += nums[1] * 100; }
+        if ((nums[2] = +nums[2])) { verNum += nums[2]; }
+        return verNum;
+      })(process.version);
+      if (!(verNum >= 20302 && verNum < 40204 || verNum >= 50000 && verNum < 50100 || verNum >= 50600 && verNum < 60200) &&
+          process.stdin.isTTY) {
+        process.stdin.pause();
+        fdR = process.stdin.fd;
+        ttyR = process.stdin._handle;
+      } else {
+        try {
+          // The stream by fs.openSync('\\\\.\\CON', 'r') can't switch to raw mode.
+          // 'CONIN$' might fail on XP, 2000, 7 (x86).
+          fdR = getFsB().open('CONIN$', constants.O_RDWR, parseInt('0666', 8));
+          ttyR = new TTY(fdR, true);
+        } catch (e) { /* ignore */ }
+      }
+
+      if (process.stdout.isTTY) {
+        fdW = process.stdout.fd;
+      } else {
+        try {
+          fdW = fs.openSync('\\\\.\\CON', 'w');
+        } catch (e) { /* ignore */ }
+        if (typeof fdW !== 'number') { // Retry
+          try {
+            fdW = getFsB().open('CONOUT$', constants.O_RDWR, parseInt('0666', 8));
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+    } else {
+      if (process.stdin.isTTY) {
+        process.stdin.pause();
+        try {
+          fdR = fs.openSync('/dev/tty', 'r'); // device file, not process.stdin
+          ttyR = process.stdin._handle;
+        } catch (e) { /* ignore */ }
+      } else {
+        // Node.js v0.12 read() fails.
+        try {
+          fdR = fs.openSync('/dev/tty', 'r');
+          ttyR = new TTY(fdR, false);
+        } catch (e) { /* ignore */ }
+      }
+
+      if (process.stdout.isTTY) {
+        fdW = process.stdout.fd;
+      } else {
+        try {
+          fdW = fs.openSync('/dev/tty', 'w');
+        } catch (e) { /* ignore */ }
+      }
+    }
+  })();
+
+  (function() { // try read
+    var isCooked = !options.hideEchoBack && !options.keyIn,
+      atEol, limit, buffer, reqSize, readSize, chunk, line;
+    rawInput = '';
+
+    // Node.js v0.10- returns an error if same mode is set.
+    function setRawMode(mode) {
+      if (mode === isRawMode) { return true; }
+      if (ttyR.setRawMode(mode) !== 0) { return false; }
+      isRawMode = mode;
+      return true;
+    }
+
+    if (_DBG_useExt || !ttyR ||
+        typeof fdW !== 'number' && (options.display || !isCooked)) {
+      input = tryExt();
+      return;
+    }
+
+    if (options.display) {
+      fs.writeSync(fdW, options.display);
+      options.display = '';
+    }
+    if (options.displayOnly) { return; }
+
+    if (!setRawMode(!isCooked)) {
+      input = tryExt();
+      return;
+    }
+
+    reqSize = options.keyIn ? 1 : options.bufferSize;
+    // Check `allocUnsafe` to make sure of the new API.
+    buffer = Buffer.allocUnsafe && Buffer.alloc ? Buffer.alloc(reqSize) : new Buffer(reqSize);
+
+    if (options.keyIn && options.limit) {
+      limit = new RegExp('[^' + options.limit + ']',
+        'g' + (options.caseSensitive ? '' : 'i'));
+    }
+
+    while (true) {
+      readSize = 0;
+      try {
+        readSize = fs.readSync(fdR, buffer, 0, reqSize);
+      } catch (e) {
+        if (e.code !== 'EOF') {
+          setRawMode(false);
+          input += tryExt();
+          return;
+        }
+      }
+      if (readSize > 0) {
+        chunk = buffer.toString(options.encoding, 0, readSize);
+        rawInput += chunk;
+      } else {
+        chunk = '\n';
+        rawInput += String.fromCharCode(0);
+      }
+
+      if (chunk && typeof (line = (chunk.match(/^(.*?)[\r\n]/) || [])[1]) === 'string') {
+        chunk = line;
+        atEol = true;
+      }
+
+      // other ctrl-chars
+      // eslint-disable-next-line no-control-regex
+      if (chunk) { chunk = chunk.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, ''); }
+      if (chunk && limit) { chunk = chunk.replace(limit, ''); }
+
+      if (chunk) {
+        if (!isCooked) {
+          if (!options.hideEchoBack) {
+            fs.writeSync(fdW, chunk);
+          } else if (options.mask) {
+            fs.writeSync(fdW, (new Array(chunk.length + 1)).join(options.mask));
+          }
+        }
+        input += chunk;
+      }
+
+      if (!options.keyIn && atEol ||
+        options.keyIn && input.length >= reqSize) { break; }
+    }
+
+    if (!isCooked && !silent) { fs.writeSync(fdW, '\n'); }
+    setRawMode(false);
+  })();
+
+  if (options.print && !silent) {
+    options.print(
+      displaySave + (
+        options.displayOnly ? '' : (
+          options.hideEchoBack ? (new Array(input.length + 1)).join(options.mask) : input
+        ) + '\n' // must at least write '\n'
+      ),
+      options.encoding);
+  }
+
+  return options.displayOnly ? '' :
+    (lastInput = options.keepWhitespace || options.keyIn ? input : input.trim());
+}
+
+function flattenArray(array, validator) {
+  var flatArray = [];
+  function _flattenArray(array) {
+    if (array == null) { return; }
+    if (Array.isArray(array)) {
+      array.forEach(_flattenArray);
+    } else if (!validator || validator(array)) {
+      flatArray.push(array);
+    }
+  }
+  _flattenArray(array);
+  return flatArray;
+}
+
+function escapePattern(pattern) {
+  return pattern.replace(/[\x00-\x7f]/g, // eslint-disable-line no-control-regex
+    function(s) { return '\\x' + ('00' + s.charCodeAt().toString(16)).substr(-2); });
+}
+
+// margeOptions(options1, options2 ... )
+// margeOptions(true, options1, options2 ... )
+//    arg1=true : Start from defaultOptions and pick elements of that.
+function margeOptions() {
+  var optionsList = Array.prototype.slice.call(arguments),
+    optionNames, fromDefault;
+
+  if (optionsList.length && typeof optionsList[0] === 'boolean') {
+    fromDefault = optionsList.shift();
+    if (fromDefault) {
+      optionNames = Object.keys(defaultOptions);
+      optionsList.unshift(defaultOptions);
+    }
+  }
+
+  return optionsList.reduce(function(options, optionsPart) {
+    if (optionsPart == null) { return options; }
+
+    // ======== DEPRECATED ========
+    if (optionsPart.hasOwnProperty('noEchoBack') &&
+        !optionsPart.hasOwnProperty('hideEchoBack')) {
+      optionsPart.hideEchoBack = optionsPart.noEchoBack;
+      delete optionsPart.noEchoBack;
+    }
+    if (optionsPart.hasOwnProperty('noTrim') &&
+        !optionsPart.hasOwnProperty('keepWhitespace')) {
+      optionsPart.keepWhitespace = optionsPart.noTrim;
+      delete optionsPart.noTrim;
+    }
+    // ======== /DEPRECATED ========
+
+    if (!fromDefault) { optionNames = Object.keys(optionsPart); }
+    optionNames.forEach(function(optionName) {
+      var value;
+      if (!optionsPart.hasOwnProperty(optionName)) { return; }
+      value = optionsPart[optionName];
+      /* eslint-disable no-multi-spaces */
+      switch (optionName) {
+        //                    _readlineSync <- *    * -> defaultOptions
+        // ================ string
+        case 'mask':                        // *    *
+        case 'limitMessage':                //      *
+        case 'defaultInput':                //      *
+        case 'encoding':                    // *    *
+          value = value != null ? value + '' : '';
+          if (value && optionName !== 'limitMessage') { value = value.replace(/[\r\n]/g, ''); }
+          options[optionName] = value;
+          break;
+        // ================ number(int)
+        case 'bufferSize':                  // *    *
+          if (!isNaN(value = parseInt(value, 10)) && typeof value === 'number') {
+            options[optionName] = value; // limited updating (number is needed)
+          }
+          break;
+        // ================ boolean
+        case 'displayOnly':                 // *
+        case 'keyIn':                       // *
+        case 'hideEchoBack':                // *    *
+        case 'caseSensitive':               // *    *
+        case 'keepWhitespace':              // *    *
+        case 'history':                     //      *
+        case 'cd':                          //      *
+          options[optionName] = !!value;
+          break;
+        // ================ array
+        case 'limit':                       // *    *     to string for readlineExt
+        case 'trueValue':                   //      *
+        case 'falseValue':                  //      *
+          options[optionName] = flattenArray(value, function(value) {
+            var type = typeof value;
+            return type === 'string' || type === 'number' ||
+              type === 'function' || value instanceof RegExp;
+          }).map(function(value) {
+            return typeof value === 'string' ? value.replace(/[\r\n]/g, '') : value;
+          });
+          break;
+        // ================ function
+        case 'print':                       // *    *
+        case 'phContent':                   //      *
+        case 'preCheck':                    //      *
+          options[optionName] = typeof value === 'function' ? value : void 0;
+          break;
+        // ================ other
+        case 'prompt':                      //      *
+        case 'display':                     // *
+          options[optionName] = value != null ? value : '';
+          break;
+        // no default
+      }
+      /* eslint-enable no-multi-spaces */
+    });
+    return options;
+  }, {});
+}
+
+function isMatched(res, comps, caseSensitive) {
+  return comps.some(function(comp) {
+    var type = typeof comp;
+    return type === 'string'
+      ? (caseSensitive ? res === comp : res.toLowerCase() === comp.toLowerCase()) :
+      type === 'number' ? parseFloat(res) === comp :
+      type === 'function' ? comp(res) :
+      comp instanceof RegExp ? comp.test(res) : false;
+  });
+}
+
+function replaceHomePath(path, expand) {
+  var homePath = pathUtil.normalize(
+    IS_WIN ? (process.env.HOMEDRIVE || '') + (process.env.HOMEPATH || '') :
+    process.env.HOME || '').replace(/[/\\]+$/, '');
+  path = pathUtil.normalize(path);
+  return expand ? path.replace(/^~(?=\/|\\|$)/, homePath) :
+    path.replace(new RegExp('^' + escapePattern(homePath) +
+      '(?=\\/|\\\\|$)', IS_WIN ? 'i' : ''), '~');
+}
+
+function replacePlaceholder(text, generator) {
+  var PTN_INNER = '(?:\\(([\\s\\S]*?)\\))?(\\w+|.-.)(?:\\(([\\s\\S]*?)\\))?',
+    rePlaceholder = new RegExp('(\\$)?(\\$<' + PTN_INNER + '>)', 'g'),
+    rePlaceholderCompat = new RegExp('(\\$)?(\\$\\{' + PTN_INNER + '\\})', 'g');
+
+  function getPlaceholderText(s, escape, placeholder, pre, param, post) {
+    var text;
+    return escape || typeof (text = generator(param)) !== 'string' ? placeholder :
+      text ? (pre || '') + text + (post || '') : '';
+  }
+
+  return text.replace(rePlaceholder, getPlaceholderText)
+    .replace(rePlaceholderCompat, getPlaceholderText);
+}
+
+function array2charlist(array, caseSensitive, collectSymbols) {
+  var group = [],
+    groupClass = -1,
+    charCode = 0,
+    symbols = '',
+    values, suppressed;
+  function addGroup(groups, group) {
+    if (group.length > 3) { // ellipsis
+      groups.push(group[0] + '...' + group[group.length - 1]);
+      suppressed = true;
+    } else if (group.length) {
+      groups = groups.concat(group);
+    }
+    return groups;
+  }
+
+  values = array.reduce(function(chars, value) {
+    return chars.concat((value + '').split(''));
+  }, []).reduce(function(groups, curChar) {
+    var curGroupClass, curCharCode;
+    if (!caseSensitive) { curChar = curChar.toLowerCase(); }
+    curGroupClass = /^\d$/.test(curChar) ? 1 :
+      /^[A-Z]$/.test(curChar) ? 2 : /^[a-z]$/.test(curChar) ? 3 : 0;
+    if (collectSymbols && curGroupClass === 0) {
+      symbols += curChar;
+    } else {
+      curCharCode = curChar.charCodeAt(0);
+      if (curGroupClass && curGroupClass === groupClass &&
+          curCharCode === charCode + 1) {
+        group.push(curChar);
+      } else {
+        groups = addGroup(groups, group);
+        group = [curChar];
+        groupClass = curGroupClass;
+      }
+      charCode = curCharCode;
+    }
+    return groups;
+  }, []);
+  values = addGroup(values, group); // last group
+  if (symbols) { values.push(symbols); suppressed = true; }
+  return {values: values, suppressed: suppressed};
+}
+
+function joinChunks(chunks, suppressed) {
+  return chunks.join(chunks.length > 2 ? ', ' : suppressed ? ' / ' : '/');
+}
+
+function getPhContent(param, options) {
+  var resCharlist = {},
+    text, values, arg;
+  if (options.phContent) {
+    text = options.phContent(param, options);
+  }
+  if (typeof text !== 'string') {
+    switch (param) {
+      case 'hideEchoBack':
+      case 'mask':
+      case 'defaultInput':
+      case 'caseSensitive':
+      case 'keepWhitespace':
+      case 'encoding':
+      case 'bufferSize':
+      case 'history':
+      case 'cd':
+        text = !options.hasOwnProperty(param) ? '' :
+          typeof options[param] === 'boolean' ? (options[param] ? 'on' : 'off') :
+          options[param] + '';
+        break;
+      // case 'prompt':
+      // case 'query':
+      // case 'display':
+      //   text = options.hasOwnProperty('displaySrc') ? options.displaySrc + '' : '';
+      //   break;
+      case 'limit':
+      case 'trueValue':
+      case 'falseValue':
+        values = options[options.hasOwnProperty(param + 'Src') ? param + 'Src' : param];
+        if (options.keyIn) { // suppress
+          resCharlist = array2charlist(values, options.caseSensitive);
+          values = resCharlist.values;
+        } else {
+          values = values.filter(function(value) {
+            var type = typeof value;
+            return type === 'string' || type === 'number';
+          });
+        }
+        text = joinChunks(values, resCharlist.suppressed);
+        break;
+      case 'limitCount':
+      case 'limitCountNotZero':
+        text = options[options.hasOwnProperty('limitSrc') ? 'limitSrc' : 'limit'].length;
+        text = text || param !== 'limitCountNotZero' ? text + '' : '';
+        break;
+      case 'lastInput':
+        text = lastInput;
+        break;
+      case 'cwd':
+      case 'CWD':
+      case 'cwdHome':
+        text = process.cwd();
+        if (param === 'CWD') {
+          text = pathUtil.basename(text);
+        } else if (param === 'cwdHome') {
+          text = replaceHomePath(text);
+        }
+        break;
+      case 'date':
+      case 'time':
+      case 'localeDate':
+      case 'localeTime':
+        text = (new Date())['to' +
+          param.replace(/^./, function(str) { return str.toUpperCase(); }) +
+          'String']();
+        break;
+      default: // with arg
+        if (typeof (arg = (param.match(/^history_m(\d+)$/) || [])[1]) === 'string') {
+          text = inputHistory[inputHistory.length - arg] || '';
+        }
+    }
+  }
+  return text;
+}
+
+function getPhCharlist(param) {
+  var matches = /^(.)-(.)$/.exec(param),
+    text = '',
+    from, to, code, step;
+  if (!matches) { return null; }
+  from = matches[1].charCodeAt(0);
+  to = matches[2].charCodeAt(0);
+  step = from < to ? 1 : -1;
+  for (code = from; code !== to + step; code += step) { text += String.fromCharCode(code); }
+  return text;
+}
+
+// cmd "arg" " a r g " "" 'a"r"g' "a""rg" "arg
+function parseCl(cl) {
+  var reToken = new RegExp(/(\s*)(?:("|')(.*?)(?:\2|$)|(\S+))/g),
+    taken = '',
+    args = [],
+    matches, part;
+  cl = cl.trim();
+  while ((matches = reToken.exec(cl))) {
+    part = matches[3] || matches[4] || '';
+    if (matches[1]) {
+      args.push(taken);
+      taken = '';
+    }
+    taken += part;
+  }
+  if (taken) { args.push(taken); }
+  return args;
+}
+
+function toBool(res, options) {
+  return (
+    (options.trueValue.length &&
+      isMatched(res, options.trueValue, options.caseSensitive)) ? true :
+    (options.falseValue.length &&
+      isMatched(res, options.falseValue, options.caseSensitive)) ? false : res);
+}
+
+function getValidLine(options) {
+  var res, forceNext, limitMessage,
+    matches, histInput, args, resCheck;
+
+  function _getPhContent(param) { return getPhContent(param, options); }
+  function addDisplay(text) { options.display += (/[^\r\n]$/.test(options.display) ? '\n' : '') + text; }
+
+  options.limitSrc = options.limit;
+  options.displaySrc = options.display;
+  options.limit = ''; // for readlineExt
+  options.display = replacePlaceholder(options.display + '', _getPhContent);
+
+  while (true) {
+    res = _readlineSync(options);
+    forceNext = false;
+    limitMessage = '';
+
+    if (options.defaultInput && !res) { res = options.defaultInput; }
+
+    if (options.history) {
+      if ((matches = /^\s*!(?:!|-1)(:p)?\s*$/.exec(res))) { // `!!` `!-1` +`:p`
+        histInput = inputHistory[0] || '';
+        if (matches[1]) { // only display
+          forceNext = true;
+        } else { // replace input
+          res = histInput;
+        }
+        // Show it even if it is empty (NL only).
+        addDisplay(histInput + '\n');
+        if (!forceNext) { // Loop may break
+          options.displayOnly = true;
+          _readlineSync(options);
+          options.displayOnly = false;
+        }
+      } else if (res && res !== inputHistory[inputHistory.length - 1]) {
+        inputHistory = [res];
+      }
+    }
+
+    if (!forceNext && options.cd && res) {
+      args = parseCl(res);
+      switch (args[0].toLowerCase()) {
+        case 'cd':
+          if (args[1]) {
+            try {
+              process.chdir(replaceHomePath(args[1], true));
+            } catch (e) {
+              addDisplay(e + '');
+            }
+          }
+          forceNext = true;
+          break;
+        case 'pwd':
+          addDisplay(process.cwd());
+          forceNext = true;
+          break;
+        // no default
+      }
+    }
+
+    if (!forceNext && options.preCheck) {
+      resCheck = options.preCheck(res, options);
+      res = resCheck.res;
+      if (resCheck.forceNext) { forceNext = true; } // Don't switch to false.
+    }
+
+    if (!forceNext) {
+      if (!options.limitSrc.length ||
+        isMatched(res, options.limitSrc, options.caseSensitive)) { break; }
+      if (options.limitMessage) {
+        limitMessage = replacePlaceholder(options.limitMessage, _getPhContent);
+      }
+    }
+
+    addDisplay((limitMessage ? limitMessage + '\n' : '') +
+      replacePlaceholder(options.displaySrc + '', _getPhContent));
+  }
+  return toBool(res, options);
+}
+
+// for dev
+exports._DBG_set_useExt = function(val) { _DBG_useExt = val; };
+exports._DBG_set_checkOptions = function(val) { _DBG_checkOptions = val; };
+exports._DBG_set_checkMethod = function(val) { _DBG_checkMethod = val; };
+exports._DBG_clearHistory = function() { lastInput = ''; inputHistory = []; };
+
+// ------------------------------------
+
+exports.setDefaultOptions = function(options) {
+  defaultOptions = margeOptions(true, options);
+  return margeOptions(true); // copy
+};
+
+exports.question = function(query, options) {
+  /* eslint-disable key-spacing */
+  return getValidLine(margeOptions(margeOptions(true, options), {
+    display:            query
+  }));
+  /* eslint-enable key-spacing */
+};
+
+exports.prompt = function(options) {
+  var readOptions = margeOptions(true, options);
+  readOptions.display = readOptions.prompt;
+  return getValidLine(readOptions);
+};
+
+exports.keyIn = function(query, options) {
+  /* eslint-disable key-spacing */
+  var readOptions = margeOptions(margeOptions(true, options), {
+    display:            query,
+    keyIn:              true,
+    keepWhitespace:     true
+  });
+  /* eslint-enable key-spacing */
+
+  // char list
+  readOptions.limitSrc = readOptions.limit.filter(function(value) {
+    var type = typeof value;
+    return type === 'string' || type === 'number';
+  }).map(function(text) {
+    return replacePlaceholder(text + '', getPhCharlist);
+  });
+  // pattern
+  readOptions.limit = escapePattern(readOptions.limitSrc.join(''));
+
+  ['trueValue', 'falseValue'].forEach(function(optionName) {
+    readOptions[optionName] = readOptions[optionName].reduce(function(comps, comp) {
+      var type = typeof comp;
+      if (type === 'string' || type === 'number') {
+        comps = comps.concat((comp + '').split(''));
+      } else { comps.push(comp); }
+      return comps;
+    }, []);
+  });
+
+  readOptions.display = replacePlaceholder(readOptions.display + '',
+    function(param) { return getPhContent(param, readOptions); });
+
+  return toBool(_readlineSync(readOptions), readOptions);
+};
+
+// ------------------------------------
+
+exports.questionEMail = function(query, options) {
+  if (query == null) { query = 'Input e-mail address: '; }
+  /* eslint-disable key-spacing */
+  return exports.question(query, margeOptions({
+    // -------- default
+    hideEchoBack:       false,
+    // http://www.w3.org/TR/html5/forms.html#valid-e-mail-address
+    limit:              /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
+    limitMessage:       'Input valid e-mail address, please.',
+    trueValue:          null,
+    falseValue:         null
+  }, options, {
+    // -------- forced
+    keepWhitespace:     false,
+    cd:                 false
+  }));
+  /* eslint-enable key-spacing */
+};
+
+exports.questionNewPassword = function(query, options) {
+  /* eslint-disable key-spacing */
+  var resCharlist, min, max,
+    readOptions = margeOptions({
+      // -------- default
+      hideEchoBack:       true,
+      mask:               '*',
+      limitMessage:       'It can include: $<charlist>\n' +
+                            'And the length must be: $<length>',
+      trueValue:          null,
+      falseValue:         null,
+      caseSensitive:      true
+    }, options, {
+      // -------- forced
+      history:            false,
+      cd:                 false,
+      // limit (by charlist etc.),
+      phContent: function(param) {
+        return param === 'charlist' ? resCharlist.text :
+          param === 'length' ? min + '...' + max : null;
+      }
+    }),
+    // added:     charlist, min, max, confirmMessage, unmatchMessage
+    charlist, confirmMessage, unmatchMessage,
+    limit, limitMessage, res1, res2;
+  /* eslint-enable key-spacing */
+  options = options || {};
+
+  charlist = replacePlaceholder(
+    options.charlist ? options.charlist + '' : '$<!-~>', getPhCharlist);
+  if (isNaN(min = parseInt(options.min, 10)) || typeof min !== 'number') { min = 12; }
+  if (isNaN(max = parseInt(options.max, 10)) || typeof max !== 'number') { max = 24; }
+  limit = new RegExp('^[' + escapePattern(charlist) +
+    ']{' + min + ',' + max + '}$');
+  resCharlist = array2charlist([charlist], readOptions.caseSensitive, true);
+  resCharlist.text = joinChunks(resCharlist.values, resCharlist.suppressed);
+
+  confirmMessage = options.confirmMessage != null ? options.confirmMessage :
+    'Reinput a same one to confirm it: ';
+  unmatchMessage = options.unmatchMessage != null ? options.unmatchMessage :
+    'It differs from first one.' +
+      ' Hit only the Enter key if you want to retry from first one.';
+
+  if (query == null) { query = 'Input new password: '; }
+
+  limitMessage = readOptions.limitMessage;
+  while (!res2) {
+    readOptions.limit = limit;
+    readOptions.limitMessage = limitMessage;
+    res1 = exports.question(query, readOptions);
+
+    readOptions.limit = [res1, ''];
+    readOptions.limitMessage = unmatchMessage;
+    res2 = exports.question(confirmMessage, readOptions);
+  }
+
+  return res1;
+};
+
+function _questionNum(query, options, parser) {
+  var validValue;
+  function getValidValue(value) {
+    validValue = parser(value);
+    return !isNaN(validValue) && typeof validValue === 'number';
+  }
+  /* eslint-disable key-spacing */
+  exports.question(query, margeOptions({
+    // -------- default
+    limitMessage:       'Input valid number, please.'
+  }, options, {
+    // -------- forced
+    limit:              getValidValue,
+    cd:                 false
+    // trueValue, falseValue, caseSensitive, keepWhitespace don't work.
+  }));
+  /* eslint-enable key-spacing */
+  return validValue;
+}
+exports.questionInt = function(query, options) {
+  return _questionNum(query, options, function(value) { return parseInt(value, 10); });
+};
+exports.questionFloat = function(query, options) {
+  return _questionNum(query, options, parseFloat);
+};
+
+exports.questionPath = function(query, options) {
+  /* eslint-disable key-spacing */
+  var error = '',
+    validPath, // before readOptions
+    readOptions = margeOptions({
+      // -------- default
+      hideEchoBack:       false,
+      limitMessage:       '$<error(\n)>Input valid path, please.' +
+                            '$<( Min:)min>$<( Max:)max>',
+      history:            true,
+      cd:                 true
+    }, options, {
+      // -------- forced
+      keepWhitespace:     false,
+      limit: function(value) {
+        var exists, stat, res;
+        value = replaceHomePath(value, true);
+        error = ''; // for validate
+        // mkdir -p
+        function mkdirParents(dirPath) {
+          dirPath.split(/\/|\\/).reduce(function(parents, dir) {
+            var path = pathUtil.resolve((parents += dir + pathUtil.sep));
+            if (!fs.existsSync(path)) {
+              fs.mkdirSync(path);
+            } else if (!fs.statSync(path).isDirectory()) {
+              throw new Error('Non directory already exists: ' + path);
+            }
+            return parents;
+          }, '');
+        }
+
+        try {
+          exists = fs.existsSync(value);
+          validPath = exists ? fs.realpathSync(value) : pathUtil.resolve(value);
+          // options.exists default: true, not-bool: no-check
+          if (!options.hasOwnProperty('exists') && !exists ||
+              typeof options.exists === 'boolean' && options.exists !== exists) {
+            error = (exists ? 'Already exists' : 'No such file or directory') +
+              ': ' + validPath;
+            return false;
+          }
+          if (!exists && options.create) {
+            if (options.isDirectory) {
+              mkdirParents(validPath);
+            } else {
+              mkdirParents(pathUtil.dirname(validPath));
+              fs.closeSync(fs.openSync(validPath, 'w')); // touch
+            }
+            validPath = fs.realpathSync(validPath);
+          }
+          if (exists && (options.min || options.max ||
+              options.isFile || options.isDirectory)) {
+            stat = fs.statSync(validPath);
+            // type check first (directory has zero size)
+            if (options.isFile && !stat.isFile()) {
+              error = 'Not file: ' + validPath;
+              return false;
+            } else if (options.isDirectory && !stat.isDirectory()) {
+              error = 'Not directory: ' + validPath;
+              return false;
+            } else if (options.min && stat.size < +options.min ||
+                options.max && stat.size > +options.max) {
+              error = 'Size ' + stat.size + ' is out of range: ' + validPath;
+              return false;
+            }
+          }
+          if (typeof options.validate === 'function' &&
+              (res = options.validate(validPath)) !== true) {
+            if (typeof res === 'string') { error = res; }
+            return false;
+          }
+        } catch (e) {
+          error = e + '';
+          return false;
+        }
+        return true;
+      },
+      // trueValue, falseValue, caseSensitive don't work.
+      phContent: function(param) {
+        return param === 'error' ? error :
+          param !== 'min' && param !== 'max' ? null :
+          options.hasOwnProperty(param) ? options[param] + '' : '';
+      }
+    });
+    // added:     exists, create, min, max, isFile, isDirectory, validate
+  /* eslint-enable key-spacing */
+  options = options || {};
+
+  if (query == null) { query = 'Input path (you can "cd" and "pwd"): '; }
+
+  exports.question(query, readOptions);
+  return validPath;
+};
+
+// props: preCheck, args, hRes, limit
+function getClHandler(commandHandler, options) {
+  var clHandler = {},
+    hIndex = {};
+  if (typeof commandHandler === 'object') {
+    Object.keys(commandHandler).forEach(function(cmd) {
+      if (typeof commandHandler[cmd] === 'function') {
+        hIndex[options.caseSensitive ? cmd : cmd.toLowerCase()] = commandHandler[cmd];
+      }
+    });
+    clHandler.preCheck = function(res) {
+      var cmdKey;
+      clHandler.args = parseCl(res);
+      cmdKey = clHandler.args[0] || '';
+      if (!options.caseSensitive) { cmdKey = cmdKey.toLowerCase(); }
+      clHandler.hRes =
+        cmdKey !== '_' && hIndex.hasOwnProperty(cmdKey)
+          ? hIndex[cmdKey].apply(res, clHandler.args.slice(1)) :
+          hIndex.hasOwnProperty('_') ? hIndex._.apply(res, clHandler.args) : null;
+      return {res: res, forceNext: false};
+    };
+    if (!hIndex.hasOwnProperty('_')) {
+      clHandler.limit = function() { // It's called after preCheck.
+        var cmdKey = clHandler.args[0] || '';
+        if (!options.caseSensitive) { cmdKey = cmdKey.toLowerCase(); }
+        return hIndex.hasOwnProperty(cmdKey);
+      };
+    }
+  } else {
+    clHandler.preCheck = function(res) {
+      clHandler.args = parseCl(res);
+      clHandler.hRes = typeof commandHandler === 'function'
+        ? commandHandler.apply(res, clHandler.args) : true; // true for break loop
+      return {res: res, forceNext: false};
+    };
+  }
+  return clHandler;
+}
+
+exports.promptCL = function(commandHandler, options) {
+  /* eslint-disable key-spacing */
+  var readOptions = margeOptions({
+      // -------- default
+      hideEchoBack:       false,
+      limitMessage:       'Requested command is not available.',
+      caseSensitive:      false,
+      history:            true
+    }, options),
+    //   -------- forced
+    //   trueValue, falseValue, keepWhitespace don't work.
+    //   preCheck, limit (by clHandler)
+    clHandler = getClHandler(commandHandler, readOptions);
+  /* eslint-enable key-spacing */
+  readOptions.limit = clHandler.limit;
+  readOptions.preCheck = clHandler.preCheck;
+  exports.prompt(readOptions);
+  return clHandler.args;
+};
+
+exports.promptLoop = function(inputHandler, options) {
+  /* eslint-disable key-spacing */
+  var readOptions = margeOptions({
+    // -------- default
+    hideEchoBack:       false,
+    trueValue:          null,
+    falseValue:         null,
+    caseSensitive:      false,
+    history:            true
+  }, options);
+  /* eslint-enable key-spacing */
+  while (true) { if (inputHandler(exports.prompt(readOptions))) { break; } }
+  // return; // nothing is returned
+};
+
+exports.promptCLLoop = function(commandHandler, options) {
+  /* eslint-disable key-spacing */
+  var readOptions = margeOptions({
+      // -------- default
+      hideEchoBack:       false,
+      limitMessage:       'Requested command is not available.',
+      caseSensitive:      false,
+      history:            true
+    }, options),
+    //   -------- forced
+    //   trueValue, falseValue, keepWhitespace don't work.
+    //   preCheck, limit (by clHandler)
+    clHandler = getClHandler(commandHandler, readOptions);
+  /* eslint-enable key-spacing */
+  readOptions.limit = clHandler.limit;
+  readOptions.preCheck = clHandler.preCheck;
+  while (true) {
+    exports.prompt(readOptions);
+    if (clHandler.hRes) { break; }
+  }
+  // return; // nothing is returned
+};
+
+exports.promptSimShell = function(options) {
+  /* eslint-disable key-spacing */
+  return exports.prompt(margeOptions({
+    // -------- default
+    hideEchoBack:       false,
+    history:            true
+  }, options, {
+    // -------- forced
+    prompt:             (function() {
+      return IS_WIN ? '$<cwd>>' :
+        // 'user@host:cwd$ '
+        (process.env.USER || '') +
+        (process.env.HOSTNAME ? '@' + process.env.HOSTNAME.replace(/\..*$/, '') : '') +
+        ':$<cwdHome>$ ';
+    })()
+  }));
+  /* eslint-enable key-spacing */
+};
+
+function _keyInYN(query, options, limit) {
+  var res;
+  if (query == null) { query = 'Are you sure? '; }
+  if ((!options || options.guide !== false) && (query += '')) {
+    query = query.replace(/\s*:?\s*$/, '') + ' [y/n]: ';
+  }
+  /* eslint-disable key-spacing */
+  res = exports.keyIn(query, margeOptions(options, {
+    // -------- forced
+    hideEchoBack:       false,
+    limit:              limit,
+    trueValue:          'y',
+    falseValue:         'n',
+    caseSensitive:      false
+    // mask doesn't work.
+  }));
+  // added:     guide
+  /* eslint-enable key-spacing */
+  return typeof res === 'boolean' ? res : '';
+}
+exports.keyInYN = function(query, options) { return _keyInYN(query, options); };
+exports.keyInYNStrict = function(query, options) { return _keyInYN(query, options, 'yn'); };
+
+exports.keyInPause = function(query, options) {
+  if (query == null) { query = 'Continue...'; }
+  if ((!options || options.guide !== false) && (query += '')) {
+    query = query.replace(/\s+$/, '') + ' (Hit any key)';
+  }
+  /* eslint-disable key-spacing */
+  exports.keyIn(query, margeOptions({
+    // -------- default
+    limit:              null
+  }, options, {
+    // -------- forced
+    hideEchoBack:       true,
+    mask:               ''
+  }));
+  // added:     guide
+  /* eslint-enable key-spacing */
+  // return; // nothing is returned
+};
+
+exports.keyInSelect = function(items, query, options) {
+  /* eslint-disable key-spacing */
+  var readOptions = margeOptions({
+      // -------- default
+      hideEchoBack:       false
+    }, options, {
+      // -------- forced
+      trueValue:          null,
+      falseValue:         null,
+      caseSensitive:      false,
+      // limit (by items),
+      phContent: function(param) {
+        return param === 'itemsCount' ? items.length + '' :
+          param === 'firstItem' ? (items[0] + '').trim() :
+          param === 'lastItem' ? (items[items.length - 1] + '').trim() : null;
+      }
+    }),
+    // added:     guide, cancel
+    keylist = '',
+    key2i = {},
+    charCode = 49 /* '1' */,
+    display = '\n';
+  /* eslint-enable key-spacing */
+  if (!Array.isArray(items) || !items.length || items.length > 35) {
+    throw '`items` must be Array (max length: 35).';
+  }
+
+  items.forEach(function(item, i) {
+    var key = String.fromCharCode(charCode);
+    keylist += key;
+    key2i[key] = i;
+    display += '[' + key + '] ' + (item + '').trim() + '\n';
+    charCode = charCode === 57 /* '9' */ ? 97 /* 'a' */ : charCode + 1;
+  });
+  if (!options || options.cancel !== false) {
+    keylist += '0';
+    key2i['0'] = -1;
+    display += '[0] ' +
+      (options && options.cancel != null && typeof options.cancel !== 'boolean'
+        ? (options.cancel + '').trim() : 'CANCEL') + '\n';
+  }
+  readOptions.limit = keylist;
+  display += '\n';
+
+  if (query == null) { query = 'Choose one from list: '; }
+  if ((query += '')) {
+    if (!options || options.guide !== false) {
+      query = query.replace(/\s*:?\s*$/, '') + ' [$<limit>]: ';
+    }
+    display += query;
+  }
+
+  return key2i[exports.keyIn(display, readOptions).toLowerCase()];
+};
+
+exports.getRawInput = function() { return rawInput; };
+
+// ======== DEPRECATED ========
+function _setOption(optionName, args) {
+  var options;
+  if (args.length) { options = {}; options[optionName] = args[0]; }
+  return exports.setDefaultOptions(options)[optionName];
+}
+exports.setPrint = function() { return _setOption('print', arguments); };
+exports.setPrompt = function() { return _setOption('prompt', arguments); };
+exports.setEncoding = function() { return _setOption('encoding', arguments); };
+exports.setMask = function() { return _setOption('mask', arguments); };
+exports.setBufferSize = function() { return _setOption('bufferSize', arguments); };
+
+
+/***/ }),
+
+/***/ "./node_modules/sprintf-js/src/sprintf.js":
+/*!************************************************!*\
+  !*** ./node_modules/sprintf-js/src/sprintf.js ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+(function(window) {
+    var re = {
+        not_string: /[^s]/,
+        number: /[diefg]/,
+        json: /[j]/,
+        not_json: /[^j]/,
+        text: /^[^\x25]+/,
+        modulo: /^\x25{2}/,
+        placeholder: /^\x25(?:([1-9]\d*)\$|\(([^\)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijosuxX])/,
+        key: /^([a-z_][a-z_\d]*)/i,
+        key_access: /^\.([a-z_][a-z_\d]*)/i,
+        index_access: /^\[(\d+)\]/,
+        sign: /^[\+\-]/
+    }
+
+    function sprintf() {
+        var key = arguments[0], cache = sprintf.cache
+        if (!(cache[key] && cache.hasOwnProperty(key))) {
+            cache[key] = sprintf.parse(key)
+        }
+        return sprintf.format.call(null, cache[key], arguments)
+    }
+
+    sprintf.format = function(parse_tree, argv) {
+        var cursor = 1, tree_length = parse_tree.length, node_type = "", arg, output = [], i, k, match, pad, pad_character, pad_length, is_positive = true, sign = ""
+        for (i = 0; i < tree_length; i++) {
+            node_type = get_type(parse_tree[i])
+            if (node_type === "string") {
+                output[output.length] = parse_tree[i]
+            }
+            else if (node_type === "array") {
+                match = parse_tree[i] // convenience purposes only
+                if (match[2]) { // keyword argument
+                    arg = argv[cursor]
+                    for (k = 0; k < match[2].length; k++) {
+                        if (!arg.hasOwnProperty(match[2][k])) {
+                            throw new Error(sprintf("[sprintf] property '%s' does not exist", match[2][k]))
+                        }
+                        arg = arg[match[2][k]]
+                    }
+                }
+                else if (match[1]) { // positional argument (explicit)
+                    arg = argv[match[1]]
+                }
+                else { // positional argument (implicit)
+                    arg = argv[cursor++]
+                }
+
+                if (get_type(arg) == "function") {
+                    arg = arg()
+                }
+
+                if (re.not_string.test(match[8]) && re.not_json.test(match[8]) && (get_type(arg) != "number" && isNaN(arg))) {
+                    throw new TypeError(sprintf("[sprintf] expecting number but found %s", get_type(arg)))
+                }
+
+                if (re.number.test(match[8])) {
+                    is_positive = arg >= 0
+                }
+
+                switch (match[8]) {
+                    case "b":
+                        arg = arg.toString(2)
+                    break
+                    case "c":
+                        arg = String.fromCharCode(arg)
+                    break
+                    case "d":
+                    case "i":
+                        arg = parseInt(arg, 10)
+                    break
+                    case "j":
+                        arg = JSON.stringify(arg, null, match[6] ? parseInt(match[6]) : 0)
+                    break
+                    case "e":
+                        arg = match[7] ? arg.toExponential(match[7]) : arg.toExponential()
+                    break
+                    case "f":
+                        arg = match[7] ? parseFloat(arg).toFixed(match[7]) : parseFloat(arg)
+                    break
+                    case "g":
+                        arg = match[7] ? parseFloat(arg).toPrecision(match[7]) : parseFloat(arg)
+                    break
+                    case "o":
+                        arg = arg.toString(8)
+                    break
+                    case "s":
+                        arg = ((arg = String(arg)) && match[7] ? arg.substring(0, match[7]) : arg)
+                    break
+                    case "u":
+                        arg = arg >>> 0
+                    break
+                    case "x":
+                        arg = arg.toString(16)
+                    break
+                    case "X":
+                        arg = arg.toString(16).toUpperCase()
+                    break
+                }
+                if (re.json.test(match[8])) {
+                    output[output.length] = arg
+                }
+                else {
+                    if (re.number.test(match[8]) && (!is_positive || match[3])) {
+                        sign = is_positive ? "+" : "-"
+                        arg = arg.toString().replace(re.sign, "")
+                    }
+                    else {
+                        sign = ""
+                    }
+                    pad_character = match[4] ? match[4] === "0" ? "0" : match[4].charAt(1) : " "
+                    pad_length = match[6] - (sign + arg).length
+                    pad = match[6] ? (pad_length > 0 ? str_repeat(pad_character, pad_length) : "") : ""
+                    output[output.length] = match[5] ? sign + arg + pad : (pad_character === "0" ? sign + pad + arg : pad + sign + arg)
+                }
+            }
+        }
+        return output.join("")
+    }
+
+    sprintf.cache = {}
+
+    sprintf.parse = function(fmt) {
+        var _fmt = fmt, match = [], parse_tree = [], arg_names = 0
+        while (_fmt) {
+            if ((match = re.text.exec(_fmt)) !== null) {
+                parse_tree[parse_tree.length] = match[0]
+            }
+            else if ((match = re.modulo.exec(_fmt)) !== null) {
+                parse_tree[parse_tree.length] = "%"
+            }
+            else if ((match = re.placeholder.exec(_fmt)) !== null) {
+                if (match[2]) {
+                    arg_names |= 1
+                    var field_list = [], replacement_field = match[2], field_match = []
+                    if ((field_match = re.key.exec(replacement_field)) !== null) {
+                        field_list[field_list.length] = field_match[1]
+                        while ((replacement_field = replacement_field.substring(field_match[0].length)) !== "") {
+                            if ((field_match = re.key_access.exec(replacement_field)) !== null) {
+                                field_list[field_list.length] = field_match[1]
+                            }
+                            else if ((field_match = re.index_access.exec(replacement_field)) !== null) {
+                                field_list[field_list.length] = field_match[1]
+                            }
+                            else {
+                                throw new SyntaxError("[sprintf] failed to parse named argument key")
+                            }
+                        }
+                    }
+                    else {
+                        throw new SyntaxError("[sprintf] failed to parse named argument key")
+                    }
+                    match[2] = field_list
+                }
+                else {
+                    arg_names |= 2
+                }
+                if (arg_names === 3) {
+                    throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported")
+                }
+                parse_tree[parse_tree.length] = match
+            }
+            else {
+                throw new SyntaxError("[sprintf] unexpected placeholder")
+            }
+            _fmt = _fmt.substring(match[0].length)
+        }
+        return parse_tree
+    }
+
+    var vsprintf = function(fmt, argv, _argv) {
+        _argv = (argv || []).slice(0)
+        _argv.splice(0, 0, fmt)
+        return sprintf.apply(null, _argv)
+    }
+
+    /**
+     * helpers
+     */
+    function get_type(variable) {
+        return Object.prototype.toString.call(variable).slice(8, -1).toLowerCase()
+    }
+
+    function str_repeat(input, multiplier) {
+        return Array(multiplier + 1).join(input)
+    }
+
+    /**
+     * export to either browser or node.js
+     */
+    if (true) {
+        exports.sprintf = sprintf
+        exports.vsprintf = vsprintf
+    }
+    else {}
+})(typeof window === "undefined" ? this : window);
+
+
+/***/ }),
+
+/***/ "./node_modules/webpack/buildin/module.js":
+/*!***********************************!*\
+  !*** (webpack)/buildin/module.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = function(module) {
+	if (!module.webpackPolyfill) {
+		module.deprecate = function() {};
+		module.paths = [];
+		// module.parent = undefined by default
+		if (!module.children) module.children = [];
+		Object.defineProperty(module, "loaded", {
+			enumerable: true,
+			get: function() {
+				return module.l;
+			}
+		});
+		Object.defineProperty(module, "id", {
+			enumerable: true,
+			get: function() {
+				return module.i;
+			}
+		});
+		module.webpackPolyfill = 1;
+	}
+	return module;
+};
+
+
+/***/ }),
+
+/***/ "./src/mal/env.ts":
+/*!************************!*\
+  !*** ./src/mal/env.ts ***!
+  \************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return Env; });
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+
+class Env {
+    constructor({ outer = null, name = 'let', forms = [], exps = [], useUnnamedForms = false, } = {}) {
+        this.data = new Map();
+        this.bindings = [];
+        this.outer = outer;
+        this.name = name;
+        if (useUnnamedForms) {
+            this.unnamedForms = exps;
+        }
+        if (forms && exps) {
+            this.bind(_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...forms), _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...exps));
+        }
+    }
+    root() {
+        if (this.outer) {
+            return this.outer.root();
+        }
+        else {
+            return this;
+        }
+    }
+    getAllSymbols() {
+        const merged = this.outer
+            ? new Map(Object.assign(Object.assign({}, this.outer.data), this.data))
+            : this.data;
+        return [...merged.keys()].map(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create);
+    }
+    /**
+     * Returns a new Env with symbols in binds bound to
+     * corresponding values in exps
+     */
+    bind(forms, exps) {
+        if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(forms)) {
+            this.set(forms.value, exps);
+        }
+        else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(forms)) {
+            if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(exps)) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Bind vector error');
+            }
+            for (let i = 0; i < forms.value.length; i++) {
+                const form = forms.value[i];
+                const exp = exps.value[i];
+                if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].isFor(form, '&')) {
+                    // rest arguments
+                    this.set(forms.value[i + 1].value, _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...exps.value.slice(i)));
+                    i++;
+                    continue;
+                }
+                else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalKeyword"].isFor(form, 'as')) {
+                    // :as destruction
+                    this.set(forms.value[i + 1].value, exp);
+                    break;
+                }
+                this.bind(form, exp);
+            }
+        }
+        else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(forms)) {
+            if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exps)) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Bind map error');
+            }
+            for (const [key, form] of forms.entries()) {
+                if (key === 'as') {
+                    // :as destruction
+                    if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(form))
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid :as');
+                    this.set(form.value, exps);
+                    continue;
+                }
+                else {
+                    if (!(key in exps.value)) {
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`[${this.name}] The destruction keyword :${key} does not exist on the parameter`);
+                    }
+                    this.bind(form, exps.value[key]);
+                }
+            }
+        }
+    }
+    set(symbol, value) {
+        this.data.set(symbol, value);
+        return value;
+    }
+    find(symbol) {
+        // First, search binding
+        const bindings = this.root().bindings;
+        if (bindings.length > 0) {
+            const bindingEnv = bindings[bindings.length - 1];
+            const value = bindingEnv.find(symbol);
+            if (value !== undefined) {
+                return value;
+            }
+        }
+        // Seek in current env
+        if (this.data.has(symbol)) {
+            return this.data.get(symbol);
+        }
+        // Unnnamed forms
+        if (this.unnamedForms && symbol.startsWith('%')) {
+            const index = parseInt(symbol.slice(1) || '1') - 1;
+            if (this.unnamedForms.length >= index) {
+                return undefined;
+            }
+            else {
+                return this.unnamedForms[index];
+            }
+        }
+        if (this.outer !== null) {
+            return this.outer.find(symbol);
+        }
+    }
+    hasOwn(symbol) {
+        return this.data.has(symbol);
+    }
+    get(symbol) {
+        const value = this.find(symbol);
+        if (value === undefined) {
+            throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`[${this.name}] Use of undeclared symbol ${symbol}`);
+        }
+        return value;
+    }
+    getChain() {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        let _env = this;
+        const envs = [...this.root().bindings.reverse()];
+        do {
+            envs.push(_env);
+            _env = _env.outer;
+        } while (_env);
+        return envs;
+    }
+    pushBinding(env) {
+        const bindings = this.root().bindings;
+        const outer = bindings.length > 0 ? bindings[bindings.length - 1] : null;
+        env.outer = outer;
+        bindings.push(env);
+        return env;
+    }
+    popBinding() {
+        this.root().bindings.pop();
+    }
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/eval.ts":
+/*!*************************!*\
+  !*** ./src/mal/eval.ts ***!
+  \*************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return evalExp; });
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+/* harmony import */ var _env__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./env */ "./src/mal/env.ts");
+/* harmony import */ var case__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! case */ "./node_modules/case/dist/Case.js");
+/* harmony import */ var case__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(case__WEBPACK_IMPORTED_MODULE_2__);
+
+
+
+// import {setExpandInfo, ExpandType} from './expand'
+function quasiquote(exp) {
+    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exp)) {
+        const ret = {};
+        for (const [k, v] of exp.entries()) {
+            ret[k] = quasiquote(v);
+        }
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(ret);
+    }
+    if (!isPair(exp)) {
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('quote'), exp);
+    }
+    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].isFor(exp.value[0], 'unquote')) {
+        return exp.value[1];
+    }
+    let ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('concat'), ...exp.value.map(e => {
+        if (isPair(e) && _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].isFor(e.value[0], 'splice-unquote')) {
+            return e.value[1];
+        }
+        else {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(quasiquote(e));
+        }
+    }));
+    ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp) ? _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('lst'), ret) : ret;
+    return ret;
+    function isPair(x) {
+        return Object(_types__WEBPACK_IMPORTED_MODULE_0__["isMalSeq"])(x) && x.value.length > 0;
+    }
+}
+function macroexpand(_exp, env) {
+    let exp = _exp;
+    while (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp) && _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.fn)) {
+        const fn = env.get(exp.fn.value);
+        if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalMacro"].is(fn)) {
+            break;
+        }
+        ;
+        exp.value[0].evaluated = fn;
+        exp = fn.value.apply({ callerEnv: env }, exp.params);
+    }
+    // if (exp !== _exp && MalList.is(_exp)) {
+    // 	setExpandInfo(_exp, {type: ExpandType.Constant, exp})
+    // }
+    return exp;
+}
+function evalAtom(exp, env) {
+    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp)) {
+        const ret = env.get(exp.value);
+        exp.evaluated = ret;
+        return ret;
+    }
+    else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(exp)) {
+        const ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...exp.value.map(x => {
+            return evalExp.call(this, x, env);
+        }));
+        exp.evaluated = ret;
+        return ret;
+    }
+    else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exp)) {
+        const hm = {};
+        for (const [k, v] of exp.entries()) {
+            hm[k] = evalExp.call(this, v, env);
+        }
+        const ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(hm);
+        exp.evaluated = ret;
+        return ret;
+    }
+    return exp;
+}
+function evalExp(exp, env) {
+    const origExp = exp;
+    let counter = 0;
+    while (counter++ < 1e6) {
+        // Expand macro
+        exp = macroexpand(exp, env);
+        if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp)) {
+            const ret = evalAtom.call(this, exp, env);
+            origExp.evaluated = ret;
+            return ret;
+        }
+        if (exp.value.length === 0) {
+            origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+        }
+        // Apply list
+        const first = exp.fn;
+        if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(first)) {
+            throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`${Object(case__WEBPACK_IMPORTED_MODULE_2__["capital"])(first.type)} ${first.print()} is not a function. First element of list always should be a function.`);
+        }
+        switch (first.value) {
+            case 'def': {
+                // NOTE: disable defvar
+                // case 'defvar': {
+                first.evaluated = env.get('def');
+                const [, sym, form] = exp.value;
+                if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(sym) || form === undefined) {
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid form of def');
+                }
+                const ret = evalExp.call(this, form, env);
+                env.set(sym.value, ret);
+                // setExpandInfo(exp, {
+                // 	type: ExpandType.Unchange,
+                // })
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'let': {
+                first.evaluated = env.get('let');
+                const letEnv = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ name: 'let', outer: env });
+                const [, binds, ...body] = exp.value;
+                if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(binds)) {
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid bind-expr in let');
+                }
+                for (let i = 0; i < binds.value.length; i += 2) {
+                    letEnv.bind(binds.value[i], evalExp.call(this, binds.value[i + 1], letEnv));
+                }
+                env = letEnv;
+                const ret = body.length === 1
+                    ? body[0]
+                    : _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('do'), ...body);
+                // setExpandInfo(exp, {
+                // 	type: ExpandType.Env,
+                // 	exp: ret,
+                // 	env: letEnv,
+                // })
+                exp = ret;
+                break; // continue TCO loop
+            }
+            case 'binding': {
+                first.evaluated = env.get('binding');
+                const bindingEnv = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ name: 'binding' });
+                const [, binds, ..._body] = exp.value;
+                if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(binds)) {
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid bind-expr in binding');
+                }
+                for (let i = 0; i < binds.value.length; i += 2) {
+                    bindingEnv.bind(binds.value[i], evalExp.call(this, binds.value[i + 1], env));
+                }
+                env.pushBinding(bindingEnv);
+                const body = _body.length === 1
+                    ? _body[0]
+                    : _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('do'), ..._body);
+                let ret;
+                try {
+                    ret = evalExp.call(this, body, env);
+                }
+                finally {
+                    env.popBinding();
+                }
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'get-all-symbols': {
+                const ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...env.getAllSymbols());
+                first.evaluated = env.get('get-all-symbols');
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'fn-params': {
+                first.evaluated = env.get('fn-params');
+                const fn = evalExp.call(this, exp.value[1], env);
+                const ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"].is(fn)
+                    ? _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...fn.params)
+                    : _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'eval*': {
+                first.evaluated = env.get('eval*');
+                // if (!this) {
+                // 	throw new MalError('Cannot find the caller env')
+                // }
+                const expanded = evalExp.call(this, exp.value[1], env);
+                exp = evalExp.call(this, expanded, this ? this.callerEnv : env);
+                break; // continue TCO loop
+            }
+            case 'quote': {
+                const ret = exp.value[1];
+                first.evaluated = env.get('quote');
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'quasiquote': {
+                first.evaluated = env.get('quasiquote');
+                const ret = quasiquote(exp.value[1]);
+                exp = ret;
+                break; // continue TCO loop
+            }
+            case 'fn-sugar': {
+                first.evaluated = env.get('fn-sugar');
+                const body = exp.value[1];
+                const ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"].fromMal((...args) => {
+                    return evalExp.call(this, body, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ outer: env, exps: args, useUnnamedForms: true }));
+                }, body, env);
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'fn':
+            case 'macro': {
+                first.evaluated = env.get(first.value);
+                const [, params, body] = exp.value;
+                let paramsArr;
+                if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(params)) {
+                    paramsArr = params.value;
+                }
+                else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(params)) {
+                    paramsArr = [params];
+                }
+                if (!paramsArr) {
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('First argument of macro should be vector or map');
+                }
+                if (body === undefined) {
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Second argument of macro should be specified');
+                }
+                const ret = (first.value === 'fn' ? _types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"] : _types__WEBPACK_IMPORTED_MODULE_0__["MalMacro"]).fromMal((...args) => {
+                    return evalExp.call(this, body, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ outer: env, forms: paramsArr, exps: args }));
+                }, body, env, paramsArr);
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'macroexpand': {
+                first.evaluated = env.get('macroexpand');
+                const ret = macroexpand(exp.value[1], env);
+                origExp.evaluated = ret;
+                return ret;
+            }
+            case 'try': {
+                first.evaluated = env.get('try');
+                const [, testExp, catchExp] = exp.value;
+                try {
+                    const ret = evalExp.call(this, testExp, env);
+                    origExp.evaluated = ret;
+                    return ret;
+                }
+                catch (err) {
+                    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].isCallOf(catchExp, 'catch') &&
+                        _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(catchExp.value[1])) {
+                        catchExp.value[1].evaluated = env.get('catch');
+                        const [, errSym, errBody] = catchExp.value;
+                        const message = _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(err instanceof Error ? err.message : 'Error');
+                        const ret = evalExp.call(this, errBody, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
+                            outer: env,
+                            forms: [errSym],
+                            exps: [message],
+                            name: 'catch',
+                        }));
+                        origExp.evaluated = ret;
+                        return ret;
+                    }
+                    else {
+                        throw err;
+                    }
+                }
+            }
+            case 'do': {
+                first.evaluated = env.get('do');
+                if (exp.value.length === 1) {
+                    origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                    return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                }
+                evalExp.call(this, _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...exp.value.slice(1, -1)), env);
+                const ret = exp.value[exp.value.length - 1];
+                exp = ret;
+                break; // continue TCO loop
+            }
+            case 'if': {
+                first.evaluated = env.get('if');
+                const [, _test, thenExp, elseExp] = exp.value;
+                const test = evalExp.call(this, _test, env);
+                const ret = test
+                    ? thenExp
+                    : elseExp !== undefined
+                        ? elseExp
+                        : _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                exp = ret;
+                break; // continue TCO loop
+            }
+            default: {
+                // is a function call
+                // Evaluate all of parameters at first
+                const [fn, ...params] = exp.value.map(e => evalExp.call(this, e, env));
+                if (_types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"].is(fn)) {
+                    first.evaluated = fn;
+                    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"].is(fn) && fn.exp) {
+                        env = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
+                            outer: fn.env,
+                            forms: fn.params,
+                            exps: params,
+                            name: _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(first) ? first.value : 'anonymous',
+                        });
+                        exp = fn.exp;
+                        // continue TCO loop
+                        break;
+                    }
+                    else {
+                        const ret = fn.value.apply({ callerEnv: env }, params);
+                        origExp.evaluated = ret;
+                        return ret;
+                    }
+                }
+                else {
+                    console.log(fn);
+                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid first');
+                }
+            }
+        }
+    }
+    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Exceed the maximum TCO stacks');
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/printer.ts":
+/*!****************************!*\
+  !*** ./src/mal/printer.ts ***!
+  \****************************/
+/*! exports provided: printer, default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "printer", function() { return printer; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return printExp; });
+const printer = {
+    log: (...args) => {
+        console.info(...args);
+    },
+    return: (...args) => {
+        console.log(...args);
+    },
+    error: (...args) => {
+        console.error(...args);
+    },
+    pseudoExecute: (command) => {
+        console.log(command);
+    },
+    clear: console.clear,
+};
+function printExp(exp, readably = true) {
+    return exp.print(readably);
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/reader.ts":
+/*!***************************!*\
+  !*** ./src/mal/reader.ts ***!
+  \***************************/
+/*! exports provided: MalBlankException, MalReadError, default, jsToMal, reconstructTree */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalBlankException", function() { return MalBlankException; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalReadError", function() { return MalReadError; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return readStr; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "jsToMal", function() { return jsToMal; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "reconstructTree", function() { return reconstructTree; });
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+
+class MalBlankException extends _types__WEBPACK_IMPORTED_MODULE_0__["MalError"] {
+}
+class MalReadError extends _types__WEBPACK_IMPORTED_MODULE_0__["MalError"] {
+}
+class Reader {
+    constructor(tokens, str) {
+        this.tokens = tokens;
+        this.str = str;
+        this.strlen = str.length;
+        this._index = 0;
+    }
+    next() {
+        const token = this.tokens[this._index++];
+        return token[0];
+    }
+    peek(pos = this._index) {
+        const token = this.tokens[pos];
+        return token[0];
+    }
+    get index() {
+        return this._index;
+    }
+    getStr(start, end) {
+        return this.str.slice(start, end);
+    }
+    offset(pos = this._index) {
+        const token = this.tokens[pos];
+        return token !== undefined ? token[1] : this.strlen;
+    }
+    endOffset(pos = this._index) {
+        const token = this.tokens[pos];
+        return token !== undefined ? token[1] + token[0].length : this.strlen;
+    }
+    prevEndOffset() {
+        return this.endOffset(this._index - 1);
+    }
+}
+function tokenize(str) {
+    // eslint-disable-next-line no-useless-escape
+    const re = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g;
+    let match = null;
+    const spaceRe = /^[\s,]*/;
+    let spaceMatch = null, spaceOffset = null;
+    const results = [];
+    while ((match = re.exec(str)) && match[1] != '') {
+        if (match[1][0] === ';') {
+            continue;
+        }
+        spaceMatch = spaceRe.exec(match[0]);
+        spaceOffset = spaceMatch ? spaceMatch[0].length : 0;
+        results.push([match[1], match.index + spaceOffset]);
+    }
+    return results;
+}
+function readAtom(reader) {
+    const token = reader.next();
+    if (typeof token === 'string') {
+        if (token.match(/^[-+]?[0-9]+$/)) {
+            // integer
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseInt(token, 10));
+        }
+        else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
+            // float
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseFloat(token));
+        }
+        else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
+            // string
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(token
+                .slice(1, token.length - 1)
+                .replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c)) // handle new line
+            );
+        }
+        else if (token[0] === '"') {
+            throw new MalReadError("Expected '\"', got EOF");
+        }
+        else if (token[0] === ':') {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalKeyword"].create(token.slice(1));
+        }
+        else if (token === 'nil') {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+        }
+        else if (token === 'true') {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(true);
+        }
+        else if (token === 'false') {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(false);
+        }
+        else if (/^NaN$|^-?Infinity$/.test(token)) {
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseFloat(token));
+        }
+        else {
+            // symbol
+            return _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create(token);
+        }
+    }
+    else {
+        return token;
+    }
+}
+// read list of tokens
+function readColl(reader, start = '[', end = ']') {
+    const coll = [];
+    const delimiters = [];
+    let token = reader.next();
+    if (token !== start) {
+        throw new MalReadError(`Expected '${start}'`);
+    }
+    while ((token = reader.peek()) !== end) {
+        if (!token) {
+            throw new MalReadError(`Expected '${end}', got EOF`);
+        }
+        // Save delimiter
+        const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset());
+        delimiters === null || delimiters === void 0 ? void 0 : delimiters.push(delimiter);
+        coll.push(readForm(reader));
+    }
+    // Save a delimiter between a last element and a end tag
+    const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset());
+    delimiters.push(delimiter);
+    reader.next();
+    return {
+        coll,
+        delimiters,
+    };
+}
+// read vector of tokens
+function readVector(reader) {
+    const { coll, delimiters } = readColl(reader, '[', ']');
+    const vec = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...coll);
+    vec.delimiters = delimiters;
+    return vec;
+}
+function readList(reader) {
+    const { coll, delimiters } = readColl(reader, '(', ')');
+    const list = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(...coll);
+    list.delimiters = delimiters;
+    return list;
+}
+// read hash-map key/value pairs
+function readMap(reader) {
+    const { coll, delimiters } = readColl(reader, '{', '}');
+    const map = _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].fromMalSeq(...coll);
+    map.delimiters = delimiters;
+    return map;
+}
+function readForm(reader) {
+    let val;
+    // For syntaxtic sugars
+    // const startIdx = reader.index
+    // Set offset array value if the form is syntaxic sugar.
+    // the offset array is like [<end of arg0>, <start of arg1>]
+    let sugar = null;
+    switch (reader.peek()) {
+        // reader macros/transforms
+        case ';':
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+            break;
+        case "'":
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('quote'), readForm(reader));
+            break;
+        case '`':
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('quasiquote'), readForm(reader));
+            break;
+        case '~':
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('unquote'), readForm(reader));
+            break;
+        case '~@':
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('splice-unquote'), readForm(reader));
+            break;
+        case '#': {
+            reader.next();
+            const type = reader.peek();
+            if (type === '(') {
+                // Syntactic sugar for anonymous function: #( )
+                sugar = [reader.prevEndOffset(), reader.offset()];
+                val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('fn-sugar'), readForm(reader));
+            }
+            else if (type === '@') {
+                // Syntactic sugar for ui-annotation #@
+                reader.next();
+                sugar = [reader.prevEndOffset(), reader.offset()];
+                const annotation = readForm(reader);
+                sugar.push(reader.prevEndOffset(), reader.offset());
+                const expr = readForm(reader);
+                val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('ui-annotate'), annotation, expr);
+            }
+            else {
+                throw new Error('Invalid # syntactic sugar');
+            }
+            break;
+        }
+        case '^': {
+            // Syntactic sugar for with-meta
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            const meta = readForm(reader);
+            sugar.push(reader.prevEndOffset(), reader.offset());
+            const expr = readForm(reader);
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('with-meta-sugar'), meta, expr);
+            break;
+        }
+        case '@':
+            // Syntactic sugar for deref
+            reader.next();
+            sugar = [reader.prevEndOffset(), reader.offset()];
+            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('deref'), readForm(reader));
+            break;
+        // list
+        case ')':
+            throw new MalReadError("unexpected ')'");
+        case '(':
+            val = readList(reader);
+            break;
+        // vector
+        case ']':
+            throw new Error("unexpected ']'");
+        case '[':
+            val = readVector(reader);
+            break;
+        // hash-map
+        case '}':
+            throw new Error("unexpected '}'");
+        case '{':
+            val = readMap(reader);
+            break;
+        // atom
+        default:
+            val = readAtom(reader);
+    }
+    if (sugar) {
+        const _val = val;
+        // Save str info
+        const formEnd = reader.prevEndOffset();
+        _val.isSugar = true;
+        const delimiters = [''];
+        sugar.push(formEnd);
+        for (let i = 0; i < sugar.length - 1; i += 2) {
+            delimiters.push(reader.getStr(sugar[i], sugar[i + 1]));
+        }
+        delimiters.push('');
+        _val.delimiters = delimiters;
+    }
+    return val;
+}
+function readStr(str) {
+    const tokens = tokenize(str);
+    if (tokens.length === 0) {
+        throw new MalBlankException();
+    }
+    const reader = new Reader(tokens, str);
+    const exp = readForm(reader);
+    if (reader.index < tokens.length - 1) {
+        throw new MalReadError('Invalid end of file');
+    }
+    reconstructTree(exp);
+    return exp;
+}
+function jsToMal(obj) {
+    if (obj instanceof _types__WEBPACK_IMPORTED_MODULE_0__["MalVal"]) {
+        // MalVal
+        return obj;
+    }
+    else if (Array.isArray(obj)) {
+        // Vector
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(...obj.map(jsToMal));
+    }
+    else if (obj instanceof Function) {
+        // Function
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalFunc"].create((...xs) => jsToMal(obj(...xs)));
+    }
+    else if (obj instanceof Object) {
+        // Map
+        const ret = {};
+        for (const [key, value] of Object.entries(obj)) {
+            ret[key] = jsToMal(value);
+        }
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(ret);
+    }
+    else if (obj === null) {
+        // Nil
+        return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+    }
+    else {
+        switch (typeof obj) {
+            case 'number':
+                return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(obj);
+            case 'string':
+                return _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(obj);
+            case 'boolean':
+                return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(obj);
+            default:
+                return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+        }
+    }
+}
+function reconstructTree(exp) {
+    seek(exp);
+    function seek(exp, parent) {
+        if (parent) {
+            exp.parent = parent;
+        }
+        if (Object(_types__WEBPACK_IMPORTED_MODULE_0__["isMalSeq"])(exp)) {
+            exp.value.forEach((child, index) => seek(child, { ref: exp, index }));
+        }
+        else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exp)) {
+            exp
+                .entries()
+                .forEach(([, child], index) => seek(child, { ref: exp, index }));
+        }
+    }
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/repl-core.ts":
+/*!******************************!*\
+  !*** ./src/mal/repl-core.ts ***!
+  \******************************/
+/*! exports provided: slurp, default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "slurp", function() { return slurp; });
+/* harmony import */ var sprintf_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! sprintf-js */ "./node_modules/sprintf-js/src/sprintf.js");
+/* harmony import */ var sprintf_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(sprintf_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+/* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
+/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
+
+
+
+
+
+// String functions
+const slurp = (() => {
+    if (is_node__WEBPACK_IMPORTED_MODULE_1___default.a) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const fs = __webpack_require__(/*! fs */ "fs");
+        return (url) => {
+            return fs.readFileSync(url, 'UTF-8');
+        };
+    }
+    else {
+        return (url) => {
+            const req = new XMLHttpRequest();
+            // const hashedUrl =
+            // 	url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
+            // req.open('GET', hashedUrl, false)
+            req.open('GET', url, false);
+            req.send();
+            if (req.status !== 200) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_2__["MalError"](`Failed to slurp file: ${url}`);
+            }
+            return req.responseText;
+        };
+    }
+})();
+const Exports = [
+    [
+        'throw',
+        (msg) => {
+            throw new _types__WEBPACK_IMPORTED_MODULE_2__["MalError"](msg.value);
+        },
+    ],
+    // Standard Output
+    [
+        'prn',
+        (...a) => {
+            _printer__WEBPACK_IMPORTED_MODULE_3__["printer"].log(...a.map(e => Object(_printer__WEBPACK_IMPORTED_MODULE_3__["default"])(e, true)));
+            return _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create();
+        },
+    ],
+    [
+        'print-str',
+        (...a) => {
+            return _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(a.map(e => Object(_printer__WEBPACK_IMPORTED_MODULE_3__["default"])(e, true)).join(' '));
+        },
+    ],
+    [
+        'println',
+        (...a) => {
+            _printer__WEBPACK_IMPORTED_MODULE_3__["printer"].log(...a.map(e => Object(_printer__WEBPACK_IMPORTED_MODULE_3__["default"])(e, false)));
+            return _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create();
+        },
+    ],
+    // I/O
+    ['read-string', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_4__["default"])(x.value)],
+    ['slurp', (x) => _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(slurp(x.value))],
+    // Interop
+    ['js-eval', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])(eval(x.value.toString()))],
+    // ['.', jsMethodCall],
+    // Needed in import-force
+    [
+        'format',
+        (fmt, ...xs) => _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(Object(sprintf_js__WEBPACK_IMPORTED_MODULE_0__["vsprintf"])(fmt.value, xs.map(x => x.toJS()))),
+    ],
+    ['*is-node*', _types__WEBPACK_IMPORTED_MODULE_2__["MalBoolean"].create(is_node__WEBPACK_IMPORTED_MODULE_1___default.a)],
+    ['*host-language*', _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create('JavaScript')],
+    [
+        'def',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Defines a variable',
+            params: [
+                { label: 'Symbol', type: 'symbol' },
+                { label: 'Value', type: 'any' },
+            ],
+        })),
+    ],
+    [
+        'defvar',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Creates a variable which can be changed by the bidirectional evaluation',
+            params: [
+                { label: 'Symbol', type: 'symbol' },
+                { label: 'Value', type: 'any' },
+            ],
+        })),
+    ],
+    [
+        'let',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Creates a lexical scope',
+            params: [
+                { label: 'Binds', type: 'exp' },
+                { label: 'Body', type: 'exp' },
+            ],
+        })),
+    ],
+    [
+        'binding',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Creates a new binding',
+            params: [
+                { label: 'Binds', type: 'exp' },
+                { label: 'Body', type: 'exp' },
+            ],
+        })),
+    ],
+    [
+        'get-all-symbols',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Gets all existing symbols',
+            params: [],
+            return: { type: 'vector' },
+        })),
+    ],
+    [
+        'fn-params',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Gets the list of a function parameter',
+            params: [{ label: 'Function', type: 'symbol' }],
+        })),
+    ],
+    [
+        'eval*',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
+            params: [{ label: 'Form', type: 'exp' }],
+        })),
+    ],
+    [
+        'quote',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Yields the unevaluated *form*',
+            params: [{ label: 'Form', type: 'exp' }],
+        })),
+    ],
+    [
+        'quasiquote',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Quasiquote',
+            params: [{ label: 'Form', type: 'exp' }],
+        })),
+    ],
+    [
+        'fn',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Defines a function',
+            params: [
+                { label: 'Params', type: 'exp' },
+                { label: 'Form', type: 'exp' },
+            ],
+        })),
+    ],
+    [
+        'fn-sugar',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'syntactic sugar for (fn [] *form*)',
+            params: [],
+        })),
+    ],
+    [
+        'macro',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: '',
+            params: [
+                { label: 'Param', type: 'exp' },
+                { label: 'Form', type: 'exp' },
+            ],
+        })),
+    ],
+    [
+        'macroexpand',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Expands the macro',
+            params: [],
+        })),
+    ],
+    [
+        'try',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Try',
+            params: [],
+        })),
+    ],
+    [
+        'catch',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Catch',
+            params: [],
+        })),
+    ],
+    [
+        'do',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Evaluates *forms* in order and returns the value of the last',
+            params: [
+                {
+                    type: 'vector',
+                    variadic: true,
+                    items: { label: 'Form', type: 'any' },
+                },
+            ],
+        })),
+    ],
+    [
+        'if',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'If statement. If **else** is not supplied it defaults to nil',
+            params: [
+                { label: 'Test', type: 'boolean' },
+                { label: 'Then', type: 'exp' },
+                { label: 'Else', type: 'exp', default: null },
+            ],
+        })),
+    ],
+    [
+        'env-chain',
+        _types__WEBPACK_IMPORTED_MODULE_2__["MalFunc"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create(), Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
+            doc: 'Env chain',
+            params: [],
+        })),
+    ],
+];
+/* harmony default export */ __webpack_exports__["default"] = (Exports);
+
+
+/***/ }),
+
+/***/ "./src/mal/scope.ts":
+/*!**************************!*\
+  !*** ./src/mal/scope.ts ***!
+  \**************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return Scope; });
+/* harmony import */ var _env__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./env */ "./src/mal/env.ts");
+/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
+/* harmony import */ var _eval__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./eval */ "./src/mal/eval.ts");
+/* harmony import */ var _repl_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./repl-core */ "./src/mal/repl-core.ts");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+/* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_6__);
+
+
+
+
+
+
+
+const normalizeURL = (() => {
+    if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const path = __webpack_require__(/*! path */ "path");
+        return (url, basename) => {
+            return path.join(path.dirname(basename), url);
+        };
+    }
+    else {
+        return (url, basename) => {
+            return new URL(url, basename).href;
+        };
+    }
+})();
+class Scope {
+    constructor(outer = null, name = 'repl', onSetup = null) {
+        this.outer = outer;
+        this.name = name;
+        this.onSetup = onSetup;
+        this.setup();
+        if (this.outer === null) {
+            this.initAsRepl();
+        }
+        else {
+            this.outer.inner = this;
+        }
+    }
+    initAsRepl() {
+        // Defining essential functions
+        _repl_core__WEBPACK_IMPORTED_MODULE_3__["default"].forEach(([name, expr]) => {
+            this.def(name, Object(_reader__WEBPACK_IMPORTED_MODULE_1__["jsToMal"])(expr));
+        });
+        this.defn('normalize-url', (url) => {
+            const basename = this.var('*filename*').value;
+            return _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(normalizeURL(url.value, basename));
+        });
+        this.defn('eval', (exp) => {
+            return Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
+        });
+        this.defn('import-js-force', (url) => {
+            const basename = this.var('*filename*');
+            const absurl = normalizeURL(url.value, basename.value);
+            const text = Object(_repl_core__WEBPACK_IMPORTED_MODULE_3__["slurp"])(absurl);
+            eval(text);
+            const exp = globalThis['glisp_library'];
+            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(absurl));
+            Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
+            this.def('*filename*', basename);
+            return _types__WEBPACK_IMPORTED_MODULE_4__["MalNil"].create();
+        });
+        let filename;
+        if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
+            // NOTE: This should be fixed
+            filename = '/Users/baku/Sites/glisp/repl/index.js';
+        }
+        else {
+            filename = new URL('.', document.baseURI).href;
+        }
+        this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(filename));
+        this.defn('import-force', (url) => {
+            const basename = this.var('*filename*');
+            const absurl = normalizeURL(url.value, basename.value);
+            const text = Object(_repl_core__WEBPACK_IMPORTED_MODULE_3__["slurp"])(absurl);
+            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(absurl));
+            this.readEval(`(do ${text}\nnil)`);
+            this.def('*filename*', basename);
+            return _types__WEBPACK_IMPORTED_MODULE_4__["MalNil"].create();
+        });
+        // Load core library as default
+        this.readEval('(import-force "./lib/core.glisp")');
+        if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
+            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(process.cwd()));
+        }
+    }
+    setup(option) {
+        var _a;
+        this.env = new _env__WEBPACK_IMPORTED_MODULE_0__["default"]({ outer: (_a = this.outer) === null || _a === void 0 ? void 0 : _a.env, name: this.name });
+        if (this.onSetup && option) {
+            this.onSetup(this, option);
+        }
+        if (this.inner) {
+            this.inner.env.outer = this.env;
+        }
+    }
+    REP(str) {
+        const ret = this.readEval(str);
+        if (ret !== undefined) {
+            _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].return(ret.print());
+        }
+    }
+    readEval(str) {
+        try {
+            return this.eval(Object(_reader__WEBPACK_IMPORTED_MODULE_1__["default"])(str));
+        }
+        catch (err) {
+            if (err instanceof _reader__WEBPACK_IMPORTED_MODULE_1__["MalBlankException"]) {
+                return _types__WEBPACK_IMPORTED_MODULE_4__["MalNil"].create();
+            }
+            if (err instanceof _types__WEBPACK_IMPORTED_MODULE_4__["MalError"]) {
+                _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].error(err);
+            }
+            else {
+                _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].error(err.stack);
+            }
+            return undefined;
+        }
+    }
+    eval(exp) {
+        try {
+            return Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
+        }
+        catch (err) {
+            if (err instanceof _types__WEBPACK_IMPORTED_MODULE_4__["MalError"]) {
+                _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].error(err);
+            }
+            else {
+                _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].error(err.stack);
+            }
+            return undefined;
+        }
+    }
+    def(name, value) {
+        this.env.set(name, value);
+    }
+    defn(name, fn) {
+        const f = _types__WEBPACK_IMPORTED_MODULE_4__["MalFunc"].create(fn);
+        this.env.set(name, f);
+    }
+    pushBinding(env) {
+        this.env.pushBinding(env);
+    }
+    popBinding() {
+        this.env.popBinding();
+    }
+    var(name) {
+        return this.env.get(name);
+    }
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/types.ts":
+/*!**************************!*\
+  !*** ./src/mal/types.ts ***!
+  \**************************/
+/*! exports provided: MalType, MalVal, MalNumber, MalString, MalBoolean, MalNil, MalKeyword, MalList, MalVector, MalMap, MalFunc, MalMacro, MalError, MalSymbol, MalAtom, isMalColl, isMalSeq */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalType", function() { return MalType; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalVal", function() { return MalVal; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalNumber", function() { return MalNumber; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalString", function() { return MalString; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalBoolean", function() { return MalBoolean; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalNil", function() { return MalNil; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalKeyword", function() { return MalKeyword; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalList", function() { return MalList; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalVector", function() { return MalVector; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalMap", function() { return MalMap; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalFunc", function() { return MalFunc; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalMacro", function() { return MalMacro; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalError", function() { return MalError; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalSymbol", function() { return MalSymbol; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalAtom", function() { return MalAtom; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isMalColl", function() { return isMalColl; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isMalSeq", function() { return isMalSeq; });
+var MalType;
+(function (MalType) {
+    // Collections
+    MalType["List"] = "list";
+    MalType["Vector"] = "vector";
+    MalType["Map"] = "map";
+    // Atoms
+    MalType["Number"] = "number";
+    MalType["String"] = "string";
+    MalType["Boolean"] = "boolean";
+    MalType["Nil"] = "nil";
+    MalType["Symbol"] = "symbol";
+    MalType["Keyword"] = "keyword";
+    MalType["Atom"] = "atom";
+    // Functions
+    MalType["Func"] = "fn";
+    MalType["Macro"] = "macro";
+})(MalType || (MalType = {}));
+class MalVal {
+    constructor() {
+        this.parent = undefined;
+        this._meta = undefined;
+    }
+    get meta() {
+        return this._meta ? this._meta : (this._meta = MalNil.create());
+    }
+    withMeta(meta) {
+        if (!MalMap.is(meta)) {
+            throw new MalError('Metadata must be Map');
+        }
+        const v = this.clone(false);
+        v._meta = MalMap.is(this._meta)
+            ? MalMap.create(Object.assign(Object.assign({}, this._meta.value), meta.value))
+            : MalMap.create();
+        return v;
+    }
+    set evaluated(v) {
+        null;
+    }
+    get evaluated() {
+        return this;
+    }
+    equals(x) {
+        return this.type === x.type && this.value === x.value;
+    }
+    toString() {
+        this.print(true);
+    }
+}
+class MalNumber extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Number;
+    }
+    toJS() {
+        return this.value;
+    }
+    print() {
+        return this.value.toFixed(4).replace(/\.?[0]+$/, '');
+    }
+    clone() {
+        var _a;
+        const v = new MalNumber(this.value);
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Number;
+    }
+    static create(value) {
+        return new MalNumber(value);
+    }
+}
+class MalString extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.String;
+    }
+    print(readably = true) {
+        return readably
+            ? '"' +
+                this.value
+                    .replace(/\\/g, '\\\\')
+                    .replace(/"/g, '\\"')
+                    .replace(/\n/g, '\\n') +
+                '"'
+            : this.value;
+    }
+    toJS() {
+        return this.value;
+    }
+    clone() {
+        var _a;
+        const v = new MalString(this.value);
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.String;
+    }
+    static create(value) {
+        return new MalString(value);
+    }
+}
+class MalBoolean extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Boolean;
+    }
+    print() {
+        return this.value.toString();
+    }
+    toJS() {
+        return this.value;
+    }
+    clone() {
+        var _a;
+        const v = new MalBoolean(this.value);
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Boolean;
+    }
+    static create(value) {
+        return new MalBoolean(value);
+    }
+}
+class MalNil extends MalVal {
+    constructor() {
+        super();
+        this.type = MalType.Nil;
+        this.value = null;
+    }
+    print() {
+        return 'nil';
+    }
+    toJS() {
+        return null;
+    }
+    clone() {
+        var _a;
+        const v = new MalNil();
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Nil;
+    }
+    static create() {
+        return new MalNil();
+    }
+}
+class MalKeyword extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Keyword;
+    }
+    print() {
+        return ':' + this.value;
+    }
+    toJS() {
+        return this;
+    }
+    clone() {
+        var _a;
+        const v = new MalKeyword(this.value);
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Keyword;
+    }
+    static create(name) {
+        return new MalKeyword(name);
+    }
+    static isFor(value, name) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Keyword && value.value === name;
+    }
+}
+class MalList extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.List;
+        this.isSugar = false;
+        this._evaluated = undefined;
+    }
+    set evaluated(value) {
+        this._evaluated = value;
+    }
+    get evaluated() {
+        return this._evaluated || this;
+    }
+    get fn() {
+        return this.value[0];
+    }
+    get params() {
+        return this.value.slice(1);
+    }
+    get length() {
+        return this.value.length;
+    }
+    set delimiters(v) {
+        this._delimiters = v;
+    }
+    get delimiters() {
+        if (!this._delimiters) {
+            this._delimiters =
+                this.value.length === 0
+                    ? []
+                    : ['', ...Array(this.value.length - 1).fill(' '), ''];
+        }
+        return this._delimiters;
+    }
+    print(readably = true) {
+        var _a;
+        if (this.str === undefined) {
+            const delimiters = this.delimiters;
+            let str = delimiters[0];
+            for (let i = 0; i < this.value.length; i++) {
+                str += ((_a = this.value[i]) === null || _a === void 0 ? void 0 : _a.print(readably)) + delimiters[i + 1];
+            }
+            this.str = '(' + str + ')';
+        }
+        return this.str;
+    }
+    toJS() {
+        return this;
+    }
+    get(index) {
+        return this.value[index];
+    }
+    clone(deep = true) {
+        var _a;
+        const list = new MalList(deep ? this.value.map(v => v.clone()) : this.value);
+        if (this.delimiters) {
+            list.delimiters = [...this.delimiters];
+        }
+        list.str = this.str;
+        list._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return list;
+    }
+    equals(x) {
+        return MalList.is(x) && x.value.every((v, i) => this.value[i].equals(v));
+    }
+    static isCallOf(list, symbol) {
+        return MalList.is(list) && MalSymbol.isFor(list.value[0], symbol);
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.List;
+    }
+    static create(...value) {
+        return new MalList(value);
+    }
+}
+class MalVector extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Vector;
+        this._delimiters = undefined;
+        this.str = undefined;
+        this._evaluated = undefined;
+    }
+    set evaluated(value) {
+        this._evaluated = value;
+    }
+    get evaluated() {
+        return this._evaluated || this;
+    }
+    set delimiters(v) {
+        this._delimiters = v;
+    }
+    get delimiters() {
+        if (!this._delimiters) {
+            this._delimiters =
+                this.value.length === 0
+                    ? []
+                    : ['', ...Array(this.value.length - 1).fill(' '), ''];
+        }
+        return this._delimiters;
+    }
+    get(index) {
+        return this.value[index];
+    }
+    get length() {
+        return this.value.length;
+    }
+    print(readably = true) {
+        var _a;
+        if (this.str === undefined) {
+            const delimiters = this.delimiters;
+            let str = delimiters[0];
+            for (let i = 0; i < this.value.length; i++) {
+                str += ((_a = this.value[i]) === null || _a === void 0 ? void 0 : _a.print(readably)) + delimiters[i + 1];
+            }
+            this.str = '[' + str + ']';
+        }
+        return this.str;
+    }
+    toJS() {
+        return this.value.map(x => x.toJS());
+    }
+    toFloats() {
+        return new Float32Array(this.value.map(x => x.value));
+    }
+    clone(deep = true) {
+        var _a;
+        const list = new MalVector(deep ? this.value.map(v => v.clone()) : this.value);
+        if (this.delimiters) {
+            list.delimiters = [...this.delimiters];
+        }
+        list.str = this.str;
+        list._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return list;
+    }
+    equals(x) {
+        return MalVector.is(x) && x.value.every((v, i) => this.value[i].equals(v));
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Vector;
+    }
+    static create(...value) {
+        return new MalVector(value);
+    }
+}
+class MalMap extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Map;
+        this._delimiters = undefined;
+        this.str = undefined;
+        this._evaluated = undefined;
+    }
+    set evaluated(value) {
+        this._evaluated = value;
+    }
+    get evaluated() {
+        return this._evaluated || this;
+    }
+    get(key) {
+        return this.value[typeof key === 'string' ? key : this.keys()[key]];
+    }
+    set delimiters(v) {
+        this._delimiters = v;
+    }
+    get delimiters() {
+        let delimiters = this._delimiters;
+        if (!delimiters) {
+            const size = this.entries().length;
+            delimiters = this._delimiters =
+                size === 0 ? [''] : ['', ...Array(size * 2 - 1).fill(' '), ''];
+        }
+        return delimiters;
+    }
+    print(readably = true) {
+        if (this.str === undefined) {
+            const entries = this.entries();
+            const delimiters = this.delimiters;
+            let str = '';
+            for (let i = 0; i < entries.length; i++) {
+                const [k, v] = entries[i];
+                str +=
+                    delimiters[2 * i + 1] +
+                        `:${k}` +
+                        delimiters[2 * 1 + 2] + (v === null || v === void 0 ? void 0 : v.print(readably));
+            }
+            str += delimiters[delimiters.length - 1];
+            this.str = '{' + str + '}';
+        }
+        return this.str;
+    }
+    toJS() {
+        const ret = {};
+        this.entries().forEach(([k, v]) => {
+            ret[k] = v.toJS();
+        });
+        return ret;
+    }
+    clone(deep = true) {
+        var _a;
+        const v = new MalMap(deep
+            ? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
+            : Object.assign({}, this.value));
+        if (delimiters) {
+            v.delimiters = [...delimiters];
+        }
+        v.str = this.str;
+        v._meta = (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone();
+        return v;
+    }
+    entries() {
+        return Object.entries(this.value);
+    }
+    keys() {
+        return Object.keys(this.value);
+    }
+    values() {
+        return Object.values(this.value);
+    }
+    assoc(...pairs) {
+        return MalMap.create(Object.assign(Object.assign({}, this.value), MalMap.createValue(pairs)));
+    }
+    equals(x) {
+        return (MalMap.is(x) && x.entries().every(([k, v]) => this.value[k].equals(v)));
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Map;
+    }
+    static create(value = {}) {
+        return new MalMap(value);
+    }
+    static createValue(coll) {
+        const map = {};
+        for (let i = 0; i + 1 < coll.length; i += 2) {
+            const k = coll[i];
+            const v = coll[i + 1];
+            if (MalKeyword.is(k) || MalString.is(k)) {
+                map[k.value] = v;
+            }
+            else {
+                throw new MalError(`Unexpected key ${k.print()}, expected: keyword or string`);
+            }
+        }
+        return map;
+    }
+    static fromMalSeq(...coll) {
+        return new MalMap(this.createValue(coll));
+    }
+}
+class MalFunc extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Func;
+    }
+    print() {
+        if (this.exp) {
+            return `(fn [${this.params
+                .map(x => x.print())
+                .join(' ')}] ${this.exp.print()})`;
+        }
+        else {
+            return `#<JS Function>`;
+        }
+    }
+    toJS() {
+        return this.value;
+    }
+    clone() {
+        var _a;
+        const f = new MalFunc(this.value);
+        f.exp = (_a = this.exp) === null || _a === void 0 ? void 0 : _a.clone();
+        f.env = this.env;
+        f.params = this.params.map(x => x.clone());
+        f._meta = this.meta.clone();
+        return f;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Func;
+    }
+    static create(value, meta) {
+        const f = new MalFunc(value);
+        f._meta = meta;
+        return f;
+    }
+    static fromMal(func, exp, env, params = []) {
+        const f = new MalFunc(func);
+        f.exp = exp;
+        f.env = env;
+        f.params = params;
+        return f;
+    }
+}
+class MalMacro extends MalFunc {
+    constructor(value) {
+        super(value);
+        this.type = MalType.Macro;
+    }
+    toString() {
+        if (this.exp) {
+            return `(macro [${this.params
+                .map(x => x.print())
+                .join(' ')}] ${this.exp.print()})`;
+        }
+        else {
+            return `#<JS Macro>`;
+        }
+    }
+    static create(value) {
+        return new MalMacro(value);
+    }
+    static fromMal(func, exp, env, params) {
+        const m = new MalMacro(func);
+        m.exp = exp;
+        m.env = env;
+        m.params = params;
+        return m;
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Macro;
+    }
+}
+class MalError extends Error {
+}
+class MalSymbol extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Symbol;
+    }
+    set evaluated(value) {
+        this._evaluated = value;
+    }
+    get evaluated() {
+        return this._evaluated || this;
+    }
+    set def(def) {
+        this._def = def;
+    }
+    get def() {
+        return this._def || undefined;
+    }
+    print() {
+        return this.value;
+    }
+    toJS() {
+        return this;
+    }
+    clone() {
+        return new MalSymbol(this.value);
+    }
+    static create(identifier) {
+        return new MalSymbol(identifier);
+    }
+    static is(value) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Symbol;
+    }
+    static isFor(value, name) {
+        return (value === null || value === void 0 ? void 0 : value.type) === MalType.Symbol && value.value === name;
+    }
+}
+class MalAtom extends MalVal {
+    constructor(value) {
+        super();
+        this.value = value;
+        this.type = MalType.Atom;
+    }
+    get evaluated() {
+        return this.value;
+    }
+    clone() {
+        return new MalAtom(this.value.clone());
+    }
+    print(readably = true) {
+        var _a;
+        return `(atom ${(_a = this.value) === null || _a === void 0 ? void 0 : _a.print(readably)})readably`;
+    }
+    toJS() {
+        return this.value.toJS();
+    }
+}
+// Predicates
+const isMalColl = (value) => {
+    const type = value === null || value === void 0 ? void 0 : value.type;
+    return (type === MalType.List || type === MalType.Map || type === MalType.Vector);
+};
+const isMalSeq = (value) => {
+    const type = value === null || value === void 0 ? void 0 : value.type;
+    return type === MalType.Vector || type === MalType.List;
+};
+
+
+/***/ }),
+
+/***/ "./src/repl.ts":
+/*!*********************!*\
+  !*** ./src/repl.ts ***!
+  \*********************/
+/*! no exports provided */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var readline_sync__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! readline-sync */ "./node_modules/readline-sync/lib/readline-sync.js");
+/* harmony import */ var readline_sync__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(readline_sync__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var chalk__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! chalk */ "./node_modules/chalk/source/index.js");
+/* harmony import */ var chalk__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(chalk__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _mal_scope__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./mal/scope */ "./src/mal/scope.ts");
+/* harmony import */ var _mal_reader__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./mal/reader */ "./src/mal/reader.ts");
+
+
+
+
+const replScope = new _mal_scope__WEBPACK_IMPORTED_MODULE_2__["default"]();
+if (typeof process !== 'undefined' && 2 < process.argv.length) {
+    const filename = process.argv[2];
+    replScope.def('*ARGV*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(process.argv.slice(3)));
+    replScope.def('*filename*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(filename));
+    replScope.REP(`(import "${filename}")`);
+    process.exit(0);
+}
+replScope.REP(`(str "Glisp [" *host-language* "]")`);
+readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.setDefaultOptions({
+    prompt: {
+        // Simple Object that has toString method.
+        toString: function () {
+            return chalk__WEBPACK_IMPORTED_MODULE_1___default.a.green('glisp> ');
+        },
+    },
+});
+for (;;) {
+    const line = readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.prompt();
+    if (line == null) {
+        break;
+    }
+    if (line === '') {
+        continue;
+    }
+    try {
+        replScope.REP(line);
+    }
+    catch (e) {
+        console.error('Error:', e);
+    }
+}
+
+
+/***/ }),
+
+/***/ "child_process":
+/*!********************************!*\
+  !*** external "child_process" ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("child_process");
+
+/***/ }),
+
+/***/ "crypto":
+/*!*************************!*\
+  !*** external "crypto" ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("crypto");
+
+/***/ }),
+
+/***/ "fs":
+/*!*********************!*\
+  !*** external "fs" ***!
+  \*********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("fs");
+
+/***/ }),
+
+/***/ "os":
+/*!*********************!*\
+  !*** external "os" ***!
+  \*********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("os");
+
+/***/ }),
+
+/***/ "path":
+/*!***********************!*\
+  !*** external "path" ***!
+  \***********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("path");
+
+/***/ }),
+
+/***/ "tty":
+/*!**********************!*\
+  !*** external "tty" ***!
+  \**********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("tty");
+
+/***/ })
+
+/******/ });
+});
+//# sourceMappingURL=index.js.map
