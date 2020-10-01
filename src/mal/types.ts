@@ -688,7 +688,7 @@ export class MalAtom extends MalVal {
 	}
 
 	toJS() {
-		return this
+		return this.value.toJS()
 	}
 }
 

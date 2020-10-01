@@ -1,11 +1,8 @@
 import {
 	MalError,
 	MalSymbol,
-	MalColl,
 	MalMap,
 	MalVal,
-	isMalColl,
-	isMalSeq,
 	MalNil,
 	MalBoolean,
 	MalNumber,
@@ -14,31 +11,25 @@ import {
 	MalList,
 	MalKeyword,
 } from './types'
-
-import printExp from './printer'
 import {reconstructTree} from './utils'
 
 class Reader {
-	private tokens: string[] | [string, number][]
-	private str: string
 	private strlen: number
 	private _index: number
 
-	constructor(tokens: string[], str: string) {
-		this.tokens = [...tokens]
-		this.str = str
+	constructor(private tokens: [string, number][], private str: string) {
 		this.strlen = str.length
 		this._index = 0
 	}
 
 	public next() {
 		const token = this.tokens[this._index++]
-		return Array.isArray(token) ? token[0] : token
+		return token[0]
 	}
 
 	public peek(pos = this._index) {
 		const token = this.tokens[pos]
-		return Array.isArray(token) ? token[0] : token
+		return token[0]
 	}
 
 	public get index() {
@@ -49,19 +40,17 @@ class Reader {
 		return this.str.slice(start, end)
 	}
 
-	public offset(pos = this._index): number {
+	public offset(pos = this._index) {
 		const token = this.tokens[pos]
-		return (token !== undefined ? token[1] : this.strlen) as number
+		return token !== undefined ? token[1] : this.strlen
 	}
 
-	public endOffset(pos = this._index): number {
+	public endOffset(pos = this._index) {
 		const token = this.tokens[pos]
-		return (token !== undefined
-			? (token[1] as number) + token[0].length
-			: this.strlen) as number
+		return token !== undefined ? token[1] + token[0].length : this.strlen
 	}
 
-	public prevEndOffset(): number {
+	public prevEndOffset() {
 		return this.endOffset(this._index - 1)
 	}
 }

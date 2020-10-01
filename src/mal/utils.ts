@@ -92,7 +92,7 @@ export function getExpByPath(root: MalColl, path: string): MalVal {
 		if (isMalSeq(expBody)) {
 			return find(expBody[index], rest)
 		} else if (MalMap.is(expBody)) {
-			const keys = Object.keys(expBody as MalCollMap)
+			const keys = expBody.keys()
 			return find(expBody[keys[index]], rest)
 		} else {
 			return expBody
@@ -126,7 +126,7 @@ export function getUIOuterInfo(
 
 	let exp = _exp
 
-	let outer = exp.parent
+	let outer = exp.parent.ref
 
 	if (isUIAnnotation(outer)) {
 		exp = outer
@@ -170,7 +170,7 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		}
 	} else {
 		// Hash map
-		const keys = Object.keys(outer as MalCollMap)
+		const keys = outer.keys()
 		const key = keys[index]
 		newOuter[key] = replaced
 		for (let i = 0; i < keys.length; i++) {
