@@ -13,6 +13,9 @@ import {
 } from './types'
 import {reconstructTree} from './utils'
 
+export class MalBlankException extends MalError {}
+export class MalReadError extends MalError {}
+
 class Reader {
 	private strlen: number
 	private _index: number
@@ -95,7 +98,7 @@ function readAtom(reader: Reader) {
 					.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 			)
 		} else if (token[0] === '"') {
-			throw new MalError("Expected '\"', got EOF")
+			throw new MalReadError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return MalKeyword.create(token.slice(1))
 		} else if (token === 'nil') {
@@ -119,32 +122,24 @@ function readAtom(reader: Reader) {
 function readColl(reader: Reader, start = '[', end = ']') {
 	const coll: MalVal[] = []
 
-	let elmStrs: string[] = [],
-		delimiters: string[] = []
+	let delimiters: string[] = []
 
 	let token = reader.next()
 
 	if (token !== start) {
-		throw new MalError(`Expected '${start}'`)
+		throw new MalReadError(`Expected '${start}'`)
 	}
-
-	let elmStart = 0
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
-			throw new MalError(`Expected '${end}', got EOF`)
+			throw new MalReadError(`Expected '${end}', got EOF`)
 		}
 
 		// Save delimiter
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters?.push(delimiter)
 
-		elmStart = reader.offset()
-
 		coll.push(readForm(reader))
-
-		const elm = reader.getStr(elmStart, reader.prevEndOffset())
-		elmStrs.push(elm)
 	}
 
 	// Save a delimiter between a last element and a end tag
@@ -161,9 +156,9 @@ function readColl(reader: Reader, start = '[', end = ']') {
 // read vector of tokens
 function readVector(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '[', ']')
-	const list = MalVector.create(...coll)
-	list.delimiters = delimiters
-	return list
+	const vec = MalVector.create(...coll)
+	vec.delimiters = delimiters
+	return vec
 }
 
 function readList(reader: Reader) {
@@ -254,7 +249,7 @@ function readForm(reader: Reader): any {
 			break
 		// list
 		case ')':
-			throw new MalError("unexpected ')'")
+			throw new MalReadError("unexpected ')'")
 		case '(':
 			val = readList(reader)
 			break
@@ -280,19 +275,16 @@ function readForm(reader: Reader): any {
 		const _val = val as MalList
 
 		// Save str info
-		const annotator = reader.peek(startIdx)
 		const formEnd = reader.prevEndOffset()
 
 		_val.isSugar = true
 
 		const delimiters = ['']
-		const elmStrs = [annotator]
 
 		sugar.push(formEnd)
 
 		for (let i = 0; i < sugar.length - 1; i += 2) {
 			delimiters.push(reader.getStr(sugar[i], sugar[i + 1]))
-			elmStrs.push(reader.getStr(sugar[i + 1], sugar[i + 2]))
 		}
 
 		delimiters.push('')
@@ -302,18 +294,16 @@ function readForm(reader: Reader): any {
 	return val
 }
 
-export class BlankException extends Error {}
-
 export default function readStr(str: string): MalVal {
 	const tokens = tokenize(str)
 	if (tokens.length === 0) {
-		throw new BlankException()
+		throw new MalBlankException()
 	}
 	const reader = new Reader(tokens, str)
 	const exp = readForm(reader)
 
 	if (reader.index < tokens.length - 1) {
-		throw new MalError('Invalid end of file')
+		throw new MalReadError('Invalid end of file')
 	}
 
 	reconstructTree(exp)

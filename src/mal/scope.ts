@@ -1,5 +1,5 @@
 import Env from './env'
-import readStr, {BlankException} from './reader'
+import readStr, {MalBlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {MalVal, MalError, MalString, MalF, MalNil, MalFunc} from './types'
@@ -99,7 +99,7 @@ export default class Scope<T> {
 		}
 
 		if (this.inner) {
-			this.inner.env.setOuter(this.env)
+			this.inner.env.outer = this.env
 		}
 	}
 
@@ -114,7 +114,7 @@ export default class Scope<T> {
 		try {
 			return this.eval(readStr(str))
 		} catch (err) {
-			if (err instanceof BlankException) {
+			if (err instanceof MalBlankException) {
 				return MalNil.create()
 			}
 
