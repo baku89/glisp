@@ -20,10 +20,6 @@ export enum MalType {
 	Macro = 'macro',
 }
 
-export interface MalFuncThis {
-	callerEnv: Env
-}
-
 export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 
@@ -42,9 +38,6 @@ export abstract class MalVal {
 		return false
 	}
 }
-
-export type MalColl = MalList | MalVector | MalMap
-export type MalSeq = MalList | MalVector
 
 export class MalNumber extends MalVal {
 	readonly type: MalType.Number = MalType.Number
@@ -484,6 +477,10 @@ export class MalMap extends MalVal {
 	}
 }
 
+export interface MalFuncThis {
+	callerEnv: Env
+}
+
 export type MalF = (
 	// this: MalFuncThis | void,
 	...args: MalVal[]
@@ -591,34 +588,6 @@ export class MalMacro extends MalFunc {
 
 export class MalError extends Error {}
 
-export const isMalColl = (value: MalVal | undefined): value is MalColl => {
-	const type = value?.type
-	return (
-		type === MalType.List || type === MalType.Map || type === MalType.Vector
-	)
-}
-
-export const isMalSeq = (value: MalVal | undefined): value is MalSeq => {
-	const type = value?.type
-	return type === MalType.Vector || type === MalType.List
-}
-
-export function getName(exp: MalVal): string {
-	switch (exp.type) {
-		case MalType.String:
-			return (exp as MalString).value
-		case MalType.Keyword:
-			return (exp as MalKeyword).value
-		case MalType.Symbol:
-			return (exp as MalSymbol).value
-		default:
-			throw new MalError(
-				'getName() can only extract the name by string/keyword/symbol'
-			)
-	}
-}
-
-// Symbol
 export class MalSymbol extends MalVal {
 	public readonly type: MalType.Symbol = MalType.Symbol
 	private _def!: MalSeq | undefined
@@ -669,7 +638,6 @@ export class MalSymbol extends MalVal {
 	}
 }
 
-// Atoms
 export class MalAtom extends MalVal {
 	public readonly type: MalType.Atom = MalType.Atom
 	public constructor(public value: MalVal) {
@@ -691,4 +659,21 @@ export class MalAtom extends MalVal {
 	toJS() {
 		return this
 	}
+}
+
+// Union Types
+export type MalColl = MalList | MalVector | MalMap
+export type MalSeq = MalList | MalVector
+
+// Predicates
+export const isMalColl = (value: MalVal | undefined): value is MalColl => {
+	const type = value?.type
+	return (
+		type === MalType.List || type === MalType.Map || type === MalType.Vector
+	)
+}
+
+export const isMalSeq = (value: MalVal | undefined): value is MalSeq => {
+	const type = value?.type
+	return type === MalType.Vector || type === MalType.List
 }
