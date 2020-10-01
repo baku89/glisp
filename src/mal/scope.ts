@@ -55,12 +55,17 @@ export default class Scope {
 		})
 
 		this.defn('import-js-force', (url: MalVal) => {
-			const basename = this.var('*filename*').value as string
-			const absurl = normalizeURL(url.value as string, basename)
+			const basename = this.var('*filename*') as MalString
+			const absurl = normalizeURL(url.value as string, basename.value)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
-			return evalExp(exp, this.env)
+
+			this.def('*filename*', MalString.create(absurl))
+			evalExp(exp, this.env)
+			this.def('*filename*', basename)
+
+			return MalNil.create()
 		})
 
 		let filename: string
@@ -73,10 +78,14 @@ export default class Scope {
 		this.def('*filename*', MalString.create(filename))
 
 		this.defn('import-force', (url: MalVal) => {
-			const basename = this.var('*filename*').value as string
-			const absurl = normalizeURL(url.value as string, basename)
+			const basename = this.var('*filename*') as MalString
+			const absurl = normalizeURL(url.value, basename.value)
 			const text = slurp(absurl)
-			this.readEval(text)
+
+			this.def('*filename*', MalString.create(absurl))
+			this.readEval(`(do ${text}\nnil)`)
+			this.def('*filename*', basename)
+
 			return MalNil.create()
 		})
 
