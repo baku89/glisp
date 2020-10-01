@@ -156,26 +156,18 @@ export default function evalExp(
 
 		switch (first.value) {
 			case 'def': {
+				// NOTE: disable defvar
+				// case 'defvar': {
 				first.evaluated = env.get('def')
 				const [, sym, form] = exp.value
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const ret = env.set(sym.value, evalExp.call(this, form, env))
+				const ret = evalExp.call(this, form, env)
+				env.set(sym.value, ret)
 				// setExpandInfo(exp, {
 				// 	type: ExpandType.Unchange,
 				// })
-				origExp.evaluated = ret
-				return ret
-			}
-			case 'defvar': {
-				first.evaluated = env.get('defvar')
-				const [, sym, form] = exp.value
-				if (!MalSymbol.is(sym) || form === undefined) {
-					throw new MalError('Invalid form of defvar')
-				}
-				const ret = evalExp.call(this, form, env)
-				env.set(sym.value, ret)
 				origExp.evaluated = ret
 				return ret
 			}
