@@ -614,13 +614,13 @@ export function findExpByRange(
 	return exp
 }
 
-function jsToMal(obj: number): MalNumber
-function jsToMal(obj: string): MalString
-function jsToMal(obj: boolean): MalBoolean
-function jsToMal(obj: null): MalNumber
-function jsToMal(obj: MalConvertable[]): MalVector
-function jsToMal(obj: {[k: string]: MalConvertable}): MalMap
-function jsToMal(obj: MalConvertable): MalVal {
+export function jsToMal(obj: number): MalNumber
+export function jsToMal(obj: string): MalString
+export function jsToMal(obj: boolean): MalBoolean
+export function jsToMal(obj: null): MalNumber
+export function jsToMal(obj: MalConvertable[]): MalVector
+export function jsToMal(obj: {[k: string]: MalConvertable}): MalMap
+export function jsToMal(obj: MalConvertable | any): MalVal {
 	if (obj instanceof MalVal) {
 		// MalVal
 		return obj
@@ -649,9 +649,7 @@ function jsToMal(obj: MalConvertable): MalVal {
 			case 'boolean':
 				return MalBoolean.create(obj)
 			default:
-				throw new Error('Cannot convert to Mal')
+				return MalNil.create()
 		}
 	}
 }
-
-export {jsToMal}
