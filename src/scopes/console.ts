@@ -9,7 +9,7 @@ import {
 	MalKeyword,
 	MalNil,
 	MalList,
-	MalMap,
+	MalMap,, MalString, MalFunc
 } from '@/mal/types'
 import GIF from 'gif.js'
 
@@ -51,12 +51,10 @@ ConsoleScope.defn('copy-to-clipboard', (str: MalVal) => {
 	return copyToClipboard(str.value as string)
 })
 
-ConsoleScope.defn(
+ConsoleScope.def(
 	'generate-sketch-url',
-	setMeta(
-		(url: MalVal) => {
-			return generateSketchURL(url.value as string)
-		},
+	MalFunc.create(
+		(url: MalVal) => generateSketchURL(url.value as string),
 		jsToMal({
 			doc: 'Generates Code URL',
 			params: [
@@ -66,13 +64,13 @@ ConsoleScope.defn(
 				},
 			],
 			'initial-params': [''],
-		})
+		}) as MalMap
 	)
 )
 
 ConsoleScope.defn('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')
-	return `Open URL: ${url}`
+	return MalString.create(`Open URL: ${url}`)
 })
 
 ConsoleScope.defn('clear-console', () => {

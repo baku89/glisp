@@ -1,4 +1,4 @@
-import {MalVal, MalKeyword, MalKeyword, MalError, MalMap} from '@/mal/types'
+import {MalVal, MalKeyword, MalError, MalMap} from '@/mal/types'
 import {partition} from '@/utils'
 import {iterateSegment, PathType} from '@/path-utils'
 import printExp from '@/mal/printer'

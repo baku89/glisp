@@ -43,6 +43,7 @@ export abstract class MalVal {
 
 	abstract type: MalType
 	abstract readonly value: any
+	abstract set evaluated(v: MalVal)
 	abstract get evaluated(): MalVal
 	abstract clone(deep?: boolean): MalVal
 	abstract print(readably?: boolean): string
@@ -311,6 +312,10 @@ export class MalList extends MalVal {
 		return MalList.is(x) && x.value.every((v, i) => this.value[i].equals(v))
 	}
 
+	static isCallOf(list: MalVal, symbol: string): list is MalList {
+		return MalSymbol.isFor(list.value[0], symbol)
+	}
+
 	static is(value: MalVal | undefined): value is MalList {
 		return value?.type === MalType.List
 	}
@@ -534,7 +539,7 @@ export class MalFunc extends MalVal {
 
 	exp!: MalVal | undefined
 	env!: Env
-	params!: MalVal
+	params!: MalVal[]
 
 	protected constructor(readonly value: MalF) {
 		super()
@@ -560,7 +565,7 @@ export class MalFunc extends MalVal {
 		const f = new MalFunc(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
-		f.params = this.params.clone()
+		f.params = this.params.map(x => x.clone())
 		f._meta = this.meta.clone()
 		return f
 	}
@@ -569,16 +574,11 @@ export class MalFunc extends MalVal {
 		return value?.type === MalType.Func
 	}
 
-	static create(value: MalF) {
+	static create(value: MalF, meta?: MalMap) {
 		return new MalFunc(value)
 	}
 
-	static fromMal(
-		func: MalF,
-		exp: MalVal,
-		env: Env,
-		params: MalVal = MalVector.create()
-	) {
+	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal[] = []) {
 		const f = new MalFunc(func)
 
 		f.exp = exp
@@ -607,7 +607,7 @@ export class MalMacro extends MalFunc {
 		return new MalMacro(value)
 	}
 
-	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal) {
+	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal[]) {
 		const m = new MalMacro(func)
 		m.exp = exp
 		m.env = env

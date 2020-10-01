@@ -119,21 +119,14 @@ export function generateExpAbsPath(exp: MalVal) {
 
 export function getUIOuterInfo(
 	_exp: MalVal | undefined
-): [MalColl | null, number] {
-	if (!isMalColl(_exp)) {
-		return [null, -1]
+): {ref: MalColl; index: number} | undefined {
+	if (!isMalColl(_exp) || !_exp.parent) {
+		return undefined
+	} else {
+		return isUIAnnotation(_exp.parent.ref)
+			? _exp.parent.ref.parent
+			: _exp.parent
 	}
-
-	let exp = _exp
-
-	let outer = exp.parent.ref
-
-	if (isUIAnnotation(outer)) {
-		exp = outer
-		outer = exp.parent
-	}
-
-	return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
 }
 
 /**
@@ -161,38 +154,27 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 	// Set replaced as new child
 	if (isMalSeq(newOuter)) {
 		// Sequence
-		newOuter[index] = replaced
-		for (let i = 0; i < newOuter.length; i++) {
-			if (isMalColl(newOuter[i])) {
-				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
-				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
-			}
-		}
+		newOuter.value[index] = replaced
 	} else {
 		// Hash map
 		const keys = outer.keys()
 		const key = keys[index]
-		newOuter[key] = replaced
-		for (let i = 0; i < keys.length; i++) {
-			if (isMalColl(newOuter[i])) {
-				;(newOuter[i] as MalColl)[M_OUTER] = newOuter
-				;(newOuter[i] as MalColl)[M_OUTER_INDEX] = i
-			}
-		}
+		newOuter.value[key] = replaced
 	}
 
+	reconstructTree(newOuter)
 	newOuter.delimiters = parent.delimiters ? [...parent.delimiters] : undefined
 
 	replaceExp(parent, newOuter)
 }
 
 export function getUIAnnotationExp(exp: MalColl) {
-	const outer = exp.parent
-	return isUIAnnotation(outer) ? outer : exp
+	const parent = exp.parent?.ref
+	return isUIAnnotation(parent) ? parent : exp
 }
 
 export function getUIBodyExp(exp: MalVal) {
-	return isUIAnnotation(exp) ? exp[2] : exp
+	return isUIAnnotation(exp) ? exp.value[2] : exp
 }
 
 export function deleteExp(exp: MalColl) {
@@ -615,7 +597,7 @@ export function getRangeOfExp(
 		if (isMalSeq(parent)) {
 			const index = exp[M_OUTER_INDEX]
 			offset +=
-				(parent[M_ISSUGAR] ? 0 : 1) +
+				(MalList.is(parent) && parent.isSugar ? 0 : 1) +
 				parent.delimiters.slice(0, index + 1).join('').length +
 				parent[M_ELMSTRS].slice(0, index).join('').length
 		} else if (MalMap.is(parent)) {
@@ -711,7 +693,7 @@ export function findExpByRange(
 	return exp
 }
 
-export function jsToMal(obj: any): MalVal {
+export function jsToMal(obj: ): MalVal {
 	if (obj instanceof MalVal) {
 		return obj
 	}

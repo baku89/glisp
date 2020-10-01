@@ -11,7 +11,8 @@ import {
 	MalNumber,
 } from './types'
 import printExp, {printer} from './printer'
-import readStr, {jsToMal} from './reader'
+import readStr from './reader'
+import {jsToMal} from './utils'
 
 // String functions
 export const slurp = (() => {
@@ -40,8 +41,8 @@ export const slurp = (() => {
 const Exports = [
 	[
 		'throw',
-		(msg: string) => {
-			throw new MalError(msg)
+		(msg: MalString) => {
+			throw new MalError(msg.value)
 		},
 	],
 
@@ -90,8 +91,6 @@ const Exports = [
 	['*is-node*', MalBoolean.create(isNodeJS)],
 	['*host-language*', MalString.create('JavaScript')],
 
-	// Special forms annoations
-	['&', MalSymbol.create('&')],
 	[
 		'def',
 		setMeta(
