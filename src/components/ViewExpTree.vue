@@ -141,7 +141,7 @@ export default defineComponent({
 		const expBody = computed(() => {
 			const exp = props.exp
 			if (hasAnnotation.value) {
-				return (exp as MalSeq)[2]
+				return (exp as MalList).value[2]
 			} else {
 				return props.exp
 			}
@@ -153,11 +153,11 @@ export default defineComponent({
 		const ui = computed(() => {
 			const exp = props.exp
 			if (hasAnnotation.value) {
-				const info = (exp as MalSeq)[1] as MalMap
+				const {value: info} = (exp as MalList).value[1] as MalMap
 				return {
-					name: info[K_NAME] || null,
-					expanded: info[K_EXPANDED] || false,
-					hidden: info[K_HIDDEN] || false,
+					name: (info.name.value as string) || null,
+					expanded: (info.expanded.value as boolean) || false,
+					hidden: (info.hidden.value as boolean) || false,
 				}
 			}
 
@@ -169,7 +169,7 @@ export default defineComponent({
 
 			if (MalList.is(exp)) {
 				return {
-					label: exp[0] ? printExp(exp[0]) : '<empty>',
+					label: exp.fn.print(),
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
 					editable: true,
@@ -177,7 +177,7 @@ export default defineComponent({
 						type: 'fontawesome',
 						value: 'fas fa-caret-right',
 					},
-					children: exp.slice(1),
+					children: exp.params,
 				}
 			} else if (MalVector.is(exp)) {
 				return {
@@ -203,7 +203,7 @@ export default defineComponent({
 					clickable: false,
 					expandable: false,
 					editable: false,
-					icon: IconTexts[exp.value] || {type: 'text', value: '・'},
+					icon: IconTexts[exp.type] || {type: 'text', value: '・'},
 					children: null,
 				}
 			}
@@ -252,7 +252,11 @@ export default defineComponent({
 
 			const newExp =
 				Object.keys(annotation).length > 0
-					? MalList.create(S_UI_ANNOTATE, annotation, expBody.value)
+					? MalList.create(
+							S_UI_ANNOTATE,
+							MalMap.create(annotation),
+							expBody.value
+					  )
 					: expBody.value
 
 			context.emit('update:exp', newExp)
@@ -261,14 +265,14 @@ export default defineComponent({
 		function onUpdateChildExp(i: number, replaced: MalColl) {
 			const newExpBody = expBody.value.clone()
 
-			;(newExpBody as MalSeq)[i + 1] = replaced
+			;(newExpBody as MalSeq).value[i + 1] = replaced
 
 			let newExp
 
 			if (hasAnnotation.value) {
 				newExp = MalList.create(
 					S_UI_ANNOTATE,
-					(props.exp as MalSeq)[1],
+					(props.exp as MalSeq).value[1],
 					newExpBody
 				)
 			} else {
