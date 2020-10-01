@@ -47,47 +47,26 @@ export function getStructType(exp: MalVal): StructTypes | undefined {
 	return undefined
 }
 
-type WatchOnReplacedCallback = (newExp: MalVal) => any
+export function getExpByPath<T extends MalVal>(base: MalVal, path: string, type?: MalType): T | null {
 
-const ExpWatcher = new WeakMap<MalColl, Set<WatchOnReplacedCallback>>()
-
-export function watchExpOnReplace(
-	exp: MalColl,
-	callback: WatchOnReplacedCallback
-) {
-	const callbacks = ExpWatcher.get(exp) || new Set()
-	callbacks.add(callback)
-	ExpWatcher.set(exp, callbacks)
-}
-
-export function unwatchExpOnReplace(
-	exp: MalColl,
-	callback: WatchOnReplacedCallback
-) {
-	const callbacks = ExpWatcher.get(exp)
-	if (callbacks) {
-		callbacks.delete(callback)
-		if (callbacks.size === 0) {
-			ExpWatcher.delete(exp)
-		}
-	}
-}
-
-export function getExpByPath(root: MalVal, path: string): MalVal | null {
 	const keys = path
 		.split('/')
 		.filter(k => k !== '')
 		.map(k => parseInt(k))
 	
-	return find(root, keys)
+	return find(base, keys)
 
-	function find(exp: MalVal, keys: number[]): MalVal | null {
+	function find(exp: MalVal, keys: number[]): T | null {
 		const [index, ...rest] = keys
 
 		const expBody = getUIBodyExp(exp)
 
 		if (keys.length === 0) {
-			return expBody
+			if (type) {
+				return expBody.type === type ? expBody as T : null
+			} else {
+				return expBody as T
+			}
 		}
 
 		if (isMalSeq(expBody)) {
