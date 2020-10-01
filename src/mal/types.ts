@@ -301,6 +301,10 @@ export class MalList extends MalVal {
 		return this
 	}
 
+	get(index: number) {
+		return this.value[index]
+	}
+
 	clone(deep = true) {
 		const list = new MalList(deep ? this.value.map(v => v.clone()) : this.value)
 		if (this.delimiters) {
@@ -360,6 +364,10 @@ export class MalVector extends MalVal {
 					: ['', ...Array(this.value.length - 1).fill(' '), '']
 		}
 		return delimiters
+	}
+
+	get(index: number) {
+		return this.value[index]
 	}
 
 	get length() {
