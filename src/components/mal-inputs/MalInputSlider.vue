@@ -46,7 +46,7 @@ import {
 	MalKeyword,
 	MalNumber,
 } from '@/mal/types'
-import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
+import {getExpByPath, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'
 
 export default defineComponent({
@@ -87,8 +87,8 @@ export default defineComponent({
 				const info = getFnInfo(props.value)
 
 				if (info) {
-					const inverseFn = getMapValue(info.meta, 'inverse', MalType.Func)
-					const unit = getMapValue(info.meta, 'unit', MalType.String)
+					const inverseFn = getExpByPath(info.meta, 'inverse', MalType.Func)
+					const unit = getExpByPath(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {
 						const isExp = typeof (props.value as MalVal[])[1] !== 'number'

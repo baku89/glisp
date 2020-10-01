@@ -260,7 +260,7 @@ export default function useAppCommands(
 	// 		}
 
 	// 		const {meta, structType} = fnInfo
-	// 		const transformFn = getMapValue(meta, 'transform')
+	// 		const transformFn = getExpByPath(meta, 'transform')
 
 	// 		if (!MalFunc.is(transformFn)) {
 	// 			return MalBoolean.create(false)

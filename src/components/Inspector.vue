@@ -66,7 +66,7 @@ export default defineComponent({
 
 		const fnDoc = computed(() => {
 			if (fnInfo.value?.meta) {
-				return getMapValue(fnInfo.value.meta, 'doc', MalType.String) as string
+				return getExpByPath(fnInfo.value.meta, 'doc', MalType.String) as string
 			}
 			return ''
 		})

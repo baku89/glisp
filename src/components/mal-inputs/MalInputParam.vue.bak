@@ -21,7 +21,7 @@ import {defineComponent, computed, PropType} from 'vue'
 import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
 import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
 import {MalSeq, MalType, MalVal, MalList} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+import {getExpByPath} from '@/mal/utils'
 import {convertMalCollToJSObject} from '@/mal/reader'
 
 export default defineComponent({
@@ -46,7 +46,7 @@ export default defineComponent({
 		const schemes = computed(
 			() =>
 				convertMalCollToJSObject(
-					getMapValue(getMeta(fn.value), 'compact-params', MalType.Vector)
+					getExpByPath(getMeta(fn.value), 'compact-params', MalType.Vector)
 				) || null
 		)
 

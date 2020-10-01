@@ -67,7 +67,7 @@ import {
 	MalString,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
-import {getFnInfo, getMapValue, jsToMal} from '@/mal/utils'
+import {getFnInfo, getExpByPath, jsToMal} from '@/mal/utils'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -152,7 +152,7 @@ export default defineComponent({
 			if (!fnInfo.value) return [] as Schema[]
 
 			const meta = fnInfo.value.meta
-			const malSchema = getMapValue(meta, 'params')
+			const malSchema = getExpByPath(meta, 'params')
 
 			if (!isMalColl(malSchema)) {
 				return undefined

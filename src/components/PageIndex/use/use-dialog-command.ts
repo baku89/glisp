@@ -12,7 +12,7 @@
 
 // import {printExp} from '@/mal'
 // // import DialogCommand from '@/components/dialogs/DialogCommand.vue'
-// import {getMapValue} from '@/mal/utils'
+// import {getExpByPath} from '@/mal/utils'
 // import {printer} from '@/mal/printer'
 // //
 // export default function useDialogCommand(context: SetupContext) {
@@ -24,10 +24,10 @@
 // 		// Retrieve default parameters
 // 		const fn = ConsoleScope.var(f.value)
 // 		const meta = fn.meta
-// 		const paramsDesc = getMapValue(meta, 'params', MalType.Vector) as
+// 		const paramsDesc = getExpByPath(meta, 'params', MalType.Vector) as
 // 			| MalMap[]
 // 			| null
-// 		let initialParams = getMapValue(meta, 'initial-params') as
+// 		let initialParams = getExpByPath(meta, 'initial-params') as
 // 			| MalFunc
 // 			| MalVal[]
 // 			| null

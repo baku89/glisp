@@ -587,7 +587,7 @@ export class MalFunc extends MalVal {
 		return this.value
 	}
 
-	clone(deep = true) {
+	clone() {
 		const f = new MalFunc(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
