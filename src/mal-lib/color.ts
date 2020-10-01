@@ -2,7 +2,6 @@ import chroma from 'chroma-js'
 import {
 	MalSymbol,
 	MalList,
-	MalVal,
 	MalF,
 	MalFunc,
 	MalString,
