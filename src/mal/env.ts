@@ -10,31 +10,40 @@ import {
 export default class Env {
 	private data = new Map<string, MalVal>()
 
-	private bindings!: Env[]
-	private exps?: MalVal[]
+	private bindings: Env[] = []
+	private unnamedForms?: MalVal[]
 
-	constructor(
-		protected outer: Env | null = null,
-		binds?: MalVal,
-		exps?: MalVal,
-		public name = 'let'
-	) {
-		if (this.root === this) {
-			this.bindings = []
+	public outer!: Env | null
+	public readonly name!: string
+
+	constructor({
+		outer = null,
+		name = 'let',
+		forms = [],
+		exps = [],
+		useUnnamedForms = false,
+	}: {
+		outer?: Env | null
+		name?: string
+		forms?: MalVal[]
+		exps?: MalVal[]
+		useUnnamedForms: boolean
+	}) {
+		this.outer = outer
+		this.name = name
+
+		if (useUnnamedForms) {
+			this.unnamedForms = exps
 		}
 
-		if (exps) {
-			this.exps = exps
-		}
-
-		if (binds && exps) {
-			this.bindAll(binds, exps)
+		if (forms && exps) {
+			this.bind(MalVector.create(...forms), MalVector.create(...exps))
 		}
 	}
 
-	protected get root(): Env {
+	protected root(): Env {
 		if (this.outer) {
-			return this.outer.root
+			return this.outer.root()
 		} else {
 			return this
 		}
@@ -44,51 +53,51 @@ export default class Env {
 		const merged = this.outer
 			? new Map({...this.outer.data, ...this.data})
 			: this.data
-		return Array.from(merged.keys()).map(v => MalSymbol.create(v))
+		return [...merged.keys()].map(MalSymbol.create)
 	}
 
 	/**
 	 * Returns a new Env with symbols in binds bound to
 	 * corresponding values in exps
 	 */
-	public bindAll(binds: MalVal, exps: MalVal) {
-		if (MalSymbol.is(binds)) {
-			this.set(binds.value, exps)
-		} else if (MalVector.is(binds)) {
+	public bind(forms: MalVal, exps: MalVal) {
+		if (MalSymbol.is(forms)) {
+			this.set(forms.value, exps)
+		} else if (MalVector.is(forms)) {
 			if (!MalVector.is(exps)) {
 				throw new MalError('Bind vector error')
 			}
 
-			for (let i = 0; i < binds.value.length; i++) {
-				const bind = binds.value[i]
+			for (let i = 0; i < forms.value.length; i++) {
+				const form = forms.value[i]
 				const exp = exps.value[i]
 
-				if (MalSymbol.isFor(bind, '&')) {
+				if (MalSymbol.isFor(form, '&')) {
 					// rest arguments
 					this.set(
-						(binds.value[i + 1] as MalSymbol).value,
+						(forms.value[i + 1] as MalSymbol).value,
 						MalVector.create(...exps.value.slice(i))
 					)
 					i++
 					continue
-				} else if (MalKeyword.isFor(bind, 'as')) {
+				} else if (MalKeyword.isFor(form, 'as')) {
 					// :as destruction
-					this.set((binds.value[i + 1] as MalSymbol).value, exp)
+					this.set((forms.value[i + 1] as MalSymbol).value, exp)
 					break
 				}
 
-				this.bindAll(bind, exp)
+				this.bind(form, exp)
 			}
-		} else if (MalMap.is(binds)) {
+		} else if (MalMap.is(forms)) {
 			if (!MalMap.is(exps)) {
 				throw new MalError('Bind map error')
 			}
 
-			for (const [key, bind] of binds.entries()) {
+			for (const [key, form] of forms.entries()) {
 				if (key === 'as') {
 					// :as destruction
-					if (!MalSymbol.is(bind)) throw new MalError('Invalid :as')
-					this.set(bind.value, exps)
+					if (!MalSymbol.is(form)) throw new MalError('Invalid :as')
+					this.set(form.value, exps)
 					continue
 				} else {
 					if (!(key in exps.value)) {
@@ -96,7 +105,7 @@ export default class Env {
 							`[${this.name}] The destruction keyword :${key} does not exist on the parameter`
 						)
 					}
-					this.bindAll(bind, exps.value[key])
+					this.bind(form, exps.value[key])
 				}
 			}
 		}
@@ -107,9 +116,9 @@ export default class Env {
 		return value
 	}
 
-	public find(symbol: string): MalVal | void {
+	protected find(symbol: string): MalVal | undefined {
 		// First, search binding
-		const bindings = this.root.bindings
+		const bindings = this.root().bindings
 		if (bindings.length > 0) {
 			const bindingEnv = bindings[bindings.length - 1]
 			const value = bindingEnv.find(symbol)
@@ -118,24 +127,25 @@ export default class Env {
 			}
 		}
 
+		// Seek in current env
 		if (this.data.has(symbol)) {
 			return this.data.get(symbol)
 		}
 
-		let argIndex
-		if (
-			symbol.startsWith('%') &&
-			this.exps &&
-			this.exps.length >= (argIndex = parseInt(symbol.slice(1)) - 1 || 0)
-		) {
-			return this.exps[argIndex]
+		// Unnnamed forms
+		if (this.unnamedForms && symbol.startsWith('%')) {
+			const index = parseInt(symbol.slice(1) || '1') - 1
+
+			if (this.unnamedForms.length >= index) {
+				return undefined
+			} else {
+				return this.unnamedForms[index]
+			}
 		}
 
 		if (this.outer !== null) {
 			return this.outer.find(symbol)
 		}
-
-		return undefined
 	}
 
 	public hasOwn(symbol: string) {
@@ -155,7 +165,7 @@ export default class Env {
 	public getChain() {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		let _env: Env | null = this
-		const envs = [...this.root.bindings.reverse()]
+		const envs = [...this.root().bindings.reverse()]
 
 		do {
 			envs.push(_env)
@@ -165,20 +175,15 @@ export default class Env {
 		return envs
 	}
 
-	public setOuter(outer: Env) {
-		this.outer = outer
-	}
-
 	public pushBinding(env: Env) {
-		const bindings = this.root.bindings
+		const bindings = this.root().bindings
 		const outer = bindings.length > 0 ? bindings[bindings.length - 1] : null
-		env.name = 'binding'
 		env.outer = outer
 		bindings.push(env)
 		return env
 	}
 
 	public popBinding() {
-		this.root.bindings.pop()
+		this.root().bindings.pop()
 	}
 }
