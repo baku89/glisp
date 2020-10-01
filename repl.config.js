@@ -1,23 +1,77 @@
 const path = require('path')
+const webpack = require('webpack')
+const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
-	publicPath: './',
-	productionSourceMap: false,
-	devServer: {
-		writeToDisk: true,
+	node: {
+		__filename: false,
+		__dirname: false,
 	},
-	filenameHashing: false,
-	configureWebpack: {
-		output: {
-			globalObject: 'globalThis',
-			filename: '[name].js',
-		},
-		entry: {
-			'lib/repl': path.join(__dirname, 'src/repl.ts'),
-		},
-		node: {
-			__dirname: true,
-		},
+	entry: {
+		index: './src/repl.ts',
+		// 'lib/core': './src/mal-lib/core.ts',
+		// 'lib/color': './src/mal-lib/color.ts',
+		// 'lib/path': './src/mal-lib/path.ts',
+		// 'lib/math': './src/mal-lib/math.ts',
 	},
-	pages: {},
+	mode: 'production',
+	resolve: {
+		alias: {
+			'@': path.resolve(__dirname, 'src'),
+		},
+		extensions: ['.tsx', '.ts', '.js'],
+	},
+	module: {
+		rules: [
+			{
+				enforce: 'pre',
+				test: /\.(vue|(j|t)sx?)$/,
+				exclude: [/node_modules/],
+				use: [
+					{
+						loader: 'eslint-loader',
+						options: {
+							extensions: ['.js', '.jsx', '.vue', '.ts', '.tsx'],
+							cache: true,
+							emitWarning: false,
+							emitError: false,
+							formatter: undefined,
+						},
+					},
+				],
+			},
+			{
+				test: /\.tsx?$/,
+				use: [
+					{
+						loader: 'ts-loader',
+						options: {
+							transpileOnly: true,
+							happyPackMode: false,
+						},
+					},
+				],
+				exclude: /node_modules/,
+			},
+		],
+	},
+	target: 'node',
+	output: {
+		filename: '[name].js',
+		path: path.resolve(__dirname, 'repl'),
+		globalObject: 'this',
+		libraryTarget: 'umd',
+		libraryExport: '',
+	},
+	plugins: [
+		new webpack.IgnorePlugin(/jsdom$/),
+		new CopyPlugin({
+			patterns: [
+				{
+					from: 'public/lib',
+					to: 'lib',
+				},
+			],
+		}),
+	],
 }
