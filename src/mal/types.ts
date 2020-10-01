@@ -41,10 +41,15 @@ export abstract class MalVal {
 		return v
 	}
 
+	set evaluated(v: MalVal) {
+		null
+	}
+	get evaluated(): MalVal {
+		return this
+	}
+
 	abstract type: MalType
 	abstract readonly value: any
-	abstract set evaluated(v: MalVal)
-	abstract get evaluated(): MalVal
 	abstract clone(deep?: boolean): MalVal
 	abstract print(readably?: boolean): string
 	abstract toJS(): any
@@ -140,10 +145,6 @@ export class MalBoolean extends MalVal {
 		super()
 	}
 
-	get evaluated() {
-		return this
-	}
-
 	print() {
 		return this.value.toString()
 	}
@@ -175,10 +176,6 @@ export class MalNil extends MalVal {
 		super()
 	}
 
-	get evaluated() {
-		return this
-	}
-
 	print() {
 		return 'nil'
 	}
@@ -207,10 +204,6 @@ export class MalKeyword extends MalVal {
 
 	private constructor(public readonly value: string) {
 		super()
-	}
-
-	get evaluated() {
-		return this
 	}
 
 	print() {
@@ -313,7 +306,7 @@ export class MalList extends MalVal {
 	}
 
 	static isCallOf(list: MalVal, symbol: string): list is MalList {
-		return MalSymbol.isFor(list.value[0], symbol)
+		return MalList.is(list) && MalSymbol.isFor(list.value[0], symbol)
 	}
 
 	static is(value: MalVal | undefined): value is MalList {
@@ -371,6 +364,10 @@ export class MalVector extends MalVal {
 
 	toJS() {
 		return this.value.map(x => x.toJS())
+	}
+
+	toFloats() {
+		return new Float32Array(this.value.map(x => x.value) as number[])
 	}
 
 	clone(deep = true) {
@@ -541,12 +538,8 @@ export class MalFunc extends MalVal {
 	env!: Env
 	params!: MalVal[]
 
-	protected constructor(readonly value: MalF) {
+	protected constructor(public value: MalF) {
 		super()
-	}
-
-	get evaluated() {
-		return this
 	}
 
 	print() {
@@ -561,7 +554,7 @@ export class MalFunc extends MalVal {
 		return this.value
 	}
 
-	clone() {
+	clone(deep = true) {
 		const f = new MalFunc(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
