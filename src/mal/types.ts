@@ -534,14 +534,14 @@ export class MalMap extends MalVal {
 	private static createValue(coll: MalVal[]) {
 		const map: {[key: string]: MalVal} = {}
 
-		for (let i = 0; i + 1 < coll.length; i += 1) {
+		for (let i = 0; i + 1 < coll.length; i += 2) {
 			const k = coll[i]
 			const v = coll[i + 1]
 			if (MalKeyword.is(k) || MalString.is(k)) {
 				map[k.value] = v
 			} else {
 				throw new MalError(
-					`Unexpected key symbol: ${k.type}, expected: keyword or string`
+					`Unexpected key ${k.print()}, expected: keyword or string`
 				)
 			}
 		}
