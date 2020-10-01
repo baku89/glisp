@@ -1,7 +1,6 @@
 import {MalColl, MalVal, MalError, MalMap, MalBoolean} from '@/mal/types'
 
 import {Ref} from 'vue'
-import {reconstructTree} from '@/mal/reader'
 import AppScope from '@/scopes/app'
 
 type Commit = {
@@ -48,7 +47,6 @@ export default function useExpHistory(
 
 		const commit = history[index]
 		history.length = index + 1
-		reconstructTree(commit.exp)
 		updateExp(commit.exp, false)
 		activeModeIndex.value = commit.activeModeIndex
 		modeState.value = commit.modeState

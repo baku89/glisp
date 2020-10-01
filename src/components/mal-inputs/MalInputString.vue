@@ -29,7 +29,6 @@ import {
 } from '@/mal/types'
 import {InputString} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
-import {reconstructTree} from '@/mal/reader'
 import MalExpButton from './MalExpButton.vue'
 
 export default defineComponent({
@@ -65,7 +64,6 @@ export default defineComponent({
 
 			if (isExp.value) {
 				newValue = reverseEval(newValue, props.value)
-				reconstructTree(newValue)
 			}
 
 			context.emit('input', newValue)

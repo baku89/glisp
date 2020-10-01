@@ -75,7 +75,6 @@ import {
 	MalString,
 } from '@/mal/types'
 import {printExp} from '@/mal'
-import {reconstructTree} from '@/mal/reader'
 import {isUIAnnotation} from '@/mal/utils'
 
 enum DisplayMode {
@@ -275,8 +274,6 @@ export default defineComponent({
 			} else {
 				newExp = newExpBody
 			}
-
-			reconstructTree(newExp)
 
 			context.emit('update:exp', newExp)
 		}

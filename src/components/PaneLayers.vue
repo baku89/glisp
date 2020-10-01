@@ -29,7 +29,6 @@
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
 import {MalColl, MalVal, MalSeq} from '@/mal/types'
-import {reconstructTree} from '@/mal/reader'
 
 import ViewExpTree from './ViewExpTree.vue'
 import {getUIBodyExp} from '@/mal/utils'
@@ -83,8 +82,6 @@ export default defineComponent({
 			const newExp = props.exp.clone()
 
 			newExp[i + 1] = replaced
-
-			reconstructTree(newExp)
 
 			context.emit('update:exp', newExp)
 		}

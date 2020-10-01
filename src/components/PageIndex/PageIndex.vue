@@ -129,7 +129,7 @@ import {
 	watchExpOnReplace,
 	unwatchExpOnReplace,
 	generateExpAbsPath,
-	getExpByPath,
+	getExpByPath,, reconstructTree
 } from '@/mal/utils'
 
 import {
@@ -141,7 +141,6 @@ import {
 	useDialogSettings,
 	useHitDetector,
 } from './use'
-import {reconstructTree} from '@/mal/reader'
 import {useModes} from './use/use-modes'
 
 interface Data {

@@ -31,7 +31,6 @@ import {readStr} from '@/mal'
 import {toSketchCode} from '../utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
-import {reconstructTree} from '@/mal/reader'
 import {expandExp} from '@/mal/expand'
 
 export default function useAppCommands(
@@ -103,8 +102,6 @@ export default function useAppCommands(
 		} else {
 			throw new MalError('Invalid argument')
 		}
-
-		reconstructTree(newExp)
 
 		// Insert
 		const newActiveExp = activeExp.clone()
@@ -244,8 +241,6 @@ export default function useAppCommands(
 			})
 		)
 
-		reconstructTree(newExp)
-
 		replaceExp(data.activeExp, newExp)
 
 		return MalBoolean.create(true)
@@ -334,7 +329,6 @@ export default function useAppCommands(
 			newOuter.value.splice(index + 1, 0, exp)
 			copyDelimiters(newOuter, outer)
 
-			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
 			callbacks.setActiveExp(isMalColl(exp) ? exp : undefined)

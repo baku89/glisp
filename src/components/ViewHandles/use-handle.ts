@@ -18,7 +18,6 @@ import {
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {vec2, mat2d} from 'gl-matrix'
-import {reconstructTree} from '@/mal/reader'
 
 interface ClassList {
 	[name: string]: true
@@ -329,7 +328,6 @@ export default function useHandle(
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, exp)
-		reconstructTree(newExp)
 
 		// Finally replaces the sexp
 		replaceExp(exp, newExp)

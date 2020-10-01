@@ -18,7 +18,6 @@
 import {defineComponent, PropType, computed} from 'vue'
 import {MalBoolean, MalList, MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {reconstructTree} from '@/mal/reader'
 import {InputBoolean} from '@/components/inputs'
 import MalExpButton from './MalExpButton.vue'
 
@@ -46,7 +45,6 @@ export default defineComponent({
 
 			if (isExp.value) {
 				newValue = reverseEval(newValue, props.value)
-				reconstructTree(newValue)
 			}
 
 			context.emit('input', newValue)

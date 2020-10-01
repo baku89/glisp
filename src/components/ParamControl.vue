@@ -67,7 +67,7 @@ import {
 	MalString,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
-import {getFnInfo, getMapValue, jsToMal, reconstructTree} from '@/mal/utils'
+import {getFnInfo, getMapValue, jsToMal} from '@/mal/utils'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -215,8 +215,6 @@ export default defineComponent({
 				? newParams[0]
 				: MalList.create(props.exp[0], ...newParams)
 
-			reconstructTree(newExp)
-
 			context.emit('input', newExp)
 		}
 
@@ -244,8 +242,6 @@ export default defineComponent({
 			newParams.splice(i, 0, value)
 			const newExp = MalList.create(props.exp[0], ...newParams)
 
-			reconstructTree(newExp)
-
 			context.emit('input', newExp)
 		}
 
@@ -254,7 +250,6 @@ export default defineComponent({
 			newParams.splice(i, 1)
 
 			const newExp = MalList.create(props.exp[0], ...newParams)
-			reconstructTree(newExp)
 
 			context.emit('input', newExp)
 		}
