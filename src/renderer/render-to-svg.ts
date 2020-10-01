@@ -7,7 +7,7 @@ export default function renderToSvg(
 	width: number,
 	height: number
 ) {
-	const ctx = new C2MalSymbol.create(width, height)
+	const ctx = new C2S(width, height)
 
 	renderToContext(ctx, view)
 
