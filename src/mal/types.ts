@@ -80,10 +80,6 @@ export class MalNumber extends MalVal {
 		super()
 	}
 
-	get evaluated() {
-		return this
-	}
-
 	toJS() {
 		return this.value
 	}
@@ -112,10 +108,6 @@ export class MalString extends MalVal {
 
 	private constructor(public readonly value: string) {
 		super()
-	}
-
-	get evaluated() {
-		return this
 	}
 
 	print(readably = true) {
@@ -281,23 +273,21 @@ export class MalList extends MalVal {
 	}
 
 	get delimiters(): string[] {
-		if (this._delimiters) {
-			return this._delimiters
-		} else {
-			return (this._delimiters =
+		if (!this._delimiters) {
+			this._delimiters =
 				this.value.length === 0
 					? []
-					: ['', ...Array(this.value.length - 1).fill(' '), ''])
+					: ['', ...Array(this.value.length - 1).fill(' '), '']
 		}
+		return this._delimiters
 	}
 
 	print(readably = true) {
 		if (this.str === undefined) {
 			const delimiters = this.delimiters
-
-			let str = this.delimiters[0]
+			let str = delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.value[i]?.print(readably) + this.delimiters[i + 1]
+				str += this.value[i]?.print(readably) + delimiters[i + 1]
 			}
 
 			this.str = '(' + str + ')'
@@ -365,14 +355,13 @@ export class MalVector extends MalVal {
 	}
 
 	get delimiters(): string[] {
-		if (this._delimiters) {
-			return this._delimiters
-		} else {
-			return (this._delimiters =
+		if (!this._delimiters) {
+			this._delimiters =
 				this.value.length === 0
 					? []
-					: ['', ...Array(this.value.length - 1).fill(' '), ''])
+					: ['', ...Array(this.value.length - 1).fill(' '), '']
 		}
+		return this._delimiters
 	}
 
 	get(index: number) {
@@ -385,16 +374,10 @@ export class MalVector extends MalVal {
 
 	print(readably = true) {
 		if (this.str === undefined) {
-			if (!this.delimiters) {
-				this.delimiters =
-					this.value.length === 0
-						? ['']
-						: ['', ...Array(this.value.length - 1).fill(' '), '']
-			}
-
-			let str = this.delimiters[0]
+			const delimiters = this.delimiters
+			let str = delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.value[i]?.print(readably) + this.delimiters[i + 1]
+				str += this.value[i]?.print(readably) + delimiters[i + 1]
 			}
 
 			this.str = '[' + str + ']'
@@ -510,8 +493,8 @@ export class MalMap extends MalVal {
 				? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
 				: {...this.value}
 		)
-		if (this.delimiters) {
-			v.delimiters = [...this.delimiters]
+		if (delimiters) {
+			v.delimiters = [...delimiters]
 		}
 		v.str = this.str
 		v._meta = this._meta?.clone()
@@ -593,7 +576,9 @@ export class MalFunc extends MalVal {
 
 	print() {
 		if (this.exp) {
-			return `(fn ${this.params.toString()} ${MalVal})`
+			return `(fn [${this.params
+				.map(x => x.print())
+				.join(' ')}] ${this.exp.print()})`
 		} else {
 			return `#<JS Function>`
 		}
@@ -624,7 +609,6 @@ export class MalFunc extends MalVal {
 
 	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal[] = []) {
 		const f = new MalFunc(func)
-
 		f.exp = exp
 		f.env = env
 		f.params = params
@@ -641,7 +625,9 @@ export class MalMacro extends MalFunc {
 
 	toString() {
 		if (this.exp) {
-			return `(macro ${this.params.toString()} ${MalVal})`
+			return `(macro [${this.params
+				.map(x => x.print())
+				.join(' ')}] ${this.exp.print()})`
 		} else {
 			return `#<JS Macro>`
 		}
@@ -656,8 +642,11 @@ export class MalMacro extends MalFunc {
 		m.exp = exp
 		m.env = env
 		m.params = params
-
 		return m
+	}
+
+	static is(value: MalVal | undefined): value is MalFunc {
+		return value?.type === MalType.Macro
 	}
 }
 

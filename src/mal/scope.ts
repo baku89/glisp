@@ -1,5 +1,5 @@
 import Env from './env'
-import readStr, {MalBlankException} from './reader'
+import readStr, {jsToMal, MalBlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {MalVal, MalError, MalString, MalF, MalNil, MalFunc} from './types'
@@ -41,46 +41,51 @@ export default class Scope {
 
 	private initAsRepl() {
 		// Defining essential functions
-		// ReplCore.forEach(([name, expr]) => {
-		// 	this.def(name, expr)
-		// })
-		// this.defn('normalize-url', (url: MalVal) => {
-		// 	const basename = this.var('*filename*').value as string
-		// 	return MalString.create(normalizeURL(url.value as string, basename))
-		// })
-		// this.defn('eval', (exp: MalVal) => {
-		// 	return evalExp(exp, this.env)
-		// })
-		// this.defn('import-js-force', (url: MalVal) => {
-		// 	const basename = this.var('*filename*').value as string
-		// 	const absurl = normalizeURL(url.value as string, basename)
-		// 	const text = slurp(absurl)
-		// 	eval(text)
-		// 	const exp = (globalThis as any)['glisp_library']
-		// 	return evalExp(exp, this.env)
-		// })
-		// let filename: string
-		// if (isNodeJS) {
-		// 	// NOTE: This should be fixed
-		// 	filename = '/Users/baku/Sites/glisp/repl/index.js'
-		// } else {
-		// 	filename = new URL('.', document.baseURI).href
-		// }
-		// this.def('*filename*', MalString.create(filename))
-		// this.readEval(
-		// 	`(def import-force
-		// 		(fn [path]
-		// 			(let [url (normalize-url path)]
-		// 				(eval (read-string
-		// 							(format "(do (def *filename* \\"%s\\") %s \n nil)"
-		// 											url
-		// 											(slurp url)))))))`
-		// )
-		// // Load core library as default
-		// this.readEval('(import-force "./lib/core.glisp")')
-		// if (isNodeJS) {
-		// 	this.def('*filename*', MalString.create(process.cwd()))
-		// }
+		ReplCore.forEach(([name, expr]) => {
+			this.def(name, jsToMal(expr as any))
+		})
+
+		this.defn('normalize-url', (url: MalVal) => {
+			const basename = this.var('*filename*').value as string
+			return MalString.create(normalizeURL(url.value as string, basename))
+		})
+
+		this.defn('eval', (exp: MalVal) => {
+			return evalExp(exp, this.env)
+		})
+
+		this.defn('import-js-force', (url: MalVal) => {
+			const basename = this.var('*filename*').value as string
+			const absurl = normalizeURL(url.value as string, basename)
+			const text = slurp(absurl)
+			eval(text)
+			const exp = (globalThis as any)['glisp_library']
+			return evalExp(exp, this.env)
+		})
+
+		let filename: string
+		if (isNodeJS) {
+			// NOTE: This should be fixed
+			filename = '/Users/baku/Sites/glisp/repl/index.js'
+		} else {
+			filename = new URL('.', document.baseURI).href
+		}
+		this.def('*filename*', MalString.create(filename))
+
+		this.defn('import-force', (url: MalVal) => {
+			const basename = this.var('*filename*').value as string
+			const absurl = normalizeURL(url.value as string, basename)
+			const text = slurp(absurl)
+			this.readEval(text)
+			return MalNil.create()
+		})
+
+		// Load core library as default
+		this.readEval('(import-force "./lib/core.glisp")')
+
+		if (isNodeJS) {
+			this.def('*filename*', MalString.create(process.cwd()))
+		}
 	}
 
 	public setup(option?: any) {

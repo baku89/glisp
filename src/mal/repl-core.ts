@@ -8,6 +8,7 @@ import {
 	MalNil,
 	MalNumber,
 	MalFunc,
+	MalF,
 } from './types'
 import printExp, {printer} from './printer'
 import readStr, {jsToMal} from './reader'
@@ -67,7 +68,7 @@ const Exports = [
 	],
 
 	// I/O
-	['read-string', readStr],
+	['read-string', (x: MalString) => readStr(x.value)],
 	['slurp', (x: MalString) => MalString.create(slurp(x.value))],
 
 	// Interop
@@ -300,6 +301,6 @@ const Exports = [
 			})
 		),
 	],
-] as [string, MalVal][]
+] as [string, MalVal | MalF][]
 
 export default Exports
