@@ -91,8 +91,7 @@ export default class Scope<T> {
 	}
 
 	public setup(option?: T) {
-		this.env = new Env(this.outer?.env)
-		this.env.name = this.name
+		this.env = new Env({outer: this.outer?.env, name: this.name})
 
 		if (this.onSetup && option) {
 			this.onSetup(this, option)
