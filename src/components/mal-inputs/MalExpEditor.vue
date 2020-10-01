@@ -12,11 +12,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import readStr, {
-	findExpByRange,
-	getRangeOfExp,
-	MalBlankException,
-} from '@/mal/reader'
+import readStr, {MalBlankException} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
 import {
 	MalVal,
@@ -74,8 +70,8 @@ export default defineComponent({
 				case EditMode.Params: {
 					return (
 						'(' +
-						(exp as MalColl).delimiters[0] +
-						(exp as MalColl)[M_ELMSTRS][0]
+						(exp as MalList).delimiters[0] +
+						(exp as MalList).value[0].print()
 					)
 				}
 				case EditMode.Elements: {
@@ -161,8 +157,7 @@ export default defineComponent({
 
 			try {
 				exp = readStr(
-					`${preText.value}${endsDelimiter.value}${code}${endsDelimiter.value}${postText.value}`,
-					true
+					`${preText.value}${endsDelimiter.value}${code}${endsDelimiter.value}${postText.value}`
 				)
 			} catch (err) {
 				if (!(err instanceof MalBlankException)) {
