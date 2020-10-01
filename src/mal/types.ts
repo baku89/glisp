@@ -22,13 +22,35 @@ export enum MalType {
 
 export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
+	protected _meta: MalMap | MalNil | undefined = undefined
+
+	get meta(): MalMap | MalNil {
+		return this._meta ? this._meta : (this._meta = MalNil.create())
+	}
+
+	withMeta(meta: MalVal) {
+		if (!MalMap.is(meta)) {
+			throw new MalError('Metadata must be Map')
+		}
+
+		const v = this.clone(false)
+		v._meta = MalMap.is(this._meta)
+			? MalMap.create({...this._meta.value, ...meta.value})
+			: MalMap.create()
+
+		return v
+	}
 
 	abstract type: MalType
 	abstract readonly value: any
 	abstract get evaluated(): MalVal
-	abstract clone(): MalVal
+	abstract clone(deep?: boolean): MalVal
 	abstract print(readably?: boolean): string
 	abstract toJS(): any
+
+	equals(x: MalVal) {
+		return this.type === x.type && this.value === x.value
+	}
 
 	toString() {
 		this.print(true)
@@ -46,10 +68,6 @@ export class MalNumber extends MalVal {
 		return this
 	}
 
-	valueOf() {
-		return this.value
-	}
-
 	toJS() {
 		return this.value
 	}
@@ -59,7 +77,9 @@ export class MalNumber extends MalVal {
 	}
 
 	clone() {
-		return new MalNumber(this.value)
+		const v = new MalNumber(this.value)
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	static is(value: MalVal | undefined): value is MalNumber {
@@ -82,10 +102,6 @@ export class MalString extends MalVal {
 		return this
 	}
 
-	valueOf() {
-		return this.value
-	}
-
 	print(readably = true) {
 		return readably
 			? '"' +
@@ -102,7 +118,9 @@ export class MalString extends MalVal {
 	}
 
 	clone() {
-		return new MalString(this.value)
+		const v = new MalString(this.value)
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	static is(value: MalVal | undefined): value is MalString {
@@ -125,10 +143,6 @@ export class MalBoolean extends MalVal {
 		return this
 	}
 
-	valueOf() {
-		return this.value
-	}
-
 	print() {
 		return this.value.toString()
 	}
@@ -138,7 +152,9 @@ export class MalBoolean extends MalVal {
 	}
 
 	clone() {
-		return new MalBoolean(this.value)
+		const v = new MalBoolean(this.value)
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	static is(value: MalVal | undefined): value is MalBoolean {
@@ -162,10 +178,6 @@ export class MalNil extends MalVal {
 		return this
 	}
 
-	valueOf() {
-		return null
-	}
-
 	print() {
 		return 'nil'
 	}
@@ -175,7 +187,9 @@ export class MalNil extends MalVal {
 	}
 
 	clone() {
-		return new MalNil()
+		const v = new MalNil()
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	static is(value: MalVal | undefined): value is MalNil {
@@ -207,7 +221,9 @@ export class MalKeyword extends MalVal {
 	}
 
 	clone() {
-		return new MalKeyword(this.value)
+		const v = new MalKeyword(this.value)
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	static is(value: MalVal | undefined): value is MalKeyword {
@@ -287,7 +303,12 @@ export class MalList extends MalVal {
 			list.delimiters = [...this.delimiters]
 		}
 		list.str = this.str
+		list._meta = this._meta?.clone()
 		return list
+	}
+
+	equals(x: MalVal) {
+		return MalList.is(x) && x.value.every((v, i) => this.value[i].equals(v))
 	}
 
 	static is(value: MalVal | undefined): value is MalList {
@@ -355,7 +376,12 @@ export class MalVector extends MalVal {
 			list.delimiters = [...this.delimiters]
 		}
 		list.str = this.str
+		list._meta = this._meta?.clone()
 		return list
+	}
+
+	equals(x: MalVal) {
+		return MalVector.is(x) && x.value.every((v, i) => this.value[i].equals(v))
 	}
 
 	static is(value: MalVal | undefined): value is MalVector {
@@ -386,9 +412,13 @@ export class MalMap extends MalVal {
 		return this._evaluated || this
 	}
 
+	get(key: string | number) {
+		return this.value[typeof key === 'string' ? key : this.keys()[key]]
+	}
+
 	print(readably = true) {
 		if (this.str === undefined) {
-			const entries = Object.entries(this.value)
+			const entries = this.entries()
 
 			if (!this.delimiters) {
 				const size = entries.length
@@ -424,16 +454,17 @@ export class MalMap extends MalVal {
 	}
 
 	clone(deep = true) {
-		const list = new MalMap(
+		const v = new MalMap(
 			deep
 				? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
 				: {...this.value}
 		)
 		if (this.delimiters) {
-			list.delimiters = [...this.delimiters]
+			v.delimiters = [...this.delimiters]
 		}
-		list.str = this.str
-		return list
+		v.str = this.str
+		v._meta = this._meta?.clone()
+		return v
 	}
 
 	entries() {
@@ -448,6 +479,16 @@ export class MalMap extends MalVal {
 		return Object.values(this.value)
 	}
 
+	assoc(...pairs: MalVal[]) {
+		return MalMap.create({...this.value, ...MalMap.createValue(pairs)})
+	}
+
+	equals(x: MalVal) {
+		return (
+			MalMap.is(x) && x.entries().every(([k, v]) => this.value[k].equals(v))
+		)
+	}
+
 	static is(value: MalVal | undefined): value is MalMap {
 		return value?.type === MalType.Map
 	}
@@ -456,7 +497,7 @@ export class MalMap extends MalVal {
 		return new MalMap(value)
 	}
 
-	static fromMalSeq(...coll: MalVal[]) {
+	private static createValue(coll: MalVal[]) {
 		const map: {[key: string]: MalVal} = {}
 
 		for (let i = 0; i + 1 < coll.length; i += 1) {
@@ -471,7 +512,11 @@ export class MalMap extends MalVal {
 			}
 		}
 
-		return new MalMap(map)
+		return map
+	}
+
+	static fromMalSeq(...coll: MalVal[]) {
+		return new MalMap(this.createValue(coll))
 	}
 }
 
@@ -490,7 +535,6 @@ export class MalFunc extends MalVal {
 	exp!: MalVal | undefined
 	env!: Env
 	params!: MalVal
-	meta!: MalVal
 
 	protected constructor(readonly value: MalF) {
 		super()
@@ -517,8 +561,7 @@ export class MalFunc extends MalVal {
 		f.exp = this.exp?.clone()
 		f.env = this.env
 		f.params = this.params.clone()
-		f.meta = this.meta.clone()
-
+		f._meta = this.meta.clone()
 		return f
 	}
 
@@ -534,16 +577,13 @@ export class MalFunc extends MalVal {
 		func: MalF,
 		exp: MalVal,
 		env: Env,
-		params: MalVal = MalVector.create(),
-		meta: MalVal = MalNil.create()
+		params: MalVal = MalVector.create()
 	) {
 		const f = new MalFunc(func)
 
 		f.exp = exp
 		f.env = env
 		f.params = params
-		f.meta = meta
-
 		return f
 	}
 }
@@ -567,18 +607,11 @@ export class MalMacro extends MalFunc {
 		return new MalMacro(value)
 	}
 
-	static fromMal(
-		func: MalF,
-		exp: MalVal,
-		env: Env,
-		params: MalVal,
-		meta: MalVal = MalNil.create()
-	) {
+	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal) {
 		const m = new MalMacro(func)
 		m.exp = exp
 		m.env = env
 		m.params = params
-		m.meta = meta
 
 		return m
 	}

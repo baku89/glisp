@@ -16,6 +16,7 @@ import {
 	MalFunc,
 	MalMacro,
 	MalSeq,
+	MalF,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -38,8 +39,8 @@ const Exports = [
 	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is(x))],
 
 	// // Compare
-	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a === b)],
-	['!=', (a: MalVal, b: MalVal) => MalBoolean.create(a !== b)],
+	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a.equals(b))],
+	['!=', (a: MalVal, b: MalVal) => MalBoolean.create(!a.equals(b))],
 	['<', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value < b.value)],
 	['<=', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value <= b.value)],
 	['>', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value > b.value)],
@@ -245,11 +246,7 @@ const Exports = [
 	// Map
 	['hash-map', (...a: MalVal[]) => MalMap.fromMalSeq(...a)],
 	['map?', (x: MalVal) => MalBoolean.create(MalMap.is(x))],
-	[
-		'assoc',
-		(m: MalMap, ...pairs: MalVal[]) =>
-			MalMap.create({...m.value, ...MalMap.fromMalSeq(...pairs).value}),
-	],
+	['assoc', (m: MalMap, ...pairs: MalVal[]) => m.assoc(...pairs)],
 	[
 		'get',
 		(m: MalMap, a: MalString, notfound: MalVal = MalNil.create()) => {
@@ -370,7 +367,7 @@ const Exports = [
 			return MalNil.create()
 		},
 	],
-] as [string, MalVal][]
+] as [string, MalF][]
 
 // Expose Math
 Object.getOwnPropertyNames(Math).forEach(k =>
@@ -380,7 +377,11 @@ Object.getOwnPropertyNames(Math).forEach(k =>
 const Exp = MalList.create(
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.create(MalSymbol.create('def'), MalSymbol.create(sym), body)
+		MalList.create(
+			MalSymbol.create('def'),
+			MalSymbol.create(sym),
+			MalFunc.create(body)
+		)
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp
