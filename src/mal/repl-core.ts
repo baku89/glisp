@@ -4,11 +4,12 @@ import isNodeJS from 'is-node'
 import {
 	MalVal,
 	MalError,
-	MalSymbol,
 	MalBoolean,
 	MalString,
 	MalNil,
 	MalNumber,
+	MalFunc,
+	MalMap,
 } from './types'
 import printExp, {printer} from './printer'
 import readStr from './reader'
@@ -93,7 +94,7 @@ const Exports = [
 
 	[
 		'def',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Defines a variable',
@@ -101,12 +102,12 @@ const Exports = [
 					{label: 'Symbol', type: 'symbol'},
 					{label: 'Value', type: 'any'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'defvar',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc:
@@ -115,12 +116,12 @@ const Exports = [
 					{label: 'Symbol', type: 'symbol'},
 					{label: 'Value', type: 'any'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'let',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Creates a lexical scope',
@@ -128,12 +129,12 @@ const Exports = [
 					{label: 'Binds', type: 'exp'},
 					{label: 'Body', type: 'exp'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'binding',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Creates a new binding',
@@ -141,64 +142,64 @@ const Exports = [
 					{label: 'Binds', type: 'exp'},
 					{label: 'Body', type: 'exp'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'get-all-symbols',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Gets all existing symbols',
 				params: [],
 				return: {type: 'vector'},
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'fn-params',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'eval*',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 				params: [{label: 'Form', type: 'exp'}],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'quote',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'quasiquote',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'fn',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Defines a function',
@@ -206,22 +207,22 @@ const Exports = [
 					{label: 'Params', type: 'exp'},
 					{label: 'Form', type: 'exp'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'fn-sugar',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'macro',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: '',
@@ -229,42 +230,42 @@ const Exports = [
 					{label: 'Param', type: 'exp'},
 					{label: 'Form', type: 'exp'},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'macroexpand',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Expands the macro',
 				params: [],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'try',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Try',
 				params: [],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'catch',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Catch',
 				params: [],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'do',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
@@ -275,12 +276,12 @@ const Exports = [
 						items: {label: 'Form', type: 'any'},
 					},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'if',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
@@ -289,17 +290,17 @@ const Exports = [
 					{label: 'Then', type: 'exp'},
 					{label: 'Else', type: 'exp', default: null},
 				],
-			})
+			}) as MalMap
 		),
 	],
 	[
 		'env-chain',
-		setMeta(
+		MalFunc.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Env chain',
 				params: [],
-			})
+			}) as MalMap
 		),
 	],
 ] as [string, MalVal][]

@@ -575,7 +575,9 @@ export class MalFunc extends MalVal {
 	}
 
 	static create(value: MalF, meta?: MalMap) {
-		return new MalFunc(value)
+		const f = new MalFunc(value)
+		f._meta = meta
+		return f
 	}
 
 	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal[] = []) {
