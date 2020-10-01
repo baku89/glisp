@@ -1,6 +1,5 @@
 import {vsprintf} from 'sprintf-js'
 import isNodeJS from 'is-node'
-
 import {
 	MalVal,
 	MalError,
@@ -9,11 +8,9 @@ import {
 	MalNil,
 	MalNumber,
 	MalFunc,
-	MalMap,
 } from './types'
 import printExp, {printer} from './printer'
-import readStr from './reader'
-import {jsToMal} from './utils'
+import readStr, {jsToMal} from './reader'
 
 // String functions
 export const slurp = (() => {

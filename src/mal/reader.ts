@@ -10,8 +10,11 @@ import {
 	MalVector,
 	MalList,
 	MalKeyword,
+	MalConvertable,
+	MalFunc,
+	MalColl,
+	isMalSeq,
 } from './types'
-import {reconstructTree} from './utils'
 
 export class MalBlankException extends MalError {}
 export class MalReadError extends MalError {}
@@ -157,6 +160,7 @@ function readColl(reader: Reader, start = '[', end = ']') {
 function readVector(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '[', ']')
 	const vec = MalVector.create(...coll)
+	console.log(delimiters, 'da')
 	vec.delimiters = delimiters
 	return vec
 }
@@ -309,4 +313,62 @@ export default function readStr(str: string): MalVal {
 	reconstructTree(exp)
 
 	return exp
+}
+
+export function jsToMal(obj: number): MalNumber
+export function jsToMal(obj: string): MalString
+export function jsToMal(obj: boolean): MalBoolean
+export function jsToMal(obj: null): MalNumber
+export function jsToMal(obj: MalConvertable[]): MalVector
+export function jsToMal(obj: {[k: string]: MalConvertable}): MalMap
+export function jsToMal(obj: MalConvertable | any): MalVal {
+	if (obj instanceof MalVal) {
+		// MalVal
+		return obj
+	} else if (Array.isArray(obj)) {
+		// Vector
+		return MalVector.create(...obj.map(jsToMal))
+	} else if (obj instanceof Function) {
+		// Function
+		return MalFunc.create((...xs) => jsToMal(obj(...xs)))
+	} else if (obj instanceof Object) {
+		// Map
+		const ret: {[k: string]: MalVal} = {}
+		for (const [key, value] of Object.entries(obj)) {
+			ret[key] = jsToMal(value as any)
+		}
+		return MalMap.create(ret)
+	} else if (obj === null) {
+		// Nil
+		return MalNil.create()
+	} else {
+		switch (typeof obj) {
+			case 'number':
+				return MalNumber.create(obj)
+			case 'string':
+				return MalString.create(obj)
+			case 'boolean':
+				return MalBoolean.create(obj)
+			default:
+				return MalNil.create()
+		}
+	}
+}
+
+export function reconstructTree(exp: MalVal) {
+	seek(exp)
+
+	function seek(exp: MalVal, parent?: {ref: MalColl; index: number}) {
+		if (parent) {
+			exp.parent = parent
+		}
+
+		if (isMalSeq(exp)) {
+			exp.value.forEach((child, index) => seek(child, {ref: exp, index}))
+		} else if (MalMap.is(exp)) {
+			exp
+				.entries()
+				.forEach(([, child], index) => seek(child, {ref: exp, index}))
+		}
+	}
 }

@@ -281,25 +281,24 @@ export class MalList extends MalVal {
 	}
 
 	get delimiters(): string[] {
-		let delimiters = this._delimiters
-		if (!delimiters) {
-			delimiters = this._delimiters =
+		if (this._delimiters) {
+			return this._delimiters
+		} else {
+			return (this._delimiters =
 				this.value.length === 0
 					? []
-					: ['', ...Array(this.value.length - 1).fill(' '), '']
+					: ['', ...Array(this.value.length - 1).fill(' '), ''])
 		}
-		return delimiters
 	}
 
 	print(readably = true) {
 		if (this.str === undefined) {
 			const delimiters = this.delimiters
 
-			let str = delimiters[0]
+			let str = this.delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += delimiters[i + 1] + this.value[i]?.print(readably)
+				str += this.value[i]?.print(readably) + this.delimiters[i + 1]
 			}
-			str += delimiters[delimiters.length - 1]
 
 			this.str = '(' + str + ')'
 		}
@@ -366,14 +365,14 @@ export class MalVector extends MalVal {
 	}
 
 	get delimiters(): string[] {
-		let delimiters = this._delimiters
-		if (!delimiters) {
-			delimiters = this._delimiters =
+		if (this._delimiters) {
+			return this._delimiters
+		} else {
+			return (this._delimiters =
 				this.value.length === 0
 					? []
-					: ['', ...Array(this.value.length - 1).fill(' '), '']
+					: ['', ...Array(this.value.length - 1).fill(' '), ''])
 		}
-		return delimiters
 	}
 
 	get(index: number) {
@@ -395,9 +394,8 @@ export class MalVector extends MalVal {
 
 			let str = this.delimiters[0]
 			for (let i = 0; i < this.value.length; i++) {
-				str += this.delimiters[i + 1] + this.value[i]?.print(readably)
+				str += this.value[i]?.print(readably) + this.delimiters[i + 1]
 			}
-			str += this.delimiters[this.delimiters.length - 1]
 
 			this.str = '[' + str + ']'
 		}

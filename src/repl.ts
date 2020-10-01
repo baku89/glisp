@@ -1,7 +1,6 @@
 import readlineSync from 'readline-sync'
 import Scope from './mal/scope'
-import {MalString} from './mal/types'
-import {jsToMal} from './mal/utils'
+import {jsToMal} from './mal/reader'
 
 const replScope = new Scope()
 
@@ -9,14 +8,14 @@ if (typeof process !== 'undefined' && 2 < process.argv.length) {
 	const filename = process.argv[2]
 
 	replScope.def('*ARGV*', jsToMal(process.argv.slice(3)))
-	replScope.def('*filename*', MalString.create(filename))
+	replScope.def('*filename*', jsToMal(filename))
 	replScope.REP(`(import "${filename}")`)
 	process.exit(0)
 }
 
-replScope.REP(`(str "Glisp [" *host-language* "]")`)
+// replScope.REP(`(str "Glisp [" *host-language* "]")`)
 
-for (; window; ) {
+for (;;) {
 	const line = readlineSync.question('glisp> ')
 	if (line == null) {
 		break

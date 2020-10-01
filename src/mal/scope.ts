@@ -3,7 +3,7 @@ import readStr, {MalBlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
 import {MalVal, MalError, MalString, MalF, MalNil, MalFunc} from './types'
-import printExp, {printer} from './printer'
+import {printer} from './printer'
 import isNodeJS from 'is-node'
 
 const normalizeURL = (() => {
@@ -20,15 +20,15 @@ const normalizeURL = (() => {
 	}
 })()
 
-export default class Scope<T> {
+export default class Scope {
 	public env!: Env
 
-	private inner!: Scope<any>
+	private inner!: Scope
 
 	constructor(
-		private outer: Scope<any> | null = null,
+		private outer: Scope | null = null,
 		private name = 'repl',
-		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null
+		private onSetup: ((scope: Scope, option: any) => any) | null = null
 	) {
 		this.setup()
 
@@ -41,56 +41,49 @@ export default class Scope<T> {
 
 	private initAsRepl() {
 		// Defining essential functions
-
-		ReplCore.forEach(([name, expr]) => {
-			this.def(name, expr)
-		})
-
-		this.defn('normalize-url', (url: MalVal) => {
-			const basename = this.var('*filename*').value as string
-			return MalString.create(normalizeURL(url.value as string, basename))
-		})
-
-		this.defn('eval', (exp: MalVal) => {
-			return evalExp(exp, this.env)
-		})
-
-		this.defn('import-js-force', (url: MalVal) => {
-			const basename = this.var('*filename*').value as string
-			const absurl = normalizeURL(url.value as string, basename)
-			const text = slurp(absurl)
-			eval(text)
-			const exp = (globalThis as any)['glisp_library']
-			return evalExp(exp, this.env)
-		})
-
-		let filename: string
-		if (isNodeJS) {
-			// NOTE: This should be fixed
-			filename = '/Users/baku/Sites/glisp/repl/index.js'
-		} else {
-			filename = new URL('.', document.baseURI).href
-		}
-		this.def('*filename*', MalString.create(filename))
-
-		this.readEval(
-			`(def import-force
-				(fn [path]
-					(let [url (normalize-url path)]
-						(eval (read-string
-									(format "(do (def *filename* \\"%s\\") %s \n nil)"
-													url
-													(slurp url)))))))`
-		)
-		// Load core library as default
-		this.readEval('(import-force "./lib/core.glisp")')
-
-		if (isNodeJS) {
-			this.def('*filename*', MalString.create(process.cwd()))
-		}
+		// ReplCore.forEach(([name, expr]) => {
+		// 	this.def(name, expr)
+		// })
+		// this.defn('normalize-url', (url: MalVal) => {
+		// 	const basename = this.var('*filename*').value as string
+		// 	return MalString.create(normalizeURL(url.value as string, basename))
+		// })
+		// this.defn('eval', (exp: MalVal) => {
+		// 	return evalExp(exp, this.env)
+		// })
+		// this.defn('import-js-force', (url: MalVal) => {
+		// 	const basename = this.var('*filename*').value as string
+		// 	const absurl = normalizeURL(url.value as string, basename)
+		// 	const text = slurp(absurl)
+		// 	eval(text)
+		// 	const exp = (globalThis as any)['glisp_library']
+		// 	return evalExp(exp, this.env)
+		// })
+		// let filename: string
+		// if (isNodeJS) {
+		// 	// NOTE: This should be fixed
+		// 	filename = '/Users/baku/Sites/glisp/repl/index.js'
+		// } else {
+		// 	filename = new URL('.', document.baseURI).href
+		// }
+		// this.def('*filename*', MalString.create(filename))
+		// this.readEval(
+		// 	`(def import-force
+		// 		(fn [path]
+		// 			(let [url (normalize-url path)]
+		// 				(eval (read-string
+		// 							(format "(do (def *filename* \\"%s\\") %s \n nil)"
+		// 											url
+		// 											(slurp url)))))))`
+		// )
+		// // Load core library as default
+		// this.readEval('(import-force "./lib/core.glisp")')
+		// if (isNodeJS) {
+		// 	this.def('*filename*', MalString.create(process.cwd()))
+		// }
 	}
 
-	public setup(option?: T) {
+	public setup(option?: any) {
 		this.env = new Env({outer: this.outer?.env, name: this.name})
 
 		if (this.onSetup && option) {
@@ -105,7 +98,7 @@ export default class Scope<T> {
 	public REP(str: string): void {
 		const ret = this.readEval(str)
 		if (ret !== undefined) {
-			printer.return(printExp(ret))
+			printer.return(ret.print())
 		}
 	}
 
