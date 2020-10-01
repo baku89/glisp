@@ -28,7 +28,7 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import {MalColl, MalVal, MalSeq} from '@/mal/types'
+import {MalColl, MalVal, MalList} from '@/mal/types'
 
 import ViewExpTree from './ViewExpTree.vue'
 import {getUIBodyExp} from '@/mal/utils'
@@ -38,7 +38,7 @@ export default defineComponent({
 	components: {ViewExpTree},
 	props: {
 		exp: {
-			type: Object as PropType<MalSeq>,
+			type: Object as PropType<MalList>,
 			required: true,
 		},
 		selectedExp: {
@@ -63,7 +63,7 @@ export default defineComponent({
 		const expBody = computed(() => getUIBodyExp(props.exp))
 
 		const children = computed(() => {
-			return props.exp.slice(1)
+			return props.exp.params
 		})
 
 		const editing = computed(() => {
@@ -80,8 +80,7 @@ export default defineComponent({
 
 		function onUpdateChildExp(i: number, replaced: MalColl) {
 			const newExp = props.exp.clone()
-
-			newExp[i + 1] = replaced
+			newExp.value[i + 1] = replaced
 
 			context.emit('update:exp', newExp)
 		}
