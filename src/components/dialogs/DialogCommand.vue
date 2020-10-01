@@ -22,7 +22,7 @@
 import {defineComponent, ref, Ref, computed, PropType} from 'vue'
 import ParamControl from '@/components/ParamControl.vue'
 import {MalVal, MalFunc, MalSymbol, MalList, MalSeq} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+import {getExpByPath} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
 import VueMarkdown from 'vue-markdown'
 import {printExp} from '@/mal'
@@ -33,27 +33,27 @@ export default defineComponent({
 	components: {ParamControl, VueMarkdown},
 	props: {
 		exp: {
-			type: Object as PropType<MalSeq>,
+			type: Object as PropType<MalList>,
 			required: true,
 		},
 		fn: {
-			type: Function as PropType<MalFunc>,
+			type: Object as PropType<MalFunc>,
 			required: true,
 		},
 	},
 	setup(props, context) {
-		const meta = getMeta(props.fn)
-		const fnName = computed(() => (props.exp[0] as MalSymbol).value)
-		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
-		const editExp: Ref = ref<MalSeq>(props.exp)
+		const meta = props.fn.meta
+		const fnName = computed(() => (props.exp.fn as MalSymbol).value)
+		const fnDoc = computed(() => getExpByPath(meta, 'doc') || '')
+		const editExp = ref(props.exp)
 
-		function onInput(newExp: MalVal) {
+		function onInput(newExp: MalList) {
 			editExp.value = newExp
 		}
 
 		function onClickExecute() {
 			context.emit('close')
-			const command = printExp(editExp.value)
+			const command = editExp.value.print()
 
 			// Show the executed command in the console and add it to the history
 			printer.pseudoExecute(command)

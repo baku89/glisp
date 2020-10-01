@@ -34,12 +34,7 @@ import {MalVal, MalList, MalColl, MalSymbol, MalType} from '@/mal/types'
 import ParamControl from './ParamControl.vue'
 
 import Inspectors from '@/components/inspectors'
-import {
-	getFnInfo,
-	copyDelimiters,
-	getMapValue,
-	isUIAnnotation,
-} from '@/mal/utils'
+import {getFnInfo, copyDelimiters, isUIAnnotation} from '@/mal/utils'
 import {defineComponent, computed, PropType} from 'vue'
 
 export default defineComponent({
@@ -62,24 +57,16 @@ export default defineComponent({
 		const fnName = computed(() => {
 			if (fnInfo.value?.structType) {
 				return fnInfo.value.structType
-			} else if (
-				fnInfo.value?.fn ||
-				(MalList.is(props.exp) && MalSymbol.is(props.exp[0]))
-			) {
-				return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
+			} else if (MalList.is(props.exp) && MalSymbol.is(props.exp.fn)) {
+				return props.exp.fn.value
 			} else {
-				return ''
+				return '<anonymous>'
 			}
 		})
 
 		const fnDoc = computed(() => {
 			if (fnInfo.value?.meta) {
-				return getMapValue(
-					fnInfo.value.meta,
-					'doc',
-					MalType.String,
-					''
-				) as string
+				return getMapValue(fnInfo.value.meta, 'doc', MalType.String) as string
 			}
 			return ''
 		})

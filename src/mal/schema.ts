@@ -8,9 +8,10 @@ import {
 	MalKeyword,
 	MalMap,
 	MalFunc,
+	MalVector,
+	MalString,, MalNumber
 } from './types'
-import {getStructType} from './utils'
-import {convertMalCollToJSObject} from './reader'
+import {getStructType, jsToMal} from './utils'
 
 interface SchemaBase {
 	type: string
@@ -38,7 +39,7 @@ interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
 }
 
 // Number
-interface SchemaNumberDefault extends SchemaPrimitiveBase<number> {
+interface SchemaNumberDefault extends SchemaPrimitiveBase<MalNumber> {
 	type: 'number'
 	default?: number
 }
@@ -372,7 +373,7 @@ function generateDynamicUISchema(
 	const toSchema = schemaParams['to-schema']
 
 	const uiSchema = convertMalCollToJSObject(
-		toSchema(MalMap.create({parmas}))
+		toSchema.value(MalMap.create({parmas: MalVector.create(...params)}))
 	) as Schema[]
 
 	for (const sch of uiSchema) {
@@ -414,7 +415,7 @@ function updateParamsByFixedUISchema(
 
 	if (lastSchema.variadic && lastSchema.type === 'map') {
 		const restPos = schemaParams.length - 1
-		const restMap = assocBang({}, ...params.slice(restPos))
+		const restMap = MalMap.fromMalSeq(...params.slice(restPos)).value
 		const newParams = [...params.slice(0, restPos)]
 		const items = lastSchema.items
 
@@ -442,7 +443,11 @@ function updateParamsByFixedUISchema(
 			}
 		}
 
-		newParams.push(...Object.entries(restMap).flat())
+		newParams.push(
+			...Object.entries(restMap)
+				.map(([k, v]) => [MalString.create(k), v])
+				.flat()
+		)
 		return newParams
 	} else {
 		const newParams = uiSchema.map(sch => sch.value) as MalVal[]
@@ -463,15 +468,17 @@ function updateParamsByFixedUISchema(
 }
 
 function updateParamsByDynamicUISchema(
-	schuema: SchemaDynamic,
+	schema: SchemaDynamic,
 	uiSchema: Schema[],
 	index: number,
 	value: MalVal
 ) {
 	const params = uiSchema.map(s => s.value as MalVal)
 	params[index] = value
-	const toParams = schuema['to-params']
-	return toParams({[MalKeyword.create('values')]: params}) as MalVal[]
+	const toParams = schema['to-params']
+
+	const ret = toParams.value(jsToMal({values: params}))
+	return MalVector.is(ret) ? ret : MalVector.create()
 }
 
 /**

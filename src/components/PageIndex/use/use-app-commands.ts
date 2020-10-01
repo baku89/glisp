@@ -80,7 +80,7 @@ export default function useAppCommands(
 		if (MalString.is(exp) || MalSymbol.is(exp)) {
 			const fnName = exp.value
 			const fn = ViewScope.var(exp.value)
-			const meta = getMeta(fn)
+			const meta = fn.meta
 			const returnType =
 				(getMapValue(meta, 'return/type', MalType.String) as string) || ''
 			const initialParams =

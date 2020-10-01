@@ -73,14 +73,15 @@ export function unwatchExpOnReplace(
 	}
 }
 
-export function getExpByPath(root: MalColl, path: string): MalVal {
+export function getExpByPath(root: MalVal, path: string): MalVal | null {
 	const keys = path
 		.split('/')
 		.filter(k => k !== '')
 		.map(k => parseInt(k))
+	
 	return find(root, keys)
 
-	function find(exp: MalVal, keys: number[]): MalVal {
+	function find(exp: MalVal, keys: number[]): MalVal | null {
 		const [index, ...rest] = keys
 
 		const expBody = getUIBodyExp(exp)
@@ -90,12 +91,11 @@ export function getExpByPath(root: MalColl, path: string): MalVal {
 		}
 
 		if (isMalSeq(expBody)) {
-			return find(expBody[index], rest)
+			return find(expBody.value[index], rest)
 		} else if (MalMap.is(expBody)) {
-			const keys = expBody.keys()
-			return find(expBody[keys[index]], rest)
+			return find(expBody.get(index), rest)
 		} else {
-			return expBody
+			return null
 		}
 	}
 }
@@ -157,7 +157,7 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		newOuter.value[index] = replaced
 	} else {
 		// Hash map
-		const keys = outer.keys()
+		const keys = (parent as MalMap).keys()
 		const key = keys[index]
 		newOuter.value[key] = replaced
 	}
@@ -199,47 +199,6 @@ export function deleteExp(exp: MalColl) {
 	return true
 }
 
-export function getMapValue<T extends MalVal>(
-	exp: MalVal | undefined,
-	path: string,
-	type?: T,
-	defaultValue: T
-): T {
-	if (exp === undefined) {
-		return defaultValue !== undefined ? defaultValue : MalNil.create()
-	}
-
-	const keys = path.split('/').map(k => (/^[0-9]+$/.test(k) ? parseInt(k) : k))
-
-	while (keys.length > 0) {
-		const key = keys[0]
-
-		if (typeof key === 'number') {
-			if (!isMalSeq(exp) || exp[key] === undefined) {
-				return defaultValue !== undefined ? defaultValue : MalNil.create()
-			}
-			exp = exp[key]
-		} else {
-			// map key
-			const kw = keywordFor(key)
-			if (!MalMap.is(exp) || !(kw in exp)) {
-				return defaultValue !== undefined ? defaultValue : MalNil.create()
-			}
-
-			exp = exp[kw]
-		}
-
-		keys.shift()
-	}
-
-	// Type checking
-	if (type && exp.type !== type) {
-		return defaultValue !== undefined ? defaultValue : MalNil.create()
-	}
-
-	return exp
-}
-
 type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
 
 export interface FnInfoType {
@@ -252,7 +211,7 @@ export interface FnInfoType {
 export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	let fn = MalFunc.is(exp) ? exp : getFn(exp)
 
-	let meta = undefined
+	let meta: MalMap | undefined = undefined
 	let aliasFor = undefined
 	let structType: StructTypes | undefined = undefined
 
@@ -268,8 +227,10 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 		return undefined
 	}
 
-	meta = fn.meta
-	aliasFor = getMapValue(meta, 'alias-for', MalString)
+	meta = MalMap.is(fn.meta) ? fn.meta : undefined
+	if (meta) {
+		aliasFor = getMapValue(meta, 'alias-for', MalString)
+	}
 
 	return {fn, meta, aliasFor, structType}
 }
@@ -295,7 +256,7 @@ export function reverseEval(
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
-				const evaluatedParams = originalParams.map(e => getEvaluated(e))
+				const evaluatedParams = originalParams.map(e => e.evaluated)
 
 				// Compute the original parameter
 				const result = inverseFn(
@@ -433,7 +394,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 
 		// Execute the viewport transform function
 
-		const evaluatedParams = node.params.map(x => getEvaluated(x))
+		const evaluatedParams = node.params.map(x => x.evaluated)
 		const paramXforms = viewportFn(...evaluatedParams) as MalVal
 
 		if (!MalVector.is(paramXforms) || !paramXforms[index - 1]) {
