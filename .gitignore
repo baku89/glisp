@@ -2,8 +2,6 @@
 node_modules
 /dist
 
-/mal
-
 /repl
 /ftp.info.js
 
