@@ -172,7 +172,7 @@ function readList(reader: Reader) {
 }
 
 // read hash-map key/value pairs
-function readHashMap(reader: Reader) {
+function readMap(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '{', '}')
 	const map = MalMap.fromMalSeq(...coll)
 	map.delimiters = delimiters
@@ -266,7 +266,7 @@ function readForm(reader: Reader): any {
 		case '}':
 			throw new Error("unexpected '}'")
 		case '{':
-			val = readHashMap(reader)
+			val = readMap(reader)
 			break
 
 		// atom
