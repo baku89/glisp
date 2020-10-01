@@ -29,8 +29,8 @@ export function getParamLabel(exp: MalVal) {
 	return str.length === 1 ? str : Case.capital(str)
 }
 
-export function partition(n: number, coll: any[]) {
-	const ret = []
+export function partition<T>(n: number, coll: T[]): T[][] {
+	const ret: T[][] = []
 
 	for (let i = 0; i < coll.length; i += n) {
 		ret.push(coll.slice(i, i + n))
