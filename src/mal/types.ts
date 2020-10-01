@@ -33,10 +33,6 @@ export abstract class MalVal {
 	toString() {
 		this.print(true)
 	}
-
-	static is(_: MalVal | undefined): boolean {
-		return false
-	}
 }
 
 export class MalNumber extends MalVal {
@@ -232,6 +228,8 @@ export class MalList extends MalVal {
 
 	public delimiters: string[] | undefined = undefined
 	public str: string | undefined = undefined
+	public isSugar: boolean = false
+
 	private _evaluated: MalVal | undefined = undefined
 
 	constructor(public readonly value: MalVal[]) {

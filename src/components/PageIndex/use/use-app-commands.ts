@@ -2,11 +2,8 @@ import AppScope from '@/scopes/app'
 import {
 	MalVal,
 	MalColl,
-	expandExp,
 	MalSymbol,
 	MalList,
-	MalKeyword,
-	getName,
 	MalType,
 	MalError,
 	isMalSeq,
@@ -15,7 +12,8 @@ import {
 	MalVector,
 	MalString,
 	MalBoolean,
-	MalNil,
+	MalFunc,
+	MalMap,
 } from '@/mal/types'
 import {
 	getMapValue,
@@ -34,6 +32,7 @@ import {toSketchCode} from '../utils'
 import printExp from '@/mal/printer'
 import ViewScope from '@/scopes/view'
 import {reconstructTree} from '@/mal/reader'
+import {expandExp} from '@/mal/expand'
 
 export default function useAppCommands(
 	data: {
@@ -48,14 +47,14 @@ export default function useAppCommands(
 		setSelectedExp: (exp: MalColl[]) => any
 	}
 ) {
-	AppScope.def('expand-selected', () => {
+	AppScope.defn('expand-selected', () => {
 		if (!data.activeExp) {
-			return false
+			return MalBoolean.create(false)
 		}
 
 		const expanded = expandExp(data.activeExp)
 		if (expanded === undefined) {
-			return false
+			return MalBoolean.create(false)
 		}
 
 		replaceExp(data.activeExp, expanded)
@@ -63,7 +62,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('insert-item', (exp: MalVal) => {
+	AppScope.defn('insert-item', (exp: MalVal) => {
 		let activeExp = data.exp
 		if (data.activeExp) {
 			activeExp = data.activeExp
@@ -79,16 +78,16 @@ export default function useAppCommands(
 
 		let newExp: MalSeq
 
-		if (type === MalType.String || type === MalType.Symbol) {
-			const fnName = getName(exp)
-			const fn = ViewScope.var(fnName)
+		if (MalString.is(exp) || MalSymbol.is(exp)) {
+			const fnName = exp.value
+			const fn = ViewScope.var(exp.value)
 			const meta = getMeta(fn)
 			const returnType =
 				(getMapValue(meta, 'return/type', MalType.String) as string) || ''
 			const initialParams =
 				(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
 
-			if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
+			if (!MalFunc.is(fn) || !['item', 'path'].includes(returnType)) {
 				throw new MalError(`${fnName} is not a function that returns item/path`)
 			}
 
@@ -99,8 +98,8 @@ export default function useAppCommands(
 			}
 
 			newExp = MalList.create(MalSymbol.create(fnName), ...initialParams)
-		} else if (type === MalType.List) {
-			newExp = exp as MalSeq
+		} else if (MalList.is(exp)) {
+			newExp = exp
 		} else {
 			throw new MalError('Invalid argument')
 		}
@@ -117,7 +116,7 @@ export default function useAppCommands(
 		return MalString.create(generateExpAbsPath(newExp))
 	})
 
-	AppScope.def('replace-item', (path: MalVal, replaced: MalVal) => {
+	AppScope.defn('replace-item', (path: MalVal, replaced: MalVal) => {
 		if (!MalString.is(path)) {
 			throw new Error('Path should be string')
 		}
@@ -133,51 +132,51 @@ export default function useAppCommands(
 		return path
 	})
 
-	AppScope.def('select-items', (paths: MalVal) => {
+	AppScope.defn('select-items', (paths: MalVal) => {
 		if (MalVector.is(paths)) {
 			const items: MalColl[] = []
 
 			for (const path of paths) {
 				if (typeof path !== 'string') {
-					return false
+					return MalBoolean.create(false)
 				}
 				const item = getExpByPath(data.exp, path)
 				if (!isMalColl(item)) {
-					return false
+					return MalBoolean.create(false)
 				}
 				items.push(item)
 			}
 
 			callbacks.setSelectedExp(items)
 		}
-		return false
+		return MalBoolean.create(true)
 	})
 
-	AppScope.def('item-selected?', (path: MalVal) => {
-		if (typeof path !== 'string') {
-			return false
+	AppScope.defn('item-selected?', (path: MalVal) => {
+		if (MalString.is(path)) {
+			return MalBoolean.create(false)
 		}
 
-		const item = getExpByPath(data.exp, path)
+		const item = getExpByPath(data.exp, path.value)
 
 		if (!isMalColl(item)) {
-			return false
+			return MalBoolean.create(false)
 		}
 
 		const index = data.selectedExp.findIndex(s => s === item)
 
-		return index !== -1
+		return MalBoolean.create(index !== -1)
 	})
 
-	AppScope.def('toggle-item-selection', (path: MalVal) => {
-		if (typeof path !== 'string') {
-			return false
+	AppScope.defn('toggle-item-selection', (path: MalVal) => {
+		if (MalString.is(path)) {
+			return MalBoolean.create(false)
 		}
 
-		const item = getExpByPath(data.exp, path)
+		const item = getExpByPath(data.exp, path.value)
 
 		if (!isMalColl(item)) {
-			return false
+			return MalBoolean.create(false)
 		}
 
 		const index = data.selectedExp.findIndex(s => s === item)
@@ -194,7 +193,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('load-file', (url: MalVal) => {
+	AppScope.defn('load-file', (url: MalVal) => {
 		fetch(url.value as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
@@ -210,7 +209,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('select-outer', () => {
+	AppScope.defn('select-outer', () => {
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
@@ -222,7 +221,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('wrap-selected', (wrapper: MalVal) => {
+	AppScope.defn('wrap-selected', (wrapper: MalVal) => {
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
@@ -252,32 +251,32 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('transform-selected', (xform: MalVal) => {
+	AppScope.defn('transform-selected', (xform: MalVal) => {
 		for (const exp of data.selectedExp) {
 			if (!isMalSeq(exp)) {
-				return false
+				continue
 			}
 
 			const fnInfo = getFnInfo(exp)
 
 			if (!fnInfo) {
-				return false
+				return MalBoolean.create(false)
 			}
 
 			const {meta, structType} = fnInfo
 			const transformFn = getMapValue(meta, 'transform')
 
-			if (!isFunc(transformFn)) {
-				return false
+			if (!MalFunc.is(transformFn)) {
+				return MalBoolean.create(false)
 			}
 
-			const originalParams = structType ? [exp] : exp.slice(1)
-			const payload = {
-				[MalKeyword.create('params')]: originalParams.map(p => getEvaluated(p)),
-				[MalKeyword.create('transform')]: xform as MalVal,
-			}
+			const originalParams = structType ? [exp] : exp.value.slice(1)
+			const payload = MalMap.create({
+				params: MalVector.create(...originalParams.map(p => p.evaluated)),
+				transform: xform,
+			})
 
-			const modifier = transformFn(payload)
+			const modifier = transformFn.value(payload)
 			let newParams: MalVal[] | null
 
 			if (structType) {
@@ -285,7 +284,7 @@ export default function useAppCommands(
 			} else {
 				newParams = applyParamModifier(modifier, originalParams)
 				if (!newParams) {
-					return false
+					return MalBoolean.create(false)
 				}
 			}
 
@@ -300,7 +299,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('copy-selected', () => {
+	AppScope.defn('copy-selected', () => {
 		if (!data.activeExp) {
 			throw new MalError('No selection')
 		}
@@ -312,7 +311,7 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('paste-from-clipboard', () => {
+	AppScope.defn('paste-from-clipboard', () => {
 		let outer: MalSeq, index: number
 
 		if (!data.activeExp) {
@@ -321,7 +320,7 @@ export default function useAppCommands(
 			const [_outer, _index] = getUIOuterInfo(data.activeExp)
 
 			if (!isMalSeq(_outer)) {
-				return false
+				return MalBoolean.create(false)
 			}
 
 			;[outer, index] = [_outer, _index]
@@ -341,10 +340,10 @@ export default function useAppCommands(
 			callbacks.setActiveExp(isMalColl(exp) ? exp : undefined)
 		})
 
-		return MalNil.create()
+		return MalBoolean.create(true)
 	})
 
-	AppScope.def('delete-selected', () => {
+	AppScope.defn('delete-selected', () => {
 		for (const _exp of data.selectedExp) {
 			const exp = getUIAnnotationExp(_exp)
 			deleteExp(exp)
@@ -355,9 +354,9 @@ export default function useAppCommands(
 		return MalBoolean.create(true)
 	})
 
-	AppScope.def('group-selected', () => {
+	AppScope.defn('group-selected', () => {
 		if (data.selectedExp.length === 0) {
-			return false
+			return MalBoolean.create(false)
 		}
 
 		const [first, ...rest] = data.selectedExp

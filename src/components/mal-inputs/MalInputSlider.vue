@@ -43,8 +43,8 @@ import {
 	MalVal,
 	MalSymbol,
 	MalType,
-	MalList,
-	MalKeyword,, MalNumber
+	MalKeyword,
+	MalNumber,
 } from '@/mal/types'
 import {getMapValue, getFnInfo, reverseEval, getFn} from '@/mal/utils'
 import {readStr} from '@/mal'

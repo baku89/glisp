@@ -12,10 +12,12 @@ import {
 	isMalColl,
 	MalType,
 	MalNumber,
+	MalNil,
+	MalString,
+	MalBoolean,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
-import {reconstructTree} from './reader'
 
 export function isUIAnnotation(exp: MalVal | undefined): exp is MalList {
 	return MalList.is(exp) && MalSymbol.isFor(exp.value[0], 'ui-annotate')
@@ -193,38 +195,35 @@ export function getUIBodyExp(exp: MalVal) {
 }
 
 export function deleteExp(exp: MalColl) {
-	const outer = exp.parent
-	const index = exp[M_OUTER_INDEX]
+	if (!exp.parent) return false
 
-	if (!outer) {
-		return false
-	}
+	const {ref: oldParent, index} = exp.parent
 
-	const newOuter = outer.clone()
+	const newParent = oldParent.clone()
 
-	if (isMalSeq(newOuter)) {
-		newOuter.splice(index, 1)
+	if (isMalSeq(newParent)) {
+		newParent.value.splice(index, 1)
 	} else {
-		const key = Object.keys(newOuter)[index]
-		delete newOuter[key]
+		const key = newParent.keys()[index]
+		delete newParent.value[key]
 	}
 
-	copyDelimiters(newOuter, outer)
-	reconstructTree(newOuter)
+	copyDelimiters(newParent, oldParent)
+	reconstructTree(newParent)
 
-	replaceExp(outer, newOuter)
+	replaceExp(oldParent, newParent)
 
 	return true
 }
 
-export function getMapValue(
+export function getMapValue<T extends MalVal>(
 	exp: MalVal | undefined,
 	path: string,
-	type?: MalType,
-	defaultValue?: MalVal
-): MalVal {
+	type?: T,
+	defaultValue: T
+): T {
 	if (exp === undefined) {
-		return defaultValue !== undefined ? defaultValue : null
+		return defaultValue !== undefined ? defaultValue : MalNil.create()
 	}
 
 	const keys = path.split('/').map(k => (/^[0-9]+$/.test(k) ? parseInt(k) : k))
@@ -234,14 +233,14 @@ export function getMapValue(
 
 		if (typeof key === 'number') {
 			if (!isMalSeq(exp) || exp[key] === undefined) {
-				return defaultValue !== undefined ? defaultValue : null
+				return defaultValue !== undefined ? defaultValue : MalNil.create()
 			}
 			exp = exp[key]
 		} else {
 			// map key
 			const kw = keywordFor(key)
 			if (!MalMap.is(exp) || !(kw in exp)) {
-				return defaultValue !== undefined ? defaultValue : null
+				return defaultValue !== undefined ? defaultValue : MalNil.create()
 			}
 
 			exp = exp[kw]
@@ -252,7 +251,7 @@ export function getMapValue(
 
 	// Type checking
 	if (type && exp.type !== type) {
-		return defaultValue !== undefined ? defaultValue : null
+		return defaultValue !== undefined ? defaultValue : MalNil.create()
 	}
 
 	return exp
@@ -569,5 +568,180 @@ export function copyDelimiters(target: MalVal, original: MalVal) {
 		}
 
 		target.delimiters = delimiters
+	}
+}
+
+export function reconstructTree(exp: MalVal) {
+	seek(exp)
+
+	function seek(exp: MalVal, parent?: {ref: MalColl; index: number}) {
+		if (parent) {
+			exp.parent = parent
+		}
+
+		if (isMalSeq(exp)) {
+			exp.value.forEach((child, index) => seek(child, {ref: exp, index}))
+		} else if (MalMap.is(exp)) {
+			exp
+				.entries()
+				.forEach(([, child], index) => seek(child, {ref: exp, index}))
+		}
+	}
+}
+
+export function getRangeOfExp(
+	exp: MalColl,
+	root?: MalColl
+): [number, number] | null {
+	function isAncestorOf(ancestor: MalColl, child: MalVal): boolean {
+		if (ancestor === child) {
+			return true
+		} else if (!child.parent) {
+			return false
+		} else {
+			return isAncestorOf(ancestor, child.parent.ref)
+		}
+	}
+
+	function calcOffset(exp: MalColl): number {
+		if (!exp.parent || exp === root) {
+			return 0
+		}
+
+		const outer = exp.parent
+		let offset = calcOffset(outer)
+
+		// Creates a delimiter cache
+		printExp(outer)
+
+		if (isMalSeq(outer)) {
+			const index = exp[M_OUTER_INDEX]
+			offset +=
+				(outer[M_ISSUGAR] ? 0 : 1) +
+				outer.delimiters.slice(0, index + 1).join('').length +
+				outer[M_ELMSTRS].slice(0, index).join('').length
+		} else if (MalMap.is(outer)) {
+			const index = exp[M_OUTER_INDEX]
+			offset +=
+				1 /* '{'.   length */ +
+				outer.delimiters.slice(0, (index + 1) * 2).join('').length +
+				outer[M_ELMSTRS].slice(0, index * 2 + 1).join('').length
+		}
+
+		return offset
+	}
+
+	const isExpOutsideOfParent = root && !isAncestorOf(root, exp)
+
+	if (!isMalColl(exp) || isExpOutsideOfParent) {
+		return null
+	}
+
+	const expLength = exp.print().length
+	const offset = calcOffset(exp)
+
+	return [offset, offset + expLength]
+}
+
+export function findExpByRange(
+	exp: MalVal,
+	start: number,
+	end: number
+): MalColl | null {
+	if (!isMalColl(exp)) {
+		// If Atom
+		return null
+	}
+
+	// Creates a caches of children at the same time calculating length of exp
+	const expLen = printExp(exp, true).length
+
+	if (!(0 <= start && end <= expLen)) {
+		// Does not fit within the exp
+		return null
+	}
+
+	if (MalList.is(exp)) {
+		// Sequential
+
+		// Add the length of open-paren
+		let offset = exp[M_ISSUGAR] ? 0 : 1
+
+		// Search Children
+		for (let i = 0; i < exp.length; i++) {
+			const child = exp[i]
+			offset += exp.delimiters[i].length
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			// For #() syntaxtic sugar
+			if (i < exp[M_ELMSTRS].length) {
+				offset += exp[M_ELMSTRS][i].length
+			}
+		}
+	} else if (MalMap.is(exp)) {
+		// Hash Map
+
+		let offset = 1 // length of '{'
+
+		const keys = Object.keys(exp)
+		const elmStrs = exp[M_ELMSTRS]
+		const delimiters = exp.delimiters
+
+		// Search Children
+		for (let i = 0; i < keys.length; i++) {
+			const child = exp[keys[i]]
+
+			// Offsets
+			offset +=
+				delimiters[i * 2].length + // delimiter before key
+				elmStrs[i * 2].length + // key
+				delimiters[i * 2 + 1].length // delimiter between key and value
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			offset += elmStrs[i * 2 + 1].length
+		}
+	}
+
+	return exp
+}
+
+export function jsToMal(obj: any): MalVal {
+	if (obj instanceof MalVal) {
+		return obj
+	}
+
+	if (Array.isArray(obj)) {
+		// Vector
+		return MalVector.create(...obj.map(jsToMal))
+	} else if (obj instanceof Object) {
+		// Map
+		const ret: {[k: string]: MalVal} = {}
+		for (const [key, value] of Object.entries(obj)) {
+			ret[key] = jsToMal(value)
+		}
+		return MalMap.create(ret)
+	} else if (obj === null) {
+		// Nil
+		return MalNil.create()
+	} else {
+		switch (typeof obj) {
+			case 'number':
+				return MalNumber.create(obj)
+			case 'string':
+				return MalString.create(obj)
+			case 'undefined':
+				return MalNil.create()
+			case 'boolean':
+				return MalBoolean.create(obj)
+		}
+		throw new Error('Cannot convert to Mal')
 	}
 }
