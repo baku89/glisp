@@ -5,7 +5,6 @@ import {
 	MalSymbol,
 	MalMap,
 	MalList,
-	isMalColl,
 	MalSeq,
 	isMalSeq,
 	MalVector,
@@ -72,7 +71,11 @@ function macroexpand(_exp: MalVal, env: Env) {
 	return exp
 }
 
-function evalAtom(this: void | MalFuncThis, exp: MalVal, env: Env) {
+function evalAtom(
+	this: void | MalFuncThis,
+	exp: Exclude<MalVal, MalList>,
+	env: Env
+) {
 	if (MalSymbol.is(exp)) {
 		const ret = env.get(exp.value)
 		exp.evaluated = ret
@@ -80,11 +83,7 @@ function evalAtom(this: void | MalFuncThis, exp: MalVal, env: Env) {
 	} else if (MalVector.is(exp)) {
 		const ret = MalVector.create(
 			...exp.value.map(x => {
-				const ret = evalExp.call(this, x, env)
-				if (isMalColl(x)) {
-					x.evaluated = ret
-				}
-				return ret
+				return evalExp.call(this, x, env)
 			})
 		)
 		exp.evaluated = ret
@@ -93,11 +92,7 @@ function evalAtom(this: void | MalFuncThis, exp: MalVal, env: Env) {
 		const hm: {[k: string]: MalVal} = {}
 
 		for (const [k, v] of exp.entries()) {
-			const ret = evalExp.call(this, v, env)
-			if (isMalColl(v)) {
-				v.evaluated = ret
-			}
-			hm[k] = ret
+			hm[k] = evalExp.call(this, v, env)
 		}
 
 		const ret = MalMap.create(hm)
@@ -117,34 +112,22 @@ export default function evalExp(
 
 	let counter = 0
 	while (counter++ < 1e6) {
-		if (!MalList.is(exp)) {
-			const ret = evalAtom.call(this, exp, env)
-			if (isMalColl(origExp)) {
-				origExp.evaluated = ret
-			}
-			return ret
-		}
-
 		// Expand macro
 		exp = macroexpand(exp, env)
 
 		if (!MalList.is(exp)) {
 			const ret = evalAtom.call(this, exp, env)
-			if (isMalColl(origExp)) {
-				origExp.evaluated = ret
-			}
+			origExp.evaluated = ret
 			return ret
 		}
 
 		if (exp.value.length === 0) {
-			if (isMalColl(origExp)) {
-				origExp.evaluated = MalNil.create()
-			}
+			origExp.evaluated = MalNil.create()
 			return MalNil.create()
 		}
 
 		// Apply list
-		const [first] = exp.value
+		const first = exp.fn
 
 		if (!MalSymbol.is(first)) {
 			throw new MalError(
@@ -203,7 +186,7 @@ export default function evalExp(
 				first.evaluated = env.get('binding')
 				const bindingEnv = new Env({name: 'binding'})
 				const [, binds, ..._body] = exp.value
-				if (!isMalSeq(binds)) {
+				if (!MalVector.is(binds)) {
 					throw new MalError('Invalid bind-expr in binding')
 				}
 				for (let i = 0; i < binds.value.length; i += 2) {
@@ -295,7 +278,7 @@ export default function evalExp(
 				if (body === undefined) {
 					throw new MalError('Second argument of macro should be specified')
 				}
-				const ret = MalMacro.fromMal(
+				const ret = (first.value === 'fn' ? MalFunc : MalMacro).fromMal(
 					(...args) => {
 						return evalExp.call(
 							this,
@@ -354,9 +337,7 @@ export default function evalExp(
 			case 'do': {
 				first.evaluated = env.get('do')
 				if (exp.value.length === 1) {
-					if (isMalColl(origExp)) {
-						origExp.evaluated = MalNil.create()
-					}
+					origExp.evaluated = MalNil.create()
 					return MalNil.create()
 				}
 				evalExp.call(this, MalVector.create(...exp.value.slice(1, -1)), env)
@@ -399,10 +380,13 @@ export default function evalExp(
 						origExp.evaluated = ret
 						return ret
 					}
+				} else {
+					console.log(fn)
+					throw new MalError('Invalid first')
 				}
 			}
 		}
 	}
 
-	throw new Error('Exceed the maximum TCO stacks')
+	throw new MalError('Exceed the maximum TCO stacks')
 }
