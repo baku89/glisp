@@ -20,6 +20,16 @@ export enum MalType {
 	Macro = 'macro',
 }
 
+export type MalConvertable =
+	| number
+	| string
+	| boolean
+	| null
+	| MalVal
+	| MalF
+	| MalConvertable[]
+	| {[key: string]: MalConvertable}
+
 export abstract class MalVal {
 	parent: {ref: MalColl; index: number} | undefined = undefined
 	protected _meta: MalMap | MalNil | undefined = undefined
@@ -52,7 +62,7 @@ export abstract class MalVal {
 	abstract readonly value: any
 	abstract clone(deep?: boolean): MalVal
 	abstract print(readably?: boolean): string
-	abstract toJS(): any
+	abstract toJS(): MalConvertable
 
 	equals(x: MalVal) {
 		return this.type === x.type && this.value === x.value

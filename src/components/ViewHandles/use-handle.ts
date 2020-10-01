@@ -4,7 +4,7 @@ import {
 	getFnInfo,
 	computeExpTransform,
 	replaceExp,
-	jsToMal,, getExpByPath
+	jsToMal, getExpByPath
 } from '@/mal/utils'
 import {
 	MalSeq,
@@ -259,7 +259,7 @@ export default function useHandle(
 			id: handle.id === undefined ? MalNil.create() : handle.id,
 			pos: jsToMal(pos),
 			'prev-pos': jsToMal(prevPos),
-			params: _params,
+			params: MalVector.create(..._params),
 		})
 
 		rawPrevPos.value = rawPos

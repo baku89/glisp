@@ -6,7 +6,7 @@ import {
 	MalColl,
 	MalVector,
 	isMalSeq,
-	MalSeq,
+	MalConvertable,
 	MalSymbol,
 	MalList,
 	isMalColl,
@@ -614,19 +614,27 @@ export function findExpByRange(
 	return exp
 }
 
-export function jsToMal(obj: any): MalVal {
+function jsToMal(obj: number): MalNumber
+function jsToMal(obj: string): MalString
+function jsToMal(obj: boolean): MalBoolean
+function jsToMal(obj: null): MalNumber
+function jsToMal(obj: MalConvertable[]): MalVector
+function jsToMal(obj: {[k: string]: MalConvertable}): MalMap
+function jsToMal(obj: MalConvertable): MalVal {
 	if (obj instanceof MalVal) {
+		// MalVal
 		return obj
-	}
-
-	if (Array.isArray(obj)) {
+	} else if (Array.isArray(obj)) {
 		// Vector
-		return MalVector.create(...obj.map(jsToMal))
+		return MalVector.create(...(obj as any[]).map(jsToMal))
+	} else if (obj instanceof Function) {
+		// Function
+		return MalFunc.create((...xs) => jsToMal((obj as any)(...xs)))
 	} else if (obj instanceof Object) {
 		// Map
 		const ret: {[k: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(obj)) {
-			ret[key] = jsToMal(value)
+			ret[key] = jsToMal(value as any)
 		}
 		return MalMap.create(ret)
 	} else if (obj === null) {
@@ -638,13 +646,12 @@ export function jsToMal(obj: any): MalVal {
 				return MalNumber.create(obj)
 			case 'string':
 				return MalString.create(obj)
-			case 'undefined':
-				return MalNil.create()
 			case 'boolean':
 				return MalBoolean.create(obj)
-			case 'function':
-				return MalFunc.create((...xs) => jsToMal(obj(...xs)))
+			default:
+				throw new Error('Cannot convert to Mal')
 		}
-		throw new Error('Cannot convert to Mal')
 	}
 }
+
+export {jsToMal}

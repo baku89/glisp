@@ -51,22 +51,22 @@ ConsoleScope.defn('copy-to-clipboard', (str: MalVal) => {
 	return copyToClipboard(str.value as string)
 })
 
-// ConsoleScope.def(
-// 	'generate-sketch-url',
-// 	MalFunc.create(
-// 		(url: MalVal) => generateSketchURL(url.value as string),
-// 		jsToMal({
-// 			doc: 'Generates Code URL',
-// 			params: [
-// 				{
-// 					label: 'Source',
-// 					type: 'string',
-// 				},
-// 			],
-// 			'initial-params': [''],
-// 		}) as MalMap
-// 	)
-// )
+ConsoleScope.def(
+	'generate-sketch-url',
+	MalFunc.create(
+		(url: MalVal) => generateSketchURL(url.value as string),
+		jsToMal({
+			doc: 'Generates Code URL',
+			params: [
+				{
+					label: 'Source',
+					type: 'string',
+				},
+			],
+			'initial-params': [''],
+		}) as MalMap
+	)
+)
 
 ConsoleScope.defn('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')

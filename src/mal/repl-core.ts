@@ -102,7 +102,7 @@ const Exports = [
 					{label: 'Symbol', type: 'symbol'},
 					{label: 'Value', type: 'any'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -116,7 +116,7 @@ const Exports = [
 					{label: 'Symbol', type: 'symbol'},
 					{label: 'Value', type: 'any'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -129,7 +129,7 @@ const Exports = [
 					{label: 'Binds', type: 'exp'},
 					{label: 'Body', type: 'exp'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -142,7 +142,7 @@ const Exports = [
 					{label: 'Binds', type: 'exp'},
 					{label: 'Body', type: 'exp'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -153,7 +153,7 @@ const Exports = [
 				doc: 'Gets all existing symbols',
 				params: [],
 				return: {type: 'vector'},
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -163,7 +163,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -174,7 +174,7 @@ const Exports = [
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 				params: [{label: 'Form', type: 'exp'}],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -184,7 +184,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -194,7 +194,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -207,7 +207,7 @@ const Exports = [
 					{label: 'Params', type: 'exp'},
 					{label: 'Form', type: 'exp'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -217,7 +217,7 @@ const Exports = [
 			jsToMal({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -230,7 +230,7 @@ const Exports = [
 					{label: 'Param', type: 'exp'},
 					{label: 'Form', type: 'exp'},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -240,7 +240,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Expands the macro',
 				params: [],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -250,7 +250,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Try',
 				params: [],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -260,7 +260,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Catch',
 				params: [],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -276,7 +276,7 @@ const Exports = [
 						items: {label: 'Form', type: 'any'},
 					},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -290,7 +290,7 @@ const Exports = [
 					{label: 'Then', type: 'exp'},
 					{label: 'Else', type: 'exp', default: null},
 				],
-			}) as MalMap
+			})
 		),
 	],
 	[
@@ -300,7 +300,7 @@ const Exports = [
 			jsToMal({
 				doc: 'Env chain',
 				params: [],
-			}) as MalMap
+			})
 		),
 	],
 ] as [string, MalVal][]
