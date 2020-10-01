@@ -86,7 +86,7 @@
 (defalias rect path/rect)
 
 (def path/circle
-  (set-meta!
+  (with-meta!
    (let [K (/ (* 4 (dec (sqrt 2))) 3)]
      (fn [[x y] r]
        (let [k (* r K)

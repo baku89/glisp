@@ -304,17 +304,9 @@ const Exports = [
 	],
 
 	// Meta
-	['meta', getMeta],
-	[
-		'console.log',
-		(...xs: MalVal[]) => {
-			console.log(...xs)
-			return MalNil.create()
-		},
-	],
-	['with-meta', withMeta],
-	['set-meta!', setMeta],
-	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
+	['meta', x => x.meta],
+	['with-meta', (x, meta) => x.withMeta(meta)],
+	['with-meta-sugar', (meta, x) => x.withMeta(meta)],
 	[
 		// Atom
 		'atom',
