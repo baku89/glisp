@@ -2,6 +2,7 @@ import {SetupContext} from 'vue'
 import ConsoleScope from '@/scopes/console'
 // import DialogSettings from '@/components/dialogs/DialogSettings.vue'
 import AppScope from '@/scopes/app'
+import {MalNil} from '@/mal/types'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
@@ -14,7 +15,7 @@ export default function useDialogCommand(context: SetupContext) {
 
 	context
 
-	ConsoleScope.def('show-settings', () => {
+	ConsoleScope.defn('show-settings', () => {
 		// $modal.show(
 		// 	DialogSettings,
 		// 	{},
@@ -23,6 +24,6 @@ export default function useDialogCommand(context: SetupContext) {
 		// 	}
 		// )
 
-		return null
+		return MalNil.create()
 	})
 }
