@@ -14,7 +14,7 @@ import {
 	MalNumber,
 	MalNil,
 	MalString,
-	MalBoolean,
+	MalBoolean,, MalF
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
@@ -96,7 +96,7 @@ export function generateExpAbsPath(exp: MalVal) {
 	}
 }
 
-export function getUIOuterInfo(
+export function getUIParent(
 	_exp: MalVal | undefined
 ): {ref: MalColl; index: number} | undefined {
 	if (!isMalColl(_exp) || !_exp.parent) {
@@ -111,15 +111,7 @@ export function getUIOuterInfo(
 /**
  * Cached Tree-shaking
  */
-export function replaceExp(original: MalColl, replaced: MalVal) {
-	// Execute a callback if necessary
-	if (ExpWatcher.has(original)) {
-		const callbacks = ExpWatcher.get(original) as Set<WatchOnReplacedCallback>
-		ExpWatcher.delete(original)
-		for (const cb of callbacks) {
-			cb(replaced)
-		}
-	}
+export function replaceExp(original: MalVal, replaced: MalVal) {
 
 	if (!original.parent) {
 		// Is the root exp
@@ -188,7 +180,7 @@ export interface FnInfoType {
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | undefined {
-	let fn = MalFunc.is(exp) ? exp : getFn(exp)
+	let fn: MalFunc | undefined = MalFunc.is(exp) ? exp : getFn(exp)
 
 	let meta: MalMap | undefined = undefined
 	let aliasFor = undefined
@@ -208,7 +200,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 
 	meta = MalMap.is(fn.meta) ? fn.meta : undefined
 	if (meta) {
-		aliasFor = getMapValue(meta, 'alias-for', MalString)
+		aliasFor = getExpByPath(meta, 'alias-for', MalType.String)?.value as string
 	}
 
 	return {fn, meta, aliasFor, structType}
@@ -230,15 +222,15 @@ export function reverseEval(
 				// find Inverse function
 				const info = getFnInfo(original as MalSeq)
 				if (!info) break
-				const inverseFn = getMapValue(info.meta, 'inverse')
-				if (!MalFunc.is(inverseFn)) break
+				const inverseFn = getExpByPath<MalFunc>(info.meta, 'inverse', MalType.Func)
+				if (!inverseFn) break
 
 				const fnName = (original as MalSeq)[0]
 				const originalParams = (original as MalSeq).slice(1)
 				const evaluatedParams = originalParams.map(e => e.evaluated)
 
 				// Compute the original parameter
-				const result = inverseFn(
+				const result = inverseFn.value(
 					MalMap.create({
 						return: exp,
 						params: evaluatedParams,
@@ -352,42 +344,39 @@ export function computeExpTransform(exp: MalVal): mat2d {
 	}
 
 	// Collect ancestors with index
-	const ancestors: [MalColl, number][] = []
-	for (let _exp: MalColl = exp; _exp.parent; _exp = _exp.parent) {
-		ancestors.unshift([_exp.parent, _exp[M_OUTER_INDEX]])
+	const ancestors: {ref: MalColl, index: number}[] = []
+
+	for (let _exp: MalColl = exp; _exp.parent; _exp = _exp.parent.ref) {
+		ancestors.unshift(_exp.parent)
 	}
 
 	const xform = mat2d.create()
 
-	for (const [node, index] of ancestors) {
+	for (const {ref: node, index} of ancestors) {
 		if (!MalList.is(node)) {
 			continue
 		}
 
-		const meta = getMeta(node.value[0].evaluated)
-		const viewportFn = getMapValue(meta, 'viewport-transform')
+		const meta = node.value[0].evaluated.meta
+		const viewportFn = getExpByPath<MalFunc>(meta, 'viewport-transform', MalType.Func)
 
-		if (!MalFunc.is(viewportFn)) {
+		if (!viewportFn) {
 			continue
 		}
 
 		// Execute the viewport transform function
-
 		const evaluatedParams = node.params.map(x => x.evaluated)
-		const paramXforms = viewportFn(...evaluatedParams) as MalVal
+		const paramXforms = viewportFn.value(...evaluatedParams)
 
-		if (!MalVector.is(paramXforms) || !paramXforms[index - 1]) {
+		if (!MalVector.is(paramXforms) || !paramXforms.value[index - 1]) {
 			continue
 		}
 
-		mat2d.mul(xform, xform, paramXforms[index - 1] as mat2d)
+		mat2d.mul(xform, xform, paramXforms.value[index - 1].value as mat2d)
 	}
 
 	return xform
 }
-
-const K_PARAMS = MalKeyword.create('params')
-const K_REPLACE = MalKeyword.create('replace')
 
 export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	if (!MalVector.is(modifier) && !MalMap.is(modifier)) {

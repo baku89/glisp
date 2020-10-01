@@ -1,12 +1,12 @@
 import {Ref, computed, SetupContext} from 'vue'
-import {MalVal, MalSeq, MalSymbol, MalVector} from '@/mal/types'
+import {MalVal, MalSeq, MalSymbol, MalVector, MalList} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 /**
  * Refs and event handles for MalInputVec2, Rect2d, Mat2d
  */
 export default function useNumericVectorUpdator(
-	exp: Ref<MalSeq | MalSymbol>,
+	exp: Ref<MalVector | MalList | MalSymbol>,
 	context: SetupContext
 ) {
 	const isValueSeparated = computed(() => MalVector.is(exp.value))
@@ -15,7 +15,7 @@ export default function useNumericVectorUpdator(
 		if (!isValueSeparated.value) {
 			return []
 		} else {
-			return Array.from(exp.value as MalSeq)
+			return Array.from(exp.value.value)
 		}
 	})
 

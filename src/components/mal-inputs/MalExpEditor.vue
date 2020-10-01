@@ -12,8 +12,11 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
-import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
-import {BlankException} from '@/mal/reader'
+import readStr, {
+	findExpByRange,
+	getRangeOfExp,
+	MalBlankException,
+} from '@/mal/reader'
 import printExp, {printer} from '@/mal/printer'
 import {
 	MalVal,
@@ -162,7 +165,7 @@ export default defineComponent({
 					true
 				)
 			} catch (err) {
-				if (!(err instanceof BlankException)) {
+				if (!(err instanceof MalBlankException)) {
 					printer.error(err)
 				}
 				hasParseError.value = true

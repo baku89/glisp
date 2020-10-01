@@ -37,7 +37,7 @@ import {printExp, readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
 
 import {printer} from '@/mal/printer'
-import {BlankException} from '@/mal/reader'
+import {MalBlankException} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme} from '@/theme'

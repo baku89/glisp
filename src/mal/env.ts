@@ -28,7 +28,7 @@ export default class Env {
 		forms?: MalVal[]
 		exps?: MalVal[]
 		useUnnamedForms?: boolean
-	}) {
+	} = {}) {
 		this.outer = outer
 		this.name = name
 

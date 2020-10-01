@@ -3,8 +3,8 @@ import {
 	reverseEval,
 	getFnInfo,
 	computeExpTransform,
-	getMapValue,
-	replaceExp,, jsToMal
+	replaceExp,
+	jsToMal,, getExpByPath
 } from '@/mal/utils'
 import {
 	MalSeq,
@@ -13,7 +13,7 @@ import {
 	MalVector,
 	MalColl,
 	MalNil,
-	MalList,
+	MalList,, MalType
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
 // import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
@@ -44,13 +44,14 @@ export default function useHandle(
 	const draggingIndex = ref<[number, number] | null>(null)
 	const rawPrevPos = ref([0, 0])
 	const fnInfo = computed(() => selectedExp.value.map(e => getFnInfo(e)))
+	
 	const handleCallbacks = computed(() =>
 		fnInfo.value.map(fi => {
-			if (!fi) {
-				return undefined
+			if (fi?.meta) {
+				const ret = getExpByPath<MalMap>(fi.meta, 'handles', MalType.Map)
+				return ret || null
 			} else {
-				const ret = getMapValue(fi.meta, 'handles')
-				return MalMap.is(ret) ? ret : undefined
+				return null
 			}
 		})
 	)
@@ -60,7 +61,9 @@ export default function useHandle(
 			if (MalMap.is(e) || !fi) {
 				return []
 			}
-			return fi.structType ? [e.evaluated] : e.slice(1).map(e => e.evaluated)
+			return fi.structType
+				? [e.evaluated]
+				: (e as MalList).params.map(e => e.evaluated)
 		})
 	)
 	const unevaluatedParams = computed(() =>
@@ -69,7 +72,7 @@ export default function useHandle(
 			if (MalMap.is(e) || !fi) {
 				return []
 			}
-			return fi.structType ? [e] : e.slice(1)
+			return fi.structType ? [e] : (e as MalList).params
 		})
 	)
 	const returnedValue = computed(() => selectedExp.value.map(e => e.evaluated))
@@ -180,7 +183,7 @@ export default function useHandle(
 					type,
 					cls,
 					guide,
-					id: h[K_ID],
+					id: info.id,
 					transform: `matrix(${xform.join(',')})`,
 				}
 

@@ -72,6 +72,7 @@ import InputString from '@/components/inputs/InputString.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MalInputNumber from './MalInputNumber.vue'
 import MalExpButton from './MalExpButton.vue'
+import {reverseEval} from '@/mal/utils'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 
@@ -100,16 +101,14 @@ export default defineComponent({
 		const mode = computed(() => {
 			switch (props.value.type) {
 				case MalType.String: {
-					{
-						const str = props.value as string
-						if (chroma.valid(str)) {
-							return 'HEX'
-						}
-						break
+					const str = (props.value as MalString).value
+					if (chroma.valid(str)) {
+						return 'HEX'
 					}
+					break
 				}
 				case MalType.List: {
-					const fst = (props.value as MalVal[])[0]
+					const fst = (props.value as MalList).fn
 					if (MalSymbol.is(fst)) {
 						if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
 							return fst.value.split('/')[1].toUpperCase()
@@ -131,10 +130,10 @@ export default defineComponent({
 				return props.value.evaluated.value
 			}
 
-			if (typeof props.value === 'string') {
+			if (MalString.is(props.value)) {
 				return props.value
 			} else if (MalList.is(props.value)) {
-				return props.value.slice(1)
+				return props.value.params
 			}
 		})
 
