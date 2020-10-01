@@ -27,7 +27,7 @@ export abstract class MalVal {
 	abstract readonly value: any
 	abstract get evaluated(): MalVal
 	abstract clone(): MalVal
-	abstract print(readably: boolean): string
+	abstract print(readably?: boolean): string
 	abstract toJS(): any
 
 	toString() {
@@ -458,14 +458,14 @@ export class MalMap extends MalVal {
 		return new MalMap(value)
 	}
 
-	static fromMalColl(...coll: MalVal[]) {
+	static fromMalSeq(...coll: MalVal[]) {
 		const map: {[key: string]: MalVal} = {}
 
 		for (let i = 0; i + 1 < coll.length; i += 1) {
 			const k = coll[i]
 			const v = coll[i + 1]
 			if (MalKeyword.is(k) || MalString.is(k)) {
-				map[getName(k)] = v
+				map[k.value] = v
 			} else {
 				throw new MalError(
 					`Unexpected key symbol: ${k.type}, expected: keyword or string`

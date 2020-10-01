@@ -120,7 +120,7 @@ ConsoleScope.def(
 					throw new MalError('Invalid sketch')
 				}
 
-				const options = MalMap.fromMalColl(...xs).value
+				const options = MalMap.fromMalSeq(...xs).value
 
 				if (options.selector) {
 					viewExp = ConsoleScope.eval(
@@ -211,7 +211,7 @@ ConsoleScope.def(
 				duration: 1,
 				fps: 24,
 				bounds: [0, 0, 200, 200],
-				...MalMap.fromMalColl(...xs).toJS(),
+				...MalMap.fromMalSeq(...xs).toJS(),
 			} as {
 				format: 'gif'
 				scaling: number
@@ -340,7 +340,7 @@ ConsoleScope.def(
 			const code = ConsoleScope.var('*sketch*').value as string
 
 			// eslint-disable-next-line prefer-const
-			const {name, user, token} = MalMap.fromMalColl(...args).toJS() as {
+			const {name, user, token} = MalMap.fromMalSeq(...args).toJS() as {
 				name: string
 				user: string
 				token: string

@@ -101,13 +101,12 @@ export function generateExpAbsPath(exp: MalColl) {
 	return seek(exp, '')
 
 	function seek(exp: MalColl, path: string): string {
-		const outer = exp.parent
-		if (outer) {
-			if (isUIAnnotation(outer)) {
-				return seek(outer, path)
+		if (exp.parent) {
+			const {ref: parent, index} = exp.parent
+			if (isUIAnnotation(parent)) {
+				return seek(parent, path)
 			} else {
-				const index = exp[M_OUTER_INDEX]
-				return seek(outer, index + '/' + path)
+				return seek(parent, index + '/' + path)
 			}
 		} else {
 			return '/' + path
@@ -147,15 +146,14 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		}
 	}
 
-	const outer = original.parent
-	const index = original[M_OUTER_INDEX]
-
-	if (index === undefined || !isMalColl(outer)) {
+	if (!original.parent) {
 		// Is the root exp
 		return
 	}
 
-	const newOuter = outer.clone()
+	const {ref: parent, index} = original.parent
+
+	const newOuter = parent.clone()
 
 	// Set replaced as new child
 	if (isMalSeq(newOuter)) {
@@ -180,9 +178,9 @@ export function replaceExp(original: MalColl, replaced: MalVal) {
 		}
 	}
 
-	newOuter.delimiters = oute.delimiters
+	newOuter.delimiters = parent.delimiters ? [...parent.delimiters] : undefined
 
-	replaceExp(outer, newOuter)
+	replaceExp(parent, newOuter)
 }
 
 export function getUIAnnotationExp(exp: MalColl) {
