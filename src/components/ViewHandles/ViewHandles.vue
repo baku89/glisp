@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts">
-import {MalColl} from '@/mal/types'
+import {MalColl, MalNil} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
 import {useRem, useGesture, useResizeSensor} from '@/components/use'
 import {
@@ -248,8 +248,8 @@ export default defineComponent({
 		})
 
 		// Register app commands to ConsoleScope
-		AppScope.def('reset-viewport', () => {
-			if (!el.value) return null
+		AppScope.defn('reset-viewport', () => {
+			if (!el.value) return MalNil.create()
 
 			const {width, height} = el.value.getBoundingClientRect()
 
@@ -258,7 +258,7 @@ export default defineComponent({
 
 			context.emit('update:view-transform', xform)
 
-			return null
+			return MalNil.create()
 		})
 
 		// Hooks

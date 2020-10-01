@@ -4,7 +4,7 @@ import {
 	getFnInfo,
 	computeExpTransform,
 	getMapValue,
-	replaceExp,
+	replaceExp,, jsToMal
 } from '@/mal/utils'
 import {
 	MalSeq,
@@ -16,7 +16,7 @@ import {
 	MalList,
 } from '@/mal/types'
 import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
-import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
+// import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {vec2, mat2d} from 'gl-matrix'
 
 interface ClassList {
@@ -118,27 +118,33 @@ export default function useHandle(
 				return []
 			}
 
-			return handles.map((h: any) => {
-				const type = h.type as string
-				const guide = !!h.guide
-				const classList = ((h.class as string) || '')
-					.split(' ')
-					.filter(c => !!c)
-				const cls = {} as ClassList
-				for (const name of classList) {
-					cls[name] = true
+			return handles.value.map(h => {
+				if (!MalMap.is(h)) {
+					throw new Error('invalid handle')
 				}
+
+				const info = h.value
+
+				const type = info.type.value as string
+				const guide = !!info.guide.value
+
+				const cls = Object.fromEntries(
+					((info.class.value as string) || '')
+						.split(' ')
+						.filter(c => !!c)
+						.map(c => [c, true] as [string, true])
+				)
 
 				const xform = mat2d.clone(transform.value[index])
 				let yRotate = 0
 
 				if (POINTABLE_HANDLE_TYPES.has(type)) {
-					const [x, y] = h.pos
+					const [x, y] = info.pos.value
 					mat2d.translate(xform, xform, [x, y])
 				}
 
 				if (type === 'arrow') {
-					const angle = h.angle || 0
+					const angle = info.angle.value || 0
 					mat2d.rotate(xform, xform, angle)
 				} else if (type === 'dia') {
 					xform[0] = 1
@@ -248,8 +254,8 @@ export default function useHandle(
 
 		const eventInfo = MalMap.create({
 			id: handle.id === undefined ? MalNil.create() : handle.id,
-			pos: pos,
-			'prev-pos': prevPos,
+			pos: jsToMal(pos),
+			'prev-pos': jsToMal(prevPos),
 			params: _params,
 		})
 
