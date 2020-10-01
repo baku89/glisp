@@ -126,22 +126,20 @@ const Exports = [
 	],
 	[
 		'nth',
-		(a: MalVal[], i: number) => {
-			if (typeof i !== 'number') {
-				throw new MalError('[nth] Index should be specified by number')
-			} else if (i < 0) {
-				if (-i <= a.length) {
-					return a[a.length - i]
-				} else {
-					throw new MalError('[nth] index out of range')
-				}
-			} else {
-				if (i < a.length) {
-					return a[i]
-				} else {
-					throw new MalError('[nth] index out of range')
-				}
+		(a: MalVal[], index: MalNumber) => {
+			if (!MalNumber.is(i)) {
+				throw new MalError('index argument to nth must be a number')
 			}
+
+			const i = index.value
+
+			if (i < 0 && -i <= a.length) {
+				return a[a.length - i]
+			} else if (i < a.length) {
+				return a[i]
+			}
+
+			throw new MalError('index out of range')
 		},
 	],
 	[
@@ -239,8 +237,8 @@ const Exports = [
 	],
 	[
 		'join',
-		(separator: string, coll: MalVal[]) =>
-			MalString.create(coll.map(v => printExp(v, false)).join(separator)),
+		(separator: MalString, coll: MalVal[]) =>
+			MalString.create(coll.map(v => printExp(v, false)).join(separator.value)),
 	],
 
 	// Map
