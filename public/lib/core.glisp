@@ -1,613 +1,605 @@
 (import-js-force "core.js")
 
-; ;; Declare special forms as symbol
-; (def & '&)
-
-; ;; Declarations
-; (def defmacro
-;   ^{:doc "Defines a macro"
-;     :params [{:label "Symbol" :type "symbol"}
-;              {:label "Params" :type "any"}
-;              {:type "vector"
-;               :variadic true
-;               :items {:label "Body" :type "exp"}}]}
-;   (macro
-;    [name params & body]
-;    (do
-;      ;; Destruction of meta, param, body
-;      (def metadata nil)
-;      (if (false? (sequential? params))
-;        (do
-;          (def metadata params)
-;          (def params (first body))
-;          (def body (rest body))))
-;      ; Wrap with 'do if body has multiple lines
-;      (if (= 1 (count body))
-;        (def body (first body))
-;        (def body `(do ~@body)))
-;      (if (nil? metadata)
-;        `(def ~name (macro ~params ~body))
-;        `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
-
-; (defmacro defn
-;   {:doc "Defines a function"
-;    :params [{:label "Symbol" :type "symbol"}
-;             {:label "Params" :type "exp"}
-;             {:type "vector"
-;              :variadic true
-;              :items {:label "Body" :type "exp"}}]}
-;   [name params & body]
-;   ;; Destruction of meta, param, body
-;   (def metadata nil)
-;   (if (false? (sequential? params))
-;     (do
-;       (def metadata params)
-;       (def params (first body))
-;       (def body (rest body))))
-;   ;; Wrap with 'do if body has multiple lines
-;   (if (= 1 (count body))
-;     (def body (first body))
-;     (def body `(do ~@body)))
-
-;   (if (nil? metadata)
-;     `(def ~name (fn ~params ~body))
-;     `(def ~name (with-meta (fn ~params ~body) ~metadata))))
-
-; (defmacro defalias [alias original]
-;   `(do
-;      (def ~original (with-meta ~original
-;                       (assoc (meta ~original)
-;                              :alias ~(str alias))))
-;      (def ~alias (with-meta ~original
-;                    (assoc (meta ~original)
-;                           :alias-for ~(str original))))))
-
-; (defmacro annotate-fn! [sym meta]
-;   `(def ~sym (with-meta ~sym ~meta)))
-
-; (defmacro deftime
-;   {:doc "Defines a numeric variable with playback control"
-;    :params [{:label "Symbol" :type "symbol"}
-;             {:label "Time" :type "number"}
-;             {:type "map"
-;              :variadic true
-;              :items [{:key :start :type "number" :default 0}
-;                      {:key :duration :type "number" :default 1
-;                       :validator #(max 0 %)}
-;                      {:key :fps :label "FPS" :type "number" :default 0
-;                       :validator #(round (clamp 0 120 %))}]}]}
-;   [sym time & options]
-;   `(do
-;      (swap! *time-variables*
-;             conj `[~sym
-;                    ~(merge {:start 0
-;                             :duration 1
-;                             :fps 0}
-;                            (apply hash-map options))])
-;      (def ~sym ~time)))
-
-
-; (defn fn-meta [f]
-;   (def fm (meta f))
-;   (def alias (get fm :alias-for))
-;   (if alias
-;     (get alias :meta)
-;     fm))
-
-; (def import
-;   (try
-;     import
-;     (catch _
-;            (let [seen (atom (hash-map *filename* nil))]
-;              (fn [filename]
-;                (if (not (contains? @seen filename))
-;                  (do
-;                    (swap! seen assoc filename nil)
-;                    (import-force filename))))))))
-
-; (def type
-;   ^{:doc "Retruns the type of `x` in keyword"
-;     :params [{:label "Value" :type "any"}]
-;     :return {:type "keyword"}}
-;   type)
-
-; (defn name
-;   {:doc "Returns the string name of string, symbol or keyword"
-;    :params [{:type "any"}]
-;    :return {:type "string"}}
-;   [x]
-;   (cond (string? x) x
-;         (symbol? x) (str x) ;; Might be hacky too as below
-;         (keyword? x) (subs (str x) 1) ;; Might be hacky as it simply removes keyword prefix
-;         :else (do (prn x) (throw "Cannot get the name"))))
-
-; ;; Conditionals
-; (defmacro when
-;   {:doc "Evaluates test. If true, evaluates body in an implicit do"
-;    :params [{:type "exp"}
-;             {:type "exp"}]}
-;   [test & body]
-;   `(if ~test (do ~@body)))
-
-; (defmacro when-let
-;   {:doc "*bindings* => *binding-form* *test*  
-;          When *test* is true, evaluates *body* with *binding-form* bound to the value of *test*"
-;    :params [{:label "Bind" :type "exp"}
-;             {:type "vector"
-;              :variadic true
-;              :items {:type "exp"}}]}
-;   [[binding-form test] & body]
-;   (let [test-sym (gensym)]
-;     `(let [~test-sym ~test]
-;        (if ~test-sym
-;          (let [~binding-form ~test-sym]
-;            (do ~@body))))))
-
-; (defmacro if-let
-;   {:doc "*bindings* => *binding-form* *test*  
-;          If *test* is true, evaluates *then* with *bounding-form* bound to the value of *test*, if not, yields *else*"
-;    :params [{:label "Bind" :type "exp"}
-;             {:type "vector"
-;              :variadic true
-;              :items {:type "exp"}}]}
-;   [[binding-form test] then else]
-;   (let [test-sym (gensym)]
-;     `(let [~test-sym ~test]
-;        (if ~test-sym
-;          (let [~binding-form ~test-sym]
-;            ~then)
-;          ~else))))
-
-; (defmacro cond [& xs]
-;   (if (> (count xs) 0)
-;     (list
-;      'if
-;      (first xs)
-;      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
-;      `(cond ~@(rest (rest xs))))))
-
-; (defmacro if-not
-;   {:doc "Inverted version of *if*"
-;    :params [{:label "Test" :type "exp"}
-;             {:label "Else" :type "exp"}
-;             {:label "Then" :type "exp" :default nil}]}
-;   [test else & then]
-;   (if (zero? (count then))
-;     `(if ~test nil ~else)
-;     `(if ~test ~(first then) ~else)))
-
-; (defn column
-;   {:doc "Returns a vector of numbers from *from* to *to* (both inclusive) with each of element is multiplied by *step*"
-;    :params [{:label "From" :type "number" :desc "From" :validator #(round %)}
-;             {:label "To" :type "number" :desc "To" :validator #(round %)}
-;             {:label "Step" :type "number" :desc "Step"}]}
-;   [from to step]
-;   (vec (map #(* % step) (range from (inc to)))))
-
-; (def for
-;   ^{:doc "Make a iteration loop"
-;     :params [{:label "Binds" :type "exp"}
-;              {:type "vector"
-;               :variadic true
-;               :items {:label "Body" :type "exp"}}]}
-;   (let
-;    [destruct-binds
-;     (fn [binds]
-;       (let
-;        [pairs (partition 2 binds)
-;         entries (filter #(symbol? (first %)) pairs)
-;         options (->> pairs
-;                      (filter #(keyword? (first %)))
-;                      (apply concat)
-;                      (apply hash-map))]
-;         [entries options]))]
-
-;     (macro [binds & body]
-;            (let [[entries options] (destruct-binds binds)
-;                  syms (map first entries)
-;                  colls (map second entries)
-;                  gen-lst `(combination/product ~@colls)
-;                  index-sym (get options :index)]
-;              (if index-sym
-;                `(map-indexed (fn [~index-sym ~syms]
-;                                (do ~@body)) ~gen-lst)
-;                `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
-
-; (defmacro case
-;   {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
-;    :params [{:label "Value" :type "any"}
-;             {:type "vector"
-;              :variadic true
-;              :items {:label "Cond" :type "any"}}]}
-;   [val & xs]
-;   (if (> (count xs) 0)
-;     (if (= (count xs) 1)
-;       (first xs)
-;       (list
-;        'if
-;        `(= ~val ~(first xs))
-;        (nth xs 1)
-;        `(case ~val ~@(rest (rest xs)))))))
-
-; (defmacro or [& xs]
-;   (if (empty? xs)
-;     false
-;     `(if ~(first xs) ~(first xs) (or ~@(rest xs)))))
-
-; (defmacro and [& xs]
-;   (if (= (count xs) 1)
-;     (first xs)
-;     `(if ~(first xs) (and ~@(rest xs)) false)))
-
-; (defn not
-;   {:doc "Returns true if value is falsy, false otherwise"
-;    :params [{:type "boolean"}]
-;    :inverse (fn {:return ret} [(not ret)])
-;    :return {:type "boolean"}}
-;   [value] (if value false true))
-
-
-; ;; Functioal Language Features
-; (defn reduce
-;   {:doc "Executes a reducer function on each element of **coll**, resulting in single output value"
-;    :params [{:label "Reducer" :type "exp"}
-;             {:label "Initial" :type "any"}
-;             {:label "Coll" :type "any"}]}
-;   [f init coll]
-;   (if (empty? coll)
-;     init
-;     (reduce f (f init (first coll)) (rest coll))))
-
-; (defn reductions
-;   [f init coll]
-;   (rest (reduce (fn [c v] (conj c (f (last c) v)))
-;                 [init]
-;                 coll)))
-
-; (defn foldr
-;   {:doc "Executes a foldr function on each element of **coll**, resulting in single output value"
-;    :params [{:label "Foldr" :type "exp"}
-;             {:label "Initial" :type "any"}
-;             {:label "Coll" :type "any"}]}
-;   [f init coll]
-;   (if (empty? coll)
-;     init
-;     (f
-;      (first coll)
-;      (foldr f init (rest coll)))))
-
-; (defmacro ->> [expr & forms]
-;   (reduce
-;    (fn [v form] `(~@form ~v))
-;    expr
-;    forms))
-
-; (defmacro -> [expr & forms]
-;   (reduce
-;    (fn [v form] `(~(first form) ~v ~@(rest form)))
-;    expr
-;    forms))
-
-; (defmacro as-> [expr name & forms]
-;   (reduce
-;    (fn [prev-form form] `(let [~name ~prev-form] ~form))
-;    expr
-;    forms))
-
-; (defn mapcat [& xs]
-;   (apply concat (apply map xs)))
-
-
-; (defn match-elements [pred lst]
-;   (if (sequential? lst)
-;     (if (and (element? lst) (pred lst))
-;       ;; Match
-;       [lst]
-
-;       ;; Not match but sequence
-;       (remove nil? (mapcat #(match-elements pred %) lst)))))
-
-
-; ;; Trivial
-; (defn ui-annotate [info item]
-;   (if-not (get info :hidden false)
-;     item))
-
-; (defn glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
-
-; (defn identity [x] x)
-; (defn const
-;   {:params [{:type "any"}]}
-;   [x] x)
-; (defn spy [& xs] (do (apply prn xs) (first xs)))
-
-; (defn zero?
-;   {:doc "Returns true if x is equal to 0"}
-;   [x]
-;   (= x 0))
-; (defn pos? [x] (> x 0))
-; (defn neg? [x] (< x 0))
-; (defn odd? [x] (= (mod x 2) 1))
-; (defn even? [x] (= (mod x 2) 0))
-
-; (defn  pct
-;   {:doc "Maps the percentage value between 0-100 to normalized 0-1"
-;    :params [{:type "number"}]
-;    :return {:type "number"}
-;    :unit "%"
-;    :inverse (fn {:return ret} [(* ret 100)])}
-;   [value] (/ value 100))
-
-; (defn compare
-;   {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
-;    :params [{:type "number"}
-;             {:type "number"}]
-;    :return {:type "number"}}
-;   [x y]
-;   (cond (= x y) 0
-;         (> x y) 1
-;         (< x y) -1))
-
-; (defn inc
-;   {:params [{:type "number"}]
-;    :inverse (fn {:return ret} [(dec ret)])
-;    :return {:type "number"}}
-;   [x] (+ x 1))
-; (defn dec
-;   {:params [{:type "number"}]
-;    :inverse (fn {:return ret} [(inc ret)])
-;    :return {:type "number"}}
-;   [x] (- x 1))
-
-; (defn empty? [x] (= (count x) 0))
-
-; (defn second [x] (first (rest x)))
-
-; (def gensym
-;   (let [counter (atom 0)]
-;     #(symbol (str "G__" (swap! counter inc)))))
-
-; ;;  List 
-; (defn replace-nth [coll idx val]
-;   (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
-;     (cond (list? coll) ret
-;           (vector? coll) (vec ret))))
-
-; (defn insert-nth [coll idx val]
-;   (let [ret (concat (take idx coll) [val] (drop idx coll))]
-;     (cond (list? coll) ret
-;           (vector? coll) (vec ret))))
-
-; (defn take
-;   {:doc "Retruns a sequence of the first n items in coll"}
-;   [n coll]
-;   (slice coll 0 n))
-
-; (defn drop
-;   {:doc "Returns a sequence of all but the first n items in coll"}
-;   [n coll]
-;   (slice coll n))
-
-; (defn take-last
-;   {:doc "Returns a seq of the last n items in coll"}
-;   [n coll]
-;   (slice coll (- (count coll) n)))
-
-; (defn drop-last
-;   {:doc "Returns a sequence of all but the last n items in coll"}
-;   [n coll]
-;   (take (- (count coll) n) coll))
-
-; (defn drop-nth
-;   {:doc "Returns a sequence of all but the nth item in coll"}
-;   [n coll]
-;   (concat
-;    (take n coll)
-;    (drop (inc n) coll)))
-
-; ;; HashMap
-; (defn merge-hash-map [xs]
-;   (->> xs
-;        (map entries)
-;        (apply concat)
-;        (apply concat)
-;        (apply assoc {})))
-
-; ;; String
-; (defn ends-with?
-;   {:doc "True if *s* ends with substr"
-;    :params [{:type "string"}
-;             {:type "string"}]}
-;   [s substr]
-;   (= (subs s (- (count s) (count substr))) substr))
-
-; (defn starts-with?
-;   {:doc "True if *s* ends with substr"
-;    :params [{:type "string"}
-;             {:type "string"}]}
-;   [s substr]
-;   (= (subs s 0 (count substr)) substr))
-
-; ;; Annotate Repl Core Functions
-; (annotate-fn!
-;  prn
-;  {:doc "Prints the objects to the console"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Value" :type "any"}}]})
-
-; (annotate-fn!
-;  println
-;  {:doc "Prints the string with newline"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Text" :type "any"}}]})
-
-; ;; Annotate JS Functions
-; (annotate-fn!
-;  +
-;  {:doc "Returns the sum of nums"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
-;              (case (count xs)
-;                0 []
-;                1 [ret]
-;                {:replace [-1 (- ret (apply + (butlast xs)))]}))
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  -
-;  {:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
-;              (case (count xs)
-;                0 []
-;                1 [(- ret)]
-;                {:replace [-1 (- (first xs)
-;                                 (apply + (slice xs 1 -1))
-;                                 ret)]}))
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  *
-;  {:doc "Returns the product of nums"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
-;              (case (count xs)
-;                0 []
-;                1 [ret]
-;                {:replace [-1 (/ ret (apply * (butlast xs)))]}))
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  /
-;  {:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
-;   :params [{:type "vector"
-;             :variadic true
-;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
-;              (case (count xs)
-;                0 []
-;                1 [(/ ret)]
-;                {:replace [-1 (/ (first xs)
-;                                 (apply * (slice xs 1 -1)) ret)]}))
-;   :retruns {:type "number"}})
-
-; (annotate-fn!
-;  mod
-;  {:doc "Modulus of num and div. Truncates toward negative infinity"
-;   :params [{:label "Number" :type "number"}
-;            {:label "Divisor" :type "number"}]
-;   :return {:type "number"}
-;   :inverse (fn {:return ret :params [a b]}
-;              {:replace [0 (mod ret b)]})})
-
-; (annotate-fn!
-;  abs
-;  {:doc "Returns the absolute value of a *number*"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret :params [x]}
-;              (if (zero? x)
-;                ret
-;                (* (sign x) ret)))
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  floor
-;  {:doc "Returns the largest integer less than or equal to a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(floor ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  ceil
-;  {:doc "Returns the next largest integer more than or equal to a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(ceil ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  pow
-;  {:doc "Retruns the `base` to the `exponent` power"
-;   :params [{:label "Base" :type "number"}
-;            {:label "Exponent" :type "number"}]
-;   :inverse (fn {:return ret :params [base exponent]}
-;              {:replace [1 (spy (/ (log ret) (log base)))]})
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  round
-;  {:doc "Returns the value of a number rounded to the nearest integer"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(round ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  sqrt
-;  {:doc "Returns the square root of a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(* ret ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  range
-;  {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
-;   :params {:type "dynamic"
-;            :to-schema
-;            (fn [{:params xs}]
-;              (let [[start end step] (case (count xs)
-;                                       1 [0 (first xs) 1]
-;                                       2 [(first xs) (second xs) 1]
-;                                       3 xs)]
-;                [{:label "Start" :type "number" :value start :default 0}
-;                 {:label "End" :type "number" :value end}
-;                 {:label "Step" :type "number" :value step :default 1}]))
-;            :to-params
-;            (fn {:values [start end step]}
-;              (cond
-;                (and (= 0 start) (= 1 step)) [end]
-;                (= 1 step) [start end]
-;                :else [start end step]))}
-;   :return {:type "vector"}})
-
-; (annotate-fn!
-;   nth
-;   {:doc "Returns the value at the *index*"
-;  :params [{:label "Collection" :type "exp" :initial []}
-;           {:label "Index" :type "number" :validator round}]
-;  :inverse (fn {:return ret :params [coll i]}
-;             [(replace-nth coll i ret) i])})
-
-; (annotate-fn!
-;  merge
-;  {:doc
-;   "Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result"
-;   :params [& {:label "Map" :type "map"}]})
-
-; (annotate-fn!
-;  rnd
-;  {:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
-;   :params [{:label "Seed" :type "number" :ui "seed"}]
-;   :return {:type "number"}})
-
-; (annotate-fn!
-;  swap!
-;  {:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
-;   :params [{:label "Atom" :type "atom"}
-;            {:label "Fn" :type "fn"}
-;            {:type "vector"
-;             :variadic true
-;             :items {:label "Params" :type "exp"}}]})
-
-; ;; Load other cores
-; (import "ui.glisp")
-; (import "color.glisp")
-; (import "graphics.glisp")
-; (import "math.glisp")
-; (import "path.glisp")
+;; Declare special forms as symbol
+(def & '&)
+
+;; Declarations
+(def defmacro
+  ^{:doc "Defines a macro"
+    :params [{:label "Symbol" :type "symbol"}
+             {:label "Params" :type "any"}
+             {:type "vector"
+              :variadic true
+              :items {:label "Body" :type "exp"}}]}
+  (macro
+   [name params & body]
+   (do
+     ;; Destruction of meta, param, body
+     (def metadata nil)
+     (if (false? (sequential? params))
+       (do
+         (def metadata params)
+         (def params (first body))
+         (def body (rest body))))
+     ; Wrap with 'do if body has multiple lines
+     (if (= 1 (count body))
+       (def body (first body))
+       (def body `(do ~@body)))
+     (if (nil? metadata)
+       `(def ~name (macro ~params ~body))
+       `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
+
+(defmacro defn
+  {:doc "Defines a function"
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Params" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]}
+  [name params & body]
+  ;; Destruction of meta, param, body
+  (def metadata nil)
+  (if (false? (sequential? params))
+    (do
+      (def metadata params)
+      (def params (first body))
+      (def body (rest body))))
+  ;; Wrap with 'do if body has multiple lines
+  (if (= 1 (count body))
+    (def body (first body))
+    (def body `(do ~@body)))
+
+  (if (nil? metadata)
+    `(def ~name (fn ~params ~body))
+    `(def ~name (with-meta (fn ~params ~body) ~metadata))))
+
+(defmacro defalias [alias original]
+  `(do
+     (def ~original (with-meta ~original
+                      (assoc (meta ~original)
+                             :alias ~(str alias))))
+     (def ~alias (with-meta ~original
+                   (assoc (meta ~original)
+                          :alias-for ~(str original))))))
+
+(defmacro annotate-fn! [sym meta]
+  `(def ~sym (with-meta ~sym ~meta)))
+
+(defmacro deftime
+  {:doc "Defines a numeric variable with playback control"
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Time" :type "number"}
+            {:type "map"
+             :variadic true
+             :items [{:key :start :type "number" :default 0}
+                     {:key :duration :type "number" :default 1
+                      :validator #(max 0 %)}
+                     {:key :fps :label "FPS" :type "number" :default 0
+                      :validator #(round (clamp 0 120 %))}]}]}
+  [sym time & options]
+  `(do
+     (swap! *time-variables*
+            conj `[~sym
+                   ~(merge {:start 0
+                            :duration 1
+                            :fps 0}
+                           (apply hash-map options))])
+     (def ~sym ~time)))
+
+
+(defn fn-meta [f]
+  (def fm (meta f))
+  (def alias (get fm :alias-for))
+  (if alias
+    (get alias :meta)
+    fm))
+
+(def import
+  (try
+    import
+    (catch _
+           (let [seen (atom (hash-map *filename* nil))]
+             (fn [filename]
+               (if (not (contains? @seen filename))
+                 (do
+                   (swap! seen assoc filename nil)
+                   (import-force filename))))))))
+
+(def type
+  ^{:doc "Retruns the type of `x` in keyword"
+    :params [{:label "Value" :type "any"}]
+    :return {:type "keyword"}}
+  type)
+
+(defn name
+  {:doc "Returns the string name of string, symbol or keyword"
+   :params [{:type "any"}]
+   :return {:type "string"}}
+  [x]
+  (cond (string? x) x
+        (symbol? x) (str x) ;; Might be hacky too as below
+        (keyword? x) (subs (str x) 1) ;; Might be hacky as it simply removes keyword prefix
+        :else (do (prn x) (throw "Cannot get the name"))))
+
+;; Conditionals
+(defmacro when
+  {:doc "Evaluates test. If true, evaluates body in an implicit do"
+   :params [{:type "exp"}
+            {:type "exp"}]}
+  [test & body]
+  `(if ~test (do ~@body)))
+
+(defmacro when-let
+  {:doc "*bindings* => *binding-form* *test*  
+         When *test* is true, evaluates *body* with *binding-form* bound to the value of *test*"
+   :params [{:label "Bind" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:type "exp"}}]}
+  [[binding-form test] & body]
+  (let [test-sym (gensym)]
+    `(let [~test-sym ~test]
+       (if ~test-sym
+         (let [~binding-form ~test-sym]
+           (do ~@body))))))
+
+(defmacro if-let
+  {:doc "*bindings* => *binding-form* *test*  
+         If *test* is true, evaluates *then* with *bounding-form* bound to the value of *test*, if not, yields *else*"
+   :params [{:label "Bind" :type "exp"}
+            {:type "vector"
+             :variadic true
+             :items {:type "exp"}}]}
+  [[binding-form test] then else]
+  (let [test-sym (gensym)]
+    `(let [~test-sym ~test]
+       (if ~test-sym
+         (let [~binding-form ~test-sym]
+           ~then)
+         ~else))))
+
+(defmacro cond [& xs]
+  (if (> (count xs) 0)
+    (list
+     'if
+     (first xs)
+     (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
+     `(cond ~@(rest (rest xs))))))
+
+(defmacro if-not
+  {:doc "Inverted version of *if*"
+   :params [{:label "Test" :type "exp"}
+            {:label "Else" :type "exp"}
+            {:label "Then" :type "exp" :default nil}]}
+  [test else & then]
+  (if (zero? (count then))
+    `(if ~test nil ~else)
+    `(if ~test ~(first then) ~else)))
+
+(defn column
+  {:doc "Returns a vector of numbers from *from* to *to* (both inclusive) with each of element is multiplied by *step*"
+   :params [{:label "From" :type "number" :desc "From" :validator #(round %)}
+            {:label "To" :type "number" :desc "To" :validator #(round %)}
+            {:label "Step" :type "number" :desc "Step"}]}
+  [from to step]
+  (vec (map #(* % step) (range from (inc to)))))
+
+(def for
+  ^{:doc "Make a iteration loop"
+    :params [{:label "Binds" :type "exp"}
+             {:type "vector"
+              :variadic true
+              :items {:label "Body" :type "exp"}}]}
+  (let
+   [destruct-binds
+    (fn [binds]
+      (let
+       [pairs (partition 2 binds)
+        entries (filter #(symbol? (first %)) pairs)
+        options (->> pairs
+                     (filter #(keyword? (first %)))
+                     (apply concat)
+                     (apply hash-map))]
+        [entries options]))]
+
+    (macro [binds & body]
+           (let [[entries options] (destruct-binds binds)
+                 syms (map first entries)
+                 colls (map second entries)
+                 gen-lst `(combination/product ~@colls)
+                 index-sym (get options :index)]
+             (if index-sym
+               `(map-indexed (fn [~index-sym ~syms]
+                               (do ~@body)) ~gen-lst)
+               `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
+
+(defmacro case
+  {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
+   :params [{:label "Value" :type "any"}
+            {:type "vector"
+             :variadic true
+             :items {:label "Cond" :type "any"}}]}
+  [val & xs]
+  (if (> (count xs) 0)
+    (if (= (count xs) 1)
+      (first xs)
+      (list
+       'if
+       `(= ~val ~(first xs))
+       (nth xs 1)
+       `(case ~val ~@(rest (rest xs)))))))
+
+(defmacro or [& xs]
+  (if (empty? xs)
+    false
+    `(if ~(first xs) ~(first xs) (or ~@(rest xs)))))
+
+(defmacro and [& xs]
+  (if (= (count xs) 1)
+    (first xs)
+    `(if ~(first xs) (and ~@(rest xs)) false)))
+
+(defn not
+  {:doc "Returns true if value is falsy, false otherwise"
+   :params [{:type "boolean"}]
+   :inverse (fn {:return ret} [(not ret)])
+   :return {:type "boolean"}}
+  [value] (if value false true))
+
+
+;; Functioal Language Features
+(defn reduce
+  {:doc "Executes a reducer function on each element of **coll**, resulting in single output value"
+   :params [{:label "Reducer" :type "exp"}
+            {:label "Initial" :type "any"}
+            {:label "Coll" :type "any"}]}
+  [f init coll]
+  (if (empty? coll)
+    init
+    (reduce f (f init (first coll)) (rest coll))))
+
+(defn reductions
+  [f init coll]
+  (rest (reduce (fn [c v] (conj c (f (last c) v)))
+                [init]
+                coll)))
+
+(defn foldr
+  {:doc "Executes a foldr function on each element of **coll**, resulting in single output value"
+   :params [{:label "Foldr" :type "exp"}
+            {:label "Initial" :type "any"}
+            {:label "Coll" :type "any"}]}
+  [f init coll]
+  (if (empty? coll)
+    init
+    (f
+     (first coll)
+     (foldr f init (rest coll)))))
+
+(defmacro ->> [expr & forms]
+  (reduce
+   (fn [v form] `(~@form ~v))
+   expr
+   forms))
+
+(defmacro -> [expr & forms]
+  (reduce
+   (fn [v form] `(~(first form) ~v ~@(rest form)))
+   expr
+   forms))
+
+(defmacro as-> [expr name & forms]
+  (reduce
+   (fn [prev-form form] `(let [~name ~prev-form] ~form))
+   expr
+   forms))
+
+(defn mapcat [& xs]
+  (apply concat (apply map xs)))
+
+
+(defn match-elements [pred lst]
+  (if (sequential? lst)
+    (if (and (element? lst) (pred lst))
+      ;; Match
+      [lst]
+
+      ;; Not match but sequence
+      (remove nil? (mapcat #(match-elements pred %) lst)))))
+
+
+;; Trivial
+(defn ui-annotate [info item]
+  (if-not (get info :hidden false)
+    item))
+
+(defn glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
+
+(defn identity [x] x)
+(defn const
+  {:params [{:type "any"}]}
+  [x] x)
+(defn spy [& xs] (do (apply prn xs) (first xs)))
+
+(defn zero?
+  {:doc "Returns true if x is equal to 0"}
+  [x]
+  (= x 0))
+(defn pos? [x] (> x 0))
+(defn neg? [x] (< x 0))
+(defn odd? [x] (= (mod x 2) 1))
+(defn even? [x] (= (mod x 2) 0))
+
+(defn compare
+  {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
+   :params [{:type "number"}
+            {:type "number"}]
+   :return {:type "number"}}
+  [x y]
+  (cond (= x y) 0
+        (> x y) 1
+        (< x y) -1))
+
+(defn inc
+  {:params [{:type "number"}]
+   :inverse (fn {:return ret} [(dec ret)])
+   :return {:type "number"}}
+  [x] (+ x 1))
+(defn dec
+  {:params [{:type "number"}]
+   :inverse (fn {:return ret} [(inc ret)])
+   :return {:type "number"}}
+  [x] (- x 1))
+
+(defn empty? [x] (= (count x) 0))
+
+(defn second [x] (first (rest x)))
+
+(def gensym
+  (let [counter (atom 0)]
+    #(symbol (str "G__" (swap! counter inc)))))
+
+;;  List 
+(defn replace-nth [coll idx val]
+  (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
+    (cond (list? coll) ret
+          (vector? coll) (vec ret))))
+
+(defn insert-nth [coll idx val]
+  (let [ret (concat (take idx coll) [val] (drop idx coll))]
+    (cond (list? coll) ret
+          (vector? coll) (vec ret))))
+
+(defn take
+  {:doc "Retruns a sequence of the first n items in coll"}
+  [n coll]
+  (slice coll 0 n))
+
+(defn drop
+  {:doc "Returns a sequence of all but the first n items in coll"}
+  [n coll]
+  (slice coll n))
+
+(defn take-last
+  {:doc "Returns a seq of the last n items in coll"}
+  [n coll]
+  (slice coll (- (count coll) n)))
+
+(defn drop-last
+  {:doc "Returns a sequence of all but the last n items in coll"}
+  [n coll]
+  (take (- (count coll) n) coll))
+
+(defn drop-nth
+  {:doc "Returns a sequence of all but the nth item in coll"}
+  [n coll]
+  (concat
+   (take n coll)
+   (drop (inc n) coll)))
+
+;; HashMap
+(defn merge-hash-map [xs]
+  (->> xs
+       (map entries)
+       (apply concat)
+       (apply concat)
+       (apply assoc {})))
+
+;; String
+(defn ends-with?
+  {:doc "True if *s* ends with substr"
+   :params [{:type "string"}
+            {:type "string"}]}
+  [s substr]
+  (= (subs s (- (count s) (count substr))) substr))
+
+(defn starts-with?
+  {:doc "True if *s* ends with substr"
+   :params [{:type "string"}
+            {:type "string"}]}
+  [s substr]
+  (= (subs s 0 (count substr)) substr))
+
+;; Annotate Repl Core Functions
+(annotate-fn!
+ prn
+ {:doc "Prints the objects to the console"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Value" :type "any"}}]})
+
+(annotate-fn!
+ println
+ {:doc "Prints the string with newline"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Text" :type "any"}}]})
+
+;; Annotate JS Functions
+(annotate-fn!
+ +
+ {:doc "Returns the sum of nums"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [ret]
+               {:replace [-1 (- ret (apply + (butlast xs)))]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ -
+ {:doc "If multiple `xs` are supplied, substracts the rest of `xs` from the first one, else returns the negation of x"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [(- ret)]
+               {:replace [-1 (- (first xs)
+                                (apply + (slice xs 1 -1))
+                                ret)]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ *
+ {:doc "Returns the product of nums"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [ret]
+               {:replace [-1 (/ ret (apply * (butlast xs)))]}))
+  :return {:type "number"}})
+
+(annotate-fn!
+ /
+ {:doc "If multiple `xs` are supplied, returns numerator divided by the rest of `xs`, else returns reciprocal number"
+  :params [{:type "vector"
+            :variadic true
+            :items {:label "Number" :type "number"}}]
+  :inverse (fn {:return ret :params xs}
+             (case (count xs)
+               0 []
+               1 [(/ ret)]
+               {:replace [-1 (/ (first xs)
+                                (apply * (slice xs 1 -1)) ret)]}))
+  :retruns {:type "number"}})
+
+(annotate-fn!
+ mod
+ {:doc "Modulus of num and div. Truncates toward negative infinity"
+  :params [{:label "Number" :type "number"}
+           {:label "Divisor" :type "number"}]
+  :return {:type "number"}
+  :inverse (fn {:return ret :params [a b]}
+             {:replace [0 (mod ret b)]})})
+
+(annotate-fn!
+ abs
+ {:doc "Returns the absolute value of a *number*"
+  :params [{:label "Number" :type "number"}]
+  :inverse (fn {:return ret :params [x]}
+             (if (zero? x)
+               ret
+               (* (sign x) ret)))
+  :return {:type "number"}})
+
+(annotate-fn!
+ floor
+ {:doc "Returns the largest integer less than or equal to a number"
+  :params [{:label "Number" :type "number"}]
+  :inverse (fn {:return ret} [(floor ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ ceil
+ {:doc "Returns the next largest integer more than or equal to a number"
+  :params [{:label "Number" :type "number"}]
+  :inverse (fn {:return ret} [(ceil ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ pow
+ {:doc "Retruns the `base` to the `exponent` power"
+  :params [{:label "Base" :type "number"}
+           {:label "Exponent" :type "number"}]
+  :inverse (fn {:return ret :params [base exponent]}
+             {:replace [1 (spy (/ (log ret) (log base)))]})
+  :return {:type "number"}})
+
+(annotate-fn!
+ round
+ {:doc "Returns the value of a number rounded to the nearest integer"
+  :params [{:label "Number" :type "number"}]
+  :inverse (fn {:return ret} [(round ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ sqrt
+ {:doc "Returns the square root of a number"
+  :params [{:label "Number" :type "number"}]
+  :inverse (fn {:return ret} [(* ret ret)])
+  :return {:type "number"}})
+
+(annotate-fn!
+ range
+ {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
+  :params {:type "dynamic"
+           :to-schema
+           (fn [{:params xs}]
+             (let [[start end step] (case (count xs)
+                                      1 [0 (first xs) 1]
+                                      2 [(first xs) (second xs) 1]
+                                      3 xs)]
+               [{:label "Start" :type "number" :value start :default 0}
+                {:label "End" :type "number" :value end}
+                {:label "Step" :type "number" :value step :default 1}]))
+           :to-params
+           (fn {:values [start end step]}
+             (cond
+               (and (= 0 start) (= 1 step)) [end]
+               (= 1 step) [start end]
+               :else [start end step]))}
+  :return {:type "vector"}})
+
+(annotate-fn!
+ nth
+ {:doc "Returns the value at the *index*"
+  :params [{:label "Collection" :type "exp" :initial []}
+           {:label "Index" :type "number" :validator round}]
+  :inverse (fn {:return ret :params [coll i]}
+             [(replace-nth coll i ret) i])})
+
+(annotate-fn!
+ merge
+ {:doc
+  "Returns a merged map. If a key occurs in more than one map, the mapping from the latter will be mapping in the result"
+  :params [& {:label "Map" :type "map"}]})
+
+(annotate-fn!
+ rnd
+ {:doc "Returns a random number between 0-1. Unlike *random*, always returns same value for same *seed*"
+  :params [{:label "Seed" :type "number" :ui "seed"}]
+  :return {:type "number"}})
+
+(annotate-fn!
+ swap!
+ {:doc "Atomically swaps the value of atom to be: `(apply f current-value-of-atom args)`"
+  :params [{:label "Atom" :type "atom"}
+           {:label "Fn" :type "fn"}
+           {:type "vector"
+            :variadic true
+            :items {:label "Params" :type "exp"}}]})
+
+;; Load other cores
+;; (import "ui.glisp")
+;; (import "color.glisp")
+;; (import "graphics.glisp")
+;; (import "math.glisp")
+;; (import "path.glisp")

@@ -4,6 +4,14 @@
 (def HALF_PI (/ PI 2))
 (def QUARTER_PI (/ PI 4))
 
+(defn  pct
+  {:doc "Maps the percentage value between 0-100 to normalized 0-1"
+   :params [{:type "number"}]
+   :return {:type "number"}
+   :unit "%"
+   :inverse (fn {:return ret} [(* ret 100)])}
+  [value] (/ value 100))
+
 (defn clamp01
   {:doc "Clamp the value between 0-1"
    :params [{:label "Value" :type "number"}]
