@@ -1,4 +1,5 @@
 import readlineSync from 'readline-sync'
+import chalk from 'chalk'
 import Scope from './mal/scope'
 import {jsToMal} from './mal/reader'
 
@@ -13,10 +14,19 @@ if (typeof process !== 'undefined' && 2 < process.argv.length) {
 	process.exit(0)
 }
 
-// replScope.REP(`(str "Glisp [" *host-language* "]")`)
+replScope.REP(`(str "Glisp [" *host-language* "]")`)
+
+readlineSync.setDefaultOptions({
+	prompt: {
+		// Simple Object that has toString method.
+		toString: function () {
+			return chalk.green('glisp> ')
+		},
+	},
+})
 
 for (;;) {
-	const line = readlineSync.question('glisp> ')
+	const line = readlineSync.prompt()
 	if (line == null) {
 		break
 	}
