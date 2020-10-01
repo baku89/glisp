@@ -248,7 +248,7 @@ export class MalList extends MalVal {
 
 	private _delimiters: string[] | undefined
 	public str: string | undefined
-	public isSugar: boolean = false
+	public isSugar = false
 
 	private _evaluated: MalVal | undefined = undefined
 

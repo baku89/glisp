@@ -16,8 +16,8 @@
 		"postinstall": "electron-builder install-app-deps",
 		"postuninstall": "electron-builder install-app-deps",
 		"repl": "node ./repl/index.js",
-		"repl:build": "webpack --config webpack.repl.config.js",
-		"repl:serve": "webpack --config webpack.repl.config.js --watch"
+		"repl:build": "vue-cli-service build --config repl.config.js",
+		"repl:serve": "vue-cli-service serve --config repl.config.js"
 	},
 	"main": "background.js",
 	"dependencies": {

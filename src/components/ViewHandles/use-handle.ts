@@ -50,7 +50,7 @@ export default function useHandle(
 	const handleCallbacks = computed(() =>
 		fnInfo.value.map(fi => {
 			if (fi?.meta) {
-				const ret = getExpByPath<MalMap>(fi.meta, 'handles', MalType.Map)
+				const ret = getExpByPath(fi.meta, 'handles', MalType.Map)
 				return ret || null
 			} else {
 				return null

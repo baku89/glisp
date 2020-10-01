@@ -10,7 +10,6 @@ import {
 	MalFunc,
 	MalVector,
 	MalString,
-	MalNumber,
 } from './types'
 import {getStructType, jsToMal} from './utils'
 

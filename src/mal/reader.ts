@@ -122,7 +122,7 @@ function readAtom(reader: Reader) {
 function readColl(reader: Reader, start = '[', end = ']') {
 	const coll: MalVal[] = []
 
-	let delimiters: string[] = []
+	const delimiters: string[] = []
 
 	let token = reader.next()
 
@@ -180,7 +180,7 @@ function readForm(reader: Reader): any {
 	let val: MalVal
 
 	// For syntaxtic sugars
-	const startIdx = reader.index
+	// const startIdx = reader.index
 
 	// Set offset array value if the form is syntaxic sugar.
 	// the offset array is like [<end of arg0>, <start of arg1>]

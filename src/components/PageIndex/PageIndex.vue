@@ -126,8 +126,6 @@ import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {
 	replaceExp,
-	watchExpOnReplace,
-	unwatchExpOnReplace,
 	generateExpAbsPath,
 	getExpByPath,
 	reconstructTree,
@@ -272,14 +270,12 @@ export default defineComponent({
 
 		// Exp
 		function updateExp(exp: MalColl, pushHistory = true) {
-			unwatchExpOnReplace(data.exp, onReplaced)
 			if (pushHistory) {
 				pushExpHistory(exp)
 			}
 			// NOTE: might be redundant
 			reconstructTree(exp)
 			data.exp = exp
-			watchExpOnReplace(exp, onReplaced)
 
 			function onReplaced(newExp: MalVal) {
 				if (!isMalColl(newExp)) {

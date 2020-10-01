@@ -126,16 +126,16 @@ export function getExpByPath(
 
 	return find(base, keys)
 
-	function find(exp: MalVal, keys: number[]): T | null {
+	function find(exp: MalVal, keys: number[]): MalVal | null {
 		const [index, ...rest] = keys
 
 		const expBody = getUIBodyExp(exp)
 
 		if (keys.length === 0) {
 			if (type) {
-				return expBody.type === type ? (expBody as T) : null
+				return expBody.type === type ? expBody : null
 			} else {
-				return expBody as T
+				return expBody
 			}
 		}
 
@@ -286,7 +286,7 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 			const meta = original.fn.evaluated.meta
 			if (!meta) return
 
-			const inverseFn = getExpByPath<MalFunc>(meta, 'inverse', MalType.Func)
+			const inverseFn = getExpByPath(meta, 'inverse', MalType.Func)
 			if (inverseFn === null) return
 
 			const fn = original.fn
@@ -409,11 +409,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		}
 
 		const meta = node.value[0].evaluated.meta
-		const viewportFn = getExpByPath<MalFunc>(
-			meta,
-			'viewport-transform',
-			MalType.Func
-		)
+		const viewportFn = getExpByPath(meta, 'viewport-transform', MalType.Func)
 
 		if (!viewportFn) {
 			continue

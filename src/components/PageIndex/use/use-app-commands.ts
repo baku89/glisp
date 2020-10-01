@@ -17,7 +17,6 @@ import {
 } from '@/mal/types'
 import {
 	getFnInfo,
-	applyParamModifier,
 	copyDelimiters,
 	replaceExp,
 	getUIParent,
@@ -81,9 +80,9 @@ export default function useAppCommands(
 	// 		const fn = ViewScope.var(exp.value)
 	// 		const meta = fn.meta
 	// 		const returnType =
-	// 			getExpByPath<MalString>(meta, 'return/type', MalType.String)?.value ||
+	// 			getExpByPath(meta, 'return/type', MalType.String)?.value ||
 	// 			''
-	// 		const initialParams = getExpByPath<MalVector>(
+	// 		const initialParams = getExpByPath(
 	// 			meta,
 	// 			'initial-params',
 	// 			MalType.Vector
