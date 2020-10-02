@@ -35,7 +35,7 @@ class Reader {
 
 	public peek(pos = this._index) {
 		const token = this.tokens[pos]
-		return token[0]
+		return token ? token[0] : ''
 	}
 
 	public get index() {
