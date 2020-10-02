@@ -20,6 +20,7 @@
 		"repl:build": "webpack --config repl.config.js --mode=production"
 	},
 	"main": "background.js",
+	"license": "MIT",
 	"dependencies": {
 		"docsify": "^4.11.6",
 		"vue": "^3.0.0"
