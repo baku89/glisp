@@ -70,8 +70,7 @@ export default class Scope {
 
 		let filename: string
 		if (isNodeJS) {
-			// NOTE: This should be fixed
-			filename = '/Users/baku/Sites/glisp/repl/index.js'
+			filename = __filename
 		} else {
 			filename = new URL('.', document.baseURI).href
 		}
@@ -92,6 +91,7 @@ export default class Scope {
 		// Load core library as default
 		this.readEval('(import-force "./lib/core.glisp")')
 
+		// Set the current filename to pwd
 		if (isNodeJS) {
 			this.def('*filename*', MalString.create(process.cwd()))
 		}
