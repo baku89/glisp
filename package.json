@@ -16,8 +16,8 @@
 		"postinstall": "electron-builder install-app-deps",
 		"postuninstall": "electron-builder install-app-deps",
 		"repl": "node --enable-source-maps ./repl/index.js ",
-		"repl:serve": "webpack --config repl.config.js --watch",
-		"repl:build": "webpack --config repl.config.js"
+		"repl:serve": "webpack --config repl.config.js --watch --mode=development",
+		"repl:build": "webpack --config repl.config.js --mode=production"
 	},
 	"main": "background.js",
 	"dependencies": {

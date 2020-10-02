@@ -14,7 +14,6 @@ module.exports = {
 		// 'lib/path': './src/mal-lib/path.ts',
 		// 'lib/math': './src/mal-lib/math.ts',
 	},
-	mode: 'development',
 	devtool: ' source-map',
 	resolve: {
 		alias: {
