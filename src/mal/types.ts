@@ -31,8 +31,8 @@ export type MalConvertable =
 	| {[key: string]: MalConvertable}
 
 export abstract class MalVal {
-	parent: {ref: MalColl; index: number} | undefined = undefined
-	protected _meta: MalMap | MalNil | undefined = undefined
+	parent: {ref: MalColl; index: number} | undefined
+	protected _meta: MalMap | MalNil | undefined
 
 	get meta(): MalMap | MalNil {
 		return this._meta ? this._meta : (this._meta = MalNil.create())
@@ -242,7 +242,7 @@ export class MalList extends MalVal {
 	public str: string | undefined
 	public isSugar = false
 
-	private _evaluated: MalVal | undefined = undefined
+	private _evaluated: MalVal | undefined
 
 	constructor(public readonly value: MalVal[]) {
 		super()
@@ -334,9 +334,9 @@ export class MalList extends MalVal {
 export class MalVector extends MalVal {
 	readonly type: MalType.Vector = MalType.Vector
 
-	private _delimiters: string[] | undefined = undefined
-	public str: string | undefined = undefined
-	private _evaluated: MalVector | undefined = undefined
+	private _delimiters: string[] | undefined
+	public str: string | undefined
+	private _evaluated: MalVector | undefined
 
 	constructor(public readonly value: MalVal[]) {
 		super()
@@ -422,9 +422,9 @@ export class MalVector extends MalVal {
 export class MalMap extends MalVal {
 	readonly type: MalType.Map = MalType.Map
 
-	private _delimiters: string[] | undefined = undefined
-	public str: string | undefined = undefined
-	public _evaluated: MalMap | undefined = undefined
+	private _delimiters: string[] | undefined
+	public str: string | undefined
+	public _evaluated: MalMap | undefined
 
 	constructor(readonly value: {[key: string]: MalVal}) {
 		super()
