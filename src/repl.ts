@@ -25,17 +25,12 @@ readlineSync.setDefaultOptions({
 	},
 })
 
-for (;;) {
-	const line = readlineSync.prompt()
-	if (line == null) {
-		break
-	}
-	if (line === '') {
-		continue
-	}
+readlineSync.promptLoop((line) => {
 	try {
 		replScope.REP(line)
 	} catch (e) {
 		console.error('Error:', e)
 	}
-}
+
+	return false
+})
