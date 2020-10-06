@@ -24,9 +24,6 @@ export const slurp = (() => {
 	} else {
 		return (url: string) => {
 			const req = new XMLHttpRequest()
-			// const hashedUrl =
-			// 	url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
-			// req.open('GET', hashedUrl, false)
 			req.open('GET', url, false)
 			req.send()
 			if (req.status !== 200) {
