@@ -18,7 +18,10 @@ import GIF from 'gif.js'
 import ViewScope, {createViewScope} from './view'
 import renderToSvg from '@/renderer/render-to-svg'
 import getRendereredImage from '@/renderer/get-rendererd-image'
-import {jsToMal} from '@/mal/utils'
+import {jsToMal} from '@/mal/reader'
+
+
+
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 

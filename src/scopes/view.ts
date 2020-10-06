@@ -2,13 +2,13 @@ import {MalFunc, MalNil} from '@/mal/types'
 import AppScope from './app'
 import Scope from '@/mal/scope'
 import Env from '@/mal/env'
-import {jsToMal} from '@/mal/utils'
+import {jsToMal} from '@/mal/reader'
 
 interface ViewScopeOption {
 	guideColor: string | null
 }
 
-function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
+function onSetup(scope: Scope, option: ViewScopeOption) {
 	const {guideColor} = option
 
 	const env = new Env()
@@ -27,7 +27,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 }
 
 export function createViewScope() {
-	return new Scope<ViewScopeOption>(AppScope, 'view', onSetup)
+	return new Scope(AppScope, 'view', onSetup)
 }
 
 export default createViewScope()

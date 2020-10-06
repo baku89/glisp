@@ -11,7 +11,8 @@ import {
 	MalVector,
 	MalString,
 } from './types'
-import {getStructType, jsToMal} from './utils'
+import {getStructType} from './utils'
+import {jsToMal} from './reader'
 
 interface SchemaBase {
 	type: string

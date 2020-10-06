@@ -37,7 +37,7 @@ function quasiquote(exp: MalVal): MalVal {
 	const ret = MalList.create(
 		MalSymbol.create('concat'),
 		...exp.value.map(e => {
-			if (isPair(e) && MalSymbol.isFor(e.value[0], 'splice-unquote')) {
+			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.value[1]
 			} else {
 				return quasiquote(e)

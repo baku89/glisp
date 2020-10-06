@@ -237,8 +237,7 @@ const Exports = [
 	],
 	[
 		'concat',
-		(...xs: MalVal[]) =>
-			MalVector.create(...[].concat(...(xs.filter(v => v !== null) as any[]))),
+		(...xs: MalVal[]) => MalVector.create(...xs.map(x => x.value).flat()),
 	],
 	[
 		'join',

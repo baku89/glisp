@@ -67,7 +67,7 @@ import {
 	MalString,
 } from '@/mal/types'
 import * as MalInputComponents from '@/components/mal-inputs'
-import {getFnInfo, getExpByPath, jsToMal} from '@/mal/utils'
+import {getFnInfo, getExpByPath} from '@/mal/utils'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -75,6 +75,7 @@ import {
 	SchemaVector,
 	Schema,
 } from '@/mal/schema'
+import { jsToMal } from '@/mal/reader'
 
 const TypeDefaults = {
 	number: MalNumber.create(0),
