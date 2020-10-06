@@ -31,7 +31,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
-		return exp.value[1]
+		return MalVector.create(exp.value[1])
 	}
 
 	const ret = MalList.create(
@@ -227,6 +227,7 @@ export default function evalExp(
 			case 'quasiquote': {
 				first.evaluated = env.get('quasiquote')
 				const ret = quasiquote(exp.value[1])
+				console.log('TCO=', ret.print())
 				exp = ret
 				break // continue TCO loop
 			}
@@ -366,7 +367,6 @@ export default function evalExp(
 						return ret
 					}
 				} else {
-					console.log(fn)
 					throw new MalError('Invalid first')
 				}
 			}
