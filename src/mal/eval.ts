@@ -31,7 +31,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
-		return MalVector.create(exp.value[1])
+		return exp.value[1]
 	}
 
 	const ret = MalList.create(
@@ -40,7 +40,7 @@ function quasiquote(exp: MalVal): MalVal {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.value[1]
 			} else {
-				return quasiquote(e)
+				return MalVector.create(quasiquote(e))
 			}
 		})
 	)
@@ -55,12 +55,12 @@ function quasiquote(exp: MalVal): MalVal {
 function macroexpand(_exp: MalVal, env: Env) {
 	let exp = _exp
 
-	while (MalList.is(exp) && MalSymbol.is(exp.fn)) {
-		const fn = env.get(exp.fn.value)
+	while (MalList.is(exp)) {
+		const fn = evalExp(exp.fn, env)
 		if (!MalMacro.is(fn)) {
 			break
 		}
-		;(exp.value[0] as MalSymbol).evaluated = fn
+		exp.value[0].evaluated = fn
 		exp = fn.value.apply({callerEnv: env}, exp.params)
 	}
 
@@ -227,7 +227,6 @@ export default function evalExp(
 			case 'quasiquote': {
 				first.evaluated = env.get('quasiquote')
 				const ret = quasiquote(exp.value[1])
-				console.log('TCO=', ret.print())
 				exp = ret
 				break // continue TCO loop
 			}
@@ -251,30 +250,33 @@ export default function evalExp(
 			case 'fn':
 			case 'macro': {
 				first.evaluated = env.get(first.value)
-				const [, params, body] = exp.value
-				let paramsArr: MalVal[] | undefined
-				if (MalVector.is(params)) {
-					paramsArr = params.value
-				} else if (MalMap.is(params)) {
-					paramsArr = [params]
+				const [, _params, body] = exp.value
+				let params: MalVal[] | undefined
+				if (MalVector.is(_params)) {
+					params = _params.value
+				} else if (MalMap.is(_params)) {
+					params = [_params]
 				}
-				if (!paramsArr) {
-					throw new MalError('First argument of macro should be vector or map')
+				if (!params) {
+					console.log(exp.print())
+					throw new MalError(
+						`The parameter of ${first.value} should be vector or map`
+					)
 				}
 				if (body === undefined) {
-					throw new MalError('Second argument of macro should be specified')
+					throw new MalError(`The body of ${first.value} is empty`)
 				}
 				const ret = (first.value === 'fn' ? MalFunc : MalMacro).fromMal(
 					(...args) => {
 						return evalExp.call(
 							this,
 							body,
-							new Env({outer: env, forms: paramsArr, exps: args})
+							new Env({outer: env, forms: params, exps: args})
 						)
 					},
 					body,
 					env,
-					paramsArr
+					params
 				)
 				origExp.evaluated = ret
 				return ret
