@@ -570,7 +570,7 @@ export class MalFunc extends MalVal {
 	env!: Env
 	params!: MalVal[]
 
-	protected constructor(public value: MalF) {
+	private constructor(public value: MalF) {
 		super()
 	}
 
@@ -616,14 +616,18 @@ export class MalFunc extends MalVal {
 	}
 }
 
-export class MalMacro extends MalFunc {
+export class MalMacro extends MalVal {
 	readonly type = MalType.Macro
 
-	protected constructor(value: MalF) {
-		super(value)
+	exp!: MalVal | undefined
+	env!: Env
+	params!: MalVal[]
+
+	private constructor(public value: MalF) {
+		super()
 	}
 
-	toString() {
+	print() {
 		if (this.exp) {
 			return `(macro [${this.params
 				.map(x => x.print())
@@ -633,8 +637,23 @@ export class MalMacro extends MalFunc {
 		}
 	}
 
-	static create(value: MalF) {
-		return new MalMacro(value)
+	toJS() {
+		return this.value
+	}
+
+	clone() {
+		const f = new MalMacro(this.value)
+		f.exp = this.exp?.clone()
+		f.env = this.env
+		f.params = this.params.map(x => x.clone())
+		f._meta = this.meta.clone()
+		return f
+	}
+
+	static create(value: MalF, meta?: MalMap) {
+		const f = new MalMacro(value)
+		f._meta = meta
+		return f
 	}
 
 	static fromMal(func: MalF, exp: MalVal, env: Env, params: MalVal[]) {
