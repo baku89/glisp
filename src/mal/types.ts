@@ -276,7 +276,7 @@ export class MalList extends MalVal {
 		if (!this._delimiters) {
 			this._delimiters =
 				this.value.length === 0
-					? []
+					? ['']
 					: ['', ...Array(this.value.length - 1).fill(' '), '']
 		}
 		return this._delimiters
@@ -358,7 +358,7 @@ export class MalVector extends MalVal {
 		if (!this._delimiters) {
 			this._delimiters =
 				this.value.length === 0
-					? []
+					? ['']
 					: ['', ...Array(this.value.length - 1).fill(' '), '']
 		}
 		return this._delimiters
