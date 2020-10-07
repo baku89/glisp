@@ -4,50 +4,36 @@
 (def & '&)
 
 ;; Declarations
-; (def defmacro
-;   ^{:doc "Defines a macro"
-;     :params [{:label "Symbol" :type "symbol"}
-;              {:label "Params" :type "any"}
-;              {:type "vector"
-;               :variadic true
-;               :items {:label "Body" :type "exp"}}]}
-;   (macro
-;    [name params & body]
-;    (do
-;      ;; Destruction of meta, param, body
-;      (def metadata nil)
-;      (if (false? (sequential? params))
-;        (do
-;          (def metadata params)
-;          (def params (first body))
-;          (def body (rest body))))
-;      ; Wrap with 'do if body has multiple lines
-;      (if (= 1 (count body))
-;        (def body (first body))
-;        (def body `(do ~@body)))
-;      (if (nil? metadata)
-;        `(def ~name (macro ~params ~body))
-;        `(def ~name (with-meta (macro ~params ~body) ~metadata))))))
+(def defmacro
+  ^{:doc "Defines a macro"
+    :params [{:label "Symbol" :type "symbol"}
+             {:label "Params" :type "any"}
+             {:type "vector"
+              :variadic true
+              :items {:label "Body" :type "exp"}}]}
+  (macro
+   [name & args]
+   (let [[metadata params & body] (if (vector? (first args))
+                                    (concat [nil] @args)
+                                    args)]
+     `(def ~name (with-meta
+                   (macro ~params (do ~@body))
+                   ~metadata)))))
 
-; (defmacro defn
-;   {:doc "Defines a function"
-;    :params [{:label "Symbol" :type "symbol"}
-;             {:label "Params" :type "exp"}
-;             {:type "vector"
-;              :variadic true
-;              :items {:label "Body" :type "exp"}}]}
-;   [name params & body]
-;   ;; Destruction of meta, param, body
-;   (def metadata nil)
-;   (if (false? (sequential? params))
-;     (do
-;       (def metadata params)
-;       (def params (first body))
-;       (def body (rest body))))
-;   ;; Wrap with 'do if body has multiple lines
-;   (if (= 1 (count body))
-;     (def body (first body))
-;     (def body `(do ~@body)))
+(defmacro defn
+  {:doc "Defines a macro"
+   :params [{:label "Symbol" :type "symbol"}
+            {:label "Params" :type "any"}
+            {:type "vector"
+             :variadic true
+             :items {:label "Body" :type "exp"}}]}
+  [name & args]
+  (let [[metadata params & body] (if (vector? (first args))
+                                   (concat [nil] @args)
+                                   args)]
+    `(def ~name (with-meta
+                  (fn ~params (do ~@body))
+                  ~metadata))))
 
 ;   (if (nil? metadata)
 ;     `(def ~name (fn ~params ~body))
