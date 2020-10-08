@@ -632,7 +632,7 @@ export function findExpByRange(
 		// Sequential
 
 		// Add the length of open-paren
-		let offset = exp.isSugar ? 0 : 1
+		let offset = exp.sugar ? 0 : 1
 
 		// Search Children
 		for (let i = 0; i < exp.length; i++) {
