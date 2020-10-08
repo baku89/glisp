@@ -41,6 +41,13 @@ module.exports = {
 		},
 	},
 	chainWebpack: config => {
+		config.module
+			.rule('ts')
+			.use('ts-loader')
+			.tap(args => {
+				args.onlyCompileBundledFiles = true
+				return args
+			})
 		config.plugin('html-js/index').tap(args => {
 			args[0].hash = true
 			args[0].minify = {
