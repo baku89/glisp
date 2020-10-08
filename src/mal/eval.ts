@@ -27,7 +27,9 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (!isPair(exp)) {
-		return MalList.create(MalSymbol.create('quote'), exp)
+		const ret = MalList.create(MalSymbol.create('quote'), exp)
+		ret.sugar = "'"
+		return ret
 	}
 
 	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
@@ -54,9 +56,13 @@ function quasiquote(exp: MalVal): MalVal {
 
 function macroexpand(_exp: MalVal, env: Env) {
 	let exp = _exp
+	let fn: MalVal
 
-	while (MalList.is(exp)) {
-		const fn = evalExp(exp.fn, env)
+	while (
+		MalList.is(exp) &&
+		MalSymbol.is(exp.fn) &&
+		(fn = env.get(exp.fn.value))
+	) {
 		if (!MalMacro.is(fn)) {
 			break
 		}
@@ -251,14 +257,15 @@ export default function evalExp(
 			case 'macro': {
 				first.evaluated = env.get(first.value)
 				const [, _params, body] = exp.value
+
 				let params: MalVal[] | undefined
 				if (MalVector.is(_params)) {
 					params = _params.value
 				} else if (MalMap.is(_params)) {
 					params = [_params]
 				}
+				
 				if (!params) {
-					console.log(exp.print())
 					throw new MalError(
 						`The parameter of ${first.value} should be vector or map`
 					)
@@ -337,7 +344,7 @@ export default function evalExp(
 				first.evaluated = env.get('if')
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = evalExp.call(this, _test, env)
-				const ret = test
+				const ret = test.value
 					? thenExp
 					: elseExp !== undefined
 					? elseExp

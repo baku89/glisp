@@ -189,7 +189,9 @@ function readForm(reader: Reader): any {
 	// the offset array is like [<end of arg0>, <start of arg1>]
 	let sugar: number[] | null = null
 
-	switch (reader.peek()) {
+	const token = reader.peek()
+
+	switch (token) {
 		// reader macros/transforms
 		case ';':
 			val = MalNil.create()
@@ -280,7 +282,7 @@ function readForm(reader: Reader): any {
 		// Save str info
 		const formEnd = reader.prevEndOffset()
 
-		_val.isSugar = true
+		_val.sugar = token
 
 		const delimiters = ['']
 
