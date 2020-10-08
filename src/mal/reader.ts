@@ -316,13 +316,14 @@ export default function readStr(str: string): MalVal {
 	return exp
 }
 
-export function jsToMal(obj: number): MalNumber
-export function jsToMal(obj: string): MalString
-export function jsToMal(obj: boolean): MalBoolean
-export function jsToMal(obj: null): MalNumber
-export function jsToMal(obj: MalConvertable[]): MalVector
-export function jsToMal(obj: {[k: string]: MalConvertable}): MalMap
-export function jsToMal(obj: MalConvertable | any): MalVal {
+export function jsToMal(obj: number | MalNumber): MalNumber
+export function jsToMal(obj: string | MalString): MalString
+export function jsToMal(obj: boolean | MalBoolean): MalBoolean
+export function jsToMal(obj: null | MalNil): MalNil
+export function jsToMal(obj: (...args: any) => any | MalFunc): MalFunc
+export function jsToMal(obj: MalConvertable[] | MalVector): MalVector
+export function jsToMal(obj: {[k: string]: MalConvertable} | MalMap): MalMap
+export function jsToMal(obj: MalConvertable | MalVal | any): MalVal {
 	if (obj instanceof MalVal) {
 		// MalVal
 		return obj
@@ -331,7 +332,7 @@ export function jsToMal(obj: MalConvertable | any): MalVal {
 		return MalVector.create(...obj.map(jsToMal))
 	} else if (obj instanceof Function) {
 		// Function
-		return MalFunc.create((...xs) => jsToMal(obj(...xs)))
+		return MalFunc.create(obj)
 	} else if (obj instanceof Object) {
 		// Map
 		const ret: {[k: string]: MalVal} = {}

@@ -21,6 +21,7 @@ import {
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
+import {jsToMal} from '@/mal/reader'
 
 const Exports = [
 	['type', (x: MalVal) => MalKeyword.create(x.type)],
@@ -38,7 +39,7 @@ const Exports = [
 	['symbol', (x: MalString) => MalSymbol.create(x.value)],
 	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is(x))],
 
-	// // Compare
+	// Compare
 	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a.equals(b))],
 	['!=', (a: MalVal, b: MalVal) => MalBoolean.create(!a.equals(b))],
 	['<', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value < b.value)],
@@ -161,7 +162,11 @@ const Exports = [
 		'butlast',
 		(a: MalSeq) => MalVector.create(...a.value.slice(0, a.length - 1)),
 	],
-	['count', (a: MalSeq) => MalNumber.create(a === null ? 0 : a.length)],
+	[
+		'count',
+		(a: MalVal) =>
+			MalNumber.create(isMalSeq(a) || MalString.is(a) ? a.value.length : 0),
+	],
 	[
 		'slice',
 		(a: MalSeq, start: MalNumber, end: MalNumber) => {
@@ -380,12 +385,18 @@ const Exports = [
 			return MalNil.create()
 		},
 	],
-] as [string, MalF][]
+] as [string, MalF | MalVal][]
 
 // Expose Math
-Object.getOwnPropertyNames(Math).forEach(k =>
-	Exports.push([k, (Math as any)[k]])
-)
+Object.getOwnPropertyNames(Math).forEach(k => {
+	const prop = (Math as any)[k]
+	const malVal =
+		typeof prop === 'function'
+			? (...args: MalVal[]) =>
+					MalNumber.create(prop(...args.map(x => x.toJS())))
+			: jsToMal(prop)
+	Exports.push([k, malVal])
+})
 
 const Exp = MalList.create(
 	MalSymbol.create('do'),
@@ -393,7 +404,7 @@ const Exp = MalList.create(
 		MalList.create(
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			MalFunc.create(body)
+			jsToMal(body as any)
 		)
 	)
 )
