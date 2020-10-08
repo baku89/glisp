@@ -315,7 +315,15 @@ const Exports = [
 		(a: MalVal) => new MalAtom(a),
 	],
 	['atom?', (a: MalVal) => MalBoolean.create(a instanceof MalAtom)],
-	['deref', (atm: MalAtom) => atm.value],
+	[
+		'deref',
+		(atm: MalAtom) => {
+			if (!MalAtom.is(atm)) {
+				throw new MalError('Cannot deref non-atom value')
+			}
+			return atm.value
+		},
+	],
 	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
 	[
 		'swap!',
