@@ -39,6 +39,11 @@ export abstract class MalVal {
 	}
 
 	withMeta(meta: MalVal) {
+		if (MalNil.is(meta)) {
+			// Nothing has changed
+			return this
+		}
+
 		if (!MalMap.is(meta)) {
 			throw new MalError('Metadata must be Map')
 		}
@@ -99,7 +104,7 @@ export class MalNumber extends MalVal {
 	}
 
 	static create(value: number) {
-		if (typeof name !== 'number') throw new MalError(`Cannot create MalNumber from the value ${name}`)
+		if (typeof value !== 'number') throw new MalError(`Cannot create MalNumber from the value ${value}`)
 		return new MalNumber(value)
 	}
 }
@@ -242,7 +247,7 @@ export class MalList extends MalVal {
 
 	private _delimiters: string[] | undefined
 	public str: string | undefined
-	public isSugar = false
+	public sugar: string | undefined
 
 	private _evaluated: MalVal | undefined
 
@@ -287,12 +292,20 @@ export class MalList extends MalVal {
 	print(readably = true) {
 		if (this.str === undefined) {
 			const delimiters = this.delimiters
-			let str = delimiters[0]
-			for (let i = 0; i < this.value.length; i++) {
-				str += this.value[i]?.print(readably) + delimiters[i + 1]
-			}
 
-			this.str = '(' + str + ')'
+			if (this.sugar) {
+				let str = this.sugar
+				for (let i = 1; i < this.value.length; i++) {
+					str += delimiters[i - 1] +  this.value[i]?.print(readably)
+				}
+				return str
+			} else {
+				let str = delimiters[0]
+				for (let i = 0; i < this.value.length; i++) {
+					str += this.value[i]?.print(readably) + delimiters[i + 1]
+				}
+				return `(${str})`
+			}
 		}
 
 		return this.str
@@ -470,7 +483,7 @@ export class MalMap extends MalVal {
 				str +=
 					delimiters[2 * i + 1] +
 					`:${k}` +
-					delimiters[2 * 1 + 2] +
+					delimiters[2 * i + 2] +
 					v?.print(readably)
 			}
 			str += delimiters[delimiters.length - 1]
@@ -495,9 +508,7 @@ export class MalMap extends MalVal {
 				? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
 				: {...this.value}
 		)
-		if (delimiters) {
-			v.delimiters = [...delimiters]
-		}
+		v.delimiters = [...this.delimiters]
 		v.str = this.str
 		v._meta = this._meta?.clone()
 		return v
@@ -743,6 +754,10 @@ export class MalAtom extends MalVal {
 
 	toJS() {
 		return this.value.toJS()
+	}
+
+	static is(value: MalVal | undefined): value is MalAtom {
+		return value?.type === MalType.Atom
 	}
 }
 
