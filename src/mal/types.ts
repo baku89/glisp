@@ -263,11 +263,11 @@ export class MalList extends MalVal {
 		return this._evaluated || this
 	}
 
-	get fn() {
+	get first() {
 		return this.value[0]
 	}
 
-	get params() {
+	get rest() {
 		return this.value.slice(1)
 	}
 
