@@ -19,7 +19,7 @@ replScope.REP(`(str "Glisp [" *host-language* "]")`)
 readlineSync.setDefaultOptions({
 	prompt: {
 		// Simple Object that has toString method.
-		toString: function () {
+		toString() {
 			return chalk.green('glisp> ')
 		},
 	},
