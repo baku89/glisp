@@ -223,14 +223,6 @@ function readForm(reader: Reader): any {
 				// Syntactic sugar for anonymous function: #( )
 				sugar = [reader.prevEndOffset(), reader.offset()]
 				val = MalList.create(MalSymbol.create('fn-sugar'), readForm(reader))
-			} else if (type === '@') {
-				// Syntactic sugar for ui-annotation #@
-				reader.next()
-				sugar = [reader.prevEndOffset(), reader.offset()]
-				const annotation = readForm(reader)
-				sugar.push(reader.prevEndOffset(), reader.offset())
-				const expr = readForm(reader)
-				val = MalList.create(MalSymbol.create('ui-annotate'), annotation, expr)
 			} else {
 				throw new Error('Invalid # syntactic sugar')
 			}
