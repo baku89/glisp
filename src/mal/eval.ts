@@ -76,6 +76,33 @@ function macroexpand(_exp: MalVal, env: Env) {
 	return exp
 }
 
+function getUnnamedParamsInfo(exp: MalVal) {
+	// Traverse body
+	let paramCount = 0,
+		hasRest = false
+
+	function traverse(exp: MalVal) {
+		if (MalVector.is(exp)) {
+			exp.value.forEach(traverse)
+		} else if (MalList.is(exp)) {
+			exp.value.forEach(traverse)
+		} else if (MalMap.is(exp)) {
+			exp.values().forEach(traverse)
+		} else if (MalSymbol.is(exp) && exp.value.startsWith('%')) {
+			if (MalSymbol.isFor(exp, '%&')) {
+				hasRest = true
+			} else {
+				const c = parseInt(exp.value.slice(1) || '1')
+				paramCount = Math.max(paramCount, c)
+			}
+		}
+	}
+
+	traverse(exp)
+
+	return {paramCount, hasRest}
+}
+
 export default function evalExp(
 	this: void | MalFuncThis,
 	exp: MalVal,
@@ -223,30 +250,9 @@ export default function evalExp(
 			case 'fn-sugar': {
 				//first.evaluated = env.get('fn-sugar')
 
-				// Traverse body
-				let paramCount = 0,
-					hasRest = false
-
-				function traverse(exp: MalVal) {
-					if (MalVector.is(exp)) {
-						exp.value.forEach(traverse)
-					} else if (MalList.is(exp)) {
-						exp.value.forEach(traverse)
-					} else if (MalMap.is(exp)) {
-						exp.values().forEach(traverse)
-					} else if (MalSymbol.is(exp) && exp.value.startsWith('%')) {
-						if (MalSymbol.isFor(exp, '%&')) {
-							hasRest = true
-						} else {
-							const c = parseInt(exp.value.slice(1) || '1')
-							paramCount = Math.max(paramCount, c)
-						}
-					}
-				}
-
 				const body = exp.value[1]
 
-				traverse(body)
+				const {paramCount, hasRest} = getUnnamedParamsInfo(exp)
 
 				const params = MalVector.create()
 				for (let i = 1; i <= paramCount; i++) {
