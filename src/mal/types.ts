@@ -99,6 +99,7 @@ export class MalNumber extends MalVal {
 	}
 
 	static create(value: number) {
+		if (typeof name !== 'number') throw new MalError(`Cannot create MalNumber from the value ${name}`)
 		return new MalNumber(value)
 	}
 }
@@ -166,7 +167,7 @@ export class MalBoolean extends MalVal {
 	}
 
 	static create(value: boolean) {
-		return new MalBoolean(value)
+		return new MalBoolean(!!value)
 	}
 }
 
@@ -227,6 +228,7 @@ export class MalKeyword extends MalVal {
 	}
 
 	static create(name: string) {
+		if (typeof name !== 'string') throw new MalError(`Cannot create MalString from the value ${name}`)
 		return new MalKeyword(name)
 	}
 
