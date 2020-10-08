@@ -25,7 +25,7 @@ readlineSync.setDefaultOptions({
 	},
 })
 
-readlineSync.promptLoop((line) => {
+readlineSync.promptLoop(line => {
 	try {
 		replScope.REP(line)
 	} catch (e) {
