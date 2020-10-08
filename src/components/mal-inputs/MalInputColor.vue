@@ -133,7 +133,7 @@ export default defineComponent({
 			if (MalString.is(props.value)) {
 				return props.value
 			} else if (MalList.is(props.value)) {
-				return props.value.params
+				return props.value.rest
 			}
 		})
 

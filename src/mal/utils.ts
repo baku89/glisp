@@ -6,7 +6,6 @@ import {
 	MalColl,
 	MalVector,
 	isMalSeq,
-	MalConvertable,
 	MalSymbol,
 	MalList,
 	isMalColl,
@@ -21,10 +20,6 @@ import {
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
 import printExp from './printer'
-
-export function isUIAnnotation(exp: MalVal | undefined): exp is MalList {
-	return MalList.is(exp) && MalSymbol.isFor(exp.fn, 'ui-annotate')
-}
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (MalVector.is(exp)) {
@@ -280,17 +275,17 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 	function exec(): MalVal | undefined {
 		if (MalList.is(original)) {
 			// Check if the list is wrapped within const
-			if (MalSymbol.isFor(original.fn, 'const')) return
+			if (MalSymbol.isFor(original.first, 'const')) return
 
 			// find Inverse function
-			const meta = original.fn.evaluated.meta
+			const meta = original.first.evaluated.meta
 			if (!meta) return
 
 			const inverseFn = getExpByPath(meta, 'inverse', MalType.Func)
 			if (inverseFn === null) return
 
-			const fn = original.fn
-			const originalParams = original.params
+			const fn = original.first
+			const originalParams = original.rest
 			const evaluatedParams = originalParams.map(e => e.evaluated)
 
 			// Compute the original parameter
@@ -496,7 +491,7 @@ export function getFn(exp: MalVal) {
 		return undefined
 	}
 
-	const fn = exp.fn
+	const fn = exp.first
 
 	if (!MalFunc.is(fn)) {
 		return undefined
@@ -573,7 +568,7 @@ export function getRangeOfExp(
 
 		if (isMalSeq(parent)) {
 			offset +=
-				(MalList.is(parent) && parent.isSugar ? 0 : 1) +
+				(MalList.is(parent) && parent.sugar ? 0 : 1) +
 				parent.delimiters.slice(0, index + 1).join('').length +
 				parent.value
 					.slice(0, index)

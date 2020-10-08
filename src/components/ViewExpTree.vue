@@ -169,7 +169,7 @@ export default defineComponent({
 
 			if (MalList.is(exp)) {
 				return {
-					label: exp.fn.print(),
+					label: exp.first.print(),
 					clickable: props.mode === DisplayMode.Node,
 					expandable: props.mode === DisplayMode.Node,
 					editable: true,
@@ -177,7 +177,7 @@ export default defineComponent({
 						type: 'fontawesome',
 						value: 'fas fa-caret-right',
 					},
-					children: exp.params,
+					children: exp.rest,
 				}
 			} else if (MalVector.is(exp)) {
 				return {

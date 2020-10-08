@@ -63,7 +63,7 @@ export default defineComponent({
 		const expBody = computed(() => getUIBodyExp(props.exp))
 
 		const children = computed(() => {
-			return props.exp.params
+			return props.exp.rest
 		})
 
 		const editing = computed(() => {
