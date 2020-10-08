@@ -104,7 +104,8 @@ export class MalNumber extends MalVal {
 	}
 
 	static create(value: number) {
-		if (typeof value !== 'number') throw new MalError(`Cannot create MalNumber from the value ${value}`)
+		if (typeof value !== 'number')
+			throw new MalError(`Cannot create MalNumber from the value ${value}`)
 		return new MalNumber(value)
 	}
 }
@@ -233,7 +234,8 @@ export class MalKeyword extends MalVal {
 	}
 
 	static create(name: string) {
-		if (typeof name !== 'string') throw new MalError(`Cannot create MalString from the value ${name}`)
+		if (typeof name !== 'string')
+			throw new MalError(`Cannot create MalString from the value ${name}`)
 		return new MalKeyword(name)
 	}
 
@@ -296,7 +298,7 @@ export class MalList extends MalVal {
 			if (this.sugar) {
 				let str = this.sugar
 				for (let i = 1; i < this.value.length; i++) {
-					str += delimiters[i - 1] +  this.value[i]?.print(readably)
+					str += delimiters[i - 1] + this.value[i]?.print(readably)
 				}
 				return str
 			} else {
@@ -508,7 +510,9 @@ export class MalMap extends MalVal {
 				? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone()]))
 				: {...this.value}
 		)
-		v.delimiters = [...this.delimiters]
+		if (this.delimiters) {
+			v.delimiters = [...this.delimiters]
+		}
 		v.str = this.str
 		v._meta = this._meta?.clone()
 		return v
