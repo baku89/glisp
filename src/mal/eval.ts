@@ -143,7 +143,7 @@ export default function evalExp(
 
 				const [, binds, ...body] = exp.value
 				if (!MalVector.is(binds)) {
-					throw new MalError('Invalid bind-expr in let')
+					throw new MalError('let requires a vector for its binding')
 				}
 				for (let i = 0; i < binds.value.length; i += 2) {
 					letEnv.bind(
@@ -152,16 +152,10 @@ export default function evalExp(
 					)
 				}
 				env = letEnv
-				const ret =
+				exp =
 					body.length === 1
 						? body[0]
 						: MalList.create(MalSymbol.create('do'), ...body)
-				// setExpandInfo(exp, {
-				// 	type: ExpandType.Env,
-				// 	exp: ret,
-				// 	env: letEnv,
-				// })
-				exp = ret
 				break // continue TCO loop
 			}
 			// case 'binding': {
@@ -223,26 +217,47 @@ export default function evalExp(
 			}
 			case 'quasiquote': {
 				//first.evaluated = env.get('quasiquote')
-				const ret = quasiquote(exp.value[1])
-				exp = ret
+				exp = quasiquote(exp.value[1])
 				break // continue TCO loop
 			}
 			case 'fn-sugar': {
 				//first.evaluated = env.get('fn-sugar')
+
+				// Traverse body
+				let paramCount = 0,
+					hasRest = false
+
+				function traverse(exp: MalVal) {
+					if (MalVector.is(exp)) {
+						exp.value.forEach(traverse)
+					} else if (MalList.is(exp)) {
+						exp.value.forEach(traverse)
+					} else if (MalMap.is(exp)) {
+						exp.values().forEach(traverse)
+					} else if (MalSymbol.is(exp) && exp.value.startsWith('%')) {
+						if (MalSymbol.isFor(exp, '%&')) {
+							hasRest = true
+						} else {
+							const c = parseInt(exp.value.slice(1) || '1')
+							paramCount = Math.max(paramCount, c)
+						}
+					}
+				}
+
 				const body = exp.value[1]
-				const ret = MalFunc.fromMal(
-					(...args) => {
-						return evalExp.call(
-							this,
-							body,
-							new Env({outer: env, exps: args, useUnnamedForms: true})
-						)
-					},
-					body,
-					env
-				)
-				origExp.evaluated = ret
-				return ret
+
+				traverse(body)
+
+				const params = MalVector.create()
+				for (let i = 1; i <= paramCount; i++) {
+					params.value.push(MalSymbol.create(`%${i}`))
+				}
+				if (hasRest) {
+					params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
+				}
+
+				exp = MalList.create(MalSymbol.create('fn'), params, body)
+				break // continue TCO loop
 			}
 			case 'fn':
 			case 'macro': {
@@ -327,20 +342,18 @@ export default function evalExp(
 					return MalNil.create()
 				}
 				evalExp.call(this, MalVector.create(...exp.value.slice(1, -1)), env)
-				const ret = exp.value[exp.value.length - 1]
-				exp = ret
+				exp = exp.value[exp.value.length - 1]
 				break // continue TCO loop
 			}
 			case 'if': {
 				//first.evaluated = env.get('if')
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = evalExp.call(this, _test, env)
-				const ret = test.value
+				exp = test.value
 					? thenExp
 					: elseExp !== undefined
 					? elseExp
 					: MalNil.create()
-				exp = ret
 				break // continue TCO loop
 			}
 			default: {

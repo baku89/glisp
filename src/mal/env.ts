@@ -11,7 +11,6 @@ export default class Env {
 	private data = new Map<string, MalVal>()
 
 	private bindings: Env[] = []
-	private unnamedForms?: MalVal[]
 
 	public outer!: Env | null
 	public readonly name!: string
@@ -19,22 +18,16 @@ export default class Env {
 	constructor({
 		outer = null,
 		name = 'let',
-		forms = [],
-		exps = [],
-		useUnnamedForms = false,
+		forms,
+		exps,
 	}: {
 		outer?: Env | null
 		name?: string
 		forms?: MalVal[]
 		exps?: MalVal[]
-		useUnnamedForms?: boolean
 	} = {}) {
 		this.outer = outer
 		this.name = name
-
-		if (useUnnamedForms) {
-			this.unnamedForms = exps
-		}
 
 		if (forms && exps) {
 			this.bind(MalVector.create(...forms), MalVector.create(...exps))
@@ -130,17 +123,6 @@ export default class Env {
 		// Seek in current env
 		if (this.data.has(symbol)) {
 			return this.data.get(symbol)
-		}
-
-		// Unnnamed forms
-		if (this.unnamedForms && symbol.startsWith('%')) {
-			const index = parseInt(symbol.slice(1) || '1') - 1
-
-			if (this.unnamedForms.length >= index) {
-				return undefined
-			} else {
-				return this.unnamedForms[index]
-			}
 		}
 
 		if (this.outer !== null) {
