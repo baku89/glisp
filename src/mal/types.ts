@@ -726,6 +726,9 @@ export class MalSymbol extends MalVal {
 	}
 
 	static create(identifier: string) {
+		if (typeof identifier !== 'string') {
+			throw new Error(`Cannot create MalSymbol from the value ${identifier}`)
+		}
 		return new MalSymbol(identifier)
 	}
 
@@ -740,7 +743,7 @@ export class MalSymbol extends MalVal {
 
 export class MalAtom extends MalVal {
 	public readonly type: MalType.Atom = MalType.Atom
-	public constructor(public value: MalVal) {
+	private constructor(public value: MalVal) {
 		super()
 	}
 
@@ -758,6 +761,10 @@ export class MalAtom extends MalVal {
 
 	toJS() {
 		return this.value.toJS()
+	}
+
+	static create(value: MalVal) {
+		return new MalAtom(value)
 	}
 
 	static is(value: MalVal | undefined): value is MalAtom {
