@@ -17,7 +17,8 @@
 		"postuninstall": "electron-builder install-app-deps",
 		"repl": "node --enable-source-maps ./repl/index.js ",
 		"repl:serve": "webpack --config repl.config.js --watch --mode=development",
-		"repl:build": "webpack --config repl.config.js --mode=production"
+		"repl:build": "webpack --config repl.config.js --mode=production",
+		"test": "jest"
 	},
 	"main": "background.js",
 	"license": "MIT",
@@ -29,6 +30,7 @@
 		"@types/chroma-js": "^2.1.0",
 		"@types/color": "^3.0.1",
 		"@types/file-saver": "^2.0.1",
+		"@types/jest": "^26.0.14",
 		"@types/jquery": "^3.5.0",
 		"@types/mousetrap": "^1.6.4",
 		"@types/readline-sync": "^1.4.3",
@@ -92,6 +94,7 @@
 		"stylus": "^0.54.8",
 		"stylus-loader": "^3.0.2",
 		"svgpath": "^2.3.0",
+		"ts-jest": "^26.4.1",
 		"typescript": "^4.0.3",
 		"uid": "^1.0.0",
 		"voronoi": "^1.0.0",
@@ -102,5 +105,25 @@
 		"webpack-cli": "^3.3.12",
 		"worker-plugin": "^5.0.0",
 		"yargs": "^16.0.3"
+	},
+	"jest": {
+		"moduleFileExtensions": [
+			"ts",
+			"js"
+		],
+		"moduleNameMapper": {
+			"^@/(.+)": "<rootDir>/src/$1"
+		},
+		"transform": {
+			"^.+\\.ts$": "ts-jest"
+		},
+		"globals": {
+			"ts-jest": {
+				"tsConfig": "tsconfig.json"
+			}
+		},
+		"testMatch": [
+			"**/tests/**/*.test.ts"
+		]
 	}
 }

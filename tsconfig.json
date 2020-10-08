@@ -12,7 +12,12 @@
 		"allowSyntheticDefaultImports": true,
 		"sourceMap": true,
 		"baseUrl": ".",
-		"types": ["webpack-env", "jquery", "node"],
+		"types": [
+			"webpack-env",
+			"jquery",
+			"node",
+			"jest"
+		],
 		"typeRoots": ["node_modules/@types", "src"],
 		"paths": {
 			"*": ["src/@types/*"],
@@ -25,7 +30,8 @@
 		"src/**/*.tsx",
 		"src/**/*.vue",
 		"tests/**/*.ts",
-		"tests/**/*.tsx"
+		"tests/**/*.tsx",
+		"greet.ts"
 	],
 	"exclude": ["node_modules"]
 }
