@@ -270,7 +270,7 @@ export default function evalExp(
 				} else if (MalMap.is(_params)) {
 					params = [_params]
 				}
-				
+
 				if (!params) {
 					throw new MalError(
 						`The parameter of ${first} should be vector or map`
@@ -349,11 +349,7 @@ export default function evalExp(
 				//first.evaluated = env.get('if')
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = evalExp.call(this, _test, env)
-				exp = test.value
-					? thenExp
-					: elseExp !== undefined
-					? elseExp
-					: MalNil.create()
+				exp = test.value ? thenExp : elseExp || MalNil.create()
 				break // continue TCO loop
 			}
 			default: {
