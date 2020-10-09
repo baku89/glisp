@@ -2,7 +2,14 @@ import Env from './env'
 import readStr, {jsToMal, MalBlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {MalVal, MalError, MalString, MalF, MalNil, MalFunc} from './types'
+import {
+	MalVal,
+	MalError,
+	MalString,
+	MalNil,
+	MalFn,
+	MalCallableValue,
+} from './types'
 import {printer} from './printer'
 import isNodeJS from 'is-node'
 
@@ -82,7 +89,7 @@ export default class Scope {
 
 		this.defn('import-force', (url: MalVal) => {
 			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value, pwd.value)
+			const absurl = normalizeURL((url as MalString).value, pwd.value)
 			const text = slurp(absurl)
 
 			this.def('*filename*', MalString.create(absurl))
@@ -155,8 +162,8 @@ export default class Scope {
 		this.env.set(name, value)
 	}
 
-	public defn(name: string, fn: MalF) {
-		const f = MalFunc.create(fn)
+	public defn(name: string, fn: MalCallableValue) {
+		const f = MalFn.create(fn)
 		this.env.set(name, f)
 	}
 
