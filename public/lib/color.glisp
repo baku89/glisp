@@ -42,7 +42,7 @@
             (first a))))
 (defalias hsl color/hsl)
 
-(annotate-fn!
+(annotate-fn
  color/mix
  {:doc "Mixes two colors"
   :params [{:label "Color1" :type "string" :ui "color"}
@@ -53,21 +53,21 @@
             :values ["lrgb" "rgb" "hsl"]}]
   :return {:type "string" :ui "color"}})
 
-(annotate-fn!
+(annotate-fn
  color/brighten
  {:doc "Brightens the color"
   :params [{:label "Color" :type "string" :ui "color"}
            {:label "Value" :type "number" :default 1}]
   :return {:type "string" :ui "color"}})
 
-(annotate-fn!
+(annotate-fn
  color/darken
  {:doc "Darkens the color"
   :params [{:label "Color" :type "string" :ui "color"}
            {:label "Value" :type "number" :default 1}]
   :return {:type "string" :ui "color"}})
 
-(annotate-fn!
+(annotate-fn
  color/invert
  {:doc "Inverts the color"
   :params [{:label "Color" :type "string" :ui "color"}
