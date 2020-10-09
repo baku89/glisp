@@ -139,7 +139,7 @@ const Exports = [
 			const i = index.value
 
 			if (i < 0 && -i <= a.length) {
-				return a.get(a.length - i)
+				return a.get(a.length + i)
 			} else if (i < a.length) {
 				return a.get(i)
 			}
