@@ -587,16 +587,16 @@ export type MalF = (
 export class MalFunc extends MalVal {
 	readonly type: MalType = MalType.Func
 
-	exp!: MalVal | undefined
+	exp?: MalVal
 	env!: Env
-	params!: MalVal[]
+	params?: MalVal[]
 
 	private constructor(public value: MalF) {
 		super()
 	}
 
 	print() {
-		if (this.exp) {
+		if (this.exp && this.params) {
 			return `(fn [${this.params
 				.map(x => x.print())
 				.join(' ')}] ${this.exp.print()})`
@@ -613,7 +613,7 @@ export class MalFunc extends MalVal {
 		const f = new MalFunc(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
-		f.params = this.params.map(x => x.clone())
+		f.params = this.params?.map(x => x.clone())
 		f._meta = this.meta.clone()
 		return f
 	}
@@ -640,16 +640,16 @@ export class MalFunc extends MalVal {
 export class MalMacro extends MalVal {
 	readonly type = MalType.Macro
 
-	exp!: MalVal | undefined
+	exp?: MalVal
 	env!: Env
-	params!: MalVal[]
+	params?: MalVal[]
 
 	private constructor(public value: MalF) {
 		super()
 	}
 
 	print() {
-		if (this.exp) {
+		if (this.exp && this.params) {
 			return `(macro [${this.params
 				.map(x => x.print())
 				.join(' ')}] ${this.exp.print()})`
@@ -666,7 +666,7 @@ export class MalMacro extends MalVal {
 		const f = new MalMacro(this.value)
 		f.exp = this.exp?.clone()
 		f.env = this.env
-		f.params = this.params.map(x => x.clone())
+		f.params = this.params?.map(x => x.clone())
 		f._meta = this.meta.clone()
 		return f
 	}
