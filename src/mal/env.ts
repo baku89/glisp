@@ -30,7 +30,7 @@ export default class Env {
 		this.name = name
 
 		if (forms && exps) {
-			this.bind(MalVector.create(...forms), MalVector.create(...exps))
+			this.bind(MalVector.create(forms), MalVector.create(exps))
 		}
 	}
 
@@ -69,7 +69,7 @@ export default class Env {
 					// rest arguments
 					this.set(
 						(forms.value[i + 1] as MalSymbol).value,
-						MalVector.create(...exps.value.slice(i))
+						MalVector.create(exps.value.slice(i))
 					)
 					i++
 					continue
