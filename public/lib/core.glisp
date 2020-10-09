@@ -10,7 +10,7 @@
               :items {:label "Body" :type "exp"}}]}
   (macro
    [name & args]
-   (let [[metadata params & body] (if (vector? (first args))
+   (let [[metadata params & body] (if (vector? (nth args 0))
                                     (concat [nil] args)
                                     args)]
      `(def ~name (with-meta
@@ -25,7 +25,7 @@
              :variadic true
              :items {:label "Body" :type "exp"}}]}
   [name & args]
-  (let [[metadata params & body] (if (vector? (first args))
+  (let [[metadata params & body] (if (vector? (nth args 0))
                                    (concat [nil] args)
                                    args)]
     `(def ~name (with-meta
