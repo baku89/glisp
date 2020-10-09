@@ -367,6 +367,7 @@ export default function evalExp(
 				if (MalFunc.is(fn)) {
 					exp.first.evaluated = fn
 					if (MalFunc.is(fn) && fn.exp) {
+						// Lisp-defined functions
 						env = new Env({
 							outer: fn.env,
 							forms: fn.params,
@@ -377,6 +378,7 @@ export default function evalExp(
 						// continue TCO loop
 						break
 					} else {
+						// JS-defined functions
 						const ret = fn.value.apply({callerEnv: env}, params)
 						origExp.evaluated = ret
 						return ret
