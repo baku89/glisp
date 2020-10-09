@@ -1,6 +1,6 @@
 import {
 	MalVal,
-	MalFunc,
+	MalFn,
 	MalKeyword,
 	MalMap,
 	MalColl,
@@ -19,18 +19,17 @@ import {
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
 import {mat2d} from 'gl-matrix'
-import printExp from './printer'
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (MalVector.is(exp)) {
 		if (MalKeyword.isFor(exp.get(0), 'path')) {
 			return 'path'
 		}
-		if (exp.length <= 6) {
+		if (exp.count <= 6) {
 			const isAllNumber =
-				exp.value instanceof Float32Array || exp.value.every(MalNumber.is)
+				exp.value.every(MalNumber.is)
 			if (isAllNumber) {
-				switch (exp.length) {
+				switch (exp.count) {
 					case 2:
 						return 'vec2'
 					case 4:
@@ -93,7 +92,7 @@ export function getExpByPath(
 	base: MalVal,
 	path: string,
 	type: MalType.Fn
-): MalFunc | null
+): MalFn | null
 export function getExpByPath(
 	base: MalVal,
 	path: string,
@@ -236,14 +235,14 @@ export function deleteExp(exp: MalColl) {
 type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
 
 export interface FnInfoType {
-	fn: MalFunc
+	fn: MalFn
 	meta?: MalVal
 	aliasFor?: string
 	structType?: StructTypes
 }
 
 export function getFnInfo(exp: MalVal): FnInfoType | undefined {
-	let fn: MalFunc | undefined = MalFunc.is(exp) ? exp : getFn(exp)
+	let fn: MalFn | undefined = MalFn.is(exp) ? exp : getFn(exp)
 
 	let meta: MalMap | undefined = undefined
 	let aliasFor = undefined
@@ -253,7 +252,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	if (!fn) {
 		structType = getStructType(exp.evaluated)
 		if (structType) {
-			fn = ConsoleScope.var(structType) as MalFunc
+			fn = ConsoleScope.var(structType) as MalFn
 		}
 	}
 
@@ -493,7 +492,7 @@ export function getFn(exp: MalVal) {
 
 	const fn = exp.first
 
-	if (!MalFunc.is(fn)) {
+	if (!MalFn.is(fn)) {
 		return undefined
 	}
 

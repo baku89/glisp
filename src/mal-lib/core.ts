@@ -13,10 +13,10 @@ import {
 	MalKeyword,
 	MalNil,
 	MalNumber,
-	MalFunc,
+	MalFn,
 	MalMacro,
 	MalSeq,
-	MalF,
+	MalCallableValue,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -36,7 +36,7 @@ const Exports = [
 	['vector?', (x: MalVal) => MalBoolean.create(MalVector.is(x))],
 	['map?', (x: MalVal) => MalBoolean.create(MalMap.is(x))],
 	['atom?', (a: MalVal) => MalBoolean.create(a instanceof MalAtom)],
-	['fn?', (x: MalVal) => MalBoolean.create(MalFunc.is(x))],
+	['fn?', (x: MalVal) => MalBoolean.create(MalFn.is(x))],
 	['macro?', (x: MalVal) => MalBoolean.create(MalMacro.is(x))],
 
 	['keyword', (x: MalString) => MalKeyword.create(x.value)],
@@ -141,11 +141,11 @@ const Exports = [
 	],
 
 	// Array
-	['list', (...coll: MalVal[]) => MalList.create(...coll)],
-	['lst', (coll: MalSeq) => MalList.create(...coll.value)],
+	['list', (...coll: MalVal[]) => MalList.create(coll)],
+	['lst', (coll: MalSeq) => MalList.create(coll.value)],
 
-	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
-	['vec', (a: MalSeq) => MalVector.create(...a.value)],
+	['vector', (...xs: MalVal[]) => MalVector.create(xs)],
+	['vec', (a: MalSeq) => MalVector.create(a.value)],
 	['sequential?', (x: MalVal) => MalBoolean.create(isMalSeq(x))],
 	[
 		'seq',
@@ -153,12 +153,12 @@ const Exports = [
 			if (isMalSeq(a)) {
 				return a.clone()
 			} else if (MalString.is(a)) {
-				return MalVector.create(...a.value.split('').map(MalString.create))
+				return MalVector.create(a.value.split('').map(MalString.create))
 			} else if (MalMap.is(a)) {
 				return MalVector.create(
-					...a
+					a
 						.entries()
-						.map(([k, v]) => MalVector.create(MalString.create(k), v))
+						.map(([k, v]) => MalVector.create([MalString.create(k), v]))
 				)
 			} else {
 				return MalNil.create()
@@ -174,9 +174,9 @@ const Exports = [
 
 			const i = index.value
 
-			if (i < 0 && -i <= a.length) {
-				return a.get(a.length + i)
-			} else if (i < a.length) {
+			if (i < 0 && -i <= a.count) {
+				return a.get(a.count + i)
+			} else if (i < a.count) {
 				return a.get(i)
 			}
 
@@ -194,12 +194,12 @@ const Exports = [
 			if (!isMalSeq(a)) {
 				throw new MalError(`[slice] ${printExp(a)} is not an array`)
 			}
-			return MalVector.create(...a.value.slice(start.value, end?.value))
+			return MalVector.create(a.value.slice(start.value, end?.value))
 		},
 	],
 	[
 		'apply',
-		(f: MalFunc, ...a: MalSeq[]) => {
+		(f: MalFn, ...a: MalSeq[]) => {
 			const args: MalVal[] = []
 			a.forEach(x => args.push(...x.value))
 			return f.value(...args)
@@ -207,32 +207,32 @@ const Exports = [
 	],
 	[
 		'map',
-		(f: MalFunc, coll: MalSeq) =>
-			MalVector.create(...coll.value.map(x => f.value(x))),
+		(f: MalFn, coll: MalSeq) =>
+			MalVector.create(coll.value.map(x => f.value(x))),
 	],
 	[
 		'map-indexed',
-		(f: MalFunc, coll: MalSeq) =>
+		(f: MalFn, coll: MalSeq) =>
 			MalVector.create(
 				...coll.value.map((x, i) => f.value(MalNumber.create(i), x))
 			),
 	],
 	[
 		'filter',
-		(f: MalFunc, coll: MalSeq) =>
-			MalVector.create(...coll.value.filter(x => f.value(x))),
+		(f: MalFn, coll: MalSeq) =>
+			MalVector.create(coll.value.filter(x => f.value(x))),
 	],
 	[
 		'remove',
-		(f: MalFunc, coll: MalSeq) =>
-			MalVector.create(...coll.value.filter(x => !f.value(x))),
+		(f: MalFn, coll: MalSeq) =>
+			MalVector.create(coll.value.filter(x => !f.value(x))),
 	],
-	['sort', (coll: MalSeq) => MalVector.create(...[...coll.value].sort())],
+	['sort', (coll: MalSeq) => MalVector.create([...coll.value].sort())],
 	[
 		'partition',
 		(n: MalNumber, coll: MalSeq) =>
 			MalVector.create(
-				...partition(n.value, coll.value).map(x => MalVector.create(...x))
+				partition(n.value, coll.value).map(x => MalVector.create(x))
 			),
 	],
 	[
@@ -246,30 +246,30 @@ const Exports = [
 	[
 		'repeat',
 		(a: MalVal, n: MalNumber) =>
-			MalVector.create(...Array(n).map(() => a.clone())),
+			MalVector.create(Array(n).map(() => a.clone())),
 	],
-	['reverse', (coll: MalSeq) => MalVector.create(...[...coll.value].reverse())],
-	['cons', (a: MalVal, b: MalVal) => MalVector.create(...[a].concat(b))],
+	['reverse', (coll: MalSeq) => MalVector.create([...coll.value].reverse())],
+	['cons', (a: MalVal, b: MalVal) => MalVector.create([a].concat(b))],
 	[
 		'conj',
 		(coll: MalVal, ...xs: MalVal[]) => {
 			if (MalList.is(coll)) {
-				return MalList.create(...xs.reverse(), ...coll.value)
+				return MalList.create([...xs.reverse(), ...coll.value])
 			} else if (MalVector.is(coll)) {
-				return MalVector.create(...coll.value, ...xs)
+				return MalVector.create([...coll.value, ...xs])
 			}
 		},
 	],
 	[
 		'concat',
 		(...xs: MalVal[]) =>
-			MalVector.create(...xs.map(x => (isMalSeq(x) ? x.value : [x])).flat()),
+			MalVector.create(xs.map(x => (isMalSeq(x) ? x.value : [x])).flat()),
 	],
 	[
 		'join',
 		(separator: MalString, coll: MalSeq) =>
 			MalString.create(
-				coll.value.map(v => printExp(v, false)).join(separator.value)
+				coll.value.map(v => MalString.is(v) ? v.value : v.print()).join(separator.value)
 			),
 	],
 
@@ -295,7 +295,7 @@ const Exports = [
 		'entries',
 		(a: MalMap) =>
 			MalVector.create(
-				...a.entries().map(([k, v]) => MalVector.create(MalString.create(k), v))
+				a.entries().map(([k, v]) => MalVector.create([MalString.create(k), v]))
 			),
 	],
 	[
@@ -331,7 +331,7 @@ const Exports = [
 
 	// Meta
 	['meta', x => x.meta],
-	['with-meta', (x, meta) => x.withMeta(meta)],
+	['with-meta', (x, meta) => x.clone() x.withMeta(meta)],
 	['with-meta-sugar', (meta, x) => x.withMeta(meta)],
 	[
 		// Atom
@@ -350,7 +350,7 @@ const Exports = [
 	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
 	[
 		'swap!',
-		(atm: MalAtom, f: MalFunc, ...args: any) =>
+		(atm: MalAtom, f: MalFn, ...args: any) =>
 			(atm.value = f.value(atm.value, ...args)),
 	],
 
@@ -380,7 +380,7 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return MalVector.create(...ret.map(MalNumber.create))
+			return MalVector.create(ret.map(MalNumber.create))
 		},
 	],
 	// Random
@@ -403,7 +403,7 @@ const Exports = [
 			return MalNil.create()
 		},
 	],
-] as [string, MalF | MalVal][]
+] as [string, MalCallableValue | MalVal][]
 
 // Expose Math
 Object.getOwnPropertyNames(Math).forEach(k => {
@@ -416,16 +416,16 @@ Object.getOwnPropertyNames(Math).forEach(k => {
 	Exports.push([k, malVal])
 })
 
-const Exp = MalList.create(
+const Exp = MalList.create([
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.create(
+		MalList.create([
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
 			jsToMal(body as any)
-		)
+		])
 	)
-)
+		])
 ;(globalThis as any)['glisp_library'] = Exp
 
 export default Exp

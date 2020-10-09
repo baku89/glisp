@@ -33,7 +33,7 @@ import {defineComponent, reactive, computed, watch, toRefs} from 'vue'
 import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 
-import {printExp, readStr} from '@/mal'
+import {readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
 
 import {printer} from '@/mal/printer'
@@ -144,9 +144,9 @@ export default defineComponent({
 				const evalCode = `(sketch\n${code}\n)`
 				let exp
 				try {
-					exp = readStr(evalCode, true)
+					exp = readStr(evalCode)
 				} catch (err) {
-					if (!(err instanceof BlankException)) {
+					if (!(err instanceof MalBlankException)) {
 						printer.error(err)
 					}
 					data.hasParseError = true
@@ -161,7 +161,7 @@ export default defineComponent({
 			() => data.exp,
 			() => {
 				if (data.exp) {
-					data.code = printExp(data.exp).slice(OFFSET_START, -OFFSET_END)
+					data.code = data.exp.print().slice(OFFSET_START, -OFFSET_END)
 				} else {
 					data.code = ''
 				}

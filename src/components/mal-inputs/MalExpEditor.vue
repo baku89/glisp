@@ -13,7 +13,7 @@
 <script lang="ts">
 import {defineComponent, computed, ref, PropType} from 'vue'
 import readStr, {MalBlankException} from '@/mal/reader'
-import printExp, {printer} from '@/mal/printer'
+import {printer} from '@/mal/printer'
 import {
 	MalVal,
 	MalColl,
@@ -117,7 +117,7 @@ export default defineComponent({
 		// Exp -> Code Conversion
 		const code = computed(() => {
 			const exp = props.exp as MalVal
-			const ret = printExp(exp)
+			const ret = exp.print()
 
 			switch (props.editMode) {
 				case EditMode.Node:

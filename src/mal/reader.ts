@@ -10,10 +10,9 @@ import {
 	MalVector,
 	MalList,
 	MalKeyword,
-	MalConvertable,
 	MalFunc,
 	MalColl,
-	isMalSeq,
+	isMalSeq,, MalFn, isMal
 } from './types'
 
 export class MalBlankException extends MalError {}
@@ -159,14 +158,14 @@ function readColl(reader: Reader, start = '[', end = ']') {
 // read vector of tokens
 function readVector(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '[', ']')
-	const vec = MalVector.create(...coll)
+	const vec = MalVector.create(coll)
 	vec.delimiters = delimiters
 	return vec
 }
 
 function readList(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '(', ')')
-	const list = MalList.create(...coll)
+	const list = MalList.create(coll)
 	list.delimiters = delimiters
 	return list
 }
@@ -312,19 +311,19 @@ export function jsToMal(obj: number | MalNumber): MalNumber
 export function jsToMal(obj: string | MalString): MalString
 export function jsToMal(obj: boolean | MalBoolean): MalBoolean
 export function jsToMal(obj: null | MalNil): MalNil
-export function jsToMal(obj: (...args: any) => any | MalFunc): MalFunc
-export function jsToMal(obj: MalConvertable[] | MalVector): MalVector
-export function jsToMal(obj: {[k: string]: MalConvertable} | MalMap): MalMap
-export function jsToMal(obj: MalConvertable | MalVal | any): MalVal {
-	if (obj instanceof MalVal) {
+export function jsToMal(obj: (...args: any) => any | MalFn): MalFn
+export function jsToMal(obj: any[] | MalVector): MalVector
+export function jsToMal(obj: {[k: string]: any} | MalMap): MalMap
+export function jsToMal(obj: any): MalVal {
+	if (isMal(obj)) {
 		// MalVal
 		return obj
 	} else if (Array.isArray(obj)) {
 		// Vector
-		return MalVector.create(...obj.map(jsToMal))
+		return MalVector.create(obj.map(jsToMal))
 	} else if (obj instanceof Function) {
 		// Function
-		return MalFunc.create(obj)
+		return MalFn.create(obj)
 	} else if (obj instanceof Object) {
 		// Map
 		const ret: {[k: string]: MalVal} = {}

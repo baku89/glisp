@@ -74,7 +74,6 @@ import {
 	MalBoolean,
 	MalString,
 } from '@/mal/types'
-import {printExp} from '@/mal'
 import {isUIAnnotation} from '@/mal/utils'
 
 enum DisplayMode {
@@ -181,7 +180,7 @@ export default defineComponent({
 				}
 			} else if (MalVector.is(exp)) {
 				return {
-					label: printExp(exp),
+					label: exp.print(),
 					clickable: true,
 					expandable: false,
 					editable: true,
@@ -190,7 +189,7 @@ export default defineComponent({
 				}
 			} else if (MalMap.is(exp)) {
 				return {
-					label: printExp(exp),
+					label: exp.print(),
 					clickable: true,
 					expandable: false,
 					editable: true,
@@ -199,7 +198,7 @@ export default defineComponent({
 				}
 			} else {
 				return {
-					label: printExp(exp, false),
+					label: exp.print(),
 					clickable: false,
 					expandable: false,
 					editable: false,
@@ -252,11 +251,11 @@ export default defineComponent({
 
 			const newExp =
 				Object.keys(annotation).length > 0
-					? MalList.create(
+					? MalList.create([
 							S_UI_ANNOTATE,
 							MalMap.create(annotation),
 							expBody.value
-					  )
+					])
 					: expBody.value
 
 			context.emit('update:exp', newExp)
@@ -270,11 +269,11 @@ export default defineComponent({
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = MalList.create(
+				newExp = MalList.create([
 					S_UI_ANNOTATE,
 					(props.exp as MalSeq).value[1],
 					newExpBody
-				)
+				])
 			} else {
 				newExp = newExpBody
 			}

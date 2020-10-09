@@ -7,10 +7,10 @@ import {
 	MalString,
 	MalNil,
 	MalNumber,
-	MalFunc,
-	MalF,
+	MalFn,
+	MalCallableValue,
 } from './types'
-import printExp, {printer} from './printer'
+import {printer} from './printer'
 import readStr, {jsToMal} from './reader'
 
 // String functions
@@ -89,7 +89,7 @@ const Exports = [
 
 	[
 		'def',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Defines a variable',
@@ -102,7 +102,7 @@ const Exports = [
 	],
 	[
 		'defvar',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc:
@@ -116,7 +116,7 @@ const Exports = [
 	],
 	[
 		'let',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Creates a lexical scope',
@@ -129,7 +129,7 @@ const Exports = [
 	],
 	[
 		'binding',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Creates a new binding',
@@ -142,7 +142,7 @@ const Exports = [
 	],
 	[
 		'get-all-symbols',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Gets all existing symbols',
@@ -153,7 +153,7 @@ const Exports = [
 	],
 	[
 		'fn-params',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Gets the list of a function parameter',
@@ -163,7 +163,7 @@ const Exports = [
 	],
 	[
 		'eval*',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc:
@@ -174,7 +174,7 @@ const Exports = [
 	],
 	[
 		'quote',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Yields the unevaluated *form*',
@@ -184,7 +184,7 @@ const Exports = [
 	],
 	[
 		'quasiquote',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Quasiquote',
@@ -194,7 +194,7 @@ const Exports = [
 	],
 	[
 		'fn',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Defines a function',
@@ -207,7 +207,7 @@ const Exports = [
 	],
 	[
 		'fn-sugar',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'syntactic sugar for (fn [] *form*)',
@@ -217,7 +217,7 @@ const Exports = [
 	],
 	[
 		'macro',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: '',
@@ -230,7 +230,7 @@ const Exports = [
 	],
 	[
 		'macroexpand',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Expands the macro',
@@ -240,7 +240,7 @@ const Exports = [
 	],
 	[
 		'try',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Try',
@@ -250,7 +250,7 @@ const Exports = [
 	],
 	[
 		'catch',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Catch',
@@ -260,7 +260,7 @@ const Exports = [
 	],
 	[
 		'do',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
@@ -276,7 +276,7 @@ const Exports = [
 	],
 	[
 		'if',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
@@ -290,7 +290,7 @@ const Exports = [
 	],
 	[
 		'env-chain',
-		MalFunc.create(
+		MalFn.create(
 			() => MalNil.create(),
 			jsToMal({
 				doc: 'Env chain',

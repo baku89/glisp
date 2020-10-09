@@ -16,6 +16,6 @@ export const printer = {
 	clear: console.clear,
 }
 
-export default function printExp(exp: MalVal, readably = true): string {
-	return exp.print(readably)
+export default function printExp(exp: MalVal): string {
+	return exp.print()
 }

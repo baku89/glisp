@@ -1,6 +1,6 @@
 import {
 	MalVal,
-	MalFuncThis,
+	MalCallableContext,
 	MalError,
 	MalSymbol,
 	MalMap,
@@ -10,8 +10,9 @@ import {
 	MalVector,
 	MalMacro,
 	MalNil,
-	MalFunc,
+	MalFn,
 	MalString,
+	MalType
 } from './types'
 import Env from './env'
 // import {setExpandInfo, ExpandType} from './expand'
@@ -26,7 +27,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (!isPair(exp)) {
-		const ret = MalList.create(MalSymbol.create('quote'), exp)
+		const ret = MalList.create([MalSymbol.create('quote'), exp])
 		ret.sugar = "'"
 		return ret
 	}
@@ -36,17 +37,17 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	const ret = MalList.create(
-		MalSymbol.create('concat'),
+		[MalSymbol.create('concat'),
 		...exp.value.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.value[1]
 			} else {
-				return MalVector.create(quasiquote(e))
+				return MalVector.create([quasiquote(e)])
 			}
-		})
+		})]
 	)
 
-	return MalList.is(exp) ? MalList.create(MalSymbol.create('lst'), ret) : ret
+	return MalList.is(exp) ? MalList.create([MalSymbol.create('lst'), ret]) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
 		return isMalSeq(x) && x.value.length > 0
@@ -65,7 +66,7 @@ function macroexpand(_exp: MalVal, env: Env) {
 		if (!MalMacro.is(fn)) {
 			break
 		}
-		exp.value[0].evaluated = fn
+		exp.first.evaluated = fn
 		exp = fn.value.apply({callerEnv: env}, exp.rest)
 	}
 
@@ -81,30 +82,38 @@ function getUnnamedParamsInfo(exp: MalVal) {
 	let paramCount = 0,
 		hasRest = false
 
-	function traverse(exp: MalVal) {
-		if (MalVector.is(exp)) {
-			exp.value.forEach(traverse)
-		} else if (MalList.is(exp)) {
-			exp.value.forEach(traverse)
-		} else if (MalMap.is(exp)) {
-			exp.values().forEach(traverse)
-		} else if (MalSymbol.is(exp) && exp.value.startsWith('%')) {
-			if (MalSymbol.isFor(exp, '%&')) {
-				hasRest = true
-			} else {
-				const c = parseInt(exp.value.slice(1) || '1')
-				paramCount = Math.max(paramCount, c)
-			}
-		}
-	}
 
 	traverse(exp)
 
 	return {paramCount, hasRest}
+	
+	function traverse(exp: MalVal) {
+
+		switch (exp.type) {
+			case MalType.List:
+			case MalType.Vector:
+				exp.value.forEach(traverse)
+				break
+			case MalType.Map:
+				exp.values().forEach(traverse)
+				break
+			case MalType.Symbol:
+				if (exp.value.startsWith('%')) {
+					if (exp.value === '%&') {
+						hasRest = true
+					} else {
+						const c = parseInt(exp.value.slice(1) || '1')
+						paramCount = Math.max(paramCount, c)
+					}
+				}
+				break
+		}
+	}
 }
 
+
 export default function evalExp(
-	this: void | MalFuncThis,
+	this: void | MalCallableContext,
 	exp: MalVal,
 	env: Env
 ): MalVal {
@@ -116,13 +125,13 @@ export default function evalExp(
 		exp = macroexpand(exp, env)
 
 		if (!MalList.is(exp)) {
-			let ret: MalVal | null = null
+			let ret: MalVal | undefined
 
 			if (MalSymbol.is(exp)) {
 				ret = env.get(exp.value)
 			} else if (MalVector.is(exp)) {
 				ret = MalVector.create(
-					...exp.value.map(x => evalExp.call(this, x, env))
+					exp.value.map(x => evalExp.call(this, x, env))
 				)
 			} else if (MalMap.is(exp)) {
 				ret = MalMap.create(
@@ -139,7 +148,7 @@ export default function evalExp(
 		}
 
 		if (exp.value.length === 0) {
-			origExp.evaluated = MalNil.create()
+			(origExp as MalList).evaluated = MalNil.create()
 			return MalNil.create()
 		}
 
@@ -182,7 +191,7 @@ export default function evalExp(
 				exp =
 					body.length === 1
 						? body[0]
-						: MalList.create(MalSymbol.create('do'), ...body)
+						: MalList.create([MalSymbol.create('do'), ...body])
 				break // continue TCO loop
 			}
 			// case 'binding': {
@@ -221,7 +230,7 @@ export default function evalExp(
 			// case 'fn-params': {
 			// 	first.evaluated = env.get('fn-params')
 			// 	const fn = evalExp.call(this, exp.value[1], env)
-			// 	const ret = MalFunc.is(fn)
+			// 	const ret = MalFn.is(fn)
 			// 		? MalVector.create(...fn.params)
 			// 		: MalNil.create()
 			// 	origExp.evaluated = ret
@@ -262,7 +271,7 @@ export default function evalExp(
 					params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
 				}
 
-				exp = MalList.create(MalSymbol.create('fn'), params, body)
+				exp = MalList.create([MalSymbol.create('fn'), params, body])
 				break // continue TCO loop
 			}
 			case 'fn':
@@ -270,11 +279,11 @@ export default function evalExp(
 				//first.evaluated = env.get(first.value)
 				const [, _params, body] = exp.value
 
-				let params: MalVal[] | undefined
+				let params: MalVector | undefined
 				if (MalVector.is(_params)) {
-					params = _params.value
+					params = _params
 				} else if (MalMap.is(_params)) {
-					params = [_params]
+					params = MalVector.create([_params])
 				}
 
 				if (!params) {
@@ -285,18 +294,21 @@ export default function evalExp(
 				if (body === undefined) {
 					throw new MalError(`The body of ${first} is empty`)
 				}
-				const ret = (first === 'fn' ? MalFunc : MalMacro).fromMal(
+				const ret = (first === 'fn' ? MalFn : MalMacro).create(
 					(...args) => {
 						return evalExp.call(
 							this,
 							body,
-							new Env({outer: env, forms: params, exps: args})
+							new Env({outer: env, forms: params.value, exps: args})
 						)
-					},
+					}
+				)
+				ret.ast = {
 					body,
 					env,
 					params
-				)
+				}
+				
 				origExp.evaluated = ret
 				return ret
 			}
@@ -328,7 +340,7 @@ export default function evalExp(
 							this,
 							errBody,
 							new Env({
-								outer: env,
+								outer: env, 
 								forms: [errSym],
 								exps: [message],
 								name: 'catch',
@@ -347,7 +359,7 @@ export default function evalExp(
 					origExp.evaluated = MalNil.create()
 					return MalNil.create()
 				}
-				evalExp.call(this, MalVector.create(...exp.value.slice(1, -1)), env)
+				evalExp.call(this, MalVector.create(exp.value.slice(1, -1)), env)
 				exp = exp.value[exp.value.length - 1]
 				break // continue TCO loop
 			}
@@ -364,17 +376,17 @@ export default function evalExp(
 				// Evaluate all of parameters at first
 				const [fn, ...params] = exp.value.map(e => evalExp.call(this, e, env))
 
-				if (MalFunc.is(fn)) {
+				if (MalFn.is(fn)) {
 					exp.first.evaluated = fn
-					if (MalFunc.is(fn) && fn.exp) {
+					if (fn.ast) {
 						// Lisp-defined functions
 						env = new Env({
-							outer: fn.env,
-							forms: fn.params,
+							outer: fn.ast.env,
+							forms: fn.ast.params.value,
 							exps: params,
 							name: MalSymbol.is(exp.first) ? exp.first.value : 'anonymous',
 						})
-						exp = fn.exp
+						exp = fn.ast.body
 						// continue TCO loop
 						break
 					} else {

@@ -1,6 +1,5 @@
 import Case from 'case'
 import {MalVal, MalKeyword} from '@/mal/types'
-import printExp from '@/mal/printer'
 import {Ref, unref} from 'vue'
 
 export function replaceRange(
@@ -25,7 +24,7 @@ export function clamp(value: number, min: number, max: number) {
  * @param exp A bind expression
  */
 export function getParamLabel(exp: MalVal) {
-	const str = MalKeyword.is(exp) ? exp.value : printExp(exp)
+	const str = MalKeyword.is(exp) ? exp.value : exp.print()
 	return str.length === 1 ? str : Case.capital(str)
 }
 

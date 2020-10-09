@@ -109,7 +109,6 @@ import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
 
-import {printExp} from '@/mal'
 import {
 	MalVal,
 	MalColl,
