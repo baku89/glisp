@@ -12,7 +12,7 @@ module.exports = {
 		'lib/core': './src/mal-lib/core.ts',
 		// 'lib/color': './src/mal-lib/color.ts',
 		// 'lib/path': './src/mal-lib/path.ts',
-		// 'lib/math': './src/mal-lib/math.ts',
+		'lib/math': './src/mal-lib/math.ts',
 	},
 	devtool: ' source-map',
 	resolve: {
