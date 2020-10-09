@@ -138,6 +138,10 @@ export class MalString extends MalVal {
 		return v
 	}
 
+	get(index: number) {
+		return this.value[index]
+	}
+
 	static is(value: MalVal | undefined): value is MalString {
 		return value?.type === MalType.String
 	}
