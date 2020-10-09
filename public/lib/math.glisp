@@ -113,7 +113,7 @@
   (+ _min
      (* (/ (inc x) 2) (- _max _min))))
 
-(annotate-fn!
+(annotate-fn
  cubic-bezier
  {:doc "Calculates CSS's cubic-bezier"
   :params [{:label "x1" :type "number" :validator clamp01}
@@ -121,7 +121,7 @@
            {:label "x2" :type "number" :validator clamp01}
            {:label "y2" :type "number"}
            {:label "t" :type "number" :validator clamp01}]})
-;; 
+
 ;; Linear-algebra
 ;; Using the implementation of gl-matrix
 ;; http://glmatrix.net/docs/vec2.js.htm
