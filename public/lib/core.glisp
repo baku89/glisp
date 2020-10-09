@@ -84,18 +84,6 @@
                    (swap! seen assoc filename nil)
                    (import-force filename))))))))
 
-
-
-; (defn name
-;   {:doc "Returns the string name of string, symbol or keyword"
-;    :params [{:type "any"}]
-;    :return {:type "string"}}
-;   [x]
-;   (cond (string? x) x
-;         (symbol? x) (str x) ;; Might be hacky too as below
-;         (keyword? x) (subs (str x) 1) ;; Might be hacky as it simply removes keyword prefix
-;         :else (do (prn x) (throw "Cannot get the name"))))
-
 ;; Conditionals
 (defmacro when
   {:doc "Evaluates test. If true, evaluates body in an implicit do"

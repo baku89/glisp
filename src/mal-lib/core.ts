@@ -42,6 +42,15 @@ const Exports = [
 	['keyword', (x: MalString) => MalKeyword.create(x.value)],
 	['symbol', (x: MalString) => MalSymbol.create(x.value)],
 	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is(x))],
+	[
+		'name',
+		(x: MalVal) => {
+			if (typeof x.value !== 'string') {
+				throw new MalError(`Doesn't support name: ${x.print()}`)
+			}
+			return MalString.create(x.value)
+		},
+	],
 
 	// Compare
 	[
