@@ -168,13 +168,12 @@ const Exports = [
 			MalNumber.create(isMalSeq(a) || MalString.is(a) ? a.value.length : 0),
 	],
 	[
-		'slice',
-		(a: MalSeq, start: MalNumber, end: MalNumber) => {
-			if (isMalSeq(a)) {
-				return MalVector.create(...a.value.slice(start.value, end.value))
-			} else {
+		'subvec',
+		(a: MalSeq, start: MalNumber, end?: MalNumber) => {
+			if (!isMalSeq(a)) {
 				throw new MalError(`[slice] ${printExp(a)} is not an array`)
 			}
+			return MalVector.create(...a.value.slice(start.value, end?.value))
 		},
 	],
 	[

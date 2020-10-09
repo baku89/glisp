@@ -68,13 +68,13 @@
             body
 
             ;; Filter children
-            (let [children (slice body 2)
+            (let [children (subvec body 2)
                   filtered-chilren (filter-elements sel children)]
               (if (nil? filtered-chilren)
                 ;; None of children matches
                 nil
                 ;; 
-                `[~@(slice body 0 2)
+                `[~@(subvec body 0 2)
                   ~@filtered-chilren]))))
 
         ;; Not element yet still sequence
@@ -103,7 +103,7 @@
                   ;; Transform
                   (= tag :transform)
                   (path/transform (second body)
-                                  (get-merged-path `[~@(slice body 2)]))
+                                  (get-merged-path `[~@(subvec body 2)]))
 
                   ;; Clip
                   (= tag :clip)
@@ -117,10 +117,10 @@
                   ;; NOTE: Path-offset looks buggy
                   ;; (and (starts-with? tagname "style")
                   ;;      (get (second body) :stroke))
-                  ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(slice body 2)])))
+                  ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(subvec body 2)])))
 
                   :else
-                  (get-merged-path `[~@(slice body 2)])))
+                  (get-merged-path `[~@(subvec body 2)])))
 
               ;; Just a vector
               (->> body

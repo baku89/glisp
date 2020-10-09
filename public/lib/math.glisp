@@ -210,7 +210,7 @@
                 0 []
                 1 [(vec2/scale ret -1)]
                 {:replace [-1 (vec2/- (first xs)
-                                      (apply vec2/+ (slice xs 1 -1))
+                                      (apply vec2/+ (subvec xs 1 -1))
                                       ret)]}))
    :return {:type "vec2"}}
   [& xs]
@@ -254,7 +254,7 @@
                 0 []
                 1 [(vec2/div ret)]
                 {:replace [-1 (vec2/div (first xs)
-                                        (apply vec2/* (slice xs 1 -1)) ret)]}))
+                                        (apply vec2/* (subvec xs 1 -1)) ret)]}))
    :return {:type "vec2"}}
   [& xs]
   (case (count xs)
@@ -491,7 +491,7 @@
                         :params [m]}
                      (let [t (take-last 2 m)
                            x (take 2 m)
-                           y (slice m 2 4)]
+                           y (subvec m 2 4)]
                        (case id
                          :t [`[~@x ~@y ~@p]]
                          :x [`[~@(vec2/scale (vec2/- p t) (/ 80)) ~@y ~@t]]
