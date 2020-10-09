@@ -32,6 +32,10 @@ const Exports = [
 	['number?', (x: MalVal) => MalBoolean.create(MalNumber.is(x))],
 	['string?', (x: MalVal) => MalBoolean.create(MalString.is(x))],
 	['keyword?', (x: MalVal) => MalBoolean.create(MalKeyword.is(x))],
+	['list?', (x: MalVal) => MalBoolean.create(MalList.is(x))],
+	['vector?', (x: MalVal) => MalBoolean.create(MalVector.is(x))],
+	['map?', (x: MalVal) => MalBoolean.create(MalMap.is(x))],
+	['atom?', (a: MalVal) => MalBoolean.create(a instanceof MalAtom)],
 	['fn?', (x: MalVal) => MalBoolean.create(MalFunc.is(x))],
 	['macro?', (x: MalVal) => MalBoolean.create(MalMacro.is(x))],
 
@@ -103,10 +107,8 @@ const Exports = [
 	// Array
 	['list', (...coll: MalVal[]) => MalList.create(...coll)],
 	['lst', (coll: MalSeq) => MalList.create(...coll.value)],
-	['list?', (x: MalVal) => MalBoolean.create(MalList.is(x))],
 
 	['vector', (...xs: MalVal[]) => MalVector.create(...xs)],
-	['vector?', (x: MalVal) => MalBoolean.create(MalVector.is(x))],
 	['vec', (a: MalSeq) => MalVector.create(...a.value)],
 	['sequential?', (x: MalVal) => MalBoolean.create(isMalSeq(x))],
 	[
@@ -237,7 +239,6 @@ const Exports = [
 
 	// Map
 	['hash-map', (...a: MalVal[]) => MalMap.fromMalSeq(...a)],
-	['map?', (x: MalVal) => MalBoolean.create(MalMap.is(x))],
 	['assoc', (m: MalMap, ...pairs: MalVal[]) => m.assoc(...pairs)],
 	[
 		'get',
@@ -299,9 +300,8 @@ const Exports = [
 	[
 		// Atom
 		'atom',
-		(a: MalVal) => new MalAtom(a),
+		(a: MalVal) => MalAtom.create(a),
 	],
-	['atom?', (a: MalVal) => MalBoolean.create(a instanceof MalAtom)],
 	[
 		'deref',
 		(atm: MalAtom) => {
