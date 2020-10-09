@@ -44,12 +44,39 @@ const Exports = [
 	['symbol?', (x: MalVal) => MalBoolean.create(MalSymbol.is(x))],
 
 	// Compare
-	['=', (a: MalVal, b: MalVal) => MalBoolean.create(a.equals(b))],
+	[
+		'=',
+		(a: MalVal, ...b: MalVal[]) => MalBoolean.create(b.every(x => a.equals(x))),
+	],
 	['!=', (a: MalVal, b: MalVal) => MalBoolean.create(!a.equals(b))],
-	['<', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value < b.value)],
-	['<=', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value <= b.value)],
-	['>', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value > b.value)],
-	['>=', (a: MalNumber, b: MalNumber) => MalBoolean.create(a.value >= b.value)],
+	[
+		'<',
+		(...xs: MalNumber[]) =>
+			MalBoolean.create(
+				xs.slice(0, -1).every((x, i) => x.value < xs[i + 1].value)
+			),
+	],
+	[
+		'<=',
+		(...xs: MalNumber[]) =>
+			MalBoolean.create(
+				xs.slice(0, -1).every((x, i) => x.value <= xs[i + 1].value)
+			),
+	],
+	[
+		'>',
+		(...xs: MalNumber[]) =>
+			MalBoolean.create(
+				xs.slice(0, -1).every((x, i) => x.value > xs[i + 1].value)
+			),
+	],
+	[
+		'>=',
+		(...xs: MalNumber[]) =>
+			MalBoolean.create(
+				xs.slice(0, -1).every((x, i) => x.value >= xs[i + 1].value)
+			),
+	],
 
 	// Calculus
 	[
