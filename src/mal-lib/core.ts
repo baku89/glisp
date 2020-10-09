@@ -146,23 +146,6 @@ const Exports = [
 		},
 	],
 	[
-		'first',
-		(a: MalSeq) => (a !== null && a.length > 0 ? a.get(0) : MalNil.create()),
-	],
-	[
-		'rest',
-		(a: MalSeq) =>
-			a === null ? MalVector.create() : MalVector.create(...a.value.slice(1)),
-	],
-	[
-		'last',
-		(a: MalSeq) => (a.length > 0 ? a.get(a.length - 1) : MalNil.create()),
-	],
-	[
-		'butlast',
-		(a: MalSeq) => MalVector.create(...a.value.slice(0, a.length - 1)),
-	],
-	[
 		'count',
 		(a: MalVal) =>
 			MalNumber.create(isMalSeq(a) || MalString.is(a) ? a.value.length : 0),
