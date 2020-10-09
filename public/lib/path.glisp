@@ -388,7 +388,7 @@
 
 ;; Path modifiers
 
-(annotate-fn!
+(annotate-fn
  path/transform
  {:doc "Applies transform matrix for the vertex of input path"
   :params [{:label "Matrix" :type "mat2d"}
@@ -406,7 +406,7 @@
 
 ;; Annotations for JS functions
 
-(annotate-fn!
+(annotate-fn
  path/trim
  {:doc "Trims a path by a normalized range"
   :params [{:label "Start" :type "number" :ui "slider" :validator clamp01}
@@ -427,7 +427,7 @@
                       :start {:replace [0 (path/nearest-offset p path)]}
                       :end {:replace [1 (path/nearest-offset p path)]}))}})
 
-(annotate-fn!
+(annotate-fn
  path/trim-by-length
  {:doc "Trims a path by offset lengths"
   :params [{:label "Start" :type "number"}
@@ -435,7 +435,7 @@
            {:label "Path" :type "path"}]
   :return {:type "path"}})
 
-(annotate-fn!
+(annotate-fn
  path/position-at
  {:doc "Returns a position of the specified offset on the path"
   :params [{:label "Offset", :type "number" :validator clamp01}
@@ -460,23 +460,23 @@
                           paths))}})
 
 
-(annotate-fn!
+(annotate-fn
  path/unite
  (assoc path-boolean-meta :doc "Unites the paths"))
 
-(annotate-fn!
+(annotate-fn
  path/intersect
  (assoc path-boolean-meta :doc "Intersects the paths"))
 
-(annotate-fn!
+(annotate-fn
  path/subtract
  (assoc path-boolean-meta :doc "Subtracts the paths"))
 
-(annotate-fn!
+(annotate-fn
  path/exclude
  (assoc path-boolean-meta :doc "Excludes the paths"))
 
-(annotate-fn!
+(annotate-fn
  path/divide
  (assoc path-boolean-meta :doc "Divides the paths"))
 
@@ -508,43 +508,43 @@
                            d (* (vec2/len near-dir) d-sign)]
                        {:replace [0 d]}))}})
 
-(annotate-fn!
+(annotate-fn
  path/offset
  (assoc path-offset-meta :doc "Offsets a path"))
 
-(annotate-fn!
+(annotate-fn
  path/offset-stroke
  (assoc path-offset-meta :doc "Generates outline stroke from a path"))
 
-(annotate-fn!
+(annotate-fn
  path/intersections
  {:doc "Returns all intersections between two paths"
   :params [{:label "a" :type "path"}
            {:label "b" :type "path"}]}
  path/intersections)
 
-(annotate-fn!
+(annotate-fn
  path/nearest-offset
  {:doc "Gets the offset (0-1) of nearest point on path"
   :params [{:label "Pos" :type "vec2"}
            {:label "Path" :type "path"}]
   :return {:type "number"}})
 
-(annotate-fn!
+(annotate-fn
  path/nearest-point
  {:doc "Gets the earest point on path"
   :params [{:label "Pos" :type "vec2"}
            {:label "Path" :type "path"}]
   :return {:type "vec2"}})
 
-(annotate-fn!
+(annotate-fn
  path/inside?
  {:doc "Returns true if *pos* is inside *path*"
   :params [{:label "Pos" :type "vec2"}
            {:label "Path" :type "path"}]
   :return {:type "boolean"}})
 
-(annotate-fn!
+(annotate-fn
  path/align-at-length
  {:doc "Returns a matrix composed of tangent and position at the point of `offset` in `path`"
   :params [{:label "Offset" :type "number"}
