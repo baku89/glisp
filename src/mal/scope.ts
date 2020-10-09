@@ -10,12 +10,16 @@ const normalizeURL = (() => {
 	if (isNodeJS) {
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const path = require('path')
-		return (url: string, basename: string) => {
-			return path.join(path.dirname(basename), url)
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const fs = require('fs')
+
+		return (url: string, pwd: string) => {
+			const dir = fs.statSync(pwd).isDirectory(pwd) ? pwd : path.dirname(pwd)
+			return path.join(dir, url)
 		}
 	} else {
-		return (url: string, basename: string) => {
-			return new URL(url, basename).href
+		return (url: string, pwd: string) => {
+			return new URL(url, pwd).href
 		}
 	}
 })()
@@ -46,8 +50,8 @@ export default class Scope {
 		})
 
 		this.defn('normalize-url', (url: MalVal) => {
-			const basename = this.var('*filename*').value as string
-			return MalString.create(normalizeURL(url.value as string, basename))
+			const pwd = this.var('*filename*').value as string
+			return MalString.create(normalizeURL(url.value as string, pwd))
 		})
 
 		this.defn('eval', (exp: MalVal) => {
@@ -55,15 +59,15 @@ export default class Scope {
 		})
 
 		this.defn('import-js-force', (url: MalVal) => {
-			const basename = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value as string, basename.value)
+			const pwd = this.var('*filename*') as MalString
+			const absurl = normalizeURL(url.value as string, pwd.value)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
 
 			this.def('*filename*', MalString.create(absurl))
 			evalExp(exp, this.env)
-			this.def('*filename*', basename)
+			this.def('*filename*', pwd)
 
 			return MalNil.create()
 		})
@@ -77,13 +81,13 @@ export default class Scope {
 		this.def('*filename*', MalString.create(filename))
 
 		this.defn('import-force', (url: MalVal) => {
-			const basename = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value, basename.value)
+			const pwd = this.var('*filename*') as MalString
+			const absurl = normalizeURL(url.value, pwd.value)
 			const text = slurp(absurl)
 
 			this.def('*filename*', MalString.create(absurl))
 			this.readEval(`(do ${text}\nnil)`)
-			this.def('*filename*', basename)
+			this.def('*filename*', pwd)
 
 			return MalNil.create()
 		})
