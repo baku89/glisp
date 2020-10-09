@@ -87,7 +87,7 @@ export default defineComponent({
 				const info = getFnInfo(props.value)
 
 				if (info) {
-					const inverseFn = getExpByPath(info.meta, 'inverse', MalType.Func)
+					const inverseFn = getExpByPath(info.meta, 'inverse', MalType.Fn)
 					const unit = getExpByPath(info.meta, 'unit', MalType.String)
 
 					if (inverseFn && unit) {

@@ -92,7 +92,7 @@ export function getExpByPath(
 export function getExpByPath(
 	base: MalVal,
 	path: string,
-	type: MalType.Func
+	type: MalType.Fn
 ): MalFunc | null
 export function getExpByPath(
 	base: MalVal,
@@ -281,7 +281,7 @@ export function reverseEval(exp: MalVal, original: MalVal) {
 			const meta = original.first.evaluated.meta
 			if (!meta) return
 
-			const inverseFn = getExpByPath(meta, 'inverse', MalType.Func)
+			const inverseFn = getExpByPath(meta, 'inverse', MalType.Fn)
 			if (inverseFn === null) return
 
 			const fn = original.first
@@ -404,7 +404,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		}
 
 		const meta = node.value[0].evaluated.meta
-		const viewportFn = getExpByPath(meta, 'viewport-transform', MalType.Func)
+		const viewportFn = getExpByPath(meta, 'viewport-transform', MalType.Fn)
 
 		if (!viewportFn) {
 			continue
