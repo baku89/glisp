@@ -37,7 +37,7 @@ import {readStr} from '@/mal'
 import {MalVal} from '@/mal/types'
 
 import {printer} from '@/mal/printer'
-import {MalBlankException} from '@/mal/reader'
+import {jsToMal, MalBlankException} from '@/mal/reader'
 import ViewScope from '@/scopes/view'
 import ConsoleScope from '@/scopes/console'
 import {computeTheme} from '@/theme'
@@ -124,9 +124,9 @@ export default defineComponent({
 				guideColor: ui.guideColor,
 			})
 
-			ViewScope.def('*width*', 100)
-			ViewScope.def('*height*', 100)
-			ViewScope.def('*size*', [100, 100])
+			ViewScope.def('*width*', jsToMal(100))
+			ViewScope.def('*height*', jsToMal(100))
+			ViewScope.def('*size*', jsToMal([100, 100]))
 
 			const viewExp = ViewScope.eval(exp)
 			if (viewExp !== undefined) {
