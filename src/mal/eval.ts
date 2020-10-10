@@ -286,7 +286,7 @@ export default function evalExp(
 					params = MalVector.create([_params])
 				}
 
-				if (!params) {
+				if (params === undefined) {
 					throw new MalError(
 						`The parameter of ${first} should be vector or map`
 					)
@@ -299,7 +299,7 @@ export default function evalExp(
 						return evalExp.call(
 							this,
 							body,
-							new Env({outer: env, forms: params.value, exps: args})
+							new Env({outer: env, forms: params?.value, exps: args})
 						)
 					}
 				)
