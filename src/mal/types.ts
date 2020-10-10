@@ -33,6 +33,8 @@ export type MalVal =
 	| MalAtom
 
 abstract class MalBase<T> {
+	parent: {ref: MalColl; index: number} | undefined
+
 	readonly value: T
 	protected _meta?: MalMap | MalNil
 
@@ -213,7 +215,7 @@ export class MalNil extends MalPrimBase<null> {
 		return 'nil'
 	}
 
-	clone() {
+	clone(): MalNil {
 		return new MalNil(null, this._meta?.clone())
 	}
 
@@ -416,7 +418,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return '{' + str + '}'
 	}
 
-	clone(deep = false) {
+	clone(deep = false): MalMap {
 		const value: MalMapValue = deep
 			? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone(true)]))
 			: {...this.value}
@@ -596,12 +598,16 @@ export class MalMacro extends MalCallable {
 // Atom
 export class MalAtom extends MalBase<MalVal> {
 	readonly type = MalType.Atom
+	private _evaluated?: MalVal
 
+	set evaluated(v: MalVal) {
+		this._evaluated = v
+	}
 	get evaluated() {
-		return this.value
+		return this._evaluated || this
 	}
 
-	clone() {
+	clone(): MalAtom {
 		return new MalAtom(this.value.clone(), this._meta?.clone())
 	}
 
