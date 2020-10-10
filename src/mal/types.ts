@@ -36,23 +36,18 @@ abstract class MalBase<T> {
 	readonly value: T
 	protected _meta?: MalMap | MalNil
 
-	protected constructor(value: T) {
+	protected constructor(value: T, meta?: MalMap | MalNil) {
 		this.value = value
+
+		if (meta) {
+			this._meta = meta
+		}
 	}
 
 	get meta() {
 		return this._meta ? this._meta : (this._meta = MalNil.create())
 	}
 
-	protected setMeta(v: MalBase<any>): MalVal {
-		if (v._meta) {
-			this._meta = v._meta.clone(true)
-			return this
-		} else {
-			return this
-		}
-	}
-	
 	set evaluated(_: MalVal) {
 		undefined
 	}
@@ -63,7 +58,7 @@ abstract class MalBase<T> {
 	abstract readonly type: MalType
 
 	abstract print(): string
-	abstract clone(deep?: boolean): MalVal
+	abstract clone(deep?: boolean): MalBase<T>
 	abstract toJS(): any
 	abstract equals(v: MalVal): boolean
 }
@@ -81,8 +76,8 @@ abstract class MalPrimBase<
 export class MalNumber extends MalPrimBase<number> {
 	readonly type = MalType.Number
 
-	protected constructor(v: number) {
-		super(v)
+	protected constructor(v: number, meta?: MalMap | MalNil) {
+		super(v, meta)
 		if (typeof v !== 'number') throw new Error()
 	}
 
@@ -91,7 +86,7 @@ export class MalNumber extends MalPrimBase<number> {
 	}
 
 	clone() {
-		return new MalNumber(this.value).setMeta(this)
+		return new MalNumber(this.value)
 	}
 
 	toJS() {
@@ -110,8 +105,8 @@ export class MalNumber extends MalPrimBase<number> {
 export class MalString extends MalPrimBase<string> {
 	readonly type = MalType.String
 
-	protected constructor(v: string) {
-		super(v)
+	protected constructor(v: string, meta?: MalMap | MalNil) {
+		super(v, meta)
 		if (typeof v !== 'string') throw new Error()
 	}
 
@@ -123,8 +118,8 @@ export class MalString extends MalPrimBase<string> {
 		return `"${this.value}"`
 	}
 
-	clone(): MalString {
-		return new MalString(this.value).setMeta(this)
+	clone() {
+		return new MalString(this.value, this._meta?.clone())
 	}
 
 	toJS() {
@@ -147,16 +142,16 @@ export class MalString extends MalPrimBase<string> {
 export class MalBoolean extends MalPrimBase<boolean> {
 	readonly type = MalType.Boolean
 
-	protected constructor(v: any) {
-		super(!!v)
+	protected constructor(v: any, meta?: MalMap | MalNil) {
+		super(!!v, meta)
 	}
 
 	print() {
 		return this.value ? 'true' : 'false'
 	}
 
-	clone(): MalBoolean {
-		return new MalBoolean(this.value).setMeta(this)
+	clone() {
+		return new MalBoolean(this.value, this._meta?.clone())
 	}
 
 	toJS() {
@@ -176,8 +171,8 @@ export class MalBoolean extends MalPrimBase<boolean> {
 export class MalKeyword extends MalPrimBase<string> {
 	readonly type = MalType.Keyword
 
-	protected constructor(v: string) {
-		super(v)
+	protected constructor(v: string, meta?: MalMap | MalNil) {
+		super(v, meta)
 		if (typeof v !== 'string') throw new Error()
 	}
 
@@ -185,8 +180,8 @@ export class MalKeyword extends MalPrimBase<string> {
 		return ':' + this.value
 	}
 
-	clone(): MalKeyword {
-		return new MalKeyword(this.value).setMeta(this)
+	clone() {
+		return new MalKeyword(this.value, this._meta?.clone())
 	}
 
 	toJS() {
@@ -210,8 +205,8 @@ export class MalNil extends MalPrimBase<null> {
 	readonly type = MalType.Nil
 	readonly value = null
 
-	protected constructor() {
-		super(null)
+	protected constructor(_: null, meta?: MalMap | MalNil) {
+		super(null, meta)
 	}
 
 	print() {
@@ -219,7 +214,7 @@ export class MalNil extends MalPrimBase<null> {
 	}
 
 	clone() {
-		return new MalNil().setMeta(this)
+		return new MalNil(null, this._meta?.clone())
 	}
 
 	toJS() {
@@ -227,7 +222,7 @@ export class MalNil extends MalPrimBase<null> {
 	}
 
 	static create() {
-		return new this()
+		return new this(null)
 	}
 
 	static is(v: MalVal): v is MalNil {
@@ -246,8 +241,8 @@ export class MalSymbol extends MalPrimBase<string> {
 		return this._evaluated || this
 	}
 
-	protected constructor(v: string) {
-		super(v)
+	protected constructor(v: string, meta?: MalMap | MalNil) {
+		super(v, meta)
 		if (typeof v !== 'string') throw new Error()
 	}
 
@@ -255,8 +250,8 @@ export class MalSymbol extends MalPrimBase<string> {
 		return this.value
 	}
 
-	clone(): MalSymbol {
-		return new MalSymbol(this.value).setMeta(this)
+	clone() {
+		return new MalSymbol(this.value, this._meta?.clone())
 	}
 
 	toJS() {
@@ -354,7 +349,7 @@ export class MalList extends MalSeqBase {
 
 	clone(deep = false): MalList {
 		const value = deep ? this.value.map(v => v.clone(true)) : [...this.value]
-		return new MalList(value).setMeta(this)
+		return new MalList(value, this._meta?.clone())
 	}
 
 	// Original methods
@@ -391,7 +386,7 @@ export class MalVector extends MalSeqBase {
 
 	clone(deep = false): MalVector {
 		const value = deep ? this.value.map(v => v.clone(true)) : [...this.value]
-		return new MalVector(value).setMeta(this)
+		return new MalVector(value, this._meta?.clone())
 	}
 
 	static create(v: MalVal[] = []) {
@@ -407,10 +402,6 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	readonly type = MalType.Map
 	protected _delimiters: string[] | undefined
 
-	protected constructor(v: MalMapValue) {
-		super(v)
-	}
-
 	print() {
 		const entries = this.entries()
 		const delimiters = this.delimiters
@@ -425,11 +416,11 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return '{' + str + '}'
 	}
 
-	clone(deep = false): MalMap {
-		const value = deep
+	clone(deep = false) {
+		const value: MalMapValue = deep
 			? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone(true)]))
 			: {...this.value}
-		return new MalMap(value).setMeta(this)
+		return new MalMap(value, this._meta?.clone())
 	}
 
 	toJS(): {[k: string]: any} {
@@ -454,7 +445,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	}
 	get delimiters() {
 		if (!this._delimiters) {
-			const count = this.count()
+			const count = this.count
 			this._delimiters = this._delimiters =
 				count === 0 ? [''] : ['', ...Array(count * 2 - 1).fill(' '), '']
 		}
@@ -504,7 +495,9 @@ export class MalMap extends MalCollBase<MalMapValue> {
 			if (k.type === MalType.Keyword || k.type === MalType.String) {
 				map[k.value] = v
 			} else {
-				throw new MalError(`Unexpected key ${k.print()}, expected keyword or string`)
+				throw new MalError(
+					`Unexpected key ${k.print()}, expected keyword or string`
+				)
 			}
 		}
 
@@ -554,7 +547,7 @@ export class MalFn extends MalCallable {
 	readonly type = MalType.Fn
 
 	clone(): MalFn {
-		return new MalFn(this.value).setMeta(this)
+		return new MalFn(this.value, this._meta?.clone())
 	}
 
 	static create(v: MalCallableValue) {
@@ -579,7 +572,7 @@ export class MalMacro extends MalCallable {
 	readonly type = MalType.Macro
 
 	clone(): MalMacro {
-		return new MalMacro(this.value).setMeta(this)
+		return new MalMacro(this.value, this._meta?.clone())
 	}
 
 	static create(v: MalCallableValue) {
@@ -609,14 +602,14 @@ export class MalAtom extends MalBase<MalVal> {
 	}
 
 	clone() {
-		return new MalAtom(this.value.clone())
+		return new MalAtom(this.value.clone(), this._meta?.clone())
 	}
 
 	print(readably = true): string {
 		return `(atom ${this.value?.print(readably)})readably`
 	}
 
-	toJS() {
+	toJS(): any {
 		return this.value.toJS()
 	}
 
