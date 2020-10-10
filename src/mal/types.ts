@@ -482,8 +482,33 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return Object.values(this.value)
 	}
 
+	assoc(pairs: MalVal[]) {
+		return new MalMap({...this.value, ...MalMap.createValue(pairs)})
+	}
+
+	// Static Functions
 	static create(v: MalMapValue) {
 		return new this(v)
+	}
+
+	static fromSeq(pairs: MalVal[]) {
+		return new this(this.createValue(pairs))
+	}
+
+	private static createValue(pairs: MalVal[]) {
+		const map: MalMapValue = {}
+
+		for (let i = 0; i < pairs.length; i += 2) {
+			const k = pairs[i]
+			const v = pairs[i + 1]
+			if (k.type === MalType.Keyword || k.type === MalType.String) {
+				map[k.value] = v
+			} else {
+				throw new MalError(`Unexpected key ${k.print()}, expected keyword or string`)
+			}
+		}
+
+		return map
 	}
 
 	static is(v: MalVal): v is MalMap {

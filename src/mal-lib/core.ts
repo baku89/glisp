@@ -274,8 +274,8 @@ const Exports = [
 	],
 
 	// Map
-	['hash-map', (...a: MalVal[]) => MalMap.fromMalSeq(...a)],
-	['assoc', (m: MalMap, ...pairs: MalVal[]) => m.assoc(...pairs)],
+	['hash-map', (...pairs: MalVal[]) => MalMap.fromSeq(pairs)],
+	['assoc', (m: MalMap, ...pairs: MalVal[]) => m.assoc(pairs)],
 	[
 		'get',
 		(m: MalMap, a: MalString, notfound: MalVal = MalNil.create()) => {
