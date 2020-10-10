@@ -132,7 +132,7 @@ export class MalString extends MalPrimBase<string> {
 	}
 
 	get count() {
-		return this.value.len
+		return this.value.length
 	}
 
 	static create(v = '') {
