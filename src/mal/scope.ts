@@ -13,24 +13,6 @@ import {
 import {printer} from './printer'
 import isNodeJS from 'is-node'
 
-const normalizeURL = (() => {
-	if (isNodeJS) {
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const path = require('path')
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const fs = require('fs')
-
-		return (url: string, pwd: string) => {
-			const dir = fs.statSync(pwd).isDirectory(pwd) ? pwd : path.dirname(pwd)
-			return path.join(dir, url)
-		}
-	} else {
-		return (url: string, pwd: string) => {
-			return new URL(url, pwd).href
-		}
-	}
-})()
-
 export default class Scope {
 	public env!: Env
 
@@ -122,14 +104,35 @@ export default class Scope {
 	}
 
 	private initAsRepl() {
+		const normalizeURL = (() => {
+			if (isNodeJS) {
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const path = require('path')
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const fs = require('fs')
+
+				return (url: string) => {
+					const pwd = this.var('*filename*').value as string
+					const dir = fs.statSync(pwd).isDirectory(pwd)
+						? pwd
+						: path.dirname(pwd)
+					return path.join(dir, url)
+				}
+			} else {
+				return (url: string) => {
+					const pwd = this.var('*filename*').value as string
+					return new URL(url, pwd).href
+				}
+			}
+		})()
+
 		// Defining essential functions
 		ReplCore.forEach(([name, exp]) => {
 			this.def(name, jsToMal(exp))
 		})
 
 		this.defn('normalize-url', (url: MalVal) => {
-			const pwd = this.var('*filename*').value as string
-			return MalString.create(normalizeURL(url.value as string, pwd))
+			return MalString.create(normalizeURL(url.value as string))
 		})
 
 		this.defn('eval', (exp: MalVal) => {
@@ -138,7 +141,7 @@ export default class Scope {
 
 		this.defn('import-js-force', (url: MalVal) => {
 			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value as string, pwd.value)
+			const absurl = normalizeURL(url.value as string)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
@@ -160,7 +163,7 @@ export default class Scope {
 
 		this.defn('import-force', (url: MalVal) => {
 			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL((url as MalString).value, pwd.value)
+			const absurl = normalizeURL((url as MalString).value)
 			const text = slurp(absurl)
 
 			this.def('*filename*', MalString.create(absurl))
