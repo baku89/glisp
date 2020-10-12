@@ -52,8 +52,8 @@ export default class Scope {
 
 	private initAsRepl() {
 		// Defining essential functions
-		ReplCore.forEach(([name, expr]) => {
-			this.def(name, jsToMal(expr as any))
+		ReplCore.forEach(([name, exp]) => {
+			this.def(name, jsToMal(exp))
 		})
 
 		this.defn('normalize-url', (url: MalVal) => {
@@ -100,7 +100,7 @@ export default class Scope {
 		})
 
 		// Load core library as default
-		this.readEval('(import-force "./lib/core.glisp")')
+		this.REP('(import-force "./lib/core.glisp")')
 
 		// Set the current filename to pwd
 		if (isNodeJS) {
