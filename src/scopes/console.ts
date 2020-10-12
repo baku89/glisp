@@ -20,9 +20,6 @@ import renderToSvg from '@/renderer/render-to-svg'
 import getRendereredImage from '@/renderer/get-rendererd-image'
 import {jsToMal} from '@/mal/reader'
 
-
-
-
 const ConsoleScope = new Scope(ViewScope, 'console')
 
 function generateFilename(name?: string) {
@@ -76,11 +73,6 @@ ConsoleScope.def(
 ConsoleScope.defn('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')
 	return MalString.create(`Open URL: ${url}`)
-})
-
-ConsoleScope.defn('clear-console', () => {
-	printer.clear()
-	return MalNil.create()
 })
 
 ConsoleScope.defn('download-sketch', (...args: MalVal[]) => {

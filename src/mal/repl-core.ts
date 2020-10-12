@@ -62,6 +62,13 @@ const Exports = [
 			return MalNil.create()
 		},
 	],
+	[
+		'clear',
+		() => {
+			printer.clear()
+			return MalNil.create()
+		},
+	],
 
 	// I/O
 	['read-string', (x: MalString) => readStr(x.value)],
