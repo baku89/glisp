@@ -1,14 +1,16 @@
 <template>
-	<div class="PageInterpreter">
+	<div id="app" class="PageInterpreter" :style="{...theme, background}">
 		<Console :scope="scope" @setup="onSetupConsole" />
 	</div>
 </template>
 
 <script lang="ts">
 import 'normalize.css'
+import {computed, defineComponent, reactive, ref, shallowRef} from 'vue'
+
+import Console from '@/components/Console.vue'
 import Scope from '@/mal/scope'
-import {defineComponent, ref, shallowRef} from 'vue'
-import Console from '@/components//Console.vue'
+import {computeTheme} from '@/theme'
 
 export default defineComponent({
 	name: 'PageInterpreter',
@@ -18,11 +20,14 @@ export default defineComponent({
 	setup() {
 		const scope = shallowRef(new Scope())
 
+		const background = ref('#f8f8f8')
+		const theme = computed(() => computeTheme(background.value).colors)
+
 		function onSetupConsole() {
 			scope.value.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
-		return {scope, onSetupConsole}
+		return {scope, onSetupConsole, background, theme}
 	},
 })
 </script>
