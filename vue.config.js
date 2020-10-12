@@ -11,14 +11,7 @@ module.exports = {
 	},
 	filenameHashing: false,
 	configureWebpack: {
-		plugins: [
-			new WorkerPlugin(),
-			new webpack.ProvidePlugin({
-				$: 'jquery',
-				jQuery: 'jquery',
-				'window.jQuery': 'jquery',
-			}),
-		],
+		plugins: [new WorkerPlugin()],
 		output: {
 			globalObject: 'globalThis',
 			filename: '[name].js',

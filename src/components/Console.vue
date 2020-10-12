@@ -3,9 +3,9 @@
 </template>
 
 <script lang="ts">
+import $ from 'expose-loader?exposes[]=$&exposes[]=jQuery!jquery'
 import {defineComponent, onMounted, PropType, ref} from 'vue'
 import {printer} from '@/mal/printer'
-import 'jq-console'
 import Scope from '@/mal/scope'
 
 const MAX_HISTORY_LENGTH = 1000

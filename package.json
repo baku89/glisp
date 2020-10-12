@@ -67,6 +67,7 @@
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "7.0.0-beta.4",
 		"eventemitter3": "^4.0.7",
+		"expose-loader": "^1.0.1",
 		"file-saver": "^2.0.2",
 		"ftp-deploy": "^2.3.7",
 		"gif.js": "^0.2.0",
