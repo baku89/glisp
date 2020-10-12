@@ -1,3 +1,4 @@
+import FileSaver from 'file-saver'
 import seedrandom from 'seedrandom'
 import {
 	MalVal,
@@ -397,7 +398,11 @@ const Exports = [
 				const path = require('path')
 				fs.writeFileSync(path.join(process.cwd(), f), content.value)
 			} else {
-				throw new MalError('Cannot spit on browser')
+				// Download
+				const file = new File([content.value], f.value, {
+					type: 'text/plain;charset=utf-8',
+				})
+				FileSaver.saveAs(file)
 			}
 
 			return MalNil.create()
