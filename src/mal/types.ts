@@ -94,7 +94,7 @@ abstract class MalPrimBase<
 	T extends number | string | boolean | null
 > extends MalBase<T> {
 	equals(v: MalVal) {
-		return v.type === this.type && v.value === this._value
+		return v?.type === this.type && v.value === this._value
 	}
 }
 
@@ -122,8 +122,8 @@ export class MalNumber extends MalPrimBase<number> {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalNumber {
-		return v.type === MalType.Number
+	static is(v: MalVal | undefined): v is MalNumber {
+		return v?.type === MalType.Number
 	}
 }
 
@@ -166,8 +166,8 @@ export class MalString extends MalPrimBase<string> {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalString {
-		return v.type === MalType.String
+	static is(v: MalVal | undefined): v is MalString {
+		return v?.type === MalType.String
 	}
 }
 
@@ -194,8 +194,8 @@ export class MalBoolean extends MalPrimBase<boolean> {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalBoolean {
-		return v.type === MalType.Boolean
+	static is(v: MalVal | undefined): v is MalBoolean {
+		return v?.type === MalType.Boolean
 	}
 }
 
@@ -223,12 +223,12 @@ export class MalKeyword extends MalPrimBase<string> {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalKeyword {
-		return v.type === MalType.Keyword
+	static is(v: MalVal | undefined): v is MalKeyword {
+		return v?.type === MalType.Keyword
 	}
 
 	static isFor(v: MalVal, name: string): v is MalSymbol {
-		return v.type === MalType.Keyword && v.value === name
+		return v?.type === MalType.Keyword && v.value === name
 	}
 }
 
@@ -255,8 +255,8 @@ export class MalNil extends MalPrimBase<null> {
 		return new this(null)
 	}
 
-	static is(v: MalVal): v is MalNil {
-		return v.type === MalType.Nil
+	static is(v: MalVal | undefined): v is MalNil {
+		return v?.type === MalType.Nil
 	}
 }
 
@@ -292,12 +292,12 @@ export class MalSymbol extends MalPrimBase<string> {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalSymbol {
-		return v.type === MalType.Symbol
+	static is(v: MalVal | undefined): v is MalSymbol {
+		return v?.type === MalType.Symbol
 	}
 
 	static isFor(v: MalVal, name: string): v is MalSymbol {
-		return v.type === MalType.Symbol && v.value === name
+		return v?.type === MalType.Symbol && v.value === name
 	}
 }
 
@@ -394,12 +394,12 @@ export class MalList extends MalSeqBase {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalList {
-		return v.type === MalType.List
+	static is(v: MalVal | undefined): v is MalList {
+		return v?.type === MalType.List
 	}
 
 	static isCallOf(v: MalVal, name: string): v is MalList {
-		return v.type === MalType.List && MalSymbol.isFor(v.first, name)
+		return v?.type === MalType.List && MalSymbol.isFor(v.first, name)
 	}
 }
 
@@ -419,8 +419,8 @@ export class MalVector extends MalSeqBase {
 		return new this(v)
 	}
 
-	static is(v: MalVal): v is MalVector {
-		return v.type === MalType.Vector
+	static is(v: MalVal | undefined): v is MalVector {
+		return v?.type === MalType.Vector
 	}
 }
 
@@ -534,8 +534,8 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return map
 	}
 
-	static is(v: MalVal): v is MalMap {
-		return v.type === MalType.Map
+	static is(v: MalVal | undefined): v is MalMap {
+		return v?.type === MalType.Map
 	}
 }
 
@@ -549,7 +549,7 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 	abstract readonly type: MalType.Fn | MalType.Macro
 
 	equals(v: MalVal): boolean {
-		return v.type === this.type && v.value === this._value
+		return v?.type === this.type && v.value === this._value
 	}
 
 	print(readably = true): string {
@@ -593,8 +593,8 @@ export class MalFn extends MalCallable {
 		return v
 	}
 
-	static is(v: MalVal): v is MalFn {
-		return v.type === MalType.Fn
+	static is(v: MalVal | undefined): v is MalFn {
+		return v?.type === MalType.Fn
 	}
 }
 
@@ -618,8 +618,8 @@ export class MalMacro extends MalCallable {
 		return v
 	}
 
-	static is(v: MalVal): v is MalMacro {
-		return v.type === MalType.Macro
+	static is(v: MalVal | undefined): v is MalMacro {
+		return v?.type === MalType.Macro
 	}
 }
 
@@ -648,7 +648,7 @@ export class MalAtom extends MalBase<MalVal> {
 	}
 
 	equals(v: MalVal) {
-		return v.type === this.type && v.value === this._value
+		return v?.type === this.type && v.value === this._value
 	}
 
 	// Original methods
