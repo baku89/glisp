@@ -10,9 +10,10 @@ import {
 	MalVector,
 	MalList,
 	MalKeyword,
-	MalFunc,
 	MalColl,
-	isMalSeq,, MalFn, isMal
+	isMalSeq,
+	MalFn,
+	isMal,
 } from './types'
 
 export class MalBlankException extends MalError {}
