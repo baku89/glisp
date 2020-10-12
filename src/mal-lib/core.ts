@@ -380,7 +380,7 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return MalVector.create(ret.map(MalNumber.create))
+			return jsToMal(ret)
 		},
 	],
 	// Random
