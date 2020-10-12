@@ -30,7 +30,6 @@ export default class Env {
 		this.name = name
 
 		if (forms && exps) {
-			console.log('reduce!!', forms, exps)
 			this.bind(MalVector.create(forms), MalVector.create(exps))
 		}
 	}
