@@ -199,22 +199,25 @@ function readForm(reader: Reader): any {
 		case "'":
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(MalSymbol.create('quote'), readForm(reader))
+			val = MalList.create([MalSymbol.create('quote'), readForm(reader)])
 			break
 		case '`':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(MalSymbol.create('quasiquote'), readForm(reader))
+			val = MalList.create([MalSymbol.create('quasiquote'), readForm(reader)])
 			break
 		case '~':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(MalSymbol.create('unquote'), readForm(reader))
+			val = MalList.create([MalSymbol.create('unquote'), readForm(reader)])
 			break
 		case '~@':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(MalSymbol.create('splice-unquote'), readForm(reader))
+			val = MalList.create([
+				MalSymbol.create('splice-unquote'),
+				readForm(reader),
+			])
 			break
 		case '#': {
 			reader.next()
@@ -222,7 +225,7 @@ function readForm(reader: Reader): any {
 			if (type === '(') {
 				// Syntactic sugar for anonymous function: #( )
 				sugar = [reader.prevEndOffset(), reader.offset()]
-				val = MalList.create(MalSymbol.create('fn-sugar'), readForm(reader))
+				val = MalList.create([MalSymbol.create('fn-sugar'), readForm(reader)])
 			} else {
 				throw new Error('Invalid # syntactic sugar')
 			}
@@ -235,14 +238,14 @@ function readForm(reader: Reader): any {
 			const meta = readForm(reader)
 			sugar.push(reader.prevEndOffset(), reader.offset())
 			const expr = readForm(reader)
-			val = MalList.create(MalSymbol.create('with-meta-sugar'), meta, expr)
+			val = MalList.create([MalSymbol.create('with-meta-sugar'), meta, expr])
 			break
 		}
 		case '@':
 			// Syntactic sugar for deref
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.create(MalSymbol.create('deref'), readForm(reader))
+			val = MalList.create([MalSymbol.create('deref'), readForm(reader)])
 			break
 		// list
 		case ')':
