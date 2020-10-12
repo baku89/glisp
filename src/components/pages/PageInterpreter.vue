@@ -10,8 +10,6 @@ import Scope from '@/mal/scope'
 import {defineComponent, ref, shallowRef} from 'vue'
 import Console from '@/components//Console.vue'
 
-// replScope.REP(`(str "Glisp [" *host-language* "]")`)
-
 export default defineComponent({
 	name: 'PageInterpreter',
 	components: {
