@@ -3,7 +3,9 @@
 </template>
 
 <script lang="ts">
-import $ from 'expose-loader?exposes[]=$&exposes[]=jQuery!jquery'
+import $ from 'jquery'
+import 'jq-console'
+
 import {defineComponent, onMounted, PropType, ref} from 'vue'
 import {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'

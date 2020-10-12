@@ -1,6 +1,5 @@
 const WorkerPlugin = require('worker-plugin')
 const path = require('path')
-const webpack = require('webpack')
 const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
@@ -63,6 +62,16 @@ module.exports = {
 			}
 			return args
 		})
+
+		// Add jQuery loader
+		config.module
+			.rule('jquery')
+			.test(require.resolve('jquery'))
+			.use('jquery')
+			.loader('expose-loader')
+			.options({
+				exposes: ['$', 'jQuery'],
+			})
 
 		// Copy logo.png to dist
 		config.plugin('copy-assets').use(CopyPlugin, [
