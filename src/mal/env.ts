@@ -64,7 +64,11 @@ export default class Env {
 			this.set(forms.value, exps)
 		} else if (MalVector.is(forms)) {
 			if (!MalVector.is(exps)) {
-				throw new MalError('Bind vector error')
+				throw new MalError(
+					`[${
+						this.name
+					}] The destruction parameter ${forms.print()} is not specified as vector`
+				)
 			}
 
 			for (let i = 0; i < forms.value.length; i++) {
@@ -89,7 +93,11 @@ export default class Env {
 			}
 		} else if (MalMap.is(forms)) {
 			if (!MalMap.is(exps)) {
-				throw new MalError('Bind map error')
+				throw new MalError(
+					`[${
+						this.name
+					}] The destruction parameter ${forms.print()} is not specified as map`
+				)
 			}
 
 			for (const [key, form] of forms.entries()) {
