@@ -46,6 +46,26 @@ abstract class MalBase<T> {
 		}
 	}
 
+	withMeta(meta: MalVal) {
+		const v = this.clone()
+
+		switch (meta.type) {
+			case MalType.Nil:
+				break
+			case MalType.Map:
+				v._meta = meta
+				break
+			case MalType.Keyword:
+			case MalType.String:
+				v._meta = MalMap.fromSeq([meta, MalBoolean.create(true)])
+				break
+			default:
+				throw new Error('Metadata must be Symbol, Keyword, String or Map')
+		}
+		
+		return v
+	}
+
 	get meta() {
 		return this._meta ? this._meta : (this._meta = MalNil.create())
 	}
@@ -63,7 +83,7 @@ abstract class MalBase<T> {
 
 	abstract readonly type: MalType
 
-	abstract print(): string
+	abstract print(readably?: boolean): string
 	abstract clone(deep?: boolean): MalBase<T>
 	abstract toJS(): any
 	abstract equals(v: MalVal): boolean
@@ -120,8 +140,15 @@ export class MalString extends MalPrimBase<string> {
 		return new MalString(this._value[index])
 	}
 
-	print() {
-		return `"${this._value}"`
+	print(readably = true) {
+		return readably
+			? '"' +
+					this._value
+						.replace(/\\/g, '\\\\')
+						.replace(/"/g, '\\"')
+						.replace(/\n/g, '\\n') +
+					'"'
+			: this._value
 	}
 
 	clone() {
@@ -313,11 +340,11 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 		return this._delimiters
 	}
 
-	protected printValues() {
+	protected printValues(readably: boolean) {
 		const delimiters = this.delimiters
 		let str = delimiters[0]
 		for (let i = 0; i < this._value.length; i++) {
-			str += this._value[i].print() + delimiters[i + 1]
+			str += this._value[i].print(readably) + delimiters[i + 1]
 		}
 		return str
 	}
@@ -348,8 +375,8 @@ export class MalList extends MalSeqBase {
 	readonly type = MalType.List
 	sugar?: string
 
-	print() {
-		return '(' + this.printValues() + ')'
+	print(readably = true) {
+		return '(' + this.printValues(readably) + ')'
 	}
 
 	clone(deep = false): MalList {
@@ -374,7 +401,7 @@ export class MalList extends MalSeqBase {
 		return v.type === MalType.List
 	}
 
-	static isCallOf(v: MalVal, name: string): v is MalList {		
+	static isCallOf(v: MalVal, name: string): v is MalList {
 		return v.type === MalType.List && MalSymbol.isFor(v.first, name)
 	}
 }
@@ -385,8 +412,8 @@ const v = MalList.create()
 export class MalVector extends MalSeqBase {
 	readonly type = MalType.Vector
 
-	print() {
-		return '[' + this.printValues() + ']'
+	print(readably = true) {
+		return '[' + this.printValues(readably) + ']'
 	}
 
 	clone(deep = false): MalVector {
@@ -407,14 +434,14 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	readonly type = MalType.Map
 	protected _delimiters: string[] | undefined
 
-	print() {
+	print(readably = true) {
 		const entries = this.entries()
 		const delimiters = this.delimiters
 
 		let str = ''
 		for (let i = 0; i < entries.length; i++) {
 			const [k, v] = entries[i]
-			str += delimiters[2 * i + 1] + `:${k}` + delimiters[2 * i + 2] + v.print()
+			str += delimiters[2 * i + 1] + `:${k}` + delimiters[2 * i + 2] + v.print(readably)
 		}
 		str += delimiters[delimiters.length - 1]
 
@@ -527,11 +554,11 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 		return v.type === this.type && v.value === this._value
 	}
 
-	print(): string {
+	print(readably = true): string {
 		if (this.ast) {
 			return `(${
 				this.type
-			} ${this.ast.params.print()} ${this.ast.body.print()})`
+			} ${this.ast.params.print(readably)} ${this.ast.body.print(readably)})`
 		} else {
 			return `(${this.type} #<JS Function>)`
 		}
