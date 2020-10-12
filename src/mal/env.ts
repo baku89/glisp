@@ -30,6 +30,7 @@ export default class Env {
 		this.name = name
 
 		if (forms && exps) {
+			console.log('reduce!!', forms, exps)
 			this.bind(MalVector.create(forms), MalVector.create(exps))
 		}
 	}
@@ -53,8 +54,13 @@ export default class Env {
 	 * Returns a new Env with symbols in binds bound to
 	 * corresponding values in exps
 	 */
-	public bind(forms: MalVal, exps: MalVal) {
+	public bind(forms: MalVal, exps: MalVal | undefined) {
 		if (MalSymbol.is(forms)) {
+			if (!exps) {
+				throw new MalError(
+					`[${this.name}] parameter '${forms.print()}' is not specified`
+				)
+			}
 			this.set(forms.value, exps)
 		} else if (MalVector.is(forms)) {
 			if (!MalVector.is(exps)) {
