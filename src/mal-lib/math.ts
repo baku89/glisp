@@ -1,4 +1,10 @@
-import {MalSymbol, MalVector, MalNumber, MalList, MalF} from '@/mal/types'
+import {
+	MalSymbol,
+	MalVector,
+	MalNumber,
+	MalList,
+	MalCallableValue,
+} from '@/mal/types'
 import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
@@ -10,11 +16,11 @@ const Exports = [
 		'convex-hull',
 		(pts: MalVector, concavity: MalNumber = MalNumber.create(Infinity)) => {
 			return MalVector.create(
-				...hull(
-					pts.toJS() as [number, number][],
+				hull(
+					(pts.toJS() as any) as [number, number][],
 					concavity.value
 				).map(([a, b]) =>
-					MalVector.create(MalNumber.create(a), MalNumber.create(b))
+					MalVector.create([MalNumber.create(a), MalNumber.create(b)])
 				)
 			)
 		},
@@ -22,7 +28,9 @@ const Exports = [
 	[
 		'delaunay',
 		(pts: MalVector) => {
-			const delaunay = Delaunator.from(pts.toJS() as [number, number][])
+			const delaunay = Delaunator.from(
+				(pts.toJS() as any) as [number, number][]
+			)
 			return jsToMal(partition(3, delaunay.triangles))
 		},
 	],
@@ -39,18 +47,18 @@ const Exports = [
 			return MalNumber.create(easing(Math.min(Math.max(0, t.value), 1)))
 		},
 	],
-] as [string, MalF][]
+] as [string, MalCallableValue][]
 
-const Exp = MalList.create(
+const Exp = MalList.create([
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.create(
+		MalList.create([
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			jsToMal(body)
-		)
-	)
-)
+			jsToMal(body),
+		])
+	),
+])
 ;(globalThis as any)['glisp_library'] = Exp
 
 export default Exp
