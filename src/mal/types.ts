@@ -433,13 +433,10 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		const delimiters = this.delimiters
 
 		let str = ''
-		for (let i = 0; i < entries.length; i++) {
+		for (let i = 0; i < entries.length; i += 2) {
 			const [k, v] = entries[i]
 			str +=
-				delimiters[2 * i + 1] +
-				`:${k}` +
-				delimiters[2 * i + 2] +
-				v.print(readably)
+				delimiters[2 * i] + `:${k}` + delimiters[2 * i + 1] + v.print(readably)
 		}
 		str += delimiters[delimiters.length - 1]
 
@@ -644,7 +641,7 @@ export class MalAtom extends MalBase<MalVal> {
 	}
 
 	print(readably = true): string {
-		return `(atom ${this._value?.print(readably)})readably`
+		return `(atom ${this._value?.print(readably)})`
 	}
 
 	toJS(): any {
@@ -658,6 +655,10 @@ export class MalAtom extends MalBase<MalVal> {
 	// Original methods
 	set value(v: MalVal) {
 		this._value = v
+	}
+
+	get value() {
+		return this._value
 	}
 
 	static create(value: MalVal) {
