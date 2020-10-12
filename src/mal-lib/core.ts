@@ -214,7 +214,7 @@ const Exports = [
 		'map-indexed',
 		(f: MalFn, coll: MalSeq) =>
 			MalVector.create(
-				...coll.value.map((x, i) => f.value(MalNumber.create(i), x))
+				coll.value.map((x, i) => f.value(MalNumber.create(i), x))
 			),
 	],
 	[
@@ -269,7 +269,9 @@ const Exports = [
 		'join',
 		(separator: MalString, coll: MalSeq) =>
 			MalString.create(
-				coll.value.map(v => MalString.is(v) ? v.value : v.print()).join(separator.value)
+				coll.value
+					.map(v => (MalString.is(v) ? v.value : v.print()))
+					.join(separator.value)
 			),
 	],
 
@@ -315,13 +317,11 @@ const Exports = [
 	// String
 	[
 		'pr-str',
-		(...a: MalVal[]) =>
-			MalString.create(a.map(e => printExp(e, true)).join(' ')),
+		(...a: MalVal[]) => MalString.create(a.map(e => e.print()).join(' ')),
 	],
 	[
 		'str',
-		(...a: MalVal[]) =>
-			MalString.create(a.map(e => printExp(e, false)).join('')),
+		(...a: MalVal[]) => MalString.create(a.map(e => e.print(false)).join('')),
 	],
 	[
 		'subs',
@@ -331,7 +331,7 @@ const Exports = [
 
 	// Meta
 	['meta', x => x.meta],
-	['with-meta', (x, meta) => x.clone() x.withMeta(meta)],
+	['with-meta', (x, meta) => x.withMeta(meta)],
 	['with-meta-sugar', (meta, x) => x.withMeta(meta)],
 	[
 		// Atom
