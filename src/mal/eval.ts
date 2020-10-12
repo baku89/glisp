@@ -121,6 +121,7 @@ export default function evalExp(
 		// Expand macro
 		exp = macroexpand(exp, env)
 
+		// evalAtom
 		if (!MalList.is(exp)) {
 			let ret: MalVal | undefined
 
@@ -142,6 +143,7 @@ export default function evalExp(
 			return ret || exp
 		}
 
+		// Eval () as nil
 		if (exp.value.length === 0) {
 			;(origExp as MalList).evaluated = MalNil.create()
 			return MalNil.create()
