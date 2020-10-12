@@ -313,11 +313,15 @@ export default function readStr(str: string): MalVal {
 
 export function jsToMal(obj: number | MalNumber): MalNumber
 export function jsToMal(obj: string | MalString): MalString
+export function jsToMal(obj: MalKeyword): MalKeyword
+export function jsToMal(obj: MalSymbol): MalSymbol
 export function jsToMal(obj: boolean | MalBoolean): MalBoolean
-export function jsToMal(obj: null | MalNil): MalNil
+export function jsToMal(obj: null | undefined | MalNil): MalNil
 export function jsToMal(obj: (...args: any) => any | MalFn): MalFn
+export function jsToMal(obj: MalList): MalList
 export function jsToMal(obj: any[] | MalVector): MalVector
 export function jsToMal(obj: {[k: string]: any} | MalMap): MalMap
+export function jsToMal(obj: MalAtom): MalAtom
 export function jsToMal(obj: any): MalVal {
 	if (isMal(obj)) {
 		// MalVal
@@ -335,7 +339,7 @@ export function jsToMal(obj: any): MalVal {
 			ret[key] = jsToMal(value as any)
 		}
 		return MalMap.create(ret)
-	} else if (obj === null) {
+	} else if (obj === null || obj === undefined) {
 		// Nil
 		return MalNil.create()
 	} else {
