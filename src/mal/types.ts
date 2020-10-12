@@ -619,7 +619,7 @@ export class MalMacro extends MalCallable {
 	}
 
 	static is(v: MalVal): v is MalMacro {
-		return v.type === MalType.Fn
+		return v.type === MalType.Macro
 	}
 }
 
