@@ -292,7 +292,9 @@ const Exports = [
 	[
 		'contains?',
 		(m: MalMap, a: MalVal) =>
-			MalBoolean.create(typeof a === 'string' ? a in m : false),
+			MalBoolean.create(
+				MalKeyword.is(a) || MalString.is(a) ? a.value in m.value : false
+			),
 	],
 	[
 		'entries',
