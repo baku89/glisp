@@ -403,8 +403,6 @@ export class MalList extends MalSeqBase {
 	}
 }
 
-const v = MalList.create()
-
 export class MalVector extends MalSeqBase {
 	readonly type = MalType.Vector
 

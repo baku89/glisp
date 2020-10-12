@@ -422,10 +422,11 @@ const Exp = MalList.create([
 		MalList.create([
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			jsToMal(body as any)
+			jsToMal(body as any),
 		])
-	)
-		])
+	),
+])
+
 ;(globalThis as any)['glisp_library'] = Exp
 
 export default Exp
