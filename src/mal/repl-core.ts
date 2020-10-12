@@ -8,7 +8,6 @@ import {
 	MalNil,
 	MalNumber,
 	MalFn,
-	MalCallableValue,
 } from './types'
 import {printer} from './printer'
 import readStr, {jsToMal} from './reader'
@@ -46,20 +45,20 @@ const Exports = [
 	[
 		'prn',
 		(...a: MalVal[]) => {
-			printer.log(...a.map(e => printExp(e, true)))
+			printer.log(...a.map(e => e.print()))
 			return MalNil.create()
 		},
 	],
 	[
 		'print-str',
 		(...a: MalVal[]) => {
-			return MalString.create(a.map(e => printExp(e, true)).join(' '))
+			return MalString.create(a.map(e => e.print()).join(' '))
 		},
 	],
 	[
 		'println',
 		(...a: MalVal[]) => {
-			printer.log(...a.map(e => printExp(e, false)))
+			printer.log(...a.map(e => e.print(false)))
 			return MalNil.create()
 		},
 	],
@@ -89,8 +88,7 @@ const Exports = [
 
 	[
 		'def',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Defines a variable',
 				params: [
@@ -102,8 +100,7 @@ const Exports = [
 	],
 	[
 		'defvar',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc:
 					'Creates a variable which can be changed by the bidirectional evaluation',
@@ -116,8 +113,7 @@ const Exports = [
 	],
 	[
 		'let',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Creates a lexical scope',
 				params: [
@@ -129,8 +125,7 @@ const Exports = [
 	],
 	[
 		'binding',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Creates a new binding',
 				params: [
@@ -142,8 +137,7 @@ const Exports = [
 	],
 	[
 		'get-all-symbols',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Gets all existing symbols',
 				params: [],
@@ -153,8 +147,7 @@ const Exports = [
 	],
 	[
 		'fn-params',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
@@ -163,8 +156,7 @@ const Exports = [
 	],
 	[
 		'eval*',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc:
 					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
@@ -174,8 +166,7 @@ const Exports = [
 	],
 	[
 		'quote',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
@@ -184,8 +175,7 @@ const Exports = [
 	],
 	[
 		'quasiquote',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
@@ -194,8 +184,7 @@ const Exports = [
 	],
 	[
 		'fn',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Defines a function',
 				params: [
@@ -207,8 +196,7 @@ const Exports = [
 	],
 	[
 		'fn-sugar',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
@@ -217,8 +205,7 @@ const Exports = [
 	],
 	[
 		'macro',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: '',
 				params: [
@@ -230,8 +217,7 @@ const Exports = [
 	],
 	[
 		'macroexpand',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Expands the macro',
 				params: [],
@@ -240,8 +226,7 @@ const Exports = [
 	],
 	[
 		'try',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Try',
 				params: [],
@@ -250,8 +235,7 @@ const Exports = [
 	],
 	[
 		'catch',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Catch',
 				params: [],
@@ -260,8 +244,7 @@ const Exports = [
 	],
 	[
 		'do',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
 				params: [
@@ -276,8 +259,7 @@ const Exports = [
 	],
 	[
 		'if',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
@@ -290,14 +272,13 @@ const Exports = [
 	],
 	[
 		'env-chain',
-		MalFn.create(
-			() => MalNil.create(),
+		MalFn.create(() => MalNil.create()).withMeta(
 			jsToMal({
 				doc: 'Env chain',
 				params: [],
 			})
 		),
 	],
-] as [string, MalVal | MalF][]
+] as [string, MalVal][]
 
 export default Exports
