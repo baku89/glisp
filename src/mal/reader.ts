@@ -14,6 +14,7 @@ import {
 	isMalSeq,
 	MalFn,
 	isMal,
+	MalAtom,
 } from './types'
 
 export class MalBlankException extends MalError {}
