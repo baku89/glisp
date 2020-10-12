@@ -48,7 +48,18 @@ module.exports = {
 				args.onlyCompileBundledFiles = true
 				return args
 			})
-		config.plugin('html-js/index').tap(args => {
+		// config.plugin('html-js/index').tap(args => {
+		// 	args[0].hash = true
+		// 	args[0].minify = {
+		// 		removeComments: false,
+		// 		collapseWhitespace: false,
+		// 		removeAttributeQuotes: false,
+		// 		collapseBooleanAttributes: false,
+		// 		removeScriptTypeAttributes: false,
+		// 	}
+		// 	return args
+		// })
+		config.plugin('html-js/interpreter').tap(args => {
 			args[0].hash = true
 			args[0].minify = {
 				removeComments: false,
@@ -73,15 +84,20 @@ module.exports = {
 		])
 	},
 	pages: {
-		'js/index': {
-			entry: 'src/pages/index.ts',
-			template: 'public/index.html',
-			filename: 'index.html',
-		},
+		// 'js/index': {
+		// 	entry: 'src/pages/index.ts',
+		// 	template: 'public/index.html',
+		// 	filename: 'index.html',
+		// },
 		// 'js/embed': {
 		// 	entry: 'src/pages/embed.ts',
 		// 	template: 'public/embed.html',
 		// 	filename: 'embed.html',
 		// },
+		'js/interpreter': {
+			entry: 'src/pages/interpreter/index.ts',
+			template: 'public/interpreter.html',
+			filename: 'interpreter.html',
+		},
 	},
 }
