@@ -105,7 +105,7 @@ export default class Scope {
 	}
 
 	private initAsRepl() {
-		const normalizeURL = (() => {
+		const normalizeImportURL = (() => {
 			if (isNodeJS) {
 				// eslint-disable-next-line @typescript-eslint/no-var-requires
 				const path = require('path')
@@ -132,8 +132,8 @@ export default class Scope {
 			this.def(name, jsToMal(exp))
 		})
 
-		this.defn('normalize-url', (url: MalVal) => {
-			return MalString.create(normalizeURL(url.value as string))
+		this.defn('normalize-import-url', (url: MalVal) => {
+			return MalString.create(normalizeImportURL(url.value as string))
 		})
 
 		this.defn('eval', (exp: MalVal) => {
@@ -151,12 +151,13 @@ export default class Scope {
 		}
 
 		this.def('*filename*', MalString.create(filename))
+		this.def('*libpath*', MalString.create(libpath))
 
 		this.defn('import-force', (url: MalVal) => {
 			const _url = url.value as string
 			const pwd = this.var('*filename*') as MalString
 
-			const absurl = normalizeURL(_url)
+			const absurl = normalizeImportURL(_url)
 			const text = slurp(absurl)
 			let exp: MalVal
 
