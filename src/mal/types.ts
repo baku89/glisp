@@ -576,8 +576,10 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 export class MalFn extends MalCallable {
 	readonly type = MalType.Fn
 
-	clone(): MalFn {
-		return new MalFn(this._value, this._meta?.clone())
+	clone() {
+		const v = new MalFn(this._value, this._meta?.clone())
+		v.ast = this.ast
+		return v
 	}
 
 	static create(v: MalCallableValue) {
@@ -601,8 +603,10 @@ export class MalFn extends MalCallable {
 export class MalMacro extends MalCallable {
 	readonly type = MalType.Macro
 
-	clone(): MalMacro {
-		return new MalMacro(this._value, this._meta?.clone())
+	clone() {
+		const v = new MalMacro(this._value, this._meta?.clone())
+		v.ast = this.ast
+		return v
 	}
 
 	static create(v: MalCallableValue) {
