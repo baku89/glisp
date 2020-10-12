@@ -1,12 +1,12 @@
 <template>
-	<div class="Console" :class="{compact}" ref="el" />
+	<div class="Console" ref="el" />
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, ref} from 'vue'
+import {defineComponent, onMounted, PropType, ref} from 'vue'
 import {printer} from '@/mal/printer'
-import ConsoleScope from '../scopes/console'
 import 'jq-console'
+import Scope from '@/mal/scope'
 
 const MAX_HISTORY_LENGTH = 1000
 
@@ -28,8 +28,8 @@ function jqsaveHistory(jq: any) {
 export default defineComponent({
 	name: 'Console',
 	props: {
-		compact: {
-			type: Boolean,
+		scope: {
+			type: Object as PropType<Scope>,
 			required: true,
 		},
 	},
@@ -76,7 +76,7 @@ export default defineComponent({
 			// Handle a command.
 			const handler = (line?: string) => {
 				if (line) {
-					ConsoleScope.REP(line)
+					props.scope.REP(line)
 					jqsaveHistory(jqconsole)
 				}
 				jqconsole.Prompt(true, handler)
@@ -92,6 +92,8 @@ export default defineComponent({
 				jqconsole.MoveToEnd()
 				handler()
 			})
+
+			// Setup Glisp Syntax
 			jqconsole.RegisterMatching('{', '}', 'brace')
 			jqconsole.RegisterMatching('(', ')', 'paren')
 			jqconsole.RegisterMatching('[', ']', 'bracket')
@@ -118,13 +120,6 @@ export default defineComponent({
 	text-align left
 	font-size 1rem
 	line-height 1.2em
-
-	&.compact
-		overflow hidden
-
-		& > div
-			top auto !important
-			overflow hidden !important
 
 .jqconsole
 	font-monospace()
