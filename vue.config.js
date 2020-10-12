@@ -19,7 +19,7 @@ module.exports = {
 			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
 			// 'lib/color': path.join(__dirname, 'src/mal-lib/color.ts'),
 			// 'lib/path': path.join(__dirname, 'src/mal-lib/path.ts'),
-			// 'lib/math': path.join(__dirname, 'src/mal-lib/math.ts'),
+			'lib/math': path.join(__dirname, 'src/mal-lib/math.ts'),
 		},
 		node: {
 			__dirname: false,
