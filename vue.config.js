@@ -95,7 +95,7 @@ module.exports = {
 		// 	filename: 'embed.html',
 		// },
 		'js/interpreter': {
-			entry: 'src/pages/interpreter/index.ts',
+			entry: 'src/pages/interpreter.ts',
 			template: 'public/interpreter.html',
 			filename: 'interpreter.html',
 		},

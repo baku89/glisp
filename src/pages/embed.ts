@@ -1,6 +1,6 @@
 import {createApp} from 'vue'
 import ResizeSensor from 'resize-sensor'
-import App from '@/components/PageEmbed.vue'
+import App from '@/components/pages/PageEmbed.vue'
 
 const app = createApp(App)
 app.mount('#app')
