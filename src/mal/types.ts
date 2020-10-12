@@ -35,11 +35,11 @@ export type MalVal =
 abstract class MalBase<T> {
 	parent: {ref: MalColl; index: number} | undefined
 
-	readonly value: T
+	protected _value: T
 	protected _meta?: MalMap | MalNil
 
 	protected constructor(value: T, meta?: MalMap | MalNil) {
-		this.value = value
+		this._value = value
 
 		if (meta) {
 			this._meta = meta
@@ -48,6 +48,10 @@ abstract class MalBase<T> {
 
 	get meta() {
 		return this._meta ? this._meta : (this._meta = MalNil.create())
+	}
+
+	get value() {
+		return this._value
 	}
 
 	set evaluated(_: MalVal) {
@@ -71,7 +75,7 @@ abstract class MalPrimBase<
 > extends MalBase<T> {
 
 	equals(v: MalVal) {
-		return v.type === this.type && v.value === this.value
+		return v.type === this.type && v.value === this._value
 	}
 }
 
@@ -84,15 +88,15 @@ export class MalNumber extends MalPrimBase<number> {
 	}
 
 	print() {
-		return this.value.toFixed(4).replace(/\.?[0]+$/, '')
+		return this._value.toFixed(4).replace(/\.?[0]+$/, '')
 	}
 
 	clone() {
-		return new MalNumber(this.value)
+		return new MalNumber(this._value)
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	static create(v = 0) {
@@ -113,23 +117,23 @@ export class MalString extends MalPrimBase<string> {
 	}
 
 	get(index: number) {
-		return new MalString(this.value[index])
+		return new MalString(this._value[index])
 	}
 
 	print() {
-		return `"${this.value}"`
+		return `"${this._value}"`
 	}
 
 	clone() {
-		return new MalString(this.value, this._meta?.clone())
+		return new MalString(this._value, this._meta?.clone())
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	get count() {
-		return this.value.length
+		return this._value.length
 	}
 
 	static create(v = '') {
@@ -149,15 +153,15 @@ export class MalBoolean extends MalPrimBase<boolean> {
 	}
 
 	print() {
-		return this.value ? 'true' : 'false'
+		return this._value ? 'true' : 'false'
 	}
 
 	clone() {
-		return new MalBoolean(this.value, this._meta?.clone())
+		return new MalBoolean(this._value, this._meta?.clone())
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	static create(v = true) {
@@ -179,15 +183,15 @@ export class MalKeyword extends MalPrimBase<string> {
 	}
 
 	print() {
-		return ':' + this.value
+		return ':' + this._value
 	}
 
 	clone() {
-		return new MalKeyword(this.value, this._meta?.clone())
+		return new MalKeyword(this._value, this._meta?.clone())
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	static create(v = '_') {
@@ -205,7 +209,6 @@ export class MalKeyword extends MalPrimBase<string> {
 
 export class MalNil extends MalPrimBase<null> {
 	readonly type = MalType.Nil
-	readonly value = null
 
 	protected constructor(_: null, meta?: MalMap | MalNil) {
 		super(null, meta)
@@ -249,15 +252,15 @@ export class MalSymbol extends MalPrimBase<string> {
 	}
 
 	print() {
-		return this.value
+		return this._value
 	}
 
 	clone() {
-		return new MalSymbol(this.value, this._meta?.clone())
+		return new MalSymbol(this._value, this._meta?.clone())
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	static create(v = '_') {
@@ -303,9 +306,9 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 	get delimiters(): string[] {
 		if (!this._delimiters) {
 			this._delimiters =
-				this.value.length === 0
+				this._value.length === 0
 					? ['']
-					: ['', ...Array(this.value.length - 1).fill(' '), '']
+					: ['', ...Array(this._value.length - 1).fill(' '), '']
 		}
 		return this._delimiters
 	}
@@ -313,31 +316,31 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 	protected printValues() {
 		const delimiters = this.delimiters
 		let str = delimiters[0]
-		for (let i = 0; i < this.value.length; i++) {
-			str += this.value[i].print() + delimiters[i + 1]
+		for (let i = 0; i < this._value.length; i++) {
+			str += this._value[i].print() + delimiters[i + 1]
 		}
 		return str
 	}
 
 	toJS() {
-		this.value.map(x => x.toJS())
+		this._value.map(x => x.toJS())
 	}
 
 	equals(v: MalVal): boolean {
 		return (
 			v.type === this.type &&
-			v.value.length === this.value.length &&
-			v.value.every((x, i) => x.equals(this.value[i]))
+			v.value.length === this._value.length &&
+			v.value.every((x, i) => x.equals(this._value[i]))
 		)
 	}
 
 	// Inherited from MalCollBase
 	get(index: number) {
-		return this.value[index]
+		return this._value[index]
 	}
 
 	get count() {
-		return this.value.length
+		return this._value.length
 	}
 }
 
@@ -350,17 +353,17 @@ export class MalList extends MalSeqBase {
 	}
 
 	clone(deep = false): MalList {
-		const value = deep ? this.value.map(v => v.clone(true)) : [...this.value]
+		const value = deep ? this._value.map(v => v.clone(true)) : [...this._value]
 		return new MalList(value, this._meta?.clone())
 	}
 
 	// Original methods
 	get first() {
-		return this.value[0] || MalNil.create()
+		return this._value[0] || MalNil.create()
 	}
 
 	get rest() {
-		return this.value.slice(1)
+		return this._value.slice(1)
 	}
 
 	static create(v: MalVal[] = []) {
@@ -387,7 +390,7 @@ export class MalVector extends MalSeqBase {
 	}
 
 	clone(deep = false): MalVector {
-		const value = deep ? this.value.map(v => v.clone(true)) : [...this.value]
+		const value = deep ? this._value.map(v => v.clone(true)) : [...this._value]
 		return new MalVector(value, this._meta?.clone())
 	}
 
@@ -421,13 +424,13 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	clone(deep = false): MalMap {
 		const value: MalMapValue = deep
 			? Object.fromEntries(this.entries().map(([k, v]) => [k, v.clone(true)]))
-			: {...this.value}
+			: {...this._value}
 		return new MalMap(value, this._meta?.clone())
 	}
 
 	toJS(): {[k: string]: any} {
 		return Object.fromEntries(
-			Object.entries(this.value).map(([k, v]) => [k, v.toJS()])
+			Object.entries(this._value).map(([k, v]) => [k, v.toJS()])
 		)
 	}
 
@@ -455,28 +458,28 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	}
 
 	get(key: string) {
-		return this.value[key]
+		return this._value[key]
 	}
 
 	get count() {
-		return Object.keys(this.value).length
+		return Object.keys(this._value).length
 	}
 
 	// Original methods
 	entries() {
-		return Object.entries(this.value)
+		return Object.entries(this._value)
 	}
 
 	keys() {
-		return Object.keys(this.value)
+		return Object.keys(this._value)
 	}
 
 	values() {
-		return Object.values(this.value)
+		return Object.values(this._value)
 	}
 
 	assoc(pairs: MalVal[]) {
-		return new MalMap({...this.value, ...MalMap.createValue(pairs)})
+		return new MalMap({...this._value, ...MalMap.createValue(pairs)})
 	}
 
 	// Static Functions
@@ -521,7 +524,7 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 	abstract readonly type: MalType.Fn | MalType.Macro
 
 	equals(v: MalVal): boolean {
-		return v.type === this.type && v.value === this.value
+		return v.type === this.type && v.value === this._value
 	}
 
 	print(): string {
@@ -535,7 +538,7 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 	}
 
 	toJS() {
-		return this.value
+		return this._value
 	}
 
 	public ast?: {
@@ -549,7 +552,7 @@ export class MalFn extends MalCallable {
 	readonly type = MalType.Fn
 
 	clone(): MalFn {
-		return new MalFn(this.value, this._meta?.clone())
+		return new MalFn(this._value, this._meta?.clone())
 	}
 
 	static create(v: MalCallableValue) {
@@ -574,7 +577,7 @@ export class MalMacro extends MalCallable {
 	readonly type = MalType.Macro
 
 	clone(): MalMacro {
-		return new MalMacro(this.value, this._meta?.clone())
+		return new MalMacro(this._value, this._meta?.clone())
 	}
 
 	static create(v: MalCallableValue) {
@@ -608,19 +611,24 @@ export class MalAtom extends MalBase<MalVal> {
 	}
 
 	clone(): MalAtom {
-		return new MalAtom(this.value.clone(), this._meta?.clone())
+		return new MalAtom(this._value.clone(), this._meta?.clone())
 	}
 
 	print(readably = true): string {
-		return `(atom ${this.value?.print(readably)})readably`
+		return `(atom ${this._value?.print(readably)})readably`
 	}
 
 	toJS(): any {
-		return this.value.toJS()
+		return this._value.toJS()
 	}
 
 	equals(v: MalVal) {
-		return v.type === this.type && v.value === this.value
+		return v.type === this.type && v.value === this._value
+	}
+
+	// Original methods
+	set value(v: MalVal) {
+		this._value = v
 	}
 
 	static create(value: MalVal) {
