@@ -50,64 +50,6 @@ export default class Scope {
 		}
 	}
 
-	private initAsRepl() {
-		// Defining essential functions
-		ReplCore.forEach(([name, exp]) => {
-			this.def(name, jsToMal(exp))
-		})
-
-		this.defn('normalize-url', (url: MalVal) => {
-			const pwd = this.var('*filename*').value as string
-			return MalString.create(normalizeURL(url.value as string, pwd))
-		})
-
-		this.defn('eval', (exp: MalVal) => {
-			return evalExp(exp, this.env)
-		})
-
-		this.defn('import-js-force', (url: MalVal) => {
-			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value as string, pwd.value)
-			const text = slurp(absurl)
-			eval(text)
-			const exp = (globalThis as any)['glisp_library']
-
-			this.def('*filename*', MalString.create(absurl))
-			evalExp(exp, this.env)
-			this.def('*filename*', pwd)
-
-			return MalNil.create()
-		})
-
-		let filename: string
-		if (isNodeJS) {
-			filename = __filename
-		} else {
-			filename = new URL('.', document.baseURI).href
-		}
-		this.def('*filename*', MalString.create(filename))
-
-		this.defn('import-force', (url: MalVal) => {
-			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL((url as MalString).value, pwd.value)
-			const text = slurp(absurl)
-
-			this.def('*filename*', MalString.create(absurl))
-			this.readEval(`(do ${text}\nnil)`)
-			this.def('*filename*', pwd)
-
-			return MalNil.create()
-		})
-
-		// Load core library as default
-		this.REP('(import-force "./lib/core.glisp")')
-
-		// Set the current filename to pwd
-		if (isNodeJS) {
-			this.def('*filename*', MalString.create(process.cwd()))
-		}
-	}
-
 	public setup(option?: any) {
 		this.env = new Env({outer: this.outer?.env, name: this.name})
 
@@ -177,5 +119,63 @@ export default class Scope {
 
 	public var(name: string) {
 		return this.env.get(name)
+	}
+
+	private initAsRepl() {
+		// Defining essential functions
+		ReplCore.forEach(([name, exp]) => {
+			this.def(name, jsToMal(exp))
+		})
+
+		this.defn('normalize-url', (url: MalVal) => {
+			const pwd = this.var('*filename*').value as string
+			return MalString.create(normalizeURL(url.value as string, pwd))
+		})
+
+		this.defn('eval', (exp: MalVal) => {
+			return evalExp(exp, this.env)
+		})
+
+		this.defn('import-js-force', (url: MalVal) => {
+			const pwd = this.var('*filename*') as MalString
+			const absurl = normalizeURL(url.value as string, pwd.value)
+			const text = slurp(absurl)
+			eval(text)
+			const exp = (globalThis as any)['glisp_library']
+
+			this.def('*filename*', MalString.create(absurl))
+			evalExp(exp, this.env)
+			this.def('*filename*', pwd)
+
+			return MalNil.create()
+		})
+
+		let filename: string
+		if (isNodeJS) {
+			filename = __filename
+		} else {
+			filename = new URL('.', document.baseURI).href
+		}
+		this.def('*filename*', MalString.create(filename))
+
+		this.defn('import-force', (url: MalVal) => {
+			const pwd = this.var('*filename*') as MalString
+			const absurl = normalizeURL((url as MalString).value, pwd.value)
+			const text = slurp(absurl)
+
+			this.def('*filename*', MalString.create(absurl))
+			this.readEval(`(do ${text}\nnil)`)
+			this.def('*filename*', pwd)
+
+			return MalNil.create()
+		})
+
+		// Load core library as default
+		this.REP('(import-force "./lib/core.glisp")')
+
+		// Set the current filename to pwd
+		if (isNodeJS) {
+			this.def('*filename*', MalString.create(process.cwd()))
+		}
 	}
 }
