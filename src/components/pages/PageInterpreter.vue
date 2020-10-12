@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {computed, defineComponent, reactive, ref, shallowRef} from 'vue'
+import {computed, defineComponent, ref, shallowRef} from 'vue'
 
 import Console from '@/components/Console.vue'
 import Scope from '@/mal/scope'
@@ -37,5 +37,6 @@ export default defineComponent({
 @import '../style/global.styl'
 
 .PageInterpreter
+	padding 2rem
 	height 100vh
 </style>
