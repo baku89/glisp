@@ -12,7 +12,6 @@ import {
 } from './types'
 import {printer} from './printer'
 import isNodeJS from 'is-node'
-import {blue} from 'chalk'
 
 export default class Scope {
 	public env!: Env
@@ -113,16 +112,27 @@ export default class Scope {
 				const fs = require('fs')
 
 				return (url: string) => {
-					const pwd = this.var('*filename*').value as string
-					const dir = fs.statSync(pwd).isDirectory(pwd)
-						? pwd
-						: path.dirname(pwd)
-					return path.join(dir, url)
+					if (url.startsWith('.')) {
+						// Relative
+						const basepath = this.var('*filename*').value as string
+						return path.join(path.dirname(basepath), url)
+					} else {
+						// Library
+						const basepath = this.var('*libpath*').value as string
+						return path.join(basepath, url)
+					}
 				}
 			} else {
 				return (url: string) => {
-					const pwd = this.var('*filename*').value as string
-					return new URL(url, pwd).href
+					if (url.startsWith('.')) {
+						// Relative
+						const basepath = this.var('*filename*').value as string
+						return new URL(url, basepath).href
+					} else {
+						// Library
+						const basepath = this.var('*libpath*').value as string
+						return new URL(url, basepath).href
+					}
 				}
 			}
 		})()
@@ -147,7 +157,7 @@ export default class Scope {
 			filename = __filename
 		} else {
 			filename = new URL('.', document.baseURI).href
-			libpath = new URL('./lib', document.baseURI).href
+			libpath = new URL('./lib/', document.baseURI).href
 		}
 
 		this.def('*filename*', MalString.create(filename))
@@ -158,6 +168,7 @@ export default class Scope {
 			const pwd = this.var('*filename*') as MalString
 
 			const absurl = normalizeImportURL(_url)
+			console.log(absurl)
 			const text = slurp(absurl)
 			let exp: MalVal
 
@@ -176,7 +187,7 @@ export default class Scope {
 		})
 
 		// Load core library as default
-		this.REP('(import-force "./lib/core.glisp")')
+		this.REP('(import-force "core.glisp")')
 
 		// Set the current filename to pwd
 		if (isNodeJS) {

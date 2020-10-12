@@ -1,4 +1,4 @@
-(import-force "core.js")
+(import-force "./core.js")
 
 ;; Declarations
 (def defmacro
