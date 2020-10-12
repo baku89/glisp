@@ -12,6 +12,7 @@ import {
 } from './types'
 import {printer} from './printer'
 import isNodeJS from 'is-node'
+import {blue} from 'chalk'
 
 export default class Scope {
 	public env!: Env
@@ -139,35 +140,35 @@ export default class Scope {
 			return evalExp(exp, this.env)
 		})
 
-		this.defn('import-js-force', (url: MalVal) => {
-			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL(url.value as string)
-			const text = slurp(absurl)
-			eval(text)
-			const exp = (globalThis as any)['glisp_library']
+		let filename: string,
+			libpath = ''
 
-			this.def('*filename*', MalString.create(absurl))
-			evalExp(exp, this.env)
-			this.def('*filename*', pwd)
-
-			return MalNil.create()
-		})
-
-		let filename: string
 		if (isNodeJS) {
 			filename = __filename
 		} else {
 			filename = new URL('.', document.baseURI).href
+			libpath = new URL('./lib', document.baseURI).href
 		}
+
 		this.def('*filename*', MalString.create(filename))
 
 		this.defn('import-force', (url: MalVal) => {
+			const _url = url.value as string
 			const pwd = this.var('*filename*') as MalString
-			const absurl = normalizeURL((url as MalString).value)
+
+			const absurl = normalizeURL(_url)
 			const text = slurp(absurl)
+			let exp: MalVal
+
+			if (_url.endsWith('.js')) {
+				eval(text)
+				exp = (globalThis as any)['glisp_library']
+			} else {
+				exp = readStr(`(do ${text}\nnil)`)
+			}
 
 			this.def('*filename*', MalString.create(absurl))
-			this.readEval(`(do ${text}\nnil)`)
+			this.eval(exp)
 			this.def('*filename*', pwd)
 
 			return MalNil.create()

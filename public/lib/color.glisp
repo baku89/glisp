@@ -1,5 +1,5 @@
 (import "math.glisp")
-(import-js-force "color.js")
+(import-force "color.js")
 
 ;; Color
 (defn color? [x]
