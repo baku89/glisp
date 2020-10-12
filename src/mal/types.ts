@@ -62,7 +62,7 @@ abstract class MalBase<T> {
 			default:
 				throw new Error('Metadata must be Symbol, Keyword, String or Map')
 		}
-		
+
 		return v
 	}
 
@@ -93,7 +93,6 @@ abstract class MalBase<T> {
 abstract class MalPrimBase<
 	T extends number | string | boolean | null
 > extends MalBase<T> {
-
 	equals(v: MalVal) {
 		return v.type === this.type && v.value === this._value
 	}
@@ -200,7 +199,6 @@ export class MalBoolean extends MalPrimBase<boolean> {
 	}
 }
 
-
 export class MalKeyword extends MalPrimBase<string> {
 	readonly type = MalType.Keyword
 
@@ -302,7 +300,6 @@ export class MalSymbol extends MalPrimBase<string> {
 		return v.type === MalType.Symbol && v.value === name
 	}
 }
-
 
 // Collections
 export type MalMapValue = {[key: string]: MalVal}
@@ -408,7 +405,6 @@ export class MalList extends MalSeqBase {
 
 const v = MalList.create()
 
-
 export class MalVector extends MalSeqBase {
 	readonly type = MalType.Vector
 
@@ -441,7 +437,11 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		let str = ''
 		for (let i = 0; i < entries.length; i++) {
 			const [k, v] = entries[i]
-			str += delimiters[2 * i + 1] + `:${k}` + delimiters[2 * i + 2] + v.print(readably)
+			str +=
+				delimiters[2 * i + 1] +
+				`:${k}` +
+				delimiters[2 * i + 2] +
+				v.print(readably)
 		}
 		str += delimiters[delimiters.length - 1]
 
@@ -556,9 +556,9 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 
 	print(readably = true): string {
 		if (this.ast) {
-			return `(${
-				this.type
-			} ${this.ast.params.print(readably)} ${this.ast.body.print(readably)})`
+			return `(${this.type} ${this.ast.params.print(
+				readably
+			)} ${this.ast.body.print(readably)})`
 		} else {
 			return `(${this.type} #<JS Function>)`
 		}

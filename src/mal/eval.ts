@@ -12,7 +12,7 @@ import {
 	MalNil,
 	MalFn,
 	MalString,
-	MalType
+	MalType,
 } from './types'
 import Env from './env'
 // import {setExpandInfo, ExpandType} from './expand'
@@ -36,16 +36,16 @@ function quasiquote(exp: MalVal): MalVal {
 		return exp.value[1]
 	}
 
-	const ret = MalList.create(
-		[MalSymbol.create('concat'),
+	const ret = MalList.create([
+		MalSymbol.create('concat'),
 		...exp.value.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.value[1]
 			} else {
 				return MalVector.create([quasiquote(e)])
 			}
-		})]
-	)
+		}),
+	])
 
 	return MalList.is(exp) ? MalList.create([MalSymbol.create('lst'), ret]) : ret
 
@@ -82,13 +82,11 @@ function getUnnamedParamsInfo(exp: MalVal) {
 	let paramCount = 0,
 		hasRest = false
 
-
 	traverse(exp)
 
 	return {paramCount, hasRest}
-	
-	function traverse(exp: MalVal) {
 
+	function traverse(exp: MalVal) {
 		switch (exp.type) {
 			case MalType.List:
 			case MalType.Vector:
@@ -111,7 +109,6 @@ function getUnnamedParamsInfo(exp: MalVal) {
 	}
 }
 
-
 export default function evalExp(
 	this: void | MalCallableContext,
 	exp: MalVal,
@@ -130,9 +127,7 @@ export default function evalExp(
 			if (MalSymbol.is(exp)) {
 				ret = env.get(exp.value)
 			} else if (MalVector.is(exp)) {
-				ret = MalVector.create(
-					exp.value.map(x => evalExp.call(this, x, env))
-				)
+				ret = MalVector.create(exp.value.map(x => evalExp.call(this, x, env)))
 			} else if (MalMap.is(exp)) {
 				ret = MalMap.create(
 					Object.fromEntries(
@@ -148,7 +143,7 @@ export default function evalExp(
 		}
 
 		if (exp.value.length === 0) {
-			(origExp as MalList).evaluated = MalNil.create()
+			;(origExp as MalList).evaluated = MalNil.create()
 			return MalNil.create()
 		}
 
@@ -294,21 +289,19 @@ export default function evalExp(
 				if (body === undefined) {
 					throw new MalError(`The body of ${first} is empty`)
 				}
-				const ret = (first === 'fn' ? MalFn : MalMacro).create(
-					(...args) => {
-						return evalExp.call(
-							this,
-							body,
-							new Env({outer: env, forms: params?.value, exps: args})
-						)
-					}
-				)
+				const ret = (first === 'fn' ? MalFn : MalMacro).create((...args) => {
+					return evalExp.call(
+						this,
+						body,
+						new Env({outer: env, forms: params?.value, exps: args})
+					)
+				})
 				ret.ast = {
 					body,
 					env,
-					params
+					params,
 				}
-				
+
 				origExp.evaluated = ret
 				return ret
 			}
@@ -340,7 +333,7 @@ export default function evalExp(
 							this,
 							errBody,
 							new Env({
-								outer: env, 
+								outer: env,
 								forms: [errSym],
 								exps: [message],
 								name: 'catch',
