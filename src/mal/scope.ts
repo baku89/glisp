@@ -108,8 +108,6 @@ export default class Scope {
 			if (isNodeJS) {
 				// eslint-disable-next-line @typescript-eslint/no-var-requires
 				const path = require('path')
-				// eslint-disable-next-line @typescript-eslint/no-var-requires
-				const fs = require('fs')
 
 				return (url: string) => {
 					if (url.startsWith('.')) {
