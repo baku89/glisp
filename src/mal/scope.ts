@@ -82,13 +82,8 @@ export default class Scope {
 		}
 	}
 
-	public def(name: string, value: MalVal) {
-		this.env.set(name, value)
-	}
-
-	public defn(name: string, fn: MalCallableValue) {
-		const f = MalFn.create(fn)
-		this.env.set(name, f)
+	public def(name: string, value: MalVal | number | string | MalCallableValue) {
+		this.env.set(name, jsToMal(value as any))
 	}
 
 	public pushBinding(env: Env) {
@@ -137,14 +132,14 @@ export default class Scope {
 
 		// Defining essential functions
 		ReplCore.forEach(([name, exp]) => {
-			this.def(name, jsToMal(exp))
+			this.def(name, exp)
 		})
 
-		this.defn('normalize-import-url', (url: MalVal) => {
+		this.def('normalize-import-url', (url: MalVal) => {
 			return MalString.create(normalizeImportURL(url.value as string))
 		})
 
-		this.defn('eval', (exp: MalVal) => {
+		this.def('eval', (exp: MalVal) => {
 			return evalExp(exp, this.env)
 		})
 
@@ -158,10 +153,10 @@ export default class Scope {
 			libpath = new URL('./lib/', document.baseURI).href
 		}
 
-		this.def('*filename*', MalString.create(filename))
-		this.def('*libpath*', MalString.create(libpath))
+		this.def('*filename*', filename)
+		this.def('*libpath*', libpath)
 
-		this.defn('import-force', (url: MalVal) => {
+		this.def('import-force', (url: MalVal) => {
 			let _url = url.value as string
 
 			// Append .glisp if there's no extension
@@ -182,7 +177,7 @@ export default class Scope {
 				exp = readStr(`(do ${text}\nnil)`)
 			}
 
-			this.def('*filename*', MalString.create(absurl))
+			this.def('*filename*', absurl)
 			this.eval(exp)
 			this.def('*filename*', pwd)
 
@@ -194,7 +189,7 @@ export default class Scope {
 
 		// Set the current filename to pwd
 		if (isNodeJS) {
-			this.def('*filename*', MalString.create(process.cwd()))
+			this.def('*filename*', process.cwd())
 		}
 	}
 }
