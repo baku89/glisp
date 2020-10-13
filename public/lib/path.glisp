@@ -22,7 +22,7 @@
 (defn translate-first-param [{:params [c] :transform xform}]
   {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})
 
-(defn path? [a] (and (sequential? a) (= :path (first a))))
+(defn path? [x] (and (vector? x) (= :path (first x))))
 
 (defn path
   {:doc "Creates a path object"
