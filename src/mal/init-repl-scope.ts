@@ -100,11 +100,14 @@ export default function initReplScope(scope: Scope) {
 		return evalExp(exp, scope.env)
 	})
 
-	let filename: string,
-		libpath = ''
+	let filename: string, libpath: string
 
 	if (isNodeJS) {
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const path = require('path')
+
 		filename = __filename
+		libpath = path.join(path.dirname(__filename), './lib')
 	} else {
 		filename = new URL('.', document.baseURI).href
 		libpath = new URL('./lib/', document.baseURI).href
