@@ -124,6 +124,7 @@ export default defineComponent({
 	line-height 1.2em
 
 .jqconsole
+	white-space pre-wrap
 	font-monospace()
 
 	&-blurred
