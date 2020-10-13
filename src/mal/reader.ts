@@ -33,12 +33,18 @@ class Reader {
 
 	public next() {
 		const token = this.tokens[this._index++]
+		if (!token) {
+			throw new MalReadError('Invalid end of file')
+		}
 		return token[0]
 	}
 
 	public peek(pos = this._index) {
 		const token = this.tokens[pos]
-		return token ? token[0] : ''
+		if (!token) {
+			throw new MalReadError('Invalid end of file')
+		}
+		return token[0]
 	}
 
 	public get index() {
