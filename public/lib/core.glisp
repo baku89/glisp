@@ -485,53 +485,6 @@
 ;              {:replace [0 (mod ret b)]})})
 
 ; (annotate-fn
-;  abs
-;  {:doc "Returns the absolute value of a *number*"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret :params [x]}
-;              (if (zero? x)
-;                ret
-;                (* (sign x) ret)))
-;   :return {:type "number"}})
-
-; (annotate-fn
-;  floor
-;  {:doc "Returns the largest integer less than or equal to a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(floor ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn
-;  ceil
-;  {:doc "Returns the next largest integer more than or equal to a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(ceil ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn
-;  pow
-;  {:doc "Retruns the `base` to the `exponent` power"
-;   :params [{:label "Base" :type "number"}
-;            {:label "Exponent" :type "number"}]
-;   :inverse (fn {:return ret :params [base exponent]}
-;              {:replace [1 (spy (/ (log ret) (log base)))]})
-;   :return {:type "number"}})
-
-; (annotate-fn
-;  round
-;  {:doc "Returns the value of a number rounded to the nearest integer"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(round ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn
-;  sqrt
-;  {:doc "Returns the square root of a number"
-;   :params [{:label "Number" :type "number"}]
-;   :inverse (fn {:return ret} [(* ret ret)])
-;   :return {:type "number"}})
-
-; (annotate-fn
 ;  range
 ;  {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
 ;   :params {:type "dynamic"
