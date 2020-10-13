@@ -2,7 +2,7 @@ import {toRefs, reactive, Ref} from 'vue'
 import hotkeys from 'hotkeys-js'
 import keycode from 'keycode'
 import AppScope from '@/scopes/app'
-import {MalBoolean, MalVal} from '@/mal/types'
+import {MalBoolean, MalError, MalString, MalVal} from '@/mal/types'
 
 let state: {[keycode: string]: Ref<boolean>}
 
@@ -33,8 +33,11 @@ export default function useKeyboardState() {
 		)
 	}
 
-	AppScope.defn('modifier-pressed?', (...keys: MalVal[]) => {
+	AppScope.def('modifier-pressed?', (...keys: MalVal[]) => {
 		for (const key of keys) {
+			if (!MalString.is(key)) {
+				throw new MalError('keys should be string')
+			}
 			const code = key.value
 			if (!state[code] || !state[code].value) {
 				return MalBoolean.create(false)
