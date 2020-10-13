@@ -1,14 +1,17 @@
 <template>
 	<div class="InputBoolean">
-		<input
-			:checked="!!value"
-			@input="onInput"
-			class="InputBoolean__input"
-			type="checkbox"
-		/>
-		<div class="InputBoolean__frame">
-			<i class="InputBoolean__checkmark fas fa-check" />
+		<div class="InputBoolean__checkbox">
+			<input
+				:checked="!!modelValue"
+				@input="onInput"
+				class="InputBoolean__input"
+				type="checkbox"
+			/>
+			<div class="InputBoolean__frame">
+				<i class="InputBoolean__checkmark fas fa-check" />
+			</div>
 		</div>
+		<label class="InputBoolean__label" v-if="label">{{ label }}</label>
 	</div>
 </template>
 
@@ -18,15 +21,18 @@ import {defineComponent} from 'vue'
 export default defineComponent({
 	name: 'InputBoolean',
 	props: {
-		value: {
+		modelValue: {
 			type: Boolean,
 			required: true,
+		},
+		label: {
+			type: String,
 		},
 	},
 	setup(props, context) {
 		function onInput(e: InputEvent) {
 			const value = (e.target as HTMLInputElement).checked
-			context.emit('input', value)
+			context.emit('update:modelValue', value)
 		}
 
 		return {onInput}
@@ -38,51 +44,60 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputBoolean
-  position relative
-  width $input-height
-  height $input-height
+	display flex
+	align-items center
 
-  &__input
-    display block
-    width $input-height
-    height $input-height
-    opacity 0
-    input-transition()
+	&__checkbox
+		position relative
+		width $input-height
+		height $input-height
 
-  &__frame
-    position absolute
-    top ($input-height - 1.2rem) * 0.5rem
-    left @top
-    width 1.2rem
-    height 1.2rem
-    border 1px solid var(--comment)
-    border-radius 2px
-    color transparent
-    color var(--comment)
-    pointer-events none
-    input-transition()
+	&__input
+		display block
+		width $input-height
+		height $input-height
+		opacity 0
+		input-transition()
 
-  &__checkmark
-    top 0
-    left 0
-    width 100%
-    height 100%
-    text-align center
-    text-indent 0.1rem
-    font-size 0.8rem
-    line-height 100%
-    opacity 0
-    pointer-events none
+	&__frame
+		position absolute
+		top ($input-height - 1.2rem) * 0.5rem
+		left @top
+		width 1.2rem
+		height 1.2rem
+		border 1px solid var(--comment)
+		border-radius 2px
+		color transparent
+		color var(--comment)
+		pointer-events none
+		input-transition()
 
-  &__input:checked + &__frame > &__checkmark
-    opacity 1
+	&__checkmark
+		top 0
+		left 0
+		width 100%
+		height 100%
+		text-align center
+		text-indent 0.1rem
+		font-size 0.8rem
+		line-height 100%
+		opacity 0
+		pointer-events none
 
-  // Hover
-  &__input:hover + &__frame, &__input:focus + &__frame
-    border-color var(--highlight)
-    color var(--highlight)
+	&__input:checked + &__frame > &__checkmark
+		opacity 1
 
-  &.exp > &__frame
-    border-color var(--red)
-    color var(--red)
+	// Hover
+	&__input:hover + &__frame, &__input:focus + &__frame
+		border-color var(--highlight)
+		color var(--highlight)
+
+	// Label
+	&__label
+		margin-left 0.4em
+
+	// Exp
+	&.exp > &__frame
+		border-color var(--red)
+		color var(--red)
 </style>

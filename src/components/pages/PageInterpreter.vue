@@ -4,8 +4,12 @@
 			<Pane class="PageInterpreter__pane">
 				<Console :scope="scope" @setup="onSetupConsole" />
 			</Pane>
-			<Pane class="PageInterpreter__pane">
-				<GlispEditor v-model="code" />
+			<Pane class="PageInterpreter__pane PageInterpreter__code">
+				<GlispEditor class="PageInterpreter__editor" v-model="code" />
+				<div class="PageInterpreter__actions">
+					<InputButton class="button" @click="run" label="Run" />
+					<InputBoolean v-model="clearCode" label="Clear" />
+				</div>
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -13,12 +17,15 @@
 
 <script lang="ts">
 import 'normalize.css'
-import 'splitpanes/dist/splitpanes.css'
 import {computed, defineComponent, ref, shallowReactive} from 'vue'
-
 import {Splitpanes, Pane} from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
+
 import Console from '@/components/Console.vue'
 import GlispEditor from '@/components/GlispEditor'
+import InputBoolean from '@/components/inputs/InputBoolean.vue'
+import InputButton from '@/components/inputs/InputButton.vue'
+
 import Scope from '@/mal/scope'
 import {computeTheme} from '@/theme'
 
@@ -29,10 +36,13 @@ export default defineComponent({
 		Pane,
 		Console,
 		GlispEditor,
+		InputBoolean,
+		InputButton,
 	},
 	setup() {
 		const scope = shallowReactive(new Scope())
 		const code = ref('')
+		const clearCode = ref(false)
 
 		const background = ref('#f8f8f8')
 		const theme = computed(() => computeTheme(background.value).colors)
@@ -41,7 +51,14 @@ export default defineComponent({
 			scope.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
-		return {scope, code, onSetupConsole, background, theme}
+		function run() {
+			scope.REP(code.value)
+			if (clearCode.value) {
+				code.value = ''
+			}
+		}
+
+		return {scope, code, clearCode, onSetupConsole, background, theme, run}
 	},
 })
 </script>
@@ -55,6 +72,20 @@ export default defineComponent({
 
 	&__pane
 		padding 2rem
+
+	&__code
+		display flex
+		flex-direction column
+
+	&__editor
+		flex-grow 1
+
+	&__actions
+		display flex
+
+		// background pink
+		& > .button
+			margin-right 0.4rem
 
 // Overwrite splitpanes
 .splitpanes.default-theme
