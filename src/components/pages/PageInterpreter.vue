@@ -7,7 +7,7 @@
 			<Pane class="PageInterpreter__pane PageInterpreter__code">
 				<GlispEditor class="PageInterpreter__editor" v-model="code" />
 				<div class="PageInterpreter__actions">
-					<InputButton class="button" @click="run" label="Run" />
+					<InputButton class="button" @click="runCode" label="Run" />
 					<InputBoolean v-model="clearCode" label="Clear" />
 				</div>
 			</Pane>
@@ -29,6 +29,7 @@ import InputButton from '@/components/inputs/InputButton.vue'
 import Scope from '@/mal/scope'
 import {computeTheme} from '@/theme'
 import {printer} from '@/mal/printer'
+import {MalBoolean, MalNil} from '@/mal/types'
 
 export default defineComponent({
 	name: 'PageInterpreter',
@@ -52,15 +53,25 @@ export default defineComponent({
 			scope.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
-		function run() {
+		function runCode() {
 			printer.rep(code.value)
 
 			if (clearCode.value) {
 				code.value = ''
 			}
+
+			return MalNil.create()
 		}
 
-		return {scope, code, clearCode, onSetupConsole, background, theme, run}
+		// Register as app command
+		scope.def('run-code', runCode)
+
+		scope.def('set-clear-code', (value: MalBoolean) => {
+			clearCode.value = !!value.value
+			return MalNil.create()
+		})
+
+		return {scope, code, clearCode, onSetupConsole, background, theme, runCode}
 	},
 })
 </script>
