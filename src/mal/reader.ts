@@ -15,6 +15,7 @@ import {
 	MalFn,
 	isMal,
 	MalAtom,
+	MalCallableValue,
 } from './types'
 
 export class MalBlankException extends MalError {}
@@ -318,7 +319,7 @@ export function jsToMal(obj: MalKeyword): MalKeyword
 export function jsToMal(obj: MalSymbol): MalSymbol
 export function jsToMal(obj: boolean | MalBoolean): MalBoolean
 export function jsToMal(obj: null | undefined | MalNil): MalNil
-export function jsToMal(obj: (...args: any) => any | MalFn): MalFn
+export function jsToMal(obj: MalCallableValue | MalFn): MalFn
 export function jsToMal(obj: MalList): MalList
 export function jsToMal(obj: any[] | MalVector): MalVector
 export function jsToMal(obj: {[k: string]: any} | MalMap): MalMap
