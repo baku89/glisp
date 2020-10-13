@@ -373,7 +373,16 @@ export class MalList extends MalSeqBase {
 	sugar?: string
 
 	print(readably = true) {
-		return '(' + this.printValues(readably) + ')'
+		if (this.sugar) {
+			const delimiters = this.delimiters
+			let str = this.sugar
+			for (let i = 1; i < this._value.length; i++) {
+				str += delimiters[i] + this._value[i].print(readably)
+			}
+			return str
+		} else {
+			return '(' + this.printValues(readably) + ')'
+		}
 	}
 
 	clone(deep = false): MalList {

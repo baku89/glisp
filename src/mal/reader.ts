@@ -39,8 +39,8 @@ class Reader {
 		return token[0]
 	}
 
-	public peek(pos = this._index) {
-		const token = this.tokens[pos]
+	public peek(offset = 0) {
+		const token = this.tokens[this._index + offset]
 		if (!token) {
 			throw new MalReadError('Invalid end of file')
 		}
@@ -130,6 +130,29 @@ function readAtom(reader: Reader) {
 	}
 }
 
+// read syntactic sugar and return MalList
+function readSyntacticSugar(reader: Reader, name: string, count: number) {
+	const coll: MalVal[] = [MalSymbol.create(name)]
+	const delimiters: string[] = ['']
+
+	const sugarSymbol = reader.next()
+
+	for (let i = 0; i < count; i++) {
+		const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
+		delimiters.push(delimiter)
+
+		coll.push(readForm(reader))
+	}
+
+	delimiters.push('')
+
+	const list = MalList.create(coll)
+	list.sugar = sugarSymbol
+	list.delimiters = delimiters
+
+	return list
+}
+
 // read list of tokens
 function readColl(reader: Reader, start = '[', end = ']') {
 	const coll: MalVal[] = []
@@ -189,118 +212,57 @@ function readMap(reader: Reader) {
 }
 
 function readForm(reader: Reader): any {
-	let val: MalVal
-
-	// For syntaxtic sugars
-	// const startIdx = reader.index
-
-	// Set offset array value if the form is syntaxic sugar.
-	// the offset array is like [<end of arg0>, <start of arg1>]
-	let sugar: number[] | null = null
-
 	const token = reader.peek()
 
 	switch (token) {
-		// reader macros/transforms
+		// reader macros
 		case ';':
-			val = MalNil.create()
-			break
+			return MalNil.create()
 		case "'":
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.fromSeq(MalSymbol.create('quote'), readForm(reader))
-			break
+			return readSyntacticSugar(reader, 'quote', 1)
 		case '`':
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.fromSeq(MalSymbol.create('quasiquote'), readForm(reader))
-			break
+			return readSyntacticSugar(reader, 'quasiquote', 1)
 		case '~':
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.fromSeq(MalSymbol.create('unquote'), readForm(reader))
-			break
+			return readSyntacticSugar(reader, 'unquote', 1)
 		case '~@':
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.fromSeq(
-				MalSymbol.create('splice-unquote'),
-				readForm(reader),
-			)
-			break
+			return readSyntacticSugar(reader, 'splice-unquote', 1)
+		case '^': {
+			return readSyntacticSugar(reader, 'with-meta-sugar', 2)
+		}
+		case '@':
+			return readSyntacticSugar(reader, 'deref', 1)
 		case '#': {
-			reader.next()
-			const type = reader.peek()
+			const type = reader.peek(+1)
 			if (type === '(') {
-				// Syntactic sugar for anonymous function: #( )
-				sugar = [reader.prevEndOffset(), reader.offset()]
-				val = MalList.fromSeq(MalSymbol.create('fn-sugar'), readForm(reader))
+				// Aanonymous function: #( )
+				return readSyntacticSugar(reader, 'fn-sugar', 1)
 			} else {
 				throw new Error('Invalid # syntactic sugar')
 			}
-			break
 		}
-		case '^': {
-			// Syntactic sugar for with-meta
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			const meta = readForm(reader)
-			sugar.push(reader.prevEndOffset(), reader.offset())
-			const expr = readForm(reader)
-			val = MalList.fromSeq(MalSymbol.create('with-meta-sugar'), meta, expr)
-			break
-		}
-		case '@':
-			// Syntactic sugar for deref
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = MalList.fromSeq(MalSymbol.create('deref'), readForm(reader))
-			break
+
 		// list
 		case ')':
 			throw new MalReadError("unexpected ')'")
 		case '(':
-			val = readList(reader)
-			break
+			return readList(reader)
+
 		// vector
 		case ']':
 			throw new Error("unexpected ']'")
 		case '[':
-			val = readVector(reader)
-			break
+			return readVector(reader)
+
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
 		case '{':
-			val = readMap(reader)
-			break
+			return readMap(reader)
 
 		// atom
 		default:
-			val = readAtom(reader)
+			return readAtom(reader)
 	}
-
-	if (sugar) {
-		const _val = val as MalList
-
-		// Save str info
-		const formEnd = reader.prevEndOffset()
-
-		_val.sugar = token
-
-		const delimiters = ['']
-
-		sugar.push(formEnd)
-
-		for (let i = 0; i < sugar.length - 1; i += 2) {
-			delimiters.push(reader.strInRange(sugar[i], sugar[i + 1]))
-		}
-
-		delimiters.push('')
-		_val.delimiters = delimiters
-	}
-
-	return val
 }
 
 export default function readStr(str: string): MalVal {
