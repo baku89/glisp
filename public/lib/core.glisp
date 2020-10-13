@@ -79,7 +79,7 @@
       (let [url (normalize-import-url filename)]
         (if-not (contains? @seen url)
           (do (swap! seen assoc url true)
-              (import-force url)))))))
+              (import-force filename)))))))
 
 
 ;; Conditionals
