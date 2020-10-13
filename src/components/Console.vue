@@ -64,7 +64,9 @@ export default defineComponent({
 			}
 
 			printer.clear = () => {
-				jqconsole.Clear()
+				const history = jqconsole.GetHistory()
+				jqconsole.Reset()
+				jqconsole.SetHistory(history)
 			}
 
 			function rep(command: string) {
