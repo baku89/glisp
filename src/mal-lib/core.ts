@@ -20,10 +20,10 @@ import {
 	MalCallableValue,
 	MalType,
 } from '@/mal/types'
-import printExp from '@/mal/printer'
+import printExp, {printer} from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
-import {jsToMal} from '@/mal/reader'
+import readStr, {jsToMal, slurp} from '@/mal/reader'
 
 const Exports = [
 	['type', (x: MalVal) => MalKeyword.create(x.type)],
@@ -423,6 +423,35 @@ const Exports = [
 	],
 
 	// I/O
+	[
+		'prn',
+		(...a: MalVal[]) => {
+			printer.log(...a.map(e => e.print()))
+			return MalNil.create()
+		},
+	],
+	[
+		'print-str',
+		(...a: MalVal[]) => {
+			return MalString.create(a.map(e => e.print()).join(' '))
+		},
+	],
+	[
+		'println',
+		(...a: MalVal[]) => {
+			printer.log(...a.map(e => e.print(false)))
+			return MalNil.create()
+		},
+	],
+	['read-string', (x: MalString) => readStr(x.value)],
+	[
+		'clear',
+		() => {
+			printer.clear()
+			return MalNil.create()
+		},
+	],
+	['slurp', (x: MalString) => MalString.create(slurp(x.value))],
 	[
 		'spit',
 		(f: MalString, content: MalString) => {

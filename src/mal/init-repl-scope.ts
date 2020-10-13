@@ -1,29 +1,8 @@
 import isNodeJS from 'is-node'
 import {MalVal, MalError, MalString, MalNil} from './types'
-import {printer} from './printer'
-import readStr, {jsToMal} from './reader'
+import readStr, {jsToMal, slurp} from './reader'
 import Scope from './scope'
 import evalExp from './eval'
-
-export const slurp = (() => {
-	if (isNodeJS) {
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const fs = require('fs')
-		return (url: string) => {
-			return fs.readFileSync(url, 'UTF-8')
-		}
-	} else {
-		return (url: string) => {
-			const req = new XMLHttpRequest()
-			req.open('GET', url, false)
-			req.send()
-			if (req.status !== 200) {
-				throw new MalError(`Failed to slurp file: ${url}`)
-			}
-			return req.responseText
-		}
-	}
-})()
 
 export default function initReplScope(scope: Scope) {
 	const normalizeImportURL = (() => {
@@ -62,33 +41,10 @@ export default function initReplScope(scope: Scope) {
 		throw new MalError(msg.value)
 	})
 
-	// Standard Output
-	scope.def('prn', (...a: MalVal[]) => {
-		printer.log(...a.map(e => e.print()))
-		return MalNil.create()
-	})
-
-	scope.def('print-str', (...a: MalVal[]) => {
-		return MalString.create(a.map(e => e.print()).join(' '))
-	})
-
-	scope.def('println', (...a: MalVal[]) => {
-		printer.log(...a.map(e => e.print(false)))
-		return MalNil.create()
-	})
-
-	scope.def('clear', () => {
-		printer.clear()
-		return MalNil.create()
-	})
-
-	// I/O
-	scope.def('read-string', (x: MalString) => readStr(x.value))
-	scope.def('slurp', (x: MalString) => MalString.create(slurp(x.value)))
-
-	// // Interop
+	// Interop
 	scope.def('js-eval', (x: MalString) => jsToMal(eval(x.value.toString())))
 
+	// Env variable
 	scope.def('*is-node*', isNodeJS)
 	scope.def('*host-language*', 'JavaScript')
 

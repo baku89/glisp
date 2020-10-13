@@ -1,3 +1,4 @@
+import isNodeJS from 'is-node'
 import {
 	MalError,
 	MalSymbol,
@@ -357,6 +358,26 @@ export function jsToMal(obj: any): MalVal {
 		}
 	}
 }
+
+export const slurp = (() => {
+	if (isNodeJS) {
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const fs = require('fs')
+		return (url: string) => {
+			return fs.readFileSync(url, 'UTF-8')
+		}
+	} else {
+		return (url: string) => {
+			const req = new XMLHttpRequest()
+			req.open('GET', url, false)
+			req.send()
+			if (req.status !== 200) {
+				throw new MalError(`Failed to slurp file: ${url}`)
+			}
+			return req.responseText
+		}
+	}
+})()
 
 export function reconstructTree(exp: MalVal) {
 	seek(exp)
