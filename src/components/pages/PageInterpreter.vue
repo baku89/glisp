@@ -85,7 +85,7 @@ export default defineComponent({
 
 		// background pink
 		& > .button
-			margin-right 0.4rem
+			margin-right 1rem
 
 // Overwrite splitpanes
 .splitpanes.default-theme

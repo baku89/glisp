@@ -2,6 +2,7 @@
 	<div class="InputBoolean">
 		<div class="InputBoolean__checkbox">
 			<input
+				:id="id"
 				:checked="!!modelValue"
 				@input="onInput"
 				class="InputBoolean__input"
@@ -11,12 +12,15 @@
 				<i class="InputBoolean__checkmark fas fa-check" />
 			</div>
 		</div>
-		<label class="InputBoolean__label" v-if="label">{{ label }}</label>
+		<label class="InputBoolean__label" v-if="label" :for="id">{{
+			label
+		}}</label>
 	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue'
+import {defineComponent, ref} from 'vue'
+import uid from 'uid'
 
 export default defineComponent({
 	name: 'InputBoolean',
@@ -30,12 +34,14 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
+		const id = ref('InputBoolean_' + uid())
+
 		function onInput(e: InputEvent) {
 			const value = (e.target as HTMLInputElement).checked
 			context.emit('update:modelValue', value)
 		}
 
-		return {onInput}
+		return {id, onInput}
 	},
 })
 </script>
@@ -94,7 +100,9 @@ export default defineComponent({
 
 	// Label
 	&__label
-		margin-left 0.4em
+		margin-left 0.3em
+		color var(--foreground)
+		user-select none
 
 	// Exp
 	&.exp > &__frame
