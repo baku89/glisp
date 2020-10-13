@@ -62,15 +62,6 @@ export default defineComponent({
 				jqconsole.Write(str + '\n', 'jqconsole-error')
 			}
 
-			printer.pseudoExecute = (command: string) => {
-				jqconsole.Write(`>>>${command}\n`, 'jqconsole-prompt')
-				// Add the command to history (with auto save)
-				const history = jqconsole.GetHistory()
-				history.push(command)
-				jqconsole.SetHistory(history)
-				jqsaveHistory(jqconsole)
-			}
-
 			printer.clear = () => {
 				jqconsole.Clear()
 			}

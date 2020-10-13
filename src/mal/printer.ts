@@ -1,20 +1,15 @@
 import {MalVal} from './types'
 
-export const printer = {
-	log: (...args: any) => {
-		console.info(...args)
-	},
-	return: (...args: any) => {
-		console.log(...args)
-	},
-	error: (...args: any) => {
-		console.error(...args)
-	},
-	pseudoExecute: (command: string) => {
-		console.log(command)
-	},
+const printer = (globalThis as any)['glisp_printer'] || {
+	log: console.info,
+	return: console.log,
+	error: console.error,
 	clear: console.clear,
 }
+
+;(globalThis as any)['glisp_printer'] = printer
+
+export {printer}
 
 export default function printExp(exp: MalVal): string {
 	return exp.print()
