@@ -162,7 +162,13 @@ export default class Scope {
 		this.def('*libpath*', MalString.create(libpath))
 
 		this.defn('import-force', (url: MalVal) => {
-			const _url = url.value as string
+			let _url = url.value as string
+
+			// Append .glisp if there's no extension
+			if (!/\.[a-za-z]+$/.test(_url)) {
+				_url += '.glisp'
+			}
+
 			const pwd = this.var('*filename*') as MalString
 
 			const absurl = normalizeImportURL(_url)
@@ -184,7 +190,7 @@ export default class Scope {
 		})
 
 		// Load core library as default
-		this.REP('(import-force "core.glisp")')
+		this.REP('(import-force "core")')
 
 		// Set the current filename to pwd
 		if (isNodeJS) {
