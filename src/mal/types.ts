@@ -390,8 +390,13 @@ export class MalList extends MalSeqBase {
 		return this._value.slice(1)
 	}
 
+	// Static functions
 	static create(v: MalVal[] = []) {
 		return new this(v)
+	}
+
+	static fromSeq(...xs: MalVal[]) {
+		return new this(xs)
 	}
 
 	static is(v: MalVal | undefined): v is MalList {
@@ -415,8 +420,13 @@ export class MalVector extends MalSeqBase {
 		return new MalVector(value, this._meta?.clone())
 	}
 
+	// Static functions
 	static create(v: MalVal[] = []) {
 		return new this(v)
+	}
+
+	static fromSeq(...xs: MalVal[]) {
+		return new this(xs)
 	}
 
 	static is(v: MalVal | undefined): v is MalVector {
