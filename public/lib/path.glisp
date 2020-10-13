@@ -16,8 +16,8 @@
 ;; (def path/nearest-point (fn [] (throw "This function is not supported in Node.js environment")))
 ;; (def path/inside? (fn [] (throw "This function is not supported in Node.js environment")))
 
-;; ;; (if-not *is-node*
-;; ;;   (import-force "path.js"))
+(if-not *is-node*
+  (import-force "./path.js"))
 
 (defn translate-first-param [{:params [c] :transform xform}]
   {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})

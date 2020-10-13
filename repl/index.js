@@ -3448,213 +3448,6 @@ exports.setBufferSize = function() { return _setOption('bufferSize', arguments);
 
 /***/ }),
 
-/***/ "./node_modules/sprintf-js/src/sprintf.js":
-/*!************************************************!*\
-  !*** ./node_modules/sprintf-js/src/sprintf.js ***!
-  \************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-(function(window) {
-    var re = {
-        not_string: /[^s]/,
-        number: /[diefg]/,
-        json: /[j]/,
-        not_json: /[^j]/,
-        text: /^[^\x25]+/,
-        modulo: /^\x25{2}/,
-        placeholder: /^\x25(?:([1-9]\d*)\$|\(([^\)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijosuxX])/,
-        key: /^([a-z_][a-z_\d]*)/i,
-        key_access: /^\.([a-z_][a-z_\d]*)/i,
-        index_access: /^\[(\d+)\]/,
-        sign: /^[\+\-]/
-    }
-
-    function sprintf() {
-        var key = arguments[0], cache = sprintf.cache
-        if (!(cache[key] && cache.hasOwnProperty(key))) {
-            cache[key] = sprintf.parse(key)
-        }
-        return sprintf.format.call(null, cache[key], arguments)
-    }
-
-    sprintf.format = function(parse_tree, argv) {
-        var cursor = 1, tree_length = parse_tree.length, node_type = "", arg, output = [], i, k, match, pad, pad_character, pad_length, is_positive = true, sign = ""
-        for (i = 0; i < tree_length; i++) {
-            node_type = get_type(parse_tree[i])
-            if (node_type === "string") {
-                output[output.length] = parse_tree[i]
-            }
-            else if (node_type === "array") {
-                match = parse_tree[i] // convenience purposes only
-                if (match[2]) { // keyword argument
-                    arg = argv[cursor]
-                    for (k = 0; k < match[2].length; k++) {
-                        if (!arg.hasOwnProperty(match[2][k])) {
-                            throw new Error(sprintf("[sprintf] property '%s' does not exist", match[2][k]))
-                        }
-                        arg = arg[match[2][k]]
-                    }
-                }
-                else if (match[1]) { // positional argument (explicit)
-                    arg = argv[match[1]]
-                }
-                else { // positional argument (implicit)
-                    arg = argv[cursor++]
-                }
-
-                if (get_type(arg) == "function") {
-                    arg = arg()
-                }
-
-                if (re.not_string.test(match[8]) && re.not_json.test(match[8]) && (get_type(arg) != "number" && isNaN(arg))) {
-                    throw new TypeError(sprintf("[sprintf] expecting number but found %s", get_type(arg)))
-                }
-
-                if (re.number.test(match[8])) {
-                    is_positive = arg >= 0
-                }
-
-                switch (match[8]) {
-                    case "b":
-                        arg = arg.toString(2)
-                    break
-                    case "c":
-                        arg = String.fromCharCode(arg)
-                    break
-                    case "d":
-                    case "i":
-                        arg = parseInt(arg, 10)
-                    break
-                    case "j":
-                        arg = JSON.stringify(arg, null, match[6] ? parseInt(match[6]) : 0)
-                    break
-                    case "e":
-                        arg = match[7] ? arg.toExponential(match[7]) : arg.toExponential()
-                    break
-                    case "f":
-                        arg = match[7] ? parseFloat(arg).toFixed(match[7]) : parseFloat(arg)
-                    break
-                    case "g":
-                        arg = match[7] ? parseFloat(arg).toPrecision(match[7]) : parseFloat(arg)
-                    break
-                    case "o":
-                        arg = arg.toString(8)
-                    break
-                    case "s":
-                        arg = ((arg = String(arg)) && match[7] ? arg.substring(0, match[7]) : arg)
-                    break
-                    case "u":
-                        arg = arg >>> 0
-                    break
-                    case "x":
-                        arg = arg.toString(16)
-                    break
-                    case "X":
-                        arg = arg.toString(16).toUpperCase()
-                    break
-                }
-                if (re.json.test(match[8])) {
-                    output[output.length] = arg
-                }
-                else {
-                    if (re.number.test(match[8]) && (!is_positive || match[3])) {
-                        sign = is_positive ? "+" : "-"
-                        arg = arg.toString().replace(re.sign, "")
-                    }
-                    else {
-                        sign = ""
-                    }
-                    pad_character = match[4] ? match[4] === "0" ? "0" : match[4].charAt(1) : " "
-                    pad_length = match[6] - (sign + arg).length
-                    pad = match[6] ? (pad_length > 0 ? str_repeat(pad_character, pad_length) : "") : ""
-                    output[output.length] = match[5] ? sign + arg + pad : (pad_character === "0" ? sign + pad + arg : pad + sign + arg)
-                }
-            }
-        }
-        return output.join("")
-    }
-
-    sprintf.cache = {}
-
-    sprintf.parse = function(fmt) {
-        var _fmt = fmt, match = [], parse_tree = [], arg_names = 0
-        while (_fmt) {
-            if ((match = re.text.exec(_fmt)) !== null) {
-                parse_tree[parse_tree.length] = match[0]
-            }
-            else if ((match = re.modulo.exec(_fmt)) !== null) {
-                parse_tree[parse_tree.length] = "%"
-            }
-            else if ((match = re.placeholder.exec(_fmt)) !== null) {
-                if (match[2]) {
-                    arg_names |= 1
-                    var field_list = [], replacement_field = match[2], field_match = []
-                    if ((field_match = re.key.exec(replacement_field)) !== null) {
-                        field_list[field_list.length] = field_match[1]
-                        while ((replacement_field = replacement_field.substring(field_match[0].length)) !== "") {
-                            if ((field_match = re.key_access.exec(replacement_field)) !== null) {
-                                field_list[field_list.length] = field_match[1]
-                            }
-                            else if ((field_match = re.index_access.exec(replacement_field)) !== null) {
-                                field_list[field_list.length] = field_match[1]
-                            }
-                            else {
-                                throw new SyntaxError("[sprintf] failed to parse named argument key")
-                            }
-                        }
-                    }
-                    else {
-                        throw new SyntaxError("[sprintf] failed to parse named argument key")
-                    }
-                    match[2] = field_list
-                }
-                else {
-                    arg_names |= 2
-                }
-                if (arg_names === 3) {
-                    throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported")
-                }
-                parse_tree[parse_tree.length] = match
-            }
-            else {
-                throw new SyntaxError("[sprintf] unexpected placeholder")
-            }
-            _fmt = _fmt.substring(match[0].length)
-        }
-        return parse_tree
-    }
-
-    var vsprintf = function(fmt, argv, _argv) {
-        _argv = (argv || []).slice(0)
-        _argv.splice(0, 0, fmt)
-        return sprintf.apply(null, _argv)
-    }
-
-    /**
-     * helpers
-     */
-    function get_type(variable) {
-        return Object.prototype.toString.call(variable).slice(8, -1).toLowerCase()
-    }
-
-    function str_repeat(input, multiplier) {
-        return Array(multiplier + 1).join(input)
-    }
-
-    /**
-     * export to either browser or node.js
-     */
-    if (true) {
-        exports.sprintf = sprintf
-        exports.vsprintf = vsprintf
-    }
-    else {}
-})(typeof window === "undefined" ? this : window);
-
-
-/***/ }),
-
 /***/ "./node_modules/webpack/buildin/module.js":
 /*!***********************************!*\
   !*** (webpack)/buildin/module.js ***!
@@ -3730,11 +3523,14 @@ class Env {
      */
     bind(forms, exps) {
         if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(forms)) {
+            if (!exps) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`[${this.name}] parameter '${forms.print()}' is not specified`);
+            }
             this.set(forms.value, exps);
         }
         else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(forms)) {
             if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(exps)) {
-                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Bind vector error');
+                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`[${this.name}] The destruction parameter ${forms.print()} is not specified as vector`);
             }
             for (let i = 0; i < forms.value.length; i++) {
                 const form = forms.value[i];
@@ -3755,7 +3551,7 @@ class Env {
         }
         else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(forms)) {
             if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exps)) {
-                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Bind map error');
+                throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`[${this.name}] The destruction parameter ${forms.print()} is not specified as map`);
             }
             for (const [key, form] of forms.entries()) {
                 if (key === 'as') {
@@ -3843,6 +3639,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return evalExp; });
 /* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
 /* harmony import */ var _env__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./env */ "./src/mal/env.ts");
+/* harmony import */ var _special_forms_meta__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./special-forms-meta */ "./src/mal/special-forms-meta.ts");
+
 
 
 // import {setExpandInfo, ExpandType} from './expand'
@@ -3883,7 +3681,7 @@ function macroexpand(_exp, env) {
     let fn;
     while (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp) &&
         _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.first) &&
-        (fn = env.get(exp.first.value))) {
+        (fn = env.find(exp.first.value))) {
         if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalMacro"].is(fn)) {
             break;
         }
@@ -3958,7 +3756,6 @@ function evalExp(exp, env) {
             case 'def': {
                 // NOTE: disable defvar
                 // case 'defvar': {
-                //first.evaluated = env.get('def')
                 const [, sym, form] = exp.value;
                 if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(sym) || form === undefined) {
                     throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid form of def');
@@ -3972,7 +3769,6 @@ function evalExp(exp, env) {
                 return ret;
             }
             case 'let': {
-                //first.evaluated = env.get('let')
                 const letEnv = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ name: 'let', outer: env });
                 const [, binds, ...body] = exp.value;
                 if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(binds)) {
@@ -3989,7 +3785,6 @@ function evalExp(exp, env) {
                 break; // continue TCO loop
             }
             // case 'binding': {
-            // 	first.evaluated = env.get('binding')
             // 	const bindingEnv = new Env({name: 'binding'})
             // 	const [, binds, ..._body] = exp.value
             // 	if (!MalVector.is(binds)) {
@@ -4017,12 +3812,10 @@ function evalExp(exp, env) {
             // }
             // case 'get-all-symbols': {
             // 	const ret = MalVector.create(...env.getAllSymbols())
-            // 	first.evaluated = env.get('get-all-symbols')
             // 	origExp.evaluated = ret
             // 	return ret
             // }
             // case 'fn-params': {
-            // 	first.evaluated = env.get('fn-params')
             // 	const fn = evalExp.call(this, exp.value[1], env)
             // 	const ret = MalFn.is(fn)
             // 		? MalVector.create(...fn.params)
@@ -4031,7 +3824,6 @@ function evalExp(exp, env) {
             // 	return ret
             // }
             // case 'eval*': {
-            // 	first.evaluated = env.get('eval*')
             // 	// if (!this) {
             // 	// 	throw new MalError('Cannot find the caller env')
             // 	// }
@@ -4041,17 +3833,14 @@ function evalExp(exp, env) {
             // }
             case 'quote': {
                 const ret = exp.value[1];
-                //first.evaluated = env.get('quote')
                 origExp.evaluated = ret;
                 return ret;
             }
             case 'quasiquote': {
-                //first.evaluated = env.get('quasiquote')
                 exp = quasiquote(exp.value[1]);
                 break; // continue TCO loop
             }
             case 'fn-sugar': {
-                //first.evaluated = env.get('fn-sugar')
                 const body = exp.value[1];
                 const { paramCount, hasRest } = getUnnamedParamsInfo(exp);
                 const params = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create();
@@ -4066,7 +3855,6 @@ function evalExp(exp, env) {
             }
             case 'fn':
             case 'macro': {
-                //first.evaluated = env.get(first.value)
                 const [, _params, body] = exp.value;
                 let params;
                 if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(_params)) {
@@ -4093,13 +3881,11 @@ function evalExp(exp, env) {
                 return ret;
             }
             case 'macroexpand': {
-                //first.evaluated = env.get('macroexpand')
                 const ret = macroexpand(exp.value[1], env);
                 origExp.evaluated = ret;
                 return ret;
             }
             case 'try': {
-                //first.evaluated = env.get('try')
                 const [, testExp, catchExp] = exp.value;
                 try {
                     const ret = evalExp.call(this, testExp, env);
@@ -4109,7 +3895,7 @@ function evalExp(exp, env) {
                 catch (err) {
                     if (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].isCallOf(catchExp, 'catch') &&
                         _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(catchExp.value[1])) {
-                        catchExp.value[1].evaluated = env.get('catch');
+                        catchExp.value[1].evaluated = _special_forms_meta__WEBPACK_IMPORTED_MODULE_2__["default"]['catch'];
                         const [, errSym, errBody] = catchExp.value;
                         const message = _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(err instanceof Error ? err.message : 'Error');
                         const ret = evalExp.call(this, errBody, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
@@ -4127,7 +3913,6 @@ function evalExp(exp, env) {
                 }
             }
             case 'do': {
-                //first.evaluated = env.get('do')
                 if (exp.value.length === 1) {
                     origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
                     return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
@@ -4137,7 +3922,6 @@ function evalExp(exp, env) {
                 break; // continue TCO loop
             }
             case 'if': {
-                //first.evaluated = env.get('if')
                 const [, _test, thenExp, elseExp] = exp.value;
                 const test = evalExp.call(this, _test, env);
                 exp = test.value ? thenExp : elseExp || _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
@@ -4175,6 +3959,160 @@ function evalExp(exp, env) {
         }
     }
     throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Exceed the maximum TCO stacks');
+}
+
+
+/***/ }),
+
+/***/ "./src/mal/init-repl-scope.ts":
+/*!************************************!*\
+  !*** ./src/mal/init-repl-scope.ts ***!
+  \************************************/
+/*! exports provided: slurp, default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "slurp", function() { return slurp; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return initReplScope; });
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+/* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
+/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
+/* harmony import */ var _eval__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./eval */ "./src/mal/eval.ts");
+
+
+
+
+
+const slurp = (() => {
+    if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const fs = __webpack_require__(/*! fs */ "fs");
+        return (url) => {
+            return fs.readFileSync(url, 'UTF-8');
+        };
+    }
+    else {
+        return (url) => {
+            const req = new XMLHttpRequest();
+            req.open('GET', url, false);
+            req.send();
+            if (req.status !== 200) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_1__["MalError"](`Failed to slurp file: ${url}`);
+            }
+            return req.responseText;
+        };
+    }
+})();
+function initReplScope(scope) {
+    const normalizeImportURL = (() => {
+        if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const path = __webpack_require__(/*! path */ "path");
+            return (url) => {
+                if (url.startsWith('.')) {
+                    // Relative
+                    const basepath = scope.var('*filename*').value;
+                    return path.join(path.dirname(basepath), url);
+                }
+                else {
+                    // Library
+                    const basepath = scope.var('*libpath*').value;
+                    return path.join(basepath, url);
+                }
+            };
+        }
+        else {
+            return (url) => {
+                if (url.startsWith('.')) {
+                    // Relative
+                    const basepath = scope.var('*filename*').value;
+                    return new URL(url, basepath).href;
+                }
+                else {
+                    // Library
+                    const basepath = scope.var('*libpath*').value;
+                    return new URL(url, basepath).href;
+                }
+            };
+        }
+    })();
+    // Defining essential functions
+    scope.def('throw', (msg) => {
+        throw new _types__WEBPACK_IMPORTED_MODULE_1__["MalError"](msg.value);
+    });
+    // Standard Output
+    scope.def('prn', (...a) => {
+        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].log(...a.map(e => e.print()));
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
+    });
+    scope.def('print-str', (...a) => {
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(a.map(e => e.print()).join(' '));
+    });
+    scope.def('println', (...a) => {
+        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].log(...a.map(e => e.print(false)));
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
+    });
+    scope.def('clear', () => {
+        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].clear();
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
+    });
+    // I/O
+    scope.def('read-string', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_3__["default"])(x.value));
+    scope.def('slurp', (x) => _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(slurp(x.value)));
+    // // Interop
+    scope.def('js-eval', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(eval(x.value.toString())));
+    scope.def('*is-node*', is_node__WEBPACK_IMPORTED_MODULE_0___default.a);
+    scope.def('*host-language*', 'JavaScript');
+    scope.def('normalize-import-url', (url) => {
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(normalizeImportURL(url.value));
+    });
+    scope.def('eval', (exp) => {
+        return Object(_eval__WEBPACK_IMPORTED_MODULE_4__["default"])(exp, scope.env);
+    });
+    let filename, libpath;
+    if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const path = __webpack_require__(/*! path */ "path");
+        filename = __filename;
+        libpath = path.join(path.dirname(__filename), './lib');
+    }
+    else {
+        filename = new URL('.', document.baseURI).href;
+        libpath = new URL('./lib/', document.baseURI).href;
+    }
+    scope.def('*filename*', filename);
+    scope.def('*libpath*', libpath);
+    scope.def('import-force', (url) => {
+        let _url = url.value;
+        // Append .glisp if there's no extension
+        if (!/\.[a-za-z]+$/.test(_url)) {
+            _url += '.glisp';
+        }
+        const pwd = scope.var('*filename*');
+        const absurl = normalizeImportURL(_url);
+        const text = slurp(absurl);
+        let exp;
+        if (_url.endsWith('.js')) {
+            eval(text);
+            exp = globalThis['glisp_library'];
+        }
+        else {
+            exp = Object(_reader__WEBPACK_IMPORTED_MODULE_3__["default"])(`(do ${text}\nnil)`);
+        }
+        scope.def('*filename*', absurl);
+        scope.eval(exp);
+        scope.def('*filename*', pwd);
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
+    });
+    // Load core library as default
+    scope.REP('(import-force "core")');
+    // Set the current filename to pwd
+    if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
+        scope.def('*filename*', process.cwd());
+    }
 }
 
 
@@ -4251,7 +4189,7 @@ class Reader {
     get index() {
         return this._index;
     }
-    getStr(start, end) {
+    strInRange(start, end) {
         return this.str.slice(start, end);
     }
     offset(pos = this._index) {
@@ -4341,12 +4279,12 @@ function readColl(reader, start = '[', end = ']') {
             throw new MalReadError(`Expected '${end}', got EOF`);
         }
         // Save delimiter
-        const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset());
+        const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset());
         delimiters === null || delimiters === void 0 ? void 0 : delimiters.push(delimiter);
         coll.push(readForm(reader));
     }
     // Save a delimiter between a last element and a end tag
-    const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset());
+    const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset());
     delimiters.push(delimiter);
     reader.next();
     return {
@@ -4469,7 +4407,7 @@ function readForm(reader) {
         const delimiters = [''];
         sugar.push(formEnd);
         for (let i = 0; i < sugar.length - 1; i += 2) {
-            delimiters.push(reader.getStr(sugar[i], sugar[i + 1]));
+            delimiters.push(reader.strInRange(sugar[i], sugar[i + 1]));
         }
         delimiters.push('');
         _val.delimiters = delimiters;
@@ -4547,251 +4485,6 @@ function reconstructTree(exp) {
 
 /***/ }),
 
-/***/ "./src/mal/repl-core.ts":
-/*!******************************!*\
-  !*** ./src/mal/repl-core.ts ***!
-  \******************************/
-/*! exports provided: slurp, default */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "slurp", function() { return slurp; });
-/* harmony import */ var sprintf_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! sprintf-js */ "./node_modules/sprintf-js/src/sprintf.js");
-/* harmony import */ var sprintf_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(sprintf_js__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
-/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
-/* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
-/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
-
-
-
-
-
-// String functions
-const slurp = (() => {
-    if (is_node__WEBPACK_IMPORTED_MODULE_1___default.a) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const fs = __webpack_require__(/*! fs */ "fs");
-        return (url) => {
-            return fs.readFileSync(url, 'UTF-8');
-        };
-    }
-    else {
-        return (url) => {
-            const req = new XMLHttpRequest();
-            req.open('GET', url, false);
-            req.send();
-            if (req.status !== 200) {
-                throw new _types__WEBPACK_IMPORTED_MODULE_2__["MalError"](`Failed to slurp file: ${url}`);
-            }
-            return req.responseText;
-        };
-    }
-})();
-const Exports = [
-    [
-        'throw',
-        (msg) => {
-            throw new _types__WEBPACK_IMPORTED_MODULE_2__["MalError"](msg.value);
-        },
-    ],
-    // Standard Output
-    [
-        'prn',
-        (...a) => {
-            _printer__WEBPACK_IMPORTED_MODULE_3__["printer"].log(...a.map(e => e.print()));
-            return _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create();
-        },
-    ],
-    [
-        'print-str',
-        (...a) => {
-            return _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(a.map(e => e.print()).join(' '));
-        },
-    ],
-    [
-        'println',
-        (...a) => {
-            _printer__WEBPACK_IMPORTED_MODULE_3__["printer"].log(...a.map(e => e.print(false)));
-            return _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create();
-        },
-    ],
-    // I/O
-    ['read-string', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_4__["default"])(x.value)],
-    ['slurp', (x) => _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(slurp(x.value))],
-    // Interop
-    ['js-eval', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])(eval(x.value.toString()))],
-    // ['.', jsMethodCall],
-    // Needed in import-force
-    [
-        'format',
-        (fmt, ...xs) => _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create(Object(sprintf_js__WEBPACK_IMPORTED_MODULE_0__["vsprintf"])(fmt.value, xs.map(x => x.toJS()))),
-    ],
-    ['*is-node*', _types__WEBPACK_IMPORTED_MODULE_2__["MalBoolean"].create(is_node__WEBPACK_IMPORTED_MODULE_1___default.a)],
-    ['*host-language*', _types__WEBPACK_IMPORTED_MODULE_2__["MalString"].create('JavaScript')],
-    [
-        'def',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Defines a variable',
-            params: [
-                { label: 'Symbol', type: 'symbol' },
-                { label: 'Value', type: 'any' },
-            ],
-        })),
-    ],
-    [
-        'defvar',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Creates a variable which can be changed by the bidirectional evaluation',
-            params: [
-                { label: 'Symbol', type: 'symbol' },
-                { label: 'Value', type: 'any' },
-            ],
-        })),
-    ],
-    [
-        'let',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Creates a lexical scope',
-            params: [
-                { label: 'Binds', type: 'exp' },
-                { label: 'Body', type: 'exp' },
-            ],
-        })),
-    ],
-    [
-        'binding',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Creates a new binding',
-            params: [
-                { label: 'Binds', type: 'exp' },
-                { label: 'Body', type: 'exp' },
-            ],
-        })),
-    ],
-    [
-        'get-all-symbols',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Gets all existing symbols',
-            params: [],
-            return: { type: 'vector' },
-        })),
-    ],
-    [
-        'fn-params',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Gets the list of a function parameter',
-            params: [{ label: 'Function', type: 'symbol' }],
-        })),
-    ],
-    [
-        'eval*',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
-            params: [{ label: 'Form', type: 'exp' }],
-        })),
-    ],
-    [
-        'quote',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Yields the unevaluated *form*',
-            params: [{ label: 'Form', type: 'exp' }],
-        })),
-    ],
-    [
-        'quasiquote',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Quasiquote',
-            params: [{ label: 'Form', type: 'exp' }],
-        })),
-    ],
-    [
-        'fn',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Defines a function',
-            params: [
-                { label: 'Params', type: 'exp' },
-                { label: 'Form', type: 'exp' },
-            ],
-        })),
-    ],
-    [
-        'fn-sugar',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'syntactic sugar for (fn [] *form*)',
-            params: [],
-        })),
-    ],
-    [
-        'macro',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: '',
-            params: [
-                { label: 'Param', type: 'exp' },
-                { label: 'Form', type: 'exp' },
-            ],
-        })),
-    ],
-    [
-        'macroexpand',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Expands the macro',
-            params: [],
-        })),
-    ],
-    [
-        'try',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Try',
-            params: [],
-        })),
-    ],
-    [
-        'catch',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Catch',
-            params: [],
-        })),
-    ],
-    [
-        'do',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Evaluates *forms* in order and returns the value of the last',
-            params: [
-                {
-                    type: 'vector',
-                    variadic: true,
-                    items: { label: 'Form', type: 'any' },
-                },
-            ],
-        })),
-    ],
-    [
-        'if',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'If statement. If **else** is not supplied it defaults to nil',
-            params: [
-                { label: 'Test', type: 'boolean' },
-                { label: 'Then', type: 'exp' },
-                { label: 'Else', type: 'exp', default: null },
-            ],
-        })),
-    ],
-    [
-        'env-chain',
-        _types__WEBPACK_IMPORTED_MODULE_2__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_2__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_4__["jsToMal"])({
-            doc: 'Env chain',
-            params: [],
-        })),
-    ],
-];
-/* harmony default export */ __webpack_exports__["default"] = (Exports);
-
-
-/***/ }),
-
 /***/ "./src/mal/scope.ts":
 /*!**************************!*\
   !*** ./src/mal/scope.ts ***!
@@ -4805,35 +4498,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _env__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./env */ "./src/mal/env.ts");
 /* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
 /* harmony import */ var _eval__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./eval */ "./src/mal/eval.ts");
-/* harmony import */ var _repl_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./repl-core */ "./src/mal/repl-core.ts");
+/* harmony import */ var _init_repl_scope__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./init-repl-scope */ "./src/mal/init-repl-scope.ts");
 /* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
 /* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
-/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
-/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_6__);
 
 
 
 
 
 
-
-const normalizeURL = (() => {
-    if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const path = __webpack_require__(/*! path */ "path");
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const fs = __webpack_require__(/*! fs */ "fs");
-        return (url, pwd) => {
-            const dir = fs.statSync(pwd).isDirectory(pwd) ? pwd : path.dirname(pwd);
-            return path.join(dir, url);
-        };
-    }
-    else {
-        return (url, pwd) => {
-            return new URL(url, pwd).href;
-        };
-    }
-})();
 class Scope {
     constructor(outer = null, name = 'repl', onSetup = null) {
         this.outer = outer;
@@ -4845,53 +4518,6 @@ class Scope {
         }
         else {
             this.outer.inner = this;
-        }
-    }
-    initAsRepl() {
-        // Defining essential functions
-        _repl_core__WEBPACK_IMPORTED_MODULE_3__["default"].forEach(([name, exp]) => {
-            this.def(name, Object(_reader__WEBPACK_IMPORTED_MODULE_1__["jsToMal"])(exp));
-        });
-        this.defn('normalize-url', (url) => {
-            const pwd = this.var('*filename*').value;
-            return _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(normalizeURL(url.value, pwd));
-        });
-        this.defn('eval', (exp) => {
-            return Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
-        });
-        this.defn('import-js-force', (url) => {
-            const pwd = this.var('*filename*');
-            const absurl = normalizeURL(url.value, pwd.value);
-            const text = Object(_repl_core__WEBPACK_IMPORTED_MODULE_3__["slurp"])(absurl);
-            eval(text);
-            const exp = globalThis['glisp_library'];
-            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(absurl));
-            Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
-            this.def('*filename*', pwd);
-            return _types__WEBPACK_IMPORTED_MODULE_4__["MalNil"].create();
-        });
-        let filename;
-        if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
-            filename = __filename;
-        }
-        else {
-            filename = new URL('.', document.baseURI).href;
-        }
-        this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(filename));
-        this.defn('import-force', (url) => {
-            const pwd = this.var('*filename*');
-            const absurl = normalizeURL(url.value, pwd.value);
-            const text = Object(_repl_core__WEBPACK_IMPORTED_MODULE_3__["slurp"])(absurl);
-            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(absurl));
-            this.readEval(`(do ${text}\nnil)`);
-            this.def('*filename*', pwd);
-            return _types__WEBPACK_IMPORTED_MODULE_4__["MalNil"].create();
-        });
-        // Load core library as default
-        this.REP('(import-force "./lib/core.glisp")');
-        // Set the current filename to pwd
-        if (is_node__WEBPACK_IMPORTED_MODULE_6___default.a) {
-            this.def('*filename*', _types__WEBPACK_IMPORTED_MODULE_4__["MalString"].create(process.cwd()));
         }
     }
     setup(option) {
@@ -4942,11 +4568,7 @@ class Scope {
         }
     }
     def(name, value) {
-        this.env.set(name, value);
-    }
-    defn(name, fn) {
-        const f = _types__WEBPACK_IMPORTED_MODULE_4__["MalFn"].create(fn);
-        this.env.set(name, f);
+        this.env.set(name, Object(_reader__WEBPACK_IMPORTED_MODULE_1__["jsToMal"])(value));
     }
     pushBinding(env) {
         this.env.pushBinding(env);
@@ -4957,7 +4579,130 @@ class Scope {
     var(name) {
         return this.env.get(name);
     }
+    initAsRepl() {
+        Object(_init_repl_scope__WEBPACK_IMPORTED_MODULE_3__["default"])(this);
+    }
 }
+
+
+/***/ }),
+
+/***/ "./src/mal/special-forms-meta.ts":
+/*!***************************************!*\
+  !*** ./src/mal/special-forms-meta.ts ***!
+  \***************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+    def: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Defines a variable',
+        params: [
+            { label: 'Symbol', type: 'symbol' },
+            { label: 'Value', type: 'any' },
+        ],
+    })),
+    defvar: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Creates a variable which can be changed by the bidirectional evaluation',
+        params: [
+            { label: 'Symbol', type: 'symbol' },
+            { label: 'Value', type: 'any' },
+        ],
+    })),
+    let: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Creates a lexical scope',
+        params: [
+            { label: 'Binds', type: 'exp' },
+            { label: 'Body', type: 'exp' },
+        ],
+    })),
+    binding: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Creates a new binding',
+        params: [
+            { label: 'Binds', type: 'exp' },
+            { label: 'Body', type: 'exp' },
+        ],
+    })),
+    'get-all-symbols': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Gets all existing symbols',
+        params: [],
+        return: { type: 'vector' },
+    })),
+    'fn-params': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Gets the list of a function parameter',
+        params: [{ label: 'Function', type: 'symbol' }],
+    })),
+    'eval*': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
+        params: [{ label: 'Form', type: 'exp' }],
+    })),
+    quote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Yields the unevaluated *form*',
+        params: [{ label: 'Form', type: 'exp' }],
+    })),
+    quasiquote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Quasiquote',
+        params: [{ label: 'Form', type: 'exp' }],
+    })),
+    fn: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Defines a function',
+        params: [
+            { label: 'Params', type: 'exp' },
+            { label: 'Form', type: 'exp' },
+        ],
+    })),
+    'fn-sugar': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'syntactic sugar for (fn [] *form*)',
+        params: [],
+    })),
+    macro: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: '',
+        params: [
+            { label: 'Param', type: 'exp' },
+            { label: 'Form', type: 'exp' },
+        ],
+    })),
+    macroexpand: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Expands the macro',
+        params: [],
+    })),
+    try: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Try',
+        params: [],
+    })),
+    catch: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Catch',
+        params: [],
+    })),
+    do: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Evaluates *forms* in order and returns the value of the last',
+        params: [
+            {
+                type: 'vector',
+                variadic: true,
+                items: { label: 'Form', type: 'any' },
+            },
+        ],
+    })),
+    if: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'If statement. If **else** is not supplied it defaults to nil',
+        params: [
+            { label: 'Test', type: 'boolean' },
+            { label: 'Then', type: 'exp' },
+            { label: 'Else', type: 'exp', default: null },
+        ],
+    })),
+    'env-chain': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+        doc: 'Env chain',
+        params: [],
+    })),
+});
 
 
 /***/ }),
@@ -5043,7 +4788,7 @@ class MalBase {
 // Primitives
 class MalPrimBase extends MalBase {
     equals(v) {
-        return v.type === this.type && v.value === this._value;
+        return (v === null || v === void 0 ? void 0 : v.type) === this.type && v.value === this._value;
     }
 }
 class MalNumber extends MalPrimBase {
@@ -5066,7 +4811,7 @@ class MalNumber extends MalPrimBase {
         return new this(v);
     }
     static is(v) {
-        return v.type === MalType.Number;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Number;
     }
 }
 class MalString extends MalPrimBase {
@@ -5103,7 +4848,7 @@ class MalString extends MalPrimBase {
         return new this(v);
     }
     static is(v) {
-        return v.type === MalType.String;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.String;
     }
 }
 class MalBoolean extends MalPrimBase {
@@ -5125,7 +4870,7 @@ class MalBoolean extends MalPrimBase {
         return new this(v);
     }
     static is(v) {
-        return v.type === MalType.Boolean;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Boolean;
     }
 }
 class MalKeyword extends MalPrimBase {
@@ -5149,10 +4894,10 @@ class MalKeyword extends MalPrimBase {
         return new this(v);
     }
     static is(v) {
-        return v.type === MalType.Keyword;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Keyword;
     }
     static isFor(v, name) {
-        return v.type === MalType.Keyword && v.value === name;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Keyword && v.value === name;
     }
 }
 class MalNil extends MalPrimBase {
@@ -5174,7 +4919,7 @@ class MalNil extends MalPrimBase {
         return new this(null);
     }
     static is(v) {
-        return v.type === MalType.Nil;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Nil;
     }
 }
 class MalSymbol extends MalPrimBase {
@@ -5204,10 +4949,10 @@ class MalSymbol extends MalPrimBase {
         return new this(v);
     }
     static is(v) {
-        return v.type === MalType.Symbol;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Symbol;
     }
     static isFor(v, name) {
-        return v.type === MalType.Symbol && v.value === name;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Symbol && v.value === name;
     }
 }
 class MalCollBase extends MalBase {
@@ -5275,14 +5020,18 @@ class MalList extends MalSeqBase {
     get rest() {
         return this._value.slice(1);
     }
+    // Static functions
     static create(v = []) {
         return new this(v);
     }
+    static fromSeq(...xs) {
+        return new this(xs);
+    }
     static is(v) {
-        return v.type === MalType.List;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.List;
     }
     static isCallOf(v, name) {
-        return v.type === MalType.List && MalSymbol.isFor(v.first, name);
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.List && MalSymbol.isFor(v.first, name);
     }
 }
 class MalVector extends MalSeqBase {
@@ -5298,11 +5047,15 @@ class MalVector extends MalSeqBase {
         const value = deep ? this._value.map(v => v.clone(true)) : [...this._value];
         return new MalVector(value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
     }
+    // Static functions
     static create(v = []) {
         return new this(v);
     }
+    static fromSeq(...xs) {
+        return new this(xs);
+    }
     static is(v) {
-        return v.type === MalType.Vector;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Vector;
     }
 }
 class MalMap extends MalCollBase {
@@ -5314,13 +5067,10 @@ class MalMap extends MalCollBase {
         const entries = this.entries();
         const delimiters = this.delimiters;
         let str = '';
-        for (let i = 0; i < entries.length; i++) {
+        for (let i = 0; i < entries.length; i += 2) {
             const [k, v] = entries[i];
             str +=
-                delimiters[2 * i + 1] +
-                    `:${k}` +
-                    delimiters[2 * i + 2] +
-                    v.print(readably);
+                delimiters[2 * i] + `:${k}` + delimiters[2 * i + 1] + v.print(readably);
         }
         str += delimiters[delimiters.length - 1];
         return '{' + str + '}';
@@ -5395,12 +5145,12 @@ class MalMap extends MalCollBase {
         return map;
     }
     static is(v) {
-        return v.type === MalType.Map;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Map;
     }
 }
 class MalCallable extends MalBase {
     equals(v) {
-        return v.type === this.type && v.value === this._value;
+        return (v === null || v === void 0 ? void 0 : v.type) === this.type && v.value === this._value;
     }
     print(readably = true) {
         if (this.ast) {
@@ -5421,7 +5171,9 @@ class MalFn extends MalCallable {
     }
     clone() {
         var _a;
-        return new MalFn(this._value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
+        const v = new MalFn(this._value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
+        v.ast = this.ast;
+        return v;
     }
     static create(v) {
         return new this(v);
@@ -5432,7 +5184,7 @@ class MalFn extends MalCallable {
         return v;
     }
     static is(v) {
-        return v.type === MalType.Fn;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Fn;
     }
 }
 class MalMacro extends MalCallable {
@@ -5442,7 +5194,9 @@ class MalMacro extends MalCallable {
     }
     clone() {
         var _a;
-        return new MalMacro(this._value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
+        const v = new MalMacro(this._value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
+        v.ast = this.ast;
+        return v;
     }
     static create(v) {
         return new this(v);
@@ -5453,7 +5207,7 @@ class MalMacro extends MalCallable {
         return v;
     }
     static is(v) {
-        return v.type === MalType.Macro;
+        return (v === null || v === void 0 ? void 0 : v.type) === MalType.Macro;
     }
 }
 // Atom
@@ -5474,17 +5228,20 @@ class MalAtom extends MalBase {
     }
     print(readably = true) {
         var _a;
-        return `(atom ${(_a = this._value) === null || _a === void 0 ? void 0 : _a.print(readably)})readably`;
+        return `(atom ${(_a = this._value) === null || _a === void 0 ? void 0 : _a.print(readably)})`;
     }
     toJS() {
         return this._value.toJS();
     }
     equals(v) {
-        return v.type === this.type && v.value === this._value;
+        return (v === null || v === void 0 ? void 0 : v.type) === this.type && v.value === this._value;
     }
     // Original methods
     set value(v) {
         this._value = v;
+    }
+    get value() {
+        return this._value;
     }
     static create(value) {
         return new MalAtom(value);

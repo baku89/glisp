@@ -5,15 +5,10 @@
 // import Voronoi from 'voronoi'
 // import paper from 'paper'
 // import {PaperOffset, OffsetOptions} from 'paperjs-offset'
+import {transformPath} from '@/path-utils'
 
-// import {
-// 	MalVal,
-// 	MalKeyword,
-// 	MalSymbol,
-// 	MalError,
-// 	MalList,
-// 	MalNumber,
-// } from '@/mal/types'
+import {MalSymbol, MalList} from '@/mal/types'
+import {jsToMal} from '@/mal/reader'
 // import {partition, clamp} from '@/utils'
 // import printExp from '@/mal/printer'
 // import {
@@ -414,18 +409,6 @@
 // 	}
 
 // 	return [K_PATH, ...mergedPath]
-// }
-
-// function pathTransform(transform: mat2d, path: PathType) {
-// 	const ret = path.map(pt => {
-// 		if (typeof pt === 'string') {
-// 			return pt
-// 		} else {
-// 			return vec2.transformMat2d(vec2.create(), pt as vec2, transform)
-// 		}
-// 	})
-
-// 	return ret
 // }
 
 // // Get Path Property
@@ -868,63 +851,67 @@
 // 	return [K_PATH]
 // }
 
-// const Exports = [
-// 	// Primitives
-// 	['path/arc', pathArc],
-// 	['path/voronoi', pathVoronoi],
+const Exports = [
+	// 	// Primitives
+	// 	['path/arc', pathArc],
+	// 	['path/voronoi', pathVoronoi],
 
-// 	['path/join', pathJoin],
-// 	['path/to-beziers', toBeziers],
-// 	['path/offset', offset],
-// 	['path/offset-stroke', offsetStroke],
-// 	['path/length', pathLength],
-// 	['path/closed?', closedQ],
+	// 	['path/join', pathJoin],
+	// 	['path/to-beziers', toBeziers],
+	// 	['path/offset', offset],
+	// 	['path/offset-stroke', offsetStroke],
+	// 	['path/length', pathLength],
+	// 	['path/closed?', closedQ],
 
-// 	// Modify
-// 	['path/drag-anchor', dragAnchor],
-// 	['path/drag-handle', dragHandle],
+	// 	// Modify
+	// 	['path/drag-anchor', dragAnchor],
+	// 	['path/drag-handle', dragHandle],
 
-// 	// Get Property
-// 	['path/position-at-length', positionAtLength],
-// 	['path/position-at', convertToNormalizedFunction(positionAtLength)],
-// 	['path/normal-at-length', normalAtLength],
-// 	['path/normal-at', convertToNormalizedFunction(normalAtLength)],
-// 	['path/tangent-at-length', tangentAtLength],
-// 	['path/tangent-at', convertToNormalizedFunction(tangentAtLength)],
-// 	['path/angle-at-length', angleAtLength],
-// 	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
-// 	['path/align-at-length', alignMatrixAtLength],
-// 	['path/align-at', convertToNormalizedFunction(alignMatrixAtLength)],
+	// 	// Get Property
+	// 	['path/position-at-length', positionAtLength],
+	// 	['path/position-at', convertToNormalizedFunction(positionAtLength)],
+	// 	['path/normal-at-length', normalAtLength],
+	// 	['path/normal-at', convertToNormalizedFunction(normalAtLength)],
+	// 	['path/tangent-at-length', tangentAtLength],
+	// 	['path/tangent-at', convertToNormalizedFunction(tangentAtLength)],
+	// 	['path/angle-at-length', angleAtLength],
+	// 	['path/angle-at', convertToNormalizedFunction(angleAtLength)],
+	// 	['path/align-at-length', alignMatrixAtLength],
+	// 	['path/align-at', convertToNormalizedFunction(alignMatrixAtLength)],
 
-// 	// Boolean
-// 	['path/unite', createPolynominalBooleanOperator('unite')],
-// 	['path/intersect', createPolynominalBooleanOperator('intersect')],
-// 	['path/subtract', createPolynominalBooleanOperator('subtract')],
-// 	['path/exclude', createPolynominalBooleanOperator('exclude')],
-// 	['path/divide', createPolynominalBooleanOperator('divide')],
+	// 	// Boolean
+	// 	['path/unite', createPolynominalBooleanOperator('unite')],
+	// 	['path/intersect', createPolynominalBooleanOperator('intersect')],
+	// 	['path/subtract', createPolynominalBooleanOperator('subtract')],
+	// 	['path/exclude', createPolynominalBooleanOperator('exclude')],
+	// 	['path/divide', createPolynominalBooleanOperator('divide')],
 
-// 	// Manipulation
-// 	['path/transform', pathTransform],
-// 	['path/trim', pathTrim],
-// 	['path/trim-by-length', trimByLength],
-// 	['path/flatten', pathFlatten],
+	// 	// Manipulation
+	['path/transform', transformPath],
+	// 	['path/trim', pathTrim],
+	// 	['path/trim-by-length', trimByLength],
+	// 	['path/flatten', pathFlatten],
 
-// 	// Utility
-// 	[
-// 		'path/split-segments',
-// 		([, ...path]: PathType) => Array.from(iterateSegment(path) as any),
-// 	],
-// 	['path/bounds', pathBounds],
-// 	['path/nearest-offset', nearestOffset],
-// 	['path/nearest-point', nearestPoint],
-// 	['path/inside?', insideQ],
-// 	['path/intersections', intersections],
-// ] as [string, MalVal][]
+	// 	// Utility
+	// 	[
+	// 		'path/split-segments',
+	// 		([, ...path]: PathType) => Array.from(iterateSegment(path) as any),
+	// 	],
+	// 	['path/bounds', pathBounds],
+	// 	['path/nearest-offset', nearestOffset],
+	// 	['path/nearest-point', nearestPoint],
+	// 	['path/inside?', insideQ],
+	// 	['path/intersections', intersections],
+] as [string, any][]
 
-// const Exp = MalList.create(
-// 	MalSymbol.create('do'),
-// 	...Exports.map(([sym, body]) =>
-// 		MalList.create(MalSymbol.create('def'), MalSymbol.create(sym), body)
-// 	)
-// )
-// ;(globalThis as any)['glisp_library'] = Exp
+const Exp = MalList.fromSeq(
+	MalSymbol.create('do'),
+	...Exports.map(([sym, body]) =>
+		MalList.fromSeq(
+			MalSymbol.create('def'),
+			MalSymbol.create(sym),
+			jsToMal(body)
+		)
+	)
+)
+;(globalThis as any)['glisp_library'] = Exp

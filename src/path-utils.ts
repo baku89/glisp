@@ -1,7 +1,8 @@
 import {vec2, mat2d} from 'gl-matrix'
-import {MalError, MalKeyword, MalVal, MalVector} from '@/mal/types'
+import {MalKeyword, MalVector} from '@/mal/types'
+import {jsToMal} from '@/mal/reader'
 
-export function isPath(exp: any): exp is PathType {
+export function isPath(exp: any): exp is MalVector {
 	return MalVector.is(exp) && MalKeyword.isFor(exp.value[0], 'path')
 }
 
@@ -20,57 +21,61 @@ export function isPath(exp: any): exp is PathType {
 // 	}
 // }
 
-export function getSVGPathDataRecursive(exp: MalVal): string {
-	return convertPath(exp, mat2d.create())
+// export function getSVGPathDataRecursive(exp: MalVal): string {
+// 	return convertPath(exp, mat2d.create())
 
-	function convertPath(exp: MalVal, transform?: mat2d): string {
-		if (!MalVector.is(exp)) {
-			return ''
-		}
+// 	function convertPath(exp: MalVal, transform?: mat2d): string {
+// 		if (!MalVector.is(exp)) {
+// 			return ''
+// 		}
 
-		switch (exp[0]) {
-			case MalKeyword.create('path'):
-				return getSVGPathData(transformPath(exp as PathType, transform))
-			case MalKeyword.create('style'): {
-				return exp
-					.slice(2)
-					.map(e => convertPath(e, transform))
-					.join(' ')
-			}
-			case MalKeyword.create('transform'): {
-				const newTransform = mat2d.mul(
-					mat2d.create(),
-					transform || mat2d.create(),
-					exp[1] as mat2d
-				)
-				return exp
-					.slice(2)
-					.map(e => convertPath(e, newTransform))
-					.join(' ')
-			}
-		}
+// 		switch (exp[0]) {
+// 			case MalKeyword.create('path'):
+// 				return getSVGPathData(transformPath(exp as PathType, transform))
+// 			case MalKeyword.create('style'): {
+// 				return exp
+// 					.slice(2)
+// 					.map(e => convertPath(e, transform))
+// 					.join(' ')
+// 			}
+// 			case MalKeyword.create('transform'): {
+// 				const newTransform = mat2d.mul(
+// 					mat2d.create(),
+// 					transform || mat2d.create(),
+// 					exp[1] as mat2d
+// 				)
+// 				return exp
+// 					.slice(2)
+// 					.map(e => convertPath(e, newTransform))
+// 					.join(' ')
+// 			}
+// 		}
 
-		return ''
-	}
+// 		return ''
+// 	}
+// }
 
-	function transformPath(path: PathType, transform?: mat2d) {
-		return !transform
-			? path
-			: (path.map(p =>
-					MalVector.is(p as MalVal)
-						? vec2.transformMat2d(vec2.create(), p as vec2, transform)
+export function transformPath(path: MalVector, transform: MalVector) {
+	const xform: mat2d = transform.toFloats()
+
+	return !transform
+		? path
+		: MalVector.create(
+				path.value.map(p =>
+					MalVector.is(p)
+						? jsToMal(vec2.transformMat2d(vec2.create(), p.toFloats(), xform))
 						: p
-			  ) as PathType)
-	}
+				)
+		  )
 }
 
-export function getSVGPathData(path: PathType) {
-	if (path[0].toString().startsWith(K_PATH)) {
-		path = path.slice(1)
-	}
+// export function getSVGPathData(path: MalVector) {
+// 	if (path[0].toString().startsWith(K_PATH)) {
+// 		path = path.slice(1)
+// 	}
 
-	return path.map(x => (MalKeyword.is(x as MalVal) ? x.slice(1) : x)).join(' ')
-}
+// 	return path.map(x => (MalKeyword.is(x as MalVal) ? x.slice(1) : x)).join(' ')
+// }
 
 // const K_M = MalKeyword.create('M'),
 // 	K_L = MalKeyword.create('L'),
