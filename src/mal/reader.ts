@@ -290,7 +290,7 @@ export function jsToMal(obj: boolean | MalBoolean): MalBoolean
 export function jsToMal(obj: null | undefined | MalNil): MalNil
 export function jsToMal(obj: MalCallableValue | MalFn): MalFn
 export function jsToMal(obj: MalList): MalList
-export function jsToMal(obj: any[] | MalVector): MalVector
+export function jsToMal(obj: any[] | Float32Array | MalVector): MalVector
 export function jsToMal(obj: {[k: string]: any} | MalMap): MalMap
 export function jsToMal(obj: MalAtom): MalAtom
 export function jsToMal(obj: any): MalVal {
@@ -300,6 +300,9 @@ export function jsToMal(obj: any): MalVal {
 	} else if (Array.isArray(obj)) {
 		// Vector
 		return MalVector.create(obj.map(jsToMal))
+	} else if (obj instanceof Float32Array) {
+		// Numeric Vector
+		return MalVector.create(Array.from(obj).map(x => MalNumber.create(x)))
 	} else if (obj instanceof Function) {
 		// Function
 		return MalFn.create(obj)
