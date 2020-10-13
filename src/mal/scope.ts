@@ -166,7 +166,6 @@ export default class Scope {
 			const pwd = this.var('*filename*') as MalString
 
 			const absurl = normalizeImportURL(_url)
-			console.log(absurl)
 			const text = slurp(absurl)
 			let exp: MalVal
 
