@@ -1,5 +1,4 @@
 import FileSaver from 'file-saver'
-import seedrandom from 'seedrandom'
 import {
 	MalVal,
 	MalSymbol,
@@ -386,8 +385,6 @@ const Exports = [
 			return jsToMal(ret)
 		},
 	],
-	// Random
-	['rnd', (a: MalVal) => MalNumber.create(seedrandom(a.toJS())())],
 
 	// I/O
 	[
@@ -411,17 +408,6 @@ const Exports = [
 		},
 	],
 ] as [string, MalCallableValue | MalVal][]
-
-// Expose Math
-Object.getOwnPropertyNames(Math).forEach(k => {
-	const prop = (Math as any)[k]
-	const malVal =
-		typeof prop === 'function'
-			? (...args: MalVal[]) =>
-					MalNumber.create(prop(...args.map(x => x.toJS())))
-			: jsToMal(prop)
-	Exports.push([k, malVal])
-})
 
 const Exp = MalList.create([
 	MalSymbol.create('do'),

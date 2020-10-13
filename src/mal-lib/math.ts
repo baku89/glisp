@@ -1,17 +1,22 @@
+import seedrandom from 'seedrandom'
+import hull from 'hull.js'
+import BezierEasing from 'bezier-easing'
+import Delaunator from 'delaunator'
+
 import {
 	MalSymbol,
 	MalVector,
 	MalNumber,
 	MalList,
 	MalCallableValue,
+	MalVal,
 } from '@/mal/types'
-import hull from 'hull.js'
-import BezierEasing from 'bezier-easing'
-import Delaunator from 'delaunator'
 import {partition} from '@/utils'
 import {jsToMal} from '@/mal/reader'
 
 const Exports = [
+	// Random
+	['rnd', (a: MalVal) => MalNumber.create(seedrandom(a.toJS())())],
 	[
 		'convex-hull',
 		(pts: MalVector, concavity: MalNumber = MalNumber.create(Infinity)) => {
@@ -47,7 +52,17 @@ const Exports = [
 			return MalNumber.create(easing(Math.min(Math.max(0, t.value), 1)))
 		},
 	],
-] as [string, MalCallableValue][]
+] as [string, MalCallableValue | MalVal][]
+
+// Expose Math
+Object.getOwnPropertyNames(Math).forEach(k => {
+	const fn = (Math as any)[k]
+	const malVal =
+		typeof fn === 'function'
+			? (...args: MalVal[]) => MalNumber.create(fn(...args.map(x => x.toJS())))
+			: jsToMal(fn)
+	Exports.push([k, malVal])
+})
 
 const Exp = MalList.create([
 	MalSymbol.create('do'),
