@@ -1,6 +1,6 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
-import printExp, {printer} from '@/mal/printer'
+import {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 import {
 	MalVal,
@@ -11,7 +11,7 @@ import {
 	MalList,
 	MalMap,
 	MalString,
-	MalFunc,
+	MalFn,
 } from '@/mal/types'
 import GIF from 'gif.js'
 
@@ -49,14 +49,15 @@ function generateSketchURL(codeURL: string) {
 	return MalNil.create()
 }
 
-ConsoleScope.defn('copy-to-clipboard', (str: MalVal) => {
+ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
 	return copyToClipboard(str.value as string)
 })
 
 ConsoleScope.def(
 	'generate-sketch-url',
-	MalFunc.create(
-		(url: MalVal) => generateSketchURL(url.value as string),
+	MalFn.create((url: MalVal) =>
+		generateSketchURL(url.value as string)
+	).withMeta(
 		jsToMal({
 			doc: 'Generates Code URL',
 			params: [
@@ -66,16 +67,16 @@ ConsoleScope.def(
 				},
 			],
 			'initial-params': [''],
-		}) as MalMap
+		})
 	)
 )
 
-ConsoleScope.defn('open-link', (url: MalVal) => {
+ConsoleScope.def('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')
 	return MalString.create(`Open URL: ${url}`)
 })
 
-ConsoleScope.defn('download-sketch', (...args: MalVal[]) => {
+ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 	const filename = generateFilename(args[0].value as string)
 
 	const sketch = ConsoleScope.var('*sketch*').value as string
@@ -89,7 +90,7 @@ ConsoleScope.defn('download-sketch', (...args: MalVal[]) => {
 	return MalNil.create()
 })
 
-ConsoleScope.defn('copy-as-svg', () => {
+ConsoleScope.def('copy-as-svg', () => {
 	const viewExp: MalVal | undefined = ConsoleScope.var('*view*')
 
 	const svg = renderToSvg(viewExp, 500, 500)
@@ -100,7 +101,7 @@ ConsoleScope.defn('copy-as-svg', () => {
 const renderViewScope = createViewScope()
 let renderWindow: Window | null
 
-// ConsoleScope.defn(
+// ConsoleScope.def(
 // 	'export-image',
 // 	setMeta(
 // 		(...xs: MalVal[]) => {
@@ -194,7 +195,7 @@ let renderWindow: Window | null
 // 	)
 // )
 
-// ConsoleScope.defn(
+// ConsoleScope.def(
 // 	'export-video',
 // 	setMeta(
 // 		(...xs: MalVal[]) => {
@@ -328,7 +329,7 @@ let renderWindow: Window | null
 // 	)
 // )
 
-// ConsoleScope.defn(
+// ConsoleScope.def(
 // 	'publish-gist',
 // 	setMeta(
 // 		(...args: MalVal[]) => {
@@ -433,7 +434,7 @@ let renderWindow: Window | null
 // 	)
 // )
 
-ConsoleScope.defn('generate-embed-url', () => {
+ConsoleScope.def('generate-embed-url', () => {
 	const sketch = ConsoleScope.var('*sketch*').value as string
 
 	const url = new URL('embed.html', globalThis.location.href)

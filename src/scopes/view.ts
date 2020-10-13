@@ -1,4 +1,4 @@
-import {MalFunc, MalNil} from '@/mal/types'
+import {MalFn, MalNil} from '@/mal/types'
 import AppScope from './app'
 import Scope from '@/mal/scope'
 import Env from '@/mal/env'
@@ -18,7 +18,7 @@ function onSetup(scope: Scope, option: ViewScopeOption) {
 	} else {
 		env.set(
 			'guide/stroke',
-			MalFunc.create(() => MalNil.create())
+			MalFn.create(() => MalNil.create())
 		)
 	}
 

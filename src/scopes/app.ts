@@ -1,7 +1,7 @@
 import Scope from '@/mal/scope'
 import Mousetrap from 'mousetrap'
 import ReplScope from './repl'
-import {MalVal, MalList, MalError, MalVector, MalBoolean} from '@/mal/types'
+import {MalVal, MalList, MalError, MalBoolean} from '@/mal/types'
 import ConsoleScope from './console'
 
 function onSetup() {
@@ -12,7 +12,7 @@ const AppScope = new Scope(ReplScope, 'app', onSetup)
 
 // Keybinds
 
-AppScope.defn('set-keybind', (keybind: MalVal, exp: MalVal) => {
+AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	if (typeof keybind !== 'string' || !MalList.is(exp)) {
 		throw new MalError('Invalid argument for set-keybind')
 	}
@@ -28,7 +28,7 @@ AppScope.defn('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	return MalBoolean.create(true)
 })
 
-AppScope.defn('trigger-keybind', (keybind: MalVal) => {
+AppScope.def('trigger-keybind', (keybind: MalVal) => {
 	if (typeof keybind !== 'string') {
 		throw new MalError('Keybind should be string')
 	}
@@ -38,14 +38,14 @@ AppScope.defn('trigger-keybind', (keybind: MalVal) => {
 	return MalBoolean.create(true)
 })
 
-AppScope.defn('unset-all-keybinds', () => {
+AppScope.def('unset-all-keybinds', () => {
 	Mousetrap.reset()
 
 	return MalBoolean.create(true)
 })
 
-AppScope.def('*global-menu*', MalVector.create())
-AppScope.defn('set-global-menu', (menu: MalVal) => {
+AppScope.def('*global-menu*', [])
+AppScope.def('set-global-menu', (menu: MalVal) => {
 	AppScope.def('*global-menu*', menu)
 	return MalBoolean.create(true)
 })
