@@ -5,7 +5,7 @@
 				<Console :scope="scope" @setup="onSetupConsole" />
 			</Pane>
 			<Pane class="PageInterpreter__pane">
-				<GlispEditor :value="code" />
+				<GlispEditor v-model="code" />
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -14,14 +14,7 @@
 <script lang="ts">
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
-import {
-	computed,
-	defineComponent,
-	markRaw,
-	ref,
-	shallowReactive,
-	shallowRef,
-} from 'vue'
+import {computed, defineComponent, ref, shallowReactive} from 'vue'
 
 import {Splitpanes, Pane} from 'splitpanes'
 import Console from '@/components/Console.vue'
@@ -35,10 +28,11 @@ export default defineComponent({
 		Splitpanes,
 		Pane,
 		Console,
-		GlispEditor
+		GlispEditor,
 	},
 	setup() {
 		const scope = shallowReactive(new Scope())
+		const code = ref('')
 
 		const background = ref('#f8f8f8')
 		const theme = computed(() => computeTheme(background.value).colors)
@@ -47,7 +41,7 @@ export default defineComponent({
 			scope.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
-		return {scope, onSetupConsole, background, theme}
+		return {scope, code, onSetupConsole, background, theme}
 	},
 })
 </script>

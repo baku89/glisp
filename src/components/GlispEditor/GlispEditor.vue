@@ -22,7 +22,7 @@ import {setupEditor} from './setup'
 import {getEditorSelection, convertToAceRange} from './utils'
 
 interface Props {
-	value: string
+	modelValue: string
 	selection?: number[]
 	activeRange?: number[]
 }
@@ -86,7 +86,8 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		function onChange() {
 			if (setBySelf) return
 			const value = editor.getValue()
-			context.emit('input', value)
+			console.log(value)
+			context.emit('update:modelValue', value)
 		}
 
 		function onChangeSelection() {
@@ -100,7 +101,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 
 		// Watch the value and update the editor
 		watch(
-			() => props.value,
+			() => props.modelValue,
 			newValue => {
 				if (editor.getValue() !== newValue) {
 					setBySelf = true
@@ -134,7 +135,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 export default defineComponent({
 	name: 'GlispEditor',
 	props: {
-		value: {
+		modelValue: {
 			type: String,
 			required: true,
 		},
@@ -179,6 +180,7 @@ export default defineComponent({
 	&__editor
 		position relative
 		width 100%
+		height 100%
 		background transparent !important
 		color var(--foreground) !important
 		font-size 1rem
