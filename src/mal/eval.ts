@@ -78,14 +78,24 @@ function macroexpand(_exp: MalVal, env: Env) {
 	return exp
 }
 
-function getUnnamedParamsInfo(exp: MalVal) {
+function generateUnnamedParams(exp: MalVal) {
 	// Traverse body
 	let paramCount = 0,
 		hasRest = false
 
 	traverse(exp)
 
-	return {paramCount, hasRest}
+	const params = MalVector.create()
+
+	for (let i = 1; i <= paramCount; i++) {
+		params.value.push(MalSymbol.create(`%${i}`))
+	}
+	
+	if (hasRest) {
+		params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
+	}
+
+	return params
 
 	function traverse(exp: MalVal) {
 		switch (exp.type) {
@@ -248,15 +258,7 @@ export default function evalExp(
 			case 'fn-sugar': {
 				const body = exp.value[1]
 
-				const {paramCount, hasRest} = getUnnamedParamsInfo(exp)
-
-				const params = MalVector.create()
-				for (let i = 1; i <= paramCount; i++) {
-					params.value.push(MalSymbol.create(`%${i}`))
-				}
-				if (hasRest) {
-					params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
-				}
+				const params = generateUnnamedParams(exp)
 
 				exp = MalList.create([MalSymbol.create('fn'), params, body])
 				break // continue TCO loop
