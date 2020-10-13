@@ -5,7 +5,7 @@
 				<Console :scope="scope" @setup="onSetupConsole" />
 			</Pane>
 			<Pane class="PageInterpreter__pane">
-				SIDEBAR
+				<GlispEditor :value="code" />
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -25,6 +25,7 @@ import {
 
 import {Splitpanes, Pane} from 'splitpanes'
 import Console from '@/components/Console.vue'
+import GlispEditor from '@/components/GlispEditor'
 import Scope from '@/mal/scope'
 import {computeTheme} from '@/theme'
 
@@ -34,6 +35,7 @@ export default defineComponent({
 		Splitpanes,
 		Pane,
 		Console,
+		GlispEditor
 	},
 	setup() {
 		const scope = shallowReactive(new Scope())
