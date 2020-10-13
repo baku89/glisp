@@ -18,6 +18,9 @@
 <script lang="ts">
 import 'normalize.css'
 import {computed, defineComponent, ref, shallowReactive} from 'vue'
+
+import useBind from '@/components/use/use-bind/index.ts'
+
 import {Splitpanes, Pane} from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
 
@@ -70,6 +73,8 @@ export default defineComponent({
 			clearCode.value = !!value.value
 			return MalNil.create()
 		})
+
+		useBind(scope)
 
 		return {scope, code, clearCode, onSetupConsole, background, theme, runCode}
 	},
