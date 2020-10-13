@@ -1,14 +1,5 @@
-import {vsprintf} from 'sprintf-js'
 import isNodeJS from 'is-node'
-import {
-	MalVal,
-	MalError,
-	MalBoolean,
-	MalString,
-	MalNil,
-	MalNumber,
-	MalFn,
-} from './types'
+import {MalVal, MalError, MalBoolean, MalString, MalNil} from './types'
 import {printer} from './printer'
 import readStr, {jsToMal} from './reader'
 
@@ -76,19 +67,6 @@ const Exports = [
 
 	// Interop
 	['js-eval', (x: MalString) => jsToMal(eval(x.value.toString()))],
-	// ['.', jsMethodCall],
-
-	// Needed in import-force
-	[
-		'format',
-		(fmt: MalString, ...xs: (MalNumber | MalString)[]) =>
-			MalString.create(
-				vsprintf(
-					fmt.value,
-					xs.map(x => x.toJS())
-				)
-			),
-	],
 
 	['*is-node*', MalBoolean.create(isNodeJS)],
 	['*host-language*', MalString.create('JavaScript')],

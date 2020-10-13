@@ -1,4 +1,5 @@
 import FileSaver from 'file-saver'
+import {vsprintf} from 'sprintf-js'
 import {
 	MalVal,
 	MalSymbol,
@@ -346,6 +347,16 @@ const Exports = [
 		'subs',
 		(a: MalString, from: MalNumber, to?: MalNumber) =>
 			MalString.create(a.value.substr(from.value, to?.value)),
+	],
+	[
+		'format',
+		(fmt: MalString, ...xs: (MalNumber | MalString)[]) =>
+			MalString.create(
+				vsprintf(
+					fmt.value,
+					xs.map(x => x.toJS())
+				)
+			),
 	],
 
 	// Meta
