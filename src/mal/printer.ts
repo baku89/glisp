@@ -1,10 +1,13 @@
-import {MalVal} from './types'
+import {MalError, MalVal} from './types'
 
 const printer = (globalThis as any)['glisp_printer'] || {
 	log: console.info,
 	return: console.log,
 	error: console.error,
 	clear: console.clear,
+	rep: () => {
+		throw new MalError('No console')
+	},
 }
 
 ;(globalThis as any)['glisp_printer'] = printer

@@ -35,6 +35,7 @@ export default defineComponent({
 			required: true,
 		},
 	},
+	emits: ['setup'],
 	setup(props, context) {
 		const el = ref<null | HTMLElement>(null)
 
@@ -66,6 +67,21 @@ export default defineComponent({
 				jqconsole.Clear()
 			}
 
+			function rep(command: string) {
+				jqconsole.Write(`>>>${command}\n`, 'jqconsole-prompt')
+
+				// Execute
+				props.scope.REP(command)
+
+				// Add the command to history
+				const history = jqconsole.GetHistory()
+				history.push(command)
+				jqconsole.SetHistory(history)
+				jqsaveHistory(jqconsole)
+			}
+
+			printer.rep = rep
+
 			// Handle a command.
 			const handler = (line?: string) => {
 				if (line) {
@@ -96,7 +112,7 @@ export default defineComponent({
 			handler()
 
 			// Fire the setup event so that main app can run initial evaluation
-			context.emit('setup')
+			context.emit('setup', rep)
 		})
 
 		return {el}

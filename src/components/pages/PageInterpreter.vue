@@ -28,6 +28,7 @@ import InputButton from '@/components/inputs/InputButton.vue'
 
 import Scope from '@/mal/scope'
 import {computeTheme} from '@/theme'
+import {printer} from '@/mal/printer'
 
 export default defineComponent({
 	name: 'PageInterpreter',
@@ -52,7 +53,8 @@ export default defineComponent({
 		}
 
 		function run() {
-			scope.REP(code.value)
+			printer.rep(code.value)
+
 			if (clearCode.value) {
 				code.value = ''
 			}
