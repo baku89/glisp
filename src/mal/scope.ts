@@ -2,14 +2,7 @@ import Env from './env'
 import readStr, {jsToMal, MalBlankException} from './reader'
 import evalExp from './eval'
 import ReplCore, {slurp} from './repl-core'
-import {
-	MalVal,
-	MalError,
-	MalString,
-	MalNil,
-	MalFn,
-	MalCallableValue,
-} from './types'
+import {MalVal, MalError, MalString, MalNil, MalCallableValue} from './types'
 import {printer} from './printer'
 import isNodeJS from 'is-node'
 
