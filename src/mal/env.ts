@@ -122,7 +122,7 @@ export default class Env {
 		return value
 	}
 
-	protected find(symbol: string): MalVal | undefined {
+	public find(symbol: string): MalVal | undefined {
 		// First, search binding
 		const bindings = this.root().bindings
 		if (bindings.length > 0) {

@@ -15,6 +15,7 @@ import {
 	MalType,
 } from './types'
 import Env from './env'
+import SpecialForms from './special-forms-meta'
 // import {setExpandInfo, ExpandType} from './expand'
 
 function quasiquote(exp: MalVal): MalVal {
@@ -56,12 +57,12 @@ function quasiquote(exp: MalVal): MalVal {
 
 function macroexpand(_exp: MalVal, env: Env) {
 	let exp = _exp
-	let fn: MalVal
+	let fn: MalVal | undefined
 
 	while (
 		MalList.is(exp) &&
 		MalSymbol.is(exp.first) &&
-		(fn = env.get(exp.first.value))
+		(fn = env.find(exp.first.value))
 	) {
 		if (!MalMacro.is(fn)) {
 			break
@@ -156,7 +157,6 @@ export default function evalExp(
 			case 'def': {
 				// NOTE: disable defvar
 				// case 'defvar': {
-				//first.evaluated = env.get('def')
 				const [, sym, form] = exp.value
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
@@ -170,8 +170,6 @@ export default function evalExp(
 				return ret
 			}
 			case 'let': {
-				//first.evaluated = env.get('let')
-
 				const letEnv = new Env({name: 'let', outer: env})
 
 				const [, binds, ...body] = exp.value
@@ -192,7 +190,6 @@ export default function evalExp(
 				break // continue TCO loop
 			}
 			// case 'binding': {
-			// 	first.evaluated = env.get('binding')
 			// 	const bindingEnv = new Env({name: 'binding'})
 			// 	const [, binds, ..._body] = exp.value
 			// 	if (!MalVector.is(binds)) {
@@ -220,12 +217,10 @@ export default function evalExp(
 			// }
 			// case 'get-all-symbols': {
 			// 	const ret = MalVector.create(...env.getAllSymbols())
-			// 	first.evaluated = env.get('get-all-symbols')
 			// 	origExp.evaluated = ret
 			// 	return ret
 			// }
 			// case 'fn-params': {
-			// 	first.evaluated = env.get('fn-params')
 			// 	const fn = evalExp.call(this, exp.value[1], env)
 			// 	const ret = MalFn.is(fn)
 			// 		? MalVector.create(...fn.params)
@@ -234,7 +229,6 @@ export default function evalExp(
 			// 	return ret
 			// }
 			// case 'eval*': {
-			// 	first.evaluated = env.get('eval*')
 			// 	// if (!this) {
 			// 	// 	throw new MalError('Cannot find the caller env')
 			// 	// }
@@ -244,18 +238,14 @@ export default function evalExp(
 			// }
 			case 'quote': {
 				const ret = exp.value[1]
-				//first.evaluated = env.get('quote')
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'quasiquote': {
-				//first.evaluated = env.get('quasiquote')
 				exp = quasiquote(exp.value[1])
 				break // continue TCO loop
 			}
 			case 'fn-sugar': {
-				//first.evaluated = env.get('fn-sugar')
-
 				const body = exp.value[1]
 
 				const {paramCount, hasRest} = getUnnamedParamsInfo(exp)
@@ -273,7 +263,6 @@ export default function evalExp(
 			}
 			case 'fn':
 			case 'macro': {
-				//first.evaluated = env.get(first.value)
 				const [, _params, body] = exp.value
 
 				let params: MalVector | undefined
@@ -308,13 +297,11 @@ export default function evalExp(
 				return ret
 			}
 			case 'macroexpand': {
-				//first.evaluated = env.get('macroexpand')
 				const ret = macroexpand(exp.value[1], env)
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'try': {
-				//first.evaluated = env.get('try')
 				const [, testExp, catchExp] = exp.value
 				try {
 					const ret = evalExp.call(this, testExp, env)
@@ -325,7 +312,7 @@ export default function evalExp(
 						MalList.isCallOf(catchExp, 'catch') &&
 						MalSymbol.is(catchExp.value[1])
 					) {
-						catchExp.value[1].evaluated = env.get('catch')
+						catchExp.value[1].evaluated = SpecialForms['catch'] as MalVal
 						const [, errSym, errBody] = catchExp.value
 
 						const message = MalString.create(
@@ -349,7 +336,6 @@ export default function evalExp(
 				}
 			}
 			case 'do': {
-				//first.evaluated = env.get('do')
 				if (exp.value.length === 1) {
 					origExp.evaluated = MalNil.create()
 					return MalNil.create()
@@ -359,7 +345,6 @@ export default function evalExp(
 				break // continue TCO loop
 			}
 			case 'if': {
-				//first.evaluated = env.get('if')
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = evalExp.call(this, _test, env)
 				exp = test.value ? thenExp : elseExp || MalNil.create()
