@@ -2,10 +2,10 @@ import chroma from 'chroma-js'
 import {
 	MalSymbol,
 	MalList,
-	MalF,
-	MalFunc,
 	MalString,
 	MalNumber,
+	MalCallableValue,
+	MalFn,
 } from '@/mal/types'
 
 const Exports = [
@@ -25,12 +25,12 @@ const Exports = [
 	],
 	[
 		'color/brighten',
-		(color: MalString, value = MalNumber.create(1)) =>
+		(color: MalString, value: MalNumber = MalNumber.create(1)) =>
 			MalString.create(chroma(color.value).brighten(value.value).hex()),
 	],
 	[
 		'color/darken',
-		(color: MalString, value = MalNumber.create(1)) =>
+		(color: MalString, value: MalNumber = MalNumber.create(1)) =>
 			MalString.create(chroma(color.value).darken(value.value).hex()),
 	],
 	[
@@ -49,15 +49,15 @@ const Exports = [
 			}
 		},
 	],
-] as [string, any][]
+] as [string, MalCallableValue][]
 
-const Exp = MalList.create(
+const Exp = MalList.fromSeq(
 	MalSymbol.create('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.create(
+		MalList.fromSeq(
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			MalFunc.create(body as MalF)
+			MalFn.create(body)
 		)
 	)
 )
