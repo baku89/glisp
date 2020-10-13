@@ -1,23 +1,23 @@
 (import "math")
 
-(def path/arc (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/transform (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/trim (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/position-at (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/unite (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/intersect (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/subtract (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/exclude (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/divide (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/offset (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/offset-stroke (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/intersections (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/nearest-offset (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/nearest-point (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/inside? (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/arc (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/transform (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/trim (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/position-at (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/unite (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/intersect (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/subtract (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/exclude (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/divide (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/offset (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/offset-stroke (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/intersections (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/nearest-offset (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/nearest-point (fn [] (throw "This function is not supported in Node.js environment")))
+;; (def path/inside? (fn [] (throw "This function is not supported in Node.js environment")))
 
-;; (if-not *is-node*
-;;   (import-force "path.js"))
+;; ;; (if-not *is-node*
+;; ;;   (import-force "path.js"))
 
 (defn translate-first-param [{:params [c] :transform xform}]
   {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})
@@ -50,7 +50,6 @@
                                 {:id [i :anchor] :type "point" :pos (last pts)}]
                             ; :M or :L
                             {:id [i :anchor] :type "point" :pos (first pts)})))))))
-
     :drag (fn {:id [seg-idx vtx-type]
                :pos p
                :prev-pos pp
@@ -165,55 +164,55 @@
   [:path :M from :L to])
 (defalias line path/line)
 
-(def path/arc
-  ^{:doc "Generates an arc path"
-    :params [{:label "Center"
-              :type "vec2"
-              :desc "Coordinate of the arc's center"}
-             {:label "Radius"
-              :type "number"
-              :desc "The arc's radius"}
-             {:label "Start"
-              :type "number"
-              :ui "angle"
-              :desc "Angle to start the arc"}
-             {:label "End"
-              :type "number"
-              :ui "angle"
-              :desc "Angle to stop the arc"}]
-    :handles {:draw (fn {:params [center r start end]
-                         :return path}
-                      [{:id :center :type "translate"
-                        :pos center}
-                       {:id :start :type "point"
-                        :pos (vec2/+ center (vec2/dir start r))}
-                       {:id :end :type "point"
-                        :pos (vec2/+ center (vec2/dir end r))}
-                       {:id :radius :type "arrow"
-                        :angle (/ (+ start end) 2)
-                        :pos (vec2/+ (vec2/dir (/ (+ start end) 2) r))}])
-              :drag (fn {:id id :pos p :prev-pos pp
-                         :params [center r start end]}
-                      (case id
-                        :center {:replace [0 p]}
-                        :radius {:replace [1 (vec2/dist center p)]}
-                        :start (let [start (calc-dragged-rotation
-                                            :center center
-                                            :pos p
-                                            :prev-pos pp
-                                            :angle start)]
-                                 {:replace [2 start]})
-                        :end (let [end (calc-dragged-rotation
-                                        :center center
-                                        :pos p
-                                        :prev-pos pp
-                                        :angle end)]
-                               {:replace [3 end]})))}
-    :return {:type "path"}
-    :initial-params [[0 0] 100 (deg 0) (deg 180)]
-    :transform translate-first-param}
-  path/arc)
-(defalias arc path/arc)
+;; (def path/arc
+;;   ^{:doc "Generates an arc path"
+;;     :params [{:label "Center"
+;;               :type "vec2"
+;;               :desc "Coordinate of the arc's center"}
+;;              {:label "Radius"
+;;               :type "number"
+;;               :desc "The arc's radius"}
+;;              {:label "Start"
+;;               :type "number"
+;;               :ui "angle"
+;;               :desc "Angle to start the arc"}
+;;              {:label "End"
+;;               :type "number"
+;;               :ui "angle"
+;;               :desc "Angle to stop the arc"}]
+;;     :handles {:draw (fn {:params [center r start end]
+;;                          :return path}
+;;                       [{:id :center :type "translate"
+;;                         :pos center}
+;;                        {:id :start :type "point"
+;;                         :pos (vec2/+ center (vec2/dir start r))}
+;;                        {:id :end :type "point"
+;;                         :pos (vec2/+ center (vec2/dir end r))}
+;;                        {:id :radius :type "arrow"
+;;                         :angle (/ (+ start end) 2)
+;;                         :pos (vec2/+ (vec2/dir (/ (+ start end) 2) r))}])
+;;               :drag (fn {:id id :pos p :prev-pos pp
+;;                          :params [center r start end]}
+;;                       (case id
+;;                         :center {:replace [0 p]}
+;;                         :radius {:replace [1 (vec2/dist center p)]}
+;;                         :start (let [start (calc-dragged-rotation
+;;                                             :center center
+;;                                             :pos p
+;;                                             :prev-pos pp
+;;                                             :angle start)]
+;;                                  {:replace [2 start]})
+;;                         :end (let [end (calc-dragged-rotation
+;;                                         :center center
+;;                                         :pos p
+;;                                         :prev-pos pp
+;;                                         :angle end)]
+;;                                {:replace [3 end]})))}
+;;     :return {:type "path"}
+;;     :initial-params [[0 0] 100 (deg 0) (deg 180)]
+;;     :transform translate-first-param}
+;;   path/arc)
+;; (defalias arc path/arc)
 
 (defn path/polyline
   {:doc "Generates a polyline path"
@@ -328,7 +327,7 @@
    :transform translate-first-param}
   [center radius sides]
   (let [angles (column 0 (dec sides) (/ TWO_PI sides))
-        vertices (map #(vec2/+ center (vec2/dir % radius)) angles)]
+        vertices (map #(vec2/+ center (vec2/dir %1 radius)) angles)]
     `(polygon ~@vertices)))
 (defalias ngon path/ngon)
 
@@ -388,165 +387,165 @@
 
 ;; Path modifiers
 
-(annotate-fn
- path/transform
- {:doc "Applies transform matrix for the vertex of input path"
-  :params [{:label "Matrix" :type "mat2d"}
-           {:label "Path" :type "path"}]
-  :viewport-transform (fn [xform & body]
-                        `[nil ~@(repeat xform (count body))])
-  :return {:type "path"}})
+;; (annotate-fn
+;;  path/transform
+;;  {:doc "Applies transform matrix for the vertex of input path"
+;;   :params [{:label "Matrix" :type "mat2d"}
+;;            {:label "Path" :type "path"}]
+;;   :viewport-transform (fn [xform & body]
+;;                         `[nil ~@(repeat xform (count body))])
+;;   :return {:type "path"}})
 
-(defn path/merge
-  {:doc "Returns a merged path"
-   :params [& {:type "path"}]
-   :return {:type "path"}}
-  [& paths]
-  `[:path ~@(apply concat (map rest paths))])
+;; (defn path/merge
+;;   {:doc "Returns a merged path"
+;;    :params [& {:type "path"}]
+;;    :return {:type "path"}}
+;;   [& paths]
+;;   `[:path ~@(apply concat (map rest paths))])
 
-;; Annotations for JS functions
+;; ;; Annotations for JS functions
 
-(annotate-fn
- path/trim
- {:doc "Trims a path by a normalized range"
-  :params [{:label "Start" :type "number" :ui "slider" :validator clamp01}
-           {:label "End" :type "number" :ui "slider" :validator clamp01}
-           {:label "Path" :type "path"}]
-  :return {:type "path"}
-  :handles {:draw (fn {:params [start end path]
-                       :return trimmed-path}
-                    [{:type "path" :id :path-original :class "dashed" :guide true
-                      :path path}
-                     {:type "path" :id :path-trimmed :guide true
-                      :path trimmed-path}
-                     {:type "point" :id :start :pos (path/position-at start path)}
-                     {:type "point" :id :end :pos (path/position-at end path)}])
-            :drag (fn {:id id :pos p
-                       :params [start end path]}
-                    (case id
-                      :start {:replace [0 (path/nearest-offset p path)]}
-                      :end {:replace [1 (path/nearest-offset p path)]}))}})
+;; (annotate-fn
+;;  path/trim
+;;  {:doc "Trims a path by a normalized range"
+;;   :params [{:label "Start" :type "number" :ui "slider" :validator clamp01}
+;;            {:label "End" :type "number" :ui "slider" :validator clamp01}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "path"}
+;;   :handles {:draw (fn {:params [start end path]
+;;                        :return trimmed-path}
+;;                     [{:type "path" :id :path-original :class "dashed" :guide true
+;;                       :path path}
+;;                      {:type "path" :id :path-trimmed :guide true
+;;                       :path trimmed-path}
+;;                      {:type "point" :id :start :pos (path/position-at start path)}
+;;                      {:type "point" :id :end :pos (path/position-at end path)}])
+;;             :drag (fn {:id id :pos p
+;;                        :params [start end path]}
+;;                     (case id
+;;                       :start {:replace [0 (path/nearest-offset p path)]}
+;;                       :end {:replace [1 (path/nearest-offset p path)]}))}})
 
-(annotate-fn
- path/trim-by-length
- {:doc "Trims a path by offset lengths"
-  :params [{:label "Start" :type "number"}
-           {:label "End" :type "number"}
-           {:label "Path" :type "path"}]
-  :return {:type "path"}})
+;; (annotate-fn
+;;  path/trim-by-length
+;;  {:doc "Trims a path by offset lengths"
+;;   :params [{:label "Start" :type "number"}
+;;            {:label "End" :type "number"}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "path"}})
 
-(annotate-fn
- path/position-at
- {:doc "Returns a position of the specified offset on the path"
-  :params [{:label "Offset", :type "number" :validator clamp01}
-           {:label "Path" :type "path"}]
-  :handles {:draw (fn {:params [t path]
-                       :return ret}
-                    [{:type "path" :guide true :class "dashed" :path path}
-                     {:type "point" :pos ret}])
-            :drag (fn {:pos p :params [t path]}
-                    {:replace [0 (path/nearest-offset p path)]})}
-  :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
-  :return {:type "vec2"}})
+;; (annotate-fn
+;;  path/position-at
+;;  {:doc "Returns a position of the specified offset on the path"
+;;   :params [{:label "Offset", :type "number" :validator clamp01}
+;;            {:label "Path" :type "path"}]
+;;   :handles {:draw (fn {:params [t path]
+;;                        :return ret}
+;;                     [{:type "path" :guide true :class "dashed" :path path}
+;;                      {:type "point" :pos ret}])
+;;             :drag (fn {:pos p :params [t path]}
+;;                     {:replace [0 (path/nearest-offset p path)]})}
+;;   :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
+;;   :return {:type "vec2"}})
 
-(def path-boolean-meta
-  {:params [& {:label "Path" :type "path"}]
-   :handles {:draw (fn {:params [& paths]}
-                     (map #(hash-map
-                            :type "path"
-                            :guide true
-                            :class "dashed"
-                            :path %)
-                          paths))}})
-
-
-(annotate-fn
- path/unite
- (assoc path-boolean-meta :doc "Unites the paths"))
-
-(annotate-fn
- path/intersect
- (assoc path-boolean-meta :doc "Intersects the paths"))
-
-(annotate-fn
- path/subtract
- (assoc path-boolean-meta :doc "Subtracts the paths"))
-
-(annotate-fn
- path/exclude
- (assoc path-boolean-meta :doc "Excludes the paths"))
-
-(annotate-fn
- path/divide
- (assoc path-boolean-meta :doc "Divides the paths"))
+;; (def path-boolean-meta
+;;   {:params [& {:label "Path" :type "path"}]
+;;    :handles {:draw (fn {:params [& paths]}
+;;                      (map #(hash-map
+;;                             :type "path"
+;;                             :guide true
+;;                             :class "dashed"
+;;                             :path %)
+;;                           paths))}})
 
 
-(def path-offset-meta
-  {:params [{:label "Offset" :type "number"}
-            {:label "Path" :type "path"}
-            {:variadic true
-             :type "map"
-             :items [{:key :join :type "string" :ui "dropdown" :default "round"
-                      :values ["miter" "bevel" "round"]}
-                     {:key :cap :type "string" :ui "dropdown" :default "round"
-                      :values ["butt" "round"]}]}]
-   :return {:type "path"}
-   :handles {:draw (fn {:params [d path]
-                        :return offset-path}
-                     [{:type "path" :guide true
-                       :class "dashed" :path path}
-                      {:type "arrow"
-                       :pos (path/position-at 0 offset-path)
-                       :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
-             :drag (fn {:pos p
-                        :params [_ path & options]}
-                     (let [near-t (path/nearest-offset p path)
-                           near-pt (path/position-at near-t path)
-                           near-n (path/normal-at near-t path)
-                           near-dir (vec2/- p near-pt)
-                           d-sign (sign (vec2/dot near-n near-dir))
-                           d (* (vec2/len near-dir) d-sign)]
-                       {:replace [0 d]}))}})
+;; (annotate-fn
+;;  path/unite
+;;  (assoc path-boolean-meta :doc "Unites the paths"))
 
-(annotate-fn
- path/offset
- (assoc path-offset-meta :doc "Offsets a path"))
+;; (annotate-fn
+;;  path/intersect
+;;  (assoc path-boolean-meta :doc "Intersects the paths"))
 
-(annotate-fn
- path/offset-stroke
- (assoc path-offset-meta :doc "Generates outline stroke from a path"))
+;; (annotate-fn
+;;  path/subtract
+;;  (assoc path-boolean-meta :doc "Subtracts the paths"))
 
-(annotate-fn
- path/intersections
- {:doc "Returns all intersections between two paths"
-  :params [{:label "a" :type "path"}
-           {:label "b" :type "path"}]}
- path/intersections)
+;; (annotate-fn
+;;  path/exclude
+;;  (assoc path-boolean-meta :doc "Excludes the paths"))
 
-(annotate-fn
- path/nearest-offset
- {:doc "Gets the offset (0-1) of nearest point on path"
-  :params [{:label "Pos" :type "vec2"}
-           {:label "Path" :type "path"}]
-  :return {:type "number"}})
+;; (annotate-fn
+;;  path/divide
+;;  (assoc path-boolean-meta :doc "Divides the paths"))
 
-(annotate-fn
- path/nearest-point
- {:doc "Gets the earest point on path"
-  :params [{:label "Pos" :type "vec2"}
-           {:label "Path" :type "path"}]
-  :return {:type "vec2"}})
 
-(annotate-fn
- path/inside?
- {:doc "Returns true if *pos* is inside *path*"
-  :params [{:label "Pos" :type "vec2"}
-           {:label "Path" :type "path"}]
-  :return {:type "boolean"}})
+;; (def path-offset-meta
+;;   {:params [{:label "Offset" :type "number"}
+;;             {:label "Path" :type "path"}
+;;             {:variadic true
+;;              :type "map"
+;;              :items [{:key :join :type "string" :ui "dropdown" :default "round"
+;;                       :values ["miter" "bevel" "round"]}
+;;                      {:key :cap :type "string" :ui "dropdown" :default "round"
+;;                       :values ["butt" "round"]}]}]
+;;    :return {:type "path"}
+;;    :handles {:draw (fn {:params [d path]
+;;                         :return offset-path}
+;;                      [{:type "path" :guide true
+;;                        :class "dashed" :path path}
+;;                       {:type "arrow"
+;;                        :pos (path/position-at 0 offset-path)
+;;                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
+;;              :drag (fn {:pos p
+;;                         :params [_ path & options]}
+;;                      (let [near-t (path/nearest-offset p path)
+;;                            near-pt (path/position-at near-t path)
+;;                            near-n (path/normal-at near-t path)
+;;                            near-dir (vec2/- p near-pt)
+;;                            d-sign (sign (vec2/dot near-n near-dir))
+;;                            d (* (vec2/len near-dir) d-sign)]
+;;                        {:replace [0 d]}))}})
 
-(annotate-fn
- path/align-at-length
- {:doc "Returns a matrix composed of tangent and position at the point of `offset` in `path`"
-  :params [{:label "Offset" :type "number"}
-           {:label "Path" :type "path"}]
-  :return {:type "mat2d"}})
+;; (annotate-fn
+;;  path/offset
+;;  (assoc path-offset-meta :doc "Offsets a path"))
+
+;; (annotate-fn
+;;  path/offset-stroke
+;;  (assoc path-offset-meta :doc "Generates outline stroke from a path"))
+
+;; (annotate-fn
+;;  path/intersections
+;;  {:doc "Returns all intersections between two paths"
+;;   :params [{:label "a" :type "path"}
+;;            {:label "b" :type "path"}]}
+;;  path/intersections)
+
+;; (annotate-fn
+;;  path/nearest-offset
+;;  {:doc "Gets the offset (0-1) of nearest point on path"
+;;   :params [{:label "Pos" :type "vec2"}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "number"}})
+
+;; (annotate-fn
+;;  path/nearest-point
+;;  {:doc "Gets the earest point on path"
+;;   :params [{:label "Pos" :type "vec2"}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "vec2"}})
+
+;; (annotate-fn
+;;  path/inside?
+;;  {:doc "Returns true if *pos* is inside *path*"
+;;   :params [{:label "Pos" :type "vec2"}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "boolean"}})
+
+;; (annotate-fn
+;;  path/align-at-length
+;;  {:doc "Returns a matrix composed of tangent and position at the point of `offset` in `path`"
+;;   :params [{:label "Offset" :type "number"}
+;;            {:label "Path" :type "path"}]
+;;   :return {:type "mat2d"}})
