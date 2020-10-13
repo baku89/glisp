@@ -550,7 +550,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 export interface MalCallableContext {
 	callerEnv: Env
 }
-export type MalCallableValue = (...params: MalVal[]) => MalVal
+export type MalCallableValue = (...params: MalVal[]) => MalVal | never
 
 abstract class MalCallable extends MalBase<MalCallableValue> {
 	abstract readonly type: MalType.Fn | MalType.Macro
