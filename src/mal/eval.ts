@@ -378,7 +378,7 @@ export default function evalExp(
 						return ret
 					}
 				} else {
-					throw new MalError('Invalid first')
+					throw new MalError('First element of List should be function')
 				}
 			}
 		}
