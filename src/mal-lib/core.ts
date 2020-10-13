@@ -377,11 +377,19 @@ const Exports = [
 			return atm.value
 		},
 	],
-	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
+	[
+		'reset!',
+		(atm: MalAtom, a: MalVal) => {
+			if (!MalAtom.is(atm)) throw new MalError('Cannot reset non-atom value')
+			return (atm.value = a)
+		},
+	],
 	[
 		'swap!',
-		(atm: MalAtom, f: MalFn, ...args: any) =>
-			(atm.value = f.value(atm.value, ...args)),
+		(atm: MalAtom, f: MalFn, ...args: MalVal[]) => {
+			if (!MalAtom.is(atm)) throw new MalError('Cannot swap non-atom value')
+			return (atm.value = f.value(atm.value, ...args))
+		},
 	],
 
 	// Other useful functions in JS
