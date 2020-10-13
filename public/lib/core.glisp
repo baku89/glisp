@@ -74,15 +74,13 @@
     fm))
 
 (def import
-  (try
-    import
-    (catch _
-           (let [seen (atom (hash-map *filename* nil))]
-             (fn [filename]
-               (if (not (contains? @seen filename))
-                 (do
-                   (swap! seen assoc filename nil)
-                   (import-force filename))))))))
+  (let [seen (atom (hash-map *filename* true))]
+    (fn [filename]
+      (let [url (normalize-import-url filename)]
+        (if-not (contains? @seen url)
+          (do (swap! seen assoc url true)
+              (import-force url)))))))
+
 
 ;; Conditionals
 (defmacro when
