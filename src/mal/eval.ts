@@ -90,7 +90,7 @@ function generateUnnamedParams(exp: MalVal) {
 	for (let i = 1; i <= paramCount; i++) {
 		params.value.push(MalSymbol.create(`%${i}`))
 	}
-	
+
 	if (hasRest) {
 		params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
 	}
