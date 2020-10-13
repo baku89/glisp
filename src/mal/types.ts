@@ -429,6 +429,12 @@ export class MalVector extends MalSeqBase {
 		return new MalVector(value, this._meta?.clone())
 	}
 
+	// Original methods
+	toFloats() {
+		const arr: any[] = this._value.map(x => x.value)
+		return new Float32Array(arr)
+	}
+
 	// Static functions
 	static create(v: MalVal[] = []) {
 		return new this(v)
