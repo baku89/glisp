@@ -41,9 +41,6 @@ export default function initReplScope(scope: Scope) {
 		throw new MalError(msg.value)
 	})
 
-	// Interop
-	scope.def('js-eval', (x: MalString) => jsToMal(eval(x.value.toString())))
-
 	// Env variable
 	scope.def('*is-node*', isNodeJS)
 	scope.def('*host-language*', 'JavaScript')

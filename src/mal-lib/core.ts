@@ -472,6 +472,22 @@ const Exports = [
 			return MalNil.create()
 		},
 	],
+
+	// Interop
+	['js-eval', (x: MalString) => jsToMal(eval(x.value))],
+	[
+		'js-fn',
+		(x: MalString) => {
+			const fn = eval(x.value)
+			if (typeof fn !== 'function') {
+				throw new MalError('Cannot convert to MalFn')
+			}
+			return MalFn.create((...args: MalVal[]) => {
+				const ret = fn(...args.map(x => x.toJS()))
+				return jsToMal(ret)
+			})
+		},
+	],
 ] as [string, MalCallableValue | MalVal][]
 
 const Exp = MalList.create([
