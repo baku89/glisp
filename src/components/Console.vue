@@ -67,6 +67,7 @@ export default defineComponent({
 				const history = jqconsole.GetHistory()
 				jqconsole.Reset()
 				jqconsole.SetHistory(history)
+				setupConsole()
 			}
 
 			function rep(command: string) {
@@ -93,22 +94,26 @@ export default defineComponent({
 				jqconsole.Prompt(true, handler)
 			}
 
-			// Move to line start Ctrl+A.
-			jqconsole.RegisterShortcut('A', () => {
-				jqconsole.MoveToStart()
-				handler()
-			})
-			// Move to line end Ctrl+E.
-			jqconsole.RegisterShortcut('E', () => {
-				jqconsole.MoveToEnd()
-				handler()
-			})
+			// Setup console
+			function setupConsole() {
+				// Move to line start Ctrl+A.
+				jqconsole.RegisterShortcut('A', () => {
+					jqconsole.MoveToStart()
+					handler()
+				})
+				// Move to line end Ctrl+E.
+				jqconsole.RegisterShortcut('E', () => {
+					jqconsole.MoveToEnd()
+					handler()
+				})
 
-			// Setup Glisp Syntax
-			jqconsole.RegisterMatching('{', '}', 'brace')
-			jqconsole.RegisterMatching('(', ')', 'paren')
-			jqconsole.RegisterMatching('[', ']', 'bracket')
-			jqconsole.RegisterMatching('"', '"', 'dquote')
+				// Setup Glisp Syntax
+				jqconsole.RegisterMatching('{', '}', 'brace')
+				jqconsole.RegisterMatching('(', ')', 'paren')
+				jqconsole.RegisterMatching('[', ']', 'bracket')
+				jqconsole.RegisterMatching('"', '"', 'dquote')
+			}
+			setupConsole()
 
 			// Initiate the first prompt.
 			handler()
