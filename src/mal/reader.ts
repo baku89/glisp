@@ -44,7 +44,7 @@ class Reader {
 		return this._index
 	}
 
-	public getStr(start: number, end: number) {
+	public strInRange(start: number, end: number) {
 		return this.str.slice(start, end)
 	}
 
@@ -141,14 +141,14 @@ function readColl(reader: Reader, start = '[', end = ']') {
 		}
 
 		// Save delimiter
-		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
+		const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
 		delimiters?.push(delimiter)
 
 		coll.push(readForm(reader))
 	}
 
 	// Save a delimiter between a last element and a end tag
-	const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
+	const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
 	delimiters.push(delimiter)
 
 	reader.next()
@@ -286,7 +286,7 @@ function readForm(reader: Reader): any {
 		sugar.push(formEnd)
 
 		for (let i = 0; i < sugar.length - 1; i += 2) {
-			delimiters.push(reader.getStr(sugar[i], sugar[i + 1]))
+			delimiters.push(reader.strInRange(sugar[i], sugar[i + 1]))
 		}
 
 		delimiters.push('')
