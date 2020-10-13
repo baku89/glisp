@@ -237,7 +237,7 @@ function readForm(reader: Reader): any {
 				// Aanonymous function: #( )
 				return readSyntacticSugar(reader, 'fn-sugar', 1)
 			} else {
-				throw new Error('Invalid # syntactic sugar')
+				throw new MalReadError('Invalid # syntactic sugar')
 			}
 		}
 
@@ -249,13 +249,13 @@ function readForm(reader: Reader): any {
 
 		// vector
 		case ']':
-			throw new Error("unexpected ']'")
+			throw new MalReadError("unexpected ']'")
 		case '[':
 			return readVector(reader)
 
 		// hash-map
 		case '}':
-			throw new Error("unexpected '}'")
+			throw new MalReadError("unexpected '}'")
 		case '{':
 			return readMap(reader)
 
