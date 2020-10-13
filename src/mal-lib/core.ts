@@ -17,6 +17,7 @@ import {
 	MalMacro,
 	MalSeq,
 	MalCallableValue,
+	MalType,
 } from '@/mal/types'
 import printExp from '@/mal/printer'
 import {partition} from '@/utils'
@@ -277,7 +278,23 @@ const Exports = [
 
 	// Map
 	['hash-map', (...pairs: MalVal[]) => MalMap.fromSeq(pairs)],
-	['assoc', (m: MalMap, ...pairs: MalVal[]) => m.assoc(pairs)],
+	[
+		'assoc',
+		(m: MalVal, ...pairs: MalVal[]) => {
+			switch (m.type) {
+				case MalType.Map:
+					return m.assoc(pairs)
+				case MalType.Nil:
+					return MalMap.fromSeq(pairs)
+				default:
+					throw new MalError(
+						`Cannot apply assoc to ${m.print()} ${pairs
+							.map(x => x.print())
+							.join(' ')}`
+					)
+			}
+		},
+	],
 	[
 		'get',
 		(m: MalMap, a: MalString, notfound: MalVal = MalNil.create()) => {
