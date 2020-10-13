@@ -1,6 +1,6 @@
 import isNodeJS from 'is-node'
 import {MalVal, MalError, MalString, MalNil} from './types'
-import readStr, {jsToMal, slurp} from './reader'
+import readStr, {slurp} from './reader'
 import Scope from './scope'
 import evalExp from './eval'
 
