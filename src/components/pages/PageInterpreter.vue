@@ -16,6 +16,7 @@
 				</div>
 			</Pane>
 		</Splitpanes>
+		<div v-if="isRecordingBind" class="PageInterpreter__bind-recording-frame" />
 	</div>
 </template>
 
@@ -53,6 +54,7 @@ export default defineComponent({
 		const code = ref('')
 		const clearCode = ref(false)
 		const isReplInitialized = ref(false)
+		const isRecordingBind = ref(false)
 
 		const background = ref('#f8f8f8')
 		const theme = computed(() => computeTheme(background.value).colors)
@@ -74,7 +76,11 @@ export default defineComponent({
 				{immediate: true}
 			)
 
-			useBind(scope.value)
+			const {isRecordingBind: _recording} = useBind(scope.value)
+			watch(
+				() => _recording.value,
+				flag => (isRecordingBind.value = flag)
+			)
 
 			isReplInitialized.value = true
 		})()
@@ -99,6 +105,7 @@ export default defineComponent({
 			clearCode,
 			background,
 			isReplInitialized,
+			isRecordingBind,
 			theme,
 			runCode,
 			onSetupConsole,
@@ -130,6 +137,23 @@ export default defineComponent({
 		// background pink
 		& > .button
 			margin-right 1rem
+
+	&__bind-recording-frame
+		position fixed
+		top 0
+		right 0
+		bottom 0
+		left 0
+		z-index 1000
+		border 1rem solid var(--red)
+		animation recording-frame-bounce 0.5s infinite alternate
+
+@keyframes recording-frame-bounce
+	0%
+		opacity 0.5
+
+	100%
+		opacity 1
 
 // Overwrite splitpanes
 .splitpanes.default-theme

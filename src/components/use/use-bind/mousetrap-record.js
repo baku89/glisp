@@ -172,7 +172,7 @@
 	 */
 	function _restartRecordTimer() {
 		clearTimeout(_recordTimer)
-		_recordTimer = setTimeout(_finishRecording, 1000)
+		_recordTimer = setTimeout(_finishRecording, 0)
 	}
 
 	/**

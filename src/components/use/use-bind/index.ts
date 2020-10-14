@@ -1,10 +1,10 @@
+import {ref} from 'vue'
 import Mousetrap from 'mousetrap'
 import './mousetrap-global-bind'
 import './mousetrap-record'
 
 import Scope from '@/mal/scope'
 import {MalError, MalNil, MalString, MalVal} from '@/mal/types'
-import {printer} from '@/mal/printer'
 
 export default function useBind(scope: Scope) {
 	scope.def('set-bind', (command: MalVal, exp: MalVal) => {
@@ -33,10 +33,29 @@ export default function useBind(scope: Scope) {
 		return MalNil.create()
 	})
 
-	scope.def('record-bind', () => {
-		;(Mousetrap as any).record((seq: any) => {
-			printer.log('You pressed: ' + seq.join(' '))
+	const isRecordingBind = ref(false)
+
+	scope.def('record-bind', async () => {
+		return new Promise(resolve => {
+			const activeElement = document.activeElement
+			// Disable all keyboard event
+			if (activeElement) {
+				;(activeElement as HTMLElement).blur()
+			}
+
+			isRecordingBind.value = true
+
+			// Listen
+			;(Mousetrap as any).record((seq: any) => {
+				// Callback
+				if (activeElement) {
+					;(activeElement as HTMLElement).focus()
+				}
+				isRecordingBind.value = false
+				resolve(MalString.create('key/' + seq.join(' ')))
+			})
 		})
-		return MalNil.create()
 	})
+
+	return {isRecordingBind}
 }
