@@ -17,7 +17,14 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {computed, defineComponent, ref, shallowReactive} from 'vue'
+import {
+	computed,
+	defineAsyncComponent,
+	defineComponent,
+	ref,
+	shallowReactive,
+	shallowRef,
+} from 'vue'
 
 import useBind from '@/components/use/use-bind/index.ts'
 
@@ -45,15 +52,27 @@ export default defineComponent({
 		InputButton,
 	},
 	setup() {
-		const scope = shallowReactive(new Scope())
+		const scope = shallowRef<null | Scope>(null)
 		const code = ref('')
 		const clearCode = ref(false)
 
 		const background = ref('#f8f8f8')
 		const theme = computed(() => computeTheme(background.value).colors)
 
-		function onSetupConsole() {
-			scope.REP(`(str "Glisp [" *host-language* "]")`)
+		async function onSetupConsole() {
+			scope.value = await Scope.createRepl()
+
+			// Register as app command
+			scope.value?.def('run-code', runCode)
+
+			scope.value?.def('set-clear-code', (value: MalBoolean) => {
+				clearCode.value = !!value.value
+				return MalNil.create()
+			})
+
+			useBind(scope.value)
+
+			scope.value?.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
 		function runCode() {
@@ -65,16 +84,6 @@ export default defineComponent({
 
 			return MalNil.create()
 		}
-
-		// Register as app command
-		scope.def('run-code', runCode)
-
-		scope.def('set-clear-code', (value: MalBoolean) => {
-			clearCode.value = !!value.value
-			return MalNil.create()
-		})
-
-		useBind(scope)
 
 		return {scope, code, clearCode, onSetupConsole, background, theme, runCode}
 	},

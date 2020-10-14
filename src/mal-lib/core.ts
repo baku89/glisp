@@ -209,15 +209,23 @@ const Exports = [
 	],
 	[
 		'map',
-		(f: MalFn, coll: MalSeq) =>
-			MalVector.create(coll.value.map(x => f.value(x))),
+		async (f: MalFn, coll: MalSeq) => {
+			const arr = []
+			for (const x of coll.value) {
+				arr.push(await f.value(x))
+			}
+			return MalVector.create(arr)
+		},
 	],
 	[
 		'map-indexed',
-		(f: MalFn, coll: MalSeq) =>
-			MalVector.create(
-				coll.value.map((x, i) => f.value(MalNumber.create(i), x))
-			),
+		async (f: MalFn, coll: MalSeq) => {
+			const arr = []
+			for (let i = 0; i < coll.count; i++) {
+				arr.push(await f.value(MalNumber.create(i), coll.get(i)))
+			}
+			return MalVector.create(arr)
+		},
 	],
 	[
 		'filter',
@@ -362,7 +370,7 @@ const Exports = [
 	// Meta
 	['meta', x => x.meta],
 	['with-meta', (x, meta) => x.withMeta(meta)],
-	['with-meta-sugar', (meta, x) => x.withMeta(meta)],
+	// ['with-meta-sugar', (meta, x) => x.withMeta(meta)],
 	[
 		// Atom
 		'atom',
@@ -386,9 +394,9 @@ const Exports = [
 	],
 	[
 		'swap!',
-		(atm: MalAtom, f: MalFn, ...args: MalVal[]) => {
+		async (atm: MalAtom, f: MalFn, ...args: MalVal[]) => {
 			if (!MalAtom.is(atm)) throw new MalError('Cannot swap non-atom value')
-			return (atm.value = f.value(atm.value, ...args))
+			return (atm.value = await f.value(atm.value, ...args))
 		},
 	],
 
@@ -487,6 +495,15 @@ const Exports = [
 				return jsToMal(ret)
 			})
 		},
+	],
+
+	// Thread
+	[
+		'sleep',
+		(ms: MalNumber) =>
+			new Promise(resolve => {
+				setTimeout(() => resolve(MalNil.create()), ms.value)
+			}),
 	],
 ] as [string, MalCallableValue | MalVal][]
 

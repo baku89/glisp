@@ -55,7 +55,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 }
 
-function macroexpand(_exp: MalVal, env: Env) {
+async function macroexpand(_exp: MalVal, env: Env) {
 	let exp = _exp
 	let fn: MalVal | undefined
 
@@ -68,7 +68,7 @@ function macroexpand(_exp: MalVal, env: Env) {
 			break
 		}
 		exp.first.evaluated = fn
-		exp = fn.value.apply({callerEnv: env}, exp.rest)
+		exp = await fn.value.apply({callerEnv: env}, exp.rest)
 	}
 
 	// if (exp !== _exp && MalList.is(_exp)) {
@@ -120,32 +120,42 @@ function generateUnnamedParams(exp: MalVal) {
 	}
 }
 
-export default function evalExp(
+export default async function evalExp(
 	this: void | MalCallableContext,
 	exp: MalVal,
 	env: Env
-): MalVal {
+): Promise<MalVal> {
 	const origExp = exp
 
 	let counter = 0
 	while (counter++ < 1e7) {
 		// Expand macro
-		exp = macroexpand(exp, env)
+		exp = await macroexpand(exp, env)
 
 		// evalAtom
 		if (!MalList.is(exp)) {
 			let ret: MalVal | undefined
 
-			if (MalSymbol.is(exp)) {
-				ret = env.get(exp.value)
-			} else if (MalVector.is(exp)) {
-				ret = MalVector.create(exp.value.map(x => evalExp.call(this, x, env)))
-			} else if (MalMap.is(exp)) {
-				ret = MalMap.create(
-					Object.fromEntries(
-						exp.entries().map(([k, v]) => [k, evalExp.call(this, v, env)])
-					)
-				)
+			switch (exp.type) {
+				case MalType.Symbol:
+					ret = env.get(exp.value)
+					break
+				case MalType.Vector: {
+					const vec = []
+					for (const x of exp.value) {
+						vec.push(await evalExp.call(this, x, env))
+					}
+					ret = MalVector.create(vec)
+					break
+				}
+				case MalType.Map: {
+					const entries = []
+					for (const [k, v] of exp.entries()) {
+						entries.push([k, await evalExp.call(this, v, env)])
+					}
+					ret = MalMap.create(Object.fromEntries(entries))
+					break
+				}
 			}
 
 			if (ret) {
@@ -171,7 +181,7 @@ export default function evalExp(
 				if (!MalSymbol.is(sym) || form === undefined) {
 					throw new MalError('Invalid form of def')
 				}
-				const ret = evalExp.call(this, form, env)
+				const ret = await evalExp.call(this, form, env)
 				env.set(sym.value, ret)
 				// setExpandInfo(exp, {
 				// 	type: ExpandType.Unchange,
@@ -189,7 +199,7 @@ export default function evalExp(
 				for (let i = 0; i < binds.value.length; i += 2) {
 					letEnv.bind(
 						binds.value[i],
-						evalExp.call(this, binds.value[i + 1], letEnv)
+						await evalExp.call(this, binds.value[i + 1], letEnv)
 					)
 				}
 				env = letEnv
@@ -282,13 +292,15 @@ export default function evalExp(
 				if (body === undefined) {
 					throw new MalError(`The body of ${first} is empty`)
 				}
-				const ret = (first === 'fn' ? MalFn : MalMacro).create((...args) => {
-					return evalExp.call(
-						this,
-						body,
-						new Env({outer: env, forms: params?.value, exps: args})
-					)
-				})
+				const ret = (first === 'fn' ? MalFn : MalMacro).create(
+					async (...args) => {
+						return await evalExp.call(
+							this,
+							body,
+							new Env({outer: env, forms: params?.value, exps: args})
+						)
+					}
+				)
 				ret.ast = {
 					body,
 					env,
@@ -299,14 +311,14 @@ export default function evalExp(
 				return ret
 			}
 			case 'macroexpand': {
-				const ret = macroexpand(exp.value[1], env)
+				const ret = await macroexpand(exp.value[1], env)
 				origExp.evaluated = ret
 				return ret
 			}
 			case 'try': {
 				const [, testExp, catchExp] = exp.value
 				try {
-					const ret = evalExp.call(this, testExp, env)
+					const ret = await evalExp.call(this, testExp, env)
 					origExp.evaluated = ret
 					return ret
 				} catch (err) {
@@ -320,7 +332,7 @@ export default function evalExp(
 						const message = MalString.create(
 							err instanceof Error ? err.message : 'Error'
 						)
-						const ret = evalExp.call(
+						const ret = await evalExp.call(
 							this,
 							errBody,
 							new Env({
@@ -342,13 +354,13 @@ export default function evalExp(
 					origExp.evaluated = MalNil.create()
 					return MalNil.create()
 				}
-				evalExp.call(this, MalVector.create(exp.value.slice(1, -1)), env)
+				await evalExp.call(this, MalVector.create(exp.value.slice(1, -1)), env)
 				exp = exp.value[exp.value.length - 1]
 				break // continue TCO loop
 			}
 			case 'if': {
 				const [, _test, thenExp, elseExp] = exp.value
-				const test = evalExp.call(this, _test, env)
+				const test = await evalExp.call(this, _test, env)
 				exp = test.value ? thenExp : elseExp || MalNil.create()
 				break // continue TCO loop
 			}
@@ -356,7 +368,11 @@ export default function evalExp(
 				// is a function call
 
 				// Evaluate all of parameters at first
-				const [fn, ...params] = exp.value.map(e => evalExp.call(this, e, env))
+				const fn = await evalExp.call(this, exp.first, env)
+				const params = []
+				for (const p of exp.rest) {
+					params.push(await evalExp.call(this, p, env))
+				}
 
 				if (MalFn.is(fn)) {
 					exp.first.evaluated = fn
@@ -373,7 +389,7 @@ export default function evalExp(
 						break
 					} else {
 						// JS-defined functions
-						const ret = fn.value.apply({callerEnv: env}, params)
+						const ret = await fn.value.apply({callerEnv: env}, params)
 						origExp.evaluated = ret
 						return ret
 					}

@@ -11,15 +11,13 @@ export default class Scope {
 	private inner!: Scope
 
 	constructor(
-		private outer: Scope | null = null,
+		private outer: Scope | undefined = undefined,
 		private name = 'repl',
 		private onSetup: ((scope: Scope, option: any) => any) | null = null
 	) {
 		this.setup()
 
-		if (this.outer === null) {
-			this.initAsRepl()
-		} else {
+		if (this.outer) {
 			this.outer.inner = this
 		}
 	}
@@ -36,16 +34,16 @@ export default class Scope {
 		}
 	}
 
-	public REP(str: string): void {
-		const ret = this.readEval(str)
+	public async REP(str: string): Promise<void> {
+		const ret = await this.readEval(str)
 		if (ret !== undefined) {
 			printer.return(ret.print())
 		}
 	}
 
-	public readEval(str: string): MalVal | undefined {
+	public async readEval(str: string): Promise<MalVal | undefined> {
 		try {
-			return this.eval(readStr(str))
+			return await this.eval(readStr(str))
 		} catch (err) {
 			if (err instanceof MalBlankException) {
 				return MalNil.create()
@@ -61,9 +59,9 @@ export default class Scope {
 		}
 	}
 
-	public eval(exp: MalVal): MalVal | undefined {
+	public async eval(exp: MalVal): Promise<MalVal | undefined> {
 		try {
-			return evalExp(exp, this.env)
+			return await evalExp(exp, this.env)
 		} catch (err) {
 			if (err instanceof MalError) {
 				printer.error(err)
@@ -93,7 +91,15 @@ export default class Scope {
 		return this.env.get(name)
 	}
 
-	private initAsRepl() {
-		initReplScope(this)
+	private async initAsRepl() {
+		console.log('init')
+		await initReplScope(this)
+		console.log('end')
+	}
+
+	public static async createRepl() {
+		const scope = new Scope()
+		await scope.initAsRepl()
+		return scope
 	}
 }

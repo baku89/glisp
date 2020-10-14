@@ -4,7 +4,7 @@ import readStr, {slurp} from './reader'
 import Scope from './scope'
 import evalExp from './eval'
 
-export default function initReplScope(scope: Scope) {
+export default async function initReplScope(scope: Scope) {
 	const normalizeImportURL = (() => {
 		if (isNodeJS) {
 			// eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -69,7 +69,7 @@ export default function initReplScope(scope: Scope) {
 	scope.def('*filename*', filename)
 	scope.def('*libpath*', libpath)
 
-	scope.def('import-force', (url: MalVal) => {
+	scope.def('import-force', async (url: MalVal) => {
 		let _url = url.value as string
 
 		// Append .glisp if there's no extension
@@ -91,14 +91,17 @@ export default function initReplScope(scope: Scope) {
 		}
 
 		scope.def('*filename*', absurl)
-		scope.eval(exp)
+		await scope.eval(exp)
 		scope.def('*filename*', pwd)
 
 		return MalNil.create()
 	})
 
+	// Syntactic sugar
+	scope.def('with-meta-sugar', (meta: MalVal, x: MalVal) => x.withMeta(meta))
+
 	// Load core library as default
-	scope.REP('(import-force "core")')
+	await scope.REP('(import-force "core")')
 
 	// Set the current filename to pwd
 	if (isNodeJS) {
