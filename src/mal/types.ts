@@ -130,9 +130,9 @@ export class MalNumber extends MalPrimBase<number> {
 		return v?.type === MalType.Number
 	}
 
-	static check(v: MalVal) {
-		if (this.is(v)) return v.value
-		throw new MalError(`${v.print()} is not a number`)
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a number`)
+		return v.value
 	}
 }
 
@@ -179,9 +179,9 @@ export class MalString extends MalPrimBase<string> {
 		return v?.type === MalType.String
 	}
 
-	static check(v: MalVal) {
-		if (this.is(v)) return v.value
-		throw new MalError(`${v.print()} is not a string`)
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a string`)
+		return v.value
 	}
 }
 
@@ -210,6 +210,12 @@ export class MalBoolean extends MalPrimBase<boolean> {
 
 	static is(v: MalVal | undefined): v is MalBoolean {
 		return v?.type === MalType.Boolean
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v))
+			throw new MalError(`${label || v.print()} is not a boolean`)
+		return v.value
 	}
 }
 
@@ -244,6 +250,12 @@ export class MalKeyword extends MalPrimBase<string> {
 	static isFor(v: MalVal, name: string): v is MalSymbol {
 		return v?.type === MalType.Keyword && v.value === name
 	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v))
+			throw new MalError(`${label || v.print()} is not a keyword`)
+		return v.value
+	}
 }
 
 export class MalNil extends MalPrimBase<null> {
@@ -271,6 +283,11 @@ export class MalNil extends MalPrimBase<null> {
 
 	static is(v: MalVal | undefined): v is MalNil {
 		return v?.type === MalType.Nil
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not nil`)
+		return v.value
 	}
 }
 
@@ -312,6 +329,11 @@ export class MalSymbol extends MalPrimBase<string> {
 
 	static isFor(v: MalVal, name: string): v is MalSymbol {
 		return v?.type === MalType.Symbol && v.value === name
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a symbol`)
+		return v.value
 	}
 }
 
@@ -429,6 +451,11 @@ export class MalList extends MalSeqBase {
 	static isCallOf(v: MalVal, name: string): v is MalList {
 		return v?.type === MalType.List && MalSymbol.isFor(v.first, name)
 	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a list`)
+		return v.value
+	}
 }
 
 export class MalVector extends MalSeqBase {
@@ -460,6 +487,11 @@ export class MalVector extends MalSeqBase {
 
 	static is(v: MalVal | undefined): v is MalVector {
 		return v?.type === MalType.Vector
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a vector`)
+		return v.value
 	}
 }
 
@@ -573,6 +605,11 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	static is(v: MalVal | undefined): v is MalMap {
 		return v?.type === MalType.Map
 	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a map`)
+		return v.value
+	}
 }
 
 // Callable
@@ -633,6 +670,12 @@ export class MalFn extends MalCallable {
 	static is(v: MalVal | undefined): v is MalFn {
 		return v?.type === MalType.Fn
 	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v))
+			throw new MalError(`${label || v.print()} is not a function`)
+		return v.value
+	}
 }
 
 export class MalMacro extends MalCallable {
@@ -659,6 +702,11 @@ export class MalMacro extends MalCallable {
 
 	static is(v: MalVal | undefined): v is MalMacro {
 		return v?.type === MalType.Macro
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a macro`)
+		return v.value
 	}
 }
 
@@ -705,6 +753,11 @@ export class MalAtom extends MalBase<MalVal> {
 
 	static is(value: MalVal | undefined): value is MalAtom {
 		return value?.type === MalType.Atom
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not an atom`)
+		return v.value
 	}
 }
 
