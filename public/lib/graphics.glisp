@@ -187,31 +187,6 @@
       `[:g :_ ~@body])))
 (defalias g graphics/g)
 
-;; ==================================== JS Implementation
-;; 	const matrix = evalExp(exp[1], env, cache)
-;; 	const xs = exp.slice(2)
-
-;; 	const bindingEnv = new Env()
-;; 	bindingEnv.set(
-;; 		S('*transform*'),
-;; 		mat2d.mul(
-;; 			mat2d.create(),
-;; 			env.get(S('*transform*')) as mat2d,
-;; 			matrix as mat2d
-;; 		) as MalVal[]
-;; 	)
-
-;; 	env.pushBinding(bindingEnv)
-;; 	let ret
-;; 	try {
-;; 		ret = [K('transform'), matrix, ...xs.map(x => evalExp(x, env, cache))]
-;; 	} finally {
-;; 		env.popBinding()
-;; 	}
-;; 	if (cache) {
-;; 		;(exp as MalColl)[M_EVAL] = ret
-;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
-;; 	}
 ;; 	return ret
 (defmacro graphics/transform
   {:doc "Transforms elements"
