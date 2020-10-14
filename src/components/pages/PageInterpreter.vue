@@ -90,7 +90,7 @@ export default defineComponent({
 		}
 
 		function runCode() {
-			printer.rep(code.value)
+			printer.rep(`(do\n${code.value}\n)`)
 
 			if (clearCode.value) {
 				code.value = ''
