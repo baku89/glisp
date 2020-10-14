@@ -38,32 +38,18 @@ import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 
 import {computeTheme} from '@/theme'
-import {MalNil, MalVal, MalVector} from '@/mal/types'
+import {MalNil, MalVal} from '@/mal/types'
 import Scope from '@/mal/scope'
+
+function getCodeFromURL() {
+	return decodeURI(new URL(location.href).searchParams.get('code') || '')
+}
 
 interface UI {
 	background: string
 	colors: {[k: string]: string}
 	guideColor: string
 }
-
-function parseURL(code: Ref<string>) {
-	// URL
-	const url = new URL(location.href)
-
-	// Load initial codes
-	let _code = ''
-
-	const queryCode = url.searchParams.get('code')
-
-	if (queryCode) {
-		_code = decodeURI(queryCode)
-		url.searchParams.delete('code')
-	}
-
-	code.value = _code
-}
-
 export default defineComponent({
 	name: 'PageEmbed',
 	components: {
@@ -86,7 +72,8 @@ export default defineComponent({
 		})()
 
 		// Code
-		const code = ref('')
+		const code = ref(getCodeFromURL())
+
 		const viewExp = shallowRef<MalVal | undefined>(MalNil.create())
 
 		const hasReadEvalError = computed(() => !code.value)
@@ -94,8 +81,6 @@ export default defineComponent({
 		const hasError = computed(
 			() => hasReadEvalError.value || hasRenderError.value
 		)
-
-		parseURL(code)
 
 		watch(
 			() => [code.value, scope.value],
@@ -126,7 +111,6 @@ export default defineComponent({
 		function openEditor() {
 			const url = new URL('.', location.href)
 			url.searchParams.set('code', code.value)
-
 			window.open(url.toString())
 		}
 
