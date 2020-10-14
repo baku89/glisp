@@ -46,13 +46,21 @@ export default function useBind(scope: Scope) {
 			isRecordingBind.value = true
 
 			// Listen
-			;(Mousetrap as any).record((seq: any) => {
+			;(Mousetrap as any).record((seq: string[]) => {
 				// Callback
 				if (activeElement) {
 					;(activeElement as HTMLElement).focus()
 				}
 				isRecordingBind.value = false
-				resolve(MalString.create('key/' + seq.join(' ')))
+
+				let bind = seq.join(' ')
+
+				// Normalize bind
+				if (/win/i.test(navigator.platform)) {
+					bind = bind.replaceAll('ctrl', 'mod')
+				}
+
+				resolve(MalString.create('key/' + bind))
 			})
 		})
 	})
