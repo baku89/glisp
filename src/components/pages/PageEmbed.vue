@@ -102,8 +102,6 @@ export default defineComponent({
 			async () => {
 				if (!scope.value || !scope.value) return
 
-				console.log('code.value=', code.value, scope.value)
-
 				const sc = scope.value
 
 				sc.setup()
@@ -112,8 +110,9 @@ export default defineComponent({
 				sc.def('*height*', 100)
 				sc.def('*size*', [100, 100])
 
+				console.time('EVAL')
 				viewExp.value = await sc.readEval(`(do\n${code.value}\n)`)
-				console.log(viewExp.value?.print())
+				console.timeEnd('EVAL')
 			}
 		)
 

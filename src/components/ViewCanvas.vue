@@ -43,7 +43,6 @@ export default defineComponent({
 			const width = el.clientWidth
 			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
-			console.log('resize!!!!!', width, height)
 			await renderer.resize(width, height, dpi)
 		}
 
@@ -51,9 +50,7 @@ export default defineComponent({
 			if (!canvas.value || !el.value) return
 
 			const _renderer = await createCanvasRender(canvas.value)
-			console.log('init renderer')
 			await updateCanvasSize(_renderer, el.value)
-			console.log('assign, rende')
 			renderer.value = _renderer
 		})
 
@@ -63,8 +60,7 @@ export default defineComponent({
 		async function render() {
 			if (!props.exp || !renderer.value) return
 
-			console.log('render=', props.exp.print())
-
+			console.time('RENDER')
 			const options = {
 				viewTransform: props.viewTransform,
 				...(props.guideColor ? {guideColor: props.guideColor} : {}),
@@ -72,6 +68,7 @@ export default defineComponent({
 
 			try {
 				await renderer.value.render(props.exp, options)
+				console.timeEnd('RENDER')
 			} catch (err) {
 				if (err instanceof MalError) {
 					printer.error(err.message)
