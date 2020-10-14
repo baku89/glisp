@@ -168,6 +168,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 		// Apply list
 		const first = MalSymbol.is(exp.first) ? exp.first.value : null
 
+		// Special forms
 		switch (first) {
 			case 'def': {
 				// NOTE: disable defvar
@@ -298,7 +299,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 				continue TCO
 			}
 		}
-		// FUnction Call
+		// Function Call
 
 		// Evaluate all of parameters at first
 		const fn = await evalExp(exp.first, env)
@@ -306,26 +307,28 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 		for (const p of exp.rest) {
 			params.push(await evalExp(p, env))
 		}
-		if (MalFn.is(fn)) {
-			exp.first.evaluated = fn
-			if (fn.ast) {
-				// Lisp-defined functions
-				env = new Env({
-					outer: fn.ast.env,
-					forms: fn.ast.params.value,
-					exps: params,
-					name: MalSymbol.is(exp.first) ? exp.first.value : 'anonymous',
-				})
-				exp = fn.ast.body
-				continue TCO
-			} else {
-				// JS-defined functions
-				return (origExp.evaluated = await fn.value(...params))
-			}
-		} else {
+
+		if (!MalFn.is(fn)) {
 			throw new MalError('First element of List should be function')
 		}
-	}
+
+		exp.first.evaluated = fn
+
+		if (fn.ast) {
+			// Lisp-defined functions
+			env = new Env({
+				outer: fn.ast.env,
+				forms: fn.ast.params.value,
+				exps: params,
+				name: MalSymbol.is(exp.first) ? exp.first.value : 'anonymous',
+			})
+			exp = fn.ast.body
+			continue TCO
+		} else {
+			// JS-defined functions
+			return (origExp.evaluated = await fn.value(...params))
+		}
+	} // End of TCO
 
 	throw new MalError('Exceed the maximum TCO stacks')
 }
