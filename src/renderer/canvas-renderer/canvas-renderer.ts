@@ -1,6 +1,7 @@
-import {MalVal, MalKeyword, MalMap} from '@/mal/types'
+import {MalVal, MalMap} from '@/mal/types'
 import {ViewerSettings} from './index'
 import renderToContext from '../render-to-context'
+import {jsToMal} from '@/mal/reader'
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -62,13 +63,15 @@ export default class CanvasRenderer {
 
 		// default style
 		const defaultStyle: MalMap | null = settings.guideColor
-			? {
-					[MalKeyword.create('stroke')]: true,
-					[MalKeyword.create('stroke-color')]: settings.guideColor,
-					[MalKeyword.create('stroke-width')]: 1,
-					[MalKeyword.create('stroke-dash')]: [2, 4],
-			  }
+			? jsToMal({
+					stroke: true,
+					'stroke-color': settings.guideColor,
+					'stroke-width': 1,
+					'stroke-dash': [2, 4],
+			  })
 			: null
+
+		console.log('render', exp.print(), defaultStyle?.print())
 
 		// Start drawing
 		return renderToContext(this.ctx, exp, defaultStyle)

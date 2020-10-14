@@ -9,11 +9,11 @@
 			<GlispEditor v-model="code" cssStyle="line-height: 1.5" />
 		</div>
 		<div class="PageEmbed__viewer">
-			<!-- <ViewCanvas
+			<ViewCanvas
 				:exp="viewExp"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
-			/> -->
+			/>
 		</div>
 		<a class="PageEmbed__open-editor" @click="openEditor">
 			<i class="fas fa-external-link-alt"></i>
@@ -35,7 +35,7 @@ import {
 } from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-// import ViewCanvas from '@/components/ViewCanvas.vue'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 
 import {computeTheme} from '@/theme'
 import {MalNil, MalVal, MalVector} from '@/mal/types'
@@ -68,7 +68,7 @@ export default defineComponent({
 	name: 'PageEmbed',
 	components: {
 		GlispEditor,
-		// ViewCanvas,
+		ViewCanvas,
 	},
 	setup() {
 		// Scope
@@ -112,7 +112,7 @@ export default defineComponent({
 				sc.def('*size*', [100, 100])
 
 				viewExp.value = await sc.readEval(`(do\n${code.value}\n)`)
-				console.log(viewExp.value)
+				console.log(viewExp.value?.print())
 			}
 		)
 
@@ -132,7 +132,9 @@ export default defineComponent({
 
 		return {
 			code,
+			viewExp,
 			hasError,
+			hasRenderError,
 			...toRefs(ui as any),
 			openEditor,
 		}

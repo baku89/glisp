@@ -6,20 +6,24 @@ export function isPath(exp: any): exp is MalVector {
 	return MalVector.is(exp) && MalKeyword.isFor(exp.value[0], 'path')
 }
 
-// export function* iterateSegment(path: PathType): Generator<SegmentType> {
-// 	if (!Array.isArray(path)) {
-// 		throw new MalError('Invalid path')
-// 	}
+export function* iterateSegment(
+	path: MalVector
+): Generator<[string, ...vec2[]]> {
+	let start = MalKeyword.isFor(path.get(0), 'path') ? 1 : 0
 
-// 	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
+	const elements = path.value
 
-// 	for (let i = start + 1, l = path.length; i <= l; i++) {
-// 		if (i === l || MalKeyword.is(path[i] as MalVal)) {
-// 			yield path.slice(start, i) as SegmentType
-// 			start = i
-// 		}
-// 	}
-// }
+	for (let i = start + 1, l = elements.length; i <= l; i++) {
+		if (i === l || MalKeyword.is(elements[i])) {
+			const seg = [
+				elements[start].value,
+				...elements.slice(start + 1, i).map(p => (p as MalVector).toFloats()),
+			] as [string, ...vec2[]]
+			yield seg
+			start = i
+		}
+	}
+}
 
 // export function getSVGPathDataRecursive(exp: MalVal): string {
 // 	return convertPath(exp, mat2d.create())

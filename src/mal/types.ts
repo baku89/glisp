@@ -346,8 +346,8 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 		return str
 	}
 
-	toJS() {
-		this._value.map(x => x.toJS())
+	toJS(): any[] {
+		return this._value.map(x => x.toJS())
 	}
 
 	equals(v: MalVal): boolean {

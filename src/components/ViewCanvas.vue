@@ -5,15 +5,21 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, watch, ref, PropType} from 'vue'
+import {
+	defineComponent,
+	onMounted,
+	watch,
+	ref,
+	PropType,
+	shallowRef,
+	onUnmounted,
+} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
-import createCanvasRender, {
-	CanvasRendererType,
-} from '@/renderer/canvas-renderer'
+import createCanvasRender, {CanvasRenderer} from '@/renderer/canvas-renderer'
 import {mat2d} from 'gl-matrix'
-import {useResizeSensor} from '@/components/use'
+import useResizeSensor from '@/components/use/use-resize-sensor'
 
 export default defineComponent({
 	props: {
@@ -31,55 +37,47 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		let renderer: CanvasRendererType | null = null
+		let renderer = shallowRef<CanvasRenderer | null>(null)
 
 		const el = ref<HTMLElement | null>(null)
 		const canvas = ref<HTMLCanvasElement | null>(null)
 
-		let initialExp: MalVal
-
-		async function onResized(el: HTMLElement) {
-			if (!renderer) return
+		async function updateCanvasSize(el: HTMLElement) {
+			if (!renderer.value) return
 
 			const width = el.clientWidth
 			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
-			await renderer.resize(width, height, dpi)
+			await renderer.value.resize(width, height, dpi)
 
-			if (prevExp) render(prevExp)
+			// if (prevExp) render(prevExp)
 		}
 
-		useResizeSensor(el, onResized)
+		useResizeSensor(el, updateCanvasSize)
 
 		onMounted(async () => {
-			if (!canvas.value || !el.value) {
-				return
-			}
+			if (!canvas.value || !el.value) return
 
-			renderer = await createCanvasRender(canvas.value)
-			onResized(el.value)
-			if (initialExp) {
-				render(initialExp)
-			}
+			renderer.value = await createCanvasRender(canvas.value)
+			updateCanvasSize(el.value)
 		})
 
-		// onBeforeMount(() => {
-		// 	this.renderer.dispose()
-		// })
+		onUnmounted(() => {
+			// renderer.value?.dispose()
+		})
 
-		let prevExp: MalVal | undefined = undefined
+		// let prevExp: MalVal | undefined = undefined
 
-		async function render(_exp: MalVal) {
+		async function render() {
+			if (!renderer.value) return
+
 			const options = {
 				viewTransform: props.viewTransform,
 				...(props.guideColor ? {guideColor: props.guideColor} : {}),
 			}
 
-			const exp = prevExp === _exp ? undefined : _exp
-			prevExp = _exp
-
 			try {
-				await (renderer as CanvasRendererType).render(exp, options)
+				await renderer.value.render(props.exp, options)
 			} catch (err) {
 				if (err instanceof MalError) {
 					printer.error(err.message)
@@ -94,20 +92,13 @@ export default defineComponent({
 		}
 
 		watch(
-			() => [props.exp, props.viewTransform],
+			() => [props.exp, props.viewTransform, renderer.value],
 			async () => {
-				if (!props.exp) {
+				if (!props.exp || !renderer.value) {
 					return
 				}
 
-				if (!renderer) {
-					initialExp = props.exp
-					return
-				}
-
-				const exp = props.exp
-
-				await render(exp)
+				await render()
 			}
 		)
 
