@@ -57,7 +57,9 @@ export default function useBind(scope: Scope) {
 
 				// Normalize bind
 				if (/win/i.test(navigator.platform)) {
-					bind = bind.replaceAll('ctrl', 'mod')
+					bind = bind.replaceAll('ctrl', 'cmd')
+				} else if (/mac/i.test(navigator.platform)) {
+					bind = bind.replaceAll('meta', 'cmd')
 				}
 
 				resolve(MalString.create('key/' + bind))
