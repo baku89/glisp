@@ -129,6 +129,11 @@ export class MalNumber extends MalPrimBase<number> {
 	static is(v: MalVal | undefined): v is MalNumber {
 		return v?.type === MalType.Number
 	}
+
+	static check(v: MalVal) {
+		if (this.is(v)) return v.value
+		throw new MalError(`${v.print()} is not a number`)
+	}
 }
 
 export class MalString extends MalPrimBase<string> {

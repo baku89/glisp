@@ -1,15 +1,22 @@
 // /* eslint-ignore @typescript-eslint/no-use-before-define */
 // import {vec2, mat2d} from 'gl-matrix'
-// import Bezier from 'bezier-js'
+import Bezier from 'bezier-js'
 // import svgpath from 'svgpath'
 // import Voronoi from 'voronoi'
 // import paper from 'paper'
 // import {PaperOffset, OffsetOptions} from 'paperjs-offset'
 import {transformPath} from '@/path-utils'
 
-import {MalSymbol, MalList} from '@/mal/types'
+import {
+	MalSymbol,
+	MalList,
+	MalVal,
+	MalNumber,
+	MalKeyword,
+	MalVector,
+} from '@/mal/types'
+import {partition} from '@/utils'
 import {jsToMal} from '@/mal/reader'
-// import {partition, clamp} from '@/utils'
 // import printExp from '@/mal/printer'
 // import {
 // 	PathType,
@@ -20,28 +27,31 @@ import {jsToMal} from '@/mal/reader'
 // 	getSVGPathData,
 // } from '@/path-utils'
 
-// const EPSILON = 1e-5
+const EPSILON = 1e-5
 
-// const K_PATH = MalKeyword.create('path'),
-// 	K_M = MalKeyword.create('M'),
-// 	K_L = MalKeyword.create('L'),
-// 	K_C = MalKeyword.create('C'),
-// 	K_Z = MalKeyword.create('Z'),
-// 	K_H = MalKeyword.create('H'),
-// 	K_V = MalKeyword.create('V')
+const SIN_Q = [0, 1, 0, -1]
+const COS_Q = [1, 0, -1, 0]
+const HALF_PI = Math.PI / 2
+const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
+const UNIT_QUAD_BEZIER = new Bezier([
+	{x: 1, y: 0},
+	{x: 1, y: KAPPA},
+	{x: KAPPA, y: 1},
+	{x: 0, y: 1},
+])
 
-// const SIN_Q = [0, 1, 0, -1]
-// const COS_Q = [1, 0, -1, 0]
-// const HALF_PI = Math.PI / 2
-// const KAPPA = (4 * (Math.sqrt(2) - 1)) / 3
-// const UNIT_QUAD_BEZIER = new Bezier([
-// 	{x: 1, y: 0},
-// 	{x: 1, y: KAPPA},
-// 	{x: KAPPA, y: 1},
-// 	{x: 0, y: 1},
-// ])
+const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-// const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
+function toPathVector(...arr: (string | number[])[]) {
+	return MalVector.fromSeq(
+		MalKeyword.create('path'),
+		...arr.map(p =>
+			typeof p === 'string'
+				? MalKeyword.create(p)
+				: MalVector.fromSeq(MalNumber.create(p[0]), MalNumber.create(p[1]))
+		)
+	)
+}
 
 // function createEmptyPath(): PathType {
 // 	return [K_PATH]
@@ -512,123 +522,116 @@ import {jsToMal} from '@/mal/reader'
 // 	}
 // }
 
-// // Shape Functions
+// Shape Functions
 
-// function pathArc(
-// 	[x, y]: vec2,
-// 	r: number,
-// 	start: number,
-// 	end: number
-// ): MalVal[] {
-// 	const min = Math.min(start, end)
-// 	const max = Math.max(start, end)
+function pathArc(_center: MalVal, _r: MalVal, _start: MalVal, _end: MalVal) {
+	// Type checking
+	const [x, y] = _center.toFloats()
+	const r = MalNumber.check(_r)
+	const start = MalNumber.check(_start)
+	const end = MalNumber.check(_end)
 
-// 	let points: number[][] = [[x + r * Math.cos(min), y + r * Math.sin(min)]]
+	const min = Math.min(start, end)
+	const max = Math.max(start, end)
 
-// 	const minSeg = Math.ceil(min / HALF_PI - EPSILON)
-// 	const maxSeg = Math.floor(max / HALF_PI + EPSILON)
+	let points: number[][] = [[x + r * Math.cos(min), y + r * Math.sin(min)]]
 
-// 	// For trim
-// 	const t1 = unsignedMod(min / HALF_PI, 1)
-// 	const t2 = unsignedMod(max / HALF_PI, 1)
+	const minSeg = Math.ceil(min / HALF_PI - EPSILON)
+	const maxSeg = Math.floor(max / HALF_PI + EPSILON)
 
-// 	// quadrant
-// 	//  2 | 3
-// 	// ---+---
-// 	//  1 | 0
-// 	if (minSeg > maxSeg) {
-// 		// Less than 90 degree
-// 		const bezier = UNIT_QUAD_BEZIER.split(t1, t2)
-// 		const q = unsignedMod(Math.floor(min / HALF_PI), 4),
-// 			sin = SIN_Q[q],
-// 			cos = COS_Q[q]
+	// For trim
+	const t1 = unsignedMod(min / HALF_PI, 1)
+	const t2 = unsignedMod(max / HALF_PI, 1)
 
-// 		points.push(
-// 			...bezier.points
-// 				.slice(1)
-// 				.map(p => [
-// 					x + r * (p.x * cos - p.y * sin),
-// 					y + r * (p.x * sin + p.y * cos),
-// 				])
-// 		)
-// 	} else {
-// 		// More than 90 degree
+	// quadrant
+	//  2 | 3
+	// ---+---
+	//  1 | 0
+	if (minSeg > maxSeg) {
+		// Less than 90 degree
+		const bezier = UNIT_QUAD_BEZIER.split(t1, t2)
+		const q = unsignedMod(Math.floor(min / HALF_PI), 4),
+			sin = SIN_Q[q],
+			cos = COS_Q[q]
 
-// 		// Add beginning segment
-// 		if (Math.abs(minSeg * HALF_PI - min) > EPSILON) {
-// 			const bezier = UNIT_QUAD_BEZIER.split(t1, 1)
-// 			const q = unsignedMod(minSeg - 1, 4),
-// 				sin = SIN_Q[q],
-// 				cos = COS_Q[q]
+		points.push(
+			...bezier.points
+				.slice(1)
+				.map(p => [
+					x + r * (p.x * cos - p.y * sin),
+					y + r * (p.x * sin + p.y * cos),
+				])
+		)
+	} else {
+		// More than 90 degree
 
-// 			points.push(
-// 				...bezier.points
-// 					.slice(1)
-// 					.map(p => [
-// 						x + r * (p.x * cos - p.y * sin),
-// 						y + r * (p.x * sin + p.y * cos),
-// 					])
-// 			)
-// 		}
+		// Add beginning segment
+		if (Math.abs(minSeg * HALF_PI - min) > EPSILON) {
+			const bezier = UNIT_QUAD_BEZIER.split(t1, 1)
+			const q = unsignedMod(minSeg - 1, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
 
-// 		// Cubic bezier points of the quarter circle in quadrant 0 in position [0, 0]
-// 		const qpoints: number[][] = [
-// 			[r, KAPPA * r],
-// 			[KAPPA * r, r],
-// 			[0, r],
-// 		]
+			points.push(
+				...bezier.points
+					.slice(1)
+					.map(p => [
+						x + r * (p.x * cos - p.y * sin),
+						y + r * (p.x * sin + p.y * cos),
+					])
+			)
+		}
 
-// 		// Add arc by every quadrant
-// 		for (let seg = minSeg; seg < maxSeg; seg++) {
-// 			const q = unsignedMod(seg, 4),
-// 				sin = SIN_Q[q],
-// 				cos = COS_Q[q]
-// 			points.push(
-// 				...qpoints.map(([px, py]) => [
-// 					x + px * cos - py * sin,
-// 					y + px * sin + py * cos,
-// 				])
-// 			)
-// 		}
+		// Cubic bezier points of the quarter circle in quadrant 0 in position [0, 0]
+		const qpoints: number[][] = [
+			[r, KAPPA * r],
+			[KAPPA * r, r],
+			[0, r],
+		]
 
-// 		// Add terminal segment
-// 		if (Math.abs(maxSeg * HALF_PI - max) > EPSILON) {
-// 			const bezier = UNIT_QUAD_BEZIER.split(0, t2)
-// 			const q = unsignedMod(maxSeg, 4),
-// 				sin = SIN_Q[q],
-// 				cos = COS_Q[q]
+		// Add arc by every quadrant
+		for (let seg = minSeg; seg < maxSeg; seg++) {
+			const q = unsignedMod(seg, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
+			points.push(
+				...qpoints.map(([px, py]) => [
+					x + px * cos - py * sin,
+					y + px * sin + py * cos,
+				])
+			)
+		}
 
-// 			points.push(
-// 				...bezier.points
-// 					.slice(1)
-// 					.map(p => [
-// 						x + r * (p.x * cos - p.y * sin),
-// 						y + r * (p.x * sin + p.y * cos),
-// 					])
-// 			)
-// 		}
-// 	}
+		// Add terminal segment
+		if (Math.abs(maxSeg * HALF_PI - max) > EPSILON) {
+			const bezier = UNIT_QUAD_BEZIER.split(0, t2)
+			const q = unsignedMod(maxSeg, 4),
+				sin = SIN_Q[q],
+				cos = COS_Q[q]
 
-// 	if (end < start) {
-// 		points = points.reverse()
-// 	}
+			points.push(
+				...bezier.points
+					.slice(1)
+					.map(p => [
+						x + r * (p.x * cos - p.y * sin),
+						y + r * (p.x * sin + p.y * cos),
+					])
+			)
+		}
+	}
 
-// 	return [
-// 		K_PATH,
-// 		K_M,
-// 		points[0],
-// 		...partition(3, points.slice(1))
-// 			.map(pts => [K_C, ...pts])
-// 			.flat(),
-// 	]
-// }
+	if (end < start) {
+		points = points.reverse()
+	}
 
-// function createHashMap(args: MalVal[]) {
-// 	for (let i = 0; i < args.length; i += 2) {
-// 		args[i] = (args[i] as string).slice(1)
-// 	}
-// 	return assocBang({}, ...args)
-// }
+	return toPathVector(
+		'M',
+		points[0],
+		...partition(3, points.slice(1))
+			.map(pts => ['C', ...pts])
+			.flat()
+	)
+}
 
 // function offset(d: number, path: PathType, ...args: MalVal[]) {
 // 	const options = {
@@ -853,7 +856,7 @@ import {jsToMal} from '@/mal/reader'
 
 const Exports = [
 	// 	// Primitives
-	// 	['path/arc', pathArc],
+	['path/arc', pathArc],
 	// 	['path/voronoi', pathVoronoi],
 
 	// 	['path/join', pathJoin],
