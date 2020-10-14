@@ -123,7 +123,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 	const origExp = exp
 
 	let counter = 0
-	while (counter++ < 1e7) {
+	TCO: while (counter++ < 1e7) {
 		// Expand macro
 		exp = await macroexpand(exp, env)
 
@@ -199,63 +199,19 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					body.length === 1
 						? body[0]
 						: MalList.create([MalSymbol.create('do'), ...body])
-				break // continue TCO loop
+				continue TCO
 			}
-			// case 'binding': {
-			// 	const bindingEnv = new Env({name: 'binding'})
-			// 	const [, binds, ..._body] = exp.value
-			// 	if (!MalVector.is(binds)) {
-			// 		throw new MalError('Invalid bind-expr in binding')
-			// 	}
-			// 	for (let i = 0; i < binds.value.length; i += 2) {
-			// 		bindingEnv.bind(
-			// 			binds.value[i],
-			// 			evalExp(binds.value[i + 1], env)
-			// 		)
-			// 	}
-			// 	env.pushBinding(bindingEnv)
-			// 	const body =
-			// 		_body.length === 1
-			// 			? _body[0]
-			// 			: MalList.create(MalSymbol.create('do'), ..._body)
-			// 	let ret
-			// 	try {
-			// 		ret = evalExp(body, env)
-			// 	} finally {
-			// 		env.popBinding()
-			// 	}
-			// 	origExp.evaluated = ret
-			// 	return ret
-			// }
-			// case 'get-all-symbols': {
-			// 	const ret = MalVector.create(...env.getAllSymbols())
-			// 	origExp.evaluated = ret
-			// 	return ret
-			// }
-			// case 'fn-params': {
-			// 	const fn = evalExp(exp.value[1], env)
-			// 	const ret = MalFn.is(fn)
-			// 		? MalVector.create(...fn.params)
-			// 		: MalNil.create()
-			// 	origExp.evaluated = ret
-			// 	return ret
-			// }
-			case 'quote': {
-				const ret = exp.value[1]
-				origExp.evaluated = ret
-				return ret
-			}
+			case 'quote':
+				return (origExp.evaluated = exp.value[1])
 			case 'quasiquote': {
 				exp = quasiquote(exp.value[1])
-				break // continue TCO loop
+				continue TCO
 			}
 			case 'fn-sugar': {
 				const body = exp.value[1]
-
 				const params = generateUnnamedParams(exp)
-
 				exp = MalList.create([MalSymbol.create('fn'), params, body])
-				break // continue TCO loop
+				continue TCO
 			}
 			case 'fn':
 			case 'macro': {
@@ -293,11 +249,8 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 				origExp.evaluated = ret
 				return ret
 			}
-			case 'macroexpand': {
-				const ret = await macroexpand(exp.value[1], env)
-				origExp.evaluated = ret
-				return ret
-			}
+			case 'macroexpand':
+				return (origExp.evaluated = await macroexpand(exp.value[1], env))
 			case 'try': {
 				const [, testExp, catchExp] = exp.value
 				try {
@@ -326,59 +279,51 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 						)
 						origExp.evaluated = ret
 						return ret
-					} else {
-						throw err
 					}
+					throw err
 				}
 			}
 			case 'do': {
 				if (exp.value.length === 1) {
-					origExp.evaluated = MalNil.create()
-					return MalNil.create()
+					return (origExp.evaluated = MalNil.create())
 				}
 				await evalExp(MalVector.create(exp.value.slice(1, -1)), env)
 				exp = exp.value[exp.value.length - 1]
-				break // continue TCO loop
+				continue TCO
 			}
 			case 'if': {
 				const [, _test, thenExp, elseExp] = exp.value
 				const test = await evalExp(_test, env)
 				exp = test.value ? thenExp : elseExp || MalNil.create()
-				break // continue TCO loop
+				continue TCO
 			}
-			default: {
-				// is a function call
+		}
+		// FUnction Call
 
-				// Evaluate all of parameters at first
-				const fn = await evalExp(exp.first, env)
-				const params = []
-				for (const p of exp.rest) {
-					params.push(await evalExp(p, env))
-				}
-
-				if (MalFn.is(fn)) {
-					exp.first.evaluated = fn
-					if (fn.ast) {
-						// Lisp-defined functions
-						env = new Env({
-							outer: fn.ast.env,
-							forms: fn.ast.params.value,
-							exps: params,
-							name: MalSymbol.is(exp.first) ? exp.first.value : 'anonymous',
-						})
-						exp = fn.ast.body
-						// continue TCO loop
-						break
-					} else {
-						// JS-defined functions
-						const ret = await fn.value(...params)
-						origExp.evaluated = ret
-						return ret
-					}
-				} else {
-					throw new MalError('First element of List should be function')
-				}
+		// Evaluate all of parameters at first
+		const fn = await evalExp(exp.first, env)
+		const params = []
+		for (const p of exp.rest) {
+			params.push(await evalExp(p, env))
+		}
+		if (MalFn.is(fn)) {
+			exp.first.evaluated = fn
+			if (fn.ast) {
+				// Lisp-defined functions
+				env = new Env({
+					outer: fn.ast.env,
+					forms: fn.ast.params.value,
+					exps: params,
+					name: MalSymbol.is(exp.first) ? exp.first.value : 'anonymous',
+				})
+				exp = fn.ast.body
+				continue TCO
+			} else {
+				// JS-defined functions
+				return (origExp.evaluated = await fn.value(...params))
 			}
+		} else {
+			throw new MalError('First element of List should be function')
 		}
 	}
 
