@@ -1,15 +1,20 @@
 import {ref} from 'vue'
-import Mousetrap from 'mousetrap'
-import './mousetrap-global-bind'
-import './mousetrap-record'
 
 import Scope from '@/mal/scope'
-import {MalError, MalNil, MalString, MalVal} from '@/mal/types'
+import {MalError, MalFn, MalNil, MalString, MalVal} from '@/mal/types'
+import Device, {DeviceKeyboard} from './device'
 
 export default function useBind(scope: Scope) {
-	scope.def('set-bind', (command: MalVal, exp: MalVal) => {
+	const devices = {
+		key: new DeviceKeyboard(),
+	} as {[name: string]: Device}
+
+	scope.def('set-bind', (command: MalVal, fn: MalVal) => {
 		if (!MalString.is(command)) {
 			throw new MalError('Command should be string')
+		}
+		if (!MalFn.is(fn)) {
+			throw new Error('exp should be function')
 		}
 
 		const re = /^(.+?)\/(.*)$/.exec(command.value)
@@ -17,18 +22,14 @@ export default function useBind(scope: Scope) {
 			throw new MalError('Invalid command form')
 		}
 
-		const callback = (e: KeyboardEvent) => {
-			e.stopPropagation()
-			e.preventDefault()
-			scope.eval(exp)
+		const [, name, cmd] = re
+
+		if (!(name in devices)) {
+			throw new MalError(`Cannot find device "${name}"`)
 		}
 
-		const [, device, cmd] = re
-
-		if (device === 'key') {
-			console.log(cmd, callback)
-			Mousetrap.bindGlobal(cmd, callback)
-		}
+		const device = devices[name]
+		device.bind(cmd, fn.value)
 
 		return MalNil.create()
 	})
@@ -37,33 +38,20 @@ export default function useBind(scope: Scope) {
 
 	scope.def('record-bind', async () => {
 		return new Promise(resolve => {
-			const activeElement = document.activeElement
-			// Disable all keyboard event
-			if (activeElement) {
-				;(activeElement as HTMLElement).blur()
-			}
-
 			isRecordingBind.value = true
 
-			// Listen
-			;(Mousetrap as any).record((seq: string[]) => {
-				// Callback
-				if (activeElement) {
-					;(activeElement as HTMLElement).focus()
+			function onInput(name: string, cmd: string) {
+				for (const device of Object.values(devices)) {
+					device.abortListen()
 				}
+
 				isRecordingBind.value = false
+				resolve(MalString.create(name + '/' + cmd))
+			}
 
-				let bind = seq.join(' ')
-
-				// Normalize bind
-				if (/win/i.test(navigator.platform)) {
-					bind = bind.replaceAll('ctrl', 'cmd')
-				} else if (/mac/i.test(navigator.platform)) {
-					bind = bind.replaceAll('meta', 'cmd')
-				}
-
-				resolve(MalString.create('key/' + bind))
-			})
+			for (const [name, device] of Object.entries(devices)) {
+				device.listen(cmd => onInput(name, cmd))
+			}
 		})
 	})
 
