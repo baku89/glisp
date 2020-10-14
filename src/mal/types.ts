@@ -504,8 +504,8 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return this._delimiters
 	}
 
-	get(key: string) {
-		return this._value[key]
+	get(key: string | number) {
+		return this._value[typeof key === 'number' ? this.keys()[key] : key]
 	}
 
 	get count() {
