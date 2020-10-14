@@ -1,288 +1,293 @@
 (import "math.glisp")
 
-(defn set-id [id elm]
-  (if (element? elm)
-    (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
+;; (defn set-id [id elm]
+;;   (if (element? elm)
+;;     (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
 
-(defn get-id [elm]
-  (if (element? elm)
-    (let [fst (name (first elm))
-          idx (index-of fst "#")]
-      (if (<= 0 idx)
-        (subs fst (inc idx))
-        nil))))
+;; (defn get-id [elm]
+;;   (if (element? elm)
+;;     (let [fst (name (first elm))
+;;           idx (index-of fst "#")]
+;;       (if (<= 0 idx)
+;;         (subs fst (inc idx))
+;;         nil))))
 
-(defn apply-draw-handle [f & xs]
-  (let [hf (-> (fn-meta f)
-               (get :handles)
-               (get :draw))]
-    (if (fn? hf)
-      (apply hf xs)
-      (throw "Handle draw function does not exists"))))
+;; (defn apply-draw-handle [f & xs]
+;;   (let [hf (-> (fn-meta f)
+;;                (get :handles)
+;;                (get :draw))]
+;;     (if (fn? hf)
+;;       (apply hf xs)
+;;       (throw "Handle draw function does not exists"))))
 
-(defn apply-drag-handle [f & xs]
-  (let [hf (-> (fn-meta f)
-               (get :handles)
-               (get :drag))]
-    (if (fn? hf)
-      (apply hf xs)
-      (throw "Handle on-drag function does not exists"))))
+;; (defn apply-drag-handle [f & xs]
+;;   (let [hf (-> (fn-meta f)
+;;                (get :handles)
+;;                (get :drag))]
+;;     (if (fn? hf)
+;;       (apply hf xs)
+;;       (throw "Handle on-drag function does not exists"))))
 
-(defn tagtype [item]
-  (if (zero? (count (name (first item))))
-    nil
-    (let [fst (name (first item))
-          idx (index-of fst "#")]
-      (if (zero? idx)
-        nil
-        (keyword (subs fst
-                       0
-                       (if (neg? idx)
-                         (count fst)
-                         idx)))))))
+;; (defn tagtype [item]
+;;   (if (zero? (count (name (first item))))
+;;     nil
+;;     (let [fst (name (first item))
+;;           idx (index-of fst "#")]
+;;       (if (zero? idx)
+;;         nil
+;;         (keyword (subs fst
+;;                        0
+;;                        (if (neg? idx)
+;;                          (count fst)
+;;                          idx)))))))
 
-(defn gen-element-selector-pred [sel]
-  (let [dummy-tag [(keyword (name sel))]
-        tag (tagtype dummy-tag)
-        id (get-id dummy-tag)]
-    (cond
-      (and tag id) (fn [elm] (= (first elm)))
-      tag          (fn [elm] (= (tagtype elm) tag))
-      id           (fn [elm] (= (get-id elm) id))
-      :else        (fn [] true))))
+;; (defn gen-element-selector-pred [sel]
+;;   (let [dummy-tag [(keyword (name sel))]
+;;         tag (tagtype dummy-tag)
+;;         id (get-id dummy-tag)]
+;;     (cond
+;;       (and tag id) (fn [elm] (= (first elm)))
+;;       tag          (fn [elm] (= (tagtype elm) tag))
+;;       id           (fn [elm] (= (get-id elm) id))
+;;       :else        (fn [] true))))
 
-(defn find-element [sel body]
-  (first (match-elements (gen-element-selector-pred sel) body)))
+;; (defn find-element [sel body]
+;;   (first (match-elements (gen-element-selector-pred sel) body)))
 
-(defn filter-elements [sel body]
-  (let [pred (gen-element-selector-pred sel)]
-    (if (sequential? body)
-      (if (element? body)
-        (if (<= 0 (index-of [:path :text :background] (tagtype body)))
-          ;; self-closing tags
-          (if (pred body) body nil)
+;; (defn filter-elements [sel body]
+;;   (let [pred (gen-element-selector-pred sel)]
+;;     (if (sequential? body)
+;;       (if (element? body)
+;;         (if (<= 0 (index-of [:path :text :background] (tagtype body)))
+;;           ;; self-closing tags
+;;           (if (pred body) body nil)
 
-          ;; other tags such as :g
-          (if (pred body)
-            ;; Returns all of body
-            body
+;;           ;; other tags such as :g
+;;           (if (pred body)
+;;             ;; Returns all of body
+;;             body
 
-            ;; Filter children
-            (let [children (subvec body 2)
-                  filtered-chilren (filter-elements sel children)]
-              (if (nil? filtered-chilren)
-                ;; None of children matches
-                nil
-                ;; 
-                `[~@(subvec body 0 2)
-                  ~@filtered-chilren]))))
+;;             ;; Filter children
+;;             (let [children (subvec body 2)
+;;                   filtered-chilren (filter-elements sel children)]
+;;               (if (nil? filtered-chilren)
+;;                 ;; None of children matches
+;;                 nil
+;;                 ;; 
+;;                 `[~@(subvec body 0 2)
+;;                   ~@filtered-chilren]))))
 
-        ;; Not element yet still sequence
-        (let [filtered-chilren
-              (remove nil? (map #(filter-elements sel %) body))]
-          (if (zero? (count filtered-chilren))
-            nil
-            filtered-chilren)))
+;;         ;; Not element yet still sequence
+;;         (let [filtered-chilren
+;;               (remove nil? (map #(filter-elements sel %) body))]
+;;           (if (zero? (count filtered-chilren))
+;;             nil
+;;             filtered-chilren)))
 
-      ;; Not a list
-      nil)))
+;;       ;; Not a list
+;;       nil)))
 
-(def get-element-bounds
+;; (def get-element-bounds
 
-  (let [get-merged-path
-        (fn [body]
-          (if (vector? body)
-            (if (keyword? (first body))
-              (let [tag (tagtype body)]
-                (cond
+;;   (let [get-merged-path
+;;         (fn [body]
+;;           (if (vector? body)
+;;             (if (keyword? (first body))
+;;               (let [tag (tagtype body)]
+;;                 (cond
 
-                  ;; Path
-                  (= tag :path)
-                  body
+;;                   ;; Path
+;;                   (= tag :path)
+;;                   body
 
-                  ;; Transform
-                  (= tag :transform)
-                  (path/transform (second body)
-                                  (get-merged-path `[~@(subvec body 2)]))
+;;                   ;; Transform
+;;                   (= tag :transform)
+;;                   (path/transform (second body)
+;;                                   (get-merged-path `[~@(subvec body 2)]))
 
-                  ;; Clip
-                  (= tag :clip)
-                  (second body)
+;;                   ;; Clip
+;;                   (= tag :clip)
+;;                   (second body)
 
-                  ;; Artboard
-                  ;; (let [bounds (second body)]
-                  ;;   (rect (rect2d/point bounds) (rect2d/size bounds)))
+;;                   ;; Artboard
+;;                   ;; (let [bounds (second body)]
+;;                   ;;   (rect (rect2d/point bounds) (rect2d/size bounds)))
 
-                  ;; Style (offset stroke)
-                  ;; NOTE: Path-offset looks buggy
-                  ;; (and (starts-with? tagname "style")
-                  ;;      (get (second body) :stroke))
-                  ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(subvec body 2)])))
+;;                   ;; Style (offset stroke)
+;;                   ;; NOTE: Path-offset looks buggy
+;;                   ;; (and (starts-with? tagname "style")
+;;                   ;;      (get (second body) :stroke))
+;;                   ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(subvec body 2)])))
 
-                  :else
-                  (get-merged-path `[~@(subvec body 2)])))
+;;                   :else
+;;                   (get-merged-path `[~@(subvec body 2)])))
 
-              ;; Just a vector
-              (->> body
-                   (map get-merged-path)
-                   (remove nil?)
-                   (apply path/merge)))))]
+;;               ;; Just a vector
+;;               (->> body
+;;                    (map get-merged-path)
+;;                    (remove nil?)
+;;                    (apply path/merge)))))]
 
-    (fn [body] (path/bounds (get-merged-path body)))))
-
-
-
-(def guide/axis
-  (let [arrow (fn [from to color]
-                (style (stroke color 2)
-                       (def l (line from to))
-                       (transform (path/align-at 1 l)
-                                  (polyline [-5 -4] [0 0] [-5 4]))))]
-    (fn [& xs]
-      (let [[center size] (case (count xs)
-                            0 [[0 0] 40]
-                            1 [(first xs) 40]
-                            xs)]
-        (transform
-         (translate center)
-
-         (arrow [0 0] [size 0] "tomato")
-         (arrow [0 0] [0 size] "limegreen")
-
-         (guide/dotted-stroke (polyline [size 0] [size size] [0 size])))))))
+;;     (fn [body] (path/bounds (get-merged-path body)))))
 
 
-(defn guide/stroke [& xs]
-  (style (stroke *guide-color* 1)
-         xs))
 
-(defn guide/dotted-stroke [& xs]
-  (style (stroke *guide-color* 1 :dash [2 2])
-         xs))
+;; (def guide/axis
+;;   (let [arrow (fn [from to color]
+;;                 (style (stroke color 2)
+;;                        (def l (line from to))
+;;                        (transform (path/align-at 1 l)
+;;                                   (polyline [-5 -4] [0 0] [-5 4]))))]
+;;     (fn [& xs]
+;;       (let [[center size] (case (count xs)
+;;                             0 [[0 0] 40]
+;;                             1 [(first xs) 40]
+;;                             xs)]
+;;         (transform
+;;          (translate center)
 
-(defn graphics/g
-  {:doc "Creates a element group with attributes"
-   :params [{:label "Attribute" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-   :viewport-transform (fn [attrs & body]
-                         (if (contains? attrs :transform)
-                           (spy `[nil ~@(repeat (get attrs :transform)
-                                                (count body))])))}
-  [attrs & body]
-  (let [attr-transform (get attrs :transform)
-        attr-style (get attrs :style)]
-    (cond
-      (and attr-transform attr-style)
-      `(transform ~attr-transform (style ~attr-style ~@body))
+;;          (arrow [0 0] [size 0] "tomato")
+;;          (arrow [0 0] [0 size] "limegreen")
 
-      attr-transform
-      `(transform ~attr-transform ~@body)
+;;          (guide/dotted-stroke (polyline [size 0] [size size] [0 size])))))))
 
-      attr-style
-      `(style ~attr-style ~@body)
 
-      :else
-      `[:g :_ ~@body])))
-(defalias g graphics/g)
+;; (defn guide/stroke [& xs]
+;;   (style (stroke *guide-color* 1)
+;;          xs))
 
-;; 	return ret
-(defmacro graphics/transform
-  {:doc "Transforms elements"
-   :params [{:label "Transform" :type "mat2d"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-   :viewport-transform (fn [xform & body]
-                         `[nil ~@(repeat xform (count body))])
-   :transform (fn {:params [xform & body]
-                   :transform delta-xform}
-                {:replace [0 (mat2d/* xform delta-xform)]})
-   :return {:type "item"}}
-  [xform & body]
-  (let [local-xform (eval* xform)
-        global-xform (mat2d/* (eval* *transform*)
-                              local-xform)]
-    ;; NOTE: This is not efficient since `xform` will be evaluated twice
-    `(binding [*transform* ~global-xform]
-       [:transform ~xform ~@body])))
-(defalias transform graphics/transform)
+;; (defn guide/dotted-stroke [& xs]
+;;   (style (stroke *guide-color* 1 :dash [2 2])
+;;          xs))
 
-(defmacro graphics/style
-  {:doc "Applies a style to elements"
-   :params [{:label "Style" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items  {:label "Body" :type "exp"}}]
-   :return {:type "item"}}
-  [styles & body]
-  (let [evaluated-styles (eval* (if (vector? styles)
-                                  styles
-                                  [styles]))
-        merged-style (merge-hash-map evaluated-styles)
-        binds (apply concat
-                     (map #(vector (symbol (str "*" (name (first %)) "*"))
-                                   (second %))
-                          (entries merged-style)))]
-    `(binding ~binds [:style ~evaluated-styles ~@body])))
+;; (defn graphics/g
+;;   {:doc "Creates a element group with attributes"
+;;    :params [{:label "Attribute" :type "exp"}
+;;             {:type "vector"
+;;              :variadic true
+;;              :items {:label "Body" :type "exp"}}]
+;;    :viewport-transform (fn [attrs & body]
+;;                          (if (contains? attrs :transform)
+;;                            (spy `[nil ~@(repeat (get attrs :transform)
+;;                                                 (count body))])))}
+;;   [attrs & body]
+;;   (let [attr-transform (get attrs :transform)
+;;         attr-style (get attrs :style)]
+;;     (cond
+;;       (and attr-transform attr-style)
+;;       `(transform ~attr-transform (style ~attr-style ~@body))
+
+;;       attr-transform
+;;       `(transform ~attr-transform ~@body)
+
+;;       attr-style
+;;       `(style ~attr-style ~@body)
+
+;;       :else
+;;       `[:g :_ ~@body])))
+;; (defalias g graphics/g)
+
+;; ;; 	return ret
+;; (defmacro graphics/transform
+;;   {:doc "Transforms elements"
+;;    :params [{:label "Transform" :type "mat2d"}
+;;             {:type "vector"
+;;              :variadic true
+;;              :items {:label "Body" :type "exp"}}]
+;;    :viewport-transform (fn [xform & body]
+;;                          `[nil ~@(repeat xform (count body))])
+;;    :transform (fn {:params [xform & body]
+;;                    :transform delta-xform}
+;;                 {:replace [0 (mat2d/* xform delta-xform)]})
+;;    :return {:type "item"}}
+;;   [xform & body]
+;;   (let [local-xform (eval* xform)
+;;         global-xform (mat2d/* (eval* *transform*)
+;;                               local-xform)]
+;;     ;; NOTE: This is not efficient since `xform` will be evaluated twice
+;;     `(binding [*transform* ~global-xform]
+;;        [:transform ~xform ~@body])))
+;; (defalias transform graphics/transform)
+
+;; (defmacro graphics/style
+;;   {:doc "Applies a style to elements"
+;;    :params [{:label "Style" :type "exp"}
+;;             {:type "vector"
+;;              :variadic true
+;;              :items  {:label "Body" :type "exp"}}]
+;;    :return {:type "item"}}
+;;   [styles & body]
+;;   (let [evaluated-styles (eval* (if (vector? styles)
+;;                                   styles
+;;                                   [styles]))
+;;         merged-style (merge-hash-map evaluated-styles)
+;;         binds (apply concat
+;;                      (map #(vector (symbol (str "*" (name (first %)) "*"))
+;;                                    (second %))
+;;                           (entries merged-style)))]
+;;     `(binding ~binds [:style ~evaluated-styles ~@body])))
+
+(defn graphics/style [styles & body]
+  `[:style ~styles ~@body])
 (defalias style graphics/style)
 
-(defmacro graphics/artboard
-  {:doc "Creates an artboard"
-   :params [{:label "Options" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-  ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
-  ;;                    (let [info {:params [bounds]
-  ;;                                :return (rect bounds)}]
-  ;;                      (apply-draw-handle rect2d info)))
-  ;;            :drag (fn [info]
-  ;;                    (spy (let [params (get info :params)
-  ;;                                    options (first params)
-  ;;                                    bounds (get options :bounds)
-  ;;                                    rect-info (assoc info :params [bounds])
-  ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
-  ;;                                    new-options (assoc options :bounds new-bounds)]
-  ;;                                `[~new-options ~@(rest params)])))}}
-   :return {:type "item"}}
-  [options & body]
-  (let [evaluated-options (eval* options)
-        bounds (get evaluated-options :bounds [0 0 0 0])
-        size (rect2d/size bounds)
-        offset (rect2d/point bounds)
-        bg (get evaluated-options :background)]
-    `(binding [*size* ~size
-               *width* ~(rect2d/width bounds)
-               *height* ~(rect2d/height bounds)
-               *inside-artboard* true
-               *background* ~(or bg *background*)]
-       [:clip (rect ~bounds)
-        ~(if bg `(style (fill ~bg) (rect ~bounds)))
-        (transform (translate ~offset)
-                   ~@body
-                   (guide/stroke ~(rect (rect2d/point-size [0.5 0.5]
-                                                           (vec2/- size [1 1])))))])))
-(defalias artboard graphics/artboard)
 
-(defn graphics/background
-  {:doc "Fill the entire view or artboard with a color"
-   :params [{:type "string" :ui "color" :desc "A background color"}]}
-  [color]
-  (reset! *app-background* color))
-(defalias background graphics/background)
 
-(defn element? [a] (and (vector? a) (keyword? (first a))))
+;; (defmacro graphics/artboard
+;;   {:doc "Creates an artboard"
+;;    :params [{:label "Options" :type "exp"}
+;;             {:type "vector"
+;;              :variadic true
+;;              :items {:label "Body" :type "exp"}}]
+;;   ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
+;;   ;;                    (let [info {:params [bounds]
+;;   ;;                                :return (rect bounds)}]
+;;   ;;                      (apply-draw-handle rect2d info)))
+;;   ;;            :drag (fn [info]
+;;   ;;                    (spy (let [params (get info :params)
+;;   ;;                                    options (first params)
+;;   ;;                                    bounds (get options :bounds)
+;;   ;;                                    rect-info (assoc info :params [bounds])
+;;   ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
+;;   ;;                                    new-options (assoc options :bounds new-bounds)]
+;;   ;;                                `[~new-options ~@(rest params)])))}}
+;;    :return {:type "item"}}
+;;   [options & body]
+;;   (let [evaluated-options (eval* options)
+;;         bounds (get evaluated-options :bounds [0 0 0 0])
+;;         size (rect2d/size bounds)
+;;         offset (rect2d/point bounds)
+;;         bg (get evaluated-options :background)]
+;;     `(binding [*size* ~size
+;;                *width* ~(rect2d/width bounds)
+;;                *height* ~(rect2d/height bounds)
+;;                *inside-artboard* true
+;;                *background* ~(or bg *background*)]
+;;        [:clip (rect ~bounds)
+;;         ~(if bg `(style (fill ~bg) (rect ~bounds)))
+;;         (transform (translate ~offset)
+;;                    ~@body
+;;                    (guide/stroke ~(rect (rect2d/point-size [0.5 0.5]
+;;                                                            (vec2/- size [1 1])))))])))
+;; (defalias artboard graphics/artboard)
 
-;; Transform
-(defn view-center
-  {:doc "Returns the center of view or artboard"
-   :return {:type "vec2"}
-   :handles {:draw (fn {:return mat}
-                     [{:type "translate" :pos (take 4 mat)}])}}
-  []
-  (vec2/scale *size* .5))
+;; (defn graphics/background
+;;   {:doc "Fill the entire view or artboard with a color"
+;;    :params [{:type "string" :ui "color" :desc "A background color"}]}
+;;   [color]
+;;   (reset! *app-background* color))
+;; (defalias background graphics/background)
+
+;; (defn element? [a] (and (vector? a) (keyword? (first a))))
+
+;; ;; Transform
+;; (defn view-center
+;;   {:doc "Returns the center of view or artboard"
+;;    :return {:type "vec2"}
+;;    :handles {:draw (fn {:return mat}
+;;                      [{:type "translate" :pos (take 4 mat)}])}}
+;;   []
+;;   (vec2/scale *size* .5))
 
 ;; Style
 (defn graphics/fill
@@ -331,97 +336,97 @@
   [] {:stroke false})
 (defalias no-stroke graphics/no-stroke)
 
-; (defn linear-gradient
-;   {:doc "Define a linear gradient style to apply to fill or stroke"}
-;   [x1 y1 x2 y2 & xs]
-;   (let [args (apply hash-map xs)]
-;     (if (not (contains? args :stops))
-;       (throw "[linear-gradient] odd number of arguments")
-;       (vector :linear-gradient
-;               (hash-map :points (vector x1 y1 x2 y2)
-;                         :stops (get args :stops))))))
+;; ; (defn linear-gradient
+;; ;   {:doc "Define a linear gradient style to apply to fill or stroke"}
+;; ;   [x1 y1 x2 y2 & xs]
+;; ;   (let [args (apply hash-map xs)]
+;; ;     (if (not (contains? args :stops))
+;; ;       (throw "[linear-gradient] odd number of arguments")
+;; ;       (vector :linear-gradient
+;; ;               (hash-map :points (vector x1 y1 x2 y2)
+;; ;                         :stops (get args :stops))))))
 
-;; Shape Functions
-(defn graphics/text
-  {:doc "Generates a text shape"
-   :params [{:type "string" :multiline true}
-            {:type "vec2"}
-            {:type "map"
-             :variadic true
-             :items [{:key :size :type "number" :default 12}
-                     {:key :font :type "string" :default "Fira Code"}
-                     {:key :align :type "string" :ui "dropdown" :default "center"
-                      :values ["left" "center" "right" "start" "end"]}
-                     {:key :baseline :type "string" :ui "dropdown" :default "middle"
-                      :values ["top" "hanging" "middle"
-                               "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn {:params [_ pos & xs]}
-                     (let [args (apply hash-map xs)
-                           size (get args :size 12)]
-                       [{:id :pos
-                         :type "translate"
-                         :pos pos}
-                        {:id :size
-                         :type "path"
-                         :path (ngon pos size 4)}]))
-             :drag (fn {:id id :pos p :params params}
-                     (case id
-                       :pos (replace-nth params 1 p)
-                       :size (let [dir (vec2/- (nth params 1) p)
-                                   size (+ (abs (.x dir)) (abs (.y dir)))
-                                   args (->> (drop 2 params)
-                                             (apply hash-map)
-                                             (#(assoc % :size size))
-                                             (entries)
-                                             (apply concat))]
-                               `[~@(take 2 params) ~@args])))}}
-  [text pos & xs]
-  [:text text pos (apply hash-map xs)])
+;; ;; Shape Functions
+;; (defn graphics/text
+;;   {:doc "Generates a text shape"
+;;    :params [{:type "string" :multiline true}
+;;             {:type "vec2"}
+;;             {:type "map"
+;;              :variadic true
+;;              :items [{:key :size :type "number" :default 12}
+;;                      {:key :font :type "string" :default "Fira Code"}
+;;                      {:key :align :type "string" :ui "dropdown" :default "center"
+;;                       :values ["left" "center" "right" "start" "end"]}
+;;                      {:key :baseline :type "string" :ui "dropdown" :default "middle"
+;;                       :values ["top" "hanging" "middle"
+;;                                "alphabetic" "ideographic" "bottom"]}]}]
+;;    :handles {:draw (fn {:params [_ pos & xs]}
+;;                      (let [args (apply hash-map xs)
+;;                            size (get args :size 12)]
+;;                        [{:id :pos
+;;                          :type "translate"
+;;                          :pos pos}
+;;                         {:id :size
+;;                          :type "path"
+;;                          :path (ngon pos size 4)}]))
+;;              :drag (fn {:id id :pos p :params params}
+;;                      (case id
+;;                        :pos (replace-nth params 1 p)
+;;                        :size (let [dir (vec2/- (nth params 1) p)
+;;                                    size (+ (abs (.x dir)) (abs (.y dir)))
+;;                                    args (->> (drop 2 params)
+;;                                              (apply hash-map)
+;;                                              (#(assoc % :size size))
+;;                                              (entries)
+;;                                              (apply concat))]
+;;                                `[~@(take 2 params) ~@args])))}}
+;;   [text pos & xs]
+;;   [:text text pos (apply hash-map xs)])
 
-(defalias text graphics/text)
+;; (defalias text graphics/text)
 
-(defn graphics/point-cloud
-  {:doc "Creates vector of points"
-   :params [{:type "vector"
-             :variadic true
-             :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params pts}
-                     (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
-             :drag (fn {:id i :pos p}
-                     {:replace [i p]})}}
-  [& pts]
-  (vec pts))
-(defalias point-cloud graphics/point-cloud)
+;; (defn graphics/point-cloud
+;;   {:doc "Creates vector of points"
+;;    :params [{:type "vector"
+;;              :variadic true
+;;              :items {:label "Point" :type "vec2"}}]
+;;    :handles {:draw (fn {:params pts}
+;;                      (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
+;;              :drag (fn {:id i :pos p}
+;;                      {:replace [i p]})}}
+;;   [& pts]
+;;   (vec pts))
+;; (defalias point-cloud graphics/point-cloud)
 
-(defn point-cloud/scatter
-  {:doc "Scatters points"
-   :params [{:type "vec2"}
-            {:type "number"}
-            {:type "number" :validator #(round (max 0 %))}
-            {:type "number" :ui "seed"}]
-   :handles {:draw (fn {:params [center radius]
-                        :return ret}
-                     [{:type "path" :guide true
-                       :path (apply concat
-                                    [:path]
-                                    (map #(vector :M (vec2/+ % [-2 -2]) :L (vec2/+ % [2  2])
-                                                  :M (vec2/+ % [-2  2]) :L (vec2/+ % [2 -2])) ret))}
-                      {:type "path" :id :radius :class "dashed" :path (circle center radius)}
-                      {:type "arrow" :id :radius
-                       :pos (vec2/+ center [radius 0])}
-                      {:id :center
-                       :type "translate"
-                       :pos center}])
-             :drag (fn {:id id :pos p
-                        :params [center radius n seed]}
-                     (case id
-                       :center [p radius n seed]
-                       :radius [center (vec2/dist center p) n seed]))}}
-  [center radius n seed]
-  (let [seed-offset (rnd seed)]
-    (map (fn [i]
-           (vec2/+
-            center
-            (vec2/dir (* (rnd (+ i seed-offset)) TWO_PI)
-                      (* (rnd (+ i 0.5 seed-offset)) radius))))
-         (range n))))
+;; (defn point-cloud/scatter
+;;   {:doc "Scatters points"
+;;    :params [{:type "vec2"}
+;;             {:type "number"}
+;;             {:type "number" :validator #(round (max 0 %))}
+;;             {:type "number" :ui "seed"}]
+;;    :handles {:draw (fn {:params [center radius]
+;;                         :return ret}
+;;                      [{:type "path" :guide true
+;;                        :path (apply concat
+;;                                     [:path]
+;;                                     (map #(vector :M (vec2/+ % [-2 -2]) :L (vec2/+ % [2  2])
+;;                                                   :M (vec2/+ % [-2  2]) :L (vec2/+ % [2 -2])) ret))}
+;;                       {:type "path" :id :radius :class "dashed" :path (circle center radius)}
+;;                       {:type "arrow" :id :radius
+;;                        :pos (vec2/+ center [radius 0])}
+;;                       {:id :center
+;;                        :type "translate"
+;;                        :pos center}])
+;;              :drag (fn {:id id :pos p
+;;                         :params [center radius n seed]}
+;;                      (case id
+;;                        :center [p radius n seed]
+;;                        :radius [center (vec2/dist center p) n seed]))}}
+;;   [center radius n seed]
+;;   (let [seed-offset (rnd seed)]
+;;     (map (fn [i]
+;;            (vec2/+
+;;             center
+;;             (vec2/dir (* (rnd (+ i seed-offset)) TWO_PI)
+;;                       (* (rnd (+ i 0.5 seed-offset)) radius))))
+;;          (range n))))
