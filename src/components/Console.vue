@@ -70,11 +70,11 @@ export default defineComponent({
 				setupConsole()
 			}
 
-			function rep(command: string) {
+			async function rep(command: string) {
 				jqconsole.Write(`>>>${command}\n`, 'jqconsole-prompt')
 
 				// Execute
-				props.scope.REP(command)
+				await props.scope.REP(command)
 
 				// Add the command to history
 				const history = jqconsole.GetHistory()
@@ -86,9 +86,9 @@ export default defineComponent({
 			printer.rep = rep
 
 			// Handle a command.
-			const handler = (line?: string) => {
+			const handler = async (line?: string) => {
 				if (line) {
-					props.scope.REP(line)
+					await props.scope.REP(line)
 					jqsaveHistory(jqconsole)
 				}
 				jqconsole.Prompt(true, handler)
