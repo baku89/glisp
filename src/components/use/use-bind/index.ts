@@ -1,12 +1,13 @@
 import {ref} from 'vue'
 
 import Scope from '@/mal/scope'
-import {MalError, MalFn, MalNil, MalString, MalVal} from '@/mal/types'
-import Device, {DeviceKeyboard} from './device'
+import {MalError, MalFn, MalString, MalVal} from '@/mal/types'
+import Device, {DeviceKeyboard, DeviceGamepad} from './device'
 
 export default function useBind(scope: Scope) {
 	const devices = {
 		key: new DeviceKeyboard(),
+		gamepad: new DeviceGamepad(),
 	} as {[name: string]: Device}
 
 	scope.def('set-bind', (command: MalVal, fn: MalVal) => {
@@ -31,7 +32,7 @@ export default function useBind(scope: Scope) {
 		const device = devices[name]
 		device.bind(cmd, fn.value)
 
-		return MalNil.create()
+		return command
 	})
 
 	const isRecordingBind = ref(false)
