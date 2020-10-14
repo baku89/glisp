@@ -571,9 +571,6 @@ export class MalMap extends MalCollBase<MalMapValue> {
 }
 
 // Callable
-export interface MalCallableContext {
-	callerEnv: Env
-}
 export type MalCallableValue = (
 	...params: MalVal[]
 ) => MalVal | Promise<MalVal> | never
