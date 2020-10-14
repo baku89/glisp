@@ -2,12 +2,13 @@ import {ref} from 'vue'
 
 import Scope from '@/mal/scope'
 import {MalError, MalFn, MalString, MalVal} from '@/mal/types'
-import Device, {DeviceKeyboard, DeviceGamepad} from './devices'
+import Device, {DeviceKeyboard, DeviceGamepad, DeviceMidi} from './devices'
 
 export default function useBind(scope: Scope) {
 	const devices = {
 		key: new DeviceKeyboard(),
 		gamepad: new DeviceGamepad(),
+		midi: new DeviceMidi(),
 	} as {[name: string]: Device}
 
 	scope.def('set-bind', (command: MalVal, fn: MalVal) => {

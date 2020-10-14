@@ -103,6 +103,7 @@
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
 		"vue-color": "^2.7.1",
 		"vuedraggable": "^2.24.0",
+		"webmidi": "^2.5.1",
 		"webpack": "^4.44.2",
 		"webpack-cli": "^3.3.12",
 		"worker-plugin": "^5.0.0",
