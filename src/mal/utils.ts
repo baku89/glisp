@@ -26,8 +26,7 @@ export function getStructType(exp: MalVal): StructTypes | undefined {
 			return 'path'
 		}
 		if (exp.count <= 6) {
-			const isAllNumber =
-				exp.value.every(MalNumber.is)
+			const isAllNumber = exp.value.every(MalNumber.is)
 			if (isAllNumber) {
 				switch (exp.count) {
 					case 2:
@@ -123,20 +122,18 @@ export function getExpByPath(
 	function find(exp: MalVal, keys: number[]): MalVal | null {
 		const [index, ...rest] = keys
 
-		const expBody = getUIBodyExp(exp)
-
 		if (keys.length === 0) {
 			if (type) {
-				return expBody.type === type ? expBody : null
+				return exp.type === type ? exp : null
 			} else {
-				return expBody
+				return exp
 			}
 		}
 
-		if (isMalSeq(expBody)) {
-			return find(expBody.get(index), rest)
-		} else if (MalMap.is(expBody)) {
-			return find(expBody.get(index), rest)
+		if (isMalSeq(exp)) {
+			return find(exp.get(index), rest)
+		} else if (MalMap.is(exp)) {
+			return find(exp.get(index), rest)
 		} else {
 			return null
 		}
@@ -149,11 +146,8 @@ export function generateExpAbsPath(exp: MalVal) {
 	function seek(exp: MalVal, path: string): string {
 		if (exp.parent) {
 			const {ref: parent, index} = exp.parent
-			if (isUIAnnotation(parent)) {
-				return seek(parent, path)
-			} else {
-				return seek(parent, index + '/' + path)
-			}
+			return seek(parent, index + '/' + path)
+			// }
 		} else {
 			return '/' + path
 		}
@@ -166,9 +160,7 @@ export function getUIParent(
 	if (!isMalColl(_exp) || !_exp.parent) {
 		return undefined
 	} else {
-		return isUIAnnotation(_exp.parent.ref)
-			? _exp.parent.ref.parent
-			: _exp.parent
+		return _exp.parent
 	}
 }
 
@@ -199,15 +191,6 @@ export function replaceExp(original: MalVal, replaced: MalVal) {
 	reconstructTree(newOuter)
 
 	replaceExp(parent, newOuter)
-}
-
-export function getUIAnnotationExp(exp: MalColl) {
-	const parent = exp.parent?.ref
-	return isUIAnnotation(parent) ? parent : exp
-}
-
-export function getUIBodyExp(exp: MalVal) {
-	return isUIAnnotation(exp) ? exp.value[2] : exp
 }
 
 export function deleteExp(exp: MalColl) {
@@ -268,122 +251,122 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	return {fn, meta, aliasFor, structType}
 }
 
-export function reverseEval(exp: MalVal, original: MalVal) {
-	return exec() || original
+// export function reverseEval(exp: MalVal, original: MalVal) {
+// 	return exec() || original
 
-	function exec(): MalVal | undefined {
-		if (MalList.is(original)) {
-			// Check if the list is wrapped within const
-			if (MalSymbol.isFor(original.first, 'const')) return
+// 	function exec(): MalVal | undefined {
+// 		if (MalList.is(original)) {
+// 			// Check if the list is wrapped within const
+// 			if (MalSymbol.isFor(original.first, 'const')) return
 
-			// find Inverse function
-			const meta = original.first.evaluated.meta
-			if (!meta) return
+// 			// find Inverse function
+// 			const meta = original.first.evaluated.meta
+// 			if (!meta) return
 
-			const inverseFn = getExpByPath(meta, 'inverse', MalType.Fn)
-			if (inverseFn === null) return
+// 			const inverseFn = getExpByPath(meta, 'inverse', MalType.Fn)
+// 			if (inverseFn === null) return
 
-			const fn = original.first
-			const originalParams = original.rest
-			const evaluatedParams = originalParams.map(e => e.evaluated)
+// 			const fn = original.first
+// 			const originalParams = original.rest
+// 			const evaluatedParams = originalParams.map(e => e.evaluated)
 
-			// Compute the original parameter
-			const result = inverseFn.value(
-				MalMap.create({
-					return: exp,
-					params: MalVector.create(...evaluatedParams),
-				})
-			)
+// 			// Compute the original parameter
+// 			const result = inverseFn.value(
+// 				MalMap.create({
+// 					return: exp,
+// 					params: MalVector.create(...evaluatedParams),
+// 				})
+// 			)
 
-			if (!MalVector.is(result) && !MalMap.is(result)) {
-				return original
-			}
+// 			if (!MalVector.is(result) && !MalMap.is(result)) {
+// 				return original
+// 			}
 
-			// Parse the result
-			let newParams: MalVal[]
-			let updatedIndices: number[] | undefined = undefined
+// 			// Parse the result
+// 			let newParams: MalVal[]
+// 			let updatedIndices: number[] | undefined = undefined
 
-			if (MalMap.is(result)) {
-				const {params, replace} = result.value
+// 			if (MalMap.is(result)) {
+// 				const {params, replace} = result.value
 
-				if (MalVector.is(params)) {
-					newParams = params.value
-				} else if (MalVector.is(replace)) {
-					newParams = [...originalParams]
+// 				if (MalVector.is(params)) {
+// 					newParams = params.value
+// 				} else if (MalVector.is(replace)) {
+// 					newParams = [...originalParams]
 
-					let pairs: [number, MalVal][]
+// 					let pairs: [number, MalVal][]
 
-					if (MalNumber.is(replace.get(0))) {
-						pairs = [replace.get(0).value, replace.get(1)]
-					} else {
-						pairs = (replace.value as MalVector[]).map(r => [
-							r.get(0).value,
-							r.get(1),
-						])
-					}
-					for (const [i, value] of pairs) {
-						newParams[i] = value
-					}
-					updatedIndices = pairs.map(([i]) => i)
-				} else {
-					return original
-				}
-			} else if (MalVector.is(result)) {
-				newParams = result.value
-			} else {
-				// Invalid returned type
-				return original
-			}
+// 					if (MalNumber.is(replace.get(0))) {
+// 						pairs = [replace.get(0).value, replace.get(1)]
+// 					} else {
+// 						pairs = (replace.value as MalVector[]).map(r => [
+// 							r.get(0).value,
+// 							r.get(1),
+// 						])
+// 					}
+// 					for (const [i, value] of pairs) {
+// 						newParams[i] = value
+// 					}
+// 					updatedIndices = pairs.map(([i]) => i)
+// 				} else {
+// 					return original
+// 				}
+// 			} else if (MalVector.is(result)) {
+// 				newParams = result.value
+// 			} else {
+// 				// Invalid returned type
+// 				return original
+// 			}
 
-			if (!updatedIndices) {
-				updatedIndices = Array(newParams.length)
-					.fill(0)
-					.map((_, i) => i)
-			}
+// 			if (!updatedIndices) {
+// 				updatedIndices = Array(newParams.length)
+// 					.fill(0)
+// 					.map((_, i) => i)
+// 			}
 
-			for (const i of updatedIndices) {
-				newParams[i] = reverseEval(newParams[i], originalParams[i])
-			}
+// 			for (const i of updatedIndices) {
+// 				newParams[i] = reverseEval(newParams[i], originalParams[i])
+// 			}
 
-			const newExp = MalList.create(fn, ...newParams)
+// 			const newExp = MalList.create(fn, ...newParams)
 
-			return newExp
-		} else if (MalVector.is(original)) {
-			if (!MalVector.is(exp) || exp.length === original.length) return
+// 			return newExp
+// 		} else if (MalVector.is(original)) {
+// 			if (!MalVector.is(exp) || exp.length === original.length) return
 
-			return MalVector.create(
-				...exp.value.map((e, i) => reverseEval(e, original.value[i]))
-			)
-		} else if (MalMap.is(original)) {
-			// Note: will fix it layer
-			// if (MalMap.is(exp)) {
-			// 	const newExp = {...exp}
-			// 	Object.entries(original as MalMap).forEach(([key, value]) => {
-			// 		if (key in exp) {
-			// 			newExp.value[key] = reverseEval(exp[key], value)
-			// 		} else {
-			// 			newExp.value[key] = value
-			// 		}
-			// 	})
-			// 	return newExp
-			// }
-		} else if (MalSymbol.is(original)) {
-			// NOTE: temporarily disabling
-			// const def = (original as MalSymbol).def
-			// if (def && !MalSymbol.is(exp)) {
-			// 	// NOTE: Making side-effects on the below line
-			// 	const newDefBody = reverseEval(exp, def[2], forceOverwrite)
-			// 	replaceExp(
-			// 		def,
-			// 		MalList.create(MalSymbol.create('defvar'), original, newDefBody)
-			// 	)
-			// 	return original.clone()
-			// }
-		}
-	}
-}
+// 			return MalVector.create(
+// 				...exp.value.map((e, i) => reverseEval(e, original.value[i]))
+// 			)
+// 		} else if (MalMap.is(original)) {
+// 			// Note: will fix it layer
+// 			// if (MalMap.is(exp)) {
+// 			// 	const newExp = {...exp}
+// 			// 	Object.entries(original as MalMap).forEach(([key, value]) => {
+// 			// 		if (key in exp) {
+// 			// 			newExp.value[key] = reverseEval(exp[key], value)
+// 			// 		} else {
+// 			// 			newExp.value[key] = value
+// 			// 		}
+// 			// 	})
+// 			// 	return newExp
+// 			// }
+// 		} else if (MalSymbol.is(original)) {
+// 			// NOTE: temporarily disabling
+// 			// const def = (original as MalSymbol).def
+// 			// if (def && !MalSymbol.is(exp)) {
+// 			// 	// NOTE: Making side-effects on the below line
+// 			// 	const newDefBody = reverseEval(exp, def[2], forceOverwrite)
+// 			// 	replaceExp(
+// 			// 		def,
+// 			// 		MalList.create(MalSymbol.create('defvar'), original, newDefBody)
+// 			// 	)
+// 			// 	return original.clone()
+// 			// }
+// 		}
+// 	}
+// }
 
-export function computeExpTransform(exp: MalVal): mat2d {
+export async function computeExpTransform(exp: MalVal) {
 	if (!isMalColl(exp)) {
 		return mat2d.create()
 	}
@@ -410,14 +393,18 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		}
 
 		// Execute the viewport transform function
-		const evaluatedParams = node.params.map(x => x.evaluated)
-		const paramXforms = viewportFn.value(...evaluatedParams)
+		const evaluatedParams = node.rest.map(x => x.evaluated)
+		const paramXforms = await viewportFn.value(...evaluatedParams)
 
 		if (!MalVector.is(paramXforms) || !paramXforms.value[index - 1]) {
 			continue
 		}
 
-		mat2d.mul(xform, xform, paramXforms.value[index - 1].value as mat2d)
+		mat2d.mul(
+			xform,
+			xform,
+			(paramXforms.value[index - 1].value as MalVector).toFloats() as mat2d
+		)
 	}
 
 	return xform
@@ -503,16 +490,16 @@ export function copyDelimiters(target: MalVal, original: MalVal) {
 	if (isMalSeq(target) && isMalSeq(original) && original.delimiters) {
 		const delimiters = [...original.delimiters]
 
-		const lengthDiff = target.length - original.length
+		const lengthDiff = target.count - original.count
 
 		if (lengthDiff < 0) {
-			if (original.length === 1) {
+			if (original.count === 1) {
 				delimiters.pop()
 			} else {
 				delimiters.splice(delimiters.length - 1 + lengthDiff, -lengthDiff)
 			}
 		} else if (lengthDiff > 0) {
-			if (original.length === 0) {
+			if (original.count === 0) {
 				delimiters.push('')
 			} else {
 				const filler = delimiters[delimiters.length - 2] || ' '
@@ -615,7 +602,7 @@ export function findExpByRange(
 	}
 
 	// Creates a caches of children at the same time calculating length of exp
-	const expLen = printExp(exp, true).length
+	const expLen = exp.print().length
 
 	if (!(0 <= start && end <= expLen)) {
 		// Does not fit within the exp
@@ -629,7 +616,7 @@ export function findExpByRange(
 		let offset = exp.sugar ? 0 : 1
 
 		// Search Children
-		for (let i = 0; i < exp.length; i++) {
+		for (let i = 0; i < exp.count; i++) {
 			const child = exp.value[i]
 			offset += exp.delimiters[i].length
 
@@ -639,7 +626,7 @@ export function findExpByRange(
 			}
 
 			// For #() syntaxtic sugar
-			if (i < exp.length) {
+			if (i < exp.count) {
 				offset += exp.get(i).print().length
 			}
 		}
