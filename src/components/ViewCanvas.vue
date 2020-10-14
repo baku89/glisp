@@ -34,26 +34,36 @@ export default defineComponent({
 		const el = ref<HTMLElement | null>(null)
 		const canvas = ref<HTMLCanvasElement | null>(null)
 
-		async function updateCanvasSize(el: HTMLElement) {
-			if (!renderer.value) return
+		async function updateCanvasSize(
+			renderer: CanvasRenderer | null,
+			el: HTMLElement
+		) {
+			if (!renderer) return
 
 			const width = el.clientWidth
 			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
-			await renderer.value.resize(width, height, dpi)
+			console.log('resize!!!!!', width, height)
+			await renderer.resize(width, height, dpi)
 		}
-
-		useResizeSensor(el, updateCanvasSize)
 
 		onMounted(async () => {
 			if (!canvas.value || !el.value) return
 
-			renderer.value = await createCanvasRender(canvas.value)
-			updateCanvasSize(el.value)
+			const _renderer = await createCanvasRender(canvas.value)
+			console.log('init renderer')
+			await updateCanvasSize(_renderer, el.value)
+			console.log('assign, rende')
+			renderer.value = _renderer
 		})
 
+		// NOTE: By commenting out below line, it somehow works
+		//useResizeSensor(el, _el => updateCanvasSize(renderer.value, _el))
+
 		async function render() {
-			if (!renderer.value) return
+			if (!props.exp || !renderer.value) return
+
+			console.log('render=', props.exp.print())
 
 			const options = {
 				viewTransform: props.viewTransform,
@@ -75,16 +85,7 @@ export default defineComponent({
 			context.emit('render', true)
 		}
 
-		watch(
-			() => [props.exp, props.viewTransform, renderer.value],
-			async () => {
-				if (!props.exp || !renderer.value) {
-					return
-				}
-
-				await render()
-			}
-		)
+		watch(() => [props.exp, props.viewTransform, renderer.value], render)
 
 		return {
 			el,

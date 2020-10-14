@@ -98,11 +98,11 @@ export default defineComponent({
 		parseURL(code)
 
 		watch(
-			() => code.value,
+			() => [code.value, scope.value],
 			async () => {
-				if (!scope.value) {
-					return MalVector.create()
-				}
+				if (!scope.value || !scope.value) return
+
+				console.log('code.value=', code.value, scope.value)
 
 				const sc = scope.value
 
@@ -113,7 +113,7 @@ export default defineComponent({
 				sc.def('*size*', [100, 100])
 
 				viewExp.value = await sc.readEval(`(do\n${code.value}\n)`)
-				// console.log(viewExp.value?.print())
+				console.log(viewExp.value?.print())
 			}
 		)
 
