@@ -17,6 +17,11 @@ export default function renderToContext(
 	exp: MalVal,
 	defaultStyle: MalMap | null = null
 ) {
+	// Set the default line cap
+	ctx.lineCap = 'round'
+	ctx.lineJoin = 'round'
+	return drawElement(exp, [])
+
 	function drawElement(exp: MalVal, styles: MalMap[]) {
 		if (!MalVector.is(exp)) return
 
@@ -80,7 +85,7 @@ export default function renderToContext(
 			}
 			case 'path': {
 				drawPath(ctx, exp)
-				applyDrawStyle(styles, defaultStyle, exp)
+				applyDrawStyle(styles, exp)
 				break
 			}
 			// case 'text': {
@@ -134,7 +139,6 @@ export default function renderToContext(
 			ctx.beginPath()
 		}
 		for (const [c, ...pts] of iterateSegment(path)) {
-			console.log(c, pts)
 			switch (c) {
 				case 'M':
 					ctx.moveTo(pts[0][0], pts[0][1])
@@ -195,7 +199,6 @@ export default function renderToContext(
 	}
 	function applyDrawStyle(
 		styles: MalMap[],
-		defaultStyle: MalMap | null,
 		content: MalVector
 		// | MalVector
 		// | {
@@ -248,9 +251,9 @@ export default function renderToContext(
 						ctx.setLineDash(v.toJS() as number[])
 				}
 			}
-			console.log(ctx.strokeStyle)
 			if (drawOrders[i].fill) {
 				drawPath(ctx, content)
+				ctx.fill()
 				// if (MalVector.is(content)) {
 				// 	drawPath(ctx, content)
 				// 	ctx.fill()
@@ -263,6 +266,7 @@ export default function renderToContext(
 			}
 			if (drawOrders[i].stroke) {
 				drawPath(ctx, content)
+				ctx.stroke()
 				// if (MalVector.is(content)) {
 				// 	drawPath(ctx, content)
 				// 	ctx.stroke()
@@ -276,8 +280,4 @@ export default function renderToContext(
 		}
 		ctx.restore()
 	}
-	// Set the default line cap
-	ctx.lineCap = 'round'
-	ctx.lineJoin = 'round'
-	return drawElement(exp, [])
 }

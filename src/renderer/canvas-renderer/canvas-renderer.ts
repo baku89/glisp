@@ -71,9 +71,7 @@ export default class CanvasRenderer {
 			  })
 			: null
 
-		console.log('render', exp.print(), defaultStyle?.print())
-
-		// Start drawing
+		// // Start drawing
 		return renderToContext(this.ctx, exp, defaultStyle)
 	}
 

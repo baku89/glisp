@@ -80,6 +80,7 @@ export default defineComponent({
 				(do
 					(import "math")
 					(import "color")
+					(import "graphics")
 					(import "path"))`)
 			scope.value = new Scope(repl, 'view')
 		})()
@@ -112,7 +113,7 @@ export default defineComponent({
 				sc.def('*size*', [100, 100])
 
 				viewExp.value = await sc.readEval(`(do\n${code.value}\n)`)
-				console.log(viewExp.value?.print())
+				// console.log(viewExp.value?.print())
 			}
 		)
 

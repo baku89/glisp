@@ -5,15 +5,7 @@
 </template>
 
 <script lang="ts">
-import {
-	defineComponent,
-	onMounted,
-	watch,
-	ref,
-	PropType,
-	shallowRef,
-	onUnmounted,
-} from 'vue'
+import {defineComponent, onMounted, watch, ref, PropType, shallowRef} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'
@@ -49,8 +41,6 @@ export default defineComponent({
 			const height = el.clientHeight
 			const dpi = window.devicePixelRatio || 1
 			await renderer.value.resize(width, height, dpi)
-
-			// if (prevExp) render(prevExp)
 		}
 
 		useResizeSensor(el, updateCanvasSize)
@@ -61,12 +51,6 @@ export default defineComponent({
 			renderer.value = await createCanvasRender(canvas.value)
 			updateCanvasSize(el.value)
 		})
-
-		onUnmounted(() => {
-			// renderer.value?.dispose()
-		})
-
-		// let prevExp: MalVal | undefined = undefined
 
 		async function render() {
 			if (!renderer.value) return
