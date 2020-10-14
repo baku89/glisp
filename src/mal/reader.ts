@@ -24,15 +24,49 @@ export class MalReadError extends MalError {}
 
 class Reader {
 	private strlen: number
-	private _index: number
+	private index: number
 
-	constructor(private tokens: [string, number][], private str: string) {
+	private tokens!: [string, number][]
+
+	constructor(private str: string) {
+		// Tokenize
+
+		// eslint-disable-next-line no-useless-escape
+		const tokenRe = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
+		const spaceRe = /^[\s,]*/
+
+		let match, spaceMatch, spaceOffset
+
+		const tokens: [string, number][] = []
+
+		while ((match = tokenRe.exec(str)) && match[1] != '') {
+			if (match[1][0] === ';') {
+				continue
+			}
+
+			spaceMatch = spaceRe.exec(match[0])
+			spaceOffset = spaceMatch ? spaceMatch[0].length : 0
+
+			tokens.push([match[1], match.index + spaceOffset])
+		}
+
+		// Check if empty
+		if (tokens.length === 0) {
+			throw new MalBlankException()
+		}
+
+		this.tokens = tokens
+
 		this.strlen = str.length
-		this._index = 0
+		this.index = 0
+	}
+
+	public didReachEnd() {
+		return this.index === this.tokens.length - 1
 	}
 
 	public next() {
-		const token = this.tokens[this._index++]
+		const token = this.tokens[this.index++]
 		if (!token) {
 			throw new MalReadError('Invalid end of file')
 		}
@@ -40,56 +74,29 @@ class Reader {
 	}
 
 	public peek(offset = 0) {
-		const token = this.tokens[this._index + offset]
+		const token = this.tokens[this.index + offset]
 		if (!token) {
 			throw new MalReadError('Invalid end of file')
 		}
 		return token[0]
 	}
 
-	public get index() {
-		return this._index
-	}
+	public lastDelimiter() {
+		const start = this.endOffset()
+		const end = this.offset()
 
-	public strInRange(start: number, end: number) {
 		return this.str.slice(start, end)
 	}
 
-	public offset(pos = this._index) {
-		const token = this.tokens[pos]
+	private offset() {
+		const token = this.tokens[this.index]
 		return token !== undefined ? token[1] : this.strlen
 	}
 
-	public endOffset(pos = this._index) {
-		const token = this.tokens[pos]
+	private endOffset(offset = 0) {
+		const token = this.tokens[this.index + offset]
 		return token !== undefined ? token[1] + token[0].length : this.strlen
 	}
-
-	public prevEndOffset() {
-		return this.endOffset(this._index - 1)
-	}
-}
-
-function tokenize(str: string) {
-	// eslint-disable-next-line no-useless-escape
-	const re = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
-	let match = null
-	const spaceRe = /^[\s,]*/
-	let spaceMatch = null,
-		spaceOffset = null
-	const results = []
-
-	while ((match = re.exec(str)) && match[1] != '') {
-		if (match[1][0] === ';') {
-			continue
-		}
-
-		spaceMatch = spaceRe.exec(match[0])
-		spaceOffset = spaceMatch ? spaceMatch[0].length : 0
-
-		results.push([match[1], match.index + spaceOffset] as [string, number])
-	}
-	return results
 }
 
 function readAtom(reader: Reader) {
@@ -138,8 +145,7 @@ function readSyntacticSugar(reader: Reader, name: string, count: number) {
 	const sugarSymbol = reader.next()
 
 	for (let i = 0; i < count; i++) {
-		const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
-		delimiters.push(delimiter)
+		delimiters.push(reader.lastDelimiter())
 
 		coll.push(readForm(reader))
 	}
@@ -171,15 +177,13 @@ function readColl(reader: Reader, start = '[', end = ']') {
 		}
 
 		// Save delimiter
-		const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
-		delimiters?.push(delimiter)
+		delimiters?.push(reader.lastDelimiter())
 
 		coll.push(readForm(reader))
 	}
 
 	// Save a delimiter between a last element and a end tag
-	const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset())
-	delimiters.push(delimiter)
+	delimiters.push(reader.lastDelimiter())
 
 	reader.next()
 	return {
@@ -266,14 +270,10 @@ function readForm(reader: Reader): any {
 }
 
 export default function readStr(str: string): MalVal {
-	const tokens = tokenize(str)
-	if (tokens.length === 0) {
-		throw new MalBlankException()
-	}
-	const reader = new Reader(tokens, str)
+	const reader = new Reader(str)
 	const exp = readForm(reader)
 
-	if (reader.index < tokens.length - 1) {
+	if (reader.didReachEnd()) {
 		throw new MalReadError('Invalid end of file')
 	}
 
