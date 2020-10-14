@@ -5,36 +5,18 @@ import Scope from './scope'
 import evalExp from './eval'
 
 export default async function initReplScope(scope: Scope) {
-	const normalizeImportURL = (() => {
-		if (isNodeJS) {
-			// eslint-disable-next-line @typescript-eslint/no-var-requires
-			const path = require('path')
-
-			return (url: string) => {
-				if (url.startsWith('.')) {
-					// Relative
-					const basepath = scope.var('*filename*').value as string
-					return path.join(path.dirname(basepath), url)
-				} else {
-					// Library
-					const basepath = scope.var('*libpath*').value as string
-					return path.join(basepath, url)
-				}
-			}
-		} else {
-			return (url: string) => {
-				if (url.startsWith('.')) {
-					// Relative
-					const basepath = scope.var('*filename*').value as string
-					return new URL(url, basepath).href
-				} else {
-					// Library
-					const basepath = scope.var('*libpath*').value as string
-					return new URL(url, basepath).href
-				}
-			}
+	function normalizeImportURL(url: string) {
+		// Append .glisp if there's no extension
+		if (!/\.[a-za-z0-9]+$/.test(url)) {
+			url += '.glisp'
 		}
-	})()
+
+		const isLibrary = !url.startsWith('.')
+		const basepath = scope.var(isLibrary ? '*libpath*' : '*filename*')
+			.value as string
+
+		return new URL(url, basepath).href
+	}
 
 	// Defining essential functions
 	scope.def('throw', (msg: MalString) => {
@@ -53,37 +35,32 @@ export default async function initReplScope(scope: Scope) {
 		return evalExp(exp, scope.env)
 	})
 
-	let filename: string, libpath: string
-
+	let filename: string
 	if (isNodeJS) {
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const path = require('path')
-
-		filename = __filename
-		libpath = path.join(path.dirname(__filename), './lib')
+		filename = 'file://' + __filename
 	} else {
 		filename = new URL('.', document.baseURI).href
-		libpath = new URL('./lib/', document.baseURI).href
 	}
+
+	const libpath = new URL('./lib/', filename).href
+
+	console.log(filename, libpath)
 
 	scope.def('*filename*', filename)
 	scope.def('*libpath*', libpath)
 
-	scope.def('import-force', async (url: MalVal) => {
-		let _url = url.value as string
-
-		// Append .glisp if there's no extension
-		if (!/\.[a-za-z]+$/.test(_url)) {
-			_url += '.glisp'
-		}
+	scope.def('import-force', async (_url: MalVal) => {
+		const url = MalString.check(_url)
 
 		const pwd = scope.var('*filename*') as MalString
 
-		const absurl = normalizeImportURL(_url)
+		const absurl = normalizeImportURL(url)
 		const text = slurp(absurl)
+		console.log('IMPORT=', absurl, text.slice(0, 30))
+
 		let exp: MalVal
 
-		if (_url.endsWith('.js')) {
+		if (url.endsWith('.js')) {
 			eval(text)
 			exp = (globalThis as any)['glisp_library']
 		} else {

@@ -335,7 +335,7 @@ export const slurp = (() => {
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const fs = require('fs')
 		return (url: string) => {
-			return fs.readFileSync(url, 'UTF-8')
+			return fs.readFileSync(url.replace(/^file:\/\//, ''), 'UTF-8')
 		}
 	} else {
 		return (url: string) => {

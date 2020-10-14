@@ -178,6 +178,11 @@ export class MalString extends MalPrimBase<string> {
 	static is(v: MalVal | undefined): v is MalString {
 		return v?.type === MalType.String
 	}
+
+	static check(v: MalVal) {
+		if (this.is(v)) return v.value
+		throw new MalError(`${v.print()} is not a string`)
+	}
 }
 
 export class MalBoolean extends MalPrimBase<boolean> {
