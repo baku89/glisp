@@ -82,7 +82,7 @@ class Reader {
 	}
 
 	public lastDelimiter() {
-		const start = this.endOffset()
+		const start = this.endOffset(-1)
 		const end = this.offset()
 
 		return this.str.slice(start, end)
