@@ -38,13 +38,13 @@ export default function useBind(scope: Scope) {
 
 	const isRecordingBind = ref(false)
 
-	scope.def('record-bind', async () => {
+	scope.def('capture-bind', async () => {
 		return new Promise(resolve => {
 			isRecordingBind.value = true
 
 			function onInput(name: string, cmd: string) {
 				for (const device of Object.values(devices)) {
-					device.abortListen()
+					device.cancelCapture()
 				}
 
 				isRecordingBind.value = false
@@ -52,7 +52,7 @@ export default function useBind(scope: Scope) {
 			}
 
 			for (const [name, device] of Object.entries(devices)) {
-				device.listen(cmd => onInput(name, cmd))
+				device.capture(cmd => onInput(name, cmd))
 			}
 		})
 	})

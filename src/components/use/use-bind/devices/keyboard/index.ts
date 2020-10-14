@@ -6,7 +6,7 @@ import Device from '../device'
 
 export default class DeviceKeyboard extends Device {
 	private activeElement: HTMLElement | undefined
-	private isListening = false
+	private isCapturing = false
 
 	bind(command: string, callback: () => any) {
 		// Convert to Mousetrap representation
@@ -19,16 +19,16 @@ export default class DeviceKeyboard extends Device {
 		})
 	}
 
-	listen(callback: (command: string) => any) {
+	capture(callback: (command: string) => any) {
 		this.activeElement = document.activeElement as HTMLElement
 
 		// Disable all keyboard event
 		this.activeElement?.blur()
-		this.isListening = true
+		this.isCapturing = true
 
 		// Listen
 		;(Mousetrap as any).record((seq: string[]) => {
-			if (!this.isListening) return
+			if (!this.isCapturing) return
 
 			this.activeElement?.focus()
 
@@ -45,10 +45,10 @@ export default class DeviceKeyboard extends Device {
 		})
 	}
 
-	abortListen() {
-		if (!this.isListening) return
+	cancelCapture() {
+		if (!this.isCapturing) return
 
 		this.activeElement?.focus()
-		this.isListening = false
+		this.isCapturing = false
 	}
 }

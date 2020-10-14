@@ -28,7 +28,7 @@ const GamepadStandardButtonName = [
 export default class DeviceGamepad extends Device {
 	private state: GamepadState = {}
 	private callbacks: {[command: string]: () => any} = {}
-	private listeningCallback: null | ((command: string) => any) = null
+	private captureCallback: null | ((command: string) => any) = null
 
 	constructor() {
 		super()
@@ -57,10 +57,10 @@ export default class DeviceGamepad extends Device {
 
 					const command = `${index}/${buttonName}`
 
-					if (this.listeningCallback) {
+					if (this.captureCallback) {
 						// Listening callback
-						this.listeningCallback(command)
-						this.listeningCallback = null
+						this.captureCallback(command)
+						this.captureCallback = null
 					} else {
 						// Revoke registered callback
 						const cb = this.callbacks[command]
@@ -78,11 +78,11 @@ export default class DeviceGamepad extends Device {
 		this.callbacks[command] = callback
 	}
 
-	listen(callback: (command: string) => any) {
-		this.listeningCallback = callback
+	capture(callback: (command: string) => any) {
+		this.captureCallback = callback
 	}
 
-	abortListen() {
-		this.listeningCallback = null
+	cancelCapture() {
+		this.captureCallback = null
 	}
 }

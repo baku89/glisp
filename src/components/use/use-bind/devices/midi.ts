@@ -5,7 +5,7 @@ import Device from './device'
 export default class DeviceMidi extends Device {
 	private inputs?: Input[]
 	private callbacks: {[command: string]: () => any} = {}
-	private listeningCallback: null | ((command: string) => any) = null
+	private captureCallback: null | ((command: string) => any) = null
 
 	constructor() {
 		super()
@@ -25,9 +25,9 @@ export default class DeviceMidi extends Device {
 
 		const command = `${name}/${ch}`
 
-		if (this.listeningCallback) {
-			this.listeningCallback(command)
-			this.listeningCallback = null
+		if (this.captureCallback) {
+			this.captureCallback(command)
+			this.captureCallback = null
 		} else {
 			const cb = this.callbacks[command]
 			if (cb) cb()
@@ -38,11 +38,11 @@ export default class DeviceMidi extends Device {
 		this.callbacks[command] = callback
 	}
 
-	listen(callback: (command: string) => any) {
-		this.listeningCallback = callback
+	capture(callback: (command: string) => any) {
+		this.captureCallback = callback
 	}
 
-	abortListen() {
-		this.listeningCallback = null
+	cancelCapture() {
+		this.captureCallback = null
 	}
 }
