@@ -74,9 +74,6 @@ export default async function initReplScope(scope: Scope) {
 		return MalNil.create()
 	})
 
-	// Syntactic sugar
-	scope.def('with-meta-sugar', (meta: MalVal, x: MalVal) => x.withMeta(meta))
-
 	// Load core library as default
 	await scope.REP('(import-force "core")')
 

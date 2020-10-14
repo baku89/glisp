@@ -370,7 +370,7 @@ const Exports = [
 	// Meta
 	['meta', x => x.meta],
 	['with-meta', (x, meta) => x.withMeta(meta)],
-	// ['with-meta-sugar', (meta, x) => x.withMeta(meta)],
+	['with-meta-sugar', (meta, x) => x.withMeta(meta)],
 	[
 		// Atom
 		'atom',
