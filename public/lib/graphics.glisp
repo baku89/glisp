@@ -207,7 +207,9 @@
 ;;     ;; NOTE: This is not efficient since `xform` will be evaluated twice
 ;;     `(binding [*transform* ~global-xform]
 ;;        [:transform ~xform ~@body])))
-;; (defalias transform graphics/transform)
+(defn graphics/transform [xform & body]
+  `[:transform ~xform ~@body])
+(defalias transform graphics/transform)
 
 ;; (defmacro graphics/style
 ;;   {:doc "Applies a style to elements"

@@ -403,7 +403,7 @@ export async function computeExpTransform(exp: MalVal) {
 		mat2d.mul(
 			xform,
 			xform,
-			(paramXforms.value[index - 1].value as MalVector).toFloats() as mat2d
+			paramXforms.value[index - 1].value.toFloats() as mat2d
 		)
 	}
 

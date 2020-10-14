@@ -35,10 +35,18 @@ export default function renderToContext(
 
 		switch (cmd) {
 			case 'transform': {
-				const [mat, ...children] = rest as [number[], ...MalVal[]]
+				const [mat, ...children] = rest
+
 				ctx.save()
 				ctx.transform(
-					...(mat as [number, number, number, number, number, number])
+					...((mat.toFloats() as any) as [
+						number,
+						number,
+						number,
+						number,
+						number,
+						number
+					])
 				)
 				for (const child of children) {
 					drawElement(child, styles)

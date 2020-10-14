@@ -17,7 +17,7 @@ export function* iterateSegment(
 		if (i === l || MalKeyword.is(elements[i])) {
 			const seg = [
 				elements[start].value,
-				...elements.slice(start + 1, i).map(p => (p as MalVector).toFloats()),
+				...elements.slice(start + 1, i).map(p => p.toFloats()),
 			] as [string, ...vec2[]]
 			yield seg
 			start = i

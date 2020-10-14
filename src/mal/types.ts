@@ -81,6 +81,10 @@ abstract class MalBase<T> {
 		return this as any
 	}
 
+	toFloats(): Float32Array {
+		throw new MalError('Cannot create array buffer')
+	}
+
 	abstract readonly type: MalType
 
 	abstract print(readably?: boolean): string
