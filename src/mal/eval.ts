@@ -165,138 +165,142 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 			return MalNil.create()
 		}
 
-		// Apply list
-		const first = MalSymbol.is(exp.first) ? exp.first.value : null
-
 		// Special forms
-		switch (first) {
-			case 'def': {
-				// NOTE: disable defvar
-				// case 'defvar': {
-				const [, sym, form] = exp.value
-				if (!MalSymbol.is(sym) || form === undefined) {
-					throw new MalError('Invalid form of def')
-				}
-				const ret = await evalExp(form, env)
-				env.set(sym.value, ret)
-				// setExpandInfo(exp, {
-				// 	type: ExpandType.Unchange,
-				// })
-				origExp.evaluated = ret
-				return ret
-			}
-			case 'let': {
-				const letEnv = new Env({name: 'let', outer: env})
+		if (MalSymbol.is(exp.first)) {
+			const name = exp.first.value
 
-				const [, binds, ...body] = exp.value
-				if (!MalVector.is(binds)) {
-					throw new MalError('let requires a vector for its binding')
-				}
-				for (let i = 0; i < binds.value.length; i += 2) {
-					letEnv.bind(binds.value[i], await evalExp(binds.value[i + 1], letEnv))
-				}
-				env = letEnv
-				exp =
-					body.length === 1
-						? body[0]
-						: MalList.create([MalSymbol.create('do'), ...body])
-				continue TCO
-			}
-			case 'quote':
-				return (origExp.evaluated = exp.value[1])
-			case 'quasiquote': {
-				exp = quasiquote(exp.value[1])
-				continue TCO
-			}
-			case 'fn-sugar': {
-				const body = exp.value[1]
-				const params = generateUnnamedParams(exp)
-				exp = MalList.create([MalSymbol.create('fn'), params, body])
-				continue TCO
-			}
-			case 'fn':
-			case 'macro': {
-				const [, _params, body] = exp.value
-
-				let params: MalVector | undefined
-				if (MalVector.is(_params)) {
-					params = _params
-				} else if (MalMap.is(_params)) {
-					params = MalVector.create([_params])
-				}
-
-				if (params === undefined) {
-					throw new MalError(
-						`The parameter of ${first} should be vector or map`
-					)
-				}
-				if (body === undefined) {
-					throw new MalError(`The body of ${first} is empty`)
-				}
-				const ret = (first === 'fn' ? MalFn : MalMacro).create(
-					async (...args) => {
-						return await evalExp(
-							body,
-							new Env({outer: env, forms: params?.value, exps: args})
-						)
+			switch (name) {
+				case 'def': {
+					// NOTE: disable defvar
+					// case 'defvar': {
+					const [, sym, form] = exp.value
+					if (!MalSymbol.is(sym) || form === undefined) {
+						throw new MalError('Invalid form of def')
 					}
-				)
-				ret.ast = {
-					body,
-					env,
-					params,
-				}
-
-				origExp.evaluated = ret
-				return ret
-			}
-			case 'macroexpand':
-				return (origExp.evaluated = await macroexpand(exp.value[1], env))
-			case 'try': {
-				const [, testExp, catchExp] = exp.value
-				try {
-					const ret = await evalExp(testExp, env)
+					const ret = await evalExp(form, env)
+					env.set(sym.value, ret)
+					// setExpandInfo(exp, {
+					// 	type: ExpandType.Unchange,
+					// })
 					origExp.evaluated = ret
 					return ret
-				} catch (err) {
-					if (
-						MalList.isCallOf(catchExp, 'catch') &&
-						MalSymbol.is(catchExp.value[1])
-					) {
-						catchExp.value[1].evaluated = SpecialForms['catch'] as MalVal
-						const [, errSym, errBody] = catchExp.value
+				}
+				case 'let': {
+					const letEnv = new Env({name: 'let', outer: env})
 
-						const message = MalString.create(
-							err instanceof Error ? err.message : 'Error'
+					const [, binds, ...body] = exp.value
+					if (!MalVector.is(binds)) {
+						throw new MalError('let requires a vector for its binding')
+					}
+					for (let i = 0; i < binds.value.length; i += 2) {
+						letEnv.bind(
+							binds.value[i],
+							await evalExp(binds.value[i + 1], letEnv)
 						)
-						const ret = await evalExp(
-							errBody,
-							new Env({
-								outer: env,
-								forms: [errSym],
-								exps: [message],
-								name: 'catch',
-							})
+					}
+					env = letEnv
+					exp =
+						body.length === 1
+							? body[0]
+							: MalList.create([MalSymbol.create('do'), ...body])
+					continue TCO
+				}
+				case 'quote':
+					return (origExp.evaluated = exp.value[1])
+				case 'quasiquote': {
+					exp = quasiquote(exp.value[1])
+					continue TCO
+				}
+				case 'fn-sugar': {
+					const body = exp.value[1]
+					const params = generateUnnamedParams(exp)
+					exp = MalList.create([MalSymbol.create('fn'), params, body])
+					continue TCO
+				}
+				case 'fn':
+				case 'macro': {
+					const [, _params, body] = exp.value
+
+					let params: MalVector | undefined
+					if (MalVector.is(_params)) {
+						params = _params
+					} else if (MalMap.is(_params)) {
+						params = MalVector.create([_params])
+					}
+
+					if (params === undefined) {
+						throw new MalError(
+							`The parameter of ${name} should be vector or map`
 						)
+					}
+					if (body === undefined) {
+						throw new MalError(`The body of ${name} is empty`)
+					}
+					const ret = (name === 'fn' ? MalFn : MalMacro).create(
+						async (...args) => {
+							return await evalExp(
+								body,
+								new Env({outer: env, forms: params?.value, exps: args})
+							)
+						}
+					)
+					ret.ast = {
+						body,
+						env,
+						params,
+					}
+
+					origExp.evaluated = ret
+					return ret
+				}
+				case 'macroexpand':
+					return (origExp.evaluated = await macroexpand(exp.value[1], env))
+				case 'try': {
+					const [, testExp, catchExp] = exp.value
+					try {
+						const ret = await evalExp(testExp, env)
 						origExp.evaluated = ret
 						return ret
+					} catch (err) {
+						if (
+							MalList.isCallOf(catchExp, 'catch') &&
+							MalSymbol.is(catchExp.value[1])
+						) {
+							catchExp.value[1].evaluated = SpecialForms['catch'] as MalVal
+							const [, errSym, errBody] = catchExp.value
+
+							const message = MalString.create(
+								err instanceof Error ? err.message : 'Error'
+							)
+							const ret = await evalExp(
+								errBody,
+								new Env({
+									outer: env,
+									forms: [errSym],
+									exps: [message],
+									name: 'catch',
+								})
+							)
+							origExp.evaluated = ret
+							return ret
+						}
+						throw err
 					}
-					throw err
 				}
-			}
-			case 'do': {
-				if (exp.value.length === 1) {
-					return (origExp.evaluated = MalNil.create())
+				case 'do': {
+					if (exp.value.length === 1) {
+						return (origExp.evaluated = MalNil.create())
+					}
+					await evalExp(MalVector.create(exp.value.slice(1, -1)), env)
+					exp = exp.value[exp.value.length - 1]
+					continue TCO
 				}
-				await evalExp(MalVector.create(exp.value.slice(1, -1)), env)
-				exp = exp.value[exp.value.length - 1]
-				continue TCO
-			}
-			case 'if': {
-				const [, _test, thenExp, elseExp] = exp.value
-				const test = await evalExp(_test, env)
-				exp = test.value ? thenExp : elseExp || MalNil.create()
-				continue TCO
+				case 'if': {
+					const [, _test, thenExp, elseExp] = exp.value
+					const test = await evalExp(_test, env)
+					exp = test.value ? thenExp : elseExp || MalNil.create()
+					continue TCO
+				}
 			}
 		}
 		// Function Call
