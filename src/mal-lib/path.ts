@@ -1,10 +1,10 @@
 // /* eslint-ignore @typescript-eslint/no-use-before-define */
 // import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
-// import svgpath from 'svgpath'
+import svgpath from 'svgpath'
 // import Voronoi from 'voronoi'
-// import paper from 'paper'
-// import {PaperOffset, OffsetOptions} from 'paperjs-offset'
+import paper from 'paper'
+import {PaperOffset, OffsetOptions} from 'paperjs-offset'
 import {transformPath} from '@/path-utils'
 
 import {
@@ -14,18 +14,16 @@ import {
 	MalNumber,
 	MalKeyword,
 	MalVector,
+	MalMap,
 } from '@/mal/types'
 import {partition} from '@/utils'
 import {jsToMal} from '@/mal/reader'
-// import printExp from '@/mal/printer'
-// import {
-// 	PathType,
-// 	SegmentType,
-// 	iterateSegment,
-// 	Vec2,
-// 	convertToPath2D,
-// 	getSVGPathData,
-// } from '@/path-utils'
+import {
+	// 	iterateSegment,
+	// 	Vec2,
+	// 	convertToPath2D,
+	getSVGPathData,
+} from '@/path-utils'
 
 const EPSILON = 1e-5
 
@@ -57,25 +55,27 @@ function toPathVector(...arr: (string | number[])[]) {
 // 	return [K_PATH]
 // }
 
-// paper.setup(new paper.Size(1, 1))
+paper.setup(new paper.Size(1, 1))
 
-// const PaperPathCaches = new WeakMap<PathType, paper.CompoundPath>()
+const PaperPathCaches = new WeakMap<MalVector, paper.CompoundPath>()
 
-// function createPaperPath(path: PathType): paper.CompoundPath {
-// 	if (PaperPathCaches.has(path)) {
-// 		return PaperPathCaches.get(path) as paper.CompoundPath
-// 	}
+function createPaperPath(path: MalVector): paper.CompoundPath {
+	if (PaperPathCaches.has(path)) {
+		return PaperPathCaches.get(path) as paper.CompoundPath
+	}
 
-// 	if (path[0].toString().startsWith(K_PATH)) {
-// 		path = path.slice(1)
-// 	}
+	let elements = path.value
 
-// 	const svgpath = getSVGPathData(path)
-// 	const paperPath = new paper.CompoundPath(svgpath)
+	if (MalKeyword.isFor(elements[0], 'path')) {
+		elements = elements.slice(1)
+	}
 
-// 	PaperPathCaches.set(path, paperPath)
-// 	return paperPath
-// }
+	const svgpath = getSVGPathData(path)
+	const paperPath = new paper.CompoundPath(svgpath)
+
+	PaperPathCaches.set(path, paperPath)
+	return paperPath
+}
 
 // const canvasContext = (() => {
 // 	const canvas = document.createElement('canvas')
@@ -88,37 +88,37 @@ function toPathVector(...arr: (string | number[])[]) {
 // 	return ctx
 // })()
 
-// function getMalPathFromPaper(
-// 	_path: paper.CompoundPath | paper.PathItem
-// ): PathType {
-// 	const d = _path ? _path.pathData : ''
+function getMalPathFromPaper(
+	_path: paper.CompoundPath | paper.PathItem
+): MalVector {
+	const d = _path ? _path.pathData : ''
 
-// 	const path: PathType = createEmptyPath()
+	const path: (string | number[])[] = []
 
-// 	svgpath(d)
-// 		.abs()
-// 		.unarc()
-// 		.unshort()
-// 		.iterate((seg, _, x, y) => {
-// 			let cmd = MalKeyword.create(seg[0])
-// 			const pts = partition(2, seg.slice(1)) as number[][]
+	svgpath(d)
+		.abs()
+		.unarc()
+		.unshort()
+		.iterate((seg, _, x, y) => {
+			let cmd = seg[0]
+			const pts = partition(2, seg.slice(1)) as number[][]
 
-// 			switch (cmd) {
-// 				case K_H:
-// 					pts[0] = [pts[0][0], y]
-// 					cmd = K_L
-// 					break
-// 				case K_V:
-// 					pts[0] = [x, pts[0][0]]
-// 					cmd = K_L
-// 					break
-// 			}
+			switch (cmd) {
+				case 'H':
+					pts[0] = [pts[0][0], y]
+					cmd = 'L'
+					break
+				case 'V':
+					pts[0] = [x, pts[0][0]]
+					cmd = 'L'
+					break
+			}
 
-// 			path.push(cmd, ...pts)
-// 		})
+			path.push(cmd, ...pts)
+		})
 
-// 	return path
-// }
+	return toPathVector(...path)
+}
 
 // function getChildPaperPathByLength(path: paper.CompoundPath, offset: number) {
 // 	offset = clamp(offset, 0, path.length)
@@ -633,27 +633,33 @@ function pathArc(_center: MalVal, _r: MalVal, _start: MalVal, _end: MalVal) {
 	)
 }
 
-// function offset(d: number, path: PathType, ...args: MalVal[]) {
-// 	const options = {
-// 		join: 'round',
-// 		cap: 'round',
-// 		...createHashMap(args),
-// 	} as OffsetOptions
-// 	const paperPath = createPaperPath(path)
-// 	const offsetPath = PaperOffset.offset(paperPath, d, options)
-// 	return getMalPathFromPaper(offsetPath)
-// }
+function offset(_d: MalVal, path: MalVector, ...args: MalVal[]) {
+	const d = MalNumber.check(_d)
 
-// function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
-// 	const options = {
-// 		join: 'round',
-// 		cap: 'round',
-// 		...createHashMap(args),
-// 	} as OffsetOptions
-// 	const paperPath = createPaperPath(path)
-// 	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
-// 	return getMalPathFromPaper(offsetPath)
-// }
+	const options = {
+		join: 'round',
+		cap: 'round',
+		...MalMap.fromSeq(args).value,
+	} as OffsetOptions
+
+	const paperPath = createPaperPath(path)
+	const offsetPath = PaperOffset.offset(paperPath, d, options)
+	return getMalPathFromPaper(offsetPath)
+}
+
+function offsetStroke(_d: MalVal, path: MalVector, ...args: MalVal[]) {
+	const d = MalNumber.check(_d)
+
+	const options = {
+		join: 'round',
+		cap: 'round',
+		...MalMap.fromSeq(args).value,
+	} as OffsetOptions
+
+	const paperPath = createPaperPath(path)
+	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
+	return getMalPathFromPaper(offsetPath)
+}
 
 // /**
 //  * Trim path by relative length from each ends
@@ -861,8 +867,8 @@ const Exports = [
 
 	// 	['path/join', pathJoin],
 	// 	['path/to-beziers', toBeziers],
-	// 	['path/offset', offset],
-	// 	['path/offset-stroke', offsetStroke],
+	['path/offset', offset],
+	['path/offset-stroke', offsetStroke],
 	// 	['path/length', pathLength],
 	// 	['path/closed?', closedQ],
 

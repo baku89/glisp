@@ -73,13 +73,16 @@ export function transformPath(path: MalVector, transform: MalVector) {
 		  )
 }
 
-// export function getSVGPathData(path: MalVector) {
-// 	if (path[0].toString().startsWith(K_PATH)) {
-// 		path = path.slice(1)
-// 	}
+export function getSVGPathData(path: MalVector) {
+	let elements = path.value
+	if (MalKeyword.isFor(elements[0], 'elements')) {
+		elements = elements.slice(1)
+	}
 
-// 	return path.map(x => (MalKeyword.is(x as MalVal) ? x.slice(1) : x)).join(' ')
-// }
+	return elements
+		.map(p => (MalKeyword.is(p) ? p.value : p.toFloats().join(' ')))
+		.join(' ')
+}
 
 // const K_M = MalKeyword.create('M'),
 // 	K_L = MalKeyword.create('L'),
