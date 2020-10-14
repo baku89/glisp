@@ -92,9 +92,7 @@ export default class Scope {
 	}
 
 	private async initAsRepl() {
-		console.log('init')
 		await initReplScope(this)
-		console.log('end')
 	}
 
 	public static async createRepl() {
