@@ -298,7 +298,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 				case 'if': {
 					const [, _test, thenExp, elseExp] = exp.value
 					const test = await evalExp(_test, env)
-					exp = test.value ? thenExp : elseExp || MalNil.create()
+					exp = test.toBoolean() ? thenExp : elseExp || MalNil.create()
 					continue TCO
 				}
 			}

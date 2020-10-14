@@ -85,6 +85,10 @@ abstract class MalBase<T> {
 		throw new MalError('Cannot create array buffer')
 	}
 
+	toBoolean(): boolean {
+		return !!this._value
+	}
+
 	abstract readonly type: MalType
 
 	abstract print(readably?: boolean): string
