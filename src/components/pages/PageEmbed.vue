@@ -6,20 +6,16 @@
 		:class="{error: hasError}"
 	>
 		<div class="PageEmbed__editor">
-			<GlispEditor
-				:value="code"
-				@input="code = $event"
-				cssStyle="line-height: 1.5"
-			/>
+			<GlispEditor v-model="code" cssStyle="line-height: 1.5" />
 		</div>
 		<div class="PageEmbed__viewer">
-			<ViewCanvas
+			<!-- <ViewCanvas
 				:exp="viewExp"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
-			/>
+			/> -->
 		</div>
-		<a class="PageEmbed__open-editor" :href="editorURL" target="_blank">
+		<a class="PageEmbed__open-editor" @click="openEditor">
 			<i class="fas fa-external-link-alt"></i>
 		</a>
 	</div>
@@ -27,33 +23,23 @@
 
 <script lang="ts">
 import 'normalize.css'
-
-import {defineComponent, reactive, computed, watch, toRefs} from 'vue'
+import {
+	defineComponent,
+	reactive,
+	computed,
+	watch,
+	toRefs,
+	shallowRef,
+	ref,
+	Ref,
+} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import ViewCanvas from '@/components/ViewCanvas.vue'
+// import ViewCanvas from '@/components/ViewCanvas.vue'
 
-import {readStr} from '@/mal'
-import {MalVal} from '@/mal/types'
-
-import {printer} from '@/mal/printer'
-import {jsToMal, MalBlankException} from '@/mal/reader'
-import ViewScope from '@/scopes/view'
-import ConsoleScope from '@/scopes/console'
 import {computeTheme} from '@/theme'
-
-const OFFSET_START = 8 // length of "(sketch\n"
-const OFFSET_END = 2 // length of "/n)"
-
-interface Data {
-	code: string
-	exp: MalVal | undefined
-	viewExp: MalVal | undefined
-	hasError: boolean
-	hasParseError: boolean
-	hasEvalError: boolean
-	hasRenderError: boolean
-}
+import {MalNil, MalVal, MalVector} from '@/mal/types'
+import Scope from '@/mal/scope'
 
 interface UI {
 	background: string
@@ -61,126 +47,101 @@ interface UI {
 	guideColor: string
 }
 
-function parseURL(data: Data) {
+function parseURL(code: Ref<string>) {
 	// URL
 	const url = new URL(location.href)
 
 	// Load initial codes
-	let code = ''
+	let _code = ''
 
 	const queryCode = url.searchParams.get('code')
 
 	if (queryCode) {
-		code = decodeURI(queryCode)
+		_code = decodeURI(queryCode)
 		url.searchParams.delete('code')
 	}
 
-	data.code = code
+	code.value = _code
 }
 
 export default defineComponent({
 	name: 'PageEmbed',
 	components: {
 		GlispEditor,
-		ViewCanvas,
+		// ViewCanvas,
 	},
 	setup() {
+		// Scope
+		const scope = shallowRef<Scope | null>(null)
+
+		;(async () => {
+			const repl = await Scope.createRepl()
+			await repl.REP(`
+				(do
+					(import "math")
+					(import "color")
+					(import "path"))`)
+			scope.value = new Scope(repl, 'view')
+		})()
+
+		// Code
+		const code = ref('')
+		const viewExp = shallowRef<MalVal | undefined>(MalNil.create())
+
+		const hasReadEvalError = computed(() => !code.value)
+		const hasRenderError = ref(false)
+		const hasError = computed(
+			() => hasReadEvalError.value || hasRenderError.value
+		)
+
+		parseURL(code)
+
+		watch(
+			() => code.value,
+			async () => {
+				if (!scope.value) {
+					return MalVector.create()
+				}
+
+				const sc = scope.value
+
+				sc.setup()
+				sc.def('*guide-color*', ui.guideColor)
+				sc.def('*width*', 100)
+				sc.def('*height*', 100)
+				sc.def('*size*', [100, 100])
+
+				viewExp.value = await sc.readEval(`(do\n${code.value}\n)`)
+				console.log(viewExp.value)
+			}
+		)
+
+		// UI
 		const ui = reactive({
 			background: '#f8f8f8',
 			colors: computed(() => computeTheme(ui.background).colors),
 			guideColor: computed(() => ui.colors['--selection']),
 		}) as UI
 
-		const data: Data = reactive({
-			code: '',
-			exp: undefined,
-			hasError: computed(() => {
-				return data.hasParseError || data.hasEvalError || data.hasRenderError
-			}),
-			hasParseError: false,
-			hasEvalError: computed(() => data.viewExp === null),
-			hasRenderError: false,
-			viewExp: computed(() => {
-				return evalExp()
-			}),
-		}) as any
-
-		const editorURL = computed(() => {
-			// data.code
+		function openEditor() {
 			const url = new URL('.', location.href)
-			url.searchParams.set('code', data.code)
+			url.searchParams.set('code', code.value)
 
-			return url.toString()
-		})
-
-		function evalExp() {
-			const exp = data.exp
-
-			if (!exp) {
-				return []
-			}
-
-			ViewScope.setup({
-				guideColor: ui.guideColor,
-			})
-
-			ViewScope.def('*width*', jsToMal(100))
-			ViewScope.def('*height*', jsToMal(100))
-			ViewScope.def('*size*', jsToMal([100, 100]))
-
-			const viewExp = ViewScope.eval(exp)
-			if (viewExp !== undefined) {
-				ConsoleScope.def('*view*', viewExp)
-				return viewExp
-			} else {
-				return null
-			}
+			window.open(url.toString())
 		}
 
-		// Code <-> Exp Conversion
-		watch(
-			() => data.code,
-			code => {
-				const evalCode = `(sketch\n${code}\n)`
-				let exp
-				try {
-					exp = readStr(evalCode)
-				} catch (err) {
-					if (!(err instanceof MalBlankException)) {
-						printer.error(err)
-					}
-					data.hasParseError = true
-					return
-				}
-				data.hasParseError = false
-				data.exp = exp
-			}
-		)
-
-		watch(
-			() => data.exp,
-			() => {
-				if (data.exp) {
-					data.code = data.exp.print().slice(OFFSET_START, -OFFSET_END)
-				} else {
-					data.code = ''
-				}
-			}
-		)
-
-		parseURL(data)
-
 		return {
-			...toRefs(data as any),
+			code,
+			hasError,
 			...toRefs(ui as any),
-			editorURL,
+			openEditor,
 		}
 	},
 })
 </script>
 
 <style lang="stylus">
-@import './style/global.styl'
+@import '../style/global.styl'
 
 $compact-dur = 0.4s
 

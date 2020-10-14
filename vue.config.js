@@ -91,11 +91,11 @@ module.exports = {
 		// 	template: 'public/index.html',
 		// 	filename: 'index.html',
 		// },
-		// 'js/embed': {
-		// 	entry: 'src/pages/embed.ts',
-		// 	template: 'public/embed.html',
-		// 	filename: 'embed.html',
-		// },
+		'js/embed': {
+			entry: 'src/pages/embed.ts',
+			template: 'public/embed.html',
+			filename: 'embed.html',
+		},
 		'js/interpreter': {
 			entry: 'src/pages/interpreter.ts',
 			template: 'public/interpreter.html',

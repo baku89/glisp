@@ -2,8 +2,7 @@ import {createApp} from 'vue'
 import ResizeSensor from 'resize-sensor'
 import App from '@/components/pages/PageEmbed.vue'
 
-const app = createApp(App)
-app.mount('#app')
+createApp(App).mount('#app')
 
 const el = document.documentElement
 new ResizeSensor(el, () => {
