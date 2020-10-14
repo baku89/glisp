@@ -2,7 +2,11 @@
 	<div id="app" class="PageInterpreter" :style="{...theme, background}">
 		<Splitpanes class="default-theme">
 			<Pane class="PageInterpreter__pane">
-				<Console :scope="scope" @setup="onSetupConsole" />
+				<Console
+					v-if="isReplInitialized"
+					:scope="scope"
+					@setup="onSetupConsole"
+				/>
 			</Pane>
 			<Pane class="PageInterpreter__pane PageInterpreter__code">
 				<GlispEditor class="PageInterpreter__editor" v-model="code" />
@@ -17,14 +21,7 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {
-	computed,
-	defineAsyncComponent,
-	defineComponent,
-	ref,
-	shallowReactive,
-	shallowRef,
-} from 'vue'
+import {computed, defineComponent, ref, shallowRef} from 'vue'
 
 import useBind from '@/components/use/use-bind/index.ts'
 
@@ -55,11 +52,12 @@ export default defineComponent({
 		const scope = shallowRef<null | Scope>(null)
 		const code = ref('')
 		const clearCode = ref(false)
+		const isReplInitialized = ref(false)
 
 		const background = ref('#f8f8f8')
 		const theme = computed(() => computeTheme(background.value).colors)
 
-		async function onSetupConsole() {
+		;(async () => {
 			scope.value = await Scope.createRepl()
 
 			// Register as app command
@@ -72,6 +70,10 @@ export default defineComponent({
 
 			useBind(scope.value)
 
+			isReplInitialized.value = true
+		})()
+
+		function onSetupConsole() {
 			scope.value?.REP(`(str "Glisp [" *host-language* "]")`)
 		}
 
@@ -85,7 +87,16 @@ export default defineComponent({
 			return MalNil.create()
 		}
 
-		return {scope, code, clearCode, onSetupConsole, background, theme, runCode}
+		return {
+			scope,
+			code,
+			clearCode,
+			background,
+			isReplInitialized,
+			theme,
+			runCode,
+			onSetupConsole,
+		}
 	},
 })
 </script>
