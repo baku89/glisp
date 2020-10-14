@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {computed, defineComponent, ref, shallowRef} from 'vue'
+import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import useBind from '@/components/use/use-bind/index.ts'
 
@@ -61,12 +61,18 @@ export default defineComponent({
 			scope.value = await Scope.createRepl()
 
 			// Register as app command
-			scope.value?.def('run-code', runCode)
+			scope.value.def('run-code', runCode)
 
-			scope.value?.def('set-clear-code', (value: MalBoolean) => {
+			scope.value.def('set-clear-code', (value: MalBoolean) => {
 				clearCode.value = !!value.value
 				return MalNil.create()
 			})
+
+			watch(
+				() => code.value,
+				v => scope.value?.def('*code*', v),
+				{immediate: true}
+			)
 
 			useBind(scope.value)
 
