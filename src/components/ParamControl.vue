@@ -75,7 +75,7 @@ import {
 	SchemaVector,
 	Schema,
 } from '@/mal/schema'
-import { jsToMal } from '@/mal/reader'
+import { readJS } from '@/mal/reader'
 
 const TypeDefaults = {
 	number: MalNumber.create(0),
@@ -160,7 +160,7 @@ export default defineComponent({
 			}
 
 			// Convert to JS Object
-			let schema = jsToMal(malSchema)
+			let schema = readJS(malSchema)
 
 			// Add label
 			if (Array.isArray(schema)) {

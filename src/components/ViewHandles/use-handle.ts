@@ -4,7 +4,7 @@ import {
 	getFnInfo,
 	computeExpTransform,
 	replaceExp,
-	jsToMal,
+	readJS,
 	getExpByPath,
 } from '@/mal/utils'
 import {
@@ -259,8 +259,8 @@ export default function useHandle(
 
 		const eventInfo = MalMap.create({
 			id: handle.id === undefined ? MalNil.create() : handle.id,
-			pos: jsToMal(pos),
-			'prev-pos': jsToMal(prevPos),
+			pos: readJS(pos),
+			'prev-pos': readJS(prevPos),
 			params: MalVector.create(..._params),
 		})
 

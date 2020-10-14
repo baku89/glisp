@@ -23,7 +23,7 @@ import {
 import printExp, {printer} from '@/mal/printer'
 import {partition} from '@/utils'
 import isNodeJS from 'is-node'
-import readStr, {jsToMal, slurp} from '@/mal/reader'
+import readStr, {readJS, slurp} from '@/mal/reader'
 
 const Exports = [
 	['type', (x: MalVal) => MalKeyword.create(x.type)],
@@ -426,7 +426,7 @@ const Exports = [
 					ret.push(i)
 				}
 			}
-			return jsToMal(ret)
+			return readJS(ret)
 		},
 	],
 
@@ -482,7 +482,7 @@ const Exports = [
 	],
 
 	// Interop
-	['js-eval', (x: MalString) => jsToMal(eval(x.value))],
+	['js-eval', (x: MalString) => readJS(eval(x.value))],
 	[
 		'js-fn',
 		(x: MalString) => {
@@ -492,7 +492,7 @@ const Exports = [
 			}
 			return MalFn.create((...args: MalVal[]) => {
 				const ret = fn(...args.map(x => x.toJS()))
-				return jsToMal(ret)
+				return readJS(ret)
 			})
 		},
 	],
@@ -513,7 +513,7 @@ const Exp = MalList.create([
 		MalList.create([
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			jsToMal(body as any),
+			readJS(body as any),
 		])
 	),
 ])

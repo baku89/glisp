@@ -1,5 +1,5 @@
 import Env from './env'
-import readStr, {jsToMal, MalBlankException} from './reader'
+import readStr, {readJS, MalBlankException} from './reader'
 import evalExp from './eval'
 import initReplScope from './init-repl-scope'
 import {MalVal, MalError, MalNil, MalCallableValue} from './types'
@@ -76,7 +76,7 @@ export default class Scope {
 		name: string,
 		value: MalVal | number | string | boolean | MalCallableValue | any
 	) {
-		this.env.set(name, jsToMal(value as any))
+		this.env.set(name, readJS(value as any))
 	}
 
 	public pushBinding(env: Env) {

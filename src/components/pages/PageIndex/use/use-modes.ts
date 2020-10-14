@@ -6,7 +6,7 @@ import useMouseEvents from '@/components/use/use-mouse-events'
 import AppScope from '@/scopes/app'
 import {useKeyboardState} from '@/components/use'
 import {getHTMLElement} from '@/utils'
-import {jsToMal} from '@/mal/reader'
+import {readJS} from '@/mal/reader'
 
 const K_EVENT_TYPE = MalKeyword.create('event-type')
 const K_POS = MalKeyword.create('pos')
@@ -83,7 +83,7 @@ export function useModes(
 				K_EVENT_TYPE,
 				MalString.create(type),
 				K_POS,
-				jsToMal(pos.value),
+				readJS(pos.value),
 				K_MOUSE_PRESSED,
 				MalBoolean.create(mousePressed.value)
 			)

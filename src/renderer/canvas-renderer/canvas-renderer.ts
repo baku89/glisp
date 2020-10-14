@@ -1,7 +1,7 @@
 import {MalVal, MalMap} from '@/mal/types'
 import {ViewerSettings} from './index'
 import renderToContext from '../render-to-context'
-import {jsToMal} from '@/mal/reader'
+import {readJS} from '@/mal/reader'
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -63,7 +63,7 @@ export default class CanvasRenderer {
 
 		// default style
 		const defaultStyle: MalMap | null = settings.guideColor
-			? jsToMal({
+			? readJS({
 					stroke: true,
 					'stroke-color': settings.guideColor,
 					'stroke-width': 1,

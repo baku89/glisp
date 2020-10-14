@@ -12,7 +12,7 @@ import {
 	MalString,
 } from './types'
 import {getStructType} from './utils'
-import {jsToMal} from './reader'
+import {readJS} from './reader'
 
 interface SchemaBase {
 	type: string
@@ -478,7 +478,7 @@ function updateParamsByDynamicUISchema(
 	params[index] = value
 	const toParams = schema['to-params']
 
-	const ret = toParams.value(jsToMal({values: params}))
+	const ret = toParams.value(readJS({values: params}))
 	return MalVector.is(ret) ? ret : MalVector.create()
 }
 

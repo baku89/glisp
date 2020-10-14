@@ -282,24 +282,24 @@ export default function readStr(str: string): MalVal {
 	return exp
 }
 
-export function jsToMal(obj: number | MalNumber): MalNumber
-export function jsToMal(obj: string | MalString): MalString
-export function jsToMal(obj: MalKeyword): MalKeyword
-export function jsToMal(obj: MalSymbol): MalSymbol
-export function jsToMal(obj: boolean | MalBoolean): MalBoolean
-export function jsToMal(obj: null | undefined | MalNil): MalNil
-export function jsToMal(obj: MalCallableValue | MalFn): MalFn
-export function jsToMal(obj: MalList): MalList
-export function jsToMal(obj: any[] | Float32Array | MalVector): MalVector
-export function jsToMal(obj: {[k: string]: any} | MalMap): MalMap
-export function jsToMal(obj: MalAtom): MalAtom
-export function jsToMal(obj: any): MalVal {
+export function readJS(obj: number | MalNumber): MalNumber
+export function readJS(obj: string | MalString): MalString
+export function readJS(obj: MalKeyword): MalKeyword
+export function readJS(obj: MalSymbol): MalSymbol
+export function readJS(obj: boolean | MalBoolean): MalBoolean
+export function readJS(obj: null | undefined | MalNil): MalNil
+export function readJS(obj: MalCallableValue | MalFn): MalFn
+export function readJS(obj: MalList): MalList
+export function readJS(obj: any[] | Float32Array | MalVector): MalVector
+export function readJS(obj: {[k: string]: any} | MalMap): MalMap
+export function readJS(obj: MalAtom): MalAtom
+export function readJS(obj: any): MalVal {
 	if (isMal(obj)) {
 		// MalVal
 		return obj
 	} else if (Array.isArray(obj)) {
 		// Vector
-		return MalVector.create(obj.map(jsToMal))
+		return MalVector.create(obj.map(readJS))
 	} else if (obj instanceof Float32Array) {
 		// Numeric Vector
 		return MalVector.create(Array.from(obj).map(x => MalNumber.create(x)))
@@ -310,7 +310,7 @@ export function jsToMal(obj: any): MalVal {
 		// Map
 		const ret: {[k: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(obj)) {
-			ret[key] = jsToMal(value as any)
+			ret[key] = readJS(value as any)
 		}
 		return MalMap.create(ret)
 	} else if (obj === null || obj === undefined) {

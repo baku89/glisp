@@ -1,6 +1,6 @@
 import {vec2, mat2d} from 'gl-matrix'
 import {MalKeyword, MalVector} from '@/mal/types'
-import {jsToMal} from '@/mal/reader'
+import {readJS} from '@/mal/reader'
 
 export function isPath(exp: any): exp is MalVector {
 	return MalVector.is(exp) && MalKeyword.isFor(exp.value[0], 'path')
@@ -67,7 +67,7 @@ export function transformPath(path: MalVector, transform: MalVector) {
 		: MalVector.create(
 				path.value.map(p =>
 					MalVector.is(p)
-						? jsToMal(vec2.transformMat2d(vec2.create(), p.toFloats(), xform))
+						? readJS(vec2.transformMat2d(vec2.create(), p.toFloats(), xform))
 						: p
 				)
 		  )

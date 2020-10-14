@@ -12,7 +12,7 @@ import {
 	MalVal,
 } from '@/mal/types'
 import {partition} from '@/utils'
-import {jsToMal} from '@/mal/reader'
+import {readJS} from '@/mal/reader'
 
 const Exports = [
 	// Random
@@ -36,7 +36,7 @@ const Exports = [
 			const delaunay = Delaunator.from(
 				(pts.toJS() as any) as [number, number][]
 			)
-			return jsToMal(partition(3, delaunay.triangles))
+			return readJS(partition(3, delaunay.triangles))
 		},
 	],
 	[
@@ -60,7 +60,7 @@ Object.getOwnPropertyNames(Math).forEach(k => {
 	const malVal =
 		typeof fn === 'function'
 			? (...args: MalVal[]) => MalNumber.create(fn(...args.map(x => x.toJS())))
-			: jsToMal(fn)
+			: readJS(fn)
 	Exports.push([k, malVal])
 })
 
@@ -70,7 +70,7 @@ const Exp = MalList.create([
 		MalList.create([
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			jsToMal(body),
+			readJS(body),
 		])
 	),
 ])

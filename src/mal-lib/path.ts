@@ -17,7 +17,7 @@ import {
 	MalMap,
 } from '@/mal/types'
 import {partition} from '@/utils'
-import {jsToMal} from '@/mal/reader'
+import {readJS} from '@/mal/reader'
 import {
 	// 	iterateSegment,
 	// 	Vec2,
@@ -919,7 +919,7 @@ const Exp = MalList.fromSeq(
 		MalList.fromSeq(
 			MalSymbol.create('def'),
 			MalSymbol.create(sym),
-			jsToMal(body)
+			readJS(body)
 		)
 	)
 )
