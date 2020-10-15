@@ -508,6 +508,12 @@ const Exports = [
 	],
 
 	// Buffer
+	['buffer?', (x: MalVal) => MalBoolean.from(MalBuffer.is(x))],
+	[
+		'buffer-type',
+		(x: MalVal) =>
+			MalBuffer.is(x) ? MalString.from(x.bufferType) : MalNil.from(),
+	],
 	[
 		'buffer-f32',
 		(x: MalVal) => {
