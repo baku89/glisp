@@ -223,6 +223,9 @@ export class MalBoolean extends MalPrimBase<boolean> {
 	}
 }
 
+// eslint-disable-next-line no-useless-escape
+const SymbolKeywordRegex = /^[.:0-9()\[\]{}@^~'`,#\\]|[;\s]/
+
 export class MalKeyword extends MalPrimBase<string> {
 	readonly type = MalType.Keyword
 
@@ -244,6 +247,8 @@ export class MalKeyword extends MalPrimBase<string> {
 	}
 
 	static create(v = '_') {
+		if (SymbolKeywordRegex.test(v))
+			throw new MalError(`Cannot create a keyword with name "${v}"`)
 		return new this(v)
 	}
 
@@ -324,6 +329,8 @@ export class MalSymbol extends MalPrimBase<string> {
 	}
 
 	static create(v = '_') {
+		if (SymbolKeywordRegex.test(v))
+			throw new MalError(`Cannot create a symbol with name "${v}"`)
 		return new this(v)
 	}
 
