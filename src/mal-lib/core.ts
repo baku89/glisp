@@ -244,11 +244,21 @@ const Exports = [
 	],
 	[
 		'index-of',
-		(coll: MalSeq, a: MalString) => MalNumber.create(coll.value.indexOf(a)),
+		(coll: MalSeq, a: MalVal) =>
+			MalNumber.create(coll.value.findIndex(x => a.equals(x))),
 	],
 	[
 		'last-index-of',
-		(coll: MalSeq, a: MalString) => MalNumber.create(coll.value.lastIndexOf(a)),
+		(coll: MalSeq, a: MalVal) => {
+			let ret = -1
+			for (let i = coll.count; i >= 0; i--) {
+				if (a.equals(coll.get(i))) {
+					ret = i
+					break
+				}
+			}
+			return MalNumber.create(ret)
+		},
 	],
 	[
 		'repeat',
