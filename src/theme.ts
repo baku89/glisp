@@ -70,7 +70,7 @@ export function isValidColorString(str: string) {
 	return chroma.valid(str)
 }
 
-export function computeTheme(background: string): Theme {
+export function computeTheme(background: string): Theme | null {
 	function fit(
 		value: number,
 		min0: number,
@@ -86,7 +86,12 @@ export function computeTheme(background: string): Theme {
 		)
 	}
 
+	if (!chroma.valid(background)) {
+		return null
+	}
+
 	let bg = chroma(background)
+
 	const [, s, v] = bg.hsv()
 	const dark = bg.get('lab.l') < 55
 	const colors = dark ? TOMORROW_NIGHT_BRIGHT : TOMORROW

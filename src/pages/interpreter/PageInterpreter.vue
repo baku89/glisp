@@ -57,7 +57,7 @@ export default defineComponent({
 		const isRecordingBind = ref(false)
 
 		const background = ref('#f8f8f8')
-		const theme = computed(() => computeTheme(background.value).colors)
+		const theme = computed(() => computeTheme(background.value)?.colors)
 
 		;(async () => {
 			scope.value = await Scope.createRepl()

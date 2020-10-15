@@ -104,7 +104,7 @@ export default defineComponent({
 		// UI
 		const ui = reactive({
 			background: '#f8f8f8',
-			colors: computed(() => computeTheme(ui.background).colors),
+			colors: computed(() => computeTheme(ui.background)?.colors),
 			guideColor: computed(() => ui.colors['--selection']),
 		}) as UI
 
