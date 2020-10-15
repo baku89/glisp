@@ -27,27 +27,27 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (!isPair(exp)) {
-		const ret = MalList.create([MalSymbol.create('quote'), exp])
+		const ret = MalList.fromSeq(MalSymbol.create('quote'), exp)
 		ret.sugar = "'"
 		return ret
 	}
 
-	if (MalSymbol.isFor(exp.value[0], 'unquote')) {
-		return exp.value[1]
+	if (MalList.isCallOf(exp, 'unquote')) {
+		return exp.rest[0]
 	}
 
-	const ret = MalList.create([
+	const ret = MalList.fromSeq(
 		MalSymbol.create('concat'),
 		...exp.value.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
-				return e.value[1]
+				return e.rest[0]
 			} else {
 				return MalVector.create([quasiquote(e)])
 			}
-		}),
-	])
+		})
+	)
 
-	return MalList.is(exp) ? MalList.create([MalSymbol.create('lst'), ret]) : ret
+	return MalList.is(exp) ? MalList.fromSeq(MalSymbol.create('lst'), ret) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
 		return isMalSeq(x) && x.value.length > 0
