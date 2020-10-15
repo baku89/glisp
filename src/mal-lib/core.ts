@@ -301,7 +301,7 @@ const Exports = [
 	],
 
 	// Map
-	['hash-map', (...pairs: MalVal[]) => MalMap.fromSeq(pairs)],
+	['hash-map', (...pairs: MalVal[]) => MalMap.of(pairs)],
 	[
 		'assoc',
 		(m: MalVal, ...pairs: MalVal[]) => {
@@ -309,7 +309,7 @@ const Exports = [
 				case MalType.Map:
 					return m.assoc(pairs)
 				case MalType.Nil:
-					return MalMap.fromSeq(pairs)
+					return MalMap.of(pairs)
 				default:
 					throw new MalError(
 						`Cannot apply assoc to ${m.print()} ${pairs

@@ -60,7 +60,7 @@ abstract class MalBase<T> {
 				break
 			case MalType.Keyword:
 			case MalType.String:
-				v._meta = MalMap.fromSeq([meta, MalBoolean.from(true)])
+				v._meta = MalMap.of([meta, MalBoolean.from(true)])
 				break
 			default:
 				throw new Error('Metadata must be Symbol, Keyword, String or Map')
@@ -467,7 +467,7 @@ export class MalList extends MalSeqBase {
 		return new this(v)
 	}
 
-	static fromSeq(...xs: MalVal[]) {
+	static of(...xs: MalVal[]) {
 		return new this(xs)
 	}
 
@@ -508,7 +508,7 @@ export class MalVector extends MalSeqBase {
 		return new this(v)
 	}
 
-	static fromSeq(...xs: MalVal[]) {
+	static of(...xs: MalVal[]) {
 		return new this(xs)
 	}
 
@@ -668,7 +668,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return new this(v)
 	}
 
-	static fromSeq(pairs: MalVal[]) {
+	static of(pairs: MalVal[]) {
 		return new this(this.createValue(pairs))
 	}
 

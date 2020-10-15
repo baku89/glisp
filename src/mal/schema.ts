@@ -416,7 +416,7 @@ function updateParamsByFixedUISchema(
 
 	if (lastSchema.variadic && lastSchema.type === 'map') {
 		const restPos = schemaParams.length - 1
-		const restMap = MalMap.fromSeq(params.slice(restPos)).value
+		const restMap = MalMap.of(params.slice(restPos)).value
 		const newParams = [...params.slice(0, restPos)]
 		const items = lastSchema.items
 

@@ -51,14 +51,10 @@ const Exports = [
 	],
 ] as [string, MalCallableValue][]
 
-const Exp = MalList.fromSeq(
+const Exp = MalList.of(
 	MalSymbol.from('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.fromSeq(
-			MalSymbol.from('def'),
-			MalSymbol.from(sym),
-			MalFn.from(body)
-		)
+		MalList.of(MalSymbol.from('def'), MalSymbol.from(sym), MalFn.from(body))
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp

@@ -41,12 +41,12 @@ const UNIT_QUAD_BEZIER = new Bezier([
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function toPathVector(...arr: (string | number[])[]) {
-	return MalVector.fromSeq(
+	return MalVector.of(
 		MalKeyword.from('path'),
 		...arr.map(p =>
 			typeof p === 'string'
 				? MalKeyword.from(p)
-				: MalVector.fromSeq(MalNumber.from(p[0]), MalNumber.from(p[1]))
+				: MalVector.of(MalNumber.from(p[0]), MalNumber.from(p[1]))
 		)
 	)
 }
@@ -639,7 +639,7 @@ function offset(_d: MalVal, path: MalVector, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...MalMap.fromSeq(args).value,
+		...MalMap.of(args).value,
 	} as OffsetOptions
 
 	const paperPath = createPaperPath(path)
@@ -653,7 +653,7 @@ function offsetStroke(_d: MalVal, path: MalVector, ...args: MalVal[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
-		...MalMap.fromSeq(args).value,
+		...MalMap.of(args).value,
 	} as OffsetOptions
 
 	const paperPath = createPaperPath(path)
@@ -913,10 +913,10 @@ const Exports = [
 	// 	['path/intersections', intersections],
 ] as [string, any][]
 
-const Exp = MalList.fromSeq(
+const Exp = MalList.of(
 	MalSymbol.from('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.fromSeq(MalSymbol.from('def'), MalSymbol.from(sym), readJS(body))
+		MalList.of(MalSymbol.from('def'), MalSymbol.from(sym), readJS(body))
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp

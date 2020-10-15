@@ -27,7 +27,7 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	if (!isPair(exp)) {
-		const ret = MalList.fromSeq(MalSymbol.from('quote'), exp)
+		const ret = MalList.of(MalSymbol.from('quote'), exp)
 		ret.sugar = "'"
 		return ret
 	}
@@ -36,7 +36,7 @@ function quasiquote(exp: MalVal): MalVal {
 		return exp.rest[0]
 	}
 
-	const ret = MalList.fromSeq(
+	const ret = MalList.of(
 		MalSymbol.from('concat'),
 		...exp.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
@@ -47,7 +47,7 @@ function quasiquote(exp: MalVal): MalVal {
 		})
 	)
 
-	return MalList.is(exp) ? MalList.fromSeq(MalSymbol.from('lst'), ret) : ret
+	return MalList.is(exp) ? MalList.of(MalSymbol.from('lst'), ret) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
 		return isMalSeq(x) && x.count > 0

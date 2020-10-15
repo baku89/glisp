@@ -210,7 +210,7 @@ function readList(reader: Reader) {
 // read hash-map key/value pairs
 function readMap(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '{', '}')
-	const map = MalMap.fromSeq(coll)
+	const map = MalMap.of(coll)
 	map.delimiters = delimiters
 	return map
 }
