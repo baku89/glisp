@@ -392,7 +392,7 @@
 ;;   :params [{:label "Matrix" :type "mat2d"}
 ;;            {:label "Path" :type "path"}]
 ;;   :viewport-transform (fn [xform & body]
-;;                         `[nil ~@(repeat xform (count body))])
+;;                         `[nil ~@(repeat (count body) xform)])
 ;;   :return {:type "path"}})
 
 ;; (defn path/merge

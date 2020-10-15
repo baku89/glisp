@@ -216,19 +216,10 @@ const Exports = [
 	[
 		'map',
 		async (f: MalFn, coll: MalSeq) => {
+			const _f = MalFn.check(f)
 			const arr = []
 			for (let i = 0, l = coll.count; i < l; i++) {
-				arr.push(await f.value(coll.get(i), MalNumber.create(i)))
-			}
-			return MalVector.create(arr)
-		},
-	],
-	[
-		'map-indexed',
-		async (f: MalFn, coll: MalSeq) => {
-			const arr = []
-			for (let i = 0; i < coll.count; i++) {
-				arr.push(await f.value(MalNumber.create(i), coll.get(i)))
+				arr.push(await _f(coll.get(i), MalNumber.create(i)))
 			}
 			return MalVector.create(arr)
 		},
@@ -261,7 +252,7 @@ const Exports = [
 	],
 	[
 		'repeat',
-		(a: MalVal, n: MalNumber) =>
+		(n: MalNumber, a: MalVal) =>
 			MalVector.create(Array(n).map(() => a.clone())),
 	],
 	['reverse', (coll: MalSeq) => MalVector.create([...coll.value].reverse())],

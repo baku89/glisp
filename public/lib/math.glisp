@@ -727,7 +727,7 @@
              :drag (fn {:pos p :params [_ & xs]}
                      `(~p ~@xs))}
    :viewport-transform (fn [p & xs]
-                         `[nil ~@(repeat (translate p) (count xs))])}
+                         `[nil ~@(repeat (count xs) (translate p))])}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/scale p -1))]

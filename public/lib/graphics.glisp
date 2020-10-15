@@ -168,8 +168,8 @@
 ;;              :items {:label "Body" :type "exp"}}]
 ;;    :viewport-transform (fn [attrs & body]
 ;;                          (if (contains? attrs :transform)
-;;                            (spy `[nil ~@(repeat (get attrs :transform)
-;;                                                 (count body))])))}
+;;                            (spy `[nil ~@(repeat (count body)
+;;                                                 (get attrs :transform))])))}
 ;;   [attrs & body]
 ;;   (let [attr-transform (get attrs :transform)
 ;;         attr-style (get attrs :style)]
@@ -195,7 +195,7 @@
 ;;              :variadic true
 ;;              :items {:label "Body" :type "exp"}}]
 ;;    :viewport-transform (fn [xform & body]
-;;                          `[nil ~@(repeat xform (count body))])
+;;                          `[nil ~@(repeat (count body) xform)])
 ;;    :transform (fn {:params [xform & body]
 ;;                    :transform delta-xform}
 ;;                 {:replace [0 (mat2d/* xform delta-xform)]})
