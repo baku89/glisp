@@ -2,7 +2,12 @@
 	<button class="InputRotery" :class="{tweaking: drag.isDragging}" ref="el">
 		<span
 			class="InputRotery__body"
-			:style="{transform: `rotate(${modelValue}rad)`}"
+			@mouseenter="tweakMode = 'absolute'"
+			@mouseleave="!drag.isDragging ? (tweakMode = 'relative') : null"
+			:style="{
+				transform: `rotate(${modelValue}rad)`,
+				background: tweakMode === 'absolute' ? 'red !important' : 'none',
+			}"
 		/>
 	</button>
 </template>
@@ -31,10 +36,6 @@ export default defineComponent({
 			disableClick: true,
 			onDragStart({pos}) {
 				const angle = Math.atan2(pos[1], pos[0])
-
-				const isAbsolute = Math.abs(angle - props.modelValue) < Math.PI / 4
-
-				tweakMode.value = isAbsolute ? 'absolute' : 'relative'
 			},
 			onDrag({pos, prevPos}) {
 				let newValue: number
@@ -52,6 +53,7 @@ export default defineComponent({
 				context.emit('update:modelValue', newValue)
 			},
 			onDragEnd() {
+				tweakMode.value = 'relative'
 				context.emit('end-tweak')
 			},
 		})
@@ -59,6 +61,7 @@ export default defineComponent({
 		return {
 			el,
 			drag,
+			tweakMode,
 		}
 	},
 })
@@ -69,6 +72,7 @@ export default defineComponent({
 
 .InputRotery
 	position relative
+	overflow hidden
 	padding 0
 	width $button-height
 	height $button-height
@@ -81,20 +85,27 @@ export default defineComponent({
 		transform scale(3)
 
 	&__body
+		position absolute
+		top 30%
+		left 50%
 		display block
-		width 100%
-		height 100%
-		pointer-events none
+		width 52%
+		height 40%
+		border-radius 50% 0 0 50%
+		background rgba(0, 0, 255, 0.1)
+		transform-origin 0 50%
 
+		// pointer-events none
 		&:before
 			position absolute
 			top calc(50% - 0.25px)
-			left 50%
+			left 0
 			display block
-			width 50%
+			width 100%
 			height 0.5px
 			background var(--background)
 			content ''
+			pointer-events none
 
 	&:hover, &:focus, &.tweaking
 		background var(--hover)
