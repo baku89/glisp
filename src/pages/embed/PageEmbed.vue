@@ -127,7 +127,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../style/global.styl'
+@import '../../components/style/global.styl'
 
 $compact-dur = 0.4s
 

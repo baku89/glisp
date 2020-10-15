@@ -115,8 +115,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../style/common.styl'
-@import '../style/global.styl'
+@import '../../components/style/common.styl'
+@import '../../components/style/global.styl'
 
 .PageInterpreter
 	height 100vh

@@ -87,17 +87,17 @@ module.exports = {
 	},
 	pages: {
 		// 'js/index': {
-		// 	entry: 'src/pages/index.ts',
+		// 	entry: 'src/pages/index/index.ts',
 		// 	template: 'public/index.html',
 		// 	filename: 'index.html',
 		// },
 		'js/embed': {
-			entry: 'src/pages/embed.ts',
+			entry: 'src/pages/embed/index.ts',
 			template: 'public/embed.html',
 			filename: 'embed.html',
 		},
 		'js/interpreter': {
-			entry: 'src/pages/interpreter.ts',
+			entry: 'src/pages/interpreter/index.ts',
 			template: 'public/interpreter.html',
 			filename: 'interpreter.html',
 		},

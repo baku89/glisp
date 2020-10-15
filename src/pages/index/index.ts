@@ -1,5 +1,5 @@
 import {createApp} from 'vue'
-import App from '@/components/pages/PageIndex'
+import App from './PageIndex'
 
 createApp(App).mount('#app')
 
