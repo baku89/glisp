@@ -43,5 +43,5 @@ export default defineComponent({
 	cursor pointer
 
 	&:hover, &:focus
-		color var(--hover)
+		color var(--highlight)
 </style>

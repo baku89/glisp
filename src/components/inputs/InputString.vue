@@ -82,7 +82,7 @@ export default defineComponent({
 	color var(--syntax-string)
 
 	&:focus
-		box-shadow 0 0 0 1px var(--hover)
+		box-shadow 0 0 0 1px var(--highlight)
 
 	&.exp
 		color var(--red)

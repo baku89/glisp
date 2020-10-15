@@ -29,12 +29,12 @@ export default defineComponent({
 <style lang="stylus" scoped>
 .GlobalSubmenu
 	position relative
+	z-index 100
 	border 1px solid var(--border)
 	border-radius 0.3rem
 	background var(--opaque)
 	white-space nowrap
 	user-select none
-	z-index 100
 
 	&__item
 		padding 0 1rem
@@ -46,7 +46,7 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			color var(--hover)
+			color var(--highlight)
 
 		&:last-child
 			border none

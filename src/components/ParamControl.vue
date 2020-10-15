@@ -336,7 +336,7 @@ export default defineComponent({
 				font-monospace()
 
 			&:hover
-				color var(--hover)
+				color var(--highlight)
 
 			&:after
 				position absolute

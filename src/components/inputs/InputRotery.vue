@@ -108,7 +108,7 @@ export default defineComponent({
 			pointer-events none
 
 	&:hover, &:focus, &.tweaking
-		background var(--hover)
+		background var(--highlight)
 
 		~/__body:before
 			background var(--background)

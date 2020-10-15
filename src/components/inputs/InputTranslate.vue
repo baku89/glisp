@@ -93,10 +93,10 @@ export default defineComponent({
 	input-transition(background)
 
 	&:focus
-		background var(--hover)
+		background var(--highlight)
 
 	&:hover, &.dragging
-		background var(--hover)
+		background var(--highlight)
 
 	&:before, &:after
 		position absolute

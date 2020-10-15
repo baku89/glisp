@@ -155,7 +155,7 @@ export default defineComponent({
 			input-transition(opacity)
 
 		~/.tweaking &
-			border-right-color var(--hover)
+			border-right-color var(--highlight)
 
 			&:after
 				opacity 0.1

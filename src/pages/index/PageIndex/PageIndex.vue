@@ -477,7 +477,7 @@ html, body
 				width auto
 
 			&:hover
-				background var(--hover)
+				background var(--highlight)
 				transform scale(1.1)
 
 			& > .icon

@@ -78,7 +78,7 @@ export default defineComponent({
 
 		&:hover, &:focus
 			&:after
-				border-color var(--hover)
+				border-color var(--highlight)
 
 	&__color-preview
 		position absolute
