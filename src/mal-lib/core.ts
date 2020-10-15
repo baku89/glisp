@@ -217,8 +217,8 @@ const Exports = [
 		'map',
 		async (f: MalFn, coll: MalSeq) => {
 			const arr = []
-			for (const x of coll.value) {
-				arr.push(await f.value(x))
+			for (let i = 0, l = coll.count; i < l; i++) {
+				arr.push(await f.value(coll.get(i), MalNumber.create(i)))
 			}
 			return MalVector.create(arr)
 		},
@@ -404,20 +404,20 @@ const Exports = [
 	// Other useful functions in JS
 	[
 		'range',
-		(...args: MalNumber[]) => {
+		(...args: MalVal[]) => {
 			const ret = []
 			let start = 0,
 				end = 0,
 				step = Math.sign(end - start)
 			if (args.length === 1) {
-				end = args[0].value
+				end = MalNumber.check(args[0])
 			} else if (args.length === 2) {
-				start = args[0].value
-				end = args[1].value
+				start = MalNumber.check(args[0])
+				end = MalNumber.check(args[1])
 			} else {
-				start = args[0].value
-				end = args[1].value
-				step = args[2].value
+				start = MalNumber.check(args[0])
+				end = MalNumber.check(args[1])
+				step = MalNumber.check(args[2])
 			}
 			if (start !== end) {
 				if ((end - start) * step <= 0) {

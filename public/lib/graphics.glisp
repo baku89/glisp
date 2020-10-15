@@ -393,7 +393,7 @@
 ;;              :variadic true
 ;;              :items {:label "Point" :type "vec2"}}]
 ;;    :handles {:draw (fn {:params pts}
-;;                      (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
+;;                      (map (fn [p i] {:id i :type "point" :pos p}) pts))
 ;;              :drag (fn {:id i :pos p}
 ;;                      {:replace [i p]})}}
 ;;   [& pts]

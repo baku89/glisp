@@ -170,8 +170,8 @@
                  gen-lst `(combination/product ~@colls)
                  index-sym (get options :index)]
              (if index-sym
-               `(map-indexed (fn [~index-sym ~syms]
-                               (do ~@body)) ~gen-lst)
+               `(map (fn [~syms ~index-sym]
+                       (do ~@body)) ~gen-lst)
                `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
 
 (defmacro case

@@ -39,8 +39,8 @@
        (apply
         str
         (remove nil?
-                (map-indexed
-                 (fn [i p]
+                (map
+                 (fn [p i]
                    (gen-param-column
                     i p (and (> i 0)
                              (= & (nth params (dec i))))))
