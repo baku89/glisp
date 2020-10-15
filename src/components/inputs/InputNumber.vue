@@ -47,8 +47,8 @@ export default defineComponent({
 			onDragStart() {
 				startValue = props.modelValue
 			},
-			onDrag({deltaX}) {
-				let inc = deltaX / 5
+			onDrag({delta}) {
+				let inc = delta[0] / 5
 
 				if (shift.value) {
 					inc *= 10

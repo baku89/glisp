@@ -4,6 +4,9 @@ use-number()
 	position relative
 	font-monospace()
 
+	&.tweaking
+		user-select none
+
 	&__drag
 		position absolute
 		top 0
@@ -12,7 +15,7 @@ use-number()
 		width 100%
 		height 100%
 		border 1px solid transparent
-		border-radius 2px
+		border-radius $border-radius
 		input-transition(border-color)
 		input-border()
 
@@ -33,6 +36,9 @@ use-number()
 		/* Firefox */
 		&[type=number]
 			-moz-appearance textfield
+
+		&:focus, ~/.tweaking &
+			box-shadow 0 0 0 1px var(--hover)
 
 	&.exp &__input
 		color var(--red)

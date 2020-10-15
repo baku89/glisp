@@ -1,10 +1,10 @@
 <template>
-	<button
-		class="InputRotery"
-		:class="{dragging: drag.isDragging}"
-		:style="{transform: `rotate(${modelValue}rad)`}"
-		ref="el"
-	/>
+	<button class="InputRotery" :class="{tweaking: drag.isDragging}" ref="el">
+		<span
+			class="InputRotery__body"
+			:style="{transform: `rotate(${modelValue}rad)`}"
+		/>
+	</button>
 </template>
 
 <script lang="ts">
@@ -20,24 +20,36 @@ export default defineComponent({
 			required: true,
 		},
 	},
+	emits: ['update:modelValue', 'end-tweak'],
 	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
 
+		const tweakMode = ref<'relative' | 'absolute'>('relative')
+
 		const drag = useDraggable(el, {
 			coordinate: 'center',
-			onDrag({x, y, prevX, prevY}) {
-				const prevAngle = Math.atan2(prevY, prevX)
+			disableClick: true,
+			onDragStart({pos}) {
+				const angle = Math.atan2(pos[1], pos[0])
 
-				const alignedPos = vec2.rotate(
-					vec2.create(),
-					[x, y] as vec2,
-					[0, 0],
-					-prevAngle
-				)
-				const delta = Math.atan2(alignedPos[1], alignedPos[0])
-				const modelValue = props.modelValue + delta
+				const isAbsolute = Math.abs(angle - props.modelValue) < Math.PI / 4
 
-				context.emit('update:modelValue', modelValue)
+				tweakMode.value = isAbsolute ? 'absolute' : 'relative'
+			},
+			onDrag({pos, prevPos}) {
+				let newValue: number
+
+				if (tweakMode.value === 'relative') {
+					// Relative
+					const prevAngle = Math.atan2(prevPos[1], prevPos[0])
+					const alignedPos = vec2.rotate(vec2.create(), pos, [0, 0], -prevAngle)
+					const delta = Math.atan2(alignedPos[1], alignedPos[0])
+					newValue = props.modelValue + delta
+				} else {
+					// Absolute
+					newValue = Math.atan2(pos[1], pos[0])
+				}
+				context.emit('update:modelValue', newValue)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
@@ -57,24 +69,36 @@ export default defineComponent({
 
 .InputRotery
 	position relative
+	padding 0
 	width $button-height
 	height $button-height
 	border-radius 50%
 	background var(--button)
+	transition all 0.1s cubic-bezier(0.25, 0.1, 0, 1)
 
-	&:before
-		position absolute
-		top calc(50% - 0.25px)
-		left 50%
+	&:hover, &.tweaking
+		opacity 0.8
+		transform scale(3)
+
+	&__body
 		display block
-		width 50%
-		height 0.5px
-		background var(--background)
-		content ''
-
-	&:hover, &:focus, &.dragging
-		background var(--hover)
+		width 100%
+		height 100%
+		pointer-events none
 
 		&:before
+			position absolute
+			top calc(50% - 0.25px)
+			left 50%
+			display block
+			width 50%
+			height 0.5px
+			background var(--background)
+			content ''
+
+	&:hover, &:focus, &.tweaking
+		background var(--hover)
+
+		~/__body:before
 			background var(--background)
 </style>

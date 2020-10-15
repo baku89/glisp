@@ -9,7 +9,9 @@
 			@keydown="onKeydown"
 			ref="inputEl"
 		/>
-		<div class="InputSlider__slider" :style="sliderStyle" />
+		<div class="InputSlider__slider-wrapper">
+			<div class="InputSlider__slider" :style="sliderStyle" />
+		</div>
 	</div>
 </template>
 
@@ -58,10 +60,11 @@ export default defineComponent({
 			onDragStart() {
 				startValue = props.modelValue
 			},
-			onDrag({deltaX}) {
+			onDrag({delta}) {
 				if (!dragEl.value) return
 
-				let inc = ((props.max - props.min) * deltaX) / dragEl.value.clientWidth
+				let inc =
+					((props.max - props.min) * delta[0]) / dragEl.value.clientWidth
 
 				if (shift.value) {
 					inc *= 10
@@ -121,7 +124,15 @@ export default defineComponent({
 .InputSlider
 	width 12.6rem
 	use-number()
-	overflow hidden
+
+	&__slider-wrapper
+		position absolute
+		top 0
+		left 0
+		overflow hidden
+		width 100%
+		height 100%
+		border-radius $border-radius
 
 	&__slider
 		position absolute

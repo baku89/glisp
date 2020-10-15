@@ -81,6 +81,9 @@ export default defineComponent({
 	width 12.6rem
 	color var(--syntax-string)
 
+	&:focus
+		box-shadow 0 0 0 1px var(--hover)
+
 	&.exp
 		color var(--red)
 

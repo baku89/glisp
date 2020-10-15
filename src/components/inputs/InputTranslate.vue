@@ -26,20 +26,17 @@ export default defineComponent({
 	setup(props, context) {
 		const el = ref<null | HTMLElement>(null)
 
-		function update(deltaX: number, deltaY: number) {
+		function update(delta: vec2) {
 			const newValue = vec2.fromValues(props.modelValue[0], props.modelValue[1])
-
-			newValue[0] += deltaX
-			newValue[1] += deltaY
-
+			vec2.add(newValue, newValue, delta)
 			context.emit('update:modelValue', newValue)
 		}
 
 		const drag = useDraggable(el, {
-			onDrag({isDragging, deltaX, deltaY}) {
+			onDrag({isDragging, delta}) {
 				if (!isDragging) return
 
-				update(deltaX, deltaY)
+				update(delta)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
@@ -61,16 +58,16 @@ export default defineComponent({
 
 				switch (key) {
 					case 'left':
-						update(-inc, 0)
+						update([-inc, 0])
 						break
 					case 'right':
-						update(inc, 0)
+						update([inc, 0])
 						break
 					case 'up':
-						update(0, -inc)
+						update([0, -inc])
 						break
 					case 'down':
-						update(0, inc)
+						update([0, inc])
 				}
 			}
 		}
