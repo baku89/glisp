@@ -1,5 +1,5 @@
 <template>
-	<div class="PageUI" :style="{...theme.colors, background}">
+	<div class="PageUI" :style="{...themeCssStyle, background}">
 		<div class="PageUI__content">
 			<section class="PageUI__section">
 				<h2>Theme</h2>
@@ -79,6 +79,8 @@
 <script lang="ts">
 import 'normalize.css'
 
+import useTheme from '@/components/use/use-themes'
+
 import {computeTheme} from '@/theme'
 import {computed, defineComponent, reactive, ref, watch} from 'vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
@@ -106,14 +108,7 @@ export default defineComponent({
 	},
 	setup() {
 		const background = ref('#f8f8f8')
-		const theme = ref(computeTheme(background.value))
-
-		watch(background, () => {
-			const ret = computeTheme(background.value)
-			if (ret) {
-				theme.value = ret
-			}
-		})
+		const {cssStyle: themeCssStyle} = useTheme(background)
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -138,7 +133,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {background, theme, inputValues, action}
+		return {background, themeCssStyle, inputValues, action}
 	},
 })
 </script>
@@ -188,7 +183,7 @@ export default defineComponent({
 		& > dt
 			padding-right 1em
 			width 5.5rem
-			color var(--comment)
+			color var(--label)
 
 		& > dd
 			display flex
@@ -198,7 +193,7 @@ export default defineComponent({
 
 			& > span
 				margin-left 1em
-				color var(--comment)
+				color var(--label)
 				font-monospace()
 
 		& > *
