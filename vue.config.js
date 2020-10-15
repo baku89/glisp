@@ -95,11 +95,13 @@ module.exports = {
 			entry: 'src/pages/embed/index.ts',
 			template: 'public/embed.html',
 			filename: 'embed.html',
+			title: "'(glisp/embed)",
 		},
 		'js/interpreter': {
 			entry: 'src/pages/interpreter/index.ts',
 			template: 'public/interpreter.html',
 			filename: 'interpreter.html',
+			title: "'(glisp/interpreter)",
 		},
 	},
 }
