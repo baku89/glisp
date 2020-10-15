@@ -53,8 +53,8 @@
 (defn capital-case [text]
   (if (= 1 (count text))
     text
-    (str (upper-case (subs text 0 1))
-         (subs text 1))))
+    (str (upper-case (slice text 0 1))
+         (slice text 1))))
 
 (defn gen-doc [sym m f]
   (apply

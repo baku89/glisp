@@ -3676,7 +3676,7 @@ function quasiquote(exp) {
         return Object(_types__WEBPACK_IMPORTED_MODULE_0__["isMalSeq"])(x) && x.value.length > 0;
     }
 }
-function macroexpand(_exp, env) {
+async function macroexpand(_exp, env) {
     let exp = _exp;
     let fn;
     while (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp) &&
@@ -3686,18 +3686,25 @@ function macroexpand(_exp, env) {
             break;
         }
         exp.first.evaluated = fn;
-        exp = fn.value.apply({ callerEnv: env }, exp.rest);
+        exp = await fn.value(...exp.rest);
     }
     // if (exp !== _exp && MalList.is(_exp)) {
     // 	setExpandInfo(_exp, {type: ExpandType.Constant, exp})
     // }
     return exp;
 }
-function getUnnamedParamsInfo(exp) {
+function generateUnnamedParams(exp) {
     // Traverse body
     let paramCount = 0, hasRest = false;
     traverse(exp);
-    return { paramCount, hasRest };
+    const params = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create();
+    for (let i = 1; i <= paramCount; i++) {
+        params.value.push(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create(`%${i}`));
+    }
+    if (hasRest) {
+        params.value.push(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('&'), _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('%&'));
+    }
+    return params;
     function traverse(exp) {
         switch (exp.type) {
             case _types__WEBPACK_IMPORTED_MODULE_0__["MalType"].List:
@@ -3721,23 +3728,35 @@ function getUnnamedParamsInfo(exp) {
         }
     }
 }
-function evalExp(exp, env) {
+async function evalExp(exp, env) {
     const origExp = exp;
     let counter = 0;
-    while (counter++ < 1e7) {
+    TCO: while (counter++ < 1e7) {
         // Expand macro
-        exp = macroexpand(exp, env);
+        exp = await macroexpand(exp, env);
         // evalAtom
         if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].is(exp)) {
             let ret;
-            if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp)) {
-                ret = env.get(exp.value);
-            }
-            else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(exp)) {
-                ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(exp.value.map(x => evalExp.call(this, x, env)));
-            }
-            else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exp)) {
-                ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(Object.fromEntries(exp.entries().map(([k, v]) => [k, evalExp.call(this, v, env)])));
+            switch (exp.type) {
+                case _types__WEBPACK_IMPORTED_MODULE_0__["MalType"].Symbol:
+                    ret = env.get(exp.value);
+                    break;
+                case _types__WEBPACK_IMPORTED_MODULE_0__["MalType"].Vector: {
+                    const vec = [];
+                    for (const x of exp.value) {
+                        vec.push(await evalExp(x, env));
+                    }
+                    ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(vec);
+                    break;
+                }
+                case _types__WEBPACK_IMPORTED_MODULE_0__["MalType"].Map: {
+                    const entries = [];
+                    for (const [k, v] of exp.entries()) {
+                        entries.push([k, await evalExp(v, env)]);
+                    }
+                    ret = _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(Object.fromEntries(entries));
+                    break;
+                }
             }
             if (ret) {
                 origExp.evaluated = ret;
@@ -3750,214 +3769,150 @@ function evalExp(exp, env) {
             origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
             return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
         }
-        // Apply list
-        const first = _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.first) ? exp.first.value : null;
-        switch (first) {
-            case 'def': {
-                // NOTE: disable defvar
-                // case 'defvar': {
-                const [, sym, form] = exp.value;
-                if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(sym) || form === undefined) {
-                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid form of def');
-                }
-                const ret = evalExp.call(this, form, env);
-                env.set(sym.value, ret);
-                // setExpandInfo(exp, {
-                // 	type: ExpandType.Unchange,
-                // })
-                origExp.evaluated = ret;
-                return ret;
-            }
-            case 'let': {
-                const letEnv = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ name: 'let', outer: env });
-                const [, binds, ...body] = exp.value;
-                if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(binds)) {
-                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('let requires a vector for its binding');
-                }
-                for (let i = 0; i < binds.value.length; i += 2) {
-                    letEnv.bind(binds.value[i], evalExp.call(this, binds.value[i + 1], letEnv));
-                }
-                env = letEnv;
-                exp =
-                    body.length === 1
-                        ? body[0]
-                        : _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('do'), ...body]);
-                break; // continue TCO loop
-            }
-            // case 'binding': {
-            // 	const bindingEnv = new Env({name: 'binding'})
-            // 	const [, binds, ..._body] = exp.value
-            // 	if (!MalVector.is(binds)) {
-            // 		throw new MalError('Invalid bind-expr in binding')
-            // 	}
-            // 	for (let i = 0; i < binds.value.length; i += 2) {
-            // 		bindingEnv.bind(
-            // 			binds.value[i],
-            // 			evalExp.call(this, binds.value[i + 1], env)
-            // 		)
-            // 	}
-            // 	env.pushBinding(bindingEnv)
-            // 	const body =
-            // 		_body.length === 1
-            // 			? _body[0]
-            // 			: MalList.create(MalSymbol.create('do'), ..._body)
-            // 	let ret
-            // 	try {
-            // 		ret = evalExp.call(this, body, env)
-            // 	} finally {
-            // 		env.popBinding()
-            // 	}
-            // 	origExp.evaluated = ret
-            // 	return ret
-            // }
-            // case 'get-all-symbols': {
-            // 	const ret = MalVector.create(...env.getAllSymbols())
-            // 	origExp.evaluated = ret
-            // 	return ret
-            // }
-            // case 'fn-params': {
-            // 	const fn = evalExp.call(this, exp.value[1], env)
-            // 	const ret = MalFn.is(fn)
-            // 		? MalVector.create(...fn.params)
-            // 		: MalNil.create()
-            // 	origExp.evaluated = ret
-            // 	return ret
-            // }
-            // case 'eval*': {
-            // 	// if (!this) {
-            // 	// 	throw new MalError('Cannot find the caller env')
-            // 	// }
-            // 	const expanded = evalExp.call(this, exp.value[1], env)
-            // 	exp = evalExp.call(this, expanded, this ? this.callerEnv : env)
-            // 	break // continue TCO loop
-            // }
-            case 'quote': {
-                const ret = exp.value[1];
-                origExp.evaluated = ret;
-                return ret;
-            }
-            case 'quasiquote': {
-                exp = quasiquote(exp.value[1]);
-                break; // continue TCO loop
-            }
-            case 'fn-sugar': {
-                const body = exp.value[1];
-                const { paramCount, hasRest } = getUnnamedParamsInfo(exp);
-                const params = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create();
-                for (let i = 1; i <= paramCount; i++) {
-                    params.value.push(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create(`%${i}`));
-                }
-                if (hasRest) {
-                    params.value.push(_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('&'), _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('%&'));
-                }
-                exp = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('fn'), params, body]);
-                break; // continue TCO loop
-            }
-            case 'fn':
-            case 'macro': {
-                const [, _params, body] = exp.value;
-                let params;
-                if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(_params)) {
-                    params = _params;
-                }
-                else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(_params)) {
-                    params = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create([_params]);
-                }
-                if (params === undefined) {
-                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`The parameter of ${first} should be vector or map`);
-                }
-                if (body === undefined) {
-                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`The body of ${first} is empty`);
-                }
-                const ret = (first === 'fn' ? _types__WEBPACK_IMPORTED_MODULE_0__["MalFn"] : _types__WEBPACK_IMPORTED_MODULE_0__["MalMacro"]).create((...args) => {
-                    return evalExp.call(this, body, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ outer: env, forms: params === null || params === void 0 ? void 0 : params.value, exps: args }));
-                });
-                ret.ast = {
-                    body,
-                    env,
-                    params,
-                };
-                origExp.evaluated = ret;
-                return ret;
-            }
-            case 'macroexpand': {
-                const ret = macroexpand(exp.value[1], env);
-                origExp.evaluated = ret;
-                return ret;
-            }
-            case 'try': {
-                const [, testExp, catchExp] = exp.value;
-                try {
-                    const ret = evalExp.call(this, testExp, env);
+        // Special forms
+        if (_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.first)) {
+            const name = exp.first.value;
+            switch (name) {
+                case 'def': {
+                    // NOTE: disable defvar
+                    // case 'defvar': {
+                    const [, sym, form] = exp.value;
+                    if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(sym) || form === undefined) {
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid form of def');
+                    }
+                    const ret = await evalExp(form, env);
+                    env.set(sym.value, ret);
+                    // setExpandInfo(exp, {
+                    // 	type: ExpandType.Unchange,
+                    // })
                     origExp.evaluated = ret;
                     return ret;
                 }
-                catch (err) {
-                    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].isCallOf(catchExp, 'catch') &&
-                        _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(catchExp.value[1])) {
-                        catchExp.value[1].evaluated = _special_forms_meta__WEBPACK_IMPORTED_MODULE_2__["default"]['catch'];
-                        const [, errSym, errBody] = catchExp.value;
-                        const message = _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(err instanceof Error ? err.message : 'Error');
-                        const ret = evalExp.call(this, errBody, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
-                            outer: env,
-                            forms: [errSym],
-                            exps: [message],
-                            name: 'catch',
-                        }));
+                case 'let': {
+                    const letEnv = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ name: 'let', outer: env });
+                    const [, binds, ...body] = exp.value;
+                    if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(binds)) {
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('let requires a vector for its binding');
+                    }
+                    for (let i = 0; i < binds.value.length; i += 2) {
+                        letEnv.bind(binds.value[i], await evalExp(binds.value[i + 1], letEnv));
+                    }
+                    env = letEnv;
+                    exp =
+                        body.length === 1
+                            ? body[0]
+                            : _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('do'), ...body]);
+                    continue TCO;
+                }
+                case 'quote':
+                    return (origExp.evaluated = exp.value[1]);
+                case 'quasiquote': {
+                    exp = quasiquote(exp.value[1]);
+                    continue TCO;
+                }
+                case 'fn-sugar': {
+                    const body = exp.value[1];
+                    const params = generateUnnamedParams(exp);
+                    exp = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('fn'), params, body]);
+                    continue TCO;
+                }
+                case 'fn':
+                case 'macro': {
+                    const [, _params, body] = exp.value;
+                    let params;
+                    if (_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].is(_params)) {
+                        params = _params;
+                    }
+                    else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(_params)) {
+                        params = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create([_params]);
+                    }
+                    if (params === undefined) {
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`The parameter of ${name} should be vector or map`);
+                    }
+                    if (body === undefined) {
+                        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"](`The body of ${name} is empty`);
+                    }
+                    const ret = (name === 'fn' ? _types__WEBPACK_IMPORTED_MODULE_0__["MalFn"] : _types__WEBPACK_IMPORTED_MODULE_0__["MalMacro"]).create(async (...args) => {
+                        return await evalExp(body, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({ outer: env, forms: params === null || params === void 0 ? void 0 : params.value, exps: args }));
+                    });
+                    ret.ast = {
+                        body,
+                        env,
+                        params,
+                    };
+                    origExp.evaluated = ret;
+                    return ret;
+                }
+                case 'macroexpand':
+                    return (origExp.evaluated = await macroexpand(exp.value[1], env));
+                case 'try': {
+                    const [, testExp, catchExp] = exp.value;
+                    try {
+                        const ret = await evalExp(testExp, env);
                         origExp.evaluated = ret;
                         return ret;
                     }
-                    else {
+                    catch (err) {
+                        if (_types__WEBPACK_IMPORTED_MODULE_0__["MalList"].isCallOf(catchExp, 'catch') &&
+                            _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(catchExp.value[1])) {
+                            catchExp.value[1].evaluated = _special_forms_meta__WEBPACK_IMPORTED_MODULE_2__["default"]['catch'];
+                            const [, errSym, errBody] = catchExp.value;
+                            const message = _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(err instanceof Error ? err.message : 'Error');
+                            const ret = await evalExp(errBody, new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
+                                outer: env,
+                                forms: [errSym],
+                                exps: [message],
+                                name: 'catch',
+                            }));
+                            origExp.evaluated = ret;
+                            return ret;
+                        }
                         throw err;
                     }
                 }
-            }
-            case 'do': {
-                if (exp.value.length === 1) {
-                    origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
-                    return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
-                }
-                evalExp.call(this, _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(exp.value.slice(1, -1)), env);
-                exp = exp.value[exp.value.length - 1];
-                break; // continue TCO loop
-            }
-            case 'if': {
-                const [, _test, thenExp, elseExp] = exp.value;
-                const test = evalExp.call(this, _test, env);
-                exp = test.value ? thenExp : elseExp || _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
-                break; // continue TCO loop
-            }
-            default: {
-                // is a function call
-                // Evaluate all of parameters at first
-                const [fn, ...params] = exp.value.map(e => evalExp.call(this, e, env));
-                if (_types__WEBPACK_IMPORTED_MODULE_0__["MalFn"].is(fn)) {
-                    exp.first.evaluated = fn;
-                    if (fn.ast) {
-                        // Lisp-defined functions
-                        env = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
-                            outer: fn.ast.env,
-                            forms: fn.ast.params.value,
-                            exps: params,
-                            name: _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.first) ? exp.first.value : 'anonymous',
-                        });
-                        exp = fn.ast.body;
-                        // continue TCO loop
-                        break;
+                case 'do': {
+                    if (exp.value.length === 1) {
+                        return (origExp.evaluated = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create());
                     }
-                    else {
-                        // JS-defined functions
-                        const ret = fn.value.apply({ callerEnv: env }, params);
-                        origExp.evaluated = ret;
-                        return ret;
-                    }
+                    await evalExp(_types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(exp.value.slice(1, -1)), env);
+                    exp = exp.value[exp.value.length - 1];
+                    continue TCO;
                 }
-                else {
-                    throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Invalid first');
+                case 'if': {
+                    const [, _test, thenExp, elseExp] = exp.value;
+                    const test = await evalExp(_test, env);
+                    exp = test.value ? thenExp : elseExp || _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                    continue TCO;
                 }
             }
         }
-    }
+        // Function Call
+        // Evaluate all of parameters at first
+        const fn = await evalExp(exp.first, env);
+        const params = [];
+        for (const p of exp.rest) {
+            params.push(await evalExp(p, env));
+        }
+        if (!_types__WEBPACK_IMPORTED_MODULE_0__["MalFn"].is(fn)) {
+            throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('First element of List should be function');
+        }
+        exp.first.evaluated = fn;
+        if (fn.ast) {
+            // Lisp-defined functions
+            env = new _env__WEBPACK_IMPORTED_MODULE_1__["default"]({
+                outer: fn.ast.env,
+                forms: fn.ast.params.value,
+                exps: params,
+                name: _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].is(exp.first) ? exp.first.value : 'anonymous',
+            });
+            exp = fn.ast.body;
+            continue TCO;
+        }
+        else {
+            // JS-defined functions
+            return (origExp.evaluated = await fn.value(...params));
+        }
+    } // End of TCO
     throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('Exceed the maximum TCO stacks');
 }
 
@@ -3968,147 +3923,79 @@ function evalExp(exp, env) {
 /*!************************************!*\
   !*** ./src/mal/init-repl-scope.ts ***!
   \************************************/
-/*! exports provided: slurp, default */
+/*! exports provided: default */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "slurp", function() { return slurp; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return initReplScope; });
 /* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
 /* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
-/* harmony import */ var _printer__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./printer */ "./src/mal/printer.ts");
-/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
-/* harmony import */ var _eval__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./eval */ "./src/mal/eval.ts");
+/* harmony import */ var _reader__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./reader */ "./src/mal/reader.ts");
+/* harmony import */ var _eval__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./eval */ "./src/mal/eval.ts");
 
 
 
 
-
-const slurp = (() => {
-    if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const fs = __webpack_require__(/*! fs */ "fs");
-        return (url) => {
-            return fs.readFileSync(url, 'UTF-8');
-        };
-    }
-    else {
-        return (url) => {
-            const req = new XMLHttpRequest();
-            req.open('GET', url, false);
-            req.send();
-            if (req.status !== 200) {
-                throw new _types__WEBPACK_IMPORTED_MODULE_1__["MalError"](`Failed to slurp file: ${url}`);
-            }
-            return req.responseText;
-        };
-    }
-})();
-function initReplScope(scope) {
-    const normalizeImportURL = (() => {
-        if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const path = __webpack_require__(/*! path */ "path");
-            return (url) => {
-                if (url.startsWith('.')) {
-                    // Relative
-                    const basepath = scope.var('*filename*').value;
-                    return path.join(path.dirname(basepath), url);
-                }
-                else {
-                    // Library
-                    const basepath = scope.var('*libpath*').value;
-                    return path.join(basepath, url);
-                }
-            };
+async function initReplScope(scope) {
+    function normalizeImportURL(url) {
+        // Append .glisp if there's no extension
+        if (!/\.[a-za-z0-9]+$/.test(url)) {
+            url += '.glisp';
         }
-        else {
-            return (url) => {
-                if (url.startsWith('.')) {
-                    // Relative
-                    const basepath = scope.var('*filename*').value;
-                    return new URL(url, basepath).href;
-                }
-                else {
-                    // Library
-                    const basepath = scope.var('*libpath*').value;
-                    return new URL(url, basepath).href;
-                }
-            };
-        }
-    })();
+        const isLibrary = !url.startsWith('.');
+        const basepath = scope.var(isLibrary ? '*libpath*' : '*filename*')
+            .value;
+        return new URL(url, basepath).href;
+    }
     // Defining essential functions
     scope.def('throw', (msg) => {
         throw new _types__WEBPACK_IMPORTED_MODULE_1__["MalError"](msg.value);
     });
-    // Standard Output
-    scope.def('prn', (...a) => {
-        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].log(...a.map(e => e.print()));
-        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
-    });
-    scope.def('print-str', (...a) => {
-        return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(a.map(e => e.print()).join(' '));
-    });
-    scope.def('println', (...a) => {
-        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].log(...a.map(e => e.print(false)));
-        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
-    });
-    scope.def('clear', () => {
-        _printer__WEBPACK_IMPORTED_MODULE_2__["printer"].clear();
-        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
-    });
-    // I/O
-    scope.def('read-string', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_3__["default"])(x.value));
-    scope.def('slurp', (x) => _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(slurp(x.value)));
-    // // Interop
-    scope.def('js-eval', (x) => Object(_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(eval(x.value.toString())));
+    // Env variable
     scope.def('*is-node*', is_node__WEBPACK_IMPORTED_MODULE_0___default.a);
     scope.def('*host-language*', 'JavaScript');
     scope.def('normalize-import-url', (url) => {
         return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(normalizeImportURL(url.value));
     });
     scope.def('eval', (exp) => {
-        return Object(_eval__WEBPACK_IMPORTED_MODULE_4__["default"])(exp, scope.env);
+        return Object(_eval__WEBPACK_IMPORTED_MODULE_3__["default"])(exp, scope.env);
     });
-    let filename, libpath;
+    let filename;
     if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const path = __webpack_require__(/*! path */ "path");
-        filename = __filename;
-        libpath = path.join(path.dirname(__filename), './lib');
+        filename = 'file://' + __filename;
     }
     else {
         filename = new URL('.', document.baseURI).href;
-        libpath = new URL('./lib/', document.baseURI).href;
     }
+    const libpath = new URL('./lib/', filename).href;
+    console.log(filename, libpath);
     scope.def('*filename*', filename);
     scope.def('*libpath*', libpath);
-    scope.def('import-force', (url) => {
-        let _url = url.value;
-        // Append .glisp if there's no extension
-        if (!/\.[a-za-z]+$/.test(_url)) {
-            _url += '.glisp';
-        }
+    scope.def('import-force', async (_url) => {
+        const url = _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].check(_url);
         const pwd = scope.var('*filename*');
-        const absurl = normalizeImportURL(_url);
-        const text = slurp(absurl);
+        const absurl = normalizeImportURL(url);
+        const text = Object(_reader__WEBPACK_IMPORTED_MODULE_2__["slurp"])(absurl);
+        console.log('IMPORT=', absurl, text.slice(0, 30));
         let exp;
-        if (_url.endsWith('.js')) {
+        if (url.endsWith('.js')) {
             eval(text);
             exp = globalThis['glisp_library'];
         }
         else {
-            exp = Object(_reader__WEBPACK_IMPORTED_MODULE_3__["default"])(`(do ${text}\nnil)`);
+            exp = Object(_reader__WEBPACK_IMPORTED_MODULE_2__["default"])(`(do ${text}\nnil)`);
         }
         scope.def('*filename*', absurl);
-        scope.eval(exp);
+        await scope.eval(exp);
         scope.def('*filename*', pwd);
         return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
     });
+    // Syntactic sugar
+    scope.def('with-meta-sugar', (meta, x) => x.withMeta(meta));
     // Load core library as default
-    scope.REP('(import-force "core")');
+    await scope.REP('(import-force "core")');
     // Set the current filename to pwd
     if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
         scope.def('*filename*', process.cwd());
@@ -4129,21 +4016,19 @@ function initReplScope(scope) {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "printer", function() { return printer; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return printExp; });
-const printer = {
-    log: (...args) => {
-        console.info(...args);
-    },
-    return: (...args) => {
-        console.log(...args);
-    },
-    error: (...args) => {
-        console.error(...args);
-    },
-    pseudoExecute: (command) => {
-        console.log(command);
-    },
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+
+const printer = globalThis['glisp_printer'] || {
+    log: console.info,
+    return: console.log,
+    error: console.error,
     clear: console.clear,
+    rep: () => {
+        throw new _types__WEBPACK_IMPORTED_MODULE_0__["MalError"]('No console');
+    },
 };
+globalThis['glisp_printer'] = printer;
+
 function printExp(exp) {
     return exp.print();
 }
@@ -4155,7 +4040,7 @@ function printExp(exp) {
 /*!***************************!*\
   !*** ./src/mal/reader.ts ***!
   \***************************/
-/*! exports provided: MalBlankException, MalReadError, default, jsToMal, reconstructTree */
+/*! exports provided: MalBlankException, MalReadError, default, readJS, slurp, reconstructTree */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -4163,78 +4048,88 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalBlankException", function() { return MalBlankException; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MalReadError", function() { return MalReadError; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return readStr; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "jsToMal", function() { return jsToMal; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "readJS", function() { return readJS; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "slurp", function() { return slurp; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "reconstructTree", function() { return reconstructTree; });
-/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! is-node */ "./node_modules/is-node/index.js");
+/* harmony import */ var is_node__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(is_node__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./types */ "./src/mal/types.ts");
 
-class MalBlankException extends _types__WEBPACK_IMPORTED_MODULE_0__["MalError"] {
+
+class MalBlankException extends _types__WEBPACK_IMPORTED_MODULE_1__["MalError"] {
 }
-class MalReadError extends _types__WEBPACK_IMPORTED_MODULE_0__["MalError"] {
+class MalReadError extends _types__WEBPACK_IMPORTED_MODULE_1__["MalError"] {
 }
 class Reader {
-    constructor(tokens, str) {
-        this.tokens = tokens;
+    constructor(str) {
+        // Tokenize
         this.str = str;
+        // eslint-disable-next-line no-useless-escape
+        const tokenRe = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g;
+        const spaceRe = /^[\s,]*/;
+        let match, spaceMatch, spaceOffset;
+        const tokens = [];
+        while ((match = tokenRe.exec(str)) && match[1] != '') {
+            if (match[1][0] === ';') {
+                continue;
+            }
+            spaceMatch = spaceRe.exec(match[0]);
+            spaceOffset = spaceMatch ? spaceMatch[0].length : 0;
+            tokens.push([match[1], match.index + spaceOffset]);
+        }
+        // Check if empty
+        if (tokens.length === 0) {
+            throw new MalBlankException();
+        }
+        this.tokens = tokens;
         this.strlen = str.length;
-        this._index = 0;
+        this.index = 0;
+    }
+    didReachEnd() {
+        return this.index === this.tokens.length - 1;
     }
     next() {
-        const token = this.tokens[this._index++];
+        const token = this.tokens[this.index++];
+        if (!token) {
+            throw new MalReadError('Invalid end of file');
+        }
         return token[0];
     }
-    peek(pos = this._index) {
-        const token = this.tokens[pos];
-        return token ? token[0] : '';
+    peek(offset = 0) {
+        const token = this.tokens[this.index + offset];
+        if (!token) {
+            throw new MalReadError('Invalid end of file');
+        }
+        return token[0];
     }
-    get index() {
-        return this._index;
-    }
-    strInRange(start, end) {
+    lastDelimiter() {
+        const start = this.endOffset();
+        const end = this.offset();
         return this.str.slice(start, end);
     }
-    offset(pos = this._index) {
-        const token = this.tokens[pos];
+    offset() {
+        const token = this.tokens[this.index];
         return token !== undefined ? token[1] : this.strlen;
     }
-    endOffset(pos = this._index) {
-        const token = this.tokens[pos];
+    endOffset(offset = 0) {
+        const token = this.tokens[this.index + offset];
         return token !== undefined ? token[1] + token[0].length : this.strlen;
     }
-    prevEndOffset() {
-        return this.endOffset(this._index - 1);
-    }
-}
-function tokenize(str) {
-    // eslint-disable-next-line no-useless-escape
-    const re = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g;
-    let match = null;
-    const spaceRe = /^[\s,]*/;
-    let spaceMatch = null, spaceOffset = null;
-    const results = [];
-    while ((match = re.exec(str)) && match[1] != '') {
-        if (match[1][0] === ';') {
-            continue;
-        }
-        spaceMatch = spaceRe.exec(match[0]);
-        spaceOffset = spaceMatch ? spaceMatch[0].length : 0;
-        results.push([match[1], match.index + spaceOffset]);
-    }
-    return results;
 }
 function readAtom(reader) {
     const token = reader.next();
     if (typeof token === 'string') {
         if (token.match(/^[-+]?[0-9]+$/)) {
             // integer
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseInt(token, 10));
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalNumber"].create(parseInt(token, 10));
         }
         else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
             // float
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseFloat(token));
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalNumber"].create(parseFloat(token));
         }
         else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
             // string
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(token
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(token
                 .slice(1, token.length - 1)
                 .replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c)) // handle new line
             );
@@ -4243,28 +4138,43 @@ function readAtom(reader) {
             throw new MalReadError("Expected '\"', got EOF");
         }
         else if (token[0] === ':') {
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalKeyword"].create(token.slice(1));
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalKeyword"].create(token.slice(1));
         }
         else if (token === 'nil') {
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
         }
         else if (token === 'true') {
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(true);
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalBoolean"].create(true);
         }
         else if (token === 'false') {
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(false);
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalBoolean"].create(false);
         }
         else if (/^NaN$|^-?Infinity$/.test(token)) {
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(parseFloat(token));
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalNumber"].create(parseFloat(token));
         }
         else {
             // symbol
-            return _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create(token);
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalSymbol"].create(token);
         }
     }
     else {
         return token;
     }
+}
+// read syntactic sugar and return MalList
+function readSyntacticSugar(reader, name, count) {
+    const coll = [_types__WEBPACK_IMPORTED_MODULE_1__["MalSymbol"].create(name)];
+    const delimiters = [''];
+    const sugarSymbol = reader.next();
+    for (let i = 0; i < count; i++) {
+        delimiters.push(reader.lastDelimiter());
+        coll.push(readForm(reader));
+    }
+    delimiters.push('');
+    const list = _types__WEBPACK_IMPORTED_MODULE_1__["MalList"].create(coll);
+    list.sugar = sugarSymbol;
+    list.delimiters = delimiters;
+    return list;
 }
 // read list of tokens
 function readColl(reader, start = '[', end = ']') {
@@ -4279,13 +4189,11 @@ function readColl(reader, start = '[', end = ']') {
             throw new MalReadError(`Expected '${end}', got EOF`);
         }
         // Save delimiter
-        const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset());
-        delimiters === null || delimiters === void 0 ? void 0 : delimiters.push(delimiter);
+        delimiters === null || delimiters === void 0 ? void 0 : delimiters.push(reader.lastDelimiter());
         coll.push(readForm(reader));
     }
     // Save a delimiter between a last element and a end tag
-    const delimiter = reader.strInRange(reader.prevEndOffset(), reader.offset());
-    delimiters.push(delimiter);
+    delimiters.push(reader.lastDelimiter());
     reader.next();
     return {
         coll,
@@ -4295,186 +4203,153 @@ function readColl(reader, start = '[', end = ']') {
 // read vector of tokens
 function readVector(reader) {
     const { coll, delimiters } = readColl(reader, '[', ']');
-    const vec = _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(coll);
+    const vec = _types__WEBPACK_IMPORTED_MODULE_1__["MalVector"].create(coll);
     vec.delimiters = delimiters;
     return vec;
 }
 function readList(reader) {
     const { coll, delimiters } = readColl(reader, '(', ')');
-    const list = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create(coll);
+    const list = _types__WEBPACK_IMPORTED_MODULE_1__["MalList"].create(coll);
     list.delimiters = delimiters;
     return list;
 }
 // read hash-map key/value pairs
 function readMap(reader) {
     const { coll, delimiters } = readColl(reader, '{', '}');
-    const map = _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].fromSeq(coll);
+    const map = _types__WEBPACK_IMPORTED_MODULE_1__["MalMap"].fromSeq(coll);
     map.delimiters = delimiters;
     return map;
 }
 function readForm(reader) {
-    let val;
-    // For syntaxtic sugars
-    // const startIdx = reader.index
-    // Set offset array value if the form is syntaxic sugar.
-    // the offset array is like [<end of arg0>, <start of arg1>]
-    let sugar = null;
     const token = reader.peek();
     switch (token) {
-        // reader macros/transforms
+        // reader macros
         case ';':
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
-            break;
+            return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
         case "'":
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('quote'), readForm(reader)]);
-            break;
+            return readSyntacticSugar(reader, 'quote', 1);
         case '`':
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('quasiquote'), readForm(reader)]);
-            break;
+            return readSyntacticSugar(reader, 'quasiquote', 1);
         case '~':
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('unquote'), readForm(reader)]);
-            break;
+            return readSyntacticSugar(reader, 'unquote', 1);
         case '~@':
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([
-                _types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('splice-unquote'),
-                readForm(reader),
-            ]);
-            break;
-        case '#': {
-            reader.next();
-            const type = reader.peek();
-            if (type === '(') {
-                // Syntactic sugar for anonymous function: #( )
-                sugar = [reader.prevEndOffset(), reader.offset()];
-                val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('fn-sugar'), readForm(reader)]);
-            }
-            else {
-                throw new Error('Invalid # syntactic sugar');
-            }
-            break;
-        }
+            return readSyntacticSugar(reader, 'splice-unquote', 1);
         case '^': {
-            // Syntactic sugar for with-meta
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            const meta = readForm(reader);
-            sugar.push(reader.prevEndOffset(), reader.offset());
-            const expr = readForm(reader);
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('with-meta-sugar'), meta, expr]);
-            break;
+            return readSyntacticSugar(reader, 'with-meta-sugar', 2);
         }
         case '@':
-            // Syntactic sugar for deref
-            reader.next();
-            sugar = [reader.prevEndOffset(), reader.offset()];
-            val = _types__WEBPACK_IMPORTED_MODULE_0__["MalList"].create([_types__WEBPACK_IMPORTED_MODULE_0__["MalSymbol"].create('deref'), readForm(reader)]);
-            break;
+            return readSyntacticSugar(reader, 'deref', 1);
+        case '#': {
+            const type = reader.peek(+1);
+            if (type === '(') {
+                // Aanonymous function: #( )
+                return readSyntacticSugar(reader, 'fn-sugar', 1);
+            }
+            else {
+                throw new MalReadError('Invalid # syntactic sugar');
+            }
+        }
         // list
         case ')':
             throw new MalReadError("unexpected ')'");
         case '(':
-            val = readList(reader);
-            break;
+            return readList(reader);
         // vector
         case ']':
-            throw new Error("unexpected ']'");
+            throw new MalReadError("unexpected ']'");
         case '[':
-            val = readVector(reader);
-            break;
+            return readVector(reader);
         // hash-map
         case '}':
-            throw new Error("unexpected '}'");
+            throw new MalReadError("unexpected '}'");
         case '{':
-            val = readMap(reader);
-            break;
+            return readMap(reader);
         // atom
         default:
-            val = readAtom(reader);
+            return readAtom(reader);
     }
-    if (sugar) {
-        const _val = val;
-        // Save str info
-        const formEnd = reader.prevEndOffset();
-        _val.sugar = token;
-        const delimiters = [''];
-        sugar.push(formEnd);
-        for (let i = 0; i < sugar.length - 1; i += 2) {
-            delimiters.push(reader.strInRange(sugar[i], sugar[i + 1]));
-        }
-        delimiters.push('');
-        _val.delimiters = delimiters;
-    }
-    return val;
 }
 function readStr(str) {
-    const tokens = tokenize(str);
-    if (tokens.length === 0) {
-        throw new MalBlankException();
-    }
-    const reader = new Reader(tokens, str);
+    const reader = new Reader(str);
     const exp = readForm(reader);
-    if (reader.index < tokens.length - 1) {
+    if (reader.didReachEnd()) {
         throw new MalReadError('Invalid end of file');
     }
     reconstructTree(exp);
     return exp;
 }
-function jsToMal(obj) {
-    if (Object(_types__WEBPACK_IMPORTED_MODULE_0__["isMal"])(obj)) {
+function readJS(obj) {
+    if (Object(_types__WEBPACK_IMPORTED_MODULE_1__["isMal"])(obj)) {
         // MalVal
         return obj;
     }
     else if (Array.isArray(obj)) {
         // Vector
-        return _types__WEBPACK_IMPORTED_MODULE_0__["MalVector"].create(obj.map(jsToMal));
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalVector"].create(obj.map(readJS));
+    }
+    else if (obj instanceof Float32Array) {
+        // Numeric Vector
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalVector"].create(Array.from(obj).map(x => _types__WEBPACK_IMPORTED_MODULE_1__["MalNumber"].create(x)));
     }
     else if (obj instanceof Function) {
         // Function
-        return _types__WEBPACK_IMPORTED_MODULE_0__["MalFn"].create(obj);
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(obj);
     }
     else if (obj instanceof Object) {
         // Map
         const ret = {};
         for (const [key, value] of Object.entries(obj)) {
-            ret[key] = jsToMal(value);
+            ret[key] = readJS(value);
         }
-        return _types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].create(ret);
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalMap"].create(ret);
     }
     else if (obj === null || obj === undefined) {
         // Nil
-        return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+        return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
     }
     else {
         switch (typeof obj) {
             case 'number':
-                return _types__WEBPACK_IMPORTED_MODULE_0__["MalNumber"].create(obj);
+                return _types__WEBPACK_IMPORTED_MODULE_1__["MalNumber"].create(obj);
             case 'string':
-                return _types__WEBPACK_IMPORTED_MODULE_0__["MalString"].create(obj);
+                return _types__WEBPACK_IMPORTED_MODULE_1__["MalString"].create(obj);
             case 'boolean':
-                return _types__WEBPACK_IMPORTED_MODULE_0__["MalBoolean"].create(obj);
+                return _types__WEBPACK_IMPORTED_MODULE_1__["MalBoolean"].create(obj);
             default:
-                return _types__WEBPACK_IMPORTED_MODULE_0__["MalNil"].create();
+                return _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create();
         }
     }
 }
+const slurp = (() => {
+    if (is_node__WEBPACK_IMPORTED_MODULE_0___default.a) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const fs = __webpack_require__(/*! fs */ "fs");
+        return (url) => {
+            return fs.readFileSync(url.replace(/^file:\/\//, ''), 'UTF-8');
+        };
+    }
+    else {
+        return (url) => {
+            const req = new XMLHttpRequest();
+            req.open('GET', url, false);
+            req.send();
+            if (req.status !== 200) {
+                throw new _types__WEBPACK_IMPORTED_MODULE_1__["MalError"](`Failed to slurp file: ${url}`);
+            }
+            return req.responseText;
+        };
+    }
+})();
 function reconstructTree(exp) {
     seek(exp);
     function seek(exp, parent) {
         if (parent) {
             exp.parent = parent;
         }
-        if (Object(_types__WEBPACK_IMPORTED_MODULE_0__["isMalSeq"])(exp)) {
+        if (Object(_types__WEBPACK_IMPORTED_MODULE_1__["isMalSeq"])(exp)) {
             exp.value.forEach((child, index) => seek(child, { ref: exp, index }));
         }
-        else if (_types__WEBPACK_IMPORTED_MODULE_0__["MalMap"].is(exp)) {
+        else if (_types__WEBPACK_IMPORTED_MODULE_1__["MalMap"].is(exp)) {
             exp
                 .entries()
                 .forEach(([, child], index) => seek(child, { ref: exp, index }));
@@ -4508,15 +4383,12 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class Scope {
-    constructor(outer = null, name = 'repl', onSetup = null) {
+    constructor(outer = undefined, name = 'repl', onSetup = null) {
         this.outer = outer;
         this.name = name;
         this.onSetup = onSetup;
         this.setup();
-        if (this.outer === null) {
-            this.initAsRepl();
-        }
-        else {
+        if (this.outer) {
             this.outer.inner = this;
         }
     }
@@ -4530,15 +4402,15 @@ class Scope {
             this.inner.env.outer = this.env;
         }
     }
-    REP(str) {
-        const ret = this.readEval(str);
+    async REP(str) {
+        const ret = await this.readEval(str);
         if (ret !== undefined) {
             _printer__WEBPACK_IMPORTED_MODULE_5__["printer"].return(ret.print());
         }
     }
-    readEval(str) {
+    async readEval(str) {
         try {
-            return this.eval(Object(_reader__WEBPACK_IMPORTED_MODULE_1__["default"])(str));
+            return await this.eval(Object(_reader__WEBPACK_IMPORTED_MODULE_1__["default"])(str));
         }
         catch (err) {
             if (err instanceof _reader__WEBPACK_IMPORTED_MODULE_1__["MalBlankException"]) {
@@ -4553,9 +4425,9 @@ class Scope {
             return undefined;
         }
     }
-    eval(exp) {
+    async eval(exp) {
         try {
-            return Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
+            return await Object(_eval__WEBPACK_IMPORTED_MODULE_2__["default"])(exp, this.env);
         }
         catch (err) {
             if (err instanceof _types__WEBPACK_IMPORTED_MODULE_4__["MalError"]) {
@@ -4568,7 +4440,7 @@ class Scope {
         }
     }
     def(name, value) {
-        this.env.set(name, Object(_reader__WEBPACK_IMPORTED_MODULE_1__["jsToMal"])(value));
+        this.env.set(name, Object(_reader__WEBPACK_IMPORTED_MODULE_1__["readJS"])(value));
     }
     pushBinding(env) {
         this.env.pushBinding(env);
@@ -4579,8 +4451,13 @@ class Scope {
     var(name) {
         return this.env.get(name);
     }
-    initAsRepl() {
-        Object(_init_repl_scope__WEBPACK_IMPORTED_MODULE_3__["default"])(this);
+    async initAsRepl() {
+        await Object(_init_repl_scope__WEBPACK_IMPORTED_MODULE_3__["default"])(this);
+    }
+    static async createRepl() {
+        const scope = new Scope();
+        await scope.initAsRepl();
+        return scope;
     }
 }
 
@@ -4601,86 +4478,86 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /* harmony default export */ __webpack_exports__["default"] = ({
-    def: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    def: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Defines a variable',
         params: [
             { label: 'Symbol', type: 'symbol' },
             { label: 'Value', type: 'any' },
         ],
     })),
-    defvar: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    defvar: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Creates a variable which can be changed by the bidirectional evaluation',
         params: [
             { label: 'Symbol', type: 'symbol' },
             { label: 'Value', type: 'any' },
         ],
     })),
-    let: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    let: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Creates a lexical scope',
         params: [
             { label: 'Binds', type: 'exp' },
             { label: 'Body', type: 'exp' },
         ],
     })),
-    binding: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    binding: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Creates a new binding',
         params: [
             { label: 'Binds', type: 'exp' },
             { label: 'Body', type: 'exp' },
         ],
     })),
-    'get-all-symbols': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    'get-all-symbols': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Gets all existing symbols',
         params: [],
         return: { type: 'vector' },
     })),
-    'fn-params': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    'fn-params': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Gets the list of a function parameter',
         params: [{ label: 'Function', type: 'symbol' }],
     })),
-    'eval*': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    'eval*': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
         params: [{ label: 'Form', type: 'exp' }],
     })),
-    quote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    quote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Yields the unevaluated *form*',
         params: [{ label: 'Form', type: 'exp' }],
     })),
-    quasiquote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    quasiquote: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Quasiquote',
         params: [{ label: 'Form', type: 'exp' }],
     })),
-    fn: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    fn: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Defines a function',
         params: [
             { label: 'Params', type: 'exp' },
             { label: 'Form', type: 'exp' },
         ],
     })),
-    'fn-sugar': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    'fn-sugar': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'syntactic sugar for (fn [] *form*)',
         params: [],
     })),
-    macro: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    macro: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: '',
         params: [
             { label: 'Param', type: 'exp' },
             { label: 'Form', type: 'exp' },
         ],
     })),
-    macroexpand: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    macroexpand: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Expands the macro',
         params: [],
     })),
-    try: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    try: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Try',
         params: [],
     })),
-    catch: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    catch: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Catch',
         params: [],
     })),
-    do: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    do: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Evaluates *forms* in order and returns the value of the last',
         params: [
             {
@@ -4690,7 +4567,7 @@ __webpack_require__.r(__webpack_exports__);
             },
         ],
     })),
-    if: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    if: _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'If statement. If **else** is not supplied it defaults to nil',
         params: [
             { label: 'Test', type: 'boolean' },
@@ -4698,7 +4575,7 @@ __webpack_require__.r(__webpack_exports__);
             { label: 'Else', type: 'exp', default: null },
         ],
     })),
-    'env-chain': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["jsToMal"])({
+    'env-chain': _types__WEBPACK_IMPORTED_MODULE_1__["MalFn"].create(() => _types__WEBPACK_IMPORTED_MODULE_1__["MalNil"].create()).withMeta(Object(_reader__WEBPACK_IMPORTED_MODULE_0__["readJS"])({
         doc: 'Env chain',
         params: [],
     })),
@@ -4784,6 +4661,9 @@ class MalBase {
     get evaluated() {
         return this;
     }
+    toFloats() {
+        throw new MalError('Cannot create array buffer');
+    }
 }
 // Primitives
 class MalPrimBase extends MalBase {
@@ -4812,6 +4692,11 @@ class MalNumber extends MalPrimBase {
     }
     static is(v) {
         return (v === null || v === void 0 ? void 0 : v.type) === MalType.Number;
+    }
+    static check(v) {
+        if (this.is(v))
+            return v.value;
+        throw new MalError(`${v.print()} is not a number`);
     }
 }
 class MalString extends MalPrimBase {
@@ -4849,6 +4734,11 @@ class MalString extends MalPrimBase {
     }
     static is(v) {
         return (v === null || v === void 0 ? void 0 : v.type) === MalType.String;
+    }
+    static check(v) {
+        if (this.is(v))
+            return v.value;
+        throw new MalError(`${v.print()} is not a string`);
     }
 }
 class MalBoolean extends MalPrimBase {
@@ -4985,7 +4875,7 @@ class MalSeqBase extends MalCollBase {
         return str;
     }
     toJS() {
-        this._value.map(x => x.toJS());
+        return this._value.map(x => x.toJS());
     }
     equals(v) {
         return (v.type === this.type &&
@@ -5006,7 +4896,17 @@ class MalList extends MalSeqBase {
         this.type = MalType.List;
     }
     print(readably = true) {
-        return '(' + this.printValues(readably) + ')';
+        if (this.sugar) {
+            const delimiters = this.delimiters;
+            let str = this.sugar;
+            for (let i = 1; i < this._value.length; i++) {
+                str += delimiters[i] + this._value[i].print(readably);
+            }
+            return str;
+        }
+        else {
+            return '(' + this.printValues(readably) + ')';
+        }
     }
     clone(deep = false) {
         var _a;
@@ -5046,6 +4946,11 @@ class MalVector extends MalSeqBase {
         var _a;
         const value = deep ? this._value.map(v => v.clone(true)) : [...this._value];
         return new MalVector(value, (_a = this._meta) === null || _a === void 0 ? void 0 : _a.clone());
+    }
+    // Original methods
+    toFloats() {
+        const arr = this._value.map(x => x.value);
+        return new Float32Array(arr);
     }
     // Static functions
     static create(v = []) {
@@ -5105,7 +5010,7 @@ class MalMap extends MalCollBase {
         return this._delimiters;
     }
     get(key) {
-        return this._value[key];
+        return this._value[typeof key === 'number' ? this.keys()[key] : key];
     }
     get count() {
         return Object.keys(this._value).length;
@@ -5288,32 +5193,42 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const replScope = new _mal_scope__WEBPACK_IMPORTED_MODULE_2__["default"]();
-if (typeof process !== 'undefined' && 2 < process.argv.length) {
-    const filename = process.argv[2];
-    replScope.def('*ARGV*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(process.argv.slice(3)));
-    replScope.def('*filename*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["jsToMal"])(filename));
-    replScope.REP(`(import "${filename}")`);
-    process.exit(0);
-}
-replScope.REP(`(str "Glisp [" *host-language* "]")`);
-readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.setDefaultOptions({
-    prompt: {
-        // Simple Object that has toString method.
-        toString() {
-            return chalk__WEBPACK_IMPORTED_MODULE_1___default.a.green('glisp> ');
+async function main() {
+    const replScope = await _mal_scope__WEBPACK_IMPORTED_MODULE_2__["default"].createRepl();
+    if (typeof process !== 'undefined' && 2 < process.argv.length) {
+        const filename = process.argv[2];
+        replScope.def('*ARGV*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["readJS"])(process.argv.slice(3)));
+        replScope.def('*filename*', Object(_mal_reader__WEBPACK_IMPORTED_MODULE_3__["readJS"])(filename));
+        await replScope.REP(`(import "${filename}")`);
+        process.exit(0);
+    }
+    await replScope.REP(`(str "Glisp [" *host-language* "]")`);
+    readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.setDefaultOptions({
+        prompt: {
+            // Simple Object that has toString method.
+            toString() {
+                return chalk__WEBPACK_IMPORTED_MODULE_1___default.a.green('glisp> ');
+            },
         },
-    },
-});
-readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.promptLoop(line => {
-    try {
-        replScope.REP(line);
+    });
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const line = readline_sync__WEBPACK_IMPORTED_MODULE_0___default.a.prompt();
+        if (line === null) {
+            break;
+        }
+        if (line.trim() === '') {
+            continue;
+        }
+        try {
+            await replScope.REP(line);
+        }
+        catch (e) {
+            console.error('Error:', e);
+        }
     }
-    catch (e) {
-        console.error('Error:', e);
-    }
-    return false;
-});
+}
+main();
 
 
 /***/ }),

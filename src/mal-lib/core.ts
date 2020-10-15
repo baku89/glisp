@@ -19,6 +19,7 @@ import {
 	MalSeq,
 	MalCallableValue,
 	MalType,
+	isMalColl,
 } from '@/mal/types'
 import printExp, {printer} from '@/mal/printer'
 import {partition} from '@/utils'
@@ -169,7 +170,7 @@ const Exports = [
 	],
 	[
 		'nth',
-		(a: MalSeq, index: MalNumber) => {
+		(a: MalSeq | MalMap, index: MalNumber) => {
 			if (!MalNumber.is(index)) {
 				throw new MalError('index argument to nth must be a number')
 			}
@@ -188,15 +189,20 @@ const Exports = [
 	[
 		'count',
 		(a: MalVal) =>
-			MalNumber.create(isMalSeq(a) || MalString.is(a) ? a.value.length : 0),
+			MalNumber.create(isMalColl(a) || MalString.is(a) ? a.count : 0),
 	],
 	[
-		'subvec',
-		(a: MalSeq, start: MalNumber, end?: MalNumber) => {
-			if (!isMalSeq(a)) {
-				throw new MalError(`[slice] ${printExp(a)} is not an array`)
+		'slice',
+		(a: MalVal, start: MalNumber, end?: MalNumber) => {
+			if (!isMalSeq(a) && !MalString.is(a)) {
+				throw new MalError(
+					`[slice] ${printExp(a)} should be sequence or string`
+				)
 			}
-			return MalVector.create(a.value.slice(start.value, end?.value))
+			const sub = a.value.slice(start.value, end?.value)
+			return typeof sub === 'string'
+				? MalString.create(sub)
+				: MalVector.create(sub)
 		},
 	],
 	[
@@ -350,11 +356,6 @@ const Exports = [
 	[
 		'str',
 		(...a: MalVal[]) => MalString.create(a.map(e => e.print(false)).join('')),
-	],
-	[
-		'subs',
-		(a: MalString, from: MalNumber, to?: MalNumber) =>
-			MalString.create(a.value.substr(from.value, to?.value)),
 	],
 	[
 		'format',

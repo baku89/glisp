@@ -332,10 +332,10 @@
   (nth coll -1))
 
 (defn rest [coll]
-  (subvec coll 1))
+  (slice coll 1))
 
 (defn butlast [coll]
-  (subvec coll 0 -1))
+  (slice coll 0 -1))
 
 (defn replace-nth [coll idx val]
   (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
@@ -350,17 +350,17 @@
 (defn take
   {:doc "Retruns a sequence of the first n items in coll"}
   [n coll]
-  (subvec coll 0 n))
+  (slice coll 0 n))
 
 (defn drop
   {:doc "Returns a sequence of all but the first n items in coll"}
   [n coll]
-  (subvec coll n))
+  (slice coll n))
 
 (defn take-last
   {:doc "Returns a seq of the last n items in coll"}
   [n coll]
-  (subvec coll (- (count coll) n)))
+  (slice coll (- (count coll) n)))
 
 (defn drop-last
   {:doc "Returns a sequence of all but the last n items in coll"}
@@ -388,14 +388,14 @@
    :params [{:type "string"}
             {:type "string"}]}
   [s substr]
-  (= (subs s (- (count s) (count substr))) substr))
+  (= (slice s (- (count s) (count substr))) substr))
 
 (defn starts-with?
   {:doc "True if *s* ends with substr"
    :params [{:type "string"}
             {:type "string"}]}
   [s substr]
-  (= (subs s 0 (count substr)) substr))
+  (= (slice s 0 (count substr)) substr))
 
 ;; Annotate Repl Core Functions
 
@@ -444,7 +444,7 @@
 ;                0 []
 ;                1 [(- ret)]
 ;                {:replace [-1 (- (first xs)
-;                                 (apply + (subvec xs 1 -1))
+;                                 (apply + (slice xs 1 -1))
 ;                                 ret)]}))
 ;   :return {:type "number"}})
 
@@ -472,7 +472,7 @@
 ;                0 []
 ;                1 [(/ ret)]
 ;                {:replace [-1 (/ (first xs)
-;                                 (apply * (subvec xs 1 -1)) ret)]}))
+;                                 (apply * (slice xs 1 -1)) ret)]}))
 ;   :retruns {:type "number"}})
 
 ; (annotate-fn
