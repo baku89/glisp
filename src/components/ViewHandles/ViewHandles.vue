@@ -249,7 +249,7 @@ export default defineComponent({
 
 		// Register app commands to ConsoleScope
 		AppScope.defn('reset-viewport', () => {
-			if (!el.value) return MalNil.create()
+			if (!el.value) return MalNil.from()
 
 			const {width, height} = el.value.getBoundingClientRect()
 
@@ -258,7 +258,7 @@ export default defineComponent({
 
 			context.emit('update:view-transform', xform)
 
-			return MalNil.create()
+			return MalNil.from()
 		})
 
 		// Hooks

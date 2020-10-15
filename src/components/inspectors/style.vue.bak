@@ -94,7 +94,7 @@ export default defineComponent({
 
 		function updateStyleAt(style: MalSeq, i: number) {
 			const newExp = props.exp.clone()
-			const newStyles = MalVector.create(...styles.value)
+			const newStyles =  MalVector.from(...styles.value)
 			newStyles[i] = style
 			newExp.value[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 
@@ -116,10 +116,10 @@ export default defineComponent({
 
 		function appendStyle(type: 'fill' | 'stroke') {
 			const style =
-				type === 'fill' ? MalList.create(MalSymbol.create('fill'),  MalString.create('#000000')) : MalList.create(MalSymbol.create('stroke'), MalString.create('#000000'), MalNumber.create(1))
+				type === 'fill' ? MalList.from(MalSymbol.from('fill'),  MalString.from('#000000')) : MalList.from(MalSymbol.from('stroke'), MalString.from('#000000'), MalNumber.from(1))
 
 			const newExp = props.exp.clone()
-			const newStyles = MalVector.create(...styles.value)
+			const newStyles =  MalVector.from(...styles.value)
 			newStyles.value.push(style)
 			newExp.value[1] = newStyles.length == 1 ? newStyles.value[0] : newStyles
 
@@ -130,7 +130,7 @@ export default defineComponent({
 
 		function deleteStyleAt(i: number) {
 			const newExp = props.exp.clone()
-			const newStyles = MalVector.create(...styles.value)
+			const newStyles =  MalVector.from(...styles.value)
 			newStyles.splice(i, 1)
 			newExp[1] = newStyles.length == 1 ? newStyles[0] : newStyles
 

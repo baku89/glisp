@@ -122,7 +122,7 @@ export default defineComponent({
 		const innerMin = computed(() => {
 			if (display.value.mode === 'unit') {
 				return (display.value.inverseFn as any)({
-					[MalKeyword.create('return')]: props.min,
+					[MalKeyword.from('return')]: props.min,
 				})[0]
 			} else {
 				return props.min
@@ -132,7 +132,7 @@ export default defineComponent({
 		const innerMax = computed(() => {
 			if (display.value.mode === 'unit') {
 				return (display.value.inverseFn as any)({
-					[MalKeyword.create('return')]: props.max,
+					[MalKeyword.from('return')]: props.max,
 				})[0]
 			} else {
 				return props.max
@@ -159,7 +159,7 @@ export default defineComponent({
 				if (display.value.mode === 'unit') {
 					const unitValue = (fn.value as any)(value as any)
 					validated = (display.value.inverseFn as any)({
-						[MalKeyword.create('return')]: props.validator(unitValue),
+						[MalKeyword.from('return')]: props.validator(unitValue),
 					})[0]
 				} else {
 					validated = props.validator(value)
@@ -175,7 +175,7 @@ export default defineComponent({
 					typeof newExp === 'number'
 						? reverseEval(newExp, (props.value as MalVal[])[1])
 						: newExp
-				newExp = MalList.create((props.value as MalVal[])[0], unitValue)
+				newExp = MalList.from((props.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
 				newExp =
 					typeof newExp === 'number' ? reverseEval(newExp, props.value) : newExp

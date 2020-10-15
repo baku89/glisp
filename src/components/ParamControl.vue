@@ -78,35 +78,35 @@ import {
 import { readJS } from '@/mal/reader'
 
 const TypeDefaults = {
-	number: MalNumber.create(0),
-	string: MalString.create(''),
-	symbol: MalSymbol.create('_'),
-	keyword: MalKeyword.create('_'),
-	boolean: MalBoolean.create(false),
-	vec2: MalVector.create(MalNumber.create(0), MalNumber.create(0)),
-	rect2d: MalVector.create(
-		MalNumber.create(0),
-		MalNumber.create(0),
-		MalNumber.create(1),
-		MalNumber.create(1)
+	number: MalNumber.from(0),
+	string: MalString.from(''),
+	symbol: MalSymbol.from('_'),
+	keyword: MalKeyword.from('_'),
+	boolean: MalBoolean.from(false),
+	vec2:  MalVector.from(MalNumber.from(0), MalNumber.from(0)),
+	rect2d:  MalVector.from(
+		MalNumber.from(0),
+		MalNumber.from(0),
+		MalNumber.from(1),
+		MalNumber.from(1)
 	),
-	mat2d: MalVector.create(
-		MalNumber.create(1),
-		MalNumber.create(0),
-		MalNumber.create(0),
-		MalNumber.create(1),
-		MalNumber.create(0),
-		MalNumber.create(0)
+	mat2d:  MalVector.from(
+		MalNumber.from(1),
+		MalNumber.from(0),
+		MalNumber.from(0),
+		MalNumber.from(1),
+		MalNumber.from(0),
+		MalNumber.from(0)
 	),
-	size2d: MalList.create(
-		MalSymbol.create('vec2/size'),
-		MalNumber.create(1),
-		MalNumber.create(1),
-		MalBoolean.create(false)
+	size2d: MalList.from(
+		MalSymbol.from('vec2/size'),
+		MalNumber.from(1),
+		MalNumber.from(1),
+		MalBoolean.from(false)
 	),
-	path: MalVector.create(MalKeyword.create('path')),
-	exp: MalNil.create(),
-	any: MalNil.create(),
+	path:  MalVector.from(MalKeyword.from('path')),
+	exp: MalNil.from(),
+	any: MalNil.from(),
 } as {[type: string]: MalVal}
 
 export default defineComponent({
@@ -214,7 +214,7 @@ export default defineComponent({
 
 			const newExp = fnInfo.value.structType
 				? newParams[0]
-				: MalList.create(props.exp[0], ...newParams)
+				: MalList.from(props.exp[0], ...newParams)
 
 			context.emit('input', newExp)
 		}
@@ -231,17 +231,17 @@ export default defineComponent({
 
 			if (vectorSchema.insert) {
 				value = (vectorSchema.insert as any)({
-					[MalKeyword.create('params')]: params.value.slice(
+					[MalKeyword.from('params')]: params.value.slice(
 						vectorVariadicPos.value
 					),
-					[MalKeyword.create('index')]: i - vectorVariadicPos.value,
+					[MalKeyword.from('index')]: i - vectorVariadicPos.value,
 				})
 			} else if ('default' in variadicSchema) {
 				value = variadicSchema.default as MalVal
 			}
 
 			newParams.splice(i, 0, value)
-			const newExp = MalList.create(props.exp[0], ...newParams)
+			const newExp = MalList.from(props.exp[0], ...newParams)
 
 			context.emit('input', newExp)
 		}
@@ -250,7 +250,7 @@ export default defineComponent({
 			const newParams = [...params.value]
 			newParams.splice(i, 1)
 
-			const newExp = MalList.create(props.exp[0], ...newParams)
+			const newExp = MalList.from(props.exp[0], ...newParams)
 
 			context.emit('input', newExp)
 		}

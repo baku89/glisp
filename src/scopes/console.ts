@@ -34,7 +34,7 @@ function copyToClipboard(str: string) {
 		printer.log('Copied to clipboard')
 	})
 
-	return MalNil.create()
+	return MalNil.from()
 }
 
 function generateSketchURL(codeURL: string) {
@@ -46,7 +46,7 @@ function generateSketchURL(codeURL: string) {
 
 	printer.log(`Sketch URL: ${canvasURL}`)
 
-	return MalNil.create()
+	return MalNil.from()
 }
 
 ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
@@ -55,9 +55,7 @@ ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
 
 ConsoleScope.def(
 	'generate-sketch-url',
-	MalFn.create((url: MalVal) =>
-		generateSketchURL(url.value as string)
-	).withMeta(
+	MalFn.from((url: MalVal) => generateSketchURL(url.value as string)).withMeta(
 		readJS({
 			doc: 'Generates Code URL',
 			params: [
@@ -73,7 +71,7 @@ ConsoleScope.def(
 
 ConsoleScope.def('open-link', (url: MalVal) => {
 	window.open(url.value as string, '_blank')
-	return MalString.create(`Open URL: ${url}`)
+	return MalString.from(`Open URL: ${url}`)
 })
 
 ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
@@ -87,7 +85,7 @@ ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 
 	FileSaver.saveAs(file)
 
-	return MalNil.create()
+	return MalNil.from()
 })
 
 ConsoleScope.def('copy-as-svg', () => {
@@ -95,7 +93,7 @@ ConsoleScope.def('copy-as-svg', () => {
 
 	const svg = renderToSvg(viewExp, 500, 500)
 	copyToClipboard(svg)
-	return MalNil.create()
+	return MalNil.from()
 })
 
 const renderViewScope = createViewScope()
@@ -120,8 +118,8 @@ let renderWindow: Window | null
 
 // 				if (options.selector) {
 // 					viewExp = ConsoleScope.eval(
-// 						MalList.create(
-// 							MalSymbol.create('filter-elements'),
+// 						MalList.from(
+// 							MalSymbol.from('filter-elements'),
 // 							options.selector,
 // 							viewExp
 // 						)
@@ -134,7 +132,7 @@ let renderWindow: Window | null
 // 				}
 
 // 				const bounds = ConsoleScope.eval(
-// 					MalList.create(MalSymbol.create('get-element-bounds'), viewExp)
+// 					MalList.from(MalSymbol.from('get-element-bounds'), viewExp)
 // 				)?.toJS() as number[]
 // 				if (!bounds) {
 // 					throw new MalError('Cannot retrieve bounds')
@@ -158,7 +156,7 @@ let renderWindow: Window | null
 
 // 			exec()
 
-// 			return MalNil.create()
+// 			return MalNil.from()
 // 		},
 // 		readJS({
 // 			doc: 'Renders and exports a sketch',
@@ -168,27 +166,27 @@ let renderWindow: Window | null
 // 					variadic: 'true',
 // 					items: [
 // 						{
-// 							key: MalKeyword.create('format'),
+// 							key: MalKeyword.from('format'),
 // 							type: 'string',
 // 							ui: 'dropdown',
 // 							values: ['png', 'jpeg', 'webp'],
 // 						},
 // 						{
-// 							key: MalKeyword.create('scaling'),
+// 							key: MalKeyword.from('scaling'),
 // 							type: 'number',
 // 							default: 1,
 // 							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 // 						},
-// 						{key: MalKeyword.create('selector'), type: 'string', default: ''},
+// 						{key: MalKeyword.from('selector'), type: 'string', default: ''},
 // 					],
 // 				},
 // 			],
 // 			'initial-params': [
-// 				MalKeyword.create('format'),
+// 				MalKeyword.from('format'),
 // 				'png',
-// 				MalKeyword.create('scaling'),
+// 				MalKeyword.from('scaling'),
 // 				1,
-// 				MalKeyword.create('selector'),
+// 				MalKeyword.from('selector'),
 // 				'',
 // 			],
 // 		})
@@ -271,7 +269,7 @@ let renderWindow: Window | null
 
 // 			exec()
 
-// 			return MalNil.create()
+// 			return MalNil.from()
 // 		},
 // 		readJS({
 // 			doc: 'Exports a video',
@@ -281,28 +279,28 @@ let renderWindow: Window | null
 // 					variadic: true,
 // 					items: [
 // 						{
-// 							key: MalKeyword.create('format'),
+// 							key: MalKeyword.from('format'),
 // 							type: 'string',
 // 							ui: 'dropdown',
 // 							values: ['gif'],
 // 						},
 // 						{
-// 							key: MalKeyword.create('scaling'),
+// 							key: MalKeyword.from('scaling'),
 // 							type: 'number',
 // 							default: 1,
 // 							validator: (x: number) => Math.round(Math.max(1, x) * 2) / 2,
 // 						},
-// 						{key: MalKeyword.create('symbol'), type: 'string'},
-// 						{key: MalKeyword.create('start'), type: 'number', default: 0},
-// 						{key: MalKeyword.create('duration'), type: 'number', default: 1},
+// 						{key: MalKeyword.from('symbol'), type: 'string'},
+// 						{key: MalKeyword.from('start'), type: 'number', default: 0},
+// 						{key: MalKeyword.from('duration'), type: 'number', default: 1},
 // 						{
-// 							key: MalKeyword.create('fps'),
+// 							key: MalKeyword.from('fps'),
 // 							label: 'FPS',
 // 							type: 'number',
 // 							default: 24,
 // 						},
 // 						{
-// 							key: MalKeyword.create('bounds'),
+// 							key: MalKeyword.from('bounds'),
 // 							type: 'rect2d',
 // 							default: [0, 0, 100, 100],
 // 						},
@@ -310,19 +308,19 @@ let renderWindow: Window | null
 // 				},
 // 			],
 // 			'initial-params': [
-// 				MalKeyword.create('format'),
+// 				MalKeyword.from('format'),
 // 				'gif',
-// 				MalKeyword.create('scaling'),
+// 				MalKeyword.from('scaling'),
 // 				1,
-// 				MalKeyword.create('symbol'),
+// 				MalKeyword.from('symbol'),
 // 				'time',
-// 				MalKeyword.create('start'),
+// 				MalKeyword.from('start'),
 // 				0,
-// 				MalKeyword.create('duration'),
+// 				MalKeyword.from('duration'),
 // 				1,
-// 				MalKeyword.create('fps'),
+// 				MalKeyword.from('fps'),
 // 				24,
-// 				MalKeyword.create('bounds'),
+// 				MalKeyword.from('bounds'),
 // 				[0, 0, 200, 200],
 // 			],
 // 		})
@@ -381,7 +379,7 @@ let renderWindow: Window | null
 
 // 			printer.log(`Publishing to Gist... user=${user}, token=${token}`)
 
-// 			return MalNil.create()
+// 			return MalNil.from()
 // 		},
 // 		readJS({
 // 			doc:
@@ -396,12 +394,12 @@ let renderWindow: Window | null
 // 					variadic: true,
 // 					items: [
 // 						{
-// 							key: MalKeyword.create('user'),
+// 							key: MalKeyword.from('user'),
 // 							label: 'User',
 // 							type: 'string',
 // 						},
 // 						{
-// 							key: MalKeyword.create('token'),
+// 							key: MalKeyword.from('token'),
 // 							label: 'Token',
 // 							type: 'string',
 // 						},
@@ -424,9 +422,9 @@ let renderWindow: Window | null
 
 // 				return [
 // 					sketchName,
-// 					MalKeyword.create('user'),
+// 					MalKeyword.from('user'),
 // 					user,
-// 					MalKeyword.create('token'),
+// 					MalKeyword.from('token'),
 // 					token,
 // 				]
 // 			},
@@ -445,7 +443,7 @@ ConsoleScope.def('generate-embed-url', () => {
 
 	printer.log(`Embed URL: ${urlString}`)
 
-	return MalNil.create()
+	return MalNil.from()
 })
 
 export default ConsoleScope

@@ -46,17 +46,17 @@ export default function useAppCommands(
 ) {
 	// AppScope.defn('expand-selected', () => {
 	// 	if (!data.activeExp) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	const expanded = expandExp(data.activeExp)
 	// 	if (expanded === undefined) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	replaceExp(data.activeExp, expanded)
 
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	// AppScope.defn('insert-item', (exp: MalVal) => {
@@ -98,7 +98,7 @@ export default function useAppCommands(
 	// 			)
 	// 		}
 
-	// 		newExp = MalList.create(MalSymbol.create(fnName), ...initialParams)
+	// 		newExp = MalList.from(MalSymbol.from(fnName), ...initialParams)
 	// 	} else if (MalList.is(exp)) {
 	// 		newExp = exp
 	// 	} else {
@@ -112,7 +112,7 @@ export default function useAppCommands(
 
 	// 	replaceExp(activeExp, newActiveExp)
 
-	// 	return MalString.create(generateExpAbsPath(newExp))
+	// 	return MalString.from(generateExpAbsPath(newExp))
 	// })
 
 	AppScope.defn('replace-item', (path: MalVal, replaced: MalVal) => {
@@ -135,45 +135,45 @@ export default function useAppCommands(
 
 	// 		for (const path of paths) {
 	// 			if (typeof path !== 'string') {
-	// 				return MalBoolean.create(false)
+	// 				return MalBoolean.from(false)
 	// 			}
 	// 			const item = getExpByPath(data.exp, path)
 	// 			if (!isMalColl(item)) {
-	// 				return MalBoolean.create(false)
+	// 				return MalBoolean.from(false)
 	// 			}
 	// 			items.push(item)
 	// 		}
 
 	// 		callbacks.setSelectedExp(items)
 	// 	}
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	// AppScope.defn('item-selected?', (path: MalVal) => {
 	// 	if (MalString.is(path)) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	const item = getExpByPath(data.exp, path.value)
 
 	// 	if (!isMalColl(item)) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	const index = data.selectedExp.findIndex(s => s === item)
 
-	// 	return MalBoolean.create(index !== -1)
+	// 	return MalBoolean.from(index !== -1)
 	// })
 
 	// AppScope.defn('toggle-item-selection', (path: MalVal) => {
 	// 	if (MalString.is(path)) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	const item = getExpByPath(data.exp, path.value)
 
 	// 	if (!isMalColl(item)) {
-	// 		return MalBoolean.create(false)
+	// 		return MalBoolean.from(false)
 	// 	}
 
 	// 	const index = data.selectedExp.findIndex(s => s === item)
@@ -187,7 +187,7 @@ export default function useAppCommands(
 
 	// 	callbacks.setSelectedExp(items)
 
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	AppScope.defn('load-file', (url: MalVal) => {
@@ -203,7 +203,7 @@ export default function useAppCommands(
 			}
 		})
 
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	AppScope.defn('select-outer', () => {
@@ -215,7 +215,7 @@ export default function useAppCommands(
 		if (parent && parent?.ref !== data.exp) {
 			callbacks.setActiveExp(parent.ref)
 		}
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	AppScope.defn('wrap-selected', (wrapper: MalVal) => {
@@ -229,7 +229,7 @@ export default function useAppCommands(
 		const exp = data.activeExp
 		let shouldDuplicate = false
 
-		const newExp = MalList.create(
+		const newExp = MalList.from(
 			...wrapper.value.map(e => {
 				if (MalSymbol.isFor(e, '%')) {
 					const ret = shouldDuplicate ? exp.clone() : exp
@@ -243,7 +243,7 @@ export default function useAppCommands(
 
 		replaceExp(data.activeExp, newExp)
 
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	// AppScope.defn('transform-selected', (xform: MalVal) => {
@@ -255,19 +255,19 @@ export default function useAppCommands(
 	// 		const fnInfo = getFnInfo(exp)
 
 	// 		if (!fnInfo) {
-	// 			return MalBoolean.create(false)
+	// 			return MalBoolean.from(false)
 	// 		}
 
 	// 		const {meta, structType} = fnInfo
 	// 		const transformFn = getExpByPath(meta, 'transform')
 
 	// 		if (!MalFunc.is(transformFn)) {
-	// 			return MalBoolean.create(false)
+	// 			return MalBoolean.from(false)
 	// 		}
 
 	// 		const originalParams = structType ? [exp] : exp.value.slice(1)
-	// 		const payload = MalMap.create({
-	// 			params: MalVector.create(...originalParams.map(p => p.evaluated)),
+	// 		const payload = MalMap.from({
+	// 			params:  MalVector.from(...originalParams.map(p => p.evaluated)),
 	// 			transform: xform,
 	// 		})
 
@@ -279,19 +279,19 @@ export default function useAppCommands(
 	// 		} else {
 	// 			newParams = applyParamModifier(modifier, originalParams)
 	// 			if (!newParams) {
-	// 				return MalBoolean.create(false)
+	// 				return MalBoolean.from(false)
 	// 			}
 	// 		}
 
 	// 		const newExp = structType
 	// 			? newParams[0]
-	// 			: MalList.create(exp[0], ...newParams)
+	// 			: MalList.from(exp[0], ...newParams)
 	// 		copyDelimiters(newExp, exp)
 
 	// 		replaceExp(exp, newExp)
 	// 	}
 
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	// AppScope.defn('copy-selected', () => {
@@ -303,7 +303,7 @@ export default function useAppCommands(
 
 	// 	navigator.clipboard.writeText(code)
 
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	// AppScope.defn('paste-from-clipboard', () => {
@@ -315,7 +315,7 @@ export default function useAppCommands(
 	// 		const [_outer, _index] = getUIParent(data.activeExp)
 
 	// 		if (!isMalSeq(_outer)) {
-	// 			return MalBoolean.create(false)
+	// 			return MalBoolean.from(false)
 	// 		}
 
 	// 		;[outer, index] = [_outer, _index]
@@ -334,7 +334,7 @@ export default function useAppCommands(
 	// 		callbacks.setActiveExp(isMalColl(exp) ? exp : undefined)
 	// 	})
 
-	// 	return MalBoolean.create(true)
+	// 	return MalBoolean.from(true)
 	// })
 
 	AppScope.defn('delete-selected', () => {
@@ -345,12 +345,12 @@ export default function useAppCommands(
 
 		callbacks.setSelectedExp([])
 
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	AppScope.defn('group-selected', () => {
 		if (data.selectedExp.length === 0) {
-			return MalBoolean.create(false)
+			return MalBoolean.from(false)
 		}
 
 		const [first, ...rest] = data.selectedExp
@@ -359,9 +359,9 @@ export default function useAppCommands(
 			deleteExp(getUIAnnotationExp(exp))
 		}
 
-		const group = MalList.create(
-			MalSymbol.create('g'),
-			MalMap.create(),
+		const group = MalList.from(
+			MalSymbol.from('g'),
+			MalMap.from(),
 			first,
 			...rest
 		)
@@ -370,6 +370,6 @@ export default function useAppCommands(
 
 		callbacks.setActiveExp(group)
 
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 }

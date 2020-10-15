@@ -37,9 +37,9 @@ import {clamp} from '@/utils'
 import ParamControl from '@/components/ParamControl.vue'
 import {useDraggable} from '@/components/use'
 
-const K_START = MalKeyword.create('start'),
-	K_DURATION = MalKeyword.create('duration'),
-	K_FPS = MalKeyword.create('fps')
+const K_START = MalKeyword.from('start'),
+	K_DURATION = MalKeyword.from('duration'),
+	K_FPS = MalKeyword.from('fps')
 
 export default defineComponent({
 	name: 'Inspector-deftime',

@@ -67,7 +67,7 @@ export default defineComponent({
 
 			scope.value.def('set-clear-code', (value: MalBoolean) => {
 				clearCode.value = !!value.value
-				return MalNil.create()
+				return MalNil.from()
 			})
 
 			watch(
@@ -96,7 +96,7 @@ export default defineComponent({
 				code.value = ''
 			}
 
-			return MalNil.create()
+			return MalNil.from()
 		}
 
 		return {

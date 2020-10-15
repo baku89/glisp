@@ -60,7 +60,7 @@ abstract class MalBase<T> {
 				break
 			case MalType.Keyword:
 			case MalType.String:
-				v._meta = MalMap.fromSeq([meta, MalBoolean.create(true)])
+				v._meta = MalMap.fromSeq([meta, MalBoolean.from(true)])
 				break
 			default:
 				throw new Error('Metadata must be Symbol, Keyword, String or Map')
@@ -70,7 +70,7 @@ abstract class MalBase<T> {
 	}
 
 	get meta() {
-		return this._meta ? this._meta : (this._meta = MalNil.create())
+		return this._meta ? this._meta : (this._meta = MalNil.from())
 	}
 
 	get value() {
@@ -129,7 +129,7 @@ export class MalNumber extends MalPrimBase<number> {
 		return this._value
 	}
 
-	static create(v = 0) {
+	static from(v = 0) {
 		return new this(v)
 	}
 
@@ -178,7 +178,7 @@ export class MalString extends MalPrimBase<string> {
 		return this._value.length
 	}
 
-	static create(v = '') {
+	static from(v = '') {
 		return new this(v)
 	}
 
@@ -211,7 +211,7 @@ export class MalBoolean extends MalPrimBase<boolean> {
 		return this._value
 	}
 
-	static create(v = true) {
+	static from(v = true) {
 		return new this(v)
 	}
 
@@ -249,7 +249,7 @@ export class MalKeyword extends MalPrimBase<string> {
 		return this._value
 	}
 
-	static create(v = '_') {
+	static from(v = '_') {
 		if (SymbolKeywordRegex.test(v))
 			throw new MalError(`Cannot create a keyword with name "${v}"`)
 		return new this(v)
@@ -289,7 +289,7 @@ export class MalNil extends MalPrimBase<null> {
 		return null
 	}
 
-	static create() {
+	static from() {
 		return new this(null)
 	}
 
@@ -331,7 +331,7 @@ export class MalSymbol extends MalPrimBase<string> {
 		return this._value
 	}
 
-	static create(v = '_') {
+	static from(v = '_') {
 		if (SymbolKeywordRegex.test(v))
 			throw new MalError(`Cannot create a symbol with name "${v}"`)
 		return new this(v)
@@ -455,7 +455,7 @@ export class MalList extends MalSeqBase {
 
 	// Original methods
 	get first() {
-		return this._value[0] || MalNil.create()
+		return this._value[0] || MalNil.from()
 	}
 
 	get rest() {
@@ -463,7 +463,7 @@ export class MalList extends MalSeqBase {
 	}
 
 	// Static functions
-	static create(v: MalVal[] = []) {
+	static from(v: MalVal[] = []) {
 		return new this(v)
 	}
 
@@ -504,7 +504,7 @@ export class MalVector extends MalSeqBase {
 	}
 
 	// Static functions
-	static create(v: MalVal[] = []) {
+	static from(v: MalVal[] = []) {
 		return new this(v)
 	}
 
@@ -545,7 +545,7 @@ export class MalBuffer extends MalBase<Float32Array | Uint8Array> {
 	}
 
 	get(index: number) {
-		return MalNumber.create(this._value[index])
+		return MalNumber.from(this._value[index])
 	}
 
 	get bufferType() {
@@ -569,7 +569,7 @@ export class MalBuffer extends MalBase<Float32Array | Uint8Array> {
 		return this._value
 	}
 
-	static create(value: Float32Array | Uint8Array) {
+	static from(value: Float32Array | Uint8Array) {
 		return new this(value)
 	}
 
@@ -664,7 +664,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 	}
 
 	// Static Functions
-	static create(v: MalMapValue) {
+	static from(v: MalMapValue) {
 		return new this(v)
 	}
 
@@ -742,7 +742,7 @@ export class MalFn extends MalCallable {
 		return v
 	}
 
-	static create(v: MalCallableValue) {
+	static from(v: MalCallableValue) {
 		return new this(v)
 	}
 
@@ -775,7 +775,7 @@ export class MalMacro extends MalCallable {
 		return v
 	}
 
-	static create(v: MalCallableValue) {
+	static from(v: MalCallableValue) {
 		return new this(v)
 	}
 
@@ -835,7 +835,7 @@ export class MalAtom extends MalBase<MalVal> {
 		return this._value
 	}
 
-	static create(value: MalVal) {
+	static from(value: MalVal) {
 		return new MalAtom(value)
 	}
 

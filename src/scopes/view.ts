@@ -18,7 +18,7 @@ function onSetup(scope: Scope, option: ViewScopeOption) {
 	} else {
 		env.set(
 			'guide/stroke',
-			MalFn.create(() => MalNil.create())
+			MalFn.from(() => MalNil.from())
 		)
 	}
 

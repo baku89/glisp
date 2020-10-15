@@ -41,7 +41,7 @@ export default defineComponent({
 		}
 
 		function onInput(str: string) {
-			const value = MalKeyword.create(str)
+			const value = MalKeyword.from(str)
 			context.emit('input', value)
 		}
 

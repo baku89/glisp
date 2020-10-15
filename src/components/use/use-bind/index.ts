@@ -48,7 +48,7 @@ export default function useBind(scope: Scope) {
 				}
 
 				isRecordingBind.value = false
-				resolve(MalString.create(name + '/' + cmd))
+				resolve(MalString.from(name + '/' + cmd))
 			}
 
 			for (const [name, device] of Object.entries(devices)) {

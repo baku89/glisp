@@ -60,7 +60,7 @@ export default defineComponent({
 		})
 
 		function onInput(value: string) {
-			let newValue: MalVal = MalString.create(value)
+			let newValue: MalVal = MalString.from(value)
 
 			if (isExp.value) {
 				newValue = reverseEval(newValue, props.value)

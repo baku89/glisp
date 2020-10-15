@@ -62,7 +62,7 @@ export default function useExpHistory(
 
 	// Register to AppScope
 	AppScope.defn('revert-history', (tag: MalVal) => {
-		return MalBoolean.create(
+		return MalBoolean.from(
 			undoExp(typeof tag.value === 'string' ? tag.value : undefined)
 		)
 	})
@@ -72,7 +72,7 @@ export default function useExpHistory(
 			throw new MalError('tag is not a string/keyword/symbol')
 		}
 		tagExpHistory(tag.value)
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	return {pushExpHistory, tagExpHistory}

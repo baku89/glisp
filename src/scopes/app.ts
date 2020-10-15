@@ -25,7 +25,7 @@ AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 
 	Mousetrap.bind(keybind, callback)
 
-	return MalBoolean.create(true)
+	return MalBoolean.from(true)
 })
 
 AppScope.def('trigger-keybind', (keybind: MalVal) => {
@@ -35,19 +35,19 @@ AppScope.def('trigger-keybind', (keybind: MalVal) => {
 
 	Mousetrap.trigger(keybind)
 
-	return MalBoolean.create(true)
+	return MalBoolean.from(true)
 })
 
 AppScope.def('unset-all-keybinds', () => {
 	Mousetrap.reset()
 
-	return MalBoolean.create(true)
+	return MalBoolean.from(true)
 })
 
 AppScope.def('*global-menu*', [])
 AppScope.def('set-global-menu', (menu: MalVal) => {
 	AppScope.def('*global-menu*', menu)
-	return MalBoolean.create(true)
+	return MalBoolean.from(true)
 })
 
 export default AppScope

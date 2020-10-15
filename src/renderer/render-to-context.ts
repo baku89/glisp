@@ -184,11 +184,11 @@ export default function renderToContext(
 		// } else if (Array.isArray(style)) {
 		// 	const [type, params] = style as [string, MalMap]
 		// 	switch (type) {
-		// 		case MalKeyword.create('linear-gradient'): {
+		// 		case MalKeyword.from('linear-gradient'): {
 		// 			const [x0, y0, x1, y1] = params[
-		// 				MalKeyword.create('points')
+		// 				MalKeyword.from('points')
 		// 			] as number[]
-		// 			const stops = params[MalKeyword.create('stops')] as (
+		// 			const stops = params[MalKeyword.from('stops')] as (
 		// 				| string
 		// 				| number
 		// 			)[]

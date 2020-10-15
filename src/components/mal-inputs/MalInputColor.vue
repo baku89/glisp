@@ -222,15 +222,15 @@ export default defineComponent({
 					value = color.hex('auto')
 					break
 				case 'RGB':
-					value = MalList.create(
-						MalSymbol.create('rgb'),
+					value = MalList.from(
+						MalSymbol.from('rgb'),
 						...color.rgb().map(v => v / 255)
 					)
 					break
 				case 'HSL': {
 					const [h, s, l] = color.hsl()
-					value = MalList.create(
-						MalSymbol.create('hsl'),
+					value = MalList.from(
+						MalSymbol.from('hsl'),
 						((h || 0) / 180) * Math.PI,
 						s,
 						l
@@ -257,7 +257,7 @@ export default defineComponent({
 		}
 
 		function onInputNumber(i: number, v: number) {
-			const newExp = MalList.create(...(props.value as MalVal[]))
+			const newExp = MalList.from(...(props.value as MalVal[]))
 			newExp[i + 1] = v
 			context.emit('input', newExp)
 		}
@@ -270,7 +270,7 @@ export default defineComponent({
 			hsl: {h: number; s: number; l: number}
 		}) {
 			let value: MalVal = MalList.is(props.value)
-				? MalList.create(...props.value)
+				? MalList.from(...props.value)
 				: ''
 
 			switch (mode.value) {
@@ -319,7 +319,7 @@ export default defineComponent({
 							: color.a
 					;(value as MalVal[])[4] = a
 				} else {
-					value = MalList.create(...(value as MalVal[]).slice(0, 4))
+					value = MalList.from(...(value as MalVal[]).slice(0, 4))
 				}
 			}
 

@@ -30,7 +30,7 @@ export default class Env {
 		this.name = name
 
 		if (forms && exps) {
-			this.bind(MalVector.create(forms), MalVector.create(exps))
+			this.bind(MalVector.from(forms), MalVector.from(exps))
 		}
 	}
 
@@ -46,7 +46,7 @@ export default class Env {
 		const merged = this.outer
 			? new Map({...this.outer.data, ...this.data})
 			: this.data
-		return [...merged.keys()].map(MalSymbol.create)
+		return [...merged.keys()].map(MalSymbol.from)
 	}
 
 	/**
@@ -78,7 +78,7 @@ export default class Env {
 					// rest arguments
 					this.set(
 						(forms.get(i + 1) as MalSymbol).value,
-						MalVector.create(exps.value.slice(i))
+						MalVector.from(exps.value.slice(i))
 					)
 					i++
 					continue

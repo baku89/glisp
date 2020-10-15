@@ -40,15 +40,15 @@
 // 		case MalType.Vector: {
 // 			let arr = (exp as MalSeq).value.map(val => expandSymbolsInExp(val, env))
 // 			return type === MalType.List
-// 				? MalList.create(...arr)
-// 				: MalVector.create(...arr)
+// 				? MalList.from(...arr)
+// 				:  MalVector.from(...arr)
 // 		}
 // 		case MalType.Map: {
 // 			const map: {[k: string]: MalVal} = {}
 // 			Object.entries(exp as MalMap).forEach(([key, val]) => {
 // 				map[key] = expandSymbolsInExp(val, env)
 // 			})
-// 			return MalMap.create(map)
+// 			return MalMap.from(map)
 // 		}
 // 		case MalType.Symbol:
 // 			if (env.hasOwn(exp as MalSymbol)) {

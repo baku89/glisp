@@ -23,11 +23,11 @@ function quasiquote(exp: MalVal): MalVal {
 		for (const [k, v] of exp.entries()) {
 			ret[k] = quasiquote(v)
 		}
-		return MalMap.create(ret)
+		return MalMap.from(ret)
 	}
 
 	if (!isPair(exp)) {
-		const ret = MalList.fromSeq(MalSymbol.create('quote'), exp)
+		const ret = MalList.fromSeq(MalSymbol.from('quote'), exp)
 		ret.sugar = "'"
 		return ret
 	}
@@ -37,17 +37,17 @@ function quasiquote(exp: MalVal): MalVal {
 	}
 
 	const ret = MalList.fromSeq(
-		MalSymbol.create('concat'),
+		MalSymbol.from('concat'),
 		...exp.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.rest[0]
 			} else {
-				return MalVector.create([quasiquote(e)])
+				return MalVector.from([quasiquote(e)])
 			}
 		})
 	)
 
-	return MalList.is(exp) ? MalList.fromSeq(MalSymbol.create('lst'), ret) : ret
+	return MalList.is(exp) ? MalList.fromSeq(MalSymbol.from('lst'), ret) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
 		return isMalSeq(x) && x.count > 0
@@ -87,14 +87,14 @@ function generateUnnamedParams(exp: MalVal) {
 	const params = []
 
 	for (let i = 1; i <= paramCount; i++) {
-		params.push(MalSymbol.create(`%${i}`))
+		params.push(MalSymbol.from(`%${i}`))
 	}
 
 	if (hasRest) {
-		params.push(MalSymbol.create('&'), MalSymbol.create('%&'))
+		params.push(MalSymbol.from('&'), MalSymbol.from('%&'))
 	}
 
-	return MalVector.create(params)
+	return MalVector.from(params)
 
 	function traverse(exp: MalVal) {
 		switch (exp.type) {
@@ -140,7 +140,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					for (const x of exp.value) {
 						vec.push(await evalExp(x, env))
 					}
-					ret = MalVector.create(vec)
+					ret = MalVector.from(vec)
 					break
 				}
 				case MalType.Map: {
@@ -148,7 +148,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					for (const [k, v] of exp.entries()) {
 						entries.push([k, await evalExp(v, env)])
 					}
-					ret = MalMap.create(Object.fromEntries(entries))
+					ret = MalMap.from(Object.fromEntries(entries))
 					break
 				}
 			}
@@ -161,8 +161,8 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 
 		// Eval () as nil
 		if (exp.count === 0) {
-			;(origExp as MalList).evaluated = MalNil.create()
-			return MalNil.create()
+			;(origExp as MalList).evaluated = MalNil.from()
+			return MalNil.from()
 		}
 
 		// Special forms
@@ -199,7 +199,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					exp =
 						body.length === 1
 							? body[0]
-							: MalList.create([MalSymbol.create('do'), ...body])
+							: MalList.from([MalSymbol.from('do'), ...body])
 					continue TCO
 				}
 				case 'quote':
@@ -211,7 +211,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 				case 'fn-sugar': {
 					const body = exp.rest[0]
 					const params = generateUnnamedParams(exp)
-					exp = MalList.create([MalSymbol.create('fn'), params, body])
+					exp = MalList.from([MalSymbol.from('fn'), params, body])
 					continue TCO
 				}
 				case 'fn':
@@ -222,7 +222,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					if (MalVector.is(_params)) {
 						params = _params
 					} else if (MalMap.is(_params)) {
-						params = MalVector.create([_params])
+						params = MalVector.from([_params])
 					}
 
 					if (params === undefined) {
@@ -233,7 +233,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					if (body === undefined) {
 						throw new MalError(`The body of ${name} is empty`)
 					}
-					const ret = (name === 'fn' ? MalFn : MalMacro).create(
+					const ret = (name === 'fn' ? MalFn : MalMacro).from(
 						async (...args) => {
 							return await evalExp(
 								body,
@@ -266,7 +266,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 							catchExp.rest[0].evaluated = SpecialForms['catch'] as MalVal
 							const [, errSym, errBody] = catchExp.value
 
-							const message = MalString.create(
+							const message = MalString.from(
 								err instanceof Error ? err.message : 'Error'
 							)
 							const ret = await evalExp(
@@ -286,16 +286,16 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 				}
 				case 'do': {
 					if (exp.count === 1) {
-						return (origExp.evaluated = MalNil.create())
+						return (origExp.evaluated = MalNil.from())
 					}
-					await evalExp(MalVector.create(exp.slice(1, -1)), env)
+					await evalExp(MalVector.from(exp.slice(1, -1)), env)
 					exp = exp.get(exp.count - 1)
 					continue TCO
 				}
 				case 'if': {
 					const [_test, thenExp, elseExp] = exp.rest
 					const test = await evalExp(_test, env)
-					exp = test.toBoolean() ? thenExp : elseExp || MalNil.create()
+					exp = test.toBoolean() ? thenExp : elseExp || MalNil.from()
 					continue TCO
 				}
 			}

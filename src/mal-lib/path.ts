@@ -42,11 +42,11 @@ const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function toPathVector(...arr: (string | number[])[]) {
 	return MalVector.fromSeq(
-		MalKeyword.create('path'),
+		MalKeyword.from('path'),
 		...arr.map(p =>
 			typeof p === 'string'
-				? MalKeyword.create(p)
-				: MalVector.fromSeq(MalNumber.create(p[0]), MalNumber.create(p[1]))
+				? MalKeyword.from(p)
+				: MalVector.fromSeq(MalNumber.from(p[0]), MalNumber.from(p[1]))
 		)
 	)
 }
@@ -292,7 +292,7 @@ function getMalPathFromPaper(
 // 				segs[nextIndex][1] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
 // 			}
 // 		}
-// 	} else if (type === MalKeyword.create('handle-out')) {
+// 	} else if (type === MalKeyword.from('handle-out')) {
 // 		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
 // 		const outHandle = vec2.add(vec2.create(), origOutHandle, delta)
 // 		draggingSeg[1] = outHandle
@@ -914,13 +914,9 @@ const Exports = [
 ] as [string, any][]
 
 const Exp = MalList.fromSeq(
-	MalSymbol.create('do'),
+	MalSymbol.from('do'),
 	...Exports.map(([sym, body]) =>
-		MalList.fromSeq(
-			MalSymbol.create('def'),
-			MalSymbol.create(sym),
-			readJS(body)
-		)
+		MalList.fromSeq(MalSymbol.from('def'), MalSymbol.from(sym), readJS(body))
 	)
 )
 ;(globalThis as any)['glisp_library'] = Exp

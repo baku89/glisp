@@ -28,7 +28,7 @@ export default async function initReplScope(scope: Scope) {
 	scope.def('*host-language*', 'JavaScript')
 
 	scope.def('normalize-import-url', (url: MalVal) => {
-		return MalString.create(normalizeImportURL(url.value as string))
+		return MalString.from(normalizeImportURL(url.value as string))
 	})
 
 	scope.def('eval', (exp: MalVal) => {
@@ -71,7 +71,7 @@ export default async function initReplScope(scope: Scope) {
 		await scope.eval(exp)
 		scope.def('*filename*', pwd)
 
-		return MalNil.create()
+		return MalNil.from()
 	})
 
 	// Load core library as default

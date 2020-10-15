@@ -105,13 +105,13 @@ function readAtom(reader: Reader) {
 	if (typeof token === 'string') {
 		if (token.match(/^[-+]?[0-9]+$/)) {
 			// integer
-			return MalNumber.create(parseInt(token, 10))
+			return MalNumber.from(parseInt(token, 10))
 		} else if (token.match(/^[-+]?([0-9]*\.[0-9]+|[0-9]+)$/)) {
 			// float
-			return MalNumber.create(parseFloat(token))
+			return MalNumber.from(parseFloat(token))
 		} else if (token.match(/^"(?:\\.|[^\\"])*"$/)) {
 			// string
-			return MalString.create(
+			return MalString.from(
 				token
 					.slice(1, token.length - 1)
 					.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
@@ -119,18 +119,18 @@ function readAtom(reader: Reader) {
 		} else if (token[0] === '"') {
 			throw new MalReadError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
-			return MalKeyword.create(token.slice(1))
+			return MalKeyword.from(token.slice(1))
 		} else if (token === 'nil') {
-			return MalNil.create()
+			return MalNil.from()
 		} else if (token === 'true') {
-			return MalBoolean.create(true)
+			return MalBoolean.from(true)
 		} else if (token === 'false') {
-			return MalBoolean.create(false)
+			return MalBoolean.from(false)
 		} else if (/^NaN$|^-?Infinity$/.test(token)) {
-			return MalNumber.create(parseFloat(token))
+			return MalNumber.from(parseFloat(token))
 		} else {
 			// symbol
-			return MalSymbol.create(token as string)
+			return MalSymbol.from(token as string)
 		}
 	} else {
 		return token
@@ -139,7 +139,7 @@ function readAtom(reader: Reader) {
 
 // read syntactic sugar and return MalList
 function readSyntacticSugar(reader: Reader, name: string, count: number) {
-	const coll: MalVal[] = [MalSymbol.create(name)]
+	const coll: MalVal[] = [MalSymbol.from(name)]
 	const delimiters: string[] = ['']
 
 	const sugarSymbol = reader.next()
@@ -152,7 +152,7 @@ function readSyntacticSugar(reader: Reader, name: string, count: number) {
 
 	delimiters.push('')
 
-	const list = MalList.create(coll)
+	const list = MalList.from(coll)
 	list.sugar = sugarSymbol
 	list.delimiters = delimiters
 
@@ -195,14 +195,14 @@ function readColl(reader: Reader, start = '[', end = ']') {
 // read vector of tokens
 function readVector(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '[', ']')
-	const vec = MalVector.create(coll)
+	const vec = MalVector.from(coll)
 	vec.delimiters = delimiters
 	return vec
 }
 
 function readList(reader: Reader) {
 	const {coll, delimiters} = readColl(reader, '(', ')')
-	const list = MalList.create(coll)
+	const list = MalList.from(coll)
 	list.delimiters = delimiters
 	return list
 }
@@ -221,7 +221,7 @@ function readForm(reader: Reader): any {
 	switch (token) {
 		// reader macros
 		case ';':
-			return MalNil.create()
+			return MalNil.from()
 		case "'":
 			return readSyntacticSugar(reader, 'quote', 1)
 		case '`':
@@ -299,33 +299,33 @@ export function readJS(obj: any): MalVal {
 		return obj
 	} else if (Array.isArray(obj)) {
 		// Vector
-		return MalVector.create(obj.map(readJS))
+		return MalVector.from(obj.map(readJS))
 	} else if (obj instanceof Float32Array) {
 		// Numeric Vector
-		return MalVector.create(Array.from(obj).map(x => MalNumber.create(x)))
+		return MalVector.from(Array.from(obj).map(x => MalNumber.from(x)))
 	} else if (obj instanceof Function) {
 		// Function
-		return MalFn.create(obj)
+		return MalFn.from(obj)
 	} else if (obj instanceof Object) {
 		// Map
 		const ret: {[k: string]: MalVal} = {}
 		for (const [key, value] of Object.entries(obj)) {
 			ret[key] = readJS(value as any)
 		}
-		return MalMap.create(ret)
+		return MalMap.from(ret)
 	} else if (obj === null || obj === undefined) {
 		// Nil
-		return MalNil.create()
+		return MalNil.from()
 	} else {
 		switch (typeof obj) {
 			case 'number':
-				return MalNumber.create(obj)
+				return MalNumber.from(obj)
 			case 'string':
-				return MalString.create(obj)
+				return MalString.from(obj)
 			case 'boolean':
-				return MalBoolean.create(obj)
+				return MalBoolean.from(obj)
 			default:
-				return MalNil.create()
+				return MalNil.from()
 		}
 	}
 }

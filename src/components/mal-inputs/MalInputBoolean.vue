@@ -41,7 +41,7 @@ export default defineComponent({
 		)
 
 		function onInput(value: boolean) {
-			let newValue: MalVal = MalBoolean.create(value)
+			let newValue: MalVal = MalBoolean.from(value)
 
 			if (isExp.value) {
 				newValue = reverseEval(newValue, props.value)

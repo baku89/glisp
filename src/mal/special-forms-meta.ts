@@ -2,7 +2,7 @@ import {readJS} from './reader'
 import {MalFn, MalNil, MalVal} from './types'
 
 export default {
-	def: MalFn.create(() => MalNil.create()).withMeta(
+	def: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Defines a variable',
 			params: [
@@ -12,7 +12,7 @@ export default {
 		})
 	),
 
-	defvar: MalFn.create(() => MalNil.create()).withMeta(
+	defvar: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc:
 				'Creates a variable which can be changed by the bidirectional evaluation',
@@ -22,7 +22,7 @@ export default {
 			],
 		})
 	),
-	let: MalFn.create(() => MalNil.create()).withMeta(
+	let: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Creates a lexical scope',
 			params: [
@@ -31,7 +31,7 @@ export default {
 			],
 		})
 	),
-	binding: MalFn.create(() => MalNil.create()).withMeta(
+	binding: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Creates a new binding',
 			params: [
@@ -40,39 +40,39 @@ export default {
 			],
 		})
 	),
-	'get-all-symbols': MalFn.create(() => MalNil.create()).withMeta(
+	'get-all-symbols': MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Gets all existing symbols',
 			params: [],
 			return: {type: 'vector'},
 		})
 	),
-	'fn-params': MalFn.create(() => MalNil.create()).withMeta(
+	'fn-params': MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Gets the list of a function parameter',
 			params: [{label: 'Function', type: 'symbol'}],
 		})
 	),
-	'eval*': MalFn.create(() => MalNil.create()).withMeta(
+	'eval*': MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc:
 				'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 			params: [{label: 'Form', type: 'exp'}],
 		})
 	),
-	quote: MalFn.create(() => MalNil.create()).withMeta(
+	quote: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Yields the unevaluated *form*',
 			params: [{label: 'Form', type: 'exp'}],
 		})
 	),
-	quasiquote: MalFn.create(() => MalNil.create()).withMeta(
+	quasiquote: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Quasiquote',
 			params: [{label: 'Form', type: 'exp'}],
 		})
 	),
-	fn: MalFn.create(() => MalNil.create()).withMeta(
+	fn: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Defines a function',
 			params: [
@@ -81,13 +81,13 @@ export default {
 			],
 		})
 	),
-	'fn-sugar': MalFn.create(() => MalNil.create()).withMeta(
+	'fn-sugar': MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'syntactic sugar for (fn [] *form*)',
 			params: [],
 		})
 	),
-	macro: MalFn.create(() => MalNil.create()).withMeta(
+	macro: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: '',
 			params: [
@@ -96,25 +96,25 @@ export default {
 			],
 		})
 	),
-	macroexpand: MalFn.create(() => MalNil.create()).withMeta(
+	macroexpand: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Expands the macro',
 			params: [],
 		})
 	),
-	try: MalFn.create(() => MalNil.create()).withMeta(
+	try: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Try',
 			params: [],
 		})
 	),
-	catch: MalFn.create(() => MalNil.create()).withMeta(
+	catch: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Catch',
 			params: [],
 		})
 	),
-	do: MalFn.create(() => MalNil.create()).withMeta(
+	do: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Evaluates *forms* in order and returns the value of the last',
 			params: [
@@ -126,7 +126,7 @@ export default {
 			],
 		})
 	),
-	if: MalFn.create(() => MalNil.create()).withMeta(
+	if: MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'If statement. If **else** is not supplied it defaults to nil',
 			params: [
@@ -136,7 +136,7 @@ export default {
 			],
 		})
 	),
-	'env-chain': MalFn.create(() => MalNil.create()).withMeta(
+	'env-chain': MalFn.from(() => MalNil.from()).withMeta(
 		readJS({
 			doc: 'Env chain',
 			params: [],

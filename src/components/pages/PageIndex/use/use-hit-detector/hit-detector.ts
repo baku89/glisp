@@ -10,9 +10,9 @@ import {
 import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
 
-const K_PATH = MalKeyword.create('path'),
-	K_TRANSFORM = MalKeyword.create('transform'),
-	K_STYLE = MalKeyword.create('style')
+const K_PATH = MalKeyword.from('path'),
+	K_TRANSFORM = MalKeyword.from('transform'),
+	K_STYLE = MalKeyword.from('style')
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
@@ -120,6 +120,6 @@ export class HitDetector {
 
 	public analyze(pos: vec2, exp: MalVal) {
 		this.ctx.resetTransform()
-		return this.analyzeNode(pos, exp, MalMap.create())
+		return this.analyzeNode(pos, exp, MalMap.from())
 	}
 }

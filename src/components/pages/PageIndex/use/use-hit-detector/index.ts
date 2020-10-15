@@ -13,9 +13,9 @@ export default function useHitDetector(exp: Ref<MalColl>) {
 		const ret = detector.analyze(p, exp.value)
 
 		if (ret) {
-			return MalString.create(generateExpAbsPath(ret))
+			return MalString.from(generateExpAbsPath(ret))
 		}
 
-		return MalBoolean.create(false)
+		return MalBoolean.from(false)
 	})
 }

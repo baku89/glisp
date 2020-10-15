@@ -257,11 +257,11 @@ export default function useHandle(
 
 		const handle = handles.value[selectedIndex][handleIndex]
 
-		const eventInfo = MalMap.create({
-			id: handle.id === undefined ? MalNil.create() : handle.id,
+		const eventInfo = MalMap.from({
+			id: handle.id === undefined ? MalNil.from() : handle.id,
 			pos: readJS(pos),
 			'prev-pos': readJS(prevPos),
-			params: MalVector.create(..._params),
+			params: MalVector.from(..._params),
 		})
 
 		rawPrevPos.value = rawPos
@@ -335,7 +335,7 @@ export default function useHandle(
 		// Construct the new expression and send it to parent
 		const newExp: MalSeq = fi.structType
 			? (newParams[0] as MalSeq)
-			: (MalList.create(exp.value[0], ...newParams) as MalSeq)
+			: (MalList.from(exp.value[0], ...newParams) as MalSeq)
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, exp)

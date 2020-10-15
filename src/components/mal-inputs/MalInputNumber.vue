@@ -113,7 +113,7 @@ export default defineComponent({
 				}
 				newExp = ret
 			} else {
-				newExp = MalNumber.create(value)
+				newExp = MalNumber.from(value)
 			}
 
 			// Validate
@@ -122,7 +122,7 @@ export default defineComponent({
 				if (display.value.mode === 'unit') {
 					const unitValue = (fn.value as MalFunc).value(newExp) as MalNumber
 					validated = (display.value.inverseFn as any)(
-						MalMap.create({
+						MalMap.from({
 							return: props.validator(unitValue),
 						})
 					)[0]
@@ -139,7 +139,7 @@ export default defineComponent({
 				const unitValue = MalNumber.is(newExp)
 					? reverseEval(newExp, (props.value as MalVal[])[1])
 					: newExp
-				newExp = MalList.create((props.value as MalVal[])[0], unitValue)
+				newExp = MalList.from((props.value as MalVal[])[0], unitValue)
 			} else if (display.value.mode === 'exp') {
 				newExp = MalNumber.is(newExp)
 					? reverseEval(newExp, props.value)

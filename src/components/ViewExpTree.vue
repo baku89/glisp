@@ -93,10 +93,10 @@ const IconTexts = {
 	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
 } as {[type: string]: {type: string; value: string; style?: string}}
 
-const S_UI_ANNOTATE = MalSymbol.create('ui-annotate')
-const K_NAME = MalKeyword.create('name')
-const K_EXPANDED = MalKeyword.create('expanded')
-const K_HIDDEN = MalKeyword.create('hidden')
+const S_UI_ANNOTATE = MalSymbol.from('ui-annotate')
+const K_NAME = MalKeyword.from('name')
+const K_EXPANDED = MalKeyword.from('expanded')
+const K_HIDDEN = MalKeyword.from('hidden')
 
 export default defineComponent({
 	name: 'ViewExpTree',
@@ -243,19 +243,19 @@ export default defineComponent({
 		function toggleExpanded() {
 			const annotation = {} as {[k: string]: MalVal}
 			if (!ui.value.expanded === true) {
-				annotation.expanded = MalBoolean.create(true)
+				annotation.expanded = MalBoolean.from(true)
 			}
 			if (ui.value.name !== null) {
-				annotation.name = MalString.create(ui.value.name)
+				annotation.name = MalString.from(ui.value.name)
 			}
 
 			const newExp =
 				Object.keys(annotation).length > 0
-					? MalList.create([
+					? MalList.from([
 							S_UI_ANNOTATE,
-							MalMap.create(annotation),
-							expBody.value
-					])
+							MalMap.from(annotation),
+							expBody.value,
+					  ])
 					: expBody.value
 
 			context.emit('update:exp', newExp)
@@ -269,10 +269,10 @@ export default defineComponent({
 			let newExp
 
 			if (hasAnnotation.value) {
-				newExp = MalList.create([
+				newExp = MalList.from([
 					S_UI_ANNOTATE,
 					(props.exp as MalSeq).value[1],
-					newExpBody
+					newExpBody,
 				])
 			} else {
 				newExp = newExpBody

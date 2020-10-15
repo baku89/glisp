@@ -46,7 +46,7 @@ export default class Scope {
 			return await this.eval(readStr(str))
 		} catch (err) {
 			if (err instanceof MalBlankException) {
-				return MalNil.create()
+				return MalNil.from()
 			}
 
 			if (err instanceof MalError) {

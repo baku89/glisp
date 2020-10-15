@@ -74,7 +74,7 @@ export default defineComponent({
 		// Code
 		const code = ref(getCodeFromURL())
 
-		const viewExp = shallowRef<MalVal | undefined>(MalNil.create())
+		const viewExp = shallowRef<MalVal | undefined>(MalNil.from())
 
 		const hasReadEvalError = computed(() => !code.value)
 		const hasRenderError = ref(false)

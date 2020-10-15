@@ -192,8 +192,8 @@ const DEFAULT_VALUE = {
 	number: 0,
 	boolean: true,
 	string: '',
-	keyword: MalKeyword.create('_'),
-	symbol: MalSymbol.create('_'),
+	keyword: MalKeyword.from('_'),
+	symbol: MalSymbol.from('_'),
 	color: '#000000',
 	vec2: [0, 0],
 	rect2d: [0, 0, 0, 0],
@@ -246,9 +246,9 @@ export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
 export function extractParams(exp: MalSeq): MalSeq {
 	const structType = getStructType(exp)
 	if (structType) {
-		const structSymbol = MalSymbol.create(structType)
+		const structSymbol = MalSymbol.from(structType)
 		structSymbol.evaluated = AppScope.var(structType) as MalFunc
-		return MalList.create(structType, exp)
+		return MalList.from(structType, exp)
 	} else {
 		return exp
 	}
@@ -374,7 +374,7 @@ function generateDynamicUISchema(
 	const toSchema = schemaParams['to-schema']
 
 	const uiSchema = convertMalCollToJSObject(
-		toSchema.value(MalMap.create({parmas: MalVector.create(...params)}))
+		toSchema.value(MalMap.from({parmas: MalVector.from(...params)}))
 	) as Schema[]
 
 	for (const sch of uiSchema) {
@@ -446,7 +446,7 @@ function updateParamsByFixedUISchema(
 
 		newParams.push(
 			...Object.entries(restMap)
-				.map(([k, v]) => [MalString.create(k), v])
+				.map(([k, v]) => [MalString.from(k), v])
 				.flat()
 		)
 		return newParams
@@ -479,7 +479,7 @@ function updateParamsByDynamicUISchema(
 	const toParams = schema['to-params']
 
 	const ret = toParams.value(readJS({values: params}))
-	return MalVector.is(ret) ? ret : MalVector.create()
+	return MalVector.is(ret) ? ret : MalVector.from()
 }
 
 /**

@@ -40,11 +40,11 @@ export default function useKeyboardState() {
 			}
 			const code = key.value
 			if (!state[code] || !state[code].value) {
-				return MalBoolean.create(false)
+				return MalBoolean.from(false)
 			}
 		}
 
-		return MalBoolean.create(true)
+		return MalBoolean.from(true)
 	})
 
 	return state

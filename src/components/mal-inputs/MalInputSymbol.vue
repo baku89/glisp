@@ -37,7 +37,7 @@ export default defineComponent({
 		}
 
 		function onInput(str: string) {
-			const value = MalSymbol.create(str)
+			const value = MalSymbol.from(str)
 			context.emit('input', value)
 		}
 

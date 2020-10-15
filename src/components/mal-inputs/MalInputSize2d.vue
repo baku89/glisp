@@ -135,10 +135,10 @@ export default defineComponent({
 				newSize[anotherIndex] = anotherValue
 			}
 
-			const newExp = MalList.create(
-				MalSymbol.create('vec2/size'),
+			const newExp = MalList.from(
+				MalSymbol.from('vec2/size'),
 				newSize,
-				ratio.value === false ? MalBoolean.create(false) : MalNumber.create(r)
+				ratio.value === false ? MalBoolean.from(false) : MalNumber.from(r)
 			)
 			context.emit('input', newExp)
 		}
@@ -165,10 +165,10 @@ export default defineComponent({
 
 			const newSizeExp = reverseEval(newSize, size.value)
 
-			const newExp = MalList.create(
-				MalSymbol.create('vec2/size'),
+			const newExp = MalList.from(
+				MalSymbol.from('vec2/size'),
 				newSizeExp,
-				ratio.value === false ? MalBoolean.create(false) : MalNumber.create(r)
+				ratio.value === false ? MalBoolean.from(false) : MalNumber.from(r)
 			)
 			context.emit('input', newExp)
 		}
@@ -176,11 +176,11 @@ export default defineComponent({
 		function onClickLinkButton() {
 			const newRatio =
 				ratio.value === false
-					? MalNumber.create(evaluated.value[1] / evaluated.value[0])
-					: MalBoolean.create(false)
+					? MalNumber.from(evaluated.value[1] / evaluated.value[0])
+					: MalBoolean.from(false)
 
-			const newExp = MalList.create(
-				MalSymbol.create('vec2/size'),
+			const newExp = MalList.from(
+				MalSymbol.from('vec2/size'),
 				size.value,
 				newRatio
 			)

@@ -272,9 +272,9 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 
 // 			// Compute the original parameter
 // 			const result = inverseFn.value(
-// 				MalMap.create({
+// 				MalMap.from({
 // 					return: exp,
-// 					params: MalVector.create(...evaluatedParams),
+// 					params:  MalVector.from(...evaluatedParams),
 // 				})
 // 			)
 
@@ -328,13 +328,13 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 // 				newParams[i] = reverseEval(newParams[i], originalParams[i])
 // 			}
 
-// 			const newExp = MalList.create(fn, ...newParams)
+// 			const newExp = MalList.from(fn, ...newParams)
 
 // 			return newExp
 // 		} else if (MalVector.is(original)) {
 // 			if (!MalVector.is(exp) || exp.length === original.length) return
 
-// 			return MalVector.create(
+// 			return  MalVector.from(
 // 				...exp.value.map((e, i) => reverseEval(e, original.value[i]))
 // 			)
 // 		} else if (MalMap.is(original)) {
@@ -358,7 +358,7 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 // 			// 	const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 // 			// 	replaceExp(
 // 			// 		def,
-// 			// 		MalList.create(MalSymbol.create('defvar'), original, newDefBody)
+// 			// 		MalList.from(MalSymbol.from('defvar'), original, newDefBody)
 // 			// 	)
 // 			// 	return original.clone()
 // 			// }

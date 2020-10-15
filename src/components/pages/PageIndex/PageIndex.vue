@@ -191,7 +191,7 @@ export default defineComponent({
 		}) as UI
 
 		const data: Data = reactive({
-			exp: MalList.create(MalSymbol.create('sketch')),
+			exp: MalList.from(MalSymbol.from('sketch')),
 			hasError: computed(
 				() => data.hasParseError || data.hasEvalError || data.hasRenderError
 			),
@@ -328,7 +328,7 @@ export default defineComponent({
 					const code = printExp(exp)
 					const sketch = code.slice(OFFSET_START, -OFFSET_END)
 					localStorage.setItem('saved_code', sketch)
-					ConsoleScope.def('*sketch*', MalString.create(sketch))
+					ConsoleScope.def('*sketch*', MalString.from(sketch))
 				}
 			}
 		)

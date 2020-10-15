@@ -34,15 +34,15 @@ export function* iterateSegment(
 // 		}
 
 // 		switch (exp[0]) {
-// 			case MalKeyword.create('path'):
+// 			case MalKeyword.from('path'):
 // 				return getSVGPathData(transformPath(exp as PathType, transform))
-// 			case MalKeyword.create('style'): {
+// 			case MalKeyword.from('style'): {
 // 				return exp
 // 					.slice(2)
 // 					.map(e => convertPath(e, transform))
 // 					.join(' ')
 // 			}
-// 			case MalKeyword.create('transform'): {
+// 			case MalKeyword.from('transform'): {
 // 				const newTransform = mat2d.mul(
 // 					mat2d.create(),
 // 					transform || mat2d.create(),
@@ -64,7 +64,7 @@ export function transformPath(path: MalVector, transform: MalVector) {
 
 	return !transform
 		? path
-		: MalVector.create(
+		: MalVector.from(
 				path.value.map(p =>
 					MalVector.is(p)
 						? readJS(vec2.transformMat2d(vec2.create(), p.toFloats(), xform))
@@ -84,10 +84,10 @@ export function getSVGPathData(path: MalVector) {
 		.join(' ')
 }
 
-// const K_M = MalKeyword.create('M'),
-// 	K_L = MalKeyword.create('L'),
-// 	K_C = MalKeyword.create('C'),
-// 	K_Z = MalKeyword.create('Z')
+// const K_M = MalKeyword.from('M'),
+// 	K_L = MalKeyword.from('L'),
+// 	K_C = MalKeyword.from('C'),
+// 	K_Z = MalKeyword.from('Z')
 
 // export function convertToPath2D(exp: PathType) {
 // 	const path = new Path2D()

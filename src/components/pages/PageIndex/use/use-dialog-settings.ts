@@ -24,6 +24,6 @@ export default function useDialogCommand(context: SetupContext) {
 		// 	}
 		// )
 
-		return MalNil.create()
+		return MalNil.from()
 	})
 }

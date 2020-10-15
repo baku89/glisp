@@ -8,9 +8,9 @@ import {useKeyboardState} from '@/components/use'
 import {getHTMLElement} from '@/utils'
 import {readJS} from '@/mal/reader'
 
-const K_EVENT_TYPE = MalKeyword.create('event-type')
-const K_POS = MalKeyword.create('pos')
-const K_MOUSE_PRESSED = MalKeyword.create('mouse-pressed')
+const K_EVENT_TYPE = MalKeyword.from('event-type')
+const K_POS = MalKeyword.from('pos')
+const K_MOUSE_PRESSED = MalKeyword.from('mouse-pressed')
 
 interface Mode {
 	name: string
@@ -38,7 +38,7 @@ export function useModes(
 		modes.value = (ConsoleScope.var('*modes*').toJS() as any) as Mode[]
 	}
 
-	const modeState = ref<MalMap>(MalMap.create())
+	const modeState = ref<MalMap>(MalMap.from())
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),
@@ -81,11 +81,11 @@ export function useModes(
 		if (handler) {
 			const params = modeState.value.assoc(
 				K_EVENT_TYPE,
-				MalString.create(type),
+				MalString.from(type),
 				K_POS,
 				readJS(pos.value),
 				K_MOUSE_PRESSED,
-				MalBoolean.create(mousePressed.value)
+				MalBoolean.from(mousePressed.value)
 			)
 
 			const updatedState = handler(params)
@@ -102,9 +102,9 @@ export function useModes(
 				? activeMode.value.handlers.setup()
 				: ({} as any)
 
-			return MalBoolean.create(true)
+			return MalBoolean.from(true)
 		} else {
-			return MalBoolean.create(false)
+			return MalBoolean.from(false)
 		}
 	})
 
