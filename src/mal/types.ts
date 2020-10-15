@@ -425,6 +425,10 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 	) {
 		return this._value.map(callbackfn)
 	}
+
+	forEach(callbackfn: (value: MalVal, index: number, array: MalVal[]) => void) {
+		this._value.forEach(callbackfn)
+	}
 }
 
 export class MalList extends MalSeqBase {

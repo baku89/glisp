@@ -359,7 +359,7 @@ export function reconstructTree(exp: MalVal) {
 		}
 
 		if (isMalSeq(exp)) {
-			exp.value.forEach((child, index) => seek(child, {ref: exp, index}))
+			exp.forEach((child, index) => seek(child, {ref: exp, index}))
 		} else if (MalMap.is(exp)) {
 			exp
 				.entries()

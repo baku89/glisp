@@ -100,7 +100,7 @@ function generateUnnamedParams(exp: MalVal) {
 		switch (exp.type) {
 			case MalType.List:
 			case MalType.Vector:
-				exp.value.forEach(traverse)
+				exp.forEach(traverse)
 				break
 			case MalType.Map:
 				exp.values().forEach(traverse)
