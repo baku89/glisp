@@ -14,7 +14,9 @@
                                     (concat [nil] args)
                                     args)]
      `(def ~name (with-meta
-                   (macro ~params (do ~@body))
+                   (macro ~params ~(if (= 1 (count body))
+                                     (nth body 0)
+                                     `(do ~@body)))
                    ~metadata)))))
 
 (defmacro defn
@@ -29,7 +31,9 @@
                                    (concat [nil] args)
                                    args)]
     `(def ~name (with-meta
-                  (fn ~params (do ~@body))
+                  (fn ~params ~(if (= 1 (count body))
+                                 (nth body 0)
+                                 `(do ~@body)))
                   ~metadata))))
 
 (defmacro defalias [alias original]
