@@ -136,15 +136,27 @@ const Exports = [
 	],
 	[
 		'mod',
-		(x: MalNumber, y: MalNumber) => {
-			const _x = x.value
-			const _y = y.value
-			MalNumber.create(((_x % _y) + _y) % _y)
+		(x: MalVal, y: MalVal) => {
+			const _x = MalNumber.check(x)
+			const _y = MalNumber.check(y)
+			return MalNumber.create(((_x % _y) + _y) % _y)
 		},
 	],
-
-	// Array
-	['list', (...coll: MalVal[]) => MalList.create(coll)],
+	[
+		'quot',
+		(num: MalVal, div: MalVal) =>
+			MalNumber.create(Math.floor(MalNumber.check(num) / MalNumber.check(div))),
+	],
+	[
+		'rem',
+		(num: MalVal, div: MalVal) =>
+			MalNumber.create(MalNumber.check(num) % MalNumber.check(div)),
+	],
+	[
+		// Array
+		'list',
+		(...coll: MalVal[]) => MalList.create(coll),
+	],
 	['lst', (coll: MalSeq) => MalList.create(coll.value)],
 
 	['vector', (...xs: MalVal[]) => MalVector.create(xs)],
