@@ -12,6 +12,8 @@ export enum MalType {
 	Vector = 'vector',
 	Map = 'map',
 
+	Buffer = 'buffer',
+
 	Fn = 'fn',
 	Macro = 'macro',
 
@@ -27,6 +29,7 @@ export type MalVal =
 	| MalNil
 	| MalList
 	| MalVector
+	| MalBuffer
 	| MalMap
 	| MalFn
 	| MalMacro
@@ -515,6 +518,67 @@ export class MalVector extends MalSeqBase {
 
 	static check(v: MalVal, label?: string) {
 		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a vector`)
+		return v.value
+	}
+}
+
+export class MalBuffer extends MalBase<Float32Array | Uint8Array> {
+	readonly type = MalType.Buffer
+
+	print() {
+		return '#F[' + this._value.join(' ') + ']'
+	}
+
+	clone() {
+		const value = new Float32Array(this._value)
+		return new MalBuffer(value, this._meta?.clone())
+	}
+
+	get count() {
+		return this._value.length
+	}
+
+	toFloats() {
+		return this._value instanceof Float32Array
+			? this._value
+			: Float32Array.from(this._value)
+	}
+
+	get(index: number) {
+		return MalNumber.create(this._value[index])
+	}
+
+	get bufferType() {
+		if (this._value instanceof Float32Array) {
+			return 'f32'
+		} else {
+			return 'u8'
+		}
+	}
+
+	equals(v: MalVal): boolean {
+		return (
+			v.type === this.type &&
+			v.count === this.count &&
+			v.bufferType === this.bufferType &&
+			v.value.every((x: number, i: number) => x === this._value[i])
+		)
+	}
+
+	toJS() {
+		return this._value
+	}
+
+	static create(value: Float32Array | Uint8Array) {
+		return new this(value)
+	}
+
+	static is(value: MalVal | undefined): value is MalBuffer {
+		return value?.type === MalType.Buffer
+	}
+
+	static check(v: MalVal, label?: string) {
+		if (!this.is(v)) throw new MalError(`${label || v.print()} is not a buffer`)
 		return v.value
 	}
 }

@@ -20,6 +20,7 @@ import {
 	MalCallableValue,
 	MalType,
 	isMalColl,
+	MalBuffer,
 } from '@/mal/types'
 import printExp, {printer} from '@/mal/printer'
 import {partition} from '@/utils'
@@ -182,7 +183,7 @@ const Exports = [
 	],
 	[
 		'nth',
-		(a: MalSeq | MalMap, index: MalNumber) => {
+		(a: MalSeq | MalBuffer | MalMap, index: MalNumber) => {
 			if (!MalNumber.is(index)) {
 				throw new MalError('index argument to nth must be a number')
 			}
@@ -227,7 +228,7 @@ const Exports = [
 	],
 	[
 		'map',
-		async (f: MalFn, coll: MalSeq) => {
+		async (f: MalFn, coll: MalSeq | MalBuffer) => {
 			const _f = MalFn.check(f)
 			const arr = []
 			for (let i = 0, l = coll.count; i < l; i++) {
@@ -508,6 +509,15 @@ const Exports = [
 				const ret = fn(...args.map(x => x.toJS()))
 				return readJS(ret)
 			})
+		},
+	],
+
+	// Buffer
+	[
+		'buffer-f32',
+		(x: MalVal) => {
+			const buf = x.toFloats()
+			return MalBuffer.create(buf)
 		},
 	],
 
