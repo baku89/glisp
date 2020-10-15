@@ -103,5 +103,11 @@ module.exports = {
 			filename: 'interpreter.html',
 			title: "'(glisp/interpreter)",
 		},
+		'js/ui': {
+			entry: 'src/pages/ui/index.ts',
+			template: 'public/ui.html',
+			filename: 'ui.html',
+			title: "'(glisp/ui)",
+		},
 	},
 }
