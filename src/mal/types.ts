@@ -224,7 +224,7 @@ export class MalBoolean extends MalPrimBase<boolean> {
 }
 
 // eslint-disable-next-line no-useless-escape
-const SymbolKeywordRegex = /^[.:0-9()\[\]{}@^~'`,#\\]|[;\s]/
+const SymbolKeywordRegex = /^[:0-9()\[\]{}@^~'`,#\\]|[;\s]/
 
 export class MalKeyword extends MalPrimBase<string> {
 	readonly type = MalType.Keyword
@@ -419,10 +419,7 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 		return this._value.slice(start, end)
 	}
 
-	map(
-		callbackfn: (value: MalVal, index: number, array: MalVal[]) => any,
-		thisArg?: any
-	) {
+	map(callbackfn: (value: MalVal, index: number, array: MalVal[]) => any) {
 		return this._value.map(callbackfn)
 	}
 
