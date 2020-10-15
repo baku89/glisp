@@ -60,7 +60,7 @@ const Exports = [
 		'=',
 		(a: MalVal, ...b: MalVal[]) => MalBoolean.create(b.every(x => a.equals(x))),
 	],
-	['!=', (a: MalVal, b: MalVal) => MalBoolean.create(!a.equals(b))],
+	['not=', (a: MalVal, b: MalVal) => MalBoolean.create(!a.equals(b))],
 	[
 		'<',
 		(...xs: MalNumber[]) =>

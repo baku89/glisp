@@ -156,8 +156,8 @@
    :inverse (fn {:return [x y] :params [[ox oy] ratio]}
               (if (or (= ratio false) (= ratio 0))
                 [[x y] ratio]
-                (let [x-changed (!= x ox)
-                      y-changed (!= y oy)]
+                (let [x-changed (not= x ox)
+                      y-changed (not= y oy)]
                   (cond (and x-changed (not y-changed))
                         [[x (* x ratio)] ratio]
 
@@ -854,12 +854,12 @@
                        :bottom {:replace [1 (- py (rect2d/bottom r))]}))}
    :inverse (fn {:return ret :params [h v src]}
               (let [old-ret (rect2d/expand h v src)
-                    h (if (!= (rect2d/left old-ret)
-                              (rect2d/left ret))
+                    h (if (not= (rect2d/left old-ret)
+                                (rect2d/left ret))
                         (- (rect2d/left src) (rect2d/left ret))
                         (- (rect2d/right ret) (rect2d/right src)))
-                    v (if (!= (rect2d/top old-ret)
-                              (rect2d/top ret))
+                    v (if (not= (rect2d/top old-ret)
+                                (rect2d/top ret))
                         (- (rect2d/top src) (rect2d/top ret))
                         (- (rect2d/bottom ret) (rect2d/bottom src)))]
                 [h v src]))
