@@ -149,3 +149,8 @@ declare module 'gif.js' {
 		public render(): void
 	}
 }
+
+declare module '*.yml' {
+	const YamlData: any
+	export default component
+}

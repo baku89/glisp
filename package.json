@@ -101,12 +101,14 @@
 		"uid": "^1.0.0",
 		"voronoi": "^1.0.0",
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
+		"vue-cli-plugin-yaml": "^1.0.2",
 		"vue-color": "^2.7.1",
 		"vuedraggable": "^2.24.0",
 		"webmidi": "^2.5.1",
 		"webpack": "^4.44.2",
 		"webpack-cli": "^3.3.12",
 		"worker-plugin": "^5.0.0",
+		"yaml-loader": "^0.6.0",
 		"yargs": "^16.0.3"
 	},
 	"jest": {
