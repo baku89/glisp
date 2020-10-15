@@ -70,21 +70,21 @@ export default class Env {
 				)
 			}
 
-			for (let i = 0; i < forms.value.length; i++) {
-				const form = forms.value[i]
-				const exp = exps.value[i]
+			for (let i = 0; i < forms.count; i++) {
+				const form = forms.get(i)
+				const exp = exps.get(i)
 
 				if (MalSymbol.isFor(form, '&')) {
 					// rest arguments
 					this.set(
-						(forms.value[i + 1] as MalSymbol).value,
+						(forms.get(i + 1) as MalSymbol).value,
 						MalVector.create(exps.value.slice(i))
 					)
 					i++
 					continue
 				} else if (MalKeyword.isFor(form, 'as')) {
 					// :as destruction
-					this.set((forms.value[i + 1] as MalSymbol).value, exp)
+					this.set((forms.get(i + 1) as MalSymbol).value, exp)
 					break
 				}
 
@@ -111,7 +111,7 @@ export default class Env {
 							`[${this.name}] The destruction keyword :${key} does not exist on the parameter`
 						)
 					}
-					this.bind(form, exps.value[key])
+					this.bind(form, exps.get(key))
 				}
 			}
 		}

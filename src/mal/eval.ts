@@ -38,7 +38,7 @@ function quasiquote(exp: MalVal): MalVal {
 
 	const ret = MalList.fromSeq(
 		MalSymbol.create('concat'),
-		...exp.value.map(e => {
+		...exp.map(e => {
 			if (MalList.isCallOf(e, 'splice-unquote')) {
 				return e.rest[0]
 			} else {
@@ -50,7 +50,7 @@ function quasiquote(exp: MalVal): MalVal {
 	return MalList.is(exp) ? MalList.fromSeq(MalSymbol.create('lst'), ret) : ret
 
 	function isPair(x: MalVal): x is MalSeq {
-		return isMalSeq(x) && x.value.length > 0
+		return isMalSeq(x) && x.count > 0
 	}
 }
 
@@ -84,17 +84,17 @@ function generateUnnamedParams(exp: MalVal) {
 
 	traverse(exp)
 
-	const params = MalVector.create()
+	const params = []
 
 	for (let i = 1; i <= paramCount; i++) {
-		params.value.push(MalSymbol.create(`%${i}`))
+		params.push(MalSymbol.create(`%${i}`))
 	}
 
 	if (hasRest) {
-		params.value.push(MalSymbol.create('&'), MalSymbol.create('%&'))
+		params.push(MalSymbol.create('&'), MalSymbol.create('%&'))
 	}
 
-	return params
+	return MalVector.create(params)
 
 	function traverse(exp: MalVal) {
 		switch (exp.type) {
@@ -160,7 +160,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 		}
 
 		// Eval () as nil
-		if (exp.value.length === 0) {
+		if (exp.count === 0) {
 			;(origExp as MalList).evaluated = MalNil.create()
 			return MalNil.create()
 		}
@@ -192,11 +192,8 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					if (!MalVector.is(binds)) {
 						throw new MalError('let requires a vector for its binding')
 					}
-					for (let i = 0; i < binds.value.length; i += 2) {
-						letEnv.bind(
-							binds.value[i],
-							await evalExp(binds.value[i + 1], letEnv)
-						)
+					for (let i = 0; i < binds.count; i += 2) {
+						letEnv.bind(binds.get(i), await evalExp(binds.get(i + 1), letEnv))
 					}
 					env = letEnv
 					exp =
@@ -206,13 +203,13 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					continue TCO
 				}
 				case 'quote':
-					return (origExp.evaluated = exp.value[1])
+					return (origExp.evaluated = exp.rest[0])
 				case 'quasiquote': {
-					exp = quasiquote(exp.value[1])
+					exp = quasiquote(exp.rest[0])
 					continue TCO
 				}
 				case 'fn-sugar': {
-					const body = exp.value[1]
+					const body = exp.rest[0]
 					const params = generateUnnamedParams(exp)
 					exp = MalList.create([MalSymbol.create('fn'), params, body])
 					continue TCO
@@ -254,7 +251,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					return ret
 				}
 				case 'macroexpand':
-					return (origExp.evaluated = await macroexpand(exp.value[1], env))
+					return (origExp.evaluated = await macroexpand(exp.rest[0], env))
 				case 'try': {
 					const [, testExp, catchExp] = exp.value
 					try {
@@ -264,9 +261,9 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					} catch (err) {
 						if (
 							MalList.isCallOf(catchExp, 'catch') &&
-							MalSymbol.is(catchExp.value[1])
+							MalSymbol.is(catchExp.rest[0])
 						) {
-							catchExp.value[1].evaluated = SpecialForms['catch'] as MalVal
+							catchExp.rest[0].evaluated = SpecialForms['catch'] as MalVal
 							const [, errSym, errBody] = catchExp.value
 
 							const message = MalString.create(
@@ -288,15 +285,15 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 					}
 				}
 				case 'do': {
-					if (exp.value.length === 1) {
+					if (exp.count === 1) {
 						return (origExp.evaluated = MalNil.create())
 					}
-					await evalExp(MalVector.create(exp.value.slice(1, -1)), env)
-					exp = exp.value[exp.value.length - 1]
+					await evalExp(MalVector.create(exp.slice(1, -1)), env)
+					exp = exp.get(exp.count - 1)
 					continue TCO
 				}
 				case 'if': {
-					const [, _test, thenExp, elseExp] = exp.value
+					const [_test, thenExp, elseExp] = exp.rest
 					const test = await evalExp(_test, env)
 					exp = test.toBoolean() ? thenExp : elseExp || MalNil.create()
 					continue TCO

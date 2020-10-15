@@ -406,6 +406,18 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 	get count() {
 		return this._value.length
 	}
+
+	// Array manipulation
+	slice(start?: number, end?: number) {
+		return this._value.slice(start, end)
+	}
+
+	map(
+		callbackfn: (value: MalVal, index: number, array: MalVal[]) => any,
+		thisArg?: any
+	) {
+		return this._value.map(callbackfn)
+	}
 }
 
 export class MalList extends MalSeqBase {
