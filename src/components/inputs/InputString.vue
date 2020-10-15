@@ -3,15 +3,15 @@
 		v-if="!multiline"
 		class="InputString"
 		type="text"
-		:value="value"
+		:value="modelValue"
 		@input="onInput"
 		@blur="onBlur"
 	/>
 	<textarea
 		v-else
-		class="InputString multiline"
+		class="InputString InputString__multiline"
 		ref="textareaEl"
-		:value="value"
+		:value="modelValue"
 		:style="{height: textareaHeight}"
 		@input="onInput"
 	></textarea>
@@ -25,7 +25,7 @@ const INPUT_LINE_HEIGHT_REM = 1.8
 export default defineComponent({
 	name: 'InputString',
 	props: {
-		value: {
+		modelValue: {
 			type: String,
 			required: true,
 		},
@@ -41,7 +41,7 @@ export default defineComponent({
 	setup(props, context) {
 		const textareaEl = ref<null | HTMLTextAreaElement>(null)
 		const textareaHeight = computed(() => {
-			const lineCount = props.value.split(/\r\n|\r|\n/).length
+			const lineCount = props.modelValue.split(/\r\n|\r|\n/).length
 			return lineCount * INPUT_LINE_HEIGHT_REM + 'rem'
 		})
 		function onInput({target}: Event) {
@@ -52,12 +52,12 @@ export default defineComponent({
 				if (val === null) return
 			}
 
-			context.emit('input', val)
+			context.emit('update:modelValue', val)
 		}
 
 		function onBlur(e: InputEvent) {
 			const el = e.target as HTMLInputElement
-			el.value = props.value
+			el.value = props.modelValue
 			context.emit('end-tweak')
 		}
 
@@ -84,7 +84,7 @@ export default defineComponent({
 	&.exp
 		color var(--red)
 
-	&.multiline
+	&__multiline
 		line-height 1.8rem
 		resize none
 </style>

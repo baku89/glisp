@@ -56,7 +56,7 @@ export default function useNumber(
 	}
 
 	function update(val: number | string) {
-		context.emit('input', val)
+		context.emit('update:modelValue', val)
 	}
 	return {
 		step,

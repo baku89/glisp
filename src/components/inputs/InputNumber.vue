@@ -14,17 +14,20 @@
 
 <script lang="ts">
 import {defineComponent, ref, toRef} from 'vue'
-import {useDraggable, useKeyboardState} from '../use'
+// import {useDraggable, useKeyboardState} from '../use'
+import useDraggable from '../use/use-draggable'
+import useKeyboardState from '../use/use-keyboard-state'
 import useNumberInput from './use-number-input'
 
 export default defineComponent({
 	name: 'InputNumber',
 	props: {
-		value: {
+		modelValue: {
 			type: Number,
 			required: true,
 		},
 	},
+	emit: ['update:modelValue'],
 	setup(props, context) {
 		// Element references
 		const dragEl = ref<null | HTMLElement>(null)
@@ -42,7 +45,7 @@ export default defineComponent({
 				}
 			},
 			onDragStart() {
-				startValue = props.value
+				startValue = props.modelValue
 			},
 			onDrag({deltaX}) {
 				let inc = deltaX / 5
@@ -66,7 +69,7 @@ export default defineComponent({
 		const tweaking = toRef(drag, 'isDragging')
 
 		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
-			toRef(props, 'value'),
+			toRef(props, 'modelValue'),
 			tweaking,
 			context
 		)

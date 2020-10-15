@@ -15,13 +15,14 @@
 
 <script lang="ts">
 import {defineComponent, computed, ref, toRef} from 'vue'
-import {useDraggable, useKeyboardState} from '../use'
+import useDraggable from '../use/use-draggable'
+import useKeyboardState from '../use/use-keyboard-state'
 import useNumberInput from './use-number-input'
 
 export default defineComponent({
 	name: 'InputSlider',
 	props: {
-		value: {
+		modelValue: {
 			type: Number,
 			required: true,
 		},
@@ -55,7 +56,7 @@ export default defineComponent({
 				}
 			},
 			onDragStart() {
-				startValue = props.value
+				startValue = props.modelValue
 			},
 			onDrag({deltaX}) {
 				if (!dragEl.value) return
@@ -81,13 +82,13 @@ export default defineComponent({
 		const tweaking = toRef(drag, 'isDragging')
 
 		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
-			toRef(props, 'value'),
+			toRef(props, 'modelValue'),
 			tweaking,
 			context
 		)
 
 		const sliderStyle = computed(() => {
-			const t = (props.value - props.min) / (props.max - props.min)
+			const t = (props.modelValue - props.min) / (props.max - props.min)
 			const borderRadius = t < 1 ? 0 : '2px'
 			return {
 				width: `${t * 100}%`,
