@@ -2,20 +2,20 @@
 	<button
 		class="InputRotery"
 		:class="{dragging: drag.isDragging}"
-		:style="{transform: `rotate(${value}rad)`}"
+		:style="{transform: `rotate(${modelValue}rad)`}"
 		ref="el"
 	/>
 </template>
 
 <script lang="ts">
 import {defineComponent, ref, Ref} from 'vue'
-import {useDraggable} from '@/components/use/'
+import useDraggable from '@/components/use/use-draggable'
 import {vec2} from 'gl-matrix'
 
 export default defineComponent({
 	name: 'InputRotery',
 	props: {
-		value: {
+		modelValue: {
 			type: Number,
 			required: true,
 		},
@@ -35,9 +35,9 @@ export default defineComponent({
 					-prevAngle
 				)
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
-				const value = props.value + delta
+				const modelValue = props.modelValue + delta
 
-				context.emit('input', value)
+				context.emit('update:modelValue', modelValue)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')

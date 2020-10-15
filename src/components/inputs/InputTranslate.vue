@@ -9,7 +9,7 @@
 
 <script lang="ts">
 import {defineComponent, ref, PropType} from 'vue'
-import {useDraggable} from '@/components/use/'
+import useDraggable from '@/components/use/use-draggable'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 
@@ -18,7 +18,7 @@ const ARROW_KEYS = new Set(['up', 'down', 'left', 'right'])
 export default defineComponent({
 	name: 'InputTranslate',
 	props: {
-		value: {
+		modelValue: {
 			type: [Array, Float32Array] as PropType<number[] | Float32Array>,
 			required: true,
 		},
@@ -27,12 +27,12 @@ export default defineComponent({
 		const el = ref<null | HTMLElement>(null)
 
 		function update(deltaX: number, deltaY: number) {
-			const newValue = vec2.fromValues(props.value[0], props.value[1])
+			const newValue = vec2.fromValues(props.modelValue[0], props.modelValue[1])
 
 			newValue[0] += deltaX
 			newValue[1] += deltaY
 
-			context.emit('input', newValue)
+			context.emit('update:modelValue', newValue)
 		}
 
 		const drag = useDraggable(el, {

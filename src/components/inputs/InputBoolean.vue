@@ -75,6 +75,7 @@ export default defineComponent({
 		border-radius 2px
 		color transparent
 		color var(--comment)
+		line-height 1rem
 		pointer-events none
 		input-transition()
 

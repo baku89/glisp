@@ -7,9 +7,21 @@ import {defineComponent} from 'vue'
 
 export default defineComponent({
 	name: 'InputSeed',
-	setup(prop, context) {
+	props: {
+		min: {
+			type: Number,
+			default: 0,
+		},
+		max: {
+			type: Number,
+			default: 1,
+		},
+	},
+	setup(props, context) {
 		function shuffle() {
-			context.emit('input', Math.random())
+			const t = Math.random()
+			const {max, min} = props
+			context.emit('update:modelValue', t * (max - min) + min)
 		}
 
 		return {shuffle}

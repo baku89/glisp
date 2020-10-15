@@ -29,11 +29,41 @@
 
 			<section class="PageUI__section">
 				<h2>Input Components</h2>
-				<div class="PageUI__ui-list">
-					<InputString v-model="background" />
-					<InputNumber v-model="inputValues.number" />
-					<InputSlider v-model="inputValues.number" :min="0" :max="100" />
-				</div>
+				<dl class="PageUI__ui-list">
+					<dt>String</dt>
+					<dd><InputString v-model="background" /></dd>
+					<dt>Number</dt>
+					<dd><InputNumber v-model="inputValues.number" /></dd>
+					<dt>Slider</dt>
+					<dd>
+						<InputSlider v-model="inputValues.number" :min="0" :max="100" />
+					</dd>
+					<dt>Boolean</dt>
+					<dd>
+						<InputBoolean v-model="inputValues.boolean" label="Label" />
+					</dd>
+					<dt>Rotery</dt>
+					<dd>
+						<InputRotery v-model="inputValues.angle" />
+					</dd>
+					<dt>Seed</dt>
+					<dd>
+						<InputSeed v-model="inputValues.number" :min="0" :max="100" />
+					</dd>
+					<dt>Translate</dt>
+					<dd>
+						<InputTranslate
+							v-model="inputValues.position"
+							:min="0"
+							:max="100"
+						/>
+						<span> Value: [{{ inputValues.position.join(' ') }}]</span>
+					</dd>
+					<dt>Button</dt>
+					<dd>
+						<InputButton label="Action" @click="action" />
+					</dd>
+				</dl>
 			</section>
 		</div>
 	</div>
@@ -43,14 +73,28 @@
 import 'normalize.css'
 
 import {computeTheme} from '@/theme'
-import {defineComponent, reactive, ref, watch} from 'vue'
+import {computed, defineComponent, reactive, ref, watch} from 'vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
+import InputButton from '@/components/inputs/InputButton.vue'
+import InputBoolean from '@/components/inputs/InputBoolean.vue'
+import InputRotery from '@/components/inputs/InputRotery.vue'
+import InputSeed from '@/components/inputs/InputSeed.vue'
+import InputTranslate from '@/components/inputs/InputTranslate.vue'
 
 export default defineComponent({
 	name: 'PageUI',
-	components: {InputNumber, InputSlider, InputString},
+	components: {
+		InputNumber,
+		InputSlider,
+		InputString,
+		InputButton,
+		InputBoolean,
+		InputRotery,
+		InputSeed,
+		InputTranslate,
+	},
 	setup() {
 		const background = ref('#f8f8f8')
 		const theme = ref(computeTheme(background.value))
@@ -65,9 +109,25 @@ export default defineComponent({
 		const inputValues = reactive({
 			string: 'Hello',
 			number: 0,
-		})
+			boolean: true,
+			angle: computed({
+				get: () => (inputValues.number / 180) * Math.PI,
+				set: x => (inputValues.number = (x / Math.PI) * 180),
+			}),
+			position: [0, 0],
+		}) as {
+			string: string
+			number: number
+			boolean: boolean
+			angle: number
+			position: [number, number]
+		}
 
-		return {background, theme, inputValues}
+		function action() {
+			alert('Action!')
+		}
+
+		return {background, theme, inputValues, action}
 	},
 })
 </script>
@@ -107,6 +167,28 @@ export default defineComponent({
 			text-align center
 			line-height 2rem
 
-	&__ui-list > *
-		margin-bottom $input-horiz-margin
+	&__ui-list
+		display flex
+		flex-wrap wrap
+
+		& > dt
+			padding-right 1em
+			width 5.5rem
+			color var(--comment)
+
+		& > dd
+			display flex
+			align-items center
+			margin 0
+			width calc(100% - 5.5rem)
+
+			& > span
+				margin-left 1em
+				color var(--comment)
+				font-monospace()
+
+		& > *
+			margin-bottom $input-horiz-margin
+			height $input-height
+			line-height $input-height
 </style>

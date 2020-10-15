@@ -1,5 +1,5 @@
 <template>
-	<div clas="InputColor">
+	<div class="InputColor">
 		<Popper
 			trigger="clickToOpen"
 			:append-to-body="true"
@@ -13,14 +13,14 @@
 		>
 			<ColorPicker
 				class="InputColor__picker"
-				:value="value"
-				@input="$emit('input', $event)"
+				:value="modelValue"
+				@input="$emit('update:modelValue', $event)"
 			/>
 			<template v-slot:reference>
 				<button class="InputColor__button">
 					<span
 						class="InputColor__color-preview"
-						:style="{background: value}"
+						:style="{background: modelValue}"
 					/>
 				</button>
 			</template>
@@ -40,7 +40,7 @@ export default defineComponent({
 		Popper,
 	},
 	props: {
-		value: {
+		modelValue: {
 			type: String,
 			required: true,
 		},
