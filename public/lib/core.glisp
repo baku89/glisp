@@ -401,6 +401,15 @@
   [s substr]
   (= (slice s 0 (count substr)) substr))
 
+;; Thread
+(defmacro time [expr]
+  (let [start-time-sym (gensym)
+        ret-sym (gensym)]
+    `(let [~start-time-sym (performance-now)
+           ~ret-sym ~expr]
+       (println (format "%.4f ms" (- (performance-now) ~start-time-sym)))
+       ~ret-sym)))
+
 ;; Annotate Repl Core Functions
 
 ;; (annotate-fn

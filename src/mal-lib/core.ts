@@ -519,6 +519,7 @@ const Exports = [
 				setTimeout(() => resolve(MalNil.create()), ms.value)
 			}),
 	],
+	['performance-now', () => MalNumber.create(performance.now())],
 ] as [string, MalCallableValue | MalVal][]
 
 const Exp = MalList.create([
