@@ -38,6 +38,13 @@
 					<dd>
 						<InputSlider v-model="inputValues.number" :min="0" :max="100" />
 					</dd>
+					<dt>Dropdown</dt>
+					<dd>
+						<InputDropdown
+							v-model="inputValues.dropdown"
+							:values="['Apple', 'Banana', 'Orange']"
+						/>
+					</dd>
 					<dt>Boolean</dt>
 					<dd>
 						<InputBoolean v-model="inputValues.boolean" label="Label" />
@@ -75,6 +82,7 @@ import 'normalize.css'
 import {computeTheme} from '@/theme'
 import {computed, defineComponent, reactive, ref, watch} from 'vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
@@ -87,6 +95,7 @@ export default defineComponent({
 	name: 'PageUI',
 	components: {
 		InputNumber,
+		InputDropdown,
 		InputSlider,
 		InputString,
 		InputButton,
@@ -110,6 +119,7 @@ export default defineComponent({
 			string: 'Hello',
 			number: 0,
 			boolean: true,
+			dropdown: 'Apple',
 			angle: computed({
 				get: () => (inputValues.number / 180) * Math.PI,
 				set: x => (inputValues.number = (x / Math.PI) * 180),
@@ -118,6 +128,7 @@ export default defineComponent({
 		}) as {
 			string: string
 			number: number
+			dropdown: string
 			boolean: boolean
 			angle: number
 			position: [number, number]
@@ -135,6 +146,9 @@ export default defineComponent({
 <style lang="stylus">
 @import '../../components/style/global.styl'
 @import '../../components/style/common.styl'
+
+::selection
+	background var(--selection)
 
 .PageUI
 	padding 2rem 0

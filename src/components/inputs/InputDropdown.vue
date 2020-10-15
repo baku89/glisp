@@ -1,5 +1,5 @@
 <template>
-	<select class="InputDropdown" :value="value" @change="onChange">
+	<select class="InputDropdown" :value="modelValue" @change="onChange">
 		<option v-for="(value, index) in values" :key="index" :value="value">
 			{{ labels ? labels[index] : value }}
 		</option>
@@ -12,7 +12,7 @@ import {defineComponent, PropType} from 'vue'
 export default defineComponent({
 	name: 'InputDropdown',
 	props: {
-		value: {
+		modelValue: {
 			type: [String, Number] as PropType<string | number>,
 			required: true,
 		},
@@ -25,11 +25,12 @@ export default defineComponent({
 			required: false,
 		},
 	},
+	emits: ['update:modelValue', 'end-tweak'],
 	setup(props, context) {
 		function onChange(e: InputEvent) {
 			const {selectedIndex} = e.target as HTMLSelectElement
 			const newValue = props.values[selectedIndex]
-			context.emit('input', newValue)
+			context.emit('update:modelValue', newValue)
 			context.emit('end-tweak')
 		}
 
