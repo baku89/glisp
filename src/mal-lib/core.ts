@@ -515,6 +515,13 @@ const Exports = [
 			return MalBuffer.from(buf)
 		},
 	],
+	[
+		'buffer-u8',
+		(x: MalVal) => {
+			const buf = new Uint8Array(x.toFloats())
+			return MalBuffer.from(buf)
+		},
+	],
 
 	// Thread
 	[
