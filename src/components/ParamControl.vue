@@ -83,14 +83,14 @@ const TypeDefaults = {
 	symbol: MalSymbol.from('_'),
 	keyword: MalKeyword.from('_'),
 	boolean: MalBoolean.from(false),
-	vec2:  MalVector.from(MalNumber.from(0), MalNumber.from(0)),
-	rect2d:  MalVector.from(
+	vec2:  MalVector.of(MalNumber.from(0), MalNumber.from(0)),
+	rect2d:  MalVector.of(
 		MalNumber.from(0),
 		MalNumber.from(0),
 		MalNumber.from(1),
 		MalNumber.from(1)
 	),
-	mat2d:  MalVector.from(
+	mat2d:  MalVector.of(
 		MalNumber.from(1),
 		MalNumber.from(0),
 		MalNumber.from(0),
@@ -98,13 +98,13 @@ const TypeDefaults = {
 		MalNumber.from(0),
 		MalNumber.from(0)
 	),
-	size2d: MalList.from(
+	size2d: MalList.of(
 		MalSymbol.from('vec2/size'),
 		MalNumber.from(1),
 		MalNumber.from(1),
 		MalBoolean.from(false)
 	),
-	path:  MalVector.from(MalKeyword.from('path')),
+	path:  MalVector.of(MalKeyword.from('path')),
 	exp: MalNil.from(),
 	any: MalNil.from(),
 } as {[type: string]: MalVal}
