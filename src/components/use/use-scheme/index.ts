@@ -1,5 +1,5 @@
 import chroma from 'chroma-js'
-import {computed, ref, watch, shallowRef} from 'vue'
+import {computed, ref, watch, shallowRef, watchEffect} from 'vue'
 
 interface SchemeBase16 {
 	scheme: string
@@ -220,9 +220,8 @@ export default function useScheme() {
 
 	const backgroundChroma = shallowRef(chroma(background.value))
 
-	watch(background, () => {
+	watchEffect(() => {
 		if (!chroma.valid(background.value)) return
-
 		backgroundChroma.value = chroma(background.value)
 	})
 
@@ -271,10 +270,16 @@ export default function useScheme() {
 		}
 	})
 
+	// Set css variables to body
+	watchEffect(() => {
+		for (const [name, color] of Object.entries(colors.value)) {
+			document.body.style.setProperty(`--${name}`, color)
+		}
+	})
+
 	return {
 		name,
 		background,
 		colors,
-		cssStyle,
 	}
 }

@@ -1,10 +1,12 @@
 import {vec2} from 'gl-matrix'
-import {onBeforeUnmount, Ref, reactive, onMounted} from 'vue'
+import {onBeforeUnmount, Ref, reactive, onMounted, toRefs} from 'vue'
 
 interface DragData {
 	pos: vec2
 	prevPos: vec2
+	startPos: vec2
 	delta: vec2
+	origin: vec2
 	isMousedown: boolean
 	isDragging: boolean
 }
@@ -22,16 +24,20 @@ export default function useDraggable(
 	options: DraggableOptions = {}
 ) {
 	const drag = reactive({
-		// Element-based coordinate
+		// Origin is the centre of element
 		pos: vec2.create(),
 		prevPos: vec2.create(),
+		startPos: vec2.create(),
+
+		// Origin position in viewport
+		origin: vec2.create(),
 
 		delta: vec2.create(),
 		isMousedown: false,
 		isDragging: false,
 	}) as DragData
 
-	function getOffset(e: MouseEvent) {
+	function updatePosAndOrigin(e: MouseEvent) {
 		const {clientX, clientY} = e
 		const {
 			left,
@@ -40,15 +46,17 @@ export default function useDraggable(
 			bottom,
 		} = (el.value as HTMLElement).getBoundingClientRect()
 
-		return vec2.fromValues(
-			clientX - (left + right) / 2,
-			clientY - (top + bottom) / 2
+		drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
+
+		drag.pos = vec2.fromValues(
+			clientX - drag.origin[0],
+			clientY - drag.origin[1]
 		)
 	}
 
 	function onMousedown(e: MouseEvent) {
+		updatePosAndOrigin(e)
 		drag.isMousedown = true
-		drag.pos = getOffset(e)
 		drag.prevPos = vec2.clone(drag.pos)
 
 		// Fire onDragstart and onDrag
@@ -63,7 +71,7 @@ export default function useDraggable(
 	}
 
 	function onMousedrag(e: MouseEvent) {
-		drag.pos = getOffset(e)
+		updatePosAndOrigin(e)
 		drag.delta = vec2.sub(vec2.create(), drag.pos, drag.prevPos)
 
 		if (!drag.isDragging) {
@@ -103,5 +111,5 @@ export default function useDraggable(
 
 	onBeforeUnmount(onMouseup)
 
-	return drag
+	return toRefs(drag)
 }

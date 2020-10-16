@@ -1,5 +1,5 @@
 <template>
-	<div id="app" class="PageEmbed" :style="cssStyle" :class="{error: hasError}">
+	<div id="app" class="PageEmbed" :class="{error: hasError}">
 		<div class="PageEmbed__editor">
 			<GlispEditor v-model="code" cssStyle="line-height: 1.5" />
 		</div>
@@ -82,7 +82,7 @@ export default defineComponent({
 		)
 
 		// UI
-		const {cssStyle, colors} = useScheme()
+		const {colors} = useScheme()
 
 		function openEditor() {
 			const url = new URL('.', location.href)
@@ -91,7 +91,6 @@ export default defineComponent({
 		}
 
 		return {
-			cssStyle,
 			code,
 			viewExp,
 			hasError,

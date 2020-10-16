@@ -1,5 +1,5 @@
 <template>
-	<div class="PageUI" :style="{...cssStyle, background}">
+	<div class="PageUI">
 		<div class="PageUI__content">
 			<section class="PageUI__section">
 				<h2>Theme</h2>
@@ -112,7 +112,7 @@ export default defineComponent({
 		InputTranslate,
 	},
 	setup() {
-		const {background, cssStyle, name: schemeName} = useScheme()
+		const {background, name: schemeName} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -139,7 +139,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {background, cssStyle, inputValues, action, schemeName}
+		return {background, inputValues, action, schemeName}
 	},
 })
 </script>

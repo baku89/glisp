@@ -1,5 +1,5 @@
 <template>
-	<div id="app" class="PageInterpreter" :style="cssStyle">
+	<div id="app" class="PageInterpreter">
 		<Splitpanes class="default-theme">
 			<Pane class="PageInterpreter__pane">
 				<Console
@@ -56,8 +56,7 @@ export default defineComponent({
 		const isReplInitialized = ref(false)
 		const isRecordingBind = ref(false)
 
-		const {cssStyle} = useScheme()
-
+		useScheme()
 		;(async () => {
 			scope.value = await Scope.createRepl()
 
@@ -104,7 +103,6 @@ export default defineComponent({
 			clearCode,
 			isReplInitialized,
 			isRecordingBind,
-			cssStyle,
 			runCode,
 			onSetupConsole,
 		}

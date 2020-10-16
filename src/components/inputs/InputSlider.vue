@@ -50,7 +50,7 @@ export default defineComponent({
 
 		// Drag Events
 		let startValue = 0
-		const drag = useDraggable(dragEl, {
+		const {isDragging: tweaking} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -81,8 +81,6 @@ export default defineComponent({
 				context.emit('end-tweak')
 			},
 		})
-
-		const tweaking = toRef(drag, 'isDragging')
 
 		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
 			toRef(props, 'modelValue'),

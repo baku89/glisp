@@ -1,15 +1,25 @@
 <template>
-	<button class="InputRotery" :class="{tweaking: drag.isDragging}" ref="el">
+	<button class="InputRotery" :class="{tweaking}" ref="el">
 		<span
 			class="InputRotery__body"
 			@mouseenter="tweakMode = 'absolute'"
-			@mouseleave="!drag.isDragging ? (tweakMode = 'relative') : null"
+			@mouseleave="!tweaking ? (tweakMode = 'relative') : null"
 			:style="{
 				transform: `rotate(${modelValue}rad)`,
 				background: tweakMode === 'absolute' ? 'red !important' : 'none',
 			}"
 		/>
 	</button>
+	<teleport to="body">
+		<svg v-if="tweaking" class="InputRotery__overlay">
+			<line
+				:x1="origin[0]"
+				:y1="origin[1]"
+				:x2="origin[0] + pos[0]"
+				:y2="origin[1] + pos[1]"
+			/>
+		</svg>
+	</teleport>
 </template>
 
 <script lang="ts">
@@ -31,7 +41,7 @@ export default defineComponent({
 
 		const tweakMode = ref<'relative' | 'absolute'>('relative')
 
-		const drag = useDraggable(el, {
+		const {isDragging: tweaking, pos, origin} = useDraggable(el, {
 			disableClick: true,
 			onDragStart({pos}) {
 				const angle = Math.atan2(pos[1], pos[0])
@@ -59,7 +69,9 @@ export default defineComponent({
 
 		return {
 			el,
-			drag,
+			tweaking,
+			pos,
+			origin,
 			tweakMode,
 		}
 	},
@@ -111,4 +123,13 @@ export default defineComponent({
 
 		~/__body:before
 			background var(--background)
+
+	&__overlay
+		input-overlay()
+		background rgba(255, 0, 0, 0.2)
+		cursor all-scroll
+
+		line
+			stroke blue
+			stroke-width 10
 </style>
