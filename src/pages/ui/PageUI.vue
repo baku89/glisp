@@ -33,7 +33,7 @@
 				<h2>Input Components</h2>
 				<dl class="PageUI__ui-list">
 					<dt>String</dt>
-					<dd><InputString v-model="background" /></dd>
+					<dd><InputString v-model="background" :monospace="true" /></dd>
 					<dt>Number</dt>
 					<dd><InputNumber v-model="inputValues.number" /></dd>
 					<dt>Slider</dt>

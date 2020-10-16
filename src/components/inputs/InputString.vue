@@ -2,6 +2,7 @@
 	<input
 		v-if="!multiline"
 		class="InputString"
+		:class="{InputString__monospace: monospace}"
 		type="text"
 		:value="modelValue"
 		@input="onInput"
@@ -10,6 +11,7 @@
 	<textarea
 		v-else
 		class="InputString InputString__multiline"
+		:class="{InputString__monospace: monospace}"
 		ref="textareaEl"
 		:value="modelValue"
 		:style="{height: textareaHeight}"
@@ -34,7 +36,9 @@ export default defineComponent({
 			required: false,
 		},
 		multiline: {
-			required: false,
+			default: false,
+		},
+		monospace: {
 			default: false,
 		},
 	},
@@ -86,6 +90,9 @@ export default defineComponent({
 
 	&.exp
 		color var(--red)
+
+	&__monospace
+		font-monospace()
 
 	&__multiline
 		line-height 1.8rem
