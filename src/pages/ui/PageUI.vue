@@ -59,6 +59,10 @@
 					<dd>
 						<InputSeed v-model="inputValues.number" :min="0" :max="100" />
 					</dd>
+					<dt>Color</dt>
+					<dd>
+						<InputColor v-model="background" />
+					</dd>
 					<dt>Translate</dt>
 					<dd>
 						<InputTranslate
@@ -96,6 +100,7 @@ import InputBoolean from '@/components/inputs/InputBoolean.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
+import InputColor from '@/components/inputs/InputColor.vue'
 
 export default defineComponent({
 	name: 'PageUI',
@@ -110,6 +115,7 @@ export default defineComponent({
 		InputRotery,
 		InputSeed,
 		InputTranslate,
+		InputColor,
 	},
 	setup() {
 		const {background, name: schemeName} = useScheme()
