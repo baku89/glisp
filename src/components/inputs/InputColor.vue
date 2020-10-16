@@ -1,6 +1,12 @@
 <template>
 	<div class="InputColor">
-		<Popper
+		<button class="InputColor__button">
+			<span
+				class="InputColor__color-preview"
+				:style="{background: modelValue}"
+			/>
+		</button>
+		<!-- <Popper
 			trigger="clickToOpen"
 			:append-to-body="true"
 			:delay-on-mouse-out="250"
@@ -24,20 +30,18 @@
 					/>
 				</button>
 			</template>
-		</Popper>
+		</Popper> -->
 	</div>
 </template>
 
 <script lang="ts">
 import {defineComponent} from 'vue'
 import {Chrome as ColorPicker} from 'vue-color'
-import Popper from '@/components/layouts/Popper.vue'
 
 export default defineComponent({
 	name: 'InputColor',
 	components: {
-		ColorPicker,
-		Popper,
+		// ColorPicker,
 	},
 	props: {
 		modelValue: {
@@ -71,7 +75,7 @@ export default defineComponent({
 			left 0
 			width 100%
 			height 100%
-			border 1px solid var(--border)
+			border 1px solid var(--frame)
 			border-radius 2px
 			content ''
 			input-transition(border-color)
