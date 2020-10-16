@@ -28,14 +28,17 @@ export default function useDraggable(
 		pos: vec2.create(),
 		prevPos: vec2.create(),
 		startPos: vec2.create(),
+		delta: vec2.create(),
 
 		// Origin position in viewport
 		origin: vec2.create(),
-
-		delta: vec2.create(),
 		isMousedown: false,
 		isDragging: false,
 	}) as DragData
+
+	const absolutePos = computed(() => {
+		return vec2.add(vec2.create(), drag.origin, drag.pos)
+	})
 
 	function updatePosAndOrigin(e: MouseEvent) {
 		const {clientX, clientY} = e
@@ -111,5 +114,5 @@ export default function useDraggable(
 
 	onBeforeUnmount(onMouseup)
 
-	return toRefs(drag)
+	return {...toRefs(drag), absolutePos}
 }

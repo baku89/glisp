@@ -1,31 +1,60 @@
 <template>
-	<button class="InputRotery" :class="{tweaking}" ref="el">
+	<button
+		class="InputRotery"
+		:class="{tweaking, 'tweak-absolute': tweakMode === 'absolute'}"
+		ref="el"
+	>
 		<span
-			class="InputRotery__body"
+			class="InputRotery__scale"
 			@mouseenter="tweakMode = 'absolute'"
 			@mouseleave="!tweaking ? (tweakMode = 'relative') : null"
 			:style="{
 				transform: `rotate(${modelValue}rad)`,
-				background: tweakMode === 'absolute' ? 'red !important' : 'none',
 			}"
 		/>
 	</button>
 	<teleport to="body">
 		<svg v-if="tweaking" class="InputRotery__overlay">
-			<line
-				:x1="origin[0]"
-				:y1="origin[1]"
-				:x2="origin[0] + pos[0]"
-				:y2="origin[1] + pos[1]"
-			/>
+			<template v-if="tweakMode === 'absolute'">
+				<line
+					class="bold"
+					:x1="origin[0]"
+					:y1="origin[1]"
+					:x2="absolutePos[0]"
+					:y2="absolutePos[1]"
+				/>
+			</template>
+			<template v-else>
+				<path class="bold" :d="overlayArcPath" />
+			</template>
 		</svg>
 	</teleport>
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref} from 'vue'
+import {computed, defineComponent, ref, Ref} from 'vue'
 import useDraggable from '@/components/use/use-draggable'
 import {vec2} from 'gl-matrix'
+import useRem from '@/components/use/use-rem'
+
+function mod(a: number, n: number) {
+	return ((a % n) + n) % n
+}
+
+function signedAngleBetween(target: number, source: number) {
+	const ret = target - source
+	return mod(ret + Math.PI, Math.PI * 2) - Math.PI
+}
+
+function addDirectionVector(from: vec2, angle: number, radius: number) {
+	return vec2.fromValues(
+		from[0] + Math.cos(angle) * radius,
+		from[1] + Math.sin(angle) * radius
+	)
+}
+
+const PI = Math.PI
+const PI_2 = Math.PI * 2
 
 export default defineComponent({
 	name: 'InputRotery',
@@ -41,24 +70,36 @@ export default defineComponent({
 
 		const tweakMode = ref<'relative' | 'absolute'>('relative')
 
-		const {isDragging: tweaking, pos, origin} = useDraggable(el, {
+		let alreadyEmitted = false
+		let startValue = ref(props.modelValue)
+
+		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
 			disableClick: true,
 			onDragStart({pos}) {
-				const angle = Math.atan2(pos[1], pos[0])
+				if (tweakMode.value === 'absolute') {
+					const angle = Math.atan2(pos[1], pos[0])
+					const delta = signedAngleBetween(angle, props.modelValue)
+					const newValue = props.modelValue + delta
+					context.emit('update:modelValue', newValue)
+
+					alreadyEmitted = true
+					startValue.value = newValue
+				} else {
+					// Relative
+					startValue.value = props.modelValue
+				}
 			},
 			onDrag({pos, prevPos}) {
-				let newValue: number
-
-				if (tweakMode.value === 'relative') {
-					// Relative
-					const prevAngle = Math.atan2(prevPos[1], prevPos[0])
-					const alignedPos = vec2.rotate(vec2.create(), pos, [0, 0], -prevAngle)
-					const delta = Math.atan2(alignedPos[1], alignedPos[0])
-					newValue = props.modelValue + delta
-				} else {
-					// Absolute
-					newValue = Math.atan2(pos[1], pos[0])
+				if (alreadyEmitted) {
+					alreadyEmitted = false
+					return
 				}
+
+				const prevAngle = Math.atan2(prevPos[1], prevPos[0])
+				const alignedPos = vec2.rotate(vec2.create(), pos, [0, 0], -prevAngle)
+				const delta = Math.atan2(alignedPos[1], alignedPos[0])
+				const newValue = props.modelValue + delta
+
 				context.emit('update:modelValue', newValue)
 			},
 			onDragEnd() {
@@ -67,12 +108,71 @@ export default defineComponent({
 			},
 		})
 
+		const rem = useRem()
+
+		const overlayArcPath = computed(() => {
+			if (!tweaking.value) return ''
+
+			const baseRadius = rem.value * 8
+			const radiusStep = rem.value * 0.6
+
+			const start = startValue.value
+			const end = props.modelValue
+
+			const tweakingPositive = end - start > 0
+
+			const turns =
+				Math.floor(Math.abs(end - start) / PI_2) * Math.sign(end - start)
+
+			const center = origin.value
+
+			// Create arc
+			const arcRadius = baseRadius + turns * radiusStep
+
+			let offsetInTurn = mod(signedAngleBetween(end, start), PI_2)
+			offsetInTurn = tweakingPositive ? offsetInTurn : offsetInTurn - PI_2
+
+			const startInTurn = mod(start, PI_2)
+			const endInTurn = startInTurn + offsetInTurn
+
+			const from = addDirectionVector(center, startInTurn, arcRadius)
+			const to = addDirectionVector(center, endInTurn, arcRadius)
+
+			const angleBetween = Math.abs(startInTurn - endInTurn)
+
+			const largeArcFlag = angleBetween > PI ? 1 : 0
+			const sweepFlag = tweakingPositive ? 1 : 0
+
+			const arc = `
+					M ${from.join(' ')}
+					A ${arcRadius} ${arcRadius}
+						0 ${largeArcFlag} ${sweepFlag}
+						${to.join(' ')} `
+
+			// Create revolutions
+			let circles = ''
+			for (let i = 0, step = Math.sign(turns); i !== turns; i += step) {
+				const radius = baseRadius + i * radiusStep
+				const right = `${center[0] + radius} ${center[1]}`
+				const left = `${center[0] - radius} ${center[1]}`
+				circles += `M ${right}
+										A ${radius} ${radius} 0 1 0 ${left}
+										A ${radius} ${radius} 0 1 0 ${right}`
+			}
+
+			return arc + circles
+		})
+
 		return {
 			el,
 			tweaking,
-			pos,
-			origin,
 			tweakMode,
+			startValue,
+
+			// overlay
+			absolutePos,
+			origin,
+			overlayArcPath,
 		}
 	},
 })
@@ -88,14 +188,28 @@ export default defineComponent({
 	width $button-height
 	height $button-height
 	border-radius 50%
-	background var(--button)
 	transition all 0.1s cubic-bezier(0.25, 0.1, 0, 1)
 
+	// background
+	&:before
+		position absolute
+		top 0
+		left 0
+		display block
+		width 100%
+		height 100%
+		background var(--button)
+		content ''
+
+	// Enlarge
 	&:hover, &.tweaking
-		opacity 0.8
 		transform scale(3)
 
-	&__body
+		&:before
+			opacity 0.8
+
+	// 
+	&__scale
 		position absolute
 		top 30%
 		left 50%
@@ -103,33 +217,45 @@ export default defineComponent({
 		width 52%
 		height 40%
 		border-radius 50% 0 0 50%
-		background rgba(0, 0, 255, 0.1)
 		transform-origin 0 50%
 
-		// pointer-events none
 		&:before
 			position absolute
-			top calc(50% - 0.25px)
+			top 50%
 			left 0
 			display block
 			width 100%
-			height 0.5px
+			height 1px
 			background var(--background)
 			content ''
 			pointer-events none
 
-	&:hover, &:focus, &.tweaking
-		background var(--highlight)
+			~/.tweak-absolute &
+				background var(--highlight) !important
 
-		~/__body:before
+	&:hover, &:focus, &.tweaking
+		&:before
+			background var(--highlight)
+
+		~/__scale:before
 			background var(--background)
+
+	&.tweak-absolute:before
+		background var(--button) !important
+		opacity 0.5
 
 	&__overlay
 		input-overlay()
-		background rgba(255, 0, 0, 0.2)
 		cursor all-scroll
 
-		line
-			stroke blue
-			stroke-width 10
+		.bold
+			fill none
+			stroke var(--highlight)
+			stroke-width 3
+			stroke-linecap round
+
+		.dashed
+			fill none
+			stroke var(--frame)
+			stroke-width 3
 </style>
