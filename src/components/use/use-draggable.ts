@@ -32,19 +32,22 @@ export default function useDraggable(
 
 	let origin = vec2.create()
 
-	function onMousedown(e: MouseEvent) {
+	function updateOrigin(e: MouseEvent) {
 		const {clientX, clientY} = e
-
-		drag.isMousedown = true
-
-		// Set origin
 		if (options.coordinate === 'center' && el.value) {
 			const {left, top, width, height} = el.value.getBoundingClientRect()
 			origin = vec2.fromValues(left + width / 2, top + height / 2)
 		} else {
 			origin = vec2.fromValues(clientX, clientY)
 		}
+	}
 
+	function onMousedown(e: MouseEvent) {
+		updateOrigin(e)
+
+		const {clientX, clientY} = e
+
+		drag.isMousedown = true
 		drag.pos = vec2.fromValues(clientX - origin[0], clientY - origin[1])
 		drag.prevPos = vec2.clone(drag.pos)
 
@@ -60,6 +63,8 @@ export default function useDraggable(
 	}
 
 	function onMousedrag(e: MouseEvent) {
+		updateOrigin(e)
+
 		const {clientX, clientY} = e
 
 		drag.pos = vec2.fromValues(clientX - origin[0], clientY - origin[1])
