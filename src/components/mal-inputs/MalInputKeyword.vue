@@ -52,8 +52,8 @@ export default defineComponent({
 
 <style lang="stylus">
 .MalInputKeyword
-	color var(--syntax-keyword)
+	color var(--keyword)
 
 	&__input
-		color var(--syntax-keyword)
+		color var(--keyword)
 </style>

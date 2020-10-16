@@ -181,29 +181,29 @@ export default defineComponent({
 		width 100%
 		height 100%
 		background transparent !important
-		color var(--foreground) !important
+		color var(--textcolor) !important
 		font-size 1rem
 
 	.ace_editor
 		font-family 'Fira Code', monospace, sans-serif !important
 
 	.ace_comment
-		color var(--syntax-comment) !important
+		color var(--comment) !important
 
 	.ace_keyword
-		color var(--syntax-keyword) !important
+		color var(--keyword) !important
 
 	.ace_constant
-		color var(--syntax-constant) !important
+		color var(--constant) !important
 
 	.ace_function
-		color var(--syntax-function) !important
+		color var(--function) !important
 
 	.ace_string
-		color var(--syntax-string) !important
+		color var(--string) !important
 
 	.ace_cursor
-		color var(--foreground) !important
+		color var(--textcolor) !important
 
 	.ace_bracket
 		border 1px solid var(--highlight) !important

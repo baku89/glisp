@@ -1,5 +1,5 @@
 <template>
-	<div id="app" class="PageInterpreter" :style="{...theme, background}">
+	<div id="app" class="PageInterpreter" :style="cssStyle">
 		<Splitpanes class="default-theme">
 			<Pane class="PageInterpreter__pane">
 				<Console
@@ -22,8 +22,9 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
+import {defineComponent, ref, shallowRef, watch} from 'vue'
 
+import useScheme from '@/components/use/use-scheme'
 import useBind from '@/components/use/use-bind/index.ts'
 
 import {Splitpanes, Pane} from 'splitpanes'
@@ -35,7 +36,6 @@ import InputBoolean from '@/components/inputs/InputBoolean.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
 
 import Scope from '@/mal/scope'
-import {computeTheme} from '@/theme'
 import {printer} from '@/mal/printer'
 import {MalBoolean, MalNil} from '@/mal/types'
 
@@ -56,8 +56,7 @@ export default defineComponent({
 		const isReplInitialized = ref(false)
 		const isRecordingBind = ref(false)
 
-		const background = ref('#f8f8f8')
-		const theme = computed(() => computeTheme(background.value)?.colors)
+		const {cssStyle} = useScheme()
 
 		;(async () => {
 			scope.value = await Scope.createRepl()
@@ -103,10 +102,9 @@ export default defineComponent({
 			scope,
 			code,
 			clearCode,
-			background,
 			isReplInitialized,
 			isRecordingBind,
-			theme,
+			cssStyle,
 			runCode,
 			onSetupConsole,
 		}
@@ -119,6 +117,7 @@ export default defineComponent({
 @import '../../components/style/global.styl'
 
 .PageInterpreter
+	app()
 	height 100vh
 
 	&__pane

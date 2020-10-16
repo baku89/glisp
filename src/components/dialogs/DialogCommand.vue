@@ -115,7 +115,7 @@ export default defineComponent({
 		line-height 1.4
 
 		code
-			color var(--syntax-function)
+			color var(--function)
 
 	&__buttons
 		display flex

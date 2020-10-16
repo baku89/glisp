@@ -1,30 +1,27 @@
 <template>
-	<div class="PageUI" :style="{...themeCssStyle, background}">
+	<div class="PageUI" :style="{...cssStyle, background}">
 		<div class="PageUI__content">
 			<section class="PageUI__section">
 				<h2>Theme</h2>
 				<ui class="PageUI__theme">
-					<li
-						style="
-							background: var(--background);
-							border: 1px solid var(--border);
-						"
-					>
-						BG
-					</li>
-					<li style="background: var(--foreground); color: var(--background)">
-						FG
-					</li>
-					<li style="background: var(--currentline)">Current Line</li>
-					<li style="background: var(--selection)">Selection</li>
-					<li style="background: var(--red)">Red</li>
-					<li style="background: var(--orange)">Orange</li>
-					<li style="background: var(--yellow)">Yellow</li>
-					<li style="background: var(--green)">Green</li>
-					<li style="background: var(--aqua)">Aqua</li>
-					<li style="background: var(--blue)">Blue</li>
-					<li style="background: var(--purple)">Purple</li>
+					<li class="b00" style="background: var(--background)">background</li>
+					<li style="background: var(--input)">input</li>
+					<li style="background: var(--frame)">frame</li>
+					<li class="dark" style="background: var(--button)">button</li>
+					<li style="background: var(--comment)">comment</li>
+					<li class="dark" style="background: var(--textcolor)">textcolor</li>
+					<li class="dark" style="background: var(--highlight)">highlight</li>
+					<li class="dark" style="background: var(--guide)">guide</li>
+					<li class="dark" style="background: var(--error)">error</li>
+					<li class="dark" style="background: var(--constant)">constant</li>
+					<li class="dark" style="background: var(--string)">string</li>
+					<li class="dark" style="background: var(--keyword)">keyword</li>
+					<li class="dark" style="background: var(--function)">function</li>
 				</ui>
+			</section>
+
+			<section class="PageUI__section">
+				<GlispEditor class="PageUI__glisp-editor" v-model="inputValues.code" />
 			</section>
 
 			<section class="PageUI__section">
@@ -79,10 +76,10 @@
 <script lang="ts">
 import 'normalize.css'
 
-import useTheme from '@/components/use/use-themes'
+import useScheme from '@/components/use/use-scheme'
 
-import {computeTheme} from '@/theme'
-import {computed, defineComponent, reactive, ref, watch} from 'vue'
+import {computed, defineComponent, reactive} from 'vue'
+import GlispEditor from '@/components/GlispEditor'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
@@ -96,6 +93,7 @@ import InputTranslate from '@/components/inputs/InputTranslate.vue'
 export default defineComponent({
 	name: 'PageUI',
 	components: {
+		GlispEditor,
 		InputNumber,
 		InputDropdown,
 		InputSlider,
@@ -107,11 +105,12 @@ export default defineComponent({
 		InputTranslate,
 	},
 	setup() {
-		const background = ref('#f8f8f8')
-		const {cssStyle: themeCssStyle} = useTheme(background)
+		const {background, cssStyle} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
+			code:
+				';; Glisp Code\n(style (stroke "pink" 10 :cap "round")\n  (circle [0 0] 100))',
 			number: 0,
 			boolean: true,
 			dropdown: 'Apple',
@@ -133,7 +132,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {background, themeCssStyle, inputValues, action}
+		return {background, cssStyle, inputValues, action}
 	},
 })
 </script>
@@ -142,13 +141,10 @@ export default defineComponent({
 @import '../../components/style/global.styl'
 @import '../../components/style/common.styl'
 
-::selection
-	background var(--selection)
-
 .PageUI
+	app()
 	padding 2rem 0
-	height 100vh
-	color var(--foreground)
+	min-height 100vh
 
 	&__content
 		translucent-bg()
@@ -166,15 +162,25 @@ export default defineComponent({
 		display flex
 		flex-wrap wrap
 		list-style none
-		gap 1rem
+		gap 0.5rem
 
 		& > li
-			flex-basis calc(((100% - 3rem) / 4))
+			flex-basis calc(((100% - 1.5rem) / 4))
 			padding 1rem
 			height 4rem
 			border-radius $border-radius
 			text-align center
 			line-height 2rem
+
+			&.b00
+				border 1px solid var(--frame)
+
+			&.dark
+				color var(--background)
+
+	&__glisp-editor
+		height 4em
+		border 1px solid var(--frame)
 
 	&__ui-list
 		display flex

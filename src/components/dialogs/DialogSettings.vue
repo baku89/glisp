@@ -2,14 +2,18 @@
 	<div class="DialogSettings">
 		<div class="DialogSettings__header">
 			<div class="DialogSettings__name">Settings</div>
-			<button class="DialogSettings__header-button" @click="resetSettings">Reset</button>
+			<button class="DialogSettings__header-button" @click="resetSettings">
+				Reset
+			</button>
 		</div>
 		<div class="DialogSettings__editor">
 			<GlispEditor v-model="code" />
 			<div
 				class="DialogSettings__error-indicator"
 				:class="{error: hasParseError}"
-			>{{ hasParseError ? '!' : '✓' }}</div>
+			>
+				{{ hasParseError ? '!' : '✓' }}
+			</div>
 		</div>
 		<div class="DialogSettings__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
@@ -91,7 +95,7 @@ export default defineComponent({
 
 	&__name
 		flex-grow 1
-		color var(--foreground)
+		color var(--textcolor)
 		font-weight bold
 		line-height $button-height
 

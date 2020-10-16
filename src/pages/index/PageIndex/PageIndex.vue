@@ -405,7 +405,7 @@ html, body
 	height 100%
 	height 100vh
 	// background var(--background)
-	color var(--foreground)
+	color var(--textcolor)
 
 	&__global-menu
 		z-index 100
@@ -465,7 +465,7 @@ html, body
 			width $width
 			height $width
 			border-radius (0.5 * $width)rem
-			background var(--foreground)
+			background var(--textcolor)
 			color var(--background)
 			text-align center
 			line-height $width

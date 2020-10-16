@@ -1,10 +1,5 @@
 <template>
-	<div
-		id="app"
-		class="PageEmbed"
-		:style="{...colors, background}"
-		:class="{error: hasError}"
-	>
+	<div id="app" class="PageEmbed" :style="cssStyle" :class="{error: hasError}">
 		<div class="PageEmbed__editor">
 			<GlispEditor v-model="code" cssStyle="line-height: 1.5" />
 		</div>
@@ -23,21 +18,12 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {
-	defineComponent,
-	reactive,
-	computed,
-	watch,
-	toRefs,
-	shallowRef,
-	ref,
-	Ref,
-} from 'vue'
+import {defineComponent, computed, watch, shallowRef, ref} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'
 
-import {computeTheme} from '@/theme'
+import useScheme from '@/components/use/use-scheme'
 import {MalNil, MalVal} from '@/mal/types'
 import Scope from '@/mal/scope'
 
@@ -45,11 +31,6 @@ function getCodeFromURL() {
 	return decodeURI(new URL(location.href).searchParams.get('code') || '')
 }
 
-interface UI {
-	background: string
-	colors: {[k: string]: string}
-	guideColor: string
-}
 export default defineComponent({
 	name: 'PageEmbed',
 	components: {
@@ -73,7 +54,6 @@ export default defineComponent({
 
 		// Code
 		const code = ref(getCodeFromURL())
-
 		const viewExp = shallowRef<MalVal | undefined>(MalNil.from())
 
 		const hasReadEvalError = computed(() => !code.value)
@@ -90,7 +70,7 @@ export default defineComponent({
 				const sc = scope.value
 
 				sc.setup()
-				sc.def('*guide-color*', ui.guideColor)
+				sc.def('*guide-color*', colors.value.highlight)
 				sc.def('*width*', 100)
 				sc.def('*height*', 100)
 				sc.def('*size*', [100, 100])
@@ -102,11 +82,7 @@ export default defineComponent({
 		)
 
 		// UI
-		const ui = reactive({
-			background: '#f8f8f8',
-			colors: computed(() => computeTheme(ui.background)?.colors),
-			guideColor: computed(() => ui.colors['--selection']),
-		}) as UI
+		const {cssStyle, colors} = useScheme()
 
 		function openEditor() {
 			const url = new URL('.', location.href)
@@ -115,11 +91,11 @@ export default defineComponent({
 		}
 
 		return {
+			cssStyle,
 			code,
 			viewExp,
 			hasError,
 			hasRenderError,
-			...toRefs(ui as any),
 			openEditor,
 		}
 	},
@@ -128,10 +104,12 @@ export default defineComponent({
 
 <style lang="stylus">
 @import '../../components/style/global.styl'
+@import '../../components/style/common.styl'
 
 $compact-dur = 0.4s
 
 .PageEmbed
+	app()
 	position relative
 	display flex
 	padding 1rem
@@ -139,7 +117,7 @@ $compact-dur = 0.4s
 	height auto
 	border-left 2px solid #eee
 	background var(--background)
-	color var(--foreground)
+	color var(--textcolor)
 
 	&:after
 		position absolute
@@ -161,7 +139,7 @@ $compact-dur = 0.4s
 		position relative
 		width 102px
 		height 102px
-		border 1px solid var(--selection)
+		border 1px solid var(--frame)
 
 	&__editor
 		position relative
@@ -172,7 +150,7 @@ $compact-dur = 0.4s
 		right 1rem
 		bottom 1rem
 		display block
-		color var(--selection)
+		color var(--comment)
 		font-size 1.1rem
 		cursor pointer
 		transition all 0.2s ease
