@@ -3,10 +3,15 @@ app()
 	background var(--app-background)
 	color var(--textcolor)
 
-font-monospace()
-	letter-spacing 0
-	font-family 'Fira Code', monospace
-	font-variant-ligatures normal !important
+font-monospace(important = false)
+	if (important)
+		letter-spacing 0 !important
+		font-family 'Fira Code', monospace !important
+		font-variant-ligatures normal !important
+	else
+		letter-spacing 0
+		font-family 'Fira Code', monospace
+		font-variant-ligatures normal !important
 
 $input-height = 1.8rem
 $button-height = 1.4rem

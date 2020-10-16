@@ -185,7 +185,7 @@ export default defineComponent({
 		font-size 1rem
 
 	.ace_editor
-		font-family 'Fira Code', monospace, sans-serif !important
+		font-monospace(true)
 
 	.ace_selection
 		background var(--frame) !important
