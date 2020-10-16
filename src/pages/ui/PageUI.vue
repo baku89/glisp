@@ -7,7 +7,7 @@
 					<span class="comment">Base theme =</span>
 					{{ schemeName }}
 				</p>
-				<ui class="PageUI__theme">
+				<ul class="PageUI__theme">
 					<li class="b00" style="background: var(--background)">background</li>
 					<li class="b00">translucent</li>
 					<li style="background: var(--input)">input</li>
@@ -22,7 +22,7 @@
 					<li class="dark" style="background: var(--string)">string</li>
 					<li class="dark" style="background: var(--keyword)">keyword</li>
 					<li class="dark" style="background: var(--function)">function</li>
-				</ui>
+				</ul>
 			</section>
 
 			<section class="PageUI__section">
