@@ -65,7 +65,6 @@ interface Scheme {
 		string: string
 		keyword: string
 		function: string
-		mode?: string
 	}
 	colors: {hue: number; css: string}[]
 }

@@ -187,6 +187,9 @@ export default defineComponent({
 	.ace_editor
 		font-family 'Fira Code', monospace, sans-serif !important
 
+	.ace_selection
+		background var(--frame) !important
+
 	.ace_comment
 		color var(--comment) !important
 

@@ -3,8 +3,13 @@
 		<div class="PageUI__content">
 			<section class="PageUI__section">
 				<h2>Theme</h2>
+				<p>
+					<span class="comment">Base theme =</span>
+					{{ schemeName }}
+				</p>
 				<ui class="PageUI__theme">
 					<li class="b00" style="background: var(--background)">background</li>
+					<li class="b00">translucent</li>
 					<li style="background: var(--input)">input</li>
 					<li style="background: var(--frame)">frame</li>
 					<li class="dark" style="background: var(--button)">button</li>
@@ -61,7 +66,9 @@
 							:min="0"
 							:max="100"
 						/>
-						<span> Value: [{{ inputValues.position.join(' ') }}]</span>
+						<span class="comment">
+							Value: [{{ inputValues.position.join(' ') }}]</span
+						>
 					</dd>
 					<dt>Button</dt>
 					<dd>
@@ -105,7 +112,7 @@ export default defineComponent({
 		InputTranslate,
 	},
 	setup() {
-		const {background, cssStyle} = useScheme()
+		const {background, cssStyle, name: schemeName} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -132,7 +139,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {background, cssStyle, inputValues, action}
+		return {background, cssStyle, inputValues, action, schemeName}
 	},
 })
 </script>
@@ -146,11 +153,15 @@ export default defineComponent({
 	padding 2rem 0
 	min-height 100vh
 
+	.comment
+		color var(--comment)
+
 	&__content
 		translucent-bg()
 		margin 0 auto
 		padding 1rem
 		max-width 50rem
+		border 1px solid var(--frame)
 
 	&__section
 		margin-bottom 4rem
@@ -167,10 +178,10 @@ export default defineComponent({
 		& > li
 			flex-basis calc(((100% - 1.5rem) / 4))
 			padding 1rem
-			height 4rem
+			height 3rem
 			border-radius $border-radius
 			text-align center
-			line-height 2rem
+			line-height 1rem
 
 			&.b00
 				border 1px solid var(--frame)
