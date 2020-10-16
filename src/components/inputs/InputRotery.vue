@@ -32,7 +32,6 @@ export default defineComponent({
 		const tweakMode = ref<'relative' | 'absolute'>('relative')
 
 		const drag = useDraggable(el, {
-			coordinate: 'center',
 			disableClick: true,
 			onDragStart({pos}) {
 				const angle = Math.atan2(pos[1], pos[0])
