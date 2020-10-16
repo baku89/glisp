@@ -15,18 +15,18 @@
 	</button>
 	<teleport to="body">
 		<svg v-if="tweaking" class="InputRotery__overlay">
-			<template v-if="tweakMode === 'absolute'">
-				<line
-					class="bold"
-					:x1="origin[0]"
-					:y1="origin[1]"
-					:x2="absolutePos[0]"
-					:y2="absolutePos[1]"
-				/>
-			</template>
-			<template v-else>
-				<path class="bold" :d="overlayArcPath" />
-			</template>
+			<line
+				v-if="tweakMode === 'absolute'"
+				class="bold"
+				:x1="origin[0]"
+				:y1="origin[1]"
+				:x2="absolutePos[0]"
+				:y2="absolutePos[1]"
+			/>
+			<path v-if="tweakMode === 'relative'" class="bold" :d="overlayArcPath" />
+			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+				{{ overlayLabel }}
+			</text>
 		</svg>
 	</teleport>
 </template>
@@ -110,6 +110,12 @@ export default defineComponent({
 
 		const rem = useRem()
 
+		const overlayLabel = computed(() => {
+			const rad = props.modelValue
+			const deg = (rad / PI) * 180
+			return deg.toFixed(1) + '°'
+		})
+
 		const overlayArcPath = computed(() => {
 			if (!tweaking.value) return ''
 
@@ -173,6 +179,7 @@ export default defineComponent({
 			absolutePos,
 			origin,
 			overlayArcPath,
+			overlayLabel,
 		}
 	},
 })
@@ -203,7 +210,7 @@ export default defineComponent({
 
 	// Enlarge
 	&:hover, &.tweaking
-		transform scale(3)
+		transform scale(4)
 
 		&:before
 			opacity 0.8
@@ -256,6 +263,11 @@ export default defineComponent({
 
 		.dashed
 			fill none
-			stroke var(--frame)
-			stroke-width 3
+			stroke var(--button)
+			stroke-width 1
+
+		.label
+			font-monospace()
+			font-size 1rem
+			fill var(--highlight)
 </style>
