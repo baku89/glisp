@@ -133,10 +133,7 @@ export default defineComponent({
 		border-radius $border-radius
 
 	&__slider
-		position absolute
-		top 0
-		left 0
-		z-index -1
+		position relative
 		height 100%
 		border-right 3px solid transparent
 		input-transition(border-right-color)
@@ -147,7 +144,7 @@ export default defineComponent({
 			left 0
 			width 100%
 			height 100%
-			background var(--bwbase)
+			background var(--textcolor)
 			content ''
 			opacity 0.07
 			input-transition(opacity)
