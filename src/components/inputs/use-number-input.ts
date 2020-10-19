@@ -5,12 +5,18 @@ const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 export default function useNumber(
 	value: Ref<number>,
+	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
 	context: SetupContext
 ) {
 	const displayValue = computed(() => {
 		const v = value.value
 		return tweaking.value ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
+	})
+
+	const overlayLabel = computed(() => {
+		const delta = value.value - startValue.value
+		return (delta > 0 ? '+' : '') + delta.toFixed(1)
 	})
 
 	const step = computed(() => {
@@ -61,6 +67,7 @@ export default function useNumber(
 	return {
 		step,
 		displayValue,
+		overlayLabel,
 		onBlur,
 		onKeydown,
 		update,

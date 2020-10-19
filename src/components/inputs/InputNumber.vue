@@ -1,6 +1,5 @@
 <template>
-	<div class="InputNumber" :class="{tweaking}">
-		<div class="InputNumber__drag" ref="dragEl" />
+	<div class="InputNumber" :class="{tweaking}" ref="dragEl">
 		<input
 			class="InputNumber__input"
 			type="text"
@@ -10,10 +9,31 @@
 			ref="inputEl"
 		/>
 	</div>
+	<teleport to="body">
+		<svg v-if="tweaking" class="InputNumber__overlay">
+			<line
+				class="bold"
+				:x1="origin[0]"
+				:y1="origin[1]"
+				:x2="absolutePos[0]"
+				:y2="origin[1]"
+			/>
+			<line
+				class="dashed"
+				:x1="absolutePos[0]"
+				:y1="origin[1]"
+				:x2="absolutePos[0]"
+				:y2="absolutePos[1]"
+			/>
+			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+				{{ overlayLabel }}
+			</text>
+		</svg>
+	</teleport>
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, toRef} from 'vue'
+import {computed, defineComponent, ref, toRef} from 'vue'
 // import {useDraggable, useKeyboardState} from '../use'
 import useDraggable from '../use/use-draggable'
 import useKeyboardState from '../use/use-keyboard-state'
@@ -29,15 +49,15 @@ export default defineComponent({
 	},
 	emit: ['update:modelValue'],
 	setup(props, context) {
-		// Element references
-		const dragEl = ref<null | HTMLElement>(null)
+		const dragEl = ref<null | HTMLInputElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
 
 		const {shift, alt} = useKeyboardState()
 
+		let startValue = ref(0)
+
 		// Drag Events
-		let startValue = 0
-		const {isDragging: tweaking} = useDraggable(dragEl, {
+		const {isDragging: tweaking, absolutePos, origin} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -45,7 +65,7 @@ export default defineComponent({
 				}
 			},
 			onDragStart() {
-				startValue = props.modelValue
+				startValue.value = props.modelValue
 			},
 			onDrag({delta}) {
 				let inc = delta[0] / 5
@@ -57,17 +77,23 @@ export default defineComponent({
 					inc /= 10
 				}
 
-				startValue += inc
-
-				update(startValue)
+				update(props.modelValue + inc)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
 			},
 		})
 
-		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
+		const {
+			step,
+			displayValue,
+			onBlur,
+			onKeydown,
+			update,
+			overlayLabel,
+		} = useNumberInput(
 			toRef(props, 'modelValue'),
+			startValue,
 			tweaking,
 			context
 		)
@@ -79,6 +105,9 @@ export default defineComponent({
 			displayValue,
 			step,
 			tweaking,
+			absolutePos,
+			origin,
+			overlayLabel,
 
 			onBlur,
 			onKeydown,
@@ -94,4 +123,7 @@ export default defineComponent({
 .InputNumber
 	width 6rem
 	use-number()
+
+	&__overlay
+		input-overlay()
 </style>

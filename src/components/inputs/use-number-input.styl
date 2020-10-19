@@ -2,49 +2,27 @@
 
 use-number()
 	position relative
+	color var(--constant)
 	font-monospace()
-
-	&.tweaking
-		user-select none
-
-	&__drag
-		position absolute
-		top 0
-		left 0
-		z-index 100
-		width 100%
-		height 100%
-		border 1px solid transparent
-		border-radius $border-radius
-		input-transition(border-color)
-		input-border()
-
-	&.editing &__drag
-		display none
 
 	&__input
 		input()
 		width 100%
-		color var(--constant)
 		text-align right
+		cursor default
 
-		/* Chrome, Safari, Edge, Opera */
-		&::-webkit-outer-spin-button, &::-webkit-inner-spin-button
-			margin 0
-			-webkit-appearance none
+		~/.tweaking &
+			box-shadow 0 0 0 2px var(--highlight)
 
-		/* Firefox */
-		&[type=number]
-			-moz-appearance textfield
+		&:focus
+			cursor text
+			pointer-events auto
 
-		&:focus, ~/.tweaking &
-			box-shadow 0 0 0 1px var(--highlight)
+	&__overlay
+		cursor ew-resize
 
-	&.exp &__input
+	&.exp
 		color var(--red)
 
-	&.grayed-out &__input
+	&.grayed-out
 		color var(--comment)
-
-	&.tweaking &__input
-		border-color var(--highlight)

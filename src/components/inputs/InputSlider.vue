@@ -1,6 +1,5 @@
 <template>
-	<div class="InputSlider" :class="{tweaking}">
-		<div class="InputSlider__drag" ref="dragEl" />
+	<div class="InputSlider" :class="{tweaking}" ref="dragEl">
 		<input
 			class="InputSlider__input"
 			type="text"
@@ -13,6 +12,13 @@
 			<div class="InputSlider__slider" :style="sliderStyle" />
 		</div>
 	</div>
+	<teleport to="body">
+		<svg v-if="tweaking" class="InputNumber__overlay">
+			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+				{{ overlayLabel }}
+			</text>
+		</svg>
+	</teleport>
 </template>
 
 <script lang="ts">
@@ -49,8 +55,9 @@ export default defineComponent({
 		const {shift, alt} = useKeyboardState()
 
 		// Drag Events
-		let startValue = 0
-		const {isDragging: tweaking} = useDraggable(dragEl, {
+		let startValue = ref(0)
+
+		const {isDragging: tweaking, absolutePos} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -58,7 +65,7 @@ export default defineComponent({
 				}
 			},
 			onDragStart() {
-				startValue = props.modelValue
+				startValue.value = props.modelValue
 			},
 			onDrag({delta}) {
 				if (!dragEl.value) return
@@ -73,17 +80,23 @@ export default defineComponent({
 					inc /= 10
 				}
 
-				startValue += inc
-
-				update(startValue)
+				update(props.modelValue + inc)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
 			},
 		})
 
-		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
+		const {
+			step,
+			displayValue,
+			onBlur,
+			onKeydown,
+			update,
+			overlayLabel,
+		} = useNumberInput(
 			toRef(props, 'modelValue'),
+			startValue,
 			tweaking,
 			context
 		)
@@ -105,6 +118,8 @@ export default defineComponent({
 			displayValue,
 			step,
 			tweaking,
+			absolutePos,
+			overlayLabel,
 
 			onBlur,
 			onKeydown,
@@ -121,12 +136,21 @@ export default defineComponent({
 
 .InputSlider
 	width 12.6rem
+	height $input-height
+	background var(--input)
 	use-number()
 
-	&__slider-wrapper
+	&__input
 		position absolute
 		top 0
 		left 0
+		z-index 10
+		width 100%
+		height 100%
+		background transparent
+
+	&__slider-wrapper
+		position relative
 		overflow hidden
 		width 100%
 		height 100%
@@ -135,8 +159,12 @@ export default defineComponent({
 	&__slider
 		position relative
 		height 100%
-		border-right 3px solid transparent
 		input-transition(border-right-color)
+
+		~/.tweaking &
+			&:after
+				background var(--highlight)
+				opacity 0.4
 
 		&:after
 			position absolute
@@ -147,11 +175,5 @@ export default defineComponent({
 			background var(--textcolor)
 			content ''
 			opacity 0.07
-			input-transition(opacity)
-
-		~/.tweaking &
-			border-right-color var(--highlight)
-
-			&:after
-				opacity 0.1
+			input-transition(all)
 </style>
