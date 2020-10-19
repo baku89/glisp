@@ -14,7 +14,11 @@
 		/>
 	</button>
 	<teleport to="body">
-		<svg v-if="tweaking" class="InputRotery__overlay">
+		<svg
+			v-if="tweaking"
+			class="InputRotery__overlay"
+			:style="{cursor: overlayCursor}"
+		>
 			<line
 				v-if="tweakMode === 'absolute'"
 				class="bold"
@@ -73,7 +77,7 @@ export default defineComponent({
 		let alreadyEmitted = false
 		let startValue = ref(props.modelValue)
 
-		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
+		const {isDragging: tweaking, origin, absolutePos, pos} = useDraggable(el, {
 			disableClick: true,
 			onDragStart({pos}) {
 				if (tweakMode.value === 'absolute') {
@@ -114,6 +118,23 @@ export default defineComponent({
 			const rad = props.modelValue
 			const deg = (rad / PI) * 180
 			return deg.toFixed(1) + '°'
+		})
+
+		const overlayCursor = computed(() => {
+			const angle = mod(
+				(Math.atan2(pos.value[1], pos.value[0]) / PI) * 180,
+				180
+			)
+
+			if (angle < 22.5 || angle > 157.5) {
+				return 'ns-resize'
+			} else if (angle < 67.5) {
+				return 'nesw-resize'
+			} else if (angle < 112.5) {
+				return 'ew-resize'
+			} else {
+				return 'nwse-resize'
+			}
 		})
 
 		const overlayArcPath = computed(() => {
@@ -180,6 +201,7 @@ export default defineComponent({
 			origin,
 			overlayArcPath,
 			overlayLabel,
+			overlayCursor,
 		}
 	},
 })
@@ -210,12 +232,11 @@ export default defineComponent({
 
 	// Enlarge
 	&:hover, &.tweaking
-		transform scale(4)
+		transform scale(3)
 
 		&:before
 			opacity 0.8
 
-	// 
 	&__scale
 		position absolute
 		top 30%
@@ -235,6 +256,7 @@ export default defineComponent({
 			height 1px
 			background var(--background)
 			content ''
+			transform translateY(-70%)
 			pointer-events none
 
 			~/.tweak-absolute &
@@ -253,21 +275,4 @@ export default defineComponent({
 
 	&__overlay
 		input-overlay()
-		cursor all-scroll
-
-		.bold
-			fill none
-			stroke var(--highlight)
-			stroke-width 3
-			stroke-linecap round
-
-		.dashed
-			fill none
-			stroke var(--button)
-			stroke-width 1
-
-		.label
-			font-monospace()
-			font-size 1rem
-			fill var(--highlight)
 </style>

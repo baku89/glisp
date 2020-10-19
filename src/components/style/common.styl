@@ -24,19 +24,28 @@ input-transition($prop = all)
 input()
 	width 6em
 	height $input-height
-	border none
 	border 1px solid transparent
 	border-radius $border-radius
 	background var(--input)
-	color var(--textcolor)
+	color inherit
 	font-size inherit
-	input-transition(border-color)
 
-	&:hover
+	input-transition(border-color)
+		/* Chrome, Safari, Edge, Opera */
+
+	&::-webkit-outer-spin-button, &::-webkit-inner-spin-button
+		margin 0
+		-webkit-appearance none
+
+	/* Firefox */
+	&[type=number]
+		-moz-appearance textfield
+
+	&:hover, &:focus
 		border-color var(--highlight)
 
 	&:focus
-		border-color var(--highlight)
+		box-shadow 0 0 0 1px var(--highlight)
 
 input-border()
 	border 1px solid transparent
@@ -56,6 +65,22 @@ input-overlay()
 	z-index 1000
 	width 100%
 	height 100%
+
+	.bold
+		fill none
+		stroke var(--highlight)
+		stroke-width 3
+		stroke-linecap round
+
+	.dashed
+		fill none
+		stroke var(--frame)
+		stroke-width 1
+
+	.label
+		font-monospace()
+		font-size 1rem
+		fill var(--highlight)
 
 translucent-bg()
 	background var(--translucent)
