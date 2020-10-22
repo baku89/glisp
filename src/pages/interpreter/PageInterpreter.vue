@@ -12,7 +12,7 @@
 				<GlispEditor class="PageInterpreter__editor" v-model="code" />
 				<div class="PageInterpreter__actions">
 					<InputButton class="button" @click="runCode" label="Run" />
-					<InputBoolean v-model="clearCode" label="Clear" />
+					<InputCheckbox v-model="clearCode" label="Clear" />
 				</div>
 			</Pane>
 		</Splitpanes>
@@ -32,7 +32,7 @@ import 'splitpanes/dist/splitpanes.css'
 
 import Console from '@/components/Console.vue'
 import GlispEditor from '@/components/GlispEditor'
-import InputBoolean from '@/components/inputs/InputBoolean.vue'
+import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
 
 import Scope from '@/mal/scope'
@@ -46,7 +46,7 @@ export default defineComponent({
 		Pane,
 		Console,
 		GlispEditor,
-		InputBoolean,
+		InputCheckbox,
 		InputButton,
 	},
 	setup() {

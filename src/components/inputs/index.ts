@@ -1,4 +1,4 @@
-export {default as InputBoolean} from './InputBoolean.vue'
+export {default as InputCheckbox} from './InputCheckbox.vue'
 export {default as InputColor} from './InputColor.vue'
 export {default as InputDropdown} from './InputDropdown.vue'
 export {default as InputNumber} from './InputNumber.vue'

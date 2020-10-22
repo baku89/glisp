@@ -49,7 +49,7 @@
 					</dd>
 					<dt>Boolean</dt>
 					<dd>
-						<InputBoolean v-model="inputValues.boolean" label="Label" />
+						<InputCheckbox v-model="inputValues.boolean" label="Label" />
 					</dd>
 					<dt>Rotery</dt>
 					<dd>
@@ -96,7 +96,7 @@ import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
-import InputBoolean from '@/components/inputs/InputBoolean.vue'
+import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
@@ -111,7 +111,7 @@ export default defineComponent({
 		InputSlider,
 		InputString,
 		InputButton,
-		InputBoolean,
+		InputCheckbox,
 		InputRotery,
 		InputSeed,
 		InputTranslate,

@@ -1,6 +1,6 @@
 <template>
 	<div class="MalInputBoolean">
-		<inputBoolean
+		<inputCheckbox
 			class="MalInputBoolean__input"
 			:class="{exp: isExp}"
 			:value="evaluated"
@@ -18,13 +18,13 @@
 import {defineComponent, PropType, computed} from 'vue'
 import {MalBoolean, MalList, MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {InputBoolean} from '@/components/inputs'
+import {InputCheckbox} from '@/components/inputs'
 import MalExpButton from './MalExpButton.vue'
 
 export default defineComponent({
 	name: 'MalInputBoolean',
 	components: {
-		InputBoolean,
+		InputCheckbox,
 		MalExpButton,
 	},
 	props: {

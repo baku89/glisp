@@ -1,18 +1,18 @@
 <template>
-	<div class="InputBoolean">
-		<div class="InputBoolean__checkbox">
+	<div class="InputCheckbox">
+		<div class="InputCheckbox__checkbox">
 			<input
 				:id="id"
 				:checked="!!modelValue"
 				@input="onInput"
-				class="InputBoolean__input"
+				class="InputCheckbox__input"
 				type="checkbox"
 			/>
-			<div class="InputBoolean__frame">
-				<i class="InputBoolean__checkmark fas fa-check" />
+			<div class="InputCheckbox__frame">
+				<i class="InputCheckbox__checkmark fas fa-check" />
 			</div>
 		</div>
-		<label class="InputBoolean__label" v-if="label" :for="id">{{
+		<label class="InputCheckbox__label" v-if="label" :for="id">{{
 			label
 		}}</label>
 	</div>
@@ -23,7 +23,7 @@ import {defineComponent, ref} from 'vue'
 import uid from 'uid'
 
 export default defineComponent({
-	name: 'InputBoolean',
+	name: 'InputCheckbox',
 	props: {
 		modelValue: {
 			type: Boolean,
@@ -34,7 +34,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const id = ref('InputBoolean_' + uid())
+		const id = ref('InputCheckbox_' + uid())
 
 		function onInput(e: InputEvent) {
 			const value = (e.target as HTMLInputElement).checked
@@ -49,7 +49,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '../style/common.styl'
 
-.InputBoolean
+.InputCheckbox
 	display flex
 	align-items center
 
