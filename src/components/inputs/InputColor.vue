@@ -1,12 +1,8 @@
 <template>
-	<div class="InputColor">
-		<button class="InputColor__button">
-			<span
-				class="InputColor__color-preview"
-				:style="{background: modelValue}"
-			/>
-		</button>
-		<!-- <Popper
+	<button class="InputColor">
+		<span class="InputColor__color-preview" :style="{background: modelValue}" />
+	</button>
+	<!-- <Popper
 			trigger="clickToOpen"
 			:append-to-body="true"
 			:delay-on-mouse-out="250"
@@ -31,7 +27,6 @@
 				</button>
 			</template>
 		</Popper> -->
-	</div>
 </template>
 
 <script lang="ts">
@@ -45,7 +40,7 @@ export default defineComponent({
 	},
 	props: {
 		modelValue: {
-			type: String,
+			type: [String, Array],
 			required: true,
 		},
 	},
@@ -56,42 +51,40 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputColor
-	&__button
-		position relative
+	position relative
+	width $input-height
+	height $input-height
+	border 1px solid var(--frame)
+	border-radius $border-radius
+	input-transition(border-color)
+
+	&:hover, &:focus-within
+		border-color var(--highlight)
+
+	&:focus-within
+		box-shadow 0 0 0 1px var(--highlight)
+
+	// Grid and color-preview
+	&:before, &__color-preview
+		position absolute
+		top 0
+		right 0
+		bottom 0
+		left 0
 		display block
-		overflow hidden
-		width $input-height
-		height $input-height
-		outline none
+		border-radius 1px
+
+	// Grid
+	&:before
+		z-index 1
 		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
 		background-position 0 0, 5px 0, 5px -5px, 0px 5px
 		background-size 10px 10px
-		vertical-align bottom
-		font-size inherit
-
-		&:after
-			position absolute
-			top 0
-			left 0
-			width 100%
-			height 100%
-			border 1px solid var(--frame)
-			border-radius 2px
-			content ''
-			input-transition(border-color)
-
-		&:hover, &:focus
-			&:after
-				border-color var(--highlight)
+		content ''
+		content ''
 
 	&__color-preview
-		position absolute
-		top 0
-		left 0
-		display block
-		width 100%
-		height 100%
-		input-border()
+		z-index 2
 
 	&__picker
 		left 100px !important
