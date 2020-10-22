@@ -54,8 +54,11 @@ export default defineComponent({
 
 		const {shift, alt} = useKeyboardState()
 
+		const tweakMode = ref<'relative' | 'absolute'>('relative')
+
 		// Drag Events
 		let startValue = ref(0)
+		let alreadyEmitted = false
 
 		const {isDragging: tweaking, absolutePos} = useDraggable(dragEl, {
 			onClick() {
@@ -64,14 +67,30 @@ export default defineComponent({
 					inputEl.value.select()
 				}
 			},
-			onDragStart() {
-				startValue.value = props.modelValue
-			},
-			onDrag({delta}) {
-				if (!dragEl.value) return
+			onDragStart({left, right, pos}) {
+				const cursorT = (pos[0] - left) / (right - left)
+				const valueT = (props.modelValue - props.min) / (props.max - props.min)
 
-				let inc =
-					((props.max - props.min) * delta[0]) / dragEl.value.clientWidth
+				tweakMode.value =
+					Math.abs(cursorT - valueT) < 0.1 ? 'relative' : 'absolute'
+
+				if (tweakMode.value === 'absolute') {
+					const newValue = props.min + cursorT * (props.max - props.min)
+					context.emit('update:modelValue', newValue)
+
+					alreadyEmitted = true
+					startValue.value = newValue
+				} else {
+					startValue.value = props.modelValue
+				}
+			},
+			onDrag({delta, right, left}) {
+				if (alreadyEmitted) {
+					alreadyEmitted = false
+					return
+				}
+
+				let inc = ((props.max - props.min) * delta[0]) / (right - left)
 
 				if (shift.value) {
 					inc *= 10
@@ -103,11 +122,8 @@ export default defineComponent({
 
 		const sliderStyle = computed(() => {
 			const t = (props.modelValue - props.min) / (props.max - props.min)
-			const borderRadius = t < 1 ? 0 : '2px'
 			return {
 				width: `${t * 100}%`,
-				borderTopRightRadius: borderRadius,
-				borderButtonRightRadius: borderRadius,
 			}
 		})
 

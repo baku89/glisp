@@ -6,6 +6,10 @@ interface DragData {
 	prevPos: vec2
 	startPos: vec2
 	delta: vec2
+	top: number
+	right: number
+	bottom: number
+	left: number
 	origin: vec2
 	isMousedown: boolean
 	isDragging: boolean
@@ -30,8 +34,14 @@ export default function useDraggable(
 		startPos: vec2.create(),
 		delta: vec2.create(),
 
-		// Origin position in viewport
+		top: 0,
+		right: 0,
+		bottom: 0,
+		left: 0,
+
+		// Viewport position
 		origin: vec2.create(),
+
 		isMousedown: false,
 		isDragging: false,
 	}) as DragData
@@ -50,6 +60,11 @@ export default function useDraggable(
 		} = (el.value as HTMLElement).getBoundingClientRect()
 
 		drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
+
+		drag.top = top - drag.origin[1]
+		drag.right = right - drag.origin[0]
+		drag.bottom = bottom - drag.origin[1]
+		drag.left = left - drag.origin[0]
 
 		drag.pos = vec2.fromValues(
 			clientX - drag.origin[0],
