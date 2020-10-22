@@ -94,10 +94,13 @@ export default defineComponent({
 	&__input:checked + &__frame > &__checkmark
 		opacity 1
 
-	// Hover
+	// Hover and Focus
 	&__input:hover + &__frame, &__input:focus + &__frame
 		border-color var(--highlight)
 		color var(--highlight)
+
+	&__input:focus + &__frame
+		box-shadow 0 0 0 1px var(--highlight)
 
 	// Label
 	&__label
