@@ -1,14 +1,29 @@
 <template>
 	<button
 		class="InputTranslate"
-		:class="{dragging: drag.isDragging}"
+		:class="{tweaking}"
 		ref="el"
 		@keydown="onKeydown"
 	/>
+	<teleport to="body">
+		<svg v-if="tweaking" class="InputTranslate__overlay">
+			<polyline
+				class="bold"
+				:points="`${origin[0]} ${absolutePos[1]} ${origin[0]} ${origin[1]} ${absolutePos[0]} ${origin[1]}`"
+			/>
+			<polyline
+				class="dashed"
+				:points="`${absolutePos[0]} ${origin[1]} ${absolutePos[0]} ${absolutePos[1]} ${origin[0]} ${absolutePos[1]}`"
+			/>
+			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+				{{ overlayLabel }}
+			</text>
+		</svg>
+	</teleport>
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, PropType} from 'vue'
+import {defineComponent, ref, PropType, computed} from 'vue'
 import useDraggable from '@/components/use/use-draggable'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
@@ -32,10 +47,14 @@ export default defineComponent({
 			context.emit('update:modelValue', newValue)
 		}
 
-		const drag = useDraggable(el, {
-			onDrag({isDragging, delta}) {
-				if (!isDragging) return
+		const startValue = ref(vec2.create())
 
+		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
+			disableClick: true,
+			onDragStart() {
+				startValue.value = props.modelValue as vec2
+			},
+			onDrag({delta}) {
 				update(delta)
 			},
 			onDragEnd() {
@@ -72,10 +91,25 @@ export default defineComponent({
 			}
 		}
 
+		const overlayLabel = computed(() => {
+			const delta = vec2.sub(
+				vec2.create(),
+				props.modelValue as vec2,
+				startValue.value
+			)
+
+			return Array.from(delta)
+				.map(v => (v > 0 ? '+' : '') + v.toFixed(1))
+				.join(',')
+		})
+
 		return {
 			el,
-			drag,
+			tweaking,
 			onKeydown,
+			origin,
+			absolutePos,
+			overlayLabel,
 		}
 	},
 })
@@ -93,17 +127,19 @@ export default defineComponent({
 	input-transition(background)
 
 	&:focus
+		box-shadow 0 0 0 1px var(--highlight)
+
+	&:hover, &.tweaking
 		background var(--highlight)
 
-	&:hover, &.dragging
-		background var(--highlight)
-
+	// Crosshair
 	&:before, &:after
-		position absolute
-		display block
+		pseudo-block()
 		background var(--background) !important
-		content ''
 		transform translate(-50%, -50%)
+
+	&.tweaking:before, &.tweaking:after
+		display none
 
 	&:before
 		top 50%
@@ -116,4 +152,8 @@ export default defineComponent({
 		left 50%
 		width 1px
 		height 7px
+
+	&__overlay
+		cursor all-scroll
+		input-overlay()
 </style>
