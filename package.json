@@ -27,6 +27,7 @@
 		"vue": "^3.0.0"
 	},
 	"devDependencies": {
+		"@popperjs/core": "^2.5.3",
 		"@types/chroma-js": "^2.1.0",
 		"@types/color": "^3.0.1",
 		"@types/file-saver": "^2.0.1",
@@ -54,6 +55,7 @@
 		"case": "^1.6.3",
 		"chalk": "^4.1.0",
 		"chroma-js": "^2.1.0",
+		"click-outside": "^2.0.2",
 		"comlink": "^4.3.0",
 		"comlink-loader": "^2.0.0",
 		"copy-webpack-plugin": "^6.1.1",

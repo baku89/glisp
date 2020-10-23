@@ -154,3 +154,10 @@ declare module '*.yml' {
 	const YamlData: any
 	export default component
 }
+
+declare module 'click-outside' {
+	export default function (
+		container: HTMLElement,
+		callback: (event: MouseEvent) => any
+	): () => any
+}
