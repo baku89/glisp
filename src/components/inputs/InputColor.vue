@@ -1,48 +1,41 @@
 <template>
-	<button class="InputColor">
+	<button
+		class="InputColor"
+		ref="buttonEl"
+		@click="pickerOpened = !pickerOpened"
+	>
 		<span class="InputColor__color-preview" :style="{background: modelValue}" />
 	</button>
-	<!-- <Popper
-			trigger="clickToOpen"
-			:append-to-body="true"
-			:delay-on-mouse-out="250"
-			:options="{
-				placement: 'top',
-				modifiers: {offset: {offset: '0px,10px'}},
-			}"
-			boundaries-selector="body"
-			@hide="$emit('end-tweak')"
-		>
-			<ColorPicker
-				class="InputColor__picker"
-				:value="modelValue"
-				@input="$emit('update:modelValue', $event)"
-			/>
-			<template v-slot:reference>
-				<button class="InputColor__button">
-					<span
-						class="InputColor__color-preview"
-						:style="{background: modelValue}"
-					/>
-				</button>
-			</template>
-		</Popper> -->
+	<Popover v-model:open="pickerOpened" :reference="buttonEl">
+		<div class="InputColor__picker"></div>
+	</Popover>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue'
+import {defineComponent, ref} from 'vue'
 import {Chrome as ColorPicker} from 'vue-color'
+import Popover from '@/components/layouts/Popover.vue'
 
 export default defineComponent({
 	name: 'InputColor',
 	components: {
 		// ColorPicker,
+		Popover,
 	},
 	props: {
 		modelValue: {
 			type: [String, Array],
 			required: true,
 		},
+	},
+	setup() {
+		const buttonEl = ref(null)
+		const pickerOpened = ref(false)
+
+		return {
+			buttonEl,
+			pickerOpened,
+		}
 	},
 })
 </script>
@@ -87,25 +80,10 @@ export default defineComponent({
 		z-index 2
 
 	&__picker
-		left 100px !important
-		z-index 1000
-		border-radius 2px
-		box-shadow 0 0 20px 0 var(--translucent) !important
-
-		&:before
-			position absolute
-			top 0
-			left 0
-			z-index 1000
-			width 100%
-			height 100%
-			border 1px solid var(--border)
-			content ''
-			pointer-events none
-
-		.vc-chrome-body
-			background-color var(--opaque) !important
-
-		.vc-chrome-fields-wrap
-			display none
+		width 20rem
+		height 20rem
+		border 1px solid var(--frame)
+		border-radius 4px
+		translucent-bg()
+		box-shadow 0 0 20px 0 var(--translucent)
 </style>
