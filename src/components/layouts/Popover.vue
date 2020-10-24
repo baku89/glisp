@@ -1,15 +1,11 @@
 <template>
-	<teleport to="body">
-		<div class="Popover" v-if="open">
-			<div class="Popover__popover" ref="targetEl">
-				<slot />
-			</div>
-		</div>
-	</teleport>
+	<div class="Popover" v-if="open" ref="targetEl">
+		<slot />
+	</div>
 </template>
 
 <script lang="ts">
-import {createPopper, Instance as PopperInstance, popper} from '@popperjs/core'
+import {createPopper, Instance as PopperInstance} from '@popperjs/core'
 import {
 	defineComponent,
 	nextTick,
@@ -21,9 +17,13 @@ import {
 	toRefs,
 	watch,
 } from 'vue'
+import ClickOutside from 'vue-click-outside'
 
 export default defineComponent({
 	name: 'Popover',
+	directives: {
+		ClickOutside,
+	},
 	props: {
 		reference: {
 			type: Element,
@@ -32,39 +32,74 @@ export default defineComponent({
 			type: Boolean,
 			required: true,
 		},
+		placement: {
+			type: String as PropType<
+				| 'auto'
+				| 'auto-start'
+				| 'auto-end'
+				| 'top'
+				| 'bottom'
+				| 'right'
+				| 'left'
+				| 'top-start'
+				| 'top-end'
+				| 'bottom-start'
+				| 'bottom-end'
+				| 'right-start'
+				| 'right-end'
+				| 'left-start'
+				| 'left-end'
+			>,
+			default: 'top',
+		},
 	},
 	setup(props, context) {
 		const targetEl = ref<null | HTMLElement>(null)
 
 		let popperInstance: PopperInstance | undefined
 
-		watch(
-			() => [targetEl.value, props.reference],
-			() => {
-				if (!targetEl.value || !props.reference) return
-
-				popperInstance = createPopper(props.reference, targetEl.value, {
-					placement: 'top',
-				})
-			}
-		)
-
+		// // Create and destroy popper instance
 		watch(
 			() => props.open,
 			() => {
-				if (!props.open && popperInstance) {
-					popperInstance.destroy()
-					popperInstance = undefined
+				if (props.open) {
+					nextTick(() => {
+						if (!props.reference || !targetEl.value) {
+							console.warn('Cannot create Popper instance')
+							return
+						}
+						const reference = props.reference
+						const target = targetEl.value
+
+						popperInstance = createPopper(reference, target, {
+							placement: props.placement,
+						})
+
+						function onMousedown(e: MouseEvent) {
+							if (target !== e.target && !target.contains(e.target as Node)) {
+								context.emit('update:open', false)
+								window.removeEventListener('mousedown', onMousedown)
+							}
+						}
+
+						window.addEventListener('mousedown', onMousedown)
+					})
+				} else {
+					hide()
 				}
 			}
 		)
 
-		onUnmounted(() => {
+		onUnmounted(hide)
+
+		function hide() {
 			popperInstance?.destroy()
-		})
+			popperInstance = undefined
+		}
 
 		return {
 			targetEl,
+			hide,
 		}
 	},
 })

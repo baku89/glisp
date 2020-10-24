@@ -58,9 +58,9 @@ declare module 'vue-color' {
 	export const Chrome: any
 }
 
-declare module 'vue-popperjs' {
-	const Popper: any
-	export default Popper
+declare module 'vue-click-outside' {
+	export const VueClickOutside: any
+	export default VueClickOutside
 }
 
 declare module 'is-node' {
