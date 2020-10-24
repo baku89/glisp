@@ -3,6 +3,7 @@
 		class="InputRotery"
 		:class="{tweaking, 'tweak-absolute': tweakMode === 'absolute'}"
 		ref="el"
+		v-bind="$attrs"
 	>
 		<span
 			class="InputRotery__scale"
@@ -204,6 +205,7 @@ export default defineComponent({
 			overlayCursor,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 

@@ -3,6 +3,7 @@
 		class="InputColor"
 		ref="buttonEl"
 		@click="pickerOpened = !pickerOpened"
+		v-bind="$attrs"
 	>
 		<span class="InputColor__color-preview" :style="{background: modelValue}" />
 	</button>
@@ -37,6 +38,7 @@ export default defineComponent({
 			pickerOpened,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 

@@ -1,5 +1,5 @@
 <template>
-	<div class="InputNumber" :class="{tweaking}" ref="dragEl">
+	<div class="InputNumber" :class="{tweaking}" ref="dragEl" v-bind="$attrs">
 		<input
 			class="InputNumber__input"
 			type="text"
@@ -114,6 +114,7 @@ export default defineComponent({
 			update,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 
