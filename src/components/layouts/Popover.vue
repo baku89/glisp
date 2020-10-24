@@ -105,4 +105,8 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus"></style>
+<style lang="stylus">
+.Popover
+	position relative
+	z-index 100
+</style>
