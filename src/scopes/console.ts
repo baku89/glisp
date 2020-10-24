@@ -133,7 +133,7 @@ let renderWindow: Window | null
 
 // 				const bounds = ConsoleScope.eval(
 // 					MalList.from(MalSymbol.from('get-element-bounds'), viewExp)
-// 				)?.toJS() as number[]
+// 				)?.toObject() as number[]
 // 				if (!bounds) {
 // 					throw new MalError('Cannot retrieve bounds')
 // 				}
@@ -205,7 +205,7 @@ let renderWindow: Window | null
 // 				duration: 1,
 // 				fps: 24,
 // 				bounds: [0, 0, 200, 200],
-// 				...MalMap.fromMalSeq(...xs).toJS(),
+// 				...MalMap.fromMalSeq(...xs).toObject(),
 // 			} as {
 // 				format: 'gif'
 // 				scaling: number
@@ -334,7 +334,7 @@ let renderWindow: Window | null
 // 			const code = ConsoleScope.var('*sketch*').value as string
 
 // 			// eslint-disable-next-line prefer-const
-// 			const {name, user, token} = MalMap.fromMalSeq(...args).toJS() as {
+// 			const {name, user, token} = MalMap.fromMalSeq(...args).toObject() as {
 // 				name: string
 // 				user: string
 // 				token: string

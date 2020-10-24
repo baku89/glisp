@@ -96,7 +96,7 @@ abstract class MalBase<T> {
 
 	abstract print(readably?: boolean): string
 	abstract clone(deep?: boolean): MalBase<T>
-	abstract toJS(): any
+	abstract toObject(): any
 	abstract equals(v: MalVal): boolean
 }
 
@@ -125,7 +125,7 @@ export class MalNumber extends MalPrimBase<number> {
 		return new MalNumber(this._value)
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -170,7 +170,7 @@ export class MalString extends MalPrimBase<string> {
 		return new MalString(this._value, this._meta?.clone())
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -207,7 +207,7 @@ export class MalBoolean extends MalPrimBase<boolean> {
 		return new MalBoolean(this._value, this._meta?.clone())
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -245,7 +245,7 @@ export class MalKeyword extends MalPrimBase<string> {
 		return new MalKeyword(this._value, this._meta?.clone())
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -285,7 +285,7 @@ export class MalNil extends MalPrimBase<null> {
 		return new MalNil(null, this._meta?.clone())
 	}
 
-	toJS() {
+	toObject() {
 		return null
 	}
 
@@ -327,7 +327,7 @@ export class MalSymbol extends MalPrimBase<string> {
 		return new MalSymbol(this._value, this._meta?.clone())
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -396,8 +396,8 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 		return str
 	}
 
-	toJS(): any[] {
-		return this._value.map(x => x.toJS())
+	toObject(): any[] {
+		return this._value.map(x => x.toObject())
 	}
 
 	equals(v: MalVal): boolean {
@@ -565,7 +565,7 @@ export class MalBuffer extends MalBase<Float32Array | Uint8Array> {
 		)
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -609,9 +609,9 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return new MalMap(value, this._meta?.clone())
 	}
 
-	toJS(): {[k: string]: any} {
+	toObject(): {[k: string]: any} {
 		return Object.fromEntries(
-			Object.entries(this._value).map(([k, v]) => [k, v.toJS()])
+			Object.entries(this._value).map(([k, v]) => [k, v.toObject()])
 		)
 	}
 
@@ -722,7 +722,7 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 		}
 	}
 
-	toJS() {
+	toObject() {
 		return this._value
 	}
 
@@ -818,8 +818,8 @@ export class MalAtom extends MalBase<MalVal> {
 		return `(atom ${this._value?.print(readably)})`
 	}
 
-	toJS(): any {
-		return this._value.toJS()
+	toObject(): any {
+		return this._value.toObject()
 	}
 
 	equals(v: MalVal) {

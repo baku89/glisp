@@ -35,7 +35,7 @@ export function useModes(
 	const modes = ref<Mode[]>([])
 
 	function setupModes() {
-		modes.value = (ConsoleScope.var('*modes*').toJS() as any) as Mode[]
+		modes.value = (ConsoleScope.var('*modes*').toObject() as any) as Mode[]
 	}
 
 	const modeState = ref<MalMap>(MalMap.from())

@@ -372,7 +372,7 @@ const Exports = [
 			MalString.from(
 				vsprintf(
 					fmt.value,
-					xs.map(x => x.toJS())
+					xs.map(x => x.toObject())
 				)
 			),
 	],
@@ -501,7 +501,7 @@ const Exports = [
 				throw new MalError('Cannot convert to MalFn')
 			}
 			return MalFn.from((...args: MalVal[]) => {
-				const ret = fn(...args.map(x => x.toJS()))
+				const ret = fn(...args.map(x => x.toObject()))
 				return readJS(ret)
 			})
 		},

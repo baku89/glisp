@@ -256,7 +256,7 @@ export default function renderToContext(
 						ctx.lineJoin = v.value as CanvasLineJoin
 						break
 					case 'stroke-dash':
-						ctx.setLineDash(v.toJS() as number[])
+						ctx.setLineDash(v.toObject() as number[])
 				}
 			}
 			if (drawOrders[i].fill) {

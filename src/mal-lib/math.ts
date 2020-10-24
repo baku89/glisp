@@ -16,13 +16,13 @@ import {readJS} from '@/mal/reader'
 
 const Exports = [
 	// Random
-	['rnd', (a: MalVal) => MalNumber.from(seedrandom(a.toJS())())],
+	['rnd', (a: MalVal) => MalNumber.from(seedrandom(a.toObject())())],
 	[
 		'convex-hull',
 		(pts: MalVector, concavity: MalNumber = MalNumber.from(Infinity)) => {
 			return MalVector.from(
 				hull(
-					(pts.toJS() as any) as [number, number][],
+					(pts.toObject() as any) as [number, number][],
 					concavity.value
 				).map(([a, b]) =>
 					MalVector.from([MalNumber.from(a), MalNumber.from(b)])
@@ -34,7 +34,7 @@ const Exports = [
 		'delaunay',
 		(pts: MalVector) => {
 			const delaunay = Delaunator.from(
-				(pts.toJS() as any) as [number, number][]
+				(pts.toObject() as any) as [number, number][]
 			)
 			return readJS(partition(3, delaunay.triangles))
 		},
@@ -59,7 +59,8 @@ Object.getOwnPropertyNames(Math).forEach(k => {
 	const fn = (Math as any)[k]
 	const malVal =
 		typeof fn === 'function'
-			? (...args: MalVal[]) => MalNumber.from(fn(...args.map(x => x.toJS())))
+			? (...args: MalVal[]) =>
+					MalNumber.from(fn(...args.map(x => x.toObject())))
 			: readJS(fn)
 	Exports.push([k, malVal])
 })
