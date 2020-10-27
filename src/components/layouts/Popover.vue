@@ -17,13 +17,9 @@ import {
 	toRefs,
 	watch,
 } from 'vue'
-import ClickOutside from 'vue-click-outside'
 
 export default defineComponent({
 	name: 'Popover',
-	directives: {
-		ClickOutside,
-	},
 	props: {
 		reference: {
 			type: Element,

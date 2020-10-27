@@ -54,15 +54,6 @@ declare module 'vue-markdown' {
 	export default VueMarkdown
 }
 
-declare module 'vue-color' {
-	export const Chrome: any
-}
-
-declare module 'vue-click-outside' {
-	export const VueClickOutside: any
-	export default VueClickOutside
-}
-
 declare module 'is-node' {
 	const isNode: boolean
 	export default isNode
