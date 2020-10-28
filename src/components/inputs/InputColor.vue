@@ -35,7 +35,7 @@ export default defineComponent({
 			required: true,
 		},
 		pickers: {
-			type: Array,
+			type: String,
 		},
 	},
 	setup(props, context) {
@@ -88,7 +88,7 @@ export default defineComponent({
 		z-index 2
 
 	&__popover-frame
-		margin 1rem
+		margin 0.5rem
 		width 20rem
 		border 1px solid var(--frame)
 		border-radius 4px

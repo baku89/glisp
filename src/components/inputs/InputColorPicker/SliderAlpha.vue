@@ -4,10 +4,10 @@
 		<button class="SliderAlpha__circle" :style="circleStyle">
 			<span class="SliderAlpha__circle-color" :style="circleColorStyle" />
 		</button>
+		<teleport to="body">
+			<div class="SliderAlpha__overlay" v-if="tweaking" />
+		</teleport>
 	</div>
-	<teleport to="body">
-		<div class="SliderAlpha__overlay" v-if="tweaking" />
-	</teleport>
 </template>
 
 <script lang="ts">
@@ -106,7 +106,6 @@ $circle-radius = 0.5 * $circle-diameter
 		background-checkerboard()
 		z-index 2
 		overflow hidden
-		margin-top 0 !important
 
 	&__circle-color
 		position absolute

@@ -3,12 +3,13 @@
 		<div class="InputColorPicker__wrapper">
 			<div
 				class="InputColorPicker__picker"
-				v-for="({name}, i) in pickerData"
+				v-for="({name, mode}, i) in pickerData"
 				:key="i"
 			>
 				<component
 					:is="name"
 					:modelValue="colorDict"
+					:mode="mode"
 					@update:modelValue="onUpdateColorDict"
 				/>
 			</div>
@@ -44,9 +45,9 @@ function toColorDict(value: string, space: string): ColorDict | null {
 
 	if (space.startsWith('rgb')) {
 		const [r, g, b] = c.rgb()
-		dict.r = r
-		dict.g = g
-		dict.b = b
+		dict.r = r / 255
+		dict.g = g / 255
+		dict.b = b / 255
 	}
 
 	if (space.endsWith('a')) {
@@ -81,8 +82,8 @@ export default defineComponent({
 			default: 'rgba',
 		},
 		pickers: {
-			type: Array as PropType<string[]>,
-			default: ['hsv', 'a'],
+			type: String,
+			default: 'svh|a',
 		},
 	},
 	setup(props, context) {
@@ -116,15 +117,17 @@ export default defineComponent({
 
 		const pickerData = computed(() =>
 			props.pickers
+				.split('|')
 				.map(picker => {
+					if (/^[hsv]{3}$/.test(picker)) {
+						return {name: 'SliderHSV', mode: picker}
+					}
 					switch (picker) {
-						case 'hsv':
-							return {name: 'SliderHSV'}
 						case 'a':
 							return {name: 'SliderAlpha'}
-						default:
-							return null
 					}
+
+					return null
 				})
 				.filter(Boolean)
 		)

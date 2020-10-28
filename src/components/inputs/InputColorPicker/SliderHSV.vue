@@ -1,19 +1,20 @@
 <template>
 	<div class="SliderHSV">
-		<div class="SliderHSV__sv" ref="svBoxEl">
+		<div class="SliderHSV__pad" ref="padEl">
 			<GlslCanvas
 				class="SliderHSV__canvas"
-				:fragmentString="SVFragmentString"
-				:uniforms="svUniforms"
+				:fragmentString="PadFragmentString"
+				:uniforms="padUniforms"
 			/>
-			<button class="SliderHSV__circle" :style="svCircleStyle" />
+			<button class="SliderHSV__circle pad" :style="padCircleStyle" />
 		</div>
-		<div class="SliderHSV__hue" ref="hueBoxEl">
+		<div class="SliderHSV__slider" ref="sliderEl">
 			<GlslCanvas
 				class="SliderHSV__canvas"
-				:fragmentString="HueFragmentString"
+				:fragmentString="SliderFragmentString"
+				:uniforms="sliderUniforms"
 			/>
-			<button class="SliderHSV__circle hue" :style="hueCircleStyle" />
+			<button class="SliderHSV__circle" :style="sliderCircleStyle" />
 		</div>
 	</div>
 	<teleport to="body">
@@ -28,20 +29,30 @@ import chroma from 'chroma-js'
 import {clamp} from '@/utils'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-import SVFragmentString from './picker-sv.frag'
-import HueFragmentString from './picker-hue.frag'
+import PadFragmentString from './picker-hsv-pad.frag'
+import SliderFragmentString from './picker-hsv-slider.frag'
 
 import {ColorDict} from './InputColorPicker.vue'
 
+type HSVArray = [number, number, number]
+
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
-function toRGBDict(hsv: [number, number, number]): ColorDict {
-	const [r, g, b] = chroma.hsv(...hsv).rgb()
+function toRGBDict([h, s, v]: HSVArray): ColorDict {
+	const [r, g, b] = chroma.hsv(h * 360, s, v).rgb()
 	return {r: r / 255, g: g / 255, b: b / 255}
+}
+
+function toCSSColor([h, s, v]: HSVArray) {
+	return chroma.hsv(h * 360, s, v).css()
 }
 
 function equalRGB(x: ColorDict, y: ColorDict) {
 	return x.r === y.r && x.g === y.g && x.b === y.b
+}
+
+function modeToIndex(element: string) {
+	return element === 'h' ? 0 : element === 's' ? 1 : 2
 }
 
 export default defineComponent({
@@ -54,10 +65,14 @@ export default defineComponent({
 			type: Object as PropType<ColorDict>,
 			required: true,
 		},
+		mode: {
+			type: String,
+			default: 'svh',
+		},
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const hsv = ref<[number, number, number]>([0, 0, 0])
+		const hsv = ref<HSVArray>([0, 0, 0])
 
 		// Update hsv
 		watch(
@@ -74,83 +89,127 @@ export default defineComponent({
 					_hsv[0] = hsv.value[0]
 				}
 
+				_hsv[0] /= 360
+				console.log(r, g, b, _hsv)
+
 				hsv.value = _hsv
 			},
 			{immediate: true}
 		)
 
-		function update(newHSV: [number, number, number]) {
+		function update(newHSV: HSVArray) {
 			hsv.value = newHSV
 			const newDict = toRGBDict(newHSV)
 			context.emit('update:modelValue', newDict)
 		}
 
-		// SV
-		const svBoxEl = ref<null | HTMLElement>(null)
+		// Pad
+		const padEl = ref<null | HTMLElement>(null)
 
-		const {isDragging: tweakingSV} = useDraggable(svBoxEl, {
+		const {isDragging: tweakingPad} = useDraggable(padEl, {
 			disableClick: true,
 			onDrag({pos: [x, y], top, right, bottom, left}) {
-				const h = hsv.value[0]
-				const s = clamp((x - left) / (right - left), 0, 1)
-				const v = clamp(1 - (y - top) / (bottom - top), 0, 1)
+				const newHSV = hsv.value
 
-				update([h, s, v])
+				const modes = props.mode.slice(0, 2).split('')
+				const ts = [(x - left) / (right - left), 1 - (y - top) / (bottom - top)]
+
+				for (let i = 0; i < 2; i++) {
+					const m = modes[i]
+					const t = ts[i]
+
+					if (m === 'h') {
+						newHSV[0] = unsignedMod(t, 1)
+					} else if (m === 's') {
+						newHSV[1] = clamp(t, 0, 1)
+					} else if (m === 'v') {
+						newHSV[2] = clamp(t, 0, 1)
+					}
+				}
+
+				update(newHSV)
 			},
 		})
 
-		const svCircleStyle = computed(() => {
-			const [, s, v] = hsv.value
+		const padCircleStyle = computed(() => {
+			const xIndex = modeToIndex(props.mode[0])
+			const yIndex = modeToIndex(props.mode[1])
+
+			const x = hsv.value[xIndex]
+			const y = hsv.value[yIndex]
+
 			return {
-				left: `${s * 100}%`,
-				top: `${(1 - v) * 100}%`,
-				background: chroma.hsv(...hsv.value).css(),
-				transform: tweakingSV.value ? 'scale(2)' : '',
+				left: `${x * 100}%`,
+				top: `${(1 - y) * 100}%`,
+				background: toCSSColor(hsv.value),
+				transform: tweakingPad.value ? 'scale(2)' : '',
 			}
 		})
 
-		const svUniforms = computed(() => {
+		const padUniforms = computed(() => {
 			return {
-				hue: hsv.value[0] / 360,
+				hsv: [...hsv.value],
+				modeX: modeToIndex(props.mode[0]),
+				modeY: modeToIndex(props.mode[1]),
 			}
 		})
 
-		// Hue
-		const hueBoxEl = ref<null | HTMLElement>(null)
+		// Slider
+		const sliderEl = ref<null | HTMLElement>(null)
 
-		const {isDragging: tweakingHue} = useDraggable(hueBoxEl, {
+		const {isDragging: tweakingSlider} = useDraggable(sliderEl, {
 			disableClick: true,
 			onDrag({pos: [x], right, left}) {
-				const h = unsignedMod((x - left) / (right - left), 1) * 360
-				const [, s, v] = hsv.value
-				update([h, s, v])
+				const mode = props.mode[2]
+				const t = (x - left) / (right - left)
+				const newHSV = hsv.value
+
+				if (mode === 'h') {
+					newHSV[0] = unsignedMod(t, 1)
+				} else if (mode === 's') {
+					newHSV[1] = clamp(t, 0, 1)
+				} else if (mode === 'v') {
+					newHSV[2] = clamp(t, 0, 1)
+				}
+
+				update(newHSV)
 			},
 		})
 
-		const hueCircleStyle = computed(() => {
-			const h = hsv.value[0]
-			const bg = chroma.hsv(h, 1, 1).css()
+		const sliderCircleStyle = computed(() => {
+			const mode = props.mode[2]
+			const t = hsv.value[modeToIndex(mode)]
+			const bg = toCSSColor(mode === 'h' ? [hsv.value[0], 1, 1] : hsv.value)
+
 			return {
-				left: `${(h / 360) * 100}%`,
+				left: `${t * 100}%`,
 				background: bg,
-				transform: tweakingHue.value ? 'scale(2)' : '',
+				transform: tweakingSlider.value ? 'scale(2)' : '',
+			}
+		})
+
+		const sliderUniforms = computed(() => {
+			return {
+				hsv: [hsv.value[0], ...hsv.value.slice(1)],
+				mode: modeToIndex(props.mode[2]),
 			}
 		})
 
 		// Tweaking
-		const tweaking = computed(() => tweakingSV.value || tweakingHue.value)
+		const tweaking = computed(() => tweakingPad.value || tweakingSlider.value)
 
 		return {
 			hsv,
 
-			SVFragmentString,
-			svBoxEl,
-			svCircleStyle,
-			svUniforms,
+			PadFragmentString,
+			padEl,
+			padCircleStyle,
+			padUniforms,
 
-			HueFragmentString,
-			hueBoxEl,
-			hueCircleStyle,
+			SliderFragmentString,
+			sliderEl,
+			sliderCircleStyle,
+			sliderUniforms,
 
 			tweaking,
 		}
@@ -174,17 +233,17 @@ export default defineComponent({
 		circle()
 		z-index 1
 
-		&.hue
-			margin-top 0
+		&.pad
+			margin-top -1 * $circle-radius
 
-	&__sv
+	&__pad
 		position relative
 		margin-bottom $picker-gap
 		padding-top 100%
 		height 0
 		border-radius $border-radius
 
-	&__hue
+	&__slider
 		position relative
 		height $circle-diameter
 
