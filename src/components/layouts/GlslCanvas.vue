@@ -3,7 +3,14 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, onUnmounted, PropType, ref} from 'vue'
+import {
+	defineComponent,
+	onMounted,
+	onUnmounted,
+	PropType,
+	ref,
+	watchEffect,
+} from 'vue'
 import {Canvas} from 'glsl-canvas-js'
 
 interface UniformsProp {
@@ -40,7 +47,10 @@ export default defineComponent({
 				fragmentString: props.fragmentString,
 			})
 
-			glsl.setUniforms(props.uniforms)
+			watchEffect(() => {
+				glsl.setUniforms(props.uniforms)
+				glsl.render()
+			})
 		})
 
 		onUnmounted(() => {
