@@ -77,9 +77,7 @@ export default defineComponent({
 	// Grid
 	&:before
 		z-index 1
-		background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
-		background-position 0 0, 5px 0, 5px -5px, 0px 5px
-		background-size 10px 10px
+		background-checkerboard()
 		content ''
 
 	&__color-preview

@@ -171,10 +171,11 @@ $circle-radius = 0.5 * $circle-diameter
 		left 0
 		width 100%
 		height 100%
-		border-radius 2px
+		border-radius $border-radius
 
 	&__circle
 		position absolute
+		z-index 1
 		margin - $circle-radius
 		width $circle-diameter
 		height $circle-diameter
@@ -191,7 +192,7 @@ $circle-radius = 0.5 * $circle-diameter
 		padding-top 'calc(100% - %s)' % $circle-diameter
 		width 'calc(100% - %s)' % $circle-diameter
 		height 0
-		border-radius 2px
+		border-radius $border-radius
 
 	&__hue
 		position relative

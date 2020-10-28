@@ -23,6 +23,7 @@ import {
 } from 'vue'
 
 import SliderHSV from './SliderHSV.vue'
+import SliderAlpha from './SliderAlpha.vue'
 
 export type ColorDict = {[name: string]: number}
 
@@ -51,10 +52,10 @@ function toColorDict(value: string, space: string): ColorDict | null {
 
 function fromColorDict(dict: ColorDict): string {
 	const c = chroma(
-		dict.r * 255 || 0,
-		dict.g * 255 || 0,
-		dict.b * 255 || 0
-	).alpha(dict.a || 1)
+		dict.r * 255 ?? 0,
+		dict.g * 255 ?? 0,
+		dict.b * 255 ?? 0
+	).alpha(dict.a ?? 1)
 	return c.hex()
 }
 
@@ -62,6 +63,7 @@ export default defineComponent({
 	name: 'InputColorPicker',
 	components: {
 		SliderHSV,
+		SliderAlpha,
 	},
 	props: {
 		modelValue: {
@@ -70,11 +72,11 @@ export default defineComponent({
 		},
 		colorSpace: {
 			type: String,
-			default: 'rgb',
+			default: 'rgba',
 		},
 		pickers: {
 			type: Array as PropType<string[]>,
-			default: ['hsv'],
+			default: ['hsv', 'a'],
 		},
 	},
 	setup(props, context) {
@@ -130,7 +132,4 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus">
-// .InputColorPicker
-	// height 100%
-</style>
+<style lang="stylus"></style>

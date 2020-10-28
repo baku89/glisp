@@ -102,3 +102,9 @@ labeled-button()
 
 	&:hover, &:focus
 		background var(--highlight)
+
+background-checkerboard()
+	background-color white
+	background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
+	background-position 0 0, 4px 0, 4px -4px, 0px 4px
+	background-size 8px 8px
