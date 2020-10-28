@@ -11,6 +11,7 @@
 		<div class="InputColor__popover-frame">
 			<InputColorPicker
 				:modelValue="modelValue"
+				:pickers="pickers"
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</div>
@@ -32,6 +33,9 @@ export default defineComponent({
 		modelValue: {
 			type: String,
 			required: true,
+		},
+		pickers: {
+			type: Array,
 		},
 	},
 	setup(props, context) {
