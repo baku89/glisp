@@ -19,6 +19,8 @@ export function clamp(value: number, min: number, max: number) {
 	return Math.max(min, Math.min(value, max))
 }
 
+export const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
+
 /**
  * Converts the bind expression to parameter's label
  * @param exp A bind expression

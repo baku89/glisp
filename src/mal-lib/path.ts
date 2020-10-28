@@ -16,7 +16,7 @@ import {
 	MalVector,
 	MalMap,
 } from '@/mal/types'
-import {partition} from '@/utils'
+import {partition, unsignedMod} from '@/utils'
 import {readJS} from '@/mal/reader'
 import {
 	// 	iterateSegment,
@@ -37,8 +37,6 @@ const UNIT_QUAD_BEZIER = new Bezier([
 	{x: KAPPA, y: 1},
 	{x: 0, y: 1},
 ])
-
-const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function toPathVector(...arr: (string | number[])[]) {
 	return MalVector.of(

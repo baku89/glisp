@@ -26,7 +26,7 @@
 import {defineComponent, PropType, ref, computed, watch} from 'vue'
 import chroma from 'chroma-js'
 
-import {clamp} from '@/utils'
+import {clamp, unsignedMod} from '@/utils'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
 import PadFragmentString from './picker-hsv-pad.frag'
@@ -35,8 +35,6 @@ import SliderFragmentString from './picker-hsv-slider.frag'
 import {ColorDict} from './InputColorPicker.vue'
 
 type HSVArray = [number, number, number]
-
-const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function toRGBDict([h, s, v]: HSVArray): ColorDict {
 	const [r, g, b] = chroma.hsv(h * 360, s, v).rgb()
