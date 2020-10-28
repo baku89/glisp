@@ -34,18 +34,16 @@ import SliderFragmentString from './picker-hsv-slider.frag'
 
 import {ColorDict} from './InputColorPicker.vue'
 
-type HSVArray = [number, number, number]
-
-function toRGBDict([h, s, v]: HSVArray): ColorDict {
+function toRGBDict({h, s, v}: ColorDict): ColorDict {
 	const [r, g, b] = chroma.hsv(h * 360, s, v).rgb()
 	return {r: r / 255, g: g / 255, b: b / 255}
 }
 
-function toCSSColor([h, s, v]: HSVArray) {
+function toCSSColor({h, s, v}: ColorDict) {
 	return chroma.hsv(h * 360, s, v).css()
 }
 
-function equalRGB(x: ColorDict, y: ColorDict) {
+function equalColor(x: ColorDict, y: ColorDict) {
 	return x.r === y.r && x.g === y.g && x.b === y.b
 }
 
@@ -70,32 +68,29 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const hsv = ref<HSVArray>([0, 0, 0])
+		const hsv = ref<ColorDict>({h: 0, s: 1, v: 1})
 
 		// Update hsv
 		watch(
 			() => props.modelValue,
 			() => {
-				if (equalRGB(props.modelValue, toRGBDict(hsv.value))) {
+				if (equalColor(props.modelValue, toRGBDict(hsv.value))) {
 					return
 				}
 
 				const {r, g, b} = props.modelValue
-				const _hsv = chroma(r * 255, g * 255, b * 255).hsv()
+				const [h, s, v] = chroma(r * 255, g * 255, b * 255).hsv()
 
-				if (isNaN(_hsv[0])) {
-					_hsv[0] = hsv.value[0]
+				hsv.value = {
+					h: isNaN(h) ? hsv.value.h : h / 360,
+					s,
+					v,
 				}
-
-				_hsv[0] /= 360
-				console.log(r, g, b, _hsv)
-
-				hsv.value = _hsv
 			},
 			{immediate: true}
 		)
 
-		function update(newHSV: HSVArray) {
+		function update(newHSV: ColorDict) {
 			hsv.value = newHSV
 			const newDict = toRGBDict(newHSV)
 			context.emit('update:modelValue', newDict)
@@ -107,7 +102,7 @@ export default defineComponent({
 		const {isDragging: tweakingPad} = useDraggable(padEl, {
 			disableClick: true,
 			onDrag({pos: [x, y], top, right, bottom, left}) {
-				const newHSV = hsv.value
+				const newHSV = {...hsv.value}
 
 				const modes = props.mode.slice(0, 2).split('')
 				const ts = [(x - left) / (right - left), 1 - (y - top) / (bottom - top)]
@@ -117,11 +112,11 @@ export default defineComponent({
 					const t = ts[i]
 
 					if (m === 'h') {
-						newHSV[0] = unsignedMod(t, 1)
+						newHSV.h = unsignedMod(t, 1)
 					} else if (m === 's') {
-						newHSV[1] = clamp(t, 0, 1)
+						newHSV.s = clamp(t, 0, 1)
 					} else if (m === 'v') {
-						newHSV[2] = clamp(t, 0, 1)
+						newHSV.v = clamp(t, 0, 1)
 					}
 				}
 
@@ -145,8 +140,9 @@ export default defineComponent({
 		})
 
 		const padUniforms = computed(() => {
+			const {h, s, v} = hsv.value
 			return {
-				hsv: [...hsv.value],
+				hsv: [h, s, v],
 				modeX: modeToIndex(props.mode[0]),
 				modeY: modeToIndex(props.mode[1]),
 			}
@@ -160,14 +156,14 @@ export default defineComponent({
 			onDrag({pos: [x], right, left}) {
 				const mode = props.mode[2]
 				const t = (x - left) / (right - left)
-				const newHSV = hsv.value
+				const newHSV = {...hsv.value}
 
 				if (mode === 'h') {
-					newHSV[0] = unsignedMod(t, 1)
+					newHSV.h = unsignedMod(t, 1)
 				} else if (mode === 's') {
-					newHSV[1] = clamp(t, 0, 1)
+					newHSV.s = clamp(t, 0, 1)
 				} else if (mode === 'v') {
-					newHSV[2] = clamp(t, 0, 1)
+					newHSV.v = clamp(t, 0, 1)
 				}
 
 				update(newHSV)
@@ -177,7 +173,9 @@ export default defineComponent({
 		const sliderCircleStyle = computed(() => {
 			const mode = props.mode[2]
 			const t = hsv.value[modeToIndex(mode)]
-			const bg = toCSSColor(mode === 'h' ? [hsv.value[0], 1, 1] : hsv.value)
+			const bg = toCSSColor(
+				mode === 'h' ? {...hsv.value, s: 1, v: 1} : hsv.value
+			)
 
 			return {
 				left: `${t * 100}%`,
@@ -187,8 +185,9 @@ export default defineComponent({
 		})
 
 		const sliderUniforms = computed(() => {
+			const {h, s, v} = hsv.value
 			return {
-				hsv: [hsv.value[0], ...hsv.value.slice(1)],
+				hsv: [h, s, v],
 				mode: modeToIndex(props.mode[2]),
 			}
 		})

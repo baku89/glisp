@@ -1,11 +1,10 @@
 <template>
-	<div class="SliderAlpha" ref="sliderEl">
-		<div class="SliderAlpha__gradient" :style="gradientStyle" />
-		<button class="SliderAlpha__circle" :style="circleStyle">
-			<span class="SliderAlpha__circle-color" :style="circleColorStyle" />
+	<div class="SliderRGB" ref="sliderEl" :style="gradientStyle">
+		<button class="SliderRGB__circle" :style="circleStyle">
+			<span class="SliderRGB__circle-color" :style="circleColorStyle" />
 		</button>
 		<teleport to="body">
-			<div class="SliderAlpha__overlay" v-if="tweaking" />
+			<div class="SliderRGB__overlay" v-if="tweaking" />
 		</teleport>
 	</div>
 </template>
@@ -18,15 +17,24 @@ import {clamp} from '@/utils'
 import {ColorDict} from './InputColorPicker.vue'
 import useDraggable from '@/components/use/use-draggable'
 
-function toPartialDict(alpha: number): ColorDict {
-	return {a: alpha}
+function toPartialDict(mode: string, value: number): ColorDict {
+	return {[mode]: value}
+}
+
+function toCSSColor(color: ColorDict) {
+	const {r, g, b} = color
+	return chroma(r * 255, g * 255, b * 255).css()
 }
 
 export default defineComponent({
-	name: 'SliderAlpha',
+	name: 'SliderRGB',
 	props: {
 		modelValue: {
 			type: Object as PropType<ColorDict>,
+			required: true,
+		},
+		mode: {
+			type: String,
 			required: true,
 		},
 	},
@@ -36,9 +44,9 @@ export default defineComponent({
 		const {isDragging: tweaking} = useDraggable(sliderEl, {
 			disableClick: true,
 			onDrag({pos: [x], right, left}) {
-				const a = clamp((x - left) / (right - left), 0, 1)
+				const v = clamp((x - left) / (right - left), 0, 1)
 
-				const newDict = toPartialDict(a)
+				const newDict = toPartialDict(props.mode, v)
 
 				context.emit('update:modelValue', newDict)
 			},
@@ -50,17 +58,22 @@ export default defineComponent({
 		})
 
 		const gradientStyle = computed(() => {
-			const bg = cssColor.value
+			const {r, g, b} = props.modelValue
+			const rgb = {r, g, b} as ColorDict
+
+			const leftColor = toCSSColor({...rgb, [props.mode]: 0})
+			const rightColor = toCSSColor({...rgb, [props.mode]: 1})
+
 			return {
-				background: `linear-gradient(to right, transparent 0%, ${bg} 100%)`,
+				background: `linear-gradient(to right, ${leftColor} 0%, ${rightColor} 100%)`,
 			}
 		})
 
 		const circleStyle = computed(() => {
-			const a = props.modelValue.a
+			const v = props.modelValue[props.mode]
 
 			return {
-				left: `${a * 100}%`,
+				left: `${v * 100}%`,
 				transform: tweaking.value ? 'scale(2)' : '',
 			}
 		})
@@ -89,7 +102,7 @@ export default defineComponent({
 $circle-diameter = 0.7 * $button-height
 $circle-radius = 0.5 * $circle-diameter
 
-.SliderAlpha
+.SliderRGB
 	position relative
 	height $circle-diameter
 	background-checkerboard()

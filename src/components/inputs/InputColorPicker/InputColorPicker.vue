@@ -30,6 +30,7 @@ import {
 } from 'vue'
 
 import SliderHSV from './SliderHSV.vue'
+import SliderRGB from './SliderRGB.vue'
 import SliderAlpha from './SliderAlpha.vue'
 
 export type ColorDict = {[name: string]: number}
@@ -70,6 +71,7 @@ export default defineComponent({
 	name: 'InputColorPicker',
 	components: {
 		SliderHSV,
+		SliderRGB,
 		SliderAlpha,
 	},
 	props: {
@@ -121,10 +123,10 @@ export default defineComponent({
 				.map(picker => {
 					if (/^[hsv]{3}$/.test(picker)) {
 						return {name: 'SliderHSV', mode: picker}
-					}
-					switch (picker) {
-						case 'a':
-							return {name: 'SliderAlpha'}
+					} else if (['r', 'g', 'b'].includes(picker)) {
+						return {name: 'SliderRGB', mode: picker}
+					} else if (picker === 'a') {
+						return {name: 'SliderAlpha'}
 					}
 
 					return null
