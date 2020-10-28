@@ -73,6 +73,11 @@ export default function useDraggable(
 	}
 
 	function onMousedown(e: MouseEvent) {
+		// Ignore right click
+		if (e.button >= 2) {
+			return
+		}
+
 		updatePosAndOrigin(e)
 		drag.isMousedown = true
 		drag.prevPos = vec2.clone(drag.pos)
