@@ -43,13 +43,14 @@
 					<dt>Dropdown</dt>
 					<dd>
 						<InputDropdown
-							v-model="inputValues.dropdown"
-							:values="['Apple', 'Banana', 'Orange']"
+							v-model="inputValues.colorSpace"
+							:values="['svh', 'hsv', 'hvs']"
+							:labels="['SVH', 'HSV', 'HVS']"
 						/>
 					</dd>
 					<dt>Boolean</dt>
 					<dd>
-						<InputCheckbox v-model="inputValues.boolean" label="Label" />
+						<InputCheckbox v-model="inputValues.useAlpha" label="Use Alpha" />
 					</dd>
 					<dt>Rotery</dt>
 					<dd>
@@ -61,7 +62,7 @@
 					</dd>
 					<dt>Color</dt>
 					<dd>
-						<InputColor v-model="background" />
+						<InputColor v-model="background" :pickers="colorPickers" />
 					</dd>
 					<dt>Translate</dt>
 					<dd>
@@ -125,8 +126,8 @@ export default defineComponent({
 			code:
 				';; Glisp Code\n(style (stroke "pink" 10 :cap "round")\n  (circle [0 0] 100))',
 			number: 0,
-			boolean: true,
-			dropdown: 'Apple',
+			useAlpha: true,
+			colorSpace: 'svh',
 			angle: computed({
 				get: () => (inputValues.number / 180) * Math.PI,
 				set: x => (inputValues.number = (x / Math.PI) * 180),
@@ -135,17 +136,21 @@ export default defineComponent({
 		}) as {
 			string: string
 			number: number
-			dropdown: string
-			boolean: boolean
+			colorSpace: string
+			useAlpha: boolean
 			angle: number
 			position: [number, number]
 		}
+
+		const colorPickers = computed(
+			() => inputValues.colorSpace + (inputValues.useAlpha ? '|a' : '')
+		)
 
 		function action() {
 			alert('Action!')
 		}
 
-		return {background, inputValues, action, schemeName}
+		return {background, inputValues, action, schemeName, colorPickers}
 	},
 })
 </script>
