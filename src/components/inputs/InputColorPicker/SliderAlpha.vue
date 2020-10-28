@@ -84,15 +84,13 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../../style/common.styl'
+@import './common.styl'
 
 $circle-diameter = 0.7 * $button-height
 $circle-radius = 0.5 * $circle-diameter
 
 .SliderAlpha
 	position relative
-	margin 0 $circle-radius $circle-radius
-	width 'calc(100% - %s)' % $circle-diameter
 	height $circle-diameter
 	background-checkerboard()
 	border-radius $border-radius
@@ -104,17 +102,11 @@ $circle-radius = 0.5 * $circle-diameter
 		border-radius $border-radius
 
 	&__circle
-		position absolute
-		z-index 2
-		margin - $circle-radius
-		margin-top 0
-		width $circle-diameter
-		height $circle-diameter
-		border-radius 50%
-		box-shadow 0 0 0 1.5px #fff, inset 0 0 0px 1px rgba(0, 0, 0, 0.1), 0 0 1px 2px rgba(0, 0, 0, 0.4)
+		circle()
 		background-checkerboard()
+		z-index 2
 		overflow hidden
-		transition transform 0.03s ease
+		margin-top 0 !important
 
 	&__circle-color
 		position absolute

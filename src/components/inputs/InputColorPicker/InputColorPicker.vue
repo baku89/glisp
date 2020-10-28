@@ -1,12 +1,18 @@
 <template>
 	<div class="InputColorPicker">
-		<template v-for="({name}, i) in pickerData" :key="i">
-			<component
-				:is="name"
-				:modelValue="colorDict"
-				@update:modelValue="onUpdateColorDict"
-			/>
-		</template>
+		<div class="InputColorPicker__wrapper">
+			<div
+				class="InputColorPicker__picker"
+				v-for="({name}, i) in pickerData"
+				:key="i"
+			>
+				<component
+					:is="name"
+					:modelValue="colorDict"
+					@update:modelValue="onUpdateColorDict"
+				/>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -132,4 +138,18 @@ export default defineComponent({
 })
 </script>
 
-<style lang="stylus"></style>
+<style lang="stylus">
+@import './common.styl'
+
+.InputColorPicker
+	padding $circle-diameter * 0.8
+
+	&__wrapper
+		position relative
+
+	&__picker
+		margin-bottom $picker-gap
+
+		&:last-child
+			margin-bottom 0
+</style>

@@ -159,10 +159,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../../style/common.styl'
-
-$circle-diameter = 0.7 * $button-height
-$circle-radius = 0.5 * $circle-diameter
+@import './common.styl'
 
 .SliderHSV
 	&__canvas
@@ -174,30 +171,21 @@ $circle-radius = 0.5 * $circle-diameter
 		border-radius $border-radius
 
 	&__circle
-		position absolute
+		circle()
 		z-index 1
-		margin - $circle-radius
-		width $circle-diameter
-		height $circle-diameter
-		border-radius 50%
-		box-shadow 0 0 0 1.5px #fff, inset 0 0 0px 1px rgba(0, 0, 0, 0.1), 0 0 1px 2px rgba(0, 0, 0, 0.4)
-		transition transform 0.03s ease
 
 		&.hue
 			margin-top 0
 
 	&__sv
 		position relative
-		margin $circle-radius
-		padding-top 'calc(100% - %s)' % $circle-diameter
-		width 'calc(100% - %s)' % $circle-diameter
+		margin-bottom $picker-gap
+		padding-top 100%
 		height 0
 		border-radius $border-radius
 
 	&__hue
 		position relative
-		margin 0 $circle-radius $circle-radius
-		width 'calc(100% - %s)' % $circle-diameter
 		height $circle-diameter
 
 	&__overlay
