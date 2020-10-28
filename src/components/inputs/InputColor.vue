@@ -8,21 +8,25 @@
 		<span class="InputColor__color-preview" :style="{background: modelValue}" />
 	</button>
 	<Popover v-model:open="pickerOpened" :reference="buttonEl">
-		<InputColorPicker
-			:modelValue="modelValue"
-			@update:modelValue="$emit('update:modelValue', $event)"
-		/>
+		<div class="InputColor__popover-frame">
+			<InputColorPicker
+				:modelValue="modelValue"
+				@update:modelValue="$emit('update:modelValue', $event)"
+			/>
+		</div>
 	</Popover>
 </template>
 
 <script lang="ts">
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 import Popover from '@/components/layouts/Popover.vue'
+import InputColorPicker from './InputColorPicker'
 
 export default defineComponent({
 	name: 'InputColor',
 	components: {
 		Popover,
+		InputColorPicker,
 	},
 	props: {
 		modelValue: {
@@ -81,34 +85,12 @@ export default defineComponent({
 	&__color-preview
 		z-index 2
 
-	// Inside picker
-	&__picker
+	&__popover-frame
 		margin 1rem
 		width 20rem
-		height 20rem
 		border 1px solid var(--frame)
 		border-radius 4px
 		translucent-bg()
 		position relative
 		box-shadow 0 0 20px 0 var(--translucent)
-
-	&__circle
-		position absolute
-		margin -0.75rem 0 0 -0.75rem
-		width 1.5rem
-		height 1.5rem
-		border-radius 50%
-		box-shadow 0 0 0 1.5px #fff, inset 0 0 0px 1px rgba(0, 0, 0, 0.1), 0 0 1px 2px rgba(0, 0, 0, 0.4)
-
-	&__sv
-		position relative
-		margin 1rem
-		width calc(100% - 2rem)
-		height calc(100% - 2rem)
-		border-radius 2px
-
-		&-canvas
-			width 100%
-			height 100%
-			border-radius 2px
 </style>

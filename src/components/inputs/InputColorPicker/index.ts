@@ -1,1 +1,2 @@
-export {default as InputColorPicker} from './InputColorPicker.vue'
+import InputColorPicker from './InputColorPicker.vue'
+export default InputColorPicker
