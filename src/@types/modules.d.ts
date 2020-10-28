@@ -152,3 +152,13 @@ declare module 'click-outside' {
 		callback: (event: MouseEvent) => any
 	): () => any
 }
+
+declare module 'glsl-canvas-js' {
+	const Canvas: any
+	export {Canvas}
+}
+
+declare module '*.frag' {
+	const FragmentString: string
+	export default FragmentString
+}

@@ -4,6 +4,7 @@
 		:class="{tweaking}"
 		ref="el"
 		@keydown="onKeydown"
+		v-bind="$attrs"
 	/>
 	<teleport to="body">
 		<svg v-if="tweaking" class="InputTranslate__overlay">
@@ -112,6 +113,7 @@ export default defineComponent({
 			overlayLabel,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 

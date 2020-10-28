@@ -73,6 +73,8 @@
 		"ftp-deploy": "^2.3.7",
 		"gif.js": "^0.2.0",
 		"gl-matrix": "^3.3.0",
+		"glsl-canvas-js": "^0.2.2",
+		"glslify-loader": "^2.0.0",
 		"hotkeys-js": "^3.8.1",
 		"hull.js": "^1.0.0",
 		"is-electron": "^2.2.0",

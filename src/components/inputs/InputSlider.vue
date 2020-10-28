@@ -1,5 +1,5 @@
 <template>
-	<div class="InputSlider" :class="{tweaking}" ref="dragEl">
+	<div class="InputSlider" :class="{tweaking}" ref="dragEl" v-bind="$attrs">
 		<input
 			class="InputSlider__input"
 			type="text"
@@ -144,6 +144,7 @@ export default defineComponent({
 			sliderStyle,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 
