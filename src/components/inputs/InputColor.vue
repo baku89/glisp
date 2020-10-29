@@ -213,7 +213,7 @@ export default defineComponent({
 			return {
 				hsv: [h, s, v],
 				mode: 0,
-				offset: h,
+				offset: h + 0.5,
 			}
 		})
 
