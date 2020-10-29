@@ -59,12 +59,12 @@ function toColorDict(value: string, space: string): ColorDict | null {
 	return dict
 }
 
-function fromColorDict(dict: ColorDict): string {
+function fromColorDict(dict: ColorDict, space: string): string {
 	const c = chroma(
 		dict.r * 255 ?? 0,
 		dict.g * 255 ?? 0,
 		dict.b * 255 ?? 0
-	).alpha(dict.a ?? 1)
+	).alpha(dict.a && space.endsWith('a') ? dict.a : 1)
 	return c.hex()
 }
 
@@ -93,7 +93,9 @@ export default defineComponent({
 	setup(props, context) {
 		const colorDict = shallowRef<ColorDict>({})
 
-		const colorString = computed(() => fromColorDict(colorDict.value))
+		const colorString = computed(() =>
+			fromColorDict(colorDict.value, props.colorSpace)
+		)
 
 		watch(
 			() => props.modelValue,
@@ -115,7 +117,7 @@ export default defineComponent({
 			const newDict = {...colorDict.value, ...newPartialDict}
 			colorDict.value = newDict
 
-			const newValue = fromColorDict(newDict)
+			const newValue = fromColorDict(newDict, props.colorSpace)
 			context.emit('update:modelValue', newValue)
 		}
 

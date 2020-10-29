@@ -3,7 +3,7 @@ import chroma from 'chroma-js'
 
 import {ColorDict} from './InputColorPicker.vue'
 
-function toRGBDict({h, s, v}: ColorDict): ColorDict {
+export function toRGBDict({h, s, v}: ColorDict): ColorDict {
 	const [r, g, b] = chroma.hsv(h * 360, s, v).rgb()
 	return {r: r / 255, g: g / 255, b: b / 255}
 }

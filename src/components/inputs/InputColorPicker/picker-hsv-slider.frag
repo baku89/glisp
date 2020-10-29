@@ -9,6 +9,8 @@ uniform float mode;
 #define MODE_S 1.0
 #define MODE_V 2.0
 
+uniform float offset;
+
 vec3 hsv2rgb(vec3 c) {
 	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
 	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -16,7 +18,7 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-	float t = gl_FragCoord.x / u_resolution.x;
+	float t = gl_FragCoord.x / u_resolution.x + offset;
 
 	vec3 color;
 	

@@ -154,6 +154,7 @@ export default defineComponent({
 			return {
 				hsv: [h, s, v],
 				mode: modeToIndex(props.mode[2]),
+				offset: 0,
 			}
 		})
 
