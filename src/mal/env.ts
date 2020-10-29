@@ -5,6 +5,7 @@ import {
 	MalMap,
 	MalVector,
 	MalKeyword,
+	MalType,
 } from './types'
 
 export default class Env {
@@ -54,66 +55,72 @@ export default class Env {
 	 * corresponding values in exps
 	 */
 	public bind(forms: MalVal, exps: MalVal | undefined) {
-		if (MalSymbol.is(forms)) {
-			if (!exps) {
-				throw new MalError(
-					`[${this.name}] parameter '${forms.print()}' is not specified`
-				)
-			}
-			this.set(forms.value, exps)
-		} else if (MalVector.is(forms)) {
-			if (!MalVector.is(exps)) {
-				throw new MalError(
-					`[${
-						this.name
-					}] The destruction parameter ${forms.print()} is not specified as vector`
-				)
-			}
-
-			for (let i = 0; i < forms.count; i++) {
-				const form = forms.get(i)
-				const exp = exps.get(i)
-
-				if (MalSymbol.isFor(form, '&')) {
-					// rest arguments
-					this.set(
-						(forms.get(i + 1) as MalSymbol).value,
-						MalVector.from(exps.value.slice(i))
+		switch (forms.type) {
+			case MalType.Symbol:
+				if (!exps) {
+					throw new MalError(
+						`[${this.name}] parameter '${forms.print()}' is not specified`
 					)
-					i++
-					continue
-				} else if (MalKeyword.isFor(form, 'as')) {
-					// :as destruction
-					this.set((forms.get(i + 1) as MalSymbol).value, exp)
-					break
+				}
+				this.set(forms.value, exps)
+				break
+			case MalType.Vector:
+				if (!MalVector.is(exps)) {
+					throw new MalError(
+						`[${
+							this.name
+						}] The destruction parameter ${forms.print()} is not specified as vector`
+					)
 				}
 
-				this.bind(form, exp)
-			}
-		} else if (MalMap.is(forms)) {
-			if (!MalMap.is(exps)) {
-				throw new MalError(
-					`[${
-						this.name
-					}] The destruction parameter ${forms.print()} is not specified as map`
-				)
-			}
+				for (let i = 0; i < forms.count; i++) {
+					const form = forms.get(i)
+					const exp = exps.get(i)
 
-			for (const [key, form] of forms.entries()) {
-				if (key === 'as') {
-					// :as destruction
-					if (!MalSymbol.is(form)) throw new MalError('Invalid :as')
-					this.set(form.value, exps)
-					continue
-				} else {
-					if (!(key in exps.value)) {
-						throw new MalError(
-							`[${this.name}] The destruction keyword :${key} does not exist on the parameter`
+					if (MalSymbol.isFor(form, '&')) {
+						// rest arguments
+						this.set(
+							(forms.get(i + 1) as MalSymbol).value,
+							MalVector.from(exps.value.slice(i))
 						)
+						i++
+						continue
+					} else if (MalKeyword.isFor(form, 'as')) {
+						// :as destruction
+						this.set((forms.get(i + 1) as MalSymbol).value, exp)
+						break
 					}
-					this.bind(form, exps.get(key))
+
+					this.bind(form, exp)
 				}
-			}
+				break
+			case MalType.Map:
+				if (!MalMap.is(exps)) {
+					throw new MalError(
+						`[${
+							this.name
+						}] The destruction parameter ${forms.print()} is not specified as map`
+					)
+				}
+
+				for (const [key, form] of forms.entries()) {
+					if (key === 'as') {
+						// :as destruction
+						if (!MalSymbol.is(form)) throw new MalError('Invalid :as')
+						this.set(form.value, exps)
+						continue
+					} else {
+						if (!(key in exps.value)) {
+							throw new MalError(
+								`[${this.name}] The destruction keyword :${key} does not exist on the parameter`
+							)
+						}
+						this.bind(form, exps.get(key))
+					}
+				}
+				break
+			default:
+				throw new MalError(`[${this.name}] Invalid bind forms`)
 		}
 	}
 
