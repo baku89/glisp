@@ -533,8 +533,8 @@ html, body
 			--textcolor var(--comment)
 
 			&.error
-				border-color var(--warning)
-				background var(--warning)
+				border-color var(--error)
+				background var(--error)
 				color var(--background)
 				--textcolor var(--background)
 

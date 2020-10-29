@@ -323,7 +323,7 @@ export default defineComponent({
 			opacity 0.5
 
 			&:hover
-				color var(--warning)
+				color var(--error)
 
 		&.insert
 			align-self start

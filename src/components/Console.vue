@@ -161,7 +161,7 @@ export default defineComponent({
 		color var(--comment)
 
 	&-error
-		color var(--warning)
+		color var(--error)
 
 	.brace, .paren, .bracket, .dquote
 		color var(--yellow)

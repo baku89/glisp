@@ -210,7 +210,7 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			color var(--warning)
+			color var(--error)
 
 	&__handle
 		height 100%

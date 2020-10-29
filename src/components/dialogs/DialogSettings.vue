@@ -121,8 +121,8 @@ export default defineComponent({
 		transition all 0.2s var(--ease)
 
 		&.error
-			border-color var(--warning)
-			background var(--warning)
+			border-color var(--error)
+			background var(--error)
 			color var(--background)
 			--textcolor var(--background)
 

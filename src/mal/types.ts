@@ -589,11 +589,10 @@ export class MalMap extends MalCollBase<MalMapValue> {
 
 	print(readably = true) {
 		const entries = this.entries()
-		console.log(this._delimiters)
 		const delimiters = this.delimiters
 
 		let str = ''
-		for (let i = 0; i < entries.length; i++) {
+		for (let i = 0; i < entries.length; i += 2) {
 			const [k, v] = entries[i]
 			str +=
 				delimiters[2 * i] + `:${k}` + delimiters[2 * i + 1] + v.print(readably)
