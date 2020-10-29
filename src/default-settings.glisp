@@ -59,9 +59,9 @@
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
    :setup (fn [] {:path nil})
-   :move (fn {:pos pos}
+   :move (fn [{:pos pos}]
            {:path (detect-hit pos)})
-   :press (fn {:path path :pos pos}
+   :press (fn [{:path path :pos pos}]
             (let [already-selected (item-selected? path)]
               (if path
                 (if (modifier-pressed? :ctrl)
@@ -72,16 +72,16 @@
               {:path path
                :prev-pos pos
                :deselect already-selected}))
-   :drag (fn {:prev-pos prev-pos
-              :pos pos
-              :path path
-              :deselect deselect}
+   :drag (fn [{:prev-pos prev-pos
+               :pos pos
+               :path path
+               :deselect deselect}]
            (do (transform-selected
                 (translate (vec2/- pos prev-pos)))
                {:prev-pos pos
                 :path path
                 :deselect false}))
-   :release (fn {:path path :deselect deselect}
+   :release (fn [{:path path :deselect deselect}]
               (when (and deselect
                          (modifier-pressed? :ctrl))
                 (toggle-item-selection path)
@@ -91,7 +91,7 @@
   {:label "Polyline"
    :icon {:type "character" :value "⏢"}
    :setup (fn [] {:item nil :path nil})
-   :press (fn {:item item :pos pos :path path}
+   :press (fn [{:item item :pos pos :path path}]
             (if (nil? item)
               (let [item `(polyline ~pos)
                     path (insert-item item)]
@@ -107,10 +107,10 @@
 (defmode "circle"
   {:label "Circle"
    :icon {:type "fontawesome" :value "fas fa-circle"}
-   :press (fn {:pos pos}
+   :press (fn [{:pos pos}]
             {:center pos
              :path (insert-item `(circle ~pos 0))})
-   :drag (fn {:center center :path path :pos pos}
+   :drag (fn [{:center center :path path :pos pos}]
            (do
              (replace-item path `(circle ~center ~(vec2/dist center pos)))
              {:path path :center center}))
@@ -119,10 +119,10 @@
 (defmode "rectangle"
   {:label "Rectangle"
    :icon {:type "fontawesome" :value "fas fa-square-full"}
-   :press (fn {:pos pos}
+   :press (fn [{:pos pos}]
             {:origin pos
              :path (insert-item `(rect [~@pos 0 0]))})
-   :drag (fn {:origin origin :path path :pos pos}
+   :drag (fn [{:origin origin :path path :pos pos}]
            (do
              (replace-item path `(rect ~(rect2d/from-to origin pos)))
              {:path path :origin origin}))
@@ -131,11 +131,11 @@
 (defmode "pencil"
   {:label "Pencil"
    :icon {:type "fontawesome" :value "fas fa-pencil-alt"}
-   :press (fn {:pos pos}
+   :press (fn [{:pos pos}]
             (let [item `(polyline ~pos)]
               {:item item
                :path (insert-item item)}))
-   :drag (fn {:pos pos :item item :path path}
+   :drag (fn [{:pos pos :item item :path path}]
            (let [item (lst (concat item [pos]))]
              (replace-item path item)
              {:item item :path path}))
@@ -144,10 +144,10 @@
 (defmode "line"
   {:label "Line"
    :icon {:type "character" :value "＼"}
-   :press (fn {:pos pos}
+   :press (fn [{:pos pos}]
             {:path (insert-item `(line ~pos ~pos))
              :origin pos})
-   :drag (fn {:pos pos :origin origin :path path}
+   :drag (fn [{:pos pos :origin origin :path path}]
            (replace-item path `(line ~origin ~pos))
            {:path path :origin origin})
    :release (fn [] (tag-history :undo))})

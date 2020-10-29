@@ -73,5 +73,5 @@
   :params [{:label "Color" :type "string" :ui "color"}
            {:label "mode" :type "string" :ui "dropdown" :default "rgb"
             :values ["rgb" "hsl"]}]
-  :inverse (fn {:return ret :params params}
+  :inverse (fn [{:return ret :params params}]
              [(apply color/invert (replace-nth params 0 ret))])})

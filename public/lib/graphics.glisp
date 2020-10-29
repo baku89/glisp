@@ -196,8 +196,8 @@
 ;;              :items {:label "Body" :type "exp"}}]
 ;;    :viewport-transform (fn [xform & body]
 ;;                          `[nil ~@(repeat (count body) xform)])
-;;    :transform (fn {:params [xform & body]
-;;                    :transform delta-xform}
+;;    :transform (fn [{:params [xform & body]
+;;                    :transform delta-xform}]
 ;;                 {:replace [0 (mat2d/* xform delta-xform)]})
 ;;    :return {:type "item"}}
 ;;   [xform & body]
@@ -241,7 +241,7 @@
 ;;             {:type "vector"
 ;;              :variadic true
 ;;              :items {:label "Body" :type "exp"}}]
-;;   ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
+;;   ;;  :handles {:draw (fn [{:params [{:bounds bounds} & body]}]
 ;;   ;;                    (let [info {:params [bounds]
 ;;   ;;                                :return (rect bounds)}]
 ;;   ;;                      (apply-draw-handle rect2d info)))
@@ -286,7 +286,7 @@
 ;; (defn view-center
 ;;   {:doc "Returns the center of view or artboard"
 ;;    :return {:type "vec2"}
-;;    :handles {:draw (fn {:return mat}
+;;    :handles {:draw (fn [{:return mat}]
 ;;                      [{:type "translate" :pos (take 4 mat)}])}}
 ;;   []
 ;;   (vec2/scale *size* .5))
@@ -362,7 +362,7 @@
 ;;                      {:key :baseline :type "string" :ui "dropdown" :default "middle"
 ;;                       :values ["top" "hanging" "middle"
 ;;                                "alphabetic" "ideographic" "bottom"]}]}]
-;;    :handles {:draw (fn {:params [_ pos & xs]}
+;;    :handles {:draw (fn [{:params [_ pos & xs]}]
 ;;                      (let [args (apply hash-map xs)
 ;;                            size (get args :size 12)]
 ;;                        [{:id :pos
@@ -371,7 +371,7 @@
 ;;                         {:id :size
 ;;                          :type "path"
 ;;                          :path (ngon pos size 4)}]))
-;;              :drag (fn {:id id :pos p :params params}
+;;              :drag (fn [{:id id :pos p :params params}]
 ;;                      (case id
 ;;                        :pos (replace-nth params 1 p)
 ;;                        :size (let [dir (vec2/- (nth params 1) p)
@@ -392,9 +392,9 @@
 ;;    :params [{:type "vector"
 ;;              :variadic true
 ;;              :items {:label "Point" :type "vec2"}}]
-;;    :handles {:draw (fn {:params pts}
+;;    :handles {:draw (fn [{:params pts}]
 ;;                      (map (fn [p i] {:id i :type "point" :pos p}) pts))
-;;              :drag (fn {:id i :pos p}
+;;              :drag (fn [{:id i :pos p}]
 ;;                      {:replace [i p]})}}
 ;;   [& pts]
 ;;   (vec pts))
@@ -406,8 +406,8 @@
 ;;             {:type "number"}
 ;;             {:type "number" :validator #(round (max 0 %))}
 ;;             {:type "number" :ui "seed"}]
-;;    :handles {:draw (fn {:params [center radius]
-;;                         :return ret}
+;;    :handles {:draw (fn [{:params [center radius]
+;;                          :return ret}]
 ;;                      [{:type "path" :guide true
 ;;                        :path (apply concat
 ;;                                     [:path]
@@ -419,8 +419,8 @@
 ;;                       {:id :center
 ;;                        :type "translate"
 ;;                        :pos center}])
-;;              :drag (fn {:id id :pos p
-;;                         :params [center radius n seed]}
+;;              :drag (fn [{:id id :pos p
+;;                         :params [center radius n seed]}]
 ;;                      (case id
 ;;                        :center [p radius n seed]
 ;;                        :radius [center (vec2/dist center p) n seed]))}}

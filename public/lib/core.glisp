@@ -207,7 +207,7 @@
 (defn not
   {:doc "Returns true if value is falsy, false otherwise"
    :params [{:type "boolean"}]
-   :inverse (fn {:return ret} [(not ret)])
+   :inverse (fn [{:return ret}] [(not ret)])
    :return {:type "boolean"}}
   [value] (if value false true))
 
@@ -307,13 +307,13 @@
 
 (defn inc
   {:params [{:type "number"}]
-   :inverse (fn {:return ret} [(dec ret)])
+   :inverse (fn [{:return ret}] [(dec ret)])
    :return {:type "number"}}
   [x] (+ x 1))
 
 (defn dec
   {:params [{:type "number"}]
-   :inverse (fn {:return ret} [(inc ret)])
+   :inverse (fn [{:return ret}] [(inc ret)])
    :return {:type "number"}}
   [x] (- x 1))
 
@@ -439,7 +439,7 @@
 ;   :params [{:type "vector"
 ;             :variadic true
 ;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
+;   :inverse (fn [{:return ret :params xs}]
 ;              (case (count xs)
 ;                0 []
 ;                1 [ret]
@@ -452,7 +452,7 @@
 ;   :params [{:type "vector"
 ;             :variadic true
 ;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
+;   :inverse (fn [{:return ret :params xs}]
 ;              (case (count xs)
 ;                0 []
 ;                1 [(- ret)]
@@ -467,7 +467,7 @@
 ;   :params [{:type "vector"
 ;             :variadic true
 ;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
+;   :inverse (fn [{:return ret :params xs}]
 ;              (case (count xs)
 ;                0 []
 ;                1 [ret]
@@ -480,7 +480,7 @@
 ;   :params [{:type "vector"
 ;             :variadic true
 ;             :items {:label "Number" :type "number"}}]
-;   :inverse (fn {:return ret :params xs}
+;   :inverse (fn [{:return ret :params xs}]
 ;              (case (count xs)
 ;                0 []
 ;                1 [(/ ret)]
@@ -494,7 +494,7 @@
 ;   :params [{:label "Number" :type "number"}
 ;            {:label "Divisor" :type "number"}]
 ;   :return {:type "number"}
-;   :inverse (fn {:return ret :params [a b]}
+;   :inverse (fn [{:return ret :params [a b]}]
 ;              {:replace [0 (mod ret b)]})})
 
 ; (annotate-fn
@@ -511,7 +511,7 @@
 ;                 {:label "End" :type "number" :value end}
 ;                 {:label "Step" :type "number" :value step :default 1}]))
 ;            :to-params
-;            (fn {:values [start end step]}
+;            (fn [{:values [start end step]}]
 ;              (cond
 ;                (and (= 0 start) (= 1 step)) [end]
 ;                (= 1 step) [start end]
@@ -523,7 +523,7 @@
 ;  {:doc "Returns the value at the *index*"
 ;   :params [{:label "Collection" :type "exp" :initial []}
 ;            {:label "Index" :type "number" :validator round}]
-;   :inverse (fn {:return ret :params [coll i]}
+;   :inverse (fn [{:return ret :params [coll i]}]
 ;              [(replace-nth coll i ret) i])})
 
 ; (annotate-fn

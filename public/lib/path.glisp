@@ -27,7 +27,7 @@
 (defn path
   {:doc "Creates a path object"
    :handles
-   {:draw (fn {:params [path]}
+   {:draw (fn [{:params [path]}]
             (apply concat
                    (let [segs (path/split-segments path)]
                      ;; Draws Handles
@@ -50,16 +50,16 @@
                                 {:id [i :anchor] :type "point" :pos (last pts)}]
                             ; :M or :L
                             {:id [i :anchor] :type "point" :pos (first pts)})))))))
-    :drag (fn {:id [seg-idx vtx-type]
-               :pos p
-               :prev-pos pp
-               :params [path]}
+    :drag (fn [{:id [seg-idx vtx-type]
+                :pos p
+                :prev-pos pp
+                :params [path]}]
             (let [delta (vec2/- p pp)]
               (if (= vtx-type :anchor)
                 [(path/drag-anchor path seg-idx delta)]
                 [(path/drag-handle path seg-idx vtx-type delta)])))}
-   :transform (fn {:params [path]
-                   :transform xform}
+   :transform (fn [{:params [path]
+                    :transform xform}]
                 [(path/transform xform path)])
    :return {:type "path"}}
   [path] path)
@@ -71,7 +71,7 @@
    :params [{:label "Rect" :type "rect2d" :desc "the rectangle dimension" :initial [0 0 100 100]}]
    :handles {:draw (fn [e] (apply-draw-handle rect2d e))
              :drag (fn [e] (apply-drag-handle rect2d e))}
-   :transform (fn {:params [[x y w h]] :transform xform}
+   :transform (fn [{:params [[x y w h]] :transform xform}]
                 [`[~@(vec2/transform-mat2d xform [x y]) ~w ~h]])
    :initial-params [[-100 -100 200 200]]
    :return {:type "path"}}
@@ -105,15 +105,15 @@
                :desc "the centre of the circle"}
               {:label "Radius" :type  "number" :initial 100
                :desc "radius of the circle" :validator #(max 0 %)}]
-     :handles {:draw (fn {:params [c r]
-                          :return path}
+     :handles {:draw (fn [{:params [c r]
+                           :return path}]
                        [{:type "arrow" :id :radius
                          :pos (vec2/+ c [r 0])}
                         {:type "translate"
                          :id :center
                          :pos c}])
-               :drag (fn {:id id :pos p
-                          :params [c r]}
+               :drag (fn [{:id id :pos p
+                           :params [c r]}]
                        (case id
                          :center {:replace [0 p]}
                          :radius {:replace [1 (vec2/dist c p)]}))}
@@ -145,19 +145,19 @@
   {:doc "Generates a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]
-   :handles {:draw (fn {:params [from to]
-                        :return path}
+   :handles {:draw (fn [{:params [from to]
+                         :return path}]
                      [{:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :drag (fn {:id id :pos p
-                        :params [from to]}
+             :drag (fn [{:id id :pos p
+                         :params [from to]}]
                      (case id
                        :from {:replace [0 p]}
                        :to {:replace [1 p]}))}
    :return {:type "path"}
    :initial-params [[0 0] [100 100]]
-   :transform (fn {:params [from to]
-                   :transform xform}
+   :transform (fn [{:params [from to]
+                    :transform xform}]
                 (let [dp (mat2d/extract-translate xform)]
                   [(vec2/+ from dp) (vec2/+ to dp)]))}
   [from to]
@@ -180,8 +180,8 @@
                         :type "number"
                         :ui "angle"
                         :desc "Angle to stop the arc"}]
-              :handles {:draw (fn {:params [center r start end]
-                                   :return path}
+              :handles {:draw (fn [{:params [center r start end]
+                                    :return path}]
                                 [{:id :center :type "translate"
                                   :pos center}
                                  {:id :start :type "point"
@@ -191,8 +191,8 @@
                                  {:id :radius :type "arrow"
                                   :angle (/ (+ start end) 2)
                                   :pos (vec2/+ (vec2/dir (/ (+ start end) 2) r))}])
-                        :drag (fn {:id id :pos p :prev-pos pp
-                                   :params [center r start end]}
+                        :drag (fn [{:id id :pos p :prev-pos pp
+                                    :params [center r start end]}]
                                 (case id
                                   :center {:replace [0 p]}
                                   :radius {:replace [1 (vec2/dist center p)]}
@@ -217,7 +217,7 @@
   {:doc "Generates a polyline path"
    :params [{:type "vector"
              :variadic true
-             :insert (fn {:params pts :index i}
+             :insert (fn [{:params pts :index i}]
                        (if (zero? (count pts))
                          [0 0]
                          (case i
@@ -225,15 +225,15 @@
                            (count pts) (last pts)
                            (vec2/lerp (nth pts (dec i)) (nth pts i) .5))))
              :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params [& pts]}
+   :handles {:draw (fn [{:params [& pts]}]
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
-             :drag (fn {:id i :pos p}
+             :drag (fn [{:id i :pos p}]
                      {:replace [i p]})}
    :return {:type "path"}
    :initial-params [[0 0]]
-   :transform (fn {:params pts
-                   :transform xform}
+   :transform (fn [{:params pts
+                    :transform xform}]
                 (let [dp (mat2d/extract-translate xform)]
                   (map #(vec2/+ % dp) pts)))}
   [& pts]
@@ -248,7 +248,7 @@
   {:doc "Generates a polygon path"
    :params [{:type "vector"
              :variadic true
-             :insert (fn {:params pts :index i}
+             :insert (fn [{:params pts :index i}]
                        (if (zero? (count pts))
                          [0 0]
                          (vec2/lerp
@@ -256,14 +256,14 @@
                           (nth pts (mod i (count pts)))
                           .5)))
              :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params [& pts]}
+   :handles {:draw (fn [{:params [& pts]}]
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
-             :drag (fn {:id i :pos p}
+             :drag (fn [{:id i :pos p}]
                      {:replace [i p]})}
    :initial-params []
-   :transform (fn {:params pts
-                   :transform xform}
+   :transform (fn [{:params pts
+                    :transform xform}]
                 (let [dp (mat2d/extract-translate xform)]
                   (map #(vec2/+ % dp) pts)))
    :return {:type "path"}}
@@ -275,8 +275,8 @@
   {:doc "Generates an ellipse path"
    :params [{:type "vec2"}
             {:type "vec2" :ui "size2d"}]
-   :handles {:draw (fn {:params [center [rx ry]]
-                        :return path}
+   :handles {:draw (fn [{:params [center [rx ry]]
+                         :return path}]
                      [{:type "arrow" :id :radius-x
                        :pos (vec2/+ center [rx 0])}
                       {:type "arrow" :id :radius-y
@@ -285,8 +285,8 @@
                       {:type "translate"
                        :id :center
                        :pos center}])
-             :drag (fn {:id id :pos p
-                        :params [center [rx ry]]}
+             :drag (fn [{:id id :pos p
+                         :params [center [rx ry]]}]
                      (case id
                        :center [p [rx ry]]
                        :radius-x [center [(abs (- (.x p) (.x center))) ry]]
@@ -305,7 +305,7 @@
    :params [{:type "vec2"}
             {:type "number" :validator #(max 0 %) :initial 100}
             {:type "number" :validator #(round (max 3 %)) :initial 6}]
-   :handles {:draw (fn {:params [center radius sides]}
+   :handles {:draw (fn [{:params [center radius sides]}]
                      [{:type "path" :guide true :class "dashed"
                        :path (arc center
                                   (+ radius 40)
@@ -314,7 +314,7 @@
                       {:id :center :type "translate" :pos center}
                       {:id :radius :type "arrow" :pos (vec2/+ center [radius 0])}
                       {:id :sides :type "dia" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
-             :drag (fn {:id id :pos p :params [center radius sides]}
+             :drag (fn [{:id id :pos p :params [center radius sides]}]
                      (case id
                        :center {:replace [0 p]}
                        :radius {:replace [1 (abs (- (.x p) (.x center)))]}
@@ -359,13 +359,13 @@
              :variadic true
              :items {:label "Pos" :type "vec2"}}]
    :handles
-   {:draw (fn {:params pts}
+   {:draw (fn [{:params pts}]
             (concat
              [{:type "path" :class "dashed" :guide true
                :path (apply polyline pts)}]
              (for [pt pts :index i]
                {:type "point" :id i :pos pt})))
-    :drag (fn {:id i :pos pos :params pts}
+    :drag (fn [{:id i :pos pos :params pts}]
             {:replace [i pos]})}
    :return {:type "path"}}
   [& pts]
@@ -411,16 +411,16 @@
 ;;            {:label "End" :type "number" :ui "slider" :validator clamp01}
 ;;            {:label "Path" :type "path"}]
 ;;   :return {:type "path"}
-;;   :handles {:draw (fn {:params [start end path]
-;;                        :return trimmed-path}
+;;   :handles {:draw (fn [{:params [start end path]
+;;                         :return trimmed-path}]
 ;;                     [{:type "path" :id :path-original :class "dashed" :guide true
 ;;                       :path path}
 ;;                      {:type "path" :id :path-trimmed :guide true
 ;;                       :path trimmed-path}
 ;;                      {:type "point" :id :start :pos (path/position-at start path)}
 ;;                      {:type "point" :id :end :pos (path/position-at end path)}])
-;;             :drag (fn {:id id :pos p
-;;                        :params [start end path]}
+;;             :drag (fn [{:id id :pos p
+;;                         :params [start end path]}]
 ;;                     (case id
 ;;                       :start {:replace [0 (path/nearest-offset p path)]}
 ;;                       :end {:replace [1 (path/nearest-offset p path)]}))}})
@@ -438,18 +438,18 @@
 ;;  {:doc "Returns a position of the specified offset on the path"
 ;;   :params [{:label "Offset", :type "number" :validator clamp01}
 ;;            {:label "Path" :type "path"}]
-;;   :handles {:draw (fn {:params [t path]
-;;                        :return ret}
+;;   :handles {:draw (fn [{:params [t path]
+;;                         :return ret}]
 ;;                     [{:type "path" :guide true :class "dashed" :path path}
 ;;                      {:type "point" :pos ret}])
-;;             :drag (fn {:pos p :params [t path]}
+;;             :drag (fn [{:pos p :params [t path]}]
 ;;                     {:replace [0 (path/nearest-offset p path)]})}
-;;   :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
+;;   :inverse (fn [{:return ret}] {:replace [0 (path/nearest-offset ret path) path]})
 ;;   :return {:type "vec2"}})
 
 ;; (def path-boolean-meta
 ;;   {:params [& {:label "Path" :type "path"}]
-;;    :handles {:draw (fn {:params [& paths]}
+;;    :handles {:draw (fn [{:params [& paths]}]
 ;;                      (map #(hash-map
 ;;                             :type "path"
 ;;                             :guide true
@@ -489,15 +489,15 @@
 ;;                      {:key :cap :type "string" :ui "dropdown" :default "round"
 ;;                       :values ["butt" "round"]}]}]
 ;;    :return {:type "path"}
-;;    :handles {:draw (fn {:params [d path]
-;;                         :return offset-path}
+;;    :handles {:draw (fn [{:params [d path]
+;;                          :return offset-path}]
 ;;                      [{:type "path" :guide true
 ;;                        :class "dashed" :path path}
 ;;                       {:type "arrow"
 ;;                        :pos (path/position-at 0 offset-path)
 ;;                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
-;;              :drag (fn {:pos p
-;;                         :params [_ path & options]}
+;;              :drag (fn [{:pos p
+;;                          :params [_ path & options]}]
 ;;                      (let [near-t (path/nearest-offset p path)
 ;;                            near-pt (path/position-at near-t path)
 ;;                            near-n (path/normal-at near-t path)
