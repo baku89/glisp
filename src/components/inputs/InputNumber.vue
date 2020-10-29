@@ -124,7 +124,4 @@ export default defineComponent({
 .InputNumber
 	width 6rem
 	use-number()
-
-	&__overlay
-		input-overlay()
 </style>
