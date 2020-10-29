@@ -13,7 +13,11 @@
 		</div>
 	</Popover>
 	<teleport to="body">
-		<div v-if="tweaking" class="InputColor__overlay">
+		<div
+			v-if="tweaking"
+			class="InputColor__overlay"
+			:class="{'tweaking-slider': tweakingSlider}"
+		>
 			<button class="InputColor__overlay-button" :style="overlayButtonStyle">
 				<span
 					class="InputColor__color-preview"
@@ -285,11 +289,16 @@ export default defineComponent({
 
 	&__overlay
 		input-overlay()
+		cursor move
+
+		&.tweaking-slider
+			cursor e-resize
 
 		&-button
 			position absolute
 			z-index 10
 			transform translate(-50%, -50%)
+			pointer-events none
 
 		&-pad, &-slider
 			position absolute
