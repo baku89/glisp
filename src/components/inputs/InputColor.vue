@@ -43,7 +43,7 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, ref, shallowRef, toRaw, watch} from 'vue'
+import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 import chroma from 'chroma-js'
 
 import {clamp, unsignedMod} from '@/utils'
