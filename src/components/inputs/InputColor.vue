@@ -82,10 +82,12 @@ export default defineComponent({
 	&:before
 		z-index 1
 		background-checkerboard()
+		border-radius $border-radius
 		content ''
 
 	&__color-preview
 		z-index 2
+		border-radius $border-radius
 
 	&__popover-frame
 		margin 0.5rem

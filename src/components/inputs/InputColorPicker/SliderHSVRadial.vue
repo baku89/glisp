@@ -1,54 +1,53 @@
 <template>
-	<div class="SliderHSV">
-		<div class="SliderHSV__pad" ref="padEl">
-			<GlslCanvas
-				class="SliderHSV__canvas"
-				:fragmentString="PadFragmentString"
-				:uniforms="padUniforms"
-			/>
+	<div class="SliderHSVRadial">
+		<div class="SliderHSVRadial__pad" ref="padEl">
+			<div class="SliderHSVRadial__pad-mask">
+				<GlslCanvas
+					class="SliderHSVRadial__canvas"
+					:fragmentString="RadialFragmentString"
+					:uniforms="padUniforms"
+				/>
+			</div>
 			<button
-				class="SliderHSV__circle pad"
+				class="SliderHSVRadial__circle pad"
 				:class="{tweaking: padTweaking}"
 				:style="padCircleStyle"
 			/>
 		</div>
-		<div class="SliderHSV__slider" ref="sliderEl">
+		<div class="SliderHSVRadial__slider" ref="sliderEl">
 			<GlslCanvas
-				class="SliderHSV__canvas"
+				class="SliderHSVRadial__canvas"
 				:fragmentString="SliderFragmentString"
 				:uniforms="sliderUniforms"
 			/>
 			<button
-				class="SliderHSV__circle"
+				class="SliderHSVRadial__circle"
 				:class="{tweaking: sliderTweaking}"
 				:style="sliderCircleStyle"
 			/>
 		</div>
+		<teleport to="body">
+			<div class="SliderHSVRadial__overlay" v-if="tweaking" />
+		</teleport>
 	</div>
-	<teleport to="body">
-		<div class="SliderHSV__overlay" v-if="tweaking" />
-	</teleport>
 </template>
 
 <script lang="ts">
 import {defineComponent, PropType, ref, computed, watch, toRef} from 'vue'
 import chroma from 'chroma-js'
+import {vec2} from 'gl-matrix'
 
 import {clamp, unsignedMod} from '@/utils'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-
 import {ColorDict} from './InputColorPicker.vue'
+
 import useHSV, {toCSSColor} from './use-hsv'
-import PadFragmentString from './picker-hsv-pad.frag'
+import RadialFragmentString from './picker-hsv-radial.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
 
-function modeToIndex(element: string) {
-	return element === 'h' ? 0 : element === 's' ? 1 : 2
-}
-
 export default defineComponent({
-	name: 'SliderHSV',
+	name: 'SliderHSVRadial',
 	components: {
 		GlslCanvas,
 	},
@@ -56,10 +55,6 @@ export default defineComponent({
 		modelValue: {
 			type: Object as PropType<ColorDict>,
 			required: true,
-		},
-		mode: {
-			type: String,
-			default: 'svh',
 		},
 	},
 	emits: ['update:modelValue'],
@@ -72,22 +67,19 @@ export default defineComponent({
 		const {isDragging: padTweaking} = useDraggable(padEl, {
 			disableClick: true,
 			onDrag({pos: [x, y], top, right, bottom, left}) {
-				const newHSV = {...hsv.value}
+				// const newHSV = {...hsv.value}
 
-				const modes = props.mode.slice(0, 2).split('')
-				const ts = [(x - left) / (right - left), 1 - (y - top) / (bottom - top)]
+				const tx = ((x - left) / (right - left)) * 2 - 1
+				const ty = (1 - (y - top) / (bottom - top)) * 2 - 1
 
-				for (let i = 0; i < 2; i++) {
-					const m = modes[i]
-					const t = ts[i]
+				const h = unsignedMod(Math.atan2(ty, tx), Math.PI * 2) / (Math.PI * 2)
+				const s = Math.min(vec2.len([tx, ty]), 1)
+				const v = hsv.value.v
 
-					if (m === 'h') {
-						newHSV.h = unsignedMod(t, 1)
-					} else if (m === 's') {
-						newHSV.s = clamp(t, 0, 1)
-					} else if (m === 'v') {
-						newHSV.v = clamp(t, 0, 1)
-					}
+				const newHSV = {
+					h,
+					s,
+					v,
 				}
 
 				update(newHSV)
@@ -95,8 +87,10 @@ export default defineComponent({
 		})
 
 		const padCircleStyle = computed(() => {
-			const x = hsv.value[props.mode[0]]
-			const y = hsv.value[props.mode[1]]
+			const {h, s} = hsv.value
+
+			const x = 0.5 + (Math.cos(h * Math.PI * 2) / 2) * s
+			const y = 0.5 + (Math.sin(h * Math.PI * 2) / 2) * s
 
 			return {
 				left: `${x * 100}%`,
@@ -109,8 +103,6 @@ export default defineComponent({
 			const {h, s, v} = hsv.value
 			return {
 				hsv: [h, s, v],
-				modeX: modeToIndex(props.mode[0]),
-				modeY: modeToIndex(props.mode[1]),
 			}
 		})
 
@@ -120,28 +112,16 @@ export default defineComponent({
 		const {isDragging: sliderTweaking} = useDraggable(sliderEl, {
 			disableClick: true,
 			onDrag({pos: [x], right, left}) {
-				const mode = props.mode[2]
-				const t = (x - left) / (right - left)
-				const newHSV = {...hsv.value}
-
-				if (mode === 'h') {
-					newHSV.h = unsignedMod(t, 1)
-				} else if (mode === 's') {
-					newHSV.s = clamp(t, 0, 1)
-				} else if (mode === 'v') {
-					newHSV.v = clamp(t, 0, 1)
-				}
+				const v = clamp((x - left) / (right - left), 0, 1)
+				const newHSV = {...hsv.value, v}
 
 				update(newHSV)
 			},
 		})
 
 		const sliderCircleStyle = computed(() => {
-			const mode = props.mode[2]
-			const t = hsv.value[mode]
-			const bg = toCSSColor(
-				mode === 'h' ? {...hsv.value, s: 1, v: 1} : hsv.value
-			)
+			const t = hsv.value.v
+			const bg = toCSSColor(hsv.value)
 
 			return {
 				left: `${t * 100}%`,
@@ -153,7 +133,7 @@ export default defineComponent({
 			const {h, s, v} = hsv.value
 			return {
 				hsv: [h, s, v],
-				mode: modeToIndex(props.mode[2]),
+				mode: 2, // Value,
 			}
 		})
 
@@ -163,7 +143,7 @@ export default defineComponent({
 		return {
 			hsv,
 
-			PadFragmentString,
+			RadialFragmentString,
 			padEl,
 			padCircleStyle,
 			padUniforms,
@@ -181,10 +161,12 @@ export default defineComponent({
 })
 </script>
 
+
+
 <style lang="stylus">
 @import './common.styl'
 
-.SliderHSV
+.SliderHSVRadial
 	&__canvas
 		position absolute
 		top 0
@@ -206,6 +188,14 @@ export default defineComponent({
 		padding-top 100%
 		height 0
 		border-radius $border-radius
+
+	&__pad-mask
+		position absolute
+		top 0
+		overflow hidden
+		width 100%
+		height 100%
+		border-radius 50%
 
 	&__slider
 		position relative

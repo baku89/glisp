@@ -30,6 +30,7 @@ import {
 } from 'vue'
 
 import SliderHSV from './SliderHSV.vue'
+import SliderHSVRadial from './SliderHSVRadial.vue'
 import SliderRGB from './SliderRGB.vue'
 import SliderAlpha from './SliderAlpha.vue'
 
@@ -71,6 +72,7 @@ export default defineComponent({
 	name: 'InputColorPicker',
 	components: {
 		SliderHSV,
+		SliderHSVRadial,
 		SliderRGB,
 		SliderAlpha,
 	},
@@ -125,6 +127,8 @@ export default defineComponent({
 						return {name: 'SliderHSV', mode: picker}
 					} else if (['r', 'g', 'b'].includes(picker)) {
 						return {name: 'SliderRGB', mode: picker}
+					} else if (picker === 'hsvr') {
+						return {name: 'SliderHSVRadial'}
 					} else if (picker === 'a') {
 						return {name: 'SliderAlpha'}
 					}

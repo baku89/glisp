@@ -1,7 +1,11 @@
 <template>
 	<div class="SliderAlpha" ref="sliderEl">
 		<div class="SliderAlpha__gradient" :style="gradientStyle" />
-		<button class="SliderAlpha__circle" :style="circleStyle">
+		<button
+			class="SliderAlpha__circle"
+			:class="{tweaking}"
+			:style="circleStyle"
+		>
 			<span class="SliderAlpha__circle-color" :style="circleColorStyle" />
 		</button>
 		<teleport to="body">
@@ -61,7 +65,6 @@ export default defineComponent({
 
 			return {
 				left: `${a * 100}%`,
-				transform: tweaking.value ? 'scale(2)' : '',
 			}
 		})
 

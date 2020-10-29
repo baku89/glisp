@@ -44,8 +44,8 @@
 					<dd>
 						<InputDropdown
 							v-model="inputValues.colorSpace"
-							:values="['r|g|b', 'svh', 'hsv', 'hvs']"
-							:labels="['RGB', 'SVH', 'HSV', 'HVS']"
+							:values="['r|g|b', 'svh', 'hsv', 'hvs', 'hsvr']"
+							:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
 						/>
 					</dd>
 					<dt>Boolean</dt>

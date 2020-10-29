@@ -1,8 +1,10 @@
 <template>
 	<div class="SliderRGB" ref="sliderEl" :style="gradientStyle">
-		<button class="SliderRGB__circle" :style="circleStyle">
-			<span class="SliderRGB__circle-color" :style="circleColorStyle" />
-		</button>
+		<button
+			class="SliderRGB__circle"
+			:class="{tweaking}"
+			:style="circleStyle"
+		/>
 		<teleport to="body">
 			<div class="SliderRGB__overlay" v-if="tweaking" />
 		</teleport>
@@ -74,14 +76,7 @@ export default defineComponent({
 
 			return {
 				left: `${v * 100}%`,
-				transform: tweaking.value ? 'scale(2)' : '',
-			}
-		})
-
-		const circleColorStyle = computed(() => {
-			return {
 				backgroundColor: cssColor.value,
-				opacity: props.modelValue.a,
 			}
 		})
 
@@ -89,7 +84,6 @@ export default defineComponent({
 			sliderEl,
 			gradientStyle,
 			circleStyle,
-			circleColorStyle,
 			tweaking,
 		}
 	},
@@ -105,7 +99,6 @@ $circle-radius = 0.5 * $circle-diameter
 .SliderRGB
 	position relative
 	height $circle-diameter
-	background-checkerboard()
 	border-radius $border-radius
 
 	&__gradient
@@ -116,16 +109,7 @@ $circle-radius = 0.5 * $circle-diameter
 
 	&__circle
 		circle()
-		background-checkerboard()
 		z-index 2
-		overflow hidden
-
-	&__circle-color
-		position absolute
-		top 0
-		left 0
-		width 100%
-		height 100%
 
 	&__overlay
 		input-overlay()

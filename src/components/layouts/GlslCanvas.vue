@@ -45,6 +45,7 @@ export default defineComponent({
 
 			const glsl = new Canvas(canvasEl.value, {
 				fragmentString: props.fragmentString,
+				alpha: true,
 			})
 
 			watchEffect(() => {
