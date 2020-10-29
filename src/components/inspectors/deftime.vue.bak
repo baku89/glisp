@@ -197,7 +197,7 @@ export default defineComponent({
 		padding -1rem
 		width 2rem
 		height @width
-		border 1px solid var(--border)
+		border 1px solid var(--frame)
 		border-radius 50%
 		color var(--comment)
 		text-align center

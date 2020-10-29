@@ -158,7 +158,7 @@ export default defineComponent({
 		margin-left 0.5rem
 		width 15rem
 		height 15rem
-		border 1px solid var(--border)
+		border 1px solid var(--frame)
 
 		circle
 			fill var(--background)
@@ -175,7 +175,7 @@ export default defineComponent({
 
 		.diagonal
 			stroke-dasharray 3 3
-			stroke var(--border)
+			stroke var(--frame)
 
 		.curve
 			stroke-width 3

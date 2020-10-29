@@ -125,24 +125,6 @@ function goghToScheme(scheme: SchemeGogh): Scheme {
 		scheme.purple,
 	]
 
-	// const brightColors = [
-	// 	scheme.brightRed,
-	// 	scheme.brightYellow,
-	// 	scheme.brightGreen,
-	// 	scheme.brightCyan,
-	// 	scheme.brightBlue,
-	// 	scheme.brightPurple,
-	// ]
-
-	// const colors = darkColors.map((dark, i) => {
-	// 	const bright = brightColors[i]
-
-	// 	return chroma.contrast(dark, background) >
-	// 		chroma.contrast(bright, background)
-	// 		? dark
-	// 		: bright
-	// })
-
 	return {
 		name: scheme.name,
 		chroma: background,

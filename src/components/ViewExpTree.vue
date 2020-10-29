@@ -420,6 +420,6 @@ export default defineComponent({
 			left 0.8rem
 			width 0
 			height 100%
-			border-left 1px dotted var(--border)
+			border-left 1px dotted var(--frame)
 			content ''
 </style>

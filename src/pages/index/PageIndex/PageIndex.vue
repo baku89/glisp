@@ -445,7 +445,7 @@ html, body
 		left 1rem
 		z-index 1000
 		width 30rem
-		border 1px solid var(--border)
+		border 1px solid var(--frame)
 		translucent-bg()
 
 	&__modes
@@ -506,7 +506,7 @@ html, body
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
 		height 70%
-		border-bottom 1px solid var(--border)
+		border-bottom 1px solid var(--frame)
 		transition height $compact-dur var(--ease)
 
 	&__console
@@ -585,13 +585,13 @@ html, body
 		z-index 10
 		margin-right -1rem
 		width 1rem
-		border-left-color var(--border)
+		border-left-color var(--frame)
 		background transparent
 
 		&:before, &:after
 			width 0
 			height 19px
-			border-left 1px dotted var(--border)
+			border-left 1px dotted var(--frame)
 			background transparent
 			transition border-left-color 0.3s
 
@@ -604,6 +604,6 @@ html, body
 	.left + .splitpanes__splitter
 		margin-right 0
 		margin-left -1rem
-		border-right 1px solid var(--border)
+		border-right 1px solid var(--frame)
 		border-left none
 </style>

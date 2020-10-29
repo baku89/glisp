@@ -102,10 +102,10 @@ export default defineComponent({
 		grid-row 1 / span 1
 
 		&:hover
-			background var(--border)
+			background var(--frame)
 
 		&:active
-			background var(--border)
+			background var(--frame)
 
 		&.min
 			grid-column 1

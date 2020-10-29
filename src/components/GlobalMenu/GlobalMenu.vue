@@ -98,7 +98,7 @@ $height = 3.4rem
 	display flex
 	overflow visible
 	height $height
-	border-bottom 1px solid var(--border)
+	border-bottom 1px solid var(--frame)
 	user-select none
 
 	&.title-bar-macos

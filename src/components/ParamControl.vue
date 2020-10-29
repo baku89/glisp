@@ -282,7 +282,7 @@ export default defineComponent({
 			opacity 0.5
 
 		&.is-invalid .ParamControl__label
-			color var(--red)
+			color var(--error)
 
 			&:after
 				content ' ⚠'

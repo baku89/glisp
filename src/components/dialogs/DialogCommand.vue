@@ -119,13 +119,13 @@ export default defineComponent({
 
 	&__buttons
 		display flex
-		border-top 1px solid var(--border)
+		border-top 1px solid var(--frame)
 
 		.button
 			display block
 			flex-grow 1
 			padding 1rem
-			border-right 1px solid var(--border)
+			border-right 1px solid var(--frame)
 			color var(--comment)
 
 			&:hover

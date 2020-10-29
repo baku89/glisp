@@ -142,7 +142,7 @@ export default defineComponent({
 		bottom 0
 		left 0
 		z-index 1000
-		border 1rem solid var(--red)
+		border 1rem solid var(--error)
 		animation recording-frame-bounce 0.5s infinite alternate
 
 @keyframes recording-frame-bounce
@@ -171,8 +171,8 @@ export default defineComponent({
 			margin-left -3px
 			width 7px
 			height 19px
-			border-right 1px dotted var(--border)
-			border-left 1px dotted var(--border)
+			border-right 1px dotted var(--frame)
+			border-left 1px dotted var(--frame)
 			background transparent
 			transition border-left-color 0.3s, border-right-color 0.3s
 
@@ -190,7 +190,7 @@ export default defineComponent({
 			width 1px
 			height 100%
 			border none
-			background-color var(--border)
+			background-color var(--frame)
 			transform none
 
 		&:hover:after

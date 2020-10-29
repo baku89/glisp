@@ -179,7 +179,7 @@ export default defineComponent({
 	&__label, &__input
 		margin 0
 		padding 0.5rem 0
-		// border-bottom 1px dotted var(--border)
+		// border-bottom 1px dotted var(--frame)
 
 	&__label
 		width 5rem
