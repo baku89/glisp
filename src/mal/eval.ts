@@ -141,6 +141,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 						vec.push(await evalExp(x, env))
 					}
 					ret = MalVector.from(vec)
+					ret.delimiters = [...exp.delimiters]
 					break
 				}
 				case MalType.Map: {
@@ -149,6 +150,7 @@ export default async function evalExp(exp: MalVal, env: Env): Promise<MalVal> {
 						entries.push([k, await evalExp(v, env)])
 					}
 					ret = MalMap.from(Object.fromEntries(entries))
+					ret.delimiters = [...exp.delimiters]
 					break
 				}
 			}
