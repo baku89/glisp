@@ -44,8 +44,6 @@ export default async function initReplScope(scope: Scope) {
 
 	const libpath = new URL('./lib/', filename).href
 
-	console.log(filename, libpath)
-
 	scope.def('*filename*', filename)
 	scope.def('*libpath*', libpath)
 
@@ -56,7 +54,6 @@ export default async function initReplScope(scope: Scope) {
 
 		const absurl = normalizeImportURL(url)
 		const text = slurp(absurl)
-		console.log('IMPORT=', absurl, text.slice(0, 30))
 
 		let exp: MalVal
 
