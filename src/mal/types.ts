@@ -726,8 +726,6 @@ abstract class MalCallable extends MalBase<MalCallableValue> {
 		return this._value
 	}
 
-	public lazyFlags?: boolean[]
-
 	public ast?: {
 		body: MalVal
 		params: MalVector

@@ -36,11 +36,7 @@ export default class Env {
 	}
 
 	protected root(): Env {
-		if (this.outer) {
-			return this.outer.root()
-		} else {
-			return this
-		}
+		return this.outer ? this.outer.root() : this
 	}
 
 	public getAllSymbols() {
