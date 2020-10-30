@@ -2,9 +2,9 @@ start = space? expr:expr {return expr}
 
 expr = (list / graph / number / symbol)
 
-list = "(" space? left:expr fn:symbol right:expr ")" space? {return [fn, left, right]}
+list = "(" space? fn:symbol left:expr right:expr ")" space? {return [fn, left, right]}
 
-graph = "{" space? pairs:(symbol expr)* ret:expr "}" space? {return {...Object.fromEntries(pairs), $return: ret}}
+graph = "{" space? pairs:(symbol expr)* space? ret:expr "}" space? {return {...Object.fromEntries(pairs), $return: ret}}
 
 symbol = str:[a-z+\-\*\/]+ space? {return str.join("")}
 

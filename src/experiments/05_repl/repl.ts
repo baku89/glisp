@@ -3,6 +3,8 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
+type AType = 'number'
+
 // AST
 type AValue = number
 type ASymbol = string
@@ -41,12 +43,11 @@ class Env {
 
 	constructor(graph?: AGraph, outer?: Env) {
 		this.outer = outer
-
 		this.data = {}
 
 		if (graph) {
 			for (const [s, ast] of Object.entries(graph)) {
-				if (s.startsWith('$')) continue
+				if (s === '$return') continue
 
 				this.data[s] = {
 					isPDG: false,
@@ -58,14 +59,8 @@ class Env {
 	}
 
 	get(s: string): EnvData | null {
-		if (s in this.data) {
-			return this.data[s]
-		}
-
-		if (this.outer) {
-			return this.outer.get(s)
-		}
-
+		if (s in this.data) return this.data[s]
+		if (this.outer) return this.outer.get(s)
 		return null
 	}
 
@@ -76,9 +71,7 @@ class Env {
 
 // Functions
 const Functions = {
-	'+': (a, b) => {
-		return a + b
-	},
+	'+': (a, b) => a + b,
 	'-': (a, b) => a - b,
 	'*': (a, b) => a * b,
 	'/': (a, b) => a / b,
@@ -111,18 +104,18 @@ function generatePDG(ast: AST): PDG {
 
 			if (v.isPDG === true) {
 				return v.pdg
-			} else {
-				if (v.seeking) {
-					throw new Error(`Circular reference: ${ast}`)
-				}
-				v.seeking = true
-				const pdg = seek(v.ast, env)
-				v.seeking = false
-
-				env?.set(ast, {isPDG: true, pdg})
-
-				return pdg
 			}
+
+			if (v.seeking) {
+				throw new Error(`Circular reference: ${ast}`)
+			}
+			v.seeking = true
+			const pdg = seek(v.ast, env)
+			v.seeking = false
+
+			env.set(ast, {isPDG: true, pdg})
+
+			return pdg
 		} else if (Array.isArray(ast)) {
 			// Function Call
 			const [op, left, right] = ast
@@ -140,14 +133,27 @@ function generatePDG(ast: AST): PDG {
 			// Graph
 			// Create new env
 			const innerEnv = new Env(ast, env)
+
+			Object.entries(ast)
+				.filter(([s]) => s !== '$return')
+				.forEach(([s, a]) => {
+					if (s === '$return') return
+
+					const v = innerEnv.get(s)
+					if (!v) throw new Error('ERROR')
+
+					if (v.isPDG) return
+
+					v.seeking = true
+					seek(a, innerEnv)
+					v.seeking = false
+				})
+
 			// Generate PDG of return expression
 			return seek(ast.$return, innerEnv)
 		} else {
 			// Value
-			return {
-				type: 'leaf',
-				value: ast,
-			}
+			return {type: 'leaf', value: ast}
 		}
 	}
 }
@@ -157,7 +163,7 @@ async function evalPDG(pdg: PDG): Promise<AValue> {
 		return pdg.value
 	} else {
 		if (pdg.evaluated) {
-			return pdg instanceof Promise ? await pdg.evaluated : pdg.evaluated
+			return await pdg.evaluated
 		}
 
 		pdg.evaluated = Promise.all([
@@ -180,7 +186,8 @@ async function rep(str: string) {
 
 rep(`
 {
-	100
+	a (+ 1 2)
+	10
 }
-`)
+`).catch(err => console.warn(err))
 ;(window as any).rep = rep

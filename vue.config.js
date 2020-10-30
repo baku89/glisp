@@ -51,17 +51,17 @@ module.exports = {
 		// 	}
 		// 	return args
 		// })
-		config.plugin('html-js/interpreter').tap(args => {
-			args[0].hash = true
-			args[0].minify = {
-				removeComments: false,
-				collapseWhitespace: false,
-				removeAttributeQuotes: false,
-				collapseBooleanAttributes: false,
-				removeScriptTypeAttributes: false,
-			}
-			return args
-		})
+		// config.plugin('html-js/interpreter').tap(args => {
+		// 	args[0].hash = true
+		// 	args[0].minify = {
+		// 		removeComments: false,
+		// 		collapseWhitespace: false,
+		// 		removeAttributeQuotes: false,
+		// 		collapseBooleanAttributes: false,
+		// 		removeScriptTypeAttributes: false,
+		// 	}
+		// 	return args
+		// })
 
 		// Add jQuery loader
 		config.module
@@ -109,23 +109,29 @@ module.exports = {
 		// 	template: 'public/index.html',
 		// 	filename: 'index.html',
 		// },
-		'js/embed': {
-			entry: 'src/pages/embed/index.ts',
-			template: 'public/embed.html',
-			filename: 'embed.html',
-			title: "'(glisp/embed)",
-		},
-		'js/interpreter': {
-			entry: 'src/pages/interpreter/index.ts',
-			template: 'public/interpreter.html',
-			filename: 'interpreter.html',
-			title: "'(glisp/interpreter)",
-		},
-		'js/ui': {
-			entry: 'src/pages/ui/index.ts',
+		// 'js/embed': {
+		// 	entry: 'src/pages/embed/index.ts',
+		// 	template: 'public/embed.html',
+		// 	filename: 'embed.html',
+		// 	title: "'(glisp/embed)",
+		// },
+		// 'js/interpreter': {
+		// 	entry: 'src/pages/interpreter/index.ts',
+		// 	template: 'public/interpreter.html',
+		// 	filename: 'interpreter.html',
+		// 	title: "'(glisp/interpreter)",
+		// },
+		// 'js/ui': {
+		// 	entry: 'src/pages/ui/index.ts',
+		// 	template: 'public/ui.html',
+		// 	filename: 'ui.html',
+		// 	title: "'(glisp/ui)",
+		// },
+		'js/experiments': {
+			entry: 'src/experiments/05_repl/index.ts',
 			template: 'public/ui.html',
-			filename: 'ui.html',
-			title: "'(glisp/ui)",
+			filename: 'experiments.html',
+			title: "'(glisp/experiments)",
 		},
 	},
 }

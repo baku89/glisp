@@ -1,4 +1,6 @@
 import {createApp} from 'vue'
-import App from './PageInterpreter.vue'
+
+import './repl'
+import App from './App.vue'
 
 createApp(App).mount('#app')
