@@ -30,25 +30,12 @@ class Reader {
 
 	constructor(private str: string) {
 		// Tokenize
+		const matches = Array.from(str.matchAll(Reader.TokenReex))
 
-		// eslint-disable-next-line no-useless-escape
-		const tokenRe = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
-		const spaceRe = /^[\s,]*/
-
-		let match, spaceMatch, spaceOffset
-
-		const tokens: [string, number][] = []
-
-		while ((match = tokenRe.exec(str)) && match[1] != '') {
-			if (match[1][0] === ';') {
-				continue
-			}
-
-			spaceMatch = spaceRe.exec(match[0])
-			spaceOffset = spaceMatch ? spaceMatch[0].length : 0
-
-			tokens.push([match[1], match.index + spaceOffset])
-		}
+		const tokens = matches
+			// Remove comment and empties
+			.filter(m => !m[1].startsWith(';') && m[1] !== '')
+			.map(m => [m[1], m.index ?? 0] as [string, number])
 
 		// Check if empty
 		if (tokens.length === 0) {
@@ -56,7 +43,6 @@ class Reader {
 		}
 
 		this.tokens = tokens
-
 		this.strlen = str.length
 		this.index = 0
 	}
@@ -97,6 +83,9 @@ class Reader {
 		const token = this.tokens[this.index + offset]
 		return token !== undefined ? token[1] + token[0].length : this.strlen
 	}
+
+	// eslint-disable-next-line no-useless-escape
+	private static TokenReex = /(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)[\s,]*/g
 }
 
 function readAtom(reader: Reader) {
