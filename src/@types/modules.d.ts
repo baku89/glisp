@@ -167,3 +167,8 @@ declare module '*.frag' {
 	const FragmentString: string
 	export default FragmentString
 }
+
+declare module 'cytoscape-klay' {
+	const Module: any
+	export default Module
+}

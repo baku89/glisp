@@ -64,8 +64,9 @@ class Env {
 		return null
 	}
 
-	set(s: string, data: EnvData) {
-		this.data[s] = data
+	swap(s: string, data: EnvData) {
+		if (s in this.data) this.data[s] = data
+		if (this.outer) this.outer.swap(s, data)
 	}
 }
 
@@ -82,18 +83,22 @@ interface PDGLeaf {
 	type: 'leaf'
 	value: AValue
 }
-
 interface PDGNode {
 	type: 'node'
-	op: AFunction
+	fn: AFunction
+	symbol: string
 	left: PDG
 	right: PDG
 	evaluated: AValue | Promise<AValue> | null
 }
 
-type PDG = PDGLeaf | PDGNode
+export type PDG = PDGLeaf | PDGNode
 
-function generatePDG(ast: AST): PDG {
+export function readStr(str: string): AST {
+	return parser.parse(str)
+}
+
+export function generatePDG(ast: AST): PDG {
 	return seek(ast, new Env())
 
 	function seek(ast: AST, env: Env): PDG {
@@ -113,18 +118,19 @@ function generatePDG(ast: AST): PDG {
 			const pdg = seek(v.ast, env)
 			v.seeking = false
 
-			env.set(ast, {isPDG: true, pdg})
+			env.swap(ast, {isPDG: true, pdg})
 
 			return pdg
 		} else if (Array.isArray(ast)) {
 			// Function Call
-			const [op, left, right] = ast
-			if (!(op in Functions)) {
-				throw new Error(`Undefined function: ${op}`)
+			const [fn, left, right] = ast
+			if (!(fn in Functions)) {
+				throw new Error(`Undefined function: ${fn}`)
 			}
 			return {
 				type: 'node',
-				op: Functions[op],
+				fn: Functions[fn],
+				symbol: fn,
 				left: seek(left, env),
 				right: seek(right, env),
 				evaluated: null,
@@ -158,7 +164,7 @@ function generatePDG(ast: AST): PDG {
 	}
 }
 
-async function evalPDG(pdg: PDG): Promise<AValue> {
+export async function evalPDG(pdg: PDG): Promise<AValue> {
 	if (pdg.type === 'leaf') {
 		return pdg.value
 	} else {
@@ -169,25 +175,15 @@ async function evalPDG(pdg: PDG): Promise<AValue> {
 		pdg.evaluated = Promise.all([
 			evalPDG(pdg.left),
 			evalPDG(pdg.right),
-		]).then(([a, b]) => pdg.op(a, b))
+		]).then(([a, b]) => pdg.fn(a, b))
 
 		return await pdg.evaluated
 	}
 }
 
-async function rep(str: string) {
-	const ast: AST = parser.parse(str)
-	console.log('ast=', ast)
+export async function rep(str: string) {
+	const ast = readStr(str)
 	const pdg = generatePDG(ast)
-	console.log('pdg=', pdg)
 	const ret = await evalPDG(pdg)
-	console.log('result=', ret)
+	return ret.toString()
 }
-
-rep(`
-{
-	a (+ 1 2)
-	10
-}
-`).catch(err => console.warn(err))
-;(window as any).rep = rep
