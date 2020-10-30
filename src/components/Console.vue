@@ -22,7 +22,7 @@ function loadHistory(jq: any) {
 	}
 }
 
-function jqsaveHistory(jq: any) {
+function saveHistory(jq: any) {
 	const lines = jq.GetHistory()
 	localStorage['mal_history'] = JSON.stringify(lines)
 }
@@ -80,7 +80,7 @@ export default defineComponent({
 				const history = jqconsole.GetHistory()
 				history.push(command)
 				jqconsole.SetHistory(history)
-				jqsaveHistory(jqconsole)
+				saveHistory(jqconsole)
 			}
 
 			printer.rep = rep
@@ -89,7 +89,7 @@ export default defineComponent({
 			const handler = async (line?: string) => {
 				if (line) {
 					await props.scope.REP(line)
-					jqsaveHistory(jqconsole)
+					saveHistory(jqconsole)
 				}
 				jqconsole.Prompt(true, handler)
 			}
