@@ -1,4 +1,6 @@
-import {createApp} from 'vue'
-import App from './PageInterpreter.vue'
+// import {createApp} from 'vue'
+// import App from './PageInterpreter.vue'
 
-createApp(App).mount('#app')
+// createApp(App).mount('#app')
+
+import '@/experiments/05_bool'

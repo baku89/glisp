@@ -146,6 +146,11 @@ declare module '*.yml' {
 	export default component
 }
 
+declare module '*.pegjs' {
+	const PegString: string
+	export default PegString
+}
+
 declare module 'click-outside' {
 	export default function (
 		container: HTMLElement,

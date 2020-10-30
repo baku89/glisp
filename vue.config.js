@@ -83,6 +83,14 @@ module.exports = {
 			.use('glslify-loader')
 			.loader('glslify-loader')
 
+		// PEGJS
+		config.module
+			.rule('pegjs')
+			.test(/\.pegjs$/)
+			.use('raw-loader')
+			.loader('raw-loader')
+			.end()
+
 		// Copy logo.png to dist
 		config.plugin('copy-assets').use(CopyPlugin, [
 			{

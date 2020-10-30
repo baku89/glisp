@@ -88,6 +88,7 @@
 		"normalize.css": "^8.0.1",
 		"paper": "^0.12.11",
 		"paperjs-offset": "^1.0.8",
+		"pegjs": "^0.10.0",
 		"prettier": "^2.1.2",
 		"raw-loader": "^4.0.1",
 		"readline-sync": "^1.4.10",
