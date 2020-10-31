@@ -12,7 +12,7 @@ const gitHash = execSync('git rev-parse HEAD').toString().trim().slice(0, 7)
 async function upload() {
 	// Upload to the subdirectory with git hash
 	if (argv.commit) {
-		await deploy('commit')
+		await deploy('commit', !argv.redirect)
 	}
 
 	if (argv.docs) {
@@ -21,7 +21,7 @@ async function upload() {
 }
 upload()
 
-async function deploy(mode) {
+async function deploy(mode, noRedirect) {
 	const ftpDeploy = new FtpDeploy()
 
 	const urlSuffix = mode === 'commit' ? `commit:${gitHash}` : 'docs'
@@ -56,7 +56,8 @@ async function deploy(mode) {
 	}
 
 	// Update Commits.json
-	if (mode === 'commit') {
+	if (mode === 'commit' && !noRedirect) {
+		console.log('Update redirect list')
 		const res = await fetch(`${siteURL}/commits.json`)
 		const commits = await res.json()
 		if (commits.length === 0 || commits[commits.length - 1][0] !== gitHash) {
