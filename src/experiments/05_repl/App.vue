@@ -82,7 +82,6 @@ function showPDG(pdg: PDG) {
 					'text-halign': 'center',
 					'text-outline-color': 'data(color)',
 					'text-outline-width': 0.5,
-					'compound-sizing-wrt-labels': true,
 					shape: 'data(shape)' as any,
 					label: 'data(label)',
 				} as any,

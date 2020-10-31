@@ -7,15 +7,15 @@ type AType = 'number'
 
 // AST
 type AValue = number
-type ASymbol = string
+type ASymbol = symbol
 type AAtom = AValue | ASymbol
-type AFuncall = [string, AST, AST]
+type AFuncall = [symbol, AST, AST]
 
 type AFunction = (a: AValue, b: AValue) => Promise<AValue> | AValue
 
 interface AGraph {
-	[s: string]: AST
-	$return: AST
+	values: Map<symbol, AST>
+	return: AST
 }
 
 type AST = AAtom | AFuncall | AGraph
@@ -37,36 +37,30 @@ type EnvData = EnvPDGData | EnvASTData
 class Env {
 	private outer?: Env
 
-	private data!: {
-		[s: string]: EnvData
-	}
+	private data!: Map<symbol, EnvData>
 
 	constructor(graph?: AGraph, outer?: Env) {
 		this.outer = outer
-		this.data = {}
+		this.data = new Map()
 
 		if (graph) {
-			for (const [s, ast] of Object.entries(graph)) {
-				if (s === '$return') continue
-
-				this.data[s] = {
+			for (const [s, ast] of graph.values.entries()) {
+				this.data.set(s, {
 					isPDG: false,
 					seeking: false,
-					ast: ast,
-				}
+					ast,
+				})
 			}
 		}
 	}
 
-	get(s: string): EnvData | null {
-		if (s in this.data) return this.data[s]
-		if (this.outer) return this.outer.get(s)
-		return null
+	get(s: symbol): EnvData | undefined {
+		return this.data.get(s) ?? this.outer?.get(s)
 	}
 
-	swap(s: string, data: EnvData) {
-		if (s in this.data) {
-			this.data[s] = data
+	swap(s: symbol, data: EnvData) {
+		if (this.data.has(s)) {
+			this.data.set(s, data)
 		} else if (this.outer) {
 			this.outer.swap(s, data)
 		}
@@ -105,17 +99,17 @@ export function generatePDG(ast: AST): PDG {
 	return seek(ast, new Env())
 
 	function seek(ast: AST, env: Env): PDG {
-		if (typeof ast === 'string') {
+		if (typeof ast === 'symbol') {
 			// Symbol
 			const v = env.get(ast)
-			if (!v) throw new Error(`Undefined identifer: ${ast}`)
+			if (!v) throw new Error(`Undefined identifer: ${Symbol.keyFor(ast)}`)
 
 			if (v.isPDG === true) {
 				return v.pdg
 			}
 
 			if (v.seeking) {
-				throw new Error(`Circular reference: ${ast}`)
+				throw new Error(`Circular reference: ${Symbol.keyFor(ast)}`)
 			}
 			v.seeking = true
 			const pdg = seek(v.ast, env)
@@ -127,13 +121,14 @@ export function generatePDG(ast: AST): PDG {
 		} else if (Array.isArray(ast)) {
 			// Function Call
 			const [fn, left, right] = ast
-			if (!(fn in Functions)) {
-				throw new Error(`Undefined function: ${fn}`)
+			const fnKey = Symbol.keyFor(fn) ?? ''
+			if (!(fnKey in Functions)) {
+				throw new Error(`Undefined function: ${Symbol.keyFor(fn)}`)
 			}
 			return {
 				type: 'node',
-				fn: Functions[fn],
-				symbol: fn,
+				fn: Functions[fnKey],
+				symbol: fnKey,
 				left: seek(left, env),
 				right: seek(right, env),
 				evaluated: null,
@@ -143,23 +138,19 @@ export function generatePDG(ast: AST): PDG {
 			// Create new env
 			const innerEnv = new Env(ast, env)
 
-			Object.entries(ast)
-				.filter(([s]) => s !== '$return')
-				.forEach(([s, a]) => {
-					if (s === '$return') return
+			ast.values.forEach((a, s) => {
+				const v = innerEnv.get(s)
+				if (!v) throw new Error('ERROR')
 
-					const v = innerEnv.get(s)
-					if (!v) throw new Error('ERROR')
+				if (v.isPDG) return
 
-					if (v.isPDG) return
-
-					v.seeking = true
-					seek(a, innerEnv)
-					v.seeking = false
-				})
+				v.seeking = true
+				seek(a, innerEnv)
+				v.seeking = false
+			})
 
 			// Generate PDG of return expression
-			return seek(ast.$return, innerEnv)
+			return seek(ast.return, innerEnv)
 		} else {
 			// Value
 			return {type: 'leaf', value: ast}
