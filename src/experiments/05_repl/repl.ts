@@ -65,8 +65,11 @@ class Env {
 	}
 
 	swap(s: string, data: EnvData) {
-		if (s in this.data) this.data[s] = data
-		if (this.outer) this.outer.swap(s, data)
+		if (s in this.data) {
+			this.data[s] = data
+		} else if (this.outer) {
+			this.outer.swap(s, data)
+		}
 	}
 }
 
