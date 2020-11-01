@@ -28,7 +28,7 @@ interface EnvPDGData {
 
 interface EnvASTData {
 	isPDG: false
-	seeking: boolean
+	resolving: boolean
 	ast: AST
 }
 
@@ -47,7 +47,7 @@ class Env {
 			for (const [s, ast] of Object.entries(graph.values)) {
 				this.data[s] = {
 					isPDG: false,
-					seeking: false,
+					resolving: false,
 					ast,
 				}
 			}
@@ -113,9 +113,9 @@ export function readStr(str: string): AST {
 }
 
 export function analyzeAST(ast: AST): PDG {
-	return seek(ast, new Env())
+	return traverse(ast, new Env())
 
-	function seek(ast: AST, env: Env): PDG {
+	function traverse(ast: AST, env: Env): PDG {
 		if (typeof ast === 'string') {
 			// Symbol
 			const v = env.get(ast)
@@ -130,13 +130,12 @@ export function analyzeAST(ast: AST): PDG {
 				}
 			}
 
-			if (v.seeking) {
+			if (v.resolving) {
 				throw new Error(`Circular reference: ${ast}`)
 			}
 
-			v.seeking = true
-			const pdg = seek(v.ast, env)
-			v.seeking = false
+			v.resolving = true
+			const pdg = traverse(v.ast, env)
 
 			env.swap(ast, {isPDG: true, pdg})
 
@@ -157,7 +156,7 @@ export function analyzeAST(ast: AST): PDG {
 				type: 'fncall',
 				fn: Functions[fn],
 				name: fn,
-				params: [seek(left, env), seek(right, env)],
+				params: [traverse(left, env), traverse(right, env)],
 			}
 		} else if (ast instanceof Object) {
 			// Graph
@@ -170,9 +169,8 @@ export function analyzeAST(ast: AST): PDG {
 					if (!v) throw new Error('ERROR')
 					if (v.isPDG) return [s, v.pdg]
 
-					v.seeking = true
-					const pdg = seek(a, innerEnv)
-					v.seeking = false
+					v.resolving = true
+					const pdg = traverse(a, innerEnv)
 
 					innerEnv.swap(s, {isPDG: true, pdg})
 
@@ -185,7 +183,7 @@ export function analyzeAST(ast: AST): PDG {
 				id: uid(),
 				type: 'graph',
 				values,
-				return: seek(ast.return, innerEnv),
+				return: traverse(ast.return, innerEnv),
 			}
 		} else {
 			// Value (number)
