@@ -128,7 +128,7 @@ module.exports = {
 		// 	title: "'(glisp/ui)",
 		// },
 		'js/experiments': {
-			entry: 'src/experiments/05_repl/index.ts',
+			entry: 'src/experiments/06_pdg-visualizer/index.ts',
 			template: 'public/ui.html',
 			filename: 'experiments.html',
 			title: "'(glisp/experiments)",
