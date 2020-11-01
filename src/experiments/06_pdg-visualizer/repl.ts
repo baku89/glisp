@@ -8,16 +8,16 @@ type AType = 'number'
 
 // AST
 type ASymbol = string
-type AFuncall = [string, AST, AST]
+type AFncall = [string, ...AST[]]
 
-type AFunction = (a: number, b: number) => Promise<number> | number
+type AFunction = (...xs: number[]) => Promise<number> | number
 
 interface AGraph {
 	values: {[sym: string]: AST}
 	return: AST
 }
 
-type AST = number | ASymbol | AFuncall | AGraph
+type AST = number | ASymbol | AFncall | AGraph
 
 // Env
 
@@ -147,7 +147,7 @@ export function analyzeAST(ast: AST): PDG {
 			}
 		} else if (Array.isArray(ast)) {
 			// Function Call
-			const [fn, left, right] = ast
+			const [fn, ...params] = ast
 			if (!(fn in Functions)) {
 				throw new Error(`Undefined function: ${fn}`)
 			}
@@ -156,7 +156,7 @@ export function analyzeAST(ast: AST): PDG {
 				type: 'fncall',
 				fn: Functions[fn],
 				name: fn,
-				params: [traverse(left, env), traverse(right, env)],
+				params: params.map(p => traverse(p, env)),
 			}
 		} else if (ast instanceof Object) {
 			// Graph
@@ -206,10 +206,9 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 	} else {
 		if (pdg.evaluated) return await pdg.evaluated
 
-		pdg.evaluated = Promise.all([
-			evalPDG(pdg.params[0]),
-			evalPDG(pdg.params[1]),
-		]).then(([a, b]) => pdg.fn(a, b))
+		const {params, fn} = pdg
+
+		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => pdg.fn(...ps))
 
 		return await pdg.evaluated
 	}

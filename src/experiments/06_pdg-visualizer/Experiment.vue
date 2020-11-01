@@ -49,13 +49,16 @@ function showPDG(pdg: PDG) {
 		})
 
 		if (pdg.type === 'fncall') {
-			const leftId = gen(pdg.params[0])
-			const rightId = gen(pdg.params[1])
-
-			elements.push(
-				{classes: 'child', data: {source: leftId, target: id}},
-				{classes: 'child', data: {source: rightId, target: id}}
-			)
+			const edges = pdg.params.map(p => {
+				return {
+					classes: 'child',
+					data: {
+						source: gen(p),
+						target: id,
+					},
+				}
+			})
+			elements.push(...edges)
 		} else if (pdg.type === 'graph') {
 			const children = Object.entries(pdg.values).map(([sym, child]) => {
 				return {

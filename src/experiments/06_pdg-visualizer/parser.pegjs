@@ -2,8 +2,8 @@ start = space? expr:expr {return expr}
 
 expr = (list / graph / number / symbol)
 
-list "funcall" = "(" space? fn:symbol left:expr right:expr ")" space?
-	{return [fn, left, right]}
+list "funcall" = "(" space? fn:symbol params:(expr)* ")" space?
+	{return [fn, ...params]}
 
 graph "graph" = "{" space? pairs:(symbol expr)* space? ret:expr "}" space?
 	{return {values: Object.fromEntries(pairs), return: ret}}
