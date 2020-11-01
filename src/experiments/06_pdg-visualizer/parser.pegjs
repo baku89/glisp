@@ -5,7 +5,7 @@ expr = (list / graph / number / symbol)
 list "funcall" = "(" space? fn:symbol params:(expr)* ")" space?
 	{return [fn, ...params]}
 
-graph "graph" = "{" space? pairs:(symbol expr)* space? ret:expr "}" space?
+graph "graph" = "{" space? pairs:(symbol expr)* space? ret:symbol "}" space?
 	{return {values: Object.fromEntries(pairs), return: ret}}
 
 symbol "symbol" = str:[a-z+\-\*\/]i+ space?

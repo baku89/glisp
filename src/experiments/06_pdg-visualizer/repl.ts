@@ -4,8 +4,6 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type AType = 'number'
-
 // AST
 type ASymbol = string
 type AFncall = [string, ...AST[]]
@@ -14,7 +12,7 @@ type AFunction = (...xs: number[]) => Promise<number> | number
 
 interface AGraph {
 	values: {[sym: string]: AST}
-	return: AST
+	return: ASymbol
 }
 
 type AST = number | ASymbol | AFncall | AGraph
@@ -90,7 +88,7 @@ interface PDGGraph {
 	id: string
 	type: 'graph'
 	values: {[sym: string]: PDG}
-	return: PDG
+	return: PDGSymbol
 }
 
 interface PDGSymbol {
@@ -166,7 +164,7 @@ export function analyzeAST(ast: AST): PDG {
 			const values = Object.fromEntries(
 				Object.entries(ast.values).map(([s, a]) => {
 					const v = innerEnv.get(s)
-					if (!v) throw new Error('ERROR')
+					if (!v) throw new Error(`Undefined identifier ${s}`)
 					if (v.isPDG) return [s, v.pdg]
 
 					v.resolving = true
@@ -178,12 +176,25 @@ export function analyzeAST(ast: AST): PDG {
 				})
 			)
 
+			// Resolve return symbol
+			const r = innerEnv.get(ast.return)
+			if (!r) throw new Error(`Undefined identifier: ${ast.return}`)
+			if (!r.isPDG)
+				throw new Error(`Cannot resolve return symbol ${ast.return}`)
+
+			const ret: PDGSymbol = {
+				id: uid(),
+				type: 'symbol',
+				name: ast.return,
+				ref: r.pdg,
+			}
+
 			// Generate PDG of return expression
 			return {
 				id: uid(),
 				type: 'graph',
 				values,
-				return: traverse(ast.return, innerEnv),
+				return: ret,
 			}
 		} else {
 			// Value (number)
@@ -208,7 +219,7 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 
 		const {params, fn} = pdg
 
-		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => pdg.fn(...ps))
+		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
 
 		return await pdg.evaluated
 	}
@@ -251,10 +262,10 @@ async function test(str: string, expected: number | 'error') {
 	)
 }
 
-;(async function () {
-	await test('(+ 1 2)', 3)
-	await test('(+ 1 (+ 2 3))', 6)
-	await test('{a (+ 1 2) a}', 3)
-	await test('{a a 10}', 'error')
-	await test('{a 10 b {a 20 a} (+ a b)}', 30)
-})()
+// ;(async function () {
+// 	await test('(+ 1 2)', 3)
+// 	await test('(+ 1 (+ 2 3))', 6)
+// 	await test('{a (+ 1 2) a}', 3)
+// 	await test('{a a 10}', 'error')
+// 	await test('{a 10 b {a 20 a} (+ a b)}', 30)
+// })()
