@@ -1,4 +1,3 @@
-import uid from 'uid'
 import peg from 'pegjs'
 import ParserDefinition from './parser.pegjs'
 
@@ -83,54 +82,46 @@ const Functions = {
 } as {[s: string]: PDGFn}
 
 // PDG
+interface PDGError {
+	result: 'error'
+	message: string
+}
 
-interface PDGFncallBase {
+interface PDGFncall {
 	type: 'fncall'
 	name: string
 	params: PDG[]
+	resolved?:
+		| {
+				result: 'succeed'
+				fn: AFunction
+				evaluated?: Promise<number>
+		  }
+		| PDGError
 }
 
-interface PDGFncallResolved extends PDGFncallBase {
-	fn: AFunction
-	evaluated?: Promise<number>
-}
-
-interface PDGFncallError extends PDGFncallBase {
-	error: string
-}
-
-type PDGFncall = PDGFncallBase | PDGFncallResolved | PDGFncallError
-
-interface PDGGraphBase {
+interface PDGGraph {
 	type: 'graph'
 	values: {[sym: string]: PDG}
 	return: string
+	resolved?:
+		| {
+				result: 'succeed'
+				ref: PDG
+		  }
+		| PDGError
 }
 
-interface PDGGraphResolved extends PDGGraphBase {
-	ref: PDG
-}
-
-interface PDGGraphError extends PDGGraphBase {
-	error: string
-}
-
-type PDGGraph = PDGGraphBase | PDGGraphResolved | PDGGraphError
-
-interface PDGSymbolBase {
+interface PDGSymbol {
 	type: 'symbol'
 	name: string
+	resolved?:
+		| {
+				result: 'succeed'
+				ref: PDG
+		  }
+		| PDGError
 }
-
-interface PDGSymbolResolved extends PDGSymbolBase {
-	ref: PDG
-}
-
-interface PDGSymbolError extends PDGSymbolBase {
-	error: string
-}
-
-type PDGSymbol = PDGSymbolBase | PDGSymbolResolved | PDGSymbolError
 
 interface PDGValue {
 	type: 'value'
@@ -143,18 +134,22 @@ export async function getEvaluated(pdg: PDG): Promise<number | null> {
 	}
 
 	if (pdg.type === 'symbol' || pdg.type === 'graph') {
-		if ('error' in pdg || !('ref' in pdg)) {
+		if (!pdg.resolved || pdg.resolved.result === 'error') {
 			return null
 		}
 
-		return getEvaluated(pdg.ref)
+		return getEvaluated(pdg.resolved.ref)
 	} else {
 		// Fncall
-		if ('error' in pdg || !('fn' in pdg) || !pdg.evaluated) {
+		if (
+			!pdg.resolved ||
+			pdg.resolved.result === 'error' ||
+			!pdg.resolved.evaluated
+		) {
 			return null
 		}
 
-		return await pdg.evaluated
+		return await pdg.resolved.evaluated
 	}
 }
 
@@ -209,7 +204,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Function Call
 
 			// Check if resolved
-			if ('fn' in pdg || 'error' in pdg) return
+			if (pdg.resolved) return
 
 			// Traverse children
 			pdg.params.forEach(p => traverse(p, env))
@@ -217,23 +212,32 @@ export function analyzePDG(pdg: PDG): PDG {
 			const {name, params} = pdg
 
 			if (!(name in Functions)) {
-				;(pdg as PDGFncallError).error = `Undefined function: ${name}`
+				pdg.resolved = {
+					result: 'error',
+					message: `Undefined function: ${name}`,
+				}
 				return
 			}
 
 			const {fn, paramCount} = Functions[name]
 
 			if (params.length !== paramCount) {
-				;(pdg as PDGFncallError).error = `Invalid parameter`
+				pdg.resolved = {
+					result: 'error',
+					message: `Invalid parameter`,
+				}
 				return
 			}
 
-			;(pdg as PDGFncallResolved).fn = fn
+			pdg.resolved = {
+				result: 'succeed',
+				fn,
+			}
 		} else if (pdg.type === 'graph') {
 			// Graph
 
 			// Check if resolved
-			if ('ref' in pdg || 'error' in pdg) return
+			if (pdg.resolved) return
 
 			// Create new env
 			const innerEnv = new Env(pdg.values, env)
@@ -246,25 +250,44 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve return symbol
 			if (!(pdg.return in pdg.values)) {
-				;(pdg as PDGGraphError).error = `Cannot resolve return symbol ${pdg.return}`
+				pdg.resolved = {
+					result: 'error',
+					message: `Cannot resolve return symbol ${pdg.return}`,
+				}
 				return
 			}
 
-			;(pdg as PDGGraphResolved).ref = pdg.values[pdg.return]
+			pdg.resolved = {
+				result: 'succeed',
+				ref: pdg.values[pdg.return],
+			}
 		} else if (pdg.type === 'symbol') {
 			// Symbol
 
 			// Check if resolved
-			if ('ref' in pdg || 'error' in pdg) return
+			if (pdg.resolved) return
 
 			if (env.isResolving(pdg.name)) {
-				;(pdg as PDGSymbolError).error = `Circular reference: ${pdg.name}`
+				pdg.resolved = {
+					result: 'error',
+					message: `Circular reference: ${pdg.name}`,
+				}
 				return
 			}
 
 			const ref = env.get(pdg.name)
-			if (!ref) throw new Error(`Undefined identifer: ${pdg.name}`)
-			;(pdg as PDGSymbolResolved).ref = ref
+			if (!ref) {
+				pdg.resolved = {
+					result: 'error',
+					message: `Undefined identifer: ${pdg.name}`,
+				}
+				return
+			}
+
+			pdg.resolved = {
+				result: 'succeed',
+				ref,
+			}
 		}
 	}
 }
@@ -274,32 +297,31 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 		return pdg.value
 	}
 
-	if ('error' in pdg) {
-		return Promise.reject(pdg.error)
+	if (!pdg.resolved) {
+		return Promise.reject('Not yet resolved')
+	}
+
+	if (pdg.resolved.result === 'error') {
+		return Promise.reject(pdg.resolved.message)
 	}
 
 	if (pdg.type === 'symbol') {
-		if (!('ref' in pdg)) {
-			return Promise.reject(`Symbol ${pdg.name} has not yet resolved`)
-		}
-		return evalPDG(pdg.ref)
+		return evalPDG(pdg.resolved.ref)
 	} else if (pdg.type === 'graph') {
-		if (!('ref' in pdg)) {
-			return Promise.reject(`Return symbol ${pdg.return} has not yet resolved`)
-		}
-		return evalPDG(pdg.ref)
+		return evalPDG(pdg.resolved.ref)
 	} else {
-		if (!('fn' in pdg)) {
-			return Promise.reject(`Function symbol ${pdg.name} has not yet resolved`)
-		}
+		if (pdg.resolved.evaluated) return await pdg.resolved.evaluated
 
-		if (pdg.evaluated) return await pdg.evaluated
+		const {
+			params,
+			resolved: {fn},
+		} = pdg
 
-		const {params, fn} = pdg
+		pdg.resolved.evaluated = Promise.all(params.map(evalPDG)).then(ps =>
+			fn(...ps)
+		)
 
-		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
-
-		return await pdg.evaluated
+		return await pdg.resolved.evaluated
 	}
 }
 
