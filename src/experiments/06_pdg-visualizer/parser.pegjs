@@ -16,7 +16,6 @@ atom  = number / fn
 number "number" = digits:[0-9]+ space?
 	{return parseInt(digits.join(""),10)}
 
-// fn "function" = "#(" space? params:(symbol)* (! "`" js:. "`") space? ")" space?
 fn "function" = "#(" space? params:(symbol)* "`" js:[^`]* "`" space? ")" space?
 	{
 		return {

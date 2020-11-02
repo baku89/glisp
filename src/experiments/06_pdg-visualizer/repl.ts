@@ -125,6 +125,10 @@ const GlobalEnvs = {
 			},
 		},
 	},
+	PI: {
+		type: 'value',
+		value: Math.PI,
+	},
 } as {[s: string]: PDGValue}
 
 // PDG

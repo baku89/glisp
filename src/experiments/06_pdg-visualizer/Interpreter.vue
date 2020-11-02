@@ -39,7 +39,7 @@ function showPDG(pdg: PDG) {
 				? pdg.name
 				: pdg.type === 'value'
 				? typeof pdg.value === 'number'
-					? pdg.value.toString()
+					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
 					: 'fn'
 				: '' // graph
 
