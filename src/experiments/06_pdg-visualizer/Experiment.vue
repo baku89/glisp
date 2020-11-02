@@ -43,8 +43,10 @@ function showPDG(pdg: PDG) {
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
+		const invalid = pdg.type === 'fncall' ? !!pdg.invalid : false
+
 		elements.push({
-			classes: pdg.type,
+			classes: [pdg.type, invalid ? 'invalid' : ''].join(' '),
 			data: {id, label, width},
 		})
 
@@ -156,6 +158,13 @@ function showPDG(pdg: PDG) {
 				},
 			},
 			{
+				selector: '.invalid',
+				style: {
+					'border-color': '#ab4642',
+					'border-width': 2,
+				},
+			},
+			{
 				selector: '.graph',
 				style: {
 					'background-color': '#b8b8b8',
@@ -223,7 +232,14 @@ export default defineComponent({
 			const pdg = analyzeAST(readStr(str))
 			append && append(showPDG(pdg))
 			// showPDG(pdg)
-			const ret = await evalPDG(pdg)
+			let ret: number
+			try {
+				ret = await evalPDG(pdg)
+			} catch {
+				ret = NaN
+			}
+
+			console.log(pdg)
 			return ret.toString()
 		}
 

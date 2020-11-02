@@ -71,12 +71,33 @@ class Env {
 }
 
 // Functions
+interface PDGFn {
+	fn: AFunction
+	paramCount: number
+}
+
 const Functions = {
-	'+': (a, b) => a + b,
-	'-': (a, b) => a - b,
-	'*': (a, b) => a * b,
-	'/': (a, b) => a / b,
-} as {[s: string]: AFunction}
+	'+': {
+		fn: (a, b) => a + b,
+		paramCount: 2,
+	},
+	'-': {
+		fn: (a, b) => a - b,
+		paramCount: 2,
+	},
+	'*': {
+		fn: (a, b) => a * b,
+		paramCount: 2,
+	},
+	'/': {
+		fn: (a, b) => a / b,
+		paramCount: 2,
+	},
+	neg: {
+		fn: a => -a,
+		paramCount: 1,
+	},
+} as {[s: string]: PDGFn}
 
 // PDG
 
@@ -86,6 +107,7 @@ interface PDGFncall {
 	fn: AFunction
 	name: string
 	params: PDG[]
+	invalid?: boolean
 	evaluated?: Promise<number>
 }
 
@@ -122,21 +144,26 @@ export function analyzeAST(ast: AST): PDG {
 		if (ast instanceof Object) {
 			if (ast.type === 'fncall') {
 				// Function Call
-				const {fn, params} = ast
-				console.log(ast)
-				if (!(fn in Functions)) {
-					throw new Error(`Undefined function: ${fn}`)
+				const {fn: fnName, params} = ast
+
+				if (!(fnName in Functions)) {
+					throw new Error(`Undefined function: ${fnName}`)
 				}
+
+				const {fn, paramCount} = Functions[fnName]
+
+				// Parameter type checking
+				const invalid = params.length !== paramCount
 
 				return {
 					id: uid(),
 					type: 'fncall',
-					fn: Functions[fn],
-					name: fn,
+					fn,
+					name: fnName,
 					params: params.map(p => traverse(p, env)),
+					invalid,
 				}
 			} else {
-				console.log(ast)
 				// Graph
 				// Create new env
 				const innerEnv = new Env(ast, env)
@@ -230,7 +257,12 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 	} else {
 		if (pdg.evaluated) return await pdg.evaluated
 
-		const {params, fn} = pdg
+		const {params, fn, invalid} = pdg
+
+		if (invalid) {
+			return Promise.reject('Invalid parameter')
+		}
+
 		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
 
 		return await pdg.evaluated
