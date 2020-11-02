@@ -64,20 +64,12 @@ function showPDG(pdg: PDG) {
 		} else if (pdg.type === 'graph') {
 			const children = Object.entries(pdg.values).map(([sym, child]) => {
 				return {
-					classes: 'graph_child',
+					classes: sym === pdg.return ? 'child' : 'graph_child',
 					data: {source: gen(child), target: id, label: sym},
 				}
 			})
 
 			elements.push(...children)
-
-			elements.push({
-				classes: 'child',
-				data: {
-					source: gen(pdg.return),
-					target: id,
-				},
-			})
 		} else if (pdg.type === 'symbol') {
 			elements.push({
 				classes: 'ref',
@@ -195,7 +187,7 @@ function showPDG(pdg: PDG) {
 				selector: '.child',
 				style: {
 					'target-arrow-shape': 'triangle',
-					width: 3,
+					width: 4,
 				},
 			},
 			{
@@ -208,6 +200,7 @@ function showPDG(pdg: PDG) {
 			{
 				selector: '.graph_child',
 				style: {
+					'line-color': '#b8b8b8',
 					'target-arrow-shape': 'circle',
 					'arrow-scale': 0.5,
 				},

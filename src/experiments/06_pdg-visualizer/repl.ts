@@ -115,7 +115,7 @@ interface PDGGraph {
 	id: string
 	type: 'graph'
 	values: {[sym: string]: PDG}
-	return: PDGSymbol
+	return: string
 }
 
 interface PDGSymbol {
@@ -184,19 +184,8 @@ export function analyzeAST(ast: AST): PDG {
 				)
 
 				// Resolve return symbol
-				const r = innerEnv.get(ast.return)
-				if (!r)
-					throw new Error(
-						`Undefined identifier in return expression: ${ast.return}`
-					)
-				if (!r.isPDG)
+				if (!(ast.return in values)) {
 					throw new Error(`Cannot resolve return symbol ${ast.return}`)
-
-				const ret: PDGSymbol = {
-					id: uid(),
-					type: 'symbol',
-					name: ast.return,
-					ref: r.pdg,
 				}
 
 				// Generate PDG of return expression
@@ -204,7 +193,7 @@ export function analyzeAST(ast: AST): PDG {
 					id: uid(),
 					type: 'graph',
 					values,
-					return: ret,
+					return: ast.return,
 				}
 			}
 		} else if (typeof ast === 'string') {
@@ -253,7 +242,7 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 	} else if (pdg.type === 'symbol') {
 		return evalPDG(pdg.ref)
 	} else if (pdg.type === 'graph') {
-		return evalPDG(pdg.return)
+		return evalPDG(pdg.values[pdg.return])
 	} else {
 		if (pdg.evaluated) return await pdg.evaluated
 
@@ -306,10 +295,10 @@ async function test(str: string, expected: number | 'error') {
 	)
 }
 
-// ;(async function () {
-// 	await test('(+ 1 2)', 3)
-// 	await test('(+ 1 (+ 2 3))', 6)
-// 	await test('{a (+ 1 2) a}', 3)
-// 	await test('{a a 10}', 'error')
-// 	await test('{a 10 b {a 20 a} (+ a b)}', 30)
-// })()
+;(async function () {
+	await test('(+ 1 2)', 3)
+	await test('(+ 1 (+ 2 3))', 6)
+	await test('{a (+ 1 2) a}', 3)
+	await test('{a a a}', 'error')
+	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+})()
