@@ -6,11 +6,16 @@ const parser = peg.generate(ParserDefinition)
 
 // AST
 type ASymbol = string
-type AFncall = [string, ...AST[]]
+type AFncall = {
+	type: 'fncall'
+	fn: ASymbol
+	params: AST[]
+}
 
 type AFunction = (...xs: number[]) => Promise<number> | number
 
 interface AGraph {
+	type: 'graph'
 	values: {[sym: string]: AST}
 	return: ASymbol
 }
@@ -81,7 +86,7 @@ interface PDGFncall {
 	fn: AFunction
 	name: string
 	params: PDG[]
-	evaluated?: number | Promise<number>
+	evaluated?: Promise<number>
 }
 
 interface PDGGraph {
@@ -114,7 +119,62 @@ export function analyzeAST(ast: AST): PDG {
 	return traverse(ast, new Env())
 
 	function traverse(ast: AST, env: Env): PDG {
-		if (typeof ast === 'string') {
+		if (ast instanceof Object) {
+			if (ast.type === 'fncall') {
+				// Function Call
+				const {fn, params} = ast
+				if (!(fn in Functions)) {
+					throw new Error(`Undefined function: ${fn}`)
+				}
+				return {
+					id: uid(),
+					type: 'fncall',
+					fn: Functions[fn],
+					name: fn,
+					params: params.map(p => traverse(p, env)),
+				}
+			} else {
+				// Graph
+				// Create new env
+				const innerEnv = new Env(ast, env)
+
+				const values = Object.fromEntries(
+					Object.entries(ast.values).map(([s, a]) => {
+						const v = innerEnv.get(s)
+						if (!v) throw new Error(`Undefined identifier ${s}`)
+						if (v.isPDG) return [s, v.pdg]
+
+						v.resolving = true
+						const pdg = traverse(a, innerEnv)
+
+						innerEnv.swap(s, {isPDG: true, pdg})
+
+						return [s, pdg]
+					})
+				)
+
+				// Resolve return symbol
+				const r = innerEnv.get(ast.return)
+				if (!r) throw new Error(`Undefined identifier: ${ast.return}`)
+				if (!r.isPDG)
+					throw new Error(`Cannot resolve return symbol ${ast.return}`)
+
+				const ret: PDGSymbol = {
+					id: uid(),
+					type: 'symbol',
+					name: ast.return,
+					ref: r.pdg,
+				}
+
+				// Generate PDG of return expression
+				return {
+					id: uid(),
+					type: 'graph',
+					values,
+					return: ret,
+				}
+			}
+		} else if (typeof ast === 'string') {
 			// Symbol
 			const v = env.get(ast)
 			if (!v) throw new Error(`Undefined identifer: ${ast}`)
@@ -143,59 +203,6 @@ export function analyzeAST(ast: AST): PDG {
 				name: ast,
 				ref: pdg,
 			}
-		} else if (Array.isArray(ast)) {
-			// Function Call
-			const [fn, ...params] = ast
-			if (!(fn in Functions)) {
-				throw new Error(`Undefined function: ${fn}`)
-			}
-			return {
-				id: uid(),
-				type: 'fncall',
-				fn: Functions[fn],
-				name: fn,
-				params: params.map(p => traverse(p, env)),
-			}
-		} else if (ast instanceof Object) {
-			// Graph
-			// Create new env
-			const innerEnv = new Env(ast, env)
-
-			const values = Object.fromEntries(
-				Object.entries(ast.values).map(([s, a]) => {
-					const v = innerEnv.get(s)
-					if (!v) throw new Error(`Undefined identifier ${s}`)
-					if (v.isPDG) return [s, v.pdg]
-
-					v.resolving = true
-					const pdg = traverse(a, innerEnv)
-
-					innerEnv.swap(s, {isPDG: true, pdg})
-
-					return [s, pdg]
-				})
-			)
-
-			// Resolve return symbol
-			const r = innerEnv.get(ast.return)
-			if (!r) throw new Error(`Undefined identifier: ${ast.return}`)
-			if (!r.isPDG)
-				throw new Error(`Cannot resolve return symbol ${ast.return}`)
-
-			const ret: PDGSymbol = {
-				id: uid(),
-				type: 'symbol',
-				name: ast.return,
-				ref: r.pdg,
-			}
-
-			// Generate PDG of return expression
-			return {
-				id: uid(),
-				type: 'graph',
-				values,
-				return: ret,
-			}
 		} else {
 			// Value (number)
 			return {
@@ -218,7 +225,6 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 		if (pdg.evaluated) return await pdg.evaluated
 
 		const {params, fn} = pdg
-
 		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
 
 		return await pdg.evaluated
