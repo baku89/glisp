@@ -53,3 +53,10 @@ export function getHTMLElement(
 		? _el.$el
 		: undefined
 }
+
+export function objectMap<V, T>(
+	obj: {[k: string]: V},
+	f: (value: [string, V]) => [string, T]
+) {
+	return Object.fromEntries(Object.entries(obj).map(f))
+}

@@ -3,12 +3,17 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type FnType = (...xs: number[]) => MaybePromise<number>
+type FnType = (...xs: number[]) => MaybePromise<number | FnType>
 
 // AST
 interface AFn {
 	type: 'fn'
-	value: FnType
+	def:
+		| FnType
+		| {
+				params: string[]
+				body: AST
+		  }
 	dataType: DataTypeFn
 }
 
@@ -69,67 +74,66 @@ interface DataTypeFn {
 
 type DataType = 'number' | DataTypeFn
 
-interface PDGValueFn {
-	fn: FnType
-	dataType: DataTypeFn
-}
-
 const GlobalEnvs = {
 	'+': {
-		type: 'value',
-		value: {
+		type: 'fn',
+		def: {type: 'js', value: (a, b) => a + b},
+		dataType: {
+			in: ['number', 'number'],
+			out: 'number',
+		},
+		resolved: {
+			result: 'succeed',
 			fn: (a, b) => a + b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
 		},
 	},
-	'-': {
-		type: 'value',
-		value: {
-			fn: (a, b) => a - b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
-		},
-	},
+	// '-': {
+	// 	type: 'value',
+	// 	value: {
+	// 		fn: (a, b) => a - b,
+	// 		dataType: {
+	// 			in: ['number', 'number'],
+	// 			out: 'number',
+	// 		},
+	// 	},
+	// },
 	'*': {
-		type: 'value',
-		value: {
+		type: 'fn',
+		def: {type: 'js', value: (a, b) => a * b},
+		dataType: {
+			in: ['number', 'number'],
+			out: 'number',
+		},
+		resolved: {
+			result: 'succeed',
 			fn: (a, b) => a * b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
 		},
 	},
-	'/': {
-		type: 'value',
-		value: {
-			fn: (a, b) => a / b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
-		},
-	},
-	neg: {
-		type: 'value',
-		value: {
-			fn: a => -a,
-			dataType: {
-				in: ['number'],
-				out: 'number',
-			},
-		},
-	},
-	PI: {
-		type: 'value',
-		value: Math.PI,
-	},
-} as {[s: string]: PDGValue}
+	// '/': {
+	// 	type: 'value',
+	// 	value: {
+	// 		fn: (a, b) => a / b,
+	// 		dataType: {
+	// 			in: ['number', 'number'],
+	// 			out: 'number',
+	// 		},
+	// 	},
+	// },
+	// neg: {
+	// 	type: 'value',
+	// 	value: {
+	// 		fn: a => -a,
+	// 		dataType: {
+	// 			in: ['number'],
+	// 			out: 'number',
+	// 		},
+	// 	},
+	// },
+	// PI: {
+	// 	type: 'value',
+	// 	value: Math.PI,
+	// },
+} as {[s: string]: PDGAtom}
 
 // PDG
 interface PDGError {
@@ -139,7 +143,7 @@ interface PDGError {
 
 interface PDGFncall {
 	type: 'fncall'
-	name: string
+	fn: PDGSymbol | PDGFn
 	params: PDG[]
 	resolved?:
 		| {
@@ -174,14 +178,26 @@ interface PDGSymbol {
 		| PDGError
 }
 
-type PDGValueContent = number | PDGValueFn
+interface PDGFn {
+	type: 'fn'
+	def: {type: 'js'; value: FnType} | {type: 'expr'; params: string[]; body: PDG}
+	dataType: DataTypeFn
+	resolved?:
+		| {
+				result: 'succeed'
+				fn: FnType
+		  }
+		| PDGError
+}
 
 interface PDGValue {
 	type: 'value'
-	value: PDGValueContent
+	value: number
 }
 
-export async function getEvaluated(pdg: PDG): Promise<PDGValueContent | null> {
+type PDGAtom = PDGValue | PDGFn
+
+export async function getEvaluated(pdg: PDG): Promise<number | FnType | null> {
 	if (pdg.type === 'value') {
 		return pdg.value
 	}
@@ -192,7 +208,7 @@ export async function getEvaluated(pdg: PDG): Promise<PDGValueContent | null> {
 		}
 
 		return getEvaluated(pdg.resolved.ref)
-	} else {
+	} else if (pdg.type === 'fncall') {
 		// Fncall
 		if (
 			!pdg.resolved ||
@@ -203,15 +219,18 @@ export async function getEvaluated(pdg: PDG): Promise<PDGValueContent | null> {
 		}
 
 		return await pdg.resolved.evaluated
+	} else {
+		if (!pdg.resolved || pdg.resolved.result === 'error') {
+			return null
+		}
+		return pdg.resolved.fn
 	}
 }
 
-export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGValue
+export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGFn | PDGValue
 
 export function readStr(str: string): AST {
-	const ast = parser.parse(str)
-	console.log(ast)
-	return ast
+	return parser.parse(str)
 }
 
 export function readAST(ast: AST): PDG {
@@ -220,16 +239,32 @@ export function readAST(ast: AST): PDG {
 			const {fn, params} = ast
 			return {
 				type: 'fncall',
-				name: fn,
+				fn: {
+					type: 'symbol',
+					name: fn,
+				},
 				params: params.map(readAST),
 			}
 		} else if (ast.type === 'fn') {
-			return {
-				type: 'value',
-				value: {
-					fn: ast.value,
+			// Function
+			if (ast.def instanceof Function) {
+				// JS Defined
+				return {
+					type: 'fn',
+					def: {type: 'js', value: ast.def},
 					dataType: ast.dataType,
-				},
+				}
+			} else {
+				// Expression
+				return {
+					type: 'fn',
+					def: {
+						type: 'expr',
+						params: ast.def.params,
+						body: readAST(ast.def.body),
+					},
+					dataType: ast.dataType,
+				}
 			}
 		} else {
 			// Graph
@@ -244,6 +279,7 @@ export function readAST(ast: AST): PDG {
 		}
 	} else {
 		if (typeof ast === 'string') {
+			// Symbol
 			return {
 				type: 'symbol',
 				name: ast,
@@ -267,14 +303,29 @@ export function getDataType(pdg: PDG): DataType | null {
 		} else {
 			return null
 		}
-	} else {
+	} else if (pdg.type === 'fncall') {
 		// fncall
 		if (pdg.resolved?.result === 'succeed') {
 			return pdg.resolved.dataType.out
 		} else {
 			return null
 		}
+	} else {
+		// function
+		return pdg.dataType
 	}
+}
+
+function getPDGFn(pdg: PDG): PDGFn | null {
+	if (pdg.type === 'fn') {
+		return pdg
+	}
+
+	if (pdg.type === 'symbol' && pdg.resolved?.result === 'succeed') {
+		return getPDGFn(pdg.resolved.ref)
+	}
+
+	return null
 }
 
 function isEqualDataType(a: DataType, b: DataType): boolean {
@@ -297,40 +348,34 @@ function isEqualDataType(a: DataType, b: DataType): boolean {
 }
 
 export function analyzePDG(pdg: PDG): PDG {
-	traverse(pdg, new Env(GlobalEnvs))
-	return pdg
+	return traverse(pdg, new Env(GlobalEnvs))
 
-	function traverse(pdg: PDG, env: Env) {
+	function traverse(pdg: PDG, env: Env): PDG {
+		if (pdg.type === 'value' || pdg.resolved) {
+			return pdg
+		}
+
 		if (pdg.type === 'fncall') {
 			// Function Call
 
-			// Check if resolved
-			if (pdg.resolved) return
-
 			// Resolve parameters
-			pdg.params.forEach(p => traverse(p, env))
+			const {params} = pdg
+			params.forEach(p => traverse(p, env))
 
-			const {name, params} = pdg
+			traverse(pdg.fn, env)
 
-			const v = env.get(name)
+			const fnPdg = getPDGFn(pdg.fn)
 
-			if (!v) {
+			if (!fnPdg || !(fnPdg.resolved?.result === 'succeed')) {
+				console.log('UID', fnPdg)
 				pdg.resolved = {
 					result: 'error',
-					message: `Undefined function: ${name}`,
+					message: 'Undefined identifer',
 				}
-				return
+				return pdg
 			}
 
-			if (v.type !== 'value' || typeof v.value === 'number') {
-				pdg.resolved = {
-					result: 'error',
-					message: `${name} is not a function`,
-				}
-				return
-			}
-
-			const {fn, dataType} = v.value
+			const {dataType} = fnPdg
 
 			// Type Checking
 			if (params.length !== dataType.in.length) {
@@ -338,11 +383,10 @@ export function analyzePDG(pdg: PDG): PDG {
 					result: 'error',
 					message: 'Number of parameter unmatched',
 				}
-				return
+				return pdg
 			}
 
 			const inDataTypes = params.map(getDataType)
-
 			if (
 				inDataTypes.some(
 					(dt, i) => dt === null || !isEqualDataType(dt, dataType.in[i])
@@ -352,19 +396,17 @@ export function analyzePDG(pdg: PDG): PDG {
 					result: 'error',
 					message: `Parameter unmatched`,
 				}
-				return
+				return pdg
 			}
 
 			pdg.resolved = {
 				result: 'succeed',
 				dataType,
-				fn,
+				fn: fnPdg.resolved.fn,
 			}
+			return pdg
 		} else if (pdg.type === 'graph') {
 			// Graph
-
-			// Check if resolved
-			if (pdg.resolved) return
 
 			// Create new env
 			const innerEnv = new Env(pdg.values, env)
@@ -376,15 +418,16 @@ export function analyzePDG(pdg: PDG): PDG {
 				innerEnv.setResolving(s, false)
 			})
 
-			// Resolve return symbol
+			// Check if return symbol is invalid
 			if (!(pdg.return in pdg.values)) {
 				pdg.resolved = {
 					result: 'error',
 					message: `Return symbol ${pdg.return} is not defined in the graph`,
 				}
-				return
+				return pdg
 			}
 
+			// Resolve
 			pdg.resolved = {
 				result: 'succeed',
 				ref: pdg.values[pdg.return],
@@ -392,35 +435,76 @@ export function analyzePDG(pdg: PDG): PDG {
 		} else if (pdg.type === 'symbol') {
 			// Symbol
 
-			// Check if resolved
-			if (pdg.resolved) return
-
+			// Check circular reference
 			if (env.isResolving(pdg.name)) {
 				pdg.resolved = {
 					result: 'error',
 					message: `Circular reference: ${pdg.name}`,
 				}
-				return
+				return pdg
 			}
 
+			// Check if symbol is defined in the env
 			const ref = env.get(pdg.name)
 			if (!ref) {
 				pdg.resolved = {
 					result: 'error',
 					message: `Undefined identifer: ${pdg.name}`,
 				}
-				return
+				return pdg
 			}
 
+			// Resolve
 			pdg.resolved = {
 				result: 'succeed',
 				ref,
 			}
+		} else if (pdg.type === 'fn') {
+			if (pdg.def.type === 'js') {
+				pdg.resolved = {
+					result: 'succeed',
+					fn: pdg.def.value,
+				}
+			} else {
+				// Resolve inside function body
+				const {params, body} = pdg.def
+				const paramsPDG: [string, PDGSymbol][] = params.map(name => {
+					return [
+						name,
+						{type: 'symbol', name, resolved: {result: 'succeed'}},
+					] as any
+				})
+
+				const fnEnv = new Env(Object.fromEntries(paramsPDG), env)
+
+				traverse(body, fnEnv)
+
+				const fn: FnType = (...params: number[]) => {
+					paramsPDG.forEach(([, sym], i) => {
+						sym.resolved = {
+							result: 'succeed',
+							ref: {
+								type: 'value',
+								value: params[i],
+							},
+						}
+					})
+
+					return evalPDG(body)
+				}
+
+				pdg.resolved = {
+					result: 'succeed',
+					fn,
+				}
+			}
 		}
+
+		return pdg
 	}
 }
 
-export async function evalPDG(pdg: PDG): Promise<PDGValueContent> {
+export async function evalPDG(pdg: PDG): Promise<number | FnType> {
 	if (pdg.type === 'value') {
 		return pdg.value
 	}
@@ -437,7 +521,7 @@ export async function evalPDG(pdg: PDG): Promise<PDGValueContent> {
 		return evalPDG(pdg.resolved.ref)
 	} else if (pdg.type === 'graph') {
 		return evalPDG(pdg.resolved.ref)
-	} else {
+	} else if (pdg.type === 'fncall') {
 		if (pdg.resolved.evaluated) return await pdg.resolved.evaluated
 
 		const {
@@ -451,6 +535,8 @@ export async function evalPDG(pdg: PDG): Promise<PDGValueContent> {
 
 		return await pdg.resolved.evaluated
 	}
+	// fn
+	return pdg.resolved.fn
 }
 
 export async function rep(str: string) {
@@ -462,7 +548,7 @@ export async function rep(str: string) {
 
 // test code
 async function test(str: string, expected: number | 'error') {
-	let result: PDGValueContent
+	let result: number | FnType
 	try {
 		result = await evalPDG(analyzePDG(readAST(readStr(str))))
 	} catch (err) {

@@ -35,8 +35,12 @@ function showPDG(pdg: PDG) {
 		pdgToId.set(pdg, id)
 
 		const label =
-			pdg.type === 'symbol' || pdg.type === 'fncall'
+			pdg.type === 'symbol'
 				? pdg.name
+				: pdg.type === 'fncall'
+				? pdg.fn.type === 'symbol'
+					? pdg.fn.name
+					: 'fn'
 				: pdg.type === 'value'
 				? typeof pdg.value === 'number'
 					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
