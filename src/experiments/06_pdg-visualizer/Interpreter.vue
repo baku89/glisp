@@ -1,5 +1,5 @@
 <template>
-	<div class="Experiment">
+	<div class="Interpreter">
 		<MinimalConsole name="05_repl" :rep="rep" @setup="onSetupConsole" />
 	</div>
 </template>
@@ -216,7 +216,7 @@ function showPDG(pdg: PDG) {
 }
 
 export default defineComponent({
-	name: 'Experiment',
+	name: 'Interpreter',
 	components: {MinimalConsole},
 	setup() {
 		useScheme()
@@ -244,7 +244,7 @@ export default defineComponent({
 @import '../../components/style/common.styl'
 @import '../../components/style/global.styl'
 
-.Experiment
+.Interpreter
 	app()
 	padding 2rem
 	height 100vh
