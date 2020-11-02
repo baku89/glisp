@@ -31,7 +31,6 @@ interface EnvPDGData {
 
 interface EnvASTData {
 	isPDG: false
-	resolving: boolean
 	ast: AST
 }
 
@@ -40,17 +39,16 @@ type EnvData = EnvPDGData | EnvASTData
 class Env {
 	private outer?: Env
 
-	private data!: {[name: string]: EnvData}
+	private data: {[name: string]: EnvData} = {}
+	private resolvingSymbols = new Set<string>()
 
 	constructor(graph?: AGraph, outer?: Env) {
 		this.outer = outer
-		this.data = {}
 
 		if (graph) {
 			for (const [s, ast] of Object.entries(graph.values)) {
 				this.data[s] = {
 					isPDG: false,
-					resolving: false,
 					ast,
 				}
 			}
@@ -67,6 +65,14 @@ class Env {
 		} else if (this.outer) {
 			this.outer.swap(s, data)
 		}
+	}
+
+	setResolving(s: string) {
+		this.resolvingSymbols.add(s)
+	}
+
+	isResolving(s: string): boolean {
+		return this.resolvingSymbols.has(s) || this.outer?.isResolving(s) || false
 	}
 }
 
@@ -174,7 +180,7 @@ export function analyzeAST(ast: AST): PDG {
 						if (!v) throw new Error(`BUG: Undefined identifier: ${s}`)
 						if (v.isPDG) return [s, v.pdg]
 
-						v.resolving = true
+						innerEnv.setResolving(s)
 						const pdg = traverse(a, innerEnv)
 
 						innerEnv.swap(s, {isPDG: true, pdg})
@@ -210,11 +216,11 @@ export function analyzeAST(ast: AST): PDG {
 				}
 			}
 
-			if (v.resolving) {
+			if (env.isResolving(ast)) {
 				throw new Error(`Circular reference: ${ast}`)
 			}
 
-			v.resolving = true
+			env.setResolving(ast)
 			const pdg = traverse(v.ast, env)
 
 			env.swap(ast, {isPDG: true, pdg})
