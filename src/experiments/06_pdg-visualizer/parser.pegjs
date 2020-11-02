@@ -1,8 +1,8 @@
 start = space? expr:expr {return expr}
 
-expr = (list / graph / number / symbol)
+expr = (atom / fncall / graph / symbol)
 
-list "funcall" = "(" space? fn:symbol params:(expr)* ")" space?
+fncall "fncall" = "(" space? fn:symbol params:(expr)* ")" space?
 	{return {type: 'fncall', fn, params}}
 
 graph "graph" = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
@@ -11,7 +11,22 @@ graph "graph" = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
 symbol "symbol" = str:[a-z+\-\*\/]i+ space?
 	{return str.join("")}
 
+atom  = number / fn
+
 number "number" = digits:[0-9]+ space?
 	{return parseInt(digits.join(""),10)}
+
+// fn "function" = "#(" space? params:(symbol)* (! "`" js:. "`") space? ")" space?
+fn "function" = "#(" space? params:(symbol)* "`" js:[^`]* "`" space? ")" space?
+	{
+		return {
+			type: 'fn',
+			value: eval(js.join('')),
+			dataType: {
+				in: Array(params.length).fill('number'),
+				out: 'number'
+			}
+		}
+	}
 
 space "whitepace" = [ \t\n\r]*

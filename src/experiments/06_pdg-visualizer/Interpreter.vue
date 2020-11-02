@@ -38,15 +38,17 @@ function showPDG(pdg: PDG) {
 			pdg.type === 'symbol' || pdg.type === 'fncall'
 				? pdg.name
 				: pdg.type === 'value'
-				? pdg.value.toString()
+				? typeof pdg.value === 'number'
+					? pdg.value.toString()
+					: 'fn'
 				: '' // graph
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
-		const invalid = 'error' in pdg
+		const valid = pdg.type === 'value' || pdg.resolved?.result === 'succeed'
 
 		elements.push({
-			classes: [pdg.type, invalid ? 'invalid' : ''].join(' '),
+			classes: [pdg.type, valid ? '' : 'invalid'].join(' '),
 			data: {id, label, width},
 		})
 
