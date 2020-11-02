@@ -84,47 +84,81 @@ const Functions = {
 
 // PDG
 
-interface PDGFncall {
+interface PDGFncallBase {
 	type: 'fncall'
 	name: string
 	params: PDG[]
-	fn?: AFunction
-	invalid?: boolean
+}
+
+interface PDGFncallResolved extends PDGFncallBase {
+	fn: AFunction
 	evaluated?: Promise<number>
 }
 
-interface PDGGraph {
+interface PDGFncallError extends PDGFncallBase {
+	error: string
+}
+
+type PDGFncall = PDGFncallBase | PDGFncallResolved | PDGFncallError
+
+interface PDGGraphBase {
 	type: 'graph'
 	values: {[sym: string]: PDG}
 	return: string
-	ref?: PDG
 }
 
-interface PDGSymbol {
+interface PDGGraphResolved extends PDGGraphBase {
+	ref: PDG
+}
+
+interface PDGGraphError extends PDGGraphBase {
+	error: string
+}
+
+type PDGGraph = PDGGraphBase | PDGGraphResolved | PDGGraphError
+
+interface PDGSymbolBase {
 	type: 'symbol'
 	name: string
-	ref?: PDG
 }
+
+interface PDGSymbolResolved extends PDGSymbolBase {
+	ref: PDG
+}
+
+interface PDGSymbolError extends PDGSymbolBase {
+	error: string
+}
+
+type PDGSymbol = PDGSymbolBase | PDGSymbolResolved | PDGSymbolError
 
 interface PDGValue {
 	type: 'value'
 	value: number
 }
 
-export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGValue
-
-function isResolved(pdg: PDG) {
-	if (pdg.type === 'value' || pdg.type === 'graph') {
-		return true
+export async function getEvaluated(pdg: PDG): Promise<number | null> {
+	if (pdg.type === 'value') {
+		return pdg.value
 	}
 
-	if (pdg.type === 'fncall') {
-		return !!pdg.fn && 'invalid' in pdg
+	if (pdg.type === 'symbol' || pdg.type === 'graph') {
+		if ('error' in pdg || !('ref' in pdg)) {
+			return null
+		}
+
+		return getEvaluated(pdg.ref)
 	} else {
-		// Symbol
-		return !!pdg.ref
+		// Fncall
+		if ('error' in pdg || !('fn' in pdg) || !pdg.evaluated) {
+			return null
+		}
+
+		return await pdg.evaluated
 	}
 }
+
+export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGValue
 
 export function readStr(str: string): AST {
 	return parser.parse(str)
@@ -175,26 +209,31 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Function Call
 
 			// Check if resolved
-			if (pdg.fn && 'invalid' in pdg) return
+			if ('fn' in pdg || 'error' in pdg) return
+
+			// Traverse children
+			pdg.params.forEach(p => traverse(p, env))
 
 			const {name, params} = pdg
 
 			if (!(name in Functions)) {
-				throw new Error(`Undefined function: ${name}`)
+				;(pdg as PDGFncallError).error = `Undefined function: ${name}`
+				return
 			}
 
 			const {fn, paramCount} = Functions[name]
 
-			// Parameter type checking
-			pdg.fn = fn
-			pdg.invalid = params.length !== paramCount
+			if (params.length !== paramCount) {
+				;(pdg as PDGFncallError).error = `Invalid parameter`
+				return
+			}
 
-			pdg.params.forEach(p => traverse(p, env))
+			;(pdg as PDGFncallResolved).fn = fn
 		} else if (pdg.type === 'graph') {
 			// Graph
 
 			// Check if resolved
-			if (pdg.ref) return
+			if ('ref' in pdg || 'error' in pdg) return
 
 			// Create new env
 			const innerEnv = new Env(pdg.values, env)
@@ -207,24 +246,25 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve return symbol
 			if (!(pdg.return in pdg.values)) {
-				throw new Error(`Cannot resolve return symbol ${pdg.return}`)
+				;(pdg as PDGGraphError).error = `Cannot resolve return symbol ${pdg.return}`
+				return
 			}
 
-			pdg.ref = pdg.values[pdg.return]
+			;(pdg as PDGGraphResolved).ref = pdg.values[pdg.return]
 		} else if (pdg.type === 'symbol') {
 			// Symbol
 
 			// Check if resolved
-			if (pdg.ref) return
+			if ('ref' in pdg || 'error' in pdg) return
 
 			if (env.isResolving(pdg.name)) {
-				throw new Error(`Circular reference: ${pdg.name}`)
+				;(pdg as PDGSymbolError).error = `Circular reference: ${pdg.name}`
+				return
 			}
 
 			const ref = env.get(pdg.name)
 			if (!ref) throw new Error(`Undefined identifer: ${pdg.name}`)
-
-			pdg.ref = ref
+			;(pdg as PDGSymbolResolved).ref = ref
 		}
 	}
 }
@@ -232,28 +272,30 @@ export function analyzePDG(pdg: PDG): PDG {
 export async function evalPDG(pdg: PDG): Promise<number> {
 	if (pdg.type === 'value') {
 		return pdg.value
-	} else if (pdg.type === 'symbol') {
-		if (!pdg.ref) {
-			return Promise.reject(`Symbol ${pdg.ref} has not yet resolved`)
+	}
+
+	if ('error' in pdg) {
+		return Promise.reject(pdg.error)
+	}
+
+	if (pdg.type === 'symbol') {
+		if (!('ref' in pdg)) {
+			return Promise.reject(`Symbol ${pdg.name} has not yet resolved`)
 		}
 		return evalPDG(pdg.ref)
 	} else if (pdg.type === 'graph') {
-		if (!pdg.ref) {
-			return Promise.reject(`Return symbol ${pdg.ref} has not yet resolved`)
+		if (!('ref' in pdg)) {
+			return Promise.reject(`Return symbol ${pdg.return} has not yet resolved`)
 		}
 		return evalPDG(pdg.ref)
 	} else {
+		if (!('fn' in pdg)) {
+			return Promise.reject(`Function symbol ${pdg.name} has not yet resolved`)
+		}
+
 		if (pdg.evaluated) return await pdg.evaluated
 
-		const {params, fn, invalid} = pdg
-
-		if (invalid) {
-			return Promise.reject('Invalid parameter')
-		}
-
-		if (!fn) {
-			return Promise.reject(`Function ${pdg.name} has not yet resolved`)
-		}
+		const {params, fn} = pdg
 
 		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
 

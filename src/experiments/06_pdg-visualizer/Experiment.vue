@@ -43,7 +43,7 @@ function showPDG(pdg: PDG) {
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
-		const invalid = pdg.type === 'fncall' ? !!pdg.invalid : false
+		const invalid = 'error' in pdg
 
 		elements.push({
 			classes: [pdg.type, invalid ? 'invalid' : ''].join(' '),
@@ -71,7 +71,7 @@ function showPDG(pdg: PDG) {
 
 			elements.push(...children)
 		} else if (pdg.type === 'symbol') {
-			if (!pdg.ref) throw new Error('Unresolved symbol')
+			if (!('ref' in pdg)) throw new Error('Unresolved symbol')
 			elements.push({
 				classes: 'ref',
 				data: {
