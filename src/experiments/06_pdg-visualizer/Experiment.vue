@@ -14,7 +14,7 @@ import {defineComponent} from 'vue'
 import useScheme from '@/components/use/use-scheme'
 import MinimalConsole from './MinimalConsole.vue'
 
-import {readStr, analyzeAST, evalPDG, PDG} from './repl'
+import {readStr, readAST, analyzePDG, evalPDG, PDG} from './repl'
 
 function showPDG(pdg: PDG) {
 	const el = document.createElement('div')
@@ -71,6 +71,7 @@ function showPDG(pdg: PDG) {
 
 			elements.push(...children)
 		} else if (pdg.type === 'symbol') {
+			if (!pdg.ref) throw new Error('Unresolved symbol')
 			elements.push({
 				classes: 'ref',
 				data: {
@@ -222,17 +223,10 @@ export default defineComponent({
 		let append: ((el: Element) => any) | undefined = undefined
 
 		async function rep(str: string) {
-			const pdg = analyzeAST(readStr(str))
+			const pdg = analyzePDG(readAST(readStr(str)))
 			append && append(showPDG(pdg))
 			// showPDG(pdg)
-			let ret: number
-			try {
-				ret = await evalPDG(pdg)
-			} catch {
-				ret = NaN
-			}
-
-			console.log(pdg)
+			const ret = await evalPDG(pdg)
 			return ret.toString()
 		}
 

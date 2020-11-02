@@ -24,51 +24,28 @@ type AST = number | ASymbol | AFncall | AGraph
 
 // Env
 
-interface EnvPDGData {
-	isPDG: true
-	pdg: PDG
-}
-
-interface EnvASTData {
-	isPDG: false
-	ast: AST
-}
-
 type EnvData = EnvPDGData | EnvASTData
 
 class Env {
 	private outer?: Env
 
-	private data: {[name: string]: EnvData} = {}
+	private data: {[name: string]: PDG} = {}
 	private resolvingSymbols = new Set<string>()
 
-	constructor(graph?: AGraph, outer?: Env) {
+	constructor(values?: {[s: string]: PDG}, outer?: Env) {
 		this.outer = outer
 
-		if (graph) {
-			for (const [s, ast] of Object.entries(graph.values)) {
-				this.data[s] = {
-					isPDG: false,
-					ast,
-				}
-			}
+		if (values) {
+			this.data = {...values}
 		}
 	}
 
-	get(s: string): EnvData | undefined {
+	get(s: string): PDG | undefined {
 		return this.data[s] ?? this.outer?.get(s)
 	}
 
-	swap(s: string, data: EnvData) {
-		if (this.data[s]) {
-			this.data[s] = data
-		} else if (this.outer) {
-			this.outer.swap(s, data)
-		}
-	}
-
-	setResolving(s: string) {
-		this.resolvingSymbols.add(s)
+	setResolving(s: string, flag: boolean) {
+		this.resolvingSymbols[flag ? 'add' : 'delete'](s)
 	}
 
 	isResolving(s: string): boolean {
@@ -108,136 +85,146 @@ const Functions = {
 // PDG
 
 interface PDGFncall {
-	id: string
 	type: 'fncall'
-	fn: AFunction
 	name: string
 	params: PDG[]
+	fn?: AFunction
 	invalid?: boolean
 	evaluated?: Promise<number>
 }
 
 interface PDGGraph {
-	id: string
 	type: 'graph'
 	values: {[sym: string]: PDG}
 	return: string
+	ref?: PDG
 }
 
 interface PDGSymbol {
-	id: string
 	type: 'symbol'
 	name: string
-	ref: PDG
+	ref?: PDG
 }
 
 interface PDGValue {
-	id: string
 	type: 'value'
 	value: number
 }
 
 export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGValue
 
+function isResolved(pdg: PDG) {
+	if (pdg.type === 'value' || pdg.type === 'graph') {
+		return true
+	}
+
+	if (pdg.type === 'fncall') {
+		return !!pdg.fn && 'invalid' in pdg
+	} else {
+		// Symbol
+		return !!pdg.ref
+	}
+}
+
 export function readStr(str: string): AST {
 	return parser.parse(str)
 }
 
-export function analyzeAST(ast: AST): PDG {
-	return traverse(ast, new Env())
-
-	function traverse(ast: AST, env: Env): PDG {
-		if (ast instanceof Object) {
-			if (ast.type === 'fncall') {
-				// Function Call
-				const {fn: fnName, params} = ast
-
-				if (!(fnName in Functions)) {
-					throw new Error(`Undefined function: ${fnName}`)
-				}
-
-				const {fn, paramCount} = Functions[fnName]
-
-				// Parameter type checking
-				const invalid = params.length !== paramCount
-
-				return {
-					id: uid(),
-					type: 'fncall',
-					fn,
-					name: fnName,
-					params: params.map(p => traverse(p, env)),
-					invalid,
-				}
-			} else {
-				// Graph
-				// Create new env
-				const innerEnv = new Env(ast, env)
-
-				const values = Object.fromEntries(
-					Object.entries(ast.values).map(([s, a]) => {
-						const v = innerEnv.get(s)
-						if (!v) throw new Error(`BUG: Undefined identifier: ${s}`)
-						if (v.isPDG) return [s, v.pdg]
-
-						innerEnv.setResolving(s)
-						const pdg = traverse(a, innerEnv)
-
-						innerEnv.swap(s, {isPDG: true, pdg})
-
-						return [s, pdg]
-					})
-				)
-
-				// Resolve return symbol
-				if (!(ast.return in values)) {
-					throw new Error(`Cannot resolve return symbol ${ast.return}`)
-				}
-
-				// Generate PDG of return expression
-				return {
-					id: uid(),
-					type: 'graph',
-					values,
-					return: ast.return,
-				}
-			}
-		} else if (typeof ast === 'string') {
-			// Symbol
-			const v = env.get(ast)
-			if (!v) throw new Error(`Undefined identifer: ${ast}`)
-
-			if (v.isPDG) {
-				return {
-					id: uid(),
-					type: 'symbol',
-					name: ast,
-					ref: v.pdg,
-				}
-			}
-
-			if (env.isResolving(ast)) {
-				throw new Error(`Circular reference: ${ast}`)
-			}
-
-			env.setResolving(ast)
-			const pdg = traverse(v.ast, env)
-
-			env.swap(ast, {isPDG: true, pdg})
-
+export function readAST(ast: AST): PDG {
+	if (ast instanceof Object) {
+		if (ast.type === 'fncall') {
+			const {fn, params} = ast
 			return {
-				id: uid(),
-				type: 'symbol',
-				name: ast,
-				ref: pdg,
+				type: 'fncall',
+				name: fn,
+				params: params.map(readAST),
 			}
 		} else {
-			// Value (number)
+			// Graph
+			const values = Object.fromEntries(
+				Object.entries(ast.values).map(([s, a]) => [s, readAST(a)])
+			)
 			return {
-				id: uid(),
+				type: 'graph',
+				values,
+				return: ast.return,
+			}
+		}
+	} else {
+		if (typeof ast === 'string') {
+			return {
+				type: 'symbol',
+				name: ast,
+			}
+		} else {
+			// Number
+			return {
 				type: 'value',
 				value: ast,
 			}
+		}
+	}
+}
+
+export function analyzePDG(pdg: PDG): PDG {
+	traverse(pdg, new Env())
+	return pdg
+
+	function traverse(pdg: PDG, env: Env) {
+		if (pdg.type === 'fncall') {
+			// Function Call
+
+			// Check if resolved
+			if (pdg.fn && 'invalid' in pdg) return
+
+			const {name, params} = pdg
+
+			if (!(name in Functions)) {
+				throw new Error(`Undefined function: ${name}`)
+			}
+
+			const {fn, paramCount} = Functions[name]
+
+			// Parameter type checking
+			pdg.fn = fn
+			pdg.invalid = params.length !== paramCount
+
+			pdg.params.forEach(p => traverse(p, env))
+		} else if (pdg.type === 'graph') {
+			// Graph
+
+			// Check if resolved
+			if (pdg.ref) return
+
+			// Create new env
+			const innerEnv = new Env(pdg.values, env)
+
+			Object.entries(pdg.values).map(([s, p]) => {
+				innerEnv.setResolving(s, true)
+				traverse(p, innerEnv)
+				innerEnv.setResolving(s, false)
+			})
+
+			// Resolve return symbol
+			if (!(pdg.return in pdg.values)) {
+				throw new Error(`Cannot resolve return symbol ${pdg.return}`)
+			}
+
+			pdg.ref = pdg.values[pdg.return]
+		} else if (pdg.type === 'symbol') {
+			// Symbol
+
+			// Check if resolved
+			if (pdg.ref) return
+
+			if (env.isResolving(pdg.name)) {
+				throw new Error(`Circular reference: ${pdg.name}`)
+			}
+
+			const ref = env.get(pdg.name)
+			if (!ref) throw new Error(`Undefined identifer: ${pdg.name}`)
+
+			pdg.ref = ref
 		}
 	}
 }
@@ -246,9 +233,15 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 	if (pdg.type === 'value') {
 		return pdg.value
 	} else if (pdg.type === 'symbol') {
+		if (!pdg.ref) {
+			return Promise.reject(`Symbol ${pdg.ref} has not yet resolved`)
+		}
 		return evalPDG(pdg.ref)
 	} else if (pdg.type === 'graph') {
-		return evalPDG(pdg.values[pdg.return])
+		if (!pdg.ref) {
+			return Promise.reject(`Return symbol ${pdg.ref} has not yet resolved`)
+		}
+		return evalPDG(pdg.ref)
 	} else {
 		if (pdg.evaluated) return await pdg.evaluated
 
@@ -256,6 +249,10 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 
 		if (invalid) {
 			return Promise.reject('Invalid parameter')
+		}
+
+		if (!fn) {
+			return Promise.reject(`Function ${pdg.name} has not yet resolved`)
 		}
 
 		pdg.evaluated = Promise.all(params.map(evalPDG)).then(ps => fn(...ps))
@@ -266,7 +263,7 @@ export async function evalPDG(pdg: PDG): Promise<number> {
 
 export async function rep(str: string) {
 	const ast = readStr(str)
-	const pdg = analyzeAST(ast)
+	const pdg = analyzePDG(readAST(ast))
 	const ret = await evalPDG(pdg)
 	return ret.toString()
 }
@@ -275,7 +272,7 @@ export async function rep(str: string) {
 async function test(str: string, expected: number | 'error') {
 	let result: number
 	try {
-		result = await evalPDG(analyzeAST(readStr(str)))
+		result = await evalPDG(analyzePDG(readAST(readStr(str))))
 	} catch (err) {
 		const invalid = expected !== 'error'
 		console[invalid ? 'error' : 'info'](
