@@ -123,9 +123,11 @@ export function analyzeAST(ast: AST): PDG {
 			if (ast.type === 'fncall') {
 				// Function Call
 				const {fn, params} = ast
+				console.log(ast)
 				if (!(fn in Functions)) {
 					throw new Error(`Undefined function: ${fn}`)
 				}
+
 				return {
 					id: uid(),
 					type: 'fncall',
@@ -134,6 +136,7 @@ export function analyzeAST(ast: AST): PDG {
 					params: params.map(p => traverse(p, env)),
 				}
 			} else {
+				console.log(ast)
 				// Graph
 				// Create new env
 				const innerEnv = new Env(ast, env)
@@ -141,7 +144,7 @@ export function analyzeAST(ast: AST): PDG {
 				const values = Object.fromEntries(
 					Object.entries(ast.values).map(([s, a]) => {
 						const v = innerEnv.get(s)
-						if (!v) throw new Error(`Undefined identifier ${s}`)
+						if (!v) throw new Error(`BUG: Undefined identifier: ${s}`)
 						if (v.isPDG) return [s, v.pdg]
 
 						v.resolving = true
@@ -155,7 +158,10 @@ export function analyzeAST(ast: AST): PDG {
 
 				// Resolve return symbol
 				const r = innerEnv.get(ast.return)
-				if (!r) throw new Error(`Undefined identifier: ${ast.return}`)
+				if (!r)
+					throw new Error(
+						`Undefined identifier in return expression: ${ast.return}`
+					)
 				if (!r.isPDG)
 					throw new Error(`Cannot resolve return symbol ${ast.return}`)
 

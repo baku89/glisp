@@ -3,10 +3,10 @@ start = space? expr:expr {return expr}
 expr = (list / graph / number / symbol)
 
 list "funcall" = "(" space? fn:symbol params:(expr)* ")" space?
-	{return [fn, ...params]}
+	{return {type: 'fncall', fn, params}}
 
 graph "graph" = "{" space? pairs:(symbol expr)* space? ret:symbol "}" space?
-	{return {values: Object.fromEntries(pairs), return: ret}}
+	{return {type: 'graph', values: Object.fromEntries(pairs), return: ret}}
 
 symbol "symbol" = str:[a-z+\-\*\/]i+ space?
 	{return str.join("")}
