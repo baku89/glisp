@@ -71,15 +71,15 @@ function showPDG(pdg: PDG) {
 
 			elements.push(...children)
 		} else if (pdg.type === 'symbol') {
-			if (!pdg.resolved || pdg.resolved.result === 'error')
-				throw new Error('Unresolved symbol')
-			elements.push({
-				classes: 'ref',
-				data: {
-					source: gen(pdg.resolved.ref),
-					target: id,
-				},
-			})
+			if (pdg.resolved?.result === 'succeed') {
+				elements.push({
+					classes: 'ref',
+					data: {
+						source: gen(pdg.resolved.ref),
+						target: id,
+					},
+				})
+			}
 		}
 
 		return id

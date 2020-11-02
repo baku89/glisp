@@ -252,7 +252,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			if (!(pdg.return in pdg.values)) {
 				pdg.resolved = {
 					result: 'error',
-					message: `Cannot resolve return symbol ${pdg.return}`,
+					message: `Return symbol ${pdg.return} is not defined in the graph`,
 				}
 				return
 			}
@@ -346,7 +346,7 @@ async function test(str: string, expected: number | 'error') {
 			'expected=',
 			expected,
 			'result=',
-			err.message
+			err
 		)
 		return
 	}
@@ -363,9 +363,9 @@ async function test(str: string, expected: number | 'error') {
 }
 
 ;(async function () {
-	await test('(+ 1 2)', 3)
-	await test('(+ 1 (+ 2 3))', 6)
-	await test('{a (+ 1 2) a}', 3)
+	// await test('(+ 1 2)', 3)
+	// await test('(+ 1 (+ 2 3))', 6)
+	// await test('{a (+ 1 2) a}', 3)
 	await test('{a a a}', 'error')
-	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+	// await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
 })()
