@@ -363,9 +363,11 @@ async function test(str: string, expected: number | 'error') {
 }
 
 ;(async function () {
-	// await test('(+ 1 2)', 3)
-	// await test('(+ 1 (+ 2 3))', 6)
-	// await test('{a (+ 1 2) a}', 3)
+	await test('(+ 1 2)', 3)
+	await test('(+ 1 (+ 2 3))', 6)
+	await test('{a (+ 1 2) a}', 3)
+	await test('{a b b a c (+ 1 2) c}', 3)
+	await test('(+ {a 10 b (* a 2) b} 1)', 21)
 	await test('{a a a}', 'error')
-	// await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
 })()
