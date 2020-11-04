@@ -3,16 +3,20 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-// Primitives for both AST and PDG
-type FnType = (...xs: number[]) => MaybePromise<number | FnValue>
+type MaybePromise<T> = Promise<T> | T
 
-interface FnValue {
+// Primitives for both AST and PDG
+type FnType = (...xs: Value[]) => MaybePromise<Value>
+
+type Value = number | ValueFn
+
+interface ValueFn {
 	fn: FnType
 	dataType: DataTypeFn
 }
 
 // AST
-interface AFn {
+interface ASTFn {
 	type: 'fn'
 	def:
 		| FnType
@@ -25,21 +29,19 @@ interface AFn {
 
 type ASymbol = string
 
-type AFncall = {
+type ASTFncall = {
 	type: 'fncall'
 	fn: AST
 	params: AST[]
 }
 
-type MaybePromise<T> = Promise<T> | T
-
-interface AGraph {
+interface ASTGraph {
 	type: 'graph'
 	values: {[sym: string]: AST}
 	return: ASymbol
 }
 
-type AST = number | AFn | ASymbol | AFncall | AGraph
+type AST = number | ASTFn | ASymbol | ASTFncall | ASTGraph
 
 // Env
 class Env {
@@ -82,7 +84,7 @@ const GlobalEnvs = {
 		type: 'fn',
 		def: {
 			type: 'js',
-			value: (a, b) => a + b,
+			value: (a: number, b: number) => a + b,
 			dataType: {
 				in: ['number', 'number'],
 				out: 'number',
@@ -91,7 +93,7 @@ const GlobalEnvs = {
 		resolved: {
 			result: 'succeed',
 			value: {
-				fn: (a, b) => a + b,
+				fn: (a: number, b: number) => a + b,
 				dataType: {
 					in: ['number', 'number'],
 					out: 'number',
@@ -104,7 +106,7 @@ const GlobalEnvs = {
 		type: 'fn',
 		def: {
 			type: 'js',
-			value: (a, b) => a * b,
+			value: (a: number, b: number) => a * b,
 			dataType: {
 				in: ['number', 'number'],
 				out: 'number',
@@ -113,7 +115,7 @@ const GlobalEnvs = {
 		resolved: {
 			result: 'succeed',
 			value: {
-				fn: (a, b) => a * b,
+				fn: (a: number, b: number) => a * b,
 				dataType: {
 					in: ['number', 'number'],
 					out: 'number',
@@ -141,9 +143,9 @@ interface PDGFncall extends PDGBase {
 	resolved?:
 		| {
 				result: 'succeed'
-				fn: FnType
+				fn: PDG
 				dataType: DataTypeFn
-				evaluated?: Promise<number>
+				evaluated?: Promise<Value>
 		  }
 		| PDGResolvedError
 }
@@ -188,14 +190,14 @@ interface PDGFn extends PDGBase {
 	resolved?:
 		| {
 				result: 'succeed'
-				value: FnValue
+				value: ValueFn
 		  }
 		| PDGResolvedError
 }
 
 interface PDGValue extends PDGBase {
 	type: 'value'
-	value: number
+	value: Value
 }
 
 type PDGAtom = PDGValue | PDGFn
@@ -353,28 +355,19 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			traverse(pdg.fn, env, pdg)
 
-			const _fnPdg = traverse(pdg.fn, env, pdg)
-			const fnPdg = getPDGFn(_fnPdg)
+			const fnPdg = traverse(pdg.fn, env, pdg)
+
+			const dataType = getDataType(fnPdg)
 
 			// IF fn has not yet resolved
-			if (fnPdg === null) {
-				console.error(fnPdg, _fnPdg)
+			if (dataType === null || dataType === 'number') {
+				console.error(fnPdg)
 				pdg.resolved = {
 					result: 'error',
 					message: 'Not a function',
 				}
 				return pdg
 			}
-
-			if (fnPdg.resolved?.result !== 'succeed') {
-				pdg.resolved = {
-					result: 'error',
-					message: 'Undefined identifer',
-				}
-				return pdg
-			}
-
-			const {dataType} = fnPdg.def
 
 			// Type Checking: invalid length of parmeter
 			if (params.length !== dataType.in.length) {
@@ -403,7 +396,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			pdg.resolved = {
 				result: 'succeed',
 				dataType,
-				fn: fnPdg.resolved.value.fn,
+				fn: fnPdg,
 			}
 		} else if (pdg.type === 'graph') {
 			// Graph
@@ -493,7 +486,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 				traverse(body, fnEnv, null)
 
-				const fn: FnType = async (...params: number[]) => {
+				const fn: FnType = async (...params: (ValueFn | number)[]) => {
 					paramsPDG.forEach(([, sym], i) => (sym.value = params[i]))
 					const ret = await evalPDG(body)
 					paramsPDG.forEach(([, sym]) => setDirty(sym))
@@ -515,7 +508,7 @@ export function analyzePDG(pdg: PDG): PDG {
 	}
 }
 
-export async function evalPDG(pdg: PDG): Promise<number | FnValue> {
+export async function evalPDG(pdg: PDG): Promise<Value> {
 	if (pdg.type === 'value') {
 		return pdg.value
 	}
@@ -539,12 +532,13 @@ export async function evalPDG(pdg: PDG): Promise<number | FnValue> {
 
 			const {
 				params,
-				resolved: {fn},
+				resolved: {fn: fnPdg},
 			} = pdg
 
-			pdg.resolved.evaluated = Promise.all(params.map(evalPDG)).then(ps =>
-				(fn as any)(...ps)
-			)
+			pdg.resolved.evaluated = Promise.all([
+				evalPDG(fnPdg),
+				...params.map(evalPDG),
+			]).then(([fn, ...ps]) => (fn as ValueFn).fn(...ps))
 
 			return await pdg.resolved.evaluated
 		}
@@ -557,11 +551,11 @@ export function printDataType(dt: DataType): string {
 	} else {
 		const inStr = dt.in.map(printDataType).join(' ')
 		const outStr = printDataType(dt.out)
-		return `((${inStr}) => ${outStr})`
+		return `(${inStr} -> ${outStr})`
 	}
 }
 
-export function printValue(value: number | FnValue): string {
+export function printValue(value: Value): string {
 	if (typeof value === 'number') {
 		return value.toFixed(4).replace(/\.?[0]+$/, '')
 	} else {
@@ -578,7 +572,7 @@ export async function rep(str: string) {
 
 // test code
 async function test(str: string, expected: number | 'error') {
-	let result: number | FnValue
+	let result: Value
 	try {
 		const ast = readStr(str)
 		result = await evalPDG(analyzePDG(readAST(ast)))
@@ -608,12 +602,16 @@ async function test(str: string, expected: number | 'error') {
 }
 
 ;(async function () {
-	// await test('(+ 1 2)', 3)
-	// await test('(+ 1 (+ 2 3))', 6)
+	await test('(+ 1 2)', 3)
+	await test('(+ 1 (+ 2 3))', 6)
 	await test('(#(x : number => (+ x 1) : number) 1)', 2)
-	// await test('{a (+ 1 2) a}', 3)
-	// await test('{a b b a c (+ 1 2) c}', 3)
-	// await test('(+ {a 10 b (* a 2) b} 1)', 21)
-	// await test('{a a a}', 'error')
-	// await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+	await test(
+		'((#(x: number => #(y: number => (+ x y): number): (number -> number)) 1) 2)',
+		3
+	)
+	await test('{a (+ 1 2) a}', 3)
+	await test('{a b b a c (+ 1 2) c}', 3)
+	await test('(+ {a 10 b (* a 2) b} 1)', 21)
+	await test('{a a a}', 'error')
+	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
 })()

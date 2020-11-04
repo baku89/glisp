@@ -1,36 +1,15 @@
 start = space? expr:expr {return expr}
 
-expr = (fncall / graph / symbol / atom)
+expr = (atom / fncall / graph / symbol)
 
-fncall = "(" space? fn:expr params:(expr)* ")" space?
-	{return {type: 'fncall', fn, params}}
+// Space
+space "whitepace" = [ \t\n\r]*
 
-graph = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
-	{return {type: 'graph', values: Object.fromEntries(pairs), return: ret}}
-
-symbol = str:[a-z+\-\*\/]i+ space?
-	{return str.join("")}
-
+// Atoms
 atom  = number / fn
 
-number = digits:([+\-0-9]+) space?
+number = digits:([\-0-9]+) space?
 	{return parseInt(digits.join(""),10)}
-
-
-dataType = dataType:(dataTypeNumber / dataTypeFn) space? {return dataType }
-
-dataTypeNumber = num:"number" { return num }
-
-dataTypeParam = "(" space? inTypes:(dataType space?)* space? ")" space? {
-	return inTypes.map(it => it[0])
-}
-
-dataTypeFn = "(" space? inType:dataTypeParam space? "=>" space? outType:dataType space? ")" {
-	return {
-		in: inType,
-		out: outType
-	}
-}
 
 fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" space? outType:dataType ")" space?
 	{
@@ -47,4 +26,24 @@ fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" 
 		}
 	}
 
-space "whitepace" = [ \t\n\r]*
+// Types needs to be resolved
+fncall = "(" space? fn:expr params:(expr)* ")" space?
+	{return {type: 'fncall', fn, params}}
+
+graph = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
+	{return {type: 'graph', values: Object.fromEntries(pairs), return: ret}}
+
+symbol = str:[a-z+\-\*\/]i+ space?
+	{return str.join("")}
+
+// Data Type
+dataType = dataType:(dataTypeNumber / dataTypeFn) space? {return dataType }
+
+dataTypeNumber = num:"number" { return num }
+
+dataTypeFn = "(" space? inTypes:dataType* "->" space? outType:dataType space? ")" {
+	return {
+		in: inTypes,
+		out: outType
+	}
+}

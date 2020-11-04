@@ -50,7 +50,9 @@ async function showPDG(pdg: PDG) {
 					? pdg.fn.name
 					: 'fn'
 				: pdg.type === 'value'
-				? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
+				? typeof pdg.value === 'number'
+					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
+					: printDataType(pdg.value.dataType)
 				: pdg.type === 'fn'
 				? 'fn'
 				: '{}' // graph
