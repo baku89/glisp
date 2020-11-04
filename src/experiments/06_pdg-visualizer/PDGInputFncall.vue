@@ -34,11 +34,15 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const fnName = computed(
-			() =>
-				printPDG(props.modelValue.fn) +
-				' : ' +
-				printDataType(getDataType(props.modelValue.fn) || 'number').slice(1, -1)
+		const fnName = computed(() =>
+			props.modelValue.fn.type === 'symbol'
+				? printPDG(props.modelValue.fn)
+				: 'f' +
+				  ' : ' +
+				  printDataType(getDataType(props.modelValue.fn) || 'number').slice(
+						1,
+						-1
+				  )
 		)
 
 		function onUpdateParam(i: number, newParam: PDG) {

@@ -15,6 +15,7 @@
 <script lang="ts">
 import 'normalize.css'
 
+import {useLocalStorage} from '@vueuse/core'
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
@@ -37,7 +38,7 @@ export default defineComponent({
 	setup() {
 		useScheme()
 
-		const code = ref('(not true)')
+		const code = useLocalStorage('glisp_ed', '(not true)')
 
 		const pdg = shallowRef<PDG>(analyzePDG(readAST(readStr(code.value))))
 
