@@ -5,21 +5,21 @@
 </template>
 
 <script lang="ts">
+import ace from 'brace'
 import {
 	defineComponent,
-	onMounted,
-	ref,
-	onBeforeUnmount,
-	watch,
-	SetupContext,
-	PropType,
 	nextTick,
+	onBeforeUnmount,
+	onMounted,
+	PropType,
+	ref,
+	SetupContext,
 	unref,
+	watch,
 } from 'vue'
-import ace from 'brace'
 
 import {setupEditor} from './setup'
-import {getEditorSelection, convertToAceRange} from './utils'
+import {convertToAceRange, getEditorSelection} from './utils'
 
 interface Props {
 	modelValue: string

@@ -22,21 +22,19 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {defineComponent, ref, shallowRef, watch} from 'vue'
-
-import useScheme from '@/components/use/use-scheme'
-import useBind from '@/components/use/use-bind/index.ts'
-
-import {Splitpanes, Pane} from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
+
+import {Pane, Splitpanes} from 'splitpanes'
+import {defineComponent, ref, shallowRef, watch} from 'vue'
 
 import Console from '@/components/Console.vue'
 import GlispEditor from '@/components/GlispEditor'
-import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
-
-import Scope from '@/mal/scope'
+import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
+import useBind from '@/components/use/use-bind/index.ts'
+import useScheme from '@/components/use/use-scheme'
 import {printer} from '@/mal/printer'
+import Scope from '@/mal/scope'
 import {MalBoolean, MalNil} from '@/mal/types'
 
 export default defineComponent({

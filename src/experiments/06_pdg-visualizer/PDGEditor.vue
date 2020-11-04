@@ -1,15 +1,13 @@
 <template>
 	<div class="PDGEditor">
-		<div class="PDGEditor__editor">
-			<InputString :multiline="true" v-model="code" />
-		</div>
+		<GlispEditor class="PDGEditor__editor" v-model="code" />
 		<div vclass="PDGEditor__inspector">
 			<PDGInputExp :modelValue="pdg" @update:modelValue="onUpdatePDG" />
 		</div>
 		<div class="PDGEditor__result">
 			<pre>{{ printedCode }}</pre>
-			<div>{{ returned }}</div>
-			<PDGVisualizer class="PDGEditor__vis" :modelValue="pdg" />
+			<div>Result: {{ returned }}</div>
+			<!-- <PDGVisualizer class="PDGEditor__vis" :modelValue="pdg" /> -->
 		</div>
 	</div>
 </template>
@@ -19,11 +17,10 @@ import 'normalize.css'
 
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
-import InputString from '@/components/inputs/InputString.vue'
+import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import useScheme from '@/components/use/use-scheme'
 
 import PDGInputExp from './PDGInputExp.vue'
-import PDGVisualizer from './PDGVisualizer.vue'
 import {
 	analyzePDG,
 	evalPDG,
@@ -36,7 +33,7 @@ import {
 
 export default defineComponent({
 	name: 'PDGEditor',
-	components: {PDGInputExp, InputString, PDGVisualizer},
+	components: {PDGInputExp, GlispEditor},
 	setup() {
 		useScheme()
 
