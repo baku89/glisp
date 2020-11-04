@@ -23,9 +23,10 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, computed} from 'vue'
-import {readStr} from '@/mal'
+import {computed, defineComponent, ref} from 'vue'
+
 import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
+import {readStr} from '@/mal'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
@@ -77,7 +78,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../style/common.styl'
+@import '~@/style/common.styl'
 
 .DialogSettings
 	position relative

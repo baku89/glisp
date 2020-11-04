@@ -88,20 +88,20 @@
 <script lang="ts">
 import 'normalize.css'
 
-import useScheme from '@/components/use/use-scheme'
-
 import {computed, defineComponent, reactive} from 'vue'
+
 import GlispEditor from '@/components/GlispEditor'
-import InputNumber from '@/components/inputs/InputNumber.vue'
-import InputDropdown from '@/components/inputs/InputDropdown.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
-import InputString from '@/components/inputs/InputString.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
+import InputColor from '@/components/inputs/InputColor.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
+import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
+import InputSlider from '@/components/inputs/InputSlider.vue'
+import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
-import InputColor from '@/components/inputs/InputColor.vue'
+import useScheme from '@/components/use/use-scheme'
 
 export default defineComponent({
 	name: 'PageUI',
@@ -156,8 +156,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../../components/style/global.styl'
-@import '../../components/style/common.styl'
+@import '~@/components/style/global.styl'
+@import '~@/components/style/common.styl'
 
 .PageUI
 	app()

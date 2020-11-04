@@ -18,14 +18,14 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {defineComponent, computed, watch, shallowRef, ref} from 'vue'
+
+import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import ViewCanvas from '@/components/ViewCanvas.vue'
-
 import useScheme from '@/components/use/use-scheme'
-import {MalNil, MalVal} from '@/mal/types'
+import ViewCanvas from '@/components/ViewCanvas.vue'
 import Scope from '@/mal/scope'
+import {MalNil, MalVal} from '@/mal/types'
 
 function getCodeFromURL() {
 	return decodeURI(new URL(location.href).searchParams.get('code') || '')
@@ -102,8 +102,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../../components/style/global.styl'
-@import '../../components/style/common.styl'
+@import '~@/components/style/global.styl'
+@import '~@/components/style/common.styl'
 
 $compact-dur = 0.4s
 

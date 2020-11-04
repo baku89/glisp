@@ -64,7 +64,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../../components/style/common.styl'
+@import '~@/components/style/common.styl'
 
 .PDGFncall
 	&__fn-name
