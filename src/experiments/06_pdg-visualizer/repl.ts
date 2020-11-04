@@ -1,4 +1,3 @@
-import {data} from 'jquery'
 import peg from 'pegjs'
 import ParserDefinition from './parser.pegjs'
 
@@ -569,7 +568,7 @@ export async function rep(str: string) {
 }
 
 // test code
-async function test(str: string, expected: number | 'error') {
+async function test(str: string, expected: number | boolean | 'error') {
 	let result: Value
 	try {
 		const ast = readStr(str)
@@ -602,6 +601,7 @@ async function test(str: string, expected: number | 'error') {
 ;(async function () {
 	await test('(+ 1 2)', 3)
 	await test('(+ 1 (+ 2 3))', 6)
+	await test('(and true (= 1 2))', false)
 	await test('(#(x : number => (+ x 1) : number) 1)', 2)
 	await test(
 		'((#(x: number => #(y: number => (+ x y): number): (number -> number)) 1) 2)',
