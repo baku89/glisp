@@ -126,6 +126,11 @@ const GlobalEnvs = {
 		['boolean', 'boolean'],
 		'boolean'
 	),
+	if: createJSFnPDG(
+		(test: any, then: any, els: any) => (test ? then : els),
+		['boolean', 'number', 'number'],
+		'number'
+	),
 } as {[s: string]: PDGAtom}
 
 // PDG
@@ -138,7 +143,7 @@ interface PDGResolvedError {
 	message: string
 }
 
-interface PDGFncall extends PDGBase {
+export interface PDGFncall extends PDGBase {
 	type: 'fncall'
 	fn: PDG
 	params: PDG[]
@@ -152,7 +157,7 @@ interface PDGFncall extends PDGBase {
 		| PDGResolvedError
 }
 
-interface PDGGraph extends PDGBase {
+export interface PDGGraph extends PDGBase {
 	type: 'graph'
 	values: {[sym: string]: PDG}
 	return: string
@@ -164,7 +169,7 @@ interface PDGGraph extends PDGBase {
 		| PDGResolvedError
 }
 
-interface PDGSymbol extends PDGBase {
+export interface PDGSymbol extends PDGBase {
 	type: 'symbol'
 	name: string
 	resolved?:
@@ -175,7 +180,7 @@ interface PDGSymbol extends PDGBase {
 		| PDGResolvedError
 }
 
-interface PDGFn extends PDGBase {
+export interface PDGFn extends PDGBase {
 	type: 'fn'
 	def:
 		| {
@@ -197,7 +202,7 @@ interface PDGFn extends PDGBase {
 		| PDGResolvedError
 }
 
-interface PDGValue extends PDGBase {
+export interface PDGValue extends PDGBase {
 	type: 'value'
 	value: Value
 }
@@ -205,6 +210,28 @@ interface PDGValue extends PDGBase {
 type PDGAtom = PDGValue | PDGFn
 
 export type PDG = PDGFncall | PDGSymbol | PDGGraph | PDGFn | PDGValue
+
+export function printPDG(pdg: PDG): string {
+	switch (pdg.type) {
+		case 'value':
+			return printValue(pdg.value)
+		case 'fn':
+			return printDataType(pdg.def.dataType)
+		case 'fncall': {
+			const fn = printPDG(pdg.fn)
+			const params = pdg.params.map(printPDG).join(' ')
+			return `(${fn} ${params})`
+		}
+		case 'graph': {
+			const values = Object.entries(pdg.values)
+				.map(([s, v]) => `${s} ${printPDG(v)}`)
+				.join(' ')
+			return `{${values} ${pdg.return}}`
+		}
+		case 'symbol':
+			return pdg.name
+	}
+}
 
 export function readStr(str: string): AST {
 	return parser.parse(str)
@@ -304,7 +331,7 @@ export function getDataType(pdg: PDG): DataType | null {
 	}
 }
 
-function setDirty(pdg: PDG) {
+export function setDirty(pdg: PDG) {
 	if (
 		pdg.type === 'fncall' &&
 		pdg.resolved?.result === 'succeed' &&
@@ -556,6 +583,8 @@ export function printValue(value: Value): string {
 				return value.toFixed(4).replace(/\.?[0]+$/, '')
 			case 'boolean':
 				return value.toString()
+			default:
+				throw new Error('Cannt print value')
 		}
 	}
 }

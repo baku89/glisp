@@ -1,6 +1,10 @@
 import {createApp} from 'vue'
 
 import './repl'
-import App from './Interpreter.vue'
+import App from './PDGEditor.vue'
+import PDGInputExp from './PDGInputExp.vue'
 
-createApp(App).mount('#app')
+const app = createApp(App)
+app.component('PDGInputExp', PDGInputExp)
+
+app.mount('#app')
