@@ -99,6 +99,9 @@ export default defineComponent({
 		display flex
 		flex-direction column
 
+		&, & pre
+			font-monospace()
+
 	&__vis
 		flex-grow 1
 </style>
