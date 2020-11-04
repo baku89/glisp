@@ -52,12 +52,14 @@ async function showPDG(pdg: PDG) {
 				: pdg.type === 'value'
 				? typeof pdg.value === 'number'
 					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
+					: typeof pdg.value === 'boolean'
+					? pdg.value.toString()
 					: printDataType(pdg.value.dataType)
 				: pdg.type === 'fn'
 				? 'fn'
 				: '{}' // graph
 
-		label += ` = ${printValue(await evalPDG(pdg))}`
+		// label += ` = ${printValue(await evalPDG(pdg))}`
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
@@ -68,15 +70,16 @@ async function showPDG(pdg: PDG) {
 			data: {id, label, width},
 		})
 
-		for (const d of pdg.dup) {
-			elements.push({
-				classes: 'dup',
-				data: {
-					source: id,
-					target: await gen(d),
-				},
-			})
-		}
+		// Add dup edges
+		// for (const d of pdg.dup) {
+		// 	elements.push({
+		// 		classes: 'dup',
+		// 		data: {
+		// 			source: id,
+		// 			target: await gen(d),
+		// 		},
+		// 	})
+		// }
 
 		// Add Edge
 		if (pdg.type === 'fncall') {

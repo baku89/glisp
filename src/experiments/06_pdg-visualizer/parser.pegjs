@@ -6,10 +6,13 @@ expr = (atom / fncall / graph / symbol)
 space "whitepace" = [ \t\n\r]*
 
 // Atoms
-atom  = number / fn
+atom  = boolean / number / fn
 
-number = digits:([\-0-9]+) space?
-	{return parseInt(digits.join(""),10)}
+boolean = value:("true" / "false") space?
+	{return value === 'true'}
+
+number = [0-9]+ space?
+	{return parseInt(text(), 10)}
 
 fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" space? outType:dataType ")" space?
 	{
@@ -33,13 +36,13 @@ fncall = "(" space? fn:expr params:(expr)* ")" space?
 graph = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
 	{return {type: 'graph', values: Object.fromEntries(pairs), return: ret}}
 
-symbol = str:[a-z+\-\*\/]i+ space?
+symbol = str:[a-z+\-\*\/=]i+ space?
 	{return str.join("")}
 
 // Data Type
-dataType = dataType:(dataTypeNumber / dataTypeFn) space? {return dataType }
+dataType = dataType:(dataTypeCostant / dataTypeFn) space? {return dataType }
 
-dataTypeNumber = num:"number" { return num }
+dataTypeCostant = "number" / "boolean" { return text() }
 
 dataTypeFn = "(" space? inTypes:dataType* "->" space? outType:dataType space? ")" {
 	return {

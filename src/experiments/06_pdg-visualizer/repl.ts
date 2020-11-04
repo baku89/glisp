@@ -1,3 +1,4 @@
+import {data} from 'jquery'
 import peg from 'pegjs'
 import ParserDefinition from './parser.pegjs'
 
@@ -8,7 +9,7 @@ type MaybePromise<T> = Promise<T> | T
 // Primitives for both AST and PDG
 type FnType = (...xs: Value[]) => MaybePromise<Value>
 
-type Value = number | ValueFn
+type Value = number | boolean | ValueFn
 
 interface ValueFn {
 	fn: FnType
@@ -77,53 +78,55 @@ interface DataTypeFn {
 	out: DataType
 }
 
-type DataType = 'number' | DataTypeFn
+type DataType = 'number' | 'boolean' | DataTypeFn
+
+function createJSFnPDG(
+	fn: FnType,
+	inTypes: DataType[],
+	outType: DataType
+): PDGFn {
+	const dataType = {
+		in: inTypes,
+		out: outType,
+	}
+
+	return {
+		type: 'fn',
+		def: {
+			type: 'js',
+			value: fn,
+			dataType: dataType,
+		},
+		resolved: {
+			result: 'succeed',
+			value: {
+				fn: fn,
+				dataType: dataType,
+			},
+		},
+		dup: new Set(),
+	}
+}
 
 const GlobalEnvs = {
-	'+': {
-		type: 'fn',
-		def: {
-			type: 'js',
-			value: (a: number, b: number) => a + b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
-		},
-		resolved: {
-			result: 'succeed',
-			value: {
-				fn: (a: number, b: number) => a + b,
-				dataType: {
-					in: ['number', 'number'],
-					out: 'number',
-				},
-			},
-		},
-		dup: new Set(),
-	},
-	'*': {
-		type: 'fn',
-		def: {
-			type: 'js',
-			value: (a: number, b: number) => a * b,
-			dataType: {
-				in: ['number', 'number'],
-				out: 'number',
-			},
-		},
-		resolved: {
-			result: 'succeed',
-			value: {
-				fn: (a: number, b: number) => a * b,
-				dataType: {
-					in: ['number', 'number'],
-					out: 'number',
-				},
-			},
-		},
-		dup: new Set(),
-	},
+	'+': createJSFnPDG((a: any, b: any) => a + b, ['number', 'number'], 'number'),
+	'*': createJSFnPDG((a: any, b: any) => a * b, ['number', 'number'], 'number'),
+	'=': createJSFnPDG(
+		(a: any, b: any) => a == b,
+		['number', 'number'],
+		'boolean'
+	),
+	not: createJSFnPDG((a: any) => !a, ['boolean'], 'boolean'),
+	and: createJSFnPDG(
+		(a: any, b: any) => a && b,
+		['boolean', 'boolean'],
+		'boolean'
+	),
+	or: createJSFnPDG(
+		(a: any, b: any) => a || b,
+		['boolean', 'boolean'],
+		'boolean'
+	),
 } as {[s: string]: PDGAtom}
 
 // PDG
@@ -276,7 +279,18 @@ export function readAST(ast: AST): PDG {
 export function getDataType(pdg: PDG): DataType | null {
 	switch (pdg.type) {
 		case 'value':
-			return 'number'
+			if (pdg.value instanceof Object) {
+				return pdg.value.dataType
+			} else {
+				switch (typeof pdg.value) {
+					case 'boolean':
+						return 'boolean'
+					case 'number':
+						return 'number'
+					default:
+						return null
+				}
+			}
 		case 'symbol':
 		case 'graph':
 			return pdg.resolved?.result === 'succeed'
@@ -289,18 +303,6 @@ export function getDataType(pdg: PDG): DataType | null {
 		case 'fn':
 			return pdg.def.dataType
 	}
-}
-
-function getPDGFn(pdg: PDG): PDGFn | null {
-	switch (pdg.type) {
-		case 'fn':
-			return pdg
-		case 'symbol':
-			if (pdg.resolved?.result === 'succeed') {
-				return getPDGFn(pdg.resolved.ref)
-			}
-	}
-	return null
 }
 
 function setDirty(pdg: PDG) {
@@ -329,7 +331,7 @@ function isEqualDataType(a: DataType, b: DataType): boolean {
 		return (
 			isEqualDataType(a.out, b.out) &&
 			a.in.length === b.in.length &&
-			a.in.every((_a, i) => isEqualDataType(_a, b.in[i]))
+			a.in.every((ai, i) => isEqualDataType(ai, b.in[i]))
 		)
 	}
 }
@@ -359,9 +361,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			const dataType = getDataType(fnPdg)
 
-			// IF fn has not yet resolved
-			if (dataType === null || dataType === 'number') {
-				console.error(fnPdg)
+			if (dataType === null || typeof dataType === 'string') {
 				pdg.resolved = {
 					result: 'error',
 					message: 'Not a function',
@@ -369,25 +369,20 @@ export function analyzePDG(pdg: PDG): PDG {
 				return pdg
 			}
 
-			// Type Checking: invalid length of parmeter
-			if (params.length !== dataType.in.length) {
-				pdg.resolved = {
-					result: 'error',
-					message: 'Number of parameter unmatched',
-				}
-				return pdg
-			}
-
-			// Type Checking: Unmatched parameters
-			const inDataTypes = params.map(getDataType)
+			// Type Checking
+			const paramDataTypes = params.map(getDataType)
 			if (
-				inDataTypes.some(
-					(dt, i) => dt === null || !isEqualDataType(dt, dataType.in[i])
+				paramDataTypes.some(
+					(pdt, i) => pdt === null || !isEqualDataType(pdt, dataType.in[i])
 				)
 			) {
 				pdg.resolved = {
 					result: 'error',
-					message: `Parameter unmatched`,
+					message: `Parameter unmatched expected=(${dataType.in
+						.map(printDataType)
+						.join(' ')}) passed=(${paramDataTypes
+						.map(dt => (dt !== null ? printDataType(dt) : 'null'))
+						.join(' ')})`,
 				}
 				return pdg
 			}
@@ -486,12 +481,10 @@ export function analyzePDG(pdg: PDG): PDG {
 
 				traverse(body, fnEnv, null)
 
-				const fn: FnType = async (...params: (ValueFn | number)[]) => {
-					paramsPDG.forEach(([, sym], i) => (sym.value = params[i]))
-					const ret = await evalPDG(body)
+				const fn: FnType = async (...params: Value[]) => {
 					paramsPDG.forEach(([, sym]) => setDirty(sym))
-
-					return ret
+					paramsPDG.forEach(([, sym], i) => (sym.value = params[i]))
+					return await evalPDG(body)
 				}
 
 				pdg.resolved = {
@@ -546,8 +539,8 @@ export async function evalPDG(pdg: PDG): Promise<Value> {
 }
 
 export function printDataType(dt: DataType): string {
-	if (dt === 'number') {
-		return 'number'
+	if (typeof dt === 'string') {
+		return dt
 	} else {
 		const inStr = dt.in.map(printDataType).join(' ')
 		const outStr = printDataType(dt.out)
@@ -556,10 +549,15 @@ export function printDataType(dt: DataType): string {
 }
 
 export function printValue(value: Value): string {
-	if (typeof value === 'number') {
-		return value.toFixed(4).replace(/\.?[0]+$/, '')
-	} else {
+	if (value instanceof Object) {
 		return printDataType(value.dataType)
+	} else {
+		switch (typeof value) {
+			case 'number':
+				return value.toFixed(4).replace(/\.?[0]+$/, '')
+			case 'boolean':
+				return value.toString()
+		}
 	}
 }
 
