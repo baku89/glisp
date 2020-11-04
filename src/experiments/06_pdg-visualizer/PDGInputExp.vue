@@ -37,9 +37,8 @@ export default defineComponent({
 							return 'number'
 						case 'boolean':
 							return 'boolean'
-						default:
-							return 'undefined'
 					}
+					break
 				case 'fncall':
 					return 'fncall'
 			}

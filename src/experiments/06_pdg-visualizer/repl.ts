@@ -58,6 +58,12 @@ class Env {
 		}
 	}
 
+	clearDep() {
+		for (const [, value] of Object.entries(this.data)) {
+			value.dep.clear()
+		}
+	}
+
 	get(s: string): PDG | undefined {
 		return this.data[s] ?? this.outer?.get(s)
 	}
@@ -103,7 +109,7 @@ function createJSFnPDG(
 				dataType: dataType,
 			},
 		},
-		dup: new Set(),
+		dep: new Set(),
 	}
 }
 
@@ -131,11 +137,12 @@ const GlobalEnvs = {
 		['boolean', 'number', 'number'],
 		'number'
 	),
+	neg: createJSFnPDG((a: any) => a * -1, ['number'], 'number'),
 } as {[s: string]: PDGAtom}
 
 // PDG
 interface PDGBase {
-	dup: Set<PDG>
+	dep: Set<PDG>
 }
 
 interface PDGResolvedError {
@@ -245,7 +252,7 @@ export function readAST(ast: AST): PDG {
 				type: 'fncall',
 				fn: readAST(fn),
 				params: params.map(readAST),
-				dup: new Set(),
+				dep: new Set(),
 			}
 		} else if (ast.type === 'fn') {
 			// Function
@@ -254,8 +261,7 @@ export function readAST(ast: AST): PDG {
 				return {
 					type: 'fn',
 					def: {type: 'js', value: ast.def, dataType: ast.dataType},
-
-					dup: new Set(),
+					dep: new Set(),
 				}
 			} else {
 				// Expression
@@ -267,8 +273,7 @@ export function readAST(ast: AST): PDG {
 						body: readAST(ast.def.body),
 						dataType: ast.dataType,
 					},
-
-					dup: new Set(),
+					dep: new Set(),
 				}
 			}
 		} else {
@@ -280,7 +285,7 @@ export function readAST(ast: AST): PDG {
 				type: 'graph',
 				values,
 				return: ast.return,
-				dup: new Set(),
+				dep: new Set(),
 			}
 		}
 	} else {
@@ -289,14 +294,14 @@ export function readAST(ast: AST): PDG {
 			return {
 				type: 'symbol',
 				name: ast,
-				dup: new Set(),
+				dep: new Set(),
 			}
 		} else {
 			// Number
 			return {
 				type: 'value',
 				value: ast,
-				dup: new Set(),
+				dep: new Set(),
 			}
 		}
 	}
@@ -340,7 +345,7 @@ export function setDirty(pdg: PDG) {
 		pdg.resolved.evaluated = undefined
 	}
 
-	pdg.dup.forEach(setDirty)
+	pdg.dep.forEach(setDirty)
 }
 
 function isEqualDataType(a: DataType, b: DataType): boolean {
@@ -362,14 +367,23 @@ function isEqualDataType(a: DataType, b: DataType): boolean {
 	}
 }
 
-export function analyzePDG(pdg: PDG): PDG {
-	return traverse(pdg, new Env(GlobalEnvs), null)
+const GlobalEnv = new Env(GlobalEnvs)
 
-	function traverse(pdg: PDG, env: Env, dup: PDG | null): PDG {
-		if (dup) {
-			pdg.dup.add(dup)
+export function analyzePDG(pdg: PDG): PDG {
+	GlobalEnv.clearDep()
+	return traverse(pdg, GlobalEnv, null)
+
+	function traverse(pdg: PDG, env: Env, dep: PDG | null): PDG {
+		if (dep) {
+			pdg.dep.add(dep)
 		}
 
+		// Add dependency
+		if (pdg.type === 'fncall') {
+			pdg.params.forEach(p => p.dep.add(pdg))
+		}
+
+		// Return resolved value
 		if (pdg.type === 'value' || pdg.resolved) {
 			return pdg
 		}
@@ -443,7 +457,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve
 			const ref = pdg.values[pdg.return]
-			ref.dup.add(pdg)
+			ref.dep.add(pdg)
 
 			pdg.resolved = {
 				result: 'succeed',
@@ -472,7 +486,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			}
 
 			// Add to dependency
-			ref.dup.add(pdg)
+			ref.dep.add(pdg)
 
 			// Resolve
 			pdg.resolved = {
@@ -492,16 +506,10 @@ export function analyzePDG(pdg: PDG): PDG {
 			} else {
 				// Resolve inside function body
 				const {params, body} = pdg.def
-				const paramsPDG: [string, PDGValue][] = params.map(name => {
-					return [
-						name,
-						{
-							type: 'value',
-							value: 0,
-							dup: new Set(),
-						},
-					]
-				})
+				const paramsPDG: [string, PDGValue][] = params.map(name => [
+					name,
+					{type: 'value', value: 0, dep: new Set()},
+				])
 
 				const fnEnv = new Env(Object.fromEntries(paramsPDG), env)
 

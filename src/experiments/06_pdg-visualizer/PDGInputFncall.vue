@@ -1,14 +1,21 @@
 <template>
 	<div class="PDGFncall">
 		<div class="PDGFncall__fn-name">{{ fnName }}</div>
-		<div class="PDGFncall__params">
-			<template v-for="(param, i) in modelValue.params" :key="i">
-				<PDGInputExp
-					:modelValue="param"
-					@update:modelValue="onUpdateParam(i, $event)"
-				/>
-			</template>
-		</div>
+		<dl class="PDGFncall__params">
+			<div
+				class="PDGFncall__param"
+				v-for="(param, i) in modelValue.params"
+				:key="i"
+			>
+				<dt class="PDGFncall__param-index">{{ i.toString() }}</dt>
+				<dd class="PDGFncall__param-expr">
+					<PDGInputExp
+						:modelValue="param"
+						@update:modelValue="onUpdateParam(i, $event)"
+					/>
+				</dd>
+			</div>
+		</dl>
 	</div>
 </template>
 
@@ -43,7 +50,17 @@ export default defineComponent({
 		)
 
 		function onUpdateParam(i: number, newParam: PDG) {
-			const newValue: PDGFncall = {...toRaw(props.modelValue)}
+			const oldValue = toRaw(props.modelValue)
+			const newValue: PDGFncall = {...oldValue}
+
+			oldValue.fn.dep.delete(oldValue)
+			oldValue.fn.dep.add(newValue)
+
+			oldValue.params.map(p => {
+				p.dep.delete(oldValue)
+				p.dep.add(newValue)
+			})
+
 			newValue.params[i] = newParam
 
 			context.emit('update:modelValue', newValue)
@@ -68,4 +85,18 @@ export default defineComponent({
 		padding-top 0.5rem
 		padding-left 1rem
 		border-left 1px solid var(--frame)
+
+	&__param
+		display flex
+
+		&-index
+			flex-grow 0
+			width 2rem
+			height $input-height
+			color var(--comment)
+			line-height $input-height
+
+		&-expr
+			flex-grow 1
+			margin 0
 </style>

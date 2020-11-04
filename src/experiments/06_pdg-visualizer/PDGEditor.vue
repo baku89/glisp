@@ -1,16 +1,30 @@
 <template>
 	<div class="PDGEditor">
-		<div class="PDGEditor__code" v-html="code" />
-		<div class="PDGEditor__result">{{ returned }}</div>
-		<div vclass="PDGEditor__input">
+		<div class="PDGEditor__editor">
+			<InputString :multiline="true" v-model="code" />
+		</div>
+		<div vclass="PDGEditor__inspector">
 			<PDGInputExp :modelValue="pdg" @update:modelValue="onUpdatePDG" />
+		</div>
+		<div class="PDGEditor__result">
+			<pre>{{ printedCode }}</pre>
+			<div>{{ returned }}</div>
+			<PDGVisualizer class="PDGEditor__vis" :modelValue="pdg" />
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
 import 'normalize.css'
-import {defineComponent, reactive, computed, ref, watch, toRaw} from 'vue'
+import {
+	defineComponent,
+	reactive,
+	computed,
+	ref,
+	watch,
+	toRaw,
+	shallowRef,
+} from 'vue'
 import useScheme from '@/components/use/use-scheme'
 import {
 	PDG,
@@ -22,20 +36,38 @@ import {
 	printValue,
 } from './repl'
 import PDGInputExp from './PDGInputExp.vue'
+import PDGVisualizer from './PDGVisualizer.vue'
+import InputString from '@/components/inputs/InputString.vue'
 
 export default defineComponent({
 	name: 'PDGEditor',
-	components: {PDGInputExp},
+	components: {PDGInputExp, InputString, PDGVisualizer},
 	setup() {
 		useScheme()
 
-		const pdg = ref<PDG>(analyzePDG(readAST(readStr('(or true false)'))))
+		const code = ref('(not true)')
+
+		const pdg = shallowRef<PDG>(analyzePDG(readAST(readStr(code.value))))
+
+		watch(
+			() => code.value,
+			() => {
+				try {
+					onUpdatePDG(readAST(readStr(code.value)))
+				} catch (err) {
+					console.log(err)
+				}
+			}
+		)
 
 		function onUpdatePDG(p: PDG) {
+			console.log('update')
 			pdg.value = analyzePDG(p)
 		}
 
-		const code = computed(() => printPDG(pdg.value).replaceAll('\n', '<br/>'))
+		const printedCode = computed(() =>
+			printPDG(pdg.value).replaceAll('\n', '<br/>')
+		)
 
 		const returned = ref('')
 		watch(
@@ -50,7 +82,7 @@ export default defineComponent({
 			{immediate: true}
 		)
 
-		return {pdg, onUpdatePDG, code, returned}
+		return {pdg, onUpdatePDG, code, printedCode, returned}
 	},
 })
 </script>
@@ -70,4 +102,11 @@ export default defineComponent({
 
 		&:last-child
 			border-right none
+
+	&__result
+		display flex
+		flex-direction column
+
+	&__vis
+		flex-grow 1
 </style>
