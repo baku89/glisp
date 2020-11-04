@@ -14,19 +14,19 @@ import {defineComponent} from 'vue'
 import useScheme from '@/components/use/use-scheme'
 import MinimalConsole from './MinimalConsole.vue'
 
-import {readStr, readAST, analyzePDG, evalPDG, PDG} from './repl'
+import {readStr, readAST, analyzePDG, evalPDG, PDG, printValue} from './repl'
 
-function showPDG(pdg: PDG) {
+async function showPDG(pdg: PDG) {
 	const el = document.createElement('div')
-	el.style.setProperty('width', '400px')
-	el.style.setProperty('height', '150px')
+	el.style.setProperty('width', '500px')
+	el.style.setProperty('height', '250px')
 
 	const elements: any[] = []
 	const pdgToId = new WeakMap<PDG, string>()
 
 	let uid = 1
 
-	function gen(pdg: PDG): string {
+	async function gen(pdg: PDG): Promise<string> {
 		if (pdgToId.has(pdg)) {
 			return pdgToId.get(pdg) as string
 		}
@@ -34,7 +34,7 @@ function showPDG(pdg: PDG) {
 		const id = (uid++).toString()
 		pdgToId.set(pdg, id)
 
-		const label =
+		let label =
 			pdg.type === 'symbol'
 				? pdg.name
 				: pdg.type === 'fncall'
@@ -45,7 +45,9 @@ function showPDG(pdg: PDG) {
 				? typeof pdg.value === 'number'
 					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
 					: 'fn'
-				: '' // graph
+				: '{}' // graph
+
+		label += ` = ${await evalPDG(pdg)}`
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
@@ -56,44 +58,45 @@ function showPDG(pdg: PDG) {
 			data: {id, label, width},
 		})
 
-		pdg.dup.forEach(dup => {
+		for (const d of pdg.dup) {
 			elements.push({
 				classes: 'dup',
 				data: {
 					source: id,
-					target: gen(dup),
+					target: await gen(d),
 				},
 			})
-		})
+		}
 
 		// Add Edge
 		if (pdg.type === 'fncall') {
-			const edges = pdg.params.map(p => {
-				return {
+			for (const p of pdg.params) {
+				elements.push({
 					classes: 'child',
 					data: {
-						source: gen(p),
-						target: id,
+						source: id,
+						target: await gen(p),
 					},
-				}
-			})
-			elements.push(...edges)
+				})
+			}
 		} else if (pdg.type === 'graph') {
-			const children = Object.entries(pdg.values).map(([sym, child]) => {
-				return {
+			for (const [sym, child] of Object.entries(pdg.values)) {
+				elements.push({
 					classes: sym === pdg.return ? 'child' : 'graph_child',
-					data: {source: gen(child), target: id, label: sym},
-				}
-			})
-
-			elements.push(...children)
+					data: {
+						source: id,
+						target: await gen(child),
+						label: sym,
+					},
+				})
+			}
 		} else if (pdg.type === 'symbol') {
 			if (pdg.resolved?.result === 'succeed') {
 				elements.push({
 					classes: 'ref',
 					data: {
-						source: gen(pdg.resolved.ref),
-						target: id,
+						source: id,
+						target: await gen(pdg.resolved.ref),
 					},
 				})
 			}
@@ -102,7 +105,7 @@ function showPDG(pdg: PDG) {
 		return id
 	}
 
-	const out = gen(pdg)
+	const out = await gen(pdg)
 
 	elements.push({
 		classes: 'output',
@@ -114,8 +117,8 @@ function showPDG(pdg: PDG) {
 	elements.push({
 		classes: 'child',
 		data: {
-			source: out,
-			target: '0',
+			source: '0',
+			target: out,
 		},
 	})
 
@@ -179,8 +182,6 @@ function showPDG(pdg: PDG) {
 				selector: '.graph',
 				style: {
 					'background-color': '#b8b8b8',
-					width: '18px',
-					height: '18px',
 				},
 			},
 			{
@@ -212,7 +213,7 @@ function showPDG(pdg: PDG) {
 			{
 				selector: '.ref',
 				style: {
-					'arrow-scale': 0.5,
+					width: 2,
 					'target-arrow-shape': 'triangle',
 				},
 			},
@@ -252,10 +253,11 @@ export default defineComponent({
 
 		async function rep(str: string) {
 			const pdg = analyzePDG(readAST(readStr(str)))
-			append && append(showPDG(pdg))
+			append && append(await showPDG(pdg))
 			// showPDG(pdg)
 			const ret = await evalPDG(pdg)
-			return ret.toString()
+
+			return printValue(ret)
 		}
 
 		function onSetupConsole(cb: {append: (el: Element) => any}) {
