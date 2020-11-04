@@ -1,8 +1,8 @@
 start = space? expr:expr {return expr}
 
-expr = (atom / fncall / graph / symbol)
+expr = (fncall / graph / symbol / atom)
 
-fncall = "(" space? fn:(symbol / fn) params:(expr)* ")" space?
+fncall = "(" space? fn:expr params:(expr)* ")" space?
 	{return {type: 'fncall', fn, params}}
 
 graph = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
@@ -16,29 +16,33 @@ atom  = number / fn
 number = digits:([+\-0-9]+) space?
 	{return parseInt(digits.join(""),10)}
 
-// fn "function" = "#(" space? params:(symbol)* "`" js:[^`]* "`" space? ")" space?
-// 	{
-// 		return {
-// 			type: 'fn',
-// 			def: eval(js.join('')),
-// 			dataType: {
-// 				in: Array(params.length).fill('number'),
-// 				out: 'number'
-// 			}
-// 		}
-// 	}
 
-fn = "#(" space? params:(symbol)* "=>" space? body:expr space? ")" space?
+dataType = dataType:(dataTypeNumber / dataTypeFn) space? {return dataType }
+
+dataTypeNumber = num:"number" { return num }
+
+dataTypeParam = "(" space? inTypes:(dataType space?)* space? ")" space? {
+	return inTypes.map(it => it[0])
+}
+
+dataTypeFn = "(" space? inType:dataTypeParam space? "=>" space? outType:dataType space? ")" {
+	return {
+		in: inType,
+		out: outType
+	}
+}
+
+fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" space? outType:dataType ")" space?
 	{
 		return {
 			type: 'fn',
 			def: {
-				params,
+				params: params.map(p => p[0]),
 				body
 			},
 			dataType: {
-				in: Array(params.length).fill('number'),
-				out: 'number'
+				in: params.map(p => p[3]),
+				out: outType
 			}
 		}
 	}

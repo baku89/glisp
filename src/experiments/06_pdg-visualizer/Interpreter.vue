@@ -14,7 +14,15 @@ import {defineComponent} from 'vue'
 import useScheme from '@/components/use/use-scheme'
 import MinimalConsole from './MinimalConsole.vue'
 
-import {readStr, readAST, analyzePDG, evalPDG, PDG, printValue} from './repl'
+import {
+	readStr,
+	readAST,
+	analyzePDG,
+	evalPDG,
+	PDG,
+	printValue,
+	printDataType,
+} from './repl'
 
 async function showPDG(pdg: PDG) {
 	const el = document.createElement('div')
@@ -42,12 +50,12 @@ async function showPDG(pdg: PDG) {
 					? pdg.fn.name
 					: 'fn'
 				: pdg.type === 'value'
-				? typeof pdg.value === 'number'
-					? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
-					: 'fn'
+				? pdg.value.toFixed(4).replace(/\.?[0]+$/, '')
+				: pdg.type === 'fn'
+				? 'fn'
 				: '{}' // graph
 
-		label += ` = ${await evalPDG(pdg)}`
+		label += ` = ${printValue(await evalPDG(pdg))}`
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
@@ -148,6 +156,7 @@ async function showPDG(pdg: PDG) {
 					'text-valign': 'center',
 					'text-halign': 'center',
 					label: 'data(label)',
+					shape: 'rectangle',
 				} as any,
 			},
 			{
@@ -161,14 +170,12 @@ async function showPDG(pdg: PDG) {
 				selector: '.symbol',
 				style: {
 					'background-color': '#86c1b9',
-					shape: 'ellipse',
 				},
 			},
 			{
 				selector: '.fncall',
 				style: {
 					'background-color': '#ba8baf',
-					shape: 'ellipse',
 				},
 			},
 			{
@@ -256,6 +263,8 @@ export default defineComponent({
 			append && append(await showPDG(pdg))
 			// showPDG(pdg)
 			const ret = await evalPDG(pdg)
+
+			console.log(ret)
 
 			return printValue(ret)
 		}

@@ -27,7 +27,7 @@ type ASymbol = string
 
 type AFncall = {
 	type: 'fncall'
-	fn: ASymbol
+	fn: AST
 	params: AST[]
 }
 
@@ -136,7 +136,7 @@ interface PDGResolvedError {
 
 interface PDGFncall extends PDGBase {
 	type: 'fncall'
-	fn: PDGSymbol | PDGFn
+	fn: PDG
 	params: PDG[]
 	resolved?:
 		| {
@@ -212,11 +212,7 @@ export function readAST(ast: AST): PDG {
 			const {fn, params} = ast
 			return {
 				type: 'fncall',
-				fn: {
-					type: 'symbol',
-					name: fn,
-					dup: new Set(),
-				},
+				fn: readAST(fn),
 				params: params.map(readAST),
 				dup: new Set(),
 			}
@@ -357,10 +353,20 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			traverse(pdg.fn, env, pdg)
 
-			const fnPdg = getPDGFn(pdg.fn)
+			const _fnPdg = traverse(pdg.fn, env, pdg)
+			const fnPdg = getPDGFn(_fnPdg)
 
 			// IF fn has not yet resolved
-			if (!fnPdg || !(fnPdg.resolved?.result === 'succeed')) {
+			if (fnPdg === null) {
+				console.error(fnPdg, _fnPdg)
+				pdg.resolved = {
+					result: 'error',
+					message: 'Not a function',
+				}
+				return pdg
+			}
+
+			if (fnPdg.resolved?.result !== 'succeed') {
 				pdg.resolved = {
 					result: 'error',
 					message: 'Undefined identifer',
@@ -547,11 +553,11 @@ export async function evalPDG(pdg: PDG): Promise<number | FnValue> {
 
 export function printDataType(dt: DataType): string {
 	if (dt === 'number') {
-		return 'Number'
+		return 'number'
 	} else {
-		const inStr = dt.in.map(printDataType).join(', ')
+		const inStr = dt.in.map(printDataType).join(' ')
 		const outStr = printDataType(dt.out)
-		return `(${inStr}) => ${outStr}`
+		return `((${inStr}) => ${outStr})`
 	}
 }
 
@@ -574,7 +580,8 @@ export async function rep(str: string) {
 async function test(str: string, expected: number | 'error') {
 	let result: number | FnValue
 	try {
-		result = await evalPDG(analyzePDG(readAST(readStr(str))))
+		const ast = readStr(str)
+		result = await evalPDG(analyzePDG(readAST(ast)))
 	} catch (err) {
 		const invalid = expected !== 'error'
 		console[invalid ? 'error' : 'info'](
@@ -601,11 +608,12 @@ async function test(str: string, expected: number | 'error') {
 }
 
 ;(async function () {
-	await test('(+ 1 2)', 3)
-	await test('(+ 1 (+ 2 3))', 6)
-	await test('{a (+ 1 2) a}', 3)
-	await test('{a b b a c (+ 1 2) c}', 3)
-	await test('(+ {a 10 b (* a 2) b} 1)', 21)
-	await test('{a a a}', 'error')
-	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+	// await test('(+ 1 2)', 3)
+	// await test('(+ 1 (+ 2 3))', 6)
+	await test('(#(x : number => (+ x 1) : number) 1)', 2)
+	// await test('{a (+ 1 2) a}', 3)
+	// await test('{a b b a c (+ 1 2) c}', 3)
+	// await test('(+ {a 10 b (* a 2) b} 1)', 21)
+	// await test('{a a a}', 'error')
+	// await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
 })()
