@@ -1,8 +1,9 @@
 import isNodeJS from 'is-node'
-import {MalVal, MalError, MalString, MalNil} from './types'
+
+import evalExp from './eval'
 import readStr, {slurp} from './reader'
 import Scope from './scope'
-import evalExp from './eval'
+import {MalError, MalNil, MalString, MalVal} from './types'
 
 export default async function initReplScope(scope: Scope) {
 	function normalizeImportURL(url: string) {

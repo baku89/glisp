@@ -1,14 +1,15 @@
 import {vec2} from 'gl-matrix'
+
 import {
+	MalKeyword,
+	MalList,
+	MalMap,
+	MalSeq,
 	MalVal,
 	MalVector,
-	MalList,
-	MalSeq,
-	MalKeyword,
-	MalMap,
 } from '@/mal/types'
-import {PathType, convertToPath2D} from '@/path-utils'
 import {getUIBodyExp} from '@/mal/utils'
+import {convertToPath2D, PathType} from '@/path-utils'
 
 const K_PATH = MalKeyword.from('path'),
 	K_TRANSFORM = MalKeyword.from('transform'),

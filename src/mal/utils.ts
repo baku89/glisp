@@ -1,24 +1,25 @@
+import {mat2d} from 'gl-matrix'
+
 import {
-	MalVal,
+	isMalColl,
+	isMalSeq,
+	MalAtom,
+	MalBoolean,
+	MalColl,
 	MalFn,
 	MalKeyword,
-	MalMap,
-	MalColl,
-	MalVector,
-	isMalSeq,
-	MalSymbol,
 	MalList,
-	isMalColl,
-	MalType,
-	MalNumber,
-	MalNil,
-	MalString,
-	MalBoolean,
 	MalMacro,
-	MalAtom,
+	MalMap,
+	MalNil,
+	MalNumber,
+	MalString,
+	MalSymbol,
+	MalType,
+	MalVal,
+	MalVector,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
-import {mat2d} from 'gl-matrix'
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
 	if (MalVector.is(exp)) {

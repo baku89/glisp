@@ -1,11 +1,12 @@
 import chroma from 'chroma-js'
+
 import {
-	MalSymbol,
-	MalList,
-	MalString,
-	MalNumber,
 	MalCallableValue,
 	MalFn,
+	MalList,
+	MalNumber,
+	MalString,
+	MalSymbol,
 } from '@/mal/types'
 
 const Exports = [

@@ -5,13 +5,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, watch, ref, PropType, shallowRef} from 'vue'
-
-import {MalVal, MalError} from '@/mal/types'
-import {printer} from '@/mal/printer'
-import createCanvasRender, {CanvasRenderer} from '@/renderer/canvas-renderer'
 import {mat2d} from 'gl-matrix'
-import useResizeSensor from '@/components/use/use-resize-sensor'
+import {defineComponent, onMounted, PropType, ref, shallowRef, watch} from 'vue'
+
+import {printer} from '@/mal/printer'
+import {MalError, MalVal} from '@/mal/types'
+import createCanvasRender, {CanvasRenderer} from '@/renderer/canvas-renderer'
 
 export default defineComponent({
 	props: {

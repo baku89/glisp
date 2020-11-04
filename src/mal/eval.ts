@@ -1,20 +1,20 @@
-import {
-	MalVal,
-	MalError,
-	MalSymbol,
-	MalMap,
-	MalList,
-	MalSeq,
-	isMalSeq,
-	MalVector,
-	MalMacro,
-	MalNil,
-	MalFn,
-	MalString,
-	MalType,
-} from './types'
 import Env from './env'
 import SpecialForms from './special-forms-meta'
+import {
+	isMalSeq,
+	MalError,
+	MalFn,
+	MalList,
+	MalMacro,
+	MalMap,
+	MalNil,
+	MalSeq,
+	MalString,
+	MalSymbol,
+	MalType,
+	MalVal,
+	MalVector,
+} from './types'
 // import {setExpandInfo, ExpandType} from './expand'
 
 function quasiquote(exp: MalVal): MalVal {

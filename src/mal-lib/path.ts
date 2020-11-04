@@ -1,29 +1,29 @@
 // /* eslint-ignore @typescript-eslint/no-use-before-define */
 // import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
-import svgpath from 'svgpath'
 // import Voronoi from 'voronoi'
 import paper from 'paper'
-import {PaperOffset, OffsetOptions} from 'paperjs-offset'
-import {transformPath} from '@/path-utils'
+import {OffsetOptions, PaperOffset} from 'paperjs-offset'
+import svgpath from 'svgpath'
 
-import {
-	MalSymbol,
-	MalList,
-	MalVal,
-	MalNumber,
-	MalKeyword,
-	MalVector,
-	MalMap,
-} from '@/mal/types'
-import {partition, unsignedMod} from '@/utils'
 import {readJS} from '@/mal/reader'
+import {
+	MalKeyword,
+	MalList,
+	MalMap,
+	MalNumber,
+	MalSymbol,
+	MalVal,
+	MalVector,
+} from '@/mal/types'
+import {transformPath} from '@/path-utils'
 import {
 	// 	iterateSegment,
 	// 	Vec2,
 	// 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
+import {partition, unsignedMod} from '@/utils'
 
 const EPSILON = 1e-5
 

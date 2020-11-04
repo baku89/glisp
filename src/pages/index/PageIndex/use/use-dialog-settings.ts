@@ -1,8 +1,9 @@
 import {SetupContext} from 'vue'
-import ConsoleScope from '@/scopes/console'
+
+import {MalNil} from '@/mal/types'
 // import DialogSettings from '@/components/dialogs/DialogSettings.vue'
 import AppScope from '@/scopes/app'
-import {MalNil} from '@/mal/types'
+import ConsoleScope from '@/scopes/console'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')

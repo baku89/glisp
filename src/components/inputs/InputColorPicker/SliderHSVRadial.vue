@@ -33,18 +33,17 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, ref, computed, watch, toRef} from 'vue'
-import chroma from 'chroma-js'
 import {vec2} from 'gl-matrix'
+import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
-import {clamp, unsignedMod} from '@/utils'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-import {ColorDict} from './InputColorPicker.vue'
+import {clamp, unsignedMod} from '@/utils'
 
-import useHSV, {toCSSColor} from './use-hsv'
+import {ColorDict} from './InputColorPicker.vue'
 import RadialFragmentString from './picker-hsv-radial.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
+import useHSV, {toCSSColor} from './use-hsv'
 
 export default defineComponent({
 	name: 'SliderHSVRadial',
@@ -160,8 +159,6 @@ export default defineComponent({
 	},
 })
 </script>
-
-
 
 <style lang="stylus">
 @import './common.styl'

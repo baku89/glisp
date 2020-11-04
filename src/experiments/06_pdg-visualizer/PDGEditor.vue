@@ -16,28 +16,23 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {
-	defineComponent,
-	reactive,
-	computed,
-	ref,
-	watch,
-	toRaw,
-	shallowRef,
-} from 'vue'
+
+import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
+
+import InputString from '@/components/inputs/InputString.vue'
 import useScheme from '@/components/use/use-scheme'
-import {
-	PDG,
-	printPDG,
-	readAST,
-	readStr,
-	analyzePDG,
-	evalPDG,
-	printValue,
-} from './repl'
+
 import PDGInputExp from './PDGInputExp.vue'
 import PDGVisualizer from './PDGVisualizer.vue'
-import InputString from '@/components/inputs/InputString.vue'
+import {
+	analyzePDG,
+	evalPDG,
+	PDG,
+	printPDG,
+	printValue,
+	readAST,
+	readStr,
+} from './repl'
 
 export default defineComponent({
 	name: 'PDGEditor',

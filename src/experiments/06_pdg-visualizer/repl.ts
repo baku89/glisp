@@ -1,4 +1,5 @@
 import peg from 'pegjs'
+
 import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)

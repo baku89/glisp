@@ -1,4 +1,4 @@
-import {app, protocol, BrowserWindow} from 'electron'
+import {app, BrowserWindow, protocol} from 'electron'
 import {platform} from 'os'
 import {
 	createProtocol,

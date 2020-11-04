@@ -1,9 +1,9 @@
 import Env from './env'
-import readStr, {readJS, MalBlankException} from './reader'
 import evalExp from './eval'
 import initReplScope from './init-repl-scope'
-import {MalVal, MalError, MalNil, MalCallableValue} from './types'
 import {printer} from './printer'
+import readStr, {MalBlankException, readJS} from './reader'
+import {MalCallableValue, MalError, MalNil, MalVal} from './types'
 
 export default class Scope {
 	public env!: Env

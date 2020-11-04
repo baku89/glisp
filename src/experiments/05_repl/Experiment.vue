@@ -6,15 +6,17 @@
 
 <script lang="ts">
 import 'normalize.css'
+
 import cytoscape from 'cytoscape'
 import klay from 'cytoscape-klay'
 cytoscape.use(klay)
 
 import {defineComponent} from 'vue'
-import useScheme from '@/components/use/use-scheme'
-import MinimalConsole from './MinimalConsole.vue'
 
-import {readStr, generatePDG, evalPDG, PDG} from './repl'
+import useScheme from '@/components/use/use-scheme'
+
+import MinimalConsole from './MinimalConsole.vue'
+import {evalPDG, generatePDG, PDG, readStr} from './repl'
 
 function showPDG(pdg: PDG) {
 	const el = document.createElement('div')

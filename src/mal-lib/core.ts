@@ -1,31 +1,32 @@
 import FileSaver from 'file-saver'
+import isNodeJS from 'is-node'
 import {vsprintf} from 'sprintf-js'
+
+import printExp, {printer} from '@/mal/printer'
+import readStr, {readJS, slurp} from '@/mal/reader'
 import {
-	MalVal,
-	MalSymbol,
-	MalList,
-	MalMap,
-	MalError,
-	MalAtom,
+	isMalColl,
 	isMalSeq,
-	MalVector,
+	MalAtom,
 	MalBoolean,
-	MalString,
+	MalBuffer,
+	MalCallableValue,
+	MalError,
+	MalFn,
 	MalKeyword,
+	MalList,
+	MalMacro,
+	MalMap,
 	MalNil,
 	MalNumber,
-	MalFn,
-	MalMacro,
 	MalSeq,
-	MalCallableValue,
+	MalString,
+	MalSymbol,
 	MalType,
-	isMalColl,
-	MalBuffer,
+	MalVal,
+	MalVector,
 } from '@/mal/types'
-import printExp, {printer} from '@/mal/printer'
 import {partition} from '@/utils'
-import isNodeJS from 'is-node'
-import readStr, {readJS, slurp} from '@/mal/reader'
 
 const Exports = [
 	['type', (x: MalVal) => MalKeyword.from(x.type)],

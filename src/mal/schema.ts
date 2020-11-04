@@ -1,18 +1,19 @@
-import {getParamLabel} from '@/utils'
 import AppScope from '@/scopes/app'
+import {getParamLabel} from '@/utils'
+
+import {readJS} from './reader'
 import {
-	MalVal,
-	MalSeq,
-	MalSymbol,
-	MalList,
-	MalKeyword,
-	MalMap,
 	MalFunc,
-	MalVector,
+	MalKeyword,
+	MalList,
+	MalMap,
+	MalSeq,
 	MalString,
+	MalSymbol,
+	MalVal,
+	MalVector,
 } from './types'
 import {getStructType} from './utils'
-import {readJS} from './reader'
 
 interface SchemaBase {
 	type: string

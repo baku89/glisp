@@ -1,5 +1,3 @@
-const $outer = Symbol('outer')
-
 // AST
 type AAtom = number | string
 type AFuncall = [string, AST, AST]

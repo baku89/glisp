@@ -5,16 +5,11 @@
 </template>
 
 <script lang="ts">
-import {
-	computed,
-	defineAsyncComponent,
-	defineComponent,
-	PropType,
-	toRaw,
-} from 'vue'
-import {PDGValue, printValue, setDirty} from './repl'
+import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputNumber from '@/components/inputs/InputNumber.vue'
+
+import {PDGValue, setDirty} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputNumber',

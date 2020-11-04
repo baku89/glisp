@@ -1,5 +1,5 @@
 import {vec2} from 'gl-matrix'
-import {onBeforeUnmount, Ref, reactive, onMounted, toRefs, computed} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, Ref, toRefs} from 'vue'
 
 interface DragData {
 	pos: vec2

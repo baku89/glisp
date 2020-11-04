@@ -1,20 +1,20 @@
 import {SetupContext} from 'vue'
-import ConsoleScope from '@/scopes/console'
+
+import {printExp} from '@/mal'
+import {printer} from '@/mal/printer'
 import {
-	MalVal,
 	MalError,
-	MalSymbol,
-	MalMap,
 	MalFunc,
+	MalMap,
+	MalSymbol,
 	MalType,
+	MalVal,
 	MalVector,
 	// MalList,
 } from '@/mal/types'
-
-import {printExp} from '@/mal'
 // import DialogCommand from '@/components/dialogs/DialogCommand.vue'
 import {getExpByPath} from '@/mal/utils'
-import {printer} from '@/mal/printer'
+import ConsoleScope from '@/scopes/console'
 //
 export default function useDialogCommand(context: SetupContext) {
 	ConsoleScope.defn('show-command-dialog', (f: MalVal) => {

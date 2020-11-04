@@ -27,11 +27,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ref, PropType} from 'vue'
-import {MalColl, MalVal, MalList} from '@/mal/types'
+import {computed, defineComponent, PropType, ref} from 'vue'
+
+import {MalColl, MalList, MalVal} from '@/mal/types'
+import {getUIBodyExp} from '@/mal/utils'
 
 import ViewExpTree from './ViewExpTree.vue'
-import {getUIBodyExp} from '@/mal/utils'
 
 export default defineComponent({
 	name: 'PaneLayers',

@@ -1,6 +1,8 @@
-import {MalVal} from '@/mal/types'
-import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
 import {mat2d} from 'gl-matrix'
+
+import {MalVal} from '@/mal/types'
+
+import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
 
 const getRendereredImage = (() => {
 	let canvasRenderer: CanvasRendererType

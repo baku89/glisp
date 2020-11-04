@@ -15,12 +15,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed, ref} from 'vue'
 import chroma from 'chroma-js'
+import {computed, defineComponent, PropType, ref} from 'vue'
 
-import {clamp} from '@/utils'
-import {ColorDict} from './InputColorPicker.vue'
 import useDraggable from '@/components/use/use-draggable'
+import {clamp} from '@/utils'
+
+import {ColorDict} from './InputColorPicker.vue'
 
 function toPartialDict(alpha: number): ColorDict {
 	return {a: alpha}

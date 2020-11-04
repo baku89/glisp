@@ -1,22 +1,23 @@
 import isNodeJS from 'is-node'
+
 import {
-	MalError,
-	MalSymbol,
-	MalMap,
-	MalVal,
-	MalNil,
+	isMal,
+	isMalSeq,
+	MalAtom,
 	MalBoolean,
+	MalCallableValue,
+	MalColl,
+	MalError,
+	MalFn,
+	MalKeyword,
+	MalList,
+	MalMap,
+	MalNil,
 	MalNumber,
 	MalString,
+	MalSymbol,
+	MalVal,
 	MalVector,
-	MalList,
-	MalKeyword,
-	MalColl,
-	isMalSeq,
-	MalFn,
-	isMal,
-	MalAtom,
-	MalCallableValue,
 } from './types'
 
 export class MalBlankException extends MalError {}

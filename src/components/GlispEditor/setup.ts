@@ -1,5 +1,7 @@
-import ace from 'brace'
 import './define-glisp-mode'
+
+import ace from 'brace'
+
 import useResizeSensor from '@/components/use/use-resize-sensor'
 //import ConsoleScope from '@/scopes/console'
 

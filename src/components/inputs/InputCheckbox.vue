@@ -19,8 +19,8 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref} from 'vue'
 import uid from 'uid'
+import {defineComponent, ref} from 'vue'
 
 export default defineComponent({
 	name: 'InputCheckbox',

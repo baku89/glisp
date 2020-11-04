@@ -3,8 +3,9 @@
 </template>
 
 <script lang="ts">
-import $ from 'jquery'
 import 'jq-console'
+
+import $ from 'jquery'
 import {defineComponent, onMounted, PropType, ref} from 'vue'
 
 const MAX_HISTORY_LENGTH = 1000

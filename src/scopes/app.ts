@@ -1,8 +1,10 @@
-import Scope from '@/mal/scope'
 import Mousetrap from 'mousetrap'
-import ReplScope from './repl'
-import {MalVal, MalList, MalError, MalBoolean} from '@/mal/types'
+
+import Scope from '@/mal/scope'
+import {MalBoolean, MalError, MalList, MalVal} from '@/mal/types'
+
 import ConsoleScope from './console'
+import ReplScope from './repl'
 
 function onSetup() {
 	AppScope.readEval('(unset-all-keybinds)')

@@ -1,25 +1,26 @@
+// import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
+import {mat2d, vec2} from 'gl-matrix'
+import {computed, onBeforeMount, Ref, ref, SetupContext} from 'vue'
+
 import {
-	copyDelimiters,
-	reverseEval,
-	getFnInfo,
-	computeExpTransform,
-	replaceExp,
-	readJS,
-	getExpByPath,
-} from '@/mal/utils'
-import {
-	MalSeq,
+	MalColl,
+	MalList,
 	MalMap,
+	MalNil,
+	MalSeq,
+	MalType,
 	MalVal,
 	MalVector,
-	MalColl,
-	MalNil,
-	MalList,
-	MalType,
 } from '@/mal/types'
-import {computed, Ref, onBeforeMount, SetupContext, ref} from 'vue'
-// import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
-import {vec2, mat2d} from 'gl-matrix'
+import {
+	computeExpTransform,
+	copyDelimiters,
+	getExpByPath,
+	getFnInfo,
+	readJS,
+	replaceExp,
+	reverseEval,
+} from '@/mal/utils'
 
 interface ClassList {
 	[name: string]: true

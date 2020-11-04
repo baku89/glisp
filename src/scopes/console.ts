@@ -1,24 +1,13 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
+
 import {printer} from '@/mal/printer'
+import {readJS} from '@/mal/reader'
 import Scope from '@/mal/scope'
-import {
-	MalVal,
-	MalError,
-	MalSymbol,
-	MalKeyword,
-	MalNil,
-	MalList,
-	MalMap,
-	MalString,
-	MalFn,
-} from '@/mal/types'
-import GIF from 'gif.js'
+import {MalFn, MalNil, MalString, MalVal} from '@/mal/types'
+import renderToSvg from '@/renderer/render-to-svg'
 
 import ViewScope, {createViewScope} from './view'
-import renderToSvg from '@/renderer/render-to-svg'
-import getRendereredImage from '@/renderer/get-rendererd-image'
-import {readJS} from '@/mal/reader'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 

@@ -31,17 +31,16 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, ref, computed, watch, toRef} from 'vue'
-import chroma from 'chroma-js'
+import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
-import {clamp, unsignedMod} from '@/utils'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
+import {clamp, unsignedMod} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
-import useHSV, {toCSSColor} from './use-hsv'
 import PadFragmentString from './picker-hsv-pad.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
+import useHSV, {toCSSColor} from './use-hsv'
 
 function modeToIndex(element: string) {
 	return element === 'h' ? 0 : element === 's' ? 1 : 2

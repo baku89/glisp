@@ -43,20 +43,20 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 import chroma from 'chroma-js'
+import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
-import {clamp, unsignedMod} from '@/utils'
+import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
+import Popover from '@/components/layouts/Popover.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useKeyboardState from '@/components/use/use-keyboard-state'
 import useRem from '@/components/use/use-rem'
-import useHSV, {toRGBDict} from './InputColorPicker/use-hsv'
+import {clamp, unsignedMod} from '@/utils'
 
-import Popover from '@/components/layouts/Popover.vue'
-import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import InputColorPicker from './InputColorPicker'
 import PadFragmentString from './InputColorPicker/picker-hsv-pad.frag'
 import SliderFragmentString from './InputColorPicker/picker-hsv-slider.frag'
+import useHSV, {toRGBDict} from './InputColorPicker/use-hsv'
 
 export type ColorDict = {[name: string]: number}
 

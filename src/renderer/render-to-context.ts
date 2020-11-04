@@ -1,10 +1,10 @@
 import {
-	MalVal,
-	MalKeyword,
 	MalError,
+	MalKeyword,
 	MalMap,
-	MalVector,
 	MalString,
+	MalVal,
+	MalVector,
 } from '@/mal/types'
 import {iterateSegment} from '@/path-utils'
 

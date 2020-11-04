@@ -1,6 +1,6 @@
-import {Ref, onMounted} from 'vue'
-import isElectron from 'is-electron'
 import hotkeys from 'hotkeys-js'
+import isElectron from 'is-electron'
+import {onMounted, Ref} from 'vue'
 
 interface UseGestureOptions {
 	onScroll?: (e: WheelEvent) => any

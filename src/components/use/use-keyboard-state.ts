@@ -1,8 +1,9 @@
-import {toRefs, reactive, Ref} from 'vue'
 import hotkeys from 'hotkeys-js'
 import keycode from 'keycode'
-import AppScope from '@/scopes/app'
+import {reactive, Ref, toRefs} from 'vue'
+
 import {MalBoolean, MalError, MalString, MalVal} from '@/mal/types'
+import AppScope from '@/scopes/app'
 
 let state: {[keycode: string]: Ref<boolean>}
 

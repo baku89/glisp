@@ -6,20 +6,14 @@
 
 <script lang="ts">
 import 'normalize.css'
-import {defineComponent} from 'vue'
-import {showPDG} from './utils'
-import useScheme from '@/components/use/use-scheme'
-import MinimalConsole from './MinimalConsole.vue'
 
-import {
-	readStr,
-	readAST,
-	analyzePDG,
-	evalPDG,
-	PDG,
-	printValue,
-	printDataType,
-} from './repl'
+import {defineComponent} from 'vue'
+
+import useScheme from '@/components/use/use-scheme'
+
+import MinimalConsole from './MinimalConsole.vue'
+import {analyzePDG, evalPDG, printValue, readAST, readStr} from './repl'
+import {showPDG} from './utils'
 
 export default defineComponent({
 	name: 'Interpreter',

@@ -1,9 +1,8 @@
 import peg from 'pegjs'
+
 import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
-
-type AType = 'number'
 
 // AST
 type AValue = number

@@ -1,12 +1,13 @@
-import ConsoleScope from '@/scopes/console'
-import {ref, Ref, computed, watch} from 'vue'
-import {MalBoolean, MalKeyword, MalMap, MalString} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import useMouseEvents from '@/components/use/use-mouse-events'
-import AppScope from '@/scopes/app'
+import {computed, Ref, ref, watch} from 'vue'
+
 import {useKeyboardState} from '@/components/use'
-import {getHTMLElement} from '@/utils'
+import useMouseEvents from '@/components/use/use-mouse-events'
 import {readJS} from '@/mal/reader'
+import {MalBoolean, MalKeyword, MalMap, MalString} from '@/mal/types'
+import AppScope from '@/scopes/app'
+import ConsoleScope from '@/scopes/console'
+import {getHTMLElement} from '@/utils'
 
 const K_EVENT_TYPE = MalKeyword.from('event-type')
 const K_POS = MalKeyword.from('pos')

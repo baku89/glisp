@@ -1,7 +1,8 @@
-import {MalVal, MalMap} from '@/mal/types'
-import {ViewerSettings} from './index'
-import renderToContext from '../render-to-context'
 import {readJS} from '@/mal/reader'
+import {MalMap, MalVal} from '@/mal/types'
+
+import renderToContext from '../render-to-context'
+import {ViewerSettings} from './index'
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 

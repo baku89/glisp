@@ -1,5 +1,5 @@
-import {Ref, ref, SetupContext, watch} from 'vue'
 import chroma from 'chroma-js'
+import {Ref, ref, SetupContext, watch} from 'vue'
 
 import {ColorDict} from './InputColorPicker.vue'
 

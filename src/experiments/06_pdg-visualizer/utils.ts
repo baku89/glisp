@@ -1,5 +1,6 @@
 import cytoscape from 'cytoscape'
 import klay from 'cytoscape-klay'
+
 import {PDG, printDataType} from './repl'
 
 cytoscape.use(klay)

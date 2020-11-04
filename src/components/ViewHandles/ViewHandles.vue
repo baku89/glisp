@@ -108,19 +108,21 @@
 </template>
 
 <script lang="ts">
-import {MalColl, MalNil} from '@/mal/types'
 import {mat2d, vec2} from 'gl-matrix'
-import {useRem, useGesture, useResizeSensor} from '@/components/use'
 import {
-	defineComponent,
 	computed,
+	defineComponent,
+	onMounted,
+	PropType,
+	reactive,
 	ref,
 	toRef,
-	PropType,
-	onMounted,
-	reactive,
 } from 'vue'
+
+import {useGesture, useRem, useResizeSensor} from '@/components/use'
+import {MalColl, MalNil} from '@/mal/types'
 import AppScope from '@/scopes/app'
+
 import useHandle from './use-handle'
 
 export default defineComponent({

@@ -29,13 +29,13 @@
 </template>
 
 <script lang="ts">
-import {MalVal, MalList, MalColl, MalSymbol, MalType} from '@/mal/types'
-
-import ParamControl from './ParamControl.vue'
+import {computed, defineComponent, PropType} from 'vue'
 
 import Inspectors from '@/components/inspectors'
-import {getFnInfo, copyDelimiters, isUIAnnotation} from '@/mal/utils'
-import {defineComponent, computed, PropType} from 'vue'
+import {MalColl, MalList, MalSymbol, MalType, MalVal} from '@/mal/types'
+import {copyDelimiters, getFnInfo, isUIAnnotation} from '@/mal/utils'
+
+import ParamControl from './ParamControl.vue'
 
 export default defineComponent({
 	name: 'Inspector',

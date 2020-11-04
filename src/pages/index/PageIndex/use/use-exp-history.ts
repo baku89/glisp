@@ -1,6 +1,6 @@
-import {MalColl, MalVal, MalError, MalMap, MalBoolean} from '@/mal/types'
-
 import {Ref} from 'vue'
+
+import {MalBoolean, MalColl, MalError, MalMap, MalVal} from '@/mal/types'
 import AppScope from '@/scopes/app'
 
 type Commit = {

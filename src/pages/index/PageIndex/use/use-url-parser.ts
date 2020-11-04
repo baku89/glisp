@@ -1,5 +1,6 @@
-import {MalError, MalColl, isMalColl} from '@/mal/types'
 import {readStr} from '@/mal'
+import {isMalColl, MalColl, MalError} from '@/mal/types'
+
 import {toSketchCode} from '../utils'
 
 export default function useURLParser(onLoadExp: (exp: MalColl) => void) {

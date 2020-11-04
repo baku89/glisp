@@ -1,6 +1,7 @@
 import Case from 'case'
-import {MalVal, MalKeyword} from '@/mal/types'
 import {Ref, unref} from 'vue'
+
+import {MalKeyword, MalVal} from '@/mal/types'
 
 export function replaceRange(
 	s: string,

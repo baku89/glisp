@@ -1,6 +1,7 @@
-import Mousetrap from 'mousetrap'
 import './mousetrap-global-bind'
 import './mousetrap-record'
+
+import Mousetrap from 'mousetrap'
 
 import Device from '../device'
 

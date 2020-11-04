@@ -33,7 +33,8 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, ref, toRef} from 'vue'
+import {defineComponent, ref, toRef} from 'vue'
+
 // import {useDraggable, useKeyboardState} from '../use'
 import useDraggable from '../use/use-draggable'
 import useKeyboardState from '../use/use-keyboard-state'

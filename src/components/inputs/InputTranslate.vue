@@ -24,10 +24,11 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, PropType, computed} from 'vue'
-import useDraggable from '@/components/use/use-draggable'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
+import {computed, defineComponent, PropType, ref} from 'vue'
+
+import useDraggable from '@/components/use/use-draggable'
 
 const ARROW_KEYS = new Set(['up', 'down', 'left', 'right'])
 

@@ -1,5 +1,5 @@
 /// <reference types="@types/resize-observer-browser" />
-import {Ref, onMounted, onBeforeMount, unref} from 'vue'
+import {onBeforeMount, onMounted, Ref, unref} from 'vue'
 
 export default function useResizeSensor(
 	element: Ref<HTMLElement | null> | HTMLElement,

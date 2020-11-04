@@ -1,11 +1,11 @@
 import {
-	MalVal,
 	MalError,
-	MalSymbol,
-	MalMap,
-	MalVector,
 	MalKeyword,
+	MalMap,
+	MalSymbol,
 	MalType,
+	MalVal,
+	MalVector,
 } from './types'
 
 export default class Env {

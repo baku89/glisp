@@ -1,18 +1,18 @@
-import seedrandom from 'seedrandom'
-import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
+import hull from 'hull.js'
+import seedrandom from 'seedrandom'
 
+import {readJS} from '@/mal/reader'
 import {
-	MalSymbol,
-	MalVector,
-	MalNumber,
-	MalList,
 	MalCallableValue,
+	MalList,
+	MalNumber,
+	MalSymbol,
 	MalVal,
+	MalVector,
 } from '@/mal/types'
 import {partition} from '@/utils'
-import {readJS} from '@/mal/reader'
 
 const Exports = [
 	// Random

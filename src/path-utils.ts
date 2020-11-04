@@ -1,6 +1,7 @@
-import {vec2, mat2d} from 'gl-matrix'
-import {MalKeyword, MalVector} from '@/mal/types'
+import {mat2d, vec2} from 'gl-matrix'
+
 import {readJS} from '@/mal/reader'
+import {MalKeyword, MalVector} from '@/mal/types'
 
 export function isPath(exp: any): exp is MalVector {
 	return MalVector.is(exp) && MalKeyword.isFor(exp.value[0], 'path')

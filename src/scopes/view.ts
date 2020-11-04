@@ -1,8 +1,9 @@
-import {MalFn, MalNil} from '@/mal/types'
-import AppScope from './app'
-import Scope from '@/mal/scope'
 import Env from '@/mal/env'
 import {readJS} from '@/mal/reader'
+import Scope from '@/mal/scope'
+import {MalFn, MalNil} from '@/mal/types'
+
+import AppScope from './app'
 
 interface ViewScopeOption {
 	guideColor: string | null

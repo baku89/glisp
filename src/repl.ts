@@ -1,7 +1,8 @@
-import readlineSync from 'readline-sync'
 import chalk from 'chalk'
-import Scope from './mal/scope'
+import readlineSync from 'readline-sync'
+
 import {readJS} from './mal/reader'
+import Scope from './mal/scope'
 
 async function main() {
 	const replScope = await Scope.createRepl()

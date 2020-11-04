@@ -21,16 +21,8 @@
 
 <script lang="ts">
 import {computed, defineComponent, PropType, toRaw} from 'vue'
-import {
-	PDG,
-	PDGFncall,
-	printPDG,
-	evalPDG,
-	printValue,
-	printDataType,
-	getDataType,
-} from './repl'
-import PDGInputExp from './PDGInputExp.vue'
+
+import {getDataType, PDG, PDGFncall, printDataType, printPDG} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputFncall',

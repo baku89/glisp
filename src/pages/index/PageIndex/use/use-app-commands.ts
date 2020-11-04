@@ -1,34 +1,25 @@
-import AppScope from '@/scopes/app'
+import {readStr} from '@/mal'
+import printExp from '@/mal/printer'
 import {
-	MalVal,
-	MalColl,
-	MalSymbol,
-	MalList,
-	MalType,
-	MalError,
-	isMalSeq,
-	MalSeq,
-	isMalColl,
-	MalVector,
-	MalString,
 	MalBoolean,
-	MalFunc,
+	MalColl,
+	MalError,
+	MalList,
 	MalMap,
+	MalString,
+	MalSymbol,
+	MalVal,
 } from '@/mal/types'
 import {
-	getFnInfo,
-	copyDelimiters,
-	replaceExp,
-	getUIParent,
-	getUIAnnotationExp,
 	deleteExp,
-	generateExpAbsPath,
 	getExpByPath,
+	getUIAnnotationExp,
+	getUIParent,
+	replaceExp,
 } from '@/mal/utils'
-import {readStr} from '@/mal'
+import AppScope from '@/scopes/app'
+
 import {toSketchCode} from '../utils'
-import printExp from '@/mal/printer'
-import ViewScope from '@/scopes/view'
 // import {expandExp} from '@/mal/expand'
 
 export default function useAppCommands(

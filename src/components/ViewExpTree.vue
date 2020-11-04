@@ -60,19 +60,20 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue'
+import {computed, defineComponent, PropType} from 'vue'
+
 import {
-	MalVal,
-	MalList,
-	MalVector,
-	MalType,
-	MalSymbol,
-	MalKeyword,
-	MalMap,
-	MalColl,
-	MalSeq,
 	MalBoolean,
+	MalColl,
+	MalKeyword,
+	MalList,
+	MalMap,
+	MalSeq,
 	MalString,
+	MalSymbol,
+	MalType,
+	MalVal,
+	MalVector,
 } from '@/mal/types'
 import {isUIAnnotation} from '@/mal/utils'
 

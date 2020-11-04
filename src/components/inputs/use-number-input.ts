@@ -1,5 +1,5 @@
-import {Ref, computed, SetupContext} from 'vue'
 import keycode from 'keycode'
+import {computed, Ref, SetupContext} from 'vue'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 

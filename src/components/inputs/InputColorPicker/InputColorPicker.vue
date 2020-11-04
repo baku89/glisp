@@ -19,20 +19,12 @@
 
 <script lang="ts">
 import chroma from 'chroma-js'
-import {
-	defineComponent,
-	ref,
-	watch,
-	computed,
-	shallowRef,
-	watchEffect,
-	PropType,
-} from 'vue'
+import {computed, defineComponent, shallowRef, watch} from 'vue'
 
+import SliderAlpha from './SliderAlpha.vue'
 import SliderHSV from './SliderHSV.vue'
 import SliderHSVRadial from './SliderHSVRadial.vue'
 import SliderRGB from './SliderRGB.vue'
-import SliderAlpha from './SliderAlpha.vue'
 
 export type ColorDict = {[name: string]: number}
 

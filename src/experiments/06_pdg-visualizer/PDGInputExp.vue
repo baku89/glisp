@@ -9,11 +9,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from 'vue'
-import {PDG} from './repl'
-import PDGInputNumber from './PDGInputNumber.vue'
+import {computed, defineComponent, PropType} from 'vue'
+
 import PDGInputBoolean from './PDGInputBoolean.vue'
 import PDGInputFncall from './PDGInputFncall.vue'
+import PDGInputNumber from './PDGInputNumber.vue'
+import {PDG} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',

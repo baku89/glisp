@@ -1,9 +1,11 @@
-import {Ref} from 'vue'
-import {MalVal, MalColl, MalBoolean, MalString} from '@/mal/types'
-import {HitDetector} from './hit-detector'
 import {vec2} from 'gl-matrix'
-import AppScope from '@/scopes/app'
+import {Ref} from 'vue'
+
+import {MalBoolean, MalColl, MalString, MalVal} from '@/mal/types'
 import {generateExpAbsPath} from '@/mal/utils'
+import AppScope from '@/scopes/app'
+
+import {HitDetector} from './hit-detector'
 
 export default function useHitDetector(exp: Ref<MalColl>) {
 	const detector = new HitDetector()
