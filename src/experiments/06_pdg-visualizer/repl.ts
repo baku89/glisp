@@ -37,8 +37,6 @@ type AST = number | AFn | ASymbol | AFncall | AGraph
 
 // Env
 
-type EnvData = EnvPDGData | EnvASTData
-
 class Env {
 	private outer?: Env
 
@@ -86,17 +84,8 @@ const GlobalEnvs = {
 			result: 'succeed',
 			fn: (a, b) => a + b,
 		},
+		dup: new Set(),
 	},
-	// '-': {
-	// 	type: 'value',
-	// 	value: {
-	// 		fn: (a, b) => a - b,
-	// 		dataType: {
-	// 			in: ['number', 'number'],
-	// 			out: 'number',
-	// 		},
-	// 	},
-	// },
 	'*': {
 		type: 'fn',
 		def: {type: 'js', value: (a, b) => a * b},
@@ -108,40 +97,21 @@ const GlobalEnvs = {
 			result: 'succeed',
 			fn: (a, b) => a * b,
 		},
+		dup: new Set(),
 	},
-	// '/': {
-	// 	type: 'value',
-	// 	value: {
-	// 		fn: (a, b) => a / b,
-	// 		dataType: {
-	// 			in: ['number', 'number'],
-	// 			out: 'number',
-	// 		},
-	// 	},
-	// },
-	// neg: {
-	// 	type: 'value',
-	// 	value: {
-	// 		fn: a => -a,
-	// 		dataType: {
-	// 			in: ['number'],
-	// 			out: 'number',
-	// 		},
-	// 	},
-	// },
-	// PI: {
-	// 	type: 'value',
-	// 	value: Math.PI,
-	// },
 } as {[s: string]: PDGAtom}
 
 // PDG
-interface PDGError {
+interface PDGBase {
+	dup: Set<PDG>
+}
+
+interface PDGResolvedError {
 	result: 'error'
 	message: string
 }
 
-interface PDGFncall {
+interface PDGFncall extends PDGBase {
 	type: 'fncall'
 	fn: PDGSymbol | PDGFn
 	params: PDG[]
@@ -152,10 +122,10 @@ interface PDGFncall {
 				dataType: DataTypeFn
 				evaluated?: Promise<number>
 		  }
-		| PDGError
+		| PDGResolvedError
 }
 
-interface PDGGraph {
+interface PDGGraph extends PDGBase {
 	type: 'graph'
 	values: {[sym: string]: PDG}
 	return: string
@@ -164,10 +134,10 @@ interface PDGGraph {
 				result: 'succeed'
 				ref: PDG
 		  }
-		| PDGError
+		| PDGResolvedError
 }
 
-interface PDGSymbol {
+interface PDGSymbol extends PDGBase {
 	type: 'symbol'
 	name: string
 	resolved?:
@@ -175,10 +145,10 @@ interface PDGSymbol {
 				result: 'succeed'
 				ref: PDG
 		  }
-		| PDGError
+		| PDGResolvedError
 }
 
-interface PDGFn {
+interface PDGFn extends PDGBase {
 	type: 'fn'
 	def: {type: 'js'; value: FnType} | {type: 'expr'; params: string[]; body: PDG}
 	dataType: DataTypeFn
@@ -187,10 +157,10 @@ interface PDGFn {
 				result: 'succeed'
 				fn: FnType
 		  }
-		| PDGError
+		| PDGResolvedError
 }
 
-interface PDGValue {
+interface PDGValue extends PDGBase {
 	type: 'value'
 	value: number
 }
@@ -242,8 +212,10 @@ export function readAST(ast: AST): PDG {
 				fn: {
 					type: 'symbol',
 					name: fn,
+					dup: new Set(),
 				},
 				params: params.map(readAST),
+				dup: new Set(),
 			}
 		} else if (ast.type === 'fn') {
 			// Function
@@ -253,6 +225,7 @@ export function readAST(ast: AST): PDG {
 					type: 'fn',
 					def: {type: 'js', value: ast.def},
 					dataType: ast.dataType,
+					dup: new Set(),
 				}
 			} else {
 				// Expression
@@ -264,6 +237,7 @@ export function readAST(ast: AST): PDG {
 						body: readAST(ast.def.body),
 					},
 					dataType: ast.dataType,
+					dup: new Set(),
 				}
 			}
 		} else {
@@ -275,6 +249,7 @@ export function readAST(ast: AST): PDG {
 				type: 'graph',
 				values,
 				return: ast.return,
+				dup: new Set(),
 			}
 		}
 	} else {
@@ -283,48 +258,46 @@ export function readAST(ast: AST): PDG {
 			return {
 				type: 'symbol',
 				name: ast,
+				dup: new Set(),
 			}
 		} else {
 			// Number
 			return {
 				type: 'value',
 				value: ast,
+				dup: new Set(),
 			}
 		}
 	}
 }
 
 export function getDataType(pdg: PDG): DataType | null {
-	if (pdg.type === 'value') {
-		return 'number'
-	} else if (pdg.type === 'symbol' || pdg.type === 'graph') {
-		if (pdg.resolved?.result === 'succeed') {
-			return getDataType(pdg.resolved.ref)
-		} else {
-			return null
-		}
-	} else if (pdg.type === 'fncall') {
-		// fncall
-		if (pdg.resolved?.result === 'succeed') {
-			return pdg.resolved.dataType.out
-		} else {
-			return null
-		}
-	} else {
-		// function
-		return pdg.dataType
+	switch (pdg.type) {
+		case 'value':
+			return 'number'
+		case 'symbol':
+		case 'graph':
+			return pdg.resolved?.result === 'succeed'
+				? getDataType(pdg.resolved.ref)
+				: null
+		case 'fncall':
+			return pdg.resolved?.result === 'succeed'
+				? pdg.resolved.dataType.out
+				: null
+		case 'fn':
+			return pdg.dataType
 	}
 }
 
 function getPDGFn(pdg: PDG): PDGFn | null {
-	if (pdg.type === 'fn') {
-		return pdg
+	switch (pdg.type) {
+		case 'fn':
+			return pdg
+		case 'symbol':
+			if (pdg.resolved?.result === 'succeed') {
+				return getPDGFn(pdg.resolved.ref)
+			}
 	}
-
-	if (pdg.type === 'symbol' && pdg.resolved?.result === 'succeed') {
-		return getPDGFn(pdg.resolved.ref)
-	}
-
 	return null
 }
 
@@ -348,9 +321,13 @@ function isEqualDataType(a: DataType, b: DataType): boolean {
 }
 
 export function analyzePDG(pdg: PDG): PDG {
-	return traverse(pdg, new Env(GlobalEnvs))
+	return traverse(pdg, new Env(GlobalEnvs), null)
 
-	function traverse(pdg: PDG, env: Env): PDG {
+	function traverse(pdg: PDG, env: Env, dup: PDG | null): PDG {
+		if (dup) {
+			pdg.dup.add(dup)
+		}
+
 		if (pdg.type === 'value' || pdg.resolved) {
 			return pdg
 		}
@@ -360,14 +337,14 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve parameters
 			const {params} = pdg
-			params.forEach(p => traverse(p, env))
+			params.forEach(p => traverse(p, env, pdg))
 
-			traverse(pdg.fn, env)
+			traverse(pdg.fn, env, pdg)
 
 			const fnPdg = getPDGFn(pdg.fn)
 
+			// IF fn has not yet resolved
 			if (!fnPdg || !(fnPdg.resolved?.result === 'succeed')) {
-				console.log('UID', fnPdg)
 				pdg.resolved = {
 					result: 'error',
 					message: 'Undefined identifer',
@@ -377,7 +354,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			const {dataType} = fnPdg
 
-			// Type Checking
+			// Type Checking: invalid length of parmeter
 			if (params.length !== dataType.in.length) {
 				pdg.resolved = {
 					result: 'error',
@@ -386,6 +363,7 @@ export function analyzePDG(pdg: PDG): PDG {
 				return pdg
 			}
 
+			// Type Checking: Unmatched parameters
 			const inDataTypes = params.map(getDataType)
 			if (
 				inDataTypes.some(
@@ -399,12 +377,12 @@ export function analyzePDG(pdg: PDG): PDG {
 				return pdg
 			}
 
+			// Resolved
 			pdg.resolved = {
 				result: 'succeed',
 				dataType,
 				fn: fnPdg.resolved.fn,
 			}
-			return pdg
 		} else if (pdg.type === 'graph') {
 			// Graph
 
@@ -414,7 +392,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Resolve inners
 			Object.entries(pdg.values).map(([s, p]) => {
 				innerEnv.setResolving(s, true)
-				traverse(p, innerEnv)
+				traverse(p, innerEnv, null)
 				innerEnv.setResolving(s, false)
 			})
 
@@ -428,9 +406,12 @@ export function analyzePDG(pdg: PDG): PDG {
 			}
 
 			// Resolve
+			const ref = pdg.values[pdg.return]
+			ref.dup.add(pdg)
+
 			pdg.resolved = {
 				result: 'succeed',
-				ref: pdg.values[pdg.return],
+				ref,
 			}
 		} else if (pdg.type === 'symbol') {
 			// Symbol
@@ -453,6 +434,9 @@ export function analyzePDG(pdg: PDG): PDG {
 				}
 				return pdg
 			}
+
+			// Add to dependency
+			ref.dup.add(pdg)
 
 			// Resolve
 			pdg.resolved = {
@@ -477,7 +461,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 				const fnEnv = new Env(Object.fromEntries(paramsPDG), env)
 
-				traverse(body, fnEnv)
+				traverse(body, fnEnv, null)
 
 				const fn: FnType = (...params: number[]) => {
 					paramsPDG.forEach(([, sym], i) => {
@@ -486,6 +470,7 @@ export function analyzePDG(pdg: PDG): PDG {
 							ref: {
 								type: 'value',
 								value: params[i],
+								dup: new Set(),
 							},
 						}
 					})

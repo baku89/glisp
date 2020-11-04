@@ -56,6 +56,17 @@ function showPDG(pdg: PDG) {
 			data: {id, label, width},
 		})
 
+		pdg.dup.forEach(dup => {
+			elements.push({
+				classes: 'dup',
+				data: {
+					source: id,
+					target: gen(dup),
+				},
+			})
+		})
+
+		// Add Edge
 		if (pdg.type === 'fncall') {
 			const edges = pdg.params.map(p => {
 				return {
@@ -201,7 +212,7 @@ function showPDG(pdg: PDG) {
 			{
 				selector: '.ref',
 				style: {
-					'line-style': 'dashed',
+					'arrow-scale': 0.5,
 					'target-arrow-shape': 'triangle',
 				},
 			},
@@ -211,6 +222,16 @@ function showPDG(pdg: PDG) {
 					'line-color': '#b8b8b8',
 					'target-arrow-shape': 'circle',
 					'arrow-scale': 0.5,
+				},
+			},
+			{
+				selector: '.dup',
+				style: {
+					'arrow-scale': 0.5,
+					'line-color': '#7cafc2',
+					'line-style': 'dashed',
+					'target-arrow-color': '#7cafc2',
+					'target-arrow-shape': 'triangle',
 				},
 			},
 		],
