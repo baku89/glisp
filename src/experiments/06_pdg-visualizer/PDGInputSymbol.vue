@@ -1,16 +1,21 @@
 <template>
 	<div class="PDGInputSymbol">
-		<InputString :modelValue="modelValue.name" @update:modelValue="onUpdate" />
+		<InputString
+			class="PDGInputSymbol__input"
+			:modelValue="modelValue.name"
+			@update:modelValue="onUpdate"
+		/>
+		{{ evaluated || 'null' }}
 	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, toRaw} from 'vue'
+import {defineComponent, PropType, toRaw, toRef} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
 import {PDGSymbol} from './repl'
-import {useSwapPDG} from './use'
+import {usePDGEvalauted, useSwapPDG} from './use'
 
 export default defineComponent({
 	name: 'PDGInputSymbol',
@@ -32,7 +37,18 @@ export default defineComponent({
 			swapPDG(oldValue, newValue)
 		}
 
-		return {onUpdate}
+		const {evaluated} = usePDGEvalauted(toRef(props, 'modelValue'))
+
+		return {onUpdate, evaluated}
 	},
 })
 </script>
+
+<style lang="stylus">
+@import '~@/components/style/common.styl'
+
+.PDGInputSymbol
+	&__input
+		color var(--keyword)
+		font-monospace()
+</style>

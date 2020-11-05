@@ -1,7 +1,12 @@
 <template>
 	<div class="PDGInputExp">
 		<component v-if="!isEditingCode" :is="type" :modelValue="modelValue" />
-		<InputString v-else :multiline="true" v-model="code" />
+		<InputString
+			class="PDGInputExp__code"
+			v-else
+			:multiline="true"
+			v-model="code"
+		/>
 		<button class="PDGInputExp__edit-exp" @click="toggleEdit">
 			{{ isEditingCode ? 'Update' : 'Edit' }}
 		</button>
@@ -89,10 +94,15 @@ export default defineComponent({
 	position relative
 	margin-bottom 0.3rem
 
+	&__code
+		color var(--textcolor)
+		font-monospace()
+
 	&__edit-exp
 		position absolute
 		top 0
 		right 0
 		height $input-height
+		color var(--comment)
 		line-height $input-height
 </style>

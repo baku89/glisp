@@ -27,16 +27,8 @@
 <script lang="ts">
 import {computed, defineComponent, inject, PropType, toRaw, toRef} from 'vue'
 
-import {
-	evalPDG,
-	getDataType,
-	PDG,
-	PDGFncall,
-	printDataType,
-	printPDG,
-	printValue,
-} from './repl'
-import {useAsyncComputed} from './use'
+import {getDataType, PDG, PDGFncall, printDataType, printPDG} from './repl'
+import {usePDGEvalauted} from './use'
 
 export default defineComponent({
 	name: 'PDGInputFncall',
@@ -69,17 +61,7 @@ export default defineComponent({
 				: null
 		)
 
-		const {value: evaluated} = useAsyncComputed<null | string, PDG>(
-			null,
-			toRef(props, 'modelValue'),
-			async () => {
-				try {
-					return await printValue(await evalPDG(props.modelValue))
-				} catch (err) {
-					return null
-				}
-			}
-		)
+		const {evaluated} = usePDGEvalauted(toRef(props, 'modelValue'))
 
 		function onUpdateParam(i: number, newParam: PDG) {
 			const oldValue = toRaw(props.modelValue)

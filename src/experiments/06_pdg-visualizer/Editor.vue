@@ -1,20 +1,10 @@
 <template>
 	<div class="Editor">
-		<div class="Editor__text">
-			<GlispEditor
-				class="Editor__editor"
-				:modelValue="code"
-				@update:modelValue="onUpdateCode"
-			/>
-			<div class="Editor__parse-error" v-if="errorOnParse">
-				{{ errorOnParse }}
-			</div>
-		</div>
 		<div class="Editor__inspector">
 			<PDGInputExp v-if="pdg" :modelValue="pdg" />
 		</div>
 		<div class="Editor__result">
-			<pre>{{ printedCode }}</pre>
+			<pre class="Editor__code">{{ code }}</pre>
 			<div>
 				Result: {{ returned }} {{ evaluating ? '(EVALUATING...)' : '' }}
 			</div>
@@ -27,9 +17,8 @@
 import 'normalize.css'
 
 import {useLocalStorage} from '@vueuse/core'
-import {computed, defineComponent, provide, ref, toRaw} from 'vue'
+import {computed, defineComponent, provide, ref, toRaw, watchEffect} from 'vue'
 
-import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import useScheme from '@/components/use/use-scheme'
 
 import PDGInputExp from './PDGInputExp.vue'
@@ -49,7 +38,7 @@ import {useAsyncComputed} from './use'
 
 export default defineComponent({
 	name: 'Editor',
-	components: {PDGInputExp, GlispEditor, PDGVisualizer},
+	components: {PDGInputExp, PDGVisualizer},
 	setup() {
 		useScheme()
 
@@ -84,9 +73,9 @@ export default defineComponent({
 			}
 		})
 
-		const printedCode = computed(() =>
-			pdg.value ? printPDG(pdg.value).replaceAll('\n', '<br/>') : ''
-		)
+		watchEffect(() => {
+			code.value = pdg.value ? printPDG(pdg.value) : ''
+		})
 
 		const {value: returned, isUpdating: evaluating} = useAsyncComputed<
 			Error | string,
@@ -109,7 +98,7 @@ export default defineComponent({
 		return {
 			pdg,
 			code,
-			printedCode,
+
 			evaluating,
 			returned,
 			errorOnParse,
@@ -130,7 +119,7 @@ export default defineComponent({
 
 	&__text, &__inspector, &__result
 		padding 1rem
-		width calc((100% / 3))
+		width calc((100% / 2))
 		border-right 1px solid var(--frame)
 
 		&:last-child
@@ -156,6 +145,9 @@ export default defineComponent({
 
 		&, & pre
 			font-monospace()
+
+	&__printecode
+		white-space pre-wrap
 
 	&__vis
 		flex-grow 1

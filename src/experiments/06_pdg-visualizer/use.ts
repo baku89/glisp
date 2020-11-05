@@ -1,6 +1,6 @@
 import {inject, Ref, ref, UnwrapRef, watch} from 'vue'
 
-import {PDG} from './repl'
+import {evalPDG, PDG, printValue} from './repl'
 
 export function useAsyncComputed<T, K>(
 	initial: T,
@@ -42,4 +42,20 @@ export function useSwapPDG() {
 	return inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg', () => {
 		throw new Error('swapPDG is not provided')
 	})
+}
+
+export function usePDGEvalauted(pdg: Ref<PDG>) {
+	const {value: evaluated} = useAsyncComputed<null | string, PDG>(
+		null,
+		pdg,
+		async () => {
+			try {
+				return printValue(await evalPDG(pdg.value))
+			} catch (err) {
+				return null
+			}
+		}
+	)
+
+	return {evaluated}
 }
