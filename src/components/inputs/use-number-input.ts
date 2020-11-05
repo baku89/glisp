@@ -1,5 +1,5 @@
 import keycode from 'keycode'
-import {computed, Ref, SetupContext} from 'vue'
+import {computed, Ref, SetupContext, watch} from 'vue'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
@@ -9,6 +9,8 @@ export default function useNumber(
 	tweaking: Ref<boolean>,
 	context: SetupContext
 ) {
+	let modifiedByKeyboard = false
+
 	const displayValue = computed(() => {
 		const v = value.value
 		return tweaking.value ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
@@ -32,10 +34,14 @@ export default function useNumber(
 	}
 
 	function onBlur(e: Event) {
-		onConfirm(e)
+		if (modifiedByKeyboard) {
+			modifiedByKeyboard = false
+			onConfirm(e)
+		}
 	}
 
 	function onKeydown(e: KeyboardEvent) {
+		modifiedByKeyboard = true
 		const key = keycode(e)
 
 		if (key === 'enter') {
@@ -60,6 +66,15 @@ export default function useNumber(
 			}
 		}
 	}
+
+	watch(
+		() => tweaking,
+		() => {
+			if (tweaking.value === false) {
+				modifiedByKeyboard = false
+			}
+		}
+	)
 
 	function update(val: number | string) {
 		context.emit('update:modelValue', val)
