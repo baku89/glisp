@@ -153,6 +153,7 @@ const GlobalVariables = {
 
 // PDG
 interface PDGBase {
+	parent?: Exclude<PDG, PDGValue>
 	dep: Set<Exclude<PDG, PDGValue>>
 }
 
@@ -265,6 +266,14 @@ function getAllRefs(pdg: PDG): Set<PDG> {
 	return new Set()
 }
 
+function getAllDeps(pdg: PDG): PDG[] {
+	const dep = Array.from(pdg.dep)
+	if (pdg.parent) {
+		dep.unshift(pdg.parent)
+	}
+	return dep
+}
+
 export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 	const swapped = new Map<PDG, PDG>()
 
@@ -275,7 +284,7 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 	function traverse(op: PDG, np: PDG) {
 		swapped.set(op, np)
 
-		op.dep.forEach(od => {
+		getAllDeps(op).forEach(od => {
 			let nd = swapped.get(od) as typeof od | undefined
 
 			switch (od.type) {
@@ -390,7 +399,7 @@ export function readAST(ast: AST): PDG {
 				dep: new Set(),
 			}
 		} else {
-			// Number
+			// Number / Boolean
 			return {
 				type: 'value',
 				value: ast,
@@ -439,7 +448,7 @@ export function setDirty(pdg: PDG) {
 		pdg.resolved.evaluated = undefined
 	}
 
-	pdg.dep.forEach(setDirty)
+	getAllDeps(pdg).forEach(setDirty)
 }
 
 export function isEqualDataType(a: DataType, b: DataType): boolean {
@@ -469,9 +478,8 @@ export function getSymbols(pdg: PDG): {[sym: string]: PDG} {
 			return pdg.resolved.env.getAllSymbols()
 		}
 	} else {
-		const parent = pdg.dep.values().next().value
-		if (parent) {
-			return getSymbols(parent)
+		if (pdg.parent) {
+			return getSymbols(pdg.parent)
 		}
 	}
 	return GlobalEnv.getAllSymbols()
@@ -480,25 +488,16 @@ export function getSymbols(pdg: PDG): {[sym: string]: PDG} {
 export function analyzePDG(pdg: PDG): PDG {
 	GlobalEnv.clearDep()
 
-	removeDeps(pdg)
-	addDeps(pdg)
+	resetDeps(pdg)
 
 	return traverse(pdg, GlobalEnv)
 
-	function removeDeps(pdg: PDG) {
+	function resetDeps(pdg: PDG) {
 		if (pdg.type !== 'value') {
 			getAllRefs(pdg).forEach(r => {
+				r.parent = pdg
 				r.dep.clear()
-				removeDeps(r)
-			})
-		}
-	}
-
-	function addDeps(pdg: PDG) {
-		if (pdg.type !== 'value') {
-			getAllRefs(pdg).forEach(r => {
-				r.dep.add(pdg)
-				addDups(r)
+				resetDeps(r)
 			})
 		}
 	}
@@ -579,7 +578,6 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve
 			const ref = pdg.values[pdg.return]
-			ref.dep.add(pdg)
 
 			pdg.resolved = {
 				env: innerEnv,
