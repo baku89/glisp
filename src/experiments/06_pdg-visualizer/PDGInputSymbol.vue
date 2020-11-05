@@ -65,8 +65,27 @@ export default defineComponent({
 	emits: [],
 	setup(props) {
 		const inputEl = ref<null | HTMLElement>(null)
-		const swapPDG = useSwapPDG()
 
+		const name = ref('')
+
+		watch(
+			() => props.modelValue,
+			() => (name.value = props.modelValue.name),
+			{immediate: true}
+		)
+
+		const {evaluated} = usePDGEvalauted(toRef(props, 'modelValue'))
+
+		// Update
+		const swapPDG = useSwapPDG()
+		function onUpdate(v = name.value) {
+			const oldValue = toRaw(props.modelValue)
+			const newValue = {...oldValue, resolved: undefined, name: v}
+
+			swapPDG(oldValue, newValue)
+		}
+
+		// Candidate box
 		const candidateSymbolsShown = ref(false)
 
 		const availableSymbols = computed(() => {
@@ -100,27 +119,10 @@ export default defineComponent({
 			return availableSymbols.value
 		})
 
-		function onUpdate(v = name.value) {
-			const oldValue = toRaw(props.modelValue)
-			const newValue = {...oldValue, resolved: undefined, name: v}
-
-			swapPDG(oldValue, newValue)
-		}
-
 		function onClickCandidate(v: string) {
 			candidateSymbolsShown.value = false
 			onUpdate(v)
 		}
-
-		const name = ref('')
-
-		watch(
-			() => props.modelValue,
-			() => (name.value = props.modelValue.name),
-			{immediate: true}
-		)
-
-		const {evaluated} = usePDGEvalauted(toRef(props, 'modelValue'))
 
 		return {
 			name,
