@@ -14,7 +14,7 @@ hotkeys('*', {keyup: true, keydown: true}, (e: KeyboardEvent) => {
 
 	let code = keycode(e)
 
-	if (code.includes('command')) {
+	if (code?.includes('command')) {
 		code = 'ctrl'
 	}
 
