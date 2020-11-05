@@ -18,17 +18,12 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue'
-import {
-	MalList,
-	MalSeq,
-	MalString,
-	MalSymbol,
-	MalType,
-	MalVal,
-} from '@/mal/types'
+import {computed, defineComponent, PropType} from 'vue'
+
 import {InputString} from '@/components/inputs'
+import {MalList, MalString, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
 import MalExpButton from './MalExpButton.vue'
 
 export default defineComponent({

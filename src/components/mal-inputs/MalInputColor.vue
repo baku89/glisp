@@ -57,22 +57,17 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, ComputedRef, PropType} from 'vue'
 import chroma from 'chroma-js'
-import {
-	MalVal,
-	MalType,
-	MalSymbol,
-	MalList,
-	MalSeq,
-	MalString,
-} from '@/mal/types'
+import {computed, ComputedRef, defineComponent, PropType} from 'vue'
+
 import InputColor from '@/components/inputs/InputColor.vue'
-import InputString from '@/components/inputs/InputString.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
+import InputString from '@/components/inputs/InputString.vue'
+import {MalList, MalString, MalSymbol, MalType, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
+import MalInputNumber from './MalInputNumber.vue'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 

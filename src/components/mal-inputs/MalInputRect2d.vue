@@ -77,13 +77,15 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, toRef, PropType} from 'vue'
+import {defineComponent, PropType, toRef} from 'vue'
+
 import {InputNumber, InputTranslate} from '@/components/inputs'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
 import {useNumericVectorUpdator} from '@/components/use'
-import {reverseEval} from '@/mal/utils'
 import {MalSeq, MalSymbol} from '@/mal/types'
+import {reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
+import MalInputNumber from './MalInputNumber.vue'
 
 export default defineComponent({
 	name: 'MalInputRect2d',

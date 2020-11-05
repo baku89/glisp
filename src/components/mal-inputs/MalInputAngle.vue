@@ -19,11 +19,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue'
-import MalInputNumber from './MalInputNumber.vue'
+import {computed, defineComponent, PropType} from 'vue'
+
 import {InputRotery} from '@/components/inputs'
 import {MalList, MalNumber, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
+import MalInputNumber from './MalInputNumber.vue'
 
 export default defineComponent({
 	name: 'MalInputAngle',

@@ -34,20 +34,20 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue'
+import {computed, defineComponent, PropType} from 'vue'
+
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import MalExpButton from '@/components/mal-inputs/MalExpButton.vue'
+import {readStr} from '@/mal'
 import {
-	MalSeq,
+	MalKeyword,
 	MalList,
-	MalVal,
+	MalNumber,
 	MalSymbol,
 	MalType,
-	MalKeyword,
-	MalNumber,
+	MalVal,
 } from '@/mal/types'
-import {getExpByPath, getFnInfo, reverseEval, getFn} from '@/mal/utils'
-import {readStr} from '@/mal'
+import {getExpByPath, getFn, getFnInfo, reverseEval} from '@/mal/utils'
 
 export default defineComponent({
 	name: 'MalInputSlider',

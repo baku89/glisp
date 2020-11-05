@@ -15,10 +15,12 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
-import MalInputNumber from './MalInputNumber.vue'
+
 import {InputSeed} from '@/components/inputs'
 import {MalList, MalNumber, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
+import MalInputNumber from './MalInputNumber.vue'
 
 export default defineComponent({
 	name: 'MalInputSeed',

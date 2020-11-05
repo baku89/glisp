@@ -48,20 +48,22 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from 'vue'
+import {computed, defineComponent, PropType} from 'vue'
+
+import {InputNumber} from '@/components/inputs'
 import {
+	MalBoolean,
+	MalList,
+	MalNumber,
 	MalSeq,
 	MalSymbol,
 	MalVal,
-	MalList,
 	MalVector,
-	MalNumber,
-	MalBoolean,
 } from '@/mal/types'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
-import {InputNumber} from '@/components/inputs'
 import {reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
+import MalInputNumber from './MalInputNumber.vue'
 
 export default defineComponent({
 	name: 'MalInputSize2d',

@@ -11,9 +11,10 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, computed} from 'vue'
-import {MalSeq, MalSymbol, getName, MalList} from '@/mal/types'
+import {computed, defineComponent, PropType} from 'vue'
+
 import {InputString} from '@/components/inputs'
+import {MalList, MalSymbol} from '@/mal/types'
 
 export default defineComponent({
 	name: 'MalInputSymbol',

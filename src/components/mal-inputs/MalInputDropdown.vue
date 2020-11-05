@@ -9,8 +9,9 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
-import {MalVal} from '@/mal/types'
+
 import {InputDropdown} from '@/components/inputs'
+import {MalVal} from '@/mal/types'
 
 export default defineComponent({
 	name: 'MalInputDropdown',
