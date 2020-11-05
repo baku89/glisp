@@ -95,6 +95,7 @@ export default defineComponent({
 		font-monospace()
 
 	&__multiline
+		overflow-y hidden
 		line-height 1.8rem
 		resize none
 </style>
