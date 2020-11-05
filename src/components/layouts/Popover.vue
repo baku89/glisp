@@ -6,17 +6,7 @@
 
 <script lang="ts">
 import {createPopper, Instance as PopperInstance} from '@popperjs/core'
-import {
-	defineComponent,
-	nextTick,
-	onMounted,
-	onUnmounted,
-	PropType,
-	reactive,
-	ref,
-	toRefs,
-	watch,
-} from 'vue'
+import {defineComponent, nextTick, onUnmounted, PropType, ref, watch} from 'vue'
 
 export default defineComponent({
 	name: 'Popover',

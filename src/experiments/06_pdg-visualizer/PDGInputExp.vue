@@ -1,6 +1,11 @@
 <template>
 	<div class="PDGInputExp">
-		<component v-if="!isEditingCode" :is="type" :modelValue="modelValue" />
+		<component
+			v-if="!isEditingCode"
+			:is="type"
+			:modelValue="modelValue"
+			:dataType="dataType"
+		/>
 		<InputString
 			class="PDGInputExp__code"
 			v-else
@@ -23,7 +28,7 @@ import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
 import PDGInputSymbol from './PDGInputSymbol.vue'
-import {PDG, printPDG, readAST, readStr} from './repl'
+import {DataType, PDG, printPDG, readAST, readStr} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',
@@ -39,6 +44,9 @@ export default defineComponent({
 		modelValue: {
 			type: Object as PropType<PDG>,
 			required: true,
+		},
+		dataType: {
+			type: [Object, String] as PropType<DataType>,
 		},
 	},
 	emits: [],

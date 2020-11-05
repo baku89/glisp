@@ -59,6 +59,14 @@ class Env {
 		}
 	}
 
+	getAllSymbols(): {[name: string]: PDG} {
+		const symbols = {
+			...(this.outer ? this.outer.getAllSymbols() : {}),
+			...this.data,
+		}
+		return symbols
+	}
+
 	clearDep() {
 		for (const [, value] of Object.entries(this.data)) {
 			value.dep.clear()
@@ -84,7 +92,7 @@ interface DataTypeFn {
 	out: DataType
 }
 
-type DataType = 'number' | 'boolean' | DataTypeFn
+export type DataType = 'number' | 'boolean' | DataTypeFn
 
 function createJSFnPDG(
 	fn: FnType,
@@ -113,7 +121,7 @@ function createJSFnPDG(
 	}
 }
 
-const GlobalEnvs = {
+const GlobalVariables = {
 	'+': createJSFnPDG((a: any, b: any) => a + b, ['number', 'number'], 'number'),
 	'*': createJSFnPDG((a: any, b: any) => a * b, ['number', 'number'], 'number'),
 	'=': createJSFnPDG(
@@ -139,6 +147,8 @@ const GlobalEnvs = {
 	),
 	neg: createJSFnPDG((a: any) => a * -1, ['number'], 'number'),
 	PI: readAST(Math.PI),
+	PI2: readAST(Math.PI * 2),
+	E: readAST(Math.E),
 } as {[s: string]: PDGAtom}
 
 // PDG
@@ -167,6 +177,7 @@ export interface PDGGraph extends PDGBase {
 	return: string
 	resolved?:
 		| {
+				env: Env
 				ref: PDG
 		  }
 		| PDGResolvedError
@@ -431,7 +442,7 @@ export function setDirty(pdg: PDG) {
 	pdg.dep.forEach(setDirty)
 }
 
-function isEqualDataType(a: DataType, b: DataType): boolean {
+export function isEqualDataType(a: DataType, b: DataType): boolean {
 	if (typeof a === 'string') {
 		return a === b
 	} else {
@@ -450,7 +461,21 @@ function isEqualDataType(a: DataType, b: DataType): boolean {
 	}
 }
 
-const GlobalEnv = new Env(GlobalEnvs)
+const GlobalEnv = new Env(GlobalVariables)
+
+export function getSymbols(pdg: PDG): {[sym: string]: PDG} {
+	if (pdg.type === 'graph') {
+		if (pdg.resolved && !(pdg.resolved instanceof Error)) {
+			return pdg.resolved.env.getAllSymbols()
+		}
+	} else {
+		const parent = pdg.dep.values().next().value
+		if (parent) {
+			return getSymbols(parent)
+		}
+	}
+	return GlobalEnv.getAllSymbols()
+}
 
 export function analyzePDG(pdg: PDG): PDG {
 	GlobalEnv.clearDep()
@@ -557,6 +582,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			ref.dep.add(pdg)
 
 			pdg.resolved = {
+				env: innerEnv,
 				ref,
 			}
 		} else if (pdg.type === 'symbol') {
@@ -659,8 +685,10 @@ export async function evalPDG(pdg: PDG): Promise<Value> {
 	}
 }
 
-export function printDataType(dt: DataType): string {
-	if (typeof dt === 'string') {
+export function printDataType(dt: DataType | null): string {
+	if (dt === null) {
+		return 'undetermined'
+	} else if (typeof dt === 'string') {
 		return dt
 	} else {
 		const inStr = dt.in.map(printDataType).join(' ')

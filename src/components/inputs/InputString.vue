@@ -7,6 +7,8 @@
 		:value="modelValue"
 		@input="onInput"
 		@blur="onBlur"
+		@keydown.enter="$emit('end-tweak')"
+		v-bind="$attrs"
 	/>
 	<textarea
 		v-else
@@ -16,7 +18,8 @@
 		:value="modelValue"
 		:style="{height: textareaHeight}"
 		@input="onInput"
-	></textarea>
+		v-bind="$attrs"
+	/>
 </template>
 
 <script lang="ts">
@@ -42,6 +45,7 @@ export default defineComponent({
 			default: false,
 		},
 	},
+	emits: ['update:modelValue', 'end-tweak'],
 	setup(props, context) {
 		const textareaEl = ref<null | HTMLTextAreaElement>(null)
 		const textareaHeight = computed(() => {
@@ -72,6 +76,7 @@ export default defineComponent({
 			onBlur,
 		}
 	},
+	inheritAttrs: false,
 })
 </script>
 

@@ -17,7 +17,16 @@
 import 'normalize.css'
 
 import {useLocalStorage} from '@vueuse/core'
-import {computed, defineComponent, provide, ref, toRaw, watchEffect} from 'vue'
+import {
+	computed,
+	defineComponent,
+	provide,
+	Ref,
+	ref,
+	shallowRef,
+	toRaw,
+	watchEffect,
+} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
@@ -46,7 +55,7 @@ export default defineComponent({
 
 		const errorOnParse = ref<string | null>(null)
 
-		const pdg = ref<PDG | null>(null)
+		const pdg: Ref<PDG | null> = shallowRef(null)
 		onUpdateCode(code.value)
 
 		function onUpdateCode(_code: string) {
@@ -66,7 +75,6 @@ export default defineComponent({
 			if (pdg.value) {
 				const map = swapPDG(oldValue, newValue)
 				const newPDG = map.get(toRaw(pdg.value))
-				// console.log('swap', map, toRaw(pdg.value), newPDG)
 				if (newPDG) {
 					pdg.value = newPDG
 				}
@@ -116,6 +124,7 @@ export default defineComponent({
 .Editor
 	display flex
 	height 100vh
+	color var(--textcolor)
 
 	&__text, &__inspector, &__result
 		padding 1rem

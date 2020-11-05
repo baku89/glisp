@@ -14,10 +14,7 @@
 			>
 				<dt class="PDGFncall__param-index">{{ i.toString() }}</dt>
 				<dd class="PDGFncall__param-expr">
-					<PDGInputExp
-						:modelValue="param"
-						@update:modelValue="onUpdateParam(i, $event)"
-					/>
+					<PDGInputExp :modelValue="param" :dataType="paramDataTypes[i]" />
 				</dd>
 			</div>
 		</dl>
@@ -25,9 +22,9 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, inject, PropType, toRaw, toRef} from 'vue'
+import {computed, defineComponent, PropType, toRef} from 'vue'
 
-import {getDataType, PDG, PDGFncall, printDataType, printPDG} from './repl'
+import {getDataType, PDGFncall, printDataType, printPDG} from './repl'
 import {usePDGEvalauted} from './use'
 
 export default defineComponent({
@@ -40,8 +37,6 @@ export default defineComponent({
 	},
 	emits: [],
 	setup(props) {
-		const swapPDG = inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg')
-
 		const fnName = computed(() => {
 			let fn =
 				props.modelValue.fn.type === 'symbol'
@@ -55,6 +50,15 @@ export default defineComponent({
 			return fn + ' => ' + (evaluated.value || 'EVAL ERROR')
 		})
 
+		const paramDataTypes = computed(() => {
+			const fnType = getDataType(props.modelValue.fn)
+			if (fnType instanceof Object) {
+				return fnType.in
+			}
+
+			return []
+		})
+
 		const errorMsg = computed(() =>
 			props.modelValue.resolved instanceof Error
 				? props.modelValue.resolved.message
@@ -63,14 +67,7 @@ export default defineComponent({
 
 		const {evaluated} = usePDGEvalauted(toRef(props, 'modelValue'))
 
-		function onUpdateParam(i: number, newParam: PDG) {
-			const oldValue = toRaw(props.modelValue)
-			const newValue = {...oldValue, resolved: undefined}
-			newValue.params[i] = newParam
-			swapPDG && swapPDG(oldValue, newValue)
-		}
-
-		return {fnName, onUpdateParam, errorMsg, evaluated}
+		return {fnName, errorMsg, evaluated, paramDataTypes}
 	},
 })
 </script>
