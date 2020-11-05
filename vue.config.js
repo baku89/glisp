@@ -40,6 +40,7 @@ module.exports = {
 				args.onlyCompileBundledFiles = true
 				return args
 			})
+
 		// config.plugin('html-js/index').tap(args => {
 		// 	args[0].hash = true
 		// 	args[0].minify = {
@@ -51,6 +52,7 @@ module.exports = {
 		// 	}
 		// 	return args
 		// })
+
 		// config.plugin('html-js/interpreter').tap(args => {
 		// 	args[0].hash = true
 		// 	args[0].minify = {
@@ -92,16 +94,9 @@ module.exports = {
 			.end()
 
 		// Copy logo.png to dist
-		config.plugin('copy-assets').use(CopyPlugin, [
-			{
-				patterns: [
-					{
-						from: 'assets/logo.png',
-						to: '.',
-					},
-				],
-			},
-		])
+		config
+			.plugin('copy-assets')
+			.use(CopyPlugin, [{patterns: [{rom: 'assets/logo.png', to: '.'}]}])
 	},
 	pages: {
 		// 'js/index': {
