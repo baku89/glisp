@@ -1,4 +1,4 @@
-start = space? expr:expr {return expr}
+start = space? expr:expr? {return expr || 0}
 
 expr = (atom / fncall / graph / symbol)
 
