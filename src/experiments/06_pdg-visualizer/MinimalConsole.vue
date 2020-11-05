@@ -3,9 +3,11 @@
 </template>
 
 <script lang="ts">
+// eslint-disable-next-line simple-import-sort/sort
+import $ from 'jquery'
+
 import 'jq-console'
 
-import $ from 'jquery'
 import {defineComponent, onMounted, PropType, ref} from 'vue'
 
 const MAX_HISTORY_LENGTH = 1000
@@ -56,6 +58,7 @@ export default defineComponent({
 						const ret = await props.rep(line)
 						jqconsole.Write(ret + '\n', 'jqconsole-return')
 					} catch (err) {
+						console.log(err)
 						jqconsole.Write(err + '\n', 'jqconsole-error')
 					}
 					saveHistory(jqconsole, props.name)

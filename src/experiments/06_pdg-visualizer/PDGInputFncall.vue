@@ -1,6 +1,11 @@
 <template>
 	<div class="PDGFncall">
-		<div class="PDGFncall__fn-name">{{ fnName }}</div>
+		<div class="PDGFncall__fn-name" :class="{error: errorMsg}">
+			{{ fnName }}
+		</div>
+		<div class="PDGFncall__error" v-if="errorMsg">
+			{{ errorMsg }}
+		</div>
 		<dl class="PDGFncall__params">
 			<div
 				class="PDGFncall__param"
@@ -20,9 +25,18 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, toRaw} from 'vue'
+import {computed, defineComponent, PropType, toRaw, toRef} from 'vue'
 
-import {getDataType, PDG, PDGFncall, printDataType, printPDG} from './repl'
+import {
+	evalPDG,
+	getDataType,
+	PDG,
+	PDGFncall,
+	printDataType,
+	printPDG,
+	printValue,
+} from './repl'
+import {useAsyncComputed} from './use'
 
 export default defineComponent({
 	name: 'PDGInputFncall',
@@ -34,15 +48,35 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const fnName = computed(() =>
-			props.modelValue.fn.type === 'symbol'
-				? printPDG(props.modelValue.fn)
-				: 'f' +
-				  ' : ' +
-				  printDataType(getDataType(props.modelValue.fn) || 'number').slice(
-						1,
-						-1
-				  )
+		const fnName = computed(() => {
+			let fn =
+				props.modelValue.fn.type === 'symbol'
+					? printPDG(props.modelValue.fn)
+					: 'f' +
+					  ' : ' +
+					  printDataType(getDataType(props.modelValue.fn) || 'number').slice(
+							1,
+							-1
+					  )
+			return fn + ' => ' + (evaluated.value || 'EVAL ERROR')
+		})
+
+		const errorMsg = computed(() =>
+			props.modelValue.resolved?.result === 'error'
+				? props.modelValue.resolved.message
+				: null
+		)
+
+		const {value: evaluated} = useAsyncComputed<null | string, PDG>(
+			null,
+			toRef(props, 'modelValue'),
+			async () => {
+				try {
+					return await printValue(await evalPDG(props.modelValue))
+				} catch (err) {
+					return null
+				}
+			}
 		)
 
 		function onUpdateParam(i: number, newParam: PDG) {
@@ -62,7 +96,7 @@ export default defineComponent({
 			context.emit('update:modelValue', newValue)
 		}
 
-		return {fnName, onUpdateParam}
+		return {fnName, onUpdateParam, errorMsg, evaluated}
 	},
 })
 </script>
@@ -75,6 +109,14 @@ export default defineComponent({
 		padding-left 0.5rem
 		height $input-height
 		background var(--frame)
+		line-height $input-height
+
+		&.error
+			background var(--error)
+			color var(--background)
+
+	&__error
+		color var(--error)
 		line-height $input-height
 
 	&__params

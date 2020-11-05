@@ -24,6 +24,7 @@ export default defineComponent({
 	setup(props, context) {
 		function onUpdate(v: number) {
 			const oldValue = toRaw(props.modelValue)
+
 			setDirty(oldValue)
 			const newValue: PDGValue = {...oldValue}
 			newValue.value = v

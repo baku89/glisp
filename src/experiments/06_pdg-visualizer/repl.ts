@@ -42,7 +42,7 @@ interface ASTGraph {
 	return: ASymbol
 }
 
-type AST = number | ASTFn | ASymbol | ASTFncall | ASTGraph
+export type AST = number | boolean | ASTFn | ASymbol | ASTFncall | ASTGraph
 
 // Env
 class Env {
@@ -413,6 +413,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Type Checking
 			const paramDataTypes = params.map(getDataType)
 			if (
+				paramDataTypes.length !== dataType.in.length ||
 				paramDataTypes.some(
 					(pdt, i) => pdt === null || !isEqualDataType(pdt, dataType.in[i])
 				)

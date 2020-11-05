@@ -86,6 +86,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		function onChange() {
 			if (setBySelf) return
 			const value = editor.getValue()
+			console.log('update!!!')
 			context.emit('update:modelValue', value)
 		}
 

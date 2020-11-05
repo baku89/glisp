@@ -14,7 +14,6 @@ import useScheme from '@/components/use/use-scheme'
 import MinimalConsole from './MinimalConsole.vue'
 import {analyzePDG, evalPDG, printValue, readAST, readStr} from './repl'
 import {showPDG} from './utils'
-
 export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole},
@@ -27,14 +26,9 @@ export default defineComponent({
 			const pdg = analyzePDG(readAST(readStr(str)))
 
 			const el = await showPDG(pdg)
-			el.style.setProperty('width', '500px')
-			el.style.setProperty('height', '250px')
 
 			append && append(el)
-			// showPDG(pdg)
 			const ret = await evalPDG(pdg)
-
-			console.log(ret)
 
 			return printValue(ret)
 		}

@@ -1,6 +1,6 @@
 import {createApp} from 'vue'
 
-import App from './PDGEditor.vue'
+import App from './Editor.vue'
 import PDGInputExp from './PDGInputExp.vue'
 
 const app = createApp(App)
