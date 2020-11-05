@@ -9,7 +9,8 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
-import {deleteAllDups, PDGSymbol, setDirty} from './repl'
+import {PDGSymbol} from './repl'
+import {useSwapPDG} from './use'
 
 export default defineComponent({
 	name: 'PDGInputSymbol',
@@ -20,18 +21,15 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
-	setup(props, context) {
+	emits: [],
+	setup(props) {
+		const swapPDG = useSwapPDG()
+
 		function onUpdate(v: string) {
 			const oldValue = toRaw(props.modelValue)
-			setDirty(oldValue)
-			const newValue: PDGSymbol = {...oldValue}
+			const newValue = {...oldValue, resolved: undefined, name: v}
 
-			deleteAllDups(oldValue)
-
-			newValue.resolved = undefined
-			newValue.name = v
-			context.emit('update:modelValue', newValue)
+			swapPDG(oldValue, newValue)
 		}
 
 		return {onUpdate}

@@ -11,11 +11,7 @@
 			</div>
 		</div>
 		<div class="Editor__inspector">
-			<PDGInputExp
-				v-if="pdg"
-				:modelValue="pdg"
-				@update:modelValue="onUpdatePDG"
-			/>
+			<PDGInputExp v-if="pdg" :modelValue="pdg" />
 		</div>
 		<div class="Editor__result">
 			<pre>{{ printedCode }}</pre>
@@ -31,7 +27,7 @@
 import 'normalize.css'
 
 import {useLocalStorage} from '@vueuse/core'
-import {computed, defineComponent, ref, shallowRef} from 'vue'
+import {computed, defineComponent, provide, ref, toRaw} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import useScheme from '@/components/use/use-scheme'
@@ -47,6 +43,7 @@ import {
 	printValue,
 	readAST,
 	readStr,
+	swapPDG,
 } from './repl'
 import {useAsyncComputed} from './use'
 
@@ -60,7 +57,7 @@ export default defineComponent({
 
 		const errorOnParse = ref<string | null>(null)
 
-		const pdg = shallowRef<PDG | null>(null)
+		const pdg = ref<PDG | null>(null)
 		onUpdateCode(code.value)
 
 		function onUpdateCode(_code: string) {
@@ -70,15 +67,22 @@ export default defineComponent({
 			try {
 				ast = readStr(code.value)
 				errorOnParse.value = null
-				onUpdatePDG(readAST(ast))
+				pdg.value = readAST(ast)
 			} catch (err) {
 				errorOnParse.value = err.message
 			}
 		}
 
-		function onUpdatePDG(p: PDG) {
-			pdg.value = p
-		}
+		provide('swap-pdg', (oldValue: PDG, newValue: PDG) => {
+			if (pdg.value) {
+				const map = swapPDG(oldValue, newValue)
+				const newPDG = map.get(toRaw(pdg.value))
+				// console.log('swap', map, toRaw(pdg.value), newPDG)
+				if (newPDG) {
+					pdg.value = newPDG
+				}
+			}
+		})
 
 		const printedCode = computed(() =>
 			pdg.value ? printPDG(pdg.value).replaceAll('\n', '<br/>') : ''
@@ -104,7 +108,6 @@ export default defineComponent({
 
 		return {
 			pdg,
-			onUpdatePDG,
 			code,
 			printedCode,
 			evaluating,

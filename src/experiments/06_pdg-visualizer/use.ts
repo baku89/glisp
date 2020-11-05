@@ -1,4 +1,6 @@
-import {Ref, ref, UnwrapRef, watch} from 'vue'
+import {inject, Ref, ref, UnwrapRef, watch} from 'vue'
+
+import {PDG} from './repl'
 
 export function useAsyncComputed<T, K>(
 	initial: T,
@@ -34,4 +36,10 @@ export function useAsyncComputed<T, K>(
 	}
 
 	return {value, isUpdating}
+}
+
+export function useSwapPDG() {
+	return inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg', () => {
+		throw new Error('swapPDG is not provided')
+	})
 }

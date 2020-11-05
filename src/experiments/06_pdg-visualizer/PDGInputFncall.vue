@@ -25,11 +25,9 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, toRaw, toRef} from 'vue'
+import {computed, defineComponent, inject, PropType, toRaw, toRef} from 'vue'
 
 import {
-	addDups,
-	deleteAllDups,
 	evalPDG,
 	getDataType,
 	PDG,
@@ -37,7 +35,6 @@ import {
 	printDataType,
 	printPDG,
 	printValue,
-	setDirty,
 } from './repl'
 import {useAsyncComputed} from './use'
 
@@ -49,8 +46,10 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
-	setup(props, context) {
+	emits: [],
+	setup(props) {
+		const swapPDG = inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg')
+
 		const fnName = computed(() => {
 			let fn =
 				props.modelValue.fn.type === 'symbol'
@@ -84,16 +83,9 @@ export default defineComponent({
 
 		function onUpdateParam(i: number, newParam: PDG) {
 			const oldValue = toRaw(props.modelValue)
-			setDirty(oldValue)
-			const newValue: PDGFncall = {...oldValue}
-
-			deleteAllDups(oldValue)
-
+			const newValue = {...oldValue, resolved: undefined}
 			newValue.params[i] = newParam
-			newValue.resolved = undefined
-			addDups(newValue)
-
-			context.emit('update:modelValue', newValue)
+			swapPDG && swapPDG(oldValue, newValue)
 		}
 
 		return {fnName, onUpdateParam, errorMsg, evaluated}

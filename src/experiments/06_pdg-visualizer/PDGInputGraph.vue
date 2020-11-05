@@ -28,7 +28,8 @@
 <script lang="ts">
 import {computed, defineComponent, PropType, toRaw} from 'vue'
 
-import {addDups, deleteAllDups, PDG, PDGGraph, setDirty} from './repl'
+import {PDG, PDGGraph} from './repl'
+import {useSwapPDG} from './use'
 
 export default defineComponent({
 	name: 'PDGInputGraph',
@@ -38,8 +39,10 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
-	setup(props, context) {
+	emits: [],
+	setup(props) {
+		const swapPDG = useSwapPDG()
+
 		const entries = computed(() => {
 			return Object.entries(props.modelValue.values)
 		})
@@ -48,34 +51,24 @@ export default defineComponent({
 			return props.modelValue.return
 		})
 
-		function cloneNewValue() {
-			const oldValue = toRaw(props.modelValue)
-			const newValue: PDGGraph = {...oldValue}
-
-			setDirty(oldValue)
-			deleteAllDups(oldValue)
-
-			return newValue
-		}
-
 		function setOutput(sym: string) {
-			const newValue = cloneNewValue()
+			const oldValue = toRaw(props.modelValue)
+			const newValue = {...oldValue, resolved: undefined, return: sym}
 
-			newValue.return = sym
-			newValue.resolved = undefined
-			addDups(newValue)
-
-			context.emit('update:modelValue', newValue)
+			swapPDG(oldValue, newValue)
 		}
 
 		function onUpdateValue(sym: string, newParam: PDG) {
-			const newValue = cloneNewValue()
+			const oldValue = toRaw(props.modelValue)
+			const newValue = {
+				...oldValue,
+				values: {...oldValue.values},
+				resolved: undefined,
+			}
 
 			newValue.values[sym] = newParam
-			newValue.resolved = undefined
-			addDups(newValue)
 
-			context.emit('update:modelValue', newValue)
+			swapPDG(oldValue, newValue)
 		}
 
 		return {entries, outputSymbol, onUpdateValue, setOutput}

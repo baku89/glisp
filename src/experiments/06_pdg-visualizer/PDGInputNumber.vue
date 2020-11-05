@@ -9,7 +9,8 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputNumber from '@/components/inputs/InputNumber.vue'
 
-import {PDGValue, setDirty} from './repl'
+import {PDGValue} from './repl'
+import {useSwapPDG} from './use'
 
 export default defineComponent({
 	name: 'PDGInputNumber',
@@ -20,15 +21,16 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
-	setup(props, context) {
+	emits: [],
+	setup(props) {
+		const swapPDG = useSwapPDG()
+
 		function onUpdate(v: number) {
 			const oldValue = toRaw(props.modelValue)
-
-			setDirty(oldValue)
-			const newValue: PDGValue = {...oldValue}
+			const newValue = {...oldValue}
 			newValue.value = v
-			context.emit('update:modelValue', newValue)
+
+			swapPDG(oldValue, newValue)
 		}
 
 		return {onUpdate}

@@ -1,11 +1,6 @@
 <template>
 	<div class="PDGInputExp">
-		<component
-			v-if="!isEditingCode"
-			:is="type"
-			:modelValue="modelValue"
-			@update:modelValue="$emit('update:modelValue', $event)"
-		/>
+		<component v-if="!isEditingCode" :is="type" :modelValue="modelValue" />
 		<InputString v-else :multiline="true" v-model="code" />
 		<button class="PDGInputExp__edit-exp" @click="toggleEdit">
 			{{ isEditingCode ? 'Update' : 'Edit' }}
@@ -14,7 +9,7 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, ref, toRaw} from 'vue'
+import {computed, defineComponent, inject, PropType, ref, toRaw} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
@@ -23,7 +18,7 @@ import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
 import PDGInputSymbol from './PDGInputSymbol.vue'
-import {deleteAllDups, PDG, printPDG, readAST, readStr, setDirty} from './repl'
+import {PDG, printPDG, readAST, readStr} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',
@@ -41,8 +36,10 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
-	setup(props, context) {
+	emits: [],
+	setup(props) {
+		const swapPDG = inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg')
+
 		const type = computed(() => {
 			switch (props.modelValue.type) {
 				case 'value':
@@ -72,13 +69,8 @@ export default defineComponent({
 				// On end
 				try {
 					const newValue = readAST(readStr(code.value))
-
 					const oldValue = toRaw(props.modelValue)
-					setDirty(oldValue)
-
-					deleteAllDups(oldValue)
-
-					context.emit('update:modelValue', newValue)
+					swapPDG && swapPDG(oldValue, newValue)
 				} catch {
 					null
 				}

@@ -143,7 +143,7 @@ const GlobalEnvs = {
 
 // PDG
 interface PDGBase {
-	dep: Set<PDG>
+	dep: Set<Exclude<PDG, PDGValue>>
 }
 
 interface PDGResolvedError {
@@ -241,26 +241,92 @@ export function printPDG(pdg: PDG): string {
 	}
 }
 
-function getAllRefs(pdg: PDG): PDG[] {
+function getAllRefs(pdg: PDG): Set<PDG> {
 	switch (pdg.type) {
+		case 'fn':
+			if (pdg.def.type === 'expr') {
+				return new Set([pdg.def.body])
+			}
+			break
 		case 'fncall':
-			return [pdg.fn, ...pdg.params]
+			return new Set([pdg.fn, ...pdg.params])
 		case 'graph':
-			return Array.from(Object.values(pdg.values))
+			return new Set(Object.values(pdg.values))
 		case 'symbol':
 			if (pdg.resolved?.result === 'succeed') {
-				return [pdg.resolved.ref]
+				return new Set([pdg.resolved.ref])
 			}
+			break
 	}
-	return []
+	return new Set()
 }
 
-export function deleteAllDups(pdg: PDG) {
-	getAllRefs(pdg).forEach(p => p.dep.delete(pdg))
+export function swapPDG(oldPdg: PDG, newPdg: PDG) {
+	const swapped = new Map<PDG, PDG>()
+
+	traverse(oldPdg, newPdg)
+
+	return swapped
+
+	function traverse(op: PDG, np: PDG) {
+		swapped.set(op, np)
+
+		op.dep.forEach(od => {
+			let nd = swapped.get(od) as typeof od | undefined
+
+			switch (od.type) {
+				case 'fn': {
+					nd = (nd as PDGFn) ?? {...od, resolved: undefined}
+					if (nd.def.type === 'expr') {
+						nd.def = {...nd.def, body: np}
+					}
+					return traverse(od, nd)
+				}
+				case 'fncall': {
+					nd = (nd as PDGFncall) ?? {
+						...od,
+						params: [...od.params],
+						resolved: undefined,
+					}
+					if (nd.fn === op) {
+						nd.fn = np
+					}
+					for (let i = 0; i < nd.params.length; i++) {
+						if (nd.params[i] === op) {
+							nd.params[i] = np
+						}
+					}
+					return traverse(od, nd)
+				}
+				case 'graph': {
+					nd = (nd as PDGGraph) ?? {
+						...od,
+						values: {...od.values},
+						resolved: undefined,
+					}
+					for (const sym in nd.values) {
+						if (nd.values[sym] === op) {
+							nd.values[sym] = np
+						}
+					}
+					return traverse(od, nd)
+				}
+				case 'symbol': {
+					nd = (nd as PDGSymbol) ?? {...od, resolved: undefined}
+					return traverse(od, nd)
+				}
+			}
+		})
+	}
 }
 
 export function addDups(pdg: PDG) {
-	getAllRefs(pdg).forEach(p => p.dep.add(pdg))
+	if (pdg.type === 'symbol' || pdg.type === 'fncall' || pdg.type === 'graph') {
+		getAllRefs(pdg).forEach(p => {
+			p.dep.add(pdg)
+			addDups(p)
+		})
+	}
 }
 
 export function readStr(str: string): AST {
@@ -394,18 +460,31 @@ const GlobalEnv = new Env(GlobalEnvs)
 
 export function analyzePDG(pdg: PDG): PDG {
 	GlobalEnv.clearDep()
-	return traverse(pdg, GlobalEnv, null)
 
-	function traverse(pdg: PDG, env: Env, dep: PDG | null): PDG {
-		if (dep) {
-			pdg.dep.add(dep)
+	removeDeps(pdg)
+	addDeps(pdg)
+
+	return traverse(pdg, GlobalEnv)
+
+	function removeDeps(pdg: PDG) {
+		if (pdg.type !== 'value') {
+			getAllRefs(pdg).forEach(r => {
+				r.dep.clear()
+				removeDeps(r)
+			})
 		}
+	}
 
-		// Add dependency
-		if (pdg.type === 'fncall') {
-			pdg.params.forEach(p => p.dep.add(pdg))
+	function addDeps(pdg: PDG) {
+		if (pdg.type !== 'value') {
+			getAllRefs(pdg).forEach(r => {
+				r.dep.add(pdg)
+				addDups(r)
+			})
 		}
+	}
 
+	function traverse(pdg: PDG, env: Env): PDG {
 		// Return resolved value
 		if (pdg.type === 'value' || pdg.resolved) {
 			return pdg
@@ -416,11 +495,11 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve parameters
 			const {params} = pdg
-			params.forEach(p => traverse(p, env, pdg))
+			params.forEach(p => traverse(p, env))
 
-			traverse(pdg.fn, env, pdg)
+			traverse(pdg.fn, env)
 
-			const fnPdg = traverse(pdg.fn, env, pdg)
+			const fnPdg = traverse(pdg.fn, env)
 
 			const dataType = getDataType(fnPdg)
 
@@ -466,7 +545,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Resolve inners
 			Object.entries(pdg.values).map(([s, p]) => {
 				innerEnv.setResolving(s, true)
-				traverse(p, innerEnv, null)
+				traverse(p, innerEnv)
 				innerEnv.setResolving(s, false)
 			})
 
@@ -537,7 +616,7 @@ export function analyzePDG(pdg: PDG): PDG {
 
 				const fnEnv = new Env(Object.fromEntries(paramsPDG), env)
 
-				traverse(body, fnEnv, null)
+				traverse(body, fnEnv)
 
 				const fn: FnType = async (...params: Value[]) => {
 					paramsPDG.forEach(([, sym]) => setDirty(sym))
