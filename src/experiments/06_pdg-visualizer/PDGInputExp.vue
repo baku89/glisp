@@ -23,7 +23,7 @@ import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
 import PDGInputSymbol from './PDGInputSymbol.vue'
-import {PDG, printPDG, readAST, readStr, setDirty} from './repl'
+import {deleteAllDups, PDG, printPDG, readAST, readStr, setDirty} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',
@@ -75,6 +75,8 @@ export default defineComponent({
 
 					const oldValue = toRaw(props.modelValue)
 					setDirty(oldValue)
+
+					deleteAllDups(oldValue)
 
 					context.emit('update:modelValue', newValue)
 				} catch {

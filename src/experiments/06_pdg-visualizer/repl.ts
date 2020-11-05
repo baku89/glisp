@@ -241,6 +241,28 @@ export function printPDG(pdg: PDG): string {
 	}
 }
 
+function getAllRefs(pdg: PDG): PDG[] {
+	switch (pdg.type) {
+		case 'fncall':
+			return [pdg.fn, ...pdg.params]
+		case 'graph':
+			return Array.from(Object.values(pdg.values))
+		case 'symbol':
+			if (pdg.resolved?.result === 'succeed') {
+				return [pdg.resolved.ref]
+			}
+	}
+	return []
+}
+
+export function deleteAllDups(pdg: PDG) {
+	getAllRefs(pdg).forEach(p => p.dep.delete(pdg))
+}
+
+export function addDups(pdg: PDG) {
+	getAllRefs(pdg).forEach(p => p.dep.add(pdg))
+}
+
 export function readStr(str: string): AST {
 	return parser.parse(str)
 }

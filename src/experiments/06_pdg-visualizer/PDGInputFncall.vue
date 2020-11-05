@@ -28,6 +28,8 @@
 import {computed, defineComponent, PropType, toRaw, toRef} from 'vue'
 
 import {
+	addDups,
+	deleteAllDups,
 	evalPDG,
 	getDataType,
 	PDG,
@@ -35,6 +37,7 @@ import {
 	printDataType,
 	printPDG,
 	printValue,
+	setDirty,
 } from './repl'
 import {useAsyncComputed} from './use'
 
@@ -81,17 +84,14 @@ export default defineComponent({
 
 		function onUpdateParam(i: number, newParam: PDG) {
 			const oldValue = toRaw(props.modelValue)
+			setDirty(oldValue)
 			const newValue: PDGFncall = {...oldValue}
 
-			oldValue.fn.dep.delete(oldValue)
-			oldValue.fn.dep.add(newValue)
-
-			oldValue.params.map(p => {
-				p.dep.delete(oldValue)
-				p.dep.add(newValue)
-			})
+			deleteAllDups(oldValue)
 
 			newValue.params[i] = newParam
+			newValue.resolved = undefined
+			addDups(newValue)
 
 			context.emit('update:modelValue', newValue)
 		}

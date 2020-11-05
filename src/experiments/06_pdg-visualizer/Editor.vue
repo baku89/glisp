@@ -22,7 +22,7 @@
 			<div>
 				Result: {{ returned }} {{ evaluating ? '(EVALUATING...)' : '' }}
 			</div>
-			<!-- <PDGVisualizer class="Editor__vis" :modelValue="pdg" /> -->
+			<PDGVisualizer v-if="false" class="Editor__vis" :modelValue="pdg" />
 		</div>
 	</div>
 </template>
@@ -37,6 +37,7 @@ import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import useScheme from '@/components/use/use-scheme'
 
 import PDGInputExp from './PDGInputExp.vue'
+import PDGVisualizer from './PDGVisualizer.vue'
 import {
 	analyzePDG,
 	AST,
@@ -51,7 +52,7 @@ import {useAsyncComputed} from './use'
 
 export default defineComponent({
 	name: 'Editor',
-	components: {PDGInputExp, GlispEditor},
+	components: {PDGInputExp, GlispEditor, PDGVisualizer},
 	setup() {
 		useScheme()
 

@@ -28,7 +28,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType, toRaw} from 'vue'
 
-import {PDG, PDGGraph} from './repl'
+import {addDups, deleteAllDups, PDG, PDGGraph, setDirty} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputGraph',
@@ -48,32 +48,32 @@ export default defineComponent({
 			return props.modelValue.return
 		})
 
-		function setOutput(sym: string) {
+		function cloneNewValue() {
 			const oldValue = toRaw(props.modelValue)
 			const newValue: PDGGraph = {...oldValue}
 
-			Object.values(oldValue.values).forEach(v => {
-				v.dep.delete(oldValue)
-				v.dep.add(newValue)
-			})
+			setDirty(oldValue)
+			deleteAllDups(oldValue)
+
+			return newValue
+		}
+
+		function setOutput(sym: string) {
+			const newValue = cloneNewValue()
 
 			newValue.return = sym
 			newValue.resolved = undefined
+			addDups(newValue)
 
 			context.emit('update:modelValue', newValue)
 		}
 
 		function onUpdateValue(sym: string, newParam: PDG) {
-			const oldValue = toRaw(props.modelValue)
-			const newValue: PDGGraph = {...oldValue}
-
-			Object.values(oldValue.values).forEach(v => {
-				v.dep.delete(oldValue)
-				v.dep.add(newValue)
-			})
+			const newValue = cloneNewValue()
 
 			newValue.values[sym] = newParam
 			newValue.resolved = undefined
+			addDups(newValue)
 
 			context.emit('update:modelValue', newValue)
 		}

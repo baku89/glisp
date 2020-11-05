@@ -9,7 +9,7 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
-import {PDGSymbol, setDirty} from './repl'
+import {deleteAllDups, PDGSymbol, setDirty} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputSymbol',
@@ -27,11 +27,7 @@ export default defineComponent({
 			setDirty(oldValue)
 			const newValue: PDGSymbol = {...oldValue}
 
-			const resolved = props.modelValue.resolved
-			if (resolved?.result === 'succeed') {
-				resolved.ref.dep.delete(oldValue)
-				resolved.ref.dep.add(newValue)
-			}
+			deleteAllDups(oldValue)
 
 			newValue.resolved = undefined
 			newValue.name = v
