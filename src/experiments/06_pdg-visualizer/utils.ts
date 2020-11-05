@@ -5,10 +5,13 @@ import {PDG, printDataType} from './repl'
 
 cytoscape.use(klay)
 
-export async function showPDG(
-	pdg: PDG,
-	el: HTMLElement = document.createElement('div')
-) {
+export async function showPDG(pdg: PDG, el?: HTMLElement) {
+	if (!el) {
+		el = document.createElement('div')
+		el.style.setProperty('width', '500px')
+		el.style.setProperty('height', '250px')
+	}
+
 	const elements: any[] = []
 	const pdgToId = new WeakMap<PDG, string>()
 
@@ -57,6 +60,7 @@ export async function showPDG(
 				data: {
 					source: id,
 					target: await gen(d),
+					label: '',
 				},
 			})
 		}
@@ -91,6 +95,7 @@ export async function showPDG(
 					data: {
 						source: id,
 						target: await gen(pdg.resolved.ref),
+						label: '',
 					},
 				})
 			}
@@ -113,12 +118,16 @@ export async function showPDG(
 		data: {
 			source: '0',
 			target: out,
+			label: '',
 		},
 	})
 
 	const cy = cytoscape({
 		container: el,
 		elements,
+		layout: {
+			name: 'klay',
+		},
 		style: [
 			// the stylesheet for the graph
 			{
@@ -230,8 +239,6 @@ export async function showPDG(
 	cy.layout({
 		name: 'klay',
 	}).run()
-
-	// document.body.append(el)
 
 	return el
 }
