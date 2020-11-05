@@ -96,7 +96,7 @@ module.exports = {
 		// Copy logo.png to dist
 		config
 			.plugin('copy-assets')
-			.use(CopyPlugin, [{patterns: [{rom: 'assets/logo.png', to: '.'}]}])
+			.use(CopyPlugin, [{patterns: [{from: 'assets/logo.png', to: '.'}]}])
 	},
 	pages: {
 		// 'js/index': {
