@@ -104,7 +104,6 @@ function createJSFnPDG(
 			dataType: dataType,
 		},
 		resolved: {
-			result: 'succeed',
 			value: {
 				fn: fn,
 				dataType: dataType,
@@ -147,10 +146,7 @@ interface PDGBase {
 	dep: Set<Exclude<PDG, PDGValue>>
 }
 
-interface PDGResolvedError {
-	result: 'error'
-	message: string
-}
+type PDGResolvedError = Error
 
 export interface PDGFncall extends PDGBase {
 	type: 'fncall'
@@ -158,7 +154,6 @@ export interface PDGFncall extends PDGBase {
 	params: PDG[]
 	resolved?:
 		| {
-				result: 'succeed'
 				fn: PDG
 				dataType: DataTypeFn
 				evaluated?: Promise<Value>
@@ -172,7 +167,6 @@ export interface PDGGraph extends PDGBase {
 	return: string
 	resolved?:
 		| {
-				result: 'succeed'
 				ref: PDG
 		  }
 		| PDGResolvedError
@@ -183,7 +177,6 @@ export interface PDGSymbol extends PDGBase {
 	name: string
 	resolved?:
 		| {
-				result: 'succeed'
 				ref: PDG
 		  }
 		| PDGResolvedError
@@ -205,7 +198,6 @@ export interface PDGFn extends PDGBase {
 		  }
 	resolved?:
 		| {
-				result: 'succeed'
 				value: ValueFn
 		  }
 		| PDGResolvedError
@@ -254,7 +246,7 @@ function getAllRefs(pdg: PDG): Set<PDG> {
 		case 'graph':
 			return new Set(Object.values(pdg.values))
 		case 'symbol':
-			if (pdg.resolved?.result === 'succeed') {
+			if (pdg.resolved && !(pdg.resolved instanceof Error)) {
 				return new Set([pdg.resolved.ref])
 			}
 			break
@@ -414,11 +406,11 @@ export function getDataType(pdg: PDG): DataType | null {
 			}
 		case 'symbol':
 		case 'graph':
-			return pdg.resolved?.result === 'succeed'
+			return pdg.resolved && !(pdg.resolved instanceof Error)
 				? getDataType(pdg.resolved.ref)
 				: null
 		case 'fncall':
-			return pdg.resolved?.result === 'succeed'
+			return pdg.resolved && !(pdg.resolved instanceof Error)
 				? pdg.resolved.dataType.out
 				: null
 		case 'fn':
@@ -429,7 +421,8 @@ export function getDataType(pdg: PDG): DataType | null {
 export function setDirty(pdg: PDG) {
 	if (
 		pdg.type === 'fncall' &&
-		pdg.resolved?.result === 'succeed' &&
+		pdg.resolved &&
+		!(pdg.resolved instanceof Error) &&
 		pdg.resolved.evaluated
 	) {
 		pdg.resolved.evaluated = undefined
@@ -505,10 +498,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			const dataType = getDataType(fnPdg)
 
 			if (dataType === null || typeof dataType === 'string') {
-				pdg.resolved = {
-					result: 'error',
-					message: 'Not a function',
-				}
+				pdg.resolved = new Error('Not a function')
 				return pdg
 			}
 
@@ -516,10 +506,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			const paramDataTypes = params.map(getDataType)
 
 			if (paramDataTypes.some(dt => dt === null)) {
-				pdg.resolved = {
-					result: 'error',
-					message: `Uncooked param in child`,
-				}
+				pdg.resolved = new Error('Uncooked param in child')
 				return pdg
 			}
 
@@ -529,20 +516,18 @@ export function analyzePDG(pdg: PDG): PDG {
 					(pdt, i) => pdt === null || !isEqualDataType(pdt, dataType.in[i])
 				)
 			) {
-				pdg.resolved = {
-					result: 'error',
-					message: `Parameter unmatched expected=(${dataType.in
+				pdg.resolved = new Error(
+					`Parameter unmatched expected=(${dataType.in
 						.map(printDataType)
 						.join(' ')}) passed=(${paramDataTypes
 						.map(dt => (dt !== null ? printDataType(dt) : 'null'))
-						.join(' ')})`,
-				}
+						.join(' ')})`
+				)
 				return pdg
 			}
 
 			// Resolved
 			pdg.resolved = {
-				result: 'succeed',
 				dataType,
 				fn: fnPdg,
 			}
@@ -561,10 +546,9 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Check if return symbol is invalid
 			if (!(pdg.return in pdg.values)) {
-				pdg.resolved = {
-					result: 'error',
-					message: `Return symbol ${pdg.return} is not defined in the graph`,
-				}
+				pdg.resolved = new Error(
+					`Return symbol ${pdg.return} is not defined in the graph`
+				)
 				return pdg
 			}
 
@@ -573,7 +557,6 @@ export function analyzePDG(pdg: PDG): PDG {
 			ref.dep.add(pdg)
 
 			pdg.resolved = {
-				result: 'succeed',
 				ref,
 			}
 		} else if (pdg.type === 'symbol') {
@@ -581,20 +564,14 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Check circular reference
 			if (env.isResolving(pdg.name)) {
-				pdg.resolved = {
-					result: 'error',
-					message: `Circular reference: ${pdg.name}`,
-				}
+				pdg.resolved = new Error(`Circular reference: ${pdg.name}`)
 				return pdg
 			}
 
 			// Check if symbol is defined in the env
 			const ref = env.get(pdg.name)
 			if (!ref) {
-				pdg.resolved = {
-					result: 'error',
-					message: `Undefined identifer: ${pdg.name}`,
-				}
+				pdg.resolved = new Error(`Undefined identifer: ${pdg.name}`)
 				return pdg
 			}
 
@@ -603,14 +580,12 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Resolve
 			pdg.resolved = {
-				result: 'succeed',
 				ref,
 			}
 		} else if (pdg.type === 'fn') {
 			if (pdg.def.type === 'js') {
 				// JS Function
 				pdg.resolved = {
-					result: 'succeed',
 					value: {
 						fn: pdg.def.value,
 						dataType: pdg.def.dataType,
@@ -635,7 +610,6 @@ export function analyzePDG(pdg: PDG): PDG {
 				}
 
 				pdg.resolved = {
-					result: 'succeed',
 					value: {
 						fn,
 						dataType: pdg.def.dataType,
@@ -657,7 +631,7 @@ export async function evalPDG(pdg: PDG): Promise<Value> {
 		return Promise.reject('Not yet resolved')
 	}
 
-	if (pdg.resolved.result === 'error') {
+	if (pdg.resolved instanceof Error) {
 		return Promise.reject(pdg.resolved.message)
 	}
 

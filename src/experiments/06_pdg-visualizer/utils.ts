@@ -46,7 +46,8 @@ export async function showPDG(pdg: PDG, el?: HTMLElement) {
 
 		const width = Math.max(24, label.length * 12 + 5) + 'px'
 
-		const valid = pdg.type === 'value' || pdg.resolved?.result === 'succeed'
+		const valid =
+			pdg.type === 'value' || (pdg.resolved && !(pdg.resolved instanceof Error))
 
 		elements.push({
 			classes: [pdg.type, valid ? '' : 'invalid'].join(' '),
@@ -89,7 +90,7 @@ export async function showPDG(pdg: PDG, el?: HTMLElement) {
 				})
 			}
 		} else if (pdg.type === 'symbol') {
-			if (pdg.resolved?.result === 'succeed') {
+			if (pdg.resolved && !(pdg.resolved instanceof Error)) {
 				elements.push({
 					classes: 'ref',
 					data: {

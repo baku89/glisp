@@ -56,7 +56,7 @@ export default defineComponent({
 		})
 
 		const errorMsg = computed(() =>
-			props.modelValue.resolved?.result === 'error'
+			props.modelValue.resolved instanceof Error
 				? props.modelValue.resolved.message
 				: null
 		)
