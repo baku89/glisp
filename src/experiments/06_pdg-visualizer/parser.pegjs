@@ -11,8 +11,8 @@ atom  = boolean / number / fn
 boolean = value:("true" / "false") space?
 	{return value === 'true'}
 
-number = [0-9]+ space?
-	{return parseInt(text(), 10)}
+number = ("-" / "+")? [0-9\.]+ ("e" "+"? [0-9]+)? space?
+	{return parseFloat(text())}
 
 fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" space? outType:dataType ")" space?
 	{
