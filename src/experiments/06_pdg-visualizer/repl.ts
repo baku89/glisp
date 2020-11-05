@@ -139,6 +139,7 @@ const GlobalEnvs = {
 		'number'
 	),
 	neg: createJSFnPDG((a: any) => a * -1, ['number'], 'number'),
+	PI: readAST(Math.PI),
 } as {[s: string]: PDGAtom}
 
 // PDG
@@ -513,6 +514,15 @@ export function analyzePDG(pdg: PDG): PDG {
 
 			// Type Checking
 			const paramDataTypes = params.map(getDataType)
+
+			if (paramDataTypes.some(dt => dt === null)) {
+				pdg.resolved = {
+					result: 'error',
+					message: `Uncooked param in child`,
+				}
+				return pdg
+			}
+
 			if (
 				paramDataTypes.length !== dataType.in.length ||
 				paramDataTypes.some(
