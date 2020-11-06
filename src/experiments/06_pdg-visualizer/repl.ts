@@ -228,8 +228,19 @@ export function printPDG(pdg: PDG): string {
 	switch (pdg.type) {
 		case 'value':
 			return printValue(pdg.value)
-		case 'fn':
-			return printDataType(pdg.def.dataType)
+		case 'fn': {
+			const def = pdg.def
+			const dataType = def.dataType
+			if (def.type === 'expr') {
+				const paramsStr = def.params
+					.map((p, i) => p + ': ' + printDataType(dataType.in[i]))
+					.join(' ')
+				const bodyStr = printPDG(def.body) + ' : ' + printDataType(dataType.out)
+				return `#(${paramsStr} => ${bodyStr})`
+			} else {
+				return 'js func'
+			}
+		}
 		case 'fncall': {
 			const fn = printPDG(pdg.fn)
 			const params = pdg.params.map(printPDG).join(' ')
