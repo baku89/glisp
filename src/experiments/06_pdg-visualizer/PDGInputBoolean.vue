@@ -12,7 +12,8 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 
-import {PDGValue, swapPDG} from './repl'
+import {PDGValue} from './repl'
+import {useSwapPDG} from './use'
 
 export default defineComponent({
 	name: 'PDGInputBoolean',
@@ -25,9 +26,11 @@ export default defineComponent({
 	},
 	emits: [],
 	setup(props) {
-		function onUpdate(v: boolean) {
+		const swapPDG = useSwapPDG()
+
+		function onUpdate(value: boolean) {
 			const oldValue = toRaw(props.modelValue)
-			const newValue = {...oldValue, value: v}
+			const newValue = {...oldValue, value}
 
 			swapPDG(oldValue, newValue)
 		}

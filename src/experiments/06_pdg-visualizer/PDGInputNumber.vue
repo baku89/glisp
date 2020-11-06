@@ -25,10 +25,9 @@ export default defineComponent({
 	setup(props) {
 		const swapPDG = useSwapPDG()
 
-		function onUpdate(v: number) {
+		function onUpdate(value: number) {
 			const oldValue = toRaw(props.modelValue)
-			const newValue = {...oldValue}
-			newValue.value = v
+			const newValue = {...oldValue, value}
 
 			swapPDG(oldValue, newValue)
 		}
