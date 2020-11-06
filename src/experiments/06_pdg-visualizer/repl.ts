@@ -633,7 +633,7 @@ export function analyzePDG(pdg: PDG): PDG {
 				const {params, body} = pdg.def
 				const paramsPDG: [string, PDGValue][] = params.map(name => [
 					name,
-					{type: 'value', value: 0, dep: new Set()},
+					{type: 'value', value: 1, dep: new Set()},
 				])
 
 				const fnEnv = new Env(Object.fromEntries(paramsPDG), env)

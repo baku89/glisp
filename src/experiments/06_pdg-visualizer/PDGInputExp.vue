@@ -19,6 +19,7 @@ import {computed, defineComponent, PropType, ref} from 'vue'
 
 import PDGInputBoolean from './PDGInputBoolean.vue'
 import PDGInputCode from './PDGInputCode.vue'
+import PDGInputFn from './PDGInputFn.vue'
 import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
@@ -34,6 +35,7 @@ export default defineComponent({
 		PDGInputGraph,
 		PDGInputSymbol,
 		PDGInputCode,
+		PDGInputFn,
 	},
 	props: {
 		modelValue: {

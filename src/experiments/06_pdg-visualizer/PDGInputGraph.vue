@@ -1,27 +1,27 @@
 <template>
 	<div class="PDGInputGraph">
 		<div class="PDGInputGraph__fn-name">Graph</div>
-		<dl class="PDGInputGraph__entries">
+		<div class="PDGInputGraph__entries">
 			<div
 				class="PDGInputGraph__entry"
 				v-for="[sym, value] in entries"
 				:key="sym"
 			>
-				<dt
+				<div
 					class="PDGInputGraph__entry-symbol"
 					:class="{output: outputSymbol === sym}"
 					@dblclick="setOutput(sym)"
 				>
 					{{ sym }}
-				</dt>
-				<dd class="PDGInputGraph__entry-expr">
+				</div>
+				<div class="PDGInputGraph__entry-expr">
 					<PDGInputExp
 						:modelValue="value"
 						@update:modelValue="onUpdateValue(sym, $event)"
 					/>
-				</dd>
+				</div>
 			</div>
-		</dl>
+		</div>
 	</div>
 </template>
 
@@ -96,7 +96,7 @@ export default defineComponent({
 
 		&-symbol
 			flex-grow 0
-			width 2rem
+			width 5rem
 			height $input-height
 			color var(--comment)
 			line-height $input-height

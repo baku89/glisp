@@ -6,7 +6,12 @@
 			@confirm="update()"
 			@focus="candidateSymbolsShown = true"
 		/>
-		{{ evaluated || '-' }}
+		<span
+			class="PDGInputSymbol__evaluated"
+			:class="{error: evaluated === null}"
+		>
+			{{ evaluated !== null ? '= ' + evaluated : '⚠' }}
+		</span>
 		<Popover
 			v-model:open="candidateSymbolsShown"
 			:reference="inputEl"
@@ -147,6 +152,14 @@ export default defineComponent({
 	&__input
 		color var(--keyword)
 		font-monospace()
+		width 6rem
+
+	&__evaluated
+		padding-left 0.5rem
+		color var(--comment)
+
+		&.error
+			color var(--error)
 
 	&__available-symbols
 		margin 2px

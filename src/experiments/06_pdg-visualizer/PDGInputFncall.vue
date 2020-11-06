@@ -6,18 +6,18 @@
 		<div class="PDGInputFncall__error" v-if="errorMsg">
 			{{ errorMsg }}
 		</div>
-		<dl class="PDGInputFncall__params">
+		<div class="PDGInputFncall__params">
 			<div
 				class="PDGInputFncall__param"
 				v-for="(param, i) in modelValue.params"
 				:key="i"
 			>
-				<dt class="PDGInputFncall__param-index">{{ i.toString() }}</dt>
-				<dd class="PDGInputFncall__param-expr">
+				<div class="PDGInputFncall__param-index">{{ i.toString() }}</div>
+				<div class="PDGInputFncall__param-expr">
 					<PDGInputExp :modelValue="param" :dataType="paramDataTypes[i]" />
-				</dd>
+				</div>
 			</div>
-		</dl>
+		</div>
 	</div>
 </template>
 
