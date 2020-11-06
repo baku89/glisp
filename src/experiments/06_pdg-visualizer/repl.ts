@@ -154,7 +154,7 @@ const GlobalVariables = {
 // PDG
 interface PDGBase {
 	parent?: Exclude<PDG, PDGValue>
-	dep: Set<Exclude<PDG, PDGValue>>
+	dep: Set<PDGSymbol>
 }
 
 type PDGResolvedError = Error
@@ -278,7 +278,7 @@ function getAllRefs(pdg: PDG): Set<PDG> {
 }
 
 function getAllDeps(pdg: PDG): PDG[] {
-	const dep = Array.from(pdg.dep)
+	const dep: PDG[] = Array.from(pdg.dep)
 	if (pdg.parent) {
 		dep.unshift(pdg.parent)
 	}
@@ -295,7 +295,7 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 	function traverse(op: PDG, np: PDG) {
 		swapped.set(op, np)
 
-		if (op.type !== 'value') {
+		if (op.type === 'symbol') {
 			getAllRefs(op).forEach(r => r.dep.delete(op))
 			op.resolved = undefined
 		}
@@ -345,15 +345,6 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 					return traverse(od, nd)
 				}
 			}
-		})
-	}
-}
-
-export function addDups(pdg: PDG) {
-	if (pdg.type === 'symbol' || pdg.type === 'fncall' || pdg.type === 'graph') {
-		getAllRefs(pdg).forEach(p => {
-			p.dep.add(pdg)
-			addDups(p)
 		})
 	}
 }
