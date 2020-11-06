@@ -1,20 +1,30 @@
-start = space? expr:expr? {return expr || 0}
+program = space? expr:expr? space? { return expr }
 
-expr = (atom / fncall / graph / symbol)
+expr = atom / fncall / graph / symbol
 
 // Space
-space "whitepace" = [ \t\n\r]*
+space "whitepace" = [ \t\n\r]+
 
-// Atoms
-atom  = boolean / number / fn
+// Atom
+atom = number / boolean / fn
 
-boolean = value:("true" / "false") space?
-	{return value === 'true'}
+// Boolean
+boolean = value:("true" / "false") { return value === 'true' }
 
-number = ("-" / "+")? [0-9\.]+ ("e" "+"? [0-9]+)? space?
-	{return parseFloat(text())}
+// Number
+number = exponential / float / integer
 
-fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" space? outType:dataType ")" space?
+integer = digits:$(("+" / "-")? (([1-9] [0-9]+) / [0-9]))
+	{ return parseInt(digits, 10)}
+
+float = digits:$(integer? "." [0-9]*)
+	{ return parseFloat(digits) }
+
+exponential = digits:$((integer / float) "e" integer)
+	{ return parseFloat(digits) }
+
+// Fn
+fn = "#(" space? params:(symbol space? ":" space? dataType space?)* "=>" space? body:expr space? ":" space? outType:dataType space? ")"
 	{
 		return {
 			type: 'fn',
@@ -23,28 +33,42 @@ fn = "#(" space? params:(symbol ":" space? dataType)* "=>" space? body:expr ":" 
 				body
 			},
 			dataType: {
-				in: params.map(p => p[3]),
+				in: params.map(p => p[4]),
 				out: outType
 			}
 		}
 	}
 
-// Types needs to be resolved
-fncall = "(" space? fn:expr params:(expr)* ")" space?
-	{return {type: 'fncall', fn, params}}
+// Fncall
+fncall = "(" space? fn:expr space? params:(expr space?)* ")"
+	{
+		return {
+			type: 'fncall',
+			fn,
+			params: params.map(p => p[0])
+		}
+	}
 
-graph = "{" space? pairs:(symbol expr)+ ret:symbol "}" space?
-	{return {type: 'graph', values: Object.fromEntries(pairs), return: ret}}
+// Graph
+graph = "{" space? pairs:(symbol space? expr space?)+ ret:symbol space? "}"
+	{
+		return {
+			type: 'graph',
+			values: Object.fromEntries(pairs.map(p => [p[0], p[2]])),
+			return: ret
+		}
+	}
 
-symbol = str:[a-z+\-\*\/=]i+ space?
-	{return str.join("")}
+// Symbol
+symbol = str:$([a-z0-9_+\-\*\/=?]i+)
+	{ return str }
 
-// Data Type
-dataType = dataType:(dataTypeCostant / dataTypeFn) space? {return dataType }
+// Data type
+dataType = dataTypeCostant / dataTypeFn
 
-dataTypeCostant = "number" / "boolean" { return text() }
+dataTypeCostant = "number" / "boolean"
 
-dataTypeFn = "(" space? inTypes:dataType* "->" space? outType:dataType space? ")" {
+dataTypeFn = "(" space? inTypes:dataType* space? "->" space? outType:dataType space? ")" {
 	return {
 		in: inTypes,
 		out: outType
