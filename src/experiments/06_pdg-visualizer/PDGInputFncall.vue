@@ -1,19 +1,19 @@
 <template>
-	<div class="PDGFncall">
-		<div class="PDGFncall__fn-name" :class="{error: errorMsg}">
+	<div class="PDGInputFncall">
+		<div class="PDGInputFncall__fn-name" :class="{error: errorMsg}">
 			{{ fnName }}
 		</div>
-		<div class="PDGFncall__error" v-if="errorMsg">
+		<div class="PDGInputFncall__error" v-if="errorMsg">
 			{{ errorMsg }}
 		</div>
-		<dl class="PDGFncall__params">
+		<dl class="PDGInputFncall__params">
 			<div
-				class="PDGFncall__param"
+				class="PDGInputFncall__param"
 				v-for="(param, i) in modelValue.params"
 				:key="i"
 			>
-				<dt class="PDGFncall__param-index">{{ i.toString() }}</dt>
-				<dd class="PDGFncall__param-expr">
+				<dt class="PDGInputFncall__param-index">{{ i.toString() }}</dt>
+				<dd class="PDGInputFncall__param-expr">
 					<PDGInputExp :modelValue="param" :dataType="paramDataTypes[i]" />
 				</dd>
 			</div>
@@ -75,7 +75,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '~@/components/style/common.styl'
 
-.PDGFncall
+.PDGInputFncall
 	&__fn-name
 		padding-left 0.5rem
 		height $input-height
