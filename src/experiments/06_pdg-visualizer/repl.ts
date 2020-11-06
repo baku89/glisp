@@ -284,6 +284,11 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 	function traverse(op: PDG, np: PDG) {
 		swapped.set(op, np)
 
+		if (op.type !== 'value') {
+			getAllRefs(op).forEach(r => r.dep.delete(op))
+			op.resolved = undefined
+		}
+
 		getAllDeps(op).forEach(od => {
 			let nd = swapped.get(od) as typeof od | undefined
 
@@ -486,18 +491,15 @@ export function getSymbols(pdg: PDG): {[sym: string]: PDG} {
 }
 
 export function analyzePDG(pdg: PDG): PDG {
-	GlobalEnv.clearDep()
-
-	resetDeps(pdg)
+	setParents(pdg)
 
 	return traverse(pdg, GlobalEnv)
 
-	function resetDeps(pdg: PDG) {
+	function setParents(pdg: PDG) {
 		if (pdg.type !== 'value') {
 			getAllRefs(pdg).forEach(r => {
 				r.parent = pdg
-				r.dep.clear()
-				resetDeps(r)
+				setParents(r)
 			})
 		}
 	}
@@ -705,16 +707,10 @@ export function printValue(value: Value): string {
 			case 'boolean':
 				return value.toString()
 			default:
-				throw new Error('Cannt print value')
+				return ''
+			// 	throw new Error('Cannt print value')
 		}
 	}
-}
-
-export async function rep(str: string) {
-	const ast = readStr(str)
-	const pdg = analyzePDG(readAST(ast))
-	const ret = await evalPDG(pdg)
-	return ret.toString()
 }
 
 // test code
