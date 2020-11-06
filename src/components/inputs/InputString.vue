@@ -7,7 +7,7 @@
 		:value="modelValue"
 		@input="onInput"
 		@blur="onBlur"
-		@keydown.enter="$emit('end-tweak')"
+		@keydown.enter="$emit('confirm')"
 		v-bind="$attrs"
 	/>
 	<textarea
@@ -18,6 +18,7 @@
 		:value="modelValue"
 		:style="{height: textareaHeight}"
 		@input="onInput"
+		@keydown.ctrl.enter="$emit('confirm')"
 		v-bind="$attrs"
 	/>
 </template>
@@ -45,7 +46,7 @@ export default defineComponent({
 			default: false,
 		},
 	},
-	emits: ['update:modelValue', 'end-tweak'],
+	emits: ['update:modelValue', 'confirm'],
 	setup(props, context) {
 		const textareaEl = ref<null | HTMLTextAreaElement>(null)
 		const textareaHeight = computed(() => {
@@ -66,7 +67,7 @@ export default defineComponent({
 		function onBlur(e: InputEvent) {
 			const el = e.target as HTMLInputElement
 			el.value = props.modelValue
-			context.emit('end-tweak')
+			context.emit('confirm')
 		}
 
 		return {

@@ -3,7 +3,7 @@
 		<InputString
 			class="PDGInputSymbol__input"
 			v-model="name"
-			@end-tweak="onUpdate()"
+			@confirm="update()"
 			@focus="candidateSymbolsShown = true"
 		/>
 		{{ evaluated || '-' }}
@@ -78,7 +78,7 @@ export default defineComponent({
 
 		// Update
 		const swapPDG = useSwapPDG()
-		function onUpdate(v = name.value) {
+		function update(v = name.value) {
 			const oldValue = toRaw(props.modelValue)
 			const newValue = {...oldValue, resolved: undefined, name: v}
 
@@ -121,14 +121,14 @@ export default defineComponent({
 
 		function onClickCandidate(v: string) {
 			candidateSymbolsShown.value = false
-			onUpdate(v)
+			update(v)
 		}
 
 		return {
 			name,
 			onClickCandidate,
 			candidateSymbolsShown,
-			onUpdate,
+			update,
 			evaluated,
 			availableSymbols,
 			inputEl,

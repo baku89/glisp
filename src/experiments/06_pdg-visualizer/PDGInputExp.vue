@@ -1,34 +1,29 @@
 <template>
 	<div class="PDGInputExp">
-		<component
-			v-if="!isEditingCode"
-			:is="type"
-			:modelValue="modelValue"
-			:dataType="dataType"
-		/>
-		<InputString
-			class="PDGInputExp__code"
+		<template v-if="!isEditingCode">
+			<component :is="type" :modelValue="modelValue" :dataType="dataType" />
+			<button class="PDGInputExp__edit-exp" @click="isEditingCode = true">
+				Edit
+			</button>
+		</template>
+		<PDGInputCode
 			v-else
-			:multiline="true"
-			v-model="code"
+			:modelValue="modelValue"
+			@confirm="isEditingCode = false"
 		/>
-		<button class="PDGInputExp__edit-exp" @click="toggleEdit">
-			{{ isEditingCode ? 'Update' : 'Edit' }}
-		</button>
 	</div>
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, inject, PropType, ref, toRaw} from 'vue'
-
-import InputString from '@/components/inputs/InputString.vue'
+import {computed, defineComponent, PropType, ref} from 'vue'
 
 import PDGInputBoolean from './PDGInputBoolean.vue'
+import PDGInputCode from './PDGInputCode.vue'
 import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
 import PDGInputSymbol from './PDGInputSymbol.vue'
-import {DataType, PDG, printPDG, readAST, readStr} from './repl'
+import {DataType, PDG} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',
@@ -38,7 +33,7 @@ export default defineComponent({
 		PDGInputFncall,
 		PDGInputGraph,
 		PDGInputSymbol,
-		InputString,
+		PDGInputCode,
 	},
 	props: {
 		modelValue: {
@@ -51,8 +46,6 @@ export default defineComponent({
 	},
 	emits: [],
 	setup(props) {
-		const swapPDG = inject<(oldValue: PDG, newValue: PDG) => any>('swap-pdg')
-
 		const type = computed(() => {
 			switch (props.modelValue.type) {
 				case 'value':
@@ -70,27 +63,7 @@ export default defineComponent({
 
 		const isEditingCode = ref(false)
 
-		const code = ref('')
-
-		function toggleEdit() {
-			isEditingCode.value = !isEditingCode.value
-
-			if (isEditingCode.value) {
-				// Start edit
-				code.value = printPDG(props.modelValue)
-			} else {
-				// On end
-				try {
-					const newValue = readAST(readStr(code.value))
-					const oldValue = toRaw(props.modelValue)
-					swapPDG && swapPDG(oldValue, newValue)
-				} catch {
-					null
-				}
-			}
-		}
-
-		return {type, isEditingCode, code, toggleEdit}
+		return {type, isEditingCode}
 	},
 })
 </script>
@@ -101,10 +74,6 @@ export default defineComponent({
 .PDGInputExp
 	position relative
 	margin-bottom 0.3rem
-
-	&__code
-		color var(--textcolor)
-		font-monospace()
 
 	&__edit-exp
 		position absolute
