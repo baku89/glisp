@@ -277,8 +277,8 @@ function getAllRefs(pdg: PDG): Set<PDG> {
 	return new Set()
 }
 
-function getAllDeps(pdg: PDG): PDG[] {
-	const dep: PDG[] = Array.from(pdg.dep)
+function getAllDeps(pdg: PDG) {
+	const dep: (PDGSymbol | PDGFn | PDGFncall | PDGGraph)[] = Array.from(pdg.dep)
 	if (pdg.parent) {
 		dep.unshift(pdg.parent)
 	}
@@ -302,6 +302,7 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 
 		getAllDeps(op).forEach(od => {
 			let nd = swapped.get(od) as typeof od | undefined
+			const hasSwapped = nd !== undefined
 
 			switch (od.type) {
 				case 'fn': {
@@ -309,7 +310,7 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 					if (nd.def.type === 'expr') {
 						nd.def = {...nd.def, body: np}
 					}
-					return traverse(od, nd)
+					break
 				}
 				case 'fncall': {
 					nd = (nd as PDGFncall) ?? {
@@ -325,7 +326,7 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 							nd.params[i] = np
 						}
 					}
-					return traverse(od, nd)
+					break
 				}
 				case 'graph': {
 					nd = (nd as PDGGraph) ?? {
@@ -338,12 +339,16 @@ export function swapPDG(oldPdg: PDG, newPdg: PDG) {
 							nd.values[sym] = np
 						}
 					}
-					return traverse(od, nd)
+					break
 				}
 				case 'symbol': {
 					nd = (nd as PDGSymbol) ?? {...od, resolved: undefined}
-					return traverse(od, nd)
+					break
 				}
+			}
+
+			if (!hasSwapped) {
+				traverse(od, nd)
 			}
 		})
 	}
