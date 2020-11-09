@@ -60,13 +60,13 @@ graph "Graph" = "{" space? pairs:(symbol space? expr space?)+ ret:symbol space? 
 	}
 
 // Symbol
-symbol "Symbol" = symbolIdentifier// / symbolString
+symbol "Symbol" = symbolIdentifier / symbolPath
 
 symbolIdentifier = str:$([a-z0-9_+\-\*\/=?]i+)
 	{ return str }
 
-// symbolString = '@"' str:$(!'"' .)+ '"'
-// 	{ return str }
+symbolPath = '@`' str:$(!'`' .)+ '`'
+	{ return str }
 
 // Data type
 dataType "Data type" = dataTypeCostant / dataTypeFn
