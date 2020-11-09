@@ -557,14 +557,14 @@ export function analyzePDG(pdg: PDG): PDG {
 				return pdg
 			}
 
-			// Make sure to resolve
-			traverse(ref, env)
-
 			// Add to dependency
 			ref.dep.add(pdg)
 
 			// Resolve
 			pdg.resolved = {ref}
+
+			// Then make sure to resolve ref itself
+			traverse(ref, env)
 		} else if (pdg.type === 'fn') {
 			if (pdg.def.type === 'js') {
 				// JS Function
