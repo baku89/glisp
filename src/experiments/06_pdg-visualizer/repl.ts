@@ -816,4 +816,7 @@ async function test(str: string, expected: number | boolean | 'error') {
 	await test('(+ {a 10 b (* a 2) b} 1)', 21)
 	await test('{a a a}', 'error')
 	await test('{a 10 b {a 20 a} c (+ a b) c}', 30)
+	await test('(+ @`./1` 10)', 20)
+	await test('(+ 10 (+ @`../0` 1))', 21)
+	await test('{a (+ 1 2) b (+ @`../a/1` a) b}', 5)
 })()
