@@ -49,7 +49,7 @@ class Env {
 	private outer?: Env
 
 	private data: {[name: string]: PDG} = {}
-	private resolvingSymbols = new Set<string>()
+	private resolving = new Set<PDG>()
 
 	constructor(values?: {[s: string]: PDG}, outer?: Env) {
 		this.outer = outer
@@ -77,12 +77,12 @@ class Env {
 		return this.data[s] ?? this.outer?.get(s)
 	}
 
-	setResolving(s: string, flag: boolean) {
-		this.resolvingSymbols[flag ? 'add' : 'delete'](s)
+	setResolving(pdg: PDG, flag: boolean) {
+		this.resolving[flag ? 'add' : 'delete'](pdg)
 	}
 
-	isResolving(s: string): boolean {
-		return this.resolvingSymbols.has(s) || this.outer?.isResolving(s) || false
+	isResolving(pdg: PDG): boolean {
+		return this.resolving.has(pdg) || this.outer?.isResolving(pdg) || false
 	}
 }
 
@@ -571,10 +571,10 @@ export function analyzePDG(pdg: PDG): PDG {
 			const innerEnv = new Env(pdg.values, env)
 
 			// Resolve inners
-			Object.entries(pdg.values).map(([s, p]) => {
-				innerEnv.setResolving(s, true)
+			Object.values(pdg.values).map(p => {
+				innerEnv.setResolving(p, true)
 				traverse(p, innerEnv)
-				innerEnv.setResolving(s, false)
+				innerEnv.setResolving(p, false)
 			})
 
 			// Check if return symbol is invalid
@@ -595,16 +595,16 @@ export function analyzePDG(pdg: PDG): PDG {
 		} else if (pdg.type === 'symbol') {
 			// Symbol
 
-			// Check circular reference
-			if (env.isResolving(pdg.name)) {
-				pdg.resolved = new Error(`Circular reference: ${pdg.name}`)
-				return pdg
-			}
-
 			// Check if symbol is defined in the env
 			const ref = env.get(pdg.name)
 			if (!ref) {
 				pdg.resolved = new Error(`Undefined identifer: ${pdg.name}`)
+				return pdg
+			}
+
+			// Check circular reference
+			if (env.isResolving(ref)) {
+				pdg.resolved = new Error(`Circular reference: ${pdg.name}`)
 				return pdg
 			}
 
