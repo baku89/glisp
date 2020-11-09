@@ -1,11 +1,10 @@
-import {PDG} from './repl'
+import {getAllRefs, PDG} from './repl'
 
 // Env
 export default class Env {
 	private outer?: Env
 
 	private data: {[name: string]: PDG} = {}
-	private resolving = new Set<PDG>()
 
 	constructor(values?: {[s: string]: PDG}, outer?: Env) {
 		this.outer = outer
@@ -29,30 +28,31 @@ export default class Env {
 		}
 	}
 
-	get(s: string, pdg?: PDG): PDG | undefined {
+	private resolve(s: string, pdg?: PDG): PDG | Error {
 		if (s.startsWith('.')) {
 			if (pdg?.parent) {
 				return seekRelative(s, pdg.parent)
 			} else {
-				return undefined
+				return new Error('Cannot resolve path symbol')
 			}
 		}
 
-		return this.data[s] ?? this.outer?.get(s)
+		return this.data[s] ?? this.outer?.resolve(s)
 
-		function seekRelative(path: string, pdg: PDG): PDG | undefined {
-			// To upper
+		function seekRelative(path: string, pdg: PDG): PDG | Error {
+			// To ancestors
 			if (path.startsWith('../')) {
 				if (pdg.parent) {
 					return seekRelative(path.slice(3), pdg.parent)
 				} else {
-					return undefined
+					return new Error('No parent')
 				}
-			} else if (path.startsWith('./')) {
+			}
+			if (path.startsWith('./')) {
 				return seekRelative(path.slice(2), pdg)
 			}
 
-			// To down
+			// To decendants
 			if (path.indexOf('/') !== -1) {
 				let child: PDG | undefined
 				const thisPath = path.slice(0, path.indexOf('/'))
@@ -68,7 +68,7 @@ export default class Env {
 				if (child) {
 					return seekRelative(restPath, child)
 				} else {
-					return undefined
+					return new Error('No child')
 				}
 			}
 
@@ -79,16 +79,30 @@ export default class Env {
 				case 'graph':
 					return pdg.values[path]
 				default:
-					return undefined
+					return new Error('Invalid path')
 			}
 		}
 	}
 
-	setResolving(pdg: PDG, flag: boolean) {
-		this.resolving[flag ? 'add' : 'delete'](pdg)
-	}
+	get(s: string, pdg: PDG): PDG | Error {
+		const ref = this.resolve(s, pdg)
 
-	isResolving(pdg: PDG): boolean {
-		return this.resolving.has(pdg) || this.outer?.isResolving(pdg) || false
+		if (ref instanceof Error) {
+			return ref
+		}
+
+		if (isCircular(pdg, ref)) {
+			// console.log('circular reference detected')
+			return new Error('Circular reference')
+		}
+
+		return ref
+
+		function isCircular(source: PDG, ref: PDG): boolean {
+			return (
+				source === ref ||
+				Array.from(getAllRefs(ref)).some(d => isCircular(source, d))
+			)
+		}
 	}
 }

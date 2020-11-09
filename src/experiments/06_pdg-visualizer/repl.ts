@@ -216,7 +216,7 @@ export function printPDG(pdg: PDG): string {
 	}
 }
 
-function getAllRefs(pdg: PDG): Set<PDG> {
+export function getAllRefs(pdg: PDG): Set<PDG> {
 	switch (pdg.type) {
 		case 'fn':
 			if (pdg.def.type === 'expr') {
@@ -530,11 +530,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			const innerEnv = new Env(pdg.values, env)
 
 			// Resolve inners
-			Object.values(pdg.values).map(p => {
-				innerEnv.setResolving(p, true)
-				traverse(p, innerEnv)
-				innerEnv.setResolving(p, false)
-			})
+			Object.values(pdg.values).map(p => traverse(p, innerEnv))
 
 			// Check if return symbol is invalid
 			if (!(pdg.return in pdg.values)) {
@@ -554,18 +550,15 @@ export function analyzePDG(pdg: PDG): PDG {
 		} else if (pdg.type === 'symbol') {
 			// Symbol
 
-			// Check if symbol is defined in the env
+			// Get env
 			const ref = env.get(pdg.name, pdg)
-			if (!ref) {
-				pdg.resolved = new Error(`Undefined identifer: ${pdg.name}`)
+			if (ref instanceof Error) {
+				pdg.resolved = ref //new Error(`Undefined identifer: ${pdg.name}`)
 				return pdg
 			}
 
-			// Check circular reference
-			if (env.isResolving(ref)) {
-				pdg.resolved = new Error(`Circular reference: ${pdg.name}`)
-				return pdg
-			}
+			// Make sure to resolve
+			traverse(ref, env)
 
 			// Add to dependency
 			ref.dep.add(pdg)
