@@ -73,8 +73,59 @@ class Env {
 		}
 	}
 
-	get(s: string): PDG | undefined {
+	get(s: string, pdg?: PDG): PDG | undefined {
+		if (s.startsWith('.')) {
+			if (pdg?.parent) {
+				return seekRelative(s, pdg.parent)
+			} else {
+				return undefined
+			}
+		}
+
 		return this.data[s] ?? this.outer?.get(s)
+
+		function seekRelative(path: string, pdg: PDG): PDG | undefined {
+			// To upper
+			if (path.startsWith('../')) {
+				if (pdg.parent) {
+					return seekRelative(path.slice(3), pdg.parent)
+				} else {
+					return undefined
+				}
+			} else if (path.startsWith('./')) {
+				return seekRelative(path.slice(2), pdg)
+			}
+
+			// To down
+			if (path.indexOf('/') !== -1) {
+				let child: PDG | undefined
+				const thisPath = path.slice(0, path.indexOf('/'))
+				const restPath = path.slice(path.indexOf('/') + 1)
+				switch (pdg.type) {
+					case 'fncall':
+						child = pdg.params[parseInt(thisPath)]
+						break
+					case 'graph':
+						child = pdg.values[thisPath]
+						break
+				}
+				if (child) {
+					return seekRelative(restPath, child)
+				} else {
+					return undefined
+				}
+			}
+
+			// Current
+			switch (pdg.type) {
+				case 'fncall':
+					return pdg.params[parseInt(path)]
+				case 'graph':
+					return pdg.values[path]
+				default:
+					return undefined
+			}
+		}
 	}
 
 	setResolving(pdg: PDG, flag: boolean) {
@@ -596,7 +647,7 @@ export function analyzePDG(pdg: PDG): PDG {
 			// Symbol
 
 			// Check if symbol is defined in the env
-			const ref = env.get(pdg.name)
+			const ref = env.get(pdg.name, pdg)
 			if (!ref) {
 				pdg.resolved = new Error(`Undefined identifer: ${pdg.name}`)
 				return pdg
