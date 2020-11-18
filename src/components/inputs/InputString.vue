@@ -17,6 +17,7 @@
 		ref="textareaEl"
 		:value="modelValue"
 		:style="{height: textareaHeight}"
+		data-gramm_editor="false"
 		@input="onInput"
 		@keydown.ctrl.enter="$emit('confirm')"
 		v-bind="$attrs"
