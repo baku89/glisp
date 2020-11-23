@@ -75,7 +75,7 @@ dataTypeCostant = "number" / "boolean"
 
 dataTypeFn = "(" space? inTypes:dataType* space? "->" space? outType:dataType space? ")" {
 	return {
-		in: inTypes,
-		out: outType
+		params: inTypes,
+		return: outType
 	}
 }

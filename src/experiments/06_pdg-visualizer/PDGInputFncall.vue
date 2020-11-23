@@ -53,7 +53,7 @@ export default defineComponent({
 		const paramDataTypes = computed(() => {
 			const fnType = getDataType(props.modelValue.fn)
 			if (fnType instanceof Object) {
-				return fnType.in
+				return fnType.params
 			}
 
 			return []

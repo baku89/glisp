@@ -47,20 +47,20 @@ export type AST = number | boolean | ASTFn | ASymbol | ASTFncall | ASTGraph
 
 // Functions
 interface DataTypeFn {
-	in: DataType[]
-	out: DataType
+	params: DataType[]
+	return: DataType
 }
 
 export type DataType = 'number' | 'boolean' | DataTypeFn
 
 function createJSFnPDG(
 	fn: FnType,
-	inTypes: DataType[],
-	outType: DataType
+	paramTypes: DataType[],
+	returnType: DataType
 ): PDGFn {
 	const dataType = {
-		in: inTypes,
-		out: outType,
+		params: paramTypes,
+		return: returnType,
 	}
 
 	return {
@@ -192,9 +192,10 @@ export function printPDG(pdg: PDG): string {
 			const dataType = def.dataType
 			if (def.type === 'expr') {
 				const paramsStr = def.params
-					.map((p, i) => p + ': ' + printDataType(dataType.in[i]))
+					.map((p, i) => p + ': ' + printDataType(dataType.params[i]))
 					.join(' ')
-				const bodyStr = printPDG(def.body) + ' : ' + printDataType(dataType.out)
+				const bodyStr =
+					printPDG(def.body) + ' : ' + printDataType(dataType.return)
 				return `#(${paramsStr} => ${bodyStr})`
 			} else {
 				return 'js func'
@@ -402,7 +403,7 @@ export function getDataType(pdg: PDG): DataType | null {
 				: null
 		case 'fncall':
 			return pdg.resolved && !(pdg.resolved instanceof Error)
-				? pdg.resolved.dataType.out
+				? pdg.resolved.dataType.return
 				: null
 		case 'fn':
 			return pdg.def.dataType
@@ -434,9 +435,9 @@ export function isEqualDataType(a: DataType, b: DataType): boolean {
 
 	function isEqualDataTypeFn(a: DataTypeFn, b: DataTypeFn) {
 		return (
-			isEqualDataType(a.out, b.out) &&
-			a.in.length === b.in.length &&
-			a.in.every((ai, i) => isEqualDataType(ai, b.in[i]))
+			isEqualDataType(a.return, b.return) &&
+			a.params.length === b.params.length &&
+			a.params.every((ai, i) => isEqualDataType(ai, b.params[i]))
 		)
 	}
 }
@@ -503,13 +504,13 @@ export function analyzePDG(pdg: PDG): PDG {
 			}
 
 			if (
-				paramDataTypes.length !== dataType.in.length ||
+				paramDataTypes.length !== dataType.params.length ||
 				paramDataTypes.some(
-					(pdt, i) => pdt === null || !isEqualDataType(pdt, dataType.in[i])
+					(pdt, i) => pdt === null || !isEqualDataType(pdt, dataType.params[i])
 				)
 			) {
 				pdg.resolved = new Error(
-					`Parameter unmatched expected=(${dataType.in
+					`Parameter unmatched expected=(${dataType.params
 						.map(printDataType)
 						.join(' ')}) passed=(${paramDataTypes
 						.map(dt => (dt !== null ? printDataType(dt) : 'null'))
@@ -648,8 +649,8 @@ export function printDataType(dt: DataType | null): string {
 	} else if (typeof dt === 'string') {
 		return dt
 	} else {
-		const inStr = dt.in.map(printDataType).join(' ')
-		const outStr = printDataType(dt.out)
+		const inStr = dt.params.map(printDataType).join(' ')
+		const outStr = printDataType(dt.return)
 		return `(${inStr} -> ${outStr})`
 	}
 }

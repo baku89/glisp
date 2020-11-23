@@ -51,12 +51,12 @@ export default defineComponent({
 			const def = props.modelValue.def
 			const {dataType} = def
 			if (def.type === 'expr') {
-				return dataType.in.map((dt, i) => ({
+				return dataType.params.map((dt, i) => ({
 					dataType: dt,
 					symbol: def.params[i],
 				}))
 			} else {
-				return dataType.in.map((dt, i) => ({
+				return dataType.params.map((dt, i) => ({
 					dataType: dt,
 					symbol: i.toString(),
 				}))
