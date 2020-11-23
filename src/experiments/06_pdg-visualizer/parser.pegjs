@@ -50,7 +50,7 @@ fncall "Function call" = "(" space? fn:expr space? params:(expr space?)* ")"
 	}
 
 // Graph
-graph "Graph" = "{" space? pairs:(symbol space? expr space?)+ ret:symbol space? "}"
+graph "Graph" = "{" space? "[" pairs:(symbol space? expr space?)+ "]" space? ret:symbol space? "}"
 	{
 		return {
 			type: 'graph',
@@ -65,7 +65,7 @@ symbol "Symbol" = symbolIdentifier / symbolPath
 symbolIdentifier = str:$([a-z0-9_+\-\*\/=?]i+)
 	{ return str }
 
-symbolPath = '@`' str:$(!'`' .)+ '`'
+symbolPath = '@"' str:$(!'"' .)+ '"'
 	{ return str }
 
 // Data type
