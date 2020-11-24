@@ -33,7 +33,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
-import {PDGFn} from './repl'
+import {PDGFn} from './glisp'
 export default defineComponent({
 	name: 'PDGInputFn',
 	components: {},

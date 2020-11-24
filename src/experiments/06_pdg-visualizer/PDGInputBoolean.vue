@@ -12,7 +12,7 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 
-import {PDGValue} from './repl'
+import {PDGValue} from './glisp'
 import {useSwapPDG} from './use'
 
 export default defineComponent({

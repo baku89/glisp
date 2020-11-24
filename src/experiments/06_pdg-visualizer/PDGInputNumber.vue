@@ -9,7 +9,7 @@ import {defineComponent, PropType, toRaw} from 'vue'
 
 import InputNumber from '@/components/inputs/InputNumber.vue'
 
-import {PDGValue} from './repl'
+import {PDGValue} from './glisp'
 import {useSwapPDG} from './use'
 
 export default defineComponent({

@@ -1,6 +1,6 @@
 import {inject, Ref, ref, UnwrapRef, watch} from 'vue'
 
-import {evalPDG, PDG, printValue} from './repl'
+import {evalPDG, PDG, printValue} from './glisp'
 
 export function useAsyncComputed<T, K>(
 	initial: T,

@@ -17,6 +17,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType, ref} from 'vue'
 
+import {DataType, PDG} from './glisp'
 import PDGInputBoolean from './PDGInputBoolean.vue'
 import PDGInputCode from './PDGInputCode.vue'
 import PDGInputFn from './PDGInputFn.vue'
@@ -24,7 +25,6 @@ import PDGInputFncall from './PDGInputFncall.vue'
 import PDGInputGraph from './PDGInputGraph.vue'
 import PDGInputNumber from './PDGInputNumber.vue'
 import PDGInputSymbol from './PDGInputSymbol.vue'
-import {DataType, PDG} from './repl'
 
 export default defineComponent({
 	name: 'PDGInputExp',

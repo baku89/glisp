@@ -5,7 +5,7 @@
 <script lang="ts">
 import {defineComponent, PropType, ref, toRaw, watch} from 'vue'
 
-import {PDG} from './repl'
+import {PDG} from './glisp'
 import {showPDG} from './utils'
 
 export default defineComponent({

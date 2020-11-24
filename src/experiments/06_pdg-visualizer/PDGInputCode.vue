@@ -22,7 +22,7 @@ import {computed, defineComponent, PropType, ref, toRaw, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
-import {AST, PDG, printPDG, readAST, readStr} from './repl'
+import {AST, PDG, printPDG, readAST, readStr} from './glisp'
 import {useSwapPDG} from './use'
 
 const INPUT_LINE_HEIGHT_REM = 1.8

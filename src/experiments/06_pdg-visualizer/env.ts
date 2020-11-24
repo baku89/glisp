@@ -1,4 +1,4 @@
-import {getAllRefs, PDG} from './repl'
+import {getAllRefs, PDG} from './glisp'
 
 // Env
 export default class Env {

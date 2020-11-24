@@ -28,7 +28,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType, toRaw} from 'vue'
 
-import {PDG, PDGGraph} from './repl'
+import {PDG, PDGGraph} from './glisp'
 import {useSwapPDG} from './use'
 
 export default defineComponent({

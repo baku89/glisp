@@ -11,8 +11,8 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
+import {analyzePDG, evalPDG, printValue, readAST, readStr} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
-import {analyzePDG, evalPDG, printValue, readAST, readStr} from './repl'
 import {showPDG} from './utils'
 export default defineComponent({
 	name: 'Interpreter',

@@ -30,8 +30,6 @@ import {
 
 import useScheme from '@/components/use/use-scheme'
 
-import PDGInputExp from './PDGInputExp.vue'
-import PDGVisualizer from './PDGVisualizer.vue'
 import {
 	analyzePDG,
 	AST,
@@ -42,7 +40,9 @@ import {
 	readAST,
 	readStr,
 	swapPDG,
-} from './repl'
+} from './glisp'
+import PDGInputExp from './PDGInputExp.vue'
+import PDGVisualizer from './PDGVisualizer.vue'
 import {useAsyncComputed} from './use'
 
 export default defineComponent({

@@ -52,7 +52,7 @@ import {
 	getSymbols,
 	isEqualDataType,
 	PDGSymbol,
-} from './repl'
+} from './glisp'
 import {usePDGEvalauted, useSwapPDG} from './use'
 
 export default defineComponent({

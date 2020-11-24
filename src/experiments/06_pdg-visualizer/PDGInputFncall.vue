@@ -24,7 +24,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType, toRef} from 'vue'
 
-import {getDataType, PDGFncall, printDataType, printPDG} from './repl'
+import {getDataType, PDGFncall, printDataType, printPDG} from './glisp'
 import {usePDGEvalauted} from './use'
 
 export default defineComponent({
