@@ -29,7 +29,7 @@ interface ASTFn {
 	dataType: DataTypeFn
 }
 
-type ASymbol = string
+type ASTSymbol = string
 
 type ASTFncall = {
 	type: 'fncall'
@@ -40,10 +40,10 @@ type ASTFncall = {
 interface ASTGraph {
 	type: 'graph'
 	values: {[sym: string]: AST}
-	return: ASymbol
+	return: ASTSymbol
 }
 
-export type AST = number | boolean | ASTFn | ASymbol | ASTFncall | ASTGraph
+export type AST = number | boolean | ASTFn | ASTSymbol | ASTFncall | ASTGraph
 
 // Functions
 interface DataTypeFn {
