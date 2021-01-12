@@ -116,17 +116,23 @@ module.exports = {
 		// 	filename: 'interpreter.html',
 		// 	title: "'(glisp/interpreter)",
 		// },
-		// 'js/ui': {
-		// 	entry: 'src/pages/ui/index.ts',
-		// 	template: 'public/ui.html',
-		// 	filename: 'ui.html',
-		// 	title: "'(glisp/ui)",
-		// },
-		'js/experiments': {
-			entry: 'src/experiments/06_pdg-visualizer/index.ts',
+		'js/ui': {
+			entry: 'src/pages/ui/index.ts',
 			template: 'public/ui.html',
-			filename: 'experiments.html',
-			title: "'(glisp/experiments)",
+			filename: 'ui.html',
+			title: "'(glisp/ui)",
+		},
+		// 'js/experiments': {
+		// 	entry: 'src/experiments/06_pdg-visualizer/index.ts',
+		// 	template: 'public/ui.html',
+		// 	filename: 'experiments.html',
+		// 	title: "'(glisp/experiments)",
+		// },
+		'js/easing': {
+			entry: 'src/experiments/07_easing/index.ts',
+			template: 'src/experiments/07_easing/index.html',
+			filename: 'easing.html',
+			title: "'(glisp/easing)",
 		},
 	},
 }
