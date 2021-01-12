@@ -18,23 +18,47 @@
 						:style="{left: `${(currentFrame / (duration - 1)) * 100}%`}"
 					/>
 					<svg class="PageEasing__graph" overflow="visible">
-						<polyline class="PageEasing__value" :points="positions.points" />
-						<polyline class="PageEasing__guide" :points="positions.guides[0]" />
-						<polyline class="PageEasing__guide" :points="positions.guides[1]" />
+						<g class="position" :class="{active: editingMode === 'position'}">
+							<polyline class="value" :points="position.points" />
+							<polyline class="guide" :points="position.guides[0]" />
+							<polyline class="guide" :points="position.guides[1]" />
+						</g>
+
+						<g class="velocity" :class="{active: editingMode === 'velocity'}">
+							<polyline class="value" :points="velocity.points" />
+							<polyline class="guide" :points="velocity.guides[0]" />
+						</g>
+
+						<g class="accel" :class="{active: editingMode === 'accel'}">
+							<polyline class="value" :points="accel.points" />
+							<polyline class="guide" :points="accel.guides[0]" />
+						</g>
 					</svg>
 				</div>
 			</div>
 			<div class="PageEasing__actions">
-				<button @click="convolve([1, 1, 1])">Smooth</button>
-				<button class="pos" :class="{active: editingMode === 'pos'}">
+				<button
+					class="position"
+					:class="{active: editingMode === 'position'}"
+					@click="editingMode = 'position'"
+				>
 					Pos
 				</button>
-				<button class="vel" :class="{active: editingMode === 'vel'}">
+				<button
+					class="velocity"
+					:class="{active: editingMode === 'velocity'}"
+					@click="editingMode = 'velocity'"
+				>
 					Vel
 				</button>
-				<button class="accel" :class="{active: editingMode === 'accel'}">
+				<button
+					class="accel"
+					:class="{active: editingMode === 'accel'}"
+					@click="editingMode = 'accel'"
+				>
 					Accel
 				</button>
+				<button @click="convolve([1, 1, 1])">Smooth</button>
 			</div>
 		</div>
 	</div>
@@ -61,15 +85,16 @@ function fit(
 	return t * (dstMax - dstMin) + dstMin
 }
 
-function getGuidePath(
-	yvalue: number,
-	ymin: number,
-	ymax: number,
-	width: number,
-	height: number
-) {
-	const y = fit(yvalue, ymin, ymax, height, 0)
-	return [0, y, width, y].join(' ')
+function computeDerivative(values: number[]) {
+	return values.map((v, i) => (i == 0 ? v : v - values[i - 1]))
+}
+
+function computeIntegral(start: number, values: number[]) {
+	let current = start
+	return values.map(v => {
+		current += v
+		return current
+	})
 }
 
 interface ValueData {
@@ -87,22 +112,22 @@ export default defineComponent({
 		background.value = 'white'
 
 		// constants
-		const fps = 120
-		const duration = 240
+		const fps = 60
+		const duration = 120
 
 		let timer: any = null
 
 		const data = reactive({
 			// UI status
 			isPlaying: false,
-			editingMode: 'pos',
+			editingMode: 'position',
 			currentFrame: 0,
-			currentPosition: computed(() => positions.values[data.currentFrame]),
-
+			currentPosition: computed(() => position.values[data.currentFrame]),
 			// styles
 			currentLeft: computed(() => `${data.currentPosition * 100}%`),
 		}) as {
 			isPlaying: boolean
+			editingMode: 'position' | 'velocity' | 'accel'
 			currentFrame: number
 			currentPosition: number
 
@@ -111,39 +136,77 @@ export default defineComponent({
 
 		// Graph
 		const elEditor = ref<null | HTMLElement>(null)
-
 		const {height: editorHeight, width: editorWidth} = useElementSize(elEditor)
 
-		const positions = reactive({
-			values: new Array(duration).fill(0).map((_, i) => i / (duration - 1)),
-			min: 0,
-			max: 1,
-			points: computed(() => {
-				const valmin = positions.min
-				const valmax = positions.max
+		function getGuidePath(yvalue: number, ymin: number, ymax: number) {
+			const y = fit(yvalue, ymin, ymax, editorHeight.value, 0)
+			return [0, y, editorWidth.value, y].join(' ')
+		}
 
-				const ymin = editorHeight.value
-				const ymax = 0
+		function computePoints(valmin: number, valmax: number, values: number[]) {
+			const ymin = editorHeight.value
+			const ymax = 0
 
-				const xstep = editorWidth.value / (duration - 1)
+			const xstep = editorWidth.value / (duration - 1)
 
-				return positions.values
-					.map((v, i) => [i * xstep, fit(v, valmin, valmax, ymin, ymax)])
-					.flat()
-					.join(' ')
-			}),
+			return values
+				.map((v, i) => [i * xstep, fit(v, valmin, valmax, ymin, ymax)])
+				.flat()
+				.join(' ')
+		}
+
+		const initialPos = new Array(duration).fill(0).map((_, i) => {
+			const phase = (i / (duration - 1)) * Math.PI
+			return fit(Math.cos(phase), 1, -1, 0, 1)
+		})
+
+		const position = reactive({
+			values: initialPos,
+			min: -0.1,
+			max: 1.1,
+			points: computed(() =>
+				computePoints(position.min, position.max, position.values)
+			),
 			guides: computed(() => {
-				const min = positions.min
-				const max = positions.max
-				const w = editorWidth.value
-				const h = editorHeight.value
-
-				return [
-					getGuidePath(0, min, max, w, h),
-					getGuidePath(1, min, max, w, h),
-				]
+				const min = position.min
+				const max = position.max
+				return [getGuidePath(0, min, max), getGuidePath(1, min, max)]
 			}),
 		}) as ValueData
+
+		const initialVel = computeDerivative(initialPos)
+
+		const velocity = reactive({
+			values: initialVel,
+			min: -1,
+			max: 1,
+			points: computed(() =>
+				computePoints(velocity.min, velocity.max, velocity.values)
+			),
+			guides: computed(() => [getGuidePath(0, velocity.min, velocity.max)]),
+		}) as ValueData
+
+		const initialAccel = computeDerivative(initialVel)
+
+		const accel = reactive({
+			values: [],
+			min: -1,
+			max: 1,
+			points: computed(() => computePoints(accel.min, accel.max, accel.values)),
+			guides: computed(() => [getGuidePath(0, accel.min, accel.max)]),
+		}) as ValueData
+
+		updateValues()
+
+		const targetValueData = computed(() => {
+			if (data.editingMode === 'position') {
+				return position
+			} else if (data.editingMode === 'velocity') {
+				return velocity
+			} else {
+				return accel
+			}
+		})
 
 		// Playing
 		function togglePlay() {
@@ -169,44 +232,68 @@ export default defineComponent({
 		// Drag
 		useDraggable(elEditor, {
 			onDrag({prevPos, left, right, pos, top, bottom}) {
-				const valmin = positions.min
-				const valmax = positions.max
+				const {values, min, max} = targetValueData.value
 
 				const prevFrame = clamp(
 					Math.round(fit(prevPos[0], left, right, 0, duration - 1)),
 					0,
 					duration - 1
 				)
+				const prevValue = fit(prevPos[1], bottom, top, min, max)
 
-				const prevValue = fit(prevPos[1], bottom, top, valmin, valmax)
-
-				const frame = clamp(
+				const currentFrame = clamp(
 					Math.round(fit(pos[0], left, right, 0, duration - 1)),
 					0,
 					duration - 1
 				)
+				const currentValue = fit(pos[1], bottom, top, min, max)
 
-				const value = fit(pos[1], bottom, top, valmin, valmax)
+				if (prevFrame === currentFrame) {
+					values[currentFrame] = currentValue
+				} else {
+					const step = Math.sign(currentFrame - prevFrame)
+					const frames = Math.abs(currentFrame - prevFrame)
 
-				const step = Math.sign(frame - prevFrame)
-				const frames = Math.abs(frame - prevFrame)
-
-				for (let i = 0; i < frames; i++) {
-					const f = prevFrame + step * i
-
-					if (frames <= 1) {
-						positions.values[f] = value
-					} else {
-						positions.values[f] = fit(i, 0, frames, prevValue, value)
+					for (let i = 1; i <= frames; i++) {
+						const f = prevFrame + step * i
+						values[f] = fit(i, 0, frames, prevValue, currentValue)
 					}
 				}
 			},
-			onDragEnd: updateValueRange,
+			onDragEnd: updateValues,
 		})
 
-		function updateValueRange() {
-			positions.min = Math.min.call(null, ...positions.values)
-			positions.max = Math.max.call(null, ...positions.values)
+		function updateValues() {
+			if (data.editingMode === 'position') {
+				velocity.values = computeDerivative(position.values)
+				accel.values = computeDerivative(velocity.values)
+			} else if (data.editingMode === 'velocity') {
+				// normalize
+				const multiplier = 1 / velocity.values.reduce((a, b) => a + b, 0)
+				velocity.values = velocity.values.map(v => v * multiplier)
+
+				position.values = computeIntegral(0, velocity.values)
+				accel.values = computeDerivative(velocity.values)
+			} else {
+				// Accel
+
+				// normalize
+				const velocityTemp = computeIntegral(velocity.values[0], accel.values)
+				const multiplier = 1 / velocityTemp.reduce((a, b) => a + b, 0)
+				accel.values = accel.values.map(v => v * multiplier)
+
+				velocity.values = computeIntegral(velocity.values[0], accel.values)
+				position.values = computeIntegral(position.values[0], velocity.values)
+			}
+
+			position.min = Math.min(-0.1, Math.min.call(null, ...position.values))
+			position.max = Math.max(1.1, Math.max.call(null, ...position.values))
+
+			velocity.min = Math.min(-0.02, Math.min.call(null, ...velocity.values))
+			velocity.max = Math.max(0.02, Math.max.call(null, ...velocity.values))
+
+			accel.min = Math.min(-0.0005, Math.min.call(null, ...accel.values))
+			accel.max = Math.max(0.0005, Math.max.call(null, ...accel.values))
 		}
 
 		function convolve(filter: number[]) {
@@ -215,27 +302,33 @@ export default defineComponent({
 				return
 			}
 
+			const {values, min, max} = targetValueData.value
+
 			const startOffset = Math.floor(filter.length / 2)
 
 			const multiplier = 1 / filter.reduce((a, b) => a + b, 0)
 			const multipliedFilter = filter.map(v => v * multiplier)
 
-			positions.values = positions.values.map((v, i) => {
+			targetValueData.value.values = values.map((v, i) => {
 				let newValue = 0
 				for (let j = 0; j < filter.length; j++) {
-					const jt = clamp(i + j - startOffset, 0, positions.values.length - 1)
-					newValue += positions.values[jt] * multipliedFilter[j]
+					const jt = clamp(i + j - startOffset, 0, values.length - 1)
+					newValue += values[jt] * multipliedFilter[j]
 				}
 				return newValue
 			})
-			updateValueRange()
+			updateValues()
 		}
 
 		return {
 			...toRefs(data),
 			duration,
 			elEditor,
-			positions,
+
+			position,
+			velocity,
+			accel,
+
 			togglePlay,
 			convolve,
 		}
@@ -300,6 +393,15 @@ html
 			text-indent 0.2em
 
 	// Editors
+	.position
+		--color var(--keyword)
+
+	.velocity
+		--color var(--function)
+
+	.accel
+		--color var(--constant)
+
 	&__editor
 		position relative
 		margin-bottom 1rem
@@ -336,16 +438,27 @@ html
 		width 100%
 		height 100%
 
-	&__value, &__guide
-		stroke var(--keyword)
-		fill none
+		.value, .guide
+			stroke var(--color)
+			fill none
 
-	&__value
-		stroke-width 2px
+		.value
+			opacity 0.3
+			stroke-width 2px
 
-	&__guide
-		stroke-width 1px
-		stroke-dasharray 6 2
+		.active .value
+			opacity 1
+			stroke-width 3px
+
+		.guide
+			opacity 0.3
+			stroke-width 1px
+			stroke-dasharray 2 6
+
+		.active .guide
+			opacity 1
+			stroke-width 2px
+			stroke-dasharray 6 2
 
 	&__actions
 		text-align center
@@ -357,9 +470,6 @@ html
 			border-radius 5px
 			color var(--color)
 			font-size 1.2rem
-
-			&.pos
-				--color var(--keyword)
 
 			&.active
 				background var(--color)
