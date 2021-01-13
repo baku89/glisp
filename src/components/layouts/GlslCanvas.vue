@@ -3,6 +3,7 @@
 </template>
 
 <script lang="ts">
+import {Canvas} from 'glsl-canvas-js'
 import {
 	defineComponent,
 	onMounted,
@@ -11,7 +12,6 @@ import {
 	ref,
 	watchEffect,
 } from 'vue'
-import {Canvas} from 'glsl-canvas-js'
 
 interface UniformsProp {
 	[name: string]: number[] | string
