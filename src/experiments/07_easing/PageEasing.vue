@@ -7,10 +7,12 @@
 					<div class="PageEasing__sphere" :style="{left: currentLeft}" />
 				</div>
 			</div>
-			<button class="PageEasing__play" @click="togglePlay">
-				<i class="fas fa-pause" v-if="isPlaying" />
-				<i class="fas fa-play" v-else />
-			</button>
+			<div class="PageEasing__control">
+				<button class="PageEasing__play" @click="togglePlay">
+					<i class="fas fa-pause" v-if="isPlaying" />
+					<i class="fas fa-play" v-else />
+				</button>
+			</div>
 			<div class="PageEasing__editor">
 				<div class="PageEasing__editor-frame" ref="elEditor">
 					<div
@@ -58,7 +60,9 @@
 				>
 					Accel
 				</button>
-				<button @click="convolve([1, 1, 1])">Smooth</button>
+				<button class="PageEasing__smooth" @click="convolve([1, 2, 1])">
+					Smoothify
+				</button>
 			</div>
 		</div>
 	</div>
@@ -68,7 +72,15 @@
 import 'normalize.css'
 
 import {useElementSize} from '@vueuse/core'
-import {computed, defineComponent, reactive, ref, toRefs} from 'vue'
+import {
+	computed,
+	defineComponent,
+	onMounted,
+	onUnmounted,
+	reactive,
+	ref,
+	toRefs,
+} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
 import useScheme from '@/components/use/use-scheme'
@@ -90,7 +102,7 @@ function computeDerivative(values: number[]) {
 }
 
 function computeIntegral(start: number, values: number[]) {
-	let current = start
+	let current = 0
 	return values.map(v => {
 		current += v
 		return current
@@ -222,6 +234,25 @@ export default defineComponent({
 			}
 		}
 
+		function onKeydown(e: KeyboardEvent) {
+			switch (e.key) {
+				case ' ':
+					togglePlay()
+					break
+				case 'p':
+					data.editingMode = 'position'
+					break
+				case 'v':
+					data.editingMode = 'velocity'
+					break
+				case 'a':
+					data.editingMode = 'accel'
+					break
+			}
+		}
+		onMounted(() => window.addEventListener('keydown', onKeydown))
+		onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
 		function onFrame() {
 			data.currentFrame += 1
 			if (data.currentFrame >= duration) {
@@ -348,6 +379,7 @@ html
 	overflow-x hidden
 	padding 2rem 0
 	height 100vh
+	--error #e4413a
 
 	&__content
 		margin 0 auto
@@ -364,20 +396,38 @@ html
 
 	&__viewport-frame
 		position relative
-		margin 0 2rem
+		margin 0 3rem
 		height 100%
-		border-width 0 2px
-		border-style solid
-		border-color var(--button)
+
+		// border-width 0 2px
+		// border-style solid
+		// border-color var(--button)
+		&:before, &:after
+			position absolute
+			top 50%
+			display block
+			margin -2rem 0 0 -2rem
+			width 4rem
+			height 4rem
+			border 2px dashed var(--button)
+			border-radius 50%
+			content ''
+
+		&:after
+			left 100%
 
 	&__sphere
 		position absolute
 		top 2rem
+		z-index 100
 		margin-left -2rem
 		width 4rem
 		height 4rem
 		border-radius 50%
 		background black
+
+	&__control
+		position relative
 
 	&__play
 		display block
@@ -411,7 +461,7 @@ html
 		position relative
 		margin 0 2rem
 		height 100%
-		border-width 0 1px
+		border-width 0 2px
 		border-style solid
 		border-color var(--button)
 
@@ -421,6 +471,7 @@ html
 		width 2px
 		height 100%
 		background var(--error)
+		cursor ew-resize
 
 		&:before
 			top 0
@@ -461,6 +512,7 @@ html
 			stroke-dasharray 6 2
 
 	&__actions
+		position relative
 		text-align center
 
 		button
@@ -474,4 +526,15 @@ html
 			&.active
 				background var(--color)
 				color white
+
+	button&__smooth
+		position absolute
+		top 50%
+		right 2rem
+		padding 0.4em 0.5em
+		border 2px solid var(--button)
+		border-radius 5px
+		color var(--button)
+		font-size 1rem
+		transform translate(4px, -50%)
 </style>
