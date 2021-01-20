@@ -128,11 +128,17 @@ module.exports = {
 		// 	filename: 'experiments.html',
 		// 	title: "'(glisp/experiments)",
 		// },
-		'js/easing': {
-			entry: 'src/pages/easing/index.ts',
-			template: 'src/pages/easing/index.html',
-			filename: 'easing.html',
-			title: "'(glisp/easing)",
+		// 'js/easing': {
+		// 	entry: 'src/pages/easing/index.ts',
+		// 	template: 'src/pages/easing/index.html',
+		// 	filename: 'easing.html',
+		// 	title: "'(glisp/easing)",
+		// },
+		'js/color-space': {
+			entry: 'src/pages/color-space/index.ts',
+			template: 'src/pages/template.html',
+			filename: 'color-space.html',
+			title: "'(glisp/color-space)",
 		},
 	},
 }

@@ -1,5 +1,5 @@
 import {createApp} from 'vue'
 
-import App from './PageEasing.vue'
+import App from './PageColorSpace.vue'
 
 createApp(App).mount('#app')
