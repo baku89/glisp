@@ -102,12 +102,6 @@ $circle-radius = 0.5 * $circle-diameter
 	height $circle-diameter
 	border-radius $border-radius
 
-	&__gradient
-		position absolute
-		width 100%
-		height 100%
-		border-radius $border-radius
-
 	&__circle
 		circle()
 		z-index 2
