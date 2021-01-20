@@ -162,8 +162,7 @@ export default defineComponent({
 			const xstep = editorWidth.value / (duration - 1)
 
 			return values
-				.map((v, i) => [i * xstep, fit(v, valmin, valmax, ymin, ymax)])
-				.flat()
+				.flatMap((v, i) => [i * xstep, fit(v, valmin, valmax, ymin, ymax)])
 				.join(' ')
 		}
 
