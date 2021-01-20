@@ -83,7 +83,7 @@ import InputShaderSlider from '@/components/inputs/InputShaderSlider.vue'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useScheme from '@/components/use/use-scheme'
 
-import {PresetCMYK, PresetPinkSilver, PresetRGBA} from './presets'
+import Presets from './presets'
 
 type GLSLType = 'vec4' | 'vec3' | 'vec2' | 'float'
 
@@ -123,7 +123,7 @@ export default defineComponent({
 		useScheme()
 
 		// Edits
-		const edits = reactive({...PresetRGBA})
+		const edits = reactive({...Presets['Vector Field']})
 
 		const colorSpace = ref<ColorSpaceType>(JSON5.parse(edits.colorSpace))
 
@@ -242,11 +242,7 @@ void main() {
 		// Actions
 		const basePreset = ref('RGBA')
 
-		const presets = reactive({
-			RGBA: PresetRGBA,
-			CMYK: PresetCMYK,
-			'Pink+Silver': PresetPinkSilver,
-		})
+		const presets = reactive(Presets)
 
 		const presetNames = computed(() => Object.keys(presets))
 
@@ -316,7 +312,7 @@ void main() {
 
 	&__sliders
 		flex-grow 1
-		margin-left 2rem
+		margin 0 0 0 2rem
 
 	&__grid
 		padding 1.5rem
@@ -338,6 +334,7 @@ void main() {
 		& > dd
 			flex-grow 1
 			margin 0
+			font-size 1.5rem
 
 	&__update-action
 		text-align right

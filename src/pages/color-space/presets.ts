@@ -61,9 +61,15 @@ const PresetCMYK = {
 		labels: ["Black"]
 	}
 ]`,
-	viewerOptions: '[]',
+	viewerOptions: `[
+	{
+		type: "color",
+		name: "paperColor",
+		default: [1.0, 1.0, 1.0]
+	}
+]`,
 	renderFunc: `vec3 render(Color color) {
-	return mix(1.0 - color.cmy, vec3(0.0), color.black);
+	return paperColor * mix(1.0 - color.cmy, vec3(0.0), color.black);
 }`,
 }
 
@@ -119,4 +125,59 @@ vec3 render(Color color) {
 }`,
 }
 
-export {PresetRGBA, PresetCMYK, PresetPinkSilver}
+const PresetUV = {
+	colorSpace: `[
+	{
+		type: "vec2",
+		name: "uv",
+		labels: ["U", "V"]
+	},
+]`,
+	viewerOptions: `[]`,
+	renderFunc: `vec3 render(Color color) {
+	return vec3(color.uv, 0.0);
+}`,
+}
+
+const PresetVectorField = {
+	colorSpace: `[
+	{
+		type: "vec2",
+		name: "dir",
+		labels: ["Axis X", "Axis Y"]
+	},
+]`,
+	viewerOptions: `[]`,
+	renderFunc: `#define SLOW vec3(0.0, 0.0, 1.0)
+#define FAST vec3(1.0, 0.0, 0.0)
+vec3 render(Color color) {
+	vec2 dir = color.dir * 2.0 - 1.0;
+
+	vec2 uv = fract(gl_FragCoord.xy / 18.0) * 2.0 - 1.0;
+
+	// scale UV
+	float l = length(dir) / sqrt(2.0);
+
+	// rotate UV
+	float angle = -atan(dir.y, dir.x);
+	float c = cos(angle);
+	float s = sin(angle);
+	mat2 rotate = mat2(c, -s, s, c);
+
+	uv *= rotate;
+
+	// line
+	float t = 1.0;
+	t *= step(-0.15, uv.y) * step(uv.y, 0.15);
+
+	return t * mix(.7, 1.0, uv.x) * mix(SLOW, FAST, l);
+}`,
+}
+
+export default {
+	RGBA: PresetRGBA,
+	CMYK: PresetCMYK,
+	'Pink + Silver': PresetPinkSilver,
+	UV: PresetUV,
+	'Vector Field': PresetVectorField,
+}
