@@ -38,12 +38,12 @@ export default defineComponent({
 	setup(props) {
 		const canvasEl = ref<null | HTMLCanvasElement>(null)
 
-		let glsl: any
+		let glsl: typeof Canvas
 
 		onMounted(() => {
 			if (!canvasEl.value) return
 
-			const glsl = new Canvas(canvasEl.value, {
+			glsl = new Canvas(canvasEl.value, {
 				fragmentString: props.fragmentString,
 				alpha: true,
 			})
@@ -62,5 +62,3 @@ export default defineComponent({
 	},
 })
 </script>
-
-
