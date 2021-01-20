@@ -25,7 +25,7 @@
 <script lang="ts">
 import {computed, defineComponent, ref} from 'vue'
 
-import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
+import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import {readStr} from '@/mal'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
