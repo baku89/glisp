@@ -10,6 +10,7 @@ import {
 	onUnmounted,
 	PropType,
 	ref,
+	watch,
 	watchEffect,
 } from 'vue'
 
@@ -52,6 +53,14 @@ export default defineComponent({
 				glsl.setUniforms(props.uniforms)
 				glsl.render()
 			})
+
+			watch(
+				() => props.fragmentString,
+				async frag => {
+					await glsl.load(frag)
+					glsl.setUniforms(props.uniforms)
+				}
+			)
 		})
 
 		onUnmounted(() => {
