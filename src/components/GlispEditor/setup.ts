@@ -3,18 +3,17 @@ import './define-glisp-mode'
 import ace from 'brace'
 
 import useResizeSensor from '@/components/use/use-resize-sensor'
-//import ConsoleScope from '@/scopes/console'
 
 require('brace/mode/clojure')
+require('brace/mode/glsl')
+require('brace/mode/json')
 
 function setupSettings(editor: ace.Editor) {
 	editor.$blockScrolling = Infinity
 	editor.setShowPrintMargin(false)
 	editor.setOption('displayIndentGuides', false)
-	// editor.setTheme('tomorrow')
 
 	const session = editor.getSession()
-	session.setMode('ace/mode/glisp')
 
 	session.setUseWrapMode(true)
 

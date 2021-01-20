@@ -16,6 +16,7 @@ import {
 	SetupContext,
 	unref,
 	watch,
+	watchEffect,
 } from 'vue'
 
 import {setupEditor} from './setup'
@@ -23,6 +24,7 @@ import {convertToAceRange, getEditorSelection} from './utils'
 
 interface Props {
 	modelValue: string
+	lang: string
 	selection?: number[]
 	activeRange?: number[]
 }
@@ -86,7 +88,6 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		function onChange() {
 			if (setBySelf) return
 			const value = editor.getValue()
-			console.log('update!!!')
 			context.emit('update:modelValue', value)
 		}
 
@@ -122,6 +123,12 @@ function useBraceEditor(props: Props, context: SetupContext) {
 
 		// Enable individual features
 		setupEditor(editor)
+
+		// Language
+		watchEffect(() => {
+			const session = editor.getSession()
+			session.setMode(`ace/mode/${props.lang}`)
+		})
 	})
 
 	onBeforeUnmount(() => {
@@ -138,6 +145,10 @@ export default defineComponent({
 		modelValue: {
 			type: String,
 			required: true,
+		},
+		lang: {
+			type: String,
+			default: 'glisp',
 		},
 		selection: {
 			type: Array as PropType<number[]>,
