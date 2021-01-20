@@ -67,4 +67,56 @@ const PresetCMYK = {
 }`,
 }
 
-export {PresetRGBA, PresetCMYK}
+const PresetPinkSilver = {
+	colorSpace: `[
+	{
+		type: "vec3",
+		name: "spot",
+		labels: ["Black", "Pink", "Silver"]
+	},
+]`,
+	viewerOptions: '[]',
+	renderFunc: `#define PINK vec3(1.0, 0.0, 0.8)
+#define BLACK vec3(0.0)	
+#define SILVER vec3(.8)
+#define FLAKE_LOW vec3(.85)
+#define FLAKE_HIGH vec3(.95)
+
+float rand(vec2 n) { 
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+float noise(vec2 p){
+	vec2 ip = floor(p);
+	vec2 u = fract(p);
+	u = u*u*(3.0-2.0*u);
+	float res = mix(
+		mix(rand(ip),rand(ip+vec2(1.0,0.0)),u.x),
+		mix(rand(ip+vec2(0.0,1.0)),rand(ip+vec2(1.0,1.0)),u.x),u.y);
+	return res*res;
+}
+
+vec3 render(Color color) {
+	float black = color.spot.x;
+	float pink = color.spot.y;
+	float silver = color.spot.z;
+
+	vec3 rgb = vec3(1.0);
+	rgb = mix(rgb, rgb * PINK, pink);
+
+	rgb = mix(rgb, rgb * BLACK, mix(black, black * 0.75, pink));
+
+	vec2 samplePos = gl_FragCoord.xy * 2.0;
+	float rnd = noise(samplePos);
+	float rnd2 = noise(samplePos + rnd * 100.0);
+
+	rgb = mix(rgb, SILVER, silver);
+
+	vec3 flake = mix(FLAKE_LOW, FLAKE_HIGH, rnd2);
+	rgb = mix(rgb, flake, step(mix(1.0, 0.3, silver), rnd) * mix(.4, 1.0, silver));
+
+	return rgb;
+}`,
+}
+
+export {PresetRGBA, PresetCMYK, PresetPinkSilver}

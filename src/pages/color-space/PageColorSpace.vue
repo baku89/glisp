@@ -74,7 +74,7 @@
 import 'normalize.css'
 
 import JSON5 from 'json5'
-import {computed, defineComponent, reactive, ref} from 'vue'
+import {computed, defineComponent, reactive, ref, watchEffect} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
@@ -83,7 +83,7 @@ import InputShaderSlider from '@/components/inputs/InputShaderSlider.vue'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useScheme from '@/components/use/use-scheme'
 
-import {PresetCMYK, PresetRGBA} from './presets'
+import {PresetCMYK, PresetPinkSilver, PresetRGBA} from './presets'
 
 type GLSLType = 'vec4' | 'vec3' | 'vec2' | 'float'
 
@@ -123,7 +123,7 @@ export default defineComponent({
 		useScheme()
 
 		// Edits
-		const edits = reactive({...PresetCMYK})
+		const edits = reactive({...PresetRGBA})
 
 		const colorSpace = ref<ColorSpaceType>(JSON5.parse(edits.colorSpace))
 
@@ -213,8 +213,6 @@ void main() {
 }`
 		)
 
-		console.log(commonFragSnippet.value)
-
 		const sliderFragmentStrings = computed(() => {
 			return colorPicker.value.map(
 				picker =>
@@ -229,12 +227,25 @@ void main() {
 			)
 		})
 
+		// Logging
+		watchEffect(() => {
+			const frag = solidFragmentString.value
+
+			const fragLog = frag
+				.split('\n')
+				.map((l, i) => `${('   ' + i).substr(-4)}: ${l}`)
+				.join('\n')
+
+			console.log(`New Fragment shader:\n${fragLog}`)
+		})
+
 		// Actions
 		const basePreset = ref('RGBA')
 
 		const presets = reactive({
 			RGBA: PresetRGBA,
 			CMYK: PresetCMYK,
+			'Pink+Silver': PresetPinkSilver,
 		})
 
 		const presetNames = computed(() => Object.keys(presets))
@@ -297,10 +308,11 @@ void main() {
 
 	&__picker
 		display flex
-		align-items stretch
 
 	&__pad
 		width 8rem
+		height 8rem
+		border-radius 2px
 
 	&__sliders
 		flex-grow 1
@@ -336,6 +348,7 @@ void main() {
 
 	&__preset-dropdown
 		margin-right 1em
+		width 8em
 
 	&__code
 		margin-bottom 1rem
