@@ -39,9 +39,8 @@ vec3 render(Color color) {
 	float alpha = color.rgba.a;
 
 	// Transparent checkerboard
-	float tx = step(fract(gl_FragCoord.x / gridSize), .5);
-	float ty = step(fract(gl_FragCoord.y / gridSize), .5);
-	float t = mod(tx + ty, 2.0);
+	vec2 t2 = step(.5, fract(gl_FragCoord.xy / gridSize));
+	float t = mod(t2.x + t2.y, 2.0);
 	vec3 checkerboard = mix(gridColorA, gridColorB, t);
 
 	// Returns RGB
@@ -49,4 +48,23 @@ vec3 render(Color color) {
 }`,
 }
 
-export {PresetRGBA}
+const PresetCMYK = {
+	colorSpace: `[
+	{
+		type: "vec3",
+		name: "cmy",
+		labels: ["Cyan", "Magenda", "Yellow"]
+	},
+	{
+		type: "float",
+		name: "black",
+		labels: ["Black"]
+	}
+]`,
+	viewerOptions: '[]',
+	renderFunc: `vec3 render(Color color) {
+	return mix(1.0 - color.cmy, vec3(0.0), color.black);
+}`,
+}
+
+export {PresetRGBA, PresetCMYK}

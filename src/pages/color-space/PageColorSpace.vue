@@ -12,13 +12,14 @@
 					<div
 						class="PageColorSpace__slider"
 						v-for="(p, index) in colorPicker"
-						:key="p.name"
+						:key="index"
 					>
-						<dt>{{ capital(p.name) }}</dt>
+						<dt>{{ p.label }}</dt>
 						<dd>
 							<InputShaderSlider
 								class="PageColorSpace__slider-input"
-								v-model="colorValue[index]"
+								:modelValue="color[index]"
+								@update:modelValue="color[index] = $event"
 								:uniforms="viewerUniforms"
 								:sliderFragmentString="sliderFragmentStrings[index]"
 								:knobFragmentString="solidFragmentString"
@@ -28,14 +29,20 @@
 				</dl>
 			</div>
 
-			<InputButton
-				label="Update Color Space"
-				style="margin-left: auto; display: block; font-size: 1.2rem"
-			/>
+			<div class="PageColorSpace__update-action">
+				<span class="label">Preset&nbsp;</span>
+				<InputDropdown
+					class="PageColorSpace__preset-dropdown"
+					:modelValue="basePreset"
+					:values="presetNames"
+					@update:modelValue="updateColorSpace($event)"
+				/>
+				<InputButton label="Update Color Space" @click="updateColorSpace()" />
+			</div>
 		</div>
 
 		<div class="PageColorSpace__grid">
-			<h2>Color Space</h2>
+			<h2>Color Space <small>JSON5</small></h2>
 			<GlispEditor
 				class="PageColorSpace__code"
 				v-model="edits.colorSpace"
@@ -44,7 +51,7 @@
 		</div>
 
 		<div class="PageColorSpace__grid">
-			<h2>Viewer Settings</h2>
+			<h2>Viewer Options <small>JSON5</small></h2>
 			<GlispEditor
 				class="PageColorSpace__code"
 				v-model="edits.viewerOptions"
@@ -53,7 +60,7 @@
 		</div>
 
 		<div class="PageColorSpace__grid">
-			<h2>Render Function</h2>
+			<h2>Render Function <small>GLSL</small></h2>
 			<GlispEditor
 				class="PageColorSpace__code"
 				v-model="edits.renderFunc"
@@ -66,20 +73,22 @@
 <script lang="ts">
 import 'normalize.css'
 
-import {capital} from 'case'
 import JSON5 from 'json5'
 import {computed, defineComponent, reactive, ref} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
 import InputButton from '@/components/inputs/InputButton.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputShaderSlider from '@/components/inputs/InputShaderSlider.vue'
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useScheme from '@/components/use/use-scheme'
 
-import {PresetRGBA} from './presets'
+import {PresetCMYK, PresetRGBA} from './presets'
+
+type GLSLType = 'vec4' | 'vec3' | 'vec2' | 'float'
 
 type ColorSpaceType = {
-	type: 'vec4' | 'vec3' | 'vec2' | 'float'
+	type: GLSLType
 	name: string
 	labels: string[]
 }[]
@@ -90,6 +99,17 @@ type ViewerOptionsType = {
 	default: number | number[]
 }[]
 
+function getElementCountOfGLSLType(type: GLSLType) {
+	return type === 'vec4' ? 4 : type === 'vec3' ? 3 : type === 'vec2' ? 2 : 1
+}
+
+function generateRandomColor(colorSpace: ColorSpaceType): number[] {
+	return colorSpace.flatMap(c => {
+		const count = getElementCountOfGLSLType(c.type)
+		return new Array(count).fill(0).map(Math.random)
+	})
+}
+
 export default defineComponent({
 	name: 'PageColorSpace',
 	components: {
@@ -97,28 +117,25 @@ export default defineComponent({
 		InputShaderSlider,
 		GlispEditor,
 		InputButton,
+		InputDropdown,
 	},
 	setup() {
 		useScheme()
 
 		// Edits
-		const edits = reactive({...PresetRGBA})
-
-		const colorValue = reactive([1.0, 0.7, 0.2, 0.5])
+		const edits = reactive({...PresetCMYK})
 
 		const colorSpace = ref<ColorSpaceType>(JSON5.parse(edits.colorSpace))
 
+		const color = ref(generateRandomColor(colorSpace.value))
+
 		const colorPicker = computed(() =>
-			colorSpace.value
-				.map(c =>
-					c.labels.map((label, index) => {
-						return {
-							label,
-							accessor: c.type === 'float' ? c.name : `${c.name}[${index}]`,
-						}
-					})
-				)
-				.flat()
+			colorSpace.value.flatMap(c =>
+				c.labels.map((label, index) => ({
+					label,
+					accessor: c.type === 'float' ? c.name : `${c.name}[${index}]`,
+				}))
+			)
 		)
 
 		const viewerOptions = ref<ViewerOptionsType>(
@@ -126,12 +143,24 @@ export default defineComponent({
 		)
 
 		const viewerUniforms = computed(() => {
-			return {
-				...Object.fromEntries(
-					viewerOptions.value.map(s => [s.name, s.default])
-				),
-				'colorValue.rgba': colorValue,
-			}
+			let offset = 0
+
+			const colorUniforms = colorSpace.value.map(cs => {
+				const uniform = `colorValue.${cs.name}`
+				const count = getElementCountOfGLSLType(cs.type)
+				const value = color.value.slice(offset, offset + count)
+
+				offset += count
+
+				return [uniform, value]
+			})
+
+			const viewerOptionsUniforms = viewerOptions.value.map(s => [
+				s.name,
+				s.default,
+			])
+
+			return Object.fromEntries([...colorUniforms, ...viewerOptionsUniforms])
 		})
 
 		// Shader generator
@@ -147,42 +176,14 @@ export default defineComponent({
 			colorStruct: computed(
 				() =>
 					`struct Color {\n` +
-					colorSpace.value.map(s => `\t${s.type} ${s.name};\n`) +
-					`};`
+					colorSpace.value.map(s => `\t${s.type} ${s.name};`).join('\n') +
+					`\n};`
 			),
 		})
 
-		const renderFragmentString = ref(edits.renderFunc)
-
-		const solidFragmentString = computed(
+		const commonFragSnippet = computed(
 			() =>
 				`precision mediump float;
-
-/*** Start color struct ***/
-${fragSnippets.colorStruct}
-/*** End color struct ***/
-
-/*** Start viewport uniforms ***/
-${fragSnippets.viewerUniforms}
-/*** End viewport uniforms ***/
-
-/*** Start render function ***/
-${renderFragmentString.value}
-/*** End render function ***/
-
-uniform Color colorValue;
-
-void main() {
-	gl_FragColor = vec4(render(colorValue), 1.0);
-}`
-		)
-
-		console.log(solidFragmentString.value)
-
-		const sliderFragmentStrings = computed(() => {
-			return colorPicker.value.map(
-				picker =>
-					`precision mediump float;
 
 uniform vec2 u_resolution;
 
@@ -198,21 +199,64 @@ ${fragSnippets.viewerUniforms}
 ${renderFragmentString.value}
 /*** End render function ***/
 
-uniform Color colorValue;
+uniform Color colorValue;`
+		)
+
+		const renderFragmentString = ref(edits.renderFunc)
+
+		const solidFragmentString = computed(
+			() =>
+				`${commonFragSnippet.value}
 
 void main() {
-	float t = gl_FragCoord.x / u_resolution.x;
+	gl_FragColor = vec4(render(colorValue), 1.0);
+}`
+		)
 
+		console.log(commonFragSnippet.value)
+
+		const sliderFragmentStrings = computed(() => {
+			return colorPicker.value.map(
+				picker =>
+					`${commonFragSnippet.value}
+
+void main() {
 	Color c = colorValue;
-	c.${picker.accessor} = t;
+	c.${picker.accessor} = gl_FragCoord.x / u_resolution.x;
 
 	gl_FragColor = vec4(render(c), 1.0);
 }`
 			)
 		})
 
+		// Actions
+		const basePreset = ref('RGBA')
+
+		const presets = reactive({
+			RGBA: PresetRGBA,
+			CMYK: PresetCMYK,
+		})
+
+		const presetNames = computed(() => Object.keys(presets))
+
+		function updateColorSpace(presetName?: keyof typeof presets) {
+			if (presetName) {
+				const preset = presets[presetName]
+
+				edits.colorSpace = preset.colorSpace
+				edits.viewerOptions = preset.viewerOptions
+				edits.renderFunc = preset.renderFunc
+			}
+
+			colorSpace.value = JSON5.parse(edits.colorSpace)
+			viewerOptions.value = JSON5.parse(edits.viewerOptions)
+			renderFragmentString.value = edits.renderFunc
+
+			color.value = generateRandomColor(colorSpace.value)
+		}
+
 		return {
-			colorValue,
+			color,
 			colorSpace,
 			colorPicker,
 			viewerUniforms,
@@ -223,8 +267,10 @@ void main() {
 			// Edits
 			edits,
 
-			// Util functions
-			capital,
+			// Actions
+			basePreset,
+			presetNames,
+			updateColorSpace,
 		}
 	},
 })
@@ -243,6 +289,12 @@ void main() {
 	grid-template-rows 50vh 50vh
 	grid-template-columns 50vw 50vw
 
+	h2 > small
+		color var(--comment)
+		vertical-align middle
+		font-weight normal
+		font-size 0.7em
+
 	&__picker
 		display flex
 		align-items stretch
@@ -257,17 +309,33 @@ void main() {
 	&__grid
 		padding 1.5rem
 
+		&:nth-child(2n+1)
+			border-right 1px solid var(--frame)
+
+		&:nth-child(-n + 2)
+			border-bottom 1px solid var(--frame)
+
 	&__slider
 		display flex
 		margin-bottom $picker-gap
 
 		& > dt
 			flex-grow 0
-			width 4.5rem
+			width 6rem
 
 		& > dd
 			flex-grow 1
 			margin 0
+
+	&__update-action
+		text-align right
+		font-size 1.2rem
+
+		& > .label
+			color var(--comment)
+
+	&__preset-dropdown
+		margin-right 1em
 
 	&__code
 		margin-bottom 1rem
