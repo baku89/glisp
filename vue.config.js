@@ -106,19 +106,19 @@ module.exports = {
 		// },
 		// 'js/embed': {
 		// 	entry: 'src/pages/embed/index.ts',
-		// 	template: 'public/embed.html',
+		// 	template: 'src/pages/embed/embed.html',
 		// 	filename: 'embed.html',
 		// 	title: "'(glisp/embed)",
 		// },
 		// 'js/interpreter': {
 		// 	entry: 'src/pages/interpreter/index.ts',
-		// 	template: 'public/interpreter.html',
+		// 	template: 'src/pages/interpreter/interpreter.html',
 		// 	filename: 'interpreter.html',
 		// 	title: "'(glisp/interpreter)",
 		// },
 		// 'js/ui': {
 		// 	entry: 'src/pages/ui/index.ts',
-		// 	template: 'public/ui.html',
+		// 	template: 'src/pages/ui/ui.html',
 		// 	filename: 'ui.html',
 		// 	title: "'(glisp/ui)",
 		// },
