@@ -123,7 +123,7 @@ export default defineComponent({
 		useScheme()
 
 		// Edits
-		const edits = reactive({...Presets['Vector Field']})
+		const edits = reactive({...Presets['RGBA']})
 
 		const colorSpace = ref<ColorSpaceType>(JSON5.parse(edits.colorSpace))
 
