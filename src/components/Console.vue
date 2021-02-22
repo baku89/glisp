@@ -3,10 +3,12 @@
 </template>
 
 <script lang="ts">
+// eslint-disable-next-line simple-import-sort/sort
 import $ from 'jquery'
 import 'jq-console'
 
 import {defineComponent, onMounted, PropType, ref} from 'vue'
+
 import {printer} from '@/mal/printer'
 import Scope from '@/mal/scope'
 
