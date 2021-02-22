@@ -110,12 +110,12 @@ module.exports = {
 		// 	filename: 'embed.html',
 		// 	title: "'(glisp/embed)",
 		// },
-		// 'js/interpreter': {
-		// 	entry: 'src/pages/interpreter/index.ts',
-		// 	template: 'src/pages/interpreter/interpreter.html',
-		// 	filename: 'interpreter.html',
-		// 	title: "'(glisp/interpreter)",
-		// },
+		'js/interpreter': {
+			entry: 'src/experiments/07_new-syntax/index.ts',
+			template: 'src/pages/template.html',
+			filename: 'interpreter.html',
+			title: "'(glisp/interpreter)",
+		},
 		// 'js/ui': {
 		// 	entry: 'src/pages/ui/index.ts',
 		// 	template: 'src/pages/ui/ui.html',
@@ -134,11 +134,11 @@ module.exports = {
 		// 	filename: 'easing.html',
 		// 	title: "'(glisp/easing)",
 		// },
-		'js/color-space': {
-			entry: 'src/pages/color-space/index.ts',
-			template: 'src/pages/template.html',
-			filename: 'color-space.html',
-			title: "'(glisp/color-space)",
-		},
+		// 'js/color-space': {
+		// 	entry: 'src/pages/color-space/index.ts',
+		// 	template: 'src/pages/template.html',
+		// 	filename: 'color-space.html',
+		// 	title: "'(glisp/color-space)",
+		// },
 	},
 }
