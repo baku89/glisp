@@ -150,6 +150,7 @@ const PresetVectorField = {
 	viewerOptions: `[]`,
 	renderFunc: `#define SLOW vec3(0.0, 0.0, 1.0)
 #define FAST vec3(1.0, 0.0, 0.0)
+
 vec3 render(Color color) {
 	vec2 dir = color.dir * 2.0 - 1.0;
 
