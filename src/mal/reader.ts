@@ -31,7 +31,7 @@ class Reader {
 
 	constructor(private str: string) {
 		// Tokenize
-		const matches = Array.from(str.matchAll(Reader.TokenReex))
+		const matches = Array.from(str.matchAll(Reader.TokenRegex))
 
 		const tokens = matches
 			// Remove comment and empties
@@ -86,7 +86,7 @@ class Reader {
 	}
 
 	// eslint-disable-next-line no-useless-escape
-	private static TokenReex = /(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)[\s,]*/g
+	private static TokenRegex = /(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)[\s,]*/g
 }
 
 function readAtom(reader: Reader) {
