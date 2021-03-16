@@ -1,4 +1,4 @@
-import {getAllRefs, PDG} from './glisp'
+import {getAllRefs, PDG} from './glisp_old'
 
 // Env
 export default class Env {
@@ -61,7 +61,7 @@ export default class Env {
 					case 'fncall':
 						child = pdg.params[parseInt(thisPath)]
 						break
-					case 'graph':
+					case 'scope':
 						child = pdg.values[thisPath]
 						break
 				}
@@ -76,7 +76,7 @@ export default class Env {
 			switch (pdg.type) {
 				case 'fncall':
 					return pdg.params[parseInt(path)]
-				case 'graph':
+				case 'scope':
 					return pdg.values[path]
 				default:
 					return new Error('Invalid path')

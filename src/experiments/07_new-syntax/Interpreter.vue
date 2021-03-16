@@ -20,7 +20,8 @@ export default defineComponent({
 		useScheme()
 
 		async function rep(str: string) {
-			const pdg = analyzePDG(readAST(readStr(str)))
+			const ast = readStr(str)
+			const pdg = analyzePDG(readAST(ast))
 			const ret = await evalPDG(pdg)
 
 			return printValue(ret)
