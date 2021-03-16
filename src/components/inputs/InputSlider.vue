@@ -24,6 +24,8 @@
 <script lang="ts">
 import {computed, defineComponent, ref, toRef} from 'vue'
 
+import {clamp} from '@/utils'
+
 import useDraggable from '../use/use-draggable'
 import useKeyboardState from '../use/use-keyboard-state'
 import useNumberInput from './use-number-input'
@@ -100,7 +102,12 @@ export default defineComponent({
 					inc /= 10
 				}
 
-				update(props.modelValue + inc)
+				let newValue = props.modelValue + inc
+
+				if (props.clamped) {
+					newValue = clamp(newValue, props.min, props.max)
+				}
+				update(newValue)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
