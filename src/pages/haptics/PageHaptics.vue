@@ -37,6 +37,27 @@
 				@end-tweak="rumble"
 			/>
 		</p>
+		<p>
+			Duration
+			<InputSlider
+				v-model="duration"
+				:min="0"
+				:max="100"
+				:clamped="true"
+				@end-tweak="rumble"
+			/>
+		</p>
+		<p>
+			Sample Integer Value
+			<InputSlider
+				:modelValue="sampleInteger"
+				@update:modelValue="updateSampleInteger"
+				:min="0"
+				:max="20"
+				:clamped="true"
+				@end-tweak="rumble"
+			/>
+		</p>
 	</div>
 </template>
 
@@ -57,6 +78,20 @@ export default defineComponent({
 	setup() {
 		useScheme()
 
+		// Status
+		const device = ref<any>(null)
+
+		const lowFreq = ref(160)
+		const highFreq = ref(320)
+		const amp = ref(0.6)
+		const duration = ref(50)
+
+		const sampleInteger = ref(10)
+
+		const isDeviceConnected = computed(() => device.value !== null)
+
+		let globalCounter = 0
+
 		// Filter on devices with the Nintendo Switch Joy-Con USB Vendor/Product IDs.
 		const filters = [
 			{
@@ -68,14 +103,6 @@ export default defineComponent({
 				productId: 0x2007, // Joy-Con Right
 			},
 		]
-
-		const device = ref<any>(null)
-
-		const lowFreq = ref(160)
-		const highFreq = ref(320)
-		const amp = ref(0.6)
-
-		const isDeviceConnected = computed(() => device.value !== null)
 
 		async function connect() {
 			// Prompt user to select a Joy-Con device.
@@ -92,19 +119,19 @@ export default defineComponent({
 			// https://github.com/Looking-Glass/JoyconLib/blob/master/Packages/com.lookingglass.joyconlib/JoyconLib_scripts/Joycon.cs
 			const data = new Uint8Array(9)
 
-			data[0] = 0
+			data[0] = globalCounter++ & 0xff
 
 			if (amp === 0) {
-				data[1] = 0x0
-				data[2] = 0x1
+				data[1] = 0x00
+				data[2] = 0x01
 				data[3] = 0x40
 				data[4] = 0x40
 			} else {
 				l_f = clamp(l_f, 40.875885, 626.286133)
-				amp = clamp(amp, 0.0, 1.0)
+				amp = clamp(amp, 0, 1)
 				h_f = clamp(h_f, 81.75177, 1252.572266)
 
-				const hf = (Math.round(32.0 * Math.log2(h_f * 0.1)) - 0x60) * 4
+				const hf = (Math.round(32 * Math.log2(h_f * 0.1)) - 0x60) * 4
 				const lf = Math.round(32 * Math.log2(l_f * 0.1)) - 0x40
 				let hf_amp
 
@@ -128,6 +155,8 @@ export default defineComponent({
 				data[3] = lf + ((lf_amp >>> 8) & 0xff)
 				data[4] += lf_amp & 0xff
 			}
+
+			// Copy 1-4 to 5-8
 			for (let i = 0; i < 4; ++i) {
 				data[5 + i] = data[1 + i]
 			}
@@ -135,11 +164,28 @@ export default defineComponent({
 			return data
 		}
 
-		async function enableVibration() {
+		async function setVibrationEnabled(flag: boolean) {
 			// First, send a command to enable vibration.
 			// Magical bytes come from https://github.com/mzyy94/joycon-toolweb
-			const enableVibrationData = [1, 0, 1, 64, 64, 0, 1, 64, 64, 0x48, 0x01]
-			await device.value.sendReport(0x01, new Uint8Array(enableVibrationData))
+			const data = [
+				globalCounter++ & 0xff,
+				0x00,
+				0x01,
+				0x40,
+				0x40,
+				0x00,
+				0x01,
+				0x40,
+				0x40,
+				0x48,
+				flag ? 0x01 : 0x00,
+			]
+
+			await device.value.sendReport(0x01, new Uint8Array(data))
+		}
+
+		async function delay(millseconds: number) {
+			await new Promise(resolve => setTimeout(resolve, millseconds))
 		}
 
 		async function sendRumbleData(lf: number, hf: number, amp: number) {
@@ -148,11 +194,34 @@ export default defineComponent({
 		}
 
 		async function rumble() {
-			await enableVibration()
+			await setVibrationEnabled(true)
 			await sendRumbleData(lowFreq.value, highFreq.value, amp.value)
+
+			await delay(duration.value)
+			await sendRumbleData(lowFreq.value, highFreq.value, 0)
+			// await setVibrationEnabled(false)
 		}
 
-		return {isDeviceConnected, lowFreq, highFreq, amp, connect, rumble}
+		function updateSampleInteger(v: number) {
+			const newValue = Math.round(v)
+			if (newValue !== sampleInteger.value) {
+				rumble()
+			}
+
+			sampleInteger.value = newValue
+		}
+
+		return {
+			isDeviceConnected,
+			lowFreq,
+			highFreq,
+			amp,
+			duration,
+			sampleInteger,
+			connect,
+			rumble,
+			updateSampleInteger,
+		}
 	},
 })
 </script>
