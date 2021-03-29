@@ -13,6 +13,7 @@ type ExpForm =
 	| ExpList
 	| ExpVector
 	| ExpHashMap
+	| ExpScope
 
 interface ExpProgram {
 	type: 'program'
@@ -21,6 +22,10 @@ interface ExpProgram {
 }
 
 interface ExpBase {
+	parent?: {
+		key: number | string
+		value: ExpList | ExpVector | ExpHashMap
+	}
 	meta?: {
 		value: ExpHashMap
 		delimiters?: string[]
@@ -58,6 +63,7 @@ interface ExpList extends ExpBase {
 	fn: ExpSymbol | ExpList
 	params: ExpForm[]
 	delimiters?: string[]
+	evaluated: ExpForm
 }
 
 interface ExpVector extends ExpBase {
@@ -77,17 +83,25 @@ interface ExpHashMap extends ExpBase {
 	delimiters?: string[]
 }
 
+interface ExpScope extends ExpBase {
+	type: 'scope'
+	vars: ExpHashMap
+	ret: ExpForm
+	delimiters?: string[]
+	evaluated?: ExpForm
+}
+
 export function readStr(str: string) {
 	const exp = parser.parse(str) as ExpProgram
 	console.log(exp.value)
-	return printForm(exp.value)
+	return printExp(exp.value)
 }
 
-export function printForm(form: ExpForm): string {
+export function printExp(form: ExpForm): string {
 	if (form.meta) {
 		const {meta} = form
 		const [d0, d1] = meta.delimiters || ['', ' ']
-		return '^' + d0 + printForm(meta.value) + d1 + printWithoutMeta(form)
+		return '^' + d0 + printExp(meta.value) + d1 + printWithoutMeta(form)
 	} else {
 		return printWithoutMeta(form)
 	}
@@ -121,10 +135,13 @@ export function printForm(form: ExpForm): string {
 			case 'hashMap': {
 				const keys = Object.keys(form.value)
 				const keyForms = keys.map(k => (form.key ? form.key[k] : toHashKey(k)))
-				console.log(keys, keyForms)
 				const coll = Object.values(form.value)
 					.map((v, i) => [keyForms[i], v])
 					.flat()
+				return printCollection('{', '}', coll, form.delimiters)
+			}
+			case 'scope': {
+				const coll = [form.vars, form.ret]
 				return printCollection('{', '}', coll, form.delimiters)
 			}
 			default:
@@ -142,13 +159,13 @@ export function printForm(form: ExpForm): string {
 			if (delimiters.length === coll.length + 1) {
 				return (
 					start +
-					coll.map((v, i) => delimiters[i] + printForm(v)).join('') +
+					coll.map((v, i) => delimiters[i] + printExp(v)).join('') +
 					delimiters[delimiters.length - 1] +
 					end
 				)
 			}
 			console.warn('Invalid length of delimiters')
 		}
-		return start + coll.map(printForm).join(' ') + end
+		return start + coll.map(printExp).join(' ') + end
 	}
 }
