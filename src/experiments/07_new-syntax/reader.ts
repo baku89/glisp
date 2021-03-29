@@ -109,7 +109,7 @@ export function printForm(form: ExpForm): string {
 			case 'number':
 				return form.str || form.value.toString()
 			case 'string':
-				return form.value
+				return '"' + form.value + '"'
 			case 'symbol':
 				return form.str || form.value
 			case 'list': {
