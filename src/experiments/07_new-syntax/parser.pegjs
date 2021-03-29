@@ -1,54 +1,139 @@
-program = space? expr:expr? space? { return expr }
+Program = d0:_ value:Form? d1:_
+	{
+		return {
+			type: 'program',
+			value,
+			delimiters: [d0, d1]
+		}
+	}
 
-expr = boolean / number / string / symbol / list / typeAnnotation
+Form = Boolean / Number / String / Symbol / List / Vector / HashMap / Meta
 
-// Space
-space "Whitepace" = [ \t\n\r]+
+Nil = "nil" { return { type: 'nil' } }
 
-// Boolean
-boolean "Boolean" = value:("true" / "false") { return value === 'true' }
+Boolean = value:("true" / "false")
+	{
+		return {
+			type: 'boolean',
+			value: value === 'true'
+		}
+	}
 
 // Number
-number "Number" = exponential / float / integer
+Number = NumberExponential / NumberFloat / NumberHex / NumberInteger
 
-integer = digits:$(("+" / "-")? (([1-9] [0-9]+) / [0-9]))
-	{ return parseInt(digits, 10)}
+IntegerLiteral = $(("+" / "-")? [0-9]+)
 
-float = digits:$(integer? "." [0-9]*)
-	{ return parseFloat(digits) }
+FloatLiteral = $(IntegerLiteral? "." [0-9]*)
 
-exponential = digits:$((integer / float) "e" integer)
-	{ return parseFloat(digits) }
+NumberInteger = str:IntegerLiteral
+	{ 
+		return {
+			type: 'number',
+			value: parseInt(str),
+			str
+		}
+	}
+
+NumberFloat = str:FloatLiteral
+	{
+		return {
+			type: 'number',
+			value: parseFloat(str),
+			str
+		}
+	}
+
+NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
+	{
+		return {
+			type: 'number',
+			value: parseFloat(str),
+			str
+		}
+	}
+
+NumberHex = str:$("0x" [0-9a-f]i+)
+	{
+		return {
+			type: 'number',
+			value: parseInt(str),
+			str
+		}
+	}
 
 // String
-string "String" = '"' str:$(!'"' .)+ '"'
+String = value:StringLiteral
+	{
+		return {
+			type: 'string',
+			value
+		}
+	}
+
+StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
 
 // Symbol
-symbol "Symbol" = symbolIdentifier / symbolPath
+Symbol = SymbolIdentifier / SymbolPath
 
-symbolIdentifier = str:$([a-z0-9_+\-\*\/=?]i+)
-	{ return Symbol.for(str) }
+SymbolIdentifier = str:$([a-z_+\-*/=?<>]i [a-z0-9_+\-*/=?<>]i*)
+	{ 
+		return {
+			type: 'symbol',
+			value: str,
+			str
+		}
+	}
 
-symbolPath = '@' str:string
-	{ return Symbol.for(str) }
+SymbolPath = "@" str:StringLiteral
+	{
+		return {
+			type: 'symbol',
+			value: str,
+			str: `@${str}`
+		}
+	}
 
-// List
-list "List" = "(" space? fn:expr space? params:(expr space?)* ")"
+List = "(" d0:_ fn:(Symbol / List) d1:_ params:(Form _)* ")"
 	{
 		return {
 			type: 'list',
 			fn,
-			params: params.map(p => p[0])
+			params: params.map(p => p[0]),
+			delimiters: [d0, d1, ...params.map(p => p[1])]
 		}
 	}
 
-// Type Annotaiton
-typeAnnotation "Type Annotation" = ":" space? expr:expr space? type:symbol
+Vector = "[" d0:_ values:(Form _)* "]"
 	{
 		return {
-			type: 'list',
-			fn: Symbol.for(':'),
-			params: [expr, type]
+			type: 'vector',
+			value: values.map(p => p[0]),
+			delimiters: [d0, ...values.map(p => p[1])]
 		}
 	}
+
+HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) _ Form _)* "}"
+	{
+		return {
+			type: "hashMap",
+			value: Object.fromEntries(pairs.map(p => [p[0].value, p[2]])),
+			key: Object.fromEntries(pairs.map(([p]) => {
+
+				return [p.value, p]
+			})),
+			delimiters: [d0, ...pairs.map(p => [p[1], p[3]]).flat()]
+		}
+	}
+
+Meta = "^" d0:_ meta:Form d1:_ value:Form
+	{
+		value['meta'] = {
+			value: meta,
+			delimiters: [d0, d1]
+		}
+		return value
+	}
+
+_ = $([ \t\n\r]*)
