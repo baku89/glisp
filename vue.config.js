@@ -122,12 +122,12 @@ module.exports = {
 		// 	filename: 'ui.html',
 		// 	title: "'(glisp/ui)",
 		// },
-		// 'js/experiments': {
-		// 	entry: 'src/experiments/06_pdg-visualizer/index.ts',
-		// 	template: 'public/ui.html',
-		// 	filename: 'experiments.html',
-		// 	title: "'(glisp/experiments)",
-		// },
+		'js/experiments': {
+			entry: 'src/experiments/07_new-syntax/index.ts',
+			template: 'src/pages/template.html',
+			filename: 'experiments.html',
+			title: "'(glisp/experiments)",
+		},
 		// 'js/easing': {
 		// 	entry: 'src/pages/easing/index.ts',
 		// 	template: 'src/pages/easing/index.html',
@@ -140,11 +140,11 @@ module.exports = {
 		// 	filename: 'color-space.html',
 		// 	title: "'(glisp/color-space)",
 		// },
-		'js/haptics': {
-			entry: 'src/pages/haptics/index.ts',
-			template: 'src/pages/template.html',
-			filename: 'haptics.html',
-			title: "'(glisp/haptics)",
-		},
+		// 'js/haptics': {
+		// 	entry: 'src/pages/haptics/index.ts',
+		// 	template: 'src/pages/template.html',
+		// 	filename: 'haptics.html',
+		// 	title: "'(glisp/haptics)",
+		// },
 	},
 }

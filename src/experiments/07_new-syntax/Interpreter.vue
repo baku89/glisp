@@ -11,8 +11,8 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
-import {analyzePDG, evalPDG, printValue, readAST, readStr} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
+import {readStr} from './reader'
 export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole},
@@ -21,10 +21,8 @@ export default defineComponent({
 
 		async function rep(str: string) {
 			const ast = readStr(str)
-			const pdg = analyzePDG(readAST(ast))
-			const ret = await evalPDG(pdg)
 
-			return printValue(ret)
+			console.log(ast)
 		}
 
 		return {rep}

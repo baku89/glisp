@@ -1,6 +1,6 @@
 program = space? expr:expr? space? { return expr }
 
-expr = boolean / number / string / symbol / list / hashMap
+expr = boolean / number / string / symbol / list / typeAnnotation
 
 // Space
 space "Whitepace" = [ \t\n\r]+
@@ -30,7 +30,7 @@ symbol "Symbol" = symbolIdentifier / symbolPath
 symbolIdentifier = str:$([a-z0-9_+\-\*\/=?]i+)
 	{ return Symbol.for(str) }
 
-symbolPath = '@"' str:string
+symbolPath = '@' str:string
 	{ return Symbol.for(str) }
 
 // List
@@ -43,5 +43,12 @@ list "List" = "(" space? fn:expr space? params:(expr space?)* ")"
 		}
 	}
 
-// Hash Map
-hashMap "Hash Map" = "{" space? pairs:((string / symbol))
+// Type Annotaiton
+typeAnnotation "Type Annotation" = ":" space? expr:expr space? type:symbol
+	{
+		return {
+			type: 'list',
+			fn: Symbol.for(':'),
+			params: [expr, type]
+		}
+	}
