@@ -8,8 +8,9 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
-	Boolean / Number / String / Symbol
-	/ List / Vector / HashMap / Scope / Meta
+	Boolean / Number / String / Symbol /
+	Scope /
+	List / Vector / HashMap / Meta
 
 Nil = "nil" { return { type: 'nil' } }
 
@@ -78,7 +79,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$([a-z_+\-*/=?<>]i [a-z0-9_+\-*/=?<>]i*)
+SymbolIdentifier = str:$([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*)
 	{ 
 		return {
 			type: 'symbol',
@@ -138,20 +139,21 @@ HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) _ Form _)* "}"
 		return exp
 	}
 
-Scope = "{" d0:_ vars:HashMap d1:_ ret:Form d2:_ "}"
+Scope = "(" d0:_ "let" d1:_  vars:HashMap d2:_ ret:Form d3:_ ")"
 	{
 		const value = {
 			type: 'scope',
 			vars,
 			ret,
-			delimiters: [d0, d1, d2]
+			delimiters: [d0, d1, d2, d3]
 		}
-		vars.parent = {key: Symbol.for('scope'), value}
+		vars.parent = value
+		ret.parent = value
 
 		return value
 	}
 
-Meta = "^" d0:_ meta:Form d1:_ value:Form
+Meta = "^" d0:_ meta:(Symbol / List / HashMap) d1:_ value:Form
 	{
 		value['meta'] = {
 			value: meta,

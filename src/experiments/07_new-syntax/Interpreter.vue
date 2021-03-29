@@ -12,7 +12,7 @@ import {defineComponent} from 'vue'
 import useScheme from '@/components/use/use-scheme'
 
 import MinimalConsole from './MinimalConsole.vue'
-import {readStr} from './reader'
+import {evalExp, printExp, readStr} from './reader'
 export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole},
@@ -20,7 +20,9 @@ export default defineComponent({
 		useScheme()
 
 		async function rep(str: string) {
-			return readStr(str)
+			const exp = readStr(str)
+			console.log(exp)
+			return printExp(evalExp(exp))
 		}
 
 		return {rep}
