@@ -98,46 +98,44 @@ SymbolPath = "@" str:StringLiteral
 
 List = "(" d0:_ fn:(Symbol / List) d1:_ params:(Form _)* ")"
 	{
-		const value = {
+		const exp = {
 			type: 'list',
 			fn,
 			params: params.map(p => p[0]),
 			delimiters: [d0, d1, ...params.map(p => p[1])]
 		}
 
-		value.fn.parent = {key: 0, value}
-		value.params.forEach((p, i) => p.parent = {key: i + 1, value})
+		exp.fn.parent = exp
+		exp.params.forEach((p, i) => p.parent = exp)
 
-		return value
+		return exp
 	}
 
 Vector = "[" d0:_ values:(Form _)* "]"
 	{
-		const value = {
+		const exp = {
 			type: 'vector',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
 		}
 
-		value.value.forEach((e, key) => e.parent = {key, value})
+		exp.value.forEach((e, key) => e.parent = exp)
 
-		return value
+		return exp
 	}
 
 HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) _ Form _)* "}"
 	{
-		const value = {
+		const exp = {
 			type: "hashMap",
 			value: Object.fromEntries(pairs.map(p => [p[0].value, p[2]])),
 			key: Object.fromEntries(pairs.map(([p]) => [p.value, p])),
 			delimiters: [d0, ...pairs.map(p => [p[1], p[3]]).flat()]
 		}
 
-		Object.keys(value.value).forEach(
-			key => value.value[key].parent = {key, value}
-		)
+		Object.values(exp.value).forEach(v => v.parent = exp)
 
-		return value
+		return exp
 	}
 
 Scope = "{" d0:_ vars:HashMap d1:_ ret:Form d2:_ "}"

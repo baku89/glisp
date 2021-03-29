@@ -22,10 +22,7 @@ interface ExpProgram {
 }
 
 interface ExpBase {
-	parent?: {
-		key: number | string
-		value: ExpList | ExpVector | ExpHashMap
-	}
+	parent?: ExpList | ExpVector | ExpHashMap | ExpScope
 	meta?: {
 		value: ExpHashMap
 		delimiters?: string[]
@@ -88,7 +85,6 @@ interface ExpScope extends ExpBase {
 	vars: ExpHashMap
 	ret: ExpForm
 	delimiters?: string[]
-	evaluated?: ExpForm
 }
 
 export function readStr(str: string) {
