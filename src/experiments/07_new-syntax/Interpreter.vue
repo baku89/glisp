@@ -20,9 +20,7 @@ export default defineComponent({
 		useScheme()
 
 		async function rep(str: string) {
-			const ast = readStr(str)
-
-			console.log(ast)
+			return readStr(str)
 		}
 
 		return {rep}
