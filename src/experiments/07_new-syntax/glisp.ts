@@ -247,6 +247,14 @@ const GlobalScope = createScope({
 			return: ExpTagTag,
 		},
 	}),
+	type: createFn((v: any) => createString(v.type), {
+		type: 'tag',
+		body: {
+			type: 'fn',
+			params: [ExpTagAny],
+			return: ExpTagString,
+		},
+	}),
 })
 
 function combineTag(base: ExpTag, target: ExpTag): ExpTag {
@@ -261,32 +269,6 @@ function combineTag(base: ExpTag, target: ExpTag): ExpTag {
 		create,
 		body,
 	}
-}
-
-function resolveSymbol(sym: ExpSymbol): ExpForm {
-	if (sym.ref) {
-		return sym.ref
-	}
-
-	let ref: ExpForm | undefined
-	let parent: ExpForm | undefined = sym
-
-	while ((parent = parent.parent)) {
-		if (parent.type === 'scope') {
-			if ((ref = parent.vars.value[sym.value])) {
-				break
-			}
-		}
-	}
-
-	if (!ref) {
-		throw new Error(`Symbol ${printExp(sym)} is not defined`)
-	}
-
-	sym.ref = ref
-	ref.dup = (ref.dup || new Set()).add(sym)
-
-	return ref
 }
 
 function getIntrinsticTag(exp: ExpForm): ExpTag {
@@ -364,6 +346,32 @@ export function evalExp(exp: ExpForm): ExpForm {
 		return null
 	}
 
+	function evalSymbol(sym: ExpSymbol): ExpForm {
+		if (sym.ref) {
+			return sym.ref
+		}
+
+		let ref: ExpForm | undefined
+		let parent: ExpForm | undefined = sym
+
+		while ((parent = parent.parent)) {
+			if (parent.type === 'scope') {
+				if ((ref = parent.vars.value[sym.value])) {
+					break
+				}
+			}
+		}
+
+		if (!ref) {
+			throw new Error(`Symbol ${printExp(sym)} is not defined`)
+		}
+
+		sym.ref = ref
+		ref.dup = (ref.dup || new Set()).add(sym)
+
+		return ref
+	}
+
 	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
 		// Check circular reference
 		if (trace.includes(exp)) {
@@ -381,7 +389,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'tag':
 				return exp
 			case 'symbol': {
-				const ref = resolveSymbol(exp)
+				const ref = evalSymbol(exp)
 				return (exp.evaluated = evalWithTrace(ref, trace))
 			}
 			case 'scope':
@@ -574,6 +582,7 @@ export function printExp(form: ExpForm): string {
 					case 'boolean':
 					case 'number':
 					case 'string':
+					case 'tag':
 						return capital(exp.body.type)
 					case 'fn':
 						return `[${exp.body.params

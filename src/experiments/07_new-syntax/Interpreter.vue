@@ -11,8 +11,9 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
+import {evalExp, printExp, readStr} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
-import {evalExp, printExp, readStr} from './reader'
+
 export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole},
