@@ -464,6 +464,11 @@ export function evalExp(exp: ExpForm): ExpForm {
 								},
 							}))
 						}
+						case 'quote':
+							if (!rest[0]) {
+								throw new Error('quote needs 1 parameters')
+							}
+							return rest[0]
 					}
 				}
 
