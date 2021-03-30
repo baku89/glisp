@@ -12,7 +12,7 @@ Form =
 	Scope /
 	List / Vector / HashMap / Meta
 
-Nil = "nil" { return { type: 'nil' } }
+Null = "null" { return { type: 'null' } }
 
 Boolean = value:("true" / "false")
 	{
@@ -79,7 +79,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*)
+SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':' / ':?')
 	{ 
 		return {
 			type: 'symbol',
@@ -97,17 +97,15 @@ SymbolPath = "@" str:StringLiteral
 		}
 	}
 
-List = "(" d0:_ fn:(Symbol / List) d1:_ params:(Form _)* ")"
+List = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
 			type: 'list',
-			fn,
-			params: params.map(p => p[0]),
-			delimiters: [d0, d1, ...params.map(p => p[1])]
+			value: values.map(p => p[0]),
+			delimiters: [d0, ...values.map(p => p[1])]
 		}
 
-		exp.fn.parent = exp
-		exp.params.forEach((p, i) => p.parent = exp)
+		exp.value.forEach((e, key) => e.parent = exp)
 
 		return exp
 	}
