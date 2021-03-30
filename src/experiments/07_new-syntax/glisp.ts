@@ -515,6 +515,17 @@ export function evalExp(exp: ExpForm): ExpForm {
 					...exp.value.map(v => evalWithTrace(v, trace))
 				))
 			}
+			case 'hashMap': {
+				const ret: ExpHashMap = {
+					type: 'hashMap',
+					value: {},
+				}
+				Object.entries(exp.value).forEach(
+					([sym, v]) => (ret.value[sym] = evalWithTrace(v, trace))
+				)
+
+				return (exp.evaluated = ret)
+			}
 			default:
 				return {type: 'null'}
 		}
@@ -633,7 +644,7 @@ export function printExp(form: ExpForm): string {
 				return exp.str || exp.value
 			case 'scope': {
 				const coll = [createSymbol('let'), exp.vars, exp.ret]
-				return printColl('{', '}', coll, exp.delimiters)
+				return printColl('(', ')', coll, exp.delimiters)
 			}
 			case 'list': {
 				return printColl('(', ')', exp.value, exp.delimiters)
