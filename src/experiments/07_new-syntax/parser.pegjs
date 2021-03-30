@@ -8,9 +8,9 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
-	Boolean / Number / String / Symbol /
+	Null / Boolean / Number / String / Symbol /
 	Scope /
-	List / Vector / HashMap / Meta
+	List / Vector / HashMap / Tag
 
 Null = "null" { return { type: 'null' } }
 
@@ -79,7 +79,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':' / ':?')
+SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':?' / ':')
 	{ 
 		return {
 			type: 'symbol',
@@ -151,7 +151,7 @@ Scope = "(" d0:_ "let" d1:_  vars:HashMap d2:_ ret:Form d3:_ ")"
 		return value
 	}
 
-Meta = "^" d0:_ meta:(Symbol / List / HashMap) d1:_ value:Form
+Tag = "^" d0:_ meta:(Symbol / List / HashMap) d1:_ value:Form
 	{
 		value['meta'] = {
 			value: meta,
