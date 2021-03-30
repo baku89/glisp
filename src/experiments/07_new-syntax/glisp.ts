@@ -1,4 +1,5 @@
 import {capital} from 'case'
+import deepClone from 'deep-clone'
 import peg from 'pegjs'
 
 import ParserDefinition from './parser.pegjs'
@@ -34,7 +35,7 @@ interface ExpBase {
 		delimiters?: string[]
 	}
 	tagResolved?: ExpTag
-	dup?: Set<ExpSymbol>
+	dup?: Set<ExpSymbol | ExpList>
 }
 
 interface ExpNull extends ExpBase {
@@ -134,10 +135,6 @@ interface ExpTag extends ExpBase {
 				params: ExpTag[]
 				return: ExpTag
 		  }
-	// | {
-	// 		type: 'raw'
-	// 		predicate: (form: ExpForm) => ExpBoolean
-	//   }
 }
 
 interface ExpFn extends ExpBase {
@@ -324,6 +321,28 @@ function resolveTag(exp: ExpForm): ExpTag {
 	return combineTag(baseTag, expTag)
 }
 
+function cloneExp<T extends ExpForm>(exp: T) {
+	return deepClone(exp)
+}
+
+function clearEvaluated(exp: ExpForm) {
+	switch (exp.type) {
+		case 'symbol':
+		case 'list':
+		case 'vector':
+		case 'hashMap':
+		case 'scope':
+			if (!exp.evaluated) {
+				return
+			}
+			delete exp.evaluated
+	}
+
+	if (exp.dup) {
+		exp.dup.forEach(clearEvaluated)
+	}
+}
+
 export function evalExp(exp: ExpForm): ExpForm {
 	exp.parent = GlobalScope
 	return evalWithTrace(exp, [])
@@ -346,7 +365,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 		return null
 	}
 
-	function evalSymbol(sym: ExpSymbol): ExpForm {
+	function resolveSymbol(sym: ExpSymbol): ExpForm {
 		if (sym.ref) {
 			return sym.ref
 		}
@@ -389,13 +408,64 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'tag':
 				return exp
 			case 'symbol': {
-				const ref = evalSymbol(exp)
+				const ref = resolveSymbol(exp)
 				return (exp.evaluated = evalWithTrace(ref, trace))
 			}
 			case 'scope':
 				return (exp.evaluated = evalWithTrace(exp.ret, trace))
 			case 'list': {
 				const [first, ...rest] = exp.value
+
+				// Check Special form
+				if (first.type === 'symbol') {
+					switch (first.value) {
+						case 'fn': {
+							// Create fn
+							const [paramsDefinition, bodyDefinition] = rest
+							if (paramsDefinition.type !== 'hashMap') {
+								throw new Error('Function parameter should be hash map')
+							}
+
+							const fnScope = createScope(
+								cloneExp(paramsDefinition).value,
+								cloneExp(bodyDefinition)
+							)
+
+							fnScope.parent = exp.parent
+
+							const paramsKeys = Object.keys(paramsDefinition.value)
+							const paramsLength = paramsKeys.length
+
+							const fn = (...params: ExpForm[]) => {
+								// Set params
+								paramsKeys.forEach(
+									(sym, i) => (fnScope.vars.value[sym] = params[i])
+								)
+
+								// Evaluate
+								const ret = evalWithTrace(fnScope, trace)
+
+								// Clean params
+								paramsKeys.forEach(sym =>
+									clearEvaluated(fnScope.vars.value[sym])
+								)
+
+								return ret
+							}
+
+							return (exp.evaluated = createFn(fn, {
+								type: 'tag',
+								body: {
+									type: 'fn',
+									params: Array(paramsLength)
+										.fill(null)
+										.map(() => cloneExp(ExpTagAny)),
+									return: cloneExp(ExpTagAny),
+								},
+							}))
+						}
+					}
+				}
 
 				const fn = evalWithTrace(first, trace)
 
@@ -406,7 +476,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 					const fnTag = resolveTag(fn)
 
 					if (fnTag.body.type !== 'fn') {
-						throw new Error('Not a fn tag')
+						throw new Error(`Not a fn tag but ${fnTag.body.type}`)
 					}
 
 					const paramsTag = rest.map(resolveTag)

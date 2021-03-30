@@ -67,6 +67,7 @@
 		"cytoscape": "^3.16.3",
 		"cytoscape-klay": "^3.1.4",
 		"dateformat": "^3.0.3",
+		"deep-clone": "^3.0.3",
 		"delaunator": "^4.0.1",
 		"earcut": "^2.2.2",
 		"electron": "^10.1.2",
