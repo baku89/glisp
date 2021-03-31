@@ -93,7 +93,7 @@ interface ExpHashMap extends ExpBase {
 
 interface ExpTypeBase extends ExpBase {
 	literal: 'type'
-	create?: (...params: any[]) => ExpForm
+	create?: ExpFn
 	meta?: ExpHashMap
 }
 
@@ -109,7 +109,7 @@ interface ExpTypeAtom extends ExpTypeBase {
 		| 'hashMap'
 }
 
-interface ExpTypeFn extends ExpTypeBase {
+interface TypeFn extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpType[]
 	out: ExpType
@@ -120,7 +120,12 @@ interface ExpTypeVector extends ExpTypeBase {
 	items: ExpType
 }
 
-type ExpType = ExpTypeAtom | ExpTypeFn | ExpTypeVector
+interface ExpTypeUnion extends ExpTypeBase {
+	kind: 'union'
+	items: ExpType[]
+}
+
+type ExpType = ExpTypeAtom | TypeFn | ExpTypeVector | ExpTypeUnion
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -139,73 +144,121 @@ export function readStr(str: string): ExpForm {
 
 const TypeAny: ExpType = {
 	literal: 'type',
-	create: (v: ExpForm = createNull()) => v,
 	kind: 'any',
+	create: createFn(
+		(v: ExpForm = createNull()) => v,
+		createTypeFn([], {literal: 'type', kind: 'any'})
+	),
 }
 
 const TypeNull: ExpType = {
 	literal: 'type',
-	create: () => createNull(),
 	kind: 'null',
+	create: createFn(
+		() => createNull(),
+		createTypeFn([], {literal: 'type', kind: 'null'})
+	),
 }
 
 const TypeBoolean: ExpType = {
 	literal: 'type',
-	create: (v: ExpBoolean = createBoolean(false)) => v,
 	kind: 'boolean',
+	create: createFn(
+		(v: ExpBoolean = createBoolean(false)) => v,
+		createTypeFn([], {literal: 'type', kind: 'null'})
+	),
 }
 
 const TypeNumber: ExpType = {
 	literal: 'type',
-	create: (v: ExpNumber = createNumber(0)) => v,
 	kind: 'number',
+	create: createFn(
+		(v: ExpNumber = createNumber(0)) => v,
+		createTypeFn([], {literal: 'type', kind: 'number'})
+	),
 }
 
 const TypeString: ExpType = {
 	literal: 'type',
-	create: (v: ExpString = createString('')) => v,
 	kind: 'string',
+	create: createFn(
+		(v: ExpString = createString('')) => v,
+		createTypeFn([], {literal: 'type', kind: 'string'})
+	),
 }
 
 const TypeHashMap: ExpType = {
 	literal: 'type',
-	create: (v: ExpHashMap = createHashMap({})) => v,
 	kind: 'hashMap',
+	create: createFn(
+		(v: ExpHashMap = createHashMap({})) => v,
+		createTypeFn([], {literal: 'type', kind: 'hashMap'})
+	),
 }
 
 const TypeType: ExpType = {
 	literal: 'type',
 	kind: 'type',
+	create: createFn(
+		() => TypeAny,
+		createTypeFn([], {literal: 'type', kind: 'type'})
+	),
 }
 
-const TypeVector = {
-	literal: 'type',
-	create(items: ExpType) {
-		return {
+const TypeVector = createFn(
+	(items: ExpType) =>
+		({
 			literal: 'type',
 			kind: 'vector',
 			items,
-		} as ExpType
-	},
-	body: {
-		type: 'typeclass',
-		params: [TypeType],
-	},
+		} as ExpType),
+	createTypeFn([TypeType], TypeType)
+)
+
+function createTypeVector(items: ExpType): ExpType {
+	return {
+		literal: 'type',
+		kind: 'vector',
+		items,
+	}
 }
 
-const ExpTypeFn: ExpType = {
-	literal: 'type',
-	create(params: ExpVector, out: ExpType) {
-		return {
+const TypeFn = createFn(
+	(params: ExpVector<ExpType>, out: ExpType) =>
+		({
 			literal: 'type',
 			kind: 'fn',
-			params: params.value as ExpType[],
-			out: out,
-		}
-	},
-	kind: 'fn',
-	params: [TypeVector.create(TypeType), TypeType],
-	out: TypeType,
+			params: params.value,
+			out,
+		} as ExpType),
+	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
+)
+
+function createTypeFn(params: ExpType[], out: ExpType): ExpType {
+	return {
+		literal: 'type',
+		kind: 'fn',
+		params,
+		out,
+	}
+}
+
+const TypeUnion = createFn(
+	(items: ExpVector<ExpType>) =>
+		({
+			literal: 'type',
+			kind: 'union',
+			items: items.value,
+		} as ExpType),
+	createTypeFn([createTypeVector(TypeType)], TypeType)
+)
+
+function createTypeUnion(...items: ExpType[]): ExpType {
+	return {
+		literal: 'type',
+		kind: 'union',
+		items,
+	}
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
@@ -215,17 +268,12 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Number: TypeNumber,
 	String: TypeString,
 	Type: TypeType,
-	'->': ExpTypeFn,
+	Vector: TypeVector,
+	Union: TypeUnion,
+	'->': TypeFn,
 	let: createFn(
-		(_, body: ExpForm) => {
-			return body
-		},
-		{
-			literal: 'type',
-			kind: 'fn',
-			params: [TypeHashMap, TypeAny],
-			out: TypeAny,
-		}
+		(_, body: ExpForm) => body,
+		createTypeFn([TypeHashMap, TypeAny], TypeAny)
 	),
 }
 
@@ -233,30 +281,22 @@ const GlobalScope = createList(
 	createSymbol('let'),
 	createHashMap({
 		PI: createNumber(Math.PI),
-		'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
-			literal: 'type',
-			kind: 'fn',
-			params: [TypeNumber, TypeNumber],
-			out: TypeNumber,
-		}),
-		not: createFn((v: any) => createBoolean(!v.value), {
-			literal: 'type',
-			kind: 'fn',
-			params: [TypeBoolean],
-			out: TypeBoolean,
-		}),
-		'resolve-type': createFn((v: any) => resolveType(v), {
-			literal: 'type',
-			kind: 'fn',
-			params: [TypeAny],
-			out: TypeType,
-		}),
-		literal: createFn((v: any) => createString(v.type), {
-			literal: 'type',
-			kind: 'fn',
-			params: [TypeAny],
-			out: TypeString,
-		}),
+		'+': createFn(
+			(x: any, y: any) => createNumber(x.value + y.value),
+			createTypeFn([TypeNumber, TypeNumber], TypeNumber)
+		),
+		not: createFn(
+			(v: any) => createBoolean(!v.value),
+			createTypeFn([TypeBoolean], TypeBoolean)
+		),
+		type: createFn(
+			(v: any) => resolveType(v),
+			createTypeFn([TypeAny], TypeType)
+		),
+		literal: createFn(
+			(v: any) => createString(v.type),
+			createTypeFn([TypeAny], TypeString)
+		),
 	})
 )
 
@@ -275,6 +315,8 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeNumber
 		case 'string':
 			return TypeString
+		case 'vector':
+			return createTypeVector(TypeAny)
 		default:
 			return TypeAny
 	}
@@ -289,7 +331,7 @@ function resolveType(exp: ExpForm): ExpType {
 		const type: ExpForm = evalExp(exp.type.value)
 
 		if (type.literal !== 'type') {
-			throw new Error('Invalid type')
+			throw new Error('Type annotation must be type')
 		}
 		expType = type
 	}
@@ -460,14 +502,12 @@ export function evalExp(exp: ExpForm): ExpForm {
 								return out
 							}
 
-							return (exp.evaluated = createFn(fn, {
-								literal: 'type',
-								kind: 'fn',
-								params: Array(paramsLength)
-									.fill(null)
-									.map(() => cloneExp(TypeAny)),
-								out: cloneExp(TypeAny),
-							}))
+							const fnType = createTypeFn(
+								Array(paramsLength).fill(TypeAny),
+								TypeAny
+							)
+
+							return (exp.evaluated = createFn(fn, fnType))
 						}
 						case 'quote':
 							if (!rest[0]) {
@@ -477,39 +517,44 @@ export function evalExp(exp: ExpForm): ExpForm {
 					}
 				}
 
-				const fn = evalWithTrace(first, trace)
-
-				let expanded: ExpForm
+				let fn = evalWithTrace(first, trace)
 
 				if (fn.literal === 'fn') {
 					// Function application
-					const fnType = resolveType(fn)
-
-					if (fnType.kind !== 'fn') {
-						throw new Error(`Not a fn type but ${fnType.kind}`)
-					}
-
-					const paramsType = rest.map(resolveType)
-
-					const match = fnType.params
-						.map((pt, i) => matchType(paramsType[i], pt))
-						.every(t => !!t)
-
-					if (!match) {
-						throw new Error('Invalid parameter!!!!!!')
-					}
-
-					expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
 				} else if (fn.literal === 'type') {
 					// Constructor
-
 					if (!fn.create) {
 						throw new Error('This type is not callable')
 					}
-					expanded = fn.create(...rest.map(p => evalWithTrace(p, trace)))
+					fn = fn.create
 				} else {
 					throw new Error(`${printExp(first)} is not callable`)
 				}
+
+				const fnType = resolveType(fn)
+
+				if (fnType.kind !== 'fn') {
+					throw new Error(`Not a fn type but ${fnType.kind}`)
+				}
+
+				// Type Checking
+				const paramsType = rest.map(resolveType)
+
+				if (fnType.params.length > paramsType.length) {
+					throw new Error(
+						`Expected ${fnType.params.length} arguments, but got ${paramsType.length}`
+					)
+				}
+
+				const match = fnType.params
+					.map((pt, i) => matchType(paramsType[i], pt))
+					.every(t => !!t)
+
+				if (!match) {
+					throw new Error('Invalid parameter!!!!!!')
+				}
+
+				const expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
 
 				exp.expanded = expanded
 
@@ -571,7 +616,7 @@ function createSymbol(value: string): ExpSymbol {
 }
 
 function createFn(
-	value: string | ((...params: ExpForm[]) => ExpForm),
+	value: string | ((...params: any[]) => any),
 	type?: ExpType
 ): ExpFn {
 	const fn: ExpFn = {
@@ -719,6 +764,8 @@ export function printExp(form: ExpForm): string {
 						const out = printWithoutType(exp.out)
 						return `(-> [${params}] ${out})`
 					}
+					case 'vector':
+						return `(Vector ${printWithoutType(exp.items)})`
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
