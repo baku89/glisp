@@ -13,6 +13,7 @@ type ExpForm =
 	| ExpBoolean
 	| ExpNumber
 	| ExpString
+	| ExpKeyword
 	| ExpSymbol
 	| ExpList
 	| ExpVector
@@ -55,6 +56,11 @@ interface ExpNumber extends ExpBase {
 
 interface ExpString extends ExpBase {
 	type: 'string'
+	value: string
+}
+
+interface ExpKeyword extends ExpBase {
+	type: 'keyword'
 	value: string
 }
 
@@ -127,6 +133,10 @@ interface ExpTag extends ExpBase {
 				default: () => ExpString
 		  }
 		| {
+				type: ExpKeyword['type']
+				default: () => ExpKeyword
+		  }
+		| {
 				type: ExpTag['type']
 				default: () => ExpTag
 		  }
@@ -197,6 +207,15 @@ const ExpTagString: ExpTag = {
 	},
 }
 
+const ExpTagKeyword: ExpTag = {
+	type: 'tag',
+	create: (v: ExpKeyword = createKeyword('_')) => v,
+	body: {
+		type: 'keyword',
+		default: () => createKeyword('_'),
+	},
+}
+
 const ExpTagTag: ExpTag = {
 	type: 'tag',
 	body: {
@@ -211,7 +230,8 @@ const GlobalScope = createScope({
 	Boolean: ExpTagBoolean,
 	Number: ExpTagNumber,
 	String: ExpTagString,
-	':': ExpTagTag,
+	Keyword: ExpTagKeyword,
+	Tag: ExpTagTag,
 	// Vec2: {
 	// 	type: 'tag',
 	// 	constructor: (
@@ -404,6 +424,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'boolean':
 			case 'number':
 			case 'string':
+			case 'keyword':
 			case 'fn':
 			case 'tag':
 				return exp
@@ -419,8 +440,57 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Check Special form
 				if (first.type === 'symbol') {
 					switch (first.value) {
+						case ':': {
+							// Create a tag
+							const [tagType, ...tagRest] = rest.map(r =>
+								evalWithTrace(r, trace)
+							)
+
+							if (tagType.type !== 'keyword') {
+								throw new Error('First parameter of : should be keyword')
+							}
+
+							switch (tagType.value) {
+								case 'Any':
+									return ExpTagAny
+								case 'Null':
+									return ExpTagNull
+								case 'Boolean':
+									return ExpTagBoolean
+								case 'Number':
+									return ExpTagNumber
+								case 'String':
+									return ExpTagString
+								case 'Tag':
+									return ExpTagTag
+								case 'Fn': {
+									const [params, ret] = tagRest
+
+									if (params.type !== 'vector') {
+										throw new Error('Parameter should be vector')
+									}
+									if (!params.value.every(p => p.type === 'tag')) {
+										throw new Error('Every parameter should be tag')
+									}
+									if (ret.type !== 'tag') {
+										throw new Error('Return type should be tag')
+									}
+
+									return {
+										type: 'tag',
+										body: {
+											type: 'fn',
+											params: params.value as ExpTag[],
+											return: ret,
+										},
+									}
+								}
+							}
+
+							throw new Error('Invalid type')
+						}
 						case 'fn': {
-							// Create fn
+							// Create a function
 							const [paramsDefinition, bodyDefinition] = rest
 							if (paramsDefinition.type !== 'hashMap') {
 								throw new Error('Function parameter should be hash map')
@@ -532,13 +602,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 	}
 }
 
-function createSymbol(value: string): ExpSymbol {
-	return {
-		type: 'symbol',
-		value,
-	}
-}
-
+// Create functions
 function createNull(): ExpNull {
 	return {type: 'null'}
 }
@@ -560,6 +624,20 @@ function createNumber(value: number): ExpNumber {
 function createString(value: string): ExpString {
 	return {
 		type: 'string',
+		value,
+	}
+}
+
+function createKeyword(value: string): ExpKeyword {
+	return {
+		type: 'keyword',
+		value,
+	}
+}
+
+function createSymbol(value: string): ExpSymbol {
+	return {
+		type: 'symbol',
 		value,
 	}
 }
@@ -637,6 +715,8 @@ export function printExp(form: ExpForm): string {
 				return exp.str || exp.value.toString()
 			case 'string':
 				return '"' + exp.value + '"'
+			case 'keyword':
+				return '#' + exp.value
 			case 'symbol':
 				if (exp.str) {
 					return exp.str
@@ -702,7 +782,7 @@ export function printExp(form: ExpForm): string {
 					case 'number':
 					case 'string':
 					case 'tag':
-						return capital(exp.body.type)
+						return `(: #${capital(exp.body.type)})`
 					case 'fn':
 						return `[${exp.body.params
 							.map(printWithoutTag)

@@ -8,7 +8,7 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
-	Null / Boolean / Number / String / Symbol /
+	Null / Boolean / Number / String / Keyword / Symbol /
 	Scope /
 	List / Vector / HashMap / Tag
 
@@ -77,9 +77,17 @@ String = value:StringLiteral
 StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
 
+Keyword = "#" str:$([a-z_]i [0-9a-z_]i*)
+	{
+		return {
+			type: 'keyword',
+			value: str
+		}
+	}
+
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':?' / ':')
+SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':')
 	{ 
 		return {
 			type: 'symbol',
