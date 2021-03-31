@@ -1,5 +1,6 @@
 import {capital} from 'case'
 import deepClone from 'deep-clone'
+import _ from 'lodash'
 import peg from 'pegjs'
 
 import ParserDefinition from './parser.pegjs'
@@ -109,6 +110,11 @@ interface ExpTypeAtom extends ExpTypeBase {
 		| 'hashMap'
 }
 
+interface ExpTypeConstant extends ExpTypeBase {
+	kind: 'constant'
+	value: ExpBoolean | ExpNumber | ExpString
+}
+
 interface TypeFn extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpType[]
@@ -125,7 +131,12 @@ interface ExpTypeUnion extends ExpTypeBase {
 	items: ExpType[]
 }
 
-type ExpType = ExpTypeAtom | TypeFn | ExpTypeVector | ExpTypeUnion
+type ExpType =
+	| ExpTypeAtom
+	| ExpTypeConstant
+	| TypeFn
+	| ExpTypeVector
+	| ExpTypeUnion
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -206,12 +217,7 @@ const TypeType: ExpType = {
 }
 
 const TypeVector = createFn(
-	(items: ExpType) =>
-		({
-			literal: 'type',
-			kind: 'vector',
-			items,
-		} as ExpType),
+	createTypeVector,
 	createTypeFn([TypeType], TypeType)
 )
 
@@ -224,13 +230,7 @@ function createTypeVector(items: ExpType): ExpType {
 }
 
 const TypeFn = createFn(
-	(params: ExpVector<ExpType>, out: ExpType) =>
-		({
-			literal: 'type',
-			kind: 'fn',
-			params: params.value,
-			out,
-		} as ExpType),
+	(params: ExpVector<ExpType>, out: ExpType) => createTypeFn(params.value, out),
 	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
 )
 
@@ -244,22 +244,29 @@ function createTypeFn(params: ExpType[], out: ExpType): ExpType {
 }
 
 const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
-	if (items.value.length === 1) {
-		return items.value[0]
+	return createTypeUnion(...items.value)
+}, createTypeFn([createTypeVector(TypeType)], TypeType))
+
+function createTypeUnion(...items: ExpType[]): ExpType {
+	items = items.flatMap(flatten)
+	items = _.uniqBy(items, getTypeIdentifier)
+
+	if (items.length === 1) {
+		return items[0]
 	}
 
 	return {
 		literal: 'type',
 		kind: 'union',
-		items: items.value,
-	} as ExpType
-}, createTypeFn([createTypeVector(TypeType)], TypeType))
-
-function createTypeUnion(...items: ExpType[]): ExpType {
-	return {
-		literal: 'type',
-		kind: 'union',
 		items,
+	}
+
+	function flatten(item: ExpType): ExpType[] {
+		if (item.kind === 'union') {
+			return item.items.flatMap(flatten)
+		} else {
+			return [item]
+		}
 	}
 }
 
@@ -304,6 +311,9 @@ const GlobalScope = createList(
 		'match-type': createFn(function (target: any, candidate: any) {
 			return matchType(target, candidate) || createNull()
 		}, createTypeFn([TypeType, TypeType], TypeType)),
+		'equal-type': createFn(function (a: any, b: any) {
+			return createBoolean(equalType(a, b))
+		}, createTypeFn([TypeType, TypeType], TypeBoolean)),
 		literal: createFn(
 			(v: any) => createString(v.literal),
 			createTypeFn([TypeAny], TypeString)
@@ -328,8 +338,11 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeString
 		case 'type':
 			return TypeType
-		case 'vector':
-			return createTypeVector(TypeAny)
+		case 'vector': {
+			const itemsTypes = exp.value.map(resolveType)
+			const items = createTypeUnion(...itemsTypes)
+			return createTypeVector(items)
+		}
 		default:
 			return TypeAny
 	}
@@ -394,6 +407,13 @@ function clearEvaluated(exp: ExpForm) {
 	}
 }
 
+// TODO: way too hacky
+const getTypeIdentifier = printExp as (type: ExpType) => string
+
+function equalType(a: ExpType, b: ExpType) {
+	return getTypeIdentifier(a) === getTypeIdentifier(b)
+}
+
 function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 	// Exact match
 	if (candidate === target) {
@@ -450,6 +470,22 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 		}
 
 		return createTypeVector(items)
+	}
+
+	// Union match
+	if (candidate.kind === 'union') {
+		const targetItems = target.kind === 'union' ? target.items : [target]
+		const items = _.intersectionBy(
+			targetItems,
+			candidate.items,
+			getTypeIdentifier
+		)
+
+		if (items.length < targetItems.length) {
+			return null
+		}
+
+		return createTypeUnion(...items)
 	}
 
 	// Atomic match
