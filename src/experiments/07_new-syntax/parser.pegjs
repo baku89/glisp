@@ -9,7 +9,6 @@ Program = d0:_ value:Form? d1:_
 
 Form =
 	Null / Boolean / Number / String / Keyword / Symbol /
-	Scope /
 	List / Vector / HashMap / Tag
 
 Null = "null" { return { type: 'null' } }
@@ -172,20 +171,6 @@ HashMap =
 		console.log(exp)
 
 		return exp
-	}
-
-Scope = "(" d0:_ "let" d1:_  vars:HashMap d2:_ ret:Form d3:_ ")"
-	{
-		const value = {
-			type: 'scope',
-			vars,
-			ret,
-			delimiters: [d0, d1, d2, d3]
-		}
-		vars.parent = value
-		ret.parent = value
-
-		return value
 	}
 
 Tag = "^" d0:_ meta:(Symbol / List) d1:_ value:Form

@@ -18,7 +18,6 @@ type ExpForm =
 	| ExpList
 	| ExpVector
 	| ExpHashMap
-	| ExpScope
 	| ExpFn
 	| ExpTag
 	| ExpRaw
@@ -30,7 +29,7 @@ interface ExpProgram {
 }
 
 interface ExpBase {
-	parent?: ExpList | ExpVector | ExpHashMap | ExpScope | ExpFn
+	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
 	tag?: {
 		value: ExpTag | ExpSymbol
 		delimiters?: string[]
@@ -97,14 +96,6 @@ interface ExpHashMap extends ExpBase {
 	}
 	delimiters?: (string | [string, string])[]
 	evaluated?: ExpHashMap
-}
-
-interface ExpScope extends ExpBase {
-	type: 'scope'
-	vars: ExpHashMap
-	ret: ExpForm
-	delimiters?: string[]
-	evaluated?: ExpForm
 }
 
 interface ExpTag extends ExpBase {
@@ -224,55 +215,58 @@ const ExpTagTag: ExpTag = {
 	},
 }
 
-const GlobalScope = createScope({
-	Any: ExpTagAny,
-	Null: ExpTagNull,
-	Boolean: ExpTagBoolean,
-	Number: ExpTagNumber,
-	String: ExpTagString,
-	Keyword: ExpTagKeyword,
-	Tag: ExpTagTag,
-	// Vec2: {
-	// 	type: 'tag',
-	// 	constructor: (
-	// 		x: ExpNumber = createNumber(0),
-	// 		y: ExpNumber = createNumber(0)
-	// 	) => createRaw(new Float32Array([x.value, y.value])),
-	// },
-	PI: createNumber(Math.PI),
-	'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
-		type: 'tag',
-		body: {
-			type: 'fn',
-			params: [ExpTagNumber, ExpTagNumber],
-			return: ExpTagNumber,
-		},
-	}),
-	not: createFn((v: any) => createBoolean(!v.value), {
-		type: 'tag',
-		body: {
-			type: 'fn',
-			params: [ExpTagBoolean],
-			return: ExpTagBoolean,
-		},
-	}),
-	':?': createFn((v: any) => resolveTag(v), {
-		type: 'tag',
-		body: {
-			type: 'fn',
-			params: [ExpTagAny],
-			return: ExpTagTag,
-		},
-	}),
-	type: createFn((v: any) => createString(v.type), {
-		type: 'tag',
-		body: {
-			type: 'fn',
-			params: [ExpTagAny],
-			return: ExpTagString,
-		},
-	}),
-})
+const GlobalScope = createList(
+	createSymbol('let'),
+	createHashMap({
+		Any: ExpTagAny,
+		Null: ExpTagNull,
+		Boolean: ExpTagBoolean,
+		Number: ExpTagNumber,
+		String: ExpTagString,
+		Keyword: ExpTagKeyword,
+		Tag: ExpTagTag,
+		// Vec2: {
+		// 	type: 'tag',
+		// 	constructor: (
+		// 		x: ExpNumber = createNumber(0),
+		// 		y: ExpNumber = createNumber(0)
+		// 	) => createRaw(new Float32Array([x.value, y.value])),
+		// },
+		PI: createNumber(Math.PI),
+		'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
+			type: 'tag',
+			body: {
+				type: 'fn',
+				params: [ExpTagNumber, ExpTagNumber],
+				return: ExpTagNumber,
+			},
+		}),
+		not: createFn((v: any) => createBoolean(!v.value), {
+			type: 'tag',
+			body: {
+				type: 'fn',
+				params: [ExpTagBoolean],
+				return: ExpTagBoolean,
+			},
+		}),
+		':?': createFn((v: any) => resolveTag(v), {
+			type: 'tag',
+			body: {
+				type: 'fn',
+				params: [ExpTagAny],
+				return: ExpTagTag,
+			},
+		}),
+		type: createFn((v: any) => createString(v.type), {
+			type: 'tag',
+			body: {
+				type: 'fn',
+				params: [ExpTagAny],
+				return: ExpTagString,
+			},
+		}),
+	})
+)
 
 function combineTag(base: ExpTag, target: ExpTag): ExpTag {
 	const superior =
@@ -351,7 +345,6 @@ function clearEvaluated(exp: ExpForm) {
 		case 'list':
 		case 'vector':
 		case 'hashMap':
-		case 'scope':
 			if (!exp.evaluated) {
 				return
 			}
@@ -394,8 +387,14 @@ export function evalExp(exp: ExpForm): ExpForm {
 		let parent: ExpForm | undefined = sym
 
 		while ((parent = parent.parent)) {
-			if (parent.type === 'scope') {
-				if ((ref = parent.vars.value[sym.value])) {
+			if (isListOf('let', parent)) {
+				const vars = parent.value[1]
+
+				if (vars.type !== 'hashMap') {
+					throw new Error('2nd parameter of let should be HashMap')
+				}
+
+				if ((ref = vars.value[sym.value])) {
 					break
 				}
 			}
@@ -432,14 +431,16 @@ export function evalExp(exp: ExpForm): ExpForm {
 				const ref = resolveSymbol(exp)
 				return (exp.evaluated = evalWithTrace(ref, trace))
 			}
-			case 'scope':
-				return (exp.evaluated = evalWithTrace(exp.ret, trace))
 			case 'list': {
 				const [first, ...rest] = exp.value
 
 				// Check Special form
 				if (first.type === 'symbol') {
 					switch (first.value) {
+						case 'let': {
+							// Scope
+							return (exp.evaluated = evalWithTrace(rest[1], trace))
+						}
 						case ':': {
 							// Create a tag
 							const [tagType, ...tagRest] = rest.map(r =>
@@ -496,8 +497,11 @@ export function evalExp(exp: ExpForm): ExpForm {
 								throw new Error('Function parameter should be hash map')
 							}
 
-							const fnScope = createScope(
-								cloneExp(paramsDefinition).value,
+							const paramsHashMap = cloneExp(paramsDefinition)
+
+							const fnScope = createList(
+								createSymbol('let'),
+								paramsHashMap,
 								cloneExp(bodyDefinition)
 							)
 
@@ -509,7 +513,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 							const fn = (...params: ExpForm[]) => {
 								// Set params
 								paramsKeys.forEach(
-									(sym, i) => (fnScope.vars.value[sym] = params[i])
+									(sym, i) => (paramsHashMap.value[sym] = params[i])
 								)
 
 								// Evaluate
@@ -517,7 +521,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 
 								// Clean params
 								paramsKeys.forEach(sym =>
-									clearEvaluated(fnScope.vars.value[sym])
+									clearEvaluated(paramsHashMap.value[sym])
 								)
 
 								return ret
@@ -659,6 +663,16 @@ function createFn(
 	return fn
 }
 
+function createList(...value: ExpForm[]): ExpList {
+	const exp: ExpList = {
+		type: 'list',
+		value,
+	}
+	value.forEach(v => (v.parent = exp))
+
+	return exp
+}
+
 function createVector(...value: ExpForm[]): ExpVector {
 	const exp: ExpVector = {
 		type: 'vector',
@@ -669,23 +683,22 @@ function createVector(...value: ExpForm[]): ExpVector {
 	return exp
 }
 
-function createScope(
-	vars: {[key: string]: ExpForm},
-	ret: ExpForm = createNull()
-): ExpScope {
-	const exp: ExpScope = {
-		type: 'scope',
-		vars: {
-			type: 'hashMap',
-			value: vars,
-		},
-		ret,
+function createHashMap(value: ExpHashMap['value']): ExpHashMap {
+	const exp: ExpHashMap = {
+		type: 'hashMap',
+		value,
 	}
-
-	Object.values(vars).forEach(v => (v.parent = exp))
-	ret.parent = exp
+	Object.values(value).forEach(v => (v.parent = exp))
 
 	return exp
+}
+
+function isListOf(sym: string, exp: ExpForm): exp is ExpList {
+	if (exp.type === 'list') {
+		const [first] = exp.value
+		return first && first.type === 'symbol' && first.value === sym
+	}
+	return false
 }
 
 export function printExp(form: ExpForm): string {
@@ -724,10 +737,6 @@ export function printExp(form: ExpForm): string {
 					const {value} = exp
 					return SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
 				}
-			case 'scope': {
-				const coll = [createSymbol('let'), exp.vars, exp.ret]
-				return printSeq('(', ')', coll, exp.delimiters)
-			}
 			case 'list': {
 				return printSeq('(', ')', exp.value, exp.delimiters)
 			}
