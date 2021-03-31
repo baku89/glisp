@@ -243,15 +243,17 @@ function createTypeFn(params: ExpType[], out: ExpType): ExpType {
 	}
 }
 
-const TypeUnion = createFn(
-	(items: ExpVector<ExpType>) =>
-		({
-			literal: 'type',
-			kind: 'union',
-			items: items.value,
-		} as ExpType),
-	createTypeFn([createTypeVector(TypeType)], TypeType)
-)
+const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
+	if (items.value.length === 1) {
+		return items.value[0]
+	}
+
+	return {
+		literal: 'type',
+		kind: 'union',
+		items: items.value,
+	} as ExpType
+}, createTypeFn([createTypeVector(TypeType)], TypeType))
 
 function createTypeUnion(...items: ExpType[]): ExpType {
 	return {
@@ -282,8 +284,14 @@ const GlobalScope = createList(
 	createHashMap({
 		PI: createNumber(Math.PI),
 		'+': createFn(
-			(x: any, y: any) => createNumber(x.value + y.value),
-			createTypeFn([TypeNumber, TypeNumber], TypeNumber)
+			value =>
+				createNumber(
+					(value as ExpVector<ExpNumber>).value.reduce(
+						(sum, {value}) => sum + value,
+						0
+					)
+				),
+			createTypeFn([createTypeVector(TypeNumber)], TypeNumber)
 		),
 		not: createFn(
 			(v: any) => createBoolean(!v.value),
@@ -293,8 +301,11 @@ const GlobalScope = createList(
 			(v: any) => resolveType(v),
 			createTypeFn([TypeAny], TypeType)
 		),
+		'match-type': createFn(function (target: any, candidate: any) {
+			return matchType(target, candidate) || createNull()
+		}, createTypeFn([TypeType, TypeType], TypeType)),
 		literal: createFn(
-			(v: any) => createString(v.type),
+			(v: any) => createString(v.literal),
 			createTypeFn([TypeAny], TypeString)
 		),
 	})
@@ -315,6 +326,8 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeNumber
 		case 'string':
 			return TypeString
+		case 'type':
+			return TypeType
 		case 'vector':
 			return createTypeVector(TypeAny)
 		default:
@@ -381,27 +394,75 @@ function clearEvaluated(exp: ExpForm) {
 	}
 }
 
+function matchType(target: ExpType, candidate: ExpType): ExpType | null {
+	// Exact match
+	if (candidate === target) {
+		return candidate
+	}
+
+	// Any match
+	if (candidate.kind === 'any') {
+		return target
+	}
+	if (target.kind === 'any') {
+		return candidate
+	}
+
+	// Function match
+	if (candidate.kind === 'fn') {
+		if (target.kind !== 'fn') {
+			return null
+		}
+
+		if (target.params.length < candidate.params.length) {
+			return null
+		}
+
+		// Out type match
+		const out = matchType(target.out, candidate.out)
+
+		if (out === null) {
+			return null
+		}
+
+		// All parameters match
+		const params = candidate.params.map((c, i) =>
+			matchType(target.params[i], c)
+		)
+
+		if (params.some(t => t === null)) {
+			return null
+		}
+
+		return createTypeFn(params as ExpType[], out)
+	}
+
+	// Vector match
+	if (candidate.kind === 'vector') {
+		if (target.kind !== 'vector') {
+			return null
+		}
+
+		const items = matchType(target.items, candidate.items)
+
+		if (items === null) {
+			return null
+		}
+
+		return createTypeVector(items)
+	}
+
+	// Atomic match
+	if (candidate.kind === target.kind) {
+		return target
+	}
+
+	return null
+}
+
 export function evalExp(exp: ExpForm): ExpForm {
 	exp.parent = GlobalScope
 	return evalWithTrace(exp, [])
-
-	function matchType(type: ExpType, candidate: ExpType): ExpType | null {
-		// Exact match
-		if (candidate === type) {
-			return candidate
-		}
-
-		// Any match
-		if (candidate.kind === 'any') {
-			return type
-		}
-
-		if (candidate.kind === type.kind) {
-			return type
-		}
-
-		return null
-	}
 
 	function resolveSymbol(sym: ExpSymbol): ExpForm {
 		if (sym.value in ReservedSymbols) {
@@ -546,13 +607,15 @@ export function evalExp(exp: ExpForm): ExpForm {
 					)
 				}
 
-				const match = fnType.params
-					.map((pt, i) => matchType(paramsType[i], pt))
-					.every(t => !!t)
-
-				if (!match) {
-					throw new Error('Invalid parameter!!!!!!')
-				}
+				fnType.params.forEach((paramDefType, i) => {
+					if (!matchType(paramsType[i], paramDefType)) {
+						const paramTypeStr = printExp(paramsType[i])
+						const paramDefTypeStr = printExp(paramDefType)
+						throw new Error(
+							`Type '${paramTypeStr}' is not assignable to type '${paramDefTypeStr}'`
+						)
+					}
+				})
 
 				const expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
 
