@@ -76,7 +76,7 @@ String = value:StringLiteral
 StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
 
-Keyword = "#" str:$([a-z_]i [0-9a-z_]i*)
+Keyword = ":" str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
 	{
 		return {
 			type: 'keyword',
@@ -86,7 +86,7 @@ Keyword = "#" str:$([a-z_]i [0-9a-z_]i*)
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':?' / ':')
+SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
 	{ 
 		return {
 			type: 'symbol',

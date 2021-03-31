@@ -278,7 +278,7 @@ const GlobalScope = createList(
 				return: ExpTagBoolean,
 			},
 		}),
-		':?': createFn((v: any) => resolveTag(v), {
+		'resolve-tag': createFn((v: any) => resolveTag(v), {
 			type: 'tag',
 			body: {
 				type: 'fn',
@@ -470,7 +470,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Check Special form
 				if (first.type === 'symbol') {
 					switch (first.value) {
-						case ':': {
+						case 'tag': {
 							// Create a tag
 							const [tagType, ...tagRest] = rest.map(r =>
 								evalWithTrace(r, trace)
@@ -758,7 +758,7 @@ export function printExp(form: ExpForm): string {
 			case 'string':
 				return '"' + exp.value + '"'
 			case 'keyword':
-				return '#' + exp.value
+				return ':' + exp.value
 			case 'symbol':
 				if (exp.str) {
 					return exp.str
@@ -820,7 +820,7 @@ export function printExp(form: ExpForm): string {
 					case 'number':
 					case 'string':
 					case 'tag':
-						return `(: #${capital(exp.body.type)})`
+						return capital(exp.body.type)
 					case 'fn': {
 						const params = exp.body.params.map(printWithoutTag).join(' ')
 						const ret = printWithoutTag(exp.body.return)
