@@ -139,6 +139,10 @@ interface ExpType extends ExpBase {
 				params: ExpType[]
 				return: ExpType
 		  }
+		| {
+				type: 'typeclass'
+				params: ExpType[]
+		  }
 }
 
 interface ExpFn extends ExpBase {
@@ -227,6 +231,23 @@ const ExpTypeType: ExpType = {
 	},
 }
 
+const ExpTypeFn: ExpType = {
+	literal: 'type',
+	create(params: ExpVector, out: ExpType) {
+		return {
+			literal: 'type',
+			body: {
+				type: 'fn',
+				params: params.value as ExpType[],
+				return: out,
+			},
+		}
+	},
+	body: {
+		type: 'typeclass',
+	},
+}
+
 const ReservedSymbols: {[name: string]: ExpForm} = {
 	Any: ExpTypeAny,
 	Null: ExpTypeNull,
@@ -235,6 +256,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	String: ExpTypeString,
 	Keyword: ExpTypeKeyword,
 	Type: ExpTypeType,
+	Fn: ExpTypeFn,
 	let: createFn(
 		(_, body: ExpForm) => {
 			return body
@@ -469,53 +491,6 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Check Special form
 				if (first.literal === 'symbol') {
 					switch (first.value) {
-						case 'type': {
-							// Create a type
-							const [type, ...typeRest] = rest.map(r => evalWithTrace(r, trace))
-
-							if (type.literal !== 'keyword') {
-								throw new Error('First parameter of : should be keyword')
-							}
-
-							switch (type.value) {
-								case 'Any':
-									return ExpTypeAny
-								case 'Null':
-									return ExpTypeNull
-								case 'Boolean':
-									return ExpTypeBoolean
-								case 'Number':
-									return ExpTypeNumber
-								case 'String':
-									return ExpTypeString
-								case 'type':
-									return ExpTypeType
-								case 'Fn': {
-									const [params, ret] = typeRest
-
-									if (params.literal !== 'vector') {
-										throw new Error('Parameter should be vector')
-									}
-									if (!params.value.every(p => p.literal === 'type')) {
-										throw new Error('Every parameter should be type')
-									}
-									if (ret.literal !== 'type') {
-										throw new Error('Return type should be type')
-									}
-
-									return {
-										literal: 'type',
-										body: {
-											type: 'fn',
-											params: params.value as ExpType[],
-											return: ret,
-										},
-									}
-								}
-							}
-
-							throw new Error('Invalid type')
-						}
 						case 'fn': {
 							// Create a function
 							const [paramsDefinition, bodyDefinition] = rest
@@ -819,10 +794,13 @@ export function printExp(form: ExpForm): string {
 					case 'type':
 						return capital(exp.body.type)
 					case 'fn': {
+						console.log('fnfn', exp)
 						const params = exp.body.params.map(printWithoutType).join(' ')
 						const ret = printWithoutType(exp.body.return)
-						return `(: #Fn [${params}] ${ret})`
+						return `(Fn [${params}] ${ret})`
 					}
+					case 'typeclass':
+						return '<typeclass>'
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
