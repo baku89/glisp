@@ -275,14 +275,20 @@ function createTypeFn(
 
 const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
 	return createTypeUnion(items.value)
-}, createTypeFn([createTypeVector(TypeType)], TypeType))
+}, createTypeFn([createTypeVector(TypeType)], TypeType, true))
 
 function createTypeUnion(items: ExpType[]): ExpType {
 	// Flatten a nested union
 	// e.g. (Number | String) | Boolean => Number | String | Boolean
 
-	items = items.flatMap(flatten)
-	items = _.uniqBy(items, getTypeIdentifier)
+	let itemsWithId: [string, ExpType][] = items
+		.flatMap(flatten)
+		.map(it => [getTypeIdentifier(it), it])
+
+	itemsWithId = _.uniqBy(itemsWithId, pair => pair[0])
+	items = _.sortBy(itemsWithId, pair => pair[0]).map(pair => pair[1])
+
+	console.log(items)
 
 	if (items.length === 0) {
 		return TypeAny
@@ -361,11 +367,6 @@ const GlobalScope = createList(
 	})
 )
 
-function combineType(base: ExpType, target: ExpType): ExpType {
-	const superior = base.kind !== 'any' && target.kind === 'any' ? base : target
-	return deepClone(superior)
-}
-
 function getIntrinsticType(exp: ExpForm): ExpType {
 	switch (exp.literal) {
 		case 'null':
@@ -378,6 +379,16 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeString
 		case 'type':
 			return TypeType
+		case 'list': {
+			let fnType = resolveType(exp.value[0])
+			if (fnType.create) {
+				fnType = resolveType(fnType.create)
+			}
+			if (fnType.kind === 'fn') {
+				return fnType.out
+			}
+			throw new Error('First element of list is not callable (resolve)')
+		}
 		case 'vector': {
 			const itemsTypes = exp.value.map(resolveType)
 			const items = createTypeUnion(itemsTypes)
@@ -390,7 +401,6 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 
 function resolveType(exp: ExpForm): ExpType {
 	let expType: ExpType = TypeAny
-	const baseType: ExpType = TypeAny
 
 	// Resolve the symbol first
 	if (exp.literal === 'symbol') {
@@ -411,32 +421,7 @@ function resolveType(exp: ExpForm): ExpType {
 		expType = getIntrinsticType(exp)
 	}
 
-	/*
-	if (exp.parent) {
-		const {parent} = exp
-
-		if (parent.literal === 'list') {
-			const index = parent.value.indexOf(exp) - 1
-			if (index >= 0) {
-				// Is the part of param
-				const [fn] = parent.value
-				const fnType = resolveType(fn)
-
-				if (fnType.kind !== 'fn') {
-					throw new Error('Mismatch fn type')
-				}
-
-				if (fnType.variadic) {
-
-				}
-
-				baseType = fnType.params[index]
-			}
-		}
-	}
-	*/
-
-	return combineType(baseType, expType)
+	return expType
 }
 
 function cloneExp<T extends ExpForm>(exp: T) {
@@ -951,7 +936,7 @@ export function printExp(form: ExpForm): string {
 						return `(Vector ${printWithoutType(exp.items)})`
 					case 'union': {
 						const items = exp.items.map(printWithoutType).join(' ')
-						return `(Union [${items}])`
+						return `(Union ${items})`
 					}
 					default:
 						console.log(exp)
