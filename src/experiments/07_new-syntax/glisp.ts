@@ -783,10 +783,11 @@ export function printExp(form: ExpForm): string {
 					case 'string':
 					case 'tag':
 						return `(: #${capital(exp.body.type)})`
-					case 'fn':
-						return `[${exp.body.params
-							.map(printWithoutTag)
-							.join(' ')}] => ${printWithoutTag(exp.body.return)}`
+					case 'fn': {
+						const params = exp.body.params.map(printWithoutTag).join(' ')
+						const ret = printWithoutTag(exp.body.return)
+						return `(: #Fn [${params}] ${ret})`
+					}
 					default:
 						throw new Error('Cannot print tag')
 				}
