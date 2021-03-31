@@ -128,6 +128,10 @@ interface ExpTag extends ExpBase {
 				default: () => ExpKeyword
 		  }
 		| {
+				type: ExpHashMap['type']
+				default: () => ExpHashMap
+		  }
+		| {
 				type: ExpTag['type']
 				default: () => ExpTag
 		  }
@@ -207,6 +211,15 @@ const ExpTagKeyword: ExpTag = {
 	},
 }
 
+const ExpTagHashMap: ExpTag = {
+	type: 'tag',
+	create: (v: ExpHashMap = createHashMap({})) => v,
+	body: {
+		type: 'hashMap',
+		default: () => createHashMap({}),
+	},
+}
+
 const ExpTagTag: ExpTag = {
 	type: 'tag',
 	body: {
@@ -215,16 +228,32 @@ const ExpTagTag: ExpTag = {
 	},
 }
 
+const ReservedSymbols: {[name: string]: ExpForm} = {
+	Any: ExpTagAny,
+	Null: ExpTagNull,
+	Boolean: ExpTagBoolean,
+	Number: ExpTagNumber,
+	String: ExpTagString,
+	Keyword: ExpTagKeyword,
+	Tag: ExpTagTag,
+	let: createFn(
+		(_, body: ExpForm) => {
+			return body
+		},
+		{
+			type: 'tag',
+			body: {
+				type: 'fn',
+				params: [ExpTagHashMap, ExpTagAny],
+				return: ExpTagAny,
+			},
+		}
+	),
+}
+
 const GlobalScope = createList(
 	createSymbol('let'),
 	createHashMap({
-		Any: ExpTagAny,
-		Null: ExpTagNull,
-		Boolean: ExpTagBoolean,
-		Number: ExpTagNumber,
-		String: ExpTagString,
-		Keyword: ExpTagKeyword,
-		Tag: ExpTagTag,
 		// Vec2: {
 		// 	type: 'tag',
 		// 	constructor: (
@@ -379,6 +408,10 @@ export function evalExp(exp: ExpForm): ExpForm {
 	}
 
 	function resolveSymbol(sym: ExpSymbol): ExpForm {
+		if (sym.value in ReservedSymbols) {
+			return ReservedSymbols[sym.value]
+		}
+
 		if (sym.ref) {
 			return sym.ref
 		}
@@ -437,10 +470,6 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Check Special form
 				if (first.type === 'symbol') {
 					switch (first.value) {
-						case 'let': {
-							// Scope
-							return (exp.evaluated = evalWithTrace(rest[1], trace))
-						}
 						case ':': {
 							// Create a tag
 							const [tagType, ...tagRest] = rest.map(r =>
@@ -798,6 +827,7 @@ export function printExp(form: ExpForm): string {
 						return `(: #Fn [${params}] ${ret})`
 					}
 					default:
+						console.log(exp)
 						throw new Error('Cannot print tag')
 				}
 			default:

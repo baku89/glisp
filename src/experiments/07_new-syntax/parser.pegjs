@@ -86,7 +86,7 @@ Keyword = "#" str:$([a-z_]i [0-9a-z_]i*)
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':')
+SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*) / ':?' / ':')
 	{ 
 		return {
 			type: 'symbol',
@@ -167,8 +167,6 @@ HashMap =
 		}
 
 		Object.values(exp.value).forEach(v => v.parent = exp)
-
-		console.log(exp)
 
 		return exp
 	}
