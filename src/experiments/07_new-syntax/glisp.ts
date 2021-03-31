@@ -766,6 +766,10 @@ export function printExp(form: ExpForm): string {
 					}
 					case 'vector':
 						return `(Vector ${printWithoutType(exp.items)})`
+					case 'union': {
+						const items = exp.items.map(printWithoutType).join(' ')
+						return `(Union [${items}])`
+					}
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
