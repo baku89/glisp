@@ -9,6 +9,9 @@ const parser = peg.generate(ParserDefinition)
 
 const SymbolIdentiferRegex = /^[a-z_+\-*/=?<>][0-9a-z_+\-*/=?<>]*$/i
 
+// TODO: way too hacky
+const getTypeIdentifier = printExp as (type: ExpType) => string
+
 type ExpForm =
 	| ExpNull
 	| ExpBoolean
@@ -110,8 +113,8 @@ interface ExpTypeAtom extends ExpTypeBase {
 		| 'hashMap'
 }
 
-interface ExpTypeConstant extends ExpTypeBase {
-	kind: 'constant'
+interface ExpTypeConst extends ExpTypeBase {
+	kind: 'const'
 	value: ExpBoolean | ExpNumber | ExpString
 }
 
@@ -143,7 +146,7 @@ interface ExpTypeUnion extends ExpTypeBase {
 
 type ExpType =
 	| ExpTypeAtom
-	| ExpTypeConstant
+	| ExpTypeConst
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeUnion
@@ -288,8 +291,6 @@ function createTypeUnion(items: ExpType[]): ExpType {
 	itemsWithId = _.uniqBy(itemsWithId, pair => pair[0])
 	items = _.sortBy(itemsWithId, pair => pair[0]).map(pair => pair[1])
 
-	console.log(items)
-
 	if (items.length === 0) {
 		return TypeAny
 	}
@@ -312,6 +313,17 @@ function createTypeUnion(items: ExpType[]): ExpType {
 	}
 }
 
+const TypeConst = createFn(function (value: ExpTypeConst['value']) {
+	return {
+		literal: 'type',
+		kind: 'const',
+		value,
+	} as ExpTypeConst
+}, createTypeFn(
+	[createTypeUnion([TypeBoolean, TypeNumber, TypeString])],
+	TypeType
+))
+
 const ReservedSymbols: {[name: string]: ExpForm} = {
 	Any: TypeAny,
 	Null: TypeNull,
@@ -321,6 +333,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Type: TypeType,
 	Vector: TypeVector,
 	Union: TypeUnion,
+	Const: TypeConst,
 	'->': TypeFn,
 	let: createFn(
 		(_, body: ExpForm) => body,
@@ -445,9 +458,6 @@ function clearEvaluated(exp: ExpForm) {
 	}
 }
 
-// TODO: way too hacky
-const getTypeIdentifier = printExp as (type: ExpType) => string
-
 function equalType(a: ExpType, b: ExpType) {
 	return getTypeIdentifier(a) === getTypeIdentifier(b)
 }
@@ -464,6 +474,10 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 	}
 	if (target.kind === 'any') {
 		return candidate
+	}
+
+	switch (candidate.kind) {
+		case 'fn':
 	}
 
 	// Function match
@@ -524,6 +538,14 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 		}
 
 		return createTypeUnion(items)
+	}
+
+	// Const match
+	if (candidate.kind === 'const') {
+		if (target.kind !== 'const') {
+			return null
+		}
+		return candidate.value.value === target.value.value ? candidate : null
 	}
 
 	// Atomic match
@@ -795,6 +817,8 @@ function createFn(
 	if (type) {
 		fn.type = {value: type}
 		type.parent = fn
+	} else {
+		fn.type = {value: createTypeFn(Array(value.length).fill(TypeAny), TypeAny)}
 	}
 
 	return fn
@@ -938,6 +962,8 @@ export function printExp(form: ExpForm): string {
 						const items = exp.items.map(printWithoutType).join(' ')
 						return `(Union ${items})`
 					}
+					case 'const':
+						return `(Const ${printWithoutType(exp.value)})`
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
