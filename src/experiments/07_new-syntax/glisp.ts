@@ -19,17 +19,16 @@ type ExpForm =
 	| ExpVector
 	| ExpHashMap
 	| ExpFn
-	| ExpTag
+	| ExpType
 	| ExpRaw
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
-	tag?: {
-		value: ExpTag | ExpSymbol
+	type?: {
+		value: ExpType | ExpSymbol
 		delimiters?: string[]
 	}
-	tagResolved?: ExpTag
-	dup?: Set<ExpSymbol | ExpList>
+	dep?: Set<ExpSymbol | ExpList>
 }
 
 interface ExpProgram {
@@ -98,8 +97,8 @@ interface ExpHashMap extends ExpBase {
 	evaluated?: ExpHashMap
 }
 
-interface ExpTag extends ExpBase {
-	literal: 'tag'
+interface ExpType extends ExpBase {
+	literal: 'type'
 	create?: (...params: any[]) => ExpForm
 	meta?: ExpHashMap
 	body:
@@ -132,13 +131,13 @@ interface ExpTag extends ExpBase {
 				default: () => ExpHashMap
 		  }
 		| {
-				type: ExpTag['literal']
-				default: () => ExpTag
+				type: ExpType['literal']
+				default: () => ExpType
 		  }
 		| {
 				type: ExpFn['literal']
-				params: ExpTag[]
-				return: ExpTag
+				params: ExpType[]
+				return: ExpType
 		  }
 }
 
@@ -157,8 +156,8 @@ export function readStr(str: string): ExpForm {
 	return exp.value
 }
 
-const ExpTagAny: ExpTag = {
-	literal: 'tag',
+const ExpTypeAny: ExpType = {
+	literal: 'type',
 	create: (v: ExpForm = createNull()) => v,
 	body: {
 		type: 'any',
@@ -166,8 +165,8 @@ const ExpTagAny: ExpTag = {
 	},
 }
 
-const ExpTagNull: ExpTag = {
-	literal: 'tag',
+const ExpTypeNull: ExpType = {
+	literal: 'type',
 	create: () => createNull(),
 	body: {
 		type: 'null',
@@ -175,8 +174,8 @@ const ExpTagNull: ExpTag = {
 	},
 }
 
-const ExpTagBoolean: ExpTag = {
-	literal: 'tag',
+const ExpTypeBoolean: ExpType = {
+	literal: 'type',
 	create: (v: ExpBoolean = createBoolean(false)) => v,
 	body: {
 		type: 'boolean',
@@ -184,8 +183,8 @@ const ExpTagBoolean: ExpTag = {
 	},
 }
 
-const ExpTagNumber: ExpTag = {
-	literal: 'tag',
+const ExpTypeNumber: ExpType = {
+	literal: 'type',
 	create: (v: ExpNumber = createNumber(0)) => v,
 	body: {
 		type: 'number',
@@ -193,8 +192,8 @@ const ExpTagNumber: ExpTag = {
 	},
 }
 
-const ExpTagString: ExpTag = {
-	literal: 'tag',
+const ExpTypeString: ExpType = {
+	literal: 'type',
 	create: (v: ExpString = createString('')) => v,
 	body: {
 		type: 'string',
@@ -202,8 +201,8 @@ const ExpTagString: ExpTag = {
 	},
 }
 
-const ExpTagKeyword: ExpTag = {
-	literal: 'tag',
+const ExpTypeKeyword: ExpType = {
+	literal: 'type',
 	create: (v: ExpKeyword = createKeyword('_')) => v,
 	body: {
 		type: 'keyword',
@@ -211,8 +210,8 @@ const ExpTagKeyword: ExpTag = {
 	},
 }
 
-const ExpTagHashMap: ExpTag = {
-	literal: 'tag',
+const ExpTypeHashMap: ExpType = {
+	literal: 'type',
 	create: (v: ExpHashMap = createHashMap({})) => v,
 	body: {
 		type: 'hashMap',
@@ -220,32 +219,32 @@ const ExpTagHashMap: ExpTag = {
 	},
 }
 
-const ExpTagTag: ExpTag = {
-	literal: 'tag',
+const ExpTypeType: ExpType = {
+	literal: 'type',
 	body: {
-		type: 'tag',
-		default: () => ExpTagAny,
+		type: 'type',
+		default: () => ExpTypeAny,
 	},
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
-	Any: ExpTagAny,
-	Null: ExpTagNull,
-	Boolean: ExpTagBoolean,
-	Number: ExpTagNumber,
-	String: ExpTagString,
-	Keyword: ExpTagKeyword,
-	Tag: ExpTagTag,
+	Any: ExpTypeAny,
+	Null: ExpTypeNull,
+	Boolean: ExpTypeBoolean,
+	Number: ExpTypeNumber,
+	String: ExpTypeString,
+	Keyword: ExpTypeKeyword,
+	Type: ExpTypeType,
 	let: createFn(
 		(_, body: ExpForm) => {
 			return body
 		},
 		{
-			literal: 'tag',
+			literal: 'type',
 			body: {
 				type: 'fn',
-				params: [ExpTagHashMap, ExpTagAny],
-				return: ExpTagAny,
+				params: [ExpTypeHashMap, ExpTypeAny],
+				return: ExpTypeAny,
 			},
 		}
 	),
@@ -255,7 +254,7 @@ const GlobalScope = createList(
 	createSymbol('let'),
 	createHashMap({
 		// Vec2: {
-		// 	literal: 'tag',
+		// 	literal: 'type',
 		// 	constructor: (
 		// 		x: ExpNumber = createNumber(0),
 		// 		y: ExpNumber = createNumber(0)
@@ -263,41 +262,41 @@ const GlobalScope = createList(
 		// },
 		PI: createNumber(Math.PI),
 		'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
-			literal: 'tag',
+			literal: 'type',
 			body: {
 				type: 'fn',
-				params: [ExpTagNumber, ExpTagNumber],
-				return: ExpTagNumber,
+				params: [ExpTypeNumber, ExpTypeNumber],
+				return: ExpTypeNumber,
 			},
 		}),
 		not: createFn((v: any) => createBoolean(!v.value), {
-			literal: 'tag',
+			literal: 'type',
 			body: {
 				type: 'fn',
-				params: [ExpTagBoolean],
-				return: ExpTagBoolean,
+				params: [ExpTypeBoolean],
+				return: ExpTypeBoolean,
 			},
 		}),
-		'resolve-tag': createFn((v: any) => resolveTag(v), {
-			literal: 'tag',
+		'resolve-type': createFn((v: any) => resolveType(v), {
+			literal: 'type',
 			body: {
 				type: 'fn',
-				params: [ExpTagAny],
-				return: ExpTagTag,
+				params: [ExpTypeAny],
+				return: ExpTypeType,
 			},
 		}),
 		type: createFn((v: any) => createString(v.type), {
-			literal: 'tag',
+			literal: 'type',
 			body: {
 				type: 'fn',
-				params: [ExpTagAny],
-				return: ExpTagString,
+				params: [ExpTypeAny],
+				return: ExpTypeString,
 			},
 		}),
 	})
 )
 
-function combineTag(base: ExpTag, target: ExpTag): ExpTag {
+function combineType(base: ExpType, target: ExpType): ExpType {
 	const superior =
 		base.body.type !== 'any' && target.body.type === 'any' ? base : target
 
@@ -305,43 +304,43 @@ function combineTag(base: ExpTag, target: ExpTag): ExpTag {
 	const body = superior.body
 
 	return {
-		literal: 'tag',
+		literal: 'type',
 		create,
 		body,
 	}
 }
 
-function getIntrinsticTag(exp: ExpForm): ExpTag {
+function getIntrinsticType(exp: ExpForm): ExpType {
 	switch (exp.literal) {
 		case 'null':
-			return ExpTagNull
+			return ExpTypeNull
 		case 'boolean':
-			return ExpTagBoolean
+			return ExpTypeBoolean
 		case 'number':
-			return ExpTagNumber
+			return ExpTypeNumber
 		case 'string':
-			return ExpTagString
+			return ExpTypeString
 		default:
-			return ExpTagAny
+			return ExpTypeAny
 	}
 }
 
-function resolveTag(exp: ExpForm): ExpTag {
-	let expTag: ExpTag = ExpTagAny
-	let baseTag: ExpTag = ExpTagAny
+function resolveType(exp: ExpForm): ExpType {
+	let expType: ExpType = ExpTypeAny
+	let baseType: ExpType = ExpTypeAny
 
-	// Check if the expression itself has a tag
-	if (exp.tag) {
-		const tag: ExpForm = evalExp(exp.tag.value)
+	// Check if the expression itself has type
+	if (exp.type) {
+		const type: ExpForm = evalExp(exp.type.value)
 
-		if (tag.literal !== 'tag') {
-			throw new Error('Invalid tag')
+		if (type.literal !== 'type') {
+			throw new Error('Invalid type')
 		}
-		expTag = tag
+		expType = type
 	}
 
-	if (expTag.body.type === 'any') {
-		expTag = getIntrinsticTag(exp)
+	if (expType.body.type === 'any') {
+		expType = getIntrinsticType(exp)
 	}
 
 	if (exp.parent) {
@@ -352,16 +351,16 @@ function resolveTag(exp: ExpForm): ExpTag {
 			if (index >= 0) {
 				// Is the part of param
 				const fn = evalExp(parent.value[0])
-				const fnTag = resolveTag(fn)
-				if (fnTag.body.type !== 'fn') {
-					throw new Error('Mismatch fn tag')
+				const fnType = resolveType(fn)
+				if (fnType.body.type !== 'fn') {
+					throw new Error('Mismatch fn type')
 				}
-				baseTag = fnTag.body.params[index]
+				baseType = fnType.body.params[index]
 			}
 		}
 	}
 
-	return combineTag(baseTag, expTag)
+	return combineType(baseType, expType)
 }
 
 function cloneExp<T extends ExpForm>(exp: T) {
@@ -380,8 +379,8 @@ function clearEvaluated(exp: ExpForm) {
 			delete exp.evaluated
 	}
 
-	if (exp.dup) {
-		exp.dup.forEach(clearEvaluated)
+	if (exp.dep) {
+		exp.dep.forEach(clearEvaluated)
 	}
 }
 
@@ -389,19 +388,19 @@ export function evalExp(exp: ExpForm): ExpForm {
 	exp.parent = GlobalScope
 	return evalWithTrace(exp, [])
 
-	function matchTag(tag: ExpTag, candidate: ExpTag): ExpTag | null {
+	function matchType(type: ExpType, candidate: ExpType): ExpType | null {
 		// Exact match
-		if (candidate === tag) {
+		if (candidate === type) {
 			return candidate
 		}
 
 		// Any match
 		if (candidate.body.type === 'any') {
-			return tag
+			return type
 		}
 
-		if (candidate.body.type === tag.body.type) {
-			return tag
+		if (candidate.body.type === type.body.type) {
+			return type
 		}
 
 		return null
@@ -438,7 +437,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 		}
 
 		sym.ref = ref
-		ref.dup = (ref.dup || new Set()).add(sym)
+		ref.dep = (ref.dep || new Set()).add(sym)
 
 		return ref
 	}
@@ -458,7 +457,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'string':
 			case 'keyword':
 			case 'fn':
-			case 'tag':
+			case 'type':
 				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
@@ -470,47 +469,45 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Check Special form
 				if (first.literal === 'symbol') {
 					switch (first.value) {
-						case 'tag': {
-							// Create a tag
-							const [tagType, ...tagRest] = rest.map(r =>
-								evalWithTrace(r, trace)
-							)
+						case 'type': {
+							// Create a type
+							const [type, ...typeRest] = rest.map(r => evalWithTrace(r, trace))
 
-							if (tagType.literal !== 'keyword') {
+							if (type.literal !== 'keyword') {
 								throw new Error('First parameter of : should be keyword')
 							}
 
-							switch (tagType.value) {
+							switch (type.value) {
 								case 'Any':
-									return ExpTagAny
+									return ExpTypeAny
 								case 'Null':
-									return ExpTagNull
+									return ExpTypeNull
 								case 'Boolean':
-									return ExpTagBoolean
+									return ExpTypeBoolean
 								case 'Number':
-									return ExpTagNumber
+									return ExpTypeNumber
 								case 'String':
-									return ExpTagString
-								case 'Tag':
-									return ExpTagTag
+									return ExpTypeString
+								case 'type':
+									return ExpTypeType
 								case 'Fn': {
-									const [params, ret] = tagRest
+									const [params, ret] = typeRest
 
 									if (params.literal !== 'vector') {
 										throw new Error('Parameter should be vector')
 									}
-									if (!params.value.every(p => p.literal === 'tag')) {
-										throw new Error('Every parameter should be tag')
+									if (!params.value.every(p => p.literal === 'type')) {
+										throw new Error('Every parameter should be type')
 									}
-									if (ret.literal !== 'tag') {
-										throw new Error('Return type should be tag')
+									if (ret.literal !== 'type') {
+										throw new Error('Return type should be type')
 									}
 
 									return {
-										literal: 'tag',
+										literal: 'type',
 										body: {
 											type: 'fn',
-											params: params.value as ExpTag[],
+											params: params.value as ExpType[],
 											return: ret,
 										},
 									}
@@ -557,13 +554,13 @@ export function evalExp(exp: ExpForm): ExpForm {
 							}
 
 							return (exp.evaluated = createFn(fn, {
-								literal: 'tag',
+								literal: 'type',
 								body: {
 									type: 'fn',
 									params: Array(paramsLength)
 										.fill(null)
-										.map(() => cloneExp(ExpTagAny)),
-									return: cloneExp(ExpTagAny),
+										.map(() => cloneExp(ExpTypeAny)),
+									return: cloneExp(ExpTypeAny),
 								},
 							}))
 						}
@@ -581,16 +578,16 @@ export function evalExp(exp: ExpForm): ExpForm {
 
 				if (fn.literal === 'fn') {
 					// Function application
-					const fnTag = resolveTag(fn)
+					const fnType = resolveType(fn)
 
-					if (fnTag.body.type !== 'fn') {
-						throw new Error(`Not a fn tag but ${fnTag.body.type}`)
+					if (fnType.body.type !== 'fn') {
+						throw new Error(`Not a fn type but ${fnType.body.type}`)
 					}
 
-					const paramsTag = rest.map(resolveTag)
+					const paramsType = rest.map(resolveType)
 
-					const match = fnTag.body.params
-						.map((pt, i) => matchTag(paramsTag[i], pt))
+					const match = fnType.body.params
+						.map((pt, i) => matchType(paramsType[i], pt))
 						.every(t => !!t)
 
 					if (!match) {
@@ -598,11 +595,11 @@ export function evalExp(exp: ExpForm): ExpForm {
 					}
 
 					expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
-				} else if (fn.literal === 'tag') {
+				} else if (fn.literal === 'type') {
 					// Constructor
 
 					if (!fn.create) {
-						throw new Error('Tag is not callable')
+						throw new Error('This type is not callable')
 					}
 					expanded = fn.create(...rest.map(p => evalWithTrace(p, trace)))
 				} else {
@@ -677,16 +674,16 @@ function createSymbol(value: string): ExpSymbol {
 
 function createFn(
 	value: string | ((...params: ExpForm[]) => ExpForm),
-	tag?: ExpTag
+	type?: ExpType
 ): ExpFn {
 	const fn: ExpFn = {
 		literal: 'fn',
 		value: typeof value === 'string' ? eval(value) : value,
 	}
 
-	if (tag) {
-		fn.tag = {value: tag}
-		tag.parent = fn
+	if (type) {
+		fn.type = {value: type}
+		type.parent = fn
 	}
 
 	return fn
@@ -731,12 +728,12 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 }
 
 export function printExp(form: ExpForm): string {
-	if (form.tag) {
-		const {tag} = form
-		const [d0, d1] = tag.delimiters || ['', ' ']
-		return '^' + d0 + printExp(tag.value) + d1 + printWithoutTag(form)
+	if (form.type) {
+		const {type} = form
+		const [d0, d1] = type.delimiters || ['', ' ']
+		return '^' + d0 + printExp(type.value) + d1 + printWithoutType(form)
 	} else {
-		return printWithoutTag(form)
+		return printWithoutType(form)
 	}
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
@@ -747,7 +744,7 @@ export function printExp(form: ExpForm): string {
 		}
 	}
 
-	function printWithoutTag(exp: ExpForm): string {
+	function printWithoutType(exp: ExpForm): string {
 		switch (exp.literal) {
 			case 'null':
 				return 'null'
@@ -812,23 +809,23 @@ export function printExp(form: ExpForm): string {
 			}
 			case 'fn':
 				return 'fn'
-			case 'tag':
+			case 'type':
 				switch (exp.body.type) {
 					case 'any':
 					case 'null':
 					case 'boolean':
 					case 'number':
 					case 'string':
-					case 'tag':
+					case 'type':
 						return capital(exp.body.type)
 					case 'fn': {
-						const params = exp.body.params.map(printWithoutTag).join(' ')
-						const ret = printWithoutTag(exp.body.return)
+						const params = exp.body.params.map(printWithoutType).join(' ')
+						const ret = printWithoutType(exp.body.return)
 						return `(: #Fn [${params}] ${ret})`
 					}
 					default:
 						console.log(exp)
-						throw new Error('Cannot print tag')
+						throw new Error('Cannot print this kind of type')
 				}
 			default:
 				throw new Error('Invalid type of Exp')

@@ -9,7 +9,7 @@ Program = d0:_ value:Form? d1:_
 
 Form =
 	Null / Boolean / Number / String / Keyword / Symbol /
-	List / Vector / HashMap / Tag
+	List / Vector / HashMap / TypeAnnotation
 
 Null = "null" { return { literal: 'null' } }
 
@@ -171,10 +171,10 @@ HashMap =
 		return exp
 	}
 
-Tag = "^" d0:_ meta:(Symbol / List) d1:_ value:Form
+TypeAnnotation = "^" d0:_ type:(Symbol / List) d1:_ value:Form
 	{
-		value['meta'] = {
-			value: meta,
+		value['type'] = {
+			value: type,
 			delimiters: [d0, d1]
 		}
 		return value
