@@ -1,7 +1,7 @@
 Program = d0:_ value:Form? d1:_
 	{
 		return {
-			type: 'program',
+			literal: 'program',
 			value,
 			delimiters: [d0, d1]
 		}
@@ -11,12 +11,12 @@ Form =
 	Null / Boolean / Number / String / Keyword / Symbol /
 	List / Vector / HashMap / Tag
 
-Null = "null" { return { type: 'null' } }
+Null = "null" { return { literal: 'null' } }
 
 Boolean = value:("true" / "false")
 	{
 		return {
-			type: 'boolean',
+			literal: 'boolean',
 			value: value === 'true'
 		}
 	}
@@ -31,7 +31,7 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]*)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			type: 'number',
+			literal: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -40,7 +40,7 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			type: 'number',
+			literal: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -49,7 +49,7 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			type: 'number',
+			literal: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -58,7 +58,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			type: 'number',
+			literal: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -68,7 +68,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 String = value:StringLiteral
 	{
 		return {
-			type: 'string',
+			literal: 'string',
 			value
 		}
 	}
@@ -79,7 +79,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 Keyword = ":" str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
 	{
 		return {
-			type: 'keyword',
+			literal: 'keyword',
 			value: str
 		}
 	}
@@ -89,7 +89,7 @@ Symbol = SymbolIdentifier / SymbolPath
 SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
 	{ 
 		return {
-			type: 'symbol',
+			literal: 'symbol',
 			value: str,
 			str
 		}
@@ -98,7 +98,7 @@ SymbolIdentifier = str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
 SymbolPath = "@" str:StringLiteral
 	{
 		return {
-			type: 'symbol',
+			literal: 'symbol',
 			value: str,
 			str: `@"${str}"`
 		}
@@ -107,7 +107,7 @@ SymbolPath = "@" str:StringLiteral
 List = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
-			type: 'list',
+			literal: 'list',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
 		}
@@ -120,7 +120,7 @@ List = "(" d0:_ values:(Form _)* ")"
 Vector = "[" d0:_ values:(Form _)* "]"
 	{
 		const exp = {
-			type: 'vector',
+			literal: 'vector',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
 		}
@@ -160,7 +160,7 @@ HashMap =
 		}
 
 		const exp = {
-			type: "hashMap",
+			literal: "hashMap",
 			value,
 			keyQuoted,
 			delimiters

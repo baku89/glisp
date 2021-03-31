@@ -22,12 +22,6 @@ type ExpForm =
 	| ExpTag
 	| ExpRaw
 
-interface ExpProgram {
-	type: 'program'
-	value: ExpForm
-	delimiters: [string, string]
-}
-
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
 	tag?: {
@@ -38,33 +32,39 @@ interface ExpBase {
 	dup?: Set<ExpSymbol | ExpList>
 }
 
+interface ExpProgram {
+	literal: 'program'
+	value: ExpForm
+	delimiters: [string, string]
+}
+
 interface ExpNull extends ExpBase {
-	type: 'null'
+	literal: 'null'
 }
 
 interface ExpBoolean extends ExpBase {
-	type: 'boolean'
+	literal: 'boolean'
 	value: boolean
 }
 
 interface ExpNumber extends ExpBase {
-	type: 'number'
+	literal: 'number'
 	value: number
 	str?: string
 }
 
 interface ExpString extends ExpBase {
-	type: 'string'
+	literal: 'string'
 	value: string
 }
 
 interface ExpKeyword extends ExpBase {
-	type: 'keyword'
+	literal: 'keyword'
 	value: string
 }
 
 interface ExpSymbol extends ExpBase {
-	type: 'symbol'
+	literal: 'symbol'
 	value: string
 	str?: string
 	ref?: ExpForm
@@ -72,7 +72,7 @@ interface ExpSymbol extends ExpBase {
 }
 
 interface ExpList extends ExpBase {
-	type: 'list'
+	literal: 'list'
 	value: ExpForm[]
 	delimiters?: string[]
 	expanded?: ExpForm
@@ -80,14 +80,14 @@ interface ExpList extends ExpBase {
 }
 
 interface ExpVector extends ExpBase {
-	type: 'vector'
+	literal: 'vector'
 	value: ExpForm[]
 	delimiters?: string[]
 	evaluated?: ExpVector
 }
 
 interface ExpHashMap extends ExpBase {
-	type: 'hashMap'
+	literal: 'hashMap'
 	value: {
 		[key: string]: ExpForm
 	}
@@ -99,7 +99,7 @@ interface ExpHashMap extends ExpBase {
 }
 
 interface ExpTag extends ExpBase {
-	type: 'tag'
+	literal: 'tag'
 	create?: (...params: any[]) => ExpForm
 	meta?: ExpHashMap
 	body:
@@ -108,47 +108,47 @@ interface ExpTag extends ExpBase {
 				default: () => ExpForm
 		  }
 		| {
-				type: ExpNull['type']
+				type: ExpNull['literal']
 				default: () => ExpNull
 		  }
 		| {
-				type: ExpBoolean['type']
+				type: ExpBoolean['literal']
 				default: () => ExpBoolean
 		  }
 		| {
-				type: ExpNumber['type']
+				type: ExpNumber['literal']
 				default: () => ExpNumber
 		  }
 		| {
-				type: ExpString['type']
+				type: ExpString['literal']
 				default: () => ExpString
 		  }
 		| {
-				type: ExpKeyword['type']
+				type: ExpKeyword['literal']
 				default: () => ExpKeyword
 		  }
 		| {
-				type: ExpHashMap['type']
+				type: ExpHashMap['literal']
 				default: () => ExpHashMap
 		  }
 		| {
-				type: ExpTag['type']
+				type: ExpTag['literal']
 				default: () => ExpTag
 		  }
 		| {
-				type: ExpFn['type']
+				type: ExpFn['literal']
 				params: ExpTag[]
 				return: ExpTag
 		  }
 }
 
 interface ExpFn extends ExpBase {
-	type: 'fn'
+	literal: 'fn'
 	value: (...params: ExpForm[]) => ExpForm
 }
 
 interface ExpRaw extends ExpBase {
-	type: 'raw'
+	literal: 'raw'
 	value: any
 }
 
@@ -158,7 +158,7 @@ export function readStr(str: string): ExpForm {
 }
 
 const ExpTagAny: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpForm = createNull()) => v,
 	body: {
 		type: 'any',
@@ -167,7 +167,7 @@ const ExpTagAny: ExpTag = {
 }
 
 const ExpTagNull: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: () => createNull(),
 	body: {
 		type: 'null',
@@ -176,7 +176,7 @@ const ExpTagNull: ExpTag = {
 }
 
 const ExpTagBoolean: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpBoolean = createBoolean(false)) => v,
 	body: {
 		type: 'boolean',
@@ -185,7 +185,7 @@ const ExpTagBoolean: ExpTag = {
 }
 
 const ExpTagNumber: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpNumber = createNumber(0)) => v,
 	body: {
 		type: 'number',
@@ -194,7 +194,7 @@ const ExpTagNumber: ExpTag = {
 }
 
 const ExpTagString: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpString = createString('')) => v,
 	body: {
 		type: 'string',
@@ -203,7 +203,7 @@ const ExpTagString: ExpTag = {
 }
 
 const ExpTagKeyword: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpKeyword = createKeyword('_')) => v,
 	body: {
 		type: 'keyword',
@@ -212,7 +212,7 @@ const ExpTagKeyword: ExpTag = {
 }
 
 const ExpTagHashMap: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	create: (v: ExpHashMap = createHashMap({})) => v,
 	body: {
 		type: 'hashMap',
@@ -221,7 +221,7 @@ const ExpTagHashMap: ExpTag = {
 }
 
 const ExpTagTag: ExpTag = {
-	type: 'tag',
+	literal: 'tag',
 	body: {
 		type: 'tag',
 		default: () => ExpTagAny,
@@ -241,7 +241,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 			return body
 		},
 		{
-			type: 'tag',
+			literal: 'tag',
 			body: {
 				type: 'fn',
 				params: [ExpTagHashMap, ExpTagAny],
@@ -255,7 +255,7 @@ const GlobalScope = createList(
 	createSymbol('let'),
 	createHashMap({
 		// Vec2: {
-		// 	type: 'tag',
+		// 	literal: 'tag',
 		// 	constructor: (
 		// 		x: ExpNumber = createNumber(0),
 		// 		y: ExpNumber = createNumber(0)
@@ -263,7 +263,7 @@ const GlobalScope = createList(
 		// },
 		PI: createNumber(Math.PI),
 		'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
-			type: 'tag',
+			literal: 'tag',
 			body: {
 				type: 'fn',
 				params: [ExpTagNumber, ExpTagNumber],
@@ -271,7 +271,7 @@ const GlobalScope = createList(
 			},
 		}),
 		not: createFn((v: any) => createBoolean(!v.value), {
-			type: 'tag',
+			literal: 'tag',
 			body: {
 				type: 'fn',
 				params: [ExpTagBoolean],
@@ -279,7 +279,7 @@ const GlobalScope = createList(
 			},
 		}),
 		'resolve-tag': createFn((v: any) => resolveTag(v), {
-			type: 'tag',
+			literal: 'tag',
 			body: {
 				type: 'fn',
 				params: [ExpTagAny],
@@ -287,7 +287,7 @@ const GlobalScope = createList(
 			},
 		}),
 		type: createFn((v: any) => createString(v.type), {
-			type: 'tag',
+			literal: 'tag',
 			body: {
 				type: 'fn',
 				params: [ExpTagAny],
@@ -305,14 +305,14 @@ function combineTag(base: ExpTag, target: ExpTag): ExpTag {
 	const body = superior.body
 
 	return {
-		type: 'tag',
+		literal: 'tag',
 		create,
 		body,
 	}
 }
 
 function getIntrinsticTag(exp: ExpForm): ExpTag {
-	switch (exp.type) {
+	switch (exp.literal) {
 		case 'null':
 			return ExpTagNull
 		case 'boolean':
@@ -334,7 +334,7 @@ function resolveTag(exp: ExpForm): ExpTag {
 	if (exp.tag) {
 		const tag: ExpForm = evalExp(exp.tag.value)
 
-		if (tag.type !== 'tag') {
+		if (tag.literal !== 'tag') {
 			throw new Error('Invalid tag')
 		}
 		expTag = tag
@@ -347,7 +347,7 @@ function resolveTag(exp: ExpForm): ExpTag {
 	if (exp.parent) {
 		const {parent} = exp
 
-		if (parent.type === 'list') {
+		if (parent.literal === 'list') {
 			const index = parent.value.indexOf(exp) - 1
 			if (index >= 0) {
 				// Is the part of param
@@ -369,7 +369,7 @@ function cloneExp<T extends ExpForm>(exp: T) {
 }
 
 function clearEvaluated(exp: ExpForm) {
-	switch (exp.type) {
+	switch (exp.literal) {
 		case 'symbol':
 		case 'list':
 		case 'vector':
@@ -423,7 +423,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			if (isListOf('let', parent)) {
 				const vars = parent.value[1]
 
-				if (vars.type !== 'hashMap') {
+				if (vars.literal !== 'hashMap') {
 					throw new Error('2nd parameter of let should be HashMap')
 				}
 
@@ -451,7 +451,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 		}
 		trace = [...trace, exp]
 
-		switch (exp.type) {
+		switch (exp.literal) {
 			case 'null':
 			case 'boolean':
 			case 'number':
@@ -468,7 +468,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 				const [first, ...rest] = exp.value
 
 				// Check Special form
-				if (first.type === 'symbol') {
+				if (first.literal === 'symbol') {
 					switch (first.value) {
 						case 'tag': {
 							// Create a tag
@@ -476,7 +476,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 								evalWithTrace(r, trace)
 							)
 
-							if (tagType.type !== 'keyword') {
+							if (tagType.literal !== 'keyword') {
 								throw new Error('First parameter of : should be keyword')
 							}
 
@@ -496,18 +496,18 @@ export function evalExp(exp: ExpForm): ExpForm {
 								case 'Fn': {
 									const [params, ret] = tagRest
 
-									if (params.type !== 'vector') {
+									if (params.literal !== 'vector') {
 										throw new Error('Parameter should be vector')
 									}
-									if (!params.value.every(p => p.type === 'tag')) {
+									if (!params.value.every(p => p.literal === 'tag')) {
 										throw new Error('Every parameter should be tag')
 									}
-									if (ret.type !== 'tag') {
+									if (ret.literal !== 'tag') {
 										throw new Error('Return type should be tag')
 									}
 
 									return {
-										type: 'tag',
+										literal: 'tag',
 										body: {
 											type: 'fn',
 											params: params.value as ExpTag[],
@@ -522,7 +522,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 						case 'fn': {
 							// Create a function
 							const [paramsDefinition, bodyDefinition] = rest
-							if (paramsDefinition.type !== 'hashMap') {
+							if (paramsDefinition.literal !== 'hashMap') {
 								throw new Error('Function parameter should be hash map')
 							}
 
@@ -557,7 +557,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 							}
 
 							return (exp.evaluated = createFn(fn, {
-								type: 'tag',
+								literal: 'tag',
 								body: {
 									type: 'fn',
 									params: Array(paramsLength)
@@ -579,7 +579,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 
 				let expanded: ExpForm
 
-				if (fn.type === 'fn') {
+				if (fn.literal === 'fn') {
 					// Function application
 					const fnTag = resolveTag(fn)
 
@@ -598,7 +598,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 					}
 
 					expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
-				} else if (fn.type === 'tag') {
+				} else if (fn.literal === 'tag') {
 					// Constructor
 
 					if (!fn.create) {
@@ -620,7 +620,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			}
 			case 'hashMap': {
 				const ret: ExpHashMap = {
-					type: 'hashMap',
+					literal: 'hashMap',
 					value: {},
 				}
 				Object.entries(exp.value).forEach(
@@ -630,47 +630,47 @@ export function evalExp(exp: ExpForm): ExpForm {
 				return (exp.evaluated = ret)
 			}
 			default:
-				return {type: 'null'}
+				return createNull()
 		}
 	}
 }
 
 // Create functions
 function createNull(): ExpNull {
-	return {type: 'null'}
+	return {literal: 'null'}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
 	return {
-		type: 'boolean',
+		literal: 'boolean',
 		value,
 	}
 }
 
 function createNumber(value: number): ExpNumber {
 	return {
-		type: 'number',
+		literal: 'number',
 		value,
 	}
 }
 
 function createString(value: string): ExpString {
 	return {
-		type: 'string',
+		literal: 'string',
 		value,
 	}
 }
 
 function createKeyword(value: string): ExpKeyword {
 	return {
-		type: 'keyword',
+		literal: 'keyword',
 		value,
 	}
 }
 
 function createSymbol(value: string): ExpSymbol {
 	return {
-		type: 'symbol',
+		literal: 'symbol',
 		value,
 	}
 }
@@ -680,7 +680,7 @@ function createFn(
 	tag?: ExpTag
 ): ExpFn {
 	const fn: ExpFn = {
-		type: 'fn',
+		literal: 'fn',
 		value: typeof value === 'string' ? eval(value) : value,
 	}
 
@@ -694,7 +694,7 @@ function createFn(
 
 function createList(...value: ExpForm[]): ExpList {
 	const exp: ExpList = {
-		type: 'list',
+		literal: 'list',
 		value,
 	}
 	value.forEach(v => (v.parent = exp))
@@ -704,7 +704,7 @@ function createList(...value: ExpForm[]): ExpList {
 
 function createVector(...value: ExpForm[]): ExpVector {
 	const exp: ExpVector = {
-		type: 'vector',
+		literal: 'vector',
 		value,
 	}
 	value.forEach(v => (v.parent = exp))
@@ -714,7 +714,7 @@ function createVector(...value: ExpForm[]): ExpVector {
 
 function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 	const exp: ExpHashMap = {
-		type: 'hashMap',
+		literal: 'hashMap',
 		value,
 	}
 	Object.values(value).forEach(v => (v.parent = exp))
@@ -723,9 +723,9 @@ function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 }
 
 function isListOf(sym: string, exp: ExpForm): exp is ExpList {
-	if (exp.type === 'list') {
+	if (exp.literal === 'list') {
 		const [first] = exp.value
-		return first && first.type === 'symbol' && first.value === sym
+		return first && first.literal === 'symbol' && first.value === sym
 	}
 	return false
 }
@@ -741,14 +741,14 @@ export function printExp(form: ExpForm): string {
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
 		if (SymbolIdentiferRegex.test(value)) {
-			return {type: 'symbol', value, str: value}
+			return {literal: 'symbol', value, str: value}
 		} else {
-			return {type: 'string', value}
+			return {literal: 'string', value}
 		}
 	}
 
 	function printWithoutTag(exp: ExpForm): string {
-		switch (exp.type) {
+		switch (exp.literal) {
 			case 'null':
 				return 'null'
 			case 'boolean':
