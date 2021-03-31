@@ -8,7 +8,7 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
-	Null / Boolean / Number / String / Keyword / Symbol /
+	Null / Boolean / Number / String / Symbol /
 	List / Vector / HashMap / TypeAnnotation
 
 Null = "null" { return { literal: 'null' } }
@@ -75,14 +75,6 @@ String = value:StringLiteral
 
 StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
-
-Keyword = ":" str:$(([a-z_+\-*/=?<>]i [0-9a-z_+\-*/=?<>]i*))
-	{
-		return {
-			literal: 'keyword',
-			value: str
-		}
-	}
 
 Symbol = SymbolIdentifier / SymbolPath
 

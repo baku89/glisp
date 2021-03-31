@@ -13,7 +13,6 @@ type ExpForm =
 	| ExpBoolean
 	| ExpNumber
 	| ExpString
-	| ExpKeyword
 	| ExpSymbol
 	| ExpList
 	| ExpVector
@@ -57,11 +56,6 @@ interface ExpString extends ExpBase {
 	value: string
 }
 
-interface ExpKeyword extends ExpBase {
-	literal: 'keyword'
-	value: string
-}
-
 interface ExpSymbol extends ExpBase {
 	literal: 'symbol'
 	value: string
@@ -78,9 +72,9 @@ interface ExpList extends ExpBase {
 	evaluated?: ExpForm
 }
 
-interface ExpVector extends ExpBase {
+interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
 	literal: 'vector'
-	value: ExpForm[]
+	value: T[]
 	delimiters?: string[]
 	evaluated?: ExpVector
 }
@@ -97,53 +91,36 @@ interface ExpHashMap extends ExpBase {
 	evaluated?: ExpHashMap
 }
 
-interface ExpType extends ExpBase {
+interface ExpTypeBase extends ExpBase {
 	literal: 'type'
 	create?: (...params: any[]) => ExpForm
 	meta?: ExpHashMap
-	body:
-		| {
-				type: 'any'
-				default: () => ExpForm
-		  }
-		| {
-				type: ExpNull['literal']
-				default: () => ExpNull
-		  }
-		| {
-				type: ExpBoolean['literal']
-				default: () => ExpBoolean
-		  }
-		| {
-				type: ExpNumber['literal']
-				default: () => ExpNumber
-		  }
-		| {
-				type: ExpString['literal']
-				default: () => ExpString
-		  }
-		| {
-				type: ExpKeyword['literal']
-				default: () => ExpKeyword
-		  }
-		| {
-				type: ExpHashMap['literal']
-				default: () => ExpHashMap
-		  }
-		| {
-				type: ExpType['literal']
-				default: () => ExpType
-		  }
-		| {
-				type: ExpFn['literal']
-				params: ExpType[]
-				return: ExpType
-		  }
-		| {
-				type: 'typeclass'
-				params: ExpType[]
-		  }
 }
+
+interface ExpTypeAtom extends ExpTypeBase {
+	kind:
+		| 'any'
+		| 'null'
+		| 'boolean'
+		| 'number'
+		| 'string'
+		| 'symbol'
+		| 'type'
+		| 'hashMap'
+}
+
+interface ExpTypeFn extends ExpTypeBase {
+	kind: 'fn'
+	params: ExpType[]
+	out: ExpType
+}
+
+interface ExpTypeVector extends ExpTypeBase {
+	kind: 'vector'
+	items: ExpType
+}
+
+type ExpType = ExpTypeAtom | ExpTypeFn | ExpTypeVector
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -160,74 +137,59 @@ export function readStr(str: string): ExpForm {
 	return exp.value
 }
 
-const ExpTypeAny: ExpType = {
+const TypeAny: ExpType = {
 	literal: 'type',
 	create: (v: ExpForm = createNull()) => v,
-	body: {
-		type: 'any',
-		default: () => createNull(),
-	},
+	kind: 'any',
 }
 
-const ExpTypeNull: ExpType = {
+const TypeNull: ExpType = {
 	literal: 'type',
 	create: () => createNull(),
-	body: {
-		type: 'null',
-		default: () => createNull(),
-	},
+	kind: 'null',
 }
 
-const ExpTypeBoolean: ExpType = {
+const TypeBoolean: ExpType = {
 	literal: 'type',
 	create: (v: ExpBoolean = createBoolean(false)) => v,
-	body: {
-		type: 'boolean',
-		default: () => createBoolean(false),
-	},
+	kind: 'boolean',
 }
 
-const ExpTypeNumber: ExpType = {
+const TypeNumber: ExpType = {
 	literal: 'type',
 	create: (v: ExpNumber = createNumber(0)) => v,
-	body: {
-		type: 'number',
-		default: () => createNumber(0),
-	},
+	kind: 'number',
 }
 
-const ExpTypeString: ExpType = {
+const TypeString: ExpType = {
 	literal: 'type',
 	create: (v: ExpString = createString('')) => v,
-	body: {
-		type: 'string',
-		default: () => createString(''),
-	},
+	kind: 'string',
 }
 
-const ExpTypeKeyword: ExpType = {
-	literal: 'type',
-	create: (v: ExpKeyword = createKeyword('_')) => v,
-	body: {
-		type: 'keyword',
-		default: () => createKeyword('_'),
-	},
-}
-
-const ExpTypeHashMap: ExpType = {
+const TypeHashMap: ExpType = {
 	literal: 'type',
 	create: (v: ExpHashMap = createHashMap({})) => v,
-	body: {
-		type: 'hashMap',
-		default: () => createHashMap({}),
-	},
+	kind: 'hashMap',
 }
 
-const ExpTypeType: ExpType = {
+const TypeType: ExpType = {
 	literal: 'type',
+	kind: 'type',
+}
+
+const TypeVector = {
+	literal: 'type',
+	create(items: ExpType) {
+		return {
+			literal: 'type',
+			kind: 'vector',
+			items,
+		} as ExpType
+	},
 	body: {
-		type: 'type',
-		default: () => ExpTypeAny,
+		type: 'typeclass',
+		params: [TypeType],
 	},
 }
 
@@ -236,38 +198,33 @@ const ExpTypeFn: ExpType = {
 	create(params: ExpVector, out: ExpType) {
 		return {
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: params.value as ExpType[],
-				return: out,
-			},
+			kind: 'fn',
+			params: params.value as ExpType[],
+			out: out,
 		}
 	},
-	body: {
-		type: 'typeclass',
-	},
+	kind: 'fn',
+	params: [TypeVector.create(TypeType), TypeType],
+	out: TypeType,
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
-	Any: ExpTypeAny,
-	Null: ExpTypeNull,
-	Boolean: ExpTypeBoolean,
-	Number: ExpTypeNumber,
-	String: ExpTypeString,
-	Keyword: ExpTypeKeyword,
-	Type: ExpTypeType,
-	Fn: ExpTypeFn,
+	Any: TypeAny,
+	Null: TypeNull,
+	Boolean: TypeBoolean,
+	Number: TypeNumber,
+	String: TypeString,
+	Type: TypeType,
+	'->': ExpTypeFn,
 	let: createFn(
 		(_, body: ExpForm) => {
 			return body
 		},
 		{
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: [ExpTypeHashMap, ExpTypeAny],
-				return: ExpTypeAny,
-			},
+			kind: 'fn',
+			params: [TypeHashMap, TypeAny],
+			out: TypeAny,
 		}
 	),
 }
@@ -275,81 +232,57 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 const GlobalScope = createList(
 	createSymbol('let'),
 	createHashMap({
-		// Vec2: {
-		// 	literal: 'type',
-		// 	constructor: (
-		// 		x: ExpNumber = createNumber(0),
-		// 		y: ExpNumber = createNumber(0)
-		// 	) => createRaw(new Float32Array([x.value, y.value])),
-		// },
 		PI: createNumber(Math.PI),
 		'+': createFn((x: any, y: any) => createNumber(x.value + y.value), {
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: [ExpTypeNumber, ExpTypeNumber],
-				return: ExpTypeNumber,
-			},
+			kind: 'fn',
+			params: [TypeNumber, TypeNumber],
+			out: TypeNumber,
 		}),
 		not: createFn((v: any) => createBoolean(!v.value), {
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: [ExpTypeBoolean],
-				return: ExpTypeBoolean,
-			},
+			kind: 'fn',
+			params: [TypeBoolean],
+			out: TypeBoolean,
 		}),
 		'resolve-type': createFn((v: any) => resolveType(v), {
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: [ExpTypeAny],
-				return: ExpTypeType,
-			},
+			kind: 'fn',
+			params: [TypeAny],
+			out: TypeType,
 		}),
-		type: createFn((v: any) => createString(v.type), {
+		literal: createFn((v: any) => createString(v.type), {
 			literal: 'type',
-			body: {
-				type: 'fn',
-				params: [ExpTypeAny],
-				return: ExpTypeString,
-			},
+			kind: 'fn',
+			params: [TypeAny],
+			out: TypeString,
 		}),
 	})
 )
 
 function combineType(base: ExpType, target: ExpType): ExpType {
-	const superior =
-		base.body.type !== 'any' && target.body.type === 'any' ? base : target
-
-	const create = superior.create
-	const body = superior.body
-
-	return {
-		literal: 'type',
-		create,
-		body,
-	}
+	const superior = base.kind !== 'any' && target.kind === 'any' ? base : target
+	return deepClone(superior)
 }
 
 function getIntrinsticType(exp: ExpForm): ExpType {
 	switch (exp.literal) {
 		case 'null':
-			return ExpTypeNull
+			return TypeNull
 		case 'boolean':
-			return ExpTypeBoolean
+			return TypeBoolean
 		case 'number':
-			return ExpTypeNumber
+			return TypeNumber
 		case 'string':
-			return ExpTypeString
+			return TypeString
 		default:
-			return ExpTypeAny
+			return TypeAny
 	}
 }
 
 function resolveType(exp: ExpForm): ExpType {
-	let expType: ExpType = ExpTypeAny
-	let baseType: ExpType = ExpTypeAny
+	let expType: ExpType = TypeAny
+	let baseType: ExpType = TypeAny
 
 	// Check if the expression itself has type
 	if (exp.type) {
@@ -361,7 +294,7 @@ function resolveType(exp: ExpForm): ExpType {
 		expType = type
 	}
 
-	if (expType.body.type === 'any') {
+	if (expType.kind === 'any') {
 		expType = getIntrinsticType(exp)
 	}
 
@@ -374,10 +307,10 @@ function resolveType(exp: ExpForm): ExpType {
 				// Is the part of param
 				const fn = evalExp(parent.value[0])
 				const fnType = resolveType(fn)
-				if (fnType.body.type !== 'fn') {
+				if (fnType.kind !== 'fn') {
 					throw new Error('Mismatch fn type')
 				}
-				baseType = fnType.body.params[index]
+				baseType = fnType.params[index]
 			}
 		}
 	}
@@ -417,11 +350,11 @@ export function evalExp(exp: ExpForm): ExpForm {
 		}
 
 		// Any match
-		if (candidate.body.type === 'any') {
+		if (candidate.kind === 'any') {
 			return type
 		}
 
-		if (candidate.body.type === type.body.type) {
+		if (candidate.kind === type.kind) {
 			return type
 		}
 
@@ -477,7 +410,6 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'boolean':
 			case 'number':
 			case 'string':
-			case 'keyword':
 			case 'fn':
 			case 'type':
 				return exp
@@ -518,25 +450,23 @@ export function evalExp(exp: ExpForm): ExpForm {
 								)
 
 								// Evaluate
-								const ret = evalWithTrace(fnScope, trace)
+								const out = evalWithTrace(fnScope, trace)
 
 								// Clean params
 								paramsKeys.forEach(sym =>
 									clearEvaluated(paramsHashMap.value[sym])
 								)
 
-								return ret
+								return out
 							}
 
 							return (exp.evaluated = createFn(fn, {
 								literal: 'type',
-								body: {
-									type: 'fn',
-									params: Array(paramsLength)
-										.fill(null)
-										.map(() => cloneExp(ExpTypeAny)),
-									return: cloneExp(ExpTypeAny),
-								},
+								kind: 'fn',
+								params: Array(paramsLength)
+									.fill(null)
+									.map(() => cloneExp(TypeAny)),
+								out: cloneExp(TypeAny),
 							}))
 						}
 						case 'quote':
@@ -555,13 +485,13 @@ export function evalExp(exp: ExpForm): ExpForm {
 					// Function application
 					const fnType = resolveType(fn)
 
-					if (fnType.body.type !== 'fn') {
-						throw new Error(`Not a fn type but ${fnType.body.type}`)
+					if (fnType.kind !== 'fn') {
+						throw new Error(`Not a fn type but ${fnType.kind}`)
 					}
 
 					const paramsType = rest.map(resolveType)
 
-					const match = fnType.body.params
+					const match = fnType.params
 						.map((pt, i) => matchType(paramsType[i], pt))
 						.every(t => !!t)
 
@@ -591,15 +521,15 @@ export function evalExp(exp: ExpForm): ExpForm {
 				))
 			}
 			case 'hashMap': {
-				const ret: ExpHashMap = {
+				const out: ExpHashMap = {
 					literal: 'hashMap',
 					value: {},
 				}
 				Object.entries(exp.value).forEach(
-					([sym, v]) => (ret.value[sym] = evalWithTrace(v, trace))
+					([sym, v]) => (out.value[sym] = evalWithTrace(v, trace))
 				)
 
-				return (exp.evaluated = ret)
+				return (exp.evaluated = out)
 			}
 			default:
 				return createNull()
@@ -629,13 +559,6 @@ function createNumber(value: number): ExpNumber {
 function createString(value: string): ExpString {
 	return {
 		literal: 'string',
-		value,
-	}
-}
-
-function createKeyword(value: string): ExpKeyword {
-	return {
-		literal: 'keyword',
 		value,
 	}
 }
@@ -729,8 +652,6 @@ export function printExp(form: ExpForm): string {
 				return exp.str || exp.value.toString()
 			case 'string':
 				return '"' + exp.value + '"'
-			case 'keyword':
-				return ':' + exp.value
 			case 'symbol':
 				if (exp.str) {
 					return exp.str
@@ -785,22 +706,19 @@ export function printExp(form: ExpForm): string {
 			case 'fn':
 				return 'fn'
 			case 'type':
-				switch (exp.body.type) {
+				switch (exp.kind) {
 					case 'any':
 					case 'null':
 					case 'boolean':
 					case 'number':
 					case 'string':
 					case 'type':
-						return capital(exp.body.type)
+						return capital(exp.kind)
 					case 'fn': {
-						console.log('fnfn', exp)
-						const params = exp.body.params.map(printWithoutType).join(' ')
-						const ret = printWithoutType(exp.body.return)
-						return `(Fn [${params}] ${ret})`
+						const params = exp.params.map(printWithoutType).join(' ')
+						const out = printWithoutType(exp.out)
+						return `(-> [${params}] ${out})`
 					}
-					case 'typeclass':
-						return '<typeclass>'
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
