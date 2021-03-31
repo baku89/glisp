@@ -274,10 +274,10 @@ function createTypeFn(
 }
 
 const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
-	return createTypeUnion(...items.value)
+	return createTypeUnion(items.value)
 }, createTypeFn([createTypeVector(TypeType)], TypeType))
 
-function createTypeUnion(...items: ExpType[]): ExpType {
+function createTypeUnion(items: ExpType[]): ExpType {
 	// Flatten a nested union
 	// e.g. (Number | String) | Boolean => Number | String | Boolean
 
@@ -336,6 +336,10 @@ const GlobalScope = createList(
 				),
 			createTypeFn([createTypeVector(TypeNumber)], TypeNumber, true)
 		),
+		square: createFn(
+			(v: any) => createNumber(v.value * v.value),
+			createTypeFn([TypeNumber], TypeNumber)
+		),
 		not: createFn(
 			(v: any) => createBoolean(!v.value),
 			createTypeFn([TypeBoolean], TypeBoolean)
@@ -376,7 +380,7 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeType
 		case 'vector': {
 			const itemsTypes = exp.value.map(resolveType)
-			const items = createTypeUnion(...itemsTypes)
+			const items = createTypeUnion(itemsTypes)
 			return createTypeVector(items)
 		}
 		default:
@@ -387,6 +391,11 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 function resolveType(exp: ExpForm): ExpType {
 	let expType: ExpType = TypeAny
 	const baseType: ExpType = TypeAny
+
+	// Resolve the symbol first
+	if (exp.literal === 'symbol') {
+		exp = resolveSymbol(exp)
+	}
 
 	// Check if the expression itself has type
 	if (exp.type) {
@@ -529,7 +538,7 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 			return null
 		}
 
-		return createTypeUnion(...items)
+		return createTypeUnion(items)
 	}
 
 	// Atomic match
@@ -540,45 +549,44 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 	return null
 }
 
+function resolveSymbol(sym: ExpSymbol): ExpForm {
+	if (sym.value in ReservedSymbols) {
+		return ReservedSymbols[sym.value]
+	}
+
+	if (sym.ref) {
+		return sym.ref
+	}
+
+	let ref: ExpForm | undefined
+	let parent: ExpForm | undefined = sym
+
+	while ((parent = parent.parent)) {
+		if (isListOf('let', parent)) {
+			const vars = parent.value[1]
+
+			if (vars.literal !== 'hashMap') {
+				throw new Error('2nd parameter of let should be HashMap')
+			}
+
+			if ((ref = vars.value[sym.value])) {
+				break
+			}
+		}
+	}
+
+	if (!ref) {
+		throw new Error(`Symbol ${printExp(sym)} is not defined`)
+	}
+
+	sym.ref = ref
+	ref.dep = (ref.dep || new Set()).add(sym)
+
+	return ref
+}
 export function evalExp(exp: ExpForm): ExpForm {
 	exp.parent = GlobalScope
 	return evalWithTrace(exp, [])
-
-	function resolveSymbol(sym: ExpSymbol): ExpForm {
-		if (sym.value in ReservedSymbols) {
-			return ReservedSymbols[sym.value]
-		}
-
-		if (sym.ref) {
-			return sym.ref
-		}
-
-		let ref: ExpForm | undefined
-		let parent: ExpForm | undefined = sym
-
-		while ((parent = parent.parent)) {
-			if (isListOf('let', parent)) {
-				const vars = parent.value[1]
-
-				if (vars.literal !== 'hashMap') {
-					throw new Error('2nd parameter of let should be HashMap')
-				}
-
-				if ((ref = vars.value[sym.value])) {
-					break
-				}
-			}
-		}
-
-		if (!ref) {
-			throw new Error(`Symbol ${printExp(sym)} is not defined`)
-		}
-
-		sym.ref = ref
-		ref.dep = (ref.dep || new Set()).add(sym)
-
-		return ref
-	}
 
 	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
 		// Check circular reference
@@ -695,8 +703,13 @@ export function evalExp(exp: ExpForm): ExpForm {
 						)
 					}
 					// Merge rest parameters into a vector
-					const lastParam = createVector(...rest.slice(minParamLen))
-					const lastType = resolveType(lastParam)
+					const lastParam: ExpVector = {
+						literal: 'vector',
+						value: rest.slice(minParamLen),
+					}
+					const lastType = createTypeVector(
+						createTypeUnion(paramsType.slice(minParamLen))
+					)
 
 					// Replace the variadic part with the vector
 					const variadicLen = lastParam.value.length
@@ -732,7 +745,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 			}
 			case 'vector': {
 				return (exp.evaluated = createVector(
-					...exp.value.map(v => evalWithTrace(v, trace))
+					exp.value.map(v => evalWithTrace(v, trace))
 				))
 			}
 			case 'hashMap': {
@@ -812,7 +825,7 @@ function createList(...value: ExpForm[]): ExpList {
 	return exp
 }
 
-function createVector(...value: ExpForm[]): ExpVector {
+function createVector(value: ExpForm[]): ExpVector {
 	const exp: ExpVector = {
 		literal: 'vector',
 		value,
