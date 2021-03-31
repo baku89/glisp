@@ -115,11 +115,21 @@ interface ExpTypeConstant extends ExpTypeBase {
 	value: ExpBoolean | ExpNumber | ExpString
 }
 
-interface TypeFn extends ExpTypeBase {
+interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpType[]
 	out: ExpType
+	variadic?: false
 }
+
+interface ExpTypeFnVariadic extends ExpTypeBase {
+	kind: 'fn'
+	params: [...ExpType[], ExpTypeVector]
+	out: ExpType
+	variadic: true
+}
+
+type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
 
 interface ExpTypeVector extends ExpTypeBase {
 	kind: 'vector'
@@ -134,7 +144,7 @@ interface ExpTypeUnion extends ExpTypeBase {
 type ExpType =
 	| ExpTypeAtom
 	| ExpTypeConstant
-	| TypeFn
+	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeUnion
 
@@ -221,7 +231,7 @@ const TypeVector = createFn(
 	createTypeFn([TypeType], TypeType)
 )
 
-function createTypeVector(items: ExpType): ExpType {
+function createTypeVector(items: ExpType): ExpTypeVector {
 	return {
 		literal: 'type',
 		kind: 'vector',
@@ -234,12 +244,32 @@ const TypeFn = createFn(
 	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
 )
 
-function createTypeFn(params: ExpType[], out: ExpType): ExpType {
+function createTypeFn(
+	params: ExpType[],
+	out: ExpType,
+	variadic = false
+): ExpTypeFn {
+	if (variadic) {
+		const fixedParams = params.slice(0, -1)
+		const lastParam = params[params.length - 1]
+		if (lastParam.kind !== 'vector') {
+			throw new Error('Last parameter of ')
+		}
+		return {
+			literal: 'type',
+			kind: 'fn',
+			params: [...fixedParams, lastParam],
+			out,
+			variadic,
+		}
+	}
+
 	return {
 		literal: 'type',
 		kind: 'fn',
 		params,
 		out,
+		variadic,
 	}
 }
 
@@ -248,9 +278,15 @@ const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
 }, createTypeFn([createTypeVector(TypeType)], TypeType))
 
 function createTypeUnion(...items: ExpType[]): ExpType {
+	// Flatten a nested union
+	// e.g. (Number | String) | Boolean => Number | String | Boolean
+
 	items = items.flatMap(flatten)
 	items = _.uniqBy(items, getTypeIdentifier)
 
+	if (items.length === 0) {
+		return TypeAny
+	}
 	if (items.length === 1) {
 		return items[0]
 	}
@@ -298,7 +334,7 @@ const GlobalScope = createList(
 						0
 					)
 				),
-			createTypeFn([createTypeVector(TypeNumber)], TypeNumber)
+			createTypeFn([createTypeVector(TypeNumber)], TypeNumber, true)
 		),
 		not: createFn(
 			(v: any) => createBoolean(!v.value),
@@ -350,7 +386,7 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 
 function resolveType(exp: ExpForm): ExpType {
 	let expType: ExpType = TypeAny
-	let baseType: ExpType = TypeAny
+	const baseType: ExpType = TypeAny
 
 	// Check if the expression itself has type
 	if (exp.type) {
@@ -366,6 +402,7 @@ function resolveType(exp: ExpForm): ExpType {
 		expType = getIntrinsticType(exp)
 	}
 
+	/*
 	if (exp.parent) {
 		const {parent} = exp
 
@@ -373,15 +410,22 @@ function resolveType(exp: ExpForm): ExpType {
 			const index = parent.value.indexOf(exp) - 1
 			if (index >= 0) {
 				// Is the part of param
-				const fn = evalExp(parent.value[0])
+				const [fn] = parent.value
 				const fnType = resolveType(fn)
+
 				if (fnType.kind !== 'fn') {
 					throw new Error('Mismatch fn type')
 				}
+
+				if (fnType.variadic) {
+
+				}
+
 				baseType = fnType.params[index]
 			}
 		}
 	}
+	*/
 
 	return combineType(baseType, expType)
 }
@@ -619,7 +663,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 				if (fn.literal === 'fn') {
 					// Function application
 				} else if (fn.literal === 'type') {
-					// Constructor
+					// Type constructor
 					if (!fn.create) {
 						throw new Error('This type is not callable')
 					}
@@ -628,22 +672,49 @@ export function evalExp(exp: ExpForm): ExpForm {
 					throw new Error(`${printExp(first)} is not callable`)
 				}
 
+				// Type Checking
 				const fnType = resolveType(fn)
 
 				if (fnType.kind !== 'fn') {
 					throw new Error(`Not a fn type but ${fnType.kind}`)
 				}
 
-				// Type Checking
+				const paramsDefType = fnType.params
 				const paramsType = rest.map(resolveType)
 
-				if (fnType.params.length > paramsType.length) {
-					throw new Error(
-						`Expected ${fnType.params.length} arguments, but got ${paramsType.length}`
-					)
+				let minParamLen = paramsDefType.length
+				const paramLen = paramsType.length
+
+				if (fnType.variadic) {
+					// Length check
+					minParamLen -= 1
+
+					if (paramLen < minParamLen) {
+						throw new Error(
+							`Expected ${minParamLen} arguments at least, but got ${paramLen}`
+						)
+					}
+					// Merge rest parameters into a vector
+					const lastParam = createVector(...rest.slice(minParamLen))
+					const lastType = resolveType(lastParam)
+
+					// Replace the variadic part with the vector
+					const variadicLen = lastParam.value.length
+
+					rest.splice(minParamLen, variadicLen, lastParam)
+					paramsType.splice(minParamLen, variadicLen, lastType)
+				} else {
+					// Not a variadic parameter
+
+					// Length check
+					if (paramLen < minParamLen) {
+						throw new Error(
+							`Expected ${minParamLen} arguments, but got ${paramLen}`
+						)
+					}
 				}
 
-				fnType.params.forEach((paramDefType, i) => {
+				paramsDefType.forEach((paramDefType, i) => {
 					if (!matchType(paramsType[i], paramDefType)) {
 						const paramTypeStr = printExp(paramsType[i])
 						const paramDefTypeStr = printExp(paramDefType)
