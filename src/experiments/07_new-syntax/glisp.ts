@@ -86,10 +86,10 @@ interface ExpHashMap extends ExpBase {
 	value: {
 		[key: string]: ExpForm
 	}
-	key?: {
-		[key: string]: ExpString | ExpSymbol
+	keyQuoted?: {
+		[key: string]: boolean
 	}
-	delimiters?: string[]
+	delimiters?: (string | [string, string])[]
 	evaluated?: ExpHashMap
 }
 
@@ -533,12 +533,9 @@ export function evalExp(exp: ExpForm): ExpForm {
 }
 
 function createSymbol(value: string): ExpSymbol {
-	const str = SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
-
 	return {
 		type: 'symbol',
 		value,
-		str,
 	}
 }
 
@@ -641,23 +638,59 @@ export function printExp(form: ExpForm): string {
 			case 'string':
 				return '"' + exp.value + '"'
 			case 'symbol':
-				return exp.str || exp.value
+				if (exp.str) {
+					return exp.str
+				} else {
+					const {value} = exp
+					return SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
+				}
 			case 'scope': {
 				const coll = [createSymbol('let'), exp.vars, exp.ret]
-				return printColl('(', ')', coll, exp.delimiters)
+				return printSeq('(', ')', coll, exp.delimiters)
 			}
 			case 'list': {
-				return printColl('(', ')', exp.value, exp.delimiters)
+				return printSeq('(', ')', exp.value, exp.delimiters)
 			}
 			case 'vector':
-				return printColl('[', ']', exp.value, exp.delimiters)
+				return printSeq('[', ']', exp.value, exp.delimiters)
 			case 'hashMap': {
-				const keys = Object.keys(exp.value)
-				const keyForms = keys.map(k => (exp.key ? exp.key[k] : toHashKey(k)))
-				const coll = Object.values(exp.value)
-					.map((v, i) => [keyForms[i], v])
-					.flat()
-				return printColl('{', '}', coll, exp.delimiters)
+				const {value, keyQuoted, delimiters} = exp
+				const keys = Object.keys(value)
+
+				let keyForms: (ExpSymbol | ExpString)[]
+
+				if (keyQuoted) {
+					keyForms = keys.map(k =>
+						keyQuoted[k] ? createString(k) : createSymbol(k)
+					)
+				} else {
+					keyForms = keys.map(toHashKey)
+				}
+
+				let flattenDelimiters: string[]
+				let coll: ExpForm[]
+				if (delimiters) {
+					coll = keys
+						.map((k, i) =>
+							Array.isArray(delimiters[i + 1])
+								? [keyForms[i], value[k]]
+								: [value[k]]
+						)
+						.flat()
+					flattenDelimiters = delimiters.flat()
+				} else {
+					coll = keys.map((k, i) => [keyForms[i], value[k]]).flat()
+					flattenDelimiters = [
+						'',
+						...Array(keys.length - 1)
+							.fill([': ', ' '])
+							.flat(),
+						': ',
+						'',
+					]
+				}
+
+				return printSeq('{', '}', coll, flattenDelimiters)
 			}
 			case 'fn':
 				return 'fn'
@@ -682,7 +715,7 @@ export function printExp(form: ExpForm): string {
 		}
 	}
 
-	function printColl(
+	function printSeq(
 		start: string,
 		end: string,
 		coll: ExpForm[],

@@ -93,7 +93,7 @@ SymbolPath = "@" str:StringLiteral
 		return {
 			type: 'symbol',
 			value: str,
-			str: `@${str}`
+			str: `@"${str}"`
 		}
 	}
 
@@ -123,16 +123,45 @@ Vector = "[" d0:_ values:(Form _)* "]"
 		return exp
 	}
 
-HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) _ Form _)* "}"
+HashMap =
+	"{"
+	d0:_
+	pairs:((((SymbolIdentifier / String) ":" _ Form) / Symbol) _)*
+	"}"
 	{
+		const value = {} // as {[key: string]: ExpForm}
+		const keyQuoted = {} // as {[key: string]: boolean}
+		const delimiters = [d0] // as string[]
+
+		for (const [pair, d2] of pairs) {
+
+
+			if (pair.length === 4) {
+				// Has value
+				const [{type, value: key}, colon, d1, val] = pair
+				value[key] = val
+				keyQuoted[key] = type === 'string'
+				delimiters.push([colon + d1, d2])
+			} else {
+				// Value omitted
+				const val = pair
+				const {type, value: key, str} = val
+				value[key] = val
+				keyQuoted[key] = str[0] === '@'
+				delimiters.push(d2)
+			}
+		}
+
 		const exp = {
 			type: "hashMap",
-			value: Object.fromEntries(pairs.map(p => [p[0].value, p[2]])),
-			key: Object.fromEntries(pairs.map(([p]) => [p.value, p])),
-			delimiters: [d0, ...pairs.map(p => [p[1], p[3]]).flat()]
+			value,
+			keyQuoted,
+			delimiters
 		}
 
 		Object.values(exp.value).forEach(v => v.parent = exp)
+
+		console.log(exp)
 
 		return exp
 	}
@@ -151,7 +180,7 @@ Scope = "(" d0:_ "let" d1:_  vars:HashMap d2:_ ret:Form d3:_ ")"
 		return value
 	}
 
-Tag = "^" d0:_ meta:(Symbol / List / HashMap) d1:_ value:Form
+Tag = "^" d0:_ meta:(Symbol / List) d1:_ value:Form
 	{
 		value['meta'] = {
 			value: meta,

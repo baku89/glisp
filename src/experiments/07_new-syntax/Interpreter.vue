@@ -22,7 +22,6 @@ export default defineComponent({
 
 		async function rep(str: string) {
 			const exp = readStr(str)
-			console.log(exp)
 			return printExp(evalExp(exp))
 		}
 
