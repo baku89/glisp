@@ -95,6 +95,8 @@ interface ExpHashMap extends ExpBase {
 	evaluated?: ExpHashMap
 }
 
+// Types
+
 interface ExpTypeBase extends ExpBase {
 	literal: 'type'
 	create?: ExpFn
@@ -102,12 +104,12 @@ interface ExpTypeBase extends ExpBase {
 }
 
 interface ExpTypeAtom extends ExpTypeBase {
-	kind: 'any' | 'null' | 'boolean' | 'number' | 'string' | 'type'
+	kind: 'any' | 'boolean' | 'number' | 'string' | 'type'
 }
 
 interface ExpTypeConst extends ExpTypeBase {
 	kind: 'const'
-	value: ExpBoolean | ExpNumber | ExpString
+	value: ExpNull | ExpBoolean | ExpNumber | ExpString
 }
 
 interface ExpTypeFnFixed extends ExpTypeBase {
@@ -185,10 +187,11 @@ const TypeAny: ExpType = {
 
 const TypeNull: ExpType = {
 	literal: 'type',
-	kind: 'null',
+	kind: 'const',
+	value: createNull(),
 	create: createFn(
 		() => createNull(),
-		createTypeFn([], {literal: 'type', kind: 'null'})
+		createTypeFn([], {literal: 'type', kind: 'const', value: createNull()})
 	),
 }
 
@@ -197,7 +200,7 @@ const TypeBoolean: ExpType = {
 	kind: 'boolean',
 	create: createFn(
 		(v: ExpBoolean = createBoolean(false)) => v,
-		createTypeFn([], {literal: 'type', kind: 'null'})
+		createTypeFn([], {literal: 'type', kind: 'boolean'})
 	),
 }
 
@@ -374,6 +377,34 @@ const TypeConst = createFn(function (value: ExpTypeConst['value']) {
 	[createTypeUnion([TypeBoolean, TypeNumber, TypeString])],
 	TypeType
 ))
+
+/*
+function containsType(outer: ExpType, inner: ExpType): boolean {
+	if (outer === inner) {
+		return true
+	}
+
+	if (outer.kind === 'any') {
+		return true
+	}
+
+	// Atomic
+	if (['null', 'boolean', 'number', 'string'].includes(outer.kind)) {
+		if (inner.kind === outer.kind) {
+			return true
+		}
+		if (inner.kind === 'const') {
+			if (inner.value.literal === outer.kind) {
+				return true
+			}
+		}
+		if (inner.kind === 'union') {
+			return inner.items.every(it => containsType(outer, it))
+		}
+		return false
+	}
+}
+*/
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
 	Any: TypeAny,
@@ -594,12 +625,14 @@ function castType(target: ExpType, candidate: ExpType): ExpType | null {
 	}
 
 	// Const match
+	/*
 	if (candidate.kind === 'const') {
 		if (target.kind !== 'const') {
 			return null
 		}
 		return candidate.value.value === target.value.value ? candidate : null
 	}
+	*/
 
 	// Atomic match
 	if (candidate.kind === target.kind) {
@@ -998,7 +1031,6 @@ export function printExp(form: ExpForm): string {
 			case 'type':
 				switch (exp.kind) {
 					case 'any':
-					case 'null':
 					case 'boolean':
 					case 'number':
 					case 'string':
