@@ -102,7 +102,7 @@ interface ExpTypeBase extends ExpBase {
 }
 
 interface ExpTypeAtom extends ExpTypeBase {
-	kind: 'any' | 'null' | 'boolean' | 'number' | 'string' | 'type' | 'hashMap'
+	kind: 'any' | 'null' | 'boolean' | 'number' | 'string' | 'type'
 }
 
 interface ExpTypeConst extends ExpTypeBase {
@@ -136,6 +136,11 @@ interface ExpTypeTuple extends ExpTypeBase {
 	items: ExpType[]
 }
 
+interface ExpTypeHashMap extends ExpTypeBase {
+	kind: 'hashMap'
+	items: ExpType
+}
+
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpType[]
@@ -146,8 +151,9 @@ type ExpType =
 	| ExpTypeConst
 	| ExpTypeFn
 	| ExpTypeVector
-	| ExpTypeUnion
 	| ExpTypeTuple
+	| ExpTypeHashMap
+	| ExpTypeUnion
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -213,15 +219,6 @@ const TypeString: ExpType = {
 	),
 }
 
-const TypeHashMap: ExpType = {
-	literal: 'type',
-	kind: 'hashMap',
-	create: createFn(
-		(v: ExpHashMap = createHashMap({})) => v,
-		createTypeFn([], {literal: 'type', kind: 'hashMap'})
-	),
-}
-
 const TypeType: ExpType = {
 	literal: 'type',
 	kind: 'type',
@@ -261,6 +258,19 @@ function createTypeTuple(items: ExpType[]): ExpType {
 				kind: 'tuple',
 				items,
 			}
+	}
+}
+
+const TypeHashMap = createFn(
+	createTypeHashMap,
+	createTypeFn([TypeType], TypeType)
+)
+
+function createTypeHashMap(items: ExpType): ExpTypeHashMap {
+	return {
+		literal: 'type',
+		kind: 'hashMap',
+		items,
 	}
 }
 
@@ -372,14 +382,15 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Number: TypeNumber,
 	String: TypeString,
 	Type: TypeType,
-	Vector: TypeVector,
-	Union: TypeUnion,
-	Tuple: TypeTuple,
 	Const: TypeConst,
 	'->': TypeFn,
+	Vector: TypeVector,
+	Tuple: TypeTuple,
+	HashMap: TypeHashMap,
+	Union: TypeUnion,
 	let: createFn(
 		(_, body: ExpForm) => body,
-		createTypeFn([TypeHashMap, TypeAny], TypeAny)
+		createTypeFn([createTypeHashMap(TypeAny), TypeAny], TypeAny)
 	),
 }
 
@@ -409,7 +420,7 @@ const GlobalScope = createList(
 			(v: any) => resolveType(v),
 			createTypeFn([TypeAny], TypeType)
 		),
-		'match-type': createFn(function (target: any, candidate: any) {
+		'cast-type': createFn(function (target: any, candidate: any) {
 			return castType(target, candidate) || createNull()
 		}, createTypeFn([TypeType, TypeType], TypeType)),
 		'equal-type': createFn(function (a: any, b: any) {
@@ -449,10 +460,19 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			const items = createTypeUnion(itemsTypes)
 			return createTypeVector(items)
 		}
+		case 'hashMap': {
+			const itemsTypes = Object.values(exp.value).map(resolveType)
+			const items = createTypeUnion(itemsTypes)
+			return createTypeHashMap(items)
+		}
 		default:
 			return TypeAny
 	}
 }
+
+// function intersectType(a: ExpType, b: ExpType) {
+
+// }
 
 function resolveType(exp: ExpForm): ExpType {
 	let expType: ExpType = TypeAny
@@ -641,8 +661,8 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'boolean':
 			case 'number':
 			case 'string':
-			case 'fn':
 			case 'type':
+			case 'fn':
 				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
@@ -991,13 +1011,16 @@ export function printExp(form: ExpForm): string {
 					}
 					case 'vector':
 						return `(Vector ${printWithoutType(exp.items)})`
-					case 'union': {
-						const items = exp.items.map(printWithoutType).join(' ')
-						return `(Union ${items})`
-					}
 					case 'tuple': {
 						const items = exp.items.map(printWithoutType).join(' ')
 						return `(Tuple ${items})`
+					}
+					case 'hashMap': {
+						return `(HashMap ${printWithoutType(exp.items)})`
+					}
+					case 'union': {
+						const items = exp.items.map(printWithoutType).join(' ')
+						return `(Union ${items})`
 					}
 					case 'const':
 						return `(Const ${printWithoutType(exp.value)})`
