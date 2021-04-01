@@ -103,8 +103,12 @@ interface ExpTypeBase extends ExpBase {
 	meta?: ExpHashMap
 }
 
+interface ExpTypeAll extends ExpTypeBase {
+	kind: 'all'
+}
+
 interface ExpTypeAtom extends ExpTypeBase {
-	kind: 'any' | 'boolean' | 'number' | 'string' | 'type'
+	kind: 'boolean' | 'number' | 'string' | 'type'
 }
 
 interface ExpTypeConst extends ExpTypeBase {
@@ -149,6 +153,7 @@ interface ExpTypeUnion extends ExpTypeBase {
 }
 
 type ExpType =
+	| ExpTypeAll
 	| ExpTypeAtom
 	| ExpTypeConst
 	| ExpTypeFn
@@ -176,12 +181,12 @@ function evalStr(str: string): ExpForm {
 	return evalExp(readStr(str))
 }
 
-const TypeAny: ExpType = {
+const TypeAll: ExpType = {
 	literal: 'type',
-	kind: 'any',
+	kind: 'all',
 	create: createFn(
 		(v: ExpForm = createNull()) => v,
-		createTypeFn([], {literal: 'type', kind: 'any'})
+		createTypeFn([], {literal: 'type', kind: 'all'})
 	),
 }
 
@@ -226,7 +231,7 @@ const TypeType: ExpType = {
 	literal: 'type',
 	kind: 'type',
 	create: createFn(
-		() => TypeAny,
+		() => TypeAll,
 		createTypeFn([], {literal: 'type', kind: 'type'})
 	),
 }
@@ -252,7 +257,7 @@ const TypeTuple = createFn(
 function createTypeTuple(items: ExpType[]): ExpType {
 	switch (items.length) {
 		case 0:
-			return TypeAny
+			return TypeAll
 		case 1:
 			return items[0]
 		default:
@@ -328,7 +333,7 @@ function createTypeUnion(items: ExpType[]): ExpType {
 	items = _.sortBy(itemsWithId, pair => pair[0]).map(pair => pair[1])
 
 	if (items.length === 0) {
-		return TypeAny
+		return TypeAll
 	}
 	if (items.length === 1) {
 		return items[0]
@@ -384,7 +389,7 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 		return true
 	}
 
-	if (outer.kind === 'any') {
+	if (outer.kind === 'all') {
 		return true
 	}
 
@@ -407,7 +412,7 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 */
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
-	Any: TypeAny,
+	All: TypeAll,
 	Null: TypeNull,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
@@ -421,7 +426,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Union: TypeUnion,
 	let: createFn(
 		(_, body: ExpForm) => body,
-		createTypeFn([createTypeHashMap(TypeAny), TypeAny], TypeAny)
+		createTypeFn([createTypeHashMap(TypeAll), TypeAll], TypeAll)
 	),
 }
 
@@ -449,7 +454,7 @@ const GlobalScope = createList(
 		),
 		type: createFn(
 			(v: any) => resolveType(v),
-			createTypeFn([TypeAny], TypeType)
+			createTypeFn([TypeAll], TypeType)
 		),
 		'cast-type': createFn(function (target: any, candidate: any) {
 			return castType(target, candidate) || createNull()
@@ -459,7 +464,7 @@ const GlobalScope = createList(
 		}, createTypeFn([TypeType, TypeType], TypeBoolean)),
 		literal: createFn(
 			(v: any) => createString(v.literal),
-			createTypeFn([TypeAny], TypeString)
+			createTypeFn([TypeAll], TypeString)
 		),
 	})
 )
@@ -497,7 +502,7 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return createTypeHashMap(items)
 		}
 		default:
-			return TypeAny
+			return TypeAll
 	}
 }
 
@@ -506,7 +511,7 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 // }
 
 function resolveType(exp: ExpForm): ExpType {
-	let expType: ExpType = TypeAny
+	let expType: ExpType = TypeAll
 
 	// Resolve the symbol first
 	if (exp.literal === 'symbol') {
@@ -523,7 +528,7 @@ function resolveType(exp: ExpForm): ExpType {
 		expType = type
 	}
 
-	if (expType.kind === 'any') {
+	if (expType.kind === 'all') {
 		expType = getIntrinsticType(exp)
 	}
 
@@ -561,8 +566,8 @@ function castType(target: ExpType, candidate: ExpType): ExpType | null {
 		return candidate
 	}
 
-	// Any match
-	if (candidate.kind === 'any') {
+	// All match
+	if (candidate.kind === 'all') {
 		return target
 	}
 
@@ -745,8 +750,8 @@ export function evalExp(exp: ExpForm): ExpForm {
 							}
 
 							const fnType = createTypeFn(
-								Array(paramsLength).fill(TypeAny),
-								TypeAny
+								Array(paramsLength).fill(TypeAll),
+								TypeAll
 							)
 
 							return (exp.evaluated = createFn(fn, fnType))
@@ -904,7 +909,7 @@ function createFn(
 		fn.type = {value: type}
 		type.parent = fn
 	} else {
-		fn.type = {value: createTypeFn(Array(value.length).fill(TypeAny), TypeAny)}
+		fn.type = {value: createTypeFn(Array(value.length).fill(TypeAll), TypeAll)}
 	}
 
 	return fn
@@ -1030,7 +1035,7 @@ export function printExp(form: ExpForm): string {
 				return 'fn'
 			case 'type':
 				switch (exp.kind) {
-					case 'any':
+					case 'all':
 					case 'boolean':
 					case 'number':
 					case 'string':
