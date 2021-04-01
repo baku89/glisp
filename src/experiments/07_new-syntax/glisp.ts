@@ -102,15 +102,7 @@ interface ExpTypeBase extends ExpBase {
 }
 
 interface ExpTypeAtom extends ExpTypeBase {
-	kind:
-		| 'any'
-		| 'null'
-		| 'boolean'
-		| 'number'
-		| 'string'
-		| 'symbol'
-		| 'type'
-		| 'hashMap'
+	kind: 'any' | 'null' | 'boolean' | 'number' | 'string' | 'type' | 'hashMap'
 }
 
 interface ExpTypeConst extends ExpTypeBase {
@@ -139,6 +131,11 @@ interface ExpTypeVector extends ExpTypeBase {
 	items: ExpType
 }
 
+interface ExpTypeTuple extends ExpTypeBase {
+	kind: 'tuple'
+	items: ExpType[]
+}
+
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpType[]
@@ -150,6 +147,7 @@ type ExpType =
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeUnion
+	| ExpTypeTuple
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -164,6 +162,10 @@ interface ExpRaw extends ExpBase {
 export function readStr(str: string): ExpForm {
 	const exp = parser.parse(str) as ExpProgram
 	return exp.value
+}
+
+function evalStr(str: string): ExpForm {
+	return evalExp(readStr(str))
 }
 
 const TypeAny: ExpType = {
@@ -242,6 +244,26 @@ function createTypeVector(items: ExpType): ExpTypeVector {
 	}
 }
 
+const TypeTuple = createFn(
+	(items: ExpVector<ExpType>) => createTypeTuple(items.value),
+	createTypeFn([createTypeVector(TypeType)], TypeType, true)
+)
+
+function createTypeTuple(items: ExpType[]): ExpType {
+	switch (items.length) {
+		case 0:
+			return TypeAny
+		case 1:
+			return items[0]
+		default:
+			return {
+				literal: 'type',
+				kind: 'tuple',
+				items,
+			}
+	}
+}
+
 const TypeFn = createFn(
 	(params: ExpVector<ExpType>, out: ExpType) => createTypeFn(params.value, out),
 	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
@@ -276,9 +298,10 @@ function createTypeFn(
 	}
 }
 
-const TypeUnion = createFn(function (items: ExpVector<ExpType>) {
-	return createTypeUnion(items.value)
-}, createTypeFn([createTypeVector(TypeType)], TypeType, true))
+const TypeUnion = createFn(
+	(items: ExpVector<ExpType>) => createTypeUnion(items.value),
+	createTypeFn([createTypeVector(TypeType)], TypeType, true)
+)
 
 function createTypeUnion(items: ExpType[]): ExpType {
 	// Flatten a nested union
@@ -297,6 +320,24 @@ function createTypeUnion(items: ExpType[]): ExpType {
 	if (items.length === 1) {
 		return items[0]
 	}
+
+	// Merge to largest
+	const mergedItems: (ExpType | null)[] = items
+
+	let largestType = items[0]
+	let largestIndex = 0
+	for (let i = 1; i < items.length; i++) {
+		const matchedType = castType(items[i], largestType)
+
+		if (matchedType === null) {
+			mergedItems[largestIndex] = null
+
+			largestType = items[i]
+			largestIndex = i
+		}
+	}
+
+	items = mergedItems.filter(it => it !== null) as ExpType[]
 
 	return {
 		literal: 'type',
@@ -333,6 +374,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Type: TypeType,
 	Vector: TypeVector,
 	Union: TypeUnion,
+	Tuple: TypeTuple,
 	Const: TypeConst,
 	'->': TypeFn,
 	let: createFn(
@@ -368,7 +410,7 @@ const GlobalScope = createList(
 			createTypeFn([TypeAny], TypeType)
 		),
 		'match-type': createFn(function (target: any, candidate: any) {
-			return matchType(target, candidate) || createNull()
+			return castType(target, candidate) || createNull()
 		}, createTypeFn([TypeType, TypeType], TypeType)),
 		'equal-type': createFn(function (a: any, b: any) {
 			return createBoolean(equalType(a, b))
@@ -462,7 +504,7 @@ function equalType(a: ExpType, b: ExpType) {
 	return getTypeIdentifier(a) === getTypeIdentifier(b)
 }
 
-function matchType(target: ExpType, candidate: ExpType): ExpType | null {
+function castType(target: ExpType, candidate: ExpType): ExpType | null {
 	// Exact match
 	if (candidate === target) {
 		return candidate
@@ -471,13 +513,6 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 	// Any match
 	if (candidate.kind === 'any') {
 		return target
-	}
-	if (target.kind === 'any') {
-		return candidate
-	}
-
-	switch (candidate.kind) {
-		case 'fn':
 	}
 
 	// Function match
@@ -491,16 +526,14 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 		}
 
 		// Out type match
-		const out = matchType(target.out, candidate.out)
+		const out = castType(target.out, candidate.out)
 
 		if (out === null) {
 			return null
 		}
 
 		// All parameters match
-		const params = candidate.params.map((c, i) =>
-			matchType(target.params[i], c)
-		)
+		const params = candidate.params.map((c, i) => castType(target.params[i], c))
 
 		if (params.some(t => t === null)) {
 			return null
@@ -515,7 +548,7 @@ function matchType(target: ExpType, candidate: ExpType): ExpType | null {
 			return null
 		}
 
-		const items = matchType(target.items, candidate.items)
+		const items = castType(target.items, candidate.items)
 
 		if (items === null) {
 			return null
@@ -735,7 +768,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 				}
 
 				paramsDefType.forEach((paramDefType, i) => {
-					if (!matchType(paramsType[i], paramDefType)) {
+					if (!castType(paramsType[i], paramDefType)) {
 						const paramTypeStr = printExp(paramsType[i])
 						const paramDefTypeStr = printExp(paramDefType)
 						throw new Error(
@@ -961,6 +994,10 @@ export function printExp(form: ExpForm): string {
 					case 'union': {
 						const items = exp.items.map(printWithoutType).join(' ')
 						return `(Union ${items})`
+					}
+					case 'tuple': {
+						const items = exp.items.map(printWithoutType).join(' ')
+						return `(Tuple ${items})`
 					}
 					case 'const':
 						return `(Const ${printWithoutType(exp.value)})`
