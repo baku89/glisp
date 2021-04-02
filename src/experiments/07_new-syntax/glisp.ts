@@ -555,12 +555,15 @@ const GlobalScope = createList(
 			(v: ExpForm) => inferType(v),
 			createTypeFn([TypeAll], TypeTypeOrValue)
 		),
-		'::?': createFn(function (target: any, candidate: any) {
-			return castType(target, candidate) || createNull()
-		}, createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeTypeOrValue)),
-		'==': createFn(function (a: ExpForm, b: ExpForm) {
-			return createBoolean(equalExp(a, b))
-		}, createTypeFn([TypeAll, TypeAll], TypeBoolean)),
+		'::?': createFn(
+			(target: any, candidate: any) =>
+				castType(target, candidate) || createNull(),
+			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeTypeOrValue)
+		),
+		'==': createFn(
+			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
+			createTypeFn([TypeAll, TypeAll], TypeBoolean)
+		),
 		':>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(isSubsetType(a, b)),
 			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
