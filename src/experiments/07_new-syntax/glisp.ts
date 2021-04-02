@@ -1,4 +1,3 @@
-import {capital} from 'case'
 import deepClone from 'deep-clone'
 import _ from 'lodash'
 import peg from 'pegjs'
@@ -107,13 +106,14 @@ interface ExpTypeAll extends ExpTypeBase {
 	kind: 'all'
 }
 
-interface ExpTypeAtom extends ExpTypeBase {
-	kind: 'boolean' | 'number' | 'string' | 'type'
-}
-
 interface ExpTypeConst extends ExpTypeBase {
 	kind: 'const'
 	value: ExpNull | ExpBoolean | ExpNumber | ExpString
+}
+
+interface ExpTypeInfUnion extends ExpTypeBase {
+	kind: 'infUnion'
+	identifier: symbol
 }
 
 interface ExpTypeFnFixed extends ExpTypeBase {
@@ -154,8 +154,8 @@ interface ExpTypeUnion extends ExpTypeBase {
 
 type ExpType =
 	| ExpTypeAll
-	| ExpTypeAtom
 	| ExpTypeConst
+	| ExpTypeInfUnion
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeTuple
@@ -190,7 +190,7 @@ const TypeAll: ExpType = {
 	),
 }
 
-const TypeNull: ExpType = {
+const TypeNull: ExpTypeConst = {
 	literal: 'type',
 	kind: 'const',
 	value: createNull(),
@@ -200,39 +200,62 @@ const TypeNull: ExpType = {
 	),
 }
 
-const TypeBoolean: ExpType = {
+const TypeBooleanItems = [
+	createTypeConst(createBoolean(false)),
+	createTypeConst(createBoolean(true)),
+]
+const TypeBoolean: ExpTypeUnion = {
 	literal: 'type',
-	kind: 'boolean',
+	kind: 'union',
+	items: TypeBooleanItems,
 	create: createFn(
 		(v: ExpBoolean = createBoolean(false)) => v,
-		createTypeFn([], {literal: 'type', kind: 'boolean'})
+		createTypeFn([], {literal: 'type', kind: 'union', items: TypeBooleanItems})
 	),
 }
 
-const TypeNumber: ExpType = {
+const TypeNumberIdentifier = Symbol('number')
+const TypeNumber: ExpTypeInfUnion = {
 	literal: 'type',
-	kind: 'number',
+	kind: 'infUnion',
+	identifier: TypeNumberIdentifier,
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
-		createTypeFn([], {literal: 'type', kind: 'number'})
+		createTypeFn([], {
+			literal: 'type',
+			kind: 'infUnion',
+			identifier: TypeNumberIdentifier,
+		})
 	),
 }
 
-const TypeString: ExpType = {
+const TypeStringIdentifier = Symbol('string')
+const TypeString: ExpTypeInfUnion = {
 	literal: 'type',
-	kind: 'string',
+	kind: 'infUnion',
+	identifier: TypeStringIdentifier,
 	create: createFn(
 		(v: ExpString = createString('')) => v,
-		createTypeFn([], {literal: 'type', kind: 'string'})
+		createTypeFn([], {
+			literal: 'type',
+			kind: 'infUnion',
+			identifier: TypeStringIdentifier,
+		})
 	),
 }
 
-const TypeType: ExpType = {
+const TypeTypeIdentifier = Symbol('type')
+const TypeType: ExpTypeInfUnion = {
 	literal: 'type',
-	kind: 'type',
+	kind: 'infUnion',
+	identifier: TypeTypeIdentifier,
 	create: createFn(
 		() => TypeAll,
-		createTypeFn([], {literal: 'type', kind: 'type'})
+		createTypeFn([], {
+			literal: 'type',
+			kind: 'infUnion',
+			identifier: TypeTypeIdentifier,
+		})
 	),
 }
 
@@ -372,16 +395,21 @@ function createTypeUnion(items: ExpType[]): ExpType {
 	}
 }
 
-const TypeConst = createFn(function (value: ExpTypeConst['value']) {
+const TypeConst = createFn(
+	createTypeConst,
+	createTypeFn(
+		[createTypeUnion([TypeBoolean, TypeNumber, TypeString])],
+		TypeType
+	)
+)
+
+function createTypeConst(value: ExpTypeConst['value']): ExpTypeConst {
 	return {
 		literal: 'type',
 		kind: 'const',
 		value,
-	} as ExpTypeConst
-}, createTypeFn(
-	[createTypeUnion([TypeBoolean, TypeNumber, TypeString])],
-	TypeType
-))
+	}
+}
 
 /*
 function containsType(outer: ExpType, inner: ExpType): boolean {
@@ -556,6 +584,22 @@ function clearEvaluated(exp: ExpForm) {
 	}
 }
 
+function equalExp(a: ExpForm, b: ExpForm) {
+	if (a.literal === 'null') {
+		return b.literal === 'null'
+	}
+
+	if (
+		a.literal === 'boolean' ||
+		a.literal === 'number' ||
+		a.literal === 'string'
+	) {
+		return b.literal === a.literal && b.value === a.value
+	}
+
+	return false
+}
+
 function equalType(a: ExpType, b: ExpType) {
 	return getTypeIdentifier(a) === getTypeIdentifier(b)
 }
@@ -571,12 +615,21 @@ function castType(target: ExpType, candidate: ExpType): ExpType | null {
 		return target
 	}
 
+	// Const match
+	if (candidate.kind === 'const') {
+		if (target.kind !== 'const') {
+			return null
+		}
+		return equalExp(candidate.value, target.value) ? candidate : null
+	}
+
 	// Function match
 	if (candidate.kind === 'fn') {
 		if (target.kind !== 'fn') {
 			return null
 		}
 
+		// Parameter length
 		if (target.params.length < candidate.params.length) {
 			return null
 		}
@@ -628,16 +681,6 @@ function castType(target: ExpType, candidate: ExpType): ExpType | null {
 
 		return createTypeUnion(items)
 	}
-
-	// Const match
-	/*
-	if (candidate.kind === 'const') {
-		if (target.kind !== 'const') {
-			return null
-		}
-		return candidate.value.value === target.value.value ? candidate : null
-	}
-	*/
 
 	// Atomic match
 	if (candidate.kind === target.kind) {
@@ -1036,11 +1079,20 @@ export function printExp(form: ExpForm): string {
 			case 'type':
 				switch (exp.kind) {
 					case 'all':
-					case 'boolean':
-					case 'number':
-					case 'string':
-					case 'type':
-						return capital(exp.kind)
+						return 'All'
+					case 'const':
+						return `(Const ${printWithoutType(exp.value)})`
+					case 'infUnion':
+						switch (exp.identifier) {
+							case TypeNumberIdentifier:
+								return 'Number'
+							case TypeStringIdentifier:
+								return 'String'
+							case TypeTypeIdentifier:
+								return 'Type'
+							default:
+								throw new Error('Cannot print this InfUnion')
+						}
 					case 'fn': {
 						const params = exp.params.map(printWithoutType).join(' ')
 						const out = printWithoutType(exp.out)
@@ -1059,8 +1111,6 @@ export function printExp(form: ExpForm): string {
 						const items = exp.items.map(printWithoutType).join(' ')
 						return `(Union ${items})`
 					}
-					case 'const':
-						return `(Const ${printWithoutType(exp.value)})`
 					default:
 						console.log(exp)
 						throw new Error('Cannot print this kind of type')
