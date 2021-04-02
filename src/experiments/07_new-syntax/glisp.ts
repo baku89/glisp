@@ -503,13 +503,13 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	inf: createNumber(Infinity),
 	'-inf': createNumber(-Infinity),
 	nan: createNumber(NaN),
-	':All': TypeAll,
-	':Boolean': TypeBoolean,
-	':Number': TypeNumber,
-	':String': TypeString,
-	':Type': TypeType,
-	':TypeOrValue': TypeTypeOrValue,
-	':Falsy': TypeFalsy,
+	All: TypeAll,
+	Boolean: TypeBoolean,
+	Number: TypeNumber,
+	String: TypeString,
+	Type: TypeType,
+	TypeOrValue: TypeTypeOrValue,
+	Falsy: TypeFalsy,
 	':->': TypeFn,
 	':Vector': createFn(
 		createTypeVector,
@@ -1169,13 +1169,13 @@ export function printExp(form: ExpForm): string {
 	function printType(exp: ExpType): string {
 		switch (exp.kind) {
 			case 'all':
-				return ':All'
+				return 'All'
 			case 'infUnionValue':
 				switch (exp.identifier) {
 					case 'number':
-						return ':Number'
+						return 'Number'
 					case 'string':
-						return ':String'
+						return 'String'
 					default:
 						throw new Error('Cannot print this InfUnion')
 				}
@@ -1195,7 +1195,7 @@ export function printExp(form: ExpForm): string {
 			}
 			case 'union': {
 				if (equalType(exp, TypeBoolean)) {
-					return ':Boolean'
+					return 'Boolean'
 				}
 
 				const itemTrue = exp.items.find(it => equalType(it, ConstTrue))
@@ -1215,7 +1215,7 @@ export function printExp(form: ExpForm): string {
 				return `(:| ${items})`
 			}
 			case 'type':
-				return ':Type'
+				return 'Type'
 			default:
 				console.log(exp)
 				throw new Error('Cannot print this kind of type')
