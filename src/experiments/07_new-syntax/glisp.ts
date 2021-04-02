@@ -120,7 +120,7 @@ interface ExpTypeType extends ExpTypeBase {
 interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpTypeN[]
-	lazyParams: boolean[]
+	lazyEval?: boolean[]
 	out: ExpTypeN
 	variadic?: false
 }
@@ -128,7 +128,7 @@ interface ExpTypeFnFixed extends ExpTypeBase {
 interface ExpTypeFnVariadic extends ExpTypeBase {
 	kind: 'fn'
 	params: [...ExpTypeN[], ExpTypeVector]
-	lazyParams: boolean[]
+	lazyEval?: boolean[]
 	out: ExpTypeN
 	variadic: true
 }
@@ -312,10 +312,8 @@ const TypeFn = createFn(
 function createTypeFn(
 	params: ExpTypeN[],
 	out: ExpTypeN,
-	{variadic = false, lazyParams = null as boolean[] | null} = {}
+	{variadic = false, lazyEval = undefined as undefined | boolean[]} = {}
 ): ExpTypeFn {
-	const _lazyParams = lazyParams || params.map(() => false)
-
 	if (variadic) {
 		const fixedParams = params.slice(0, -1)
 		const lastParam = params[params.length - 1]
@@ -327,7 +325,7 @@ function createTypeFn(
 			literal: 'type',
 			kind: 'fn',
 			params: [...fixedParams, lastParam],
-			lazyParams: _lazyParams,
+			lazyEval,
 			out,
 			variadic,
 		}
@@ -337,7 +335,7 @@ function createTypeFn(
 		literal: 'type',
 		kind: 'fn',
 		params,
-		lazyParams: _lazyParams,
+		lazyEval,
 		out,
 		variadic,
 	}
@@ -571,7 +569,7 @@ const GlobalScope = createList(
 				return isSubsetType(TypeFalsy, cond) ? _else : then
 			},
 			createTypeFn([TypeAll, TypeAll, TypeAll], TypeAll, {
-				lazyParams: [false, true, true],
+				lazyEval: [false, true, true],
 			})
 		),
 		literal: createFn(
@@ -746,11 +744,11 @@ export class Interpreter {
 
 	constructor() {
 		const defType = createTypeFn([TypeString, TypeAll], TypeAll, {
-			lazyParams: [true, true],
+			lazyEval: [true, true],
 		})
 
 		this.vars = createHashMap({})
-		this.vars.value['def'] = createFn((sym: ExpString, value: ExpForm) => {
+		this.vars.value['def'] = createFn((sym: ExpSymbol, value: ExpForm) => {
 			this.vars.value[sym.value] = value
 			value.parent = this.vars
 			return value
@@ -840,11 +838,6 @@ export function evalExp(
 
 							return (exp.evaluated = createFn(fn, fnType))
 						}
-						case 'quote':
-							if (!rest[0]) {
-								throw new Error('quote needs 1 parameters')
-							}
-							return rest[0]
 					}
 				}
 
@@ -922,7 +915,9 @@ export function evalExp(
 
 				const evaluatedRest = rest
 					.slice(0, paramsDefType.length)
-					.map((p, i) => (fnType.lazyParams[i] ? p : evalWithTrace(p, trace)))
+					.map((p, i) =>
+						fnType.lazyEval && fnType.lazyEval[i] ? p : evalWithTrace(p, trace)
+					)
 
 				const expanded = fn.value(...evaluatedRest)
 
