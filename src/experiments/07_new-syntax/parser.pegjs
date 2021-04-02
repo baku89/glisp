@@ -12,7 +12,7 @@ Form =
 	List / Vector / HashMap / TypeAnnotation
 
 // Number
-Number = NumberExponential / NumberFloat / NumberHex / NumberInteger
+Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
 
 IntegerLiteral = $(("+" / "-")? [0-9]+)
 
@@ -55,6 +55,16 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 			unionOf: 'number',
 			value: parseInt(str),
 			str
+		}
+	}
+
+NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
+	{
+		return {
+			literal: 'infUnionValue',
+			unionOf: 'number',
+			value: (parseFloat(str) / 100),
+			str: str + '%'
 		}
 	}
 
