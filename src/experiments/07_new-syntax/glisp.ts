@@ -12,7 +12,7 @@ const SymbolIdentiferRegex = /^[a-z_+\-*/=?<>][0-9a-z_+\-*/=?<>]*$/i
 const getTypeIdentifier = printExp as (type: ExpType) => string
 
 type ExpForm =
-	| ExpId
+	| ExpConst
 	| ExpValue
 	| ExpSymbol
 	| ExpList
@@ -38,17 +38,16 @@ interface ExpProgram {
 }
 
 interface ExpNull extends ExpBase {
-	literal: 'id'
+	literal: 'const'
 	value: null
 }
 
-type ExpId = ExpNull
-
 interface ExpBoolean extends ExpBase {
-	literal: 'value'
-	unionOf: 'boolean'
+	literal: 'const'
 	value: boolean
 }
+
+type ExpConst = ExpNull | ExpBoolean
 
 interface ExpNumber extends ExpBase {
 	literal: 'value'
@@ -63,7 +62,7 @@ interface ExpString extends ExpBase {
 	value: string
 }
 
-type ExpValue = ExpBoolean | ExpNumber | ExpString
+type ExpValue = ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
 	literal: 'symbol'
@@ -101,7 +100,6 @@ interface ExpHashMap extends ExpBase {
 }
 
 // Types
-
 interface ExpTypeBase extends ExpBase {
 	literal: 'type'
 	create?: ExpFn
@@ -114,12 +112,16 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeConst extends ExpTypeBase {
 	kind: 'const'
-	value: ExpId | ExpValue
+	value: ExpConst | ExpValue
 }
 
-interface ExpTypeInfUnion extends ExpTypeBase {
-	kind: 'infUnion'
-	identifier: 'number' | 'string' | symbol
+interface ExpTypeValue extends ExpTypeBase {
+	kind: 'value'
+	identifier: ExpValue['unionOf']
+}
+
+interface ExpTypeType extends ExpTypeBase {
+	kind: 'type'
 }
 
 interface ExpTypeFnFixed extends ExpTypeBase {
@@ -161,7 +163,8 @@ interface ExpTypeUnion extends ExpTypeBase {
 type ExpType =
 	| ExpTypeAll
 	| ExpTypeConst
-	| ExpTypeInfUnion
+	| ExpTypeValue
+	| ExpTypeType
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeTuple
@@ -220,47 +223,42 @@ const TypeBoolean: ExpTypeUnion = {
 	),
 }
 
-const TypeNumberIdentifier = Symbol('number')
-const TypeNumber: ExpTypeInfUnion = {
+const TypeNumber: ExpTypeValue = {
 	literal: 'type',
-	kind: 'infUnion',
-	identifier: TypeNumberIdentifier,
+	kind: 'value',
+	identifier: 'number',
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'infUnion',
-			identifier: TypeNumberIdentifier,
+			kind: 'value',
+			identifier: 'number',
 		})
 	),
 }
 
-const TypeStringIdentifier = Symbol('string')
-const TypeString: ExpTypeInfUnion = {
+const TypeString: ExpTypeValue = {
 	literal: 'type',
-	kind: 'infUnion',
-	identifier: TypeStringIdentifier,
+	kind: 'value',
+	identifier: 'string',
 	create: createFn(
 		(v: ExpString = createString('')) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'infUnion',
-			identifier: TypeStringIdentifier,
+			kind: 'value',
+			identifier: 'string',
 		})
 	),
 }
 
-const TypeTypeIdentifier = Symbol('type')
-const TypeType: ExpTypeInfUnion = {
+const TypeType: ExpTypeType = {
 	literal: 'type',
-	kind: 'infUnion',
-	identifier: TypeTypeIdentifier,
+	kind: 'type',
 	create: createFn(
 		() => TypeAll,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'infUnion',
-			identifier: TypeTypeIdentifier,
+			kind: 'type',
 		})
 	),
 }
@@ -427,7 +425,13 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 		return true
 	}
 
+	// Id
+	if (outer.kind === 'const') {
+		return inner.kind === 'const' && outer.value === inner.value
+	}
+
 	// Atomic
+
 	if (['null', 'boolean', 'number', 'string'].includes(outer.kind)) {
 		if (inner.kind === outer.kind) {
 			return true
@@ -508,12 +512,15 @@ const GlobalScope = createList(
 
 function getIntrinsticType(exp: ExpForm): ExpType {
 	switch (exp.literal) {
-		case 'id':
-			return TypeNull
+		case 'const':
+			if (exp.value === null) {
+				return TypeNull
+			} else if (typeof exp.value === 'boolean') {
+				return TypeBoolean
+			}
+			throw new Error('Invalid type of const')
 		case 'value':
 			switch (exp.unionOf) {
-				case 'boolean':
-					return TypeBoolean
 				case 'number':
 					return TypeNumber
 				case 'string':
@@ -547,10 +554,6 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 			return TypeAll
 	}
 }
-
-// function intersectType(a: ExpType, b: ExpType) {
-
-// }
 
 function resolveType(exp: ExpForm): ExpType {
 	let expType: ExpType = TypeAll
@@ -599,8 +602,8 @@ function clearEvaluated(exp: ExpForm) {
 }
 
 function equalExp(a: ExpForm, b: ExpForm) {
-	if (a.literal === 'id') {
-		return b.literal === 'id' && a.value === b.value
+	if (a.literal === 'const') {
+		return b.literal === 'const' && a.value === b.value
 	}
 
 	if (a.literal === 'value') {
@@ -750,7 +753,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 		trace = [...trace, exp]
 
 		switch (exp.literal) {
-			case 'id':
+			case 'const':
 			case 'value':
 			case 'type':
 			case 'fn':
@@ -917,14 +920,13 @@ export function evalExp(exp: ExpForm): ExpForm {
 }
 
 // Create functions
-function createNull(): ExpId {
-	return {literal: 'id', value: null}
+function createNull(): ExpConst {
+	return {literal: 'const', value: null}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
 	return {
-		literal: 'value',
-		unionOf: 'boolean',
+		literal: 'const',
 		value,
 	}
 }
@@ -1028,12 +1030,15 @@ export function printExp(form: ExpForm): string {
 
 	function printWithoutType(exp: ExpForm): string {
 		switch (exp.literal) {
-			case 'id':
-				return 'null'
+			case 'const':
+				if (exp.value === null) {
+					return 'null'
+				} else if (typeof exp.value === 'boolean') {
+					return exp.value ? 'true' : 'false'
+				}
+				throw new Error('cannot print this type of const')
 			case 'value':
 				switch (exp.unionOf) {
-					case 'boolean':
-						return exp.value ? 'true' : 'false'
 					case 'number':
 						return exp.str || exp.value.toString()
 					case 'string':
@@ -1100,14 +1105,12 @@ export function printExp(form: ExpForm): string {
 						return 'All'
 					case 'const':
 						return `(Const ${printWithoutType(exp.value)})`
-					case 'infUnion':
+					case 'value':
 						switch (exp.identifier) {
-							case TypeNumberIdentifier:
+							case 'number':
 								return 'Number'
-							case TypeStringIdentifier:
+							case 'string':
 								return 'String'
-							case TypeTypeIdentifier:
-								return 'Type'
 							default:
 								throw new Error('Cannot print this InfUnion')
 						}
