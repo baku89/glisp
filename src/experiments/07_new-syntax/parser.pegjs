@@ -8,18 +8,8 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
-	Null / Boolean / Number / String / Symbol /
+	Number / String / Symbol /
 	List / Vector / HashMap / TypeAnnotation
-
-Null = "null" { return { literal: 'null' } }
-
-Boolean = value:("true" / "false")
-	{
-		return {
-			literal: 'boolean',
-			value: value === 'true'
-		}
-	}
 
 // Number
 Number = NumberExponential / NumberFloat / NumberHex / NumberInteger
@@ -31,7 +21,8 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]*)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			literal: 'number',
+			literal: 'value',
+			unionOf: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -40,7 +31,8 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			literal: 'number',
+			literal: 'value',
+			unionOf: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -49,7 +41,8 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			literal: 'number',
+			literal: 'value',
+			unionOf: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -58,7 +51,8 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			literal: 'number',
+			literal: 'value',
+			unionOf: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -68,7 +62,8 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 String = value:StringLiteral
 	{
 		return {
-			literal: 'string',
+			literal: 'value',
+			unionOf: 'string',
 			value
 		}
 	}

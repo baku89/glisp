@@ -12,10 +12,8 @@ const SymbolIdentiferRegex = /^[a-z_+\-*/=?<>][0-9a-z_+\-*/=?<>]*$/i
 const getTypeIdentifier = printExp as (type: ExpType) => string
 
 type ExpForm =
-	| ExpNull
-	| ExpBoolean
-	| ExpNumber
-	| ExpString
+	| ExpId
+	| ExpValue
 	| ExpSymbol
 	| ExpList
 	| ExpVector
@@ -40,24 +38,32 @@ interface ExpProgram {
 }
 
 interface ExpNull extends ExpBase {
-	literal: 'null'
+	literal: 'id'
+	value: null
 }
 
+type ExpId = ExpNull
+
 interface ExpBoolean extends ExpBase {
-	literal: 'boolean'
+	literal: 'value'
+	unionOf: 'boolean'
 	value: boolean
 }
 
 interface ExpNumber extends ExpBase {
-	literal: 'number'
+	literal: 'value'
+	unionOf: 'number'
 	value: number
 	str?: string
 }
 
 interface ExpString extends ExpBase {
-	literal: 'string'
+	literal: 'value'
+	unionOf: 'string'
 	value: string
 }
+
+type ExpValue = ExpBoolean | ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
 	literal: 'symbol'
@@ -108,12 +114,12 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeConst extends ExpTypeBase {
 	kind: 'const'
-	value: ExpNull | ExpBoolean | ExpNumber | ExpString
+	value: ExpId | ExpValue
 }
 
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
-	identifier: symbol
+	identifier: 'number' | 'string' | symbol
 }
 
 interface ExpTypeFnFixed extends ExpTypeBase {
@@ -440,6 +446,9 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 */
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
+	null: createNull(),
+	true: createBoolean(true),
+	false: createBoolean(false),
 	All: TypeAll,
 	Null: TypeNull,
 	Boolean: TypeBoolean,
@@ -499,14 +508,19 @@ const GlobalScope = createList(
 
 function getIntrinsticType(exp: ExpForm): ExpType {
 	switch (exp.literal) {
-		case 'null':
+		case 'id':
 			return TypeNull
-		case 'boolean':
-			return TypeBoolean
-		case 'number':
-			return TypeNumber
-		case 'string':
-			return TypeString
+		case 'value':
+			switch (exp.unionOf) {
+				case 'boolean':
+					return TypeBoolean
+				case 'number':
+					return TypeNumber
+				case 'string':
+					return TypeString
+				default:
+					throw new Error('Invalid unionOf type')
+			}
 		case 'type':
 			return TypeType
 		case 'list': {
@@ -585,16 +599,14 @@ function clearEvaluated(exp: ExpForm) {
 }
 
 function equalExp(a: ExpForm, b: ExpForm) {
-	if (a.literal === 'null') {
-		return b.literal === 'null'
+	if (a.literal === 'id') {
+		return b.literal === 'id' && a.value === b.value
 	}
 
-	if (
-		a.literal === 'boolean' ||
-		a.literal === 'number' ||
-		a.literal === 'string'
-	) {
-		return b.literal === a.literal && b.value === a.value
+	if (a.literal === 'value') {
+		return (
+			b.literal === 'value' && a.unionOf === b.unionOf && a.value === b.value
+		)
 	}
 
 	return false
@@ -738,10 +750,8 @@ export function evalExp(exp: ExpForm): ExpForm {
 		trace = [...trace, exp]
 
 		switch (exp.literal) {
-			case 'null':
-			case 'boolean':
-			case 'number':
-			case 'string':
+			case 'id':
+			case 'value':
 			case 'type':
 			case 'fn':
 				return exp
@@ -907,27 +917,30 @@ export function evalExp(exp: ExpForm): ExpForm {
 }
 
 // Create functions
-function createNull(): ExpNull {
-	return {literal: 'null'}
+function createNull(): ExpId {
+	return {literal: 'id', value: null}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
 	return {
-		literal: 'boolean',
+		literal: 'value',
+		unionOf: 'boolean',
 		value,
 	}
 }
 
 function createNumber(value: number): ExpNumber {
 	return {
-		literal: 'number',
+		literal: 'value',
+		unionOf: 'number',
 		value,
 	}
 }
 
 function createString(value: string): ExpString {
 	return {
-		literal: 'string',
+		literal: 'value',
+		unionOf: 'string',
 		value,
 	}
 }
@@ -1009,20 +1022,25 @@ export function printExp(form: ExpForm): string {
 		if (SymbolIdentiferRegex.test(value)) {
 			return {literal: 'symbol', value, str: value}
 		} else {
-			return {literal: 'string', value}
+			return {literal: 'value', unionOf: 'string', value}
 		}
 	}
 
 	function printWithoutType(exp: ExpForm): string {
 		switch (exp.literal) {
-			case 'null':
+			case 'id':
 				return 'null'
-			case 'boolean':
-				return exp.value ? 'true' : 'false'
-			case 'number':
-				return exp.str || exp.value.toString()
-			case 'string':
-				return '"' + exp.value + '"'
+			case 'value':
+				switch (exp.unionOf) {
+					case 'boolean':
+						return exp.value ? 'true' : 'false'
+					case 'number':
+						return exp.str || exp.value.toString()
+					case 'string':
+						return `"${exp.value}"`
+					default:
+						throw new Error('Cannot print this type of "unionOf"')
+				}
 			case 'symbol':
 				if (exp.str) {
 					return exp.str
