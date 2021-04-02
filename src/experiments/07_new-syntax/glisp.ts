@@ -415,6 +415,46 @@ function createTypeConst(value: ExpTypeConst['value']): ExpTypeConst {
 	}
 }
 
+function equalType(a: ExpType, b: ExpType): boolean {
+	if (a === b) {
+		return true
+	}
+
+	switch (a.kind) {
+		case 'all':
+			return b.kind === 'all'
+		case 'const':
+			return b.kind === 'const' && equalExp(a.value, b.value)
+		case 'value':
+			return b.kind === 'value' && a.identifier === b.identifier
+		case 'union': {
+			if (b.kind !== 'union') return false
+			if (a.items.length !== b.items.length) {
+				return false
+			}
+			return _.differenceWith(a.items, b.items, equalType).length === 0
+		}
+		case 'vector':
+		case 'hashMap':
+			return b.kind === a.kind && equalType(a.items, b.items)
+		case 'tuple':
+			return (
+				b.kind === 'tuple' &&
+				a.items.length === b.items.length &&
+				_.zipWith(a.items, b.items, equalType).every(_.identity)
+			)
+		case 'fn':
+			return (
+				b.kind === 'fn' &&
+				a.params.length === b.params.length &&
+				equalType(a.out, b.out) &&
+				_.zipWith(a.params, b.params, equalType).every(_.identity)
+			)
+		default:
+			throw new Error('Cannot determine equality of this two types')
+	}
+}
+
 function containsType(outer: ExpType, inner: ExpType): boolean {
 	if (outer === inner) {
 		return true
@@ -615,10 +655,6 @@ function equalExp(a: ExpForm, b: ExpForm) {
 	}
 
 	return false
-}
-
-function equalType(a: ExpType, b: ExpType) {
-	return getTypeIdentifier(a) === getTypeIdentifier(b)
 }
 
 function castType(target: ExpType, candidate: ExpType): ExpType | null {
@@ -1115,52 +1151,51 @@ export function printExp(form: ExpForm): string {
 			case 'fn':
 				return 'fn'
 			case 'type':
-				switch (exp.kind) {
-					case 'all':
-						return 'All'
-					case 'const':
-						if (exp.value.literal === 'const') {
-							if (exp.value.value === null) {
-								return 'Null'
-							} else if (typeof exp.value.value === 'boolean') {
-								return 'Boolean'
-							}
-							throw new Error('Whoaaaaaaa')
-						}
-						return `(Const ${printWithoutType(exp.value)})`
-					case 'value':
-						switch (exp.identifier) {
-							case 'number':
-								return 'Number'
-							case 'string':
-								return 'String'
-							default:
-								throw new Error('Cannot print this InfUnion')
-						}
-					case 'fn': {
-						const params = exp.params.map(printWithoutType).join(' ')
-						const out = printWithoutType(exp.out)
-						return `(-> [${params}] ${out})`
-					}
-					case 'vector':
-						return `(Vector ${printWithoutType(exp.items)})`
-					case 'tuple': {
-						const items = exp.items.map(printWithoutType).join(' ')
-						return `(Tuple ${items})`
-					}
-					case 'hashMap': {
-						return `(HashMap ${printWithoutType(exp.items)})`
-					}
-					case 'union': {
-						const items = exp.items.map(printWithoutType).join(' ')
-						return `(Union ${items})`
-					}
-					default:
-						console.log(exp)
-						throw new Error('Cannot print this kind of type')
-				}
+				return printType(exp)
 			default:
 				throw new Error('Invalid type of Exp')
+		}
+	}
+
+	function printType(exp: ExpType) {
+		switch (exp.kind) {
+			case 'all':
+				return 'All'
+			case 'const':
+				if (exp.value.literal === 'const' && exp.value.value === null) {
+					return 'Null'
+				}
+				return `(Const ${printWithoutType(exp.value)})`
+			case 'value':
+				switch (exp.identifier) {
+					case 'number':
+						return 'Number'
+					case 'string':
+						return 'String'
+					default:
+						throw new Error('Cannot print this InfUnion')
+				}
+			case 'fn': {
+				const params = exp.params.map(printWithoutType).join(' ')
+				const out = printWithoutType(exp.out)
+				return `(-> [${params}] ${out})`
+			}
+			case 'vector':
+				return `(Vector ${printWithoutType(exp.items)})`
+			case 'tuple': {
+				const items = exp.items.map(printWithoutType).join(' ')
+				return `(Tuple ${items})`
+			}
+			case 'hashMap': {
+				return `(HashMap ${printWithoutType(exp.items)})`
+			}
+			case 'union': {
+				const items = exp.items.map(printWithoutType).join(' ')
+				return `(Union ${items})`
+			}
+			default:
+				console.log(exp)
+				throw new Error('Cannot print this kind of type')
 		}
 	}
 
