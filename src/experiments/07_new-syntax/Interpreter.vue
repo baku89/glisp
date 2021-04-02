@@ -1,5 +1,6 @@
 <template>
 	<div class="Interpreter">
+		<h2>REPL</h2>
 		<MinimalConsole :rep="rep" />
 	</div>
 </template>

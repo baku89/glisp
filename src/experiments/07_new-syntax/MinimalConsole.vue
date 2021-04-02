@@ -46,7 +46,7 @@ export default defineComponent({
 			if (!el.value) return
 
 			// eslint-disable-next-line no-undef
-			const jqconsole = ($(el.value) as any).jqconsole('', '>>>')
+			const jqconsole = ($(el.value) as any).jqconsole('', '', '   ')
 
 			loadHistory(jqconsole, props.name)
 
@@ -80,8 +80,9 @@ export default defineComponent({
 				})
 
 				// Setup Glisp Syntax
-				jqconsole.RegisterMatching('{', '}', 'brace')
-				jqconsole.RegisterMatching('(', ')', 'paren')
+				jqconsole.RegisterMatching('{', '}', 'hash-map')
+				jqconsole.RegisterMatching('(', ')', 'list')
+				jqconsole.RegisterMatching('[', ']', 'vector')
 			}
 			setupConsole()
 
@@ -124,6 +125,11 @@ export default defineComponent({
 	&-prompt, &-old-prompt
 		color var(--textcolor)
 
+		&:before
+			color var(--comment)
+			content '>> '
+			font-weight bold
+
 	&-output
 		color var(--constant)
 
@@ -133,9 +139,12 @@ export default defineComponent({
 	&-error
 		color var(--error)
 
-	.brace
-		color var(--error)
-
-	.paren
+	.list
 		color var(--highlight)
+
+	.vector
+		color var(--constant)
+
+	.hash-map
+		color var(--error)
 </style>
