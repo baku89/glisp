@@ -681,8 +681,32 @@ function resolveSymbol(sym: ExpSymbol): ExpForm {
 
 	return ref
 }
-export function evalExp(exp: ExpForm): ExpForm {
-	exp.parent = GlobalScope
+
+export class Interpreter {
+	private scope: ExpList
+	private vars: ExpHashMap
+
+	constructor() {
+		this.vars = createHashMap({})
+		this.vars.value['def'] = createFn((sym: ExpString, value: ExpForm) => {
+			this.vars.value[sym.value] = value
+			return value
+		}, createTypeFn([TypeString, TypeAll], TypeAll))
+
+		this.scope = createList(createSymbol('let'), this.vars)
+		this.scope.parent = GlobalScope
+	}
+
+	evalExp(exp: ExpForm): ExpForm {
+		return evalExp(exp, this.scope)
+	}
+}
+
+export function evalExp(
+	exp: ExpForm,
+	parent: ExpBase['parent'] = GlobalScope
+): ExpForm {
+	exp.parent = parent
 	return evalWithTrace(exp, [])
 
 	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
