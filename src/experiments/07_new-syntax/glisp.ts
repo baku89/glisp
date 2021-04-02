@@ -183,10 +183,6 @@ export function readStr(str: string): ExpForm {
 	return exp.value
 }
 
-function evalStr(str: string): ExpForm {
-	return evalExp(readStr(str))
-}
-
 const TypeAll: ExpType = {
 	literal: 'type',
 	kind: 'all',
@@ -402,7 +398,7 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 
 	switch (outer.kind) {
 		case 'all':
-			return inner.kind === 'all'
+			return true
 		case 'const':
 			return inner.kind === 'const' && equalExp(inner.value, inner.value)
 		case 'value':
@@ -463,10 +459,14 @@ function uniteType(items: ExpType[]): ExpType {
 		if (containsType(b, a)) {
 			return b
 		}
+
+		const aItems = a.kind === 'union' ? a.items : [a]
+		const bItems = b.kind === 'union' ? b.items : [b]
+
 		return {
 			literal: 'type',
 			kind: 'union',
-			items: [a, b],
+			items: [...aItems, ...bItems],
 		}
 	})
 }
@@ -490,7 +490,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Tuple: TypeTuple,
 	HashMap: TypeHashMap,
 	unite: createFn(
-		uniteType,
+		(items: ExpVector<ExpType>) => uniteType(items.value),
 		createTypeFn([createTypeVector(TypeType)], TypeType, true)
 	),
 	let: createFn(
@@ -648,14 +648,12 @@ function equalExp(a: ExpForm, b: ExpForm) {
 }
 
 function castType(base: ExpType, target: ExpType): ExpType | null {
-	if (containsType(base, target)) {
-		return null
-	}
-	if (containsType(target, base)) {
-		return base
-	}
 	if (equalType(base, target)) {
 		return target
+	}
+
+	if (containsType(target, base)) {
+		return base
 	}
 	return null
 }
@@ -994,21 +992,21 @@ export function printExp(form: ExpForm): string {
 				throw new Error('cannot print this type of const')
 			case 'value':
 				switch (exp.unionOf) {
-					case 'number':
+					case 'number': {
 						if (exp.str) {
 							return exp.str
-						} else {
-							const str = exp.value.toString()
-							switch (str) {
-								case 'Infinity':
-									return 'inf'
-								case '-Infinity':
-									return '-inf'
-								case 'NaN':
-									return 'nan'
-							}
-							return str
 						}
+						const str = exp.value.toString()
+						switch (str) {
+							case 'Infinity':
+								return 'inf'
+							case '-Infinity':
+								return '-inf'
+							case 'NaN':
+								return 'nan'
+						}
+						return str
+					}
 					case 'string':
 						return `"${exp.value}"`
 					default:
@@ -1110,6 +1108,8 @@ export function printExp(form: ExpForm): string {
 				const items = exp.items.map(printWithoutType).join(' ')
 				return `(Union ${items})`
 			}
+			case 'type':
+				return 'type!!!!'
 			default:
 				console.log(exp)
 				throw new Error('Cannot print this kind of type')
