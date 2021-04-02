@@ -8,9 +8,6 @@ const parser = peg.generate(ParserDefinition)
 
 const SymbolIdentiferRegex = /^[a-z_+\-*/=?<>][0-9a-z_+\-*/=?<>]*$/i
 
-// TODO: way too hacky
-const getTypeIdentifier = printExp as (type: ExpType) => string
-
 type ExpForm =
 	| ExpConst
 	| ExpValue
@@ -343,68 +340,9 @@ function createTypeFn(
 	}
 }
 
-const TypeUnion = createFn(
-	(items: ExpVector<ExpType>) => createTypeUnion(items.value),
-	createTypeFn([createTypeVector(TypeType)], TypeType, true)
-)
-
-function createTypeUnion(items: ExpType[]): ExpType {
-	// Flatten a nested union
-	// e.g. (Number | String) | Boolean => Number | String | Boolean
-
-	let itemsWithId: [string, ExpType][] = items
-		.flatMap(flatten)
-		.map(it => [getTypeIdentifier(it), it])
-
-	itemsWithId = _.uniqBy(itemsWithId, pair => pair[0])
-	items = _.sortBy(itemsWithId, pair => pair[0]).map(pair => pair[1])
-
-	if (items.length === 0) {
-		return TypeAll
-	}
-	if (items.length === 1) {
-		return items[0]
-	}
-
-	// Merge to largest
-	const mergedItems: (ExpType | null)[] = items
-
-	let largestType = items[0]
-	let largestIndex = 0
-	for (let i = 1; i < items.length; i++) {
-		const matchedType = castType(items[i], largestType)
-
-		if (matchedType === null) {
-			mergedItems[largestIndex] = null
-
-			largestType = items[i]
-			largestIndex = i
-		}
-	}
-
-	items = mergedItems.filter(it => it !== null) as ExpType[]
-
-	return {
-		literal: 'type',
-		kind: 'union',
-		items,
-	}
-
-	function flatten(item: ExpType): ExpType[] {
-		if (item.kind === 'union') {
-			return item.items.flatMap(flatten)
-		} else {
-			return [item]
-		}
-	}
-}
-
 const TypeConst = createFn(
 	createTypeConst,
-	createTypeFn(
-		[createTypeUnion([TypeBoolean, TypeNumber, TypeString])],
-		TypeType
-	)
+	createTypeFn([uniteType([TypeBoolean, TypeNumber, TypeString])], TypeType)
 )
 
 function createTypeConst(value: ExpTypeConst['value']): ExpTypeConst {
@@ -427,6 +365,8 @@ function equalType(a: ExpType, b: ExpType): boolean {
 			return b.kind === 'const' && equalExp(a.value, b.value)
 		case 'value':
 			return b.kind === 'value' && a.identifier === b.identifier
+		case 'type':
+			return b.kind === 'type'
 		case 'union': {
 			if (b.kind !== 'union') return false
 			if (a.items.length !== b.items.length) {
@@ -450,8 +390,8 @@ function equalType(a: ExpType, b: ExpType): boolean {
 				equalType(a.out, b.out) &&
 				_.zipWith(a.params, b.params, equalType).every(_.identity)
 			)
-		default:
-			throw new Error('Cannot determine equality of this two types')
+		// default:
+		// 	throw new Error('Cannot determine equality of this two types')
 	}
 }
 
@@ -460,28 +400,75 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 		return true
 	}
 
-	if (outer.kind === 'all') {
-		return true
-	}
-
-	if (outer.kind === 'const') {
-		return inner.kind === 'const' && outer.value === inner.value
-	}
-
-	if (outer.kind === 'value') {
-		if (inner.kind === 'value') {
-			return outer.identifier === inner.identifier
-		}
-
-		if (inner.kind === 'const') {
-			return (
-				inner.value.literal === 'value' &&
-				inner.value.unionOf === outer.identifier
+	switch (outer.kind) {
+		case 'all':
+			return inner.kind === 'all'
+		case 'const':
+			return inner.kind === 'const' && equalExp(inner.value, inner.value)
+		case 'value':
+			switch (inner.kind) {
+				case 'value':
+					return outer.identifier === inner.identifier
+				case 'const':
+					return (
+						inner.value.literal === 'value' &&
+						inner.value.unionOf === outer.identifier
+					)
+				default:
+					return false
+			}
+		case 'type':
+			throw new Error('Cannot determine containsType for typetype')
+		case 'union': {
+			const innerItems = inner.kind === 'union' ? inner.items : [inner]
+			if (outer.items.length < innerItems.length) {
+				return false
+			}
+			return innerItems.every(ii =>
+				outer.items.find(oi => containsType(oi, ii))
 			)
 		}
+		case 'vector':
+		case 'hashMap':
+			return inner.kind === outer.kind && containsType(outer.items, inner.items)
+		case 'tuple':
+			return (
+				inner.kind === 'tuple' &&
+				outer.items.length < inner.items.length &&
+				_.zipWith(
+					outer.items.slice(0, inner.items.length),
+					inner.items,
+					equalType
+				).every(_.identity)
+			)
+		case 'fn':
+			return (
+				inner.kind === 'fn' &&
+				outer.params.length > inner.params.length &&
+				containsType(outer.out, outer.out) &&
+				_.zipWith(
+					outer.params.slice(0, inner.params.length),
+					inner.params,
+					containsType
+				).every(_.identity)
+			)
 	}
+}
 
-	throw new Error('Cannot determine containsType')
+function uniteType(items: ExpType[]): ExpType {
+	return items.reduce((a, b) => {
+		if (containsType(a, b)) {
+			return a
+		}
+		if (containsType(b, a)) {
+			return b
+		}
+		return {
+			literal: 'type',
+			kind: 'union',
+			items: [a, b],
+		}
+	})
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
@@ -502,7 +489,10 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Vector: TypeVector,
 	Tuple: TypeTuple,
 	HashMap: TypeHashMap,
-	Union: TypeUnion,
+	unite: createFn(
+		uniteType,
+		createTypeFn([createTypeVector(TypeType)], TypeType, true)
+	),
 	let: createFn(
 		(_, body: ExpForm) => body,
 		createTypeFn([createTypeHashMap(TypeAll), TypeAll], TypeAll)
@@ -584,12 +574,12 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 		}
 		case 'vector': {
 			const itemsTypes = exp.value.map(resolveType)
-			const items = createTypeUnion(itemsTypes)
+			const items = uniteType(itemsTypes)
 			return createTypeVector(items)
 		}
 		case 'hashMap': {
 			const itemsTypes = Object.values(exp.value).map(resolveType)
-			const items = createTypeUnion(itemsTypes)
+			const items = uniteType(itemsTypes)
 			return createTypeHashMap(items)
 		}
 		default:
@@ -657,89 +647,16 @@ function equalExp(a: ExpForm, b: ExpForm) {
 	return false
 }
 
-function castType(target: ExpType, candidate: ExpType): ExpType | null {
-	// Exact match
-	if (candidate === target) {
-		return candidate
+function castType(base: ExpType, target: ExpType): ExpType | null {
+	if (containsType(base, target)) {
+		return null
 	}
-
-	// All match
-	if (candidate.kind === 'all') {
+	if (containsType(target, base)) {
+		return base
+	}
+	if (equalType(base, target)) {
 		return target
 	}
-
-	// Const match
-	if (candidate.kind === 'const') {
-		if (target.kind !== 'const') {
-			return null
-		}
-		return equalExp(candidate.value, target.value) ? candidate : null
-	}
-
-	// Function match
-	if (candidate.kind === 'fn') {
-		if (target.kind !== 'fn') {
-			return null
-		}
-
-		// Parameter length
-		if (target.params.length < candidate.params.length) {
-			return null
-		}
-
-		// Out type match
-		const out = castType(target.out, candidate.out)
-
-		if (out === null) {
-			return null
-		}
-
-		// All parameters match
-		const params = candidate.params.map((c, i) => castType(target.params[i], c))
-
-		if (params.some(t => t === null)) {
-			return null
-		}
-
-		return createTypeFn(params as ExpType[], out)
-	}
-
-	// Vector match
-	if (candidate.kind === 'vector') {
-		if (target.kind !== 'vector') {
-			return null
-		}
-
-		const items = castType(target.items, candidate.items)
-
-		if (items === null) {
-			return null
-		}
-
-		return createTypeVector(items)
-	}
-
-	// Union match
-	if (candidate.kind === 'union') {
-		const targetItems = target.kind === 'union' ? target.items : [target]
-		const items = _.intersectionBy(
-			targetItems,
-			candidate.items,
-			getTypeIdentifier
-		)
-
-		if (items.length < targetItems.length) {
-			return null
-		}
-
-		return createTypeUnion(items)
-	}
-
-	// Atomic match
-	if (candidate.kind === target.kind) {
-		return target
-	}
-
 	return null
 }
 
@@ -900,7 +817,7 @@ export function evalExp(exp: ExpForm): ExpForm {
 						value: rest.slice(minParamLen),
 					}
 					const lastType = createTypeVector(
-						createTypeUnion(paramsType.slice(minParamLen))
+						uniteType(paramsType.slice(minParamLen))
 					)
 
 					// Replace the variadic part with the vector
