@@ -10,7 +10,7 @@ const SymbolIdentiferRegex = /^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i
 
 type ExpForm =
 	| ExpConst
-	| ExpValue
+	| ExpInfUnionValue
 	| ExpSymbol
 	| ExpList
 	| ExpVector
@@ -48,19 +48,19 @@ interface ExpBoolean extends ExpBase {
 type ExpConst = ExpNull | ExpBoolean
 
 interface ExpNumber extends ExpBase {
-	literal: 'value'
+	literal: 'infUnionValue'
 	unionOf: 'number'
 	value: number
 	str?: string
 }
 
 interface ExpString extends ExpBase {
-	literal: 'value'
+	literal: 'infUnionValue'
 	unionOf: 'string'
 	value: string
 }
 
-type ExpValue = ExpNumber | ExpString
+type ExpInfUnionValue = ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
 	literal: 'symbol'
@@ -109,8 +109,8 @@ interface ExpTypeAll extends ExpTypeBase {
 }
 
 interface ExpTypeValue extends ExpTypeBase {
-	kind: 'value'
-	identifier: ExpBoolean['unionOf'] | ExpValue['unionOf']
+	kind: 'infUnionValue'
+	identifier: ExpBoolean['unionOf'] | ExpInfUnionValue['unionOf']
 }
 
 interface ExpTypeType extends ExpTypeBase {
@@ -167,7 +167,7 @@ type ExpType =
 	| ExpTypeHashMap
 	| ExpTypeUnion
 
-type ExpTypeN = ExpConst | ExpValue | ExpType
+type ExpTypeN = ExpConst | ExpInfUnionValue | ExpType
 
 type IExpFnValue = (...params: ExpForm[]) => ExpForm
 
@@ -228,13 +228,13 @@ const TypeConst = uniteType([createNull(), TypeBoolean])
 
 const TypeNumber: ExpTypeValue = {
 	literal: 'type',
-	kind: 'value',
+	kind: 'infUnionValue',
 	identifier: 'number',
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'value',
+			kind: 'infUnionValue',
 			identifier: 'number',
 		})
 	),
@@ -242,13 +242,13 @@ const TypeNumber: ExpTypeValue = {
 
 const TypeString: ExpTypeValue = {
 	literal: 'type',
-	kind: 'value',
+	kind: 'infUnionValue',
 	identifier: 'string',
 	create: createFn(
 		(v: ExpString = createString('')) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'value',
+			kind: 'infUnionValue',
 			identifier: 'string',
 		})
 	),
@@ -356,7 +356,7 @@ function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 
 	switch (a.literal) {
 		case 'const':
-		case 'value':
+		case 'infUnionValue':
 			return equalExp(a, b)
 		case 'type':
 			if (b.literal !== 'type') {
@@ -365,8 +365,8 @@ function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 			switch (a.kind) {
 				case 'all':
 					return b.kind === 'all'
-				case 'value':
-					return b.kind === 'value' && a.identifier === b.identifier
+				case 'infUnionValue':
+					return b.kind === 'infUnionValue' && a.identifier === b.identifier
 				case 'type':
 					return b.kind === 'type'
 				case 'union': {
@@ -404,15 +404,15 @@ function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 		return true
 	}
 
-	if (outer.literal === 'const' || outer.literal === 'value') {
+	if (outer.literal === 'const' || outer.literal === 'infUnionValue') {
 		return equalExp(outer, inner)
 	}
 
 	switch (outer.kind) {
 		case 'all':
 			return true
-		case 'value':
-			if (inner.literal === 'value') {
+		case 'infUnionValue':
+			if (inner.literal === 'infUnionValue') {
 				return outer.identifier === inner.unionOf
 			}
 			if (inner.literal === 'type' && inner.kind === 'union') {
@@ -572,7 +572,7 @@ const GlobalScope = createList(
 			(cond: ExpForm, then: ExpForm, _else: ExpForm) => {
 				if (
 					cond.literal !== 'const' &&
-					cond.literal !== 'value' &&
+					cond.literal !== 'infUnionValue' &&
 					cond.literal !== 'type'
 				) {
 					return then
@@ -599,7 +599,7 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 				return TypeBoolean
 			}
 			throw new Error('Invalid type of const')
-		case 'value':
+		case 'infUnionValue':
 			switch (exp.unionOf) {
 				case 'number':
 					return TypeNumber
@@ -689,9 +689,11 @@ function equalExp(a: ExpForm, b: ExpForm) {
 		return b.literal === 'const' && a.value === b.value
 	}
 
-	if (a.literal === 'value') {
+	if (a.literal === 'infUnionValue') {
 		return (
-			b.literal === 'value' && a.unionOf === b.unionOf && a.value === b.value
+			b.literal === 'infUnionValue' &&
+			a.unionOf === b.unionOf &&
+			a.value === b.value
 		)
 	}
 
@@ -792,7 +794,7 @@ export function evalExp(
 
 		switch (exp.literal) {
 			case 'const':
-			case 'value':
+			case 'infUnionValue':
 			case 'type':
 			case 'fn':
 				return exp
@@ -978,7 +980,7 @@ function createBoolean(value: boolean): ExpBoolean {
 
 function createNumber(value: number): ExpNumber {
 	return {
-		literal: 'value',
+		literal: 'infUnionValue',
 		unionOf: 'number',
 		value,
 	}
@@ -986,7 +988,7 @@ function createNumber(value: number): ExpNumber {
 
 function createString(value: string): ExpString {
 	return {
-		literal: 'value',
+		literal: 'infUnionValue',
 		unionOf: 'string',
 		value,
 	}
@@ -1069,7 +1071,7 @@ export function printExp(form: ExpForm): string {
 		if (SymbolIdentiferRegex.test(value)) {
 			return {literal: 'symbol', value, str: value}
 		} else {
-			return {literal: 'value', unionOf: 'string', value}
+			return {literal: 'infUnionValue', unionOf: 'string', value}
 		}
 	}
 
@@ -1082,7 +1084,7 @@ export function printExp(form: ExpForm): string {
 					return exp.value ? 'true' : 'false'
 				}
 				throw new Error('cannot print this type of const')
-			case 'value':
+			case 'infUnionValue':
 				switch (exp.unionOf) {
 					case 'number': {
 						if (exp.str) {
@@ -1168,7 +1170,7 @@ export function printExp(form: ExpForm): string {
 		switch (exp.kind) {
 			case 'all':
 				return ':All'
-			case 'value':
+			case 'infUnionValue':
 				switch (exp.identifier) {
 					case 'number':
 						return ':Number'

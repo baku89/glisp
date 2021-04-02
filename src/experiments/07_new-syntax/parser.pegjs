@@ -21,7 +21,7 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]*)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			literal: 'value',
+			literal: 'infUnionValue',
 			unionOf: 'number',
 			value: parseInt(str),
 			str
@@ -31,7 +31,7 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			literal: 'value',
+			literal: 'infUnionValue',
 			unionOf: 'number',
 			value: parseFloat(str),
 			str
@@ -41,7 +41,7 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			literal: 'value',
+			literal: 'infUnionValue',
 			unionOf: 'number',
 			value: parseFloat(str),
 			str
@@ -51,7 +51,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			literal: 'value',
+			literal: 'infUnionValue',
 			unionOf: 'number',
 			value: parseInt(str),
 			str
@@ -62,7 +62,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 String = value:StringLiteral
 	{
 		return {
-			literal: 'value',
+			literal: 'infUnionValue',
 			unionOf: 'string',
 			value
 		}
