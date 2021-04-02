@@ -16,13 +16,13 @@ type ExpForm =
 	| ExpVector
 	| ExpHashMap
 	| ExpFn
-	| ExpType
+	| ExpTypeComplex
 	| ExpRaw
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
 	type?: {
-		value: ExpType | ExpSymbol
+		value: ExpTypeComplex | ExpSymbol
 		delimiters?: string[]
 	}
 	dep?: Set<ExpSymbol | ExpList>
@@ -98,77 +98,73 @@ interface ExpHashMap extends ExpBase {
 }
 
 // Types
-interface ExpTypeBase extends ExpBase {
+interface ExpTypeComplexBase extends ExpBase {
 	literal: 'type'
 	create?: ExpFn
 	meta?: ExpHashMap
 }
 
-interface ExpTypeAll extends ExpTypeBase {
+interface ExpTypeAll extends ExpTypeComplexBase {
 	kind: 'all'
 }
 
-interface ExpTypeConst extends ExpTypeBase {
-	kind: 'const'
-	value: ExpConst | ExpValue
-}
-
-interface ExpTypeValue extends ExpTypeBase {
+interface ExpTypeValue extends ExpTypeComplexBase {
 	kind: 'value'
 	identifier: ExpBoolean['unionOf'] | ExpValue['unionOf']
 }
 
-interface ExpTypeType extends ExpTypeBase {
+interface ExpTypeTypeComplex extends ExpTypeComplexBase {
 	kind: 'type'
 }
 
-interface ExpTypeFnFixed extends ExpTypeBase {
+interface ExpComplexTypeFnFixed extends ExpTypeComplexBase {
 	kind: 'fn'
-	params: ExpType[]
-	out: ExpType
+	params: ExpTypeN[]
+	out: ExpTypeN
 	variadic?: false
 }
 
-interface ExpTypeFnVariadic extends ExpTypeBase {
+interface ExpComplexTypeFnVariadic extends ExpTypeComplexBase {
 	kind: 'fn'
-	params: [...ExpType[], ExpTypeVector]
-	out: ExpType
+	params: [...ExpTypeN[], ExpTypeVector]
+	out: ExpTypeN
 	variadic: true
 }
 
-type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
+type ExpTypeFn = ExpComplexTypeFnFixed | ExpComplexTypeFnVariadic
 
-interface ExpTypeVector extends ExpTypeBase {
+interface ExpTypeVector extends ExpTypeComplexBase {
 	kind: 'vector'
-	items: ExpType
+	items: ExpTypeN
 }
 
-interface ExpTypeTuple extends ExpTypeBase {
+interface ExpTypeTuple extends ExpTypeComplexBase {
 	kind: 'tuple'
-	items: ExpType[]
+	items: ExpTypeN[]
 }
 
-interface ExpTypeHashMap extends ExpTypeBase {
+interface ExpTypeHashMap extends ExpTypeComplexBase {
 	kind: 'hashMap'
-	items: ExpType
+	items: ExpTypeN
 }
 
-interface ExpTypeUnion extends ExpTypeBase {
+interface ExpTypeUnion extends ExpTypeComplexBase {
 	kind: 'union'
-	items: ExpType[]
+	items: ExpTypeN[]
 	destructive: boolean
 }
 
-type ExpType =
+type ExpTypeComplex =
 	| ExpTypeAll
-	| ExpTypeConst
 	| ExpTypeValue
-	| ExpTypeType
+	| ExpTypeTypeComplex
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeTuple
 	| ExpTypeHashMap
 	| ExpTypeUnion
+
+type ExpTypeN = ExpConst | ExpValue | ExpTypeComplex
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -185,7 +181,7 @@ export function readStr(str: string): ExpForm {
 	return exp.value
 }
 
-const TypeAll: ExpType = {
+const TypeAll: ExpTypeAll = {
 	literal: 'type',
 	kind: 'all',
 	create: createFn(
@@ -194,35 +190,12 @@ const TypeAll: ExpType = {
 	),
 }
 
-const TypeNull: ExpTypeConst = {
-	literal: 'type',
-	kind: 'const',
-	value: createNull(),
-	create: createFn(
-		() => createNull(),
-		createTypeFn([], {literal: 'type', kind: 'const', value: createNull()})
-	),
-}
+const TypeBoolean = uniteType(
+	[createBoolean(false), createBoolean(true)],
+	false
+)
 
-const TypeBooleanItems = [
-	createTypeConst(createBoolean(false)),
-	createTypeConst(createBoolean(true)),
-]
-const TypeBoolean: ExpTypeUnion = {
-	literal: 'type',
-	kind: 'union',
-	items: TypeBooleanItems,
-	create: createFn(
-		(v: ExpBoolean = createBoolean(false)) => v,
-		createTypeFn([], {
-			literal: 'type',
-			kind: 'union',
-			items: TypeBooleanItems,
-			destructive: false,
-		})
-	),
-	destructive: true,
-}
+const TypeConst = uniteType([createNull(), TypeBoolean])
 
 const TypeNumber: ExpTypeValue = {
 	literal: 'type',
@@ -252,7 +225,9 @@ const TypeString: ExpTypeValue = {
 	),
 }
 
-const TypeType: ExpTypeType = {
+const TypeValue = uniteType([TypeNumber, TypeString])
+
+const TypeTypeComplex: ExpTypeTypeComplex = {
 	literal: 'type',
 	kind: 'type',
 	create: createFn(
@@ -264,7 +239,9 @@ const TypeType: ExpTypeType = {
 	),
 }
 
-function createTypeVector(items: ExpType): ExpTypeVector {
+const TypeTypeN = uniteType([TypeConst, TypeValue, TypeTypeComplex])
+
+function createTypeVector(items: ExpTypeN): ExpTypeVector {
 	return {
 		literal: 'type',
 		kind: 'vector',
@@ -272,12 +249,7 @@ function createTypeVector(items: ExpType): ExpTypeVector {
 	}
 }
 
-const TypeTuple = createFn(
-	(items: ExpVector<ExpType>) => createTypeTuple(items.value),
-	createTypeFn([createTypeVector(TypeType)], TypeType, true)
-)
-
-function createTypeTuple(items: ExpType[]): ExpType {
+function createTypeTuple(items: ExpTypeN[]): ExpTypeN {
 	switch (items.length) {
 		case 0:
 			return TypeAll
@@ -294,10 +266,10 @@ function createTypeTuple(items: ExpType[]): ExpType {
 
 const TypeHashMap = createFn(
 	createTypeHashMap,
-	createTypeFn([TypeType], TypeType)
+	createTypeFn([TypeTypeComplex], TypeTypeComplex)
 )
 
-function createTypeHashMap(items: ExpType): ExpTypeHashMap {
+function createTypeHashMap(items: ExpTypeN): ExpTypeHashMap {
 	return {
 		literal: 'type',
 		kind: 'hashMap',
@@ -306,20 +278,24 @@ function createTypeHashMap(items: ExpType): ExpTypeHashMap {
 }
 
 const TypeFn = createFn(
-	(params: ExpVector<ExpType>, out: ExpType) => createTypeFn(params.value, out),
-	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
+	(params: ExpVector<ExpTypeComplex>, out: ExpTypeComplex) =>
+		createTypeFn(params.value, out),
+	createTypeFn(
+		[createTypeVector(TypeTypeComplex), TypeTypeComplex],
+		TypeTypeComplex
+	)
 )
 
 function createTypeFn(
-	params: ExpType[],
-	out: ExpType,
+	params: ExpTypeN[],
+	out: ExpTypeN,
 	variadic = false
 ): ExpTypeFn {
 	if (variadic) {
 		const fixedParams = params.slice(0, -1)
 		const lastParam = params[params.length - 1]
-		if (lastParam.kind !== 'vector') {
-			throw new Error('Last parameter of ')
+		if (lastParam.literal !== 'type' || lastParam.kind !== 'vector') {
+			throw new Error('Last parameter is not a vector type')
 		}
 		return {
 			literal: 'type',
@@ -339,87 +315,82 @@ function createTypeFn(
 	}
 }
 
-const TypeConst = createFn(
-	createTypeConst,
-	createTypeFn([uniteType([TypeBoolean, TypeNumber, TypeString])], TypeType)
-)
-
-function createTypeConst(value: ExpTypeConst['value']): ExpTypeConst {
-	return {
-		literal: 'type',
-		kind: 'const',
-		value,
-	}
-}
-
-function equalType(a: ExpType, b: ExpType): boolean {
+function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 	if (a === b) {
 		return true
 	}
 
-	switch (a.kind) {
-		case 'all':
-			return b.kind === 'all'
+	switch (a.literal) {
 		case 'const':
-			return b.kind === 'const' && equalExp(a.value, b.value)
 		case 'value':
-			return b.kind === 'value' && a.identifier === b.identifier
+			return equalExp(a, b)
 		case 'type':
-			return b.kind === 'type'
-		case 'union': {
-			if (b.kind !== 'union') return false
-			if (a.items.length !== b.items.length) {
+			if (b.literal !== 'type') {
 				return false
 			}
-			return _.differenceWith(a.items, b.items, equalType).length === 0
-		}
-		case 'vector':
-		case 'hashMap':
-			return b.kind === a.kind && equalType(a.items, b.items)
-		case 'tuple':
-			return (
-				b.kind === 'tuple' &&
-				a.items.length === b.items.length &&
-				_.zipWith(a.items, b.items, equalType).every(_.identity)
-			)
-		case 'fn':
-			return (
-				b.kind === 'fn' &&
-				a.params.length === b.params.length &&
-				equalType(a.out, b.out) &&
-				_.zipWith(a.params, b.params, equalType).every(_.identity)
-			)
-		// default:
-		// 	throw new Error('Cannot determine equality of this two types')
+			switch (a.kind) {
+				case 'all':
+					return b.kind === 'all'
+				case 'value':
+					return b.kind === 'value' && a.identifier === b.identifier
+				case 'type':
+					return b.kind === 'type'
+				case 'union': {
+					if (b.kind !== 'union') return false
+					if (a.items.length !== b.items.length) {
+						return false
+					}
+					return _.differenceWith(a.items, b.items, equalType).length === 0
+				}
+				case 'vector':
+				case 'hashMap':
+					return b.kind === a.kind && equalType(a.items, b.items)
+				case 'tuple':
+					return (
+						b.kind === 'tuple' &&
+						a.items.length === b.items.length &&
+						_.zipWith(a.items, b.items, equalType).every(_.identity)
+					)
+				case 'fn':
+					return (
+						b.kind === 'fn' &&
+						a.params.length === b.params.length &&
+						equalType(a.out, b.out) &&
+						_.zipWith(a.params, b.params, equalType).every(_.identity)
+					)
+				// default:
+				// 	throw new Error('Cannot determine equality of this two types')
+			}
 	}
 }
 
-function containsType(outer: ExpType, inner: ExpType): boolean {
+function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 	if (outer === inner) {
 		return true
+	}
+
+	if (outer.literal === 'const' || outer.literal === 'value') {
+		return equalExp(outer, inner)
 	}
 
 	switch (outer.kind) {
 		case 'all':
 			return true
-		case 'const':
-			return inner.kind === 'const' && equalExp(inner.value, inner.value)
 		case 'value':
-			switch (inner.kind) {
-				case 'value':
-					return outer.identifier === inner.identifier
-				case 'const':
-					return (
-						inner.value.literal === 'value' &&
-						inner.value.unionOf === outer.identifier
-					)
-				default:
-					return false
+			if (inner.literal === 'value') {
+				return outer.identifier === inner.unionOf
 			}
+			if (inner.literal === 'type' && inner.kind === 'union') {
+				return inner.items.every(ii => containsType(outer, ii))
+			}
+			return false
 		case 'type':
-			throw new Error('Cannot determine containsType for typetype')
+			return inner.literal === 'type'
 		case 'union': {
-			const innerItems = inner.kind === 'union' ? inner.items : [inner]
+			const innerItems =
+				inner.literal === 'type' && inner.kind === 'union'
+					? inner.items
+					: [inner]
 			if (outer.items.length < innerItems.length) {
 				return false
 			}
@@ -429,9 +400,14 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 		}
 		case 'vector':
 		case 'hashMap':
-			return inner.kind === outer.kind && containsType(outer.items, inner.items)
+			return (
+				inner.literal === 'type' &&
+				inner.kind === outer.kind &&
+				containsType(outer.items, inner.items)
+			)
 		case 'tuple':
 			return (
+				inner.literal === 'type' &&
 				inner.kind === 'tuple' &&
 				outer.items.length < inner.items.length &&
 				_.zipWith(
@@ -442,6 +418,7 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 			)
 		case 'fn':
 			return (
+				inner.literal === 'type' &&
 				inner.kind === 'fn' &&
 				outer.params.length > inner.params.length &&
 				containsType(outer.out, outer.out) &&
@@ -454,8 +431,8 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 	}
 }
 
-function uniteType(items: ExpType[]): ExpType {
-	return items.reduce((a, b) => {
+function uniteType(items: ExpTypeN[], destructive = true): ExpTypeN {
+	const unionType = items.reduce((a, b) => {
 		if (containsType(a, b)) {
 			return a
 		}
@@ -463,8 +440,14 @@ function uniteType(items: ExpType[]): ExpType {
 			return b
 		}
 
-		const aItems = a.kind === 'union' && !a.destructive ? a.items : [a]
-		const bItems = b.kind === 'union' && !b.destructive ? b.items : [b]
+		const aItems =
+			a.literal === 'type' && a.kind === 'union' && a.destructive
+				? a.items
+				: [a]
+		const bItems =
+			b.literal === 'type' && b.kind === 'union' && b.destructive
+				? b.items
+				: [b]
 
 		return {
 			literal: 'type',
@@ -473,6 +456,12 @@ function uniteType(items: ExpType[]): ExpType {
 			destructive: true,
 		}
 	})
+
+	if (unionType.literal === 'type' && unionType.kind === 'union') {
+		return {...unionType, destructive}
+	}
+
+	return unionType
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
@@ -483,19 +472,21 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	'-inf': createNumber(-Infinity),
 	nan: createNumber(NaN),
 	All: TypeAll,
-	Null: TypeNull,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
 	String: TypeString,
-	Type: TypeType,
-	Const: TypeConst,
+	Type: TypeTypeN,
+	TypeComplex: TypeTypeComplex,
 	'->': TypeFn,
-	Vector: createFn(createTypeVector, createTypeFn([TypeType], TypeType)),
-	Tuple: TypeTuple,
+	Vector: createFn(createTypeVector, createTypeFn([TypeTypeN], TypeTypeN)),
+	Tuple: createFn(
+		(items: ExpVector<ExpTypeN>) => createTypeTuple(items.value),
+		createTypeFn([createTypeVector(TypeTypeN)], TypeTypeN, true)
+	),
 	HashMap: TypeHashMap,
-	unite: createFn(
-		(items: ExpVector<ExpType>) => uniteType(items.value),
-		createTypeFn([createTypeVector(TypeType)], TypeType, true)
+	Union: createFn(
+		(items: ExpVector<ExpTypeN>) => uniteType(items.value),
+		createTypeFn([createTypeVector(TypeTypeN)], TypeTypeN, true)
 	),
 	let: createFn(
 		(_, body: ExpForm) => body,
@@ -527,17 +518,17 @@ const GlobalScope = createList(
 		),
 		type: createFn(
 			(v: any) => resolveType(v),
-			createTypeFn([TypeAll], TypeType)
+			createTypeFn([TypeAll], TypeTypeN)
 		),
 		'cast-type': createFn(function (target: any, candidate: any) {
 			return castType(target, candidate) || createNull()
-		}, createTypeFn([TypeType, TypeType], TypeType)),
+		}, createTypeFn([TypeTypeN, TypeTypeN], TypeTypeN)),
 		'equal-type': createFn(function (a: any, b: any) {
 			return createBoolean(equalType(a, b))
-		}, createTypeFn([TypeType, TypeType], TypeBoolean)),
+		}, createTypeFn([TypeTypeN, TypeTypeN], TypeBoolean)),
 		'contains-type': createFn(
 			(a: any, b: any) => createBoolean(containsType(a, b)),
-			createTypeFn([TypeType, TypeType], TypeBoolean)
+			createTypeFn([TypeTypeN, TypeTypeN], TypeBoolean)
 		),
 		literal: createFn(
 			(v: any) => createString(v.literal),
@@ -546,11 +537,11 @@ const GlobalScope = createList(
 	})
 )
 
-function getIntrinsticType(exp: ExpForm): ExpType {
+function getIntrinsticType(exp: ExpForm): ExpTypeN {
 	switch (exp.literal) {
 		case 'const':
 			if (exp.value === null) {
-				return TypeNull
+				return exp
 			} else if (typeof exp.value === 'boolean') {
 				return TypeBoolean
 			}
@@ -565,13 +556,16 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 					throw new Error('Invalid unionOf type')
 			}
 		case 'type':
-			return TypeType
+			return TypeTypeComplex
 		case 'list': {
 			let fnType = resolveType(exp.value[0])
+			if (fnType.literal !== 'type') {
+				throw new Error('First element must be a function')
+			}
 			if (fnType.create) {
 				fnType = resolveType(fnType.create)
 			}
-			if (fnType.kind === 'fn') {
+			if (fnType.literal === 'type' && fnType.kind === 'fn') {
 				return fnType.out
 			}
 			throw new Error('First element of list is not callable (resolve)')
@@ -591,8 +585,8 @@ function getIntrinsticType(exp: ExpForm): ExpType {
 	}
 }
 
-function resolveType(exp: ExpForm): ExpType {
-	let expType: ExpType = TypeAll
+function resolveType(exp: ExpForm): ExpTypeN {
+	let expType: ExpTypeN = TypeAll
 
 	// Resolve the symbol first
 	if (exp.literal === 'symbol') {
@@ -651,7 +645,7 @@ function equalExp(a: ExpForm, b: ExpForm) {
 	return false
 }
 
-function castType(base: ExpType, target: ExpType): ExpType | null {
+function castType(base: ExpTypeN, target: ExpTypeN): ExpTypeN | null {
 	if (equalType(base, target)) {
 		return target
 	}
@@ -794,8 +788,8 @@ export function evalExp(exp: ExpForm): ExpForm {
 				// Type Checking
 				const fnType = resolveType(fn)
 
-				if (fnType.kind !== 'fn') {
-					throw new Error(`Not a fn type but ${fnType.kind}`)
+				if (fnType.literal !== 'type' || fnType.kind !== 'fn') {
+					throw new Error(`Not a fn type but ${printExp(fnType)}`)
 				}
 
 				const paramsDefType = fnType.params
@@ -914,7 +908,7 @@ function createSymbol(value: string): ExpSymbol {
 
 function createFn(
 	value: string | ((...params: any[]) => any),
-	type?: ExpType
+	type?: ExpTypeFn
 ): ExpFn {
 	const fn: ExpFn = {
 		literal: 'fn',
@@ -1071,21 +1065,16 @@ export function printExp(form: ExpForm): string {
 			case 'fn':
 				return 'fn'
 			case 'type':
-				return printType(exp)
+				return printTypeComplex(exp)
 			default:
 				throw new Error('Invalid type of Exp')
 		}
 	}
 
-	function printType(exp: ExpType) {
+	function printTypeComplex(exp: ExpTypeComplex) {
 		switch (exp.kind) {
 			case 'all':
 				return 'All'
-			case 'const':
-				if (exp.value.literal === 'const' && exp.value.value === null) {
-					return 'Null'
-				}
-				return `(Const ${printWithoutType(exp.value)})`
 			case 'value':
 				switch (exp.identifier) {
 					case 'number':
@@ -1117,7 +1106,7 @@ export function printExp(form: ExpForm): string {
 				return `(Union ${items})`
 			}
 			case 'type':
-				return 'type!!!!'
+				return 'Type'
 			default:
 				console.log(exp)
 				throw new Error('Cannot print this kind of type')
