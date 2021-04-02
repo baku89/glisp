@@ -6,7 +6,7 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-const SymbolIdentiferRegex = /^[a-z_+\-*/=?<>][0-9a-z_+\-*/=?<>]*$/i
+const SymbolIdentiferRegex = /^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i
 
 type ExpForm =
 	| ExpConst
@@ -16,13 +16,13 @@ type ExpForm =
 	| ExpVector
 	| ExpHashMap
 	| ExpFn
-	| ExpTypeComplex
+	| ExpType
 	| ExpRaw
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
 	type?: {
-		value: ExpTypeComplex | ExpSymbol
+		value: ExpType | ExpSymbol
 		delimiters?: string[]
 	}
 	dep?: Set<ExpSymbol | ExpList>
@@ -98,73 +98,73 @@ interface ExpHashMap extends ExpBase {
 }
 
 // Types
-interface ExpTypeComplexBase extends ExpBase {
+interface ExpTypeBase extends ExpBase {
 	literal: 'type'
 	create?: ExpFn
 	meta?: ExpHashMap
 }
 
-interface ExpTypeAll extends ExpTypeComplexBase {
+interface ExpTypeAll extends ExpTypeBase {
 	kind: 'all'
 }
 
-interface ExpTypeValue extends ExpTypeComplexBase {
+interface ExpTypeValue extends ExpTypeBase {
 	kind: 'value'
 	identifier: ExpBoolean['unionOf'] | ExpValue['unionOf']
 }
 
-interface ExpTypeTypeComplex extends ExpTypeComplexBase {
+interface ExpTypeType extends ExpTypeBase {
 	kind: 'type'
 }
 
-interface ExpComplexTypeFnFixed extends ExpTypeComplexBase {
+interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpTypeN[]
 	out: ExpTypeN
 	variadic?: false
 }
 
-interface ExpComplexTypeFnVariadic extends ExpTypeComplexBase {
+interface ExpTypeFnVariadic extends ExpTypeBase {
 	kind: 'fn'
 	params: [...ExpTypeN[], ExpTypeVector]
 	out: ExpTypeN
 	variadic: true
 }
 
-type ExpTypeFn = ExpComplexTypeFnFixed | ExpComplexTypeFnVariadic
+type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
 
-interface ExpTypeVector extends ExpTypeComplexBase {
+interface ExpTypeVector extends ExpTypeBase {
 	kind: 'vector'
 	items: ExpTypeN
 }
 
-interface ExpTypeTuple extends ExpTypeComplexBase {
+interface ExpTypeTuple extends ExpTypeBase {
 	kind: 'tuple'
 	items: ExpTypeN[]
 }
 
-interface ExpTypeHashMap extends ExpTypeComplexBase {
+interface ExpTypeHashMap extends ExpTypeBase {
 	kind: 'hashMap'
 	items: ExpTypeN
 }
 
-interface ExpTypeUnion extends ExpTypeComplexBase {
+interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpTypeN[]
 	destructive: boolean
 }
 
-type ExpTypeComplex =
+type ExpType =
 	| ExpTypeAll
 	| ExpTypeValue
-	| ExpTypeTypeComplex
+	| ExpTypeType
 	| ExpTypeFn
 	| ExpTypeVector
 	| ExpTypeTuple
 	| ExpTypeHashMap
 	| ExpTypeUnion
 
-type ExpTypeN = ExpConst | ExpValue | ExpTypeComplex
+type ExpTypeN = ExpConst | ExpValue | ExpType
 
 interface ExpFn extends ExpBase {
 	literal: 'fn'
@@ -227,7 +227,7 @@ const TypeString: ExpTypeValue = {
 
 const TypeValue = uniteType([TypeNumber, TypeString])
 
-const TypeTypeComplex: ExpTypeTypeComplex = {
+const TypeType: ExpTypeType = {
 	literal: 'type',
 	kind: 'type',
 	create: createFn(
@@ -239,7 +239,7 @@ const TypeTypeComplex: ExpTypeTypeComplex = {
 	),
 }
 
-const TypeTypeN = uniteType([TypeConst, TypeValue, TypeTypeComplex])
+const TypeTypeOrValue = uniteType([TypeConst, TypeValue, TypeType])
 
 function createTypeVector(items: ExpTypeN): ExpTypeVector {
 	return {
@@ -266,7 +266,7 @@ function createTypeTuple(items: ExpTypeN[]): ExpTypeN {
 
 const TypeHashMap = createFn(
 	createTypeHashMap,
-	createTypeFn([TypeTypeComplex], TypeTypeComplex)
+	createTypeFn([TypeType], TypeType)
 )
 
 function createTypeHashMap(items: ExpTypeN): ExpTypeHashMap {
@@ -278,12 +278,8 @@ function createTypeHashMap(items: ExpTypeN): ExpTypeHashMap {
 }
 
 const TypeFn = createFn(
-	(params: ExpVector<ExpTypeComplex>, out: ExpTypeComplex) =>
-		createTypeFn(params.value, out),
-	createTypeFn(
-		[createTypeVector(TypeTypeComplex), TypeTypeComplex],
-		TypeTypeComplex
-	)
+	(params: ExpVector<ExpType>, out: ExpType) => createTypeFn(params.value, out),
+	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
 )
 
 function createTypeFn(
@@ -471,22 +467,25 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	inf: createNumber(Infinity),
 	'-inf': createNumber(-Infinity),
 	nan: createNumber(NaN),
-	All: TypeAll,
-	Boolean: TypeBoolean,
-	Number: TypeNumber,
-	String: TypeString,
-	Type: TypeTypeN,
-	TypeComplex: TypeTypeComplex,
-	'->': TypeFn,
-	Vector: createFn(createTypeVector, createTypeFn([TypeTypeN], TypeTypeN)),
-	Tuple: createFn(
-		(items: ExpVector<ExpTypeN>) => createTypeTuple(items.value),
-		createTypeFn([createTypeVector(TypeTypeN)], TypeTypeN, true)
+	':All': TypeAll,
+	':Boolean': TypeBoolean,
+	':Number': TypeNumber,
+	':String': TypeString,
+	':TypeOrValue': TypeTypeOrValue,
+	':Type': TypeType,
+	':->': TypeFn,
+	':Vector': createFn(
+		createTypeVector,
+		createTypeFn([TypeTypeOrValue], TypeTypeOrValue)
 	),
-	HashMap: TypeHashMap,
-	Union: createFn(
+	':Tuple': createFn(
+		(items: ExpVector<ExpTypeN>) => createTypeTuple(items.value),
+		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, true)
+	),
+	':HashMap': TypeHashMap,
+	':|': createFn(
 		(items: ExpVector<ExpTypeN>) => uniteType(items.value),
-		createTypeFn([createTypeVector(TypeTypeN)], TypeTypeN, true)
+		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, true)
 	),
 	let: createFn(
 		(_, body: ExpForm) => body,
@@ -518,17 +517,17 @@ const GlobalScope = createList(
 		),
 		type: createFn(
 			(v: any) => resolveType(v),
-			createTypeFn([TypeAll], TypeTypeN)
+			createTypeFn([TypeAll], TypeTypeOrValue)
 		),
 		'cast-type': createFn(function (target: any, candidate: any) {
 			return castType(target, candidate) || createNull()
-		}, createTypeFn([TypeTypeN, TypeTypeN], TypeTypeN)),
+		}, createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeTypeOrValue)),
 		'equal-type': createFn(function (a: any, b: any) {
 			return createBoolean(equalType(a, b))
-		}, createTypeFn([TypeTypeN, TypeTypeN], TypeBoolean)),
+		}, createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)),
 		'contains-type': createFn(
 			(a: any, b: any) => createBoolean(containsType(a, b)),
-			createTypeFn([TypeTypeN, TypeTypeN], TypeBoolean)
+			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
 		),
 		literal: createFn(
 			(v: any) => createString(v.literal),
@@ -556,7 +555,7 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 					throw new Error('Invalid unionOf type')
 			}
 		case 'type':
-			return TypeTypeComplex
+			return TypeType
 		case 'list': {
 			let fnType = resolveType(exp.value[0])
 			if (fnType.literal !== 'type') {
@@ -1065,48 +1064,48 @@ export function printExp(form: ExpForm): string {
 			case 'fn':
 				return 'fn'
 			case 'type':
-				return printTypeComplex(exp)
+				return printType(exp)
 			default:
 				throw new Error('Invalid type of Exp')
 		}
 	}
 
-	function printTypeComplex(exp: ExpTypeComplex) {
+	function printType(exp: ExpType) {
 		switch (exp.kind) {
 			case 'all':
 				return 'All'
 			case 'value':
 				switch (exp.identifier) {
 					case 'number':
-						return 'Number'
+						return ':Number'
 					case 'string':
-						return 'String'
+						return ':String'
 					default:
 						throw new Error('Cannot print this InfUnion')
 				}
 			case 'fn': {
 				const params = exp.params.map(printWithoutType).join(' ')
 				const out = printWithoutType(exp.out)
-				return `(-> [${params}] ${out})`
+				return `(:-> [${params}] ${out})`
 			}
 			case 'vector':
-				return `(Vector ${printWithoutType(exp.items)})`
+				return `(:Vector ${printWithoutType(exp.items)})`
 			case 'tuple': {
 				const items = exp.items.map(printWithoutType).join(' ')
-				return `(Tuple ${items})`
+				return `(:Tuple ${items})`
 			}
 			case 'hashMap': {
-				return `(HashMap ${printWithoutType(exp.items)})`
+				return `(:HashMap ${printWithoutType(exp.items)})`
 			}
 			case 'union': {
 				if (equalType(exp, TypeBoolean)) {
-					return 'Boolean'
+					return ':Boolean'
 				}
 				const items = exp.items.map(printWithoutType).join(' ')
-				return `(Union ${items})`
+				return `(:| ${items})`
 			}
 			case 'type':
-				return 'Type'
+				return ':Type'
 			default:
 				console.log(exp)
 				throw new Error('Cannot print this kind of type')
