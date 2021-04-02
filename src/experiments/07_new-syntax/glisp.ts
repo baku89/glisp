@@ -120,17 +120,19 @@ interface ExpTypeType extends ExpTypeBase {
 interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpTypeN[]
-	lazyEval?: boolean[]
 	out: ExpTypeN
 	variadic?: false
+	lazyEval?: boolean[]
+	lazyInfer?: boolean[]
 }
 
 interface ExpTypeFnVariadic extends ExpTypeBase {
 	kind: 'fn'
 	params: [...ExpTypeN[], ExpTypeVector]
-	lazyEval?: boolean[]
 	out: ExpTypeN
 	variadic: true
+	lazyEval?: boolean[]
+	lazyInfer?: boolean[]
 }
 
 type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
@@ -312,7 +314,11 @@ const TypeFn = createFn(
 function createTypeFn(
 	params: ExpTypeN[],
 	out: ExpTypeN,
-	{variadic = false, lazyEval = undefined as undefined | boolean[]} = {}
+	{
+		variadic = false,
+		lazyEval = undefined as undefined | boolean[],
+		lazyInfer = undefined as undefined | boolean[],
+	} = {}
 ): ExpTypeFn {
 	if (variadic) {
 		const fixedParams = params.slice(0, -1)
@@ -325,9 +331,10 @@ function createTypeFn(
 			literal: 'type',
 			kind: 'fn',
 			params: [...fixedParams, lastParam],
-			lazyEval,
 			out,
 			variadic,
+			lazyEval,
+			lazyInfer,
 		}
 	}
 
@@ -335,9 +342,10 @@ function createTypeFn(
 		literal: 'type',
 		kind: 'fn',
 		params,
-		lazyEval,
 		out,
 		variadic,
+		lazyEval,
+		lazyInfer,
 	}
 }
 
@@ -543,8 +551,8 @@ const GlobalScope = createList(
 			(v: ExpBoolean) => createBoolean(!v.value),
 			createTypeFn([TypeBoolean], TypeBoolean)
 		),
-		':resolve': createFn(
-			(v: ExpForm) => resolveType(v),
+		':infer': createFn(
+			(v: ExpForm) => inferType(v),
 			createTypeFn([TypeAll], TypeTypeOrValue)
 		),
 		'::?': createFn(function (target: any, candidate: any) {
@@ -600,12 +608,12 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 		case 'type':
 			return TypeType
 		case 'list': {
-			let fnType = resolveType(exp.value[0])
+			let fnType = inferType(exp.value[0])
 			if (fnType.literal !== 'type') {
 				throw new Error('First element must be a function')
 			}
 			if (fnType.create) {
-				fnType = resolveType(fnType.create)
+				fnType = inferType(fnType.create)
 			}
 			if (fnType.literal === 'type' && fnType.kind === 'fn') {
 				return fnType.out
@@ -613,12 +621,12 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 			throw new Error('First element of list is not callable (resolve)')
 		}
 		case 'vector': {
-			const itemsTypes = exp.value.map(resolveType)
+			const itemsTypes = exp.value.map(inferType)
 			const items = uniteType(itemsTypes)
 			return createTypeVector(items)
 		}
 		case 'hashMap': {
-			const itemsTypes = Object.values(exp.value).map(resolveType)
+			const itemsTypes = Object.values(exp.value).map(inferType)
 			const items = uniteType(itemsTypes)
 			return createTypeHashMap(items)
 		}
@@ -627,7 +635,7 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 	}
 }
 
-function resolveType(exp: ExpForm): ExpTypeN {
+function inferType(exp: ExpForm): ExpTypeN {
 	let expType: ExpTypeN = TypeAll
 
 	// Resolve the symbol first
@@ -745,6 +753,7 @@ export class Interpreter {
 	constructor() {
 		const defType = createTypeFn([TypeString, TypeAll], TypeAll, {
 			lazyEval: [true, true],
+			lazyInfer: [true, false],
 		})
 
 		this.vars = createHashMap({})
@@ -856,14 +865,18 @@ export function evalExp(
 				}
 
 				// Type Checking
-				const fnType = resolveType(fn)
+				const fnType = inferType(fn)
 
 				if (fnType.literal !== 'type' || fnType.kind !== 'fn') {
 					throw new Error(`Not a fn type but ${printExp(fnType)}`)
 				}
 
 				const paramsDefType = fnType.params
-				const paramsType = rest.map(resolveType)
+				const paramsType = rest.map((r, i) =>
+					fnType.lazyInfer && fnType.lazyInfer[i]
+						? paramsDefType[i]
+						: inferType(r)
+				)
 
 				let minParamLen = paramsDefType.length
 				const paramLen = paramsType.length
@@ -1151,7 +1164,7 @@ export function printExp(form: ExpForm): string {
 	function printType(exp: ExpType): string {
 		switch (exp.kind) {
 			case 'all':
-				return 'All'
+				return ':All'
 			case 'value':
 				switch (exp.identifier) {
 					case 'number':
