@@ -415,7 +415,6 @@ function createTypeConst(value: ExpTypeConst['value']): ExpTypeConst {
 	}
 }
 
-/*
 function containsType(outer: ExpType, inner: ExpType): boolean {
 	if (outer === inner) {
 		return true
@@ -425,29 +424,25 @@ function containsType(outer: ExpType, inner: ExpType): boolean {
 		return true
 	}
 
-	// Id
 	if (outer.kind === 'const') {
 		return inner.kind === 'const' && outer.value === inner.value
 	}
 
-	// Atomic
+	if (outer.kind === 'value') {
+		if (inner.kind === 'value') {
+			return outer.identifier === inner.identifier
+		}
 
-	if (['null', 'boolean', 'number', 'string'].includes(outer.kind)) {
-		if (inner.kind === outer.kind) {
-			return true
-		}
 		if (inner.kind === 'const') {
-			if (inner.value.literal === outer.kind) {
-				return true
-			}
+			return (
+				inner.value.literal === 'value' &&
+				inner.value.unionOf === outer.identifier
+			)
 		}
-		if (inner.kind === 'union') {
-			return inner.items.every(it => containsType(outer, it))
-		}
-		return false
 	}
+
+	throw new Error('Cannot determine containsType')
 }
-*/
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
 	null: createNull(),
@@ -503,6 +498,10 @@ const GlobalScope = createList(
 		'equal-type': createFn(function (a: any, b: any) {
 			return createBoolean(equalType(a, b))
 		}, createTypeFn([TypeType, TypeType], TypeBoolean)),
+		'contains-type': createFn(
+			(a: any, b: any) => createBoolean(containsType(a, b)),
+			createTypeFn([TypeType, TypeType], TypeBoolean)
+		),
 		literal: createFn(
 			(v: any) => createString(v.literal),
 			createTypeFn([TypeAll], TypeString)
