@@ -151,7 +151,6 @@ interface ExpTypeHashMap extends ExpTypeBase {
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpTypeN[]
-	destructive: boolean
 }
 
 type ExpType =
@@ -190,10 +189,9 @@ const TypeAll: ExpTypeAll = {
 	),
 }
 
-const TypeBoolean = uniteType(
-	[createBoolean(false), createBoolean(true)],
-	false
-)
+const TypeTrue = createBoolean(true)
+const TypeFalse = createBoolean(false)
+const TypeBoolean = uniteType([TypeFalse, TypeTrue])
 
 const TypeConst = uniteType([createNull(), TypeBoolean])
 
@@ -427,7 +425,7 @@ function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 	}
 }
 
-function uniteType(items: ExpTypeN[], destructive = true): ExpTypeN {
+function uniteType(items: ExpTypeN[]): ExpTypeN {
 	const unionType = items.reduce((a, b) => {
 		if (containsType(a, b)) {
 			return a
@@ -436,25 +434,18 @@ function uniteType(items: ExpTypeN[], destructive = true): ExpTypeN {
 			return b
 		}
 
-		const aItems =
-			a.literal === 'type' && a.kind === 'union' && a.destructive
-				? a.items
-				: [a]
-		const bItems =
-			b.literal === 'type' && b.kind === 'union' && b.destructive
-				? b.items
-				: [b]
+		const aItems = a.literal === 'type' && a.kind === 'union' ? a.items : [a]
+		const bItems = b.literal === 'type' && b.kind === 'union' ? b.items : [b]
 
 		return {
 			literal: 'type',
 			kind: 'union',
 			items: [...aItems, ...bItems],
-			destructive: true,
 		}
 	})
 
 	if (unionType.literal === 'type' && unionType.kind === 'union') {
-		return {...unionType, destructive}
+		return {...unionType}
 	}
 
 	return unionType
@@ -1070,7 +1061,7 @@ export function printExp(form: ExpForm): string {
 		}
 	}
 
-	function printType(exp: ExpType) {
+	function printType(exp: ExpType): string {
 		switch (exp.kind) {
 			case 'all':
 				return 'All'
@@ -1101,6 +1092,20 @@ export function printExp(form: ExpForm): string {
 				if (equalType(exp, TypeBoolean)) {
 					return ':Boolean'
 				}
+
+				const itemTrue = exp.items.find(it => equalType(it, TypeTrue))
+				const itemFalse = exp.items.find(it => equalType(it, TypeFalse))
+
+				if (itemTrue && itemFalse) {
+					return printType({
+						...exp,
+						items: [
+							..._.difference(exp.items, [itemTrue, itemFalse]),
+							TypeBoolean,
+						],
+					})
+				}
+
 				const items = exp.items.map(printWithoutType).join(' ')
 				return `(:| ${items})`
 			}
