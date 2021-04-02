@@ -448,6 +448,9 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	null: createNull(),
 	true: createBoolean(true),
 	false: createBoolean(false),
+	inf: createNumber(Infinity),
+	'-inf': createNumber(-Infinity),
+	nan: createNumber(NaN),
 	All: TypeAll,
 	Null: TypeNull,
 	Boolean: TypeBoolean,
@@ -1039,7 +1042,20 @@ export function printExp(form: ExpForm): string {
 			case 'value':
 				switch (exp.unionOf) {
 					case 'number':
-						return exp.str || exp.value.toString()
+						if (exp.str) {
+							return exp.str
+						} else {
+							const str = exp.value.toString()
+							switch (str) {
+								case 'Infinity':
+									return 'inf'
+								case '-Infinity':
+									return '-inf'
+								case 'NaN':
+									return 'nan'
+							}
+							return str
+						}
 					case 'string':
 						return `"${exp.value}"`
 					default:
@@ -1103,6 +1119,14 @@ export function printExp(form: ExpForm): string {
 					case 'all':
 						return 'All'
 					case 'const':
+						if (exp.value.literal === 'const') {
+							if (exp.value.value === null) {
+								return 'Null'
+							} else if (typeof exp.value.value === 'boolean') {
+								return 'Boolean'
+							}
+							throw new Error('Whoaaaaaaa')
+						}
 						return `(Const ${printWithoutType(exp.value)})`
 					case 'value':
 						switch (exp.identifier) {
