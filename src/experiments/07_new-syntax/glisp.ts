@@ -42,6 +42,7 @@ interface ExpNull extends ExpBase {
 interface ExpBoolean extends ExpBase {
 	literal: 'const'
 	value: boolean
+	unionOf: 'boolean'
 }
 
 type ExpConst = ExpNull | ExpBoolean
@@ -114,7 +115,7 @@ interface ExpTypeConst extends ExpTypeBase {
 
 interface ExpTypeValue extends ExpTypeBase {
 	kind: 'value'
-	identifier: ExpValue['unionOf']
+	identifier: ExpBoolean['unionOf'] | ExpValue['unionOf']
 }
 
 interface ExpTypeType extends ExpTypeBase {
@@ -155,6 +156,7 @@ interface ExpTypeHashMap extends ExpTypeBase {
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpType[]
+	destructive: boolean
 }
 
 type ExpType =
@@ -212,8 +214,14 @@ const TypeBoolean: ExpTypeUnion = {
 	items: TypeBooleanItems,
 	create: createFn(
 		(v: ExpBoolean = createBoolean(false)) => v,
-		createTypeFn([], {literal: 'type', kind: 'union', items: TypeBooleanItems})
+		createTypeFn([], {
+			literal: 'type',
+			kind: 'union',
+			items: TypeBooleanItems,
+			destructive: false,
+		})
 	),
+	destructive: true,
 }
 
 const TypeNumber: ExpTypeValue = {
@@ -255,11 +263,6 @@ const TypeType: ExpTypeType = {
 		})
 	),
 }
-
-const TypeVector = createFn(
-	createTypeVector,
-	createTypeFn([TypeType], TypeType)
-)
 
 function createTypeVector(items: ExpType): ExpTypeVector {
 	return {
@@ -460,13 +463,14 @@ function uniteType(items: ExpType[]): ExpType {
 			return b
 		}
 
-		const aItems = a.kind === 'union' ? a.items : [a]
-		const bItems = b.kind === 'union' ? b.items : [b]
+		const aItems = a.kind === 'union' && !a.destructive ? a.items : [a]
+		const bItems = b.kind === 'union' && !b.destructive ? b.items : [b]
 
 		return {
 			literal: 'type',
 			kind: 'union',
 			items: [...aItems, ...bItems],
+			destructive: true,
 		}
 	})
 }
@@ -486,7 +490,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Type: TypeType,
 	Const: TypeConst,
 	'->': TypeFn,
-	Vector: TypeVector,
+	Vector: createFn(createTypeVector, createTypeFn([TypeType], TypeType)),
 	Tuple: TypeTuple,
 	HashMap: TypeHashMap,
 	unite: createFn(
@@ -881,6 +885,7 @@ function createBoolean(value: boolean): ExpBoolean {
 	return {
 		literal: 'const',
 		value,
+		unionOf: 'boolean',
 	}
 }
 
@@ -1105,6 +1110,9 @@ export function printExp(form: ExpForm): string {
 				return `(HashMap ${printWithoutType(exp.items)})`
 			}
 			case 'union': {
+				if (equalType(exp, TypeBoolean)) {
+					return 'Boolean'
+				}
 				const items = exp.items.map(printWithoutType).join(' ')
 				return `(Union ${items})`
 			}
