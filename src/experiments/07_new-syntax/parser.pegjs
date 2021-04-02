@@ -73,7 +73,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 
 Symbol = SymbolIdentifier / SymbolPath
 
-SymbolIdentifier = str:$(":"? ([a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*))
+SymbolIdentifier = str:$(":"* ([a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*))
 	{ 
 		return {
 			literal: 'symbol',

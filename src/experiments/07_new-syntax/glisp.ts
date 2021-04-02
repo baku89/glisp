@@ -120,6 +120,7 @@ interface ExpTypeType extends ExpTypeBase {
 interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
 	params: ExpTypeN[]
+	lazyParams: boolean[]
 	out: ExpTypeN
 	variadic?: false
 }
@@ -127,6 +128,7 @@ interface ExpTypeFnFixed extends ExpTypeBase {
 interface ExpTypeFnVariadic extends ExpTypeBase {
 	kind: 'fn'
 	params: [...ExpTypeN[], ExpTypeVector]
+	lazyParams: boolean[]
 	out: ExpTypeN
 	variadic: true
 }
@@ -165,9 +167,29 @@ type ExpType =
 
 type ExpTypeN = ExpConst | ExpValue | ExpType
 
+type IExpFnValue = (...params: ExpForm[]) => ExpForm
+
+// type IExpFnValue =
+// 	| ((...params: ExpForm[]) => ExpForm)
+// 	| (<P0 extends ExpForm, O extends ExpForm = ExpForm>(p0: P0) => O)
+// 	| (<P0 extends ExpForm, P1 extends ExpForm, O extends ExpForm>(
+// 			p0: P0,
+// 			p1: P1
+// 	  ) => O)
+// 	| (<
+// 			P0 extends ExpForm,
+// 			P1 extends ExpForm,
+// 			P2 extends ExpForm,
+// 			O extends ExpForm
+// 	  >(
+// 			p0: P0,
+// 			p1: P1,
+// 			p2: P2
+// 	  ) => O)
+
 interface ExpFn extends ExpBase {
 	literal: 'fn'
-	value: (...params: ExpForm[]) => ExpForm
+	value: IExpFnValue
 }
 
 interface ExpRaw extends ExpBase {
@@ -189,9 +211,16 @@ const TypeAll: ExpTypeAll = {
 	),
 }
 
-const TypeTrue = createBoolean(true)
-const TypeFalse = createBoolean(false)
-const TypeBoolean = uniteType([TypeFalse, TypeTrue])
+const ConstTrue = createBoolean(true)
+const ConstFalse = createBoolean(false)
+const TypeBoolean = uniteType([ConstFalse, ConstTrue])
+
+const TypeFalsy = uniteType([
+	ConstFalse,
+	createNull(),
+	createNumber(0),
+	createString(''),
+])
 
 const TypeConst = uniteType([createNull(), TypeBoolean])
 
@@ -283,18 +312,22 @@ const TypeFn = createFn(
 function createTypeFn(
 	params: ExpTypeN[],
 	out: ExpTypeN,
-	variadic = false
+	{variadic = false, lazyParams = null as boolean[] | null} = {}
 ): ExpTypeFn {
+	const _lazyParams = lazyParams || params.map(() => false)
+
 	if (variadic) {
 		const fixedParams = params.slice(0, -1)
 		const lastParam = params[params.length - 1]
 		if (lastParam.literal !== 'type' || lastParam.kind !== 'vector') {
 			throw new Error('Last parameter is not a vector type')
 		}
+
 		return {
 			literal: 'type',
 			kind: 'fn',
 			params: [...fixedParams, lastParam],
+			lazyParams: _lazyParams,
 			out,
 			variadic,
 		}
@@ -304,6 +337,7 @@ function createTypeFn(
 		literal: 'type',
 		kind: 'fn',
 		params,
+		lazyParams: _lazyParams,
 		out,
 		variadic,
 	}
@@ -349,6 +383,7 @@ function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 					return (
 						b.kind === 'fn' &&
 						a.params.length === b.params.length &&
+						!!a.variadic === !!b.variadic &&
 						equalType(a.out, b.out) &&
 						_.zipWith(a.params, b.params, equalType).every(_.identity)
 					)
@@ -358,7 +393,7 @@ function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 	}
 }
 
-function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
+function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 	if (outer === inner) {
 		return true
 	}
@@ -375,7 +410,7 @@ function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 				return outer.identifier === inner.unionOf
 			}
 			if (inner.literal === 'type' && inner.kind === 'union') {
-				return inner.items.every(ii => containsType(outer, ii))
+				return inner.items.every(ii => isSubsetType(outer, ii))
 			}
 			return false
 		case 'type':
@@ -389,7 +424,7 @@ function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 				return false
 			}
 			return innerItems.every(ii =>
-				outer.items.find(oi => containsType(oi, ii))
+				outer.items.find(oi => isSubsetType(oi, ii))
 			)
 		}
 		case 'vector':
@@ -397,7 +432,7 @@ function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 			return (
 				inner.literal === 'type' &&
 				inner.kind === outer.kind &&
-				containsType(outer.items, inner.items)
+				isSubsetType(outer.items, inner.items)
 			)
 		case 'tuple':
 			return (
@@ -415,22 +450,26 @@ function containsType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 				inner.literal === 'type' &&
 				inner.kind === 'fn' &&
 				outer.params.length > inner.params.length &&
-				containsType(outer.out, outer.out) &&
+				isSubsetType(outer.out, outer.out) &&
 				_.zipWith(
 					outer.params.slice(0, inner.params.length),
 					inner.params,
-					containsType
+					isSubsetType
 				).every(_.identity)
 			)
 	}
 }
 
 function uniteType(items: ExpTypeN[]): ExpTypeN {
+	if (items.length === 0) {
+		return TypeAll
+	}
+
 	const unionType = items.reduce((a, b) => {
-		if (containsType(a, b)) {
+		if (isSubsetType(a, b)) {
 			return a
 		}
-		if (containsType(b, a)) {
+		if (isSubsetType(b, a)) {
 			return b
 		}
 
@@ -462,8 +501,9 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	':Boolean': TypeBoolean,
 	':Number': TypeNumber,
 	':String': TypeString,
-	':TypeOrValue': TypeTypeOrValue,
 	':Type': TypeType,
+	':TypeOrValue': TypeTypeOrValue,
+	':Falsy': TypeFalsy,
 	':->': TypeFn,
 	':Vector': createFn(
 		createTypeVector,
@@ -471,15 +511,19 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	),
 	':Tuple': createFn(
 		(items: ExpVector<ExpTypeN>) => createTypeTuple(items.value),
-		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, true)
+		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
+			variadic: true,
+		})
 	),
 	':HashMap': TypeHashMap,
 	':|': createFn(
 		(items: ExpVector<ExpTypeN>) => uniteType(items.value),
-		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, true)
+		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
+			variadic: true,
+		})
 	),
 	let: createFn(
-		(_, body: ExpForm) => body,
+		(_: ExpHashMap, body: ExpForm) => body,
 		createTypeFn([createTypeHashMap(TypeAll), TypeAll], TypeAll)
 	),
 }
@@ -489,39 +533,49 @@ const GlobalScope = createList(
 	createHashMap({
 		PI: createNumber(Math.PI),
 		'+': createFn(
-			value =>
-				createNumber(
-					(value as ExpVector<ExpNumber>).value.reduce(
-						(sum, {value}) => sum + value,
-						0
-					)
-				),
-			createTypeFn([createTypeVector(TypeNumber)], TypeNumber, true)
+			(value: ExpVector<ExpNumber>) =>
+				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
+			createTypeFn([createTypeVector(TypeNumber)], TypeNumber, {variadic: true})
 		),
 		square: createFn(
-			(v: any) => createNumber(v.value * v.value),
+			(v: ExpNumber) => createNumber(v.value * v.value),
 			createTypeFn([TypeNumber], TypeNumber)
 		),
 		not: createFn(
-			(v: any) => createBoolean(!v.value),
+			(v: ExpBoolean) => createBoolean(!v.value),
 			createTypeFn([TypeBoolean], TypeBoolean)
 		),
-		type: createFn(
-			(v: any) => resolveType(v),
+		':resolve': createFn(
+			(v: ExpForm) => resolveType(v),
 			createTypeFn([TypeAll], TypeTypeOrValue)
 		),
-		'cast-type': createFn(function (target: any, candidate: any) {
+		'::?': createFn(function (target: any, candidate: any) {
 			return castType(target, candidate) || createNull()
 		}, createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeTypeOrValue)),
-		'equal-type': createFn(function (a: any, b: any) {
-			return createBoolean(equalType(a, b))
-		}, createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)),
-		'contains-type': createFn(
-			(a: any, b: any) => createBoolean(containsType(a, b)),
+		'==': createFn(function (a: ExpForm, b: ExpForm) {
+			return createBoolean(equalExp(a, b))
+		}, createTypeFn([TypeAll, TypeAll], TypeBoolean)),
+		':>=': createFn(
+			(a: ExpType, b: ExpType) => createBoolean(isSubsetType(a, b)),
 			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
 		),
+		if: createFn(
+			(cond: ExpForm, then: ExpForm, _else: ExpForm) => {
+				if (
+					cond.literal !== 'const' &&
+					cond.literal !== 'value' &&
+					cond.literal !== 'type'
+				) {
+					return then
+				}
+				return isSubsetType(TypeFalsy, cond) ? _else : then
+			},
+			createTypeFn([TypeAll, TypeAll, TypeAll], TypeAll, {
+				lazyParams: [false, true, true],
+			})
+		),
 		literal: createFn(
-			(v: any) => createString(v.literal),
+			(v: ExpForm) => createString(v.literal),
 			createTypeFn([TypeAll], TypeString)
 		),
 	})
@@ -632,6 +686,10 @@ function equalExp(a: ExpForm, b: ExpForm) {
 		)
 	}
 
+	if (a.literal === 'type') {
+		return b.literal === 'type' && equalType(a, b)
+	}
+
 	return false
 }
 
@@ -640,7 +698,7 @@ function castType(base: ExpTypeN, target: ExpTypeN): ExpTypeN | null {
 		return target
 	}
 
-	if (containsType(target, base)) {
+	if (isSubsetType(target, base)) {
 		return base
 	}
 	return null
@@ -687,11 +745,16 @@ export class Interpreter {
 	private vars: ExpHashMap
 
 	constructor() {
+		const defType = createTypeFn([TypeString, TypeAll], TypeAll, {
+			lazyParams: [true, true],
+		})
+
 		this.vars = createHashMap({})
 		this.vars.value['def'] = createFn((sym: ExpString, value: ExpForm) => {
 			this.vars.value[sym.value] = value
+			value.parent = this.vars
 			return value
-		}, createTypeFn([TypeString, TypeAll], TypeAll))
+		}, defType)
 
 		this.scope = createList(createSymbol('let'), this.vars)
 		this.scope.parent = GlobalScope
@@ -846,6 +909,7 @@ export function evalExp(
 					}
 				}
 
+				// Cast check
 				paramsDefType.forEach((paramDefType, i) => {
 					if (!castType(paramsType[i], paramDefType)) {
 						const paramTypeStr = printExp(paramsType[i])
@@ -856,7 +920,11 @@ export function evalExp(
 					}
 				})
 
-				const expanded = fn.value(...rest.map(p => evalWithTrace(p, trace)))
+				const evaluatedRest = rest
+					.slice(0, paramsDefType.length)
+					.map((p, i) => (fnType.lazyParams[i] ? p : evalWithTrace(p, trace)))
+
+				const expanded = fn.value(...evaluatedRest)
 
 				exp.expanded = expanded
 
@@ -1117,8 +1185,8 @@ export function printExp(form: ExpForm): string {
 					return ':Boolean'
 				}
 
-				const itemTrue = exp.items.find(it => equalType(it, TypeTrue))
-				const itemFalse = exp.items.find(it => equalType(it, TypeFalse))
+				const itemTrue = exp.items.find(it => equalType(it, ConstTrue))
+				const itemFalse = exp.items.find(it => equalType(it, ConstFalse))
 
 				if (itemTrue && itemFalse) {
 					return printType({
