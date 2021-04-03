@@ -264,8 +264,6 @@ const TypeType: ExpTypeType = {
 	),
 }
 
-const TypeTypeOrValue = uniteType([TypeConst, TypeValue, TypeType])
-
 function createTypeVector(items: ExpForm): ExpTypeVector {
 	return {
 		ast: 'type',
@@ -482,17 +480,13 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Number: TypeNumber,
 	String: TypeString,
 	Type: TypeType,
-	TypeOrValue: TypeTypeOrValue,
 	Falsy: TypeFalsy,
 	':=>': TypeFn,
-	':Vector': createFn(
-		createTypeVector,
-		createTypeFn([TypeTypeOrValue], TypeTypeOrValue)
-	),
+	':Vector': createFn(createTypeVector, createTypeFn([TypeAll], TypeAll)),
 	':HashMap': TypeHashMap,
 	':|': createFn(
 		(items: ExpVector<ExpForm>) => uniteType(items.value),
-		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
+		createTypeFn([createTypeVector(TypeAll)], TypeAll, {
 			variadic: true,
 		})
 	),
@@ -521,12 +515,12 @@ const GlobalScope = createList(
 		),
 		':infer': createFn(
 			(v: ExpForm) => inferType(v),
-			createTypeFn([TypeAll], TypeTypeOrValue)
+			createTypeFn([TypeAll], TypeAll)
 		),
 		'::?': createFn(
 			(target: any, candidate: any) =>
 				castType(target, candidate) || createNull(),
-			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeTypeOrValue)
+			createTypeFn([TypeAll, TypeAll], TypeAll)
 		),
 		'==': createFn(
 			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
@@ -534,7 +528,7 @@ const GlobalScope = createList(
 		),
 		':>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
-			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
+			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
 		count: createFn(
 			(a: ExpVector) => createNumber(a.value.length),
