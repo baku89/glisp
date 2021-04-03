@@ -685,20 +685,18 @@ function clearEvaluated(exp: ExpForm) {
 }
 
 function equalExp(a: ExpForm, b: ExpForm) {
-	if (a.literal === 'const') {
-		return b.literal === 'const' && a.value === b.value
-	}
-
-	if (a.literal === 'infUnionValue') {
-		return (
-			b.literal === 'infUnionValue' &&
-			a.unionOf === b.unionOf &&
-			a.value === b.value
-		)
-	}
-
-	if (a.literal === 'type') {
-		return b.literal === 'type' && equalType(a, b)
+	switch (a.literal) {
+		case 'const':
+		case 'symbol':
+			return a.literal === b.literal && a.value === b.value
+		case 'infUnionValue':
+			return (
+				b.literal === 'infUnionValue' &&
+				a.unionOf === b.unionOf &&
+				a.value === b.value
+			)
+		case 'type':
+			return b.literal === 'type' && equalType(a, b)
 	}
 
 	return false
@@ -810,43 +808,75 @@ export function evalExp(
 					switch (first.value) {
 						case 'fn': {
 							// Create a function
-							const [paramsDefinition, bodyDefinition] = rest
-							if (paramsDefinition.literal !== 'hashMap') {
-								throw new Error('Function parameter should be hash map')
+							const [paramsDef, bodyDef] = rest
+
+							// Validate parameter part
+							if (paramsDef.literal !== 'vector') {
+								const str = printExp(paramsDef)
+								throw new Error(`Function parameters '${str}' must be a vector`)
 							}
 
-							const paramsHashMap = cloneExp(paramsDefinition)
+							const nonSymbol = paramsDef.value.find(
+								p => p.literal !== 'symbol'
+							)
+							if (nonSymbol) {
+								throw new Error(
+									`Parameter '${printExp(nonSymbol)}' must be a symbol`
+								)
+							}
+
+							const paramSymbols = paramsDef.value as ExpSymbol[]
+
+							// Find duplicated symbols
+							const uniqSymbols = _.uniqWith(paramSymbols, equalExp)
+
+							if (uniqSymbols.length !== paramSymbols.length) {
+								const duplicatedSymbols = uniqSymbols.flatMap(sym =>
+									paramSymbols.filter(p => equalExp(sym, p)).length > 1
+										? [sym]
+										: []
+								)
+								const str = duplicatedSymbols
+									.map(printExp)
+									.map(s => `'${s}'`)
+									.join(', ')
+								throw new Error(
+									`Duplicated symbols ${str} has found in parameter`
+								)
+							}
+
+							// Create scope
+							const paramsHashMap = createHashMap(
+								Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
+							)
 
 							const fnScope = createList(
 								createSymbol('let'),
 								paramsHashMap,
-								cloneExp(bodyDefinition)
+								cloneExp(bodyDef)
 							)
 
 							fnScope.parent = exp.parent
 
-							const paramsKeys = Object.keys(paramsDefinition.value)
-							const paramsLength = paramsKeys.length
-
 							const fn = (...params: ExpForm[]) => {
 								// Set params
-								paramsKeys.forEach(
-									(sym, i) => (paramsHashMap.value[sym] = params[i])
+								paramSymbols.forEach(
+									(sym, i) => (paramsHashMap.value[sym.value] = params[i])
 								)
 
 								// Evaluate
 								const out = evalWithTrace(fnScope, trace)
 
 								// Clean params
-								paramsKeys.forEach(sym =>
-									clearEvaluated(paramsHashMap.value[sym])
+								paramSymbols.forEach(sym =>
+									clearEvaluated(paramsHashMap.value[sym.value])
 								)
 
 								return out
 							}
 
 							const fnType = createTypeFn(
-								Array(paramsLength).fill(TypeAll),
+								Array(paramSymbols.length).fill(TypeAll),
 								TypeAll
 							)
 
