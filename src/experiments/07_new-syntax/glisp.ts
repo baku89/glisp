@@ -711,7 +711,7 @@ function clearEvaluated(exp: ExpForm) {
 	}
 }
 
-function equalExp(a: ExpForm, b: ExpForm) {
+function equalExp(a: ExpForm, b: ExpForm): boolean {
 	switch (a.literal) {
 		case 'const':
 		case 'symbol':
@@ -724,6 +724,27 @@ function equalExp(a: ExpForm, b: ExpForm) {
 			)
 		case 'type':
 			return b.literal === 'type' && equalType(a, b)
+		case 'list':
+		case 'vector':
+			return (
+				a.literal === b.literal &&
+				a.value.length === b.value.length &&
+				_.zipWith(a.value, b.value, equalExp).every(_.identity)
+			)
+		case 'hashMap':
+			return (
+				a.literal === b.literal &&
+				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
+				_.toPairs(a.value).every(([key, av]) => equalExp(av, b.value[key]))
+			)
+		case 'fn':
+			if (b.literal !== 'fn') {
+				return false
+			}
+			if (a.value === b.value) {
+				return true
+			}
+			return false
 	}
 
 	return false

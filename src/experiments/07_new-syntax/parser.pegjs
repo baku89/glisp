@@ -13,7 +13,7 @@ Form =
 	List / Vector / HashMap / TypeAnnotation
 
 // ReservedKeyword
-ReservedKeyword = value:$("|" / "&" / "..." / "=")
+ReservedKeyword = value:$("|" / "&" / "...")
 	{
 		return {
 			literal: 'const',
