@@ -430,7 +430,7 @@ function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 				return false
 			}
 			return innerItems.every(ii =>
-				outer.items.find(oi => isSubsetType(oi, ii))
+				outer.items.find(_.partial(isSubsetType, _, ii))
 			)
 		}
 		case 'vector':
@@ -790,6 +790,8 @@ export function evalExp(
 		}
 		trace = [...trace, exp]
 
+		const _eval = _.partial(evalWithTrace, _, trace)
+
 		switch (exp.literal) {
 			case 'const':
 			case 'infUnionValue':
@@ -798,7 +800,7 @@ export function evalExp(
 				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
-				return (exp.evaluated = evalWithTrace(ref, trace))
+				return (exp.evaluated = _eval(ref))
 			}
 			case 'list': {
 				const [first, ...rest] = exp.value
@@ -832,7 +834,7 @@ export function evalExp(
 
 							if (uniqSymbols.length !== paramSymbols.length) {
 								const duplicatedSymbols = uniqSymbols.flatMap(sym =>
-									paramSymbols.filter(p => equalExp(sym, p)).length > 1
+									paramSymbols.filter(_.partial(equalExp, sym)).length > 1
 										? [sym]
 										: []
 								)
@@ -866,7 +868,7 @@ export function evalExp(
 								)
 
 								// Evaluate
-								const out = evalWithTrace(fnScope, trace)
+								const out = _eval(fnScope)
 
 								// Clean params
 								paramSymbols.forEach(sym =>
@@ -889,7 +891,7 @@ export function evalExp(
 					}
 				}
 
-				let fn = evalWithTrace(first, trace)
+				let fn = _eval(first)
 
 				if (fn.literal === 'fn') {
 					// Function application
@@ -967,20 +969,16 @@ export function evalExp(
 
 				const evaluatedRest = rest
 					.slice(0, paramsDefType.length)
-					.map((p, i) =>
-						fnType.lazyEval && fnType.lazyEval[i] ? p : evalWithTrace(p, trace)
-					)
+					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
 
 				const expanded = fn.value(...evaluatedRest)
 
 				exp.expanded = expanded
 
-				return (exp.evaluated = evalWithTrace(expanded, trace))
+				return (exp.evaluated = _eval(expanded))
 			}
 			case 'vector': {
-				return (exp.evaluated = createVector(
-					exp.value.map(v => evalWithTrace(v, trace))
-				))
+				return (exp.evaluated = createVector(exp.value.map(_eval)))
 			}
 			case 'hashMap': {
 				const out: ExpHashMap = {
@@ -988,7 +986,7 @@ export function evalExp(
 					value: {},
 				}
 				Object.entries(exp.value).forEach(
-					([sym, v]) => (out.value[sym] = evalWithTrace(v, trace))
+					([sym, v]) => (out.value[sym] = _eval(v))
 				)
 
 				return (exp.evaluated = out)
@@ -1169,16 +1167,14 @@ export function printExp(form: ExpForm): string {
 				let flattenDelimiters: string[]
 				let coll: ExpForm[]
 				if (delimiters) {
-					coll = keys
-						.map((k, i) =>
-							Array.isArray(delimiters[i + 1])
-								? [keyForms[i], value[k]]
-								: [value[k]]
-						)
-						.flat()
+					coll = keys.flatMap((k, i) =>
+						Array.isArray(delimiters[i + 1])
+							? [keyForms[i], value[k]]
+							: [value[k]]
+					)
 					flattenDelimiters = delimiters.flat()
 				} else {
-					coll = keys.map((k, i) => [keyForms[i], value[k]]).flat()
+					coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
 					flattenDelimiters = [
 						'',
 						...Array(keys.length - 1)
@@ -1232,8 +1228,8 @@ export function printExp(form: ExpForm): string {
 					return 'Boolean'
 				}
 
-				const itemTrue = exp.items.find(it => equalType(it, ConstTrue))
-				const itemFalse = exp.items.find(it => equalType(it, ConstFalse))
+				const itemTrue = exp.items.find(_.partial(equalType, ConstTrue))
+				const itemFalse = exp.items.find(_.partial(equalType, ConstFalse))
 
 				if (itemTrue && itemFalse) {
 					return printType({
