@@ -510,7 +510,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Type: TypeType,
 	TypeOrValue: TypeTypeOrValue,
 	Falsy: TypeFalsy,
-	':->': TypeFn,
+	':=>': TypeFn,
 	':Vector': createFn(
 		createTypeVector,
 		createTypeFn([TypeTypeOrValue], TypeTypeOrValue)
@@ -806,7 +806,7 @@ export function evalExp(
 				// Check Special form
 				if (first.literal === 'symbol') {
 					switch (first.value) {
-						case 'fn': {
+						case '=>': {
 							// Create a function
 							const [paramsDef, bodyDef] = rest
 
@@ -1212,7 +1212,7 @@ export function printExp(form: ExpForm): string {
 			case 'fn': {
 				const params = exp.params.map(printWithoutType).join(' ')
 				const out = printWithoutType(exp.out)
-				return `(:-> [${params}] ${out})`
+				return `(:=> [${params}] ${out})`
 			}
 			case 'vector':
 				return `(:Vector ${printWithoutType(exp.items)})`
