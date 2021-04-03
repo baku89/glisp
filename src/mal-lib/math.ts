@@ -1,6 +1,7 @@
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
 import hull from 'hull.js'
+import {chunk} from 'lodash'
 import seedrandom from 'seedrandom'
 
 import {readJS} from '@/mal/reader'
@@ -12,7 +13,6 @@ import {
 	MalVal,
 	MalVector,
 } from '@/mal/types'
-import {partition} from '@/utils'
 
 const Exports = [
 	// Random
@@ -36,7 +36,7 @@ const Exports = [
 			const delaunay = Delaunator.from(
 				(pts.toObject() as any) as [number, number][]
 			)
-			return readJS(partition(3, delaunay.triangles))
+			return readJS(chunk(delaunay.triangles, 3))
 		},
 	],
 	[

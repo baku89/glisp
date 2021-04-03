@@ -193,7 +193,7 @@ export default function renderToContext(
 		// 				| number
 		// 			)[]
 		// 			const grad = ctx.createLinearGradient(x0, y0, x1, y1)
-		// 			for (const [offset, color] of partition(2, stops)) {
+		// 			for (const [offset, color] of chunk(stops, 3)) {
 		// 				if (typeof offset !== 'number' || typeof color !== 'string') {
 		// 					continue
 		// 				}

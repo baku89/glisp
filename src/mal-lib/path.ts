@@ -1,6 +1,7 @@
 // /* eslint-ignore @typescript-eslint/no-use-before-define */
 // import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
+import {chunk} from 'lodash'
 // import Voronoi from 'voronoi'
 import paper from 'paper'
 import {OffsetOptions, PaperOffset} from 'paperjs-offset'
@@ -23,7 +24,7 @@ import {
 	// 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
-import {partition, unsignedMod} from '@/utils'
+import {unsignedMod} from '@/utils'
 
 const EPSILON = 1e-5
 
@@ -99,7 +100,7 @@ function getMalPathFromPaper(
 		.unshort()
 		.iterate((seg, _, x, y) => {
 			let cmd = seg[0]
-			const pts = partition(2, seg.slice(1)) as number[][]
+			const pts = chunk(seg.slice(1), 2) as number[][]
 
 			switch (cmd) {
 				case 'H':
@@ -625,7 +626,7 @@ function pathArc(_center: MalVal, _r: MalVal, _start: MalVal, _end: MalVal) {
 	return toPathVector(
 		'M',
 		points[0],
-		...partition(3, points.slice(1))
+		...chunk(points.slice(1), 3)
 			.map(pts => ['C', ...pts])
 			.flat()
 	)

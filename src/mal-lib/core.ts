@@ -1,5 +1,6 @@
 import FileSaver from 'file-saver'
 import isNodeJS from 'is-node'
+import {chunk} from 'lodash'
 import {vsprintf} from 'sprintf-js'
 
 import printExp, {printer} from '@/mal/printer'
@@ -26,8 +27,6 @@ import {
 	MalVal,
 	MalVector,
 } from '@/mal/types'
-import {partition} from '@/utils'
-
 const Exports = [
 	['type', (x: MalVal) => MalKeyword.from(x.type)],
 	['nil?', (x: MalVal) => MalBoolean.from(MalNil.is(x))],
@@ -248,9 +247,7 @@ const Exports = [
 	[
 		'partition',
 		(n: MalNumber, coll: MalSeq) =>
-			MalVector.from(
-				partition(n.value, coll.value).map(x => MalVector.from(x))
-			),
+			MalVector.from(chunk(coll.value, n.value).map(x => MalVector.from(x))),
 	],
 	[
 		'index-of',
