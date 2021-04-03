@@ -22,9 +22,8 @@
 </template>
 
 <script lang="ts">
+import {clamp} from 'lodash'
 import {computed, defineComponent, ref, toRef} from 'vue'
-
-import {clamp} from '@/utils'
 
 import useDraggable from '../use/use-draggable'
 import useKeyboardState from '../use/use-keyboard-state'

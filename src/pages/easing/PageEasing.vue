@@ -72,6 +72,7 @@
 import 'normalize.css'
 
 import {useElementSize} from '@vueuse/core'
+import {clamp} from 'lodash'
 import {
 	computed,
 	defineComponent,
@@ -84,7 +85,6 @@ import {
 
 import useDraggable from '@/components/use/use-draggable'
 import useScheme from '@/components/use/use-scheme'
-import {clamp} from '@/utils'
 
 function fit(
 	value: number,

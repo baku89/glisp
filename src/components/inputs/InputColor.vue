@@ -44,6 +44,7 @@
 
 <script lang="ts">
 import chroma from 'chroma-js'
+import {clamp} from 'lodash'
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
@@ -51,7 +52,7 @@ import Popover from '@/components/layouts/Popover.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useKeyboardState from '@/components/use/use-keyboard-state'
 import useRem from '@/components/use/use-rem'
-import {clamp, unsignedMod} from '@/utils'
+import {unsignedMod} from '@/utils'
 
 import InputColorPicker from './InputColorPicker'
 import PadFragmentString from './InputColorPicker/picker-hsv-pad.frag'

@@ -62,12 +62,12 @@
 </template>
 
 <script lang="ts">
+import {clamp} from 'lodash'
 import {computed, defineComponent, ref} from 'vue'
 
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import useScheme from '@/components/use/use-scheme'
-import {clamp} from '@/utils'
 
 export default defineComponent({
 	name: 'PageHaptics',

@@ -23,10 +23,10 @@
 </template>
 
 <script lang="ts">
+import {clamp} from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
-import {clamp} from '@/utils'
 
 import GlslCanvas from '../layouts/GlslCanvas.vue'
 

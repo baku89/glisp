@@ -13,10 +13,10 @@
 
 <script lang="ts">
 import chroma from 'chroma-js'
+import {clamp} from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
-import {clamp} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
 

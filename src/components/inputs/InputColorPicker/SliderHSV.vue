@@ -31,11 +31,12 @@
 </template>
 
 <script lang="ts">
+import {clamp} from 'lodash'
 import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-import {clamp, unsignedMod} from '@/utils'
+import {unsignedMod} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
 import PadFragmentString from './picker-hsv-pad.frag'
