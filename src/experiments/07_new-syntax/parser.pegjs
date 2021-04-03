@@ -17,7 +17,7 @@ ReservedKeyword = value:$("|" / "&" / "...")
 	{
 		return {
 			literal: 'const',
-			unionOf: 'reservedKeyword',
+			subsetOf: 'reservedKeyword',
 			value
 		}
 	}
@@ -33,7 +33,7 @@ NumberInteger = str:IntegerLiteral
 	{ 
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'number',
+			subsetOf: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -43,7 +43,7 @@ NumberFloat = str:FloatLiteral
 	{
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'number',
+			subsetOf: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -53,7 +53,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'number',
+			subsetOf: 'number',
 			value: parseFloat(str),
 			str
 		}
@@ -63,7 +63,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'number',
+			subsetOf: 'number',
 			value: parseInt(str),
 			str
 		}
@@ -73,7 +73,7 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'number',
+			subsetOf: 'number',
 			value: (parseFloat(str) / 100),
 			str: str + '%'
 		}
@@ -84,7 +84,7 @@ String = value:StringLiteral
 	{
 		return {
 			literal: 'infUnionValue',
-			unionOf: 'string',
+			subsetOf: 'string',
 			value
 		}
 	}

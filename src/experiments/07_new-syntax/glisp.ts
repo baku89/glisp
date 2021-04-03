@@ -126,8 +126,8 @@ interface ExpTypeType extends ExpTypeBase {
 
 interface ExpTypeFnFixed extends ExpTypeBase {
 	kind: 'fn'
-	params: ExpTypeN[]
-	out: ExpTypeN
+	params: ExpForm[]
+	out: ExpForm
 	variadic?: false
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
@@ -135,8 +135,8 @@ interface ExpTypeFnFixed extends ExpTypeBase {
 
 interface ExpTypeFnVariadic extends ExpTypeBase {
 	kind: 'fn'
-	params: [...ExpTypeN[], ExpTypeVector]
-	out: ExpTypeN
+	params: [...ExpForm[], ExpTypeVector]
+	out: ExpForm
 	variadic: true
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
@@ -146,22 +146,22 @@ type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
 
 interface ExpTypeVector extends ExpTypeBase {
 	kind: 'vector'
-	items: ExpTypeN
+	items: ExpForm
 }
 
 interface ExpTypeTuple extends ExpTypeBase {
 	kind: 'tuple'
-	items: ExpTypeN[]
+	items: ExpForm[]
 }
 
 interface ExpTypeHashMap extends ExpTypeBase {
 	kind: 'hashMap'
-	items: ExpTypeN
+	items: ExpForm
 }
 
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
-	items: ExpTypeN[]
+	items: ExpForm[]
 }
 
 type ExpType =
@@ -173,8 +173,6 @@ type ExpType =
 	| ExpTypeTuple
 	| ExpTypeHashMap
 	| ExpTypeUnion
-
-type ExpTypeN = ExpConst | ExpInfUnionValue | ExpType
 
 type IExpFnValue = (...params: ExpForm[]) => ExpForm
 
@@ -274,7 +272,7 @@ const TypeType: ExpTypeType = {
 
 const TypeTypeOrValue = uniteType([TypeConst, TypeValue, TypeType])
 
-function createTypeVector(items: ExpTypeN): ExpTypeVector {
+function createTypeVector(items: ExpForm): ExpTypeVector {
 	return {
 		literal: 'type',
 		kind: 'vector',
@@ -282,7 +280,7 @@ function createTypeVector(items: ExpTypeN): ExpTypeVector {
 	}
 }
 
-function createTypeTuple(items: ExpTypeN[]): ExpTypeN {
+function createTypeTuple(items: ExpForm[]): ExpForm {
 	switch (items.length) {
 		case 0:
 			return TypeAll
@@ -302,7 +300,7 @@ const TypeHashMap = createFn(
 	createTypeFn([TypeType], TypeType)
 )
 
-function createTypeHashMap(items: ExpTypeN): ExpTypeHashMap {
+function createTypeHashMap(items: ExpForm): ExpTypeHashMap {
 	return {
 		literal: 'type',
 		kind: 'hashMap',
@@ -348,8 +346,8 @@ const TypeFn = createFn(
 )
 
 function createTypeFn(
-	params: ExpTypeN[],
-	out: ExpTypeN,
+	params: ExpForm[],
+	out: ExpForm,
 	{
 		variadic = false,
 		lazyEval = undefined as undefined | boolean[],
@@ -385,7 +383,7 @@ function createTypeFn(
 	}
 }
 
-function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
+function equalType(a: ExpForm, b: ExpForm): boolean {
 	if (a === b) {
 		return true
 	}
@@ -429,18 +427,18 @@ function equalType(a: ExpTypeN, b: ExpTypeN): boolean {
 						equalType(a.out, b.out) &&
 						_.zipWith(a.params, b.params, equalType).every(_.identity)
 					)
-				// default:
-				// 	throw new Error('Cannot determine equality of this two types')
 			}
 	}
+
+	throw new Error('Cannot determine equality of this two types')
 }
 
-function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
+function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 	if (outer === inner) {
 		return true
 	}
 
-	if (outer.literal === 'const' || outer.literal === 'infUnionValue') {
+	if (outer.literal !== 'type') {
 		return equalExp(outer, inner)
 	}
 
@@ -480,18 +478,18 @@ function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 			return (
 				inner.literal === 'type' &&
 				inner.kind === 'tuple' &&
-				outer.items.length < inner.items.length &&
+				outer.items.length >= inner.items.length &&
 				_.zipWith(
 					outer.items.slice(0, inner.items.length),
 					inner.items,
-					equalType
+					isSubsetType
 				).every(_.identity)
 			)
 		case 'fn':
 			return (
 				inner.literal === 'type' &&
 				inner.kind === 'fn' &&
-				outer.params.length > inner.params.length &&
+				outer.params.length >= inner.params.length &&
 				isSubsetType(outer.out, outer.out) &&
 				_.zipWith(
 					outer.params.slice(0, inner.params.length),
@@ -502,7 +500,7 @@ function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 	}
 }
 
-function uniteType(items: ExpTypeN[]): ExpTypeN {
+function uniteType(items: ExpForm[]): ExpForm {
 	if (items.length === 0) {
 		return TypeAll
 	}
@@ -553,14 +551,14 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 		createTypeFn([TypeTypeOrValue], TypeTypeOrValue)
 	),
 	':Tuple': createFn(
-		(items: ExpVector<ExpTypeN>) => createTypeTuple(items.value),
+		(items: ExpVector<ExpForm>) => createTypeTuple(items.value),
 		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
 			variadic: true,
 		})
 	),
 	':HashMap': TypeHashMap,
 	':|': createFn(
-		(items: ExpVector<ExpTypeN>) => uniteType(items.value),
+		(items: ExpVector<ExpForm>) => uniteType(items.value),
 		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
 			variadic: true,
 		})
@@ -631,7 +629,7 @@ const GlobalScope = createList(
 	})
 )
 
-function getIntrinsticType(exp: ExpForm): ExpTypeN {
+function getIntrinsticType(exp: ExpForm): ExpForm {
 	switch (exp.literal) {
 		case 'const':
 			if (exp.value === null) {
@@ -651,7 +649,8 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 				case 'string':
 					return TypeString
 				default:
-					throw new Error('Invalid subsetOf type')
+					console.log(exp)
+					throw new Error(`Invalid subsetOf type`)
 			}
 		case 'type':
 			return TypeType
@@ -683,8 +682,8 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 	}
 }
 
-function inferType(exp: ExpForm): ExpTypeN {
-	let expType: ExpTypeN = TypeAll
+function inferType(exp: ExpForm): ExpForm {
+	let expType: ExpForm = TypeAll
 
 	// Resolve the symbol first
 	if (exp.literal === 'symbol') {
@@ -768,7 +767,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	return false
 }
 
-function castType(base: ExpTypeN, target: ExpTypeN): ExpTypeN | null {
+function castType(base: ExpForm, target: ExpForm): ExpForm | null {
 	if (equalType(base, target)) {
 		return target
 	}
