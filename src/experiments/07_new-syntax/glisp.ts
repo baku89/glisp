@@ -220,8 +220,6 @@ const TypeFalsy = uniteType([
 	createString(''),
 ])
 
-const TypeConst = uniteType([createNull(), TypeBoolean])
-
 const TypeNumber: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
@@ -249,8 +247,6 @@ const TypeString: ExpTypeInfUnion = {
 		})
 	),
 }
-
-const TypeValue = uniteType([TypeNumber, TypeString])
 
 const TypeType: ExpTypeType = {
 	ast: 'type',
