@@ -1,7 +1,7 @@
 Program = d0:_ value:Form? d1:_
 	{
 		return {
-			literal: 'program',
+			ast: 'program',
 			value,
 			delimiters: [d0, d1]
 		}
@@ -16,7 +16,7 @@ Form =
 ReservedKeyword = value:$("|" / "&" / "...")
 	{
 		return {
-			literal: 'const',
+			ast: 'const',
 			subsetOf: 'reservedKeyword',
 			value
 		}
@@ -32,7 +32,7 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'number',
 			value: parseInt(str),
 			str
@@ -42,7 +42,7 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'number',
 			value: parseFloat(str),
 			str
@@ -52,7 +52,7 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'number',
 			value: parseFloat(str),
 			str
@@ -62,7 +62,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'number',
 			value: parseInt(str),
 			str
@@ -72,7 +72,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'number',
 			value: (parseFloat(str) / 100),
 			str: str + '%'
@@ -83,7 +83,7 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 String = value:StringLiteral
 	{
 		return {
-			literal: 'infUnionValue',
+			ast: 'infUnionValue',
 			subsetOf: 'string',
 			value
 		}
@@ -98,7 +98,7 @@ Symbol = SymbolIdentifier / SymbolRest / SymbolPath
 SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 	{ 
 		return {
-			literal: 'symbol',
+			ast: 'symbol',
 			value: str,
 			str
 		}
@@ -107,7 +107,7 @@ SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 SymbolRest = "..."
 	{
 		return {
-			literal: 'symbol',
+			ast: 'symbol',
 			value: '...'
 		}
 	}
@@ -115,7 +115,7 @@ SymbolRest = "..."
 SymbolPath = "@" str:StringLiteral
 	{
 		return {
-			literal: 'symbol',
+			ast: 'symbol',
 			value: str,
 			str: `@"${str}"`
 		}
@@ -124,7 +124,7 @@ SymbolPath = "@" str:StringLiteral
 List = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
-			literal: 'list',
+			ast: 'list',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
 		}
@@ -137,7 +137,7 @@ List = "(" d0:_ values:(Form _)* ")"
 Vector = "[" d0:_ values:(Form _)* "]"
 	{
 		const exp = {
-			literal: 'vector',
+			ast: 'vector',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
 		}
@@ -177,7 +177,7 @@ HashMap =
 		}
 
 		const exp = {
-			literal: "hashMap",
+			ast: "hashMap",
 			value,
 			keyQuoted,
 			delimiters
