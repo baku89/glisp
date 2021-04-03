@@ -552,15 +552,6 @@ const GlobalScope = createList(
 	})
 )
 
-// function getSuperType(exp: ExpForm): ExpForm {
-// 	switch (exp.ast) {
-// 		case 'const':
-
-// 		case 'infUnionValue':
-
-// 	}
-// }
-
 function getIntrinsticType(exp: ExpForm): ExpForm {
 	switch (exp.ast) {
 		case 'const':
@@ -821,21 +812,17 @@ export function evalExp(
 	parent: ExpBase['parent'] = GlobalScope
 ): ExpForm {
 	exp.parent = parent
-	return evalWithTrace(exp, new WeakSet(), exp)
+	return evalWithTrace(exp, [])
 
-	function evalWithTrace(
-		exp: ExpForm,
-		trace: WeakSet<ExpForm>,
-		lastTrace: ExpForm
-	): ExpForm {
+	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
 		// Check circular reference
-		if (trace.has(exp)) {
+		if (trace.includes(exp)) {
+			const lastTrace = trace[trace.length - 1]
 			throw new Error(`Circular reference ${printExp(lastTrace)}`)
 		}
-		trace.add(exp)
-		lastTrace = exp
+		trace = [...trace, exp]
 
-		const _eval = _.partial(evalWithTrace, _, trace, exp)
+		const _eval = _.partial(evalWithTrace, _, trace)
 
 		switch (exp.ast) {
 			case 'const':
