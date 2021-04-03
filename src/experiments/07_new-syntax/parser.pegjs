@@ -16,7 +16,7 @@ Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / Number
 
 IntegerLiteral = $(("+" / "-")? [0-9]+)
 
-FloatLiteral = $(IntegerLiteral? "." [0-9]*)
+FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 
 NumberInteger = str:IntegerLiteral
 	{ 
@@ -81,14 +81,24 @@ String = value:StringLiteral
 StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
 
-Symbol = SymbolIdentifier / SymbolPath
+Symbol = SymbolIdentifier / SymbolRest / SymbolPath
 
-SymbolIdentifier = str:$(":"* ([a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*))
+
+SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 	{ 
+		console.log('sym', str)
 		return {
 			literal: 'symbol',
 			value: str,
 			str
+		}
+	}
+
+SymbolRest = "..."
+	{
+		return {
+			literal: 'symbol',
+			value: '...'
 		}
 	}
 

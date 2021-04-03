@@ -6,7 +6,7 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-const SymbolIdentiferRegex = /^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i
+const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 
 type ExpForm =
 	| ExpConst
@@ -503,6 +503,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	inf: createNumber(Infinity),
 	'-inf': createNumber(-Infinity),
 	nan: createNumber(NaN),
+	'...': createSymbol('...'),
 	All: TypeAll,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
@@ -567,6 +568,10 @@ const GlobalScope = createList(
 		':>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(isSubsetType(a, b)),
 			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
+		),
+		count: createFn(
+			(a: ExpVector) => createNumber(a.value.length),
+			createTypeFn([createTypeVector(TypeAll)], TypeNumber)
 		),
 		if: createFn(
 			(cond: ExpForm, then: ExpForm, _else: ExpForm) => {
@@ -818,6 +823,7 @@ export function evalExp(
 								throw new Error(`Function parameters '${str}' must be a vector`)
 							}
 
+							// Check if every element is symbol
 							const nonSymbol = paramsDef.value.find(
 								p => p.literal !== 'symbol'
 							)
@@ -845,6 +851,26 @@ export function evalExp(
 								throw new Error(
 									`Duplicated symbols ${str} has found in parameter`
 								)
+							}
+
+							// Rest argument
+							let variadic = false
+							const restSymbolIndices = _.chain(paramSymbols)
+								.map((p, i) => (p.value === '...' ? i : null))
+								.filter(_.isNumber)
+								.value()
+
+							if (restSymbolIndices.length > 1) {
+								throw new Error("Rest symbol '...' appears more than twice")
+							} else if (restSymbolIndices.length === 1) {
+								const restIndex = restSymbolIndices[0]
+
+								if (restIndex !== paramSymbols.length - 2) {
+									throw new Error("Invalid position of rest symbol '...'")
+								}
+
+								paramSymbols.splice(restIndex, 1)
+								variadic = true
 							}
 
 							// Create scope
@@ -879,12 +905,12 @@ export function evalExp(
 							}
 
 							// Infer function type
+							const paramTypes = Array(paramSymbols.length).fill(TypeAll)
+							if (variadic) {
+								paramTypes[paramTypes.length - 1] = createTypeVector(TypeAll)
+							}
 							const outType = inferType(bodyDef)
-
-							const fnType = createTypeFn(
-								Array(paramSymbols.length).fill(TypeAll),
-								outType
-							)
+							const fnType = createTypeFn(paramTypes, outType, {variadic})
 
 							return (exp.evaluated = createFn(fn, fnType))
 						}
@@ -1210,7 +1236,12 @@ export function printExp(form: ExpForm): string {
 						throw new Error('Cannot print this InfUnion')
 				}
 			case 'fn': {
-				const params = exp.params.map(printWithoutType).join(' ')
+				const paramTypes: ExpForm[] = [...exp.params]
+				if (exp.variadic) {
+					const lastType = exp.params.slice(-1)[0] as ExpTypeVector
+					paramTypes.splice(-1, 1, createSymbol('...'), lastType.items)
+				}
+				const params = paramTypes.map(printWithoutType).join(' ')
 				const out = printWithoutType(exp.out)
 				return `(:=> [${params}] ${out})`
 			}
