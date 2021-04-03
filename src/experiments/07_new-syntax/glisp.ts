@@ -41,7 +41,7 @@ interface ExpNull extends ExpBase {
 interface ExpBoolean extends ExpBase {
 	literal: 'const'
 	value: boolean
-	unionOf: 'boolean'
+	subsetOf: 'boolean'
 }
 
 interface ExpReservedKeyword<
@@ -49,21 +49,21 @@ interface ExpReservedKeyword<
 > extends ExpBase {
 	literal: 'const'
 	value: T
-	unionOf: 'reservedKeyword'
+	subsetOf: 'reservedKeyword'
 }
 
 type ExpConst = ExpNull | ExpBoolean | ExpReservedKeyword
 
 interface ExpNumber extends ExpBase {
 	literal: 'infUnionValue'
-	unionOf: 'number'
+	subsetOf: 'number'
 	value: number
 	str?: string
 }
 
 interface ExpString extends ExpBase {
 	literal: 'infUnionValue'
-	unionOf: 'string'
+	subsetOf: 'string'
 	value: string
 }
 
@@ -117,7 +117,7 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeValue extends ExpTypeBase {
 	kind: 'infUnionValue'
-	identifier: ExpBoolean['unionOf'] | ExpInfUnionValue['unionOf']
+	identifier: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
 }
 
 interface ExpTypeType extends ExpTypeBase {
@@ -449,7 +449,7 @@ function isSubsetType(outer: ExpTypeN, inner: ExpTypeN): boolean {
 			return true
 		case 'infUnionValue':
 			if (inner.literal === 'infUnionValue') {
-				return outer.identifier === inner.unionOf
+				return outer.identifier === inner.subsetOf
 			}
 			if (inner.literal === 'type' && inner.kind === 'union') {
 				return inner.items.every(ii => isSubsetType(outer, ii))
@@ -637,7 +637,7 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 			if (exp.value === null) {
 				return exp
 			}
-			switch (exp.unionOf) {
+			switch (exp.subsetOf) {
 				case 'boolean':
 					return TypeBoolean
 				case 'reservedKeyword':
@@ -645,13 +645,13 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 			}
 			throw new Error('Invalid type of const')
 		case 'infUnionValue':
-			switch (exp.unionOf) {
+			switch (exp.subsetOf) {
 				case 'number':
 					return TypeNumber
 				case 'string':
 					return TypeString
 				default:
-					throw new Error('Invalid unionOf type')
+					throw new Error('Invalid subsetOf type')
 			}
 		case 'type':
 			return TypeType
@@ -737,7 +737,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 		case 'infUnionValue':
 			return (
 				b.literal === 'infUnionValue' &&
-				a.unionOf === b.unionOf &&
+				a.subsetOf === b.subsetOf &&
 				a.value === b.value
 			)
 		case 'type':
@@ -1093,7 +1093,7 @@ function createBoolean(value: boolean): ExpBoolean {
 	return {
 		literal: 'const',
 		value,
-		unionOf: 'boolean',
+		subsetOf: 'boolean',
 	}
 }
 
@@ -1103,14 +1103,14 @@ function createReservedKeyword(
 	return {
 		literal: 'const',
 		value,
-		unionOf: 'reservedKeyword',
+		subsetOf: 'reservedKeyword',
 	}
 }
 
 function createNumber(value: number): ExpNumber {
 	return {
 		literal: 'infUnionValue',
-		unionOf: 'number',
+		subsetOf: 'number',
 		value,
 	}
 }
@@ -1118,7 +1118,7 @@ function createNumber(value: number): ExpNumber {
 function createString(value: string): ExpString {
 	return {
 		literal: 'infUnionValue',
-		unionOf: 'string',
+		subsetOf: 'string',
 		value,
 	}
 }
@@ -1200,7 +1200,7 @@ export function printExp(form: ExpForm): string {
 		if (SymbolIdentiferRegex.test(value)) {
 			return {literal: 'symbol', value, str: value}
 		} else {
-			return {literal: 'infUnionValue', unionOf: 'string', value}
+			return {literal: 'infUnionValue', subsetOf: 'string', value}
 		}
 	}
 
@@ -1210,7 +1210,7 @@ export function printExp(form: ExpForm): string {
 				if (exp.value === null) {
 					return 'null'
 				}
-				switch (exp.unionOf) {
+				switch (exp.subsetOf) {
 					case 'boolean':
 						return exp.value ? 'true' : 'false'
 					case 'reservedKeyword':
@@ -1218,7 +1218,7 @@ export function printExp(form: ExpForm): string {
 				}
 				throw new Error('cannot print this type of const')
 			case 'infUnionValue':
-				switch (exp.unionOf) {
+				switch (exp.subsetOf) {
 					case 'number': {
 						if (exp.str) {
 							return exp.str
@@ -1237,7 +1237,7 @@ export function printExp(form: ExpForm): string {
 					case 'string':
 						return `"${exp.value}"`
 					default:
-						throw new Error('Cannot print this type of "unionOf"')
+						throw new Error('Cannot print this type of "subsetOf"')
 				}
 			case 'symbol':
 				if (exp.str) {
