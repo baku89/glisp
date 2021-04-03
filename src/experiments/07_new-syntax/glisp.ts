@@ -17,7 +17,6 @@ type ExpForm =
 	| ExpHashMap
 	| ExpFn
 	| ExpType
-	| ExpRaw
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
@@ -200,11 +199,6 @@ interface ExpFn extends ExpBase {
 	value: IExpFnValue
 }
 
-interface ExpRaw extends ExpBase {
-	literal: 'raw'
-	value: any
-}
-
 export function readStr(str: string): ExpForm {
 	const exp = parser.parse(str) as ExpProgram
 	return exp.value
@@ -222,18 +216,6 @@ const TypeAll: ExpTypeAll = {
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
-
-const ConstOpUnion = createReservedKeyword('|')
-const ConstOpIntersect = createReservedKeyword('&')
-const ConstOpRest = createReservedKeyword('...')
-const ConstOpEqual = createReservedKeyword('=')
-
-const TypeReservedKeyword = uniteType([
-	ConstOpUnion,
-	ConstOpIntersect,
-	ConstOpRest,
-	ConstOpEqual,
-])
 
 const TypeFalsy = uniteType([
 	ConstFalse,
