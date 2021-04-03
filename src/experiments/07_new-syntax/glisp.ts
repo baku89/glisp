@@ -362,51 +362,7 @@ function createTypeFn(
 	}
 }
 
-function equalType(a: ExpForm, b: ExpForm): boolean {
-	if (a === b) {
-		return true
-	}
-
-	switch (a.literal) {
-		case 'const':
-		case 'infUnionValue':
-			return equalExp(a, b)
-		case 'type':
-			if (b.literal !== 'type') {
-				return false
-			}
-			switch (a.kind) {
-				case 'all':
-					return b.kind === 'all'
-				case 'infUnionValue':
-					return b.kind === 'infUnionValue' && a.identifier === b.identifier
-				case 'type':
-					return b.kind === 'type'
-				case 'union': {
-					if (b.kind !== 'union') return false
-					if (a.items.length !== b.items.length) {
-						return false
-					}
-					return _.differenceWith(a.items, b.items, equalType).length === 0
-				}
-				case 'vector':
-				case 'hashMap':
-					return b.kind === a.kind && equalType(a.items, b.items)
-				case 'fn':
-					return (
-						b.kind === 'fn' &&
-						a.params.length === b.params.length &&
-						!!a.variadic === !!b.variadic &&
-						equalType(a.out, b.out) &&
-						_.zipWith(a.params, b.params, equalType).every(_.identity)
-					)
-			}
-	}
-
-	throw new Error('Cannot determine equality of this two types')
-}
-
-function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
+function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 	if (outer === inner) {
 		return true
 	}
@@ -418,7 +374,7 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 			_.zipWith(
 				outer.value.slice(0, inner.value.length),
 				inner.value,
-				isSubsetType
+				containsExp
 			).every(_.identity)
 		)
 	}
@@ -429,7 +385,7 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 			inner.literal === 'hashMap' &&
 			_.difference(_.keys(inner.value), _.keys(outer.value)).length === 0 &&
 			_.toPairs(inner.value).every(([key, iv]) =>
-				isSubsetType(outer.value[key], iv)
+				containsExp(outer.value[key], iv)
 			)
 		)
 	}
@@ -446,7 +402,7 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 				return outer.identifier === inner.subsetOf
 			}
 			if (inner.literal === 'type' && inner.kind === 'union') {
-				return inner.items.every(ii => isSubsetType(outer, ii))
+				return inner.items.every(ii => containsExp(outer, ii))
 			}
 			return false
 		case 'type':
@@ -460,7 +416,7 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 				return false
 			}
 			return innerItems.every(ii =>
-				outer.items.find(_.partial(isSubsetType, _, ii))
+				outer.items.find(_.partial(containsExp, _, ii))
 			)
 		}
 		case 'vector':
@@ -468,18 +424,18 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 			return (
 				inner.literal === 'type' &&
 				inner.kind === outer.kind &&
-				isSubsetType(outer.items, inner.items)
+				containsExp(outer.items, inner.items)
 			)
 		case 'fn':
 			return (
 				inner.literal === 'type' &&
 				inner.kind === 'fn' &&
 				outer.params.length >= inner.params.length &&
-				isSubsetType(outer.out, outer.out) &&
+				containsExp(outer.out, outer.out) &&
 				_.zipWith(
 					outer.params.slice(0, inner.params.length),
 					inner.params,
-					isSubsetType
+					containsExp
 				).every(_.identity)
 			)
 	}
@@ -491,10 +447,10 @@ function uniteType(items: ExpForm[]): ExpForm {
 	}
 
 	const unionType = items.reduce((a, b) => {
-		if (isSubsetType(a, b)) {
+		if (containsExp(a, b)) {
 			return a
 		}
-		if (isSubsetType(b, a)) {
+		if (containsExp(b, a)) {
 			return b
 		}
 
@@ -579,7 +535,7 @@ const GlobalScope = createList(
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
 		':>=': createFn(
-			(a: ExpType, b: ExpType) => createBoolean(isSubsetType(a, b)),
+			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
 			createTypeFn([TypeTypeOrValue, TypeTypeOrValue], TypeBoolean)
 		),
 		count: createFn(
@@ -595,7 +551,7 @@ const GlobalScope = createList(
 				) {
 					return then
 				}
-				return isSubsetType(TypeFalsy, cond) ? _else : then
+				return containsExp(TypeFalsy, cond) ? _else : then
 			},
 			createTypeFn([TypeAll, TypeAll, TypeAll], TypeAll, {
 				lazyEval: [false, true, true],
@@ -708,6 +664,10 @@ function clearEvaluated(exp: ExpForm) {
 }
 
 function equalExp(a: ExpForm, b: ExpForm): boolean {
+	if (a === b) {
+		return true
+	}
+
 	switch (a.literal) {
 		case 'const':
 		case 'symbol':
@@ -744,14 +704,54 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	}
 
 	return false
+
+	function equalType(a: ExpForm, b: ExpForm): boolean {
+		switch (a.literal) {
+			case 'const':
+			case 'infUnionValue':
+				return equalExp(a, b)
+			case 'type':
+				if (b.literal !== 'type') {
+					return false
+				}
+				switch (a.kind) {
+					case 'all':
+						return b.kind === 'all'
+					case 'infUnionValue':
+						return b.kind === 'infUnionValue' && a.identifier === b.identifier
+					case 'type':
+						return b.kind === 'type'
+					case 'union': {
+						if (b.kind !== 'union') return false
+						if (a.items.length !== b.items.length) {
+							return false
+						}
+						return _.differenceWith(a.items, b.items, equalType).length === 0
+					}
+					case 'vector':
+					case 'hashMap':
+						return b.kind === a.kind && equalExp(a.items, b.items)
+					case 'fn':
+						return (
+							b.kind === 'fn' &&
+							a.params.length === b.params.length &&
+							!!a.variadic === !!b.variadic &&
+							equalExp(a.out, b.out) &&
+							_.zipWith(a.params, b.params, equalType).every(_.identity)
+						)
+				}
+		}
+
+		throw new Error('Cannot determine equality of this two types')
+	}
 }
 
 function castType(base: ExpForm, target: ExpForm): ExpForm | null {
-	if (equalType(base, target)) {
+	if (equalExp(base, target)) {
 		return target
 	}
 
-	if (isSubsetType(target, base)) {
+	if (containsExp(target, base)) {
 		return base
 	}
 	return null
@@ -1304,12 +1304,12 @@ export function printExp(form: ExpForm): string {
 				return `(:HashMap ${printWithoutType(exp.items)})`
 			}
 			case 'union': {
-				if (equalType(exp, TypeBoolean)) {
+				if (equalExp(exp, TypeBoolean)) {
 					return 'Boolean'
 				}
 
-				const itemTrue = exp.items.find(_.partial(equalType, ConstTrue))
-				const itemFalse = exp.items.find(_.partial(equalType, ConstFalse))
+				const itemTrue = exp.items.find(_.partial(equalExp, ConstTrue))
+				const itemFalse = exp.items.find(_.partial(equalExp, ConstFalse))
 
 				if (itemTrue && itemFalse) {
 					return printType({

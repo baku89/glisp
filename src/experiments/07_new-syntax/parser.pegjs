@@ -97,7 +97,6 @@ Symbol = SymbolIdentifier / SymbolRest / SymbolPath
 
 SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 	{ 
-		console.log('sym', str)
 		return {
 			literal: 'symbol',
 			value: str,
