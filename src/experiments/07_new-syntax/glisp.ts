@@ -115,8 +115,8 @@ interface ExpTypeAll extends ExpTypeBase {
 	kind: 'all'
 }
 
-interface ExpTypeValue extends ExpTypeBase {
-	kind: 'infUnionValue'
+interface ExpTypeInfUnion extends ExpTypeBase {
+	kind: 'infUnion'
 	identifier: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
 }
 
@@ -161,7 +161,7 @@ interface ExpTypeUnion extends ExpTypeBase {
 
 type ExpType =
 	| ExpTypeAll
-	| ExpTypeValue
+	| ExpTypeInfUnion
 	| ExpTypeType
 	| ExpTypeFn
 	| ExpTypeVector
@@ -222,29 +222,29 @@ const TypeFalsy = uniteType([
 
 const TypeConst = uniteType([createNull(), TypeBoolean])
 
-const TypeNumber: ExpTypeValue = {
+const TypeNumber: ExpTypeInfUnion = {
 	literal: 'type',
-	kind: 'infUnionValue',
+	kind: 'infUnion',
 	identifier: 'number',
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'infUnionValue',
+			kind: 'infUnion',
 			identifier: 'number',
 		})
 	),
 }
 
-const TypeString: ExpTypeValue = {
+const TypeString: ExpTypeInfUnion = {
 	literal: 'type',
-	kind: 'infUnionValue',
+	kind: 'infUnion',
 	identifier: 'string',
 	create: createFn(
 		(v: ExpString = createString('')) => v,
 		createTypeFn([], {
 			literal: 'type',
-			kind: 'infUnionValue',
+			kind: 'infUnion',
 			identifier: 'string',
 		})
 	),
@@ -397,7 +397,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 	switch (outer.kind) {
 		case 'all':
 			return true
-		case 'infUnionValue':
+		case 'infUnion':
 			if (inner.literal === 'infUnionValue') {
 				return outer.identifier === inner.subsetOf
 			}
@@ -717,8 +717,8 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 				switch (a.kind) {
 					case 'all':
 						return b.kind === 'all'
-					case 'infUnionValue':
-						return b.kind === 'infUnionValue' && a.identifier === b.identifier
+					case 'infUnion':
+						return b.kind === 'infUnion' && a.identifier === b.identifier
 					case 'type':
 						return b.kind === 'type'
 					case 'union': {
@@ -1279,7 +1279,7 @@ export function printExp(form: ExpForm): string {
 		switch (exp.kind) {
 			case 'all':
 				return 'All'
-			case 'infUnionValue':
+			case 'infUnion':
 				switch (exp.identifier) {
 					case 'number':
 						return 'Number'
