@@ -28,18 +28,18 @@ interface ExpBase {
 }
 
 interface ExpProgram {
-	literal: 'program'
+	ast: 'program'
 	value: ExpForm
 	delimiters: [string, string]
 }
 
 interface ExpNull extends ExpBase {
-	literal: 'const'
+	ast: 'const'
 	value: null
 }
 
 interface ExpBoolean extends ExpBase {
-	literal: 'const'
+	ast: 'const'
 	value: boolean
 	subsetOf: 'boolean'
 }
@@ -47,7 +47,7 @@ interface ExpBoolean extends ExpBase {
 interface ExpReservedKeyword<
 	T extends '|' | '&' | '...' | '=' = '|' | '&' | '...' | '='
 > extends ExpBase {
-	literal: 'const'
+	ast: 'const'
 	value: T
 	subsetOf: 'reservedKeyword'
 }
@@ -55,14 +55,14 @@ interface ExpReservedKeyword<
 type ExpConst = ExpNull | ExpBoolean | ExpReservedKeyword
 
 interface ExpNumber extends ExpBase {
-	literal: 'infUnionValue'
+	ast: 'infUnionValue'
 	subsetOf: 'number'
 	value: number
 	str?: string
 }
 
 interface ExpString extends ExpBase {
-	literal: 'infUnionValue'
+	ast: 'infUnionValue'
 	subsetOf: 'string'
 	value: string
 }
@@ -70,7 +70,7 @@ interface ExpString extends ExpBase {
 type ExpInfUnionValue = ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
-	literal: 'symbol'
+	ast: 'symbol'
 	value: string
 	str?: string
 	ref?: ExpForm
@@ -78,7 +78,7 @@ interface ExpSymbol extends ExpBase {
 }
 
 interface ExpList extends ExpBase {
-	literal: 'list'
+	ast: 'list'
 	value: ExpForm[]
 	delimiters?: string[]
 	expanded?: ExpForm
@@ -86,14 +86,14 @@ interface ExpList extends ExpBase {
 }
 
 interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
-	literal: 'vector'
+	ast: 'vector'
 	value: T[]
 	delimiters?: string[]
 	evaluated?: ExpVector
 }
 
 interface ExpHashMap extends ExpBase {
-	literal: 'hashMap'
+	ast: 'hashMap'
 	value: {
 		[key: string]: ExpForm
 	}
@@ -106,7 +106,7 @@ interface ExpHashMap extends ExpBase {
 
 // Types
 interface ExpTypeBase extends ExpBase {
-	literal: 'type'
+	ast: 'type'
 	create?: ExpFn
 	meta?: ExpHashMap
 }
@@ -189,7 +189,7 @@ type IExpFnValue = (...params: ExpForm[]) => ExpForm
 // 	  ) => O)
 
 interface ExpFn extends ExpBase {
-	literal: 'fn'
+	ast: 'fn'
 	value: IExpFnValue
 }
 
@@ -199,11 +199,11 @@ export function readStr(str: string): ExpForm {
 }
 
 const TypeAll: ExpTypeAll = {
-	literal: 'type',
+	ast: 'type',
 	kind: 'all',
 	create: createFn(
 		(v: ExpForm = createNull()) => v,
-		createTypeFn([], {literal: 'type', kind: 'all'})
+		createTypeFn([], {ast: 'type', kind: 'all'})
 	),
 }
 
@@ -223,13 +223,13 @@ const TypeFalsy = uniteType([
 const TypeConst = uniteType([createNull(), TypeBoolean])
 
 const TypeNumber: ExpTypeInfUnion = {
-	literal: 'type',
+	ast: 'type',
 	kind: 'infUnion',
 	id: 'number',
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
 		createTypeFn([], {
-			literal: 'type',
+			ast: 'type',
 			kind: 'infUnion',
 			id: 'number',
 		})
@@ -237,13 +237,13 @@ const TypeNumber: ExpTypeInfUnion = {
 }
 
 const TypeString: ExpTypeInfUnion = {
-	literal: 'type',
+	ast: 'type',
 	kind: 'infUnion',
 	id: 'string',
 	create: createFn(
 		(v: ExpString = createString('')) => v,
 		createTypeFn([], {
-			literal: 'type',
+			ast: 'type',
 			kind: 'infUnion',
 			id: 'string',
 		})
@@ -253,12 +253,12 @@ const TypeString: ExpTypeInfUnion = {
 const TypeValue = uniteType([TypeNumber, TypeString])
 
 const TypeType: ExpTypeType = {
-	literal: 'type',
+	ast: 'type',
 	kind: 'type',
 	create: createFn(
 		() => TypeAll,
 		createTypeFn([], {
-			literal: 'type',
+			ast: 'type',
 			kind: 'type',
 		})
 	),
@@ -268,7 +268,7 @@ const TypeTypeOrValue = uniteType([TypeConst, TypeValue, TypeType])
 
 function createTypeVector(items: ExpForm): ExpTypeVector {
 	return {
-		literal: 'type',
+		ast: 'type',
 		kind: 'vector',
 		items,
 	}
@@ -281,7 +281,7 @@ const TypeHashMap = createFn(
 
 function createTypeHashMap(items: ExpForm): ExpTypeHashMap {
 	return {
-		literal: 'type',
+		ast: 'type',
 		kind: 'hashMap',
 		items,
 	}
@@ -336,12 +336,12 @@ function createTypeFn(
 	if (variadic) {
 		const fixedParams = params.slice(0, -1)
 		const lastParam = params[params.length - 1]
-		if (lastParam.literal !== 'type' || lastParam.kind !== 'vector') {
+		if (lastParam.ast !== 'type' || lastParam.kind !== 'vector') {
 			throw new Error('Last parameter is not a vector type')
 		}
 
 		return {
-			literal: 'type',
+			ast: 'type',
 			kind: 'fn',
 			params: [...fixedParams, lastParam],
 			out,
@@ -352,7 +352,7 @@ function createTypeFn(
 	}
 
 	return {
-		literal: 'type',
+		ast: 'type',
 		kind: 'fn',
 		params,
 		out,
@@ -367,9 +367,9 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		return true
 	}
 
-	if (outer.literal === 'vector') {
+	if (outer.ast === 'vector') {
 		return (
-			inner.literal === 'vector' &&
+			inner.ast === 'vector' &&
 			outer.value.length >= inner.value.length &&
 			_.zipWith(
 				outer.value.slice(0, inner.value.length),
@@ -379,10 +379,10 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		)
 	}
 
-	if (outer.literal === 'hashMap') {
-		if (inner.literal !== 'hashMap') return false
+	if (outer.ast === 'hashMap') {
+		if (inner.ast !== 'hashMap') return false
 		return (
-			inner.literal === 'hashMap' &&
+			inner.ast === 'hashMap' &&
 			_.difference(_.keys(inner.value), _.keys(outer.value)).length === 0 &&
 			_.toPairs(inner.value).every(([key, iv]) =>
 				containsExp(outer.value[key], iv)
@@ -390,7 +390,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		)
 	}
 
-	if (outer.literal !== 'type') {
+	if (outer.ast !== 'type') {
 		return equalExp(outer, inner)
 	}
 
@@ -398,20 +398,18 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (inner.literal === 'infUnionValue') {
+			if (inner.ast === 'infUnionValue') {
 				return outer.id === inner.subsetOf
 			}
-			if (inner.literal === 'type' && inner.kind === 'union') {
+			if (inner.ast === 'type' && inner.kind === 'union') {
 				return inner.items.every(ii => containsExp(outer, ii))
 			}
 			return false
 		case 'type':
-			return inner.literal === 'type'
+			return inner.ast === 'type'
 		case 'union': {
 			const innerItems =
-				inner.literal === 'type' && inner.kind === 'union'
-					? inner.items
-					: [inner]
+				inner.ast === 'type' && inner.kind === 'union' ? inner.items : [inner]
 			if (outer.items.length < innerItems.length) {
 				return false
 			}
@@ -422,13 +420,13 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		case 'vector':
 		case 'hashMap':
 			return (
-				inner.literal === 'type' &&
+				inner.ast === 'type' &&
 				inner.kind === outer.kind &&
 				containsExp(outer.items, inner.items)
 			)
 		case 'fn':
 			return (
-				inner.literal === 'type' &&
+				inner.ast === 'type' &&
 				inner.kind === 'fn' &&
 				outer.params.length >= inner.params.length &&
 				containsExp(outer.out, outer.out) &&
@@ -454,17 +452,17 @@ function uniteType(items: ExpForm[]): ExpForm {
 			return b
 		}
 
-		const aItems = a.literal === 'type' && a.kind === 'union' ? a.items : [a]
-		const bItems = b.literal === 'type' && b.kind === 'union' ? b.items : [b]
+		const aItems = a.ast === 'type' && a.kind === 'union' ? a.items : [a]
+		const bItems = b.ast === 'type' && b.kind === 'union' ? b.items : [b]
 
 		return {
-			literal: 'type',
+			ast: 'type',
 			kind: 'union',
 			items: [...aItems, ...bItems],
 		}
 	})
 
-	if (unionType.literal === 'type' && unionType.kind === 'union') {
+	if (unionType.ast === 'type' && unionType.kind === 'union') {
 		return {...unionType}
 	}
 
@@ -545,9 +543,9 @@ const GlobalScope = createList(
 		if: createFn(
 			(cond: ExpForm, then: ExpForm, _else: ExpForm) => {
 				if (
-					cond.literal !== 'const' &&
-					cond.literal !== 'infUnionValue' &&
-					cond.literal !== 'type'
+					cond.ast !== 'const' &&
+					cond.ast !== 'infUnionValue' &&
+					cond.ast !== 'type'
 				) {
 					return then
 				}
@@ -557,15 +555,15 @@ const GlobalScope = createList(
 				lazyEval: [false, true, true],
 			})
 		),
-		literal: createFn(
-			(v: ExpForm) => createString(v.literal),
+		ast: createFn(
+			(v: ExpForm) => createString(v.ast),
 			createTypeFn([TypeAll], TypeString)
 		),
 	})
 )
 
 function getIntrinsticType(exp: ExpForm): ExpForm {
-	switch (exp.literal) {
+	switch (exp.ast) {
 		case 'const':
 			if (exp.value === null) {
 				return exp
@@ -591,13 +589,13 @@ function getIntrinsticType(exp: ExpForm): ExpForm {
 			return TypeType
 		case 'list': {
 			let fnType = inferType(exp.value[0])
-			if (fnType.literal !== 'type') {
+			if (fnType.ast !== 'type') {
 				throw new Error('First element must be a function')
 			}
 			if (fnType.create) {
 				fnType = inferType(fnType.create)
 			}
-			if (fnType.literal === 'type' && fnType.kind === 'fn') {
+			if (fnType.ast === 'type' && fnType.kind === 'fn') {
 				return fnType.out
 			}
 			throw new Error('First element of list is not callable (resolve)')
@@ -621,7 +619,7 @@ function inferType(exp: ExpForm): ExpForm {
 	let expType: ExpForm = TypeAll
 
 	// Resolve the symbol first
-	if (exp.literal === 'symbol') {
+	if (exp.ast === 'symbol') {
 		exp = resolveSymbol(exp)
 	}
 
@@ -629,7 +627,7 @@ function inferType(exp: ExpForm): ExpForm {
 	if (exp.type) {
 		const type: ExpForm = evalExp(exp.type.value)
 
-		if (type.literal !== 'type') {
+		if (type.ast !== 'type') {
 			throw new Error('Type annotation must be type')
 		}
 		expType = type
@@ -647,7 +645,7 @@ function cloneExp<T extends ExpForm>(exp: T) {
 }
 
 function clearEvaluated(exp: ExpForm) {
-	switch (exp.literal) {
+	switch (exp.ast) {
 		case 'symbol':
 		case 'list':
 		case 'vector':
@@ -668,33 +666,33 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 		return true
 	}
 
-	switch (a.literal) {
+	switch (a.ast) {
 		case 'const':
 		case 'symbol':
-			return a.literal === b.literal && a.value === b.value
+			return a.ast === b.ast && a.value === b.value
 		case 'infUnionValue':
 			return (
-				b.literal === 'infUnionValue' &&
+				b.ast === 'infUnionValue' &&
 				a.subsetOf === b.subsetOf &&
 				a.value === b.value
 			)
 		case 'type':
-			return b.literal === 'type' && equalType(a, b)
+			return b.ast === 'type' && equalType(a, b)
 		case 'list':
 		case 'vector':
 			return (
-				a.literal === b.literal &&
+				a.ast === b.ast &&
 				a.value.length === b.value.length &&
 				_.zipWith(a.value, b.value, equalExp).every(_.identity)
 			)
 		case 'hashMap':
 			return (
-				a.literal === b.literal &&
+				a.ast === b.ast &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
 				_.toPairs(a.value).every(([key, av]) => equalExp(av, b.value[key]))
 			)
 		case 'fn':
-			if (b.literal !== 'fn') {
+			if (b.ast !== 'fn') {
 				return false
 			}
 			if (a.value === b.value) {
@@ -706,12 +704,12 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	return false
 
 	function equalType(a: ExpForm, b: ExpForm): boolean {
-		switch (a.literal) {
+		switch (a.ast) {
 			case 'const':
 			case 'infUnionValue':
 				return equalExp(a, b)
 			case 'type':
-				if (b.literal !== 'type') {
+				if (b.ast !== 'type') {
 					return false
 				}
 				switch (a.kind) {
@@ -773,7 +771,7 @@ function resolveSymbol(sym: ExpSymbol): ExpForm {
 		if (isListOf('let', parent)) {
 			const vars = parent.value[1]
 
-			if (vars.literal !== 'hashMap') {
+			if (vars.ast !== 'hashMap') {
 				throw new Error('2nd parameter of let should be HashMap')
 			}
 
@@ -836,7 +834,7 @@ export function evalExp(
 
 		const _eval = _.partial(evalWithTrace, _, trace)
 
-		switch (exp.literal) {
+		switch (exp.ast) {
 			case 'const':
 			case 'infUnionValue':
 			case 'type':
@@ -850,22 +848,20 @@ export function evalExp(
 				const [first, ...rest] = exp.value
 
 				// Check Special form
-				if (first.literal === 'symbol') {
+				if (first.ast === 'symbol') {
 					switch (first.value) {
 						case '=>': {
 							// Create a function
 							const [paramsDef, bodyDef] = rest
 
 							// Validate parameter part
-							if (paramsDef.literal !== 'vector') {
+							if (paramsDef.ast !== 'vector') {
 								const str = printExp(paramsDef)
 								throw new Error(`Function parameters '${str}' must be a vector`)
 							}
 
 							// Check if every element is symbol
-							const nonSymbol = paramsDef.value.find(
-								p => p.literal !== 'symbol'
-							)
+							const nonSymbol = paramsDef.value.find(p => p.ast !== 'symbol')
 							if (nonSymbol) {
 								throw new Error(
 									`Parameter '${printExp(nonSymbol)}' must be a symbol`
@@ -958,9 +954,9 @@ export function evalExp(
 
 				let fn = _eval(first)
 
-				if (fn.literal === 'fn') {
+				if (fn.ast === 'fn') {
 					// Function application
-				} else if (fn.literal === 'type') {
+				} else if (fn.ast === 'type') {
 					// Type constructor
 					if (!fn.create) {
 						throw new Error('This type is not callable')
@@ -973,7 +969,7 @@ export function evalExp(
 				// Type Checking
 				const fnType = inferType(fn)
 
-				if (fnType.literal !== 'type' || fnType.kind !== 'fn') {
+				if (fnType.ast !== 'type' || fnType.kind !== 'fn') {
 					throw new Error(`Not a fn type but ${printExp(fnType)}`)
 				}
 
@@ -998,7 +994,7 @@ export function evalExp(
 					}
 					// Merge rest parameters into a vector
 					const lastParam: ExpVector = {
-						literal: 'vector',
+						ast: 'vector',
 						value: rest.slice(minParamLen),
 					}
 					const lastType = createTypeVector(
@@ -1047,7 +1043,7 @@ export function evalExp(
 			}
 			case 'hashMap': {
 				const out: ExpHashMap = {
-					literal: 'hashMap',
+					ast: 'hashMap',
 					value: {},
 				}
 				Object.entries(exp.value).forEach(
@@ -1064,12 +1060,12 @@ export function evalExp(
 
 // Create functions
 function createNull(): ExpConst {
-	return {literal: 'const', value: null}
+	return {ast: 'const', value: null}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
 	return {
-		literal: 'const',
+		ast: 'const',
 		value,
 		subsetOf: 'boolean',
 	}
@@ -1079,7 +1075,7 @@ function createReservedKeyword(
 	value: ExpReservedKeyword['value']
 ): ExpReservedKeyword {
 	return {
-		literal: 'const',
+		ast: 'const',
 		value,
 		subsetOf: 'reservedKeyword',
 	}
@@ -1087,7 +1083,7 @@ function createReservedKeyword(
 
 function createNumber(value: number): ExpNumber {
 	return {
-		literal: 'infUnionValue',
+		ast: 'infUnionValue',
 		subsetOf: 'number',
 		value,
 	}
@@ -1095,7 +1091,7 @@ function createNumber(value: number): ExpNumber {
 
 function createString(value: string): ExpString {
 	return {
-		literal: 'infUnionValue',
+		ast: 'infUnionValue',
 		subsetOf: 'string',
 		value,
 	}
@@ -1103,7 +1099,7 @@ function createString(value: string): ExpString {
 
 function createSymbol(value: string): ExpSymbol {
 	return {
-		literal: 'symbol',
+		ast: 'symbol',
 		value,
 	}
 }
@@ -1113,7 +1109,7 @@ function createFn(
 	type?: ExpTypeFn
 ): ExpFn {
 	const fn: ExpFn = {
-		literal: 'fn',
+		ast: 'fn',
 		value: typeof value === 'string' ? eval(value) : value,
 	}
 
@@ -1129,7 +1125,7 @@ function createFn(
 
 function createList(...value: ExpForm[]): ExpList {
 	const exp: ExpList = {
-		literal: 'list',
+		ast: 'list',
 		value,
 	}
 	value.forEach(v => (v.parent = exp))
@@ -1139,7 +1135,7 @@ function createList(...value: ExpForm[]): ExpList {
 
 function createVector(value: ExpForm[]): ExpVector {
 	const exp: ExpVector = {
-		literal: 'vector',
+		ast: 'vector',
 		value,
 	}
 	value.forEach(v => (v.parent = exp))
@@ -1149,7 +1145,7 @@ function createVector(value: ExpForm[]): ExpVector {
 
 function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 	const exp: ExpHashMap = {
-		literal: 'hashMap',
+		ast: 'hashMap',
 		value,
 	}
 	Object.values(value).forEach(v => (v.parent = exp))
@@ -1158,9 +1154,9 @@ function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 }
 
 function isListOf(sym: string, exp: ExpForm): exp is ExpList {
-	if (exp.literal === 'list') {
+	if (exp.ast === 'list') {
 		const [first] = exp.value
-		return first && first.literal === 'symbol' && first.value === sym
+		return first && first.ast === 'symbol' && first.value === sym
 	}
 	return false
 }
@@ -1176,14 +1172,14 @@ export function printExp(form: ExpForm): string {
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
 		if (SymbolIdentiferRegex.test(value)) {
-			return {literal: 'symbol', value, str: value}
+			return {ast: 'symbol', value, str: value}
 		} else {
-			return {literal: 'infUnionValue', subsetOf: 'string', value}
+			return {ast: 'infUnionValue', subsetOf: 'string', value}
 		}
 	}
 
 	function printWithoutType(exp: ExpForm): string {
-		switch (exp.literal) {
+		switch (exp.ast) {
 			case 'const':
 				if (exp.value === null) {
 					return 'null'
