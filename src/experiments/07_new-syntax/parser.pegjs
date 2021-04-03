@@ -10,7 +10,7 @@ Program = d0:_ value:Form? d1:_
 Form =
 	ReservedKeyword /
 	Number / String / Symbol /
-	List / Vector / HashMap / TypeAnnotation
+	List / Vector / HashMap
 
 // ReservedKeyword
 ReservedKeyword = value:$("|" / "&" / "...")
@@ -186,15 +186,6 @@ HashMap =
 		Object.values(exp.value).forEach(v => v.parent = exp)
 
 		return exp
-	}
-
-TypeAnnotation = "^" d0:_ type:(Symbol / List) d1:_ value:Form
-	{
-		value['type'] = {
-			value: type,
-			delimiters: [d0, d1]
-		}
-		return value
 	}
 
 _ = $([ \t\n\r]*)

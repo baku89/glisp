@@ -20,10 +20,6 @@ type ExpForm =
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
-	type?: {
-		value: ExpType | ExpSymbol
-		delimiters?: string[]
-	}
 	dep?: Set<ExpSymbol | ExpList>
 }
 
@@ -170,31 +166,10 @@ type ExpType =
 
 type IExpFnValue = (...params: ExpForm[]) => ExpForm
 
-// type IExpFnValue =
-// 	| ((...params: ExpForm[]) => ExpForm)
-// 	| (<P0 extends ExpForm, O extends ExpForm = ExpForm>(p0: P0) => O)
-// 	| (<P0 extends ExpForm, P1 extends ExpForm, O extends ExpForm>(
-// 			p0: P0,
-// 			p1: P1
-// 	  ) => O)
-// 	| (<
-// 			P0 extends ExpForm,
-// 			P1 extends ExpForm,
-// 			P2 extends ExpForm,
-// 			O extends ExpForm
-// 	  >(
-// 			p0: P0,
-// 			p1: P1,
-// 			p2: P2
-// 	  ) => O)
-
 interface ExpFn extends ExpBase {
 	ast: 'fn'
 	value: IExpFnValue
-	type: {
-		value: ExpTypeFn
-		delimiters?: string[]
-	}
+	type: ExpTypeFn
 }
 
 export function readStr(str: string): ExpForm {
@@ -425,7 +400,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		case 'fn': {
 			let innerType: ExpTypeFn
 			if (inner.ast === 'fn') {
-				innerType = inner.type.value
+				innerType = inner.type
 			} else if (inner.ast === 'type' && inner.kind === 'fn') {
 				innerType = inner
 			} else {
@@ -521,15 +496,6 @@ const GlobalScope = createList(
 			(v: ExpBoolean) => createBoolean(!v.value),
 			createTypeFn([TypeBoolean], TypeBoolean)
 		),
-		':infer': createFn(
-			(v: ExpForm) => inferType(v),
-			createTypeFn([TypeAll], TypeAll)
-		),
-		'::?': createFn(
-			(target: any, candidate: any) =>
-				castType(target, candidate) || createNull(),
-			createTypeFn([TypeAll, TypeAll], TypeAll)
-		),
 		'==': createFn(
 			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
@@ -623,16 +589,6 @@ function inferType(exp: ExpForm): ExpForm {
 	// Resolve the symbol first
 	if (exp.ast === 'symbol') {
 		exp = resolveSymbol(exp)
-	}
-
-	// Check if the expression itself has type
-	if (exp.type) {
-		const type: ExpForm = evalExp(exp.type.value)
-
-		if (type.ast !== 'type') {
-			throw new Error('Type annotation must be type')
-		}
-		expType = type
 	}
 
 	if (expType.kind === 'all') {
@@ -746,17 +702,6 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	}
 }
 
-function castType(base: ExpForm, target: ExpForm): ExpForm | null {
-	if (equalExp(base, target)) {
-		return target
-	}
-
-	if (containsExp(target, base)) {
-		return base
-	}
-	return null
-}
-
 function resolveSymbol(sym: ExpSymbol): ExpForm {
 	if (sym.value in ReservedSymbols) {
 		return ReservedSymbols[sym.value]
@@ -798,17 +743,20 @@ export class Interpreter {
 	private vars: ExpHashMap
 
 	constructor() {
-		const defType = createTypeFn([TypeString, TypeAll], TypeAll, {
-			lazyEval: [true, true],
-			lazyInfer: [true, false],
-		})
-
 		this.vars = createHashMap({})
-		this.vars.value['def'] = createFn((sym: ExpSymbol, value: ExpForm) => {
-			this.vars.value[sym.value] = value
-			value.parent = this.vars
-			return value
-		}, defType)
+
+		this.vars.value['def'] = createFn(
+			(sym: ExpSymbol, value: ExpForm) => {
+				this.vars.value[sym.value] = value
+				value.parent = this.vars
+				return value
+			},
+			// NOTE: This should be TypeSymbol
+			createTypeFn([TypeAll, TypeAll], TypeAll, {
+				lazyEval: [true, true],
+				lazyInfer: [true, false],
+			})
+		)
 
 		this.scope = createList(createSymbol('let'), this.vars)
 		this.scope.parent = GlobalScope
@@ -954,36 +902,35 @@ export function evalExp(
 					}
 				}
 
-				let fn = _eval(first)
+				const fn = _eval(first)
+
+				let fnType: ExpTypeFn
+				let fnValue: IExpFnValue
 
 				if (fn.ast === 'fn') {
 					// Function application
+					fnType = fn.type
+					fnValue = fn.value
 				} else if (fn.ast === 'type') {
-					// Type constructor
-					if (!fn.create) {
-						throw new Error('This type is not callable')
-					}
-					fn = fn.create
+					// Type cast
+					fnType = createTypeFn([fn], fn)
+					fnValue = _.identity
 				} else {
 					throw new Error(`${printExp(first)} is not callable`)
 				}
 
 				// Type Checking
-				const fnType = inferType(fn)
+				const paramTypes = fnType.params
+				let params = rest
 
-				if (fnType.ast !== 'type' || fnType.kind !== 'fn') {
-					throw new Error(`Not a fn type but ${printExp(fnType)}`)
-				}
+				// const paramsType = rest.map((r, i) =>
+				// 	fnType.lazyInfer && fnType.lazyInfer[i]
+				// 		? paramsDefType[i]
+				// 		: inferType(r)
+				// )
 
-				const paramsDefType = fnType.params
-				const paramsType = rest.map((r, i) =>
-					fnType.lazyInfer && fnType.lazyInfer[i]
-						? paramsDefType[i]
-						: inferType(r)
-				)
-
-				let minParamLen = paramsDefType.length
-				const paramLen = paramsType.length
+				let minParamLen = paramTypes.length
+				const paramLen = params.length
 
 				if (fnType.variadic) {
 					// Length check
@@ -995,19 +942,14 @@ export function evalExp(
 						)
 					}
 					// Merge rest parameters into a vector
+					// NOTE: Prevent to set parent by directly discribing vector object
 					const lastParam: ExpVector = {
 						ast: 'vector',
-						value: rest.slice(minParamLen),
+						value: params.slice(minParamLen),
 					}
-					const lastType = createTypeVector(
-						uniteType(paramsType.slice(minParamLen))
-					)
 
 					// Replace the variadic part with the vector
-					const variadicLen = lastParam.value.length
-
-					rest.splice(minParamLen, variadicLen, lastParam)
-					paramsType.splice(minParamLen, variadicLen, lastType)
+					params.splice(minParamLen, lastParam.value.length, lastParam)
 				} else {
 					// Not a variadic parameter
 
@@ -1019,22 +961,28 @@ export function evalExp(
 					}
 				}
 
+				params = params.map((p, i) =>
+					p.ast === 'symbol' && (!fnType.lazyInfer || !fnType.lazyInfer[i])
+						? resolveSymbol(p)
+						: p
+				)
+
 				// Cast check
-				paramsDefType.forEach((paramDefType, i) => {
-					if (!castType(paramsType[i], paramDefType)) {
-						const paramTypeStr = printExp(paramsType[i])
-						const paramDefTypeStr = printExp(paramDefType)
+				paramTypes.forEach((paramType, i) => {
+					if (!containsExp(paramType, params[i])) {
+						const paramStr = printExp(params[i])
+						const paramTypeStr = printExp(paramType)
 						throw new Error(
-							`Type '${paramTypeStr}' is not assignable to type '${paramDefTypeStr}'`
+							`'${paramStr}' is not assignable to type '${paramTypeStr}'`
 						)
 					}
 				})
 
-				const evaluatedRest = rest
-					.slice(0, paramsDefType.length)
+				const evaluatedParams = params
+					.slice(0, paramTypes.length)
 					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
 
-				const expanded = fn.value(...evaluatedRest)
+				const expanded = fnValue(...evaluatedParams)
 
 				exp.expanded = expanded
 
@@ -1117,9 +1065,7 @@ function createFn(
 	return {
 		ast: 'fn',
 		value: typeof value === 'string' ? eval(value) : value,
-		type: {
-			value: type,
-		},
+		type,
 	}
 }
 
@@ -1161,13 +1107,95 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 	return false
 }
 
-export function printExp(form: ExpForm): string {
-	if (form.type) {
-		const {type} = form
-		const [d0, d1] = type.delimiters || ['', ' ']
-		return '^' + d0 + printExp(type.value) + d1 + printWithoutType(form)
-	} else {
-		return printWithoutType(form)
+export function printExp(exp: ExpForm): string {
+	switch (exp.ast) {
+		case 'const':
+			if (exp.value === null) {
+				return 'null'
+			}
+			switch (exp.subsetOf) {
+				case 'boolean':
+					return exp.value ? 'true' : 'false'
+				case 'reservedKeyword':
+					return exp.value
+			}
+			throw new Error('cannot print this type of const')
+		case 'infUnionValue':
+			switch (exp.subsetOf) {
+				case 'number': {
+					if (exp.str) {
+						return exp.str
+					}
+					const str = exp.value.toString()
+					switch (str) {
+						case 'Infinity':
+							return 'inf'
+						case '-Infinity':
+							return '-inf'
+						case 'NaN':
+							return 'nan'
+					}
+					return str
+				}
+				case 'string':
+					return `"${exp.value}"`
+				default:
+					throw new Error('Cannot print this type of "subsetOf"')
+			}
+		case 'symbol':
+			if (exp.str) {
+				return exp.str
+			} else {
+				const {value} = exp
+				return SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
+			}
+		case 'list': {
+			return printSeq('(', ')', exp.value, exp.delimiters)
+		}
+		case 'vector':
+			return printSeq('[', ']', exp.value, exp.delimiters)
+		case 'hashMap': {
+			const {value, keyQuoted, delimiters} = exp
+			const keys = Object.keys(value)
+
+			let keyForms: (ExpSymbol | ExpString)[]
+
+			if (keyQuoted) {
+				keyForms = keys.map(k =>
+					keyQuoted[k] ? createString(k) : createSymbol(k)
+				)
+			} else {
+				keyForms = keys.map(toHashKey)
+			}
+
+			let flattenDelimiters: string[]
+			let coll: ExpForm[]
+			if (delimiters) {
+				coll = keys.flatMap((k, i) =>
+					Array.isArray(delimiters[i + 1])
+						? [keyForms[i], value[k]]
+						: [value[k]]
+				)
+				flattenDelimiters = delimiters.flat()
+			} else {
+				coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
+				flattenDelimiters = [
+					'',
+					...Array(keys.length - 1)
+						.fill([': ', ' '])
+						.flat(),
+					': ',
+					'',
+				]
+			}
+			return printSeq('{', '}', coll, flattenDelimiters)
+		}
+		case 'fn':
+			return printExp(exp.type)
+		case 'type':
+			return printType(exp)
+		default:
+			throw new Error('Invalid type of Exp')
 	}
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
@@ -1175,99 +1203,6 @@ export function printExp(form: ExpForm): string {
 			return {ast: 'symbol', value, str: value}
 		} else {
 			return {ast: 'infUnionValue', subsetOf: 'string', value}
-		}
-	}
-
-	function printWithoutType(exp: ExpForm): string {
-		switch (exp.ast) {
-			case 'const':
-				if (exp.value === null) {
-					return 'null'
-				}
-				switch (exp.subsetOf) {
-					case 'boolean':
-						return exp.value ? 'true' : 'false'
-					case 'reservedKeyword':
-						return exp.value
-				}
-				throw new Error('cannot print this type of const')
-			case 'infUnionValue':
-				switch (exp.subsetOf) {
-					case 'number': {
-						if (exp.str) {
-							return exp.str
-						}
-						const str = exp.value.toString()
-						switch (str) {
-							case 'Infinity':
-								return 'inf'
-							case '-Infinity':
-								return '-inf'
-							case 'NaN':
-								return 'nan'
-						}
-						return str
-					}
-					case 'string':
-						return `"${exp.value}"`
-					default:
-						throw new Error('Cannot print this type of "subsetOf"')
-				}
-			case 'symbol':
-				if (exp.str) {
-					return exp.str
-				} else {
-					const {value} = exp
-					return SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
-				}
-			case 'list': {
-				return printSeq('(', ')', exp.value, exp.delimiters)
-			}
-			case 'vector':
-				return printSeq('[', ']', exp.value, exp.delimiters)
-			case 'hashMap': {
-				const {value, keyQuoted, delimiters} = exp
-				const keys = Object.keys(value)
-
-				let keyForms: (ExpSymbol | ExpString)[]
-
-				if (keyQuoted) {
-					keyForms = keys.map(k =>
-						keyQuoted[k] ? createString(k) : createSymbol(k)
-					)
-				} else {
-					keyForms = keys.map(toHashKey)
-				}
-
-				let flattenDelimiters: string[]
-				let coll: ExpForm[]
-				if (delimiters) {
-					coll = keys.flatMap((k, i) =>
-						Array.isArray(delimiters[i + 1])
-							? [keyForms[i], value[k]]
-							: [value[k]]
-					)
-					flattenDelimiters = delimiters.flat()
-				} else {
-					coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
-					flattenDelimiters = [
-						'',
-						...Array(keys.length - 1)
-							.fill([': ', ' '])
-							.flat(),
-						': ',
-						'',
-					]
-				}
-
-				return printSeq('{', '}', coll, flattenDelimiters)
-			}
-			case 'fn':
-				return 'fn'
-			case 'type':
-				return printType(exp)
-			default:
-				throw new Error('Invalid type of Exp')
 		}
 	}
 
@@ -1290,14 +1225,14 @@ export function printExp(form: ExpForm): string {
 					const lastType = exp.params.slice(-1)[0] as ExpTypeVector
 					paramTypes.splice(-1, 1, createSymbol('...'), lastType.items)
 				}
-				const params = paramTypes.map(printWithoutType).join(' ')
-				const out = printWithoutType(exp.out)
+				const params = paramTypes.map(printExp).join(' ')
+				const out = printExp(exp.out)
 				return `(:=> [${params}] ${out})`
 			}
 			case 'vector':
-				return `(:Vector ${printWithoutType(exp.items)})`
+				return `(:Vector ${printExp(exp.items)})`
 			case 'hashMap': {
-				return `(:HashMap ${printWithoutType(exp.items)})`
+				return `(:HashMap ${printExp(exp.items)})`
 			}
 			case 'union': {
 				if (equalExp(exp, TypeBoolean)) {
@@ -1317,7 +1252,7 @@ export function printExp(form: ExpForm): string {
 					})
 				}
 
-				const items = exp.items.map(printWithoutType).join(' ')
+				const items = exp.items.map(printExp).join(' ')
 				return `(:| ${items})`
 			}
 			case 'type':
