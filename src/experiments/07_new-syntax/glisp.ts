@@ -191,6 +191,10 @@ type IExpFnValue = (...params: ExpForm[]) => ExpForm
 interface ExpFn extends ExpBase {
 	ast: 'fn'
 	value: IExpFnValue
+	type: {
+		value: ExpTypeFn
+		delimiters?: string[]
+	}
 }
 
 export function readStr(str: string): ExpForm {
@@ -418,18 +422,26 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 				inner.kind === outer.kind &&
 				containsExp(outer.items, inner.items)
 			)
-		case 'fn':
+		case 'fn': {
+			let innerType: ExpTypeFn
+			if (inner.ast === 'fn') {
+				innerType = inner.type.value
+			} else if (inner.ast === 'type' && inner.kind === 'fn') {
+				innerType = inner
+			} else {
+				return false
+			}
+
 			return (
-				inner.ast === 'type' &&
-				inner.kind === 'fn' &&
-				outer.params.length >= inner.params.length &&
+				outer.params.length >= innerType.params.length &&
 				containsExp(outer.out, outer.out) &&
 				_.zipWith(
-					outer.params.slice(0, inner.params.length),
-					inner.params,
+					outer.params.slice(0, innerType.params.length),
+					innerType.params,
 					containsExp
 				).every(_.identity)
 			)
+		}
 	}
 }
 
@@ -1098,19 +1110,17 @@ function createFn(
 	value: string | ((...params: any[]) => any),
 	type?: ExpTypeFn
 ): ExpFn {
-	const fn: ExpFn = {
+	if (!type) {
+		type = createTypeFn(Array(value.length).fill(TypeAll), TypeAll)
+	}
+
+	return {
 		ast: 'fn',
 		value: typeof value === 'string' ? eval(value) : value,
+		type: {
+			value: type,
+		},
 	}
-
-	if (type) {
-		fn.type = {value: type}
-		type.parent = fn
-	} else {
-		fn.type = {value: createTypeFn(Array(value.length).fill(TypeAll), TypeAll)}
-	}
-
-	return fn
 }
 
 function createList(...value: ExpForm[]): ExpList {
