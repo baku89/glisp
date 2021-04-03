@@ -117,7 +117,7 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
-	identifier: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
+	id: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
 }
 
 interface ExpTypeType extends ExpTypeBase {
@@ -225,13 +225,13 @@ const TypeConst = uniteType([createNull(), TypeBoolean])
 const TypeNumber: ExpTypeInfUnion = {
 	literal: 'type',
 	kind: 'infUnion',
-	identifier: 'number',
+	id: 'number',
 	create: createFn(
 		(v: ExpNumber = createNumber(0)) => v,
 		createTypeFn([], {
 			literal: 'type',
 			kind: 'infUnion',
-			identifier: 'number',
+			id: 'number',
 		})
 	),
 }
@@ -239,13 +239,13 @@ const TypeNumber: ExpTypeInfUnion = {
 const TypeString: ExpTypeInfUnion = {
 	literal: 'type',
 	kind: 'infUnion',
-	identifier: 'string',
+	id: 'string',
 	create: createFn(
 		(v: ExpString = createString('')) => v,
 		createTypeFn([], {
 			literal: 'type',
 			kind: 'infUnion',
-			identifier: 'string',
+			id: 'string',
 		})
 	),
 }
@@ -399,7 +399,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 			return true
 		case 'infUnion':
 			if (inner.literal === 'infUnionValue') {
-				return outer.identifier === inner.subsetOf
+				return outer.id === inner.subsetOf
 			}
 			if (inner.literal === 'type' && inner.kind === 'union') {
 				return inner.items.every(ii => containsExp(outer, ii))
@@ -718,7 +718,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 					case 'all':
 						return b.kind === 'all'
 					case 'infUnion':
-						return b.kind === 'infUnion' && a.identifier === b.identifier
+						return b.kind === 'infUnion' && a.id === b.id
 					case 'type':
 						return b.kind === 'type'
 					case 'union': {
@@ -1280,7 +1280,7 @@ export function printExp(form: ExpForm): string {
 			case 'all':
 				return 'All'
 			case 'infUnion':
-				switch (exp.identifier) {
+				switch (exp.id) {
 					case 'number':
 						return 'Number'
 					case 'string':
