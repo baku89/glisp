@@ -858,6 +858,7 @@ export function evalExp(
 
 							fnScope.parent = exp.parent
 
+							// Define function
 							const fn = (...params: ExpForm[]) => {
 								// Set params
 								paramSymbols.forEach(
@@ -875,9 +876,12 @@ export function evalExp(
 								return out
 							}
 
+							// Infer function type
+							const outType = inferType(bodyDef)
+
 							const fnType = createTypeFn(
 								Array(paramSymbols.length).fill(TypeAll),
-								TypeAll
+								outType
 							)
 
 							return (exp.evaluated = createFn(fn, fnType))
