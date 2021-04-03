@@ -149,11 +149,6 @@ interface ExpTypeVector extends ExpTypeBase {
 	items: ExpForm
 }
 
-interface ExpTypeTuple extends ExpTypeBase {
-	kind: 'tuple'
-	items: ExpForm[]
-}
-
 interface ExpTypeHashMap extends ExpTypeBase {
 	kind: 'hashMap'
 	items: ExpForm
@@ -170,7 +165,6 @@ type ExpType =
 	| ExpTypeType
 	| ExpTypeFn
 	| ExpTypeVector
-	| ExpTypeTuple
 	| ExpTypeHashMap
 	| ExpTypeUnion
 
@@ -277,21 +271,6 @@ function createTypeVector(items: ExpForm): ExpTypeVector {
 		literal: 'type',
 		kind: 'vector',
 		items,
-	}
-}
-
-function createTypeTuple(items: ExpForm[]): ExpForm {
-	switch (items.length) {
-		case 0:
-			return TypeAll
-		case 1:
-			return items[0]
-		default:
-			return {
-				literal: 'type',
-				kind: 'tuple',
-				items,
-			}
 	}
 }
 
@@ -413,12 +392,6 @@ function equalType(a: ExpForm, b: ExpForm): boolean {
 				case 'vector':
 				case 'hashMap':
 					return b.kind === a.kind && equalType(a.items, b.items)
-				case 'tuple':
-					return (
-						b.kind === 'tuple' &&
-						a.items.length === b.items.length &&
-						_.zipWith(a.items, b.items, equalType).every(_.identity)
-					)
 				case 'fn':
 					return (
 						b.kind === 'fn' &&
@@ -436,6 +409,29 @@ function equalType(a: ExpForm, b: ExpForm): boolean {
 function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 	if (outer === inner) {
 		return true
+	}
+
+	if (outer.literal === 'vector') {
+		return (
+			inner.literal === 'vector' &&
+			outer.value.length >= inner.value.length &&
+			_.zipWith(
+				outer.value.slice(0, inner.value.length),
+				inner.value,
+				isSubsetType
+			).every(_.identity)
+		)
+	}
+
+	if (outer.literal === 'hashMap') {
+		if (inner.literal !== 'hashMap') return false
+		return (
+			inner.literal === 'hashMap' &&
+			_.difference(_.keys(inner.value), _.keys(outer.value)).length === 0 &&
+			_.toPairs(inner.value).every(([key, iv]) =>
+				isSubsetType(outer.value[key], iv)
+			)
+		)
 	}
 
 	if (outer.literal !== 'type') {
@@ -473,17 +469,6 @@ function isSubsetType(outer: ExpForm, inner: ExpForm): boolean {
 				inner.literal === 'type' &&
 				inner.kind === outer.kind &&
 				isSubsetType(outer.items, inner.items)
-			)
-		case 'tuple':
-			return (
-				inner.literal === 'type' &&
-				inner.kind === 'tuple' &&
-				outer.items.length >= inner.items.length &&
-				_.zipWith(
-					outer.items.slice(0, inner.items.length),
-					inner.items,
-					isSubsetType
-				).every(_.identity)
 			)
 		case 'fn':
 			return (
@@ -549,12 +534,6 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	':Vector': createFn(
 		createTypeVector,
 		createTypeFn([TypeTypeOrValue], TypeTypeOrValue)
-	),
-	':Tuple': createFn(
-		(items: ExpVector<ExpForm>) => createTypeTuple(items.value),
-		createTypeFn([createTypeVector(TypeTypeOrValue)], TypeTypeOrValue, {
-			variadic: true,
-		})
 	),
 	':HashMap': TypeHashMap,
 	':|': createFn(
@@ -1321,10 +1300,6 @@ export function printExp(form: ExpForm): string {
 			}
 			case 'vector':
 				return `(:Vector ${printWithoutType(exp.items)})`
-			case 'tuple': {
-				const items = exp.items.map(printWithoutType).join(' ')
-				return `(:Tuple ${items})`
-			}
 			case 'hashMap': {
 				return `(:HashMap ${printWithoutType(exp.items)})`
 			}
