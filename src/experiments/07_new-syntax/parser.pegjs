@@ -8,8 +8,19 @@ Program = d0:_ value:Form? d1:_
 	}
 
 Form =
+	ReservedKeyword /
 	Number / String / Symbol /
 	List / Vector / HashMap / TypeAnnotation
+
+// ReservedKeyword
+ReservedKeyword = value:$("|" / "&" / "..." / "=")
+	{
+		return {
+			literal: 'const',
+			unionOf: 'reservedKeyword',
+			value
+		}
+	}
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger

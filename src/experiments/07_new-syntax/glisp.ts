@@ -45,7 +45,13 @@ interface ExpBoolean extends ExpBase {
 	unionOf: 'boolean'
 }
 
-type ExpConst = ExpNull | ExpBoolean
+interface ExpReservedKeyword extends ExpBase {
+	literal: 'const'
+	value: '|' | '&' | '...' | '='
+	unionOf: 'reservedKeyword'
+}
+
+type ExpConst = ExpNull | ExpBoolean | ExpReservedKeyword
 
 interface ExpNumber extends ExpBase {
 	literal: 'infUnionValue'
@@ -216,6 +222,18 @@ const TypeAll: ExpTypeAll = {
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
+
+const ConstOpUnion = createReservedKeyword('|')
+const ConstOpIntersect = createReservedKeyword('&')
+const ConstOpRest = createReservedKeyword('...')
+const ConstOpEqual = createReservedKeyword('=')
+
+const TypeReservedKeyword = uniteType([
+	ConstOpUnion,
+	ConstOpIntersect,
+	ConstOpRest,
+	ConstOpEqual,
+])
 
 const TypeFalsy = uniteType([
 	ConstFalse,
@@ -600,8 +618,12 @@ function getIntrinsticType(exp: ExpForm): ExpTypeN {
 		case 'const':
 			if (exp.value === null) {
 				return exp
-			} else if (typeof exp.value === 'boolean') {
-				return TypeBoolean
+			}
+			switch (exp.unionOf) {
+				case 'boolean':
+					return TypeBoolean
+				case 'reservedKeyword':
+					return exp
 			}
 			throw new Error('Invalid type of const')
 		case 'infUnionValue':
@@ -1036,6 +1058,16 @@ function createBoolean(value: boolean): ExpBoolean {
 	}
 }
 
+function createReservedKeyword(
+	value: ExpReservedKeyword['value']
+): ExpReservedKeyword {
+	return {
+		literal: 'const',
+		value,
+		unionOf: 'reservedKeyword',
+	}
+}
+
 function createNumber(value: number): ExpNumber {
 	return {
 		literal: 'infUnionValue',
@@ -1138,8 +1170,12 @@ export function printExp(form: ExpForm): string {
 			case 'const':
 				if (exp.value === null) {
 					return 'null'
-				} else if (typeof exp.value === 'boolean') {
-					return exp.value ? 'true' : 'false'
+				}
+				switch (exp.unionOf) {
+					case 'boolean':
+						return exp.value ? 'true' : 'false'
+					case 'reservedKeyword':
+						return exp.value
 				}
 				throw new Error('cannot print this type of const')
 			case 'infUnionValue':
