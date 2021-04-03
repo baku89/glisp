@@ -44,9 +44,11 @@ interface ExpBoolean extends ExpBase {
 	unionOf: 'boolean'
 }
 
-interface ExpReservedKeyword extends ExpBase {
+interface ExpReservedKeyword<
+	T extends '|' | '&' | '...' | '=' = '|' | '&' | '...' | '='
+> extends ExpBase {
 	literal: 'const'
-	value: '|' | '&' | '...' | '='
+	value: T
 	unionOf: 'reservedKeyword'
 }
 
@@ -217,6 +219,8 @@ const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
 
+const ConstReservedKeywordRest = createReservedKeyword('...')
+
 const TypeFalsy = uniteType([
 	ConstFalse,
 	createNull(),
@@ -307,8 +311,40 @@ function createTypeHashMap(items: ExpTypeN): ExpTypeHashMap {
 }
 
 const TypeFn = createFn(
-	(params: ExpVector<ExpType>, out: ExpType) => createTypeFn(params.value, out),
-	createTypeFn([createTypeVector(TypeType), TypeType], TypeType)
+	(params: ExpVector<ExpType | ExpReservedKeyword<'...'>>, out: ExpType) => {
+		const paramTypes = params.value
+
+		// Rest argument
+		let variadic = false
+		const restSymbolIndices = _.chain(paramTypes)
+			.map((p, i) => (equalExp(ConstReservedKeywordRest, p) ? i : null))
+			.filter(_.isNumber)
+			.value()
+
+		if (restSymbolIndices.length > 1) {
+			throw new Error("Rest symbol '...' appears more than twice")
+		} else if (restSymbolIndices.length === 1) {
+			const restIndex = restSymbolIndices[0]
+
+			if (restIndex !== paramTypes.length - 2) {
+				throw new Error("Invalid position of rest symbol '...'")
+			}
+
+			const lastType = paramTypes.slice(-1)[0]
+
+			paramTypes.splice(-2, 2, createTypeVector(lastType))
+			variadic = true
+		}
+
+		return createTypeFn(params.value, out, {variadic})
+	},
+	createTypeFn(
+		[
+			createTypeVector(uniteType([TypeType, ConstReservedKeywordRest])),
+			TypeType,
+		],
+		TypeType
+	)
 )
 
 function createTypeFn(
