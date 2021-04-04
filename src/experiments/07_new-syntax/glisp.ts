@@ -396,12 +396,25 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 			)
 		}
 		case 'vector':
+			if (inner.ast === 'vector') {
+				return inner.value.every(v => containsExp(outer.items, v))
+			} else {
+				return (
+					inner.ast === 'type' &&
+					inner.kind === outer.kind &&
+					containsExp(outer.items, inner.items)
+				)
+			}
 		case 'hashMap':
-			return (
-				inner.ast === 'type' &&
-				inner.kind === outer.kind &&
-				containsExp(outer.items, inner.items)
-			)
+			if (inner.ast === 'hashMap') {
+				return _.values(inner.value).every(v => containsExp(outer.items, v))
+			} else {
+				return (
+					inner.ast === 'type' &&
+					inner.kind === outer.kind &&
+					containsExp(outer.items, inner.items)
+				)
+			}
 		case 'fn': {
 			let innerType: ExpTypeFn
 			if (inner.ast === 'fn') {
@@ -966,11 +979,10 @@ export function evalExp(
 					}
 				}
 
-				params = params.map((p, i) =>
-					p.ast === 'symbol' && (!fnType.lazyInfer || !fnType.lazyInfer[i])
-						? resolveSymbol(p)
-						: p
-				)
+				// Eval parameters at first
+				params = params
+					.slice(0, paramTypes.length)
+					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
 
 				// Cast check
 				paramTypes.forEach((paramType, i) => {
@@ -983,25 +995,14 @@ export function evalExp(
 					}
 				})
 
-				const evaluatedParams = params
-					.slice(0, paramTypes.length)
-					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
-
-				const expanded = fnValue(...evaluatedParams)
+				const expanded = fnValue(...params)
 
 				exp.expanded = expanded
 
 				return (exp.evaluated = _eval(expanded))
 			}
 			case 'vector': {
-				switch (exp.value.length) {
-					case 0:
-						return (exp.evaluated = createNull())
-					case 1:
-						return (exp.evaluated = _eval(exp.value[0]))
-					default:
-						return (exp.evaluated = createVector(exp.value.map(_eval)))
-				}
+				return (exp.evaluated = createVector(exp.value.map(_eval)))
 			}
 			case 'hashMap': {
 				const out: ExpHashMap = {
