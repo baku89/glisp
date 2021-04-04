@@ -1002,7 +1002,6 @@ export function printExp(exp: ExpForm): string {
 				case 'boolean':
 					return exp.value ? 'true' : 'false'
 				default:
-					console.log('aaa', exp)
 					throw new Error('cannot print this type of const')
 			}
 		case 'infUnionValue':

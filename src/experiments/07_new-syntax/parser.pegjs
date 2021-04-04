@@ -155,8 +155,6 @@ TypeVector = "[:" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 
 		exp.value.forEach((e, key) => e.parent = exp)
 
-		console.log(exp)
-
 		return exp
 	}
 
