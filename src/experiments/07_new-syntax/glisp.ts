@@ -368,6 +368,10 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 		(items: ExpVector<ExpForm>) => uniteType(items.value),
 		createTypeFn([TypeAll], TypeAll, {variadic: true})
 	),
+	':count': createFn(
+		(v: ExpForm) => createNumber(typeCount(v)),
+		createTypeFn([TypeAll], TypeNumber)
+	),
 	let: createFn(
 		(_: ExpHashMap, body: ExpForm) => body,
 		createTypeFn([createTypeFn([TypeString], TypeAll), TypeAll], TypeAll)
@@ -595,6 +599,33 @@ export class Interpreter {
 
 	evalExp(exp: ExpForm): ExpForm {
 		return evalExp(exp, this.scope)
+	}
+}
+
+function typeCount(exp: ExpForm): number {
+	switch (exp.ast) {
+		case 'null':
+			return 0
+		case 'const':
+		case 'infUnionValue':
+		case 'symbol':
+			return 1
+		case 'vector':
+			return exp.value.reduce((count, v) => count * typeCount(v), 1)
+		case 'variadicVector':
+			return Infinity
+		case 'hashMap':
+			return typeCount(uniteType(_.values(exp.value)))
+		case 'fn':
+			return typeCount(exp.type.out)
+		case 'list':
+			return typeCount(inferType(exp))
+		case 'type':
+			if (exp.kind === 'union') {
+				return exp.items.reduce((count, v) => count + typeCount(v), 0)
+			} else {
+				return Infinity
+			}
 	}
 }
 
