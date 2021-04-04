@@ -12,19 +12,8 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	ReservedKeyword /
 	Number / String / Symbol /
-	List / Vector / HashMap
-
-// ReservedKeyword
-ReservedKeyword = value:$("|" / "&" / "...")
-	{
-		return {
-			ast: 'const',
-			subsetOf: 'reservedKeyword',
-			value
-		}
-	}
+	List / Vector / VariadicVector / HashMap
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
@@ -96,7 +85,7 @@ String = value:StringLiteral
 StringLiteral = '"' str:$(!'"' .)+ '"'
 	{ return str }
 
-Symbol = SymbolIdentifier / SymbolRest / SymbolPath
+Symbol = SymbolIdentifier / SymbolPath
 
 
 SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
@@ -105,14 +94,6 @@ SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 			ast: 'symbol',
 			value: str,
 			str
-		}
-	}
-
-SymbolRest = "..."
-	{
-		return {
-			ast: 'symbol',
-			value: '...'
 		}
 	}
 
@@ -144,6 +125,19 @@ Vector = "[" d0:_ values:(Form _)* "]"
 			ast: 'vector',
 			value: values.map(p => p[0]),
 			delimiters: [d0, ...values.map(p => p[1])]
+		}
+
+		exp.value.forEach((e, key) => e.parent = exp)
+
+		return exp
+	}
+
+VariadicVector = "[" d0:_ values:(Form _)* "..." d1:_ restValue:Form d2:_ "]"
+	{
+		const exp = {
+			ast: 'variadicVector',
+			value: [...values.map(p => p[0]), restValue],
+			delimiters: [d0, ...values.map(p => p[1]), d1, d2]
 		}
 
 		exp.value.forEach((e, key) => e.parent = exp)

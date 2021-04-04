@@ -14,12 +14,13 @@ type ExpForm =
 	| ExpSymbol
 	| ExpList
 	| ExpVector
+	| ExpVariadicVector
 	| ExpHashMap
 	| ExpFn
 	| ExpType
 
 interface ExpBase {
-	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
+	parent?: ExpList | ExpVector | ExpVariadicVector | ExpHashMap | ExpFn
 	dep?: Set<ExpSymbol | ExpList>
 }
 
@@ -40,15 +41,7 @@ interface ExpBoolean extends ExpBase {
 	subsetOf: 'boolean'
 }
 
-interface ExpReservedKeyword<
-	T extends '|' | '&' | '...' | '=' = '|' | '&' | '...' | '='
-> extends ExpBase {
-	ast: 'const'
-	value: T
-	subsetOf: 'reservedKeyword'
-}
-
-type ExpConst = ExpNull | ExpBoolean | ExpReservedKeyword
+type ExpConst = ExpNull | ExpBoolean
 
 interface ExpNumber extends ExpBase {
 	ast: 'infUnionValue'
@@ -85,7 +78,14 @@ interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
 	ast: 'vector'
 	value: T[]
 	delimiters?: string[]
-	evaluated?: ExpVector<T> | T
+	evaluated?: ExpVector<T>
+}
+
+interface ExpVariadicVector extends ExpBase {
+	ast: 'variadicVector'
+	value: ExpForm[]
+	delimiters?: string[]
+	evaluated?: ExpVariadicVector
 }
 
 interface ExpHashMap extends ExpBase {
@@ -176,6 +176,7 @@ export function readStr(str: string): ExpForm {
 	const program = parser.parse(str) as ExpProgram | null
 
 	if (program) {
+		console.log(program)
 		return program.value
 	} else {
 		return createNull()
@@ -194,8 +195,6 @@ const TypeAll: ExpTypeAll = {
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
-
-const ConstReservedKeywordRest = createReservedKeyword('...')
 
 const TypeFalsy = uniteType([
 	ConstFalse,
@@ -265,42 +264,35 @@ function createTypeHashMap(items: ExpForm): ExpTypeHashMap {
 	}
 }
 
-const TypeFn = createFn(
-	(params: ExpVector<ExpType | ExpReservedKeyword<'...'>>, out: ExpType) => {
-		const paramTypes = params.value
+const TypeFn = createFn((params: ExpVector<ExpType>, out: ExpType) => {
+	// const paramTypes = params.value
 
-		// Rest argument
-		let variadic = false
-		const restSymbolIndices = _.chain(paramTypes)
-			.map((p, i) => (equalExp(ConstReservedKeywordRest, p) ? i : null))
-			.filter(_.isNumber)
-			.value()
+	// Rest argument
+	const variadic = false
+	/*
+	const restSymbolIndices = _.chain(paramTypes)
+		.map((p, i) => (equalExp(ConstReservedKeywordRest, p) ? i : null))
+		.filter(_.isNumber)
+		.value()
 
-		if (restSymbolIndices.length > 1) {
-			throw new Error("Rest symbol '...' appears more than twice")
-		} else if (restSymbolIndices.length === 1) {
-			const restIndex = restSymbolIndices[0]
+	if (restSymbolIndices.length > 1) {
+		throw new Error("Rest symbol '...' appears more than twice")
+	} else if (restSymbolIndices.length === 1) {
+		const restIndex = restSymbolIndices[0]
 
-			if (restIndex !== paramTypes.length - 2) {
-				throw new Error("Invalid position of rest symbol '...'")
-			}
-
-			const lastType = paramTypes.slice(-1)[0]
-
-			paramTypes.splice(-2, 2, createTypeVector(lastType))
-			variadic = true
+		if (restIndex !== paramTypes.length - 2) {
+			throw new Error("Invalid position of rest symbol '...'")
 		}
 
-		return createTypeFn(params.value, out, {variadic})
-	},
-	createTypeFn(
-		[
-			createTypeVector(uniteType([TypeType, ConstReservedKeywordRest])),
-			TypeType,
-		],
-		TypeType
-	)
-)
+		const lastType = paramTypes.slice(-1)[0]
+
+		paramTypes.splice(-2, 2, createTypeVector(lastType))
+		variadic = true
+	}
+	*/
+
+	return createTypeFn(params.value, out, {variadic})
+}, createTypeFn([createTypeVector(TypeType), TypeType], TypeType))
 
 function createTypeFn(
 	params: ExpForm[],
@@ -557,8 +549,6 @@ function getIntrinsticType(exp: ExpForm): ExpForm {
 			switch (exp.subsetOf) {
 				case 'boolean':
 					return TypeBoolean
-				case 'reservedKeyword':
-					return exp
 			}
 			throw new Error('Invalid type of const')
 		case 'infUnionValue':
@@ -1004,6 +994,9 @@ export function evalExp(
 			case 'vector': {
 				return (exp.evaluated = createVector(exp.value.map(_eval)))
 			}
+			case 'variadicVector': {
+				return (exp.evaluated = createVariadicVector(exp.value.map(_eval)))
+			}
 			case 'hashMap': {
 				const out: ExpHashMap = {
 					ast: 'hashMap',
@@ -1031,16 +1024,6 @@ function createBoolean(value: boolean): ExpBoolean {
 		ast: 'const',
 		value,
 		subsetOf: 'boolean',
-	}
-}
-
-function createReservedKeyword(
-	value: ExpReservedKeyword['value']
-): ExpReservedKeyword {
-	return {
-		ast: 'const',
-		value,
-		subsetOf: 'reservedKeyword',
 	}
 }
 
@@ -1102,6 +1085,16 @@ function createVector(value: ExpForm[]): ExpVector {
 	return exp
 }
 
+function createVariadicVector(value: ExpForm[]): ExpVariadicVector {
+	const exp: ExpVariadicVector = {
+		ast: 'variadicVector',
+		value,
+	}
+	value.forEach(v => (v.parent = exp))
+
+	return exp
+}
+
 function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 	const exp: ExpHashMap = {
 		ast: 'hashMap',
@@ -1129,8 +1122,6 @@ export function printExp(exp: ExpForm): string {
 			switch (exp.subsetOf) {
 				case 'boolean':
 					return exp.value ? 'true' : 'false'
-				case 'reservedKeyword':
-					return exp.value
 			}
 			throw new Error('cannot print this type of const')
 		case 'infUnionValue':
@@ -1167,6 +1158,11 @@ export function printExp(exp: ExpForm): string {
 		}
 		case 'vector':
 			return printSeq('[', ']', exp.value, exp.delimiters)
+		case 'variadicVector': {
+			const value = [...exp.value]
+			value.splice(-1, 0, createSymbol('...'))
+			return printSeq('[', ']', exp.value, exp.delimiters)
+		}
 		case 'hashMap': {
 			const {value, keyQuoted, delimiters} = exp
 			const keys = Object.keys(value)
