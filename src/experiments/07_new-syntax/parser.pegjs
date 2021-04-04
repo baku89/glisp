@@ -12,13 +12,9 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	Null / Number / String / Symbol /
-	List / Vector / VariadicVector / HashMap
+	Number / String / Symbol /
+	List / Vector / TypeVector / HashMap
 
-Null = "null"
-	{
-		return {ast: 'null'}
-	}
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
@@ -137,15 +133,31 @@ Vector = "[" d0:_ values:(Form _)* "]"
 		return exp
 	}
 
-VariadicVector = "[" d0:_ values:(Form _)* "..." d1:_ restValue:Form d2:_ "]"
+TypeVector = "[:" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 	{
 		const exp = {
-			ast: 'variadicVector',
-			value: [...values.map(p => p[0]), restValue],
-			delimiters: [d0, ...values.map(p => p[1]), d1, d2]
+			ast: 'type',
+			kind: 'vector',
 		}
 
-		exp.value.forEach((e, key) => e.parent = exp)
+		console.log('va', variadic)
+
+		const items = values.map(p => p[0])
+		const itemDelimiters = values.map(p => p[1])
+
+		if (variadic) {
+			const [, d1, restValue] = variadic
+			exp.items = [...items, restValue]
+			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
+			exp.variadic = true
+		} else {
+			exp.items = items
+			exp.delimiters = [d0, ...itemDelimiters, d2]
+		}
+
+		exp.items.forEach((e, key) => e.parent = exp)
+
+		console.log(exp)
 
 		return exp
 	}
