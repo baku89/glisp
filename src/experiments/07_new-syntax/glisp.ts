@@ -2,6 +2,8 @@ import deepClone from 'deep-clone'
 import _ from 'lodash'
 import peg from 'pegjs'
 
+import _$ from '@/lodash-ext'
+
 import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
@@ -9,6 +11,7 @@ const parser = peg.generate(ParserDefinition)
 const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 
 type ExpForm =
+	| ExpNull
 	| ExpConst
 	| ExpInfUnionValue
 	| ExpSymbol
@@ -31,8 +34,7 @@ interface ExpProgram {
 }
 
 interface ExpNull extends ExpBase {
-	ast: 'const'
-	value: null
+	ast: 'null'
 }
 
 interface ExpBoolean extends ExpBase {
@@ -83,7 +85,7 @@ interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
 
 interface ExpVariadicVector extends ExpBase {
 	ast: 'variadicVector'
-	value: ExpForm[]
+	value: [ExpForm, ...ExpForm[]]
 	delimiters?: string[]
 	evaluated?: ExpVariadicVector
 }
@@ -228,7 +230,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		return true
 	}
 
-	if (inner.ast === 'const' && inner.value === null) {
+	if (inner.ast === 'null') {
 		return true
 	}
 
@@ -236,12 +238,21 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		return (
 			inner.ast === 'vector' &&
 			outer.value.length >= inner.value.length &&
-			_.zipWith(
-				outer.value.slice(0, inner.value.length),
-				inner.value,
-				containsExp
-			).every(_.identity)
+			_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
 		)
+	}
+	if (outer.ast === 'variadicVector') {
+		if (inner.ast !== 'variadicVector' && inner.ast !== 'vector') {
+			return false
+		}
+		if (outer.value.length - 1 > inner.value.length) {
+			return false
+		}
+		return inner.value.every((iv, i) => {
+			const idx = Math.min(i, outer.value.length - 1)
+			const ov = outer.value[idx]
+			return containsExp(ov, iv)
+		})
 	}
 
 	if (outer.ast === 'hashMap') {
@@ -334,7 +345,6 @@ function uniteType(items: ExpForm[]): ExpForm {
 }
 
 const ReservedSymbols: {[name: string]: ExpForm} = {
-	null: createNull(),
 	true: createBoolean(true),
 	false: createBoolean(false),
 	inf: createNumber(Infinity),
@@ -452,6 +462,8 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	}
 
 	switch (a.ast) {
+		case 'null':
+			return b.ast === 'null'
 		case 'const':
 		case 'symbol':
 			return a.ast === b.ast && a.value === b.value
@@ -465,10 +477,11 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 			return b.ast === 'type' && equalType(a, b)
 		case 'list':
 		case 'vector':
+		case 'variadicVector':
 			return (
 				a.ast === b.ast &&
 				a.value.length === b.value.length &&
-				_.zipWith(a.value, b.value, equalExp).every(_.identity)
+				_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
 			)
 		case 'hashMap':
 			return (
@@ -486,7 +499,9 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 			return false
 	}
 
-	return false
+	throw new Error(
+		`Cannot determine equality: ${printExp(a)} and ${printExp(b)}`
+	)
 
 	function equalType(a: ExpType, b: ExpType): boolean {
 		if (b.ast !== 'type') {
@@ -803,7 +818,7 @@ export function evalExp(
 
 // Create functions
 function createNull(): ExpConst {
-	return {ast: 'const', value: null}
+	return {ast: 'null'}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
@@ -837,12 +852,12 @@ function createSymbol(value: string): ExpSymbol {
 	}
 }
 
-function createFn(
-	value: string | ((...params: any[]) => any),
-	type?: ExpTypeFn
-): ExpFn {
+function createFn(value: (...params: any[]) => any, type?: ExpTypeFn): ExpFn {
 	if (!type) {
-		type = createTypeFn(Array(value.length).fill(TypeAll), TypeAll)
+		type = createTypeFn(
+			_.times(value.length, () => TypeAll),
+			TypeAll
+		)
 	}
 
 	return {
@@ -873,9 +888,12 @@ function createVector(value: ExpForm[]): ExpVector {
 }
 
 function createVariadicVector(value: ExpForm[]): ExpVariadicVector {
+	if (value.length === 0) {
+		throw new Error('Cannot create variadicVector with no element')
+	}
 	const exp: ExpVariadicVector = {
 		ast: 'variadicVector',
-		value,
+		value: value as ExpVariadicVector['value'],
 	}
 	value.forEach(v => (v.parent = exp))
 
@@ -902,10 +920,9 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 
 export function printExp(exp: ExpForm): string {
 	switch (exp.ast) {
+		case 'null':
+			return 'null'
 		case 'const':
-			if (exp.value === null) {
-				return 'null'
-			}
 			switch (exp.subsetOf) {
 				case 'boolean':
 					return exp.value ? 'true' : 'false'

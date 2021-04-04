@@ -12,8 +12,13 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	Number / String / Symbol /
+	Null / Number / String / Symbol /
 	List / Vector / VariadicVector / HashMap
+
+Null = "null"
+	{
+		return {ast: 'null'}
+	}
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
