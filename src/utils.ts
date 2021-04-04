@@ -1,4 +1,4 @@
-import Case from 'case'
+import {capitalize} from 'lodash'
 import {Ref, unref} from 'vue'
 
 import {MalKeyword, MalVal} from '@/mal/types'
@@ -24,7 +24,7 @@ export const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
  */
 export function getParamLabel(exp: MalVal) {
 	const str = MalKeyword.is(exp) ? exp.value : exp.print()
-	return str.length === 1 ? str : Case.capital(str)
+	return str.length === 1 ? str : capitalize(str)
 }
 
 export function delay(ms: number) {
@@ -40,11 +40,4 @@ export function getHTMLElement(
 		: _el instanceof Object && _el.$el instanceof HTMLElement
 		? _el.$el
 		: undefined
-}
-
-export function objectMap<V, T>(
-	obj: {[k: string]: V},
-	f: (value: [string, V]) => [string, T]
-) {
-	return Object.fromEntries(Object.entries(obj).map(f))
 }
