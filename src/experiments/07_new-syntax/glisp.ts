@@ -391,18 +391,17 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Number: TypeNumber,
 	String: TypeString,
 	Type: TypeType,
-	':=>': createFn(
-		(params: ExpTypeVector, out: ExpForm) =>
-			createTypeFn(params.items, out, {
-				variadic: params.variadic,
-			}),
-		createTypeFn([createTypeVector([TypeAll], true)], TypeType)
-	),
-	':|': createFn(
+	'#=>': createFn((params: ExpTypeVector, out: ExpForm) => {
+		console.log({params, out})
+		return createTypeFn(params.items, out, {
+			variadic: params.variadic,
+		})
+	}, createTypeFn([TypeAll], TypeType)),
+	'#|': createFn(
 		(items: ExpVector<ExpForm>) => uniteType(items.value),
 		createTypeFn([TypeAll], TypeAll, {variadic: true})
 	),
-	':count': createFn(
+	'#count': createFn(
 		(v: ExpForm) => createNumber(typeCount(v)),
 		createTypeFn([TypeAll], TypeNumber)
 	),
@@ -420,6 +419,10 @@ const GlobalScope = createList(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
 			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
+		),
+		and: createFn(
+			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
+			createTypeFn([TypeBoolean, TypeBoolean], TypeBoolean)
 		),
 		square: createFn(
 			(v: ExpNumber) => createNumber(v.value * v.value),
@@ -939,7 +942,10 @@ function createSymbol(value: string): ExpSymbol {
 	}
 }
 
-function createFn(value: (...params: any[]) => any, type?: ExpTypeFn): ExpFn {
+function createFn(
+	value: (...params: any[]) => ExpBase,
+	type?: ExpTypeFn
+): ExpFn {
 	if (!type) {
 		type = createTypeFn(
 			_.times(value.length, () => TypeAll),
@@ -1111,13 +1117,15 @@ export function printExp(exp: ExpForm): string {
 				}
 			case 'vector': {
 				const value = [...exp.items]
+				const delimiters = ['', ..._.times(value.length - 1, () => ' '), '']
 				if (exp.variadic) {
 					value.splice(-1, 0, createSymbol('...'))
+					delimiters.push('')
 				}
-				return printSeq('[: ', ']', value)
+				return printSeq('#[', ']', value, delimiters)
 			}
 			case 'fn':
-				return `(:=> ${printExp(exp.params)} ${printExp(exp.out)})`
+				return `(#=> ${printExp(exp.params)} ${printExp(exp.out)})`
 			case 'union': {
 				if (equalExp(exp, TypeBoolean)) {
 					return 'Boolean'
@@ -1137,7 +1145,7 @@ export function printExp(exp: ExpForm): string {
 				}
 
 				const items = exp.items.map(printExp).join(' ')
-				return `(:| ${items})`
+				return `(#| ${items})`
 			}
 		}
 	}

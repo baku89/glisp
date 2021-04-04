@@ -89,7 +89,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 Symbol = SymbolIdentifier / SymbolPath
 
 
-SymbolIdentifier = str:$(":"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
+SymbolIdentifier = str:$("#"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 	{ 
 		return {
 			ast: 'symbol',
@@ -133,7 +133,7 @@ Vector = "[" d0:_ values:(Form _)* "]"
 		return exp
 	}
 
-TypeVector = "[:" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
+TypeVector = "#[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 	{
 		const exp = {
 			ast: 'specialList',
