@@ -1035,7 +1035,7 @@ export function printExp(exp: ExpForm): string {
 			return printSeq('{', '}', coll, flattenDelimiters)
 		}
 		case 'fn':
-			return printExp(exp.type)
+			return `(=> ${printExp(exp.type.params)} ${printExp(exp.type.out)})`
 		case 'type':
 			return printType(exp)
 		default:
