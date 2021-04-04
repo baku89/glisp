@@ -136,26 +136,24 @@ Vector = "[" d0:_ values:(Form _)* "]"
 TypeVector = "[:" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 	{
 		const exp = {
-			ast: 'type',
-			kind: 'vector',
+			ast: 'specialList',
+			kind: 'typeVector',
 		}
 
-		console.log('va', variadic)
-
-		const items = values.map(p => p[0])
+		const value = values.map(p => p[0])
 		const itemDelimiters = values.map(p => p[1])
 
 		if (variadic) {
 			const [, d1, restValue] = variadic
-			exp.items = [...items, restValue]
+			exp.value = [...value, restValue]
 			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
 			exp.variadic = true
 		} else {
-			exp.items = items
+			exp.value = value
 			exp.delimiters = [d0, ...itemDelimiters, d2]
 		}
 
-		exp.items.forEach((e, key) => e.parent = exp)
+		exp.value.forEach((e, key) => e.parent = exp)
 
 		console.log(exp)
 
