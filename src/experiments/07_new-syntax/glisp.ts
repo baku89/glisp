@@ -120,34 +120,12 @@ interface ExpTypeType extends ExpTypeBase {
 	kind: 'type'
 }
 
-interface ExpTypeFnFixed extends ExpTypeBase {
+interface ExpTypeFn extends ExpTypeBase {
 	kind: 'fn'
-	params: ExpForm[]
+	params: ExpVector | ExpVariadicVector
 	out: ExpForm
-	variadic?: false
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
-}
-
-interface ExpTypeFnVariadic extends ExpTypeBase {
-	kind: 'fn'
-	params: [...ExpForm[], ExpTypeVector]
-	out: ExpForm
-	variadic: true
-	lazyEval?: boolean[]
-	lazyInfer?: boolean[]
-}
-
-type ExpTypeFn = ExpTypeFnFixed | ExpTypeFnVariadic
-
-interface ExpTypeVector extends ExpTypeBase {
-	kind: 'vector'
-	items: ExpForm
-}
-
-interface ExpTypeHashMap extends ExpTypeBase {
-	kind: 'hashMap'
-	items: ExpForm
 }
 
 interface ExpTypeUnion extends ExpTypeBase {
@@ -160,8 +138,6 @@ type ExpType =
 	| ExpTypeInfUnion
 	| ExpTypeType
 	| ExpTypeFn
-	| ExpTypeVector
-	| ExpTypeHashMap
 	| ExpTypeUnion
 
 type IExpFnValue = (...params: ExpForm[]) => ExpForm
@@ -221,78 +197,12 @@ const TypeString: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
 	id: 'string',
-	create: createFn(
-		(v: ExpString = createString('')) => v,
-		createTypeFn([], {
-			ast: 'type',
-			kind: 'infUnion',
-			id: 'string',
-		})
-	),
 }
 
 const TypeType: ExpTypeType = {
 	ast: 'type',
 	kind: 'type',
-	create: createFn(
-		() => TypeAll,
-		createTypeFn([], {
-			ast: 'type',
-			kind: 'type',
-		})
-	),
 }
-
-function createTypeVector(items: ExpForm): ExpTypeVector {
-	return {
-		ast: 'type',
-		kind: 'vector',
-		items,
-	}
-}
-
-const TypeHashMap = createFn(
-	createTypeHashMap,
-	createTypeFn([TypeType], TypeType)
-)
-
-function createTypeHashMap(items: ExpForm): ExpTypeHashMap {
-	return {
-		ast: 'type',
-		kind: 'hashMap',
-		items,
-	}
-}
-
-const TypeFn = createFn((params: ExpVector<ExpType>, out: ExpType) => {
-	// const paramTypes = params.value
-
-	// Rest argument
-	const variadic = false
-	/*
-	const restSymbolIndices = _.chain(paramTypes)
-		.map((p, i) => (equalExp(ConstReservedKeywordRest, p) ? i : null))
-		.filter(_.isNumber)
-		.value()
-
-	if (restSymbolIndices.length > 1) {
-		throw new Error("Rest symbol '...' appears more than twice")
-	} else if (restSymbolIndices.length === 1) {
-		const restIndex = restSymbolIndices[0]
-
-		if (restIndex !== paramTypes.length - 2) {
-			throw new Error("Invalid position of rest symbol '...'")
-		}
-
-		const lastType = paramTypes.slice(-1)[0]
-
-		paramTypes.splice(-2, 2, createTypeVector(lastType))
-		variadic = true
-	}
-	*/
-
-	return createTypeFn(params.value, out, {variadic})
-}, createTypeFn([createTypeVector(TypeType), TypeType], TypeType))
 
 function createTypeFn(
 	params: ExpForm[],
@@ -303,30 +213,11 @@ function createTypeFn(
 		lazyInfer = undefined as undefined | boolean[],
 	} = {}
 ): ExpTypeFn {
-	if (variadic) {
-		const fixedParams = params.slice(0, -1)
-		const lastParam = params[params.length - 1]
-		if (lastParam.ast !== 'type' || lastParam.kind !== 'vector') {
-			throw new Error('Last parameter is not a vector type')
-		}
-
-		return {
-			ast: 'type',
-			kind: 'fn',
-			params: [...fixedParams, lastParam],
-			out,
-			variadic,
-			lazyEval,
-			lazyInfer,
-		}
-	}
-
 	return {
 		ast: 'type',
 		kind: 'fn',
-		params,
+		params: (variadic ? createVariadicVector : createVector)(params),
 		out,
-		variadic,
 		lazyEval,
 		lazyInfer,
 	}
@@ -334,6 +225,10 @@ function createTypeFn(
 
 function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 	if (outer === inner) {
+		return true
+	}
+
+	if (inner.ast === 'const' && inner.value === null) {
 		return true
 	}
 
@@ -387,45 +282,23 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 				outer.items.find(_.partial(containsExp, _, ii))
 			)
 		}
-		case 'vector':
-			if (inner.ast === 'vector') {
-				return inner.value.every(v => containsExp(outer.items, v))
-			} else {
-				return (
-					inner.ast === 'type' &&
-					inner.kind === outer.kind &&
-					containsExp(outer.items, inner.items)
-				)
-			}
-		case 'hashMap':
-			if (inner.ast === 'hashMap') {
-				return _.values(inner.value).every(v => containsExp(outer.items, v))
-			} else {
-				return (
-					inner.ast === 'type' &&
-					inner.kind === outer.kind &&
-					containsExp(outer.items, inner.items)
-				)
-			}
 		case 'fn': {
-			let innerType: ExpTypeFn
-			if (inner.ast === 'fn') {
-				innerType = inner.type
-			} else if (inner.ast === 'type' && inner.kind === 'fn') {
-				innerType = inner
-			} else {
-				return false
+			if (inner.ast === 'type') {
+				if (inner.kind === 'fn') {
+					return (
+						containsExp(outer.params, inner.params) &&
+						containsExp(outer.out, inner.out)
+					)
+				}
+				return containsExp(outer.out, inner)
 			}
-
-			return (
-				outer.params.length >= innerType.params.length &&
-				containsExp(outer.out, outer.out) &&
-				_.zipWith(
-					outer.params.slice(0, innerType.params.length),
-					innerType.params,
-					containsExp
-				).every(_.identity)
-			)
+			if (inner.ast === 'fn') {
+				return (
+					containsExp(outer.params, inner.type.params) &&
+					containsExp(outer.out, inner.type.out)
+				)
+			}
+			return containsExp(outer.out, inner)
 		}
 	}
 }
@@ -474,18 +347,20 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	String: TypeString,
 	Type: TypeType,
 	Falsy: TypeFalsy,
-	':=>': TypeFn,
-	':Vector': createFn(createTypeVector, createTypeFn([TypeAll], TypeAll)),
-	':HashMap': TypeHashMap,
+	':=>': createFn(
+		(params: ExpVector | ExpVariadicVector, out: ExpForm) =>
+			createTypeFn(params.value, out, {
+				variadic: params.ast === 'variadicVector',
+			}),
+		createTypeFn([createVariadicVector([TypeType])], TypeType)
+	),
 	':|': createFn(
 		(items: ExpVector<ExpForm>) => uniteType(items.value),
-		createTypeFn([createTypeVector(TypeAll)], TypeAll, {
-			variadic: true,
-		})
+		createTypeFn([TypeAll], TypeAll, {variadic: true})
 	),
 	let: createFn(
 		(_: ExpHashMap, body: ExpForm) => body,
-		createTypeFn([createTypeHashMap(TypeAll), TypeAll], TypeAll)
+		createTypeFn([createTypeFn([TypeString], TypeAll), TypeAll], TypeAll)
 	),
 }
 
@@ -496,7 +371,7 @@ const GlobalScope = createList(
 		'+': createFn(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
-			createTypeFn([createTypeVector(TypeNumber)], TypeNumber, {variadic: true})
+			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
 		),
 		square: createFn(
 			(v: ExpNumber) => createNumber(v.value * v.value),
@@ -516,7 +391,7 @@ const GlobalScope = createList(
 		),
 		count: createFn(
 			(a: ExpVector) => createNumber(a.value.length),
-			createTypeFn([createTypeVector(TypeAll)], TypeNumber)
+			createTypeFn([TypeAll], TypeNumber)
 		),
 		if: createFn(
 			(cond: ExpForm, then: ExpForm, _else: ExpForm) => {
@@ -540,70 +415,14 @@ const GlobalScope = createList(
 	})
 )
 
-function getIntrinsticType(exp: ExpForm): ExpForm {
-	switch (exp.ast) {
-		case 'const':
-			if (exp.value === null) {
-				return exp
-			}
-			switch (exp.subsetOf) {
-				case 'boolean':
-					return TypeBoolean
-			}
-			throw new Error('Invalid type of const')
-		case 'infUnionValue':
-			switch (exp.subsetOf) {
-				case 'number':
-					return TypeNumber
-				case 'string':
-					return TypeString
-				default:
-					console.log(exp)
-					throw new Error(`Invalid subsetOf type`)
-			}
-		case 'type':
-			return TypeType
-		case 'list': {
-			let fnType = inferType(exp.value[0])
-			if (fnType.ast !== 'type') {
-				throw new Error('First element must be a function')
-			}
-			if (fnType.create) {
-				fnType = inferType(fnType.create)
-			}
-			if (fnType.ast === 'type' && fnType.kind === 'fn') {
-				return fnType.out
-			}
-			throw new Error('First element of list is not callable (resolve)')
-		}
-		case 'vector': {
-			const itemsTypes = exp.value.map(inferType)
-			const items = uniteType(itemsTypes)
-			return createTypeVector(items)
-		}
-		case 'hashMap': {
-			const itemsTypes = Object.values(exp.value).map(inferType)
-			const items = uniteType(itemsTypes)
-			return createTypeHashMap(items)
-		}
-		default:
-			return TypeAll
-	}
-}
-
 function inferType(exp: ExpForm): ExpForm {
-	let expType: ExpForm = TypeAll
-
-	// Resolve the symbol first
-	if (exp.ast === 'symbol') {
-		exp = resolveSymbol(exp)
+	if (exp.ast === 'list') {
+		const first = evalExp(exp.value[0])
+		if (first.ast === 'fn') {
+			return first.type.out
+		}
 	}
-
-	if (expType.kind === 'all') {
-		expType = getIntrinsticType(exp)
-	}
-
-	return expType
+	return exp
 }
 
 function cloneExp<T extends ExpForm>(exp: T) {
@@ -669,41 +488,30 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 
 	return false
 
-	function equalType(a: ExpForm, b: ExpForm): boolean {
-		switch (a.ast) {
-			case 'const':
-			case 'infUnionValue':
-				return equalExp(a, b)
+	function equalType(a: ExpType, b: ExpType): boolean {
+		if (b.ast !== 'type') {
+			return false
+		}
+		switch (a.kind) {
+			case 'all':
+				return b.kind === 'all'
+			case 'infUnion':
+				return b.kind === 'infUnion' && a.id === b.id
 			case 'type':
-				if (b.ast !== 'type') {
+				return b.kind === 'type'
+			case 'union': {
+				if (b.kind !== 'union') return false
+				if (a.items.length !== b.items.length) {
 					return false
 				}
-				switch (a.kind) {
-					case 'all':
-						return b.kind === 'all'
-					case 'infUnion':
-						return b.kind === 'infUnion' && a.id === b.id
-					case 'type':
-						return b.kind === 'type'
-					case 'union': {
-						if (b.kind !== 'union') return false
-						if (a.items.length !== b.items.length) {
-							return false
-						}
-						return _.differenceWith(a.items, b.items, equalType).length === 0
-					}
-					case 'vector':
-					case 'hashMap':
-						return b.kind === a.kind && equalExp(a.items, b.items)
-					case 'fn':
-						return (
-							b.kind === 'fn' &&
-							a.params.length === b.params.length &&
-							!!a.variadic === !!b.variadic &&
-							equalExp(a.out, b.out) &&
-							_.zipWith(a.params, b.params, equalType).every(_.identity)
-						)
-				}
+				return _.differenceWith(a.items, b.items, equalExp).length === 0
+			}
+			case 'fn':
+				return (
+					b.kind === 'fn' &&
+					equalExp(a.out, b.out) &&
+					equalExp(a.params, b.params)
+				)
 		}
 
 		throw new Error('Cannot determine equality of this two types')
@@ -813,9 +621,14 @@ export function evalExp(
 							const [paramsDef, bodyDef] = rest
 
 							// Validate parameter part
-							if (paramsDef.ast !== 'vector') {
+							if (
+								paramsDef.ast !== 'vector' &&
+								paramsDef.ast !== 'variadicVector'
+							) {
 								const str = printExp(paramsDef)
-								throw new Error(`Function parameters '${str}' must be a vector`)
+								throw new Error(
+									`Function parameters '${str}' must be a vector/variadicVector`
+								)
 							}
 
 							// Check if every element is symbol
@@ -844,26 +657,6 @@ export function evalExp(
 								throw new Error(
 									`Duplicated symbols ${str} has found in parameter`
 								)
-							}
-
-							// Rest argument
-							let variadic = false
-							const restSymbolIndices = _.chain(paramSymbols)
-								.map((p, i) => (p.value === '...' ? i : null))
-								.filter(_.isNumber)
-								.value()
-
-							if (restSymbolIndices.length > 1) {
-								throw new Error("Rest symbol '...' appears more than twice")
-							} else if (restSymbolIndices.length === 1) {
-								const restIndex = restSymbolIndices[0]
-
-								if (restIndex !== paramSymbols.length - 2) {
-									throw new Error("Invalid position of rest symbol '...'")
-								}
-
-								paramSymbols.splice(restIndex, 1)
-								variadic = true
 							}
 
 							// Create scope
@@ -899,9 +692,7 @@ export function evalExp(
 
 							// Infer function type
 							const paramTypes = Array(paramSymbols.length).fill(TypeAll)
-							if (variadic) {
-								paramTypes[paramTypes.length - 1] = createTypeVector(TypeAll)
-							}
+							const variadic = paramsDef.ast === 'variadicVector'
 							const outType = inferType(bodyDef)
 							const fnType = createTypeFn(paramTypes, outType, {variadic})
 
@@ -919,28 +710,19 @@ export function evalExp(
 					// Function application
 					fnType = fn.type
 					fnValue = fn.value
-				} else if (fn.ast === 'type') {
-					// Type cast
-					fnType = createTypeFn([fn], fn)
-					fnValue = _.identity
 				} else {
-					throw new Error(`${printExp(first)} is not callable`)
+					throw new Error('First element is not a function')
 				}
 
 				// Type Checking
-				const paramTypes = fnType.params
+				const variadic = fnType.params.ast === 'variadicVector'
+				const paramTypes = [...fnType.params.value]
 				let params = rest
 
-				// const paramsType = rest.map((r, i) =>
-				// 	fnType.lazyInfer && fnType.lazyInfer[i]
-				// 		? paramsDefType[i]
-				// 		: inferType(r)
-				// )
-
 				let minParamLen = paramTypes.length
-				const paramLen = params.length
+				let paramLen = params.length
 
-				if (fnType.variadic) {
+				if (variadic) {
 					// Length check
 					minParamLen -= 1
 
@@ -949,15 +731,6 @@ export function evalExp(
 							`Expected ${minParamLen} arguments at least, but got ${paramLen}`
 						)
 					}
-					// Merge rest parameters into a vector
-					// NOTE: Prevent to set parent by directly discribing vector object
-					const lastParam: ExpVector = {
-						ast: 'vector',
-						value: params.slice(minParamLen),
-					}
-
-					// Replace the variadic part with the vector
-					params.splice(minParamLen, lastParam.value.length, lastParam)
 				} else {
 					// Not a variadic parameter
 
@@ -967,28 +740,42 @@ export function evalExp(
 							`Expected ${minParamLen} arguments, but got ${paramLen}`
 						)
 					}
+
+					paramLen = minParamLen
 				}
 
 				// Eval parameters at first
 				params = params
-					.slice(0, paramTypes.length)
+					.slice(0, paramLen)
 					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
 
 				// Cast check
-				paramTypes.forEach((paramType, i) => {
-					if (!containsExp(paramType, params[i])) {
-						const paramStr = printExp(params[i])
+				for (let i = 0; i < paramLen; i++) {
+					const paramType = paramTypes[Math.min(i, paramTypes.length - 1)]
+					const param = params[i]
+
+					if (!containsExp(paramType, param)) {
+						const paramStr = printExp(param)
 						const paramTypeStr = printExp(paramType)
 						throw new Error(
 							`'${paramStr}' is not assignable to type '${paramTypeStr}'`
 						)
 					}
-				})
+				}
 
-				const expanded = fnValue(...params)
+				if (variadic) {
+					// Merge rest parameters into a vector
+					// NOTE: Prevent to set parent by directly discribing vector object
+					const lastParam: ExpVector = {
+						ast: 'vector',
+						value: params.slice(minParamLen),
+					}
 
-				exp.expanded = expanded
+					// Replace the variadic part with the vector
+					params.splice(minParamLen, lastParam.value.length, lastParam)
+				}
 
+				const expanded = (exp.expanded = fnValue(...params))
 				return (exp.evaluated = _eval(expanded))
 			}
 			case 'vector': {
@@ -1161,7 +948,7 @@ export function printExp(exp: ExpForm): string {
 		case 'variadicVector': {
 			const value = [...exp.value]
 			value.splice(-1, 0, createSymbol('...'))
-			return printSeq('[', ']', exp.value, exp.delimiters)
+			return printSeq('[', ']', value, exp.delimiters)
 		}
 		case 'hashMap': {
 			const {value, keyQuoted, delimiters} = exp
@@ -1228,21 +1015,8 @@ export function printExp(exp: ExpForm): string {
 					default:
 						throw new Error('Cannot print this InfUnion')
 				}
-			case 'fn': {
-				const paramTypes: ExpForm[] = [...exp.params]
-				if (exp.variadic) {
-					const lastType = exp.params.slice(-1)[0] as ExpTypeVector
-					paramTypes.splice(-1, 1, createSymbol('...'), lastType.items)
-				}
-				const params = paramTypes.map(printExp).join(' ')
-				const out = printExp(exp.out)
-				return `(:=> [${params}] ${out})`
-			}
-			case 'vector':
-				return `(:Vector ${printExp(exp.items)})`
-			case 'hashMap': {
-				return `(:HashMap ${printExp(exp.items)})`
-			}
+			case 'fn':
+				return `(:=> ${printExp(exp.params)} ${printExp(exp.out)})`
 			case 'union': {
 				if (equalExp(exp, TypeBoolean)) {
 					return 'Boolean'
