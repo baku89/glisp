@@ -1,4 +1,6 @@
-Program = d0:_ value:Form? d1:_
+Start = Program / BlankProgram
+
+Program = d0:_ value:Form d1:_
 	{
 		return {
 			ast: 'program',
@@ -6,6 +8,8 @@ Program = d0:_ value:Form? d1:_
 			delimiters: [d0, d1]
 		}
 	}
+
+BlankProgram = _ { return null }
 
 Form =
 	ReservedKeyword /

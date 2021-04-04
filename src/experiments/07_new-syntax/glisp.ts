@@ -173,8 +173,13 @@ interface ExpFn extends ExpBase {
 }
 
 export function readStr(str: string): ExpForm {
-	const exp = parser.parse(str) as ExpProgram
-	return exp.value
+	const program = parser.parse(str) as ExpProgram | null
+
+	if (program) {
+		return program.value
+	} else {
+		return createNull()
+	}
 }
 
 const TypeAll: ExpTypeAll = {
