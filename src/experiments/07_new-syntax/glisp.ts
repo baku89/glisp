@@ -85,7 +85,7 @@ interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
 	ast: 'vector'
 	value: T[]
 	delimiters?: string[]
-	evaluated?: ExpVector
+	evaluated?: ExpVector<T> | T
 }
 
 interface ExpHashMap extends ExpBase {
@@ -994,7 +994,14 @@ export function evalExp(
 				return (exp.evaluated = _eval(expanded))
 			}
 			case 'vector': {
-				return (exp.evaluated = createVector(exp.value.map(_eval)))
+				switch (exp.value.length) {
+					case 0:
+						return (exp.evaluated = createNull())
+					case 1:
+						return (exp.evaluated = _eval(exp.value[0]))
+					default:
+						return (exp.evaluated = createVector(exp.value.map(_eval)))
+				}
 			}
 			case 'hashMap': {
 				const out: ExpHashMap = {
