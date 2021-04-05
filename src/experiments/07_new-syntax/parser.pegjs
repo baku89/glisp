@@ -1,3 +1,8 @@
+{
+	const BuiltinInfUnionTypes = window['Glisp__builtin__InfUnionTypes']
+	const TypeNumber = BuiltinInfUnionTypes['Number']
+	const TypeString = BuiltinInfUnionTypes['String']
+}
 Start = Program / BlankProgram
 
 Program = d0:_ value:Form d1:_
@@ -27,8 +32,8 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'number',
+			ast: 'const',
+			subsetOf: TypeNumber,
 			value: parseInt(str),
 			str
 		}
@@ -37,8 +42,8 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'number',
+			ast: 'const',
+			subsetOf: TypeNumber,
 			value: parseFloat(str),
 			str
 		}
@@ -47,8 +52,8 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'number',
+			ast: 'const',
+			subsetOf: TypeNumber,
 			value: parseFloat(str),
 			str
 		}
@@ -57,8 +62,8 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'number',
+			ast: 'const',
+			subsetOf: TypeNumber,
 			value: parseInt(str),
 			str
 		}
@@ -67,8 +72,8 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'number',
+			ast: 'const',
+			subsetOf: TypeNumber,
 			value: (parseFloat(str) / 100),
 			str: str + '%'
 		}
@@ -78,8 +83,8 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 String = value:StringLiteral
 	{
 		return {
-			ast: 'infUnionValue',
-			subsetOf: 'string',
+			ast: 'const',
+			subsetOf: TypeString,
 			value
 		}
 	}

@@ -6,13 +6,11 @@ import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
 
-const parser = peg.generate(ParserDefinition)
-
 const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 
 type ExpForm =
 	| ExpVoid
-	| ExpConst
+	| ExpBoolean
 	| ExpInfUnionValue
 	| ExpSymbol
 	| ExpList
@@ -37,32 +35,20 @@ interface ExpVoid extends ExpBase {
 	ast: 'void'
 }
 
-interface ExpBoolean extends ExpBase {
+interface ExpConst<T> extends ExpBase {
 	ast: 'const'
-	value: boolean
-	subsetOf: 'boolean'
-}
-
-type ExpConst = ExpVoid | ExpBoolean
-
-interface ExpNumber extends ExpBase {
-	ast: 'infUnionValue'
-	subsetOf: 'number'
-	value: number
+	value: T
+	subsetOf?: ExpTypeInfUnion
 	str?: string
 }
 
-interface ExpString extends ExpBase {
-	ast: 'infUnionValue'
-	subsetOf: 'string'
-	value: string
-}
+type ExpBoolean = ExpConst<boolean>
 
-interface ExpTypeValue extends ExpBase {
-	ast: 'infUnionValue'
-	subsetOf: 'type'
-	value: ExpType
-}
+type ExpNumber = ExpConst<number>
+
+type ExpString = ExpConst<string>
+
+type ExpTypeValue = ExpConst<ExpType>
 
 type ExpInfUnionValue = ExpNumber | ExpString | ExpTypeValue
 
@@ -123,7 +109,7 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
-	id: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
+	subsetOf?: ExpTypeInfUnion
 }
 
 interface ExpTypeFn extends ExpTypeBase {
@@ -160,6 +146,28 @@ interface ExpFn extends ExpBase {
 	type: ExpTypeFn
 }
 
+const TypeNumber: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+}
+
+const TypeString: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+}
+
+const TypeType: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+}
+
+;(window as any)['Glisp__builtin__InfUnionTypes'] = {
+	Number: TypeNumber,
+	String: TypeString,
+}
+
+const parser = peg.generate(ParserDefinition)
+
 export function readStr(str: string): ExpForm {
 	const program = parser.parse(str) as ExpProgram | null
 
@@ -174,10 +182,7 @@ function evalStr(str: string): ExpForm {
 	return evalExp(readStr(str))
 }
 
-function hasAncestor(
-	target: ExpForm,
-	ancestor: Exclude<ExpForm['parent'], undefined>
-): boolean {
+function hasAncestor(target: ExpForm, ancestor: ExpForm): boolean {
 	return seek(target)
 
 	function seek(target: ExpForm): boolean {
@@ -192,49 +197,43 @@ function hasAncestor(
 }
 
 export function disconnectExp(exp: ExpForm): null {
-	console.log('discoonect...', exp)
 	switch (exp.ast) {
 		case 'void':
 		case 'const':
-		case 'infUnionValue':
 			return null
 		case 'symbol':
-			clearReference(exp)
+			if (exp.ref) {
+				// Clear reference
+				exp.ref.dep?.delete(exp)
+			}
 			return null
 		case 'fn':
 		case 'type':
 			throw new Error('I dunno how to handle this...')
 	}
 
-	const rootExp: Exclude<ExpForm['parent'], undefined> = exp
+	return disconnect(exp)
 
-	return disconnect(rootExp)
-
-	function clearReference(exp: ExpSymbol) {
-		if (exp.ref && !hasAncestor(exp.ref, rootExp)) {
-			// Clear reference
-			exp.ref.dep?.delete(exp)
-			delete exp.ref
-		}
-	}
-
-	function disconnect(exp: ExpForm): null {
-		switch (exp.ast) {
+	function disconnect(e: ExpForm): null {
+		switch (e.ast) {
 			case 'void':
 			case 'const':
-			case 'infUnionValue':
 			case 'fn':
 				return null
 			case 'symbol':
-				clearReference(exp)
+				if (e.ref && !hasAncestor(e.ref, exp)) {
+					// Clear reference
+					e.ref.dep?.delete(e)
+					delete e.ref
+				}
 				return null
 			case 'list':
 			case 'specialList':
 			case 'vector':
-				exp.value.forEach(disconnect)
+				e.value.forEach(disconnect)
 				return null
 			case 'hashMap':
-				_.values(exp.value).forEach(disconnect)
+				_.values(e.value).forEach(disconnect)
 				return null
 			case 'type':
 				throw new Error('これから考える')
@@ -253,32 +252,6 @@ const TypeAll: ExpTypeAll = {
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
-
-const TypeNumber: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
-	id: 'number',
-	create: createFn(
-		(v: ExpNumber = createNumber(0)) => v,
-		createTypeFn([], {
-			ast: 'type',
-			kind: 'infUnion',
-			id: 'number',
-		})
-	),
-}
-
-const TypeString: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
-	id: 'string',
-}
-
-const TypeType: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
-	id: 'type',
-}
 
 function createTypeVector(items: ExpForm[], variadic: boolean): ExpTypeVector {
 	return {
@@ -325,11 +298,16 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (inner.ast === 'infUnionValue') {
-				return outer.id === inner.subsetOf
+			if (inner.ast === 'const') {
+				return !!inner.subsetOf && containsExp(outer, inner.subsetOf)
 			}
-			if (inner.ast === 'type' && inner.kind === 'union') {
-				return inner.items.every(ii => containsExp(outer, ii))
+			if (inner.ast === 'type') {
+				if (inner.kind === 'union') {
+					return inner.items.every(ii => containsExp(outer, ii))
+				}
+				if (inner.kind === 'infUnion') {
+					return !!inner.subsetOf && containsExp(outer, inner.subsetOf)
+				}
 			}
 			return false
 		case 'union': {
@@ -541,7 +519,7 @@ function inferType(exp: ExpForm): ExpForm {
 	switch (exp.ast) {
 		case 'void':
 		case 'const':
-		case 'infUnionValue':
+		case 'type':
 			return exp
 		case 'symbol':
 			return inferType(resolveSymbol(exp))
@@ -570,7 +548,7 @@ function cloneExp<T extends ExpForm>(exp: T) {
 	return deepClone(exp)
 }
 
-function clearEvaluated(exp: ExpForm) {
+function clearEvaluatedRecursively(exp: ExpForm) {
 	switch (exp.ast) {
 		case 'symbol':
 		case 'list':
@@ -583,7 +561,10 @@ function clearEvaluated(exp: ExpForm) {
 	}
 
 	if (exp.dep) {
-		exp.dep.forEach(clearEvaluated)
+		exp.dep.forEach(clearEvaluatedRecursively)
+	}
+	if (exp.parent) {
+		clearEvaluatedRecursively(exp.parent)
 	}
 }
 
@@ -595,19 +576,22 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	switch (a.ast) {
 		case 'void':
 			return b.ast === 'void'
-		case 'const':
 		case 'symbol':
 			return a.ast === b.ast && a.value === b.value
-		case 'infUnionValue':
-			if (b.ast !== 'infUnionValue') {
+		case 'const':
+			if (b.ast !== 'const') {
 				return false
 			}
-			switch (a.subsetOf) {
+			switch (typeof a.value) {
+				case 'boolean':
 				case 'number':
 				case 'string':
 					return a.value === b.value
-				case 'type':
-					return b.subsetOf === 'type' && equalType(a.value, b.value as ExpType)
+				default:
+					return (
+						typeof b.value === 'object' &&
+						equalType(a.value, b.value as ExpType)
+					)
 			}
 			break
 		case 'list':
@@ -650,7 +634,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 			case 'all':
 				return b.kind === 'all'
 			case 'infUnion':
-				return b.kind === 'infUnion' && a.id === b.id
+				return a === b
 			case 'union': {
 				if (b.kind !== 'union') return false
 				if (a.items.length !== b.items.length) {
@@ -745,7 +729,6 @@ function typeCount(exp: ExpForm): number {
 		case 'void':
 			return 0
 		case 'const':
-		case 'infUnionValue':
 		case 'symbol':
 		case 'vector':
 		case 'hashMap':
@@ -798,7 +781,6 @@ export function evalExp(
 		switch (exp.ast) {
 			case 'void':
 			case 'const':
-			case 'infUnionValue':
 			case 'fn':
 			case 'type':
 				return exp
@@ -891,7 +873,7 @@ export function evalExp(
 
 								// Clean params
 								paramSymbols.forEach(sym =>
-									clearEvaluated(paramsHashMap.value[sym.value])
+									clearEvaluatedRecursively(paramsHashMap.value[sym.value])
 								)
 
 								return out
@@ -958,7 +940,6 @@ function assignExp(target: ExpForm, _source: ExpForm): ExpForm {
 				`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
 			)
 		case 'const':
-		case 'infUnionValue':
 			if (!equalExp(target, sourceType)) {
 				throw new Error(
 					`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
@@ -1003,7 +984,7 @@ function assignExp(target: ExpForm, _source: ExpForm): ExpForm {
 }
 
 // Create functions
-function createVoid(): ExpConst {
+function createVoid(): ExpVoid {
 	return {ast: 'void'}
 }
 
@@ -1011,22 +992,21 @@ function createBoolean(value: boolean): ExpBoolean {
 	return {
 		ast: 'const',
 		value,
-		subsetOf: 'boolean',
 	}
 }
 
 function createNumber(value: number): ExpNumber {
 	return {
-		ast: 'infUnionValue',
-		subsetOf: 'number',
+		ast: 'const',
+		subsetOf: TypeNumber,
 		value,
 	}
 }
 
 function createString(value: string): ExpString {
 	return {
-		ast: 'infUnionValue',
-		subsetOf: 'string',
+		ast: 'const',
+		subsetOf: TypeString,
 		value,
 	}
 }
@@ -1102,17 +1082,9 @@ export function printExp(exp: ExpForm): string {
 		case 'void':
 			return 'void'
 		case 'const':
-			if (exp.value === null) {
-				return 'null'
-			}
-			switch (exp.subsetOf) {
+			switch (typeof exp.value) {
 				case 'boolean':
 					return exp.value ? 'true' : 'false'
-				default:
-					throw new Error('cannot print this type of const')
-			}
-		case 'infUnionValue':
-			switch (exp.subsetOf) {
 				case 'number': {
 					if (exp.str) {
 						return exp.str
@@ -1130,10 +1102,8 @@ export function printExp(exp: ExpForm): string {
 				}
 				case 'string':
 					return `"${exp.value}"`
-				case 'type':
-					return `Type::${printType(exp.value)}`
 				default:
-					throw new Error('Cannot print this type of "subsetOf"')
+					return `Type::${printType(exp.value)}`
 			}
 		case 'symbol':
 			if (exp.str) {
@@ -1210,7 +1180,7 @@ export function printExp(exp: ExpForm): string {
 		if (SymbolIdentiferRegex.test(value)) {
 			return {ast: 'symbol', value, str: value}
 		} else {
-			return {ast: 'infUnionValue', subsetOf: 'string', value}
+			return {ast: 'const', subsetOf: TypeString, value}
 		}
 	}
 
@@ -1219,12 +1189,12 @@ export function printExp(exp: ExpForm): string {
 			case 'all':
 				return 'All'
 			case 'infUnion':
-				switch (exp.id) {
-					case 'number':
+				switch (exp) {
+					case TypeNumber:
 						return 'Number'
-					case 'string':
+					case TypeString:
 						return 'String'
-					case 'type':
+					case TypeType:
 						return 'Type'
 					default:
 						throw new Error('Cannot print this InfUnion')
