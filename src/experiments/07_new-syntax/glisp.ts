@@ -538,6 +538,8 @@ function inferType(exp: ExpForm): ExpForm {
 			break
 		case 'vector':
 			return createVector(exp.value.map(inferType), false)
+		case 'hashMap':
+			return createHashMap(_.mapValues(exp.value, inferType))
 		case 'fn':
 			return exp.type.out
 	}
