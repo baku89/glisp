@@ -23,8 +23,8 @@ type ExpForm =
 	| ExpType
 
 interface ExpBase {
-	parent?: ExpList | ExpVector | ExpHashMap | ExpFn
-	dep?: Set<ExpSymbol | ExpList>
+	parent?: ExpList | ExpSpecialList | ExpVector | ExpHashMap | ExpFn
+	dep?: Set<ExpSymbol>
 }
 
 interface ExpProgram {
@@ -172,6 +172,74 @@ export function readStr(str: string): ExpForm {
 
 function evalStr(str: string): ExpForm {
 	return evalExp(readStr(str))
+}
+
+function hasAncestor(
+	target: ExpForm,
+	ancestor: Exclude<ExpForm['parent'], undefined>
+): boolean {
+	return seek(target)
+
+	function seek(target: ExpForm): boolean {
+		if (target === ancestor) {
+			return true
+		}
+		if (!target.parent) {
+			return false
+		}
+		return seek(target.parent)
+	}
+}
+
+export function disconnectExp(exp: ExpForm): null {
+	console.log('discoonect...', exp)
+	switch (exp.ast) {
+		case 'void':
+		case 'const':
+		case 'infUnionValue':
+			return null
+		case 'symbol':
+			clearReference(exp)
+			return null
+		case 'fn':
+		case 'type':
+			throw new Error('I dunno how to handle this...')
+	}
+
+	const rootExp: Exclude<ExpForm['parent'], undefined> = exp
+
+	return disconnect(rootExp)
+
+	function clearReference(exp: ExpSymbol) {
+		if (exp.ref && !hasAncestor(exp.ref, rootExp)) {
+			// Clear reference
+			exp.ref.dep?.delete(exp)
+			delete exp.ref
+		}
+	}
+
+	function disconnect(exp: ExpForm): null {
+		switch (exp.ast) {
+			case 'void':
+			case 'const':
+			case 'infUnionValue':
+			case 'fn':
+				return null
+			case 'symbol':
+				clearReference(exp)
+				return null
+			case 'list':
+			case 'specialList':
+			case 'vector':
+				exp.value.forEach(disconnect)
+				return null
+			case 'hashMap':
+				_.values(exp.value).forEach(disconnect)
+				return null
+			case 'type':
+				throw new Error('これから考える')
+		}
+	}
 }
 
 const TypeAll: ExpTypeAll = {
@@ -608,27 +676,27 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 }
 
 function resolveSymbol(sym: ExpSymbol): ExpForm {
-	if (sym.value in ReservedSymbols) {
-		return ReservedSymbols[sym.value]
-	}
-
 	if (sym.ref) {
 		return sym.ref
 	}
 
 	let ref: ExpForm | undefined
-	let parent: ExpForm | undefined = sym
+	if (sym.value in ReservedSymbols) {
+		ref = ReservedSymbols[sym.value]
+	} else {
+		let parent: ExpForm | undefined = sym
 
-	while ((parent = parent.parent)) {
-		if (isListOf('let', parent)) {
-			const vars = parent.value[1]
+		while ((parent = parent.parent)) {
+			if (isListOf('let', parent)) {
+				const vars = parent.value[1]
 
-			if (vars.ast !== 'hashMap') {
-				throw new Error('2nd parameter of let should be HashMap')
-			}
+				if (vars.ast !== 'hashMap') {
+					throw new Error('2nd parameter of let should be HashMap')
+				}
 
-			if ((ref = vars.value[sym.value])) {
-				break
+				if ((ref = vars.value[sym.value])) {
+					break
+				}
 			}
 		}
 	}
