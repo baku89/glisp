@@ -420,6 +420,11 @@ const GlobalScope = createList(
 				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
 			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
 		),
+		'*': createFn(
+			(value: ExpVector<ExpNumber>) =>
+				createNumber(value.value.reduce((prod, {value}) => prod * value, 1)),
+			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
+		),
 		and: createFn(
 			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
 			createTypeFn([TypeBoolean, TypeBoolean], TypeBoolean)
