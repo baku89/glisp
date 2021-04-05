@@ -11,7 +11,7 @@ const parser = peg.generate(ParserDefinition)
 const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 
 type ExpForm =
-	| ExpNull
+	| ExpVoid
 	| ExpConst
 	| ExpInfUnionValue
 	| ExpSymbol
@@ -33,9 +33,8 @@ interface ExpProgram {
 	delimiters: [string, string]
 }
 
-interface ExpNull extends ExpBase {
-	ast: 'const'
-	value: null
+interface ExpVoid extends ExpBase {
+	ast: 'void'
 }
 
 interface ExpBoolean extends ExpBase {
@@ -44,7 +43,7 @@ interface ExpBoolean extends ExpBase {
 	subsetOf: 'boolean'
 }
 
-type ExpConst = ExpNull | ExpBoolean
+type ExpConst = ExpVoid | ExpBoolean
 
 interface ExpNumber extends ExpBase {
 	ast: 'infUnionValue'
@@ -122,10 +121,6 @@ interface ExpTypeAll extends ExpTypeBase {
 	kind: 'all'
 }
 
-interface ExpTypeVoid extends ExpTypeBase {
-	kind: 'void'
-}
-
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
 	id: ExpBoolean['subsetOf'] | ExpInfUnionValue['subsetOf']
@@ -152,7 +147,6 @@ interface ExpTypeVector extends ExpTypeBase {
 
 type ExpType =
 	| ExpTypeAll
-	| ExpTypeVoid
 	| ExpTypeInfUnion
 	| ExpTypeFn
 	| ExpTypeUnion
@@ -183,11 +177,6 @@ const TypeAll: ExpTypeAll = {
 		(v: ExpForm = createNull()) => v,
 		createTypeFn([], {ast: 'type', kind: 'all'})
 	),
-}
-
-const TypeVoid: ExpTypeVoid = {
-	ast: 'type',
-	kind: 'void',
 }
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
@@ -252,6 +241,10 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 		return true
 	}
 
+	if (inner.ast === 'void') {
+		return true
+	}
+
 	if (outer.ast !== 'type') {
 		return equalExp(outer, inner)
 	}
@@ -259,8 +252,6 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 	switch (outer.kind) {
 		case 'all':
 			return true
-		case 'void':
-			return false
 		case 'infUnion':
 			if (inner.ast === 'infUnionValue') {
 				return outer.id === inner.subsetOf
@@ -386,7 +377,6 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	nan: createNumber(NaN),
 	'...': createSymbol('...'),
 	All: TypeAll,
-	Void: TypeVoid,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
 	String: TypeString,
@@ -515,6 +505,8 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 	}
 
 	switch (a.ast) {
+		case 'void':
+			return b.ast === 'void'
 		case 'const':
 		case 'symbol':
 			return a.ast === b.ast && a.value === b.value
@@ -568,8 +560,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 		}
 		switch (a.kind) {
 			case 'all':
-			case 'void':
-				return a.kind === b.kind
+				return b.kind === 'all'
 			case 'infUnion':
 				return b.kind === 'infUnion' && a.id === b.id
 			case 'union': {
@@ -663,6 +654,8 @@ export class Interpreter {
 
 function typeCount(exp: ExpForm): number {
 	switch (exp.ast) {
+		case 'void':
+			return 0
 		case 'const':
 		case 'infUnionValue':
 		case 'symbol':
@@ -675,8 +668,6 @@ function typeCount(exp: ExpForm): number {
 			return typeCount(inferType(exp))
 		case 'type':
 			switch (exp.kind) {
-				case 'void':
-					return 0
 				case 'all':
 				case 'infUnion':
 					return Infinity
@@ -712,6 +703,7 @@ export function evalExp(
 		const _eval = _.partial(evalWithTrace, _, trace)
 
 		switch (exp.ast) {
+			case 'void':
 			case 'const':
 			case 'infUnionValue':
 			case 'fn':
@@ -913,7 +905,7 @@ export function evalExp(
 
 // Create functions
 function createNull(): ExpConst {
-	return {ast: 'const', value: null}
+	return {ast: 'void'}
 }
 
 function createBoolean(value: boolean): ExpBoolean {
@@ -1005,6 +997,8 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 
 export function printExp(exp: ExpForm): string {
 	switch (exp.ast) {
+		case 'void':
+			return 'void'
 		case 'const':
 			if (exp.value === null) {
 				return 'null'
@@ -1049,6 +1043,23 @@ export function printExp(exp: ExpForm): string {
 		case 'list': {
 			return printSeq('(', ')', exp.value, exp.delimiters)
 		}
+		case 'specialList':
+			if (exp.kind === 'typeVector') {
+				{
+					const value = [...exp.value]
+					const delimiters = exp.delimiters || [
+						'',
+						..._.times(value.length - 1, () => ' '),
+						'',
+					]
+					if (exp.variadic) {
+						value.splice(-1, 0, createSymbol('...'))
+						delimiters.push('')
+					}
+					return printSeq('#[', ']', value, delimiters)
+				}
+			}
+			throw new Error('Invalid specialList and cannot print it')
 		case 'vector':
 			return printSeq('[', ']', exp.value, exp.delimiters)
 		case 'hashMap': {
@@ -1091,8 +1102,6 @@ export function printExp(exp: ExpForm): string {
 			return `(=> ${printExp(exp.type.params)} ${printExp(exp.type.out)})`
 		case 'type':
 			return printType(exp)
-		default:
-			throw new Error('Invalid type of Exp')
 	}
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
@@ -1107,8 +1116,6 @@ export function printExp(exp: ExpForm): string {
 		switch (exp.kind) {
 			case 'all':
 				return 'All'
-			case 'void':
-				return 'Void'
 			case 'infUnion':
 				switch (exp.id) {
 					case 'number':

@@ -12,9 +12,10 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	Number / String / Symbol /
+	Void / Number / String / Symbol /
 	List / Vector / TypeVector / HashMap
 
+Void = "void" { return {ast: 'void'} }
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
