@@ -436,7 +436,7 @@ const GlobalScope = createList(
 			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
-		':>=': createFn(
+		'#>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
