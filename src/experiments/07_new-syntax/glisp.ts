@@ -11,7 +11,7 @@ const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 type ExpForm =
 	| ExpVoid
 	| ExpBoolean
-	| ExpInfUnionValue
+	| ExpConst
 	| ExpSymbol
 	| ExpList
 	| ExpSpecialList
@@ -35,22 +35,22 @@ interface ExpVoid extends ExpBase {
 	ast: 'void'
 }
 
-interface ExpConst<T> extends ExpBase {
+interface ExpConstBase<T> extends ExpBase {
 	ast: 'const'
 	value: T
-	subsetOf?: ExpTypeInfUnion
+	supersets?: ExpTypeInfUnion
 	str?: string
 }
 
-type ExpBoolean = ExpConst<boolean>
+type ExpBoolean = ExpConstBase<boolean>
 
-type ExpNumber = ExpConst<number>
+type ExpNumber = ExpConstBase<number>
 
-type ExpString = ExpConst<string>
+type ExpString = ExpConstBase<string>
 
-type ExpTypeValue = ExpConst<ExpType>
+type ExpTypeValue = ExpConstBase<ExpType>
 
-type ExpInfUnionValue = ExpNumber | ExpString | ExpTypeValue
+type ExpConst = ExpBoolean | ExpNumber | ExpString | ExpTypeValue
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
@@ -109,7 +109,8 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
-	subsetOf?: ExpTypeInfUnion
+	supersets?: ExpTypeInfUnion[]
+	predicate: (v: ExpConst) => boolean
 }
 
 interface ExpTypeFn extends ExpTypeBase {
@@ -149,16 +150,40 @@ interface ExpFn extends ExpBase {
 const TypeNumber: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
+	predicate: ({value}) => typeof value === 'number',
+}
+
+const TypeInt: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+	supersets: [TypeNumber],
+	predicate: ({value}) => Number.isInteger(value),
+}
+
+const TypePosNumber: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+	supersets: [TypeNumber],
+	predicate: ({value}) => value >= 0,
+}
+
+const TypeNat: ExpTypeInfUnion = {
+	ast: 'type',
+	kind: 'infUnion',
+	supersets: [TypeInt, TypePosNumber],
+	predicate: ({value}) => value >= 0 && Number.isInteger(value),
 }
 
 const TypeString: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
+	predicate: ({value}) => typeof value === 'string',
 }
 
 const TypeType: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
+	predicate: ({value}) => typeof value === 'object',
 }
 
 ;(window as any)['Glisp__builtin__InfUnionTypes'] = {
@@ -299,14 +324,17 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 			return true
 		case 'infUnion':
 			if (inner.ast === 'const') {
-				return !!inner.subsetOf && containsExp(outer, inner.subsetOf)
+				return outer.predicate(inner)
 			}
 			if (inner.ast === 'type') {
 				if (inner.kind === 'union') {
 					return inner.items.every(ii => containsExp(outer, ii))
 				}
 				if (inner.kind === 'infUnion') {
-					return !!inner.subsetOf && containsExp(outer, inner.subsetOf)
+					return (
+						!!inner.supersets &&
+						inner.supersets.some(s => containsExp(outer, s))
+					)
 				}
 			}
 			return false
@@ -433,6 +461,9 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	All: TypeAll,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
+	PosNumber: TypePosNumber,
+	Int: TypeNumber,
+	Nat: TypeNat,
 	String: TypeString,
 	Type: TypeType,
 	'#=>': createFn((params: ExpTypeVector, out: ExpForm) => {
@@ -475,7 +506,11 @@ const GlobalScope = createList([
 		),
 		square: createFn(
 			(v: ExpNumber) => createNumber(v.value * v.value),
-			createTypeFn([TypeNumber], TypeNumber)
+			createTypeFn([TypeNumber], TypePosNumber)
+		),
+		sqrt: createFn(
+			(v: ExpNumber) => createNumber(Math.sqrt(v.value)),
+			createTypeFn([TypePosNumber], TypeNumber)
 		),
 		not: createFn(
 			(v: ExpBoolean) => createBoolean(!v.value),
@@ -997,7 +1032,7 @@ function createBoolean(value: boolean): ExpBoolean {
 function createNumber(value: number): ExpNumber {
 	return {
 		ast: 'const',
-		subsetOf: TypeNumber,
+		supersets: TypeNumber,
 		value,
 	}
 }
@@ -1005,7 +1040,7 @@ function createNumber(value: number): ExpNumber {
 function createString(value: string): ExpString {
 	return {
 		ast: 'const',
-		subsetOf: TypeString,
+		supersets: TypeString,
 		value,
 	}
 }
@@ -1179,7 +1214,7 @@ export function printExp(exp: ExpForm): string {
 		if (SymbolIdentiferRegex.test(value)) {
 			return {ast: 'symbol', value, str: value}
 		} else {
-			return {ast: 'const', subsetOf: TypeString, value}
+			return {ast: 'const', supersets: TypeString, value}
 		}
 	}
 
@@ -1191,6 +1226,12 @@ export function printExp(exp: ExpForm): string {
 				switch (exp) {
 					case TypeNumber:
 						return 'Number'
+					case TypePosNumber:
+						return 'PosNumber'
+					case TypeInt:
+						return 'Int'
+					case TypeNat:
+						return 'Nat'
 					case TypeString:
 						return 'String'
 					case TypeType:
