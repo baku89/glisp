@@ -722,7 +722,8 @@ export class Interpreter {
 	}
 
 	evalExp(exp: ExpForm): ExpForm {
-		return evalExp(exp, this.scope)
+		exp.parent = this.scope
+		return evalExp(exp)
 	}
 }
 
@@ -758,11 +759,7 @@ function typeCount(exp: ExpForm): number {
 	}
 }
 
-export function evalExp(
-	exp: ExpForm,
-	parent: ExpBase['parent'] = GlobalScope
-): ExpForm {
-	exp.parent = parent
+export function evalExp(exp: ExpForm): ExpForm {
 	return evalWithTrace(exp, [])
 
 	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
