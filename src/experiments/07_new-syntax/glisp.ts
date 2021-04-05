@@ -915,7 +915,7 @@ function assignExp(target: ExpForm, _source: ExpForm): ExpForm {
 					if (target.variadic) {
 						const restPos = target.items.length - 1
 						const fixedPart = _.take(_source.value, restPos)
-						const restPart = createVector(_source.value.slice(restPos))
+						const restPart = createVector(_source.value.slice(restPos), false)
 						return createVector([...fixedPart, restPart], false)
 					} else {
 						return createVector(
