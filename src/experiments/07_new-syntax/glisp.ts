@@ -394,7 +394,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 		return createTypeFn(params.items, out, {
 			variadic: params.variadic,
 		})
-	}, createTypeFn([TypeAll], TypeType)),
+	}, createTypeFn([TypeAll, TypeAll], TypeType)),
 	'#|': createFn(
 		(items: ExpVector<ExpForm>) => uniteType(items.value),
 		createTypeFn([TypeAll], TypeAll, {variadic: true})
@@ -409,7 +409,7 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	),
 }
 
-const GlobalScope = createList(
+const GlobalScope = createList([
 	createSymbol('let'),
 	createHashMap({
 		PI: createNumber(Math.PI),
@@ -466,24 +466,36 @@ const GlobalScope = createList(
 			(v: ExpForm) => createString(v.ast),
 			createTypeFn([TypeAll], TypeString)
 		),
-	})
-)
+	}),
+])
 
 function inferType(exp: ExpForm): ExpForm {
-	if (exp.ast === 'list') {
-		const first = evalExp(exp.value[0])
-		if (first.ast === 'fn') {
-			return first.type.out
+	switch (exp.ast) {
+		case 'void':
+		case 'const':
+		case 'infUnionValue':
+			return exp
+		case 'symbol':
+			return inferType(resolveSymbol(exp))
+		case 'list': {
+			const first = exp.value[0]
+
+			if (first.ast === 'symbol' && first.value === '=>') {
+				return inferType(evalExp(first))
+			}
+			return inferType(first)
 		}
-		throw new Error('inferType: first element is not a function')
+		case 'specialList':
+			if (exp.kind === 'typeVector') {
+				return TypeType
+			}
+			break
+		case 'vector':
+			return createVector(exp.value.map(inferType), false)
+		case 'fn':
+			return exp.type.out
 	}
-	if (exp.ast === 'specialList') {
-		if (exp.kind === 'typeVector') {
-			return TypeType
-		}
-		// throw new Error('inferType: Invaid specialList')
-	}
-	return exp
+	throw new Error(`Cannot infer this type for now!! ${printExp(exp)}`)
 }
 
 function cloneExp<T extends ExpForm>(exp: T) {
@@ -651,7 +663,7 @@ export class Interpreter {
 			})
 		)
 
-		this.scope = createList(createSymbol('let'), this.vars)
+		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
 	}
 
@@ -707,6 +719,11 @@ export function evalExp(
 			throw new Error(`Circular reference ${printExp(lastTrace)}`)
 		}
 		trace = [...trace, exp]
+
+		// Use cache
+		if ('evaluated' in exp && exp.evaluated) {
+			return exp.evaluated
+		}
 
 		const _eval = _.partial(evalWithTrace, _, trace)
 
@@ -786,11 +803,11 @@ export function evalExp(
 								Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
 							)
 
-							const fnScope = createList(
+							const fnScope = createList([
 								createSymbol('let'),
 								paramsHashMap,
-								cloneExp(bodyDef)
-							)
+								cloneExp(bodyDef),
+							])
 
 							fnScope.parent = exp.parent
 
@@ -837,68 +854,21 @@ export function evalExp(
 					throw new Error('First element is not a function')
 				}
 
-				// Type Checking
-				const variadic = fnType.params.variadic
-				const paramTypes = [...fnType.params.items]
-				let params = rest
+				const params = createVector(rest, false)
+				const assignedParams = assignExp(fnType.params, params)
 
-				let minParamLen = paramTypes.length
-				let paramLen = params.length
+				console.log(printExp(params), printExp(assignedParams))
 
-				if (variadic) {
-					// Length check
-					minParamLen -= 1
-
-					if (paramLen < minParamLen) {
-						throw new Error(
-							`Expected ${minParamLen} arguments at least, but got ${paramLen}`
-						)
-					}
-				} else {
-					// Not a variadic parameter
-
-					// Length check
-					if (paramLen < minParamLen) {
-						throw new Error(
-							`Expected ${minParamLen} arguments, but got ${paramLen}`
-						)
-					}
-
-					paramLen = minParamLen
+				if (assignedParams.ast !== 'vector') {
+					throw new Error('why??????????')
 				}
 
 				// Eval parameters at first
-				params = params
-					.slice(0, paramLen)
-					.map((p, i) => (fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)))
+				const evaluatedParams = assignedParams.value.map((p, i) =>
+					fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
+				)
 
-				// Cast check
-				for (let i = 0; i < paramLen; i++) {
-					const paramType = paramTypes[Math.min(i, paramTypes.length - 1)]
-					const param = params[i]
-
-					if (!containsExp(paramType, param)) {
-						const paramStr = printExp(param)
-						const paramTypeStr = printExp(paramType)
-						throw new Error(
-							`'${paramStr}' is not assignable to type '${paramTypeStr}'`
-						)
-					}
-				}
-
-				if (variadic) {
-					// Merge rest parameters into a vector
-					// NOTE: Prevent to set parent by directly discribing vector object
-					const lastParam: ExpVector = {
-						ast: 'vector',
-						value: params.slice(minParamLen),
-					}
-
-					// Replace the variadic part with the vector
-					params.splice(minParamLen, lastParam.value.length, lastParam)
-				}
-
-				const expanded = (exp.expanded = fnValue(...params))
+				const expanded = (exp.expanded = fnValue(...evaluatedParams))
 				return (exp.evaluated = _eval(expanded))
 			}
 			case 'specialList':
@@ -908,6 +878,59 @@ export function evalExp(
 				}
 				throw new Error('Invalid kind of specialForm')
 		}
+	}
+}
+
+function assignExp(target: ExpForm, _source: ExpForm): ExpForm {
+	const sourceType = inferType(_source)
+
+	switch (target.ast) {
+		case 'void':
+			throw new Error(
+				`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
+			)
+		case 'const':
+		case 'infUnionValue':
+			if (!equalExp(target, sourceType)) {
+				throw new Error(
+					`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
+				)
+			}
+			return _source
+		case 'type':
+			if (!containsExp(target, sourceType)) {
+				throw new Error(
+					`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
+				)
+			}
+			switch (target.kind) {
+				case 'all':
+				case 'union':
+				case 'infUnion':
+					return _source
+				case 'vector': {
+					if (_source.ast !== 'vector') {
+						throw new Error('わけわかんね')
+					}
+					if (target.variadic) {
+						const restPos = target.items.length - 1
+						const fixedPart = _.take(_source.value, restPos)
+						const restPart = createVector(_source.value.slice(restPos))
+						return createVector([...fixedPart, restPart], false)
+					} else {
+						return createVector(
+							_.take(_source.value, target.items.length),
+							false
+						)
+					}
+				}
+				default:
+					throw new Error(
+						'Sorry! Did not implement the assignExp function for this type so far!!'
+					)
+			}
+		default:
+			throw new Error('Cannot assign!!!')
 	}
 }
 
@@ -962,22 +985,28 @@ function createFn(value: (...params: any[]) => ExpBase, type?: ExpForm): ExpFn {
 	}
 }
 
-function createList(...value: ExpForm[]): ExpList {
+function createList(value: ExpForm[], setParent = true): ExpList {
 	const exp: ExpList = {
 		ast: 'list',
 		value,
 	}
-	value.forEach(v => (v.parent = exp))
+
+	if (setParent) {
+		value.forEach(v => (v.parent = exp))
+	}
 
 	return exp
 }
 
-function createVector(value: ExpForm[]): ExpVector {
+function createVector(value: ExpForm[], setParent = true): ExpVector {
 	const exp: ExpVector = {
 		ast: 'vector',
 		value,
 	}
-	value.forEach(v => (v.parent = exp))
+
+	if (setParent) {
+		value.forEach(v => (v.parent = exp))
+	}
 
 	return exp
 }
