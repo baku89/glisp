@@ -166,15 +166,19 @@ export function readStr(str: string): ExpForm {
 	if (program) {
 		return program.value
 	} else {
-		return createNull()
+		return createVoid()
 	}
+}
+
+function evalStr(str: string): ExpForm {
+	return evalExp(readStr(str))
 }
 
 const TypeAll: ExpTypeAll = {
 	ast: 'type',
 	kind: 'all',
 	create: createFn(
-		(v: ExpForm = createNull()) => v,
+		(v: ExpForm = createVoid()) => v,
 		createTypeFn([], {ast: 'type', kind: 'all'})
 	),
 }
@@ -302,6 +306,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 					})
 				} else {
 					if (inner.variadic) {
+						// #[x y ...z] #[a b ...c]
 						return (
 							outer.items.length === inner.items.length &&
 							_$.zipShorter(outer.items, inner.items).every(
@@ -309,12 +314,15 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 							)
 						)
 					} else {
-						return (
-							outer.items.length - 1 >= inner.items.length &&
-							_$.zipShorter(outer.items, inner.items).every(
-								_$.uncurry(containsExp)
-							)
-						)
+						// #[x y ...z] #[a b]
+						if (outer.items.length - 1 > inner.items.length) {
+							return false
+						}
+						return inner.items.every((iv, i) => {
+							const idx = Math.min(i, outer.items.length - 1)
+							const ov = outer.items[idx]
+							return containsExp(ov, iv)
+						})
 					}
 				}
 			}
@@ -904,7 +912,7 @@ export function evalExp(
 }
 
 // Create functions
-function createNull(): ExpConst {
+function createVoid(): ExpConst {
 	return {ast: 'void'}
 }
 
@@ -939,11 +947,8 @@ function createSymbol(value: string): ExpSymbol {
 	}
 }
 
-function createFn(
-	value: (...params: any[]) => ExpBase,
-	type?: ExpTypeFn
-): ExpFn {
-	if (!type) {
+function createFn(value: (...params: any[]) => ExpBase, type?: ExpForm): ExpFn {
+	if (!type || type.ast !== 'type' || type.kind !== 'fn') {
 		type = createTypeFn(
 			_.times(value.length, () => TypeAll),
 			TypeAll
