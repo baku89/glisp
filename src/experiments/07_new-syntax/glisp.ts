@@ -124,8 +124,11 @@ interface ExpTypeAll extends ExpTypeBase {
 
 interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
-	supersets?: ExpTypeInfUnion[]
-	predicate: (v: ExpConst) => boolean
+	value: {
+		original: ExpTypeInfUnion
+		supersets?: ExpTypeInfUnion[]
+		predicate: (v: ExpConst) => boolean
+	}
 }
 
 interface ExpTypeFn extends ExpTypeBase {
@@ -151,38 +154,42 @@ interface ExpFn extends ExpBase {
 	type: ExpTypeFn
 }
 
-const TypeNumber: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
-	predicate: ({value}) => typeof value === 'number',
+function createTypeInfUnion(
+	value: Omit<ExpTypeInfUnion['value'], 'original'>
+): ExpTypeInfUnion {
+	const exp = {
+		ast: 'type',
+		kind: 'infUnion',
+		value,
+	}
+
+	;(exp.value as any).original = exp
+
+	return exp as ExpTypeInfUnion
 }
 
-const TypeInt: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
+const TypeNumber = createTypeInfUnion({
+	predicate: ({value}) => typeof value === 'number',
+})
+
+const TypeInt = createTypeInfUnion({
 	supersets: [TypeNumber],
 	predicate: ({value}) => Number.isInteger(value),
-}
+})
 
-const TypePosNumber: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
+const TypePosNumber = createTypeInfUnion({
 	supersets: [TypeNumber],
 	predicate: ({value}) => value >= 0,
-}
+})
 
-const TypeNat: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
+const TypeNat = createTypeInfUnion({
 	supersets: [TypeInt, TypePosNumber],
 	predicate: ({value}) => value >= 0 && Number.isInteger(value),
-}
+})
 
-const TypeString: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
+const TypeString = createTypeInfUnion({
 	predicate: ({value}) => typeof value === 'string',
-}
+})
 
 ;(window as any)['Glisp__builtin__InfUnionTypes'] = {
 	Number: TypeNumber,
@@ -346,7 +353,7 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 			return true
 		case 'infUnion':
 			if (inner.ast === 'const') {
-				return outer.predicate(inner)
+				return outer.value.predicate(inner)
 			}
 			if (inner.ast === 'type') {
 				if (inner.kind === 'union') {
@@ -354,8 +361,8 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 				}
 				if (inner.kind === 'infUnion') {
 					return (
-						!!inner.supersets &&
-						inner.supersets.some(s => containsExp(outer, s))
+						!!inner.value.supersets &&
+						inner.value.supersets.some(s => containsExp(outer, s))
 					)
 				}
 			}
@@ -1205,7 +1212,7 @@ export function printExp(exp: ExpForm): string {
 			case 'all':
 				return 'All'
 			case 'infUnion':
-				switch (exp) {
+				switch (exp.value.original) {
 					case TypeNumber:
 						return 'Number'
 					case TypePosNumber:
