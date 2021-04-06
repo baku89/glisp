@@ -188,5 +188,11 @@ LabeledForm = str:(SymbolLiteral / StringLiteral) d0:_ ":" d1:_ form:Form
 		return form
 	}
 
+Comment = $(";" [^\n\r]*)
 
-_ = $([ \t\n\r]*)
+Whitespace = $([ \t\n\r]*)
+
+_ = w:Whitespace str:$(Comment Whitespace?)*
+	{
+		return w + str
+	}
