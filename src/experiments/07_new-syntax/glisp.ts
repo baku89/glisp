@@ -142,6 +142,7 @@ interface ExpTypeFn extends ExpTypeBase {
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
 	items: ExpData[]
+	original?: ExpTypeUnion
 }
 
 type ExpType = ExpTypeAll | ExpTypeInfUnion | ExpTypeFn | ExpTypeUnion
@@ -422,7 +423,9 @@ function uniteType(items: ExpData[]): ExpData {
 	})
 
 	if (unionType.ast === 'type' && unionType.kind === 'union') {
-		return {...unionType}
+		const type = {...unionType}
+		type.original = type
+		return type
 	}
 
 	return unionType
@@ -1229,8 +1232,14 @@ export function printExp(exp: ExpForm): string {
 			case 'fn':
 				return `(#=> ${printExp(exp.params)} ${printExp(exp.out)})`
 			case 'union': {
-				const items = exp.items.map(printExp).join(' ')
-				return `(#| ${items})`
+				switch (exp.original) {
+					case TypeBoolean:
+						return 'Boolean'
+					default: {
+						const items = exp.items.map(printExp).join(' ')
+						return `(#| ${items})`
+					}
+				}
 			}
 		}
 	}
