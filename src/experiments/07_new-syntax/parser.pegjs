@@ -17,7 +17,7 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	Label / Void / Number / String / Symbol /
+	LabeledForm / Void / Number / String / Symbol /
 	List / Vector / HashMap
 
 Void = "void" { return {ast: 'void'} }
@@ -127,7 +127,7 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
+Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? "]"
 	{
 		const exp = {
 			ast: 'specialList',
@@ -140,11 +140,11 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 		if (variadic) {
 			const [, d1, restValue] = variadic
 			exp.value = [...value, restValue]
-			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
+			exp.delimiters = [d0, ...itemDelimiters, d1]
 			exp.variadic = true
 		} else {
 			exp.value = value
-			exp.delimiters = [d0, ...itemDelimiters, d2]
+			exp.delimiters = [d0, ...itemDelimiters]
 			exp.variadic = false
 		}
 
@@ -155,15 +155,16 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 
 HashMap =
 	"{" d0:_
-	pairs:((SymbolLiteral / StringLiteral) ":" _ Form _)*
+	pairs:(LabeledForm _)*
 	"}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
 
-		for (const [key, colon, d1, val, d2] of pairs) {
-			value[key] = val
-			delimiters.push(colon + d1, d2)
+		for (const [pair, d1] of pairs) {
+			value[pair.label] = pair
+			delete pair.label
+			delimiters.push(d1)
 		}
 
 		const exp = {
@@ -178,7 +179,7 @@ HashMap =
 		return exp
 	}
 
-Label = label:SymbolLiteral ":" form:Form
+LabeledForm = label:(SymbolLiteral / StringLiteral) ":" form:Form
 	{
 		form.label = label
 		return form

@@ -87,7 +87,7 @@ interface ExpSpecialListHashMap extends ExpBase {
 	value: {
 		[key: string]: ExpForm
 	}
-	delimiters?: (string | [string, string])[]
+	delimiters?: string[]
 	evaluated?: ExpHashMap
 }
 
@@ -921,12 +921,14 @@ export function evalExp(exp: ExpForm): ExpData {
 			}
 			case 'specialList':
 				if (exp.kind === 'vector') {
-					return createVector(exp.value.map(_eval), {variadic: exp.variadic})
+					return createVector(exp.value.map(_eval), {
+						variadic: exp.variadic,
+						delimiters: exp.delimiters,
+					})
 				} else if (exp.kind === 'hashMap') {
-					return {
-						ast: 'hashMap',
-						value: _.mapValues(exp.value, _eval),
-					}
+					return createHashMap(_.mapValues(exp.value, _eval), {
+						delimiters: exp.delimiters,
+					})
 				}
 				throw new Error('Invalid kind of specialForm')
 		}
@@ -1060,12 +1062,17 @@ function createList(value: ExpForm[], {setParent = false} = {}): ExpList {
 
 function createVector(
 	value: ExpData[],
-	{setParent = true, variadic = false} = {}
+	{
+		setParent = true,
+		variadic = false,
+		delimiters = undefined as string[] | undefined,
+	} = {}
 ): ExpVector {
 	const exp: ExpVector = {
 		ast: 'vector',
 		value,
 		variadic,
+		delimiters,
 	}
 
 	if (setParent) {
@@ -1093,13 +1100,19 @@ function createSpecialListVector(
 	return exp
 }
 
-function createHashMap(value: ExpHashMap['value']): ExpHashMap {
+function createHashMap(
+	value: ExpHashMap['value'],
+	{setParent = true, delimiters = undefined as string[] | undefined} = {}
+): ExpHashMap {
 	const exp: ExpHashMap = {
 		ast: 'hashMap',
 		value,
+		delimiters,
 	}
 
-	_.values(value).forEach(v => (v.parent = exp))
+	if (setParent) {
+		_.values(value).forEach(v => (v.parent = exp))
+	}
 
 	return exp
 }
@@ -1172,30 +1185,28 @@ export function printExp(exp: ExpForm): string {
 			throw new Error('Invalid specialList and cannot print it')
 		case 'vector': {
 			const value: ExpForm[] = [...exp.value]
-			const delimiters =
-				exp.value.length === 0
-					? ['']
-					: ['', ...Array(value.length - 1).fill(' '), '']
-			if (exp.variadic) {
-				value.splice(-1, 0, createSymbol('...'))
-				delimiters.push('')
+			let delimiters = exp.delimiters
+			if (!delimiters) {
+				delimiters =
+					exp.delimiters ??
+					(exp.value.length === 0
+						? ['']
+						: ['', ...Array(value.length - 1).fill(' '), ''])
+				if (exp.variadic) {
+					value.splice(-1, 0, createSymbol('...'))
+					delimiters.push('')
+				}
 			}
 			return printSeq('[', ']', value, delimiters)
 		}
 		case 'hashMap': {
 			const pairs = _.entries(exp.value)
-			const coll = pairs.flatMap(([k, v]) => [toHashKey(k), v])
+			const coll = pairs.map(([label, v]) => ({...v, label}))
 			const delimiters =
-				pairs.length === 0
+				exp.delimiters ??
+				(pairs.length === 0
 					? ['']
-					: [
-							'',
-							...Array(pairs.length - 1)
-								.fill([': ', ' '])
-								.flat(),
-							': ',
-							'',
-					  ]
+					: ['', ...Array(pairs.length - 1).fill(' '), ''])
 
 			return printSeq('{', '}', coll, delimiters)
 		}
