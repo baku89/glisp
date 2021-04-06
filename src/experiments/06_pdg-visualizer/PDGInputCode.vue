@@ -93,9 +93,9 @@ export default defineComponent({
 	position relative
 
 	&__input
+		width 100%
 		color var(--textcolor)
 		font-monospace()
-		width 100%
 
 	&__button
 		position absolute

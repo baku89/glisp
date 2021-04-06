@@ -6,11 +6,11 @@ app()
 font-monospace(important = false)
 	if (important)
 		letter-spacing 0 !important
-		font-family 'Fira Code', monospace !important
+		font-family var(--font-mono) !important
 		font-variant-ligatures normal !important
 	else
 		letter-spacing 0
-		font-family 'Fira Code', monospace
+		font-family var(--font-mono)
 		font-variant-ligatures normal !important
 
 $input-height = 1.8em
@@ -78,8 +78,8 @@ input-overlay()
 		stroke-width 1
 
 	.label
-		font-monospace()
 		font-size 1rem
+		font-monospace()
 		fill var(--highlight)
 
 pseudo-block()

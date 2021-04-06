@@ -90,54 +90,53 @@
 
 <script lang="ts">
 import 'normalize.css'
-import GlobalPanes from '@/components/layouts/GlobalPanes.vue'
-import {
-	defineComponent,
-	reactive,
-	computed,
-	watch,
-	toRefs,
-	ref,
-	toRef,
-} from 'vue'
 
-import GlobalMenu from '@/components/GlobalMenu'
-import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
-import ViewCanvas from '@/components/ViewCanvas.vue'
-import Console from '@/components/Console.vue'
-import Inspector from '@/components/Inspector.vue'
-import ViewHandles from '@/components/ViewHandles'
-import PaneLayers from '@/components/PaneLayers.vue'
-
-import {
-	MalVal,
-	MalColl,
-	isMalColl,
-	MalAtom,
-	MalList,
-	MalSymbol,
-	MalString,
-} from '@/mal/types'
-
-import ViewScope from '@/scopes/view'
-import ConsoleScope from '@/scopes/console'
-import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {
-	replaceExp,
+	computed,
+	defineComponent,
+	reactive,
+	ref,
+	toRef,
+	toRefs,
+	watch,
+} from 'vue'
+
+import Console from '@/components/Console.vue'
+import GlobalMenu from '@/components/GlobalMenu'
+import Inspector from '@/components/Inspector.vue'
+import GlobalPanes from '@/components/layouts/GlobalPanes.vue'
+import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
+import PaneLayers from '@/components/PaneLayers.vue'
+import ViewCanvas from '@/components/ViewCanvas.vue'
+import ViewHandles from '@/components/ViewHandles'
+import {
+	isMalColl,
+	MalAtom,
+	MalColl,
+	MalList,
+	MalString,
+	MalSymbol,
+	MalVal,
+} from '@/mal/types'
+import {
 	generateExpAbsPath,
 	getExpByPath,
 	reconstructTree,
+	replaceExp,
 } from '@/mal/utils'
+import ConsoleScope from '@/scopes/console'
+import ViewScope from '@/scopes/view'
+import {computeTheme, isValidColorString, Theme} from '@/theme'
 
 import {
 	useAppCommands,
-	useURLParser,
 	useCompactScrollbar,
-	useExpHistory,
 	useDialogCommand,
 	useDialogSettings,
+	useExpHistory,
 	useHitDetector,
+	useURLParser,
 } from './use'
 import {useModes} from './use/use-modes'
 
@@ -464,7 +463,7 @@ html, body
 			padding 0
 			width $width
 			height $width
-			border-radius (0.5 * $width)rem
+			border-radius: (0.5 * $width)rem
 			background var(--textcolor)
 			color var(--background)
 			text-align center
@@ -527,9 +526,9 @@ html, body
 			border-radius 50%
 			color var(--comment)
 			font-size 1.3rem
+			font-monospace()
 			line-height 2.2rem
 			transition all $compact-dur var(--ease)
-			font-monospace()
 			--textcolor var(--comment)
 
 			&.error

@@ -150,9 +150,9 @@ export default defineComponent({
 	position relative
 
 	&__input
+		width 6rem
 		color var(--keyword)
 		font-monospace()
-		width 6rem
 
 	&__evaluated
 		padding-left 0.5rem

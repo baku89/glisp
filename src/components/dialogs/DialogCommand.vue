@@ -19,14 +19,14 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, computed, PropType} from 'vue'
+import {computed, defineComponent, PropType, ref} from 'vue'
+import VueMarkdown from 'vue-markdown'
+
 import ParamControl from '@/components/ParamControl.vue'
-import {MalVal, MalFunc, MalSymbol, MalList, MalSeq} from '@/mal/types'
+import {printer} from '@/mal/printer'
+import {MalFunc, MalList, MalSymbol} from '@/mal/types'
 import {getExpByPath} from '@/mal/utils'
 import ConsoleScope from '@/scopes/console'
-import VueMarkdown from 'vue-markdown'
-import {printExp} from '@/mal'
-import {printer} from '@/mal/printer'
 
 export default defineComponent({
 	name: 'DialogCommand',

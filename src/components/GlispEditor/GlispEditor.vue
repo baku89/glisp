@@ -197,7 +197,7 @@ export default defineComponent({
 		font-size 1rem
 
 	.ace_editor
-		font-monospace(true)
+		font-monospace(important = true)
 
 	.ace_selection
 		background var(--frame) !important

@@ -112,14 +112,14 @@ export default defineComponent({
 		bottom 1rem
 		width $size
 		height $size
-		border-radius 50%
-		--textcolor var(--comment)
-		font-monospace()
 		border 1px solid var(--comment)
+		border-radius 50%
 		color var(--comment)
 		text-align center
+		font-monospace()
 		line-height 2.2rem
 		transition all 0.2s var(--ease)
+		--textcolor var(--comment)
 
 		&.error
 			border-color var(--error)

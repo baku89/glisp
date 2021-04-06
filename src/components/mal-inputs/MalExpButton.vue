@@ -11,9 +11,10 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, PropType} from 'vue'
-import {MalVal, MalList, MalSymbol, isMalColl} from '@/mal/types'
+import {computed, defineComponent, PropType} from 'vue'
+
 import printExp from '@/mal/printer'
+import {isMalColl, MalList, MalSymbol, MalVal} from '@/mal/types'
 import {getUIBodyExp} from '@/mal/utils'
 
 export default defineComponent({
@@ -74,15 +75,15 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .MalExpButton
-	max-width 100%
-	height $input-height
-	color var(--comment)
-	line-height $input-height
-	font-monospace()
 	display flex
 	display flex
 	align-items center
 	overflow hidden
+	max-width 100%
+	height $input-height
+	color var(--comment)
+	font-monospace()
+	line-height $input-height
 
 	&.selectable
 		cursor pointer

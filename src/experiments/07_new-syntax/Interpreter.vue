@@ -1,6 +1,6 @@
 <template>
 	<div class="Interpreter">
-		<h2>REPL</h2>
+		<h2>Glisp :: REPL</h2>
 		<MinimalConsole :rep="rep" />
 	</div>
 </template>
@@ -19,7 +19,9 @@ export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole},
 	setup() {
-		useScheme()
+		const {background} = useScheme()
+
+		background.value = '#1d1f21'
 
 		const interpreter = new Interpreter()
 
@@ -43,4 +45,7 @@ export default defineComponent({
 	app()
 	padding 2rem
 	height 100vh
+
+	h2
+		font-size 2rem
 </style>
