@@ -1178,9 +1178,11 @@ export function printExp(exp: ExpForm): string {
 						? ['']
 						: ['', ...Array(value.length - 1).fill(' '), ''])
 				if (exp.variadic) {
-					value.splice(-1, 0, createSymbol('...'))
 					delimiters.push('')
 				}
+			}
+			if (exp.variadic) {
+				value.splice(-1, 0, createSymbol('...'))
 			}
 			return printSeq('[', ']', value, delimiters)
 		}

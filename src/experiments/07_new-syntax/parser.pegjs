@@ -127,7 +127,7 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? "]"
+Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form _)? "]"
 	{
 		const exp = {
 			ast: 'specialList',
@@ -138,9 +138,9 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? "]"
 		const itemDelimiters = values.map(p => p[1])
 
 		if (variadic) {
-			const [, d1, restValue] = variadic
+			const [, d1, restValue, d2] = variadic
 			exp.value = [...value, restValue]
-			exp.delimiters = [d0, ...itemDelimiters, d1]
+			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
 			exp.variadic = true
 		} else {
 			exp.value = value
