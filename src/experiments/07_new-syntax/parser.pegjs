@@ -161,7 +161,7 @@ HashMap =
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
 
-		for (const [{value: key}, colon, d1, val, d2] of pairs) {
+		for (const [key, colon, d1, val, d2] of pairs) {
 			value[key] = val
 			delimiters.push(colon + d1, d2)
 		}

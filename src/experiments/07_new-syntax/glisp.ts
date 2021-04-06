@@ -6,7 +6,11 @@ import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
 
-const SymbolIdentiferRegex = /^(#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|...$/i
+function canOmitQuote(name: string) {
+	return (
+		name === '...' || name.match(/^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i)
+	)
+}
 
 type ExpForm = ExpVar | ExpData
 
@@ -93,6 +97,7 @@ interface ExpVector<T extends ExpData = ExpData> extends ExpBase {
 	ast: 'vector'
 	value: T[]
 	variadic: boolean
+	delimiters?: string[]
 }
 
 interface ExpHashMap extends ExpBase {
@@ -100,6 +105,7 @@ interface ExpHashMap extends ExpBase {
 	value: {
 		[key: string]: ExpData
 	}
+	delimiters?: string[]
 }
 
 // Types
@@ -700,18 +706,19 @@ export class Interpreter {
 	constructor() {
 		this.vars = createHashMap({})
 
-		// this.vars.value['def'] = createFn(
-		// 	(sym: ExpSymbol, value: ExpForm) => {
-		// 		this.vars.value[sym.value] = value
-		// 		value.parent = this.vars
-		// 		return value
-		// 	},
-		// 	// NOTE: This should be TypeSymbol
-		// 	createTypeFn([TypeAll, TypeAll], TypeAll, {
-		// 		lazyEval: [true, true],
-		// 		lazyInfer: [true, false],
-		// 	})
-		// )
+		this.vars.value['def'] = createFn(
+			(value: ExpData) => {
+				if (!value.label) {
+					throw new Error('no label')
+				}
+				this.vars.value[value.label] = value
+				delete value.label
+				value.parent = this.vars
+				return value
+			},
+
+			createTypeFn(createVector([TypeAll]), TypeAll, {})
+		)
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -1141,7 +1148,7 @@ export function printExp(exp: ExpForm): string {
 				return exp.str
 			} else {
 				const {value} = exp
-				return SymbolIdentiferRegex.test(value) ? value : `@"${value}"`
+				return canOmitQuote(value) ? value : `@"${value}"`
 			}
 		case 'list': {
 			return printSeq('(', ')', exp.value, exp.delimiters)
@@ -1165,7 +1172,10 @@ export function printExp(exp: ExpForm): string {
 			throw new Error('Invalid specialList and cannot print it')
 		case 'vector': {
 			const value: ExpForm[] = [...exp.value]
-			const delimiters = ['', ..._.times(value.length - 1, () => ' '), '']
+			const delimiters =
+				exp.value.length === 0
+					? ['']
+					: ['', ...Array(value.length - 1).fill(' '), '']
 			if (exp.variadic) {
 				value.splice(-1, 0, createSymbol('...'))
 				delimiters.push('')
@@ -1175,12 +1185,17 @@ export function printExp(exp: ExpForm): string {
 		case 'hashMap': {
 			const pairs = _.entries(exp.value)
 			const coll = pairs.flatMap(([k, v]) => [toHashKey(k), v])
-			const delimiters = [
-				'',
-				..._.times(pairs.length - 1).flatMap(() => [': ', ' ']),
-				': ',
-				'',
-			]
+			const delimiters =
+				pairs.length === 0
+					? ['']
+					: [
+							'',
+							...Array(pairs.length - 1)
+								.fill([': ', ' '])
+								.flat(),
+							': ',
+							'',
+					  ]
 
 			return printSeq('{', '}', coll, delimiters)
 		}
@@ -1191,11 +1206,9 @@ export function printExp(exp: ExpForm): string {
 	}
 
 	function toHashKey(value: string): ExpSymbol | ExpString {
-		if (SymbolIdentiferRegex.test(value)) {
-			return {ast: 'symbol', value, str: value}
-		} else {
-			return {ast: 'const', supersets: TypeString, value}
-		}
+		return canOmitQuote(value)
+			? {ast: 'symbol', value, str: value}
+			: {ast: 'const', supersets: TypeString, value}
 	}
 
 	function printType(exp: ExpType): string {
@@ -1241,7 +1254,7 @@ export function printExp(exp: ExpForm): string {
 					end
 				)
 			}
-			console.warn('Invalid length of delimiters')
+			console.warn('Invalid length of delimiters', delimiters)
 		}
 		return start + coll.map(printExp).join(' ') + end
 	}
