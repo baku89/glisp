@@ -152,11 +152,7 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 		return exp
 	}
 
-HashMap =
-	"{"
-	d0:_
-	pairs:((SymbolIdentifier / String) ":" _ Form _)*
-	"}"
+HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) ":" _ Form _)* "}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]

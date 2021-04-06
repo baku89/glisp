@@ -917,12 +917,8 @@ export function evalExp(exp: ExpForm): ExpData {
 				} else if (exp.kind === 'hashMap') {
 					const out: ExpHashMap = {
 						ast: 'hashMap',
-						value: {},
+						value: _.mapValues(exp.value, _eval),
 					}
-					Object.entries(exp.value).forEach(
-						([sym, v]) => (out.value[sym] = _eval(v))
-					)
-
 					return (exp.evaluated = out)
 				}
 				throw new Error('Invalid kind of specialForm')
@@ -1095,7 +1091,8 @@ function createHashMap(value: ExpHashMap['value']): ExpHashMap {
 		ast: 'hashMap',
 		value,
 	}
-	Object.values(value).forEach(v => (v.parent = exp))
+
+	_.values(value).forEach(v => (v.parent = exp))
 
 	return exp
 }
@@ -1173,17 +1170,11 @@ export function printExp(exp: ExpForm): string {
 			return printSeq('[', ']', value, delimiters)
 		}
 		case 'hashMap': {
-			const {value} = exp
-			const keys = Object.keys(value)
-
-			const keyForms = _.keys(exp.value).map(toHashKey)
-
-			const coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
+			const pairs = _.entries(exp.value)
+			const coll = pairs.flatMap(([k, v]) => [toHashKey(k), v])
 			const delimiters = [
 				'',
-				...Array(keys.length - 1)
-					.fill([': ', ' '])
-					.flat(),
+				..._.times(pairs.length - 1).flatMap(() => [': ', ' ']),
 				': ',
 				'',
 			]
