@@ -805,91 +805,62 @@ export function evalExp(exp: ExpForm): ExpData {
 			case 'list': {
 				const [first, ...rest] = exp.value
 
-				// Check Special form
-				// if (first.ast === 'symbol') {
-				// 	switch (first.value) {
-				// 		case '=>': {
-				// 			// Create a function
-				// 			const [paramsDef, bodyDef] = rest
+				// Create Function
+				/*
+				if (first.ast === 'symbol' && first.value === '=>') {
+					// Create a function
+					const [paramsDef, bodyDef] = rest
 
-				// 			// Validate parameter part
-				// 			if (paramsDef.ast !== 'type' || paramsDef.kind !== 'vector') {
-				// 				const str = printExp(paramsDef)
-				// 				throw new Error(
-				// 					`Function parameters '${str}' must be a vector type`
-				// 				)
-				// 			}
+					// Validate parameter part
+					if (paramsDef.ast !== 'specialList' && paramsDef.kind !== 'vector') {
+						const str = printExp(paramsDef)
+						throw new Error(
+							`Function parameters '${str}' must be a vector type`
+						)
+					}
 
-				// 			// Check if every element is symbol
-				// 			const nonSymbol = paramsDef.items.find(p => p.ast !== 'symbol')
-				// 			if (nonSymbol) {
-				// 				throw new Error(
-				// 					`Parameter '${printExp(nonSymbol)}' must be a symbol`
-				// 				)
-				// 			}
+					const paramSymbols = paramsDef.items as ExpSymbol[]
 
-				// 			const paramSymbols = paramsDef.items as ExpSymbol[]
+					// Create scope
+					const paramsHashMap = createHashMap(
+						Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
+					)
 
-				// 			// Find duplicated symbols
-				// 			const uniqSymbols = _.uniqWith(paramSymbols, equalExp)
+					const fnScope = createList([
+						createSymbol('let'),
+						paramsHashMap,
+						cloneExp(bodyDef),
+					])
 
-				// 			if (uniqSymbols.length !== paramSymbols.length) {
-				// 				const duplicatedSymbols = uniqSymbols.flatMap(sym =>
-				// 					paramSymbols.filter(_.partial(equalExp, sym)).length > 1
-				// 						? [sym]
-				// 						: []
-				// 				)
-				// 				const str = duplicatedSymbols
-				// 					.map(printExp)
-				// 					.map(s => `'${s}'`)
-				// 					.join(', ')
-				// 				throw new Error(
-				// 					`Duplicated symbols ${str} has found in parameter`
-				// 				)
-				// 			}
+					fnScope.parent = exp.parent
 
-				// 			// Create scope
-				// 			const paramsHashMap = createHashMap(
-				// 				Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
-				// 			)
+					// Define function
+					const fn = (...params: ExpForm[]) => {
+						// Set params
+						paramSymbols.forEach(
+							(sym, i) => (paramsHashMap.value[sym.value] = params[i])
+						)
 
-				// 			const fnScope = createList([
-				// 				createSymbol('let'),
-				// 				paramsHashMap,
-				// 				cloneExp(bodyDef),
-				// 			])
+						// Evaluate
+						const out = _eval(fnScope)
 
-				// 			fnScope.parent = exp.parent
+						// Clean params
+						paramSymbols.forEach(sym =>
+							clearEvaluatedRecursively(paramsHashMap.value[sym.value])
+						)
 
-				// 			// Define function
-				// 			const fn = (...params: ExpForm[]) => {
-				// 				// Set params
-				// 				paramSymbols.forEach(
-				// 					(sym, i) => (paramsHashMap.value[sym.value] = params[i])
-				// 				)
+						return out
+					}
 
-				// 				// Evaluate
-				// 				const out = _eval(fnScope)
+					// Infer function type
+					const paramTypes = Array(paramSymbols.length).fill(TypeAll)
+					const outType = inferType(bodyDef)
+					const fnType = createTypeFn(paramTypes, outType, {
+						variadic: paramsDef.variadic,
+					})
 
-				// 				// Clean params
-				// 				paramSymbols.forEach(sym =>
-				// 					clearEvaluatedRecursively(paramsHashMap.value[sym.value])
-				// 				)
-
-				// 				return out
-				// 			}
-
-				// 			// Infer function type
-				// 			const paramTypes = Array(paramSymbols.length).fill(TypeAll)
-				// 			const outType = inferType(bodyDef)
-				// 			const fnType = createTypeFn(paramTypes, outType, {
-				// 				variadic: paramsDef.variadic,
-				// 			})
-
-				// 			return (exp.evaluated = createFn(fn, fnType))
-				// 		}
-				// 	}
-				// }
+					return (exp.evaluated = createFn(fn, fnType))
+				} */
 
 				const fn = _eval(first)
 
