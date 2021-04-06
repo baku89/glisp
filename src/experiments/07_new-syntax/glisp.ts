@@ -6,7 +6,7 @@ import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
 
-const SymbolIdentiferRegex = /^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i
+const SymbolIdentiferRegex = /^(#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|...$/i
 
 type ExpForm = ExpVar | ExpData
 
@@ -434,6 +434,13 @@ const ReservedSymbols: {[name: string]: ExpData} = {
 	'#count': createFn(
 		(v: ExpData) => createNumber(typeCount(v)),
 		createTypeFn(createVector([TypeAll]), TypeNumber)
+	),
+	length: createFn(
+		(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
+		createTypeFn(
+			createVector([createVector([TypeAll], {variadic: true})]),
+			TypeNat
+		)
 	),
 	let: createFn(
 		(_: ExpHashMap, body: ExpForm) => body,
