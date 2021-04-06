@@ -6,7 +6,7 @@ import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
 
-const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
+const SymbolIdentiferRegex = /^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i
 
 type ExpForm = ExpVar | ExpData
 
