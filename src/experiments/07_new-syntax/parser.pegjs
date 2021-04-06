@@ -18,7 +18,7 @@ BlankProgram = _ { return null }
 
 Form =
 	Void / Number / String / Symbol /
-	List / Vector / TypeVector / HashMap
+	List / Vector / HashMap
 
 Void = "void" { return {ast: 'void'} }
 
@@ -126,24 +126,11 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* "]"
-	{
-		const exp = {
-			ast: 'vector',
-			value: values.map(p => p[0]),
-			delimiters: [d0, ...values.map(p => p[1])]
-		}
-
-		exp.value.forEach((e, key) => e.parent = exp)
-
-		return exp
-	}
-
-TypeVector = "#[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
+Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 	{
 		const exp = {
 			ast: 'specialList',
-			kind: 'typeVector',
+			kind: 'vector',
 		}
 
 		const value = values.map(p => p[0])
@@ -157,6 +144,7 @@ TypeVector = "#[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 		} else {
 			exp.value = value
 			exp.delimiters = [d0, ...itemDelimiters, d2]
+			exp.variadic = false
 		}
 
 		exp.value.forEach((e, key) => e.parent = exp)
@@ -167,36 +155,21 @@ TypeVector = "#[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 HashMap =
 	"{"
 	d0:_
-	pairs:((((SymbolIdentifier / String) ":" _ Form) / Symbol) _)*
+	pairs:(SymbolIdentifier ":" _ Form _)*
 	"}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
-		const keyQuoted = {} // as {[key: string]: boolean}
 		const delimiters = [d0] // as string[]
 
-		for (const [pair, d2] of pairs) {
-
-
-			if (pair.length === 4) {
-				// Has value
-				const [{type, value: key}, colon, d1, val] = pair
-				value[key] = val
-				keyQuoted[key] = type === 'string'
-				delimiters.push([colon + d1, d2])
-			} else {
-				// Value omitted
-				const val = pair
-				const {type, value: key, str} = val
-				value[key] = val
-				keyQuoted[key] = str[0] === '@'
-				delimiters.push(d2)
-			}
+		for (const [{value: key}, colon, d1, val, d2] of pairs) {
+			value[key] = val
+			delimiters.push(colon + d1, d2)
 		}
 
 		const exp = {
-			ast: "hashMap",
+			ast: 'specialList',
+			kind: 'hashMap',
 			value,
-			keyQuoted,
 			delimiters
 		}
 

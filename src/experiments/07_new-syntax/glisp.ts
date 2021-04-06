@@ -8,13 +8,14 @@ import ParserDefinition from './parser.pegjs'
 
 const SymbolIdentiferRegex = /^(:?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*)|(...)$/i
 
-type ExpForm =
+type ExpForm = ExpVar | ExpData
+
+type ExpVar = ExpSymbol | ExpList | ExpSpecialList
+
+type ExpData =
 	| ExpVoid
 	| ExpBoolean
 	| ExpConst
-	| ExpSymbol
-	| ExpList
-	| ExpSpecialList
 	| ExpVector
 	| ExpHashMap
 	| ExpFn
@@ -48,16 +49,14 @@ type ExpNumber = ExpConstBase<number>
 
 type ExpString = ExpConstBase<string>
 
-type ExpTypeValue = ExpConstBase<ExpType>
-
-type ExpConst = ExpBoolean | ExpNumber | ExpString | ExpTypeValue
+type ExpConst = ExpBoolean | ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	value: string
 	str?: string
 	ref?: ExpForm
-	evaluated?: ExpForm
+	evaluated?: ExpData
 }
 
 interface ExpList extends ExpBase {
@@ -65,35 +64,41 @@ interface ExpList extends ExpBase {
 	value: ExpForm[]
 	delimiters?: string[]
 	expanded?: ExpForm
-	evaluated?: ExpForm
+	evaluated?: ExpData
 }
 
-interface ExpSpecialList extends ExpBase {
+interface ExpSpecialListVector extends ExpBase {
 	ast: 'specialList'
-	kind: 'typeVector'
+	kind: 'vector'
 	value: ExpForm[]
 	variadic: boolean
 	delimiters?: string[]
-	evaluated?: ExpForm
+	evaluated?: ExpVector
 }
 
-interface ExpVector<T extends ExpForm = ExpForm> extends ExpBase {
+interface ExpSpecialListHashMap extends ExpBase {
+	ast: 'specialList'
+	kind: 'hashMap'
+	value: {
+		[key: string]: ExpForm
+	}
+	delimiters?: (string | [string, string])[]
+	evaluated?: ExpHashMap
+}
+
+type ExpSpecialList = ExpSpecialListVector | ExpSpecialListHashMap
+
+interface ExpVector<T extends ExpData = ExpData> extends ExpBase {
 	ast: 'vector'
 	value: T[]
-	delimiters?: string[]
-	evaluated?: ExpVector<T>
+	variadic: boolean
 }
 
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	value: {
-		[key: string]: ExpForm
+		[key: string]: ExpData
 	}
-	keyQuoted?: {
-		[key: string]: boolean
-	}
-	delimiters?: (string | [string, string])[]
-	evaluated?: ExpHashMap
 }
 
 // Types
@@ -115,29 +120,18 @@ interface ExpTypeInfUnion extends ExpTypeBase {
 
 interface ExpTypeFn extends ExpTypeBase {
 	kind: 'fn'
-	params: ExpTypeVector
-	out: ExpForm
+	params: ExpVector
+	out: ExpData
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
 }
 
 interface ExpTypeUnion extends ExpTypeBase {
 	kind: 'union'
-	items: ExpForm[]
+	items: ExpData[]
 }
 
-interface ExpTypeVector extends ExpTypeBase {
-	kind: 'vector'
-	items: ExpForm[]
-	variadic: boolean
-}
-
-type ExpType =
-	| ExpTypeAll
-	| ExpTypeInfUnion
-	| ExpTypeFn
-	| ExpTypeUnion
-	| ExpTypeVector
+type ExpType = ExpTypeAll | ExpTypeInfUnion | ExpTypeFn | ExpTypeUnion
 
 type IExpFnValue = (...params: ExpForm[]) => ExpForm
 
@@ -178,12 +172,6 @@ const TypeString: ExpTypeInfUnion = {
 	ast: 'type',
 	kind: 'infUnion',
 	predicate: ({value}) => typeof value === 'string',
-}
-
-const TypeType: ExpTypeInfUnion = {
-	ast: 'type',
-	kind: 'infUnion',
-	predicate: ({value}) => typeof value === 'object',
 }
 
 ;(window as any)['Glisp__builtin__InfUnionTypes'] = {
@@ -253,9 +241,15 @@ export function disconnectExp(exp: ExpForm): null {
 				}
 				return null
 			case 'list':
-			case 'specialList':
 			case 'vector':
 				e.value.forEach(disconnect)
+				return null
+			case 'specialList':
+				if (e.kind === 'vector') {
+					e.value.forEach(disconnect)
+				} else if (e.kind === 'hashMap') {
+					_.values(e.value).forEach(disconnect)
+				}
 				return null
 			case 'hashMap':
 				_.values(e.value).forEach(disconnect)
@@ -271,27 +265,17 @@ const TypeAll: ExpTypeAll = {
 	kind: 'all',
 	create: createFn(
 		(v: ExpForm = createVoid()) => v,
-		createTypeFn([], {ast: 'type', kind: 'all'})
+		createTypeFn(createVector([]), {ast: 'type', kind: 'all'})
 	),
 }
 const ConstTrue = createBoolean(true)
 const ConstFalse = createBoolean(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
 
-function createTypeVector(items: ExpForm[], variadic: boolean): ExpTypeVector {
-	return {
-		ast: 'type',
-		kind: 'vector',
-		items,
-		variadic,
-	}
-}
-
 function createTypeFn(
-	params: ExpForm[],
-	out: ExpForm,
+	params: ExpVector,
+	out: ExpData,
 	{
-		variadic = false,
 		lazyEval = undefined as undefined | boolean[],
 		lazyInfer = undefined as undefined | boolean[],
 	} = {}
@@ -299,20 +283,48 @@ function createTypeFn(
 	return {
 		ast: 'type',
 		kind: 'fn',
-		params: createTypeVector(params, variadic),
+		params,
 		out,
 		lazyEval,
 		lazyInfer,
 	}
 }
 
-function containsExp(outer: ExpForm, inner: ExpForm): boolean {
+function containsExp(outer: ExpData, inner: ExpData): boolean {
 	if (outer === inner) {
 		return true
 	}
 
 	if (inner.ast === 'void') {
 		return true
+	}
+
+	if (outer.ast === 'vector') {
+		if (inner.ast !== 'vector') {
+			return false
+		}
+
+		if (outer.variadic === false) {
+			// Fixed length
+			return (
+				inner.variadic === false &&
+				outer.value.length >= inner.value.length &&
+				_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+			)
+		} else {
+			// Variadic length
+			if (inner.variadic) {
+				return (
+					outer.value.length === inner.value.length &&
+					_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+				)
+			} else {
+				return (
+					outer.value.length - 1 <= inner.value.length &&
+					_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+				)
+			}
+		}
 	}
 
 	if (outer.ast !== 'type') {
@@ -348,58 +360,6 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 				outer.items.find(_.partial(containsExp, _, ii))
 			)
 		}
-		case 'vector':
-			if (
-				!(
-					inner.ast === 'vector' ||
-					(inner.ast === 'type' && inner.kind === 'vector')
-				)
-			) {
-				return false
-			}
-			if (!outer.variadic) {
-				if (inner.ast === 'type' && inner.variadic) {
-					return false
-				}
-
-				const items = inner.ast === 'vector' ? inner.value : inner.items
-
-				return (
-					outer.items.length >= items.length &&
-					_$.zipShorter(outer.items, items).every(_$.uncurry(containsExp))
-				)
-			} else {
-				if (inner.ast === 'vector') {
-					if (outer.items.length - 1 > inner.value.length) {
-						return false
-					}
-					return inner.value.every((iv, i) => {
-						const idx = Math.min(i, outer.items.length - 1)
-						const ov = outer.items[idx]
-						return containsExp(ov, iv)
-					})
-				} else {
-					if (inner.variadic) {
-						// #[x y ...z] #[a b ...c]
-						return (
-							outer.items.length === inner.items.length &&
-							_$.zipShorter(outer.items, inner.items).every(
-								_$.uncurry(containsExp)
-							)
-						)
-					} else {
-						// #[x y ...z] #[a b]
-						if (outer.items.length - 1 > inner.items.length) {
-							return false
-						}
-						return inner.items.every((iv, i) => {
-							const idx = Math.min(i, outer.items.length - 1)
-							const ov = outer.items[idx]
-							return containsExp(ov, iv)
-						})
-					}
-				}
-			}
 		case 'fn': {
 			if (inner.ast === 'type') {
 				if (inner.kind === 'fn') {
@@ -421,7 +381,7 @@ function containsExp(outer: ExpForm, inner: ExpForm): boolean {
 	}
 }
 
-function uniteType(items: ExpForm[]): ExpForm {
+function uniteType(items: ExpData[]): ExpData {
 	if (items.length === 0) {
 		return TypeAll
 	}
@@ -451,13 +411,12 @@ function uniteType(items: ExpForm[]): ExpForm {
 	return unionType
 }
 
-const ReservedSymbols: {[name: string]: ExpForm} = {
+const ReservedSymbols: {[name: string]: ExpData} = {
 	true: createBoolean(true),
 	false: createBoolean(false),
 	inf: createNumber(Infinity),
 	'-inf': createNumber(-Infinity),
 	nan: createNumber(NaN),
-	'...': createSymbol('...'),
 	All: TypeAll,
 	Boolean: TypeBoolean,
 	Number: TypeNumber,
@@ -465,24 +424,26 @@ const ReservedSymbols: {[name: string]: ExpForm} = {
 	Int: TypeNumber,
 	Nat: TypeNat,
 	String: TypeString,
-	Type: TypeType,
-	'#=>': createFn((params: ExpTypeVector, out: ExpForm) => {
-		console.log({params, out})
-		return createTypeFn(params.items, out, {
-			variadic: params.variadic,
-		})
-	}, createTypeFn([TypeAll, TypeAll], TypeType)),
+	'#=>': createFn((params: ExpVector, out: ExpData) => {
+		return createTypeFn(params, out)
+	}, createTypeFn(createVector([TypeAll, TypeAll]), TypeAll)),
 	'#|': createFn(
-		(items: ExpVector<ExpForm>) => uniteType(items.value),
-		createTypeFn([TypeAll], TypeAll, {variadic: true})
+		(items: ExpVector) => uniteType(items.value),
+		createTypeFn(createVector([TypeAll], {variadic: true}), TypeAll)
 	),
 	'#count': createFn(
-		(v: ExpForm) => createNumber(typeCount(v)),
-		createTypeFn([TypeAll], TypeNumber)
+		(v: ExpData) => createNumber(typeCount(v)),
+		createTypeFn(createVector([TypeAll]), TypeNumber)
 	),
 	let: createFn(
 		(_: ExpHashMap, body: ExpForm) => body,
-		createTypeFn([createTypeFn([TypeString], TypeAll), TypeAll], TypeAll)
+		createTypeFn(
+			createVector([
+				createTypeFn(createVector([TypeString]), TypeAll),
+				TypeAll,
+			]),
+			TypeAll
+		)
 	),
 }
 
@@ -493,40 +454,40 @@ const GlobalScope = createList([
 		'+': createFn(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
-			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
+			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		'*': createFn(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((prod, {value}) => prod * value, 1)),
-			createTypeFn([TypeNumber], TypeNumber, {variadic: true})
+			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		and: createFn(
 			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
-			createTypeFn([TypeBoolean, TypeBoolean], TypeBoolean)
+			createTypeFn(createVector([TypeBoolean, TypeBoolean]), TypeBoolean)
 		),
 		square: createFn(
 			(v: ExpNumber) => createNumber(v.value * v.value),
-			createTypeFn([TypeNumber], TypePosNumber)
+			createTypeFn(createVector([TypeNumber]), TypePosNumber)
 		),
 		sqrt: createFn(
 			(v: ExpNumber) => createNumber(Math.sqrt(v.value)),
-			createTypeFn([TypePosNumber], TypeNumber)
+			createTypeFn(createVector([TypePosNumber]), TypeNumber)
 		),
 		not: createFn(
 			(v: ExpBoolean) => createBoolean(!v.value),
-			createTypeFn([TypeBoolean], TypeBoolean)
+			createTypeFn(createVector([TypeBoolean]), TypeBoolean)
 		),
 		'==': createFn(
 			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
-			createTypeFn([TypeAll, TypeAll], TypeBoolean)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		'#>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
-			createTypeFn([TypeAll, TypeAll], TypeBoolean)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		count: createFn(
 			(a: ExpVector) => createNumber(a.value.length),
-			createTypeFn([TypeAll], TypeNumber)
+			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
 		if: createFn(
 			(cond: ExpBoolean, then: ExpForm, _else: ExpForm) => {
@@ -539,22 +500,24 @@ const GlobalScope = createList([
 				}
 				return cond.value ? _else : then
 			},
-			createTypeFn([TypeBoolean, TypeAll, TypeAll], TypeAll, {
+			createTypeFn(createVector([TypeBoolean, TypeAll, TypeAll]), TypeAll, {
 				lazyEval: [false, true, true],
 			})
 		),
 		ast: createFn(
 			(v: ExpForm) => createString(v.ast),
-			createTypeFn([TypeAll], TypeString)
+			createTypeFn(createVector([TypeAll]), TypeString)
 		),
 	}),
 ])
 
-function inferType(exp: ExpForm): ExpForm {
+function inferType(exp: ExpForm): ExpData {
 	switch (exp.ast) {
 		case 'void':
 		case 'const':
 		case 'type':
+		case 'vector':
+		case 'hashMap':
 			return exp
 		case 'symbol':
 			return inferType(resolveSymbol(exp))
@@ -567,14 +530,11 @@ function inferType(exp: ExpForm): ExpForm {
 			return inferType(first)
 		}
 		case 'specialList':
-			if (exp.kind === 'typeVector') {
-				return TypeType
+			if (exp.kind === 'vector') {
+				return createVector(exp.value.map(inferType), {setParent: false})
+			} else {
+				return createHashMap(_.mapValues(exp.value, inferType))
 			}
-			break
-		case 'vector':
-			return createVector(exp.value.map(inferType), false)
-		case 'hashMap':
-			return createHashMap(_.mapValues(exp.value, inferType))
 		case 'fn':
 			return exp.type.out
 	}
@@ -589,8 +549,7 @@ function clearEvaluatedRecursively(exp: ExpForm) {
 	switch (exp.ast) {
 		case 'symbol':
 		case 'list':
-		case 'vector':
-		case 'hashMap':
+		case 'specialList':
 			if (!exp.evaluated) {
 				return
 			}
@@ -624,25 +583,19 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 				case 'number':
 				case 'string':
 					return a.value === b.value
-				default:
-					return (
-						typeof b.value === 'object' &&
-						equalType(a.value, b.value as ExpType)
-					)
 			}
 			break
 		case 'list':
-		case 'vector':
 			return (
 				a.ast === b.ast &&
 				a.value.length === b.value.length &&
 				_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
 			)
-		case 'specialList':
+		case 'vector':
 			return (
-				b.ast === 'specialList' &&
-				a.variadic === b.variadic &&
+				a.ast === b.ast &&
 				a.value.length === b.value.length &&
+				a.variadic === b.variadic &&
 				_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
 			)
 		case 'hashMap':
@@ -651,14 +604,27 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
 				_.toPairs(a.value).every(([key, av]) => equalExp(av, b.value[key]))
 			)
-		case 'fn':
-			if (b.ast !== 'fn') {
+		case 'specialList':
+			if (b.ast !== 'specialList') {
 				return false
 			}
-			if (a.value === b.value) {
-				return true
+			if (a.kind === 'vector') {
+				return (
+					b.kind === 'vector' &&
+					a.variadic === b.variadic &&
+					a.value.length === b.value.length &&
+					_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
+				)
+			} else if (a.kind === 'hashMap') {
+				return (
+					b.kind === 'hashMap' &&
+					_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
+					_.toPairs(a.value).every(([key, av]) => equalExp(av, b.value[key]))
+				)
 			}
-			return false
+			throw new Error('Why!!!!!!!!Kosdif')
+		case 'fn':
+			return b.ast === 'fn' && a.value === b.value
 		case 'type':
 			return b.ast === 'type' && equalType(a, b)
 	}
@@ -684,13 +650,6 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 					b.kind === 'fn' &&
 					equalExp(a.out, b.out) &&
 					equalExp(a.params, b.params)
-				)
-			case 'vector':
-				return (
-					b.kind === 'vector' &&
-					a.variadic === b.variadic &&
-					a.items.length === b.items.length &&
-					_$.zipShorter(a.items, b.items).every(_$.uncurry(equalExp))
 				)
 		}
 	}
@@ -739,18 +698,18 @@ export class Interpreter {
 	constructor() {
 		this.vars = createHashMap({})
 
-		this.vars.value['def'] = createFn(
-			(sym: ExpSymbol, value: ExpForm) => {
-				this.vars.value[sym.value] = value
-				value.parent = this.vars
-				return value
-			},
-			// NOTE: This should be TypeSymbol
-			createTypeFn([TypeAll, TypeAll], TypeAll, {
-				lazyEval: [true, true],
-				lazyInfer: [true, false],
-			})
-		)
+		// this.vars.value['def'] = createFn(
+		// 	(sym: ExpSymbol, value: ExpForm) => {
+		// 		this.vars.value[sym.value] = value
+		// 		value.parent = this.vars
+		// 		return value
+		// 	},
+		// 	// NOTE: This should be TypeSymbol
+		// 	createTypeFn([TypeAll, TypeAll], TypeAll, {
+		// 		lazyEval: [true, true],
+		// 		lazyInfer: [true, false],
+		// 	})
+		// )
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -768,10 +727,16 @@ function typeCount(exp: ExpForm): number {
 			return 0
 		case 'const':
 		case 'symbol':
-		case 'vector':
-		case 'hashMap':
 		case 'fn':
 			return 1
+		case 'vector':
+			if (exp.variadic) {
+				return Infinity
+			} else {
+				return exp.value.reduce((count, v) => count * typeCount(v), 1)
+			}
+		case 'hashMap':
+			return _.values(exp.value).reduce((count, v) => count * typeCount(v), 1)
 		case 'list':
 		case 'specialList':
 			return typeCount(inferType(exp))
@@ -782,22 +747,16 @@ function typeCount(exp: ExpForm): number {
 					return Infinity
 				case 'union':
 					return exp.items.reduce((count, v) => count + typeCount(v), 0)
-				case 'vector':
-					if (exp.variadic) {
-						return Infinity
-					} else {
-						return exp.items.reduce((count, v) => count * typeCount(v), 1)
-					}
 				case 'fn':
 					return typeCount(exp.out)
 			}
 	}
 }
 
-export function evalExp(exp: ExpForm): ExpForm {
+export function evalExp(exp: ExpForm): ExpData {
 	return evalWithTrace(exp, [])
 
-	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpForm {
+	function evalWithTrace(exp: ExpForm, trace: ExpForm[]): ExpData {
 		// Check circular reference
 		if (trace.includes(exp)) {
 			const lastTrace = trace[trace.length - 1]
@@ -817,113 +776,101 @@ export function evalExp(exp: ExpForm): ExpForm {
 			case 'const':
 			case 'fn':
 			case 'type':
+			case 'vector':
+			case 'hashMap':
 				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
 				return (exp.evaluated = _eval(ref))
 			}
-			case 'vector': {
-				return (exp.evaluated = createVector(exp.value.map(_eval)))
-			}
-			case 'hashMap': {
-				const out: ExpHashMap = {
-					ast: 'hashMap',
-					value: {},
-				}
-				Object.entries(exp.value).forEach(
-					([sym, v]) => (out.value[sym] = _eval(v))
-				)
-
-				return (exp.evaluated = out)
-			}
 			case 'list': {
 				const [first, ...rest] = exp.value
 
 				// Check Special form
-				if (first.ast === 'symbol') {
-					switch (first.value) {
-						case '=>': {
-							// Create a function
-							const [paramsDef, bodyDef] = rest
+				// if (first.ast === 'symbol') {
+				// 	switch (first.value) {
+				// 		case '=>': {
+				// 			// Create a function
+				// 			const [paramsDef, bodyDef] = rest
 
-							// Validate parameter part
-							if (paramsDef.ast !== 'type' || paramsDef.kind !== 'vector') {
-								const str = printExp(paramsDef)
-								throw new Error(
-									`Function parameters '${str}' must be a vector type`
-								)
-							}
+				// 			// Validate parameter part
+				// 			if (paramsDef.ast !== 'type' || paramsDef.kind !== 'vector') {
+				// 				const str = printExp(paramsDef)
+				// 				throw new Error(
+				// 					`Function parameters '${str}' must be a vector type`
+				// 				)
+				// 			}
 
-							// Check if every element is symbol
-							const nonSymbol = paramsDef.items.find(p => p.ast !== 'symbol')
-							if (nonSymbol) {
-								throw new Error(
-									`Parameter '${printExp(nonSymbol)}' must be a symbol`
-								)
-							}
+				// 			// Check if every element is symbol
+				// 			const nonSymbol = paramsDef.items.find(p => p.ast !== 'symbol')
+				// 			if (nonSymbol) {
+				// 				throw new Error(
+				// 					`Parameter '${printExp(nonSymbol)}' must be a symbol`
+				// 				)
+				// 			}
 
-							const paramSymbols = paramsDef.items as ExpSymbol[]
+				// 			const paramSymbols = paramsDef.items as ExpSymbol[]
 
-							// Find duplicated symbols
-							const uniqSymbols = _.uniqWith(paramSymbols, equalExp)
+				// 			// Find duplicated symbols
+				// 			const uniqSymbols = _.uniqWith(paramSymbols, equalExp)
 
-							if (uniqSymbols.length !== paramSymbols.length) {
-								const duplicatedSymbols = uniqSymbols.flatMap(sym =>
-									paramSymbols.filter(_.partial(equalExp, sym)).length > 1
-										? [sym]
-										: []
-								)
-								const str = duplicatedSymbols
-									.map(printExp)
-									.map(s => `'${s}'`)
-									.join(', ')
-								throw new Error(
-									`Duplicated symbols ${str} has found in parameter`
-								)
-							}
+				// 			if (uniqSymbols.length !== paramSymbols.length) {
+				// 				const duplicatedSymbols = uniqSymbols.flatMap(sym =>
+				// 					paramSymbols.filter(_.partial(equalExp, sym)).length > 1
+				// 						? [sym]
+				// 						: []
+				// 				)
+				// 				const str = duplicatedSymbols
+				// 					.map(printExp)
+				// 					.map(s => `'${s}'`)
+				// 					.join(', ')
+				// 				throw new Error(
+				// 					`Duplicated symbols ${str} has found in parameter`
+				// 				)
+				// 			}
 
-							// Create scope
-							const paramsHashMap = createHashMap(
-								Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
-							)
+				// 			// Create scope
+				// 			const paramsHashMap = createHashMap(
+				// 				Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
+				// 			)
 
-							const fnScope = createList([
-								createSymbol('let'),
-								paramsHashMap,
-								cloneExp(bodyDef),
-							])
+				// 			const fnScope = createList([
+				// 				createSymbol('let'),
+				// 				paramsHashMap,
+				// 				cloneExp(bodyDef),
+				// 			])
 
-							fnScope.parent = exp.parent
+				// 			fnScope.parent = exp.parent
 
-							// Define function
-							const fn = (...params: ExpForm[]) => {
-								// Set params
-								paramSymbols.forEach(
-									(sym, i) => (paramsHashMap.value[sym.value] = params[i])
-								)
+				// 			// Define function
+				// 			const fn = (...params: ExpForm[]) => {
+				// 				// Set params
+				// 				paramSymbols.forEach(
+				// 					(sym, i) => (paramsHashMap.value[sym.value] = params[i])
+				// 				)
 
-								// Evaluate
-								const out = _eval(fnScope)
+				// 				// Evaluate
+				// 				const out = _eval(fnScope)
 
-								// Clean params
-								paramSymbols.forEach(sym =>
-									clearEvaluatedRecursively(paramsHashMap.value[sym.value])
-								)
+				// 				// Clean params
+				// 				paramSymbols.forEach(sym =>
+				// 					clearEvaluatedRecursively(paramsHashMap.value[sym.value])
+				// 				)
 
-								return out
-							}
+				// 				return out
+				// 			}
 
-							// Infer function type
-							const paramTypes = Array(paramSymbols.length).fill(TypeAll)
-							const outType = inferType(bodyDef)
-							const fnType = createTypeFn(paramTypes, outType, {
-								variadic: paramsDef.variadic,
-							})
+				// 			// Infer function type
+				// 			const paramTypes = Array(paramSymbols.length).fill(TypeAll)
+				// 			const outType = inferType(bodyDef)
+				// 			const fnType = createTypeFn(paramTypes, outType, {
+				// 				variadic: paramsDef.variadic,
+				// 			})
 
-							return (exp.evaluated = createFn(fn, fnType))
-						}
-					}
-				}
+				// 			return (exp.evaluated = createFn(fn, fnType))
+				// 		}
+				// 	}
+				// }
 
 				const fn = _eval(first)
 
@@ -938,12 +885,13 @@ export function evalExp(exp: ExpForm): ExpForm {
 					throw new Error('First element is not a function')
 				}
 
-				const params = createVector(rest, false)
+				const params = createSpecialListVector(rest, {setParent: false})
 				const assignedParams = assignExp(fnType.params, params)
 
-				console.log(printExp(params), printExp(assignedParams))
-
-				if (assignedParams.ast !== 'vector') {
+				if (
+					assignedParams.ast !== 'specialList' ||
+					assignedParams.kind !== 'vector'
+				) {
 					throw new Error('why??????????')
 				}
 
@@ -956,62 +904,82 @@ export function evalExp(exp: ExpForm): ExpForm {
 				return (exp.evaluated = _eval(expanded))
 			}
 			case 'specialList':
-				if (exp.kind === 'typeVector') {
-					const items = exp.value.map(_eval)
-					return createTypeVector(items, exp.variadic)
+				if (exp.kind === 'vector') {
+					const value = exp.value.map(_eval)
+					return createVector(value, {variadic: exp.variadic})
+				} else if (exp.kind === 'hashMap') {
+					const out: ExpHashMap = {
+						ast: 'hashMap',
+						value: {},
+					}
+					Object.entries(exp.value).forEach(
+						([sym, v]) => (out.value[sym] = _eval(v))
+					)
+
+					return (exp.evaluated = out)
 				}
 				throw new Error('Invalid kind of specialForm')
 		}
 	}
 }
 
-function assignExp(target: ExpForm, _source: ExpForm): ExpForm {
-	const sourceType = inferType(_source)
+function assignExp(target: ExpForm, source: ExpForm): ExpForm {
+	const sourceType = inferType(source)
 
 	switch (target.ast) {
 		case 'void':
-			throw new Error(
-				`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
-			)
 		case 'const':
 			if (!equalExp(target, sourceType)) {
 				throw new Error(
-					`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
+					`Cannot assign '${printExp(source)}' to '${printExp(target)}'`
 				)
 			}
-			return _source
+			return source
+		case 'vector':
+			if (source.ast === 'specialList' && source.kind === 'vector') {
+				if (!containsExp(target, sourceType)) {
+					throw new Error(
+						`Cannot assign '${printExp(source)}' to '${printExp(target)}'`
+					)
+				}
+			} else if (source.ast !== 'vector') {
+				throw new Error(
+					`Cannot assign '${printExp(source)}' to '${printExp(target)}'`
+				)
+			}
+			if (target.variadic) {
+				const restPos = target.value.length - 1
+				const fixedPart = _.take(source.value, restPos)
+				const restPart = createSpecialListVector(source.value.slice(restPos), {
+					setParent: false,
+				})
+				return createSpecialListVector([...fixedPart, restPart], {
+					setParent: false,
+				})
+			} else {
+				return createSpecialListVector(
+					_.take(source.value, target.value.length),
+					{setParent: false}
+				)
+			}
+			break
 		case 'type':
 			if (!containsExp(target, sourceType)) {
 				throw new Error(
-					`Cannot assign '${printExp(_source)}' to '${printExp(target)}'`
+					`Cannot assign '${printExp(source)}' to '${printExp(target)}'`
 				)
 			}
 			switch (target.kind) {
 				case 'all':
 				case 'union':
 				case 'infUnion':
-					return _source
-				case 'vector': {
-					if (_source.ast !== 'vector') {
-						throw new Error('わけわかんね')
-					}
-					if (target.variadic) {
-						const restPos = target.items.length - 1
-						const fixedPart = _.take(_source.value, restPos)
-						const restPart = createVector(_source.value.slice(restPos), false)
-						return createVector([...fixedPart, restPart], false)
-					} else {
-						return createVector(
-							_.take(_source.value, target.items.length),
-							false
-						)
-					}
-				}
+					return source
 				default:
 					throw new Error(
 						'Sorry! Did not implement the assignExp function for this type so far!!'
 					)
 			}
+
 		default:
 			throw new Error('Cannot assign!!!')
 	}
@@ -1055,7 +1023,7 @@ function createSymbol(value: string): ExpSymbol {
 function createFn(value: (...params: any[]) => ExpBase, type?: ExpForm): ExpFn {
 	if (!type || type.ast !== 'type' || type.kind !== 'fn') {
 		type = createTypeFn(
-			_.times(value.length, () => TypeAll),
+			createVector(_.times(value.length, () => TypeAll)),
 			TypeAll
 		)
 	}
@@ -1067,7 +1035,7 @@ function createFn(value: (...params: any[]) => ExpBase, type?: ExpForm): ExpFn {
 	}
 }
 
-function createList(value: ExpForm[], setParent = true): ExpList {
+function createList(value: ExpForm[], {setParent = false} = {}): ExpList {
 	const exp: ExpList = {
 		ast: 'list',
 		value,
@@ -1080,10 +1048,32 @@ function createList(value: ExpForm[], setParent = true): ExpList {
 	return exp
 }
 
-function createVector(value: ExpForm[], setParent = true): ExpVector {
+function createVector(
+	value: ExpData[],
+	{setParent = true, variadic = false} = {}
+): ExpVector {
 	const exp: ExpVector = {
 		ast: 'vector',
 		value,
+		variadic,
+	}
+
+	if (setParent) {
+		value.forEach(v => (v.parent = exp))
+	}
+
+	return exp
+}
+
+function createSpecialListVector(
+	value: ExpForm[],
+	{setParent = true, variadic = false} = {}
+) {
+	const exp: ExpSpecialListVector = {
+		ast: 'specialList',
+		kind: 'vector',
+		value,
+		variadic,
 	}
 
 	if (setParent) {
@@ -1150,7 +1140,7 @@ export function printExp(exp: ExpForm): string {
 			return printSeq('(', ')', exp.value, exp.delimiters)
 		}
 		case 'specialList':
-			if (exp.kind === 'typeVector') {
+			if (exp.kind === 'vector') {
 				{
 					const value = [...exp.value]
 					const delimiters = exp.delimiters || [
@@ -1162,47 +1152,36 @@ export function printExp(exp: ExpForm): string {
 						value.splice(-1, 0, createSymbol('...'))
 						delimiters.push('')
 					}
-					return printSeq('#[', ']', value, delimiters)
+					return printSeq('[', ']', value, delimiters)
 				}
 			}
 			throw new Error('Invalid specialList and cannot print it')
-		case 'vector':
-			return printSeq('[', ']', exp.value, exp.delimiters)
+		case 'vector': {
+			const value: ExpForm[] = [...exp.value]
+			const delimiters = ['', ..._.times(value.length - 1, () => ' '), '']
+			if (exp.variadic) {
+				value.splice(-1, 0, createSymbol('...'))
+				delimiters.push('')
+			}
+			return printSeq('[', ']', value, delimiters)
+		}
 		case 'hashMap': {
-			const {value, keyQuoted, delimiters} = exp
+			const {value} = exp
 			const keys = Object.keys(value)
 
-			let keyForms: (ExpSymbol | ExpString)[]
+			const keyForms = _.keys(exp.value).map(toHashKey)
 
-			if (keyQuoted) {
-				keyForms = keys.map(k =>
-					keyQuoted[k] ? createString(k) : createSymbol(k)
-				)
-			} else {
-				keyForms = keys.map(toHashKey)
-			}
+			const coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
+			const delimiters = [
+				'',
+				...Array(keys.length - 1)
+					.fill([': ', ' '])
+					.flat(),
+				': ',
+				'',
+			]
 
-			let flattenDelimiters: string[]
-			let coll: ExpForm[]
-			if (delimiters) {
-				coll = keys.flatMap((k, i) =>
-					Array.isArray(delimiters[i + 1])
-						? [keyForms[i], value[k]]
-						: [value[k]]
-				)
-				flattenDelimiters = delimiters.flat()
-			} else {
-				coll = keys.flatMap((k, i) => [keyForms[i], value[k]])
-				flattenDelimiters = [
-					'',
-					...Array(keys.length - 1)
-						.fill([': ', ' '])
-						.flat(),
-					': ',
-					'',
-				]
-			}
-			return printSeq('{', '}', coll, flattenDelimiters)
+			return printSeq('{', '}', coll, delimiters)
 		}
 		case 'fn':
 			return `(=> ${printExp(exp.type.params)} ${printExp(exp.type.out)})`
@@ -1234,20 +1213,9 @@ export function printExp(exp: ExpForm): string {
 						return 'Nat'
 					case TypeString:
 						return 'String'
-					case TypeType:
-						return 'Type'
 					default:
 						throw new Error('Cannot print this InfUnion')
 				}
-			case 'vector': {
-				const value = [...exp.items]
-				const delimiters = ['', ..._.times(value.length - 1, () => ' '), '']
-				if (exp.variadic) {
-					value.splice(-1, 0, createSymbol('...'))
-					delimiters.push('')
-				}
-				return printSeq('#[', ']', value, delimiters)
-			}
 			case 'fn':
 				return `(#=> ${printExp(exp.params)} ${printExp(exp.out)})`
 			case 'union': {
