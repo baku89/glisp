@@ -929,6 +929,7 @@ function assignExp(target: ExpForm, source: ExpForm): ExpForm {
 
 	switch (target.ast) {
 		case 'void':
+			return createVoid()
 		case 'const':
 			if (!equalExp(target, sourceType)) {
 				throw new Error(
