@@ -458,6 +458,12 @@ const GlobalScope = createList([
 			(v: ExpData) => createNumber(typeCount(v)),
 			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
+		'#<==': createFn(
+			(type: ExpData, value: ExpForm) => assignExp(type, value),
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeAll, {
+				lazyEval: [false, true],
+			})
+		),
 		length: createFn(
 			(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
 			createTypeFn(
