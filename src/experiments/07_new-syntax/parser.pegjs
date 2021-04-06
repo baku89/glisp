@@ -162,7 +162,7 @@ HashMap =
 		const delimiters = [d0] // as string[]
 
 		for (const [pair, d1] of pairs) {
-			value[pair.label] = pair
+			value[pair.label.str] = pair
 			delete pair.label
 			delimiters.push(d1)
 		}
@@ -179,9 +179,12 @@ HashMap =
 		return exp
 	}
 
-LabeledForm = label:(SymbolLiteral / StringLiteral) ":" form:Form
+LabeledForm = str:(SymbolLiteral / StringLiteral) d0:_ ":" d1:_ form:Form
 	{
-		form.label = label
+		form.label = {
+			str,
+			delimiters: [d0, d1]
+		}
 		return form
 	}
 

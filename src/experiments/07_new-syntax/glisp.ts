@@ -28,7 +28,10 @@ type ExpData =
 interface ExpBase {
 	parent?: ExpList | ExpSpecialList | ExpVector | ExpHashMap | ExpFn
 	dep?: Set<ExpSymbol>
-	label?: string
+	label?: {
+		str: string
+		delimiters?: string[]
+	}
 }
 
 interface ExpProgram {
@@ -711,7 +714,7 @@ export class Interpreter {
 				if (!value.label) {
 					throw new Error('no label')
 				}
-				this.vars.value[value.label] = value
+				this.vars.value[value.label.str] = value
 				delete value.label
 				value.parent = this.vars
 				return value
@@ -1127,7 +1130,8 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 
 export function printExp(exp: ExpForm): string {
 	if (exp.label) {
-		return `${exp.label}:${printExp({...exp, label: undefined})}`
+		const [d0, d1] = exp.label.delimiters ?? ['', '']
+		return `${exp.label.str}${d0}:${d1}${printExp({...exp, label: undefined})}`
 	}
 	switch (exp.ast) {
 		case 'void':
@@ -1201,7 +1205,10 @@ export function printExp(exp: ExpForm): string {
 		}
 		case 'hashMap': {
 			const pairs = _.entries(exp.value)
-			const coll = pairs.map(([label, v]) => ({...v, label}))
+			const coll = pairs.map(([label, v]) => ({
+				...v,
+				...{label: {str: label, delimiters: ['', ' ']}},
+			}))
 			const delimiters =
 				exp.delimiters ??
 				(pairs.length === 0
