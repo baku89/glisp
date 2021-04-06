@@ -89,7 +89,7 @@ String = value:StringLiteral
 		}
 	}
 
-StringLiteral = '"' str:$(!'"' .)+ '"'
+StringLiteral = '"' str:$(!'"' .)* '"'
 	{ return str }
 
 Symbol = SymbolIdentifier / SymbolPath
