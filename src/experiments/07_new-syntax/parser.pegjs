@@ -17,7 +17,7 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	Void / Number / String / Symbol /
+	Label / Void / Number / String / Symbol /
 	List / Vector / HashMap
 
 Void = "void" { return {ast: 'void'} }
@@ -94,8 +94,7 @@ StringLiteral = '"' str:$(!'"' .)+ '"'
 
 Symbol = SymbolIdentifier / SymbolPath
 
-
-SymbolIdentifier = str:$("#"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
+SymbolIdentifier = str:SymbolLiteral
 	{ 
 		return {
 			ast: 'symbol',
@@ -103,6 +102,8 @@ SymbolIdentifier = str:$("#"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 			str
 		}
 	}
+
+SymbolLiteral = $("#"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
 
 SymbolPath = "@" str:StringLiteral
 	{
@@ -152,7 +153,10 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form)? d2:_ "]"
 		return exp
 	}
 
-HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) ":" _ Form _)* "}"
+HashMap =
+	"{" d0:_
+	pairs:((SymbolLiteral / StringLiteral) ":" _ Form _)*
+	"}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
@@ -173,5 +177,12 @@ HashMap = "{" d0:_ pairs:((SymbolIdentifier / String) ":" _ Form _)* "}"
 
 		return exp
 	}
+
+Label = label:SymbolLiteral ":" form:Form
+	{
+		form.label = label
+		return form
+	}
+
 
 _ = $([ \t\n\r]*)

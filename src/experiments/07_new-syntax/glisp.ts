@@ -24,6 +24,7 @@ type ExpData =
 interface ExpBase {
 	parent?: ExpList | ExpSpecialList | ExpVector | ExpHashMap | ExpFn
 	dep?: Set<ExpSymbol>
+	label?: string
 }
 
 interface ExpProgram {
@@ -411,52 +412,50 @@ function uniteType(items: ExpData[]): ExpData {
 	return unionType
 }
 
-const ReservedSymbols: {[name: string]: ExpData} = {
-	true: createBoolean(true),
-	false: createBoolean(false),
-	inf: createNumber(Infinity),
-	'-inf': createNumber(-Infinity),
-	nan: createNumber(NaN),
-	All: TypeAll,
-	Boolean: TypeBoolean,
-	Number: TypeNumber,
-	PosNumber: TypePosNumber,
-	Int: TypeNumber,
-	Nat: TypeNat,
-	String: TypeString,
-	'#=>': createFn((params: ExpVector, out: ExpData) => {
-		return createTypeFn(params, out)
-	}, createTypeFn(createVector([TypeAll, TypeAll]), TypeAll)),
-	'#|': createFn(
-		(items: ExpVector) => uniteType(items.value),
-		createTypeFn(createVector([TypeAll], {variadic: true}), TypeAll)
-	),
-	'#count': createFn(
-		(v: ExpData) => createNumber(typeCount(v)),
-		createTypeFn(createVector([TypeAll]), TypeNumber)
-	),
-	length: createFn(
-		(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
-		createTypeFn(
-			createVector([createVector([TypeAll], {variadic: true})]),
-			TypeNat
-		)
-	),
-	let: createFn(
-		(_: ExpHashMap, body: ExpForm) => body,
-		createTypeFn(
-			createVector([
-				createTypeFn(createVector([TypeString]), TypeAll),
-				TypeAll,
-			]),
-			TypeAll
-		)
-	),
-}
-
 const GlobalScope = createList([
 	createSymbol('let'),
 	createHashMap({
+		true: createBoolean(true),
+		false: createBoolean(false),
+		inf: createNumber(Infinity),
+		'-inf': createNumber(-Infinity),
+		nan: createNumber(NaN),
+		All: TypeAll,
+		Boolean: TypeBoolean,
+		Number: TypeNumber,
+		PosNumber: TypePosNumber,
+		Int: TypeNumber,
+		Nat: TypeNat,
+		String: TypeString,
+		'#=>': createFn(
+			(params: ExpVector, out: ExpData) => createTypeFn(params, out),
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeAll)
+		),
+		'#|': createFn(
+			(items: ExpVector) => uniteType(items.value),
+			createTypeFn(createVector([TypeAll], {variadic: true}), TypeAll)
+		),
+		'#count': createFn(
+			(v: ExpData) => createNumber(typeCount(v)),
+			createTypeFn(createVector([TypeAll]), TypeNumber)
+		),
+		length: createFn(
+			(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
+			createTypeFn(
+				createVector([createVector([TypeAll], {variadic: true})]),
+				TypeNat
+			)
+		),
+		let: createFn(
+			(_: ExpHashMap, body: ExpForm) => body,
+			createTypeFn(
+				createVector([
+					createTypeFn(createVector([TypeString]), TypeAll),
+					TypeAll,
+				]),
+				TypeAll
+			)
+		),
 		PI: createNumber(Math.PI),
 		'+': createFn(
 			(value: ExpVector<ExpNumber>) =>
@@ -478,7 +477,7 @@ const GlobalScope = createList([
 		),
 		sqrt: createFn(
 			(v: ExpNumber) => createNumber(Math.sqrt(v.value)),
-			createTypeFn(createVector([TypePosNumber]), TypeNumber)
+			createTypeFn(createVector([TypePosNumber]), TypePosNumber)
 		),
 		not: createFn(
 			(v: ExpBoolean) => createBoolean(!v.value),
@@ -668,22 +667,18 @@ function resolveSymbol(sym: ExpSymbol): ExpForm {
 	}
 
 	let ref: ExpForm | undefined
-	if (sym.value in ReservedSymbols) {
-		ref = ReservedSymbols[sym.value]
-	} else {
-		let parent: ExpForm | undefined = sym
+	let parent: ExpForm | undefined = sym
 
-		while ((parent = parent.parent)) {
-			if (isListOf('let', parent)) {
-				const vars = parent.value[1]
+	while ((parent = parent.parent)) {
+		if (isListOf('let', parent)) {
+			const vars = parent.value[1]
 
-				if (vars.ast !== 'hashMap') {
-					throw new Error('2nd parameter of let should be HashMap')
-				}
+			if (vars.ast !== 'hashMap') {
+				throw new Error('2nd parameter of let should be HashMap')
+			}
 
-				if ((ref = vars.value[sym.value])) {
-					break
-				}
+			if ((ref = vars.value[sym.value])) {
+				break
 			}
 		}
 	}
@@ -776,7 +771,14 @@ export function evalExp(exp: ExpForm): ExpData {
 			return exp.evaluated
 		}
 
-		const _eval = _.partial(evalWithTrace, _, trace)
+		const _eval = (e: ExpForm) => {
+			const evaluated = evalWithTrace(e, trace)
+			if (e.ast === 'symbol' || e.ast === 'list' || e.ast === 'specialList') {
+				e.evaluated = evaluated
+			}
+			evaluated.label = e.label
+			return evaluated
+		}
 
 		switch (exp.ast) {
 			case 'void':
@@ -788,7 +790,7 @@ export function evalExp(exp: ExpForm): ExpData {
 				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
-				return (exp.evaluated = _eval(ref))
+				return _eval(ref)
 			}
 			case 'list': {
 				const [first, ...rest] = exp.value
@@ -908,18 +910,16 @@ export function evalExp(exp: ExpForm): ExpData {
 				)
 
 				const expanded = (exp.expanded = fnValue(...evaluatedParams))
-				return (exp.evaluated = _eval(expanded))
+				return _eval(expanded)
 			}
 			case 'specialList':
 				if (exp.kind === 'vector') {
-					const value = exp.value.map(_eval)
-					return createVector(value, {variadic: exp.variadic})
+					return createVector(exp.value.map(_eval), {variadic: exp.variadic})
 				} else if (exp.kind === 'hashMap') {
-					const out: ExpHashMap = {
+					return {
 						ast: 'hashMap',
 						value: _.mapValues(exp.value, _eval),
 					}
-					return (exp.evaluated = out)
 				}
 				throw new Error('Invalid kind of specialForm')
 		}
@@ -1106,6 +1106,9 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 }
 
 export function printExp(exp: ExpForm): string {
+	if (exp.label) {
+		return `${exp.label}:${printExp({...exp, label: undefined})}`
+	}
 	switch (exp.ast) {
 		case 'void':
 			return 'void'
@@ -1217,23 +1220,6 @@ export function printExp(exp: ExpForm): string {
 			case 'fn':
 				return `(#=> ${printExp(exp.params)} ${printExp(exp.out)})`
 			case 'union': {
-				if (equalExp(exp, TypeBoolean)) {
-					return 'Boolean'
-				}
-
-				const itemTrue = exp.items.find(_.partial(equalExp, ConstTrue))
-				const itemFalse = exp.items.find(_.partial(equalExp, ConstFalse))
-
-				if (itemTrue && itemFalse) {
-					return printType({
-						...exp,
-						items: [
-							..._.difference(exp.items, [itemTrue, itemFalse]),
-							TypeBoolean,
-						],
-					})
-				}
-
 				const items = exp.items.map(printExp).join(' ')
 				return `(#| ${items})`
 			}
