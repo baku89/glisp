@@ -47,7 +47,6 @@ interface ExpVoid extends ExpBase {
 interface ExpConstBase<T> extends ExpBase {
 	ast: 'const'
 	value: T
-	supersets?: ExpTypeInfUnion
 	str?: string
 }
 
@@ -813,7 +812,7 @@ export function evalExp(exp: ExpForm): ExpData {
 			case 'type':
 			case 'vector':
 			case 'hashMap':
-				return exp
+				return {...exp}
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
 				return _eval(ref)
@@ -1002,7 +1001,6 @@ function createBoolean(value: boolean): ExpBoolean {
 function createNumber(value: number): ExpNumber {
 	return {
 		ast: 'const',
-		supersets: TypeNumber,
 		value,
 	}
 }
@@ -1010,7 +1008,6 @@ function createNumber(value: number): ExpNumber {
 function createString(value: string): ExpString {
 	return {
 		ast: 'const',
-		supersets: TypeString,
 		value,
 	}
 }
@@ -1215,7 +1212,7 @@ export function printExp(exp: ExpForm): string {
 	function toHashKey(value: string): ExpSymbol | ExpString {
 		return canOmitQuote(value)
 			? {ast: 'symbol', value, str: value}
-			: {ast: 'const', supersets: TypeString, value}
+			: {ast: 'const', value}
 	}
 
 	function printType(exp: ExpType): string {
