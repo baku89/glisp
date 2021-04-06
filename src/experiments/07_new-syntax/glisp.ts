@@ -440,7 +440,7 @@ const GlobalScope = createList([
 		Boolean: TypeBoolean,
 		Number: TypeNumber,
 		PosNumber: TypePosNumber,
-		Int: TypeNumber,
+		Int: TypeInt,
 		Nat: TypeNat,
 		String: TypeString,
 		'#=>': createFn(
