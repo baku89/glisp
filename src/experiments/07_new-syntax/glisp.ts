@@ -323,19 +323,19 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 			return (
 				inner.variadic === false &&
 				outer.value.length >= inner.value.length &&
-				_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+				_$.zipShorter(outer.value, inner.value).every(_.spread(containsExp))
 			)
 		} else {
 			// Variadic length
 			if (inner.variadic) {
 				return (
 					outer.value.length === inner.value.length &&
-					_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+					_$.zipShorter(outer.value, inner.value).every(_.spread(containsExp))
 				)
 			} else {
 				return (
 					outer.value.length - 1 <= inner.value.length &&
-					_$.zipShorter(outer.value, inner.value).every(_$.uncurry(containsExp))
+					_$.zipShorter(outer.value, inner.value).every(_.spread(containsExp))
 				)
 			}
 		}
@@ -633,14 +633,14 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 			return (
 				a.ast === b.ast &&
 				a.value.length === b.value.length &&
-				_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
+				_$.zipShorter(a.value, b.value).every(_.spread(equalExp))
 			)
 		case 'vector':
 			return (
 				a.ast === b.ast &&
 				a.value.length === b.value.length &&
 				a.variadic === b.variadic &&
-				_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
+				_$.zipShorter(a.value, b.value).every(_.spread(equalExp))
 			)
 		case 'hashMap':
 			return (
@@ -657,7 +657,7 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 					b.kind === 'vector' &&
 					a.variadic === b.variadic &&
 					a.value.length === b.value.length &&
-					_$.zipShorter(a.value, b.value).every(_$.uncurry(equalExp))
+					_$.zipShorter(a.value, b.value).every(_.spread(equalExp))
 				)
 			} else if (a.kind === 'hashMap') {
 				return (
