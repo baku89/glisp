@@ -151,6 +151,9 @@ interface ExpFn extends ExpBase {
 	type: ExpTypeFn
 }
 
+//-------------------------------------------------------
+// Types
+
 const TypeNumber = createTypeInfUnion({
 	predicate: ({value}) => typeof value === 'number',
 })
