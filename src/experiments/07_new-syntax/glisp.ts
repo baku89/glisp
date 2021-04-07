@@ -13,19 +13,14 @@ function canOmitQuote(name: string) {
 
 type ExpForm = ExpVar | ExpData
 
+// Type of ASTs that can be contained within a program tree
 type ExpVar = ExpSymbol | ExpList | ExpSpecialList
 
-type ExpData =
-	| ExpVoid
-	| ExpBoolean
-	| ExpConst
-	| ExpVector
-	| ExpHashMap
-	| ExpFn
-	| ExpType
+// For evaluated value only
+type ExpData = ExpVoid | ExpConst | ExpVector | ExpHashMap | ExpFn | ExpType
 
 interface ExpBase {
-	parent?: ExpList | ExpSpecialList | ExpVector | ExpHashMap | ExpFn
+	parent?: ExpList | ExpSpecialList
 	dep?: Set<ExpSymbol>
 	label?: {
 		str: string
@@ -98,7 +93,6 @@ interface ExpVector<T extends ExpData = ExpData> extends ExpBase {
 	ast: 'vector'
 	value: T[]
 	variadic: boolean
-	delimiters?: string[]
 }
 
 interface ExpHashMap extends ExpBase {
@@ -106,7 +100,6 @@ interface ExpHashMap extends ExpBase {
 	value: {
 		[key: string]: ExpData
 	}
-	delimiters?: string[]
 }
 
 // Types
@@ -439,7 +432,7 @@ function uniteType(items: ExpData[]): ExpData {
 
 const GlobalScope = createList([
 	createSymbol('let'),
-	createHashMap({
+	createSpecialListHashMap({
 		true: ConstTrue,
 		false: ConstFalse,
 		inf: createNumber(Infinity),
@@ -454,65 +447,49 @@ const GlobalScope = createList([
 		String: TypeString,
 		'#=>': createFn(
 			(params: ExpVector, out: ExpData) => createTypeFn(params, out),
-			createTypeFn(
-				createVector([cloneExp(TypeAll), cloneExp(TypeAll)]),
-				cloneExp(TypeAll)
-			)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeAll)
 		),
 		'#|': createFn(
 			(items: ExpVector) => uniteType(items.value),
-			createTypeFn(
-				createVector([cloneExp(TypeAll)], {variadic: true}),
-				cloneExp(TypeAll)
-			)
+			createTypeFn(createVector([TypeAll], {variadic: true}), TypeAll)
 		),
 		'#count': createFn(
 			(v: ExpData) => createNumber(typeCount(v)),
-			createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeNumber))
+			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
 		'#<==': createFn(
 			(type: ExpData, value: ExpForm) => assignExp(type, value),
-			createTypeFn(
-				createVector([cloneExp(TypeAll), cloneExp(TypeAll)]),
-				cloneExp(TypeAll),
-				{
-					lazyEval: [false, true],
-				}
-			)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeAll, {
+				lazyEval: [false, true],
+			})
 		),
 		length: createFn(
 			(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
 			createTypeFn(
-				createVector([createVector([cloneExp(TypeAll)], {variadic: true})]),
-				cloneExp(TypeNat)
+				createVector([createVector([TypeAll], {variadic: true})]),
+				TypeNat
 			)
 		),
 		let: createFn(
 			(_: ExpHashMap, body: ExpForm) => body,
 			createTypeFn(
 				createVector([
-					createTypeFn(createVector([TypeString]), cloneExp(TypeAll)),
-					cloneExp(TypeAll),
+					createTypeFn(createVector([TypeString]), TypeAll),
+					TypeAll,
 				]),
-				cloneExp(TypeAll)
+				TypeAll
 			)
 		),
 		PI: createNumber(Math.PI),
 		'+': createFn(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
-			createTypeFn(
-				createVector([cloneExp(TypeNumber)], {variadic: true}),
-				cloneExp(TypeNumber)
-			)
+			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		'*': createFn(
 			(value: ExpVector<ExpNumber>) =>
 				createNumber(value.value.reduce((prod, {value}) => prod * value, 1)),
-			createTypeFn(
-				createVector([cloneExp(TypeNumber)], {variadic: true}),
-				cloneExp(TypeNumber)
-			)
+			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		take: createFn((n: ExpNumber, coll: ExpVector) => {
 			if (coll.variadic) {
@@ -527,13 +504,10 @@ const GlobalScope = createList([
 			} else {
 				return createVector(coll.value.slice(0, n.value))
 			}
-		}, createTypeFn(createVector([cloneExp(TypeNat), createVector([cloneExp(TypeAll)], {variadic: true})]), cloneExp(TypeNumber))),
+		}, createTypeFn(createVector([TypeNat, createVector([TypeAll], {variadic: true})]), TypeNumber)),
 		and: createFn(
 			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
-			createTypeFn(
-				createVector([cloneExp(TypeBoolean), cloneExp(TypeBoolean)]),
-				cloneExp(TypeBoolean)
-			)
+			createTypeFn(createVector([TypeBoolean, TypeBoolean]), TypeBoolean)
 		),
 		square: createFn(
 			(v: ExpNumber) => createNumber(v.value * v.value),
@@ -545,25 +519,19 @@ const GlobalScope = createList([
 		),
 		not: createFn(
 			(v: ExpBoolean) => createBoolean(!v.value),
-			createTypeFn(createVector([cloneExp(TypeBoolean)]), cloneExp(TypeBoolean))
+			createTypeFn(createVector([TypeBoolean]), TypeBoolean)
 		),
 		'==': createFn(
 			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
-			createTypeFn(
-				createVector([cloneExp(TypeAll), cloneExp(TypeAll)]),
-				cloneExp(TypeBoolean)
-			)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		'#>=': createFn(
 			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
-			createTypeFn(
-				createVector([cloneExp(TypeAll), cloneExp(TypeAll)]),
-				cloneExp(TypeBoolean)
-			)
+			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		count: createFn(
 			(a: ExpVector) => createNumber(a.value.length),
-			createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeNumber))
+			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
 		if: createFn(
 			(cond: ExpBoolean, then: ExpForm, _else: ExpForm) => {
@@ -576,17 +544,13 @@ const GlobalScope = createList([
 				}
 				return cond.value ? _else : then
 			},
-			createTypeFn(
-				createVector([TypeBoolean, cloneExp(TypeAll), cloneExp(TypeAll)]),
-				cloneExp(TypeAll),
-				{
-					lazyEval: [false, true, true],
-				}
-			)
+			createTypeFn(createVector([TypeBoolean, TypeAll, TypeAll]), TypeAll, {
+				lazyEval: [false, true, true],
+			})
 		),
 		ast: createFn(
 			(v: ExpForm) => createString(v.ast),
-			createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeString))
+			createTypeFn(createVector([TypeAll]), TypeString)
 		),
 	}),
 ])
@@ -611,7 +575,7 @@ function inferType(exp: ExpForm): ExpData {
 		}
 		case 'specialList':
 			if (exp.kind === 'vector') {
-				return createVector(exp.value.map(inferType), {setParent: false})
+				return createVector(exp.value.map(inferType))
 			} else {
 				return createHashMap(_.mapValues(exp.value, inferType))
 			}
@@ -739,13 +703,13 @@ function resolveSymbol(sym: ExpSymbol): ExpForm {
 	}
 
 	let ref: ExpForm | undefined
-	let parent: ExpForm | undefined = sym
+	let parent: ExpVar | undefined = sym
 
 	while ((parent = parent.parent)) {
 		if (isListOf('let', parent)) {
 			const vars = parent.value[1]
 
-			if (vars.ast !== 'hashMap') {
+			if (vars.ast !== 'specialList' || vars.kind !== 'hashMap') {
 				throw new Error('2nd parameter of let should be HashMap')
 			}
 
@@ -767,24 +731,20 @@ function resolveSymbol(sym: ExpSymbol): ExpForm {
 
 export class Interpreter {
 	private scope: ExpList
-	private vars: ExpHashMap
+	private vars: ExpSpecialListHashMap
 
 	constructor() {
-		this.vars = createHashMap({})
+		this.vars = createSpecialListHashMap({})
 
-		this.vars.value['def'] = createFn(
-			(value: ExpData) => {
-				if (!value.label) {
-					throw new Error('no label')
-				}
-				this.vars.value[value.label.str] = value
-				delete value.label
-				value.parent = this.vars
-				return value
-			},
-
-			createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeAll), {})
-		)
+		this.vars.value['def'] = createFn((value: ExpData) => {
+			if (!value.label) {
+				throw new Error('no label')
+			}
+			this.vars.value[value.label.str] = value
+			delete value.label
+			value.parent = this.vars
+			return value
+		}, createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeAll), {}))
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -860,7 +820,7 @@ export function evalExp(exp: ExpForm): ExpData {
 			case 'type':
 			case 'vector':
 			case 'hashMap':
-				return cloneExp(exp)
+				return exp
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
 				return _eval(ref)
@@ -938,7 +898,7 @@ export function evalExp(exp: ExpForm): ExpData {
 					throw new Error('First element is not a function')
 				}
 
-				const params = createSpecialListVector(rest, {setParent: false})
+				const params = createSpecialListVector(rest)
 				const assignedParams = assignExp(fnType.params, params)
 
 				if (
@@ -960,12 +920,9 @@ export function evalExp(exp: ExpForm): ExpData {
 				if (exp.kind === 'vector') {
 					return createVector(exp.value.map(_eval), {
 						variadic: exp.variadic,
-						delimiters: exp.delimiters,
 					})
 				} else if (exp.kind === 'hashMap') {
-					return createHashMap(_.mapValues(exp.value, _eval), {
-						delimiters: exp.delimiters,
-					})
+					return createHashMap(_.mapValues(exp.value, _eval))
 				}
 				throw new Error('Invalid kind of specialForm')
 		}
@@ -1101,28 +1058,6 @@ function createList(value: ExpForm[], {setParent = true} = {}): ExpList {
 	return exp
 }
 
-function createVector(
-	value: ExpData[],
-	{
-		setParent = true,
-		variadic = false,
-		delimiters = undefined as string[] | undefined,
-	} = {}
-): ExpVector {
-	const exp: ExpVector = {
-		ast: 'vector',
-		value,
-		variadic,
-		delimiters,
-	}
-
-	if (setParent) {
-		value.forEach(v => (v.parent = exp))
-	}
-
-	return exp
-}
-
 function createSpecialListVector(
 	value: ExpForm[],
 	{setParent = true, variadic = false} = {}
@@ -1141,18 +1076,37 @@ function createSpecialListVector(
 	return exp
 }
 
-function createHashMap(
-	value: ExpHashMap['value'],
-	{setParent = true, delimiters = undefined as string[] | undefined} = {}
-): ExpHashMap {
-	const exp: ExpHashMap = {
-		ast: 'hashMap',
+function createSpecialListHashMap(
+	value: ExpSpecialListHashMap['value'],
+	{setParent = true} = {}
+) {
+	const exp: ExpSpecialListHashMap = {
+		ast: 'specialList',
+		kind: 'hashMap',
 		value,
-		delimiters,
 	}
 
 	if (setParent) {
 		_.values(value).forEach(v => (v.parent = exp))
+	}
+
+	return exp
+}
+
+function createVector(value: ExpData[], {variadic = false} = {}): ExpVector {
+	const exp: ExpVector = {
+		ast: 'vector',
+		value,
+		variadic,
+	}
+
+	return exp
+}
+
+function createHashMap(value: ExpHashMap['value']): ExpHashMap {
+	const exp: ExpHashMap = {
+		ast: 'hashMap',
+		value,
 	}
 
 	return exp
@@ -1168,7 +1122,8 @@ function isListOf(sym: string, exp: ExpForm): exp is ExpList {
 
 function getName(exp: ExpForm): string | null {
 	if (
-		exp.parent?.ast === 'hashMap' &&
+		exp.parent?.ast === 'specialList' &&
+		exp.parent?.kind === 'hashMap' &&
 		exp.parent.parent &&
 		isListOf('let', exp.parent.parent)
 	) {
@@ -1239,16 +1194,12 @@ export function printExp(exp: ExpForm): string {
 			throw new Error('Invalid specialList and cannot print it')
 		case 'vector': {
 			const value: ExpForm[] = [...exp.value]
-			let delimiters = exp.delimiters
-			if (!delimiters) {
-				delimiters =
-					exp.delimiters ??
-					(exp.value.length === 0
-						? ['']
-						: ['', ...Array(value.length - 1).fill(' '), ''])
-				if (exp.variadic) {
-					delimiters.push('')
-				}
+			const delimiters =
+				exp.value.length === 0
+					? ['']
+					: ['', ...Array(value.length - 1).fill(' '), '']
+			if (exp.variadic) {
+				delimiters.push('')
 			}
 			if (exp.variadic) {
 				value.splice(-1, 0, createSymbol('...'))
@@ -1262,11 +1213,9 @@ export function printExp(exp: ExpForm): string {
 				...{label: {str: label, delimiters: ['', ' ']}},
 			}))
 			const delimiters =
-				exp.delimiters ??
-				(pairs.length === 0
+				pairs.length === 0
 					? ['']
-					: ['', ...Array(pairs.length - 1).fill(' '), ''])
-
+					: ['', ...Array(pairs.length - 1).fill(' '), '']
 			return printSeq('{', '}', coll, delimiters)
 		}
 		case 'fn':
