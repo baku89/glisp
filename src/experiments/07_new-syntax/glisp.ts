@@ -362,6 +362,9 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 					return inner.items.every(ii => containsExp(outer, ii))
 				}
 				if (inner.kind === 'infUnion') {
+					if (outer.original === inner.original) {
+						return true
+					}
 					return (
 						!!inner.supersets &&
 						inner.supersets.some(s => containsExp(outer, s))
@@ -648,6 +651,9 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 		case 'const':
 			if (b.ast !== 'const') {
 				return false
+			}
+			if (a.original === b.original) {
+				return true
 			}
 			switch (typeof a.value) {
 				case 'boolean':
