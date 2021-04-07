@@ -357,6 +357,9 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 					return inner.items.every(ii => containsExp(outer, ii))
 				}
 				if (inner.kind === 'infUnion') {
+					if (outer.value === inner.value) {
+						return true
+					}
 					return (
 						!!inner.value.supersets &&
 						inner.value.supersets.some(s => containsExp(outer, s))
