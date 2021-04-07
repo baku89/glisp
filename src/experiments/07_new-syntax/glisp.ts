@@ -63,7 +63,6 @@ interface ExpSymbol extends ExpBase {
 	value: string
 	str?: string
 	ref?: ExpForm
-	evaluated?: ExpData
 }
 
 interface ExpList extends ExpBase {
@@ -621,7 +620,6 @@ function inferType(exp: ExpForm): ExpData {
 
 function clearEvaluatedRecursively(exp: ExpForm) {
 	switch (exp.ast) {
-		case 'symbol':
 		case 'list':
 		case 'specialList':
 			if (!exp.evaluated) {
@@ -845,7 +843,7 @@ export function evalExp(exp: ExpForm): ExpData {
 
 		const _eval = (e: ExpForm) => {
 			const evaluated = evalWithTrace(e, trace)
-			if (e.ast === 'symbol' || e.ast === 'list' || e.ast === 'specialList') {
+			if (e.ast === 'list' || e.ast === 'specialList') {
 				e.evaluated = evaluated
 			}
 			evaluated.label = e.label
