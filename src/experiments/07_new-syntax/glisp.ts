@@ -249,6 +249,9 @@ export function disconnectExp(exp: ExpForm): null {
 			case 'void':
 			case 'const':
 			case 'fn':
+			case 'vector':
+			case 'hashMap':
+			case 'type':
 				return null
 			case 'symbol':
 				if (e.ref && !hasAncestor(e.ref, exp)) {
@@ -258,7 +261,6 @@ export function disconnectExp(exp: ExpForm): null {
 				}
 				return null
 			case 'list':
-			case 'vector':
 				e.value.forEach(disconnect)
 				return null
 			case 'specialList':
@@ -268,11 +270,6 @@ export function disconnectExp(exp: ExpForm): null {
 					_.values(e.value).forEach(disconnect)
 				}
 				return null
-			case 'hashMap':
-				_.values(e.value).forEach(disconnect)
-				return null
-			case 'type':
-				throw new Error('これから考える')
 		}
 	}
 }
@@ -491,6 +488,20 @@ const GlobalScope = createList([
 				createNumber(value.value.reduce((prod, {value}) => prod * value, 1)),
 			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
+		take: createFn((n: ExpNumber, coll: ExpVector) => {
+			if (coll.variadic) {
+				const newColl = coll.value.slice(0, n.value)
+				newColl.push(
+					..._.times(
+						n.value - newColl.length,
+						() => coll.value[coll.value.length - 1]
+					)
+				)
+				return createVector(newColl)
+			} else {
+				return createVector(coll.value.slice(0, n.value))
+			}
+		}, createTypeFn(createVector([TypeNat, createVector([TypeAll], {variadic: true})]), TypeNumber)),
 		and: createFn(
 			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
 			createTypeFn(createVector([TypeBoolean, TypeBoolean]), TypeBoolean)
