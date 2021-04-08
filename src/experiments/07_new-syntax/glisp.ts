@@ -261,17 +261,13 @@ function createInfUnion(
 function createFnType(
 	params: Value[] | ValueRestVector,
 	out: Value,
-	{
-		lazyEval = undefined as undefined | boolean[],
-		lazyInfer = undefined as undefined | boolean[],
-	} = {}
+	{lazyEval = undefined as undefined | boolean[]} = {}
 ): ValueFnType {
 	return {
 		type: 'fnType',
 		params,
 		out,
 		lazyEval,
-		lazyInfer,
 	}
 }
 
@@ -413,44 +409,50 @@ const GlobalScope = createList([
 		String: wrapTypeInfUnion(TypeString),
 		'#=>': createFn(
 			(params: Value[], out: Value) => createFnType(params, out),
-			createFnType([TypeAll, TypeAll], TypeAll)
+			[TypeAll, TypeAll],
+			TypeAll
 		),
 		'#|': createFn(
 			(items: Value[]) => uniteType(items),
-			createFnType(createVariadicVector([TypeAll]), TypeAll)
+			createVariadicVector([TypeAll]),
+			TypeAll
 		),
-		'#count': createFn(
-			(v: Value) => typeCount(v),
-			createFnType([TypeAll], TypeNumber)
-		),
+		'#count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
 		'#<==': createFn(
 			(type: Value, value: Exp) => assignExp(type, value),
-			createFnType([TypeAll, TypeAll], TypeAll, {
+			[TypeAll, TypeAll],
+			TypeAll,
+			{
 				lazyEval: [false, true],
-			})
+			}
 		),
 		length: createFn(
 			(v: Value[] | ValueRestVector) =>
 				Array.isArray(v) ? v.length : Infinity,
-			createFnType([createVariadicVector([TypeAll])], TypeNat)
+			[createVariadicVector([TypeAll])],
+			TypeNat
 		),
 		let: createFn(
 			(_: ValueHashMap, body: Exp) => body,
-			createFnType([createFnType([TypeString], TypeAll), TypeAll], TypeAll)
+			[createFnType([TypeString], TypeAll), TypeAll],
+			TypeAll
 		),
 		PI: wrapExp(Math.PI),
-		'+': createFn((xs: number[]) => {
-			console.log(xs)
-			return xs.reduce((sum, v) => sum + v, 0)
-		}, createFnType(createVariadicVector([TypeNumber]), TypeNumber)),
+		'+': createFn(
+			(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
+			createVariadicVector([TypeNumber]),
+			TypeNumber
+		),
 		'*': createFn(
 			(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-			createFnType(createVariadicVector([TypeNumber]), TypeNumber)
+			createVariadicVector([TypeNumber]),
+			TypeNumber
 		),
-		take: createFn((n: number, coll: Value[] | ValueRestVector) => {
-			if (Array.isArray(coll)) {
-				return coll.slice(0, n)
-			} else {
+		take: createFn(
+			(n: number, coll: Value[] | ValueRestVector) => {
+				if (Array.isArray(coll)) {
+					return coll.slice(0, n)
+				}
 				const newColl = coll.value.slice(0, n)
 				newColl.push(
 					..._.times(
@@ -459,40 +461,32 @@ const GlobalScope = createList([
 					)
 				)
 				return newColl
-			}
-		}, createFnType([TypeNat, createVariadicVector([TypeAll])], TypeNumber)),
+			},
+			[TypeNat, createVariadicVector([TypeAll])],
+			TypeNumber
+		),
 		'&&': createFn(
 			(a: boolean, b: boolean) => a && b,
-			createFnType([TypeBoolean, TypeBoolean], TypeBoolean)
+			[TypeBoolean, TypeBoolean],
+			TypeBoolean
 		),
-		square: createFn(
-			(v: number) => v * v,
-			createFnType([TypeNumber], TypePosNumber)
-		),
-		sqrt: createFn(
-			(v: number) => Math.sqrt(v),
-			createFnType([TypePosNumber], TypePosNumber)
-		),
-		not: createFn((v: boolean) => !v, createFnType([TypeBoolean], TypeBoolean)),
-		'==': createFn(
-			(a: Value, b: Value) => isEqualValue(a, b),
-			createFnType([TypeAll, TypeAll], TypeBoolean)
-		),
-		'#>=': createFn(
-			(a: Value, b: Value) => containsValue(a, b),
-			createFnType([TypeAll, TypeAll], TypeBoolean)
-		),
+		square: createFn((v: number) => v * v, [TypeNumber], TypePosNumber),
+		sqrt: createFn(Math.sqrt, [TypePosNumber], TypePosNumber),
+		not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
+		'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
+		'#>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
 		count: createFn(
 			(a: Value[]) => a.length,
-			createFnType([TypeAll], TypeNumber)
+			[createVariadicVector([TypeAll])],
+			TypeNumber
 		),
 		if: createFn(
-			(cond: boolean, then: Exp, _else: Exp) => {
-				return cond ? then : _else
-			},
-			createFnType([TypeBoolean, TypeAll, TypeAll], TypeAll, {
+			(cond: boolean, then: Exp, _else: Exp) => (cond ? then : _else),
+			[TypeBoolean, TypeAll, TypeAll],
+			TypeAll,
+			{
 				lazyEval: [false, true, true],
-			})
+			}
 		),
 	}),
 ])
@@ -685,15 +679,20 @@ export class Interpreter {
 	constructor() {
 		this.vars = createSpecialListHashMap({})
 
-		this.vars.value['def'] = createFn((value: Exp) => {
-			if (!value.label) {
-				throw new Error('no label')
-			}
-			this.vars.value[value.label.str] = value
-			delete value.label
-			value.parent = this.vars
-			return value
-		}, createFnType([TypeAll], TypeAll, {lazyEval: [true]}))
+		this.vars.value['def'] = createFn(
+			(value: Exp) => {
+				if (!value.label) {
+					throw new Error('no label')
+				}
+				this.vars.value[value.label.str] = value
+				delete value.label
+				value.parent = this.vars
+				return value
+			},
+			[TypeAll],
+			TypeAll,
+			{lazyEval: [true]}
+		)
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -935,15 +934,17 @@ function createSymbol(value: string): ExpSymbol {
 }
 
 function createFn(
-	value: (...params: any[]) => Form,
-	fnType: ValueFnType
+	body: (...params: any[]) => Form,
+	params: ValueFnType['params'],
+	out: ValueFnType['out'],
+	{lazyEval = undefined as undefined | boolean[]} = {}
 ): ExpValue<ValueFn> {
 	return {
 		ast: 'value',
 		value: {
 			type: 'fn',
-			body: value as IFn,
-			fnType,
+			body: body as IFn,
+			fnType: createFnType(params, out, {lazyEval}),
 		},
 	}
 }
