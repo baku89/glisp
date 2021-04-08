@@ -29,20 +29,20 @@ type Value =
 type ValuePrim = null | boolean | number | string
 
 interface ValueAll {
-	valueType: 'all'
+	type: 'all'
 }
 
 interface ValueVoid {
-	valueType: 'void'
+	type: 'void'
 }
 
 interface ValueRestVector {
-	valueType: 'restVector'
+	type: 'restVector'
 	value: Value[]
 }
 
 interface ValueHashMap {
-	valueType: 'hashMap'
+	type: 'hashMap'
 	value: {
 		[key: string]: Value
 	}
@@ -51,26 +51,26 @@ interface ValueHashMap {
 type IFn = (...params: Form[]) => Form
 
 interface ValueFn {
-	valueType: 'fn'
+	type: 'fn'
 	body: IFn
 	fnType: ValueFnType
 }
 
 interface ValueUnion {
-	valueType: 'union'
+	type: 'union'
 	items: Value[]
 	original?: ExpValue<ValueUnion>
 }
 
 interface ValueInfUnion {
-	valueType: 'infUnion'
+	type: 'infUnion'
 	predicate: (v: ValuePrim) => boolean
 	original?: ExpValue<ValueInfUnion>
 	supersets?: ValueInfUnion[]
 }
 
 interface ValueFnType {
-	valueType: 'fnType'
+	type: 'fnType'
 	params: Value[] | ValueRestVector
 	out: Value
 	lazyEval?: boolean[]
@@ -242,19 +242,19 @@ export function disconnectExp(exp: Exp): null {
 }
 
 const TypeAll: ValueAll = {
-	valueType: 'all',
+	type: 'all',
 }
 
 const TypeBoolean: ValueUnion = {
-	valueType: 'union',
+	type: 'union',
 	items: [true, false],
 }
 
 function createTypeInfUnion(
-	exp: Omit<ValueInfUnion, 'valueType' | 'original'>
+	exp: Omit<ValueInfUnion, 'type' | 'original'>
 ): ValueInfUnion {
 	return {
-		valueType: 'infUnion',
+		type: 'infUnion',
 		...exp,
 	}
 }
@@ -267,7 +267,7 @@ function createTypeFn(
 	} = {}
 ): ValueFnType {
 	return {
-		valueType: 'fnType',
+		type: 'fnType',
 		params,
 		out,
 		lazyEval,
@@ -296,7 +296,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		return true
 	}
 
-	switch (outer.valueType) {
+	switch (outer.type) {
 		case 'void':
 		case 'fn':
 			return isEqualValue(outer, inner)
@@ -383,7 +383,7 @@ function uniteType(items: Value[]): Value {
 		const bItems = isValueUnion(b) ? b.items : [b]
 
 		return {
-			valueType: 'union',
+			type: 'union',
 			items: [...aItems, ...bItems],
 		}
 	}, createVoid())
@@ -502,7 +502,7 @@ function isValue(form: Form): form is Value {
 }
 
 function isValueFn(form: Form): form is ValueFn {
-	return !isValuePrim(form) && 'valueType' in form && form.valueType === 'fn'
+	return !isValuePrim(form) && 'type' in form && form.type === 'fn'
 }
 
 function isValuePrim(value: Value | Exp): value is ValuePrim {
@@ -515,51 +515,37 @@ function isValuePrim(value: Value | Exp): value is ValuePrim {
 }
 
 function isValueAll(value: Value): value is ValueAll {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'all'
-	)
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'all'
 }
 
 function isValueVoid(value: Value): value is ValueVoid {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'void'
-	)
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'void'
 }
 
 function isValueRestVector(value: Value): value is ValueRestVector {
 	return (
-		!isValuePrim(value) &&
-		!Array.isArray(value) &&
-		value.valueType === 'restVector'
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'restVector'
 	)
 }
 
 function isValueHashMap(value: Value): value is ValueHashMap {
 	return (
-		!isValuePrim(value) &&
-		!Array.isArray(value) &&
-		value.valueType === 'restVector'
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'restVector'
 	)
 }
 
 function isValueUnion(value: Value): value is ValueUnion {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'union'
-	)
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'union'
 }
 
 function isValueInfUnion(value: Value): value is ValueInfUnion {
 	return (
-		!isValuePrim(value) &&
-		!Array.isArray(value) &&
-		value.valueType === 'infUnion'
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'infUnion'
 	)
 }
 
 function isValueFnType(value: Value): value is ValueFnType {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'fnType'
-	)
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'fnType'
 }
 
 function inferType(form: Form): Value {
@@ -619,7 +605,7 @@ function isEqualValue(a: Value, b: Value): boolean {
 		)
 	}
 
-	switch (a.valueType) {
+	switch (a.type) {
 		case 'all':
 			return isValueAll(b)
 		case 'void':
@@ -724,7 +710,7 @@ function typeCount(value: Value): number {
 		return value.reduce((count, d) => count * typeCount(d), 1)
 	}
 
-	switch (value.valueType) {
+	switch (value.type) {
 		case 'void':
 			return 0
 		case 'fn':
@@ -897,7 +883,7 @@ function assignExp(target: Value, source: Exp): Exp {
 		})
 	}
 
-	switch (target.valueType) {
+	switch (target.type) {
 		case 'all':
 		case 'void':
 		case 'union':
@@ -934,7 +920,7 @@ function assignExp(target: Value, source: Exp): Exp {
 
 // Create functions
 function createVoid(): ValueVoid {
-	return {valueType: 'void'}
+	return {type: 'void'}
 }
 
 function createSymbol(value: string): ExpSymbol {
@@ -951,7 +937,7 @@ function createFn(
 	return {
 		ast: 'value',
 		value: {
-			valueType: 'fn',
+			type: 'fn',
 			body: value as IFn,
 			fnType,
 		},
@@ -1006,7 +992,7 @@ function createSpecialListHashMap(
 
 function createVariadicVector(value: Value[]): ValueRestVector {
 	const exp: ValueRestVector = {
-		valueType: 'restVector',
+		type: 'restVector',
 		value,
 	}
 
@@ -1015,7 +1001,7 @@ function createVariadicVector(value: Value[]): ValueRestVector {
 
 function createHashMap(value: ValueHashMap['value']): ValueHashMap {
 	return {
-		valueType: 'hashMap',
+		type: 'hashMap',
 		value,
 	}
 }
@@ -1105,7 +1091,7 @@ export function printForm(form: Form): string {
 			return printSeq('[', ']', value)
 		}
 
-		switch (value.valueType) {
+		switch (value.type) {
 			case 'all':
 				return 'All'
 			case 'void':
