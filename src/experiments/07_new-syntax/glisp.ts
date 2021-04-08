@@ -14,16 +14,23 @@ function canOmitQuote(name: string) {
 type Form = Exp | Value
 
 // Value
-type Value = ValuePrim | Value[] | ValueComplex
-
-type ValuePrim = null | boolean | number | string
-
-type ValueComplex =
+type Value =
+	| ValuePrim
+	| Value[]
+	| ValueAll
 	| ValueVoid
 	| ValueRestVector
 	| ValueHashMap
 	| ValueFn
-	| ValueType
+	| ValueUnion
+	| ValueInfUnion
+	| ValueFnType
+
+type ValuePrim = null | boolean | number | string
+
+interface ValueAll {
+	valueType: 'all'
+}
 
 interface ValueVoid {
 	valueType: 'void'
@@ -46,34 +53,24 @@ type IFn = (...params: Form[]) => Form
 interface ValueFn {
 	valueType: 'fn'
 	body: IFn
-	type: ValueTypeFn
+	fnType: ValueFnType
 }
 
-type ValueType = ValueTypeAll | ValueTypeUnion | ValueTypeInfUnion | ValueTypeFn
-
-interface ValueTypeAll {
-	valueType: 'type'
-	kind: 'all'
-}
-
-interface ValueTypeInfUnion {
-	valueType: 'type'
-	kind: 'infUnion'
-	predicate: (v: ValuePrim) => boolean
-	original?: ExpValue<ValueTypeInfUnion>
-	supersets?: ValueTypeInfUnion[]
-}
-
-interface ValueTypeUnion {
-	valueType: 'type'
-	kind: 'union'
+interface ValueUnion {
+	valueType: 'union'
 	items: Value[]
-	original?: ExpValue<ValueTypeUnion>
+	original?: ExpValue<ValueUnion>
 }
 
-interface ValueTypeFn {
-	valueType: 'type'
-	kind: 'fn'
+interface ValueInfUnion {
+	valueType: 'infUnion'
+	predicate: (v: ValuePrim) => boolean
+	original?: ExpValue<ValueInfUnion>
+	supersets?: ValueInfUnion[]
+}
+
+interface ValueFnType {
+	valueType: 'fnType'
 	params: Value[] | ValueRestVector
 	out: Value
 	lazyEval?: boolean[]
@@ -136,8 +133,8 @@ interface ExpHashMap extends ExpBase {
 	evaluated?: ValueHashMap
 }
 
-function wrapTypeInfUnion(value: ValueTypeInfUnion) {
-	const exp: ExpValue<ValueTypeInfUnion> = {
+function wrapTypeInfUnion(value: ValueInfUnion) {
+	const exp: ExpValue<ValueInfUnion> = {
 		ast: 'value',
 		value,
 	}
@@ -145,8 +142,8 @@ function wrapTypeInfUnion(value: ValueTypeInfUnion) {
 	return exp
 }
 
-function wrapTypeUnion(value: ValueTypeUnion) {
-	const exp: ExpValue<ValueTypeUnion> = {
+function wrapTypeUnion(value: ValueUnion) {
+	const exp: ExpValue<ValueUnion> = {
 		ast: 'value',
 		value,
 	}
@@ -244,23 +241,20 @@ export function disconnectExp(exp: Exp): null {
 	}
 }
 
-const TypeAll: ValueTypeAll = {
-	valueType: 'type',
-	kind: 'all',
+const TypeAll: ValueAll = {
+	valueType: 'all',
 }
 
-const TypeBoolean: ValueTypeUnion = {
-	valueType: 'type',
-	kind: 'union',
+const TypeBoolean: ValueUnion = {
+	valueType: 'union',
 	items: [true, false],
 }
 
 function createTypeInfUnion(
-	exp: Omit<ValueTypeInfUnion, 'valueType' | 'kind' | 'original'>
-): ValueTypeInfUnion {
+	exp: Omit<ValueInfUnion, 'valueType' | 'original'>
+): ValueInfUnion {
 	return {
-		valueType: 'type',
-		kind: 'infUnion',
+		valueType: 'infUnion',
 		...exp,
 	}
 }
@@ -271,10 +265,9 @@ function createTypeFn(
 		lazyEval = undefined as undefined | boolean[],
 		lazyInfer = undefined as undefined | boolean[],
 	} = {}
-): ValueTypeFn {
+): ValueFnType {
 	return {
-		valueType: 'type',
-		kind: 'fn',
+		valueType: 'fnType',
 		params,
 		out,
 		lazyEval,
@@ -299,7 +292,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		)
 	}
 
-	if (isValueComplex(inner) && inner.valueType === 'void') {
+	if (isValueVoid(inner)) {
 		return true
 	}
 
@@ -308,12 +301,13 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'fn':
 			return isEqualValue(outer, inner)
 		case 'restVector':
-			if (isValueComplex(inner) && inner.valueType === 'restVector') {
+			if (isValueRestVector(inner)) {
 				return (
 					outer.value.length === inner.value.length &&
 					_$.zipShorter(outer.value, inner.value).every(_.spread(containsValue))
 				)
-			} else if (Array.isArray(inner)) {
+			}
+			if (Array.isArray(inner)) {
 				return (
 					outer.value.length - 1 <= inner.length &&
 					_$.zipShorter(outer.value, inner).every(_.spread(containsValue))
@@ -322,64 +316,53 @@ function containsValue(outer: Value, inner: Value): boolean {
 			return false
 		case 'hashMap':
 			return (
-				isValueComplex(inner) &&
-				inner.valueType === 'hashMap' &&
+				isValueHashMap(inner) &&
 				_.entries(inner).every(([key, iv]) =>
 					containsValue(outer.value[key], iv)
 				)
 			)
-		case 'type':
-			switch (outer.kind) {
-				case 'all':
-					return true
-				case 'infUnion':
-					if (isValuePrim(inner)) {
-						return outer.predicate(inner)
-					}
-
-					if ('valueType' in inner && inner.valueType === 'type') {
-						if (inner.kind === 'union') {
-							return inner.items.every(ii => containsValue(outer, ii))
-						}
-						if (inner.kind === 'infUnion') {
-							if (outer.original === inner.original) {
-								return true
-							}
-							return (
-								!!inner.supersets &&
-								inner.supersets.some(s => containsValue(outer, s))
-							)
-						}
-					}
-					return false
-				case 'union': {
-					const innerItems =
-						isValueType(inner) && inner.kind === 'union' ? inner.items : [inner]
-					if (outer.items.length < innerItems.length) {
-						return false
-					}
-					return !!innerItems.some(ii =>
-						outer.items.some(_.partial(containsValue, _, ii))
-					)
-				}
-				case 'fn':
-					if (isValueType(inner)) {
-						if (inner.kind === 'fn') {
-							return (
-								containsValue(outer.params, inner.params) &&
-								containsValue(outer.out, inner.out)
-							)
-						}
-						return containsValue(outer.out, inner)
-					}
-					if (isValueFn(inner)) {
-						return (
-							containsValue(outer.params, inner.type.params) &&
-							containsValue(outer.out, inner.type.out)
-						)
-					}
-					return containsValue(outer.out, inner)
+		case 'all':
+			return true
+		case 'infUnion':
+			if (isValuePrim(inner)) {
+				return outer.predicate(inner)
 			}
+			if (isValueUnion(inner)) {
+				return inner.items.every(ii => containsValue(outer, ii))
+			}
+			if (isValueInfUnion(inner)) {
+				if (outer.original === inner.original) {
+					return true
+				}
+				return (
+					!!inner.supersets &&
+					inner.supersets.some(s => containsValue(outer, s))
+				)
+			}
+			return false
+		case 'union': {
+			const innerItems = isValueUnion(inner) ? inner.items : [inner]
+			if (outer.items.length < innerItems.length) {
+				return false
+			}
+			return !!innerItems.some(ii =>
+				outer.items.some(_.partial(containsValue, _, ii))
+			)
+		}
+		case 'fnType':
+			if (isValueFnType(inner)) {
+				return (
+					containsValue(outer.params, inner.params) &&
+					containsValue(outer.out, inner.out)
+				)
+			}
+			if (isValueFn(inner)) {
+				return (
+					containsValue(outer.params, inner.fnType.params) &&
+					containsValue(outer.out, inner.fnType.out)
+				)
+			}
+			return containsValue(outer.out, inner)
 	}
 }
 
@@ -396,17 +379,16 @@ function uniteType(items: Value[]): Value {
 			return b
 		}
 
-		const aItems = isValueType(a) && a.kind === 'union' ? a.items : [a]
-		const bItems = isValueType(b) && b.kind === 'union' ? b.items : [b]
+		const aItems = isValueUnion(a) ? a.items : [a]
+		const bItems = isValueUnion(b) ? b.items : [b]
 
 		return {
-			valueType: 'type',
-			kind: 'union',
+			valueType: 'union',
 			items: [...aItems, ...bItems],
 		}
 	}, createVoid())
 
-	if (isValueType(unionType) && unionType.kind === 'union') {
+	if (isValueUnion(unionType)) {
 		return {...unionType}
 	}
 
@@ -519,6 +501,10 @@ function isValue(form: Form): form is Value {
 	return isValuePrim(form) || Array.isArray(form) || 'valueType' in form
 }
 
+function isValueFn(form: Form): form is ValueFn {
+	return !isValuePrim(form) && 'valueType' in form && form.valueType === 'fn'
+}
+
 function isValuePrim(value: Value | Exp): value is ValuePrim {
 	return (
 		value === null ||
@@ -528,18 +514,52 @@ function isValuePrim(value: Value | Exp): value is ValuePrim {
 	)
 }
 
-function isValueComplex(value: Value): value is ValueComplex {
-	return !isValuePrim(value) && !Array.isArray(value)
-}
-
-function isValueType(value: Value): value is ValueType {
+function isValueAll(value: Value): value is ValueAll {
 	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'type'
+		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'all'
 	)
 }
 
-function isValueFn(form: Form): form is ValueFn {
-	return !isValuePrim(form) && 'valueType' in form && form.valueType === 'fn'
+function isValueVoid(value: Value): value is ValueVoid {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'void'
+	)
+}
+
+function isValueRestVector(value: Value): value is ValueRestVector {
+	return (
+		!isValuePrim(value) &&
+		!Array.isArray(value) &&
+		value.valueType === 'restVector'
+	)
+}
+
+function isValueHashMap(value: Value): value is ValueHashMap {
+	return (
+		!isValuePrim(value) &&
+		!Array.isArray(value) &&
+		value.valueType === 'restVector'
+	)
+}
+
+function isValueUnion(value: Value): value is ValueUnion {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'union'
+	)
+}
+
+function isValueInfUnion(value: Value): value is ValueInfUnion {
+	return (
+		!isValuePrim(value) &&
+		!Array.isArray(value) &&
+		value.valueType === 'infUnion'
+	)
+}
+
+function isValueFnType(value: Value): value is ValueFnType {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'fnType'
+	)
 }
 
 function inferType(form: Form): Value {
@@ -599,51 +619,40 @@ function isEqualValue(a: Value, b: Value): boolean {
 		)
 	}
 
-	if (isValuePrim(b) || Array.isArray(b)) {
-		return false
-	}
-
 	switch (a.valueType) {
+		case 'all':
+			return isValueAll(b)
 		case 'void':
-			return b.valueType === 'void'
+			return isValueVoid(b)
 		case 'restVector':
 			return (
-				b.valueType === 'restVector' &&
+				isValueRestVector(b) &&
 				a.value.length === b.value.length &&
 				_$.zipShorter(a.value, b.value).every(_.spread(isEqualValue))
 			)
 		case 'hashMap':
 			return (
-				b.valueType === 'hashMap' &&
+				isValueHashMap(b) &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
 				_.toPairs(a.value).every(([key, av]) => isEqualValue(av, b.value[key]))
 			)
 		case 'fn':
-			return b.valueType === 'fn' && a.body === b.body
-		case 'type':
-			return b.valueType === 'type' && equalType(a, b)
-	}
-
-	function equalType(a: ValueType, b: ValueType): boolean {
-		switch (a.kind) {
-			case 'all':
-				return b.kind === 'all'
-			case 'infUnion':
-				return a === b
-			case 'union': {
-				if (b.kind !== 'union') return false
-				if (a.items.length !== b.items.length) {
-					return false
-				}
-				return _.differenceWith(a.items, b.items, isEqualValue).length === 0
-			}
-			case 'fn':
-				return (
-					b.kind === 'fn' &&
-					isEqualValue(a.out, b.out) &&
-					isEqualValue(a.params, b.params)
-				)
+			return isValueFn(b) && a.body === b.body
+		case 'union': {
+			return (
+				isValueUnion(b) &&
+				a.items.length === b.items.length &&
+				_.differenceWith(a.items, b.items, isEqualValue).length === 0
+			)
 		}
+		case 'infUnion':
+			return a === b
+		case 'fnType':
+			return (
+				isValueFnType(b) &&
+				isEqualValue(a.out, b.out) &&
+				isEqualValue(a.params, b.params)
+			)
 	}
 }
 
@@ -720,6 +729,8 @@ function typeCount(value: Value): number {
 			return 0
 		case 'fn':
 			return 1
+		case 'all':
+		case 'infUnion':
 		case 'restVector':
 			return Infinity
 		case 'hashMap':
@@ -727,19 +738,10 @@ function typeCount(value: Value): number {
 				(count: number, d) => count * typeCount(d),
 				1
 			)
-		case 'type':
-			switch (value.kind) {
-				case 'all':
-				case 'infUnion':
-					return Infinity
-				case 'union':
-					return value.items.reduce(
-						(count: number, v) => count + typeCount(v),
-						0
-					)
-				case 'fn':
-					return typeCount(value.out)
-			}
+		case 'union':
+			return value.items.reduce((count: number, v) => count + typeCount(v), 0)
+		case 'fnType':
+			return typeCount(value.out)
 	}
 }
 
@@ -836,12 +838,12 @@ export function evalExp(exp: Exp): Value {
 
 				const fn = _eval(first)
 
-				let fnType: ValueTypeFn
+				let fnType: ValueFnType
 				let fnBody: IFn
 
 				if (isValueFn(fn)) {
 					// Function application
-					fnType = fn.type
+					fnType = fn.fnType
 					fnBody = fn.body
 				} else {
 					throw new Error('First element is not a function')
@@ -896,8 +898,16 @@ function assignExp(target: Value, source: Exp): Exp {
 	}
 
 	switch (target.valueType) {
+		case 'all':
 		case 'void':
-			return wrapExp(createVoid())
+		case 'union':
+		case 'infUnion':
+			if (!containsValue(target, sourceType)) {
+				throw new Error(
+					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
+				)
+			}
+			return source
 		case 'restVector': {
 			if (
 				source.ast !== 'vector' ||
@@ -917,23 +927,6 @@ function assignExp(target: Value, source: Exp): Exp {
 				setParent: false,
 			})
 		}
-		case 'type':
-			if (!containsValue(target, sourceType)) {
-				throw new Error(
-					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
-				)
-			}
-			switch (target.kind) {
-				case 'all':
-				case 'union':
-				case 'infUnion':
-					return source
-				default:
-					throw new Error(
-						'Sorry! Did not implement the assignExp function for this type so far!!'
-					)
-			}
-
 		default:
 			throw new Error('Cannot assign!!!')
 	}
@@ -953,14 +946,14 @@ function createSymbol(value: string): ExpSymbol {
 
 function createFn(
 	value: (...params: any[]) => Form,
-	type: ValueTypeFn
+	fnType: ValueFnType
 ): ExpValue<ValueFn> {
 	return {
 		ast: 'value',
 		value: {
 			valueType: 'fn',
 			body: value as IFn,
-			type,
+			fnType,
 		},
 	}
 }
@@ -1113,6 +1106,8 @@ export function printForm(form: Form): string {
 		}
 
 		switch (value.valueType) {
+			case 'all':
+				return 'All'
 			case 'void':
 				return 'Void'
 			case 'restVector': {
@@ -1133,29 +1128,11 @@ export function printForm(form: Form): string {
 						: ['', ...Array(pairs.length - 1).fill(' '), '']
 				return printSeq('{', '}', coll, delimiters)
 			}
-			case 'fn':
-				return `(=> ${printData(value.type.params)} ${printData(
-					value.type.out
-				)})`
-			case 'type':
-				return printType(value)
-		}
-	}
-
-	function printType(value: ValueType): string {
-		switch (value.kind) {
-			case 'all':
-				return 'All'
-			case 'infUnion':
-				if (value.original) {
-					const name = getName(value.original)
-					if (name) {
-						return name
-					}
-				}
-				throw new Error('Cannot print this InfUnion')
-			case 'fn':
-				return `(#=> ${printForm(value.params)} ${printForm(value.out)})`
+			case 'fn': {
+				const params = value.fnType.params
+				const out = value.fnType.out
+				return `(=> ${printData(params)} ${printData(out)})`
+			}
 			case 'union': {
 				if (value.original) {
 					const name = getName(value.original)
@@ -1166,6 +1143,16 @@ export function printForm(form: Form): string {
 				const items = value.items.map(printForm).join(' ')
 				return `(#| ${items})`
 			}
+			case 'infUnion':
+				if (value.original) {
+					const name = getName(value.original)
+					if (name) {
+						return name
+					}
+				}
+				throw new Error('Cannot print this InfUnion')
+			case 'fnType':
+				return `(#=> ${printForm(value.params)} ${printForm(value.out)})`
 		}
 	}
 
