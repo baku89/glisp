@@ -154,26 +154,26 @@ function wrapTypeUnion(value: ValueUnion) {
 //-------------------------------------------------------
 // Types
 
-const TypeNumber = createTypeInfUnion({
+const TypeNumber = createInfUnion({
 	predicate: v => typeof v === 'number',
 })
 
-const TypeInt = createTypeInfUnion({
+const TypeInt = createInfUnion({
 	supersets: [TypeNumber],
 	predicate: v => Number.isInteger(v),
 })
 
-const TypePosNumber = createTypeInfUnion({
+const TypePosNumber = createInfUnion({
 	supersets: [TypeNumber],
 	predicate: v => typeof v === 'number' && v >= 0,
 })
 
-const TypeNat = createTypeInfUnion({
+const TypeNat = createInfUnion({
 	supersets: [TypeInt, TypePosNumber],
 	predicate: v => typeof v === 'number' && v >= 0 && Number.isInteger(v),
 })
 
-const TypeString = createTypeInfUnion({
+const TypeString = createInfUnion({
 	predicate: v => typeof v === 'string',
 })
 
@@ -250,7 +250,7 @@ const TypeBoolean: ValueUnion = {
 	items: [true, false],
 }
 
-function createTypeInfUnion(
+function createInfUnion(
 	exp: Omit<ValueInfUnion, 'type' | 'original'>
 ): ValueInfUnion {
 	return {
@@ -258,7 +258,7 @@ function createTypeInfUnion(
 		...exp,
 	}
 }
-function createTypeFn(
+function createFnType(
 	params: Value[] | ValueRestVector,
 	out: Value,
 	{
@@ -280,7 +280,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		return true
 	}
 
-	if (isValuePrim(outer)) {
+	if (isPrim(outer)) {
 		return isEqualValue(outer, inner)
 	}
 
@@ -292,7 +292,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		)
 	}
 
-	if (isValueVoid(inner)) {
+	if (isVoid(inner)) {
 		return true
 	}
 
@@ -301,7 +301,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'fn':
 			return isEqualValue(outer, inner)
 		case 'restVector':
-			if (isValueRestVector(inner)) {
+			if (isRestVector(inner)) {
 				return (
 					outer.value.length === inner.value.length &&
 					_$.zipShorter(outer.value, inner.value).every(_.spread(containsValue))
@@ -316,7 +316,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 			return false
 		case 'hashMap':
 			return (
-				isValueHashMap(inner) &&
+				isHashMap(inner) &&
 				_.entries(inner).every(([key, iv]) =>
 					containsValue(outer.value[key], iv)
 				)
@@ -324,13 +324,13 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (isValuePrim(inner)) {
+			if (isPrim(inner)) {
 				return outer.predicate(inner)
 			}
-			if (isValueUnion(inner)) {
+			if (isUnion(inner)) {
 				return inner.items.every(ii => containsValue(outer, ii))
 			}
-			if (isValueInfUnion(inner)) {
+			if (isInfUion(inner)) {
 				if (outer.original === inner.original) {
 					return true
 				}
@@ -341,7 +341,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 			}
 			return false
 		case 'union': {
-			const innerItems = isValueUnion(inner) ? inner.items : [inner]
+			const innerItems = isUnion(inner) ? inner.items : [inner]
 			if (outer.items.length < innerItems.length) {
 				return false
 			}
@@ -350,13 +350,13 @@ function containsValue(outer: Value, inner: Value): boolean {
 			)
 		}
 		case 'fnType':
-			if (isValueFnType(inner)) {
+			if (isFnType(inner)) {
 				return (
 					containsValue(outer.params, inner.params) &&
 					containsValue(outer.out, inner.out)
 				)
 			}
-			if (isValueFn(inner)) {
+			if (isFn(inner)) {
 				return (
 					containsValue(outer.params, inner.fnType.params) &&
 					containsValue(outer.out, inner.fnType.out)
@@ -379,8 +379,8 @@ function uniteType(items: Value[]): Value {
 			return b
 		}
 
-		const aItems = isValueUnion(a) ? a.items : [a]
-		const bItems = isValueUnion(b) ? b.items : [b]
+		const aItems = isUnion(a) ? a.items : [a]
+		const bItems = isUnion(b) ? b.items : [b]
 
 		return {
 			type: 'union',
@@ -388,7 +388,7 @@ function uniteType(items: Value[]): Value {
 		}
 	}, createVoid())
 
-	if (isValueUnion(unionType)) {
+	if (isUnion(unionType)) {
 		return {...unionType}
 	}
 
@@ -412,40 +412,40 @@ const GlobalScope = createList([
 		Nat: wrapTypeInfUnion(TypeNat),
 		String: wrapTypeInfUnion(TypeString),
 		'#=>': createFn(
-			(params: Value[], out: Value) => createTypeFn(params, out),
-			createTypeFn([TypeAll, TypeAll], TypeAll)
+			(params: Value[], out: Value) => createFnType(params, out),
+			createFnType([TypeAll, TypeAll], TypeAll)
 		),
 		'#|': createFn(
 			(items: Value[]) => uniteType(items),
-			createTypeFn(createVariadicVector([TypeAll]), TypeAll)
+			createFnType(createVariadicVector([TypeAll]), TypeAll)
 		),
 		'#count': createFn(
 			(v: Value) => typeCount(v),
-			createTypeFn([TypeAll], TypeNumber)
+			createFnType([TypeAll], TypeNumber)
 		),
 		'#<==': createFn(
 			(type: Value, value: Exp) => assignExp(type, value),
-			createTypeFn([TypeAll, TypeAll], TypeAll, {
+			createFnType([TypeAll, TypeAll], TypeAll, {
 				lazyEval: [false, true],
 			})
 		),
 		length: createFn(
 			(v: Value[] | ValueRestVector) =>
 				Array.isArray(v) ? v.length : Infinity,
-			createTypeFn([createVariadicVector([TypeAll])], TypeNat)
+			createFnType([createVariadicVector([TypeAll])], TypeNat)
 		),
 		let: createFn(
 			(_: ValueHashMap, body: Exp) => body,
-			createTypeFn([createTypeFn([TypeString], TypeAll), TypeAll], TypeAll)
+			createFnType([createFnType([TypeString], TypeAll), TypeAll], TypeAll)
 		),
 		PI: wrapExp(Math.PI),
 		'+': createFn((xs: number[]) => {
 			console.log(xs)
 			return xs.reduce((sum, v) => sum + v, 0)
-		}, createTypeFn(createVariadicVector([TypeNumber]), TypeNumber)),
+		}, createFnType(createVariadicVector([TypeNumber]), TypeNumber)),
 		'*': createFn(
 			(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-			createTypeFn(createVariadicVector([TypeNumber]), TypeNumber)
+			createFnType(createVariadicVector([TypeNumber]), TypeNumber)
 		),
 		take: createFn((n: number, coll: Value[] | ValueRestVector) => {
 			if (Array.isArray(coll)) {
@@ -460,37 +460,37 @@ const GlobalScope = createList([
 				)
 				return newColl
 			}
-		}, createTypeFn([TypeNat, createVariadicVector([TypeAll])], TypeNumber)),
+		}, createFnType([TypeNat, createVariadicVector([TypeAll])], TypeNumber)),
 		'&&': createFn(
 			(a: boolean, b: boolean) => a && b,
-			createTypeFn([TypeBoolean, TypeBoolean], TypeBoolean)
+			createFnType([TypeBoolean, TypeBoolean], TypeBoolean)
 		),
 		square: createFn(
 			(v: number) => v * v,
-			createTypeFn([TypeNumber], TypePosNumber)
+			createFnType([TypeNumber], TypePosNumber)
 		),
 		sqrt: createFn(
 			(v: number) => Math.sqrt(v),
-			createTypeFn([TypePosNumber], TypePosNumber)
+			createFnType([TypePosNumber], TypePosNumber)
 		),
-		not: createFn((v: boolean) => !v, createTypeFn([TypeBoolean], TypeBoolean)),
+		not: createFn((v: boolean) => !v, createFnType([TypeBoolean], TypeBoolean)),
 		'==': createFn(
 			(a: Value, b: Value) => isEqualValue(a, b),
-			createTypeFn([TypeAll, TypeAll], TypeBoolean)
+			createFnType([TypeAll, TypeAll], TypeBoolean)
 		),
 		'#>=': createFn(
 			(a: Value, b: Value) => containsValue(a, b),
-			createTypeFn([TypeAll, TypeAll], TypeBoolean)
+			createFnType([TypeAll, TypeAll], TypeBoolean)
 		),
 		count: createFn(
 			(a: Value[]) => a.length,
-			createTypeFn([TypeAll], TypeNumber)
+			createFnType([TypeAll], TypeNumber)
 		),
 		if: createFn(
 			(cond: boolean, then: Exp, _else: Exp) => {
 				return cond ? then : _else
 			},
-			createTypeFn([TypeBoolean, TypeAll, TypeAll], TypeAll, {
+			createFnType([TypeBoolean, TypeAll, TypeAll], TypeAll, {
 				lazyEval: [false, true, true],
 			})
 		),
@@ -498,14 +498,14 @@ const GlobalScope = createList([
 ])
 
 function isValue(form: Form): form is Value {
-	return isValuePrim(form) || Array.isArray(form) || 'valueType' in form
+	return isPrim(form) || Array.isArray(form) || 'valueType' in form
 }
 
-function isValueFn(form: Form): form is ValueFn {
-	return !isValuePrim(form) && 'type' in form && form.type === 'fn'
+function isFn(form: Form): form is ValueFn {
+	return !isPrim(form) && 'type' in form && form.type === 'fn'
 }
 
-function isValuePrim(value: Value | Exp): value is ValuePrim {
+function isPrim(value: Value | Exp): value is ValuePrim {
 	return (
 		value === null ||
 		typeof value === 'boolean' ||
@@ -514,38 +514,32 @@ function isValuePrim(value: Value | Exp): value is ValuePrim {
 	)
 }
 
-function isValueAll(value: Value): value is ValueAll {
-	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'all'
+function isAll(value: Value): value is ValueAll {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'all'
 }
 
-function isValueVoid(value: Value): value is ValueVoid {
-	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'void'
+function isVoid(value: Value): value is ValueVoid {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'void'
 }
 
-function isValueRestVector(value: Value): value is ValueRestVector {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.type === 'restVector'
-	)
+function isRestVector(value: Value): value is ValueRestVector {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'restVector'
 }
 
-function isValueHashMap(value: Value): value is ValueHashMap {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.type === 'restVector'
-	)
+function isHashMap(value: Value): value is ValueHashMap {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'restVector'
 }
 
-function isValueUnion(value: Value): value is ValueUnion {
-	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'union'
+function isUnion(value: Value): value is ValueUnion {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'union'
 }
 
-function isValueInfUnion(value: Value): value is ValueInfUnion {
-	return (
-		!isValuePrim(value) && !Array.isArray(value) && value.type === 'infUnion'
-	)
+function isInfUion(value: Value): value is ValueInfUnion {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'infUnion'
 }
 
-function isValueFnType(value: Value): value is ValueFnType {
-	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'fnType'
+function isFnType(value: Value): value is ValueFnType {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'fnType'
 }
 
 function inferType(form: Form): Value {
@@ -592,7 +586,7 @@ function clearEvaluatedRecursively(exp: Exp) {
 }
 
 function isEqualValue(a: Value, b: Value): boolean {
-	if (isValuePrim(a)) {
+	if (isPrim(a)) {
 		if (
 			typeof a === 'number' &&
 			typeof b === 'number' &&
@@ -615,26 +609,26 @@ function isEqualValue(a: Value, b: Value): boolean {
 
 	switch (a.type) {
 		case 'all':
-			return isValueAll(b)
+			return isAll(b)
 		case 'void':
-			return isValueVoid(b)
+			return isVoid(b)
 		case 'restVector':
 			return (
-				isValueRestVector(b) &&
+				isRestVector(b) &&
 				a.value.length === b.value.length &&
 				_$.zipShorter(a.value, b.value).every(_.spread(isEqualValue))
 			)
 		case 'hashMap':
 			return (
-				isValueHashMap(b) &&
+				isHashMap(b) &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
 				_.toPairs(a.value).every(([key, av]) => isEqualValue(av, b.value[key]))
 			)
 		case 'fn':
-			return isValueFn(b) && a.body === b.body
+			return isFn(b) && a.body === b.body
 		case 'union': {
 			return (
-				isValueUnion(b) &&
+				isUnion(b) &&
 				a.items.length === b.items.length &&
 				_.differenceWith(a.items, b.items, isEqualValue).length === 0
 			)
@@ -643,7 +637,7 @@ function isEqualValue(a: Value, b: Value): boolean {
 			return a === b
 		case 'fnType':
 			return (
-				isValueFnType(b) &&
+				isFnType(b) &&
 				isEqualValue(a.out, b.out) &&
 				isEqualValue(a.params, b.params)
 			)
@@ -697,7 +691,7 @@ export class Interpreter {
 			delete value.label
 			value.parent = this.vars
 			return value
-		}, createTypeFn([TypeAll], TypeAll, {lazyEval: [true]}))
+		}, createFnType([TypeAll], TypeAll, {lazyEval: [true]}))
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -710,7 +704,7 @@ export class Interpreter {
 }
 
 function typeCount(value: Value): number {
-	if (isValuePrim(value) || Array.isArray(value)) {
+	if (isPrim(value) || Array.isArray(value)) {
 		return 1
 	}
 
@@ -823,7 +817,7 @@ export function evalExp(exp: Exp): Value {
 					// Infer function type
 					const paramTypes = Array(paramSymbols.length).fill(TypeAll)
 					const outType = inferType(bodyDef)
-					const fnType = createTypeFn(paramTypes, outType, {
+					const fnType = createFnType(paramTypes, outType, {
 						rest: paramsDef.rest,
 					})
 
@@ -835,7 +829,7 @@ export function evalExp(exp: Exp): Value {
 				let fnType: ValueFnType
 				let fnBody: IFn
 
-				if (isValueFn(fn)) {
+				if (isFn(fn)) {
 					// Function application
 					fnType = fn.fnType
 					fnBody = fn.body
@@ -871,7 +865,7 @@ export function evalExp(exp: Exp): Value {
 function assignExp(target: Value, source: Exp): Exp {
 	const sourceType = inferType(source)
 
-	if (isValuePrim(target)) {
+	if (isPrim(target)) {
 		if (!isEqualValue(target, sourceType)) {
 			throw new Error(
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
