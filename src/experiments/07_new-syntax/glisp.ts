@@ -1139,7 +1139,7 @@ export function printExp(exp: ExpForm): string {
 	}
 	switch (exp.ast) {
 		case 'void':
-			return 'void'
+			return 'Void'
 		case 'const':
 			if (exp.original) {
 				return getName(exp.original) || '<Anonymous const>'
