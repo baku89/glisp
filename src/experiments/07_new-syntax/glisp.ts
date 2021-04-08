@@ -7,7 +7,7 @@ import ParserDefinition from './parser.pegjs'
 
 function canOmitQuote(name: string) {
 	return (
-		name === '...' || name.match(/^#?[a-z_+\-*/=?|<>][0-9a-z_+\-*/=?|<>]*$/i)
+		name === '...' || name.match(/^#?[a-z_+\-*/=?|&<>][0-9a-z_+\-*/=?|&<>]*$/i)
 	)
 }
 
@@ -17,7 +17,7 @@ type ExpForm = ExpVar | ExpData
 type ExpVar = ExpSymbol | ExpList | ExpSpecialList
 
 // For evaluated value only
-type ExpData = ExpVoid | ExpConst | ExpVector | ExpHashMap | ExpFn | ExpType
+type ExpData = ExpVoid | ExpPrimValue | ExpVector | ExpHashMap | ExpFn | ExpType
 
 interface ExpBase {
 	parent?: ExpList | ExpSpecialList
@@ -38,20 +38,21 @@ interface ExpVoid extends ExpBase {
 	ast: 'void'
 }
 
-interface ExpConstBase<T> extends ExpBase {
-	ast: 'const'
+interface ExpPrimValueBase<T> extends ExpBase {
+	ast: 'primValue'
 	value: T
-	original?: ExpConstBase<T>
 	str?: string
 }
 
-type ExpBoolean = ExpConstBase<boolean>
+type ExpNull = ExpPrimValueBase<null>
 
-type ExpNumber = ExpConstBase<number>
+type ExpBoolean = ExpPrimValueBase<boolean>
 
-type ExpString = ExpConstBase<string>
+type ExpNumber = ExpPrimValueBase<number>
 
-type ExpConst = ExpBoolean | ExpNumber | ExpString
+type ExpString = ExpPrimValueBase<string>
+
+type ExpPrimValue = ExpNull | ExpBoolean | ExpNumber | ExpString
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
@@ -117,7 +118,7 @@ interface ExpTypeInfUnion extends ExpTypeBase {
 	kind: 'infUnion'
 	original: ExpTypeInfUnion
 	supersets?: ExpTypeInfUnion[]
-	predicate: (v: ExpConst) => boolean
+	predicate: (v: ExpPrimValue) => boolean
 }
 
 interface ExpTypeFn extends ExpTypeBase {
@@ -158,22 +159,18 @@ const TypeInt = createTypeInfUnion({
 
 const TypePosNumber = createTypeInfUnion({
 	supersets: [TypeNumber],
-	predicate: ({value}) => value >= 0,
+	predicate: ({value}) => typeof value === 'number' && value >= 0,
 })
 
 const TypeNat = createTypeInfUnion({
 	supersets: [TypeInt, TypePosNumber],
-	predicate: ({value}) => value >= 0 && Number.isInteger(value),
+	predicate: ({value}) =>
+		typeof value === 'number' && value >= 0 && Number.isInteger(value),
 })
 
 const TypeString = createTypeInfUnion({
 	predicate: ({value}) => typeof value === 'string',
 })
-
-;(window as any)['Glisp__builtin__InfUnionTypes'] = {
-	Number: TypeNumber,
-	String: TypeString,
-}
 
 const parser = peg.generate(ParserDefinition)
 
@@ -208,7 +205,7 @@ function hasAncestor(target: ExpForm, ancestor: ExpForm): boolean {
 export function disconnectExp(exp: ExpForm): null {
 	switch (exp.ast) {
 		case 'void':
-		case 'const':
+		case 'primValue':
 			return null
 		case 'symbol':
 			if (exp.ref) {
@@ -226,7 +223,7 @@ export function disconnectExp(exp: ExpForm): null {
 	function disconnect(e: ExpForm): null {
 		switch (e.ast) {
 			case 'void':
-			case 'const':
+			case 'primValue':
 			case 'fn':
 			case 'vector':
 			case 'hashMap':
@@ -258,9 +255,7 @@ const TypeAll: ExpTypeAll = setSelfAsOriginal({
 	kind: 'all',
 })
 
-function setSelfAsOriginal<T extends ExpBoolean | ExpTypeAll>(
-	exp: Omit<T, 'original'>
-) {
+function setSelfAsOriginal<T extends ExpTypeAll>(exp: Omit<T, 'original'>) {
 	const ret = exp as T
 	ret.original = ret
 	return ret
@@ -282,8 +277,8 @@ function cloneExp<T extends ExpData>(exp: T): T {
 	return {...exp, parent: undefined}
 }
 
-const ConstTrue = createConst(true)
-const ConstFalse = createConst(false)
+const ConstTrue = createPrimValue(true)
+const ConstFalse = createPrimValue(false)
 const TypeBoolean = uniteType([ConstFalse, ConstTrue])
 
 function createTypeFn(
@@ -349,7 +344,7 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (inner.ast === 'const') {
+			if (inner.ast === 'primValue') {
 				return outer.predicate(inner)
 			}
 			if (inner.ast === 'type') {
@@ -433,11 +428,9 @@ function uniteType(items: ExpData[]): ExpData {
 const GlobalScope = createList([
 	createSymbol('let'),
 	createSpecialListHashMap({
-		true: ConstTrue,
-		false: ConstFalse,
-		inf: createNumber(Infinity),
-		'-inf': createNumber(-Infinity),
-		nan: createNumber(NaN),
+		inf: createPrimValue(Infinity),
+		'-inf': createPrimValue(-Infinity),
+		nan: createPrimValue(NaN),
 		All: TypeAll,
 		Boolean: TypeBoolean,
 		Number: TypeNumber,
@@ -454,7 +447,7 @@ const GlobalScope = createList([
 			createTypeFn(createVector([TypeAll], {variadic: true}), TypeAll)
 		),
 		'#count': createFn(
-			(v: ExpData) => createNumber(typeCount(v)),
+			(v: ExpData) => createPrimValue(typeCount(v)),
 			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
 		'#<==': createFn(
@@ -464,7 +457,7 @@ const GlobalScope = createList([
 			})
 		),
 		length: createFn(
-			(v: ExpVector) => createNumber(v.variadic ? Infinity : v.value.length),
+			(v: ExpVector) => createPrimValue(v.variadic ? Infinity : v.value.length),
 			createTypeFn(
 				createVector([createVector([TypeAll], {variadic: true})]),
 				TypeNat
@@ -480,15 +473,15 @@ const GlobalScope = createList([
 				TypeAll
 			)
 		),
-		PI: createNumber(Math.PI),
+		PI: createPrimValue(Math.PI),
 		'+': createFn(
 			(value: ExpVector<ExpNumber>) =>
-				createNumber(value.value.reduce((sum, {value}) => sum + value, 0)),
+				createPrimValue(value.value.reduce((sum, {value}) => sum + value, 0)),
 			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		'*': createFn(
 			(value: ExpVector<ExpNumber>) =>
-				createNumber(value.value.reduce((prod, {value}) => prod * value, 1)),
+				createPrimValue(value.value.reduce((prod, {value}) => prod * value, 1)),
 			createTypeFn(createVector([TypeNumber], {variadic: true}), TypeNumber)
 		),
 		take: createFn((n: ExpNumber, coll: ExpVector) => {
@@ -505,38 +498,38 @@ const GlobalScope = createList([
 				return createVector(coll.value.slice(0, n.value))
 			}
 		}, createTypeFn(createVector([TypeNat, createVector([TypeAll], {variadic: true})]), TypeNumber)),
-		and: createFn(
-			(a: ExpBoolean, b: ExpBoolean) => createBoolean(a.value && b.value),
+		'&&': createFn(
+			(a: ExpBoolean, b: ExpBoolean) => createPrimValue(a.value && b.value),
 			createTypeFn(createVector([TypeBoolean, TypeBoolean]), TypeBoolean)
 		),
 		square: createFn(
-			(v: ExpNumber) => createNumber(v.value * v.value),
+			(v: ExpNumber) => createPrimValue(v.value * v.value),
 			createTypeFn(createVector([TypeNumber]), TypePosNumber)
 		),
 		sqrt: createFn(
-			(v: ExpNumber) => createNumber(Math.sqrt(v.value)),
+			(v: ExpNumber) => createPrimValue(Math.sqrt(v.value)),
 			createTypeFn(createVector([TypePosNumber]), TypePosNumber)
 		),
 		not: createFn(
-			(v: ExpBoolean) => createBoolean(!v.value),
+			(v: ExpBoolean) => createPrimValue(!v.value),
 			createTypeFn(createVector([TypeBoolean]), TypeBoolean)
 		),
 		'==': createFn(
-			(a: ExpForm, b: ExpForm) => createBoolean(equalExp(a, b)),
+			(a: ExpForm, b: ExpForm) => createPrimValue(equalExp(a, b)),
 			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		'#>=': createFn(
-			(a: ExpType, b: ExpType) => createBoolean(containsExp(a, b)),
+			(a: ExpType, b: ExpType) => createPrimValue(containsExp(a, b)),
 			createTypeFn(createVector([TypeAll, TypeAll]), TypeBoolean)
 		),
 		count: createFn(
-			(a: ExpVector) => createNumber(a.value.length),
+			(a: ExpVector) => createPrimValue(a.value.length),
 			createTypeFn(createVector([TypeAll]), TypeNumber)
 		),
 		if: createFn(
 			(cond: ExpBoolean, then: ExpForm, _else: ExpForm) => {
 				if (
-					cond.ast !== 'const' &&
+					cond.ast !== 'primValue' &&
 					cond.ast !== 'infUnionValue' &&
 					cond.ast !== 'type'
 				) {
@@ -549,7 +542,7 @@ const GlobalScope = createList([
 			})
 		),
 		ast: createFn(
-			(v: ExpForm) => createString(v.ast),
+			(v: ExpForm) => createPrimValue(v.ast),
 			createTypeFn(createVector([TypeAll]), TypeString)
 		),
 	}),
@@ -558,7 +551,7 @@ const GlobalScope = createList([
 function inferType(exp: ExpForm): ExpData {
 	switch (exp.ast) {
 		case 'void':
-		case 'const':
+		case 'primValue':
 		case 'type':
 		case 'vector':
 		case 'hashMap':
@@ -613,20 +606,8 @@ function equalExp(a: ExpForm, b: ExpForm): boolean {
 			return b.ast === 'void'
 		case 'symbol':
 			return a.ast === b.ast && a.value === b.value
-		case 'const':
-			if (b.ast !== 'const') {
-				return false
-			}
-			if (a.original === b.original) {
-				return true
-			}
-			switch (typeof a.value) {
-				case 'boolean':
-				case 'number':
-				case 'string':
-					return a.value === b.value
-			}
-			break
+		case 'primValue':
+			return b.ast === 'primValue' && a.value === b.value
 		case 'list':
 			return (
 				a.ast === b.ast &&
@@ -760,7 +741,7 @@ function typeCount(exp: ExpForm): number {
 	switch (exp.ast) {
 		case 'void':
 			return 0
-		case 'const':
+		case 'primValue':
 		case 'symbol':
 		case 'fn':
 			return 1
@@ -815,7 +796,7 @@ export function evalExp(exp: ExpForm): ExpData {
 
 		switch (exp.ast) {
 			case 'void':
-			case 'const':
+			case 'primValue':
 			case 'fn':
 			case 'type':
 			case 'vector':
@@ -935,7 +916,7 @@ function assignExp(target: ExpForm, source: ExpForm): ExpForm {
 	switch (target.ast) {
 		case 'void':
 			return createVoid()
-		case 'const':
+		case 'primValue':
 			if (!equalExp(target, sourceType)) {
 				throw new Error(
 					`Cannot assign '${printExp(source)}' to '${printExp(target)}'`
@@ -997,28 +978,9 @@ function createVoid(): ExpVoid {
 	return {ast: 'void'}
 }
 
-function createConst(value: ExpBoolean['value']): ExpBoolean {
-	return setSelfAsOriginal({
-		ast: 'const',
-		value,
-	})
-}
-
-function createBoolean(value: ExpBoolean['value']): ExpBoolean {
-	const exp = value ? ConstTrue : ConstFalse
-	return {...exp, parent: undefined}
-}
-
-function createNumber(value: number): ExpNumber {
+function createPrimValue(value: ExpPrimValue['value']): ExpPrimValue {
 	return {
-		ast: 'const',
-		value,
-	}
-}
-
-function createString(value: string): ExpString {
-	return {
-		ast: 'const',
+		ast: 'primValue',
 		value,
 	}
 }
@@ -1140,9 +1102,14 @@ export function printExp(exp: ExpForm): string {
 	switch (exp.ast) {
 		case 'void':
 			return 'Void'
-		case 'const':
-			if (exp.original) {
-				return getName(exp.original) || '<Anonymous const>'
+		case 'primValue':
+			switch (exp.value) {
+				case null:
+					return 'null'
+				case false:
+					return 'false'
+				case true:
+					return 'true'
 			}
 			switch (typeof exp.value) {
 				case 'number': {
@@ -1227,7 +1194,7 @@ export function printExp(exp: ExpForm): string {
 	function toHashKey(value: string): ExpSymbol | ExpString {
 		return canOmitQuote(value)
 			? {ast: 'symbol', value, str: value}
-			: {ast: 'const', value}
+			: {ast: 'primValue', value}
 	}
 
 	function printType(exp: ExpType): string {

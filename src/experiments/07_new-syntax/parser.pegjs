@@ -1,8 +1,3 @@
-{
-	const BuiltinInfUnionTypes = window['Glisp__builtin__InfUnionTypes']
-	const TypeNumber = BuiltinInfUnionTypes['Number']
-	const TypeString = BuiltinInfUnionTypes['String']
-}
 Start = Program / BlankProgram
 
 Program = d0:_ value:Form d1:_
@@ -17,10 +12,16 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form =
-	LabeledForm / Void / Number / String / Symbol /
+	LabeledForm / Void / Null / False / True / Number / String / Symbol /
 	List / Vector / HashMap
 
-Void = "void" { return {ast: 'void'} }
+Void = "Void" { return {ast: 'void'} }
+
+Null = "null" { return {ast: 'primValue', value: null} }
+
+False = "false" { return {ast: 'primValue', value: false} }
+
+True = "true" { return {ast: 'primValue', value: true} }
 
 // Number
 Number = NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
@@ -32,8 +33,7 @@ FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			ast: 'const',
-			subsetOf: TypeNumber,
+			ast: 'primValue',
 			value: parseInt(str),
 			str
 		}
@@ -42,8 +42,7 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			ast: 'const',
-			subsetOf: TypeNumber,
+			ast: 'primValue',
 			value: parseFloat(str),
 			str
 		}
@@ -52,8 +51,7 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			ast: 'const',
-			subsetOf: TypeNumber,
+			ast: 'primValue',
 			value: parseFloat(str),
 			str
 		}
@@ -62,8 +60,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			ast: 'const',
-			subsetOf: TypeNumber,
+			ast: 'primValue',
 			value: parseInt(str),
 			str
 		}
@@ -72,8 +69,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
-			ast: 'const',
-			subsetOf: TypeNumber,
+			ast: 'primValue',
 			value: (parseFloat(str) / 100),
 			str: str + '%'
 		}
@@ -83,8 +79,7 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 String = value:StringLiteral
 	{
 		return {
-			ast: 'const',
-			subsetOf: TypeString,
+			ast: 'primValue',
 			value
 		}
 	}
@@ -103,7 +98,7 @@ SymbolIdentifier = str:SymbolLiteral
 		}
 	}
 
-SymbolLiteral = $("#"? [a-z_+\-*/=?|<>]i [0-9a-z_+\-*/=?|<>]i*)
+SymbolLiteral = $("#"? [a-z_+\-*/=?|&<>]i [0-9a-z_+\-*/=?|&<>]i*)
 
 SymbolPath = "@" str:StringLiteral
 	{
