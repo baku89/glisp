@@ -86,16 +86,13 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	}
 
 // String
-String = value:StringLiteral
+String = '"' value:$(!'"' .)* '"'
 	{
 		return {
 			ast: 'value',
 			value
 		}
 	}
-
-StringLiteral = '"' str:$(!'"' .)* '"'
-	{ return str }
 
 Symbol = SymbolIdentifier / SymbolPath
 
@@ -110,14 +107,17 @@ SymbolIdentifier = str:SymbolLiteral
 
 SymbolLiteral = $("#"? [a-z_+\-*/=?|&<>]i [0-9a-z_+\-*/=?|&<>]i*)
 
-SymbolPath = "@" str:StringLiteral
+SymbolPath = str:SymbolPathLiteral
 	{
 		return {
 			ast: 'symbol',
 			value: str,
-			str: `@"${str}"`
+			str: '`' + str + '`'
 		}
 	}
+
+SymbolPathLiteral = '`' str:$(!'`' .)* '`'
+	{ return str }
 
 List = "(" d0:_ values:(Form _)* ")"
 	{
@@ -179,7 +179,7 @@ HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
 		return exp
 	}
 
-LabeledForm = str:(SymbolLiteral / StringLiteral) d0:_ ":" d1:_ form:Form
+LabeledForm = str:(SymbolLiteral / SymbolPathLiteral) d0:_ ":" d1:_ form:Form
 	{
 		form.label = {
 			str,

@@ -693,7 +693,7 @@ export class Interpreter {
 	constructor() {
 		this.vars = createSpecialListHashMap({})
 
-		this.vars.value['def'] = createFn((value: ExpValue) => {
+		this.vars.value['def'] = createFn((value: Exp) => {
 			if (!value.label) {
 				throw new Error('no label')
 			}
@@ -701,7 +701,7 @@ export class Interpreter {
 			delete value.label
 			value.parent = this.vars
 			return value
-		}, createTypeFn([TypeAll], TypeAll))
+		}, createTypeFn([TypeAll], TypeAll, {lazyEval: [true]}))
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
@@ -1065,7 +1065,7 @@ export function printForm(form: Form): string {
 					return exp.str
 				} else {
 					const value = exp.value
-					return canOmitQuote(value) ? value : `@"${value}"`
+					return canOmitQuote(value) ? value : '`' + value + '`'
 				}
 			case 'list':
 				return printSeq('(', ')', exp.value, exp.delimiters)
