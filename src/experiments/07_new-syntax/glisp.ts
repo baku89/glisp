@@ -501,10 +501,6 @@ function isValue(form: Form): form is Value {
 	return isPrim(form) || Array.isArray(form) || 'valueType' in form
 }
 
-function isFn(form: Form): form is ValueFn {
-	return !isPrim(form) && 'type' in form && form.type === 'fn'
-}
-
 function isPrim(value: Value | Exp): value is ValuePrim {
 	return (
 		value === null ||
@@ -513,6 +509,8 @@ function isPrim(value: Value | Exp): value is ValuePrim {
 		typeof value === 'string'
 	)
 }
+
+// Type predicates
 
 function isAll(value: Value): value is ValueAll {
 	return !isPrim(value) && !Array.isArray(value) && value.type === 'all'
@@ -528,6 +526,10 @@ function isRestVector(value: Value): value is ValueRestVector {
 
 function isHashMap(value: Value): value is ValueHashMap {
 	return !isPrim(value) && !Array.isArray(value) && value.type === 'restVector'
+}
+
+function isFn(value: Value): value is ValueFn {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'fn'
 }
 
 function isUnion(value: Value): value is ValueUnion {
