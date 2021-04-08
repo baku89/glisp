@@ -400,7 +400,7 @@ function containsExp(outer: ExpData, inner: ExpData): boolean {
 
 function uniteType(items: ExpData[]): ExpData {
 	if (items.length === 0) {
-		return cloneExp(TypeAll)
+		return TypeAll
 	}
 
 	const unionType = items.reduce((a, b) => {
@@ -744,7 +744,7 @@ export class Interpreter {
 			delete value.label
 			value.parent = this.vars
 			return value
-		}, createTypeFn(createVector([cloneExp(TypeAll)]), cloneExp(TypeAll), {}))
+		}, createTypeFn(createVector([TypeAll]), TypeAll, {}))
 
 		this.scope = createList([createSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
