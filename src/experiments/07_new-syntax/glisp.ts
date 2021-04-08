@@ -368,8 +368,8 @@ function containsData(outer: Data, inner: Data): boolean {
 					if (outer.items.length < innerItems.length) {
 						return false
 					}
-					return innerItems.every(ii =>
-						outer.items.find(_.partial(containsData, _, ii))
+					return !!innerItems.some(ii =>
+						outer.items.some(_.partial(containsData, _, ii))
 					)
 				}
 				case 'fn':
@@ -519,7 +519,7 @@ const GlobalScope = createList([
 		),
 		if: createFn(
 			(cond: boolean, then: Exp, _else: Exp) => {
-				return cond ? _else : then
+				return cond ? then : _else
 			},
 			createTypeFn([TypeBoolean, TypeAll, TypeAll], TypeAll, {
 				lazyEval: [false, true, true],
@@ -861,7 +861,7 @@ export function evalExp(exp: Exp): Data {
 					throw new Error('First element is not a function')
 				}
 
-				const params = createSpecialListVector(rest)
+				const params = createSpecialListVector(rest, {setParent: false})
 				const assignedParams = assignExp(fnType.params, params)
 
 				if (
@@ -882,7 +882,7 @@ export function evalExp(exp: Exp): Data {
 			case 'specialList':
 				if (exp.kind === 'vector') {
 					const vec = exp.value.map(_eval)
-					return exp.value ? createVariadicVector(vec) : vec
+					return exp.variadic ? createVariadicVector(vec) : vec
 				} else if (exp.kind === 'hashMap') {
 					return createHashMap(_.mapValues(exp.value, _eval))
 				}
