@@ -98,24 +98,24 @@ interface ValueHashMap {
 }
 
 // Types
-interface DataTypeAll {
+interface ValueTypeAll {
 	valueType: 'type'
 	kind: 'all'
 }
 
-interface DataTypeInfUnion {
+interface ValueTypeInfUnion {
 	valueType: 'type'
 	kind: 'infUnion'
 	predicate: (v: ValuePrim) => boolean
-	original?: ExpValue<DataTypeInfUnion>
-	supersets?: DataTypeInfUnion[]
+	original?: ExpValue<ValueTypeInfUnion>
+	supersets?: ValueTypeInfUnion[]
 }
 
-interface DataTypeUnion {
+interface ValueTypeUnion {
 	valueType: 'type'
 	kind: 'union'
 	items: Value[]
-	original?: ExpValue<DataTypeUnion>
+	original?: ExpValue<ValueTypeUnion>
 }
 
 interface ValueTypeFn {
@@ -127,18 +127,18 @@ interface ValueTypeFn {
 	lazyInfer?: boolean[]
 }
 
-type ValueType = DataTypeAll | DataTypeUnion | DataTypeInfUnion | ValueTypeFn
+type ValueType = ValueTypeAll | ValueTypeUnion | ValueTypeInfUnion | ValueTypeFn
 
-type IDataFnValue = (...params: Form[]) => Form
+type IFn = (...params: Form[]) => Form
 
 interface ValueFn {
 	valueType: 'fn'
-	body: IDataFnValue
+	body: IFn
 	type: ValueTypeFn
 }
 
-function wrapTypeInfUnion(value: DataTypeInfUnion) {
-	const exp: ExpValue<DataTypeInfUnion> = {
+function wrapTypeInfUnion(value: ValueTypeInfUnion) {
+	const exp: ExpValue<ValueTypeInfUnion> = {
 		ast: 'value',
 		value,
 	}
@@ -146,8 +146,8 @@ function wrapTypeInfUnion(value: DataTypeInfUnion) {
 	return exp
 }
 
-function wrapTypeUnion(value: DataTypeUnion) {
-	const exp: ExpValue<DataTypeUnion> = {
+function wrapTypeUnion(value: ValueTypeUnion) {
+	const exp: ExpValue<ValueTypeUnion> = {
 		ast: 'value',
 		value,
 	}
@@ -245,20 +245,20 @@ export function disconnectExp(exp: Exp): null {
 	}
 }
 
-const TypeAll: DataTypeAll = {
+const TypeAll: ValueTypeAll = {
 	valueType: 'type',
 	kind: 'all',
 }
 
-const TypeBoolean: DataTypeUnion = {
+const TypeBoolean: ValueTypeUnion = {
 	valueType: 'type',
 	kind: 'union',
 	items: [true, false],
 }
 
 function createTypeInfUnion(
-	exp: Omit<DataTypeInfUnion, 'valueType' | 'kind' | 'original'>
-): DataTypeInfUnion {
+	exp: Omit<ValueTypeInfUnion, 'valueType' | 'kind' | 'original'>
+): ValueTypeInfUnion {
 	return {
 		valueType: 'type',
 		kind: 'infUnion',
@@ -404,8 +404,8 @@ function uniteType(items: Value[]): Value {
 			return b
 		}
 
-		const aItems = isDataType(a) && a.kind === 'union' ? a.items : [a]
-		const bItems = isDataType(b) && b.kind === 'union' ? b.items : [b]
+		const aItems = isValueType(a) && a.kind === 'union' ? a.items : [a]
+		const bItems = isValueType(b) && b.kind === 'union' ? b.items : [b]
 
 		return {
 			valueType: 'type',
@@ -414,7 +414,7 @@ function uniteType(items: Value[]): Value {
 		}
 	}, createVoid())
 
-	if (isDataType(unionType) && unionType.kind === 'union') {
+	if (isValueType(unionType) && unionType.kind === 'union') {
 		return {...unionType}
 	}
 
@@ -523,35 +523,35 @@ const GlobalScope = createList([
 	}),
 ])
 
-// Predicates for data
-
-function isData(form: Form): form is Value {
+function isValue(form: Form): form is Value {
 	return isValuePrim(form) || Array.isArray(form) || 'valueType' in form
 }
 
-function isValuePrim(data: Value | Exp): data is ValuePrim {
+function isValuePrim(value: Value | Exp): value is ValuePrim {
 	return (
-		data === null ||
-		typeof data === 'boolean' ||
-		typeof data === 'number' ||
-		typeof data === 'string'
+		value === null ||
+		typeof value === 'boolean' ||
+		typeof value === 'number' ||
+		typeof value === 'string'
 	)
 }
 
-function isValueComplex(data: Value): data is ValueComplex {
-	return !isValuePrim(data) && !Array.isArray(data)
+function isValueComplex(value: Value): value is ValueComplex {
+	return !isValuePrim(value) && !Array.isArray(value)
 }
 
-function isDataType(data: Value): data is ValueType {
-	return !isValuePrim(data) && !Array.isArray(data) && data.valueType === 'type'
+function isValueType(value: Value): value is ValueType {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.valueType === 'type'
+	)
 }
 
-function isDataFn(form: Form): form is ValueFn {
+function isValueFn(form: Form): form is ValueFn {
 	return !isValuePrim(form) && 'valueType' in form && form.valueType === 'fn'
 }
 
 function inferType(form: Form): Value {
-	if (isData(form)) {
+	if (isValue(form)) {
 		return form
 	}
 
@@ -714,16 +714,16 @@ export class Interpreter {
 	}
 }
 
-function typeCount(data: Value): number {
-	if (isValuePrim(data) || Array.isArray(data)) {
+function typeCount(value: Value): number {
+	if (isValuePrim(value) || Array.isArray(value)) {
 		return 1
 	}
 
-	if (Array.isArray(data)) {
-		return data.reduce((count, d) => count * typeCount(d), 1)
+	if (Array.isArray(value)) {
+		return value.reduce((count, d) => count * typeCount(d), 1)
 	}
 
-	switch (data.valueType) {
+	switch (value.valueType) {
 		case 'void':
 			return 0
 		case 'fn':
@@ -731,22 +731,22 @@ function typeCount(data: Value): number {
 		case 'variadicVector':
 			return Infinity
 		case 'hashMap':
-			return _.values(data.value).reduce(
+			return _.values(value.value).reduce(
 				(count: number, d) => count * typeCount(d),
 				1
 			)
 		case 'type':
-			switch (data.kind) {
+			switch (value.kind) {
 				case 'all':
 				case 'infUnion':
 					return Infinity
 				case 'union':
-					return data.items.reduce(
+					return value.items.reduce(
 						(count: number, v) => count + typeCount(v),
 						0
 					)
 				case 'fn':
-					return typeCount(data.out)
+					return typeCount(value.out)
 			}
 	}
 }
@@ -845,9 +845,9 @@ export function evalExp(exp: Exp): Value {
 				const fn = _eval(first)
 
 				let fnType: ValueTypeFn
-				let fnBody: IDataFnValue
+				let fnBody: IFn
 
-				if (isDataFn(fn)) {
+				if (isValueFn(fn)) {
 					// Function application
 					fnType = fn.type
 					fnBody = fn.body
@@ -868,7 +868,7 @@ export function evalExp(exp: Exp): Value {
 				)
 
 				const expanded = (exp.expanded = fnBody(...evaluatedParams))
-				return isData(expanded) ? expanded : _eval(expanded)
+				return isValue(expanded) ? expanded : _eval(expanded)
 			}
 			case 'vector': {
 				const vec = exp.value.map(_eval)
@@ -967,7 +967,7 @@ function createFn(
 		ast: 'value',
 		value: {
 			valueType: 'fn',
-			body: value as IDataFnValue,
+			body: value as IFn,
 			type,
 		},
 	}
@@ -1055,7 +1055,7 @@ function getName(exp: Exp): string | null {
 }
 
 export function printForm(form: Form): string {
-	return isData(form) ? printData(form) : printExp(form)
+	return isValue(form) ? printData(form) : printExp(form)
 
 	function printExp(exp: Exp): string {
 		switch (exp.ast) {
@@ -1088,9 +1088,9 @@ export function printForm(form: Form): string {
 		}
 	}
 
-	function printData(data: Value): string {
+	function printData(value: Value): string {
 		// Print prim
-		switch (data) {
+		switch (value) {
 			case null:
 				return 'null'
 			case false:
@@ -1099,9 +1099,9 @@ export function printForm(form: Form): string {
 				return 'true'
 		}
 
-		switch (typeof data) {
+		switch (typeof value) {
 			case 'number': {
-				const str = data.toString()
+				const str = value.toString()
 				switch (str) {
 					case 'Infinity':
 						return 'inf'
@@ -1113,24 +1113,24 @@ export function printForm(form: Form): string {
 				return str
 			}
 			case 'string':
-				return data
+				return value
 		}
 
-		if (Array.isArray(data)) {
-			return printSeq('[', ']', data)
+		if (Array.isArray(value)) {
+			return printSeq('[', ']', value)
 		}
 
-		switch (data.valueType) {
+		switch (value.valueType) {
 			case 'void':
 				return 'Void'
 			case 'variadicVector': {
-				const value: Form[] = [...data.value]
-				const delimiters = ['', ...Array(value.length - 1).fill(' '), '', '']
-				value.splice(-1, 0, createSymbol('...'))
-				return printSeq('[', ']', value, delimiters)
+				const val: Form[] = [...value.value]
+				const delimiters = ['', ...Array(val.length - 1).fill(' '), '', '']
+				val.splice(-1, 0, createSymbol('...'))
+				return printSeq('[', ']', val, delimiters)
 			}
 			case 'hashMap': {
-				const pairs = _.entries(data.value)
+				const pairs = _.entries(value.value)
 				const coll = pairs.map(([label, v]) => ({
 					...wrapExp(v),
 					...{label: {str: label, delimiters: ['', ' ']}},
@@ -1142,34 +1142,36 @@ export function printForm(form: Form): string {
 				return printSeq('{', '}', coll, delimiters)
 			}
 			case 'fn':
-				return `(=> ${printData(data.type.params)} ${printData(data.type.out)})`
+				return `(=> ${printData(value.type.params)} ${printData(
+					value.type.out
+				)})`
 			case 'type':
-				return printType(data)
+				return printType(value)
 		}
 	}
 
-	function printType(data: ValueType): string {
-		switch (data.kind) {
+	function printType(value: ValueType): string {
+		switch (value.kind) {
 			case 'all':
 				return 'All'
 			case 'infUnion':
-				if (data.original) {
-					const name = getName(data.original)
+				if (value.original) {
+					const name = getName(value.original)
 					if (name) {
 						return name
 					}
 				}
 				throw new Error('Cannot print this InfUnion')
 			case 'fn':
-				return `(#=> ${printForm(data.params)} ${printForm(data.out)})`
+				return `(#=> ${printForm(value.params)} ${printForm(value.out)})`
 			case 'union': {
-				if (data.original) {
-					const name = getName(data.original)
+				if (value.original) {
+					const name = getName(value.original)
 					if (name) {
 						return name
 					}
 				}
-				const items = data.items.map(printForm).join(' ')
+				const items = value.items.map(printForm).join(' ')
 				return `(#| ${items})`
 			}
 		}
