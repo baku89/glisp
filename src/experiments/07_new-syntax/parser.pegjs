@@ -18,16 +18,16 @@ Form =
 Void = "Void"
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: {dataType: 'void'}
 		}
 	}
 
-Null = "null" { return {ast: 'data', value: null} }
+Null = "null" { return {ast: 'value', value: null} }
 
-False = "false" { return {ast: 'data', value: false} }
+False = "false" { return {ast: 'value', value: false} }
 
-True = "true" { return {ast: 'data', value: true} }
+True = "true" { return {ast: 'value', value: true} }
 
 // Number
 Number = NumberInf / NumberMinusInf / NumberNan / NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
@@ -36,14 +36,14 @@ IntegerLiteral = $(("+" / "-")? [0-9]+)
 
 FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 
-NumberInf = "inf" { return {ast: 'data', value: Infinity} }
-NumberMinusInf = "-inf" { return {ast: 'data', value: -Infinity} }
-NumberNan = "nan" { return {ast: 'data', value: NaN} }
+NumberInf = "inf" { return {ast: 'value', value: Infinity} }
+NumberMinusInf = "-inf" { return {ast: 'value', value: -Infinity} }
+NumberNan = "nan" { return {ast: 'value', value: NaN} }
 
 NumberInteger = str:IntegerLiteral
 	{ 
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: parseInt(str),
 			str
 		}
@@ -52,7 +52,7 @@ NumberInteger = str:IntegerLiteral
 NumberFloat = str:FloatLiteral
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: parseFloat(str),
 			str
 		}
@@ -61,7 +61,7 @@ NumberFloat = str:FloatLiteral
 NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: parseFloat(str),
 			str
 		}
@@ -70,7 +70,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 NumberHex = str:$("0x" [0-9a-f]i+)
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: parseInt(str),
 			str
 		}
@@ -79,7 +79,7 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value: (parseFloat(str) / 100),
 			str: str + '%'
 		}
@@ -89,7 +89,7 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 String = value:StringLiteral
 	{
 		return {
-			ast: 'data',
+			ast: 'value',
 			value
 		}
 	}

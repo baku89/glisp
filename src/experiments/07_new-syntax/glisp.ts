@@ -11,20 +11,20 @@ function canOmitQuote(name: string) {
 	)
 }
 
-type Form = Exp | Data
+type Form = Exp | Value
 
 // Type of ASTs that can be contained within a program tree
-type Exp = ExpData | ExpSymbol | ExpList | ExpSpecialList
+type Exp = ExpValue | ExpSymbol | ExpList | ExpSpecialList
 
 // For evaluated value only
-type Data = DataPrim | Data[] | DataSpeial
+type Value = ValuePrim | Value[] | ValueComplex
 
-type DataSpeial =
-	| DataVoid
-	| DataVariadicVector
-	| DataHashMap
-	| DataFn
-	| DataType
+type ValueComplex =
+	| ValueVoid
+	| ValueVariadicVector
+	| ValueHashMap
+	| ValueFn
+	| ValueType
 
 interface ExpBase {
 	parent?: ExpList | ExpSpecialList
@@ -41,17 +41,17 @@ interface ExpProgram {
 	delimiters: [string, string]
 }
 
-interface ExpData<T extends Data = Data> extends ExpBase {
-	ast: 'data'
+interface ExpValue<T extends Value = Value> extends ExpBase {
+	ast: 'value'
 	value: T
 	str?: string
 }
 
-interface DataVoid {
-	dataType: 'void'
+interface ValueVoid {
+	valueType: 'void'
 }
 
-type DataPrim = null | boolean | number | string
+type ValuePrim = null | boolean | number | string
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
@@ -65,7 +65,7 @@ interface ExpList extends ExpBase {
 	value: Exp[]
 	delimiters?: string[]
 	expanded?: Form
-	evaluated?: Data
+	evaluated?: Value
 }
 
 interface ExpSpecialListVector extends ExpBase {
@@ -74,7 +74,7 @@ interface ExpSpecialListVector extends ExpBase {
 	value: Exp[]
 	variadic: boolean
 	delimiters?: string[]
-	evaluated?: Data[]
+	evaluated?: Value[]
 }
 
 interface ExpSpecialListHashMap extends ExpBase {
@@ -84,66 +84,66 @@ interface ExpSpecialListHashMap extends ExpBase {
 		[key: string]: Exp
 	}
 	delimiters?: string[]
-	evaluated?: DataHashMap
+	evaluated?: ValueHashMap
 }
 
 type ExpSpecialList = ExpSpecialListVector | ExpSpecialListHashMap
 
-interface DataVariadicVector {
-	dataType: 'variadicVector'
-	value: Data[]
+interface ValueVariadicVector {
+	valueType: 'variadicVector'
+	value: Value[]
 }
 
-interface DataHashMap {
-	dataType: 'hashMap'
+interface ValueHashMap {
+	valueType: 'hashMap'
 	value: {
-		[key: string]: Data
+		[key: string]: Value
 	}
 }
 
 // Types
 interface DataTypeAll {
-	dataType: 'type'
+	valueType: 'type'
 	kind: 'all'
 }
 
 interface DataTypeInfUnion {
-	dataType: 'type'
+	valueType: 'type'
 	kind: 'infUnion'
-	predicate: (v: DataPrim) => boolean
-	original?: ExpData<DataTypeInfUnion>
+	predicate: (v: ValuePrim) => boolean
+	original?: ExpValue<DataTypeInfUnion>
 	supersets?: DataTypeInfUnion[]
 }
 
 interface DataTypeUnion {
-	dataType: 'type'
+	valueType: 'type'
 	kind: 'union'
-	items: Data[]
-	original?: ExpData<DataTypeUnion>
+	items: Value[]
+	original?: ExpValue<DataTypeUnion>
 }
 
-interface DataTypeFn {
-	dataType: 'type'
+interface ValueTypeFn {
+	valueType: 'type'
 	kind: 'fn'
-	params: Data[] | DataVariadicVector
-	out: Data
+	params: Value[] | ValueVariadicVector
+	out: Value
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
 }
 
-type DataType = DataTypeAll | DataTypeUnion | DataTypeInfUnion | DataTypeFn
+type ValueType = DataTypeAll | DataTypeUnion | DataTypeInfUnion | ValueTypeFn
 
 type IDataFnValue = (...params: Form[]) => Form
 
-interface DataFn {
-	dataType: 'fn'
+interface ValueFn {
+	valueType: 'fn'
 	body: IDataFnValue
-	type: DataTypeFn
+	type: ValueTypeFn
 }
 
 function wrapTypeInfUnion(value: DataTypeInfUnion) {
-	const exp: ExpData<DataTypeInfUnion> = {
-		ast: 'data',
+	const exp: ExpValue<DataTypeInfUnion> = {
+		ast: 'value',
 		value,
 	}
 	value.original = exp
@@ -151,8 +151,8 @@ function wrapTypeInfUnion(value: DataTypeInfUnion) {
 }
 
 function wrapTypeUnion(value: DataTypeUnion) {
-	const exp: ExpData<DataTypeUnion> = {
-		ast: 'data',
+	const exp: ExpValue<DataTypeUnion> = {
+		ast: 'value',
 		value,
 	}
 	value.original = exp
@@ -213,7 +213,7 @@ function hasAncestor(target: Exp, ancestor: Exp): boolean {
 
 export function disconnectExp(exp: Exp): null {
 	switch (exp.ast) {
-		case 'data':
+		case 'value':
 			return null
 		case 'symbol':
 			if (exp.ref) {
@@ -227,7 +227,7 @@ export function disconnectExp(exp: Exp): null {
 
 	function disconnect(e: Exp): null {
 		switch (e.ast) {
-			case 'data':
+			case 'value':
 				return null
 			case 'symbol':
 				if (e.ref && !hasAncestor(e.ref, exp)) {
@@ -251,35 +251,35 @@ export function disconnectExp(exp: Exp): null {
 }
 
 const TypeAll: DataTypeAll = {
-	dataType: 'type',
+	valueType: 'type',
 	kind: 'all',
 }
 
 const TypeBoolean: DataTypeUnion = {
-	dataType: 'type',
+	valueType: 'type',
 	kind: 'union',
 	items: [true, false],
 }
 
 function createTypeInfUnion(
-	exp: Omit<DataTypeInfUnion, 'dataType' | 'kind' | 'original'>
+	exp: Omit<DataTypeInfUnion, 'valueType' | 'kind' | 'original'>
 ): DataTypeInfUnion {
 	return {
-		dataType: 'type',
+		valueType: 'type',
 		kind: 'infUnion',
 		...exp,
 	}
 }
 function createTypeFn(
-	params: Data[] | DataVariadicVector,
-	out: Data,
+	params: Value[] | ValueVariadicVector,
+	out: Value,
 	{
 		lazyEval = undefined as undefined | boolean[],
 		lazyInfer = undefined as undefined | boolean[],
 	} = {}
-): DataTypeFn {
+): ValueTypeFn {
 	return {
-		dataType: 'type',
+		valueType: 'type',
 		kind: 'fn',
 		params,
 		out,
@@ -288,50 +288,50 @@ function createTypeFn(
 	}
 }
 
-function containsData(outer: Data, inner: Data): boolean {
+function containsValue(outer: Value, inner: Value): boolean {
 	if (outer === inner) {
 		return true
 	}
 
-	if (isDataPrim(outer)) {
-		return equalData(outer, inner)
+	if (isValuePrim(outer)) {
+		return isEqualValue(outer, inner)
 	}
 
 	if (Array.isArray(outer)) {
 		return (
 			Array.isArray(inner) &&
 			outer.length >= inner.length &&
-			_$.zipShorter(outer, inner).every(_.spread(containsData))
+			_$.zipShorter(outer, inner).every(_.spread(containsValue))
 		)
 	}
 
-	if (isDataSpecial(inner) && inner.dataType === 'void') {
+	if (isValueComplex(inner) && inner.valueType === 'void') {
 		return true
 	}
 
-	switch (outer.dataType) {
+	switch (outer.valueType) {
 		case 'void':
 		case 'fn':
-			return equalData(outer, inner)
+			return isEqualValue(outer, inner)
 		case 'variadicVector':
-			if (isDataSpecial(inner) && inner.dataType === 'variadicVector') {
+			if (isValueComplex(inner) && inner.valueType === 'variadicVector') {
 				return (
 					outer.value.length === inner.value.length &&
-					_$.zipShorter(outer.value, inner.value).every(_.spread(containsData))
+					_$.zipShorter(outer.value, inner.value).every(_.spread(containsValue))
 				)
 			} else if (Array.isArray(inner)) {
 				return (
 					outer.value.length - 1 <= inner.length &&
-					_$.zipShorter(outer.value, inner).every(_.spread(containsData))
+					_$.zipShorter(outer.value, inner).every(_.spread(containsValue))
 				)
 			}
 			return false
 		case 'hashMap':
 			return (
-				isDataSpecial(inner) &&
-				inner.dataType === 'hashMap' &&
+				isValueComplex(inner) &&
+				inner.valueType === 'hashMap' &&
 				_.entries(inner).every(([key, iv]) =>
-					containsData(outer.value[key], iv)
+					containsValue(outer.value[key], iv)
 				)
 			)
 		case 'type':
@@ -339,13 +339,13 @@ function containsData(outer: Data, inner: Data): boolean {
 				case 'all':
 					return true
 				case 'infUnion':
-					if (isDataPrim(inner)) {
+					if (isValuePrim(inner)) {
 						return outer.predicate(inner)
 					}
 
-					if ('dataType' in inner && inner.dataType === 'type') {
+					if ('valueType' in inner && inner.valueType === 'type') {
 						if (inner.kind === 'union') {
-							return inner.items.every(ii => containsData(outer, ii))
+							return inner.items.every(ii => containsValue(outer, ii))
 						}
 						if (inner.kind === 'infUnion') {
 							if (outer.original === inner.original) {
@@ -353,15 +353,15 @@ function containsData(outer: Data, inner: Data): boolean {
 							}
 							return (
 								!!inner.supersets &&
-								inner.supersets.some(s => containsData(outer, s))
+								inner.supersets.some(s => containsValue(outer, s))
 							)
 						}
 					}
 					return false
 				case 'union': {
 					const innerItems =
-						isDataSpecial(inner) &&
-						inner.dataType === 'type' &&
+						isValueComplex(inner) &&
+						inner.valueType === 'type' &&
 						inner.kind === 'union'
 							? inner.items
 							: [inner]
@@ -369,43 +369,43 @@ function containsData(outer: Data, inner: Data): boolean {
 						return false
 					}
 					return !!innerItems.some(ii =>
-						outer.items.some(_.partial(containsData, _, ii))
+						outer.items.some(_.partial(containsValue, _, ii))
 					)
 				}
 				case 'fn':
-					if (!isDataSpecial(inner)) {
+					if (!isValueComplex(inner)) {
 						return false
 					}
-					if (inner.dataType === 'type') {
+					if (inner.valueType === 'type') {
 						if (inner.kind === 'fn') {
 							return (
-								containsData(outer.params, inner.params) &&
-								containsData(outer.out, inner.out)
+								containsValue(outer.params, inner.params) &&
+								containsValue(outer.out, inner.out)
 							)
 						}
-						return containsData(outer.out, inner)
+						return containsValue(outer.out, inner)
 					}
-					if (inner.dataType === 'fn') {
+					if (inner.valueType === 'fn') {
 						return (
-							containsData(outer.params, inner.type.params) &&
-							containsData(outer.out, inner.type.out)
+							containsValue(outer.params, inner.type.params) &&
+							containsValue(outer.out, inner.type.out)
 						)
 					}
-					return containsData(outer.out, inner)
+					return containsValue(outer.out, inner)
 			}
 	}
 }
 
-function uniteType(items: Data[]): Data {
+function uniteType(items: Value[]): Value {
 	if (items.length === 0) {
 		return TypeAll
 	}
 
 	const unionType = items.reduce((a, b) => {
-		if (containsData(a, b)) {
+		if (containsValue(a, b)) {
 			return a
 		}
-		if (containsData(b, a)) {
+		if (containsValue(b, a)) {
 			return b
 		}
 
@@ -413,7 +413,7 @@ function uniteType(items: Data[]): Data {
 		const bItems = isDataType(b) && b.kind === 'union' ? b.items : [b]
 
 		return {
-			dataType: 'type',
+			valueType: 'type',
 			kind: 'union',
 			items: [...aItems, ...bItems],
 		}
@@ -426,9 +426,9 @@ function uniteType(items: Data[]): Data {
 	return unionType
 }
 
-function wrapExp<T extends Data>(value: T): ExpData<T> {
+function wrapExp<T extends Value>(value: T): ExpValue<T> {
 	return {
-		ast: 'data',
+		ast: 'value',
 		value,
 	}
 }
@@ -443,30 +443,30 @@ const GlobalScope = createList([
 		Nat: wrapTypeInfUnion(TypeNat),
 		String: wrapTypeInfUnion(TypeString),
 		'#=>': createFn(
-			(params: Data[], out: Data) => createTypeFn(params, out),
+			(params: Value[], out: Value) => createTypeFn(params, out),
 			createTypeFn([TypeAll, TypeAll], TypeAll)
 		),
 		'#|': createFn(
-			(items: Data[]) => uniteType(items),
+			(items: Value[]) => uniteType(items),
 			createTypeFn(createVariadicVector([TypeAll]), TypeAll)
 		),
 		'#count': createFn(
-			(v: Data) => typeCount(v),
+			(v: Value) => typeCount(v),
 			createTypeFn([TypeAll], TypeNumber)
 		),
 		'#<==': createFn(
-			(type: Data, value: Exp) => assignExp(type, value),
+			(type: Value, value: Exp) => assignExp(type, value),
 			createTypeFn([TypeAll, TypeAll], TypeAll, {
 				lazyEval: [false, true],
 			})
 		),
 		length: createFn(
-			(v: Data[] | DataVariadicVector) =>
+			(v: Value[] | ValueVariadicVector) =>
 				Array.isArray(v) ? v.length : Infinity,
 			createTypeFn([createVariadicVector([TypeAll])], TypeNat)
 		),
 		let: createFn(
-			(_: DataHashMap, body: Exp) => body,
+			(_: ValueHashMap, body: Exp) => body,
 			createTypeFn([createTypeFn([TypeString], TypeAll), TypeAll], TypeAll)
 		),
 		PI: wrapExp(Math.PI),
@@ -478,7 +478,7 @@ const GlobalScope = createList([
 			(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
 			createTypeFn(createVariadicVector([TypeNumber]), TypeNumber)
 		),
-		take: createFn((n: number, coll: Data[] | DataVariadicVector) => {
+		take: createFn((n: number, coll: Value[] | ValueVariadicVector) => {
 			if (Array.isArray(coll)) {
 				return coll.slice(0, n)
 			} else {
@@ -506,15 +506,15 @@ const GlobalScope = createList([
 		),
 		not: createFn((v: boolean) => !v, createTypeFn([TypeBoolean], TypeBoolean)),
 		'==': createFn(
-			(a: Data, b: Data) => equalData(a, b),
+			(a: Value, b: Value) => isEqualValue(a, b),
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
 		'#>=': createFn(
-			(a: Data, b: Data) => containsData(a, b),
+			(a: Value, b: Value) => containsValue(a, b),
 			createTypeFn([TypeAll, TypeAll], TypeBoolean)
 		),
 		count: createFn(
-			(a: Data[]) => a.length,
+			(a: Value[]) => a.length,
 			createTypeFn([TypeAll], TypeNumber)
 		),
 		if: createFn(
@@ -530,11 +530,11 @@ const GlobalScope = createList([
 
 // Predicates for data
 
-function isData(form: Form): form is Data {
-	return isDataPrim(form) || Array.isArray(form) || 'dataType' in form
+function isData(form: Form): form is Value {
+	return isValuePrim(form) || Array.isArray(form) || 'valueType' in form
 }
 
-function isDataPrim(data: Data | Exp): data is DataPrim {
+function isValuePrim(data: Value | Exp): data is ValuePrim {
 	return (
 		data === null ||
 		typeof data === 'boolean' ||
@@ -543,25 +543,25 @@ function isDataPrim(data: Data | Exp): data is DataPrim {
 	)
 }
 
-function isDataSpecial(data: Data): data is DataSpeial {
-	return !isDataPrim(data) && !Array.isArray(data)
+function isValueComplex(data: Value): data is ValueComplex {
+	return !isValuePrim(data) && !Array.isArray(data)
 }
 
-function isDataType(data: Data): data is DataType {
-	return !isDataPrim(data) && !Array.isArray(data) && data.dataType === 'type'
+function isDataType(data: Value): data is ValueType {
+	return !isValuePrim(data) && !Array.isArray(data) && data.valueType === 'type'
 }
 
-function isDataFn(form: Form): form is DataFn {
-	return !isDataPrim(form) && 'dataType' in form && form.dataType === 'fn'
+function isDataFn(form: Form): form is ValueFn {
+	return !isValuePrim(form) && 'valueType' in form && form.valueType === 'fn'
 }
 
-function inferType(form: Form): Data {
+function inferType(form: Form): Value {
 	if (isData(form)) {
 		return form
 	}
 
 	switch (form.ast) {
-		case 'data':
+		case 'value':
 			return form.value
 		case 'symbol':
 			return inferType(resolveSymbol(form))
@@ -599,8 +599,8 @@ function clearEvaluatedRecursively(exp: Exp) {
 	}
 }
 
-function equalData(a: Data, b: Data): boolean {
-	if (isDataPrim(a)) {
+function isEqualValue(a: Value, b: Value): boolean {
+	if (isValuePrim(a)) {
 		return a === b
 	}
 
@@ -609,36 +609,36 @@ function equalData(a: Data, b: Data): boolean {
 			return false
 		}
 		return (
-			a.length === b.length && _$.zipShorter(a, b).every(_.spread(equalData))
+			a.length === b.length && _$.zipShorter(a, b).every(_.spread(isEqualValue))
 		)
 	}
 
-	if (isDataPrim(b) || Array.isArray(b)) {
+	if (isValuePrim(b) || Array.isArray(b)) {
 		return false
 	}
 
-	switch (a.dataType) {
+	switch (a.valueType) {
 		case 'void':
-			return b.dataType === 'void'
+			return b.valueType === 'void'
 		case 'variadicVector':
 			return (
-				b.dataType === 'variadicVector' &&
+				b.valueType === 'variadicVector' &&
 				a.value.length === b.value.length &&
-				_$.zipShorter(a.value, b.value).every(_.spread(equalData))
+				_$.zipShorter(a.value, b.value).every(_.spread(isEqualValue))
 			)
 		case 'hashMap':
 			return (
-				b.dataType === 'hashMap' &&
+				b.valueType === 'hashMap' &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
-				_.toPairs(a.value).every(([key, av]) => equalData(av, b.value[key]))
+				_.toPairs(a.value).every(([key, av]) => isEqualValue(av, b.value[key]))
 			)
 		case 'fn':
-			return b.dataType === 'fn' && a.body === b.body
+			return b.valueType === 'fn' && a.body === b.body
 		case 'type':
-			return b.dataType === 'type' && equalType(a, b)
+			return b.valueType === 'type' && equalType(a, b)
 	}
 
-	function equalType(a: DataType, b: DataType): boolean {
+	function equalType(a: ValueType, b: ValueType): boolean {
 		switch (a.kind) {
 			case 'all':
 				return b.kind === 'all'
@@ -649,13 +649,13 @@ function equalData(a: Data, b: Data): boolean {
 				if (a.items.length !== b.items.length) {
 					return false
 				}
-				return _.differenceWith(a.items, b.items, equalData).length === 0
+				return _.differenceWith(a.items, b.items, isEqualValue).length === 0
 			}
 			case 'fn':
 				return (
 					b.kind === 'fn' &&
-					equalData(a.out, b.out) &&
-					equalData(a.params, b.params)
+					isEqualValue(a.out, b.out) &&
+					isEqualValue(a.params, b.params)
 				)
 		}
 	}
@@ -700,7 +700,7 @@ export class Interpreter {
 	constructor() {
 		this.vars = createSpecialListHashMap({})
 
-		this.vars.value['def'] = createFn((value: ExpData) => {
+		this.vars.value['def'] = createFn((value: ExpValue) => {
 			if (!value.label) {
 				throw new Error('no label')
 			}
@@ -714,14 +714,14 @@ export class Interpreter {
 		this.scope.parent = GlobalScope
 	}
 
-	evalExp(exp: Exp): Data {
+	evalExp(exp: Exp): Value {
 		exp.parent = this.scope
 		return evalExp(exp)
 	}
 }
 
-function typeCount(data: Data): number {
-	if (isDataPrim(data) || Array.isArray(data)) {
+function typeCount(data: Value): number {
+	if (isValuePrim(data) || Array.isArray(data)) {
 		return 1
 	}
 
@@ -729,7 +729,7 @@ function typeCount(data: Data): number {
 		return data.reduce((count, d) => count * typeCount(d), 1)
 	}
 
-	switch (data.dataType) {
+	switch (data.valueType) {
 		case 'void':
 			return 0
 		case 'fn':
@@ -757,10 +757,10 @@ function typeCount(data: Data): number {
 	}
 }
 
-export function evalExp(exp: Exp): Data {
+export function evalExp(exp: Exp): Value {
 	return evalWithTrace(exp, [])
 
-	function evalWithTrace(exp: Exp, trace: Exp[]): Data {
+	function evalWithTrace(exp: Exp, trace: Exp[]): Value {
 		// Check circular reference
 		if (trace.includes(exp)) {
 			const lastTrace = trace[trace.length - 1]
@@ -782,7 +782,7 @@ export function evalExp(exp: Exp): Data {
 		}
 
 		switch (exp.ast) {
-			case 'data':
+			case 'value':
 				return exp.value
 			case 'symbol': {
 				const ref = resolveSymbol(exp)
@@ -850,7 +850,7 @@ export function evalExp(exp: Exp): Data {
 
 				const fn = _eval(first)
 
-				let fnType: DataTypeFn
+				let fnType: ValueTypeFn
 				let fnBody: IDataFnValue
 
 				if (isDataFn(fn)) {
@@ -891,11 +891,11 @@ export function evalExp(exp: Exp): Data {
 	}
 }
 
-function assignExp(target: Data, source: Exp): Exp {
+function assignExp(target: Value, source: Exp): Exp {
 	const sourceType = inferType(source)
 
-	if (isDataPrim(target)) {
-		if (!equalData(target, sourceType)) {
+	if (isValuePrim(target)) {
+		if (!isEqualValue(target, sourceType)) {
 			throw new Error(
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 			)
@@ -907,7 +907,7 @@ function assignExp(target: Data, source: Exp): Exp {
 		if (
 			source.ast !== 'specialList' ||
 			source.kind !== 'vector' ||
-			!containsData(target, sourceType)
+			!containsValue(target, sourceType)
 		) {
 			throw new Error(
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
@@ -918,7 +918,7 @@ function assignExp(target: Data, source: Exp): Exp {
 		})
 	}
 
-	switch (target.dataType) {
+	switch (target.valueType) {
 		case 'void':
 			return wrapExp(createVoid())
 		case 'variadicVector': {
@@ -926,7 +926,7 @@ function assignExp(target: Data, source: Exp): Exp {
 				source.ast !== 'specialList' ||
 				source.kind !== 'vector' ||
 				source.variadic ||
-				!containsData(target, sourceType)
+				!containsValue(target, sourceType)
 			) {
 				throw new Error(
 					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
@@ -942,7 +942,7 @@ function assignExp(target: Data, source: Exp): Exp {
 			})
 		}
 		case 'type':
-			if (!containsData(target, sourceType)) {
+			if (!containsValue(target, sourceType)) {
 				throw new Error(
 					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 				)
@@ -964,8 +964,8 @@ function assignExp(target: Data, source: Exp): Exp {
 }
 
 // Create functions
-function createVoid(): DataVoid {
-	return {dataType: 'void'}
+function createVoid(): ValueVoid {
+	return {valueType: 'void'}
 }
 
 function createSymbol(value: string): ExpSymbol {
@@ -977,12 +977,12 @@ function createSymbol(value: string): ExpSymbol {
 
 function createFn(
 	value: (...params: any[]) => Form,
-	type: DataTypeFn
-): ExpData<DataFn> {
+	type: ValueTypeFn
+): ExpValue<ValueFn> {
 	return {
-		ast: 'data',
+		ast: 'value',
 		value: {
-			dataType: 'fn',
+			valueType: 'fn',
 			body: value as IDataFnValue,
 			type,
 		},
@@ -1037,18 +1037,18 @@ function createSpecialListHashMap(
 	return exp
 }
 
-function createVariadicVector(value: Data[]): DataVariadicVector {
-	const exp: DataVariadicVector = {
-		dataType: 'variadicVector',
+function createVariadicVector(value: Value[]): ValueVariadicVector {
+	const exp: ValueVariadicVector = {
+		valueType: 'variadicVector',
 		value,
 	}
 
 	return exp
 }
 
-function createHashMap(value: DataHashMap['value']): DataHashMap {
+function createHashMap(value: ValueHashMap['value']): ValueHashMap {
 	return {
-		dataType: 'hashMap',
+		valueType: 'hashMap',
 		value,
 	}
 }
@@ -1078,7 +1078,7 @@ export function printForm(form: Form): string {
 
 	function printExp(exp: Exp): string {
 		switch (exp.ast) {
-			case 'data':
+			case 'value':
 				return exp.str || printData(exp.value)
 			case 'symbol':
 				if (exp.str) {
@@ -1107,7 +1107,7 @@ export function printForm(form: Form): string {
 		}
 	}
 
-	function printData(data: Data): string {
+	function printData(data: Value): string {
 		// Print prim
 		switch (data) {
 			case null:
@@ -1139,7 +1139,7 @@ export function printForm(form: Form): string {
 			return printSeq('[', ']', data)
 		}
 
-		switch (data.dataType) {
+		switch (data.valueType) {
 			case 'void':
 				return 'Void'
 			case 'variadicVector': {
@@ -1167,7 +1167,7 @@ export function printForm(form: Form): string {
 		}
 	}
 
-	function printType(data: DataType): string {
+	function printType(data: ValueType): string {
 		switch (data.kind) {
 			case 'all':
 				return 'All'
