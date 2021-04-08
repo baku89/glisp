@@ -13,18 +13,75 @@ function canOmitQuote(name: string) {
 
 type Form = Exp | Value
 
-// Type of ASTs that can be contained within a program tree
-type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap
-
-// For evaluated value only
+// Value
 type Value = ValuePrim | Value[] | ValueComplex
+
+type ValuePrim = null | boolean | number | string
 
 type ValueComplex =
 	| ValueVoid
-	| ValueVariadicVector
+	| ValueRestVector
 	| ValueHashMap
 	| ValueFn
 	| ValueType
+
+interface ValueVoid {
+	valueType: 'void'
+}
+
+interface ValueRestVector {
+	valueType: 'restVector'
+	value: Value[]
+}
+
+interface ValueHashMap {
+	valueType: 'hashMap'
+	value: {
+		[key: string]: Value
+	}
+}
+
+type IFn = (...params: Form[]) => Form
+
+interface ValueFn {
+	valueType: 'fn'
+	body: IFn
+	type: ValueTypeFn
+}
+
+type ValueType = ValueTypeAll | ValueTypeUnion | ValueTypeInfUnion | ValueTypeFn
+
+interface ValueTypeAll {
+	valueType: 'type'
+	kind: 'all'
+}
+
+interface ValueTypeInfUnion {
+	valueType: 'type'
+	kind: 'infUnion'
+	predicate: (v: ValuePrim) => boolean
+	original?: ExpValue<ValueTypeInfUnion>
+	supersets?: ValueTypeInfUnion[]
+}
+
+interface ValueTypeUnion {
+	valueType: 'type'
+	kind: 'union'
+	items: Value[]
+	original?: ExpValue<ValueTypeUnion>
+}
+
+interface ValueTypeFn {
+	valueType: 'type'
+	kind: 'fn'
+	params: Value[] | ValueRestVector
+	out: Value
+	lazyEval?: boolean[]
+	lazyInfer?: boolean[]
+}
+
+// Exp
+type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap
 
 interface ExpBase {
 	parent?: ExpList | ExpVector | ExpHashMap
@@ -65,7 +122,7 @@ interface ExpList extends ExpBase {
 interface ExpVector extends ExpBase {
 	ast: 'vector'
 	value: Exp[]
-	variadic: boolean
+	rest: boolean
 	delimiters?: string[]
 	evaluated?: Value[]
 }
@@ -77,64 +134,6 @@ interface ExpHashMap extends ExpBase {
 	}
 	delimiters?: string[]
 	evaluated?: ValueHashMap
-}
-
-interface ValueVoid {
-	valueType: 'void'
-}
-
-type ValuePrim = null | boolean | number | string
-
-interface ValueVariadicVector {
-	valueType: 'variadicVector'
-	value: Value[]
-}
-
-interface ValueHashMap {
-	valueType: 'hashMap'
-	value: {
-		[key: string]: Value
-	}
-}
-
-// Types
-interface ValueTypeAll {
-	valueType: 'type'
-	kind: 'all'
-}
-
-interface ValueTypeInfUnion {
-	valueType: 'type'
-	kind: 'infUnion'
-	predicate: (v: ValuePrim) => boolean
-	original?: ExpValue<ValueTypeInfUnion>
-	supersets?: ValueTypeInfUnion[]
-}
-
-interface ValueTypeUnion {
-	valueType: 'type'
-	kind: 'union'
-	items: Value[]
-	original?: ExpValue<ValueTypeUnion>
-}
-
-interface ValueTypeFn {
-	valueType: 'type'
-	kind: 'fn'
-	params: Value[] | ValueVariadicVector
-	out: Value
-	lazyEval?: boolean[]
-	lazyInfer?: boolean[]
-}
-
-type ValueType = ValueTypeAll | ValueTypeUnion | ValueTypeInfUnion | ValueTypeFn
-
-type IFn = (...params: Form[]) => Form
-
-interface ValueFn {
-	valueType: 'fn'
-	body: IFn
-	type: ValueTypeFn
 }
 
 function wrapTypeInfUnion(value: ValueTypeInfUnion) {
@@ -266,7 +265,7 @@ function createTypeInfUnion(
 	}
 }
 function createTypeFn(
-	params: Value[] | ValueVariadicVector,
+	params: Value[] | ValueRestVector,
 	out: Value,
 	{
 		lazyEval = undefined as undefined | boolean[],
@@ -308,8 +307,8 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'void':
 		case 'fn':
 			return isEqualValue(outer, inner)
-		case 'variadicVector':
-			if (isValueComplex(inner) && inner.valueType === 'variadicVector') {
+		case 'restVector':
+			if (isValueComplex(inner) && inner.valueType === 'restVector') {
 				return (
 					outer.value.length === inner.value.length &&
 					_$.zipShorter(outer.value, inner.value).every(_.spread(containsValue))
@@ -456,7 +455,7 @@ const GlobalScope = createList([
 			})
 		),
 		length: createFn(
-			(v: Value[] | ValueVariadicVector) =>
+			(v: Value[] | ValueRestVector) =>
 				Array.isArray(v) ? v.length : Infinity,
 			createTypeFn([createVariadicVector([TypeAll])], TypeNat)
 		),
@@ -473,7 +472,7 @@ const GlobalScope = createList([
 			(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
 			createTypeFn(createVariadicVector([TypeNumber]), TypeNumber)
 		),
-		take: createFn((n: number, coll: Value[] | ValueVariadicVector) => {
+		take: createFn((n: number, coll: Value[] | ValueRestVector) => {
 			if (Array.isArray(coll)) {
 				return coll.slice(0, n)
 			} else {
@@ -562,7 +561,7 @@ function inferType(form: Form): Value {
 			return inferType(resolveSymbol(form))
 		case 'list': {
 			const first = form.value[0]
-			if (first.ast === 'symbol' && first.value === '=>') {
+			if (isListOf('=>', form)) {
 				return inferType(evalExp(first))
 			}
 			return inferType(first)
@@ -614,9 +613,9 @@ function isEqualValue(a: Value, b: Value): boolean {
 	switch (a.valueType) {
 		case 'void':
 			return b.valueType === 'void'
-		case 'variadicVector':
+		case 'restVector':
 			return (
-				b.valueType === 'variadicVector' &&
+				b.valueType === 'restVector' &&
 				a.value.length === b.value.length &&
 				_$.zipShorter(a.value, b.value).every(_.spread(isEqualValue))
 			)
@@ -728,7 +727,7 @@ function typeCount(value: Value): number {
 			return 0
 		case 'fn':
 			return 1
-		case 'variadicVector':
+		case 'restVector':
 			return Infinity
 		case 'hashMap':
 			return _.values(value.value).reduce(
@@ -836,7 +835,7 @@ export function evalExp(exp: Exp): Value {
 					const paramTypes = Array(paramSymbols.length).fill(TypeAll)
 					const outType = inferType(bodyDef)
 					const fnType = createTypeFn(paramTypes, outType, {
-						variadic: paramsDef.variadic,
+						rest: paramsDef.rest,
 					})
 
 					return (exp.evaluated = createFn(fn, fnType))
@@ -872,7 +871,7 @@ export function evalExp(exp: Exp): Value {
 			}
 			case 'vector': {
 				const vec = exp.value.map(_eval)
-				return exp.variadic ? createVariadicVector(vec) : vec
+				return exp.rest ? createVariadicVector(vec) : vec
 			}
 			case 'hashMap':
 				return createHashMap(_.mapValues(exp.value, _eval))
@@ -906,10 +905,10 @@ function assignExp(target: Value, source: Exp): Exp {
 	switch (target.valueType) {
 		case 'void':
 			return wrapExp(createVoid())
-		case 'variadicVector': {
+		case 'restVector': {
 			if (
 				source.ast !== 'vector' ||
-				source.variadic ||
+				source.rest ||
 				!containsValue(target, sourceType)
 			) {
 				throw new Error(
@@ -988,12 +987,12 @@ function createList(value: Exp[], {setParent = true} = {}): ExpList {
 
 function createSpecialListVector(
 	value: Exp[],
-	{setParent = true, variadic = false} = {}
+	{setParent = true, rest = false} = {}
 ) {
 	const exp: ExpVector = {
 		ast: 'vector',
 		value,
-		variadic,
+		rest,
 	}
 
 	if (setParent) {
@@ -1019,9 +1018,9 @@ function createSpecialListHashMap(
 	return exp
 }
 
-function createVariadicVector(value: Value[]): ValueVariadicVector {
-	const exp: ValueVariadicVector = {
-		valueType: 'variadicVector',
+function createVariadicVector(value: Value[]): ValueRestVector {
+	const exp: ValueRestVector = {
+		valueType: 'restVector',
 		value,
 	}
 
@@ -1077,7 +1076,7 @@ export function printForm(form: Form): string {
 					..._.times(value.length - 1, () => ' '),
 					'',
 				]
-				if (exp.variadic) {
+				if (exp.rest) {
 					value.splice(-1, 0, createSymbol('...'))
 					delimiters.push('')
 				}
@@ -1123,7 +1122,7 @@ export function printForm(form: Form): string {
 		switch (value.valueType) {
 			case 'void':
 				return 'Void'
-			case 'variadicVector': {
+			case 'restVector': {
 				const val: Form[] = [...value.value]
 				const delimiters = ['', ...Array(val.length - 1).fill(' '), '', '']
 				val.splice(-1, 0, createSymbol('...'))

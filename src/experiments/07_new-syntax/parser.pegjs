@@ -132,7 +132,7 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form _)? "]"
+Vector = "[" d0:_ values:(Form _)* rest:("..." _ Form _)? "]"
 	{
 		const exp = {
 			ast: 'vector',
@@ -141,15 +141,15 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form _)? "]"
 		const value = values.map(p => p[0])
 		const itemDelimiters = values.map(p => p[1])
 
-		if (variadic) {
-			const [, d1, restValue, d2] = variadic
+		if (rest) {
+			const [, d1, restValue, d2] = rest
 			exp.value = [...value, restValue]
 			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
-			exp.variadic = true
+			exp.rest = true
 		} else {
 			exp.value = value
 			exp.delimiters = [d0, ...itemDelimiters]
-			exp.variadic = false
+			exp.rest = false
 		}
 
 		exp.value.forEach((e, key) => e.parent = exp)
