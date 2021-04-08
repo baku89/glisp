@@ -115,7 +115,6 @@
 		"svgpath": "^2.3.0",
 		"ts-jest": "^26.4.1",
 		"typescript": "^4.2.3",
-		"uid": "^1.0.0",
 		"voronoi": "^1.0.0",
 		"vue-cli-plugin-electron-builder": "~2.0.0-rc.4",
 		"vue-cli-plugin-yaml": "^1.0.2",

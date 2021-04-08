@@ -19,7 +19,7 @@
 </template>
 
 <script lang="ts">
-import uid from 'uid'
+import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
 export default defineComponent({
@@ -34,7 +34,7 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
-		const id = ref('InputCheckbox_' + uid())
+		const id = ref(_.uniqueId('InputCheckbox_'))
 
 		function onInput(e: InputEvent) {
 			const value = (e.target as HTMLInputElement).checked
