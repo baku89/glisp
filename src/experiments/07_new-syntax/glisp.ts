@@ -593,6 +593,14 @@ function clearEvaluatedRecursively(exp: Exp) {
 
 function isEqualValue(a: Value, b: Value): boolean {
 	if (isValuePrim(a)) {
+		if (
+			typeof a === 'number' &&
+			typeof b === 'number' &&
+			isNaN(a) &&
+			isNaN(b)
+		) {
+			return true
+		}
 		return a === b
 	}
 
@@ -1071,18 +1079,8 @@ export function printForm(form: Form): string {
 		}
 
 		switch (typeof value) {
-			case 'number': {
-				const str = value.toString()
-				switch (str) {
-					case 'Infinity':
-						return 'inf'
-					case '-Infinity':
-						return '-inf'
-					case 'NaN':
-						return 'nan'
-				}
-				return str
-			}
+			case 'number':
+				return value.toString()
 			case 'string':
 				return value
 		}

@@ -36,9 +36,9 @@ IntegerLiteral = $(("+" / "-")? [0-9]+)
 
 FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 
-NumberInf = "inf" { return {ast: 'value', value: Infinity} }
-NumberMinusInf = "-inf" { return {ast: 'value', value: -Infinity} }
-NumberNan = "nan" { return {ast: 'value', value: NaN} }
+NumberInf = "Infinity" { return {ast: 'value', value: Infinity} }
+NumberMinusInf = "-Infinity" { return {ast: 'value', value: -Infinity} }
+NumberNan = "NaN" { return {ast: 'value', value: NaN} }
 
 NumberInteger = str:IntegerLiteral
 	{ 
