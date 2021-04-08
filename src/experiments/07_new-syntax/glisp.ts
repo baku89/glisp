@@ -7,7 +7,7 @@ import ParserDefinition from './parser.pegjs'
 
 function canOmitQuote(name: string) {
 	return (
-		name === '...' || name.match(/^#?[a-z_+\-*/=?|&<>][0-9a-z_+\-*/=?|&<>]*$/i)
+		name === '...' || name.match(/^[a-z_+\-*/=?|&<>@][0-9a-z_+\-*/=?|&<>@]*$/i)
 	)
 }
 
@@ -407,18 +407,18 @@ const GlobalScope = createList([
 		Int: wrapTypeInfUnion(TypeInt),
 		Nat: wrapTypeInfUnion(TypeNat),
 		String: wrapTypeInfUnion(TypeString),
-		'#=>': createFn(
+		'@=>': createFn(
 			(params: Value[], out: Value) => createFnType(params, out),
 			[TypeAll, TypeAll],
 			TypeAll
 		),
-		'#|': createFn(
+		'@|': createFn(
 			(items: Value[]) => uniteType(items),
 			createVariadicVector([TypeAll]),
 			TypeAll
 		),
-		'#count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
-		'#<==': createFn(
+		'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
+		'<-': createFn(
 			(type: Value, value: Exp) => assignExp(type, value),
 			[TypeAll, TypeAll],
 			TypeAll,
@@ -474,7 +474,7 @@ const GlobalScope = createList([
 		sqrt: createFn(Math.sqrt, [TypePosNumber], TypePosNumber),
 		not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
 		'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
-		'#>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
+		'@>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
 		count: createFn(
 			(a: Value[]) => a.length,
 			[createVariadicVector([TypeAll])],

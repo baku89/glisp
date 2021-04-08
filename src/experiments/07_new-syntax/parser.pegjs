@@ -105,7 +105,7 @@ SymbolIdentifier = str:SymbolLiteral
 		}
 	}
 
-SymbolLiteral = $("#"? [a-z_+\-*/=?|&<>]i [0-9a-z_+\-*/=?|&<>]i*)
+SymbolLiteral = $([a-z_+\-*/=?|&<>@]i [0-9a-z_+\-*/=?|&<>@]i*)
 
 SymbolPath = str:SymbolPathLiteral
 	{
