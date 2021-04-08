@@ -354,11 +354,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 					return false
 				case 'union': {
 					const innerItems =
-						isValueComplex(inner) &&
-						inner.valueType === 'type' &&
-						inner.kind === 'union'
-							? inner.items
-							: [inner]
+						isValueType(inner) && inner.kind === 'union' ? inner.items : [inner]
 					if (outer.items.length < innerItems.length) {
 						return false
 					}
@@ -367,10 +363,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 					)
 				}
 				case 'fn':
-					if (!isValueComplex(inner)) {
-						return false
-					}
-					if (inner.valueType === 'type') {
+					if (isValueType(inner)) {
 						if (inner.kind === 'fn') {
 							return (
 								containsValue(outer.params, inner.params) &&
@@ -379,7 +372,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 						}
 						return containsValue(outer.out, inner)
 					}
-					if (inner.valueType === 'fn') {
+					if (isValueFn(inner)) {
 						return (
 							containsValue(outer.params, inner.type.params) &&
 							containsValue(outer.out, inner.type.out)
