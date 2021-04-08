@@ -135,8 +135,7 @@ List = "(" d0:_ values:(Form _)* ")"
 Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form _)? "]"
 	{
 		const exp = {
-			ast: 'specialList',
-			kind: 'vector',
+			ast: 'vector',
 		}
 
 		const value = values.map(p => p[0])
@@ -158,10 +157,7 @@ Vector = "[" d0:_ values:(Form _)* variadic:("..." _ Form _)? "]"
 		return exp
 	}
 
-HashMap =
-	"{" d0:_
-	pairs:(LabeledForm _)*
-	"}"
+HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
@@ -173,8 +169,7 @@ HashMap =
 		}
 
 		const exp = {
-			ast: 'specialList',
-			kind: 'hashMap',
+			ast: 'hashMap',
 			value,
 			delimiters
 		}

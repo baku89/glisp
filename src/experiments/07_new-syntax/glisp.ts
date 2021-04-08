@@ -14,7 +14,7 @@ function canOmitQuote(name: string) {
 type Form = Exp | Value
 
 // Type of ASTs that can be contained within a program tree
-type Exp = ExpValue | ExpSymbol | ExpList | ExpSpecialList
+type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap
 
 // For evaluated value only
 type Value = ValuePrim | Value[] | ValueComplex
@@ -27,7 +27,7 @@ type ValueComplex =
 	| ValueType
 
 interface ExpBase {
-	parent?: ExpList | ExpSpecialList
+	parent?: ExpList | ExpVector | ExpHashMap
 	dep?: Set<ExpSymbol>
 	label?: {
 		str: string
@@ -47,12 +47,6 @@ interface ExpValue<T extends Value = Value> extends ExpBase {
 	str?: string
 }
 
-interface ValueVoid {
-	valueType: 'void'
-}
-
-type ValuePrim = null | boolean | number | string
-
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	value: string
@@ -68,18 +62,16 @@ interface ExpList extends ExpBase {
 	evaluated?: Value
 }
 
-interface ExpSpecialListVector extends ExpBase {
-	ast: 'specialList'
-	kind: 'vector'
+interface ExpVector extends ExpBase {
+	ast: 'vector'
 	value: Exp[]
 	variadic: boolean
 	delimiters?: string[]
 	evaluated?: Value[]
 }
 
-interface ExpSpecialListHashMap extends ExpBase {
-	ast: 'specialList'
-	kind: 'hashMap'
+interface ExpHashMap extends ExpBase {
+	ast: 'hashMap'
 	value: {
 		[key: string]: Exp
 	}
@@ -87,7 +79,11 @@ interface ExpSpecialListHashMap extends ExpBase {
 	evaluated?: ValueHashMap
 }
 
-type ExpSpecialList = ExpSpecialListVector | ExpSpecialListHashMap
+interface ValueVoid {
+	valueType: 'void'
+}
+
+type ValuePrim = null | boolean | number | string
 
 interface ValueVariadicVector {
 	valueType: 'variadicVector'
@@ -239,12 +235,11 @@ export function disconnectExp(exp: Exp): null {
 			case 'list':
 				e.value.forEach(disconnect)
 				return null
-			case 'specialList':
-				if (e.kind === 'vector') {
-					e.value.forEach(disconnect)
-				} else if (e.kind === 'hashMap') {
-					_.values(e.value).forEach(disconnect)
-				}
+			case 'vector':
+				e.value.forEach(disconnect)
+				return null
+			case 'hashMap':
+				_.values(e.value).forEach(disconnect)
 				return null
 		}
 	}
@@ -572,19 +567,18 @@ function inferType(form: Form): Value {
 			}
 			return inferType(first)
 		}
-		case 'specialList':
-			if (form.kind === 'vector') {
-				return form.value.map(inferType)
-			} else {
-				return createHashMap(_.mapValues(form.value, inferType))
-			}
+		case 'vector':
+			return form.value.map(inferType)
+		case 'hashMap':
+			return createHashMap(_.mapValues(form.value, inferType))
 	}
 }
 
 function clearEvaluatedRecursively(exp: Exp) {
 	switch (exp.ast) {
 		case 'list':
-		case 'specialList':
+		case 'vector':
+		case 'hashMap':
 			if (!exp.evaluated) {
 				return
 			}
@@ -673,7 +667,7 @@ function resolveSymbol(sym: ExpSymbol): Exp {
 		if (isListOf('let', parent)) {
 			const vars = parent.value[1]
 
-			if (vars.ast !== 'specialList' || vars.kind !== 'hashMap') {
+			if (vars.ast !== 'hashMap') {
 				throw new Error('2nd parameter of let should be HashMap')
 			}
 
@@ -695,7 +689,7 @@ function resolveSymbol(sym: ExpSymbol): Exp {
 
 export class Interpreter {
 	private scope: ExpList
-	private vars: ExpSpecialListHashMap
+	private vars: ExpHashMap
 
 	constructor() {
 		this.vars = createSpecialListHashMap({})
@@ -775,7 +769,7 @@ export function evalExp(exp: Exp): Value {
 
 		const _eval = (e: Exp) => {
 			const evaluated = evalWithTrace(e, trace)
-			if (e.ast === 'list' || e.ast === 'specialList') {
+			if (e.ast === 'list' || e.ast === 'vector' || e.ast === 'hashMap') {
 				e.evaluated = evaluated
 			}
 			return evaluated
@@ -864,10 +858,7 @@ export function evalExp(exp: Exp): Value {
 				const params = createSpecialListVector(rest, {setParent: false})
 				const assignedParams = assignExp(fnType.params, params)
 
-				if (
-					assignedParams.ast !== 'specialList' ||
-					assignedParams.kind !== 'vector'
-				) {
+				if (assignedParams.ast !== 'vector') {
 					throw new Error('why??????????')
 				}
 
@@ -879,14 +870,12 @@ export function evalExp(exp: Exp): Value {
 				const expanded = (exp.expanded = fnBody(...evaluatedParams))
 				return isData(expanded) ? expanded : _eval(expanded)
 			}
-			case 'specialList':
-				if (exp.kind === 'vector') {
-					const vec = exp.value.map(_eval)
-					return exp.variadic ? createVariadicVector(vec) : vec
-				} else if (exp.kind === 'hashMap') {
-					return createHashMap(_.mapValues(exp.value, _eval))
-				}
-				throw new Error('Invalid kind of specialForm')
+			case 'vector': {
+				const vec = exp.value.map(_eval)
+				return exp.variadic ? createVariadicVector(vec) : vec
+			}
+			case 'hashMap':
+				return createHashMap(_.mapValues(exp.value, _eval))
 		}
 	}
 }
@@ -904,11 +893,7 @@ function assignExp(target: Value, source: Exp): Exp {
 	}
 
 	if (Array.isArray(target)) {
-		if (
-			source.ast !== 'specialList' ||
-			source.kind !== 'vector' ||
-			!containsValue(target, sourceType)
-		) {
+		if (source.ast !== 'vector' || !containsValue(target, sourceType)) {
 			throw new Error(
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 			)
@@ -923,8 +908,7 @@ function assignExp(target: Value, source: Exp): Exp {
 			return wrapExp(createVoid())
 		case 'variadicVector': {
 			if (
-				source.ast !== 'specialList' ||
-				source.kind !== 'vector' ||
+				source.ast !== 'vector' ||
 				source.variadic ||
 				!containsValue(target, sourceType)
 			) {
@@ -1006,9 +990,8 @@ function createSpecialListVector(
 	value: Exp[],
 	{setParent = true, variadic = false} = {}
 ) {
-	const exp: ExpSpecialListVector = {
-		ast: 'specialList',
-		kind: 'vector',
+	const exp: ExpVector = {
+		ast: 'vector',
 		value,
 		variadic,
 	}
@@ -1021,12 +1004,11 @@ function createSpecialListVector(
 }
 
 function createSpecialListHashMap(
-	value: ExpSpecialListHashMap['value'],
+	value: ExpHashMap['value'],
 	{setParent = true} = {}
 ) {
-	const exp: ExpSpecialListHashMap = {
-		ast: 'specialList',
-		kind: 'hashMap',
+	const exp: ExpHashMap = {
+		ast: 'hashMap',
 		value,
 	}
 
@@ -1063,8 +1045,7 @@ function isListOf(sym: string, exp: Exp): exp is ExpList {
 
 function getName(exp: Exp): string | null {
 	if (
-		exp.parent?.ast === 'specialList' &&
-		exp.parent?.kind === 'hashMap' &&
+		exp.parent?.ast === 'hashMap' &&
 		exp.parent.parent &&
 		isListOf('let', exp.parent.parent)
 	) {
@@ -1089,20 +1070,20 @@ export function printForm(form: Form): string {
 				}
 			case 'list':
 				return printSeq('(', ')', exp.value, exp.delimiters)
-			case 'specialList':
-				if (exp.kind === 'vector') {
-					const value = [...exp.value]
-					const delimiters = exp.delimiters || [
-						'',
-						..._.times(value.length - 1, () => ' '),
-						'',
-					]
-					if (exp.variadic) {
-						value.splice(-1, 0, createSymbol('...'))
-						delimiters.push('')
-					}
-					return printSeq('[', ']', value, delimiters)
+			case 'vector': {
+				const value = [...exp.value]
+				const delimiters = exp.delimiters || [
+					'',
+					..._.times(value.length - 1, () => ' '),
+					'',
+				]
+				if (exp.variadic) {
+					value.splice(-1, 0, createSymbol('...'))
+					delimiters.push('')
 				}
+				return printSeq('[', ']', value, delimiters)
+			}
+			default:
 				throw new Error('Invalid specialList and cannot print it')
 		}
 	}
