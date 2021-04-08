@@ -184,10 +184,6 @@ export function readStr(str: string): ExpForm {
 	}
 }
 
-function evalStr(str: string): ExpForm {
-	return evalExp(readStr(str))
-}
-
 function hasAncestor(target: ExpForm, ancestor: ExpForm): boolean {
 	return seek(target)
 
@@ -1097,7 +1093,11 @@ function getName(exp: ExpForm): string | null {
 export function printExp(exp: ExpForm): string {
 	if (exp.label) {
 		const [d0, d1] = exp.label.delimiters ?? ['', '']
-		return `${exp.label.str}${d0}:${d1}${printExp({...exp, label: undefined})}`
+		const label = toHashKey(exp.label.str)
+		return `${printExp(label)}${d0}:${d1}${printExp({
+			...exp,
+			label: undefined,
+		})}`
 	}
 	switch (exp.ast) {
 		case 'void':
