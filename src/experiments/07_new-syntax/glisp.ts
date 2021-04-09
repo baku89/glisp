@@ -219,7 +219,7 @@ export function readStr(str: string): Exp {
 		console.log(program.value)
 		return program.value
 	} else {
-		return wrapExp(createVoid())
+		return wrapExp(TypeVoid)
 	}
 }
 
@@ -278,6 +278,8 @@ export function disconnectExp(exp: Exp): null {
 const TypeAll: ValueAll = {
 	type: 'all',
 }
+
+const TypeVoid: ValueVoid = {type: 'void'}
 
 const TypeBoolean: ValueUnion = {
 	type: 'union',
@@ -420,7 +422,7 @@ function uniteType(items: Value[]): Value {
 			type: 'union',
 			items: [...aItems, ...bItems],
 		}
-	}, createVoid())
+	}, TypeVoid)
 
 	if (isUnion(unionType)) {
 		return {...unionType}
@@ -450,7 +452,7 @@ const GlobalScope = createExpScope({
 	),
 	'@|': createFn(
 		(items: Value[]) => uniteType(items),
-		createVariadicVector([TypeAll]),
+		createRestVector([TypeAll]),
 		TypeAll
 	),
 	'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
@@ -467,7 +469,7 @@ const GlobalScope = createExpScope({
 	),
 	length: createFn(
 		(v: Value[] | ValueRestVector) => (Array.isArray(v) ? v.length : Infinity),
-		[createVariadicVector([TypeAll])],
+		[createRestVector([TypeAll])],
 		TypeNat
 	),
 	let: createFn(
@@ -478,12 +480,12 @@ const GlobalScope = createExpScope({
 	PI: wrapExp(Math.PI),
 	'+': createFn(
 		(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
-		createVariadicVector([TypeNumber]),
+		createRestVector([TypeNumber]),
 		TypeNumber
 	),
 	'*': createFn(
 		(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-		createVariadicVector([TypeNumber]),
+		createRestVector([TypeNumber]),
 		TypeNumber
 	),
 	pow: createFn(
@@ -502,7 +504,7 @@ const GlobalScope = createExpScope({
 			)
 			return newColl
 		},
-		[TypeNat, createVariadicVector([TypeAll])],
+		[TypeNat, createRestVector([TypeAll])],
 		TypeNumber
 	),
 	'&&': createFn(
@@ -515,9 +517,10 @@ const GlobalScope = createExpScope({
 	not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
 	'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
 	'@>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
+	'@type': createFn(getType, [TypeAll], TypeAll),
 	count: createFn(
 		(a: Value[]) => a.length,
-		[createVariadicVector([TypeAll])],
+		[createRestVector([TypeAll])],
 		TypeNumber
 	),
 	if: createFn(
@@ -529,6 +532,46 @@ const GlobalScope = createExpScope({
 		}
 	),
 })
+
+function getType(v: Value): Exclude<Value, ValuePrim> {
+	if (isPrim(v)) {
+		if (v === null) {
+			return TypeAll
+		}
+		switch (typeof v) {
+			case 'boolean':
+				return TypeBoolean
+			case 'number':
+				return TypeNumber
+			case 'string':
+				return TypeString
+		}
+	}
+
+	if (Array.isArray(v)) {
+		return v.map(getType)
+	}
+
+	switch (v.type) {
+		case 'all':
+			return TypeAll
+		case 'void':
+			return TypeVoid
+		case 'union':
+			return uniteType(v.items.map(getType)) as Exclude<Value, ValuePrim>
+		case 'label':
+			return getType(v.body)
+		case 'restVector':
+			return createRestVector(v.value.map(getType))
+		case 'fn':
+			return v.fnType
+		case 'infUnion':
+		case 'fnType':
+			return v
+		case 'hashMap':
+			return createHashMap(_.mapValues(v.value, getType))
+	}
+}
 
 function isValue(form: Form): form is Value {
 	return isPrim(form) || Array.isArray(form) || 'type' in form
@@ -1003,7 +1046,7 @@ export function evalExp(exp: Exp): Value {
 		}
 		case 'vector': {
 			const vec = exp.value.map(_eval)
-			return exp.rest ? createVariadicVector(vec) : vec
+			return exp.rest ? createRestVector(vec) : vec
 		}
 		case 'hashMap':
 			return createHashMap(_.mapValues(exp.value, _eval))
@@ -1126,10 +1169,6 @@ function assignExp(target: Value, source: Exp): AssignResult {
 }
 
 // Create functions
-function createVoid(): ValueVoid {
-	return {type: 'void'}
-}
-
 function createExpSymbol(value: string): ExpSymbol {
 	return {
 		ast: 'symbol',
@@ -1211,7 +1250,7 @@ function createExpHashMap(value: ExpHashMap['value'], {setParent = true} = {}) {
 	return exp
 }
 
-function createVariadicVector(value: Value[]): ValueRestVector {
+function createRestVector(value: Value[]): ValueRestVector {
 	const exp: ValueRestVector = {
 		type: 'restVector',
 		value,

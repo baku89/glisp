@@ -12,10 +12,18 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form = Label
-	/ Void / Null / False / True
+	/ All / Void / Null / False / True
 	/ Number / String
 	/ Path / Symbol / Scope
 	/ List / Vector / HashMap
+
+All = "All"
+	{
+		return {
+			ast: 'value',
+			value: {type: 'all'}
+		}
+	}
 
 Void = "Void"
 	{
