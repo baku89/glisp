@@ -85,10 +85,17 @@ interface ValueFnType {
 }
 
 // Exp
-type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap | ExpLabel
+type Exp =
+	| ExpValue
+	| ExpSymbol
+	| ExpScope
+	| ExpList
+	| ExpVector
+	| ExpHashMap
+	| ExpLabel
 
 interface ExpBase {
-	parent?: ExpList | ExpVector | ExpHashMap | ExpLabel
+	parent?: ExpScope | ExpList | ExpVector | ExpHashMap | ExpLabel
 	dep?: Set<ExpSymbol>
 }
 
@@ -111,6 +118,14 @@ interface ExpSymbol extends ExpBase {
 	ref?: Exp
 }
 
+interface ExpScope extends ExpBase {
+	ast: 'scope'
+	vars: {
+		[name: string]: Exclude<Exp, ExpLabel>
+	}
+	value: Exclude<Exp, ExpLabel>
+}
+
 interface ExpList extends ExpBase {
 	ast: 'list'
 	value: Exp[]
@@ -130,7 +145,7 @@ interface ExpVector extends ExpBase {
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	value: {
-		[key: string]: Exp
+		[key: string]: Exclude<Exp, ExpLabel>
 	}
 	delimiters?: string[]
 	evaluated?: ValueHashMap
@@ -231,6 +246,10 @@ export function disconnectExp(exp: Exp): null {
 					e.ref.dep?.delete(e)
 					delete e.ref
 				}
+				return null
+			case 'scope':
+				_.values(e.vars).forEach(disconnect)
+				disconnect(e.value)
 				return null
 			case 'list':
 			case 'vector':
@@ -407,101 +426,94 @@ function wrapExp<T extends Value>(value: T): ExpValue<T> {
 	}
 }
 
-const GlobalScope = createExpList([
-	createExpSymbol('let'),
-	createExpHashMap({
-		Boolean: wrapTypeUnion(TypeBoolean),
-		Number: wrapTypeInfUnion(TypeNumber),
-		PosNumber: wrapTypeInfUnion(TypePosNumber),
-		Int: wrapTypeInfUnion(TypeInt),
-		Nat: wrapTypeInfUnion(TypeNat),
-		String: wrapTypeInfUnion(TypeString),
-		'@=>': createFn(
-			(params: Value[], out: Value) => createFnType(params, out),
-			[TypeAll, TypeAll],
-			TypeAll
-		),
-		'@|': createFn(
-			(items: Value[]) => uniteType(items),
-			createVariadicVector([TypeAll]),
-			TypeAll
-		),
-		'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
-		'<-': createFn(
-			(type: Value, value: Exp) => {
-				const {params, scope} = assignExp(type, value)
-				return createExpHashMap({params, scope: createExpHashMap(scope)})
-			},
-			[TypeAll, TypeAll],
-			TypeAll,
-			{
-				lazyEval: [false, true],
+const GlobalScope = createExpScope({
+	Boolean: wrapTypeUnion(TypeBoolean),
+	Number: wrapTypeInfUnion(TypeNumber),
+	PosNumber: wrapTypeInfUnion(TypePosNumber),
+	Int: wrapTypeInfUnion(TypeInt),
+	Nat: wrapTypeInfUnion(TypeNat),
+	String: wrapTypeInfUnion(TypeString),
+	'@=>': createFn(
+		(params: Value[], out: Value) => createFnType(params, out),
+		[TypeAll, TypeAll],
+		TypeAll
+	),
+	'@|': createFn(
+		(items: Value[]) => uniteType(items),
+		createVariadicVector([TypeAll]),
+		TypeAll
+	),
+	'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
+	'<-': createFn(
+		(type: Value, value: Exp) => {
+			const {params, scope} = assignExp(type, value)
+			return createExpHashMap({params, scope: createExpHashMap(scope)})
+		},
+		[TypeAll, TypeAll],
+		TypeAll,
+		{
+			lazyEval: [false, true],
+		}
+	),
+	length: createFn(
+		(v: Value[] | ValueRestVector) => (Array.isArray(v) ? v.length : Infinity),
+		[createVariadicVector([TypeAll])],
+		TypeNat
+	),
+	let: createFn(
+		(_: ValueHashMap, body: Exp) => body,
+		[createFnType([TypeString], TypeAll), TypeAll],
+		TypeAll
+	),
+	PI: wrapExp(Math.PI),
+	'+': createFn(
+		(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
+		createVariadicVector([TypeNumber]),
+		TypeNumber
+	),
+	'*': createFn(
+		(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
+		createVariadicVector([TypeNumber]),
+		TypeNumber
+	),
+	take: createFn(
+		(n: number, coll: Value[] | ValueRestVector) => {
+			if (Array.isArray(coll)) {
+				return coll.slice(0, n)
 			}
-		),
-		length: createFn(
-			(v: Value[] | ValueRestVector) =>
-				Array.isArray(v) ? v.length : Infinity,
-			[createVariadicVector([TypeAll])],
-			TypeNat
-		),
-		let: createFn(
-			(_: ValueHashMap, body: Exp) => body,
-			[createFnType([TypeString], TypeAll), TypeAll],
-			TypeAll
-		),
-		PI: wrapExp(Math.PI),
-		'+': createFn(
-			(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
-			createVariadicVector([TypeNumber]),
-			TypeNumber
-		),
-		'*': createFn(
-			(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-			createVariadicVector([TypeNumber]),
-			TypeNumber
-		),
-		take: createFn(
-			(n: number, coll: Value[] | ValueRestVector) => {
-				if (Array.isArray(coll)) {
-					return coll.slice(0, n)
-				}
-				const newColl = coll.value.slice(0, n)
-				newColl.push(
-					..._.times(
-						n - newColl.length,
-						() => coll.value[coll.value.length - 1]
-					)
-				)
-				return newColl
-			},
-			[TypeNat, createVariadicVector([TypeAll])],
-			TypeNumber
-		),
-		'&&': createFn(
-			(a: boolean, b: boolean) => a && b,
-			[TypeBoolean, TypeBoolean],
-			TypeBoolean
-		),
-		square: createFn((v: number) => v * v, [TypeNumber], TypePosNumber),
-		sqrt: createFn(Math.sqrt, [TypePosNumber], TypePosNumber),
-		not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
-		'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
-		'@>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
-		count: createFn(
-			(a: Value[]) => a.length,
-			[createVariadicVector([TypeAll])],
-			TypeNumber
-		),
-		if: createFn(
-			(cond: boolean, then: Exp, _else: Exp) => (cond ? then : _else),
-			[TypeBoolean, TypeAll, TypeAll],
-			TypeAll,
-			{
-				lazyEval: [false, true, true],
-			}
-		),
-	}),
-])
+			const newColl = coll.value.slice(0, n)
+			newColl.push(
+				..._.times(n - newColl.length, () => coll.value[coll.value.length - 1])
+			)
+			return newColl
+		},
+		[TypeNat, createVariadicVector([TypeAll])],
+		TypeNumber
+	),
+	'&&': createFn(
+		(a: boolean, b: boolean) => a && b,
+		[TypeBoolean, TypeBoolean],
+		TypeBoolean
+	),
+	square: createFn((v: number) => v * v, [TypeNumber], TypePosNumber),
+	sqrt: createFn(Math.sqrt, [TypePosNumber], TypePosNumber),
+	not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
+	'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
+	'@>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
+	count: createFn(
+		(a: Value[]) => a.length,
+		[createVariadicVector([TypeAll])],
+		TypeNumber
+	),
+	if: createFn(
+		(cond: boolean, then: Exp, _else: Exp) => (cond ? then : _else),
+		[TypeBoolean, TypeAll, TypeAll],
+		TypeAll,
+		{
+			lazyEval: [false, true, true],
+		}
+	),
+})
 
 function isValue(form: Form): form is Value {
 	return isPrim(form) || Array.isArray(form) || 'type' in form
@@ -572,6 +584,8 @@ function inferType(form: Form): Value {
 			return form.value
 		case 'symbol':
 			return inferType(resolveSymbol(form))
+		case 'scope':
+			return inferType(form.value)
 		case 'list': {
 			const first = form.value[0]
 			if (isListOf('=>', form)) {
@@ -693,14 +707,10 @@ function resolveSymbol(sym: ExpSymbol): Exclude<Exp, ExpSymbol> {
 			let parent: Exp | undefined = sym
 
 			while ((parent = parent.parent)) {
-				if (isListOf('let', parent)) {
-					const vars = parent.value[1]
+				if (parent.ast === 'scope') {
+					const {vars} = parent
 
-					if (vars.ast !== 'hashMap') {
-						throw new Error('2nd parameter of let should be HashMap')
-					}
-
-					if ((ref = vars.value[sym.value])) {
+					if ((ref = vars[sym.value])) {
 						break
 					}
 				}
@@ -723,19 +733,20 @@ function resolveSymbol(sym: ExpSymbol): Exclude<Exp, ExpSymbol> {
 }
 
 export class Interpreter {
-	private scope: ExpList
-	private vars: ExpHashMap
+	private scope: ExpScope
+	private vars: ExpScope['vars']
 
 	constructor() {
-		this.vars = createExpHashMap({})
+		this.vars = {}
 
-		this.vars.value['def'] = createFn(
+		this.vars['def'] = createFn(
 			(value: Exp) => {
 				if (value.ast !== 'label') {
+					console.log(value)
 					throw new Error('no label')
 				}
-				this.vars.value[value.label] = value.body
-				value.parent = this.vars
+				this.vars[value.label] = value.body
+				value.parent = this.scope
 				return value
 			},
 			[TypeAll],
@@ -743,7 +754,7 @@ export class Interpreter {
 			{lazyEval: [true]}
 		)
 
-		this.scope = createExpList([createExpSymbol('let'), this.vars])
+		this.scope = createExpScope(this.vars)
 		this.scope.parent = GlobalScope
 	}
 
@@ -812,6 +823,8 @@ export function evalExp(exp: Exp): Value {
 			const ref = resolveSymbol(exp)
 			return _eval(ref)
 		}
+		case 'scope':
+			return _eval(exp.value)
 		case 'list': {
 			const [first, ...rest] = exp.value
 
@@ -1051,6 +1064,24 @@ function createFn(
 			fnType: createFnType(params, out, {lazyEval}),
 		},
 	}
+}
+
+function createExpScope(
+	vars: ExpScope['vars'],
+	value?: Exclude<Exp, ExpLabel>
+): ExpScope {
+	const exp: ExpScope = {
+		ast: 'scope',
+		vars,
+		value: value || wrapExp(null),
+	}
+
+	if (value) {
+		value.parent = exp
+	}
+	_.values(vars).forEach(v => (v.parent = exp))
+
+	return exp
 }
 
 function createExpList(value: Exp[], {setParent = true} = {}): ExpList {

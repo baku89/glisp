@@ -12,7 +12,7 @@ Program = d0:_ value:Form d1:_
 BlankProgram = _ { return null }
 
 Form = Label / Void / Null / False / True / Number / String / Symbol /
-	List / Vector / HashMap
+	Scope / List / Vector / HashMap
 
 Void = "Void"
 	{
@@ -115,6 +115,25 @@ SymbolPath = '`' str:$(!'`' .)+ '`'
 		}
 	}
 
+
+Scope = "(" d0:_ "let" d1:_ vars:HashMap d2:_ value:Form d3:_ ")"
+	{
+		if (value.ast === 'label') {
+			throw new Error('Out form cannot be labeled')
+		}
+
+		const exp = {
+			ast: 'scope',
+			vars: vars.value,
+			value
+		}
+
+		value.parent = exp
+		Object.values(exp.vars).forEach(v => v.parent = exp)
+
+		return exp
+	}
+
 List = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
@@ -179,7 +198,10 @@ StringLabelLiteral = '"' value:$(!'"' .)+ '"'
 	 return value
  }
 
-Label = label:(SymbolLiteral / StringLabelLiteral) d0:_ ":" d1:_ body:Form
+Label =
+	label:(SymbolLiteral / StringLabelLiteral)
+	d0:_ ":" d1:_
+	body:Form
 	{
 		if (body.ast === 'label') {
 			throw new Error('Doubled label')
