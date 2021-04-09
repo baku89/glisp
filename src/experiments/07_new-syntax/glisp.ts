@@ -49,12 +49,14 @@ interface ValueHashMap {
 	}
 }
 
-type IFn = (...params: Form[]) => Form
+type IFnJS = (...params: Form[]) => Form
+type IFnExp = (params: ExpScope['vars']) => Form
 
 interface ValueFn {
 	type: 'fn'
-	body: IFn
+	body: IFnJS | IFnExp
 	fnType: ValueFnType
+	isExp?: boolean
 }
 
 interface ValueLabel {
@@ -1005,62 +1007,9 @@ export function evalExp(exp: Exp): Value {
 		case 'scope':
 			return _eval(exp.value)
 		case 'list': {
-			// Create Function
-			/*
-				if (first.ast === 'symbol' && first.value === '=>') {
-					// Create a function
-					const [paramsDef, bodyDef] = rest
-
-					// Validate parameter part
-					if (paramsDef.ast !== 'specialList' && paramsDef.kind !== 'vector') {
-						const str = printForm(paramsDef)
-						throw new Error(
-							`Function parameters '${str}' must be a vector type`
-						)
-					}
-
-					const paramSymbols = paramsDef.items as ExpSymbol[]
-
-					// Create scope
-					const paramsHashMap = createHashMap(
-						Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
-					)
-
-					const fnScope = createList([
-						createSymbol('let'),
-						paramsHashMap,
-						cloneExp(bodyDef),
-					])
-
-					fnScope.parent = exp.parent
-
-					// Define function
-					const fn = (...params: Exp[]) => {
-						// Set params
-						paramSymbols.forEach(
-							(sym, i) => (paramsHashMap.value[sym.value] = params[i])
-						)
-
-						// Evaluate
-						const out = _eval(fnScope)
-
-						// Clean params
-						paramSymbols.forEach(sym =>
-							clearEvaluatedRecursively(paramsHashMap.value[sym.value])
-						)
-
-						return out
-					}
-
-					// Infer function type
-					const paramTypes = Array(paramSymbols.length).fill(TypeAll)
-					const outType = inferType(bodyDef)
-					const fnType = createFnType(paramTypes, outType, {
-						rest: paramsDef.rest,
-					})
-
-					return (exp.evaluated = createFn(fn, fnType))
-				} */
+			if (isListOf('=>', exp)) {
+				return defineFn(exp)
+			}
 
 			const fn = _eval(exp.value[0])
 
@@ -1072,14 +1021,19 @@ export function evalExp(exp: Exp): Value {
 			const fnType = fn.fnType
 			const fnBody = fn.body
 
-			const {params} = resolveParams(exp)
+			const {params, scope} = resolveParams(exp)
 
 			// Eval parameters at first
 			const evaluatedParams = params.value.map((p, i) =>
 				fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
 			)
 
-			const expanded = (exp.expanded = fnBody(...evaluatedParams))
+			const expanded = fn.isExp
+				? (fnBody as IFnExp)(scope)
+				: (fnBody as IFnJS)(...evaluatedParams)
+
+			exp.expanded = expanded
+
 			return isValue(expanded) ? expanded : _eval(expanded)
 		}
 		case 'vector': {
@@ -1089,6 +1043,48 @@ export function evalExp(exp: Exp): Value {
 		case 'hashMap':
 			return createHashMap(_.mapValues(exp.value, _eval))
 	}
+}
+
+function defineFn(exp: ExpList): ValueFn {
+	if (!isListOf('=>', exp)) {
+		throw new Error('This is not a function definition')
+	}
+
+	// Create a function
+	const [, paramsDef, bodyDef] = exp.value
+
+	// Validate parameter part
+	const params = evalExp(paramsDef)
+	if (!Array.isArray(params) && !isRestVector(params)) {
+		const str = printForm(paramsDef)
+		throw new Error(`Function parameters '${str}' must be a vector type`)
+	}
+
+	if (bodyDef.ast === 'label') {
+		const str = printForm(bodyDef)
+		throw new Error(`Function body '${str}' must not be labeled`)
+	}
+
+	// Create scope
+	const fnScope = createExpScope({}, bodyDef)
+	fnScope.parent = exp.parent
+
+	// Define function
+	const fn = (vars: ExpScope['vars']) => {
+		// Set params
+		fnScope.vars = vars
+
+		// Evaluate
+		const out = evalExp(fnScope)
+
+		// Clean params
+		_.values(fnScope.vars).forEach(clearEvaluatedRecursively)
+
+		return out
+	}
+	const outType = inferType(bodyDef)
+
+	return createFn(fn, params, outType, {isExp: true}).value
 }
 
 interface AssignResult<
@@ -1218,14 +1214,15 @@ function createFn(
 	body: (...params: any[]) => Form,
 	params: ValueFnType['params'],
 	out: ValueFnType['out'],
-	{lazyEval = undefined as undefined | boolean[]} = {}
+	{lazyEval = undefined as undefined | boolean[], isExp = false as boolean} = {}
 ): ExpValue<ValueFn> {
 	return {
 		ast: 'value',
 		value: {
 			type: 'fn',
-			body: body as IFn,
+			body: body as IFnJS | IFnExp,
 			fnType: createFnType(params, out, {lazyEval}),
+			isExp,
 		},
 	}
 }
@@ -1312,7 +1309,7 @@ function withLabel(label: string, body: ValueLabel['body']): ValueLabel {
 	}
 }
 
-function isListOf(sym: string, exp: Exp): exp is ExpList {
+function isListOf(sym: string, exp: Exp): boolean {
 	if (exp.ast === 'list') {
 		const [first] = exp.value
 		return first && first.ast === 'symbol' && first.value === sym
