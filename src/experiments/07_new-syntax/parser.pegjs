@@ -11,9 +11,7 @@ Program = d0:_ value:Form d1:_
 
 BlankProgram = _ { return null }
 
-Form = LabeledForm / NonLabeledForm
-
-NonLabeledForm = Void / Null / False / True / Number / String / Symbol /
+Form = Label / Void / Null / False / True / Number / String / Symbol /
 	List / Vector / HashMap
 
 Void = "Void"
@@ -155,7 +153,7 @@ Vector = "[" d0:_ values:(Form _)* rest:("..." _ Form _)? "]"
 		return exp
 	}
 
-HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
+HashMap = "{" d0:_ pairs:(Label _)* "}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
@@ -181,8 +179,12 @@ StringLabelLiteral = '"' value:$(!'"' .)+ '"'
 	 return value
  }
 
-LabeledForm = label:(SymbolLiteral / StringLabelLiteral) d0:_ ":" d1:_ body:NonLabeledForm
+Label = label:(SymbolLiteral / StringLabelLiteral) d0:_ ":" d1:_ body:Form
 	{
+		if (body.ast === 'label') {
+			throw new Error('Doubled label')
+		}
+
 		const exp = {
 			ast: 'label',
 			label,
