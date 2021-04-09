@@ -116,7 +116,7 @@ SymbolPath = str:SymbolPathLiteral
 		}
 	}
 
-SymbolPathLiteral = '`' str:$(!'`' .)* '`'
+SymbolPathLiteral = '`' str:$(!'`' .)+ '`'
 	{ return str }
 
 List = "(" d0:_ values:(Form _)* ")"
