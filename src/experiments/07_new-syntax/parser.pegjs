@@ -21,7 +21,7 @@ Void = "Void"
 	{
 		return {
 			ast: 'value',
-			value: {dataType: 'void'}
+			value: {type: 'void'}
 		}
 	}
 
