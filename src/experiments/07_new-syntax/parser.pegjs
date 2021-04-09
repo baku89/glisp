@@ -11,8 +11,9 @@ Program = d0:_ value:Form d1:_
 
 BlankProgram = _ { return null }
 
-Form =
-	LabeledForm / Void / Null / False / True / Number / String / Symbol /
+Form = LabeledForm / NonLabeledForm
+
+NonLabeledForm = Void / Null / False / True / Number / String / Symbol /
 	List / Vector / HashMap
 
 Void = "Void"
@@ -107,7 +108,7 @@ SymbolIdentifier = str:SymbolLiteral
 
 SymbolLiteral = $([a-z_+\-*/=?|&<>@]i [0-9a-z_+\-*/=?|&<>@]i*)
 
-SymbolPath = str:SymbolPathLiteral
+SymbolPath = '`' str:$(!'`' .)+ '`'
 	{
 		return {
 			ast: 'symbol',
@@ -115,9 +116,6 @@ SymbolPath = str:SymbolPathLiteral
 			str: '`' + str + '`'
 		}
 	}
-
-SymbolPathLiteral = '`' str:$(!'`' .)+ '`'
-	{ return str }
 
 List = "(" d0:_ values:(Form _)* ")"
 	{
@@ -178,7 +176,12 @@ HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
 		return exp
 	}
 
-LabeledForm = label:(SymbolLiteral / SymbolPathLiteral) d0:_ ":" d1:_ body:Form
+StringLabelLiteral = '"' value:$(!'"' .)+ '"'
+ {
+	 return value
+ }
+
+LabeledForm = label:(SymbolLiteral / StringLabelLiteral) d0:_ ":" d1:_ body:NonLabeledForm
 	{
 		const exp = {
 			ast: 'label',

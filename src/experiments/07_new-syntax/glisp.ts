@@ -60,7 +60,7 @@ interface ValueFn {
 interface ValueLabel {
 	type: 'label'
 	label: string
-	body: Value
+	body: Exclude<Value, ValueLabel>
 }
 
 interface ValueUnion {
@@ -139,7 +139,7 @@ interface ExpHashMap extends ExpBase {
 interface ExpLabel extends ExpBase {
 	ast: 'label'
 	label: string
-	body: Exp
+	body: Exclude<Exp, ExpLabel>
 	delimiters?: string[]
 }
 
@@ -558,6 +558,10 @@ function removeLabel(value: Value): Exclude<Value, ValueLabel> {
 	return isLabel(value) ? removeLabel(value.body) : value
 }
 
+function removeExpLabel(exp: Exp): Exclude<Exp, ExpLabel> {
+	return exp.ast === 'label' ? removeExpLabel(exp.body) : exp
+}
+
 function inferType(form: Form): Value {
 	if (isValue(form)) {
 		return form
@@ -800,7 +804,7 @@ export function evalExp(exp: Exp): Value {
 			return {
 				type: 'label',
 				label: exp.label,
-				body: _eval(exp.body),
+				body: _eval(exp.body) as ValueLabel['body'],
 			}
 		case 'value':
 			return exp.value
@@ -905,7 +909,9 @@ export function evalExp(exp: Exp): Value {
 	}
 }
 
-interface AssignResult<T extends Exp = Exp> {
+interface AssignResult<
+	T extends Exclude<Exp, ExpLabel> = Exclude<Exp, ExpLabel>
+> {
 	params: T
 	scope: ExpHashMap['value']
 }
@@ -930,7 +936,7 @@ function assignExp(target: Value, source: Exp): AssignResult {
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 			)
 		}
-		return {params: source, scope: {}}
+		return {params: removeExpLabel(source), scope: {}}
 	}
 
 	if (Array.isArray(target)) {
@@ -964,7 +970,7 @@ function assignExp(target: Value, source: Exp): AssignResult {
 					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 				)
 			}
-			return {params: source, scope: {}}
+			return {params: removeExpLabel(source), scope: {}}
 		case 'restVector': {
 			if (
 				source.ast !== 'vector' ||
@@ -1014,6 +1020,7 @@ function assignExp(target: Value, source: Exp): AssignResult {
 			return result
 		}
 		default:
+			console.log(target)
 			throw new Error('Cannot assign for this type for now!!!')
 	}
 }
@@ -1154,7 +1161,7 @@ export function printForm(form: Form): string {
 				const [d0, d1] = exp.delimiters || ['', '']
 				const label = canOmitQuote(exp.label)
 					? exp.label
-					: '`' + exp.label + '`'
+					: '"' + exp.label + '"'
 				const body = printExp(exp.body)
 				return label + d0 + ':' + d1 + body
 			}
@@ -1218,7 +1225,7 @@ export function printForm(form: Form): string {
 			case 'label': {
 				const label = canOmitQuote(value.label)
 					? value.label
-					: '`' + value.label + '`'
+					: '"' + value.label + '"'
 				const body = printValue(value.body)
 				return label + ':' + body
 			}
