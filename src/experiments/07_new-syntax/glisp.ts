@@ -314,6 +314,10 @@ function containsValue(outer: Value, inner: Value): boolean {
 		return true
 	}
 
+	if (isVoid(inner)) {
+		return true
+	}
+
 	if (isPrim(outer)) {
 		return isEqualValue(outer, inner)
 	}
@@ -324,10 +328,6 @@ function containsValue(outer: Value, inner: Value): boolean {
 			outer.length >= inner.length &&
 			_$.zipShorter(outer, inner).every(_.spread(containsValue))
 		)
-	}
-
-	if (isVoid(inner)) {
-		return true
 	}
 
 	switch (outer.type) {
@@ -404,7 +404,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 
 function uniteType(items: Value[]): Value {
 	if (items.length === 0) {
-		return TypeAll
+		return TypeVoid
 	}
 
 	const unionType = items.reduce((a, b) => {
@@ -431,6 +431,39 @@ function uniteType(items: Value[]): Value {
 	return unionType
 }
 
+function intersectType(items: Value[]): Value {
+	if (items.length === 0) {
+		return TypeAll
+	}
+
+	const result = items.reduce((a, b) => {
+		if (containsValue(a, b)) {
+			return b
+		}
+		if (containsValue(b, a)) {
+			return a
+		}
+
+		const aItems = isUnion(a) ? a.items : [a]
+		const bItems = isUnion(b) ? b.items : [b]
+
+		return {
+			type: 'union',
+			items: _.intersectionWith(aItems, bItems, isEqualValue),
+		}
+	}, TypeAll)
+
+	if (isUnion(result)) {
+		if (result.items.length === 0) {
+			return TypeVoid
+		}
+
+		return {...result}
+	}
+
+	return result
+}
+
 function wrapExp<T extends Value>(value: T): ExpValue<T> {
 	return {
 		ast: 'value',
@@ -452,6 +485,11 @@ const GlobalScope = createExpScope({
 	),
 	'@|': createFn(
 		(items: Value[]) => uniteType(items),
+		createRestVector([TypeAll]),
+		TypeAll
+	),
+	'@&': createFn(
+		(items: Value[]) => intersectType(items),
 		createRestVector([TypeAll]),
 		TypeAll
 	),
