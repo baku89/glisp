@@ -190,34 +190,28 @@ export function readStr(str: string): Exp {
 }
 
 function hasAncestor(target: Exp, ancestor: Exp): boolean {
-	return seek(target)
-
-	function seek(target: Exp): boolean {
-		if (target === ancestor) {
-			return true
-		}
-		if (!target.parent) {
-			return false
-		}
-		return seek(target.parent)
+	if (target === ancestor) {
+		return true
 	}
+	if (!target.parent) {
+		return false
+	}
+	return hasAncestor(target.parent, ancestor)
 }
 
 export function disconnectExp(exp: Exp): null {
-	switch (exp.ast) {
-		case 'value':
-			return null
-		case 'symbol':
-			if (exp.ref) {
-				// Clear reference
-				exp.ref.dep?.delete(exp)
-			}
-			return null
-	}
-
 	return disconnect(exp)
 
 	function disconnect(e: Exp): null {
+		if (e.dep) {
+			for (const d of e.dep) {
+				if (!hasAncestor(d, exp)) {
+					e.dep?.delete(d)
+					delete d.ref
+				}
+			}
+		}
+
 		switch (e.ast) {
 			case 'value':
 				return null
@@ -229,8 +223,6 @@ export function disconnectExp(exp: Exp): null {
 				}
 				return null
 			case 'list':
-				e.value.forEach(disconnect)
-				return null
 			case 'vector':
 				e.value.forEach(disconnect)
 				return null
