@@ -100,7 +100,7 @@ SymbolIdentifier = str:SymbolLiteral
 		return {
 			ast: 'symbol',
 			value: str,
-			str
+			quoted: false
 		}
 	}
 
@@ -111,7 +111,7 @@ SymbolPath = '`' str:$(!'`' .)+ '`'
 		return {
 			ast: 'symbol',
 			value: str,
-			str: '`' + str + '`'
+			quoted: true
 		}
 	}
 

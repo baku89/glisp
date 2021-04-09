@@ -114,7 +114,7 @@ interface ExpValue<T extends Value = Value> extends ExpBase {
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	value: string
-	str?: string
+	quoted?: boolean
 	ref?: Exp
 }
 
@@ -1166,13 +1166,12 @@ export function printForm(form: Form): string {
 		switch (exp.ast) {
 			case 'value':
 				return exp.str || printValue(exp.value)
-			case 'symbol':
-				if (exp.str) {
-					return exp.str
-				} else {
-					const value = exp.value
-					return canOmitQuote(value) ? value : '`' + value + '`'
-				}
+			case 'symbol': {
+				const value = exp.value
+				const quoted =
+					typeof exp.quoted === 'boolean' ? exp.quoted : canOmitQuote(value)
+				return quoted ? '`' + value + '`' : value
+			}
 			case 'list':
 				return printSeq('(', ')', exp.value, exp.delimiters)
 			case 'vector': {
