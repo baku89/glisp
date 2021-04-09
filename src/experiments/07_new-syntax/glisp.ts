@@ -5,9 +5,9 @@ import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
 
-function canOmitQuote(name: string) {
-	return (
-		name === '...' || name.match(/^[a-z_+\-*/=?|&<>@][0-9a-z_+\-*/=?|&<>@]*$/i)
+function shouldQuote(name: string) {
+	return !(
+		name === '...' || name.match(/^[a-z_+\-*=?|&<>@][0-9a-z_+\-*=?|&<>@]*$/i)
 	)
 }
 
@@ -88,6 +88,7 @@ interface ValueFnType {
 type Exp =
 	| ExpValue
 	| ExpSymbol
+	| ExpPath
 	| ExpScope
 	| ExpList
 	| ExpVector
@@ -96,7 +97,7 @@ type Exp =
 
 interface ExpBase {
 	parent?: ExpScope | ExpList | ExpVector | ExpHashMap | ExpLabel
-	dep?: Set<ExpSymbol>
+	dep?: Set<ExpSymbol | ExpPath>
 }
 
 interface ExpProgram {
@@ -118,6 +119,12 @@ interface ExpSymbol extends ExpBase {
 	ref?: Exp
 }
 
+interface ExpPath extends ExpBase {
+	ast: 'path'
+	value: ({value: string; quoted?: boolean} | '..' | '.')[]
+	ref?: Exp
+}
+
 interface ExpScope extends ExpBase {
 	ast: 'scope'
 	vars: {
@@ -130,6 +137,7 @@ interface ExpList extends ExpBase {
 	ast: 'list'
 	value: Exp[]
 	delimiters?: string[]
+	assigned?: AssignResult
 	expanded?: Form
 	evaluated?: Value
 }
@@ -208,6 +216,7 @@ export function readStr(str: string): Exp {
 	const program = parser.parse(str) as ExpProgram | null
 
 	if (program) {
+		console.log(program.value)
 		return program.value
 	} else {
 		return wrapExp(createVoid())
@@ -241,6 +250,7 @@ export function disconnectExp(exp: Exp): null {
 			case 'value':
 				return null
 			case 'symbol':
+			case 'path':
 				if (e.ref && !hasAncestor(e.ref, exp)) {
 					// Clear reference
 					e.ref.dep?.delete(e)
@@ -476,6 +486,11 @@ const GlobalScope = createExpScope({
 		createVariadicVector([TypeNumber]),
 		TypeNumber
 	),
+	pow: createFn(
+		Math.pow,
+		[withLabel('base', TypeNumber), withLabel('exponent', TypeNumber)],
+		TypeNumber
+	),
 	take: createFn(
 		(n: number, coll: Value[] | ValueRestVector) => {
 			if (Array.isArray(coll)) {
@@ -583,7 +598,8 @@ function inferType(form: Form): Value {
 		case 'value':
 			return form.value
 		case 'symbol':
-			return inferType(resolveSymbol(form))
+		case 'path':
+			return inferType(resolveRef(form))
 		case 'scope':
 			return inferType(form.value)
 		case 'list': {
@@ -600,6 +616,29 @@ function inferType(form: Form): Value {
 		case 'label':
 			return inferType(form.body)
 	}
+}
+
+function resolveParams(exp: ExpList): AssignResult<ExpVector> {
+	const [first, ...rest] = exp.value
+
+	const fn = evalExp(first)
+
+	if (!isFn(fn)) {
+		throw new Error('First element is not a function')
+	}
+
+	const fnType = fn.fnType
+
+	const paramsOriginal = createExpVector(rest, {setParent: false})
+	const assigned = assignExp(fnType.params, paramsOriginal)
+
+	if (assigned.params.ast !== 'vector') {
+		throw new Error('why??????????')
+	}
+
+	exp.assigned = assigned
+
+	return assigned as AssignResult<ExpVector>
 }
 
 function clearEvaluatedRecursively(exp: Exp) {
@@ -686,46 +725,105 @@ function isEqualValue(a: Value, b: Value): boolean {
 	}
 }
 
-function resolveSymbol(sym: ExpSymbol): Exclude<Exp, ExpSymbol> {
-	return resolve(sym, [])
+function resolveRef(
+	exp: ExpSymbol | ExpPath
+): Exclude<Exp, ExpSymbol | ExpPath> {
+	return resolve(exp, [])
 
 	function resolve(
-		sym: ExpSymbol,
-		trace: ExpSymbol[]
-	): Exclude<Exp, ExpSymbol> {
+		exp: ExpSymbol | ExpPath,
+		trace: (ExpSymbol | ExpPath)[]
+	): Exclude<Exp, ExpSymbol | ExpPath> {
 		// Check circular reference
-		if (trace.includes(sym)) {
+		if (trace.includes(exp)) {
 			const lastTrace = trace[trace.length - 1]
 			throw new Error(`Circular reference ${printForm(lastTrace)}`)
 		}
 
 		let ref: Exp | undefined
 
-		if (sym.ref) {
-			ref = sym.ref
+		if (exp.ref) {
+			ref = exp.ref
 		} else {
-			let parent: Exp | undefined = sym
+			if (exp.ast === 'symbol') {
+				let parent: Exp | undefined = exp
 
-			while ((parent = parent.parent)) {
-				if (parent.ast === 'scope') {
-					const {vars} = parent
-
-					if ((ref = vars[sym.value])) {
+				while ((parent = parent.parent)) {
+					if (parent.ast === 'scope' && (ref = parent.vars[exp.value])) {
 						break
+					}
+				}
+			} else {
+				// Path
+				if (!exp.parent) {
+					throw new Error(`Cannot resolve the symbol ${printForm(exp)}`)
+				}
+				ref = exp.parent
+				const pathList = [...exp.value]
+				const firstEl = pathList[0]
+
+				if (typeof firstEl !== 'string') {
+					const firstSym = createExpSymbol(firstEl.value)
+					firstSym.parent = exp.parent
+					ref = resolveRef(firstSym)
+					pathList.shift()
+				}
+
+				for (const el of pathList) {
+					switch (el) {
+						case '.':
+							continue
+						case '..':
+							if (!ref.parent) {
+								throw new Error(`Cannot resolve the symbol ${printForm(exp)}`)
+							}
+							ref = ref.parent
+							break
+						default: {
+							const name = el.value
+							switch (ref.ast) {
+								case 'scope':
+									if (!ref.vars[name]) {
+										throw new Error(
+											`Cannot resolve the symbol ${printForm(exp)}`
+										)
+									}
+									ref = ref.vars[name]
+									break
+								case 'list': {
+									const {scope} = resolveParams(ref)
+									if (!scope[name]) {
+										throw new Error(
+											`Cannot resolve the symbol ${printForm(exp)}`
+										)
+									}
+									ref = scope[name]
+									break
+								}
+								case 'hashMap':
+									if (!ref.value[name]) {
+										throw new Error(
+											`Cannot resolve the symbol ${printForm(exp)}`
+										)
+									}
+									ref = ref.value[name]
+									break
+							}
+						}
 					}
 				}
 			}
 
 			if (!ref) {
-				throw new Error(`Symbol ${printForm(sym)} is not defined`)
+				throw new Error(`Symbol ${printForm(exp)} is not defined`)
 			}
 
-			sym.ref = ref
-			ref.dep = (ref.dep || new Set()).add(sym)
+			exp.ref = ref
+			ref.dep = (ref.dep || new Set()).add(exp)
 		}
 
-		if (ref.ast === 'symbol') {
-			return resolve(ref, [...trace, sym])
+		if (ref.ast === 'symbol' || ref.ast === 'path') {
+			return resolve(ref, [...trace, exp])
 		}
 
 		return ref
@@ -742,7 +840,6 @@ export class Interpreter {
 		this.vars['def'] = createFn(
 			(value: Exp) => {
 				if (value.ast !== 'label') {
-					console.log(value)
 					throw new Error('no label')
 				}
 				this.vars[value.label] = value.body
@@ -819,15 +916,14 @@ export function evalExp(exp: Exp): Value {
 			}
 		case 'value':
 			return exp.value
-		case 'symbol': {
-			const ref = resolveSymbol(exp)
+		case 'symbol':
+		case 'path': {
+			const ref = resolveRef(exp)
 			return _eval(ref)
 		}
 		case 'scope':
 			return _eval(exp.value)
 		case 'list': {
-			const [first, ...rest] = exp.value
-
 			// Create Function
 			/*
 				if (first.ast === 'symbol' && first.value === '=>') {
@@ -885,28 +981,20 @@ export function evalExp(exp: Exp): Value {
 					return (exp.evaluated = createFn(fn, fnType))
 				} */
 
-			const fn = _eval(first)
+			const fn = _eval(exp.value[0])
 
-			let fnType: ValueFnType
-			let fnBody: IFn
-
-			if (isFn(fn)) {
-				// Function application
-				fnType = fn.fnType
-				fnBody = fn.body
-			} else {
+			if (!isFn(fn)) {
 				throw new Error('First element is not a function')
+				// Function application
 			}
 
-			const params = createExpVector(rest, {setParent: false})
-			const assignedParams = assignExp(fnType.params, params).params
+			const fnType = fn.fnType
+			const fnBody = fn.body
 
-			if (assignedParams.ast !== 'vector') {
-				throw new Error('why??????????')
-			}
+			const {params} = resolveParams(exp)
 
 			// Eval parameters at first
-			const evaluatedParams = assignedParams.value.map((p, i) =>
+			const evaluatedParams = params.value.map((p, i) =>
 				fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
 			)
 
@@ -1033,7 +1121,6 @@ function assignExp(target: Value, source: Exp): AssignResult {
 			return result
 		}
 		default:
-			console.log(target)
 			throw new Error('Cannot assign for this type for now!!!')
 	}
 }
@@ -1140,6 +1227,14 @@ function createHashMap(value: ValueHashMap['value']): ValueHashMap {
 	}
 }
 
+function withLabel(label: string, body: ValueLabel['body']): ValueLabel {
+	return {
+		type: 'label',
+		label,
+		body,
+	}
+}
+
 function isListOf(sym: string, exp: Exp): exp is ExpList {
 	if (exp.ast === 'list') {
 		const [first] = exp.value
@@ -1149,12 +1244,8 @@ function isListOf(sym: string, exp: Exp): exp is ExpList {
 }
 
 function getName(exp: Exp): string | null {
-	if (
-		exp.parent?.ast === 'hashMap' &&
-		exp.parent.parent &&
-		isListOf('let', exp.parent.parent)
-	) {
-		return _.findKey(exp.parent.value, e => e === exp) || null
+	if (exp.parent?.ast === 'scope') {
+		return _.findKey(exp.parent.vars, e => e === exp) || null
 	}
 	return null
 }
@@ -1169,8 +1260,25 @@ export function printForm(form: Form): string {
 			case 'symbol': {
 				const value = exp.value
 				const quoted =
-					typeof exp.quoted === 'boolean' ? exp.quoted : canOmitQuote(value)
+					typeof exp.quoted === 'boolean' ? exp.quoted : shouldQuote(value)
 				return quoted ? '`' + value + '`' : value
+			}
+			case 'path':
+				return exp.value
+					.map(el => {
+						if (typeof el === 'string') {
+							return el
+						}
+						const value = el.value
+						const quoted =
+							typeof el.quoted === 'boolean' ? el.quoted : shouldQuote(value)
+						return quoted ? '`' + value + '`' : value
+					})
+					.join('/')
+			case 'scope': {
+				const vars = printExp(createExpHashMap(exp.vars))
+				const value = printExp(exp.value)
+				return `(let ${vars} ${value})`
 			}
 			case 'list':
 				return printSeq('(', ')', exp.value, exp.delimiters)
@@ -1189,9 +1297,7 @@ export function printForm(form: Form): string {
 			}
 			case 'label': {
 				const [d0, d1] = exp.delimiters || ['', '']
-				const label = canOmitQuote(exp.label)
-					? exp.label
-					: '"' + exp.label + '"'
+				const label = shouldQuote(exp.label) ? exp.label : '"' + exp.label + '"'
 				const body = printExp(exp.body)
 				return label + d0 + ':' + d1 + body
 			}
@@ -1253,7 +1359,7 @@ export function printForm(form: Form): string {
 				return `(=> ${printValue(params)} ${printValue(out)})`
 			}
 			case 'label': {
-				const label = canOmitQuote(value.label)
+				const label = shouldQuote(value.label)
 					? value.label
 					: '"' + value.label + '"'
 				const body = printValue(value.body)

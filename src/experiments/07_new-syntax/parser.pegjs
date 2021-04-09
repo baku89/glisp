@@ -11,8 +11,11 @@ Program = d0:_ value:Form d1:_
 
 BlankProgram = _ { return null }
 
-Form = Label / Void / Null / False / True / Number / String / Symbol /
-	Scope / List / Vector / HashMap
+Form = Label
+	/ Void / Null / False / True
+	/ Number / String
+	/ Path / Symbol / Scope
+	/ List / Vector / HashMap
 
 Void = "Void"
 	{
@@ -93,7 +96,7 @@ String = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol = SymbolIdentifier / SymbolPath
+Symbol = SymbolIdentifier / SymbolQuoted
 
 SymbolIdentifier = str:SymbolLiteral
 	{ 
@@ -104,9 +107,9 @@ SymbolIdentifier = str:SymbolLiteral
 		}
 	}
 
-SymbolLiteral = $([a-z_+\-*/=?|&<>@]i [0-9a-z_+\-*/=?|&<>@]i*)
+SymbolLiteral = $([a-z_+\-*=?|&<>@]i [0-9a-z_+\-*=?|&<>@]i*)
 
-SymbolPath = '`' str:$(!'`' .)+ '`'
+SymbolQuoted = '`' str:$(!'`' .)+ '`'
 	{
 		return {
 			ast: 'symbol',
@@ -115,6 +118,20 @@ SymbolPath = '`' str:$(!'`' .)+ '`'
 		}
 	}
 
+Path = elements:(PathElement "/")+ last:PathElement
+ {
+	 return {
+		 ast: 'path',
+		 value: [...elements.map(e => e[0]), last]
+	 }
+ }
+
+PathElement = sym:(Symbol / ".." / ".")
+	{
+		return typeof sym === 'string'
+			? sym
+			: {value: sym.value, quoted: sym.quoted}
+	}
 
 Scope = "(" d0:_ "let" d1:_ vars:HashMap d2:_ value:Form d3:_ ")"
 	{
