@@ -640,36 +640,54 @@ function isEqualValue(a: Value, b: Value): boolean {
 	}
 }
 
-function resolveSymbol(sym: ExpSymbol): Exp {
-	if (sym.ref) {
-		return sym.ref
-	}
+function resolveSymbol(sym: ExpSymbol): Exclude<Exp, ExpSymbol> {
+	return resolve(sym, [])
 
-	let ref: Exp | undefined
-	let parent: Exp | undefined = sym
-
-	while ((parent = parent.parent)) {
-		if (isListOf('let', parent)) {
-			const vars = parent.value[1]
-
-			if (vars.ast !== 'hashMap') {
-				throw new Error('2nd parameter of let should be HashMap')
-			}
-
-			if ((ref = vars.value[sym.value])) {
-				break
-			}
+	function resolve(
+		sym: ExpSymbol,
+		trace: ExpSymbol[]
+	): Exclude<Exp, ExpSymbol> {
+		// Check circular reference
+		if (trace.includes(sym)) {
+			const lastTrace = trace[trace.length - 1]
+			throw new Error(`Circular reference ${printForm(lastTrace)}`)
 		}
+
+		let ref: Exp | undefined
+
+		if (sym.ref) {
+			ref = sym.ref
+		} else {
+			let parent: Exp | undefined = sym
+
+			while ((parent = parent.parent)) {
+				if (isListOf('let', parent)) {
+					const vars = parent.value[1]
+
+					if (vars.ast !== 'hashMap') {
+						throw new Error('2nd parameter of let should be HashMap')
+					}
+
+					if ((ref = vars.value[sym.value])) {
+						break
+					}
+				}
+			}
+
+			if (!ref) {
+				throw new Error(`Symbol ${printForm(sym)} is not defined`)
+			}
+
+			sym.ref = ref
+			ref.dep = (ref.dep || new Set()).add(sym)
+		}
+
+		if (ref.ast === 'symbol') {
+			return resolve(ref, [...trace, sym])
+		}
+
+		return ref
 	}
-
-	if (!ref) {
-		throw new Error(`Symbol ${printForm(sym)} is not defined`)
-	}
-
-	sym.ref = ref
-	ref.dep = (ref.dep || new Set()).add(sym)
-
-	return ref
 }
 
 export class Interpreter {
@@ -735,41 +753,31 @@ function typeCount(value: Value): number {
 }
 
 export function evalExp(exp: Exp): Value {
-	return evalWithTrace(exp, [])
+	// Use cache
+	if ('evaluated' in exp && exp.evaluated) {
+		return exp.evaluated
+	}
 
-	function evalWithTrace(exp: Exp, trace: Exp[]): Value {
-		// Check circular reference
-		if (trace.includes(exp)) {
-			const lastTrace = trace[trace.length - 1]
-			throw new Error(`Circular reference ${printForm(lastTrace)}`)
+	const _eval = (e: Exp) => {
+		const evaluated = evalExp(e)
+		if (e.ast === 'list' || e.ast === 'vector' || e.ast === 'hashMap') {
+			e.evaluated = evaluated
 		}
-		trace = [...trace, exp]
+		return evaluated
+	}
 
-		// Use cache
-		if ('evaluated' in exp && exp.evaluated) {
-			return exp.evaluated
+	switch (exp.ast) {
+		case 'value':
+			return exp.value
+		case 'symbol': {
+			const ref = resolveSymbol(exp)
+			return _eval(ref)
 		}
+		case 'list': {
+			const [first, ...rest] = exp.value
 
-		const _eval = (e: Exp) => {
-			const evaluated = evalWithTrace(e, trace)
-			if (e.ast === 'list' || e.ast === 'vector' || e.ast === 'hashMap') {
-				e.evaluated = evaluated
-			}
-			return evaluated
-		}
-
-		switch (exp.ast) {
-			case 'value':
-				return exp.value
-			case 'symbol': {
-				const ref = resolveSymbol(exp)
-				return _eval(ref)
-			}
-			case 'list': {
-				const [first, ...rest] = exp.value
-
-				// Create Function
-				/*
+			// Create Function
+			/*
 				if (first.ast === 'symbol' && first.value === '=>') {
 					// Create a function
 					const [paramsDef, bodyDef] = rest
@@ -825,41 +833,40 @@ export function evalExp(exp: Exp): Value {
 					return (exp.evaluated = createFn(fn, fnType))
 				} */
 
-				const fn = _eval(first)
+			const fn = _eval(first)
 
-				let fnType: ValueFnType
-				let fnBody: IFn
+			let fnType: ValueFnType
+			let fnBody: IFn
 
-				if (isFn(fn)) {
-					// Function application
-					fnType = fn.fnType
-					fnBody = fn.body
-				} else {
-					throw new Error('First element is not a function')
-				}
-
-				const params = createSpecialListVector(rest, {setParent: false})
-				const assignedParams = assignExp(fnType.params, params)
-
-				if (assignedParams.ast !== 'vector') {
-					throw new Error('why??????????')
-				}
-
-				// Eval parameters at first
-				const evaluatedParams = assignedParams.value.map((p, i) =>
-					fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
-				)
-
-				const expanded = (exp.expanded = fnBody(...evaluatedParams))
-				return isValue(expanded) ? expanded : _eval(expanded)
+			if (isFn(fn)) {
+				// Function application
+				fnType = fn.fnType
+				fnBody = fn.body
+			} else {
+				throw new Error('First element is not a function')
 			}
-			case 'vector': {
-				const vec = exp.value.map(_eval)
-				return exp.rest ? createVariadicVector(vec) : vec
+
+			const params = createSpecialListVector(rest, {setParent: false})
+			const assignedParams = assignExp(fnType.params, params)
+
+			if (assignedParams.ast !== 'vector') {
+				throw new Error('why??????????')
 			}
-			case 'hashMap':
-				return createHashMap(_.mapValues(exp.value, _eval))
+
+			// Eval parameters at first
+			const evaluatedParams = assignedParams.value.map((p, i) =>
+				fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
+			)
+
+			const expanded = (exp.expanded = fnBody(...evaluatedParams))
+			return isValue(expanded) ? expanded : _eval(expanded)
 		}
+		case 'vector': {
+			const vec = exp.value.map(_eval)
+			return exp.rest ? createVariadicVector(vec) : vec
+		}
+		case 'hashMap':
+			return createHashMap(_.mapValues(exp.value, _eval))
 	}
 }
 
