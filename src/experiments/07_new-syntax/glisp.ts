@@ -492,7 +492,7 @@ const GlobalScope = createList([
 ])
 
 function isValue(form: Form): form is Value {
-	return isPrim(form) || Array.isArray(form) || 'valueType' in form
+	return isPrim(form) || Array.isArray(form) || 'type' in form
 }
 
 function isPrim(value: Value | Exp): value is ValuePrim {
@@ -1031,12 +1031,12 @@ function getName(exp: Exp): string | null {
 }
 
 export function printForm(form: Form): string {
-	return isValue(form) ? printData(form) : printExp(form)
+	return isValue(form) ? printValue(form) : printExp(form)
 
 	function printExp(exp: Exp): string {
 		switch (exp.ast) {
 			case 'value':
-				return exp.str || printData(exp.value)
+				return exp.str || printValue(exp.value)
 			case 'symbol':
 				if (exp.str) {
 					return exp.str
@@ -1064,7 +1064,7 @@ export function printForm(form: Form): string {
 		}
 	}
 
-	function printData(value: Value): string {
+	function printValue(value: Value): string {
 		// Print prim
 		switch (value) {
 			case null:
@@ -1112,7 +1112,7 @@ export function printForm(form: Form): string {
 			case 'fn': {
 				const params = value.fnType.params
 				const out = value.fnType.out
-				return `(=> ${printData(params)} ${printData(out)})`
+				return `(=> ${printValue(params)} ${printValue(out)})`
 			}
 			case 'union': {
 				if (value.original) {
