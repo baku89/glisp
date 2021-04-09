@@ -163,8 +163,7 @@ HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
 		const delimiters = [d0] // as string[]
 
 		for (const [pair, d1] of pairs) {
-			value[pair.label.str] = pair
-			delete pair.label
+			value[pair.label] = pair.body
 			delimiters.push(d1)
 		}
 
@@ -179,13 +178,18 @@ HashMap = "{" d0:_ pairs:(LabeledForm _)* "}"
 		return exp
 	}
 
-LabeledForm = str:(SymbolLiteral / SymbolPathLiteral) d0:_ ":" d1:_ form:Form
+LabeledForm = label:(SymbolLiteral / SymbolPathLiteral) d0:_ ":" d1:_ body:Form
 	{
-		form.label = {
-			str,
+		const exp = {
+			ast: 'label',
+			label,
+			body,
 			delimiters: [d0, d1]
 		}
-		return form
+
+		body.parent = exp
+
+		return exp
 	}
 
 Comment = $(";" [^\n\r]*)

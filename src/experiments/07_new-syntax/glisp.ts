@@ -22,6 +22,7 @@ type Value =
 	| ValueRestVector
 	| ValueHashMap
 	| ValueFn
+	| ValueLabel
 	| ValueUnion
 	| ValueInfUnion
 	| ValueFnType
@@ -56,6 +57,12 @@ interface ValueFn {
 	fnType: ValueFnType
 }
 
+interface ValueLabel {
+	type: 'label'
+	label: string
+	body: Value
+}
+
 interface ValueUnion {
 	type: 'union'
 	items: Value[]
@@ -78,15 +85,11 @@ interface ValueFnType {
 }
 
 // Exp
-type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap
+type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap | ExpLabel
 
 interface ExpBase {
-	parent?: ExpList | ExpVector | ExpHashMap
+	parent?: ExpList | ExpVector | ExpHashMap | ExpLabel
 	dep?: Set<ExpSymbol>
-	label?: {
-		str: string
-		delimiters?: string[]
-	}
 }
 
 interface ExpProgram {
@@ -131,6 +134,13 @@ interface ExpHashMap extends ExpBase {
 	}
 	delimiters?: string[]
 	evaluated?: ValueHashMap
+}
+
+interface ExpLabel extends ExpBase {
+	ast: 'label'
+	label: string
+	body: Exp
+	delimiters?: string[]
 }
 
 function wrapTypeInfUnion(value: ValueInfUnion) {
@@ -229,6 +239,9 @@ export function disconnectExp(exp: Exp): null {
 			case 'hashMap':
 				_.values(e.value).forEach(disconnect)
 				return null
+			case 'label':
+				disconnect(e.body)
+				return null
 		}
 	}
 }
@@ -264,6 +277,8 @@ function createFnType(
 }
 
 function containsValue(outer: Value, inner: Value): boolean {
+	inner = removeLabel(inner)
+
 	if (outer === inner) {
 		return true
 	}
@@ -309,6 +324,8 @@ function containsValue(outer: Value, inner: Value): boolean {
 					containsValue(outer.value[key], iv)
 				)
 			)
+		case 'label':
+			return containsValue(outer.body, inner)
 		case 'all':
 			return true
 		case 'infUnion':
@@ -530,6 +547,14 @@ function isFnType(value: Value): value is ValueFnType {
 	return !isPrim(value) && !Array.isArray(value) && value.type === 'fnType'
 }
 
+function isLabel(value: Value): value is ValueLabel {
+	return !isPrim(value) && !Array.isArray(value) && value.type === 'label'
+}
+
+function removeLabel(value: Value): Exclude<Value, ValueLabel> {
+	return isLabel(value) ? removeLabel(value.body) : value
+}
+
 function inferType(form: Form): Value {
 	if (isValue(form)) {
 		return form
@@ -551,6 +576,8 @@ function inferType(form: Form): Value {
 			return form.value.map(inferType)
 		case 'hashMap':
 			return createHashMap(_.mapValues(form.value, inferType))
+		case 'label':
+			return inferType(form.body)
 	}
 }
 
@@ -574,6 +601,8 @@ function clearEvaluatedRecursively(exp: Exp) {
 }
 
 function isEqualValue(a: Value, b: Value): boolean {
+	b = removeLabel(b)
+
 	if (isPrim(a)) {
 		if (
 			typeof a === 'number' &&
@@ -610,10 +639,14 @@ function isEqualValue(a: Value, b: Value): boolean {
 			return (
 				isHashMap(b) &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
-				_.toPairs(a.value).every(([key, av]) => isEqualValue(av, b.value[key]))
+				_.toPairs(a.value).every(([key, av]) =>
+					isEqualValue(av, (b as ValueHashMap).value[key])
+				)
 			)
 		case 'fn':
 			return isFn(b) && a.body === b.body
+		case 'label':
+			return isEqualValue(a.body, b)
 		case 'union': {
 			return (
 				isUnion(b) &&
@@ -691,11 +724,10 @@ export class Interpreter {
 
 		this.vars.value['def'] = createFn(
 			(value: Exp) => {
-				if (!value.label) {
+				if (value.ast !== 'label') {
 					throw new Error('no label')
 				}
-				this.vars.value[value.label.str] = value
-				delete value.label
+				this.vars.value[value.label] = value.body
 				value.parent = this.vars
 				return value
 			},
@@ -724,6 +756,8 @@ function typeCount(value: Value): number {
 	}
 
 	switch (value.type) {
+		case 'label':
+			return typeCount(value.body)
 		case 'void':
 			return 0
 		case 'fn':
@@ -759,6 +793,12 @@ export function evalExp(exp: Exp): Value {
 	}
 
 	switch (exp.ast) {
+		case 'label':
+			return {
+				type: 'label',
+				label: exp.label,
+				body: _eval(exp.body),
+			}
 		case 'value':
 			return exp.value
 		case 'symbol': {
@@ -1058,6 +1098,14 @@ export function printForm(form: Form): string {
 				}
 				return printSeq('[', ']', value, delimiters)
 			}
+			case 'label': {
+				const [d0, d1] = exp.delimiters || ['', '']
+				const label = canOmitQuote(exp.label)
+					? exp.label
+					: '`' + exp.label + '`'
+				const body = printExp(exp.body)
+				return label + d0 + ':' + d1 + body
+			}
 			default:
 				throw new Error('Invalid specialList and cannot print it')
 		}
@@ -1098,9 +1146,11 @@ export function printForm(form: Form): string {
 			}
 			case 'hashMap': {
 				const pairs = _.entries(value.value)
-				const coll = pairs.map(([label, v]) => ({
-					...wrapExp(v),
-					...{label: {str: label, delimiters: ['', ' ']}},
+				const coll: ExpLabel[] = pairs.map(([label, body]) => ({
+					ast: 'label',
+					label,
+					body: wrapExp(body),
+					delimiters: ['', ' '],
 				}))
 				const delimiters =
 					pairs.length === 0
@@ -1112,6 +1162,13 @@ export function printForm(form: Form): string {
 				const params = value.fnType.params
 				const out = value.fnType.out
 				return `(=> ${printValue(params)} ${printValue(out)})`
+			}
+			case 'label': {
+				const label = canOmitQuote(value.label)
+					? value.label
+					: '`' + value.label + '`'
+				const body = printValue(value.body)
+				return label + ':' + body
 			}
 			case 'union': {
 				if (value.original) {
