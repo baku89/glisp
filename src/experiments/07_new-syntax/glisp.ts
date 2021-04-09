@@ -407,9 +407,9 @@ function wrapExp<T extends Value>(value: T): ExpValue<T> {
 	}
 }
 
-const GlobalScope = createList([
-	createSymbol('let'),
-	createSpecialListHashMap({
+const GlobalScope = createExpList([
+	createExpSymbol('let'),
+	createExpHashMap({
 		Boolean: wrapTypeUnion(TypeBoolean),
 		Number: wrapTypeInfUnion(TypeNumber),
 		PosNumber: wrapTypeInfUnion(TypePosNumber),
@@ -428,7 +428,10 @@ const GlobalScope = createList([
 		),
 		'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
 		'<-': createFn(
-			(type: Value, value: Exp) => assignExp(type, value),
+			(type: Value, value: Exp) => {
+				const {params, scope} = assignExp(type, value)
+				return createExpHashMap({params, scope: createExpHashMap(scope)})
+			},
 			[TypeAll, TypeAll],
 			TypeAll,
 			{
@@ -720,7 +723,7 @@ export class Interpreter {
 	private vars: ExpHashMap
 
 	constructor() {
-		this.vars = createSpecialListHashMap({})
+		this.vars = createExpHashMap({})
 
 		this.vars.value['def'] = createFn(
 			(value: Exp) => {
@@ -736,7 +739,7 @@ export class Interpreter {
 			{lazyEval: [true]}
 		)
 
-		this.scope = createList([createSymbol('let'), this.vars])
+		this.scope = createExpList([createExpSymbol('let'), this.vars])
 		this.scope.parent = GlobalScope
 	}
 
@@ -878,8 +881,8 @@ export function evalExp(exp: Exp): Value {
 				throw new Error('First element is not a function')
 			}
 
-			const params = createSpecialListVector(rest, {setParent: false})
-			const assignedParams = assignExp(fnType.params, params)
+			const params = createExpVector(rest, {setParent: false})
+			const assignedParams = assignExp(fnType.params, params).params
 
 			if (assignedParams.ast !== 'vector') {
 				throw new Error('why??????????')
@@ -902,7 +905,23 @@ export function evalExp(exp: Exp): Value {
 	}
 }
 
-function assignExp(target: Value, source: Exp): Exp {
+interface AssignResult<T extends Exp = Exp> {
+	params: T
+	scope: ExpHashMap['value']
+}
+
+function assignExp(target: Value, source: Exp): AssignResult {
+	if (isLabel(target)) {
+		const {params, scope} = assignExp(target.body, source)
+		return {
+			params,
+			scope: {
+				...scope,
+				[target.label]: params,
+			},
+		}
+	}
+
 	const sourceType = inferType(source)
 
 	if (isPrim(target)) {
@@ -911,18 +930,28 @@ function assignExp(target: Value, source: Exp): Exp {
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 			)
 		}
-		return source
+		return {params: source, scope: {}}
 	}
 
 	if (Array.isArray(target)) {
-		if (source.ast !== 'vector' || !containsValue(target, sourceType)) {
+		if (source.ast !== 'vector' || target.length > source.value.length) {
 			throw new Error(
 				`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 			)
 		}
-		return createSpecialListVector(_.take(source.value, target.length), {
-			setParent: false,
-		})
+
+		const result: AssignResult<ExpVector> = {
+			params: createExpVector([]),
+			scope: {},
+		}
+
+		for (let i = 0; i < target.length; i++) {
+			const {params, scope} = assignExp(target[i], source.value[i])
+			result.params.value.push(params)
+			result.scope = {...result.scope, ...scope}
+		}
+
+		return result
 	}
 
 	switch (target.type) {
@@ -935,7 +964,7 @@ function assignExp(target: Value, source: Exp): Exp {
 					`Cannot assign '${printForm(source)}' to '${printForm(target)}'`
 				)
 			}
-			return source
+			return {params: source, scope: {}}
 		case 'restVector': {
 			if (
 				source.ast !== 'vector' ||
@@ -947,16 +976,45 @@ function assignExp(target: Value, source: Exp): Exp {
 				)
 			}
 			const restPos = target.value.length - 1
-			const fixedPart = _.take(source.value, restPos)
-			const restPart = createSpecialListVector(source.value.slice(restPos), {
+
+			const result: AssignResult<ExpVector> = {
+				params: createExpVector([]),
+				scope: {},
+			}
+
+			// Capture fixed part
+			for (let i = 0; i < restPos; i++) {
+				const {params, scope} = assignExp(target.value[i], source.value[i])
+				result.params.value.push(params)
+				result.scope = {...result.scope, ...scope}
+			}
+
+			// Capture rest part
+			const restCount = source.value.length - restPos
+			let restTarget = target.value[target.value.length - 1]
+			let label: string | undefined = undefined
+
+			if (isLabel(restTarget)) {
+				label = restTarget.label
+				restTarget = removeLabel(restTarget)
+			}
+
+			const restTargetVector = Array(restCount).fill(restTarget)
+			const restSourceVector = createExpVector(source.value.slice(restPos), {
 				setParent: false,
 			})
-			return createSpecialListVector([...fixedPart, restPart], {
-				setParent: false,
-			})
+
+			const {params} = assignExp(restTargetVector, restSourceVector)
+			result.params.value.push(params)
+
+			if (label) {
+				result.scope[label] = params
+			}
+
+			return result
 		}
 		default:
-			throw new Error('Cannot assign!!!')
+			throw new Error('Cannot assign for this type for now!!!')
 	}
 }
 
@@ -965,7 +1023,7 @@ function createVoid(): ValueVoid {
 	return {type: 'void'}
 }
 
-function createSymbol(value: string): ExpSymbol {
+function createExpSymbol(value: string): ExpSymbol {
 	return {
 		ast: 'symbol',
 		value,
@@ -988,7 +1046,7 @@ function createFn(
 	}
 }
 
-function createList(value: Exp[], {setParent = true} = {}): ExpList {
+function createExpList(value: Exp[], {setParent = true} = {}): ExpList {
 	const exp: ExpList = {
 		ast: 'list',
 		value,
@@ -1001,10 +1059,7 @@ function createList(value: Exp[], {setParent = true} = {}): ExpList {
 	return exp
 }
 
-function createSpecialListVector(
-	value: Exp[],
-	{setParent = true, rest = false} = {}
-) {
+function createExpVector(value: Exp[], {setParent = true, rest = false} = {}) {
 	const exp: ExpVector = {
 		ast: 'vector',
 		value,
@@ -1018,10 +1073,7 @@ function createSpecialListVector(
 	return exp
 }
 
-function createSpecialListHashMap(
-	value: ExpHashMap['value'],
-	{setParent = true} = {}
-) {
+function createExpHashMap(value: ExpHashMap['value'], {setParent = true} = {}) {
 	const exp: ExpHashMap = {
 		ast: 'hashMap',
 		value,
@@ -1093,7 +1145,7 @@ export function printForm(form: Form): string {
 					'',
 				]
 				if (exp.rest) {
-					value.splice(-1, 0, createSymbol('...'))
+					value.splice(-1, 0, createExpSymbol('...'))
 					delimiters.push('')
 				}
 				return printSeq('[', ']', value, delimiters)
@@ -1126,7 +1178,7 @@ export function printForm(form: Form): string {
 			case 'number':
 				return value.toString()
 			case 'string':
-				return value
+				return '"' + value + '"'
 		}
 
 		if (Array.isArray(value)) {
@@ -1141,7 +1193,7 @@ export function printForm(form: Form): string {
 			case 'restVector': {
 				const val: Form[] = [...value.value]
 				const delimiters = ['', ...Array(val.length - 1).fill(' '), '', '']
-				val.splice(-1, 0, createSymbol('...'))
+				val.splice(-1, 0, createExpSymbol('...'))
 				return printSeq('[', ']', val, delimiters)
 			}
 			case 'hashMap': {
