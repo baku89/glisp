@@ -6,9 +6,7 @@ import _$ from '@/lodash-ext'
 import ParserDefinition from './parser.pegjs'
 
 function shouldQuote(name: string) {
-	return !(
-		name === '...' || name.match(/^[a-z_+\-*=?|&<>@][0-9a-z_+\-*=?|&<>@]*$/i)
-	)
+	return !name.match(/^\.\.\.|[a-z_+\-*=?|&<>@][0-9a-z_+\-*=?|&<>@]*$/i)
 }
 
 type Form = Exp | Value
@@ -1448,7 +1446,7 @@ export function printForm(form: Form): string {
 			}
 			case 'label': {
 				const [d0, d1] = exp.delimiters || ['', '']
-				const label = shouldQuote(exp.label) ? exp.label : '"' + exp.label + '"'
+				const label = shouldQuote(exp.label) ? `"${exp.label}"` : exp.label
 				const body = printExp(exp.body)
 				return label + d0 + ':' + d1 + body
 			}
@@ -1511,8 +1509,8 @@ export function printForm(form: Form): string {
 			}
 			case 'label': {
 				const label = shouldQuote(value.label)
-					? value.label
-					: '"' + value.label + '"'
+					? `"${value.label}"`
+					: value.label
 				const body = printValue(value.body)
 				return label + ':' + body
 			}
