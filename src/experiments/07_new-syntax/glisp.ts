@@ -842,7 +842,7 @@ function resolveRef(
 
 				if (typeof firstEl !== 'string') {
 					const firstSym = createExpSymbol(firstEl.value)
-					firstSym.parent = exp.parent
+					setAsParent(exp.parent, firstSym)
 					ref = resolveRef(firstSym)
 					pathList.shift()
 				}
@@ -921,7 +921,7 @@ export class Interpreter {
 					throw new Error('no label')
 				}
 				this.vars[value.label] = value.body
-				value.parent = this.scope
+				setAsParent(this.scope, value)
 				return value
 			},
 			[TypeAll],
@@ -930,13 +930,22 @@ export class Interpreter {
 		)
 
 		this.scope = createExpScope(this.vars)
-		this.scope.parent = GlobalScope
+		setAsParent(GlobalScope, this.scope)
 	}
 
 	evalExp(exp: Exp): Value {
-		exp.parent = this.scope
+		setAsParent(this.scope, exp)
 		return evalExp(exp)
 	}
+}
+
+function setAsParent(parent: Exclude<Exp['parent'], undefined>, child: Exp) {
+	if (child.parent) {
+		throw new Error(
+			`Expression ${printForm(child)} has a parent ${printForm(child.parent)}`
+		)
+	}
+	child.parent = parent
 }
 
 function typeCount(value: Value): number {
@@ -1044,11 +1053,16 @@ function cloneExp(exp: Exclude<Exp, ExpLabel>): Exclude<Exp, ExpLabel>
 function cloneExp(exp: Exp): Exp {
 	switch (exp.ast) {
 		case 'value':
-			return wrapExp(exp.value)
+			return {
+				ast: 'value',
+				value: exp.value,
+				str: exp.str,
+			}
 		case 'symbol':
 			return {
-				...exp,
-				ref: undefined,
+				ast: 'symbol',
+				value: exp.value,
+				quoted: exp.quoted,
 			}
 		case 'path':
 			return {
@@ -1061,8 +1075,8 @@ function cloneExp(exp: Exp): Exp {
 				vars: _.mapValues(exp.vars),
 				value: cloneExp(exp.value),
 			}
-			_.values(cloned.vars).forEach(v => (v.parent = cloned))
-			cloned.value.parent = cloned
+			_.values(cloned.vars).forEach(_.partial(setAsParent, cloned))
+			setAsParent(cloned, cloned.value)
 			return cloned
 		}
 		case 'list': {
@@ -1071,7 +1085,7 @@ function cloneExp(exp: Exp): Exp {
 				value: exp.value.map(cloneExp as any) as Exp[],
 				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
 			}
-			cloned.value.forEach(v => (v.parent = cloned))
+			cloned.value.forEach(_.partial(setAsParent, cloned))
 			return cloned
 		}
 		case 'vector': {
@@ -1081,7 +1095,7 @@ function cloneExp(exp: Exp): Exp {
 				rest: exp.rest,
 				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
 			}
-			cloned.value.forEach(v => (v.parent = cloned))
+			cloned.value.forEach(_.partial(setAsParent, cloned))
 			return cloned
 		}
 		case 'hashMap': {
@@ -1090,7 +1104,7 @@ function cloneExp(exp: Exp): Exp {
 				value: _.mapValues(exp.value),
 				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
 			}
-			_.values(cloned.value).forEach(v => (v.parent = cloned))
+			_.values(cloned.value).forEach(_.partial(setAsParent, cloned))
 			return cloned
 		}
 		case 'label': {
@@ -1099,7 +1113,7 @@ function cloneExp(exp: Exp): Exp {
 				label: exp.label,
 				body: cloneExp(exp.body),
 			}
-			cloned.body.parent = cloned
+			setAsParent(cloned, cloned.body)
 			return cloned
 		}
 	}
@@ -1130,7 +1144,9 @@ function defineFn(exp: ExpList): ValueFn {
 
 	// Create scope
 	const fnScope = createExpScope({}, body)
-	fnScope.parent = exp.parent
+	if (exp.parent) {
+		setAsParent(exp.parent, fnScope)
+	}
 
 	// Define function
 	const fn = (vars: ExpScope['vars']) => {
@@ -1300,10 +1316,8 @@ function createExpScope(
 		value: value || wrapExp(null),
 	}
 
-	if (value) {
-		value.parent = exp
-	}
-	_.values(vars).forEach(v => (v.parent = exp))
+	setAsParent(exp, exp.value)
+	_.values(vars).forEach(_.partial(setAsParent, exp))
 
 	return exp
 }
@@ -1315,7 +1329,7 @@ function createExpList(value: Exp[], {setParent = true} = {}): ExpList {
 	}
 
 	if (setParent) {
-		value.forEach(v => (v.parent = exp))
+		value.forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
@@ -1329,7 +1343,7 @@ function createExpVector(value: Exp[], {setParent = true, rest = false} = {}) {
 	}
 
 	if (setParent) {
-		value.forEach(v => (v.parent = exp))
+		value.forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
@@ -1342,7 +1356,7 @@ function createExpHashMap(value: ExpHashMap['value'], {setParent = true} = {}) {
 	}
 
 	if (setParent) {
-		_.values(value).forEach(v => (v.parent = exp))
+		_.values(value).forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
