@@ -426,10 +426,14 @@ function uniteType(items: Value[]): Value {
 		}
 	}
 
-	return {
-		type: 'union',
-		items: itemList.flat(),
-	}
+	const flattenItems = itemList.flat()
+
+	return flattenItems.length === 1
+		? flattenItems[0]
+		: {
+				type: 'union',
+				items: itemList.flat(),
+		  }
 }
 
 function intersectType(items: Value[]): Value {
