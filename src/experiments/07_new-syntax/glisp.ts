@@ -1040,6 +1040,71 @@ export function evalExp(exp: Exp): Value {
 	}
 }
 
+function cloneExp(exp: Exclude<Exp, ExpLabel>): Exclude<Exp, ExpLabel>
+function cloneExp(exp: Exp): Exp {
+	switch (exp.ast) {
+		case 'value':
+			return wrapExp(exp.value)
+		case 'symbol':
+			return {
+				...exp,
+				ref: undefined,
+			}
+		case 'path':
+			return {
+				ast: 'path',
+				value: [...exp.value],
+			}
+		case 'scope': {
+			const cloned: ExpScope = {
+				ast: 'scope',
+				vars: _.mapValues(exp.vars),
+				value: cloneExp(exp.value),
+			}
+			_.values(cloned.vars).forEach(v => (v.parent = cloned))
+			cloned.value.parent = cloned
+			return cloned
+		}
+		case 'list': {
+			const cloned: ExpList = {
+				ast: 'list',
+				value: exp.value.map(cloneExp as any) as Exp[],
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			cloned.value.forEach(v => (v.parent = cloned))
+			return cloned
+		}
+		case 'vector': {
+			const cloned: ExpVector = {
+				ast: 'vector',
+				value: exp.value.map(cloneExp as any) as Exp[],
+				rest: exp.rest,
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			cloned.value.forEach(v => (v.parent = cloned))
+			return cloned
+		}
+		case 'hashMap': {
+			const cloned: ExpHashMap = {
+				ast: 'hashMap',
+				value: _.mapValues(exp.value),
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			_.values(cloned.value).forEach(v => (v.parent = cloned))
+			return cloned
+		}
+		case 'label': {
+			const cloned: ExpLabel = {
+				ast: 'label',
+				label: exp.label,
+				body: cloneExp(exp.body),
+			}
+			cloned.body.parent = cloned
+			return cloned
+		}
+	}
+}
+
 function defineFn(exp: ExpList): ValueFn {
 	if (!isListOf('=>', exp)) {
 		throw new Error('This is not a function definition')
@@ -1049,8 +1114,7 @@ function defineFn(exp: ExpList): ValueFn {
 	const [, paramsDef, bodyDef] = exp.value
 
 	// Validate parameter part
-	const params = evalExp(paramsDef)
-	if (!Array.isArray(params) && !isRestVector(params)) {
+	if (paramsDef.ast !== 'vector') {
 		const str = printForm(paramsDef)
 		throw new Error(`Function parameters '${str}' must be a vector type`)
 	}
@@ -1060,8 +1124,12 @@ function defineFn(exp: ExpList): ValueFn {
 		throw new Error(`Function body '${str}' must not be labeled`)
 	}
 
+	const params = evalExp(paramsDef) as Value[] | ValueRestVector
+
+	const body = cloneExp(bodyDef)
+
 	// Create scope
-	const fnScope = createExpScope({}, bodyDef)
+	const fnScope = createExpScope({}, body)
 	fnScope.parent = exp.parent
 
 	// Define function
@@ -1077,7 +1145,7 @@ function defineFn(exp: ExpList): ValueFn {
 
 		return out
 	}
-	const outType = inferType(bodyDef)
+	const outType = inferType(body)
 
 	return createFn(fn, params, outType, {isExp: true}).value
 }
