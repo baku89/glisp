@@ -618,12 +618,7 @@ function isValue(form: Form): form is Value {
 }
 
 function isPrim(value: Value | Exp): value is ValuePrim {
-	return (
-		value === null ||
-		typeof value === 'boolean' ||
-		typeof value === 'number' ||
-		typeof value === 'string'
-	)
+	return value !== Object(value)
 }
 
 // Type predicates
