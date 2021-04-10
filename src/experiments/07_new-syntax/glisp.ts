@@ -67,7 +67,7 @@ interface ValueLabel {
 
 interface ValueUnion {
 	type: 'union'
-	items: Value[]
+	items: Exclude<Value, ValueUnion>[]
 	original?: ExpValue<ValueUnion>
 }
 
@@ -195,7 +195,7 @@ const TypeNumber = createInfUnion({
 
 const TypeInt = createInfUnion({
 	supersets: [TypeNumber],
-	predicate: v => Number.isInteger(v),
+	predicate: Number.isInteger,
 })
 
 const TypePosNumber = createInfUnion({
