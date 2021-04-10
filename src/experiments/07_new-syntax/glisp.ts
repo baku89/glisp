@@ -407,28 +407,29 @@ function uniteType(items: Value[]): Value {
 		return TypeVoid
 	}
 
-	const unionType = items.reduce((a, b) => {
-		if (containsValue(a, b)) {
-			return a
-		}
-		if (containsValue(b, a)) {
-			return b
-		}
+	const itemList = items.map(t => (isUnion(t) ? [...t.items] : [t]))
 
-		const aItems = isUnion(a) ? a.items : [a]
-		const bItems = isUnion(b) ? b.items : [b]
+	for (let i = 0; i < itemList.length; i++) {
+		for (let j = 0; j < itemList.length; j++) {
+			if (i === j) continue
 
-		return {
-			type: 'union',
-			items: [...aItems, ...bItems],
+			const aList = itemList[i]
+			const bList = itemList[j]
+
+			for (let ai = aList.length - 1; ai >= 0; ai--) {
+				for (const b of bList) {
+					if (containsValue(b, aList[ai])) {
+						aList.splice(ai, 1)
+					}
+				}
+			}
 		}
-	}, TypeVoid)
-
-	if (isUnion(unionType)) {
-		return {...unionType}
 	}
 
-	return unionType
+	return {
+		type: 'union',
+		items: itemList.flat(),
+	}
 }
 
 function intersectType(items: Value[]): Value {
