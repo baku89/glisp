@@ -672,12 +672,15 @@ function removeExpLabel(exp: Exp): Exclude<Exp, ExpLabel> {
 
 function inferType(form: Form): Value {
 	if (isValue(form)) {
+		if (isFn(form)) {
+			return form.fnType.out
+		}
 		return form
 	}
 
 	switch (form.ast) {
 		case 'value':
-			return form.value
+			return inferType(form.value)
 		case 'symbol':
 		case 'path':
 			return inferType(resolveRef(form))
@@ -1127,6 +1130,10 @@ function defineFn(exp: ExpList): ValueFn {
 		throw new Error('This is not a function definition')
 	}
 
+	if (!exp.parent) {
+		throw new Error('No parent')
+	}
+
 	// Create a function
 	const [, paramsDef, bodyDef] = exp.value
 
@@ -1141,7 +1148,12 @@ function defineFn(exp: ExpList): ValueFn {
 		throw new Error(`Function body '${str}' must not be labeled`)
 	}
 
-	const params = evalExp(paramsDef) as Value[] | ValueRestVector
+	const formattedParamsDef = convertSymbolToLabeledAll(paramsDef)
+	if (exp.parent) {
+		setAsParent(exp.parent, formattedParamsDef)
+	}
+
+	const params = evalExp(formattedParamsDef) as Value[] | ValueRestVector
 
 	const body = cloneExp(bodyDef)
 
@@ -1167,6 +1179,32 @@ function defineFn(exp: ExpList): ValueFn {
 	const outType = inferType(body)
 
 	return createFn(fn, params, outType, {isExp: true}).value
+
+	function convertSymbolToLabeledAll(exp: Exp): Exp {
+		if (exp.ast === 'symbol') {
+			const All = wrapExp(TypeAll)
+			const ret: ExpLabel = {
+				ast: 'label',
+				label: exp.value,
+				body: All,
+			}
+			setAsParent(ret, All)
+			return ret
+		}
+
+		if (exp.ast !== 'vector') {
+			throw new Error('Invalid format of parameter')
+		}
+
+		const ret: ExpVector = {
+			ast: 'vector',
+			value: exp.value.map(convertSymbolToLabeledAll),
+			rest: exp.rest,
+		}
+		ret.value.forEach(_.partial(setAsParent, ret))
+
+		return ret
+	}
 }
 
 interface AssignResult<
