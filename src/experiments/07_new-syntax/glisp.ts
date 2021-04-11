@@ -102,12 +102,19 @@ type Exp =
 	| ExpPath
 	| ExpScope
 	| ExpFnDef
+	| ExpVectorType
 	| ExpList
 	| ExpVector
 	| ExpHashMap
 
 interface ExpBase {
-	parent?: ExpScope | ExpFnDef | ExpList | ExpVector | ExpHashMap
+	parent?:
+		| ExpScope
+		| ExpFnDef
+		| ExpVectorType
+		| ExpList
+		| ExpVector
+		| ExpHashMap
 	dep?: Set<ExpSymbol | ExpPath>
 }
 
@@ -157,6 +164,13 @@ interface ExpFnDef extends ExpBase {
 		}
 	}
 	body: Exp
+	evaluated?: ValueFn
+}
+
+interface ExpVectorType extends ExpBase {
+	ast: 'vectorType'
+	items: Exp
+	evaluated?: ValueVectorType
 }
 
 interface ExpList extends ExpBase {
@@ -285,6 +299,9 @@ export function disconnectExp(exp: Exp): null {
 				}
 				disconnect(e.body)
 				return null
+			case 'vectorType':
+				disconnect(e.items)
+				return null
 			case 'list':
 			case 'vector':
 				e.value.forEach(disconnect)
@@ -401,7 +418,13 @@ function containsValue(outer: Value, inner: Value): boolean {
 			)
 		}
 		case 'vectorType':
-			return isVectorType(inner) && containsValue(outer.items, inner.items)
+			if (isVectorType(inner)) {
+				return containsValue(outer.items, inner.items)
+			}
+			if (Array.isArray(inner)) {
+				return inner.every(_.partial(containsValue, outer.items))
+			}
+			return false
 		case 'fnType':
 			throw new Error('Will implement this later')
 		// if (isFnType(inner)) {
@@ -560,14 +583,16 @@ const GlobalScope = createExpScope({
 		},
 		TypeNumber
 	),
-	// take: createFn(
-	// 	(n: number, coll: Value[]) => coll.slice(0, n),
-	// 	{
-	// 		items: [{label: 'n', body: TypeNat},
-	// 						{label: 'coll', body: TypeVectorAll}],
-	// 	},
-	// 	TypeNumber
-	// ),
+	take: createFn(
+		(n: number, coll: Value[]) => coll.slice(0, n),
+		{
+			items: [
+				{label: 'n', body: TypeNat},
+				{label: 'coll', body: createVectorType(TypeAll)},
+			],
+		},
+		TypeNumber
+	),
 	'&&': createFn(
 		(a: boolean, b: boolean) => a && b,
 		{
@@ -726,6 +751,8 @@ function inferType(form: Form): Value {
 			return inferType(form.value)
 		case 'fnDef':
 			return inferType(form.body)
+		case 'vectorType':
+			return inferType(createVectorType(inferType(form.items)))
 		case 'list': {
 			const first = form.value[0]
 			return inferType(first)
@@ -1077,6 +1104,8 @@ export function evalExp(exp: Exp): Value {
 			return _eval(exp.value)
 		case 'fnDef':
 			return defineFn(exp)
+		case 'vectorType':
+			return createVectorType(_eval(exp.items))
 		case 'list': {
 			const fn = _eval(exp.value[0])
 
@@ -1153,6 +1182,14 @@ function cloneExp(exp: Exp): Exp {
 				setAsParent(exp, exp.params.rest.body)
 			}
 			return exp
+		}
+		case 'vectorType': {
+			const cloned: ExpVectorType = {
+				ast: 'vectorType',
+				items: cloneExp(exp.items),
+			}
+			setAsParent(exp, exp.items)
+			return cloned
 		}
 		case 'list': {
 			const cloned: ExpList = {
@@ -1248,6 +1285,13 @@ function createFn(
 			fnType: createFnType(params, out, {lazyEval}),
 			isExp,
 		} as ValueFn,
+	}
+}
+
+function createVectorType(items: ValueVectorType['items']): ValueVectorType {
+	return {
+		type: 'vectorType',
+		items,
 	}
 }
 
@@ -1427,6 +1471,7 @@ export function printForm(form: Form): string {
 				}
 				throw new Error('Cannot print this InfUnion')
 			case 'vectorType':
+				return `[...${printValue(value.items)}]`
 			case 'fnType':
 				throw new Error('Later!')
 			// return `(#=> ${printForm(value.params)} ${printForm(value.out)})`

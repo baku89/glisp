@@ -13,7 +13,7 @@ BlankProgram = _ { return null }
 
 Form = All / Void / Null / False / True
 	/ Number / String
-	/ Path / Symbol / Scope / FnDef
+	/ Path / Symbol / Scope / FnDef / VectorType
 	/ List / Vector / HashMap
 
 All = "All"
@@ -185,6 +185,18 @@ FnDefParam = "[" d0:_ items:(Label _)* rest:("..." _ Label _)? "]"
 		}
 
 		return params
+	}
+
+VectorType = "[" d0:_ "..." d1:_ items:Form d2:_ "]"
+	{
+		const exp = {
+			ast: 'vectorType',
+			items,
+		}
+
+		items.parent = exp
+
+		return exp
 	}
 
 List = "(" d0:_ values:(Form _)* ")"
