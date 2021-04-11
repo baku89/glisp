@@ -97,10 +97,9 @@ interface ValueFnType {
 }
 
 // Exp
-export type Exp =
-	| ExpValue
-	| ExpSymbol
-	| ExpPath
+export type Exp = ExpValue | ExpRef | ExpNode
+
+type ExpNode =
 	| ExpScope
 	| ExpFn
 	| ExpFnType
@@ -109,16 +108,11 @@ export type Exp =
 	| ExpVector
 	| ExpHashMap
 
+type ExpRef = ExpSymbol | ExpPath
+
 interface ExpBase {
-	parent?:
-		| ExpScope
-		| ExpFn
-		| ExpFnType
-		| ExpVectorType
-		| ExpList
-		| ExpVector
-		| ExpHashMap
-	dep?: Set<ExpSymbol | ExpPath>
+	parent?: ExpNode
+	dep?: Set<ExpRef>
 }
 
 interface ExpProgram {
@@ -907,15 +901,10 @@ function isEqualValue(a: Value, b: Value): boolean {
 	}
 }
 
-function resolveRef(
-	exp: ExpSymbol | ExpPath
-): Exclude<Exp, ExpSymbol | ExpPath> {
+function resolveRef(exp: ExpRef): Exclude<Exp, ExpRef> {
 	return resolve(exp, [])
 
-	function resolve(
-		exp: ExpSymbol | ExpPath,
-		trace: (ExpSymbol | ExpPath)[]
-	): Exclude<Exp, ExpSymbol | ExpPath> {
+	function resolve(exp: ExpRef, trace: ExpRef[]): Exclude<Exp, ExpRef> {
 		// Check circular reference
 		if (trace.includes(exp)) {
 			const lastTrace = trace[trace.length - 1]
