@@ -6,9 +6,7 @@ import _$ from '@/lodash-ext'
 import ParserDefinition from './parser.pegjs'
 
 function shouldQuote(name: string) {
-	return !(
-		name === '...' || name.match(/^[a-z_+\-*=?|&<>@][0-9a-z_+\-*=?|&<>@]*$/i)
-	)
+	return !name.match(/^\.\.\.|[a-z_+\-*=?|&<>@][0-9a-z_+\-*=?|&<>@]*$/i)
 }
 
 type Form = Exp | Value
@@ -49,12 +47,14 @@ interface ValueHashMap {
 	}
 }
 
-type IFn = (...params: Form[]) => Form
+type IFnJS = (...params: Form[]) => Form
+type IFnExp = (params: ExpScope['vars']) => Form
 
 interface ValueFn {
 	type: 'fn'
-	body: IFn
+	body: IFnJS | IFnExp
 	fnType: ValueFnType
+	isExp?: boolean
 }
 
 interface ValueLabel {
@@ -65,7 +65,7 @@ interface ValueLabel {
 
 interface ValueUnion {
 	type: 'union'
-	items: Value[]
+	items: Exclude<Value, ValueUnion>[]
 	original?: ExpValue<ValueUnion>
 }
 
@@ -193,7 +193,7 @@ const TypeNumber = createInfUnion({
 
 const TypeInt = createInfUnion({
 	supersets: [TypeNumber],
-	predicate: v => Number.isInteger(v),
+	predicate: Number.isInteger,
 })
 
 const TypePosNumber = createInfUnion({
@@ -219,7 +219,7 @@ export function readStr(str: string): Exp {
 		console.log(program.value)
 		return program.value
 	} else {
-		return wrapExp(createVoid())
+		return wrapExp(TypeVoid)
 	}
 }
 
@@ -279,6 +279,8 @@ const TypeAll: ValueAll = {
 	type: 'all',
 }
 
+const TypeVoid: ValueVoid = {type: 'void'}
+
 const TypeBoolean: ValueUnion = {
 	type: 'union',
 	items: [true, false],
@@ -312,6 +314,10 @@ function containsValue(outer: Value, inner: Value): boolean {
 		return true
 	}
 
+	if (isVoid(inner)) {
+		return true
+	}
+
 	if (isPrim(outer)) {
 		return isEqualValue(outer, inner)
 	}
@@ -322,10 +328,6 @@ function containsValue(outer: Value, inner: Value): boolean {
 			outer.length >= inner.length &&
 			_$.zipShorter(outer, inner).every(_.spread(containsValue))
 		)
-	}
-
-	if (isVoid(inner)) {
-		return true
 	}
 
 	switch (outer.type) {
@@ -414,15 +416,49 @@ function containsValue(outer: Value, inner: Value): boolean {
 
 function uniteType(items: Value[]): Value {
 	if (items.length === 0) {
+		return TypeVoid
+	}
+
+	const itemList = items.map(t => (isUnion(t) ? [...t.items] : [t]))
+
+	for (let i = 0; i < itemList.length; i++) {
+		for (let j = 0; j < itemList.length; j++) {
+			if (i === j) continue
+
+			const aList = itemList[i]
+			const bList = itemList[j]
+
+			for (let ai = aList.length - 1; ai >= 0; ai--) {
+				for (const b of bList) {
+					if (containsValue(b, aList[ai])) {
+						aList.splice(ai, 1)
+					}
+				}
+			}
+		}
+	}
+
+	const flattenItems = itemList.flat()
+
+	return flattenItems.length === 1
+		? flattenItems[0]
+		: {
+				type: 'union',
+				items: itemList.flat(),
+		  }
+}
+
+function intersectType(items: Value[]): Value {
+	if (items.length === 0) {
 		return TypeAll
 	}
 
-	const unionType = items.reduce((a, b) => {
+	const result = items.reduce((a, b) => {
 		if (containsValue(a, b)) {
-			return a
+			return b
 		}
 		if (containsValue(b, a)) {
-			return b
+			return a
 		}
 
 		const aItems = isUnion(a) ? a.items : [a]
@@ -430,15 +466,19 @@ function uniteType(items: Value[]): Value {
 
 		return {
 			type: 'union',
-			items: [...aItems, ...bItems],
+			items: _.intersectionWith(aItems, bItems, isEqualValue),
 		}
-	}, createVoid())
+	}, TypeAll)
 
-	if (isUnion(unionType)) {
-		return {...unionType}
+	if (isUnion(result)) {
+		if (result.items.length === 0) {
+			return TypeVoid
+		}
+
+		return {...result}
 	}
 
-	return unionType
+	return result
 }
 
 function wrapExp<T extends Value>(value: T): ExpValue<T> {
@@ -462,7 +502,12 @@ const GlobalScope = createExpScope({
 	),
 	'@|': createFn(
 		(items: Value[]) => uniteType(items),
-		createVariadicVector([TypeAll]),
+		createRestVector([TypeAll]),
+		TypeAll
+	),
+	'@&': createFn(
+		(items: Value[]) => intersectType(items),
+		createRestVector([TypeAll]),
 		TypeAll
 	),
 	'@count': createFn((v: Value) => typeCount(v), [TypeAll], TypeNumber),
@@ -479,7 +524,7 @@ const GlobalScope = createExpScope({
 	),
 	length: createFn(
 		(v: Value[] | ValueRestVector) => (Array.isArray(v) ? v.length : Infinity),
-		[createVariadicVector([TypeAll])],
+		[createRestVector([TypeAll])],
 		TypeNat
 	),
 	let: createFn(
@@ -490,12 +535,12 @@ const GlobalScope = createExpScope({
 	PI: wrapExp(Math.PI),
 	'+': createFn(
 		(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
-		createVariadicVector([TypeNumber]),
+		createRestVector([TypeNumber]),
 		TypeNumber
 	),
 	'*': createFn(
 		(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-		createVariadicVector([TypeNumber]),
+		createRestVector([TypeNumber]),
 		TypeNumber
 	),
 	pow: createFn(
@@ -514,7 +559,7 @@ const GlobalScope = createExpScope({
 			)
 			return newColl
 		},
-		[TypeNat, createVariadicVector([TypeAll])],
+		[TypeNat, createRestVector([TypeAll])],
 		TypeNumber
 	),
 	'&&': createFn(
@@ -527,9 +572,10 @@ const GlobalScope = createExpScope({
 	not: createFn((v: boolean) => !v, [TypeBoolean], TypeBoolean),
 	'==': createFn(isEqualValue, [TypeAll, TypeAll], TypeBoolean),
 	'@>=': createFn(containsValue, [TypeAll, TypeAll], TypeBoolean),
+	'@type': createFn(getType, [TypeAll], TypeAll),
 	count: createFn(
 		(a: Value[]) => a.length,
-		[createVariadicVector([TypeAll])],
+		[createRestVector([TypeAll])],
 		TypeNumber
 	),
 	if: createFn(
@@ -542,17 +588,52 @@ const GlobalScope = createExpScope({
 	),
 })
 
+function getType(v: Value): Exclude<Value, ValuePrim> {
+	if (isPrim(v)) {
+		if (v === null) {
+			return TypeAll
+		}
+		switch (typeof v) {
+			case 'boolean':
+				return TypeBoolean
+			case 'number':
+				return TypeNumber
+			case 'string':
+				return TypeString
+		}
+	}
+
+	if (Array.isArray(v)) {
+		return v.map(getType)
+	}
+
+	switch (v.type) {
+		case 'all':
+			return TypeAll
+		case 'void':
+			return TypeVoid
+		case 'union':
+			return uniteType(v.items.map(getType)) as Exclude<Value, ValuePrim>
+		case 'label':
+			return getType(v.body)
+		case 'restVector':
+			return createRestVector(v.value.map(getType))
+		case 'fn':
+			return v.fnType
+		case 'infUnion':
+		case 'fnType':
+			return v
+		case 'hashMap':
+			return createHashMap(_.mapValues(v.value, getType))
+	}
+}
+
 function isValue(form: Form): form is Value {
 	return isPrim(form) || Array.isArray(form) || 'type' in form
 }
 
 function isPrim(value: Value | Exp): value is ValuePrim {
-	return (
-		value === null ||
-		typeof value === 'boolean' ||
-		typeof value === 'number' ||
-		typeof value === 'string'
-	)
+	return value !== Object(value)
 }
 
 // Type predicates
@@ -603,12 +684,15 @@ function removeExpLabel(exp: Exp): Exclude<Exp, ExpLabel> {
 
 function inferType(form: Form): Value {
 	if (isValue(form)) {
+		if (isFn(form)) {
+			return form.fnType.out
+		}
 		return form
 	}
 
 	switch (form.ast) {
 		case 'value':
-			return form.value
+			return inferType(form.value)
 		case 'symbol':
 		case 'path':
 			return inferType(resolveRef(form))
@@ -776,7 +860,7 @@ function resolveRef(
 
 				if (typeof firstEl !== 'string') {
 					const firstSym = createExpSymbol(firstEl.value)
-					firstSym.parent = exp.parent
+					setAsParent(exp.parent, firstSym)
 					ref = resolveRef(firstSym)
 					pathList.shift()
 				}
@@ -855,7 +939,7 @@ export class Interpreter {
 					throw new Error('no label')
 				}
 				this.vars[value.label] = value.body
-				value.parent = this.scope
+				setAsParent(this.scope, value)
 				return value
 			},
 			[TypeAll],
@@ -864,13 +948,22 @@ export class Interpreter {
 		)
 
 		this.scope = createExpScope(this.vars)
-		this.scope.parent = GlobalScope
+		setAsParent(GlobalScope, this.scope)
 	}
 
 	evalExp(exp: Exp): Value {
-		exp.parent = this.scope
+		setAsParent(this.scope, exp)
 		return evalExp(exp)
 	}
+}
+
+function setAsParent(parent: Exclude<Exp['parent'], undefined>, child: Exp) {
+	if (child.parent) {
+		throw new Error(
+			`Expression ${printForm(child)} has a parent ${printForm(child.parent)}`
+		)
+	}
+	child.parent = parent
 }
 
 function typeCount(value: Value): number {
@@ -936,62 +1029,9 @@ export function evalExp(exp: Exp): Value {
 		case 'scope':
 			return _eval(exp.value)
 		case 'list': {
-			// Create Function
-			/*
-				if (first.ast === 'symbol' && first.value === '=>') {
-					// Create a function
-					const [paramsDef, bodyDef] = rest
-
-					// Validate parameter part
-					if (paramsDef.ast !== 'specialList' && paramsDef.kind !== 'vector') {
-						const str = printForm(paramsDef)
-						throw new Error(
-							`Function parameters '${str}' must be a vector type`
-						)
-					}
-
-					const paramSymbols = paramsDef.items as ExpSymbol[]
-
-					// Create scope
-					const paramsHashMap = createHashMap(
-						Object.fromEntries(paramSymbols.map(sym => [sym.value, sym]))
-					)
-
-					const fnScope = createList([
-						createSymbol('let'),
-						paramsHashMap,
-						cloneExp(bodyDef),
-					])
-
-					fnScope.parent = exp.parent
-
-					// Define function
-					const fn = (...params: Exp[]) => {
-						// Set params
-						paramSymbols.forEach(
-							(sym, i) => (paramsHashMap.value[sym.value] = params[i])
-						)
-
-						// Evaluate
-						const out = _eval(fnScope)
-
-						// Clean params
-						paramSymbols.forEach(sym =>
-							clearEvaluatedRecursively(paramsHashMap.value[sym.value])
-						)
-
-						return out
-					}
-
-					// Infer function type
-					const paramTypes = Array(paramSymbols.length).fill(TypeAll)
-					const outType = inferType(bodyDef)
-					const fnType = createFnType(paramTypes, outType, {
-						rest: paramsDef.rest,
-					})
-
-					return (exp.evaluated = createFn(fn, fnType))
-				} */
+			if (isListOf('=>', exp)) {
+				return defineFn(exp)
+			}
 
 			const fn = _eval(exp.value[0])
 
@@ -1003,22 +1043,179 @@ export function evalExp(exp: Exp): Value {
 			const fnType = fn.fnType
 			const fnBody = fn.body
 
-			const {params} = resolveParams(exp)
+			const {params, scope} = resolveParams(exp)
 
 			// Eval parameters at first
 			const evaluatedParams = params.value.map((p, i) =>
 				fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
 			)
 
-			const expanded = (exp.expanded = fnBody(...evaluatedParams))
+			const expanded = fn.isExp
+				? (fnBody as IFnExp)(scope)
+				: (fnBody as IFnJS)(...evaluatedParams)
+
+			exp.expanded = expanded
+
 			return isValue(expanded) ? expanded : _eval(expanded)
 		}
 		case 'vector': {
 			const vec = exp.value.map(_eval)
-			return exp.rest ? createVariadicVector(vec) : vec
+			return exp.rest ? createRestVector(vec) : vec
 		}
 		case 'hashMap':
 			return createHashMap(_.mapValues(exp.value, _eval))
+	}
+}
+
+function cloneExp(exp: Exclude<Exp, ExpLabel>): Exclude<Exp, ExpLabel>
+function cloneExp(exp: Exp): Exp {
+	switch (exp.ast) {
+		case 'value':
+			return {
+				ast: 'value',
+				value: exp.value,
+				str: exp.str,
+			}
+		case 'symbol':
+			return {
+				ast: 'symbol',
+				value: exp.value,
+				quoted: exp.quoted,
+			}
+		case 'path':
+			return {
+				ast: 'path',
+				value: [...exp.value],
+			}
+		case 'scope': {
+			const cloned: ExpScope = {
+				ast: 'scope',
+				vars: _.mapValues(exp.vars),
+				value: cloneExp(exp.value),
+			}
+			_.values(cloned.vars).forEach(_.partial(setAsParent, cloned))
+			setAsParent(cloned, cloned.value)
+			return cloned
+		}
+		case 'list': {
+			const cloned: ExpList = {
+				ast: 'list',
+				value: exp.value.map(cloneExp as any) as Exp[],
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			cloned.value.forEach(_.partial(setAsParent, cloned))
+			return cloned
+		}
+		case 'vector': {
+			const cloned: ExpVector = {
+				ast: 'vector',
+				value: exp.value.map(cloneExp as any) as Exp[],
+				rest: exp.rest,
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			cloned.value.forEach(_.partial(setAsParent, cloned))
+			return cloned
+		}
+		case 'hashMap': {
+			const cloned: ExpHashMap = {
+				ast: 'hashMap',
+				value: _.mapValues(exp.value),
+				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
+			}
+			_.values(cloned.value).forEach(_.partial(setAsParent, cloned))
+			return cloned
+		}
+		case 'label': {
+			const cloned: ExpLabel = {
+				ast: 'label',
+				label: exp.label,
+				body: cloneExp(exp.body),
+			}
+			setAsParent(cloned, cloned.body)
+			return cloned
+		}
+	}
+}
+
+function defineFn(exp: ExpList): ValueFn {
+	if (!isListOf('=>', exp)) {
+		throw new Error('This is not a function definition')
+	}
+
+	if (!exp.parent) {
+		throw new Error('No parent')
+	}
+
+	// Create a function
+	const [, paramsDef, bodyDef] = exp.value
+
+	// Validate parameter part
+	if (paramsDef.ast !== 'vector') {
+		const str = printForm(paramsDef)
+		throw new Error(`Function parameters '${str}' must be a vector type`)
+	}
+
+	if (bodyDef.ast === 'label') {
+		const str = printForm(bodyDef)
+		throw new Error(`Function body '${str}' must not be labeled`)
+	}
+
+	const formattedParamsDef = convertSymbolToLabeledAll(paramsDef)
+	if (exp.parent) {
+		setAsParent(exp.parent, formattedParamsDef)
+	}
+
+	const params = evalExp(formattedParamsDef) as Value[] | ValueRestVector
+
+	const body = cloneExp(bodyDef)
+
+	// Create scope
+	const fnScope = createExpScope({}, body)
+	if (exp.parent) {
+		setAsParent(exp.parent, fnScope)
+	}
+
+	// Define function
+	const fn = (vars: ExpScope['vars']) => {
+		// Set params
+		fnScope.vars = vars
+
+		// Evaluate
+		const out = evalExp(fnScope)
+
+		// Clean params
+		_.values(fnScope.vars).forEach(clearEvaluatedRecursively)
+
+		return out
+	}
+	const outType = inferType(body)
+
+	return createFn(fn, params, outType, {isExp: true}).value
+
+	function convertSymbolToLabeledAll(exp: Exp): Exp {
+		if (exp.ast === 'symbol') {
+			const All = wrapExp(TypeAll)
+			const ret: ExpLabel = {
+				ast: 'label',
+				label: exp.value,
+				body: All,
+			}
+			setAsParent(ret, All)
+			return ret
+		}
+
+		if (exp.ast !== 'vector') {
+			throw new Error('Invalid format of parameter')
+		}
+
+		const ret: ExpVector = {
+			ast: 'vector',
+			value: exp.value.map(convertSymbolToLabeledAll),
+			rest: exp.rest,
+		}
+		ret.value.forEach(_.partial(setAsParent, ret))
+
+		return ret
 	}
 }
 
@@ -1138,10 +1335,6 @@ function assignExp(target: Value, source: Exp): AssignResult {
 }
 
 // Create functions
-function createVoid(): ValueVoid {
-	return {type: 'void'}
-}
-
 function createExpSymbol(value: string): ExpSymbol {
 	return {
 		ast: 'symbol',
@@ -1153,14 +1346,15 @@ function createFn(
 	body: (...params: any[]) => Form,
 	params: ValueFnType['params'],
 	out: ValueFnType['out'],
-	{lazyEval = undefined as undefined | boolean[]} = {}
+	{lazyEval = undefined as undefined | boolean[], isExp = false as boolean} = {}
 ): ExpValue<ValueFn> {
 	return {
 		ast: 'value',
 		value: {
 			type: 'fn',
-			body: body as IFn,
+			body: body as IFnJS | IFnExp,
 			fnType: createFnType(params, out, {lazyEval}),
+			isExp,
 		},
 	}
 }
@@ -1175,10 +1369,8 @@ function createExpScope(
 		value: value || wrapExp(null),
 	}
 
-	if (value) {
-		value.parent = exp
-	}
-	_.values(vars).forEach(v => (v.parent = exp))
+	setAsParent(exp, exp.value)
+	_.values(vars).forEach(_.partial(setAsParent, exp))
 
 	return exp
 }
@@ -1190,7 +1382,7 @@ function createExpList(value: Exp[], {setParent = true} = {}): ExpList {
 	}
 
 	if (setParent) {
-		value.forEach(v => (v.parent = exp))
+		value.forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
@@ -1204,7 +1396,7 @@ function createExpVector(value: Exp[], {setParent = true, rest = false} = {}) {
 	}
 
 	if (setParent) {
-		value.forEach(v => (v.parent = exp))
+		value.forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
@@ -1217,13 +1409,13 @@ function createExpHashMap(value: ExpHashMap['value'], {setParent = true} = {}) {
 	}
 
 	if (setParent) {
-		_.values(value).forEach(v => (v.parent = exp))
+		_.values(value).forEach(_.partial(setAsParent, exp))
 	}
 
 	return exp
 }
 
-function createVariadicVector(value: Value[]): ValueRestVector {
+function createRestVector(value: Value[]): ValueRestVector {
 	const exp: ValueRestVector = {
 		type: 'restVector',
 		value,
@@ -1247,7 +1439,7 @@ function withLabel(label: string, body: ValueLabel['body']): ValueLabel {
 	}
 }
 
-function isListOf(sym: string, exp: Exp): exp is ExpList {
+function isListOf(sym: string, exp: Exp): boolean {
 	if (exp.ast === 'list') {
 		const [first] = exp.value
 		return first && first.ast === 'symbol' && first.value === sym
@@ -1309,7 +1501,7 @@ export function printForm(form: Form): string {
 			}
 			case 'label': {
 				const [d0, d1] = exp.delimiters || ['', '']
-				const label = shouldQuote(exp.label) ? '"' + exp.label + '"' : exp.label
+				const label = shouldQuote(exp.label) ? `"${exp.label}"` : exp.label
 				const body = printExp(exp.body)
 				return label + d0 + ':' + d1 + body
 			}
@@ -1372,7 +1564,7 @@ export function printForm(form: Form): string {
 			}
 			case 'label': {
 				const label = shouldQuote(value.label)
-					? '"' + value.label + '"'
+					? `"${value.label}"`
 					: value.label
 				const body = printValue(value.body)
 				return label + ':' + body
