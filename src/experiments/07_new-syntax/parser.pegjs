@@ -11,10 +11,9 @@ Program = d0:_ value:Form d1:_
 
 BlankProgram = _ { return null }
 
-Form = Label
-	/ All / Void / Null / False / True
+Form = All / Void / Null / False / True
 	/ Number / String
-	/ Path / Symbol / Scope
+	/ Path / Symbol / Scope / FnDef
 	/ List / Vector / HashMap
 
 All = "All"
@@ -159,6 +158,35 @@ Scope = "(" d0:_ "let" d1:_ vars:HashMap d2:_ value:Form d3:_ ")"
 		return exp
 	}
 
+FnDef = "(" d0:_ "=>" d1:_ params:FnDefParam d2:_ body:Form d3:_ ")"
+	{
+		const exp = {
+			ast: 'fnDef',
+			params,
+			body
+		}
+
+		exp.params.items.forEach(it => it.body.parent = exp)
+		if (exp.params.rest) {
+			exp.params.rest.parent = exp
+		}
+
+		return exp
+	}
+
+FnDefParam = "[" d0:_ items:(Label _)* rest:("..." _ Label _)? "]"
+	{
+		const params = {
+			items: items.map(p => p[0]),
+		}
+
+		if (rest) {
+			param.rest = rest[2]
+		}
+
+		return params
+	}
+
 List = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
@@ -172,7 +200,7 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* rest:("..." _ Form _)? "]"
+Vector = "[" d0:_ values:(Form _)* "]"
 	{
 		const exp = {
 			ast: 'vector',
@@ -181,16 +209,8 @@ Vector = "[" d0:_ values:(Form _)* rest:("..." _ Form _)? "]"
 		const value = values.map(p => p[0])
 		const itemDelimiters = values.map(p => p[1])
 
-		if (rest) {
-			const [, d1, restValue, d2] = rest
-			exp.value = [...value, restValue]
-			exp.delimiters = [d0, ...itemDelimiters, d1, d2]
-			exp.rest = true
-		} else {
-			exp.value = value
-			exp.delimiters = [d0, ...itemDelimiters]
-			exp.rest = false
-		}
+		exp.value = value
+		exp.delimiters = [d0, ...itemDelimiters]
 
 		exp.value.forEach((e, key) => e.parent = exp)
 
@@ -228,18 +248,11 @@ Label =
 	d0:_ ":" d1:_
 	body:Form
 	{
-		if (body.ast === 'label') {
-			throw new Error('Doubled label')
-		}
-
 		const exp = {
-			ast: 'label',
 			label,
 			body,
 			delimiters: [d0, d1]
 		}
-
-		body.parent = exp
 
 		return exp
 	}
