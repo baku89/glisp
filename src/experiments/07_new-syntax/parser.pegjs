@@ -167,8 +167,9 @@ FnDef = "(" d0:_ "=>" d1:_ params:FnDefParam d2:_ body:Form d3:_ ")"
 		}
 
 		exp.params.items.forEach(it => it.body.parent = exp)
-		if (exp.params.rest) {
-			exp.params.rest.parent = exp
+		if (params.rest) {
+			exp.params.rest = params.rest
+			exp.params.rest.body.parent = exp
 		}
 
 		return exp
@@ -181,7 +182,7 @@ FnDefParam = "[" d0:_ items:(Label _)* rest:("..." _ Label _)? "]"
 		}
 
 		if (rest) {
-			param.rest = rest[2]
+			params.rest = rest[2]
 		}
 
 		return params

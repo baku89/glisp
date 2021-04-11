@@ -552,7 +552,7 @@ const GlobalScope = createExpScope({
 	length: createFn(
 		(v: Value[]) => v.length,
 		{
-			items: [{label: 'value', body: TypeAll}],
+			items: [{label: 'value', body: createVectorType(TypeAll)}],
 		},
 		TypeNat
 	),
@@ -1232,9 +1232,13 @@ function defineFn(exp: ExpFnDef): ValueFn {
 			label,
 			body: evalExp(body),
 		})),
-		rest: exp.params.rest
-			? {label: exp.params.rest.label, body: evalExp(exp.params.rest.body)}
-			: undefined,
+	}
+
+	if (exp.params.rest) {
+		params.rest = {
+			label: exp.params.rest.label,
+			body: evalExp(exp.params.rest.body),
+		}
 	}
 
 	const body = cloneExp(exp.body)
@@ -1447,10 +1451,16 @@ export function printForm(form: Form): string {
 				return printSeq('{', '}', coll, delimiters)
 			}
 			case 'fn': {
-				return 'Later!'
-				// const params = value.fnType.params
-				// const out = value.fnType.out
-				// return `(=> ${printValue(params)} ${printValue(out)})`
+				const {fnType} = value
+				const params = fnType.params.items.map(
+					({label, body}) => `${label}:${printValue(body)}`
+				)
+				if (fnType.params.rest) {
+					const {label, body} = fnType.params.rest
+					params.push(`...${label}:${printValue(body)}`)
+				}
+				const out = printValue(fnType.out)
+				return `(=> [${params.join(' ')}] ${out})`
 			}
 			case 'union': {
 				if (value.original) {
@@ -1472,9 +1482,18 @@ export function printForm(form: Form): string {
 				throw new Error('Cannot print this InfUnion')
 			case 'vectorType':
 				return `[...${printValue(value.items)}]`
-			case 'fnType':
-				throw new Error('Later!')
-			// return `(#=> ${printForm(value.params)} ${printForm(value.out)})`
+			case 'fnType': {
+				const params = value.params.items.map(
+					({label, body}) => `${label}:${printValue(body)}`
+				)
+
+				if (value.params.rest) {
+					const {label, body} = value.params.rest
+					params.push(`...${label}:${printValue(body)}`)
+				}
+				const out = printValue(value.out)
+				return `(#=> [${params.join(' ')}] ${out})`
+			}
 		}
 	}
 
