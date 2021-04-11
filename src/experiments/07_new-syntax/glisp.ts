@@ -620,7 +620,12 @@ const GlobalScope = createExpScope({
 	),
 	'==': createFn(
 		isEqualValue,
-		{items: [{label: 'value', body: TypeAll}]},
+		{
+			items: [
+				{label: 'a', body: TypeAll},
+				{label: 'b', body: TypeAll},
+			],
+		},
 		TypeBoolean
 	),
 	'@>=': createFn(
