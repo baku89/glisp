@@ -12,7 +12,7 @@ function shouldQuote(name: string) {
 type Form = Exp | Value
 
 // Value
-type Value =
+export type Value =
 	| ValuePrim
 	| Value[]
 	| ValueAll
@@ -97,7 +97,7 @@ interface ValueFnType {
 }
 
 // Exp
-type Exp =
+export type Exp =
 	| ExpValue
 	| ExpSymbol
 	| ExpPath
@@ -255,7 +255,6 @@ export function readStr(str: string): Exp {
 	const program = parser.parse(str) as ExpProgram | null
 
 	if (program) {
-		console.log(program.value)
 		return program.value
 	} else {
 		return wrapExp(TypeVoid)
@@ -763,6 +762,13 @@ function inferType(form: Form): Value {
 	}
 }
 
+export class GlispError extends Error {
+	constructor(message: string, public target: Exp) {
+		super(message)
+		this.name = 'Glisp'
+	}
+}
+
 function resolveParams(exp: ExpList): ExpScope['vars'] {
 	const [first, ...params] = exp.value
 
@@ -778,8 +784,9 @@ function resolveParams(exp: ExpList): ExpScope['vars'] {
 
 	// Length check
 	if (paramsDef.length > params.length) {
-		new Error(
-			`Expected ${paramsDef.length} arguments, but got ${params.length}`
+		throw new GlispError(
+			`Expected ${paramsDef.length} arguments, but got ${params.length}`,
+			exp
 		)
 	}
 

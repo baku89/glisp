@@ -12,7 +12,13 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
-import {disconnectExp, Interpreter, printForm, readStr} from './glisp'
+import {
+	disconnectExp,
+	GlispError,
+	Interpreter,
+	printForm,
+	readStr,
+} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
@@ -26,10 +32,16 @@ export default defineComponent({
 		const interpreter = new Interpreter()
 
 		async function rep(str: string) {
-			const exp = readStr(str)
-			const evaluatedExp = interpreter.evalExp(exp)
-			disconnectExp(exp)
-			return printForm(evaluatedExp)
+			try {
+				const exp = readStr(str)
+				const evaluated = interpreter.evalExp(exp)
+				disconnectExp(exp)
+				return printForm(evaluated)
+			} catch (err) {
+				if (err instanceof GlispError) {
+					throw new Error(`${printForm(err.target)}: ${err.message}`)
+				}
+			}
 		}
 
 		return {rep}

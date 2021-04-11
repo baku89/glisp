@@ -58,7 +58,6 @@ export default defineComponent({
 						const ret = await props.rep(line)
 						jqconsole.Write(ret + '\n', 'jqconsole-return')
 					} catch (err) {
-						console.log(err)
 						jqconsole.Write(err + '\n', 'jqconsole-error')
 					}
 					saveHistory(jqconsole, props.name)
