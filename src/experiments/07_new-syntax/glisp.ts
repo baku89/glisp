@@ -49,22 +49,24 @@ interface ValueFnBase {
 	params: {
 		label: string
 		body: Value
+		lazy?: boolean
 	}[]
 	restParam?: {
 		label: string
 		body: Value
+		lazy?: boolean
 	}
 	out: Value
 }
 
 interface ValueFnJS extends ValueFnBase {
-	body: IFnExp
-	isExp: true
+	body: IFnJS
+	isExp: false
 }
 
 interface ValueFnExp extends ValueFnBase {
-	body: IFnJS
-	isExp: false
+	body: IFnExp
+	isExp: true
 }
 
 type ValueFn = ValueFnJS | ValueFnExp
@@ -527,44 +529,44 @@ const GlobalScope = createExpScope({
 	Int: wrapTypeInfUnion(TypeInt),
 	Nat: wrapTypeInfUnion(TypeNat),
 	String: wrapTypeInfUnion(TypeString),
-	'@|': createFn(
+	'@|': createExpFnJS(
 		(items: Value[]) => uniteType(items),
 		[],
 		{label: 'value', body: TypeAll},
 		TypeAll
 	),
-	'@&': createFn(
+	'@&': createExpFnJS(
 		(items: Value[]) => intersectType(items),
 		[],
 		{label: 'value', body: TypeAll},
 		TypeAll
 	),
-	'@count': createFn(
+	'@count': createExpFnJS(
 		(v: Value) => typeCount(v),
 		[{label: 'value', body: TypeAll}],
 		null,
 		TypeNumber
 	),
-	length: createFn(
+	length: createExpFnJS(
 		(v: Value[]) => v.length,
 		[{label: 'value', body: createVectorType(TypeAll)}],
 		null,
 		TypeNat
 	),
 	PI: wrapExp(Math.PI),
-	'+': createFn(
+	'+': createExpFnJS(
 		(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
 		[],
 		{label: 'value', body: TypeNumber},
 		TypeNumber
 	),
-	'*': createFn(
+	'*': createExpFnJS(
 		(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
 		[],
 		{label: 'value', body: TypeNumber},
 		TypeNumber
 	),
-	pow: createFn(
+	pow: createExpFnJS(
 		Math.pow,
 		[
 			{label: 'base', body: TypeNumber},
@@ -573,7 +575,7 @@ const GlobalScope = createExpScope({
 		null,
 		TypeNumber
 	),
-	take: createFn(
+	take: createExpFnJS(
 		(n: number, coll: Value[]) => coll.slice(0, n),
 		[
 			{label: 'n', body: TypeNat},
@@ -582,7 +584,7 @@ const GlobalScope = createExpScope({
 		null,
 		TypeNumber
 	),
-	'&&': createFn(
+	'&&': createExpFnJS(
 		(a: boolean, b: boolean) => a && b,
 		[
 			{label: 'x', body: TypeBoolean},
@@ -591,25 +593,25 @@ const GlobalScope = createExpScope({
 		null,
 		TypeBoolean
 	),
-	square: createFn(
+	square: createExpFnJS(
 		(v: number) => v * v,
 		[{label: 'value', body: TypeNumber}],
 		null,
 		TypePosNumber
 	),
-	sqrt: createFn(
+	sqrt: createExpFnJS(
 		Math.sqrt,
 		[{label: 'value', body: TypePosNumber}],
 		null,
 		TypePosNumber
 	),
-	not: createFn(
+	not: createExpFnJS(
 		(v: boolean) => !v,
 		[{label: 'value', body: TypeBoolean}],
 		null,
 		TypeBoolean
 	),
-	'==': createFn(
+	'==': createExpFnJS(
 		isEqualValue,
 		[
 			{label: 'a', body: TypeAll},
@@ -618,7 +620,7 @@ const GlobalScope = createExpScope({
 		null,
 		TypeBoolean
 	),
-	'@>=': createFn(
+	'@>=': createExpFnJS(
 		containsValue,
 		[
 			{label: 'a', body: TypeAll},
@@ -627,19 +629,21 @@ const GlobalScope = createExpScope({
 		null,
 		TypeBoolean
 	),
-	'@type': createFn(getType, [{label: 'value', body: TypeAll}], null, TypeAll),
-	if: createFn(
+	'@type': createExpFnJS(
+		getType,
+		[{label: 'value', body: TypeAll}],
+		null,
+		TypeAll
+	),
+	if: createExpFnJS(
 		(cond: boolean, then: Exp, _else: Exp) => (cond ? then : _else),
 		[
 			{label: 'cond', body: TypeBoolean},
-			{label: 'then', body: TypeAll},
-			{label: 'else', body: TypeAll},
+			{label: 'then', body: TypeAll, lazy: true},
+			{label: 'else', body: TypeAll, lazy: true},
 		],
 		null,
-		TypeAll,
-		{
-			lazyEval: [false, true, true],
-		}
+		TypeAll
 	),
 })
 
@@ -1008,19 +1012,18 @@ export class Interpreter {
 	constructor() {
 		this.vars = {}
 
-		this.vars['def'] = createFn(
+		this.vars['def'] = createExpFnJS(
 			(symbol: string, value: Exp) => {
 				this.vars[symbol] = value
 				setAsParent(this.scope, value)
 				return value
 			},
 			[
-				{label: 'symbol', body: TypeString},
+				{label: 'symbol', body: TypeString, lazy: true},
 				{label: 'value', body: TypeAll},
 			],
 			null,
-			TypeAll,
-			{lazyEval: [true]}
+			TypeAll
 		)
 
 		this.scope = createExpScope(this.vars)
@@ -1114,18 +1117,25 @@ export function evalExp(exp: Exp): Value {
 				// Function application
 			}
 
-			const fnBody = fn.body
-
 			const scope = resolveParams(exp)
 
 			// Eval parameters at first
-			const evaluatedParams = _.values(scope).map(_eval)
+			if (fn.isExp) {
+				// Bootstrapped fn
+				exp.expanded = fn.body(scope)
+			} else {
+				// JS-defined fn
+				const paramsForm = _.values(scope).map((e, i) => {
+					if (i >= fn.params.length) {
+						// Rest
+						return fn.restParam?.label ? e : _eval(e)
+					}
+					return fn.params[i].lazy ? e : _eval(e)
+				})
+				exp.expanded = fn.body(...paramsForm)
+			}
 
-			const expanded = fn.isExp ? fn.body(scope) : fn.body(...evaluatedParams)
-
-			exp.expanded = expanded
-
-			return isValue(expanded) ? expanded : _eval(expanded)
+			return isValue(exp.expanded) ? exp.expanded : _eval(exp.expanded)
 		}
 		case 'vector':
 			return exp.value.map(_eval)
@@ -1259,7 +1269,7 @@ function defineFn(exp: ExpFn): ValueFn {
 	}
 
 	// Define function
-	const fn = (vars: ExpScope['vars']) => {
+	const fn: IFnExp = (vars: ExpScope['vars']) => {
 		// Set params
 		fnScope.vars = vars
 
@@ -1273,7 +1283,7 @@ function defineFn(exp: ExpFn): ValueFn {
 	}
 	const outType = inferType(body)
 
-	return createFn(fn, params, restParam, outType, {isExp: true}).value
+	return createFnExp(fn, params, restParam, outType)
 }
 
 // Create functions
@@ -1284,23 +1294,38 @@ function createExpSymbol(value: string): ExpSymbol {
 	}
 }
 
-function createFn(
+function createExpFnJS(
 	body: (...params: any[]) => Form,
 	params: ValueFn['params'],
 	restParam: ValueFn['restParam'] | null,
-	out: ValueFnType['out'],
-	{lazyEval = undefined as undefined | boolean[], isExp = false as boolean} = {}
-): ExpValue<ValueFn> {
+	out: ValueFnType['out']
+): ExpValue<ValueFnJS> {
 	return {
 		ast: 'value',
 		value: {
 			type: 'fn',
-			body: body as IFnJS | IFnExp,
+			body: body as IFnJS,
 			params,
-			restParam,
+			...(restParam ? {restParam} : {}),
 			out,
-			isExp,
-		} as ValueFn,
+			isExp: false,
+		},
+	}
+}
+
+function createFnExp(
+	body: IFnExp,
+	params: ValueFn['params'],
+	restParam: ValueFn['restParam'] | null,
+	out: ValueFnType['out']
+): ValueFnExp {
+	return {
+		type: 'fn',
+		body,
+		params,
+		...(restParam ? {restParam} : {}),
+		out,
+		isExp: true,
 	}
 }
 
