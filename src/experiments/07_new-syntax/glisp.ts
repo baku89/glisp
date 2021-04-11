@@ -44,18 +44,27 @@ interface ValueHashMap {
 type IFnJS = (...params: Form[]) => Form
 type IFnExp = (params: ExpScope['vars']) => Form
 
-interface ValueFnJS {
+interface ValueFnBase {
 	type: 'fn'
-	body: IFnExp
-	fnType: ValueFnType
-	isExp: false
+	params: {
+		label: string
+		body: Value
+	}[]
+	restParam?: {
+		label: string
+		body: Value
+	}
+	out: Value
 }
 
-interface ValueFnExp {
-	type: 'fn'
-	body: IFnJS
-	fnType: ValueFnType
+interface ValueFnJS extends ValueFnBase {
+	body: IFnExp
 	isExp: true
+}
+
+interface ValueFnExp extends ValueFnBase {
+	body: IFnJS
+	isExp: false
 }
 
 type ValueFn = ValueFnJS | ValueFnExp
@@ -80,16 +89,8 @@ interface ValueVectorType {
 
 interface ValueFnType {
 	type: 'fnType'
-	params: {
-		items: {
-			label: string
-			body: Value
-		}[]
-		rest?: {
-			label: string
-			body: Value
-		}
-	}
+	params: Value[]
+	restParam?: Value
 	out: Value
 	lazyEval?: boolean[]
 	lazyInfer?: boolean[]
@@ -101,7 +102,8 @@ type Exp =
 	| ExpSymbol
 	| ExpPath
 	| ExpScope
-	| ExpFnDef
+	| ExpFn
+	| ExpFnType
 	| ExpVectorType
 	| ExpList
 	| ExpVector
@@ -110,7 +112,8 @@ type Exp =
 interface ExpBase {
 	parent?:
 		| ExpScope
-		| ExpFnDef
+		| ExpFn
+		| ExpFnType
 		| ExpVectorType
 		| ExpList
 		| ExpVector
@@ -151,20 +154,25 @@ interface ExpScope extends ExpBase {
 	value: Exp
 }
 
-interface ExpFnDef extends ExpBase {
-	ast: 'fnDef'
+interface ExpFn extends ExpBase {
+	ast: 'fn'
 	params: {
-		items: {
-			label: string
-			body: Exp
-		}[]
-		rest?: {
-			label: string
-			body: Exp
-		}
+		label: string
+		body: Exp
+	}[]
+	restParam?: {
+		label: string
+		body: Exp
 	}
 	body: Exp
 	evaluated?: ValueFn
+}
+
+interface ExpFnType extends ExpBase {
+	ast: 'fnType'
+	params: Exp[]
+	restParam?: Exp
+	out: Exp
 }
 
 interface ExpVectorType extends ExpBase {
@@ -292,12 +300,18 @@ export function disconnectExp(exp: Exp): null {
 				_.values(e.vars).forEach(disconnect)
 				disconnect(e.value)
 				return null
-			case 'fnDef':
-				e.params.items.forEach(it => disconnect(it.body))
-				if (e.params.rest) {
-					disconnect(e.params.rest.body)
+			case 'fn':
+				e.params.forEach(it => disconnect(it.body))
+				if (e.restParam) {
+					disconnect(e.restParam.body)
 				}
 				disconnect(e.body)
+				return null
+			case 'fnType':
+				e.params.forEach(disconnect)
+				if (e.restParam) {
+					disconnect(e.restParam)
+				}
 				return null
 			case 'vectorType':
 				disconnect(e.items)
@@ -334,12 +348,14 @@ function createInfUnion(
 }
 function createFnType(
 	params: ValueFnType['params'],
+	restParam: ValueFnType['restParam'] | null,
 	out: Value,
 	{lazyEval = undefined as undefined | boolean[]} = {}
 ): ValueFnType {
 	return {
 		type: 'fnType',
 		params,
+		restParam,
 		out,
 		lazyEval,
 	}
@@ -380,10 +396,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (isFn(inner)) {
-				inner = inner.fnType
-			}
-			if (isFnType(inner)) {
+			if (isFn(inner) || isFnType(inner)) {
 				inner = inner.out
 			}
 			if (isPrim(inner)) {
@@ -403,10 +416,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 			}
 			return false
 		case 'union': {
-			if (isFn(inner)) {
-				inner = inner.fnType
-			}
-			if (isFnType(inner)) {
+			if (isFn(inner) || isFnType(inner)) {
 				inner = inner.out
 			}
 			const innerItems = isUnion(inner) ? inner.items : [inner]
@@ -524,134 +534,115 @@ const GlobalScope = createExpScope({
 	Int: wrapTypeInfUnion(TypeInt),
 	Nat: wrapTypeInfUnion(TypeNat),
 	String: wrapTypeInfUnion(TypeString),
-	// '@=>': createFn(
-	// 	(params: Value[], out: Value) => createFnType(params, out),
-	// 	[TypeAll, TypeAll],
-	// 	TypeAll
-	// ),
 	'@|': createFn(
 		(items: Value[]) => uniteType(items),
-		{
-			items: [{label: 'value', body: TypeAll}],
-		},
+		[{label: 'value', body: TypeAll}],
+		null,
 		TypeAll
 	),
 	'@&': createFn(
 		(items: Value[]) => intersectType(items),
-		{
-			items: [],
-			rest: {label: 'value', body: TypeAll},
-		},
+		[],
+		{label: 'value', body: TypeAll},
 		TypeAll
 	),
 	'@count': createFn(
 		(v: Value) => typeCount(v),
-		{items: [{label: 'value', body: TypeAll}]},
+		[{label: 'value', body: TypeAll}],
+		null,
 		TypeNumber
 	),
 	length: createFn(
 		(v: Value[]) => v.length,
-		{
-			items: [{label: 'value', body: createVectorType(TypeAll)}],
-		},
+		[{label: 'value', body: createVectorType(TypeAll)}],
+		null,
 		TypeNat
 	),
 	PI: wrapExp(Math.PI),
 	'+': createFn(
 		(xs: number[]) => xs.reduce((sum, v) => sum + v, 0),
-		{
-			items: [],
-			rest: {label: 'value', body: TypeNumber},
-		},
+		[],
+		{label: 'value', body: TypeNumber},
 		TypeNumber
 	),
 	'*': createFn(
 		(xs: number[]) => xs.reduce((prod, v) => prod * v, 1),
-		{
-			items: [],
-			rest: {label: 'value', body: TypeNumber},
-		},
+		[],
+		{label: 'value', body: TypeNumber},
 		TypeNumber
 	),
 	pow: createFn(
 		Math.pow,
-		{
-			items: [
-				{label: 'base', body: TypeNumber},
-				{label: 'exponent', body: TypeNumber},
-			],
-		},
+		[
+			{label: 'base', body: TypeNumber},
+			{label: 'exponent', body: TypeNumber},
+		],
+		null,
 		TypeNumber
 	),
 	take: createFn(
 		(n: number, coll: Value[]) => coll.slice(0, n),
-		{
-			items: [
-				{label: 'n', body: TypeNat},
-				{label: 'coll', body: createVectorType(TypeAll)},
-			],
-		},
+		[
+			{label: 'n', body: TypeNat},
+			{label: 'coll', body: createVectorType(TypeAll)},
+		],
+		null,
 		TypeNumber
 	),
 	'&&': createFn(
 		(a: boolean, b: boolean) => a && b,
-		{
-			items: [
-				{label: 'x', body: TypeBoolean},
-				{label: 'y', body: TypeBoolean},
-			],
-		},
+		[
+			{label: 'x', body: TypeBoolean},
+			{label: 'y', body: TypeBoolean},
+		],
+		null,
 		TypeBoolean
 	),
 	square: createFn(
 		(v: number) => v * v,
-		{items: [{label: 'value', body: TypeNumber}]},
+		[{label: 'value', body: TypeNumber}],
+		null,
 		TypePosNumber
 	),
 	sqrt: createFn(
 		Math.sqrt,
-		{items: [{label: 'value', body: TypePosNumber}]},
+		[{label: 'value', body: TypePosNumber}],
+		null,
 		TypePosNumber
 	),
 	not: createFn(
 		(v: boolean) => !v,
-		{items: [{label: 'value', body: TypeBoolean}]},
+		[{label: 'value', body: TypeBoolean}],
+		null,
 		TypeBoolean
 	),
 	'==': createFn(
 		isEqualValue,
-		{
-			items: [
-				{label: 'a', body: TypeAll},
-				{label: 'b', body: TypeAll},
-			],
-		},
+		[
+			{label: 'a', body: TypeAll},
+			{label: 'b', body: TypeAll},
+		],
+		null,
 		TypeBoolean
 	),
 	'@>=': createFn(
 		containsValue,
-		{
-			items: [
-				{label: 'a', body: TypeAll},
-				{label: 'b', body: TypeAll},
-			],
-		},
+		[
+			{label: 'a', body: TypeAll},
+			{label: 'b', body: TypeAll},
+		],
+		null,
 		TypeBoolean
 	),
-	'@type': createFn(
-		getType,
-		{items: [{label: 'value', body: TypeAll}]},
-		TypeAll
-	),
+	'@type': createFn(getType, [{label: 'value', body: TypeAll}], null, TypeAll),
 	if: createFn(
 		(cond: boolean, then: Exp, _else: Exp) => (cond ? then : _else),
-		{
-			items: [
-				{label: 'cond', body: TypeBoolean},
-				{label: 'then', body: TypeAll},
-				{label: 'else', body: TypeAll},
-			],
-		},
+		[
+			{label: 'cond', body: TypeBoolean},
+			{label: 'then', body: TypeAll},
+			{label: 'else', body: TypeAll},
+		],
+		null,
 		TypeAll,
 		{
 			lazyEval: [false, true, true],
@@ -686,7 +677,11 @@ function getType(v: Value): Exclude<Value, ValuePrim> {
 		case 'union':
 			return uniteType(v.items.map(getType)) as Exclude<Value, ValuePrim>
 		case 'fn':
-			return v.fnType
+			return createFnType(
+				v.params.map(p => getType(p.body)),
+				v.restParam ? getType(v.restParam.body) : null,
+				getType(v.out)
+			)
 		case 'infUnion':
 		case 'fnType':
 		case 'vectorType':
@@ -740,9 +735,6 @@ function isFnType(value: Value): value is ValueFnType {
 
 function inferType(form: Form): Value {
 	if (isValue(form)) {
-		if (isFn(form)) {
-			return form.fnType.out
-		}
 		return form
 	}
 
@@ -754,8 +746,10 @@ function inferType(form: Form): Value {
 			return inferType(resolveRef(form))
 		case 'scope':
 			return inferType(form.value)
-		case 'fnDef':
-			return inferType(form.body)
+		case 'fn':
+			return getType(evalExp(form))
+		case 'fnType':
+			return evalExp(form)
 		case 'vectorType':
 			return inferType(createVectorType(inferType(form.items)))
 		case 'list': {
@@ -778,34 +772,36 @@ function resolveParams(exp: ExpList): ExpScope['vars'] {
 		throw new Error('First element is not a function')
 	}
 
-	const {items, rest} = fn.fnType.params
+	const {params: paramsDef, restParam: restDef} = fn
 
 	const vars: {[label: string]: Exp} = {}
 
 	// Length check
-	if (items.length > params.length) {
-		new Error(`Expected ${items.length} arguments, but got ${params.length}`)
+	if (paramsDef.length > params.length) {
+		new Error(
+			`Expected ${paramsDef.length} arguments, but got ${params.length}`
+		)
 	}
 
 	// Retrieve fixed part of params
-	for (let i = 0; i < items.length; i++) {
-		const {label, body} = items[i]
+	for (let i = 0; i < paramsDef.length; i++) {
+		const {label, body} = paramsDef[i]
 		if (!containsValue(body, inferType(params[i]))) {
 			throw new Error('Cannot assign!!!!!!')
 		}
 		vars[label] = params[i]
 	}
 
-	if (rest) {
-		const restParams = params.slice(items.length)
+	if (restDef) {
+		const restParams = params.slice(paramsDef.length)
 		const restVars = restParams.map(p => {
-			if (!containsValue(rest.body, inferType(p))) {
+			if (!containsValue(restDef.body, inferType(p))) {
 				throw new Error('Cannot assign!!! in rest')
 			}
 			return p
 		})
 
-		vars[rest.label] = createExpVector(restVars, {setParent: false})
+		vars[restDef.label] = createExpVector(restVars, {setParent: false})
 	}
 
 	return vars
@@ -885,24 +881,22 @@ function isEqualValue(a: Value, b: Value): boolean {
 			if (!isEqualValue(a.out, b.out)) {
 				return false
 			}
-			if (a.params.items.length !== b.params.items.length) {
+			if (a.params.length !== b.params.length) {
 				return false
 			}
-			if (a.params.rest) {
-				if (!b.params.rest) {
+			if (a.restParam) {
+				if (!b.restParam) {
 					return false
 				}
-				if (!isEqualValue(a.params.rest.body, b.params.rest.body)) {
+				if (!isEqualValue(a.restParam, b.restParam)) {
 					return false
 				}
 			} else {
-				if (b.params.rest) {
+				if (b.restParam) {
 					return false
 				}
 			}
-			return _$.zipShorter(a.params.items, b.params.items).every(([ai, bi]) =>
-				isEqualValue(ai.body, bi.body)
-			)
+			return _$.zipShorter(a.params, b.params).every(_.spread(isEqualValue))
 	}
 }
 
@@ -1024,12 +1018,11 @@ export class Interpreter {
 				setAsParent(this.scope, value)
 				return value
 			},
-			{
-				items: [
-					{label: 'symbol', body: TypeString},
-					{label: 'value', body: TypeAll},
-				],
-			},
+			[
+				{label: 'symbol', body: TypeString},
+				{label: 'value', body: TypeAll},
+			],
+			null,
 			TypeAll,
 			{lazyEval: [true]}
 		)
@@ -1107,10 +1100,16 @@ export function evalExp(exp: Exp): Value {
 		}
 		case 'scope':
 			return _eval(exp.value)
-		case 'fnDef':
+		case 'fn':
 			return defineFn(exp)
 		case 'vectorType':
 			return createVectorType(_eval(exp.items))
+		case 'fnType':
+			return createFnType(
+				exp.params.map(_eval),
+				exp.restParam ? _eval(exp.restParam) : undefined,
+				_eval(exp.out)
+			)
 		case 'list': {
 			const fn = _eval(exp.value[0])
 
@@ -1119,19 +1118,14 @@ export function evalExp(exp: Exp): Value {
 				// Function application
 			}
 
-			const fnType = fn.fnType
 			const fnBody = fn.body
 
 			const scope = resolveParams(exp)
 
 			// Eval parameters at first
-			const evaluatedParams = _.values(scope).map((p, i) =>
-				fnType.lazyEval && fnType.lazyEval[i] ? p : _eval(p)
-			)
+			const evaluatedParams = _.values(scope).map(_eval)
 
-			const expanded = fn.isExp
-				? (fnBody as IFnExp)(scope)
-				: (fnBody as IFnJS)(...evaluatedParams)
+			const expanded = fn.isExp ? fn.body(scope) : fn.body(...evaluatedParams)
 
 			exp.expanded = expanded
 
@@ -1173,20 +1167,34 @@ function cloneExp(exp: Exp): Exp {
 			setAsParent(cloned, cloned.value)
 			return cloned
 		}
-		case 'fnDef': {
-			const cloned: ExpFnDef = {
-				ast: 'fnDef',
-				params: {
-					items: exp.params.items.map(it => ({...it})),
-					rest: exp.params.rest ? {...exp.params.rest} : undefined,
-				},
+		case 'fn': {
+			const cloned: ExpFn = {
+				ast: 'fn',
+				params: exp.params.map(it => ({
+					label: it.label,
+					body: cloneExp(it.body),
+				})),
+				restParam: exp.restParam ? {...exp.restParam} : undefined,
 				body: cloneExp(exp.body),
 			}
-			exp.params.items.forEach(it => setAsParent(cloned, it.body))
-			if (exp.params.rest) {
-				setAsParent(exp, exp.params.rest.body)
+			exp.params.forEach(it => setAsParent(cloned, it.body))
+			if (exp.restParam) {
+				setAsParent(exp, exp.restParam.body)
 			}
 			return exp
+		}
+		case 'fnType': {
+			const cloned: ExpFnType = {
+				ast: 'fnType',
+				params: exp.params.map(cloneExp),
+				restParam: exp.restParam ? cloneExp(exp.restParam) : undefined,
+				out: cloneExp(exp.out),
+			}
+			cloned.params.forEach(_.partial(setAsParent, cloned))
+			if (cloned.restParam) {
+				setAsParent(cloned, cloned.restParam)
+			}
+			return cloned
 		}
 		case 'vectorType': {
 			const cloned: ExpVectorType = {
@@ -1226,23 +1234,23 @@ function cloneExp(exp: Exp): Exp {
 	}
 }
 
-function defineFn(exp: ExpFnDef): ValueFn {
+function defineFn(exp: ExpFn): ValueFn {
 	if (!exp.parent) {
 		throw new Error('No parent')
 	}
 
 	// Create a function
-	const params: ValueFnType['params'] = {
-		items: exp.params.items.map(({label, body}) => ({
-			label,
-			body: evalExp(body),
-		})),
-	}
+	const params: ValueFn['params'] = exp.params.map(({label, body}) => ({
+		label,
+		body: evalExp(body),
+	}))
 
-	if (exp.params.rest) {
-		params.rest = {
-			label: exp.params.rest.label,
-			body: evalExp(exp.params.rest.body),
+	let restParam: ValueFn['restParam']
+
+	if (exp.restParam) {
+		restParam = {
+			label: exp.restParam.label,
+			body: evalExp(exp.restParam.body),
 		}
 	}
 
@@ -1269,7 +1277,7 @@ function defineFn(exp: ExpFnDef): ValueFn {
 	}
 	const outType = inferType(body)
 
-	return createFn(fn, params, outType, {isExp: true}).value
+	return createFn(fn, params, restParam, outType, {isExp: true}).value
 }
 
 // Create functions
@@ -1282,7 +1290,8 @@ function createExpSymbol(value: string): ExpSymbol {
 
 function createFn(
 	body: (...params: any[]) => Form,
-	params: ValueFnType['params'],
+	params: ValueFn['params'],
+	restParam: ValueFn['restParam'] | null,
 	out: ValueFnType['out'],
 	{lazyEval = undefined as undefined | boolean[], isExp = false as boolean} = {}
 ): ExpValue<ValueFn> {
@@ -1291,7 +1300,9 @@ function createFn(
 		value: {
 			type: 'fn',
 			body: body as IFnJS | IFnExp,
-			fnType: createFnType(params, out, {lazyEval}),
+			params,
+			restParam,
+			out,
 			isExp,
 		} as ValueFn,
 	}
@@ -1456,15 +1467,14 @@ export function printForm(form: Form): string {
 				return printSeq('{', '}', coll, delimiters)
 			}
 			case 'fn': {
-				const {fnType} = value
-				const params = fnType.params.items.map(
+				const params = value.params.map(
 					({label, body}) => `${label}:${printValue(body)}`
 				)
-				if (fnType.params.rest) {
-					const {label, body} = fnType.params.rest
+				if (value.restParam) {
+					const {label, body} = value.restParam
 					params.push(`...${label}:${printValue(body)}`)
 				}
-				const out = printValue(fnType.out)
+				const out = printValue(value.out)
 				return `(=> [${params.join(' ')}] ${out})`
 			}
 			case 'union': {
@@ -1488,13 +1498,9 @@ export function printForm(form: Form): string {
 			case 'vectorType':
 				return `[...${printValue(value.items)}]`
 			case 'fnType': {
-				const params = value.params.items.map(
-					({label, body}) => `${label}:${printValue(body)}`
-				)
-
-				if (value.params.rest) {
-					const {label, body} = value.params.rest
-					params.push(`...${label}:${printValue(body)}`)
+				const params = value.params.map(printValue)
+				if (value.restParam) {
+					params.push(`...${printValue(value.restParam)}`)
 				}
 				const out = printValue(value.out)
 				return `(#=> [${params.join(' ')}] ${out})`

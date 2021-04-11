@@ -13,7 +13,7 @@ BlankProgram = _ { return null }
 
 Form = All / Void / Null / False / True
 	/ Number / String
-	/ Path / Symbol / Scope / FnDef / VectorType
+	/ Path / Symbol / Scope / Fn / VectorType
 	/ List / Vector / HashMap
 
 All = "All"
@@ -158,34 +158,63 @@ Scope = "(" d0:_ "let" d1:_ vars:HashMap d2:_ value:Form d3:_ ")"
 		return exp
 	}
 
-FnDef = "(" d0:_ "=>" d1:_ params:FnDefParam d2:_ body:Form d3:_ ")"
+Fn = "(" d0:_ "=>" d1:_ params:FnParam d2:_ body:Form d3:_ ")"
 	{
 		const exp = {
-			ast: 'fnDef',
-			params,
+			ast: 'fn',
+			...params,
 			body
 		}
 
-		exp.params.items.forEach(it => it.body.parent = exp)
-		if (params.rest) {
-			exp.params.rest = params.rest
-			exp.params.rest.body.parent = exp
+		exp.params.forEach(it => it.body.parent = exp)
+		if (exp.restParam) {
+			exp.restParam.body.parent = exp
 		}
 
 		return exp
 	}
 
-FnDefParam = "[" d0:_ items:(Label _)* rest:("..." _ Label _)? "]"
+FnParam = "[" d0:_ fixed:(Label _)* rest:("..." _ Label _)? "]"
 	{
-		const params = {
-			items: items.map(p => p[0]),
+		const ret = {
+			params: fixed.map(p => p[0]),
 		}
 
 		if (rest) {
-			params.rest = rest[2]
+			ret.restParam = rest[2]
 		}
 
-		return params
+		return ret
+	}
+
+FnType = "(" d0:_ "@=>" d1:_ params:FnTypeParam d2:_ out:Form d3:_ ")"
+	{
+		const exp = {
+			ast: 'fnType',
+			...params,
+			out
+		}
+
+		exp.params.forEach(it => it.parent = exp)
+
+		if (exp.restParam) {
+			exp.restParam.parent = exp
+		}
+
+		return exp
+	}
+
+FnTypeParam = "[" d0:_ fixed:(Form _)* rest:("..." _ Form _)? "]"
+	{
+		const ret = {
+			params: fixed.map(p => p[0]),
+		}
+
+		if (rest) {
+			ret.restParam = rest[2]
+		}
+
+		return ret
 	}
 
 VectorType = "[" d0:_ "..." d1:_ items:Form d2:_ "]"
