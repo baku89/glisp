@@ -16,7 +16,7 @@ Form = All / Void / Null / False / True
 	/ Path / Symbol / Scope / Fn / VectorType
 	/ List / Vector / HashMap
 
-All = "All"
+All "All" = "All"
 	{
 		return {
 			ast: 'value',
@@ -24,7 +24,7 @@ All = "All"
 		}
 	}
 
-Void = "Void"
+Void "Void" = "Void"
 	{
 		return {
 			ast: 'value',
@@ -32,24 +32,27 @@ Void = "Void"
 		}
 	}
 
-Null = "null" { return {ast: 'value', value: null} }
+Null "null" = "null" { return {ast: 'value', value: null} }
 
-False = "false" { return {ast: 'value', value: false} }
+False "false" = "false" { return {ast: 'value', value: false} }
 
-True = "true" { return {ast: 'value', value: true} }
+True "true" = "true" { return {ast: 'value', value: true} }
 
 // Number
-Number = NumberInf / NumberMinusInf / NumberNan / NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
+Number "number" = NumberInf / NumberMinusInf / NumberNan / NumberPercentage / NumberExponential / NumberFloat / NumberHex / NumberInteger
 
 IntegerLiteral = $(("+" / "-")? [0-9]+)
 
 FloatLiteral = $(IntegerLiteral? "." [0-9]+)
 
-NumberInf = "Infinity" { return {ast: 'value', value: Infinity} }
-NumberMinusInf = "-Infinity" { return {ast: 'value', value: -Infinity} }
-NumberNan = "NaN" { return {ast: 'value', value: NaN} }
+NumberInf "Infinity" = "Infinity"
+	{ return {ast: 'value', value: Infinity} }
+NumberMinusInf "-Infinity" = "-Infinity"
+	{ return {ast: 'value', value: -Infinity} }
+NumberNan "NaN" = "NaN"
+	{ return {ast: 'value', value: NaN} }
 
-NumberInteger = str:IntegerLiteral
+NumberInteger "integer" = str:IntegerLiteral
 	{ 
 		return {
 			ast: 'value',
@@ -58,7 +61,7 @@ NumberInteger = str:IntegerLiteral
 		}
 	}
 
-NumberFloat = str:FloatLiteral
+NumberFloat "float" = str:FloatLiteral
 	{
 		return {
 			ast: 'value',
@@ -67,7 +70,8 @@ NumberFloat = str:FloatLiteral
 		}
 	}
 
-NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
+NumberExponential "exponential number"
+	= str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 	{
 		return {
 			ast: 'value',
@@ -76,7 +80,7 @@ NumberExponential = str:$((IntegerLiteral / FloatLiteral) "e" IntegerLiteral)
 		}
 	}
 
-NumberHex = str:$("0x" [0-9a-f]i+)
+NumberHex "hex number" = str:$("0x" [0-9a-f]i+)
 	{
 		return {
 			ast: 'value',
@@ -85,7 +89,8 @@ NumberHex = str:$("0x" [0-9a-f]i+)
 		}
 	}
 
-NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
+NumberPercentage "percentage number"
+	= str:$(IntegerLiteral / FloatLiteral) "%"
 	{
 		return {
 			ast: 'value',
@@ -95,7 +100,7 @@ NumberPercentage = str:$(IntegerLiteral / FloatLiteral) "%"
 	}
 
 // String
-String = '"' value:$(!'"' .)* '"'
+String "string" = '"' value:$(!'"' .)* '"'
 	{
 		return {
 			ast: 'value',
@@ -103,9 +108,9 @@ String = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol = SymbolIdentifier / SymbolQuoted
+Symbol "symbol" = SymbolIdentifier / SymbolQuoted
 
-SymbolIdentifier = str:SymbolLiteral
+SymbolIdentifier "symbol" = str:SymbolLiteral
 	{ 
 		return {
 			ast: 'symbol',
@@ -116,7 +121,7 @@ SymbolIdentifier = str:SymbolLiteral
 
 SymbolLiteral = $([a-z_+\-*=?|&<>@]i [0-9a-z_+\-*=?|&<>@]i*)
 
-SymbolQuoted = '`' str:$(!'`' .)+ '`'
+SymbolQuoted "quoted symbol" = '`' str:$(!'`' .)+ '`'
 	{
 		return {
 			ast: 'symbol',
@@ -125,7 +130,7 @@ SymbolQuoted = '`' str:$(!'`' .)+ '`'
 		}
 	}
 
-Path = elements:(PathElement "/")+ last:PathElement
+Path "path" = elements:(PathElement "/")+ last:PathElement
  {
 	 return {
 		 ast: 'path',
@@ -133,14 +138,14 @@ Path = elements:(PathElement "/")+ last:PathElement
 	 }
  }
 
-PathElement = sym:(Symbol / ".." / ".")
+PathElement "path element" = sym:(Symbol / ".." / ".")
 	{
 		return typeof sym === 'string'
 			? sym
 			: {value: sym.value, quoted: sym.quoted}
 	}
 
-Scope = "{" d0:_ vars:HashMap d1:_ value:Form d2:_ "}"
+Scope "scope" = "{" d0:_ vars:HashMap d1:_ value:Form d2:_ "}"
 	{
 		if (value.ast === 'label') {
 			throw new Error('Out form cannot be labeled')
@@ -158,7 +163,7 @@ Scope = "{" d0:_ vars:HashMap d1:_ value:Form d2:_ "}"
 		return exp
 	}
 
-Fn = "(" d0:_ "=>" d1:_ params:FnParam d2:_ body:Form d3:_ ")"
+Fn "function" = "(" d0:_ "=>" d1:_ params:FnParam d2:_ body:Form d3:_ ")"
 	{
 		const exp = {
 			ast: 'fn',
@@ -174,7 +179,8 @@ Fn = "(" d0:_ "=>" d1:_ params:FnParam d2:_ body:Form d3:_ ")"
 		return exp
 	}
 
-FnParam = "[" d0:_ fixed:(Label _)* rest:("..." _ Label _)? "]"
+FnParam "function parameter"
+	= "[" d0:_ fixed:(Label _)* rest:("..." _ Label _)? "]"
 	{
 		const ret = {
 			params: fixed.map(p => p[0]),
@@ -187,7 +193,8 @@ FnParam = "[" d0:_ fixed:(Label _)* rest:("..." _ Label _)? "]"
 		return ret
 	}
 
-FnType = "(" d0:_ "@=>" d1:_ params:FnTypeParam d2:_ out:Form d3:_ ")"
+FnType "function type"
+	= "(" d0:_ "@=>" d1:_ params:FnTypeParam d2:_ out:Form d3:_ ")"
 	{
 		const exp = {
 			ast: 'fnType',
@@ -204,7 +211,8 @@ FnType = "(" d0:_ "@=>" d1:_ params:FnTypeParam d2:_ out:Form d3:_ ")"
 		return exp
 	}
 
-FnTypeParam = "[" d0:_ fixed:(Form _)* rest:("..." _ Form _)? "]"
+FnTypeParam "function parameter"
+	= "[" d0:_ fixed:(Form _)* rest:("..." _ Form _)? "]"
 	{
 		const ret = {
 			params: fixed.map(p => p[0]),
@@ -217,7 +225,8 @@ FnTypeParam = "[" d0:_ fixed:(Form _)* rest:("..." _ Form _)? "]"
 		return ret
 	}
 
-VectorType = "[" d0:_ "..." d1:_ items:Form d2:_ "]"
+VectorType "vector type"
+	= "[" d0:_ "..." d1:_ items:Form d2:_ "]"
 	{
 		const exp = {
 			ast: 'vectorType',
@@ -229,7 +238,7 @@ VectorType = "[" d0:_ "..." d1:_ items:Form d2:_ "]"
 		return exp
 	}
 
-List = "(" d0:_ values:(Form _)* ")"
+List "list" = "(" d0:_ values:(Form _)* ")"
 	{
 		const exp = {
 			ast: 'list',
@@ -242,7 +251,7 @@ List = "(" d0:_ values:(Form _)* ")"
 		return exp
 	}
 
-Vector = "[" d0:_ values:(Form _)* "]"
+Vector "vector" = "[" d0:_ values:(Form _)* "]"
 	{
 		const exp = {
 			ast: 'vector',
@@ -259,7 +268,7 @@ Vector = "[" d0:_ values:(Form _)* "]"
 		return exp
 	}
 
-HashMap = "{" d0:_ pairs:(Label _)* "}"
+HashMap "hash map" = "{" d0:_ pairs:(Label _)* "}"
 	{
 		const value = {} // as {[key: string]: ExpForm}
 		const delimiters = [d0] // as string[]
@@ -285,7 +294,7 @@ StringLabelLiteral = '"' value:$(!'"' .)+ '"'
 	 return value
  }
 
-Label =
+Label "labeled form" =
 	label:(SymbolLiteral / StringLabelLiteral)
 	d0:_ ":" d1:_
 	body:Form
@@ -299,9 +308,9 @@ Label =
 		return exp
 	}
 
-Comment = $(";" [^\n\r]*)
+Comment "comment" = $(";" [^\n\r]*)
 
-Whitespace = $([ ,\t\n\r]*)
+Whitespace "whitespace" = $([ ,\t\n\r]*)
 
 _ = w:Whitespace str:$(Comment Whitespace?)*
 	{
