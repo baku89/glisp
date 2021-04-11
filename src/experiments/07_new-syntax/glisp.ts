@@ -536,8 +536,8 @@ const GlobalScope = createExpScope({
 	String: wrapTypeInfUnion(TypeString),
 	'@|': createFn(
 		(items: Value[]) => uniteType(items),
-		[{label: 'value', body: TypeAll}],
-		null,
+		[],
+		{label: 'value', body: TypeAll},
 		TypeAll
 	),
 	'@&': createFn(
@@ -1047,12 +1047,12 @@ function setAsParent(parent: Exclude<Exp['parent'], undefined>, child: Exp) {
 }
 
 function typeCount(value: Value): number {
-	if (isPrim(value) || Array.isArray(value)) {
+	if (isPrim(value)) {
 		return 1
 	}
 
 	if (Array.isArray(value)) {
-		return value.reduce((count, d) => count * typeCount(d), 1)
+		return value.reduce((count: number, d) => count * typeCount(d), 1)
 	}
 
 	switch (value.type) {

@@ -140,7 +140,7 @@ PathElement = sym:(Symbol / ".." / ".")
 			: {value: sym.value, quoted: sym.quoted}
 	}
 
-Scope = "(" d0:_ "let" d1:_ vars:HashMap d2:_ value:Form d3:_ ")"
+Scope = "{" d0:_ vars:HashMap d1:_ value:Form d2:_ "}"
 	{
 		if (value.ast === 'label') {
 			throw new Error('Out form cannot be labeled')
