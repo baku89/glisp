@@ -358,6 +358,12 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
+			if (isFn(inner)) {
+				inner = inner.fnType
+			}
+			if (isFnType(inner)) {
+				inner = inner.out
+			}
 			if (isPrim(inner)) {
 				return outer.predicate(inner)
 			}
@@ -375,6 +381,12 @@ function containsValue(outer: Value, inner: Value): boolean {
 			}
 			return false
 		case 'union': {
+			if (isFn(inner)) {
+				inner = inner.fnType
+			}
+			if (isFnType(inner)) {
+				inner = inner.out
+			}
 			const innerItems = isUnion(inner) ? inner.items : [inner]
 			if (outer.items.length < innerItems.length) {
 				return false
