@@ -478,13 +478,13 @@ function uniteType(items: Value[]): Value {
 		? flattenItems[0]
 		: {
 				type: 'union',
-				items: itemList.flat(),
+				items: flattenItems,
 		  }
 }
 
 function intersectType(items: Value[]): Value {
 	if (items.length === 0) {
-		return TypeAll
+		return TypeVoid
 	}
 
 	const result = items.reduce((a, b) => {
@@ -744,20 +744,51 @@ function inferType(form: Form): Value {
 		case 'scope':
 			return inferType(form.value)
 		case 'fn':
-			return getType(evalExp(form))
 		case 'fnType':
 			return evalExp(form)
 		case 'vectorType':
 			return inferType(createVectorType(inferType(form.items)))
 		case 'list': {
 			const first = form.value[0]
-			return inferType(first)
+			const fn = evalExp(first)
+			if (isFn(fn)) {
+				return fn.out
+			}
+			throw new Error('Not a function')
 		}
 		case 'vector':
 			return form.value.map(inferType)
 		case 'hashMap':
 			return createHashMap(_.mapValues(form.value, inferType))
 	}
+}
+
+function inferAcceptableType(exp: Exp) {
+	if (exp.parent && exp.parent.ast === 'list') {
+		const {parent} = exp
+		const index = parent.value.indexOf(exp)
+
+		if (index === 0) {
+			// Function
+			return TypeAll
+		}
+
+		const paramIndex = index - 1
+
+		const fn = evalExp(parent.value[0])
+
+		if (!isFn(fn)) {
+			throw new Error('Not a function')
+		}
+
+		if (paramIndex < fn.params.length) {
+			return fn.params[paramIndex].body
+		} else if (fn.restParam) {
+			return fn.restParam.body
+		}
+	}
+
+	return TypeAll
 }
 
 export class GlispError extends Error {
@@ -1128,7 +1159,7 @@ export function evalExp(exp: Exp): Value {
 				const paramsForm = _.values(scope).map((e, i) => {
 					if (i >= fn.params.length) {
 						// Rest
-						return fn.restParam?.label ? e : _eval(e)
+						return fn.restParam?.lazy ? e : _eval(e)
 					}
 					return fn.params[i].lazy ? e : _eval(e)
 				})
@@ -1245,21 +1276,6 @@ function defineFn(exp: ExpFn): ValueFn {
 		throw new Error('No parent')
 	}
 
-	// Create a function
-	const params: ValueFn['params'] = exp.params.map(({label, body}) => ({
-		label,
-		body: evalExp(body),
-	}))
-
-	let restParam: ValueFn['restParam']
-
-	if (exp.restParam) {
-		restParam = {
-			label: exp.restParam.label,
-			body: evalExp(exp.restParam.body),
-		}
-	}
-
 	const body = cloneExp(exp.body)
 
 	// Create scope
@@ -1267,6 +1283,42 @@ function defineFn(exp: ExpFn): ValueFn {
 	if (exp.parent) {
 		setAsParent(exp.parent, fnScope)
 	}
+
+	// Infer Param Type
+	const varsType = Object.fromEntries(
+		exp.params.map(
+			({label, body}) => [label, wrapExp(evalExp(body))] as [string, ExpValue]
+		)
+	)
+
+	if (exp.restParam) {
+		varsType[exp.restParam.label] = wrapExp(evalExp(exp.restParam.body))
+	}
+
+	fnScope.vars = varsType
+
+	const varsTypeList = _.values(varsType)
+
+	inferParamType(body)
+
+	const params: ValueFn['params'] = _.toPairs(varsType).map(
+		([label, {value}]) => ({
+			label,
+			body: value,
+		})
+	)
+
+	let restParam: ValueFn['restParam']
+	if (exp.restParam) {
+		restParam = params.splice(-1, 1)[0]
+	}
+
+	const outType = inferType(body)
+
+	varsTypeList.forEach(v => {
+		clearEvaluatedRecursively(v)
+		disconnectExp(v)
+	})
 
 	// Define function
 	const fn: IFnExp = (vars: ExpScope['vars']) => {
@@ -1281,9 +1333,23 @@ function defineFn(exp: ExpFn): ValueFn {
 
 		return out
 	}
-	const outType = inferType(body)
 
 	return createFnExp(fn, params, restParam, outType)
+
+	function inferParamType(e: Exp) {
+		switch (e.ast) {
+			case 'list':
+				e.value.slice(1).forEach(inferParamType)
+				break
+			case 'symbol':
+			case 'path': {
+				const ref = resolveRef(e)
+				if (ref.ast === 'value' && varsTypeList.includes(ref)) {
+					ref.value = intersectType([ref.value, inferAcceptableType(e)])
+				}
+			}
+		}
+	}
 }
 
 // Create functions
@@ -1506,7 +1572,7 @@ export function printForm(form: Form): string {
 					}
 				}
 				const items = value.items.map(printForm).join(' ')
-				return `(#| ${items})`
+				return `(@| ${items})`
 			}
 			case 'infUnion':
 				if (value.original) {
