@@ -23,6 +23,7 @@ export type Value =
 	| ValueInfUnion
 	| ValueVectorType
 	| ValueFnType
+	| ValueExp
 
 type ValuePrim = null | boolean | number | string
 
@@ -81,7 +82,7 @@ interface ValueUnion {
 
 interface ValueInfUnion {
 	type: 'infUnion'
-	predicate: (v: ValuePrim) => boolean
+	predicate: (v: Value) => boolean
 	original?: ExpValue<ValueInfUnion>
 	supersets?: ValueInfUnion[]
 }
@@ -96,6 +97,11 @@ interface ValueFnType {
 	params: Value[]
 	restParam?: Value
 	out: Value
+}
+
+interface ValueExp {
+	type: 'exp'
+	value: Exp
 }
 
 // Exp
@@ -245,6 +251,10 @@ const TypeString = createInfUnion({
 	predicate: v => typeof v === 'string',
 })
 
+const TypeExp = createInfUnion({
+	predicate: isValueExp,
+})
+
 const parser = peg.generate(ParserDefinition)
 
 export function readStr(str: string): Exp {
@@ -359,11 +369,11 @@ function containsValue(outer: Value, inner: Value): boolean {
 		return true
 	}
 
-	if (isVoid(inner)) {
+	if (isValueVoid(inner)) {
 		return true
 	}
 
-	if (isPrim(outer)) {
+	if (isValuePrim(outer) || isValueExp(outer)) {
 		return isEqualValue(outer, inner)
 	}
 
@@ -381,7 +391,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 			return isEqualValue(outer, inner)
 		case 'hashMap':
 			return (
-				isHashMap(inner) &&
+				isValueHashMap(inner) &&
 				_.entries(inner).every(([key, iv]) =>
 					containsValue(outer.value[key], iv)
 				)
@@ -389,16 +399,16 @@ function containsValue(outer: Value, inner: Value): boolean {
 		case 'all':
 			return true
 		case 'infUnion':
-			if (isFn(inner) || isFnType(inner)) {
+			if (isValueFn(inner) || isValueFnType(inner)) {
 				inner = inner.out
 			}
-			if (isPrim(inner)) {
+			if (isValuePrim(inner)) {
 				return outer.predicate(inner)
 			}
-			if (isUnion(inner)) {
+			if (isValueUnion(inner)) {
 				return inner.items.every(ii => containsValue(outer, ii))
 			}
-			if (isInfUion(inner)) {
+			if (isValueInfUion(inner)) {
 				if (outer.original === inner.original) {
 					return true
 				}
@@ -409,10 +419,10 @@ function containsValue(outer: Value, inner: Value): boolean {
 			}
 			return false
 		case 'union': {
-			if (isFn(inner) || isFnType(inner)) {
+			if (isValueFn(inner) || isValueFnType(inner)) {
 				inner = inner.out
 			}
-			const innerItems = isUnion(inner) ? inner.items : [inner]
+			const innerItems = isValueUnion(inner) ? inner.items : [inner]
 			if (outer.items.length < innerItems.length) {
 				return false
 			}
@@ -421,7 +431,7 @@ function containsValue(outer: Value, inner: Value): boolean {
 			)
 		}
 		case 'vectorType':
-			if (isVectorType(inner)) {
+			if (isValueVectorType(inner)) {
 				return containsValue(outer.items, inner.items)
 			}
 			if (Array.isArray(inner)) {
@@ -451,7 +461,7 @@ function uniteType(items: Value[]): Value {
 		return TypeVoid
 	}
 
-	const itemList = items.map(t => (isUnion(t) ? [...t.items] : [t]))
+	const itemList = items.map(t => (isValueUnion(t) ? [...t.items] : [t]))
 
 	for (let i = 0; i < itemList.length; i++) {
 		for (let j = 0; j < itemList.length; j++) {
@@ -493,8 +503,8 @@ function intersectType(items: Value[]): Value {
 			return a
 		}
 
-		const aItems = isUnion(a) ? a.items : [a]
-		const bItems = isUnion(b) ? b.items : [b]
+		const aItems = isValueUnion(a) ? a.items : [a]
+		const bItems = isValueUnion(b) ? b.items : [b]
 
 		return {
 			type: 'union',
@@ -502,7 +512,7 @@ function intersectType(items: Value[]): Value {
 		}
 	}, TypeAll)
 
-	if (isUnion(result)) {
+	if (isValueUnion(result)) {
 		if (result.items.length === 0) {
 			return TypeVoid
 		}
@@ -527,6 +537,7 @@ const GlobalScope = createExpScope({
 	Int: wrapTypeInfUnion(TypeInt),
 	Nat: wrapTypeInfUnion(TypeNat),
 	String: wrapTypeInfUnion(TypeString),
+	Exp: wrapTypeInfUnion(TypeExp),
 	'@|': createExpFnJS(
 		(items: Value[]) => uniteType(items),
 		[],
@@ -646,7 +657,7 @@ const GlobalScope = createExpScope({
 })
 
 function getType(v: Value): Exclude<Value, ValuePrim> {
-	if (isPrim(v)) {
+	if (isValuePrim(v)) {
 		if (v === null) {
 			return TypeAll
 		}
@@ -683,49 +694,61 @@ function getType(v: Value): Exclude<Value, ValuePrim> {
 			return v
 		case 'hashMap':
 			return createHashMap(_.mapValues(v.value, getType))
+		case 'exp':
+			return TypeExp
 	}
 }
 
 function isValue(form: Form): form is Value {
-	return isPrim(form) || Array.isArray(form) || 'type' in form
+	return isValuePrim(form) || Array.isArray(form) || 'type' in form
 }
 
-function isPrim(value: Value | Exp): value is ValuePrim {
+function isValuePrim(value: Value | Exp): value is ValuePrim {
 	return value !== Object(value)
 }
 
 // Type predicates
 
-function isAll(value: Value): value is ValueAll {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'all'
+function isValueAll(value: Value): value is ValueAll {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'all'
 }
 
-function isVoid(value: Value): value is ValueVoid {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'void'
+function isValueVoid(value: Value): value is ValueVoid {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'void'
 }
 
-function isHashMap(value: Value): value is ValueHashMap {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'hashMap'
+function isValueHashMap(value: Value): value is ValueHashMap {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'hashMap'
+	)
 }
 
-function isFn(value: Value): value is ValueFn {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'fn'
+function isValueFn(value: Value): value is ValueFn {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'fn'
 }
 
-function isUnion(value: Value): value is ValueUnion {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'union'
+function isValueUnion(value: Value): value is ValueUnion {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'union'
 }
 
-function isInfUion(value: Value): value is ValueInfUnion {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'infUnion'
+function isValueInfUion(value: Value): value is ValueInfUnion {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'infUnion'
+	)
 }
 
-function isVectorType(value: Value): value is ValueVectorType {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'vectorType'
+function isValueVectorType(value: Value): value is ValueVectorType {
+	return (
+		!isValuePrim(value) && !Array.isArray(value) && value.type === 'vectorType'
+	)
 }
 
-function isFnType(value: Value): value is ValueFnType {
-	return !isPrim(value) && !Array.isArray(value) && value.type === 'fnType'
+function isValueFnType(value: Value): value is ValueFnType {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'fnType'
+}
+
+function isValueExp(value: Value): value is ValueExp {
+	return !isValuePrim(value) && !Array.isArray(value) && value.type === 'exp'
 }
 
 function inferType(form: Exp): Value {
@@ -745,7 +768,7 @@ function inferType(form: Exp): Value {
 		case 'list': {
 			const first = form.value[0]
 			const fn = evalExp(first)
-			if (isFn(fn)) {
+			if (isValueFn(fn)) {
 				return fn.out
 			}
 			throw new Error('Not a function')
@@ -771,7 +794,7 @@ function inferAcceptableType(exp: Exp) {
 
 		const fn = evalExp(parent.value[0])
 
-		if (!isFn(fn)) {
+		if (!isValueFn(fn)) {
 			throw new Error('Not a function')
 		}
 
@@ -797,7 +820,7 @@ function resolveParams(exp: ExpList): ExpScope['vars'] {
 
 	const fn = evalExp(first)
 
-	if (!isFn(fn)) {
+	if (!isValueFn(fn)) {
 		throw new Error('First element is not a function')
 	}
 
@@ -857,7 +880,7 @@ function clearEvaluatedRecursively(exp: Exp) {
 }
 
 function isEqualValue(a: Value, b: Value): boolean {
-	if (isPrim(a)) {
+	if (isValuePrim(a)) {
 		return (isNaN(a as any) && isNaN(b as any)) || a === b
 	}
 
@@ -871,22 +894,22 @@ function isEqualValue(a: Value, b: Value): boolean {
 
 	switch (a.type) {
 		case 'all':
-			return isAll(b)
+			return isValueAll(b)
 		case 'void':
-			return isVoid(b)
+			return isValueVoid(b)
 		case 'hashMap':
 			return (
-				isHashMap(b) &&
+				isValueHashMap(b) &&
 				_.xor(_.keys(a.value), _.keys(b.value)).length === 0 &&
 				_.toPairs(a.value).every(([key, av]) =>
 					isEqualValue(av, (b as ValueHashMap).value[key])
 				)
 			)
 		case 'fn':
-			return isFn(b) && a.body === b.body
+			return isValueFn(b) && a.body === b.body
 		case 'union': {
 			return (
-				isUnion(b) &&
+				isValueUnion(b) &&
 				a.items.length === b.items.length &&
 				_.differenceWith(a.items, b.items, isEqualValue).length === 0
 			)
@@ -894,9 +917,9 @@ function isEqualValue(a: Value, b: Value): boolean {
 		case 'infUnion':
 			return a === b
 		case 'vectorType':
-			return isVectorType(b) && isEqualValue(a.items, b.items)
+			return isValueVectorType(b) && isEqualValue(a.items, b.items)
 		case 'fnType':
-			if (!isFnType(b)) {
+			if (!isValueFnType(b)) {
 				return false
 			}
 			if (!isEqualValue(a.out, b.out)) {
@@ -918,6 +941,8 @@ function isEqualValue(a: Value, b: Value): boolean {
 				}
 			}
 			return _$.zipShorter(a.params, b.params).every(_.spread(isEqualValue))
+		case 'exp':
+			return isValueExp(b) && a.value === b.value
 	}
 }
 
@@ -1068,7 +1093,7 @@ function setAsParent(parent: Exclude<Exp['parent'], undefined>, child: Exp) {
 }
 
 function typeCount(value: Value): number {
-	if (isPrim(value)) {
+	if (isValuePrim(value)) {
 		return 1
 	}
 
@@ -1080,6 +1105,7 @@ function typeCount(value: Value): number {
 		case 'void':
 			return 0
 		case 'fn':
+		case 'exp':
 			return 1
 		case 'all':
 		case 'infUnion':
@@ -1134,7 +1160,7 @@ export function evalExp(exp: Exp): Value {
 		case 'list': {
 			const fn = _eval(exp.value[0])
 
-			if (!isFn(fn)) {
+			if (!isValueFn(fn)) {
 				throw new Error('First element is not a function')
 				// Function application
 			}
@@ -1621,6 +1647,8 @@ export function printForm(form: Form): string {
 				const out = printValue(value.out)
 				return `(@=> [${params.join(' ')}] ${out})`
 			}
+			case 'exp':
+				return `'${printExp(value.value)}`
 		}
 	}
 
