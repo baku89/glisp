@@ -1573,7 +1573,7 @@ export function printForm(form: Form): string {
 					params.push(`...${printValue(value.restParam)}`)
 				}
 				const out = printValue(value.out)
-				return `(#=> [${params.join(' ')}] ${out})`
+				return `(@=> [${params.join(' ')}] ${out})`
 			}
 		}
 	}

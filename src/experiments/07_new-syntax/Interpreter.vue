@@ -58,7 +58,7 @@ export default defineComponent({
 .Interpreter
 	app()
 	padding 2rem
-	height 100vh
+	min-height 100vh
 
 	h2
 		font-size 2rem
