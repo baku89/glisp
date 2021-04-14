@@ -1030,6 +1030,11 @@ export class Interpreter {
 
 		this.vars['def'] = createExpFnJS(
 			(symbol: ExpSymbol, value: Exp) => {
+				if (this.vars[symbol.value]) {
+					clearEvaluatedRecursively(this.vars[symbol.value])
+					disconnectExp(this.vars[symbol.value])
+				}
+
 				this.vars[symbol.value] = value
 				delete value.parent
 				setAsParent(this.scope, value)
