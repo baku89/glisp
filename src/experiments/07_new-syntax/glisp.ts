@@ -737,7 +737,7 @@ function inferType(form: Form): Value {
 
 	switch (form.ast) {
 		case 'value':
-			return inferType(form.value)
+			return form.value
 		case 'symbol':
 		case 'path':
 			return inferType(resolveRef(form))
@@ -747,7 +747,7 @@ function inferType(form: Form): Value {
 		case 'fnType':
 			return evalExp(form)
 		case 'vectorType':
-			return inferType(createVectorType(inferType(form.items)))
+			return createVectorType(inferType(form.items))
 		case 'list': {
 			const first = form.value[0]
 			const fn = evalExp(first)
