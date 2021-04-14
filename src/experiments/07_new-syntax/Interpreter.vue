@@ -40,6 +40,8 @@ export default defineComponent({
 			} catch (err) {
 				if (err instanceof GlispError) {
 					throw new Error(`${printForm(err.target)}: ${err.message}`)
+				} else {
+					throw err
 				}
 			}
 		}
