@@ -730,11 +730,7 @@ function isFnType(value: Value): value is ValueFnType {
 	return !isPrim(value) && !Array.isArray(value) && value.type === 'fnType'
 }
 
-function inferType(form: Form): Value {
-	if (isValue(form)) {
-		return form
-	}
-
+function inferType(form: Exp): Value {
 	switch (form.ast) {
 		case 'value':
 			return form.value
