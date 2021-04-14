@@ -1,7 +1,7 @@
 <template>
 	<div class="Interpreter">
-		<h2>Glisp :: REPL</h2>
-		<MinimalConsole :rep="rep" />
+		<h2>Niu :: REPL</h2>
+		<MinimalConsole class="Interpreter__console" :rep="rep" />
 	</div>
 </template>
 
@@ -57,9 +57,15 @@ export default defineComponent({
 
 .Interpreter
 	app()
+	display flex
+	flex-direction column
+	align-items stretch
 	padding 2rem
-	min-height 100vh
+	height 100vh
 
 	h2
 		font-size 2rem
+
+	&__console
+		flex-grow 1
 </style>
