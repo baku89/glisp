@@ -50,11 +50,13 @@ interface ValueFnBase {
 		label: string
 		body: Value
 		lazy?: boolean
+		macro?: boolean
 	}[]
 	restParam?: {
 		label: string
 		body: Value
 		lazy?: boolean
+		macro?: boolean
 	}
 	out: Value
 }
@@ -813,19 +815,19 @@ function resolveParams(exp: ExpList): ExpScope['vars'] {
 
 	// Retrieve fixed part of params
 	for (let i = 0; i < paramsDef.length; i++) {
-		const {label, body} = paramsDef[i]
-		if (!containsValue(body, inferType(params[i]))) {
-			throw new Error('Cannot assign!!!!!!')
-		}
+		const {label} = paramsDef[i]
+		// if (!containsValue(body, inferType(params[i]))) {
+		// 	throw new Error('Cannot assign!!!!!!')
+		// }
 		vars[label] = params[i]
 	}
 
 	if (restDef) {
 		const restParams = params.slice(paramsDef.length)
 		const restVars = restParams.map(p => {
-			if (!containsValue(restDef.body, inferType(p))) {
-				throw new Error('Cannot assign!!! in rest')
-			}
+			// if (!containsValue(restDef.body, inferType(p))) {
+			// 	throw new Error('Cannot assign!!! in rest')
+			// }
 			return p
 		})
 
@@ -1027,14 +1029,15 @@ export class Interpreter {
 		this.vars = {}
 
 		this.vars['def'] = createExpFnJS(
-			(symbol: string, value: Exp) => {
-				this.vars[symbol] = value
+			(symbol: ExpSymbol, value: Exp) => {
+				this.vars[symbol.value] = value
+				delete value.parent
 				setAsParent(this.scope, value)
 				return value
 			},
 			[
-				{label: 'symbol', body: TypeString, lazy: true},
-				{label: 'value', body: TypeAll},
+				{label: 'symbol', body: TypeAll, macro: true},
+				{label: 'value', body: TypeAll, lazy: true},
 			],
 			null,
 			TypeAll
@@ -1133,19 +1136,57 @@ export function evalExp(exp: Exp): Value {
 
 			const scope = resolveParams(exp)
 
+			// Type checking
+			_.values(scope).forEach((e, i) => {
+				if (i < fn.params.length) {
+					if (fn.params[i].macro) {
+						return
+					}
+					if (!containsValue(fn.params[i].body, inferType(e))) {
+						throw new Error('Cannot assign!!!')
+					}
+				} else {
+					// Rest
+					if (!fn.restParam) {
+						throw new Error('I dunnot why!!!!!!!2222')
+					}
+					if (fn.restParam.macro) {
+						return
+					}
+					if (e.ast !== 'vector') {
+						throw new Error('I dunnot why!!!!!!!')
+					}
+					const restType = fn.restParam.body
+					if (!e.value.every(r => containsValue(restType, inferType(r)))) {
+						throw new Error('Cannot assign!!! in rest')
+					}
+				}
+			})
+
 			// Eval parameters at first
 			if (fn.isExp) {
 				// Bootstrapped fn
+
+				// Pass parameters as scope
 				exp.expanded = fn.body(scope)
 			} else {
 				// JS-defined fn
+
+				// Evaluate if necessary
 				const paramsForm = _.values(scope).map((e, i) => {
-					if (i >= fn.params.length) {
-						// Rest
-						return fn.restParam?.lazy ? e : _eval(e)
+					if (i < fn.params.length) {
+						const {lazy, macro} = fn.params[i]
+						return lazy || macro ? e : _eval(e)
+					} else {
+						if (!fn.restParam) {
+							throw new Error('I donno whyyyyyyyy')
+						}
+						const {lazy, macro} = fn.restParam
+						return lazy || macro ? e : _eval(e)
 					}
-					return fn.params[i].lazy ? e : _eval(e)
 				})
+
+				// Pass parameters as a list
 				exp.expanded = fn.body(...paramsForm)
 			}
 
