@@ -94,8 +94,6 @@ interface ValueFnType {
 	params: Value[]
 	restParam?: Value
 	out: Value
-	lazyEval?: boolean[]
-	lazyInfer?: boolean[]
 }
 
 // Exp
@@ -344,15 +342,13 @@ function createInfUnion(
 function createFnType(
 	params: ValueFnType['params'],
 	restParam: ValueFnType['restParam'] | null,
-	out: Value,
-	{lazyEval = undefined as undefined | boolean[]} = {}
+	out: Value
 ): ValueFnType {
 	return {
 		type: 'fnType',
 		params,
 		restParam,
 		out,
-		lazyEval,
 	}
 }
 
