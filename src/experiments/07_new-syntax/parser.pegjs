@@ -180,10 +180,19 @@ Fn "function" = "(" d0:_ "=>" d1:_ params:FnParam d2:_ body:Form d3:_ ")"
 	}
 
 FnParam "function parameter"
-	= "[" d0:_ fixed:(Label _)* rest:("..." _ Label _)? "]"
+	= "[" d0:_ fixed:((Label / Symbol) _)* rest:("..." _ Label _)? "]"
 	{
 		const ret = {
-			params: fixed.map(p => p[0]),
+			params: fixed.map(p => {
+				if (p[0].ast === 'symbol') {
+					return {
+						label: p[0].value,
+						body: {ast: 'value', value: {type: 'all'}}
+					}
+				} else {
+					return p[0]
+				}
+			}),
 		}
 
 		if (rest) {
