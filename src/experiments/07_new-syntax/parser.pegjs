@@ -13,6 +13,7 @@ BlankProgram = _ { return null }
 
 Form = All / Void / Null / False / True
 	/ Number / String
+	/ Quote
 	/ Path / Symbol / Scope / Fn / VectorType
 	/ List / Vector / HashMap
 
@@ -294,6 +295,18 @@ HashMap "hash map" = "{" d0:_ pairs:(Label _)* "}"
 		}
 
 		Object.values(exp.value).forEach(v => v.parent = exp)
+
+		return exp
+	}
+
+Quote "quote" = "'" d:_ value:Form
+	{
+		const exp = {
+			ast: 'quote',
+			value
+		}
+
+		value.parent = exp
 
 		return exp
 	}

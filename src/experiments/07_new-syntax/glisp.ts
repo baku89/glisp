@@ -115,6 +115,7 @@ type ExpNode =
 	| ExpList
 	| ExpVector
 	| ExpHashMap
+	| ExpQuote
 
 type ExpRef = ExpSymbol | ExpPath
 
@@ -207,6 +208,11 @@ interface ExpHashMap extends ExpBase {
 	evaluated?: ValueHashMap
 }
 
+interface ExpQuote extends ExpBase {
+	ast: 'quote'
+	value: Exp
+}
+
 function wrapTypeInfUnion(value: ValueInfUnion) {
 	const exp: ExpValue<ValueInfUnion> = {
 		ast: 'value',
@@ -253,6 +259,11 @@ const TypeString = createInfUnion({
 
 const TypeExp = createInfUnion({
 	predicate: isValueExp,
+})
+
+const TypeSymbol = createInfUnion({
+	supersets: [TypeExp],
+	predicate: v => isValueExp(v) && v.value.ast === 'symbol',
 })
 
 const parser = peg.generate(ParserDefinition)
@@ -328,6 +339,9 @@ export function disconnectExp(exp: Exp): null {
 			case 'hashMap':
 				_.values(e.value).forEach(disconnect)
 				return null
+			case 'quote':
+				disconnect(e.value)
+				return null
 		}
 	}
 }
@@ -402,9 +416,6 @@ function containsValue(outer: Value, inner: Value): boolean {
 			if (isValueFn(inner) || isValueFnType(inner)) {
 				inner = inner.out
 			}
-			if (isValuePrim(inner)) {
-				return outer.predicate(inner)
-			}
 			if (isValueUnion(inner)) {
 				return inner.items.every(ii => containsValue(outer, ii))
 			}
@@ -416,6 +427,9 @@ function containsValue(outer: Value, inner: Value): boolean {
 					!!inner.supersets &&
 					inner.supersets.some(s => containsValue(outer, s))
 				)
+			}
+			if (outer.predicate(inner)) {
+				return true
 			}
 			return false
 		case 'union': {
@@ -538,6 +552,7 @@ const GlobalScope = createExpScope({
 	Nat: wrapTypeInfUnion(TypeNat),
 	String: wrapTypeInfUnion(TypeString),
 	Exp: wrapTypeInfUnion(TypeExp),
+	Symbol: wrapTypeInfUnion(TypeSymbol),
 	'@|': createExpFnJS(
 		(items: Value[]) => uniteType(items),
 		[],
@@ -777,6 +792,8 @@ function inferType(form: Exp): Value {
 			return form.value.map(inferType)
 		case 'hashMap':
 			return createHashMap(_.mapValues(form.value, inferType))
+		case 'quote':
+			return TypeExp
 	}
 }
 
@@ -1227,6 +1244,11 @@ export function evalExp(exp: Exp): Value {
 			return exp.value.map(_eval)
 		case 'hashMap':
 			return createHashMap(_.mapValues(exp.value, _eval))
+		case 'quote':
+			return {
+				type: 'exp',
+				value: exp.value,
+			} as ValueExp
 	}
 }
 
@@ -1321,6 +1343,14 @@ function cloneExp(exp: Exp): Exp {
 				...(exp.delimiters ? {delimiters: [...exp.delimiters]} : {}),
 			}
 			_.values(cloned.value).forEach(_.partial(setAsParent, cloned))
+			return cloned
+		}
+		case 'quote': {
+			const cloned: ExpQuote = {
+				ast: 'quote',
+				value: cloneExp(exp.value),
+			}
+			setAsParent(cloned, exp.value)
 			return cloned
 		}
 	}
@@ -1559,6 +1589,8 @@ export function printForm(form: Form): string {
 				const value = [...exp.value]
 				return printSeq('[', ']', value, exp.delimiters)
 			}
+			case 'quote':
+				return `'${[[printExp(exp.value)]]}`
 			default:
 				throw new Error('Invalid specialList and cannot print it')
 		}
