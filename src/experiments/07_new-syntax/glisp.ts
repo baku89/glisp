@@ -860,23 +860,14 @@ function clearEvaluatedRecursively(exp: Exp) {
 
 function isEqualValue(a: Value, b: Value): boolean {
 	if (isPrim(a)) {
-		if (
-			typeof a === 'number' &&
-			typeof b === 'number' &&
-			isNaN(a) &&
-			isNaN(b)
-		) {
-			return true
-		}
-		return a === b
+		return (isNaN(a as any) && isNaN(b as any)) || a === b
 	}
 
 	if (Array.isArray(a)) {
-		if (!Array.isArray(b)) {
-			return false
-		}
 		return (
-			a.length === b.length && _$.zipShorter(a, b).every(_.spread(isEqualValue))
+			Array.isArray(b) &&
+			a.length === b.length &&
+			_$.zipShorter(a, b).every(_.spread(isEqualValue))
 		)
 	}
 
