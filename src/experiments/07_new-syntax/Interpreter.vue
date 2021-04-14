@@ -12,7 +12,13 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
-import {GlispError, Interpreter, printForm, readStr} from './glisp'
+import {
+	disconnectExp,
+	GlispError,
+	Interpreter,
+	printForm,
+	readStr,
+} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
@@ -29,7 +35,7 @@ export default defineComponent({
 			try {
 				const exp = readStr(str)
 				const evaluated = interpreter.evalExp(exp)
-				// disconnectExp(exp)
+				disconnectExp(exp)
 				return printForm(evaluated)
 			} catch (err) {
 				if (err instanceof GlispError) {

@@ -1035,9 +1035,9 @@ export class Interpreter {
 					disconnectExp(this.vars[symbol.value])
 				}
 
-				this.vars[symbol.value] = value
-				delete value.parent
-				setAsParent(this.scope, value)
+				const cloned = cloneExp(value)
+				this.vars[symbol.value] = cloned
+				setAsParent(this.scope, cloned)
 				return value
 			},
 			[
