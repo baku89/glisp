@@ -404,7 +404,7 @@ html, body
 	height 100%
 	height 100vh
 	// background var(--background)
-	color var(--editor-foreground)
+	color var(--textcolor)
 
 	&__global-menu
 		z-index 100
@@ -464,7 +464,7 @@ html, body
 			width $width
 			height $width
 			border-radius: (0.5 * $width)rem
-			background var(--editor-foreground)
+			background var(--textcolor)
 			color var(--background)
 			text-align center
 			line-height $width
@@ -529,13 +529,13 @@ html, body
 			font-monospace()
 			line-height 2.2rem
 			transition all $compact-dur var(--ease)
-			--editor-foreground var(--comment)
+			--textcolor var(--comment)
 
 			&.error
 				border-color var(--error)
 				background var(--error)
 				color var(--background)
-				--editor-foreground var(--background)
+				--textcolor var(--background)
 
 			&:hover
 				height 1.5 * $size
@@ -551,7 +551,7 @@ html, body
 				width $size
 				height $size
 				border-radius 0.5 * $size
-				color var(--editor-foreground)
+				color var(--textcolor)
 				// background red
 				content '<'
 				line-height $size

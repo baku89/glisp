@@ -60,13 +60,13 @@ button
 			min-width calc(1px + 0.5em)
 			border-right 0.25em solid transparent
 			border-left 0.25em solid transparent
-			background-color var(--editorIndentGuide-background)
+			background-color var(--frame)
 			background-clip padding-box
 			input-transition()
 
 			&:hover
-				border-color var(--scrollbarSlider-hoverBackground)
-				background-color var(--foreground)
+				border-color var(--frame)
+				background-color var(--comment)
 
 			&:before, &:after
 				position absolute
@@ -76,7 +76,7 @@ button
 				margin-top -0.5em
 				width 2em
 				height 1em
-				color var(--foreground)
+				color var(--comment)
 				line-height 1em
 				opacity 0
 				input-transition()

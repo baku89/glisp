@@ -14,9 +14,7 @@
 					<li style="background: var(--frame)">frame</li>
 					<li class="dark" style="background: var(--button)">button</li>
 					<li style="background: var(--comment)">comment</li>
-					<li class="dark" style="background: var(--editor-foreground)">
-						textcolor
-					</li>
+					<li class="dark" style="background: var(--textcolor)">textcolor</li>
 					<li class="dark" style="background: var(--highlight)">highlight</li>
 					<li class="dark" style="background: var(--guide)">guide</li>
 					<li class="dark" style="background: var(--error)">error</li>

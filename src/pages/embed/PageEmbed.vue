@@ -116,7 +116,7 @@ $compact-dur = 0.4s
 	height auto
 	border-left 2px solid #eee
 	background var(--background)
-	color var(--editor-foreground)
+	color var(--textcolor)
 
 	&:after
 		position absolute

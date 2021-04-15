@@ -17,7 +17,7 @@ import 'splitpanes/dist/splitpanes.css'
 import {Pane, Splitpanes} from 'splitpanes'
 import {defineComponent, reactive} from 'vue'
 
-import {useTheme} from '@/components/use/use-theme'
+import useScheme from '@/components/use/use-scheme'
 
 import ExpInputScope from './components/ExpInputScope.vue'
 import {
@@ -35,7 +35,9 @@ export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole, Splitpanes, Pane, ExpInputScope},
 	setup() {
-		const {name: themeName} = useTheme()
+		const {background} = useScheme()
+
+		background.value = 'black'
 
 		const scope: ExpScope = reactive(createExpScope({})) as any
 
@@ -56,7 +58,7 @@ export default defineComponent({
 			}
 		}
 
-		return {rep, scope, themeName}
+		return {rep, scope}
 	},
 })
 </script>

@@ -105,7 +105,7 @@ export default defineComponent({
 	// Label
 	&__label
 		margin-left 0.3em
-		color var(--editor-foreground)
+		color var(--textcolor)
 		user-select none
 
 	// Exp

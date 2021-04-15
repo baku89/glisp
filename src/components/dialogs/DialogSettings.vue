@@ -96,7 +96,7 @@ export default defineComponent({
 
 	&__name
 		flex-grow 1
-		color var(--editor-foreground)
+		color var(--textcolor)
 		font-weight bold
 		line-height $button-height
 
@@ -119,13 +119,13 @@ export default defineComponent({
 		font-monospace()
 		line-height 2.2rem
 		transition all 0.2s var(--ease)
-		--editor-foreground var(--comment)
+		--textcolor var(--comment)
 
 		&.error
 			border-color var(--error)
 			background var(--error)
 			color var(--background)
-			--editor-foreground var(--background)
+			--textcolor var(--background)
 
 	&__buttons
 		display flex
