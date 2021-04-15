@@ -29,13 +29,15 @@
 </template>
 
 <script lang="ts">
-import GlobalSubmenu from './GlobalSubmenu.vue'
-import WindowTitleButtons from './WindowTitleButtons.vue'
-import ConsoleScope from '@/scopes/console'
 import isElectron from 'is-electron'
 import {defineComponent, ref} from 'vue'
+
+import {MalSeq, MalVal, MalVector} from '@/mal/types'
 import AppScope from '@/scopes/app'
-import {MalVector, MalSeq, MalVal} from '@/mal/types'
+import ConsoleScope from '@/scopes/console'
+
+import GlobalSubmenu from './GlobalSubmenu.vue'
+import WindowTitleButtons from './WindowTitleButtons.vue'
 
 export default defineComponent({
 	name: 'GlobalMenu',

@@ -4,40 +4,44 @@
 			<section class="PageUI__section">
 				<h2>Theme</h2>
 				<p>
-					<span class="comment">Base theme =</span>
-					{{ schemeName }}
+					<span style="color: var(--base04)">Base theme = </span>
+					<InputDropdown
+						class="theme-list"
+						v-model="schemeName"
+						:values="schemeList"
+					/>
 				</p>
 				<ul class="PageUI__theme">
 					<li class="border" style="background: var(--base00)">00</li>
 					<li style="background: var(--base01)">01</li>
 					<li style="background: var(--base02)">02</li>
 					<li style="background: var(--base03)">03</li>
-					<li class="dark" style="background: var(--base04)">04</li>
-					<li class="dark" style="background: var(--base05)">05</li>
-					<li class="dark" style="background: var(--base06)">06</li>
-					<li class="dark" style="background: var(--base07)">07</li>
-					<li class="dark" style="background: var(--base08)">08</li>
-					<li class="dark" style="background: var(--base09)">09</li>
-					<li class="dark" style="background: var(--base0A)">0A</li>
-					<li class="dark" style="background: var(--base0B)">0B</li>
-					<li class="dark" style="background: var(--base0C)">0C</li>
-					<li class="dark" style="background: var(--base0D)">0D</li>
-					<li class="dark" style="background: var(--base0E)">0E</li>
-					<li class="dark" style="background: var(--base0F)">0F</li>
+					<li class="invert" style="background: var(--base04)">04</li>
+					<li class="invert" style="background: var(--base05)">05</li>
+					<li class="invert" style="background: var(--base06)">06</li>
+					<li class="invert" style="background: var(--highlight)">07</li>
+					<li class="invert" style="background: var(--base08)">08</li>
+					<li class="invert" style="background: var(--base09)">09</li>
+					<li class="invert" style="background: var(--base0A)">0A</li>
+					<li class="invert" style="background: var(--base0B)">0B</li>
+					<li class="invert" style="background: var(--base0C)">0C</li>
+					<li class="invert" style="background: var(--base0D)">0D</li>
+					<li class="invert" style="background: var(--base0E)">0E</li>
+					<li class="invert" style="background: var(--base0F)">0F</li>
 				</ul>
 				<ul class="PageUI__theme">
 					<li class="b00" style="background: var(--background)">background</li>
 					<li class="b00">translucent</li>
 					<li style="background: var(--input)">input</li>
 					<li style="background: var(--frame)">frame</li>
-					<li class="dark" style="background: var(--button)">button</li>
+					<li class="invert" style="background: var(--button)">button</li>
 					<li style="background: var(--comment)">comment</li>
-					<li class="dark" style="background: var(--textcolor)">textcolor</li>
-					<li class="dark" style="background: var(--error)">error</li>
-					<li class="dark" style="background: var(--constant)">constant</li>
-					<li class="dark" style="background: var(--string)">string</li>
-					<li class="dark" style="background: var(--keyword)">keyword</li>
-					<li class="dark" style="background: var(--function)">function</li>
+					<li class="invert" style="background: var(--textcolor)">textcolor</li>
+					<li class="invert" style="background: var(--error)">error</li>
+					<li class="invert" style="background: var(--constant)">constant</li>
+					<li class="invert" style="background: var(--string)">string</li>
+					<li class="invert" style="background: var(--keyword)">keyword</li>
+					<li class="invert" style="background: var(--function)">function</li>
 				</ul>
 			</section>
 
@@ -49,7 +53,9 @@
 				<h2>Input Components</h2>
 				<dl class="PageUI__ui-list">
 					<dt>String</dt>
-					<dd><InputString v-model="background" :monospace="true" /></dd>
+					<dd>
+						<InputString v-model="inputValues.string" :monospace="true" />
+					</dd>
 					<dt>Number</dt>
 					<dd><InputNumber v-model="inputValues.number" /></dd>
 					<dt>Slider</dt>
@@ -78,7 +84,7 @@
 					</dd>
 					<dt>Color</dt>
 					<dd>
-						<InputColor v-model="background" :pickers="colorPickers" />
+						<InputColor v-model="inputValues.color" :pickers="colorPickers" />
 					</dd>
 					<dt>Translate</dt>
 					<dd>
@@ -135,7 +141,7 @@ export default defineComponent({
 		InputColor,
 	},
 	setup() {
-		const {name: schemeName} = useScheme()
+		const {name: schemeName, schemeList} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -144,6 +150,7 @@ export default defineComponent({
 			number: 0,
 			useAlpha: true,
 			colorSpace: 'svh',
+			color: '#ff0000',
 			angle: computed({
 				get: () => (inputValues.number / 180) * Math.PI,
 				set: x => (inputValues.number = (x / Math.PI) * 180),
@@ -154,6 +161,7 @@ export default defineComponent({
 			number: number
 			colorSpace: string
 			useAlpha: boolean
+			color: string
 			angle: number
 			position: [number, number]
 		}
@@ -166,7 +174,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {inputValues, action, schemeName, colorPickers}
+		return {inputValues, action, schemeName, schemeList, colorPickers}
 	},
 })
 </script>
@@ -179,6 +187,9 @@ export default defineComponent({
 	app()
 	padding 2rem 0
 	min-height 100vh
+
+	.theme-list
+		width 12em
 
 	.comment
 		color var(--comment)
@@ -213,7 +224,7 @@ export default defineComponent({
 			&.border
 				border 1px solid var(--frame)
 
-			&.dark
+			&.invert
 				color var(--background)
 
 	&__glisp-editor
@@ -227,7 +238,7 @@ export default defineComponent({
 		& > dt
 			padding-right 1em
 			width 5.5rem
-			color var(--label)
+			color var(--base04)
 
 		& > dd
 			display flex
@@ -237,7 +248,7 @@ export default defineComponent({
 
 			& > span
 				margin-left 1em
-				color var(--label)
+				color var(--base04)
 				font-monospace()
 
 		& > *

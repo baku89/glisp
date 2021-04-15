@@ -34,6 +34,7 @@ interface Scheme {
 		button: string // buton
 		comment: string
 		textcolor: string
+		highlight: string
 
 		// With alpha
 		frame: string // border, selection
@@ -48,33 +49,31 @@ interface Scheme {
 	}
 }
 
-function base16ToScheme(scheme: Base16): Scheme {
-	const textcolor = scheme.base05
-	const background = scheme.base00
-
-	const base16: Partial<Base16> = {...scheme}
+function base16ToScheme(s: Base16): Scheme {
+	const base16: Partial<Base16> = {...s}
 	delete base16.scheme
 	delete base16.author
 
 	return {
-		name: scheme.scheme,
+		name: s.scheme,
 		colors: {
-			background: background,
-			input: scheme.base01,
-			button: scheme.base02,
-			comment: scheme.base03,
-			textcolor: textcolor,
+			background: s.base00,
+			input: s.base01,
+			button: s.base02,
+			comment: s.base03,
+			textcolor: s.base05,
+			highlight: s.base0C,
 
-			frame: chroma(textcolor).alpha(0.1).css(),
-			translucent: chroma(background).alpha(0.9).css(),
+			frame: chroma(s.base05).alpha(0.1).css(),
+			translucent: chroma(s.base00).alpha(0.9).css(),
 
-			error: scheme.base08,
-			constant: scheme.base09,
-			string: scheme.base0B,
-			keyword: scheme.base0C,
-			function: scheme.base0E,
+			error: s.base08,
+			constant: s.base09,
+			string: s.base0B,
+			keyword: s.base0C,
+			function: s.base0E,
 
-			...scheme,
+			...s,
 		},
 	}
 }
@@ -85,7 +84,9 @@ const Base16List = require('./base16.yml') as Base16[]
 const SchemeList = [...Base16List.map(base16ToScheme)]
 
 export default function useScheme() {
-	const name = ref('Default Light')
+	const name = ref('Atlas')
+
+	const schemeList = ref(SchemeList.map(sch => sch.name))
 
 	const scheme = computed(
 		() => SchemeList.find(sch => sch.name === name.value) || SchemeList[0]
@@ -100,5 +101,6 @@ export default function useScheme() {
 
 	return {
 		name,
+		schemeList,
 	}
 }

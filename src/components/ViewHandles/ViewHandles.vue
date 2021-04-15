@@ -68,8 +68,9 @@
 				:key="handleIndex"
 				:transform="transform"
 				@mousedown="!guide && onMousedown([selectedIndex, handleIndex], $event)"
-				v-for="({type, transform, yTransform, path, cls, guide},
-				handleIndex) in handles[selectedIndex]"
+				v-for="(
+					{type, transform, yTransform, path, cls, guide}, handleIndex
+				) in handles[selectedIndex]"
 			>
 				<template v-if="type === 'path'">
 					<path :d="path" class="stroke hover-zone" />
