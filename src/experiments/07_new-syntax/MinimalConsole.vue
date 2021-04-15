@@ -79,9 +79,9 @@ export default defineComponent({
 				})
 
 				// Setup Glisp Syntax
-				jqconsole.RegisterMatching('{', '}', 'hash-map')
-				jqconsole.RegisterMatching('(', ')', 'list')
-				jqconsole.RegisterMatching('[', ']', 'vector')
+				jqconsole.RegisterMatching('{', '}', 'bracket-match')
+				jqconsole.RegisterMatching('(', ')', 'bracket-match')
+				jqconsole.RegisterMatching('[', ']', 'bracket-match')
 			}
 			setupConsole()
 
@@ -113,37 +113,32 @@ export default defineComponent({
 
 	&-blurred
 		.jqconsole-cursor
-			background var(--frame)
+			background var(--editorCursor-foreground)
 			opacity 0.4
 
 	&-cursor
-		background var(--textcolor)
+		background var(--editorCursor-foreground)
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--textcolor)
+		color var(--editorCursor-foreground)
 
 		&:before
-			color var(--comment)
+			color var(--editorWhitespace-foreground)
 			content '>> '
 			font-weight bold
 
 	&-output
-		color var(--constant)
+		color var(--none)
 
 	&-return
 		color var(--constant)
 
 	&-error
-		color var(--error)
+		color var(--token-error-token)
 
-	.list
-		color var(--highlight)
-
-	.vector
-		color var(--constant)
-
-	.hash-map
-		color var(--error)
+	.bracket-match
+		background var(--editorBracketMatch-background)
+		box-shadow inset 0 0 0 1px var(--editorBracketMatch-border)
 </style>

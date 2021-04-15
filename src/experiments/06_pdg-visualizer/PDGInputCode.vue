@@ -94,7 +94,7 @@ export default defineComponent({
 
 	&__input
 		width 100%
-		color var(--textcolor)
+		color var(--editor-foreground)
 		font-monospace()
 
 	&__button

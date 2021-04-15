@@ -123,5 +123,5 @@ export default defineComponent({
 				background #F1707A !important
 
 	path
-		fill var(--textcolor)
+		fill var(--editor-foreground)
 </style>

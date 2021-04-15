@@ -149,12 +149,12 @@ export default defineComponent({
 			opacity 0.4
 
 	&-cursor
-		background var(--textcolor)
+		background var(--editor-foreground)
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--textcolor)
+		color var(--editor-foreground)
 
 	&-output
 		color var(--comment)

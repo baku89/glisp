@@ -124,7 +124,7 @@ export default defineComponent({
 .Editor
 	display flex
 	height 100vh
-	color var(--textcolor)
+	color var(--editor-foreground)
 
 	&__text, &__inspector, &__result
 		padding 1rem

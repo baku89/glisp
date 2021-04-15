@@ -344,7 +344,7 @@ export default defineComponent({
 			text-decoration line-through
 
 		&.clickable
-			color var(--textcolor)
+			color var(--editor-foreground)
 			cursor pointer
 
 			&:hover

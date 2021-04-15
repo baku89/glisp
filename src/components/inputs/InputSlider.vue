@@ -196,7 +196,7 @@ export default defineComponent({
 			left 0
 			width 100%
 			height 100%
-			background var(--textcolor)
+			background var(--editor-foreground)
 			content ''
 			opacity 0.07
 			input-transition(all)

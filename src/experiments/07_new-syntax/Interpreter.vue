@@ -19,7 +19,7 @@ import 'splitpanes/dist/splitpanes.css'
 import {Pane, Splitpanes} from 'splitpanes'
 import {defineComponent, ref} from 'vue'
 
-import useScheme from '@/components/use/use-scheme'
+import {useTheme} from '@/components/use/use-theme'
 
 import {
 	disconnectExp,
@@ -34,9 +34,7 @@ export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole, Splitpanes, Pane},
 	setup() {
-		const {background} = useScheme()
-
-		// background.value = '#1d1f21'
+		const {name: themeName} = useTheme()
 
 		const interpreter = new Interpreter()
 
@@ -66,7 +64,7 @@ export default defineComponent({
 			}
 		}
 
-		return {rep, varsStr}
+		return {rep, varsStr, themeName}
 	},
 })
 </script>

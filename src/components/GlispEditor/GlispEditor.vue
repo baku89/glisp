@@ -193,7 +193,7 @@ export default defineComponent({
 		width 100%
 		height 100%
 		background transparent !important
-		color var(--textcolor) !important
+		color var(--editor-foreground) !important
 		font-size 1rem
 
 	.ace_editor
@@ -218,7 +218,7 @@ export default defineComponent({
 		color var(--string) !important
 
 	.ace_cursor
-		color var(--textcolor) !important
+		color var(--editor-foreground) !important
 
 	.ace_bracket
 		border 1px solid var(--highlight) !important
