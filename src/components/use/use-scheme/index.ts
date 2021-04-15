@@ -1,8 +1,10 @@
 import chroma from 'chroma-js'
-import {computed, ref, shallowRef, watchEffect} from 'vue'
+import _ from 'lodash'
+import {computed, ref, watchEffect} from 'vue'
 
-interface SchemeBase16 {
+interface Base16 {
 	scheme: string
+	author: string
 	base00: string
 	base01: string
 	base02: string
@@ -21,33 +23,11 @@ interface SchemeBase16 {
 	base0F: string
 }
 
-interface SchemeGogh {
-	name: string
-	foreground: string
-	background: string
-	cursorColor: string
-	black: string
-	red: string
-	green: string
-	yellow: string
-	blue: string
-	purple: string
-	cyan: string
-	white: string
-	brightBlack: string
-	brightRed: string
-	brightGreen: string
-	brightYellow: string
-	brightBlue: string
-	brightPurple: string
-	brightCyan: string
-	brightWhite: string
-}
-
 interface Scheme {
 	name: string
-	chroma: chroma.Color
-	cssStyle: {
+	colors: Exclude<Base16, 'scheme' | 'author'> & {
+		// Named colors
+
 		// Grayish colors
 		background: string
 		input: string // bg for input
@@ -55,31 +35,33 @@ interface Scheme {
 		comment: string
 		textcolor: string
 
-		// ALpha
+		// With alpha
 		frame: string // border, selection
 		translucent: string // translucent panel
 
-		// Syntax colors
+		// Syntax highlights
 		error: string
 		constant: string
 		string: string
 		keyword: string
 		function: string
 	}
-	colors: {hue: number; css: string}[]
 }
 
-function base16ToScheme(scheme: SchemeBase16): Scheme {
+function base16ToScheme(scheme: Base16): Scheme {
 	const textcolor = scheme.base05
 	const background = scheme.base00
 
+	const base16: Partial<Base16> = {...scheme}
+	delete base16.scheme
+	delete base16.author
+
 	return {
 		name: scheme.scheme,
-		chroma: chroma(background),
-		cssStyle: {
+		colors: {
 			background: background,
 			input: scheme.base01,
-			button: scheme.base03,
+			button: scheme.base02,
 			comment: scheme.base03,
 			textcolor: textcolor,
 
@@ -91,166 +73,32 @@ function base16ToScheme(scheme: SchemeBase16): Scheme {
 			string: scheme.base0B,
 			keyword: scheme.base0C,
 			function: scheme.base0E,
+
+			...scheme,
 		},
-
-		colors: [
-			scheme.base08,
-			scheme.base09,
-			scheme.base0A,
-			scheme.base0B,
-			scheme.base0C,
-			scheme.base0D,
-			scheme.base0E,
-			scheme.base0F,
-		].map(c => {
-			const hue = chroma(c).hsl()[0]
-			return {
-				hue: isNaN(hue) ? 240 : hue,
-				css: c,
-			}
-		}),
-	}
-}
-
-function goghToScheme(scheme: SchemeGogh): Scheme {
-	const background = chroma(scheme.background)
-	const textcolor = chroma(scheme.foreground)
-
-	const darkColors = [
-		scheme.red,
-		scheme.yellow,
-		scheme.green,
-		scheme.cyan,
-		scheme.blue,
-		scheme.purple,
-	]
-
-	return {
-		name: scheme.name,
-		chroma: background,
-		cssStyle: {
-			background: background.css(),
-			input: chroma.mix(background, textcolor, 0.1).css(),
-			button: chroma.mix(background, textcolor, 0.2).css(),
-			comment: chroma.mix(background, textcolor, 0.5).css(),
-			textcolor: textcolor.css(),
-
-			frame: textcolor.alpha(0.1).css(),
-			translucent: background.alpha(0.9).css(),
-
-			error: scheme.red,
-			constant: chroma.mix(scheme.red, scheme.yellow, 0.5).css(),
-			string: scheme.green,
-			keyword: scheme.cyan,
-			function: scheme.purple,
-		},
-
-		colors: darkColors.map(c => {
-			const hue = chroma(c).hsl()[0]
-			return {
-				hue: isNaN(hue) ? 240 : hue,
-				css: c,
-			}
-		}),
 	}
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const SchemeBase16List = require('./base16.yml') as SchemeBase16[]
+const Base16List = require('./base16.yml') as Base16[]
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const SchemeGoghList = require('./gogh.json') as SchemeGogh[]
-
-const SchemeList = [
-	...SchemeBase16List.map(base16ToScheme),
-	...SchemeGoghList.map(goghToScheme),
-]
-
-function findMax<T>(
-	array: IterableIterator<T> | T[],
-	predicate: (element: T) => number
-): T {
-	let maxScore = -Infinity
-	let maxElement: T | undefined
-
-	for (const element of array) {
-		const score = predicate(element)
-		if (maxScore <= score) {
-			maxScore = score
-			maxElement = element
-		}
-	}
-
-	if (maxElement === undefined) {
-		throw new Error('Cannot find max')
-	}
-
-	return maxElement
-}
-
-function angleBetween(target: number, source: number) {
-	function mod(a: number, n: number) {
-		return ((a % n) + n) % n
-	}
-
-	const ret = target - source
-	return Math.abs(mod(ret + 180, 360) - 180)
-}
+const SchemeList = [...Base16List.map(base16ToScheme)]
 
 export default function useScheme() {
-	const background = ref('#f8f8f8')
+	const name = ref('Default Light')
 
-	const backgroundChroma = shallowRef(chroma(background.value))
-
-	watchEffect(() => {
-		if (!chroma.valid(background.value)) return
-		backgroundChroma.value = chroma(background.value)
-	})
-
-	const currentScheme = computed(() => {
-		const bg = backgroundChroma.value
-
-		// Find The nearest
-		return findMax(SchemeList, sch => {
-			return -chroma.distance(bg, sch.chroma)
-		})
-	})
-
-	const name = computed(() => currentScheme.value.name)
-
-	const colors = computed(() => {
-		// Generate Dynamic Color
-		let appBgHue = backgroundChroma.value.hsl()[0]
-		if (isNaN(appBgHue)) appBgHue = 240
-
-		const colors = currentScheme.value.colors
-
-		const highlight = findMax(colors, color => {
-			return -angleBetween(appBgHue, color.hue)
-		}).css
-
-		const guide = findMax(colors, color => {
-			return angleBetween(appBgHue, color.hue)
-		}).css
-
-		return {
-			...currentScheme.value.cssStyle,
-			highlight: highlight,
-			guide: guide,
-		}
-	})
+	const scheme = computed(
+		() => SchemeList.find(sch => sch.name === name.value) || SchemeList[0]
+	)
 
 	// Set css variables to body
 	watchEffect(() => {
-		for (const [name, color] of Object.entries(colors.value)) {
+		for (const [name, color] of _.toPairs(scheme.value.colors)) {
 			document.body.style.setProperty(`--${name}`, color)
 		}
-		document.body.style.setProperty(`background`, backgroundChroma.value.css())
 	})
 
 	return {
 		name,
-		background,
-		colors,
 	}
 }

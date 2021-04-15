@@ -8,6 +8,24 @@
 					{{ schemeName }}
 				</p>
 				<ul class="PageUI__theme">
+					<li class="border" style="background: var(--base00)">00</li>
+					<li style="background: var(--base01)">01</li>
+					<li style="background: var(--base02)">02</li>
+					<li style="background: var(--base03)">03</li>
+					<li class="dark" style="background: var(--base04)">04</li>
+					<li class="dark" style="background: var(--base05)">05</li>
+					<li class="dark" style="background: var(--base06)">06</li>
+					<li class="dark" style="background: var(--base07)">07</li>
+					<li class="dark" style="background: var(--base08)">08</li>
+					<li class="dark" style="background: var(--base09)">09</li>
+					<li class="dark" style="background: var(--base0A)">0A</li>
+					<li class="dark" style="background: var(--base0B)">0B</li>
+					<li class="dark" style="background: var(--base0C)">0C</li>
+					<li class="dark" style="background: var(--base0D)">0D</li>
+					<li class="dark" style="background: var(--base0E)">0E</li>
+					<li class="dark" style="background: var(--base0F)">0F</li>
+				</ul>
+				<ul class="PageUI__theme">
 					<li class="b00" style="background: var(--background)">background</li>
 					<li class="b00">translucent</li>
 					<li style="background: var(--input)">input</li>
@@ -15,8 +33,6 @@
 					<li class="dark" style="background: var(--button)">button</li>
 					<li style="background: var(--comment)">comment</li>
 					<li class="dark" style="background: var(--textcolor)">textcolor</li>
-					<li class="dark" style="background: var(--highlight)">highlight</li>
-					<li class="dark" style="background: var(--guide)">guide</li>
 					<li class="dark" style="background: var(--error)">error</li>
 					<li class="dark" style="background: var(--constant)">constant</li>
 					<li class="dark" style="background: var(--string)">string</li>
@@ -119,7 +135,7 @@ export default defineComponent({
 		InputColor,
 	},
 	setup() {
-		const {background, name: schemeName} = useScheme()
+		const {name: schemeName} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -150,7 +166,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {background, inputValues, action, schemeName, colorPickers}
+		return {inputValues, action, schemeName, colorPickers}
 	},
 })
 </script>
@@ -194,7 +210,7 @@ export default defineComponent({
 			text-align center
 			line-height 1rem
 
-			&.b00
+			&.border
 				border 1px solid var(--frame)
 
 			&.dark
