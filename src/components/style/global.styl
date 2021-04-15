@@ -3,17 +3,17 @@
 @import url('https://use.typekit.net/trq1pay.css')
 
 ::-webkit-scrollbar
-	width 0.5rem
+	width 0.4rem
 	height 0.5rem
 
-/* Track */
+// Track
 ::-webkit-scrollbar-track
 	display none
 
-/* Handle */
+// Handle
 ::-webkit-scrollbar-thumb
-	border-radius 0.25rem
-	background #888
+	border-radius 0
+	background var(--frame)
 
 ::selection
 	background var(--frame)
@@ -48,3 +48,53 @@ button
 	background none
 	cursor pointer
 	user-select none
+
+/* Splitpanes */
+.splitpanes
+	&.glisp-theme
+		&.splitpanes--vertical > .splitpanes__splitter
+			position relative
+			z-index 1
+			margin 0 -0.25em
+			padding 0
+			min-width calc(1px + 0.5em)
+			border-right 0.25em solid transparent
+			border-left 0.25em solid transparent
+			background-color var(--frame)
+			background-clip padding-box
+			input-transition()
+
+			&:hover
+				border-color var(--frame)
+				background-color var(--comment)
+
+			&:before, &:after
+				position absolute
+				top 50%
+				pointer-events none
+				font-monospace()
+				margin-top -0.5em
+				width 2em
+				height 1em
+				color var(--comment)
+				line-height 1em
+				opacity 0
+				input-transition()
+
+			&:before
+				right 0
+				content '<<'
+				text-align right
+
+			&:hover:before, &:hover:after
+				opacity 1
+
+			&:hover:before
+				transform translateX(-50%)
+
+			&:after
+				left 0
+				content '>>'
+
+			&:hover:after
+				transform translateX(50%)
