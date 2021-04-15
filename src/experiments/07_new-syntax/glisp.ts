@@ -149,7 +149,7 @@ interface ExpPath extends ExpBase {
 	ref?: Exp
 }
 
-interface ExpScope extends ExpBase {
+export interface ExpScope extends ExpBase {
 	ast: 'scope'
 	vars: {
 		[name: string]: Exp
@@ -1064,17 +1064,14 @@ function resolveRef(exp: ExpRef): Exclude<Exp, ExpRef> {
 }
 
 export class Interpreter {
-	private scope: ExpScope
-	public vars: ExpScope['vars']
+	constructor(public scope = createExpScope({})) {
+		const vars = scope.vars
 
-	constructor() {
-		this.vars = {}
-
-		this.vars['def'] = createExpFnJS(
+		vars['def'] = createExpFnJS(
 			(symbol: ExpSymbol, value: Value) => {
-				if (this.vars[symbol.value]) {
-					clearEvaluatedRecursively(this.vars[symbol.value])
-					disconnectExp(this.vars[symbol.value])
+				if (vars[symbol.value]) {
+					clearEvaluatedRecursively(vars[symbol.value])
+					disconnectExp(vars[symbol.value])
 				}
 
 				let exp: Exp
@@ -1085,7 +1082,7 @@ export class Interpreter {
 					exp = wrapExp(value)
 				}
 
-				this.vars[symbol.value] = exp
+				vars[symbol.value] = exp
 				setAsParent(this.scope, exp)
 
 				return exp
@@ -1098,7 +1095,7 @@ export class Interpreter {
 			TypeAll
 		)
 
-		this.scope = createExpScope(this.vars)
+		this.scope = createExpScope(vars)
 		setAsParent(GlobalScope, this.scope)
 	}
 
@@ -1495,7 +1492,7 @@ function createVectorType(items: ValueVectorType['items']): ValueVectorType {
 	}
 }
 
-function createExpScope(vars: ExpScope['vars'], value?: Exp): ExpScope {
+export function createExpScope(vars: ExpScope['vars'], value?: Exp): ExpScope {
 	const exp: ExpScope = {
 		ast: 'scope',
 		vars,
