@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-// eslint-disable-next-line simple-import-sort/sort
+// eslint-disable-next-line simple-import-sort/imports
 import $ from 'jquery'
 
 import 'jq-console'
