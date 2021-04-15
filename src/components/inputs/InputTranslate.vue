@@ -126,7 +126,7 @@ export default defineComponent({
 	width $button-height
 	height @width !important
 	border-radius 2px
-	background var(--button)
+	background var(--base04)
 	input-transition(background)
 
 	&:focus

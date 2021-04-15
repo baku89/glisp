@@ -37,7 +37,7 @@ export default defineComponent({
 	padding 0
 	width $button-height
 	height $button-height
-	color var(--button)
+	color var(--base04)
 	text-align center
 	line-height $button-height
 	cursor pointer

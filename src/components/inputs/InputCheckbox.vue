@@ -74,7 +74,7 @@ export default defineComponent({
 		border 1px solid var(--comment)
 		border-radius 2px
 		color transparent
-		color var(--comment)
+		color var(--base04)
 		line-height 1rem
 		pointer-events none
 		input-transition()

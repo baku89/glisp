@@ -49,31 +49,31 @@ interface Scheme {
 	}
 }
 
-function base16ToScheme(s: Base16): Scheme {
-	const base16: Partial<Base16> = {...s}
-	delete base16.scheme
-	delete base16.author
+function base16ToScheme(scheme: Base16): Scheme {
+	const c = Object.fromEntries(
+		_.toPairs(scheme).map(([k, v]) => [k, k.startsWith('base') ? '#' + v : v])
+	) as Base16
 
 	return {
-		name: s.scheme,
+		name: scheme.scheme,
 		colors: {
-			background: s.base00,
-			input: s.base01,
-			button: s.base02,
-			comment: s.base03,
-			textcolor: s.base05,
-			highlight: s.base0C,
+			background: c.base00,
+			input: c.base01,
+			button: c.base02,
+			comment: c.base03,
+			textcolor: c.base05,
+			highlight: c.base0C,
 
-			frame: chroma(s.base05).alpha(0.1).css(),
-			translucent: chroma(s.base00).alpha(0.9).css(),
+			frame: chroma(c.base05).alpha(0.1).css(),
+			translucent: chroma(c.base00).alpha(0.9).css(),
 
-			error: s.base08,
-			constant: s.base09,
-			string: s.base0B,
-			keyword: s.base0C,
-			function: s.base0E,
+			error: c.base08,
+			constant: c.base09,
+			string: c.base0B,
+			keyword: c.base0C,
+			function: c.base0E,
 
-			...s,
+			...c,
 		},
 	}
 }
