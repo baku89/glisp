@@ -21,7 +21,7 @@ module.exports = {
 		'@typescript-eslint/no-explicit-any': 'off',
 		'@typescript-eslint/no-use-before-define': 'off',
 		'@typescript-eslint/explicit-module-boundary-types': 'off',
-		'simple-import-sort/sort': 'error',
+		'simple-import-sort/imports': 'error',
 		'unused-imports/no-unused-imports-ts': 'error',
 	},
 }
