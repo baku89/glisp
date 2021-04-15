@@ -1,17 +1,17 @@
 <template>
-	<div id="app" class="PageIndex">
+	<div id="app" class="PageApp">
 		<ViewCanvas
-			class="PageIndex__viewer"
+			class="PageApp__viewer"
 			:exp="viewExp"
 			:guide-color="guideColor"
 			:view-transform="viewTransform"
 			@render="hasRenderError = !$event"
 		/>
-		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
-		<GlobalPanes class="PageIndex__content">
+		<GlobalMenu class="PageApp__global-menu" :dark="theme.dark" />
+		<GlobalPanes class="PageApp__content">
 			<template #left>
 				<PaneLayers
-					class="PageIndex__list-view"
+					class="PageApp__list-view"
 					:exp="exp"
 					b
 					:editing-exp="editingExp"
@@ -23,7 +23,7 @@
 				/>
 			</template>
 			<template #main>
-				<div class="PageIndex__inspector" v-if="activeExp">
+				<div class="PageApp__inspector" v-if="activeExp">
 					<Inspector
 						:exp="activeExp"
 						@input="updateSelectedExp"
@@ -32,15 +32,15 @@
 					/>
 				</div>
 				<ViewHandles
-					class="PageIndex__view-handles"
+					class="PageApp__view-handles"
 					:selected-exp="selectedExp"
 					v-model:view-transform="viewTransform"
 					@tag-history="tagExpHistory('undo')"
 					@setup="handleEl = $event"
 				/>
-				<div class="PageIndex__modes">
+				<div class="PageApp__modes">
 					<button
-						class="PageIndex__modes-button"
+						class="PageApp__modes-button"
 						v-for="({name, handlers}, i) in modes"
 						:key="name"
 						:class="{active: i === activeModeIndex}"
@@ -60,8 +60,8 @@
 				</div>
 			</template>
 			<template #right>
-				<div class="PageIndex__control" :class="{compact}">
-					<div class="PageIndex__editor">
+				<div class="PageApp__control" :class="{compact}">
+					<div class="PageApp__editor">
 						<MalExpEditor
 							v-if="editingExp"
 							:exp="editingExp"
@@ -72,9 +72,9 @@
 							@select="setActiveExp"
 						/>
 					</div>
-					<div class="PageIndex__console">
+					<div class="PageApp__console">
 						<button
-							class="PageIndex__console-toggle"
+							class="PageApp__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
 						>
@@ -167,7 +167,7 @@ const OFFSET_START = 11 // length of "(sketch;__\n"
 const OFFSET_END = 5 // length of ";__\n)"
 
 export default defineComponent({
-	name: 'PageIndex',
+	name: 'PageApp',
 	components: {
 		GlobalMenu,
 		MalExpEditor,
@@ -395,7 +395,7 @@ html, body
 	height 100vh
 	--ease cubic-bezier(0.22, 0, 0.02, 1)
 
-.PageIndex
+.PageApp
 	position relative
 	display flex
 	flex-direction column
@@ -568,10 +568,10 @@ html, body
 					bottom none
 					transform rotate(90deg)
 
-.compact .PageIndex__editor
+.compact .PageApp__editor
 	height calc(100% - 0.4rem - 2rem - 1.5rem)
 
-.compact .PageIndex__console
+.compact .PageApp__console
 	height 0.4rem
 
 // Overwrite splitpanes

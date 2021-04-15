@@ -1,3 +1,5 @@
+declare const __PAGES__: string[]
+
 declare module 'seedrandom' {
 	export default function (initialSeed: any): () => number
 }

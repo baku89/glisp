@@ -37,7 +37,7 @@ export default defineComponent({
 	setup() {
 		const {name: themeName} = useTheme()
 
-		const scope = reactive(createExpScope({})) as ExpScope
+		const scope: ExpScope = reactive(createExpScope({})) as any
 
 		const interpreter = new Interpreter(scope)
 
