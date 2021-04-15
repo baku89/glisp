@@ -1065,26 +1065,34 @@ function resolveRef(exp: ExpRef): Exclude<Exp, ExpRef> {
 
 export class Interpreter {
 	private scope: ExpScope
-	private vars: ExpScope['vars']
+	public vars: ExpScope['vars']
 
 	constructor() {
 		this.vars = {}
 
 		this.vars['def'] = createExpFnJS(
-			(symbol: ExpSymbol, value: Exp) => {
+			(symbol: ExpSymbol, value: Value) => {
 				if (this.vars[symbol.value]) {
 					clearEvaluatedRecursively(this.vars[symbol.value])
 					disconnectExp(this.vars[symbol.value])
 				}
 
-				const cloned = cloneExp(value)
-				this.vars[symbol.value] = cloned
-				setAsParent(this.scope, cloned)
-				return value
+				let exp: Exp
+
+				if (isValueExp(value)) {
+					exp = cloneExp(value.value)
+				} else {
+					exp = wrapExp(value)
+				}
+
+				this.vars[symbol.value] = exp
+				setAsParent(this.scope, exp)
+
+				return exp
 			},
 			[
 				{label: 'symbol', body: TypeAll, macro: true},
-				{label: 'value', body: TypeAll, lazy: true},
+				{label: 'value', body: TypeAll},
 			],
 			null,
 			TypeAll
