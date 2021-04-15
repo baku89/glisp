@@ -12,7 +12,7 @@ const ThemePresets = {
 } as {[name: string]: Theme}
 
 export function useTheme() {
-	const name = ref('Light Owl')
+	const name = ref('Ocean Dark Extended')
 
 	const theme = computed(() => ThemePresets[name.value])
 
