@@ -57,11 +57,11 @@ input()
 		-moz-appearance textfield
 
 	&:hover, &:focus
-		border-color var(--highlight)
+		border-color var(--accent)
 		color var(--base06)
 
 	&:focus
-		box-shadow 0 0 0 1px var(--highlight)
+		box-shadow 0 0 0 1px var(--accent)
 
 input-border()
 	border 1px solid transparent
@@ -69,10 +69,10 @@ input-border()
 	input-transition(border-color)
 
 	&:hover
-		border-color var(--highlight)
+		border-color var(--accent)
 
 	&:focus
-		border-color var(--highlight)
+		border-color var(--accent)
 
 input-overlay()
 	position fixed
@@ -84,7 +84,7 @@ input-overlay()
 
 	.bold
 		fill none
-		stroke var(--highlight)
+		stroke var(--accent)
 		stroke-width 2
 		stroke-linecap round
 
@@ -96,7 +96,7 @@ input-overlay()
 	.label
 		font-size 1em
 		font-monospace()
-		fill var(--highlight)
+		fill var(--accent)
 
 absolute-fill()
 	position absolute
@@ -119,7 +119,7 @@ tooltip()
 	padding 0.4em
 	border-radius 4px
 	background base16('00', 0.7)
-	color var(--highlight)
+	color var(--accent)
 	cursor none
 	transition opacity 0.1s ease
 	backdrop-filter blur(3px)
@@ -134,7 +134,7 @@ labeled-button()
 	input-transition(all)
 
 	&:hover, &:focus
-		background var(--highlight)
+		background var(--accent)
 
 background-checkerboard()
 	background-color white

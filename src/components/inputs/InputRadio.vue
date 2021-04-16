@@ -1,23 +1,21 @@
 <template>
 	<div class="InputRadio">
-		<div>
-			<input type="radio" :name="id" id="Left" />
-			<label for="Left">Left</label>
-		</div>
-		<div>
-			<input type="radio" :name="id" id="Center" />
-			<label for="Center">Center</label>
-		</div>
-		<div>
-			<input type="radio" :name="id" id="Right" />
-			<label for="Right">Right</label>
+		<div v-for="([value, label], index) in pairs" :key="index" :value="value">
+			<input
+				type="radio"
+				:name="id"
+				:id="value"
+				@change="onChange"
+				:checked="modelValue === value"
+			/>
+			<label :for="value">{{ label }}</label>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
 import _ from 'lodash'
-import {defineComponent, ref} from 'vue'
+import {computed, defineComponent, PropType, ref} from 'vue'
 
 export default defineComponent({
 	name: 'InputRadio',
@@ -26,16 +24,37 @@ export default defineComponent({
 			type: Boolean,
 			required: true,
 		},
+		values: {
+			type: Array as PropType<string[]>,
+			required: true,
+		},
+		labels: {
+			type: Array as PropType<string[]>,
+			required: false,
+		},
 	},
 	setup(props, context) {
 		const id = ref(_.uniqueId('InputRadio_'))
 
-		function onInput(e: InputEvent) {
-			const value = (e.target as HTMLInputElement).checked
-			context.emit('update:modelValue', value)
+		const pairs = computed(() => {
+			if (props.labels) {
+				return _.zip(props.values, props.labels)
+			} else {
+				return props.values.map(v => [v, _.capitalize(v.toString())])
+			}
+		})
+
+		function onChange(e: InputEvent) {
+			const {selectedIndex} = e.target as HTMLSelectElement
+			const newValue = props.values[selectedIndex]
+			context.emit('update:modelValue', newValue)
 		}
 
-		return {id, onInput}
+		return {
+			id,
+			pairs,
+			onChange,
+		}
 	},
 })
 </script>
@@ -62,7 +81,7 @@ export default defineComponent({
 		input-transition()
 
 		&:hover
-			box-shadow inset 0 0 0 1px var(--highlight)
+			box-shadow inset 0 0 0 1px var(--accent)
 
 	input:checked + label
 		border-radius $border-radius

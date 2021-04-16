@@ -140,10 +140,10 @@ export default defineComponent({
 	input-transition(background)
 
 	&:focus
-		box-shadow 0 0 0 1px var(--highlight)
+		box-shadow 0 0 0 1px var(--accent)
 
 	&:hover, &.tweaking
-		background var(--highlight)
+		background var(--accent)
 
 	// Crosshair
 	&:before, &:after

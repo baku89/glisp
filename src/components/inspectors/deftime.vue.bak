@@ -204,8 +204,8 @@ export default defineComponent({
 		line-height calc(2rem - 2.5px)
 
 		&:hover
-			border-color var(--highlight)
-			color var(--highlight)
+			border-color var(--accent)
+			color var(--accent)
 
 		.fa-play
 			text-indent 0.1em
@@ -236,5 +236,5 @@ export default defineComponent({
 		background var(--base00)
 
 		&:hover, &[dragging]
-			border 2px solid var(--highlight)
+			border 2px solid var(--accent)
 </style>

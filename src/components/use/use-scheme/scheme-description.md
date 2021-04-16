@@ -25,4 +25,4 @@ translucent = background (alpha: 90%)
 # Dynamic to app-background
 
 guide = one of COLORS whose hue is the most opposite to app-background (default: 240)
-highlight = one of COLORS whose hue is the most nearest to app-background
+accent = one of COLORS whose hue is the most nearest to app-background

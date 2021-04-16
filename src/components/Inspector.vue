@@ -144,7 +144,7 @@ export default defineComponent({
 		opacity 0.6
 
 		&:hover
-			color var(--highlight)
+			color var(--accent)
 			opacity 1
 
 	&__doc

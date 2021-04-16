@@ -163,5 +163,5 @@ $compact-dur = 0.4s
 			font-size 1rem
 
 		&:hover
-			color var(--highlight)
+			color var(--accent)
 </style>

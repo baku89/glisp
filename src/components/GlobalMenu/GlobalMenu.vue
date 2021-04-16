@@ -140,7 +140,7 @@ $height = 3.4rem
 		-webkit-app-region no-drag
 
 		&:hover, &.active
-			color var(--highlight)
+			color var(--accent)
 
 	&__submenu
 		position absolute

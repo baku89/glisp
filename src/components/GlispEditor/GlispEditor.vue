@@ -221,5 +221,5 @@ export default defineComponent({
 		color var(--base05) !important
 
 	.ace_bracket
-		border 1px solid var(--highlight) !important
+		border 1px solid var(--accent) !important
 </style>

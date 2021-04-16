@@ -93,7 +93,7 @@ export default defineComponent({
 	color var(--base06)
 
 	&:focus
-		box-shadow 0 0 0 1px var(--highlight)
+		box-shadow 0 0 0 1px var(--accent)
 
 	&.exp
 		color var(--red)

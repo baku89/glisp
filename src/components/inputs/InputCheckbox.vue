@@ -106,11 +106,11 @@ export default defineComponent({
 
 	// Hover and Focus
 	&:hover &__frame
-		box-shadow inset 0 0 0 1px var(--highlight)
-		color var(--highlight)
+		box-shadow inset 0 0 0 1px var(--accent)
+		color var(--accent)
 
 	&:focus-within &__frame
-		box-shadow inset 0 0 0 1px var(--highlight), 0 0 0 1px var(--highlight)
+		box-shadow inset 0 0 0 1px var(--accent), 0 0 0 1px var(--accent)
 
 	// Label
 	&__label

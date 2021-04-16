@@ -175,8 +175,8 @@ export default defineComponent({
 			transition border-left-color 0.3s, border-right-color 0.3s
 
 		&:hover:before
-			border-right-color var(--highlight)
-			border-left-color var(--highlight)
+			border-right-color var(--accent)
+			border-left-color var(--accent)
 			background-color transparent
 
 		// After as line
@@ -192,6 +192,6 @@ export default defineComponent({
 			transform none
 
 		&:hover:after
-			background-color var(--highlight) !important
+			background-color var(--accent) !important
 			opacity 0.5
 </style>

@@ -136,5 +136,5 @@ export default defineComponent({
 		color var(--error)
 
 	.paren
-		color var(--highlight)
+		color var(--accent)
 </style>

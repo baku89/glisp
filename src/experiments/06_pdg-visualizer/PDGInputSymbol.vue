@@ -175,5 +175,5 @@ export default defineComponent({
 			line-height $input-height
 
 			&:hover
-				background var(--highlight)
+				background var(--accent)
 </style>

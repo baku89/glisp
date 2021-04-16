@@ -139,7 +139,7 @@ export default defineComponent({
 			color var(--base03)
 
 			&:hover
-				color var(--highlight)
+				color var(--accent)
 
 			&:last-child
 				border-right none

@@ -162,7 +162,7 @@ export default defineComponent({
 
 		circle
 			fill var(--base00)
-			stroke var(--highlight)
+			stroke var(--accent)
 			stroke-width 1
 
 			&:hover, &[dragging]
@@ -170,7 +170,7 @@ export default defineComponent({
 
 		path, line
 			fill none
-			stroke var(--highlight)
+			stroke var(--accent)
 			stroke-width 1px
 
 		.diagonal

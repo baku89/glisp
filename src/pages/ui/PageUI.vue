@@ -13,10 +13,10 @@
 						v-model="basePreset"
 						:values="presetNames"
 					/>
-					<span style="color: var(--base04)"> Highlight = </span>
+					<span style="color: var(--base04)">&nbsp;&nbsp;Highlight = </span>
 					<InputDropdown
 						class="theme-list"
-						v-model="basePresetHighlight"
+						v-model="baseAccentName"
 						:values="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
 					/>
 				</p>
@@ -27,7 +27,7 @@
 					</div>
 					<div>
 						<dt style="background: var(--base01)">01</dt>
-						<dd>Lighter BG</dd>
+						<dd>Input BG</dd>
 					</div>
 					<div>
 						<dt style="background: var(--base02)">02</dt>
@@ -35,11 +35,11 @@
 					</div>
 					<div>
 						<dt style="background: var(--base03)">03</dt>
-						<dd>Comments, Invisibles, Line Highlighting</dd>
+						<dd>Comments, Line Highlighting</dd>
 					</div>
 					<div>
 						<dt class="invert" style="background: var(--base04)">04</dt>
-						<dd>Dark FG, Status Bar</dd>
+						<dd>Text, Label</dd>
 					</div>
 					<div>
 						<dt class="invert" style="background: var(--base05)">05</dt>
@@ -47,23 +47,23 @@
 					</div>
 					<div>
 						<dt class="invert" style="background: var(--base06)">06</dt>
-						<dd>Light FG</dd>
+						<dd>Input Value</dd>
 					</div>
 					<div>
 						<dt
 							class="invert"
-							:class="{highlight: basePresetHighlight === '07'}"
+							:class="{accent: baseAccentName === '07'}"
 							style="background: var(--base07)"
 						>
 							07
 						</dt>
-						<dd>Light BG, Highlight</dd>
+						<dd>Light BG</dd>
 					</div>
 					<div>
 						<dt
 							class="invert"
 							style="background: var(--base08)"
-							:class="{highlight: basePresetHighlight === '08'}"
+							:class="{accent: baseAccentName === '08'}"
 						>
 							08
 						</dt>
@@ -73,7 +73,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base09)"
-							:class="{highlight: basePresetHighlight === '09'}"
+							:class="{accent: baseAccentName === '09'}"
 						>
 							09
 						</dt>
@@ -83,7 +83,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0A)"
-							:class="{highlight: basePresetHighlight === '0A'}"
+							:class="{accent: baseAccentName === '0A'}"
 						>
 							0A
 						</dt>
@@ -93,7 +93,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0B)"
-							:class="{highlight: basePresetHighlight === '0B'}"
+							:class="{accent: baseAccentName === '0B'}"
 						>
 							0B
 						</dt>
@@ -103,7 +103,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0C)"
-							:class="{highlight: basePresetHighlight === '0C'}"
+							:class="{accent: baseAccentName === '0C'}"
 						>
 							0C
 						</dt>
@@ -113,7 +113,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0D)"
-							:class="{highlight: basePresetHighlight === '0D'}"
+							:class="{accent: baseAccentName === '0D'}"
 						>
 							0D
 						</dt>
@@ -123,7 +123,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0E)"
-							:class="{highlight: basePresetHighlight === '0E'}"
+							:class="{accent: baseAccentName === '0E'}"
 						>
 							0E
 						</dt>
@@ -133,7 +133,7 @@
 						<dt
 							class="invert"
 							style="background: var(--base0F)"
-							:class="{highlight: basePresetHighlight === '0F'}"
+							:class="{accent: baseAccentName === '0F'}"
 						>
 							0F
 						</dt>
@@ -175,7 +175,10 @@
 					</dd>
 					<dt>Radio</dt>
 					<dd>
-						<InputRadio v-model="inputValues.useAlpha" label="Use Alpha" />
+						<InputRadio
+							v-model="inputValues.align"
+							:values="['left', 'center', 'right']"
+						/>
 					</dd>
 					<dt>Rotery</dt>
 					<dd>
@@ -250,7 +253,7 @@ export default defineComponent({
 		Pane,
 	},
 	setup() {
-		const {basePreset, basePresetHighlight, presetNames} = useScheme()
+		const {basePreset, baseAccentName, presetNames} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -259,7 +262,8 @@ export default defineComponent({
 			number: 0,
 			useAlpha: true,
 			colorSpace: 'svh',
-			color: '#ff0000',
+			color: 'pink',
+			align: 'left',
 			angle: computed({
 				get: () => (inputValues.number / 180) * Math.PI,
 				set: x => (inputValues.number = (x / Math.PI) * 180),
@@ -286,7 +290,7 @@ export default defineComponent({
 		return {
 			inputValues,
 			basePreset,
-			basePresetHighlight,
+			baseAccentName,
 			presetNames,
 			colorPickers,
 			action,
@@ -359,7 +363,7 @@ $height = 3.4em
 			&.invert
 				color var(--base00)
 
-			&.highlight
+			&.accent
 				box-shadow inset 0 0 0 1px var(--base04), 0 0 0 1px var(--base04), inset 0 0 0 2px var(--base00)
 
 		dd

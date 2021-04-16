@@ -256,10 +256,10 @@ export default defineComponent({
 		overflow hidden
 
 	&:hover, &:focus-within, &.tweaking, &__overlay-button
-		border-color var(--highlight)
+		border-color var(--accent)
 
 	&:focus-within, &__overlay-button
-		box-shadow 0 0 0 1px var(--highlight)
+		box-shadow 0 0 0 1px var(--accent)
 
 	// Grid and color-preview
 	&:before, &__color-preview

@@ -234,6 +234,6 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			border-color var(--highlight)
-			color var(--highlight)
+			border-color var(--accent)
+			color var(--accent)
 </style>

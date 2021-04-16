@@ -201,8 +201,7 @@ export default defineComponent({
 
 		~/.tweaking &
 			&:after
-				box-shadow 0 0 0 1px var(--highlight)
-				opacity 1
+				box-shadow 0 0 0 1px var(--accent)
 
 		&:after
 			position absolute

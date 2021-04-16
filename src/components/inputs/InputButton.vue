@@ -28,5 +28,5 @@ export default defineComponent({
 	input-transition(all)
 
 	&:hover, &:focus
-		background var(--highlight)
+		background var(--accent)
 </style>

@@ -47,7 +47,7 @@ export default defineComponent({
 		cursor pointer
 
 		&:hover
-			color var(--highlight)
+			color var(--accent)
 
 		&:last-child
 			border none

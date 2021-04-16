@@ -310,7 +310,7 @@ export default defineComponent({
 	// Styles
 	&, &__axes
 		.fill, .stroke
-			stroke var(--highlight)
+			stroke var(--accent)
 			stroke-width 1
 			vector-effect non-scaling-stroke
 
@@ -318,7 +318,7 @@ export default defineComponent({
 			fill var(--base00)
 
 		.stroke
-			stroke var(--highlight)
+			stroke var(--accent)
 			vector-effect non-scaling-stroke
 			fill none
 
@@ -341,7 +341,7 @@ export default defineComponent({
 			stroke-width 3
 
 		.fill.display
-			fill var(--highlight)
+			fill var(--accent)
 
 		&.dashed
 			stroke-dasharray none

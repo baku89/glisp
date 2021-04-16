@@ -476,7 +476,7 @@ html, body
 				width auto
 
 			&:hover
-				background var(--highlight)
+				background var(--accent)
 				transform scale(1.1)
 
 			& > .icon
@@ -596,7 +596,7 @@ html, body
 
 		&:hover
 			&:before, &:after
-				border-left-color var(--highlight)
+				border-left-color var(--accent)
 				background-color transparent
 
 .splitpanes.default-theme

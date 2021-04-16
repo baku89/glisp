@@ -266,7 +266,7 @@ export default defineComponent({
 		fill var(--base04)
 
 		&:hover
-			fill var(--highlight)
+			fill var(--accent)
 
 	&__scale
 		transform-origin 16px 16px
@@ -275,7 +275,7 @@ export default defineComponent({
 		stroke-linecap round
 
 		~/.tweak-absolute &
-			stroke var(--highlight)
+			stroke var(--accent)
 
 	&__overlay
 		input-overlay()

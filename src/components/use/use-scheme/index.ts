@@ -28,7 +28,7 @@ type StaticColors = Exclude<Base16, 'scheme' | 'author'> & {
 }
 
 type Colors = StaticColors & {
-	highlight: string
+	accent: string
 }
 
 function base16ToStaticColors(scheme: Base16): [string, StaticColors] {
@@ -64,11 +64,11 @@ export default function useScheme() {
 
 	const colors: Colors = reactive({
 		...Presets[initialPreset],
-		highlight: Presets[initialPreset].base07,
+		accent: Presets[initialPreset].base07,
 	})
 
 	const basePreset = ref(initialPreset)
-	const basePresetHighlight = ref('07')
+	const baseAccentName = ref('07')
 
 	const presetNames = _.keys(Presets)
 
@@ -81,15 +81,15 @@ export default function useScheme() {
 			;(colors as any)[c] = (Presets[name] as any)[c]
 		}
 
-		colors.highlight = (colors as any)['base' + basePresetHighlight.value]
+		colors.accent = (colors as any)['base' + baseAccentName.value]
 	})
 
-	watch(basePresetHighlight, name => {
+	watch(baseAccentName, name => {
 		if (!(colors as any)['base' + name]) {
 			return
 		}
 
-		colors.highlight = (colors as any)['base' + name]
+		colors.accent = (colors as any)['base' + name]
 	})
 
 	// Set css variables to body
@@ -101,7 +101,7 @@ export default function useScheme() {
 
 	return {
 		basePreset,
-		basePresetHighlight,
+		baseAccentName,
 		presetNames,
 	}
 }

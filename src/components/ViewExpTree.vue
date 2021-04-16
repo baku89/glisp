@@ -348,32 +348,32 @@ export default defineComponent({
 			cursor pointer
 
 			&:hover
-				color var(--highlight)
+				color var(--accent)
 
 			&:after
-				border 1px solid var(--highlight)
+				border 1px solid var(--accent)
 
 		&.active
 			background var(--base01)
-			color var(--highlight)
+			color var(--accent)
 			font-weight bold
 
 			&:after
-				background var(--highlight)
+				background var(--accent)
 				opacity 0.1
 
 		&.selected
-			color var(--highlight)
+			color var(--accent)
 
 			&:after
-				background var(--highlight)
+				background var(--accent)
 				opacity 0.08
 
 		&.hovering
-			color var(--highlight)
+			color var(--accent)
 
 			&:after
-				border 1px solid var(--highlight)
+				border 1px solid var(--accent)
 				opacity 0.15
 
 	&__icon
@@ -386,7 +386,7 @@ export default defineComponent({
 		input-transition()
 
 		&.expandable:hover
-			color var(--highlight)
+			color var(--accent)
 			opacity 1
 
 		&.expanded
