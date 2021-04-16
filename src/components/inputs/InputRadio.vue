@@ -63,10 +63,14 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputRadio
+	position relative
 	display flex
 	overflow hidden
 	height $input-height
 	border-radius $border-radius
+
+	&:focus-within
+		box-shadow 0 0 0 1px var(--accent)
 
 	input
 		position absolute

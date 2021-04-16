@@ -29,4 +29,7 @@ export default defineComponent({
 
 	&:hover, &:focus
 		background var(--accent)
+
+	&:active
+		background var(--base06)
 </style>

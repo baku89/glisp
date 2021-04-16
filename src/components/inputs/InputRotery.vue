@@ -265,7 +265,7 @@ export default defineComponent({
 	&__circle
 		fill var(--base04)
 
-		&:hover
+		&:hover, ~/:focus &
 			fill var(--accent)
 
 	&__scale
