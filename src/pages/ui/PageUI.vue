@@ -169,9 +169,13 @@
 							:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
 						/>
 					</dd>
-					<dt>Boolean</dt>
+					<dt>Checkbox</dt>
 					<dd>
 						<InputCheckbox v-model="inputValues.useAlpha" label="Use Alpha" />
+					</dd>
+					<dt>Radio</dt>
+					<dd>
+						<InputRadio v-model="inputValues.useAlpha" label="Use Alpha" />
 					</dd>
 					<dt>Rotery</dt>
 					<dd>
@@ -219,6 +223,7 @@ import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
+import InputRadio from '@/components/inputs/InputRadio.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
@@ -238,6 +243,7 @@ export default defineComponent({
 		InputCheckbox,
 		InputRotery,
 		InputSeed,
+		InputRadio,
 		InputTranslate,
 		InputColor,
 		Splitpanes,
