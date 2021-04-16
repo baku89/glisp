@@ -1,5 +1,5 @@
 @import url('https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css')
-@import url('https://fonts.googleapis.com/css2?family=Lato:wght@700&family=Mulish:wght@700&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap')
 @import 'common.styl'
 
 ::-webkit-scrollbar
@@ -89,8 +89,8 @@ p
 					input-transition()
 
 				&:before
-					right 0
-					content '<<'
+					right -1em
+					content '<<-'
 					text-align right
 
 				&:hover:before, &:hover:after
@@ -100,8 +100,8 @@ p
 					transform translateX(-50%)
 
 				&:after
-					left 0
-					content '>>'
+					left -1em
+					content '->>'
 
 				&:hover:after
 					transform translateX(50%)

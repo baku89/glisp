@@ -4,15 +4,20 @@
 			<h1 class="PageUI__gmenu-title">'(GLISP)</h1>
 		</menu>
 		<splitpanes class="PageUI__content glisp-theme">
-			<pane class="pane-left">
+			<pane>
 				<h2>Theme</h2>
 				<p>
 					<span style="color: var(--base04)">Base theme = </span>
 					<InputDropdown
 						class="theme-list"
-						:modelValue="basePreset"
-						@update:modelValue="applyPreset"
-						:values="presets"
+						v-model="basePreset"
+						:values="presetNames"
+					/>
+					<span style="color: var(--base04)"> Highlight = </span>
+					<InputDropdown
+						class="theme-list"
+						v-model="basePresetHighlight"
+						:values="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
 					/>
 				</p>
 				<dl class="PageUI__theme">
@@ -89,7 +94,7 @@
 					/>
 				</section> -->
 			</pane>
-			<pane class="pane-right">
+			<pane>
 				<h2>Input Components</h2>
 				<dl class="PageUI__ui-list">
 					<dt>String</dt>
@@ -185,7 +190,7 @@ export default defineComponent({
 		Pane,
 	},
 	setup() {
-		const {basePreset, presets, applyPreset} = useScheme()
+		const {basePreset, basePresetHighlight, presetNames} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -218,7 +223,14 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {inputValues, basePreset, presets, applyPreset, colorPickers, action}
+		return {
+			inputValues,
+			basePreset,
+			basePresetHighlight,
+			presetNames,
+			colorPickers,
+			action,
+		}
 	},
 })
 </script>
