@@ -218,9 +218,9 @@ export default defineComponent({
 	overflow hidden
 	padding 0
 	width $button-height
-	height $button-height
 	border-radius 50%
 	transition all 0.1s cubic-bezier(0.25, 0.1, 0, 1)
+	aspect-ratio 1
 
 	// background
 	&:before

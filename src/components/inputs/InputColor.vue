@@ -249,9 +249,9 @@ export default defineComponent({
 	&, &__overlay-button
 		position relative
 		width $input-height
-		height $input-height
 		border 1px solid var(--frame)
-		border-radius $border-radius
+		border-radius 3px
+		aspect-ratio 1
 		input-transition(border-color)
 		overflow hidden
 
