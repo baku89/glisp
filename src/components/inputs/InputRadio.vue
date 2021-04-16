@@ -67,7 +67,7 @@ export default defineComponent({
 	display flex
 	overflow hidden
 	height $input-height
-	border-radius $border-radius
+	border-radius $input-round
 
 	&:focus-within
 		box-shadow 0 0 0 1px var(--accent)
@@ -88,7 +88,7 @@ export default defineComponent({
 			box-shadow inset 0 0 0 1px var(--accent)
 
 	input:checked + label
-		border-radius $border-radius
+		border-radius $input-round
 		background base16('06')
 		color base16('00')
 </style>

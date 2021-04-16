@@ -101,7 +101,7 @@ export default defineComponent({
 		padding 0.2em
 		width 1.1rem
 		height 1.1rem
-		border-radius 2px
+		border-radius $input-round
 		background var(--base02)
 		color var(--base00)
 		text-align center

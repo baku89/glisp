@@ -193,7 +193,7 @@ export default defineComponent({
 		overflow hidden
 		width 100%
 		height 100%
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__slider
 		position relative

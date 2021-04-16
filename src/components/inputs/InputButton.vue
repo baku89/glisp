@@ -21,7 +21,7 @@ export default defineComponent({
 .InputButton
 	padding 0 1em
 	height $input-height
-	border-radius 2px
+	border-radius $input-round
 	background var(--base04)
 	color var(--base00)
 	font-size inherit

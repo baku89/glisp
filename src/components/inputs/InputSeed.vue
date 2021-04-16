@@ -9,7 +9,7 @@
 			stroke="currentcolor"
 			stroke-linecap="butt"
 			stroke-linejoin="miter"
-			stroke-width="3"
+			stroke-width="2"
 			:style="{transform: `rotate(${iconRot}deg)`}"
 		>
 			<circle v-show="iconNum === 1" cx="16" cy="16" r="1" />
@@ -90,13 +90,14 @@ export default defineComponent({
 
 .InputSeed
 	display block
+	margin $subcontrol-margin
 	padding 0
-	width $button-height
-	height $button-height
+	width $subcontrol-height
+	height $subcontrol-height
 	background-size 100% 100%
 	color var(--base04)
 	text-align center
-	line-height $button-height
+	line-height $subcontrol-height
 	cursor pointer
 
 	&__icon

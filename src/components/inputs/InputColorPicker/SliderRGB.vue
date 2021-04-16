@@ -94,13 +94,13 @@ export default defineComponent({
 <style lang="stylus">
 @import './common.styl'
 
-$circle-diameter = 0.7 * $button-height
+$circle-diameter = 0.7 * $subcontrol-height
 $circle-radius = 0.5 * $circle-diameter
 
 .SliderRGB
 	position relative
 	height $circle-diameter
-	border-radius $border-radius
+	border-radius $input-round
 
 	&__circle
 		circle()

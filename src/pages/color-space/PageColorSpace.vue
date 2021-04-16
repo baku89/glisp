@@ -308,7 +308,7 @@ void main() {
 	&__pad
 		width 8rem
 		height 8rem
-		border-radius 2px
+		border-radius $input-round
 
 	&__sliders
 		flex-grow 1

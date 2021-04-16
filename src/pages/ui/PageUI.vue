@@ -351,7 +351,7 @@ $height = 3.4em
 			grid-template-columns 3em 1fr
 
 		dt
-			border-radius $border-radius
+			border-radius $input-round
 			text-align center
 			font-size 1.4em
 			line-height: (3em / @font-size)

@@ -217,7 +217,7 @@ export default defineComponent({
 
 	&__link-button
 		padding 0
-		width $button-height
+		width $subcontrol-height
 		height @width !important
 		color var(--base02)
 </style>

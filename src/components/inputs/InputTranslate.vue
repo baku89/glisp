@@ -133,10 +133,11 @@ export default defineComponent({
 
 .InputTranslate
 	position relative
-	width $button-height
-	height @width !important
-	border-radius 2px
+	margin $subcontrol-margin
+	width $subcontrol-height
+	border-radius $input-round
 	background var(--base04)
+	aspect-ratio 1
 	input-transition(background)
 
 	&:focus

@@ -171,7 +171,7 @@ export default defineComponent({
 		left 0
 		width 100%
 		height 100%
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__circle
 		circle()
@@ -185,7 +185,7 @@ export default defineComponent({
 		margin-bottom $picker-gap
 		padding-top 100%
 		height 0
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__pad-mask
 		position absolute

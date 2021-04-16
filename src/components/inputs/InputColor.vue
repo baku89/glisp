@@ -250,7 +250,7 @@ export default defineComponent({
 		position relative
 		width $input-height
 		border 1px solid var(--frame)
-		border-radius 3px
+		border-radius: $input-round + 1px
 		aspect-ratio 1
 		input-transition(border-color)
 		overflow hidden
@@ -283,7 +283,7 @@ export default defineComponent({
 		margin 0.5rem
 		width 20rem
 		border 1px solid var(--frame)
-		border-radius 4px
+		border-radius $popup-round
 		translucent-bg()
 		position relative
 		box-shadow 0 0 20px 0 base16('00', 0.9)
@@ -313,7 +313,7 @@ export default defineComponent({
 		&-pad
 			position absolute
 			height 20rem
-			border-radius $border-radius
+			border-radius $input-round
 			mask linear-gradient(to bottom, black 1%, transparent 1%, transparent 99%, black 99%), linear-gradient(to right, black 1%, transparent 1%, transparent 99%, black 99%)
 
 		&-slider

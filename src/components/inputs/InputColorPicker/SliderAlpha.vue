@@ -90,20 +90,20 @@ export default defineComponent({
 <style lang="stylus">
 @import './common.styl'
 
-$circle-diameter = 0.7 * $button-height
+$circle-diameter = 0.7 * $subcontrol-height
 $circle-radius = 0.5 * $circle-diameter
 
 .SliderAlpha
 	position relative
 	height $circle-diameter
 	background-checkerboard()
-	border-radius $border-radius
+	border-radius $input-round
 
 	&__gradient
 		position absolute
 		width 100%
 		height 100%
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__circle
 		circle()

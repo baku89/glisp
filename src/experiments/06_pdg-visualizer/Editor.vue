@@ -144,7 +144,7 @@ export default defineComponent({
 		left 1rem
 		padding 1rem
 		height auto
-		border-radius $border-radius
+		border-radius $input-round
 		background var(--error)
 		color var(--base00)
 

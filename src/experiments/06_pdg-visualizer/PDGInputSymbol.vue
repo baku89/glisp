@@ -167,7 +167,7 @@ export default defineComponent({
 		width 10rem
 		translucent-bg()
 		border 1px solid var(--frame)
-		border-radius $border-radius
+		border-radius $input-round
 
 		& > .symbol
 			padding 0 0.4rem

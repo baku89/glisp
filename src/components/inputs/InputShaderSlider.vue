@@ -89,19 +89,19 @@ export default defineComponent({
 <style lang="stylus">
 @import './InputColorPicker/common.styl'
 
-$circle-diameter = 0.7 * $button-height
+$circle-diameter = 0.7 * $subcontrol-height
 $circle-radius = 0.5 * $circle-diameter
 
 .InputShaderSlider
 	position relative
 	height $circle-diameter
-	border-radius $border-radius
+	border-radius $input-round
 
 	&__slider-shader
 		position absolute
 		width 100%
 		height 100%
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__knob
 		circle()
@@ -114,7 +114,7 @@ $circle-radius = 0.5 * $circle-diameter
 		left 0
 		width 100%
 		height 100%
-		border-radius $border-radius
+		border-radius $input-round
 
 	&__overlay
 		input-overlay()

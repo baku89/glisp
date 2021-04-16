@@ -29,9 +29,11 @@ base16(name, opacity = 1)
 		unquote('rgba(var(--base' + name + '-rgb), ' + opacity + ')')
 
 $input-height = 1.8em
-$button-height = 1.4em
+$subcontrol-height = 1.4em
+$subcontrol-margin = (($input-height - $subcontrol-height) / 2em)
 $input-horiz-margin = 0.6em
-$border-radius = 2px
+$input-round = 2px
+$popup-round = 4px
 
 input-transition($prop = all)
 	transition $prop 0.1s ease
@@ -40,7 +42,7 @@ input()
 	width 6em
 	height $input-height
 	border 1px solid transparent
-	border-radius $border-radius
+	border-radius $input-round
 	background var(--base01)
 	color inherit
 	font-size inherit
@@ -65,7 +67,7 @@ input()
 
 input-border()
 	border 1px solid transparent
-	border-radius $border-radius
+	border-radius $input-round
 	input-transition(border-color)
 
 	&:hover
@@ -117,7 +119,7 @@ translucent-bg()
 
 tooltip()
 	padding 0.4em
-	border-radius 4px
+	border-radius $popup-round
 	background base16('00', 0.7)
 	color var(--accent)
 	cursor none
@@ -126,8 +128,8 @@ tooltip()
 
 labeled-button()
 	padding-top 0.2em
-	height $button-height
-	border-radius 2px
+	height $subcontrol-height
+	border-radius $input-round
 	background var(--base02)
 	color var(--base00)
 	font-size 0.9em

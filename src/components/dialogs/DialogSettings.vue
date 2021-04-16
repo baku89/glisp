@@ -98,7 +98,7 @@ export default defineComponent({
 		flex-grow 1
 		color var(--base05)
 		font-weight bold
-		line-height $button-height
+		line-height $subcontrol-height
 
 	&__editor
 		position relative

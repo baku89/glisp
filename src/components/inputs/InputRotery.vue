@@ -246,8 +246,9 @@ export default defineComponent({
 .InputRotery
 	position relative
 	overflow hidden
+	margin $subcontrol-margin
 	padding 0
-	width $button-height
+	width $subcontrol-height
 	transition all 0.1s cubic-bezier(0.25, 0.1, 0, 1)
 	aspect-ratio 1
 
