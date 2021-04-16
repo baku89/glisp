@@ -21,7 +21,7 @@ export default defineComponent({
 	name: 'InputRadio',
 	props: {
 		modelValue: {
-			type: Boolean,
+			type: String,
 			required: true,
 		},
 		values: {

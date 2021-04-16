@@ -68,6 +68,9 @@ export default defineComponent({
 		let startValue = ref(0)
 		let alreadyEmitted = false
 
+		let tweakStartValue = 0
+		let tweakStartPos = 0
+
 		const {isDragging: tweaking, absolutePos} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
@@ -91,14 +94,19 @@ export default defineComponent({
 				} else {
 					startValue.value = props.modelValue
 				}
+
+				tweakStartValue = startValue.value
+				tweakStartPos = pos[0]
 			},
-			onDrag({delta, right, left}) {
+			onDrag({pos, right, left}) {
 				if (alreadyEmitted) {
 					alreadyEmitted = false
 					return
 				}
 
-				let inc = ((props.max - props.min) * delta[0]) / (right - left)
+				const delta = pos[0] - tweakStartPos
+
+				let inc = ((props.max - props.min) * delta) / (right - left)
 
 				if (shift.value) {
 					inc *= 10
@@ -107,12 +115,12 @@ export default defineComponent({
 					inc /= 10
 				}
 
-				let newValue = props.modelValue + inc
+				let newValue = tweakStartValue + inc
 
 				if (props.clamped) {
 					newValue = clamp(newValue, props.min, props.max)
 				}
-				update(newValue)
+				context.emit('update:modelValue', newValue)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
@@ -127,14 +135,7 @@ export default defineComponent({
 			return x < left || right < x || y < top || bottom < y
 		})
 
-		const {
-			step,
-			displayValue,
-			onBlur,
-			onKeydown,
-			update,
-			overlayLabel,
-		} = useNumberInput(
+		const numberInputRefs = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
@@ -151,19 +152,12 @@ export default defineComponent({
 		return {
 			dragEl,
 			inputEl,
-
-			displayValue,
-			step,
 			tweaking,
 			absolutePos,
-			overlayLabel,
 			showTweakLabel,
-
-			onBlur,
-			onKeydown,
-			update,
-
 			sliderStyle,
+
+			...numberInputRefs,
 		}
 	},
 	inheritAttrs: false,

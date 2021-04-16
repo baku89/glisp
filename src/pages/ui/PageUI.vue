@@ -159,7 +159,14 @@
 					<dd><InputNumber v-model="inputValues.number" /></dd>
 					<dt>Slider</dt>
 					<dd>
-						<InputSlider v-model="inputValues.number" :min="0" :max="100" />
+						<InputSlider
+							:modelValue="inputValues.number"
+							@update:modelValue="
+								inputValues.number = Math.round($event / 20) * 20
+							"
+							:min="0"
+							:max="100"
+						/>
 					</dd>
 					<dt>Dropdown</dt>
 					<dd>

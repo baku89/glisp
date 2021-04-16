@@ -30,7 +30,7 @@ export default function useNumber(
 		const str = (e.target as HTMLInputElement).value
 		const num = parseFloat(str)
 		const val = isNaN(num) ? str : num
-		update(val)
+		context.emit('update:modelValue', val)
 	}
 
 	function onBlur(e: Event) {
@@ -58,10 +58,10 @@ export default function useNumber(
 
 			switch (key) {
 				case 'up':
-					update(value.value + inc)
+					context.emit('update:modelValue', value.value + inc)
 					break
 				case 'down':
-					update(value.value - inc)
+					context.emit('update:modelValue', value.value - inc)
 					break
 			}
 		}
@@ -76,15 +76,11 @@ export default function useNumber(
 		}
 	)
 
-	function update(val: number | string) {
-		context.emit('update:modelValue', val)
-	}
 	return {
 		step,
 		displayValue,
 		overlayLabel,
 		onBlur,
 		onKeydown,
-		update,
 	}
 }
