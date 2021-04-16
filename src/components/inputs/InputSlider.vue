@@ -198,12 +198,8 @@ export default defineComponent({
 				box-shadow 0 0 0 1px var(--accent)
 
 		&:after
-			position absolute
-			top 0
-			left 0
-			width 100%
-			height 100%
+			pseudo-block()
+			absolute-fill()
 			background var(--base03)
-			content ''
 			input-transition(all)
 </style>

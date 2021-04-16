@@ -119,14 +119,9 @@ $compact-dur = 0.4s
 	color var(--base05)
 
 	&:after
-		position absolute
-		top 0
-		left 0
-		display block
-		width 100%
-		height 100%
+		pseudo-block()
+		absolute-fill()
 		border 0.5em solid #ff5e5e
-		content ''
 		opacity 0
 		input-transition(opacity)
 		pointer-events none

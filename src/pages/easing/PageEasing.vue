@@ -398,19 +398,14 @@ html
 		margin 0 3rem
 		height 100%
 
-		// border-width 0 2px
-		// border-style solid
-		// border-color var(--base02)
 		&:before, &:after
-			position absolute
+			pseudo-block()
 			top 50%
-			display block
 			margin -2rem 0 0 -2rem
 			width 4rem
 			height 4rem
 			border 2px dashed var(--base02)
 			border-radius 50%
-			content ''
 
 		&:after
 			left 100%
