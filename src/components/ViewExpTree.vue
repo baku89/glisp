@@ -321,7 +321,7 @@ export default defineComponent({
 		position relative
 		overflow hidden
 		padding 0.6rem 0.5rem 0.6rem 0.3rem
-		color var(--comment)
+		color var(--base03)
 		text-overflow ellipsis
 		white-space nowrap
 
@@ -344,7 +344,7 @@ export default defineComponent({
 			text-decoration line-through
 
 		&.clickable
-			color var(--textcolor)
+			color var(--base05)
 			cursor pointer
 
 			&:hover
@@ -354,7 +354,7 @@ export default defineComponent({
 				border 1px solid var(--highlight)
 
 		&.active
-			background var(--input)
+			background var(--base01)
 			color var(--highlight)
 			font-weight bold
 
@@ -380,7 +380,7 @@ export default defineComponent({
 		display inline-block
 		margin-right 0.2rem
 		width 1rem
-		color var(--comment)
+		color var(--base03)
 		text-align center
 		opacity 0.7
 		input-transition()
@@ -401,7 +401,7 @@ export default defineComponent({
 	&__editing
 		position absolute
 		right 1rem
-		color var(--comment)
+		color var(--base03)
 		opacity 0
 		cursor pointer
 

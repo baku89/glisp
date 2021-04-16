@@ -156,7 +156,7 @@ export default defineComponent({
 
 	&__evaluated
 		padding-left 0.5rem
-		color var(--comment)
+		color var(--base03)
 
 		&.error
 			color var(--error)

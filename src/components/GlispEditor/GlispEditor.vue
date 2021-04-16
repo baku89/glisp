@@ -193,7 +193,7 @@ export default defineComponent({
 		width 100%
 		height 100%
 		background transparent !important
-		color var(--textcolor) !important
+		color var(--base05) !important
 		font-size 1rem
 
 	.ace_editor
@@ -203,22 +203,22 @@ export default defineComponent({
 		background var(--frame) !important
 
 	.ace_comment
-		color var(--comment) !important
+		color var(--base03) !important
 
 	.ace_keyword
 		color var(--keyword) !important
 
 	.ace_constant
-		color var(--constant) !important
+		color var(--base09) !important
 
 	.ace_function
-		color var(--function) !important
+		color var(--base0D) !important
 
 	.ace_string
-		color var(--string) !important
+		color var(--base0B) !important
 
 	.ace_cursor
-		color var(--textcolor) !important
+		color var(--base05) !important
 
 	.ace_bracket
 		border 1px solid var(--highlight) !important

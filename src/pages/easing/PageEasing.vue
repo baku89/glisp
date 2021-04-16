@@ -400,7 +400,7 @@ html
 
 		// border-width 0 2px
 		// border-style solid
-		// border-color var(--button)
+		// border-color var(--base02)
 		&:before, &:after
 			position absolute
 			top 50%
@@ -408,7 +408,7 @@ html
 			margin -2rem 0 0 -2rem
 			width 4rem
 			height 4rem
-			border 2px dashed var(--button)
+			border 2px dashed var(--base02)
 			border-radius 50%
 			content ''
 
@@ -434,8 +434,8 @@ html
 		width 4rem
 		height @width
 		border-radius 50%
-		background var(--button)
-		color var(--background)
+		background var(--base02)
+		color var(--base00)
 		font-size 1.5rem
 
 		.fa-play
@@ -446,10 +446,10 @@ html
 		--color var(--keyword)
 
 	.velocity
-		--color var(--function)
+		--color var(--base0D)
 
 	.accel
-		--color var(--constant)
+		--color var(--base09)
 
 	&__editor
 		position relative
@@ -462,7 +462,7 @@ html
 		height 100%
 		border-width 0 2px
 		border-style solid
-		border-color var(--button)
+		border-color var(--base02)
 
 	&__seekbar
 		position absolute
@@ -531,9 +531,9 @@ html
 		top 50%
 		right 2rem
 		padding 0.4em 0.5em
-		border 2px solid var(--button)
+		border 2px solid var(--base02)
 		border-radius 5px
-		color var(--button)
+		color var(--base02)
 		font-size 1rem
 		transform translate(4px, -50%)
 </style>

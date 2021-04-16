@@ -115,8 +115,8 @@ $compact-dur = 0.4s
 	min-height calc(102px + 4rem)
 	height auto
 	border-left 2px solid #eee
-	background var(--background)
-	color var(--textcolor)
+	background var(--base00)
+	color var(--base05)
 
 	&:after
 		position absolute
@@ -149,7 +149,7 @@ $compact-dur = 0.4s
 		right 1rem
 		bottom 1rem
 		display block
-		color var(--comment)
+		color var(--base03)
 		font-size 1.1rem
 		cursor pointer
 		transition all 0.2s ease

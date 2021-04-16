@@ -10,8 +10,9 @@
 					<span style="color: var(--base04)">Base theme = </span>
 					<InputDropdown
 						class="theme-list"
-						v-model="schemeName"
-						:values="schemeList"
+						:modelValue="basePreset"
+						@update:modelValue="applyPreset"
+						:values="presets"
 					/>
 				</p>
 				<dl class="PageUI__theme">
@@ -184,7 +185,7 @@ export default defineComponent({
 		Pane,
 	},
 	setup() {
-		const {name: schemeName, schemeList} = useScheme()
+		const {basePreset, presets, applyPreset} = useScheme()
 
 		const inputValues = reactive({
 			string: 'Hello',
@@ -217,7 +218,7 @@ export default defineComponent({
 			alert('Action!')
 		}
 
-		return {inputValues, action, schemeName, schemeList, colorPickers}
+		return {inputValues, basePreset, presets, applyPreset, colorPickers, action}
 	},
 })
 </script>
@@ -232,7 +233,7 @@ $height = 3.4em
 	app()
 	display grid
 	height 100vh
-	grid-grid-template-rows $height 1fr
+	grid-template-rows $height 1fr
 
 	&__gmenu
 		position relative
@@ -248,7 +249,7 @@ $height = 3.4em
 			margin 0 0 0 0.5em
 			width $height
 			height $height
-			background var(--textcolor)
+			background var(--base05)
 			text-align center
 			text-indent 10em
 			font-weight normal
@@ -284,7 +285,7 @@ $height = 3.4em
 				border 1px solid var(--frame)
 
 			&.invert
-				color var(--background)
+				color var(--base00)
 
 		dd
 			padding-left 1em

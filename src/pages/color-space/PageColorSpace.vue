@@ -297,7 +297,7 @@ void main() {
 	grid-template-columns 50vw 50vw
 
 	h2 > small
-		color var(--comment)
+		color var(--base03)
 		vertical-align middle
 		font-weight normal
 		font-size 0.7em
@@ -341,7 +341,7 @@ void main() {
 		font-size 1.2rem
 
 		& > .label
-			color var(--comment)
+			color var(--base03)
 
 	&__preset-dropdown
 		margin-right 1em

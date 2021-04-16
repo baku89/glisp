@@ -219,5 +219,5 @@ export default defineComponent({
 		padding 0
 		width $button-height
 		height @width !important
-		color var(--button)
+		color var(--base02)
 </style>

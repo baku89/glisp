@@ -150,7 +150,7 @@ export default defineComponent({
 		position absolute
 		top 1.2rem
 		right 1rem
-		color var(--comment)
+		color var(--base03)
 		opacity 0
 		cursor pointer
 

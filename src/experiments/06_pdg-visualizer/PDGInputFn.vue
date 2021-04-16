@@ -106,7 +106,7 @@ export default defineComponent({
 		flex-grow 0
 		width 5rem
 		height $input-height
-		color var(--comment)
+		color var(--base03)
 		line-height $input-height
 
 	&__param

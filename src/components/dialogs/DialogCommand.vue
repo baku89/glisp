@@ -96,7 +96,7 @@ export default defineComponent({
 		font-weight bold
 
 		.alias
-			color var(--comment)
+			color var(--base03)
 			font-weight normal
 			font-size 0.95em
 
@@ -104,7 +104,7 @@ export default defineComponent({
 		position absolute
 		top 0
 		right 0
-		color var(--comment)
+		color var(--base03)
 		opacity 0.6
 
 		&:hover
@@ -115,7 +115,7 @@ export default defineComponent({
 		line-height 1.4
 
 		code
-			color var(--function)
+			color var(--base0D)
 
 	&__buttons
 		display flex
@@ -126,7 +126,7 @@ export default defineComponent({
 			flex-grow 1
 			padding 1rem
 			border-right 1px solid var(--frame)
-			color var(--comment)
+			color var(--base03)
 
 			&:hover
 				color var(--highlight)

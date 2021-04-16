@@ -4,9 +4,9 @@
 
 <script lang="ts">
 // eslint-disable-next-line simple-import-sort/sort
-import $ from 'jquery'
 import 'jq-console'
 
+import $ from 'jquery'
 import {defineComponent, onMounted, PropType, ref} from 'vue'
 
 import {printer} from '@/mal/printer'
@@ -149,18 +149,18 @@ export default defineComponent({
 			opacity 0.4
 
 	&-cursor
-		background var(--textcolor)
+		background var(--base05)
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--textcolor)
+		color var(--base05)
 
 	&-output
-		color var(--comment)
+		color var(--base03)
 
 	&-return
-		color var(--comment)
+		color var(--base03)
 
 	&-error
 		color var(--error)

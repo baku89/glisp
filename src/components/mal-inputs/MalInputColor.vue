@@ -356,14 +356,14 @@ export default defineComponent({
 
 	&__hex
 		margin-left 0.3rem
-		color var(--comment)
+		color var(--base03)
 		font-monospace()
 
 	&__mode
 		margin-right $input-horiz-margin
 		width 3.7em
 		border-bottom-color transparent
-		color var(--comment)
+		color var(--base03)
 		font-monospace()
 
 	&__text

@@ -94,7 +94,7 @@ export default defineComponent({
 
 	&__input
 		width 100%
-		color var(--textcolor)
+		color var(--base05)
 		font-monospace()
 
 	&__button
@@ -104,8 +104,8 @@ export default defineComponent({
 		width 2rem
 		height 2rem
 		border-radius 1rem
-		background var(--string)
-		color var(--background)
+		background var(--base0B)
+		color var(--base00)
 		transition all 0.2s ease
 
 		&.error

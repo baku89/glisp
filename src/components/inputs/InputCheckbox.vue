@@ -71,7 +71,7 @@ export default defineComponent({
 		left @top
 		width 1.2rem
 		height 1.2rem
-		border 1px solid var(--comment)
+		border 1px solid var(--base03)
 		border-radius 2px
 		color transparent
 		color var(--base04)
@@ -105,7 +105,7 @@ export default defineComponent({
 	// Label
 	&__label
 		margin-left 0.3em
-		color var(--textcolor)
+		color var(--base05)
 		user-select none
 
 	// Exp

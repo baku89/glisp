@@ -301,7 +301,7 @@ export default defineComponent({
 	&__axes
 		position fixed
 		overflow hidden
-		background var(--background)
+		background var(--base00)
 
 	&__axis
 		stroke var(--guide) !important
@@ -315,7 +315,7 @@ export default defineComponent({
 			vector-effect non-scaling-stroke
 
 		.fill
-			fill var(--background)
+			fill var(--base00)
 
 		.stroke
 			stroke var(--highlight)

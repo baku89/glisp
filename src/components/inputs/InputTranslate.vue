@@ -138,7 +138,7 @@ export default defineComponent({
 	// Crosshair
 	&:before, &:after
 		pseudo-block()
-		background var(--background) !important
+		background var(--base00) !important
 		transform translate(-50%, -50%)
 
 	&.tweaking:before, &.tweaking:after

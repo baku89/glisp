@@ -82,6 +82,6 @@ export default defineComponent({
 		top 0
 		right 0
 		height $input-height
-		color var(--comment)
+		color var(--base03)
 		line-height $input-height
 </style>

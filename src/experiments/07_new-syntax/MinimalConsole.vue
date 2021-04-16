@@ -133,7 +133,7 @@ export default defineComponent({
 		color var(--none)
 
 	&-return
-		color var(--constant)
+		color var(--base09)
 
 	&-error
 		color var(--token-error-token)

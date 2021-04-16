@@ -124,7 +124,7 @@ export default defineComponent({
 .Editor
 	display flex
 	height 100vh
-	color var(--textcolor)
+	color var(--base05)
 
 	&__text, &__inspector, &__result
 		padding 1rem
@@ -146,7 +146,7 @@ export default defineComponent({
 		height auto
 		border-radius $border-radius
 		background var(--error)
-		color var(--background)
+		color var(--base00)
 
 	&__result
 		display flex

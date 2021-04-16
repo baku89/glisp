@@ -161,7 +161,7 @@ export default defineComponent({
 		border 1px solid var(--frame)
 
 		circle
-			fill var(--background)
+			fill var(--base00)
 			stroke var(--highlight)
 			stroke-width 1
 

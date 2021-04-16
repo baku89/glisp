@@ -1,6 +1,6 @@
 import chroma from 'chroma-js'
 import _ from 'lodash'
-import {computed, ref, watchEffect} from 'vue'
+import {reactive, ref, watchEffect} from 'vue'
 
 interface Base16 {
 	scheme: string
@@ -23,30 +23,14 @@ interface Base16 {
 	base0F: string
 }
 
+type Colors = Exclude<Base16, 'scheme' | 'author'> & {
+	frame: string // border, selection
+	translucent: string // translucent panel
+}
+
 interface Scheme {
 	name: string
-	colors: Exclude<Base16, 'scheme' | 'author'> & {
-		// Named colors
-
-		// Grayish colors
-		background: string
-		input: string // bg for input
-		button: string // buton
-		comment: string
-		textcolor: string
-		highlight: string
-
-		// With alpha
-		frame: string // border, selection
-		translucent: string // translucent panel
-
-		// Syntax highlights
-		error: string
-		constant: string
-		string: string
-		keyword: string
-		function: string
-	}
+	colors: Colors
 }
 
 function base16ToScheme(scheme: Base16): Scheme {
@@ -57,22 +41,8 @@ function base16ToScheme(scheme: Base16): Scheme {
 	return {
 		name: scheme.scheme,
 		colors: {
-			background: c.base00,
-			input: c.base01,
-			button: c.base02,
-			comment: c.base03,
-			textcolor: c.base05,
-			highlight: c.base07,
-
 			frame: chroma(c.base05).alpha(0.2).css(),
 			translucent: chroma(c.base00).alpha(0.9).css(),
-
-			error: c.base08,
-			constant: c.base09,
-			string: c.base0B,
-			keyword: c.base0C,
-			function: c.base0E,
-
 			...c,
 		},
 	}
@@ -84,23 +54,37 @@ const Base16List = require('./base16.yml') as Base16[]
 const SchemeList = [...Base16List.map(base16ToScheme)]
 
 export default function useScheme() {
-	const name = ref('Atlas')
+	const colors = reactive({...SchemeList[0].colors})
 
-	const schemeList = ref(SchemeList.map(sch => sch.name))
+	const basePreset = ref('Atlas')
 
-	const scheme = computed(
-		() => SchemeList.find(sch => sch.name === name.value) || SchemeList[0]
-	)
+	const presets = ref(SchemeList.map(sch => sch.name))
+
+	function applyPreset(name: string) {
+		const index = presets.value.indexOf(name)
+
+		if (index === -1) {
+			return
+		}
+
+		basePreset.value = name
+
+		for (const c in colors) {
+			console.log(c)
+			;(colors as any)[c] = (SchemeList[index].colors as any)[c]
+		}
+	}
 
 	// Set css variables to body
 	watchEffect(() => {
-		for (const [name, color] of _.toPairs(scheme.value.colors)) {
+		for (const [name, color] of _.toPairs(colors)) {
 			document.body.style.setProperty(`--${name}`, color)
 		}
 	})
 
 	return {
-		name,
-		schemeList,
+		basePreset,
+		applyPreset,
+		presets,
 	}
 }

@@ -41,7 +41,7 @@ export default defineComponent({
 		padding 0 1rem
 		height 3.2rem
 		border-bottom 1px dotted var(--frame)
-		color var(--comment)
+		color var(--base03)
 		// background red
 		line-height 3.2rem
 		cursor pointer

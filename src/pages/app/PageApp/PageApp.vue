@@ -403,8 +403,8 @@ html, body
 	width 100%
 	height 100%
 	height 100vh
-	// background var(--background)
-	color var(--textcolor)
+	// background var(--base00)
+	color var(--base05)
 
 	&__global-menu
 		z-index 100
@@ -464,8 +464,8 @@ html, body
 			width $width
 			height $width
 			border-radius: (0.5 * $width)rem
-			background var(--textcolor)
-			color var(--background)
+			background var(--base05)
+			color var(--base00)
 			text-align center
 			line-height $width
 			transition all 0.1s ease
@@ -522,20 +522,20 @@ html, body
 			margin-top -0.5 * $size
 			width $size
 			height $size
-			border 1px solid var(--comment)
+			border 1px solid var(--base03)
 			border-radius 50%
-			color var(--comment)
+			color var(--base03)
 			font-size 1.3rem
 			font-monospace()
 			line-height 2.2rem
 			transition all $compact-dur var(--ease)
-			--textcolor var(--comment)
+			--textcolor var(--base03)
 
 			&.error
 				border-color var(--error)
 				background var(--error)
-				color var(--background)
-				--textcolor var(--background)
+				color var(--base00)
+				--textcolor var(--base00)
 
 			&:hover
 				height 1.5 * $size
@@ -551,7 +551,7 @@ html, body
 				width $size
 				height $size
 				border-radius 0.5 * $size
-				color var(--textcolor)
+				color var(--base05)
 				// background red
 				content '<'
 				line-height $size

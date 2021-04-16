@@ -49,8 +49,8 @@ export default defineComponent({
 
 <style lang="stylus">
 .MalInputSymbol
-	color var(--function)
+	color var(--base0D)
 
 	&__input
-		color var(--function)
+		color var(--base0D)
 </style>

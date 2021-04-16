@@ -116,18 +116,18 @@ export default defineComponent({
 			opacity 0.4
 
 	&-cursor
-		background var(--textcolor)
+		background var(--base05)
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--textcolor)
+		color var(--base05)
 
 	&-output
-		color var(--constant)
+		color var(--base09)
 
 	&-return
-		color var(--constant)
+		color var(--base09)
 
 	&-error
 		color var(--error)

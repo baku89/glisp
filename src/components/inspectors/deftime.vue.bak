@@ -199,7 +199,7 @@ export default defineComponent({
 		height @width
 		border 1px solid var(--frame)
 		border-radius 50%
-		color var(--comment)
+		color var(--base03)
 		text-align center
 		line-height calc(2rem - 2.5px)
 
@@ -221,7 +221,7 @@ export default defineComponent({
 			left 0
 			width 100%
 			height 1px
-			background var(--comment)
+			background var(--base03)
 			content ''
 
 	&__current-time
@@ -231,9 +231,9 @@ export default defineComponent({
 		margin -8px 0 0 -8px
 		width 16px
 		height 16px
-		border 1px solid var(--comment)
+		border 1px solid var(--base03)
 		border-radius 50%
-		background var(--background)
+		background var(--base00)
 
 		&:hover, &[dragging]
 			border 2px solid var(--highlight)

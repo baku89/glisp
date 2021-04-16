@@ -206,13 +206,13 @@ export default defineComponent({
 	&__unit
 		padding-left 0.3em
 		width 1rem
-		color var(--comment)
+		color var(--base03)
 
 		&.small
 			height $input-height
 			letter-spacing 0
 			font-size 0.8em
-			line-height $input-height * 1.2
+			line-height: $input-height * 1.2
 
 	&__exp-after
 		margin-left 0.3rem

@@ -257,7 +257,7 @@ export default defineComponent({
 			display block
 			width 100%
 			height 1px
-			background var(--background)
+			background var(--base00)
 			content ''
 			transform translateY(-70%)
 			pointer-events none
@@ -270,7 +270,7 @@ export default defineComponent({
 			background var(--highlight)
 
 		~/__scale:before
-			background var(--background)
+			background var(--base00)
 
 	&.tweak-absolute:before
 		background var(--base04) !important

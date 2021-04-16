@@ -84,7 +84,7 @@ export default defineComponent({
 
 		&.error
 			background var(--error)
-			color var(--background)
+			color var(--base00)
 
 	&__error
 		color var(--error)
@@ -102,7 +102,7 @@ export default defineComponent({
 			flex-grow 0
 			width 2rem
 			height $input-height
-			color var(--comment)
+			color var(--base03)
 			line-height $input-height
 
 		&-expr

@@ -113,7 +113,7 @@ $height = 3.4rem
 		padding 0rem
 		width $height
 		height $height
-		background var(--comment)
+		background var(--base03)
 		text-align center
 		text-indent 10rem
 		font-weight normal
@@ -132,7 +132,7 @@ $height = 3.4rem
 		position relative
 		padding 0 1.5rem
 		height 100%
-		color var(--comment)
+		color var(--base03)
 		// font-size 1.1rem
 		// background red
 		line-height 3.5rem

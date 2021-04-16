@@ -23,7 +23,7 @@ export default defineComponent({
 	height $input-height
 	border-radius 2px
 	background var(--base04)
-	color var(--background)
+	color var(--base00)
 	font-size inherit
 	input-transition(all)
 
