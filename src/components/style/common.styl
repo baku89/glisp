@@ -24,7 +24,7 @@ font-ui()
 
 base16(name, opacity = 1)
 	if (opacity == 1)
-		unquote('rgb(var(--base' + name + '))')
+		unquote('rgb(var(--base' + name + '-rgb))')
 	else
 		unquote('rgba(var(--base' + name + '-rgb), ' + opacity + ')')
 
@@ -97,6 +97,14 @@ input-overlay()
 		font-size 1em
 		font-monospace()
 		fill var(--highlight)
+
+absolute-fill()
+	position absolute
+	top 0
+	left 0
+	display block
+	width 100%
+	height 100%
 
 pseudo-block()
 	position absolute
