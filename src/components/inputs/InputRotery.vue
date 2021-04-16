@@ -273,8 +273,7 @@ export default defineComponent({
 			background var(--background)
 
 	&.tweak-absolute:before
-		background var(--button) !important
-		opacity 0.5
+		background var(--base04) !important
 
 	&__overlay
 		input-overlay()

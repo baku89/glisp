@@ -3,15 +3,23 @@ app()
 	background var(--background)
 	color var(--textcolor)
 
+$font-monospace = 'Fira Code', monospace
+
 font-monospace(important = false)
 	if (important)
 		letter-spacing 0 !important
-		font-family var(--font-monospace) !important
+		font-family $font-monospace !important
 		font-variant-ligatures normal !important
 	else
 		letter-spacing 0
-		font-family var(--font-monospace)
+		font-family $font-monospace
 		font-variant-ligatures normal !important
+
+font-title()
+	font-family 'Lato', sans-serif
+
+font-ui()
+	font-family system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif
 
 $input-height = 1.8em
 $button-height = 1.4em

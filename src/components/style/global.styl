@@ -1,10 +1,10 @@
-@import 'common.styl'
 @import url('https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css')
-@import url('https://use.typekit.net/trq1pay.css')
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@700&display=swap')
+@import 'common.styl'
 
 ::-webkit-scrollbar
-	width 0.4rem
-	height 0.5rem
+	width 0.6em
+	height 0
 
 // Track
 ::-webkit-scrollbar-track
@@ -23,24 +23,23 @@
 	outline none
 	-webkit-tap-highlight-color transparent
 
+*
+	margin 0
+	padding 0
+	list-style none
+
 html
-	letter-spacing 0.05em
 	font-size 12px
-	font-family var(--font-ui)
+	font-ui()
 	-webkit-font-smoothing antialiased
 	-moz-osx-font-smoothing grayscale
 
-	font-variant-ligatures normal !important
-		letter-spacing 0 !important
+h1, h2, h3, h4, h5, h6
+	font-title()
+	margin-bottom 1em
 
-	// Fonts
-	--font-monospace 'Fira Code', monospace
-	--font-ui system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif
-	--font-title hypatia-sans-pro, sans-serif
-
-h1, h2, h3
-	letter-spacing 0.1em
-	font-family var(--font-title)
+h2
+	font-size 1.7em
 
 button
 	outline none
@@ -49,52 +48,60 @@ button
 	cursor pointer
 	user-select none
 
+p
+	margin 1em 0
+
 /* Splitpanes */
 .splitpanes
 	&.glisp-theme
-		&.splitpanes--vertical > .splitpanes__splitter
-			position relative
-			z-index 1
-			margin 0 -0.25em
-			padding 0
-			min-width calc(1px + 0.5em)
-			border-right 0.25em solid transparent
-			border-left 0.25em solid transparent
-			background-color var(--frame)
-			background-clip padding-box
-			input-transition()
+		&.splitpanes--vertical
+			& > .splitpanes__pane
+				overflow scroll
+				padding 1.8em
 
-			&:hover
-				border-color var(--frame)
-				background-color var(--comment)
-
-			&:before, &:after
-				position absolute
-				top 50%
-				pointer-events none
-				font-monospace()
-				margin-top -0.5em
-				width 2em
-				height 1em
-				color var(--comment)
-				line-height 1em
-				opacity 0
+			& > .splitpanes__splitter
+				position relative
+				z-index 1
+				margin 0 -0.6em
+				padding 0
+				min-width calc(1px + 1.2em)
+				border-right 0.6em solid transparent
+				border-left 0.6em solid transparent
+				background-color var(--frame)
+				background-clip padding-box
 				input-transition()
 
-			&:before
-				right 0
-				content '<<'
-				text-align right
+				&:hover
+					border-color var(--frame)
+					background-color var(--base07)
 
-			&:hover:before, &:hover:after
-				opacity 1
+				&:before, &:after
+					position absolute
+					top 50%
+					pointer-events none
+					font-monospace()
+					margin-top -0.5em
+					width 2em
+					height 1em
+					color var(--base07)
+					line-height 1em
+					opacity 0
+					input-transition()
 
-			&:hover:before
-				transform translateX(-50%)
+				&:before
+					right 0
+					content '<<'
+					text-align right
 
-			&:after
-				left 0
-				content '>>'
+				&:hover:before, &:hover:after
+					opacity 1
 
-			&:hover:after
-				transform translateX(50%)
+				&:hover:before
+					transform translateX(-50%)
+
+				&:after
+					left 0
+					content '>>'
+
+				&:hover:after
+					transform translateX(50%)

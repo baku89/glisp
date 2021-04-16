@@ -62,9 +62,9 @@ function base16ToScheme(scheme: Base16): Scheme {
 			button: c.base02,
 			comment: c.base03,
 			textcolor: c.base05,
-			highlight: c.base0C,
+			highlight: c.base07,
 
-			frame: chroma(c.base05).alpha(0.1).css(),
+			frame: chroma(c.base05).alpha(0.2).css(),
 			translucent: chroma(c.base00).alpha(0.9).css(),
 
 			error: c.base08,

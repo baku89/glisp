@@ -161,7 +161,7 @@ export default defineComponent({
 .InputSlider
 	width 12.6rem
 	height $input-height
-	background var(--input)
+	background var(--base01)
 	use-number()
 
 	&__input
@@ -196,8 +196,7 @@ export default defineComponent({
 			left 0
 			width 100%
 			height 100%
-			background var(--textcolor)
+			background var(--base03)
 			content ''
-			opacity 0.07
 			input-transition(all)
 </style>

@@ -10,6 +10,8 @@
 </template>
 
 <script lang="ts">
+import 'normalize.css'
+
 import {defineComponent, ref} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
@@ -26,14 +28,18 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '~@/components/style/common.styl'
 @import '~@/components/style/global.styl'
+@import '~@/components/style/common.styl'
 
 html
+	display flex
+	flex-direction column
+	align-items stretch
+	padding 2em
+	height 100vh
 	font-size 18px
 
 .PageIndex
-	position relative
-	padding 2rem
 	app()
+	padding 2rem
 </style>

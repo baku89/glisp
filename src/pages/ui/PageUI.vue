@@ -1,7 +1,10 @@
 <template>
 	<div class="PageUI">
-		<div class="PageUI__content">
-			<section class="PageUI__section">
+		<menu class="PageUI__gmenu">
+			<h1 class="PageUI__gmenu-title">'(GLISP)</h1>
+		</menu>
+		<splitpanes class="PageUI__content glisp-theme">
+			<pane class="pane-left">
 				<h2>Theme</h2>
 				<p>
 					<span style="color: var(--base04)">Base theme = </span>
@@ -11,45 +14,81 @@
 						:values="schemeList"
 					/>
 				</p>
-				<ul class="PageUI__theme">
-					<li class="border" style="background: var(--base00)">00</li>
-					<li style="background: var(--base01)">01</li>
-					<li style="background: var(--base02)">02</li>
-					<li style="background: var(--base03)">03</li>
-					<li class="invert" style="background: var(--base04)">04</li>
-					<li class="invert" style="background: var(--base05)">05</li>
-					<li class="invert" style="background: var(--base06)">06</li>
-					<li class="invert" style="background: var(--highlight)">07</li>
-					<li class="invert" style="background: var(--base08)">08</li>
-					<li class="invert" style="background: var(--base09)">09</li>
-					<li class="invert" style="background: var(--base0A)">0A</li>
-					<li class="invert" style="background: var(--base0B)">0B</li>
-					<li class="invert" style="background: var(--base0C)">0C</li>
-					<li class="invert" style="background: var(--base0D)">0D</li>
-					<li class="invert" style="background: var(--base0E)">0E</li>
-					<li class="invert" style="background: var(--base0F)">0F</li>
-				</ul>
-				<ul class="PageUI__theme">
-					<li class="b00" style="background: var(--background)">background</li>
-					<li class="b00">translucent</li>
-					<li style="background: var(--input)">input</li>
-					<li style="background: var(--frame)">frame</li>
-					<li class="invert" style="background: var(--button)">button</li>
-					<li style="background: var(--comment)">comment</li>
-					<li class="invert" style="background: var(--textcolor)">textcolor</li>
-					<li class="invert" style="background: var(--error)">error</li>
-					<li class="invert" style="background: var(--constant)">constant</li>
-					<li class="invert" style="background: var(--string)">string</li>
-					<li class="invert" style="background: var(--keyword)">keyword</li>
-					<li class="invert" style="background: var(--function)">function</li>
-				</ul>
-			</section>
+				<dl class="PageUI__theme">
+					<div>
+						<dt class="border" style="background: var(--base00)">00</dt>
+						<dd>BG</dd>
+					</div>
+					<div>
+						<dt style="background: var(--base01)">01</dt>
+						<dd>Lighter BG</dd>
+					</div>
+					<div>
+						<dt style="background: var(--base02)">02</dt>
+						<dd>Selection</dd>
+					</div>
+					<div>
+						<dt style="background: var(--base03)">03</dt>
+						<dd>Comments, Invisibles, Line Highlighting</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base04)">04</dt>
+						<dd>Dark FG, Status Bar</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base05)">05</dt>
+						<dd>FG, Caret, Delimiters, Operators</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base06)">06</dt>
+						<dd>Light FG</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--highlight)">07</dt>
+						<dd>Light BG, Highlight</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base08)">08</dt>
+						<dd>Variables, Deleted</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base09)">09</dt>
+						<dd>Integers, Boolean, Constants</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0A)">0A</dt>
+						<dd>Classes, Markup Bold, Search Text Background</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0B)">0B</dt>
+						<dd>Strings, Inserted</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0C)">0C</dt>
+						<dd>Support, Regular Expressions, Escape Characters</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0D)">0D</dt>
+						<dd>Functions, Headings</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0E)">0E</dt>
+						<dd>Keywords, Changed</dd>
+					</div>
+					<div>
+						<dt class="invert" style="background: var(--base0F)">0F</dt>
+						<dd>Deprecated</dd>
+					</div>
+				</dl>
 
-			<section class="PageUI__section">
-				<GlispEditor class="PageUI__glisp-editor" v-model="inputValues.code" />
-			</section>
-
-			<section class="PageUI__section">
+				<!-- <section>
+					<GlispEditor
+						class="PageUI__glisp-editor"
+						v-model="inputValues.code"
+					/>
+				</section> -->
+			</pane>
+			<pane class="pane-right">
 				<h2>Input Components</h2>
 				<dl class="PageUI__ui-list">
 					<dt>String</dt>
@@ -102,17 +141,19 @@
 						<InputButton label="Action" @click="action" />
 					</dd>
 				</dl>
-			</section>
-		</div>
+			</pane>
+		</splitpanes>
 	</div>
 </template>
 
 <script lang="ts">
 import 'normalize.css'
+import 'splitpanes/dist/splitpanes.css'
 
+import {Pane, Splitpanes} from 'splitpanes'
 import {computed, defineComponent, reactive} from 'vue'
 
-import GlispEditor from '@/components/GlispEditor'
+// import GlispEditor from '@/components/GlispEditor'
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
@@ -128,7 +169,7 @@ import useScheme from '@/components/use/use-scheme'
 export default defineComponent({
 	name: 'PageUI',
 	components: {
-		GlispEditor,
+		// GlispEditor,
 		InputNumber,
 		InputDropdown,
 		InputSlider,
@@ -139,6 +180,8 @@ export default defineComponent({
 		InputSeed,
 		InputTranslate,
 		InputColor,
+		Splitpanes,
+		Pane,
 	},
 	setup() {
 		const {name: schemeName, schemeList} = useScheme()
@@ -183,49 +226,68 @@ export default defineComponent({
 @import '~@/components/style/global.styl'
 @import '~@/components/style/common.styl'
 
+$height = 3.4em
+
 .PageUI
 	app()
-	padding 2rem 0
-	min-height 100vh
+	display grid
+	height 100vh
+	grid-grid-template-rows $height 1fr
 
-	.theme-list
-		width 12em
+	&__gmenu
+		position relative
+		display flex
+		overflow visible
+		height $height
+		border-bottom 1px solid var(--frame)
+		user-select none
 
-	.comment
-		color var(--comment)
+		&-title
+			position relative
+			overflow hidden
+			margin 0 0 0 0.5em
+			width $height
+			height $height
+			background var(--textcolor)
+			text-align center
+			text-indent 10em
+			font-weight normal
+			font-size 1em
+			mask-image embedurl('./logo.png')
+			mask-size 60% 60%
+			mask-repeat no-repeat
+			mask-position 50% 50%
 
 	&__content
-		translucent-bg()
-		margin 0 auto
-		padding 1rem
-		max-width 50rem
-		border 1px solid var(--frame)
-
-	&__section
-		margin-bottom 4rem
-
-		& > h2
-			font-size 1.5rem
+		overflow scroll
 
 	&__theme
-		display flex
-		flex-wrap wrap
-		list-style none
-		gap 0.5rem
+		position relative
+		display grid
+		grid-template-columns 100%
+		grid-template-rows repeat(16, 3em)
+		grid-auto-flow column
+		gap 0.3em
 
-		& > li
-			flex-basis calc(((100% - 1.5rem) / 4))
-			padding 1rem
-			height 3rem
+		div
+			display grid
+			grid-template-columns 3em 1fr
+
+		dt
 			border-radius $border-radius
 			text-align center
-			line-height 1rem
+			font-size 1.4em
+			line-height: (3em / @font-size)
+			font-title()
 
 			&.border
 				border 1px solid var(--frame)
 
 			&.invert
 				color var(--background)
+
+		dd
+			padding-left 1em
 
 	&__glisp-editor
 		height 4em
@@ -237,14 +299,13 @@ export default defineComponent({
 
 		& > dt
 			padding-right 1em
-			width 5.5rem
+			width 5.5em
 			color var(--base04)
 
 		& > dd
 			display flex
 			align-items center
-			margin 0
-			width calc(100% - 5.5rem)
+			width calc(100% - 5.5em)
 
 			& > span
 				margin-left 1em
