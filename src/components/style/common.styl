@@ -1,7 +1,7 @@
 
 app()
 	background var(--base00)
-	color var(--base05)
+	color var(--base04)
 
 $font-monospace = 'Fira Code', monospace
 
@@ -21,6 +21,12 @@ font-title()
 font-ui()
 	// font-family system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif
 	font-family 'Fira Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif
+
+base16(name, opacity = 1)
+	if (opacity == 1)
+		unquote('rgb(var(--base' + name + '))')
+	else
+		unquote('rgba(var(--base' + name + '-rgb), ' + opacity + ')')
 
 $input-height = 1.8em
 $button-height = 1.4em
@@ -98,8 +104,17 @@ pseudo-block()
 	content ''
 
 translucent-bg()
-	background var(--translucent)
+	background base16('00', 0.9)
 	backdrop-filter blur(16px)
+
+tooltip()
+	padding 0.4em
+	border-radius 4px
+	background base16('00', 0.7)
+	color var(--highlight)
+	cursor none
+	transition opacity 0.1s ease
+	backdrop-filter blur(3px)
 
 labeled-button()
 	padding-top 0.2em

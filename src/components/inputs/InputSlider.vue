@@ -198,11 +198,10 @@ export default defineComponent({
 	&__slider
 		position relative
 		height 100%
-		input-transition(border-right-color)
 
 		~/.tweaking &
 			&:after
-				background var(--highlight)
+				box-shadow 0 0 0 1px var(--highlight)
 				opacity 1
 
 		&:after

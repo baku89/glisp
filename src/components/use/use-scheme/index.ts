@@ -25,7 +25,6 @@ interface Base16 {
 
 type StaticColors = Exclude<Base16, 'scheme' | 'author'> & {
 	frame: string // border, selection
-	translucent: string // translucent panel
 }
 
 type Colors = StaticColors & {
@@ -33,17 +32,25 @@ type Colors = StaticColors & {
 }
 
 function base16ToStaticColors(scheme: Base16): [string, StaticColors] {
-	const c = Object.fromEntries(
-		_.toPairs(scheme).map(([k, v]) => [k, k.startsWith('base') ? '#' + v : v])
-	) as Base16
+	const c = _.fromPairs(
+		_.toPairs(scheme)
+			.filter(([k]) => k.startsWith('base'))
+			.map(([k, v]) => [k, chroma(v).css()])
+	)
+
+	const cRGB = _.fromPairs(
+		_.toPairs(c).map(([k, v]) => {
+			return [k + '-rgb', v.replace('rgb(', '').replace(')', '')]
+		})
+	)
 
 	return [
 		scheme.scheme,
 		{
 			frame: chroma(c.base05).alpha(0.2).css(),
-			translucent: chroma(c.base00).alpha(0.9).css(),
 			...c,
-		},
+			...cRGB,
+		} as StaticColors,
 	]
 }
 
@@ -53,12 +60,14 @@ const Base16List = require('./base16.yml') as Base16[]
 const Presets = Object.fromEntries(Base16List.map(base16ToStaticColors))
 
 export default function useScheme() {
+	const initialPreset = 'vulcan'
+
 	const colors: Colors = reactive({
-		...Presets['Atlas'],
-		highlight: Presets['Atlas'].base07,
+		...Presets[initialPreset],
+		highlight: Presets[initialPreset].base07,
 	})
 
-	const basePreset = ref('Atlas')
+	const basePreset = ref(initialPreset)
 	const basePresetHighlight = ref('07')
 
 	const presetNames = _.keys(Presets)

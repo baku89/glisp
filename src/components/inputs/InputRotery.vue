@@ -282,15 +282,8 @@ export default defineComponent({
 
 	&__overlay-label
 		z-index 1001
-		cursor none
-		font-monospace()
+		tooltip()
 		position fixed
-		padding 0.4em
-		border-radius 4px
-		background var(--translucent)
-		color var(--highlight)
-		font-weight bold
-		transition opacity 0.2s ease
 		transform translate(-50%, -50%)
 
 		.arrows

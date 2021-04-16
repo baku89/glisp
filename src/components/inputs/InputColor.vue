@@ -286,7 +286,7 @@ export default defineComponent({
 		border-radius 4px
 		translucent-bg()
 		position relative
-		box-shadow 0 0 20px 0 var(--translucent)
+		box-shadow 0 0 20px 0 base16('00', 0.9)
 
 	&__overlay
 		input-overlay()

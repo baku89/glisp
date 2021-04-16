@@ -14,7 +14,6 @@ use-number()
 
 		~/.tweaking &
 			box-shadow 0 0 0 1px var(--highlight)
-			font-weight bold
 			cursor ew-resize
 
 		&:focus
@@ -25,17 +24,11 @@ use-number()
 		input-overlay()
 
 	&__overlay-label
+		tooltip()
 		z-index 1001
-		cursor none
+		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed
-		padding 0.4em
-		border-radius 4px
-		background var(--translucent)
-		color var(--highlight)
-		font-weight bold
-		transition opacity 0.2s ease
-		transform translate(-50%, -50%)
 
 		&:before, &:after
 			position absolute

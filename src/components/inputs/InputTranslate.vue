@@ -7,19 +7,29 @@
 		v-bind="$attrs"
 	/>
 	<teleport to="body">
-		<svg v-if="tweaking" class="InputTranslate__overlay">
-			<polyline
-				class="bold"
-				:points="`${origin[0]} ${absolutePos[1]} ${origin[0]} ${origin[1]} ${absolutePos[0]} ${origin[1]}`"
-			/>
-			<polyline
-				class="dashed"
-				:points="`${absolutePos[0]} ${origin[1]} ${absolutePos[0]} ${absolutePos[1]} ${origin[0]} ${absolutePos[1]}`"
-			/>
-			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+		<template v-if="tweaking">
+			<svg class="InputTranslate__overlay">
+				<polyline
+					class="bold"
+					:points="`${origin[0]} ${absolutePos[1]} ${origin[0]} ${origin[1]} ${absolutePos[0]} ${origin[1]}`"
+				/>
+				<polyline
+					class="dashed"
+					:points="`${absolutePos[0]} ${origin[1]} ${absolutePos[0]} ${absolutePos[1]} ${origin[0]} ${absolutePos[1]}`"
+				/>
+			</svg>
+			<div
+				class="InputTranslate__overlay-label"
+				:style="{
+					top: absolutePos[1] + 'px',
+					left: absolutePos[0] + 'px',
+				}"
+			>
 				{{ overlayLabel }}
-			</text>
-		</svg>
+				<span class="arrows horiz" />
+				<span class="arrows vert" />
+			</div>
+		</template>
 	</teleport>
 </template>
 
@@ -101,7 +111,7 @@ export default defineComponent({
 			)
 
 			return Array.from(delta)
-				.map(v => (v > 0 ? '+' : '') + v.toFixed(1))
+				.map(v => (v > 0 ? '+' : '') + v.toFixed(0))
 				.join(',')
 		})
 
@@ -159,4 +169,59 @@ export default defineComponent({
 	&__overlay
 		cursor all-scroll
 		input-overlay()
+
+	&__overlay-label
+		tooltip()
+		z-index 1001
+		transform translate(-50%, -50%)
+		font-monospace()
+		position fixed
+
+		.arrows
+			position absolute
+
+			&.horiz
+				top 0
+				left 0
+				width 100%
+				height 100%
+
+			&.vert
+				top 0
+				left calc(50% - 0.5em)
+				width 0
+				height 100%
+
+			&:before, &:after
+				position absolute
+				display block
+				width 1em
+				height 1em
+				text-align center
+				font-weight normal
+				line-height 1em
+
+			&:before
+				content '<'
+
+			&:after
+				content '>'
+
+			&.horiz:before
+				top 50%
+				right 100%
+				transform translateY(-50%)
+
+			&.horiz:after
+				top 50%
+				left 100%
+				transform translateY(-50%)
+
+			&.vert:before
+				top -1em
+				transform rotate(90deg)
+
+			&.vert:after
+				bottom -1em
+				transform rotate(90deg)
 </style>
