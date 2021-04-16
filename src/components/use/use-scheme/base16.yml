@@ -206,7 +206,6 @@
 
 - scheme: 'Nebula'
   author: 'Gabriel Fontes (https://github.com/Misterio77)'
-
   base00: '22273b'
   base01: '414f60'
   base02: '5a8380'
@@ -215,7 +214,6 @@
   base05: 'a4a6a9'
   base06: 'c7c9cd'
   base07: '8dbdaa'
-
   base08: '777abc'
   base09: '94929e'
   base0A: '4f9062'
@@ -224,3 +222,79 @@
   base0D: '4d6bb6'
   base0E: '716cae'
   base0F: '8c70a7'
+
+- scheme: 'vulcan'
+  author: 'Andrey Varfolomeev'
+  base00: '041523'
+  base01: '122339'
+  base02: '003552'
+  base07: '7a5759'
+  base05: '6b6977'
+  base04: '5b778c'
+  base06: '977d7c'
+  base03: '214d68'
+  base08: '818591'
+  base09: '9198a3'
+  base0A: 'adb4b9'
+  base0B: '977d7c'
+  base0C: '977d7c'
+  base0D: '977d7c'
+  base0E: '9198a3'
+  base0F: '977d7c'
+
+- scheme: 'Classic Light'
+  author: 'Jason Heeris (http://heeris.id.au)'
+  base00: 'F5F5F5'
+  base01: 'E0E0E0'
+  base02: 'D0D0D0'
+  base03: 'B0B0B0'
+  base04: '505050'
+  base05: '303030'
+  base06: '202020'
+  base07: '151515'
+  base08: 'AC4142'
+  base09: 'D28445'
+  base0A: 'F4BF75'
+  base0B: '90A959'
+  base0C: '75B5AA'
+  base0D: '6A9FB5'
+  base0E: 'AA759F'
+  base0F: '8F5536'
+
+- scheme: 'Porple'
+  author: 'Niek den Breeje (https://github.com/AuditeMarlow)'
+  base00: '292c36' # ----
+  base01: '333344' # ---
+  base02: '474160' # --
+  base03: '65568a' # -
+  base04: 'b8b8b8' # +
+  base05: 'd8d8d8' # ++
+  base06: 'e8e8e8' # +++
+  base07: 'f8f8f8' # ++++
+  base08: 'f84547' # red
+  base09: 'd28e5d' # orange
+  base0A: 'efa16b' # yellow
+  base0B: '95c76f' # green
+  base0C: '64878f' # cyan
+  base0D: '8485ce' # blue
+  base0E: 'b74989' # purple
+  base0F: '986841' # brown
+
+- scheme: 'Darcula'
+  author: 'jetbrains'
+  base00: '2b2b2b' # background
+  base01: '323232' # line cursor
+  base02: '323232' # statusline
+  base03: '606366' # line numbers
+  base04: 'a4a3a3' # selected line number
+  base05: 'a9b7c6' # foreground
+  base06: 'ffc66d' # function bright yellow
+  base07: 'ffffff'
+  base08: '4eade5' # cyan
+  base09: '689757' # blue
+  base0A: 'bbb529' # yellow
+  base0B: '6a8759' # string green
+  base0C: '629755' # comment green
+  base0D: '9876aa' # purple
+  base0E: 'cc7832' # orange
+  base0F: '808080' # gray
