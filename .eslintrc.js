@@ -23,6 +23,7 @@ module.exports = {
 		'@typescript-eslint/explicit-module-boundary-types': 'off',
 		'simple-import-sort/imports': 'error',
 		'unused-imports/no-unused-imports-ts': 'error',
+		'vue/no-unused-components': 'warn',
 	},
 	globals: {
 		__PAGES__: 'readonly',
