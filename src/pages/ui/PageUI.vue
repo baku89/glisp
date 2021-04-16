@@ -3,8 +3,8 @@
 		<menu class="PageUI__gmenu">
 			<h1 class="PageUI__gmenu-title">'(GLISP)</h1>
 		</menu>
-		<splitpanes class="PageUI__content glisp-theme">
-			<pane>
+		<Splitpanes class="PageUI__content glisp-theme">
+			<Pane>
 				<h2>Theme</h2>
 				<p>
 					<span style="color: var(--base04)">Base theme = </span>
@@ -147,76 +147,82 @@
 						v-model="inputValues.code"
 					/>
 				</section> -->
-			</pane>
-			<pane>
-				<h2>Input Components</h2>
-				<dl class="PageUI__ui-list">
-					<dt>String</dt>
-					<dd>
-						<InputString v-model="inputValues.string" :monospace="true" />
-					</dd>
-					<dt>Number</dt>
-					<dd><InputNumber v-model="inputValues.number" /></dd>
-					<dt>Slider</dt>
-					<dd>
-						<InputSlider
-							:modelValue="inputValues.number"
-							@update:modelValue="
-								inputValues.number = Math.round($event / 20) * 20
-							"
-							:min="0"
-							:max="100"
-						/>
-					</dd>
-					<dt>Dropdown</dt>
-					<dd>
-						<InputDropdown
-							v-model="inputValues.colorSpace"
-							:values="['r|g|b', 'svh', 'hsv', 'hvs', 'hsvr']"
-							:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
-						/>
-					</dd>
-					<dt>Checkbox</dt>
-					<dd>
-						<InputCheckbox v-model="inputValues.useAlpha" label="Use Alpha" />
-					</dd>
-					<dt>Radio</dt>
-					<dd>
-						<InputRadio
-							v-model="inputValues.align"
-							:values="['left', 'center', 'right']"
-						/>
-					</dd>
-					<dt>Rotery</dt>
-					<dd>
-						<InputRotery v-model="inputValues.angle" />
-					</dd>
-					<dt>Seed</dt>
-					<dd>
-						<InputSeed v-model="inputValues.number" :min="0" :max="100" />
-					</dd>
-					<dt>Color</dt>
-					<dd>
-						<InputColor v-model="inputValues.color" :pickers="colorPickers" />
-					</dd>
-					<dt>Translate</dt>
-					<dd>
-						<InputTranslate
-							v-model="inputValues.position"
-							:min="0"
-							:max="100"
-						/>
-						<span class="comment">
-							Value: [{{ inputValues.position.join(' ') }}]</span
-						>
-					</dd>
-					<dt>Button</dt>
-					<dd>
-						<InputButton label="Action" @click="action" />
-					</dd>
-				</dl>
-			</pane>
-		</splitpanes>
+			</Pane>
+			<Pane class="no-padding">
+				<Tab :tabs="['inputs', 'others']" initialTab="inputs">
+					<template #head-inputs>Inputs</template>
+					<template #head-others>Others</template>
+					<template #panel-inputs>
+						<h2>Input Components</h2>
+						<dl class="PageUI__ui-list">
+							<dt>String</dt>
+							<dd>
+								<InputString v-model="inputValues.string" :monospace="true" />
+							</dd>
+							<dt>Number</dt>
+							<dd><InputNumber v-model="inputValues.number" /></dd>
+							<dt>Slider</dt>
+							<dd>
+								<InputSlider v-model="inputValues.number" :min="0" :max="100" />
+							</dd>
+							<dt>Dropdown</dt>
+							<dd>
+								<InputDropdown
+									v-model="inputValues.colorSpace"
+									:values="['r|g|b', 'svh', 'hsv', 'hvs', 'hsvr']"
+									:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
+								/>
+							</dd>
+							<dt>Checkbox</dt>
+							<dd>
+								<InputCheckbox
+									v-model="inputValues.useAlpha"
+									label="Use Alpha"
+								/>
+							</dd>
+							<dt>Radio</dt>
+							<dd>
+								<InputRadio
+									v-model="inputValues.align"
+									:values="['left', 'center', 'right']"
+								/>
+							</dd>
+							<dt>Rotery</dt>
+							<dd>
+								<InputRotery v-model="inputValues.angle" />
+							</dd>
+							<dt>Seed</dt>
+							<dd>
+								<InputSeed v-model="inputValues.number" :min="0" :max="100" />
+							</dd>
+							<dt>Color</dt>
+							<dd>
+								<InputColor
+									v-model="inputValues.color"
+									:pickers="colorPickers"
+								/>
+							</dd>
+							<dt>Translate</dt>
+							<dd>
+								<InputTranslate
+									v-model="inputValues.position"
+									:min="0"
+									:max="100"
+								/>
+								<span class="comment">
+									Value: [{{ inputValues.position.join(' ') }}]</span
+								>
+							</dd>
+							<dt>Button</dt>
+							<dd>
+								<InputButton label="Action" @click="action" />
+							</dd>
+						</dl>
+					</template>
+					<template #panel-others> Others!!!! </template>
+				</Tab>
+			</Pane>
+		</Splitpanes>
 	</div>
 </template>
 
@@ -239,6 +245,7 @@ import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
+import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
 export default defineComponent({
@@ -258,6 +265,7 @@ export default defineComponent({
 		InputColor,
 		Splitpanes,
 		Pane,
+		Tab,
 	},
 	setup() {
 		const {basePreset, baseAccentName, presetNames} = useScheme()

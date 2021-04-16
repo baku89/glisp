@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap')
 @import 'common.styl'
 
+/*
 ::-webkit-scrollbar
 	width 0.6em
 	height 0
@@ -14,7 +15,7 @@
 ::-webkit-scrollbar-thumb
 	border-radius 0
 	background var(--frame)
-
+*/
 ::selection
 	background var(--frame)
 
@@ -58,6 +59,9 @@ p
 			& > .splitpanes__pane
 				overflow scroll
 				padding 1.8em
+
+				&.no-padding
+					padding 0
 
 			& > .splitpanes__splitter
 				position relative
