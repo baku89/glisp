@@ -10,10 +10,39 @@
 			stroke-linecap="butt"
 			stroke-linejoin="miter"
 			stroke-width="3"
+			:style="{transform: `rotate(${iconRot}deg)`}"
 		>
-			<circle cx="16" cy="16" r="1" />
-			<circle cx="10" cy="22" r="1" />
-			<circle cx="22" cy="10" r="1" />
+			<circle v-show="iconNum === 1" cx="16" cy="16" r="1" />
+			<g v-show="iconNum === 2">
+				<circle cx="11" cy="21" r="1" />
+				<circle cx="21" cy="11" r="1" />
+			</g>
+			<g v-show="iconNum === 3">
+				<circle cx="16" cy="16" r="1" />
+				<circle cx="10" cy="22" r="1" />
+				<circle cx="22" cy="10" r="1" />
+			</g>
+			<g v-show="iconNum === 4">
+				<circle cx="10" cy="22" r="1" />
+				<circle cx="22" cy="10" r="1" />
+				<circle cx="10" cy="10" r="1" />
+				<circle cx="22" cy="22" r="1" />
+			</g>
+			<g v-show="iconNum === 5">
+				<circle cx="16" cy="16" r="1" />
+				<circle cx="10" cy="22" r="1" />
+				<circle cx="22" cy="10" r="1" />
+				<circle cx="10" cy="10" r="1" />
+				<circle cx="22" cy="22" r="1" />
+			</g>
+			<g v-show="iconNum === 6">
+				<circle cx="10" cy="10" r="1" />
+				<circle cx="10" cy="16" r="1" />
+				<circle cx="10" cy="22" r="1" />
+				<circle cx="22" cy="10" r="1" />
+				<circle cx="22" cy="16" r="1" />
+				<circle cx="22" cy="22" r="1" />
+			</g>
 			<path
 				d="M24,29H8c-2.8,0-5-2.2-5-5V8c0-2.8,2.2-5,5-5h16c2.8,0,5,2.2,5,5v16C29,26.8,26.8,29,24,29z"
 			/>
@@ -22,7 +51,8 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue'
+import _ from 'lodash'
+import {defineComponent, ref} from 'vue'
 
 export default defineComponent({
 	name: 'InputSeed',
@@ -37,13 +67,20 @@ export default defineComponent({
 		},
 	},
 	setup(props, context) {
+		const iconRot = ref(0)
+		const iconNum = ref(3)
+
 		function shuffle() {
-			const t = Math.random()
-			const {max, min} = props
-			context.emit('update:modelValue', t * (max - min) + min)
+			iconRot.value += 90
+			const v = _.random(props.min, props.max, true)
+
+			const t = (v - props.min) / (props.max - props.min)
+			iconNum.value = _.clamp(Math.floor(t * 6) + 1, 1, 6)
+
+			context.emit('update:modelValue', v)
 		}
 
-		return {shuffle}
+		return {shuffle, iconRot, iconNum}
 	},
 })
 </script>
@@ -65,6 +102,7 @@ export default defineComponent({
 	&__icon
 		width 100%
 		height 100%
+		input-transition(transform)
 
 	&:hover, &:focus
 		color var(--highlight)
