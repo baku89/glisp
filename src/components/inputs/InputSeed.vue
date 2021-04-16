@@ -102,7 +102,7 @@ export default defineComponent({
 	&__icon
 		width 100%
 		height 100%
-		input-transition(transform)
+		transition transform 0.3s cubic-bezier(0.19, 1.6, 0.42, 1)
 
 	&:hover, &:focus
 		color var(--highlight)

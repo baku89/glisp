@@ -10,30 +10,40 @@
 		/>
 	</div>
 	<teleport to="body">
-		<svg v-if="tweaking" class="InputNumber__overlay">
-			<line
-				class="bold"
-				:x1="origin[0]"
-				:y1="origin[1]"
-				:x2="absolutePos[0]"
-				:y2="origin[1]"
-			/>
-			<line
-				class="dashed"
-				:x1="absolutePos[0]"
-				:y1="origin[1]"
-				:x2="absolutePos[0]"
-				:y2="absolutePos[1]"
-			/>
-			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
+		<template v-if="tweaking">
+			<svg class="InputNumber__overlay">
+				<line
+					v-show="showTweakLine"
+					class="bold"
+					:x1="originX"
+					:y1="origin[1]"
+					:x2="absolutePos[0]"
+					:y2="origin[1]"
+				/>
+				<line
+					class="dashed"
+					:x1="absolutePos[0]"
+					:y1="origin[1]"
+					:x2="absolutePos[0]"
+					:y2="absolutePos[1]"
+				/>
+			</svg>
+			<div
+				class="InputNumber__overlay-label"
+				:style="{
+					top: absolutePos[1] + 'px',
+					left: absolutePos[0] + 'px',
+					opacity: showTweakLabel ? 1 : 0,
+				}"
+			>
 				{{ overlayLabel }}
-			</text>
-		</svg>
+			</div>
+		</template>
 	</teleport>
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, toRef} from 'vue'
+import {computed, defineComponent, ref, toRef} from 'vue'
 
 // import {useDraggable, useKeyboardState} from '../use'
 import useDraggable from '../use/use-draggable'
@@ -85,6 +95,31 @@ export default defineComponent({
 			},
 		})
 
+		const showTweakLine = computed(() => {
+			if (!dragEl.value) return false
+
+			const {left, right} = dragEl.value.getBoundingClientRect()
+			const x = absolutePos.value[0]
+			return x < left || right < x
+		})
+
+		const originX = computed(() => {
+			if (!dragEl.value || !showTweakLine.value) return 0
+
+			const {left, right} = dragEl.value.getBoundingClientRect()
+
+			const x = absolutePos.value[0]
+			return x < left ? left : right
+		})
+
+		const showTweakLabel = computed(() => {
+			if (!dragEl.value || !tweaking.value) return false
+
+			const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
+			const [x, y] = absolutePos.value
+			return x < left || right < x || y < top || bottom < y
+		})
+
 		const {
 			step,
 			displayValue,
@@ -108,6 +143,9 @@ export default defineComponent({
 			tweaking,
 			absolutePos,
 			origin,
+			originX,
+			showTweakLine,
+			showTweakLabel,
 			overlayLabel,
 
 			onBlur,

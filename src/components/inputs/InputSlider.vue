@@ -13,16 +13,22 @@
 		</div>
 	</div>
 	<teleport to="body">
-		<svg v-if="tweaking" class="InputNumber__overlay">
-			<text class="label" :x="absolutePos[0] + 15" :y="absolutePos[1] - 10">
-				{{ overlayLabel }}
-			</text>
-		</svg>
+		<div
+			v-if="tweaking"
+			class="InputNumber__overlay-label"
+			:style="{
+				top: absolutePos[1] + 'px',
+				left: absolutePos[0] + 'px',
+				opacity: showTweakLabel ? 1 : 0,
+			}"
+		>
+			{{ overlayLabel }}
+		</div>
 	</teleport>
 </template>
 
 <script lang="ts">
-import {clamp} from 'lodash'
+import _, {clamp} from 'lodash'
 import {computed, defineComponent, ref, toRef} from 'vue'
 
 import useDraggable from '../use/use-draggable'
@@ -113,6 +119,14 @@ export default defineComponent({
 			},
 		})
 
+		const showTweakLabel = computed(() => {
+			if (!dragEl.value || !tweaking.value) return false
+
+			const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
+			const [x, y] = absolutePos.value
+			return x < left || right < x || y < top || bottom < y
+		})
+
 		const {
 			step,
 			displayValue,
@@ -130,7 +144,7 @@ export default defineComponent({
 		const sliderStyle = computed(() => {
 			const t = (props.modelValue - props.min) / (props.max - props.min)
 			return {
-				width: `${t * 100}%`,
+				width: `${_.clamp(t, 0, 1) * 100}%`,
 			}
 		})
 
@@ -143,6 +157,7 @@ export default defineComponent({
 			tweaking,
 			absolutePos,
 			overlayLabel,
+			showTweakLabel,
 
 			onBlur,
 			onKeydown,
@@ -188,7 +203,7 @@ export default defineComponent({
 		~/.tweaking &
 			&:after
 				background var(--highlight)
-				opacity 0.4
+				opacity 1
 
 		&:after
 			position absolute

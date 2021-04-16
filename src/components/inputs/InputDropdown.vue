@@ -49,7 +49,7 @@ $right-arrow-width = 1em
 .InputDropdown
 	position relative
 	input()
-	padding 0
+	color var(--base06)
 
 	&.simple
 		text-align-last center

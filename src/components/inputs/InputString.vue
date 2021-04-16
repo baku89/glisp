@@ -90,7 +90,7 @@ export default defineComponent({
 	padding 0 0.4rem
 	max-width 100%
 	width 12.6rem
-	color var(--base05)
+	color var(--base06)
 
 	&:focus
 		box-shadow 0 0 0 1px var(--highlight)

@@ -2,7 +2,7 @@
 
 use-number()
 	position relative
-	color var(--base05)
+	color var(--base06)
 	font-monospace()
 
 	&__input
@@ -14,17 +14,48 @@ use-number()
 
 		~/.tweaking &
 			box-shadow 0 0 0 1px var(--highlight)
+			font-weight bold
+			cursor ew-resize
 
 		&:focus
 			cursor text
 			pointer-events auto
 
 	&__overlay
-		cursor ew-resize
 		input-overlay()
 
+	&__overlay-label
+		z-index 1001
+		cursor none
+		font-monospace()
+		position fixed
+		padding 0.4em
+		border-radius 4px
+		background var(--translucent)
+		color var(--highlight)
+		font-weight bold
+		transition opacity 0.2s ease
+		transform translate(-50%, -50%)
+
+		&:before, &:after
+			position absolute
+			top 50%
+			display block
+			width 1.8em
+			text-align center
+			font-weight normal
+			transform translateY(-50%)
+
+		&:before
+			right 100%
+			content '<'
+
+		&:after
+			left 100%
+			content '>'
+
 	&.exp
-		color var(--red)
+		color var((- -8))
 
 	&.grayed-out
 		color var(--base03)

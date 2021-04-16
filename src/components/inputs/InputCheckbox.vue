@@ -9,7 +9,19 @@
 				type="checkbox"
 			/>
 			<div class="InputCheckbox__frame">
-				<i class="InputCheckbox__checkmark fas fa-check" />
+				<svg
+					class="InputCheckbox__checkmark"
+					viewBox="0 0 32 32"
+					width="32"
+					height="32"
+					fill="none"
+					stroke="currentcolor"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="3.5"
+				>
+					<path d="M2 20 L12 28 30 4" />
+				</svg>
 			</div>
 		</div>
 		<label class="InputCheckbox__label" v-if="label" :for="id">{{
@@ -63,31 +75,29 @@ export default defineComponent({
 		width $input-height
 		height $input-height
 		opacity 0
-		input-transition()
 
 	&__frame
 		position absolute
-		top ($input-height - 1.2rem) * 0.5rem
-		left @top
-		width 1.2rem
-		height 1.2rem
-		border 1px solid var(--base03)
-		border-radius 2px
-		color transparent
-		color var(--base04)
-		line-height 1rem
-		pointer-events none
-		input-transition()
-
-	&__checkmark
 		top 0
 		left 0
 		width 100%
 		height 100%
+		border-radius 2px
+		background var(--base01)
+		color transparent
+		color var(--base04)
+		line-height 1em
+		pointer-events none
+
+	&__checkmark
+		position relative
+		top 10%
+		left 10%
+		width 80%
+		height 80%
+		color var(--base06)
 		text-align center
-		text-indent 0.1rem
-		font-size 0.8rem
-		line-height 100%
+		line-height $input-height
 		opacity 0
 		pointer-events none
 
@@ -95,12 +105,12 @@ export default defineComponent({
 		opacity 1
 
 	// Hover and Focus
-	&__input:hover + &__frame, &__input:focus + &__frame
-		border-color var(--highlight)
+	&:hover &__frame
+		box-shadow inset 0 0 0 1px var(--highlight)
 		color var(--highlight)
 
-	&__input:focus + &__frame
-		box-shadow 0 0 0 1px var(--highlight)
+	&:focus-within &__frame
+		box-shadow inset 0 0 0 1px var(--highlight), 0 0 0 1px var(--highlight)
 
 	// Label
 	&__label

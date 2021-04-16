@@ -50,39 +50,93 @@
 						<dd>Light FG</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--highlight)">07</dt>
+						<dt
+							class="invert"
+							:class="{highlight: basePresetHighlight === '07'}"
+							style="background: var(--base07)"
+						>
+							07
+						</dt>
 						<dd>Light BG, Highlight</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base08)">08</dt>
+						<dt
+							class="invert"
+							style="background: var(--base08)"
+							:class="{highlight: basePresetHighlight === '08'}"
+						>
+							08
+						</dt>
 						<dd>Variables, Deleted</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base09)">09</dt>
+						<dt
+							class="invert"
+							style="background: var(--base09)"
+							:class="{highlight: basePresetHighlight === '09'}"
+						>
+							09
+						</dt>
 						<dd>Integers, Boolean, Constants</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0A)">0A</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0A)"
+							:class="{highlight: basePresetHighlight === '0A'}"
+						>
+							0A
+						</dt>
 						<dd>Classes, Markup Bold, Search Text Background</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0B)">0B</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0B)"
+							:class="{highlight: basePresetHighlight === '0B'}"
+						>
+							0B
+						</dt>
 						<dd>Strings, Inserted</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0C)">0C</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0C)"
+							:class="{highlight: basePresetHighlight === '0C'}"
+						>
+							0C
+						</dt>
 						<dd>Support, Regular Expressions, Escape Characters</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0D)">0D</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0D)"
+							:class="{highlight: basePresetHighlight === '0D'}"
+						>
+							0D
+						</dt>
 						<dd>Functions, Headings</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0E)">0E</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0E)"
+							:class="{highlight: basePresetHighlight === '0E'}"
+						>
+							0E
+						</dt>
 						<dd>Keywords, Changed</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base0F)">0F</dt>
+						<dt
+							class="invert"
+							style="background: var(--base0F)"
+							:class="{highlight: basePresetHighlight === '0F'}"
+						>
+							0F
+						</dt>
 						<dd>Deprecated</dd>
 					</div>
 				</dl>
@@ -298,6 +352,9 @@ $height = 3.4em
 
 			&.invert
 				color var(--base00)
+
+			&.highlight
+				box-shadow inset 0 0 0 1px var(--base04), 0 0 0 1px var(--base04), inset 0 0 0 2px var(--base00)
 
 		dd
 			padding-left 1em
