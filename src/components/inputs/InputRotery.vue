@@ -285,6 +285,7 @@ export default defineComponent({
 		z-index 1001
 		tooltip()
 		position fixed
+		cursor none
 		transform translate(-50%, -50%)
 
 		.arrows

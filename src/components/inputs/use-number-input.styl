@@ -10,11 +10,10 @@ use-number()
 		padding 0 0.4em
 		width 100%
 		text-align right
-		cursor default
+		cursor col-resize
 
 		~/.tweaking &
 			box-shadow 0 0 0 1px var(--accent)
-			cursor ew-resize
 
 		&:focus
 			cursor text
@@ -26,6 +25,7 @@ use-number()
 	&__overlay-label
 		tooltip()
 		z-index 1001
+		cursor none
 		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed
@@ -46,9 +46,3 @@ use-number()
 		&:after
 			left 100%
 			content '>'
-
-	&.exp
-		color var((- -8))
-
-	&.grayed-out
-		color var(--base03)

@@ -1,5 +1,5 @@
 <template>
-	<div class="InputDropdown" ref="rootEl">
+	<div class="InputDropdown" ref="rootEl" v-bind="$attrs">
 		<InputString
 			class="InputDropdown__input"
 			:modelValue="activeLabel"
@@ -128,6 +128,7 @@ $right-arrow-width = 1em
 
 	&__input
 		width 100%
+		cursor default
 
 	&__select
 		margin 2px
@@ -135,7 +136,7 @@ $right-arrow-width = 1em
 		tooltip()
 		padding 0
 		border 1px solid var(--frame)
-		cursor default !important
+		user-select none
 
 	&__option
 		padding 0 0.4rem

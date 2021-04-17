@@ -139,6 +139,7 @@ export default defineComponent({
 	background var(--base04)
 	aspect-ratio 1
 	input-transition(background)
+	cursor all-scroll
 
 	&:focus
 		box-shadow 0 0 0 1px var(--accent)
@@ -168,12 +169,12 @@ export default defineComponent({
 		height 7px
 
 	&__overlay
-		cursor all-scroll
 		input-overlay()
 
 	&__overlay-label
 		tooltip()
 		z-index 1001
+		cursor none
 		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed

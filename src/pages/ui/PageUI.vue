@@ -144,7 +144,7 @@
 				<!-- <section>
 					<GlispEditor
 						class="PageUI__glisp-editor"
-						v-model="inputValues.code"
+						v-model="data.code"
 					/>
 				</section> -->
 			</Pane>
@@ -164,60 +164,58 @@
 						<dl class="PageUI__ui-list">
 							<dt>String</dt>
 							<dd>
-								<InputString v-model="inputValues.string" :monospace="true" />
+								<InputString v-model="data.string" />
+							</dd>
+							<dt>Textarea</dt>
+							<dd>
+								<InputString
+									v-model="data.code"
+									:multiline="true"
+									:monospace="true"
+								/>
 							</dd>
 							<dt>Number</dt>
-							<dd><InputNumber v-model="inputValues.number" /></dd>
+							<dd><InputNumber v-model="data.number" /></dd>
 							<dt>Slider</dt>
 							<dd>
-								<InputSlider v-model="inputValues.number" :min="0" :max="100" />
+								<InputSlider v-model="data.number" :min="0" :max="100" />
 							</dd>
 							<dt>Dropdown</dt>
 							<dd>
 								<InputDropdown
-									v-model="inputValues.colorSpace"
+									v-model="data.colorSpace"
 									:values="['r|g|b', 'svh', 'hsv', 'hvs', 'hsvr']"
 									:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
 								/>
 							</dd>
 							<dt>Checkbox</dt>
 							<dd>
-								<InputCheckbox
-									v-model="inputValues.useAlpha"
-									label="Use Alpha"
-								/>
+								<InputCheckbox v-model="data.useAlpha" label="Use Alpha" />
 							</dd>
 							<dt>Radio</dt>
 							<dd>
 								<InputRadio
-									v-model="inputValues.align"
+									v-model="data.align"
 									:values="['left', 'center', 'right']"
 								/>
 							</dd>
 							<dt>Rotery</dt>
 							<dd>
-								<InputRotery v-model="inputValues.angle" />
+								<InputRotery v-model="data.angle" />
 							</dd>
 							<dt>Seed</dt>
 							<dd>
-								<InputSeed v-model="inputValues.number" :min="0" :max="100" />
+								<InputSeed v-model="data.number" :min="0" :max="100" />
 							</dd>
 							<dt>Color</dt>
 							<dd>
-								<InputColor
-									v-model="inputValues.color"
-									:pickers="colorPickers"
-								/>
+								<InputColor v-model="data.color" :pickers="colorPickers" />
 							</dd>
 							<dt>Translate</dt>
 							<dd>
-								<InputTranslate
-									v-model="inputValues.position"
-									:min="0"
-									:max="100"
-								/>
+								<InputTranslate v-model="data.position" :min="0" :max="100" />
 								<span class="comment">
-									Value: [{{ inputValues.position.join(' ') }}]</span
+									Value: [{{ data.position.join(' ') }}]</span
 								>
 							</dd>
 							<dt>Button</dt>
@@ -279,7 +277,7 @@ export default defineComponent({
 	setup() {
 		const {basePreset, baseAccentName, presetNames} = useScheme()
 
-		const inputValues = reactive({
+		const data = reactive({
 			string: 'Hello',
 			code:
 				';; Glisp Code\n(style (stroke "pink" 10 :cap "round")\n  (circle [0 0] 100))',
@@ -289,8 +287,8 @@ export default defineComponent({
 			color: 'pink',
 			align: 'left',
 			angle: computed({
-				get: () => (inputValues.number / 180) * Math.PI,
-				set: x => (inputValues.number = (x / Math.PI) * 180),
+				get: () => (data.number / 180) * Math.PI,
+				set: x => (data.number = (x / Math.PI) * 180),
 			}),
 			position: [0, 0],
 		}) as {
@@ -304,7 +302,7 @@ export default defineComponent({
 		}
 
 		const colorPickers = computed(
-			() => inputValues.colorSpace + (inputValues.useAlpha ? '|a' : '')
+			() => data.colorSpace + (data.useAlpha ? '|a' : '')
 		)
 
 		function action() {
@@ -312,7 +310,7 @@ export default defineComponent({
 		}
 
 		return {
-			inputValues,
+			data,
 			basePreset,
 			baseAccentName,
 			presetNames,
@@ -398,26 +396,22 @@ $height = 3.4em
 		border 1px solid var(--frame)
 
 	&__ui-list
-		display flex
-		flex-wrap wrap
+		display grid
+		grid-template-columns 5.5em 1fr
+		gap $input-horiz-margin
 
 		& > dt
-			padding-right 1em
-			width 5.5em
+			height $input-height
 			color var(--base04)
+			line-height $input-height
 
 		& > dd
 			display flex
 			align-items center
-			width calc(100% - 5.5em)
+			line-height $input-height
 
 			& > span
 				margin-left 1em
 				color var(--base04)
 				font-monospace()
-
-		& > *
-			margin-bottom $input-horiz-margin
-			height $input-height
-			line-height $input-height
 </style>
