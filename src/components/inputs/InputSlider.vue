@@ -28,11 +28,12 @@
 </template>
 
 <script lang="ts">
-import _, {clamp} from 'lodash'
+import _ from 'lodash'
 import {computed, defineComponent, ref, toRef} from 'vue'
 
+import {fit01, fitTo01} from '@/utils'
+
 import useDraggable from '../use/use-draggable'
-import useKeyboardState from '../use/use-keyboard-state'
 import useNumberInput from './use-number-input'
 
 export default defineComponent({
@@ -60,8 +61,6 @@ export default defineComponent({
 		const dragEl = ref<null | HTMLElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
 
-		const {shift, alt} = useKeyboardState()
-
 		const tweakMode = ref<'relative' | 'absolute'>('relative')
 
 		// Drag Events
@@ -79,23 +78,24 @@ export default defineComponent({
 				}
 			},
 			onDragStart({left, right, pos}) {
-				const cursorT = (pos[0] - left) / (right - left)
-				const valueT = (props.modelValue - props.min) / (props.max - props.min)
+				startValue.value = props.modelValue
+
+				const cursorT = fitTo01(pos[0], left, right)
+				const valueT = fitTo01(props.modelValue, props.min, props.max)
 
 				tweakMode.value =
 					Math.abs(cursorT - valueT) < 0.1 ? 'relative' : 'absolute'
 
 				if (tweakMode.value === 'absolute') {
-					const newValue = props.min + cursorT * (props.max - props.min)
+					const newValue = fit01(cursorT, props.min, props.max)
 					context.emit('update:modelValue', newValue)
 
 					alreadyEmitted = true
-					startValue.value = newValue
+					tweakStartValue = newValue
 				} else {
-					startValue.value = props.modelValue
+					tweakStartValue = props.modelValue
 				}
 
-				tweakStartValue = startValue.value
 				tweakStartPos = pos[0]
 			},
 			onDrag({pos, right, left}) {
@@ -108,17 +108,12 @@ export default defineComponent({
 
 				let inc = ((props.max - props.min) * delta) / (right - left)
 
-				if (shift.value) {
-					inc *= 10
-				}
-				if (alt.value) {
-					inc /= 10
-				}
+				inc *= tweakSpeed.value
 
 				let newValue = tweakStartValue + inc
 
 				if (props.clamped) {
-					newValue = clamp(newValue, props.min, props.max)
+					newValue = _.clamp(newValue, props.min, props.max)
 				}
 				context.emit('update:modelValue', newValue)
 			},
@@ -135,7 +130,15 @@ export default defineComponent({
 			return x < left || right < x || y < top || bottom < y
 		})
 
-		const numberInputRefs = useNumberInput(
+		const {
+			displayValue,
+			overlayLabel,
+			onBlur,
+			onKeydown,
+			tweakSpeedChanged,
+			tweakSpeed,
+			tweakLineClass,
+		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
@@ -157,7 +160,14 @@ export default defineComponent({
 			showTweakLabel,
 			sliderStyle,
 
-			...numberInputRefs,
+			displayValue,
+			overlayLabel,
+			onBlur,
+			onKeydown,
+
+			tweakSpeedChanged,
+			tweakSpeed,
+			tweakLineClass,
 		}
 	},
 	inheritAttrs: false,

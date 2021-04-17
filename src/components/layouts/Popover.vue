@@ -45,7 +45,9 @@ export default defineComponent({
 
 		let popperInstance: PopperInstance | undefined
 
-		// // Create and destroy popper instance
+		let stopWatchClickOutside: ReturnType<typeof onClickOutside>
+
+		// Create and destroy popper instance
 		watch(
 			() => props.open,
 			() => {
@@ -61,14 +63,16 @@ export default defineComponent({
 						popperInstance = createPopper(reference, target, {
 							placement: props.placement,
 							onFirstUpdate() {
-								const stop = onClickOutside(target, () => {
-									if (stop) stop()
+								stopWatchClickOutside = onClickOutside(target, () => {
 									context.emit('update:open', false)
 								})
 							},
 						})
 					})
 				} else {
+					if (stopWatchClickOutside) {
+						stopWatchClickOutside()
+					}
 					hide()
 				}
 			}

@@ -1,5 +1,6 @@
+import {useMagicKeys} from '@vueuse/core'
 import keycode from 'keycode'
-import {computed, Ref, SetupContext, watch} from 'vue'
+import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
@@ -67,6 +68,21 @@ export default function useNumber(
 		}
 	}
 
+	const {shift, alt} = useMagicKeys()
+	watch([shift, alt], () => (tweakSpeedChanged.value = true))
+
+	const tweakSpeedChanged = ref(false)
+
+	const tweakLineClass = computed(() =>
+		shift.value ? 'extra-bold' : alt.value ? 'thin' : 'bold'
+	)
+
+	const tweakSpeed = computed(() => {
+		if (shift.value) return 10
+		if (alt.value) return 0.1
+		return 1
+	})
+
 	watch(
 		() => tweaking,
 		() => {
@@ -82,5 +98,8 @@ export default function useNumber(
 		overlayLabel,
 		onBlur,
 		onKeydown,
+		tweakSpeedChanged,
+		tweakSpeed,
+		tweakLineClass,
 	}
 }

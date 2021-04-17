@@ -16,6 +16,14 @@ export function replaceRange(
 	]
 }
 
+export function fitTo01(value: number, min: number, max: number) {
+	return (value - min) / (max - min)
+}
+
+export function fit01(value: number, min: number, max: number) {
+	return min + value * (max - min)
+}
+
 export const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 /**

@@ -14,7 +14,7 @@
 			<svg class="InputNumber__overlay">
 				<line
 					v-show="showTweakLine"
-					class="bold"
+					:class="[tweakLineClass]"
 					:x1="originX"
 					:y1="origin[1]"
 					:x2="absolutePos[0]"
@@ -45,9 +45,7 @@
 <script lang="ts">
 import {computed, defineComponent, ref, toRef} from 'vue'
 
-// import {useDraggable, useKeyboardState} from '../use'
 import useDraggable from '../use/use-draggable'
-import useKeyboardState from '../use/use-keyboard-state'
 import useNumberInput from './use-number-input'
 
 export default defineComponent({
@@ -63,8 +61,6 @@ export default defineComponent({
 		const dragEl = ref<null | HTMLInputElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
 
-		const {shift, alt} = useKeyboardState()
-
 		let startValue = ref(0)
 
 		// Drag Events
@@ -78,22 +74,22 @@ export default defineComponent({
 					inputEl.value.select()
 				}
 			},
-			onDragStart({pos}) {
-				startValue.value = tweakStartValue = props.modelValue
-				tweakStartPos = pos[0]
+			onDragStart() {
+				startValue.value = props.modelValue
+				tweakSpeedChanged.value = true
 			},
 			onDrag({pos}) {
-				const delta = pos[0] - tweakStartPos
-				let inc = delta / 5
+				if (tweakSpeedChanged.value) {
+					tweakStartValue = props.modelValue
+					tweakStartPos = pos[0]
+					tweakSpeedChanged.value = false
+				}
 
-				if (shift.value) inc *= 10
-				if (alt.value) inc /= 10
+				const delta = pos[0] - tweakStartPos
+				let inc = (delta / 5) * tweakSpeed.value
 
 				const val = tweakStartValue + inc
 				context.emit('update:modelValue', val)
-			},
-			onDragEnd() {
-				context.emit('end-tweak')
 			},
 		})
 
@@ -122,7 +118,17 @@ export default defineComponent({
 			return x < left || right < x || y < top || bottom < y
 		})
 
-		const numberInputRefs = useNumberInput(
+		const {
+			step,
+			displayValue,
+			overlayLabel,
+			onBlur,
+			onKeydown,
+
+			tweakSpeedChanged,
+			tweakSpeed,
+			tweakLineClass,
+		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
@@ -139,8 +145,13 @@ export default defineComponent({
 			originX,
 			showTweakLine,
 			showTweakLabel,
+			tweakLineClass,
 
-			...numberInputRefs,
+			step,
+			displayValue,
+			overlayLabel,
+			onBlur,
+			onKeydown,
 		}
 	},
 	inheritAttrs: false,

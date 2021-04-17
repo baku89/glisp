@@ -84,11 +84,19 @@ input-overlay()
 	width 100%
 	height 100%
 
-	.bold
+	.thin, .bold, .extra-bold
 		fill none
 		stroke var(--accent)
+		stroke-linecap butt
+
+	.thin
+		stroke-width 1
+
+	.bold
 		stroke-width 2
-		stroke-linecap round
+
+	.extra-bold
+		stroke-width 4
 
 	.dashed
 		fill none

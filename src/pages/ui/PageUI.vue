@@ -9,14 +9,14 @@
 				<p>
 					<span style="color: var(--base04)">Base theme = </span>
 					<InputDropdown
-						class="theme-list"
 						v-model="basePreset"
 						:values="presetNames"
+						:style="{width: '10em'}"
 					/>
 					<span style="color: var(--base04)">&nbsp;&nbsp;Highlight = </span>
 					<InputDropdown
-						class="theme-list"
 						v-model="baseAccentName"
+						:capitalize="false"
 						:values="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
 					/>
 				</p>
@@ -175,10 +175,10 @@
 								/>
 							</dd>
 							<dt>Number</dt>
-							<dd><InputNumber v-model="data.number" /></dd>
+							<dd><InputNumber v-model="data.integer" /></dd>
 							<dt>Slider</dt>
 							<dd>
-								<InputSlider v-model="data.number" :min="0" :max="100" />
+								<InputSlider v-model="data.integer" :min="0" :max="100" />
 							</dd>
 							<dt>Dropdown</dt>
 							<dd>
@@ -282,6 +282,10 @@ export default defineComponent({
 			code:
 				';; Glisp Code\n(style (stroke "pink" 10 :cap "round")\n  (circle [0 0] 100))',
 			number: 0,
+			integer: computed({
+				get: () => Math.round(data.number / 10) * 10,
+				set: v => (data.number = Math.round(v / 10) * 10),
+			}),
 			useAlpha: true,
 			colorSpace: 'svh',
 			color: 'pink',
@@ -294,6 +298,7 @@ export default defineComponent({
 		}) as {
 			string: string
 			number: number
+			integer: number
 			colorSpace: string
 			useAlpha: boolean
 			color: string
@@ -397,7 +402,7 @@ $height = 3.4em
 
 	&__ui-list
 		display grid
-		grid-template-columns 5.5em 1fr
+		grid-template-columns minmax(5em, min-content) 1fr
 		gap $input-horiz-margin
 
 		& > dt
