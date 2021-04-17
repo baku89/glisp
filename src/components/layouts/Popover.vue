@@ -6,6 +6,7 @@
 
 <script lang="ts">
 import {createPopper, Instance as PopperInstance} from '@popperjs/core'
+import {onClickOutside} from '@vueuse/core'
 import {defineComponent, nextTick, onUnmounted, PropType, ref, watch} from 'vue'
 
 export default defineComponent({
@@ -59,16 +60,13 @@ export default defineComponent({
 
 						popperInstance = createPopper(reference, target, {
 							placement: props.placement,
+							onFirstUpdate() {
+								const stop = onClickOutside(target, () => {
+									if (stop) stop()
+									context.emit('update:open', false)
+								})
+							},
 						})
-
-						function onMousedown(e: MouseEvent) {
-							if (target !== e.target && !target.contains(e.target as Node)) {
-								context.emit('update:open', false)
-								window.removeEventListener('mousedown', onMousedown)
-							}
-						}
-
-						window.addEventListener('mousedown', onMousedown)
 					})
 				} else {
 					hide()

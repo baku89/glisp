@@ -150,7 +150,14 @@
 			</Pane>
 			<Pane class="no-padding">
 				<Tab :tabs="['inputs', 'others']" initialTab="inputs">
-					<template #head-inputs>Inputs</template>
+					<template #head-inputs>
+						<SvgIcon style="font-size: 1.2em">
+							<path
+								d="M28 6 L4 6 M28 16 L4 16 M28 26 L4 26 M24 3 L24 9 M8 13 L8 19 M20 23 L20 29"
+							/>
+						</SvgIcon>
+						Inputs
+					</template>
 					<template #head-others>Others</template>
 					<template #panel-inputs>
 						<h2>Input Components</h2>
@@ -246,6 +253,7 @@ import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import Tab from '@/components/layouts/Tab.vue'
+import SvgIcon from '@/components/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
 
 export default defineComponent({
@@ -265,6 +273,7 @@ export default defineComponent({
 		InputColor,
 		Splitpanes,
 		Pane,
+		SvgIcon,
 		Tab,
 	},
 	setup() {

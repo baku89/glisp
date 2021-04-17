@@ -1,15 +1,8 @@
 <template>
 	<button class="InputSeed" @click="shuffle">
-		<svg
+		<SvgIcon
+			mode="block"
 			class="InputSeed__icon"
-			viewBox="0 0 32 32"
-			width="32"
-			height="32"
-			fill="none"
-			stroke="currentcolor"
-			stroke-linecap="butt"
-			stroke-linejoin="miter"
-			stroke-width="2"
 			:style="{transform: `rotate(${iconRot}deg)`}"
 		>
 			<circle v-show="iconNum === 1" cx="16" cy="16" r="1" />
@@ -46,7 +39,7 @@
 			<path
 				d="M24,29H8c-2.8,0-5-2.2-5-5V8c0-2.8,2.2-5,5-5h16c2.8,0,5,2.2,5,5v16C29,26.8,26.8,29,24,29z"
 			/>
-		</svg>
+		</SvgIcon>
 	</button>
 </template>
 
@@ -54,8 +47,13 @@
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
+import SvgIcon from '@/components/SvgIcon.vue'
+
 export default defineComponent({
 	name: 'InputSeed',
+	components: {
+		SvgIcon,
+	},
 	props: {
 		min: {
 			type: Number,
