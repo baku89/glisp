@@ -12,12 +12,23 @@
 						v-model="basePreset"
 						:items="presetNames"
 						:style="{width: '10em'}"
-					/>
+					>
+					</InputDropdown>
 					<span style="color: var(--base04)">&nbsp;&nbsp;Highlight = </span>
 					<InputDropdown
 						v-model="baseAccentName"
 						:items="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
-					/>
+					>
+						<template v-slot:option="{value, string}">
+							<li class="style-default">
+								<div
+									class="PageUI__accent-preview"
+									:style="{background: `var(--base${value})`}"
+								/>
+								<span v-html="string" />
+							</li>
+						</template>
+					</InputDropdown>
 				</p>
 				<dl class="PageUI__theme">
 					<div>
@@ -423,4 +434,13 @@ $height = 3.4em
 				margin-left 1em
 				color var(--base04)
 				font-monospace()
+
+	&__accent-preview
+		display inline-block
+		margin-right 0.4em
+		width 1em
+		height 1em
+		border-radius $input-round
+		box-shadow 0 0 0 1px base16('00')
+		vertical-align middle
 </style>

@@ -21,18 +21,21 @@
 	>
 		<ul
 			class="InputDropdown__select"
-			:style="{width: rootWidth + 'px'}"
+			:style="{minWidth: rootWidth + 'px'}"
 			:value="modelValue"
 			@change="onChange"
 		>
 			<li
 				class="InputDropdown__option"
-				:class="{active: completeItems[index].value === modelValue}"
 				v-for="{index, string, original: {value}} in filteredResults"
+				:class="{active: value === modelValue}"
 				:key="index"
 				@click="onSelect(value)"
-				v-html="string"
-			/>
+			>
+				<slot name="option" :string="string" :value="value">
+					<div class="style-default" v-html="string" />
+				</slot>
+			</li>
 		</ul>
 	</Popover>
 </template>
@@ -285,7 +288,7 @@ $right-arrow-width = 1em
 		border 1px solid var(--frame)
 		user-select none
 
-	&__option
+	&__option .style-default
 		padding 0 0.4rem
 		line-height $input-height
 		hieght $input-height
@@ -296,9 +299,9 @@ $right-arrow-width = 1em
 			background base16('01')
 			color var(--accent)
 
-		&.active
-			background var(--accent)
-			color base16('00')
+	&__option.active .style-default
+		background var(--accent)
+		color base16('00')
 
 	&__chevron
 		position absolute
