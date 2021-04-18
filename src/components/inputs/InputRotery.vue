@@ -14,7 +14,6 @@
 				:style="{
 					transform: `rotate(${modelValue}rad)`,
 				}"
-				stroke-
 				x1="20"
 				y1="16"
 				x2="32"
@@ -149,13 +148,8 @@ export default defineComponent({
 		})
 
 		const overlayArrowAngle = computed(() => {
-			return (
-				Math.atan2(
-					pos.value[1] - origin.value[1],
-					pos.value[0] - origin.value[0]
-				) +
-				Math.PI / 2
-			)
+			const p = vec2.sub(vec2.create(), pos.value, origin.value)
+			return Math.atan2(p[1], p[0]) + Math.PI / 2
 		})
 
 		const overlayLineOrigin = computed(() => {
