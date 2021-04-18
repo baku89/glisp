@@ -31,7 +31,7 @@ const PageSettings = {
 	},
 	easing: {
 		entry: 'src/pages/easing/index.ts',
-		template: 'src/pages/easing/index.html',
+		template: 'src/pages/template.html',
 	},
 	'color-space': {
 		entry: 'src/pages/color-space/index.ts',
