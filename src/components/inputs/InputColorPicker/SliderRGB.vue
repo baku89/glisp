@@ -17,6 +17,7 @@ import {clamp} from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
+import {fitTo01} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
 
@@ -47,7 +48,7 @@ export default defineComponent({
 		const {isDragging: tweaking} = useDraggable(sliderEl, {
 			disableClick: true,
 			onDrag({pos: [x], right, left}) {
-				const v = clamp((x - left) / (right - left), 0, 1)
+				const v = clamp(fitTo01(x, left, right), 0, 1)
 
 				const newDict = toPartialDict(props.mode, v)
 

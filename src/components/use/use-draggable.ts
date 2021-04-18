@@ -29,7 +29,7 @@ export default function useDraggable(
 	options: DraggableOptions = {}
 ) {
 	const drag = reactive({
-		// Origin is the centre of element
+		// All coordinates are relative to the viewport
 		pos: vec2.create(),
 		prevPos: vec2.create(),
 		startPos: vec2.create(),
@@ -86,7 +86,7 @@ export default function useDraggable(
 		// Fire onDragstart and onDrag
 		if (options.disableClick) {
 			startDrag()
-			if (options.onDrag) options.onDrag(drag)
+			options.onDrag && options.onDrag(drag)
 		}
 
 		window.addEventListener('mousemove', onMousedrag)
@@ -95,7 +95,7 @@ export default function useDraggable(
 
 	function startDrag() {
 		drag.isDragging = true
-		if (options.onDragStart) options.onDragStart(drag)
+		options.onDragStart && options.onDragStart(drag)
 	}
 
 	function onMousedrag(e: MouseEvent) {
@@ -109,16 +109,16 @@ export default function useDraggable(
 			}
 		}
 
-		if (options.onDrag) options.onDrag(drag)
+		options.onDrag && options.onDrag(drag)
 
 		drag.prevPos = vec2.clone(drag.pos)
 	}
 
 	function onMouseup() {
 		if (drag.isDragging) {
-			if (options.onDragEnd) options.onDragEnd(drag)
+			options.onDragEnd && options.onDragEnd(drag)
 		} else {
-			if (options.onClick) options.onClick()
+			options.onClick && options.onClick()
 		}
 
 		// Reset

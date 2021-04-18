@@ -77,6 +77,10 @@ export default defineComponent({
 			onDragStart() {
 				startValue.value = props.modelValue
 				tweakSpeedChanged.value = true
+
+				if (dragEl.value) {
+					dragEl.value.requestPointerLock()
+				}
 			},
 			onDrag({pos}) {
 				if (tweakSpeedChanged.value) {
@@ -90,6 +94,9 @@ export default defineComponent({
 
 				const val = tweakStartValue + inc
 				context.emit('update:modelValue', val)
+			},
+			onDragEnd() {
+				document.exitPointerLock()
 			},
 		})
 

@@ -39,7 +39,7 @@ import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-import {unsignedMod} from '@/utils'
+import {fitTo01, unsignedMod} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
 import RadialFragmentString from './picker-hsv-radial.frag'
@@ -69,8 +69,8 @@ export default defineComponent({
 			onDrag({pos: [x, y], top, right, bottom, left}) {
 				// const newHSV = {...hsv.value}
 
-				const tx = ((x - left) / (right - left)) * 2 - 1
-				const ty = (1 - (y - top) / (bottom - top)) * 2 - 1
+				const tx = fitTo01(x, left, right) * 2 - 1
+				const ty = fitTo01(y, bottom, top) * 2 - 1
 
 				const h = unsignedMod(Math.atan2(ty, tx), Math.PI * 2) / (Math.PI * 2)
 				const s = Math.min(vec2.len([tx, ty]), 1)

@@ -36,7 +36,7 @@ import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
-import {unsignedMod} from '@/utils'
+import {fitTo01, unsignedMod} from '@/utils'
 
 import {ColorDict} from './InputColorPicker.vue'
 import PadFragmentString from './picker-hsv-pad.frag'
@@ -75,7 +75,7 @@ export default defineComponent({
 				const newHSV = {...hsv.value}
 
 				const modes = props.mode.slice(0, 2).split('')
-				const ts = [(x - left) / (right - left), 1 - (y - top) / (bottom - top)]
+				const ts = [fitTo01(x, left, right), fitTo01(y, bottom, top)]
 
 				for (let i = 0; i < 2; i++) {
 					const m = modes[i]

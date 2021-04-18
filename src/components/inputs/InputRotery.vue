@@ -101,7 +101,7 @@ export default defineComponent({
 		let alreadyEmitted = false
 		let startValue = ref(props.modelValue)
 
-		const {isDragging: tweaking, origin, absolutePos, pos} = useDraggable(el, {
+		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
 			disableClick: true,
 			onDragStart({pos}) {
 				if (tweakMode.value === 'absolute') {

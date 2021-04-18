@@ -85,17 +85,7 @@ import {
 
 import useDraggable from '@/components/use/use-draggable'
 import useScheme from '@/components/use/use-scheme'
-
-function fit(
-	value: number,
-	srcMin: number,
-	srcMax: number,
-	dstMin: number,
-	dstMax: number
-) {
-	const t = (value - srcMin) / (srcMax - srcMin)
-	return t * (dstMax - dstMin) + dstMin
-}
+import {fit} from '@/utils'
 
 function computeDerivative(values: number[]) {
 	return values.map((v, i) => (i == 0 ? v : v - values[i - 1]))
@@ -120,8 +110,7 @@ interface ValueData {
 export default defineComponent({
 	name: 'PageEasing',
 	setup() {
-		const {background} = useScheme()
-		background.value = 'white'
+		useScheme()
 
 		// constants
 		const fps = 60

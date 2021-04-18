@@ -16,6 +16,17 @@ export function replaceRange(
 	]
 }
 
+export function fit(
+	value: number,
+	srcMin: number,
+	srcMax: number,
+	dstMin: number,
+	dstMax: number
+) {
+	const t = (value - srcMin) / (srcMax - srcMin)
+	return t * (dstMax - dstMin) + dstMin
+}
+
 export function fitTo01(value: number, min: number, max: number) {
 	return (value - min) / (max - min)
 }
