@@ -2,8 +2,9 @@
 	<div class="InputDropdown" :class="{open}" ref="rootEl" v-bind="$attrs">
 		<InputString
 			class="InputDropdown__input"
-			:modelValue="activeLabel"
+			:modelValue="inputValue"
 			@update:modelValue="onInput"
+			@click="open = true"
 			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
@@ -26,13 +27,13 @@
 		>
 			<li
 				class="InputDropdown__option"
-				:class="{active: value === modelValue}"
-				v-for="{value, label} in items"
-				:key="value"
-				:value="value"
-				@click="onSelect(value)"
+				:class="{active: completeItems[index].value === modelValue}"
+				v-for="index in filteredIndices"
+				:key="index"
+				:value="completeItems[index].value"
+				@click="onSelect(completeItems[index].value)"
 			>
-				{{ label }}
+				{{ completeItems[index].label }}
 			</li>
 		</ul>
 	</Popover>
@@ -43,34 +44,39 @@ import {useElementSize} from '@vueuse/core'
 import fuzzy from 'fuzzy'
 import keycode from 'keycode'
 import _ from 'lodash'
-import {computed, defineComponent, PropType, ref} from 'vue'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import Popover from '@/components/layouts/Popover.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
-import _$ from '@/lodash-ext'
+import {unsignedMod} from '@/utils'
 
-console.log(fuzzy)
+interface Item {
+	value: any
+	label?: string
+}
+
+interface CompleteItem {
+	value: any
+	label: string
+}
+
+type ILabelizer = (v: any) => string
 
 export default defineComponent({
 	name: 'InputDropdown',
 	components: {InputString, Popover, SvgIcon},
 	props: {
 		modelValue: {
-			type: String as PropType<string>,
 			required: true,
 		},
-		values: {
-			type: Array as PropType<string[]>,
+		items: {
+			type: Array as PropType<(Item | string | number)[]>,
 			required: true,
 		},
-		labels: {
-			type: Array as PropType<string[]>,
-			required: false,
-		},
-		capitalize: {
-			type: Boolean,
-			default: true,
+		labelize: {
+			type: Function as PropType<ILabelizer>,
+			default: (v: any) => v + '',
 		},
 	},
 	emits: ['update:modelValue'],
@@ -78,26 +84,33 @@ export default defineComponent({
 		const open = ref(false)
 		const rootEl = ref<null | HTMLInputElement>(null)
 
-		const inputFocused = ref(false)
-		const filteredIndices = ref<null | number[]>(null)
+		const filteredIndices = ref<number[]>(_.range(props.items.length))
 		const {width: rootWidth} = useElementSize(rootEl)
 
-		const computedLabels = computed(
-			() =>
-				props.labels ||
-				(props.capitalize ? props.values.map(_.capitalize) : props.values)
-		)
+		const completeItems = computed<CompleteItem[]>(() => {
+			return props.items.map(it => {
+				if (typeof it === 'number' || typeof it === 'string') {
+					return {value: it, label: props.labelize(it)}
+				}
+				if (!it.label) {
+					return {value: it.value, label: props.labelize(it.value)}
+				}
+				return it as CompleteItem
+			})
+		})
 
-		// Pair of all value and label
-		const items = computed(() =>
-			_$.zipShorter(
-				props.values,
-				computedLabels.value
-			).map(([value, label]) => ({value, label}))
-		)
+		const activeItem = computed(() => {
+			return completeItems.value.find(it => it.value === props.modelValue)
+		})
 
-		const activeIndex = computed(() => props.values.indexOf(props.modelValue))
-		const activeLabel = computed(() => computedLabels.value[activeIndex.value])
+		const inputValue = ref(activeItem.value ? activeItem.value.label : '')
+		const inputFocused = ref(false)
+
+		watch(activeItem, () => {
+			if (activeItem.value && !inputFocused.value) {
+				inputValue.value = activeItem.value.label
+			}
+		})
 
 		function onFocus(e: InputEvent) {
 			const input = e.target as HTMLInputElement
@@ -107,40 +120,81 @@ export default defineComponent({
 
 			open.value = true
 			inputFocused.value = true
+			filteredIndices.value = _.range(props.items.length)
 		}
 
 		function onBlur() {
 			inputFocused.value = false
-			filteredIndices.value = null
+
+			if (activeItem.value && !open.value) {
+				inputValue.value = activeItem.value.label
+			}
 		}
 
-		function onKeydown(e: KeyboardEvent) {
+		function onKeydown(e: InputEvent) {
+			open.value = true
+
 			const key = keycode(e)
+
+			const indices = filteredIndices.value
+			const activeIndex = completeItems.value.findIndex(
+				it => it.value === props.modelValue
+			)
+			let notSelected = activeIndex === -1 || !indices.includes(activeIndex)
+			const len = indices.length
 
 			switch (key) {
 				case 'enter':
-					context.emit('update:modelValue', props.modelValue)
+					if (activeItem.value) {
+						inputValue.value = activeItem.value.label
+						open.value = false
+					}
 					break
 				case 'up': {
-					const len = props.values.length
-					const index = (activeIndex.value - 1 + len) % len
-					const newValue = props.values[index]
-					context.emit('update:modelValue', newValue)
+					const index = notSelected ? 0 : indices.indexOf(activeIndex)
+					const prevIndex = indices[unsignedMod(index - 1, len)]
+					const item = completeItems.value[prevIndex]
+					context.emit('update:modelValue', item.value)
+					inputValue.value = item.label
 					break
 				}
 				case 'down': {
-					const index = (activeIndex.value + 1) % props.values.length
-					const newValue = props.values[index]
-					context.emit('update:modelValue', newValue)
+					const index = notSelected
+						? indices.length - 1
+						: indices.indexOf(activeIndex)
+					const nextIndex = indices[unsignedMod(index + 1, len)]
+					const item = completeItems.value[nextIndex]
+					context.emit('update:modelValue', item.value)
+					inputValue.value = item.label
 					break
 				}
 			}
 		}
 
 		function onInput(value: string) {
-			filteredIndices.value = fuzzy
-				.filter(value, computedLabels.value)
+			inputValue.value = value
+
+			const indices = fuzzy
+				.filter(value, completeItems.value, {extract: it => it.label})
 				.map(v => v.index)
+			if (indices.length === 0) {
+				filteredIndices.value = _.range(props.items.length)
+			} else {
+				filteredIndices.value = indices
+			}
+
+			// Select the first of filtered items if no item is selected
+			const activeIndex = completeItems.value.findIndex(
+				it => it.value === props.modelValue
+			)
+
+			let notSelected =
+				activeIndex === -1 || !filteredIndices.value.includes(activeIndex)
+
+			if (notSelected) {
+				const item = completeItems.value[filteredIndices.value[0]]
+				context.emit('update:modelValue', item.value)
+			}
 		}
 
 		function onSelect(newValue: string | number) {
@@ -159,10 +213,9 @@ export default defineComponent({
 		return {
 			rootEl,
 			rootWidth,
-			items,
-
-			computedLabels,
-			activeLabel,
+			inputValue,
+			completeItems,
+			activeItem,
 			filteredIndices,
 
 			open,

@@ -10,14 +10,13 @@
 					<span style="color: var(--base04)">Base theme = </span>
 					<InputDropdown
 						v-model="basePreset"
-						:values="presetNames"
+						:items="presetNames"
 						:style="{width: '10em'}"
 					/>
 					<span style="color: var(--base04)">&nbsp;&nbsp;Highlight = </span>
 					<InputDropdown
 						v-model="baseAccentName"
-						:capitalize="false"
-						:values="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
+						:items="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
 					/>
 				</p>
 				<dl class="PageUI__theme">
@@ -184,8 +183,13 @@
 							<dd>
 								<InputDropdown
 									v-model="data.colorSpace"
-									:values="['r|g|b', 'svh', 'hsv', 'hvs', 'hsvr']"
-									:labels="['RGB', 'SVH', 'HSV', 'HVS', 'Radial']"
+									:items="[
+										{value: 'r|g|b', label: 'RGB'},
+										{value: 'svh', label: 'SVH'},
+										{value: 'hsv', label: 'HSV'},
+										{value: 'hvs', label: 'HVS'},
+										{value: 'hsvr', label: 'Radial'},
+									]"
 								/>
 							</dd>
 							<dt>Checkbox</dt>
