@@ -61,7 +61,7 @@
 import {vec2} from 'gl-matrix'
 import {computed, defineComponent, Ref, ref} from 'vue'
 
-import SvgIcon from '@/components/SvgIcon.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useRem from '@/components/use/use-rem'
 

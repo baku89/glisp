@@ -36,7 +36,7 @@ import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
-import SvgIcon from '@/components/SvgIcon.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import {unsignedMod} from '@/utils'
 

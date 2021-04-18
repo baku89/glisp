@@ -47,7 +47,7 @@
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
-import SvgIcon from '@/components/SvgIcon.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 export default defineComponent({
 	name: 'InputSeed',

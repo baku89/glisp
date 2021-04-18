@@ -49,7 +49,7 @@ import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import Popover from '@/components/layouts/Popover.vue'
-import SvgIcon from '@/components/SvgIcon.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import {unsignedMod} from '@/utils'
 
 interface Item {
