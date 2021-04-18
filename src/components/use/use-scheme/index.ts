@@ -45,29 +45,31 @@ const Base16List = require('./base16.yml') as Base16[]
 const Presets = Object.fromEntries(Base16List.map(base16ToStaticColors))
 
 export default function useScheme() {
-	const initialPreset = 'Nord'
+	const basePreset = ref('Nord')
+	const baseAccentName = ref('08')
 
 	const colors: Colors = reactive({
-		...Presets[initialPreset],
-		accent: Presets[initialPreset].base07,
+		...Presets[basePreset.value],
+		accent: '0,0,0',
 	})
-
-	const basePreset = ref(initialPreset)
-	const baseAccentName = ref('07')
 
 	const presetNames = _.keys(Presets)
 
-	watch(basePreset, name => {
-		if (!(name in Presets)) {
-			return
-		}
+	watch(
+		basePreset,
+		name => {
+			if (!(name in Presets)) {
+				return
+			}
 
-		for (const c in colors) {
-			;(colors as any)[c] = (Presets[name] as any)[c]
-		}
+			for (const c in colors) {
+				;(colors as any)[c] = (Presets[name] as any)[c]
+			}
 
-		colors.accent = (colors as any)['base' + baseAccentName.value]
-	})
+			colors.accent = (colors as any)['base' + baseAccentName.value]
+		},
+		{immediate: true}
+	)
 
 	watch(baseAccentName, name => {
 		if (!(colors as any)['base' + name]) {
