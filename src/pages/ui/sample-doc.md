@@ -85,7 +85,7 @@ Here is an example of a pre code block
           c: Color::"Pink"
           p: Vec2::[0 0]}
       (style (fill c)
-        (ellipse p [w (/ w 2)]))}
+        (ellipse p [(vec2/x ../center) (square w)])))
 
 ### `graphics/artboard`
 

@@ -1,6 +1,6 @@
 import chroma from 'chroma-js'
 import _ from 'lodash'
-import {reactive, ref, watch, watchEffect} from 'vue'
+import {computed, provide, reactive, ref, watch, watchEffect} from 'vue'
 
 interface Base16 {
 	scheme: string
@@ -75,7 +75,6 @@ export default function useScheme() {
 		if (!(colors as any)['base' + name]) {
 			return
 		}
-
 		colors.accent = (colors as any)['base' + name]
 	})
 
@@ -85,6 +84,12 @@ export default function useScheme() {
 			document.body.style.setProperty(`--${name}`, color)
 		}
 	})
+
+	const colorsHex = computed(() =>
+		_.mapValues(colors, c => chroma(`rgb(${c})`).hex())
+	)
+
+	provide('scheme', colorsHex)
 
 	return {
 		basePreset,

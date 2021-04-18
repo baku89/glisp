@@ -3,6 +3,7 @@ const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
 const argv = require('yargs/yargs')(process.argv.slice(3)).argv
 const _ = require('lodash')
+// const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin')
 
 const PagesToBuild = require('./pages.json')
 
@@ -148,5 +149,6 @@ module.exports = {
 			.plugin('copy-assets')
 			.use(CopyPlugin, [{patterns: [{from: 'assets/logo.png', to: '.'}]}])
 	},
+	// plugins: [new MonacoWebpackPlugin()],
 	pages: pages,
 }

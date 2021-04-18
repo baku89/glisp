@@ -46,7 +46,7 @@
 				</section> -->
 			</Pane>
 			<Pane class="no-padding">
-				<Tab :tabs="['inputs', 'code']" initialTab="inputs">
+				<Tab :tabs="['inputs', 'code']" initialTab="code">
 					<template #head-inputs>
 						<SvgIcon mode="inline" style="font-size: 1.2em">
 							<path
@@ -61,7 +61,9 @@
 						</SvgIcon>
 						Code
 					</template>
-					<template #panel-code>Code</template>
+					<template #panel-code>
+						<MonacoEditor v-model="data.code" />
+					</template>
 					<template #panel-inputs>
 						<h2>Input Components</h2>
 						<dl class="PageUI__ui-list">
@@ -187,6 +189,7 @@ import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
+import MonacoEditor from '@/components/layouts/MonacoEditor.vue'
 import Tab from '@/components/layouts/Tab.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
@@ -209,10 +212,11 @@ export default defineComponent({
 		InputRadio,
 		InputTranslate,
 		InputColor,
-		Splitpanes,
+		MonacoEditor,
 		Pane,
 		PaneDocument,
 		PaneSchemeViewer,
+		Splitpanes,
 		SvgIcon,
 		Tab,
 	},
@@ -222,7 +226,7 @@ export default defineComponent({
 		const data = reactive({
 			string: 'Hello',
 			code:
-				';; Glisp Code\n(style (stroke "pink" 10 :cap "round")\n  (circle [0 0] 100))',
+				';; Glisp Code\n(let {square: (=> [x: Number] PosNumber::(* x x))\n      w: 20\n      c: Color::"Pink"\n      p: Vec2::[0 0]}\n  (style (fill c)\n    (ellipse p [(vec2/x ../center) (square w)])))\n',
 			number: 0,
 			integer: computed({
 				get: () => Math.round(data.number / 10) * 10,
