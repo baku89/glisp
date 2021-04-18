@@ -211,8 +211,36 @@
 							<dd>
 								<InputRadio
 									v-model="data.align"
-									:values="['left', 'center', 'right']"
-								/>
+									:items="['left', 'center', 'right']"
+									:labelize="capitalize"
+								>
+									<template v-slot:option="{label, value}">
+										<div class="style-default">
+											<SvgIcon
+												mode="inline"
+												style="
+													font-size: 1.3em;
+													margin-bottom: 0.2em;
+													margin-right: 0.4em;
+												"
+											>
+												<path
+													v-if="value === 'left'"
+													d="M4 8 L28 8 M4 16 L18 16 M4 24 L18 24"
+												/>
+												<path
+													v-else-if="value === 'center'"
+													d="M4 8 L28 8 M9 16 L23 16 M9 24 L23 24"
+												/>
+												<path
+													v-else
+													d="M4 8 L28 8 M14 16 L28 16 M14 24 L28 24"
+												/>
+											</SvgIcon>
+											<span>{{ label }}</span>
+										</div>
+									</template>
+								</InputRadio>
 							</dd>
 							<dt>Rotery</dt>
 							<dd>
@@ -250,6 +278,7 @@
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
+import _ from 'lodash'
 import {Pane, Splitpanes} from 'splitpanes'
 import {computed, defineComponent, reactive} from 'vue'
 
@@ -336,6 +365,8 @@ export default defineComponent({
 			presetNames,
 			colorPickers,
 			action,
+
+			capitalize: _.capitalize,
 		}
 	},
 })

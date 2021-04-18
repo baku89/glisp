@@ -2,9 +2,8 @@
 	<ul class="InputRadio">
 		<li
 			class="InputRadio__li"
-			v-for="([value, label], index) in pairs"
+			v-for="({value, label}, index) in completeItems"
 			:key="index"
-			:value="value"
 		>
 			<input
 				class="InputRadio__input"
@@ -14,7 +13,14 @@
 				@change="onChange"
 				:checked="modelValue === value"
 			/>
-			<label class="InputRadio__label" :for="value">{{ label }}</label>
+			<label class="InputRadio__label" :for="value">
+				<slot name="option" :label="label" :value="value">
+					<div class="style-default">
+						{{ label }}
+					</div>
+				</slot>
+			</label>
+			>
 		</li>
 	</ul>
 </template>
@@ -23,6 +29,18 @@
 import _ from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
 
+interface Item {
+	value: any
+	label?: string
+}
+
+interface CompleteItem {
+	value: any
+	label: string
+}
+
+type ILabelizer = (v: any) => string
+
 export default defineComponent({
 	name: 'InputRadio',
 	props: {
@@ -30,42 +48,44 @@ export default defineComponent({
 			type: String,
 			required: true,
 		},
-		values: {
-			type: Array as PropType<string[]>,
+		items: {
+			type: Array as PropType<(Item | string | number | boolean | null)[]>,
 			required: true,
-		},
-		labels: {
-			type: Array as PropType<string[]>,
-			required: false,
 		},
 		capitalize: {
 			type: Boolean,
 			default: true,
 		},
+		labelize: {
+			type: Function as PropType<ILabelizer>,
+			default: (v: any) => v + '',
+		},
 	},
+	emit: ['update:modelValue'],
 	setup(props, context) {
 		const id = ref(_.uniqueId('InputRadio_'))
 
-		const pairs = computed(() => {
-			if (props.labels) {
-				return _.zip(props.values, props.labels)
-			} else {
-				return props.values.map(v => [
-					v,
-					props.capitalize ? _.capitalize(v) : v,
-				])
-			}
+		const completeItems = computed<CompleteItem[]>(() => {
+			return props.items.map(it => {
+				if (typeof it !== 'object' || it === null) {
+					return {value: it, label: props.labelize(it)}
+				}
+				if (!it.label) {
+					return {value: it.value, label: props.labelize(it.value)}
+				}
+				return it as CompleteItem
+			})
 		})
 
 		function onChange(e: InputEvent) {
 			const {selectedIndex} = e.target as HTMLSelectElement
-			const newValue = props.values[selectedIndex]
+			const newValue = completeItems.value[selectedIndex].value
 			context.emit('update:modelValue', newValue)
 		}
 
 		return {
 			id,
-			pairs,
+			completeItems,
 			onChange,
 		}
 	},
@@ -79,7 +99,7 @@ export default defineComponent({
 	position relative
 	display flex
 	overflow hidden
-	width 12.6em
+	// width 12.6em
 	height $input-height
 	border-radius $input-round
 	user-select none
@@ -97,17 +117,19 @@ export default defineComponent({
 
 	&__label
 		display block
-		padding 0 0.7em
-		height 100%
-		background base16('01')
-		color base16('04')
-		input-transition()
-		text-align center
 
-		&:hover
-			box-shadow inset 0 0 0 1px base16('accent')
+		.style-default
+			padding 0 0.7em
+			height 100%
+			background base16('01')
+			color base16('04')
+			input-transition()
+			text-align center
 
-	&__input:checked + &__label
+			&:hover
+				background base16('accent', 0.5)
+
+	&__input:checked + &__label .style-default
 		border-radius $input-round
 		background base16('06')
 		color base16('00')
