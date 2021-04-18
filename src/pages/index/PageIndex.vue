@@ -1,5 +1,5 @@
 <template>
-	<div class="PageIndex">
+	<div class="PageIndex document">
 		<h1>Glisp</h1>
 		<ul v-for="page in pages" :key="page">
 			<li>
@@ -32,14 +32,10 @@ export default defineComponent({
 @import '~@/components/style/common.styl'
 
 html
-	display flex
-	flex-direction column
-	align-items stretch
-	padding 2em
-	height 100vh
 	font-size 18px
 
 .PageIndex
 	app()
 	padding 2rem
+	min-height 100vh
 </style>

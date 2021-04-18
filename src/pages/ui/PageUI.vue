@@ -31,6 +31,8 @@
 							</template>
 						</InputDropdown>
 					</p>
+				</section>
+				<section style="margin-bottom: 2em">
 					<PaneSchemeViewer :baseAccentName="baseAccentName" />
 				</section>
 
@@ -44,16 +46,22 @@
 				</section> -->
 			</Pane>
 			<Pane class="no-padding">
-				<Tab :tabs="['inputs', 'others']" initialTab="inputs">
+				<Tab :tabs="['inputs', 'code']" initialTab="inputs">
 					<template #head-inputs>
-						<SvgIcon style="font-size: 1.2em">
+						<SvgIcon mode="inline" style="font-size: 1.2em">
 							<path
 								d="M28 6 L4 6 M28 16 L4 16 M28 26 L4 26 M24 3 L24 9 M8 13 L8 19 M20 23 L20 29"
 							/>
 						</SvgIcon>
 						Inputs
 					</template>
-					<template #head-others>Others</template>
+					<template #head-code>
+						<SvgIcon mode="inline" style="font-size: 1.2em">
+							<path d="M10 9 L3 17 10 25 M22 9 L29 17 22 25 M18 7 L14 27" />
+						</SvgIcon>
+						Code
+					</template>
+					<template #panel-code>Code</template>
 					<template #panel-inputs>
 						<h2>Input Components</h2>
 						<dl class="PageUI__ui-list">
@@ -293,11 +301,12 @@ $height = 3.4em
 			width $height
 			height $height
 			background base16('05')
+			background-size 100% 100%
 			text-align center
 			text-indent 10em
 			font-weight normal
 			font-size 1em
-			mask-image embedurl('./logo.png')
+			mask-image url('../../logo.png')
 			mask-size 60% 60%
 			mask-repeat no-repeat
 			mask-position 50% 50%
