@@ -28,13 +28,11 @@
 			<li
 				class="InputDropdown__option"
 				:class="{active: completeItems[index].value === modelValue}"
-				v-for="index in filteredIndices"
+				v-for="{index, string, original: {value}} in filteredResults"
 				:key="index"
-				:value="completeItems[index].value"
-				@click="onSelect(completeItems[index].value)"
-			>
-				{{ completeItems[index].label }}
-			</li>
+				@click="onSelect(value)"
+				v-html="string"
+			/>
 		</ul>
 	</Popover>
 </template>
@@ -43,7 +41,6 @@
 import {useElementSize, useMagicKeys} from '@vueuse/core'
 import fuzzy from 'fuzzy'
 import keycode from 'keycode'
-import _ from 'lodash'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
@@ -59,6 +56,12 @@ interface Item {
 interface CompleteItem {
 	value: any
 	label: string
+}
+
+interface FilteredResult {
+	index: number
+	string: string
+	original: CompleteItem
 }
 
 type ILabelizer = (v: any) => string
@@ -84,7 +87,6 @@ export default defineComponent({
 		const open = ref(false)
 		const rootEl = ref<null | HTMLInputElement>(null)
 
-		const filteredIndices = ref<number[]>(_.range(props.items.length))
 		const {width: rootWidth} = useElementSize(rootEl)
 
 		const completeItems = computed<CompleteItem[]>(() => {
@@ -98,6 +100,19 @@ export default defineComponent({
 				return it as CompleteItem
 			})
 		})
+
+		const filteredResults = ref<FilteredResult[]>([])
+		resetFilteredResults()
+
+		function resetFilteredResults() {
+			filteredResults.value = completeItems.value.map((item, index) => {
+				return {
+					index,
+					string: item.label,
+					original: item,
+				} as FilteredResult
+			})
+		}
 
 		const activeItem = computed(() => {
 			return completeItems.value.find(it => it.value === props.modelValue)
@@ -120,7 +135,7 @@ export default defineComponent({
 
 			open.value = true
 			inputFocused.value = true
-			filteredIndices.value = _.range(props.items.length)
+			resetFilteredResults()
 		}
 
 		const {tab} = useMagicKeys()
@@ -141,11 +156,13 @@ export default defineComponent({
 
 			const key = keycode(e)
 
-			const indices = filteredIndices.value
+			const indices = filteredResults.value.map(ret => ret.index)
 			const activeIndex = completeItems.value.findIndex(
 				it => it.value === props.modelValue
 			)
-			let notSelected = activeIndex === -1 || !indices.includes(activeIndex)
+			let notSelected =
+				activeIndex === -1 ||
+				filteredResults.value.findIndex(ret => ret.index === activeIndex) === -1
 			const len = indices.length
 
 			switch (key) {
@@ -179,14 +196,20 @@ export default defineComponent({
 		function onInput(value: string) {
 			inputValue.value = value
 
-			const indices = fuzzy
-				.filter(value, completeItems.value, {extract: it => it.label})
-				.map(v => v.index)
+			const result = fuzzy.filter(value, completeItems.value, {
+				extract: it => it.label,
+				pre: '<u>',
+				post: '</u>',
+			})
 
-			if (indices.length === 0) {
-				filteredIndices.value = _.range(props.items.length)
+			if (result.length === 0) {
+				resetFilteredResults()
 			} else {
-				filteredIndices.value = indices
+				filteredResults.value = result.map(({index, string, original}) => ({
+					index,
+					string,
+					original,
+				}))
 			}
 
 			// Select the first of filtered items if no item is selected
@@ -195,10 +218,11 @@ export default defineComponent({
 			)
 
 			let notSelected =
-				activeIndex === -1 || !filteredIndices.value.includes(activeIndex)
+				activeIndex === -1 ||
+				filteredResults.value.findIndex(ret => ret.index === activeIndex) === -1
 
 			if (notSelected) {
-				const item = completeItems.value[filteredIndices.value[0]]
+				const item = completeItems.value[filteredResults.value[0].index]
 				context.emit('update:modelValue', item.value)
 			}
 		}
@@ -222,10 +246,8 @@ export default defineComponent({
 			inputValue,
 			completeItems,
 			activeItem,
-			filteredIndices,
-
+			filteredResults,
 			open,
-
 			onFocus,
 			onBlur,
 			onInput,
