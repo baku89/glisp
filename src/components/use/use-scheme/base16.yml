@@ -147,7 +147,7 @@
   base0E: '9a70a4'
   base0F: 'c43060'
 
-- scheme: 'Black Metal (Bathory)'
+- scheme: 'Black Metal'
   author: 'metalelf0 (https://github.com/metalelf0)'
   base00: '000000'
   base01: '121212'
@@ -204,7 +204,7 @@
   base0E: '716cae'
   base0F: '8c70a7'
 
-- scheme: 'vulcan'
+- scheme: 'Vulcan'
   author: 'Andrey Varfolomeev'
   base00: '041523'
   base01: '122339'
