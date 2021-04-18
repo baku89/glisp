@@ -13,17 +13,35 @@
 		</div>
 	</div>
 	<teleport to="body">
-		<div
-			v-if="tweaking"
-			class="InputNumber__overlay-label"
-			:style="{
-				top: absolutePos[1] + 'px',
-				left: absolutePos[0] + 'px',
-				opacity: showTweakLabel ? 1 : 0,
-			}"
-		>
-			{{ overlayLabel }}
-		</div>
+		<template v-if="tweaking">
+			<svg class="InputSlider__overlay">
+				<line
+					v-show="showTweakLine"
+					:class="[tweakLineClass]"
+					:x1="originX"
+					:y1="origin[1]"
+					:x2="absolutePos[0]"
+					:y2="origin[1]"
+				/>
+				<line
+					class="dashed"
+					:x1="absolutePos[0]"
+					:y1="origin[1]"
+					:x2="absolutePos[0]"
+					:y2="absolutePos[1]"
+				/>
+			</svg>
+			<div
+				class="InputSlider__overlay-label"
+				:style="{
+					top: absolutePos[1] + 'px',
+					left: absolutePos[0] + 'px',
+					opacity: showTweakLabel ? 1 : 0,
+				}"
+			>
+				{{ overlayLabel }}
+			</div>
+		</template>
 	</teleport>
 </template>
 
@@ -70,7 +88,7 @@ export default defineComponent({
 		let tweakStartValue = 0
 		let tweakStartPos = 0
 
-		const {isDragging: tweaking, absolutePos} = useDraggable(dragEl, {
+		const {isDragging: tweaking, absolutePos, origin} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -122,14 +140,6 @@ export default defineComponent({
 			},
 		})
 
-		const showTweakLabel = computed(() => {
-			if (!dragEl.value || !tweaking.value) return false
-
-			const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
-			const [x, y] = absolutePos.value
-			return x < left || right < x || y < top || bottom < y
-		})
-
 		const {
 			displayValue,
 			overlayLabel,
@@ -138,10 +148,15 @@ export default defineComponent({
 			tweakSpeedChanged,
 			tweakSpeed,
 			tweakLineClass,
+			showTweakLabel,
+			showTweakLine,
+			originX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
+			absolutePos,
+			dragEl,
 			context
 		)
 
@@ -159,6 +174,9 @@ export default defineComponent({
 			absolutePos,
 			showTweakLabel,
 			sliderStyle,
+			showTweakLine,
+			origin,
+			originX,
 
 			displayValue,
 			overlayLabel,

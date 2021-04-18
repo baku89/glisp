@@ -1,4 +1,5 @@
 import {useMagicKeys} from '@vueuse/core'
+import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
@@ -8,6 +9,8 @@ export default function useNumber(
 	value: Ref<number>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
+	absolutePos: Ref<vec2>,
+	dragEl: Ref<null | HTMLElement>,
 	context: SetupContext
 ) {
 	let modifiedByKeyboard = false
@@ -83,6 +86,31 @@ export default function useNumber(
 		return 1
 	})
 
+	const showTweakLabel = computed(() => {
+		if (!dragEl.value || !tweaking.value) return false
+
+		const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
+		const [x, y] = absolutePos.value
+		return x < left || right < x || y < top || bottom < y
+	})
+
+	const showTweakLine = computed(() => {
+		if (!dragEl.value) return false
+
+		const {left, right} = dragEl.value.getBoundingClientRect()
+		const x = absolutePos.value[0]
+		return x < left || right < x
+	})
+
+	const originX = computed(() => {
+		if (!dragEl.value || !showTweakLine.value) return 0
+
+		const {left, right} = dragEl.value.getBoundingClientRect()
+
+		const x = absolutePos.value[0]
+		return x < left ? left : right
+	})
+
 	watch(
 		() => tweaking,
 		() => {
@@ -101,5 +129,8 @@ export default function useNumber(
 		tweakSpeedChanged,
 		tweakSpeed,
 		tweakLineClass,
+		showTweakLabel,
+		showTweakLine,
+		originX,
 	}
 }

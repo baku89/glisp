@@ -43,7 +43,7 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, ref, toRef} from 'vue'
+import {defineComponent, ref, toRef} from 'vue'
 
 import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
@@ -93,45 +93,24 @@ export default defineComponent({
 			},
 		})
 
-		const showTweakLine = computed(() => {
-			if (!dragEl.value) return false
-
-			const {left, right} = dragEl.value.getBoundingClientRect()
-			const x = absolutePos.value[0]
-			return x < left || right < x
-		})
-
-		const originX = computed(() => {
-			if (!dragEl.value || !showTweakLine.value) return 0
-
-			const {left, right} = dragEl.value.getBoundingClientRect()
-
-			const x = absolutePos.value[0]
-			return x < left ? left : right
-		})
-
-		const showTweakLabel = computed(() => {
-			if (!dragEl.value || !tweaking.value) return false
-
-			const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
-			const [x, y] = absolutePos.value
-			return x < left || right < x || y < top || bottom < y
-		})
-
 		const {
 			step,
 			displayValue,
 			overlayLabel,
 			onBlur,
 			onKeydown,
-
 			tweakSpeedChanged,
 			tweakSpeed,
 			tweakLineClass,
+			showTweakLabel,
+			showTweakLine,
+			originX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
+			absolutePos,
+			dragEl,
 			context
 		)
 
