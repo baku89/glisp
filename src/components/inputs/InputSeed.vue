@@ -88,21 +88,21 @@ export default defineComponent({
 
 .InputSeed
 	display block
-	margin $subcontrol-margin
 	padding 0
-	width $subcontrol-height
-	height $subcontrol-height
+	width $input-height
+	height $input-height
+	border-radius $input-round
 	background-size 100% 100%
-	color base16('04')
+	color base16('accent')
 	text-align center
-	line-height $subcontrol-height
 	cursor pointer
 
 	&__icon
-		width 100%
-		height 100%
+		margin $subcontrol-margin
+		width $subcontrol-height
+		height $subcontrol-height
 		transition transform 0.3s cubic-bezier(0.19, 1.6, 0.42, 1)
 
 	&:hover, &:focus
-		color base16('accent')
+		background base16('01')
 </style>

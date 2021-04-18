@@ -131,6 +131,6 @@ export default defineComponent({
 
 	&__input:checked + &__label .style-default
 		border-radius $input-round
-		background base16('06')
+		background base16('accent')
 		color base16('00')
 </style>

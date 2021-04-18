@@ -282,7 +282,6 @@ $right-arrow-width = 1em
 
 	&__select
 		margin 2px
-		color base16('06')
 		tooltip()
 		padding 0
 		border 1px solid $color-frame
@@ -297,7 +296,6 @@ $right-arrow-width = 1em
 
 		&:hover
 			background base16('01')
-			color base16('accent')
 
 	&__option.active .style-default
 		background base16('accent')

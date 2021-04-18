@@ -1,0 +1,290 @@
+@import 'common.styl'
+
+.document
+	font-size 1.2em
+	line-height 1.6
+	font-text()
+
+	a
+		background-image linear-gradient(transparent 50%, base16('04') 50%)
+		background-position left bottom
+		background-size 10px 2px
+		background-repeat repeat-x
+		color base16('04')
+		text-decoration none
+
+		&:hover
+			background base16('04')
+			color base16('00')
+
+		&.anchor
+			position absolute
+			top 0
+			bottom 0
+			left 0
+			display block
+			margin-left -30px
+			padding-left 30px
+			cursor pointer
+
+	strong
+		color base16('06')
+
+	blockquote
+		margin 0
+		padding 1em
+		border-left 0.4em solid $color-frame
+		text-align left
+		font-style italic
+
+	h1, h2, h3, h4, h5, h6
+		position relative
+		margin 20px 0 10px
+		padding 0
+		font-weight bold
+
+	h1, h2, h3, h4, h5
+		color base16('06')
+
+	:is(h1, h2, h3, h4, h5, h6) code
+		background none
+		font-size inherit
+
+	h1
+		margin-top 2em
+		font-size: (28 / 14em)
+
+	h2
+		border-bottom 1px solid $color-frame
+		font-size: (24 / 14em)
+
+	h3
+		font-size: (18 / 14em)
+
+	h4
+		font-size: (16 / 14em)
+
+	h5
+		font-size 1em
+
+	h6
+		color base16('04')
+		font-size 1em
+
+	p, blockquote, ul, ol, dl, li, table, pre
+		margin (15 / 14em) 0
+
+	hr
+		margin 2em 0
+		padding 0
+		border 0
+		color base16('03')
+		font-monospace()
+		text-align center
+
+		&:before
+			content '~~ ~~ ~~ ~~ ~~'
+
+	li
+		position relative
+		margin 0
+
+		p.first
+			display inline-block
+
+		&:before
+			position absolute
+			left -1.2em
+			font-monospace()
+			color base16('accent')
+
+	ul li:before
+		content '*'
+
+	ul li ul li:before
+		content '-'
+
+	ul, ol
+		padding-left 30px
+
+	ul :first-child, ol :first-child
+		margin-top 0
+
+	dl
+		padding 0
+
+		dt
+			margin 15px 0 5px
+			padding 0
+			font-weight bold
+			font-style italic
+			font-size 14px
+
+		dt:first-child
+			padding 0
+
+		dt > :first-child
+			margin-top 0
+
+		dt > :last-child
+			margin-bottom 0
+
+		dd
+			margin 0 0 15px
+			padding 0 15px
+
+		dd > :first-child
+			margin-top 0
+
+		dd > :last-child
+			margin-bottom 0
+
+	blockquote
+		padding 0 15px
+		border-left 3px solid base16('03')
+		color base16('04')
+
+	& > :first-child
+		margin-top 0
+
+	& > :last-child
+		margin-bottom 0
+
+	table
+		padding 0
+		border-collapse collapse
+
+		tr
+			margin 0
+			padding 0
+
+		tr th
+			margin 0
+			padding 6px 1em
+			border 1px solid base16('03')
+			background base16('03')
+			color base16('06')
+			font-weight bold
+
+		tr td
+			margin 0
+			padding 6px 1em
+			border-bottom 1px solid $color-frame
+
+		tr th :first-child, tr td :first-child
+			margin-top 0
+
+		tr th :last-child, tr td :last-child
+			margin-bottom 0
+
+	img
+		max-width 100%
+
+	span.frame
+		display block
+		overflow hidden
+
+		& > span
+			display block
+			float left
+			overflow hidden
+			margin 1em 0 0
+			padding 0.6em
+			width auto
+			border 1px solid $color-frame
+
+		& span img
+			display block
+			float left
+
+		& span span
+			display block
+			clear both
+			padding 0.4em 0 0
+			color $color-frame
+
+	span.align-center
+		display block
+		clear both
+		overflow hidden
+
+		& > span
+			display block
+			overflow hidden
+			margin 1em auto 0
+			text-align center
+
+		& span img
+			margin 0 auto
+			text-align center
+
+	span.align-right
+		display block
+		clear both
+		overflow hidden
+
+		& > span
+			display block
+			overflow hidden
+			margin 1em 0 0
+			text-align right
+
+		& span img
+			margin 0
+			text-align right
+
+	span.float-left
+		display block
+		float left
+		overflow hidden
+		margin-right 1em
+
+		& span
+			margin 1em 0 0
+
+	span.float-right
+		display block
+		float right
+		overflow hidden
+		margin-left 1em
+
+		& > span
+			display block
+			overflow hidden
+			margin 1em auto 0
+			text-align right
+
+	pre, code
+		font-monospace()
+		font-size 0.92em
+
+	code
+		margin 0 0.1em
+		padding 0 0.4em
+		border-radius $input-round
+		background-color base16('01')
+		color base16('06')
+		white-space nowrap
+
+	pre code
+		margin 0
+		padding 0
+		border none
+		background transparent
+		white-space pre
+
+	pre
+		overflow auto
+		padding 1em
+		border-radius $input-round
+		background-color base16('01')
+		line-height 1.2em
+
+	pre code
+		border none
+		background-color transparent
+
+	sup
+		vertical-align super
+		font-size 0.83em
+		line-height 0

@@ -135,6 +135,14 @@ module.exports = {
 			.loader('raw-loader')
 			.end()
 
+		// Markdown
+		config.module
+			.rule('markdown')
+			.test(/\.md$/)
+			.use('raw-loader')
+			.loader('raw-loader')
+			.end()
+
 		// Copy logo.png to dist
 		config
 			.plugin('copy-assets')

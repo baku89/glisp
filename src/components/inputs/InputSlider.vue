@@ -209,13 +209,13 @@ export default defineComponent({
 		position relative
 		height 100%
 
-		~/.tweaking &
-			&:after
-				box-shadow 0 0 0 1px base16('accent')
-
 		&:after
 			pseudo-block()
 			absolute-fill()
-			background base16('03')
+			background base16('accent', 0.5)
 			input-transition(all)
+
+		~/.tweaking &
+			&:after
+				box-shadow 0 0 0 1px base16('accent')
 </style>

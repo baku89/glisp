@@ -1,8 +1,7 @@
 @import url('https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css')
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&family=Commissioner:wght@400;700&display=swap')
 @import 'common.styl'
 
-/*
 ::-webkit-scrollbar
 	width 0.6em
 	height 0
@@ -15,7 +14,7 @@
 ::-webkit-scrollbar-thumb
 	border-radius 0
 	background $color-frame
-*/
+
 ::selection
 	background $color-frame
 
@@ -49,63 +48,5 @@ button
 	cursor pointer
 	user-select none
 
-p
-	margin 1em 0
-
-/* Splitpanes */
-.splitpanes
-	&.glisp-theme
-		&.splitpanes--vertical
-			& > .splitpanes__pane
-				overflow scroll
-				padding 1.8em
-
-				&.no-padding
-					padding 0
-
-			& > .splitpanes__splitter
-				position relative
-				z-index 1
-				margin 0 -0.6em
-				padding 0
-				min-width calc(1px + 1.2em)
-				border-right 0.6em solid transparent
-				border-left 0.6em solid transparent
-				background-color $color-frame
-				background-clip padding-box
-				input-transition()
-
-				&:hover
-					border-color $color-frame
-					background-color base16('07')
-
-				&:before, &:after
-					position absolute
-					top 50%
-					pointer-events none
-					font-monospace()
-					margin-top -0.5em
-					width 2em
-					height 1em
-					color base16('07')
-					line-height 1em
-					opacity 0
-					input-transition()
-
-				&:before
-					right -1em
-					content '<<-'
-					text-align right
-
-				&:hover:before, &:hover:after
-					opacity 1
-
-				&:hover:before
-					transform translateX(-50%)
-
-				&:after
-					left -1em
-					content '->>'
-
-				&:hover:after
-					transform translateX(50%)
+@import 'document.styl'
+@import 'splitpanes.styl'

@@ -143,6 +143,21 @@ declare module 'gif.js' {
 	}
 }
 
+declare module 'markdown-it-deflist' {
+	const Export: any
+	export default Export
+}
+
+declare module 'markdown-it-footnote' {
+	const Export: any
+	export default Export
+}
+
+declare module 'markdown-it-task-lists' {
+	const Export: any
+	export default Export
+}
+
 declare module '*.yml' {
 	const YamlData: any
 	export default component
@@ -151,6 +166,11 @@ declare module '*.yml' {
 declare module '*.pegjs' {
 	const PegString: string
 	export default PegString
+}
+
+declare module '*.md' {
+	const MarkdownString: string
+	export default MarkdownString
 }
 
 declare module 'click-outside' {

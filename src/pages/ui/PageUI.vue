@@ -5,32 +5,36 @@
 		</menu>
 		<Splitpanes class="PageUI__content glisp-theme">
 			<Pane>
-				<h2>Theme</h2>
-				<p>
-					<span style="color: base16('04')">Base theme = </span>
-					<InputDropdown
-						v-model="basePreset"
-						:items="presetNames"
-						:style="{width: '10em'}"
-					>
-					</InputDropdown>
-					<span style="color: base16('04')">&nbsp;&nbsp;Highlight = </span>
-					<InputDropdown
-						v-model="baseAccentName"
-						:items="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
-					>
-						<template v-slot:option="{value, string}">
-							<li class="style-default">
-								<div
-									class="PageUI__accent-preview"
-									:style="{background: `rgb(var(--base${value}))`}"
-								/>
-								<span v-html="string" />
-							</li>
-						</template>
-					</InputDropdown>
-				</p>
-				<PaneSchemeViewer :baseAccentName="baseAccentName" />
+				<section style="margin-bottom: 2em">
+					<h2>Theme</h2>
+					<p>
+						<span style="color: base16('04')">Base theme = </span>
+						<InputDropdown
+							v-model="basePreset"
+							:items="presetNames"
+							:style="{width: '10em'}"
+						>
+						</InputDropdown>
+						<span style="color: base16('04')">&nbsp;&nbsp;Highlight = </span>
+						<InputDropdown
+							v-model="baseAccentName"
+							:items="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
+						>
+							<template v-slot:option="{value, string}">
+								<li class="style-default">
+									<div
+										class="PageUI__accent-preview"
+										:style="{background: `rgb(var(--base${value}))`}"
+									/>
+									<span v-html="string" />
+								</li>
+							</template>
+						</InputDropdown>
+					</p>
+					<PaneSchemeViewer :baseAccentName="baseAccentName" />
+				</section>
+
+				<PaneDocument />
 
 				<!-- <section>
 					<GlispEditor
@@ -179,6 +183,7 @@ import Tab from '@/components/layouts/Tab.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
 
+import PaneDocument from './PaneDocument.vue'
 import PaneSchemeViewer from './PaneSchemeViewer.vue'
 
 export default defineComponent({
@@ -198,6 +203,7 @@ export default defineComponent({
 		InputColor,
 		Splitpanes,
 		Pane,
+		PaneDocument,
 		PaneSchemeViewer,
 		SvgIcon,
 		Tab,

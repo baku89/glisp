@@ -5,7 +5,13 @@
 		ref="el"
 		@keydown="onKeydown"
 		v-bind="$attrs"
-	/>
+	>
+		<SvgIcon mode="block" class="InputTranslate__rect">
+			<rect class="fill" x="0" y="0" width="32" height="32" />
+			<line class="crosshair" x1="8" y1="16" x2="24" y2="16" />
+			<line class="crosshair" y1="8" x1="16" y2="24" x2="16" />
+		</SvgIcon>
+	</button>
 	<teleport to="body">
 		<template v-if="tweaking">
 			<div
@@ -30,6 +36,7 @@ import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
+import SvgIcon from '@/components/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import {unsignedMod} from '@/utils'
 
@@ -37,6 +44,9 @@ const ARROW_KEYS = new Set(['up', 'down', 'left', 'right'])
 
 export default defineComponent({
 	name: 'InputTranslate',
+	components: {
+		SvgIcon,
+	},
 	props: {
 		modelValue: {
 			type: [Array, Float32Array] as PropType<number[] | Float32Array>,
@@ -163,40 +173,33 @@ export default defineComponent({
 
 .InputTranslate
 	position relative
-	margin $subcontrol-margin
-	width $subcontrol-height
+	width $input-height
+	height $input-height
 	border-radius $input-round
-	background base16('04')
-	aspect-ratio 1
 	input-transition(background)
 	cursor all-scroll
 
 	&:focus
-		box-shadow 0 0 0 1px base16('accent')
+		background base16('01')
 
-	&:hover, &.tweaking
+	&:hover
+		background base16('accent', 0.5)
+
+	&.tweaking
 		background base16('accent')
 
-	// Crosshair
-	&:before, &:after
-		pseudo-block()
-		background base16('00') !important
-		transform translate(-50%, -50%)
+	&__rect
+		margin $subcontrol-margin
+		width $subcontrol-height
+		height $subcontrol-height
+		border-radius $input-round
 
-	&.tweaking:before, &.tweaking:after
-		display none
+		.fill
+			stroke none
+			fill base16('accent')
 
-	&:before
-		top 50%
-		left 50%
-		width 7px
-		height 1px
-
-	&:after
-		top 50%
-		left 50%
-		width 1px
-		height 7px
+		.crosshair
+			stroke base16('00')
 
 	&__overlay-label
 		tooltip()

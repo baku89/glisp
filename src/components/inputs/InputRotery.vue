@@ -5,7 +5,7 @@
 		ref="el"
 		v-bind="$attrs"
 	>
-		<svg class="InputRotery__rotery" viewBox="0 0 32 32">
+		<SvgIcon mode="block" class="InputRotery__rotery">
 			<circle class="InputRotery__circle" cx="16" cy="16" r="16" />
 			<line
 				class="InputRotery__scale"
@@ -19,7 +19,7 @@
 				x2="32"
 				y2="16"
 			/>
-		</svg>
+		</SvgIcon>
 	</button>
 	<teleport to="body">
 		<template v-if="tweaking">
@@ -61,6 +61,7 @@
 import {vec2} from 'gl-matrix'
 import {computed, defineComponent, Ref, ref} from 'vue'
 
+import SvgIcon from '@/components/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useRem from '@/components/use/use-rem'
 
@@ -85,6 +86,9 @@ const PI_2 = Math.PI * 2
 
 export default defineComponent({
 	name: 'InputRotery',
+	components: {
+		SvgIcon,
+	},
 	props: {
 		modelValue: {
 			type: Number,
@@ -244,31 +248,33 @@ export default defineComponent({
 .InputRotery
 	position relative
 	overflow hidden
-	margin $subcontrol-margin
-	padding 0
-	width $subcontrol-height
-	transition all 0.1s cubic-bezier(0.25, 0.1, 0, 1)
+	width $input-height
+	border-radius $input-round
+	transition transform 0.1s cubic-bezier(0.25, 0.1, 0, 1)
 	aspect-ratio 1
 
 	&:hover, &.tweaking
 		z-index 1
 
+	&:focus:not(:hover):not(.tweaking)
+		background base16('01')
+		transition transform 0.1s cubic-bezier(0.25, 0.1, 0, 1), background 0.1s ease 0.1s
+
 	&__rotery
-		width 100%
-		height 100%
+		margin $subcontrol-margin
+		width $subcontrol-height
+		height $subcontrol-height
 
 	// Enlarge
 	&:hover, &.tweaking
 		transform scale(3)
 
 	&__circle
-		fill base16('04')
+		fill base16('accent')
+		stroke none
 
-		&:hover, ~/:focus &
-			fill base16('accent')
-
-		~/.tweak-absolute:focus &
-			fill base16('04')
+		~/.tweak-absolute &
+			fill base16('01')
 
 	&__scale
 		transform-origin 16px 16px
