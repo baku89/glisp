@@ -49,6 +49,8 @@ export default function useDraggable(
 
 	function updatePosAndOrigin(e: MouseEvent) {
 		const {clientX, clientY} = e
+		drag.pos = vec2.fromValues(clientX, clientY)
+
 		const {
 			left,
 			top,
@@ -62,8 +64,6 @@ export default function useDraggable(
 		drag.right = right
 		drag.bottom = bottom
 		drag.left = left
-
-		drag.pos = vec2.fromValues(clientX, clientY)
 	}
 
 	function onMousedown(e: MouseEvent) {
@@ -99,13 +99,13 @@ export default function useDraggable(
 		if (!drag.isDragging) {
 			// Determine whether dragging has start
 			const d = vec2.dist(drag.startPos, drag.pos)
-			if (d > 2) {
-				startDrag()
+			if (d <= 2) {
+				return
 			}
+			startDrag()
 		}
 
 		options.onDrag && options.onDrag(drag)
-
 		drag.prevPos = vec2.clone(drag.pos)
 	}
 
