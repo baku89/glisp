@@ -40,7 +40,7 @@
 </template>
 
 <script lang="ts">
-import {useElementSize} from '@vueuse/core'
+import {useElementSize, useMagicKeys} from '@vueuse/core'
 import fuzzy from 'fuzzy'
 import keycode from 'keycode'
 import _ from 'lodash'
@@ -71,7 +71,7 @@ export default defineComponent({
 			required: true,
 		},
 		items: {
-			type: Array as PropType<(Item | string | number)[]>,
+			type: Array as PropType<(Item | string | number | boolean | null)[]>,
 			required: true,
 		},
 		labelize: {
@@ -89,7 +89,7 @@ export default defineComponent({
 
 		const completeItems = computed<CompleteItem[]>(() => {
 			return props.items.map(it => {
-				if (typeof it === 'number' || typeof it === 'string') {
+				if (typeof it !== 'object' || it === null) {
 					return {value: it, label: props.labelize(it)}
 				}
 				if (!it.label) {
@@ -123,11 +123,16 @@ export default defineComponent({
 			filteredIndices.value = _.range(props.items.length)
 		}
 
-		function onBlur() {
-			inputFocused.value = false
+		const {tab} = useMagicKeys()
 
+		function onBlur() {
 			if (activeItem.value && !open.value) {
 				inputValue.value = activeItem.value.label
+			}
+			inputFocused.value = false
+
+			if (tab.value) {
+				open.value = false
 			}
 		}
 
@@ -177,6 +182,7 @@ export default defineComponent({
 			const indices = fuzzy
 				.filter(value, completeItems.value, {extract: it => it.label})
 				.map(v => v.index)
+
 			if (indices.length === 0) {
 				filteredIndices.value = _.range(props.items.length)
 			} else {
