@@ -175,7 +175,7 @@
 								/>
 							</dd>
 							<dt>Number</dt>
-							<dd><InputNumber v-model="data.integer" /></dd>
+							<dd><InputNumber v-model="data.number" /></dd>
 							<dt>Slider</dt>
 							<dd>
 								<InputSlider v-model="data.integer" :min="0" :max="100" />

@@ -11,28 +11,12 @@
 	</div>
 	<teleport to="body">
 		<template v-if="tweaking">
-			<svg class="InputNumber__overlay">
-				<line
-					v-show="showTweakLine"
-					:class="[tweakLineClass]"
-					:x1="originX"
-					:y1="origin[1]"
-					:x2="pos[0]"
-					:y2="origin[1]"
-				/>
-				<line
-					class="dashed"
-					:x1="pos[0]"
-					:y1="origin[1]"
-					:x2="pos[0]"
-					:y2="pos[1]"
-				/>
-			</svg>
 			<div
 				class="InputNumber__overlay-label"
+				:class="[tweakLabelClass]"
 				:style="{
-					top: pos[1] + 'px',
-					left: pos[0] + 'px',
+					top: origin[1] + 'px',
+					left: labelX + 'px',
 					opacity: showTweakLabel ? 1 : 0,
 				}"
 			>
@@ -68,6 +52,7 @@ export default defineComponent({
 		let tweakStartPos = 0
 
 		const {isDragging: tweaking, pos, origin} = useDraggable(dragEl, {
+			lockPointer: true,
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -101,10 +86,10 @@ export default defineComponent({
 			onKeydown,
 			tweakSpeedChanged,
 			tweakSpeed,
-			tweakLineClass,
+			tweakLabelClass,
 			showTweakLabel,
-			showTweakLine,
 			originX,
+			labelX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
@@ -119,12 +104,11 @@ export default defineComponent({
 			inputEl,
 
 			tweaking,
-			pos,
 			origin,
 			originX,
-			showTweakLine,
+			labelX,
 			showTweakLabel,
-			tweakLineClass,
+			tweakLabelClass,
 
 			step,
 			displayValue,

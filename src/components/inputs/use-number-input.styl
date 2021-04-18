@@ -19,13 +19,10 @@ use-number()
 			cursor text
 			pointer-events auto
 
-	&__overlay
-		input-overlay()
-
 	&__overlay-label
 		tooltip()
 		z-index 1001
-		cursor none
+		color var(--base06)
 		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed
@@ -36,13 +33,28 @@ use-number()
 			display block
 			width 1.8em
 			text-align center
-			font-weight normal
 			transform translateY(-50%)
 
 		&:before
 			right 100%
-			content '<'
+			content '\00a0<\00a0'
 
 		&:after
 			left 100%
-			content '>'
+			content '\00a0>\00a0'
+
+		&.fast
+			font-weight bold
+
+			&:before
+				content '<<\00a0'
+
+			&:after
+				content '\00a0>>'
+
+		&.slow
+			&:before
+				content '\00a0<~'
+
+			&:after
+				content '~>\00a0'

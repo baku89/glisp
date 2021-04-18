@@ -14,28 +14,12 @@
 	</div>
 	<teleport to="body">
 		<template v-if="tweaking">
-			<svg class="InputSlider__overlay">
-				<line
-					v-show="showTweakLine"
-					:class="[tweakLineClass]"
-					:x1="originX"
-					:y1="origin[1]"
-					:x2="pos[0]"
-					:y2="origin[1]"
-				/>
-				<line
-					class="dashed"
-					:x1="pos[0]"
-					:y1="origin[1]"
-					:x2="pos[0]"
-					:y2="pos[1]"
-				/>
-			</svg>
 			<div
 				class="InputSlider__overlay-label"
+				:class="[tweakLabelClass]"
 				:style="{
-					top: pos[1] + 'px',
-					left: pos[0] + 'px',
+					top: origin[1] + 'px',
+					left: labelX + 'px',
 					opacity: showTweakLabel ? 1 : 0,
 				}"
 			>
@@ -89,6 +73,7 @@ export default defineComponent({
 		let tweakStartPos = 0
 
 		const {isDragging: tweaking, pos, origin} = useDraggable(dragEl, {
+			lockPointer: true,
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -115,6 +100,7 @@ export default defineComponent({
 				}
 
 				tweakStartPos = pos[0]
+				tweakSpeedChanged.value = true
 			},
 			onDrag({pos, right, left}) {
 				if (alreadyEmitted) {
@@ -122,10 +108,15 @@ export default defineComponent({
 					return
 				}
 
+				if (tweakSpeedChanged.value) {
+					tweakStartValue = props.modelValue
+					tweakStartPos = pos[0]
+					tweakSpeedChanged.value = false
+				}
+
 				const delta = pos[0] - tweakStartPos
 
 				let inc = ((props.max - props.min) * delta) / (right - left)
-
 				inc *= tweakSpeed.value
 
 				let newValue = tweakStartValue + inc
@@ -147,10 +138,10 @@ export default defineComponent({
 			onKeydown,
 			tweakSpeedChanged,
 			tweakSpeed,
-			tweakLineClass,
+			tweakLabelClass,
 			showTweakLabel,
-			showTweakLine,
 			originX,
+			labelX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			startValue,
@@ -171,12 +162,11 @@ export default defineComponent({
 			dragEl,
 			inputEl,
 			tweaking,
-			pos,
 			showTweakLabel,
 			sliderStyle,
-			showTweakLine,
 			origin,
 			originX,
+			labelX,
 
 			displayValue,
 			overlayLabel,
@@ -185,7 +175,7 @@ export default defineComponent({
 
 			tweakSpeedChanged,
 			tweakSpeed,
-			tweakLineClass,
+			tweakLabelClass,
 		}
 	},
 	inheritAttrs: false,

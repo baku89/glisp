@@ -3,6 +3,8 @@ import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
+import {unsignedMod} from '@/utils'
+
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 export default function useNumber(
@@ -76,8 +78,8 @@ export default function useNumber(
 
 	const tweakSpeedChanged = ref(false)
 
-	const tweakLineClass = computed(() =>
-		shift.value ? 'extra-bold' : alt.value ? 'thin' : 'bold'
+	const tweakLabelClass = computed(() =>
+		shift.value ? 'fast' : alt.value ? 'slow' : ''
 	)
 
 	const tweakSpeed = computed(() => {
@@ -86,29 +88,22 @@ export default function useNumber(
 		return 1
 	})
 
-	const showTweakLabel = computed(() => {
-		if (!dragEl.value || !tweaking.value) return false
-
-		const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
-		const [x, y] = pos.value
-		return x < left || right < x || y < top || bottom < y
-	})
-
-	const showTweakLine = computed(() => {
-		if (!dragEl.value) return false
-
-		const {left, right} = dragEl.value.getBoundingClientRect()
-		const x = pos.value[0]
-		return x < left || right < x
-	})
-
 	const originX = computed(() => {
-		if (!dragEl.value || !showTweakLine.value) return 0
+		if (!dragEl.value || !showTweakLabel.value) return 0
 
 		const {left, right} = dragEl.value.getBoundingClientRect()
 
 		const x = pos.value[0]
 		return x < left ? left : right
+	})
+
+	const labelX = computed(() => unsignedMod(pos.value[0], window.innerWidth))
+
+	const showTweakLabel = computed(() => {
+		if (!dragEl.value) return false
+
+		const {left, right} = dragEl.value.getBoundingClientRect()
+		return labelX.value < left || right < labelX.value
 	})
 
 	watch(
@@ -128,9 +123,9 @@ export default function useNumber(
 		onKeydown,
 		tweakSpeedChanged,
 		tweakSpeed,
-		tweakLineClass,
+		tweakLabelClass,
 		showTweakLabel,
-		showTweakLine,
 		originX,
+		labelX,
 	}
 }

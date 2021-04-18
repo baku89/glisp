@@ -60,7 +60,7 @@ const Base16List = require('./base16.yml') as Base16[]
 const Presets = Object.fromEntries(Base16List.map(base16ToStaticColors))
 
 export default function useScheme() {
-	const initialPreset = 'vulcan'
+	const initialPreset = 'Nord'
 
 	const colors: Colors = reactive({
 		...Presets[initialPreset],

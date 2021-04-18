@@ -48,8 +48,8 @@ export default function useDraggable(
 	}) as DragData
 
 	function updatePosAndOrigin(e: MouseEvent) {
-		const {clientX, clientY} = e
-		drag.pos = vec2.fromValues(clientX, clientY)
+		const movement = vec2.fromValues(e.movementX, e.movementY)
+		drag.pos = vec2.add(vec2.create(), drag.pos, movement)
 
 		const {
 			left,
@@ -71,6 +71,13 @@ export default function useDraggable(
 		if (e.button >= 2) {
 			return
 		}
+
+		if (options.lockPointer) {
+			el.value?.requestPointerLock()
+		}
+
+		// Initialzize pointer position
+		drag.pos = vec2.fromValues(e.clientX, e.clientY)
 
 		updatePosAndOrigin(e)
 		drag.isMousedown = true
@@ -110,6 +117,9 @@ export default function useDraggable(
 	}
 
 	function onMouseup() {
+		if (options.lockPointer) {
+			document.exitPointerLock()
+		}
 		if (drag.isDragging) {
 			options.onDragEnd && options.onDragEnd(drag)
 		} else {
