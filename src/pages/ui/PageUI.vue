@@ -142,8 +142,8 @@
 							<dt>Translate</dt>
 							<dd>
 								<InputTranslate v-model="data.position" :min="0" :max="100" />
-								<span class="comment">
-									Value: [{{ data.position.join(' ') }}]
+								<span class="comment" style="white-space: nowrap">
+									Value: [{{ data.positionStr }}]
 								</span>
 							</dd>
 							<dt>Button</dt>
@@ -229,6 +229,9 @@ export default defineComponent({
 				set: x => (data.number = (x / Math.PI) * 180),
 			}),
 			position: [0, 0],
+			positionStr: computed(() =>
+				[...data.position].map(v => v.toFixed(1)).join(', ')
+			),
 		}) as {
 			string: string
 			number: number
@@ -238,6 +241,7 @@ export default defineComponent({
 			color: string
 			angle: number
 			position: [number, number]
+			positionStr: string
 		}
 
 		const colorPickers = computed(
