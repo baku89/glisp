@@ -1,12 +1,14 @@
 <script lang="ts">
 // Forked from: https://github.com/JanGuillermo/vue3-markdown-it
 
+import _ from 'lodash'
 import MarkdownIt from 'markdown-it'
 import MarkdownItAnchor from 'markdown-it-anchor'
 import MarkdownItDeflist from 'markdown-it-deflist'
 import MarkdownItFootnote from 'markdown-it-footnote'
 import MarkdownItTasklists from 'markdown-it-task-lists'
 import MarkdownItTOC from 'markdown-it-toc-done-right'
+import {editor} from 'monaco-editor'
 import {h, onMounted, onUpdated, ref} from 'vue'
 
 const props = {
@@ -56,6 +58,26 @@ const props = {
 	},
 }
 
+const HighlightPlugin = (md: MarkdownIt) => {
+	const temp = md.renderer.rules.fence?.bind(md.renderer.rules)
+
+	if (!temp) throw new Error('Invalid')
+
+	md.renderer.rules.fence = (tokens, idx, options, env, slf) => {
+		const token = tokens[idx]
+		const code = token.content.trim()
+
+		const uid = _.uniqueId('monaco-highlight_')
+
+		editor.colorize(code, 'clojure', {}).then(html => {
+			const el = document.getElementById(uid)
+			if (el) el.innerHTML = html
+		})
+
+		return `<pre><code id="${uid}">${code}</code></pre>`
+	}
+}
+
 export default {
 	name: 'vue3-markdown-it',
 	props,
@@ -65,6 +87,7 @@ export default {
 			let markdown = new MarkdownIt()
 				.use(MarkdownItAnchor, props.anchor)
 				.use(MarkdownItDeflist)
+				.use(HighlightPlugin)
 				.use(MarkdownItFootnote)
 				.use(MarkdownItTasklists, props.tasklists)
 				.use(MarkdownItTOC, props.toc)

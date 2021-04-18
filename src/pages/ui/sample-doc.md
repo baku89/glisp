@@ -80,12 +80,14 @@ With multiple paragraphs.
 
 Here is an example of a pre code block
 
-    (let {square: (=> [x: Number] PosNumber::(* x x))
-          w: 20
-          c: Color::"Pink"
-          p: Vec2::[0 0]}
-      (style (fill c)
-        (ellipse p [(vec2/x ../center) (square w)])))
+```
+(let {square: (=> [x: Number] PosNumber::(* x x))
+      w: 20
+      c: Color::"Pink"
+      p: Vec2::[0 0]}
+  (style (fill c)
+    (ellipse p [(vec2/x ../center) (square w)])))
+```
 
 ### `graphics/artboard`
 
