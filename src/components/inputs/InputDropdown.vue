@@ -237,6 +237,11 @@ export default defineComponent({
 		}
 
 		function onSelect(newValue: any) {
+			const item = completeItems.value.find(it => it.value === newValue)
+			if (item) {
+				inputValue.value = item.label
+			}
+
 			context.emit('update:modelValue', newValue)
 			open.value = false
 		}
