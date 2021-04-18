@@ -250,17 +250,17 @@ export default defineComponent({
 	&, &__overlay-button
 		position relative
 		width $input-height
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 		border-radius: $input-round + 1px
 		aspect-ratio 1
 		input-transition(border-color)
 		overflow hidden
 
 	&:hover, &:focus-within, &.tweaking, &__overlay-button
-		border-color var(--accent)
+		border-color base16('accent')
 
 	&:focus-within, &__overlay-button
-		box-shadow 0 0 0 1px var(--accent)
+		box-shadow 0 0 0 1px base16('accent')
 
 	// Grid and color-preview
 	&:before, &__color-preview
@@ -283,7 +283,7 @@ export default defineComponent({
 	&__popover-frame
 		margin 0.5rem
 		width 20rem
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 		border-radius $popup-round
 		translucent-bg()
 		position relative

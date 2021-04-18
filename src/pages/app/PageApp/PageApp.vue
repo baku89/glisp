@@ -403,8 +403,8 @@ html, body
 	width 100%
 	height 100%
 	height 100vh
-	// background var(--base00)
-	color var(--base05)
+	// background base16('00')
+	color base16('05')
 
 	&__global-menu
 		z-index 100
@@ -444,7 +444,7 @@ html, body
 		left 1rem
 		z-index 1000
 		width 30rem
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 		translucent-bg()
 
 	&__modes
@@ -464,8 +464,8 @@ html, body
 			width $width
 			height $width
 			border-radius: (0.5 * $width)rem
-			background var(--base05)
-			color var(--base00)
+			background base16('05')
+			color base16('00')
 			text-align center
 			line-height $width
 			transition all 0.1s ease
@@ -476,7 +476,7 @@ html, body
 				width auto
 
 			&:hover
-				background var(--accent)
+				background base16('accent')
 				transform scale(1.1)
 
 			& > .icon
@@ -505,7 +505,7 @@ html, body
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
 		height 70%
-		border-bottom 1px solid var(--frame)
+		border-bottom 1px solid $color-frame
 		transition height $compact-dur var(--ease)
 
 	&__console
@@ -522,20 +522,20 @@ html, body
 			margin-top -0.5 * $size
 			width $size
 			height $size
-			border 1px solid var(--base03)
+			border 1px solid base16('03')
 			border-radius 50%
-			color var(--base03)
+			color base16('03')
 			font-size 1.3rem
 			font-monospace()
 			line-height 2.2rem
 			transition all $compact-dur var(--ease)
-			--textcolor var(--base03)
+			--textcolor base16('03')
 
 			&.error
 				border-color var(--error)
 				background var(--error)
-				color var(--base00)
-				--textcolor var(--base00)
+				color base16('00')
+				--textcolor base16('00')
 
 			&:hover
 				height 1.5 * $size
@@ -551,7 +551,7 @@ html, body
 				width $size
 				height $size
 				border-radius 0.5 * $size
-				color var(--base05)
+				color base16('05')
 				// background red
 				content '<'
 				line-height $size
@@ -584,25 +584,25 @@ html, body
 		z-index 10
 		margin-right -1rem
 		width 1rem
-		border-left-color var(--frame)
+		border-left-color $color-frame
 		background transparent
 
 		&:before, &:after
 			width 0
 			height 19px
-			border-left 1px dotted var(--frame)
+			border-left 1px dotted $color-frame
 			background transparent
 			transition border-left-color 0.3s
 
 		&:hover
 			&:before, &:after
-				border-left-color var(--accent)
+				border-left-color base16('accent')
 				background-color transparent
 
 .splitpanes.default-theme
 	.left + .splitpanes__splitter
 		margin-right 0
 		margin-left -1rem
-		border-right 1px solid var(--frame)
+		border-right 1px solid $color-frame
 		border-left none
 </style>

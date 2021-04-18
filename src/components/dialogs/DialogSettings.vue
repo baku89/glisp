@@ -96,7 +96,7 @@ export default defineComponent({
 
 	&__name
 		flex-grow 1
-		color var(--base05)
+		color base16('05')
 		font-weight bold
 		line-height $subcontrol-height
 
@@ -112,34 +112,34 @@ export default defineComponent({
 		bottom 1rem
 		width $size
 		height $size
-		border 1px solid var(--base03)
+		border 1px solid base16('03')
 		border-radius 50%
-		color var(--base03)
+		color base16('03')
 		text-align center
 		font-monospace()
 		line-height 2.2rem
 		transition all 0.2s var(--ease)
-		--textcolor var(--base03)
+		--textcolor base16('03')
 
 		&.error
 			border-color var(--error)
 			background var(--error)
-			color var(--base00)
-			--textcolor var(--base00)
+			color base16('00')
+			--textcolor base16('00')
 
 	&__buttons
 		display flex
-		border-top 1px solid var(--frame)
+		border-top 1px solid $color-frame
 
 		.button
 			display block
 			flex-grow 1
 			padding 1rem
-			border-right 1px solid var(--frame)
-			color var(--base03)
+			border-right 1px solid $color-frame
+			color base16('03')
 
 			&:hover
-				color var(--accent)
+				color base16('accent')
 
 			&:last-child
 				border-right none

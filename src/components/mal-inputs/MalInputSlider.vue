@@ -206,7 +206,7 @@ export default defineComponent({
 	&__unit
 		padding-left 0.3em
 		width 1rem
-		color var(--base03)
+		color base16('03')
 
 		&.small
 			height $input-height

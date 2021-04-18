@@ -186,7 +186,7 @@ export default defineComponent({
 .InputSlider
 	width 12.6rem
 	height $input-height
-	background var(--base01)
+	background base16('01')
 	use-number()
 
 	&__input
@@ -211,11 +211,11 @@ export default defineComponent({
 
 		~/.tweaking &
 			&:after
-				box-shadow 0 0 0 1px var(--accent)
+				box-shadow 0 0 0 1px base16('accent')
 
 		&:after
 			pseudo-block()
 			absolute-fill()
-			background var(--base03)
+			background base16('03')
 			input-transition(all)
 </style>

@@ -166,21 +166,21 @@ export default defineComponent({
 	margin $subcontrol-margin
 	width $subcontrol-height
 	border-radius $input-round
-	background var(--base04)
+	background base16('04')
 	aspect-ratio 1
 	input-transition(background)
 	cursor all-scroll
 
 	&:focus
-		box-shadow 0 0 0 1px var(--accent)
+		box-shadow 0 0 0 1px base16('accent')
 
 	&:hover, &.tweaking
-		background var(--accent)
+		background base16('accent')
 
 	// Crosshair
 	&:before, &:after
 		pseudo-block()
-		background var(--base00) !important
+		background base16('00') !important
 		transform translate(-50%, -50%)
 
 	&.tweaking:before, &.tweaking:after

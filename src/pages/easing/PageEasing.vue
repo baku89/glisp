@@ -373,7 +373,7 @@ html
 		margin 0 auto
 		padding 1rem
 		max-width 50rem
-		// border 1px solid var(--frame)
+		// border 1px solid $color-frame
 
 	h1
 		font-size 1.5rem
@@ -393,7 +393,7 @@ html
 			margin -2rem 0 0 -2rem
 			width 4rem
 			height 4rem
-			border 2px dashed var(--base02)
+			border 2px dashed base16('02')
 			border-radius 50%
 
 		&:after
@@ -418,8 +418,8 @@ html
 		width 4rem
 		height @width
 		border-radius 50%
-		background var(--base02)
-		color var(--base00)
+		background base16('02')
+		color base16('00')
 		font-size 1.5rem
 
 		.fa-play
@@ -430,10 +430,10 @@ html
 		--color var(--keyword)
 
 	.velocity
-		--color var(--base0D)
+		--color base16('0D')
 
 	.accel
-		--color var(--base09)
+		--color base16('09')
 
 	&__editor
 		position relative
@@ -446,7 +446,7 @@ html
 		height 100%
 		border-width 0 2px
 		border-style solid
-		border-color var(--base02)
+		border-color base16('02')
 
 	&__seekbar
 		position absolute
@@ -515,9 +515,9 @@ html
 		top 50%
 		right 2rem
 		padding 0.4em 0.5em
-		border 2px solid var(--base02)
+		border 2px solid base16('02')
 		border-radius 5px
-		color var(--base02)
+		color base16('02')
 		font-size 1rem
 		transform translate(4px, -50%)
 </style>

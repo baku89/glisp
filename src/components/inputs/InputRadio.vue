@@ -86,7 +86,7 @@ export default defineComponent({
 	gap 1px
 
 	&:focus-within
-		box-shadow 0 0 0 1px var(--accent)
+		box-shadow 0 0 0 1px base16('accent')
 
 	&__li
 		flex-grow 1
@@ -105,7 +105,7 @@ export default defineComponent({
 		text-align center
 
 		&:hover
-			box-shadow inset 0 0 0 1px var(--accent)
+			box-shadow inset 0 0 0 1px base16('accent')
 
 	&__input:checked + &__label
 		border-radius $input-round

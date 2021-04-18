@@ -169,14 +169,14 @@ export default defineComponent({
 			margin-left -3px
 			width 7px
 			height 19px
-			border-right 1px dotted var(--frame)
-			border-left 1px dotted var(--frame)
+			border-right 1px dotted $color-frame
+			border-left 1px dotted $color-frame
 			background transparent
 			transition border-left-color 0.3s, border-right-color 0.3s
 
 		&:hover:before
-			border-right-color var(--accent)
-			border-left-color var(--accent)
+			border-right-color base16('accent')
+			border-left-color base16('accent')
 			background-color transparent
 
 		// After as line
@@ -188,10 +188,10 @@ export default defineComponent({
 			width 1px
 			height 100%
 			border none
-			background-color var(--frame)
+			background-color $color-frame
 			transform none
 
 		&:hover:after
-			background-color var(--accent) !important
+			background-color base16('accent') !important
 			opacity 0.5
 </style>

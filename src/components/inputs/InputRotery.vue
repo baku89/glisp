@@ -262,22 +262,22 @@ export default defineComponent({
 		transform scale(3)
 
 	&__circle
-		fill var(--base04)
+		fill base16('04')
 
 		&:hover, ~/:focus &
-			fill var(--accent)
+			fill base16('accent')
 
 		~/.tweak-absolute:focus &
-			fill var(--base04)
+			fill base16('04')
 
 	&__scale
 		transform-origin 16px 16px
-		stroke var(--base00)
+		stroke base16('00')
 		stroke-width 3
 		stroke-linecap round
 
 		~/.tweak-absolute &
-			stroke var(--accent)
+			stroke base16('accent')
 
 	&__overlay
 		input-overlay()

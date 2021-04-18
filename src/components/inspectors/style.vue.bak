@@ -179,11 +179,11 @@ export default defineComponent({
 	&__label, &__input
 		margin 0
 		padding 0.5rem 0
-		// border-bottom 1px dotted var(--frame)
+		// border-bottom 1px dotted $color-frame
 
 	&__label
 		width 5rem
-		color var(--base03)
+		color base16('03')
 
 	&__input
 		display flex
@@ -205,7 +205,7 @@ export default defineComponent({
 			opacity 0 !important
 
 	&__delete
-		color var(--base03)
+		color base16('03')
 		line-height $input-height
 		cursor pointer
 
@@ -214,7 +214,7 @@ export default defineComponent({
 
 	&__handle
 		height 100%
-		color var(--base03)
+		color base16('03')
 		cursor all-scroll
 
 	&__append
@@ -226,14 +226,14 @@ export default defineComponent({
 		margin-top 0.3em
 		padding 0.2em 0.6em
 		height auto
-		border 1px solid var(--base03)
+		border 1px solid base16('03')
 		border-radius 3px
-		color var(--base03)
+		color base16('03')
 		font-size 0.9em
 		line-height $input-height
 		cursor pointer
 
 		&:hover
-			border-color var(--accent)
-			color var(--accent)
+			border-color base16('accent')
+			color base16('accent')
 </style>

@@ -132,7 +132,7 @@ export default defineComponent({
 		font-weight bold
 
 		.alias
-			color var(--base03)
+			color base16('03')
 			font-weight normal
 			font-size 0.95em
 
@@ -140,18 +140,18 @@ export default defineComponent({
 		position absolute
 		top 0
 		right 0
-		color var(--base03)
+		color base16('03')
 		opacity 0.6
 
 		&:hover
-			color var(--accent)
+			color base16('accent')
 			opacity 1
 
 	&__doc
 		line-height 1.4
 
 		code
-			color var(--base0D)
+			color base16('0D')
 
 	&__body
 		overflow-y scroll

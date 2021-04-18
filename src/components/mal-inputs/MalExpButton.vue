@@ -81,7 +81,7 @@ export default defineComponent({
 	overflow hidden
 	max-width 100%
 	height $input-height
-	color var(--base03)
+	color base16('03')
 	font-monospace()
 	line-height $input-height
 
@@ -94,7 +94,7 @@ export default defineComponent({
 
 			.MalExpButton__sign
 				background var(--red)
-				color var(--base00)
+				color base16('00')
 
 	&__sign
 		flex 1 0 1.1rem
@@ -102,8 +102,8 @@ export default defineComponent({
 		width 1.1rem
 		height 1.1rem
 		border-radius $input-round
-		background var(--base02)
-		color var(--base00)
+		background base16('02')
+		color base16('00')
 		text-align center
 		input-transition(all)
 

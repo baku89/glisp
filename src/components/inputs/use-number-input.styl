@@ -2,7 +2,7 @@
 
 use-number()
 	position relative
-	color var(--base06)
+	color base16('06')
 	font-monospace()
 
 	&__input
@@ -13,7 +13,7 @@ use-number()
 		cursor col-resize
 
 		~/.tweaking &
-			box-shadow 0 0 0 1px var(--accent)
+			box-shadow 0 0 0 1px base16('accent')
 
 		&:focus
 			cursor text
@@ -22,7 +22,7 @@ use-number()
 	&__overlay-label
 		tooltip()
 		z-index 1001
-		color var(--base06)
+		color base16('06')
 		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed

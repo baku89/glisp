@@ -158,11 +158,11 @@ export default defineComponent({
 		margin-left 0.5rem
 		width 15rem
 		height 15rem
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 
 		circle
-			fill var(--base00)
-			stroke var(--accent)
+			fill base16('00')
+			stroke base16('accent')
 			stroke-width 1
 
 			&:hover, &[dragging]
@@ -170,12 +170,12 @@ export default defineComponent({
 
 		path, line
 			fill none
-			stroke var(--accent)
+			stroke base16('accent')
 			stroke-width 1px
 
 		.diagonal
 			stroke-dasharray 3 3
-			stroke var(--frame)
+			stroke $color-frame
 
 		.curve
 			stroke-width 3

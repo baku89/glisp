@@ -7,14 +7,14 @@
 			<Pane>
 				<h2>Theme</h2>
 				<p>
-					<span style="color: var(--base04)">Base theme = </span>
+					<span style="color: base16('04')">Base theme = </span>
 					<InputDropdown
 						v-model="basePreset"
 						:items="presetNames"
 						:style="{width: '10em'}"
 					>
 					</InputDropdown>
-					<span style="color: var(--base04)">&nbsp;&nbsp;Highlight = </span>
+					<span style="color: base16('04')">&nbsp;&nbsp;Highlight = </span>
 					<InputDropdown
 						v-model="baseAccentName"
 						:items="['07', '08', '09', '0A', '0B', '0C', '0D', '0E', '0F']"
@@ -23,7 +23,7 @@
 							<li class="style-default">
 								<div
 									class="PageUI__accent-preview"
-									:style="{background: `var(--base${value})`}"
+									:style="{background: `rgb(var(--base${value}))`}"
 								/>
 								<span v-html="string" />
 							</li>
@@ -32,38 +32,38 @@
 				</p>
 				<dl class="PageUI__theme">
 					<div>
-						<dt class="border" style="background: var(--base00)">00</dt>
+						<dt class="border" style="background: rgb(var(--base00))">00</dt>
 						<dd>BG</dd>
 					</div>
 					<div>
-						<dt style="background: var(--base01)">01</dt>
+						<dt style="background: rgb(var(--base01))">01</dt>
 						<dd>Input BG</dd>
 					</div>
 					<div>
-						<dt style="background: var(--base02)">02</dt>
+						<dt style="background: rgb(var(--base02))">02</dt>
 						<dd>Selection</dd>
 					</div>
 					<div>
-						<dt style="background: var(--base03)">03</dt>
+						<dt style="background: rgb(var(--base03))">03</dt>
 						<dd>Comments, Line Highlighting</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base04)">04</dt>
+						<dt class="invert" style="background: rgb(var(--base04))">04</dt>
 						<dd>Text, Label</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base05)">05</dt>
+						<dt class="invert" style="background: rgb(var(--base05))">05</dt>
 						<dd>FG, Caret, Delimiters, Operators</dd>
 					</div>
 					<div>
-						<dt class="invert" style="background: var(--base06)">06</dt>
+						<dt class="invert" style="background: rgb(var(--base06))">06</dt>
 						<dd>Input Value</dd>
 					</div>
 					<div>
 						<dt
 							class="invert"
 							:class="{accent: baseAccentName === '07'}"
-							style="background: var(--base07)"
+							style="background: rgb(var(--base07))"
 						>
 							07
 						</dt>
@@ -72,7 +72,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base08)"
+							style="background: rgb(var(--base08))"
 							:class="{accent: baseAccentName === '08'}"
 						>
 							08
@@ -82,7 +82,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base09)"
+							style="background: rgb(var(--base09))"
 							:class="{accent: baseAccentName === '09'}"
 						>
 							09
@@ -92,7 +92,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0A)"
+							style="background: rgb(var(--base0A))"
 							:class="{accent: baseAccentName === '0A'}"
 						>
 							0A
@@ -102,7 +102,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0B)"
+							style="background: rgb(var(--base0B))"
 							:class="{accent: baseAccentName === '0B'}"
 						>
 							0B
@@ -112,7 +112,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0C)"
+							style="background: rgb(var(--base0C))"
 							:class="{accent: baseAccentName === '0C'}"
 						>
 							0C
@@ -122,7 +122,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0D)"
+							style="background: rgb(var(--base0D))"
 							:class="{accent: baseAccentName === '0D'}"
 						>
 							0D
@@ -132,7 +132,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0E)"
+							style="background: rgb(var(--base0E))"
 							:class="{accent: baseAccentName === '0E'}"
 						>
 							0E
@@ -142,7 +142,7 @@
 					<div>
 						<dt
 							class="invert"
-							style="background: var(--base0F)"
+							style="background: rgb(var(--base0F))"
 							:class="{accent: baseAccentName === '0F'}"
 						>
 							0F
@@ -358,7 +358,7 @@ $height = 3.4em
 		display flex
 		overflow visible
 		height $height
-		border-bottom 1px solid var(--frame)
+		border-bottom 1px solid $color-frame
 		user-select none
 
 		&-title
@@ -367,7 +367,7 @@ $height = 3.4em
 			margin 0 0 0 0.5em
 			width $height
 			height $height
-			background var(--base05)
+			background base16('05')
 			text-align center
 			text-indent 10em
 			font-weight normal
@@ -400,20 +400,20 @@ $height = 3.4em
 			font-title()
 
 			&.border
-				border 1px solid var(--frame)
+				border 1px solid $color-frame
 
 			&.invert
-				color var(--base00)
+				color base16('00')
 
 			&.accent
-				box-shadow inset 0 0 0 1px var(--base04), 0 0 0 1px var(--base04), inset 0 0 0 2px var(--base00)
+				box-shadow inset 0 0 0 1px base16('04'), 0 0 0 1px base16('04'), inset 0 0 0 2px base16('00')
 
 		dd
 			padding-left 1em
 
 	&__glisp-editor
 		height 4em
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 
 	&__ui-list
 		display grid
@@ -422,7 +422,7 @@ $height = 3.4em
 
 		& > dt
 			height $input-height
-			color var(--base04)
+			color base16('04')
 			line-height $input-height
 
 		& > dd
@@ -432,7 +432,7 @@ $height = 3.4em
 
 			& > span
 				margin-left 1em
-				color var(--base04)
+				color base16('04')
 				font-monospace()
 
 	&__accent-preview

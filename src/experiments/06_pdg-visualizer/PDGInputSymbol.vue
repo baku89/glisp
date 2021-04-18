@@ -156,7 +156,7 @@ export default defineComponent({
 
 	&__evaluated
 		padding-left 0.5rem
-		color var(--base03)
+		color base16('03')
 
 		&.error
 			color var(--error)
@@ -166,7 +166,7 @@ export default defineComponent({
 		min-width 10rem
 		width 10rem
 		translucent-bg()
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 		border-radius $input-round
 
 		& > .symbol
@@ -175,5 +175,5 @@ export default defineComponent({
 			line-height $input-height
 
 			&:hover
-				background var(--accent)
+				background base16('accent')
 </style>

@@ -297,7 +297,7 @@ void main() {
 	grid-template-columns 50vw 50vw
 
 	h2 > small
-		color var(--base03)
+		color base16('03')
 		vertical-align middle
 		font-weight normal
 		font-size 0.7em
@@ -318,10 +318,10 @@ void main() {
 		padding 1.5rem
 
 		&:nth-child(2n+1)
-			border-right 1px solid var(--frame)
+			border-right 1px solid $color-frame
 
 		&:nth-child(-n + 2)
-			border-bottom 1px solid var(--frame)
+			border-bottom 1px solid $color-frame
 
 	&__slider
 		display flex
@@ -341,7 +341,7 @@ void main() {
 		font-size 1.2rem
 
 		& > .label
-			color var(--base03)
+			color base16('03')
 
 	&__preset-dropdown
 		margin-right 1em

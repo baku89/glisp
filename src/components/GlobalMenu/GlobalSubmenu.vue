@@ -31,7 +31,7 @@ export default defineComponent({
 .GlobalSubmenu
 	position relative
 	z-index 100
-	border 1px solid var(--frame)
+	border 1px solid $color-frame
 	border-radius 0.3rem
 	background var(--opaque)
 	white-space nowrap
@@ -40,14 +40,14 @@ export default defineComponent({
 	&__item
 		padding 0 1rem
 		height 3.2rem
-		border-bottom 1px dotted var(--frame)
-		color var(--base03)
+		border-bottom 1px dotted $color-frame
+		color base16('03')
 		// background red
 		line-height 3.2rem
 		cursor pointer
 
 		&:hover
-			color var(--accent)
+			color base16('accent')
 
 		&:last-child
 			border none

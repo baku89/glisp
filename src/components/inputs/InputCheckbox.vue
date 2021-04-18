@@ -83,9 +83,9 @@ export default defineComponent({
 		width 100%
 		height 100%
 		border-radius $input-round
-		background var(--base01)
+		background base16('01')
 		color transparent
-		color var(--base04)
+		color base16('04')
 		line-height 1em
 		pointer-events none
 
@@ -95,7 +95,7 @@ export default defineComponent({
 		left 10%
 		width 80%
 		height 80%
-		color var(--base06)
+		color base16('06')
 		text-align center
 		line-height $input-height
 		opacity 0
@@ -106,16 +106,16 @@ export default defineComponent({
 
 	// Hover and Focus
 	&:hover &__frame
-		box-shadow inset 0 0 0 1px var(--accent)
-		color var(--accent)
+		box-shadow inset 0 0 0 1px base16('accent')
+		color base16('accent')
 
 	&:focus-within &__frame
-		box-shadow inset 0 0 0 1px var(--accent), 0 0 0 1px var(--accent)
+		box-shadow inset 0 0 0 1px base16('accent'), 0 0 0 1px base16('accent')
 
 	// Label
 	&__label
 		margin-left 0.3em
-		color var(--base05)
+		color base16('05')
 		user-select none
 
 	// Exp

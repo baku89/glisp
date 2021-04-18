@@ -53,5 +53,5 @@ export default defineComponent({
 
 	.__________cytoscape_container
 		margin-bottom 0.5rem
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 </style>

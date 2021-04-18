@@ -78,7 +78,7 @@ export default defineComponent({
 
 		&:hover
 			background base16('01')
-			color var(--accent)
+			color base16('accent')
 
 		&.active
 			background transparent

@@ -90,10 +90,10 @@ export default defineComponent({
 	padding 0 0.4rem
 	max-width 100%
 	width 12.6rem
-	color var(--base06)
+	color base16('06')
 
 	&:focus
-		box-shadow 0 0 0 1px var(--accent)
+		box-shadow 0 0 0 1px base16('accent')
 
 	&.exp
 		color var(--red)

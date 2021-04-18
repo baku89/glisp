@@ -321,7 +321,7 @@ export default defineComponent({
 		position relative
 		overflow hidden
 		padding 0.6rem 0.5rem 0.6rem 0.3rem
-		color var(--base03)
+		color base16('03')
 		text-overflow ellipsis
 		white-space nowrap
 
@@ -344,49 +344,49 @@ export default defineComponent({
 			text-decoration line-through
 
 		&.clickable
-			color var(--base05)
+			color base16('05')
 			cursor pointer
 
 			&:hover
-				color var(--accent)
+				color base16('accent')
 
 			&:after
-				border 1px solid var(--accent)
+				border 1px solid base16('accent')
 
 		&.active
-			background var(--base01)
-			color var(--accent)
+			background base16('01')
+			color base16('accent')
 			font-weight bold
 
 			&:after
-				background var(--accent)
+				background base16('accent')
 				opacity 0.1
 
 		&.selected
-			color var(--accent)
+			color base16('accent')
 
 			&:after
-				background var(--accent)
+				background base16('accent')
 				opacity 0.08
 
 		&.hovering
-			color var(--accent)
+			color base16('accent')
 
 			&:after
-				border 1px solid var(--accent)
+				border 1px solid base16('accent')
 				opacity 0.15
 
 	&__icon
 		display inline-block
 		margin-right 0.2rem
 		width 1rem
-		color var(--base03)
+		color base16('03')
 		text-align center
 		opacity 0.7
 		input-transition()
 
 		&.expandable:hover
-			color var(--accent)
+			color base16('accent')
 			opacity 1
 
 		&.expanded
@@ -401,7 +401,7 @@ export default defineComponent({
 	&__editing
 		position absolute
 		right 1rem
-		color var(--base03)
+		color base16('03')
 		opacity 0
 		cursor pointer
 
@@ -421,6 +421,6 @@ export default defineComponent({
 			left 0.8rem
 			width 0
 			height 100%
-			border-left 1px dotted var(--frame)
+			border-left 1px dotted $color-frame
 			content ''
 </style>

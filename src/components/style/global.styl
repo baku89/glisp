@@ -14,10 +14,10 @@
 // Handle
 ::-webkit-scrollbar-thumb
 	border-radius 0
-	background var(--frame)
+	background $color-frame
 */
 ::selection
-	background var(--frame)
+	background $color-frame
 
 *, ::after, ::before
 	box-sizing border-box
@@ -71,13 +71,13 @@ p
 				min-width calc(1px + 1.2em)
 				border-right 0.6em solid transparent
 				border-left 0.6em solid transparent
-				background-color var(--frame)
+				background-color $color-frame
 				background-clip padding-box
 				input-transition()
 
 				&:hover
-					border-color var(--frame)
-					background-color var(--base07)
+					border-color $color-frame
+					background-color base16('07')
 
 				&:before, &:after
 					position absolute
@@ -87,7 +87,7 @@ p
 					margin-top -0.5em
 					width 2em
 					height 1em
-					color var(--base07)
+					color base16('07')
 					line-height 1em
 					opacity 0
 					input-transition()

@@ -102,10 +102,10 @@ export default defineComponent({
 		grid-row 1 / span 1
 
 		&:hover
-			background var(--frame)
+			background $color-frame
 
 		&:active
-			background var(--frame)
+			background $color-frame
 
 		&.min
 			grid-column 1
@@ -123,5 +123,5 @@ export default defineComponent({
 				background #F1707A !important
 
 	path
-		fill var(--base05)
+		fill base16('05')
 </style>

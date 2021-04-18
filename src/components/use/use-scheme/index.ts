@@ -23,9 +23,7 @@ interface Base16 {
 	base0F: string
 }
 
-type StaticColors = Exclude<Base16, 'scheme' | 'author'> & {
-	frame: string // border, selection
-}
+type StaticColors = Exclude<Base16, 'scheme' | 'author'>
 
 type Colors = StaticColors & {
 	accent: string
@@ -35,23 +33,10 @@ function base16ToStaticColors(scheme: Base16): [string, StaticColors] {
 	const c = _.fromPairs(
 		_.toPairs(scheme)
 			.filter(([k]) => k.startsWith('base'))
-			.map(([k, v]) => [k, chroma(v).css()])
+			.map(([k, v]) => [k, chroma(v).rgb().join(',')])
 	)
 
-	const cRGB = _.fromPairs(
-		_.toPairs(c).map(([k, v]) => {
-			return [k + '-rgb', v.replace('rgb(', '').replace(')', '')]
-		})
-	)
-
-	return [
-		scheme.scheme,
-		{
-			frame: chroma(c.base05).alpha(0.2).css(),
-			...c,
-			...cRGB,
-		} as StaticColors,
-	]
+	return [scheme.scheme, (c as any) as StaticColors]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires

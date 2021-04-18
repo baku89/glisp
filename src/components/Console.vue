@@ -145,22 +145,22 @@ export default defineComponent({
 
 	&-blurred
 		.jqconsole-cursor
-			background var(--frame)
+			background $color-frame
 			opacity 0.4
 
 	&-cursor
-		background var(--base05)
+		background base16('05')
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--base05)
+		color base16('05')
 
 	&-output
-		color var(--base03)
+		color base16('03')
 
 	&-return
-		color var(--base03)
+		color base16('03')
 
 	&-error
 		color var(--error)

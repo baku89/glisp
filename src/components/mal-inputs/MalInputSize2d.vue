@@ -219,5 +219,5 @@ export default defineComponent({
 		padding 0
 		width $subcontrol-height
 		height @width !important
-		color var(--base02)
+		color base16('02')
 </style>

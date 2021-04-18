@@ -124,12 +124,12 @@ export default defineComponent({
 .Editor
 	display flex
 	height 100vh
-	color var(--base05)
+	color base16('05')
 
 	&__text, &__inspector, &__result
 		padding 1rem
 		width calc((100% / 2))
-		border-right 1px solid var(--frame)
+		border-right 1px solid $color-frame
 
 		&:last-child
 			border-right none
@@ -146,7 +146,7 @@ export default defineComponent({
 		height auto
 		border-radius $input-round
 		background var(--error)
-		color var(--base00)
+		color base16('00')
 
 	&__result
 		display flex

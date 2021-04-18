@@ -282,10 +282,10 @@ $right-arrow-width = 1em
 
 	&__select
 		margin 2px
-		color var(--base06)
+		color base16('06')
 		tooltip()
 		padding 0
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 		user-select none
 
 	&__option .style-default
@@ -297,10 +297,10 @@ $right-arrow-width = 1em
 
 		&:hover
 			background base16('01')
-			color var(--accent)
+			color base16('accent')
 
 	&__option.active .style-default
-		background var(--accent)
+		background base16('accent')
 		color base16('00')
 
 	&__chevron
@@ -311,7 +311,7 @@ $right-arrow-width = 1em
 		transform-origin 50% 50%
 		pointer-events none
 		fill none
-		stroke var(--base04)
+		stroke base16('04')
 		input-transition(transform)
 
 		~/.open &

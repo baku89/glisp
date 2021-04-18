@@ -93,7 +93,7 @@ export default defineComponent({
 	width $subcontrol-height
 	height $subcontrol-height
 	background-size 100% 100%
-	color var(--base04)
+	color base16('04')
 	text-align center
 	line-height $subcontrol-height
 	cursor pointer
@@ -104,5 +104,5 @@ export default defineComponent({
 		transition transform 0.3s cubic-bezier(0.19, 1.6, 0.42, 1)
 
 	&:hover, &:focus
-		color var(--accent)
+		color base16('accent')
 </style>

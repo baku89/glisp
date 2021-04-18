@@ -83,13 +83,13 @@ export default defineComponent({
 	&__fn-name
 		padding-left 0.5rem
 		height $input-height
-		background var(--frame)
+		background $color-frame
 		line-height $input-height
 
 	&__entries
 		padding-top 0.5rem
 		padding-left 1rem
-		border-left 1px solid var(--frame)
+		border-left 1px solid $color-frame
 
 	&__entry
 		display flex
@@ -98,7 +98,7 @@ export default defineComponent({
 			flex-grow 0
 			width 5rem
 			height $input-height
-			color var(--base03)
+			color base16('03')
 			line-height $input-height
 
 			&.output

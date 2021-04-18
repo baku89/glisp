@@ -115,8 +115,8 @@ $compact-dur = 0.4s
 	min-height calc(102px + 4rem)
 	height auto
 	border-left 2px solid #eee
-	background var(--base00)
-	color var(--base05)
+	background base16('00')
+	color base16('05')
 
 	&:after
 		pseudo-block()
@@ -133,7 +133,7 @@ $compact-dur = 0.4s
 		position relative
 		width 102px
 		height 102px
-		border 1px solid var(--frame)
+		border 1px solid $color-frame
 
 	&__editor
 		position relative
@@ -144,7 +144,7 @@ $compact-dur = 0.4s
 		right 1rem
 		bottom 1rem
 		display block
-		color var(--base03)
+		color base16('03')
 		font-size 1.1rem
 		cursor pointer
 		transition all 0.2s ease
@@ -158,5 +158,5 @@ $compact-dur = 0.4s
 			font-size 1rem
 
 		&:hover
-			color var(--accent)
+			color base16('accent')
 </style>

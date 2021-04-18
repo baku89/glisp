@@ -100,7 +100,7 @@ $height = 3.4rem
 	display flex
 	overflow visible
 	height $height
-	border-bottom 1px solid var(--frame)
+	border-bottom 1px solid $color-frame
 	user-select none
 
 	&.title-bar-macos
@@ -113,7 +113,7 @@ $height = 3.4rem
 		padding 0rem
 		width $height
 		height $height
-		background var(--base03)
+		background base16('03')
 		text-align center
 		text-indent 10rem
 		font-weight normal
@@ -132,7 +132,7 @@ $height = 3.4rem
 		position relative
 		padding 0 1.5rem
 		height 100%
-		color var(--base03)
+		color base16('03')
 		// font-size 1.1rem
 		// background red
 		line-height 3.5rem
@@ -140,7 +140,7 @@ $height = 3.4rem
 		-webkit-app-region no-drag
 
 		&:hover, &.active
-			color var(--accent)
+			color base16('accent')
 
 	&__submenu
 		position absolute

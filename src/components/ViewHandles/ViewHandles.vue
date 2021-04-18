@@ -301,7 +301,7 @@ export default defineComponent({
 	&__axes
 		position fixed
 		overflow hidden
-		background var(--base00)
+		background base16('00')
 
 	&__axis
 		stroke var(--guide) !important
@@ -310,15 +310,15 @@ export default defineComponent({
 	// Styles
 	&, &__axes
 		.fill, .stroke
-			stroke var(--accent)
+			stroke base16('accent')
 			stroke-width 1
 			vector-effect non-scaling-stroke
 
 		.fill
-			fill var(--base00)
+			fill base16('00')
 
 		.stroke
-			stroke var(--accent)
+			stroke base16('accent')
 			vector-effect non-scaling-stroke
 			fill none
 
@@ -341,7 +341,7 @@ export default defineComponent({
 			stroke-width 3
 
 		.fill.display
-			fill var(--accent)
+			fill base16('accent')
 
 		&.dashed
 			stroke-dasharray none

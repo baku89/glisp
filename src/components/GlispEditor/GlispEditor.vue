@@ -193,33 +193,33 @@ export default defineComponent({
 		width 100%
 		height 100%
 		background transparent !important
-		color var(--base05) !important
+		color base16('05') !important
 		font-size 1rem
 
 	.ace_editor
 		font-monospace(important = true)
 
 	.ace_selection
-		background var(--frame) !important
+		background $color-frame !important
 
 	.ace_comment
-		color var(--base03) !important
+		color base16('03') !important
 
 	.ace_keyword
 		color var(--keyword) !important
 
 	.ace_constant
-		color var(--base09) !important
+		color base16('09') !important
 
 	.ace_function
-		color var(--base0D) !important
+		color base16('0D') !important
 
 	.ace_string
-		color var(--base0B) !important
+		color base16('0B') !important
 
 	.ace_cursor
-		color var(--base05) !important
+		color base16('05') !important
 
 	.ace_bracket
-		border 1px solid var(--accent) !important
+		border 1px solid base16('accent') !important
 </style>

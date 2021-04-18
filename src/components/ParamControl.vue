@@ -295,7 +295,7 @@ export default defineComponent({
 		padding-right 1em
 		width 5.5em
 		height $param-height
-		color var(--base03)
+		color base16('03')
 		white-space nowrap
 		line-height $param-height
 
@@ -309,7 +309,7 @@ export default defineComponent({
 
 	&__button
 		height 100%
-		color var(--base03)
+		color base16('03')
 		line-height $param-height
 		cursor pointer
 		input-transition()
@@ -336,7 +336,7 @@ export default defineComponent({
 				font-monospace()
 
 			&:hover
-				color var(--accent)
+				color base16('accent')
 
 			&:after
 				position absolute
