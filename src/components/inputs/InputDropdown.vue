@@ -31,6 +31,7 @@
 				:class="{active: value === modelValue}"
 				:key="index"
 				@click="onSelect(value)"
+				@mouseenter="onHoverOption(value)"
 			>
 				<slot name="option" :string="string" :value="value">
 					<div class="style-default" v-html="string" />
@@ -231,7 +232,11 @@ export default defineComponent({
 			}
 		}
 
-		function onSelect(newValue: string | number) {
+		function onHoverOption(newValue: any) {
+			context.emit('update:modelValue', newValue)
+		}
+
+		function onSelect(newValue: any) {
 			context.emit('update:modelValue', newValue)
 			open.value = false
 		}
@@ -259,6 +264,7 @@ export default defineComponent({
 			onBlur,
 			onInput,
 			onKeydown,
+			onHoverOption,
 			onSelect,
 			onClickOutsideOfPopover,
 		}
