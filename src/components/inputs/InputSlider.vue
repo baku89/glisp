@@ -20,22 +20,22 @@
 					:class="[tweakLineClass]"
 					:x1="originX"
 					:y1="origin[1]"
-					:x2="absolutePos[0]"
+					:x2="pos[0]"
 					:y2="origin[1]"
 				/>
 				<line
 					class="dashed"
-					:x1="absolutePos[0]"
+					:x1="pos[0]"
 					:y1="origin[1]"
-					:x2="absolutePos[0]"
-					:y2="absolutePos[1]"
+					:x2="pos[0]"
+					:y2="pos[1]"
 				/>
 			</svg>
 			<div
 				class="InputSlider__overlay-label"
 				:style="{
-					top: absolutePos[1] + 'px',
-					left: absolutePos[0] + 'px',
+					top: pos[1] + 'px',
+					left: pos[0] + 'px',
 					opacity: showTweakLabel ? 1 : 0,
 				}"
 			>
@@ -88,7 +88,7 @@ export default defineComponent({
 		let tweakStartValue = 0
 		let tweakStartPos = 0
 
-		const {isDragging: tweaking, absolutePos, origin} = useDraggable(dragEl, {
+		const {isDragging: tweaking, pos, origin} = useDraggable(dragEl, {
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -155,7 +155,7 @@ export default defineComponent({
 			toRef(props, 'modelValue'),
 			startValue,
 			tweaking,
-			absolutePos,
+			pos,
 			dragEl,
 			context
 		)
@@ -171,7 +171,7 @@ export default defineComponent({
 			dragEl,
 			inputEl,
 			tweaking,
-			absolutePos,
+			pos,
 			showTweakLabel,
 			sliderStyle,
 			showTweakLine,

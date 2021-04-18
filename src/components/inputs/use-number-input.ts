@@ -9,7 +9,7 @@ export default function useNumber(
 	value: Ref<number>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
-	absolutePos: Ref<vec2>,
+	pos: Ref<vec2>,
 	dragEl: Ref<null | HTMLElement>,
 	context: SetupContext
 ) {
@@ -90,7 +90,7 @@ export default function useNumber(
 		if (!dragEl.value || !tweaking.value) return false
 
 		const {left, right, top, bottom} = dragEl.value.getBoundingClientRect()
-		const [x, y] = absolutePos.value
+		const [x, y] = pos.value
 		return x < left || right < x || y < top || bottom < y
 	})
 
@@ -98,7 +98,7 @@ export default function useNumber(
 		if (!dragEl.value) return false
 
 		const {left, right} = dragEl.value.getBoundingClientRect()
-		const x = absolutePos.value[0]
+		const x = pos.value[0]
 		return x < left || right < x
 	})
 
@@ -107,7 +107,7 @@ export default function useNumber(
 
 		const {left, right} = dragEl.value.getBoundingClientRect()
 
-		const x = absolutePos.value[0]
+		const x = pos.value[0]
 		return x < left ? left : right
 	})
 

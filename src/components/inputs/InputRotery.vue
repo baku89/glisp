@@ -30,8 +30,8 @@
 					class="bold"
 					:x1="overlayLineOrigin[0]"
 					:y1="overlayLineOrigin[1]"
-					:x2="absolutePos[0]"
-					:y2="absolutePos[1]"
+					:x2="pos[0]"
+					:y2="pos[1]"
 				/>
 				<path
 					v-if="tweakMode === 'relative'"
@@ -42,8 +42,8 @@
 			<div
 				class="InputRotery__overlay-label"
 				:style="{
-					top: absolutePos[1] + 'px',
-					left: absolutePos[0] + 'px',
+					top: pos[1] + 'px',
+					left: pos[0] + 'px',
 				}"
 			>
 				{{ overlayLabel }}
@@ -101,11 +101,12 @@ export default defineComponent({
 		let alreadyEmitted = false
 		let startValue = ref(props.modelValue)
 
-		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
+		const {isDragging: tweaking, origin, pos} = useDraggable(el, {
 			disableClick: true,
-			onDragStart({pos}) {
+			onDragStart({pos, origin}) {
 				if (tweakMode.value === 'absolute') {
-					const angle = Math.atan2(pos[1], pos[0])
+					const p = vec2.sub(vec2.create(), pos, origin)
+					const angle = Math.atan2(p[1], p[0])
 					const delta = signedAngleBetween(angle, props.modelValue)
 					const newValue = props.modelValue + delta
 					context.emit('update:modelValue', newValue)
@@ -117,14 +118,17 @@ export default defineComponent({
 					startValue.value = props.modelValue
 				}
 			},
-			onDrag({pos, prevPos}) {
+			onDrag({pos, prevPos, origin}) {
 				if (alreadyEmitted) {
 					alreadyEmitted = false
 					return
 				}
 
-				const prevAngle = Math.atan2(prevPos[1], prevPos[0])
-				const alignedPos = vec2.rotate(vec2.create(), pos, [0, 0], -prevAngle)
+				const p = vec2.sub(vec2.create(), pos, origin)
+				const pp = vec2.sub(vec2.create(), prevPos, origin)
+
+				const prevAngle = Math.atan2(pp[1], pp[0])
+				const alignedPos = vec2.rotate(vec2.create(), p, [0, 0], -prevAngle)
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
 				const newValue = props.modelValue + delta
 
@@ -147,8 +151,8 @@ export default defineComponent({
 		const overlayArrowAngle = computed(() => {
 			return (
 				Math.atan2(
-					absolutePos.value[1] - origin.value[1],
-					absolutePos.value[0] - origin.value[0]
+					pos.value[1] - origin.value[1],
+					pos.value[0] - origin.value[0]
 				) +
 				Math.PI / 2
 			)
@@ -156,7 +160,7 @@ export default defineComponent({
 
 		const overlayLineOrigin = computed(() => {
 			const o = origin.value
-			const t = absolutePos.value
+			const t = pos.value
 			const radius = 10
 
 			const p = vec2.create()
@@ -229,7 +233,7 @@ export default defineComponent({
 			startValue,
 
 			// overlay
-			absolutePos,
+			pos,
 			overlayLineOrigin,
 			overlayArcPath,
 			overlayLabel,
@@ -268,6 +272,9 @@ export default defineComponent({
 
 		&:hover, ~/:focus &
 			fill var(--accent)
+
+		~/.tweak-absolute:focus &
+			fill var(--base04)
 
 	&__scale
 		transform-origin 16px 16px

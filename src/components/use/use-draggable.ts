@@ -1,5 +1,5 @@
 import {vec2} from 'gl-matrix'
-import {computed, onBeforeUnmount, onMounted, reactive, Ref, toRefs} from 'vue'
+import {onBeforeUnmount, onMounted, reactive, Ref, toRefs} from 'vue'
 
 interface DragData {
 	pos: vec2
@@ -47,10 +47,6 @@ export default function useDraggable(
 		isDragging: false,
 	}) as DragData
 
-	const absolutePos = computed(() => {
-		return vec2.add(vec2.create(), drag.origin, drag.pos)
-	})
-
 	function updatePosAndOrigin(e: MouseEvent) {
 		const {clientX, clientY} = e
 		const {
@@ -62,15 +58,12 @@ export default function useDraggable(
 
 		drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
 
-		drag.top = top - drag.origin[1]
-		drag.right = right - drag.origin[0]
-		drag.bottom = bottom - drag.origin[1]
-		drag.left = left - drag.origin[0]
+		drag.top = top
+		drag.right = right
+		drag.bottom = bottom
+		drag.left = left
 
-		drag.pos = vec2.fromValues(
-			clientX - drag.origin[0],
-			clientY - drag.origin[1]
-		)
+		drag.pos = vec2.fromValues(clientX, clientY)
 	}
 
 	function onMousedown(e: MouseEvent) {
@@ -82,6 +75,7 @@ export default function useDraggable(
 		updatePosAndOrigin(e)
 		drag.isMousedown = true
 		drag.prevPos = vec2.clone(drag.pos)
+		drag.startPos = vec2.clone(drag.pos)
 
 		// Fire onDragstart and onDrag
 		if (options.disableClick) {
@@ -103,8 +97,9 @@ export default function useDraggable(
 		drag.delta = vec2.sub(vec2.create(), drag.pos, drag.prevPos)
 
 		if (!drag.isDragging) {
-			// Just start drag
-			if (Math.abs(drag.pos[0]) > 2 || Math.abs(drag.pos[1]) > 2) {
+			// Determine whether dragging has start
+			const d = vec2.dist(drag.startPos, drag.pos)
+			if (d > 2) {
 				startDrag()
 			}
 		}
@@ -125,6 +120,7 @@ export default function useDraggable(
 		drag.isMousedown = false
 		drag.isDragging = false
 		drag.pos = vec2.create()
+		drag.startPos = vec2.create()
 		drag.delta = vec2.create()
 		window.removeEventListener('mousemove', onMousedrag)
 	}
@@ -137,5 +133,5 @@ export default function useDraggable(
 
 	onBeforeUnmount(onMouseup)
 
-	return {...toRefs(drag), absolutePos}
+	return toRefs(drag)
 }

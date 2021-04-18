@@ -139,7 +139,7 @@ export default defineComponent({
 		const tweakingHSV = shallowRef<ColorDict>({})
 		const tweakingHSVDelta = shallowRef<ColorDict>({})
 
-		const {origin, absolutePos, isDragging: tweaking} = useDraggable(buttonEl, {
+		const {origin, pos, isDragging: tweaking} = useDraggable(buttonEl, {
 			onClick() {
 				pickerOpened.value = !pickerOpened.value
 			},
@@ -222,7 +222,7 @@ export default defineComponent({
 			buttonEl,
 			pickerOpened,
 			origin,
-			absolutePos,
+			pos,
 			tweaking,
 
 			overlayButtonStyle,

@@ -11,18 +11,18 @@
 			<svg class="InputTranslate__overlay">
 				<polyline
 					class="bold"
-					:points="`${origin[0]} ${absolutePos[1]} ${origin[0]} ${origin[1]} ${absolutePos[0]} ${origin[1]}`"
+					:points="`${origin[0]} ${pos[1]} ${origin[0]} ${origin[1]} ${pos[0]} ${origin[1]}`"
 				/>
 				<polyline
 					class="dashed"
-					:points="`${absolutePos[0]} ${origin[1]} ${absolutePos[0]} ${absolutePos[1]} ${origin[0]} ${absolutePos[1]}`"
+					:points="`${pos[0]} ${origin[1]} ${pos[0]} ${pos[1]} ${origin[0]} ${pos[1]}`"
 				/>
 			</svg>
 			<div
 				class="InputTranslate__overlay-label"
 				:style="{
-					top: absolutePos[1] + 'px',
-					left: absolutePos[0] + 'px',
+					top: pos[1] + 'px',
+					left: pos[0] + 'px',
 				}"
 			>
 				{{ overlayLabel }}
@@ -61,7 +61,7 @@ export default defineComponent({
 
 		const startValue = ref(vec2.create())
 
-		const {isDragging: tweaking, origin, absolutePos} = useDraggable(el, {
+		const {isDragging: tweaking, origin, pos} = useDraggable(el, {
 			disableClick: true,
 			onDragStart() {
 				startValue.value = props.modelValue as vec2
@@ -120,7 +120,7 @@ export default defineComponent({
 			tweaking,
 			onKeydown,
 			origin,
-			absolutePos,
+			pos,
 			overlayLabel,
 		}
 	},
