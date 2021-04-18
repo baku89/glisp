@@ -8,21 +8,12 @@
 	/>
 	<teleport to="body">
 		<template v-if="tweaking">
-			<svg class="InputTranslate__overlay">
-				<polyline
-					class="bold"
-					:points="`${origin[0]} ${pos[1]} ${origin[0]} ${origin[1]} ${pos[0]} ${origin[1]}`"
-				/>
-				<polyline
-					class="dashed"
-					:points="`${pos[0]} ${origin[1]} ${pos[0]} ${pos[1]} ${origin[0]} ${pos[1]}`"
-				/>
-			</svg>
 			<div
 				class="InputTranslate__overlay-label"
+				:class="[tweakLabelClass]"
 				:style="{
-					top: pos[1] + 'px',
-					left: pos[0] + 'px',
+					top: wrappedPos[1] + 'px',
+					left: wrappedPos[0] + 'px',
 				}"
 			>
 				{{ overlayLabel }}
@@ -34,11 +25,13 @@
 </template>
 
 <script lang="ts">
+import {useMagicKeys} from '@vueuse/core'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
-import {computed, defineComponent, PropType, ref} from 'vue'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
+import {unsignedMod} from '@/utils'
 
 const ARROW_KEYS = new Set(['up', 'down', 'left', 'right'])
 
@@ -50,6 +43,7 @@ export default defineComponent({
 			required: true,
 		},
 	},
+	emit: ['update:modelValue'],
 	setup(props, context) {
 		const el = ref<null | HTMLElement>(null)
 
@@ -60,18 +54,54 @@ export default defineComponent({
 		}
 
 		const startValue = ref(vec2.create())
+		let tweakStartValue = vec2.create()
+		let tweakStartPos = vec2.create()
 
-		const {isDragging: tweaking, origin, pos} = useDraggable(el, {
+		const {isDragging: tweaking, pos} = useDraggable(el, {
 			disableClick: true,
+			lockPointer: true,
 			onDragStart() {
 				startValue.value = props.modelValue as vec2
+				tweakSpeedChanged.value = true
 			},
-			onDrag({delta}) {
-				update(delta)
+			onDrag({pos}) {
+				if (tweakSpeedChanged.value) {
+					tweakStartValue = props.modelValue as vec2
+					tweakStartPos = pos
+					tweakSpeedChanged.value = false
+				}
+
+				const delta = vec2.sub(vec2.create(), pos, tweakStartPos)
+
+				const multipliedDelta = vec2.scale(
+					vec2.create(),
+					delta,
+					tweakSpeed.value
+				)
+
+				const val = vec2.add(vec2.create(), tweakStartValue, multipliedDelta)
+				context.emit('update:modelValue', val)
 			},
-			onDragEnd() {
-				context.emit('end-tweak')
-			},
+		})
+
+		const wrappedPos = computed(() => [
+			unsignedMod(pos.value[0], window.innerWidth),
+			unsignedMod(pos.value[1], window.innerHeight),
+		])
+
+		const {shift, alt} = useMagicKeys()
+		watch([shift, alt], () => (tweakSpeedChanged.value = true))
+
+		const tweakSpeedChanged = ref(false)
+
+		const tweakLabelClass = computed(() =>
+			shift.value ? 'fast' : alt.value ? 'slow' : ''
+		)
+
+		const tweakSpeed = computed(() => {
+			if (shift.value) return 10
+			if (alt.value) return 0.1
+			return 1
 		})
 
 		function onKeydown(e: KeyboardEvent) {
@@ -119,9 +149,9 @@ export default defineComponent({
 			el,
 			tweaking,
 			onKeydown,
-			origin,
-			pos,
+			wrappedPos,
 			overlayLabel,
+			tweakLabelClass,
 		}
 	},
 	inheritAttrs: false,
@@ -168,13 +198,9 @@ export default defineComponent({
 		width 1px
 		height 7px
 
-	&__overlay
-		input-overlay()
-
 	&__overlay-label
 		tooltip()
 		z-index 1001
-		cursor none
 		transform translate(-50%, -50%)
 		font-monospace()
 		position fixed
@@ -197,26 +223,28 @@ export default defineComponent({
 			&:before, &:after
 				position absolute
 				display block
-				width 1em
+				width 2em
 				height 1em
 				text-align center
 				font-weight normal
 				line-height 1em
 
 			&:before
-				content '<'
+				content '\00a0<\00a0'
 
 			&:after
-				content '>'
+				content '\00a0>\00a0'
 
 			&.horiz:before
 				top 50%
 				right 100%
+				margin-right -0.5em
 				transform translateY(-50%)
 
 			&.horiz:after
 				top 50%
 				left 100%
+				margin-left -0.5em
 				transform translateY(-50%)
 
 			&.vert:before
@@ -226,4 +254,18 @@ export default defineComponent({
 			&.vert:after
 				bottom -1em
 				transform rotate(90deg)
+
+		&.fast .arrows
+			&:before
+				content '<<\00a0'
+
+			&:after
+				content '\00a0>>'
+
+		&.slow .arrows
+			&:before
+				content '\00a0<~'
+
+			&:after
+				content '~>\00a0'
 </style>

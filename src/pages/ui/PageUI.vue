@@ -215,8 +215,8 @@
 							<dd>
 								<InputTranslate v-model="data.position" :min="0" :max="100" />
 								<span class="comment">
-									Value: [{{ data.position.join(' ') }}]</span
-								>
+									Value: [{{ data.position.join(' ') }}]
+								</span>
 							</dd>
 							<dt>Button</dt>
 							<dd>

@@ -140,7 +140,6 @@ export default defineComponent({
 			tweakSpeed,
 			tweakLabelClass,
 			showTweakLabel,
-			originX,
 			labelX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
@@ -165,7 +164,6 @@ export default defineComponent({
 			showTweakLabel,
 			sliderStyle,
 			origin,
-			originX,
 			labelX,
 
 			displayValue,

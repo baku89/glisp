@@ -87,16 +87,6 @@ export default function useNumber(
 		if (alt.value) return 0.1
 		return 1
 	})
-
-	const originX = computed(() => {
-		if (!dragEl.value || !showTweakLabel.value) return 0
-
-		const {left, right} = dragEl.value.getBoundingClientRect()
-
-		const x = pos.value[0]
-		return x < left ? left : right
-	})
-
 	const labelX = computed(() => unsignedMod(pos.value[0], window.innerWidth))
 
 	const showTweakLabel = computed(() => {
@@ -125,7 +115,6 @@ export default function useNumber(
 		tweakSpeed,
 		tweakLabelClass,
 		showTweakLabel,
-		originX,
 		labelX,
 	}
 }
