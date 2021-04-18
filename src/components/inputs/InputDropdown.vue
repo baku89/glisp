@@ -101,11 +101,10 @@ export default defineComponent({
 			})
 		})
 
-		const filteredResults = ref<FilteredResult[]>([])
-		resetFilteredResults()
+		const filteredResults = ref(getNotFilteredResults())
 
-		function resetFilteredResults() {
-			filteredResults.value = completeItems.value.map((item, index) => {
+		function getNotFilteredResults() {
+			return completeItems.value.map((item, index) => {
 				return {
 					index,
 					string: item.label,
@@ -135,7 +134,7 @@ export default defineComponent({
 
 			open.value = true
 			inputFocused.value = true
-			resetFilteredResults()
+			filteredResults.value = getNotFilteredResults()
 		}
 
 		const {tab} = useMagicKeys()
@@ -203,13 +202,15 @@ export default defineComponent({
 			})
 
 			if (result.length === 0) {
-				resetFilteredResults()
+				filteredResults.value = getNotFilteredResults()
 			} else {
-				filteredResults.value = result.map(({index, string, original}) => ({
-					index,
-					string,
-					original,
-				}))
+				filteredResults.value = result.map(({index, string, original}) => {
+					return {
+						index,
+						string,
+						original,
+					}
+				})
 			}
 
 			// Select the first of filtered items if no item is selected
@@ -236,6 +237,9 @@ export default defineComponent({
 			setTimeout(() => {
 				if (!inputFocused.value) {
 					open.value = false
+					if (activeItem.value) {
+						inputValue.value = activeItem.value.label
+					}
 				}
 			}, 0)
 		}
