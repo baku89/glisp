@@ -82,6 +82,7 @@ export default defineComponent({
 	width 12.6em
 	height $input-height
 	border-radius $input-round
+	user-select none
 	gap 1px
 
 	&:focus-within
