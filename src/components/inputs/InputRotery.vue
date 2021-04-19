@@ -29,8 +29,8 @@
 					class="bold"
 					:x1="overlayLineOrigin[0]"
 					:y1="overlayLineOrigin[1]"
-					:x2="pos[0]"
-					:y2="pos[1]"
+					:x2="clampedPos[0]"
+					:y2="clampedPos[1]"
 				/>
 				<path
 					v-if="tweakMode === 'relative'"
@@ -41,9 +41,10 @@
 			<div
 				class="InputRotery__overlay-label"
 				:style="{
-					top: pos[1] + 'px',
-					left: pos[0] + 'px',
+					top: clampedPos[1] + 'px',
+					left: clampedPos[0] + 'px',
 				}"
+				ref="overlayLabel"
 			>
 				{{ overlayLabel }}
 				<span
@@ -58,7 +59,10 @@
 </template>
 
 <script lang="ts">
+import {templateRef, useElementSize} from '@vueuse/core'
 import {vec2} from 'gl-matrix'
+import {checkIntersection} from 'line-intersect'
+import _ from 'lodash'
 import {computed, defineComponent, Ref, ref} from 'vue'
 
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
@@ -106,6 +110,7 @@ export default defineComponent({
 
 		const {isDragging: tweaking, origin, pos} = useDraggable(el, {
 			disableClick: true,
+			lockPointer: true,
 			onDragStart({pos, origin}) {
 				if (tweakMode.value === 'absolute') {
 					const p = vec2.sub(vec2.create(), pos, origin)
@@ -158,7 +163,7 @@ export default defineComponent({
 
 		const overlayLineOrigin = computed(() => {
 			const o = origin.value
-			const t = pos.value
+			const t = clampedPos.value
 			const radius = 10
 
 			const p = vec2.create()
@@ -214,6 +219,9 @@ export default defineComponent({
 			let circles = ''
 			for (let i = 0, step = Math.sign(turns); i !== turns; i += step) {
 				const radius = baseRadius + i * radiusStep
+				if (radius < 0) {
+					continue
+				}
 				const right = `${c[0] + radius} ${c[1]}`
 				const left = `${c[0] - radius} ${c[1]}`
 				circles += `M ${right}
@@ -224,6 +232,42 @@ export default defineComponent({
 			return arc + circles
 		})
 
+		const overlayLabelEl = templateRef('overlayLabel')
+
+		const {height: overlayLabelHeight} = useElementSize(overlayLabelEl)
+
+		const clampedPos = computed<vec2>(() => {
+			const [x, y] = pos.value
+			const [ox, oy] = origin.value
+			const margin = overlayLabelHeight.value * 2
+			const left = margin,
+				top = margin,
+				right = window.innerWidth - margin,
+				bottom = window.innerHeight - margin
+
+			let ret: ReturnType<typeof checkIntersection>
+
+			const check = _.partial(checkIntersection, x, y, ox, oy)
+
+			if ((ret = check(left, top, right, top)).type === 'intersecting') {
+				return [ret.point.x, ret.point.y]
+			}
+
+			if ((ret = check(right, top, right, bottom)).type === 'intersecting') {
+				return [ret.point.x, ret.point.y]
+			}
+
+			if ((ret = check(right, bottom, left, bottom)).type === 'intersecting') {
+				return [ret.point.x, ret.point.y]
+			}
+
+			if ((ret = check(left, bottom, left, top)).type === 'intersecting') {
+				return [ret.point.x, ret.point.y]
+			}
+
+			return [x, y]
+		})
+
 		return {
 			el,
 			tweaking,
@@ -231,7 +275,7 @@ export default defineComponent({
 			startValue,
 
 			// overlay
-			pos,
+			clampedPos,
 			overlayLineOrigin,
 			overlayArcPath,
 			overlayLabel,
