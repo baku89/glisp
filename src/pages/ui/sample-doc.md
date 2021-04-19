@@ -2,7 +2,7 @@
 
 As its name implies, the large part of features of Glisp is built on the programming language **Lisp**. While we'll leave the details to [another chapter](why-lisp), Lisp has the notable property that it is both program and data. This duality is called "[code as data](https://en.wikipedia.org/wiki/Code_as_data)" or [homoiconicity](https://en.wikipedia.org/wiki/Homoiconicity) . Therefore, Glisp can use Lisp not only for scripting but also for various data representations such as project files, plugins, and even application settings. And since they are also the programs themselves, it means that each function can be modified, automated, and hacked with the equivalent level of flexibility as programming.
 
-> On Lisp is a comprehensive study of advanced Lisp techniques, with bottom-up programming as the unifying theme. It gives the first complete description of macros and macro applications. The book also covers important subjects related to bottom-up programming, including functional programming, rapid prototyping, interactive development, and embedded languages.
+> An orthogonal language is one in which you can express a lot by combining a small number of operators in a lot of different ways. Toy blocks are very orthogonal; a plastic model kit is hardly orthogonal at all.
 
 ![](https://glisp.app/docs/_media/screenshot.png)
 
