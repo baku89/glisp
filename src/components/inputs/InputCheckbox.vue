@@ -9,19 +9,9 @@
 				type="checkbox"
 			/>
 			<div class="InputCheckbox__frame">
-				<svg
-					class="InputCheckbox__checkmark"
-					viewBox="0 0 32 32"
-					width="32"
-					height="32"
-					fill="none"
-					stroke="currentcolor"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-				>
+				<SvgIcon mode="block" class="InputCheckbox__checkmark">
 					<path d="M2 20 L12 28 30 4" />
-				</svg>
+				</SvgIcon>
 			</div>
 		</div>
 		<label class="InputCheckbox__label" v-if="label" :for="id">{{
@@ -34,8 +24,13 @@
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
+
 export default defineComponent({
 	name: 'InputCheckbox',
+	components: {
+		SvgIcon,
+	},
 	props: {
 		modelValue: {
 			type: Boolean,
