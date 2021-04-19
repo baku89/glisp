@@ -4,9 +4,13 @@ As its name implies, the large part of features of Glisp is built on the program
 
 > On Lisp is a comprehensive study of advanced Lisp techniques, with bottom-up programming as the unifying theme. It gives the first complete description of macros and macro applications. The book also covers important subjects related to bottom-up programming, including functional programming, rapid prototyping, interactive development, and embedded languages.
 
+![](https://glisp.app/docs/_media/screenshot.png)
+
 # Glispとは?
 
 一言でいうと、**めちゃめちゃ柔軟で色んな使い方ができる次世代のデザインツール**を探求するプロジェクトです。[橋本麦](https://baku89.com)を中心に、[コントリビューター](https://github.com/baku89/glisp/graphs/contributors)、[スポンサー](https://github.com/sponsors/baku89?o=sd&sc=t)の皆さんの協力の元、オープンソースとして開発を進めています。
+
+[[toc]]
 
 ---
 
@@ -80,7 +84,7 @@ With multiple paragraphs.
 
 Here is an example of a pre code block
 
-```
+```clojure
 (let {square: (=> [x: Number] PosNumber::(* x x))
       w: 20
       c: Color::"Pink"
@@ -89,9 +93,37 @@ Here is an example of a pre code block
     (ellipse p [(vec2/x ../center) (square w)])))
 ```
 
-### `graphics/artboard`
+1. This is Ordered List
+2. This is second item
+   1. Nested ordered list
+   1. 2nd list with footnote reference,[^1] and another [^longnote]
+   1. Foobar
+      - Nested list with inline expression $\sqrt{3x-1}+(1+x)^2$
+      - Nested list
+        1. 3rd level of Ordered List
+        1. 3rd level of Ordered List
+3. Back to the first level
 
-Creates an artboard
+[^1]: Here is the footnote.
+[^longnote]: Here's one with multiple blocks.
+
+    Subsequent paragraphs are indented to show that they
+    belong to the previous footnote.
+
+$$
+M = P^{-1}  (T R S) P
+$$
+
+Term 1
+~ Definition 1
+
+Term 2
+~ Definition 2a
+~ Definition 2b
+
+### `documentation/example`
+
+Description for the function
 
 - **Parameter**
 
@@ -102,5 +134,5 @@ Creates an artboard
   | Width   | `Number`  |                                         |
   | ...Body | `Shape`   |                                         |
 
-- **Returns**: `item`
-- **Alias:** `artboard`
+- **Returns**: `Item`
+- **Alias:** `example`

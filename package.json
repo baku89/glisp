@@ -28,6 +28,7 @@
 	},
 	"devDependencies": {
 		"@popperjs/core": "^2.9.2",
+		"@traptitech/markdown-it-katex": "^3.4.0",
 		"@types/chroma-js": "^2.1.3",
 		"@types/color": "^3.0.1",
 		"@types/cytoscape": "^3.14.12",

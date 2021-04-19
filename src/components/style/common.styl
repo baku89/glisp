@@ -3,27 +3,16 @@ app()
 	background base16('00')
 	color base16('04')
 
-$font-monospace = 'Fira Code', monospace
-
-font-monospace(important = false)
-	if (important)
-		letter-spacing 0 !important
-		font-family $font-monospace !important
-		font-variant-ligatures normal !important
-	else
-		letter-spacing 0
-		font-family $font-monospace
-		font-variant-ligatures normal !important
+font-monospace()
+	font-family 'Fira Code', monospace
 
 font-title()
 	font-family 'Montserrat', sans-serif
 
 font-ui()
-	// font-family system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif
 	font-family 'Fira Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif
 
 font-text()
-	font-weight 400
 	font-family 'Commissioner', YuGothic, 'Yu Gothic Medium', 'Yu Gothic', sans-serif
 
 base16(name, opacity = 1)

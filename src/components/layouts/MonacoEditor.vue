@@ -40,6 +40,8 @@ export default defineComponent({
 				fontFamily: "'Fira Code'",
 				minimap: {enabled: false},
 				lineNumbers: 'off',
+				lineHeight: 21,
+				fontLigatures: true,
 				fontSize: 14,
 				renderLineHighlight: 'none',
 			})

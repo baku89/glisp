@@ -24,7 +24,7 @@ const PageSettings = {
 	},
 	ui: {
 		entry: 'src/pages/ui/index.ts',
-		template: 'src/pages/ui/template.html',
+		template: 'src/pages/template.html',
 	},
 	experiments: {
 		entry: 'src/experiments/07_new-syntax/index.ts',

@@ -7,7 +7,7 @@
 <script lang="ts">
 import {defineComponent, ref} from 'vue'
 
-import Markdown from '@/components/layouts/Markdown.vue'
+import Markdown from '@/components/layouts/Markdown'
 
 import SampleDoc from './sample-doc.md'
 
