@@ -85,10 +85,11 @@ With multiple paragraphs.
 Here is an example of a pre code block
 
 ```clojure
-(let {square: (=> [x: Number] PosNumber::(* x x))
-      w: 20
-      c: Color::"Pink"
-      p: Vec2::[0 0]}
+;; Glisp Code
+(let [square (=> [x: Number] (PosNumber (* x x)))
+      w:Number 20
+      c:Color (Color "Pink")
+      p (Vec2 [0 0])]
   (style (fill c)
     (ellipse p [(vec2/x ../center) (square w)])))
 ```
