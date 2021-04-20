@@ -30,6 +30,10 @@ const PageSettings = {
 		entry: 'src/experiments/07_new-syntax/index.ts',
 		template: 'src/pages/template.html',
 	},
+	syntaxdev: {
+		entry: 'src/experiments/08_syntaxdev/index.ts',
+		template: 'src/pages/template.html',
+	},
 	easing: {
 		entry: 'src/pages/easing/index.ts',
 		template: 'src/pages/template.html',
