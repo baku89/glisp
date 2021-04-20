@@ -113,19 +113,28 @@ export default defineComponent({
 
 	&-blurred
 		.jqconsole-cursor
-			background var(--editorCursor-foreground)
+			background base16('04')
 			opacity 0.4
 
 	&-cursor
-		background var(--editorCursor-foreground)
+		background base16('04')
 		transform scaleX(0.2) translateX(-10%)
 		transform-origin 0 0
 
 	&-prompt, &-old-prompt
-		color var(--editorCursor-foreground)
+		&:before
+			color base16('03')
+			content '>> '
+			font-weight bold
+
+	&-old-prompt
+		color base16('04')
+
+	&-prompt
+		color base16('06')
 
 		&:before
-			color var(--editorWhitespace-foreground)
+			color base16('03')
 			content '>> '
 			font-weight bold
 
@@ -136,9 +145,9 @@ export default defineComponent({
 		color base16('09')
 
 	&-error
-		color var(--token-error-token)
+		color base16('08')
 
 	.bracket-match
-		background var(--editorBracketMatch-background)
-		box-shadow inset 0 0 0 1px var(--editorBracketMatch-border)
+		background base16('02')
+		box-shadow inset 0 0 0 1px base16('03')
 </style>

@@ -1,6 +1,6 @@
 <template>
 	<div class="Interpreter">
-		<h2>Niu :: REPL</h2>
+		<h2>Glisp :: REPL</h2>
 		<splitpanes class="glisp-theme">
 			<pane>
 				<MinimalConsole class="Interpreter__console" :rep="rep" />
@@ -35,9 +35,7 @@ export default defineComponent({
 	name: 'Interpreter',
 	components: {MinimalConsole, Splitpanes, Pane, ExpInputScope},
 	setup() {
-		const {background} = useScheme()
-
-		background.value = 'black'
+		useScheme()
 
 		const scope: ExpScope = reactive(createExpScope({})) as any
 
