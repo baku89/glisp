@@ -120,7 +120,7 @@ SymbolIdentifier "symbol" = str:SymbolLiteral
 		}
 	}
 
-SymbolLiteral = $([a-z_+\-*=?|&<>@]i [0-9a-z_+\-*=?|&<>@]i*)
+SymbolLiteral = $([a-z_+\-*=?<>@]i [0-9a-z_+\-*=?<>@]i*)
 
 SymbolQuoted "quoted symbol" = '`' str:$(!'`' .)+ '`'
 	{

@@ -608,7 +608,7 @@ const GlobalScope = createExpScope({
 		null,
 		TypeNumber
 	),
-	'&&': createExpFnJS(
+	and: createExpFnJS(
 		(a: boolean, b: boolean) => a && b,
 		[
 			{label: 'x', body: TypeBoolean},
