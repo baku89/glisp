@@ -53,7 +53,7 @@ interface ExpValue extends ExpBase {
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	name: string
-	resolved?:
+	inspected?:
 		| {semantic: 'ref'; ref: Exp}
 		| {semantic: 'capture'}
 		| {semantic: 'invalid'}
@@ -67,18 +67,19 @@ interface ExpReservedKeyword extends ExpBase {
 interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
+	inspected?: {semantic: 'fncall'; fn: Exp; params: Exp[]}
 }
 
 interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
-	resolved?: {semantic: 'vector'; items: Exp[]}
+	inspected?: {semantic: 'vector'; items: Exp[]}
 }
 
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	items: Exp[]
-	resolved?: {
+	inspected?: {
 		semantic: 'hashMap'
 		hashMap: {
 			[hash: string]: Exp
@@ -115,22 +116,24 @@ function pushLog(exp: Exp, log: Log) {
 	}
 }
 
-export function resolveExp(exp: ExpSymbol): NonNullable<ExpSymbol['resolved']>
-export function resolveExp(exp: ExpVector): NonNullable<ExpVector['resolved']>
-export function resolveExp(exp: ExpHashMap): NonNullable<ExpHashMap['resolved']>
-export function resolveExp(
+export function inspectExp(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
+export function inspectExp(exp: ExpVector): NonNullable<ExpVector['inspected']>
+export function inspectExp(
+	exp: ExpHashMap
+): NonNullable<ExpHashMap['inspected']>
+export function inspectExp(
 	exp: Exp
 ):
 	| null
-	| NonNullable<ExpSymbol['resolved']>
-	| NonNullable<ExpVector['resolved']>
-	| NonNullable<ExpHashMap['resolved']> {
+	| NonNullable<ExpSymbol['inspected']>
+	| NonNullable<ExpVector['inspected']>
+	| NonNullable<ExpHashMap['inspected']> {
 	switch (exp.ast) {
 		case 'value':
 		case 'reservedKeyword':
 			return null
 		case 'symbol':
-			if (exp.resolved) return exp.resolved
+			if (exp.inspected) return exp.inspected
 			if (exp.name === 'PI') {
 				return {
 					semantic: 'ref',
@@ -141,12 +144,12 @@ export function resolveExp(
 			pushLog(exp, {level: 'error', reason: `${exp.name} is not defined`})
 			return {semantic: 'invalid'}
 		case 'vector':
-			if (exp.resolved) return exp.resolved
+			if (exp.inspected) return exp.inspected
 
 			return {semantic: 'vector', items: exp.items}
 
 		case 'hashMap': {
-			if (exp.resolved) return exp.resolved
+			if (exp.inspected) return exp.inspected
 
 			const hashMap: {[hash: string]: Exp} = {}
 
@@ -176,10 +179,10 @@ export function evalExp(exp: Exp): Value {
 		case 'reservedKeyword':
 			return {type: 'exp', exp: exp}
 		case 'symbol': {
-			const resolved = resolveExp(exp)
-			switch (resolved.semantic) {
+			const inspected = inspectExp(exp)
+			switch (inspected.semantic) {
 				case 'ref':
-					return evalExp(resolved.ref)
+					return evalExp(inspected.ref)
 				case 'capture':
 				case 'invalid':
 					return null
@@ -187,18 +190,18 @@ export function evalExp(exp: Exp): Value {
 			break
 		}
 		case 'vector': {
-			const resolved = resolveExp(exp)
-			switch (resolved.semantic) {
+			const inspected = inspectExp(exp)
+			switch (inspected.semantic) {
 				case 'vector':
-					return resolved.items.map(evalExp)
+					return inspected.items.map(evalExp)
 			}
 			break
 		}
 		case 'hashMap': {
-			const resolved = resolveExp(exp)
+			const inspected = inspectExp(exp)
 			return {
 				type: 'hashMap',
-				value: _.mapValues(resolved.hashMap, evalExp),
+				value: _.mapValues(inspected.hashMap, evalExp),
 			}
 		}
 	}
