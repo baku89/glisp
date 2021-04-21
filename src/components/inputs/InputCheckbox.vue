@@ -10,7 +10,7 @@
 			/>
 			<div class="InputCheckbox__frame">
 				<SvgIcon mode="block" class="InputCheckbox__checkmark">
-					<path d="M2 20 L12 28 30 4" />
+					<path d="M5,19l8,6L27,9" />
 				</SvgIcon>
 			</div>
 		</div>
@@ -86,10 +86,10 @@ export default defineComponent({
 
 	&__checkmark
 		position relative
-		top 10%
-		left 10%
-		width 80%
-		height 80%
+		top 0%
+		left 0%
+		width 100%
+		height 100%
 		color base16('06')
 		text-align center
 		line-height $input-height
