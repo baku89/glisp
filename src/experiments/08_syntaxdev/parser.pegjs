@@ -11,9 +11,16 @@
 	}
 }
 
-Start = Form / BlankProgram
+Start = Program / BlankProgram
 
-BlankProgram = _ { return null }
+BlankProgram = _ { return undefined }
+
+Program = form:Form
+	{
+		form.parent = null
+		return form
+	}
+
 
 Form =
 	Constant / ReservedKeyword / Number / String / Symbol

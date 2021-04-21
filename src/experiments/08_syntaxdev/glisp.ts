@@ -1,45 +1,90 @@
+import _ from 'lodash'
 import peg from 'pegjs'
 
 import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type Exp =
-	| ExpValue
-	| ExpSymbol
-	| ExpReservedKeyword
-	| ExpList
-	| ExpVector
-	| ExpHashMap
+type ReservedKeywordNames = '=>' | 'let' | '...'
 
-interface ExpValue {
-	ast: 'value'
-	value: null | boolean | number | string
+type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
+
+type ValuePrim = null | boolean | number | string
+
+type IFnJS = (<A0, R>(arg0: A0) => R) | (<A0, A1, R>(arg0: A0, arg1: A1) => R)
+
+interface ValueExp {
+	type: 'exp'
+	exp: Exp
 }
 
-interface ExpSymbol {
+interface ValueFn {
+	body: IFnJS
+}
+
+interface ValueHashMap {
+	type: 'hashMap'
+	value: {
+		[key: string]: Value
+	}
+}
+
+type Exp = ExpValue | ExpSymbol | ExpReservedKeyword | ExpVector | ExpHashMap
+
+type NonNullable<T> = Exclude<T, undefined | null>
+
+interface Log {
+	level: 'error' | 'warn' | 'info'
+	reason: string
+}
+
+type ExpColl = ExpList | ExpValue | ExpVector | ExpHashMap
+
+interface ExpBase {
+	parent: null | ExpColl
+	logs?: Log[]
+}
+
+interface ExpValue extends ExpBase {
+	ast: 'value'
+	value: Value
+}
+
+interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	name: string
+	resolved?:
+		| {semantic: 'ref'; ref: Exp}
+		| {semantic: 'capture'}
+		| {semantic: 'invalid'}
 }
 
-interface ExpReservedKeyword {
+interface ExpReservedKeyword extends ExpBase {
 	ast: 'reservedKeyword'
-	name: string
+	name: ReservedKeywordNames
 }
 
-interface ExpList {
+interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
 }
 
-interface ExpVector {
+interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
+	resolved?: {semantic: 'vector'; items: Exp[]}
 }
 
-interface ExpHashMap {
+interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	items: Exp[]
+	resolved?: {
+		semantic: 'hashMap'
+		hashMap: {
+			[hash: string]: Exp
+		}
+	}
+	logs?: Log[]
 }
 
 export function readStr(str: string): Exp {
@@ -47,10 +92,114 @@ export function readStr(str: string): Exp {
 
 	if (exp === undefined) {
 		return {
+			parent: null,
 			ast: 'value',
 			value: null,
 		}
 	} else {
 		return exp
+	}
+}
+
+const ExpPI: ExpValue = {
+	parent: null,
+	ast: 'value',
+	value: Math.PI,
+}
+
+function pushLog(exp: Exp, log: Log) {
+	if (exp.logs) {
+		exp.logs.push(log)
+	} else {
+		exp.logs = [log]
+	}
+}
+
+export function resolveExp(exp: ExpSymbol): NonNullable<ExpSymbol['resolved']>
+export function resolveExp(exp: ExpVector): NonNullable<ExpVector['resolved']>
+export function resolveExp(exp: ExpHashMap): NonNullable<ExpHashMap['resolved']>
+export function resolveExp(
+	exp: Exp
+):
+	| null
+	| NonNullable<ExpSymbol['resolved']>
+	| NonNullable<ExpVector['resolved']>
+	| NonNullable<ExpHashMap['resolved']> {
+	switch (exp.ast) {
+		case 'value':
+		case 'reservedKeyword':
+			return null
+		case 'symbol':
+			if (exp.resolved) return exp.resolved
+			if (exp.name === 'PI') {
+				return {
+					semantic: 'ref',
+					ref: ExpPI,
+				}
+			}
+			// Not Defined
+			pushLog(exp, {level: 'error', reason: `${exp.name} is not defined`})
+			return {semantic: 'invalid'}
+		case 'vector':
+			if (exp.resolved) return exp.resolved
+
+			return {semantic: 'vector', items: exp.items}
+
+		case 'hashMap': {
+			if (exp.resolved) return exp.resolved
+
+			const hashMap: {[hash: string]: Exp} = {}
+
+			if (exp.items.length % 2 !== 0) {
+				pushLog(exp, {level: 'warn', reason: 'Odd number of hashMap items'})
+			}
+
+			for (let i = 0; i < exp.items.length; i += 2) {
+				const key = exp.items[i]
+				const value = exp.items[i + 1]
+				if (key.ast !== 'value' || typeof key.value !== 'string') {
+					pushLog(exp, {level: 'warn', reason: 'Key ... is not a string'})
+					continue
+				}
+				hashMap[key.value] = value
+			}
+
+			return {semantic: 'hashMap', hashMap}
+		}
+	}
+}
+
+export function evalExp(exp: Exp): Value {
+	switch (exp.ast) {
+		case 'value':
+			return exp.value
+		case 'reservedKeyword':
+			return {type: 'exp', exp: exp}
+		case 'symbol': {
+			const resolved = resolveExp(exp)
+			switch (resolved.semantic) {
+				case 'ref':
+					return evalExp(resolved.ref)
+				case 'capture':
+				case 'invalid':
+					return null
+			}
+			break
+		}
+		case 'vector': {
+			const resolved = resolveExp(exp)
+			switch (resolved.semantic) {
+				case 'vector':
+					return resolved.items.map(evalExp)
+			}
+			break
+		}
+		case 'hashMap': {
+			const resolved = resolveExp(exp)
+			return {
+				type: 'hashMap',
+				value: _.mapValues(resolved.hashMap, evalExp),
+			}
+		}
 	}
 }
