@@ -11,10 +11,20 @@ type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
 
 type ValuePrim = null | boolean | number | string
 
-type IFnJS = (<A0, R>(arg0: A0) => R) | (<A0, A1, R>(arg0: A0, arg1: A1) => R)
+type IFnJS =
+	| (<A0 extends Value, R extends Value>(arg0: A0) => R)
+	| (<A0 extends Value, A1 extends Value, R extends Value>(
+			arg0: A0,
+			arg1: A1
+	  ) => R)
+	| (<A0 extends Value, A1 extends Value, A2 extends Value, R extends Value>(
+			arg0: A0,
+			arg1: A1,
+			arg2: A2
+	  ) => R)
 
 interface ValueExp {
-	type: 'exp'
+	kind: 'exp'
 	exp: Exp
 }
 
@@ -23,13 +33,19 @@ interface ValueFn {
 }
 
 interface ValueHashMap {
-	type: 'hashMap'
+	kind: 'hashMap'
 	value: {
 		[key: string]: Value
 	}
 }
 
-type Exp = ExpValue | ExpSymbol | ExpReservedKeyword | ExpVector | ExpHashMap
+type Exp =
+	| ExpValue
+	| ExpSymbol
+	| ExpReservedKeyword
+	| ExpList
+	| ExpVector
+	| ExpHashMap
 
 type NonNullable<T> = Exclude<T, undefined | null>
 
@@ -67,7 +83,9 @@ interface ExpReservedKeyword extends ExpBase {
 interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
-	inspected?: {semantic: 'fncall'; fn: Exp; params: Exp[]}
+	inspected?:
+		| {semantic: 'application'; fn: Exp; params: Exp[]}
+		| {semantic: 'invalid'}
 }
 
 interface ExpVector extends ExpBase {
@@ -116,22 +134,25 @@ function pushLog(exp: Exp, log: Log) {
 	}
 }
 
-export function inspectExp(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
-export function inspectExp(exp: ExpVector): NonNullable<ExpVector['inspected']>
-export function inspectExp(
+export function inspectAst(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
+export function inspectAst(exp: ExpList): NonNullable<ExpList['inspected']>
+export function inspectAst(exp: ExpVector): NonNullable<ExpVector['inspected']>
+export function inspectAst(
 	exp: ExpHashMap
 ): NonNullable<ExpHashMap['inspected']>
-export function inspectExp(
+export function inspectAst(
 	exp: Exp
 ):
 	| null
 	| NonNullable<ExpSymbol['inspected']>
+	| NonNullable<ExpList['inspected']>
 	| NonNullable<ExpVector['inspected']>
 	| NonNullable<ExpHashMap['inspected']> {
 	switch (exp.ast) {
 		case 'value':
 		case 'reservedKeyword':
 			return null
+
 		case 'symbol':
 			if (exp.inspected) return exp.inspected
 			if (exp.name === 'PI') {
@@ -143,6 +164,18 @@ export function inspectExp(
 			// Not Defined
 			pushLog(exp, {level: 'error', reason: `${exp.name} is not defined`})
 			return {semantic: 'invalid'}
+
+		case 'list':
+			if (exp.inspected) return exp.inspected
+			if (exp.items.length >= 1 && exp.items[0].ast === 'symbol') {
+				return {
+					semantic: 'application',
+					fn: exp.items[0],
+					params: exp.items.slice(1),
+				}
+			}
+			return {semantic: 'invalid'}
+
 		case 'vector':
 			if (exp.inspected) return exp.inspected
 
@@ -176,10 +209,12 @@ export function evalExp(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
 			return exp.value
+
 		case 'reservedKeyword':
-			return {type: 'exp', exp: exp}
+			return {kind: 'exp', exp: exp}
+
 		case 'symbol': {
-			const inspected = inspectExp(exp)
+			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
 				case 'ref':
 					return evalExp(inspected.ref)
@@ -189,18 +224,29 @@ export function evalExp(exp: Exp): Value {
 			}
 			break
 		}
+
+		case 'list':
+			{
+				const inspected = inspectAst(exp)
+				switch (inspected.semantic) {
+					case 'application':
+				}
+			}
+			break
+
 		case 'vector': {
-			const inspected = inspectExp(exp)
+			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
 				case 'vector':
 					return inspected.items.map(evalExp)
 			}
 			break
 		}
+
 		case 'hashMap': {
-			const inspected = inspectExp(exp)
+			const inspected = inspectAst(exp)
 			return {
-				type: 'hashMap',
+				kind: 'hashMap',
 				value: _.mapValues(inspected.hashMap, evalExp),
 			}
 		}
