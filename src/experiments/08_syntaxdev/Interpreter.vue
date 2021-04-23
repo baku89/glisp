@@ -13,7 +13,7 @@ import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
-import {evalExp, readStr} from './glisp'
+import {evalExp, printValue, readStr} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
@@ -25,9 +25,9 @@ export default defineComponent({
 		async function rep(str: string) {
 			const exp = readStr(str)
 			console.log('exp', exp)
-			const evaluated = evalExp(exp)
-			console.log('evaluated', evaluated)
-			return exp.toString()
+			const val = evalExp(exp)
+			console.log('evaluated', val)
+			return printValue(val)
 		}
 
 		return {rep}

@@ -7,7 +7,11 @@ const parser = peg.generate(ParserDefinition)
 
 type ReservedKeywordNames = '=>' | 'let' | '...'
 
-type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
+type Value = ValueVoid | ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
+
+interface ValueVoid {
+	kind: 'void'
+}
 
 type ValuePrim = null | boolean | number | string
 
@@ -29,6 +33,7 @@ interface ValueExp {
 }
 
 interface ValueFn {
+	kind: 'fn'
 	body: IFnJS
 }
 
@@ -91,7 +96,10 @@ interface ExpList extends ExpBase {
 interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
-	inspected?: {semantic: 'vector'; items: Exp[]}
+	inspected?:
+		| {semantic: 'void'}
+		| {semantic: 'value'; value: Exp}
+		| {semantic: 'vector'; items: Exp[]}
 }
 
 interface ExpHashMap extends ExpBase {
@@ -179,7 +187,14 @@ export function inspectAst(
 		case 'vector':
 			if (exp.inspected) return exp.inspected
 
-			return {semantic: 'vector', items: exp.items}
+			switch (exp.items.length) {
+				case 0:
+					return {semantic: 'void'}
+				case 1:
+					return {semantic: 'value', value: exp.items[0]}
+				default:
+					return {semantic: 'vector', items: exp.items}
+			}
 
 		case 'hashMap': {
 			if (exp.inspected) return exp.inspected
@@ -230,6 +245,9 @@ export function evalExp(exp: Exp): Value {
 				const inspected = inspectAst(exp)
 				switch (inspected.semantic) {
 					case 'application':
+						return null
+					case 'invalid':
+						return null
 				}
 			}
 			break
@@ -237,6 +255,10 @@ export function evalExp(exp: Exp): Value {
 		case 'vector': {
 			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
+				case 'void':
+					return {kind: 'void'}
+				case 'value':
+					return evalExp(inspected.value)
 				case 'vector':
 					return inspected.items.map(evalExp)
 			}
@@ -250,5 +272,33 @@ export function evalExp(exp: Exp): Value {
 				value: _.mapValues(inspected.hashMap, evalExp),
 			}
 		}
+	}
+}
+
+export function printValue(val: Value): string {
+	if (val === null) {
+		return 'null'
+	}
+
+	switch (typeof val) {
+		case 'boolean':
+			return val ? 'true' : 'false'
+		case 'number':
+			return val.toString()
+		case 'string':
+			return `"${val}"`
+	}
+
+	if (Array.isArray(val)) {
+		return '[' + val.map(printValue).join(' ') + ']'
+	}
+
+	switch (val.kind) {
+		case 'exp':
+		case 'fn':
+		case 'hashMap':
+			throw new Error('aaa')
+		case 'void':
+			return '[]'
 	}
 }
