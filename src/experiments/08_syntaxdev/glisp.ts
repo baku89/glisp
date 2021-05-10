@@ -7,11 +7,7 @@ const parser = peg.generate(ParserDefinition)
 
 type ReservedKeywordNames = '=>' | 'let' | '...'
 
-type Value = ValueVoid | ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
-
-interface ValueVoid {
-	kind: 'void'
-}
+type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
 
 type ValuePrim = null | boolean | number | string
 
@@ -44,13 +40,7 @@ interface ValueHashMap {
 	}
 }
 
-type Exp =
-	| ExpValue
-	| ExpSymbol
-	| ExpReservedKeyword
-	| ExpList
-	| ExpVector
-	| ExpHashMap
+type Exp = ExpValue | ExpSymbol | ExpReservedKeyword | ExpColl
 
 type NonNullable<T> = Exclude<T, undefined | null>
 
@@ -59,7 +49,7 @@ interface Log {
 	reason: string
 }
 
-type ExpColl = ExpList | ExpValue | ExpVector | ExpHashMap
+type ExpColl = ExpList | ExpVector | ExpHashMap
 
 interface ExpBase {
 	parent: null | ExpColl
@@ -128,10 +118,20 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const ExpPI: ExpValue = {
-	parent: null,
-	ast: 'value',
-	value: Math.PI,
+const GlobalSymbols: {[name: string]: Exp} = {
+	PI: {
+		parent: null,
+		ast: 'value',
+		value: Math.PI,
+	},
+	'+': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			body: ((a: number, b: number) => a + b) as any,
+		},
+	},
 }
 
 function pushLog(exp: Exp, log: Log) {
@@ -142,6 +142,7 @@ function pushLog(exp: Exp, log: Log) {
 	}
 }
 
+export function inspectAst(exp: ExpValue | ExpReservedKeyword): null
 export function inspectAst(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
 export function inspectAst(exp: ExpList): NonNullable<ExpList['inspected']>
 export function inspectAst(exp: ExpVector): NonNullable<ExpVector['inspected']>
@@ -160,13 +161,12 @@ export function inspectAst(
 		case 'value':
 		case 'reservedKeyword':
 			return null
-
 		case 'symbol':
 			if (exp.inspected) return exp.inspected
-			if (exp.name === 'PI') {
+			if (exp.name in GlobalSymbols) {
 				return {
 					semantic: 'ref',
-					ref: ExpPI,
+					ref: GlobalSymbols[exp.name],
 				}
 			}
 			// Not Defined
@@ -235,7 +235,7 @@ export function evalExp(exp: Exp): Value {
 					return evalExp(inspected.ref)
 				case 'capture':
 				case 'invalid':
-					return null
+					return []
 			}
 			break
 		}
@@ -244,10 +244,11 @@ export function evalExp(exp: Exp): Value {
 			{
 				const inspected = inspectAst(exp)
 				switch (inspected.semantic) {
-					case 'application':
-						return null
+					case 'application': {
+						return []
+					}
 					case 'invalid':
-						return null
+						return []
 				}
 			}
 			break
@@ -256,7 +257,7 @@ export function evalExp(exp: Exp): Value {
 			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
 				case 'void':
-					return {kind: 'void'}
+					return []
 				case 'value':
 					return evalExp(inspected.value)
 				case 'vector':
@@ -298,7 +299,5 @@ export function printValue(val: Value): string {
 		case 'fn':
 		case 'hashMap':
 			throw new Error('aaa')
-		case 'void':
-			return '[]'
 	}
 }

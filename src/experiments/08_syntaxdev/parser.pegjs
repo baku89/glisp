@@ -60,7 +60,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([a-z_+\-*=?<>@]i [0-9a-z_+\-*=?<>@]i*)
+Symbol "symbol" = name:$([^0-9]i [^ ,\t\n\r]i*)
 	{ 
 		return {
 			ast: 'symbol',
