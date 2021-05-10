@@ -18,8 +18,10 @@ type Value =
 
 type ValuePrim = boolean | number | string
 
-interface ValueType {
-	kind: 'type'
+type ValueType = ValueValType | ValueFnType
+
+interface ValueValType {
+	kind: 'valType'
 	supertype: null | ValueType
 }
 
@@ -121,10 +123,10 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const TypeAny: ValueType = {kind: 'type', supertype: null}
-const TypeNumber: ValueType = {kind: 'type', supertype: TypeAny}
-const TypeString: ValueType = {kind: 'type', supertype: TypeAny}
-const TypeBoolean: ValueType = {kind: 'type', supertype: TypeAny}
+const TypeAny: ValueType = {kind: 'valType', supertype: null}
+const TypeNumber: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeString: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeBoolean: ValueType = {kind: 'valType', supertype: TypeAny}
 
 const GlobalSymbols: {[name: string]: Exp} = {
 	Any: {
@@ -347,7 +349,7 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
-		case 'type':
+		case 'valType':
 			switch (val) {
 				case TypeAny:
 					return 'Any'
