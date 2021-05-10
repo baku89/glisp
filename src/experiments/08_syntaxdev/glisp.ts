@@ -292,7 +292,7 @@ function getValueType(v: Value): ValueType {
 	}
 
 	if (Array.isArray(v)) {
-		return v.map(getValueType)
+		return v.length === 1 ? getValueType(v[0]) : v.map(getValueType)
 	}
 
 	switch (v.kind) {
@@ -337,7 +337,9 @@ function getExpType(exp: Exp): ValueType {
 			return []
 		}
 		case 'vector':
-			return exp.items.map(getExpType)
+			return exp.items.length === 1
+				? getExpType(exp.items[0])
+				: exp.items.map(getExpType)
 		case 'hashMap':
 			return TypeHashMap
 	}
