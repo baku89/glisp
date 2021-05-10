@@ -7,12 +7,26 @@ const parser = peg.generate(ParserDefinition)
 
 type ReservedKeywordNames = '=>' | 'let' | '...'
 
-type Value = ValuePrim | Value[] | ValueAny | ValueExp | ValueHashMap | ValueFn
+type Value =
+	| ValuePrim
+	| Value[]
+	| ValueType
+	| ValueFnType
+	| ValueExp
+	| ValueHashMap
+	| ValueFn
 
 type ValuePrim = boolean | number | string
 
-interface ValueAny {
-	kind: 'any'
+interface ValueType {
+	kind: 'type'
+	supertype: null | ValueType
+}
+
+interface ValueFnType {
+	kind: 'fnType'
+	params: ValueType | ValueType[]
+	out: ValueType
 }
 
 interface ValueExp {
@@ -22,7 +36,10 @@ interface ValueExp {
 
 interface ValueFn {
 	kind: 'fn'
-	body: <A extends Value, R extends Value>(...arg0: A[]) => R
+	body: <A extends Exp, R extends Value>(
+		this: {eval: typeof evalExp},
+		...arg0: A[]
+	) => R
 }
 
 interface ValueHashMap {
@@ -104,14 +121,32 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const TypeAny: Exp = {
-	parent: null,
-	ast: 'value',
-	value: {kind: 'any'},
-}
+const TypeAny: ValueType = {kind: 'type', supertype: null}
+const TypeNumber: ValueType = {kind: 'type', supertype: TypeAny}
+const TypeString: ValueType = {kind: 'type', supertype: TypeAny}
+const TypeBoolean: ValueType = {kind: 'type', supertype: TypeAny}
 
 const GlobalSymbols: {[name: string]: Exp} = {
-	Any: TypeAny,
+	Any: {
+		parent: null,
+		ast: 'value',
+		value: TypeAny,
+	},
+	Number: {
+		parent: null,
+		ast: 'value',
+		value: TypeNumber,
+	},
+	String: {
+		parent: null,
+		ast: 'value',
+		value: TypeString,
+	},
+	Boolean: {
+		parent: null,
+		ast: 'value',
+		value: TypeBoolean,
+	},
 	PI: {
 		parent: null,
 		ast: 'value',
@@ -122,7 +157,27 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		ast: 'value',
 		value: {
 			kind: 'fn',
-			body: ((a: number, b: number) => a + b) as any,
+			body: function (this: {eval: typeof evalExp}, a: Exp, b: Exp) {
+				return (this.eval(a) as number) + (this.eval(b) as number)
+			} as any,
+		},
+	},
+	':=>': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			body: function (this: {eval: typeof evalExp}, params: Exp, out: Exp) {
+				const _params = this.eval(params) as ValueType[] | ValueType
+				const _out = this.eval(out) as ValueType
+				const ret = {
+					kind: 'fnType',
+					params: _params,
+					out: _out,
+				}
+				console.log(ret)
+				return ret
+			} as any,
 		},
 	},
 }
@@ -205,8 +260,6 @@ export function inspectAst(
 				hashMap[key.value] = value
 			}
 
-			console.log(exp.items, hashMap)
-
 			return {semantic: 'hashMap', hashMap}
 		}
 	}
@@ -246,7 +299,7 @@ export function evalExp(exp: Exp): Value {
 									!Array.isArray(fn) &&
 									fn.kind === 'fn'
 								) {
-									return fn.body(...inspected.params.map(evalExp))
+									return fn.body.call({eval: evalExp}, ...inspected.params)
 								}
 							}
 						}
@@ -294,8 +347,21 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
-		case 'any':
-			return 'Any'
+		case 'type':
+			switch (val) {
+				case TypeAny:
+					return 'Any'
+				case TypeBoolean:
+					return 'Boolean'
+				case TypeNumber:
+					return 'Number'
+				case TypeString:
+					return 'String'
+				default:
+					throw new Error('aaa')
+			}
+		case 'fnType':
+			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'exp':
 		case 'fn':
 			throw new Error('aaa')
