@@ -7,11 +7,13 @@ const parser = peg.generate(ParserDefinition)
 
 type ReservedKeywordNames = '=>' | 'let' | '...'
 
-type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
+type Value = ValuePrim | Value[] | ValueAny | ValueExp | ValueHashMap | ValueFn
 
 type ValuePrim = boolean | number | string
 
-type IFnJS = <A extends Value, R extends Value>(...arg0: A[]) => R
+interface ValueAny {
+	kind: 'any'
+}
 
 interface ValueExp {
 	kind: 'exp'
@@ -20,7 +22,7 @@ interface ValueExp {
 
 interface ValueFn {
 	kind: 'fn'
-	body: IFnJS
+	body: <A extends Value, R extends Value>(...arg0: A[]) => R
 }
 
 interface ValueHashMap {
@@ -103,7 +105,14 @@ export function readStr(str: string): Exp {
 	}
 }
 
+const TypeAny: Exp = {
+	parent: null,
+	ast: 'value',
+	value: {kind: 'any'},
+}
+
 const GlobalSymbols: {[name: string]: Exp} = {
+	Any: TypeAny,
 	PI: {
 		parent: null,
 		ast: 'value',
@@ -295,6 +304,8 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
+		case 'any':
+			return 'Any'
 		case 'exp':
 		case 'fn':
 			throw new Error('aaa')

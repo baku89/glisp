@@ -26,7 +26,7 @@ Form =
 	Constant / ReservedKeyword / Number / String
 	/ List / Vector / HashMap / Symbol
 
-Constant "constant" = value:$("true" / "false" / "null")
+Constant "constant" = value:$("true" / "false")
 	{
 		return {
 			ast: 'value',
