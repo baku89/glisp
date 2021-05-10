@@ -23,8 +23,8 @@ Program = form:Form
 
 
 Form =
-	Constant / ReservedKeyword / Number / String / Symbol
-	/ List / Vector / HashMap
+	Constant / ReservedKeyword / Number / String
+	/ List / Vector / HashMap / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -60,7 +60,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^0-9]i [^ ,\t\n\r]i*)
+Symbol "symbol" = name:$([^ ,\t\n\r()[\]{}]i+)
 	{ 
 		return {
 			ast: 'symbol',

@@ -11,17 +11,7 @@ type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
 
 type ValuePrim = null | boolean | number | string
 
-type IFnJS =
-	| (<A0 extends Value, R extends Value>(arg0: A0) => R)
-	| (<A0 extends Value, A1 extends Value, R extends Value>(
-			arg0: A0,
-			arg1: A1
-	  ) => R)
-	| (<A0 extends Value, A1 extends Value, A2 extends Value, R extends Value>(
-			arg0: A0,
-			arg1: A1,
-			arg2: A2
-	  ) => R)
+type IFnJS = <A extends Value, R extends Value>(...arg0: A[]) => R
 
 interface ValueExp {
 	kind: 'exp'
@@ -101,7 +91,6 @@ interface ExpHashMap extends ExpBase {
 			[hash: string]: Exp
 		}
 	}
-	logs?: Log[]
 }
 
 export function readStr(str: string): Exp {
@@ -245,6 +234,20 @@ export function evalExp(exp: Exp): Value {
 				const inspected = inspectAst(exp)
 				switch (inspected.semantic) {
 					case 'application': {
+						switch (inspected.fn.ast) {
+							case 'symbol': {
+								const fn = evalExp(inspected.fn)
+
+								if (
+									fn !== null &&
+									typeof fn === 'object' &&
+									!Array.isArray(fn) &&
+									fn.kind === 'fn'
+								) {
+									return fn.body(...inspected.params.map(evalExp))
+								}
+							}
+						}
 						return []
 					}
 					case 'invalid':
