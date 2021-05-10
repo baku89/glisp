@@ -79,7 +79,6 @@ interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
 	inspected?:
-		| {semantic: 'void'}
 		| {semantic: 'value'; value: Exp}
 		| {semantic: 'vector'; items: Exp[]}
 }
@@ -181,13 +180,10 @@ export function inspectAst(
 		case 'vector':
 			if (exp.inspected) return exp.inspected
 
-			switch (exp.items.length) {
-				case 0:
-					return {semantic: 'void'}
-				case 1:
-					return {semantic: 'value', value: exp.items[0]}
-				default:
-					return {semantic: 'vector', items: exp.items}
+			if (exp.items.length === 1) {
+				return {semantic: 'value', value: exp.items[0]}
+			} else {
+				return {semantic: 'vector', items: exp.items}
 			}
 
 		case 'hashMap': {
@@ -265,8 +261,6 @@ export function evalExp(exp: Exp): Value {
 		case 'vector': {
 			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
-				case 'void':
-					return []
 				case 'value':
 					return evalExp(inspected.value)
 				case 'vector':
@@ -286,10 +280,6 @@ export function evalExp(exp: Exp): Value {
 }
 
 export function printValue(val: Value): string {
-	if (val === null) {
-		return 'null'
-	}
-
 	switch (typeof val) {
 		case 'boolean':
 			return val ? 'true' : 'false'
@@ -313,8 +303,7 @@ export function printValue(val: Value): string {
 			return (
 				'{' +
 				Object.entries(val.value)
-					.map(([k, v]) => [`"${k}"`, printValue(v)])
-					.flat()
+					.flatMap(([k, v]) => [`"${k}"`, printValue(v)])
 					.join(' ') +
 				'}'
 			)
