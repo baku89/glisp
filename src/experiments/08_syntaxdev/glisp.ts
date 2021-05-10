@@ -9,7 +9,7 @@ type ReservedKeywordNames = '=>' | 'let' | '...'
 
 type Value = ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
 
-type ValuePrim = null | boolean | number | string
+type ValuePrim = boolean | number | string
 
 type IFnJS = <A extends Value, R extends Value>(...arg0: A[]) => R
 
@@ -97,11 +97,7 @@ export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
-		return {
-			parent: null,
-			ast: 'value',
-			value: null,
-		}
+		return {parent: null, ast: 'vector', items: []}
 	} else {
 		return exp
 	}
@@ -204,6 +200,8 @@ export function inspectAst(
 				hashMap[key.value] = value
 			}
 
+			console.log(exp.items, hashMap)
+
 			return {semantic: 'hashMap', hashMap}
 		}
 	}
@@ -239,7 +237,6 @@ export function evalExp(exp: Exp): Value {
 								const fn = evalExp(inspected.fn)
 
 								if (
-									fn !== null &&
 									typeof fn === 'object' &&
 									!Array.isArray(fn) &&
 									fn.kind === 'fn'
@@ -300,7 +297,15 @@ export function printValue(val: Value): string {
 	switch (val.kind) {
 		case 'exp':
 		case 'fn':
-		case 'hashMap':
 			throw new Error('aaa')
+		case 'hashMap':
+			return (
+				'{' +
+				Object.entries(val.value)
+					.map(([k, v]) => [`"${k}"`, printValue(v)])
+					.flat()
+					.join(' ') +
+				'}'
+			)
 	}
 }
