@@ -195,7 +195,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		value: {
 			kind: 'fn',
 			type: {kind: 'fnType', params: TypeAny, out: TypeType},
-			body: getExpType as any,
+			body: assertExpType as any,
 		},
 	},
 }
@@ -281,7 +281,7 @@ export function inspectAst(
 	}
 }
 
-function getValueType(v: Value): ValueType {
+function assertValueType(v: Value): ValueType {
 	switch (typeof v) {
 		case 'boolean':
 			return TypeBoolean
@@ -292,12 +292,12 @@ function getValueType(v: Value): ValueType {
 	}
 
 	if (Array.isArray(v)) {
-		return v.length === 1 ? getValueType(v[0]) : v.map(getValueType)
+		return v.length === 1 ? assertValueType(v[0]) : v.map(assertValueType)
 	}
 
 	switch (v.kind) {
 		case 'exp':
-			return getExpType(v.exp)
+			return assertExpType(v.exp)
 		case 'fn':
 			return v.type
 		case 'valType':
@@ -309,14 +309,14 @@ function getValueType(v: Value): ValueType {
 	}
 }
 
-function getExpType(exp: Exp): ValueType {
+function assertExpType(exp: Exp): ValueType {
 	switch (exp.ast) {
 		case 'value':
-			return getValueType(exp.value)
+			return assertValueType(exp.value)
 		case 'symbol': {
 			const inspected = inspectAst(exp)
 			if (inspected.semantic == 'ref') {
-				return getValueType(evalExp(inspected.ref))
+				return assertValueType(evalExp(inspected.ref))
 			}
 			return []
 		}
@@ -338,8 +338,8 @@ function getExpType(exp: Exp): ValueType {
 		}
 		case 'vector':
 			return exp.items.length === 1
-				? getExpType(exp.items[0])
-				: exp.items.map(getExpType)
+				? assertExpType(exp.items[0])
+				: exp.items.map(assertExpType)
 		case 'hashMap':
 			return TypeHashMap
 	}
