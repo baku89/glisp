@@ -23,7 +23,7 @@ Program = form:Form
 
 
 Form =
-	Constant / ReservedKeyword / Number / String
+	Constant / Number / String
 	/ List / Vector / HashMap / Symbol
 
 Constant "constant" = value:$("true" / "false")
@@ -31,14 +31,6 @@ Constant "constant" = value:$("true" / "false")
 		return {
 			ast: 'value',
 			value: JSON.parse(value)
-		}
-	}
-
-ReservedKeyword "reserved keyword" = name:("let" / "=>")
-	{
-		return {
-			ast: 'reservedKeyword',
-			name
 		}
 	}
 

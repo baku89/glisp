@@ -5,8 +5,6 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type ReservedKeywordNames = '=>' | 'let' | '...'
-
 type Value =
 	| ValuePrim
 	| Value[]
@@ -52,7 +50,7 @@ interface ValueHashMap {
 	}
 }
 
-type Exp = ExpValue | ExpSymbol | ExpReservedKeyword | ExpColl
+type Exp = ExpValue | ExpSymbol | ExpColl
 
 type NonNullable<T> = Exclude<T, undefined | null>
 
@@ -80,11 +78,6 @@ interface ExpSymbol extends ExpBase {
 		| {semantic: 'ref'; ref: Exp}
 		| {semantic: 'capture'}
 		| {semantic: 'invalid'}
-}
-
-interface ExpReservedKeyword extends ExpBase {
-	ast: 'reservedKeyword'
-	name: ReservedKeywordNames
 }
 
 interface ExpList extends ExpBase {
@@ -196,6 +189,15 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			} as any,
 		},
 	},
+	':type': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {kind: 'fnType', params: TypeAny, out: TypeType},
+			body: getExpType as any,
+		},
+	},
 }
 
 function pushLog(exp: Exp, log: Log) {
@@ -206,7 +208,6 @@ function pushLog(exp: Exp, log: Log) {
 	}
 }
 
-export function inspectAst(exp: ExpValue | ExpReservedKeyword): null
 export function inspectAst(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
 export function inspectAst(exp: ExpList): NonNullable<ExpList['inspected']>
 export function inspectAst(exp: ExpVector): NonNullable<ExpVector['inspected']>
@@ -223,7 +224,6 @@ export function inspectAst(
 	| NonNullable<ExpHashMap['inspected']> {
 	switch (exp.ast) {
 		case 'value':
-		case 'reservedKeyword':
 			return null
 		case 'symbol':
 			if (exp.inspected) return exp.inspected
@@ -313,6 +313,13 @@ function getExpType(exp: Exp): ValueType {
 	switch (exp.ast) {
 		case 'value':
 			return getValueType(exp.value)
+		case 'symbol': {
+			const inspected = inspectAst(exp)
+			if (inspected.semantic == 'ref') {
+				return getValueType(evalExp(inspected.ref))
+			}
+			return []
+		}
 		case 'list': {
 			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
@@ -327,11 +334,12 @@ function getExpType(exp: Exp): ValueType {
 					}
 				}
 			}
-			throw new Error('Not a function')
+			return []
 		}
-		case 'symbol': {
-			const inspected = inspectAst(exp)
-		}
+		case 'vector':
+			return exp.items.map(getExpType)
+		case 'hashMap':
+			return TypeHashMap
 	}
 }
 
@@ -339,9 +347,6 @@ export function evalExp(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
 			return exp.value
-
-		case 'reservedKeyword':
-			return {kind: 'exp', exp: exp}
 
 		case 'symbol': {
 			const inspected = inspectAst(exp)
