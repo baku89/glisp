@@ -18,7 +18,7 @@ type Value =
 
 type ValuePrim = boolean | number | string
 
-type ValueType = ValueValType | ValueFnType
+type ValueType = ValueValType | ValueFnType | ValueType[]
 
 interface ValueValType {
 	kind: 'valType'
@@ -38,6 +38,7 @@ interface ValueExp {
 
 interface ValueFn {
 	kind: 'fn'
+	type: ValueFnType
 	body: <A extends Exp, R extends Value>(
 		this: {eval: typeof evalExp},
 		...arg0: A[]
@@ -124,9 +125,12 @@ export function readStr(str: string): Exp {
 }
 
 const TypeAny: ValueType = {kind: 'valType', supertype: null}
+const TypeBoolean: ValueType = {kind: 'valType', supertype: TypeAny}
 const TypeNumber: ValueType = {kind: 'valType', supertype: TypeAny}
 const TypeString: ValueType = {kind: 'valType', supertype: TypeAny}
-const TypeBoolean: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeType: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeFnType: ValueType = {kind: 'valType', supertype: TypeType}
+const TypeHashMap: ValueType = {kind: 'valType', supertype: TypeAny}
 
 const GlobalSymbols: {[name: string]: Exp} = {
 	Any: {
@@ -159,6 +163,11 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		ast: 'value',
 		value: {
 			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [TypeNumber, TypeNumber],
+				out: TypeNumber,
+			},
 			body: function (this: {eval: typeof evalExp}, a: Exp, b: Exp) {
 				return (this.eval(a) as number) + (this.eval(b) as number)
 			} as any,
@@ -169,6 +178,11 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		ast: 'value',
 		value: {
 			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [TypeType, TypeType],
+				out: TypeFnType,
+			},
 			body: function (this: {eval: typeof evalExp}, params: Exp, out: Exp) {
 				const _params = this.eval(params) as ValueType[] | ValueType
 				const _out = this.eval(out) as ValueType
@@ -267,6 +281,60 @@ export function inspectAst(
 	}
 }
 
+function getValueType(v: Value): ValueType {
+	switch (typeof v) {
+		case 'boolean':
+			return TypeBoolean
+		case 'number':
+			return TypeNumber
+		case 'string':
+			return TypeString
+	}
+
+	if (Array.isArray(v)) {
+		return v.map(getValueType)
+	}
+
+	switch (v.kind) {
+		case 'exp':
+			return getExpType(v.exp)
+		case 'fn':
+			return v.type
+		case 'valType':
+			return TypeType
+		case 'fnType':
+			return TypeFnType
+		case 'hashMap':
+			return TypeHashMap
+	}
+}
+
+function getExpType(exp: Exp): ValueType {
+	switch (exp.ast) {
+		case 'value':
+			return getValueType(exp.value)
+		case 'list': {
+			const inspected = inspectAst(exp)
+			switch (inspected.semantic) {
+				case 'application': {
+					const fn = evalExp(inspected.fn)
+					if (
+						typeof fn === 'object' &&
+						!Array.isArray(fn) &&
+						fn.kind === 'fn'
+					) {
+						return fn.type.out
+					}
+				}
+			}
+			throw new Error('Not a function')
+		}
+		case 'symbol': {
+			const inspected = inspectAst(exp)
+		}
+	}
+}
+
 export function evalExp(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
@@ -359,6 +427,8 @@ export function printValue(val: Value): string {
 					return 'Number'
 				case TypeString:
 					return 'String'
+				case TypeType:
+					return 'Type'
 				default:
 					throw new Error('aaa')
 			}
