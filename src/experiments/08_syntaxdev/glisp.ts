@@ -436,8 +436,10 @@ export function printValue(val: Value): string {
 					return 'String'
 				case TypeType:
 					return 'Type'
+				case TypeFnType:
+					return 'FnType'
 				default:
-					throw new Error('aaa')
+					throw new Error('aaa!!!')
 			}
 		case 'fnType':
 			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
