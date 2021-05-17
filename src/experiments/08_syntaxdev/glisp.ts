@@ -301,9 +301,8 @@ function assertValueType(v: Value): ValueType {
 		case 'fn':
 			return v.type
 		case 'valType':
-			return TypeType
 		case 'fnType':
-			return TypeFnType
+			return v
 		case 'hashMap':
 			return TypeHashMap
 	}
