@@ -5,27 +5,29 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type ReservedKeywordNames = '=>' | 'let' | '...'
+type Value =
+	| ValuePrim
+	| Value[]
+	| ValueType
+	| ValueFnType
+	| ValueExp
+	| ValueHashMap
+	| ValueFn
 
-type Value = ValueVoid | ValuePrim | Value[] | ValueExp | ValueHashMap | ValueFn
+type ValuePrim = boolean | number | string
 
-interface ValueVoid {
-	kind: 'void'
+type ValueType = ValueValType | ValueFnType | ValueType[]
+
+interface ValueValType {
+	kind: 'valType'
+	supertype: null | ValueType
 }
 
-type ValuePrim = null | boolean | number | string
-
-type IFnJS =
-	| (<A0 extends Value, R extends Value>(arg0: A0) => R)
-	| (<A0 extends Value, A1 extends Value, R extends Value>(
-			arg0: A0,
-			arg1: A1
-	  ) => R)
-	| (<A0 extends Value, A1 extends Value, A2 extends Value, R extends Value>(
-			arg0: A0,
-			arg1: A1,
-			arg2: A2
-	  ) => R)
+interface ValueFnType {
+	kind: 'fnType'
+	params: ValueType | ValueType[]
+	out: ValueType
+}
 
 interface ValueExp {
 	kind: 'exp'
@@ -34,7 +36,11 @@ interface ValueExp {
 
 interface ValueFn {
 	kind: 'fn'
-	body: IFnJS
+	type: ValueFnType
+	body: <A extends Exp, R extends Value>(
+		this: {eval: typeof evalExp},
+		...arg0: A[]
+	) => R
 }
 
 interface ValueHashMap {
@@ -44,13 +50,7 @@ interface ValueHashMap {
 	}
 }
 
-type Exp =
-	| ExpValue
-	| ExpSymbol
-	| ExpReservedKeyword
-	| ExpList
-	| ExpVector
-	| ExpHashMap
+type Exp = ExpValue | ExpSymbol | ExpColl
 
 type NonNullable<T> = Exclude<T, undefined | null>
 
@@ -59,7 +59,7 @@ interface Log {
 	reason: string
 }
 
-type ExpColl = ExpList | ExpValue | ExpVector | ExpHashMap
+type ExpColl = ExpList | ExpVector | ExpHashMap
 
 interface ExpBase {
 	parent: null | ExpColl
@@ -80,11 +80,6 @@ interface ExpSymbol extends ExpBase {
 		| {semantic: 'invalid'}
 }
 
-interface ExpReservedKeyword extends ExpBase {
-	ast: 'reservedKeyword'
-	name: ReservedKeywordNames
-}
-
 interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
@@ -97,7 +92,6 @@ interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
 	inspected?:
-		| {semantic: 'void'}
 		| {semantic: 'value'; value: Exp}
 		| {semantic: 'vector'; items: Exp[]}
 }
@@ -111,27 +105,99 @@ interface ExpHashMap extends ExpBase {
 			[hash: string]: Exp
 		}
 	}
-	logs?: Log[]
 }
 
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
-		return {
-			parent: null,
-			ast: 'value',
-			value: null,
-		}
+		return {parent: null, ast: 'vector', items: []}
 	} else {
 		return exp
 	}
 }
 
-const ExpPI: ExpValue = {
-	parent: null,
-	ast: 'value',
-	value: Math.PI,
+const TypeAny: ValueType = {kind: 'valType', supertype: null}
+const TypeBoolean: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeNumber: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeString: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeType: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeFnType: ValueType = {kind: 'valType', supertype: TypeType}
+const TypeHashMap: ValueType = {kind: 'valType', supertype: TypeAny}
+
+const GlobalSymbols: {[name: string]: Exp} = {
+	Any: {
+		parent: null,
+		ast: 'value',
+		value: TypeAny,
+	},
+	Number: {
+		parent: null,
+		ast: 'value',
+		value: TypeNumber,
+	},
+	String: {
+		parent: null,
+		ast: 'value',
+		value: TypeString,
+	},
+	Boolean: {
+		parent: null,
+		ast: 'value',
+		value: TypeBoolean,
+	},
+	PI: {
+		parent: null,
+		ast: 'value',
+		value: Math.PI,
+	},
+	'+': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [TypeNumber, TypeNumber],
+				out: TypeNumber,
+			},
+			body: function (this: {eval: typeof evalExp}, a: Exp, b: Exp) {
+				return (this.eval(a) as number) + (this.eval(b) as number)
+			} as any,
+		},
+	},
+	':=>': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [TypeType, TypeType],
+				out: TypeFnType,
+			},
+			body: function (this: {eval: typeof evalExp}, params: Exp, out: Exp) {
+				const _params = this.eval(params) as ValueType[] | ValueType
+				const _out = this.eval(out) as ValueType
+				const ret = {
+					kind: 'fnType',
+					params: _params,
+					out: _out,
+				}
+				console.log(ret)
+				return ret
+			} as any,
+		},
+	},
+	':type': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {kind: 'fnType', params: TypeAny, out: TypeType},
+			body: assertExpType as any,
+		},
+	},
 }
 
 function pushLog(exp: Exp, log: Log) {
@@ -158,15 +224,13 @@ export function inspectAst(
 	| NonNullable<ExpHashMap['inspected']> {
 	switch (exp.ast) {
 		case 'value':
-		case 'reservedKeyword':
 			return null
-
 		case 'symbol':
 			if (exp.inspected) return exp.inspected
-			if (exp.name === 'PI') {
+			if (exp.name in GlobalSymbols) {
 				return {
 					semantic: 'ref',
-					ref: ExpPI,
+					ref: GlobalSymbols[exp.name],
 				}
 			}
 			// Not Defined
@@ -187,13 +251,10 @@ export function inspectAst(
 		case 'vector':
 			if (exp.inspected) return exp.inspected
 
-			switch (exp.items.length) {
-				case 0:
-					return {semantic: 'void'}
-				case 1:
-					return {semantic: 'value', value: exp.items[0]}
-				default:
-					return {semantic: 'vector', items: exp.items}
+			if (exp.items.length === 1) {
+				return {semantic: 'value', value: exp.items[0]}
+			} else {
+				return {semantic: 'vector', items: exp.items}
 			}
 
 		case 'hashMap': {
@@ -220,13 +281,74 @@ export function inspectAst(
 	}
 }
 
+function assertValueType(v: Value): ValueType {
+	switch (typeof v) {
+		case 'boolean':
+			return TypeBoolean
+		case 'number':
+			return TypeNumber
+		case 'string':
+			return TypeString
+	}
+
+	if (Array.isArray(v)) {
+		return v.length === 1 ? assertValueType(v[0]) : v.map(assertValueType)
+	}
+
+	switch (v.kind) {
+		case 'exp':
+			return assertExpType(v.exp)
+		case 'fn':
+			return v.type
+		case 'valType':
+			return TypeType
+		case 'fnType':
+			return TypeFnType
+		case 'hashMap':
+			return TypeHashMap
+	}
+}
+
+function assertExpType(exp: Exp): ValueType {
+	switch (exp.ast) {
+		case 'value':
+			return assertValueType(exp.value)
+		case 'symbol': {
+			const inspected = inspectAst(exp)
+			if (inspected.semantic == 'ref') {
+				return assertValueType(evalExp(inspected.ref))
+			}
+			return []
+		}
+		case 'list': {
+			const inspected = inspectAst(exp)
+			switch (inspected.semantic) {
+				case 'application': {
+					const fn = evalExp(inspected.fn)
+					if (
+						typeof fn === 'object' &&
+						!Array.isArray(fn) &&
+						fn.kind === 'fn'
+					) {
+						return fn.type.out
+					}
+				}
+			}
+			return []
+		}
+		case 'vector':
+			return exp.items.length === 1
+				? assertExpType(exp.items[0])
+				: exp.items.map(assertExpType)
+		case 'hashMap':
+			return TypeHashMap
+	}
+}
+
 export function evalExp(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
 			return exp.value
-
-		case 'reservedKeyword':
-			return {kind: 'exp', exp: exp}
 
 		case 'symbol': {
 			const inspected = inspectAst(exp)
@@ -235,7 +357,7 @@ export function evalExp(exp: Exp): Value {
 					return evalExp(inspected.ref)
 				case 'capture':
 				case 'invalid':
-					return null
+					return []
 			}
 			break
 		}
@@ -244,10 +366,24 @@ export function evalExp(exp: Exp): Value {
 			{
 				const inspected = inspectAst(exp)
 				switch (inspected.semantic) {
-					case 'application':
-						return null
+					case 'application': {
+						switch (inspected.fn.ast) {
+							case 'symbol': {
+								const fn = evalExp(inspected.fn)
+
+								if (
+									typeof fn === 'object' &&
+									!Array.isArray(fn) &&
+									fn.kind === 'fn'
+								) {
+									return fn.body.call({eval: evalExp}, ...inspected.params)
+								}
+							}
+						}
+						return []
+					}
 					case 'invalid':
-						return null
+						return []
 				}
 			}
 			break
@@ -255,8 +391,6 @@ export function evalExp(exp: Exp): Value {
 		case 'vector': {
 			const inspected = inspectAst(exp)
 			switch (inspected.semantic) {
-				case 'void':
-					return {kind: 'void'}
 				case 'value':
 					return evalExp(inspected.value)
 				case 'vector':
@@ -276,10 +410,6 @@ export function evalExp(exp: Exp): Value {
 }
 
 export function printValue(val: Value): string {
-	if (val === null) {
-		return 'null'
-	}
-
 	switch (typeof val) {
 		case 'boolean':
 			return val ? 'true' : 'false'
@@ -294,11 +424,35 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
+		case 'valType':
+			switch (val) {
+				case TypeAny:
+					return 'Any'
+				case TypeBoolean:
+					return 'Boolean'
+				case TypeNumber:
+					return 'Number'
+				case TypeString:
+					return 'String'
+				case TypeType:
+					return 'Type'
+				case TypeFnType:
+					return 'FnType'
+				default:
+					throw new Error('aaa!!!')
+			}
+		case 'fnType':
+			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'exp':
 		case 'fn':
-		case 'hashMap':
 			throw new Error('aaa')
-		case 'void':
-			return '[]'
+		case 'hashMap':
+			return (
+				'{' +
+				Object.entries(val.value)
+					.flatMap(([k, v]) => [`"${k}"`, printValue(v)])
+					.join(' ') +
+				'}'
+			)
 	}
 }
