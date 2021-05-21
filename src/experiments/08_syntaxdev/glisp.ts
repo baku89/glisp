@@ -67,7 +67,6 @@ type ExpColl = ExpList | ExpVector | ExpHashMap
 
 interface ExpBase {
 	parent: null | ExpColl
-	logs?: Log[]
 }
 
 interface ExpValue extends ExpBase {
@@ -208,68 +207,72 @@ const GlobalSymbols: {[name: string]: Exp} = {
 	},
 }
 
-function pushLog(exp: Exp, log: Log) {
-	if (exp.logs) {
-		exp.logs.push(log)
-	} else {
-		exp.logs = [log]
-	}
+interface WithLogs<T> {
+	result: T
+	logs: Log[]
 }
 
-export function inspectAst(exp: ExpSymbol): InspectedResultSymbol
-export function inspectAst(exp: ExpList): InspectedResultList
-export function inspectAst(exp: ExpVector): InspectedResultVector
-export function inspectAst(exp: ExpHashMap): InspectedResultHashMap
-export function inspectAst(exp: Exp): null | InspectedResult {
+function withLog<T>(result: T, logs: Log[] = []) {
+	return {result, logs}
+}
+
+export function inspectAst(exp: ExpSymbol): WithLogs<InspectedResultSymbol>
+export function inspectAst(exp: ExpList): WithLogs<InspectedResultList>
+export function inspectAst(exp: ExpVector): WithLogs<InspectedResultVector>
+export function inspectAst(exp: ExpHashMap): WithLogs<InspectedResultHashMap>
+export function inspectAst(exp: Exp): null | WithLogs<InspectedResult> {
 	switch (exp.ast) {
 		case 'value':
 			return null
 		case 'symbol':
 			if (exp.name in GlobalSymbols) {
-				return {
+				return withLog({
 					semantic: 'ref',
 					ref: GlobalSymbols[exp.name],
-				}
+				})
 			}
 			// Not Defined
-			pushLog(exp, {level: 'error', reason: `${exp.name} is not defined`})
-			return {semantic: 'invalid'}
+			return withLog({semantic: 'invalid'}, [
+				{level: 'error', reason: `${exp.name} is not defined`},
+			])
 
 		case 'list':
 			if (exp.items.length >= 1 && exp.items[0].ast === 'symbol') {
-				return {
+				return withLog({
 					semantic: 'application',
 					fn: exp.items[0],
 					params: exp.items.slice(1),
-				}
+				})
 			}
-			return {semantic: 'invalid'}
+			return withLog({semantic: 'invalid'})
 
 		case 'vector':
 			if (exp.items.length === 1) {
-				return {semantic: 'value', value: exp.items[0]}
+				return withLog({semantic: 'value', value: exp.items[0]})
 			} else {
-				return {semantic: 'vector', items: exp.items}
+				return withLog({semantic: 'vector', items: exp.items})
 			}
 
 		case 'hashMap': {
 			const hashMap: {[hash: string]: Exp} = {}
 
+			const logs: Log[] = []
+
 			if (exp.items.length % 2 !== 0) {
-				pushLog(exp, {level: 'warn', reason: 'Odd number of hashMap items'})
+				logs.push({level: 'warn', reason: 'Odd number of hashMap items'})
 			}
 
 			for (let i = 0; i < exp.items.length; i += 2) {
 				const key = exp.items[i]
 				const value = exp.items[i + 1]
 				if (key.ast !== 'value' || typeof key.value !== 'string') {
-					pushLog(exp, {level: 'warn', reason: 'Key ... is not a string'})
+					logs.push({level: 'warn', reason: 'Key ... is not a string'})
 					continue
 				}
 				hashMap[key.value] = value
 			}
 
-			return {semantic: 'hashMap', hashMap}
+			return withLog({semantic: 'hashMap', hashMap}, logs)
 		}
 	}
 }
@@ -306,14 +309,14 @@ function assertExpType(exp: Exp): ValueType {
 		case 'value':
 			return assertValueType(exp.value)
 		case 'symbol': {
-			const inspected = inspectAst(exp)
+			const inspected = inspectAst(exp).result
 			if (inspected.semantic == 'ref') {
 				return assertValueType(evalExp(inspected.ref))
 			}
 			return []
 		}
 		case 'list': {
-			const inspected = inspectAst(exp)
+			const inspected = inspectAst(exp).result
 			switch (inspected.semantic) {
 				case 'application': {
 					const fn = evalExp(inspected.fn)
@@ -343,7 +346,7 @@ export function evalExp(exp: Exp): Value {
 			return exp.value
 
 		case 'symbol': {
-			const inspected = inspectAst(exp)
+			const inspected = inspectAst(exp).result
 			switch (inspected.semantic) {
 				case 'ref':
 					return evalExp(inspected.ref)
@@ -356,7 +359,7 @@ export function evalExp(exp: Exp): Value {
 
 		case 'list':
 			{
-				const inspected = inspectAst(exp)
+				const inspected = inspectAst(exp).result
 				switch (inspected.semantic) {
 					case 'application': {
 						switch (inspected.fn.ast) {
@@ -381,7 +384,7 @@ export function evalExp(exp: Exp): Value {
 			break
 
 		case 'vector': {
-			const inspected = inspectAst(exp)
+			const inspected = inspectAst(exp).result
 			switch (inspected.semantic) {
 				case 'value':
 					return evalExp(inspected.value)
@@ -392,7 +395,7 @@ export function evalExp(exp: Exp): Value {
 		}
 
 		case 'hashMap': {
-			const inspected = inspectAst(exp)
+			const inspected = inspectAst(exp).result
 			return {
 				kind: 'hashMap',
 				value: _.mapValues(inspected.hashMap, evalExp),
