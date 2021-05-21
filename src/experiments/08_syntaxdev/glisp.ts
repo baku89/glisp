@@ -34,13 +34,14 @@ interface ValueExp {
 	exp: Exp
 }
 
+interface ValueFnThis {
+	eval: (exp: Exp) => Value
+}
+
 interface ValueFn {
 	kind: 'fn'
 	type: ValueFnType
-	body: <A extends Exp, R extends Value>(
-		this: {eval: typeof evalExp},
-		...arg0: A[]
-	) => R
+	body: <A extends Exp, R extends Value>(this: ValueFnThis, ...arg0: A[]) => R
 }
 
 interface ValueHashMap {
@@ -168,7 +169,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				params: [TypeNumber, TypeNumber],
 				out: TypeNumber,
 			},
-			body: function (this: {eval: typeof evalExp}, a: Exp, b: Exp) {
+			body: function (this: ValueFnThis, a: Exp, b: Exp) {
 				return (this.eval(a) as number) + (this.eval(b) as number)
 			} as any,
 		},
@@ -183,7 +184,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				params: [TypeType, TypeType],
 				out: TypeFnType,
 			},
-			body: function (this: {eval: typeof evalExp}, params: Exp, out: Exp) {
+			body: function (this: ValueFnThis, params: Exp, out: Exp) {
 				const _params = this.eval(params) as ValueType[] | ValueType
 				const _out = this.eval(out) as ValueType
 				const ret = {
@@ -311,7 +312,7 @@ function assertExpType(exp: Exp): ValueType {
 		case 'symbol': {
 			const inspected = inspectAst(exp).result
 			if (inspected.semantic == 'ref') {
-				return assertValueType(evalExp(inspected.ref))
+				return assertValueType(evalExp(inspected.ref).result)
 			}
 			return []
 		}
@@ -319,7 +320,7 @@ function assertExpType(exp: Exp): ValueType {
 			const inspected = inspectAst(exp).result
 			switch (inspected.semantic) {
 				case 'application': {
-					const fn = evalExp(inspected.fn)
+					const fn = evalExp(inspected.fn).result
 					if (
 						typeof fn === 'object' &&
 						!Array.isArray(fn) &&
@@ -340,10 +341,10 @@ function assertExpType(exp: Exp): ValueType {
 	}
 }
 
-export function evalExp(exp: Exp): Value {
+export function evalExp(exp: Exp): WithLogs<Value> {
 	switch (exp.ast) {
 		case 'value':
-			return exp.value
+			return withLog(exp.value)
 
 		case 'symbol': {
 			const inspected = inspectAst(exp).result
@@ -352,33 +353,45 @@ export function evalExp(exp: Exp): Value {
 					return evalExp(inspected.ref)
 				case 'capture':
 				case 'undefined':
-					return []
+					return withLog(
+						[],
+						[{level: 'error', reason: `Symbol ${exp.name} is not defined.`}]
+					)
 			}
 			break
 		}
 
 		case 'list':
 			{
-				const inspected = inspectAst(exp).result
+				const {result: inspected, logs} = inspectAst(exp)
 				switch (inspected.semantic) {
 					case 'application': {
 						switch (inspected.fn.ast) {
 							case 'symbol': {
-								const fn = evalExp(inspected.fn)
+								const {result: fn, logs} = evalExp(inspected.fn)
 
 								if (
 									typeof fn === 'object' &&
 									!Array.isArray(fn) &&
 									fn.kind === 'fn'
 								) {
-									return fn.body.call({eval: evalExp}, ...inspected.params)
+									const result = fn.body.call(
+										{eval: e => evalExp(e).result},
+										...inspected.params
+									)
+									return withLog(result, logs)
+								} else {
+									return withLog(
+										[],
+										[{level: 'error', reason: 'This is not a function.'}]
+									)
 								}
 							}
 						}
-						return []
+						return withLog([], logs)
 					}
 					case 'invalid':
-						return []
+						return withLog([], logs)
 				}
 			}
 			break
@@ -389,7 +402,7 @@ export function evalExp(exp: Exp): Value {
 				case 'value':
 					return evalExp(inspected.value)
 				case 'vector':
-					return inspected.items.map(evalExp)
+					return withLog(inspected.items.map(evalExp))
 			}
 			break
 		}
