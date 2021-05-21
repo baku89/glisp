@@ -77,7 +77,7 @@ interface ExpValue extends ExpBase {
 type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
 	| {semantic: 'capture'}
-	| {semantic: 'invalid'}
+	| {semantic: 'undefined'}
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
@@ -104,7 +104,7 @@ interface ExpVector extends ExpBase {
 
 type InspectedResultHashMap = {
 	semantic: 'hashMap'
-	hashMap: {
+	items: {
 		[hash: string]: Exp
 	}
 }
@@ -254,7 +254,7 @@ export function inspectAst(exp: Exp): null | WithLogs<InspectedResult> {
 			}
 
 		case 'hashMap': {
-			const hashMap: {[hash: string]: Exp} = {}
+			const items: {[hash: string]: Exp} = {}
 
 			const logs: Log[] = []
 
@@ -269,10 +269,10 @@ export function inspectAst(exp: Exp): null | WithLogs<InspectedResult> {
 					logs.push({level: 'warn', reason: 'Key ... is not a string'})
 					continue
 				}
-				hashMap[key.value] = value
+				items[key.value] = value
 			}
 
-			return withLog({semantic: 'hashMap', hashMap}, logs)
+			return withLog({semantic: 'hashMap', items}, logs)
 		}
 	}
 }
@@ -351,7 +351,7 @@ export function evalExp(exp: Exp): Value {
 				case 'ref':
 					return evalExp(inspected.ref)
 				case 'capture':
-				case 'invalid':
+				case 'undefined':
 					return []
 			}
 			break
@@ -398,7 +398,7 @@ export function evalExp(exp: Exp): Value {
 			const inspected = inspectAst(exp).result
 			return {
 				kind: 'hashMap',
-				value: _.mapValues(inspected.hashMap, evalExp),
+				value: _.mapValues(inspected.items, evalExp),
 			}
 		}
 	}
