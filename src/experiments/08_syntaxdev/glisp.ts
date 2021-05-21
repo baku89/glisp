@@ -52,6 +52,12 @@ interface ValueHashMap {
 
 type Exp = ExpValue | ExpSymbol | ExpColl
 
+type InspectedResult =
+	| InspectedResultSymbol
+	| InspectedResultList
+	| InspectedResultVector
+	| InspectedResultHashMap
+
 type NonNullable<T> = Exclude<T, undefined | null>
 
 interface Log {
@@ -71,40 +77,44 @@ interface ExpValue extends ExpBase {
 	value: Value
 }
 
+type InspectedResultSymbol =
+	| {semantic: 'ref'; ref: Exp}
+	| {semantic: 'capture'}
+	| {semantic: 'invalid'}
+
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	name: string
-	inspected?:
-		| {semantic: 'ref'; ref: Exp}
-		| {semantic: 'capture'}
-		| {semantic: 'invalid'}
 }
+
+type InspectedResultList =
+	| {semantic: 'application'; fn: Exp; params: Exp[]}
+	| {semantic: 'invalid'}
 
 interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
-	inspected?:
-		| {semantic: 'application'; fn: Exp; params: Exp[]}
-		| {semantic: 'invalid'}
 }
+
+type InspectedResultVector =
+	| {semantic: 'value'; value: Exp}
+	| {semantic: 'vector'; items: Exp[]}
 
 interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
-	inspected?:
-		| {semantic: 'value'; value: Exp}
-		| {semantic: 'vector'; items: Exp[]}
+}
+
+type InspectedResultHashMap = {
+	semantic: 'hashMap'
+	hashMap: {
+		[hash: string]: Exp
+	}
 }
 
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	items: Exp[]
-	inspected?: {
-		semantic: 'hashMap'
-		hashMap: {
-			[hash: string]: Exp
-		}
-	}
 }
 
 export function readStr(str: string): Exp {
@@ -208,25 +218,15 @@ function pushLog(exp: Exp, log: Log) {
 	}
 }
 
-export function inspectAst(exp: ExpSymbol): NonNullable<ExpSymbol['inspected']>
-export function inspectAst(exp: ExpList): NonNullable<ExpList['inspected']>
-export function inspectAst(exp: ExpVector): NonNullable<ExpVector['inspected']>
-export function inspectAst(
-	exp: ExpHashMap
-): NonNullable<ExpHashMap['inspected']>
-export function inspectAst(
-	exp: Exp
-):
-	| null
-	| NonNullable<ExpSymbol['inspected']>
-	| NonNullable<ExpList['inspected']>
-	| NonNullable<ExpVector['inspected']>
-	| NonNullable<ExpHashMap['inspected']> {
+export function inspectAst(exp: ExpSymbol): InspectedResultSymbol
+export function inspectAst(exp: ExpList): InspectedResultList
+export function inspectAst(exp: ExpVector): InspectedResultVector
+export function inspectAst(exp: ExpHashMap): InspectedResultHashMap
+export function inspectAst(exp: Exp): null | InspectedResult {
 	switch (exp.ast) {
 		case 'value':
 			return null
 		case 'symbol':
-			if (exp.inspected) return exp.inspected
 			if (exp.name in GlobalSymbols) {
 				return {
 					semantic: 'ref',
@@ -238,7 +238,6 @@ export function inspectAst(
 			return {semantic: 'invalid'}
 
 		case 'list':
-			if (exp.inspected) return exp.inspected
 			if (exp.items.length >= 1 && exp.items[0].ast === 'symbol') {
 				return {
 					semantic: 'application',
@@ -249,8 +248,6 @@ export function inspectAst(
 			return {semantic: 'invalid'}
 
 		case 'vector':
-			if (exp.inspected) return exp.inspected
-
 			if (exp.items.length === 1) {
 				return {semantic: 'value', value: exp.items[0]}
 			} else {
@@ -258,8 +255,6 @@ export function inspectAst(
 			}
 
 		case 'hashMap': {
-			if (exp.inspected) return exp.inspected
-
 			const hashMap: {[hash: string]: Exp} = {}
 
 			if (exp.items.length % 2 !== 0) {
