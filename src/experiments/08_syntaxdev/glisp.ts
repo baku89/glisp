@@ -58,8 +58,6 @@ type InspectedResult =
 	| InspectedResultVector
 	| InspectedResultHashMap
 
-type NonNullable<T> = Exclude<T, undefined | null>
-
 interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
