@@ -225,8 +225,13 @@ export default defineComponent({
 
 		const data = reactive({
 			string: 'Hello',
-			code:
-				';; Glisp Code\n(let {square: (=> [x: Number] PosNumber::(* x x))\n      w: 20\n      c: Color::"Pink"\n      p: Vec2::[0 0]}\n  (style (fill c)\n    (ellipse p [(vec2/x ../center) (square w)])))\n',
+			code: `;; Glisp Code
+(let #square (=> [x::Number] (* x x)::PosNumber)
+     #w 20
+     #c "Pink"::Color
+     #p [0 0]::Color}
+  (style (fill c)
+    (ellipse p [(vec2/x ../center) (square w)])))`,
 			number: 0,
 			integer: computed({
 				get: () => Math.round(data.number / 10) * 10,
