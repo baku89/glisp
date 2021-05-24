@@ -53,12 +53,6 @@ interface ValueHashMap {
 
 type Exp = ExpValue | ExpSymbol | ExpColl
 
-type InspectedResult =
-	| InspectedResultSymbol
-	| InspectedResultList
-	| InspectedResultVector
-	| InspectedResultHashMap
-
 interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
@@ -217,7 +211,7 @@ function withLog<T>(result: T, logs: Log[] = []) {
 	return {result, logs}
 }
 
-function inspectAstSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
+function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	if (exp.name in GlobalSymbols) {
 		return withLog({
 			semantic: 'ref',
@@ -231,7 +225,7 @@ function inspectAstSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	}
 }
 
-function inspectAstList(exp: ExpList): WithLogs<InspectedResultList> {
+function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	if (exp.items.length >= 1 && exp.items[0].ast === 'symbol') {
 		return withLog({
 			semantic: 'application',
@@ -244,7 +238,7 @@ function inspectAstList(exp: ExpList): WithLogs<InspectedResultList> {
 	])
 }
 
-function inspectAstVector(exp: ExpVector): WithLogs<InspectedResultVector> {
+function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
 	if (exp.items.length === 1) {
 		return withLog({semantic: 'value', value: exp.items[0]})
 	} else {
@@ -252,7 +246,7 @@ function inspectAstVector(exp: ExpVector): WithLogs<InspectedResultVector> {
 	}
 }
 
-function inspectAstHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
+function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 	const items: {[hash: string]: Exp} = {}
 
 	const logs: Log[] = []
@@ -306,14 +300,14 @@ function assertExpType(exp: Exp): ValueType {
 		case 'value':
 			return assertValueType(exp.value)
 		case 'symbol': {
-			const inspected = inspectAstSymbol(exp).result
+			const inspected = inspectExpSymbol(exp).result
 			if (inspected.semantic == 'ref') {
 				return assertValueType(evalExp(inspected.ref).result)
 			}
 			return []
 		}
 		case 'list': {
-			const inspected = inspectAstList(exp).result
+			const inspected = inspectExpList(exp).result
 			switch (inspected.semantic) {
 				case 'application': {
 					const fn = evalExp(inspected.fn).result
@@ -343,7 +337,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			return withLog(exp.value)
 
 		case 'symbol': {
-			const inspected = inspectAstSymbol(exp).result
+			const inspected = inspectExpSymbol(exp).result
 			switch (inspected.semantic) {
 				case 'ref':
 					return evalExp(inspected.ref)
@@ -359,7 +353,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 
 		case 'list':
 			{
-				const {result: inspected, logs} = inspectAstList(exp)
+				const {result: inspected, logs} = inspectExpList(exp)
 				switch (inspected.semantic) {
 					case 'application': {
 						switch (inspected.fn.ast) {
@@ -393,7 +387,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			break
 
 		case 'vector': {
-			const inspected = inspectAstVector(exp).result
+			const inspected = inspectExpVector(exp).result
 			switch (inspected.semantic) {
 				case 'value':
 					return evalExp(inspected.value)
@@ -409,7 +403,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 		}
 
 		case 'hashMap': {
-			const inspected = inspectAstHashMap(exp).result
+			const inspected = inspectExpHashMap(exp).result
 			const evaluated = _.mapValues(inspected.items, evalExp)
 			return withLog(
 				{
