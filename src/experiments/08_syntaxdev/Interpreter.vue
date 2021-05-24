@@ -1,7 +1,11 @@
 <template>
 	<div class="Interpreter">
 		<h2>Glisp :: REPL</h2>
-		<MinimalConsole class="Interpreter__console" :rep="rep" />
+		<MinimalConsole
+			class="Interpreter__console"
+			:rep="rep"
+			v-model:onError="onError"
+		/>
 	</div>
 </template>
 
@@ -9,7 +13,7 @@
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
-import {defineComponent} from 'vue'
+import {defineComponent, ref} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
@@ -22,15 +26,21 @@ export default defineComponent({
 	setup() {
 		useScheme()
 
+		const onError = ref<(msg: string) => any>(console.error)
+
 		async function rep(str: string) {
 			const exp = readStr(str)
 			console.log('exp', exp)
-			const val = evalExp(exp)
-			console.log('evaluated', val)
-			return printValue(val)
+			const {result, logs} = evalExp(exp)
+
+			if (logs.length > 0) {
+				onError.value(logs.map(l => `[${l.level}] ${l.reason}`).join('\n'))
+			}
+
+			return printValue(result)
 		}
 
-		return {rep}
+		return {rep, onError}
 	},
 })
 </script>

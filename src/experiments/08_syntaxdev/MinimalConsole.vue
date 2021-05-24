@@ -33,12 +33,16 @@ export default defineComponent({
 			type: Function as PropType<(str: string) => Promise<string> | string>,
 			required: true,
 		},
+		onError: {
+			type: Function as PropType<(str: string) => any>,
+			default: () => () => null,
+		},
 		name: {
 			type: String,
 			default: 'minimal-console',
 		},
 	},
-	emits: ['setup'],
+	emits: ['setup', 'update:onError'],
 	setup(props, context) {
 		const el = ref<null | HTMLElement>(null)
 
@@ -47,6 +51,11 @@ export default defineComponent({
 
 			// eslint-disable-next-line no-undef
 			const jqconsole = ($(el.value) as any).jqconsole('', '', '   ')
+
+			const onError = (msg: string) =>
+				jqconsole.Write(msg + '\n', 'jqconsole-error')
+
+			context.emit('update:onError', onError)
 
 			loadHistory(jqconsole, props.name)
 
@@ -58,7 +67,7 @@ export default defineComponent({
 						const ret = await props.rep(line)
 						jqconsole.Write(ret + '\n', 'jqconsole-return')
 					} catch (err) {
-						jqconsole.Write(err + '\n', 'jqconsole-error')
+						onError(err)
 					}
 					saveHistory(jqconsole, props.name)
 				}
