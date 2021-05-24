@@ -14,13 +14,17 @@ type Value =
 	| ValueHashMap
 	| ValueFn
 
+interface ValueVoid {
+	kind: 'void'
+}
+
 type ValuePrim = boolean | number | string
 
-type ValueType = ValueValType | ValueFnType | ValueType[]
+type ValueType = ValueVoid | ValueValType | ValueFnType | ValueType[]
 
 interface ValueValType {
 	kind: 'valType'
-	supertype: null | ValueType
+	supertype: ValueValType | []
 }
 
 interface ValueFnType {
@@ -81,7 +85,7 @@ interface ExpSymbol extends ExpBase {
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'invalid'}
+	| {semantic: 'void'}
 
 interface ExpList extends ExpBase {
 	ast: 'list'
@@ -119,20 +123,14 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const TypeAny: ValueType = {kind: 'valType', supertype: null}
-const TypeBoolean: ValueType = {kind: 'valType', supertype: TypeAny}
-const TypeNumber: ValueType = {kind: 'valType', supertype: TypeAny}
-const TypeString: ValueType = {kind: 'valType', supertype: TypeAny}
-const TypeType: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeBoolean: ValueType = {kind: 'valType', supertype: []}
+const TypeNumber: ValueType = {kind: 'valType', supertype: []}
+const TypeString: ValueType = {kind: 'valType', supertype: []}
+const TypeType: ValueType = {kind: 'valType', supertype: []}
 const TypeFnType: ValueType = {kind: 'valType', supertype: TypeType}
-const TypeHashMap: ValueType = {kind: 'valType', supertype: TypeAny}
+const TypeHashMap: ValueType = {kind: 'valType', supertype: []}
 
 const GlobalSymbols: {[name: string]: Exp} = {
-	Any: {
-		parent: null,
-		ast: 'value',
-		value: TypeAny,
-	},
 	Number: {
 		parent: null,
 		ast: 'value',
@@ -196,7 +194,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		ast: 'value',
 		value: {
 			kind: 'fn',
-			type: {kind: 'fnType', params: TypeAny, out: TypeType},
+			type: {kind: 'fnType', params: [], out: TypeType},
 			body: assertExpType as any,
 		},
 	},
@@ -226,16 +224,15 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 }
 
 function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
-	if (exp.items.length >= 1 && exp.items[0].ast === 'symbol') {
+	if (exp.items.length >= 1) {
 		return withLog({
 			semantic: 'application',
 			fn: exp.items[0],
 			params: exp.items.slice(1),
 		})
+	} else {
+		return withLog({semantic: 'void'})
 	}
-	return withLog({semantic: 'invalid'}, [
-		{level: 'error', reason: 'Invalid anyway'},
-	])
 }
 
 function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
@@ -268,7 +265,7 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 	return withLog({semantic: 'hashMap', items}, logs)
 }
 
-function assertValueType(v: Value): ValueType {
+function assertValueType(v: Value): ValueType | ValueVoid {
 	switch (typeof v) {
 		case 'boolean':
 			return TypeBoolean
@@ -283,6 +280,8 @@ function assertValueType(v: Value): ValueType {
 	}
 
 	switch (v.kind) {
+		case 'void':
+			return {kind: 'void'}
 		case 'exp':
 			return assertExpType(v.exp)
 		case 'fn':
@@ -308,19 +307,12 @@ function assertExpType(exp: Exp): ValueType {
 		}
 		case 'list': {
 			const inspected = inspectExpList(exp).result
-			switch (inspected.semantic) {
-				case 'application': {
-					const fn = evalExp(inspected.fn).result
-					if (
-						typeof fn === 'object' &&
-						!Array.isArray(fn) &&
-						fn.kind === 'fn'
-					) {
-						return fn.type.out
-					}
-				}
+			if (inspected.semantic === 'application') {
+				const fn = evalExp(inspected.fn).result
+				return isFn(fn) ? fn.type.out : assertExpType(inspected.fn)
+			} else {
+				return {kind: 'void'}
 			}
-			return []
 		}
 		case 'vector':
 			return exp.items.length === 1
@@ -363,27 +355,18 @@ function evalExpVector(exp: ExpVector): WithLogs<Value> {
 function evalExpList(exp: ExpList): WithLogs<Value> {
 	const {result: inspected, logs} = inspectExpList(exp)
 	if (inspected.semantic === 'application') {
-		switch (inspected.fn.ast) {
-			case 'symbol': {
-				const {result: fn, logs} = evalExp(inspected.fn)
+		const {result: fn, logs} = evalExp(inspected.fn)
 
-				if (typeof fn === 'object' && !Array.isArray(fn) && fn.kind === 'fn') {
-					const result = fn.body.call(
-						{eval: e => evalExp(e).result},
-						...inspected.params
-					)
-					return withLog(result, logs)
-				} else {
-					return withLog(
-						[],
-						[{level: 'error', reason: 'This is not a function.'}]
-					)
-				}
-			}
+		if (isFn(fn)) {
+			const result = fn.body.call(
+				{eval: e => evalExp(e).result},
+				...inspected.params
+			)
+			return withLog(result, logs)
 		}
-		return withLog([], logs)
+		return withLog(fn, [])
 	} else {
-		return withLog([], logs)
+		return withLog({kind: 'void'}, logs)
 	}
 }
 
@@ -414,6 +397,39 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 }
 
+function isAny(x: Value): x is [] {
+	return Array.isArray(x) && x.length == 0
+}
+
+function isFn(x: Value): x is ValueFn {
+	return typeof x === 'object' && !Array.isArray(x) && x.kind === 'fn'
+}
+
+function isSubtypeOf(a: ValueValType | [], b: ValueValType | []): boolean {
+	if (isAny(b)) return true
+
+	if (isAny(a)) return false
+
+	if (a.supertype === b) return true
+
+	return isSubtypeOf(a.supertype, b)
+}
+
+/*
+function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
+	const logs: Log[] = []
+
+	if (to.length > from.length) {
+		logs.push({level: 'error', reason: 'Too short arguments'})
+	}
+
+	for (let i = 0; i < to.length; i++) {
+		const toItem = to[i]
+		const fromItem = from[i]
+	}
+}
+*/
+
 export function printValue(val: Value): string {
 	switch (typeof val) {
 		case 'boolean':
@@ -429,10 +445,10 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
+		case 'void':
+			return '()'
 		case 'valType':
 			switch (val) {
-				case TypeAny:
-					return 'Any'
 				case TypeBoolean:
 					return 'Boolean'
 				case TypeNumber:
