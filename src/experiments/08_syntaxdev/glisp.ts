@@ -331,88 +331,86 @@ function assertExpType(exp: Exp): ValueType {
 	}
 }
 
+function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
+	const inspected = inspectExpSymbol(exp).result
+	switch (inspected.semantic) {
+		case 'ref':
+			return evalExp(inspected.ref)
+		case 'capture':
+		case 'undefined':
+			return withLog(
+				[],
+				[{level: 'error', reason: `Symbol ${exp.name} is not defined.`}]
+			)
+	}
+}
+
+function evalExpVector(exp: ExpVector): WithLogs<Value> {
+	const inspected = inspectExpVector(exp).result
+	switch (inspected.semantic) {
+		case 'value':
+			return evalExp(inspected.value)
+		case 'vector': {
+			const evaluated = inspected.items.map(evalExp)
+			return withLog(
+				evaluated.map(e => e.result),
+				evaluated.flatMap(e => e.logs)
+			)
+		}
+	}
+}
+
+function evalExpList(exp: ExpList): WithLogs<Value> {
+	const {result: inspected, logs} = inspectExpList(exp)
+	if (inspected.semantic === 'application') {
+		switch (inspected.fn.ast) {
+			case 'symbol': {
+				const {result: fn, logs} = evalExp(inspected.fn)
+
+				if (typeof fn === 'object' && !Array.isArray(fn) && fn.kind === 'fn') {
+					const result = fn.body.call(
+						{eval: e => evalExp(e).result},
+						...inspected.params
+					)
+					return withLog(result, logs)
+				} else {
+					return withLog(
+						[],
+						[{level: 'error', reason: 'This is not a function.'}]
+					)
+				}
+			}
+		}
+		return withLog([], logs)
+	} else {
+		return withLog([], logs)
+	}
+}
+
+function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
+	const inspected = inspectExpHashMap(exp).result
+	const evaluated = _.mapValues(inspected.items, evalExp)
+	return withLog(
+		{
+			kind: 'hashMap',
+			value: _.mapValues(evaluated, e => e.result),
+		},
+		_.values(evaluated).flatMap(e => e.logs)
+	)
+}
+
 export function evalExp(exp: Exp): WithLogs<Value> {
 	switch (exp.ast) {
 		case 'value':
-			return withLog(exp.value)
-
-		case 'symbol': {
-			const inspected = inspectExpSymbol(exp).result
-			switch (inspected.semantic) {
-				case 'ref':
-					return evalExp(inspected.ref)
-				case 'capture':
-				case 'undefined':
-					return withLog(
-						[],
-						[{level: 'error', reason: `Symbol ${exp.name} is not defined.`}]
-					)
-			}
-			break
-		}
-
+			return withLog(exp.value, [])
+		case 'symbol':
+			return evalExpSymbol(exp)
 		case 'list':
-			{
-				const {result: inspected, logs} = inspectExpList(exp)
-				switch (inspected.semantic) {
-					case 'application': {
-						switch (inspected.fn.ast) {
-							case 'symbol': {
-								const {result: fn, logs} = evalExp(inspected.fn)
-
-								if (
-									typeof fn === 'object' &&
-									!Array.isArray(fn) &&
-									fn.kind === 'fn'
-								) {
-									const result = fn.body.call(
-										{eval: e => evalExp(e).result},
-										...inspected.params
-									)
-									return withLog(result, logs)
-								} else {
-									return withLog(
-										[],
-										[{level: 'error', reason: 'This is not a function.'}]
-									)
-								}
-							}
-						}
-						return withLog([], logs)
-					}
-					case 'invalid':
-						return withLog([], logs)
-				}
-			}
-			break
-
-		case 'vector': {
-			const inspected = inspectExpVector(exp).result
-			switch (inspected.semantic) {
-				case 'value':
-					return evalExp(inspected.value)
-				case 'vector': {
-					const evaluated = inspected.items.map(evalExp)
-					return withLog(
-						evaluated.map(e => e.result),
-						evaluated.flatMap(e => e.logs)
-					)
-				}
-			}
-			break
-		}
-
-		case 'hashMap': {
-			const inspected = inspectExpHashMap(exp).result
-			const evaluated = _.mapValues(inspected.items, evalExp)
-			return withLog(
-				{
-					kind: 'hashMap',
-					value: _.mapValues(evaluated, e => e.result),
-				},
-				_.values(evaluated).flatMap(e => e.logs)
-			)
-		}
+			return evalExpList(exp)
+		case 'vector':
+			return evalExpVector(exp)
+		case 'hashMap':
+			return evalExpHashMap(exp)
 	}
 }
 

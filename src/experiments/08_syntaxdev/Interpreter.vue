@@ -30,14 +30,18 @@ export default defineComponent({
 
 		async function rep(str: string) {
 			const exp = readStr(str)
-			console.log('exp', exp)
-			const {result, logs} = evalExp(exp)
 
-			if (logs.length > 0) {
-				onError.value(logs.map(l => `[${l.level}] ${l.reason}`).join('\n'))
+			try {
+				const {result, logs} = evalExp(exp)
+				if (logs.length > 0) {
+					onError.value(logs.map(l => `[${l.level}] ${l.reason}`).join('\n'))
+				}
+
+				return printValue(result)
+			} catch (err) {
+				console.error(err)
+				throw err
 			}
-
-			return printValue(result)
 		}
 
 		return {rep, onError}
