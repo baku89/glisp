@@ -6,6 +6,7 @@ import ParserDefinition from './parser.pegjs'
 const parser = peg.generate(ParserDefinition)
 
 type Value =
+	| ValueAny
 	| ValuePrim
 	| Value[]
 	| ValueType
@@ -18,13 +19,19 @@ interface ValueVoid {
 	kind: 'void'
 }
 
+type ValueAny = []
+
+function createValueAny() {
+	return []
+}
+
 type ValuePrim = boolean | number | string
 
 type ValueType = ValueVoid | ValueValType | ValueFnType | ValueType[]
 
 interface ValueValType {
 	kind: 'valType'
-	supertype: ValueValType | []
+	supertype: ValueValType | ValueAny
 }
 
 interface ValueFnType {
@@ -303,7 +310,7 @@ function assertExpType(exp: Exp): ValueType {
 			if (inspected.semantic == 'ref') {
 				return assertValueType(evalExp(inspected.ref).result)
 			}
-			return []
+			return createValueAny()
 		}
 		case 'list': {
 			const inspected = inspectExpList(exp).result
@@ -330,10 +337,9 @@ function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
 			return evalExp(inspected.ref)
 		case 'capture':
 		case 'undefined':
-			return withLog(
-				[],
-				[{level: 'error', reason: `Symbol ${exp.name} is not defined.`}]
-			)
+			return withLog(createValueAny(), [
+				{level: 'error', reason: `Symbol ${exp.name} is not defined.`},
+			])
 	}
 }
 
@@ -407,9 +413,7 @@ function isFn(x: Value): x is ValueFn {
 
 function isSubtypeOf(a: ValueValType | [], b: ValueValType | []): boolean {
 	if (isAny(b)) return true
-
 	if (isAny(a)) return false
-
 	if (a.supertype === b) return true
 
 	return isSubtypeOf(a.supertype, b)
