@@ -46,13 +46,13 @@ interface ValueExp {
 }
 
 interface ValueFnThis {
-	eval: (exp: Exp) => Value
+	eval: <R extends Value>(exp: Exp) => R
 }
 
 interface ValueFn {
 	kind: 'fn'
 	type: ValueFnType
-	body: <A extends Exp, R extends Value>(this: ValueFnThis, ...arg0: A[]) => R
+	body: <A extends Exp[], R extends Value>(this: ValueFnThis, ...arg0: A) => R
 }
 
 interface ValueHashMap {
@@ -169,7 +169,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				out: TypeNumber,
 			},
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return (this.eval(a) as number) + (this.eval(b) as number)
+				return this.eval<number>(a) + this.eval<number>(b)
 			} as any,
 		},
 	},
@@ -184,15 +184,13 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				out: TypeFnType,
 			},
 			body: function (this: ValueFnThis, params: Exp, out: Exp) {
-				const _params = this.eval(params) as ValueType[] | ValueType
-				const _out = this.eval(out) as ValueType
-				const ret = {
+				const _params = this.eval<ValueType[] | ValueType>(params)
+				const _out = this.eval<ValueType>(out)
+				return {
 					kind: 'fnType',
 					params: _params,
 					out: _out,
 				}
-				console.log(ret)
-				return ret
 			} as any,
 		},
 	},
@@ -365,7 +363,7 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 
 		if (isFn(fn)) {
 			const result = fn.body.call(
-				{eval: e => evalExp(e).result},
+				{eval: e => evalExp(e).result as any},
 				...inspected.params
 			)
 			return withLog(result, logs)
@@ -403,7 +401,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 }
 
-function isAny(x: Value): x is [] {
+function isAny(x: Value): x is ValueAny {
 	return Array.isArray(x) && x.length == 0
 }
 
@@ -411,7 +409,10 @@ function isFn(x: Value): x is ValueFn {
 	return typeof x === 'object' && !Array.isArray(x) && x.kind === 'fn'
 }
 
-function isSubtypeOf(a: ValueValType | [], b: ValueValType | []): boolean {
+function isSubtypeOf(
+	a: ValueValType | ValueAny,
+	b: ValueValType | ValueAny
+): boolean {
 	if (isAny(b)) return true
 	if (isAny(a)) return false
 	if (a.supertype === b) return true
