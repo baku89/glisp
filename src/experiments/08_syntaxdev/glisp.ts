@@ -1,6 +1,8 @@
 import _ from 'lodash'
 import peg from 'pegjs'
 
+import _$ from '@/lodash-ext'
+
 import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
@@ -15,10 +17,6 @@ type Value =
 	| ValueHashMap
 	| ValueFn
 
-interface ValueVoid {
-	kind: 'void'
-}
-
 type ValueAny = []
 
 function createValueAny() {
@@ -27,17 +25,20 @@ function createValueAny() {
 
 type ValuePrim = boolean | number | string
 
-type ValueType = ValueVoid | ValueValType | ValueFnType | ValueType[]
+type ValueType = ValueValType | ValueFnType | ValueType[]
 
 interface ValueValType {
 	kind: 'valType'
 	supertype: ValueValType | ValueAny
 }
 
-interface ValueFnType {
+interface ValueFnType<
+	P extends ValueType = ValueType,
+	R extends ValueType = ValueType
+> {
 	kind: 'fnType'
-	params: ValueType | ValueType[]
-	out: ValueType
+	params: P
+	out: R
 }
 
 interface ValueExp {
@@ -270,7 +271,7 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 	return withLog({semantic: 'hashMap', items}, logs)
 }
 
-function assertValueType(v: Value): ValueType | ValueVoid {
+function assertValueType(v: Value): ValueType {
 	switch (typeof v) {
 		case 'boolean':
 			return TypeBoolean
@@ -285,15 +286,13 @@ function assertValueType(v: Value): ValueType | ValueVoid {
 	}
 
 	switch (v.kind) {
-		case 'void':
-			return {kind: 'void'}
+		case 'valType':
+		case 'fnType':
+			return v
 		case 'exp':
 			return assertExpType(v.exp)
 		case 'fn':
 			return v.type
-		case 'valType':
-		case 'fnType':
-			return v
 		case 'hashMap':
 			return TypeHashMap
 	}
@@ -316,7 +315,7 @@ function assertExpType(exp: Exp): ValueType {
 				const fn = evalExp(inspected.fn).result
 				return isFn(fn) ? fn.type.out : assertExpType(inspected.fn)
 			} else {
-				return {kind: 'void'}
+				return createValueAny()
 			}
 		}
 		case 'vector':
@@ -370,7 +369,7 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 		}
 		return withLog(fn, [])
 	} else {
-		return withLog({kind: 'void'}, logs)
+		return withLog(createValueAny(), logs)
 	}
 }
 
@@ -409,7 +408,7 @@ function isFn(x: Value): x is ValueFn {
 	return typeof x === 'object' && !Array.isArray(x) && x.kind === 'fn'
 }
 
-function isSubtypeOf(
+function isValueSubtypeOf(
 	a: ValueValType | ValueAny,
 	b: ValueValType | ValueAny
 ): boolean {
@@ -417,7 +416,55 @@ function isSubtypeOf(
 	if (isAny(a)) return false
 	if (a.supertype === b) return true
 
-	return isSubtypeOf(a.supertype, b)
+	return isValueSubtypeOf(a.supertype, b)
+}
+
+function normalizeTypeToVector(type: ValueType): ValueType[] {
+	if (isAny(type)) {
+		return type
+	} else if (Array.isArray(type)) {
+		return type
+	} else {
+		return [type]
+	}
+}
+
+function normalizeTypeToFn(
+	type: ValueType
+): ValueFnType<ValueType[], ValueType[]> {
+	const normalized: ValueFnType<ValueType[], ValueType[]> = {
+		kind: 'fnType',
+		params: [],
+		out: [],
+	}
+
+	if (Array.isArray(type) || type.kind === 'valType') {
+		normalized.out = normalizeTypeToVector(type)
+	} else {
+		// === is fnType
+		normalized.params = normalizeTypeToVector(type)
+		normalized.out = normalizeTypeToVector(type.out)
+	}
+
+	return normalized
+}
+
+function isVectorSubtypeOf(a: ValueType[], b: ValueType[]): boolean {
+	if (a.length < b.length) {
+		return false
+	}
+
+	return _$.zipShorter(a, b).every(([a, b]) => isSubTypeOf(a, b))
+}
+
+function isSubTypeOf(a: ValueType, b: ValueType): boolean {
+	const na = normalizeTypeToFn(a)
+	const nb = normalizeTypeToFn(b)
+
+	return (
+		isVectorSubtypeOf(nb.params, na.params) &&
+		isVectorSubtypeOf(na.params, nb.params)
+	)
 }
 
 /*
@@ -450,8 +497,6 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
-		case 'void':
-			return '()'
 		case 'valType':
 			switch (val) {
 				case TypeBoolean:
