@@ -29,7 +29,6 @@ type ValueType = ValueValType | ValueFnType | ValueType[]
 
 interface ValueValType {
 	kind: 'valType'
-	supertype: ValueValType | ValueAny
 }
 
 interface ValueFnType<
@@ -131,12 +130,12 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const TypeBoolean: ValueType = {kind: 'valType', supertype: []}
-const TypeNumber: ValueType = {kind: 'valType', supertype: []}
-const TypeString: ValueType = {kind: 'valType', supertype: []}
-const TypeType: ValueType = {kind: 'valType', supertype: []}
-const TypeFnType: ValueType = {kind: 'valType', supertype: TypeType}
-const TypeHashMap: ValueType = {kind: 'valType', supertype: []}
+const TypeBoolean: ValueType = {kind: 'valType'}
+const TypeNumber: ValueType = {kind: 'valType'}
+const TypeString: ValueType = {kind: 'valType'}
+const TypeType: ValueType = {kind: 'valType'}
+const TypeFnType: ValueType = {kind: 'valType'}
+const TypeHashMap: ValueType = {kind: 'valType'}
 
 const GlobalSymbols: {[name: string]: Exp} = {
 	Number: {
@@ -195,7 +194,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			} as any,
 		},
 	},
-	':type': {
+	':type?': {
 		parent: null,
 		ast: 'value',
 		value: {
@@ -412,11 +411,10 @@ function isValueSubtypeOf(
 	a: ValueValType | ValueAny,
 	b: ValueValType | ValueAny
 ): boolean {
+	if (a === b) return true
 	if (isAny(b)) return true
-	if (isAny(a)) return false
-	if (a.supertype === b) return true
 
-	return isValueSubtypeOf(a.supertype, b)
+	return false
 }
 
 function normalizeTypeToVector(type: ValueType): ValueType[] {
