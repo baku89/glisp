@@ -29,7 +29,7 @@ type ValueType = ValueCastableType | ValueValType | ValueFnType | ValueType[]
 interface ValueCastableType {
 	kind: 'castableType'
 	type: ValueType
-	cast: ValueFnType
+	cast: (x: Value) => Value
 }
 
 interface ValueValType {
@@ -366,11 +366,13 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 		const {result: fn, logs} = evalExp(inspected.fn)
 
 		if (isFn(fn)) {
+			const params = castExpParam(fn.type.params, inspected.params)
+
 			const result = fn.body.call(
 				{eval: e => evalExp(e).result as any},
-				...inspected.params
+				...params.result
 			)
-			return withLog(result, logs)
+			return withLog(result, [...logs, ...params.logs])
 		}
 		return withLog(fn, [])
 	} else {
@@ -500,20 +502,59 @@ testSubtype('[Number Number]', 'Number')
 testSubtype('[Number Number]', '[]')
 testSubtype('(+ 1 2)', 'Number')
 
-/*
-function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
+function getDefault(type: ValueType): ExpValue {
+	switch (type) {
+		case TypeBoolean:
+			return {parent: null, ast: 'value', value: false}
+		case TypeNumber:
+			return {parent: null, ast: 'value', value: 0}
+		case TypeString:
+			return {parent: null, ast: 'value', value: ''}
+	}
+
+	if (Array.isArray(type)) {
+		return {
+			parent: null,
+			ast: 'value',
+			value: type.map(t => getDefault(t).value),
+		}
+	}
+
+	if (type.kind === 'fnType') {
+		return getDefault(type.out)
+	}
+
+	return {parent: null, ast: 'value', value: []}
+}
+
+function castExpParam(
+	_to: ValueFnType['params'],
+	from: Exp[]
+): WithLogs<Exp[]> {
+	const to = normalizeTypeToVector(_to)
+
 	const logs: Log[] = []
 
 	if (to.length > from.length) {
 		logs.push({level: 'error', reason: 'Too short arguments'})
 	}
 
+	const casted: Exp[] = []
+
 	for (let i = 0; i < to.length; i++) {
 		const toItem = to[i]
 		const fromItem = from[i]
+
+		if (isSubtypeOf(assertExpType(fromItem), toItem)) {
+			casted.push(fromItem)
+		} else {
+			logs.push({level: 'error', reason: 'Mismatch'})
+			casted.push(getDefault(toItem))
+		}
 	}
+
+	return withLog(casted, logs)
 }
-*/
 
 export function printValue(val: Value): string {
 	switch (typeof val) {
