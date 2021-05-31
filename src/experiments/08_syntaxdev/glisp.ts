@@ -25,7 +25,13 @@ function createValueAny() {
 
 type ValuePrim = boolean | number | string
 
-type ValueType = ValueValType | ValueFnType | ValueType[]
+type ValueType = ValueCastableType | ValueValType | ValueFnType | ValueType[]
+
+interface ValueCastableType {
+	kind: 'castableType'
+	type: ValueType
+	cast: ValueFnType
+}
 
 interface ValueValType {
 	kind: 'valType'
@@ -285,6 +291,7 @@ function assertValueType(v: Value): ValueType {
 	}
 
 	switch (v.kind) {
+		case 'castableType':
 		case 'valType':
 		case 'fnType':
 			return v
@@ -430,7 +437,7 @@ function normalizeTypeToVector(type: ValueType): ValueType[] {
 function normalizeTypeToFn(
 	type: ValueType
 ): ValueFnType<ValueType[], ValueType[]> {
-	const normalized: ValueFnType<ValueType[], ValueType[]> = {
+	let normalized: ValueFnType<ValueType[], ValueType[]> = {
 		kind: 'fnType',
 		params: [],
 		out: [],
@@ -438,6 +445,8 @@ function normalizeTypeToFn(
 
 	if (Array.isArray(type) || type.kind === 'valType') {
 		normalized.out = normalizeTypeToVector(type)
+	} else if (type.kind === 'castableType') {
+		normalized = normalizeTypeToFn(type.type)
 	} else {
 		// === is fnType
 		normalized.params = normalizeTypeToVector(type)
@@ -452,16 +461,15 @@ function isVectorSubtypeOf(a: ValueType[], b: ValueType[]): boolean {
 		return false
 	}
 
-	return _$.zipShorter(a, b).every(([a, b]) => isSubTypeOf(a, b))
+	return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
 }
 
-function isSubTypeOf(a: ValueType, b: ValueType): boolean {
+function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	const na = normalizeTypeToFn(a)
 	const nb = normalizeTypeToFn(b)
 
 	return (
-		isVectorSubtypeOf(nb.params, na.params) &&
-		isVectorSubtypeOf(na.params, nb.params)
+		isVectorSubtypeOf(nb.params, na.params) && isVectorSubtypeOf(na.out, nb.out)
 	)
 }
 
@@ -495,6 +503,8 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
+		case 'castableType':
+			return `<Castable ${printValue(val.type)}`
 		case 'valType':
 			switch (val) {
 				case TypeBoolean:
