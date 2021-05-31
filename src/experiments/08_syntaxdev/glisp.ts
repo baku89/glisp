@@ -8,7 +8,6 @@ import ParserDefinition from './parser.pegjs'
 const parser = peg.generate(ParserDefinition)
 
 type Value =
-	| ValueAny
 	| ValuePrim
 	| Value[]
 	| ValueType
@@ -465,6 +464,17 @@ function isVectorSubtypeOf(a: ValueType[], b: ValueType[]): boolean {
 }
 
 function isSubtypeOf(a: ValueType, b: ValueType): boolean {
+	if (Array.isArray(a) || Array.isArray(b)) {
+		const na = normalizeTypeToVector(a)
+		const nb = normalizeTypeToVector(b)
+		return isVectorSubtypeOf(na, nb)
+	}
+
+	if (a.kind === 'valType' && b.kind === 'valType') {
+		return isValueSubtypeOf(a, b)
+	}
+
+	// Either is fnType
 	const na = normalizeTypeToFn(a)
 	const nb = normalizeTypeToFn(b)
 
@@ -472,6 +482,23 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 		isVectorSubtypeOf(nb.params, na.params) && isVectorSubtypeOf(na.out, nb.out)
 	)
 }
+
+function testSubtype(aStr: string, bStr: string) {
+	const a = assertExpType(readStr(aStr))
+	const b = assertExpType(readStr(bStr))
+
+	const ret = isSubtypeOf(a, b)
+
+	console.log(
+		`a=${aStr}, b=${bStr}, a :< b = ${printValue(a)} :< ${printValue(
+			b
+		)} = ${printValue(ret)}`
+	)
+}
+
+testSubtype('[Number Number]', 'Number')
+testSubtype('[Number Number]', '[]')
+testSubtype('(+ 1 2)', 'Number')
 
 /*
 function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
