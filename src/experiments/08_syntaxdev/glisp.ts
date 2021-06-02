@@ -190,7 +190,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				out: TypeFnType,
 			},
 			body: function (this: ValueFnThis, params: Exp, out: Exp) {
-				const _params = this.eval<ValueType[] | ValueType>(params)
+				const _params = this.eval<ValueType[]>(params)
 				const _out = this.eval<ValueType>(out)
 				return {
 					kind: 'fnType',
@@ -395,11 +395,11 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 }
 
 function isAny(x: Value): x is ValueAny {
-	return Array.isArray(x) && x.length == 0
+	return x instanceof Object && !Array.isArray(x) && x.kind === 'any'
 }
 
 function isFn(x: Value): x is ValueFn {
-	return typeof x === 'object' && !Array.isArray(x) && x.kind === 'fn'
+	return x instanceof Object && !Array.isArray(x) && x.kind === 'fn'
 }
 
 function isValueSubtypeOf(
@@ -472,8 +472,9 @@ function testSubtype(aStr: string, bStr: string) {
 	)
 }
 
-testSubtype('[Number Number]', 'Number')
+testSubtype('[Number Number]', '[Number]')
 testSubtype('[Number Number]', '[]')
+testSubtype('[Number Number]', 'Any')
 testSubtype('(+ 1 2)', 'Number')
 
 function getDefault(type: ValueType): ExpValue {
@@ -512,7 +513,7 @@ function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
 
 	for (let i = 0; i < to.length; i++) {
 		const toItem = to[i]
-		const fromItem = from[i]
+		const fromItem = from[i] || 0
 
 		if (isSubtypeOf(assertExpType(fromItem), toItem)) {
 			casted.push(fromItem)
