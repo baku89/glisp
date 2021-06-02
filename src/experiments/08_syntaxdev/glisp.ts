@@ -25,7 +25,7 @@ function createValueAny(): ValueAny {
 	return {kind: 'any'}
 }
 
-type ValuePrim = boolean | number | string
+type ValuePrim = null | boolean | number | string
 
 type ValueType =
 	| ValueAny
@@ -269,6 +269,9 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 }
 
 function assertValueType(v: Value): ValueType {
+	if (v === null) {
+		return createValueAny()
+	}
 	switch (typeof v) {
 		case 'boolean':
 			return TypeBoolean
@@ -513,7 +516,7 @@ function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
 
 	for (let i = 0; i < to.length; i++) {
 		const toItem = to[i]
-		const fromItem = from[i] || 0
+		const fromItem = from[i] || null
 
 		if (isSubtypeOf(assertExpType(fromItem), toItem)) {
 			casted.push(fromItem)
@@ -527,6 +530,9 @@ function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
 }
 
 export function printValue(val: Value): string {
+	if (val === null) {
+		return 'null'
+	}
 	switch (typeof val) {
 		case 'boolean':
 			return val ? 'true' : 'false'
