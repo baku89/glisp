@@ -8,6 +8,7 @@ import ParserDefinition from './parser.pegjs'
 const parser = peg.generate(ParserDefinition)
 
 type Value =
+	| ValueAny
 	| ValuePrim
 	| Value[]
 	| ValueType
@@ -16,15 +17,22 @@ type Value =
 	| ValueHashMap
 	| ValueFn
 
-type ValueAny = []
+interface ValueAny {
+	kind: 'any'
+}
 
-function createValueAny() {
-	return []
+function createValueAny(): ValueAny {
+	return {kind: 'any'}
 }
 
 type ValuePrim = boolean | number | string
 
-type ValueType = ValueCastableType | ValueValType | ValueFnType | ValueType[]
+type ValueType =
+	| ValueAny
+	| ValueCastableType
+	| ValueValType
+	| ValueFnType
+	| ValueType[]
 
 interface ValueCastableType {
 	kind: 'castableType'
@@ -36,13 +44,10 @@ interface ValueValType {
 	kind: 'valType'
 }
 
-interface ValueFnType<
-	P extends ValueType = ValueType,
-	R extends ValueType = ValueType
-> {
+interface ValueFnType {
 	kind: 'fnType'
-	params: P
-	out: R
+	params: ValueType[]
+	out: ValueType
 }
 
 interface ValueExp {
@@ -103,10 +108,6 @@ interface ExpList extends ExpBase {
 	ast: 'list'
 	items: Exp[]
 }
-
-type InspectedResultVector =
-	| {semantic: 'value'; value: Exp}
-	| {semantic: 'vector'; items: Exp[]}
 
 interface ExpVector extends ExpBase {
 	ast: 'vector'
@@ -199,7 +200,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			} as any,
 		},
 	},
-	':type?': {
+	':type': {
 		parent: null,
 		ast: 'value',
 		value: {
@@ -245,14 +246,6 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	}
 }
 
-function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
-	if (exp.items.length === 1) {
-		return withLog({semantic: 'value', value: exp.items[0]})
-	} else {
-		return withLog({semantic: 'vector', items: exp.items})
-	}
-}
-
 function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 	const items: {[hash: string]: Exp} = {}
 
@@ -286,10 +279,11 @@ function assertValueType(v: Value): ValueType {
 	}
 
 	if (Array.isArray(v)) {
-		return v.length === 1 ? assertValueType(v[0]) : v.map(assertValueType)
+		return v.map(assertValueType)
 	}
 
 	switch (v.kind) {
+		case 'any':
 		case 'castableType':
 		case 'valType':
 		case 'fnType':
@@ -346,18 +340,11 @@ function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
 }
 
 function evalExpVector(exp: ExpVector): WithLogs<Value> {
-	const inspected = inspectExpVector(exp).result
-	switch (inspected.semantic) {
-		case 'value':
-			return evalExp(inspected.value)
-		case 'vector': {
-			const evaluated = inspected.items.map(evalExp)
-			return withLog(
-				evaluated.map(e => e.result),
-				evaluated.flatMap(e => e.logs)
-			)
-		}
-	}
+	const evaluated = exp.items.map(evalExp)
+	return withLog(
+		evaluated.map(e => e.result),
+		evaluated.flatMap(e => e.logs)
+	)
 }
 
 function evalExpList(exp: ExpList): WithLogs<Value> {
@@ -425,33 +412,20 @@ function isValueSubtypeOf(
 	return false
 }
 
-function normalizeTypeToVector(type: ValueType): ValueType[] {
-	if (isAny(type)) {
-		return type
-	} else if (Array.isArray(type)) {
-		return type
-	} else {
-		return [type]
-	}
-}
-
-function normalizeTypeToFn(
-	type: ValueType
-): ValueFnType<ValueType[], ValueType[]> {
-	let normalized: ValueFnType<ValueType[], ValueType[]> = {
+function normalizeTypeToFn(type: ValueType): ValueFnType {
+	let normalized: ValueFnType = {
 		kind: 'fnType',
 		params: [],
-		out: [],
+		out: createValueAny(),
 	}
 
-	if (Array.isArray(type) || type.kind === 'valType') {
-		normalized.out = normalizeTypeToVector(type)
+	if (Array.isArray(type) || type.kind === 'any' || type.kind === 'valType') {
+		normalized.out = type
 	} else if (type.kind === 'castableType') {
 		normalized = normalizeTypeToFn(type.type)
 	} else {
 		// === is fnType
-		normalized.params = normalizeTypeToVector(type)
-		normalized.out = normalizeTypeToVector(type.out)
+		normalized = type
 	}
 
 	return normalized
@@ -466,10 +440,12 @@ function isVectorSubtypeOf(a: ValueType[], b: ValueType[]): boolean {
 }
 
 function isSubtypeOf(a: ValueType, b: ValueType): boolean {
+	if (Array.isArray(a) && Array.isArray(b)) {
+		return isVectorSubtypeOf(a, b)
+	}
+
 	if (Array.isArray(a) || Array.isArray(b)) {
-		const na = normalizeTypeToVector(a)
-		const nb = normalizeTypeToVector(b)
-		return isVectorSubtypeOf(na, nb)
+		return false
 	}
 
 	if (a.kind === 'valType' && b.kind === 'valType') {
@@ -480,9 +456,7 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	const na = normalizeTypeToFn(a)
 	const nb = normalizeTypeToFn(b)
 
-	return (
-		isVectorSubtypeOf(nb.params, na.params) && isVectorSubtypeOf(na.out, nb.out)
-	)
+	return isVectorSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 }
 
 function testSubtype(aStr: string, bStr: string) {
@@ -527,12 +501,7 @@ function getDefault(type: ValueType): ExpValue {
 	return {parent: null, ast: 'value', value: []}
 }
 
-function castExpParam(
-	_to: ValueFnType['params'],
-	from: Exp[]
-): WithLogs<Exp[]> {
-	const to = normalizeTypeToVector(_to)
-
+function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
 	const logs: Log[] = []
 
 	if (to.length > from.length) {
@@ -571,6 +540,8 @@ export function printValue(val: Value): string {
 	}
 
 	switch (val.kind) {
+		case 'any':
+			return 'Any'
 		case 'castableType':
 			return `<Castable ${printValue(val.type)}`
 		case 'valType':
