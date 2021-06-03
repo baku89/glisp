@@ -214,6 +214,21 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			body: assertExpType as any,
 		},
 	},
+	':<': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [createValueAny(), createValueAny()],
+				out: TypeBoolean,
+			},
+			body: function (this: ValueFnThis, a: Exp, b: Exp) {
+				return isSubtypeOf(this.eval<ValueType>(a), this.eval<ValueType>(b))
+			} as any,
+		},
+	},
 }
 
 interface WithLogs<T> {
