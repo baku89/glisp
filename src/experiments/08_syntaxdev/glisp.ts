@@ -492,14 +492,14 @@ function testSubtype(aStr: string, bStr: string) {
 	)
 }
 
-// testSubtype('Number', 'Any')
-// testSubtype('Any', 'Number')
-// testSubtype('Number', 'Number')
-// testSubtype('Number', 'String')
+testSubtype('Number', 'Any')
+testSubtype('Any', 'Number')
+testSubtype('Number', 'Number')
+testSubtype('Number', 'String')
 testSubtype('[Number Number]', '[Number]')
-// testSubtype('[Number Number]', '[]')
-// testSubtype('[Number Number]', 'Any')
-// testSubtype('(+ 1 2)', 'Number')
+testSubtype('[Number Number]', '[]')
+testSubtype('[Number Number]', 'Any')
+testSubtype('(+ 1 2)', 'Number')
 
 function getDefault(type: ValueType): ExpValue {
 	switch (type) {
@@ -526,7 +526,7 @@ function getDefault(type: ValueType): ExpValue {
 	return {parent: null, ast: 'value', value: []}
 }
 
-function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
+function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
 	const logs: Log[] = []
 
 	if (to.length > from.length) {
@@ -537,12 +537,19 @@ function castExpParam(to: ValueFnType['params'], from: Exp[]): WithLogs<Exp[]> {
 
 	for (let i = 0; i < to.length; i++) {
 		const toItem = to[i]
-		const fromItem = from[i] || null
+		const fromItem: Exp = from[i] || {ast: 'value', value: null}
 
-		if (isSubtypeOf(assertExpType(fromItem), toItem)) {
+		const fromType = assertExpType(fromItem)
+
+		if (isSubtypeOf(fromType, toItem)) {
 			casted.push(fromItem)
 		} else {
-			logs.push({level: 'error', reason: 'Mismatch'})
+			logs.push({
+				level: 'error',
+				reason: `Type "${printValue(
+					fromType
+				)}" cannot be casted to "${printValue(toItem)}"`,
+			})
 			casted.push(getDefault(toItem))
 		}
 	}
