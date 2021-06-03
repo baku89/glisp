@@ -326,9 +326,7 @@ function assertExpType(exp: Exp): ValueType {
 			}
 		}
 		case 'vector':
-			return exp.items.length === 1
-				? assertExpType(exp.items[0])
-				: exp.items.map(assertExpType)
+			return exp.items.map(assertExpType)
 		case 'hashMap':
 			return TypeHashMap
 	}
@@ -410,16 +408,6 @@ function isFn(x: Value): x is ValueFn {
 	return x instanceof Object && !Array.isArray(x) && x.kind === 'fn'
 }
 
-function isValueSubtypeOf(
-	a: ValueValType | ValueAny,
-	b: ValueValType | ValueAny
-): boolean {
-	if (a === b) return true
-	if (isAny(b)) return true
-
-	return false
-}
-
 function normalizeTypeToFn(type: ValueType): ValueFnType {
 	let normalized: ValueFnType = {
 		kind: 'fnType',
@@ -439,32 +427,41 @@ function normalizeTypeToFn(type: ValueType): ValueFnType {
 	return normalized
 }
 
-function isVectorSubtypeOf(a: ValueType[], b: ValueType[]): boolean {
-	if (a.length < b.length) {
+function isSubtypeOf(a: ValueType, b: ValueType): boolean {
+	if (a === b) {
+		return true
+	}
+
+	if (isAny(b)) {
+		return true
+	}
+
+	if (isAny(a)) {
 		return false
 	}
 
-	return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
-}
-
-function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	if (Array.isArray(a) && Array.isArray(b)) {
-		return isVectorSubtypeOf(a, b)
+		if (a.length < b.length) {
+			return false
+		}
+
+		return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
 	}
 
+	// Either is vector type
 	if (Array.isArray(a) || Array.isArray(b)) {
 		return false
 	}
 
 	if (a.kind === 'valType' && b.kind === 'valType') {
-		return isValueSubtypeOf(a, b)
+		return false
 	}
 
 	// Either is fnType
 	const na = normalizeTypeToFn(a)
 	const nb = normalizeTypeToFn(b)
 
-	return isVectorSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
+	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 }
 
 function testSubtype(aStr: string, bStr: string) {
@@ -480,10 +477,14 @@ function testSubtype(aStr: string, bStr: string) {
 	)
 }
 
+// testSubtype('Number', 'Any')
+// testSubtype('Any', 'Number')
+// testSubtype('Number', 'Number')
+// testSubtype('Number', 'String')
 testSubtype('[Number Number]', '[Number]')
-testSubtype('[Number Number]', '[]')
-testSubtype('[Number Number]', 'Any')
-testSubtype('(+ 1 2)', 'Number')
+// testSubtype('[Number Number]', '[]')
+// testSubtype('[Number Number]', 'Any')
+// testSubtype('(+ 1 2)', 'Number')
 
 function getDefault(type: ValueType): ExpValue {
 	switch (type) {
