@@ -144,6 +144,11 @@ const TypeFnType: ValueType = {kind: 'valType'}
 const TypeHashMap: ValueType = {kind: 'valType'}
 
 const GlobalSymbols: {[name: string]: Exp} = {
+	Any: {
+		parent: null,
+		ast: 'value',
+		value: {kind: 'any'},
+	},
 	Number: {
 		parent: null,
 		ast: 'value',
@@ -186,7 +191,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
-				params: [TypeType, TypeType],
+				params: [createValueAny(), TypeType],
 				out: TypeFnType,
 			},
 			body: function (this: ValueFnThis, params: Exp, out: Exp) {
