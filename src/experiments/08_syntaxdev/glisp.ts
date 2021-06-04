@@ -10,6 +10,7 @@ const parser = peg.generate(ParserDefinition)
 type Value =
 	| ValueAny
 	| ValuePrim
+	| ValueSingleton
 	| Value[]
 	| ValueType
 	| ValueFnType
@@ -25,10 +26,18 @@ function createValueAny(): ValueAny {
 	return {kind: 'any'}
 }
 
-type ValuePrim = null | boolean | number | string
+type ValueSingleton =
+	| null
+	| boolean
+	| {
+			kind: 'singleton'
+	  }
+
+type ValuePrim = number | string
 
 type ValueType =
 	| ValueAny
+	| ValueSingleton
 	| ValueCastableType
 	| ValueValType
 	| ValueFnType
@@ -306,6 +315,7 @@ function assertValueType(v: Value): ValueType {
 	}
 
 	switch (v.kind) {
+		case 'singleton':
 		case 'any':
 		case 'castableType':
 		case 'valType':
@@ -430,7 +440,14 @@ function normalizeTypeToFn(type: ValueType): ValueFnType {
 		out: createValueAny(),
 	}
 
-	if (Array.isArray(type) || type.kind === 'any' || type.kind === 'valType') {
+	if (
+		type === null ||
+		typeof type === 'boolean' ||
+		Array.isArray(type) ||
+		type.kind === 'any' ||
+		type.kind === 'valType' ||
+		type.kind === 'singleton'
+	) {
 		normalized.out = type
 	} else if (type.kind === 'castableType') {
 		normalized = normalizeTypeToFn(type.type)
@@ -468,6 +485,15 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 		return false
 	}
 
+	if (
+		a === null ||
+		b === null ||
+		typeof a === 'boolean' ||
+		typeof b === 'boolean'
+	) {
+		return false
+	}
+
 	if (a.kind === 'valType' && b.kind === 'valType') {
 		return false
 	}
@@ -502,6 +528,10 @@ testSubtype('[Number Number]', 'Any')
 testSubtype('(+ 1 2)', 'Number')
 
 function getDefault(type: ValueType): ExpValue {
+	if (type === null || typeof type === 'boolean') {
+		return {parent: null, ast: 'value', value: type}
+	}
+
 	switch (type) {
 		case TypeBoolean:
 			return {parent: null, ast: 'value', value: false}
@@ -594,6 +624,8 @@ export function printValue(val: Value): string {
 				default:
 					throw new Error('aaa!!!')
 			}
+		case 'singleton':
+			return '<singleton>'
 		case 'fnType':
 			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'exp':
