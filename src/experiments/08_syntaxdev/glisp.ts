@@ -259,7 +259,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
-				params: [createValueAny()],
+				params: [[createValueAny()]],
 				out: createValueAny(),
 			},
 			body: function (this: ValueFnThis, xs: Exp) {
@@ -278,7 +278,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 
 				return {
 					kind: 'variadicVector',
-					items: items,
+					items,
 				}
 			} as any,
 		},
@@ -566,27 +566,51 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		return false
 	}
 
-	// Both are vectors
-	if (Array.isArray(a) && Array.isArray(b)) {
-		if (a.length < b.length) {
-			return false
-		}
+	// Handling Vector/VariadicVector
 
-		return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
+	if (isKindOf(b, 'variadicVector')) {
+		if (isKindOf(a, 'variadicVector')) {
+			return equalsValue(a, b)
+		} else if (Array.isArray(a)) {
+			const minLength = b.items.length - 1
+			if (a.length < minLength) {
+				return false
+			}
+			const variadicCount = a.length - minLength
+			const bLast = b.items[b.items.length - 1]
+			console.log('sdsdf', b)
+			const bv = [
+				...b.items.slice(0, minLength),
+				...Array(variadicCount).fill(bLast),
+			]
+			return isSubtypeOf(a, bv)
+		}
+		return false
 	}
 
-	// Either is vector type
-	if (Array.isArray(a) || Array.isArray(b)) {
+	if (Array.isArray(b)) {
+		if (Array.isArray(a)) {
+			if (a.length < b.length) {
+				return false
+			}
+			return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
+		}
+		return false
+	}
+
+	if (Array.isArray(a)) {
 		return false
 	}
 
 	// Handle for union type
-	if (b instanceof Object && b.kind === 'unionType') {
-		const aTypes: Value[] =
-			a instanceof Object && a.kind === 'unionType' ? a.items : [a]
+	if (isKindOf(b, 'unionType')) {
+		const aTypes: Value[] = isKindOf(a, 'unionType') ? a.items : [a]
 		const bTypes = b.items
-
 		return aTypes.every(at => bTypes.some(bt => isSubtypeOf(at, bt)))
+	}
+
+	if (isKindOf(a, 'unionType')) {
+		return false
 	}
 
 	// Handle for number and string literals
