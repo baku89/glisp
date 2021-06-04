@@ -7,7 +7,14 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type Value = ValuePrim | Value[] | ValueType | ValueExp | ValueHashMap | ValueFn
+type Value =
+	| ValuePrim
+	| Value[]
+	| ValueVariadicVector
+	| ValueType
+	| ValueExp
+	| ValueHashMap
+	| ValueFn
 
 interface ValueAny {
 	kind: 'any'
@@ -33,7 +40,12 @@ type ValueType =
 	| ValueUnionType
 	| ValueFnType
 	| ValueType[]
+	| ValueVariadicVector
 
+interface ValueVariadicVector {
+	kind: 'variadicVector'
+	items: Value[]
+}
 interface ValueValType {
 	kind: 'valType'
 }
@@ -246,6 +258,24 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			} as any,
 		},
 	},
+	'...': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [createValueAny()],
+				out: createValueAny(),
+			},
+			body: function (this: ValueFnThis, xs: Exp) {
+				return {
+					kind: 'variadicVector',
+					items: this.eval<Value[]>(xs),
+				}
+			} as any,
+		},
+	},
 	':type': {
 		parent: null,
 		ast: 'value',
@@ -341,11 +371,12 @@ function assertValueType(v: Value): Value {
 	}
 
 	switch (v.kind) {
-		case 'singleton':
 		case 'any':
+		case 'singleton':
 		case 'valType':
 		case 'fnType':
 		case 'unionType':
+		case 'variadicVector':
 			return v
 		case 'exp':
 			return assertExpType(v.exp)
@@ -665,6 +696,8 @@ export function printValue(val: Value): string {
 				default:
 					throw new Error('aaa!!!')
 			}
+		case 'variadicVector':
+			return '(... ' + val.items.map(printValue).join(' ') + ')'
 		case 'unionType':
 			return '(:| ' + val.items.map(printValue).join(' ') + ')'
 		case 'singleton':
