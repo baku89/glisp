@@ -707,8 +707,13 @@ function getDefault(type: ValueType): ExpValue {
 		}
 	}
 
-	if (type.kind === 'fnType') {
-		return getDefault(type.out)
+	switch (type.kind) {
+		case 'fnType':
+			return getDefault(type.out)
+		case 'unionType':
+			return getDefault(type.items[0])
+		case 'singleton':
+			return {parent: null, ast: 'value', value: type}
 	}
 
 	return {parent: null, ast: 'value', value: []}
