@@ -17,12 +17,12 @@ function createValueAny(): ValueAny {
 	return {kind: 'any'}
 }
 
-type ValueSingleton =
-	| null
-	| boolean
-	| {
-			kind: 'singleton'
-	  }
+type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
+
+type ValueLiteralSingleton = null | boolean
+interface ValueCustomSingleton {
+	kind: 'singleton'
+}
 
 type ValuePrim = number | string
 
@@ -504,6 +504,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		return aTypes.every(at => bTypes.some(bt => isSubtypeOf(at, bt)))
 	}
 
+	// Handle for number and string literals
 	if (typeof a === 'number') {
 		return b === TypeNumber
 	}
@@ -628,9 +629,12 @@ function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
 		} else {
 			logs.push({
 				level: 'error',
-				reason: `Type "${printValue(
-					fromType
-				)}" cannot be casted to "${printValue(toItem)}"`,
+				reason:
+					'Type "' +
+					printValue(fromType) +
+					'" cannot be casted to "' +
+					printValue(toItem) +
+					'"',
 			})
 			casted.push(getDefault(toItem))
 		}
