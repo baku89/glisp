@@ -731,8 +731,13 @@ function castExpParam(
 		}
 	} else {
 		const minLength = to.items.length - 1
-		if (minLength > from.length) {
+		if (from.length < minLength) {
 			logs.push({level: 'error', reason: 'Too short arguments'})
+
+			from = [...from]
+			while (from.length < minLength) {
+				from.push(getDefault(to.items[from.length]))
+			}
 		}
 
 		const variadicCount = from.length - minLength
