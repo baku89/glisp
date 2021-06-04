@@ -338,15 +338,9 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 	return withLog({semantic: 'hashMap', items}, logs)
 }
 
-function assertValueType(v: Value): ValueType {
-	if (v === null || typeof v === 'boolean') {
+function assertValueType(v: Value): Value {
+	if (v === null || typeof v !== 'object') {
 		return v
-	}
-	switch (typeof v) {
-		case 'number':
-			return TypeNumber
-		case 'string':
-			return TypeString
 	}
 
 	if (Array.isArray(v)) {
@@ -370,7 +364,7 @@ function assertValueType(v: Value): ValueType {
 	}
 }
 
-function assertExpType(exp: Exp): ValueType {
+function assertExpType(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
 			return assertValueType(exp.value)
@@ -474,7 +468,7 @@ function isFn(x: Value): x is ValueFn {
 	return x instanceof Object && !Array.isArray(x) && x.kind === 'fn'
 }
 
-function isSubtypeOf(a: ValueType, b: ValueType): boolean {
+function isSubtypeOf(a: Value, b: Value): boolean {
 	if (a === b) {
 		return true
 	}
@@ -501,11 +495,24 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 		return false
 	}
 
+	// Handle for union type
 	if (b instanceof Object && b.kind === 'unionType') {
-		const aTypes = a instanceof Object && a.kind === 'unionType' ? a.items : [a]
+		const aTypes: Value[] =
+			a instanceof Object && a.kind === 'unionType' ? a.items : [a]
 		const bTypes = b.items
 
 		return aTypes.every(at => bTypes.some(bt => isSubtypeOf(at, bt)))
+	}
+
+	if (typeof a === 'number') {
+		return b === TypeNumber
+	}
+	if (typeof a === 'string') {
+		return b === TypeString
+	}
+
+	if (typeof b === 'number' || typeof b === 'string') {
+		return false
 	}
 
 	// Either is singleton
@@ -531,26 +538,19 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
-	function normalizeTypeToFn(type: ValueType): {
-		params: ValueType[]
-		out: ValueType
+	function normalizeTypeToFn(type: Value): {
+		params: Value[]
+		out: Value
 	} {
-		if (
-			type === null ||
-			typeof type === 'boolean' ||
-			Array.isArray(type) ||
-			type.kind === 'any' ||
-			type.kind === 'valType' ||
-			type.kind === 'unionType' ||
-			type.kind === 'singleton'
-		) {
-			return {params: [], out: type}
-		} else if (type.kind === 'castableType') {
-			return normalizeTypeToFn(type.type)
-		} else {
-			// === is fnType
-			return {params: type.params, out: type.out}
+		if (typeof type === 'object' && type !== null && !Array.isArray(type)) {
+			switch (type.kind) {
+				case 'fnType':
+					return {params: type.params, out: type.out}
+				case 'castableType':
+					return normalizeTypeToFn(type.type)
+			}
 		}
+		return {params: [], out: type}
 	}
 }
 
