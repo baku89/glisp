@@ -216,8 +216,11 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		ast: 'value',
 		value: {
 			kind: 'fn',
-			type: {kind: 'fnType', params: [], out: TypeType},
-			body: assertExpType as any,
+			type: {kind: 'fnType', params: [createValueAny()], out: TypeType},
+			body: function (this: ValueFnThis, t: Exp) {
+				console.log(t)
+				return assertExpType(t)
+			} as any,
 		},
 	},
 	':<': {
