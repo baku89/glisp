@@ -514,28 +514,30 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 }
 
-function testSubtype(aStr: string, bStr: string) {
+function testSubtype(aStr: string, bStr: string, toBe: boolean) {
 	const a = assertExpType(readStr(aStr))
 	const b = assertExpType(readStr(bStr))
 
 	const ret = isSubtypeOf(a, b)
 
-	console.log(
+	const fn = ret === toBe ? console.log : console.error
+
+	fn(
 		`a=${aStr}, b=${bStr}, a :< b = ${printValue(a)} :< ${printValue(
 			b
 		)} = ${printValue(ret)}`
 	)
 }
 
-testSubtype('Number', 'Any')
-testSubtype('true', 'Boolean')
-testSubtype('Any', 'Number')
-testSubtype('Number', 'Number')
-testSubtype('Number', 'String')
-testSubtype('[Number Number]', '[Number]')
-testSubtype('[Number Number]', '[]')
-testSubtype('[Number Number]', 'Any')
-testSubtype('(+ 1 2)', 'Number')
+testSubtype('Number', 'Any', true)
+testSubtype('true', 'Boolean', true)
+testSubtype('Any', 'Number', false)
+testSubtype('Number', 'Number', true)
+testSubtype('Number', 'String', false)
+testSubtype('[Number Number]', '[Number]', true)
+testSubtype('[Number Number]', '[]', true)
+testSubtype('[Number Number]', 'Any', true)
+testSubtype('(+ 1 2)', 'Number', true)
 
 function getDefault(type: ValueType): ExpValue {
 	if (type === null || typeof type === 'boolean') {
