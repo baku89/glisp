@@ -12,7 +12,6 @@ type Value =
 	| Value[]
 	| ValueVariadicVector
 	| ValueType
-	| ValueExp
 	| ValueHashMap
 	| ValueFn
 
@@ -59,11 +58,6 @@ interface ValueFnType {
 	kind: 'fnType'
 	params: Exclude<ValueType, ValueSingleton>[]
 	out: Exclude<ValueType, ValueSingleton>
-}
-
-interface ValueExp {
-	kind: 'exp'
-	exp: Exp
 }
 
 interface ValueFnThis {
@@ -269,9 +263,22 @@ const GlobalSymbols: {[name: string]: Exp} = {
 				out: createValueAny(),
 			},
 			body: function (this: ValueFnThis, xs: Exp) {
+				const items = this.eval<Value[]>(xs)
+
+				if (items.length === 0) {
+					items.push(createValueAny())
+				} else if (items.length >= 2) {
+					const last = items[items.length - 1]
+					for (let i = items.length - 2; i >= 0; i--) {
+						if (equalsValue(items[i], last)) {
+							items.pop()
+						}
+					}
+				}
+
 				return {
 					kind: 'variadicVector',
-					items: this.eval<Value[]>(xs),
+					items: items,
 				}
 			} as any,
 		},
@@ -307,6 +314,54 @@ const GlobalSymbols: {[name: string]: Exp} = {
 interface WithLogs<T> {
 	result: T
 	logs: Log[]
+}
+
+function equalsValue(a: Value, b: Value): boolean {
+	if (a === null || typeof a !== 'object') {
+		return a === b
+	}
+
+	if (Array.isArray(a)) {
+		return (
+			Array.isArray(b) &&
+			a.length === b.length &&
+			_$.zipShorter(a, b).every(_.spread(equalsValue))
+		)
+	}
+
+	switch (a.kind) {
+		case 'any':
+			return isAny(b)
+		case 'singleton':
+		case 'fn':
+		case 'valType':
+			return a === b
+		case 'fnType':
+			return (
+				isKindOf(b, 'fnType') &&
+				equalsValue(a.params, b.params) &&
+				equalsValue(a.out, b.out)
+			)
+		case 'hashMap':
+			if (isKindOf(b, 'hashMap')) {
+				const aKeys = Object.keys(a.value)
+				const bKeys = Object.keys(b.value)
+				return (
+					aKeys.length === bKeys.length &&
+					aKeys.every(
+						k => bKeys.includes(k) && equalsValue(a.value[k], b.value[k])
+					)
+				)
+			}
+			return false
+		case 'unionType':
+			return (
+				isKindOf(b, 'unionType') &&
+				_.xorWith(a.items, b.items, equalsValue).length === 0
+			)
+		case 'variadicVector':
+			return isKindOf(b, 'variadicVector') && equalsValue(a.items, b.items)
+	}
 }
 
 function withLog<T>(result: T, logs: Log[] = []) {
@@ -378,8 +433,6 @@ function assertValueType(v: Value): Value {
 		case 'unionType':
 		case 'variadicVector':
 			return v
-		case 'exp':
-			return assertExpType(v.exp)
 		case 'fn':
 			return v.type
 		case 'hashMap':
@@ -402,7 +455,7 @@ function assertExpType(exp: Exp): Value {
 			const inspected = inspectExpList(exp).result
 			if (inspected.semantic === 'application') {
 				const fn = evalExp(inspected.fn).result
-				return isFn(fn) ? fn.type.out : assertExpType(inspected.fn)
+				return isKindOf(fn, 'fn') ? fn.type.out : assertExpType(inspected.fn)
 			} else {
 				return createValueAny()
 			}
@@ -440,7 +493,7 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 	if (inspected.semantic === 'application') {
 		const {result: fn, logs} = evalExp(inspected.fn)
 
-		if (isFn(fn)) {
+		if (isKindOf(fn, 'fn')) {
 			const params = castExpParam(fn.type.params, inspected.params)
 
 			const result = fn.body.call(
@@ -483,12 +536,21 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 }
 
+// Kind predicates
 function isAny(x: Value): x is ValueAny {
 	return x instanceof Object && !Array.isArray(x) && x.kind === 'any'
 }
 
-function isFn(x: Value): x is ValueFn {
-	return x instanceof Object && !Array.isArray(x) && x.kind === 'fn'
+function isKindOf(x: Value, kind: 'any'): x is ValueAny
+function isKindOf(x: Value, kind: 'fn'): x is ValueFn
+function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
+function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
+function isKindOf(x: Value, kind: 'unionType'): x is ValueUnionType
+function isKindOf(x: Value, kind: 'variadicVector'): x is ValueVariadicVector
+function isKindOf<
+	T extends Exclude<Value, null | boolean | number | string | any[]>
+>(x: Value, kind: T['kind']): x is T {
+	return x instanceof Object && !Array.isArray(x) && x.kind === kind
 }
 
 function isSubtypeOf(a: Value, b: Value): boolean {
@@ -704,9 +766,8 @@ export function printValue(val: Value): string {
 			return '<singleton>'
 		case 'fnType':
 			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
-		case 'exp':
 		case 'fn':
-			throw new Error('aaa')
+			return '<JS Function>'
 		case 'hashMap':
 			return (
 				'{' +
