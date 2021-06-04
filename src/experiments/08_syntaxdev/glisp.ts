@@ -295,12 +295,10 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 }
 
 function assertValueType(v: Value): ValueType {
-	if (v === null) {
-		return createValueAny()
+	if (v === null || typeof v === 'boolean') {
+		return v
 	}
 	switch (typeof v) {
-		case 'boolean':
-			return TypeBoolean
 		case 'number':
 			return TypeNumber
 		case 'string':
@@ -471,6 +469,7 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 		return false
 	}
 
+	// Both are vectors
 	if (Array.isArray(a) && Array.isArray(b)) {
 		if (a.length < b.length) {
 			return false
@@ -484,15 +483,26 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 		return false
 	}
 
+	if (b instanceof Object && b.kind === 'unionType') {
+		const aTypes = a instanceof Object && a.kind === 'unionType' ? a.items : [a]
+		const bTypes = b.items
+
+		return aTypes.every(at => bTypes.some(bt => isSubtypeOf(at, bt)))
+	}
+
+	// Either is singleton
 	if (
 		a === null ||
 		b === null ||
 		typeof a === 'boolean' ||
-		typeof b === 'boolean'
+		typeof b === 'boolean' ||
+		a.kind === 'singleton' ||
+		b.kind === 'singleton'
 	) {
 		return false
 	}
 
+	// Either is valType (e.g. Number--String)
 	if (a.kind === 'valType' && b.kind === 'valType') {
 		return false
 	}
@@ -518,6 +528,7 @@ function testSubtype(aStr: string, bStr: string) {
 }
 
 testSubtype('Number', 'Any')
+testSubtype('true', 'Boolean')
 testSubtype('Any', 'Number')
 testSubtype('Number', 'Number')
 testSubtype('Number', 'String')
@@ -622,7 +633,7 @@ export function printValue(val: Value): string {
 					throw new Error('aaa!!!')
 			}
 		case 'unionType':
-			return '(:|' + val.items.map(printValue).join(' ') + ')'
+			return '(:| ' + val.items.map(printValue).join(' ') + ')'
 		case 'singleton':
 			return '<singleton>'
 		case 'fnType':
