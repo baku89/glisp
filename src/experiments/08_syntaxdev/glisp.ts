@@ -404,7 +404,7 @@ function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
 			return evalExp(inspected.ref)
 		case 'capture':
 		case 'undefined':
-			return withLog(createValueAny(), [
+			return withLog(null, [
 				{level: 'error', reason: `Symbol ${exp.name} is not defined.`},
 			])
 	}
@@ -432,9 +432,10 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 			)
 			return withLog(result, [...logs, ...params.logs])
 		}
-		return withLog(fn, [])
+		return withLog(fn, logs)
 	} else {
-		return withLog(createValueAny(), logs)
+		// ()
+		return withLog(null, logs)
 	}
 }
 
