@@ -149,6 +149,10 @@ const TypeType: ValueType = {kind: 'valType'}
 const TypeFnType: ValueType = {kind: 'valType'}
 const TypeHashMap: ValueType = {kind: 'valType'}
 
+const OrderingLT: ValueSingleton = {kind: 'singleton'}
+const OrderingEQ: ValueSingleton = {kind: 'singleton'}
+const OrderingGT: ValueSingleton = {kind: 'singleton'}
+
 const GlobalSymbols: {[name: string]: Exp} = {
 	Any: {
 		parent: null,
@@ -169,6 +173,26 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		parent: null,
 		ast: 'value',
 		value: TypeBoolean,
+	},
+	LT: {
+		parent: null,
+		ast: 'value',
+		value: OrderingLT,
+	},
+	EQ: {
+		parent: null,
+		ast: 'value',
+		value: OrderingEQ,
+	},
+	GT: {
+		parent: null,
+		ast: 'value',
+		value: OrderingGT,
+	},
+	Ordering: {
+		parent: null,
+		ast: 'value',
+		value: {kind: 'unionType', items: [OrderingLT, OrderingEQ, OrderingGT]},
 	},
 	PI: {
 		parent: null,
@@ -211,6 +235,24 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			} as any,
 		},
 	},
+	':|': {
+		parent: null,
+		ast: 'value',
+		value: {
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [[createValueAny()]],
+				out: TypeType,
+			},
+			body: function (this: ValueFnThis, a: ExpVector) {
+				return {
+					kind: 'unionType',
+					items: a.items.map(this.eval),
+				}
+			} as any,
+		},
+	},
 	':type': {
 		parent: null,
 		ast: 'value',
@@ -218,7 +260,6 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			kind: 'fn',
 			type: {kind: 'fnType', params: [createValueAny()], out: TypeType},
 			body: function (this: ValueFnThis, t: Exp) {
-				console.log(t)
 				return assertExpType(t)
 			} as any,
 		},
