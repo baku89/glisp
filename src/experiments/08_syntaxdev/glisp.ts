@@ -29,17 +29,10 @@ type ValuePrim = number | string
 type ValueType =
 	| ValueAny
 	| ValueSingleton
-	| ValueCastableType
 	| ValueValType
 	| ValueUnionType
 	| ValueFnType
 	| ValueType[]
-
-interface ValueCastableType {
-	kind: 'castableType'
-	type: ValueType
-	cast: (x: Value) => Value
-}
 
 interface ValueValType {
 	kind: 'valType'
@@ -350,7 +343,6 @@ function assertValueType(v: Value): Value {
 	switch (v.kind) {
 		case 'singleton':
 		case 'any':
-		case 'castableType':
 		case 'valType':
 		case 'fnType':
 		case 'unionType':
@@ -544,11 +536,8 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		out: Value
 	} {
 		if (typeof type === 'object' && type !== null && !Array.isArray(type)) {
-			switch (type.kind) {
-				case 'fnType':
-					return {params: type.params, out: type.out}
-				case 'castableType':
-					return normalizeTypeToFn(type.type)
+			if (type.kind == 'fnType') {
+				return {params: type.params, out: type.out}
 			}
 		}
 		return {params: [], out: type}
@@ -663,8 +652,6 @@ export function printValue(val: Value): string {
 	switch (val.kind) {
 		case 'any':
 			return 'Any'
-		case 'castableType':
-			return `<Castable ${printValue(val.type)}`
 		case 'valType':
 			switch (val) {
 				case TypeNumber:
