@@ -52,8 +52,8 @@ interface ValueUnionType {
 
 interface ValueFnType {
 	kind: 'fnType'
-	params: ValueType[]
-	out: ValueType
+	params: Exclude<ValueType, ValueSingleton>[]
+	out: Exclude<ValueType, ValueSingleton>
 }
 
 interface ValueExp {
@@ -474,33 +474,6 @@ function isFn(x: Value): x is ValueFn {
 	return x instanceof Object && !Array.isArray(x) && x.kind === 'fn'
 }
 
-function normalizeTypeToFn(type: ValueType): ValueFnType {
-	let normalized: ValueFnType = {
-		kind: 'fnType',
-		params: [],
-		out: createValueAny(),
-	}
-
-	if (
-		type === null ||
-		typeof type === 'boolean' ||
-		Array.isArray(type) ||
-		type.kind === 'any' ||
-		type.kind === 'valType' ||
-		type.kind === 'unionType' ||
-		type.kind === 'singleton'
-	) {
-		normalized.out = type
-	} else if (type.kind === 'castableType') {
-		normalized = normalizeTypeToFn(type.type)
-	} else {
-		// === is fnType
-		normalized = type
-	}
-
-	return normalized
-}
-
 function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	if (a === b) {
 		return true
@@ -557,6 +530,28 @@ function isSubtypeOf(a: ValueType, b: ValueType): boolean {
 	const nb = normalizeTypeToFn(b)
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
+
+	function normalizeTypeToFn(type: ValueType): {
+		params: ValueType[]
+		out: ValueType
+	} {
+		if (
+			type === null ||
+			typeof type === 'boolean' ||
+			Array.isArray(type) ||
+			type.kind === 'any' ||
+			type.kind === 'valType' ||
+			type.kind === 'unionType' ||
+			type.kind === 'singleton'
+		) {
+			return {params: [], out: type}
+		} else if (type.kind === 'castableType') {
+			return normalizeTypeToFn(type.type)
+		} else {
+			// === is fnType
+			return {params: type.params, out: type.out}
+		}
+	}
 }
 
 function testSubtype(aStr: string, bStr: string, toBe: boolean) {
