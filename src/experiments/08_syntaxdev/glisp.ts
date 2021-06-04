@@ -39,11 +39,11 @@ type ValueType =
 	| ValueUnionType
 	| ValueFnType
 	| ValueType[]
-	| ValueVariadicVector
+	| ValueVariadicVector<ValueType>
 
-interface ValueVariadicVector {
+interface ValueVariadicVector<T extends Value = Value> {
 	kind: 'variadicVector'
-	items: Value[]
+	items: T[]
 }
 interface ValueValType {
 	kind: 'valType'
@@ -578,7 +578,6 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 			}
 			const variadicCount = a.length - minLength
 			const bLast = b.items[b.items.length - 1]
-			console.log('sdsdf', b)
 			const bv = [
 				...b.items.slice(0, minLength),
 				...Array(variadicCount).fill(bLast),
@@ -715,11 +714,27 @@ function getDefault(type: ValueType): ExpValue {
 	return {parent: null, ast: 'value', value: []}
 }
 
-function castExpParam(to: ValueType[], from: Exp[]): WithLogs<Exp[]> {
+function castExpParam(
+	to: ValueType[] | ValueVariadicVector<ValueType>,
+	from: Exp[]
+): WithLogs<Exp[]> {
 	const logs: Log[] = []
 
-	if (to.length > from.length) {
-		logs.push({level: 'error', reason: 'Too short arguments'})
+	if (Array.isArray(to)) {
+		if (to.length > from.length) {
+			logs.push({level: 'error', reason: 'Too short arguments'})
+		}
+	} else {
+		const minLength = to.items.length - 1
+		if (minLength > from.length) {
+			logs.push({level: 'error', reason: 'Too short arguments'})
+		}
+
+		const variadicCount = from.length - minLength
+		to = [
+			...to.items.slice(0, minLength),
+			...Array(variadicCount).fill(to.items[minLength]),
+		]
 	}
 
 	const casted: Exp[] = []
