@@ -7,16 +7,7 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type Value =
-	| ValueAny
-	| ValuePrim
-	| ValueSingleton
-	| Value[]
-	| ValueType
-	| ValueFnType
-	| ValueExp
-	| ValueHashMap
-	| ValueFn
+type Value = ValuePrim | Value[] | ValueType | ValueExp | ValueHashMap | ValueFn
 
 interface ValueAny {
 	kind: 'any'
@@ -40,6 +31,7 @@ type ValueType =
 	| ValueSingleton
 	| ValueCastableType
 	| ValueValType
+	| ValueUnionType
 	| ValueFnType
 	| ValueType[]
 
@@ -51,6 +43,11 @@ interface ValueCastableType {
 
 interface ValueValType {
 	kind: 'valType'
+}
+
+interface ValueUnionType {
+	kind: 'unionType'
+	items: Exclude<ValueType, ValueUnionType>[]
 }
 
 interface ValueFnType {
@@ -145,7 +142,7 @@ export function readStr(str: string): Exp {
 	}
 }
 
-const TypeBoolean: ValueType = {kind: 'valType'}
+const TypeBoolean: ValueType = {kind: 'unionType', items: [true, false]}
 const TypeNumber: ValueType = {kind: 'valType'}
 const TypeString: ValueType = {kind: 'valType'}
 const TypeType: ValueType = {kind: 'valType'}
@@ -320,6 +317,7 @@ function assertValueType(v: Value): ValueType {
 		case 'castableType':
 		case 'valType':
 		case 'fnType':
+		case 'unionType':
 			return v
 		case 'exp':
 			return assertExpType(v.exp)
@@ -446,6 +444,7 @@ function normalizeTypeToFn(type: ValueType): ValueFnType {
 		Array.isArray(type) ||
 		type.kind === 'any' ||
 		type.kind === 'valType' ||
+		type.kind === 'unionType' ||
 		type.kind === 'singleton'
 	) {
 		normalized.out = type
@@ -611,8 +610,6 @@ export function printValue(val: Value): string {
 			return `<Castable ${printValue(val.type)}`
 		case 'valType':
 			switch (val) {
-				case TypeBoolean:
-					return 'Boolean'
 				case TypeNumber:
 					return 'Number'
 				case TypeString:
@@ -624,6 +621,8 @@ export function printValue(val: Value): string {
 				default:
 					throw new Error('aaa!!!')
 			}
+		case 'unionType':
+			return '(:|' + val.items.map(printValue).join(' ') + ')'
 		case 'singleton':
 			return '<singleton>'
 		case 'fnType':
