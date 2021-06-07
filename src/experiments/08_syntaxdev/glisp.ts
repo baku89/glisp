@@ -7,13 +7,7 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type Value =
-	| ValuePrim
-	| Value[]
-	| ValueVariadicVector
-	| ValueType
-	| ValueHashMap
-	| ValueFn
+type Value = Value[] | ValueVariadicVector | ValueType | ValueHashMap | ValueFn
 
 interface ValueAny {
 	kind: 'any'
@@ -25,12 +19,10 @@ function createValueAny(): ValueAny {
 
 type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
 
-type ValueLiteralSingleton = null | boolean
+type ValueLiteralSingleton = null | boolean | string | number
 interface ValueCustomSingleton {
 	kind: 'singleton'
 }
-
-type ValuePrim = number | string
 
 type ValueType =
 	| ValueAny
@@ -249,10 +241,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			out: createValueAny(),
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
-			return {
-				kind: 'unionType',
-				items: a.map(this.eval),
-			}
+			return uniteType(...a.map(this.eval))
 		} as any,
 	}),
 	'...': createValue({
@@ -305,6 +294,14 @@ const GlobalSymbols: {[name: string]: Exp} = {
 interface WithLogs<T> {
 	result: T
 	logs: Log[]
+}
+
+function uniteType(...types: Value[]): Value {
+	const items: ValueUnionType['items'] = types.flatMap(t =>
+		isKindOf(t, 'unionType') ? t.items : [t]
+	)
+
+	return items.length > 0 ? {kind: 'unionType', items} : items[0]
 }
 
 function equalsValue(a: Value, b: Value): boolean {
