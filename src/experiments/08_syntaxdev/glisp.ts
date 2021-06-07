@@ -471,13 +471,24 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 		const {result: fn, logs} = evalExp(inspected.fn)
 
 		if (isKindOf(fn, 'fn')) {
-			const params = castExpParam(fn.type.params, inspected.params)
+			const {result: params, logs: castLogs} = castExpParam(
+				fn.type.params,
+				inspected.params
+			)
+
+			const paramsLogs: Log[] = []
 
 			const result = fn.body.call(
-				{eval: e => evalExp(e).result as any},
-				...params.result
+				{
+					eval: function (e: Exp) {
+						const {result, logs: logs} = evalExp(e)
+						paramsLogs.push(...logs)
+						return result
+					} as any,
+				},
+				...params
 			)
-			return withLog(result, [...logs, ...params.logs])
+			return withLog(result, [...logs, ...castLogs, ...paramsLogs])
 		}
 		return withLog(fn, logs)
 	} else {
