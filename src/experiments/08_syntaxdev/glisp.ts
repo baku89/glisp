@@ -7,7 +7,17 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
-type Value = Value[] | ValueVariadicVector | ValueType | ValueHashMap | ValueFn
+type Value =
+	| Value[]
+	| ValueVariadicVector
+	| ValueAny
+	| ValueSingleton
+	| ValueValType
+	| ValueUnionType
+	| ValueFnType
+	| ValueVariadicVector
+	| ValueHashMap
+	| ValueFn
 
 interface ValueAny {
 	kind: 'any'
@@ -24,15 +34,6 @@ interface ValueCustomSingleton {
 	kind: 'singleton'
 }
 
-type ValueType =
-	| ValueAny
-	| ValueSingleton
-	| ValueValType
-	| ValueUnionType
-	| ValueFnType
-	| ValueType[]
-	| ValueVariadicVector<ValueType>
-
 interface ValueVariadicVector<T extends Value = Value> {
 	kind: 'variadicVector'
 	items: T[]
@@ -46,15 +47,13 @@ interface ValueValType {
 
 interface ValueUnionType {
 	kind: 'unionType'
-	items: Exclude<ValueType, ValueUnionType>[]
+	items: Exclude<Value, ValueUnionType>[]
 }
 
 interface ValueFnType {
 	kind: 'fnType'
-	params:
-		| Exclude<ValueType, ValueSingleton>[]
-		| ValueVariadicVector<Exclude<ValueType, ValueSingleton>>
-	out: Exclude<ValueType, ValueSingleton>
+	params: Value[] | ValueVariadicVector
+	out: Value
 }
 
 interface ValueFnThis {
@@ -168,7 +167,7 @@ function createValType(
 	}
 }
 
-const TypeBoolean: ValueType = {
+const TypeBoolean: ValueUnionType = {
 	kind: 'unionType',
 	items: [true, false],
 }
@@ -220,16 +219,14 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [createValueAny(), createValueAny()],
+			params: [createValueVariadicVector([createValueAny()]), createValueAny()],
 			out: TypeFnType,
 		},
 		body: function (this: ValueFnThis, params: Exp, out: Exp) {
-			const _params = this.eval<ValueType[]>(params)
-			const _out = this.eval<ValueType>(out)
 			return {
 				kind: 'fnType',
-				params: _params,
-				out: _out,
+				params: this.eval(params),
+				out: this.eval(out),
 			}
 		} as any,
 	}),
@@ -286,7 +283,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			out: TypeBoolean,
 		},
 		body: function (this: ValueFnThis, a: Exp, b: Exp) {
-			return isSubtypeOf(this.eval<ValueType>(a), this.eval<ValueType>(b))
+			return isSubtypeOf(this.eval(a), this.eval(b))
 		} as any,
 	}),
 }
@@ -659,7 +656,9 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
-	function normalizeTypeToFn(type: Value): {
+	function normalizeTypeToFn(
+		type: Value
+	): {
 		params: ValueFnType['params']
 		out: Value
 	} {
@@ -697,8 +696,8 @@ testSubtype('[Number Number]', '[]', true)
 testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
 
-function getDefault(type: ValueType): ExpValue {
-	if (type === null || typeof type === 'boolean') {
+function getDefault(type: Value): ExpValue {
+	if (type === null || typeof type !== 'object') {
 		return createValue(type)
 	}
 
@@ -721,7 +720,7 @@ function getDefault(type: ValueType): ExpValue {
 }
 
 function castExpParam(
-	to: ValueType[] | ValueVariadicVector<ValueType>,
+	to: Value[] | ValueVariadicVector,
 	from: Exp[]
 ): WithLogs<Exp[]> {
 	const logs: Log[] = []
