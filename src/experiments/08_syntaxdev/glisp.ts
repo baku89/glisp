@@ -56,7 +56,9 @@ interface ValueUnionType {
 
 interface ValueFnType {
 	kind: 'fnType'
-	params: Exclude<ValueType, ValueSingleton>[]
+	params:
+		| Exclude<ValueType, ValueSingleton>[]
+		| ValueVariadicVector<Exclude<ValueType, ValueSingleton>>
 	out: Exclude<ValueType, ValueSingleton>
 }
 
@@ -135,9 +137,26 @@ export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
-		return {parent: null, ast: 'vector', items: []}
+		return createValue([])
 	} else {
 		return exp
+	}
+}
+
+function createValue(value: Value): ExpValue {
+	return {
+		parent: null,
+		ast: 'value',
+		value,
+	}
+}
+
+function createValueVariadicVector<T extends Value = Value>(
+	items: T[]
+): ValueVariadicVector<T> {
+	return {
+		kind: 'variadicVector',
+		items,
 	}
 }
 
@@ -153,162 +172,105 @@ const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
 const GlobalSymbols: {[name: string]: Exp} = {
-	Any: {
-		parent: null,
-		ast: 'value',
-		value: {kind: 'any'},
-	},
-	Number: {
-		parent: null,
-		ast: 'value',
-		value: TypeNumber,
-	},
-	String: {
-		parent: null,
-		ast: 'value',
-		value: TypeString,
-	},
-	Boolean: {
-		parent: null,
-		ast: 'value',
-		value: TypeBoolean,
-	},
-	LT: {
-		parent: null,
-		ast: 'value',
-		value: OrderingLT,
-	},
-	EQ: {
-		parent: null,
-		ast: 'value',
-		value: OrderingEQ,
-	},
-	GT: {
-		parent: null,
-		ast: 'value',
-		value: OrderingGT,
-	},
-	Ordering: {
-		parent: null,
-		ast: 'value',
-		value: {kind: 'unionType', items: [OrderingLT, OrderingEQ, OrderingGT]},
-	},
-	PI: {
-		parent: null,
-		ast: 'value',
-		value: Math.PI,
-	},
-	'+': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {
-				kind: 'fnType',
-				params: [TypeNumber, TypeNumber],
-				out: TypeNumber,
-			},
-			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return this.eval<number>(a) + this.eval<number>(b)
-			} as any,
+	Any: createValue(createValueAny()),
+	Number: createValue(TypeNumber),
+	String: createValue(TypeString),
+	Boolean: createValue(TypeBoolean),
+	LT: createValue(OrderingLT),
+	EQ: createValue(OrderingEQ),
+	GT: createValue(OrderingGT),
+	Ordering: createValue({
+		kind: 'unionType',
+		items: [OrderingLT, OrderingEQ, OrderingGT],
+	}),
+	PI: createValue(Math.PI),
+	'+': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: createValueVariadicVector([TypeNumber]),
+			out: TypeNumber,
 		},
-	},
-	':=>': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {
-				kind: 'fnType',
-				params: [createValueAny(), TypeType],
-				out: TypeFnType,
-			},
-			body: function (this: ValueFnThis, params: Exp, out: Exp) {
-				const _params = this.eval<ValueType[]>(params)
-				const _out = this.eval<ValueType>(out)
-				return {
-					kind: 'fnType',
-					params: _params,
-					out: _out,
-				}
-			} as any,
+		body: function (this: ValueFnThis, ...xs: Exp[]) {
+			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
+		} as any,
+	}),
+	':=>': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: [createValueAny(), TypeType],
+			out: TypeFnType,
 		},
-	},
-	':|': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {
+		body: function (this: ValueFnThis, params: Exp, out: Exp) {
+			const _params = this.eval<ValueType[]>(params)
+			const _out = this.eval<ValueType>(out)
+			return {
 				kind: 'fnType',
-				params: [[createValueAny()]],
-				out: TypeType,
-			},
-			body: function (this: ValueFnThis, a: ExpVector) {
-				return {
-					kind: 'unionType',
-					items: a.items.map(this.eval),
-				}
-			} as any,
+				params: _params,
+				out: _out,
+			}
+		} as any,
+	}),
+	':|': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: [[createValueAny()]],
+			out: TypeType,
 		},
-	},
-	'...': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {
-				kind: 'fnType',
-				params: [[createValueAny()]],
-				out: createValueAny(),
-			},
-			body: function (this: ValueFnThis, xs: Exp) {
-				const items = this.eval<Value[]>(xs)
+		body: function (this: ValueFnThis, ...a: Exp[]) {
+			return {
+				kind: 'unionType',
+				items: a.map(this.eval),
+			}
+		} as any,
+	}),
+	'...': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: [[createValueAny()]],
+			out: createValueAny(),
+		},
+		body: function (this: ValueFnThis, xs: Exp) {
+			const items = this.eval<Value[]>(xs)
 
-				if (items.length === 0) {
-					items.push(createValueAny())
-				} else if (items.length >= 2) {
-					const last = items[items.length - 1]
-					for (let i = items.length - 2; i >= 0; i--) {
-						if (equalsValue(items[i], last)) {
-							items.pop()
-						}
+			if (items.length === 0) {
+				items.push(createValueAny())
+			} else if (items.length >= 2) {
+				const last = items[items.length - 1]
+				for (let i = items.length - 2; i >= 0; i--) {
+					if (equalsValue(items[i], last)) {
+						items.pop()
 					}
 				}
+			}
 
-				return {
-					kind: 'variadicVector',
-					items,
-				}
-			} as any,
+			return {
+				kind: 'variadicVector',
+				items,
+			}
+		} as any,
+	}),
+	':type': createValue({
+		kind: 'fn',
+		type: {kind: 'fnType', params: [createValueAny()], out: TypeType},
+		body: function (this: ValueFnThis, t: Exp) {
+			return assertExpType(t)
+		} as any,
+	}),
+	':<': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: [createValueAny(), createValueAny()],
+			out: TypeBoolean,
 		},
-	},
-	':type': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {kind: 'fnType', params: [createValueAny()], out: TypeType},
-			body: function (this: ValueFnThis, t: Exp) {
-				return assertExpType(t)
-			} as any,
-		},
-	},
-	':<': {
-		parent: null,
-		ast: 'value',
-		value: {
-			kind: 'fn',
-			type: {
-				kind: 'fnType',
-				params: [createValueAny(), createValueAny()],
-				out: TypeBoolean,
-			},
-			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return isSubtypeOf(this.eval<ValueType>(a), this.eval<ValueType>(b))
-			} as any,
-		},
-	},
+		body: function (this: ValueFnThis, a: Exp, b: Exp) {
+			return isSubtypeOf(this.eval<ValueType>(a), this.eval<ValueType>(b))
+		} as any,
+	}),
 }
 
 interface WithLogs<T> {
@@ -648,7 +610,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
 	function normalizeTypeToFn(type: Value): {
-		params: Value[]
+		params: ValueFnType['params']
 		out: Value
 	} {
 		if (typeof type === 'object' && type !== null && !Array.isArray(type)) {
@@ -687,24 +649,20 @@ testSubtype('(+ 1 2)', 'Number', true)
 
 function getDefault(type: ValueType): ExpValue {
 	if (type === null || typeof type === 'boolean') {
-		return {parent: null, ast: 'value', value: type}
+		return createValue(type)
 	}
 
 	switch (type) {
 		case TypeBoolean:
-			return {parent: null, ast: 'value', value: false}
+			return createValue(false)
 		case TypeNumber:
-			return {parent: null, ast: 'value', value: 0}
+			return createValue(0)
 		case TypeString:
-			return {parent: null, ast: 'value', value: ''}
+			return createValue('')
 	}
 
 	if (Array.isArray(type)) {
-		return {
-			parent: null,
-			ast: 'value',
-			value: type.map(t => getDefault(t).value),
-		}
+		return createValue(type.map(t => getDefault(t).value))
 	}
 
 	switch (type.kind) {
@@ -713,10 +671,10 @@ function getDefault(type: ValueType): ExpValue {
 		case 'unionType':
 			return getDefault(type.items[0])
 		case 'singleton':
-			return {parent: null, ast: 'value', value: type}
+			return createValue(type)
 	}
 
-	return {parent: null, ast: 'value', value: []}
+	return createValue([])
 }
 
 function castExpParam(
@@ -761,11 +719,10 @@ function castExpParam(
 			logs.push({
 				level: 'error',
 				reason:
-					'Type "' +
+					'Type ' +
 					printValue(fromType) +
-					'" cannot be casted to "' +
-					printValue(toItem) +
-					'"',
+					' cannot be casted to ' +
+					printValue(toItem),
 			})
 			casted.push(getDefault(toItem))
 		}
