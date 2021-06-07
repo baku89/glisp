@@ -563,7 +563,13 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	if (isKindOf(b, 'variadicVector')) {
 		if (isKindOf(a, 'variadicVector')) {
-			return equalsValue(a, b)
+			const alen = a.items.length,
+				blen = b.items.length
+			if (alen < blen) {
+				return false
+			}
+			const bitems = [...b.items, ...Array(alen - blen).fill(b.items[blen - 1])]
+			return _$.zipShorter(a.items, bitems).every(_.spread(isSubtypeOf))
 		} else if (Array.isArray(a)) {
 			const minLength = b.items.length - 1
 			if (a.length < minLength) {
