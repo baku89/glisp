@@ -369,7 +369,10 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 		const key = exp.items[i]
 		const value = exp.items[i + 1]
 		if (key.ast !== 'value' || typeof key.value !== 'string') {
-			logs.push({level: 'warn', reason: 'Key ... is not a string'})
+			logs.push({
+				level: 'warn',
+				reason: `Key ${printExp(key)} is not a string`,
+			})
 			continue
 		}
 		items[key.value] = value
@@ -472,14 +475,14 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 }
 
 function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
-	const inspected = inspectExpHashMap(exp).result
+	const {result: inspected, logs} = inspectExpHashMap(exp)
 	const evaluated = _.mapValues(inspected.items, evalExp)
 	return withLog(
 		{
 			kind: 'hashMap',
 			value: _.mapValues(evaluated, e => e.result),
 		},
-		_.values(evaluated).flatMap(e => e.logs)
+		[...logs, ..._.values(evaluated).flatMap(e => e.logs)]
 	)
 }
 
@@ -729,6 +732,21 @@ function castExpParam(
 	}
 
 	return withLog(casted, logs)
+}
+
+export function printExp(exp: Exp): string {
+	switch (exp.ast) {
+		case 'list':
+			return '(' + exp.items.map(printExp).join(' ') + ')'
+		case 'vector':
+			return '[' + exp.items.map(printExp).join(' ') + ']'
+		case 'hashMap':
+			return '{' + exp.items.map(printExp).join(' ') + '}'
+		case 'symbol':
+			return exp.name
+		case 'value':
+			return printValue(exp.value)
+	}
 }
 
 export function printValue(val: Value): string {
