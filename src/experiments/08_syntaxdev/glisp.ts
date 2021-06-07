@@ -42,7 +42,7 @@ interface ValueVariadicVector<T extends Value = Value> {
 interface ValueValType {
 	kind: 'valType'
 	id: symbol
-	default: Value
+	cast: (value: Value) => Value
 }
 
 interface ValueUnionType {
@@ -156,14 +156,14 @@ function createValueVariadicVector<T extends Value = Value>(
 
 function createValType(
 	base: ValueValType | string,
-	_default: Value
+	cast: ValueValType['cast']
 ): ValueValType {
 	const id = typeof base === 'string' ? Symbol(base) : base.id
 
 	return {
 		kind: 'valType',
 		id,
-		default: _default,
+		cast,
 	}
 }
 
@@ -171,10 +171,13 @@ const TypeBoolean: ValueUnionType = {
 	kind: 'unionType',
 	items: [true, false],
 }
-const TypeNumber = createValType('number', 0)
-const TypeString = createValType('string', '')
-const TypeFnType = createValType('fnType', null)
-const TypeHashMap = createValType('hashMap', {kind: 'hashMap', value: {}})
+const TypeNumber = createValType('number', () => 0)
+const TypeString = createValType('string', () => '')
+const TypeFnType = createValType('fnType', () => null)
+const TypeHashMap = createValType('hashMap', () => ({
+	kind: 'hashMap',
+	value: {},
+}))
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -208,7 +211,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([createValType(TypeNumber, 1)]),
+			params: createValueVariadicVector([createValType(TypeNumber, () => 1)]),
 			out: TypeNumber,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -724,27 +727,31 @@ testSubtype('[Number Number]', '[]', true)
 testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
 
-function getDefault(type: Value): ExpValue {
+function getDefault(type: Value, value: Value): Exp {
 	if (type === null || typeof type !== 'object') {
 		return createValue(type)
 	}
 
 	if (Array.isArray(type)) {
-		return createValue(type.map(t => getDefault(t).value))
+		return {
+			parent: null,
+			ast: 'vector',
+			items: type.map(t => getDefault(t, null)),
+		}
 	}
 
 	switch (type.kind) {
 		case 'valType':
-			return createValue(type.default)
+			return createValue(type.cast(value))
 		case 'fnType':
-			return getDefault(type.out)
+			return getDefault(type.out, null)
 		case 'unionType':
-			return getDefault(type.items[0])
+			return getDefault(type.items[0], null)
 		case 'singleton':
 			return createValue(type)
 	}
 
-	return createValue([])
+	return createValue(null)
 }
 
 function castExpParam(
