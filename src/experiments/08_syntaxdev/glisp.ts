@@ -45,8 +45,10 @@ interface ValueVariadicVector<T extends Value = Value> {
 	kind: 'variadicVector'
 	items: T[]
 }
+
 interface ValueValType {
 	kind: 'valType'
+	id: symbol
 }
 
 interface ValueUnionType {
@@ -161,10 +163,10 @@ function createValueVariadicVector<T extends Value = Value>(
 }
 
 const TypeBoolean: ValueType = {kind: 'unionType', items: [true, false]}
-const TypeNumber: ValueType = {kind: 'valType'}
-const TypeString: ValueType = {kind: 'valType'}
-const TypeFnType: ValueType = {kind: 'valType'}
-const TypeHashMap: ValueType = {kind: 'valType'}
+const TypeNumber: ValueType = {kind: 'valType', id: Symbol('number')}
+const TypeString: ValueType = {kind: 'valType', id: Symbol('string')}
+const TypeFnType: ValueType = {kind: 'valType', id: Symbol('fnType')}
+const TypeHashMap: ValueType = {kind: 'valType', id: Symbol('hashMap')}
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -240,11 +242,11 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [[createValueAny()]],
+			params: createValueVariadicVector([createValueAny()]),
 			out: createValueAny(),
 		},
-		body: function (this: ValueFnThis, xs: Exp) {
-			const items = this.eval<Value[]>(xs)
+		body: function (this: ValueFnThis, ...xs: Exp[]) {
+			const items: Value[] = xs.map(this.eval)
 
 			if (items.length === 0) {
 				items.push(createValueAny())
@@ -521,6 +523,7 @@ function isKindOf(x: Value, kind: 'fn'): x is ValueFn
 function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
 function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
 function isKindOf(x: Value, kind: 'unionType'): x is ValueUnionType
+function isKindOf(x: Value, kind: 'valType'): x is ValueValType
 function isKindOf(x: Value, kind: 'variadicVector'): x is ValueVariadicVector
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
@@ -539,6 +542,10 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	if (isAny(a)) {
 		return false
+	}
+
+	if (isKindOf(a, 'valType')) {
+		return isKindOf(b, 'valType') && a.id === b.id
 	}
 
 	// Handling Vector/VariadicVector
@@ -587,7 +594,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		return false
 	}
 
-	// Handle for number and string literals
+	// Handle for literals / value
 	if (typeof a === 'number') {
 		return b === TypeNumber
 	}
@@ -595,7 +602,11 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		return b === TypeString
 	}
 
-	if (typeof b === 'number' || typeof b === 'string') {
+	if (isKindOf(a, 'fn')) {
+		return a === b || isSubtypeOf(assertValueType(a), b)
+	}
+
+	if (typeof b === 'number' || typeof b === 'string' || isKindOf(b, 'fn')) {
 		return false
 	}
 
@@ -608,11 +619,6 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		a.kind === 'singleton' ||
 		b.kind === 'singleton'
 	) {
-		return false
-	}
-
-	// Either is valType (e.g. Number--String)
-	if (a.kind === 'valType' && b.kind === 'valType') {
 		return false
 	}
 
