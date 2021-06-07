@@ -49,6 +49,7 @@ interface ValueVariadicVector<T extends Value = Value> {
 interface ValueValType {
 	kind: 'valType'
 	id: symbol
+	default: Value
 }
 
 interface ValueUnionType {
@@ -162,11 +163,27 @@ function createValueVariadicVector<T extends Value = Value>(
 	}
 }
 
-const TypeBoolean: ValueType = {kind: 'unionType', items: [true, false]}
-const TypeNumber: ValueType = {kind: 'valType', id: Symbol('number')}
-const TypeString: ValueType = {kind: 'valType', id: Symbol('string')}
-const TypeFnType: ValueType = {kind: 'valType', id: Symbol('fnType')}
-const TypeHashMap: ValueType = {kind: 'valType', id: Symbol('hashMap')}
+function createValType(
+	base: ValueValType | string,
+	_default: Value
+): ValueValType {
+	const id = typeof base === 'string' ? Symbol(base) : base.id
+
+	return {
+		kind: 'valType',
+		id,
+		default: _default,
+	}
+}
+
+const TypeBoolean: ValueType = {
+	kind: 'unionType',
+	items: [true, false],
+}
+const TypeNumber = createValType('number', 0)
+const TypeString = createValType('string', '')
+const TypeFnType = createValType('fnType', null)
+const TypeHashMap = createValType('hashMap', {kind: 'hashMap', value: {}})
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -200,7 +217,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([TypeNumber]),
+			params: createValueVariadicVector([createValType(TypeNumber, 1)]),
 			out: TypeNumber,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -613,10 +630,10 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	// Handle for literals / value
 	if (typeof a === 'number') {
-		return b === TypeNumber
+		return isKindOf(b, 'valType') && b.id === TypeNumber.id
 	}
 	if (typeof a === 'string') {
-		return b === TypeString
+		return isKindOf(b, 'valType') && b.id === TypeString.id
 	}
 
 	if (isKindOf(a, 'fn')) {
@@ -688,20 +705,13 @@ function getDefault(type: ValueType): ExpValue {
 		return createValue(type)
 	}
 
-	switch (type) {
-		case TypeBoolean:
-			return createValue(false)
-		case TypeNumber:
-			return createValue(0)
-		case TypeString:
-			return createValue('')
-	}
-
 	if (Array.isArray(type)) {
 		return createValue(type.map(t => getDefault(t).value))
 	}
 
 	switch (type.kind) {
+		case 'valType':
+			return createValue(type.default)
 		case 'fnType':
 			return getDefault(type.out)
 		case 'unionType':
@@ -803,12 +813,12 @@ export function printValue(val: Value): string {
 		case 'any':
 			return 'Any'
 		case 'valType':
-			switch (val) {
-				case TypeNumber:
+			switch (val.id) {
+				case TypeNumber.id:
 					return 'Number'
-				case TypeString:
+				case TypeString.id:
 					return 'String'
-				case TypeFnType:
+				case TypeFnType.id:
 					return 'FnType'
 				default:
 					throw new Error('aaa!!!')
