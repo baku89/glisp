@@ -163,7 +163,6 @@ function createValueVariadicVector<T extends Value = Value>(
 const TypeBoolean: ValueType = {kind: 'unionType', items: [true, false]}
 const TypeNumber: ValueType = {kind: 'valType'}
 const TypeString: ValueType = {kind: 'valType'}
-const TypeType: ValueType = {kind: 'valType'}
 const TypeFnType: ValueType = {kind: 'valType'}
 const TypeHashMap: ValueType = {kind: 'valType'}
 
@@ -210,7 +209,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [createValueAny(), TypeType],
+			params: [createValueAny(), createValueAny()],
 			out: TypeFnType,
 		},
 		body: function (this: ValueFnThis, params: Exp, out: Exp) {
@@ -228,7 +227,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		type: {
 			kind: 'fnType',
 			params: createValueVariadicVector([createValueAny()]),
-			out: TypeType,
+			out: createValueAny(),
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
 			return {
@@ -266,7 +265,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 	}),
 	':type': createValue({
 		kind: 'fn',
-		type: {kind: 'fnType', params: [createValueAny()], out: TypeType},
+		type: {kind: 'fnType', params: [createValueAny()], out: createValueAny()},
 		body: function (this: ValueFnThis, t: Exp) {
 			return assertExpType(t)
 		} as any,
@@ -786,8 +785,6 @@ export function printValue(val: Value): string {
 					return 'Number'
 				case TypeString:
 					return 'String'
-				case TypeType:
-					return 'Type'
 				case TypeFnType:
 					return 'FnType'
 				default:
