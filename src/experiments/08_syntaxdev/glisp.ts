@@ -195,6 +195,17 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
 		} as any,
 	}),
+	'*': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: createValueVariadicVector([TypeNumber]),
+			out: TypeNumber,
+		},
+		body: function (this: ValueFnThis, ...xs: Exp[]) {
+			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
+		} as any,
+	}),
 	':=>': createValue({
 		kind: 'fn',
 		type: {
@@ -216,7 +227,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [[createValueAny()]],
+			params: createValueVariadicVector([createValueAny()]),
 			out: TypeType,
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
