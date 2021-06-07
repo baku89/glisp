@@ -294,11 +294,39 @@ interface WithLogs<T> {
 }
 
 function uniteType(...types: Value[]): Value {
-	const items: ValueUnionType['items'] = types.flatMap(t =>
-		isKindOf(t, 'unionType') ? t.items : [t]
-	)
+	const items: (
+		| Exclude<Value, ValueUnionType>
+		| undefined
+	)[] = types.flatMap(t => (isKindOf(t, 'unionType') ? t.items : [t]))
 
-	return items.length > 0 ? {kind: 'unionType', items} : items[0]
+	if (items.length >= 2) {
+		for (let a = 0; a < items.length - 1; a++) {
+			const aItem = items[a]
+			if (aItem === undefined) continue
+
+			for (let b = a + 1; b < items.length; b++) {
+				const bItem = items[b]
+				if (bItem === undefined) continue
+
+				if (isSubtypeOf(bItem, aItem)) {
+					items[b] = undefined
+				}
+
+				if (isSubtypeOf(aItem, bItem)) {
+					items[a] = undefined
+					break
+				}
+			}
+		}
+	}
+
+	const uniqItems = items.filter(
+		i => i !== undefined
+	) as ValueUnionType['items']
+
+	return uniqItems.length > 0
+		? {kind: 'unionType', items: uniqItems}
+		: uniqItems[0]
 }
 
 function equalsValue(a: Value, b: Value): boolean {
