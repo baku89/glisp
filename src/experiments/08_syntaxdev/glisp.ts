@@ -23,7 +23,7 @@ interface ValueAny {
 	kind: 'any'
 }
 
-function createValueAny(): ValueAny {
+function createAny(): ValueAny {
 	return {kind: 'any'}
 }
 
@@ -182,7 +182,7 @@ const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
 const GlobalSymbols: {[name: string]: Exp} = {
-	Any: createValue(createValueAny()),
+	Any: createValue(createAny()),
 	Number: createValue(TypeNumber),
 	String: createValue(TypeString),
 	Boolean: createValue(TypeBoolean),
@@ -242,7 +242,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [createVariadicVector(createValueAny()), createValueAny()],
+			params: [createVariadicVector(createAny()), createAny()],
 			out: TypeFnType,
 		},
 		body: function (this: ValueFnThis, params: Exp, out: Exp) {
@@ -257,8 +257,8 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createVariadicVector(createValueAny()),
-			out: createValueAny(),
+			params: createVariadicVector(createAny()),
+			out: createAny(),
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
 			return uniteType(a.map(this.eval))
@@ -268,14 +268,14 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createVariadicVector(createValueAny()),
-			out: createValueAny(),
+			params: createVariadicVector(createAny()),
+			out: createAny(),
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
 			const items: Value[] = xs.map(this.eval)
 
 			if (items.length === 0) {
-				items.push(createValueAny())
+				items.push(createAny())
 			} else if (items.length >= 2) {
 				const last = items[items.length - 1]
 				for (let i = items.length - 2; i >= 0; i--) {
@@ -293,7 +293,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 	}),
 	':type': createValue({
 		kind: 'fn',
-		type: {kind: 'fnType', params: [createValueAny()], out: createValueAny()},
+		type: {kind: 'fnType', params: [createAny()], out: createAny()},
 		body: function (this: ValueFnThis, t: Exp) {
 			return assertExpType(t)
 		} as any,
@@ -302,7 +302,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [createValueAny(), createValueAny()],
+			params: [createAny(), createAny()],
 			out: TypeBoolean,
 		},
 		body: function (this: ValueFnThis, a: Exp, b: Exp) {
@@ -488,7 +488,7 @@ function assertExpType(exp: Exp): Value {
 			if (inspected.semantic == 'ref') {
 				return assertValueType(evalExp(inspected.ref).result)
 			}
-			return createValueAny()
+			return createAny()
 		}
 		case 'list': {
 			const inspected = inspectExpList(exp).result
@@ -496,7 +496,7 @@ function assertExpType(exp: Exp): Value {
 				const fn = evalExp(inspected.fn).result
 				return isKindOf(fn, 'fn') ? fn.type.out : assertExpType(inspected.fn)
 			} else {
-				return createValueAny()
+				return createAny()
 			}
 		}
 		case 'vector':
