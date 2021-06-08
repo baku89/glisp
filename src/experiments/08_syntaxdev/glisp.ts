@@ -235,7 +235,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			out: TypeBoolean,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
+			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a || b, false)
 		} as any,
 	}),
 	':=>': createValue({
@@ -538,6 +538,8 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				inspected.params
 			)
 
+			console.log(params.map(printExp))
+
 			const paramsLogs: Log[] = []
 
 			const result = fn.body.call(
@@ -565,7 +567,14 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				castType(fn, origValue)
 			)
 
-			return withLog(castedValue, [...inspectLogs, ...origLogs, ...castLogs])
+			const l: Log = {
+				level: 'info',
+				reason: `Value ${printValue(origValue)} is converted to ${printValue(
+					castedValue
+				)}`,
+			}
+
+			return withLog(castedValue, [...inspectLogs, ...origLogs, ...castLogs, l])
 		} else {
 			return withLog(fn, inspectLogs)
 		}
@@ -798,7 +807,7 @@ function castExpParam(
 
 	if (Array.isArray(to)) {
 		if (to.length > from.length) {
-			logs.push({level: 'error', reason: 'Too short arguments'})
+			logs.push({level: 'error', reason: 'Too short aguments'})
 		}
 	} else {
 		const minLength = to.items.length - 1
@@ -821,12 +830,12 @@ function castExpParam(
 	const casted: Exp[] = []
 
 	for (let i = 0; i < to.length; i++) {
-		const toItem = to[i]
+		const toType = to[i]
 		const fromItem: Exp = from[i] || {ast: 'value', value: null}
 
 		const fromType = assertExpType(fromItem)
 
-		if (isSubtypeOf(fromType, toItem)) {
+		if (isSubtypeOf(fromType, toType)) {
 			casted.push(fromItem)
 		} else {
 			logs.push({
@@ -835,9 +844,13 @@ function castExpParam(
 					'Type ' +
 					printValue(fromType) +
 					' cannot be casted to ' +
-					printValue(toItem),
+					printValue(toType),
 			})
-			casted.push(castType(toItem, null))
+			casted.push({
+				parent: null,
+				ast: 'list',
+				items: [createValue(toType), fromItem],
+			})
 		}
 	}
 
@@ -891,7 +904,7 @@ export function printValue(val: Value): string {
 					throw new Error('aaa!!!')
 			}
 		case 'variadicVector':
-			return '(... ' + val.items.map(printValue).join(' ') + ')'
+			return '[... ' + val.items.map(printValue).join(' ') + ']'
 		case 'unionType':
 			return '(:| ' + val.items.map(printValue).join(' ') + ')'
 		case 'singleton':
