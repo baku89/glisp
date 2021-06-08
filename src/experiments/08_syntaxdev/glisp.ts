@@ -146,8 +146,8 @@ function createValue(value: Value): ExpValue {
 	}
 }
 
-function createValueVariadicVector<T extends Value = Value>(
-	items: T[]
+function createVariadicVector<T extends Value = Value>(
+	...items: T[]
 ): ValueVariadicVector<T> {
 	return {
 		kind: 'variadicVector',
@@ -198,7 +198,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([TypeNumber]),
+			params: createVariadicVector(TypeNumber),
 			out: TypeNumber,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -209,7 +209,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([createValType(TypeNumber, () => 1)]),
+			params: createVariadicVector(createValType(TypeNumber, () => 1)),
 			out: TypeNumber,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -220,7 +220,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([TypeBoolean]),
+			params: createVariadicVector(TypeBoolean),
 			out: TypeBoolean,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -231,7 +231,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([TypeBoolean]),
+			params: createVariadicVector(TypeBoolean),
 			out: TypeBoolean,
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -242,7 +242,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: [createValueVariadicVector([createValueAny()]), createValueAny()],
+			params: [createVariadicVector(createValueAny()), createValueAny()],
 			out: TypeFnType,
 		},
 		body: function (this: ValueFnThis, params: Exp, out: Exp) {
@@ -257,7 +257,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([createValueAny()]),
+			params: createVariadicVector(createValueAny()),
 			out: createValueAny(),
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
@@ -268,7 +268,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		kind: 'fn',
 		type: {
 			kind: 'fnType',
-			params: createValueVariadicVector([createValueAny()]),
+			params: createVariadicVector(createValueAny()),
 			out: createValueAny(),
 		},
 		body: function (this: ValueFnThis, ...xs: Exp[]) {
