@@ -48,6 +48,7 @@ interface ValueValType {
 interface ValueUnionType {
 	kind: 'unionType'
 	items: Exclude<Value, ValueUnionType>[]
+	cast?: (value: Value) => Value
 }
 
 interface ValueFnType {
@@ -167,10 +168,7 @@ function createValType(
 	}
 }
 
-const TypeBoolean: ValueUnionType = {
-	kind: 'unionType',
-	items: [true, false],
-}
+const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValType('number', () => 0)
 const TypeString = createValType('string', () => '')
 const TypeFnType = createValType('fnType', () => null)
@@ -218,6 +216,28 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
 		} as any,
 	}),
+	and: createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: createValueVariadicVector([TypeBoolean]),
+			out: TypeBoolean,
+		},
+		body: function (this: ValueFnThis, ...xs: Exp[]) {
+			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
+		} as any,
+	}),
+	or: createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: createValueVariadicVector([TypeBoolean]),
+			out: TypeBoolean,
+		},
+		body: function (this: ValueFnThis, ...xs: Exp[]) {
+			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
+		} as any,
+	}),
 	':=>': createValue({
 		kind: 'fn',
 		type: {
@@ -241,7 +261,7 @@ const GlobalSymbols: {[name: string]: Exp} = {
 			out: createValueAny(),
 		},
 		body: function (this: ValueFnThis, ...a: Exp[]) {
-			return uniteType(...a.map(this.eval))
+			return uniteType(a.map(this.eval))
 		} as any,
 	}),
 	'...': createValue({
@@ -296,11 +316,13 @@ interface WithLogs<T> {
 	logs: Log[]
 }
 
-function uniteType(...types: Value[]): Value {
-	const items: (
-		| Exclude<Value, ValueUnionType>
-		| undefined
-	)[] = types.flatMap(t => (isKindOf(t, 'unionType') ? t.items : [t]))
+function uniteType(
+	types: Value[],
+	cast?: NonNullable<ValueUnionType['cast']>
+): Value {
+	const items: (Exclude<Value, ValueUnionType> | undefined)[] = types.flatMap(
+		t => (isKindOf(t, 'unionType') ? t.items : [t])
+	)
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -313,9 +335,7 @@ function uniteType(...types: Value[]): Value {
 
 				if (isSubtypeOf(bItem, aItem)) {
 					items[b] = undefined
-				}
-
-				if (isSubtypeOf(aItem, bItem)) {
+				} else if (isSubtypeOf(aItem, bItem)) {
 					items[a] = undefined
 					break
 				}
@@ -328,7 +348,7 @@ function uniteType(...types: Value[]): Value {
 	) as ValueUnionType['items']
 
 	return uniqItems.length > 0
-		? {kind: 'unionType', items: uniqItems}
+		? {kind: 'unionType', items: uniqItems, cast}
 		: uniqItems[0]
 }
 
@@ -508,9 +528,9 @@ function evalExpVector(exp: ExpVector): WithLogs<Value> {
 }
 
 function evalExpList(exp: ExpList): WithLogs<Value> {
-	const {result: inspected, logs} = inspectExpList(exp)
+	const {result: inspected, logs: inspectLogs} = inspectExpList(exp)
 	if (inspected.semantic === 'application') {
-		const {result: fn, logs} = evalExp(inspected.fn)
+		const {result: fn, logs: fnLogs} = evalExp(inspected.fn)
 
 		if (isKindOf(fn, 'fn')) {
 			const {result: params, logs: castLogs} = castExpParam(
@@ -530,12 +550,28 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				},
 				...params
 			)
-			return withLog(result, [...logs, ...castLogs, ...paramsLogs])
+			return withLog(result, [
+				...inspectLogs,
+				...fnLogs,
+				...castLogs,
+				...paramsLogs,
+			])
+		} else if (isKindOf(fn, 'valType') || isKindOf(fn, 'unionType')) {
+			const origExp =
+				inspected.params.length === 0 ? createValue(null) : inspected.params[0]
+			const {result: origValue, logs: origLogs} = evalExp(origExp)
+
+			const {result: castedValue, logs: castLogs} = evalExp(
+				castType(fn, origValue)
+			)
+
+			return withLog(castedValue, [...inspectLogs, ...origLogs, ...castLogs])
+		} else {
+			return withLog(fn, inspectLogs)
 		}
-		return withLog(fn, logs)
 	} else {
 		// ()
-		return withLog(null, logs)
+		return withLog(null, inspectLogs)
 	}
 }
 
@@ -687,9 +723,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
-	function normalizeTypeToFn(
-		type: Value
-	): {
+	function normalizeTypeToFn(type: Value): {
 		params: ValueFnType['params']
 		out: Value
 	} {
@@ -727,7 +761,7 @@ testSubtype('[Number Number]', '[]', true)
 testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
 
-function getDefault(type: Value, value: Value): Exp {
+function castType(type: Value, value: Value): Exp {
 	if (type === null || typeof type !== 'object') {
 		return createValue(type)
 	}
@@ -736,7 +770,7 @@ function getDefault(type: Value, value: Value): Exp {
 		return {
 			parent: null,
 			ast: 'vector',
-			items: type.map(t => getDefault(t, null)),
+			items: type.map(t => castType(t, null)),
 		}
 	}
 
@@ -744,9 +778,11 @@ function getDefault(type: Value, value: Value): Exp {
 		case 'valType':
 			return createValue(type.cast(value))
 		case 'fnType':
-			return getDefault(type.out, null)
+			return castType(type.out, null)
 		case 'unionType':
-			return getDefault(type.items[0], null)
+			return type.cast
+				? createValue(type.cast(value))
+				: castType(type.items[0], null)
 		case 'singleton':
 			return createValue(type)
 	}
@@ -771,7 +807,7 @@ function castExpParam(
 
 			from = [...from]
 			while (from.length < minLength) {
-				from.push(getDefault(to.items[from.length]))
+				from.push(castType(to.items[from.length], null))
 			}
 		}
 
@@ -801,7 +837,7 @@ function castExpParam(
 					' cannot be casted to ' +
 					printValue(toItem),
 			})
-			casted.push(getDefault(toItem))
+			casted.push(castType(toItem, null))
 		}
 	}
 
