@@ -558,7 +558,11 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				...castLogs,
 				...paramsLogs,
 			])
-		} else if (isKindOf(fn, 'valType') || isKindOf(fn, 'unionType')) {
+		} else if (
+			isKindOf(fn, 'valType') ||
+			isKindOf(fn, 'unionType') ||
+			Array.isArray(fn)
+		) {
 			const origExp =
 				inspected.params.length === 0 ? createValue(null) : inspected.params[0]
 			const {result: origValue, logs: origLogs} = evalExp(origExp)
@@ -775,11 +779,19 @@ function castType(type: Value, value: Value): Exp {
 		return createValue(type)
 	}
 
+	if (isSubtypeOf(value, type)) {
+		return createValue(value)
+	}
+
 	if (Array.isArray(type)) {
+		const values = Array.isArray(value) ? value : []
+		console.log('values==', values)
 		return {
 			parent: null,
 			ast: 'vector',
-			items: type.map(t => castType(t, null)),
+			items: type.map((t, i) =>
+				castType(t, values[i] !== undefined ? values[i] : null)
+			),
 		}
 	}
 
