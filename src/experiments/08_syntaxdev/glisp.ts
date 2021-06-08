@@ -567,18 +567,16 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				inspected.params.length === 0 ? createValue(null) : inspected.params[0]
 			const {result: origValue, logs: origLogs} = evalExp(origExp)
 
-			const {result: castedValue, logs: castLogs} = evalExp(
-				castType(fn, origValue)
-			)
+			const castedValue = castType(fn, origValue)
 
-			const l: Log = {
+			const castLog: Log = {
 				level: 'info',
 				reason: `Value ${printValue(origValue)} is converted to ${printValue(
 					castedValue
 				)}`,
 			}
 
-			return withLog(castedValue, [...inspectLogs, ...origLogs, ...castLogs, l])
+			return withLog(castedValue, [...inspectLogs, ...origLogs, castLog])
 		} else {
 			return withLog(fn, inspectLogs)
 		}
@@ -774,41 +772,34 @@ testSubtype('[Number Number]', '[]', true)
 testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
 
-function castType(type: Value, value: Value): Exp {
+function castType(type: Value, value: Value): Value {
 	if (type === null || typeof type !== 'object') {
-		return createValue(type)
-	}
-
-	if (isSubtypeOf(value, type)) {
-		return createValue(value)
+		return type
 	}
 
 	if (Array.isArray(type)) {
 		const values = Array.isArray(value) ? value : []
-		console.log('values==', values)
-		return {
-			parent: null,
-			ast: 'vector',
-			items: type.map((t, i) =>
-				castType(t, values[i] !== undefined ? values[i] : null)
-			),
-		}
+		return type.map((t, i) =>
+			castType(t, values[i] !== undefined ? values[i] : null)
+		)
 	}
 
 	switch (type.kind) {
 		case 'valType':
-			return createValue(type.cast(value))
+			return isSubtypeOf(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, null)
 		case 'unionType':
 			return type.cast
-				? createValue(type.cast(value))
+				? isSubtypeOf(value, type)
+					? value
+					: type.cast(value)
 				: castType(type.items[0], null)
 		case 'singleton':
-			return createValue(type)
+			return type
 	}
 
-	return createValue(null)
+	return null
 }
 
 function castExpParam(
@@ -828,7 +819,7 @@ function castExpParam(
 
 			from = [...from]
 			while (from.length < minLength) {
-				from.push(castType(to.items[from.length], null))
+				from.push(createValue(castType(to.items[from.length], null)))
 			}
 		}
 
