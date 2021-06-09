@@ -96,27 +96,10 @@ interface ExpValue<T extends Value = Value> extends ExpBase {
 	value: T
 }
 
-type InspectedResult =
-	| {semantic: 'raw'}
-	| InspectedResultSymbol
-	| InspectedResultList
-	| InspectedResultHashMap
-
-type InspectedResultSymbol =
-	| {semantic: 'ref'; ref: Exp}
-	| {semantic: 'capture'}
-	| {semantic: 'undefined'}
-	| {semantic: 'circular'}
-
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	name: string
 }
-
-type InspectedResultList =
-	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
-	| {semantic: 'null'}
 
 interface ExpList extends ExpBase {
 	ast: 'list'
@@ -126,13 +109,6 @@ interface ExpList extends ExpBase {
 interface ExpVector extends ExpBase {
 	ast: 'vector'
 	items: Exp[]
-}
-
-type InspectedResultHashMap = {
-	semantic: 'hashMap'
-	items: {
-		[hash: string]: Exp
-	}
 }
 
 interface ExpHashMap extends ExpBase {
@@ -146,11 +122,35 @@ interface ExpScope extends ExpBase {
 	out?: Exp
 }
 
+type InspectedResult =
+	| {semantic: 'raw'}
+	| InspectedResultSymbol
+	| InspectedResultList
+	| InspectedResultHashMap
+
+type InspectedResultSymbol =
+	| {semantic: 'ref'; ref: Exp}
+	| {semantic: 'capture'}
+	| {semantic: 'undefined'}
+	| {semantic: 'circular'}
+
+type InspectedResultList =
+	| {semantic: 'application'; fn: Exp; params: Exp[]}
+	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
+	| {semantic: 'null'}
+
+type InspectedResultHashMap = {
+	semantic: 'hashMap'
+	items: {
+		[hash: string]: Exp
+	}
+}
+
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
-		return createValue([])
+		return createValue(null)
 	} else {
 		// Set global scope as parent
 		exp.parent = GlobalScope

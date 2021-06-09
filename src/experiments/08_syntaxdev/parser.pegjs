@@ -13,7 +13,7 @@
 
 Start = Program / BlankProgram
 
-BlankProgram = _ { return undefined }
+BlankProgram = _ { return }
 
 Program = form:Form
 	{
