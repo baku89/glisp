@@ -35,6 +35,10 @@ interface ValueCustomSingleton {
 	origExp?: Exp
 }
 
+function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
+	return x === null || typeof x !== 'object'
+}
+
 interface ValueVariadicVector<T extends Value = Value> {
 	kind: 'variadicVector'
 	items: T[]
@@ -76,17 +80,15 @@ interface ValueHashMap {
 	}
 }
 
-type Exp = ExpValue | ExpSymbol | ExpColl
+type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap | ExpScope
 
 interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
 }
 
-type ExpColl = ExpList | ExpVector | ExpHashMap | ExpScope
-
 interface ExpBase {
-	parent: null | ExpColl
+	parent?: Exp
 }
 
 interface ExpValue<T extends Value = Value> extends ExpBase {
@@ -157,19 +159,15 @@ export function readStr(str: string): Exp {
 }
 
 function createValue(value: Value): ExpValue {
-	return {
-		parent: null,
-		ast: 'value',
-		value,
+	const ret: ExpValue = {ast: 'value', value}
+	if (isKindOf(value, 'singleton')) {
+		value.origExp = ret
 	}
+	return ret
 }
 
 function createSymbol(name: string): ExpSymbol {
-	return {
-		parent: null,
-		ast: 'symbol',
-		name,
-	}
+	return {ast: 'symbol', name}
 }
 
 function createVariadicVector<T extends Value = Value>(
@@ -194,6 +192,25 @@ function createValType(
 	}
 }
 
+function createScope(
+	{
+		scope,
+		out,
+	}: {
+		scope: ExpScope['scope']
+		out?: ExpScope['out']
+	},
+	setParent = true
+): ExpScope {
+	const ret: ExpScope = {ast: 'scope', scope, out}
+
+	if (setParent) {
+		_.values(scope).forEach(e => (e.parent = ret))
+	}
+
+	return ret
+}
+
 const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValType('number', () => 0)
 const TypeString = createValType('string', () => '')
@@ -207,9 +224,7 @@ const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
-const GlobalScope: ExpScope = {
-	parent: null,
-	ast: 'scope',
+const GlobalScope = createScope({
 	scope: {
 		Any: createValue(createAny()),
 		Number: createValue(TypeNumber),
@@ -364,7 +379,7 @@ const GlobalScope: ExpScope = {
 			} as any,
 		}),
 	},
-}
+})
 
 interface WithLogs<T> {
 	result: T
@@ -409,7 +424,7 @@ function uniteType(
 }
 
 function equalsValue(a: Value, b: Value): boolean {
-	if (a === null || typeof a !== 'object') {
+	if (isLiteralSingleton(a)) {
 		return a === b
 	}
 
@@ -477,7 +492,7 @@ function inspectExp(exp: Exp): WithLogs<InspectedResult> {
 
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	// Search ancestors
-	let parent: Exp | null = exp.parent
+	let parent = exp.parent
 	let name = exp.name
 	const history = new WeakSet<ExpSymbol>([exp])
 	while (parent) {
@@ -573,7 +588,7 @@ function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
 }
 
 function assertValueType(v: Value): Value {
-	if (v === null || typeof v !== 'object') {
+	if (isLiteralSingleton(v)) {
 		return v
 	}
 
@@ -738,6 +753,7 @@ function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
 function isKindOf(x: Value, kind: 'unionType'): x is ValueUnionType
 function isKindOf(x: Value, kind: 'valType'): x is ValueValType
 function isKindOf(x: Value, kind: 'variadicVector'): x is ValueVariadicVector
+function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(x: Value, kind: T['kind']): x is T {
@@ -853,7 +869,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		params: ValueFnType['params']
 		out: Value
 	} {
-		if (typeof type === 'object' && type !== null && !Array.isArray(type)) {
+		if (!isLiteralSingleton(type) && !Array.isArray(type)) {
 			if (type.kind == 'fnType') {
 				return {params: type.params, out: type.out}
 			}
@@ -888,7 +904,7 @@ testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
 
 function castType(type: Value, value: Value): Value {
-	if (type === null || typeof type !== 'object') {
+	if (isLiteralSingleton(type)) {
 		return type
 	}
 
@@ -965,7 +981,6 @@ function castExpParam(
 					printValue(toType),
 			})
 			casted.push({
-				parent: null,
 				ast: 'list',
 				items: [createSymbol('::'), createValue(toType), fromItem],
 			})
@@ -999,7 +1014,48 @@ export function printExp(exp: Exp): string {
 	}
 }
 
-export function printValue(val: Value): string {
+function retrieveSingletonName(
+	s: ValueCustomSingleton,
+	baseExp: Exp
+): string | undefined {
+	if (!s.origExp) {
+		return
+	}
+
+	const {origExp} = s
+
+	if (!origExp.parent) {
+		return
+	}
+
+	const inspected = inspectExp(origExp.parent).result
+
+	if (inspected.semantic !== 'scope') {
+		return
+	}
+
+	const name = _.findKey(inspected.scope, e => e === origExp)
+
+	if (!name) {
+		return
+	}
+
+	const sym: ExpSymbol = {
+		parent: baseExp,
+		ast: 'symbol',
+		name,
+	}
+
+	const symInspected = inspectExpSymbol(sym).result
+
+	if (symInspected.semantic !== 'ref' || symInspected.ref !== origExp) {
+		return
+	}
+
+	return name
+}
+
+export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	if (val === null) {
 		return 'null'
 	}
@@ -1013,7 +1069,7 @@ export function printValue(val: Value): string {
 	}
 
 	if (Array.isArray(val)) {
-		return '[' + val.map(printValue).join(' ') + ']'
+		return '[' + val.map(_.unary(printValue)).join(' ') + ']'
 	}
 
 	switch (val.kind) {
@@ -1031,11 +1087,11 @@ export function printValue(val: Value): string {
 					throw new Error('aaa!!!')
 			}
 		case 'variadicVector':
-			return '(... ' + val.items.map(printValue).join(' ') + ')'
+			return '(... ' + val.items.map(_.unary(printValue)).join(' ') + ')'
 		case 'unionType':
-			return '(:| ' + val.items.map(printValue).join(' ') + ')'
+			return '(:| ' + val.items.map(_.unary(printValue)).join(' ') + ')'
 		case 'singleton':
-			return '<singleton>'
+			return retrieveSingletonName(val, baseExp) || '<singleton>'
 		case 'fnType':
 			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'fn':
