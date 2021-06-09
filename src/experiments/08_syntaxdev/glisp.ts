@@ -83,15 +83,15 @@ interface Log {
 	reason: string
 }
 
-type ExpColl = ExpList | ExpVector | ExpHashMap
+type ExpColl = ExpList | ExpVector | ExpHashMap | ExpScope
 
 interface ExpBase {
 	parent: null | ExpColl
 }
 
-interface ExpValue extends ExpBase {
+interface ExpValue<T extends Value = Value> extends ExpBase {
 	ast: 'value'
-	value: Value
+	value: T
 }
 
 type InspectedResult =
@@ -113,7 +113,7 @@ interface ExpSymbol extends ExpBase {
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'scope'; scope: {[name: string]: Exp}; out?: Exp}
+	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
 
 interface ExpList extends ExpBase {
@@ -138,12 +138,20 @@ interface ExpHashMap extends ExpBase {
 	items: Exp[]
 }
 
+interface ExpScope extends ExpBase {
+	ast: 'scope'
+	scope: {[name: string]: Exp}
+	out?: Exp
+}
+
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
 		return createValue([])
 	} else {
+		// Set global scope as parent
+		exp.parent = GlobalScope
 		return exp
 	}
 }
@@ -199,155 +207,163 @@ const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
-const GlobalSymbols: {[name: string]: Exp} = {
-	Any: createValue(createAny()),
-	Number: createValue(TypeNumber),
-	String: createValue(TypeString),
-	Boolean: createValue(TypeBoolean),
-	LT: createValue(OrderingLT),
-	EQ: createValue(OrderingEQ),
-	GT: createValue(OrderingGT),
-	Ordering: createValue({
-		kind: 'unionType',
-		items: [OrderingLT, OrderingEQ, OrderingGT],
-	}),
-	PI: createValue(Math.PI),
-	'+': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(TypeNumber),
-			out: TypeNumber,
-		},
-		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
-		} as any,
-	}),
-	'*': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(createValType(TypeNumber, () => 1)),
-			out: TypeNumber,
-		},
-		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
-		} as any,
-	}),
-	and: createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(TypeBoolean),
-			out: TypeBoolean,
-		},
-		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
-		} as any,
-	}),
-	or: createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(TypeBoolean),
-			out: TypeBoolean,
-		},
-		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a || b, false)
-		} as any,
-	}),
-	':=>': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: [createVariadicVector(createAny()), createAny()],
-			out: TypeFnType,
-		},
-		body: function (this: ValueFnThis, params: Exp, out: Exp) {
-			return {
+const GlobalScope: ExpScope = {
+	parent: null,
+	ast: 'scope',
+	scope: {
+		Any: createValue(createAny()),
+		Number: createValue(TypeNumber),
+		String: createValue(TypeString),
+		Boolean: createValue(TypeBoolean),
+		LT: createValue(OrderingLT),
+		EQ: createValue(OrderingEQ),
+		GT: createValue(OrderingGT),
+		Ordering: createValue({
+			kind: 'unionType',
+			items: [OrderingLT, OrderingEQ, OrderingGT],
+		}),
+		PI: createValue(Math.PI),
+		'+': createValue({
+			kind: 'fn',
+			type: {
 				kind: 'fnType',
-				params: this.eval(params),
-				out: this.eval(out),
-			}
-		} as any,
-	}),
-	':|': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(createAny()),
-			out: createAny(),
-		},
-		body: function (this: ValueFnThis, ...a: Exp[]) {
-			return uniteType(a.map(this.eval))
-		} as any,
-	}),
-	'...': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: createVariadicVector(createAny()),
-			out: createAny(),
-		},
-		body: function (this: ValueFnThis, ...xs: Exp[]) {
-			const items: Value[] = xs.map(this.eval)
+				params: createVariadicVector(TypeNumber),
+				out: TypeNumber,
+			},
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
+			} as any,
+		}),
+		'*': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: createVariadicVector(createValType(TypeNumber, () => 1)),
+				out: TypeNumber,
+			},
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
+			} as any,
+		}),
+		and: createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: createVariadicVector(TypeBoolean),
+				out: TypeBoolean,
+			},
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
+			} as any,
+		}),
+		or: createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: createVariadicVector(TypeBoolean),
+				out: TypeBoolean,
+			},
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				return xs
+					.map(x => this.eval<boolean>(x))
+					.reduce((a, b) => a || b, false)
+			} as any,
+		}),
+		':=>': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [createVariadicVector(createAny()), createAny()],
+				out: TypeFnType,
+			},
+			body: function (this: ValueFnThis, params: Exp, out: Exp) {
+				return {
+					kind: 'fnType',
+					params: this.eval(params),
+					out: this.eval(out),
+				}
+			} as any,
+		}),
+		':|': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: createVariadicVector(createAny()),
+				out: createAny(),
+			},
+			body: function (this: ValueFnThis, ...a: Exp[]) {
+				return uniteType(a.map(this.eval))
+			} as any,
+		}),
+		'...': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: createVariadicVector(createAny()),
+				out: createAny(),
+			},
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				const items: Value[] = xs.map(this.eval)
 
-			if (items.length === 0) {
-				items.push(createAny())
-			} else if (items.length >= 2) {
-				const last = items[items.length - 1]
-				for (let i = items.length - 2; i >= 0; i--) {
-					if (equalsValue(items[i], last)) {
-						items.pop()
+				if (items.length === 0) {
+					items.push(createAny())
+				} else if (items.length >= 2) {
+					const last = items[items.length - 1]
+					for (let i = items.length - 2; i >= 0; i--) {
+						if (equalsValue(items[i], last)) {
+							items.pop()
+						}
 					}
 				}
-			}
 
-			return {
-				kind: 'variadicVector',
-				items,
-			}
-		} as any,
-	}),
-	':type': createValue({
-		kind: 'fn',
-		type: {kind: 'fnType', params: [createAny()], out: createAny()},
-		body: function (this: ValueFnThis, t: Exp) {
-			return assertExpType(t)
-		} as any,
-	}),
-	':<': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: [createAny(), createAny()],
-			out: TypeBoolean,
-		},
-		body: function (this: ValueFnThis, a: Exp, b: Exp) {
-			return isSubtypeOf(this.eval(a), this.eval(b))
-		} as any,
-	}),
-	'::': createValue({
-		kind: 'fn',
-		type: {
-			kind: 'fnType',
-			params: [createAny(), createAny()],
-			out: createAny(),
-		},
-		body: function (this: ValueFnThis, type: Exp, value: Exp) {
-			const t = this.eval(type)
-			const v = this.eval(value)
+				return {
+					kind: 'variadicVector',
+					items,
+				}
+			} as any,
+		}),
+		':type': createValue({
+			kind: 'fn',
+			type: {kind: 'fnType', params: [createAny()], out: createAny()},
+			body: function (this: ValueFnThis, t: Exp) {
+				return assertExpType(t)
+			} as any,
+		}),
+		':<': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [createAny(), createAny()],
+				out: TypeBoolean,
+			},
+			body: function (this: ValueFnThis, a: Exp, b: Exp) {
+				return isSubtypeOf(this.eval(a), this.eval(b))
+			} as any,
+		}),
+		'::': createValue({
+			kind: 'fn',
+			type: {
+				kind: 'fnType',
+				params: [createAny(), createAny()],
+				out: createAny(),
+			},
+			body: function (this: ValueFnThis, type: Exp, value: Exp) {
+				const t = this.eval(type)
+				const v = this.eval(value)
 
-			const casted = castType(t, v)
+				const casted = castType(t, v)
 
-			this.log({
-				level: 'info',
-				reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
-			})
+				this.log({
+					level: 'info',
+					reason: `Value ${printValue(v)} is converted to ${printValue(
+						casted
+					)}`,
+				})
 
-			return casted
-		} as any,
-	}),
+				return casted
+			} as any,
+		}),
+	},
 }
 
 interface WithLogs<T> {
@@ -451,6 +467,8 @@ function inspectExp(exp: Exp): WithLogs<InspectedResult> {
 			return inspectExpList(exp)
 		case 'hashMap':
 			return inspectExpHashMap(exp)
+		case 'scope':
+			return withLog({semantic: 'scope', scope: exp.scope, out: exp.out})
 		default:
 			return withLog({semantic: 'raw'})
 	}
@@ -488,14 +506,6 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 			}
 		}
 		parent = parent.parent
-	}
-
-	// Defined in the global scope
-	if (exp.name in GlobalSymbols) {
-		return withLog({
-			semantic: 'ref',
-			ref: GlobalSymbols[exp.name],
-		})
 	}
 
 	// Not Defined
@@ -602,13 +612,15 @@ function assertExpType(exp: Exp): Value {
 				const fn = evalExp(inspected.fn).result
 				return isKindOf(fn, 'fn') ? fn.type.out : assertExpType(inspected.fn)
 			} else {
-				return createAny()
+				return null
 			}
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
 		case 'hashMap':
 			return TypeHashMap
+		case 'scope':
+			return exp.out ? assertExpType(exp) : null
 	}
 }
 
@@ -669,7 +681,6 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 	} else if (inspected.semantic === 'scope') {
 		if (inspected.out !== undefined) {
 			const {result, logs} = evalExp(inspected.out)
-			console.log('inspectLogs', inspectLogs)
 			return withLog(result, [...inspectLogs, ...logs])
 		}
 	}
@@ -688,6 +699,15 @@ function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
 	)
 }
 
+function evalExpScope(exp: ExpScope): WithLogs<Value> {
+	if (exp.out) {
+		const {result, logs} = evalExp(exp.out)
+		return withLog(result, logs)
+	} else {
+		return withLog(null, [])
+	}
+}
+
 export function evalExp(exp: Exp): WithLogs<Value> {
 	switch (exp.ast) {
 		case 'value':
@@ -700,6 +720,8 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			return evalExpVector(exp)
 		case 'hashMap':
 			return evalExpHashMap(exp)
+		case 'scope':
+			return evalExpScope(exp)
 	}
 }
 
@@ -962,6 +984,15 @@ export function printExp(exp: Exp): string {
 			return exp.name
 		case 'value':
 			return printValue(exp.value)
+		case 'scope':
+			return (
+				'(@' +
+				Object.entries(exp.scope)
+					.map(([k, v]) => k + ' ' + printExp(v))
+					.join(' ') +
+				(exp.out ? printExp(exp.out) : '') +
+				')'
+			)
 	}
 }
 
