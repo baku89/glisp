@@ -104,6 +104,7 @@ interface ExpSymbol extends ExpBase {
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
+	| {semantic: 'scope'; scope: {[name: string]: Exp}; out?: Exp}
 	| {semantic: 'void'}
 
 interface ExpList extends ExpBase {
@@ -405,26 +406,75 @@ function withLog<T>(result: T, logs: Log[] = []) {
 }
 
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
+	// Search ancestors
+	let parent = exp.parent
+	while (parent) {
+		if (parent.ast === 'list') {
+			const parentInspected = inspectExpList(parent).result
+			if (parentInspected.semantic === 'scope') {
+				if (exp.name in parentInspected.scope) {
+					return withLog({
+						semantic: 'ref',
+						ref: parentInspected.scope[exp.name],
+					})
+				}
+			}
+		}
+		parent = parent.parent
+	}
+
+	// Defined in the global scope
 	if (exp.name in GlobalSymbols) {
 		return withLog({
 			semantic: 'ref',
 			ref: GlobalSymbols[exp.name],
 		})
-	} else {
-		// Not Defined
-		return withLog({semantic: 'undefined'}, [
-			{level: 'error', reason: `${exp.name} is not defined`},
-		])
 	}
+
+	// Not Defined
+	return withLog({semantic: 'undefined'}, [
+		{level: 'error', reason: `${exp.name} is not defined`},
+	])
 }
 
 function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	if (exp.items.length >= 1) {
-		return withLog({
-			semantic: 'application',
-			fn: exp.items[0],
-			params: exp.items.slice(1),
-		})
+		const [fst, ...rest] = exp.items
+
+		if (fst.ast === 'symbol' && fst.name === 'let') {
+			const scope: {[name: string]: Exp} = {}
+			let out: Exp | undefined
+
+			const logs: Log[] = []
+
+			_.chunk(rest, 2).forEach(pair => {
+				if (pair.length === 2) {
+					const [sym, value] = pair
+					if (sym.ast === 'symbol') {
+						scope[sym.name] = value
+					} else {
+						logs.push({
+							level: 'warn',
+							reason: `${printExp(sym)} is not a symbol`,
+						})
+					}
+				} else if (pair.length === 1) {
+					out = pair[0]
+				}
+			})
+
+			return withLog({
+				semantic: 'scope',
+				scope,
+				out,
+			})
+		} else {
+			return withLog({
+				semantic: 'application',
+				fn: fst,
+				params: rest,
+			})
+		}
 	} else {
 		return withLog({semantic: 'void'})
 	}
@@ -538,8 +588,6 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				inspected.params
 			)
 
-			console.log(params.map(printExp))
-
 			const paramsLogs: Log[] = []
 
 			const result = fn.body.call(
@@ -580,10 +628,13 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 		} else {
 			return withLog(fn, inspectLogs)
 		}
-	} else {
-		// ()
-		return withLog(null, inspectLogs)
+	} else if (inspected.semantic === 'scope') {
+		if (inspected.out !== undefined) {
+			const {result, logs} = evalExp(inspected.out)
+			return withLog(result, [...inspectLogs, ...logs])
+		}
 	}
+	return withLog(null, inspectLogs)
 }
 
 function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
