@@ -32,6 +32,7 @@ type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
 type ValueLiteralSingleton = null | boolean | string | number
 interface ValueCustomSingleton {
 	kind: 'singleton'
+	origExp?: Exp
 }
 
 interface ValueVariadicVector<T extends Value = Value> {
@@ -492,7 +493,6 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 		if (fst.ast === 'symbol' && fst.name === '@') {
 			const scope: {[name: string]: Exp} = {}
 			let out: Exp | undefined
-
 			const logs: Log[] = []
 
 			_.chunk(rest, 2).forEach(pair => {
@@ -510,22 +510,9 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 					out = pair[0]
 				}
 			})
-
-			return withLog(
-				{
-					semantic: 'scope',
-					scope,
-					out,
-				},
-				logs
-			)
-		} else {
-			return withLog({
-				semantic: 'application',
-				fn: fst,
-				params: rest,
-			})
+			return withLog({semantic: 'scope', scope, out}, logs)
 		}
+		return withLog({semantic: 'application', fn: fst, params: rest})
 	} else {
 		return withLog({semantic: 'null'})
 	}
