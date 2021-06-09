@@ -958,7 +958,7 @@ export function printValue(val: Value): string {
 					throw new Error('aaa!!!')
 			}
 		case 'variadicVector':
-			return '[... ' + val.items.map(printValue).join(' ') + ']'
+			return '(... ' + val.items.map(printValue).join(' ') + ')'
 		case 'unionType':
 			return '(:| ' + val.items.map(printValue).join(' ') + ')'
 		case 'singleton':
