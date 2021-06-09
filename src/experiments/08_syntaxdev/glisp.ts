@@ -409,28 +409,30 @@ function withLog<T>(result: T, logs: Log[] = []) {
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	// Search ancestors
 	let parent: Exp | null = exp.parent
+	let name = exp.name
 	const history = new WeakSet<ExpSymbol>([exp])
 	while (parent) {
 		if (parent.ast === 'list') {
-			const parentInspected: InspectedResultList = inspectExpList(parent).result
-			if (parentInspected.semantic === 'scope') {
-				const value: Exp | undefined = parentInspected.scope[exp.name]
-				if (value) {
-					if (value.ast === 'symbol') {
-						if (history.has(value)) {
+			const inspected: InspectedResultList = inspectExpList(parent).result
+			if (inspected.semantic === 'scope') {
+				if (name in inspected.scope) {
+					const ref: Exp = inspected.scope[name]
+					if (ref.ast === 'symbol') {
+						if (history.has(ref)) {
 							return withLog({semantic: 'circular'}, [
 								{
 									level: 'error',
-									reason: `Symbol ${printExp(exp)} has circular reference`,
+									reason: `Symbol ${printExp(exp)} has a circular reference`,
 								},
 							])
 						}
-						history.add(value)
-						parent = value
+						history.add(ref)
+						parent = ref
+						name = ref.name
 					} else {
 						return withLog({
 							semantic: 'ref',
-							ref: parentInspected.scope[exp.name],
+							ref,
 						})
 					}
 				}
@@ -457,7 +459,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	if (exp.items.length >= 1) {
 		const [fst, ...rest] = exp.items
 
-		if (fst.ast === 'symbol' && fst.name === 'let') {
+		if (fst.ast === 'symbol' && fst.name === '@') {
 			const scope: {[name: string]: Exp} = {}
 			let out: Exp | undefined
 
@@ -479,11 +481,14 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 				}
 			})
 
-			return withLog({
-				semantic: 'scope',
-				scope,
-				out,
-			})
+			return withLog(
+				{
+					semantic: 'scope',
+					scope,
+					out,
+				},
+				logs
+			)
 		} else {
 			return withLog({
 				semantic: 'application',
@@ -644,6 +649,7 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 	} else if (inspected.semantic === 'scope') {
 		if (inspected.out !== undefined) {
 			const {result, logs} = evalExp(inspected.out)
+			console.log('inspectLogs', inspectLogs)
 			return withLog(result, [...inspectLogs, ...logs])
 		}
 	}
