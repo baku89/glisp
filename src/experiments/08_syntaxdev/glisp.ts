@@ -94,6 +94,12 @@ interface ExpValue extends ExpBase {
 	value: Value
 }
 
+type InspectedResult =
+	| {semantic: 'raw'}
+	| InspectedResultSymbol
+	| InspectedResultList
+	| InspectedResultHashMap
+
 type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
 	| {semantic: 'capture'}
@@ -437,35 +443,47 @@ function withLog<T>(result: T, logs: Log[] = []) {
 	return {result, logs}
 }
 
+function inspectExp(exp: Exp): WithLogs<InspectedResult> {
+	switch (exp.ast) {
+		case 'symbol':
+			return inspectExpSymbol(exp)
+		case 'list':
+			return inspectExpList(exp)
+		case 'hashMap':
+			return inspectExpHashMap(exp)
+		default:
+			return withLog({semantic: 'raw'})
+	}
+}
+
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	// Search ancestors
 	let parent: Exp | null = exp.parent
 	let name = exp.name
 	const history = new WeakSet<ExpSymbol>([exp])
 	while (parent) {
-		if (parent.ast === 'list') {
-			const inspected: InspectedResultList = inspectExpList(parent).result
-			if (inspected.semantic === 'scope') {
-				if (name in inspected.scope) {
-					const ref: Exp = inspected.scope[name]
-					if (ref.ast === 'symbol') {
-						if (history.has(ref)) {
-							return withLog({semantic: 'circular'}, [
-								{
-									level: 'error',
-									reason: `Symbol ${printExp(exp)} has a circular reference`,
-								},
-							])
-						}
-						history.add(ref)
-						parent = ref
-						name = ref.name
-					} else {
-						return withLog({
-							semantic: 'ref',
-							ref,
-						})
+		const inspected: InspectedResult = inspectExp(parent).result
+		if (inspected.semantic === 'scope') {
+			if (name in inspected.scope) {
+				const ref: Exp = inspected.scope[name]
+				if (ref.ast === 'symbol') {
+					if (history.has(ref)) {
+						return withLog({semantic: 'circular'}, [
+							{
+								level: 'error',
+								reason: `Symbol ${printExp(exp)} has a circular reference`,
+							},
+						])
 					}
+					// Proceed resolving
+					history.add(ref)
+					parent = ref
+					name = ref.name
+				} else {
+					return withLog({
+						semantic: 'ref',
+						ref,
+					})
 				}
 			}
 		}
