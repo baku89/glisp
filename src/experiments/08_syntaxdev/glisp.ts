@@ -96,6 +96,7 @@ type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
 	| {semantic: 'capture'}
 	| {semantic: 'undefined'}
+	| {semantic: 'circular'}
 
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
@@ -407,16 +408,31 @@ function withLog<T>(result: T, logs: Log[] = []) {
 
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	// Search ancestors
-	let parent = exp.parent
+	let parent: Exp | null = exp.parent
+	const history = new WeakSet<ExpSymbol>([exp])
 	while (parent) {
 		if (parent.ast === 'list') {
-			const parentInspected = inspectExpList(parent).result
+			const parentInspected: InspectedResultList = inspectExpList(parent).result
 			if (parentInspected.semantic === 'scope') {
-				if (exp.name in parentInspected.scope) {
-					return withLog({
-						semantic: 'ref',
-						ref: parentInspected.scope[exp.name],
-					})
+				const value: Exp | undefined = parentInspected.scope[exp.name]
+				if (value) {
+					if (value.ast === 'symbol') {
+						if (history.has(value)) {
+							return withLog({semantic: 'circular'}, [
+								{
+									level: 'error',
+									reason: `Symbol ${printExp(exp)} has circular reference`,
+								},
+							])
+						}
+						history.add(value)
+						parent = value
+					} else {
+						return withLog({
+							semantic: 'ref',
+							ref: parentInspected.scope[exp.name],
+						})
+					}
 				}
 			}
 		}
@@ -557,15 +573,12 @@ function assertExpType(exp: Exp): Value {
 }
 
 function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
-	const inspected = inspectExpSymbol(exp).result
+	const {result: inspected, logs} = inspectExpSymbol(exp)
 	switch (inspected.semantic) {
 		case 'ref':
 			return evalExp(inspected.ref)
-		case 'capture':
-		case 'undefined':
-			return withLog(null, [
-				{level: 'error', reason: `Symbol ${exp.name} is not defined.`},
-			])
+		default:
+			return withLog(null, logs)
 	}
 }
 
