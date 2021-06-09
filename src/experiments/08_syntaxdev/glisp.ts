@@ -58,6 +58,7 @@ interface ValueFnType {
 }
 
 interface ValueFnThis {
+	log: (log: Log) => void
 	eval: <R extends Value>(exp: Exp) => R
 }
 
@@ -106,7 +107,7 @@ interface ExpSymbol extends ExpBase {
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
 	| {semantic: 'scope'; scope: {[name: string]: Exp}; out?: Exp}
-	| {semantic: 'void'}
+	| {semantic: 'null'}
 
 interface ExpList extends ExpBase {
 	ast: 'list'
@@ -145,6 +146,14 @@ function createValue(value: Value): ExpValue {
 		parent: null,
 		ast: 'value',
 		value,
+	}
+}
+
+function createSymbol(name: string): ExpSymbol {
+	return {
+		parent: null,
+		ast: 'symbol',
+		name,
 	}
 }
 
@@ -309,6 +318,27 @@ const GlobalSymbols: {[name: string]: Exp} = {
 		},
 		body: function (this: ValueFnThis, a: Exp, b: Exp) {
 			return isSubtypeOf(this.eval(a), this.eval(b))
+		} as any,
+	}),
+	'::': createValue({
+		kind: 'fn',
+		type: {
+			kind: 'fnType',
+			params: [createAny(), createAny()],
+			out: createAny(),
+		},
+		body: function (this: ValueFnThis, type: Exp, value: Exp) {
+			const t = this.eval(type)
+			const v = this.eval(value)
+
+			const casted = castType(t, v)
+
+			this.log({
+				level: 'info',
+				reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
+			})
+
+			return casted
 		} as any,
 	}),
 }
@@ -497,7 +527,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 			})
 		}
 	} else {
-		return withLog({semantic: 'void'})
+		return withLog({semantic: 'null'})
 	}
 }
 
@@ -607,9 +637,13 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 			)
 
 			const paramsLogs: Log[] = []
+			const execLogs: Log[] = []
 
 			const result = fn.body.call(
 				{
+					log: function (log) {
+						execLogs.push(log)
+					},
 					eval: function (e: Exp) {
 						const {result, logs: logs} = evalExp(e)
 						paramsLogs.push(...logs)
@@ -623,29 +657,10 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				...fnLogs,
 				...castLogs,
 				...paramsLogs,
+				...execLogs,
 			])
-		} else if (
-			isKindOf(fn, 'valType') ||
-			isKindOf(fn, 'unionType') ||
-			Array.isArray(fn)
-		) {
-			const origExp =
-				inspected.params.length === 0 ? createValue(null) : inspected.params[0]
-			const {result: origValue, logs: origLogs} = evalExp(origExp)
-
-			const castedValue = castType(fn, origValue)
-
-			const castLog: Log = {
-				level: 'info',
-				reason: `Value ${printValue(origValue)} is converted to ${printValue(
-					castedValue
-				)}`,
-			}
-
-			return withLog(castedValue, [...inspectLogs, ...origLogs, castLog])
-		} else {
-			return withLog(fn, inspectLogs)
 		}
+		return withLog(fn, [...inspectLogs, ...fnLogs])
 	} else if (inspected.semantic === 'scope') {
 		if (inspected.out !== undefined) {
 			const {result, logs} = evalExp(inspected.out)
@@ -922,7 +937,7 @@ function castExpParam(
 			casted.push({
 				parent: null,
 				ast: 'list',
-				items: [createValue(toType), fromItem],
+				items: [createSymbol('::'), createValue(toType), fromItem],
 			})
 		}
 	}
