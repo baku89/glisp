@@ -295,7 +295,7 @@ const GlobalScope = createScope({
 					.reduce((a, b) => a || b, false)
 			} as any,
 		}),
-		'#=>': createValue({
+		':=>': createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
@@ -310,7 +310,7 @@ const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		'#|': createValue({
+		':|': createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',

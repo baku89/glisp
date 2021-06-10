@@ -24,11 +24,11 @@ Program = form:Form
 
 Form =
 	Constant / Number / String
-	/ Pair / List / Vector / HashMap / Symbol
+	/ Pair / List / Vector / HashMap / QuotedSymbol / Symbol
 
 FormNotPair =
 	Constant / Number / String
-	/ List / Vector / HashMap / Symbol
+	/ List / Vector / HashMap / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -56,7 +56,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ :,\t\n\r()[\]{}]i+)
+Symbol "symbol" = name:$([^ ,\t\n\r`()[\]{}]i+)
 	{ 
 		return {
 			ast: 'symbol',
@@ -64,7 +64,12 @@ Symbol "symbol" = name:$([^ :,\t\n\r()[\]{}]i+)
 		}
 	}
 
-Pair "pair" = left:FormNotPair _ ":" _ right:Form
+QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
+	{
+		return {ast: 'symbol', name}
+	}
+
+Pair "pair" = left:FormNotPair _ "=" _ right:Form
 	{
 		return {
 			ast: 'pair',
