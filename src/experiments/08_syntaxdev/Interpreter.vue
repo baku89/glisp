@@ -17,7 +17,7 @@ import {defineComponent, ref} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'
 
-import {evalExp, printValue, readStr} from './glisp'
+import {evalExp, printValue, readStr, TypeIO} from './glisp'
 import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
@@ -35,6 +35,15 @@ export default defineComponent({
 				const {result, logs} = evalExp(exp)
 				if (logs.length > 0) {
 					onError.value(logs.map(l => `[${l.level}] ${l.reason}`).join('\n'))
+				}
+
+				if (
+					result instanceof Object &&
+					!Array.isArray(result) &&
+					result.kind === 'object' &&
+					result.type === TypeIO
+				) {
+					result.value()
 				}
 
 				return printValue(result)

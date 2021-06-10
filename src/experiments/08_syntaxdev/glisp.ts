@@ -18,6 +18,7 @@ type Value =
 	| ValueVariadicVector
 	| ValueHashMap
 	| ValueFn
+	| ValueObject
 
 interface ValueAny {
 	kind: 'any'
@@ -77,6 +78,12 @@ interface ValueHashMap {
 	value: {
 		[key: string]: Value
 	}
+}
+
+interface ValueObject {
+	kind: 'object'
+	type: ValueValType
+	value: any
 }
 
 type Exp =
@@ -230,7 +237,7 @@ const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValType('number', () => 0)
 const TypeString = createValType('string', () => '')
 const TypeFnType = createValType('fnType', () => null)
-const TypeIO = createValType('IO', () => null)
+export const TypeIO = createValType('IO', () => null)
 const TypeHashMap = createValType('hashMap', () => ({
 	kind: 'hashMap',
 	value: {},
@@ -240,7 +247,7 @@ const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
-const GlobalScope = createScope({
+export const GlobalScope = createScope({
 	scope: {
 		Any: createValue(createAny()),
 		Number: createValue(TypeNumber),
@@ -312,6 +319,22 @@ const GlobalScope = createScope({
 			variadic: true,
 			body: function (this: ValueFnThis, ...a: Exp[]) {
 				return uniteType(a.map(this.eval))
+			} as any,
+		}),
+		def: createValue({
+			kind: 'fn',
+			params: {name: TypeString, value: createAny()},
+			out: TypeIO,
+			body: function (this: ValueFnThis, name: Exp, value: Exp) {
+				const n = this.eval<string>(name)
+				const v = this.eval(value)
+				return {
+					kind: 'object',
+					type: TypeIO,
+					value: () => {
+						GlobalScope.scope[n] = value
+					},
+				}
 			} as any,
 		}),
 		'...': createValue({
@@ -464,6 +487,8 @@ function equalsValue(a: Value, b: Value): boolean {
 			)
 		case 'variadicVector':
 			return isKindOf(b, 'variadicVector') && equalsValue(a.items, b.items)
+		case 'object':
+			return false
 	}
 }
 
@@ -627,6 +652,8 @@ function assertValueType(v: Value): Value {
 		}
 		case 'hashMap':
 			return TypeHashMap
+		case 'object':
+			return createAny()
 	}
 }
 
@@ -1103,9 +1130,8 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'string':
 			return `"${val}"`
 	}
-
 	if (Array.isArray(val)) {
-		return '[' + val.map(_.unary(printValue)).join(' ') + ']'
+		return '[' + val.map(_.partialRight(printValue, baseExp)).join(' ') + ']'
 	}
 
 	switch (val.kind) {
@@ -1114,9 +1140,17 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'valType':
 			return retrieveValueName(val, baseExp) || `<valType>`
 		case 'variadicVector':
-			return '(... ' + val.items.map(_.unary(printValue)).join(' ') + ')'
+			return (
+				'(... ' +
+				val.items.map(_.partialRight(printValue, baseExp)).join(' ') +
+				')'
+			)
 		case 'unionType':
-			return '(:| ' + val.items.map(_.unary(printValue)).join(' ') + ')'
+			return (
+				'(:| ' +
+				val.items.map(_.partialRight(printValue, baseExp)).join(' ') +
+				')'
+			)
 		case 'singleton':
 			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':
@@ -1131,5 +1165,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 					.join(' ') +
 				'}'
 			)
+		case 'object':
+			return `<object of ${printValue(val.type, baseExp)}>`
 	}
 }
