@@ -174,8 +174,6 @@ type InspectedResultHashMap = {
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
-	console.log('readStr=', exp)
-
 	if (exp === undefined) {
 		return createValue(null)
 	} else {
@@ -402,9 +400,10 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnionType['cast']>
 ): Value {
-	const items: (Exclude<Value, ValueUnionType> | undefined)[] = types.flatMap(
-		t => (isKindOf(t, 'unionType') ? t.items : [t])
-	)
+	const items: (
+		| Exclude<Value, ValueUnionType>
+		| undefined
+	)[] = types.flatMap(t => (isKindOf(t, 'unionType') ? t.items : [t]))
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -1001,7 +1000,9 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
-	function normalizeTypeToFn(type: Value): {
+	function normalizeTypeToFn(
+		type: Value
+	): {
 		params: ValueFnType['params']
 		out: Value
 	} {
