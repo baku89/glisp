@@ -1142,7 +1142,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return `"${val}"`
 	}
 	if (Array.isArray(val)) {
-		return '[' + val.map(_.partialRight(printValue, baseExp)).join(' ') + ']'
+		return '[' + val.map(v => printValue(v, baseExp)).join(' ') + ']'
 	}
 
 	switch (val.kind) {
@@ -1152,16 +1152,10 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return retrieveValueName(val, baseExp) || `<valType>`
 		case 'variadicVector':
 			return (
-				'(... ' +
-				val.items.map(_.partialRight(printValue, baseExp)).join(' ') +
-				')'
+				'(... ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
 			)
 		case 'unionType':
-			return (
-				'(:| ' +
-				val.items.map(_.partialRight(printValue, baseExp)).join(' ') +
-				')'
-			)
+			return '(:| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
 		case 'singleton':
 			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':
