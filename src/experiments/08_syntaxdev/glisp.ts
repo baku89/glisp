@@ -962,6 +962,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 	}
 }
 
+/*
 function testSubtype(aStr: string, bStr: string, toBe: boolean) {
 	const a = assertExpType(readStr(aStr))
 	const b = assertExpType(readStr(bStr))
@@ -986,6 +987,7 @@ testSubtype('[Number Number]', '[Number]', true)
 testSubtype('[Number Number]', '[]', true)
 testSubtype('[Number Number]', 'Any', true)
 testSubtype('(+ 1 2)', 'Number', true)
+*/
 
 function castType(type: Value, value: Value): Value {
 	if (isLiteralSingleton(type)) {
