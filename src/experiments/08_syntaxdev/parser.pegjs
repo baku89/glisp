@@ -56,7 +56,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ :,\t\n\r`()[\]{}]i+)
+Symbol "symbol" = name:$([^ :,.\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',

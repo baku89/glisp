@@ -43,6 +43,7 @@ interface ValueVariadicVector<T extends Value = Value> {
 interface ValueValType {
 	kind: 'valType'
 	id: symbol
+	origExp?: Exp
 	cast: (value: Value) => Value
 }
 
@@ -174,7 +175,7 @@ export function readStr(str: string): Exp {
 
 function createValue(value: Value): ExpValue {
 	const ret: ExpValue = {ast: 'value', value}
-	if (isKindOf(value, 'singleton')) {
+	if (isKindOf(value, 'singleton') || isKindOf(value, 'valType')) {
 		value.origExp = ret
 	}
 	return ret
@@ -229,6 +230,7 @@ const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValType('number', () => 0)
 const TypeString = createValType('string', () => '')
 const TypeFnType = createValType('fnType', () => null)
+const TypeIO = createValType('IO', () => null)
 const TypeHashMap = createValType('hashMap', () => ({
 	kind: 'hashMap',
 	value: {},
@@ -244,6 +246,7 @@ const GlobalScope = createScope({
 		Number: createValue(TypeNumber),
 		String: createValue(TypeString),
 		Boolean: createValue(TypeBoolean),
+		IO: createValue(TypeIO),
 		LT: createValue(OrderingLT),
 		EQ: createValue(OrderingEQ),
 		GT: createValue(OrderingGT),
@@ -352,7 +355,7 @@ const GlobalScope = createScope({
 				return isSubtypeOf(this.eval(a), this.eval(b))
 			} as any,
 		}),
-		cast: createValue({
+		'#': createValue({
 			kind: 'fn',
 			params: {type: createAny(), value: createAny()},
 			out: createAny(),
@@ -1013,7 +1016,7 @@ function castExpParam(
 			})
 			casted.push({
 				ast: 'list',
-				items: [createSymbol('cast'), createValue(toType), fromItem],
+				items: [createSymbol('#'), createValue(toType), fromItem],
 			})
 		}
 	}
@@ -1047,8 +1050,8 @@ export function printExp(exp: Exp): string {
 	}
 }
 
-function retrieveSingletonName(
-	s: ValueCustomSingleton,
+function retrieveValueName(
+	s: ValueCustomSingleton | ValueValType,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -1109,22 +1112,13 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'any':
 			return 'Any'
 		case 'valType':
-			switch (val.id) {
-				case TypeNumber.id:
-					return 'Number'
-				case TypeString.id:
-					return 'String'
-				case TypeFnType.id:
-					return 'FnType'
-				default:
-					throw new Error('aaa!!!')
-			}
+			return retrieveValueName(val, baseExp) || `<valType>`
 		case 'variadicVector':
 			return '(... ' + val.items.map(_.unary(printValue)).join(' ') + ')'
 		case 'unionType':
 			return '(:| ' + val.items.map(_.unary(printValue)).join(' ') + ')'
 		case 'singleton':
-			return retrieveSingletonName(val, baseExp) || '<singleton>'
+			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':
 			return '(:=> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'fn':
