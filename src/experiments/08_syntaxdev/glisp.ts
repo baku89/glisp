@@ -211,11 +211,13 @@ function createValType(
 	cast: ValueValType['cast']
 ): ValueValType {
 	const id = typeof base === 'string' ? Symbol(base) : base.id
+	const origExp = typeof base === 'string' ? undefined : base.origExp
 
 	return {
 		kind: 'valType',
 		id,
 		cast,
+		origExp,
 	}
 }
 
