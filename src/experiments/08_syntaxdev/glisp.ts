@@ -214,6 +214,16 @@ function createValType(
 	}
 }
 
+function createList(items: ExpList['items'], setParent = true): ExpList {
+	const ret: ExpList = {ast: 'list', items: [...items]}
+
+	if (setParent) {
+		ret.items.forEach(it => (it.parent = ret))
+	}
+
+	return ret
+}
+
 function createScope(
 	{
 		scope,
@@ -246,6 +256,25 @@ const TypeHashMap = createValType('hashMap', () => ({
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
+
+const castTypeFn = createValue({
+	kind: 'fn',
+	params: {type: createAny(), value: createAny()},
+	out: createAny(),
+	body: function (this: ValueFnThis, type: Exp, value: Exp) {
+		const t = this.eval(type)
+		const v = this.eval(value)
+
+		const casted = castType(t, v)
+
+		this.log({
+			level: 'info',
+			reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
+		})
+
+		return casted
+	} as any,
+})
 
 export const GlobalScope = createScope({
 	scope: {
@@ -378,26 +407,7 @@ export const GlobalScope = createScope({
 				return isSubtypeOf(this.eval(a), this.eval(b))
 			} as any,
 		}),
-		'#': createValue({
-			kind: 'fn',
-			params: {type: createAny(), value: createAny()},
-			out: createAny(),
-			body: function (this: ValueFnThis, type: Exp, value: Exp) {
-				const t = this.eval(type)
-				const v = this.eval(value)
-
-				const casted = castType(t, v)
-
-				this.log({
-					level: 'info',
-					reason: `Value ${printValue(v)} is converted to ${printValue(
-						casted
-					)}`,
-				})
-
-				return casted
-			} as any,
-		}),
+		'#': castTypeFn,
 	},
 })
 
@@ -546,6 +556,7 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	}
 
 	// Not Defined
+	console.log('defined')
 	return withLog({semantic: 'undefined'}, [
 		{level: 'error', reason: `${exp.name} is not defined`},
 	])
@@ -1043,7 +1054,7 @@ function castExpParam(
 			})
 			casted.push({
 				ast: 'list',
-				items: [createSymbol('#'), createValue(toType), fromItem],
+				items: [castTypeFn, createValue(toType), fromItem],
 			})
 		}
 	}
