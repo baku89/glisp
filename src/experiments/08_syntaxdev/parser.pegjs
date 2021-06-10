@@ -56,8 +56,8 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ ,\t\n\r`()[\]{}]i+)
-	{ 
+Symbol "symbol" = name:$([^ :,\t\n\r`()[\]{}]i+)
+	{
 		return {
 			ast: 'symbol',
 			name
@@ -69,7 +69,7 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 		return {ast: 'symbol', name}
 	}
 
-Pair "pair" = left:FormNotPair _ "=" _ right:Form
+Pair "pair" = left:FormNotPair _ ":" _ right:Form
 	{
 		return {
 			ast: 'pair',
