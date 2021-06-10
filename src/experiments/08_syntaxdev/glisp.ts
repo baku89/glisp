@@ -968,7 +968,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		params: ValueFnType['params']
 		out: Value
 	} {
-		if (!isLiteralSingleton(type) && !Array.isArray(ty pe)) {
+		if (!isLiteralSingleton(type) && !Array.isArray(type)) {
 			if (type.kind == 'fnType') {
 				return {params: type.params, out: type.out}
 			}
