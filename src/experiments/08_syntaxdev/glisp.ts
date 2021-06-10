@@ -145,6 +145,7 @@ type InspectedResult =
 	| {semantic: 'raw'}
 	| InspectedResultSymbol
 	| InspectedResultList
+	| InspectedResultVector
 	| InspectedResultHashMap
 
 type InspectedResultSymbol =
@@ -158,6 +159,10 @@ type InspectedResultList =
 	| {semantic: 'fndef'; params: Exp[]; out?: Exp; body: Exp}
 	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
+
+type InspectedResultVector =
+	| {semantic: 'fixed'; items: Exp[]}
+	| {semantic: 'variadic'; items: Exp[]}
 
 type InspectedResultHashMap = {
 	semantic: 'hashMap'
@@ -366,31 +371,6 @@ export const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		'...': createValue({
-			kind: 'fn',
-			params: {xs: createAny()},
-			out: createAny(),
-			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
-				const items: Value[] = xs.map(this.eval)
-
-				if (items.length === 0) {
-					items.push(createAny())
-				} else if (items.length >= 2) {
-					const last = items[items.length - 1]
-					for (let i = items.length - 2; i >= 0; i--) {
-						if (equalsValue(items[i], last)) {
-							items.pop()
-						}
-					}
-				}
-
-				return {
-					kind: 'variadicVector',
-					items,
-				}
-			} as any,
-		}),
 		type: createValue({
 			kind: 'fn',
 			params: {x: createAny()},
@@ -512,6 +492,8 @@ function inspectExp(exp: Exp): WithLogs<InspectedResult> {
 			return inspectExpSymbol(exp)
 		case 'list':
 			return inspectExpList(exp)
+		case 'vector':
+			return inspectExpVector(exp)
 		case 'hashMap':
 			return inspectExpHashMap(exp)
 		case 'scope':
@@ -607,6 +589,23 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	}
 
 	return withLog({semantic: 'null'})
+}
+
+function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
+	if (exp.items.length >= 2) {
+		const idx = _.findLastIndex(
+			exp.items,
+			it => it.ast === 'symbol' && it.name === '...'
+		)
+
+		if (idx === exp.items.length - 2) {
+			const items = [...exp.items]
+			items.splice(-2, 1)
+			return withLog({semantic: 'variadic', items})
+		}
+	}
+
+	return withLog({semantic: 'fixed', items: exp.items})
 }
 
 function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
@@ -710,11 +709,24 @@ function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
 }
 
 function evalExpVector(exp: ExpVector): WithLogs<Value> {
-	const evaluated = exp.items.map(evalExp)
-	return withLog(
-		evaluated.map(e => e.result),
-		evaluated.flatMap(e => e.logs)
-	)
+	const {result: inspected} = inspectExpVector(exp)
+
+	switch (inspected.semantic) {
+		case 'fixed': {
+			const evaluated = inspected.items.map(evalExp)
+			return withLog(
+				evaluated.map(e => e.result),
+				evaluated.flatMap(e => e.logs)
+			)
+		}
+		case 'variadic': {
+			const evaluated = inspected.items.map(evalExp)
+			return withLog(
+				{kind: 'variadicVector', items: evaluated.map(e => e.result)},
+				evaluated.flatMap(e => e.logs)
+			)
+		}
+	}
 }
 
 function getParamType(fn: ValueFn): ValueFnType['params'] {
@@ -1150,10 +1162,11 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return 'Any'
 		case 'valType':
 			return retrieveValueName(val, baseExp) || `<valType>`
-		case 'variadicVector':
-			return (
-				'(... ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
-			)
+		case 'variadicVector': {
+			const items = val.items.map(v => printValue(v, baseExp))
+			items.splice(-1, 0, '...')
+			return '[' + items.join(' ') + ']'
+		}
 		case 'unionType':
 			return '(:| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
 		case 'singleton':

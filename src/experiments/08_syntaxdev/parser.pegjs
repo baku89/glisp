@@ -56,7 +56,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ :,.\t\n\r`()[\]{}]i+)
+Symbol "symbol" = name:$([^ :,\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',
@@ -71,11 +71,15 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 
 Pair "pair" = left:FormNotPair _ ":" _ right:Form
 	{
-		return {
+		const ret = {
 			ast: 'pair',
 			left,
 			right
 		}
+		ret.left.parent = ret
+		ret.right.parent = ret
+
+		return ret
 	}
 
 List "list" = "(" _ items:(Form _)* ")"
