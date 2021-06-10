@@ -156,7 +156,7 @@ type InspectedResultSymbol =
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'fndef'; params: Exp[]; out?: Exp; body: Exp}
+	| {semantic: 'fndef'; params: {[name: string]: Exp}; body: Exp}
 	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
 
@@ -548,7 +548,7 @@ function defineFn(params: ValueFn['params'], body: Exp): ValueFn {
 	const out = assertExpType(body)
 
 	const fn: ValueFn['body'] = function () {
-		return null
+		return 1234
 	} as any
 
 	return {
@@ -597,6 +597,21 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 				})
 
 				return withLog({semantic: 'scope', scope, out}, logs)
+			} else if (fst.name === '=>') {
+				if (rest.length >= 2) {
+					const [params, body] = rest
+					if (params.ast === 'hashMap') {
+						const {result: inspectedParams, logs} = inspectExpHashMap(params)
+						return withLog({
+							semantic: 'fndef',
+							params: inspectedParams.items,
+							body,
+						})
+					}
+				}
+				return withLog({semantic: 'null'}, [
+					{level: 'warn', reason: 'Invalid fndef form'},
+				])
 			}
 		}
 
@@ -698,6 +713,19 @@ function assertExpType(exp: Exp): Value {
 			if (inspected.semantic === 'application') {
 				const fn = evalExp(inspected.fn).result
 				return isKindOf(fn, 'fn') ? fn.out : assertExpType(inspected.fn)
+			} else if (inspected.semantic === 'fndef') {
+				const {params, body} = inspected
+
+				const paramsType = Object.values(params)
+					.map(evalExp)
+					.map(({result}) => result)
+
+				const out = assertExpType(body)
+				return {
+					kind: 'fnType',
+					params: paramsType,
+					out,
+				}
 			} else {
 				return null
 			}
@@ -789,6 +817,13 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 			])
 		}
 		return withLog(fn, [...inspectLogs, ...fnLogs])
+	} else if (inspected.semantic === 'fndef') {
+		return withLog(
+			defineFn(
+				_.mapValues(inspected.params, e => evalExp(e).result),
+				inspected.body
+			)
+		)
 	} else if (inspected.semantic === 'scope') {
 		if (inspected.out !== undefined) {
 			const {result, logs} = evalExp(inspected.out)
