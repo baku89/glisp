@@ -76,7 +76,14 @@ interface ValueHashMap {
 	}
 }
 
-type Exp = ExpValue | ExpSymbol | ExpList | ExpVector | ExpHashMap | ExpScope
+type Exp =
+	| ExpValue
+	| ExpSymbol
+	| ExpList
+	| ExpVector
+	| ExpHashMap
+	| ExpPair
+	| ExpScope
 
 interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -112,6 +119,12 @@ interface ExpHashMap extends ExpBase {
 	items: Exp[]
 }
 
+interface ExpPair extends ExpBase {
+	ast: 'pair'
+	left: Exp
+	right: Exp
+}
+
 interface ExpScope extends ExpBase {
 	ast: 'scope'
 	scope: {[name: string]: Exp}
@@ -144,6 +157,8 @@ type InspectedResultHashMap = {
 
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
+
+	console.log('readStr=', exp)
 
 	if (exp === undefined) {
 		return createValue(null)
@@ -280,7 +295,7 @@ const GlobalScope = createScope({
 					.reduce((a, b) => a || b, false)
 			} as any,
 		}),
-		':=>': createValue({
+		'#=>': createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
@@ -295,7 +310,7 @@ const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		':|': createValue({
+		'#|': createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
@@ -333,14 +348,14 @@ const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		':type': createValue({
+		type: createValue({
 			kind: 'fn',
 			type: {kind: 'fnType', params: [createAny()], out: createAny()},
 			body: function (this: ValueFnThis, t: Exp) {
 				return assertExpType(t)
 			} as any,
 		}),
-		':<': createValue({
+		isa: createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
@@ -351,7 +366,7 @@ const GlobalScope = createScope({
 				return isSubtypeOf(this.eval(a), this.eval(b))
 			} as any,
 		}),
-		'::': createValue({
+		cast: createValue({
 			kind: 'fn',
 			type: {
 				kind: 'fnType',
@@ -534,21 +549,33 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 			let out: Exp | undefined
 			const logs: Log[] = []
 
-			_.chunk(rest, 2).forEach(pair => {
-				if (pair.length === 2) {
-					const [sym, value] = pair
-					if (sym.ast === 'symbol') {
-						scope[sym.name] = value
-					} else {
+			if (rest.length >= 1 && rest[0].ast !== 'pair') {
+				out = rest[0]
+				rest.shift()
+			}
+
+			rest.forEach(pair => {
+				if (pair.ast !== 'pair') {
+					logs.push({
+						level: 'warn',
+						reason: `${printExp(pair)} is not a pair`,
+					})
+				} else if (pair.left.ast !== 'symbol') {
+					logs.push({
+						level: 'warn',
+						reason: `${printExp(pair.left)} is not a symbol`,
+					})
+				} else {
+					if (pair.left.name in scope) {
 						logs.push({
 							level: 'warn',
-							reason: `${printExp(sym)} is not a symbol`,
+							reason: `The scope has duplicated key ${printExp(pair.left)}`,
 						})
 					}
-				} else if (pair.length === 1) {
-					out = pair[0]
+					scope[pair.left.name] = pair.right
 				}
 			})
+
 			return withLog({semantic: 'scope', scope, out}, logs)
 		}
 		return withLog({semantic: 'application', fn: fst, params: rest})
@@ -630,6 +657,8 @@ function assertExpType(exp: Exp): Value {
 			return exp.items.map(assertExpType)
 		case 'hashMap':
 			return TypeHashMap
+		case 'pair':
+			return assertExpType(exp.right)
 		case 'scope':
 			return exp.out ? assertExpType(exp) : null
 	}
@@ -731,6 +760,8 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			return evalExpVector(exp)
 		case 'hashMap':
 			return evalExpHashMap(exp)
+		case 'pair':
+			return evalExp(exp.right)
 		case 'scope':
 			return evalExpScope(exp)
 	}
@@ -979,7 +1010,7 @@ function castExpParam(
 			})
 			casted.push({
 				ast: 'list',
-				items: [createSymbol('::'), createValue(toType), fromItem],
+				items: [createSymbol('cast'), createValue(toType), fromItem],
 			})
 		}
 	}
@@ -999,6 +1030,8 @@ export function printExp(exp: Exp): string {
 			return exp.name
 		case 'value':
 			return printValue(exp.value)
+		case 'pair':
+			return printExp(exp.left) + ':' + printExp(exp.right)
 		case 'scope':
 			return (
 				'(@' +

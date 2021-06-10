@@ -24,6 +24,10 @@ Program = form:Form
 
 Form =
 	Constant / Number / String
+	/ Pair / List / Vector / HashMap / Symbol
+
+FormNotPair =
+	Constant / Number / String
 	/ List / Vector / HashMap / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
@@ -52,11 +56,20 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ ,\t\n\r()[\]{}]i+)
+Symbol "symbol" = name:$([^ :,\t\n\r()[\]{}]i+)
 	{ 
 		return {
 			ast: 'symbol',
 			name
+		}
+	}
+
+Pair "pair" = left:FormNotPair _ ":" _ right:Form
+	{
+		return {
+			ast: 'pair',
+			left,
+			right
 		}
 	}
 
