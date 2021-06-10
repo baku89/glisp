@@ -147,6 +147,7 @@ type InspectedResultSymbol =
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
+	| {semantic: 'fndef'; params: Exp[]; out?: Exp; body: Exp}
 	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
 
@@ -526,44 +527,47 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	if (exp.items.length >= 1) {
 		const [fst, ...rest] = exp.items
 
-		if (fst.ast === 'symbol' && fst.name === '@') {
-			const scope: {[name: string]: Exp} = {}
-			let out: Exp | undefined
-			const logs: Log[] = []
+		if (fst.ast === 'symbol') {
+			if (fst.name === '@') {
+				const scope: {[name: string]: Exp} = {}
+				let out: Exp | undefined
+				const logs: Log[] = []
 
-			if (rest.length >= 1 && rest[0].ast !== 'pair') {
-				out = rest[0]
-				rest.shift()
-			}
+				if (rest.length >= 1 && rest[0].ast !== 'pair') {
+					out = rest[0]
+					rest.shift()
+				}
 
-			rest.forEach(pair => {
-				if (pair.ast !== 'pair') {
-					logs.push({
-						level: 'warn',
-						reason: `${printExp(pair)} is not a pair`,
-					})
-				} else if (pair.left.ast !== 'symbol') {
-					logs.push({
-						level: 'warn',
-						reason: `${printExp(pair.left)} is not a symbol`,
-					})
-				} else {
-					if (pair.left.name in scope) {
+				rest.forEach(pair => {
+					if (pair.ast !== 'pair') {
 						logs.push({
 							level: 'warn',
-							reason: `The scope has duplicated key ${printExp(pair.left)}`,
+							reason: `${printExp(pair)} is not a pair`,
 						})
+					} else if (pair.left.ast !== 'symbol') {
+						logs.push({
+							level: 'warn',
+							reason: `${printExp(pair.left)} is not a symbol`,
+						})
+					} else {
+						if (pair.left.name in scope) {
+							logs.push({
+								level: 'warn',
+								reason: `The scope has duplicated key ${printExp(pair.left)}`,
+							})
+						}
+						scope[pair.left.name] = pair.right
 					}
-					scope[pair.left.name] = pair.right
-				}
-			})
+				})
 
-			return withLog({semantic: 'scope', scope, out}, logs)
+				return withLog({semantic: 'scope', scope, out}, logs)
+			}
 		}
+
 		return withLog({semantic: 'application', fn: fst, params: rest})
-	} else {
-		return withLog({semantic: 'null'})
 	}
+
+	return withLog({semantic: 'null'})
 }
 
 function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
