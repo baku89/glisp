@@ -35,10 +35,6 @@ interface ValueCustomSingleton {
 	origExp?: Exp
 }
 
-function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
-	return x === null || typeof x !== 'object'
-}
-
 interface ValueVariadicVector<T extends Value = Value> {
 	kind: 'variadicVector'
 	items: T[]
@@ -390,10 +386,9 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnionType['cast']>
 ): Value {
-	const items: (
-		| Exclude<Value, ValueUnionType>
-		| undefined
-	)[] = types.flatMap(t => (isKindOf(t, 'unionType') ? t.items : [t]))
+	const items: (Exclude<Value, ValueUnionType> | undefined)[] = types.flatMap(
+		t => (isKindOf(t, 'unionType') ? t.items : [t])
+	)
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -746,6 +741,10 @@ function isAny(x: Value): x is ValueAny {
 	return x instanceof Object && !Array.isArray(x) && x.kind === 'any'
 }
 
+function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
+	return x === null || typeof x !== 'object'
+}
+
 function isKindOf(x: Value, kind: 'any'): x is ValueAny
 function isKindOf(x: Value, kind: 'fn'): x is ValueFn
 function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
@@ -863,9 +862,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
 
-	function normalizeTypeToFn(
-		type: Value
-	): {
+	function normalizeTypeToFn(type: Value): {
 		params: ValueFnType['params']
 		out: Value
 	} {
