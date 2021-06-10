@@ -544,6 +544,21 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	])
 }
 
+function defineFn(params: ValueFn['params'], body: Exp): ValueFn {
+	const out = assertExpType(body)
+
+	const fn: ValueFn['body'] = function () {
+		return null
+	} as any
+
+	return {
+		kind: 'fn',
+		params,
+		out,
+		body: fn,
+	}
+}
+
 function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	if (exp.items.length >= 1) {
 		const [fst, ...rest] = exp.items
@@ -953,7 +968,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 		params: ValueFnType['params']
 		out: Value
 	} {
-		if (!isLiteralSingleton(type) && !Array.isArray(type)) {
+		if (!isLiteralSingleton(type) && !Array.isArray(ty pe)) {
 			if (type.kind == 'fnType') {
 				return {params: type.params, out: type.out}
 			}
