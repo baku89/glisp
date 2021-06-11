@@ -565,13 +565,14 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 
 		if (fst.ast === 'symbol') {
 			if (fst.name === '@') {
+				// Scope
 				const scope: {[name: string]: Exp} = {}
 				let out: Exp | undefined
 				const logs: Log[] = []
 
-				if (rest.length >= 1 && rest[0].ast !== 'pair') {
-					out = rest[0]
-					rest.shift()
+				const last = _.last(rest)
+				if (last && last.ast !== 'pair') {
+					out = rest.pop()
 				}
 
 				rest.forEach(pair => {
@@ -598,6 +599,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 
 				return withLog({semantic: 'scope', scope, out}, logs)
 			} else if (fst.name === '=>') {
+				// Function definition
 				if (rest.length >= 2) {
 					const [params, body] = rest
 					if (params.ast === 'hashMap') {
