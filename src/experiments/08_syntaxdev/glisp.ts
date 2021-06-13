@@ -9,23 +9,19 @@ const parser = peg.generate(ParserDefinition)
 
 type Value =
 	| Value[]
-	| ValueVariadicVector
+	| ValueVariadic
 	| ValueAny
 	| ValueSingleton
 	| ValueValType
 	| ValueUnionType
 	| ValueFnType
-	| ValueVariadicVector
+	| ValueVariadic
 	| ValueHashMap
 	| ValueFn
 	| ValueObject
 
 interface ValueAny {
 	kind: 'any'
-}
-
-function createAny(): ValueAny {
-	return {kind: 'any'}
 }
 
 type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
@@ -36,8 +32,8 @@ interface ValueCustomSingleton {
 	origExp?: Exp
 }
 
-interface ValueVariadicVector<T extends Value = Value> {
-	kind: 'variadicVector'
+interface ValueVariadic<T extends Value = Value> {
+	kind: 'variadic'
 	items: T[]
 }
 
@@ -56,7 +52,7 @@ interface ValueUnionType {
 
 interface ValueFnType {
 	kind: 'fnType'
-	params: Value[] | ValueVariadicVector
+	params: Value[] | ValueVariadic
 	out: Value
 }
 
@@ -175,7 +171,7 @@ export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
 	if (exp === undefined) {
-		return createValue(null)
+		return createExpValue(null)
 	} else {
 		// Set global scope as parent
 		exp.parent = GlobalScope
@@ -183,7 +179,7 @@ export function readStr(str: string): Exp {
 	}
 }
 
-function createValue(value: Value): ExpValue {
+function createExpValue(value: Value): ExpValue {
 	const ret: ExpValue = {ast: 'value', value}
 	if (isKindOf(value, 'singleton') || isKindOf(value, 'valType')) {
 		value.origExp = ret
@@ -191,15 +187,49 @@ function createValue(value: Value): ExpValue {
 	return ret
 }
 
-function createSymbol(name: string): ExpSymbol {
+function createExpSymbol(name: string): ExpSymbol {
 	return {ast: 'symbol', name}
 }
 
-function createVariadicVector<T extends Value = Value>(
+function createExpList(items: ExpList['items'], setParent = true): ExpList {
+	const ret: ExpList = {ast: 'list', items: [...items]}
+
+	if (setParent) {
+		ret.items.forEach(it => (it.parent = ret))
+	}
+
+	return ret
+}
+
+function createExpScope(
+	{
+		scope,
+		out,
+	}: {
+		scope: ExpScope['scope']
+		out?: ExpScope['out']
+	},
+	setParent = true
+): ExpScope {
+	const ret: ExpScope = {ast: 'scope', scope, out}
+
+	if (setParent) {
+		_.values(scope).forEach(e => (e.parent = ret))
+	}
+
+	return ret
+}
+
+// Value initializer
+function createAny(): ValueAny {
+	return {kind: 'any'}
+}
+
+function createVariadic<T extends Value = Value>(
 	...items: T[]
-): ValueVariadicVector<T> {
+): ValueVariadic<T> {
 	return {
-		kind: 'variadicVector',
+		kind: 'variadic',
 		items,
 	}
 }
@@ -219,35 +249,6 @@ function createValType(
 	}
 }
 
-function createList(items: ExpList['items'], setParent = true): ExpList {
-	const ret: ExpList = {ast: 'list', items: [...items]}
-
-	if (setParent) {
-		ret.items.forEach(it => (it.parent = ret))
-	}
-
-	return ret
-}
-
-function createScope(
-	{
-		scope,
-		out,
-	}: {
-		scope: ExpScope['scope']
-		out?: ExpScope['out']
-	},
-	setParent = true
-): ExpScope {
-	const ret: ExpScope = {ast: 'scope', scope, out}
-
-	if (setParent) {
-		_.values(scope).forEach(e => (e.parent = ret))
-	}
-
-	return ret
-}
-
 const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValType('number', () => 0)
 const TypeString = createValType('string', () => '')
@@ -262,7 +263,7 @@ const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
-const castTypeFn = createValue({
+const castTypeFn = createExpValue({
 	kind: 'fn',
 	params: {type: createAny(), value: createAny()},
 	out: createAny(),
@@ -281,22 +282,22 @@ const castTypeFn = createValue({
 	} as any,
 })
 
-export const GlobalScope = createScope({
+export const GlobalScope = createExpScope({
 	scope: {
-		Any: createValue(createAny()),
-		Number: createValue(TypeNumber),
-		String: createValue(TypeString),
-		Boolean: createValue(TypeBoolean),
-		IO: createValue(TypeIO),
-		LT: createValue(OrderingLT),
-		EQ: createValue(OrderingEQ),
-		GT: createValue(OrderingGT),
-		Ordering: createValue({
+		Any: createExpValue(createAny()),
+		Number: createExpValue(TypeNumber),
+		String: createExpValue(TypeString),
+		Boolean: createExpValue(TypeBoolean),
+		IO: createExpValue(TypeIO),
+		LT: createExpValue(OrderingLT),
+		EQ: createExpValue(OrderingEQ),
+		GT: createExpValue(OrderingGT),
+		Ordering: createExpValue({
 			kind: 'unionType',
 			items: [OrderingLT, OrderingEQ, OrderingGT],
 		}),
-		PI: createValue(Math.PI),
-		'+': createValue({
+		PI: createExpValue(Math.PI),
+		'+': createExpValue({
 			kind: 'fn',
 			params: {xs: TypeNumber},
 			out: TypeNumber,
@@ -305,7 +306,7 @@ export const GlobalScope = createScope({
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
 			} as any,
 		}),
-		'*': createValue({
+		'*': createExpValue({
 			kind: 'fn',
 			params: {xs: createValType(TypeNumber, () => 1)},
 			out: TypeNumber,
@@ -314,7 +315,7 @@ export const GlobalScope = createScope({
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
 			} as any,
 		}),
-		and: createValue({
+		and: createExpValue({
 			kind: 'fn',
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
@@ -323,7 +324,7 @@ export const GlobalScope = createScope({
 				return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
 			} as any,
 		}),
-		or: createValue({
+		or: createExpValue({
 			kind: 'fn',
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
@@ -334,9 +335,9 @@ export const GlobalScope = createScope({
 					.reduce((a, b) => a || b, false)
 			} as any,
 		}),
-		'#=>': createValue({
+		'#=>': createExpValue({
 			kind: 'fn',
-			params: {params: createVariadicVector(createAny()), out: createAny()},
+			params: {params: createVariadic(createAny()), out: createAny()},
 			out: TypeFnType,
 			body: function (this: ValueFnThis, params: Exp, out: Exp) {
 				return {
@@ -346,7 +347,7 @@ export const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		'#|': createValue({
+		'#|': createExpValue({
 			kind: 'fn',
 			params: {xs: createAny()},
 			out: createAny(),
@@ -355,7 +356,7 @@ export const GlobalScope = createScope({
 				return uniteType(a.map(this.eval))
 			} as any,
 		}),
-		def: createValue({
+		def: createExpValue({
 			kind: 'fn',
 			params: {name: TypeString, value: createAny()},
 			out: TypeIO,
@@ -371,7 +372,7 @@ export const GlobalScope = createScope({
 				}
 			} as any,
 		}),
-		type: createValue({
+		type: createExpValue({
 			kind: 'fn',
 			params: {x: createAny()},
 			out: createAny(),
@@ -379,7 +380,7 @@ export const GlobalScope = createScope({
 				return assertExpType(t)
 			} as any,
 		}),
-		'#<': createValue({
+		'#<': createExpValue({
 			kind: 'fn',
 			params: {value: createAny(), type: createAny()},
 			out: TypeBoolean,
@@ -476,8 +477,8 @@ function equalsValue(a: Value, b: Value): boolean {
 				isKindOf(b, 'unionType') &&
 				_.xorWith(a.items, b.items, equalsValue).length === 0
 			)
-		case 'variadicVector':
-			return isKindOf(b, 'variadicVector') && equalsValue(a.items, b.items)
+		case 'variadic':
+			return isKindOf(b, 'variadic') && equalsValue(a.items, b.items)
 		case 'object':
 			return false
 	}
@@ -539,7 +540,6 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	}
 
 	// Not Defined
-	console.log('defined')
 	return withLog({semantic: 'undefined'}, [
 		{level: 'error', reason: `${exp.name} is not defined`},
 	])
@@ -566,13 +566,14 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 
 		if (fst.ast === 'symbol') {
 			if (fst.name === '@') {
+				// Scope
 				const scope: {[name: string]: Exp} = {}
 				let out: Exp | undefined
 				const logs: Log[] = []
 
-				if (rest.length >= 1 && rest[0].ast !== 'pair') {
-					out = rest[0]
-					rest.shift()
+				const last = _.last(rest)
+				if (last && last.ast !== 'pair') {
+					out = rest.pop()
 				}
 
 				rest.forEach(pair => {
@@ -599,6 +600,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 
 				return withLog({semantic: 'scope', scope, out}, logs)
 			} else if (fst.name === '=>') {
+				// Function definition
 				if (rest.length >= 2) {
 					const [params, body] = rest
 					if (params.ast === 'hashMap') {
@@ -678,12 +680,12 @@ function assertValueType(v: Value): Value {
 		case 'valType':
 		case 'fnType':
 		case 'unionType':
-		case 'variadicVector':
+		case 'variadic':
 			return v
 		case 'fn': {
-			let params: Value[] | ValueVariadicVector = Object.values(v.params)
+			let params: Value[] | ValueVariadic = Object.values(v.params)
 			if (v.variadic) {
-				params = {kind: 'variadicVector', items: params}
+				params = {kind: 'variadic', items: params}
 			}
 			return {
 				kind: 'fnType',
@@ -766,7 +768,7 @@ function evalExpVector(exp: ExpVector): WithLogs<Value> {
 		case 'variadic': {
 			const evaluated = inspected.items.map(evalExp)
 			return withLog(
-				{kind: 'variadicVector', items: evaluated.map(e => e.result)},
+				{kind: 'variadic', items: evaluated.map(e => e.result)},
 				evaluated.flatMap(e => e.logs)
 			)
 		}
@@ -776,7 +778,7 @@ function evalExpVector(exp: ExpVector): WithLogs<Value> {
 function getParamType(fn: ValueFn): ValueFnType['params'] {
 	let params: ValueFnType['params'] = Object.values(fn.params)
 	if (fn.variadic) {
-		params = {kind: 'variadicVector', items: params}
+		params = {kind: 'variadic', items: params}
 	}
 
 	return params
@@ -889,7 +891,7 @@ function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
 function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
 function isKindOf(x: Value, kind: 'unionType'): x is ValueUnionType
 function isKindOf(x: Value, kind: 'valType'): x is ValueValType
-function isKindOf(x: Value, kind: 'variadicVector'): x is ValueVariadicVector
+function isKindOf(x: Value, kind: 'variadic'): x is ValueVariadic
 function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
@@ -916,8 +918,8 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 
 	// Handling Vector/VariadicVector
 
-	if (isKindOf(b, 'variadicVector')) {
-		if (isKindOf(a, 'variadicVector')) {
+	if (isKindOf(b, 'variadic')) {
+		if (isKindOf(a, 'variadic')) {
 			const alen = a.items.length,
 				blen = b.items.length
 			if (alen < blen) {
@@ -1073,7 +1075,7 @@ function castType(type: Value, value: Value): Value {
 }
 
 function castExpParam(
-	to: Value[] | ValueVariadicVector,
+	to: Value[] | ValueVariadic,
 	from: Exp[]
 ): WithLogs<Exp[]> {
 	const logs: Log[] = []
@@ -1089,7 +1091,7 @@ function castExpParam(
 
 			from = [...from]
 			while (from.length < minLength) {
-				from.push(createValue(castType(to.items[from.length], null)))
+				from.push(createExpValue(castType(to.items[from.length], null)))
 			}
 		}
 
@@ -1121,7 +1123,7 @@ function castExpParam(
 			})
 			casted.push({
 				ast: 'list',
-				items: [castTypeFn, createValue(toType), fromItem],
+				items: [castTypeFn, createExpValue(toType), fromItem],
 			})
 		}
 	}
@@ -1217,7 +1219,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return 'Any'
 		case 'valType':
 			return retrieveValueName(val, baseExp) || `<valType>`
-		case 'variadicVector': {
+		case 'variadic': {
 			const items = val.items.map(v => printValue(v, baseExp))
 			items.splice(-1, 0, '...')
 			return '[' + items.join(' ') + ']'
