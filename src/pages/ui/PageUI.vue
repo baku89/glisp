@@ -46,7 +46,7 @@
 				</section> -->
 			</Pane>
 			<Pane class="no-padding">
-				<Tab :tabs="['inputs', 'code']" initialTab="code">
+				<Tab :tabs="['inputs', 'code']" initialTab="inputs">
 					<template #head-inputs>
 						<SvgIcon mode="inline" style="font-size: 1.2em">
 							<path
@@ -83,7 +83,7 @@
 							<dd><InputNumber v-model="data.number" /></dd>
 							<dt>Slider</dt>
 							<dd>
-								<InputSlider v-model="data.integer" :min="0" :max="100" />
+								<InputSlider v-model="data.number" :min="0" :max="100" />
 							</dd>
 							<dt>Dropdown</dt>
 							<dd>
@@ -233,10 +233,6 @@ export default defineComponent({
   (style (fill c)
     (ellipse p [(vec2/x ../center) (square w)])))`,
 			number: 0,
-			integer: computed({
-				get: () => Math.round(data.number / 10) * 10,
-				set: v => (data.number = Math.round(v / 10) * 10),
-			}),
 			useAlpha: true,
 			colorSpace: 'svh',
 			color: 'pink',
@@ -252,7 +248,6 @@ export default defineComponent({
 		}) as {
 			string: string
 			number: number
-			integer: number
 			colorSpace: string
 			useAlpha: boolean
 			color: string

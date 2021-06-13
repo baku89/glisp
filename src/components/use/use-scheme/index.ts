@@ -1,6 +1,7 @@
+import {useLocalStorage} from '@vueuse/core'
 import chroma from 'chroma-js'
 import _ from 'lodash'
-import {computed, provide, reactive, ref, watch, watchEffect} from 'vue'
+import {computed, provide, reactive, watch, watchEffect} from 'vue'
 
 interface Base16 {
 	scheme: string
@@ -45,8 +46,8 @@ const Base16List = require('./base16.yml') as Base16[]
 const Presets = Object.fromEntries(Base16List.map(base16ToStaticColors))
 
 export default function useScheme() {
-	const basePreset = ref('Nord')
-	const baseAccentName = ref('07')
+	const basePreset = useLocalStorage('uiBasePreset', 'Nord')
+	const baseAccentName = useLocalStorage('uiBaseAccentName', '07')
 
 	const colors: Colors = reactive({
 		...Presets[basePreset.value],
