@@ -377,15 +377,15 @@ export const GlobalScope = createExpScope({
 			params: {x: createAny()},
 			out: createAny(),
 			body: function (this: ValueFnThis, t: Exp) {
-				return assertExpType(t)
+				return assertExpType(createExpValue(this.eval(t)))
 			} as any,
 		}),
-		'#<': createExpValue({
+		isa: createExpValue({
 			kind: 'fn',
 			params: {value: createAny(), type: createAny()},
 			out: TypeBoolean,
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return isSubtypeOf(this.eval(a), this.eval(b))
+				return isInstance(this.eval(a), this.eval(b))
 			} as any,
 		}),
 		'#': castTypeFn,
@@ -415,9 +415,9 @@ function uniteType(
 				const bItem = items[b]
 				if (bItem === undefined) continue
 
-				if (isSubtypeOf(bItem, aItem)) {
+				if (isInstance(bItem, aItem)) {
 					items[b] = undefined
-				} else if (isSubtypeOf(aItem, bItem)) {
+				} else if (isInstance(aItem, bItem)) {
 					items[a] = undefined
 					break
 				}
@@ -899,7 +899,7 @@ function isKindOf<
 	return x instanceof Object && !Array.isArray(x) && x.kind === kind
 }
 
-function isSubtypeOf(a: Value, b: Value): boolean {
+function isInstance(a: Value, b: Value): boolean {
 	if (a === b) {
 		return true
 	}
@@ -926,7 +926,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 				return false
 			}
 			const bitems = [...b.items, ...Array(alen - blen).fill(b.items[blen - 1])]
-			return _$.zipShorter(a.items, bitems).every(_.spread(isSubtypeOf))
+			return _$.zipShorter(a.items, bitems).every(_.spread(isInstance))
 		} else if (Array.isArray(a)) {
 			const minLength = b.items.length - 1
 			if (a.length < minLength) {
@@ -938,7 +938,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 				...b.items.slice(0, minLength),
 				...Array(variadicCount).fill(bLast),
 			]
-			return isSubtypeOf(a, bv)
+			return isInstance(a, bv)
 		}
 		return false
 	}
@@ -948,7 +948,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 			if (a.length < b.length) {
 				return false
 			}
-			return _$.zipShorter(a, b).every(([a, b]) => isSubtypeOf(a, b))
+			return _$.zipShorter(a, b).every(([a, b]) => isInstance(a, b))
 		}
 		return false
 	}
@@ -961,7 +961,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 	if (isKindOf(b, 'unionType')) {
 		const aTypes: Value[] = isKindOf(a, 'unionType') ? a.items : [a]
 		const bTypes = b.items
-		return aTypes.every(at => bTypes.some(bt => isSubtypeOf(at, bt)))
+		return aTypes.every(at => bTypes.some(bt => isInstance(at, bt)))
 	}
 
 	if (isKindOf(a, 'unionType')) {
@@ -977,7 +977,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 	}
 
 	if (isKindOf(a, 'fn')) {
-		return a === b || isSubtypeOf(assertValueType(a), b)
+		return a === b || isInstance(assertValueType(a), b)
 	}
 
 	if (typeof b === 'number' || typeof b === 'string' || isKindOf(b, 'fn')) {
@@ -1000,7 +1000,7 @@ function isSubtypeOf(a: Value, b: Value): boolean {
 	const na = normalizeTypeToFn(a)
 	const nb = normalizeTypeToFn(b)
 
-	return isSubtypeOf(nb.params, na.params) && isSubtypeOf(na.out, nb.out)
+	return isInstance(nb.params, na.params) && isInstance(na.out, nb.out)
 
 	function normalizeTypeToFn(
 		type: Value
@@ -1058,12 +1058,12 @@ function castType(type: Value, value: Value): Value {
 
 	switch (type.kind) {
 		case 'valType':
-			return isSubtypeOf(value, type) ? value : type.cast(value)
+			return isInstance(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, null)
 		case 'unionType':
 			return type.cast
-				? isSubtypeOf(value, type)
+				? isInstance(value, type)
 					? value
 					: type.cast(value)
 				: castType(type.items[0], null)
@@ -1110,7 +1110,7 @@ function castExpParam(
 
 		const fromType = assertExpType(fromItem)
 
-		if (isSubtypeOf(fromType, toType)) {
+		if (isInstance(fromType, toType)) {
 			casted.push(fromItem)
 		} else {
 			logs.push({
