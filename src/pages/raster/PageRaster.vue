@@ -2,7 +2,7 @@
 	<div class="PageRaster">
 		<menu class="PageRaster__gmenu">
 			<h1 class="PageRaster__gmenu-title">'(GLISP)</h1>
-			<h2>Programmable Image Editor</h2>
+			<h2>Top > Programmable Image Editor</h2>
 		</menu>
 		<Splitpanes class="glisp-theme" @resize="controlPaneWidth = $event[1].size">
 			<Pane
@@ -35,7 +35,7 @@
 						<dt>{{ name }}</dt>
 						<dd>
 							<InputControl
-								:type="currentBrush.parameters[name].type"
+								v-bind="currentBrush.parameters[name]"
 								v-model="parameters[name]"
 							/>
 						</dd>
@@ -65,6 +65,7 @@ import {
 } from '@vueuse/core'
 import chroma from 'chroma-js'
 import {mat2d, vec2} from 'gl-matrix'
+import _ from 'lodash'
 import Regl from 'regl'
 import {Pane, Splitpanes} from 'splitpanes'
 import {
@@ -74,6 +75,7 @@ import {
 	onUnmounted,
 	reactive,
 	ref,
+	shallowRef,
 	watch,
 } from 'vue'
 
@@ -139,16 +141,25 @@ export default defineComponent({
 			return xform
 		})
 
+		// Render
+		let cancelRender: Regl.Cancellable | null = null
+		watch(pressed, pressed => {
+			if (!regl.value) return
+
+			if (pressed) {
+				cancelRender = regl.value.frame(render)
+			} else {
+				if (cancelRender) cancelRender.cancel()
+			}
+		})
+
+		// Brushes
 		const brushes = ref(BuiltinBrushes)
 		const currentBrushName = ref('brush')
-
 		const currentBrush = computed(() => brushes.value[currentBrushName.value])
-
 		const parameters = reactive<{[name: string]: any}>({})
 
-		let regl: Regl.Regl
-		let updateFunc: ((params: any) => any) | null = null
-
+		// Update brush parameters
 		watch(
 			currentBrushName,
 			(brushName, prevBrushName) => {
@@ -175,76 +186,48 @@ export default defineComponent({
 							break
 					}
 				}
-
-				updateFunc = null
 			},
 			{immediate: true}
 		)
+
+		// WebGL contexts
+		let regl = shallowRef<Regl.Regl | null>(null)
+		let updateFunc = computed(() => {
+			if (!regl.value) return null
+			const prop = regl.value.prop as any
+
+			const uniforms: {[name: string]: any} = {
+				inputTexture: prop('inputTexture'),
+				cursor: prop('cursor'),
+				..._.mapValues(currentBrush.value.parameters, (_, n) => prop(n)),
+			}
+
+			return regl.value({
+				...REGL_QUAD_DEFAULT,
+				frag: currentBrush.value.frag,
+				uniforms,
+			})
+		})
+		const inputTexture = shallowRef<Regl.Texture2D | null>(null)
+		watch(inputTexture, (_, old) => old?.destroy())
 
 		onMounted(() => {
 			if (!canvasEl.value) return
 
 			const canvas = canvasEl.value as HTMLCanvasElement
+			const _gl = Regl(canvas)
+			regl.value = _gl
 
-			regl = Regl(canvas)
+			inputTexture.value = _gl.texture()
 
 			const img = new Image()
 			img.src = imgUrl
-
-			let inputTexture = regl.texture()
-
-			regl.frame(() => {
-				if (!pressed.value) return
-
-				if (!updateFunc) {
-					console.log('aaaa')
-					const uniforms = {
-						inputTexture: (regl.prop as any)('inputTexture'),
-						cursor: (regl.prop as any)('cursor'),
-					}
-
-					for (const name in currentBrush.value.parameters) {
-						;(uniforms as any)[name] = (regl.prop as any)(name)
-					}
-					updateFunc = regl({
-						...REGL_QUAD_DEFAULT,
-						frag: currentBrush.value.frag,
-						uniforms,
-					})
-				}
-
-				const params = {
-					inputTexture,
-					cursor: cursorPos.value,
-				}
-
-				for (const [name, info] of Object.entries(
-					currentBrush.value.parameters
-				)) {
-					let value = (parameters as any)[name]
-
-					switch (info.type) {
-						case 'color':
-							value = chroma(value)
-								.rgba()
-								.map((v, i) => (i < 3 ? v / 255 : v))
-							break
-					}
-
-					;(params as any)[name] = value
-				}
-
-				updateFunc(params)
-
-				inputTexture({copy: true})
-			})
 
 			img.onload = () => {
 				imgSize.value = vec2.fromValues(img.width, img.height)
 				canvas.width = img.width
 				canvas.height = img.height
-				inputTexture.destroy()
-				inputTexture = regl.texture({
+				inputTexture.value = _gl.texture({
 					wrapS: 'mirror',
 					wrapT: 'mirror',
 					data: img,
@@ -252,8 +235,36 @@ export default defineComponent({
 			}
 		})
 
+		function render() {
+			if (!pressed.value || !updateFunc.value || !inputTexture.value) return
+
+			const params = {
+				inputTexture: inputTexture.value,
+				cursor: cursorPos.value,
+			}
+
+			const paramDefs = Object.entries(currentBrush.value.parameters)
+
+			for (const [name, info] of paramDefs) {
+				let value = parameters[name]
+
+				switch (info.type) {
+					case 'color':
+						value = chroma(value)
+							.rgba()
+							.map((v, i) => (i < 3 ? v / 255 : v))
+						break
+				}
+
+				;(params as any)[name] = value
+			}
+
+			updateFunc.value(params)
+			inputTexture.value({copy: true})
+		}
+
 		onUnmounted(() => {
-			if (regl) regl.destroy()
+			if (regl.value) regl.value.destroy()
 		})
 
 		return {

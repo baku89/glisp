@@ -3,6 +3,8 @@
 		<template v-if="type === 'slider'">
 			<InputSlider
 				:modelValue="modelValue"
+				:min="min"
+				:max="max"
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
@@ -50,6 +52,8 @@ export default defineComponent({
 		modelValue: {
 			type: [Number, String, Boolean, Array, Object],
 		},
+		min: Number,
+		max: Number,
 	},
 	emits: ['update:modelValue'],
 })
