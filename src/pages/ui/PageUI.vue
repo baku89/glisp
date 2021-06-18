@@ -164,7 +164,6 @@
 							</dd>
 						</dl>
 					</template>
-					<template #panel-others> Others!!!! </template>
 				</Tab>
 			</Pane>
 		</Splitpanes>
@@ -192,7 +191,7 @@ import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
-import MonacoEditor from '@/components/layouts/MonacoEditor.vue'
+import MonacoEditor from '@/components/layouts/MonacoEditor'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
