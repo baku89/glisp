@@ -63,7 +63,7 @@ export default function useGesture(
 			}
 
 			const onGrabEnd = () => {
-				_el.removeEventListener('mousemove', onGrabMove)
+				document.removeEventListener('mousemove', onGrabMove)
 				document.documentElement.style.cursor = 'default'
 			}
 
@@ -73,8 +73,8 @@ export default function useGesture(
 					prevX = e.pageX
 					prevY = e.pageY
 
-					_el.addEventListener('mousemove', onGrabMove)
-					_el.addEventListener('mouseup', onGrabEnd)
+					document.addEventListener('mousemove', onGrabMove)
+					document.addEventListener('mouseup', onGrabEnd, {once: true})
 					document.documentElement.style.cursor = 'grab'
 				}
 			})
