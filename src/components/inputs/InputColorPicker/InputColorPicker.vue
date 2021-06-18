@@ -82,6 +82,7 @@ export default defineComponent({
 			default: 'svh|a',
 		},
 	},
+	emit: ['update:modelValue'],
 	setup(props, context) {
 		const colorDict = shallowRef<ColorDict>({})
 
@@ -145,7 +146,7 @@ export default defineComponent({
 @import './common.styl'
 
 .InputColorPicker
-	padding $circle-diameter * 0.8
+	padding: $circle-diameter * 0.8
 
 	&__wrapper
 		position relative
