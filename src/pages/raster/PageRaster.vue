@@ -220,6 +220,20 @@ export default defineComponent({
 
 			inputTexture.value = _gl.texture()
 
+			const passthru = _gl({
+				...REGL_QUAD_DEFAULT,
+				frag: `
+					precision mediump float;
+					uniform sampler2D inputTexture;
+					varying vec2 uv;
+					void main() {
+						gl_FragColor = texture2D(inputTexture, uv);
+					}`,
+				uniforms: {
+					inputTexture: (_gl.prop as any)('inputTexture'),
+				},
+			})
+
 			const img = new Image()
 			img.src = imgUrl
 
@@ -231,6 +245,11 @@ export default defineComponent({
 					wrapS: 'mirror',
 					wrapT: 'mirror',
 					data: img,
+				})
+
+				const c = _gl.frame(() => {
+					passthru({inputTexture: inputTexture.value})
+					c.cancel()
 				})
 			}
 		})
