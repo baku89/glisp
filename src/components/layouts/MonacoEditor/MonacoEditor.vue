@@ -3,6 +3,9 @@
 </template>
 
 <script lang="ts">
+import './languages/glisp'
+import './languages/glsl'
+
 import {templateRef} from '@vueuse/core'
 import * as Monaco from 'monaco-editor'
 import {
@@ -15,122 +18,16 @@ import {
 	watch,
 } from 'vue'
 
-// Define Glisp language syntax
-Monaco.languages.register({id: 'glisp'})
-Monaco.languages.setLanguageConfiguration('glisp', {
-	comments: {
-		lineComment: ';',
-	},
-
-	brackets: [
-		['[', ']'],
-		['(', ')'],
-		['{', '}'],
-	],
-
-	autoClosingPairs: [
-		{open: '[', close: ']'},
-		{open: '"', close: '"'},
-		{open: '(', close: ')'},
-		{open: '{', close: '}'},
-	],
-
-	surroundingPairs: [
-		{open: '[', close: ']'},
-		{open: '"', close: '"'},
-		{open: '(', close: ')'},
-		{open: '{', close: '}'},
-	],
-})
-
-Monaco.languages.setMonarchTokensProvider('glisp', {
-	defaultToken: '',
-	ignoreCase: false,
-	brackets: [
-		{open: '[', close: ']', token: 'delimiter.square'},
-		{open: '(', close: ')', token: 'delimiter.paren'},
-		{open: '{', close: '}', token: 'delimiter.curly'},
-	],
-
-	constants: ['true', 'false', 'null'],
-
-	// Numbers
-	integer: /^[+-]?[0-9]+/,
-	float: /^(?:@integer)?\.[0-9]+/,
-	exponential: /^(@integer|@float)e[0-9]+/,
-	percentage: /^(?:@integer|@float)%/,
-	hex: /^0[xX][0-9a-fA-F]+/,
-	numericConstants: ['inf', '-inf', 'nan'],
-
-	qualifiedSymbols: /^[a-zA-Z_+\-*=?|&<>@][0-9a-zA-Z_+\-*=?|&<>@]*/,
-
-	tokenizer: {
-		root: [
-			// whitespaces and comments
-			{include: '@whitespace'},
-
-			// numbers
-			[/@hex/, 'number.hex'],
-			[/@exponential/, 'number.exponential'],
-			[/@percentage/, 'number.percentage'],
-			[/@float/, 'number.float'],
-			[/@integer/, 'number.integer'],
-
-			// brackets
-			[/[()[\]]/, '@brackets'],
-
-			[/\//, 'delimiter.slash'],
-			[/\.\./, 'delimiter.slash'],
-			[/:/, 'delimiter.slash'],
-
-			// quoted symbol
-			[/`/, {token: 'identifier', bracket: '@open', next: '@quotedSymbol'}],
-
-			// string
-			[/"/, {token: 'string', bracket: '@open', next: '@string'}],
-
-			// symbols
-			[
-				/@qualifiedSymbols/,
-				{
-					cases: {
-						'@constants': 'constant',
-						'@numericConstants': 'number',
-						'@default': 'identifier',
-					},
-				},
-			],
-		],
-
-		whitespace: [
-			[/[\s,]+/, 'white'],
-			[/;.*$/, 'comment'],
-		],
-
-		comment: [
-			[/\(/, 'comment', '@push'],
-			[/\)/, 'comment', '@pop'],
-			[/[^()]/, 'comment'],
-		],
-
-		quotedSymbol: [
-			[/[^\\`]+/, 'identifier'],
-			[/"/, {token: 'identifier', bracket: '@close', next: '@pop'}],
-		],
-
-		string: [
-			[/[^\\"]+/, 'string'],
-			[/"/, {token: 'string.quote', bracket: '@close', next: '@pop'}],
-		],
-	},
-})
-
 export default defineComponent({
 	name: 'MonacoEditor',
 	props: {
 		modelValue: {
 			type: String,
 			required: true,
+		},
+		lang: {
+			type: String,
+			default: 'glisp',
 		},
 	},
 	emits: ['update:modelValue'],
@@ -146,7 +43,7 @@ export default defineComponent({
 
 			editor = Monaco.editor.create(rootEl.value as HTMLElement, {
 				value: props.modelValue,
-				language: 'glisp',
+				language: props.lang,
 				fontFamily: "'Fira Code'",
 				minimap: {enabled: false},
 				lineNumbers: 'off',
@@ -193,17 +90,19 @@ export default defineComponent({
 							{token: 'delimiter.slash', foreground: base0A},
 							{token: 'delimiter', foreground: base05},
 							{token: 'constant', foreground: base09},
+							{token: 'support', foreground: base0C},
 							{token: 'identifier', foreground: base08},
+							{token: 'function', foreground: base0D},
 							{token: 'keyword', foreground: base0E},
 						],
 						colors: {
-							'editor.background': base00,
+							'editor.background': '#00000000',
 							'editor.selectionBackground': base01,
 							'editorBracketMatch.background': base02,
 							'editorBracketMatch.border': base03,
 							'editorCursor.foreground': base06,
 							'editorIndentGuide.background': base01,
-							'editorIndentGuide.activeBackground': base03,
+							'editorIndentGuide.activeBackground': base02,
 						},
 					})
 
@@ -218,6 +117,15 @@ export default defineComponent({
 					context.emit('update:modelValue', value, e)
 				}
 			})
+
+			watch(
+				() => props.modelValue,
+				value => {
+					if (editor.getValue() !== value) {
+						editor.setValue(value)
+					}
+				}
+			)
 		})
 
 		onUnmounted(() => {
