@@ -46,6 +46,10 @@ const PageSettings = {
 		entry: 'src/pages/haptics/index.ts',
 		template: 'src/pages/template.html',
 	},
+	raster: {
+		entry: 'src/pages/raster/index.ts',
+		template: 'src/pages/template.html',
+	},
 }
 
 const pages = _.fromPairs(

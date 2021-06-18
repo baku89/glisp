@@ -1,3 +1,4 @@
+import {unrefElement} from '@vueuse/core'
 import hotkeys from 'hotkeys-js'
 import isElectron from 'is-electron'
 import {onMounted, Ref} from 'vue'
@@ -10,7 +11,7 @@ interface UseGestureOptions {
 }
 
 export default function useGesture(
-	el: Ref<HTMLElement | null>,
+	el: Ref<Element | null>,
 	options: UseGestureOptions
 ) {
 	const isWindows = /win/i.test(navigator.platform)
@@ -18,9 +19,11 @@ export default function useGesture(
 	onMounted(() => {
 		if (!el.value) return
 
+		const _el: HTMLElement = unrefElement(el)
+
 		if (options.onScroll || options.onZoom) {
 			// Wheel scrolling
-			el.value.addEventListener('wheel', (e: WheelEvent) => {
+			_el.addEventListener('wheel', (e: WheelEvent) => {
 				if (e.altKey || e.ctrlKey) {
 					if (options.onZoom) {
 						e.preventDefault()
@@ -60,18 +63,18 @@ export default function useGesture(
 			}
 
 			const onGrabEnd = () => {
-				el.value?.removeEventListener('mousemove', onGrabMove)
+				_el.removeEventListener('mousemove', onGrabMove)
 				document.documentElement.style.cursor = 'default'
 			}
 
 			// Middle-button/space translation
-			el.value.addEventListener('mousedown', (e: MouseEvent) => {
+			_el.addEventListener('mousedown', (e: MouseEvent) => {
 				if (e.button === 1 || hotkeys.isPressed('space')) {
 					prevX = e.pageX
 					prevY = e.pageY
 
-					el.value?.addEventListener('mousemove', onGrabMove)
-					el.value?.addEventListener('mouseup', onGrabEnd)
+					_el.addEventListener('mousemove', onGrabMove)
+					_el.addEventListener('mouseup', onGrabEnd)
 					document.documentElement.style.cursor = 'grab'
 				}
 			})
