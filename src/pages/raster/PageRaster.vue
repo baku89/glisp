@@ -22,6 +22,11 @@
 						}"
 					/>
 				</Zoomable>
+				<ToolSelector
+					class="PageRaster__tool-selector"
+					v-model="currentBrushName"
+					:tools="brushes"
+				/>
 				<dl class="PageRaster__parameters">
 					<template
 						v-for="name in Object.keys(currentBrush.parameters)"
@@ -69,42 +74,16 @@ import {
 	onUnmounted,
 	reactive,
 	ref,
+	watch,
 } from 'vue'
 
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
+import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
+import ToolSelector from './ToolSelector.vue'
 import Zoomable from './Zoomable.vue'
-
-interface Brush {
-	frag: string
-	parameters: {
-		[name: string]:
-			| {type: 'slider'; initial?: number; min?: number; max?: number}
-			| {type: 'color'; initial?: string}
-			| {type: 'randomseed'}
-	}
-}
-
-const ColorBrush: Brush = {
-	frag: `
-	precision mediump float;
-	uniform sampler2D inputTexture;
-	uniform vec2 cursor;
-	uniform vec4 color;
-	uniform float radius;
-	varying vec2 uv;
-	void main() {
-		vec4 tex = texture2D(inputTexture, uv);
-		float t = smoothstep(radius, 0.0, distance(uv, cursor));
-		gl_FragColor = mix(tex, color, t);
-	}`,
-	parameters: {
-		color: {type: 'color'},
-		radius: {type: 'slider'},
-	},
-}
 
 const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
 	vert: `
@@ -133,6 +112,7 @@ export default defineComponent({
 		Tab,
 		Zoomable,
 		InputControl,
+		ToolSelector,
 	},
 	setup() {
 		useScheme()
@@ -159,19 +139,47 @@ export default defineComponent({
 			return xform
 		})
 
-		const currentBrush = ref<Brush>(ColorBrush)
+		const brushes = ref(BuiltinBrushes)
+		const currentBrushName = ref('brush')
 
-		const parameters = reactive({
-			cursor: [0, 0],
-			radius: 0.4,
-			color: '#ff0000',
-		})
+		const currentBrush = computed(() => brushes.value[currentBrushName.value])
 
-		function onUpdateParameter(name: string, v: string) {
-			console.log(name, v)
-		}
+		const parameters = reactive<{[name: string]: any}>({})
 
 		let regl: Regl.Regl
+		let updateFunc: ((params: any) => any) | null = null
+
+		watch(
+			currentBrushName,
+			(brushName, prevBrushName) => {
+				const oldParams = prevBrushName
+					? brushes.value[prevBrushName].parameters
+					: {}
+				const newParams = brushes.value[brushName].parameters
+
+				for (const name in newParams) {
+					const param = newParams[name]
+					if (oldParams[name]?.type === param.type) {
+						continue
+					}
+					// Set default
+					switch (param.type) {
+						case 'slider':
+							parameters[name] = param.initial || 0
+							break
+						case 'color':
+							parameters[name] = param.initial || '#ffffff'
+							break
+						case 'seed':
+							parameters[name] = Math.random()
+							break
+					}
+				}
+
+				updateFunc = null
+			},
+			{immediate: true}
+		)
 
 		onMounted(() => {
 			if (!canvasEl.value) return
@@ -185,25 +193,25 @@ export default defineComponent({
 
 			let inputTexture = regl.texture()
 
-			const uniforms = {
-				inputTexture: (regl.prop as any)('inputTexture'),
-				cursor: (regl.prop as any)('cursor'),
-			}
-
-			for (const name in currentBrush.value.parameters) {
-				;(uniforms as any)[name] = (regl.prop as any)(name)
-			}
-
-			console.log(uniforms)
-
-			const drawQuad = regl({
-				...REGL_QUAD_DEFAULT,
-				frag: currentBrush.value.frag,
-				uniforms,
-			})
-
 			regl.frame(() => {
 				if (!pressed.value) return
+
+				if (!updateFunc) {
+					console.log('aaaa')
+					const uniforms = {
+						inputTexture: (regl.prop as any)('inputTexture'),
+						cursor: (regl.prop as any)('cursor'),
+					}
+
+					for (const name in currentBrush.value.parameters) {
+						;(uniforms as any)[name] = (regl.prop as any)(name)
+					}
+					updateFunc = regl({
+						...REGL_QUAD_DEFAULT,
+						frag: currentBrush.value.frag,
+						uniforms,
+					})
+				}
 
 				const params = {
 					inputTexture,
@@ -226,7 +234,7 @@ export default defineComponent({
 					;(params as any)[name] = value
 				}
 
-				drawQuad(params)
+				updateFunc(params)
 
 				inputTexture({copy: true})
 			})
@@ -251,9 +259,10 @@ export default defineComponent({
 		return {
 			viewTransform,
 			controlPaneWidth,
+			currentBrushName,
+			brushes,
 			currentBrush,
 			parameters,
-			onUpdateParameter,
 		}
 	},
 })
@@ -320,6 +329,11 @@ glass-bg()
 	&__viewport
 		position relative
 		overflow hidden !important
+
+	&__tool-selector
+		position absolute
+		top 1em
+		left 1em
 
 	&__control
 		glass-bg()
