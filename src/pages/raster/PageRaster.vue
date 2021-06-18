@@ -1,9 +1,10 @@
 <template>
 	<div class="PageRaster">
-		<menu class="PageRaster__gmenu">
-			<h1 class="PageRaster__gmenu-title">'(GLISP)</h1>
-			<h2>Top > Programmable Image Editor</h2>
-		</menu>
+		<GlobalMenu2>
+			<template #left>
+				<GlobalMenu2Breadcumb :items="[{label: 'Image Editor'}]" />
+			</template>
+		</GlobalMenu2>
 		<Splitpanes class="glisp-theme" @resize="controlPaneWidth = $event[1].size">
 			<Pane
 				class="no-padding PageRaster__viewport"
@@ -79,6 +80,7 @@ import {
 	watch,
 } from 'vue'
 
+import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
@@ -115,6 +117,8 @@ export default defineComponent({
 		Zoomable,
 		InputControl,
 		ToolSelector,
+		GlobalMenu2,
+		GlobalMenu2Breadcumb,
 	},
 	setup() {
 		useScheme()
@@ -302,59 +306,24 @@ export default defineComponent({
 @import '~@/components/style/global.styl'
 @import '~@/components/style/common.styl'
 
-$height = 3.4em
-
 html, body
 	overflow hidden
 
 glass-bg()
 	background base16('00', 0.9)
-	backdrop-filter blur(10px) grayscale(1)
+	backdrop-filter blur(10px)
 
 .PageRaster
 	app()
 	height 100vh
 	background transparent
-	grid-template-rows $height 1fr
+	grid-template-rows auto 1fr
 
 	&__bg
 		position fixed
 		z-index -20
 		background base16('00')
 		inset 0
-
-	&__gmenu
-		position relative
-		display flex
-		overflow visible
-		height $height
-		border-bottom 1px solid $color-frame
-		glass-bg()
-		user-select none
-
-		&-title
-			position relative
-			overflow hidden
-			margin 0 0 0 0.5em
-			width $height
-			height $height
-			background base16('05')
-			background-size 100% 100%
-			text-align center
-			text-indent 10em
-			font-weight normal
-			font-size 1em
-			mask-image url('../../logo.png')
-			mask-size 60% 60%
-			mask-repeat no-repeat
-			mask-position 50% 50%
-
-		h2
-			margin 0
-			margin-left 1em
-			padding 0
-			font-size 1em
-			line-height $height
 
 	&__viewport
 		position relative
@@ -386,9 +355,8 @@ glass-bg()
 		display grid
 		padding 1em
 		border 1px solid $color-frame
-		border-radius 4px
-		background base16('00', 0.7)
-		backdrop-filter blur(10px)
+		border-radius $popup-round
+		glass-bg()
 		grid-template-columns minmax(5em, min-content) 1fr
 		gap $input-horiz-margin
 

@@ -5,5 +5,4 @@ import pinch from './pinch.yml'
 const BuiltinBrushes = {brush, pinch} as {
 	[name: string]: BrushDefinition
 }
-
 export default BuiltinBrushes

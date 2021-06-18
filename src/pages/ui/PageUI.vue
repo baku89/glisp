@@ -1,8 +1,10 @@
 <template>
 	<div class="PageUI">
-		<menu class="PageUI__gmenu">
-			<h1 class="PageUI__gmenu-title">'(GLISP)</h1>
-		</menu>
+		<GlobalMenu2>
+			<template #left>
+				<GlobalMenu2Breadcumb :items="[{label: 'UI'}]" />
+			</template>
+		</GlobalMenu2>
 		<Splitpanes class="PageUI__content glisp-theme">
 			<Pane>
 				<section style="margin-bottom: 2em">
@@ -177,6 +179,7 @@ import _ from 'lodash'
 import {Pane, Splitpanes} from 'splitpanes'
 import {computed, defineComponent, reactive} from 'vue'
 
+import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 // import GlispEditor from '@/components/GlispEditor'
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
@@ -200,7 +203,8 @@ import PaneSchemeViewer from './PaneSchemeViewer.vue'
 export default defineComponent({
 	name: 'PageUI',
 	components: {
-		// GlispEditor,
+		GlobalMenu2,
+		GlobalMenu2Breadcumb,
 		InputNumber,
 		InputDropdown,
 		InputSlider,
@@ -282,38 +286,11 @@ export default defineComponent({
 @import '~@/components/style/global.styl'
 @import '~@/components/style/common.styl'
 
-$height = 3.4em
-
 .PageUI
 	app()
 	display grid
 	height 100vh
-	grid-template-rows $height 1fr
-
-	&__gmenu
-		position relative
-		display flex
-		overflow visible
-		height $height
-		border-bottom 1px solid $color-frame
-		user-select none
-
-		&-title
-			position relative
-			overflow hidden
-			margin 0 0 0 0.5em
-			width $height
-			height $height
-			background base16('05')
-			background-size 100% 100%
-			text-align center
-			text-indent 10em
-			font-weight normal
-			font-size 1em
-			mask-image url('../../logo.png')
-			mask-size 60% 60%
-			mask-repeat no-repeat
-			mask-position 50% 50%
+	grid-template-rows auto 1fr
 
 	&__content
 		overflow scroll

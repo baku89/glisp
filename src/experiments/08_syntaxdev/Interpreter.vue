@@ -1,11 +1,17 @@
 <template>
 	<div class="Interpreter">
-		<h2>Glisp :: REPL</h2>
-		<MinimalConsole
-			class="Interpreter__console"
-			:rep="rep"
-			v-model:onError="onError"
-		/>
+		<GlobalMenu2>
+			<template #left>
+				<GlobalMenu2Breadcumb :items="[{label: 'REPL'}]" />
+			</template>
+		</GlobalMenu2>
+		<main class="Interpreter__main">
+			<MinimalConsole
+				class="Interpreter__console"
+				:rep="rep"
+				v-model:onError="onError"
+			/>
+		</main>
 	</div>
 </template>
 
@@ -15,6 +21,7 @@ import 'splitpanes/dist/splitpanes.css'
 
 import {defineComponent, ref} from 'vue'
 
+import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
 
 import {evalExp, printValue, readStr, TypeIO} from './glisp'
@@ -22,7 +29,7 @@ import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
 	name: 'Interpreter',
-	components: {MinimalConsole},
+	components: {GlobalMenu2, GlobalMenu2Breadcumb, MinimalConsole},
 	setup() {
 		useScheme()
 
@@ -64,11 +71,12 @@ export default defineComponent({
 
 .Interpreter
 	app()
-	display flex
-	flex-direction column
-	align-items stretch
-	padding 2em
+	display grid
 	height 100vh
+	grid-template-rows auto 1fr
+
+	&__main
+		padding 2em
 
 	h2
 		font-size 2em
