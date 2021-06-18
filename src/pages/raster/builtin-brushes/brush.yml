@@ -1,9 +1,9 @@
 label: 'Brush'
-icon: >
+icon: |
   <polyline points="26,12 20,24 4,30 10,14 22,8 "/>
   <line x1="4" y1="30" x2="14" y2="20"/>
   <circle cx="15" cy="19" r="2"/>
-frag: >
+frag: |
   precision mediump float;
   uniform sampler2D inputTexture;
   uniform vec2 cursor;
