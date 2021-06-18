@@ -2,26 +2,44 @@
 	<div class="PageRaster">
 		<menu class="PageRaster__gmenu">
 			<h1 class="PageRaster__gmenu-title">'(GLISP)</h1>
+			<h2>Programmable Image Editor</h2>
 		</menu>
-		<Splitpanes class="glisp-theme">
-			<Pane class="no-padding PageRaster__viewport">
+		<Splitpanes class="glisp-theme" @resize="controlPaneWidth = $event[1].size">
+			<Pane
+				class="no-padding PageRaster__viewport"
+				:size="100 - controlPaneWidth"
+			>
 				<Zoomable
 					class="PageRaster__zoomable"
 					v-model:transform="viewTransform"
+					ref="viewport"
 				>
-					<img
+					<canvas
 						class="PageRaster__canvas"
 						ref="canvas"
-						src="https://fd.baku89.com/assets/default.jpg"
 						:style="{
 							transform: `matrix(${viewTransform.join(',')})`,
 						}"
 					/>
 				</Zoomable>
+				<dl class="PageRaster__parameters">
+					<template
+						v-for="name in Object.keys(currentBrush.parameters)"
+						:key="name"
+					>
+						<dt>{{ name }}</dt>
+						<dd>
+							<InputControl
+								:type="currentBrush.parameters[name].type"
+								v-model="parameters[name]"
+							/>
+						</dd>
+					</template>
+				</dl>
 			</Pane>
-			<Pane class="no-padding PageRaster__control">
-				<Tab :tabs="['control', 'shader']" initialTab="control">
-					<template #panel-control> </template>
+			<Pane class="no-padding PageRaster__control" :size="controlPaneWidth">
+				<Tab :tabs="['parameters', 'shader']" initialTab="control">
+					<template #panel-parameters> </template>
 					<template #panel-shader> </template>
 				</Tab>
 			</Pane>
@@ -34,15 +52,78 @@
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
-import {templateRef} from '@vueuse/core'
-import {mat2d} from 'gl-matrix'
+import {
+	templateRef,
+	useLocalStorage,
+	useMouseInElement,
+	useMousePressed,
+} from '@vueuse/core'
+import chroma from 'chroma-js'
+import {mat2d, vec2} from 'gl-matrix'
+import Regl from 'regl'
 import {Pane, Splitpanes} from 'splitpanes'
-import {defineComponent, ref} from 'vue'
+import {
+	computed,
+	defineComponent,
+	onMounted,
+	onUnmounted,
+	reactive,
+	ref,
+} from 'vue'
 
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
+import InputControl from './InputControl.vue'
 import Zoomable from './Zoomable.vue'
+
+interface Brush {
+	frag: string
+	parameters: {
+		[name: string]:
+			| {type: 'slider'; initial?: number; min?: number; max?: number}
+			| {type: 'color'; initial?: string}
+			| {type: 'randomseed'}
+	}
+}
+
+const ColorBrush: Brush = {
+	frag: `
+	precision mediump float;
+	uniform sampler2D inputTexture;
+	uniform vec2 cursor;
+	uniform vec4 color;
+	uniform float radius;
+	varying vec2 uv;
+	void main() {
+		vec4 tex = texture2D(inputTexture, uv);
+		float t = smoothstep(radius, 0.0, distance(uv, cursor));
+		gl_FragColor = mix(tex, color, t);
+	}`,
+	parameters: {
+		color: {type: 'color'},
+		radius: {type: 'slider'},
+	},
+}
+
+const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
+	vert: `
+	precision mediump float;
+	attribute vec2 position;
+	varying vec2 uv;
+	void main() {
+		uv = position / 2.0 + 0.5;
+		gl_Position = vec4(position, 0, 1);
+	}`,
+	attributes: {
+		position: [-1, -1, 1, -1, -1, 1, 1, 1],
+	},
+	depth: {
+		enable: false,
+	},
+	count: 4,
+	primitive: 'triangle strip',
+}
 
 export default defineComponent({
 	name: 'PageRaster',
@@ -51,15 +132,129 @@ export default defineComponent({
 		Pane,
 		Tab,
 		Zoomable,
+		InputControl,
 	},
 	setup() {
 		useScheme()
 
+		const viewportEl = templateRef('viewport')
 		const canvasEl = templateRef('canvas')
 
+		const controlPaneWidth = useLocalStorage('controlPaneWidth', 50)
 		const viewTransform = ref(mat2d.create())
 
-		return {viewTransform}
+		const imgUrl = '/default_img.jpg'
+		const imgSize = ref(vec2.fromValues(1, 1))
+
+		const {elementX: viewportX, elementY: viewportY} =
+			useMouseInElement(viewportEl)
+		const {pressed} = useMousePressed({target: viewportEl})
+
+		const cursorPos = computed(() => {
+			const xform = vec2.fromValues(viewportX.value, viewportY.value)
+			const xformInv = mat2d.invert(mat2d.create(), viewTransform.value)
+			vec2.transformMat2d(xform, xform, xformInv)
+			xform[0] = xform[0] / imgSize.value[0]
+			xform[1] = 1 - xform[1] / imgSize.value[1]
+			return xform
+		})
+
+		const currentBrush = ref<Brush>(ColorBrush)
+
+		const parameters = reactive({
+			cursor: [0, 0],
+			radius: 0.4,
+			color: '#ff0000',
+		})
+
+		function onUpdateParameter(name: string, v: string) {
+			console.log(name, v)
+		}
+
+		let regl: Regl.Regl
+
+		onMounted(() => {
+			if (!canvasEl.value) return
+
+			const canvas = canvasEl.value as HTMLCanvasElement
+
+			regl = Regl(canvas)
+
+			const img = new Image()
+			img.src = imgUrl
+
+			let inputTexture = regl.texture()
+
+			const uniforms = {
+				inputTexture: (regl.prop as any)('inputTexture'),
+				cursor: (regl.prop as any)('cursor'),
+			}
+
+			for (const name in currentBrush.value.parameters) {
+				;(uniforms as any)[name] = (regl.prop as any)(name)
+			}
+
+			console.log(uniforms)
+
+			const drawQuad = regl({
+				...REGL_QUAD_DEFAULT,
+				frag: currentBrush.value.frag,
+				uniforms,
+			})
+
+			regl.frame(() => {
+				if (!pressed.value) return
+
+				const params = {
+					inputTexture,
+					cursor: cursorPos.value,
+				}
+
+				for (const [name, info] of Object.entries(
+					currentBrush.value.parameters
+				)) {
+					let value = (parameters as any)[name]
+
+					switch (info.type) {
+						case 'color':
+							value = chroma(value)
+								.rgba()
+								.map((v, i) => (i < 3 ? v / 255 : v))
+							break
+					}
+
+					;(params as any)[name] = value
+				}
+
+				drawQuad(params)
+
+				inputTexture({copy: true})
+			})
+
+			img.onload = () => {
+				imgSize.value = vec2.fromValues(img.width, img.height)
+				canvas.width = img.width
+				canvas.height = img.height
+				inputTexture.destroy()
+				inputTexture = regl.texture({
+					wrapS: 'mirror',
+					wrapT: 'mirror',
+					data: img,
+				})
+			}
+		})
+
+		onUnmounted(() => {
+			if (regl) regl.destroy()
+		})
+
+		return {
+			viewTransform,
+			controlPaneWidth,
+			currentBrush,
+			parameters,
+			onUpdateParameter,
+		}
 	},
 })
 </script>
@@ -75,7 +270,7 @@ html, body
 
 glass-bg()
 	background base16('00', 0.9)
-	backdrop-filter blur(10px)
+	backdrop-filter blur(10px) grayscale(1)
 
 .PageRaster
 	app()
@@ -115,7 +310,15 @@ glass-bg()
 			mask-repeat no-repeat
 			mask-position 50% 50%
 
+		h2
+			margin 0
+			margin-left 1em
+			padding 0
+			font-size 1em
+			line-height $height
+
 	&__viewport
+		position relative
 		overflow hidden !important
 
 	&__control
@@ -131,4 +334,32 @@ glass-bg()
 		display block
 		transform-origin 0 0
 		pointer-events none
+
+	&__parameters
+		position absolute
+		top 1em
+		right 1em
+		display grid
+		padding 1em
+		border 1px solid $color-frame
+		border-radius 4px
+		background base16('00', 0.7)
+		backdrop-filter blur(10px)
+		grid-template-columns minmax(5em, min-content) 1fr
+		gap $input-horiz-margin
+
+		& > dt
+			height $input-height
+			color base16('04')
+			line-height $input-height
+
+		& > dd
+			display flex
+			align-items center
+			line-height $input-height
+
+			& > span
+				margin-left 1em
+				color base16('04')
+				font-monospace()
 </style>

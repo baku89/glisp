@@ -115,6 +115,7 @@
 		"prettier-plugin-md-nocjsp": "^1.0.2",
 		"raw-loader": "^4.0.2",
 		"readline-sync": "^1.4.10",
+		"regl": "^2.1.0",
 		"resize-sensor": "^0.0.6",
 		"seedrandom": "^3.0.5",
 		"sobol": "^1.1.4",
