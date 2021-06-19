@@ -23,7 +23,6 @@
 			class="InputDropdown__select"
 			:style="{minWidth: rootWidth + 'px'}"
 			:value="modelValue"
-			@change="onChange"
 		>
 			<li
 				class="InputDropdown__option"
@@ -31,7 +30,7 @@
 				:class="{active: value === modelValue}"
 				:key="index"
 				@click="onSelect(value)"
-				@mouseenter="onHoverOption(value)"
+				@mouseenter="updateModelValue(value)"
 			>
 				<slot name="option" :string="string" :value="value">
 					<div class="style-default" v-html="string" />
@@ -50,6 +49,7 @@ import {computed, defineComponent, PropType, ref, watch} from 'vue'
 import InputString from '@/components/inputs/InputString.vue'
 import Popover from '@/components/layouts/Popover.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
+import useEfficientEmit from '@/components/use/use-efficient-emit'
 import {unsignedMod} from '@/utils'
 
 interface Item {
@@ -85,9 +85,15 @@ export default defineComponent({
 			type: Function as PropType<ILabelizer>,
 			default: (v: any) => v + '',
 		},
+		updateOnBlur: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
+		const updateModelValue = useEfficientEmit(props, context, 'modelValue')
+
 		const open = ref(false)
 		const rootEl = ref<null | HTMLInputElement>(null)
 
@@ -179,7 +185,7 @@ export default defineComponent({
 					const index = notSelected ? 0 : indices.indexOf(activeIndex)
 					const prevIndex = indices[unsignedMod(index - 1, len)]
 					const item = completeItems.value[prevIndex]
-					context.emit('update:modelValue', item.value)
+					updateModelValue(item.value)
 					inputValue.value = item.label
 					break
 				}
@@ -189,7 +195,7 @@ export default defineComponent({
 						: indices.indexOf(activeIndex)
 					const nextIndex = indices[unsignedMod(index + 1, len)]
 					const item = completeItems.value[nextIndex]
-					context.emit('update:modelValue', item.value)
+					updateModelValue(item.value)
 					inputValue.value = item.label
 					break
 				}
@@ -228,12 +234,8 @@ export default defineComponent({
 
 			if (notSelected) {
 				const item = completeItems.value[filteredResults.value[0].index]
-				context.emit('update:modelValue', item.value)
+				updateModelValue(item.value)
 			}
-		}
-
-		function onHoverOption(newValue: any) {
-			context.emit('update:modelValue', newValue)
 		}
 
 		function onSelect(newValue: any) {
@@ -242,7 +244,7 @@ export default defineComponent({
 				inputValue.value = item.label
 			}
 
-			context.emit('update:modelValue', newValue)
+			updateModelValue(newValue)
 			open.value = false
 		}
 
@@ -269,9 +271,9 @@ export default defineComponent({
 			onBlur,
 			onInput,
 			onKeydown,
-			onHoverOption,
 			onSelect,
 			onClickOutsideOfPopover,
+			updateModelValue,
 		}
 	},
 })
