@@ -45,6 +45,7 @@
 								]"
 								:modelValue="p.type"
 								@update:modelValue="updateParamType(name, $event)"
+								:updateOnBlur="true"
 							/>
 							<template v-if="p.type === 'color'">
 								<InputColor

@@ -30,7 +30,7 @@
 				:class="{active: value === modelValue}"
 				:key="index"
 				@click="onSelect(value)"
-				@mouseenter="updateModelValue(value)"
+				@mouseenter="updateOnBlur || updateModelValue(value)"
 			>
 				<slot name="option" :string="string" :value="value">
 					<div class="style-default" v-html="string" />
