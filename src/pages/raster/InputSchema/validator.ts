@@ -13,7 +13,7 @@ export function matchUnion(
 
 		if (!result) return null
 	}
-	console.log(result)
+
 	return result as [string, Exclude<Schema, SchemaUnion>]
 }
 
@@ -48,18 +48,34 @@ export function validate(data: Data, schema: Schema): boolean {
 
 ;(window as any).isNumber = _.isNumber
 
-export function getDefault(schema: Schema): Data {
+export function cast(data: Data | null, schema: Schema): Data {
 	switch (schema.type) {
 		case 'const':
 			return schema.value
 		case 'number':
-			return schema.default || 0
+			return _.isNumber(data) ? data : schema.default || 0
 		case 'color':
-			return schema.default || '#ffffff'
-		case 'object':
-			return _.mapValues(schema.properties, s => getDefault(s))
+			return _.isString(data) ? data : schema.default || '#ffffff'
+		case 'object': {
+			const obj = _.isObject(data) ? {...data} : {}
+			for (const [name, s] of _.entries(schema.properties)) {
+				obj[name] = cast(obj[name], s)
+			}
+			if (schema.additionalProperties) {
+				for (const name in obj) {
+					if (name in schema.properties) continue
+					obj[name] = cast(obj[name], schema.additionalProperties)
+				}
+			}
+			return obj
+		}
 		case 'union': {
-			return getDefault(_.values(schema.items)[0])
+			const match = data === null ? null : matchUnion(data, schema)
+			if (!match) {
+				return cast(null, _.values(schema.items)[0])
+			} else {
+				return data as Data
+			}
 		}
 	}
 }

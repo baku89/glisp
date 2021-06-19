@@ -121,7 +121,6 @@ export default defineComponent({
 	&__column
 		display grid
 		margin-bottom $input-horiz-margin
-		height $input-height
 		grid-template-columns 1em 7em 1fr
 		gap 1em
 

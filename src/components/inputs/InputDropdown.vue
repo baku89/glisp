@@ -288,6 +288,7 @@ $right-arrow-width = 1em
 	position relative
 	display inline-block
 	width 6em
+	height $input-height
 
 	&__input
 		width 100%
@@ -302,8 +303,8 @@ $right-arrow-width = 1em
 
 	&__option .style-default
 		padding 0 0.4rem
+		height $input-height
 		line-height $input-height
-		hieght $input-height
 		translucent-bg()
 		input-transition()
 

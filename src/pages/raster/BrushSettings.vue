@@ -16,7 +16,13 @@
 		</header>
 		<main class="BrushSettings__parameters">
 			<h3>Parameters</h3>
-			<InputSchema :modelValue="modelValue.parameters" :schema="schema" />
+			<InputSchema
+				:modelValue="modelValue.parameters"
+				@update:modelValue="
+					$emit('update:modelValue', {...modelValue, parameters: $event})
+				"
+				:schema="schema"
+			/>
 		</main>
 		<main>
 			<h3>Shader</h3>
@@ -89,23 +95,21 @@ export default defineComponent({
 					slider: {
 						type: 'object',
 						properties: {
-							type: {const: 'slider'},
+							type: {type: 'const', value: 'slider'},
 							default: {type: 'number', default: 0},
-							min: {type: 'number', default: 0},
-							max: {type: 'number', default: 1},
 						},
 					},
 					color: {
 						type: 'object',
 						properties: {
-							type: {const: 'color'},
-							default: {type: 'string', default: '#ffffff'},
+							type: {type: 'const', value: 'color'},
+							default: {type: 'color', default: '#ffffff'},
 						},
 					},
 					seed: {
 						type: 'object',
 						properties: {
-							type: {const: 'seed'},
+							type: {type: 'const', value: 'seed'},
 						},
 					},
 				},

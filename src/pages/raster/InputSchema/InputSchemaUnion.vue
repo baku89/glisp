@@ -22,7 +22,7 @@ import InputDropdown from '@/components/inputs/InputDropdown.vue'
 
 import InputSchema from './InputSchema.vue'
 import {Data, SchemaUnion} from './type'
-import {getDefault, matchUnion} from './validator'
+import {cast, matchUnion} from './validator'
 
 export default defineComponent({
 	name: 'InputSchemaUnion',
@@ -57,8 +57,10 @@ export default defineComponent({
 
 		function switchSchema(name: string) {
 			const schema = props.schema.items[name]
+			const newData = cast(null, schema)
+			console.log(newData)
 
-			context.emit('update:modelValue', getDefault(schema))
+			context.emit('update:modelValue', newData)
 		}
 
 		return {names, matchSchema, switchSchema}

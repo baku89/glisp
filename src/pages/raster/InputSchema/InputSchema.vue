@@ -8,14 +8,14 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType} from 'vue'
+import {computed, defineComponent, PropType, toRaw} from 'vue'
 
 import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
 import InputSchemaObject from './InputSchemaObject.vue'
 import InputSchemaUnion from './InputSchemaUnion.vue'
 import {Data, Schema} from './type'
-import {getDefault, validate} from './validator'
+import {cast} from './validator'
 
 export default defineComponent({
 	name: 'InputSchema',
@@ -28,7 +28,7 @@ export default defineComponent({
 	props: {
 		modelValue: {
 			type: [Number, String, Object] as PropType<Data>,
-			required: true,
+			default: null,
 		},
 		schema: {
 			type: Object as PropType<Schema>,
@@ -38,9 +38,7 @@ export default defineComponent({
 	emits: ['update:modelValue'],
 	setup(props) {
 		const validValue = computed(() =>
-			validate(props.modelValue, props.schema)
-				? props.modelValue
-				: getDefault(props.schema)
+			cast(toRaw(props.modelValue), toRaw(props.schema))
 		)
 
 		return {validValue}
