@@ -93,22 +93,18 @@
 	li
 		position relative
 
-		&:before
-			position absolute
-			right 100%
-			margin-top 0.3em
-			margin-right 0.4em
+		&::marker
 			font-size 0.9em
 			font-monospace()
 			color base16('accent')
 
-	ul > li:before
+	ul > li::marker
 		content '*\00a0'
 
-	ul ul > li:before
+	ul ul > li::marker
 		content '+\00a0'
 
-	ul ul ul > li:before
+	ul ul ul > li::marker
 		content '-\00a0'
 
 	ol
@@ -117,14 +113,14 @@
 	ol > li
 		counter-increment ol-counter
 
-	ol > li:before
-		content counter(ol-counter) ')'
+	ol > li::marker
+		content counter(ol-counter) ')\00a0'
 
-	ol ol > li:before
-		content counter(ol-counter) '.'
+	ol ol > li::marker
+		content counter(ol-counter) '.\00a0'
 
-	ol ol ol > li:before
-		content counter(ol-counter, lower-alpha) '.'
+	ol ol ol > li::marker
+		content counter(ol-counter, lower-alpha) '.\00a0'
 
 	dl
 		padding 0
@@ -330,8 +326,8 @@
 			margin-top 0.8em
 			margin-bottom 0.8em
 
-		li:before
-			display none
+		li::marker
+			content ''
 
 		& > ol
 			padding-left 1.4em
