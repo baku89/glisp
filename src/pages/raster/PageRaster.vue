@@ -389,6 +389,7 @@ glass-bg()
 
 .PageRaster
 	app()
+	display grid
 	height 100vh
 	background transparent
 	grid-template-rows auto 1fr
