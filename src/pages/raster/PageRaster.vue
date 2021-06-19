@@ -33,7 +33,7 @@
 						v-for="name in Object.keys(currentBrush.parameters)"
 						:key="name"
 					>
-						<dt>{{ name }}</dt>
+						<dt>{{ toLabel(name) }}</dt>
 						<dd>
 							<InputControl
 								v-bind="currentBrush.parameters[name]"
@@ -44,7 +44,7 @@
 				</dl>
 			</Pane>
 			<Pane class="no-padding PageRaster__control" :size="controlPaneWidth">
-				<Tab :tabs="['settings', 'shader']" initialTab="shader">
+				<Tab :tabs="['settings', 'code']" initialTab="settings">
 					<template #head-settings>
 						<SvgIcon mode="inline" style="font-size: 1.2em">
 							<path
@@ -53,24 +53,20 @@
 						</SvgIcon>
 						Settings
 					</template>
-					<template #head-shader>
+					<template #head-code>
 						<SvgIcon mode="inline" style="font-size: 1.2em">
-							<rect x="1" y="1" class="st0" width="24" height="24" />
-							<line class="st0" x1="1" y1="17" x2="25" y2="17" />
-							<line class="st0" x1="1" y1="9" x2="24" y2="9" />
-							<line class="st0" x1="17" y1="1" x2="17" y2="25" />
-							<line class="st0" x1="9" y1="1" x2="9" y2="24" />
+							<path d="M10 9 L3 17 10 25 M22 9 L29 17 22 25 M18 7 L14 27" />
 						</SvgIcon>
-						Shader
+						Code
 					</template>
-					<template #panel-parameters> </template>
-					<template #panel-shader>
-						<MonacoEditor
-							:modelValue="currentBrush.frag"
-							:markers="shaderErrors"
-							@update:modelValue="onUpdateFrag"
-							lang="glsl"
+					<template #panel-settings>
+						<BrushSettings
+							v-model="currentBrush"
+							:shaderErrors="shaderErrors"
 						/>
+					</template>
+					<template #panel-code>
+						<MonacoEditor :modelValue="currentBrush.frag" lang="glsl" />
 					</template>
 				</Tab>
 			</Pane>
@@ -111,9 +107,11 @@ import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
+import BrushSettings from './BrushSettings.vue'
 import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
 import ToolSelector from './ToolSelector.vue'
+import useFragShaderValidator from './use-frag-shader-validator'
 import Zoomable from './Zoomable.vue'
 
 const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
@@ -138,6 +136,7 @@ const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
 export default defineComponent({
 	name: 'PageRaster',
 	components: {
+		BrushSettings,
 		InputControl,
 		ToolSelector,
 		GlobalMenu2,
@@ -187,60 +186,22 @@ export default defineComponent({
 		})
 
 		// Brushes
-		const brushes = ref(BuiltinBrushes)
+		const brushes = reactive(BuiltinBrushes)
 		const currentBrushName = ref('brush')
-		const currentBrush = computed(() => brushes.value[currentBrushName.value])
+		const currentBrush = computed({
+			get: () => brushes[currentBrushName.value],
+			set: v => {
+				brushes[currentBrushName.value] = v
+			},
+		})
 		const parameters = reactive<{[name: string]: any}>({})
-
-		function parseErrorLog(errLog: string | null) {
-			if (!errLog) return []
-
-			var result: {line: number; message: string}[] = []
-			errLog.split('\n').forEach(function (errMsg) {
-				if (errMsg.length < 5) {
-					return
-				}
-				var parts = /^ERROR:\s+(\d+):(\d+):\s*(.*)$/.exec(errMsg)
-				if (parts) {
-					result.push({
-						line: parseInt(parts[2]) || 0,
-						message: parts[3].trim(),
-					})
-				} else if (errMsg.length > 0) {
-					result.push({line: 0, message: errMsg})
-				}
-			})
-			return result
-		}
-
-		function onUpdateFrag(frag: string) {
-			if (!regl.value) return
-
-			const gl = regl.value._gl
-
-			const fragShader = gl.createShader(gl.FRAGMENT_SHADER)
-			if (!fragShader) return
-			gl.shaderSource(fragShader, frag)
-			gl.compileShader(fragShader)
-
-			if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
-				const errLog = gl.getShaderInfoLog(fragShader)
-				shaderErrors.value = parseErrorLog(errLog)
-			} else {
-				// Succeed
-				shaderErrors.value = []
-				brushes.value[currentBrushName.value].frag = frag
-			}
-		}
 
 		// Update brush parameters
 		watch(
 			currentBrushName,
 			(brushName, prevBrushName) => {
-				const oldParams = prevBrushName
-					? brushes.value[prevBrushName].parameters
-					: {}
-				const newParams = brushes.value[brushName].parameters
+				const oldParams = prevBrushName ? brushes[prevBrushName].parameters : {}
+				const newParams = brushes[brushName].parameters
 
 				for (const name in newParams) {
 					const param = newParams[name]
@@ -266,6 +227,12 @@ export default defineComponent({
 
 		// WebGL contexts
 		let regl = shallowRef<Regl.Regl | null>(null)
+
+		const {validFrag, shaderErrors} = useFragShaderValidator(
+			computed(() => currentBrush.value.frag),
+			regl
+		)
+
 		let drawFunc = computed(() => {
 			if (!regl.value) return null
 			const prop = regl.value.prop as any
@@ -278,14 +245,12 @@ export default defineComponent({
 
 			return regl.value({
 				...REGL_QUAD_DEFAULT,
-				frag: currentBrush.value.frag,
+				frag: validFrag.value,
 				uniforms,
 			})
 		})
 		const inputTexture = shallowRef<Regl.Texture2D | null>(null)
 		watch(inputTexture, (_, old) => old?.destroy())
-
-		const shaderErrors = ref<any[]>([])
 
 		onMounted(() => {
 			if (!canvasEl.value) return
@@ -370,7 +335,7 @@ export default defineComponent({
 			currentBrush,
 			parameters,
 			shaderErrors,
-			onUpdateFrag,
+			toLabel: _.startCase,
 		}
 	},
 })

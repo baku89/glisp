@@ -21,11 +21,7 @@ import {
 	watch,
 } from 'vue'
 
-interface Marker {
-	line: number
-	message: string
-	severity?: 'hint' | 'info' | 'warn' | 'error'
-}
+import {MonacoEditorMarker} from '.'
 
 export default defineComponent({
 	name: 'MonacoEditor',
@@ -39,7 +35,7 @@ export default defineComponent({
 			default: 'glisp',
 		},
 		markers: {
-			type: Array as PropType<Marker[]>,
+			type: Array as PropType<MonacoEditorMarker[]>,
 			default: () => [],
 		},
 	},
@@ -324,7 +320,7 @@ export default defineComponent({
 			})
 
 			// Markers
-			function getSeverity(severity: Marker['severity'] = 'error') {
+			function getSeverity(severity: MonacoEditorMarker['severity'] = 'error') {
 				switch (severity) {
 					case 'hint':
 						return Monaco.MarkerSeverity.Hint
