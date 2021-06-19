@@ -31,7 +31,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {computed, defineComponent, ref, toRef} from 'vue'
+import {computed, defineComponent, ref, toRef, watch} from 'vue'
 
 import {fit01, fitTo01} from '@/utils'
 
@@ -72,8 +72,12 @@ export default defineComponent({
 		let tweakStartValue = 0
 		let tweakStartPos = 0
 
-		const {isDragging: tweaking, pos, origin} = useDraggable(dragEl, {
-			lockPointer: true,
+		const {
+			isDragging: tweaking,
+			pos,
+			origin,
+		} = useDraggable(dragEl, {
+			lockPointer: false,
 			onClick() {
 				if (inputEl.value) {
 					inputEl.value.focus()
@@ -150,6 +154,17 @@ export default defineComponent({
 			context
 		)
 
+		// Handle Pointerlock
+		watch([showTweakLabel, tweaking], ([isOutside, tweaking]) => {
+			if (tweaking && isOutside) {
+				dragEl.value?.requestPointerLock()
+			}
+		})
+
+		watch(tweaking, tweaking => {
+			if (!tweaking) document.exitPointerLock()
+		})
+
 		const sliderStyle = computed(() => {
 			const t = (props.modelValue - props.min) / (props.max - props.min)
 			return {
@@ -188,6 +203,9 @@ export default defineComponent({
 	height $input-height
 	background base16('01')
 	use-number()
+
+	&__overlay-label
+		cursor pointer
 
 	&__input
 		position absolute

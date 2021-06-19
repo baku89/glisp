@@ -51,12 +51,9 @@ export default function useDraggable(
 		const movement = vec2.fromValues(e.movementX, e.movementY)
 		drag.pos = vec2.add(vec2.create(), drag.pos, movement)
 
-		const {
-			left,
-			top,
-			right,
-			bottom,
-		} = (el.value as HTMLElement).getBoundingClientRect()
+		const {left, top, right, bottom} = (
+			el.value as HTMLElement
+		).getBoundingClientRect()
 
 		drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
 
@@ -70,10 +67,6 @@ export default function useDraggable(
 		// Ignore right click
 		if (e.button >= 2) {
 			return
-		}
-
-		if (options.lockPointer) {
-			el.value?.requestPointerLock()
 		}
 
 		// Initialzize pointer position
@@ -95,6 +88,10 @@ export default function useDraggable(
 	}
 
 	function startDrag() {
+		if (options.lockPointer) {
+			el.value?.requestPointerLock()
+		}
+
 		drag.isDragging = true
 		options.onDragStart && options.onDragStart(drag)
 	}
