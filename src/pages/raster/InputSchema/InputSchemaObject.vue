@@ -127,7 +127,7 @@ export default defineComponent({
 		&.ghost
 			visibility hidden
 
-		&.handle
+		& > .handle
 			cursor move
 
 		& > .label, & > .icon
