@@ -69,6 +69,10 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import '~@/components/style/common.styl'
+
 .InputSchemaUnion
-	display flex
+	display grid
+	grid-template-columns min-content 1fr
+	grid-gap $input-horiz-margin
 </style>

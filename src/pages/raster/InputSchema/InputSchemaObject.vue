@@ -1,21 +1,15 @@
 <template>
 	<div class="InputSchemaObject">
 		<div class="InputSchemaObject__list">
-			<div
+			<InputSchemaEntry
 				class="InputSchemaObject__column"
 				v-for="(sch, name) in schema.properties"
 				:key="name"
-			>
-				<div class="icon">・</div>
-				<label class="label">{{ toLabel(name) }}</label>
-				<div class="input">
-					<InputSchema
-						:modelValue="modelValue[name]"
-						@update:modelValue="updateProperty(name, $event)"
-						:schema="sch"
-					/>
-				</div>
-			</div>
+				:name="name"
+				:modelValue="modelValue[name]"
+				@update:modelValue="updateProperty(name, $event)"
+				:schema="sch"
+			/>
 		</div>
 		<Draggable
 			v-if="schema.additionalProperties"
@@ -56,12 +50,14 @@ import Draggable from 'vuedraggable'
 import InputString from '@/components/inputs/InputString.vue'
 
 import InputSchema from './InputSchema.vue'
+import InputSchemaEntry from './InputSchemaEntry.vue'
 import {Data, DataObject, SchemaObject} from './type'
 
 export default defineComponent({
 	name: 'InputSchemaObject',
 	components: {
 		Draggable,
+		InputSchemaEntry,
 		InputString,
 	},
 	props: {
