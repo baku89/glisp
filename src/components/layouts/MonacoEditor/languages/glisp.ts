@@ -1,9 +1,8 @@
-import * as Monaco from 'monaco-editor'
+import {languages} from 'monaco-editor'
 
-console.log(Monaco.languages.getLanguages())
 // Define Glisp language syntax
-Monaco.languages.register({id: 'glisp'})
-Monaco.languages.setLanguageConfiguration('glisp', {
+languages.register({id: 'glisp'})
+languages.setLanguageConfiguration('glisp', {
 	comments: {
 		lineComment: ';',
 	},
@@ -29,7 +28,7 @@ Monaco.languages.setLanguageConfiguration('glisp', {
 	],
 })
 
-Monaco.languages.setMonarchTokensProvider('glisp', {
+languages.setMonarchTokensProvider('glisp', {
 	defaultToken: '',
 	ignoreCase: false,
 	brackets: [
