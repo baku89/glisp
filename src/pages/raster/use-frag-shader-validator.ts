@@ -28,12 +28,9 @@ export default function useFragShaderValidator(
 	frag: Ref<string>,
 	regl: Ref<Regl.Regl | null>
 ) {
-	console.log(frag, regl, 'unco')
 	const validFrag = ref(frag.value)
 
 	const shaderErrors = ref<MonacoEditorMarker[]>([])
-
-	console.log(frag.value)
 
 	watch(
 		[regl, frag],

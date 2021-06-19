@@ -66,7 +66,7 @@
 						/>
 					</template>
 					<template #panel-code>
-						<MonacoEditor :modelValue="currentBrush.frag" lang="glsl" />
+						<MonacoEditor :modelValue="currentBrushCode" lang="yaml" />
 					</template>
 				</Tab>
 			</Pane>
@@ -100,6 +100,7 @@ import {
 	shallowRef,
 	watch,
 } from 'vue'
+import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
@@ -195,6 +196,8 @@ export default defineComponent({
 			},
 		})
 		const parameters = reactive<{[name: string]: any}>({})
+
+		const currentBrushCode = computed(() => YAML.stringify(currentBrush.value))
 
 		// Update brush parameters
 		watch(
@@ -329,10 +332,11 @@ export default defineComponent({
 
 		return {
 			viewTransform,
-			controlPaneWidth,
-			currentBrushName,
 			brushes,
+			controlPaneWidth,
 			currentBrush,
+			currentBrushCode,
+			currentBrushName,
 			parameters,
 			shaderErrors,
 			toLabel: _.startCase,

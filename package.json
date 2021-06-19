@@ -132,6 +132,7 @@
 		"vuedraggable": "^4.0.3",
 		"webmidi": "^2.5.2",
 		"worker-plugin": "^5.0.0",
+		"yaml": "^1.10.2",
 		"yaml-loader": "^0.6.0",
 		"yargs": "^16.2.0"
 	}

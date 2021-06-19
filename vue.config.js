@@ -78,7 +78,7 @@ module.exports = {
 	configureWebpack: {
 		plugins: [
 			new WorkerPlugin(),
-			new MonacoEditorWebpackPlugin({languages: ['javascript']}),
+			new MonacoEditorWebpackPlugin({languages: ['javascript', 'yaml']}),
 		],
 		output: {
 			globalObject: 'globalThis',

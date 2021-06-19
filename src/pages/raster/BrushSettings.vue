@@ -16,9 +16,19 @@
 		</header>
 		<main class="BrushSettings__parameters">
 			<h3>Parameters</h3>
-			<Draggable tag="dl" :modelValue="params" item-key="id">
+			<Draggable
+				tag="dl"
+				v-model="params"
+				v-bind="{
+					animation: 50,
+					disable: false,
+				}"
+				@start="drag = true"
+				@end="drag = false"
+				item-key="name"
+			>
 				<template #item="{element: {name, value: p}}">
-					<div>
+					<div class="BrushSettings__param">
 						<dt>
 							<InputString
 								class="BrushSettings__param-name"
@@ -116,12 +126,21 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const params = computed(() =>
-			Object.entries(props.modelValue.parameters).map(([name, value]) => ({
-				name,
-				value,
-			}))
-		)
+		const params = computed({
+			get: () =>
+				Object.entries(props.modelValue.parameters).map(([name, value]) => ({
+					name,
+					value,
+				})),
+			set: sorted => {
+				const parameters = Object.fromEntries(
+					sorted.map(v => [v.name, v.value])
+				)
+				const newValue = {...props.modelValue, parameters}
+				console.log('sorted', parameters)
+				context.emit('update:modelValue', newValue)
+			},
+		})
 
 		function updateParamName(name: string, newName: string) {
 			const newValue = {...props.modelValue}
@@ -173,19 +192,19 @@ export default defineComponent({
 	&__parameters
 		padding-bottom 1em
 
-		dl
-			display grid
-			grid-template-columns minmax(8em, min-content) 1fr
-			gap $input-horiz-margin
+	&__param
+		display grid
+		margin-bottom 0.5em
+		cursor move
+		grid-template-columns 7em 1fr
+		gap 1em
 
-			& > div
-				display contents
+		dt, dd
+			line-height $input-height
 
-			dt, dd
-				line-height $input-height
-
-			dd
-				display flex
+		dd
+			display flex
+			gap 0.3em
 
 	&__param-name
 		width 8em
