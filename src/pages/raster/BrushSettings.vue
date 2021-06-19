@@ -53,6 +53,10 @@
 								/>
 							</template>
 							<template v-else-if="p.type === 'slider'">
+								<InputSlider
+									:modelValue="p.initial || 0.1"
+									@update:modelValue="updateParamData(name, 'initial', $event)"
+								/>
 								<InputNumber
 									:modelValue="p.min || 0"
 									@update:modelValue="updateParamData(name, 'min', $event)"
@@ -60,10 +64,6 @@
 								<InputNumber
 									:modelValue="p.max || 1"
 									@update:modelValue="updateParamData(name, 'max', $event)"
-								/>
-								<InputSlider
-									:modelValue="p.initial || 0.1"
-									@update:modelValue="updateParamData(name, 'initial', $event)"
 								/>
 							</template>
 						</dd>
@@ -141,6 +141,40 @@ export default defineComponent({
 				context.emit('update:modelValue', newValue)
 			},
 		})
+
+		const paramSchema = {
+			type: 'object',
+			additionalProperties: {
+				oneOf: [
+					{
+						type: 'object',
+						properties: {
+							type: {const: 'slider'},
+							initial: {type: 'number', default: 0},
+							min: {type: 'number', default: 0},
+							max: {type: 'number', default: 1},
+						},
+						required: ['type'],
+					},
+					{
+						type: 'object',
+						properties: {
+							type: {const: 'color'},
+							initial: {type: 'string', default: '#ffffff'},
+						},
+						required: ['type'],
+					},
+					{
+						type: 'object',
+						properties: {
+							type: {const: 'seed'},
+						},
+						required: ['seed'],
+					},
+				],
+				key: 'type',
+			},
+		}
 
 		function updateParamName(name: string, newName: string) {
 			const newValue = {...props.modelValue}
