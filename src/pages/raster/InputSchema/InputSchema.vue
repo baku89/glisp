@@ -1,43 +1,34 @@
 <template>
-	<div class="InputSchema">
-		<InputNumber
-			v-if="schema.type === 'number'"
-			:modelValue="value"
-			@update:modelValue="$emit('update:modelValue', $event)"
-		/>
-		<InputColor
-			v-else-if="schema.type === 'color'"
-			:modelValue="value"
-			@update:modelValue="$emit('update:modelValue', $event)"
-		/>
-		<InputSchemaObject
-			v-else-if="schema.type === 'object'"
-			:modelValue="value"
-			@update:modelValue="$emit('update:modelValue', $event)"
-			:schema="schema"
-		/>
-	</div>
+	<component
+		v-bind:is="`schema-${schema.type}`"
+		:modelValue="validValue"
+		@update:modelValue="$emit('update:modelValue', $event)"
+		:schema="schema"
+	/>
 </template>
 
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
-import InputColor from '@/components/inputs/InputColor.vue'
-import InputNumber from '@/components/inputs/InputNumber.vue'
-
+import InputSchemaColor from './InputSchemaColor.vue'
+import InputSchemaNumber from './InputSchemaNumber.vue'
 import InputSchemaObject from './InputSchemaObject.vue'
+import InputSchemaUnion from './InputSchemaUnion.vue'
 import {Data, Schema} from './type'
+import {getDefault, validate} from './validator'
 
 export default defineComponent({
 	name: 'InputSchema',
 	components: {
-		InputColor,
-		InputNumber,
-		InputSchemaObject,
+		'schema-color': InputSchemaColor,
+		'schema-number': InputSchemaNumber,
+		'schema-object': InputSchemaObject,
+		'schema-union': InputSchemaUnion,
 	},
 	props: {
 		modelValue: {
 			type: [Number, String, Object] as PropType<Data>,
+			required: true,
 		},
 		schema: {
 			type: Object as PropType<Schema>,
@@ -46,30 +37,13 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props) {
-		const value = computed(() => {
-			const value = props.modelValue
-			const schema = props.schema
+		const validValue = computed(() =>
+			validate(props.modelValue, props.schema)
+				? props.modelValue
+				: getDefault(props.schema)
+		)
 
-			switch (schema.type) {
-				case 'const':
-					return (value as any) === schema.value ? value : schema.value
-				case 'number':
-					if (typeof value === 'number') {
-						return value
-					} else {
-						return schema.default || 0
-					}
-				case 'color':
-					if (typeof value === 'string') {
-						return value
-					} else {
-						return schema.default || '#ffffff'
-					}
-			}
-			return value
-		})
-
-		return {value}
+		return {validValue}
 	},
 })
 </script>

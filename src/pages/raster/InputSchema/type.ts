@@ -1,17 +1,25 @@
-export type Schema = SchemaConst | SchemaNumber | SchemaColor | SchemaObject
+export type Schema =
+	| SchemaConst
+	| SchemaNumber
+	| SchemaColor
+	| SchemaObject
+	| SchemaUnion
 
-interface SchemaConst {
+export interface SchemaConst {
 	type: 'const'
-	value: number | string
+	value: DataPrimitive
 	show: boolean
 }
 
-interface SchemaNumber {
+export interface SchemaNumber {
 	type: 'number'
+	ui: 'number' | 'slider' | 'angle'
+	min?: number
+	max?: number
 	default?: number
 }
 
-interface SchemaColor {
+export interface SchemaColor {
 	type: 'color'
 	default?: string
 }
@@ -21,21 +29,20 @@ export interface SchemaObject {
 	properties: {
 		[prop: string]: Schema
 	}
-	required: string[]
 	additionalProperties?: Schema
 }
 
-interface SchemaUnion {
+export interface SchemaUnion {
 	type: 'union'
 	items: {
-		[name: string]: Schema[]
+		[name: string]: Schema
 	}
 }
 
 export type Data = DataPrimitive | DataObject
 export const DATA_META = Symbol('data_meta')
 
-type DataPrimitive = number | string
+export type DataPrimitive = number | string
 
 export interface DataObject {
 	[props: string]: Data

@@ -15,63 +15,8 @@
 			/>
 		</header>
 		<main class="BrushSettings__parameters">
-			<InputSchema v-model="data" :schema="schema" />
 			<h3>Parameters</h3>
-			<Draggable
-				tag="dl"
-				v-model="params"
-				v-bind="{
-					animation: 50,
-					disable: false,
-				}"
-				@start="drag = true"
-				@end="drag = false"
-				item-key="name"
-			>
-				<template #item="{element: {name, value: p}}">
-					<div class="BrushSettings__param">
-						<dt>
-							<InputString
-								class="BrushSettings__param-name"
-								:modelValue="name"
-								@update:modelValue="updateParamName(name, $event)"
-							/>
-						</dt>
-						<dd>
-							<InputDropdown
-								:items="[
-									{value: 'slider', label: 'Slider'},
-									{value: 'color', label: 'Color'},
-									{value: 'seed', label: 'Seed'},
-								]"
-								:modelValue="p.type"
-								@update:modelValue="updateParamType(name, $event)"
-								:updateOnBlur="true"
-							/>
-							<template v-if="p.type === 'color'">
-								<InputColor
-									:modelValue="p.initial"
-									@update:modelValue="updateParamData(name, 'initial', $event)"
-								/>
-							</template>
-							<template v-else-if="p.type === 'slider'">
-								<InputSlider
-									:modelValue="p.initial || 0.1"
-									@update:modelValue="updateParamData(name, 'initial', $event)"
-								/>
-								<InputNumber
-									:modelValue="p.min || 0"
-									@update:modelValue="updateParamData(name, 'min', $event)"
-								/>
-								<InputNumber
-									:modelValue="p.max || 1"
-									@update:modelValue="updateParamData(name, 'max', $event)"
-								/>
-							</template>
-						</dd>
-					</div>
-				</template>
-			</Draggable>
+			<InputSchema :modelValue="modelValue.parameters" :schema="schema" />
 		</main>
 		<main>
 			<h3>Shader</h3>
@@ -91,12 +36,7 @@
 <script lang="ts">
 import _ from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
-import Draggable from 'vuedraggable'
 
-import InputColor from '@/components/inputs/InputColor.vue'
-import InputDropdown from '@/components/inputs/InputDropdown.vue'
-import InputNumber from '@/components/inputs/InputNumber.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import MonacoEditor, {
 	MonacoEditorMarker,
@@ -109,12 +49,7 @@ import InputSchema from './InputSchema/InputSchema.vue'
 export default defineComponent({
 	name: 'BrushSettings',
 	components: {
-		Draggable,
-		InputColor,
-		InputDropdown,
-		InputNumber,
 		InputSchema,
-		InputSlider,
 		InputString,
 		MonacoEditor,
 		SvgIcon,
@@ -147,47 +82,35 @@ export default defineComponent({
 
 		const schema = ref({
 			type: 'object',
-			properties: {
-				radius: {type: 'number'},
-				fill: {type: 'color'},
-			},
-		})
-
-		const data = ref({radius: 10})
-
-		const paramSchema = {
-			type: 'object',
+			properties: {},
 			additionalProperties: {
-				oneOf: [
-					{
+				type: 'union',
+				items: {
+					slider: {
 						type: 'object',
 						properties: {
 							type: {const: 'slider'},
-							initial: {type: 'number', default: 0},
+							default: {type: 'number', default: 0},
 							min: {type: 'number', default: 0},
 							max: {type: 'number', default: 1},
 						},
-						required: ['type'],
 					},
-					{
+					color: {
 						type: 'object',
 						properties: {
 							type: {const: 'color'},
-							initial: {type: 'string', default: '#ffffff'},
+							default: {type: 'string', default: '#ffffff'},
 						},
-						required: ['type'],
 					},
-					{
+					seed: {
 						type: 'object',
 						properties: {
 							type: {const: 'seed'},
 						},
-						required: ['seed'],
 					},
-				],
-				key: 'type',
+				},
 			},
-		}
+		})
 
 		function updateParamName(name: string, newName: string) {
 			const newValue = {...props.modelValue}
@@ -212,7 +135,6 @@ export default defineComponent({
 
 		return {
 			schema,
-			data,
 			params,
 			updateParamName,
 			updateParamType,
