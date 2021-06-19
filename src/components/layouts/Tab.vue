@@ -60,7 +60,9 @@ export default defineComponent({
 
 .Tab
 	display grid
-	gird-template-columns 100%
+	width 100%
+	height 100%
+	grid-template-columns 1fr
 	grid-template-rows 2em 1fr
 
 	&__header

@@ -1,5 +1,7 @@
 <template>
-	<div class="MonacoEditor" ref="rootEl" />
+	<div class="MonacoEditor">
+		<div class="MonacoEditor__editor" ref="editorEl" />
+	</div>
 </template>
 
 <script lang="ts">
@@ -43,17 +45,18 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const rootEl = templateRef('rootEl')
+		const editorEl = templateRef('editorEl')
 
 		let editor: ReturnType<typeof Monaco.editor.create>
 
 		const scheme = inject<Ref<{[name: string]: string}>>('scheme', ref({}))
 
 		onMounted(() => {
-			if (!rootEl.value) return
+			if (!editorEl.value) return
 
-			editor = Monaco.editor.create(rootEl.value as HTMLElement, {
+			editor = Monaco.editor.create(editorEl.value as HTMLElement, {
 				value: props.modelValue,
+				automaticLayout: true,
 				language: props.lang,
 				fontFamily: "'Fira Code'",
 				minimap: {enabled: false},
@@ -372,6 +375,12 @@ export default defineComponent({
 
 <style lang="stylus">
 .MonacoEditor
-	width 100%
-	height 20em
+	position relative
+	overflow hidden
+	height 100%
+
+	&__editor
+		position absolute
+		height 100%
+		inset 0
 </style>
