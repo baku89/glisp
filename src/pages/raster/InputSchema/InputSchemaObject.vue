@@ -20,23 +20,15 @@
 			handle=".handle"
 		>
 			<template #item="{element: {name, data}}">
-				<div class="InputSchemaObject__column">
-					<div class="icon handle">三</div>
-					<label class="label">
-						<InputString
-							class="InputSchemaObject__prop-name"
-							:modelValue="name"
-							@update:modelValue="updateParamName(name, $event)"
-						/>
-					</label>
-					<div class="input">
-						<InputSchema
-							:modelValue="data"
-							@update:modelValue="updateProperty(name, $event)"
-							:schema="schema.additionalProperties"
-						/>
-					</div>
-				</div>
+				<InputSchemaEntry
+					class="InputSchemaObject__column"
+					:name="name"
+					:modelValue="data"
+					@update:modelValue="updateProperty(name, $event)"
+					@update:name="updateName(name, $event)"
+					:schema="schema.additionalProperties"
+					:draggable="true"
+				/>
 			</template>
 		</Draggable>
 	</div>
@@ -47,8 +39,6 @@ import _ from 'lodash'
 import {computed, defineComponent, PropType, toRaw} from 'vue'
 import Draggable from 'vuedraggable'
 
-import InputString from '@/components/inputs/InputString.vue'
-
 import InputSchema from './InputSchema.vue'
 import InputSchemaEntry from './InputSchemaEntry.vue'
 import {Data, DataObject, SchemaObject} from './type'
@@ -58,7 +48,6 @@ export default defineComponent({
 	components: {
 		Draggable,
 		InputSchemaEntry,
-		InputString,
 	},
 	props: {
 		modelValue: {
@@ -99,13 +88,25 @@ export default defineComponent({
 			},
 		})
 
+		function updateName(name: string, newName: string) {
+			const newValue = _.mapKeys(props.modelValue, (_, n) =>
+				n === name ? newName : n
+			)
+			context.emit('update:modelValue', newValue)
+		}
+
 		function updateProperty(name: string, data: Data) {
 			const newValue = {...props.modelValue}
 			newValue[name] = data
 			context.emit('update:modelValue', newValue)
 		}
 
-		return {additionals, updateProperty, toLabel: _.startCase}
+		return {
+			additionals,
+			updateName,
+			updateProperty,
+			toLabel: _.startCase,
+		}
 	},
 })
 </script>
@@ -114,22 +115,12 @@ export default defineComponent({
 @import '~@/components/style/common.styl'
 
 .InputSchemaObject
+	user-select none
+
 	&__column
-		display grid
-		margin-bottom $input-horiz-margin
-		grid-template-columns 1em 7em 1fr
-		gap 1em
+		&:not(:last-child)
+			margin-bottom $input-horiz-margin
 
 		&.ghost
 			visibility hidden
-
-		& > .handle
-			cursor move
-
-		& > .label, & > .icon
-			display block
-			line-height $input-height
-
-			& > *
-				width 7em
 </style>

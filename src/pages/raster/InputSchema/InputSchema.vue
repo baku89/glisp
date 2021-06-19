@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, toRaw} from 'vue'
+import {computed, defineComponent, PropType} from 'vue'
 
 import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
@@ -37,10 +37,7 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props) {
-		const validValue = computed(() =>
-			cast(toRaw(props.modelValue), toRaw(props.schema))
-		)
-
+		const validValue = computed(() => cast(props.modelValue, props.schema))
 		return {validValue}
 	},
 })

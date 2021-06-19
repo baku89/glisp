@@ -1,20 +1,20 @@
 <template>
 	<div class="BrushSettings">
-		<header class="BrushSettings__header">
+		<header class="BrushSettings__header BrushSettings__section">
 			<SvgIcon
 				class="BrushSettings__icon"
 				mode="block"
 				v-html="modelValue.icon"
 			/>
 			<InputString
-				class="BrushSettings__label"
+				class="BrushSettings__label label"
 				:modelValue="modelValue.label"
 				@update:modelValue="
 					$emit('update:modelValue', {...modelValue, label: $event})
 				"
 			/>
 		</header>
-		<main class="BrushSettings__parameters">
+		<section class="BrushSettings__section">
 			<h3>Parameters</h3>
 			<InputSchema
 				:modelValue="modelValue.parameters"
@@ -23,8 +23,8 @@
 				"
 				:schema="schema"
 			/>
-		</main>
-		<main>
+		</section>
+		<section class="BrushSettings__section">
 			<h3>Shader</h3>
 			<MonacoEditor
 				class="BrushSettings__shader"
@@ -35,7 +35,7 @@
 					$emit('update:modelValue', {...modelValue, frag: $event})
 				"
 			/>
-		</main>
+		</section>
 	</div>
 </template>
 
@@ -154,7 +154,6 @@ export default defineComponent({
 .BrushSettings
 	&__header
 		display flex
-		margin-bottom 1em
 
 	&__icon
 		margin-right 1em
@@ -164,8 +163,8 @@ export default defineComponent({
 		width 100%
 		font-size 1.4em
 
-	&__parameters
-		padding-bottom 1em
+	&__section
+		padding-bottom 2em
 
 	&__param
 		display grid

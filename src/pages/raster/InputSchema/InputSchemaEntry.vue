@@ -1,7 +1,23 @@
 <template>
-	<div class="InputSchemaEntry" v-if="schema.type !== 'const'">
-		<div class="icon">・</div>
-		<label class="label">{{ toLabel(name) }}</label>
+	<div
+		class="InputSchemaEntry"
+		:class="{nested}"
+		v-if="schema.type !== 'const'"
+	>
+		<div v-if="!nested" class="icon" :class="{handle: draggable}">
+			{{ draggable ? '三' : '・' }}
+		</div>
+		<label class="label">
+			<template v-if="!draggable">
+				{{ toLabel(name) }}
+			</template>
+			<InputString
+				v-else
+				class="InputSchemaEntry__name label"
+				:modelValue="name"
+				@update:modelValue="$emit('update:name', $event)"
+			/>
+		</label>
 		<div class="input">
 			<InputSchema
 				:modelValue="modelValue"
@@ -14,34 +30,47 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {defineComponent, PropType} from 'vue'
+import {computed, defineComponent, inject, PropType, provide} from 'vue'
+
+import InputString from '@/components/inputs/InputString.vue'
 
 import InputSchema from './InputSchema.vue'
 import {Data, Schema} from './type'
 
 export default defineComponent({
 	name: 'InputSchemaEntry',
+	components: {InputString},
 	props: {
 		name: {
 			type: String,
 			required: true,
 		},
 		modelValue: {
-			type: Object as PropType<Data>,
+			type: [Number, String, Object] as PropType<Data>,
 			required: true,
 		},
 		schema: {
 			type: Object as PropType<Schema>,
 			required: true,
 		},
+		draggable: {
+			type: Boolean,
+			default: false,
+		},
 	},
-	emits: ['update:modelValue'],
+	emits: ['update:modelValue', 'update:name'],
 	beforeCreate: function () {
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema
 	},
 	setup() {
-		return {toLabel: _.startCase}
+		// Depth
+		const depth = inject('InputSchemaObject__depth', 0)
+		provide('InputSchemaObject__depth', depth + 1)
+
+		const nested = computed(() => depth >= 1)
+
+		return {nested, toLabel: _.startCase}
 	},
 })
 </script>
@@ -51,11 +80,19 @@ export default defineComponent({
 
 .InputSchemaEntry
 	display grid
-	margin-bottom $input-horiz-margin
 	grid-template-columns 1em 7em 1fr
 	gap 1em
+
+	&.nested
+		grid-template-columns 4em 1fr
+
+	& > .handle
+		cursor move
 
 	& > .label, & > .icon
 		display block
 		line-height $input-height
+
+	&__name
+		width 100%
 </style>

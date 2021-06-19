@@ -74,5 +74,5 @@ export default defineComponent({
 .InputSchemaUnion
 	display grid
 	grid-template-columns min-content 1fr
-	grid-gap $input-horiz-margin
+	grid-gap 1em
 </style>

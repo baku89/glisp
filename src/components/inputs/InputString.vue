@@ -86,11 +86,17 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputString
+	position relative
 	input()
 	padding 0 0.4rem
 	max-width 100%
 	width 12.6rem
 	color base16('06')
+
+	&.label
+		background none
+		box-shadow inset 0px -2px 0 0 base16('01')
+		color base16('04')
 
 	&:focus
 		box-shadow 0 0 0 1px base16('accent')
