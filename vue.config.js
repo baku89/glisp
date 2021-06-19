@@ -3,9 +3,9 @@ const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
 const argv = require('yargs/yargs')(process.argv.slice(3)).argv
 const _ = require('lodash')
-// const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin')
 
 const PagesToBuild = require('./pages.json')
+const MonacoEditorWebpackPlugin = require('monaco-editor-webpack-plugin')
 
 PagesToBuild.unshift('index')
 
@@ -76,7 +76,10 @@ module.exports = {
 	},
 	filenameHashing: false,
 	configureWebpack: {
-		plugins: [new WorkerPlugin()],
+		plugins: [
+			new WorkerPlugin(),
+			new MonacoEditorWebpackPlugin({languages: ['javascript']}),
+		],
 		output: {
 			globalObject: 'globalThis',
 			filename: '[name].js',
@@ -130,17 +133,17 @@ module.exports = {
 		config.module
 			.rule('glsl')
 			.test(/\.(glsl|vs|fs|vert|frag)$/)
-			.use('raw-loader')
+			.use('raw')
 			.loader('raw-loader')
 			.end()
-			.use('glslify-loader')
+			.use('glslify')
 			.loader('glslify-loader')
 
-		// PEGJS
+		// Peg.js
 		config.module
 			.rule('pegjs')
 			.test(/\.pegjs$/)
-			.use('raw-loader')
+			.use('raw')
 			.loader('raw-loader')
 			.end()
 
@@ -148,15 +151,19 @@ module.exports = {
 		config.module
 			.rule('markdown')
 			.test(/\.md$/)
-			.use('raw-loader')
+			.use('raw')
 			.loader('raw-loader')
 			.end()
 
 		// Copy logo.png to dist
-		config
-			.plugin('copy-assets')
-			.use(CopyPlugin, [{patterns: [{from: 'assets/logo.png', to: '.'}]}])
+		config.plugin('copy-assets').use(CopyPlugin, [
+			{
+				patterns: [
+					{from: 'assets/logo.png', to: '.'},
+					{from: 'assets/codicon.ttf', to: '.'},
+				],
+			},
+		])
 	},
-	// plugins: [new MonacoWebpackPlugin()],
 	pages: pages,
 }
