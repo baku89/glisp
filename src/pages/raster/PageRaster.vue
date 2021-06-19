@@ -65,7 +65,12 @@
 					</template>
 					<template #panel-parameters> </template>
 					<template #panel-shader>
-						<MonacoEditor :modelValue="currentBrush.frag" lang="glsl" />
+						<MonacoEditor
+							:modelValue="currentBrush.frag"
+							:markers="shaderErrors"
+							@update:modelValue="onUpdateFrag"
+							lang="glsl"
+						/>
 					</template>
 				</Tab>
 			</Pane>
@@ -187,6 +192,47 @@ export default defineComponent({
 		const currentBrush = computed(() => brushes.value[currentBrushName.value])
 		const parameters = reactive<{[name: string]: any}>({})
 
+		function parseErrorLog(errLog: string | null) {
+			if (!errLog) return []
+
+			var result: {line: number; message: string}[] = []
+			errLog.split('\n').forEach(function (errMsg) {
+				if (errMsg.length < 5) {
+					return
+				}
+				var parts = /^ERROR:\s+(\d+):(\d+):\s*(.*)$/.exec(errMsg)
+				if (parts) {
+					result.push({
+						line: parseInt(parts[2]) || 0,
+						message: parts[3].trim(),
+					})
+				} else if (errMsg.length > 0) {
+					result.push({line: 0, message: errMsg})
+				}
+			})
+			return result
+		}
+
+		function onUpdateFrag(frag: string) {
+			if (!regl.value) return
+
+			const gl = regl.value._gl
+
+			const fragShader = gl.createShader(gl.FRAGMENT_SHADER)
+			if (!fragShader) return
+			gl.shaderSource(fragShader, frag)
+			gl.compileShader(fragShader)
+
+			if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
+				const errLog = gl.getShaderInfoLog(fragShader)
+				shaderErrors.value = parseErrorLog(errLog)
+			} else {
+				// Succeed
+				shaderErrors.value = []
+				brushes.value[currentBrushName.value].frag = frag
+			}
+		}
+
 		// Update brush parameters
 		watch(
 			currentBrushName,
@@ -220,7 +266,7 @@ export default defineComponent({
 
 		// WebGL contexts
 		let regl = shallowRef<Regl.Regl | null>(null)
-		let updateFunc = computed(() => {
+		let drawFunc = computed(() => {
 			if (!regl.value) return null
 			const prop = regl.value.prop as any
 
@@ -238,6 +284,8 @@ export default defineComponent({
 		})
 		const inputTexture = shallowRef<Regl.Texture2D | null>(null)
 		watch(inputTexture, (_, old) => old?.destroy())
+
+		const shaderErrors = ref<any[]>([])
 
 		onMounted(() => {
 			if (!canvasEl.value) return
@@ -283,7 +331,7 @@ export default defineComponent({
 		})
 
 		function render() {
-			if (!pressed.value || !updateFunc.value || !inputTexture.value) return
+			if (!pressed.value || !drawFunc.value || !inputTexture.value) return
 
 			const params = {
 				inputTexture: inputTexture.value,
@@ -306,7 +354,7 @@ export default defineComponent({
 				;(params as any)[name] = value
 			}
 
-			updateFunc.value(params)
+			drawFunc.value(params)
 			inputTexture.value({copy: true})
 		}
 
@@ -321,6 +369,8 @@ export default defineComponent({
 			brushes,
 			currentBrush,
 			parameters,
+			shaderErrors,
+			onUpdateFrag,
 		}
 	},
 })
