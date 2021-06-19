@@ -15,6 +15,7 @@
 			/>
 		</header>
 		<main class="BrushSettings__parameters">
+			<InputSchema v-model="data" :schema="schema" />
 			<h3>Parameters</h3>
 			<Draggable
 				tag="dl"
@@ -89,7 +90,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {computed, defineComponent, PropType} from 'vue'
+import {computed, defineComponent, PropType, ref} from 'vue'
 import Draggable from 'vuedraggable'
 
 import InputColor from '@/components/inputs/InputColor.vue'
@@ -103,6 +104,7 @@ import MonacoEditor, {
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import {BrushDefinition} from './brush-definition'
+import InputSchema from './InputSchema/InputSchema.vue'
 
 export default defineComponent({
 	name: 'BrushSettings',
@@ -111,6 +113,7 @@ export default defineComponent({
 		InputColor,
 		InputDropdown,
 		InputNumber,
+		InputSchema,
 		InputSlider,
 		InputString,
 		MonacoEditor,
@@ -138,10 +141,19 @@ export default defineComponent({
 					sorted.map(v => [v.name, v.value])
 				)
 				const newValue = {...props.modelValue, parameters}
-				console.log('sorted', parameters)
 				context.emit('update:modelValue', newValue)
 			},
 		})
+
+		const schema = ref({
+			type: 'object',
+			properties: {
+				radius: {type: 'number'},
+				fill: {type: 'color'},
+			},
+		})
+
+		const data = ref({radius: 10})
 
 		const paramSchema = {
 			type: 'object',
@@ -199,6 +211,8 @@ export default defineComponent({
 		}
 
 		return {
+			schema,
+			data,
 			params,
 			updateParamName,
 			updateParamType,
