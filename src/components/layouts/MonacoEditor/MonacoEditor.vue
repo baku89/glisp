@@ -13,10 +13,17 @@ import {
 	inject,
 	onMounted,
 	onUnmounted,
+	PropType,
 	Ref,
 	ref,
 	watch,
 } from 'vue'
+
+interface Marker {
+	line: number
+	message: string
+	severity?: 'hint' | 'info' | 'warn' | 'error'
+}
 
 export default defineComponent({
 	name: 'MonacoEditor',
@@ -28,6 +35,10 @@ export default defineComponent({
 		lang: {
 			type: String,
 			default: 'glisp',
+		},
+		markers: {
+			type: Array as PropType<Marker[]>,
+			default: () => [],
 		},
 	},
 	emits: ['update:modelValue'],
@@ -228,7 +239,7 @@ export default defineComponent({
 							'editorSuggestWidget.highlightForeground': accent,
 							'editorSuggestWidget.selectedBackground': base01,
 							'editorHoverWidget.foreground': base05,
-							'editorHoverWidget.background': '#00000000',
+							'editorHoverWidget.background': base00,
 							'keybindingLabel.background': '#ff000000',
 							'keybindingLabel.foreground': base00,
 							'keybindingLabel.border': base04,
@@ -250,10 +261,6 @@ export default defineComponent({
 							'peekViewTitle.background': base02,
 							'peekViewTitleDescription.foreground': base03,
 							'peekViewTitleLabel.foreground': base05,
-							'merge.currentContentBackground': base09 + '40',
-							'merge.currentHeaderBackground': base09 + '40',
-							'merge.incomingContentBackground': base0E + '60',
-							'merge.incomingHeaderBackground': base0E + '60',
 							'editorOverviewRuler.currentContentForeground': '#f00',
 							'editorOverviewRuler.incomingContentForeground': base0E,
 							'editorOverviewRuler.commonContentForeground': base0A,
@@ -310,10 +317,41 @@ export default defineComponent({
 
 			editor.onDidChangeModelContent(e => {
 				const value = editor.getValue()
-				if (props.modelValue !== value) {
-					context.emit('update:modelValue', value, e)
-				}
+				context.emit('update:modelValue', value, e)
 			})
+
+			// Markers
+			function getSeverity(severity: Marker['severity'] = 'error') {
+				switch (severity) {
+					case 'hint':
+						return Monaco.MarkerSeverity.Hint
+					case 'info':
+						return Monaco.MarkerSeverity.Info
+					case 'warn':
+						return Monaco.MarkerSeverity.Warning
+					case 'error':
+						return Monaco.MarkerSeverity.Error
+				}
+			}
+
+			watch(
+				() => props.markers,
+				markers => {
+					Monaco.editor.setModelMarkers(
+						editor.getModel() as any,
+						'errors',
+						markers.map(m => ({
+							startLineNumber: m.line,
+							endLineNumber: m.line,
+							startColumn: 0,
+							endColumn: 1000,
+							message: m.message,
+							severity: getSeverity(m.severity),
+						}))
+					)
+				},
+				{immediate: true}
+			)
 
 			watch(
 				() => props.modelValue,
