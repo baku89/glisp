@@ -29,6 +29,7 @@ export interface SchemaObject {
 	properties: {
 		[prop: string]: Schema
 	}
+	required: string[]
 	additionalProperties?: Schema
 }
 

@@ -18,7 +18,6 @@ frag: |
 parameters:
   color:
     type: 'color'
-    default: 'yellow'
   radius:
     type: 'slider'
     default: .1

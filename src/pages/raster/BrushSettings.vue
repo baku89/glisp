@@ -97,7 +97,10 @@ export default defineComponent({
 						properties: {
 							type: {type: 'const', value: 'slider'},
 							default: {type: 'number', default: 0},
+							min: {type: 'number', default: 0},
+							max: {type: 'number', default: 1},
 						},
+						required: ['type'],
 					},
 					color: {
 						type: 'object',
@@ -105,12 +108,14 @@ export default defineComponent({
 							type: {type: 'const', value: 'color'},
 							default: {type: 'color', default: '#ffffff'},
 						},
+						required: ['type'],
 					},
 					seed: {
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'seed'},
 						},
+						required: ['type'],
 					},
 				},
 			},

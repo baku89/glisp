@@ -27,18 +27,32 @@ export function validate(data: Data, schema: Schema): boolean {
 			return typeof data === 'string'
 		case 'object': {
 			if (!(data instanceof Object)) return false
-			const required = _.entries(schema.properties).every(([prop, sch]) =>
-				validate(data[prop], sch)
+
+			const dataProps = _.keys(data)
+			const definedProps = _.keys(schema.properties)
+			const requiredProps = schema.required || []
+			const optionalProps = _.intersection(
+				dataProps,
+				_.difference(definedProps, requiredProps)
 			)
+			const additionalProps = _.difference(dataProps, definedProps)
+
+			const required = requiredProps.every(name =>
+				validate(data[name], schema.properties[name])
+			)
+
+			const optional = optionalProps.every(name =>
+				validate(data[name], schema.properties[name])
+			)
+
 			if (schema.additionalProperties) {
 				const sch = schema.additionalProperties
-				const additionals = _.difference(
-					_.keys(data),
-					_.keys(schema.properties)
-				).every(name => validate(data[name], sch))
-				return required && additionals
+				const additional = additionalProps.every(name =>
+					validate(data[name], sch)
+				)
+				return required && optional && additional
 			} else {
-				return required
+				return required && optional
 			}
 		}
 		case 'union':
@@ -46,9 +60,7 @@ export function validate(data: Data, schema: Schema): boolean {
 	}
 }
 
-;(window as any).isNumber = _.isNumber
-
-export function cast(data: Data | null, schema: Schema): Data {
+export function cast(data: Data | undefined, schema: Schema): Data {
 	switch (schema.type) {
 		case 'const':
 			return schema.value
@@ -70,9 +82,9 @@ export function cast(data: Data | null, schema: Schema): Data {
 			return obj
 		}
 		case 'union': {
-			const match = data === null ? null : matchUnion(data, schema)
+			const match = data === undefined ? undefined : matchUnion(data, schema)
 			if (!match) {
-				return cast(null, _.values(schema.items)[0])
+				return cast(undefined, _.values(schema.items)[0])
 			} else {
 				return data as Data
 			}

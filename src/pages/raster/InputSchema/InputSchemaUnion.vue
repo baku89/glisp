@@ -57,9 +57,7 @@ export default defineComponent({
 
 		function switchSchema(name: string) {
 			const schema = props.schema.items[name]
-			const newData = cast(null, schema)
-			console.log(newData)
-
+			const newData = cast(undefined, schema)
 			context.emit('update:modelValue', newData)
 		}
 
