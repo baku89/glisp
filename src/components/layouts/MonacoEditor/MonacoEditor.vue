@@ -56,14 +56,19 @@ export default defineComponent({
 				language: props.lang,
 				fontFamily: "'Fira Code'",
 				minimap: {enabled: false},
+				glyphMargin: false,
+				lineDecorationsWidth: 0,
+				lineNumbersMinChars: 0,
+				scrollBeyondLastLine: false,
 				folding: false,
 				lineNumbers: 'off',
 				lineHeight: 21,
 				fontLigatures: true,
 				fontSize: 14,
 				renderLineHighlight: 'none',
+				overviewRulerLanes: 0,
+				wordWrap: 'on',
 			})
-			;(window as any).monaco = editor
 
 			watch(
 				() => scheme,
@@ -102,13 +107,19 @@ export default defineComponent({
 							{token: 'comment', foreground: base03},
 							{token: 'white', foreground: base03},
 							{token: 'number', foreground: base09},
-							{token: 'delimiter.slash', foreground: base0A},
 							{token: 'delimiter', foreground: base05},
+							{token: 'delimiter.slash', foreground: base0A},
 							{token: 'constant', foreground: base09},
 							{token: 'support', foreground: base0C},
 							{token: 'identifier', foreground: base08},
 							{token: 'function', foreground: base0D},
 							{token: 'keyword', foreground: base0E},
+
+							// XML
+							{token: 'delimiter.xml', foreground: base05},
+							{token: 'tag.xml', foreground: base0E},
+							{token: 'attribute.name.xml', foreground: base0D},
+							{token: 'attribute.value.xml', foreground: base09},
 						],
 						colors: {
 							'editorBracketMatch.background': base02,

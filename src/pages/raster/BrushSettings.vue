@@ -1,10 +1,13 @@
 <template>
 	<div class="BrushSettings">
 		<header class="BrushSettings__header BrushSettings__section">
-			<SvgIcon
+			<InputSvgIcon
 				class="BrushSettings__icon"
 				mode="block"
-				v-html="modelValue.icon"
+				:modelValue="modelValue.icon"
+				@update:modelValue="
+					$emit('update:modelValue', {...modelValue, icon: $event})
+				"
 			/>
 			<InputString
 				class="BrushSettings__label label"
@@ -44,10 +47,10 @@ import _ from 'lodash'
 import {computed, defineComponent, PropType, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
+import InputSvgIcon from '@/components/inputs/InputSvgIcon.vue'
 import MonacoEditor, {
 	MonacoEditorMarker,
 } from '@/components/layouts/MonacoEditor'
-import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import {BrushDefinition} from './brush-definition'
 import InputSchema from './InputSchema/InputSchema.vue'
@@ -57,8 +60,8 @@ export default defineComponent({
 	components: {
 		InputSchema,
 		InputString,
+		InputSvgIcon,
 		MonacoEditor,
-		SvgIcon,
 	},
 	props: {
 		modelValue: {
@@ -162,7 +165,7 @@ export default defineComponent({
 
 	&__icon
 		margin-right 1em
-		width 2em
+		font-size 1.4em
 
 	&__label
 		width 100%

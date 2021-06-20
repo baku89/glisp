@@ -139,7 +139,11 @@ export default defineComponent({
 		const tweakingHSV = shallowRef<ColorDict>({})
 		const tweakingHSVDelta = shallowRef<ColorDict>({})
 
-		const {origin, pos, isDragging: tweaking} = useDraggable(buttonEl, {
+		const {
+			origin,
+			pos,
+			isDragging: tweaking,
+		} = useDraggable(buttonEl, {
 			lockPointer: true,
 			onClick() {
 				pickerOpened.value = !pickerOpened.value
