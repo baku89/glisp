@@ -92,3 +92,138 @@ directional-blur:
       default: 0.005
       min: 0
       max: .02
+
+polar-marble:
+  label: Polar Marble
+  icon: >
+    <circle cx="16" cy="16" r="13"/>
+    <circle cx="7" cy="14" r="0.5"/>
+    <path d="M16,7c-3.3,0-6.2,1.8-7.8,4.5"/>
+    <path d="M3,16c9,7,16-11,26-1"/>
+    <path d="M3,17c12,15,17-3,26,0"/>
+  frag: >-
+    precision mediump float;
+    uniform sampler2D inputTexture;
+    uniform float size;
+    uniform float speed;
+    uniform float seed;
+    varying vec2 uv;
+
+    #define PI 3.1415926535897
+
+    highp float random(vec2 co) {
+      highp float a = 12.9898;
+      highp float b = 78.233;
+      highp float c = 43758.5453;
+      highp float dt = dot(co.xy, vec2(a, b));
+      highp float sn = mod(dt, 3.14);
+      return fract(sin(sn) * c);
+    }
+
+    vec3 mod289(vec3 x) {
+      return x - floor(x * (1.0 / 289.0)) * 289.0;
+    }
+
+    vec2 mod289(vec2 x) {
+      return x - floor(x * (1.0 / 289.0)) * 289.0;
+    }
+
+    vec3 permute(vec3 x) {
+      return mod289(((x*34.0)+1.0)*x);
+    }
+
+    float snoise(vec2 v) {
+      const vec4 C = vec4(
+        0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+        0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+        -0.577350269189626,  // -1.0 + 2.0 * C.x
+        0.024390243902439); // 1.0 / 41.0
+      // First corner
+      vec2 i  = floor(v + dot(v, C.yy) );
+      vec2 x0 = v -   i + dot(i, C.xx);
+
+      // Other corners
+      vec2 i1;
+      i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec4 x12 = x0.xyxy + C.xxzz;
+      x12.xy -= i1;
+
+      // Permutations
+      // Avoid truncation effects in permutation
+      i = mod289(i); 
+      vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+        + i.x + vec3(0.0, i1.x, 1.0 ));
+
+      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+      m = m*m ;
+      m = m*m ;
+
+      // Gradients: 41 points uniformly over a line, mapped onto a diamond.
+      // The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
+
+      vec3 x = 2.0 * fract(p * C.www) - 1.0;
+      vec3 h = abs(x) - 0.5;
+      vec3 ox = floor(x + 0.5);
+      vec3 a0 = x - ox;
+
+      // Normalise gradients implicitly by scaling m
+      // Approximation of: m *= inversesqrt( a0*a0 + h*h );
+      m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+
+      // Compute final noise value at P
+      vec3 g;
+      g.x  = a0.x  * x0.x  + h.x  * x0.y;
+      g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+      return 130.0 * dot(m, g);
+    }
+
+
+    float random1(float seed) {
+      return random(vec2(seed * 431.34, 0.0));
+    }
+
+
+    vec2 random2(float seed) {
+      return vec2(
+        random(vec2(seed, 0.0)),
+        random(vec2(seed + 123.0, 0.0))
+        );
+    }
+
+
+    vec2 base(float angle) {
+      return vec2(cos(angle), sin(angle));
+    }
+
+
+    float brightness(vec4 color) {
+      return dot(color.rgb, vec3(0.3333333));
+    }
+
+
+    void main() {
+      vec4 oc = texture2D(inputTexture, uv);
+
+      vec2 perlinSeed = random2(seed) + uv / size;
+      float angle = snoise(perlinSeed) * 2.0 * PI + random1(seed);
+
+      float bri = brightness(oc);
+      float amp = mix(0.5, 1.9, bri);
+
+      vec2 offset = base(angle) * speed;
+
+      gl_FragColor = texture2D(inputTexture, uv + offset);
+    }
+  parameters:
+    size:
+      type: slider
+      default: 1
+      min: 0
+      max: 1
+    speed:
+      type: slider
+      default: 0.01
+      min: 0
+      max: 0.05
+    seed:
+      type: seed
