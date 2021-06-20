@@ -1,8 +1,7 @@
 import {BrushDefinition} from '../brush-definition'
-import brush from './brush.yml'
-import pinch from './pinch.yml'
+import brushes from './brushes.yml'
 
-const BuiltinBrushes = {brush, pinch} as {
+const BuiltinBrushes = brushes as {
 	[name: string]: BrushDefinition
 }
 export default BuiltinBrushes

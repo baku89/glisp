@@ -216,6 +216,9 @@ export default defineComponent({
 						case 'slider':
 							parameters[name] = param.default || 0
 							break
+						case 'angle':
+							parameters[name] = param.default || 0
+							break
 						case 'color':
 							parameters[name] = param.default || '#ffffff'
 							break

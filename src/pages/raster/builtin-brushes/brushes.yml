@@ -1,0 +1,86 @@
+brush:
+  label: 'Brush'
+  icon: |
+    <path d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
+    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+  frag: |
+    precision mediump float;
+    uniform sampler2D inputTexture;
+    uniform vec2 cursor;
+    uniform vec4 color;
+    uniform float radius;
+    varying vec2 uv;
+    void main() {
+      vec4 tex = texture2D(inputTexture, uv);
+      float t = smoothstep(radius, 0.0, distance(uv, cursor));
+      gl_FragColor = mix(tex, color, t);
+    }
+  parameters:
+    color:
+      type: 'color'
+    radius:
+      type: 'slider'
+      default: .1
+
+pinch:
+  label: 'Pinch'
+  icon: |
+    <rect x="23.4" y="2.8" transform="matrix(0.7071 -0.7071 0.7071 0.7071 1.4584 20.5208)" width="4.2" height="11.3"/>
+    <polyline points="26,12 20,24 4,30 10,14 22,8 "/>
+    <line x1="4" y1="30" x2="14" y2="20"/>
+    <circle cx="15" cy="19" r="2"/>
+  frag: |
+    precision mediump float;
+    uniform sampler2D inputTexture;
+    uniform vec2 cursor;
+    uniform float speed;
+    uniform float radius;
+    varying vec2 uv;
+    void main() {
+      float t = smoothstep(radius, 0.0, distance(uv, cursor));
+
+      vec2 dir = normalize(uv - cursor) * t * speed;
+      vec2 newUv = uv + dir;
+
+      gl_FragColor = texture2D(inputTexture, newUv);
+    }
+  parameters:
+    speed:
+      type: 'slider'
+      min: -0.05
+      max: 0.05
+      default: 0.01
+    radius:
+      type: 'slider'
+
+directional-blur:
+  label: 'Directional Blur'
+  icon: |
+    <path d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
+    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+  frag: |
+    precision mediump float;
+    uniform sampler2D inputTexture;
+    uniform float angle;
+    uniform float width;
+    varying vec2 uv;
+    void main() {
+      vec2 step = vec2(cos(angle), -sin(angle)) * width;
+      vec4 tex = vec4(0.0);
+      
+      for (int i = -3; i <= 3; i++) {
+        tex += texture2D(inputTexture, uv + step * float(i) / 3.0);
+      }
+
+      tex /= 7.0;
+      
+      gl_FragColor = tex;
+    }
+  parameters:
+    angle:
+      type: 'angle'
+    width:
+      type: 'slider'
+      default: 0.01
+      min: 0
+      max: .1

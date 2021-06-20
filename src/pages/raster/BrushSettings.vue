@@ -105,6 +105,14 @@ export default defineComponent({
 						},
 						required: ['type'],
 					},
+					angle: {
+						type: 'object',
+						properties: {
+							type: {type: 'const', value: 'angle'},
+							default: {type: 'number', default: 0},
+						},
+						required: ['type'],
+					},
 					color: {
 						type: 'object',
 						properties: {

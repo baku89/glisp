@@ -8,6 +8,12 @@
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
+		<template v-else-if="type === 'angle'">
+			<InputRotery
+				:modelValue="modelValue"
+				@update:modelValue="$emit('update:modelValue', $event)"
+			/>
+		</template>
 		<template v-else-if="type === 'color'">
 			<InputColor
 				:modelValue="modelValue"
@@ -34,6 +40,7 @@ import {defineComponent, PropType} from 'vue'
 
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
+import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 
@@ -42,6 +49,7 @@ export default defineComponent({
 	components: {
 		InputCheckbox,
 		InputColor,
+		InputRotery,
 		InputSeed,
 		InputSlider,
 	},
