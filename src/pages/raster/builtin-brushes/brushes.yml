@@ -1,7 +1,8 @@
 brush:
-  label: 'Brush'
+  label: Brush
   icon: |
-    <path d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
+    <path
+    d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
     <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
   frag: |
     precision mediump float;
@@ -10,17 +11,25 @@ brush:
     uniform vec4 color;
     uniform float radius;
     varying vec2 uv;
+
+    vec4 blendOver(vec4 A, vec4 B) {
+      float alpha = B.a + A.a * (1. - B.a);
+      vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
+      return vec4(rgb, alpha);
+    }
+
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
-      float t = smoothstep(radius, 0.0, distance(uv, cursor));
-      gl_FragColor = mix(tex, color, t);
+      float t = smoothstep(radius, 0., distance(uv, cursor));
+      vec4 blended = blendOver(tex, color);
+      gl_FragColor = mix(tex, blended, t);
     }
   parameters:
     color:
-      type: 'color'
+      type: color
     radius:
-      type: 'slider'
-      default: .1
+      type: slider
+      default: 0.1
 
 pinch:
   label: 'Pinch'
@@ -95,13 +104,13 @@ directional-blur:
 
 polar-marble:
   label: Polar Marble
-  icon: >
+  icon: |
     <circle cx="16" cy="16" r="13"/>
     <circle cx="7" cy="14" r="0.5"/>
     <path d="M16,7c-3.3,0-6.2,1.8-7.8,4.5"/>
     <path d="M3,16c9,7,16-11,26-1"/>
     <path d="M3,17c12,15,17-3,26,0"/>
-  frag: >-
+  frag: |
     precision mediump float;
     uniform sampler2D inputTexture;
     uniform float size;
