@@ -2,7 +2,7 @@
 	<div class="PageRaster">
 		<GlobalMenu2>
 			<template #left>
-				<GlobalMenu2Breadcumb :items="[{label: 'Image Editor'}]" />
+				<GlobalMenu2Breadcumb :items="[{label: 'Raster'}]" />
 			</template>
 		</GlobalMenu2>
 		<Splitpanes class="glisp-theme" @resize="controlPaneWidth = $event[1].size">
@@ -28,7 +28,7 @@
 				<ToolSelector
 					class="PageRaster__tool-selector"
 					v-model="currentBrushName"
-					:tools="brushes"
+					v-model:tools="brushes"
 				/>
 				<dl class="PageRaster__params">
 					<template
@@ -190,15 +190,15 @@ export default defineComponent({
 		})
 
 		// Brushes
-		const brushes = reactive(BuiltinBrushes)
+		const brushes = ref(BuiltinBrushes)
 		const currentBrushName = useLocalStorage(
 			'raster__currentBrushName',
 			'brush'
 		)
 		const currentBrush = computed({
-			get: () => brushes[currentBrushName.value],
+			get: () => brushes.value[currentBrushName.value],
 			set: v => {
-				brushes[currentBrushName.value] = v
+				brushes.value[currentBrushName.value] = v
 			},
 		})
 		const params = reactive<{[name: string]: any}>({})

@@ -14,23 +14,21 @@
 				</span>
 			</li>
 		</ul>
-		<div class="ToolSelector__new">
+		<button class="ToolSelector__new" @click="duplicateCurrentTool">
 			<SvgIcon mode="block" class="icon">
 				<path d="M16 2 L16 30 M2 16 L30 16" />
 			</SvgIcon>
-		</div>
+		</button>
 	</div>
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType} from 'vue'
+import _ from 'lodash'
+import {defineComponent, PropType, toRaw} from 'vue'
 
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
-interface Tool {
-	label: string
-	icon: string
-}
+import {BrushDefinition} from './brush-definition'
 
 export default defineComponent({
 	name: 'ToolSelector',
@@ -41,10 +39,24 @@ export default defineComponent({
 			required: true,
 		},
 		tools: {
-			type: Object as PropType<{[name: string]: Tool}>,
+			type: Object as PropType<{[name: string]: BrushDefinition}>,
+			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
+	emits: ['update:modelValue', 'update:tools'],
+	setup(props, context) {
+		function duplicateCurrentTool() {
+			const tools = toRaw(props.tools)
+
+			const name = props.modelValue + '_copy'
+			const tool = _.cloneDeep(tools[props.modelValue])
+			tool.label += ' Copy'
+
+			context.emit('update:tools', {...tools, [name]: tool})
+		}
+
+		return {duplicateCurrentTool}
+	},
 })
 </script>
 
@@ -83,9 +95,12 @@ $size = 3em
 			background base16('accent')
 			color base16('00')
 
-		&:hover .ToolSelector__label
-			margin-left 0.5em
-			opacity 1 !important
+		&:hover
+			color base16('accent')
+
+			.ToolSelector__label
+				margin-left 0.5em
+				opacity 1 !important
 
 	&__icon
 		display block !important
@@ -109,7 +124,7 @@ $size = 3em
 		width max-content
 
 	&__new
-		margin: $size * 0.15
+		margin: ($size * 0.15)
 		width: $size * 0.7
 		height: $size * 0.7
 		border 1px solid $color-frame
@@ -117,6 +132,7 @@ $size = 3em
 		color base16('04')
 		glass-bg('float')
 		input-transition(all)
+		opacity 0
 		cursor pointer
 
 		& > .icon
@@ -124,6 +140,12 @@ $size = 3em
 			width 50%
 			height 50%
 
+		&:hover
+			border-color base16('accent')
+			background base16('accent')
+			color base16('00')
+
 		~/:hover &
 			opacity 1
+			transform translateY(10%)
 </style>
