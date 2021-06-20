@@ -118,7 +118,6 @@ export default defineComponent({
 	padding 1rem 0.5rem 1rem 1rem
 	height 100%
 	text-align left
-	user-select none
 
 	.fira-code
 		font-monospace()

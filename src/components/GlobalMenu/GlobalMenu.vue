@@ -101,7 +101,6 @@ $height = 3.4rem
 	overflow visible
 	height $height
 	border-bottom 1px solid $color-frame
-	user-select none
 
 	&.title-bar-macos
 		padding-left 74px

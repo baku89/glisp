@@ -307,9 +307,7 @@ export default defineComponent({
 <style lang="stylus">
 .ViewExpTree
 	overflow hidden
-	// padding-left 1rem
 	width 100%
-	user-select none
 
 	&.destructed
 		padding-left 0

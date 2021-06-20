@@ -141,7 +141,6 @@ export default defineComponent({
 	&__header
 		position relative
 		padding 1rem 1.2rem 0.5rem
-		user-select none
 
 	&__title
 		font-weight bold

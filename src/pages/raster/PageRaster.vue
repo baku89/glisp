@@ -442,7 +442,6 @@ html, body
 	display grid
 	height 100vh
 	background transparent
-	user-select none
 	grid-template-rows auto 1fr
 
 	&__bg

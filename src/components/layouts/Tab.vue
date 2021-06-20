@@ -75,7 +75,6 @@ export default defineComponent({
 		color base16('05', 0.5)
 		text-align center
 		line-height 2em
-		user-select none
 		input-transition()
 
 		&:hover

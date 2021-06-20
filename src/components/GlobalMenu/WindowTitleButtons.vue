@@ -89,7 +89,6 @@ export default defineComponent({
 .WindowTitleButtons
 	display grid
 	height 100%
-	user-select none
 	grid-template-columns repeat(3, 46px)
 	-webkit-app-region no-drag
 

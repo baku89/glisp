@@ -35,7 +35,6 @@ export default defineComponent({
 	border-radius 0.3rem
 	background var(--opaque)
 	white-space nowrap
-	user-select none
 
 	&__item
 		padding 0 1rem

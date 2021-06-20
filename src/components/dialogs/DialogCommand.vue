@@ -78,7 +78,6 @@ export default defineComponent({
 	position relative
 	height 100%
 	text-align left
-	user-select none
 	glass-bg('pane')
 
 	.fira-code

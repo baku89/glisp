@@ -144,7 +144,6 @@ export default defineComponent({
 
 .InputSchemaObject
 	display table
-	user-select none
 
 	&__column
 		&:not(:last-child)

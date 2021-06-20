@@ -111,7 +111,6 @@ export default defineComponent({
 	&__label
 		margin-left 0.3em
 		color base16('05')
-		user-select none
 
 	// Exp
 	&.exp > &__frame

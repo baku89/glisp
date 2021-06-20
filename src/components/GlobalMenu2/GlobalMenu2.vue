@@ -17,7 +17,6 @@ $height = 3.4em
 	height $height
 	border-bottom 1px solid $color-frame
 	glass-bg('pane')
-	user-select none
 	--height $height
 
 	&__title
