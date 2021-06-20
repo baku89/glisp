@@ -18,6 +18,8 @@
 					<canvas
 						class="PageRaster__canvas"
 						ref="canvas"
+						:width="canvasSize[0]"
+						:height="canvasSize[1]"
 						:style="{
 							transform: `matrix(${viewTransform.join(',')})`,
 						}"
@@ -160,8 +162,7 @@ export default defineComponent({
 		const controlPaneWidth = useLocalStorage('controlPaneWidth', 50)
 		const viewTransform = ref(mat2d.create())
 
-		const imgUrl = '/default_img.jpg'
-		const imgSize = ref(vec2.fromValues(1, 1))
+		const canvasSize = ref([1024, 1024])
 
 		const {elementX: viewportX, elementY: viewportY} =
 			useMouseInElement(viewportEl)
@@ -171,8 +172,8 @@ export default defineComponent({
 			const xform = vec2.fromValues(viewportX.value, viewportY.value)
 			const xformInv = mat2d.invert(mat2d.create(), viewTransform.value)
 			vec2.transformMat2d(xform, xform, xformInv)
-			xform[0] = xform[0] / imgSize.value[0]
-			xform[1] = 1 - xform[1] / imgSize.value[1]
+			xform[0] = xform[0] / canvasSize.value[0]
+			xform[1] = 1 - xform[1] / canvasSize.value[1]
 			return xform
 		})
 
@@ -235,14 +236,14 @@ export default defineComponent({
 		)
 
 		// WebGL contexts
-		let regl = shallowRef<Regl.Regl | null>(null)
+		const regl = shallowRef<Regl.Regl | null>(null)
 
 		const {validFrag, shaderErrors} = useFragShaderValidator(
 			computed(() => currentBrush.value.frag),
 			regl
 		)
 
-		let drawFunc = computed(() => {
+		const draw = computed(() => {
 			if (!regl.value) return null
 			const prop = regl.value.prop as any
 
@@ -258,24 +259,11 @@ export default defineComponent({
 				uniforms,
 			})
 		})
-		const inputTexture = shallowRef<Regl.Texture2D | null>(null)
-		watch(inputTexture, (_, old) => old?.destroy())
 
-		onMounted(() => {
-			if (!canvasEl.value) return
+		const passthru = computed(() => {
+			if (!regl.value) return
 
-			const canvas = canvasEl.value as HTMLCanvasElement
-			const _gl = Regl({
-				attributes: {
-					preserveDrawingBuffer: true,
-				},
-				canvas,
-			})
-			regl.value = _gl
-
-			inputTexture.value = _gl.texture()
-
-			const passthru = _gl({
+			return regl.value({
 				...REGL_QUAD_DEFAULT,
 				frag: `
 					precision mediump float;
@@ -285,37 +273,44 @@ export default defineComponent({
 						gl_FragColor = texture2D(inputTexture, uv);
 					}`,
 				uniforms: {
-					inputTexture: (_gl.prop as any)('inputTexture'),
+					inputTexture: (regl.value.prop as any)('inputTexture'),
 				},
 			})
+		})
 
-			const img = new Image()
-			img.src = imgUrl
+		let fbo: [Regl.Framebuffer2D, Regl.Framebuffer2D] | null = null
 
-			img.onload = () => {
-				imgSize.value = vec2.fromValues(img.width, img.height)
-				canvas.width = img.width
-				canvas.height = img.height
-				inputTexture.value = _gl.texture({
-					wrapS: 'mirror',
-					wrapT: 'mirror',
-					data: img,
-					min: 'linear',
-					mag: 'linear',
-				})
+		onMounted(() => {
+			if (!canvasEl.value) return
 
-				const c = _gl.frame(() => {
-					passthru({inputTexture: inputTexture.value})
-					c.cancel()
-				})
+			const canvas = canvasEl.value as HTMLCanvasElement
+			const _gl = Regl({
+				attributes: {
+					// preserveDrawingBuffer: true,
+				},
+				extensions: ['OES_texture_float'],
+				canvas,
+			})
+			regl.value = _gl
+
+			const fboOptions: Regl.FramebufferOptions = {
+				radius: 1024,
+				colorType: 'float',
+				colorFormat: 'rgba',
 			}
+
+			fbo = [_gl.framebuffer(fboOptions), _gl.framebuffer(fboOptions)]
+
+			loadImage('/default_img.jpg')
 		})
 
 		function render() {
-			if (!pressed.value || !drawFunc.value || !inputTexture.value) return
+			if (!pressed.value || !draw.value || !passthru.value || !fbo) return
+			const _draw = draw.value
+			const _fbo = fbo
 
 			const params = {
-				inputTexture: inputTexture.value,
+				inputTexture: fbo[1],
 				cursor: cursorPos.value,
 			}
 
@@ -335,8 +330,28 @@ export default defineComponent({
 				;(params as any)[name] = value
 			}
 
-			drawFunc.value(params)
-			inputTexture.value({copy: true})
+			fbo[0].use(() => _draw(params))
+			passthru.value({inputTexture: fbo[0]})
+
+			fbo = [_fbo[1], _fbo[0]]
+		}
+
+		async function loadImage(url: string) {
+			if (!regl.value || !fbo || !passthru.value) return
+
+			const _regl = regl.value
+			const _fbo = fbo
+			const _passthru = passthru.value
+
+			const img = new Image()
+			img.src = url
+			img.onload = () => {
+				const {width, height} = img
+				canvasSize.value = [width, height]
+				const tex = _regl.texture(img)
+				_fbo[1].use(() => _passthru({inputTexture: tex}))
+				_passthru({inputTexture: _fbo[1]})
+			}
 		}
 
 		function saveImage(e: Event) {
@@ -352,6 +367,7 @@ export default defineComponent({
 		})
 
 		return {
+			canvasSize,
 			viewTransform,
 			brushes,
 			controlPaneWidth,
@@ -410,6 +426,7 @@ glass-bg()
 		position fixed
 		z-index -10
 		display block
+		background-checkerboard(10px)
 		transform-origin 0 0
 		pointer-events none
 

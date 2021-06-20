@@ -144,8 +144,8 @@ labeled-button()
 	&:hover, &:focus
 		background base16('accent')
 
-background-checkerboard()
+background-checkerboard(size = 4px)
 	background-color white
 	background-image linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(135deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(135deg, transparent 75%, #ddd 75%)
-	background-position 0 0, 4px 0, 4px -4px, 0px 4px
-	background-size 8px 8px
+	background-position 0 0, size 0, size (-1 * size), 0px size
+	background-size 2 * size 2 * size

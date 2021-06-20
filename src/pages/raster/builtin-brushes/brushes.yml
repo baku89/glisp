@@ -13,20 +13,42 @@ brush:
     varying vec2 uv;
 
     vec4 blendOver(vec4 A, vec4 B) {
-      float alpha = B.a + A.a * (1. - B.a);
-      vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
+      float alpha = A.a + B.a * (1. - A.a);
+      vec3 rgb = (A.rgb * A.a + B.rgb * B.a * (1. - A.a)) / alpha;
       return vec4(rgb, alpha);
     }
 
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
       float t = smoothstep(radius, 0., distance(uv, cursor));
-      vec4 blended = blendOver(tex, color);
-      gl_FragColor = mix(tex, blended, t);
+      gl_FragColor = blendOver(tex, color);
     }
   parameters:
     color:
       type: color
+    radius:
+      type: slider
+      default: 0.1
+
+eraser:
+  label: Eraser
+  icon: |
+    <path
+    d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
+    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+  frag: |
+    precision mediump float;
+    uniform sampler2D inputTexture;
+    uniform vec2 cursor;
+    uniform float radius;
+    varying vec2 uv;
+
+    void main() {
+      vec4 tex = texture2D(inputTexture, uv);
+      float t = smoothstep(0., radius, distance(uv, cursor));
+      gl_FragColor = vec4(tex.rgb, tex.a * t);
+    }
+  parameters:
     radius:
       type: slider
       default: 0.1
