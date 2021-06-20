@@ -25,10 +25,13 @@ brush:
 pinch:
   label: 'Pinch'
   icon: |
-    <rect x="23.4" y="2.8" transform="matrix(0.7071 -0.7071 0.7071 0.7071 1.4584 20.5208)" width="4.2" height="11.3"/>
-    <polyline points="26,12 20,24 4,30 10,14 22,8 "/>
-    <line x1="4" y1="30" x2="14" y2="20"/>
-    <circle cx="15" cy="19" r="2"/>
+    <path d="M4.7,22.5"/>
+    <path d="M4.7,9.5"/>
+    <path d="M27,16c0-2.8-2.3-4.6-5.6-5.4C20.6,7.3,18.8,5,16,5s-4.6,2.3-5.4,5.6C7.3,11.4,5,13.2,5,16  c0,2.8,2.3,4.6,5.6,5.4c0.8,3.4,2.5,5.6,5.4,5.6s4.6-2.3,5.4-5.6C24.7,20.6,27,18.8,27,16z"/>
+    <polyline points="3,7 7,7 7,3 "/>
+    <polyline points="25,3 25,7 29,7 "/>
+    <polyline points="29,25 25,25 25,29 "/>
+    <polyline points="7,29 7,25 3,25 "/>
   frag: |
     precision mediump float;
     uniform sampler2D inputTexture;
@@ -56,8 +59,13 @@ pinch:
 directional-blur:
   label: 'Directional Blur'
   icon: |
-    <path d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
-    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
+    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
+    <path d="M16,24c-2.2,0-3.2-1.5-3.6-2.1c-0.3-0.6-1-2.3,0.1-4.1"/>
+    <line x1="22.1" y1="9.9" x2="29" y2="3"/>
+    <line x1="3" y1="29" x2="7" y2="25"/>
+    <polyline points="3,24 3,29 8,29 "/>
+    <polyline points="29,8 29,3 24,3 "/>
   frag: |
     precision mediump float;
     uniform sampler2D inputTexture;

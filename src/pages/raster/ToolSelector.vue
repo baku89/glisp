@@ -88,7 +88,6 @@ $size = 3em
 		width 100%
 		height 100%
 		font-size 2em
-		transform translate(-1px, -1px)
 
 	&__label
 		position absolute
