@@ -27,9 +27,10 @@ brush:
 eraser:
   label: Eraser
   icon: |
-    <path
-    d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
-    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+    <line x1="8" y1="14" x2="18" y2="24"/>
+    <path d="M20,2L2,20c0,0,5.44,5.44,8,8h4c3.16-3.16,16-16,16-16L20,2z"/>
+    <line x1="14" y1="28" x2="21" y2="28"/>
+    <line x1="24" y1="28" x2="27" y2="28"/>
   frag: |
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
@@ -234,3 +235,30 @@ polar-marble:
       max: 0.05
     seed:
       type: seed
+
+twirl:
+  label: Twirl
+  icon: <path
+    d="M20.39,15.96L29.26,20C22,32.1,10.11,30.16,4.77,23.92c-4.28-4.99-3.7-12.5,1.29-16.78  c3.99-3.42,10-2.96,13.42,1.03c2.74,3.19,2.37,8-0.83,10.74c-2.55,2.19-6.4,1.89-8.59-0.66c-1.75-2.04-1.51-5.12,0.53-6.87  c1.63-1.4,4.45-1.31,5.41,0.62c1,2-0.45,3.96-2.87,3.16"/>
+  frag: |
+    #define PI 3.1415926535897
+
+    void main() {
+      vec2 pos = uv - cursor;
+      float mask = smoothstep(radius, 0.0, length(pos));
+
+      float angle = atan(pos.y, pos.x) + PI / 2.0;
+      vec2 dir = vec2(cos(angle), sin(angle));
+      vec2 uv2 = uv + dir * mask * speed;
+
+      gl_FragColor = texture2D(inputTexture, uv2);
+    }
+  params:
+    speed:
+      type: slider
+      min: -0.05
+      max: 0.05
+      default: 0.01
+    radius:
+      type: slider
+      max: 0.5
