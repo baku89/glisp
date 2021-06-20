@@ -32,7 +32,11 @@
 					/>
 				</template>
 			</Draggable>
-			<InputButton label="+" @click="addProperty" />
+			<button class="InputSchemaObject__add" @click="addProperty">
+				<SvgIcon mode="block" class="icon">
+					<path d="M16 2 L16 30 M2 16 L30 16" />
+				</SvgIcon>
+			</button>
 		</template>
 	</div>
 </template>
@@ -42,7 +46,7 @@ import _ from 'lodash'
 import {computed, defineComponent, PropType, toRaw} from 'vue'
 import Draggable from 'vuedraggable'
 
-import InputButton from '@/components/inputs/InputButton.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import InputSchema from './InputSchema.vue'
 import InputSchemaEntry from './InputSchemaEntry.vue'
@@ -53,7 +57,7 @@ export default defineComponent({
 	name: 'InputSchemaObject',
 	components: {
 		Draggable,
-		InputButton,
+		SvgIcon,
 		InputSchemaEntry,
 	},
 	props: {
@@ -148,4 +152,25 @@ export default defineComponent({
 
 		&.ghost
 			visibility hidden
+
+	&__add
+		padding 0.2em
+		width 1.6em
+		height 1.6em
+		border 1px solid currentCOlor
+		border-radius 50%
+		color base16('03')
+		input-transition(all)
+		margin-top $input-horiz-margin
+		margin-left -0.2em
+
+		&:hover
+			color base16('accent')
+
+		& > .icon
+			width 1em
+			height 1em
+
+			*
+				vector-effect non-scaling-stroke
 </style>

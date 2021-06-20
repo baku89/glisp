@@ -100,5 +100,5 @@ $size = 3em
 		opacity 0
 		pointer-events none
 		input-transition(all)
-		white-space nowrap
+		width max-content
 </style>
