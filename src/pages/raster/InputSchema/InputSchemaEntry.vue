@@ -9,6 +9,7 @@
 			class="icon"
 			:class="{handle: draggable}"
 			mode="block"
+			@dblclick="$emit('delete')"
 		>
 			<path v-if="draggable" d="M4 8 L28 8 M4 16 L28 16 M4 24 L28 24" />
 			<circle v-else cx="16" cy="16" r="2" />
@@ -65,7 +66,7 @@ export default defineComponent({
 			default: false,
 		},
 	},
-	emits: ['update:modelValue', 'update:name'],
+	emits: ['update:modelValue', 'update:name', 'delete'],
 	beforeCreate: function () {
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema

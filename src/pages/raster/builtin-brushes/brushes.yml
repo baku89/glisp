@@ -81,6 +81,6 @@ directional-blur:
       type: 'angle'
     width:
       type: 'slider'
-      default: 0.01
+      default: 0.005
       min: 0
-      max: .1
+      max: .02

@@ -201,10 +201,10 @@ export default defineComponent({
 
 		// Update brush parameters
 		watch(
-			currentBrushName,
-			(brushName, prevBrushName) => {
-				const oldParams = prevBrushName ? brushes[prevBrushName].parameters : {}
-				const newParams = brushes[brushName].parameters
+			currentBrush,
+			(brush, oldBrush) => {
+				const oldParams = oldBrush?.parameters || {}
+				const newParams = brush.parameters
 
 				for (const name in newParams) {
 					const param = newParams[name]
@@ -292,6 +292,8 @@ export default defineComponent({
 					wrapS: 'mirror',
 					wrapT: 'mirror',
 					data: img,
+					min: 'linear',
+					mag: 'linear',
 				})
 
 				const c = _gl.frame(() => {

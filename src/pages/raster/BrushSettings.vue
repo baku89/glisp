@@ -95,7 +95,7 @@ export default defineComponent({
 			additionalProperties: {
 				type: 'union',
 				items: {
-					slider: {
+					Slider: {
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'slider'},
@@ -105,7 +105,7 @@ export default defineComponent({
 						},
 						required: ['type'],
 					},
-					angle: {
+					Angle: {
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'angle'},
@@ -113,7 +113,7 @@ export default defineComponent({
 						},
 						required: ['type'],
 					},
-					color: {
+					Color: {
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'color'},
@@ -121,7 +121,7 @@ export default defineComponent({
 						},
 						required: ['type'],
 					},
-					seed: {
+					Seed: {
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'seed'},
