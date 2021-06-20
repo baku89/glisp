@@ -64,6 +64,7 @@
 					<template #panel-settings>
 						<BrushSettings
 							v-model="currentBrush"
+							:fragDeclarations="fragDeclarations"
 							:shaderErrors="shaderErrors"
 						/>
 					</template>
@@ -195,6 +196,10 @@ export default defineComponent({
 			'raster__currentBrushName',
 			'brush'
 		)
+		if (!(currentBrushName.value in brushes.value)) {
+			currentBrushName.value = _.keys(brushes.value)[0]
+		}
+
 		const currentBrush = computed({
 			get: () => brushes.value[currentBrushName.value],
 			set: v => {
@@ -238,8 +243,41 @@ export default defineComponent({
 		// WebGL contexts
 		const regl = shallowRef<Regl.Regl | null>(null)
 
+		const fragDeclarations = computed(() => {
+			const variables = _.entries(currentBrush.value.params).map(
+				([name, info]) => {
+					let glslType: string
+					switch (info.type) {
+						case 'slider':
+						case 'seed':
+						case 'angle':
+							glslType = 'float'
+							break
+						case 'color':
+							glslType = 'vec4'
+							break
+					}
+					return `uniform ${glslType} ${name};`
+				}
+			)
+
+			return [
+				'precision mediump float;',
+				'varying vec2 uv;',
+				'uniform sampler2D inputTexture;',
+				'uniform vec2 cursor;',
+				...variables,
+			].join('\n')
+		})
+
+		const generatedFrag = computed(() => {
+			return [fragDeclarations.value, '#line 1', currentBrush.value.frag].join(
+				'\n'
+			)
+		})
+
 		const {validFrag, shaderErrors} = useFragShaderValidator(
-			computed(() => currentBrush.value.frag),
+			generatedFrag,
 			regl
 		)
 
@@ -383,6 +421,7 @@ export default defineComponent({
 			currentBrush,
 			currentBrushCode,
 			currentBrushName,
+			fragDeclarations,
 			params,
 			shaderErrors,
 			toLabel: _.startCase,
@@ -403,6 +442,7 @@ html, body
 	display grid
 	height 100vh
 	background transparent
+	user-select none
 	grid-template-rows auto 1fr
 
 	&__bg

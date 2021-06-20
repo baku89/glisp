@@ -5,13 +5,6 @@ brush:
     d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
     <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
   frag: |
-    precision mediump float;
-    uniform sampler2D inputTexture;
-    uniform vec2 cursor;
-    uniform vec4 color;
-    uniform float radius;
-    varying vec2 uv;
-
     vec4 blendOver(vec4 A, vec4 B) {
       float alpha = B.a + A.a * (1. - B.a);
       vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
@@ -38,13 +31,6 @@ eraser:
     d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
     <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
   frag: |
-    precision mediump float;
-    uniform sampler2D inputTexture;
-    uniform vec2 cursor;
-    uniform float radius;
-    uniform float intensity;
-    varying vec2 uv;
-
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
       float t = smoothstep(radius, 0.0, distance(uv, cursor));
@@ -71,12 +57,6 @@ pinch:
     <polyline points="29,25 25,25 25,29 "/>
     <polyline points="7,29 7,25 3,25 "/>
   frag: |
-    precision mediump float;
-    uniform sampler2D inputTexture;
-    uniform vec2 cursor;
-    uniform float speed;
-    uniform float radius;
-    varying vec2 uv;
     void main() {
       float t = smoothstep(radius, 0.0, distance(uv, cursor));
 
@@ -106,11 +86,6 @@ directional-blur:
     <polyline points="3,24 3,29 8,29 "/>
     <polyline points="29,8 29,3 24,3 "/>
   frag: |
-    precision mediump float;
-    uniform sampler2D inputTexture;
-    uniform float angle;
-    uniform float width;
-    varying vec2 uv;
     void main() {
       vec2 step = vec2(cos(angle), -sin(angle)) * width;
       vec4 tex = vec4(0.0);
@@ -141,13 +116,6 @@ polar-marble:
     <path d="M3,16c9,7,16-11,26-1"/>
     <path d="M3,17c12,15,17-3,26,0"/>
   frag: |
-    precision mediump float;
-    uniform sampler2D inputTexture;
-    uniform float size;
-    uniform float speed;
-    uniform float seed;
-    varying vec2 uv;
-
     #define PI 3.1415926535897
 
     highp float random(vec2 co) {

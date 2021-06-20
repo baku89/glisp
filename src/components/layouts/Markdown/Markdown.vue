@@ -16,6 +16,10 @@ import MarkdownItMonacoHighlight from './markdown-it-monaco-highlight'
 export default {
 	name: 'vue3-markdown-it',
 	props: {
+		source: {
+			type: String,
+			default: '',
+		},
 		anchor: {
 			type: Object as PropType<MarkdownItAnchor.AnchorOptions>,
 			default: () => ({}),
@@ -39,10 +43,6 @@ export default {
 		quotes: {
 			type: String,
 			default: '“”‘’',
-		},
-		source: {
-			type: String,
-			default: '',
 		},
 		toc: {
 			type: Object as PropType<TocOptions>,

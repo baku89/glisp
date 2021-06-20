@@ -29,6 +29,11 @@
 		</section>
 		<section class="BrushSettings__section">
 			<h3>Shader</h3>
+			<details class="BrushSettings__frag-desc">
+				<summary>Uniforms &amp; Varyings</summary>
+				<Markdown :source="fragDeclarationsDesc" />
+			</details>
+
 			<MonacoEditor
 				class="BrushSettings__shader"
 				lang="glsl"
@@ -48,6 +53,7 @@ import {computed, defineComponent, PropType, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import InputSvgIcon from '@/components/inputs/InputSvgIcon.vue'
+import Markdown from '@/components/layouts/Markdown/Markdown.vue'
 import MonacoEditor, {
 	MonacoEditorMarker,
 } from '@/components/layouts/MonacoEditor'
@@ -61,11 +67,16 @@ export default defineComponent({
 		InputSchema,
 		InputString,
 		InputSvgIcon,
+		Markdown,
 		MonacoEditor,
 	},
 	props: {
 		modelValue: {
 			type: Object as PropType<BrushDefinition>,
+			required: true,
+		},
+		fragDeclarations: {
+			type: String,
 			required: true,
 		},
 		shaderErrors: {
@@ -85,6 +96,13 @@ export default defineComponent({
 				const newValue = {...props.modelValue, params}
 				context.emit('update:modelValue', newValue)
 			},
+		})
+
+		const fragDeclarationsDesc = computed(() => {
+			return `\`\`\`glsl
+${props.fragDeclarations}
+\`\`\`
+`
 		})
 
 		const schema = ref({
@@ -154,6 +172,7 @@ export default defineComponent({
 		return {
 			schema,
 			params,
+			fragDeclarationsDesc,
 			updateParamName,
 			updateParamType,
 			updateParamData,
@@ -180,22 +199,30 @@ export default defineComponent({
 	&__section
 		padding-bottom 2em
 
-	&__param
-		display grid
-		margin-bottom 0.5em
-		cursor move
-		grid-template-columns 7em 1fr
-		gap 1em
+	&__frag-desc
+		margin-bottom 1em
+		border 1px solid base16('05', 0.1)
+		font-size 1.1em
 
-		dt, dd
-			line-height $input-height
+		summary
+			padding 0.4em
+			color base16('03')
+			cursor pointer
 
-		dd
-			display flex
-			gap 0.3em
+			&:before
+				display inline-block
+				margin-right 1ch
+				content '>'
+				font-monospace()
+				input-transition(transform)
 
-	&__param-name
-		width 8em
+		&[open] summary:before
+			transform rotate(90deg)
+
+		// Overwrite document theme
+		pre
+			padding 0 0.5em 0.5em !important
+			background none !important
 
 	&__shader
 		height 20em
