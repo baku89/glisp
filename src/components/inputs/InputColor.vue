@@ -16,28 +16,31 @@
 		<div
 			v-if="tweaking"
 			class="InputColor__overlay"
-			:class="{'tweaking-slider': tweakingHue}"
+			:class="{'tweaking-slider': tweakMode !== 'pad'}"
 		>
-			<button class="InputColor__overlay-button" :style="overlayButtonStyle">
-				<span
-					class="InputColor__color-preview"
-					:style="{background: modelValue}"
-				/>
-			</button>
-			<glsl-canvas
+			<GlslCanvas
 				class="InputColor__overlay-pad"
-				:class="{show: !tweakingHue}"
+				:class="{show: tweakMode === 'pad'}"
 				:fragmentString="PadFragmentString"
 				:uniforms="padUniforms"
 				:style="padStyle"
 			/>
 			<GlslCanvas
-				class="InputColor__overlay-slider"
-				:class="{show: tweakingHue}"
-				:fragmentString="SliderFragmentString"
-				:uniforms="sliderUniforms"
-				:style="sliderStyle"
+				class="InputColor__overlay-slider-hue"
+				:class="{show: tweakMode == 'hue'}"
+				:fragmentString="SliderHueFragmentString"
+				:uniforms="sliderHueUniforms"
+				:style="sliderHueStyle"
 			/>
+			<div
+				class="InputColor__overlay-slider-alpha"
+				:class="{show: tweakMode == 'alpha'}"
+				:style="sliderAlphaStyle"
+			/>
+			<button
+				class="InputColor__overlay-button"
+				:style="overlayButtonStyle"
+			></button>
 		</div>
 	</teleport>
 </template>
@@ -55,9 +58,10 @@ import {unsignedMod} from '@/utils'
 
 import InputColorPicker from './InputColorPicker'
 import PadFragmentString from './InputColorPicker/picker-hsv-pad.frag'
-import SliderFragmentString from './InputColorPicker/picker-hsv-slider.frag'
+import SliderHueFragmentString from './InputColorPicker/picker-hsv-slider.frag'
 import useHSV, {
 	color2rgba,
+	hsv2color,
 	hsv2rgb,
 	HSVA,
 	RGBA,
@@ -89,7 +93,10 @@ export default defineComponent({
 		const buttonEl = ref(null)
 		const pickerOpened = ref(false)
 
-		const {shift: tweakingHue, alt: tweakingAlpha} = useKeyboardState()
+		const {shift, alt} = useKeyboardState()
+		const tweakMode = computed(() => {
+			return shift.value ? 'hue' : alt.value ? 'alpha' : 'pad'
+		})
 
 		const rgba = ref<RGBA>({r: 0, g: 0, b: 0, a: 0})
 		watch(
@@ -107,7 +114,7 @@ export default defineComponent({
 
 		const rem = useRem()
 
-		const tweakingColor = shallowRef<HSVA>({h: 0, s: 0, v: 0, a: 0})
+		const tweakColor = shallowRef<HSVA>({h: 0, s: 0, v: 0, a: 0})
 
 		const {
 			origin,
@@ -119,7 +126,7 @@ export default defineComponent({
 				pickerOpened.value = !pickerOpened.value
 			},
 			onDragStart() {
-				tweakingColor.value = {...hsv.value, a: rgba.value.a}
+				tweakColor.value = {...hsv.value, a: rgba.value.a}
 			},
 			onDrag({delta: [x, y]}) {
 				const dx = x / (rem.value * 20)
@@ -130,25 +137,25 @@ export default defineComponent({
 					dv = 0,
 					da = 0
 
-				if (tweakingHue.value) {
+				if (tweakMode.value === 'hue') {
 					dh -= dx
-				} else if (tweakingAlpha.value) {
+				} else if (tweakMode.value === 'alpha') {
 					da -= dx
 				} else {
 					ds -= dx
 					dv -= dy
 				}
 
-				let {h, s, v, a} = tweakingColor.value
+				let {h, s, v, a} = tweakColor.value
 				h = unsignedMod(h + dh, 1)
 				s = clamp(s + ds, 0, 1)
 				v = clamp(v + dv, 0, 1)
 				a = clamp(a + da, 0, 1)
 
-				tweakingColor.value = {h, s, v, a}
+				tweakColor.value = {h, s, v, a}
 
 				const rgba = {
-					...hsv2rgb(tweakingColor.value),
+					...hsv2rgb(tweakColor.value),
 					a: a,
 				}
 				const newValue = rgba2color(rgba, props.colorSpace)
@@ -156,25 +163,28 @@ export default defineComponent({
 				context.emit('update:modelValue', newValue)
 			},
 		})
-
 		const overlayButtonStyle = computed(() => {
+			const color = rgba2color(
+				{...hsv2rgb(tweakColor.value), a: rgba.value.a},
+				tweakMode.value === 'alpha' ? 'rgba' : 'rgb'
+			)
+
 			return {
 				left: `${origin.value[0]}px`,
 				top: `${origin.value[1]}px`,
+				backgroundColor: color,
 			}
 		})
 
 		const padStyle = computed(() => {
 			return {
-				left: `calc(${origin.value[0]}px - ${tweakingColor.value.s * 20}rem)`,
-				top: `calc(${origin.value[1]}px - ${
-					(1 - tweakingColor.value.v) * 20
-				}rem)`,
+				left: `calc(${origin.value[0]}px - ${tweakColor.value.s * 20}rem)`,
+				top: `calc(${origin.value[1]}px - ${(1 - tweakColor.value.v) * 20}rem)`,
 			}
 		})
 
 		const padUniforms = computed(() => {
-			const {h, s, v} = tweakingColor.value
+			const {h, s, v} = tweakColor.value
 			return {
 				hsv: [h, s, v],
 				modeX: 1,
@@ -182,15 +192,25 @@ export default defineComponent({
 			}
 		})
 
-		const sliderStyle = computed(() => {
+		const sliderHueStyle = computed(() => {
 			return {
 				left: `${origin.value[0]}px`,
 				top: `${origin.value[1]}px`,
 			}
 		})
 
-		const sliderUniforms = computed(() => {
-			const {h, s, v} = tweakingColor.value
+		const sliderAlphaStyle = computed(() => {
+			const x = (tweakColor.value.a - 0.5) * 20
+			const color = hsv2color(tweakColor.value)
+			return {
+				left: `calc(${origin.value[0]}px - ${x}rem)`,
+				top: `${origin.value[1]}px`,
+				background: `linear-gradient(to right, transparent, ${color})`,
+			}
+		})
+
+		const sliderHueUniforms = computed(() => {
+			const {h, s, v} = tweakColor.value
 			return {
 				hsv: [h, s, v],
 				mode: 0,
@@ -211,11 +231,12 @@ export default defineComponent({
 			padUniforms,
 			PadFragmentString,
 
-			sliderStyle,
-			sliderUniforms,
-			SliderFragmentString,
+			sliderHueStyle,
+			sliderAlphaStyle,
+			sliderHueUniforms,
+			SliderHueFragmentString,
 
-			tweakingHue,
+			tweakMode,
 		}
 	},
 	inheritAttrs: false,
@@ -226,7 +247,7 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputColor
-	&, &__overlay-button
+	&
 		position relative
 		width $input-height
 		border 1px solid $color-frame
@@ -235,20 +256,17 @@ export default defineComponent({
 		input-transition(border-color)
 		overflow hidden
 
-	&:hover, &:focus-within, &.tweaking, &__overlay-button
+	&:hover, &:focus-within, &.tweaking
 		border-color base16('accent')
 
-	&:focus-within, &__overlay-button
+	&:focus-within
 		box-shadow 0 0 0 1px base16('accent')
 
 	// Grid and color-preview
 	&:before, &__color-preview
 		position absolute
-		top 0
-		right 0
-		bottom 0
-		left 0
 		display block
+		inset 0
 
 	// Grid
 	&:before
@@ -278,10 +296,13 @@ export default defineComponent({
 		&-button
 			position absolute
 			z-index 10
-			transform translate(-50%, -50%)
+			width $input-height
+			border-radius: $input-round + 1px
+			transform translate(-50%, -50%) scale(1.2)
 			pointer-events none
+			aspect-ratio 1
 
-		&-pad, &-slider
+		&-pad, &-slider-hue, &-slider-alpha
 			position absolute
 			width 20rem
 			opacity 0
@@ -296,10 +317,12 @@ export default defineComponent({
 			border-radius $input-round
 			mask linear-gradient(to bottom, black 1%, transparent 1%, transparent 99%, black 99%), linear-gradient(to right, black 1%, transparent 1%, transparent 99%, black 99%)
 
-		&-slider
+		&-slider-hue, &-slider-alpha
 			position absolute
-			height 3px
-			background red
+			height 1em
+			border-radius 0.5em
 			transform translate(-50%, -50%)
+
+		&-slider-hue
 			mask linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)
 </style>
