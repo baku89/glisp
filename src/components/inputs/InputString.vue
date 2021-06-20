@@ -98,6 +98,9 @@ export default defineComponent({
 		box-shadow inset 0px -2px 0 0 base16('01')
 		color base16('04')
 
+		&:hover
+			box-shadow none
+
 	&:focus
 		box-shadow 0 0 0 1px base16('accent')
 
