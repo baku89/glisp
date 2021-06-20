@@ -4,9 +4,15 @@
 		:class="{nested}"
 		v-if="schema.type !== 'const'"
 	>
-		<div v-if="!nested" class="icon" :class="{handle: draggable}">
-			{{ draggable ? '三' : '・' }}
-		</div>
+		<SvgIcon
+			v-if="!nested"
+			class="icon"
+			:class="{handle: draggable}"
+			mode="block"
+		>
+			<path v-if="draggable" d="M4 8 L28 8 M4 16 L28 16 M4 24 L28 24" />
+			<circle v-else cx="16" cy="16" r="2" />
+		</SvgIcon>
 		<label class="label">
 			<template v-if="!draggable">
 				{{ toLabel(name) }}
@@ -33,13 +39,14 @@ import _ from 'lodash'
 import {computed, defineComponent, inject, PropType, provide} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import InputSchema from './InputSchema.vue'
 import {Data, Schema} from './type'
 
 export default defineComponent({
 	name: 'InputSchemaEntry',
-	components: {InputString},
+	components: {InputString, SvgIcon},
 	props: {
 		name: {
 			type: String,
@@ -86,11 +93,14 @@ export default defineComponent({
 	&.nested
 		grid-template-columns 4em 1fr
 
+	& > .icon
+		width 1.2em
+		height $input-height
+
 	& > .handle
 		cursor move
 
 	& > .label, & > .icon
-		display block
 		line-height $input-height
 
 	&__name
