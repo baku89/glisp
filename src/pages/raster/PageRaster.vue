@@ -69,7 +69,7 @@
 						/>
 					</template>
 					<template #panel-code>
-						<MonacoEditor :modelValue="currentBrushCode" lang="yaml" />
+						<MonacoEditor :modelValue="brushesCode" lang="yaml" />
 					</template>
 				</Tab>
 			</Pane>
@@ -99,7 +99,6 @@ import {
 	defineComponent,
 	onMounted,
 	onUnmounted,
-	reactive,
 	ref,
 	shallowRef,
 	watch,
@@ -191,7 +190,7 @@ export default defineComponent({
 		})
 
 		// Brushes
-		const brushes = ref(BuiltinBrushes)
+		const brushes = useLocalStorage('raster__brushes', BuiltinBrushes)
 		const currentBrushName = useLocalStorage(
 			'raster__currentBrushName',
 			'brush'
@@ -206,9 +205,12 @@ export default defineComponent({
 				brushes.value[currentBrushName.value] = v
 			},
 		})
-		const params = reactive<{[name: string]: any}>({})
+		const params = useLocalStorage(
+			'raster__params',
+			{} as {[name: string]: any}
+		)
 
-		const currentBrushCode = computed(() => YAML.stringify(currentBrush.value))
+		const brushesCode = computed(() => YAML.stringify(brushes.value, {}))
 
 		// Update brush params
 		watch(
@@ -226,13 +228,13 @@ export default defineComponent({
 					switch (param.type) {
 						case 'slider':
 						case 'angle':
-							params[name] ||= param.default || 0
+							params.value[name] ||= param.default || 0
 							break
 						case 'color':
-							params[name] ||= param.default || '#ffffff'
+							params.value[name] ||= param.default || '#ffffff'
 							break
 						case 'seed':
-							params[name] ||= Math.random()
+							params.value[name] ||= Math.random()
 							break
 					}
 				}
@@ -266,6 +268,9 @@ export default defineComponent({
 				'varying vec2 uv;',
 				'uniform sampler2D inputTexture;',
 				'uniform vec2 cursor;',
+				'uniform float deltaTime;',
+				'uniform vec2 resolution;',
+				'uniform int frame;',
 				...variables,
 			].join('\n')
 		})
@@ -288,6 +293,9 @@ export default defineComponent({
 			const uniforms: {[name: string]: any} = {
 				inputTexture: prop('inputTexture'),
 				cursor: prop('cursor'),
+				deltaTime: prop('deltaTime'),
+				resolution: prop('resolution'),
+				frame: prop('frame'),
 				..._.mapValues(currentBrush.value.params, (_, n) => prop(n)),
 			}
 
@@ -344,26 +352,33 @@ export default defineComponent({
 			loadImage('/default_img.jpg')
 		})
 
-		function render() {
+		function render(context: Regl.DefaultContext) {
 			if (
 				!regl.value ||
 				!pressed.value ||
 				!draw.value ||
 				!passthru.value ||
 				!fbo
-			)
+			) {
 				return
+			}
+
 			const _draw = draw.value
 
 			const options = {
 				inputTexture: fbo[1],
 				cursor: cursorPos.value,
+				deltaTime: 1 / 60,
+				resolution: canvasSize.value,
+				frame: context.tick,
 			}
+
+			console.log(context.tick)
 
 			const paramDefs = Object.entries(currentBrush.value.params)
 
 			for (const [name, info] of paramDefs) {
-				let value = params[name]
+				let value = params.value[name]
 
 				switch (info.type) {
 					case 'color':
@@ -419,7 +434,7 @@ export default defineComponent({
 			brushes,
 			controlPaneWidth,
 			currentBrush,
-			currentBrushCode,
+			brushesCode,
 			currentBrushName,
 			fragDeclarations,
 			params,

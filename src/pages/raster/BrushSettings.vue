@@ -225,5 +225,5 @@ ${props.fragDeclarations}
 			background none !important
 
 	&__shader
-		height 20em
+		height 50em
 </style>
