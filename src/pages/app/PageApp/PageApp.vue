@@ -410,7 +410,7 @@ html, body
 		z-index 100
 		background-attachment fixed
 		-webkit-app-region drag
-		translucent-bg()
+		glass-bg('pane')
 
 	&__content
 		position relative
@@ -422,7 +422,7 @@ html, body
 		position relative
 		width 100%
 		height 100%
-		translucent-bg()
+		glass-bg('pane')
 		overflow-y scroll
 
 	&__viewer
@@ -445,7 +445,7 @@ html, body
 		z-index 1000
 		width 30rem
 		border 1px solid $color-frame
-		translucent-bg()
+		glass-bg('pane')
 
 	&__modes
 		position absolute
@@ -500,7 +500,7 @@ html, body
 		flex-direction column
 		width 100%
 		height 100%
-		translucent-bg()
+		glass-bg('pane')
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem

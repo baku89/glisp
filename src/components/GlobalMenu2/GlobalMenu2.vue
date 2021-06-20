@@ -10,17 +10,13 @@
 
 $height = 3.4em
 
-glass-bg()
-	background base16('00', 0.9)
-	backdrop-filter blur(10px) grayscale(1)
-
 .GlobalMenu2
 	position relative
 	display flex
 	overflow visible
 	height $height
 	border-bottom 1px solid $color-frame
-	glass-bg()
+	glass-bg('pane')
 	user-select none
 	--height $height
 

@@ -79,7 +79,7 @@ export default defineComponent({
 	height 100%
 	text-align left
 	user-select none
-	translucent-bg()
+	glass-bg('pane')
 
 	.fira-code
 		font-monospace()

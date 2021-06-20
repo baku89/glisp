@@ -98,9 +98,9 @@ export default defineComponent({
 				return []
 			}
 
-			let symbols = Object.entries(
-				getSymbols(toRaw(props.modelValue))
-			).map(([symbol, pdg]) => ({symbol, pdg}))
+			let symbols = Object.entries(getSymbols(toRaw(props.modelValue))).map(
+				([symbol, pdg]) => ({symbol, pdg})
+			)
 
 			if (props.dataType) {
 				const dataTypes = props.dataType
@@ -165,7 +165,7 @@ export default defineComponent({
 		margin 2px
 		min-width 10rem
 		width 10rem
-		translucent-bg()
+		glass-bg('pane')
 		border 1px solid $color-frame
 		border-radius $input-round
 

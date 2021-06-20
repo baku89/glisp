@@ -148,7 +148,7 @@ export default defineComponent({
 		width 40em
 		border 1px solid $color-frame
 		border-radius $popup-round
-		translucent-bg()
+		glass-bg('pane')
 		position relative
 		box-shadow 0 0 20px 0 base16('00', 0.9)
 

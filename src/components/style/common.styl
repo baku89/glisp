@@ -120,17 +120,20 @@ pseudo-block()
 	display block
 	content ''
 
-translucent-bg()
-	background base16('00', 0.9)
-	backdrop-filter blur(16px)
+glass-bg(mode)
+	if (mode == 'pane')
+		background base16('00', 0.9)
+		backdrop-filter blur(16px)
+	else if (mode == 'float')
+		background base16('00', 0.7)
+		backdrop-filter blur(3px)
 
 tooltip()
 	padding 0.4em
 	border-radius $popup-round
-	background base16('00', 0.7)
 	color base16('06')
 	transition opacity 0.1s ease
-	backdrop-filter blur(3px)
+	glass-bg('float')
 
 labeled-button()
 	padding-top 0.2em

@@ -398,10 +398,6 @@ export default defineComponent({
 html, body
 	overflow hidden
 
-glass-bg()
-	background base16('00', 0.9)
-	backdrop-filter blur(10px)
-
 .PageRaster
 	app()
 	display grid
@@ -425,7 +421,7 @@ glass-bg()
 		left 1em
 
 	&__control
-		glass-bg()
+		glass-bg('pane')
 
 	&__zoomable
 		width 100%
@@ -447,7 +443,7 @@ glass-bg()
 		padding 1em
 		border 1px solid $color-frame
 		border-radius $popup-round
-		glass-bg()
+		glass-bg('pane')
 		grid-template-columns minmax(5em, min-content) 1fr
 		gap $input-horiz-margin
 
