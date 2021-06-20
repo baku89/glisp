@@ -286,7 +286,9 @@ export default defineComponent({
 			const canvas = canvasEl.value as HTMLCanvasElement
 			const _gl = Regl({
 				attributes: {
-					// preserveDrawingBuffer: true,
+					preserveDrawingBuffer: true,
+					depth: false,
+					premultipliedAlpha: false,
 				},
 				extensions: ['OES_texture_float'],
 				canvas,
@@ -305,9 +307,15 @@ export default defineComponent({
 		})
 
 		function render() {
-			if (!pressed.value || !draw.value || !passthru.value || !fbo) return
+			if (
+				!regl.value ||
+				!pressed.value ||
+				!draw.value ||
+				!passthru.value ||
+				!fbo
+			)
+				return
 			const _draw = draw.value
-			const _fbo = fbo
 
 			const options = {
 				inputTexture: fbo[1],
@@ -331,9 +339,10 @@ export default defineComponent({
 			}
 
 			fbo[0].use(() => _draw(options))
+
 			passthru.value({inputTexture: fbo[0]})
 
-			fbo = [_fbo[1], _fbo[0]]
+			fbo = [fbo[1], fbo[0]]
 		}
 
 		async function loadImage(url: string) {

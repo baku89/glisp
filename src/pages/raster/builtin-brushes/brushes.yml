@@ -13,15 +13,15 @@ brush:
     varying vec2 uv;
 
     vec4 blendOver(vec4 A, vec4 B) {
-      float alpha = A.a + B.a * (1. - A.a);
-      vec3 rgb = (A.rgb * A.a + B.rgb * B.a * (1. - A.a)) / alpha;
+      float alpha = B.a + A.a * (1. - B.a);
+      vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
       return vec4(rgb, alpha);
     }
 
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
       float t = smoothstep(radius, 0., distance(uv, cursor));
-      gl_FragColor = blendOver(tex, color);
+      gl_FragColor = blendOver(tex, color * vec4(vec3(1.), t));
     }
   params:
     color:
@@ -29,6 +29,7 @@ brush:
     radius:
       type: slider
       default: 0.1
+      max: 0.5
 
 eraser:
   label: Eraser
@@ -41,17 +42,23 @@ eraser:
     uniform sampler2D inputTexture;
     uniform vec2 cursor;
     uniform float radius;
+    uniform float intensity;
     varying vec2 uv;
 
     void main() {
       vec4 tex = texture2D(inputTexture, uv);
-      float t = smoothstep(0., radius, distance(uv, cursor));
-      gl_FragColor = vec4(tex.rgb, tex.a * t);
+      float t = smoothstep(radius, 0.0, distance(uv, cursor));
+      gl_FragColor = vec4(tex.rgb, tex.a * (1.0 - t * intensity));
     }
   params:
+    intensity:
+      type: slider
+      default: 1
+      max: 1
     radius:
       type: slider
       default: 0.1
+      max: 0.5
 
 pinch:
   label: 'Pinch'
@@ -86,6 +93,7 @@ pinch:
       default: 0.01
     radius:
       type: 'slider'
+      max: 0.5
 
 directional-blur:
   label: 'Directional Blur'
