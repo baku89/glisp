@@ -214,10 +214,10 @@ export default defineComponent({
 					// Set default
 					switch (param.type) {
 						case 'slider':
-							parameters[name] = param.initial || 0
+							parameters[name] = param.default || 0
 							break
 						case 'color':
-							parameters[name] = param.initial || '#ffffff'
+							parameters[name] = param.default || '#ffffff'
 							break
 						case 'seed':
 							parameters[name] = Math.random()
