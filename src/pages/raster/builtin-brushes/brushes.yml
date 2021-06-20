@@ -23,7 +23,7 @@ brush:
       float t = smoothstep(radius, 0., distance(uv, cursor));
       gl_FragColor = blendOver(tex, color);
     }
-  parameters:
+  params:
     color:
       type: color
     radius:
@@ -48,7 +48,7 @@ eraser:
       float t = smoothstep(0., radius, distance(uv, cursor));
       gl_FragColor = vec4(tex.rgb, tex.a * t);
     }
-  parameters:
+  params:
     radius:
       type: slider
       default: 0.1
@@ -78,7 +78,7 @@ pinch:
 
       gl_FragColor = texture2D(inputTexture, newUv);
     }
-  parameters:
+  params:
     speed:
       type: 'slider'
       min: -0.05
@@ -115,7 +115,7 @@ directional-blur:
       
       gl_FragColor = tex;
     }
-  parameters:
+  params:
     angle:
       type: 'angle'
     width:
@@ -245,7 +245,7 @@ polar-marble:
 
       gl_FragColor = texture2D(inputTexture, uv + offset);
     }
-  parameters:
+  params:
     size:
       type: slider
       default: 1

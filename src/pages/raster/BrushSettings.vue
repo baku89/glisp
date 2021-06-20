@@ -20,9 +20,9 @@
 		<section class="BrushSettings__section">
 			<h3>Parameters</h3>
 			<InputSchema
-				:modelValue="modelValue.parameters"
+				:modelValue="modelValue.params"
 				@update:modelValue="
-					$emit('update:modelValue', {...modelValue, parameters: $event})
+					$emit('update:modelValue', {...modelValue, params: $event})
 				"
 				:schema="schema"
 			/>
@@ -76,15 +76,13 @@ export default defineComponent({
 	setup(props, context) {
 		const params = computed({
 			get: () =>
-				Object.entries(props.modelValue.parameters).map(([name, value]) => ({
+				Object.entries(props.modelValue.params).map(([name, value]) => ({
 					name,
 					value,
 				})),
 			set: sorted => {
-				const parameters = Object.fromEntries(
-					sorted.map(v => [v.name, v.value])
-				)
-				const newValue = {...props.modelValue, parameters}
+				const params = Object.fromEntries(sorted.map(v => [v.name, v.value]))
+				const newValue = {...props.modelValue, params}
 				context.emit('update:modelValue', newValue)
 			},
 		})
@@ -134,7 +132,7 @@ export default defineComponent({
 
 		function updateParamName(name: string, newName: string) {
 			const newValue = {...props.modelValue}
-			newValue.parameters = _.mapKeys(newValue.parameters, (_, n) =>
+			newValue.params = _.mapKeys(newValue.params, (_, n) =>
 				n === name ? newName : n
 			)
 			context.emit('update:modelValue', newValue)
@@ -142,14 +140,14 @@ export default defineComponent({
 
 		function updateParamType(name: string, type: 'slider' | 'color' | 'seed') {
 			const newValue = {...props.modelValue}
-			newValue.parameters[name] = {type}
+			newValue.params[name] = {type}
 
 			context.emit('update:modelValue', newValue)
 		}
 
 		function updateParamData(name: string, field: string, data: any) {
 			const newValue = {...props.modelValue}
-			;(newValue.parameters[name] as any)[field] = data
+			;(newValue.params[name] as any)[field] = data
 			context.emit('update:modelValue', newValue)
 		}
 

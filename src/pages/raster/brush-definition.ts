@@ -2,7 +2,7 @@ export interface BrushDefinition {
 	label: string
 	icon: string
 	frag: string
-	parameters: {
+	params: {
 		[name: string]:
 			| {type: 'slider'; default?: number; min?: number; max?: number}
 			| {type: 'angle'; default?: number}

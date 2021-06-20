@@ -30,16 +30,16 @@
 					v-model="currentBrushName"
 					:tools="brushes"
 				/>
-				<dl class="PageRaster__parameters">
+				<dl class="PageRaster__params">
 					<template
-						v-for="name in Object.keys(currentBrush.parameters)"
+						v-for="name in Object.keys(currentBrush.params)"
 						:key="name"
 					>
 						<dt>{{ toLabel(name) }}</dt>
 						<dd>
 							<InputControl
-								v-bind="currentBrush.parameters[name]"
-								v-model="parameters[name]"
+								v-bind="currentBrush.params[name]"
+								v-model="params[name]"
 							/>
 						</dd>
 					</template>
@@ -201,16 +201,16 @@ export default defineComponent({
 				brushes[currentBrushName.value] = v
 			},
 		})
-		const parameters = reactive<{[name: string]: any}>({})
+		const params = reactive<{[name: string]: any}>({})
 
 		const currentBrushCode = computed(() => YAML.stringify(currentBrush.value))
 
-		// Update brush parameters
+		// Update brush params
 		watch(
 			currentBrush,
 			(brush, oldBrush) => {
-				const oldParams = oldBrush?.parameters || {}
-				const newParams = brush.parameters
+				const oldParams = oldBrush?.params || {}
+				const newParams = brush.params
 
 				for (const name in newParams) {
 					const param = newParams[name]
@@ -221,13 +221,13 @@ export default defineComponent({
 					switch (param.type) {
 						case 'slider':
 						case 'angle':
-							parameters[name] ||= param.default || 0
+							params[name] ||= param.default || 0
 							break
 						case 'color':
-							parameters[name] ||= param.default || '#ffffff'
+							params[name] ||= param.default || '#ffffff'
 							break
 						case 'seed':
-							parameters[name] ||= Math.random()
+							params[name] ||= Math.random()
 							break
 					}
 				}
@@ -250,7 +250,7 @@ export default defineComponent({
 			const uniforms: {[name: string]: any} = {
 				inputTexture: prop('inputTexture'),
 				cursor: prop('cursor'),
-				..._.mapValues(currentBrush.value.parameters, (_, n) => prop(n)),
+				..._.mapValues(currentBrush.value.params, (_, n) => prop(n)),
 			}
 
 			return regl.value({
@@ -309,15 +309,15 @@ export default defineComponent({
 			const _draw = draw.value
 			const _fbo = fbo
 
-			const params = {
+			const options = {
 				inputTexture: fbo[1],
 				cursor: cursorPos.value,
 			}
 
-			const paramDefs = Object.entries(currentBrush.value.parameters)
+			const paramDefs = Object.entries(currentBrush.value.params)
 
 			for (const [name, info] of paramDefs) {
-				let value = parameters[name]
+				let value = params[name]
 
 				switch (info.type) {
 					case 'color':
@@ -327,10 +327,10 @@ export default defineComponent({
 						break
 				}
 
-				;(params as any)[name] = value
+				;(options as any)[name] = value
 			}
 
-			fbo[0].use(() => _draw(params))
+			fbo[0].use(() => _draw(options))
 			passthru.value({inputTexture: fbo[0]})
 
 			fbo = [_fbo[1], _fbo[0]]
@@ -374,7 +374,7 @@ export default defineComponent({
 			currentBrush,
 			currentBrushCode,
 			currentBrushName,
-			parameters,
+			params,
 			shaderErrors,
 			toLabel: _.startCase,
 		}
@@ -430,7 +430,7 @@ glass-bg()
 		transform-origin 0 0
 		pointer-events none
 
-	&__parameters
+	&__params
 		position absolute
 		top 1em
 		right 1em
