@@ -87,6 +87,7 @@ import {
 } from '@vueuse/core'
 import chroma from 'chroma-js'
 import {mat2d, vec2} from 'gl-matrix'
+import hotkeys from 'hotkeys-js'
 import _ from 'lodash'
 import Regl from 'regl'
 import {Pane, Splitpanes} from 'splitpanes'
@@ -113,6 +114,7 @@ import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
 import ToolSelector from './ToolSelector.vue'
 import useFragShaderValidator from './use-frag-shader-validator'
+import {saveViewport} from './webgl-utils'
 import Zoomable from './Zoomable.vue'
 
 const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
@@ -188,7 +190,10 @@ export default defineComponent({
 
 		// Brushes
 		const brushes = reactive(BuiltinBrushes)
-		const currentBrushName = ref('brush')
+		const currentBrushName = useLocalStorage(
+			'raster__currentBrushName',
+			'brush'
+		)
 		const currentBrush = computed({
 			get: () => brushes[currentBrushName.value],
 			set: v => {
@@ -214,16 +219,14 @@ export default defineComponent({
 					// Set default
 					switch (param.type) {
 						case 'slider':
-							parameters[name] = param.default || 0
-							break
 						case 'angle':
-							parameters[name] = param.default || 0
+							parameters[name] ||= param.default || 0
 							break
 						case 'color':
-							parameters[name] = param.default || '#ffffff'
+							parameters[name] ||= param.default || '#ffffff'
 							break
 						case 'seed':
-							parameters[name] = Math.random()
+							parameters[name] ||= Math.random()
 							break
 					}
 				}
@@ -262,7 +265,12 @@ export default defineComponent({
 			if (!canvasEl.value) return
 
 			const canvas = canvasEl.value as HTMLCanvasElement
-			const _gl = Regl(canvas)
+			const _gl = Regl({
+				attributes: {
+					preserveDrawingBuffer: true,
+				},
+				canvas,
+			})
 			regl.value = _gl
 
 			inputTexture.value = _gl.texture()
@@ -330,6 +338,14 @@ export default defineComponent({
 			drawFunc.value(params)
 			inputTexture.value({copy: true})
 		}
+
+		function saveImage(e: Event) {
+			e.preventDefault()
+			if (!regl.value) return
+			saveViewport(regl.value, 'image.png')
+		}
+
+		hotkeys('command+s, ctrl+s', saveImage)
 
 		onUnmounted(() => {
 			if (regl.value) regl.value.destroy()
