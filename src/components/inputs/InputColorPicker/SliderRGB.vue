@@ -19,22 +19,13 @@ import {computed, defineComponent, PropType, ref} from 'vue'
 import useDraggable from '@/components/use/use-draggable'
 import {fitTo01} from '@/utils'
 
-import {ColorDict} from './InputColorPicker.vue'
-
-function toPartialDict(mode: string, value: number): ColorDict {
-	return {[mode]: value}
-}
-
-function toCSSColor(color: ColorDict) {
-	const {r, g, b} = color
-	return chroma(r * 255, g * 255, b * 255).css()
-}
+import {RGBA, rgba2color} from './use-hsv'
 
 export default defineComponent({
 	name: 'SliderRGB',
 	props: {
-		modelValue: {
-			type: Object as PropType<ColorDict>,
+		rgba: {
+			type: Object as PropType<RGBA>,
 			required: true,
 		},
 		mode: {
@@ -42,6 +33,7 @@ export default defineComponent({
 			required: true,
 		},
 	},
+	emit: ['partialUpdate'],
 	setup(props, context) {
 		const sliderEl = ref<null | HTMLElement>(null)
 
@@ -50,23 +42,19 @@ export default defineComponent({
 			onDrag({pos: [x], right, left}) {
 				const v = clamp(fitTo01(x, left, right), 0, 1)
 
-				const newDict = toPartialDict(props.mode, v)
-
-				context.emit('update:modelValue', newDict)
+				context.emit('partialUpdate', {[props.mode]: v})
 			},
 		})
 
 		const cssColor = computed(() => {
-			const {r, g, b} = props.modelValue
+			const {r, g, b} = props.rgba
 			return chroma(r * 255, g * 255, b * 255).css()
 		})
 
 		const gradientStyle = computed(() => {
-			const {r, g, b} = props.modelValue
-			const rgb = {r, g, b} as ColorDict
-
-			const leftColor = toCSSColor({...rgb, [props.mode]: 0})
-			const rightColor = toCSSColor({...rgb, [props.mode]: 1})
+			const currentColor = {...props.rgba, a: 1}
+			const leftColor = rgba2color({...currentColor, [props.mode]: 0}, 'rgb')
+			const rightColor = rgba2color({...currentColor, [props.mode]: 1}, 'rgb')
 
 			return {
 				background: `linear-gradient(to right, ${leftColor} 0%, ${rightColor} 100%)`,
@@ -74,7 +62,7 @@ export default defineComponent({
 		})
 
 		const circleStyle = computed(() => {
-			const v = props.modelValue[props.mode]
+			const v = props.rgba[props.mode as keyof RGBA]
 
 			return {
 				left: `${v * 100}%`,

@@ -21,20 +21,17 @@ import {computed, defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
 
-import {ColorDict} from './InputColorPicker.vue'
-
-function toPartialDict(alpha: number): ColorDict {
-	return {a: alpha}
-}
+import {RGBA} from './use-hsv'
 
 export default defineComponent({
 	name: 'SliderAlpha',
 	props: {
-		modelValue: {
-			type: Object as PropType<ColorDict>,
+		rgba: {
+			type: Object as PropType<RGBA>,
 			required: true,
 		},
 	},
+	emits: ['partialUpdate'],
 	setup(props, context) {
 		const sliderEl = ref<null | HTMLElement>(null)
 
@@ -42,15 +39,12 @@ export default defineComponent({
 			disableClick: true,
 			onDrag({pos: [x], right, left}) {
 				const a = clamp((x - left) / (right - left), 0, 1)
-
-				const newDict = toPartialDict(a)
-
-				context.emit('update:modelValue', newDict)
+				context.emit('partialUpdate', {a})
 			},
 		})
 
 		const cssColor = computed(() => {
-			const {r, g, b} = props.modelValue
+			const {r, g, b} = props.rgba
 			return chroma(r * 255, g * 255, b * 255).css()
 		})
 
@@ -62,7 +56,7 @@ export default defineComponent({
 		})
 
 		const circleStyle = computed(() => {
-			const a = props.modelValue.a
+			const a = props.rgba.a
 
 			return {
 				left: `${a * 100}%`,
@@ -72,7 +66,7 @@ export default defineComponent({
 		const circleColorStyle = computed(() => {
 			return {
 				backgroundColor: cssColor.value,
-				opacity: props.modelValue.a,
+				opacity: props.rgba.a,
 			}
 		})
 

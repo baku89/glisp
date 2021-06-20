@@ -8,9 +8,9 @@
 			>
 				<component
 					:is="name"
-					:modelValue="colorDict"
+					:rgba="rgba"
 					:mode="mode"
-					@update:modelValue="onUpdateColorDict"
+					@partialUpdate="onPartialUpdate"
 				/>
 			</div>
 		</div>
@@ -18,47 +18,13 @@
 </template>
 
 <script lang="ts">
-import chroma from 'chroma-js'
 import {computed, defineComponent, shallowRef, watch} from 'vue'
 
 import SliderAlpha from './SliderAlpha.vue'
 import SliderHSV from './SliderHSV.vue'
 import SliderHSVRadial from './SliderHSVRadial.vue'
 import SliderRGB from './SliderRGB.vue'
-
-export type ColorDict = {[name: string]: number}
-
-function toColorDict(value: string, space: string): ColorDict | null {
-	const dict: ColorDict = {}
-
-	if (!chroma.valid(value)) {
-		return null
-	}
-
-	const c = chroma(value)
-
-	if (space.startsWith('rgb')) {
-		const [r, g, b] = c.rgb()
-		dict.r = r / 255
-		dict.g = g / 255
-		dict.b = b / 255
-	}
-
-	if (space.endsWith('a')) {
-		dict.a = c.alpha()
-	}
-
-	return dict
-}
-
-function fromColorDict(dict: ColorDict, space: string): string {
-	const c = chroma(
-		dict.r * 255 ?? 0,
-		dict.g * 255 ?? 0,
-		dict.b * 255 ?? 0
-	).alpha(dict.a && space.endsWith('a') ? dict.a : 1)
-	return c.hex()
-}
+import {color2rgba, RGBA, rgba2color} from './use-hsv'
 
 export default defineComponent({
 	name: 'InputColorPicker',
@@ -84,33 +50,31 @@ export default defineComponent({
 	},
 	emit: ['update:modelValue'],
 	setup(props, context) {
-		const colorDict = shallowRef<ColorDict>({})
+		const rgba = shallowRef<RGBA>({r: 0, g: 0, b: 0, a: 0})
 
-		const colorString = computed(() =>
-			fromColorDict(colorDict.value, props.colorSpace)
-		)
+		const colorString = computed(() => rgba2color(rgba.value, props.colorSpace))
 
 		watch(
 			() => props.modelValue,
 			() => {
 				if (props.modelValue !== colorString.value) {
-					const dict = toColorDict(props.modelValue, props.colorSpace)
+					const _rgba = color2rgba(props.modelValue, props.colorSpace)
 
-					if (!dict) {
+					if (!_rgba) {
 						return
 					}
 
-					colorDict.value = dict
+					rgba.value = _rgba
 				}
 			},
 			{immediate: true}
 		)
 
-		function onUpdateColorDict(newPartialDict: ColorDict) {
-			const newDict = {...colorDict.value, ...newPartialDict}
-			colorDict.value = newDict
+		function onPartialUpdate(newPartialDict: Partial<RGBA>) {
+			const newDict = {...rgba.value, ...newPartialDict}
+			rgba.value = newDict
 
-			const newValue = fromColorDict(newDict, props.colorSpace)
+			const newValue = rgba2color(newDict, props.colorSpace)
 			context.emit('update:modelValue', newValue)
 		}
 
@@ -134,8 +98,8 @@ export default defineComponent({
 		)
 
 		return {
-			colorDict,
-			onUpdateColorDict,
+			rgba,
+			onPartialUpdate,
 			pickerData,
 		}
 	},

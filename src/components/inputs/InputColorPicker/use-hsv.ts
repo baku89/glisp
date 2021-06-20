@@ -1,32 +1,64 @@
 import chroma from 'chroma-js'
-import {Ref, ref, SetupContext, watch} from 'vue'
+import {Ref, ref, watch} from 'vue'
 
-import {ColorDict} from './InputColorPicker.vue'
+export type HSV = {h: number; s: number; v: number}
+export type HSVA = {h: number; s: number; v: number; a: number}
+export type RGB = {r: number; g: number; b: number}
+export type RGBA = {r: number; g: number; b: number; a: number}
 
-export function toRGBDict({h, s, v}: ColorDict): ColorDict {
-	const [r, g, b] = chroma.hsv(h * 360, s, v).rgb()
+export function color2rgba(value: string, space: string): RGBA | null {
+	const dict: RGBA = {r: 1, g: 1, b: 1, a: 1}
+
+	if (!chroma.valid(value)) {
+		return null
+	}
+
+	const c = chroma(value)
+
+	if (space.startsWith('rgb')) {
+		const [r, g, b] = c.rgb()
+		dict.r = r / 255
+		dict.g = g / 255
+		dict.b = b / 255
+	}
+
+	if (space.endsWith('a')) {
+		dict.a = c.alpha()
+	}
+
+	return dict
+}
+
+export function rgba2color(dict: RGBA, space: string): string {
+	const c = chroma(
+		dict.r * 255 ?? 0,
+		dict.g * 255 ?? 0,
+		dict.b * 255 ?? 0
+	).alpha(space.endsWith('a') ? dict.a : 1)
+	return c.hex()
+}
+
+export function hsv2rgb({h, s, v}: HSV): RGB {
+	const [r, g, b] = chroma.hsv(h * 360, s, v).rgba()
 	return {r: r / 255, g: g / 255, b: b / 255}
 }
 
-function equalColor(x: ColorDict, y: ColorDict) {
+function equalColor(x: RGB, y: RGB) {
 	return x.r === y.r && x.g === y.g && x.b === y.b
 }
 
-export function toCSSColor({h, s, v}: ColorDict) {
-	return chroma.hsv(h * 360, s, v).css()
+export function hsv2color({h, s, v}: HSV) {
+	return chroma.hsv(h * 360, s, v).hex()
 }
 
-export default function useHSV(
-	modelValue: Ref<ColorDict>,
-	context: SetupContext<'update:modelValue'[]>
-) {
-	const hsv = ref<ColorDict>({h: 0, s: 1, v: 1})
+export default function useHSV(modelValue: Ref<RGBA | RGB>) {
+	const hsv = ref<HSV>({h: 0, s: 1, v: 1})
 
 	// Update hsv
 	watch(
 		() => modelValue.value,
 		() => {
-			if (equalColor(modelValue.value, toRGBDict(hsv.value))) {
+			if (equalColor(modelValue.value, hsv2rgb(hsv.value))) {
 				return
 			}
 
@@ -42,14 +74,7 @@ export default function useHSV(
 		{immediate: true}
 	)
 
-	function update(newHSV: ColorDict) {
-		hsv.value = newHSV
-		const newDict = toRGBDict(newHSV)
-		context.emit('update:modelValue', newDict)
-	}
-
 	return {
 		hsv,
-		update,
 	}
 }

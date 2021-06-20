@@ -16,7 +16,7 @@
 		<div
 			v-if="tweaking"
 			class="InputColor__overlay"
-			:class="{'tweaking-slider': tweakingSlider}"
+			:class="{'tweaking-slider': tweakingHue}"
 		>
 			<button class="InputColor__overlay-button" :style="overlayButtonStyle">
 				<span
@@ -26,14 +26,14 @@
 			</button>
 			<glsl-canvas
 				class="InputColor__overlay-pad"
-				:class="{show: !tweakingSlider}"
+				:class="{show: !tweakingHue}"
 				:fragmentString="PadFragmentString"
 				:uniforms="padUniforms"
 				:style="padStyle"
 			/>
 			<GlslCanvas
 				class="InputColor__overlay-slider"
-				:class="{show: tweakingSlider}"
+				:class="{show: tweakingHue}"
 				:fragmentString="SliderFragmentString"
 				:uniforms="sliderUniforms"
 				:style="sliderStyle"
@@ -43,7 +43,6 @@
 </template>
 
 <script lang="ts">
-import chroma from 'chroma-js'
 import {clamp} from 'lodash'
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
@@ -57,41 +56,13 @@ import {unsignedMod} from '@/utils'
 import InputColorPicker from './InputColorPicker'
 import PadFragmentString from './InputColorPicker/picker-hsv-pad.frag'
 import SliderFragmentString from './InputColorPicker/picker-hsv-slider.frag'
-import useHSV, {toRGBDict} from './InputColorPicker/use-hsv'
-
-export type ColorDict = {[name: string]: number}
-
-function toColorDict(value: string, space: string): ColorDict | null {
-	const dict: ColorDict = {}
-
-	if (!chroma.valid(value)) {
-		return null
-	}
-
-	const c = chroma(value)
-
-	if (space.startsWith('rgb')) {
-		const [r, g, b] = c.rgb()
-		dict.r = r / 255
-		dict.g = g / 255
-		dict.b = b / 255
-	}
-
-	if (space.endsWith('a')) {
-		dict.a = c.alpha()
-	}
-
-	return dict
-}
-
-function fromColorDict(dict: ColorDict, space: string): string {
-	const c = chroma(
-		dict.r * 255 ?? 0,
-		dict.g * 255 ?? 0,
-		dict.b * 255 ?? 0
-	).alpha(dict.a && space.endsWith('a') ? dict.a : 1)
-	return c.hex()
-}
+import useHSV, {
+	color2rgba,
+	hsv2rgb,
+	HSVA,
+	RGBA,
+	rgba2color,
+} from './InputColorPicker/use-hsv'
 
 export default defineComponent({
 	name: 'InputColor',
@@ -118,26 +89,25 @@ export default defineComponent({
 		const buttonEl = ref(null)
 		const pickerOpened = ref(false)
 
-		const {shift: tweakingSlider} = useKeyboardState()
+		const {shift: tweakingHue, alt: tweakingAlpha} = useKeyboardState()
 
-		const colorDict = ref<ColorDict>({r: 0, g: 0, b: 0})
+		const rgba = ref<RGBA>({r: 0, g: 0, b: 0, a: 0})
 		watch(
 			() => props.modelValue,
 			() => {
-				const dict = toColorDict(props.modelValue, props.colorSpace)
+				const dict = color2rgba(props.modelValue, props.colorSpace)
 				if (!dict) return
 
-				colorDict.value = dict
+				rgba.value = dict
 			},
 			{immediate: true}
 		)
 
-		const {hsv} = useHSV(colorDict, context)
+		const {hsv} = useHSV(rgba)
 
 		const rem = useRem()
 
-		const tweakingHSV = shallowRef<ColorDict>({})
-		const tweakingHSVDelta = shallowRef<ColorDict>({})
+		const tweakingColor = shallowRef<HSVA>({h: 0, s: 0, v: 0, a: 0})
 
 		const {
 			origin,
@@ -149,8 +119,7 @@ export default defineComponent({
 				pickerOpened.value = !pickerOpened.value
 			},
 			onDragStart() {
-				tweakingHSV.value = {...hsv.value}
-				tweakingHSVDelta.value = {h: 0, s: 0, v: 0}
+				tweakingColor.value = {...hsv.value, a: rgba.value.a}
 			},
 			onDrag({delta: [x, y]}) {
 				const dx = x / (rem.value * 20)
@@ -158,25 +127,31 @@ export default defineComponent({
 
 				let dh = 0,
 					ds = 0,
-					dv = 0
+					dv = 0,
+					da = 0
 
-				if (tweakingSlider.value) {
+				if (tweakingHue.value) {
 					dh -= dx
+				} else if (tweakingAlpha.value) {
+					da -= dx
 				} else {
 					ds -= dx
 					dv -= dy
 				}
 
-				let {h, s, v} = tweakingHSV.value
+				let {h, s, v, a} = tweakingColor.value
 				h = unsignedMod(h + dh, 1)
 				s = clamp(s + ds, 0, 1)
 				v = clamp(v + dv, 0, 1)
+				a = clamp(a + da, 0, 1)
 
-				tweakingHSVDelta.value = {h: dh, s: ds, v: dv}
-				tweakingHSV.value = {h, s, v}
+				tweakingColor.value = {h, s, v, a}
 
-				const newDict = {...colorDict.value, ...toRGBDict(tweakingHSV.value)}
-				const newValue = fromColorDict(newDict, props.colorSpace)
+				const rgba = {
+					...hsv2rgb(tweakingColor.value),
+					a: a,
+				}
+				const newValue = rgba2color(rgba, props.colorSpace)
 
 				context.emit('update:modelValue', newValue)
 			},
@@ -191,15 +166,15 @@ export default defineComponent({
 
 		const padStyle = computed(() => {
 			return {
-				left: `calc(${origin.value[0]}px - ${tweakingHSV.value.s * 20}rem)`,
+				left: `calc(${origin.value[0]}px - ${tweakingColor.value.s * 20}rem)`,
 				top: `calc(${origin.value[1]}px - ${
-					(1 - tweakingHSV.value.v) * 20
+					(1 - tweakingColor.value.v) * 20
 				}rem)`,
 			}
 		})
 
 		const padUniforms = computed(() => {
-			const {h, s, v} = tweakingHSV.value
+			const {h, s, v} = tweakingColor.value
 			return {
 				hsv: [h, s, v],
 				modeX: 1,
@@ -215,7 +190,7 @@ export default defineComponent({
 		})
 
 		const sliderUniforms = computed(() => {
-			const {h, s, v} = tweakingHSV.value
+			const {h, s, v} = tweakingColor.value
 			return {
 				hsv: [h, s, v],
 				mode: 0,
@@ -240,7 +215,7 @@ export default defineComponent({
 			sliderUniforms,
 			SliderFragmentString,
 
-			tweakingSlider,
+			tweakingHue,
 		}
 	},
 	inheritAttrs: false,

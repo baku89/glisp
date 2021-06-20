@@ -38,10 +38,9 @@ import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
 import {fitTo01, unsignedMod} from '@/utils'
 
-import {ColorDict} from './InputColorPicker.vue'
 import PadFragmentString from './picker-hsv-pad.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
-import useHSV, {toCSSColor} from './use-hsv'
+import useHSV, {HSV, hsv2color, hsv2rgb, RGBA} from './use-hsv'
 
 function modeToIndex(element: string) {
 	return element === 'h' ? 0 : element === 's' ? 1 : 2
@@ -53,8 +52,8 @@ export default defineComponent({
 		GlslCanvas,
 	},
 	props: {
-		modelValue: {
-			type: Object as PropType<ColorDict>,
+		rgba: {
+			type: Object as PropType<RGBA>,
 			required: true,
 		},
 		mode: {
@@ -62,9 +61,9 @@ export default defineComponent({
 			default: 'svh',
 		},
 	},
-	emits: ['update:modelValue'],
+	emits: ['partialUpdate'],
 	setup(props, context) {
-		const {hsv, update} = useHSV(toRef(props, 'modelValue'), context)
+		const {hsv} = useHSV(toRef(props, 'rgba'))
 
 		// Pad
 		const padEl = ref<null | HTMLElement>(null)
@@ -90,18 +89,18 @@ export default defineComponent({
 					}
 				}
 
-				update(newHSV)
+				context.emit('partialUpdate', hsv2rgb(newHSV))
 			},
 		})
 
 		const padCircleStyle = computed(() => {
-			const x = hsv.value[props.mode[0]]
-			const y = hsv.value[props.mode[1]]
+			const x = hsv.value[props.mode[0] as keyof HSV]
+			const y = hsv.value[props.mode[1] as keyof HSV]
 
 			return {
 				left: `${x * 100}%`,
 				bottom: `${y * 100}%`,
-				background: toCSSColor(hsv.value),
+				background: hsv2color(hsv.value),
 			}
 		})
 
@@ -132,14 +131,14 @@ export default defineComponent({
 					newHSV.v = clamp(t, 0, 1)
 				}
 
-				update(newHSV)
+				context.emit('partialUpdate', hsv2rgb(newHSV))
 			},
 		})
 
 		const sliderCircleStyle = computed(() => {
 			const mode = props.mode[2]
-			const t = hsv.value[mode]
-			const bg = toCSSColor(
+			const t = hsv.value[mode as keyof HSV]
+			const bg = hsv2color(
 				mode === 'h' ? {...hsv.value, s: 1, v: 1} : hsv.value
 			)
 

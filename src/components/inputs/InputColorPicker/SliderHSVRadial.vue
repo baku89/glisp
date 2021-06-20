@@ -41,10 +41,9 @@ import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import useDraggable from '@/components/use/use-draggable'
 import {fitTo01, unsignedMod} from '@/utils'
 
-import {ColorDict} from './InputColorPicker.vue'
 import RadialFragmentString from './picker-hsv-radial.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
-import useHSV, {toCSSColor} from './use-hsv'
+import useHSV, {hsv2color, hsv2rgb, RGBA} from './use-hsv'
 
 export default defineComponent({
 	name: 'SliderHSVRadial',
@@ -52,14 +51,14 @@ export default defineComponent({
 		GlslCanvas,
 	},
 	props: {
-		modelValue: {
-			type: Object as PropType<ColorDict>,
+		rgba: {
+			type: Object as PropType<RGBA>,
 			required: true,
 		},
 	},
-	emits: ['update:modelValue'],
+	emits: ['partialUpdate'],
 	setup(props, context) {
-		const {hsv, update} = useHSV(toRef(props, 'modelValue'), context)
+		const {hsv} = useHSV(toRef(props, 'rgba'))
 
 		// Pad
 		const padEl = ref<null | HTMLElement>(null)
@@ -76,13 +75,7 @@ export default defineComponent({
 				const s = Math.min(vec2.len([tx, ty]), 1)
 				const v = hsv.value.v
 
-				const newHSV = {
-					h,
-					s,
-					v,
-				}
-
-				update(newHSV)
+				context.emit('partialUpdate', hsv2rgb({h, s, v}))
 			},
 		})
 
@@ -95,7 +88,7 @@ export default defineComponent({
 			return {
 				left: `${x * 100}%`,
 				bottom: `${y * 100}%`,
-				background: toCSSColor(hsv.value),
+				background: hsv2color(hsv.value),
 			}
 		})
 
@@ -115,13 +108,13 @@ export default defineComponent({
 				const v = clamp((x - left) / (right - left), 0, 1)
 				const newHSV = {...hsv.value, v}
 
-				update(newHSV)
+				context.emit('partialUpdate', hsv2rgb(newHSV))
 			},
 		})
 
 		const sliderCircleStyle = computed(() => {
 			const t = hsv.value.v
-			const bg = toCSSColor(hsv.value)
+			const bg = hsv2color(hsv.value)
 
 			return {
 				left: `${t * 100}%`,

@@ -27,6 +27,6 @@ export default defineComponent({
 	font-size inherit
 	input-transition(all)
 
-	&:hover, &:focus
+	&:hover, &:focus-visible
 		background base16('06')
 </style>
