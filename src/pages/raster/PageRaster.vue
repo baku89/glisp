@@ -34,15 +34,12 @@
 				/>
 				<dl class="PageRaster__params">
 					<template
-						v-for="name in Object.keys(currentBrush.params)"
+						v-for="[name, def] in Object.entries(currentBrush.params)"
 						:key="name"
 					>
 						<dt>{{ toLabel(name) }}</dt>
 						<dd>
-							<InputControl
-								v-bind="currentBrush.params[name]"
-								v-model="params[name]"
-							/>
+							<InputControl v-bind="def" v-model="params[name]" />
 						</dd>
 					</template>
 				</dl>
@@ -204,11 +201,14 @@ export default defineComponent({
 						case 'angle':
 							params.value[name] = def.default || 0
 							break
+						case 'seed':
+							params.value[name] = Math.random()
+							break
 						case 'color':
 							params.value[name] = def.default || '#ffffff'
 							break
-						case 'seed':
-							params.value[name] = Math.random()
+						case 'dropdown':
+							params.value[name] = def.default || def.items.split(',')[0] || ''
 							break
 					}
 				}
@@ -221,9 +221,11 @@ export default defineComponent({
 
 		const fragDeclarations = computed(() => {
 			const variables = _.entries(currentBrush.value.params).map(
-				([name, info]) => {
+				([name, def]) => {
 					let glslType: string
-					switch (info.type) {
+					let defines: string[] = []
+
+					switch (def.type) {
 						case 'slider':
 						case 'seed':
 						case 'angle':
@@ -234,8 +236,20 @@ export default defineComponent({
 							break
 						case 'checkbox':
 							glslType = 'bool'
+							break
+						case 'dropdown': {
+							glslType = 'int'
+							const prefix = _.toUpper(_.snakeCase(name))
+							defines = def.items
+								.split(',')
+								.map(
+									(v, i) =>
+										`#define ${prefix}_${_.toUpper(_.snakeCase(v))} ${i}`
+								)
+							break
+						}
 					}
-					return `uniform ${glslType} ${name};`
+					return [`uniform ${glslType} ${name};`, ...defines]
 				}
 			)
 
@@ -248,7 +262,9 @@ export default defineComponent({
 				'uniform vec2 resolution;',
 				'uniform int frame;',
 				...variables,
-			].join('\n')
+			]
+				.flat()
+				.join('\n')
 		})
 
 		const generatedFrag = computed(() => {
@@ -395,17 +411,19 @@ export default defineComponent({
 				frame: context.tick,
 			}
 
-			const paramDefs = Object.entries(currentBrush.value.params)
+			const defs = Object.entries(currentBrush.value.params)
 
-			for (const [name, info] of paramDefs) {
+			for (const [name, def] of defs) {
 				let value = params.value[name]
 
-				switch (info.type) {
+				switch (def.type) {
 					case 'color':
 						value = chroma(value)
 							.rgba()
 							.map((v, i) => (i < 3 ? v / 255 : v))
 						break
+					case 'dropdown':
+						value = def.items.split(',').indexOf(value)
 				}
 
 				;(options as any)[name] = value

@@ -33,6 +33,13 @@
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
+		<template v-else-if="type === 'dropdown'">
+			<InputDropdown
+				:modelValue="modelValue"
+				:items="items ? items.split(',') : null"
+				@update:modelValue="$emit('update:modelValue', $event)"
+			/>
+		</template>
 	</div>
 </template>
 
@@ -41,6 +48,7 @@ import {defineComponent, PropType} from 'vue'
 
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
@@ -50,6 +58,7 @@ export default defineComponent({
 	components: {
 		InputCheckbox,
 		InputColor,
+		InputDropdown,
 		InputRotery,
 		InputSeed,
 		InputSlider,
@@ -61,6 +70,7 @@ export default defineComponent({
 		modelValue: {
 			type: [Number, String, Boolean, Array, Object],
 		},
+		items: String,
 		min: Number,
 		max: Number,
 	},

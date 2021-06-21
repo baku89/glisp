@@ -25,6 +25,8 @@ export function validate(data: Data, schema: Schema): boolean {
 			return _.isBoolean(data)
 		case 'number':
 			return _.isNumber(data)
+		case 'string':
+			return _.isString(data)
 		case 'color':
 			return _.isString(data)
 		case 'object': {
@@ -70,6 +72,8 @@ export function cast(data: Data | undefined, schema: Schema): Data {
 			return _.isBoolean(data) ? data : schema.default || false
 		case 'number':
 			return _.isNumber(data) ? data : schema.default || 0
+		case 'string':
+			return _.isString(data) ? data : schema.default || ''
 		case 'color':
 			return _.isString(data) ? data : schema.default || '#ffffff'
 		case 'object': {

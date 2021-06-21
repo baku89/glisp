@@ -9,5 +9,6 @@ export interface BrushDefinition {
 			| {type: 'seed'}
 			| {type: 'color'; default?: string}
 			| {type: 'checkbox'; default?: boolean}
+			| {type: 'dropdown'; items: string; default?: string}
 	}
 }

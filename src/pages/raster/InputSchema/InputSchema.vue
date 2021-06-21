@@ -14,6 +14,7 @@ import InputSchemaBoolean from './InputSchemaBoolean.vue'
 import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
 import InputSchemaObject from './InputSchemaObject.vue'
+import InputSchemaString from './InputSchemaString.vue'
 import InputSchemaUnion from './InputSchemaUnion.vue'
 import {Data, Schema} from './type'
 import {cast} from './validator'
@@ -24,6 +25,7 @@ export default defineComponent({
 		'schema-color': InputSchemaColor,
 		'schema-boolean': InputSchemaBoolean,
 		'schema-number': InputSchemaNumber,
+		'schema-string': InputSchemaString,
 		'schema-object': InputSchemaObject,
 		'schema-union': InputSchemaUnion,
 	},

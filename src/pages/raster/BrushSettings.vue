@@ -152,6 +152,15 @@ ${props.fragDeclarations}
 						},
 						required: ['type'],
 					},
+					Dropdown: {
+						type: 'object',
+						properties: {
+							type: {type: 'const', value: 'dropdown'},
+							items: {type: 'string', default: 'item0,items1'},
+							default: {type: 'string', default: 'item0'},
+						},
+						required: ['type', 'items'],
+					},
 				},
 			},
 		})

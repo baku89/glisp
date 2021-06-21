@@ -2,6 +2,7 @@ export type Schema =
 	| SchemaConst
 	| SchemaBoolean
 	| SchemaNumber
+	| SchemaString
 	| SchemaColor
 	| SchemaObject
 	| SchemaUnion
@@ -23,6 +24,11 @@ export interface SchemaNumber {
 	min?: number
 	max?: number
 	default?: number
+}
+
+export interface SchemaString {
+	type: 'string'
+	default?: string
 }
 
 export interface SchemaColor {
