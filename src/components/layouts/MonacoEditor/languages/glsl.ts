@@ -61,7 +61,7 @@ languages.setMonarchTokensProvider('glsl', {
 		root: [
 			// GL
 			[
-				/gl_(\w+)/,
+				/gl_\w+/,
 				{
 					cases: {
 						'$1~@glVariables': 'support',
@@ -75,6 +75,7 @@ languages.setMonarchTokensProvider('glsl', {
 				/[a-z]\w+/,
 				{
 					cases: {
+						'true|false': 'constant',
 						'~@keywordModifier': 'keyword',
 						'~@keywordType': 'keyword',
 						'~@keywordControl': 'keyword',
@@ -88,17 +89,23 @@ languages.setMonarchTokensProvider('glsl', {
 			// Preprocessor directive
 			[/^\s*#\s*\w+/, 'keyword.directive'],
 
+			// numbers
+			[
+				/[+\-0-9.eE]+/,
+				{
+					cases: {
+						'[+-]?[0-9]+\\.?': 'number',
+						'[+-]?[0-9]*\\.[0-9]+([eE][+-]?[0-9]+)?': 'number',
+						'@default': '',
+					},
+				},
+			],
+
 			// whitespace
 			{include: '@whitespace'},
 
 			// delimiters and operators
 			[/[{}()[\]]/, '@brackets'],
-
-			// numbers
-			[
-				/\b([0-9][0-9_]*)(\.([0-9][0-9_]*))?([eE][+/-]?([0-9][0-9_]*))?\b/,
-				'number',
-			],
 
 			// delimiter: after number because of .\d floats
 			[/[;,]/, 'delimiter'],
