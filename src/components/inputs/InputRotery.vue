@@ -108,7 +108,11 @@ export default defineComponent({
 		let alreadyEmitted = false
 		let startValue = ref(props.modelValue)
 
-		const {isDragging: tweaking, origin, pos} = useDraggable(el, {
+		const {
+			isDragging: tweaking,
+			origin,
+			pos,
+		} = useDraggable(el, {
 			disableClick: true,
 			lockPointer: true,
 			onDragStart({pos, origin}) {
@@ -291,6 +295,7 @@ export default defineComponent({
 
 .InputRotery
 	position relative
+	display block
 	overflow hidden
 	width $input-height
 	border-radius $input-round

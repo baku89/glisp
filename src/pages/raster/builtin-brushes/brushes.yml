@@ -252,50 +252,76 @@ twirl:
       type: slider
       max: 0.5
 
-pixel-sorting:
-  label: Brush
+pixel-sort:
+  label: Pixel Sort
   icon: |
-    <path
-    d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
-    <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
+    <line x1="22" y1="6" x2="6" y2="6"/>
+    <line x1="21" y1="11" x2="12" y2="11"/>
+    <line x1="24" y1="16" x2="6" y2="16"/>
+    <line x1="27" y1="21" x2="3" y2="21"/>
+    <line x1="26" y1="26" x2="12" y2="26"/>
+    <path d="M24,29c4-4,4-9,0-13s-4-9,0-13"/>
   frag: |
     #define PI 3.1415926535897
 
     // https://ciphered.xyz/2020/04/08/pixel-sorting-on-shader-using-well-crafted-sorting-filters-glsl/
 
-    float gscale(vec3 c) { return (c.r+c.g+c.b)/3.; }
+    float gscale(vec3 c) { return dot(c, vec3(.333333)); }
 
-    vec2 base(float angle) { return vec2(cos(angle), sin(angle)); }
+    vec2 base(float angle) {
+      return vec2(cos(angle), sin(angle));
+    }
 
-    void main() {		
+    float quantize(float a, float b) {
+      return floor(a / b + 0.5) * b;
+    }
+
+    void main() {
+
+      float qAngle = quantize(angle, PI / 4.);
+        
+      vec2 dir = sign(base(qAngle));
+      vec2 sheer = vec2(0);
+
+      if (dot(abs(dir), vec2(1.)) >= 2.) {
+        sheer.y = dir.y;
+        dir.y = 0.;
+      }
+
+      vec2 coord = uv * resolution;
+
       // the frame number parity, -1 is odd 1 is even
-      float parity = mod(float(frame), 2.) * 2. - 1.;
+      float fp = mod(float(frame), 2.) * 2. - 1.;
+      // we differentiate every 1/2 pixel on the axis, will be -1 or 1
+      float vp = mod(floor(dot(coord, dir)), 2.) * 2. - 1.;
+      float parity = fp * vp;
         
-      // we differentiate every 1/2 pixel on the horizontal axis, will be -1 or 1
-      float vp = mod(floor(uv.x * resolution.x), 2.) * 2. - 1.;
-        
-      vec2 dir = base(angle);
-      dir *= parity * vp;
-      dir /= resolution;
+      vec2 offset = (dir + sheer) * (parity / resolution);
+      vec2 uv2 = uv + offset;
 
       // we sort
       vec4 cur = texture2D(inputTexture, uv);
-      vec4 cmp = texture2D(inputTexture, uv + dir);
-      
+      vec4 cmp = texture2D(inputTexture, uv2);
+
       float gCur = gscale(cur.rgb);
-      float gComp = gscale(cmp.rgb);
+      float gCmp = gscale(cmp.rgb);
+
+      bool doSort = trigger == TRIGGER_DARK
+        ? gCur <= threshold && gCmp <= threshold
+        : gCur >= threshold && gCmp >= threshold;
       
       // we prevent the sort from happening on the borders
-      if (uv.x + dir.x < 0. || uv.x + dir.x > 1.) {
+      // or, either pixel is below the threshold
+      if (uv2.x < 0. || uv2.x > 1. || uv2.y < 0. || uv2.y > 1. || !doSort) {
         gl_FragColor = cur;
         return;
       }
       
       // the direction of the displacement defines the order of the comparaison 
-      if (dir.x < 0.) {
-        gl_FragColor = (gCur > threshold && gComp > gCur) ? cmp : cur;
+      if (parity > 0.) {
+        gl_FragColor = (gCur > gCmp) ? cmp : cur;
       } else {
-        gl_FragColor = (gComp > threshold && gCur >= gComp) ? cmp : cur;
+        gl_FragColor = (gCmp > gCur) ? cmp : cur;
       }
     }
   params:
@@ -307,3 +333,7 @@ pixel-sorting:
     angle:
       type: angle
       default: 0
+    trigger:
+      type: dropdown
+      items: 'Dark,Light'
+      default: 'Dark'
