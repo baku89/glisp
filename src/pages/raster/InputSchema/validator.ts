@@ -21,10 +21,12 @@ export function validate(data: Data, schema: Schema): boolean {
 	switch (schema.type) {
 		case 'const':
 			return data === schema.value
+		case 'boolean':
+			return _.isBoolean(data)
 		case 'number':
-			return typeof data === 'number'
+			return _.isNumber(data)
 		case 'color':
-			return typeof data === 'string'
+			return _.isString(data)
 		case 'object': {
 			if (!(data instanceof Object)) return false
 
@@ -64,6 +66,8 @@ export function cast(data: Data | undefined, schema: Schema): Data {
 	switch (schema.type) {
 		case 'const':
 			return schema.value
+		case 'boolean':
+			return _.isBoolean(data) ? data : schema.default || false
 		case 'number':
 			return _.isNumber(data) ? data : schema.default || 0
 		case 'color':

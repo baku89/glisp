@@ -190,8 +190,8 @@ export default defineComponent({
 		watch(
 			currentBrush,
 			(brush, oldBrush) => {
-				const oldDefs = oldBrush?.params || {}
 				const newDefs = brush.params
+				const oldDefs = oldBrush?.params || newDefs
 
 				for (const name in newDefs) {
 					const def = newDefs[name]
@@ -232,6 +232,8 @@ export default defineComponent({
 						case 'color':
 							glslType = 'vec4'
 							break
+						case 'checkbox':
+							glslType = 'bool'
 					}
 					return `uniform ${glslType} ${name};`
 				}

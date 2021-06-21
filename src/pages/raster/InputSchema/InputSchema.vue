@@ -10,6 +10,7 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
+import InputSchemaBoolean from './InputSchemaBoolean.vue'
 import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
 import InputSchemaObject from './InputSchemaObject.vue'
@@ -21,13 +22,14 @@ export default defineComponent({
 	name: 'InputSchema',
 	components: {
 		'schema-color': InputSchemaColor,
+		'schema-boolean': InputSchemaBoolean,
 		'schema-number': InputSchemaNumber,
 		'schema-object': InputSchemaObject,
 		'schema-union': InputSchemaUnion,
 	},
 	props: {
 		modelValue: {
-			type: [Number, String, Object] as PropType<Data>,
+			type: [Boolean, Number, String, Object] as PropType<Data>,
 			default: null,
 		},
 		schema: {

@@ -6,7 +6,8 @@ export interface BrushDefinition {
 		[name: string]:
 			| {type: 'slider'; default?: number; min?: number; max?: number}
 			| {type: 'angle'; default?: number}
-			| {type: 'color'; default?: string}
 			| {type: 'seed'}
+			| {type: 'color'; default?: string}
+			| {type: 'checkbox'; default?: boolean}
 	}
 }

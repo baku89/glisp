@@ -15,6 +15,12 @@
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
+		<template v-else-if="type === 'seed'">
+			<InputSeed
+				:modelValue="modelValue"
+				@update:modelValue="$emit('update:modelValue', $event)"
+			/>
+		</template>
 		<template v-else-if="type === 'color'">
 			<InputColor
 				:modelValue="modelValue"
@@ -23,12 +29,6 @@
 		</template>
 		<template v-else-if="type === 'checkbox'">
 			<InputCheckbox
-				:modelValue="modelValue"
-				@update:modelValue="$emit('update:modelValue', $event)"
-			/>
-		</template>
-		<template v-else-if="type === 'seed'">
-			<InputSeed
 				:modelValue="modelValue"
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>

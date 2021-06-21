@@ -125,7 +125,14 @@ ${props.fragDeclarations}
 						type: 'object',
 						properties: {
 							type: {type: 'const', value: 'angle'},
-							default: {type: 'number', default: 0},
+							default: {type: 'number'},
+						},
+						required: ['type'],
+					},
+					Seed: {
+						type: 'object',
+						properties: {
+							type: {type: 'const', value: 'seed'},
 						},
 						required: ['type'],
 					},
@@ -137,10 +144,11 @@ ${props.fragDeclarations}
 						},
 						required: ['type'],
 					},
-					Seed: {
+					Checkbox: {
 						type: 'object',
 						properties: {
-							type: {type: 'const', value: 'seed'},
+							type: {type: 'const', value: 'checkbox'},
+							default: {type: 'boolean'},
 						},
 						required: ['type'],
 					},

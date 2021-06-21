@@ -54,7 +54,7 @@ export default defineComponent({
 			required: true,
 		},
 		modelValue: {
-			type: [Number, String, Object] as PropType<Data>,
+			type: [Boolean, Number, String, Object] as PropType<Data>,
 			required: true,
 		},
 		schema: {

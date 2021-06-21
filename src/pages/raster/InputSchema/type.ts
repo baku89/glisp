@@ -1,5 +1,6 @@
 export type Schema =
 	| SchemaConst
+	| SchemaBoolean
 	| SchemaNumber
 	| SchemaColor
 	| SchemaObject
@@ -9,6 +10,11 @@ export interface SchemaConst {
 	type: 'const'
 	value: DataPrimitive
 	show: boolean
+}
+
+export interface SchemaBoolean {
+	type: 'boolean'
+	default?: boolean
 }
 
 export interface SchemaNumber {
@@ -43,7 +49,7 @@ export interface SchemaUnion {
 export type Data = DataPrimitive | DataObject
 export const DATA_META = Symbol('data_meta')
 
-export type DataPrimitive = number | string
+export type DataPrimitive = boolean | number | string
 
 export interface DataObject {
 	[props: string]: Data
