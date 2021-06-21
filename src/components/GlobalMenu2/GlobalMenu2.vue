@@ -17,49 +17,31 @@
 		<slot name="left" />
 	</menu>
 	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
-		<slot name="menu">
-			<ul>
-				<li>
-					<SvgIcon class="icon" mode="block">
-						<path
-							d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4"
-					/></SvgIcon>
-					New from Clipboard
-				</li>
-				<li>
-					<SvgIcon class="icon" mode="block"
-						><path
-							d="M4 28 L28 28 30 12 14 12 10 8 2 8 Z M28 12 L28 4 4 4 4 8"
-						/> </SvgIcon
-					>Open Image...
-				</li>
-				<li>
-					<SvgIcon class="icon" mode="block"
-						><path
-							d="M9 22 C0 23 1 12 9 13 6 2 23 2 22 10 32 7 32 23 23 22 M11 26 L16 30 21 26 M16 16 L16 30" /></SvgIcon
-					>Download Image
-				</li>
-				<li>
-					<SvgIcon class="icon" mode="block">
-						<path
-							d="M14 9 L3 9 3 29 23 29 23 18 M18 4 L28 4 28 14 M28 4 L14 18"
-						/> </SvgIcon
-					>Copy Current Tool
-				</li>
-			</ul>
-		</slot>
+		<ul>
+			<li v-for="(action, i) in menu" :key="i" @mouseup="doAction(action)">
+				<SvgIcon class="icon" mode="block" v-html="action.icon || ''"></SvgIcon>
+				{{ action.name }}
+			</li>
+		</ul>
 	</div>
 </template>
 
 <script lang="ts">
-import {templateRef} from '@vueuse/core'
-import {defineComponent, ref} from 'vue-demi'
+import {defineComponent, PropType, ref} from 'vue-demi'
+
+import Action from '@/pages/raster/action'
 
 import SvgIcon from '../layouts/SvgIcon.vue'
 
 export default defineComponent({
 	components: {SvgIcon},
 	name: 'GlobalMenu2',
+	props: {
+		menu: {
+			type: Array as PropType<Action[]>,
+			default: () => [],
+		},
+	},
 	setup() {
 		const titleBar = ref(
 			/electron/i.test(navigator.userAgent)
@@ -70,8 +52,6 @@ export default defineComponent({
 		)
 
 		const menuOpened = ref(false)
-
-		const menuEl = templateRef('menu')
 
 		function onClickMenu(e: MouseEvent) {
 			if (menuOpened.value) {
@@ -98,7 +78,11 @@ export default defineComponent({
 			)
 		}
 
-		return {titleBar, menuOpened, onClickMenu}
+		function doAction(action: Action) {
+			action.exec()
+		}
+
+		return {titleBar, menuOpened, onClickMenu, doAction}
 	},
 })
 </script>

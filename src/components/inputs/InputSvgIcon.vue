@@ -21,8 +21,7 @@
 </template>
 
 <script lang="ts">
-import hotkeys from 'hotkeys-js'
-import {defineComponent, inject, onMounted, Ref, ref, watch} from 'vue'
+import {defineComponent, inject, Ref, ref, watch} from 'vue'
 
 import Popover from '@/components/layouts/Popover.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
@@ -47,7 +46,7 @@ export default defineComponent({
 	emit: ['update:modelValue'],
 	inheritAttrs: false,
 	setup(props, context) {
-		const buttonEl = ref(null)
+		const buttonEl = ref<HTMLElement | null>(null)
 		const opened = ref(false)
 
 		const code = ref(props.modelValue)
@@ -63,15 +62,6 @@ export default defineComponent({
 		)
 
 		const scheme = inject<Ref<{[name: string]: string}>>('scheme', ref({}))
-
-		onMounted(() => {
-			if (!buttonEl.value) return
-
-			hotkeys('ctrl+c, command+c', {element: buttonEl.value}, copySvg)
-			hotkeys('ctrl+v, command+v', {element: buttonEl.value}, () => {
-				pasteSvg().then(() => context.emit('update:modelValue', code.value))
-			})
-		})
 
 		function copySvg() {
 			const dom = new DOMParser().parseFromString(

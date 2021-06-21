@@ -1,6 +1,6 @@
 <template>
 	<div class="PageRaster">
-		<GlobalMenu2>
+		<GlobalMenu2 :menu="globalMenu">
 			<template #left>
 				<GlobalMenu2Breadcumb :items="[{label: 'Raster'}]" />
 			</template>
@@ -14,6 +14,9 @@
 					class="PageRaster__zoomable"
 					v-model:transform="viewTransform"
 					ref="viewport"
+					@dragenter.prevent
+					@dragover.prevent
+					@drop="onDropFile"
 				>
 					<canvas
 						class="PageRaster__canvas"
@@ -60,59 +63,22 @@
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
-import {
-	templateRef,
-	useLocalStorage,
-	useMouseInElement,
-	useMousePressed,
-} from '@vueuse/core'
-import chroma from 'chroma-js'
-import {mat2d, vec2} from 'gl-matrix'
-import hotkeys from 'hotkeys-js'
+import {templateRef, useLocalStorage} from '@vueuse/core'
 import _ from 'lodash'
-import Regl from 'regl'
 import {Pane, Splitpanes} from 'splitpanes'
-import {
-	computed,
-	defineComponent,
-	onMounted,
-	onUnmounted,
-	ref,
-	shallowRef,
-	watch,
-} from 'vue'
+import {computed, defineComponent, ref} from 'vue'
 import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
 
+import Action from './action'
 import BrushSettings from './BrushSettings.vue'
 import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
 import ToolSelector from './ToolSelector.vue'
-import useFragShaderValidator from './use-frag-shader-validator'
-import {saveViewport} from './webgl-utils'
+import useViewport from './use-viewport'
 import Zoomable from './Zoomable.vue'
-
-const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
-	vert: `
-	precision mediump float;
-	attribute vec2 position;
-	varying vec2 uv;
-	void main() {
-		uv = position / 2.0 + 0.5;
-		gl_Position = vec4(position, 0, 1);
-	}`,
-	attributes: {
-		position: [-1, -1, 1, -1, -1, 1, 1, 1],
-	},
-	depth: {
-		enable: false,
-	},
-	count: 4,
-	primitive: 'triangle strip',
-}
-
 export default defineComponent({
 	name: 'PageRaster',
 	components: {
@@ -132,33 +98,6 @@ export default defineComponent({
 		const canvasEl = templateRef('canvas')
 
 		const controlPaneWidth = useLocalStorage('controlPaneWidth', 50)
-		const viewTransform = ref(mat2d.create())
-
-		const canvasSize = ref([1024, 1024])
-
-		const {elementX: viewportX, elementY: viewportY} =
-			useMouseInElement(viewportEl)
-		const {pressed} = useMousePressed({target: viewportEl})
-
-		const cursorPos = computed(() => {
-			const xform = vec2.fromValues(viewportX.value, viewportY.value)
-			const xformInv = mat2d.invert(mat2d.create(), viewTransform.value)
-			vec2.transformMat2d(xform, xform, xformInv)
-			vec2.div(xform, xform, canvasSize.value as vec2)
-			return xform
-		})
-
-		// Render
-		let cancelRender: Regl.Cancellable | null = null
-		watch(pressed, pressed => {
-			if (!regl.value) return
-
-			if (pressed) {
-				cancelRender = regl.value.frame(render)
-			} else {
-				if (cancelRender) cancelRender.cancel()
-			}
-		})
 
 		// Brushes
 		const brushes = useLocalStorage('raster__brushes', BuiltinBrushes)
@@ -176,328 +115,71 @@ export default defineComponent({
 				brushes.value[currentBrushName.value] = v
 			},
 		})
-		const params = useLocalStorage(
-			'raster__params',
-			{} as {[name: string]: any}
-		)
 
-		const brushesCode = computed(() => YAML.stringify(brushes.value, {}))
-
-		// Update brush params
-		watch(
+		const {
+			state: viewportState,
+			methods: {loadImage},
+			actions: viewportActions,
+		} = useViewport({
+			viewportEl,
+			canvasEl,
 			currentBrush,
-			(brush, oldBrush) => {
-				const newDefs = brush.params
-				const oldDefs = oldBrush?.params || newDefs
+		})
 
-				for (const name in newDefs) {
-					const def = newDefs[name]
-					if (oldDefs[name]?.type === def.type && name in params.value) {
-						continue
-					}
-					// Set default
-					switch (def.type) {
-						case 'slider':
-						case 'angle':
-							params.value[name] = def.default || 0
-							break
-						case 'seed':
-							params.value[name] = Math.random()
-							break
-						case 'color':
-							params.value[name] = def.default || '#ffffff'
-							break
-						case 'dropdown':
-							params.value[name] = def.default || def.items.split(',')[0] || ''
-							break
-					}
-				}
+		window.addEventListener(
+			'paste',
+			e => {
+				loadImageFromDataTransfer((e as ClipboardEvent).clipboardData)
 			},
-			{immediate: true}
+			false
 		)
 
-		// WebGL contexts
-		const regl = shallowRef<Regl.Regl | null>(null)
-
-		const fragDeclarations = computed(() => {
-			const variables = _.entries(currentBrush.value.params).map(
-				([name, def]) => {
-					let glslType: string
-					let defines: string[] = []
-
-					switch (def.type) {
-						case 'slider':
-						case 'seed':
-						case 'angle':
-							glslType = 'float'
-							break
-						case 'color':
-							glslType = 'vec4'
-							break
-						case 'checkbox':
-							glslType = 'bool'
-							break
-						case 'dropdown': {
-							glslType = 'int'
-							const prefix = _.toUpper(_.snakeCase(name))
-							defines = def.items
-								.split(',')
-								.map(
-									(v, i) =>
-										`#define ${prefix}_${_.toUpper(_.snakeCase(v))} ${i}`
-								)
-							break
-						}
-					}
-					return [`uniform ${glslType} ${name};`, ...defines]
-				}
-			)
-
-			return [
-				'precision mediump float;',
-				'varying vec2 uv;',
-				'uniform sampler2D inputTexture;',
-				'uniform vec2 cursor;',
-				'uniform float deltaTime;',
-				'uniform vec2 resolution;',
-				'uniform int frame;',
-				...variables,
-			]
-				.flat()
-				.join('\n')
-		})
-
-		const generatedFrag = computed(() => {
-			return [fragDeclarations.value, '#line 1', currentBrush.value.frag].join(
-				'\n'
-			)
-		})
-
-		const {validFrag, shaderErrors} = useFragShaderValidator(
-			generatedFrag,
-			regl
-		)
-
-		// Commands
-		const drawCommand = computed(() => {
-			if (!regl.value) return null
-			const prop = regl.value.prop as any
-
-			const uniforms: {[name: string]: any} = {
-				inputTexture: prop('inputTexture'),
-				cursor: prop('cursor'),
-				deltaTime: prop('deltaTime'),
-				resolution: prop('resolution'),
-				frame: prop('frame'),
-				..._.mapValues(currentBrush.value.params, (_, n) => prop(n)),
-			}
-
-			return regl.value({
-				...REGL_QUAD_DEFAULT,
-				frag: validFrag.value,
-				uniforms,
-			})
-		})
-
-		const passthruCommand = computed(() => {
-			if (!regl.value) return
-
-			return regl.value({
-				...REGL_QUAD_DEFAULT,
-				frag: `
-					precision mediump float;
-					uniform sampler2D inputTexture;
-					varying vec2 uv;
-					void main() {
-						gl_FragColor = texture2D(inputTexture, uv);
-					}`,
-				uniforms: {
-					inputTexture: (regl.value.prop as any)('inputTexture'),
-				},
-			})
-		})
-
-		const viewportCommand = computed(() => {
-			if (!regl.value) return
-
-			return regl.value({
-				...REGL_QUAD_DEFAULT,
-				frag: `
-					precision mediump float;
-					uniform sampler2D inputTexture;
-					uniform vec2 resolution;
-					varying vec2 uv;
-
-					#define CHECKER_A vec3(1)
-					#define CHECKER_B vec3(.87)
-
-					vec4 blendOver(vec4 A, vec4 B) {
-						float alpha = B.a + A.a * (1. - B.a);
-						vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
-						return vec4(rgb, alpha);
-					}
-
-					float checkerboard(vec2 coord) {
-						return mod(
-							step(mod(coord.x, 2.), 1.) +
-							step(mod(coord.y, 2.), 1.),
-							2.0
-						);
-					}
-
-					void main() {
-						vec2 coord = uv * resolution;
-						vec4 bg = vec4(mix(CHECKER_A, CHECKER_B, checkerboard(coord / 10.)), 1.);
-						vec4 img = texture2D(inputTexture, uv);
-						gl_FragColor = blendOver(bg, img);
-					}`,
-				context: {
-					resolution(context) {
-						return [context.viewportWidth, context.viewportHeight]
-					},
-				},
-				uniforms: {
-					inputTexture: (regl.value.prop as any)('inputTexture'),
-					resolution: (regl.value.context as any)('resolution'),
-				},
-			})
-		})
-
-		let fbo: [Regl.Framebuffer2D, Regl.Framebuffer2D] | null = null
-
-		onMounted(() => {
-			if (!canvasEl.value) return
-
-			const canvas = canvasEl.value as HTMLCanvasElement
-			const _gl = Regl({
-				attributes: {
-					preserveDrawingBuffer: true,
-					depth: false,
-					premultipliedAlpha: false,
-				},
-				extensions: ['OES_texture_float'],
-				canvas,
-			})
-			regl.value = _gl
-
-			const fboOptions: Regl.FramebufferOptions = {
-				radius: 1024,
-				colorType: 'float',
-			}
-
-			fbo = [_gl.framebuffer(fboOptions), _gl.framebuffer(fboOptions)]
-
-			loadImage('/default_img.jpg')
-		})
-
-		function render(context: Regl.DefaultContext) {
-			if (
-				!regl.value ||
-				!pressed.value ||
-				!drawCommand.value ||
-				!viewportCommand.value ||
-				!fbo
-			) {
-				return
-			}
-
-			const _drawCommand = drawCommand.value
-
-			fbo = [fbo[1], fbo[0]]
-
-			const options = {
-				inputTexture: fbo[1],
-				cursor: cursorPos.value,
-				deltaTime: 1 / 60,
-				resolution: canvasSize.value,
-				frame: context.tick,
-			}
-
-			const defs = Object.entries(currentBrush.value.params)
-
-			for (const [name, def] of defs) {
-				let value = params.value[name]
-
-				switch (def.type) {
-					case 'color':
-						value = chroma(value)
-							.rgba()
-							.map((v, i) => (i < 3 ? v / 255 : v))
-						break
-					case 'dropdown':
-						value = def.items.split(',').indexOf(value)
-				}
-
-				;(options as any)[name] = value
-			}
-
-			fbo[0].use(() => _drawCommand(options))
-
-			viewportCommand.value({inputTexture: fbo[0]})
-		}
-
-		async function loadImage(url: string) {
-			if (
-				!regl.value ||
-				!fbo ||
-				!passthruCommand.value ||
-				!viewportCommand.value
-			)
-				return
-
-			const _regl = regl.value
-			const _fbo = fbo
-			const _passthruCommand = passthruCommand.value
-			const _viewportCommand = viewportCommand.value
-
-			const img = new Image()
-			img.src = url
-			img.onload = () => {
-				const {width, height} = img
-				canvasSize.value = [width, height]
-				const tex = _regl.texture(img)
-				_fbo[0].use(() => _passthruCommand({inputTexture: tex}))
-				_viewportCommand({inputTexture: _fbo[0]})
-			}
-		}
-
-		function saveImage(e: Event) {
+		function onDropFile(e: DragEvent) {
 			e.preventDefault()
-			if (!regl.value || !fbo || !passthruCommand.value) return
-
-			const _regl = regl.value
-			const _fbo = fbo
-			const _passthruCommand = passthruCommand.value
-
-			const {width, height} = regl.value._gl.canvas
-
-			const saveFbo = regl.value.framebuffer({width, height})
-
-			saveFbo.use(() => {
-				_passthruCommand({inputTexture: _fbo[0]})
-				saveViewport(_regl, 'image.png')
-			})
-
-			saveFbo.destroy()
+			loadImageFromDataTransfer(e.dataTransfer)
 		}
 
-		hotkeys('command+s, ctrl+s', saveImage)
+		function loadImageFromDataTransfer(dataTransfer: DataTransfer | null) {
+			// Use thePasteEvent object here ...
+			const image = dataTransfer?.files[0]
 
-		onUnmounted(() => {
-			if (regl.value) regl.value.destroy()
-		})
+			if (image && image.type.startsWith('image')) {
+				const reader = new FileReader()
+				reader.readAsDataURL(image)
+				reader.onload = () => {
+					if (typeof reader.result === 'string') {
+						loadImage(reader.result)
+					}
+				}
+			}
+		}
+
+		const copyCurrentBrushUrl: Action = {
+			name: 'Copy Current Brush URL',
+			icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+			exec() {
+				const data = YAML.stringify({
+					[currentBrushName.value]: currentBrush.value,
+				})
+				const url = new URL('raster.html', window.location.href)
+				url.searchParams.set('action', 'load_brush')
+				url.searchParams.set('data', data)
+				navigator.clipboard.writeText(url.toString())
+			},
+		}
+
+		const globalMenu = ref([..._.values(viewportActions), copyCurrentBrushUrl])
 
 		return {
-			canvasSize,
-			viewTransform,
 			brushes,
 			controlPaneWidth,
 			currentBrush,
-			brushesCode,
 			currentBrushName,
-			fragDeclarations,
-			params,
-			shaderErrors,
+			globalMenu,
+			...viewportState,
+
+			onDropFile,
+
 			toLabel: _.startCase,
 		}
 	},
