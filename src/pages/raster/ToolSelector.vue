@@ -53,6 +53,7 @@ export default defineComponent({
 			tool.label += ' Copy'
 
 			context.emit('update:tools', {...tools, [name]: tool})
+			context.emit('update:modelValue', name)
 		}
 
 		return {duplicateCurrentTool}
@@ -95,7 +96,7 @@ $size = 3em
 			background base16('accent')
 			color base16('00')
 
-		&:hover
+		&:not(.active):hover
 			color base16('accent')
 
 			.ToolSelector__label

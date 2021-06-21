@@ -45,33 +45,12 @@
 					</template>
 				</dl>
 			</Pane>
-			<Pane class="no-padding PageRaster__control" :size="controlPaneWidth">
-				<Tab :tabs="['settings', 'code']" initialTab="settings">
-					<template #head-settings>
-						<SvgIcon mode="inline" style="font-size: 1.2em">
-							<path
-								d="M28 6 L4 6 M28 16 L4 16 M28 26 L4 26 M24 3 L24 9 M8 13 L8 19 M20 23 L20 29"
-							/>
-						</SvgIcon>
-						Settings
-					</template>
-					<template #head-code>
-						<SvgIcon mode="inline" style="font-size: 1.2em">
-							<path d="M10 9 L3 17 10 25 M22 9 L29 17 22 25 M18 7 L14 27" />
-						</SvgIcon>
-						Code
-					</template>
-					<template #panel-settings>
-						<BrushSettings
-							v-model="currentBrush"
-							:fragDeclarations="fragDeclarations"
-							:shaderErrors="shaderErrors"
-						/>
-					</template>
-					<template #panel-code>
-						<MonacoEditor :modelValue="brushesCode" lang="yaml" />
-					</template>
-				</Tab>
+			<Pane class="PageRaster__control" :size="controlPaneWidth">
+				<BrushSettings
+					v-model="currentBrush"
+					:fragDeclarations="fragDeclarations"
+					:shaderErrors="shaderErrors"
+				/>
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -106,9 +85,6 @@ import {
 import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
-import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
-import SvgIcon from '@/components/layouts/SvgIcon.vue'
-import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
 import BrushSettings from './BrushSettings.vue'
@@ -146,11 +122,8 @@ export default defineComponent({
 		ToolSelector,
 		GlobalMenu2,
 		GlobalMenu2Breadcumb,
-		MonacoEditor,
 		Pane,
 		Splitpanes,
-		SvgIcon,
-		Tab,
 		Zoomable,
 	},
 	setup() {
