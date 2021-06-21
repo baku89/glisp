@@ -14,6 +14,8 @@ import {
 	watch,
 } from 'vue'
 
+import {loadImage as loadImagePromise} from '@/lib/promise'
+
 import Action from './action'
 import {BrushDefinition} from './brush-definition'
 import useFragShaderValidator from './use-frag-shader-validator'
@@ -310,25 +312,22 @@ export default function useViewport({
 		const _passthruCommand = passthruCommand.value
 		const _viewportCommand = viewportCommand.value
 
-		const img = new Image()
-		img.src = url
-		img.onload = () => {
-			const {width, height} = img
-			canvasSize.value = [width, height]
-			const tex = _regl.texture(img)
+		const img = await loadImagePromise(url)
+		const {width, height} = img
+		canvasSize.value = [width, height]
+		const tex = _regl.texture(img)
 
-			_fbo[0].resize(width, height)
-			_fbo[1].resize(width, height)
+		_fbo[0].resize(width, height)
+		_fbo[1].resize(width, height)
 
-			_fbo[0].use(() => _passthruCommand({inputTexture: tex}))
-			_fbo[1].use(() => _passthruCommand({inputTexture: tex}))
+		_fbo[0].use(() => _passthruCommand({inputTexture: tex}))
+		_fbo[1].use(() => _passthruCommand({inputTexture: tex}))
 
-			tex.destroy()
+		tex.destroy()
 
-			setTimeout(() => {
-				_viewportCommand({inputTexture: _fbo[0]})
-			}, 1)
-		}
+		setTimeout(() => {
+			_viewportCommand({inputTexture: _fbo[0]})
+		}, 1)
 	}
 
 	function downloadImage() {
