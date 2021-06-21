@@ -202,6 +202,10 @@ ${props.fragDeclarations}
 @import '~@/components/style/common.styl'
 
 .BrushSettings
+	display flex
+	flex-direction column
+	height 100%
+
 	&__header
 		display flex
 
@@ -214,7 +218,15 @@ ${props.fragDeclarations}
 		font-size 1.4em
 
 	&__section
-		padding-bottom 2em
+		position relative
+		display flex
+		flex-direction column
+
+		&:not(:last-child)
+			padding-bottom 2em
+
+		&:last-child
+			flex-grow 1
 
 	&__frag-desc
 		margin-bottom 1em
@@ -242,5 +254,5 @@ ${props.fragDeclarations}
 			background none !important
 
 	&__shader
-		height 50em
+		flex-grow 1
 </style>
