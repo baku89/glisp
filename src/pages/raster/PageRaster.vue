@@ -260,7 +260,8 @@ export default defineComponent({
 			regl
 		)
 
-		const draw = computed(() => {
+		// Commands
+		const drawCommand = computed(() => {
 			if (!regl.value) return null
 			const prop = regl.value.prop as any
 
@@ -280,7 +281,7 @@ export default defineComponent({
 			})
 		})
 
-		const passthru = computed(() => {
+		const passthruCommand = computed(() => {
 			if (!regl.value) return
 
 			return regl.value({
@@ -294,6 +295,52 @@ export default defineComponent({
 					}`,
 				uniforms: {
 					inputTexture: (regl.value.prop as any)('inputTexture'),
+				},
+			})
+		})
+
+		const viewportCommand = computed(() => {
+			if (!regl.value) return
+
+			return regl.value({
+				...REGL_QUAD_DEFAULT,
+				frag: `
+					precision mediump float;
+					uniform sampler2D inputTexture;
+					uniform vec2 resolution;
+					varying vec2 uv;
+
+					#define CHECKER_A vec3(1)
+					#define CHECKER_B vec3(.87)
+
+					vec4 blendOver(vec4 A, vec4 B) {
+						float alpha = B.a + A.a * (1. - B.a);
+						vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
+						return vec4(rgb, alpha);
+					}
+
+					float checkerboard(vec2 coord) {
+						return mod(
+							step(mod(coord.x, 2.), 1.) +
+							step(mod(coord.y, 2.), 1.),
+							2.0
+						);
+					}
+
+					void main() {
+						vec2 coord = uv * resolution;
+						vec4 bg = vec4(mix(CHECKER_A, CHECKER_B, checkerboard(coord / 10.)), 1.);
+						vec4 img = texture2D(inputTexture, uv);
+						gl_FragColor = blendOver(bg, img);
+					}`,
+				context: {
+					resolution(context) {
+						return [context.viewportWidth, context.viewportHeight]
+					},
+				},
+				uniforms: {
+					inputTexture: (regl.value.prop as any)('inputTexture'),
+					resolution: (regl.value.context as any)('resolution'),
 				},
 			})
 		})
@@ -318,7 +365,6 @@ export default defineComponent({
 			const fboOptions: Regl.FramebufferOptions = {
 				radius: 1024,
 				colorType: 'float',
-				colorFormat: 'rgba',
 			}
 
 			fbo = [_gl.framebuffer(fboOptions), _gl.framebuffer(fboOptions)]
@@ -330,14 +376,14 @@ export default defineComponent({
 			if (
 				!regl.value ||
 				!pressed.value ||
-				!draw.value ||
-				!passthru.value ||
+				!drawCommand.value ||
+				!viewportCommand.value ||
 				!fbo
 			) {
 				return
 			}
 
-			const _draw = draw.value
+			const _drawCommand = drawCommand.value
 
 			const options = {
 				inputTexture: fbo[1],
@@ -363,19 +409,19 @@ export default defineComponent({
 				;(options as any)[name] = value
 			}
 
-			fbo[0].use(() => _draw(options))
+			fbo[0].use(() => _drawCommand(options))
 
-			passthru.value({inputTexture: fbo[0]})
+			viewportCommand.value({inputTexture: fbo[0]})
 
 			fbo = [fbo[1], fbo[0]]
 		}
 
 		async function loadImage(url: string) {
-			if (!regl.value || !fbo || !passthru.value) return
+			if (!regl.value || !fbo || !passthruCommand.value) return
 
 			const _regl = regl.value
 			const _fbo = fbo
-			const _passthru = passthru.value
+			const _passthruCommand = passthruCommand.value
 
 			const img = new Image()
 			img.src = url
@@ -383,15 +429,29 @@ export default defineComponent({
 				const {width, height} = img
 				canvasSize.value = [width, height]
 				const tex = _regl.texture(img)
-				_fbo[1].use(() => _passthru({inputTexture: tex}))
-				_passthru({inputTexture: _fbo[1]})
+				_fbo[1].use(() => _passthruCommand({inputTexture: tex}))
+				_passthruCommand({inputTexture: _fbo[1]})
 			}
 		}
 
 		function saveImage(e: Event) {
 			e.preventDefault()
-			if (!regl.value) return
-			saveViewport(regl.value, 'image.png')
+			if (!regl.value || !fbo || !passthruCommand.value) return
+
+			const _regl = regl.value
+			const _fbo = fbo
+			const _passthruCommand = passthruCommand.value
+
+			const {width, height} = regl.value._gl.canvas
+
+			const saveFbo = regl.value.framebuffer({width, height})
+
+			saveFbo.use(() => {
+				_passthruCommand({inputTexture: _fbo[0]})
+				saveViewport(_regl, 'image.png')
+			})
+
+			saveFbo.destroy()
 		}
 
 		hotkeys('command+s, ctrl+s', saveImage)
