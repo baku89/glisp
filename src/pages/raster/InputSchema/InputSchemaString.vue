@@ -10,7 +10,6 @@ import {defineComponent, PropType} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 
-import InputSchema from './InputSchema.vue'
 import {SchemaString} from './type'
 
 export default defineComponent({
@@ -29,9 +28,5 @@ export default defineComponent({
 		},
 	},
 	emits: ['update:modelValue'],
-	beforeCreate: function () {
-		this.$options.components ||= {}
-		this.$options.components.InputSchema = InputSchema
-	},
 })
 </script>

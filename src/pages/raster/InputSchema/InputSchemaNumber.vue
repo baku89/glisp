@@ -14,7 +14,6 @@ import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSlider from '@/components/inputs/InputSlider.vue'
 
-import InputSchema from './InputSchema.vue'
 import {SchemaNumber} from './type'
 
 export default defineComponent({
@@ -35,10 +34,6 @@ export default defineComponent({
 		},
 	},
 	emits: ['update:modelValue'],
-	beforeCreate: function () {
-		this.$options.components ||= {}
-		this.$options.components.InputSchema = InputSchema
-	},
 	setup(props) {
 		const ui = computed(() => props.schema.ui || 'number')
 
