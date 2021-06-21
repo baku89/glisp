@@ -92,7 +92,7 @@
 								<InputDropdown
 									v-model="data.colorSpace"
 									:items="[
-										{value: 'r|g|b', label: 'RGB'},
+										{value: 'r,g,b', label: 'RGB'},
 										{value: 'svh', label: 'SVH'},
 										{value: 'hsv', label: 'HSV'},
 										{value: 'hvs', label: 'HVS'},
@@ -260,7 +260,7 @@ export default defineComponent({
 		}
 
 		const colorPickers = computed(
-			() => data.colorSpace + (data.useAlpha ? '|a' : '')
+			() => data.colorSpace + (data.useAlpha ? ',a' : '')
 		)
 
 		function action() {

@@ -45,7 +45,7 @@ export default defineComponent({
 		},
 		pickers: {
 			type: String,
-			default: 'svh|a',
+			default: 'svh,a',
 		},
 	},
 	emit: ['update:modelValue'],
@@ -80,7 +80,7 @@ export default defineComponent({
 
 		const pickerData = computed(() =>
 			props.pickers
-				.split('|')
+				.split(',')
 				.map(picker => {
 					if (/^[hsv]{3}$/.test(picker)) {
 						return {name: 'SliderHSV', mode: picker}
