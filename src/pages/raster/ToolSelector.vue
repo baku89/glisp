@@ -77,7 +77,6 @@ $size = 3em
 		height $size
 		border 1px solid $color-frame
 		color base16('04')
-		input-transition(all)
 		cursor pointer
 		glass-bg('float')
 

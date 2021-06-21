@@ -33,7 +33,7 @@
 				</template>
 			</Draggable>
 			<button class="InputSchemaObject__add" @click="addProperty">
-				<SvgIcon mode="block" class="icon">
+				<SvgIcon mode="block" class="icon" :nonStrokeScaling="true">
 					<path d="M16 2 L16 30 M2 16 L30 16" />
 				</SvgIcon>
 			</button>
@@ -169,7 +169,4 @@ export default defineComponent({
 		& > .icon
 			width 1em
 			height 1em
-
-			*
-				vector-effect non-scaling-stroke
 </style>
