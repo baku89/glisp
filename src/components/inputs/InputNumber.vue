@@ -39,6 +39,10 @@ export default defineComponent({
 			type: Number,
 			required: true,
 		},
+		precision: {
+			type: Number,
+			default: 1,
+		},
 	},
 	emit: ['update:modelValue'],
 	setup(props, context) {
@@ -51,7 +55,11 @@ export default defineComponent({
 		let tweakStartValue = 0
 		let tweakStartPos = 0
 
-		const {isDragging: tweaking, pos, origin} = useDraggable(dragEl, {
+		const {
+			isDragging: tweaking,
+			pos,
+			origin,
+		} = useDraggable(dragEl, {
 			lockPointer: true,
 			onClick() {
 				if (inputEl.value) {
@@ -91,6 +99,7 @@ export default defineComponent({
 			labelX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
+			toRef(props, 'precision'),
 			startValue,
 			tweaking,
 			pos,

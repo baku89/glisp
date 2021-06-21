@@ -57,6 +57,10 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
+		precision: {
+			type: Number,
+			default: 1,
+		},
 	},
 	setup(props, context) {
 		// Element references
@@ -147,6 +151,7 @@ export default defineComponent({
 			labelX,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
+			toRef(props, 'precision'),
 			startValue,
 			tweaking,
 			pos,
@@ -209,12 +214,9 @@ export default defineComponent({
 
 	&__input
 		position absolute
-		top 0
-		left 0
 		z-index 10
-		width 100%
-		height 100%
 		background transparent
+		inset 0
 
 	&__slider-wrapper
 		position relative

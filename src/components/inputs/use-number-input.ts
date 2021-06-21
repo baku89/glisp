@@ -9,6 +9,7 @@ const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 export default function useNumber(
 	value: Ref<number>,
+	precision: Ref<number>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
 	pos: Ref<vec2>,
@@ -19,12 +20,15 @@ export default function useNumber(
 
 	const displayValue = computed(() => {
 		const v = value.value
-		return tweaking.value ? v.toFixed(1) : v.toFixed(2).replace(/\.?[0]+$/, '')
+		const fixed = v.toFixed(precision.value)
+		return tweaking.value
+			? fixed
+			: fixed.replace(/\.?0+$/, '').replace(/^0\./, '.')
 	})
 
 	const overlayLabel = computed(() => {
 		const delta = value.value - startValue.value
-		return (delta > 0 ? '+' : '') + delta.toFixed(1)
+		return (delta > 0 ? '+' : '') + delta.toFixed(precision.value)
 	})
 
 	const step = computed(() => {

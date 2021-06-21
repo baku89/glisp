@@ -46,13 +46,13 @@
 </template>
 
 <script lang="ts">
+import {useMagicKeys} from '@vueuse/core'
 import {clamp} from 'lodash'
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import GlslCanvas from '@/components/layouts/GlslCanvas.vue'
 import Popover from '@/components/layouts/Popover.vue'
 import useDraggable from '@/components/use/use-draggable'
-import useKeyboardState from '@/components/use/use-keyboard-state'
 import useRem from '@/components/use/use-rem'
 import {unsignedMod} from '@/utils'
 
@@ -93,7 +93,7 @@ export default defineComponent({
 		const buttonEl = ref(null)
 		const pickerOpened = ref(false)
 
-		const {shift, alt} = useKeyboardState()
+		const {shift, alt} = useMagicKeys()
 		const tweakMode = computed(() => {
 			return shift.value ? 'hue' : alt.value ? 'alpha' : 'pad'
 		})

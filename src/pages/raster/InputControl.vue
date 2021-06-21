@@ -5,6 +5,7 @@
 				:modelValue="modelValue"
 				:min="min"
 				:max="max"
+				:precision="2"
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
