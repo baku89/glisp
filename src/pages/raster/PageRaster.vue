@@ -71,8 +71,10 @@ import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
+import {getTextFromGlispServer, postTextToGlispServer} from '@/lib/promise'
 
 import Action from './action'
+import {BrushDefinition} from './brush-definition'
 import BrushSettings from './BrushSettings.vue'
 import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
@@ -157,16 +159,66 @@ export default defineComponent({
 		const copyCurrentBrushUrl: Action = {
 			name: 'Copy Current Brush URL',
 			icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-			exec() {
+			async exec() {
 				const data = YAML.stringify({
 					[currentBrushName.value]: currentBrush.value,
 				})
-				const url = new URL('raster.html', window.location.href)
+				const result = await postTextToGlispServer('raster_brush', 'name', data)
+
+				const url = new URL(window.location.href)
 				url.searchParams.set('action', 'load_brush')
-				url.searchParams.set('data', data)
+				url.searchParams.set('d', result.id.toString())
 				navigator.clipboard.writeText(url.toString())
 			},
 		}
+
+		// On Load Actions
+		;(async function () {
+			const url = new URL(window.location.href)
+			const action = url.searchParams.get('action')
+			const data = url.searchParams.get('d') || ''
+			if (action) {
+				switch (action) {
+					case 'load_brush': {
+						const result = await getTextFromGlispServer(data)
+						const loadedBrush = YAML.parse(result.data) as Record<
+							string,
+							BrushDefinition
+						>
+
+						const [[name, brush]] = _.entries(loadedBrush)
+
+						let doAppend = false
+
+						if (name in brushes.value) {
+							// Compare
+							const existingBrush = brushes.value[name]
+							if (!_.isEqual(brush, existingBrush)) {
+								const msg =
+									`A brush named ${brush.label} has already existed. ` +
+									'Are you sure to overwrite it?'
+
+								if (confirm(msg)) doAppend = true
+							}
+						} else {
+							doAppend = true
+						}
+						if (doAppend) {
+							const newBrushes = {...brushes.value}
+							newBrushes[name] = brush
+							brushes.value = newBrushes
+							currentBrushName.value = name
+						}
+						break
+					}
+				}
+
+				url.searchParams.delete('action')
+				url.searchParams.delete('d')
+
+				history.pushState({}, document.title, url.toString())
+			}
+		})()
 
 		const globalMenu = ref([..._.values(viewportActions), copyCurrentBrushUrl])
 
