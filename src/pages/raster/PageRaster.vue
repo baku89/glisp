@@ -190,25 +190,25 @@ export default defineComponent({
 		watch(
 			currentBrush,
 			(brush, oldBrush) => {
-				const oldParams = oldBrush?.params || {}
-				const newParams = brush.params
+				const oldDefs = oldBrush?.params || {}
+				const newDefs = brush.params
 
-				for (const name in newParams) {
-					const param = newParams[name]
-					if (oldParams[name]?.type === param.type) {
+				for (const name in newDefs) {
+					const def = newDefs[name]
+					if (oldDefs[name]?.type === def.type && name in params.value) {
 						continue
 					}
 					// Set default
-					switch (param.type) {
+					switch (def.type) {
 						case 'slider':
 						case 'angle':
-							params.value[name] ||= param.default || 0
+							params.value[name] = def.default || 0
 							break
 						case 'color':
-							params.value[name] ||= param.default || '#ffffff'
+							params.value[name] = def.default || '#ffffff'
 							break
 						case 'seed':
-							params.value[name] ||= Math.random()
+							params.value[name] = Math.random()
 							break
 					}
 				}
