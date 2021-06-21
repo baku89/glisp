@@ -28,6 +28,7 @@ export default defineComponent({
 	margin-left 0.5em
 	height 100% add-property
 	line-height var(--height)
+	-webkit-app-region no-drag
 
 	li
 		display inline-block
