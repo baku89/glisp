@@ -21,7 +21,9 @@
 						:width="canvasSize[0]"
 						:height="canvasSize[1]"
 						:style="{
-							transform: `matrix(${viewTransform.join(',')})`,
+							transform: `matrix(${viewTransform.join(
+								','
+							)}) scaleY(-1) translateY(-100%)`,
 						}"
 					/>
 				</Zoomable>
@@ -145,8 +147,7 @@ export default defineComponent({
 			const xform = vec2.fromValues(viewportX.value, viewportY.value)
 			const xformInv = mat2d.invert(mat2d.create(), viewTransform.value)
 			vec2.transformMat2d(xform, xform, xformInv)
-			xform[0] = xform[0] / canvasSize.value[0]
-			xform[1] = 1 - xform[1] / canvasSize.value[1]
+			vec2.div(xform, xform, canvasSize.value as vec2)
 			return xform
 		})
 
