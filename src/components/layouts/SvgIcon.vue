@@ -1,10 +1,15 @@
 <template>
 	<svg
 		class="SvgIcon"
-		:class="{inline: mode === 'inline', block: mode === 'block'}"
+		:class="{
+			inline: mode === 'inline',
+			block: mode === 'block',
+			'non-stroke-scaling': nonStrokeScaling,
+		}"
 		viewBox="0 0 32 32"
 		width="32"
 		height="32"
+		:style="{strokeWidth}"
 	>
 		<slot />
 	</svg>
@@ -19,6 +24,12 @@ export default defineComponent({
 		mode: {
 			type: String as PropType<'inline' | 'block'>,
 			default: 'inline',
+		},
+		strokeWidth: {
+			type: Number,
+		},
+		nonStrokeScaling: {
+			type: Boolean,
 		},
 	},
 })
@@ -40,4 +51,8 @@ export default defineComponent({
 
 	&.block
 		display block
+
+	&.non-stroke-scaling
+		*
+			vector-effect non-scaling-stroke
 </style>
