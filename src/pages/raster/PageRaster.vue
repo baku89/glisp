@@ -403,6 +403,8 @@ export default defineComponent({
 
 			const _drawCommand = drawCommand.value
 
+			fbo = [fbo[1], fbo[0]]
+
 			const options = {
 				inputTexture: fbo[1],
 				cursor: cursorPos.value,
@@ -432,16 +434,21 @@ export default defineComponent({
 			fbo[0].use(() => _drawCommand(options))
 
 			viewportCommand.value({inputTexture: fbo[0]})
-
-			fbo = [fbo[1], fbo[0]]
 		}
 
 		async function loadImage(url: string) {
-			if (!regl.value || !fbo || !passthruCommand.value) return
+			if (
+				!regl.value ||
+				!fbo ||
+				!passthruCommand.value ||
+				!viewportCommand.value
+			)
+				return
 
 			const _regl = regl.value
 			const _fbo = fbo
 			const _passthruCommand = passthruCommand.value
+			const _viewportCommand = viewportCommand.value
 
 			const img = new Image()
 			img.src = url
@@ -449,8 +456,8 @@ export default defineComponent({
 				const {width, height} = img
 				canvasSize.value = [width, height]
 				const tex = _regl.texture(img)
-				_fbo[1].use(() => _passthruCommand({inputTexture: tex}))
-				_passthruCommand({inputTexture: _fbo[1]})
+				_fbo[0].use(() => _passthruCommand({inputTexture: tex}))
+				_viewportCommand({inputTexture: _fbo[0]})
 			}
 		}
 
@@ -537,7 +544,6 @@ html, body
 		position fixed
 		z-index -10
 		display block
-		background-checkerboard(10px)
 		transform-origin 0 0
 		pointer-events none
 
