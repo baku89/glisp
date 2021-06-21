@@ -347,8 +347,6 @@ export default defineComponent({
 				frame: context.tick,
 			}
 
-			console.log(context.tick)
-
 			const paramDefs = Object.entries(currentBrush.value.params)
 
 			for (const [name, info] of paramDefs) {
