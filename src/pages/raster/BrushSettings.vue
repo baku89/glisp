@@ -161,6 +161,13 @@ ${props.fragDeclarations}
 						},
 						required: ['type', 'items'],
 					},
+					CubicBezier: {
+						type: 'object',
+						properties: {
+							type: {type: 'const', value: 'cubicBezier'},
+							default: {type: 'cubicBezier'},
+						},
+					},
 				},
 			},
 		})

@@ -4,6 +4,7 @@ export type Schema =
 	| SchemaNumber
 	| SchemaString
 	| SchemaColor
+	| SchemaCubicBezier
 	| SchemaObject
 	| SchemaUnion
 
@@ -36,6 +37,11 @@ export interface SchemaColor {
 	default?: string
 }
 
+export interface SchemaCubicBezier {
+	type: 'cubicBezier'
+	default?: number[]
+}
+
 export interface SchemaObject {
 	type: 'object'
 	properties: {
@@ -55,7 +61,7 @@ export interface SchemaUnion {
 export type Data = DataPrimitive | DataObject
 export const DATA_META = Symbol('data_meta')
 
-export type DataPrimitive = boolean | number | string
+export type DataPrimitive = boolean | number | string | number[]
 
 export interface DataObject {
 	[props: string]: Data

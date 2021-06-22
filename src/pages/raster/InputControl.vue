@@ -40,6 +40,12 @@
 				@update:modelValue="$emit('update:modelValue', $event)"
 			/>
 		</template>
+		<template v-else-if="type === 'cubicBezier'">
+			<InputCubicBezier
+				:modelValue="modelValue"
+				@update:modelValue="$emit('update:modelValue', $event)"
+			/>
+		</template>
 	</div>
 </template>
 
@@ -48,6 +54,7 @@ import {defineComponent, PropType} from 'vue'
 
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
+import InputCubicBezier from '@/components/inputs/InputCubicBezier'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
@@ -58,6 +65,7 @@ export default defineComponent({
 	components: {
 		InputCheckbox,
 		InputColor,
+		InputCubicBezier,
 		InputDropdown,
 		InputRotery,
 		InputSeed,

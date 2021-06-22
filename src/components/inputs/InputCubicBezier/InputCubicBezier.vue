@@ -24,7 +24,6 @@
 import {computed, defineComponent, PropType, ref} from 'vue'
 
 import Popover from '@/components/layouts/Popover.vue'
-import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import InputCubicBezierPicker from './InputCubicBezierPicker.vue'
 
@@ -33,7 +32,6 @@ export default defineComponent({
 	components: {
 		InputCubicBezierPicker,
 		Popover,
-		SvgIcon,
 	},
 	props: {
 		modelValue: {

@@ -1,4 +1,5 @@
 import {useLocalStorage, useMouseInElement, useMousePressed} from '@vueuse/core'
+import BezierEasing from 'bezier-easing'
 import chroma from 'chroma-js'
 import fileDialog from 'file-dialog'
 import {mat2d, vec2} from 'gl-matrix'
@@ -75,8 +76,57 @@ export default function useViewport({
 		return vec2.len(axis)
 	})
 
-	// Brueh
+	// brush
 	const params = useLocalStorage('raster__params', {} as {[name: string]: any})
+
+	// uniformData
+
+	const uniformData = computed(() => {
+		if (!regl.value) return {}
+
+		const defs = Object.entries(currentBrush.value.params)
+
+		const data = {} as Record<string, any>
+
+		const textureCache = {} as Record<string, Regl.Texture2D>
+
+		for (const [name, def] of defs) {
+			let value = params.value[name]
+
+			switch (def.type) {
+				case 'color':
+					value = chroma(value)
+						.rgba()
+						.map((v, i) => (i < 3 ? v / 255 : v))
+					break
+				case 'dropdown':
+					value = def.items.split(',').indexOf(value)
+					break
+				case 'cubicBezier': {
+					textureCache[name]?.destroy()
+
+					const [x1, y1, x2, y2] = value as number[]
+					const easing = BezierEasing(x1, y1, x2, y2)
+					const data = Array(32)
+						.fill(0)
+						.map((_, i) => easing(i / 31))
+					value = regl.value.texture({
+						width: 32,
+						height: 1,
+						format: 'luminance',
+						type: 'float32',
+						mag: 'linear',
+						data: new Float32Array(data),
+					})
+					textureCache[name] = value
+					break
+				}
+			}
+
+			data[name] = value
+		}
+		return data
+	})
 
 	// Update brush params
 	watch(
@@ -104,6 +154,9 @@ export default function useViewport({
 						break
 					case 'dropdown':
 						params.value[name] = def.default || def.items.split(',')[0] || ''
+						break
+					case 'cubicBezier':
+						params.value[name] = def.default || [0.5, 0, 0.5, 1]
 						break
 				}
 			}
@@ -237,6 +290,10 @@ export default function useViewport({
 							)
 						break
 					}
+					case 'cubicBezier': {
+						glslType = 'sampler2D'
+						break
+					}
 				}
 				return [`uniform ${glslType} ${name};`, ...defines]
 			}
@@ -285,24 +342,7 @@ export default function useViewport({
 			deltaTime: 1 / 60,
 			resolution: canvasSize.value,
 			frame: context.tick,
-		}
-
-		const defs = Object.entries(currentBrush.value.params)
-
-		for (const [name, def] of defs) {
-			let value = params.value[name]
-
-			switch (def.type) {
-				case 'color':
-					value = chroma(value)
-						.rgba()
-						.map((v, i) => (i < 3 ? v / 255 : v))
-					break
-				case 'dropdown':
-					value = def.items.split(',').indexOf(value)
-			}
-
-			;(options as any)[name] = value
+			...uniformData.value,
 		}
 
 		fbo[0].use(() => _drawCommand(options))
@@ -366,7 +406,7 @@ export default function useViewport({
 				depth: false,
 				premultipliedAlpha: false,
 			},
-			extensions: ['OES_texture_float'],
+			extensions: ['OES_texture_float', 'OES_texture_float_linear'],
 			canvas,
 		})
 		regl.value = _gl

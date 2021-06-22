@@ -10,6 +10,8 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
+import InputCubicBezier from '@/components/inputs/InputCubicBezier'
+
 import InputSchemaBoolean from './InputSchemaBoolean.vue'
 import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
@@ -26,6 +28,7 @@ export default defineComponent({
 		'schema-boolean': InputSchemaBoolean,
 		'schema-number': InputSchemaNumber,
 		'schema-string': InputSchemaString,
+		'schema-cubicBezier': InputCubicBezier,
 		'schema-object': InputSchemaObject,
 		'schema-union': InputSchemaUnion,
 	},

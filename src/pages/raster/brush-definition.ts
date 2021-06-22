@@ -10,5 +10,6 @@ export interface BrushDefinition {
 			| {type: 'color'; default?: string}
 			| {type: 'checkbox'; default?: boolean}
 			| {type: 'dropdown'; items: string; default?: string}
+			| {type: 'cubicBezier'; default?: number[]}
 	}
 }

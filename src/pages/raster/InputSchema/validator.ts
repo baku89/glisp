@@ -1,6 +1,14 @@
 import _ from 'lodash'
 
-import {Data, Schema, SchemaUnion} from './type'
+import {Data, DataObject, Schema, SchemaUnion} from './type'
+
+function isCubicBezier(data?: Data): data is number[] {
+	return _.isArray(data) && data.length >= 4 && data.every(_.isNumber)
+}
+
+function isObject(data?: Data): data is DataObject {
+	return !_.isArray(data) && _.isObject(data)
+}
 
 export function matchUnion(
 	data: Data,
@@ -29,8 +37,10 @@ export function validate(data: Data, schema: Schema): boolean {
 			return _.isString(data)
 		case 'color':
 			return _.isString(data)
+		case 'cubicBezier':
+			return isCubicBezier(data)
 		case 'object': {
-			if (!(data instanceof Object)) return false
+			if (!isObject(data)) return false
 
 			const dataProps = _.keys(data)
 			const definedProps = _.keys(schema.properties)
@@ -76,8 +86,10 @@ export function cast(data: Data | undefined, schema: Schema): Data {
 			return _.isString(data) ? data : schema.default || ''
 		case 'color':
 			return _.isString(data) ? data : schema.default || '#ffffff'
+		case 'cubicBezier':
+			return isCubicBezier(data) ? data : schema.default || [0.5, 0, 0.5, 1]
 		case 'object': {
-			const obj = _.isObject(data) ? {...data} : {}
+			const obj = isObject(data) ? {...data} : {}
 			for (const [name, s] of _.entries(schema.properties)) {
 				obj[name] = cast(obj[name], s)
 			}
