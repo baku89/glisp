@@ -4,10 +4,10 @@
 		class="InputString"
 		:class="{InputString__monospace: monospace}"
 		type="text"
-		:value="modelValue"
+		:value="displayValue"
 		@input="onInput"
 		@blur="onBlur"
-		@keydown.enter="$emit('confirm')"
+		@keydown.enter="onBlur"
 		v-bind="$attrs"
 	/>
 	<textarea
@@ -15,17 +15,18 @@
 		class="InputString InputString__multiline"
 		:class="{InputString__monospace: monospace}"
 		ref="textareaEl"
-		:value="modelValue"
+		:value="displayValue"
 		:style="{height: textareaHeight}"
 		data-gramm_editor="false"
 		@input="onInput"
-		@keydown.ctrl.enter="$emit('confirm')"
+		@keydown.ctrl.enter="onBlur"
 		v-bind="$attrs"
 	/>
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, ref} from 'vue'
+import _ from 'lodash'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 const INPUT_LINE_HEIGHT_REM = 1.8
 
@@ -38,7 +39,7 @@ export default defineComponent({
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
-			required: false,
+			default: _.identity,
 		},
 		multiline: {
 			default: false,
@@ -46,32 +47,58 @@ export default defineComponent({
 		monospace: {
 			default: false,
 		},
+		updateOnBlur: {
+			type: Boolean,
+			default: false,
+		},
 	},
-	emits: ['update:modelValue', 'confirm'],
+	emits: ['update:modelValue'],
 	setup(props, context) {
+		const displayValue = ref(props.modelValue)
+
+		watch(
+			() => props.modelValue,
+			v => (displayValue.value = v)
+		)
+
 		const textareaEl = ref<null | HTMLTextAreaElement>(null)
 		const textareaHeight = computed(() => {
 			const lineCount = props.modelValue.split(/\r\n|\r|\n/).length
 			return lineCount * INPUT_LINE_HEIGHT_REM + 'rem'
 		})
-		function onInput({target}: Event) {
-			let val: string | null = (target as HTMLInputElement).value
 
-			if (props.validator) {
-				val = props.validator(val)
-				if (val === null) return
+		function onInput(e: InputEvent) {
+			if (props.updateOnBlur) return
+			update(e)
+		}
+
+		function onBlur(e: InputEvent) {
+			if (!props.updateOnBlur) {
+				if (props.validator(displayValue.value) === null) {
+					;(e.target as HTMLInputElement).value = props.modelValue
+				}
+				return
+			}
+			update(e)
+		}
+
+		function update(e: InputEvent) {
+			const target = e.target as HTMLInputElement
+			let val: string | null = target.value
+
+			val = props.validator(val)
+			if (val === null) {
+				if (props.updateOnBlur) {
+					target.value = props.modelValue
+				}
+				return
 			}
 
 			context.emit('update:modelValue', val)
 		}
 
-		function onBlur(e: InputEvent) {
-			const el = e.target as HTMLInputElement
-			el.value = props.modelValue
-			context.emit('confirm')
-		}
-
 		return {
+			displayValue,
 			textareaEl,
 			textareaHeight,
 			onInput,
