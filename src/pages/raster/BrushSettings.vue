@@ -30,7 +30,7 @@
 		<section class="BrushSettings__section">
 			<h3>Shader</h3>
 			<details class="BrushSettings__frag-desc">
-				<summary>Uniforms &amp; Varyings</summary>
+				<summary>Shader Inputs</summary>
 				<Markdown :source="fragDeclarationsDesc" />
 			</details>
 

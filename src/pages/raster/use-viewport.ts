@@ -238,12 +238,12 @@ export default function useViewport({
 
 		return [
 			'precision mediump float;',
-			'varying vec2 uv;',
-			'uniform sampler2D inputTexture;',
-			'uniform vec2 cursor;',
-			'uniform float deltaTime;',
-			'uniform vec2 resolution;',
-			'uniform int frame;',
+			'varying vec2 uv;                  // normalized uv',
+			'uniform sampler2D inputTexture;   // input image',
+			'uniform vec2 cursor;              // cursor coordinate (in UV)',
+			'uniform float deltaTime;          // render time (in sec)',
+			'uniform vec2 resolution;          // artboard resolution (in px)',
+			'uniform int frame;                // frame number',
 			...variables,
 		]
 			.flat()
