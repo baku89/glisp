@@ -28,7 +28,7 @@
 						@update:name="renameProperty(name, $event)"
 						@delete="deleteProperty(name)"
 						:schema="schema.additionalProperties"
-						:draggable="true"
+						:editable="true"
 					/>
 				</template>
 			</Draggable>

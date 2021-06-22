@@ -7,20 +7,22 @@
 		<SvgIcon
 			v-if="!nested"
 			class="icon"
-			:class="{handle: draggable}"
+			:class="{handle: editable}"
 			mode="block"
-			@dblclick="$emit('delete')"
+			@dblclick="editable && $emit('delete')"
 		>
-			<path v-if="draggable" d="M4 8 L28 8 M4 16 L28 16 M4 24 L28 24" />
+			<path v-if="editable" d="M4 8 L28 8 M4 16 L28 16 M4 24 L28 24" />
 			<circle v-else cx="16" cy="16" r="2" />
 		</SvgIcon>
 		<label class="label">
-			<template v-if="!draggable">
+			<template v-if="!editable">
 				{{ toLabel(name) }}
 			</template>
 			<InputString
 				v-else
 				class="InputSchemaEntry__name label"
+				:validator="validateNotBlank"
+				:updateOnBlur="true"
 				:modelValue="name"
 				@update:modelValue="$emit('update:name', $event)"
 			/>
@@ -61,7 +63,7 @@ export default defineComponent({
 			type: Object as PropType<Schema>,
 			required: true,
 		},
-		draggable: {
+		editable: {
 			type: Boolean,
 			default: false,
 		},
@@ -78,7 +80,11 @@ export default defineComponent({
 
 		const nested = computed(() => depth >= 1)
 
-		return {nested, toLabel: _.startCase}
+		function validateNotBlank(v: string) {
+			return v.trim() !== '' ? v : null
+		}
+
+		return {nested, toLabel: _.startCase, validateNotBlank}
 	},
 })
 </script>
