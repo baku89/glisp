@@ -10,13 +10,13 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
+import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
+import InputColor from '@/components/inputs/InputColor.vue'
 import InputCubicBezier from '@/components/inputs/InputCubicBezier'
+import InputString from '@/components/inputs/InputString.vue'
 
-import InputSchemaBoolean from './InputSchemaBoolean.vue'
-import InputSchemaColor from './InputSchemaColor.vue'
 import InputSchemaNumber from './InputSchemaNumber.vue'
 import InputSchemaObject from './InputSchemaObject.vue'
-import InputSchemaString from './InputSchemaString.vue'
 import InputSchemaUnion from './InputSchemaUnion.vue'
 import {Data, Schema} from './type'
 import {cast} from './validator'
@@ -24,10 +24,10 @@ import {cast} from './validator'
 export default defineComponent({
 	name: 'InputSchema',
 	components: {
-		'schema-color': InputSchemaColor,
-		'schema-boolean': InputSchemaBoolean,
+		'schema-color': InputColor,
+		'schema-boolean': InputCheckbox,
 		'schema-number': InputSchemaNumber,
-		'schema-string': InputSchemaString,
+		'schema-string': InputString,
 		'schema-cubicBezier': InputCubicBezier,
 		'schema-object': InputSchemaObject,
 		'schema-union': InputSchemaUnion,
