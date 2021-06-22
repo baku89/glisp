@@ -278,6 +278,7 @@ html, body
 		display block
 		transform-origin 0 0
 		pointer-events none
+		image-rendering pixelated
 
 	&__params
 		position absolute
