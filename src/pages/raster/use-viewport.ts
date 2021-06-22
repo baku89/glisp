@@ -69,6 +69,12 @@ export default function useViewport({
 		return vec2.div(xform, xform, canvasSize.value as vec2)
 	})
 
+	const zoomFactor = computed(() => {
+		const xform = viewTransform.value
+		const axis = vec2.fromValues(xform[0], xform[1])
+		return vec2.len(axis)
+	})
+
 	// Brueh
 	const params = useLocalStorage('raster__params', {} as {[name: string]: any})
 
@@ -391,6 +397,7 @@ export default function useViewport({
 			params,
 			shaderErrors,
 			viewTransform,
+			zoomFactor,
 		},
 		methods: {
 			loadImage,

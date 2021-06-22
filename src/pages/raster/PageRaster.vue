@@ -20,6 +20,7 @@
 				>
 					<canvas
 						class="PageRaster__canvas"
+						:class="{mag: zoomFactor > 2}"
 						ref="canvas"
 						:width="canvasSize[0]"
 						:height="canvasSize[1]"
@@ -293,7 +294,9 @@ html, body
 		display block
 		transform-origin 0 0
 		pointer-events none
-		image-rendering pixelated
+
+		&.mag
+			image-rendering pixelated
 
 	&__params
 		position absolute
