@@ -170,6 +170,17 @@ export default defineComponent({
 			},
 		}
 
+		const copyCurrentBrushYAML: Action = {
+			name: 'Copy Current Brush in YAML',
+			icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+			async exec() {
+				const data = YAML.stringify({
+					[currentBrushName.value]: currentBrush.value,
+				})
+				navigator.clipboard.writeText(data)
+			},
+		}
+
 		// On Load Actions
 		;(async function () {
 			const url = new URL(window.location.href)
@@ -218,7 +229,11 @@ export default defineComponent({
 			}
 		})()
 
-		const globalMenu = ref([..._.values(viewportActions), copyCurrentBrushUrl])
+		const globalMenu = ref([
+			..._.values(viewportActions),
+			copyCurrentBrushUrl,
+			copyCurrentBrushYAML,
+		])
 
 		return {
 			brushes,
