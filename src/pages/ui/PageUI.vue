@@ -160,7 +160,7 @@
 							</dd>
 							<dt>Easing</dt>
 							<dd>
-								<InputCubicEasing v-model="data.easing" />
+								<InputCubicBezier v-model="data.easing" />
 							</dd>
 							<dt>Button</dt>
 							<dd>
@@ -187,7 +187,7 @@ import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
-import InputCubicEasing from '@/components/inputs/InputCubicEasing.vue'
+import InputCubicBezier from '@/components/inputs/InputCubicBezier'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputRadio from '@/components/inputs/InputRadio.vue'
@@ -219,7 +219,7 @@ export default defineComponent({
 		InputSeed,
 		InputRadio,
 		InputTranslate,
-		InputCubicEasing,
+		InputCubicBezier,
 		InputColor,
 		MonacoEditor,
 		Pane,
