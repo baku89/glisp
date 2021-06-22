@@ -44,6 +44,7 @@
 import {useElementSize, useMagicKeys} from '@vueuse/core'
 import fuzzy from 'fuzzy'
 import keycode from 'keycode'
+import _ from 'lodash'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
@@ -78,7 +79,9 @@ export default defineComponent({
 			required: true,
 		},
 		items: {
-			type: Array as PropType<(Item | string | number | boolean | null)[]>,
+			type: [String, Array] as PropType<
+				string | (Item | string | number | boolean | null)[]
+			>,
 			required: true,
 		},
 		labelize: {
@@ -100,7 +103,10 @@ export default defineComponent({
 		const {width: rootWidth} = useElementSize(rootEl)
 
 		const completeItems = computed<CompleteItem[]>(() => {
-			return props.items.map(it => {
+			const items = props.items
+			const arrItems = _.isArray(items) ? items : items.split(',')
+
+			return arrItems.map(it => {
 				if (typeof it !== 'object' || it === null) {
 					return {value: it, label: props.labelize(it)}
 				}
