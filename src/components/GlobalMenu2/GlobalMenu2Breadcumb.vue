@@ -1,7 +1,7 @@
 <template>
 	<ul class="GlobalMenu2Breadcumbs">
 		<li>
-			<a href="/">Glisp</a>
+			<a href=".">Glisp</a>
 		</li>
 		<li v-for="(item, i) in items" :key="i">
 			{{ item.label }}
