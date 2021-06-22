@@ -305,7 +305,6 @@ $right-arrow-width = 1em
 		height $input-height
 		line-height $input-height
 		glass-bg('pane')
-		input-transition()
 
 		&:hover
 			background base16('01')
