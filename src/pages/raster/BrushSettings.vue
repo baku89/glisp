@@ -1,6 +1,6 @@
 <template>
 	<div class="BrushSettings">
-		<header class="BrushSettings__header BrushSettings__section">
+		<header class="BrushSettings__header">
 			<InputSvgIcon
 				class="BrushSettings__icon"
 				mode="block"
@@ -206,11 +206,15 @@ ${props.fragDeclarations}
 	flex-direction column
 	height 100%
 
+	&__header, &__section
+		&:not(:last-child)
+			padding-bottom 2em
+
 	&__header
 		display flex
 
 	&__icon
-		margin-right 1em
+		margin-right 0.3em
 		font-size 1.4em
 
 	&__label
@@ -221,9 +225,6 @@ ${props.fragDeclarations}
 		position relative
 		display flex
 		flex-direction column
-
-		&:not(:last-child)
-			padding-bottom 2em
 
 		&:last-child
 			flex-grow 1
