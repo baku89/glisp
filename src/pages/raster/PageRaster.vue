@@ -16,7 +16,7 @@
 					ref="viewport"
 					@dragenter.prevent
 					@dragover.prevent
-					@drop="onDropFile"
+					@drop.prevent="onDropFile"
 				>
 					<canvas
 						class="PageRaster__canvas"
@@ -71,7 +71,11 @@ import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
-import {getTextFromGlispServer, postTextToGlispServer} from '@/lib/promise'
+import {
+	getTextFromGlispServer,
+	postTextToGlispServer,
+	readImageAsDataURL,
+} from '@/lib/promise'
 
 import Action from './action'
 import {BrushDefinition} from './brush-definition'
@@ -130,30 +134,24 @@ export default defineComponent({
 
 		window.addEventListener(
 			'paste',
-			e => {
-				loadImageFromDataTransfer((e as ClipboardEvent).clipboardData)
-			},
+			e => loadImageFromDataTransfer((e as ClipboardEvent).clipboardData),
 			false
 		)
 
 		function onDropFile(e: DragEvent) {
-			e.preventDefault()
 			loadImageFromDataTransfer(e.dataTransfer)
 		}
 
-		function loadImageFromDataTransfer(dataTransfer: DataTransfer | null) {
+		async function loadImageFromDataTransfer(
+			dataTransfer: DataTransfer | null
+		) {
 			// Use thePasteEvent object here ...
 			const image = dataTransfer?.files[0]
 
-			if (image && image.type.startsWith('image')) {
-				const reader = new FileReader()
-				reader.readAsDataURL(image)
-				reader.onload = () => {
-					if (typeof reader.result === 'string') {
-						loadImage(reader.result)
-					}
-				}
-			}
+			if (!image || !image.type.startsWith('image')) return
+
+			const url = await readImageAsDataURL(image)
+			loadImage(url)
 		}
 
 		const copyCurrentBrushUrl: Action = {

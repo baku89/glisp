@@ -9,6 +9,20 @@ export function loadImage(
 	})
 }
 
+export async function readImageAsDataURL(blob: Blob): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.readAsDataURL(blob)
+		reader.onload = () => {
+			if (typeof reader.result === 'string') {
+				resolve(reader.result)
+			}
+			reject()
+		}
+		reader.onerror = reject
+	})
+}
+
 export async function postTextToGlispServer(
 	type: string,
 	name: string,

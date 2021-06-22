@@ -14,7 +14,7 @@ import {
 	watch,
 } from 'vue'
 
-import {loadImage as loadImagePromise} from '@/lib/promise'
+import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
 
 import Action from './action'
 import {BrushDefinition} from './brush-definition'
@@ -401,16 +401,9 @@ export default function useViewport({
 				icon: '<path d="M4 28 L28 28 30 12 14 12 10 8 2 8 Z M28 12 L28 4 4 4 4 8"/>',
 				async exec() {
 					const image = (await fileDialog({accept: 'image/*'}))[0]
-
-					if (image) {
-						const reader = new FileReader()
-						reader.readAsDataURL(image)
-						reader.onload = () => {
-							if (typeof reader.result === 'string') {
-								loadImage(reader.result)
-							}
-						}
-					}
+					if (!image) return
+					const url = await readImageAsDataURL(image)
+					loadImage(url)
 				},
 			},
 			download_image: {
