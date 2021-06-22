@@ -24,11 +24,12 @@
 						class="InputSchemaObject__column"
 						:name="name"
 						:modelValue="data"
+						:allNames="allNames"
+						:schema="schema.additionalProperties"
+						:editable="true"
 						@update:modelValue="updateProperty(name, $event)"
 						@update:name="renameProperty(name, $event)"
 						@delete="deleteProperty(name)"
-						:schema="schema.additionalProperties"
-						:editable="true"
 					/>
 				</template>
 			</Draggable>
@@ -75,6 +76,8 @@ export default defineComponent({
 		this.$options.components.InputSchema = InputSchema
 	},
 	setup(props, context) {
+		const allNames = computed(() => _.keys(props.modelValue))
+
 		const additionals = computed({
 			get: () => {
 				if (!props.schema.additionalProperties) return []
@@ -128,6 +131,7 @@ export default defineComponent({
 		}
 
 		return {
+			allNames,
 			additionals,
 			renameProperty,
 			updateProperty,

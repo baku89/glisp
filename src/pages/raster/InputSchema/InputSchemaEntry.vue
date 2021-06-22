@@ -21,7 +21,7 @@
 			<InputString
 				v-else
 				class="InputSchemaEntry__name label"
-				:validator="validateNotBlank"
+				:validator="validateName"
 				:updateOnBlur="true"
 				:modelValue="name"
 				@update:modelValue="$emit('update:name', $event)"
@@ -67,24 +67,37 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
+		allNames: {
+			type: Array as PropType<string[]>,
+			default: () => [],
+		},
 	},
 	emits: ['update:modelValue', 'update:name', 'delete'],
 	beforeCreate: function () {
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema
 	},
-	setup() {
+	setup(props) {
 		// Depth
 		const depth = inject('InputSchemaObject__depth', 0)
 		provide('InputSchemaObject__depth', depth + 1)
 
 		const nested = computed(() => depth >= 1)
 
-		function validateNotBlank(v: string) {
-			return v.trim() !== '' ? v : null
+		function validateName(v: string) {
+			// Check if empty
+			if (v.trim() === '') {
+				return null
+			}
+			// Check if duplicated key exists
+			if (_.difference(props.allNames, [props.name]).includes(v)) {
+				return null
+			}
+
+			return v
 		}
 
-		return {nested, toLabel: _.startCase, validateNotBlank}
+		return {nested, toLabel: _.startCase, validateName}
 	},
 })
 </script>
