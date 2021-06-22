@@ -1,5 +1,5 @@
 import {vec2} from 'gl-matrix'
-import {onBeforeUnmount, onMounted, reactive, Ref, toRefs} from 'vue'
+import {onBeforeUnmount, reactive, Ref, toRefs, watch} from 'vue'
 
 interface DragData {
 	pos: vec2
@@ -133,9 +133,9 @@ export default function useDraggable(
 	}
 
 	// Hooks
-	onMounted(() => {
-		if (!el.value) return
-		el.value.addEventListener('mousedown', onMousedown)
+	watch(el, () => {
+		console.log(el.value)
+		el.value?.addEventListener('mousedown', onMousedown)
 	})
 
 	onBeforeUnmount(onMouseup)

@@ -141,7 +141,7 @@
 							</dd>
 							<dt>Rotery</dt>
 							<dd>
-								<InputRotery v-model="data.angle" />
+								<InputRotery v-model="angle" />
 							</dd>
 							<dt>Seed</dt>
 							<dd>
@@ -155,8 +155,12 @@
 							<dd>
 								<InputTranslate v-model="data.position" :min="0" :max="100" />
 								<span class="comment" style="white-space: nowrap">
-									Value: [{{ data.positionStr }}]
+									Value: [{{ positionStr }}]
 								</span>
+							</dd>
+							<dt>Easing</dt>
+							<dd>
+								<InputCubicEasing v-model="data.easing" />
 							</dd>
 							<dt>Button</dt>
 							<dd>
@@ -183,6 +187,7 @@ import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import InputButton from '@/components/inputs/InputButton.vue'
 import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
 import InputColor from '@/components/inputs/InputColor.vue'
+import InputCubicEasing from '@/components/inputs/InputCubicEasing.vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputNumber from '@/components/inputs/InputNumber.vue'
 import InputRadio from '@/components/inputs/InputRadio.vue'
@@ -214,6 +219,7 @@ export default defineComponent({
 		InputSeed,
 		InputRadio,
 		InputTranslate,
+		InputCubicEasing,
 		InputColor,
 		MonacoEditor,
 		Pane,
@@ -240,24 +246,19 @@ export default defineComponent({
 			colorSpace: 'svh',
 			color: 'pink',
 			align: 'left',
-			angle: computed({
-				get: () => (data.number / 180) * Math.PI,
-				set: x => (data.number = (x / Math.PI) * 180),
-			}),
 			position: [0, 0],
-			positionStr: computed(() =>
-				[...data.position].map(v => v.toFixed(1)).join(', ')
-			),
-		}) as {
-			string: string
-			number: number
-			colorSpace: string
-			useAlpha: boolean
-			color: string
-			angle: number
-			position: [number, number]
-			positionStr: string
-		}
+			easing: [0.5, 0, 0.5, 1],
+		})
+
+		// Computed
+		const angle = computed({
+			get: () => (data.number / 180) * Math.PI,
+			set: x => (data.number = (x / Math.PI) * 180),
+		})
+
+		const positionStr = computed(() =>
+			[...data.position].map(v => v.toFixed(1)).join(', ')
+		)
 
 		const colorPickers = computed(
 			() => data.colorSpace + (data.useAlpha ? ',a' : '')
@@ -269,6 +270,8 @@ export default defineComponent({
 
 		return {
 			data,
+			angle,
+			positionStr,
 			basePreset,
 			baseAccentName,
 			presetNames,
