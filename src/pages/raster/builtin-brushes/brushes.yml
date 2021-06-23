@@ -303,7 +303,8 @@ pixel-sort:
       float gCur = gscale(cur.rgb);
       float gCmp = gscale(cmp.rgb);
 
-      bool withinMask = distance(uv, cursor) < radius;
+      bool withinMask =
+        distance(uv, cursor) < radius && distance(uv2, cursor) < radius;
       bool withinFrame = 0.<uv2.x || uv2.x<1. || 0.<uv2.y || uv2.y<1.;
       bool withinThreshold = trigger == TRIGGER_DARK
         ? gCur <= threshold && gCmp <= threshold
