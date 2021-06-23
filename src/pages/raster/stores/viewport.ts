@@ -436,12 +436,24 @@ export default function useModuleViewport(): StoreModule {
 		})
 		regl.value = _gl
 
-		const fboOptions: Regl.FramebufferOptions = {
-			radius: 1024,
-			colorType: 'float',
-		}
+		fbo = [createFbo(), createFbo()]
 
-		fbo = [_gl.framebuffer(fboOptions), _gl.framebuffer(fboOptions)]
+		function createFbo() {
+			const f = _gl.framebuffer({
+				radius: 1024,
+				colorType: 'float',
+			})
+
+			// Unsafe code
+			;((f as any).color as Regl.Texture2D[])[0]({
+				mag: 'linear',
+				min: 'linear',
+				radius: 1024,
+				type: 'float32',
+			})
+
+			return f
+		}
 	}
 
 	// First render
