@@ -55,7 +55,7 @@ export default function useModuleViewport(): StoreModule {
 
 	const transform = ref(mat2d.create())
 
-	const cursorPos = computed(() => {
+	const cursor = computed(() => {
 		const viewportOffset: vec2 = [viewportLeft.value, viewportTop.value]
 		const xform = vec2.sub(
 			vec2.create(),
@@ -66,6 +66,7 @@ export default function useModuleViewport(): StoreModule {
 		vec2.transformMat2d(xform, xform, xformInv)
 		return vec2.div(xform, xform, canvasSize.value as vec2)
 	})
+	const prevCursor = ref(vec2.clone(cursor.value))
 
 	const zoomFactor = computed(() => {
 		const xform = transform.value
@@ -181,6 +182,7 @@ export default function useModuleViewport(): StoreModule {
 		if (!regl.value) return
 
 		if (pressed) {
+			prevCursor.value = cursor.value
 			cancelRender = regl.value.frame(render)
 		} else {
 			if (cancelRender) cancelRender.cancel()
@@ -195,6 +197,7 @@ export default function useModuleViewport(): StoreModule {
 		const uniforms: {[name: string]: any} = {
 			inputTexture: prop('inputTexture'),
 			cursor: prop('cursor'),
+			prevCursor: prop('prevCursor'),
 			deltaTime: prop('deltaTime'),
 			resolution: prop('resolution'),
 			frame: prop('frame'),
@@ -317,6 +320,7 @@ export default function useModuleViewport(): StoreModule {
 			'varying vec2 uv;                  // normalized uv',
 			'uniform sampler2D inputTexture;   // input image',
 			'uniform vec2 cursor;              // cursor coordinate (in UV)',
+			'uniform vec2 prevCursor;          // previous position of cursor',
 			'uniform float deltaTime;          // render time (in sec)',
 			'uniform vec2 resolution;          // artboard resolution (in px)',
 			'uniform int frame;                // frame number',
@@ -351,7 +355,8 @@ export default function useModuleViewport(): StoreModule {
 
 		const options = {
 			inputTexture: fbo[1],
-			cursor: cursorPos.value,
+			cursor: cursor.value,
+			prevCursor: prevCursor.value,
 			deltaTime: 1 / 60,
 			resolution: canvasSize.value,
 			frame: context.tick,
@@ -360,6 +365,8 @@ export default function useModuleViewport(): StoreModule {
 
 		fbo[0].use(() => _drawCommand(options))
 		viewportCommand.value({inputTexture: fbo[0]})
+
+		prevCursor.value = cursor.value
 	}
 
 	async function loadImage(url: string) {
