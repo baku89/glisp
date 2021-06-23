@@ -1,4 +1,4 @@
-import {useLocalStorage, useMouseInElement, useMousePressed} from '@vueuse/core'
+import {useLocalStorage} from '@vueuse/core'
 import BezierEasing from 'bezier-easing'
 import chroma from 'chroma-js'
 import fileDialog from 'file-dialog'
@@ -8,6 +8,7 @@ import Regl from 'regl'
 import {computed, ref, shallowRef, watch} from 'vue'
 import YAML from 'yaml'
 
+import useDraggable from '@/components/use/use-draggable'
 import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
 import {postTextToGlispServer} from '@/lib/promise'
 import {StoreModule} from '@/lib/store'
@@ -45,14 +46,22 @@ export default function useModuleViewport(): StoreModule {
 	const canvasSize = ref([1024, 1024])
 
 	const viewportEl = ref<Element | null>(null)
-	const {elementX: viewportX, elementY: viewportY} =
-		useMouseInElement(viewportEl)
-	const {pressed} = useMousePressed({target: viewportEl})
+	const {
+		isMousedown: pressed,
+		pos: absoluteCursorPos,
+		left: viewportLeft,
+		top: viewportTop,
+	} = useDraggable(viewportEl as any)
 
 	const transform = ref(mat2d.create())
 
 	const cursorPos = computed(() => {
-		const xform = vec2.fromValues(viewportX.value, viewportY.value)
+		const viewportOffset: vec2 = [viewportLeft.value, viewportTop.value]
+		const xform = vec2.sub(
+			vec2.create(),
+			absoluteCursorPos.value,
+			viewportOffset
+		)
 		const xformInv = mat2d.invert(mat2d.create(), transform.value)
 		vec2.transformMat2d(xform, xform, xformInv)
 		return vec2.div(xform, xform, canvasSize.value as vec2)

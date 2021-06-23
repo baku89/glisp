@@ -1,5 +1,6 @@
+import {unrefElement} from '@vueuse/core'
 import {vec2} from 'gl-matrix'
-import {onBeforeUnmount, onMounted, reactive, Ref, toRefs} from 'vue'
+import {reactive, Ref, toRefs, watch} from 'vue'
 
 interface DragData {
 	pos: vec2
@@ -25,7 +26,7 @@ interface DraggableOptions {
 }
 
 export default function useDraggable(
-	el: Ref<null | HTMLElement>,
+	target: Ref<null | HTMLElement>,
 	options: DraggableOptions = {}
 ) {
 	const drag = reactive({
@@ -47,97 +48,103 @@ export default function useDraggable(
 		isDragging: false,
 	}) as DragData
 
-	function updatePosAndOrigin(e: MouseEvent) {
-		const movement = vec2.fromValues(e.movementX, e.movementY)
-		drag.pos = vec2.add(vec2.create(), drag.pos, movement)
+	function setup(el: HTMLElement) {
+		el.addEventListener('mousedown', onMousedown)
 
-		const {left, top, right, bottom} = (
-			el.value as HTMLElement
-		).getBoundingClientRect()
+		function updatePosAndOrigin(e: MouseEvent) {
+			const movement = vec2.fromValues(e.movementX, e.movementY)
+			drag.pos = vec2.add(vec2.create(), drag.pos, movement)
 
-		drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
+			const {left, top, right, bottom} = el.getBoundingClientRect()
 
-		drag.top = top
-		drag.right = right
-		drag.bottom = bottom
-		drag.left = left
-	}
+			drag.origin = vec2.fromValues((left + right) / 2, (top + bottom) / 2)
 
-	function onMousedown(e: MouseEvent) {
-		// Ignore right click
-		if (e.button >= 2) {
-			return
+			drag.top = top
+			drag.right = right
+			drag.bottom = bottom
+			drag.left = left
 		}
 
-		// Initialzize pointer position
-		drag.pos = vec2.fromValues(e.clientX, e.clientY)
-
-		updatePosAndOrigin(e)
-		drag.isMousedown = true
-		drag.prevPos = vec2.clone(drag.pos)
-		drag.startPos = vec2.clone(drag.pos)
-
-		// Fire onDragstart and onDrag
-		if (options.disableClick) {
-			startDrag()
-			options.onDrag && options.onDrag(drag)
-		}
-
-		window.addEventListener('mousemove', onMousedrag)
-		window.addEventListener('mouseup', onMouseup, {once: true})
-	}
-
-	function startDrag() {
-		if (options.lockPointer) {
-			el.value?.requestPointerLock()
-		}
-
-		drag.isDragging = true
-		options.onDragStart && options.onDragStart(drag)
-	}
-
-	function onMousedrag(e: MouseEvent) {
-		updatePosAndOrigin(e)
-		drag.delta = vec2.sub(vec2.create(), drag.pos, drag.prevPos)
-
-		if (!drag.isDragging) {
-			// Determine whether dragging has start
-			const d = vec2.dist(drag.startPos, drag.pos)
-			if (d <= 2) {
+		function onMousedown(e: MouseEvent) {
+			// Ignore non-left click
+			if (e.button !== 0) {
 				return
 			}
-			startDrag()
+
+			// Initialzize pointer position
+			drag.pos = vec2.fromValues(e.clientX, e.clientY)
+
+			updatePosAndOrigin(e)
+			drag.isMousedown = true
+			drag.prevPos = vec2.clone(drag.pos)
+			drag.startPos = vec2.clone(drag.pos)
+
+			// Fire onDragstart and onDrag
+			if (options.disableClick) {
+				startDrag()
+				options.onDrag && options.onDrag(drag)
+			}
+
+			window.addEventListener('mousemove', onMousedrag)
+			window.addEventListener('mouseup', onMouseup, {once: true})
 		}
 
-		options.onDrag && options.onDrag(drag)
-		drag.prevPos = vec2.clone(drag.pos)
-	}
+		function startDrag() {
+			if (options.lockPointer) {
+				el.requestPointerLock()
+			}
 
-	function onMouseup() {
-		if (options.lockPointer) {
-			document.exitPointerLock()
-		}
-		if (drag.isDragging) {
-			options.onDragEnd && options.onDragEnd(drag)
-		} else {
-			options.onClick && options.onClick()
+			drag.isDragging = true
+			options.onDragStart && options.onDragStart(drag)
 		}
 
-		// Reset
-		drag.isMousedown = false
-		drag.isDragging = false
-		drag.pos = vec2.create()
-		drag.startPos = vec2.create()
-		drag.delta = vec2.create()
-		window.removeEventListener('mousemove', onMousedrag)
+		function onMousedrag(e: MouseEvent) {
+			updatePosAndOrigin(e)
+			drag.delta = vec2.sub(vec2.create(), drag.pos, drag.prevPos)
+
+			if (!drag.isDragging) {
+				// Determine whether dragging has start
+				const d = vec2.dist(drag.startPos, drag.pos)
+				if (d <= 2) {
+					return
+				}
+				startDrag()
+			}
+
+			options.onDrag && options.onDrag(drag)
+			drag.prevPos = vec2.clone(drag.pos)
+		}
+
+		function onMouseup() {
+			if (options.lockPointer) {
+				document.exitPointerLock()
+			}
+			if (drag.isDragging) {
+				options.onDragEnd && options.onDragEnd(drag)
+			} else {
+				options.onClick && options.onClick()
+			}
+
+			// Reset
+			drag.isMousedown = false
+			drag.isDragging = false
+			drag.pos = vec2.create()
+			drag.startPos = vec2.create()
+			drag.delta = vec2.create()
+			window.removeEventListener('mousemove', onMousedrag)
+		}
 	}
 
 	// Hooks
-	onMounted(() => {
-		el.value?.addEventListener('mousedown', onMousedown)
-	})
-
-	onBeforeUnmount(onMouseup)
+	watch(
+		target,
+		() => {
+			const el = unrefElement(target)
+			if (!el) return
+			setup(el)
+		},
+		{immediate: true}
+	)
 
 	return toRefs(drag)
 }
