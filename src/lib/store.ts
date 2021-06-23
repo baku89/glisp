@@ -2,10 +2,12 @@ import _ from 'lodash'
 import {Ref} from 'vue'
 
 export interface Action {
-	name: string
+	label?: string
 	icon?: string
 	exec: (payloads: any) => any
 }
+
+type ActionInfo = Omit<Action, 'exec'>
 
 export interface StoreModule {
 	state: Record<string, Ref>
@@ -16,7 +18,7 @@ type CreateStoreOptions = Record<string, StoreModule>
 
 export interface Store {
 	state: Record<string, Record<string, Ref>>
-	getAction: (name: string) => Action
+	getAction: (name: string) => ActionInfo
 	commit: (name: string, payload: any) => any
 }
 
@@ -38,7 +40,7 @@ export function createStore(options: CreateStoreOptions): Store {
 		actions[name].exec(payload)
 	}
 
-	function getAction(name: string): Action {
+	function getAction(name: string): ActionInfo {
 		if (!(name in actions)) {
 			throw new Error(`Action ${name} does not exist.`)
 		}

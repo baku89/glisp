@@ -18,9 +18,13 @@
 	</menu>
 	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
 		<ul>
-			<li v-for="(action, i) in menuInfo" :key="i" @mouseup="doAction(action)">
+			<li
+				v-for="[name, action] in menuInfo"
+				:key="name"
+				@mouseup="doAction(name)"
+			>
 				<SvgIcon class="icon" mode="block" v-html="action.icon || ''"></SvgIcon>
-				{{ action.name }}
+				{{ action.label || name }}
 			</li>
 		</ul>
 	</div>
@@ -84,7 +88,9 @@ export default defineComponent({
 			store.commit(name, {})
 		}
 
-		const menuInfo = computed(() => props.menu.map(store.getAction))
+		const menuInfo = computed(() =>
+			props.menu.map(name => [name, store.getAction(name)])
+		)
 
 		return {titleBar, menuOpened, menuInfo, onClickMenu, doAction}
 	},

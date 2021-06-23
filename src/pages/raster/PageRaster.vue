@@ -49,11 +49,7 @@
 				</dl>
 			</Pane>
 			<Pane class="PageRaster__control" :size="controlPaneWidth">
-				<BrushSettings
-					v-model="currentBrush"
-					:fragDeclarations="fragDeclarations"
-					:shaderErrors="shaderErrors"
-				/>
+				<BrushSettings v-model="currentBrush" />
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -67,21 +63,16 @@ import 'splitpanes/dist/splitpanes.css'
 import {templateRef, useLocalStorage} from '@vueuse/core'
 import _ from 'lodash'
 import {Pane, Splitpanes} from 'splitpanes'
-import {computed, defineComponent, provide, ref} from 'vue'
+import {defineComponent, onMounted, provide, ref} from 'vue'
 import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
-import {
-	getTextFromGlispServer,
-	postTextToGlispServer,
-	readImageAsDataURL,
-} from '@/lib/promise'
-import {createStore, StoreModule} from '@/lib/store'
+import {getTextFromGlispServer, readImageAsDataURL} from '@/lib/promise'
+import {createStore} from '@/lib/store'
 
 import {BrushDefinition} from './brush-definition'
 import BrushSettings from './BrushSettings.vue'
-import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
 import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
@@ -106,23 +97,11 @@ export default defineComponent({
 
 		const controlPaneWidth = useLocalStorage('controlPaneWidth', 50)
 
-		// Brushes
-		const brushes = useLocalStorage('raster__brushes', BuiltinBrushes)
-		const currentBrushName = useLocalStorage(
-			'raster__currentBrushName',
-			'brush'
-		)
-		if (!(currentBrushName.value in brushes.value)) {
-			currentBrushName.value = _.keys(brushes.value)[0]
-		}
-
-		const currentBrush = computed({
-			get: () => brushes.value[currentBrushName.value],
-			set: v => {
-				brushes.value[currentBrushName.value] = v
-			},
+		const store = createStore({
+			viewport: useModuleViewport(),
 		})
 
+		// Open Image actions
 		window.addEventListener(
 			'paste',
 			e => loadImageFromDataTransfer((e as ClipboardEvent).clipboardData),
@@ -133,39 +112,14 @@ export default defineComponent({
 			loadImageFromDataTransfer(e.dataTransfer)
 		}
 
-		const rootModule: StoreModule = {
-			state: {},
-			actions: {
-				copy_current_brush_url: {
-					name: 'Copy Current Brush URL',
-					icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-					async exec() {
-						const data = YAML.stringify({
-							[currentBrushName.value]: currentBrush.value,
-						})
-						const result = await postTextToGlispServer(
-							'raster_brush',
-							'name',
-							data
-						)
-
-						const url = new URL(window.location.href)
-						url.searchParams.set('action', 'load_brush')
-						url.searchParams.set('d', result.id.toString())
-						navigator.clipboard.writeText(url.toString())
-					},
-				},
-				copy_current_brush_yaml: {
-					name: 'Copy Current Brush in YAML',
-					icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-					async exec() {
-						const data = YAML.stringify({
-							[currentBrushName.value]: currentBrush.value,
-						})
-						navigator.clipboard.writeText(data)
-					},
-				},
-			},
+		async function loadImageFromDataTransfer(
+			dataTransfer: DataTransfer | null
+		) {
+			// Use thePasteEvent object here ...
+			const image = dataTransfer?.files[0]
+			if (!image || !image.type.startsWith('image')) return
+			const url = await readImageAsDataURL(image)
+			store.commit('viewport/load_image', url)
 		}
 
 		// On Load Actions
@@ -181,30 +135,8 @@ export default defineComponent({
 							string,
 							BrushDefinition
 						>
-
 						const [[name, brush]] = _.entries(loadedBrush)
-
-						let doAppend = false
-
-						if (name in brushes.value) {
-							// Compare
-							const existingBrush = brushes.value[name]
-							if (!_.isEqual(brush, existingBrush)) {
-								const msg =
-									`A brush named ${brush.label} has already existed. ` +
-									'Are you sure to overwrite it?'
-
-								if (confirm(msg)) doAppend = true
-							}
-						} else {
-							doAppend = true
-						}
-						if (doAppend) {
-							const newBrushes = {...brushes.value}
-							newBrushes[name] = brush
-							brushes.value = newBrushes
-							currentBrushName.value = name
-						}
+						store.commit('viewport/add_brush', {name, brush})
 						break
 					}
 				}
@@ -216,49 +148,28 @@ export default defineComponent({
 			}
 		})()
 
+		onMounted(() => {
+			store.commit('viewport/setup_elements', {
+				viewport: viewportEl.value,
+				canvas: canvasEl.value,
+			})
+		})
+
 		const globalMenu = ref([
 			'viewport/open_image',
 			'viewport/download_image',
 			'root/copy_current_brush_url',
-			'root/copy_current_brush_url',
+			'root/copy_current_brush_yaml',
 		])
-
-		const store = createStore({
-			root: rootModule,
-			viewport: useModuleViewport({
-				viewportEl,
-				canvasEl,
-				currentBrush,
-			}),
-		})
-
-		async function loadImageFromDataTransfer(
-			dataTransfer: DataTransfer | null
-		) {
-			// Use thePasteEvent object here ...
-			const image = dataTransfer?.files[0]
-
-			if (!image || !image.type.startsWith('image')) return
-
-			const url = await readImageAsDataURL(image)
-
-			store.commit('viewport/load_image', url)
-		}
 
 		provide('store', store)
 
-		const viewportState = store.state.viewport
-
 		return {
-			brushes,
-			controlPaneWidth,
-			currentBrush,
-			currentBrushName,
-			globalMenu,
-			...viewportState,
-
+			...store.state.brushes,
+			...store.state.viewport,
 			onDropFile,
-
+			controlPaneWidth,
+			globalMenu,
 			toLabel: _.startCase,
 		}
 	},

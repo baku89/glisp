@@ -49,7 +49,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {computed, defineComponent, PropType, ref} from 'vue'
+import {computed, defineComponent, inject, PropType, Ref, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import InputSvgIcon from '@/components/inputs/InputSvgIcon.vue'
@@ -57,6 +57,7 @@ import Markdown from '@/components/layouts/Markdown/Markdown.vue'
 import MonacoEditor, {
 	MonacoEditorMarker,
 } from '@/components/layouts/MonacoEditor'
+import {Store} from '@/lib/store'
 
 import {BrushDefinition} from './brush-definition'
 import InputSchema from './InputSchema/InputSchema.vue'
@@ -75,16 +76,16 @@ export default defineComponent({
 			type: Object as PropType<BrushDefinition>,
 			required: true,
 		},
-		fragDeclarations: {
-			type: String,
-			required: true,
-		},
-		shaderErrors: {
-			type: Array as PropType<MonacoEditorMarker[]>,
-		},
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
+		const store = inject<Store>('store')
+		if (!store) return {}
+
+		const shaderErrors: Ref<MonacoEditorMarker[]> =
+			store.state.viewport.shaderErrors
+		const fragDeclarations: Ref<string> = store.state.viewport.fragDeclarations
+
 		const params = computed({
 			get: () =>
 				Object.entries(props.modelValue.params).map(([name, value]) => ({
@@ -99,10 +100,7 @@ export default defineComponent({
 		})
 
 		const fragDeclarationsDesc = computed(() => {
-			return `\`\`\`glsl
-${props.fragDeclarations}
-\`\`\`
-`
+			return '```glsl\n' + fragDeclarations.value + '```'
 		})
 
 		const schema = ref({
@@ -197,6 +195,7 @@ ${props.fragDeclarations}
 			schema,
 			params,
 			fragDeclarationsDesc,
+			shaderErrors,
 			updateParamName,
 			updateParamType,
 			updateParamData,

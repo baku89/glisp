@@ -5,20 +5,15 @@ import fileDialog from 'file-dialog'
 import {mat2d, vec2} from 'gl-matrix'
 import _ from 'lodash'
 import Regl from 'regl'
-import {
-	computed,
-	onMounted,
-	onUnmounted,
-	Ref,
-	ref,
-	shallowRef,
-	watch,
-} from 'vue'
+import {computed, ref, shallowRef, watch} from 'vue'
+import YAML from 'yaml'
 
 import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
+import {postTextToGlispServer} from '@/lib/promise'
 import {StoreModule} from '@/lib/store'
 
 import {BrushDefinition} from '../brush-definition'
+import BuiltinBrushes from '../builtin-brushes'
 import useFragShaderValidator from '../use-frag-shader-validator'
 import {saveViewport} from '../webgl-utils'
 
@@ -41,15 +36,7 @@ const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
 	primitive: 'triangle strip',
 }
 
-export default function useModuleViewport({
-	canvasEl,
-	viewportEl,
-	currentBrush,
-}: {
-	canvasEl: Ref<Element | null>
-	viewportEl: Ref<Element | null>
-	currentBrush: Ref<BrushDefinition>
-}): StoreModule {
+export default function useModuleViewport(): StoreModule {
 	// WebGL
 	const regl = shallowRef<Regl.Regl | null>(null)
 	let fbo: [Regl.Framebuffer2D, Regl.Framebuffer2D] | null = null
@@ -57,6 +44,7 @@ export default function useModuleViewport({
 	// States
 	const canvasSize = ref([1024, 1024])
 
+	const viewportEl = ref<Element | null>(null)
 	const {elementX: viewportX, elementY: viewportY} =
 		useMouseInElement(viewportEl)
 	const {pressed} = useMousePressed({target: viewportEl})
@@ -77,11 +65,24 @@ export default function useModuleViewport({
 	})
 
 	// brush
+	const brushes = useLocalStorage('raster__brushes', BuiltinBrushes)
+	const currentBrushName = useLocalStorage('raster__currentBrushName', 'brush')
+	if (!(currentBrushName.value in brushes.value)) {
+		currentBrushName.value = _.keys(brushes.value)[0]
+	}
+
+	const currentBrush = computed({
+		get: () => brushes.value[currentBrushName.value],
+		set: v => {
+			brushes.value[currentBrushName.value] = v
+		},
+	})
+
 	const params = useLocalStorage('raster__params', {} as {[name: string]: any})
 
 	// uniformData
 	const uniformData = computed(() => {
-		if (!regl.value) return {}
+		if (!regl.value || !currentBrush.value) return {}
 
 		const defs = Object.entries(currentBrush.value.params)
 
@@ -131,6 +132,8 @@ export default function useModuleViewport({
 	watch(
 		currentBrush,
 		(brush, oldBrush) => {
+			if (!brush) return
+
 			const newDefs = brush.params
 			const oldDefs = oldBrush?.params || newDefs
 
@@ -177,7 +180,7 @@ export default function useModuleViewport({
 
 	// Commands
 	const drawCommand = computed(() => {
-		if (!regl.value) return null
+		if (!regl.value || !currentBrush.value) return null
 		const prop = regl.value.prop as any
 
 		const uniforms: {[name: string]: any} = {
@@ -262,6 +265,8 @@ export default function useModuleViewport({
 
 	// WebGL contexts
 	const fragDeclarations = computed(() => {
+		if (!currentBrush.value) return ''
+
 		const variables = _.entries(currentBrush.value.params).map(
 			([name, def]) => {
 				let glslType: string
@@ -313,9 +318,9 @@ export default function useModuleViewport({
 	})
 
 	const generatedFrag = computed(() => {
-		return [fragDeclarations.value, '#line 1', currentBrush.value.frag].join(
-			'\n'
-		)
+		return !currentBrush.value
+			? ''
+			: [fragDeclarations.value, '#line 1', currentBrush.value.frag].join('\n')
 	})
 
 	const {validFrag, shaderErrors} = useFragShaderValidator(generatedFrag, regl)
@@ -395,10 +400,15 @@ export default function useModuleViewport({
 	}
 
 	// Hooks
-	onMounted(() => {
-		if (!canvasEl.value) return
+	function setupElements({
+		viewport,
+		canvas,
+	}: {
+		viewport: Element
+		canvas: HTMLCanvasElement
+	}) {
+		viewportEl.value = viewport
 
-		const canvas = canvasEl.value as HTMLCanvasElement
 		const _gl = Regl({
 			attributes: {
 				preserveDrawingBuffer: true,
@@ -416,7 +426,7 @@ export default function useModuleViewport({
 		}
 
 		fbo = [_gl.framebuffer(fboOptions), _gl.framebuffer(fboOptions)]
-	})
+	}
 
 	// First render
 	const didFirstRender = watch(viewportCommand, cmd => {
@@ -425,12 +435,11 @@ export default function useModuleViewport({
 		didFirstRender()
 	})
 
-	onUnmounted(() => {
-		if (regl.value) regl.value.destroy()
-	})
-
 	return {
 		state: {
+			brushes,
+			currentBrush,
+			currentBrushName,
 			canvasSize,
 			fragDeclarations,
 			params,
@@ -439,12 +448,15 @@ export default function useModuleViewport({
 			zoomFactor,
 		},
 		actions: {
+			setup_elements: {
+				exec: setupElements,
+			},
 			load_image: {
-				name: 'Load Iamge',
+				label: 'Load Iamge',
 				exec: loadImage,
 			},
 			open_image: {
-				name: 'Open Image',
+				label: 'Open Image',
 				icon: '<path d="M4 28 L28 28 30 12 14 12 10 8 2 8 Z M28 12 L28 4 4 4 4 8"/>',
 				async exec() {
 					const image = (await fileDialog({accept: 'image/*'}))[0]
@@ -454,9 +466,63 @@ export default function useModuleViewport({
 				},
 			},
 			download_image: {
-				name: 'Download Image',
+				label: 'Download Image',
 				icon: '<path d="M9 22 C0 23 1 12 9 13 6 2 23 2 22 10 32 7 32 23 23 22 M11 26 L16 30 21 26 M16 16 L16 30" />',
 				exec: downloadImage,
+			},
+			add_brush: {
+				exec({name, brush}: {name: string; brush: BrushDefinition}) {
+					let doAppend = false
+
+					if (name in brushes.value) {
+						// Compare
+						const existingBrush = brushes.value[name]
+						if (!_.isEqual(brush, existingBrush)) {
+							const msg =
+								`A brush named ${brush.label} has already existed. ` +
+								'Are you sure to overwrite it?'
+
+							if (confirm(msg)) doAppend = true
+						}
+					} else {
+						doAppend = true
+					}
+					if (doAppend) {
+						const newBrushes = {...brushes.value}
+						newBrushes[name] = brush
+						brushes.value = newBrushes
+						currentBrushName.value = name
+					}
+				},
+			},
+			copy_current_brush_url: {
+				label: 'Copy Current Brush URL',
+				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+				async exec() {
+					const data = YAML.stringify({
+						[currentBrushName.value]: currentBrush.value,
+					})
+					const result = await postTextToGlispServer(
+						'raster_brush',
+						'name',
+						data
+					)
+
+					const url = new URL(window.location.href)
+					url.searchParams.set('action', 'load_brush')
+					url.searchParams.set('d', result.id.toString())
+					navigator.clipboard.writeText(url.toString())
+				},
+			},
+			copy_current_brush_yaml: {
+				label: 'Copy Current Brush in YAML',
+				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+				async exec() {
+					const data = YAML.stringify({
+						[currentBrushName.value]: currentBrush.value,
+					})
+					navigator.clipboard.writeText(data)
+				},
 			},
 		},
 	}
