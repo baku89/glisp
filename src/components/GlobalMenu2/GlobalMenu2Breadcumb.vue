@@ -46,7 +46,7 @@ export default defineComponent({
 		background base16('01')
 
 	li:not(:last-child):after
-		color base16('02')
+		color base16('03')
 		content '>'
 		font-size 0.8em
 		font-monospace()
