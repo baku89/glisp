@@ -143,7 +143,7 @@ export default function useDraggable(
 			if (!el) return
 			setup(el)
 		},
-		{immediate: true}
+		{immediate: true, flush: 'post'}
 	)
 
 	return toRefs(drag)
