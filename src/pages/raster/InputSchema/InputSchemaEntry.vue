@@ -3,6 +3,7 @@
 		class="InputSchemaEntry"
 		:class="{nested}"
 		v-if="schema.type !== 'const'"
+		@dblclick="resetToDefault"
 	>
 		<SvgIcon
 			v-if="!nested"
@@ -46,6 +47,7 @@ import SvgIcon from '@/components/layouts/SvgIcon.vue'
 
 import InputSchema from './InputSchema.vue'
 import {Data, Schema} from './type'
+import {cast} from './validator'
 
 export default defineComponent({
 	name: 'InputSchemaEntry',
@@ -77,7 +79,7 @@ export default defineComponent({
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema
 	},
-	setup(props) {
+	setup(props, context) {
 		// Depth
 		const depth = inject('InputSchemaObject__depth', 0)
 		provide('InputSchemaObject__depth', depth + 1)
@@ -97,7 +99,12 @@ export default defineComponent({
 			return v
 		}
 
-		return {nested, toLabel: _.startCase, validateName}
+		function resetToDefault() {
+			const newValue = cast(undefined, props.schema)
+			context.emit('update:modelValue', newValue)
+		}
+
+		return {nested, toLabel: _.startCase, validateName, resetToDefault}
 	},
 })
 </script>
