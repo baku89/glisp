@@ -18,7 +18,7 @@
 	</menu>
 	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
 		<ul>
-			<li v-for="(action, i) in menu" :key="i" @mouseup="doAction(action)">
+			<li v-for="(action, i) in menuInfo" :key="i" @mouseup="doAction(action)">
 				<SvgIcon class="icon" mode="block" v-html="action.icon || ''"></SvgIcon>
 				{{ action.name }}
 			</li>
@@ -27,9 +27,9 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType, ref} from 'vue-demi'
+import {computed, defineComponent, inject, PropType, ref} from 'vue-demi'
 
-import Action from '@/pages/raster/action'
+import {Store} from '@/lib/store'
 
 import SvgIcon from '../layouts/SvgIcon.vue'
 
@@ -38,11 +38,13 @@ export default defineComponent({
 	name: 'GlobalMenu2',
 	props: {
 		menu: {
-			type: Array as PropType<Action[]>,
+			type: Array as PropType<string[]>,
 			default: () => [],
 		},
 	},
-	setup() {
+	setup(props) {
+		const store = inject('store') as Store
+
 		const titleBar = ref(
 			/electron/i.test(navigator.userAgent)
 				? /mac/i.test(navigator.platform)
@@ -78,11 +80,13 @@ export default defineComponent({
 			)
 		}
 
-		function doAction(action: Action) {
-			action.exec()
+		function doAction(name: string) {
+			store.commit(name, {})
 		}
 
-		return {titleBar, menuOpened, onClickMenu, doAction}
+		const menuInfo = computed(() => props.menu.map(store.getAction))
+
+		return {titleBar, menuOpened, menuInfo, onClickMenu, doAction}
 	},
 })
 </script>

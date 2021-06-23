@@ -16,11 +16,11 @@ import {
 } from 'vue'
 
 import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
+import {StoreModule} from '@/lib/store'
 
-import Action from './action'
-import {BrushDefinition} from './brush-definition'
-import useFragShaderValidator from './use-frag-shader-validator'
-import {saveViewport} from './webgl-utils'
+import {BrushDefinition} from '../brush-definition'
+import useFragShaderValidator from '../use-frag-shader-validator'
+import {saveViewport} from '../webgl-utils'
 
 const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
 	vert: `
@@ -41,7 +41,7 @@ const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
 	primitive: 'triangle strip',
 }
 
-export default function useViewport({
+export default function useModuleViewport({
 	canvasEl,
 	viewportEl,
 	currentBrush,
@@ -49,7 +49,7 @@ export default function useViewport({
 	canvasEl: Ref<Element | null>
 	viewportEl: Ref<Element | null>
 	currentBrush: Ref<BrushDefinition>
-}) {
+}): StoreModule {
 	// WebGL
 	const regl = shallowRef<Regl.Regl | null>(null)
 	let fbo: [Regl.Framebuffer2D, Regl.Framebuffer2D] | null = null
@@ -80,7 +80,6 @@ export default function useViewport({
 	const params = useLocalStorage('raster__params', {} as {[name: string]: any})
 
 	// uniformData
-
 	const uniformData = computed(() => {
 		if (!regl.value) return {}
 
@@ -439,10 +438,11 @@ export default function useViewport({
 			viewTransform,
 			zoomFactor,
 		},
-		methods: {
-			loadImage,
-		},
 		actions: {
+			load_image: {
+				name: 'Load Iamge',
+				exec: loadImage,
+			},
 			open_image: {
 				name: 'Open Image',
 				icon: '<path d="M4 28 L28 28 30 12 14 12 10 8 2 8 Z M28 12 L28 4 4 4 4 8"/>',
@@ -458,6 +458,6 @@ export default function useViewport({
 				icon: '<path d="M9 22 C0 23 1 12 9 13 6 2 23 2 22 10 32 7 32 23 23 22 M11 26 L16 30 21 26 M16 16 L16 30" />',
 				exec: downloadImage,
 			},
-		} as Record<string, Action>,
+		},
 	}
 }

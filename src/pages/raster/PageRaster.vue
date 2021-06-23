@@ -67,7 +67,7 @@ import 'splitpanes/dist/splitpanes.css'
 import {templateRef, useLocalStorage} from '@vueuse/core'
 import _ from 'lodash'
 import {Pane, Splitpanes} from 'splitpanes'
-import {computed, defineComponent, ref} from 'vue'
+import {computed, defineComponent, provide, ref} from 'vue'
 import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
@@ -77,14 +77,14 @@ import {
 	postTextToGlispServer,
 	readImageAsDataURL,
 } from '@/lib/promise'
+import {createStore, StoreModule} from '@/lib/store'
 
-import Action from './action'
 import {BrushDefinition} from './brush-definition'
 import BrushSettings from './BrushSettings.vue'
 import BuiltinBrushes from './builtin-brushes'
 import InputControl from './InputControl.vue'
+import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
-import useViewport from './use-viewport'
 import Zoomable from './Zoomable.vue'
 export default defineComponent({
 	name: 'PageRaster',
@@ -123,16 +123,6 @@ export default defineComponent({
 			},
 		})
 
-		const {
-			state: viewportState,
-			methods: {loadImage},
-			actions: viewportActions,
-		} = useViewport({
-			viewportEl,
-			canvasEl,
-			currentBrush,
-		})
-
 		window.addEventListener(
 			'paste',
 			e => loadImageFromDataTransfer((e as ClipboardEvent).clipboardData),
@@ -143,42 +133,38 @@ export default defineComponent({
 			loadImageFromDataTransfer(e.dataTransfer)
 		}
 
-		async function loadImageFromDataTransfer(
-			dataTransfer: DataTransfer | null
-		) {
-			// Use thePasteEvent object here ...
-			const image = dataTransfer?.files[0]
+		const rootModule: StoreModule = {
+			state: {},
+			actions: {
+				copy_current_brush_url: {
+					name: 'Copy Current Brush URL',
+					icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+					async exec() {
+						const data = YAML.stringify({
+							[currentBrushName.value]: currentBrush.value,
+						})
+						const result = await postTextToGlispServer(
+							'raster_brush',
+							'name',
+							data
+						)
 
-			if (!image || !image.type.startsWith('image')) return
-
-			const url = await readImageAsDataURL(image)
-			loadImage(url)
-		}
-
-		const copyCurrentBrushUrl: Action = {
-			name: 'Copy Current Brush URL',
-			icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-			async exec() {
-				const data = YAML.stringify({
-					[currentBrushName.value]: currentBrush.value,
-				})
-				const result = await postTextToGlispServer('raster_brush', 'name', data)
-
-				const url = new URL(window.location.href)
-				url.searchParams.set('action', 'load_brush')
-				url.searchParams.set('d', result.id.toString())
-				navigator.clipboard.writeText(url.toString())
-			},
-		}
-
-		const copyCurrentBrushYAML: Action = {
-			name: 'Copy Current Brush in YAML',
-			icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-			async exec() {
-				const data = YAML.stringify({
-					[currentBrushName.value]: currentBrush.value,
-				})
-				navigator.clipboard.writeText(data)
+						const url = new URL(window.location.href)
+						url.searchParams.set('action', 'load_brush')
+						url.searchParams.set('d', result.id.toString())
+						navigator.clipboard.writeText(url.toString())
+					},
+				},
+				copy_current_brush_yaml: {
+					name: 'Copy Current Brush in YAML',
+					icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
+					async exec() {
+						const data = YAML.stringify({
+							[currentBrushName.value]: currentBrush.value,
+						})
+						navigator.clipboard.writeText(data)
+					},
+				},
 			},
 		}
 
@@ -231,10 +217,37 @@ export default defineComponent({
 		})()
 
 		const globalMenu = ref([
-			..._.values(viewportActions),
-			copyCurrentBrushUrl,
-			copyCurrentBrushYAML,
+			'viewport/open_image',
+			'viewport/download_image',
+			'root/copy_current_brush_url',
+			'root/copy_current_brush_url',
 		])
+
+		const store = createStore({
+			root: rootModule,
+			viewport: useModuleViewport({
+				viewportEl,
+				canvasEl,
+				currentBrush,
+			}),
+		})
+
+		async function loadImageFromDataTransfer(
+			dataTransfer: DataTransfer | null
+		) {
+			// Use thePasteEvent object here ...
+			const image = dataTransfer?.files[0]
+
+			if (!image || !image.type.startsWith('image')) return
+
+			const url = await readImageAsDataURL(image)
+
+			store.commit('viewport/load_image', url)
+		}
+
+		provide('store', store)
+
+		const viewportState = store.state.viewport
 
 		return {
 			brushes,
