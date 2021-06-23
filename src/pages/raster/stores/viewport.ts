@@ -445,11 +445,13 @@ export default function useModuleViewport(): StoreModule {
 			})
 
 			// Unsafe code
-			;((f as any).color as Regl.Texture2D[])[0]({
+			const colorTex = ((f as any).color as Regl.Texture2D[])[0]
+			colorTex({
 				mag: 'linear',
 				min: 'linear',
-				radius: 1024,
-				type: 'float32',
+				width: colorTex.width,
+				height: colorTex.height,
+				type: colorTex.type,
 			})
 
 			return f
