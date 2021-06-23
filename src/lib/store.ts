@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import objectPath from 'object-path'
-import {Ref} from 'vue'
+import {readonly, Ref} from 'vue'
 
 export interface Action {
 	label?: string
@@ -32,7 +32,7 @@ export function createStore(options: CreateStoreOptions): Store {
 		_.entries(module.actions).forEach(([n, m]) => {
 			actions[name + '.' + n] = m
 		})
-		state[name] = module.state
+		state[name] = _.mapValues(module.state, readonly)
 	})
 
 	function commit(name: string, payload: any) {

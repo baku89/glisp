@@ -4,26 +4,20 @@
 			<InputSvgIcon
 				class="BrushSettings__icon"
 				mode="block"
-				:modelValue="modelValue.icon"
-				@update:modelValue="
-					$emit('update:modelValue', {...modelValue, icon: $event})
-				"
+				:modelValue="brush.icon"
+				@update:modelValue="updateBrush({...brush, icon: $event})"
 			/>
 			<InputString
 				class="BrushSettings__label label"
-				:modelValue="modelValue.label"
-				@update:modelValue="
-					$emit('update:modelValue', {...modelValue, label: $event})
-				"
+				:modelValue="brush.label"
+				@update:modelValue="updateBrush({...brush, label: $event})"
 			/>
 		</header>
 		<section class="BrushSettings__section">
 			<h3>Parameters</h3>
 			<InputSchema
-				:modelValue="modelValue.params"
-				@update:modelValue="
-					$emit('update:modelValue', {...modelValue, params: $event})
-				"
+				:modelValue="brush.params"
+				@update:modelValue="updateBrush({...brush, params: $event})"
 				:schema="schema"
 			/>
 		</section>
@@ -37,19 +31,16 @@
 			<MonacoEditor
 				class="BrushSettings__shader"
 				lang="glsl"
-				:modelValue="modelValue.frag"
+				:modelValue="brush.frag"
 				:markers="shaderErrors"
-				@update:modelValue="
-					$emit('update:modelValue', {...modelValue, frag: $event})
-				"
+				@update:modelValue="updateBrush({...brush, frag: $event})"
 			/>
 		</section>
 	</div>
 </template>
 
 <script lang="ts">
-import _ from 'lodash'
-import {computed, defineComponent, inject, PropType, ref} from 'vue'
+import {computed, defineComponent, inject, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import InputSvgIcon from '@/components/inputs/InputSvgIcon.vue'
@@ -71,17 +62,11 @@ export default defineComponent({
 		Markdown,
 		MonacoEditor,
 	},
-	props: {
-		modelValue: {
-			type: Object as PropType<BrushDefinition>,
-			required: true,
-		},
-	},
 	emits: ['update:modelValue'],
-	setup(props, context) {
-		const store = inject<Store>('store')
-		if (!store) return {}
+	setup() {
+		const store = inject('store') as Store
 
+		const brush = store.getState<BrushDefinition>('viewport.currentBrush')
 		const shaderErrors = store.getState<MonacoEditorMarker[]>(
 			'viewport.shaderErrors'
 		)
@@ -89,14 +74,14 @@ export default defineComponent({
 
 		const params = computed({
 			get: () =>
-				Object.entries(props.modelValue.params).map(([name, value]) => ({
+				Object.entries(brush.value.params).map(([name, value]) => ({
 					name,
 					value,
 				})),
 			set: sorted => {
 				const params = Object.fromEntries(sorted.map(v => [v.name, v.value]))
-				const newValue = {...props.modelValue, params}
-				context.emit('update:modelValue', newValue)
+				const newValue = {...brush.value, params}
+				store.commit('viewport.updateCurrentBrush', newValue)
 			},
 		})
 
@@ -171,35 +156,17 @@ export default defineComponent({
 			},
 		})
 
-		function updateParamName(name: string, newName: string) {
-			const newValue = {...props.modelValue}
-			newValue.params = _.mapKeys(newValue.params, (_, n) =>
-				n === name ? newName : n
-			)
-			context.emit('update:modelValue', newValue)
-		}
-
-		function updateParamType(name: string, type: 'slider' | 'color' | 'seed') {
-			const newValue = {...props.modelValue}
-			newValue.params[name] = {type}
-
-			context.emit('update:modelValue', newValue)
-		}
-
-		function updateParamData(name: string, field: string, data: any) {
-			const newValue = {...props.modelValue}
-			;(newValue.params[name] as any)[field] = data
-			context.emit('update:modelValue', newValue)
+		function updateBrush(brush: BrushDefinition) {
+			store.commit('viewport.updateCurrentBrush', brush)
 		}
 
 		return {
+			brush,
 			schema,
 			params,
 			fragDeclarationsDesc,
 			shaderErrors,
-			updateParamName,
-			updateParamType,
-			updateParamData,
+			updateBrush,
 		}
 	},
 })

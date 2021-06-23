@@ -49,17 +49,17 @@ export default function useModuleViewport(): StoreModule {
 		useMouseInElement(viewportEl)
 	const {pressed} = useMousePressed({target: viewportEl})
 
-	const viewTransform = ref(mat2d.create())
+	const transform = ref(mat2d.create())
 
 	const cursorPos = computed(() => {
 		const xform = vec2.fromValues(viewportX.value, viewportY.value)
-		const xformInv = mat2d.invert(mat2d.create(), viewTransform.value)
+		const xformInv = mat2d.invert(mat2d.create(), transform.value)
 		vec2.transformMat2d(xform, xform, xformInv)
 		return vec2.div(xform, xform, canvasSize.value as vec2)
 	})
 
 	const zoomFactor = computed(() => {
-		const xform = viewTransform.value
+		const xform = transform.value
 		const axis = vec2.fromValues(xform[0], xform[1])
 		return vec2.len(axis)
 	})
@@ -78,11 +78,11 @@ export default function useModuleViewport(): StoreModule {
 		},
 	})
 
-	const params = useLocalStorage('raster__params', {} as {[name: string]: any})
+	const params = useLocalStorage('raster__params', {} as Record<string, any>)
 
 	// uniformData
 	const uniformData = computed(() => {
-		if (!regl.value || !currentBrush.value) return {}
+		if (!regl.value) return {}
 
 		const defs = Object.entries(currentBrush.value.params)
 
@@ -180,7 +180,7 @@ export default function useModuleViewport(): StoreModule {
 
 	// Commands
 	const drawCommand = computed(() => {
-		if (!regl.value || !currentBrush.value) return null
+		if (!regl.value) return null
 		const prop = regl.value.prop as any
 
 		const uniforms: {[name: string]: any} = {
@@ -438,13 +438,13 @@ export default function useModuleViewport(): StoreModule {
 	return {
 		state: {
 			brushes,
+			brushParams: params,
 			currentBrush,
 			currentBrushName,
 			canvasSize,
 			fragDeclarations,
-			params,
 			shaderErrors,
-			viewTransform,
+			transform,
 			zoomFactor,
 		},
 		actions: {
@@ -522,6 +522,31 @@ export default function useModuleViewport(): StoreModule {
 						[currentBrushName.value]: currentBrush.value,
 					})
 					navigator.clipboard.writeText(data)
+				},
+			},
+			setTransform: {
+				exec(xform: mat2d) {
+					transform.value = xform
+				},
+			},
+			updateCurrentBrush: {
+				exec(brush: BrushDefinition) {
+					brushes.value[currentBrushName.value] = brush
+				},
+			},
+			switchBrush: {
+				exec(name: string) {
+					currentBrushName.value = name
+				},
+			},
+			setBrushes: {
+				exec(newBrushes: typeof brushes['value']) {
+					brushes.value = newBrushes
+				},
+			},
+			setBrushParams: {
+				exec(newParams: typeof params['value']) {
+					params.value = newParams
 				},
 			},
 		},

@@ -12,7 +12,8 @@
 			>
 				<Zoomable
 					class="PageRaster__zoomable"
-					v-model:transform="viewTransform"
+					:transform="viewportTransform"
+					@update:transform="commit('viewport.setTransform', $event)"
 					ref="viewport"
 					@dragenter.prevent
 					@dragover.prevent
@@ -25,7 +26,7 @@
 						:width="canvasSize[0]"
 						:height="canvasSize[1]"
 						:style="{
-							transform: `matrix(${viewTransform.join(
+							transform: `matrix(${viewportTransform.join(
 								','
 							)}) scaleY(-1) translateY(-100%)`,
 						}"
@@ -33,8 +34,10 @@
 				</Zoomable>
 				<ToolSelector
 					class="PageRaster__tool-selector"
-					v-model="currentBrushName"
-					v-model:tools="brushes"
+					:modelValue="currentBrushName"
+					@update:modelValue="commit('viewport.switchBrush', $event)"
+					:tools="brushes"
+					@update:tools="commit('viewport.setBrushes', $event)"
 				/>
 				<dl class="PageRaster__params">
 					<template
@@ -43,13 +46,19 @@
 					>
 						<dt>{{ toLabel(name) }}</dt>
 						<dd>
-							<InputControl v-bind="def" v-model="params[name]" />
+							<InputControl
+								v-bind="def"
+								:modelValue="brushParams[name]"
+								@update:modelValue="
+									commit('viewport.setBrushParams', {...params, [name]: $event})
+								"
+							/>
 						</dd>
 					</template>
 				</dl>
 			</Pane>
 			<Pane class="PageRaster__control" :size="controlPaneWidth">
-				<BrushSettings v-model="currentBrush" />
+				<BrushSettings />
 			</Pane>
 		</Splitpanes>
 	</div>
@@ -64,18 +73,17 @@ import {templateRef, useLocalStorage} from '@vueuse/core'
 import _ from 'lodash'
 import {Pane, Splitpanes} from 'splitpanes'
 import {defineComponent, onMounted, provide, ref} from 'vue'
-import YAML from 'yaml'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import useScheme from '@/components/use/use-scheme'
-import {getTextFromGlispServer, readImageAsDataURL} from '@/lib/promise'
+import {readImageAsDataURL} from '@/lib/promise'
 import {createStore} from '@/lib/store'
 
-import {BrushDefinition} from './brush-definition'
 import BrushSettings from './BrushSettings.vue'
 import InputControl from './InputControl.vue'
 import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
+import useLoadActions from './use-load-actions'
 import Zoomable from './Zoomable.vue'
 export default defineComponent({
 	name: 'PageRaster',
@@ -100,6 +108,7 @@ export default defineComponent({
 		const store = createStore({
 			viewport: useModuleViewport(),
 		})
+		provide('store', store)
 
 		// Open Image actions
 		window.addEventListener(
@@ -122,31 +131,7 @@ export default defineComponent({
 			store.commit('viewport.loadImage', url)
 		}
 
-		// On Load Actions
-		;(async function () {
-			const url = new URL(window.location.href)
-			const action = url.searchParams.get('action')
-			const data = url.searchParams.get('d') || ''
-			if (action) {
-				switch (action) {
-					case 'load_brush': {
-						const result = await getTextFromGlispServer(data)
-						const loadedBrush = YAML.parse(result.data) as Record<
-							string,
-							BrushDefinition
-						>
-						const [[name, brush]] = _.entries(loadedBrush)
-						store.commit('viewport/addBrush', {name, brush})
-						break
-					}
-				}
-
-				url.searchParams.delete('action')
-				url.searchParams.delete('d')
-
-				history.pushState({}, document.title, url.toString())
-			}
-		})()
+		useLoadActions(store)
 
 		onMounted(() => {
 			store.commit('viewport.setupElements', {
@@ -162,11 +147,24 @@ export default defineComponent({
 			'viewport.copyCurrentBrushYaml',
 		])
 
-		provide('store', store)
+		const viewportTransform = store.getState('viewport.transform')
+		const canvasSize = store.getState('viewport.canvasSize')
+		const zoomFactor = store.getState('viewport.zoomFactor')
+		const currentBrush = store.getState('viewport.currentBrush')
+		const brushParams = store.getState('viewport.brushParams')
+		const currentBrushName = store.getState('viewport.currentBrushName')
+		const brushes = store.getState('viewport.brushes')
 
 		return {
-			...store.state.brushes,
-			...store.state.viewport,
+			getState: store.getState,
+			commit: store.commit,
+			viewportTransform,
+			currentBrush,
+			canvasSize,
+			brushParams,
+			currentBrushName,
+			brushes,
+			zoomFactor,
 			onDropFile,
 			controlPaneWidth,
 			globalMenu,
