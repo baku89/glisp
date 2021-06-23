@@ -8,9 +8,26 @@
 			@keydown="onKeydown"
 			ref="inputEl"
 		/>
-		<div class="InputSlider__slider-wrapper">
-			<div class="InputSlider__slider" :style="sliderStyle" />
-		</div>
+		<svg
+			class="InputSlider__slider-wrapper"
+			preserveAspectRatio="none"
+			viewBox="0 0 1 2"
+		>
+			<line
+				class="InputSlider__slider"
+				:x1="(sliderOrigin - min) / (max - min)"
+				y1="1"
+				:x2="(modelValue - min) / (max - min)"
+				y2="1"
+			/>
+			<line
+				class="InputSlider__slider-origin"
+				:x1="(modelValue - min) / (max - min)"
+				y1="0"
+				:x2="(modelValue - min) / (max - min)"
+				y2="2"
+			/>
+		</svg>
 	</div>
 	<teleport to="body">
 		<template v-if="tweaking">
@@ -60,6 +77,10 @@ export default defineComponent({
 		precision: {
 			type: Number,
 			default: 1,
+		},
+		sliderOrigin: {
+			type: Number,
+			default: 0,
 		},
 	},
 	setup(props, context) {
@@ -228,14 +249,15 @@ export default defineComponent({
 	&__slider
 		position relative
 		height 100%
-
-		&:after
-			pseudo-block()
-			absolute-fill()
-			background base16('accent', 0.5)
-			input-transition(all)
+		stroke base16('accent', 0.5)
+		stroke-width 2
 
 		~/.tweaking &
 			&:after
 				box-shadow 0 0 0 1px base16('accent')
+
+	&__slider-origin
+		stroke base16('accent')
+		stroke-width 1
+		vector-effect non-scaling-stroke
 </style>
