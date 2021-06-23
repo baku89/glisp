@@ -128,6 +128,7 @@ export default defineComponent({
 			'viewport.downloadImage',
 			'viewport.copyCurrentBrushUrl',
 			'viewport.copyCurrentBrushYaml',
+			'viewport.resetBuiltinBrushes',
 		])
 
 		const viewportTransform = store.getState('viewport.transform')

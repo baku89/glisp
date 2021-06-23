@@ -565,6 +565,15 @@ export default function useModuleViewport(): StoreModule {
 					params.value = newParams
 				},
 			},
+			resetBuiltinBrushes: {
+				label: 'Reset Built-in Brushes',
+				icon: `<path
+				d="M15,21L29,7c1.1-1.1,1.1-2.9,0-4l0,0c-1.1-1.1-2.9-1.1-4,0L11,17L15,21z"/>
+				<path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>`,
+				exec() {
+					brushes.value = {...brushes.value, ...BuiltinBrushes}
+				},
+			},
 		},
 	}
 }
