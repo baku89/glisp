@@ -119,7 +119,7 @@ export default defineComponent({
 			const image = dataTransfer?.files[0]
 			if (!image || !image.type.startsWith('image')) return
 			const url = await readImageAsDataURL(image)
-			store.commit('viewport/load_image', url)
+			store.commit('viewport.loadImage', url)
 		}
 
 		// On Load Actions
@@ -136,7 +136,7 @@ export default defineComponent({
 							BrushDefinition
 						>
 						const [[name, brush]] = _.entries(loadedBrush)
-						store.commit('viewport/add_brush', {name, brush})
+						store.commit('viewport/addBrush', {name, brush})
 						break
 					}
 				}
@@ -149,17 +149,17 @@ export default defineComponent({
 		})()
 
 		onMounted(() => {
-			store.commit('viewport/setup_elements', {
+			store.commit('viewport.setupElements', {
 				viewport: viewportEl.value,
 				canvas: canvasEl.value,
 			})
 		})
 
 		const globalMenu = ref([
-			'viewport/open_image',
-			'viewport/download_image',
-			'root/copy_current_brush_url',
-			'root/copy_current_brush_yaml',
+			'viewport.openImage',
+			'viewport.downloadImage',
+			'viewport.copyCurrentBrushUrl',
+			'viewport.copyCurrentBrushYaml',
 		])
 
 		provide('store', store)

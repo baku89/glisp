@@ -49,7 +49,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {computed, defineComponent, inject, PropType, Ref, ref} from 'vue'
+import {computed, defineComponent, inject, PropType, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import InputSvgIcon from '@/components/inputs/InputSvgIcon.vue'
@@ -82,9 +82,10 @@ export default defineComponent({
 		const store = inject<Store>('store')
 		if (!store) return {}
 
-		const shaderErrors: Ref<MonacoEditorMarker[]> =
-			store.state.viewport.shaderErrors
-		const fragDeclarations: Ref<string> = store.state.viewport.fragDeclarations
+		const shaderErrors = store.getState<MonacoEditorMarker[]>(
+			'viewport.shaderErrors'
+		)
+		const fragDeclarations = store.getState<string>('viewport.fragDeclarations')
 
 		const params = computed({
 			get: () =>

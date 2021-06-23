@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import objectPath from 'object-path'
 import {Ref} from 'vue'
 
 export interface Action {
@@ -18,6 +19,7 @@ type CreateStoreOptions = Record<string, StoreModule>
 
 export interface Store {
 	state: Record<string, Record<string, Ref>>
+	getState: <T>(name: string) => Ref<T>
 	getAction: (name: string) => ActionInfo
 	commit: (name: string, payload: any) => any
 }
@@ -28,7 +30,7 @@ export function createStore(options: CreateStoreOptions): Store {
 
 	_.entries(options).forEach(([name, module]) => {
 		_.entries(module.actions).forEach(([n, m]) => {
-			actions[name + '/' + n] = m
+			actions[name + '.' + n] = m
 		})
 		state[name] = module.state
 	})
@@ -40,6 +42,14 @@ export function createStore(options: CreateStoreOptions): Store {
 		actions[name].exec(payload)
 	}
 
+	function getState<T>(name: string): Ref<T> {
+		const s = objectPath.get(state, name)
+		if (!s) {
+			throw new Error(`State ${name} does not exist.`)
+		}
+		return s
+	}
+
 	function getAction(name: string): ActionInfo {
 		if (!(name in actions)) {
 			throw new Error(`Action ${name} does not exist.`)
@@ -49,6 +59,7 @@ export function createStore(options: CreateStoreOptions): Store {
 
 	return {
 		state,
+		getState,
 		getAction,
 		commit,
 	}

@@ -448,14 +448,14 @@ export default function useModuleViewport(): StoreModule {
 			zoomFactor,
 		},
 		actions: {
-			setup_elements: {
+			setupElements: {
 				exec: setupElements,
 			},
-			load_image: {
+			loadImage: {
 				label: 'Load Iamge',
 				exec: loadImage,
 			},
-			open_image: {
+			openImage: {
 				label: 'Open Image',
 				icon: '<path d="M4 28 L28 28 30 12 14 12 10 8 2 8 Z M28 12 L28 4 4 4 4 8"/>',
 				async exec() {
@@ -465,12 +465,12 @@ export default function useModuleViewport(): StoreModule {
 					loadImage(url)
 				},
 			},
-			download_image: {
+			downloadImage: {
 				label: 'Download Image',
 				icon: '<path d="M9 22 C0 23 1 12 9 13 6 2 23 2 22 10 32 7 32 23 23 22 M11 26 L16 30 21 26 M16 16 L16 30" />',
 				exec: downloadImage,
 			},
-			add_brush: {
+			addBrush: {
 				exec({name, brush}: {name: string; brush: BrushDefinition}) {
 					let doAppend = false
 
@@ -495,7 +495,7 @@ export default function useModuleViewport(): StoreModule {
 					}
 				},
 			},
-			copy_current_brush_url: {
+			copyCurrentBrushUrl: {
 				label: 'Copy Current Brush URL',
 				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
 				async exec() {
@@ -514,7 +514,7 @@ export default function useModuleViewport(): StoreModule {
 					navigator.clipboard.writeText(url.toString())
 				},
 			},
-			copy_current_brush_yaml: {
+			copyCurrentBrushYaml: {
 				label: 'Copy Current Brush in YAML',
 				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
 				async exec() {
