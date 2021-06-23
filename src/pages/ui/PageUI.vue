@@ -5,8 +5,8 @@
 				<GlobalMenu2Breadcumb :items="[{label: 'UI'}]" />
 			</template>
 		</GlobalMenu2>
-		<Splitpanes class="PageUI__content glisp-theme">
-			<Pane>
+		<SidePane uid="globalSidePane" :mainAttr="{class: 'PageUI__content'}">
+			<template #main>
 				<section style="margin-bottom: 2em">
 					<h2>Theme</h2>
 					<p>
@@ -39,15 +39,8 @@
 				</section>
 
 				<PaneDocument />
-
-				<!-- <section>
-					<GlispEditor
-						class="PageUI__glisp-editor"
-						v-model="data.code"
-					/>
-				</section> -->
-			</Pane>
-			<Pane class="no-padding">
+			</template>
+			<template #side>
 				<Tab :tabs="['inputs', 'code']" initialTab="inputs">
 					<template #head-inputs>
 						<SvgIcon mode="inline" style="font-size: 1.2em">
@@ -169,8 +162,8 @@
 						</dl>
 					</template>
 				</Tab>
-			</Pane>
-		</Splitpanes>
+			</template>
+		</SidePane>
 	</div>
 </template>
 
@@ -179,7 +172,6 @@ import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
 import _ from 'lodash'
-import {Pane, Splitpanes} from 'splitpanes'
 import {computed, defineComponent, reactive} from 'vue'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
@@ -197,6 +189,7 @@ import InputSlider from '@/components/inputs/InputSlider.vue'
 import InputString from '@/components/inputs/InputString.vue'
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import MonacoEditor from '@/components/layouts/MonacoEditor'
+import SidePane from '@/components/layouts/SidePane.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
@@ -222,10 +215,9 @@ export default defineComponent({
 		InputCubicBezier,
 		InputColor,
 		MonacoEditor,
-		Pane,
 		PaneDocument,
 		PaneSchemeViewer,
-		Splitpanes,
+		SidePane,
 		SvgIcon,
 		Tab,
 	},
@@ -296,10 +288,7 @@ export default defineComponent({
 
 	&__content
 		overflow scroll
-
-	&__glisp-editor
-		height 4em
-		border 1px solid $color-frame
+		padding 1.8em
 
 	&__ui-list
 		display grid

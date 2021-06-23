@@ -5,11 +5,12 @@
 				<GlobalMenu2Breadcumb :items="[{label: 'Raster'}]" />
 			</template>
 		</GlobalMenu2>
-		<Splitpanes class="glisp-theme" @resize="controlPaneWidth = $event[1].size">
-			<Pane
-				class="no-padding PageRaster__viewport"
-				:size="100 - controlPaneWidth"
-			>
+		<SidePane
+			uid="globalSidePane"
+			:mainAttr="{class: 'PageRaster__viewport'}"
+			:sideAttr="{class: 'PageRaster__control'}"
+		>
+			<template #main>
 				<Zoomable
 					class="PageRaster__zoomable"
 					:transform="viewportTransform"
@@ -40,11 +41,11 @@
 					@update:tools="commit('viewport.setBrushes', $event)"
 				/>
 				<PaneBrushParams class="PageRaster__params" />
-			</Pane>
-			<Pane class="PageRaster__control" :size="controlPaneWidth">
+			</template>
+			<template #side>
 				<BrushSettings />
-			</Pane>
-		</Splitpanes>
+			</template>
+		</SidePane>
 	</div>
 	<div class="PageRaster__bg" />
 </template>
@@ -53,12 +54,12 @@
 import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
-import {templateRef, useLocalStorage} from '@vueuse/core'
+import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
-import {Pane, Splitpanes} from 'splitpanes'
 import {defineComponent, onMounted, provide, ref} from 'vue'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
+import SidePane from '@/components/layouts/SidePane.vue'
 import useScheme from '@/components/use/use-scheme'
 import {readImageAsDataURL} from '@/lib/promise'
 import {createStore} from '@/lib/store'
@@ -77,9 +78,8 @@ export default defineComponent({
 		ToolSelector,
 		GlobalMenu2,
 		GlobalMenu2Breadcumb,
-		Pane,
 		PaneBrushParams,
-		Splitpanes,
+		SidePane,
 		Zoomable,
 	},
 	setup() {
@@ -87,8 +87,6 @@ export default defineComponent({
 
 		const viewportEl = templateRef('viewport')
 		const canvasEl = templateRef('canvas')
-
-		const controlPaneWidth = useLocalStorage('controlPaneWidth', 50)
 
 		const store = createStore({
 			viewport: useModuleViewport(),
@@ -151,7 +149,6 @@ export default defineComponent({
 			brushes,
 			zoomFactor,
 			onDropFile,
-			controlPaneWidth,
 			globalMenu,
 			toLabel: _.startCase,
 		}
@@ -189,6 +186,7 @@ html, body
 		left 1em
 
 	&__control
+		padding 1.8em
 		glass-bg('pane')
 
 	&__zoomable
