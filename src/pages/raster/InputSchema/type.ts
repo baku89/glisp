@@ -21,7 +21,7 @@ export interface SchemaBoolean {
 
 export interface SchemaNumber {
 	type: 'number'
-	ui: 'number' | 'slider' | 'angle'
+	ui?: 'number' | 'slider' | 'angle' | 'seed'
 	min?: number
 	max?: number
 	default?: number
@@ -29,6 +29,7 @@ export interface SchemaNumber {
 
 export interface SchemaString {
 	type: 'string'
+	ui?: 'string' | 'dropdown'
 	default?: string
 }
 

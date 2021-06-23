@@ -10,24 +10,20 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
-import InputNumber from '@/components/inputs/InputNumber.vue'
-import InputRotery from '@/components/inputs/InputRotery.vue'
-import InputSeed from '@/components/inputs/InputSeed.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
+import InputDropdown from '@/components/inputs/InputDropdown.vue'
+import InputString from '@/components/inputs/InputString.vue'
 
 import {SchemaNumber} from './type'
 
 export default defineComponent({
-	name: 'InputSchemaNumber',
+	name: 'InputSchemaString',
 	components: {
-		angle: InputRotery,
-		number: InputNumber,
-		slider: InputSlider,
-		seed: InputSeed,
+		string: InputString,
+		dropdown: InputDropdown,
 	},
 	props: {
 		modelValue: {
-			type: Number,
+			type: String,
 			required: true,
 		},
 		schema: {
@@ -37,7 +33,7 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props) {
-		const ui = computed(() => props.schema.ui || 'number')
+		const ui = computed(() => props.schema.ui || 'string')
 
 		return {ui}
 	},

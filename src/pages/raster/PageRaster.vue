@@ -39,23 +39,7 @@
 					:tools="brushes"
 					@update:tools="commit('viewport.setBrushes', $event)"
 				/>
-				<dl class="PageRaster__params">
-					<template
-						v-for="[name, def] in Object.entries(currentBrush.params)"
-						:key="name"
-					>
-						<dt>{{ toLabel(name) }}</dt>
-						<dd>
-							<InputControl
-								v-bind="def"
-								:modelValue="brushParams[name]"
-								@update:modelValue="
-									commit('viewport.setBrushParams', {...params, [name]: $event})
-								"
-							/>
-						</dd>
-					</template>
-				</dl>
+				<PaneBrushParams class="PageRaster__params" />
 			</Pane>
 			<Pane class="PageRaster__control" :size="controlPaneWidth">
 				<BrushSettings />
@@ -80,20 +64,21 @@ import {readImageAsDataURL} from '@/lib/promise'
 import {createStore} from '@/lib/store'
 
 import BrushSettings from './BrushSettings.vue'
-import InputControl from './InputControl.vue'
+import PaneBrushParams from './PaneBrushParams.vue'
 import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
 import useLoadActions from './use-load-actions'
 import Zoomable from './Zoomable.vue'
+
 export default defineComponent({
 	name: 'PageRaster',
 	components: {
 		BrushSettings,
-		InputControl,
 		ToolSelector,
 		GlobalMenu2,
 		GlobalMenu2Breadcumb,
 		Pane,
+		PaneBrushParams,
 		Splitpanes,
 		Zoomable,
 	},
@@ -229,21 +214,4 @@ html, body
 		border 1px solid $color-frame
 		border-radius $popup-round
 		glass-bg('pane')
-		grid-template-columns minmax(5em, min-content) 1fr
-		gap $input-horiz-margin
-
-		& > dt
-			height $input-height
-			color base16('04')
-			line-height $input-height
-
-		& > dd
-			display flex
-			align-items center
-			line-height $input-height
-
-			& > span
-				margin-left 1em
-				color base16('04')
-				font-monospace()
 </style>
