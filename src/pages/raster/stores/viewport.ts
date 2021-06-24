@@ -153,22 +153,31 @@ export default function useModuleViewport(): StoreModule {
 					continue
 				}
 				// Set default
+				const current = params.value[name]
 				switch (def.type) {
 					case 'slider':
 					case 'angle':
-						params.value[name] = def.default || 0
+						params.value[name] = _.isNumber(current)
+							? current
+							: def.default || 0
 						break
 					case 'seed':
-						params.value[name] = Math.random()
+						params.value[name] = _.isNumber(current) ? current : Math.random()
 						break
 					case 'color':
-						params.value[name] = def.default || '#ffffff'
+						params.value[name] = _.isString(current)
+							? current
+							: def.default || '#ffffff'
 						break
 					case 'dropdown':
-						params.value[name] = def.default || def.items.split(',')[0] || ''
+						params.value[name] = _.isString(current)
+							? current
+							: def.default || def.items.split(',')[0] || ''
 						break
 					case 'cubicBezier':
-						params.value[name] = def.default || [0.5, 0, 0.5, 1]
+						params.value[name] = _.isArray(current)
+							? current
+							: def.default || [0.5, 0, 0.5, 1]
 						break
 				}
 			}
