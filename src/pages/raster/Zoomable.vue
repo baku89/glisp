@@ -1,5 +1,5 @@
 <template>
-	<div class="Zoomable" ref="root"><slot /></div>
+	<component :is="tag" class="Zoomable" ref="root"><slot /></component>
 </template>
 
 <script lang="ts">
@@ -15,6 +15,10 @@ export default defineComponent({
 		transform: {
 			type: Object as PropType<mat2d>,
 			required: true,
+		},
+		tag: {
+			type: String,
+			default: 'div',
 		},
 	},
 	emits: ['update:transform'],
