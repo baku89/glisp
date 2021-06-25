@@ -90,6 +90,7 @@
 		"gl-matrix": "^3.3.0",
 		"glsl-canvas-js": "^0.2.3",
 		"glslify-loader": "^2.0.0",
+		"gsap": "^3.7.0",
 		"hotkeys-js": "^3.8.3",
 		"hull.js": "^1.0.1",
 		"is-electron": "^2.2.0",

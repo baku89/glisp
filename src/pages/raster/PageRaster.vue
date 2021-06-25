@@ -92,6 +92,7 @@ export default defineComponent({
 			viewport: useModuleViewport(),
 		})
 		provide('store', store)
+		;(window as any).store = store
 
 		// Open Image actions
 		window.addEventListener(
@@ -129,6 +130,7 @@ export default defineComponent({
 			'viewport.copyCurrentBrushUrl',
 			'viewport.copyCurrentBrushYaml',
 			'viewport.resetBuiltinBrushes',
+			'viewport.fitTransformToScreen',
 		])
 
 		const viewportTransform = store.getState('viewport.transform')

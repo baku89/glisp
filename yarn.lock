@@ -6370,6 +6370,11 @@ growly@^1.3.0:
   resolved "https://registry.yarnpkg.com/growly/-/growly-1.3.0.tgz#f10748cbe76af964b7c96c93c6bcc28af120c081"
   integrity sha1-8QdIy+dq+WS3yWyTxrzCivEgwIE=
 
+gsap@^3.7.0:
+  version "3.7.0"
+  resolved "https://registry.yarnpkg.com/gsap/-/gsap-3.7.0.tgz#ebadf467898ddf25011030090f0399cb0e292309"
+  integrity sha512-8JI7pcFj0pgMzwqChARiHf7EIIZp1QrQBP74M2p2NpQLiAeIhQsrJWIRiwmA2JWkkNe0I2BiQF5ZhJvpyJVJDA==
+
 gzip-size@^5.0.0:
   version "5.1.1"
   resolved "https://registry.yarnpkg.com/gzip-size/-/gzip-size-5.1.1.tgz#cb9bee692f87c0612b232840a873904e4c135274"

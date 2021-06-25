@@ -1,8 +1,9 @@
-import {useLocalStorage} from '@vueuse/core'
+import {unrefElement, useLocalStorage} from '@vueuse/core'
 import BezierEasing from 'bezier-easing'
 import chroma from 'chroma-js'
 import fileDialog from 'file-dialog'
 import {mat2d, vec2} from 'gl-matrix'
+import gsap from 'gsap'
 import _ from 'lodash'
 import Regl from 'regl'
 import {computed, ref, shallowRef, watch} from 'vue'
@@ -12,6 +13,7 @@ import useDraggable from '@/components/use/use-draggable'
 import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
 import {postTextToGlispServer} from '@/lib/promise'
 import {StoreModule} from '@/lib/store'
+import {fit01} from '@/utils'
 
 import {BrushDefinition} from '../brush-definition'
 import BuiltinBrushes from '../builtin-brushes'
@@ -54,6 +56,7 @@ export default function useModuleViewport(): StoreModule {
 	} = useDraggable(viewportEl as any)
 
 	const transform = ref(mat2d.create())
+	const transformTween = ref<gsap.core.Tween | null>(null)
 
 	const cursor = computed(() => {
 		const viewportOffset: vec2 = [viewportLeft.value, viewportTop.value]
@@ -432,7 +435,7 @@ export default function useModuleViewport(): StoreModule {
 		viewport: Element
 		canvas: HTMLCanvasElement
 	}) {
-		viewportEl.value = viewport
+		viewportEl.value = unrefElement(viewport)
 
 		const _gl = Regl({
 			attributes: {
@@ -565,7 +568,52 @@ export default function useModuleViewport(): StoreModule {
 			},
 			setTransform: {
 				exec(xform: mat2d) {
+					if (transformTween.value) {
+						transformTween.value.kill()
+						transformTween.value = null
+					}
 					transform.value = xform
+				},
+			},
+			fitTransformToScreen: {
+				label: 'Fit Artboard to Screen',
+				icon: `<circle cx="14" cy="14" r="12" />
+					<path d="M23 23 L30 30" />
+					<path d="M9 12 L9 9 12 9 M16 9 L19 9 19 12 M9 16 L9 19 12 19 M19 16 L19 19 16 19" />`,
+				exec() {
+					if (!viewportEl.value) return
+
+					const {width: vw, height: vh} =
+						viewportEl.value.getBoundingClientRect()
+					const [cw, ch] = canvasSize.value
+					const sx = vw / cw,
+						sy = vh / ch
+					const zoom = Math.min(sx, sy)
+
+					const offset =
+						sx < sy
+							? vec2.fromValues(0, (vh - ch * zoom) / 2)
+							: vec2.fromValues((vw - cw * zoom) / 2, 0)
+
+					const xform = mat2d.identity(mat2d.create())
+
+					mat2d.translate(xform, xform, offset)
+					mat2d.scale(xform, xform, vec2.fromValues(zoom, zoom))
+
+					const props = {t: 0}
+					const start = transform.value as number[]
+					const end = xform
+
+					transformTween.value = gsap.to(props, {
+						duration: 0.1,
+						t: 1,
+						ease: 'power2.inOut',
+						onUpdate() {
+							transform.value = start.map((v, i) =>
+								fit01(props.t, v, end[i])
+							) as mat2d
+						},
+					})
 				},
 			},
 			updateCurrentBrush: {
