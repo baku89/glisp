@@ -94,7 +94,7 @@ $size = 3em
 		border 1px solid $color-frame
 		color base16('04')
 		cursor pointer
-		glass-bg('float')
+		glass-bg('pane')
 
 		&.ghost
 			visibility hidden
