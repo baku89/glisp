@@ -570,3 +570,54 @@ smudge:
         - 0
         - 0.9
         - 1
+
+tone_curve:
+  label: Tone Curve
+  icon: |-
+    <rect x="4" y="4" width="24" height="24"/>
+    <line x1="11" y1="23" x2="11" y2="27"/>
+    <line x1="16" y1="16" x2="16" y2="27"/>
+    <line x1="16" y1="16" x2="27" y2="16"/>
+    <line x1="20" y1="10" x2="27" y2="10"/>
+    <line x1="12" y1="22" x2="27" y2="22"/>
+    <line x1="22" y1="8" x2="22" y2="27"/>
+    <path d="M5,26C16,26,16,6,27,6"/>
+  frag: |
+    float fit(float t, float smin, float smax, float dmin, float dmax) {
+      float s = (t - smin) / (smax - smin);
+      s = clamp(s, 0., 1.);
+      return mix(dmin, dmax, s);
+    }
+
+    float cubicBezier(sampler2D curve, float t) {
+      return texture2D(curve, vec2(t, 0)).r;
+    }
+
+    void main() {
+      float mask = smoothstep(radius, 0., distance(uv, cursor));
+
+      vec4 color = texture2D(inputTexture, uv);
+
+      vec4 toned = vec4(
+        cubicBezier(curve, color.r),
+        cubicBezier(curve, color.g),
+        cubicBezier(curve, color.b),
+        color.a
+      );
+
+      float t = deltaTime * intensity * mask;
+
+      gl_FragColor = mix(color, toned, t);
+    }
+  params:
+    intensity:
+      type: slider
+      default: 1
+      min: 0
+      max: 2
+    radius:
+      type: slider
+      default: 0.1
+      max: 0.5
+    curve:
+      type: cubicBezier
