@@ -39,7 +39,7 @@ export default defineComponent({
 		},
 		validator: {
 			type: Function as PropType<(v: string) => string | null>,
-			default: _.identity,
+			default: () => _.identity,
 		},
 		multiline: {
 			default: false,
