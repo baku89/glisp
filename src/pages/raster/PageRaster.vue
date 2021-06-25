@@ -73,7 +73,7 @@ import 'splitpanes/dist/splitpanes.css'
 
 import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
-import {defineComponent, onMounted, provide, ref} from 'vue'
+import {computed, defineComponent, onMounted, provide, ref} from 'vue'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import SidePane from '@/components/layouts/SidePane.vue'
@@ -133,7 +133,7 @@ export default defineComponent({
 			const image = dataTransfer?.files[0]
 			if (!image || !image.type.startsWith('image')) return
 			const url = await readImageAsDataURL(image)
-			documentName.value = image.name
+			documentName.value = image.name.replace(/\.([^.]+)$/, '')
 			store.commit('viewport.loadImage', url)
 		}
 
@@ -146,9 +146,9 @@ export default defineComponent({
 			})
 		})
 
-		const globalMenu = ref([
+		const globalMenu = computed(() => [
 			'viewport.openImage',
-			'viewport.downloadImage',
+			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
 			'viewport.copyCurrentBrushUrl',
 			'viewport.copyCurrentBrushYaml',
 			'viewport.resetBuiltinBrushes',

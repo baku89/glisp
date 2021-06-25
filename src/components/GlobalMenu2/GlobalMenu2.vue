@@ -21,30 +21,36 @@
 	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
 		<ul>
 			<li
-				v-for="[name, action] in menuInfo"
+				v-for="{name, label, icon, payload} in menuInfo"
 				:key="name"
-				@mouseup="doAction(name)"
+				@mouseup="doAction(name, payload)"
 			>
-				<SvgIcon class="icon" mode="block" v-html="action.icon || ''"></SvgIcon>
-				{{ action.label || name }}
+				<SvgIcon class="icon" mode="block" v-html="icon || ''"></SvgIcon>
+				{{ label || name }}
 			</li>
 		</ul>
 	</div>
 </template>
 
 <script lang="ts">
+import _ from 'lodash'
 import {computed, defineComponent, inject, PropType, ref} from 'vue-demi'
 
 import {Store} from '@/lib/store'
 
 import SvgIcon from '../layouts/SvgIcon.vue'
 
+interface MenuCommand {
+	name: string
+	payload: any
+}
+
 export default defineComponent({
 	components: {SvgIcon},
 	name: 'GlobalMenu2',
 	props: {
 		menu: {
-			type: Array as PropType<string[]>,
+			type: Array as PropType<(string | MenuCommand)[]>,
 			default: () => [],
 		},
 	},
@@ -86,15 +92,25 @@ export default defineComponent({
 			)
 		}
 
-		function doAction(name: string) {
-			store.commit(name, {})
+		function doAction(name: string, payload: any) {
+			store.commit(name, payload)
 		}
 
-		const menuInfo = computed(() =>
-			props.menu.map(name => [name, store.getAction(name)])
+		const normalizedMenu = computed<MenuCommand[]>(() =>
+			props.menu.map(m => (_.isString(m) ? {name: m, payload: null} : m))
 		)
 
-		return {titleBar, menuOpened, menuInfo, onClickMenu, doAction}
+		const menuInfo = computed(() =>
+			normalizedMenu.value.map(m => ({...m, ...store.getAction(m.name)}))
+		)
+
+		return {
+			titleBar,
+			menuOpened,
+			menuInfo,
+			onClickMenu,
+			doAction,
+		}
 	},
 })
 </script>
@@ -132,7 +148,7 @@ $height = 3.2em
 		height $height
 		color base16('05')
 		text-align center
-		line-height 2.7em // Hard-coded
+		line-height $height
 		-webkit-app-region no-drag
 
 		.icon
