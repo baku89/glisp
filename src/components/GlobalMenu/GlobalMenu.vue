@@ -29,7 +29,6 @@
 </template>
 
 <script lang="ts">
-import isElectron from 'is-electron'
 import {defineComponent, ref} from 'vue'
 
 import {MalSeq, MalVal, MalVector} from '@/mal/types'
@@ -60,7 +59,7 @@ export default defineComponent({
 		)
 
 		const titleBar = ref(
-			isElectron()
+			/electron/i.test(navigator.userAgent)
 				? platform.value === 'darwin'
 					? 'macos'
 					: 'frameless'

@@ -3808,11 +3808,6 @@ css-color-names@0.0.4, css-color-names@^0.0.4:
   resolved "https://registry.yarnpkg.com/css-color-names/-/css-color-names-0.0.4.tgz#808adc2e79cf84738069b646cb20ec27beb629e0"
   integrity sha1-gIrcLnnPhHOAabZGyyDsJ762KeA=
 
-css-color-names@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/css-color-names/-/css-color-names-1.0.1.tgz#6ff7ee81a823ad46e020fa2fd6ab40a887e2ba67"
-  integrity sha512-/loXYOch1qU1biStIFsHH8SxTmOseh1IJqFvy8IujXOm1h+QjUdDhkzOrR5HG8K8mlxREj0yfi8ewCHx0eMxzA==
-
 css-declaration-sorter@^4.0.1:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/css-declaration-sorter/-/css-declaration-sorter-4.0.1.tgz#c198940f63a76d7e36c1e71018b001721054cb22"
@@ -4456,11 +4451,6 @@ duplexify@^4.1.1:
     inherits "^2.0.3"
     readable-stream "^3.1.1"
     stream-shift "^1.0.0"
-
-earcut@^2.2.2:
-  version "2.2.2"
-  resolved "https://registry.yarnpkg.com/earcut/-/earcut-2.2.2.tgz#41b0bc35f63e0fe80da7cddff28511e7e2e80d11"
-  integrity sha512-eZoZPPJcUHnfRZ0PjLvx2qBordSiO8ofC3vt+qACLM95u+4DovnbYNpQtJh0DNsWj8RnxrQytD4WA8gj5cRIaQ==
 
 easy-stack@^1.0.1:
   version "1.0.1"
@@ -6627,11 +6617,6 @@ is-docker@^2.0.0:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/is-docker/-/is-docker-2.2.1.tgz#33eeabe23cfe86f14bde4408a02c0cfb853acdaa"
   integrity sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==
-
-is-electron@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/is-electron/-/is-electron-2.2.0.tgz#8943084f09e8b731b3a7a0298a7b5d56f6b7eef0"
-  integrity sha512-SpMppC2XR3YdxSzczXReBjqs2zGscWQpBIKqwXYBFic0ERaxNVgwLCHwOLZeESfdJQjX0RDvrJ1lBXX2ij+G1Q==
 
 is-extendable@^0.1.0, is-extendable@^0.1.1:
   version "0.1.1"
