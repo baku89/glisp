@@ -114,10 +114,12 @@ polar-marble:
     <path d="M16,7c-3.3,0-6.2,1.8-7.8,4.5"/>
     <path d="M3,16c9,7,16-11,26-1"/>
     <path d="M3,17c12,15,17-3,26,0"/>
-  frag: |
+  frag: >
     #define PI 3.1415926535897
 
+
     // glsl-random: github.com/mattdesl/glsl-random
+
     highp float random(vec2 co) {
       highp float a = 12.9898;
       highp float b = 78.233;
@@ -127,18 +129,23 @@ polar-marble:
       return fract(sin(sn) * c);
     }
 
+
     // glsl-noise: https://github.com/hughsk/glsl-noise
+
     vec3 mod289(vec3 x) {
       return x - floor(x * (1.0 / 289.0)) * 289.0;
     }
+
 
     vec2 mod289(vec2 x) {
       return x - floor(x * (1.0 / 289.0)) * 289.0;
     }
 
+
     vec3 permute(vec3 x) {
       return mod289(((x*34.0)+1.0)*x);
     }
+
 
     float snoise(vec2 v) {
       const vec4 C = vec4(
@@ -184,9 +191,11 @@ polar-marble:
       return 130.0 * dot(m, g);
     }
 
+
     float random1(float seed) {
       return random(vec2(seed * 431.34, 0.0));
     }
+
 
     vec2 random2(float seed) {
       return vec2(
@@ -195,28 +204,37 @@ polar-marble:
         );
     }
 
+
     vec2 base(float angle) {
       return vec2(cos(angle), sin(angle));
     }
+
 
     float brightness(vec4 color) {
       return dot(color.rgb, vec3(0.3333333));
     }
 
+
     void main() {
       vec4 original = texture2D(inputTexture, uv);
+      float mask = smoothstep(radius, 0., distance(uv, cursor));
 
       vec2 samplePos = random2(seed) + uv / size;
       float angle = snoise(samplePos) * 2.0 * PI + random1(seed);
       float gray = brightness(original);
-      vec2 offset = base(angle) * speed * deltaTime;
+      vec2 offset = base(angle) * speed * deltaTime * mask;
 
       gl_FragColor = texture2D(inputTexture, uv + offset);
     }
   params:
+    radius:
+      type: slider
+      default: 0.2
+      min: 0
+      max: 1
     size:
       type: slider
-      default: .6
+      default: 0.6
       min: 0
       max: 1
     speed:
