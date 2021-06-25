@@ -14,7 +14,9 @@
 				/>
 			</SvgIcon>
 		</div>
-		<slot name="left" />
+		<div class="GlobalMenu2__left"><slot name="left" /></div>
+		<div class="GlobalMenu2__center"><slot name="center" /></div>
+		<div class="GlobalMenu2__right"><slot name="right" /></div>
 	</menu>
 	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
 		<ul>
@@ -103,13 +105,23 @@ $height = 3.2em
 
 .GlobalMenu2
 	position relative
-	display flex
+	display grid
 	overflow visible
-	height $height
+	height var(--height)
 	border-bottom 1px solid $color-frame
 	glass-bg('pane')
 	--height $height
 	-webkit-app-region drag
+	grid-template-columns min-content 1fr 1fr 1fr
+
+	&__left
+		justify-self start
+
+	&__center
+		justify-self center
+
+	&__right
+		justify-self end
 
 	&__title
 		position relative
@@ -120,10 +132,11 @@ $height = 3.2em
 		height $height
 		color base16('05')
 		text-align center
-		line-height $height
+		line-height 2.7em // Hard-coded
 		-webkit-app-region no-drag
 
 		.icon
+			display inline-block
 			font-size 2em
 			transition transform 0.3s ease
 

@@ -4,6 +4,23 @@
 			<template #left>
 				<GlobalMenu2Breadcumb :items="[{label: 'Raster'}]" />
 			</template>
+			<template #center>
+				<div class="PageRaster__document-title">
+					{{ documentName }}
+				</div>
+			</template>
+			<template #right>
+				<div class="PageRaster__screen-info">
+					<SvgIcon class="icon" mode="block">
+						<circle cx="17" cy="15" r="1" />
+						<circle cx="16" cy="16" r="6" />
+						<path
+							d="M2 16 C2 16 7 6 16 6 25 6 30 16 30 16 30 16 25 26 16 26 7 26 2 16 2 16 Z"
+						/>
+					</SvgIcon>
+					<div class="zoom-factor">{{ (zoomFactor * 100).toFixed() }}%</div>
+				</div></template
+			>
 		</GlobalMenu2>
 		<SidePane
 			uid="globalSidePane"
@@ -60,6 +77,7 @@ import {defineComponent, onMounted, provide, ref} from 'vue'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 import SidePane from '@/components/layouts/SidePane.vue'
+import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
 import {readImageAsDataURL} from '@/lib/promise'
 import {createStore} from '@/lib/store'
@@ -80,6 +98,7 @@ export default defineComponent({
 		GlobalMenu2Breadcumb,
 		PaneBrushParams,
 		SidePane,
+		SvgIcon,
 		Zoomable,
 	},
 	setup() {
@@ -87,6 +106,8 @@ export default defineComponent({
 
 		const viewportEl = templateRef('viewport')
 		const canvasEl = templateRef('canvas')
+
+		const documentName = ref('Untitled')
 
 		const store = createStore({
 			viewport: useModuleViewport(),
@@ -112,6 +133,7 @@ export default defineComponent({
 			const image = dataTransfer?.files[0]
 			if (!image || !image.type.startsWith('image')) return
 			const url = await readImageAsDataURL(image)
+			documentName.value = image.name
 			store.commit('viewport.loadImage', url)
 		}
 
@@ -144,6 +166,7 @@ export default defineComponent({
 		return {
 			getState: store.getState,
 			commit: store.commit,
+			documentName,
 			viewportTransform,
 			currentBrush,
 			canvasSize,
@@ -178,6 +201,27 @@ html, body
 		z-index -20
 		background base16('00')
 		inset 0
+
+	&__document-title
+		font-size 1.3em
+		line-height calc((var(--height) / 1.3))
+
+	&__screen-info
+		display flex
+		margin-right 1em
+		line-height var(--height)
+
+		& > *
+			height var(--height)
+			line-height var(--height)
+
+		& > .icon
+			width 1.3em
+
+		& > .zoom-factor
+			width 4ch
+			font-monospace()
+			text-align right
 
 	&__viewport
 		position relative
