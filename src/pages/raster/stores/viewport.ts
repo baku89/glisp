@@ -408,7 +408,7 @@ export default function useModuleViewport(): StoreModule {
 		}, 1)
 	}
 
-	function downloadImage() {
+	function downloadImage({name}: {name: string}) {
 		if (!regl.value || !fbo || !passthruCommand.value) return
 
 		const _regl = regl.value
@@ -421,7 +421,7 @@ export default function useModuleViewport(): StoreModule {
 
 		saveFbo.use(() => {
 			_passthruCommand({inputTexture: _fbo[0]})
-			saveViewport(_regl, 'image.png')
+			saveViewport(_regl, `${name}.png`)
 		})
 
 		saveFbo.destroy()
