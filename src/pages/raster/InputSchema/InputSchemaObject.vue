@@ -1,6 +1,6 @@
 <template>
 	<div class="InputSchemaObject">
-		<div class="InputSchemaObject__list">
+		<div>
 			<InputSchemaEntry
 				class="InputSchemaObject__column"
 				v-for="(sch, name) in schema.properties"
@@ -13,7 +13,6 @@
 		</div>
 		<template v-if="schema.additionalProperties">
 			<Draggable
-				class="InputSchemaObject__list"
 				v-bind="{animation: 50, ghostClass: 'ghost'}"
 				v-model="additionals"
 				itemKey="key"
