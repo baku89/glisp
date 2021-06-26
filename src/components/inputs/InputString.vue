@@ -1,32 +1,22 @@
 <template>
-	<input
-		v-if="!multiline"
+	<component
+		v-bind:is="multiline ? 'textarea' : 'input'"
 		class="InputString"
-		:class="{InputString__monospace: monospace}"
+		:class="{monospace: monospace, multiline: multiline}"
 		type="text"
 		:value="displayValue"
+		:style="inputStyle"
 		@input="onInput"
 		@blur="onBlur"
 		@keydown.enter="onBlur"
-		v-bind="$attrs"
-	/>
-	<textarea
-		v-else
-		class="InputString InputString__multiline"
-		:class="{InputString__monospace: monospace}"
-		ref="textareaEl"
-		:value="displayValue"
-		:style="{height: textareaHeight}"
-		data-gramm_editor="false"
-		@input="onInput"
-		@keydown.ctrl.enter="onBlur"
-		v-bind="$attrs"
 	/>
 </template>
 
 <script lang="ts">
-import _ from 'lodash'
+import {isNone, some} from 'fp-ts/lib/Option'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
+
+import {Validator} from '@/lib/fp'
 
 const INPUT_LINE_HEIGHT_REM = 1.8
 
@@ -38,8 +28,8 @@ export default defineComponent({
 			required: true,
 		},
 		validator: {
-			type: Function as PropType<(v: string) => string | null>,
-			default: () => _.identity,
+			type: Function as PropType<Validator<string>>,
+			default: some,
 		},
 		multiline: {
 			default: false,
@@ -61,51 +51,50 @@ export default defineComponent({
 			v => (displayValue.value = v)
 		)
 
-		const textareaEl = ref<null | HTMLTextAreaElement>(null)
-		const textareaHeight = computed(() => {
-			const lineCount = props.modelValue.split(/\r\n|\r|\n/).length
-			return lineCount * INPUT_LINE_HEIGHT_REM + 'rem'
+		const inputStyle = computed(() => {
+			if (props.multiline) {
+				const lineCount = props.modelValue.split(/\r\n|\r|\n/).length
+				return {
+					height: lineCount * INPUT_LINE_HEIGHT_REM + 'rem',
+				}
+			} else {
+				return {}
+			}
 		})
 
 		function onInput(e: InputEvent) {
-			if (props.updateOnBlur) return
-			update(e)
+			!props.updateOnBlur && update(e, false)
 		}
 
 		function onBlur(e: InputEvent) {
-			if (!props.updateOnBlur) {
-				if (props.validator(displayValue.value) === null) {
-					;(e.target as HTMLInputElement).value = props.modelValue
-				}
-				return
-			}
-			update(e)
+			update(e, true)
 		}
 
-		function update(e: InputEvent) {
+		function update(e: InputEvent, resetInput: boolean) {
 			const target = e.target as HTMLInputElement
-			let val: string | null = target.value
+			let str: string = target.value
 
-			val = props.validator(val)
-			if (val === null) {
-				if (props.updateOnBlur) {
+			const ret = props.validator(str)
+
+			if (isNone(ret)) {
+				if (resetInput) {
 					target.value = props.modelValue
 				}
 				return
 			}
 
-			context.emit('update:modelValue', val)
+			if (props.modelValue !== ret.value) {
+				context.emit('update:modelValue', ret.value)
+			}
 		}
 
 		return {
 			displayValue,
-			textareaEl,
-			textareaHeight,
+			inputStyle,
 			onInput,
 			onBlur,
 		}
 	},
-	inheritAttrs: false,
 })
 </script>
 
@@ -134,10 +123,10 @@ export default defineComponent({
 	&.exp
 		color var(--red)
 
-	&__monospace
+	&.monospace
 		font-monospace()
 
-	&__multiline
+	&.multiline
 		overflow-y hidden
 		line-height 1.8rem
 		resize none
