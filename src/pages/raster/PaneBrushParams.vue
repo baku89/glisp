@@ -7,10 +7,12 @@
 </template>
 
 <script lang="ts">
+import {flow} from 'fp-ts/lib/function'
+import {fromNullableK, map, some} from 'fp-ts/lib/Option'
 import _ from 'lodash'
-import fp from 'lodash/fp'
 import {computed, defineComponent, inject} from 'vue-demi'
 
+import {Validator} from '@/lib/fp'
 import {Store} from '@/lib/store'
 
 import {BrushDefinition} from './brush-definition'
@@ -37,12 +39,12 @@ export default defineComponent({
 			_.entries(currentBrush.value.params).forEach(([name, def]) => {
 				switch (def.type) {
 					case 'slider': {
-						let validator: (v: number) => number = _.identity
+						let validator: Validator<number> = some
 						if (def.clampMin && _.isNumber(def.min)) {
-							validator = _.partial(Math.max, def.min)
+							validator = fromNullableK(_.partial(Math.max, def.min))
 						}
 						if (def.clampMax && _.isNumber(def.max)) {
-							validator = fp.compose(validator, _.partial(Math.min, def.max))
+							validator = flow(validator, map(_.partial(Math.min, def.max)))
 						}
 						properties[name] = {...def, type: 'number', ui: 'slider', validator}
 						break

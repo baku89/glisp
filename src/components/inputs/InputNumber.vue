@@ -27,8 +27,10 @@
 </template>
 
 <script lang="ts">
-import _ from 'lodash/fp'
+import {some} from 'fp-ts/lib/Option'
 import {defineComponent, PropType, ref, toRef} from 'vue'
+
+import {Validator} from '@/lib/fp'
 
 import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
@@ -45,8 +47,8 @@ export default defineComponent({
 			default: 1,
 		},
 		validator: {
-			type: Function as PropType<(v: number) => number | null>,
-			default: () => _.identity,
+			type: Function as PropType<Validator<number>>,
+			default: some,
 		},
 	},
 	emit: ['update:modelValue'],

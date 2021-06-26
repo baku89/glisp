@@ -1,26 +1,25 @@
 import {useMagicKeys} from '@vueuse/core'
 import {pipe} from 'fp-ts/lib/function'
-import {
-	chain,
-	fromNullableK,
-	isSome,
-	none,
-	Option,
-	some,
-} from 'fp-ts/lib/Option'
+import {chain, isSome, none, Option, some} from 'fp-ts/lib/Option'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import _ from 'lodash'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
+import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
+const read: (v: string) => Option<number> = v => {
+	const num = parseFloat(v)
+	return _.isFinite(num) ? some(num) : none
+}
+
 export default function useNumber(
 	value: Ref<number>,
 	precision: Ref<number>,
-	validator: Ref<(v: number) => number | null>,
+	validator: Ref<Validator<number>>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
 	pos: Ref<vec2>,
@@ -28,8 +27,6 @@ export default function useNumber(
 	inputEl: Ref<null | HTMLInputElement>,
 	context: SetupContext
 ) {
-	let modifiedByKeyboard = false
-
 	const displayValue = computed(() => {
 		const v = value.value
 		const fixed = v.toFixed(precision.value)
@@ -48,16 +45,10 @@ export default function useNumber(
 		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
 	})
 
-	const read: (v: string) => Option<number> = v => {
-		const num = parseFloat(v)
-		return _.isFinite(num) ? some(num) : none
-	}
-	const validate = computed(() => fromNullableK(validator.value))
-
 	function update(val: string | number, resetInput: boolean) {
 		const ret = _.isNumber(val)
-			? validate.value(val)
-			: pipe(some(val), chain(read), chain(validate.value))
+			? validator.value(val)
+			: pipe(some(val), chain(read), chain(validator.value))
 
 		if (isSome(ret)) {
 			context.emit('update:modelValue', ret.value)
@@ -67,14 +58,10 @@ export default function useNumber(
 	}
 
 	function onBlur(e: InputEvent) {
-		if (modifiedByKeyboard) {
-			modifiedByKeyboard = false
-			update((e.target as HTMLInputElement).value, true)
-		}
+		update((e.target as HTMLInputElement).value, true)
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		modifiedByKeyboard = true
 		const key = keycode(e)
 
 		if (key === 'enter') {
@@ -111,15 +98,6 @@ export default function useNumber(
 		const {left, right} = dragEl.value.getBoundingClientRect()
 		return labelX.value < left || right < labelX.value
 	})
-
-	watch(
-		() => tweaking,
-		() => {
-			if (tweaking.value === false) {
-				modifiedByKeyboard = false
-			}
-		}
-	)
 
 	return {
 		step,

@@ -1,3 +1,5 @@
+import {Validator} from '@/lib/fp'
+
 export type Schema =
 	| SchemaConst
 	| SchemaBoolean
@@ -25,7 +27,7 @@ export interface SchemaNumber {
 	min?: number
 	max?: number
 	default?: number
-	validator?: (v: number) => number | null
+	validator?: Validator<number>
 }
 
 export interface SchemaString {
