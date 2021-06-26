@@ -399,7 +399,6 @@ export default function useModuleViewport(): StoreModule {
 		_fbo[1].resize(width, height)
 
 		_fbo[0].use(() => _passthruCommand({inputTexture: tex}))
-		_fbo[1].use(() => _passthruCommand({inputTexture: tex}))
 
 		tex.destroy()
 
