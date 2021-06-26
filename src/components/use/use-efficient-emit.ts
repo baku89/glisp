@@ -1,9 +1,9 @@
 import {SetupContext} from 'vue'
 
-export default function useEfficientEmit(
-	props: Readonly<any>,
+export default function useEfficientEmit<T extends Record<string, any>>(
+	props: Readonly<T>,
 	context: SetupContext<any>,
-	model = 'modelValue'
+	model: keyof T
 ) {
 	return function (value: any) {
 		if (value !== props[model]) {
