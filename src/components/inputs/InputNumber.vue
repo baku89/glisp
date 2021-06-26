@@ -28,7 +28,7 @@
 
 <script lang="ts">
 import {some} from 'fp-ts/lib/Option'
-import {defineComponent, PropType, ref, toRef} from 'vue'
+import {defineComponent, PropType, ref} from 'vue'
 
 import {Validator} from '@/lib/fp'
 
@@ -69,25 +69,21 @@ export default defineComponent({
 		} = useDraggable(dragEl, {
 			lockPointer: true,
 			onClick() {
-				if (inputEl.value) {
-					inputEl.value.focus()
-					inputEl.value.select()
-				}
+				inputEl.value?.select()
 			},
 			onDragStart() {
 				startValue.value = props.modelValue
 				tweakSpeedChanged.value = true
 			},
-			onDrag({pos}) {
+			onDrag({pos: [x]}) {
 				if (tweakSpeedChanged.value) {
-					tweakStartValue = props.modelValue
-					tweakStartPos = pos[0]
 					tweakSpeedChanged.value = false
+					tweakStartValue = props.modelValue
+					tweakStartPos = x
 				}
 
-				const delta = pos[0] - tweakStartPos
-				let inc = (delta / 5) * tweakSpeed.value
-
+				const delta = x - tweakStartPos
+				const inc = (delta / 5) * tweakSpeed.value
 				const val = tweakStartValue + inc
 
 				update(val, false)
@@ -107,9 +103,7 @@ export default defineComponent({
 			labelX,
 			update,
 		} = useNumberInput(
-			toRef(props, 'modelValue'),
-			toRef(props, 'precision'),
-			toRef(props, 'validator'),
+			props,
 			startValue,
 			tweaking,
 			pos,

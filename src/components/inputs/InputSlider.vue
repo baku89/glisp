@@ -49,10 +49,10 @@
 <script lang="ts">
 import {some} from 'fp-ts/lib/Option'
 import _ from 'lodash'
-import {computed, defineComponent, PropType, ref, toRef, watch} from 'vue'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import {Validator} from '@/lib/fp'
-import {fit01, fitTo01} from '@/utils'
+import {fit, fit01, fitTo01} from '@/utils'
 
 import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
@@ -82,9 +82,10 @@ export default defineComponent({
 		},
 		validator: {
 			type: Function as PropType<Validator<number>>,
-			default: () => some,
+			default: some,
 		},
 	},
+	emit: ['update:modelValue'],
 	setup(props, context) {
 		// Element references
 		const dragEl = ref<null | HTMLElement>(null)
@@ -94,7 +95,6 @@ export default defineComponent({
 
 		// Drag Events
 		let startValue = ref(0)
-		let alreadyEmitted = false
 
 		let tweakStartValue = 0
 		let tweakStartPos = 0
@@ -106,56 +106,37 @@ export default defineComponent({
 		} = useDraggable(dragEl, {
 			lockPointer: false,
 			onClick() {
-				if (inputEl.value) {
-					inputEl.value.focus()
-					inputEl.value.select()
-				}
+				inputEl.value?.select()
 			},
-			onDragStart({left, right, pos}) {
+			onDragStart({pos: [x], left, right}) {
 				startValue.value = props.modelValue
 
-				const cursorT = fitTo01(pos[0], left, right)
+				const cursorT = fitTo01(x, left, right)
 				const valueT = fitTo01(props.modelValue, props.min, props.max)
 
 				tweakMode.value =
-					Math.abs(cursorT - valueT) < 0.1 ? 'relative' : 'absolute'
+					Math.abs(cursorT - valueT) < 0.2 ? 'relative' : 'absolute'
 
 				if (tweakMode.value === 'absolute') {
-					const newValue = fit01(cursorT, props.min, props.max)
-					context.emit('update:modelValue', newValue)
-
-					alreadyEmitted = true
-					tweakStartValue = newValue
+					tweakStartValue = fit01(cursorT, props.min, props.max)
 				} else {
 					tweakStartValue = props.modelValue
 				}
-
-				tweakStartPos = pos[0]
-				tweakSpeedChanged.value = true
+				tweakStartPos = x
 			},
-			onDrag({pos, right, left}) {
-				if (alreadyEmitted) {
-					alreadyEmitted = false
-					return
-				}
-
+			onDrag({pos: [x], right, left}) {
 				if (tweakSpeedChanged.value) {
-					tweakStartValue = props.modelValue
-					tweakStartPos = pos[0]
 					tweakSpeedChanged.value = false
+					tweakStartValue = props.modelValue
+					tweakStartPos = x
 				}
 
-				const delta = pos[0] - tweakStartPos
-
-				let inc = ((props.max - props.min) * delta) / (right - left)
-				inc *= tweakSpeed.value
-
-				let val = tweakStartValue + inc
+				const delta = x - tweakStartPos
+				const inc =
+					fit(delta, 0, right - left, props.min, props.max) * tweakSpeed.value
+				const val = tweakStartValue + inc
 
 				update(val, false)
-			},
-			onDragEnd() {
-				context.emit('end-tweak')
 			},
 		})
 
@@ -171,9 +152,7 @@ export default defineComponent({
 			labelX,
 			update,
 		} = useNumberInput(
-			toRef(props, 'modelValue'),
-			toRef(props, 'precision'),
-			toRef(props, 'validator'),
+			props,
 			startValue,
 			tweaking,
 			pos,

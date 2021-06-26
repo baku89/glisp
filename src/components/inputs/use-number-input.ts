@@ -9,6 +9,8 @@ import {computed, Ref, ref, SetupContext, watch} from 'vue'
 import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
 
+import useEfficientEmit from '../use/use-efficient-emit'
+
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 const read: (v: string) => Option<number> = v => {
@@ -17,9 +19,11 @@ const read: (v: string) => Option<number> = v => {
 }
 
 export default function useNumber(
-	value: Ref<number>,
-	precision: Ref<number>,
-	validator: Ref<Validator<number>>,
+	props: Readonly<{
+		modelValue: number
+		precision: number
+		validator: Validator<number>
+	}>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
 	pos: Ref<vec2>,
@@ -27,31 +31,33 @@ export default function useNumber(
 	inputEl: Ref<null | HTMLInputElement>,
 	context: SetupContext
 ) {
+	const emit = useEfficientEmit(props, context, 'modelValue')
+
 	const displayValue = computed(() => {
-		const v = value.value
-		const fixed = v.toFixed(precision.value)
+		const v = props.modelValue
+		const fixed = v.toFixed(props.precision)
 		return tweaking.value
 			? fixed
 			: fixed.replace(/\.?0+$/, '').replace(/^0\./, '.')
 	})
 
 	const overlayLabel = computed(() => {
-		const delta = value.value - startValue.value
-		return (delta > 0 ? '+' : '') + delta.toFixed(precision.value)
+		const delta = props.modelValue - startValue.value
+		return (delta > 0 ? '+' : '') + delta.toFixed(props.precision)
 	})
 
 	const step = computed(() => {
-		const float = value.value.toString().split('.')[1]
+		const float = props.modelValue.toString().split('.')[1]
 		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
 	})
 
 	function update(val: string | number, resetInput: boolean) {
 		const ret = _.isNumber(val)
-			? validator.value(val)
-			: pipe(some(val), chain(read), chain(validator.value))
+			? props.validator(val)
+			: pipe(some(val), chain(read), chain(props.validator))
 
 		if (isSome(ret)) {
-			context.emit('update:modelValue', ret.value)
+			emit(ret.value)
 		} else {
 			if (resetInput && inputEl.value) inputEl.value.value = displayValue.value
 		}
@@ -72,12 +78,11 @@ export default function useNumber(
 			const inc = e.altKey ? 0.1 : e.shiftKey ? 10 : 1
 			const sign = key === 'up' ? 1 : -1
 
-			update(value.value + inc * sign, true)
+			update(props.modelValue + inc * sign, true)
 		}
 	}
 
 	const {shift, alt} = useMagicKeys()
-	watch([shift, alt], () => (tweakSpeedChanged.value = true))
 
 	const tweakSpeedChanged = ref(false)
 
@@ -90,6 +95,9 @@ export default function useNumber(
 		if (alt.value) return 0.1
 		return 1
 	})
+
+	watch(tweakSpeed, () => (tweakSpeedChanged.value = true))
+
 	const labelX = computed(() => unsignedMod(pos.value[0], window.innerWidth))
 
 	const showTweakLabel = computed(() => {
