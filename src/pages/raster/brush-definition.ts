@@ -4,7 +4,14 @@ export interface BrushDefinition {
 	frag: string
 	params: {
 		[name: string]:
-			| {type: 'slider'; default?: number; min?: number; max?: number}
+			| {
+					type: 'slider'
+					default?: number
+					min?: number
+					max?: number
+					clampMin?: boolean
+					clampMax?: boolean
+			  }
 			| {type: 'angle'; default?: number}
 			| {type: 'seed'}
 			| {type: 'color'; default?: string}

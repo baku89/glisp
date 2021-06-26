@@ -1,6 +1,16 @@
 import {useMagicKeys} from '@vueuse/core'
+import {pipe} from 'fp-ts/lib/function'
+import {
+	chain,
+	fromNullableK,
+	isSome,
+	none,
+	Option,
+	some,
+} from 'fp-ts/lib/Option'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
+import _ from 'lodash'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
 import {unsignedMod} from '@/utils'
@@ -10,10 +20,12 @@ const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 export default function useNumber(
 	value: Ref<number>,
 	precision: Ref<number>,
+	validator: Ref<(v: number) => number | null>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
 	pos: Ref<vec2>,
 	dragEl: Ref<null | HTMLElement>,
+	inputEl: Ref<null | HTMLInputElement>,
 	context: SetupContext
 ) {
 	let modifiedByKeyboard = false
@@ -36,17 +48,28 @@ export default function useNumber(
 		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
 	})
 
-	function onConfirm(e: Event) {
-		const str = (e.target as HTMLInputElement).value
-		const num = parseFloat(str)
-		const val = isNaN(num) ? str : num
-		context.emit('update:modelValue', val)
+	const read: (v: string) => Option<number> = v => {
+		const num = parseFloat(v)
+		return _.isFinite(num) ? some(num) : none
+	}
+	const validate = computed(() => fromNullableK(validator.value))
+
+	function update(val: string | number, resetInput: boolean) {
+		const ret = _.isNumber(val)
+			? validate.value(val)
+			: pipe(some(val), chain(read), chain(validate.value))
+
+		if (isSome(ret)) {
+			context.emit('update:modelValue', ret.value)
+		} else {
+			if (resetInput && inputEl.value) inputEl.value.value = displayValue.value
+		}
 	}
 
-	function onBlur(e: Event) {
+	function onBlur(e: InputEvent) {
 		if (modifiedByKeyboard) {
 			modifiedByKeyboard = false
-			onConfirm(e)
+			update((e.target as HTMLInputElement).value, true)
 		}
 	}
 
@@ -55,25 +78,14 @@ export default function useNumber(
 		const key = keycode(e)
 
 		if (key === 'enter') {
-			onConfirm(e)
+			update((e.target as HTMLInputElement).value, true)
 		} else if (VERTICAL_ARROW_KEYS.has(key)) {
 			e.preventDefault()
 
-			let inc = 1
-			if (e.altKey) {
-				inc = 0.1
-			} else if (e.shiftKey) {
-				inc = 10
-			}
+			const inc = e.altKey ? 0.1 : e.shiftKey ? 10 : 1
+			const sign = key === 'up' ? 1 : -1
 
-			switch (key) {
-				case 'up':
-					context.emit('update:modelValue', value.value + inc)
-					break
-				case 'down':
-					context.emit('update:modelValue', value.value - inc)
-					break
-			}
+			update(value.value + inc * sign, true)
 		}
 	}
 
@@ -120,5 +132,6 @@ export default function useNumber(
 		tweakLabelClass,
 		showTweakLabel,
 		labelX,
+		update,
 	}
 }

@@ -8,6 +8,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
+import fp from 'lodash/fp'
 import {computed, defineComponent, inject} from 'vue-demi'
 
 import {Store} from '@/lib/store'
@@ -35,9 +36,17 @@ export default defineComponent({
 
 			_.entries(currentBrush.value.params).forEach(([name, def]) => {
 				switch (def.type) {
-					case 'slider':
-						properties[name] = {...def, type: 'number', ui: 'slider'}
+					case 'slider': {
+						let validator: (v: number) => number = _.identity
+						if (def.clampMin && _.isNumber(def.min)) {
+							validator = _.partial(Math.max, def.min)
+						}
+						if (def.clampMax && _.isNumber(def.max)) {
+							validator = fp.compose(validator, _.partial(Math.min, def.max))
+						}
+						properties[name] = {...def, type: 'number', ui: 'slider', validator}
 						break
+					}
 					case 'angle':
 						properties[name] = {...def, type: 'number', ui: 'angle'}
 						break

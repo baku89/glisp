@@ -118,7 +118,7 @@ export default defineComponent({
 	gap 1em
 
 	&.nested
-		grid-template-columns 4em 1fr
+		grid-template-columns 5em 1fr
 
 	& > .icon
 		width 1.2em

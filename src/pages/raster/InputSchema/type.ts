@@ -25,6 +25,7 @@ export interface SchemaNumber {
 	min?: number
 	max?: number
 	default?: number
+	validator?: (v: number) => number | null
 }
 
 export interface SchemaString {

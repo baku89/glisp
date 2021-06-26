@@ -27,7 +27,8 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, toRef} from 'vue'
+import _ from 'lodash/fp'
+import {defineComponent, PropType, ref, toRef} from 'vue'
 
 import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
@@ -42,6 +43,10 @@ export default defineComponent({
 		precision: {
 			type: Number,
 			default: 1,
+		},
+		validator: {
+			type: Function as PropType<(v: number) => number | null>,
+			default: () => _.identity,
 		},
 	},
 	emit: ['update:modelValue'],
@@ -82,7 +87,8 @@ export default defineComponent({
 				let inc = (delta / 5) * tweakSpeed.value
 
 				const val = tweakStartValue + inc
-				context.emit('update:modelValue', val)
+
+				update(val, false)
 			},
 		})
 
@@ -97,13 +103,16 @@ export default defineComponent({
 			tweakLabelClass,
 			showTweakLabel,
 			labelX,
+			update,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			toRef(props, 'precision'),
+			toRef(props, 'validator'),
 			startValue,
 			tweaking,
 			pos,
 			dragEl,
+			inputEl,
 			context
 		)
 

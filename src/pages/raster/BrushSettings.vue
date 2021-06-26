@@ -102,6 +102,8 @@ export default defineComponent({
 							default: {type: 'number', default: 0},
 							min: {type: 'number', default: 0},
 							max: {type: 'number', default: 1},
+							clampMin: {type: 'boolean', default: false},
+							clampMax: {type: 'boolean', default: false},
 						},
 						required: ['type'],
 					},

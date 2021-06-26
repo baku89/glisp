@@ -48,7 +48,7 @@
 
 <script lang="ts">
 import _ from 'lodash'
-import {computed, defineComponent, ref, toRef, watch} from 'vue'
+import {computed, defineComponent, PropType, ref, toRef, watch} from 'vue'
 
 import {fit01, fitTo01} from '@/utils'
 
@@ -70,10 +70,6 @@ export default defineComponent({
 			type: Number,
 			default: 1,
 		},
-		clamped: {
-			type: Boolean,
-			default: false,
-		},
 		precision: {
 			type: Number,
 			default: 1,
@@ -81,6 +77,10 @@ export default defineComponent({
 		sliderOrigin: {
 			type: Number,
 			default: 0,
+		},
+		validator: {
+			type: Function as PropType<(v: number) => number | null>,
+			default: () => _.identity,
 		},
 	},
 	setup(props, context) {
@@ -148,12 +148,9 @@ export default defineComponent({
 				let inc = ((props.max - props.min) * delta) / (right - left)
 				inc *= tweakSpeed.value
 
-				let newValue = tweakStartValue + inc
+				let val = tweakStartValue + inc
 
-				if (props.clamped) {
-					newValue = _.clamp(newValue, props.min, props.max)
-				}
-				context.emit('update:modelValue', newValue)
+				update(val, false)
 			},
 			onDragEnd() {
 				context.emit('end-tweak')
@@ -170,13 +167,16 @@ export default defineComponent({
 			tweakLabelClass,
 			showTweakLabel,
 			labelX,
+			update,
 		} = useNumberInput(
 			toRef(props, 'modelValue'),
 			toRef(props, 'precision'),
+			toRef(props, 'validator'),
 			startValue,
 			tweaking,
 			pos,
 			dragEl,
+			inputEl,
 			context
 		)
 

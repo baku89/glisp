@@ -70,7 +70,7 @@ export default defineComponent({
 @import '~@/components/style/common.styl'
 
 .InputSchemaUnion
-	display grid
-	grid-template-columns min-content 1fr
-	grid-gap 1em
+	display flex
+	flex-direction column
+	gap $input-horiz-margin
 </style>
