@@ -61,7 +61,7 @@ export default defineComponent({
 			opened => !opened && context.emit('update:modelValue', code.value)
 		)
 
-		const scheme = inject<Ref<{[name: string]: string}>>('scheme', ref({}))
+		const scheme = inject<Ref<Record<string, string>>>('scheme', ref({}))
 
 		function copySvg() {
 			const dom = new DOMParser().parseFromString(

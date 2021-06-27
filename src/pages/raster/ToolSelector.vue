@@ -45,7 +45,7 @@ export default defineComponent({
 			required: true,
 		},
 		tools: {
-			type: Object as PropType<{[name: string]: BrushDefinition}>,
+			type: Object as PropType<Record<string, BrushDefinition>>,
 			required: true,
 		},
 	},

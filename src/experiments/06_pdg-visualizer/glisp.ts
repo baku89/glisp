@@ -39,7 +39,7 @@ type ASTFncall = {
 
 interface ASTGraph {
 	type: 'graph'
-	values: {[sym: string]: AST}
+	values: Record<string, AST>
 	return: ASTSymbol
 }
 
@@ -108,7 +108,7 @@ const GlobalVariables = {
 	PI: readAST(Math.PI),
 	PI2: readAST(Math.PI * 2),
 	E: readAST(Math.E),
-} as {[s: string]: PDGAtom}
+} as Record<string, PDGAtom>
 
 // PDG
 interface PDGBase {
@@ -133,7 +133,7 @@ export interface PDGFncall extends PDGBase {
 
 export interface PDGGraph extends PDGBase {
 	type: 'graph'
-	values: {[sym: string]: PDG}
+	values: Record<string, PDG>
 	return: string
 	resolved?:
 		| {
@@ -444,7 +444,7 @@ export function isEqualDataType(a: DataType, b: DataType): boolean {
 
 const GlobalEnv = new Env(GlobalVariables)
 
-export function getSymbols(pdg: PDG): {[sym: string]: PDG} {
+export function getSymbols(pdg: PDG): Record<string, PDG> {
 	if (pdg.type === 'graph') {
 		if (pdg.resolved && !(pdg.resolved instanceof Error)) {
 			return pdg.resolved.env.getAllSymbols()

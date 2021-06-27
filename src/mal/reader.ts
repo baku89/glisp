@@ -86,7 +86,8 @@ class Reader {
 	}
 
 	// eslint-disable-next-line no-useless-escape
-	private static TokenRegex = /(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)[\s,]*/g
+	private static TokenRegex =
+		/(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)[\s,]*/g
 }
 
 function readAtom(reader: Reader) {
@@ -281,7 +282,7 @@ export function readJS(obj: null | undefined | MalNil): MalNil
 export function readJS(obj: MalCallableValue | MalFn): MalFn
 export function readJS(obj: MalList): MalList
 export function readJS(obj: any[] | Float32Array | MalVector): MalVector
-export function readJS(obj: {[k: string]: any} | MalMap): MalMap
+export function readJS(obj: Record<string, any> | MalMap): MalMap
 export function readJS(obj: MalAtom): MalAtom
 export function readJS(obj: any): MalVal {
 	if (isMal(obj)) {
@@ -298,7 +299,7 @@ export function readJS(obj: any): MalVal {
 		return MalFn.from(obj)
 	} else if (obj instanceof Object) {
 		// Map
-		const ret: {[k: string]: MalVal} = {}
+		const ret: Record<string, MalVal> = {}
 		for (const [key, value] of Object.entries(obj)) {
 			ret[key] = readJS(value as any)
 		}

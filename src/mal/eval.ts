@@ -19,7 +19,7 @@ import {
 
 function quasiquote(exp: MalVal): MalVal {
 	if (MalMap.is(exp)) {
-		const ret: {[k: string]: MalVal} = {}
+		const ret: Record<string, MalVal> = {}
 		for (const [k, v] of exp.entries()) {
 			ret[k] = quasiquote(v)
 		}

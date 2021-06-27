@@ -4,7 +4,7 @@ import Device from './device'
 
 export default class DeviceMidi extends Device {
 	private inputs?: Input[]
-	private callbacks: {[command: string]: () => any} = {}
+	private callbacks: Record<string, () => any> = {}
 	private captureCallback: null | ((command: string) => any) = null
 
 	constructor() {

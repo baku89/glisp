@@ -843,7 +843,7 @@ function resolveParams(exp: ExpList): ExpScope['vars'] {
 
 	const {params: paramsDef, restParam: restDef} = fn
 
-	const vars: {[label: string]: Exp} = {}
+	const vars: Record<string, Exp> = {}
 
 	// Length check
 	if (paramsDef.length > params.length) {

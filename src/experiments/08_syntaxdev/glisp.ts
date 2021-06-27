@@ -63,7 +63,7 @@ interface ValueFnThis {
 
 interface ValueFn {
 	kind: 'fn'
-	params: {[name: string]: Value}
+	params: Record<string, Value>
 	out: Value
 	variadic?: true
 	body: <A extends Exp[], R extends Value>(this: ValueFnThis, ...arg0: A) => R
@@ -133,7 +133,7 @@ interface ExpPair extends ExpBase {
 
 interface ExpScope extends ExpBase {
 	ast: 'scope'
-	scope: {[name: string]: Exp}
+	scope: Record<string, Exp>
 	out?: Exp
 }
 
@@ -152,7 +152,7 @@ type InspectedResultSymbol =
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'fndef'; params: {[name: string]: Exp}; body: Exp}
+	| {semantic: 'fndef'; params: Record<string, Exp>; body: Exp}
 	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
 
@@ -401,10 +401,9 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnionType['cast']>
 ): Value {
-	const items: (
-		| Exclude<Value, ValueUnionType>
-		| undefined
-	)[] = types.flatMap(t => (isKindOf(t, 'unionType') ? t.items : [t]))
+	const items: (Exclude<Value, ValueUnionType> | undefined)[] = types.flatMap(
+		t => (isKindOf(t, 'unionType') ? t.items : [t])
+	)
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -567,7 +566,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 		if (fst.ast === 'symbol') {
 			if (fst.name === '@') {
 				// Scope
-				const scope: {[name: string]: Exp} = {}
+				const scope: Record<string, Exp> = {}
 				let out: Exp | undefined
 				const logs: Log[] = []
 
@@ -642,7 +641,7 @@ function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
 }
 
 function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
-	const items: {[hash: string]: Exp} = {}
+	const items: Record<string, Exp> = {}
 
 	const logs: Log[] = []
 
@@ -1002,9 +1001,7 @@ function isInstance(a: Value, b: Value): boolean {
 
 	return isInstance(nb.params, na.params) && isInstance(na.out, nb.out)
 
-	function normalizeTypeToFn(
-		type: Value
-	): {
+	function normalizeTypeToFn(type: Value): {
 		params: ValueFnType['params']
 		out: Value
 	} {

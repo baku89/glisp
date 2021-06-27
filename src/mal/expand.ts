@@ -44,7 +44,7 @@
 // 				:  MalVector.from(...arr)
 // 		}
 // 		case MalType.Map: {
-// 			const map: {[k: string]: MalVal} = {}
+// 			const map: Record<string, MalVal> = {}
 // 			Object.entries(exp as MalMap).forEach(([key, val]) => {
 // 				map[key] = expandSymbolsInExp(val, env)
 // 			})

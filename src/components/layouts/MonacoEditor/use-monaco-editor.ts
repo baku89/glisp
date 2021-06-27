@@ -3,7 +3,7 @@ import {editor} from 'monaco-editor'
 import {inject, Ref, ref, watch} from 'vue'
 
 const useMonacoEditor = _.once(function () {
-	const scheme = inject<Ref<{[name: string]: string}>>('scheme', ref({}))
+	const scheme = inject<Ref<Record<string, string>>>('scheme', ref({}))
 
 	watch(
 		() => scheme,

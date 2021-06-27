@@ -27,7 +27,7 @@ const GamepadStandardButtonName = [
 
 export default class DeviceGamepad extends Device {
 	private state: GamepadState = {}
-	private callbacks: {[command: string]: () => any} = {}
+	private callbacks: Record<string, () => any> = {}
 	private captureCallback: null | ((command: string) => any) = null
 
 	constructor() {

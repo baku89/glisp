@@ -352,11 +352,11 @@ export class MalSymbol extends MalPrimBase<string> {
 }
 
 // Collections
-export type MalMapValue = {[key: string]: MalVal}
+export type MalMapValue = Record<string, MalVal>
 
-abstract class MalCollBase<T extends MalVal[] | MalMapValue> extends MalBase<
-	T
-> {
+abstract class MalCollBase<
+	T extends MalVal[] | MalMapValue
+> extends MalBase<T> {
 	private _evaluated?: MalVal
 
 	set evaluated(v: MalVal) {
@@ -609,7 +609,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		return new MalMap(value, this._meta?.clone())
 	}
 
-	toObject(): {[k: string]: any} {
+	toObject(): Record<string, any> {
 		return Object.fromEntries(
 			Object.entries(this._value).map(([k, v]) => [k, v.toObject()])
 		)

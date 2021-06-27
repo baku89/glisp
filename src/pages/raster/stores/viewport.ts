@@ -206,7 +206,7 @@ export default function useModuleViewport(): StoreModule {
 		if (!regl.value) return null
 		const prop = regl.value.prop as any
 
-		const uniforms: {[name: string]: any} = {
+		const uniforms: Record<string, any> = {
 			inputTexture: prop('inputTexture'),
 			cursor: prop('cursor'),
 			prevCursor: prop('prevCursor'),

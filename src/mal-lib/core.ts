@@ -349,7 +349,7 @@ const Exports = [
 					.filter(MalMap.is)
 					.reduce(
 						(ret, m) => ({...ret, ...m.value}),
-						{} as {[k: string]: MalVal}
+						{} as Record<string, MalVal>
 					)
 			)
 		},

@@ -10,7 +10,7 @@ export default function useBind(scope: Scope) {
 		key: new DeviceKeyboard(),
 		gamepad: new DeviceGamepad(),
 		midi: new DeviceMidi(),
-	} as {[name: string]: Device}
+	} as Record<string, Device>
 
 	scope.def('set-bind', (command: MalVal, fn: MalVal) => {
 		if (!MalString.is(command)) {

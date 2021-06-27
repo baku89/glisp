@@ -5,7 +5,7 @@ import {reactive, Ref, toRefs} from 'vue'
 import {MalBoolean, MalError, MalString, MalVal} from '@/mal/types'
 import AppScope from '@/scopes/app'
 
-let state: {[keycode: string]: Ref<boolean>}
+let state: Record<string, Ref<boolean>>
 
 hotkeys('*', {keyup: true, keydown: true}, (e: KeyboardEvent) => {
 	if (!state) {

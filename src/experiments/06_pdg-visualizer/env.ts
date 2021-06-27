@@ -4,9 +4,9 @@ import {getAllRefs, PDG} from './glisp'
 export default class Env {
 	private outer?: Env
 
-	private data: {[name: string]: PDG} = {}
+	private data: Record<string, PDG> = {}
 
-	constructor(values?: {[s: string]: PDG}, outer?: Env) {
+	constructor(values?: Record<string, PDG>, outer?: Env) {
 		this.outer = outer
 
 		if (values) {
@@ -14,7 +14,7 @@ export default class Env {
 		}
 	}
 
-	getAllSymbols(): {[name: string]: PDG} {
+	getAllSymbols(): Record<string, PDG> {
 		const symbols = {
 			...(this.outer ? this.outer.getAllSymbols() : {}),
 			...this.data,
