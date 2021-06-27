@@ -1,10 +1,10 @@
 <template>
 	<div class="PageUI">
-		<GlobalMenu2>
+		<AppHeader>
 			<template #left>
-				<GlobalMenu2Breadcumb :items="[{label: 'UI'}]" />
+				<AppHeaderBreadcumb :items="[{label: 'UI'}]" />
 			</template>
-		</GlobalMenu2>
+		</AppHeader>
 		<SidePane uid="globalSidePane" :mainAttr="{class: 'PageUI__content'}">
 			<template #main>
 				<section style="margin-bottom: 2em">
@@ -76,7 +76,7 @@ import 'splitpanes/dist/splitpanes.css'
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
-import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
+import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 // import GlispEditor from '@/components/GlispEditor'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import MonacoEditor from '@/components/layouts/MonacoEditor'
@@ -93,8 +93,8 @@ import PaneSchemeViewer from './PaneSchemeViewer.vue'
 export default defineComponent({
 	name: 'PageUI',
 	components: {
-		GlobalMenu2,
-		GlobalMenu2Breadcumb,
+		AppHeader,
+		AppHeaderBreadcumb,
 		InputDropdown,
 		MonacoEditor,
 		PaneDocument,

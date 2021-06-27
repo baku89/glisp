@@ -1,8 +1,8 @@
 <template>
 	<div class="PageRaster">
-		<GlobalMenu2 :menu="globalMenu">
+		<AppHeader :menu="globalMenu">
 			<template #left>
-				<GlobalMenu2Breadcumb :items="[{label: 'Raster'}]" />
+				<AppHeaderBreadcumb :items="[{label: 'Raster'}]" />
 			</template>
 			<template #center>
 				<div class="PageRaster__document-title">
@@ -21,7 +21,7 @@
 					<div class="zoom-factor">{{ (zoomFactor * 100).toFixed() }}%</div>
 				</div></template
 			>
-		</GlobalMenu2>
+		</AppHeader>
 		<SidePane
 			uid="globalSidePane"
 			:mainAttr="{class: 'PageRaster__viewport'}"
@@ -75,7 +75,7 @@ import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
 import {computed, defineComponent, onMounted, provide, ref} from 'vue'
 
-import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
+import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import SidePane from '@/components/layouts/SidePane.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
@@ -94,8 +94,8 @@ export default defineComponent({
 	components: {
 		BrushSettings,
 		ToolSelector,
-		GlobalMenu2,
-		GlobalMenu2Breadcumb,
+		AppHeader,
+		AppHeaderBreadcumb,
 		PaneBrushParams,
 		SidePane,
 		SvgIcon,

@@ -1,12 +1,12 @@
 <template>
 	<menu
-		class="GlobalMenu2"
+		class="AppHeader"
 		:class="{
 			'title-bar-macos': titleBar === 'macos',
 			'menu-opened': menuOpened,
 		}"
 	>
-		<div class="GlobalMenu2__title">
+		<div class="AppHeader__title">
 			<SvgIcon @mousedown="onClickMenu" class="icon" :strokeWidth="1.5">
 				<circle cx="16" cy="16" r="14" />
 				<path
@@ -14,11 +14,11 @@
 				/>
 			</SvgIcon>
 		</div>
-		<div class="GlobalMenu2__left"><slot name="left" /></div>
-		<div class="GlobalMenu2__center"><slot name="center" /></div>
-		<div class="GlobalMenu2__right"><slot name="right" /></div>
+		<div class="AppHeader__left"><slot name="left" /></div>
+		<div class="AppHeader__center"><slot name="center" /></div>
+		<div class="AppHeader__right"><slot name="right" /></div>
 	</menu>
-	<div class="GlobalMenu2__menu" v-if="menuOpened" ref="menu">
+	<div class="AppHeader__menu" v-if="menuOpened" ref="menu">
 		<ul>
 			<li
 				v-for="{name, label, icon, payload} in menuInfo"
@@ -47,7 +47,7 @@ interface MenuCommand {
 
 export default defineComponent({
 	components: {SvgIcon},
-	name: 'GlobalMenu2',
+	name: 'AppHeader',
 	props: {
 		menu: {
 			type: Array as PropType<(string | MenuCommand)[]>,
@@ -119,7 +119,7 @@ export default defineComponent({
 
 $height = 3.2em
 
-.GlobalMenu2
+.AppHeader
 	position relative
 	display grid
 	overflow visible

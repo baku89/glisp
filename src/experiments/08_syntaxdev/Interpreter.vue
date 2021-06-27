@@ -1,10 +1,10 @@
 <template>
 	<div class="Interpreter">
-		<GlobalMenu2>
+		<AppHeader>
 			<template #left>
-				<GlobalMenu2Breadcumb :items="[{label: 'REPL'}]" />
+				<AppHeaderBreadcumb :items="[{label: 'REPL'}]" />
 			</template>
-		</GlobalMenu2>
+		</AppHeader>
 		<main class="Interpreter__main">
 			<MinimalConsole
 				class="Interpreter__console"
@@ -21,7 +21,7 @@ import 'splitpanes/dist/splitpanes.css'
 
 import {defineComponent, ref} from 'vue'
 
-import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
+import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
 
 import {evalExp, printValue, readStr, TypeIO} from './glisp'
@@ -29,7 +29,7 @@ import MinimalConsole from './MinimalConsole.vue'
 
 export default defineComponent({
 	name: 'Interpreter',
-	components: {GlobalMenu2, GlobalMenu2Breadcumb, MinimalConsole},
+	components: {AppHeader, AppHeaderBreadcumb, MinimalConsole},
 	setup() {
 		useScheme()
 

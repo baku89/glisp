@@ -1,5 +1,5 @@
 <template>
-	<ul class="GlobalMenu2Breadcumbs">
+	<ul class="AppHeaderBreadcumbs">
 		<li>
 			<a href=".">Glisp</a>
 		</li>
@@ -13,7 +13,7 @@
 import {defineComponent, PropType} from 'vue'
 
 export default defineComponent({
-	name: 'GlobalMenu2Breadcumb',
+	name: 'AppHeaderBreadcumb',
 	props: {
 		items: Array as PropType<{label: string; link?: string}[]>,
 	},
@@ -23,7 +23,7 @@ export default defineComponent({
 <style lang="stylus">
 @import '~@/components/style/common.styl'
 
-.GlobalMenu2Breadcumbs
+.AppHeaderBreadcumbs
 	font-title()
 	margin-left 0.5em
 	height 100% add-property

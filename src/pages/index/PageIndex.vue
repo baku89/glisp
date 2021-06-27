@@ -1,8 +1,8 @@
 <template>
 	<div class="PageIndex">
-		<GlobalMenu2>
-			<template #left><GlobalMenu2Breadcumb /></template>
-		</GlobalMenu2>
+		<AppHeader>
+			<template #left><AppHeaderBreadcumb /></template>
+		</AppHeader>
 		<main class="PageIndex__main document">
 			<ul v-for="page in pages" :key="page">
 				<li>
@@ -18,14 +18,14 @@ import 'normalize.css'
 
 import {defineComponent, ref} from 'vue'
 
-import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
+import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
 
 export default defineComponent({
 	name: 'PageIndex',
 	components: {
-		GlobalMenu2,
-		GlobalMenu2Breadcumb,
+		AppHeader,
+		AppHeaderBreadcumb,
 	},
 	setup() {
 		useScheme()
