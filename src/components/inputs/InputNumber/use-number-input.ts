@@ -6,7 +6,6 @@ import keycode from 'keycode'
 import _ from 'lodash'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
-import useEfficientEmit from '@/components/use/use-efficient-emit'
 import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
 
@@ -30,8 +29,6 @@ export default function useNumber(
 	inputEl: Ref<null | HTMLInputElement>,
 	context: SetupContext
 ) {
-	const emit = useEfficientEmit(props, context, 'modelValue')
-
 	const displayValue = computed(() => {
 		const v = props.modelValue
 		const fixed = v.toFixed(props.precision)
@@ -56,7 +53,9 @@ export default function useNumber(
 			: pipe(some(val), chain(read), chain(props.validator))
 
 		if (isSome(ret)) {
-			emit(ret.value)
+			if (props.modelValue !== ret.value) {
+				context.emit('update:modelValue', ret.value)
+			}
 		} else {
 			if (resetInput && inputEl.value) inputEl.value.value = displayValue.value
 		}
