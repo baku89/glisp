@@ -1,7 +1,7 @@
 export function generateUniqueKey(
 	key: string,
 	existingKeys: string[],
-	separator = ' '
+	separator = ''
 ) {
 	if (!existingKeys.includes(key)) {
 		return key

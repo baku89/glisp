@@ -61,105 +61,7 @@
 					</template>
 					<template #panel-inputs>
 						<h2>Input Components</h2>
-						<dl class="PageUI__ui-list">
-							<dt>String</dt>
-							<dd>
-								<InputString v-model="data.string" />
-							</dd>
-							<dt>Textarea</dt>
-							<dd>
-								<InputString
-									v-model="data.code"
-									:multiline="true"
-									:monospace="true"
-								/>
-							</dd>
-							<dt>Number</dt>
-							<dd><InputNumber v-model="data.number" /></dd>
-							<dt>Slider</dt>
-							<dd>
-								<InputSlider v-model="data.number" :min="0" :max="100" />
-							</dd>
-							<dt>Dropdown</dt>
-							<dd>
-								<InputDropdown
-									v-model="data.colorSpace"
-									:items="[
-										{value: 'r,g,b', label: 'RGB'},
-										{value: 'svh', label: 'SVH'},
-										{value: 'hsv', label: 'HSV'},
-										{value: 'hvs', label: 'HVS'},
-										{value: 'hsvr', label: 'Radial'},
-									]"
-								/>
-							</dd>
-							<dt>Checkbox</dt>
-							<dd>
-								<InputCheckbox v-model="data.useAlpha" label="Use Alpha" />
-							</dd>
-							<dt>Radio</dt>
-							<dd>
-								<InputRadio
-									v-model="data.align"
-									:items="['left', 'center', 'right']"
-									:labelize="capitalize"
-								>
-									<template v-slot:option="{label, value}">
-										<div class="style-default">
-											<SvgIcon
-												mode="inline"
-												style="
-													font-size: 1.3em;
-													margin-bottom: 0.2em;
-													margin-right: 0.4em;
-												"
-											>
-												<path
-													v-if="value === 'left'"
-													d="M4 8 L28 8 M4 16 L18 16 M4 24 L18 24"
-												/>
-												<path
-													v-else-if="value === 'center'"
-													d="M4 8 L28 8 M9 16 L23 16 M9 24 L23 24"
-												/>
-												<path
-													v-else
-													d="M4 8 L28 8 M14 16 L28 16 M14 24 L28 24"
-												/>
-											</SvgIcon>
-											<span>{{ label }}</span>
-										</div>
-									</template>
-								</InputRadio>
-							</dd>
-							<dt>Rotery</dt>
-							<dd>
-								<InputRotery v-model="angle" />
-							</dd>
-							<dt>Seed</dt>
-							<dd>
-								<InputSeed v-model="data.number" :min="0" :max="100" />
-							</dd>
-							<dt>Color</dt>
-							<dd>
-								<InputColor v-model="data.color" :pickers="colorPickers" />
-							</dd>
-							<dt>Translate</dt>
-							<dd>
-								<InputTranslate v-model="data.position" :min="0" :max="100" />
-								<span class="comment" style="white-space: nowrap">
-									Value: [{{ positionStr }}]
-								</span>
-							</dd>
-							<dt>Easing</dt>
-							<dd>
-								<InputCubicBezier v-model="data.easing" />
-							</dd>
-							<dt>Button</dt>
-							<dd>
-								<InputButton label="Action" @click="action" />
-							</dd>
-						</dl>
+						<InputSchema v-model="data" :schema="schema" />
 					</template>
 				</Tab>
 			</template>
@@ -172,28 +74,19 @@ import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
 import _ from 'lodash'
-import {computed, defineComponent, reactive} from 'vue'
+import {defineComponent, ref} from 'vue'
 
 import GlobalMenu2, {GlobalMenu2Breadcumb} from '@/components/GlobalMenu2'
 // import GlispEditor from '@/components/GlispEditor'
-import InputButton from '@/components/inputs/InputButton.vue'
-import InputCheckbox from '@/components/inputs/InputCheckbox.vue'
-import InputColor from '@/components/inputs/InputColor.vue'
-import InputCubicBezier from '@/components/inputs/InputCubicBezier'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
-import InputNumber from '@/components/inputs/InputNumber.vue'
-import InputRadio from '@/components/inputs/InputRadio.vue'
-import InputRotery from '@/components/inputs/InputRotery.vue'
-import InputSeed from '@/components/inputs/InputSeed.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
-import InputString from '@/components/inputs/InputString.vue'
-import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import MonacoEditor from '@/components/layouts/MonacoEditor'
 import SidePane from '@/components/layouts/SidePane.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import Tab from '@/components/layouts/Tab.vue'
 import useScheme from '@/components/use/use-scheme'
 
+import InputSchema from '../raster/InputSchema/InputSchema.vue'
+import {Schema} from '../raster/InputSchema/type'
 import PaneDocument from './PaneDocument.vue'
 import PaneSchemeViewer from './PaneSchemeViewer.vue'
 
@@ -202,59 +95,56 @@ export default defineComponent({
 	components: {
 		GlobalMenu2,
 		GlobalMenu2Breadcumb,
-		InputNumber,
 		InputDropdown,
-		InputSlider,
-		InputString,
-		InputButton,
-		InputCheckbox,
-		InputRotery,
-		InputSeed,
-		InputRadio,
-		InputTranslate,
-		InputCubicBezier,
-		InputColor,
 		MonacoEditor,
 		PaneDocument,
 		PaneSchemeViewer,
 		SidePane,
 		SvgIcon,
 		Tab,
+		InputSchema,
 	},
 	setup() {
 		const {basePreset, baseAccentName, presetNames} = useScheme()
 
-		const data = reactive({
+		const data = ref({
 			string: 'Hello',
-			code: `;; Glisp Code
-(let #square (=> [x::Number] (* x x)::PosNumber)
-     #w 20
-     #c "Pink"::Color
-     #p [0 0]::Color}
-  (style (fill c)
-    (ellipse p [(vec2/x ../center) (square w)])))`,
+			code: `(+ 1 2)`,
 			number: 0,
-			useAlpha: true,
+			angle: 0,
+			boolean: true,
 			colorSpace: 'svh',
 			color: 'pink',
 			align: 'left',
 			position: [0, 0],
 			easing: [0.5, 0, 0.5, 1],
+			tree: {
+				child1: 0,
+				child2: 'Child',
+			},
 		})
 
-		// Computed
-		const angle = computed({
-			get: () => (data.number / 180) * Math.PI,
-			set: x => (data.number = (x / Math.PI) * 180),
+		const schema = ref<Schema>({
+			type: 'object',
+			properties: {
+				string: {type: 'string'},
+				code: {type: 'string', multiline: true, monospace: true},
+				number: {type: 'number', ui: 'slider', min: 0, max: 100},
+				angle: {type: 'number', ui: 'angle'},
+				boolean: {type: 'boolean'},
+				color: {type: 'color'},
+				tree: {
+					type: 'object',
+					properties: {
+						child1: {type: 'number'},
+						child2: {type: 'string'},
+					},
+					additionalProperties: {type: 'boolean'},
+					required: [],
+				},
+			},
+			required: [],
 		})
-
-		const positionStr = computed(() =>
-			[...data.position].map(v => v.toFixed(1)).join(', ')
-		)
-
-		const colorPickers = computed(
-			() => data.colorSpace + (data.useAlpha ? ',a' : '')
-		)
 
 		function action() {
 			alert('Action!')
@@ -262,12 +152,10 @@ export default defineComponent({
 
 		return {
 			data,
-			angle,
-			positionStr,
+			schema,
 			basePreset,
 			baseAccentName,
 			presetNames,
-			colorPickers,
 			action,
 
 			capitalize: _.capitalize,

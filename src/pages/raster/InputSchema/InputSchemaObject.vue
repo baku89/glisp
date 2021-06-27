@@ -1,16 +1,14 @@
 <template>
 	<div class="InputSchemaObject">
-		<div>
-			<InputSchemaEntry
-				class="InputSchemaObject__column"
-				v-for="(sch, name) in schema.properties"
-				:key="name"
-				:name="name"
-				:modelValue="modelValue[name]"
-				@update:modelValue="updateProperty(name, $event)"
-				:schema="sch"
-			/>
-		</div>
+		<InputSchemaEntry
+			class="InputSchemaObject__column"
+			v-for="(sch, name) in schema.properties"
+			:key="name"
+			:name="name"
+			:modelValue="modelValue[name]"
+			@update:modelValue="updateProperty(name, $event)"
+			:schema="sch"
+		/>
 		<template v-if="schema.additionalProperties">
 			<Draggable
 				v-bind="{animation: 50, ghostClass: 'ghost'}"
@@ -29,7 +27,6 @@
 						:editable="true"
 						@update:modelValue="updateProperty(name, $event)"
 						@update:name="renameProperty(name, $event)"
-						@delete="deleteProperty(name)"
 					/>
 				</template>
 				<template #footer>

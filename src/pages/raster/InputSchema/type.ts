@@ -33,6 +33,8 @@ export interface SchemaNumber {
 export interface SchemaString {
 	type: 'string'
 	ui?: 'string' | 'dropdown'
+	multiline?: boolean
+	monospace?: boolean
 	default?: string
 }
 

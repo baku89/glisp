@@ -10,7 +10,6 @@
 			class="icon"
 			:class="{handle: editable}"
 			mode="block"
-			@dblclick="editable && $emit('delete')"
 		>
 			<circle cx="16" cy="16" r="2" />
 		</SvgIcon>
@@ -83,7 +82,7 @@ export default defineComponent({
 			default: ' ',
 		},
 	},
-	emits: ['update:modelValue', 'update:name', 'delete'],
+	emits: ['update:modelValue', 'update:name'],
 	beforeCreate: function () {
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema
