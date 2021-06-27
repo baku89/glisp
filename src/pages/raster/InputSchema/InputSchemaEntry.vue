@@ -25,19 +25,17 @@
 			</g>
 			<circle v-else cx="16" cy="16" r="2" />
 		</SvgIcon>
-		<label class="label">
-			<template v-if="!editable">
-				{{ toLabel(name) }}
-			</template>
-			<InputString
-				v-else
-				class="InputSchemaEntry__name label"
-				:validator="validateName"
-				:updateOnBlur="true"
-				:modelValue="name"
-				@update:modelValue="$emit('update:name', $event)"
-			/>
+		<label class="label" v-if="!editable">
+			{{ toLabel(name) }}
 		</label>
+		<InputString
+			v-else
+			class="label label-input"
+			:validator="validateName"
+			:updateOnBlur="true"
+			:modelValue="name"
+			@update:modelValue="$emit('update:name', $event)"
+		/>
 		<div class="input">
 			<InputSchema
 				:modelValue="modelValue"
@@ -124,8 +122,8 @@ export default defineComponent({
 
 .InputSchemaEntry
 	display grid
-	grid-template-columns 1em 7em 1fr
-	gap 1em
+	grid-template-columns 1.2em 7em 1fr
+	gap 0.5em
 
 	&.nested
 		grid-template-columns 5em 1fr
@@ -139,7 +137,4 @@ export default defineComponent({
 
 	& > .label, & > .icon
 		line-height $input-height
-
-	&__name
-		width 100%
 </style>
