@@ -31,12 +31,14 @@
 						@delete="deleteProperty(name)"
 					/>
 				</template>
+				<template #footer>
+					<button class="InputSchemaObject__add" @click="addProperty">
+						<SvgIcon mode="block" class="icon" :nonStrokeScaling="true">
+							<path d="M16 2 L16 30 M2 16 L30 16" />
+						</SvgIcon>
+					</button>
+				</template>
 			</Draggable>
-			<button class="InputSchemaObject__add" @click="addProperty">
-				<SvgIcon mode="block" class="icon" :nonStrokeScaling="true">
-					<path d="M16 2 L16 30 M2 16 L30 16" />
-				</SvgIcon>
-			</button>
 		</template>
 	</div>
 </template>
@@ -163,7 +165,6 @@ export default defineComponent({
 		border-radius 50%
 		color base16('03')
 		input-transition(all)
-		margin-top $input-horiz-margin
 		margin-left -0.2em
 
 		&:hover
