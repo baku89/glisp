@@ -621,3 +621,64 @@ tone_curve:
       max: 0.5
     curve:
       type: cubicBezier
+
+diffuse:
+  label: Diffuse
+  icon: |
+    <path d="M19,3h-3C8.8,3,3,8.8,3,16s5.8,13,13,13h3"/>
+    <rect x="17" y="9" width="1" height="1"/>
+    <rect x="14" y="19" width="1" height="1"/>
+    <rect x="20" y="25" width="1" height="1"/>
+    <rect x="17" y="22" width="1" height="1"/>
+    <rect x="20" y="12" width="1" height="1"/>
+    <rect x="23" y="9" width="1" height="1"/>
+    <rect x="25" y="22" width="1" height="1"/>
+    <rect x="17" y="15" width="1" height="1"/>
+    <rect x="20" y="6" width="1" height="1"/>
+    <rect x="20" y="18" width="1" height="1"/>
+    <rect x="26" y="14" width="1" height="1"/>
+  frag: |
+    highp float random(vec2 co) {
+        highp float a = 12.9898;
+        highp float b = 78.233;
+        highp float c = 43758.5453;
+        highp float dt= dot(co.xy ,vec2(a,b));
+        highp float sn= mod(dt,3.14);
+        return fract(sin(sn) * c);
+    }
+
+    highp vec2 random2D(vec2 co) {
+      return vec2(random(co), random(co + vec2(101.3323, 34.24)));
+    }
+
+    void main() {
+      vec4 tex = texture2D(inputTexture, uv);
+      float mask = smoothstep(radius, 0., distance(uv, cursor));
+
+      vec2 rndOffset = random2D(vec2(seed, seed + 1.234));
+
+      vec2 rnd = random2D(uv + rndOffset);
+      vec2 offset = mix(vec2(-1), vec2(1), rnd) * intensity;
+
+      vec4 src = texture2D(inputTexture, uv);
+      vec4 dst = texture2D(inputTexture, uv + offset * mask * radius);
+
+      gl_FragColor = mix(src, dst, deltaTime);
+    }
+  params:
+    intensity:
+      type: slider
+      default: 0
+      min: 0
+      max: 1
+      clampMin: true
+      clampMax: false
+    radius:
+      type: slider
+      default: 0.1
+      max: 0.5
+      min: 0
+      clampMin: true
+      clampMax: false
+    seed:
+      type: seed
