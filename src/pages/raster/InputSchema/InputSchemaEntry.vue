@@ -12,7 +12,17 @@
 			mode="block"
 			@dblclick="editable && $emit('delete')"
 		>
-			<path v-if="editable" d="M4 8 L28 8 M4 16 L28 16 M4 24 L28 24" />
+			<g v-if="editable">
+				<circle class="st1" cx="16" cy="16" r="0.5" />
+				<circle class="st1" cx="7" cy="16" r="0.5" />
+				<circle class="st1" cx="25" cy="16" r="0.5" />
+				<circle class="st1" cx="16" cy="7" r="0.5" />
+				<circle class="st1" cx="16" cy="25" r="0.5" />
+				<circle class="st1" cx="7" cy="7" r="0.5" />
+				<circle class="st1" cx="7" cy="25" r="0.5" />
+				<circle class="st1" cx="25" cy="7" r="0.5" />
+				<circle class="st1" cx="25" cy="25" r="0.5" />
+			</g>
 			<circle v-else cx="16" cy="16" r="2" />
 		</SvgIcon>
 		<label class="label">
