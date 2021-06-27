@@ -52,7 +52,7 @@ import _ from 'lodash'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import {Validator} from '@/lib/fp'
-import {fit, fit01, fitTo01} from '@/utils'
+import {fit01, fitTo01} from '@/utils'
 
 import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
@@ -115,13 +115,14 @@ export default defineComponent({
 				const valueT = fitTo01(props.modelValue, props.min, props.max)
 
 				tweakMode.value =
-					Math.abs(cursorT - valueT) < 0.2 ? 'relative' : 'absolute'
+					Math.abs(cursorT - valueT) < 0.1 ? 'relative' : 'absolute'
 
 				if (tweakMode.value === 'absolute') {
 					tweakStartValue = fit01(cursorT, props.min, props.max)
 				} else {
 					tweakStartValue = props.modelValue
 				}
+
 				tweakStartPos = x
 			},
 			onDrag({pos: [x], right, left}) {
@@ -132,8 +133,8 @@ export default defineComponent({
 				}
 
 				const delta = x - tweakStartPos
-				const inc =
-					fit(delta, 0, right - left, props.min, props.max) * tweakSpeed.value
+				const scaleFactor = (props.max - props.min) / (right - left)
+				const inc = delta * scaleFactor * tweakSpeed.value
 				const val = tweakStartValue + inc
 
 				update(val, false)
