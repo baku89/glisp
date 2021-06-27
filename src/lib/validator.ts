@@ -1,3 +1,4 @@
+import {flow} from 'fp-ts/lib/function'
 import * as O from 'fp-ts/lib/Option'
 import _ from 'lodash'
 
@@ -21,5 +22,5 @@ export const generateUniqueKeyValidator = (
 	keys: string[],
 	separator = ''
 ): Validator<string> => {
-	return O.fromNullableK(_.partial(generateUniqueKey, _, keys, separator))
+	return flow(_.partial(generateUniqueKey, _, keys, separator), O.some)
 }

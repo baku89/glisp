@@ -8,7 +8,7 @@
 
 <script lang="ts">
 import {flow} from 'fp-ts/lib/function'
-import {fromNullableK, map, some} from 'fp-ts/lib/Option'
+import * as O from 'fp-ts/lib/Option'
 import _ from 'lodash'
 import {computed, defineComponent, inject} from 'vue-demi'
 
@@ -39,12 +39,12 @@ export default defineComponent({
 			_.entries(currentBrush.value.params).forEach(([name, def]) => {
 				switch (def.type) {
 					case 'slider': {
-						let validator: Validator<number> = some
+						let validator: Validator<number> = O.some
 						if (def.clampMin && _.isNumber(def.min)) {
-							validator = fromNullableK(_.partial(Math.max, def.min))
+							validator = flow(_.partial(Math.max, def.min), O.some)
 						}
 						if (def.clampMax && _.isNumber(def.max)) {
-							validator = flow(validator, map(_.partial(Math.min, def.max)))
+							validator = flow(validator, O.map(_.partial(Math.min, def.max)))
 						}
 						properties[name] = {...def, type: 'number', ui: 'slider', validator}
 						break
