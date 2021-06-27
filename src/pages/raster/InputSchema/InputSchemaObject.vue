@@ -16,7 +16,6 @@
 				v-bind="{animation: 50, ghostClass: 'ghost'}"
 				v-model="additionals"
 				itemKey="key"
-				handle=".handle"
 			>
 				<template #item="{element: {name, data}}">
 					<InputSchemaEntry
@@ -25,6 +24,8 @@
 						:modelValue="data"
 						:allNames="allNames"
 						:schema="schema.additionalProperties"
+						:validator="schema.additionalValidator"
+						:infix="schema.additionalInfix"
 						:editable="true"
 						@update:modelValue="updateProperty(name, $event)"
 						@update:name="renameProperty(name, $event)"
@@ -49,6 +50,7 @@ import {computed, defineComponent, PropType, toRaw} from 'vue'
 import Draggable from 'vuedraggable'
 
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
+import {generateUniqueKey} from '@/lib/string'
 
 import InputSchema from './InputSchema.vue'
 import InputSchemaEntry from './InputSchemaEntry.vue'
@@ -119,9 +121,14 @@ export default defineComponent({
 		function addProperty() {
 			const prop = cast(undefined, props.schema)
 
-			const propName = 'prop_' + (_.keys(props.modelValue).length + 1)
+			const propName = generateUniqueKey(
+				'prop',
+				allNames.value,
+				props.schema.additionalInfix
+			)
 
 			const newValue = {...props.modelValue, [propName]: prop}
+
 			context.emit('update:modelValue', newValue)
 		}
 

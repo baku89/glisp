@@ -49,9 +49,11 @@ import MonacoEditor, {
 	MonacoEditorMarker,
 } from '@/components/layouts/MonacoEditor'
 import {Store} from '@/lib/store'
+import {validateAlphanumericIdentifier} from '@/lib/validator'
 
 import {BrushDefinition} from './brush-definition'
 import InputSchema from './InputSchema/InputSchema.vue'
+import {Schema} from './InputSchema/type'
 
 export default defineComponent({
 	name: 'BrushSettings',
@@ -86,10 +88,10 @@ export default defineComponent({
 		})
 
 		const fragDeclarationsDesc = computed(() => {
-			return '```glsl\n' + fragDeclarations.value + '```'
+			return '```glsl\n' + fragDeclarations.value + '\n```'
 		})
 
-		const schema = ref({
+		const schema = ref<Schema>({
 			type: 'object',
 			properties: {},
 			additionalProperties: {
@@ -153,9 +155,13 @@ export default defineComponent({
 							type: {type: 'const', value: 'cubicBezier'},
 							default: {type: 'cubicBezier'},
 						},
+						required: ['type'],
 					},
 				},
 			},
+			required: [],
+			additionalValidator: validateAlphanumericIdentifier,
+			additionalInfix: '',
 		})
 
 		function updateBrush(brush: BrushDefinition) {

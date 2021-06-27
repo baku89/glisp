@@ -12,18 +12,7 @@
 			mode="block"
 			@dblclick="editable && $emit('delete')"
 		>
-			<g v-if="editable">
-				<circle class="st1" cx="16" cy="16" r="0.5" />
-				<circle class="st1" cx="7" cy="16" r="0.5" />
-				<circle class="st1" cx="25" cy="16" r="0.5" />
-				<circle class="st1" cx="16" cy="7" r="0.5" />
-				<circle class="st1" cx="16" cy="25" r="0.5" />
-				<circle class="st1" cx="7" cy="7" r="0.5" />
-				<circle class="st1" cx="7" cy="25" r="0.5" />
-				<circle class="st1" cx="25" cy="7" r="0.5" />
-				<circle class="st1" cx="25" cy="25" r="0.5" />
-			</g>
-			<circle v-else cx="16" cy="16" r="2" />
+			<circle cx="16" cy="16" r="2" />
 		</SvgIcon>
 		<label class="label" v-if="!editable">
 			{{ toLabel(name) }}
@@ -47,11 +36,15 @@
 </template>
 
 <script lang="ts">
+import {flow} from 'fp-ts/lib/function'
+import * as O from 'fp-ts/lib/Option'
 import _ from 'lodash'
 import {computed, defineComponent, inject, PropType, provide} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
+import {Validator} from '@/lib/fp'
+import {generateUniqueKeyValidator} from '@/lib/validator'
 
 import InputSchema from './InputSchema.vue'
 import {Data, Schema} from './type'
@@ -81,6 +74,14 @@ export default defineComponent({
 			type: Array as PropType<string[]>,
 			default: () => [],
 		},
+		validator: {
+			type: Function as PropType<Validator<string>>,
+			default: O.some,
+		},
+		infix: {
+			type: String,
+			default: ' ',
+		},
 	},
 	emits: ['update:modelValue', 'update:name', 'delete'],
 	beforeCreate: function () {
@@ -94,18 +95,14 @@ export default defineComponent({
 
 		const nested = computed(() => depth >= 1)
 
-		function validateName(v: string) {
-			// Check if empty
-			if (v.trim() === '') {
-				return null
-			}
-			// Check if duplicated key exists
-			if (_.difference(props.allNames, [props.name]).includes(v)) {
-				return null
-			}
-
-			return v
-		}
+		const validateName = computed<Validator<string>>(() => {
+			const namesToAvoid = _.difference(props.allNames, [props.name])
+			return flow(
+				props.validator,
+				O.chain(generateUniqueKeyValidator(namesToAvoid, props.infix)),
+				O.chain(props.validator)
+			)
+		})
 
 		function resetToDefault() {
 			const newValue = cast(undefined, props.schema)
@@ -122,6 +119,7 @@ export default defineComponent({
 
 .InputSchemaEntry
 	display grid
+	cursor grab
 	grid-template-columns 1.2em 7em 1fr
 	gap 0.5em
 
@@ -131,9 +129,6 @@ export default defineComponent({
 	& > .icon
 		width 1.2em
 		height $input-height
-
-	& > .handle
-		cursor move
 
 	& > .label, & > .icon
 		line-height $input-height

@@ -13,7 +13,7 @@ export type Schema =
 export interface SchemaConst {
 	type: 'const'
 	value: DataPrimitive
-	show: boolean
+	show?: boolean
 }
 
 export interface SchemaBoolean {
@@ -53,6 +53,8 @@ export interface SchemaObject {
 	}
 	required: string[]
 	additionalProperties?: Schema
+	additionalValidator?: Validator<string>
+	additionalInfix?: string
 }
 
 export interface SchemaUnion {

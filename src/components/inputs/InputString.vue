@@ -8,7 +8,7 @@
 		:style="inputStyle"
 		@input="onInput"
 		@blur="onBlur"
-		@keydown.enter="onBlur"
+		@keypress.enter="onBlur"
 	/>
 </template>
 
@@ -62,30 +62,26 @@ export default defineComponent({
 			}
 		})
 
-		function onInput(e: InputEvent) {
+		function onInput(e: KeyboardEvent) {
 			!props.updateOnBlur && update(e, false)
 		}
 
-		function onBlur(e: InputEvent) {
+		function onBlur(e: KeyboardEvent) {
 			update(e, true)
 		}
 
-		function update(e: InputEvent, resetInput: boolean) {
+		function update(e: KeyboardEvent, resetInput: boolean) {
 			const target = e.target as HTMLInputElement
 			let str: string = target.value
 
 			const ret = props.validator(str)
 
-			if (isNone(ret)) {
-				if (resetInput) {
-					target.value = props.modelValue
-				}
+			if (isNone(ret) || props.modelValue === ret.value) {
+				if (resetInput) target.value = props.modelValue
 				return
 			}
 
-			if (props.modelValue !== ret.value) {
-				context.emit('update:modelValue', ret.value)
-			}
+			context.emit('update:modelValue', ret.value)
 		}
 
 		return {
