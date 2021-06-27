@@ -6,10 +6,9 @@ import keycode from 'keycode'
 import _ from 'lodash'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
+import useEfficientEmit from '@/components/use/use-efficient-emit'
 import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
-
-import useEfficientEmit from '../use/use-efficient-emit'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 

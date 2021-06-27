@@ -1,6 +1,6 @@
 <template>
 	<component
-		v-bind:is="ui"
+		:is="ui"
 		:modelValue="modelValue"
 		v-bind="schema"
 		@update:modelValue="$emit('update:modelValue', $event)"
@@ -10,10 +10,9 @@
 <script lang="ts">
 import {computed, defineComponent, PropType} from 'vue'
 
-import InputNumber from '@/components/inputs/InputNumber.vue'
+import InputNumber from '@/components/inputs/InputNumber'
 import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
 
 import {SchemaNumber} from './type'
 
@@ -22,7 +21,6 @@ export default defineComponent({
 	components: {
 		angle: InputRotery,
 		number: InputNumber,
-		slider: InputSlider,
 		seed: InputSeed,
 	},
 	props: {

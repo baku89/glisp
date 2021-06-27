@@ -129,7 +129,7 @@ export default defineComponent({
 			properties: {
 				string: {type: 'string'},
 				code: {type: 'string', multiline: true, monospace: true},
-				number: {type: 'number', ui: 'slider', min: 0, max: 100},
+				number: {type: 'number', min: 0, max: 100},
 				angle: {type: 'number', ui: 'angle'},
 				boolean: {type: 'boolean'},
 				color: {type: 'color'},

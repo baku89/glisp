@@ -9,7 +9,7 @@
 		</p>
 		<p>
 			Low Freq
-			<InputSlider
+			<InputNumber
 				v-model="lowFreq"
 				:min="40"
 				:max="640"
@@ -19,7 +19,7 @@
 		</p>
 		<p>
 			High Freq
-			<InputSlider
+			<InputNumber
 				v-model="highFreq"
 				:min="80"
 				:max="1252"
@@ -29,7 +29,7 @@
 		</p>
 		<p>
 			Amp
-			<InputSlider
+			<InputNumber
 				v-model="amp"
 				:min="0"
 				:max="1"
@@ -39,7 +39,7 @@
 		</p>
 		<p>
 			Duration
-			<InputSlider
+			<InputNumber
 				v-model="duration"
 				:min="0"
 				:max="100"
@@ -49,7 +49,7 @@
 		</p>
 		<p>
 			Sample Integer Value
-			<InputSlider
+			<InputNumber
 				:modelValue="sampleInteger"
 				@update:modelValue="updateSampleInteger"
 				:min="0"
@@ -66,14 +66,14 @@ import {clamp} from 'lodash'
 import {computed, defineComponent, ref} from 'vue'
 
 import InputButton from '@/components/inputs/InputButton.vue'
-import InputSlider from '@/components/inputs/InputSlider.vue'
+import InputNumber from '@/components/inputs/InputNumber'
 import useScheme from '@/components/use/use-scheme'
 
 export default defineComponent({
 	name: 'PageHaptics',
 	components: {
 		InputButton,
-		InputSlider,
+		InputNumber,
 	},
 	setup() {
 		useScheme()

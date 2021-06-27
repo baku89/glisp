@@ -1,7 +1,12 @@
 <template>
-	<div class="InputNumber" :class="{tweaking}" ref="dragEl" v-bind="$attrs">
+	<div
+		class="InputNumberUnranged"
+		:class="{tweaking}"
+		ref="dragEl"
+		v-bind="$attrs"
+	>
 		<input
-			class="InputNumber__input"
+			class="InputNumberUnranged__input"
 			type="text"
 			:value="displayValue"
 			@blur="onBlur"
@@ -12,7 +17,7 @@
 	<teleport to="body">
 		<template v-if="tweaking">
 			<div
-				class="InputNumber__overlay-label"
+				class="InputNumberUnranged__overlay-label"
 				:class="[tweakLabelClass]"
 				:style="{
 					top: origin[1] + 'px',
@@ -30,13 +35,13 @@
 import {some} from 'fp-ts/lib/Option'
 import {defineComponent, PropType, ref} from 'vue'
 
+import useDraggable from '@/components/use/use-draggable'
 import {Validator} from '@/lib/fp'
 
-import useDraggable from '../use/use-draggable'
 import useNumberInput from './use-number-input'
 
 export default defineComponent({
-	name: 'InputNumber',
+	name: 'InputNumberUnranged',
 	props: {
 		modelValue: {
 			type: Number,
@@ -136,7 +141,7 @@ export default defineComponent({
 <style lang="stylus">
 @import './use-number-input.styl'
 
-.InputNumber
+.InputNumberUnranged
 	width 6rem
 	use-number()
 </style>

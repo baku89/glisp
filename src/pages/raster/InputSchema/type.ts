@@ -23,7 +23,7 @@ export interface SchemaBoolean {
 
 export interface SchemaNumber {
 	type: 'number'
-	ui?: 'number' | 'slider' | 'angle' | 'seed'
+	ui?: 'number' | 'angle' | 'seed'
 	min?: number
 	max?: number
 	default?: number

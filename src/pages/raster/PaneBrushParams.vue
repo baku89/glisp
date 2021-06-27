@@ -46,7 +46,13 @@ export default defineComponent({
 						if (def.clampMax && _.isNumber(def.max)) {
 							validator = flow(validator, O.map(_.partial(Math.min, def.max)))
 						}
-						properties[name] = {...def, type: 'number', ui: 'slider', validator}
+						properties[name] = {
+							min: 0,
+							max: 1,
+							...def,
+							type: 'number',
+							validator,
+						}
 						break
 					}
 					case 'angle':
