@@ -136,7 +136,7 @@ $size = 3em
 		margin-left 0em
 		transform translateY(-50%)
 		tooltip()
-		color base16('04')
+		color base16('05')
 		opacity 0
 		pointer-events none
 		input-transition(all)
