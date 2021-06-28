@@ -4,10 +4,11 @@
 			<template #left><AppHeaderBreadcumb /></template>
 		</AppHeader>
 		<main class="PageIndex__main document">
-			<ul v-for="page in pages" :key="page">
-				<li>
+			<ul>
+				<li v-for="page in pages" :key="page">
 					<a :href="`${page}.html`">{{ page }}</a>
 				</li>
+				<li><a href="docs">docs</a></li>
 			</ul>
 		</main>
 	</div>

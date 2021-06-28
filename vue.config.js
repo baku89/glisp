@@ -163,6 +163,7 @@ module.exports = {
 				patterns: [
 					{from: 'assets/logo.png', to: '.'},
 					{from: 'assets/codicon.ttf', to: '.'},
+					{from: 'docs', to: './docs'},
 				],
 			},
 		])
