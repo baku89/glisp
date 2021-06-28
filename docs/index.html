@@ -1,251 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>(doc 'glisp)</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="description" content="Description" />
+		<meta
+			name="viewport"
+			content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+		/>
+		<link
+			rel="apple-touch-icon"
+			sizes="180x180"
+			href="./favicon/apple-touch-icon.png"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="32x32"
+			href="./favicon/favicon-32x32.png"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="16x16"
+			href="./favicon/favicon-16x16.png"
+		/>
+		<link rel="manifest" href="./favicon/site.webmanifest" />
+		<link rel="stylesheet" href="//unpkg.com/docsify/lib/themes/buble.css" />
+		<link
+			rel="stylesheet"
+			href="//cdn.jsdelivr.net/npm/prismjs@1.20.0/themes/prism-tomorrow.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdelivr.net/gh/tonsky/FiraCode@4/distr/fira_code.css"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600&:ital,wght@1,600&family=Merriweather:wght@300&display=swap"
+			rel="stylesheet"
+		/>
 
-<head>
-	<meta charset="UTF-8" />
-	<title>(doc 'glisp)</title>
-	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-	<meta name="description" content="Description" />
-	<meta name="viewport"
-		content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
-	<link rel="apple-touch-icon" sizes="180x180" href="./favicon/apple-touch-icon.png" />
-	<link rel="icon" type="image/png" sizes="32x32" href="./favicon/favicon-32x32.png" />
-	<link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png" />
-	<link rel="manifest" href="./favicon/site.webmanifest" />
-	<link rel="stylesheet" href="//unpkg.com/docsify/lib/themes/buble.css" />
-	<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/prismjs@1.20.0/themes/prism-tomorrow.css" />
-	<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css" />
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/tonsky/FiraCode@4/distr/fira_code.css" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600&:ital,wght@1,600&family=Merriweather:wght@300&display=swap"
-		rel="stylesheet" />
-
-	<style>
-		html {
-			font-size: 16px;
-		}
-
-		html,
-		body {
-			font-family: 'Fira Sans', '游ゴシック体', YuGothic, '游ゴシック',
-				'Yu Gothic', sans-serif;
-		}
-
-		body {
-			font-size: 1rem;
-		}
-
-		a {
-			text-decoration: none;
-			border-bottom: 1px solid #ccc;
-		}
-
-		a:link,
-		a:visited {
-			color: #555;
-		}
-
-		.anchor {
-			border-bottom: none;
-		}
-
-		h1,
-		h2,
-		h3,
-		h4,
-		h5,
-		h6 {
-			font-family: 'Merriweather', Garamond, Georgia, yu-mincho-pr6n, YuMincho,
-				Yu Mincho, YuMincho, '游明朝', Hiragino Mincho ProN, 'HGS明朝E', serif;
-		}
-
-		code {
-			font-family: 'Fira Code', 'Source Han Code JP', monospace, sans-serif !important;
-			font-size: 0.9em;
-		}
-
-		pre code {
-			line-height: 1.5em !important;
-			font-size: 12px !important;
-		}
-
-		.app-name {
-			font-family: 'Fira Code', monospace, sans-serif !important;
-			letter-spacing: 0.3em;
-		}
-
-		.sidebar {
-			padding-top: 20px;
-		}
-
-		.github-corner svg {
-			width: 60px;
-			height: 60px;
-		}
-
-		.app-nav {
-			margin-right: 50px;
-		}
-
-		.app-name-link {
-			display: block;
-			margin-left: auto;
-			margin-right: auto;
-			width: 4rem;
-			height: 4rem;
-			overflow: hidden;
-		}
-
-		.sidebar>h1 a {
-			border-bottom: none;
-		}
-
-		.sidebar li {
-			font-size: 0.9rem;
-			padding: 0em;
-		}
-
-		.markdown-section {
-			max-width: none;
-			width: min(95%, 60rem);
-		}
-
-		.markdown-section ol,
-		.markdown-section p,
-		.markdown-section ul {
-			line-height: 1.8;
-		}
-
-		iframe.glisp-embed {
-			background: #f8f8f8;
-			border-left: 2px solid #eee;
-		}
-
-		.markdown-section>iframe {
-			border: none;
-		}
-
-		.markdown-section li {
-			list-style-type: circle;
-			margin-bottom: 0.2em;
-		}
-
-		/* Mobile media query */
-		@media screen and (max-width: 768px) {
+		<style>
 			html {
-				font-size: 15px;
+				font-size: 16px;
 			}
-		}
 
-		.large-image {
-			display: block;
-			max-width: min(30rem, 100%);
-			margin-left: auto;
-			margin-right: auto;
-		}
-	</style>
-</head>
+			html,
+			body {
+				font-family: 'Fira Sans', '游ゴシック体', YuGothic, '游ゴシック',
+					'Yu Gothic', sans-serif;
+			}
 
-<body>
-	<div id="app"></div>
-	<script>
-		function generateEmbedURL(sketch) {
-			const embedURL =
-				location.hostname === 'localhost'
-					? 'http://localhost:8080/embed.html'
-					: 'https://glisp.app/stable/embed.html'
+			body {
+				font-size: 1rem;
+			}
 
-			const url = new URL(embedURL)
-			url.searchParams.set('code', encodeURI(sketch))
-			return url.toString()
-		}
+			a {
+				text-decoration: none;
+				border-bottom: 1px solid #ccc;
+			}
 
-		window.$docsify = {
-			name: "'(GLISP)",
-			repo: 'baku89/glisp',
-			coverpage: true,
-			logo: './favicon/android-chrome-512x512.png',
-			loadNavbar: true,
-			loadSidebar: true,
-			subMaxLevel: 2,
-			relativePath: true,
-			auto2top: true,
-			themeColor: '#444',
-			plugins: [
-				function (hook, vm) {
-					hook.afterEach((html, next) => {
-						html = html.replace(
-							/data-lang="cljs"/gi,
-							'data-lang="clojure" class="glisp-code"'
-						)
+			a:link,
+			a:visited {
+				color: #555;
+			}
 
-						// Set the logo link to the root of each language
-						const logoLink = document.querySelector('.app-name-link')
+			.anchor {
+				border-bottom: none;
+			}
 
-						const lang = location.hash
-							.slice(1)
-							.split('/')
-							.filter(p => !!p)[0]
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6 {
+				font-family: 'Merriweather', Garamond, Georgia, yu-mincho-pr6n, YuMincho,
+					Yu Mincho, YuMincho, '游明朝', Hiragino Mincho ProN, 'HGS明朝E', serif;
+			}
 
-						if (['en'].includes(lang)) {
-							logoLink.href = `#/${lang}/`
-						} else {
-							logoLink.href = '.'
-						}
+			code {
+				font-family: 'Fira Code', 'Source Han Code JP', monospace, sans-serif !important;
+				font-size: 0.9em;
+			}
 
-						next(html)
-					})
+			pre code {
+				line-height: 1.5em !important;
+				font-size: 12px !important;
+			}
 
-					hook.doneEach(() => {
-						const codeBlocks = document.querySelectorAll('pre.glisp-code')
+			.app-name {
+				font-family: 'Fira Code', monospace, sans-serif !important;
+				letter-spacing: 0.3em;
+			}
 
-						codeBlocks.forEach(preEl => {
-							const parentEl = preEl.parentElement
-							const codeEl = preEl.firstChild
+			.sidebar {
+				padding-top: 20px;
+			}
 
-							const index = [...parentEl.children].indexOf(preEl)
+			.github-corner svg {
+				width: 60px;
+				height: 60px;
+			}
 
-							const iframeEl = document.createElement('iframe')
-							iframeEl.src = generateEmbedURL(codeEl.textContent)
-							iframeEl.classList.add('glisp-embed')
-							iframeEl.frameBorder = '0'
-							iframeEl.scrolling = 'no'
+			.app-nav {
+				margin-right: 50px;
+			}
 
-							parentEl.replaceChild(iframeEl, preEl)
+			.app-name-link {
+				display: block;
+				margin-left: auto;
+				margin-right: auto;
+				width: 4rem;
+				height: 4rem;
+				overflow: hidden;
+			}
+
+			.sidebar > h1 a {
+				border-bottom: none;
+			}
+
+			.sidebar li {
+				font-size: 0.9rem;
+				padding: 0em;
+			}
+
+			.markdown-section {
+				max-width: none;
+				width: min(95%, 60rem);
+			}
+
+			.markdown-section ol,
+			.markdown-section p,
+			.markdown-section ul {
+				line-height: 1.8;
+			}
+
+			iframe.glisp-embed {
+				background: #f8f8f8;
+				border-left: 2px solid #eee;
+			}
+
+			.markdown-section > iframe {
+				border: none;
+			}
+
+			.markdown-section li {
+				list-style-type: circle;
+				margin-bottom: 0.2em;
+			}
+
+			/* Mobile media query */
+			@media screen and (max-width: 768px) {
+				html {
+					font-size: 15px;
+				}
+			}
+
+			.large-image {
+				display: block;
+				max-width: min(30rem, 100%);
+				margin-left: auto;
+				margin-right: auto;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="app"></div>
+		<script>
+			function generateEmbedURL(sketch) {
+				const embedURL = 'https://glisp.app/stable/embed.html'
+				// const embedURL =
+				// 	location.hostname === 'localhost'
+				// 		? 'http://localhost:8080/embed.html'
+				// 		: 'https://glisp.app/stable/embed.html'
+
+				const url = new URL(embedURL)
+				url.searchParams.set('code', encodeURI(sketch))
+				return url.toString()
+			}
+
+			window.$docsify = {
+				name: "'(GLISP)",
+				repo: 'baku89/glisp',
+				coverpage: true,
+				logo: './favicon/android-chrome-512x512.png',
+				loadNavbar: true,
+				loadSidebar: true,
+				subMaxLevel: 2,
+				relativePath: true,
+				auto2top: true,
+				themeColor: '#444',
+				plugins: [
+					function (hook, vm) {
+						hook.afterEach((html, next) => {
+							html = html.replace(
+								/data-lang="cljs"/gi,
+								'data-lang="clojure" class="glisp-code"'
+							)
+
+							// Set the logo link to the root of each language
+							const logoLink = document.querySelector('.app-name-link')
+
+							const lang = location.hash
+								.slice(1)
+								.split('/')
+								.filter(p => !!p)[0]
+
+							if (['en'].includes(lang)) {
+								logoLink.href = `#/${lang}/`
+							} else {
+								logoLink.href = '.'
+							}
+
+							next(html)
 						})
-					})
 
-					hook.beforeEach((html) => {
-						return html
-							+ '\n\n----\n\n'
-							+ '<a href="https://docsify.js.org" target="_blank" style="color: inherit; font-weight: normal; text-decoration: none; font-size: 0.8em;">Powered by docsify</a>'
+						hook.doneEach(() => {
+							const codeBlocks = document.querySelectorAll('pre.glisp-code')
 
-					})
-				},
-			],
-		}
+							codeBlocks.forEach(preEl => {
+								const parentEl = preEl.parentElement
+								const codeEl = preEl.firstChild
 
-		function getFrameByEvent(event) {
-			return [].slice
-				.call(document.getElementsByTagName('iframe'))
-				.filter(function (iframe) {
-					return iframe.contentWindow === event.source
-				})[0]
-		}
+								const index = [...parentEl.children].indexOf(preEl)
 
-		window.onmessage = e => {
-			const [width, height] = e.data
-			const iframe = getFrameByEvent(event)
+								const iframeEl = document.createElement('iframe')
+								iframeEl.src = generateEmbedURL(codeEl.textContent)
+								iframeEl.classList.add('glisp-embed')
+								iframeEl.frameBorder = '0'
+								iframeEl.scrolling = 'no'
 
-			if (width !== undefined && height !== undefined) {
-				iframe.width = width
-				iframe.height = height
+								parentEl.replaceChild(iframeEl, preEl)
+							})
+						})
+
+						hook.beforeEach(html => {
+							return (
+								html +
+								'\n\n----\n\n' +
+								'<a href="https://docsify.js.org" target="_blank" style="color: inherit; font-weight: normal; text-decoration: none; font-size: 0.8em;">Powered by docsify</a>'
+							)
+						})
+					},
+				],
 			}
-		}
-	</script>
-	<script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
-	<script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-clojure.min.js"></script>
-	<script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
-</body>
 
+			function getFrameByEvent(event) {
+				return [].slice
+					.call(document.getElementsByTagName('iframe'))
+					.filter(function (iframe) {
+						return iframe.contentWindow === event.source
+					})[0]
+			}
+
+			window.onmessage = e => {
+				const [width, height] = e.data
+				const iframe = getFrameByEvent(event)
+
+				if (width !== undefined && height !== undefined) {
+					iframe.width = width
+					iframe.height = height
+				}
+			}
+		</script>
+		<script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
+		<script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-clojure.min.js"></script>
+		<script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
+	</body>
 </html>
