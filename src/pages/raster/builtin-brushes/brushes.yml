@@ -74,38 +74,6 @@ pinch:
       type: 'slider'
       max: 0.5
 
-directional-blur:
-  label: 'Directional Blur'
-  icon: |
-    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
-    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
-    <path d="M16,24c-2.2,0-3.2-1.5-3.6-2.1c-0.3-0.6-1-2.3,0.1-4.1"/>
-    <line x1="22.1" y1="9.9" x2="29" y2="3"/>
-    <line x1="3" y1="29" x2="7" y2="25"/>
-    <polyline points="3,24 3,29 8,29 "/>
-    <polyline points="29,8 29,3 24,3 "/>
-  frag: |
-    void main() {
-      vec2 step = vec2(cos(angle), sin(angle)) * width;
-      vec4 tex = vec4(0.0);
-      
-      for (int i = -3; i <= 3; i++) {
-        tex += texture2D(inputTexture, uv + step * float(i) / 3.0);
-      }
-
-      tex /= 7.0;
-      
-      gl_FragColor = tex;
-    }
-  params:
-    angle:
-      type: 'angle'
-    width:
-      type: 'slider'
-      default: 0.005
-      min: 0
-      max: .02
-
 polar-marble:
   label: Polar Marble
   icon: |
@@ -401,6 +369,108 @@ gaussian_blur:
       min: 0
       max: 1
 
+directional-blur:
+  label: 'Directional Blur'
+  icon: |
+    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
+    <path d="M16,5L9.2,15.6C5.8,20.9,9.6,28,16,28h0c6.4,0,10.2-7.1,6.8-12.4L16,5z"/>
+    <path d="M16,24c-2.2,0-3.2-1.5-3.6-2.1c-0.3-0.6-1-2.3,0.1-4.1"/>
+    <line x1="22.1" y1="9.9" x2="29" y2="3"/>
+    <line x1="3" y1="29" x2="7" y2="25"/>
+    <polyline points="3,24 3,29 8,29 "/>
+    <polyline points="29,8 29,3 24,3 "/>
+  frag: |
+    void main() {
+      vec2 step = vec2(cos(angle), sin(angle)) * width;
+      vec4 tex = vec4(0.0);
+      
+      for (int i = -3; i <= 3; i++) {
+        tex += texture2D(inputTexture, uv + step * float(i) / 3.0);
+      }
+
+      tex /= 7.0;
+      
+      gl_FragColor = tex;
+    }
+  params:
+    angle:
+      type: 'angle'
+    width:
+      type: 'slider'
+      default: 0.005
+      min: 0
+      max: .02
+
+sharpen:
+  label: Sharpen
+  icon: |-
+    <polygon points="16,5 5,28 27,28 "/>
+    <line x1="14.1" y1="17.4" x2="10" y2="26"/>
+  frag: |
+    vec4 sample(float dx, float dy) {
+      return texture2D(inputTexture, uv + vec2(-dx, -dy));
+    }
+
+    void main() {
+      float dx = 1. / resolution.x;
+      float dy = 1. / resolution.y;
+
+      vec4 original = sample(.0, .0);
+
+      vec4 tex = vec4(0.0);
+
+      tex += sample(-2.*dx, -2.*dy) * 1.;
+      tex += sample(-1.*dx, -2.*dy) * 4.;
+      tex += sample(    0., -2.*dy) * 6.;
+      tex += sample( 1.*dx, -2.*dy) * 4.;
+      tex += sample( 2.*dx, -2.*dy) * 1.;
+
+      tex += sample(-2.*dx, -dy) *  4.;
+      tex += sample(-1.*dx, -dy) * 16.;
+      tex += sample(    0., -dy) * 24.;
+      tex += sample( 1.*dx, -dy) * 16.;
+      tex += sample( 2.*dx, -dy) *  4.;
+
+      tex += sample(-2.*dx, 0.) *    6.;
+      tex += sample(-1.*dx, 0.) *   24.;
+      tex += sample(    0., 0.) * -476.;
+      tex += sample( 1.*dx, 0.) *   24.;
+      tex += sample( 2.*dx, 0.) *    6.;
+
+      tex += sample(-2.*dx, dy) *  4.;
+      tex += sample(-1.*dx, dy) * 16.;
+      tex += sample(    0., dy) * 24.;
+      tex += sample( 1.*dx, dy) * 16.;
+      tex += sample( 2.*dx, dy) *  4.;
+
+      tex += sample(-2.*dx, 2.*dy) * 1.;
+      tex += sample(-1.*dx, 2.*dy) * 4.;
+      tex += sample(    0., 2.*dy) * 6.;
+      tex += sample( 1.*dx, 2.*dy) * 4.;
+      tex += sample( 2.*dx, 2.*dy) * 1.;
+
+      tex /= -256.;
+
+      float mask = smoothstep(radius, 0., distance(uv, cursor));
+     
+      gl_FragColor = mix(original, tex, mask * deltaTime * intensity);
+    }
+  params:
+    radius:
+      type: slider
+      default: 0.2
+      min: 0
+      max: 1
+      clampMin: true
+      clampMax: false
+    intensity:
+      type: slider
+      default: 1
+      min: 0
+      max: 1
+      clampMin: true
+      clampMax: true
+
 hsl_brush:
   label: HSL Brush
   icon: |
@@ -682,3 +752,56 @@ diffuse:
       clampMax: false
     seed:
       type: seed
+
+moses:
+  label: Moses
+  icon: |
+    <path d="M3,10c2.2,0,4-2.2,4-5"/>
+    <path d="M7,5c0,2.8,1.8,5,4,5h10c2.2,0,4-2.2,4-5"/>
+    <path d="M25,5c0,2.7,1.7,4.8,3.8,5"/>
+    <path d="M3,18c2.2,0,4-2.2,4-5"/>
+    <path d="M7,13c0,2.8,1.8,5,4,5h10c2.2,0,4-2.2,4-5"/>
+    <path d="M25,13c0,2.7,1.7,4.8,3.8,5"/>
+    <path d="M3,26c2.2,0,4-2.2,4-5"/>
+    <path d="M7,21c0,2.8,1.8,5,4,5h10c2.2,0,4-2.2,4-5"/>
+    <path d="M25,21c0,2.7,1.7,4.8,3.8,5"/>
+  frag: |
+    float fit(float t, float smin, float smax, float dmin, float dmax) {
+      float s = (t - smin) / (smax - smin);
+      s = clamp(s, 0., 1.);
+      return mix(dmin, dmax, s);
+    }
+
+    void main() {
+      vec2 aspect = vec2(1., resolution.y / resolution.x);
+
+      vec2 dir = vec2(cos(angle), sin(angle));
+
+      vec2 pos = (uv - cursor) * aspect;
+      float d = dot(pos, dir);
+      float flip = -sign(d);
+      float ratioMul = fit(ratio, flip * -1., flip * 1., 0., 2.);
+
+      float disp = min(abs(d), speed * deltaTime * ratioMul);
+      vec2 uv2 = uv + dir * disp * flip;
+
+      gl_FragColor = texture2D(inputTexture, uv2);
+    }
+  params:
+    angle:
+      type: angle
+      default: 0
+    speed:
+      type: slider
+      default: 0
+      min: 0
+      max: 1
+      clampMin: false
+      clampMax: false
+    ratio:
+      type: slider
+      default: 0
+      min: -1
+      max: 1
+      clampMin: true
+      clampMax: true
