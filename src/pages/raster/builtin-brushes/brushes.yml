@@ -6,8 +6,10 @@ brush:
     <path d="M11,17c-6,0-3.9,6.3-9,8c-0.7,0.2-0.9,1.5-0.3,1.7c8.8,3,13.3-1.6,13.2-5.7"/>
   frag: |
     vec4 blendOver(vec4 A, vec4 B) {
-      float alpha = B.a + A.a * (1. - B.a);
-      vec3 rgb = (B.rgb * B.a + A.rgb * A.a * (1. - B.a)) / alpha;
+      float alpha = A.a * (1. - B.a) + B.a;
+      vec3 rgb = alpha != 0.
+        ? (A.rgb * A.a * (1. - B.a) + B.rgb * B.a) / alpha
+        : B.rgb;
       return vec4(rgb, alpha);
     }
 
