@@ -1630,7 +1630,7 @@ export function printForm(form: Form): string {
 				return 'Void'
 			// case 'restVector': {
 			// 	const val: Form[] = [...value.value]
-			// 	const delimiters = ['', ...Array(val.length - 1).fill(' '), '', '']
+			// 	const delimiters = ['', ..._.times(val.length - 1, () => ' '), '', '']
 			// 	val.splice(-1, 0, createExpSymbol('...'))
 			// 	return printSeq('[', ']', val, delimiters)
 			// }
@@ -1642,7 +1642,7 @@ export function printForm(form: Form): string {
 				const delimiters =
 					pairs.length === 0
 						? ['']
-						: ['', ...Array(pairs.length - 1).fill(' '), '']
+						: ['', ..._.times(pairs.length - 1, () => ' '), '']
 				return printSeq('{', '}', coll, delimiters)
 			}
 			case 'fn': {

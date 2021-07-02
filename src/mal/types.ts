@@ -1,3 +1,5 @@
+import _ from 'lodash'
+
 import Env from './env'
 
 export enum MalType {
@@ -382,7 +384,7 @@ abstract class MalSeqBase extends MalCollBase<MalVal[]> {
 			this._delimiters =
 				this._value.length === 0
 					? ['']
-					: ['', ...Array(this._value.length - 1).fill(' '), '']
+					: ['', ..._.times(this._value.length - 1, () => ' '), '']
 		}
 		return this._delimiters
 	}
@@ -633,7 +635,7 @@ export class MalMap extends MalCollBase<MalMapValue> {
 		if (!this._delimiters) {
 			const count = this.count
 			this._delimiters = this._delimiters =
-				count === 0 ? [''] : ['', ...Array(count * 2 - 1).fill(' '), '']
+				count === 0 ? [''] : ['', ..._.times(count * 2 - 1, () => ' '), '']
 		}
 		return this._delimiters
 	}

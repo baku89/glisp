@@ -1,5 +1,6 @@
 // import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {mat2d, vec2} from 'gl-matrix'
+import _ from 'lodash'
 import {computed, onBeforeMount, Ref, ref, SetupContext} from 'vue'
 
 import {
@@ -292,9 +293,10 @@ export default function useHandle(
 				newParams = retParams
 			} else if (MalVector.is(replace)) {
 				newParams = [..._unevaluatedParams]
-				const pairs = (typeof replace[0] === 'number'
-					? [(replace as any) as [number, MalVal]]
-					: ((replace as any) as [number, MalVal][])
+				const pairs = (
+					typeof replace[0] === 'number'
+						? [replace as any as [number, MalVal]]
+						: (replace as any as [number, MalVal][])
 				).map(
 					([si, e]) =>
 						[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
@@ -319,9 +321,7 @@ export default function useHandle(
 		}
 
 		if (!updatedIndices) {
-			updatedIndices = Array(newParams.length)
-				.fill(0)
-				.map((_, i) => i)
+			updatedIndices = _.range(newParams.length)
 		}
 
 		// Execute the backward evaluation

@@ -74,6 +74,7 @@
 import 'normalize.css'
 
 import JSON5 from 'json5'
+import _ from 'lodash'
 import {computed, defineComponent, reactive, ref, watchEffect} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor/GlispEditor.vue'
@@ -106,7 +107,7 @@ function getElementCountOfGLSLType(type: GLSLType) {
 function generateRandomColor(colorSpace: ColorSpaceType): number[] {
 	return colorSpace.flatMap(c => {
 		const count = getElementCountOfGLSLType(c.type)
-		return new Array(count).fill(0).map(Math.random)
+		return _.times(count, Math.random)
 	})
 }
 

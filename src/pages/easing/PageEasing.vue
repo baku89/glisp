@@ -72,7 +72,7 @@
 import 'normalize.css'
 
 import {useElementSize} from '@vueuse/core'
-import {clamp} from 'lodash'
+import _, {clamp} from 'lodash'
 import {
 	computed,
 	defineComponent,
@@ -155,7 +155,7 @@ export default defineComponent({
 				.join(' ')
 		}
 
-		const initialPos = new Array(duration).fill(0).map((_, i) => {
+		const initialPos = _.times(duration, i => {
 			const phase = (i / (duration - 1)) * Math.PI
 			return fit(Math.cos(phase), 1, -1, 0, 1)
 		})
