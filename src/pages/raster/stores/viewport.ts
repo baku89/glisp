@@ -336,13 +336,13 @@ export default function useModuleViewport(): StoreModule {
 
 		return [
 			'precision mediump float;',
-			'varying vec2 uv;                  // normalized uv',
-			'uniform sampler2D inputTexture;   // input image',
-			'uniform vec2 cursor;              // cursor coordinate (in UV)',
-			'uniform vec2 prevCursor;          // previous position of cursor',
-			'uniform float deltaTime;          // render time (in sec)',
-			'uniform vec2 resolution;          // artboard resolution (in px)',
-			'uniform int frame;                // frame number',
+			'varying vec2 uv;                // normalized uv',
+			'uniform sampler2D inputTexture; // input image',
+			'uniform vec2 cursor;            // cursor coordinate (in UV)',
+			'uniform vec2 prevCursor;        // previous position of cursor',
+			'uniform float deltaTime;        // render time (in sec)',
+			'uniform vec2 resolution;        // artboard resolution (in px)',
+			'uniform int frame;              // frame number',
 			...variables,
 		]
 			.flat()
