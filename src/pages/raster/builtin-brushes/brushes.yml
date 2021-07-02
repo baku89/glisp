@@ -618,7 +618,7 @@ smudge:
 
     void main() {
       float d = fit(distance(uv, cursor), 0., radius, 1., 0.);
-      float mask = texture2D(profile, vec2(d, 0)).r;
+      float mask = profile(d);
 
       vec2 cursorOffset = prevCursor - cursor;
 
