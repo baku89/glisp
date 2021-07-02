@@ -122,9 +122,7 @@ export default function useModuleViewport(): StoreModule {
 
 					const [x1, y1, x2, y2] = value as number[]
 					const easing = BezierEasing(x1, y1, x2, y2)
-					const data = Array(32)
-						.fill(0)
-						.map((_, i) => easing(i / 31))
+					const data = _.times(32, i => easing(i / 31))
 					value = regl.value.texture({
 						width: 32,
 						height: 1,
@@ -215,9 +213,10 @@ export default function useModuleViewport(): StoreModule {
 			deltaTime: prop('deltaTime'),
 			resolution: prop('resolution'),
 			frame: prop('frame'),
-			..._.mapValues(currentBrush.value.params, (p, n) =>
-				prop(p.type === 'cubicBezier' ? n + 'Texture' : n)
-			),
+			..._.chain(currentBrush.value.params)
+				.mapKeys((p, k) => (p.type === 'cubicBezier' ? `${k}Texture` : k))
+				.mapValues((_, k) => prop(k))
+				.value(),
 		}
 
 		return regl.value({
