@@ -104,6 +104,7 @@ export default function useModuleViewport(): StoreModule {
 		const textureCache = {} as Record<string, Regl.Texture2D>
 
 		for (const [name, def] of defs) {
+			let uniformName = name
 			let value = params.value[name]
 
 			switch (def.type) {
@@ -117,6 +118,7 @@ export default function useModuleViewport(): StoreModule {
 					break
 				case 'cubicBezier': {
 					textureCache[name]?.destroy()
+					uniformName += 'Texture'
 
 					const [x1, y1, x2, y2] = value as number[]
 					const easing = BezierEasing(x1, y1, x2, y2)
@@ -136,7 +138,7 @@ export default function useModuleViewport(): StoreModule {
 				}
 			}
 
-			data[name] = value
+			data[uniformName] = value
 		}
 		return data
 	})
@@ -213,7 +215,9 @@ export default function useModuleViewport(): StoreModule {
 			deltaTime: prop('deltaTime'),
 			resolution: prop('resolution'),
 			frame: prop('frame'),
-			..._.mapValues(currentBrush.value.params, (_, n) => prop(n)),
+			..._.mapValues(currentBrush.value.params, (p, n) =>
+				prop(p.type === 'cubicBezier' ? n + 'Texture' : n)
+			),
 		}
 
 		return regl.value({
@@ -319,7 +323,10 @@ export default function useModuleViewport(): StoreModule {
 						break
 					}
 					case 'cubicBezier': {
+						const fnName = name
+						name += 'Texture'
 						glslType = 'sampler2D'
+						defines = [`#define ${fnName}(t) texture2D(${name}, vec2(t, 0)).r`]
 						break
 					}
 				}
