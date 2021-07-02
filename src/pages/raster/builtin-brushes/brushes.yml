@@ -661,19 +661,15 @@ tone_curve:
       return mix(dmin, dmax, s);
     }
 
-    float cubicBezier(sampler2D curve, float t) {
-      return texture2D(curve, vec2(t, 0)).r;
-    }
-
     void main() {
       float mask = smoothstep(radius, 0., distance(uv, cursor));
 
       vec4 color = texture2D(inputTexture, uv);
 
       vec4 toned = vec4(
-        cubicBezier(curve, color.r),
-        cubicBezier(curve, color.g),
-        cubicBezier(curve, color.b),
+        curve(curve, color.r),
+        curve(curve, color.g),
+        curve(curve, color.b),
         color.a
       );
 
