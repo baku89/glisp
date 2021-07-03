@@ -1,13 +1,15 @@
 <template>
-	<div class="Popover" v-if="open" ref="targetEl">
-		<slot />
-	</div>
+	<teleport to="#PopoverWrapper">
+		<div class="Popover" v-if="open" ref="target" :style="{top, left}">
+			<slot />
+		</div>
+	</teleport>
 </template>
 
 <script lang="ts">
-import {createPopper, Instance as PopperInstance} from '@popperjs/core'
-import {onClickOutside} from '@vueuse/core'
-import {defineComponent, nextTick, onUnmounted, PropType, ref, watch} from 'vue'
+import {Placement} from '@popperjs/core'
+import {onClickOutside, templateRef} from '@vueuse/core'
+import {defineComponent, PropType, ref, watch} from 'vue'
 
 export default defineComponent({
 	name: 'Popover',
@@ -20,81 +22,69 @@ export default defineComponent({
 			required: true,
 		},
 		placement: {
-			type: String as PropType<
-				| 'auto'
-				| 'auto-start'
-				| 'auto-end'
-				| 'top'
-				| 'bottom'
-				| 'right'
-				| 'left'
-				| 'top-start'
-				| 'top-end'
-				| 'bottom-start'
-				| 'bottom-end'
-				| 'right-start'
-				| 'right-end'
-				| 'left-start'
-				| 'left-end'
-			>,
+			type: String as PropType<Placement>,
 			default: 'top',
 		},
 	},
 	setup(props, context) {
-		const targetEl = ref<null | HTMLElement>(null)
+		if (!document.querySelector('body > #PopoverWrapper')) {
+			const dest = document.createElement('div')
+			dest.id = 'PopoverWrapper'
+			document.body.appendChild(dest)
+		}
 
-		let popperInstance: PopperInstance | undefined
+		const targetEl = templateRef('target')
 
-		let stopWatchClickOutside: ReturnType<typeof onClickOutside>
+		const top = ref('100px'),
+			left = ref('0')
 
-		// Create and destroy popper instance
+		function updatePosition() {
+			if (!props.reference || !targetEl.value) return
+
+			const rb = props.reference.getBoundingClientRect()
+			const vw = window.innerWidth,
+				vh = window.innerHeight
+			const tb = targetEl.value
+
+			left.value = rb.right + 'px'
+			top.value = rb.y + 'px'
+		}
+
 		watch(
 			() => props.open,
-			() => {
-				if (props.open) {
-					nextTick(() => {
-						if (!props.reference || !targetEl.value) {
-							console.warn('Cannot create Popper instance')
-							return
-						}
-						const reference = props.reference
-						const target = targetEl.value
+			open => {
+				if (open) {
+					if (!targetEl.value || !props.reference) {
+						return
+					}
 
-						popperInstance = createPopper(reference, target, {
-							placement: props.placement,
-							onFirstUpdate() {
-								stopWatchClickOutside = onClickOutside(target, () => {
-									context.emit('update:open', false)
-								})
-							},
-						})
+					updatePosition()
+					window.addEventListener('resize', updatePosition)
+					window.addEventListener('scroll', updatePosition)
+
+					const cancel = onClickOutside(targetEl, () => {
+						context.emit('update:open', false)
+						cancel && cancel()
 					})
 				} else {
-					if (stopWatchClickOutside) {
-						stopWatchClickOutside()
-					}
-					hide()
+					window.removeEventListener('resize', updatePosition)
+					window.removeEventListener('scroll', updatePosition)
 				}
-			}
+			},
+			{flush: 'post'}
 		)
 
-		onUnmounted(hide)
-
-		function hide() {
-			popperInstance?.destroy()
-			popperInstance = undefined
-		}
-
-		return {
-			targetEl,
-			hide,
-		}
+		return {left, top}
 	},
 })
 </script>
 
 <style lang="stylus">
-.Popover
-	position relative
+#PopoverWrapper
+	position fixed
+	top 0
 	z-index 100
+
+.Popover
+	position absolute
 </style>
