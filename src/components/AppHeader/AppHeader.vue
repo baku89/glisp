@@ -55,7 +55,7 @@ export default defineComponent({
 		},
 	},
 	setup(props) {
-		const store = inject('store') as Store
+		const store = inject('store', {}) as Store
 
 		const titleBar = ref(
 			/electron/i.test(navigator.userAgent)
