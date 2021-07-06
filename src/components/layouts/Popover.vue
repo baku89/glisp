@@ -12,9 +12,9 @@
 </template>
 
 <script lang="ts">
-import {onClickOutside, templateRef} from '@vueuse/core'
+import {onClickOutside, templateRef, unrefElement} from '@vueuse/core'
 import {clamp} from 'lodash'
-import {defineComponent, PropType, ref, watch} from 'vue'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import {isDecendantElementOf} from '@/lib/dom'
 
@@ -44,17 +44,21 @@ export default defineComponent({
 			document.body.appendChild(dest)
 		}
 
+		const refEl = computed<HTMLElement | null>(() =>
+			unrefElement(props.reference)
+		)
+
 		const targetEl = templateRef('target')
 
 		const top = ref(100),
 			left = ref(0)
 
 		function updatePosition() {
-			if (!props.reference || !targetEl.value) return
+			if (!refEl.value || !targetEl.value) return
 
 			let {placement} = props
 
-			const rb = props.reference.getBoundingClientRect(),
+			const rb = refEl.value.getBoundingClientRect(),
 				tb = targetEl.value.getBoundingClientRect(),
 				vw = window.innerWidth,
 				vh = window.innerHeight
@@ -147,7 +151,7 @@ export default defineComponent({
 			{flush: 'post'}
 		)
 
-		return {left, top}
+		return {left, top, refEl}
 	},
 })
 </script>
