@@ -19,18 +19,7 @@
 		<div class="AppHeader__right"><slot name="right" /></div>
 	</menu>
 	<Popover :reference="menuIcon" :open="menuOpened">
-		<div class="AppHeader__menu">
-			<ul>
-				<li
-					v-for="{name, label, icon, payload} in menuInfo"
-					:key="name"
-					@mouseup="doAction(name, payload)"
-				>
-					<SvgIcon class="icon" mode="block" v-html="icon || ''"></SvgIcon>
-					{{ label || name }}
-				</li>
-			</ul>
-		</div>
+		<Menu :menu="menuItem" />
 	</Popover>
 </template>
 
@@ -38,19 +27,20 @@
 import _ from 'lodash'
 import {computed, defineComponent, inject, PropType, ref} from 'vue-demi'
 
+import Menu from '@/components/layouts/Menu.vue'
 import {Store} from '@/lib/store'
 
 import Popover from '../layouts/Popover.vue'
 import SvgIcon from '../layouts/SvgIcon.vue'
 
-interface MenuCommand {
+export interface MenuCommand {
 	name: string
 	payload: any
 }
 
 export default defineComponent({
-	components: {Popover, SvgIcon},
 	name: 'AppHeader',
+	components: {Menu, Popover, SvgIcon},
 	props: {
 		menu: {
 			type: Array as PropType<(string | MenuCommand)[]>,
@@ -58,8 +48,6 @@ export default defineComponent({
 		},
 	},
 	setup(props) {
-		const store = inject('store', {}) as Store
-
 		const menuIcon = ref(null)
 
 		const titleBar = ref(
@@ -97,25 +85,28 @@ export default defineComponent({
 			)
 		}
 
-		function doAction(name: string, payload: any) {
-			store.commit(name, payload)
-		}
+		const store = inject('store', {}) as Store
 
-		const normalizedMenu = computed<MenuCommand[]>(() =>
-			props.menu.map(m => (_.isString(m) ? {name: m, payload: null} : m))
-		)
-
-		const menuInfo = computed(() =>
-			normalizedMenu.value.map(m => ({...m, ...store.getAction(m.name)}))
+		const menuItem = computed(() =>
+			props.menu
+				.map(m => (_.isString(m) ? {name: m, payload: null} : m))
+				.map(m => {
+					const action = store.getAction(m.name)
+					return {
+						name: m.name,
+						label: action.label || m.name,
+						icon: action.icon,
+						exec: () => store.commit(m.name, m.payload),
+					}
+				})
 		)
 
 		return {
 			titleBar,
 			menuIcon,
 			menuOpened,
-			menuInfo,
+			menuItem,
 			onClickMenu,
-			doAction,
 		}
 	},
 })
@@ -171,30 +162,4 @@ $height = 3.2em
 
 	&.title-bar-macos &__title
 		margin-left calc(65px + 0.5em)
-
-	&__menu
-		margin 0.5em
-		border 1px solid $color-frame
-		border-radius $popup-round
-		glass-bg('pane')
-		width max-content
-		color base16('05')
-
-		ul
-			padding $input-horiz-margin 0
-
-		li
-			display grid
-			padding 0 1rem
-			height 2.3em
-			line-height 2.3em
-			grid-template-columns 1.2em 1fr
-			grid-gap 0.5em
-
-			&:hover
-				background base16('accent')
-				color base16('00')
-
-		.icon
-			width 1.2em
 </style>
