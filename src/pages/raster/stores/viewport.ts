@@ -13,31 +13,13 @@ import useDraggable from '@/components/use/use-draggable'
 import {loadImage as loadImagePromise, readImageAsDataURL} from '@/lib/promise'
 import {postTextToGlispServer} from '@/lib/promise'
 import {StoreModule} from '@/lib/store'
+import {REGL_QUAD_DEFAULT} from '@/lib/webgl'
 import {fit01} from '@/utils'
 
 import {BrushDefinition} from '../brush-definition'
 import BuiltinBrushes from '../builtin-brushes'
 import useFragShaderValidator from '../use-frag-shader-validator'
 import {saveViewport} from '../webgl-utils'
-
-const REGL_QUAD_DEFAULT: Regl.DrawConfig = {
-	vert: `
-	precision mediump float;
-	attribute vec2 position;
-	varying vec2 uv;
-	void main() {
-		uv = position / 2.0 + 0.5;
-		gl_Position = vec4(position, 0, 1);
-	}`,
-	attributes: {
-		position: [-1, -1, 1, -1, -1, 1, 1, 1],
-	},
-	depth: {
-		enable: false,
-	},
-	count: 4,
-	primitive: 'triangle strip',
-}
 
 export default function useModuleViewport(): StoreModule {
 	// WebGL
