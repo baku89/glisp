@@ -1,10 +1,10 @@
 precision mediump float;
 
-uniform vec2 u_resolution; 
-uniform vec3 hsv;
+varying vec2 uv;
 
 uniform float modeX;
 uniform float modeY;
+uniform vec3 hsv;
 #define MODE_H 0.0
 #define MODE_S 1.0
 #define MODE_V 2.0
@@ -16,8 +16,6 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-	vec2 uv = gl_FragCoord.xy / u_resolution;
-
 	vec3 _hsv = vec3(hsv);
 
 	if (modeX == MODE_H) {

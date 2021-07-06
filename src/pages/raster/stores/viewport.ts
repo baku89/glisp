@@ -424,7 +424,7 @@ export default function useModuleViewport(): StoreModule {
 	}) {
 		viewportEl.value = unrefElement(viewport)
 
-		const _gl = Regl({
+		const _regl = Regl({
 			attributes: {
 				preserveDrawingBuffer: true,
 				depth: false,
@@ -433,12 +433,12 @@ export default function useModuleViewport(): StoreModule {
 			extensions: ['OES_texture_float', 'OES_texture_float_linear'],
 			canvas,
 		})
-		regl.value = _gl
+		regl.value = _regl
 
 		fbo = [createFbo(), createFbo()]
 
 		function createFbo() {
-			const f = _gl.framebuffer({
+			const f = _regl.framebuffer({
 				radius: 1024,
 				colorType: 'float',
 			})

@@ -1,18 +1,14 @@
 <template>
-	<canvas ref="canvasEl" />
+	<canvas ref="canvas" />
 </template>
 
 <script lang="ts">
-import {Canvas} from 'glsl-canvas-js'
-import {
-	defineComponent,
-	onMounted,
-	onUnmounted,
-	PropType,
-	ref,
-	watch,
-	watchEffect,
-} from 'vue'
+import {templateRef} from '@vueuse/core'
+import _ from 'lodash'
+import Regl from 'regl'
+import {computed, defineComponent, PropType, ref, watch} from 'vue'
+
+import {REGL_QUAD_DEFAULT} from '@/lib/webgl'
 
 interface UniformsProp {
 	[name: string]: number[] | string
@@ -25,11 +21,8 @@ export default defineComponent({
 			type: String,
 			default: `
 				precision mediump float;
-				uniform vec2 u_resolution; 
-				void main() {
-					vec2 uv = gl_FragCoord.xy / u_resolution;
-					gl_FragColor = vec4(uv, 0.0, 1.0);
-				}`,
+				varying vec2 uv;
+				void main() { gl_FragColor = vec4(uv, 0, 1); }`,
 		},
 		uniforms: {
 			type: Object as PropType<UniformsProp>,
@@ -37,40 +30,45 @@ export default defineComponent({
 		},
 	},
 	setup(props) {
-		const canvasEl = ref<null | HTMLCanvasElement>(null)
+		const canvasEl = templateRef<HTMLCanvasElement>('canvas')
 
-		let glsl: typeof Canvas
+		const regl = computed(() => {
+			if (!canvasEl.value) {
+				regl.value?.destroy()
+				return null
+			}
 
-		onMounted(() => {
-			if (!canvasEl.value) return
-
-			glsl = new Canvas(canvasEl.value, {
-				fragmentString: props.fragmentString,
-				alpha: true,
-				onError() {
-					console.log('errro')
+			return Regl({
+				attributes: {
+					depth: false,
+					premultipliedAlpha: false,
 				},
+				canvas: canvasEl.value,
 			})
-
-			watchEffect(() => {
-				glsl.setUniforms(props.uniforms)
-				glsl.render()
-			})
-
-			watch(
-				() => props.fragmentString,
-				async frag => {
-					await glsl.load(frag)
-					glsl.setUniforms(props.uniforms)
-				}
-			)
 		})
 
-		onUnmounted(() => {
-			glsl?.destroy()
+		const uniformKeys = ref(_.keys(props.uniforms))
+
+		const drawCommand = computed(() => {
+			if (!regl.value) return null
+
+			const prop = regl.value.prop as any
+
+			const uniforms = _.fromPairs(uniformKeys.value.map(k => [k, prop(k)]))
+
+			return regl.value({
+				...REGL_QUAD_DEFAULT,
+				frag: props.fragmentString,
+				uniforms,
+			})
 		})
 
-		return {canvasEl}
+		watch(
+			() => [regl.value, drawCommand.value, props.uniforms],
+			() => {
+				drawCommand.value && drawCommand.value(props.uniforms)
+			}
+		)
 	},
 })
 </script>

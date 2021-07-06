@@ -4460,7 +4460,7 @@ gif.js@^0.2.0:
   resolved "https://registry.yarnpkg.com/gif.js/-/gif.js-0.2.0.tgz#615e6e3788850cd3a20c85fe9f09539e784903e8"
   integrity sha1-YV5uN4iFDNOiDIX+nwlTnnhJA+g=
 
-gl-matrix@3.3.0, gl-matrix@^3.3.0:
+gl-matrix@^3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/gl-matrix/-/gl-matrix-3.3.0.tgz#232eef60b1c8b30a28cbbe75b2caf6c48fd6358b"
   integrity sha512-COb7LDz+SXaHtl/h4LeaFcNdJdAQSDeVqjiIihSXNrkWObZLhDI4hIkZC11Aeqp7bcE72clzB0BnDXr2SmslRA==
@@ -4589,14 +4589,6 @@ globby@^9.2.0:
     ignore "^4.0.3"
     pify "^4.0.1"
     slash "^2.0.0"
-
-glsl-canvas-js@^0.2.6:
-  version "0.2.6"
-  resolved "https://registry.yarnpkg.com/glsl-canvas-js/-/glsl-canvas-js-0.2.6.tgz#437359987f3c51ff7a9cf574f65fd74bcce901b1"
-  integrity sha512-yl/DGCONUeP/MzpnE09bOUkhE80KOyVCJl6wxq6BcoszLFIJSq3TAOJpl9q43gOSFarCNW/0qStn06+C0f0eOA==
-  dependencies:
-    gl-matrix "3.3.0"
-    promise-polyfill "8.2.0"
 
 glsl-inject-defines@^1.0.1:
   version "1.0.3"
@@ -7827,11 +7819,6 @@ promise-inflight@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/promise-inflight/-/promise-inflight-1.0.1.tgz#98472870bf228132fcbdd868129bad12c3c029e3"
   integrity sha1-mEcocL8igTL8vdhoEputEsPAKeM=
-
-promise-polyfill@8.2.0:
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/promise-polyfill/-/promise-polyfill-8.2.0.tgz#367394726da7561457aba2133c9ceefbd6267da0"
-  integrity sha512-k/TC0mIcPVF6yHhUvwAp7cvL6I2fFV7TzF1DuGPI8mBh4QQazf36xCKEHKTZKRysEoTQoQdKyP25J8MPJp7j5g==
 
 proto-list@~1.2.1:
   version "1.2.4"

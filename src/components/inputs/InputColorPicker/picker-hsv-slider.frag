@@ -1,14 +1,12 @@
 precision mediump float;
 
-uniform vec2 u_resolution; 
+varying vec2 uv;
 
 uniform vec3 hsv;
-
 uniform float mode;
 #define MODE_H 0.0
 #define MODE_S 1.0
 #define MODE_V 2.0
-
 uniform float offset;
 
 vec3 hsv2rgb(vec3 c) {
@@ -18,7 +16,7 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-	float t = gl_FragCoord.x / u_resolution.x + offset;
+	float t = uv.x + offset;
 
 	vec3 color;
 	

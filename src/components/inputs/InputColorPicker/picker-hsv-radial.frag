@@ -1,6 +1,6 @@
 precision mediump float;
 
-uniform vec2 u_resolution; 
+varying vec2 uv;
 uniform vec3 hsv;
 
 vec3 hsv2rgb(vec3 c) {
@@ -16,7 +16,6 @@ float atan2(in float y, in float x){
 }
 
 void main() {
-	vec2 uv = gl_FragCoord.xy / u_resolution;
 	vec2 pos = (1.0 - uv) * 2.0 - 1.0;
 
 	float h = (atan2(pos.y, pos.x) / PI + 1.0) / 2.0;
