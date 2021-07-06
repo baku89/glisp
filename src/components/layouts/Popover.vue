@@ -34,7 +34,11 @@ export default defineComponent({
 		},
 		placement: {
 			type: String as PropType<Placement>,
-			default: 'top',
+			default: 'bottom',
+		},
+		closeTrigger: {
+			type: String as PropType<'outside' | 'outside-except-reference'>,
+			default: 'outside-except-reference',
 		},
 	},
 	setup(props, context) {
@@ -133,6 +137,7 @@ export default defineComponent({
 
 					const cancel = onClickOutside(targetEl, e => {
 						if (
+							props.closeTrigger === 'outside-except-reference' &&
 							e.target instanceof HTMLElement &&
 							refEl.value &&
 							isDecendantElementOf(e.target, refEl.value)

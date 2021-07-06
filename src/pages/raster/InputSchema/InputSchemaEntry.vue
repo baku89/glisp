@@ -3,7 +3,9 @@
 		class="InputSchemaEntry"
 		:class="{nested}"
 		v-if="schema.type !== 'const'"
-		@dblclick="resetToDefault"
+		@click.right.prevent="contextMenuOpened = true"
+		ref="rootEl"
+		v-bind="$attrs"
 	>
 		<SvgIcon
 			v-if="!nested"
@@ -32,15 +34,24 @@
 			/>
 		</div>
 	</div>
+	<Popover
+		v-model:open="contextMenuOpened"
+		:reference="rootEl"
+		closeTrigger="outside"
+	>
+		<Menu :menu="contextMenuItem" @action="contextMenuOpened = false" />
+	</Popover>
 </template>
 
 <script lang="ts">
 import {flow} from 'fp-ts/lib/function'
 import * as O from 'fp-ts/lib/Option'
 import _ from 'lodash'
-import {computed, defineComponent, inject, PropType, provide} from 'vue'
+import {computed, defineComponent, inject, PropType, provide, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
+import Menu from '@/components/layouts/Menu.vue'
+import Popover from '@/components/layouts/Popover.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import {Validator} from '@/lib/fp'
 import {generateUniqueKeyValidator} from '@/lib/validator'
@@ -51,7 +62,8 @@ import {cast} from './validator'
 
 export default defineComponent({
 	name: 'InputSchemaEntry',
-	components: {InputString, SvgIcon},
+	components: {InputString, SvgIcon, Popover, Menu},
+	inheritAttrs: false,
 	props: {
 		name: {
 			type: String,
@@ -103,12 +115,30 @@ export default defineComponent({
 			)
 		})
 
-		function resetToDefault() {
-			const newValue = cast(undefined, props.schema)
-			context.emit('update:modelValue', newValue)
-		}
+		// Context menu
+		const rootEl = ref(null)
+		const contextMenuOpened = ref(false)
 
-		return {nested, toLabel: _.startCase, validateName, resetToDefault}
+		const contextMenuItem = [
+			{
+				name: 'reset',
+				icon: '<path d="M29 16 C29 22 24 29 16 29 8 29 3 22 3 16 3 10 8 3 16 3 21 3 25 6 27 9 M20 10 L27 9 28 2"/>',
+				label: 'Reset to Default',
+				exec() {
+					const newValue = cast(undefined, props.schema)
+					context.emit('update:modelValue', newValue)
+				},
+			},
+		]
+
+		return {
+			nested,
+			toLabel: _.startCase,
+			validateName,
+			contextMenuOpened,
+			rootEl,
+			contextMenuItem,
+		}
 	},
 })
 </script>

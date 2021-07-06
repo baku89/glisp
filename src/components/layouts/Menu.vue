@@ -5,7 +5,7 @@
 				<li
 					v-for="{name, label, icon, exec} in menu"
 					:key="name"
-					@mouseup="exec"
+					@mouseup="doAction(exec)"
 				>
 					<SvgIcon class="icon" mode="block" v-html="icon || ''" />
 					{{ label || name }}
@@ -35,6 +35,15 @@ export default defineComponent({
 			type: Array as PropType<MenuItem[]>,
 			default: () => [],
 		},
+	},
+	emits: ['action'],
+	setup(_, context) {
+		function doAction(exec: MenuItem['exec']) {
+			context.emit('action')
+			exec()
+		}
+
+		return {doAction}
 	},
 })
 </script>
