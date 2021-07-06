@@ -50,7 +50,7 @@ export default defineComponent({
 
 		const targetEl = templateRef('target')
 
-		const top = ref(100),
+		const top = ref(0),
 			left = ref(0)
 
 		function updatePosition() {
@@ -123,7 +123,7 @@ export default defineComponent({
 			() => props.open,
 			open => {
 				if (open) {
-					if (!targetEl.value || !props.reference) {
+					if (!targetEl.value || !refEl.value) {
 						return
 					}
 
@@ -134,8 +134,8 @@ export default defineComponent({
 					const cancel = onClickOutside(targetEl, e => {
 						if (
 							e.target instanceof HTMLElement &&
-							props.reference instanceof HTMLElement &&
-							isDecendantElementOf(e.target, props.reference)
+							refEl.value &&
+							isDecendantElementOf(e.target, refEl.value)
 						) {
 							return
 						}

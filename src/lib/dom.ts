@@ -1,5 +1,5 @@
-export function isDecendantElementOf(child: HTMLElement, parent: HTMLElement) {
-	let node: HTMLElement | null = child
+export function isDecendantElementOf(child: Element, parent: Element) {
+	let node: Element | null = child
 	while (node) {
 		if (node === parent) return true
 		node = node.parentElement
