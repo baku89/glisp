@@ -17,8 +17,7 @@
 		"postuninstall": "electron-builder install-app-deps",
 		"repl": "node --enable-source-maps ./repl/index.js ",
 		"repl:serve": "webpack --config repl.config.js --watch --mode=development",
-		"repl:build": "webpack --config repl.config.js --mode=production",
-		"test": "jest"
+		"repl:build": "webpack --config repl.config.js --mode=production"
 	},
 	"main": "background.js",
 	"license": "MIT",
@@ -33,7 +32,6 @@
 		"@types/color": "^3.0.1",
 		"@types/cytoscape": "^3.14.12",
 		"@types/file-saver": "^2.0.2",
-		"@types/jest": "^26.0.22",
 		"@types/jquery": "^3.5.5",
 		"@types/lodash": "^4.14.170",
 		"@types/markdown-it": "^12.0.2",

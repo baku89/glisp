@@ -21,13 +21,6 @@
 		"lib": ["esnext", "dom", "dom.iterable", "scripthost"],
 		"resolveJsonModule": true
 	},
-	"include": [
-		"src/**/*.ts",
-		"src/**/*.tsx",
-		"src/**/*.vue",
-		"tests/**/*.ts",
-		"tests/**/*.tsx",
-		"greet.ts"
-	],
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "greet.ts"],
 	"exclude": ["node_modules"]
 }
