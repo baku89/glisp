@@ -13,7 +13,7 @@
 
 <script lang="ts">
 import {onClickOutside, templateRef, unrefElement} from '@vueuse/core'
-import {clamp} from 'lodash'
+import _, {clamp} from 'lodash'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import {isDecendantElementOf} from '@/lib/dom'
@@ -27,13 +27,14 @@ export default defineComponent({
 	props: {
 		reference: {
 			type: Element,
+			required: false,
 		},
 		open: {
 			type: Boolean,
 			required: true,
 		},
 		placement: {
-			type: String as PropType<Placement>,
+			type: [String, Array] as PropType<Placement | [number, number]>,
 			default: 'bottom',
 		},
 		closeTrigger: {
@@ -58,66 +59,75 @@ export default defineComponent({
 			left = ref(0)
 
 		function updatePosition() {
-			if (!refEl.value || !targetEl.value) return
+			if (!targetEl.value) return
 
 			let {placement} = props
 
-			const rb = refEl.value.getBoundingClientRect(),
-				tb = targetEl.value.getBoundingClientRect(),
+			const tb = targetEl.value.getBoundingClientRect(),
 				vw = window.innerWidth,
 				vh = window.innerHeight
 
 			let x = 0,
 				y = 0
 
-			// Flip detection
-			if (placement.startsWith('left')) {
-				if (rb.x < tb.width && vw - rb.right > tb.width) {
-					placement = placement.replace('left', 'right') as Placement
-				}
-			} else if (placement.startsWith('right')) {
-				if (vw - rb.right < tb.width && rb.x > tb.width) {
-					placement = placement.replace('right', 'left') as Placement
-				}
-			}
+			if (_.isString(placement)) {
+				if (!refEl.value) throw new Error('Cannot align the popover')
 
-			if (placement.startsWith('top')) {
-				if (rb.y < tb.height && vh - rb.bottom > tb.height) {
-					placement = placement.replace('top', 'bottom') as Placement
-				}
-			} else if (placement.startsWith('bottom')) {
-				if (vh - rb.bottom < tb.height && rb.y > tb.height) {
-					placement = placement.replace('bottom', 'top') as Placement
-				}
-			}
+				const rb = refEl.value.getBoundingClientRect()
 
-			// X
-			if (placement.startsWith('left')) {
-				x = rb.x - tb.width
-			} else if (placement.startsWith('right')) {
-				x = rb.right
-			} else if (/^(top|bottom)-start$/.test(placement)) {
-				x = rb.x
-			} else if (/^(top|bottom)$/.test(placement)) {
-				x = rb.x - (tb.width - rb.width) / 2
-			} else if (/^(top|bottom)-end$/.test(placement)) {
-				x = rb.x - (rb.width - rb.width)
-			}
-			x = clamp(x, 0, vw - tb.width)
+				// Flip detection
+				if (placement.startsWith('left')) {
+					if (rb.x < tb.width && vw - rb.right > tb.width) {
+						placement = placement.replace('left', 'right') as Placement
+					}
+				} else if (placement.startsWith('right')) {
+					if (vw - rb.right < tb.width && rb.x > tb.width) {
+						placement = placement.replace('right', 'left') as Placement
+					}
+				}
 
-			// Y
-			if (placement.startsWith('top')) {
-				y = rb.y - tb.height
-			} else if (placement.startsWith('bottom')) {
-				y = rb.bottom
-			} else if (/^(left|right)-start$/.test(placement)) {
-				y = rb.y
-			} else if (/^(left|right)$/.test(placement)) {
-				y = rb.y - (tb.height - rb.height) / 2
-			} else if (/^(left|right)-end$/.test(placement)) {
-				y = rb.y - (rb.height - rb.height)
+				if (placement.startsWith('top')) {
+					if (rb.y < tb.height && vh - rb.bottom > tb.height) {
+						placement = placement.replace('top', 'bottom') as Placement
+					}
+				} else if (placement.startsWith('bottom')) {
+					if (vh - rb.bottom < tb.height && rb.y > tb.height) {
+						placement = placement.replace('bottom', 'top') as Placement
+					}
+				}
+
+				// X
+				if (placement.startsWith('left')) {
+					x = rb.x - tb.width
+				} else if (placement.startsWith('right')) {
+					x = rb.right
+				} else if (/^(top|bottom)-start$/.test(placement)) {
+					x = rb.x
+				} else if (/^(top|bottom)$/.test(placement)) {
+					x = rb.x - (tb.width - rb.width) / 2
+				} else if (/^(top|bottom)-end$/.test(placement)) {
+					x = rb.x - (rb.width - rb.width)
+				}
+				x = clamp(x, 0, vw - tb.width)
+
+				// Y
+				if (placement.startsWith('top')) {
+					y = rb.y - tb.height
+				} else if (placement.startsWith('bottom')) {
+					y = rb.bottom
+				} else if (/^(left|right)-start$/.test(placement)) {
+					y = rb.y
+				} else if (/^(left|right)$/.test(placement)) {
+					y = rb.y - (tb.height - rb.height) / 2
+				} else if (/^(left|right)-end$/.test(placement)) {
+					y = rb.y - (rb.height - rb.height)
+				}
+				y = clamp(y, 0, vh - tb.height)
+			} else {
+				// Absolute positioning (i.e. context menu)
+				x = placement[0]
+				y = placement[1]
 			}
-			y = clamp(y, 0, vh - tb.height)
 
 			left.value = x
 			top.value = y
@@ -127,9 +137,7 @@ export default defineComponent({
 			() => props.open,
 			open => {
 				if (open) {
-					if (!targetEl.value || !refEl.value) {
-						return
-					}
+					if (!targetEl.value) return
 
 					updatePosition()
 					window.addEventListener('resize', updatePosition)

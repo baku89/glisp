@@ -3,7 +3,6 @@
 		class="InputSchemaEntry"
 		:class="{nested}"
 		v-if="schema.type !== 'const'"
-		@click.right.prevent="contextMenuOpened = true"
 		ref="rootEl"
 		v-bind="$attrs"
 	>
@@ -34,13 +33,7 @@
 			/>
 		</div>
 	</div>
-	<Popover
-		v-model:open="contextMenuOpened"
-		:reference="rootEl"
-		closeTrigger="outside"
-	>
-		<Menu :menu="contextMenuItem" @action="contextMenuOpened = false" />
-	</Popover>
+	<ContextMenu :menu="contextMenuItem" :reference="rootEl" />
 </template>
 
 <script lang="ts">
@@ -50,8 +43,7 @@ import _ from 'lodash'
 import {computed, defineComponent, inject, PropType, provide, ref} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
-import Menu from '@/components/layouts/Menu.vue'
-import Popover from '@/components/layouts/Popover.vue'
+import ContextMenu from '@/components/layouts/ContextMenu.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import {Validator} from '@/lib/fp'
 import {generateUniqueKeyValidator} from '@/lib/validator'
@@ -62,7 +54,7 @@ import {cast} from './validator'
 
 export default defineComponent({
 	name: 'InputSchemaEntry',
-	components: {InputString, SvgIcon, Popover, Menu},
+	components: {InputString, SvgIcon, ContextMenu},
 	inheritAttrs: false,
 	props: {
 		name: {
@@ -117,7 +109,6 @@ export default defineComponent({
 
 		// Context menu
 		const rootEl = ref(null)
-		const contextMenuOpened = ref(false)
 
 		const contextMenuItem = [
 			{
@@ -146,7 +137,6 @@ export default defineComponent({
 			nested,
 			toLabel: _.startCase,
 			validateName,
-			contextMenuOpened,
 			rootEl,
 			contextMenuItem,
 		}
