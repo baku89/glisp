@@ -6,7 +6,7 @@
 			'menu-opened': menuOpened,
 		}"
 	>
-		<div class="AppHeader__title">
+		<div class="AppHeader__title" ref="menuIcon">
 			<SvgIcon @mousedown="onClickMenu" class="icon" :strokeWidth="1.5">
 				<circle cx="16" cy="16" r="14" />
 				<path
@@ -18,18 +18,20 @@
 		<div class="AppHeader__center"><slot name="center" /></div>
 		<div class="AppHeader__right"><slot name="right" /></div>
 	</menu>
-	<div class="AppHeader__menu" v-if="menuOpened" ref="menu">
-		<ul>
-			<li
-				v-for="{name, label, icon, payload} in menuInfo"
-				:key="name"
-				@mouseup="doAction(name, payload)"
-			>
-				<SvgIcon class="icon" mode="block" v-html="icon || ''"></SvgIcon>
-				{{ label || name }}
-			</li>
-		</ul>
-	</div>
+	<Popover :reference="menuIcon" :open="menuOpened">
+		<div class="AppHeader__menu">
+			<ul>
+				<li
+					v-for="{name, label, icon, payload} in menuInfo"
+					:key="name"
+					@mouseup="doAction(name, payload)"
+				>
+					<SvgIcon class="icon" mode="block" v-html="icon || ''"></SvgIcon>
+					{{ label || name }}
+				</li>
+			</ul>
+		</div>
+	</Popover>
 </template>
 
 <script lang="ts">
@@ -38,6 +40,7 @@ import {computed, defineComponent, inject, PropType, ref} from 'vue-demi'
 
 import {Store} from '@/lib/store'
 
+import Popover from '../layouts/Popover.vue'
 import SvgIcon from '../layouts/SvgIcon.vue'
 
 interface MenuCommand {
@@ -46,7 +49,7 @@ interface MenuCommand {
 }
 
 export default defineComponent({
-	components: {SvgIcon},
+	components: {Popover, SvgIcon},
 	name: 'AppHeader',
 	props: {
 		menu: {
@@ -56,6 +59,8 @@ export default defineComponent({
 	},
 	setup(props) {
 		const store = inject('store', {}) as Store
+
+		const menuIcon = ref(null)
 
 		const titleBar = ref(
 			/electron/i.test(navigator.userAgent)
@@ -106,6 +111,7 @@ export default defineComponent({
 
 		return {
 			titleBar,
+			menuIcon,
 			menuOpened,
 			menuInfo,
 			onClickMenu,
@@ -167,14 +173,12 @@ $height = 3.2em
 		margin-left calc(65px + 0.5em)
 
 	&__menu
-		position fixed
-		top $height
-		left 0
-		z-index 1000
 		margin 0.5em
 		border 1px solid $color-frame
 		border-radius $popup-round
 		glass-bg('pane')
+		width max-content
+		color base16('05')
 
 		ul
 			padding $input-horiz-margin 0
