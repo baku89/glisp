@@ -94,7 +94,7 @@ export default defineComponent({
 			default: ' ',
 		},
 	},
-	emits: ['update:modelValue', 'update:name'],
+	emits: ['update:modelValue', 'update:name', 'delete'],
 	beforeCreate: function () {
 		this.$options.components ||= {}
 		this.$options.components.InputSchema = InputSchema
@@ -121,15 +121,26 @@ export default defineComponent({
 
 		const contextMenuItem = [
 			{
-				name: 'reset',
-				icon: '<path d="M29 16 C29 22 24 29 16 29 8 29 3 22 3 16 3 10 8 3 16 3 21 3 25 6 27 9 M20 10 L27 9 28 2"/>',
+				name: 'resetToDefault',
 				label: 'Reset to Default',
+				icon: '<path d="M29 16 C29 22 24 29 16 29 8 29 3 22 3 16 3 10 8 3 16 3 21 3 25 6 27 9 M20 10 L27 9 28 2"/>',
 				exec() {
 					const newValue = cast(undefined, props.schema)
 					context.emit('update:modelValue', newValue)
 				},
 			},
 		]
+
+		if (props.editable) {
+			contextMenuItem.push({
+				name: 'delete',
+				label: 'Delete',
+				icon: '<path d="M28 6 L6 6 8 30 24 30 26 6 4 6 M16 12 L16 24 M21 12 L20 24 M11 12 L12 24 M12 6 L13 2 19 2 20 6" />',
+				exec() {
+					context.emit('delete')
+				},
+			})
+		}
 
 		return {
 			nested,

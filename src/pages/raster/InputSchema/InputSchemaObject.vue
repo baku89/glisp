@@ -27,6 +27,7 @@
 						:editable="true"
 						@update:modelValue="updateProperty(name, $event)"
 						@update:name="renameProperty(name, $event)"
+						@delete="deleteProperty(name)"
 					/>
 				</template>
 				<template #footer>
