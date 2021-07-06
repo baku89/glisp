@@ -1,15 +1,26 @@
 <template>
 	<teleport to="#PopoverWrapper">
-		<div class="Popover" v-if="open" ref="target" :style="{top, left}">
+		<div
+			class="Popover"
+			ref="target"
+			v-if="open"
+			:style="{top: top + 'px', left: left + 'px'}"
+		>
 			<slot />
 		</div>
 	</teleport>
 </template>
 
 <script lang="ts">
-import {Placement} from '@popperjs/core'
 import {onClickOutside, templateRef} from '@vueuse/core'
+import {clamp} from 'lodash'
 import {defineComponent, PropType, ref, watch} from 'vue'
+
+import {isDecendantElementOf} from '@/lib/dom'
+
+type PlacementDirection = 'top' | 'right' | 'bottom' | 'left'
+type PlacementAlign = 'start' | 'end'
+type Placement = PlacementDirection | `${PlacementDirection}-${PlacementAlign}`
 
 export default defineComponent({
 	name: 'Popover',
@@ -35,19 +46,73 @@ export default defineComponent({
 
 		const targetEl = templateRef('target')
 
-		const top = ref('100px'),
-			left = ref('0')
+		const top = ref(100),
+			left = ref(0)
 
 		function updatePosition() {
 			if (!props.reference || !targetEl.value) return
 
-			const rb = props.reference.getBoundingClientRect()
-			const vw = window.innerWidth,
-				vh = window.innerHeight
-			const tb = targetEl.value
+			let {placement} = props
 
-			left.value = rb.right + 'px'
-			top.value = rb.y + 'px'
+			const rb = props.reference.getBoundingClientRect(),
+				tb = targetEl.value.getBoundingClientRect(),
+				vw = window.innerWidth,
+				vh = window.innerHeight
+
+			let x = 0,
+				y = 0
+
+			// Flip detection
+			if (placement.startsWith('left')) {
+				if (rb.x < tb.width && vw - rb.right > tb.width) {
+					placement = placement.replace('left', 'right') as Placement
+				}
+			} else if (placement.startsWith('right')) {
+				if (vw - rb.right < tb.width && rb.x > tb.width) {
+					placement = placement.replace('right', 'left') as Placement
+				}
+			}
+
+			if (placement.startsWith('top')) {
+				if (rb.y < tb.height && vh - rb.bottom > tb.height) {
+					placement = placement.replace('top', 'bottom') as Placement
+				}
+			} else if (placement.startsWith('bottom')) {
+				if (vh - rb.bottom < tb.height && rb.y > tb.height) {
+					placement = placement.replace('bottom', 'top') as Placement
+				}
+			}
+
+			// X
+			if (placement.startsWith('left')) {
+				x = rb.x - tb.width
+			} else if (placement.startsWith('right')) {
+				x = rb.right
+			} else if (/^(top|bottom)-start$/.test(placement)) {
+				x = rb.x
+			} else if (/^(top|bottom)$/.test(placement)) {
+				x = rb.x - (tb.width - rb.width) / 2
+			} else if (/^(top|bottom)-end$/.test(placement)) {
+				x = rb.x - (rb.width - rb.width)
+			}
+			x = clamp(x, 0, vw - tb.width)
+
+			// Y
+			if (placement.startsWith('top')) {
+				y = rb.y - tb.height
+			} else if (placement.startsWith('bottom')) {
+				y = rb.bottom
+			} else if (/^(left|right)-start$/.test(placement)) {
+				y = rb.y
+			} else if (/^(left|right)$/.test(placement)) {
+				y = rb.y - (tb.height - rb.height) / 2
+			} else if (/^(left|right)-end$/.test(placement)) {
+				y = rb.y - (rb.height - rb.height)
+			}
+			y = clamp(y, 0, vh - tb.height)
+
+			left.value = x
+			top.value = y
 		}
 
 		watch(
@@ -62,7 +127,15 @@ export default defineComponent({
 					window.addEventListener('resize', updatePosition)
 					window.addEventListener('scroll', updatePosition)
 
-					const cancel = onClickOutside(targetEl, () => {
+					const cancel = onClickOutside(targetEl, e => {
+						if (
+							e.target instanceof HTMLElement &&
+							props.reference instanceof HTMLElement &&
+							isDecendantElementOf(e.target, props.reference)
+						) {
+							return
+						}
+
 						context.emit('update:open', false)
 						cancel && cancel()
 					})
