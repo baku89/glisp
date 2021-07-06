@@ -29,9 +29,9 @@ export default defineComponent({
 	},
 	emit: ['update:modelValue'],
 	setup(props, context) {
-		const editorEl = templateRef('editor')
+		const editorEl = templateRef<HTMLElement>('editor')
 
-		useDraggable(editorEl as any, {
+		useDraggable(editorEl, {
 			onDrag({pos, left, right, top, bottom}) {
 				if (draggingPoint.value === null) return
 

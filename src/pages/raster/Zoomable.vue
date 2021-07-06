@@ -5,7 +5,7 @@
 <script lang="ts">
 import {templateRef} from '@vueuse/core'
 import {mat2d, vec2} from 'gl-matrix'
-import {defineComponent, onMounted, PropType} from 'vue'
+import {defineComponent, PropType} from 'vue'
 
 import useGesture from '@/components/use/use-gesture'
 
@@ -24,10 +24,6 @@ export default defineComponent({
 	emits: ['update:transform'],
 	setup(props, context) {
 		const el = templateRef('root')
-
-		onMounted(() => {
-			if (!el.value) return
-		})
 
 		// Gestures for view transform
 		useGesture(el, {

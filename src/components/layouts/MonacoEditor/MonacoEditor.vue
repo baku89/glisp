@@ -33,7 +33,7 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, context) {
-		const editorEl = templateRef('editorEl')
+		const editorEl = templateRef<HTMLElement>('editorEl')
 
 		let editor: ReturnType<typeof Monaco.editor.create>
 
@@ -42,7 +42,7 @@ export default defineComponent({
 		onMounted(() => {
 			if (!editorEl.value) return
 
-			editor = Monaco.editor.create(editorEl.value as HTMLElement, {
+			editor = Monaco.editor.create(editorEl.value, {
 				value: props.modelValue,
 				automaticLayout: true,
 				language: props.lang,
