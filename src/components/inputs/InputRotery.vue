@@ -99,7 +99,7 @@ export default defineComponent({
 			required: true,
 		},
 	},
-	emits: ['update:modelValue', 'end-tweak'],
+	emits: ['update:modelValue'],
 	setup(props, context) {
 		const el: Ref<null | HTMLElement> = ref(null)
 
@@ -148,7 +148,6 @@ export default defineComponent({
 			},
 			onDragEnd() {
 				tweakMode.value = 'relative'
-				context.emit('end-tweak')
 			},
 		})
 
