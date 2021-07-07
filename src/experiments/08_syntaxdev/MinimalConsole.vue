@@ -1,5 +1,5 @@
 <template>
-	<div class="Console">
+	<div class="Console" ref="root" tabindex="0" @keydown="onKeydown">
 		<ul class="Console__history">
 			<li class="rep" v-for="({input, logs, output}, i) in results" :key="i">
 				<div class="input">{{ input }}</div>
@@ -14,19 +14,23 @@
 				<div class="output" v-if="output !== null">{{ output }}</div>
 			</li>
 		</ul>
-		<div class="Console__command">
+		<div class="Console__command" :style="{height: lines * 21 + 'px'}">
 			<MonacoEditor
 				class="Console__code"
 				v-model="code"
-				@keydown.enter="execute"
-				:style="{height: lines * 21 + 'px'}"
+				v-model:editor="editorInstance"
+				@keydown.enter="run"
 			/>
 		</div>
+		<div class="Console__fill" @click="focusEditor" />
 	</div>
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, PropType, ref} from 'vue'
+import {useLocalStorage} from '@vueuse/core'
+import _ from 'lodash'
+import {editor as Editor, KeyCode} from 'monaco-editor'
+import {computed, defineComponent, PropType, ref, shallowRef, watch} from 'vue'
 
 import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
 
@@ -54,30 +58,109 @@ export default defineComponent({
 			type: String,
 			default: 'minimal-console',
 		},
+		uid: {
+			type: String,
+			default: '',
+		},
+		maxHistory: {
+			type: Number,
+			default: 1000,
+		},
 	},
 	emits: ['setup', 'update:onError'],
 	setup(props) {
 		const code = ref('')
+		const editorInstance =
+			shallowRef<null | ReturnType<typeof Editor.create>>(null)
 
 		const results = ref<Result[]>([])
 
+		// Newer has fewer index
+		const history = useLocalStorage<string[]>(
+			`MinimalConsole__history${props.uid}`,
+			[]
+		)
+		let activeHistoryIndex = -1
+
 		const lines = computed(() => code.value.split('\n').length)
 
-		async function execute(e: KeyboardEvent) {
+		async function run(e: KeyboardEvent) {
+			if (e.shiftKey) return
 			e.preventDefault()
+			if (code.value === '') return
 
-			const result = await props.rep(code.value)
+			const {result, logs} = await props.rep(code.value)
 
-			results.value.push({
-				input: code.value,
-				logs: result.logs,
-				output: result.result,
-			})
+			if (_.isString(result)) {
+				results.value.push({
+					input: code.value,
+					logs: logs,
+					output: result,
+				})
+
+				if (code.value !== history.value[0]) {
+					history.value.unshift(code.value)
+				}
+			}
 
 			code.value = ''
+			activeHistoryIndex = -1
 		}
 
-		return {code, lines, results, execute}
+		// Up/Down key to navigate history
+		watch(editorInstance, editor => {
+			if (!editor) return
+
+			editor.onKeyDown(e => {
+				const key = e.keyCode
+				if (key !== KeyCode.UpArrow && key !== KeyCode.DownArrow) return
+
+				const pos = editor.getPosition()
+				if (!pos) return
+
+				const {lineNumber} = pos
+				const lineCount = editor.getModel()?.getLineCount()
+
+				if (key === KeyCode.UpArrow && lineNumber === 1) {
+					// Pressed Up at the first line
+					searchHistory(+1)
+				} else if (key === KeyCode.DownArrow && pos.lineNumber === lineCount) {
+					// Prssed Down at the last line
+					searchHistory(-1)
+				}
+			})
+		})
+
+		function searchHistory(delta: number) {
+			activeHistoryIndex = Math.max(-1, activeHistoryIndex + delta)
+			if (
+				0 <= activeHistoryIndex &&
+				activeHistoryIndex < history.value.length
+			) {
+				code.value = history.value[activeHistoryIndex]
+			}
+		}
+
+		function focusEditor() {
+			editorInstance.value?.focus()
+		}
+
+		function onKeydown(e: KeyboardEvent) {
+			if (e.key.length === 1 && !editorInstance.value?.hasTextFocus()) {
+				focusEditor()
+			}
+		}
+
+		return {
+			code,
+			editorInstance,
+			lines,
+			results,
+			run,
+			searchHistory,
+			focusEditor,
+			onKeydown,
+		}
 	},
 })
 </script>
@@ -91,6 +174,8 @@ export default defineComponent({
 	font-size 14px
 	line-height 21px
 	$indent = 1.5em
+	display flex
+	flex-direction column
 	overflow scroll
 	user-select text
 
@@ -98,12 +183,14 @@ export default defineComponent({
 		font-monospace()
 
 		.rep
-			margin-bottom 14px
+			margin-bottom 7px
+			padding-bottom 7px
+			border-bottom 1px solid base16('05', 0.05)
 
 		.input, .output, .log
 			position relative
 			padding-left $indent
-			white-space pre-line
+			white-space pre
 
 			&:before
 				position absolute
@@ -113,7 +200,7 @@ export default defineComponent({
 				font-weight bold
 
 		.input:before
-			color base16('03')
+			color base16('04')
 			content '>'
 
 		.error
@@ -138,7 +225,7 @@ export default defineComponent({
 			color base16('04')
 
 			&:before
-				color base16('02')
+				color base16('03')
 				content '<'
 
 	&__command
@@ -153,5 +240,8 @@ export default defineComponent({
 
 	&__code
 		margin-left $indent
-		height 1.5em
+		height 100%
+
+	&__fill
+		flex-grow 1
 </style>
