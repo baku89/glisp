@@ -119,7 +119,6 @@ $height = 3.2em
 .AppHeader
 	position relative
 	display grid
-	overflow visible
 	height var(--height)
 	border-bottom 1px solid $color-frame
 	glass-bg('pane')
