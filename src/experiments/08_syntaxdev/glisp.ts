@@ -238,8 +238,8 @@ function createValType(
 	base: ValueValType | string,
 	cast: ValueValType['cast']
 ): ValueValType {
-	const id = typeof base === 'string' ? Symbol(base) : base.id
-	const origExp = typeof base === 'string' ? undefined : base.origExp
+	const id = _.isString(base) ? Symbol(base) : base.id
+	const origExp = _.isString(base) ? undefined : base.origExp
 
 	return {
 		kind: 'valType',
@@ -438,9 +438,9 @@ function equalsValue(a: Value, b: Value): boolean {
 		return a === b
 	}
 
-	if (Array.isArray(a)) {
+	if (_.isArray(a)) {
 		return (
-			Array.isArray(b) &&
+			_.isArray(b) &&
 			a.length === b.length &&
 			_$.zipShorter(a, b).every(_.spread(equalsValue))
 		)
@@ -461,8 +461,8 @@ function equalsValue(a: Value, b: Value): boolean {
 			)
 		case 'hashMap':
 			if (isKindOf(b, 'hashMap')) {
-				const aKeys = Object.keys(a.value)
-				const bKeys = Object.keys(b.value)
+				const aKeys = _.keys(a.value)
+				const bKeys = _.keys(b.value)
 				return (
 					aKeys.length === bKeys.length &&
 					aKeys.every(
@@ -669,7 +669,7 @@ function assertValueType(v: Value): Value {
 		return v
 	}
 
-	if (Array.isArray(v)) {
+	if (_.isArray(v)) {
 		return v.map(assertValueType)
 	}
 
@@ -682,7 +682,7 @@ function assertValueType(v: Value): Value {
 		case 'variadic':
 			return v
 		case 'fn': {
-			let params: Value[] | ValueVariadic = Object.values(v.params)
+			let params: Value[] | ValueVariadic = _.values(v.params)
 			if (v.variadic) {
 				params = {kind: 'variadic', items: params}
 			}
@@ -718,7 +718,7 @@ function assertExpType(exp: Exp): Value {
 			} else if (inspected.semantic === 'fndef') {
 				const {params, body} = inspected
 
-				const paramsType = Object.values(params)
+				const paramsType = _.values(params)
 					.map(evalExp)
 					.map(({result}) => result)
 
@@ -877,7 +877,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 
 // Kind predicates
 function isAny(x: Value): x is ValueAny {
-	return x instanceof Object && !Array.isArray(x) && x.kind === 'any'
+	return x instanceof Object && !_.isArray(x) && x.kind === 'any'
 }
 
 function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
@@ -895,7 +895,7 @@ function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(x: Value, kind: T['kind']): x is T {
-	return x instanceof Object && !Array.isArray(x) && x.kind === kind
+	return x instanceof Object && !_.isArray(x) && x.kind === kind
 }
 
 function isInstance(a: Value, b: Value): boolean {
@@ -924,9 +924,12 @@ function isInstance(a: Value, b: Value): boolean {
 			if (alen < blen) {
 				return false
 			}
-			const bitems = [...b.items, ...Array(alen - blen).fill(b.items[blen - 1])]
+			const bitems = [
+				...b.items,
+				..._.times(alen - blen, _.constant(b.items[blen - 1])),
+			]
 			return _$.zipShorter(a.items, bitems).every(_.spread(isInstance))
-		} else if (Array.isArray(a)) {
+		} else if (_.isArray(a)) {
 			const minLength = b.items.length - 1
 			if (a.length < minLength) {
 				return false
@@ -935,15 +938,15 @@ function isInstance(a: Value, b: Value): boolean {
 			const bLast = b.items[b.items.length - 1]
 			const bv = [
 				...b.items.slice(0, minLength),
-				...Array(variadicCount).fill(bLast),
+				..._.times(variadicCount, _.constant(bLast)),
 			]
 			return isInstance(a, bv)
 		}
 		return false
 	}
 
-	if (Array.isArray(b)) {
-		if (Array.isArray(a)) {
+	if (_.isArray(b)) {
+		if (_.isArray(a)) {
 			if (a.length < b.length) {
 				return false
 			}
@@ -952,7 +955,7 @@ function isInstance(a: Value, b: Value): boolean {
 		return false
 	}
 
-	if (Array.isArray(a)) {
+	if (_.isArray(a)) {
 		return false
 	}
 
@@ -968,10 +971,10 @@ function isInstance(a: Value, b: Value): boolean {
 	}
 
 	// Handle for literals / value
-	if (typeof a === 'number') {
+	if (_.isNumber(a)) {
 		return isKindOf(b, 'valType') && b.id === TypeNumber.id
 	}
-	if (typeof a === 'string') {
+	if (_.isString(a)) {
 		return isKindOf(b, 'valType') && b.id === TypeString.id
 	}
 
@@ -979,7 +982,7 @@ function isInstance(a: Value, b: Value): boolean {
 		return a === b || isInstance(assertValueType(a), b)
 	}
 
-	if (typeof b === 'number' || typeof b === 'string' || isKindOf(b, 'fn')) {
+	if (_.isNumber(b) || _.isString(b) || isKindOf(b, 'fn')) {
 		return false
 	}
 
@@ -987,8 +990,8 @@ function isInstance(a: Value, b: Value): boolean {
 	if (
 		a === null ||
 		b === null ||
-		typeof a === 'boolean' ||
-		typeof b === 'boolean' ||
+		_.isBoolean(a) ||
+		_.isBoolean(b) ||
 		a.kind === 'singleton' ||
 		b.kind === 'singleton'
 	) {
@@ -1005,7 +1008,7 @@ function isInstance(a: Value, b: Value): boolean {
 		params: ValueFnType['params']
 		out: Value
 	} {
-		if (!isLiteralSingleton(type) && !Array.isArray(type)) {
+		if (!isLiteralSingleton(type) && !_.isArray(type)) {
 			if (type.kind == 'fnType') {
 				return {params: type.params, out: type.out}
 			}
@@ -1046,8 +1049,8 @@ function castType(type: Value, value: Value): Value {
 		return type
 	}
 
-	if (Array.isArray(type)) {
-		const values = Array.isArray(value) ? value : []
+	if (_.isArray(type)) {
+		const values = _.isArray(value) ? value : []
 		return type.map((t, i) =>
 			castType(t, values[i] !== undefined ? values[i] : null)
 		)
@@ -1077,7 +1080,7 @@ function castExpParam(
 ): WithLogs<Exp[]> {
 	const logs: Log[] = []
 
-	if (Array.isArray(to)) {
+	if (_.isArray(to)) {
 		if (to.length > from.length) {
 			logs.push({level: 'error', reason: 'Too short aguments'})
 		}
@@ -1095,7 +1098,7 @@ function castExpParam(
 		const variadicCount = from.length - minLength
 		to = [
 			...to.items.slice(0, minLength),
-			...Array(variadicCount).fill(to.items[minLength]),
+			..._.times(variadicCount, _.constant(to.items[minLength])),
 		]
 	}
 
@@ -1145,7 +1148,7 @@ export function printExp(exp: Exp): string {
 		case 'scope':
 			return (
 				'(@' +
-				Object.entries(exp.scope)
+				_.entries(exp.scope)
 					.map(([k, v]) => k + ' ' + printExp(v))
 					.join(' ') +
 				(exp.out ? printExp(exp.out) : '') +
@@ -1207,7 +1210,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'string':
 			return `"${val}"`
 	}
-	if (Array.isArray(val)) {
+	if (_.isArray(val)) {
 		return '[' + val.map(v => printValue(v, baseExp)).join(' ') + ']'
 	}
 
@@ -1232,8 +1235,8 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'hashMap':
 			return (
 				'{' +
-				Object.entries(val.value)
-					.flatMap(([k, v]) => [`${k}:`, printValue(v)])
+				_.entries(val.value)
+					.map(([k, v]) => `${k}: ${printValue(v)}`)
 					.join(' ') +
 				'}'
 			)
