@@ -48,7 +48,7 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	inheritAttrs: false,
-	setup(props, context) {
+	setup(props) {
 		const ui = computed(() =>
 			_.isNumber(props.min) && _.isNumber(props.max) ? 'ranged' : 'unranged'
 		)

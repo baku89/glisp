@@ -24,6 +24,7 @@ export default function useNumber(
 	}>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
+	tweakDisabled: Ref<boolean>,
 	pos: Ref<vec2>,
 	dragEl: Ref<null | HTMLElement>,
 	inputEl: Ref<null | HTMLInputElement>,
@@ -61,7 +62,13 @@ export default function useNumber(
 		}
 	}
 
+	function onFocus() {
+		console.log('focuyssss')
+		tweakDisabled.value = true
+	}
+
 	function onBlur(e: InputEvent) {
+		tweakDisabled.value = false
 		update((e.target as HTMLInputElement).value, true)
 	}
 
@@ -109,6 +116,7 @@ export default function useNumber(
 		step,
 		displayValue,
 		overlayLabel,
+		onFocus,
 		onBlur,
 		onKeydown,
 		tweakSpeedChanged,

@@ -1,6 +1,6 @@
 import {unrefElement} from '@vueuse/core'
 import {vec2} from 'gl-matrix'
-import {reactive, Ref, toRefs, watch} from 'vue'
+import {reactive, Ref, ref, toRefs, watch} from 'vue'
 
 interface DragData {
 	pos: vec2
@@ -48,6 +48,8 @@ export default function useDraggable(
 		isDragging: false,
 	}) as DragData
 
+	const disabled = ref(false)
+
 	function setup(el: HTMLElement) {
 		el.addEventListener('mousedown', onMousedown)
 
@@ -67,7 +69,7 @@ export default function useDraggable(
 
 		function onMousedown(e: MouseEvent) {
 			// Ignore non-left click
-			if (e.button !== 0) {
+			if (disabled.value || e.button !== 0) {
 				return
 			}
 
@@ -146,5 +148,5 @@ export default function useDraggable(
 		{immediate: true, flush: 'post'}
 	)
 
-	return toRefs(drag)
+	return {...toRefs(drag), disabled}
 }

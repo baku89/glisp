@@ -9,6 +9,7 @@
 			class="InputNumberRanged__input"
 			type="text"
 			:value="displayValue"
+			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
 			ref="inputEl"
@@ -108,6 +109,7 @@ export default defineComponent({
 			isDragging: tweaking,
 			pos,
 			origin,
+			disabled: tweakDisabled,
 		} = useDraggable(dragEl, {
 			lockPointer: false,
 			onClick() {
@@ -149,6 +151,7 @@ export default defineComponent({
 		const {
 			displayValue,
 			overlayLabel,
+			onFocus,
 			onBlur,
 			onKeydown,
 			tweakSpeedChanged,
@@ -161,6 +164,7 @@ export default defineComponent({
 			props,
 			startValue,
 			tweaking,
+			tweakDisabled,
 			pos,
 			dragEl,
 			inputEl,
@@ -186,6 +190,7 @@ export default defineComponent({
 		})
 
 		return {
+			tweakDisabled,
 			dragEl,
 			inputEl,
 			tweaking,
@@ -196,6 +201,7 @@ export default defineComponent({
 
 			displayValue,
 			overlayLabel,
+			onFocus,
 			onBlur,
 			onKeydown,
 
