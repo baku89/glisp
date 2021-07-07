@@ -28,7 +28,6 @@
 
 <script lang="ts">
 import {useLocalStorage} from '@vueuse/core'
-import _ from 'lodash'
 import {editor as Editor, KeyCode} from 'monaco-editor'
 import {computed, defineComponent, PropType, ref, shallowRef, watch} from 'vue'
 
@@ -91,16 +90,14 @@ export default defineComponent({
 
 			const {result, logs} = await props.rep(code.value)
 
-			if (_.isString(result)) {
-				results.value.push({
-					input: code.value,
-					logs: logs,
-					output: result,
-				})
+			results.value.push({
+				input: code.value,
+				logs: logs,
+				output: result,
+			})
 
-				if (code.value !== history.value[0]) {
-					history.value.unshift(code.value)
-				}
+			if (code.value !== history.value[0]) {
+				history.value.unshift(code.value)
 			}
 
 			code.value = ''

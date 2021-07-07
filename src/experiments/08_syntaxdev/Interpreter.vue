@@ -48,7 +48,7 @@ export default defineComponent({
 
 				return {result: printValue(result), logs}
 			} catch (e) {
-				return {result: null, logs: [{level: 'error', reason: e.toString()}]}
+				return {result: null, logs: [{level: 'error', reason: e.message}]}
 			}
 		}
 
