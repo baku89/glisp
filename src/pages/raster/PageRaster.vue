@@ -56,6 +56,7 @@
 					@update:modelValue="commit('viewport.switchBrush', $event)"
 					:tools="brushes"
 					@update:tools="commit('viewport.setBrushes', $event)"
+					:contextmenu="toolSelectorContextmenu"
 				/>
 				<PaneBrushParams class="PageRaster__params" />
 			</template>
@@ -73,9 +74,10 @@ import 'splitpanes/dist/splitpanes.css'
 
 import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
-import {computed, defineComponent, onMounted, provide, ref} from 'vue'
+import {defineComponent, onMounted, provide, ref} from 'vue'
 
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
+import {MenuItem} from '@/components/layouts/Menu.vue'
 import SidePane from '@/components/layouts/SidePane.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useScheme from '@/components/use/use-scheme'
@@ -146,14 +148,25 @@ export default defineComponent({
 			})
 		})
 
-		const globalMenu = computed(() => [
+		const globalMenu = [
 			'viewport.openImage',
 			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
-			'viewport.copyCurrentBrushUrl',
-			'viewport.copyCurrentBrushYaml',
 			'viewport.resetBuiltinBrushes',
 			'viewport.fitTransformToScreen',
-		])
+		]
+
+		const toolSelectorContextmenu: MenuItem[] = [
+			{
+				name: 'copyBrushUrl',
+				label: 'Copy Brush URL',
+				...store.getAction('viewport.copyBrushUrl'),
+			},
+			{
+				name: 'copyBrushYaml',
+				label: 'Copy Brush YAML',
+				...store.getAction('viewport.copyBrushYaml'),
+			},
+		]
 
 		const viewportTransform = store.getState('viewport.transform')
 		const canvasSize = store.getState('viewport.canvasSize')
@@ -169,6 +182,7 @@ export default defineComponent({
 			documentName,
 			viewportTransform,
 			currentBrush,
+			toolSelectorContextmenu,
 			canvasSize,
 			brushParams,
 			currentBrushName,

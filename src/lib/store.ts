@@ -8,8 +8,6 @@ export interface Action {
 	exec: (payloads: any) => any
 }
 
-type ActionInfo = Omit<Action, 'exec'>
-
 export interface StoreModule {
 	state: Record<string, Ref>
 	actions: Record<string, Action>
@@ -20,7 +18,7 @@ type CreateStoreOptions = Record<string, StoreModule>
 export interface Store {
 	state: Record<string, Record<string, Ref>>
 	getState: <T>(name: string) => Ref<T>
-	getAction: (name: string) => ActionInfo
+	getAction: (name: string) => Action
 	commit: (name: string, payload: any) => any
 }
 
@@ -50,7 +48,7 @@ export function createStore(options: CreateStoreOptions): Store {
 		return s
 	}
 
-	function getAction(name: string): ActionInfo {
+	function getAction(name: string): Action {
 		if (!(name in actions)) {
 			throw new Error(`Action ${name} does not exist.`)
 		}

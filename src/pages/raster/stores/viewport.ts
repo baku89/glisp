@@ -61,15 +61,25 @@ export default function useModuleViewport(): StoreModule {
 
 	// brush
 	const brushes = useLocalStorage('raster__brushes', BuiltinBrushes)
-	const currentBrushName = useLocalStorage('raster__currentBrushName', 'brush')
-	if (!(currentBrushName.value in brushes.value)) {
-		currentBrushName.value = _.keys(brushes.value)[0]
+	const currentBrushName = useLocalStorage<string | null>(
+		'raster__currentBrushName',
+		'brush'
+	)
+	if (
+		currentBrushName.value === null ||
+		!(currentBrushName.value in brushes.value)
+	) {
+		currentBrushName.value = null
 	}
 
 	const currentBrush = computed({
-		get: () => brushes.value[currentBrushName.value],
+		get: () =>
+			currentBrushName.value === null
+				? null
+				: brushes.value[currentBrushName.value],
 		set: v => {
-			brushes.value[currentBrushName.value] = v
+			const name = currentBrushName.value
+			if (name !== null && v) brushes.value[name] = v
 		},
 	})
 
@@ -77,7 +87,7 @@ export default function useModuleViewport(): StoreModule {
 
 	// uniformData
 	const uniformData = computed(() => {
-		if (!regl.value) return {}
+		if (!regl.value || !currentBrush.value) return {}
 
 		const defs = Object.entries(currentBrush.value.params)
 
@@ -185,7 +195,7 @@ export default function useModuleViewport(): StoreModule {
 
 	// Commands
 	const drawCommand = computed(() => {
-		if (!regl.value) return null
+		if (!regl.value || !currentBrush.value) return null
 		const prop = regl.value.prop as any
 
 		const uniforms: Record<string, any> = {
@@ -524,12 +534,16 @@ export default function useModuleViewport(): StoreModule {
 					}
 				},
 			},
-			copyCurrentBrushUrl: {
+			copyBrushUrl: {
 				label: 'Copy Current Brush URL',
 				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-				async exec() {
+				async exec(name: string) {
+					if (!(name in brushes.value)) {
+						throw new Error(`Cannot find the brush named ${name}`)
+					}
+
 					const data = YAML.stringify({
-						[currentBrushName.value]: currentBrush.value,
+						[name]: brushes.value[name],
 					})
 					const result = await postTextToGlispServer(
 						'raster_brush',
@@ -543,13 +557,18 @@ export default function useModuleViewport(): StoreModule {
 					navigator.clipboard.writeText(url.toString())
 				},
 			},
-			copyCurrentBrushYaml: {
+			copyBrushYaml: {
 				label: 'Copy Current Brush in YAML',
 				icon: '<path d="M12 2 L12 6 20 6 20 2 12 2 Z M11 4 L6 4 6 30 26 30 26 4 21 4" />',
-				async exec() {
+				async exec(name: string) {
+					if (!(name in brushes.value)) {
+						throw new Error(`Cannot find the brush named ${name}`)
+					}
+
 					const data = YAML.stringify({
-						[currentBrushName.value]: currentBrush.value,
+						[name]: currentBrush.value,
 					})
+
 					navigator.clipboard.writeText(data)
 				},
 			},
@@ -605,6 +624,7 @@ export default function useModuleViewport(): StoreModule {
 			},
 			updateCurrentBrush: {
 				exec(brush: BrushDefinition) {
+					if (!currentBrushName.value) return
 					brushes.value[currentBrushName.value] = brush
 				},
 			},

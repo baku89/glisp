@@ -24,7 +24,7 @@ export interface MenuItem {
 	name: string
 	label: string
 	icon?: string
-	exec: () => any
+	exec: (...args: any[]) => any
 }
 
 export default defineComponent({
