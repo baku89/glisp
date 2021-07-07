@@ -9,7 +9,7 @@ import './languages/glisp'
 import './languages/glsl'
 
 import {templateRef} from '@vueuse/core'
-import * as Monaco from 'monaco-editor'
+import {editor as Editor, MarkerSeverity} from 'monaco-editor'
 import {defineComponent, onMounted, onUnmounted, PropType, watch} from 'vue'
 
 import {MonacoEditorMarker} from '.'
@@ -31,18 +31,18 @@ export default defineComponent({
 			default: () => [],
 		},
 	},
-	emits: ['update:modelValue'],
+	emits: ['update:modelValue', 'update:editor'],
 	setup(props, context) {
 		const editorEl = templateRef<HTMLElement>('editorEl')
 
-		let editor: ReturnType<typeof Monaco.editor.create>
+		let editor: ReturnType<typeof Editor.create>
 
 		useMonacoEditor()
 
 		onMounted(() => {
 			if (!editorEl.value) return
 
-			editor = Monaco.editor.create(editorEl.value, {
+			editor = Editor.create(editorEl.value, {
 				value: props.modelValue,
 				automaticLayout: true,
 				language: props.lang,
@@ -71,20 +71,20 @@ export default defineComponent({
 			function getSeverity(severity: MonacoEditorMarker['severity'] = 'error') {
 				switch (severity) {
 					case 'hint':
-						return Monaco.MarkerSeverity.Hint
+						return MarkerSeverity.Hint
 					case 'info':
-						return Monaco.MarkerSeverity.Info
+						return MarkerSeverity.Info
 					case 'warn':
-						return Monaco.MarkerSeverity.Warning
+						return MarkerSeverity.Warning
 					case 'error':
-						return Monaco.MarkerSeverity.Error
+						return MarkerSeverity.Error
 				}
 			}
 
 			watch(
 				() => props.markers,
 				markers =>
-					Monaco.editor.setModelMarkers(
+					Editor.setModelMarkers(
 						editor.getModel() as any,
 						'errors',
 						markers.map(m => ({
@@ -103,9 +103,14 @@ export default defineComponent({
 				() => props.modelValue,
 				value => editor.getValue() !== value && editor.setValue(value)
 			)
+
+			context.emit('update:editor', editor)
 		})
 
-		onUnmounted(() => editor?.dispose())
+		onUnmounted(() => {
+			editor?.dispose()
+			context.emit('update:editor', null)
+		})
 	},
 })
 </script>
