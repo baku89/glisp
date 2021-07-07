@@ -2,7 +2,7 @@
 	<div class="InputDropdown" :class="{open}" ref="rootEl" v-bind="$attrs">
 		<InputString
 			class="InputDropdown__input"
-			:modelValue="inputValue"
+			:modelValue="inputText"
 			@update:modelValue="onInput"
 			@click="open = true"
 			@focus="onFocus"
@@ -15,19 +15,15 @@
 	</div>
 	<Popover
 		:open="open"
-		@update:open="onClickOutsideOfPopover"
+		@update:open="onBlur"
 		:reference="rootEl"
 		placement="bottom"
 	>
-		<ul
-			class="InputDropdown__select"
-			:style="{minWidth: rootWidth + 'px'}"
-			:value="modelValue"
-		>
+		<ul class="InputDropdown__select" :value="modelValue">
 			<li
 				class="InputDropdown__option"
 				v-for="{index, string, original: {value}} in filteredResults"
-				:class="{active: value === modelValue}"
+				:class="{active: value === inputText}"
 				:key="index"
 				@click="onSelect(value)"
 				@mouseenter="updateOnBlur || updateModelValue(value)"
@@ -41,7 +37,7 @@
 </template>
 
 <script lang="ts">
-import {useElementSize, useMagicKeys} from '@vueuse/core'
+import {useElementSize} from '@vueuse/core'
 import fuzzy from 'fuzzy'
 import keycode from 'keycode'
 import _ from 'lodash'
@@ -107,13 +103,13 @@ export default defineComponent({
 			const arrItems = _.isArray(items) ? items : items.split(',')
 
 			return arrItems.map(it => {
-				if (typeof it !== 'object' || it === null) {
+				if (!_.isObject(it)) {
 					return {value: it, label: props.labelize(it)}
-				}
-				if (!it.label) {
+				} else if (!it.label) {
 					return {value: it.value, label: props.labelize(it.value)}
+				} else {
+					return it as CompleteItem
 				}
-				return it as CompleteItem
 			})
 		})
 
@@ -133,19 +129,18 @@ export default defineComponent({
 			return completeItems.value.find(it => it.value === props.modelValue)
 		})
 
-		const inputValue = ref(activeItem.value ? activeItem.value.label : '')
+		const inputText = ref(activeItem.value ? activeItem.value.label : '')
 		const inputFocused = ref(false)
 
 		watch(activeItem, () => {
 			if (activeItem.value && !inputFocused.value) {
-				inputValue.value = activeItem.value.label
+				inputText.value = activeItem.value.label
 			}
 		})
 
 		function onFocus(e: InputEvent) {
 			const input = e.target as HTMLInputElement
 
-			input.focus()
 			input.select()
 
 			open.value = true
@@ -153,17 +148,12 @@ export default defineComponent({
 			filteredResults.value = getNotFilteredResults()
 		}
 
-		const {tab} = useMagicKeys()
-
 		function onBlur() {
-			if (activeItem.value && !open.value) {
-				inputValue.value = activeItem.value.label
+			if (activeItem.value) {
+				inputText.value = activeItem.value.label
 			}
 			inputFocused.value = false
-
-			if (tab.value) {
-				open.value = false
-			}
+			open.value = false
 		}
 
 		function onKeydown(e: InputEvent) {
@@ -173,7 +163,7 @@ export default defineComponent({
 
 			const indices = filteredResults.value.map(ret => ret.index)
 			const activeIndex = completeItems.value.findIndex(
-				it => it.value === props.modelValue
+				it => it.value === inputText.value
 			)
 			let notSelected =
 				activeIndex === -1 ||
@@ -183,33 +173,28 @@ export default defineComponent({
 			switch (key) {
 				case 'enter':
 					if (activeItem.value) {
-						inputValue.value = activeItem.value.label
+						inputText.value = activeItem.value.label
 						open.value = false
 					}
 					break
-				case 'up': {
-					const index = notSelected ? 0 : indices.indexOf(activeIndex)
-					const prevIndex = indices[unsignedMod(index - 1, len)]
-					const item = completeItems.value[prevIndex]
-					updateModelValue(item.value)
-					inputValue.value = item.label
-					break
-				}
+				case 'up':
 				case 'down': {
+					const defaultIndex = key === 'up' ? 0 : indices.length - 1
+					const inc = key === 'up' ? -1 : +1
 					const index = notSelected
-						? indices.length - 1
+						? defaultIndex
 						: indices.indexOf(activeIndex)
-					const nextIndex = indices[unsignedMod(index + 1, len)]
-					const item = completeItems.value[nextIndex]
-					updateModelValue(item.value)
-					inputValue.value = item.label
+					const neighborIndex = indices[unsignedMod(index + inc, len)]
+					const item = completeItems.value[neighborIndex]
+					!props.updateOnBlur && updateModelValue(item.value)
+					inputText.value = item.label
 					break
 				}
 			}
 		}
 
 		function onInput(value: string) {
-			inputValue.value = value
+			inputText.value = value
 
 			const result = fuzzy.filter(value, completeItems.value, {
 				extract: it => it.label,
@@ -247,28 +232,17 @@ export default defineComponent({
 		function onSelect(newValue: any) {
 			const item = completeItems.value.find(it => it.value === newValue)
 			if (item) {
-				inputValue.value = item.label
+				inputText.value = item.label
 			}
 
 			updateModelValue(newValue)
 			open.value = false
 		}
 
-		function onClickOutsideOfPopover() {
-			setTimeout(() => {
-				if (!inputFocused.value) {
-					open.value = false
-					if (activeItem.value) {
-						inputValue.value = activeItem.value.label
-					}
-				}
-			}, 0)
-		}
-
 		return {
 			rootEl,
 			rootWidth,
-			inputValue,
+			inputText,
 			completeItems,
 			activeItem,
 			filteredResults,
@@ -278,7 +252,6 @@ export default defineComponent({
 			onInput,
 			onKeydown,
 			onSelect,
-			onClickOutsideOfPopover,
 			updateModelValue,
 		}
 	},
@@ -302,6 +275,7 @@ $right-arrow-width = 1em
 
 	&__select
 		margin 2px
+		width max-content
 		tooltip()
 		padding 0
 		border 1px solid $color-frame
