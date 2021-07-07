@@ -8,7 +8,8 @@ import $ from 'jquery'
 
 import 'jq-console'
 
-import {defineComponent, onMounted, PropType, ref} from 'vue'
+import {defineComponent, onMounted, PropType} from 'vue'
+import {templateRef} from '@vueuse/core'
 
 const MAX_HISTORY_LENGTH = 1000
 
@@ -44,7 +45,7 @@ export default defineComponent({
 	},
 	emits: ['setup', 'update:onError'],
 	setup(props, context) {
-		const el = ref<null | HTMLElement>(null)
+		const el = templateRef<HTMLElement | null>('el')
 
 		onMounted(() => {
 			if (!el.value) return
