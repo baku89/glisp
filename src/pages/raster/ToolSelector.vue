@@ -95,6 +95,7 @@ export default defineComponent({
 			context.emit('update:modelValue', name)
 		}
 
+		// Context menu
 		const items = ref([])
 		const contextmenuIndex = ref<number | null>(null)
 		const contextmenuItems = computed<MenuItem[]>(() => {
@@ -141,6 +142,7 @@ export default defineComponent({
 		return {
 			toolEntries,
 			duplicateCurrentTool,
+
 			items,
 			contextmenuIndex,
 			contextmenuItems,
