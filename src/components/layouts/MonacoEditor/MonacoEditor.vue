@@ -83,7 +83,7 @@ export default defineComponent({
 
 			watch(
 				() => props.markers,
-				markers => {
+				markers =>
 					Monaco.editor.setModelMarkers(
 						editor.getModel() as any,
 						'errors',
@@ -95,24 +95,17 @@ export default defineComponent({
 							message: m.message,
 							severity: getSeverity(m.severity),
 						}))
-					)
-				},
+					),
 				{immediate: true}
 			)
 
 			watch(
 				() => props.modelValue,
-				value => {
-					if (editor.getValue() !== value) {
-						editor.setValue(value)
-					}
-				}
+				value => editor.getValue() !== value && editor.setValue(value)
 			)
 		})
 
-		onUnmounted(() => {
-			editor && editor.dispose()
-		})
+		onUnmounted(() => editor?.dispose())
 	},
 })
 </script>
