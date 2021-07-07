@@ -46,16 +46,12 @@ interface Result {
 }
 
 export default defineComponent({
-	name: 'MinimalConsole',
+	name: 'Console',
 	components: {MonacoEditor},
 	props: {
 		rep: {
 			type: Function as PropType<IFnRep>,
 			required: true,
-		},
-		name: {
-			type: String,
-			default: 'minimal-console',
 		},
 		uid: {
 			type: String,
@@ -76,7 +72,7 @@ export default defineComponent({
 
 		// Newer has fewer index
 		const history = useLocalStorage<string[]>(
-			`MinimalConsole__history${props.uid}`,
+			`Console__history${props.uid}`,
 			[]
 		)
 		let activeHistoryIndex = -1

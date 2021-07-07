@@ -6,7 +6,7 @@
 			</template>
 		</AppHeader>
 		<main class="Interpreter__main">
-			<MinimalConsole class="Interpreter__console" :rep="rep" />
+			<Console class="Interpreter__console" :rep="rep" />
 		</main>
 	</div>
 </template>
@@ -19,13 +19,13 @@ import {defineComponent, ref} from 'vue'
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
 
-import {evalExp, printValue, readStr, TypeIO} from './glisp'
 // import {evalExp, printValue, readStr, TypeIO} from './glisp'
-import MinimalConsole, {IFnRep} from './MinimalConsole.vue'
+import Console, {IFnRep} from './Console.vue'
+import {evalExp, printValue, readStr, TypeIO} from './glisp'
 
 export default defineComponent({
 	name: 'Interpreter',
-	components: {AppHeader, AppHeaderBreadcumb, MinimalConsole},
+	components: {AppHeader, AppHeaderBreadcumb, Console},
 	setup() {
 		useScheme()
 
