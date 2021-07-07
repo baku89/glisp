@@ -6,11 +6,7 @@
 			</template>
 		</AppHeader>
 		<main class="Interpreter__main">
-			<MinimalConsole
-				class="Interpreter__console"
-				:rep="rep"
-				v-model:onError="onError"
-			/>
+			<MinimalConsole class="Interpreter__console" :rep="rep" />
 		</main>
 	</div>
 </template>
@@ -24,7 +20,8 @@ import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
 
 import {evalExp, printValue, readStr, TypeIO} from './glisp'
-import MinimalConsole from './MinimalConsole.vue'
+// import {evalExp, printValue, readStr, TypeIO} from './glisp'
+import MinimalConsole, {IFnRep} from './MinimalConsole.vue'
 
 export default defineComponent({
 	name: 'Interpreter',
@@ -34,15 +31,12 @@ export default defineComponent({
 
 		const onError = ref<(msg: string) => any>(console.error)
 
-		async function rep(str: string) {
-			const exp = readStr(str)
-
+		const rep: IFnRep = async (str: string) => {
 			try {
+				const exp = readStr(str)
 				const {result, logs} = evalExp(exp)
-				if (logs.length > 0) {
-					onError.value(logs.map(l => `[${l.level}] ${l.reason}`).join('\n'))
-				}
 
+				// Execute IO
 				if (
 					result instanceof Object &&
 					!Array.isArray(result) &&
@@ -52,10 +46,9 @@ export default defineComponent({
 					result.value()
 				}
 
-				return printValue(result)
-			} catch (err) {
-				console.error(err)
-				throw err
+				return {result: printValue(result), logs}
+			} catch (e) {
+				return {result: null, logs: [{level: 'error', reason: e.toString()}]}
 			}
 		}
 
@@ -75,6 +68,7 @@ export default defineComponent({
 	grid-template-rows auto 1fr
 
 	&__main
+		overflow scroll
 		padding 2em
 
 	h2
@@ -86,5 +80,4 @@ export default defineComponent({
 
 	&__console
 		flex-grow 1
-		padding-right 1em
 </style>

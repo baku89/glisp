@@ -1,42 +1,54 @@
 <template>
-	<div class="Console" ref="el" />
+	<div class="Console">
+		<ul class="Console__history">
+			<li class="rep" v-for="({input, logs, output}, i) in results" :key="i">
+				<div class="input">{{ input }}</div>
+				<div
+					v-for="({level, reason}, j) in logs"
+					:key="j"
+					class="log"
+					:class="level"
+				>
+					{{ reason }}
+				</div>
+				<div class="output" v-if="output !== null">{{ output }}</div>
+			</li>
+		</ul>
+		<div class="Console__command">
+			<MonacoEditor
+				class="Console__code"
+				v-model="code"
+				@keydown.enter="execute"
+				:style="{height: lines * 21 + 'px'}"
+			/>
+		</div>
+	</div>
 </template>
 
 <script lang="ts">
-// eslint-disable-next-line simple-import-sort/imports
-import $ from 'jquery'
+import {computed, defineComponent, PropType, ref} from 'vue'
 
-import 'jq-console'
+import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
 
-import {defineComponent, onMounted, PropType} from 'vue'
-import {templateRef} from '@vueuse/core'
+import {Log, WithLogs} from './glisp'
 
-const MAX_HISTORY_LENGTH = 1000
+type MaybePromise<T> = T | Promise<T>
 
-function loadHistory(jq: any, name: string) {
-	if (localStorage[`console-history_${name}`]) {
-		let lines = JSON.parse(localStorage[`console-history_${name}`])
-		if (lines.length > MAX_HISTORY_LENGTH) {
-			lines = lines.slice(lines.length - MAX_HISTORY_LENGTH)
-		}
-		jq.SetHistory(lines)
-	}
-}
+export type IFnRep = (str: string) => MaybePromise<WithLogs<string | null>>
 
-function saveHistory(jq: any, name: string) {
-	const lines = jq.GetHistory()
-	localStorage[`console-history_${name}`] = JSON.stringify(lines)
+interface Result {
+	input: string
+	logs: Log[]
+	output: string | null
 }
 
 export default defineComponent({
+	name: 'MinimalConsole',
+	components: {MonacoEditor},
 	props: {
 		rep: {
-			type: Function as PropType<(str: string) => Promise<string> | string>,
+			type: Function as PropType<IFnRep>,
 			required: true,
-		},
-		onError: {
-			type: Function as PropType<(str: string) => any>,
-			default: () => () => null,
 		},
 		name: {
 			type: String,
@@ -44,65 +56,28 @@ export default defineComponent({
 		},
 	},
 	emits: ['setup', 'update:onError'],
-	setup(props, context) {
-		const el = templateRef<HTMLElement | null>('el')
+	setup(props) {
+		const code = ref('')
 
-		onMounted(() => {
-			if (!el.value) return
+		const results = ref<Result[]>([])
 
-			// eslint-disable-next-line no-undef
-			const jqconsole = ($(el.value) as any).jqconsole('', '', '   ')
+		const lines = computed(() => code.value.split('\n').length)
 
-			const onError = (msg: string) =>
-				jqconsole.Write(msg + '\n', 'jqconsole-error')
+		async function execute(e: KeyboardEvent) {
+			e.preventDefault()
 
-			context.emit('update:onError', onError)
+			const result = await props.rep(code.value)
 
-			loadHistory(jqconsole, props.name)
-
-			// Initiate the first prompt.
-			// Handle a command.
-			const handler = async (line?: string) => {
-				if (line) {
-					try {
-						const ret = await props.rep(line)
-						jqconsole.Write(ret + '\n', 'jqconsole-return')
-					} catch (err) {
-						onError(err)
-					}
-					saveHistory(jqconsole, props.name)
-				}
-				jqconsole.Prompt(true, handler)
-			}
-
-			// Setup console
-			function setupConsole() {
-				// Move to line start Ctrl+A.
-				jqconsole.RegisterShortcut('A', () => {
-					jqconsole.MoveToStart()
-					handler()
-				})
-				// Move to line end Ctrl+E.
-				jqconsole.RegisterShortcut('E', () => {
-					jqconsole.MoveToEnd()
-					handler()
-				})
-
-				// Setup Glisp Syntax
-				jqconsole.RegisterMatching('{', '}', 'bracket-match')
-				jqconsole.RegisterMatching('(', ')', 'bracket-match')
-				jqconsole.RegisterMatching('[', ']', 'bracket-match')
-			}
-			setupConsole()
-
-			handler()
-
-			context.emit('setup', {
-				append: (el: Element) => jqconsole.Append($(el)),
+			results.value.push({
+				input: code.value,
+				logs: result.logs,
+				output: result.result,
 			})
-		})
 
-		return {el}
+			code.value = ''
+		}
+
+		return {code, lines, results, execute}
 	},
 })
 </script>
@@ -113,51 +88,70 @@ export default defineComponent({
 .Console
 	position relative
 	height 100%
-	text-align left
-	font-size 1rem
-	line-height 1.2em
+	font-size 14px
+	line-height 21px
+	$indent = 1.5em
+	overflow scroll
+	user-select text
 
-.jqconsole
-	white-space pre-wrap
-	font-monospace()
+	&__history
+		font-monospace()
 
-	&-blurred
-		.jqconsole-cursor
-			background base16('04')
-			opacity 0.4
+		.rep
+			margin-bottom 14px
 
-	&-cursor
-		background base16('04')
-		transform scaleX(0.2) translateX(-10%)
-		transform-origin 0 0
+		.input, .output, .log
+			position relative
+			padding-left $indent
+			white-space pre-line
 
-	&-prompt, &-old-prompt
-		&:before
+			&:before
+				position absolute
+				left 0
+				font-monospace()
+				display block
+				font-weight bold
+
+		.input:before
 			color base16('03')
-			content '>> '
+			content '>'
+
+		.error
+			color base16('08')
+
+			&:before
+				content 'X'
+
+		.warn
+			color base16('0A')
+
+			&:before
+				content '!'
+
+		.info
+			color base16('0B')
+
+			&:before
+				content 'i'
+
+		.output
+			color base16('04')
+
+			&:before
+				color base16('02')
+				content '<'
+
+	&__command
+		position relative
+
+		&:before
+			position absolute
+			font-monospace()
+			color base16('accent')
+			content '>'
 			font-weight bold
 
-	&-old-prompt
-		color base16('04')
-
-	&-prompt
-		color base16('06')
-
-		&:before
-			color base16('03')
-			content '>> '
-			font-weight bold
-
-	&-output
-		color var(--none)
-
-	&-return
-		color base16('09')
-
-	&-error
-		color base16('08')
-
-	.bracket-match
-		background base16('02')
-		box-shadow inset 0 0 0 1px base16('03')
+	&__code
+		margin-left $indent
+		height 1.5em
 </style>

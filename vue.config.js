@@ -121,16 +121,6 @@ module.exports = {
 				return args
 			})
 
-		// Add jQuery loader
-		config.module
-			.rule('jquery')
-			.test(require.resolve('jquery'))
-			.use('jquery')
-			.loader('expose-loader')
-			.options({
-				exposes: ['$', 'jQuery'],
-			})
-
 		// Glslify
 		config.module
 			.rule('glsl')

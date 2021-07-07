@@ -91,7 +91,7 @@ type Exp =
 	| ExpPair
 	| ExpScope
 
-interface Log {
+export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
 }
@@ -367,7 +367,7 @@ export const GlobalScope = createExpScope({
 					kind: 'object',
 					type: TypeIO,
 					value: () => {
-						GlobalScope.scope[n] = value
+						GlobalScope.scope[n] = createExpValue(v)
 					},
 				}
 			} as any,
@@ -392,7 +392,7 @@ export const GlobalScope = createExpScope({
 	},
 })
 
-interface WithLogs<T> {
+export interface WithLogs<T> {
 	result: T
 	logs: Log[]
 }
