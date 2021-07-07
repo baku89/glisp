@@ -21,7 +21,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
 import {Pane, Splitpanes} from 'splitpanes'

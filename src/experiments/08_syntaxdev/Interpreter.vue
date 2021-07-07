@@ -16,7 +16,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
 import 'splitpanes/dist/splitpanes.css'
 
 import {defineComponent, ref} from 'vue'

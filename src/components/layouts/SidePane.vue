@@ -13,6 +13,8 @@
 </template>
 
 <script lang="ts">
+import 'splitpanes/dist/splitpanes.css'
+
 import {useLocalStorage} from '@vueuse/core'
 import {Pane, Splitpanes} from 'splitpanes'
 import {defineComponent, ref} from 'vue'

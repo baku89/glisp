@@ -69,9 +69,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-import 'splitpanes/dist/splitpanes.css'
-
 import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
 import {defineComponent, onMounted, provide, ref} from 'vue'

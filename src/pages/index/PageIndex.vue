@@ -15,8 +15,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {defineComponent, ref} from 'vue'
 
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'

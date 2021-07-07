@@ -14,8 +14,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {useLocalStorage} from '@vueuse/core'
 import {
 	computed,

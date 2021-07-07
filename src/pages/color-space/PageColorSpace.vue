@@ -71,8 +71,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import JSON5 from 'json5'
 import _ from 'lodash'
 import {computed, defineComponent, reactive, ref, watchEffect} from 'vue'

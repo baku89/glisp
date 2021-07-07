@@ -5,8 +5,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {defineComponent} from 'vue'
 
 import useScheme from '@/components/use/use-scheme'

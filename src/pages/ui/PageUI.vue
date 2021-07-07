@@ -70,9 +70,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-import 'splitpanes/dist/splitpanes.css'
-
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 

@@ -69,8 +69,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {useElementSize} from '@vueuse/core'
 import _, {clamp} from 'lodash'
 import {

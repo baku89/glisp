@@ -89,8 +89,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {mat2d} from 'gl-matrix'
 import {
 	computed,

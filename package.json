@@ -100,7 +100,6 @@
 		"monaco-editor-webpack-plugin": "^4.0.0",
 		"mousetrap": "^1.6.5",
 		"node-fetch": "^2.6.1",
-		"normalize.css": "^8.0.1",
 		"object-path": "^0.11.5",
 		"paper": "^0.12.15",
 		"paperjs-offset": "^1.0.8",

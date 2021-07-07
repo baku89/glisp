@@ -17,8 +17,6 @@
 </template>
 
 <script lang="ts">
-import 'normalize.css'
-
 import {computed, defineComponent, ref, shallowRef, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
