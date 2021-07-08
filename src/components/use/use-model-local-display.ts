@@ -1,7 +1,8 @@
+import {pausableWatch} from '@vueuse/core'
 import {extendRef} from '@vueuse/shared'
 import {flow} from 'fp-ts/lib/function'
 import {chain, isSome, Option} from 'fp-ts/lib/Option'
-import {readonly, Ref, ref, SetupContext, toRaw, watch} from 'vue'
+import {computed, readonly, Ref, ref, SetupContext, toRaw, watch} from 'vue'
 
 import {Validator} from '@/lib/fp'
 
@@ -26,16 +27,28 @@ export default function useModelLocalDisplay<T>({
 
 	const readAndValidate = flow(read, chain(validate))
 
-	watch(
+	pausableWatch(
 		() => props.modelValue,
 		m => (local.value = m),
 		{flush: 'sync'}
 	)
 
-	watch(
-		() => show(local.value),
-		d => (display.value = d)
-	)
+	const validDisplay = computed(() => show(local.value))
+
+	const watchLocal = pausableWatch(validDisplay, d => (display.value = d))
+
+	watch(display, d => {
+		const result = readAndValidate(d)
+		if (isSome(result)) {
+			watchLocal.pause()
+			if (!props.updateOnBlur) {
+				emit('update:modelValue', result.value)
+			} else {
+				local.value = result.value
+			}
+			watchLocal.resume()
+		}
+	})
 
 	function setLocal(l: T) {
 		const result = validate(l)

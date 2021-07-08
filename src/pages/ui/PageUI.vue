@@ -61,7 +61,7 @@
 					<template #panel-inputs>
 						<h2>Input Components</h2>
 						<InputSchema v-model="data" :schema="schema" />
-						{{ data.angle }}
+						{{ data.string }}
 					</template>
 				</Tab>
 			</template>

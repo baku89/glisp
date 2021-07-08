@@ -54,18 +54,20 @@ import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useLocalModelValue from '@/components/use/use-local-model-value'
 import {unsignedMod} from '@/utils'
 
+type Value = any
+
 interface Item {
-	value: any
+	index: number
+	value: Value
 	label: string
 }
 
 interface ItemProp {
-	value: any
+	value: Value
 	label?: string
 }
 
 interface Filtered {
-	index: number
 	html: string
 	item: Item
 }
@@ -107,11 +109,15 @@ export default defineComponent({
 			const items = props.items
 			const arrItems = _.isArray(items) ? items : items.split(',')
 
-			return arrItems.map(it => {
+			return arrItems.map((it, index) => {
 				if (!_.isObject(it)) {
-					return {value: it, label: props.labelize(it)}
+					return {index, value: it, label: props.labelize(it)}
 				} else {
-					return {value: it.value, label: it.label ?? props.labelize(it.value)}
+					return {
+						index,
+						value: it.value,
+						label: it.label ?? props.labelize(it.value),
+					}
 				}
 			})
 		})
@@ -126,9 +132,8 @@ export default defineComponent({
 		const filtered = ref(getNotFiltered())
 
 		function getNotFiltered() {
-			return itemsData.value.map((item, index) => {
+			return itemsData.value.map(item => {
 				return {
-					index,
 					html: item.label,
 					item,
 				} as Filtered
@@ -174,9 +179,10 @@ export default defineComponent({
 		}
 
 		function onPressUpDown(dir: 'up' | 'down') {
-			const indices = filtered.value.map(ret => ret.index)
-			let notSelected =
-				filtered.value.findIndex(ret => ret.index === activeIndex.value) === -1
+			const indices = filtered.value.map(ret => ret.item.index)
+			let notSelected = !filtered.value.find(
+				ret => ret.item === activeItem.value
+			)
 			const len = indices.length
 
 			const defaultIndex = dir === 'up' ? 0 : len - 1
@@ -212,17 +218,13 @@ export default defineComponent({
 			}
 
 			// Select the first of filtered items if no item is selected
-			const activeIndex = itemsData.value.findIndex(
-				it => it.value === local.value
+
+			let notSelected = !filtered.value.find(
+				ret => ret.item === activeItem.value
 			)
 
-			let notSelected =
-				activeIndex === -1 ||
-				filtered.value.findIndex(ret => ret.index === activeIndex) === -1
-
 			if (notSelected) {
-				const item = itemsData.value[filtered.value[0].index]
-				local.value = item.value
+				local.value = filtered.value[0].item.value
 			}
 		}
 
