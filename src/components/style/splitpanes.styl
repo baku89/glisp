@@ -22,34 +22,3 @@
 				&:hover
 					border-color $color-frame
 					background-color base16('07')
-
-				&:before, &:after
-					position absolute
-					top 50%
-					pointer-events none
-					font-monospace()
-					margin-top -0.5em
-					width 2em
-					height 1em
-					color base16('07')
-					line-height 1em
-					opacity 0
-					input-transition()
-
-				&:before
-					right 0
-					content '<'
-					text-align right
-
-				&:hover:before, &:hover:after
-					opacity 1
-
-				&:hover:before
-					transform translateX(-50%)
-
-				&:after
-					left 0em
-					content '>'
-
-				&:hover:after
-					transform translateX(50%)
