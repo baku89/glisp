@@ -19,28 +19,25 @@
 			:class="{'tweaking-slider': tweakMode !== 'pad'}"
 		>
 			<GlslCanvas
-				class="InputColor__overlay-pad"
+				class="pad"
 				:class="{show: tweakMode === 'pad'}"
 				:fragmentString="PadFragmentString"
 				:uniforms="padUniforms"
 				:style="padStyle"
 			/>
 			<GlslCanvas
-				class="InputColor__overlay-slider-hue"
+				class="slider-hue"
 				:class="{show: tweakMode == 'hue'}"
 				:fragmentString="SliderHueFragmentString"
 				:uniforms="sliderHueUniforms"
 				:style="sliderHueStyle"
 			/>
 			<div
-				class="InputColor__overlay-slider-alpha"
+				class="slider-alpha"
 				:class="{show: tweakMode == 'alpha'}"
 				:style="sliderAlphaStyle"
 			/>
-			<button
-				class="InputColor__overlay-button"
-				:style="overlayButtonStyle"
-			></button>
+			<button class="button" :style="overlayButtonStyle"></button>
 		</div>
 	</teleport>
 </template>
@@ -296,7 +293,7 @@ export default defineComponent({
 		&.tweaking-slider
 			cursor e-resize
 
-		&-button
+		.button
 			position absolute
 			z-index 10
 			width $input-height
@@ -305,7 +302,7 @@ export default defineComponent({
 			pointer-events none
 			aspect-ratio 1
 
-		&-pad, &-slider-hue, &-slider-alpha
+		.pad, .slider-hue, .slider-alpha
 			position absolute
 			width 20rem
 			opacity 0
@@ -314,18 +311,21 @@ export default defineComponent({
 			&.show
 				opacity 1
 
-		&-pad
+		.pad
 			position absolute
 			height 20rem
 			border-radius $input-round
 			mask linear-gradient(to bottom, black 1%, transparent 1%, transparent 99%, black 99%), linear-gradient(to right, black 1%, transparent 1%, transparent 99%, black 99%)
 
-		&-slider-hue, &-slider-alpha
+		.slider-hue, .slider-alpha
 			position absolute
 			height 1em
 			border-radius 0.5em
 			transform translate(-50%, -50%)
 
-		&-slider-hue
+		.slider-hue
 			mask linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%)
+
+		.slider-alpha
+			border 1px solid $color-frame
 </style>
