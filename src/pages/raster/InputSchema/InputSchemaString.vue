@@ -13,7 +13,7 @@ import {computed, defineComponent, PropType} from 'vue'
 import InputDropdown from '@/components/inputs/InputDropdown.vue'
 import InputString from '@/components/inputs/InputString.vue'
 
-import {SchemaNumber} from './type'
+import {SchemaString} from './type'
 
 export default defineComponent({
 	name: 'InputSchemaString',
@@ -27,7 +27,7 @@ export default defineComponent({
 			required: true,
 		},
 		schema: {
-			type: Object as PropType<SchemaNumber>,
+			type: Object as PropType<SchemaString>,
 			required: true,
 		},
 	},

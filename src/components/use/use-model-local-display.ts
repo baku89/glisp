@@ -58,9 +58,9 @@ export default function useModelLocalDisplay<T>({
 
 	function confirmDisplay() {
 		const result = readAndValidate(display.value)
-
 		if (isSome(result)) {
 			emit('update:modelValue', result.value)
+			display.value = show(local.value)
 		} else {
 			display.value = show(local.value)
 		}
