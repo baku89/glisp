@@ -3,10 +3,18 @@
 </template>
 
 <script lang="ts">
-import {templateRef} from '@vueuse/core'
 import _ from 'lodash'
 import Regl from 'regl'
-import {computed, defineComponent, PropType, ref, watch} from 'vue'
+import REGL from 'regl'
+import {
+	computed,
+	defineComponent,
+	onMounted,
+	onUnmounted,
+	PropType,
+	ref,
+	watch,
+} from 'vue'
 
 import {REGL_QUAD_DEFAULT} from '@/lib/webgl'
 
@@ -30,22 +38,25 @@ export default defineComponent({
 		},
 	},
 	setup(props) {
-		const canvasEl = templateRef<HTMLCanvasElement>('canvas')
+		const canvas = ref<null | HTMLCanvasElement>(null)
 
-		const regl = computed(() => {
-			if (!canvasEl.value) {
-				regl.value?.destroy()
-				return null
+		const regl = ref<null | REGL.Regl>(null)
+
+		onMounted(() => {
+			if (!canvas.value) {
+				return
 			}
 
-			return Regl({
+			regl.value = Regl({
 				attributes: {
 					depth: false,
 					premultipliedAlpha: false,
 				},
-				canvas: canvasEl.value,
+				canvas: canvas.value,
 			})
 		})
+
+		onUnmounted(() => regl.value?.destroy())
 
 		const uniformKeys = ref(_.keys(props.uniforms))
 
@@ -69,6 +80,8 @@ export default defineComponent({
 				drawCommand.value && drawCommand.value(props.uniforms)
 			}
 		)
+
+		return {canvas}
 	},
 })
 </script>
