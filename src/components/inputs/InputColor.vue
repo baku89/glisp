@@ -89,7 +89,7 @@ export default defineComponent({
 		},
 	},
 	emits: ['update:modelValue'],
-	setup(props, context) {
+	setup(props, {emit}) {
 		const buttonEl = ref(null)
 		const pickerOpened = ref(false)
 
@@ -160,7 +160,7 @@ export default defineComponent({
 				}
 				const newValue = rgba2color(rgba, props.colorSpace)
 
-				context.emit('update:modelValue', newValue)
+				emit('update:modelValue', newValue)
 			},
 		})
 		const overlayButtonStyle = computed(() => {
