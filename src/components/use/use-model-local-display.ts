@@ -36,8 +36,12 @@ export default function useModelLocalDisplay<T>({
 	function setLocal(l: T) {
 		const result = props.validator(l)
 		if (isSome(result)) {
-			if (!props.updateOnBlur) emit('update:modelValue', result.value)
-			else local.value = result.value
+			if (!props.updateOnBlur) {
+				emit('update:modelValue', result.value)
+			} else {
+				local.value = result.value
+				display.value = show(result.value)
+			}
 		}
 	}
 

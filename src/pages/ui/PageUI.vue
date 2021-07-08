@@ -61,6 +61,7 @@
 					<template #panel-inputs>
 						<h2>Input Components</h2>
 						<InputSchema v-model="data" :schema="schema" />
+						{{ data.angle }}
 					</template>
 				</Tab>
 			</template>
@@ -69,6 +70,7 @@
 </template>
 
 <script lang="ts">
+import {some} from 'fp-ts/lib/Option'
 import _ from 'lodash'
 import {defineComponent, ref} from 'vue'
 
@@ -123,10 +125,19 @@ export default defineComponent({
 		const schema = ref<Schema>({
 			type: 'object',
 			properties: {
-				string: {type: 'string'},
-				code: {type: 'string', multiline: true, monospace: true},
+				string: {type: 'string', validator: v => some(v.substr(0, 10))},
+				code: {
+					type: 'string',
+					multiline: true,
+					monospace: true,
+				},
 				number: {type: 'number', min: 0, max: 100},
-				angle: {type: 'number', ui: 'angle'},
+				angle: {
+					type: 'number',
+					ui: 'angle',
+					// validator: v => some(_.clamp(v, 0, Math.PI)),
+					updateOnBlur: true,
+				},
 				boolean: {type: 'boolean'},
 				color: {type: 'color'},
 				tree: {

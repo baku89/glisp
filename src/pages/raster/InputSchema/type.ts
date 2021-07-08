@@ -27,6 +27,7 @@ export interface SchemaNumber {
 	min?: number
 	max?: number
 	default?: number
+	updateOnBlur?: boolean
 	validator?: Validator<number>
 }
 

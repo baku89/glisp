@@ -46,7 +46,7 @@
 				}"
 				ref="overlayLabel"
 			>
-				{{ overlayLabel }}
+				{{ display }}
 				<span
 					class="arrows"
 					:style="{
@@ -60,17 +60,19 @@
 
 <script lang="ts">
 import {templateRef, useElementSize} from '@vueuse/core'
+import {some} from 'fp-ts/lib/Option'
 import {vec2} from 'gl-matrix'
 import {checkIntersection} from 'line-intersect'
 import _ from 'lodash'
-import {computed, defineComponent, Ref, ref} from 'vue'
+import {computed, defineComponent, PropType, Ref, ref} from 'vue'
 
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useRem from '@/components/use/use-rem'
+import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
 
-import useLocalModelValue from '../use/use-local-model-value'
+import useModelLocalDisplay from '../use/use-model-local-display'
 
 function signedAngleBetween(target: number, source: number) {
 	const ret = target - source
@@ -97,6 +99,10 @@ export default defineComponent({
 			type: Number,
 			required: true,
 		},
+		validator: {
+			type: Function as PropType<Validator<number>>,
+			default: some,
+		},
 		updateOnBlur: {
 			type: Boolean,
 			default: false,
@@ -105,7 +111,15 @@ export default defineComponent({
 	emits: ['update:modelValue'],
 	inheritAttrs: false,
 	setup(props, {emit}) {
-		const {model, local} = useLocalModelValue(props, emit)
+		const {local, display} = useModelLocalDisplay({
+			props,
+			emit,
+			show(rad) {
+				const deg = (rad / PI) * 180
+				return deg.toFixed(1) + '°'
+			},
+			read: v => some(parseFloat(v)),
+		})
 
 		const el: Ref<null | HTMLElement> = ref(null)
 
@@ -128,7 +142,7 @@ export default defineComponent({
 					const delta = signedAngleBetween(angle, local.value)
 					const newValue = local.value + delta
 
-					local.value = newValue
+					local.set(newValue)
 					alreadyEmitted = true
 					tweakOrigin.value = newValue
 				} else {
@@ -150,21 +164,15 @@ export default defineComponent({
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
 				const newValue = local.value + delta
 
-				local.value = newValue
+				local.set(newValue)
 			},
 			onDragEnd() {
 				tweakMode.value = 'relative'
-				model.value = local.value
+				local.confirm()
 			},
 		})
 
 		const rem = useRem()
-
-		const overlayLabel = computed(() => {
-			const rad = local.value
-			const deg = (rad / PI) * 180
-			return deg.toFixed(1) + '°'
-		})
 
 		const overlayArrowAngle = computed(() => {
 			const p = vec2.sub(vec2.create(), pos.value, origin.value)
@@ -286,10 +294,10 @@ export default defineComponent({
 			tweakOrigin,
 
 			// overlay
+			display,
 			clampedPos,
 			overlayLineOrigin,
 			overlayArcPath,
-			overlayLabel,
 			overlayArrowAngle,
 		}
 	},
