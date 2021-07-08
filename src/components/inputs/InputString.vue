@@ -7,17 +7,18 @@
 		:value="display"
 		:style="inputStyle"
 		@focus="onFocus"
-		@input="onInput"
-		@blur="onBlur"
-		@keypress.enter="onBlur"
+		@input="setDisplay($event.target.value)"
+		@blur="confirm"
+		@keypress.enter="confirm"
 	/>
 </template>
 
 <script lang="ts">
-import {syncRef} from '@vueuse/shared'
-import {isNone, some} from 'fp-ts/lib/Option'
-import {computed, defineComponent, PropType, ref, toRef} from 'vue'
+import {some} from 'fp-ts/lib/Option'
+import _ from 'lodash'
+import {computed, defineComponent, PropType} from 'vue'
 
+import useModelLocalDisplay from '@/components/use/use-model-local-display'
 import {Validator} from '@/lib/fp'
 
 const INPUT_LINE_HEIGHT_REM = 1.8
@@ -50,8 +51,12 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, {emit}) {
-		const display = ref('')
-		syncRef(toRef(props, 'modelValue'), display)
+		const {display} = useModelLocalDisplay({
+			props,
+			read: some,
+			show: _.identity,
+			emit,
+		})
 
 		const inputStyle = computed(() => {
 			if (props.multiline) {
@@ -70,34 +75,16 @@ export default defineComponent({
 			}
 		}
 
-		function onInput(e: KeyboardEvent) {
-			!props.updateOnBlur && update(e, false)
-		}
-
-		function onBlur(e: KeyboardEvent) {
-			update(e, true)
-		}
-
-		function update(e: KeyboardEvent, resetInput: boolean) {
-			const target = e.target as HTMLInputElement
-			let str: string = target.value
-
-			const ret = props.validator(str)
-
-			if (isNone(ret) || props.modelValue === ret.value) {
-				if (resetInput) target.value = props.modelValue
-				return
-			}
-
-			emit('update:modelValue', ret.value)
+		function confirm() {
+			display.confirm()
 		}
 
 		return {
 			display,
+			setDisplay: display.set,
 			inputStyle,
 			onFocus,
-			onInput,
-			onBlur,
+			confirm,
 		}
 	},
 })

@@ -36,6 +36,7 @@ export interface SchemaString {
 	multiline?: boolean
 	monospace?: boolean
 	default?: string
+	validator?: Validator<string>
 }
 
 export interface SchemaColor {
