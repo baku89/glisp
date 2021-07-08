@@ -51,6 +51,7 @@ export default defineComponent({
 							max: 1,
 							...def,
 							type: 'number',
+							precision: 3,
 							validator,
 						}
 						break
