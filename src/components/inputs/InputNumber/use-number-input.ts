@@ -35,6 +35,7 @@ export default function useNumber(
 			const num = parseFloat(v)
 			return _.isFinite(num) ? some(num) : none
 		},
+		validate: props.validator,
 		emit,
 	})
 

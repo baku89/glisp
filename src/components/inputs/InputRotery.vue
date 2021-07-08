@@ -119,6 +119,7 @@ export default defineComponent({
 				return deg.toFixed(1) + '°'
 			},
 			read: v => some(parseFloat(v)),
+			validate: props.validator,
 		})
 
 		const el: Ref<null | HTMLElement> = ref(null)

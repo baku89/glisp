@@ -56,6 +56,7 @@ export default defineComponent({
 			read: some,
 			show: _.identity,
 			emit,
+			validate: props.validator,
 		})
 
 		const inputStyle = computed(() => {

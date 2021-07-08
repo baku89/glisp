@@ -6,9 +6,10 @@ import {readonly, Ref, ref, SetupContext, toRaw, watch} from 'vue'
 import {Validator} from '@/lib/fp'
 
 interface ModelLocalDisplayOptions<T> {
-	props: {modelValue: T; updateOnBlur: boolean; validator: Validator<T>}
+	props: {modelValue: T; updateOnBlur: boolean}
 	read: (v: string) => Option<T>
 	show: (v: T) => string
+	validate: Validator<T>
 	emit: SetupContext<['update:modelValue']>['emit']
 }
 
@@ -16,13 +17,14 @@ export default function useModelLocalDisplay<T>({
 	props,
 	read,
 	show,
+	validate,
 	emit,
 }: ModelLocalDisplayOptions<T>) {
 	const initialValue = toRaw(props.modelValue)
 	const local = ref(initialValue) as Ref<T>
 	const display = ref(show(initialValue))
 
-	const readAndValidate = flow(read, chain(props.validator))
+	const readAndValidate = flow(read, chain(validate))
 
 	watch(
 		() => props.modelValue,
@@ -36,7 +38,7 @@ export default function useModelLocalDisplay<T>({
 	)
 
 	function setLocal(l: T) {
-		const result = props.validator(l)
+		const result = validate(l)
 		if (isSome(result)) {
 			if (!props.updateOnBlur) {
 				emit('update:modelValue', result.value)
