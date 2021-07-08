@@ -37,6 +37,9 @@ export function fit01(value: number, min: number, max: number) {
 
 export const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
+export const roundFixed = (number: number, fractionDigits: number) =>
+	parseFloat(number.toFixed(fractionDigits))
+
 /**
  * Converts the bind expression to parameter's label
  * @param exp A bind expression

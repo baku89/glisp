@@ -26,11 +26,13 @@ export default function useModelLocalDisplay<T>({
 
 	watch(
 		() => props.modelValue,
-		m => {
-			local.value = m
-			display.value = show(m)
-		},
+		m => (local.value = m),
 		{flush: 'sync'}
+	)
+
+	watch(
+		() => show(local.value),
+		d => (display.value = d)
 	)
 
 	function setLocal(l: T) {
@@ -50,16 +52,6 @@ export default function useModelLocalDisplay<T>({
 		display.value = show(local.value)
 	}
 
-	function setDisplay(d: string) {
-		display.value = d
-		if (!props.updateOnBlur) {
-			const result = readAndValidate(display.value)
-			if (isSome(result)) {
-				emit('update:modelValue', result.value)
-			}
-		}
-	}
-
 	function confirmDisplay() {
 		const result = readAndValidate(display.value)
 		if (isSome(result)) {
@@ -72,8 +64,7 @@ export default function useModelLocalDisplay<T>({
 
 	return {
 		local: extendRef(readonly(local), {set: setLocal, confirm: confirmLocal}),
-		display: extendRef(readonly(display), {
-			set: setDisplay,
+		display: extendRef(display, {
 			confirm: confirmDisplay,
 		}),
 	}

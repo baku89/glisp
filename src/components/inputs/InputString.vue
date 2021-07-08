@@ -7,7 +7,7 @@
 		:value="display"
 		:style="inputStyle"
 		@focus="onFocus"
-		@input="setDisplay($event.target.value)"
+		@input="display = $event.target.value"
 		@blur="confirm"
 		@keypress.enter="confirm"
 	/>
@@ -81,7 +81,6 @@ export default defineComponent({
 
 		return {
 			display,
-			setDisplay: display.set,
 			inputStyle,
 			onFocus,
 			confirm,

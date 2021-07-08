@@ -9,6 +9,7 @@
 			class="InputNumberRanged__input"
 			type="text"
 			:value="display"
+			@input="display = $event.target.value"
 			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
@@ -59,7 +60,7 @@ import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
 import {Validator} from '@/lib/fp'
-import {fit01, fitTo01} from '@/utils'
+import {fit01, fitTo01, roundFixed} from '@/utils'
 
 import useNumberInput from './use-number-input'
 
@@ -90,9 +91,13 @@ export default defineComponent({
 			type: Function as PropType<Validator<number>>,
 			default: some,
 		},
+		updateOnBlur: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	emit: ['update:modelValue'],
-	setup(props, context) {
+	setup(props, {emit}) {
 		// Element references
 		const dragEl = ref<null | HTMLElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
@@ -144,7 +149,10 @@ export default defineComponent({
 				const inc = delta * scaleFactor * tweakSpeed.value
 				const val = tweakStartValue + inc
 
-				update(val, false)
+				local.set(roundFixed(val, props.precision))
+			},
+			onDragEnd() {
+				local.confirm()
 			},
 		})
 
@@ -159,7 +167,7 @@ export default defineComponent({
 			tweakLabelClass,
 			showTweakLabel,
 			labelX,
-			update,
+			local,
 		} = useNumberInput(
 			props,
 			startValue,
@@ -168,7 +176,7 @@ export default defineComponent({
 			pos,
 			dragEl,
 			inputEl,
-			context
+			emit
 		)
 
 		// Handle Pointerlock

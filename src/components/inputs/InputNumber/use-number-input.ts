@@ -1,26 +1,22 @@
 import {useMagicKeys} from '@vueuse/core'
-import {pipe} from 'fp-ts/lib/function'
-import {chain, isSome, none, Option, some} from 'fp-ts/lib/Option'
+import {none, some} from 'fp-ts/lib/Option'
 import {vec2} from 'gl-matrix'
 import keycode from 'keycode'
 import _ from 'lodash'
 import {computed, Ref, ref, SetupContext, watch} from 'vue'
 
+import useModelLocalDisplay from '@/components/use/use-model-local-display'
 import {Validator} from '@/lib/fp'
 import {unsignedMod} from '@/utils'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
-
-const read: (v: string) => Option<number> = v => {
-	const num = parseFloat(v)
-	return _.isFinite(num) ? some(num) : none
-}
 
 export default function useNumber(
 	props: Readonly<{
 		modelValue: number
 		precision: number
 		validator: Validator<number>
+		updateOnBlur: boolean
 	}>,
 	startValue: Ref<number>,
 	tweaking: Ref<boolean>,
@@ -28,62 +24,46 @@ export default function useNumber(
 	pos: Ref<vec2>,
 	dragEl: Ref<null | HTMLElement>,
 	inputEl: Ref<null | HTMLInputElement>,
-	context: SetupContext
+	emit: SetupContext<['update:modelValue']>['emit']
 ) {
-	const display = computed(() => {
-		const v = props.modelValue
-		const fixed = v.toFixed(props.precision)
-		return tweaking.value
-			? fixed
-			: fixed.replace(/\.?0+$/, '').replace(/^0\./, '.')
+	const {display, local} = useModelLocalDisplay({
+		props,
+		show(v) {
+			return tweakDisabled.value ? v.toString() : v.toFixed(props.precision)
+		},
+		read(v) {
+			const num = parseFloat(v)
+			return _.isFinite(num) ? some(num) : none
+		},
+		emit,
 	})
 
 	const overlayLabel = computed(() => {
-		const delta = props.modelValue - startValue.value
+		const delta = local.value - startValue.value
 		return (delta > 0 ? '+' : '') + delta.toFixed(props.precision)
 	})
 
-	const step = computed(() => {
-		const float = props.modelValue.toString().split('.')[1]
-		return float !== undefined ? Math.max(Math.pow(10, -float.length), 0.1) : 1
-	})
-
-	function update(val: string | number, resetInput: boolean) {
-		const ret = _.isNumber(val)
-			? props.validator(val)
-			: pipe(some(val), chain(read), chain(props.validator))
-
-		if (isSome(ret)) {
-			if (props.modelValue !== ret.value) {
-				context.emit('update:modelValue', ret.value)
-			}
-		} else {
-			if (resetInput && inputEl.value) inputEl.value.value = display.value
-		}
-	}
-
 	function onFocus() {
-		console.log('focuyssss')
 		tweakDisabled.value = true
 	}
 
-	function onBlur(e: InputEvent) {
+	function onBlur() {
 		tweakDisabled.value = false
-		update((e.target as HTMLInputElement).value, true)
+		display.confirm()
 	}
 
 	function onKeydown(e: KeyboardEvent) {
 		const key = keycode(e)
 
 		if (key === 'enter') {
-			update((e.target as HTMLInputElement).value, true)
+			display.confirm()
 		} else if (VERTICAL_ARROW_KEYS.has(key)) {
 			e.preventDefault()
 
 			const inc = e.altKey ? 0.1 : e.shiftKey ? 10 : 1
 			const sign = key === 'up' ? 1 : -1
 
-			update(props.modelValue + inc * sign, true)
+			local.set(local.value + inc * sign)
 		}
 	}
 
@@ -113,7 +93,7 @@ export default function useNumber(
 	})
 
 	return {
-		step,
+		local,
 		display,
 		overlayLabel,
 		onFocus,
@@ -124,6 +104,5 @@ export default function useNumber(
 		tweakLabelClass,
 		showTweakLabel,
 		labelX,
-		update,
 	}
 }

@@ -38,6 +38,7 @@ import {defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
 import {Validator} from '@/lib/fp'
+import {roundFixed} from '@/utils'
 
 import useNumberInput from './use-number-input'
 
@@ -56,9 +57,13 @@ export default defineComponent({
 			type: Function as PropType<Validator<number>>,
 			default: some,
 		},
+		updateOnBlur: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	emit: ['update:modelValue'],
-	setup(props, context) {
+	setup(props, {emit}) {
 		const dragEl = ref<null | HTMLInputElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
 
@@ -93,12 +98,15 @@ export default defineComponent({
 				const inc = (delta / 5) * tweakSpeed.value
 				const val = tweakStartValue + inc
 
-				update(val, false)
+				local.set(roundFixed(val, props.precision))
+			},
+			onDragEnd() {
+				local.confirm()
 			},
 		})
 
 		const {
-			step,
+			local,
 			display,
 			overlayLabel,
 			onFocus,
@@ -109,7 +117,6 @@ export default defineComponent({
 			tweakLabelClass,
 			showTweakLabel,
 			labelX,
-			update,
 		} = useNumberInput(
 			props,
 			startValue,
@@ -118,7 +125,7 @@ export default defineComponent({
 			pos,
 			dragEl,
 			inputEl,
-			context
+			emit
 		)
 
 		return {
@@ -131,7 +138,6 @@ export default defineComponent({
 			showTweakLabel,
 			tweakLabelClass,
 
-			step,
 			display,
 			overlayLabel,
 			onFocus,
