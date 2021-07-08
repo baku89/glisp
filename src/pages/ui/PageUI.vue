@@ -131,11 +131,15 @@ export default defineComponent({
 					multiline: true,
 					monospace: true,
 				},
-				number: {type: 'number', min: 0, max: 100},
+				number: {
+					type: 'number',
+					min: 0,
+					max: 100,
+					validator: v => some(_.clamp(v, 0, 100)),
+				},
 				angle: {
 					type: 'number',
 					ui: 'angle',
-					// validator: v => some(_.clamp(v, 0, Math.PI)),
 					updateOnBlur: true,
 				},
 				boolean: {type: 'boolean'},

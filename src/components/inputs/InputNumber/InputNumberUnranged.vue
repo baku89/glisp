@@ -7,6 +7,7 @@
 	>
 		<input
 			class="InputNumberUnranged__input"
+			:class="{invalid: displayInvalid}"
 			type="text"
 			:value="display"
 			@focus="onFocus"
@@ -108,6 +109,7 @@ export default defineComponent({
 		const {
 			local,
 			display,
+			displayInvalid,
 			overlayLabel,
 			onFocus,
 			onBlur,
@@ -139,6 +141,7 @@ export default defineComponent({
 			tweakLabelClass,
 
 			display,
+			displayInvalid,
 			overlayLabel,
 			onFocus,
 			onBlur,

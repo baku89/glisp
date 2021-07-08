@@ -2,7 +2,11 @@
 	<component
 		v-bind:is="multiline ? 'textarea' : 'input'"
 		class="InputString"
-		:class="{monospace: monospace, multiline: multiline}"
+		:class="{
+			monospace: monospace,
+			multiline: multiline,
+			invalid: displayInvalid,
+		}"
 		type="text"
 		:value="display"
 		:style="inputStyle"
@@ -51,7 +55,7 @@ export default defineComponent({
 	},
 	emits: ['update:modelValue'],
 	setup(props, {emit}) {
-		const {display} = useModelLocalDisplay({
+		const {display, displayInvalid} = useModelLocalDisplay({
 			props,
 			read: some,
 			show: _.identity,
@@ -82,6 +86,7 @@ export default defineComponent({
 
 		return {
 			display,
+			displayInvalid,
 			inputStyle,
 			onFocus,
 			confirm,

@@ -7,6 +7,7 @@
 	>
 		<input
 			class="InputNumberRanged__input"
+			:class="{invalid: displayInvalid}"
 			type="text"
 			:value="display"
 			@input="display = $event.target.value"
@@ -157,7 +158,9 @@ export default defineComponent({
 		})
 
 		const {
+			local,
 			display,
+			displayInvalid,
 			overlayLabel,
 			onFocus,
 			onBlur,
@@ -167,7 +170,6 @@ export default defineComponent({
 			tweakLabelClass,
 			showTweakLabel,
 			labelX,
-			local,
 		} = useNumberInput(
 			props,
 			startValue,
@@ -208,6 +210,7 @@ export default defineComponent({
 			labelX,
 
 			display,
+			displayInvalid,
 			overlayLabel,
 			onFocus,
 			onBlur,

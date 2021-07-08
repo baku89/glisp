@@ -25,27 +25,43 @@ export default function useModelLocalDisplay<T>({
 	const local = ref(initialValue) as Ref<T>
 	const display = ref(show(initialValue))
 
-	const readAndValidate = flow(read, chain(validate))
+	const chainedValidate = chain(validate)
+	const readAndValidate = flow(read, chainedValidate)
 
-	pausableWatch(
+	// Model -> Local
+	watch(
 		() => props.modelValue,
 		m => (local.value = m),
 		{flush: 'sync'}
 	)
 
+	// Loal -> Display
 	const validDisplay = computed(() => show(local.value))
+	const watchLocal = pausableWatch(validDisplay, d => (display.value = d), {
+		flush: 'sync',
+	})
 
-	const watchLocal = pausableWatch(validDisplay, d => (display.value = d))
+	// Display -> Local -> Model
+	const parsedDisplay = computed(() => read(display.value))
+	const validatedDisplay = computed(() => chainedValidate(parsedDisplay.value))
 
-	watch(display, d => {
-		const result = readAndValidate(d)
+	const displayInvalid = computed(() => {
+		const parsed = parsedDisplay.value,
+			validated = validatedDisplay.value
+		return !(
+			isSome(parsed) &&
+			isSome(validated) &&
+			parsed.value === validated.value
+		)
+	})
+
+	watch(validatedDisplay, result => {
 		if (isSome(result)) {
 			watchLocal.pause()
 			if (!props.updateOnBlur) {
 				emit('update:modelValue', result.value)
-			} else {
-				local.value = result.value
 			}
+			local.value = result.value
 			watchLocal.resume()
 		}
 	})
@@ -82,5 +98,6 @@ export default function useModelLocalDisplay<T>({
 		display: extendRef(display, {
 			confirm: confirmDisplay,
 		}),
+		displayInvalid,
 	}
 }

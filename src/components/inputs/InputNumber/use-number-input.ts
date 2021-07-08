@@ -26,7 +26,7 @@ export default function useNumber(
 	inputEl: Ref<null | HTMLInputElement>,
 	emit: SetupContext<['update:modelValue']>['emit']
 ) {
-	const {display, local} = useModelLocalDisplay({
+	const {local, display, displayInvalid} = useModelLocalDisplay({
 		props,
 		show(v) {
 			return tweakDisabled.value ? v.toString() : v.toFixed(props.precision)
@@ -96,6 +96,7 @@ export default function useNumber(
 	return {
 		local,
 		display,
+		displayInvalid,
 		overlayLabel,
 		onFocus,
 		onBlur,
