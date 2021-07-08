@@ -27,10 +27,10 @@
 				<line
 					v-if="tweakMode === 'absolute'"
 					class="bold"
-					:x1="overlayLineOrigin[0]"
-					:y1="overlayLineOrigin[1]"
-					:x2="clampedPos[0]"
-					:y2="clampedPos[1]"
+					:x1="overlayLineFrom[0]"
+					:y1="overlayLineFrom[1]"
+					:x2="overlayLineTo[0]"
+					:y2="overlayLineTo[1]"
 				/>
 				<path
 					v-if="tweakMode === 'relative'"
@@ -41,8 +41,8 @@
 			<div
 				class="InputRotery__overlay-label"
 				:style="{
-					top: clampedPos[1] + 'px',
-					left: clampedPos[0] + 'px',
+					top: overlayLabelPos[1] + 'px',
+					left: overlayLabelPos[0] + 'px',
 				}"
 				ref="overlayLabel"
 			>
@@ -127,6 +127,7 @@ export default defineComponent({
 
 		let alreadyEmitted = false
 		let tweakOrigin = ref(local.value)
+		let tweakRawLocal = local.value
 
 		const {
 			isDragging: tweaking,
@@ -140,13 +141,14 @@ export default defineComponent({
 					const p = vec2.sub(vec2.create(), pos, origin)
 					const angle = Math.atan2(p[1], p[0])
 					const delta = signedAngleBetween(angle, local.value)
-					const newValue = local.value + delta
+					tweakRawLocal = local.value + delta
 
-					local.set(newValue)
+					tweakOrigin.value = tweakRawLocal
+					local.set(tweakRawLocal)
 					alreadyEmitted = true
-					tweakOrigin.value = newValue
 				} else {
 					// Relative
+					tweakRawLocal = local.value
 					tweakOrigin.value = local.value
 				}
 			},
@@ -162,9 +164,9 @@ export default defineComponent({
 				const prevAngle = Math.atan2(pp[1], pp[0])
 				const alignedPos = vec2.rotate(vec2.create(), p, [0, 0], -prevAngle)
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
-				const newValue = local.value + delta
+				tweakRawLocal += delta
 
-				local.set(newValue)
+				local.set(tweakRawLocal)
 			},
 			onDragEnd() {
 				tweakMode.value = 'relative'
@@ -177,21 +179,6 @@ export default defineComponent({
 		const overlayArrowAngle = computed(() => {
 			const p = vec2.sub(vec2.create(), pos.value, origin.value)
 			return Math.atan2(p[1], p[0]) + Math.PI / 2
-		})
-
-		const overlayLineOrigin = computed(() => {
-			const o = origin.value
-			const t = clampedPos.value
-			const radius = 10
-
-			const p = vec2.create()
-
-			vec2.sub(p, t, o)
-			vec2.normalize(p, p)
-			vec2.scale(p, p, radius)
-			vec2.add(p, o, p)
-
-			return p
 		})
 
 		const overlayArcPath = computed(() => {
@@ -254,9 +241,9 @@ export default defineComponent({
 
 		const {height: overlayLabelHeight} = useElementSize(overlayLabelEl)
 
-		const clampedPos = computed<vec2>(() => {
-			const [x, y] = pos.value
+		function clampPos(p: vec2): vec2 {
 			const [ox, oy] = origin.value
+			const [x, y] = p
 			const margin = overlayLabelHeight.value * 2
 			const left = margin,
 				top = margin,
@@ -284,6 +271,34 @@ export default defineComponent({
 			}
 
 			return [x, y]
+		}
+
+		const overlayLineTo = computed(() => {
+			const dist = vec2.distance(origin.value, pos.value)
+			const dir = vec2.fromValues(Math.cos(local.value), Math.sin(local.value))
+
+			const p = vec2.scaleAndAdd(vec2.create(), origin.value, dir, dist)
+
+			return clampPos(p)
+		})
+
+		const overlayLabelPos = computed(() => {
+			return clampPos(pos.value)
+		})
+
+		const overlayLineFrom = computed(() => {
+			const o = origin.value
+			const t = overlayLineTo.value
+			const radius = 10
+
+			const p = vec2.create()
+
+			vec2.sub(p, t, o)
+			vec2.normalize(p, p)
+			vec2.scale(p, p, radius)
+			vec2.add(p, o, p)
+
+			return p
 		})
 
 		return {
@@ -295,10 +310,11 @@ export default defineComponent({
 
 			// overlay
 			display,
-			clampedPos,
-			overlayLineOrigin,
+			overlayLineTo,
+			overlayLineFrom,
 			overlayArcPath,
 			overlayArrowAngle,
+			overlayLabelPos,
 		}
 	},
 })
