@@ -37,9 +37,17 @@ export default function useModelLocalDisplay<T>({
 
 	// Loal -> Display
 	const validDisplay = computed(() => show(local.value))
-	const watchLocal = pausableWatch(validDisplay, d => (display.value = d), {
-		flush: 'sync',
-	})
+	const watchLocal = pausableWatch(
+		validDisplay,
+		d => {
+			watchDisplay.pause()
+			display.value = d
+			watchDisplay.resume()
+		},
+		{
+			flush: 'sync',
+		}
+	)
 
 	// Display -> Local -> Model
 	const parsedDisplay = computed(() => read(display.value))
@@ -55,16 +63,22 @@ export default function useModelLocalDisplay<T>({
 		)
 	})
 
-	watch(validatedDisplay, result => {
-		if (isSome(result)) {
-			watchLocal.pause()
-			if (!props.updateOnBlur) {
-				emit('update:modelValue', result.value)
+	const watchDisplay = pausableWatch(
+		validatedDisplay,
+		result => {
+			if (isSome(result)) {
+				watchLocal.pause()
+				if (!props.updateOnBlur) {
+					emit('update:modelValue', result.value)
+				}
+				local.value = result.value
+				watchLocal.resume()
 			}
-			local.value = result.value
-			watchLocal.resume()
+		},
+		{
+			flush: 'sync',
 		}
-	})
+	)
 
 	function setLocal(l: T) {
 		const result = validate(l)
