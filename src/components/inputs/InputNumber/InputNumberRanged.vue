@@ -8,7 +8,7 @@
 		<input
 			class="InputNumberRanged__input"
 			type="text"
-			:value="displayValue"
+			:value="display"
 			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
@@ -149,7 +149,7 @@ export default defineComponent({
 		})
 
 		const {
-			displayValue,
+			display,
 			overlayLabel,
 			onFocus,
 			onBlur,
@@ -199,7 +199,7 @@ export default defineComponent({
 			origin,
 			labelX,
 
-			displayValue,
+			display,
 			overlayLabel,
 			onFocus,
 			onBlur,

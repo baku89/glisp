@@ -4,8 +4,9 @@
 		class="InputString"
 		:class="{monospace: monospace, multiline: multiline}"
 		type="text"
-		:value="displayValue"
+		:value="display"
 		:style="inputStyle"
+		@focus="onFocus"
 		@input="onInput"
 		@blur="onBlur"
 		@keypress.enter="onBlur"
@@ -13,8 +14,9 @@
 </template>
 
 <script lang="ts">
+import {syncRef} from '@vueuse/shared'
 import {isNone, some} from 'fp-ts/lib/Option'
-import {computed, defineComponent, PropType, ref, watch} from 'vue'
+import {computed, defineComponent, PropType, ref, toRef} from 'vue'
 
 import {Validator} from '@/lib/fp'
 
@@ -37,19 +39,19 @@ export default defineComponent({
 		monospace: {
 			default: false,
 		},
+		selectOnFocus: {
+			type: Boolean,
+			default: false,
+		},
 		updateOnBlur: {
 			type: Boolean,
 			default: false,
 		},
 	},
 	emits: ['update:modelValue'],
-	setup(props, context) {
-		const displayValue = ref(props.modelValue)
-
-		watch(
-			() => props.modelValue,
-			v => (displayValue.value = v)
-		)
+	setup(props, {emit}) {
+		const display = ref('')
+		syncRef(toRef(props, 'modelValue'), display)
 
 		const inputStyle = computed(() => {
 			if (props.multiline) {
@@ -61,6 +63,12 @@ export default defineComponent({
 				return {}
 			}
 		})
+
+		function onFocus(e: Event) {
+			if (props.selectOnFocus) {
+				;(e.target as HTMLInputElement).select()
+			}
+		}
 
 		function onInput(e: KeyboardEvent) {
 			!props.updateOnBlur && update(e, false)
@@ -81,12 +89,13 @@ export default defineComponent({
 				return
 			}
 
-			context.emit('update:modelValue', ret.value)
+			emit('update:modelValue', ret.value)
 		}
 
 		return {
-			displayValue,
+			display,
 			inputStyle,
+			onFocus,
 			onInput,
 			onBlur,
 		}

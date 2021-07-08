@@ -30,7 +30,7 @@ export default function useNumber(
 	inputEl: Ref<null | HTMLInputElement>,
 	context: SetupContext
 ) {
-	const displayValue = computed(() => {
+	const display = computed(() => {
 		const v = props.modelValue
 		const fixed = v.toFixed(props.precision)
 		return tweaking.value
@@ -58,7 +58,7 @@ export default function useNumber(
 				context.emit('update:modelValue', ret.value)
 			}
 		} else {
-			if (resetInput && inputEl.value) inputEl.value.value = displayValue.value
+			if (resetInput && inputEl.value) inputEl.value.value = display.value
 		}
 	}
 
@@ -114,7 +114,7 @@ export default function useNumber(
 
 	return {
 		step,
-		displayValue,
+		display,
 		overlayLabel,
 		onFocus,
 		onBlur,

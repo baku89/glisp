@@ -8,7 +8,7 @@
 		<input
 			class="InputNumberUnranged__input"
 			type="text"
-			:value="displayValue"
+			:value="display"
 			@focus="onFocus"
 			@blur="onBlur"
 			@keydown="onKeydown"
@@ -99,7 +99,7 @@ export default defineComponent({
 
 		const {
 			step,
-			displayValue,
+			display,
 			overlayLabel,
 			onFocus,
 			onBlur,
@@ -132,7 +132,7 @@ export default defineComponent({
 			tweakLabelClass,
 
 			step,
-			displayValue,
+			display,
 			overlayLabel,
 			onFocus,
 			onBlur,
