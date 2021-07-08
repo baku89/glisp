@@ -53,8 +53,8 @@ export default defineComponent({
 
 		const gradientStyle = computed(() => {
 			const currentColor = {...props.rgba, a: 1}
-			const leftColor = rgba2color({...currentColor, [props.mode]: 0}, 'rgb')
-			const rightColor = rgba2color({...currentColor, [props.mode]: 1}, 'rgb')
+			const leftColor = rgba2color({...currentColor, [props.mode]: 0}, false)
+			const rightColor = rgba2color({...currentColor, [props.mode]: 1}, false)
 
 			return {
 				background: `linear-gradient(to right, ${leftColor} 0%, ${rightColor} 100%)`,

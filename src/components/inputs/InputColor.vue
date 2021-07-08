@@ -102,7 +102,10 @@ export default defineComponent({
 		watch(
 			() => props.modelValue,
 			() => {
-				const dict = color2rgba(props.modelValue, props.colorSpace)
+				const dict = color2rgba(
+					props.modelValue,
+					props.colorSpace.endsWith('a')
+				)
 				if (!dict) return
 
 				rgba.value = dict
@@ -158,7 +161,7 @@ export default defineComponent({
 					...hsv2rgb(tweakColor.value),
 					a: a,
 				}
-				const newValue = rgba2color(rgba, props.colorSpace)
+				const newValue = rgba2color(rgba, props.colorSpace.endsWith('a'))
 
 				emit('update:modelValue', newValue)
 			},
@@ -166,7 +169,7 @@ export default defineComponent({
 		const overlayButtonStyle = computed(() => {
 			const color = rgba2color(
 				{...hsv2rgb(tweakColor.value), a: rgba.value.a},
-				tweakMode.value === 'alpha' ? 'rgba' : 'rgb'
+				tweakMode.value === 'alpha'
 			)
 
 			return {

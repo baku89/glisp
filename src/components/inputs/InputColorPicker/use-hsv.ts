@@ -2,11 +2,11 @@ import chroma from 'chroma-js'
 import {Ref, ref, watch} from 'vue'
 
 export type HSV = {h: number; s: number; v: number}
-export type HSVA = {h: number; s: number; v: number; a: number}
+export type HSVA = HSV & {a: number}
 export type RGB = {r: number; g: number; b: number}
-export type RGBA = {r: number; g: number; b: number; a: number}
+export type RGBA = RGB & {a: number}
 
-export function color2rgba(value: string, space: string): RGBA | null {
+export function color2rgba(value: string, useAlpha: boolean): RGBA | null {
 	const dict: RGBA = {r: 1, g: 1, b: 1, a: 1}
 
 	if (!chroma.valid(value)) {
@@ -15,26 +15,24 @@ export function color2rgba(value: string, space: string): RGBA | null {
 
 	const c = chroma(value)
 
-	if (space.startsWith('rgb')) {
-		const [r, g, b] = c.rgb()
-		dict.r = r / 255
-		dict.g = g / 255
-		dict.b = b / 255
-	}
+	const [r, g, b] = c.rgb()
+	dict.r = r / 255
+	dict.g = g / 255
+	dict.b = b / 255
 
-	if (space.endsWith('a')) {
+	if (useAlpha) {
 		dict.a = c.alpha()
 	}
 
 	return dict
 }
 
-export function rgba2color(dict: RGBA, space: string): string {
+export function rgba2color(dict: RGBA, useAlpha: boolean): string {
 	const c = chroma(
 		dict.r * 255 ?? 0,
 		dict.g * 255 ?? 0,
 		dict.b * 255 ?? 0
-	).alpha(space.endsWith('a') ? dict.a : 1)
+	).alpha(useAlpha ? dict.a : 1)
 	return c.hex()
 }
 
