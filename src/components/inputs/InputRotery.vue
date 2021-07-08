@@ -10,9 +10,9 @@
 			<line
 				class="InputRotery__scale"
 				@mouseenter="tweakMode = 'absolute'"
-				@mouseleave="!tweaking ? (tweakMode = 'relative') : null"
+				@mouseleave="!tweaking && (tweakMode = 'relative')"
 				:style="{
-					transform: `rotate(${modelValue}rad)`,
+					transform: `rotate(${local}rad)`,
 				}"
 				x1="20"
 				y1="16"
@@ -68,14 +68,13 @@ import {computed, defineComponent, Ref, ref} from 'vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
 import useDraggable from '@/components/use/use-draggable'
 import useRem from '@/components/use/use-rem'
+import {unsignedMod} from '@/utils'
 
-function mod(a: number, n: number) {
-	return ((a % n) + n) % n
-}
+import useLocalModelValue from '../use/use-local-model-value'
 
 function signedAngleBetween(target: number, source: number) {
 	const ret = target - source
-	return mod(ret + Math.PI, Math.PI * 2) - Math.PI
+	return unsignedMod(ret + Math.PI, Math.PI * 2) - Math.PI
 }
 
 function addDirectionVector(from: vec2, angle: number, radius: number) {
@@ -98,15 +97,22 @@ export default defineComponent({
 			type: Number,
 			required: true,
 		},
+		updateOnBlur: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	emits: ['update:modelValue'],
-	setup(props, context) {
+	inheritAttrs: false,
+	setup(props, {emit}) {
+		const {model, local} = useLocalModelValue(props, emit)
+
 		const el: Ref<null | HTMLElement> = ref(null)
 
 		const tweakMode = ref<'relative' | 'absolute'>('relative')
 
 		let alreadyEmitted = false
-		let startValue = ref(props.modelValue)
+		let tweakOrigin = ref(local.value)
 
 		const {
 			isDragging: tweaking,
@@ -119,15 +125,15 @@ export default defineComponent({
 				if (tweakMode.value === 'absolute') {
 					const p = vec2.sub(vec2.create(), pos, origin)
 					const angle = Math.atan2(p[1], p[0])
-					const delta = signedAngleBetween(angle, props.modelValue)
-					const newValue = props.modelValue + delta
-					context.emit('update:modelValue', newValue)
+					const delta = signedAngleBetween(angle, local.value)
+					const newValue = local.value + delta
 
+					local.value = newValue
 					alreadyEmitted = true
-					startValue.value = newValue
+					tweakOrigin.value = newValue
 				} else {
 					// Relative
-					startValue.value = props.modelValue
+					tweakOrigin.value = local.value
 				}
 			},
 			onDrag({pos, prevPos, origin}) {
@@ -142,19 +148,20 @@ export default defineComponent({
 				const prevAngle = Math.atan2(pp[1], pp[0])
 				const alignedPos = vec2.rotate(vec2.create(), p, [0, 0], -prevAngle)
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
-				const newValue = props.modelValue + delta
+				const newValue = local.value + delta
 
-				context.emit('update:modelValue', newValue)
+				local.value = newValue
 			},
 			onDragEnd() {
 				tweakMode.value = 'relative'
+				model.value = local.value
 			},
 		})
 
 		const rem = useRem()
 
 		const overlayLabel = computed(() => {
-			const rad = props.modelValue
+			const rad = local.value
 			const deg = (rad / PI) * 180
 			return deg.toFixed(1) + '°'
 		})
@@ -185,8 +192,8 @@ export default defineComponent({
 			const baseRadius = rem.value * 8
 			const radiusStep = rem.value * 0.6
 
-			const start = startValue.value
-			const end = props.modelValue
+			const start = tweakOrigin.value
+			const end = local.value
 
 			const tweakingPositive = end - start > 0
 
@@ -198,10 +205,10 @@ export default defineComponent({
 			// Create arc
 			const arcRadius = baseRadius + turns * radiusStep
 
-			let offsetInTurn = mod(signedAngleBetween(end, start), PI_2)
+			let offsetInTurn = unsignedMod(signedAngleBetween(end, start), PI_2)
 			offsetInTurn = tweakingPositive ? offsetInTurn : offsetInTurn - PI_2
 
-			const startInTurn = mod(start, PI_2)
+			const startInTurn = unsignedMod(start, PI_2)
 			const endInTurn = startInTurn + offsetInTurn
 
 			const from = addDirectionVector(c, startInTurn, arcRadius)
@@ -273,9 +280,10 @@ export default defineComponent({
 
 		return {
 			el,
+			local,
 			tweaking,
 			tweakMode,
-			startValue,
+			tweakOrigin,
 
 			// overlay
 			clampedPos,
@@ -285,7 +293,6 @@ export default defineComponent({
 			overlayArrowAngle,
 		}
 	},
-	inheritAttrs: false,
 })
 </script>
 
