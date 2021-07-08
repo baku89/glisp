@@ -2,12 +2,15 @@
 	<div class="InputDropdown" :class="{open}" ref="rootEl" v-bind="$attrs">
 		<InputString
 			class="InputDropdown__input"
-			:modelValue="inputText"
+			:modelValue="display"
+			:selectOnFocus="true"
 			@update:modelValue="onInput"
 			@click="open = true"
 			@focus="onFocus"
 			@blur="onBlur"
-			@keydown="onKeydown"
+			@keydown.enter="onEnter"
+			@keydown.up.prevent="onPressUpDown('up')"
+			@keydown.down.prevent="onPressUpDown('down')"
 		/>
 		<SvgIcon mode="block" class="InputDropdown__chevron">
 			<path d="M11 13 L16 18 21 13" />
@@ -19,17 +22,20 @@
 		:reference="rootEl"
 		placement="bottom"
 	>
-		<ul class="InputDropdown__select" :value="modelValue">
+		<ul class="InputDropdown__select" :style="{width: inputWidth + 'px'}">
 			<li
 				class="InputDropdown__option"
-				v-for="{index, string, original: {value}} in filteredResults"
-				:class="{active: value === inputText}"
+				v-for="{index, html, item} in filtered"
+				:class="{
+					active: item.value === model,
+					hover: item.value === local,
+				}"
 				:key="index"
-				@click="onSelect(value)"
-				@mouseenter="updateOnBlur || updateModelValue(value)"
+				@mousedown="onSelect(item, 'click')"
+				@mouseenter="onSelect(item, 'hover')"
 			>
-				<slot name="option" :string="string" :value="value">
-					<div class="style-default" v-html="string" />
+				<slot name="option" :string="html" :value="item.value">
+					<div class="style-default" v-html="html" />
 				</slot>
 			</li>
 		</ul>
@@ -39,33 +45,34 @@
 <script lang="ts">
 import {useElementSize} from '@vueuse/core'
 import fuzzy from 'fuzzy'
-import keycode from 'keycode'
 import _ from 'lodash'
 import {computed, defineComponent, PropType, ref, watch} from 'vue'
 
 import InputString from '@/components/inputs/InputString.vue'
 import Popover from '@/components/layouts/Popover.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
-import useEfficientEmit from '@/components/use/use-efficient-emit'
+import useLocalModelValue from '@/components/use/use-local-model-value'
 import {unsignedMod} from '@/utils'
 
 interface Item {
 	value: any
-	label?: string
-}
-
-interface CompleteItem {
-	value: any
 	label: string
 }
 
-interface FilteredResult {
+interface ItemProp {
+	value: any
+	label?: string
+}
+
+interface Filtered {
 	index: number
-	string: string
-	original: CompleteItem
+	html: string
+	item: Item
 }
 
 type ILabelizer = (v: any) => string
+
+type Primitives = string | number | boolean | null | symbol
 
 export default defineComponent({
 	name: 'InputDropdown',
@@ -75,9 +82,7 @@ export default defineComponent({
 			required: true,
 		},
 		items: {
-			type: [String, Array] as PropType<
-				string | (Item | string | number | boolean | null)[]
-			>,
+			type: [String, Array] as PropType<string | (ItemProp | Primitives)[]>,
 			required: true,
 		},
 		labelize: {
@@ -90,169 +95,168 @@ export default defineComponent({
 		},
 	},
 	emits: ['update:modelValue'],
-	setup(props, context) {
-		const updateModelValue = useEfficientEmit(props, context, 'modelValue')
+	setup(props, {emit}) {
+		const {local, model} = useLocalModelValue(props, emit)
 
 		const open = ref(false)
 		const rootEl = ref<null | HTMLInputElement>(null)
 
-		const {width: rootWidth} = useElementSize(rootEl)
+		const {width: inputWidth} = useElementSize(rootEl)
 
-		const completeItems = computed<CompleteItem[]>(() => {
+		const itemsData = computed<Item[]>(() => {
 			const items = props.items
 			const arrItems = _.isArray(items) ? items : items.split(',')
 
 			return arrItems.map(it => {
 				if (!_.isObject(it)) {
 					return {value: it, label: props.labelize(it)}
-				} else if (!it.label) {
-					return {value: it.value, label: props.labelize(it.value)}
 				} else {
-					return it as CompleteItem
+					return {value: it.value, label: it.label ?? props.labelize(it.value)}
 				}
 			})
 		})
 
-		const filteredResults = ref(getNotFilteredResults())
+		const activeIndex = computed(() =>
+			itemsData.value.findIndex(it => it.value === local.value)
+		)
+		const activeItem = computed(
+			() => itemsData.value[activeIndex.value] ?? null
+		)
 
-		function getNotFilteredResults() {
-			return completeItems.value.map((item, index) => {
+		const filtered = ref(getNotFiltered())
+
+		function getNotFiltered() {
+			return itemsData.value.map((item, index) => {
 				return {
 					index,
-					string: item.label,
-					original: item,
-				} as FilteredResult
+					html: item.label,
+					item,
+				} as Filtered
 			})
 		}
 
-		const activeItem = computed(() => {
-			return completeItems.value.find(it => it.value === props.modelValue)
-		})
-
-		const inputText = ref(activeItem.value ? activeItem.value.label : '')
+		const display = ref(activeItem.value ? activeItem.value.label : '')
 		const inputFocused = ref(false)
 
-		watch(activeItem, () => {
-			if (activeItem.value && !inputFocused.value) {
-				inputText.value = activeItem.value.label
-			}
-		})
+		watch(
+			activeItem,
+			() => {
+				if (activeItem.value && !inputFocused.value) {
+					display.value = activeItem.value.label
+				}
+			},
+			{flush: 'post'}
+		)
 
-		function onFocus(e: InputEvent) {
-			const input = e.target as HTMLInputElement
-
-			input.select()
-
+		function onFocus() {
 			open.value = true
 			inputFocused.value = true
-			filteredResults.value = getNotFilteredResults()
+			filtered.value = getNotFiltered()
 		}
 
 		function onBlur() {
-			if (activeItem.value) {
-				inputText.value = activeItem.value.label
-			}
 			inputFocused.value = false
 			open.value = false
+
+			if (activeItem.value) {
+				model.value = activeItem.value.value
+			}
 		}
 
-		function onKeydown(e: InputEvent) {
-			open.value = true
+		function onEnter() {
+			open.value = !open.value
 
-			const key = keycode(e)
+			if (activeItem.value) {
+				display.value = activeItem.value.label
+				model.value = activeItem.value.value
+				filtered.value = getNotFiltered()
+			}
+		}
 
-			const indices = filteredResults.value.map(ret => ret.index)
-			const activeIndex = completeItems.value.findIndex(
-				it => it.value === inputText.value
-			)
+		function onPressUpDown(dir: 'up' | 'down') {
+			const indices = filtered.value.map(ret => ret.index)
 			let notSelected =
-				activeIndex === -1 ||
-				filteredResults.value.findIndex(ret => ret.index === activeIndex) === -1
+				filtered.value.findIndex(ret => ret.index === activeIndex.value) === -1
 			const len = indices.length
 
-			switch (key) {
-				case 'enter':
-					if (activeItem.value) {
-						inputText.value = activeItem.value.label
-						open.value = false
-					}
-					break
-				case 'up':
-				case 'down': {
-					const defaultIndex = key === 'up' ? 0 : indices.length - 1
-					const inc = key === 'up' ? -1 : +1
-					const index = notSelected
-						? defaultIndex
-						: indices.indexOf(activeIndex)
-					const neighborIndex = indices[unsignedMod(index + inc, len)]
-					const item = completeItems.value[neighborIndex]
-					!props.updateOnBlur && updateModelValue(item.value)
-					inputText.value = item.label
-					break
-				}
-			}
+			const defaultIndex = dir === 'up' ? 0 : len - 1
+			const inc = dir === 'up' ? -1 : +1
+			const index = notSelected
+				? defaultIndex
+				: indices.indexOf(activeIndex.value)
+			const neighborIndex = indices[unsignedMod(index + inc, len)]
+			const {label, value} = itemsData.value[neighborIndex]
+
+			display.value = label
+			local.value = value
 		}
 
 		function onInput(value: string) {
-			inputText.value = value
+			open.value = true
+			display.value = value
 
-			const result = fuzzy.filter(value, completeItems.value, {
+			const result = fuzzy.filter(value, itemsData.value, {
 				extract: it => it.label,
 				pre: '<u>',
 				post: '</u>',
 			})
 
 			if (result.length === 0) {
-				filteredResults.value = getNotFilteredResults()
+				filtered.value = getNotFiltered()
 			} else {
-				filteredResults.value = result.map(({index, string, original}) => {
-					return {
-						index,
-						string,
-						original,
-					}
-				})
+				filtered.value = result.map(({index, string, original}) => ({
+					index,
+					html: string,
+					item: original,
+				}))
 			}
 
 			// Select the first of filtered items if no item is selected
-			const activeIndex = completeItems.value.findIndex(
-				it => it.value === props.modelValue
+			const activeIndex = itemsData.value.findIndex(
+				it => it.value === local.value
 			)
 
 			let notSelected =
 				activeIndex === -1 ||
-				filteredResults.value.findIndex(ret => ret.index === activeIndex) === -1
+				filtered.value.findIndex(ret => ret.index === activeIndex) === -1
 
 			if (notSelected) {
-				const item = completeItems.value[filteredResults.value[0].index]
-				updateModelValue(item.value)
+				const item = itemsData.value[filtered.value[0].index]
+				local.value = item.value
 			}
 		}
 
-		function onSelect(newValue: any) {
-			const item = completeItems.value.find(it => it.value === newValue)
-			if (item) {
-				inputText.value = item.label
+		function onSelect({value, label}: Item, eventType: 'hover' | 'click') {
+			if (eventType === 'click' || !props.updateOnBlur) {
+				model.value = value
 			}
 
-			updateModelValue(newValue)
-			open.value = false
+			if (eventType === 'hover') {
+				local.value = value
+			}
+
+			if (eventType === 'click') {
+				open.value = false
+				display.value = label
+			}
 		}
 
 		return {
+			local,
+			model,
 			rootEl,
-			rootWidth,
-			inputText,
-			completeItems,
+			inputWidth,
+			display,
+			itemsData,
 			activeItem,
-			filteredResults,
+			filtered,
 			open,
 			onFocus,
 			onBlur,
 			onInput,
-			onKeydown,
+			onEnter,
+			onPressUpDown,
 			onSelect,
-			updateModelValue,
 		}
 	},
 })
@@ -275,10 +279,10 @@ $right-arrow-width = 1em
 
 	&__select
 		margin 2px
-		width max-content
 		tooltip()
 		padding 0
 		border 1px solid $color-frame
+		user-select none
 
 	&__option .style-default
 		padding 0 0.4rem
@@ -286,8 +290,8 @@ $right-arrow-width = 1em
 		line-height $input-height
 		glass-bg('pane')
 
-		&:hover
-			background base16('01')
+	&__option.hover .style-default
+		background base16('02')
 
 	&__option.active .style-default
 		background base16('accent')
@@ -305,7 +309,7 @@ $right-arrow-width = 1em
 		input-transition(transform)
 
 		~/.open &
-			transform rotate(180deg)
+			transform scaleY(180deg)
 
 	&.simple
 		text-align-last center

@@ -15,8 +15,7 @@
 							v-model="basePreset"
 							:items="presetNames"
 							:style="{width: '10em'}"
-						>
-						</InputDropdown>
+						/>
 						<span style="color: base16('04')">&nbsp;&nbsp;Highlight = </span>
 						<InputDropdown
 							v-model="baseAccentName"
