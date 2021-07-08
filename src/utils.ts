@@ -1,5 +1,4 @@
 import {capitalize} from 'lodash'
-import {Ref, unref} from 'vue'
 
 import {MalKeyword, MalVal} from '@/mal/types'
 
@@ -51,15 +50,4 @@ export function getParamLabel(exp: MalVal) {
 
 export function delay(ms: number) {
 	return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-export function getHTMLElement(
-	el: Ref<HTMLElement | any | null> | HTMLElement
-): HTMLElement | undefined {
-	const _el = unref(el)
-	return _el instanceof HTMLElement
-		? _el
-		: _el instanceof Object && _el.$el instanceof HTMLElement
-		? _el.$el
-		: undefined
 }

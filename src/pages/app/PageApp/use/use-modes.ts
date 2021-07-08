@@ -1,3 +1,4 @@
+import {unrefElement} from '@vueuse/core'
 import {mat2d, vec2} from 'gl-matrix'
 import {computed, Ref, ref, watch} from 'vue'
 
@@ -7,7 +8,6 @@ import {readJS} from '@/mal/reader'
 import {MalBoolean, MalKeyword, MalMap, MalString} from '@/mal/types'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
-import {getHTMLElement} from '@/utils'
 
 const K_EVENT_TYPE = MalKeyword.from('event-type')
 const K_POS = MalKeyword.from('pos')
@@ -47,7 +47,7 @@ export function useModes(
 		onDrag: () => executeMouseHandler('drag'),
 		onUp: () => executeMouseHandler('release'),
 		ignorePredicate(e: MouseEvent) {
-			const root = getHTMLElement(handleEl)
+			const root = unrefElement(handleEl)
 			if (!root) return true
 			const target = e.target
 			const svg = root.querySelector('svg')

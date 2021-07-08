@@ -1,6 +1,5 @@
+import {unrefElement} from '@vueuse/core'
 import {onMounted, onUnmounted, Ref, ref} from 'vue'
-
-import {getHTMLElement} from '@/utils'
 
 export default function useMouseEvents(
 	target: Ref<HTMLElement | null> | HTMLElement,
@@ -53,7 +52,7 @@ export default function useMouseEvents(
 	}
 
 	onMounted(() => {
-		targetEl = getHTMLElement(target)
+		targetEl = unrefElement(target)
 
 		if (!targetEl) return
 		targetEl.addEventListener('mousemove', onMouseMove)
