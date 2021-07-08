@@ -26,6 +26,7 @@ export interface SchemaNumber {
 	ui?: 'number' | 'angle' | 'seed'
 	min?: number
 	max?: number
+	precision?: number
 	default?: number
 	updateOnBlur?: boolean
 	validator?: Validator<number>
