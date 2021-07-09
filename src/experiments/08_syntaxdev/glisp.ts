@@ -75,7 +75,7 @@ interface ValueFn {
 	params: Record<string, Value>
 	out: Value
 	variadic?: true
-	body: <A extends Exp[], R extends Value>(this: ValueFnThis, ...arg0: A) => R
+	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
 }
 
 interface ValueHashMap {
@@ -173,6 +173,15 @@ function wrapValue(value: Value): ExpValue {
 	return ret
 }
 
+function createExpList(items: Exp[], setParent = true) {
+	const ret: ExpList = {ast: 'list', items}
+
+	if (setParent) {
+		items.forEach(it => (it.parent = ret))
+	}
+	return ret
+}
+
 function createExpScope(
 	{
 		scope,
@@ -182,7 +191,7 @@ function createExpScope(
 		out?: ExpScope['out']
 	},
 	setParent = true
-): ExpScope {
+) {
 	const ret: ExpScope = {ast: 'scope', scope, out}
 
 	if (setParent) {
@@ -225,7 +234,7 @@ function createValueType(
 const TypeBoolean = uniteType([false, true], v => !!v)
 const TypeNumber = createValueType('number', _.isNumber, () => 0)
 const TypeString = createValueType('string', _.isString, () => '')
-export const TypeIO = createValueType('IO', _.constant(true), () => null)
+export const TypeIO = createValueType('IO', _.isFunction, () => null)
 const TypeFnType = createValueType(
 	'fnType',
 	v => isKindOf(v, 'fnType'),
@@ -252,7 +261,7 @@ const castTypeFn = wrapValue({
 	kind: 'fn',
 	params: {type: Any, value: Any},
 	out: Any,
-	body: function (this: ValueFnThis, type: Exp, value: Exp) {
+	body(this: ValueFnThis, type: Exp, value: Exp) {
 		const t = this.eval(type)
 		const v = this.eval(value)
 
@@ -264,7 +273,7 @@ const castTypeFn = wrapValue({
 		})
 
 		return casted
-	} as any,
+	},
 })
 
 export const GlobalScope = createExpScope({
@@ -287,65 +296,65 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeNumber},
 			out: TypeNumber,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
-			} as any,
+			},
 		}),
 		'*': wrapValue({
 			kind: 'fn',
 			params: {xs: createValueType(TypeNumber, TypeNumber.predicate, () => 1)},
 			out: TypeNumber,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
-			} as any,
+			},
 		}),
 		and: wrapValue({
 			kind: 'fn',
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
-			} as any,
+			},
 		}),
 		or: wrapValue({
 			kind: 'fn',
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				return xs
 					.map(x => this.eval<boolean>(x))
 					.reduce((a, b) => a || b, false)
-			} as any,
+			},
 		}),
 		'->': wrapValue({
 			kind: 'fn',
 			params: {params: createInfVector(Any), out: Any},
 			out: TypeFnType,
-			body: function (this: ValueFnThis, params: Exp, out: Exp) {
+			body(this: ValueFnThis, params: Exp, out: Exp) {
 				return {
 					kind: 'fnType',
 					params: this.eval(params),
 					out: this.eval(out),
 				}
-			} as any,
+			},
 		}),
 		'|': wrapValue({
 			kind: 'fn',
 			params: {xs: Any},
 			out: Any,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				return uniteType(xs.map(this.eval))
-			} as any,
+			},
 		}),
 		def: wrapValue({
 			kind: 'fn',
 			params: {name: TypeString, value: Any},
 			out: TypeIO,
-			body: function (this: ValueFnThis, name: Exp, value: Exp) {
+			body(this: ValueFnThis, name: Exp, value: Exp) {
 				const n = this.eval<string>(name)
 				const v = this.eval(value)
 				return {
@@ -355,30 +364,30 @@ export const GlobalScope = createExpScope({
 						GlobalScope.scope[n] = wrapValue(v)
 					},
 				}
-			} as any,
+			},
 		}),
 		type: wrapValue({
 			kind: 'fn',
 			params: {x: Any},
 			out: Any,
-			body: function (this: ValueFnThis, t: Exp) {
+			body(this: ValueFnThis, t: Exp) {
 				return assertExpType(wrapValue(this.eval(t)))
-			} as any,
+			},
 		}),
 		isa: wrapValue({
 			kind: 'fn',
 			params: {value: Any, type: Any},
 			out: TypeBoolean,
-			body: function (this: ValueFnThis, a: Exp, b: Exp) {
+			body(this: ValueFnThis, a: Exp, b: Exp) {
 				return isInstanceOf(this.eval(a), this.eval(b))
-			} as any,
+			},
 		}),
 		'==': wrapValue({
 			kind: 'fn',
 			params: {xs: Any},
 			out: TypeBoolean,
 			variadic: true,
-			body: function (this: ValueFnThis, ...xs: Exp[]) {
+			body(this: ValueFnThis, ...xs: Exp[]) {
 				const _xs = xs.map(x => this.eval(x))
 				if (_xs.length === 0) {
 					return true
@@ -386,7 +395,7 @@ export const GlobalScope = createExpScope({
 					const [fst, ...rest] = _xs
 					return rest.every(r => equalsValue(fst, r))
 				}
-			} as any,
+			},
 		}),
 		':': castTypeFn,
 	},
@@ -531,7 +540,7 @@ function defineFn(params: ValueFn['params'], body: Exp): ValueFn {
 
 	const fn: ValueFn['body'] = function () {
 		return 1234
-	} as any
+	}
 
 	return {
 		kind: 'fn',
@@ -697,14 +706,14 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 
 			const result = fn.body.call(
 				{
-					log: function (log) {
+					log(log) {
 						execLogs.push(log)
 					},
-					eval: function (e: Exp) {
+					eval(e) {
 						const {result, logs: logs} = evalExp(e)
 						paramsLogs.push(...logs)
-						return result
-					} as any,
+						return result as any
+					},
 				},
 				...params
 			)
@@ -725,7 +734,7 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 			)
 		)
 	}
-	return withLog(null, inspectLogs)
+	return withLog(Unit, inspectLogs)
 }
 
 function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
@@ -955,25 +964,22 @@ function castExpParam(
 
 	for (let i = 0; i < to.length; i++) {
 		const toType = to[i]
-		const fromItem: Exp = from[i] || {ast: 'value', value: null}
+		const fromItem: Exp = from[i] || {ast: 'value', value: Unit}
 
 		const fromType = assertExpType(fromItem)
 
-		if (isInstanceOf(fromType, toType)) {
+		if (isSubtypeOf(fromType, toType)) {
 			casted.push(fromItem)
 		} else {
+			const fromStr = printValue(fromType)
+			const toStr = printValue(toType)
 			logs.push({
 				level: 'error',
-				reason:
-					'Type ' +
-					printValue(fromType) +
-					' cannot be casted to ' +
-					printValue(toType),
+				reason: `Type ${fromStr} cannot be casted to ${toStr}`,
 			})
-			casted.push({
-				ast: 'list',
-				items: [castTypeFn, wrapValue(toType), fromItem],
-			})
+			casted.push(
+				createExpList([castTypeFn, wrapValue(toType), fromItem], false)
+			)
 		}
 	}
 
@@ -988,27 +994,21 @@ export function printExp(exp: Exp): string {
 			return '[' + exp.items.map(printExp).join(' ') + ']'
 		case 'infVector':
 			return '[' + exp.items.map(printExp).join(' ') + '...]'
-		case 'hashMap':
-			return (
-				'{' +
-				_.entries(exp.items)
-					.map(([k, v]) => `${k}: ${printExp(v)}`)
-					.join(' ') +
-				'}'
-			)
+		case 'hashMap': {
+			const entries = _.entries(exp.items)
+			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
+			return '{' + pairs.join(' ') + '}'
+		}
 		case 'symbol':
 			return exp.name
 		case 'value':
 			return printValue(exp.value)
-		case 'scope':
-			return (
-				'{' +
-				_.entries(exp.scope)
-					.map(([k, v]) => k + ' = ' + printExp(v))
-					.join(' ') +
-				(exp.out ? printExp(exp.out) : '') +
-				'}'
-			)
+		case 'scope': {
+			const entries = _.entries(exp.scope)
+			const pairs = entries.map(([k, v]) => `${k} = ${printExp(v)}`)
+			const out = exp.out ? printExp(exp.out) : ''
+			return `{${pairs.join(' ')} ${out}}`
+		}
 	}
 }
 
