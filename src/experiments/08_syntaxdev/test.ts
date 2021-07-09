@@ -4,7 +4,7 @@ function testIsa(aStr: string, bStr: string, toBe: boolean) {
 	const a = evalExp(readStr(aStr)).result
 	const b = evalExp(readStr(bStr)).result
 
-	const ret = isInstanceOf(a, b, false)
+	const ret = isInstanceOf(a, b)
 
 	const fn = ret === toBe ? console.log : console.error
 

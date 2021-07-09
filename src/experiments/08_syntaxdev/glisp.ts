@@ -367,7 +367,7 @@ export const GlobalScope = createExpScope({
 			params: {value: Any, type: Any},
 			out: TypeBoolean,
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return isInstanceOf(this.eval(a), this.eval(b), false)
+				return isInstanceOf(this.eval(a), this.eval(b))
 			} as any,
 		}),
 		'==': wrapValue({
@@ -411,9 +411,9 @@ function uniteType(
 				const bItem = items[b]
 				if (bItem === undefined) continue
 
-				if (isInstanceOf(bItem, aItem, true)) {
+				if (isSubtypeOf(bItem, aItem)) {
 					items[b] = undefined
-				} else if (isInstanceOf(aItem, bItem, true)) {
+				} else if (isSubtypeOf(aItem, bItem)) {
 					items[a] = undefined
 					break
 				}
@@ -785,11 +785,11 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-export function isInstanceOf(
-	a: Value,
-	b: Value,
-	includeSame: boolean
-): boolean {
+const isSubtypeOf = _.partial(isInstanceOf, _, _, true)
+
+export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
+	const isa = _.partialRight(isInstanceOf, includeSame)
+
 	// Primitive type
 	if (!_.isObject(b)) {
 		return a === b
@@ -797,7 +797,7 @@ export function isInstanceOf(
 
 	// Vector
 	if (_.isArray(b)) {
-		return isInstanceOfVector(a, b, includeSame)
+		return isInstanceOfVector(a, b)
 	}
 
 	switch (b.kind) {
@@ -806,13 +806,13 @@ export function isInstanceOf(
 		case 'unit':
 			return isKindOf(a, 'unit')
 		case 'valType':
-			return isInstanceOfValType(a, b, includeSame)
+			return isInstanceOfValType(a, b)
 		case 'infVector':
-			return isInstanceOfInfVector(a, b, includeSame)
+			return isInstanceOfInfVector(a, b)
 		case 'union':
-			return isInstanceOfUnion(a, b, includeSame)
+			return isInstanceOfUnion(a, b)
 		case 'fnType':
-			return isInstanceOfFnType(a, b, includeSame)
+			return isInstanceOfFnType(a, b)
 		case 'fn':
 		case 'singleton':
 			return a === b
@@ -821,17 +821,13 @@ export function isInstanceOf(
 	}
 
 	// Predicates for each types
-	function isInstanceOfVector(a: Value, b: Value[], includeSame: boolean) {
+	function isInstanceOfVector(a: Value, b: Value[]) {
 		if (!_.isArray(a)) return false
 		if (a.length < b.length) return false
-		return _$.everyByPair(a, b, _.partialRight(isInstanceOf, includeSame))
+		return _$.everyByPair(a, b, isa)
 	}
 
-	function isInstanceOfInfVector(
-		a: Value,
-		b: ValueInfVector,
-		includeSame: boolean
-	) {
+	function isInstanceOfInfVector(a: Value, b: ValueInfVector) {
 		if (isKindOf(a, 'infVector')) {
 			const alen = a.items.length,
 				blen = b.items.length
@@ -842,11 +838,7 @@ export function isInstanceOf(
 				...b.items,
 				..._.times(alen - blen, _.constant(b.items[blen - 1])),
 			]
-			return _$.everyByPair(
-				a.items,
-				bitems,
-				_.partialRight(isInstanceOf, includeSame)
-			)
+			return _$.everyByPair(a.items, bitems, isa)
 		} else if (_.isArray(a)) {
 			const minLength = b.items.length - 1
 			if (a.length < minLength) {
@@ -858,24 +850,18 @@ export function isInstanceOf(
 				...b.items.slice(0, minLength),
 				..._.times(restCount, _.constant(bLast)),
 			]
-			return isInstanceOf(a, bv, includeSame)
+			return isa(a, bv)
 		}
 		return false
 	}
 
-	function isInstanceOfUnion(a: Value, b: ValueUnion, includeSame: boolean) {
+	function isInstanceOfUnion(a: Value, b: ValueUnion) {
 		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
 		const bTypes = b.items
-		return aTypes.every(at =>
-			bTypes.some(bt => isInstanceOf(at, bt, includeSame))
-		)
+		return aTypes.every(at => bTypes.some(bt => isa(at, bt)))
 	}
 
-	function isInstanceOfValType(
-		a: Value,
-		b: ValueValType,
-		includeSame: boolean
-	) {
+	function isInstanceOfValType(a: Value, b: ValueValType) {
 		if (includeSame) {
 			return b.predicate(a) || (isKindOf(a, 'valType') && a.id === b.id)
 		} else {
@@ -883,12 +869,9 @@ export function isInstanceOf(
 		}
 	}
 
-	function isInstanceOfFnType(a: Value, b: ValueFnType, includeSame: boolean) {
+	function isInstanceOfFnType(a: Value, b: ValueFnType) {
 		const _a = normalizeTypeToFn(a)
-		return (
-			isInstanceOf(_a.params, b.params, true) &&
-			isInstanceOf(_a.out, b.out, true)
-		)
+		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
 
 		function normalizeTypeToFn(a: Value): Omit<ValueFnType, 'kind'> {
 			if (isKindOf(a, 'fn')) {
@@ -916,12 +899,12 @@ function castType(type: Value, value: Value): Value {
 
 	switch (type.kind) {
 		case 'valType':
-			return isInstanceOf(value, type, false) ? value : type.cast(value)
+			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, Unit)
 		case 'union':
 			return type.cast
-				? isInstanceOf(value, type, false)
+				? isInstanceOf(value, type)
 					? value
 					: type.cast(value)
 				: castType(type.items[0], Unit)
@@ -968,7 +951,7 @@ function castExpParam(
 
 		const fromType = assertExpType(fromItem)
 
-		if (isInstanceOf(fromType, toType, false)) {
+		if (isInstanceOf(fromType, toType)) {
 			casted.push(fromItem)
 		} else {
 			logs.push({
