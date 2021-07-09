@@ -75,7 +75,8 @@ List "list" = "(" _ fn:(ListFirst _) items:(Form _)* ")"
 		return makeCollection('list', [fn,...items])
 	}
 
-ListFirst = List / Scope / QuotedSymbol / Symbol
+ListFirst = Unit / Constant / Number / String
+	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Vector "vector" = "[" _ items:(Form _)* "]"
 	{

@@ -1,9 +1,12 @@
+import './test'
+
 import _ from 'lodash'
 import peg from 'pegjs'
 
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
+import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -785,10 +788,15 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-const isSubtypeOf = _.partial(isInstanceOf, _, _, true)
+export function isSubtypeOf(a: Value, b: Value) {
+	return compareType(a, b, false)
+}
+export function isInstanceOf(a: Value, b: Value) {
+	return compareType(a, b, true)
+}
 
-export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
-	const isa = _.partialRight(isInstanceOf, includeSame)
+function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
+	const compare = _.partial(compareType, _, _, onlyInstance)
 
 	// Primitive type
 	if (!_.isObject(b)) {
@@ -797,7 +805,7 @@ export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
 
 	// Vector
 	if (_.isArray(b)) {
-		return isInstanceOfVector(a, b)
+		return vector(a, b)
 	}
 
 	switch (b.kind) {
@@ -806,13 +814,13 @@ export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
 		case 'unit':
 			return isKindOf(a, 'unit')
 		case 'valType':
-			return isInstanceOfValType(a, b)
+			return valType(a, b)
 		case 'infVector':
-			return isInstanceOfInfVector(a, b)
+			return infVector(a, b)
 		case 'union':
-			return isInstanceOfUnion(a, b)
+			return union(a, b)
 		case 'fnType':
-			return isInstanceOfFnType(a, b)
+			return fnType(a, b)
 		case 'fn':
 		case 'singleton':
 			return a === b
@@ -821,13 +829,13 @@ export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
 	}
 
 	// Predicates for each types
-	function isInstanceOfVector(a: Value, b: Value[]) {
+	function vector(a: Value, b: Value[]) {
 		if (!_.isArray(a)) return false
 		if (a.length < b.length) return false
-		return _$.everyByPair(a, b, isa)
+		return _$.everyByPair(a, b, compare)
 	}
 
-	function isInstanceOfInfVector(a: Value, b: ValueInfVector) {
+	function infVector(a: Value, b: ValueInfVector) {
 		if (isKindOf(a, 'infVector')) {
 			const alen = a.items.length,
 				blen = b.items.length
@@ -838,7 +846,7 @@ export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
 				...b.items,
 				..._.times(alen - blen, _.constant(b.items[blen - 1])),
 			]
-			return _$.everyByPair(a.items, bitems, isa)
+			return vector(a.items, bitems)
 		} else if (_.isArray(a)) {
 			const minLength = b.items.length - 1
 			if (a.length < minLength) {
@@ -850,26 +858,26 @@ export function isInstanceOf(a: Value, b: Value, includeSame = false): boolean {
 				...b.items.slice(0, minLength),
 				..._.times(restCount, _.constant(bLast)),
 			]
-			return isa(a, bv)
+			return vector(a, bv)
 		}
 		return false
 	}
 
-	function isInstanceOfUnion(a: Value, b: ValueUnion) {
+	function union(a: Value, b: ValueUnion) {
 		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
 		const bTypes = b.items
-		return aTypes.every(at => bTypes.some(bt => isa(at, bt)))
+		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
 
-	function isInstanceOfValType(a: Value, b: ValueValType) {
-		if (includeSame) {
-			return b.predicate(a) || (isKindOf(a, 'valType') && a.id === b.id)
-		} else {
+	function valType(a: Value, b: ValueValType) {
+		if (onlyInstance) {
 			return b.predicate(a)
+		} else {
+			return b.predicate(a) || (isKindOf(a, 'valType') && a.id === b.id)
 		}
 	}
 
-	function isInstanceOfFnType(a: Value, b: ValueFnType) {
+	function fnType(a: Value, b: ValueFnType) {
 		const _a = normalizeTypeToFn(a)
 		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
 
@@ -1092,3 +1100,5 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return `<object of ${printValue(val.type, baseExp)}>`
 	}
 }
+
+runTest()
