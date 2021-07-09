@@ -149,6 +149,7 @@ type InspectedResult =
 	| InspectedResultList
 	| InspectedResultVector
 	| InspectedResultHashMap
+	| InspectedResultScope
 
 type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
@@ -159,8 +160,13 @@ type InspectedResultSymbol =
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
 	| {semantic: 'fndef'; params: Record<string, Exp>; body: Exp}
-	| {semantic: 'scope'; scope: ExpScope['scope']; out?: ExpScope['out']}
 	| {semantic: 'null'}
+
+type InspectedResultScope = {
+	semantic: 'scope'
+	scope: ExpScope['scope']
+	out?: ExpScope['out']
+}
 
 type InspectedResultVector = {semantic: 'fixed'; items: Exp[]}
 
@@ -568,41 +574,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 		const [fst, ...rest] = exp.items
 
 		if (fst.ast === 'symbol') {
-			if (fst.name === '@') {
-				// Scope
-				const scope: Record<string, Exp> = {}
-				let out: Exp | undefined
-				const logs: Log[] = []
-
-				const last = _.last(rest)
-				if (last && last.ast !== 'pair') {
-					out = rest.pop()
-				}
-
-				rest.forEach(pair => {
-					if (pair.ast !== 'pair') {
-						logs.push({
-							level: 'warn',
-							reason: `${printExp(pair)} is not a pair`,
-						})
-					} else if (pair.left.ast !== 'symbol') {
-						logs.push({
-							level: 'warn',
-							reason: `${printExp(pair.left)} is not a symbol`,
-						})
-					} else {
-						if (pair.left.name in scope) {
-							logs.push({
-								level: 'warn',
-								reason: `The scope has duplicated key ${printExp(pair.left)}`,
-							})
-						}
-						scope[pair.left.name] = pair.right
-					}
-				})
-
-				return withLog({semantic: 'scope', scope, out}, logs)
-			} else if (fst.name === '=>') {
+			if (fst.name === '=>') {
 				// Function definition
 				if (rest.length >= 2) {
 					const [params, body] = rest
@@ -809,11 +781,6 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 				inspected.body
 			)
 		)
-	} else if (inspected.semantic === 'scope') {
-		if (inspected.out !== undefined) {
-			const {result, logs} = evalExp(inspected.out)
-			return withLog(result, [...inspectLogs, ...logs])
-		}
 	}
 	return withLog(null, inspectLogs)
 }

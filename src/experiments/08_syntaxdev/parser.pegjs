@@ -21,14 +21,9 @@ Program = form:Form
 		return form
 	}
 
-
 Form =
 	Constant / Number / String
-	/ Pair / List / Vector / InfVector / HashMap / QuotedSymbol / Symbol
-
-FormPairLeft =
-	Constant / Number / String
-	/ List / Vector / InfVector / HashMap / QuotedSymbol / SymbolPairLeft
+	/ Pair / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -63,20 +58,12 @@ Symbol "symbol" = name:$([^ .,\t\n\r`()[\]{}]i+)
 			name
 		}
 	}
-
-SymbolPairLeft "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
-	{
-		return {
-			ast: 'symbol',
-			name
-		}
-	}
-
 QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 	{
 		return {ast: 'symbol', name}
 	}
 
+// Pair
 Pair "pair" = left:FormPairLeft _ ":" _ right:Form
 	{
 		const ret = {
@@ -88,6 +75,32 @@ Pair "pair" = left:FormPairLeft _ ":" _ right:Form
 		ret.right.parent = ret
 
 		return ret
+	}
+
+FormPairLeft =
+	Constant / Number / String
+	/ List / Vector / InfVector / HashMap / QuotedSymbol / SymbolPairLeft
+
+SymbolPairLeft "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
+	{
+		return {
+			ast: 'symbol',
+			name
+		}
+	}
+
+// Equal
+Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
+	{
+		return [left.name, right]
+	}
+
+SymbolEqualLeft "symbol" = name:$([^ =.,\t\n\r`()[\]{}]i+)
+	{
+		return {
+			ast: 'symbol',
+			name
+		}
 	}
 
 List "list" = "(" _ items:(Form _)* ")"
@@ -108,6 +121,22 @@ InfVector "infinite vector" = "[" _ items:(Form _)+ "..." _ "]"
 HashMap "hash map" = "{" _ items:(Pair _)* "}"
 	{
 		return makeCollection('hashMap', items)
+	}
+
+Scope "scope" = "{" _ items:(Equal _)+ out:(Form _)? "}"
+	{
+		const entries = items.map(it => it[0])
+		const ret = {ast: 'scope', scope: Object.fromEntries(entries)}
+
+		entries.forEach(it => it[1].parent = ret)
+
+		if (out) {
+			const _out = out[0]
+			ret.out = _out
+			_out.parent = ret
+		}
+
+		return ret
 	}
 
 Comment "comment" = $(";" [^\n\r]*)
