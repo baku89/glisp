@@ -148,7 +148,6 @@ type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
 	| {semantic: 'capture'}
 	| {semantic: 'undefined'}
-	| {semantic: 'circular'}
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
@@ -157,8 +156,6 @@ type InspectedResultList =
 
 type InspectedResultScope = {
 	semantic: 'scope'
-	scope: ExpScope['scope']
-	out?: ExpScope['out']
 }
 
 type InspectedResultVector = {semantic: 'vector'}
@@ -510,29 +507,29 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	let name = exp.name
 	const history = new WeakSet<ExpSymbol>([exp])
 	while (parent) {
-		const inspected: InspectedResult = inspectExp(parent).result
-		if (inspected.semantic === 'scope') {
-			if (name in inspected.scope) {
-				const ref: Exp = inspected.scope[name]
-				if (ref.ast === 'symbol') {
-					if (history.has(ref)) {
-						return withLog({semantic: 'circular'}, [
-							{
-								level: 'error',
-								reason: `Symbol ${printExp(exp)} has a circular reference`,
-							},
-						])
-					}
-					// Proceed resolving
-					history.add(ref)
-					parent = ref
-					name = ref.name
-				} else {
-					return withLog({
-						semantic: 'ref',
-						ref,
-					})
+		// If the parent is a scope containing the symbol
+		if (parent.ast === 'scope' && name in parent.scope) {
+			const ref: Exp = parent.scope[name]
+			if (ref.ast === 'symbol') {
+				// If the the reference is an another symbol
+				if (history.has(ref)) {
+					return withLog({semantic: 'undefined'}, [
+						{
+							level: 'error',
+							reason: `Symbol ${printExp(exp)} has a circular reference`,
+						},
+					])
 				}
+				// Proceed resolving
+				history.add(ref)
+				parent = ref
+				name = ref.name
+			} else {
+				// Found it
+				return withLog({
+					semantic: 'ref',
+					ref,
+				})
 			}
 		}
 		parent = parent.parent
@@ -1099,13 +1096,13 @@ function retrieveValueName(
 		return
 	}
 
-	const inspected = inspectExp(origExp.parent).result
+	const parent = origExp.parent
 
-	if (inspected.semantic !== 'scope') {
+	if (parent.ast !== 'scope') {
 		return
 	}
 
-	const name = _.findKey(inspected.scope, e => e === origExp)
+	const name = _.findKey(parent.scope, e => e === origExp)
 
 	if (!name) {
 		return
