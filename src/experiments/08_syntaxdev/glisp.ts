@@ -16,7 +16,7 @@ type Value =
 	| Value[]
 	| ValueInfVector
 	| ValueSingleton
-	| ValueValType
+	| ValueValueType
 	| ValueFnType
 	| ValueUnion
 	| ValueInfVector
@@ -45,8 +45,8 @@ interface ValueInfVector<T extends Value = Value> {
 	items: T[]
 }
 
-interface ValueValType {
-	kind: 'valType'
+interface ValueValueType {
+	kind: 'valueType'
 	id: symbol
 	origExp?: Exp
 	predicate: (value: Value) => boolean
@@ -87,7 +87,7 @@ interface ValueHashMap {
 
 interface ValueObject {
 	kind: 'object'
-	type: ValueValType
+	type: ValueValueType
 	value: any
 }
 
@@ -167,7 +167,7 @@ export function readStr(str: string): Exp {
 
 function wrapValue(value: Value): ExpValue {
 	const ret: ExpValue = {ast: 'value', value}
-	if (isKindOf(value, 'singleton') || isKindOf(value, 'valType')) {
+	if (isKindOf(value, 'singleton') || isKindOf(value, 'valueType')) {
 		value.origExp = ret
 	}
 	return ret
@@ -205,16 +205,16 @@ function createInfVector<T extends Value = Value>(
 	}
 }
 
-function createValType(
-	base: ValueValType | string,
-	predicate: ValueValType['predicate'],
-	cast: ValueValType['cast']
-): ValueValType {
+function createValueType(
+	base: ValueValueType | string,
+	predicate: ValueValueType['predicate'],
+	cast: ValueValueType['cast']
+): ValueValueType {
 	const id = _.isString(base) ? Symbol(base) : base.id
 	const origExp = _.isString(base) ? undefined : base.origExp
 
 	return {
-		kind: 'valType',
+		kind: 'valueType',
 		id,
 		predicate,
 		cast,
@@ -223,10 +223,10 @@ function createValType(
 }
 
 const TypeBoolean = uniteType([false, true], v => !!v)
-const TypeNumber = createValType('number', _.isNumber, () => 0)
-const TypeString = createValType('string', _.isString, () => '')
-export const TypeIO = createValType('IO', _.constant(true), () => null)
-const TypeFnType = createValType(
+const TypeNumber = createValueType('number', _.isNumber, () => 0)
+const TypeString = createValueType('string', _.isString, () => '')
+export const TypeIO = createValueType('IO', _.constant(true), () => null)
+const TypeFnType = createValueType(
 	'fnType',
 	v => isKindOf(v, 'fnType'),
 	() => ({
@@ -235,7 +235,7 @@ const TypeFnType = createValType(
 		out: Any,
 	})
 )
-const TypeHashMap = createValType(
+const TypeHashMap = createValueType(
 	'hashMap',
 	v => isKindOf(v, 'hashMap'),
 	() => ({
@@ -293,7 +293,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'*': wrapValue({
 			kind: 'fn',
-			params: {xs: createValType(TypeNumber, TypeNumber.predicate, () => 1)},
+			params: {xs: createValueType(TypeNumber, TypeNumber.predicate, () => 1)},
 			out: TypeNumber,
 			variadic: true,
 			body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -450,8 +450,8 @@ function equalsValue(a: Value, b: Value): boolean {
 		case 'singleton':
 		case 'fn':
 			return a === b
-		case 'valType':
-			return isKindOf(b, 'valType') && a.id === b.id
+		case 'valueType':
+			return isKindOf(b, 'valueType') && a.id === b.id
 		case 'fnType':
 			return (
 				isKindOf(b, 'fnType') &&
@@ -581,7 +581,7 @@ function assertValueType(v: Value): Value {
 		case 'any':
 		case 'unit':
 		case 'singleton':
-		case 'valType':
+		case 'valueType':
 		case 'fnType':
 		case 'union':
 		case 'infVector':
@@ -779,7 +779,7 @@ function isKindOf(x: Value, kind: 'fn'): x is ValueFn
 function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
 function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
 function isKindOf(x: Value, kind: 'union'): x is ValueUnion
-function isKindOf(x: Value, kind: 'valType'): x is ValueValType
+function isKindOf(x: Value, kind: 'valueType'): x is ValueValueType
 function isKindOf(x: Value, kind: 'infVector'): x is ValueInfVector
 function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
 function isKindOf<
@@ -813,8 +813,8 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 			return true
 		case 'unit':
 			return isKindOf(a, 'unit')
-		case 'valType':
-			return valType(a, b)
+		case 'valueType':
+			return valueType(a, b)
 		case 'infVector':
 			return infVector(a, b)
 		case 'union':
@@ -869,11 +869,11 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
 
-	function valType(a: Value, b: ValueValType) {
+	function valueType(a: Value, b: ValueValueType) {
 		if (onlyInstance) {
 			return b.predicate(a)
 		} else {
-			return b.predicate(a) || (isKindOf(a, 'valType') && a.id === b.id)
+			return b.predicate(a) || (isKindOf(a, 'valueType') && a.id === b.id)
 		}
 	}
 
@@ -906,7 +906,7 @@ function castType(type: Value, value: Value): Value {
 	}
 
 	switch (type.kind) {
-		case 'valType':
+		case 'valueType':
 			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, Unit)
@@ -1013,7 +1013,7 @@ export function printExp(exp: Exp): string {
 }
 
 function retrieveValueName(
-	s: ValueCustomSingleton | ValueValType,
+	s: ValueCustomSingleton | ValueValueType,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -1074,8 +1074,8 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return '*'
 		case 'unit':
 			return '()'
-		case 'valType':
-			return retrieveValueName(val, baseExp) || `<valType>`
+		case 'valueType':
+			return retrieveValueName(val, baseExp) || `<valueType>`
 		case 'infVector': {
 			const items = val.items.map(v => printValue(v, baseExp))
 			return '[' + items.join(' ') + '...]'
