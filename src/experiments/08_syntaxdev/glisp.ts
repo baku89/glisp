@@ -141,33 +141,13 @@ interface ExpScope extends ExpBase {
 	out?: Exp
 }
 
-type InspectedResult =
-	| {semantic: 'raw'}
-	| InspectedResultSymbol
-	| InspectedResultList
-	| InspectedResultVector
-	| InspectedResultHashMap
-	| InspectedResultScope
-
 type InspectedResultSymbol =
 	| {semantic: 'ref'; ref: Exp}
-	| {semantic: 'capture'}
 	| {semantic: 'undefined'}
 
 type InspectedResultList =
 	| {semantic: 'application'; fn: Exp; params: Exp[]}
 	| {semantic: 'fndef'; params: Record<string, Exp>; body: Exp}
-	| {semantic: 'null'}
-
-type InspectedResultScope = {
-	semantic: 'scope'
-}
-
-type InspectedResultVector = {semantic: 'vector'}
-
-type InspectedResultHashMap = {
-	semantic: 'hashMap'
-}
 
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
@@ -225,6 +205,10 @@ function createExpScope(
 // Value initializer
 function createAny(): ValueAny {
 	return {kind: 'any'}
+}
+
+function createUnit(): ValueUnit {
+	return {kind: 'unit'}
 }
 
 function createInfVector<T extends Value = Value>(
@@ -504,23 +488,6 @@ function withLog<T>(result: T, logs: Log[] = []) {
 	return {result, logs}
 }
 
-function inspectExp(exp: Exp): WithLogs<InspectedResult> {
-	switch (exp.ast) {
-		case 'symbol':
-			return inspectExpSymbol(exp)
-		case 'list':
-			return inspectExpList(exp)
-		case 'vector':
-			return inspectExpVector()
-		case 'hashMap':
-			return inspectExpHashMap()
-		case 'scope':
-			return withLog({semantic: 'scope', scope: exp.scope, out: exp.out})
-		default:
-			return withLog({semantic: 'raw'})
-	}
-}
-
 function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	// Search ancestors
 	let parent = exp.parent
@@ -593,24 +560,14 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 						})
 					}
 				}
-				return withLog({semantic: 'null'}, [
-					{level: 'warn', reason: 'Invalid fndef form'},
-				])
+				throw new Error()
 			}
 		}
 
 		return withLog({semantic: 'application', fn: fst, params: rest})
 	}
 
-	return withLog({semantic: 'null'})
-}
-
-function inspectExpVector(): WithLogs<InspectedResultVector> {
-	return withLog({semantic: 'vector'})
-}
-
-function inspectExpHashMap(): WithLogs<InspectedResultHashMap> {
-	return withLog({semantic: 'hashMap'})
+	throw new Error()
 }
 
 function assertValueType(v: Value): Value {
@@ -678,9 +635,8 @@ function assertExpType(exp: Exp): Value {
 					params: paramsType,
 					out,
 				}
-			} else {
-				return null
 			}
+			throw new Error('Unexpeced execution of an unreachable block')
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
@@ -689,17 +645,16 @@ function assertExpType(exp: Exp): Value {
 		case 'hashMap':
 			return TypeHashMap
 		case 'scope':
-			return exp.out ? assertExpType(exp) : null
+			return exp.out ? assertExpType(exp) : createUnit()
 	}
 }
 
 function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
 	const {result: inspected, logs} = inspectExpSymbol(exp)
-	switch (inspected.semantic) {
-		case 'ref':
-			return evalExp(inspected.ref)
-		default:
-			return withLog(null, logs)
+	if (inspected.semantic === 'ref') {
+		return evalExp(inspected.ref)
+	} else {
+		return withLog(createUnit(), logs)
 	}
 }
 
@@ -1008,7 +963,7 @@ function castType(type: Value, value: Value): Value {
 			return type
 	}
 
-	return null
+	return createUnit()
 }
 
 function castExpParam(
