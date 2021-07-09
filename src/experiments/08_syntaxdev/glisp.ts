@@ -317,7 +317,7 @@ export const GlobalScope = createExpScope({
 					.reduce((a, b) => a || b, false)
 			} as any,
 		}),
-		':->': wrapValue({
+		'->': wrapValue({
 			kind: 'fn',
 			params: {params: createInfVector(Any), out: Any},
 			out: TypeFnType,
@@ -367,7 +367,7 @@ export const GlobalScope = createExpScope({
 			params: {value: Any, type: Any},
 			out: TypeBoolean,
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return isInstanceOf(this.eval(a), this.eval(b))
+				return isInstanceOf(this.eval(a), this.eval(b), false)
 			} as any,
 		}),
 		'==': wrapValue({
@@ -411,9 +411,9 @@ function uniteType(
 				const bItem = items[b]
 				if (bItem === undefined) continue
 
-				if (isInstanceOf(bItem, aItem)) {
+				if (isInstanceOf(bItem, aItem, true)) {
 					items[b] = undefined
-				} else if (isInstanceOf(aItem, bItem)) {
+				} else if (isInstanceOf(aItem, bItem, true)) {
 					items[a] = undefined
 					break
 				}
@@ -448,8 +448,9 @@ function equalsValue(a: Value, b: Value): boolean {
 			return isKindOf(b, 'unit')
 		case 'singleton':
 		case 'fn':
-		case 'valType':
 			return a === b
+		case 'valType':
+			return isKindOf(b, 'valType') && a.id === b.id
 		case 'fnType':
 			return (
 				isKindOf(b, 'fnType') &&
@@ -783,71 +784,14 @@ function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(x: Value, kind: T['kind']): x is T {
-	return x instanceof Object && !_.isArray(x) && x.kind === kind
+	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-function isInstanceOfVector(a: Value, b: Value[]) {
-	if (!_.isArray(a)) return false
-	if (a.length < b.length) return false
-	return _$.zipShorter(a, b).every(([a, b]) => isInstanceOf(a, b))
-}
-
-function isInstanceOfInfVector(a: Value, b: ValueInfVector) {
-	if (isKindOf(a, 'infVector')) {
-		const alen = a.items.length,
-			blen = b.items.length
-		if (alen < blen) {
-			return false
-		}
-		const bitems = [
-			...b.items,
-			..._.times(alen - blen, _.constant(b.items[blen - 1])),
-		]
-		return _$.zipShorter(a.items, bitems).every(_.spread(isInstanceOf))
-	} else if (_.isArray(a)) {
-		const minLength = b.items.length - 1
-		if (a.length < minLength) {
-			return false
-		}
-		const restCount = a.length - minLength
-		const bLast = b.items[b.items.length - 1]
-		const bv = [
-			...b.items.slice(0, minLength),
-			..._.times(restCount, _.constant(bLast)),
-		]
-		return isInstanceOf(a, bv)
-	}
-	return false
-}
-
-function isInstanceOfUnion(a: Value, b: ValueUnion) {
-	const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
-	const bTypes = b.items
-	return aTypes.every(at => bTypes.some(bt => isInstanceOf(at, bt)))
-}
-
-function isInstanceOfValType(a: Value, b: ValueValType) {
-	return b.predicate(a)
-}
-
-function isInstanceOfFnType(a: Value, b: ValueFnType) {
-	const {params: aParams, out: aOut} = normalizeTypeToFn(a)
-	return isInstanceOf(b.params, aParams) && isInstanceOf(aOut, b.out)
-
-	function normalizeTypeToFn(type: Value): {
-		params: ValueFnType['params']
-		out: Value
-	} {
-		if (!isLiteralSingleton(type) && !_.isArray(type)) {
-			if (type.kind == 'fnType') {
-				return {params: type.params, out: type.out}
-			}
-		}
-		return {params: [], out: type}
-	}
-}
-
-function isInstanceOf(a: Value, b: Value): boolean {
+export function isInstanceOf(
+	a: Value,
+	b: Value,
+	includeSame: boolean
+): boolean {
 	// Primitive type
 	if (!_.isObject(b)) {
 		return a === b
@@ -855,7 +799,7 @@ function isInstanceOf(a: Value, b: Value): boolean {
 
 	// Vector
 	if (_.isArray(b)) {
-		return isInstanceOfVector(a, b)
+		return isInstanceOfVector(a, b, includeSame)
 	}
 
 	switch (b.kind) {
@@ -864,50 +808,104 @@ function isInstanceOf(a: Value, b: Value): boolean {
 		case 'unit':
 			return isKindOf(a, 'unit')
 		case 'valType':
-			return isInstanceOfValType(a, b)
+			return isInstanceOfValType(a, b, includeSame)
 		case 'infVector':
-			return isInstanceOfInfVector(a, b)
+			return isInstanceOfInfVector(a, b, includeSame)
 		case 'union':
-			return isInstanceOfUnion(a, b)
+			return isInstanceOfUnion(a, b, includeSame)
 		case 'fnType':
-			return isInstanceOfFnType(a, b)
+			return isInstanceOfFnType(a, b, includeSame)
 		case 'fn':
 		case 'singleton':
 			return a === b
 		default:
 			throw new Error('Not yet implemented')
 	}
+
+	// Predicates for each types
+	function isInstanceOfVector(a: Value, b: Value[], includeSame: boolean) {
+		if (!_.isArray(a)) return false
+		if (a.length < b.length) return false
+		return _$.zipShorter(a, b).every(([ia, ib]) =>
+			isInstanceOf(ia, ib, includeSame)
+		)
+	}
+
+	function isInstanceOfInfVector(
+		a: Value,
+		b: ValueInfVector,
+		includeSame: boolean
+	) {
+		if (isKindOf(a, 'infVector')) {
+			const alen = a.items.length,
+				blen = b.items.length
+			if (alen < blen) {
+				return false
+			}
+			const bitems = [
+				...b.items,
+				..._.times(alen - blen, _.constant(b.items[blen - 1])),
+			]
+			return _$.zipShorter(a.items, bitems).every(([ia, ib]) =>
+				isInstanceOf(ia, ib, includeSame)
+			)
+		} else if (_.isArray(a)) {
+			const minLength = b.items.length - 1
+			if (a.length < minLength) {
+				return false
+			}
+			const restCount = a.length - minLength
+			const bLast = b.items[b.items.length - 1]
+			const bv = [
+				...b.items.slice(0, minLength),
+				..._.times(restCount, _.constant(bLast)),
+			]
+			return isInstanceOf(a, bv, includeSame)
+		}
+		return false
+	}
+
+	function isInstanceOfUnion(a: Value, b: ValueUnion, includeSame: boolean) {
+		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
+		const bTypes = b.items
+		return aTypes.every(at =>
+			bTypes.some(bt => isInstanceOf(at, bt, includeSame))
+		)
+	}
+
+	function isInstanceOfValType(
+		a: Value,
+		b: ValueValType,
+		includeSame: boolean
+	) {
+		if (includeSame) {
+			return b.predicate(a) || (isKindOf(a, 'valType') && a.id === b.id)
+		} else {
+			return b.predicate(a)
+		}
+	}
+
+	function isInstanceOfFnType(a: Value, b: ValueFnType, includeSame: boolean) {
+		const _a = normalizeTypeToFn(a)
+		return (
+			isInstanceOf(_a.params, b.params, true) &&
+			isInstanceOf(_a.out, b.out, true)
+		)
+
+		function normalizeTypeToFn(a: Value): Omit<ValueFnType, 'kind'> {
+			if (isKindOf(a, 'fn')) {
+				let params: Value[] | ValueInfVector = _.values(a.params)
+				if (a.variadic) params = createInfVector(...params)
+				return {params, out: a.out}
+			} else {
+				return {params: [], out: a}
+			}
+		}
+	}
 }
-
-/*
-function testSubtype(aStr: string, bStr: string, toBe: boolean) {
-	const a = assertExpType(readStr(aStr))
-	const b = assertExpType(readStr(bStr))
-
-	const ret = isSubtypeOf(a, b)
-
-	const fn = ret === toBe ? console.log : console.error
-
-	fn(
-		`a=${aStr}, b=${bStr}, a :< b = ${printValue(a)} :< ${printValue(
-			b
-		)} = ${printValue(ret)}`
-	)
-}
-
-testSubtype('Number', 'Any', true)
-testSubtype('true', 'Boolean', true)
-testSubtype('Any', 'Number', false)
-testSubtype('Number', 'Number', true)
-testSubtype('Number', 'String', false)
-testSubtype('[Number Number]', '[Number]', true)
-testSubtype('[Number Number]', '[]', true)
-testSubtype('[Number Number]', 'Any', true)
-testSubtype('(+ 1 2)', 'Number', true)
-*/
 
 function castType(type: Value, value: Value): Value {
-	if (isLiteralSingleton(type)) {
+	if (!_.isObject(type)) {
 		return type
 	}
 
@@ -920,12 +918,12 @@ function castType(type: Value, value: Value): Value {
 
 	switch (type.kind) {
 		case 'valType':
-			return isInstanceOf(value, type) ? value : type.cast(value)
+			return isInstanceOf(value, type, false) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, null)
 		case 'union':
 			return type.cast
-				? isInstanceOf(value, type)
+				? isInstanceOf(value, type, false)
 					? value
 					: type.cast(value)
 				: castType(type.items[0], null)
@@ -972,7 +970,7 @@ function castExpParam(
 
 		const fromType = assertExpType(fromItem)
 
-		if (isInstanceOf(fromType, toType)) {
+		if (isInstanceOf(fromType, toType, false)) {
 			casted.push(fromItem)
 		} else {
 			logs.push({
@@ -1098,7 +1096,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'singleton':
 			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':
-			return '(:-> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
+			return '(-> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'fn':
 			return '<JS Function>'
 		case 'hashMap':
