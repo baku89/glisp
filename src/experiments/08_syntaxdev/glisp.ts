@@ -799,7 +799,7 @@ function isInstance(a: Value, b: Value): boolean {
 		return true
 	}
 
-	if (isKindOf(a, 'any')) {
+	if (isKindOf(a, 'any') || isKindOf(a, 'unit')) {
 		return false
 	}
 
