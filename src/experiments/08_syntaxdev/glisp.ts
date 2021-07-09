@@ -435,9 +435,7 @@ function equalsValue(a: Value, b: Value): boolean {
 
 	if (_.isArray(a)) {
 		return (
-			_.isArray(b) &&
-			a.length === b.length &&
-			_$.zipShorter(a, b).every(_.spread(equalsValue))
+			_.isArray(b) && a.length === b.length && _$.everyByPair(a, b, equalsValue)
 		)
 	}
 
@@ -826,9 +824,7 @@ export function isInstanceOf(
 	function isInstanceOfVector(a: Value, b: Value[], includeSame: boolean) {
 		if (!_.isArray(a)) return false
 		if (a.length < b.length) return false
-		return _$.zipShorter(a, b).every(([ia, ib]) =>
-			isInstanceOf(ia, ib, includeSame)
-		)
+		return _$.everyByPair(a, b, _.partialRight(isInstanceOf, includeSame))
 	}
 
 	function isInstanceOfInfVector(
@@ -846,8 +842,10 @@ export function isInstanceOf(
 				...b.items,
 				..._.times(alen - blen, _.constant(b.items[blen - 1])),
 			]
-			return _$.zipShorter(a.items, bitems).every(([ia, ib]) =>
-				isInstanceOf(ia, ib, includeSame)
+			return _$.everyByPair(
+				a.items,
+				bitems,
+				_.partialRight(isInstanceOf, includeSame)
 			)
 		} else if (_.isArray(a)) {
 			const minLength = b.items.length - 1
