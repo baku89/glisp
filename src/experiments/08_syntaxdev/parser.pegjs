@@ -24,11 +24,11 @@ Program = form:Form
 
 Form =
 	Constant / Number / String
-	/ Pair / List / Vector / HashMap / QuotedSymbol / Symbol
+	/ Pair / List / Vector / InfVector / HashMap / QuotedSymbol / Symbol
 
 FormPairLeft =
 	Constant / Number / String
-	/ List / Vector / HashMap / QuotedSymbol / SymbolPairLeft
+	/ List / Vector / InfVector / HashMap / QuotedSymbol / SymbolPairLeft
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -56,7 +56,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ ,\t\n\r`()[\]{}]i+)
+Symbol "symbol" = name:$([^ .,\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',
@@ -64,7 +64,7 @@ Symbol "symbol" = name:$([^ ,\t\n\r`()[\]{}]i+)
 		}
 	}
 
-SymbolPairLeft "symbol" = name:$([^ :,\t\n\r`()[\]{}]i+)
+SymbolPairLeft "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',
@@ -99,8 +99,13 @@ Vector "vector" = "[" _ items:(Form _)* "]"
 	{
 		return makeCollection('vector', items)
 	}
+	
+InfVector "infinite vector" = "[" _ items:(Form _)+ "..." _ "]"
+	{
+		return makeCollection('infVector', items)
+	}
 
-HashMap "hash map" = "{" _ items:(Form _)* "}"
+HashMap "hash map" = "{" _ items:(Pair _)* "}"
 	{
 		return makeCollection('hashMap', items)
 	}
