@@ -8,9 +8,10 @@ import ParserDefinition from './parser.pegjs'
 const parser = peg.generate(ParserDefinition)
 
 type Value =
+	| ValueAny
+	| ValueUnit
 	| Value[]
 	| ValueInfVector
-	| ValueAny
 	| ValueSingleton
 	| ValueValType
 	| ValueFnType
@@ -22,6 +23,10 @@ type Value =
 
 interface ValueAny {
 	kind: 'any'
+}
+
+interface ValueUnit {
+	kind: 'unit'
 }
 
 type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
@@ -58,7 +63,7 @@ interface ValueFnType {
 
 interface ValueFnThis {
 	log: (log: Log) => void
-	eval: <R extends Value>(exp: Exp) => R
+	eval: <R extends Value = Value>(exp: Exp) => R
 }
 
 interface ValueFn {
@@ -344,13 +349,13 @@ export const GlobalScope = createExpScope({
 				}
 			} as any,
 		}),
-		':|': createExpValue({
+		'|': createExpValue({
 			kind: 'fn',
 			params: {xs: createAny()},
 			out: createAny(),
 			variadic: true,
-			body: function (this: ValueFnThis, ...a: Exp[]) {
-				return uniteType(a.map(this.eval))
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				return uniteType(xs.map(this.eval))
 			} as any,
 		}),
 		def: createExpValue({
@@ -383,6 +388,21 @@ export const GlobalScope = createExpScope({
 			out: TypeBoolean,
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
 				return isInstance(this.eval(a), this.eval(b))
+			} as any,
+		}),
+		'==': createExpValue({
+			kind: 'fn',
+			params: {xs: createAny()},
+			out: TypeBoolean,
+			variadic: true,
+			body: function (this: ValueFnThis, ...xs: Exp[]) {
+				const _xs = xs.map(x => this.eval(x))
+				if (_xs.length === 0) {
+					return true
+				} else {
+					const [fst, ...rest] = _xs
+					return rest.every(r => equalsValue(fst, r))
+				}
 			} as any,
 		}),
 		':': castTypeFn,
@@ -443,7 +463,9 @@ function equalsValue(a: Value, b: Value): boolean {
 
 	switch (a.kind) {
 		case 'any':
-			return isAny(b)
+			return isKindOf(b, 'any')
+		case 'unit':
+			return isKindOf(b, 'unit')
 		case 'singleton':
 		case 'fn':
 		case 'valType':
@@ -602,6 +624,7 @@ function assertValueType(v: Value): Value {
 
 	switch (v.kind) {
 		case 'any':
+		case 'unit':
 		case 'singleton':
 		case 'valType':
 		case 'fnType':
@@ -793,15 +816,12 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 }
 
 // Kind predicates
-function isAny(x: Value): x is ValueAny {
-	return x instanceof Object && !_.isArray(x) && x.kind === 'any'
-}
-
 function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
 	return x === null || typeof x !== 'object'
 }
 
 function isKindOf(x: Value, kind: 'any'): x is ValueAny
+function isKindOf(x: Value, kind: 'unit'): x is ValueUnit
 function isKindOf(x: Value, kind: 'fn'): x is ValueFn
 function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
 function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
@@ -820,11 +840,11 @@ function isInstance(a: Value, b: Value): boolean {
 		return true
 	}
 
-	if (isAny(b)) {
+	if (isKindOf(b, 'any')) {
 		return true
 	}
 
-	if (isAny(a)) {
+	if (isKindOf(a, 'any')) {
 		return false
 	}
 
@@ -1140,6 +1160,8 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	switch (val.kind) {
 		case 'any':
 			return 'Any'
+		case 'unit':
+			return '()'
 		case 'valType':
 			return retrieveValueName(val, baseExp) || `<valType>`
 		case 'infVector': {
@@ -1147,7 +1169,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return '[' + items.join(' ') + '...]'
 		}
 		case 'union':
-			return '(:| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
+			return '(| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
 		case 'singleton':
 			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':

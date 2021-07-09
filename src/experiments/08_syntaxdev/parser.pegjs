@@ -23,7 +23,7 @@ Program = form:Form
 
 Form =
 	Constant / Number / String
-	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+	/ ListOrUnit / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -63,8 +63,11 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 		return {ast: 'symbol', name}
 	}
 
-List "list" = "(" _ items:(Form _)* ")"
+ListOrUnit "list or unit" = "(" _ items:(Form _)* ")"
 	{
+		if (items.length === 0) {
+			return {ast: 'value', value: {kind: 'unit'}}
+		}
 		return makeCollection('list', items)
 	}
 
