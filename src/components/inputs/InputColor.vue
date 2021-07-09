@@ -59,7 +59,6 @@ import SliderHueFragmentString from './InputColorPicker/picker-hsv-slider.frag'
 import useHSV, {
 	color2rgba,
 	hsv2color,
-	hsv2rgb,
 	HSVA,
 	RGBA,
 	rgba2color,
@@ -95,6 +94,8 @@ export default defineComponent({
 			return shift.value ? 'hue' : alt.value ? 'alpha' : 'pad'
 		})
 
+		const hasAlpha = computed(() => props.colorSpace.endsWith('a'))
+
 		const rgba = ref<RGBA>({r: 0, g: 0, b: 0, a: 0})
 		watch(
 			() => props.modelValue,
@@ -107,9 +108,7 @@ export default defineComponent({
 			{immediate: true}
 		)
 
-		const hasAlpha = computed(() => props.colorSpace.endsWith('a'))
-
-		const {hsv} = useHSV(rgba)
+		const {hsv, hsv2rgb} = useHSV(rgba)
 
 		const rem = useRem()
 
@@ -246,14 +245,13 @@ export default defineComponent({
 @import '../style/common.styl'
 
 .InputColor
-	&
-		position relative
-		width $input-height
-		border 1px solid $color-frame
-		border-radius: $input-round + 1px
-		aspect-ratio 1
-		input-transition(border-color)
-		overflow hidden
+	position relative
+	width $input-height
+	border 1px solid $color-frame
+	border-radius: $input-round + 1px
+	aspect-ratio 1
+	input-transition(border-color)
+	overflow hidden
 
 	&:hover, &:focus-within, &.tweaking
 		border-color base16('accent')

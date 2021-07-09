@@ -1,27 +1,31 @@
 import _ from 'lodash'
+import {computed, Ref} from 'vue'
 
 export default function useSurjective<X, Y>(
+	x: Ref<X>,
 	map: (x: X) => Y,
 	inverse: (y: Y) => X,
 	comparator = _.isEqual
 ) {
-	let cached: {x: X; y: Y} | null = null
+	let inverseCache: {x: X; y: Y} | null = null
 
-	function cachedMap(x: X) {
-		if (cached && comparator(x, cached.x)) {
-			return cached.y
+	const y = computed(() => {
+		const _x = x.value
+
+		if (inverseCache && comparator(_x, inverseCache.x)) {
+			return inverseCache.y
 		}
-		return map(x)
-	}
+		return map(_x)
+	})
 
 	function cachedInverse(y: Y) {
 		const x = inverse(y)
-		cached = {x, y}
+		inverseCache = {x, y}
 		return x
 	}
 
 	return {
-		map: cachedMap,
+		y,
 		inverse: cachedInverse,
 	}
 }

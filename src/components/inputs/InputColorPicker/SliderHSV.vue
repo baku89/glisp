@@ -40,7 +40,7 @@ import {fitTo01, unsignedMod} from '@/utils'
 
 import PadFragmentString from './picker-hsv-pad.frag'
 import SliderFragmentString from './picker-hsv-slider.frag'
-import useHSV, {HSV, hsv2color, hsv2rgb, RGBA} from './use-hsv'
+import useHSV, {HSV, hsv2color, RGBA} from './use-hsv'
 
 function modeToIndex(element: string) {
 	return element === 'h' ? 0 : element === 's' ? 1 : 2
@@ -63,7 +63,7 @@ export default defineComponent({
 	},
 	emits: ['partialUpdate'],
 	setup(props, context) {
-		const {hsv} = useHSV(toRef(props, 'rgba'))
+		const {hsv, hsv2rgb} = useHSV(toRef(props, 'rgba'))
 
 		// Pad
 		const padEl = ref<null | HTMLElement>(null)

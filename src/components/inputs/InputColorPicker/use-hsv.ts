@@ -1,5 +1,7 @@
 import chroma from 'chroma-js'
-import {Ref, ref, watch} from 'vue'
+import {Ref} from 'vue'
+
+import useSurjective from '@/components/use/use-surjective'
 
 export type HSV = {h: number; s: number; v: number}
 export type HSVA = HSV & {a: number}
@@ -36,12 +38,17 @@ export function rgba2color(dict: RGBA, useAlpha: boolean): string {
 	return c.hex()
 }
 
+export function rgb2hsv({r, g, b}: RGB): HSV {
+	const [h, s, v] = chroma.rgb(r * 255, g * 255, b * 255).hsv()
+	return {h: isNaN(h) ? 0 : h / 360, s, v}
+}
+
 export function hsv2rgb({h, s, v}: HSV): RGB {
 	const [r, g, b] = chroma.hsv(h * 360, s, v).rgba()
 	return {r: r / 255, g: g / 255, b: b / 255}
 }
 
-function equalColor(x: RGB, y: RGB) {
+export function equalColor(x: RGB, y: RGB) {
 	return x.r === y.r && x.g === y.g && x.b === y.b
 }
 
@@ -49,30 +56,11 @@ export function hsv2color({h, s, v}: HSV) {
 	return chroma.hsv(h * 360, s, v).hex()
 }
 
-export default function useHSV(modelValue: Ref<RGBA | RGB>) {
-	const hsv = ref<HSV>({h: 0, s: 1, v: 1})
-
-	// Update hsv
-	watch(
-		() => modelValue.value,
-		() => {
-			if (equalColor(modelValue.value, hsv2rgb(hsv.value))) {
-				return
-			}
-
-			const {r, g, b} = modelValue.value
-			const [h, s, v] = chroma(r * 255, g * 255, b * 255).hsv()
-
-			hsv.value = {
-				h: isNaN(h) ? hsv.value.h : h / 360,
-				s,
-				v,
-			}
-		},
-		{immediate: true}
-	)
+export default function useHSV(rgb: Ref<RGBA | RGB>) {
+	const state = useSurjective(rgb, rgb2hsv, hsv2rgb, equalColor)
 
 	return {
-		hsv,
+		hsv: state.y,
+		hsv2rgb: state.inverse,
 	}
 }
