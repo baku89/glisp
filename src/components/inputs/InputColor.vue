@@ -99,16 +99,15 @@ export default defineComponent({
 		watch(
 			() => props.modelValue,
 			() => {
-				const dict = color2rgba(
-					props.modelValue,
-					props.colorSpace.endsWith('a')
-				)
+				const dict = color2rgba(props.modelValue, hasAlpha.value)
 				if (!dict) return
 
 				rgba.value = dict
 			},
 			{immediate: true}
 		)
+
+		const hasAlpha = computed(() => props.colorSpace.endsWith('a'))
 
 		const {hsv} = useHSV(rgba)
 
@@ -158,7 +157,7 @@ export default defineComponent({
 					...hsv2rgb(tweakColor.value),
 					a: a,
 				}
-				const newValue = rgba2color(rgba, props.colorSpace.endsWith('a'))
+				const newValue = rgba2color(rgba, hasAlpha.value)
 
 				emit('update:modelValue', newValue)
 			},

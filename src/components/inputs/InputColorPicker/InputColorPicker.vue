@@ -52,18 +52,15 @@ export default defineComponent({
 	setup(props, context) {
 		const rgba = shallowRef<RGBA>({r: 0, g: 0, b: 0, a: 0})
 
-		const colorString = computed(() =>
-			rgba2color(rgba.value, props.colorSpace.endsWith('a'))
-		)
+		const hasAlpha = computed(() => props.colorSpace.endsWith('a'))
+
+		const colorString = computed(() => rgba2color(rgba.value, hasAlpha.value))
 
 		watch(
 			() => props.modelValue,
 			() => {
 				if (props.modelValue !== colorString.value) {
-					const _rgba = color2rgba(
-						props.modelValue,
-						props.colorSpace.endsWith('a')
-					)
+					const _rgba = color2rgba(props.modelValue, hasAlpha.value)
 
 					if (!_rgba) {
 						return
@@ -79,7 +76,7 @@ export default defineComponent({
 			const newDict = {...rgba.value, ...newPartialDict}
 			rgba.value = newDict
 
-			const newValue = rgba2color(newDict, props.colorSpace.endsWith('a'))
+			const newValue = rgba2color(newDict, hasAlpha.value)
 			context.emit('update:modelValue', newValue)
 		}
 
