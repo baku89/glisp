@@ -266,10 +266,10 @@ const castTypeFn = wrapValue({
 
 export const GlobalScope = createExpScope({
 	scope: {
-		Any: wrapValue(Any),
 		Number: wrapValue(TypeNumber),
 		String: wrapValue(TypeString),
 		Boolean: wrapValue(TypeBoolean),
+		FnType: wrapValue(TypeFnType),
 		IO: wrapValue(TypeIO),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
@@ -910,7 +910,7 @@ function castType(type: Value, value: Value): Value {
 	if (_.isArray(type)) {
 		const values = _.isArray(value) ? value : []
 		return type.map((t, i) =>
-			castType(t, values[i] !== undefined ? values[i] : null)
+			castType(t, values[i] !== undefined ? values[i] : Unit)
 		)
 	}
 
@@ -918,18 +918,18 @@ function castType(type: Value, value: Value): Value {
 		case 'valType':
 			return isInstanceOf(value, type, false) ? value : type.cast(value)
 		case 'fnType':
-			return castType(type.out, null)
+			return castType(type.out, Unit)
 		case 'union':
 			return type.cast
 				? isInstanceOf(value, type, false)
 					? value
 					: type.cast(value)
-				: castType(type.items[0], null)
+				: castType(type.items[0], Unit)
 		case 'singleton':
 			return type
+		default:
+			throw new Error('Not yet implemented')
 	}
-
-	return Unit
 }
 
 function castExpParam(
@@ -1080,7 +1080,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 
 	switch (val.kind) {
 		case 'any':
-			return 'Any'
+			return '*'
 		case 'unit':
 			return '()'
 		case 'valType':

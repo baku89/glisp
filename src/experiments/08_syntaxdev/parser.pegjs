@@ -21,9 +21,8 @@ Program = form:Form
 		return form
 	}
 
-Form =
-	Constant / Number / String
-	/ ListOrUnit / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+Form = Any / Unit / Constant / Number / String
+	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -32,6 +31,10 @@ Constant "constant" = value:$("true" / "false" / "null")
 			value: JSON.parse(value)
 		}
 	}
+
+Any "any" = "*" { return {ast: 'value', value: {kind: 'any'}} }
+
+Unit "unit" = "(" _ ")" _{ return {ast: 'value', value: {kind: 'unit'}} }
 
 // Number
 Number "number" = str:$(("+" / "-")? [0-9]+)
@@ -58,18 +61,21 @@ Symbol "symbol" = name:$([^ .,\t\n\r`()[\]{}]i+)
 			name
 		}
 	}
+
 QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 	{
 		return {ast: 'symbol', name}
 	}
 
-ListOrUnit "list or unit" = "(" _ items:(Form _)* ")"
+List "list" = "(" _ fn:(ListFirst _) items:(Form _)* ")"
 	{
 		if (items.length === 0) {
 			return {ast: 'value', value: {kind: 'unit'}}
 		}
-		return makeCollection('list', items)
+		return makeCollection('list', [fn,...items])
 	}
+
+ListFirst = List / Scope / QuotedSymbol / Symbol
 
 Vector "vector" = "[" _ items:(Form _)* "]"
 	{
