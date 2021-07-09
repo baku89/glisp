@@ -214,6 +214,10 @@ function createInfVector<T extends Value = Value>(
 	}
 }
 
+function createHashMap(value: ValueHashMap['value']): ValueHashMap {
+	return {kind: 'hashMap', value}
+}
+
 function createValueType(
 	base: ValueValueType | string,
 	predicate: ValueValueType['predicate'],
@@ -247,10 +251,7 @@ const TypeFnType = createValueType(
 const TypeHashMap = createValueType(
 	'hashMap',
 	v => isKindOf(v, 'hashMap'),
-	() => ({
-		kind: 'hashMap',
-		value: {},
-	})
+	() => createHashMap({})
 )
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
@@ -329,6 +330,14 @@ export const GlobalScope = createExpScope({
 					.reduce((a, b) => a || b, false)
 			},
 		}),
+		not: wrapValue({
+			kind: 'fn',
+			params: {x: TypeBoolean},
+			out: TypeBoolean,
+			body(this: ValueFnThis, x: Exp) {
+				return !this.eval<boolean>(x)
+			},
+		}),
 		'->': wrapValue({
 			kind: 'fn',
 			params: {params: createInfVector(Any), out: Any},
@@ -366,7 +375,7 @@ export const GlobalScope = createExpScope({
 				}
 			},
 		}),
-		type: wrapValue({
+		typeof: wrapValue({
 			kind: 'fn',
 			params: {x: Any},
 			out: Any,
@@ -441,7 +450,7 @@ function uniteType(
 }
 
 function equalsValue(a: Value, b: Value): boolean {
-	if (isLiteralSingleton(a)) {
+	if (!_.isObject(a)) {
 		return a === b
 	}
 
@@ -578,7 +587,7 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 }
 
 function assertValueType(v: Value): Value {
-	if (isLiteralSingleton(v)) {
+	if (!_.isObject(v)) {
 		return v
 	}
 
@@ -656,106 +665,9 @@ function assertExpType(exp: Exp): Value {
 	}
 }
 
-function evalExpSymbol(exp: ExpSymbol): WithLogs<Value> {
-	const {result: inspected, logs} = inspectExpSymbol(exp)
-	if (inspected.semantic === 'ref') {
-		return evalExp(inspected.ref)
-	} else {
-		return withLog(Unit, logs)
-	}
-}
-
-function evalExpVector(exp: ExpVector): WithLogs<Value[]> {
-	const evaluated = exp.items.map(evalExp)
-	return withLog(
-		evaluated.map(e => e.result),
-		evaluated.flatMap(e => e.logs)
-	)
-}
-
-function evalExpInfVector(exp: ExpInfVector): WithLogs<ValueInfVector> {
-	const evaluated = exp.items.map(evalExp)
-	return withLog(
-		createInfVector(...evaluated.map(e => e.result)),
-		evaluated.flatMap(e => e.logs)
-	)
-}
-
 function getParamType(fn: ValueFn): ValueFnType['params'] {
-	let params: ValueFnType['params'] = Object.values(fn.params)
-	if (fn.variadic) {
-		params = {kind: 'infVector', items: params}
-	}
-
-	return params
-}
-
-function evalExpList(exp: ExpList): WithLogs<Value> {
-	const {result: inspected, logs: inspectLogs} = inspectExpList(exp)
-	if (inspected.semantic === 'application') {
-		const {result: fn, logs: fnLogs} = evalExp(inspected.fn)
-
-		if (isKindOf(fn, 'fn')) {
-			const {result: params, logs: castLogs} = castExpParam(
-				getParamType(fn),
-				inspected.params
-			)
-
-			const paramsLogs: Log[] = []
-			const execLogs: Log[] = []
-
-			const result = fn.body.call(
-				{
-					log(log) {
-						execLogs.push(log)
-					},
-					eval(e) {
-						const {result, logs: logs} = evalExp(e)
-						paramsLogs.push(...logs)
-						return result as any
-					},
-				},
-				...params
-			)
-			return withLog(result, [
-				...inspectLogs,
-				...fnLogs,
-				...castLogs,
-				...paramsLogs,
-				...execLogs,
-			])
-		}
-		return withLog(fn, [...inspectLogs, ...fnLogs])
-	} else if (inspected.semantic === 'fndef') {
-		return withLog(
-			defineFn(
-				_.mapValues(inspected.params, e => evalExp(e).result),
-				inspected.body
-			)
-		)
-	}
-	return withLog(Unit, inspectLogs)
-}
-
-function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
-	console.log('eval hash', exp)
-	const evaluated = _.mapValues(exp.items, evalExp)
-	return withLog(
-		{
-			kind: 'hashMap',
-			value: _.mapValues(evaluated, e => e.result),
-		},
-		_.values(evaluated).flatMap(e => e.logs)
-	)
-}
-
-function evalExpScope(exp: ExpScope): WithLogs<Value> {
-	if (exp.out) {
-		const {result, logs} = evalExp(exp.out)
-		return withLog(result, logs)
-	} else {
-		return withLog(null, [])
-	}
+	const params = _.values(fn.params)
+	return fn.variadic ? {kind: 'infVector', items: params} : params
 }
 
 export function evalExp(exp: Exp): WithLogs<Value> {
@@ -763,23 +675,97 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 		case 'value':
 			return withLog(exp.value, [])
 		case 'symbol':
-			return evalExpSymbol(exp)
+			return evalSymbol(exp)
 		case 'list':
-			return evalExpList(exp)
+			return evalList(exp)
 		case 'vector':
-			return evalExpVector(exp)
+			return evalVector(exp)
 		case 'infVector':
-			return evalExpInfVector(exp)
+			return evalInfVector(exp)
 		case 'hashMap':
-			return evalExpHashMap(exp)
+			return evalHashMap(exp)
 		case 'scope':
-			return evalExpScope(exp)
+			return exp.out ? evalExp(exp.out) : withLog(Unit)
 	}
-}
 
-// Kind predicates
-function isLiteralSingleton(x: Value): x is ValueLiteralSingleton {
-	return x === null || typeof x !== 'object'
+	function evalSymbol(exp: ExpSymbol): WithLogs<Value> {
+		const {result: inspected, logs} = inspectExpSymbol(exp)
+		if (inspected.semantic === 'ref') {
+			return evalExp(inspected.ref)
+		} else {
+			return withLog(Unit, logs)
+		}
+	}
+
+	function evalList(exp: ExpList): WithLogs<Value> {
+		const {result: inspected, logs: inspectLogs} = inspectExpList(exp)
+		if (inspected.semantic === 'application') {
+			const {result: fn, logs: fnLogs} = evalExp(inspected.fn)
+
+			if (isKindOf(fn, 'fn')) {
+				const {result: params, logs: castLogs} = castExpParam(
+					getParamType(fn),
+					inspected.params
+				)
+
+				const paramsLogs: Log[] = []
+				const execLogs: Log[] = []
+
+				const context: ValueFnThis = {
+					log(log) {
+						execLogs.push(log)
+					},
+					eval(e) {
+						const {result, logs} = evalExp(e)
+						paramsLogs.push(...logs)
+						return result as any
+					},
+				}
+
+				const evaluated = fn.body.call(context, ...params)
+				const logs = [
+					...inspectLogs,
+					...fnLogs,
+					...castLogs,
+					...paramsLogs,
+					...execLogs,
+				]
+
+				return withLog(evaluated, logs)
+			}
+			return withLog(fn, [...inspectLogs, ...fnLogs])
+		} else if (inspected.semantic === 'fndef') {
+			return withLog(
+				defineFn(
+					_.mapValues(inspected.params, e => evalExp(e).result),
+					inspected.body
+				)
+			)
+		}
+		return withLog(Unit, inspectLogs)
+	}
+
+	function evalVector(exp: ExpVector): WithLogs<Value[]> {
+		const evaluated = exp.items.map(evalExp)
+		return withLog(
+			evaluated.map(e => e.result),
+			evaluated.flatMap(e => e.logs)
+		)
+	}
+
+	function evalInfVector(exp: ExpInfVector): WithLogs<ValueInfVector> {
+		const result = exp.items.map(evalExp)
+		const evaluated = createInfVector(...result.map(e => e.result))
+		const logs = result.flatMap(e => e.logs)
+		return withLog(evaluated, logs)
+	}
+
+	function evalHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
+		const result = _.mapValues(exp.items, evalExp)
+		const evaluated = createHashMap(_.mapValues(result, e => e.result))
+		const logs = _.values(result).flatMap(e => e.logs)
+		return withLog(evaluated, logs)
+	}
 }
 
 function isKindOf(x: Value, kind: 'any'): x is ValueAny
@@ -807,15 +793,8 @@ export function isInstanceOf(a: Value, b: Value) {
 function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	const compare = _.partial(compareType, _, _, onlyInstance)
 
-	// Primitive type
-	if (!_.isObject(b)) {
-		return a === b
-	}
-
-	// Vector
-	if (_.isArray(b)) {
-		return vector(a, b)
-	}
+	if (!_.isObject(b)) return a === b
+	if (_.isArray(b)) return vector(a, b)
 
 	switch (b.kind) {
 		case 'any':
@@ -887,13 +866,12 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	}
 
 	function fnType(a: Value, b: ValueFnType) {
-		const _a = normalizeTypeToFn(a)
+		const _a = normalizeToFn(a)
 		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
 
-		function normalizeTypeToFn(a: Value): Omit<ValueFnType, 'kind'> {
+		function normalizeToFn(a: Value): Omit<ValueFnType, 'kind'> {
 			if (isKindOf(a, 'fn')) {
-				let params: Value[] | ValueInfVector = _.values(a.params)
-				if (a.variadic) params = createInfVector(...params)
+				const params = getParamType(a)
 				return {params, out: a.out}
 			} else {
 				return {params: [], out: a}
@@ -1021,22 +999,13 @@ function retrieveValueName(
 	}
 
 	const {origExp} = s
-
-	if (!origExp.parent) {
-		return
-	}
+	if (!origExp.parent) return
 
 	const parent = origExp.parent
-
-	if (parent.ast !== 'scope') {
-		return
-	}
+	if (parent.ast !== 'scope') return
 
 	const name = _.findKey(parent.scope, e => e === origExp)
-
-	if (!name) {
-		return
-	}
+	if (!name) return
 
 	const sym: ExpSymbol = {
 		parent: baseExp,

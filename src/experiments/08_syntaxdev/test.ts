@@ -5,8 +5,8 @@ function testIsa(aStr: string, bStr: string, toBe: boolean) {
 	const b = evalExp(readStr(bStr)).result
 
 	const ret = isInstanceOf(a, b)
-
-	const fn = ret === toBe ? console.log : console.error
+	const succeed = ret === toBe
+	const fn = succeed ? console.log : console.error
 
 	fn(`${aStr} :< ${bStr} | Expected: ${toBe} | Got: ${ret}`)
 }
@@ -21,4 +21,5 @@ export default function runTest() {
 	testIsa('[Number Number]', '[]', true)
 	testIsa('[Number Number]', '*', true)
 	testIsa('(+ 1 2)', 'Number', true)
+	testIsa('+', '(typeof +)', true)
 }
