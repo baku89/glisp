@@ -13,8 +13,8 @@ type Value =
 	| ValueAny
 	| ValueSingleton
 	| ValueValType
-	| ValueUnionType
 	| ValueFnType
+	| ValueUnion
 	| ValueInfVector
 	| ValueHashMap
 	| ValueFn
@@ -44,9 +44,9 @@ interface ValueValType {
 	cast: (value: Value) => Value
 }
 
-interface ValueUnionType {
-	kind: 'unionType'
-	items: Exclude<Value, ValueUnionType>[]
+interface ValueUnion {
+	kind: 'union'
+	items: Exclude<Value, ValueUnion>[]
 	cast?: (value: Value) => Value
 }
 
@@ -290,7 +290,7 @@ export const GlobalScope = createExpScope({
 		EQ: createExpValue(OrderingEQ),
 		GT: createExpValue(OrderingGT),
 		Ordering: createExpValue({
-			kind: 'unionType',
+			kind: 'union',
 			items: [OrderingLT, OrderingEQ, OrderingGT],
 		}),
 		PI: createExpValue(Math.PI),
@@ -396,10 +396,10 @@ export interface WithLogs<T> {
 
 function uniteType(
 	types: Value[],
-	cast?: NonNullable<ValueUnionType['cast']>
+	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	const items: (Exclude<Value, ValueUnionType> | undefined)[] = types.flatMap(
-		t => (isKindOf(t, 'unionType') ? t.items : [t])
+	const items: (Exclude<Value, ValueUnion> | undefined)[] = types.flatMap(t =>
+		isKindOf(t, 'union') ? t.items : [t]
 	)
 
 	if (items.length >= 2) {
@@ -421,12 +421,10 @@ function uniteType(
 		}
 	}
 
-	const uniqItems = items.filter(
-		i => i !== undefined
-	) as ValueUnionType['items']
+	const uniqItems = items.filter(i => i !== undefined) as ValueUnion['items']
 
 	return uniqItems.length > 0
-		? {kind: 'unionType', items: uniqItems, cast}
+		? {kind: 'union', items: uniqItems, cast}
 		: uniqItems[0]
 }
 
@@ -468,9 +466,9 @@ function equalsValue(a: Value, b: Value): boolean {
 				)
 			}
 			return false
-		case 'unionType':
+		case 'union':
 			return (
-				isKindOf(b, 'unionType') &&
+				isKindOf(b, 'union') &&
 				_.xorWith(a.items, b.items, equalsValue).length === 0
 			)
 		case 'infVector':
@@ -607,7 +605,7 @@ function assertValueType(v: Value): Value {
 		case 'singleton':
 		case 'valType':
 		case 'fnType':
-		case 'unionType':
+		case 'union':
 		case 'infVector':
 			return v
 		case 'fn': {
@@ -807,7 +805,7 @@ function isKindOf(x: Value, kind: 'any'): x is ValueAny
 function isKindOf(x: Value, kind: 'fn'): x is ValueFn
 function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
 function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
-function isKindOf(x: Value, kind: 'unionType'): x is ValueUnionType
+function isKindOf(x: Value, kind: 'union'): x is ValueUnion
 function isKindOf(x: Value, kind: 'valType'): x is ValueValType
 function isKindOf(x: Value, kind: 'infVector'): x is ValueInfVector
 function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
@@ -879,13 +877,13 @@ function isInstance(a: Value, b: Value): boolean {
 	}
 
 	// Handle for union type
-	if (isKindOf(b, 'unionType')) {
-		const aTypes: Value[] = isKindOf(a, 'unionType') ? a.items : [a]
+	if (isKindOf(b, 'union')) {
+		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
 		const bTypes = b.items
 		return aTypes.every(at => bTypes.some(bt => isInstance(at, bt)))
 	}
 
-	if (isKindOf(a, 'unionType')) {
+	if (isKindOf(a, 'union')) {
 		return false
 	}
 
@@ -980,7 +978,7 @@ function castType(type: Value, value: Value): Value {
 			return isInstance(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, null)
-		case 'unionType':
+		case 'union':
 			return type.cast
 				? isInstance(value, type)
 					? value
@@ -1148,7 +1146,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			const items = val.items.map(v => printValue(v, baseExp))
 			return '[' + items.join(' ') + '...]'
 		}
-		case 'unionType':
+		case 'union':
 			return '(:| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
 		case 'singleton':
 			return retrieveValueName(val, baseExp) || '<singleton>'
