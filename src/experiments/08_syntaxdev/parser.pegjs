@@ -23,7 +23,7 @@ Program = form:Form
 
 Form =
 	Constant / Number / String
-	/ Pair / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -63,46 +63,6 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 		return {ast: 'symbol', name}
 	}
 
-// Pair
-Pair "pair" = left:FormPairLeft _ ":" _ right:Form
-	{
-		const ret = {
-			ast: 'pair',
-			left,
-			right
-		}
-		ret.left.parent = ret
-		ret.right.parent = ret
-
-		return ret
-	}
-
-FormPairLeft =
-	Constant / Number / String
-	/ List / Vector / InfVector / HashMap / QuotedSymbol / SymbolPairLeft
-
-SymbolPairLeft "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
-	{
-		return {
-			ast: 'symbol',
-			name
-		}
-	}
-
-// Equal
-Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
-	{
-		return [left.name, right]
-	}
-
-SymbolEqualLeft "symbol" = name:$([^ =.,\t\n\r`()[\]{}]i+)
-	{
-		return {
-			ast: 'symbol',
-			name
-		}
-	}
-
 List "list" = "(" _ items:(Form _)* ")"
 	{
 		return makeCollection('list', items)
@@ -118,17 +78,36 @@ InfVector "infinite vector" = "[" _ items:(Form _)+ "..." _ "]"
 		return makeCollection('infVector', items)
 	}
 
-HashMap "hash map" = "{" _ items:(Pair _)* "}"
+
+// Hash Map
+HashMap "hash map" = "{" _ items:(Entry _)* "}"
 	{
-		return makeCollection('hashMap', items)
+		const entries = items.map(it => it[0])
+		const ret = {ast: 'hashMap', items: Object.fromEntries(entries)}
+
+		entries.forEach(e => e[1].parent = ret)
+
+		return ret
 	}
 
+Entry "entry" = key:(EntryKey / String) _ ":" _ value:Form
+	{
+		return [key.value, value]
+	}
+
+EntryKey "entry key" = value:$([^ :.,\t\n\r`()[\]{}]i+)
+	{
+		return {value}
+	}
+
+
+// Scope
 Scope "scope" = "{" _ items:(Equal _)+ out:(Form _)? "}"
 	{
 		const entries = items.map(it => it[0])
 		const ret = {ast: 'scope', scope: Object.fromEntries(entries)}
 
-		entries.forEach(it => it[1].parent = ret)
+		entries.forEach(e => e[1].parent = ret)
 
 		if (out) {
 			const _out = out[0]
@@ -137,6 +116,20 @@ Scope "scope" = "{" _ items:(Equal _)+ out:(Form _)? "}"
 		}
 
 		return ret
+	}
+
+// Equal
+Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
+	{
+		return [left.name, right]
+	}
+
+SymbolEqualLeft "symbol" = name:$([^ =.,\t\n\r`()[\]{}]i+)
+	{
+		return {
+			ast: 'symbol',
+			name
+		}
 	}
 
 Comment "comment" = $(";" [^\n\r]*)

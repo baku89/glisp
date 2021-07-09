@@ -89,7 +89,6 @@ type Exp =
 	| ExpVector
 	| ExpInfVector
 	| ExpHashMap
-	| ExpPair
 	| ExpScope
 
 export interface Log {
@@ -128,13 +127,7 @@ interface ExpInfVector extends ExpBase {
 
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
-	items: ExpPair[]
-}
-
-interface ExpPair extends ExpBase {
-	ast: 'pair'
-	left: Exp
-	right: Exp
+	items: Record<string, Exp>
 }
 
 interface ExpScope extends ExpBase {
@@ -168,13 +161,10 @@ type InspectedResultScope = {
 	out?: ExpScope['out']
 }
 
-type InspectedResultVector = {semantic: 'fixed'; items: Exp[]}
+type InspectedResultVector = {semantic: 'vector'}
 
 type InspectedResultHashMap = {
 	semantic: 'hashMap'
-	items: {
-		[hash: string]: Exp
-	}
 }
 
 export function readStr(str: string): Exp {
@@ -504,9 +494,9 @@ function inspectExp(exp: Exp): WithLogs<InspectedResult> {
 		case 'list':
 			return inspectExpList(exp)
 		case 'vector':
-			return inspectExpVector(exp)
+			return inspectExpVector()
 		case 'hashMap':
-			return inspectExpHashMap(exp)
+			return inspectExpHashMap()
 		case 'scope':
 			return withLog({semantic: 'scope', scope: exp.scope, out: exp.out})
 		default:
@@ -579,10 +569,9 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 				if (rest.length >= 2) {
 					const [params, body] = rest
 					if (params.ast === 'hashMap') {
-						const {result: inspectedParams, logs} = inspectExpHashMap(params)
 						return withLog({
 							semantic: 'fndef',
-							params: inspectedParams.items,
+							params: params.items,
 							body,
 						})
 					}
@@ -599,27 +588,12 @@ function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
 	return withLog({semantic: 'null'})
 }
 
-function inspectExpVector(exp: ExpVector): WithLogs<InspectedResultVector> {
-	return withLog({semantic: 'fixed', items: exp.items})
+function inspectExpVector(): WithLogs<InspectedResultVector> {
+	return withLog({semantic: 'vector'})
 }
 
-function inspectExpHashMap(exp: ExpHashMap): WithLogs<InspectedResultHashMap> {
-	const items: Record<string, Exp> = {}
-
-	const logs: Log[] = []
-
-	exp.items.forEach(it => {
-		if (it.left.ast !== 'symbol') {
-			logs.push({
-				level: 'warn',
-				reason: `Key ${printExp(it.left)} is not a string`,
-			})
-		} else {
-			items[it.left.name] = it.right
-		}
-	})
-
-	return withLog({semantic: 'hashMap', items}, logs)
+function inspectExpHashMap(): WithLogs<InspectedResultHashMap> {
+	return withLog({semantic: 'hashMap'})
 }
 
 function assertValueType(v: Value): Value {
@@ -696,8 +670,6 @@ function assertExpType(exp: Exp): Value {
 			return createInfVector(...exp.items.map(assertExpType))
 		case 'hashMap':
 			return TypeHashMap
-		case 'pair':
-			return assertExpType(exp.right)
 		case 'scope':
 			return exp.out ? assertExpType(exp) : null
 	}
@@ -786,14 +758,14 @@ function evalExpList(exp: ExpList): WithLogs<Value> {
 }
 
 function evalExpHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
-	const {result: inspected, logs} = inspectExpHashMap(exp)
-	const evaluated = _.mapValues(inspected.items, evalExp)
+	console.log('eval hash', exp)
+	const evaluated = _.mapValues(exp.items, evalExp)
 	return withLog(
 		{
 			kind: 'hashMap',
 			value: _.mapValues(evaluated, e => e.result),
 		},
-		[...logs, ..._.values(evaluated).flatMap(e => e.logs)]
+		_.values(evaluated).flatMap(e => e.logs)
 	)
 }
 
@@ -820,8 +792,6 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			return evalExpInfVector(exp)
 		case 'hashMap':
 			return evalExpHashMap(exp)
-		case 'pair':
-			return evalExp(exp.right)
 		case 'scope':
 			return evalExpScope(exp)
 	}
@@ -1092,21 +1062,25 @@ export function printExp(exp: Exp): string {
 		case 'infVector':
 			return '[' + exp.items.map(printExp).join(' ') + '...]'
 		case 'hashMap':
-			return '{' + exp.items.map(printExp).join(' ') + '}'
+			return (
+				'{' +
+				_.entries(exp.items)
+					.map(([k, v]) => `${k}: ${printExp(v)}`)
+					.join(' ') +
+				'}'
+			)
 		case 'symbol':
 			return exp.name
 		case 'value':
 			return printValue(exp.value)
-		case 'pair':
-			return printExp(exp.left) + ':' + printExp(exp.right)
 		case 'scope':
 			return (
-				'(@' +
+				'{' +
 				_.entries(exp.scope)
-					.map(([k, v]) => k + ' ' + printExp(v))
+					.map(([k, v]) => k + ' = ' + printExp(v))
 					.join(' ') +
 				(exp.out ? printExp(exp.out) : '') +
-				')'
+				'}'
 			)
 	}
 }
