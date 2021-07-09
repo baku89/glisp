@@ -46,6 +46,7 @@ interface ValueValType {
 	kind: 'valType'
 	id: symbol
 	origExp?: Exp
+	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
 }
 
@@ -222,6 +223,7 @@ function createInfVector<T extends Value = Value>(
 
 function createValType(
 	base: ValueValType | string,
+	predicate: ValueValType['predicate'],
 	cast: ValueValType['cast']
 ): ValueValType {
 	const id = _.isString(base) ? Symbol(base) : base.id
@@ -230,20 +232,33 @@ function createValType(
 	return {
 		kind: 'valType',
 		id,
+		predicate,
 		cast,
 		origExp,
 	}
 }
 
 const TypeBoolean = uniteType([false, true], v => !!v)
-const TypeNumber = createValType('number', () => 0)
-const TypeString = createValType('string', () => '')
-const TypeFnType = createValType('fnType', () => null)
-export const TypeIO = createValType('IO', () => null)
-const TypeHashMap = createValType('hashMap', () => ({
-	kind: 'hashMap',
-	value: {},
-}))
+const TypeNumber = createValType('number', _.isNumber, () => 0)
+const TypeString = createValType('string', _.isString, () => '')
+export const TypeIO = createValType('IO', _.constant(true), () => null)
+const TypeFnType = createValType(
+	'fnType',
+	v => isKindOf(v, 'fnType'),
+	() => ({
+		kind: 'fnType',
+		params: createInfVector(createAny()),
+		out: createAny(),
+	})
+)
+const TypeHashMap = createValType(
+	'hashMap',
+	v => isKindOf(v, 'hashMap'),
+	() => ({
+		kind: 'hashMap',
+		value: {},
+	})
+)
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -294,7 +309,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'*': createExpValue({
 			kind: 'fn',
-			params: {xs: createValType(TypeNumber, () => 1)},
+			params: {xs: createValType(TypeNumber, TypeNumber.predicate, () => 1)},
 			out: TypeNumber,
 			variadic: true,
 			body: function (this: ValueFnThis, ...xs: Exp[]) {
@@ -371,7 +386,7 @@ export const GlobalScope = createExpScope({
 			params: {value: createAny(), type: createAny()},
 			out: TypeBoolean,
 			body: function (this: ValueFnThis, a: Exp, b: Exp) {
-				return isInstance(this.eval(a), this.eval(b))
+				return isInstanceOf(this.eval(a), this.eval(b))
 			} as any,
 		}),
 		'==': createExpValue({
@@ -415,9 +430,9 @@ function uniteType(
 				const bItem = items[b]
 				if (bItem === undefined) continue
 
-				if (isInstance(bItem, aItem)) {
+				if (isInstanceOf(bItem, aItem)) {
 					items[b] = undefined
-				} else if (isInstance(aItem, bItem)) {
+				} else if (isInstanceOf(aItem, bItem)) {
 					items[a] = undefined
 					break
 				}
@@ -600,7 +615,7 @@ function assertValueType(v: Value): Value {
 			}
 		}
 		case 'hashMap':
-			return TypeHashMap
+			return createAny()
 		case 'object':
 			return createAny()
 	}
@@ -790,111 +805,53 @@ function isKindOf<
 	return x instanceof Object && !_.isArray(x) && x.kind === kind
 }
 
-function isInstance(a: Value, b: Value): boolean {
-	if (a === b) {
-		return true
-	}
+function isInstanceOfVector(a: Value, b: Value[]) {
+	if (!_.isArray(a)) return false
+	if (a.length < b.length) return false
+	return _$.zipShorter(a, b).every(([a, b]) => isInstanceOf(a, b))
+}
 
-	if (isKindOf(b, 'any')) {
-		return true
-	}
-
-	if (isKindOf(a, 'any') || isKindOf(a, 'unit')) {
-		return false
-	}
-
-	if (isKindOf(a, 'valType')) {
-		return isKindOf(b, 'valType') && a.id === b.id
-	}
-
-	// Handling Vector/VariadicVector
-
-	if (isKindOf(b, 'infVector')) {
-		if (isKindOf(a, 'infVector')) {
-			const alen = a.items.length,
-				blen = b.items.length
-			if (alen < blen) {
-				return false
-			}
-			const bitems = [
-				...b.items,
-				..._.times(alen - blen, _.constant(b.items[blen - 1])),
-			]
-			return _$.zipShorter(a.items, bitems).every(_.spread(isInstance))
-		} else if (_.isArray(a)) {
-			const minLength = b.items.length - 1
-			if (a.length < minLength) {
-				return false
-			}
-			const restCount = a.length - minLength
-			const bLast = b.items[b.items.length - 1]
-			const bv = [
-				...b.items.slice(0, minLength),
-				..._.times(restCount, _.constant(bLast)),
-			]
-			return isInstance(a, bv)
+function isInstanceOfInfVector(a: Value, b: ValueInfVector) {
+	if (isKindOf(a, 'infVector')) {
+		const alen = a.items.length,
+			blen = b.items.length
+		if (alen < blen) {
+			return false
 		}
-		return false
-	}
-
-	if (_.isArray(b)) {
-		if (_.isArray(a)) {
-			if (a.length < b.length) {
-				return false
-			}
-			return _$.zipShorter(a, b).every(([a, b]) => isInstance(a, b))
+		const bitems = [
+			...b.items,
+			..._.times(alen - blen, _.constant(b.items[blen - 1])),
+		]
+		return _$.zipShorter(a.items, bitems).every(_.spread(isInstanceOf))
+	} else if (_.isArray(a)) {
+		const minLength = b.items.length - 1
+		if (a.length < minLength) {
+			return false
 		}
-		return false
+		const restCount = a.length - minLength
+		const bLast = b.items[b.items.length - 1]
+		const bv = [
+			...b.items.slice(0, minLength),
+			..._.times(restCount, _.constant(bLast)),
+		]
+		return isInstanceOf(a, bv)
 	}
+	return false
+}
 
-	if (_.isArray(a)) {
-		return false
-	}
+function isInstanceOfUnion(a: Value, b: ValueUnion) {
+	const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
+	const bTypes = b.items
+	return aTypes.every(at => bTypes.some(bt => isInstanceOf(at, bt)))
+}
 
-	// Handle for union type
-	if (isKindOf(b, 'union')) {
-		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
-		const bTypes = b.items
-		return aTypes.every(at => bTypes.some(bt => isInstance(at, bt)))
-	}
+function isInstanceOfValType(a: Value, b: ValueValType) {
+	return b.predicate(a)
+}
 
-	if (isKindOf(a, 'union')) {
-		return false
-	}
-
-	// Handle for literals / value
-	if (_.isNumber(a)) {
-		return isKindOf(b, 'valType') && b.id === TypeNumber.id
-	}
-	if (_.isString(a)) {
-		return isKindOf(b, 'valType') && b.id === TypeString.id
-	}
-
-	if (isKindOf(a, 'fn')) {
-		return a === b || isInstance(assertValueType(a), b)
-	}
-
-	if (_.isNumber(b) || _.isString(b) || isKindOf(b, 'fn')) {
-		return false
-	}
-
-	// Either is singleton
-	if (
-		a === null ||
-		b === null ||
-		_.isBoolean(a) ||
-		_.isBoolean(b) ||
-		a.kind === 'singleton' ||
-		b.kind === 'singleton'
-	) {
-		return false
-	}
-
-	// Either is fnType
-	const na = normalizeTypeToFn(a)
-	const nb = normalizeTypeToFn(b)
-
-	return isInstance(nb.params, na.params) && isInstance(na.out, nb.out)
+function isInstanceOfFnType(a: Value, b: ValueFnType) {
+	const {params: aParams, out: aOut} = normalizeTypeToFn(a)
+	return isInstanceOf(b.params, aParams) && isInstanceOf(aOut, b.out)
 
 	function normalizeTypeToFn(type: Value): {
 		params: ValueFnType['params']
@@ -906,6 +863,38 @@ function isInstance(a: Value, b: Value): boolean {
 			}
 		}
 		return {params: [], out: type}
+	}
+}
+
+function isInstanceOf(a: Value, b: Value): boolean {
+	// Primitive type
+	if (!_.isObject(b)) {
+		return a === b
+	}
+
+	// Vector
+	if (_.isArray(b)) {
+		return isInstanceOfVector(a, b)
+	}
+
+	switch (b.kind) {
+		case 'any':
+			return true
+		case 'unit':
+			return isKindOf(a, 'unit')
+		case 'valType':
+			return isInstanceOfValType(a, b)
+		case 'infVector':
+			return isInstanceOfInfVector(a, b)
+		case 'union':
+			return isInstanceOfUnion(a, b)
+		case 'fnType':
+			return isInstanceOfFnType(a, b)
+		case 'fn':
+		case 'singleton':
+			return a === b
+		default:
+			throw new Error('Not yet implemented')
 	}
 }
 
@@ -950,12 +939,12 @@ function castType(type: Value, value: Value): Value {
 
 	switch (type.kind) {
 		case 'valType':
-			return isInstance(value, type) ? value : type.cast(value)
+			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return castType(type.out, null)
 		case 'union':
 			return type.cast
-				? isInstance(value, type)
+				? isInstanceOf(value, type)
 					? value
 					: type.cast(value)
 				: castType(type.items[0], null)
@@ -1002,7 +991,7 @@ function castExpParam(
 
 		const fromType = assertExpType(fromItem)
 
-		if (isInstance(fromType, toType)) {
+		if (isInstanceOf(fromType, toType)) {
 			casted.push(fromItem)
 		} else {
 			logs.push({
