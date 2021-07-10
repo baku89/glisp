@@ -6,7 +6,6 @@ import peg from 'pegjs'
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
-import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -638,34 +637,33 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	function evalList(exp: ExpList): WithLogs<Value> {
 		const {result: fn, logs: fnLogs} = evalExp(exp.fn)
 
-		if (isKindOf(fn, 'fn')) {
-			console.log(exp.params)
-			const {result: params, logs: castLogs} = castExpParam(
-				getParamType(fn),
-				exp.params
-			)
-
-			const paramsLogs: Log[] = []
-			const execLogs: Log[] = []
-
-			const context: ValueFnThis = {
-				log(log) {
-					execLogs.push(log)
-				},
-				eval(e) {
-					const {result, logs} = evalExp(e)
-					paramsLogs.push(...logs)
-					return result as any
-				},
-			}
-
-			const evaluated = fn.body.call(context, ...params)
-			const logs = [...fnLogs, ...castLogs, ...paramsLogs, ...execLogs]
-
-			return withLog(evaluated, logs)
-		} else {
+		if (!isKindOf(fn, 'fn')) {
 			return evalExp(exp.fn)
 		}
+
+		const {result: params, logs: castLogs} = castExpParam(
+			getParamType(fn),
+			exp.params
+		)
+
+		const paramsLogs: Log[] = []
+		const execLogs: Log[] = []
+
+		const context: ValueFnThis = {
+			log(log) {
+				execLogs.push(log)
+			},
+			eval(e) {
+				const {result, logs} = evalExp(e)
+				paramsLogs.push(...logs)
+				return result as any
+			},
+		}
+
+		const evaluated = fn.body.call(context, ...params)
+		const logs = [...fnLogs, ...castLogs, ...paramsLogs, ...execLogs]
+
+		return withLog(evaluated, logs)
 	}
 
 	function evalVector(exp: ExpVector): WithLogs<Value[]> {
@@ -996,4 +994,4 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	}
 }
 
-runTest()
+// runTest()
