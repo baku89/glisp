@@ -69,10 +69,6 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 
 List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	{
-		if (_params.length === 0) {
-			return {ast: 'value', value: {kind: 'unit'}}
-		}
-
 		const fn = _fn[0]
 		const params = _params.map(p => p[0])
 
