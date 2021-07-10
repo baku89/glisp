@@ -1,3 +1,4 @@
+import {invoke} from '@vueuse/core'
 import _ from 'lodash'
 import MarkdownIt from 'markdown-it'
 import {editor} from 'monaco-editor'
@@ -18,9 +19,9 @@ const MarkdownItMonacoHighlight = (md: MarkdownIt) => {
 		const uid = _.uniqueId('Markdown__highlight_')
 		token.attrPush(['id', uid])
 
-		editor.setTheme('custom-theme')
-
-		editor.colorize(code, 'glsl', {}).then(html => {
+		invoke(async () => {
+			editor.setTheme('custom-theme')
+			const html = await editor.colorize(code, 'glsl', {})
 			const el = document.getElementById(uid)
 			if (el) el.innerHTML = html
 		})

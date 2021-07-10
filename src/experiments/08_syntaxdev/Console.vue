@@ -2,7 +2,7 @@
 	<div class="Console" ref="root" tabindex="0" @keydown="onKeydown">
 		<ul class="Console__history">
 			<li class="rep" v-for="({input, logs, output}, i) in results" :key="i">
-				<div class="input">{{ input }}</div>
+				<SyntaxHighligher class="input" :code="input" />
 				<div
 					v-for="({level, reason}, j) in logs"
 					:key="j"
@@ -11,7 +11,11 @@
 				>
 					{{ reason }}
 				</div>
-				<div class="output" v-if="output !== null">{{ output }}</div>
+				<SyntaxHighligher
+					class="output"
+					v-if="output !== null"
+					:code="output"
+				/>
 			</li>
 		</ul>
 		<div class="Console__command" :style="{height: lines * 21 + 'px'}">
@@ -32,6 +36,7 @@ import {editor as Editor, KeyCode} from 'monaco-editor'
 import {computed, defineComponent, PropType, ref, shallowRef, watch} from 'vue'
 
 import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
+import SyntaxHighligher from '@/components/layouts/SyntaxHighligher.vue'
 
 import {Log, WithLogs} from './glisp'
 
@@ -47,7 +52,7 @@ interface Result {
 
 export default defineComponent({
 	name: 'Console',
-	components: {MonacoEditor},
+	components: {MonacoEditor, SyntaxHighligher},
 	props: {
 		rep: {
 			type: Function as PropType<IFnRep>,
