@@ -632,7 +632,7 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
-			return isKindOf(fn, 'fn') ? fn.out : fn
+			return isKindOf(fn, 'fnType') ? fn.out : fn
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)

@@ -34,7 +34,7 @@ Constant "constant" = value:$("true" / "false" / "null")
 
 Any "any" = "*" { return {ast: 'value', value: {kind: 'any'}} }
 
-Unit "unit" = ("(" _ ")") / "_"
+Unit "unit" = (("(" _ ")") / "_")
 	{ return {ast: 'value', value: {kind: 'unit'}} }
 
 // Number
