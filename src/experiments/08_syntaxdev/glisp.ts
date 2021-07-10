@@ -75,6 +75,7 @@ interface ValueFn {
 	out: Value
 	variadic?: boolean
 	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
+	expBody?: Exp
 }
 
 interface ValueHashMap {
@@ -206,6 +207,13 @@ function createExpScope(
 // Value initializer
 const Any: ValueAny = {kind: 'any'}
 const Unit: ValueUnit = {kind: 'unit'}
+
+function createFnType(
+	params: ValueFnType['params'],
+	out: ValueFnType['out']
+): ValueFnType {
+	return {kind: 'fnType', params, out}
+}
 
 function createInfVector<T extends Value = Value>(
 	...items: T[]
@@ -600,10 +608,10 @@ function assertExpType(exp: Exp): Value {
 			const paramsItems: Exp[] | ExpInfVector = _.values(exp.params)
 			const paramsExp: Exp = {ast: paramsAst, items: paramsItems}
 
-			const params = assertExpType(paramsExp)
+			const params = assertExpType(paramsExp) as ValueFnType['params']
 			const out = assertExpType(exp.body)
 
-			return {kind: 'fnType', params, out} as ValueFnType
+			return createFnType(params, out)
 		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
@@ -665,6 +673,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			out: TypeNumber,
 			variadic: exp.variadic,
 			body: () => 100,
+			expBody: exp.body,
 		}
 
 		return withLog(fn, paramsLog)
@@ -1022,8 +1031,14 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return retrieveValueName(val, baseExp) || '<singleton>'
 		case 'fnType':
 			return '(-> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
-		case 'fn':
-			return '<JS Function>'
+		case 'fn': {
+			const params = _.entries(val.params).map(
+				([name, type]) => name + ':' + printValue(type)
+			)
+			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
+			const variadic = val.variadic ? '...' : ''
+			return `(=> [${params.join(' ')}${variadic}] ${body})`
+		}
 		case 'hashMap':
 			return (
 				'{' +
