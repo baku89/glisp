@@ -121,7 +121,8 @@ interface ExpSymbol extends ExpBase {
 
 interface ExpList extends ExpBase {
 	ast: 'list'
-	items: Exp[]
+	fn: Exp
+	params: Exp[]
 }
 
 interface ExpVector extends ExpBase {
@@ -145,14 +146,6 @@ interface ExpScope extends ExpBase {
 	out?: Exp
 }
 
-type InspectedResultSymbol =
-	| {semantic: 'ref'; ref: Exp}
-	| {semantic: 'undefined'}
-
-type InspectedResultList =
-	| {semantic: 'application'; fn: Exp; params: Exp[]}
-	| {semantic: 'fndef'; params: Record<string, Exp>; body: Exp}
-
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
@@ -173,12 +166,14 @@ function wrapValue(value: Value): ExpValue {
 	return ret
 }
 
-function createExpList(items: Exp[], setParent = true) {
-	const ret: ExpList = {ast: 'list', items}
+function createExpList(fn: Exp, params: Exp[], setParent = true) {
+	const ret: ExpList = {ast: 'list', fn, params}
 
 	if (setParent) {
-		items.forEach(it => (it.parent = ret))
+		fn.parent = fn
+		params.forEach(p => (p.parent = ret))
 	}
+
 	return ret
 }
 
@@ -504,7 +499,9 @@ function withLog<T>(result: T, logs: Log[] = []) {
 	return {result, logs}
 }
 
-function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
+type ResolveSymbolResult = {semantic: 'ref'; ref: Exp} | {semantic: 'undefined'}
+
+function resolveSymbol(exp: ExpSymbol): WithLogs<ResolveSymbolResult> {
 	// Search ancestors
 	let parent = exp.parent
 	let name = exp.name
@@ -542,48 +539,6 @@ function inspectExpSymbol(exp: ExpSymbol): WithLogs<InspectedResultSymbol> {
 	return withLog({semantic: 'undefined'}, [
 		{level: 'error', reason: `${exp.name} is not defined`},
 	])
-}
-
-function defineFn(params: ValueFn['params'], body: Exp): ValueFn {
-	const out = assertExpType(body)
-
-	const fn: ValueFn['body'] = function () {
-		return 1234
-	}
-
-	return {
-		kind: 'fn',
-		params,
-		out,
-		body: fn,
-	}
-}
-
-function inspectExpList(exp: ExpList): WithLogs<InspectedResultList> {
-	if (exp.items.length >= 1) {
-		const [fst, ...rest] = exp.items
-
-		if (fst.ast === 'symbol') {
-			if (fst.name === '=>') {
-				// Function definition
-				if (rest.length >= 2) {
-					const [params, body] = rest
-					if (params.ast === 'hashMap') {
-						return withLog({
-							semantic: 'fndef',
-							params: params.items,
-							body,
-						})
-					}
-				}
-				throw new Error()
-			}
-		}
-
-		return withLog({semantic: 'application', fn: fst, params: rest})
-	}
-
-	throw new Error()
 }
 
 function assertValueType(v: Value): Value {
@@ -627,32 +582,15 @@ function assertExpType(exp: Exp): Value {
 		case 'value':
 			return assertValueType(exp.value)
 		case 'symbol': {
-			const inspected = inspectExpSymbol(exp).result
+			const inspected = resolveSymbol(exp).result
 			if (inspected.semantic == 'ref') {
 				return assertValueType(evalExp(inspected.ref).result)
 			}
 			return Any
 		}
 		case 'list': {
-			const inspected = inspectExpList(exp).result
-			if (inspected.semantic === 'application') {
-				const fn = evalExp(inspected.fn).result
-				return isKindOf(fn, 'fn') ? fn.out : assertExpType(inspected.fn)
-			} else if (inspected.semantic === 'fndef') {
-				const {params, body} = inspected
-
-				const paramsType = _.values(params)
-					.map(evalExp)
-					.map(({result}) => result)
-
-				const out = assertExpType(body)
-				return {
-					kind: 'fnType',
-					params: paramsType,
-					out,
-				}
-			}
-			throw new Error('Unexpeced execution of an unreachable block')
+			const fn = assertExpType(exp)
+			return isKindOf(fn, 'fn') ? fn.out : fn
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
@@ -689,7 +627,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLogs<Value> {
-		const {result: inspected, logs} = inspectExpSymbol(exp)
+		const {result: inspected, logs} = resolveSymbol(exp)
 		if (inspected.semantic === 'ref') {
 			return evalExp(inspected.ref)
 		} else {
@@ -698,51 +636,36 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalList(exp: ExpList): WithLogs<Value> {
-		const {result: inspected, logs: inspectLogs} = inspectExpList(exp)
-		if (inspected.semantic === 'application') {
-			const {result: fn, logs: fnLogs} = evalExp(inspected.fn)
+		const {result: fn, logs: fnLogs} = evalExp(exp.fn)
 
-			if (isKindOf(fn, 'fn')) {
-				const {result: params, logs: castLogs} = castExpParam(
-					getParamType(fn),
-					inspected.params
-				)
-
-				const paramsLogs: Log[] = []
-				const execLogs: Log[] = []
-
-				const context: ValueFnThis = {
-					log(log) {
-						execLogs.push(log)
-					},
-					eval(e) {
-						const {result, logs} = evalExp(e)
-						paramsLogs.push(...logs)
-						return result as any
-					},
-				}
-
-				const evaluated = fn.body.call(context, ...params)
-				const logs = [
-					...inspectLogs,
-					...fnLogs,
-					...castLogs,
-					...paramsLogs,
-					...execLogs,
-				]
-
-				return withLog(evaluated, logs)
-			}
-			return withLog(fn, [...inspectLogs, ...fnLogs])
-		} else if (inspected.semantic === 'fndef') {
-			return withLog(
-				defineFn(
-					_.mapValues(inspected.params, e => evalExp(e).result),
-					inspected.body
-				)
+		if (isKindOf(fn, 'fn')) {
+			console.log(exp.params)
+			const {result: params, logs: castLogs} = castExpParam(
+				getParamType(fn),
+				exp.params
 			)
+
+			const paramsLogs: Log[] = []
+			const execLogs: Log[] = []
+
+			const context: ValueFnThis = {
+				log(log) {
+					execLogs.push(log)
+				},
+				eval(e) {
+					const {result, logs} = evalExp(e)
+					paramsLogs.push(...logs)
+					return result as any
+				},
+			}
+
+			const evaluated = fn.body.call(context, ...params)
+			const logs = [...fnLogs, ...castLogs, ...paramsLogs, ...execLogs]
+
+			return withLog(evaluated, logs)
+		} else {
+			return evalExp(exp.fn)
 		}
-		return withLog(Unit, inspectLogs)
 	}
 
 	function evalVector(exp: ExpVector): WithLogs<Value[]> {
@@ -956,7 +879,7 @@ function castExpParam(
 				reason: `Type ${fromStr} cannot be casted to ${toStr}`,
 			})
 			casted.push(
-				createExpList([castTypeFn, wrapValue(toType), fromItem], false)
+				createExpList(castTypeFn, [wrapValue(toType), fromItem], false)
 			)
 		}
 	}
@@ -966,8 +889,11 @@ function castExpParam(
 
 export function printExp(exp: Exp): string {
 	switch (exp.ast) {
-		case 'list':
-			return '(' + exp.items.map(printExp).join(' ') + ')'
+		case 'list': {
+			const fn = printExp(exp.fn)
+			const params = exp.params.map(printExp)
+			return `(${fn} ${params.join(' ')})`
+		}
 		case 'vector':
 			return '[' + exp.items.map(printExp).join(' ') + ']'
 		case 'infVector':
@@ -1013,7 +939,7 @@ function retrieveValueName(
 		name,
 	}
 
-	const symInspected = inspectExpSymbol(sym).result
+	const symInspected = resolveSymbol(sym).result
 
 	if (symInspected.semantic !== 'ref' || symInspected.ref !== origExp) {
 		return

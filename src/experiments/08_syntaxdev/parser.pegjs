@@ -67,12 +67,21 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 		return {ast: 'symbol', name}
 	}
 
-List "list" = "(" _ fn:(ListFirst _) items:(Form _)* ")"
+List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	{
-		if (items.length === 0) {
+		if (_params.length === 0) {
 			return {ast: 'value', value: {kind: 'unit'}}
 		}
-		return makeCollection('list', [fn,...items])
+
+		const fn = _fn[0]
+		const params = _params.map(p => p[0])
+
+		const ret = {ast: 'list', fn, params}
+
+		fn.parent = ret
+		params.forEach(p => p.parent = ret)
+
+		return ret
 	}
 
 ListFirst = Unit / Constant / Number / String
