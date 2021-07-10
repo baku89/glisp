@@ -22,7 +22,7 @@ Program = form:Form
 	}
 
 Form = Any / Unit / Constant / Number / String
-	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+	/ Fn / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -65,6 +65,24 @@ Symbol "symbol" = name:$([^ .,\t\n\r`()[\]{}]i+)
 QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 	{
 		return {ast: 'symbol', name}
+	}
+
+Fn "fn" = "(" _ "=>" _ fnParams:FnParams _ body:Form _ ")"
+	{
+		const ret = {ast: 'fn', ...fnParams, body}
+		Object.values(ret.params).forEach(p => p.parent = ret)
+		body.parent = ret
+
+		return ret
+	}
+
+FnParams = "[" _ entries:(Entry _)* variadic:"..."? _ "]"
+	{
+		const params = Object.fromEntries(entries.map(p => p[0]))
+		return {
+			params,
+			variadic: !!variadic
+		}
 	}
 
 List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"

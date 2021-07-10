@@ -93,6 +93,7 @@ interface ValueObject {
 type Exp =
 	| ExpValue
 	| ExpSymbol
+	| ExpFn
 	| ExpList
 	| ExpVector
 	| ExpInfVector
@@ -116,6 +117,13 @@ interface ExpValue<T extends Value = Value> extends ExpBase {
 interface ExpSymbol extends ExpBase {
 	ast: 'symbol'
 	name: string
+}
+
+interface ExpFn extends ExpBase {
+	ast: 'fn'
+	params: Record<string, Exp>
+	variadic?: boolean
+	body: Exp
 }
 
 interface ExpList extends ExpBase {
@@ -587,6 +595,14 @@ function assertExpType(exp: Exp): Value {
 			}
 			return Any
 		}
+		case 'fn': {
+			const paramsAst = exp.variadic ? 'infVector' : 'vector'
+			const paramsItems: Exp[] | ExpInfVector = _.values(exp.params)
+			const paramsExp: Exp = {ast: paramsAst, items: paramsItems}
+			const params = assertExpType(paramsExp)
+			const out = assertExpType(exp.body)
+			return {kind: 'fnType', params, out} as ValueFnType
+		}
 		case 'list': {
 			const fn = assertExpType(exp)
 			return isKindOf(fn, 'fn') ? fn.out : fn
@@ -613,6 +629,8 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 			return withLog(exp.value, [])
 		case 'symbol':
 			return evalSymbol(exp)
+		case 'fn':
+			return evalFn(exp)
 		case 'list':
 			return evalList(exp)
 		case 'vector':
@@ -632,6 +650,10 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 		} else {
 			return withLog(Unit, logs)
 		}
+	}
+
+	function evalFn(exp: ExpFn): WithLogs<Value> {
+		throw new Error('Not yet implemented')
 	}
 
 	function evalList(exp: ExpList): WithLogs<Value> {
@@ -887,6 +909,17 @@ function castExpParam(
 
 export function printExp(exp: Exp): string {
 	switch (exp.ast) {
+		case 'value':
+			return printValue(exp.value)
+		case 'symbol':
+			return exp.name
+		case 'fn': {
+			const params = _.entries(exp.params).map(
+				([name, type]) => name + ':' + printExp(type)
+			)
+			const body = printExp(exp.body)
+			return `(=> [${params.join(' ')}${exp.variadic ? '...' : ''}] ${body})`
+		}
 		case 'list': {
 			const fn = printExp(exp.fn)
 			const params = exp.params.map(printExp)
@@ -901,10 +934,6 @@ export function printExp(exp: Exp): string {
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
 			return '{' + pairs.join(' ') + '}'
 		}
-		case 'symbol':
-			return exp.name
-		case 'value':
-			return printValue(exp.value)
 		case 'scope': {
 			const entries = _.entries(exp.scope)
 			const pairs = entries.map(([k, v]) => `${k} = ${printExp(v)}`)
