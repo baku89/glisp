@@ -284,10 +284,12 @@ const castTypeFn = wrapValue({
 
 		const casted = castType(t, v)
 
-		this.log({
-			level: 'info',
-			reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
-		})
+		if (!isKindOf(v, 'unit')) {
+			this.log({
+				level: 'info',
+				reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
+			})
+		}
 
 		return casted
 	},
@@ -923,10 +925,13 @@ function castExpParam(
 		} else {
 			const fromStr = printValue(fromType)
 			const toStr = printValue(toType)
-			logs.push({
-				level: 'error',
-				reason: `Type ${fromStr} cannot be casted to ${toStr}`,
-			})
+
+			if (!isKindOf(fromType, 'unit')) {
+				logs.push({
+					level: 'error',
+					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
+				})
+			}
 			casted.push(
 				createExpList(castTypeFn, [wrapValue(toType), fromItem], false)
 			)
@@ -1018,7 +1023,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'any':
 			return '*'
 		case 'unit':
-			return '()'
+			return '_'
 		case 'valueType':
 			return retrieveValueName(val, baseExp) ?? `<valueType>`
 		case 'infVector': {

@@ -34,7 +34,8 @@ Constant "constant" = value:$("true" / "false" / "null")
 
 Any "any" = "*" { return {ast: 'value', value: {kind: 'any'}} }
 
-Unit "unit" = "(" _ ")" _{ return {ast: 'value', value: {kind: 'unit'}} }
+Unit "unit" = ("(" _ ")") / "_"
+	{ return {ast: 'value', value: {kind: 'unit'}} }
 
 // Number
 Number "number" = str:$(("+" / "-")? [0-9]+)
@@ -171,5 +172,5 @@ Whitespace "whitespace" = $([ ,\t\n\r]*)
 
 _ = w:Whitespace str:$(Comment Whitespace?)*
 	{
-		return w + str.flatMap()
+		return w + str
 	}
