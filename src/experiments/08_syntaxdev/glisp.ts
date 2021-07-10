@@ -522,7 +522,10 @@ function withLog<T>(result: T, logs: Log[] = []) {
 	return {result, logs}
 }
 
-type ResolveSymbolResult = {semantic: 'ref'; ref: Exp} | {semantic: 'undefined'}
+type ResolveSymbolResult =
+	| {semantic: 'ref'; ref: Exp}
+	| {semantic: 'param'; type: Exp}
+	| {semantic: 'undefined'}
 
 function resolveSymbol(exp: ExpSymbol): WithLogs<ResolveSymbolResult> {
 	// Search ancestors
@@ -533,8 +536,9 @@ function resolveSymbol(exp: ExpSymbol): WithLogs<ResolveSymbolResult> {
 		// If the parent is a scope containing the symbol
 		if (parent.ast === 'scope' && name in parent.scope) {
 			const ref: Exp = parent.scope[name]
+			// If the the reference is an another symbol
 			if (ref.ast === 'symbol') {
-				// If the the reference is an another symbol
+				// Detect the circular reference
 				if (history.has(ref)) {
 					return withLog({semantic: 'undefined'}, [
 						{
@@ -554,6 +558,9 @@ function resolveSymbol(exp: ExpSymbol): WithLogs<ResolveSymbolResult> {
 					ref,
 				})
 			}
+		} else if (parent.ast === 'fn' && name in parent.params) {
+			// Is a parameter of function definition
+			return withLog({semantic: 'param', type: parent.params[name]})
 		}
 		parent = parent.parent
 	}
@@ -607,9 +614,11 @@ function assertExpType(exp: Exp): Value {
 		case 'symbol': {
 			const inspected = resolveSymbol(exp).result
 			if (inspected.semantic == 'ref') {
-				return assertValueType(evalExp(inspected.ref).result)
+				return assertExpType(inspected.ref)
+			} else if (inspected.semantic === 'param') {
+				return assertExpType(inspected.type)
 			}
-			return Any
+			return Unit
 		}
 		case 'fn': {
 			const paramsAst = exp.variadic ? 'infVector' : 'vector'
@@ -662,9 +671,12 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLogs<Value> {
-		const {result: inspected, logs} = resolveSymbol(exp)
-		if (inspected.semantic === 'ref') {
-			return evalExp(inspected.ref)
+		const {result, logs} = resolveSymbol(exp)
+		if (result.semantic === 'ref') {
+			return evalExp(result.ref)
+		} else if (result.semantic === 'param') {
+			const {result: type, logs} = evalExp(result.type)
+			return withLog(castType(type, Unit), logs)
 		} else {
 			return withLog(Unit, logs)
 		}
