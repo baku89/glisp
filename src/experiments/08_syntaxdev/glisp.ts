@@ -56,6 +56,7 @@ interface ValueUnion {
 	kind: 'union'
 	items: Exclude<Value, ValueUnion>[]
 	cast?: (value: Value) => Value
+	origExp?: Exp
 }
 
 interface ValueFnType {
@@ -245,7 +246,12 @@ function createValueType(
 	}
 }
 
-const TypeBoolean = uniteType([false, true], v => !!v)
+const TypeBoolean: ValueUnion = {
+	kind: 'union',
+	items: [false, true],
+}
+const ExpTypeBoolean = wrapValue(TypeBoolean)
+TypeBoolean.origExp = ExpTypeBoolean
 const TypeNumber = createValueType('number', _.isNumber, () => 0)
 const TypeString = createValueType('string', _.isString, () => '')
 export const TypeIO = createValueType('IO', _.isFunction, () => null)
@@ -291,7 +297,7 @@ export const GlobalScope = createExpScope({
 	scope: {
 		Number: wrapValue(TypeNumber),
 		String: wrapValue(TypeString),
-		Boolean: wrapValue(TypeBoolean),
+		Boolean: ExpTypeBoolean,
 		FnType: wrapValue(TypeFnType),
 		IO: wrapValue(TypeIO),
 		LT: wrapValue(OrderingLT),
@@ -941,7 +947,8 @@ export function printExp(exp: Exp): string {
 				([name, type]) => name + ':' + printExp(type)
 			)
 			const body = printExp(exp.body)
-			return `(=> [${params.join(' ')}${exp.variadic ? '...' : ''}] ${body})`
+			const variadic = exp.variadic ? '...' : ''
+			return `(=> [${params.join(' ')}${variadic}] ${body})`
 		}
 		case 'list': {
 			const fn = printExp(exp.fn)
@@ -967,7 +974,7 @@ export function printExp(exp: Exp): string {
 }
 
 function retrieveValueName(
-	s: ValueCustomSingleton | ValueValueType,
+	s: ValueUnion | ValueCustomSingleton | ValueValueType,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -999,17 +1006,10 @@ function retrieveValueName(
 }
 
 export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
-	if (val === null) {
-		return 'null'
+	if (!_.isObject(val)) {
+		return JSON.stringify(val)
 	}
-	switch (typeof val) {
-		case 'boolean':
-			return val ? 'true' : 'false'
-		case 'number':
-			return val.toString()
-		case 'string':
-			return `"${val}"`
-	}
+
 	if (_.isArray(val)) {
 		return '[' + val.map(v => printValue(v, baseExp)).join(' ') + ']'
 	}
@@ -1020,15 +1020,18 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'unit':
 			return '()'
 		case 'valueType':
-			return retrieveValueName(val, baseExp) || `<valueType>`
+			return retrieveValueName(val, baseExp) ?? `<valueType>`
 		case 'infVector': {
 			const items = val.items.map(v => printValue(v, baseExp))
 			return '[' + items.join(' ') + '...]'
 		}
-		case 'union':
+		case 'union': {
+			const name = retrieveValueName(val, baseExp)
+			if (name) return name
 			return '(| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
+		}
 		case 'singleton':
-			return retrieveValueName(val, baseExp) || '<singleton>'
+			return retrieveValueName(val, baseExp) ?? '<singleton>'
 		case 'fnType':
 			return '(-> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
 		case 'fn': {
@@ -1039,14 +1042,11 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			const variadic = val.variadic ? '...' : ''
 			return `(=> [${params.join(' ')}${variadic}] ${body})`
 		}
-		case 'hashMap':
-			return (
-				'{' +
-				_.entries(val.value)
-					.map(([k, v]) => `${k}: ${printValue(v)}`)
-					.join(' ') +
-				'}'
-			)
+		case 'hashMap': {
+			const entries = _.entries(val.value)
+			const pairs = entries.map(([k, v]) => `${k}: ${printValue(v)}`)
+			return '{' + pairs.join(' ') + '}'
+		}
 		case 'object':
 			return `<object of ${printValue(val.type, baseExp)}>`
 	}

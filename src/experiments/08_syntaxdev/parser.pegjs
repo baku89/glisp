@@ -76,7 +76,7 @@ Fn "fn" = "(" _ "=>" _ fnParams:FnParams _ body:Form _ ")"
 		return ret
 	}
 
-FnParams = "[" _ entries:(Entry _)* variadic:"..."? _ "]"
+FnParams = "[" _ entries:(Pair _)* variadic:"..."? _ "]"
 	{
 		const params = Object.fromEntries(entries.map(p => p[0]))
 		return {
@@ -99,7 +99,7 @@ List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	}
 
 ListFirst = Unit / Constant / Number / String
-	/ List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+	/ Fn / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
 
 Vector "vector" = "[" _ items:(Form _)* "]"
 	{
@@ -113,7 +113,7 @@ InfVector "infinite vector" = "[" _ items:(Form _)+ "..." _ "]"
 
 
 // Hash Map
-HashMap "hash map" = "{" _ items:(Entry _)* "}"
+HashMap "hash map" = "{" _ items:(Pair _)* "}"
 	{
 		const entries = items.map(it => it[0])
 		const ret = {ast: 'hashMap', items: Object.fromEntries(entries)}
@@ -123,12 +123,12 @@ HashMap "hash map" = "{" _ items:(Entry _)* "}"
 		return ret
 	}
 
-Entry "entry" = key:(EntryKey / String) _ ":" _ value:Form
+Pair "entry" = key:(PairKey / String) _ ":" _ value:Form
 	{
 		return [key.value, value]
 	}
 
-EntryKey "entry key" = value:$([^ :.,\t\n\r`()[\]{}]i+)
+PairKey "entry key" = value:$([^ :.,\t\n\r`()[\]{}]i+)
 	{
 		return {value}
 	}
@@ -171,5 +171,5 @@ Whitespace "whitespace" = $([ ,\t\n\r]*)
 
 _ = w:Whitespace str:$(Comment Whitespace?)*
 	{
-		return w + str
+		return w + str.flatMap()
 	}
