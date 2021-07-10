@@ -37,6 +37,8 @@ languages.setMonarchTokensProvider('glisp', {
 		{open: '{', close: '}', token: 'delimiter.curly'},
 	],
 
+	keywords: ['=>', '=', '->', '_', '*'],
+
 	constants: ['true', 'false', 'null'],
 
 	// Numbers
@@ -80,6 +82,7 @@ languages.setMonarchTokensProvider('glisp', {
 				{
 					cases: {
 						'@constants': 'constant',
+						'@keywords': 'keyword',
 						'@numericConstants': 'number',
 						'@default': 'identifier',
 					},
