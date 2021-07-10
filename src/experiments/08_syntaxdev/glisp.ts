@@ -73,7 +73,7 @@ interface ValueFn {
 	kind: 'fn'
 	params: Record<string, Value>
 	out: Value
-	variadic?: true
+	variadic?: boolean
 	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
 }
 
@@ -599,12 +599,14 @@ function assertExpType(exp: Exp): Value {
 			const paramsAst = exp.variadic ? 'infVector' : 'vector'
 			const paramsItems: Exp[] | ExpInfVector = _.values(exp.params)
 			const paramsExp: Exp = {ast: paramsAst, items: paramsItems}
+
 			const params = assertExpType(paramsExp)
 			const out = assertExpType(exp.body)
+
 			return {kind: 'fnType', params, out} as ValueFnType
 		}
 		case 'list': {
-			const fn = assertExpType(exp)
+			const fn = assertExpType(exp.fn)
 			return isKindOf(fn, 'fn') ? fn.out : fn
 		}
 		case 'vector':
@@ -653,7 +655,19 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalFn(exp: ExpFn): WithLogs<Value> {
-		throw new Error('Not yet implemented')
+		const paramsResult = _.mapValues(exp.params, evalExp)
+		const paramsLog = _.values(paramsResult).flatMap(r => r.logs)
+		const params = _.mapValues(paramsResult, r => r.result)
+
+		const fn: ValueFn = {
+			kind: 'fn',
+			params,
+			out: TypeNumber,
+			variadic: exp.variadic,
+			body: () => 100,
+		}
+
+		return withLog(fn, paramsLog)
 	}
 
 	function evalList(exp: ExpList): WithLogs<Value> {
