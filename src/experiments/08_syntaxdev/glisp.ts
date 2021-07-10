@@ -257,7 +257,7 @@ const castTypeFn = wrapValue({
 	kind: 'fn',
 	params: {type: Any, value: Any},
 	out: Any,
-	body(this: ValueFnThis, type: Exp, value: Exp) {
+	body(type, value) {
 		const t = this.eval(type)
 		const v = this.eval(value)
 
@@ -292,7 +292,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeNumber},
 			out: TypeNumber,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
 			},
 		}),
@@ -301,7 +301,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: createValueType(TypeNumber, TypeNumber.predicate, () => 1)},
 			out: TypeNumber,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
 			},
 		}),
@@ -310,7 +310,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
 			},
 		}),
@@ -319,7 +319,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				return xs
 					.map(x => this.eval<boolean>(x))
 					.reduce((a, b) => a || b, false)
@@ -329,15 +329,15 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {x: TypeBoolean},
 			out: TypeBoolean,
-			body(this: ValueFnThis, x: Exp) {
-				return !this.eval<boolean>(x)
+			body(x) {
+				return !this.eval(x)
 			},
 		}),
 		'->': wrapValue({
 			kind: 'fn',
 			params: {params: createInfVector(Any), out: Any},
 			out: TypeFnType,
-			body(this: ValueFnThis, params: Exp, out: Exp) {
+			body(params, out) {
 				return {
 					kind: 'fnType',
 					params: this.eval(params),
@@ -350,7 +350,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: Any},
 			out: Any,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				return uniteType(xs.map(this.eval))
 			},
 		}),
@@ -358,7 +358,7 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {name: TypeString, value: Any},
 			out: TypeIO,
-			body(this: ValueFnThis, name: Exp, value: Exp) {
+			body(name, value) {
 				const n = this.eval<string>(name)
 				const v = this.eval(value)
 				return {
@@ -374,16 +374,16 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {x: Any},
 			out: Any,
-			body(this: ValueFnThis, t: Exp) {
-				return assertExpType(wrapValue(this.eval(t)))
+			body(x) {
+				return assertExpType(wrapValue(this.eval(x)))
 			},
 		}),
 		isa: wrapValue({
 			kind: 'fn',
 			params: {value: Any, type: Any},
 			out: TypeBoolean,
-			body(this: ValueFnThis, a: Exp, b: Exp) {
-				return isInstanceOf(this.eval(a), this.eval(b))
+			body(value, type) {
+				return isInstanceOf(this.eval(value), this.eval(type))
 			},
 		}),
 		'==': wrapValue({
@@ -391,7 +391,7 @@ export const GlobalScope = createExpScope({
 			params: {xs: Any},
 			out: TypeBoolean,
 			variadic: true,
-			body(this: ValueFnThis, ...xs: Exp[]) {
+			body(...xs) {
 				const _xs = xs.map(x => this.eval(x))
 				if (_xs.length === 0) {
 					return true
