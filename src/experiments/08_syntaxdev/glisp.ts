@@ -1,11 +1,10 @@
-import './test'
-
 import _ from 'lodash'
 import peg from 'pegjs'
 
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
+import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -804,37 +803,52 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 
 	// Predicates for each types
 	function vector(a: Value, b: Value[]) {
-		if (!_.isArray(a)) return false
-		if (a.length < b.length) return false
+		if (!_.isArray(a) || a.length < b.length) return false
 		return _$.everyByPair(a, b, compare)
 	}
 
 	function infVector(a: Value, b: ValueInfVector) {
-		if (isKindOf(a, 'infVector')) {
-			const alen = a.items.length,
-				blen = b.items.length
-			if (alen < blen) {
-				return false
-			}
-			const bitems = [
-				...b.items,
-				..._.times(alen - blen, _.constant(b.items[blen - 1])),
-			]
-			return vector(a.items, bitems)
-		} else if (_.isArray(a)) {
-			const minLength = b.items.length - 1
-			if (a.length < minLength) {
-				return false
-			}
-			const restCount = a.length - minLength
-			const bLast = b.items[b.items.length - 1]
-			const bv = [
-				...b.items.slice(0, minLength),
-				..._.times(restCount, _.constant(bLast)),
-			]
-			return vector(a, bv)
+		let aItems: {inf: boolean; value: Value}[]
+
+		if (_.isArray(a)) {
+			aItems = a.map(value => ({inf: false, value}))
+		} else if (isKindOf(a, 'infVector')) {
+			const aLen = a.items.length
+			aItems = a.items.slice(0, aLen - 1).map(value => ({inf: false, value}))
+			aItems.push({inf: true, value: a.items[aLen - 1]})
+		} else {
+			return false
 		}
-		return false
+
+		const bLen = b.items.length
+		const bItems = b.items
+			.slice(0, bLen - 1)
+			.map(value => ({inf: false, value}))
+		bItems.push({inf: true, value: b.items[bLen - 1]})
+
+		let ai = 0,
+			bi = 0
+		while (ai < aItems.length) {
+			if (bItems.length <= bi) return false
+
+			const a = aItems[ai]
+			const b = bItems[bi]
+
+			if (!compare(a.value, b.value)) return false
+
+			if (a.inf === b.inf) {
+				ai += 1
+				bi += 1
+			} else if (!a.inf) {
+				// !a.inf && b.inf
+				ai += 1
+			} else {
+				// a.inf && !b.inf
+				bi += 1
+			}
+		}
+
+		return true
 	}
 
 	function union(a: Value, b: ValueUnion) {
@@ -1069,4 +1083,4 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	}
 }
 
-// runTest()
+runTest()

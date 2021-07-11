@@ -22,4 +22,13 @@ export default function runTest() {
 	testIsa('[Number Number]', '*', true)
 	testIsa('(+ 1 2)', 'Number', true)
 	testIsa('+', '(typeof +)', true)
+
+	// Vector
+	testIsa('[0 1 2]', '[Number...]', true)
+	testIsa('[0...]', '[Number...]', true)
+	testIsa('[0 1...]', '[Number...]', true)
+	testIsa('[0 1 2...]', '[0 Number...]', true)
+	testIsa('[0...]', '[Number]', false)
+	testIsa('[0...]', '[0...]', true)
+	testIsa('[0]', '[Number Number]', false)
 }
