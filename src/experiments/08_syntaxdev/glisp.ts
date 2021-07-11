@@ -178,7 +178,7 @@ function createExpList(fn: Exp, params: Exp[], setParent = true) {
 	const ret: ExpList = {ast: 'list', fn, params}
 
 	if (setParent) {
-		fn.parent = fn
+		fn.parent = ret
 		params.forEach(p => (p.parent = ret))
 	}
 
@@ -649,7 +649,9 @@ function getParamType(fn: ValueFn): ValueFnType['params'] {
 	return fn.variadic ? {kind: 'infVector', items: params} : params
 }
 
-export function evalExp(exp: Exp): WithLogs<Value> {
+export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
+	const _eval = (e: Exp) => evalExp(e, env)
+
 	switch (exp.ast) {
 		case 'value':
 			return withLog(exp.value, [])
@@ -666,32 +668,47 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 		case 'hashMap':
 			return evalHashMap(exp)
 		case 'scope':
-			return exp.out ? evalExp(exp.out) : withLog(Unit)
+			return exp.out ? _eval(exp.out) : withLog(Unit)
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLogs<Value> {
 		const {result, logs} = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
-			return evalExp(result.ref)
+			return _eval(result.ref)
 		} else if (result.semantic === 'param') {
-			const {result: type, logs} = evalExp(result.type)
-			return withLog(castType(type, Unit), logs)
+			if (env) {
+				if (!(exp.name in env)) {
+					throw new Error('Cannot evaluated the parameter symbol')
+				}
+				return _eval(env[exp.name])
+			} else {
+				const {result: type, logs} = _eval(result.type)
+				return withLog(castType(type, Unit), logs)
+			}
 		} else {
 			return withLog(Unit, logs)
 		}
 	}
 
 	function evalFn(exp: ExpFn): WithLogs<Value> {
-		const paramsResult = _.mapValues(exp.params, evalExp)
+		const paramsResult = _.mapValues(exp.params, _eval)
 		const paramsLog = _.values(paramsResult).flatMap(r => r.logs)
 		const params = _.mapValues(paramsResult, r => r.result)
+
+		const clonedBody = cloneExp(exp.body)
+		clonedBody.parent = exp
+
+		const body: ValueFn['body'] = function (...params) {
+			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), params))
+			return evalExp(clonedBody, env).result
+		}
 
 		const fn: ValueFn = {
 			kind: 'fn',
 			params,
 			out: TypeNumber,
 			variadic: exp.variadic,
-			body: () => 100,
+			body,
 			expBody: exp.body,
 		}
 
@@ -699,14 +716,16 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalList(exp: ExpList): WithLogs<Value> {
-		const {result: fn, logs: fnLogs} = evalExp(exp.fn)
+		const {result: fn, logs: fnLogs} = _eval(exp.fn)
 
 		if (!isKindOf(fn, 'fn')) {
-			return evalExp(exp.fn)
+			return _eval(exp.fn)
 		}
 
+		const paramsType = getParamType(fn)
+
 		const {result: params, logs: castLogs} = castExpParam(
-			getParamType(fn),
+			paramsType,
 			exp.params
 		)
 
@@ -718,7 +737,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 				execLogs.push(log)
 			},
 			eval(e) {
-				const {result, logs} = evalExp(e)
+				const {result, logs} = _eval(e)
 				paramsLogs.push(...logs)
 				return result as any
 			},
@@ -731,7 +750,7 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalVector(exp: ExpVector): WithLogs<Value[]> {
-		const evaluated = exp.items.map(evalExp)
+		const evaluated = exp.items.map(_eval)
 		return withLog(
 			evaluated.map(e => e.result),
 			evaluated.flatMap(e => e.logs)
@@ -739,14 +758,14 @@ export function evalExp(exp: Exp): WithLogs<Value> {
 	}
 
 	function evalInfVector(exp: ExpInfVector): WithLogs<ValueInfVector> {
-		const result = exp.items.map(evalExp)
+		const result = exp.items.map(_eval)
 		const evaluated = createInfVector(...result.map(e => e.result))
 		const logs = result.flatMap(e => e.logs)
 		return withLog(evaluated, logs)
 	}
 
 	function evalHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
-		const result = _.mapValues(exp.items, evalExp)
+		const result = _.mapValues(exp.items, _eval)
 		const evaluated = createHashMap(_.mapValues(result, e => e.result))
 		const logs = _.values(result).flatMap(e => e.logs)
 		return withLog(evaluated, logs)
@@ -768,6 +787,24 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
+function cloneExp(exp: Exp): Exp {
+	switch (exp.ast) {
+		case 'value':
+			return {ast: 'value', value: exp.value}
+		case 'symbol':
+			return {ast: 'symbol', name: exp.name}
+		case 'fn':
+			throw new Error('Not yet implemented')
+		case 'list': {
+			const fn = cloneExp(exp.fn)
+			const params = exp.params.map(cloneExp)
+			return createExpList(fn, params)
+		}
+		default:
+			throw new Error('Not yet implemented')
+	}
+}
+
 export function isSubtypeOf(a: Value, b: Value) {
 	return compareType(a, b, false)
 }
@@ -776,7 +813,7 @@ export function isInstanceOf(a: Value, b: Value) {
 }
 
 function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
-	const compare = _.partial(compareType, _, _, onlyInstance)
+	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance)
 
 	if (!_.isObject(b)) return a === b
 	if (_.isArray(b)) return vector(a, b)
