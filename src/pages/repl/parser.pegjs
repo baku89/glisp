@@ -1,16 +1,3 @@
-{
-	function makeCollection(ast, items) {
-		const exp = {
-			ast,
-			items: items.map(p => p[0]),
-		}
-
-		exp.items.forEach((e, key) => e.parent = exp)
-
-		return exp
-	}
-}
-
 Start = Program / BlankProgram
 
 BlankProgram = _ { return }
@@ -24,7 +11,7 @@ Program = form:Form
 Form "form" = Cast / FromExceptCast
 
 FromExceptCast = Any / Unit / Constant / Number / String
-	/ Fn / List / Vector / InfVector / HashMap / Scope
+	/ Fn / List / Vector / Spread / HashMap / Scope
 	/ QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
@@ -71,30 +58,23 @@ QuotedSymbol "quoted symbol" = '`' name:$(!'`' .)* '`'
 		return {ast: 'symbol', name}
 	}
 
-Fn "fn" = "(" _ "=>" _ fnParams:FnParams _ body:Form _ ")"
+Fn "fn" = "(" _ "=>" _ params:FnParams _ body:Form _ ")"
 	{
-		const ret = {ast: 'fn', ...fnParams, body}
-		Object.values(ret.params).forEach(p => p.parent = ret)
+		const ret = {ast: 'fn', params, body}
+		Object.values(ret.params).forEach(p => p.value.parent = ret)
 		body.parent = ret
 
 		return ret
 	}
 
-FnParams = "[" _ entries:(Pair _)* rest:("..." _ Pair _)? "]"
+FnParams = "[" _ params:(("..." _)? Pair _)* "]"
 	{
-		const params = Object.fromEntries(entries.map(p => p[0]))
-
-		const variadic = !!rest
-
-		if (rest) {
-			const [name, value] = rest[2]
-			params[name] = value
-		}
+		const paramItems = params.map(e => {
+			const [inf, [name, value]] = e
+			return [name, {inf: !!inf, value}]
+		})
 		
-		return {
-			params,
-			variadic
-		}
+		return Object.fromEntries(paramItems)
 	}
 
 List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
@@ -111,21 +91,30 @@ List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	}
 
 ListFirst = Unit / Constant / Number / String
-	/ Fn / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+	/ Fn / List / Vector / Spread / HashMap / Scope / QuotedSymbol / Symbol
 
 Vector "vector" = "[" _ items:(Form _)* "]"
 	{
-		return makeCollection('vector', items)
+		const exp = {
+			ast: 'vector',
+			items: items.map(p => p[0]),
+		}
+
+		exp.items.forEach((e, key) => e.parent = exp)
+
+		return exp
 	}
 	
-InfVector "infinite vector" = "[" _ _items:(Form _)* "..." rest:Form _ "]"
+Spread "spread vector" = "[" _ _items:(("..." _)? Form _)+ "]"
 	{
-		const items = _items.map(p => p[0])
+		const items = _items.map(it => {
+			const [inf, value] = it
+			return {inf: !!inf, value}
+		})
 
-		const ret = {ast: 'infVector', items, rest}
+		const ret = {ast: 'spread', items}
 
-		items.forEach(p => p.parent = ret)
-		rest.parent = ret
+		items.forEach(p => p.value.parent = ret)
 
 		return ret
 	}

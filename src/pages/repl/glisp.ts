@@ -12,12 +12,12 @@ type Value =
 	| ValueAny
 	| ValueUnit
 	| Value[]
-	| ValueInfVector
+	| ValueSpread
 	| ValueSingleton
 	| ValueValueType
 	| ValueFnType
 	| ValueUnion
-	| ValueInfVector
+	| ValueSpread
 	| ValueHashMap
 	| ValueFn
 	| ValueObject
@@ -38,10 +38,9 @@ interface ValueCustomSingleton {
 	origExp?: Exp
 }
 
-interface ValueInfVector<T extends Value = Value> {
-	kind: 'infVector'
-	items: T[]
-	rest: T
+interface ValueSpread<T extends Value = Value> {
+	kind: 'spread'
+	items: {inf: boolean; value: T}[]
 }
 
 interface ValueValueType {
@@ -61,7 +60,7 @@ interface ValueUnion {
 
 interface ValueFnType {
 	kind: 'fnType'
-	params: Value[] | ValueInfVector
+	params: ValueSpread
 	out: Value
 }
 
@@ -72,9 +71,8 @@ interface ValueFnThis {
 
 interface ValueFn {
 	kind: 'fn'
-	params: Record<string, Value>
+	params: Record<string, {inf: boolean; value: Value}>
 	out: Value
-	variadic?: boolean
 	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
 	expBody?: Exp
 }
@@ -98,7 +96,7 @@ type Exp =
 	| ExpFn
 	| ExpList
 	| ExpVector
-	| ExpInfVector
+	| ExpSpread
 	| ExpHashMap
 	| ExpCast
 	| ExpScope
@@ -124,8 +122,7 @@ interface ExpSymbol extends ExpBase {
 
 interface ExpFn extends ExpBase {
 	ast: 'fn'
-	params: Record<string, Exp>
-	variadic?: boolean
+	params: Record<string, {inf: boolean; value: Exp}>
 	body: Exp
 }
 
@@ -140,10 +137,9 @@ interface ExpVector extends ExpBase {
 	items: Exp[]
 }
 
-interface ExpInfVector extends ExpBase {
-	ast: 'infVector'
-	items: Exp[]
-	rest: Exp
+interface ExpSpread extends ExpBase {
+	ast: 'spread'
+	items: {inf: boolean; value: Exp}[]
 }
 
 interface ExpHashMap extends ExpBase {
@@ -239,14 +235,19 @@ function createFnType(
 	return {kind: 'fnType', params, out}
 }
 
-function createInfVector<T extends Value = Value>(
-	items: T[],
-	rest: T
-): ValueInfVector<T> {
+function createSpread<T extends Value = Value>(
+	items: ValueSpread<T>['items']
+): ValueSpread<T> {
 	return {
-		kind: 'infVector',
+		kind: 'spread',
 		items,
-		rest,
+	}
+}
+
+function createVariadicVector(item: Value): ValueSpread {
+	return {
+		kind: 'spread',
+		items: [{inf: true, value: item}],
 	}
 }
 
@@ -286,7 +287,7 @@ const TypeFnType = createValueType(
 	v => isKindOf('fnType', v),
 	() => ({
 		kind: 'fnType',
-		params: createInfVector([], Any),
+		params: createVariadicVector(Any),
 		out: Any,
 	})
 )
@@ -317,43 +318,44 @@ export const GlobalScope = createExpScope({
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
 			kind: 'fn',
-			params: {xs: TypeNumber},
+			params: {xs: {inf: true, value: TypeNumber}},
 			out: TypeNumber,
-			variadic: true,
 			body(xs) {
 				return this.eval<number[]>(xs).reduce((a, b) => a + b, 0)
 			},
 		}),
 		'*': wrapValue({
 			kind: 'fn',
-			params: {xs: createValueType(TypeNumber, TypeNumber.predicate, () => 1)},
+			params: {
+				xs: {
+					inf: true,
+					value: createValueType(TypeNumber, TypeNumber.predicate, () => 1),
+				},
+			},
 			out: TypeNumber,
-			variadic: true,
 			body(xs) {
 				return this.eval<number[]>(xs).reduce((a, b) => a * b, 1)
 			},
 		}),
 		and: wrapValue({
 			kind: 'fn',
-			params: {xs: TypeBoolean},
+			params: {xs: {inf: true, value: TypeBoolean}},
 			out: TypeBoolean,
-			variadic: true,
 			body(xs) {
 				return this.eval<boolean[]>(xs).reduce((a, b) => a && b, true)
 			},
 		}),
 		or: wrapValue({
 			kind: 'fn',
-			params: {xs: TypeBoolean},
+			params: {xs: {inf: true, value: TypeBoolean}},
 			out: TypeBoolean,
-			variadic: true,
 			body(xs) {
 				return this.eval<boolean[]>(xs).reduce((a, b) => a || b, false)
 			},
 		}),
 		not: wrapValue({
 			kind: 'fn',
-			params: {x: TypeBoolean},
+			params: {x: {inf: false, value: TypeBoolean}},
 			out: TypeBoolean,
 			body(x) {
 				return !this.eval(x)
@@ -361,7 +363,10 @@ export const GlobalScope = createExpScope({
 		}),
 		'->': wrapValue({
 			kind: 'fn',
-			params: {params: createInfVector([], Any), out: Any},
+			params: {
+				params: {inf: false, value: createVariadicVector(Any)},
+				out: {inf: false, value: Any},
+			},
 			out: TypeFnType,
 			body(params, out) {
 				return {
@@ -373,17 +378,20 @@ export const GlobalScope = createExpScope({
 		}),
 		'|': wrapValue({
 			kind: 'fn',
-			params: {xs: Any},
+			params: {xs: {inf: false, value: Any}},
 			out: Any,
-			variadic: true,
 			body(xs) {
 				return uniteType(this.eval<Value[]>(xs))
 			},
 		}),
 		range: wrapValue({
 			kind: 'fn',
-			params: {start: TypeNumber, end: TypeNumber, step: TypeNumber},
-			out: createInfVector([], TypeNumber),
+			params: {
+				start: {inf: false, value: TypeNumber},
+				end: {inf: false, value: TypeNumber},
+				step: {inf: false, value: TypeNumber},
+			},
+			out: createVariadicVector(TypeNumber),
 			body(start, end, step) {
 				const _start = this.eval<number>(start)
 				const _end = this.eval<number>(end)
@@ -393,7 +401,10 @@ export const GlobalScope = createExpScope({
 		}),
 		def: wrapValue({
 			kind: 'fn',
-			params: {name: TypeString, value: Any},
+			params: {
+				name: {inf: false, value: TypeString},
+				value: {inf: false, value: Any},
+			},
 			out: TypeIO,
 			body(name, value) {
 				const n = this.eval<string>(name)
@@ -409,7 +420,7 @@ export const GlobalScope = createExpScope({
 		}),
 		typeof: wrapValue({
 			kind: 'fn',
-			params: {x: Any},
+			params: {x: {inf: false, value: Any}},
 			out: Any,
 			body(x) {
 				return assertExpType(wrapValue(this.eval(x)))
@@ -417,7 +428,7 @@ export const GlobalScope = createExpScope({
 		}),
 		isa: wrapValue({
 			kind: 'fn',
-			params: {value: Any, type: Any},
+			params: {value: {inf: false, value: Any}, type: {inf: false, value: Any}},
 			out: TypeBoolean,
 			body(value, type) {
 				return isInstanceOf(this.eval(value), this.eval(type))
@@ -425,9 +436,8 @@ export const GlobalScope = createExpScope({
 		}),
 		'==': wrapValue({
 			kind: 'fn',
-			params: {xs: Any},
+			params: {xs: {inf: true, value: Any}},
 			out: TypeBoolean,
-			variadic: true,
 			body(xs) {
 				const _xs = this.eval<Value[]>(xs)
 				if (_xs.length === 0) {
@@ -524,8 +534,16 @@ function equalsValue(a: Value, b: Value): boolean {
 				isKindOf('union', b) &&
 				_.xorWith(a.items, b.items, equalsValue).length === 0
 			)
-		case 'infVector':
-			return isKindOf('infVector', b) && equalsValue(a.items, b.items)
+		case 'spread':
+			return (
+				isKindOf('spread', b) &&
+				a.items.length === b.items.length &&
+				_$.everyByPair(
+					a.items,
+					b.items,
+					(ai, bi) => ai.inf === bi.inf && equalsValue(ai.value, bi.value)
+				)
+			)
 		case 'object':
 			return false
 	}
@@ -591,7 +609,15 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 			}
 		} else if (parent.ast === 'fn' && name in parent.params) {
 			// Is a parameter of function definition
-			return withLog({semantic: 'param', type: parent.params[name]})
+			const param = parent.params[name]
+			const type = param.inf
+				? ({
+						ast: 'spread',
+						items: [{inf: true, value: param.value}],
+				  } as ExpSpread)
+				: param.value
+
+			return withLog({semantic: 'param', type})
 		}
 		parent = parent.parent
 	}
@@ -618,18 +644,12 @@ function assertValueType(v: Value): Value {
 		case 'valueType':
 		case 'fnType':
 		case 'union':
-		case 'infVector':
+		case 'spread':
 			return v
 		case 'fn': {
-			let params: Value[] | ValueInfVector = _.values(v.params)
-			if (v.variadic) {
-				const items = params.slice(0, params.length - 1)
-				const rest = params[params.length - 1]
-				params = {kind: 'infVector', items, rest}
-			}
 			return {
 				kind: 'fnType',
-				params,
+				params: getParamType(v),
 				out: v.out,
 			}
 		}
@@ -654,16 +674,10 @@ function assertExpType(exp: Exp): Value {
 			return Unit
 		}
 		case 'fn': {
-			const paramsItems: Exp[] | ExpInfVector = _.values(exp.params)
-			let paramsExp: Exp
-			if (exp.variadic) {
-				const items = paramsItems.slice(0, paramsItems.length - 1)
-				const rest = paramsItems[paramsItems.length - 1]
-				paramsExp = {ast: 'infVector', items: items, rest}
-			} else {
-				paramsExp = {ast: 'vector', items: paramsItems}
+			const paramsExp: ExpSpread = {
+				ast: 'spread',
+				items: _.values(exp.params),
 			}
-
 			const params = assertExpType(paramsExp) as ValueFnType['params']
 			const out = assertExpType(exp.body)
 			return createFnType(params, out)
@@ -674,10 +688,12 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
-		case 'infVector': {
-			const items = exp.items.map(assertExpType)
-			const rest = assertExpType(exp.rest)
-			return createInfVector(items, rest)
+		case 'spread': {
+			const items = exp.items.map(({inf, value}) => ({
+				inf,
+				value: assertExpType(value),
+			}))
+			return createSpread(items)
 		}
 		case 'hashMap':
 			return TypeHashMap
@@ -688,7 +704,7 @@ function assertExpType(exp: Exp): Value {
 	}
 }
 
-function assertExpParamsType(exp: Exp): Value[] | ValueInfVector {
+function assertExpParamsType(exp: Exp): Value[] | ValueSpread {
 	const type = assertExpType(exp)
 	if (!isKindOf('fnType', type)) {
 		return []
@@ -698,14 +714,7 @@ function assertExpParamsType(exp: Exp): Value[] | ValueInfVector {
 }
 
 function getParamType(fn: ValueFn): ValueFnType['params'] {
-	const params = _.values(fn.params)
-	if (fn.variadic) {
-		const items = params.slice(0, params.length - 1)
-		const rest = params[params.length - 1]
-		return {kind: 'infVector', items, rest}
-	} else {
-		return params
-	}
+	return createSpread(_.values(fn.params))
 }
 
 export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
@@ -722,8 +731,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return evalList(exp)
 		case 'vector':
 			return mapWithLog(exp.items, _eval)
-		case 'infVector':
-			return evalInfVector(exp)
+		case 'spread':
+			return evalSpread(exp)
 		case 'hashMap':
 			return evalHashMap(exp)
 		case 'cast':
@@ -752,12 +761,16 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalFn(exp: ExpFn): WithLog<Value> {
-		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, _eval)
+		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, p => {
+			const {result, log} = _eval(p.value)
+			return withLog({inf: p.inf, value: result}, log)
+		})
+
 		const {result: pdg, log: bodyLog} = createDependencyGraph(exp.body)
 		pdg.parent = exp
 
-		const body: ValueFn['body'] = function (...params) {
-			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), params))
+		const body: ValueFn['body'] = function (...xs) {
+			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
 			return evalExp(pdg, env).result
 		}
 
@@ -765,7 +778,6 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			kind: 'fn',
 			params,
 			out: TypeNumber,
-			variadic: exp.variadic,
 			body,
 			expBody: exp.body,
 		}
@@ -804,11 +816,13 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, log)
 	}
 
-	function evalInfVector(exp: ExpInfVector): WithLog<ValueInfVector> {
-		const {result: items, log: itemsLog} = mapWithLog(exp.items, _eval)
-		const {result: rest, log: restLog} = _eval(exp.rest)
-		const evaluated = createInfVector(items, rest)
-		return withLog(evaluated, [...itemsLog, ...restLog])
+	function evalSpread(exp: ExpSpread): WithLog<ValueSpread> {
+		const {result: items, log} = mapWithLog(exp.items, p => {
+			const {result, log} = _eval(p.value)
+			return withLog({inf: p.inf, value: result}, log)
+		})
+		const evaluated = createSpread(items)
+		return withLog(evaluated, log)
 	}
 
 	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
@@ -833,7 +847,7 @@ function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
 function isKindOf(kind: 'hashMap', x: Value): x is ValueHashMap
 function isKindOf(kind: 'union', x: Value): x is ValueUnion
 function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
-function isKindOf(kind: 'infVector', x: Value): x is ValueInfVector
+function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
@@ -923,8 +937,8 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 			return isKindOf('unit', a)
 		case 'valueType':
 			return compareValueType(a, b)
-		case 'infVector':
-			return compareInfVector(a, b)
+		case 'spread':
+			return compareSpread(a, b)
 		case 'union':
 			return compareUnion(a, b)
 		case 'fnType':
@@ -942,24 +956,18 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		return _$.everyByPair(a, b, compare)
 	}
 
-	function compareInfVector(a: Value, b: ValueInfVector) {
-		let aItems: {inf: boolean; value: Value}[]
+	function compareSpread(a: Value, b: ValueSpread) {
+		let aItems: ValueSpread['items']
 
 		if (_.isArray(a)) {
 			aItems = a.map(value => ({inf: false, value}))
-		} else if (isKindOf('infVector', a)) {
-			aItems = [
-				...a.items.map(value => ({inf: false, value})),
-				{inf: true, value: a.rest},
-			]
+		} else if (isKindOf('spread', a)) {
+			aItems = a.items
 		} else {
 			return false
 		}
 
-		const bItems = [
-			...b.items.map(value => ({inf: false, value})),
-			{inf: true, value: b.rest},
-		]
+		const bItems = b.items
 
 		let ai = 0,
 			bi = 0
@@ -1009,7 +1017,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 				const params = getParamType(a)
 				return {params, out: a.out}
 			} else {
-				return {params: [], out: a}
+				return {params: createSpread([]), out: a}
 			}
 		}
 	}
@@ -1049,29 +1057,16 @@ function castType(type: Value, value: Value): Value {
 	}
 }
 
-function assignParam(
-	to: Value[] | ValueInfVector,
-	from: Exp[]
-): WithLog<Exp[]> {
+function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 	const log: Log[] = []
-
-	let toTypes: {inf: boolean; value: Value}[]
-
-	if (_.isArray(to)) {
-		toTypes = to.map(value => ({inf: false, value}))
-	} else {
-		toTypes = [
-			...to.items.map(value => ({inf: false, value})),
-			{inf: true, value: to.rest},
-		]
-	}
 
 	const casted: Exp[] = []
 
 	let isParamShort = false
 
 	let i = 0
-	for (const toType of toTypes) {
+	for (let j = 0; j < to.items.length; j++) {
+		const toType = to.items[j]
 		if (!toType.inf) {
 			isParamShort = from.length <= i
 			const fromItem = isParamShort ? wrapValue(Unit) : from[i]
@@ -1081,13 +1076,22 @@ function assignParam(
 			i += 1
 		} else {
 			// inf
+			const nextToType = j < to.items.length - 1 ? to.items[j + 1] : null
+
 			const restCasted: Exp[] = []
+
 			for (; i < from.length; i++) {
 				const fromItem = from[i]
+				const fromType = assertExpType(fromItem)
+				if (nextToType && isSubtypeOf(fromType, nextToType.value)) {
+					break
+				}
+
 				const {result, log: assignLog} = assign(fromItem, toType.value)
 				log.push(...assignLog)
 				restCasted.push(result)
 			}
+
 			casted.push({ast: 'vector', items: restCasted})
 		}
 	}
@@ -1124,11 +1128,11 @@ export function printExp(exp: Exp): string {
 			return exp.name
 		case 'fn': {
 			const params = _.entries(exp.params).map(
-				([name, type]) => name + ':' + printExp(type)
+				([name, {inf, value}]) =>
+					`${inf ? '...' : ''}${name}:${printExp(value)}`
 			)
 			const body = printExp(exp.body)
-			const variadic = exp.variadic ? '...' : ''
-			return `(=> [${params.join(' ')}${variadic}] ${body})`
+			return `(=> [${params.join(' ')}] ${body})`
 		}
 		case 'list': {
 			const fn = printExp(exp.fn)
@@ -1137,10 +1141,9 @@ export function printExp(exp: Exp): string {
 		}
 		case 'vector':
 			return '[' + exp.items.map(printExp).join(' ') + ']'
-		case 'infVector': {
-			const items = exp.items.map(printExp).join(' ')
-			const rest = printExp(exp.rest)
-			return `[${items ? items + ' ' : ''}...${rest}]`
+		case 'spread': {
+			const items = exp.items.map(i => (i.inf ? '...' : '') + printExp(i.value))
+			return `[${items.join(' ')}]`
 		}
 		case 'hashMap': {
 			const entries = _.entries(exp.items)
@@ -1209,10 +1212,11 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return '_'
 		case 'valueType':
 			return retrieveValueName(val, baseExp) ?? `<valueType>`
-		case 'infVector': {
-			const items = val.items.map(print).join(' ')
-			const rest = print(val.rest)
-			return `[${items ? items + ' ' : ''}...${rest}]`
+		case 'spread': {
+			const items = val.items.map(
+				i => (i.inf ? '...' : '') + printValue(i.value)
+			)
+			return `[${items.join(' ')}]`
 		}
 		case 'union': {
 			const name = retrieveValueName(val, baseExp)
@@ -1225,11 +1229,11 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			return '(-> ' + print(val.params) + ' ' + print(val.out) + ')'
 		case 'fn': {
 			const params = _.entries(val.params).map(
-				([name, type]) => name + ':' + print(type)
+				([name, {inf, value}]) =>
+					`${inf ? '...' : ''}${name}:${printValue(value)}`
 			)
 			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
-			const variadic = val.variadic ? '...' : ''
-			return `(=> [${params.join(' ')}${variadic}] ${body})`
+			return `(=> [${params.join(' ')}] ${body})`
 		}
 		case 'hashMap': {
 			const entries = _.entries(val.value)
