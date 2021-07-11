@@ -41,6 +41,7 @@ interface ValueCustomSingleton {
 interface ValueInfVector<T extends Value = Value> {
 	kind: 'infVector'
 	items: T[]
+	rest: T
 }
 
 interface ValueValueType {
@@ -142,6 +143,7 @@ interface ExpVector extends ExpBase {
 interface ExpInfVector extends ExpBase {
 	ast: 'infVector'
 	items: Exp[]
+	rest: Exp
 }
 
 interface ExpHashMap extends ExpBase {
@@ -238,11 +240,13 @@ function createFnType(
 }
 
 function createInfVector<T extends Value = Value>(
-	...items: T[]
+	items: T[],
+	rest: T
 ): ValueInfVector<T> {
 	return {
 		kind: 'infVector',
 		items,
+		rest,
 	}
 }
 
@@ -270,6 +274,7 @@ function createValueType(
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
 	items: [false, true],
+	cast: v => !!v,
 }
 const ExpTypeBoolean = wrapValue(TypeBoolean)
 TypeBoolean.origExp = ExpTypeBoolean
@@ -281,7 +286,7 @@ const TypeFnType = createValueType(
 	v => isKindOf('fnType', v),
 	() => ({
 		kind: 'fnType',
-		params: createInfVector(Any),
+		params: createInfVector([], Any),
 		out: Any,
 	})
 )
@@ -358,7 +363,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'->': wrapValue({
 			kind: 'fn',
-			params: {params: createInfVector(Any), out: Any},
+			params: {params: createInfVector([], Any), out: Any},
 			out: TypeFnType,
 			body(params, out) {
 				return {
@@ -461,7 +466,7 @@ function uniteType(
 
 	const uniqItems = items.filter(i => i !== undefined) as ValueUnion['items']
 
-	return uniqItems.length > 0
+	return uniqItems.length >= 2
 		? {kind: 'union', items: uniqItems, cast}
 		: uniqItems[0]
 }
@@ -609,7 +614,9 @@ function assertValueType(v: Value): Value {
 		case 'fn': {
 			let params: Value[] | ValueInfVector = _.values(v.params)
 			if (v.variadic) {
-				params = {kind: 'infVector', items: params}
+				const items = params.slice(0, params.length - 1)
+				const rest = params[params.length - 1]
+				params = {kind: 'infVector', items, rest}
 			}
 			return {
 				kind: 'fnType',
@@ -638,9 +645,15 @@ function assertExpType(exp: Exp): Value {
 			return Unit
 		}
 		case 'fn': {
-			const paramsAst = exp.variadic ? 'infVector' : 'vector'
 			const paramsItems: Exp[] | ExpInfVector = _.values(exp.params)
-			const paramsExp: Exp = {ast: paramsAst, items: paramsItems}
+			let paramsExp: Exp
+			if (exp.variadic) {
+				const items = paramsItems.slice(0, paramsItems.length - 1)
+				const rest = paramsItems[paramsItems.length - 1]
+				paramsExp = {ast: 'infVector', items: items, rest}
+			} else {
+				paramsExp = {ast: 'vector', items: paramsItems}
+			}
 
 			const params = assertExpType(paramsExp) as ValueFnType['params']
 			const out = assertExpType(exp.body)
@@ -652,8 +665,11 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
-		case 'infVector':
-			return createInfVector(...exp.items.map(assertExpType))
+		case 'infVector': {
+			const items = exp.items.map(assertExpType)
+			const rest = assertExpType(exp.rest)
+			return createInfVector(items, rest)
+		}
 		case 'hashMap':
 			return TypeHashMap
 		case 'cast':
@@ -674,7 +690,13 @@ function assertExpParamsType(exp: Exp): Value[] | ValueInfVector {
 
 function getParamType(fn: ValueFn): ValueFnType['params'] {
 	const params = _.values(fn.params)
-	return fn.variadic ? {kind: 'infVector', items: params} : params
+	if (fn.variadic) {
+		const items = params.slice(0, params.length - 1)
+		const rest = params[params.length - 1]
+		return {kind: 'infVector', items, rest}
+	} else {
+		return params
+	}
 }
 
 export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
@@ -774,9 +796,10 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalInfVector(exp: ExpInfVector): WithLog<ValueInfVector> {
-		const {result: items, log} = mapWithLog(exp.items, _eval)
-		const evaluated = createInfVector(...items)
-		return withLog(evaluated, log)
+		const {result: items, log: itemsLog} = mapWithLog(exp.items, _eval)
+		const {result: rest, log: restLog} = _eval(exp.rest)
+		const evaluated = createInfVector(items, rest)
+		return withLog(evaluated, [...itemsLog, ...restLog])
 	}
 
 	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
@@ -917,17 +940,18 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 			aItems = a.map(value => ({inf: false, value}))
 		} else if (isKindOf('infVector', a)) {
 			const aLen = a.items.length
-			aItems = a.items.slice(0, aLen - 1).map(value => ({inf: false, value}))
-			aItems.push({inf: true, value: a.items[aLen - 1]})
+			aItems = [
+				...a.items.map(value => ({inf: false, value})),
+				{inf: true, value: a.items[aLen - 1]},
+			]
 		} else {
 			return false
 		}
 
-		const bLen = b.items.length
-		const bItems = b.items
-			.slice(0, bLen - 1)
-			.map(value => ({inf: false, value}))
-		bItems.push({inf: true, value: b.items[bLen - 1]})
+		const bItems = [
+			...b.items.map(value => ({inf: false, value})),
+			{inf: true, value: b.rest},
+		]
 
 		let ai = 0,
 			bi = 0
@@ -1028,21 +1052,17 @@ function castExpParam(
 			log.push({level: 'error', reason: 'Too short aguments'})
 		}
 	} else {
-		const minLength = to.items.length - 1
-		if (from.length < minLength) {
+		if (from.length < to.items.length) {
 			log.push({level: 'error', reason: 'Too short arguments'})
 
 			from = [...from]
-			while (from.length < minLength) {
+			while (from.length < to.items.length) {
 				from.push(wrapValue(getDefault(to.items[from.length])))
 			}
 		}
 
-		const variadicCount = from.length - minLength
-		to = [
-			...to.items.slice(0, minLength),
-			..._.times(variadicCount, _.constant(to.items[minLength])),
-		]
+		const variadicCount = from.length - to.items.length
+		to = [...to.items, ..._.times(variadicCount, _.constant(to.rest))]
 	}
 
 	const casted: Exp[] = []
@@ -1093,8 +1113,11 @@ export function printExp(exp: Exp): string {
 		}
 		case 'vector':
 			return '[' + exp.items.map(printExp).join(' ') + ']'
-		case 'infVector':
-			return '[' + exp.items.map(printExp).join(' ') + '...]'
+		case 'infVector': {
+			const items = exp.items.map(printExp).join(' ')
+			const rest = printExp(exp.rest)
+			return `[${items ? items + ' ' : ''}...${rest}]`
+		}
 		case 'hashMap': {
 			const entries = _.entries(exp.items)
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
@@ -1163,8 +1186,9 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'valueType':
 			return retrieveValueName(val, baseExp) ?? `<valueType>`
 		case 'infVector': {
-			const items = val.items.map(print)
-			return '[' + items.join(' ') + '...]'
+			const items = val.items.map(print).join(' ')
+			const rest = print(val.rest)
+			return `[${items ? items + ' ' : ''}...${rest}]`
 		}
 		case 'union': {
 			const name = retrieveValueName(val, baseExp)

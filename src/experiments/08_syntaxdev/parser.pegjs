@@ -80,12 +80,20 @@ Fn "fn" = "(" _ "=>" _ fnParams:FnParams _ body:Form _ ")"
 		return ret
 	}
 
-FnParams = "[" _ entries:(Pair _)* variadic:"..."? _ "]"
+FnParams = "[" _ entries:(Pair _)* rest:("..." _ Pair _)? "]"
 	{
 		const params = Object.fromEntries(entries.map(p => p[0]))
+
+		const variadic = !!rest
+
+		if (rest) {
+			const [name, value] = rest[2]
+			params[name] = value
+		}
+		
 		return {
 			params,
-			variadic: !!variadic
+			variadic
 		}
 	}
 
@@ -110,9 +118,16 @@ Vector "vector" = "[" _ items:(Form _)* "]"
 		return makeCollection('vector', items)
 	}
 	
-InfVector "infinite vector" = "[" _ items:(Form _)+ "..." _ "]"
+InfVector "infinite vector" = "[" _ _items:(Form _)* "..." rest:Form _ "]"
 	{
-		return makeCollection('infVector', items)
+		const items = _items.map(p => p[0])
+
+		const ret = {ast: 'infVector', items, rest}
+
+		items.forEach(p => p.parent = ret)
+		rest.parent = ret
+
+		return ret
 	}
 
 
