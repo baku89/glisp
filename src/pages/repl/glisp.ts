@@ -782,7 +782,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 		const paramsType = getParamType(fn)
 
-		const {result: params, log: castLog} = castExpParam(paramsType, exp.params)
+		const {result: params, log: castLog} = assignParam(paramsType, exp.params)
 
 		const paramsLog: Log[] = []
 		const execLog: Log[] = []
@@ -948,10 +948,9 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		if (_.isArray(a)) {
 			aItems = a.map(value => ({inf: false, value}))
 		} else if (isKindOf('infVector', a)) {
-			const aLen = a.items.length
 			aItems = [
 				...a.items.map(value => ({inf: false, value})),
-				{inf: true, value: a.items[aLen - 1]},
+				{inf: true, value: a.rest},
 			]
 		} else {
 			return false
@@ -1050,61 +1049,71 @@ function castType(type: Value, value: Value): Value {
 	}
 }
 
-function castExpParam(
+function assignParam(
 	to: Value[] | ValueInfVector,
 	from: Exp[]
 ): WithLog<Exp[]> {
 	const log: Log[] = []
 
+	let toTypes: {inf: boolean; value: Value}[]
+
 	if (_.isArray(to)) {
-		if (to.length > from.length) {
-			log.push({level: 'error', reason: 'Too short aguments'})
-		}
+		toTypes = to.map(value => ({inf: false, value}))
 	} else {
-		from = [...from]
-
-		if (from.length < to.items.length) {
-			log.push({level: 'error', reason: 'Too short arguments'})
-
-			while (from.length < to.items.length) {
-				from.push(wrapValue(getDefault(to.items[from.length])))
-			}
-		}
-
-		const restCount = from.length - to.items.length
-		to = [...to.items, _.times(restCount, _.constant(to.rest))]
-
-		from.splice(-restCount, restCount, {
-			ast: 'vector',
-			items: from.slice(-restCount),
-		})
+		toTypes = [
+			...to.items.map(value => ({inf: false, value})),
+			{inf: true, value: to.rest},
+		]
 	}
 
 	const casted: Exp[] = []
 
-	for (let i = 0; i < to.length; i++) {
-		const toType = to[i]
-		const fromItem: Exp = from[i] || {ast: 'value', value: Unit}
+	let isParamShort = false
 
-		const fromType = assertExpType(fromItem)
-
-		if (isSubtypeOf(fromType, toType)) {
-			casted.push(fromItem)
+	let i = 0
+	for (const toType of toTypes) {
+		if (!toType.inf) {
+			isParamShort = from.length <= i
+			const fromItem = isParamShort ? wrapValue(Unit) : from[i]
+			const {result, log: assignLog} = assign(fromItem, toType.value)
+			log.push(...assignLog)
+			casted.push(result)
+			i += 1
 		} else {
-			const fromStr = printValue(fromType)
-			const toStr = printValue(toType)
+			// inf
+			const restCasted: Exp[] = []
+			for (; i < from.length; i++) {
+				const fromItem = from[i]
+				const {result, log: assignLog} = assign(fromItem, toType.value)
+				log.push(...assignLog)
+				restCasted.push(result)
+			}
+			casted.push({ast: 'vector', items: restCasted})
+		}
+	}
+
+	return withLog(casted, log)
+
+	function assign(from: Exp, to: Value): WithLog<Exp> {
+		const fromType = assertExpType(from)
+
+		if (isSubtypeOf(fromType, to)) {
+			return withLog(from)
+		} else {
+			const cast = createExpCast(from, wrapValue(to), false)
+			const log: Log[] = []
 
 			if (!isKindOf('unit', fromType)) {
+				const fromStr = printExp(from)
+				const toStr = printValue(to)
 				log.push({
 					level: 'error',
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
 				})
 			}
-			casted.push(createExpCast(fromItem, wrapValue(toType), false))
+			return withLog(cast, log)
 		}
 	}
-
-	return withLog(casted, log)
 }
 
 export function printExp(exp: Exp): string {
