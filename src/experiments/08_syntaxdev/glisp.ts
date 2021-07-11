@@ -695,7 +695,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 		const paramsLog = _.values(paramsResult).flatMap(r => r.logs)
 		const params = _.mapValues(paramsResult, r => r.result)
 
-		const clonedBody = cloneExp(exp.body)
+		const {result: clonedBody, logs: bodyLogs} = createDependencyGraph(exp.body)
 		clonedBody.parent = exp
 
 		const body: ValueFn['body'] = function (...params) {
@@ -712,7 +712,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 			expBody: exp.body,
 		}
 
-		return withLog(fn, paramsLog)
+		return withLog(fn, [...paramsLog, ...bodyLogs])
 	}
 
 	function evalList(exp: ExpList): WithLogs<Value> {
@@ -787,18 +787,36 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-function cloneExp(exp: Exp): Exp {
+function createDependencyGraph(exp: Exp): WithLogs<Exp> {
 	switch (exp.ast) {
 		case 'value':
-			return {ast: 'value', value: exp.value}
-		case 'symbol':
-			return {ast: 'symbol', name: exp.name}
+			return withLog(exp)
+		case 'symbol': {
+			const {result, logs} = resolveSymbol(exp)
+			if (result.semantic === 'ref') {
+				return withLog(result.ref)
+			} else if (result.semantic === 'param') {
+				return withLog(exp)
+			} else {
+				return withLog(wrapValue(Unit), logs)
+			}
+		}
 		case 'fn':
 			throw new Error('Not yet implemented')
 		case 'list': {
-			const fn = cloneExp(exp.fn)
-			const params = exp.params.map(cloneExp)
-			return createExpList(fn, params)
+			const {result: fn, logs: fnLogs} = createDependencyGraph(exp.fn)
+			const paramsResults = exp.params.map(createDependencyGraph)
+			const params = paramsResults.map(r => r.result)
+			const paramsLogs = paramsResults.flatMap(r => r.logs)
+			const ret = createExpList(fn, params, false)
+			return withLog(ret, [...fnLogs, ...paramsLogs])
+		}
+		case 'vector': {
+			const results = exp.items.map(createDependencyGraph)
+			const items = results.map(r => r.result)
+			const logs = results.flatMap(r => r.logs)
+			const ret: ExpVector = {ast: 'vector', items}
+			return withLog(ret, logs)
 		}
 		default:
 			throw new Error('Not yet implemented')
