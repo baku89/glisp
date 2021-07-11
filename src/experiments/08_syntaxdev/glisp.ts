@@ -427,7 +427,7 @@ export const GlobalScope = createExpScope({
 	},
 })
 
-export interface WithLogs<T> {
+export interface WithLog<T> {
 	result: T
 	logs: Log[]
 }
@@ -526,7 +526,7 @@ type ResolveSymbolResult =
 	| {semantic: 'param'; type: Exp}
 	| {semantic: 'undefined'}
 
-function resolveSymbol(exp: ExpSymbol): WithLogs<ResolveSymbolResult> {
+function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 	// Search ancestors
 	let parent = exp.parent
 	let name = exp.name
@@ -649,7 +649,7 @@ function getParamType(fn: ValueFn): ValueFnType['params'] {
 	return fn.variadic ? {kind: 'infVector', items: params} : params
 }
 
-export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
+export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	const _eval = (e: Exp) => evalExp(e, env)
 
 	switch (exp.ast) {
@@ -671,7 +671,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 			return exp.out ? _eval(exp.out) : withLog(Unit)
 	}
 
-	function evalSymbol(exp: ExpSymbol): WithLogs<Value> {
+	function evalSymbol(exp: ExpSymbol): WithLog<Value> {
 		const {result, logs} = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return _eval(result.ref)
@@ -690,7 +690,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 		}
 	}
 
-	function evalFn(exp: ExpFn): WithLogs<Value> {
+	function evalFn(exp: ExpFn): WithLog<Value> {
 		const paramsResult = _.mapValues(exp.params, _eval)
 		const paramsLog = _.values(paramsResult).flatMap(r => r.logs)
 		const params = _.mapValues(paramsResult, r => r.result)
@@ -715,7 +715,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 		return withLog(fn, [...paramsLog, ...bodyLogs])
 	}
 
-	function evalList(exp: ExpList): WithLogs<Value> {
+	function evalList(exp: ExpList): WithLog<Value> {
 		const {result: fn, logs: fnLogs} = _eval(exp.fn)
 
 		if (!isKindOf(fn, 'fn')) {
@@ -749,7 +749,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 		return withLog(evaluated, logs)
 	}
 
-	function evalVector(exp: ExpVector): WithLogs<Value[]> {
+	function evalVector(exp: ExpVector): WithLog<Value[]> {
 		const evaluated = exp.items.map(_eval)
 		return withLog(
 			evaluated.map(e => e.result),
@@ -757,14 +757,14 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLogs<Value> {
 		)
 	}
 
-	function evalInfVector(exp: ExpInfVector): WithLogs<ValueInfVector> {
+	function evalInfVector(exp: ExpInfVector): WithLog<ValueInfVector> {
 		const result = exp.items.map(_eval)
 		const evaluated = createInfVector(...result.map(e => e.result))
 		const logs = result.flatMap(e => e.logs)
 		return withLog(evaluated, logs)
 	}
 
-	function evalHashMap(exp: ExpHashMap): WithLogs<ValueHashMap> {
+	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
 		const result = _.mapValues(exp.items, _eval)
 		const evaluated = createHashMap(_.mapValues(result, e => e.result))
 		const logs = _.values(result).flatMap(e => e.logs)
@@ -787,7 +787,7 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-function createDependencyGraph(exp: Exp): WithLogs<Exp> {
+function createDependencyGraph(exp: Exp): WithLog<Exp> {
 	switch (exp.ast) {
 		case 'value':
 			return withLog(exp)
@@ -968,7 +968,7 @@ function castType(type: Value, value: Value): Value {
 function castExpParam(
 	to: Value[] | ValueInfVector,
 	from: Exp[]
-): WithLogs<Exp[]> {
+): WithLog<Exp[]> {
 	const logs: Log[] = []
 
 	if (_.isArray(to)) {

@@ -38,11 +38,11 @@ import {computed, defineComponent, PropType, ref, shallowRef, watch} from 'vue'
 import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
 import SyntaxHighligher from '@/components/layouts/SyntaxHighligher.vue'
 
-import {Log, WithLogs} from './glisp'
+import {Log, WithLog} from './glisp'
 
 type MaybePromise<T> = T | Promise<T>
 
-export type IFnRep = (str: string) => MaybePromise<WithLogs<string | null>>
+export type IFnRep = (str: string) => MaybePromise<WithLog<string | null>>
 
 interface Result {
 	input: string
