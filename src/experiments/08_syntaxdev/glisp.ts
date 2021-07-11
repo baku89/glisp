@@ -320,8 +320,8 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeNumber},
 			out: TypeNumber,
 			variadic: true,
-			body(...xs) {
-				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a + b, 0)
+			body(xs) {
+				return this.eval<number[]>(xs).reduce((a, b) => a + b, 0)
 			},
 		}),
 		'*': wrapValue({
@@ -329,8 +329,8 @@ export const GlobalScope = createExpScope({
 			params: {xs: createValueType(TypeNumber, TypeNumber.predicate, () => 1)},
 			out: TypeNumber,
 			variadic: true,
-			body(...xs) {
-				return xs.map(x => this.eval<number>(x)).reduce((a, b) => a * b, 1)
+			body(xs) {
+				return this.eval<number[]>(xs).reduce((a, b) => a * b, 1)
 			},
 		}),
 		and: wrapValue({
@@ -338,8 +338,8 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body(...xs) {
-				return xs.map(x => this.eval<boolean>(x)).reduce((a, b) => a && b, true)
+			body(xs) {
+				return this.eval<boolean[]>(xs).reduce((a, b) => a && b, true)
 			},
 		}),
 		or: wrapValue({
@@ -347,10 +347,8 @@ export const GlobalScope = createExpScope({
 			params: {xs: TypeBoolean},
 			out: TypeBoolean,
 			variadic: true,
-			body(...xs) {
-				return xs
-					.map(x => this.eval<boolean>(x))
-					.reduce((a, b) => a || b, false)
+			body(xs) {
+				return this.eval<boolean[]>(xs).reduce((a, b) => a || b, false)
 			},
 		}),
 		not: wrapValue({
@@ -378,8 +376,19 @@ export const GlobalScope = createExpScope({
 			params: {xs: Any},
 			out: Any,
 			variadic: true,
-			body(...xs) {
-				return uniteType(xs.map(this.eval))
+			body(xs) {
+				return uniteType(this.eval<Value[]>(xs))
+			},
+		}),
+		range: wrapValue({
+			kind: 'fn',
+			params: {start: TypeNumber, end: TypeNumber, step: TypeNumber},
+			out: createInfVector([], TypeNumber),
+			body(start, end, step) {
+				const _start = this.eval<number>(start)
+				const _end = this.eval<number>(end)
+				const _step = this.eval<number>(step)
+				return _.range(_start, _end, _step)
 			},
 		}),
 		def: wrapValue({
@@ -419,8 +428,8 @@ export const GlobalScope = createExpScope({
 			params: {xs: Any},
 			out: TypeBoolean,
 			variadic: true,
-			body(...xs) {
-				const _xs = xs.map(x => this.eval(x))
+			body(xs) {
+				const _xs = this.eval<Value[]>(xs)
 				if (_xs.length === 0) {
 					return true
 				} else {
@@ -1052,17 +1061,23 @@ function castExpParam(
 			log.push({level: 'error', reason: 'Too short aguments'})
 		}
 	} else {
+		from = [...from]
+
 		if (from.length < to.items.length) {
 			log.push({level: 'error', reason: 'Too short arguments'})
 
-			from = [...from]
 			while (from.length < to.items.length) {
 				from.push(wrapValue(getDefault(to.items[from.length])))
 			}
 		}
 
-		const variadicCount = from.length - to.items.length
-		to = [...to.items, ..._.times(variadicCount, _.constant(to.rest))]
+		const restCount = from.length - to.items.length
+		to = [...to.items, _.times(restCount, _.constant(to.rest))]
+
+		from.splice(-restCount, restCount, {
+			ast: 'vector',
+			items: from.slice(-restCount),
+		})
 	}
 
 	const casted: Exp[] = []
