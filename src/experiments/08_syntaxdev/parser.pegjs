@@ -136,7 +136,7 @@ PairKey "entry key" = value:$([^ :.,\t\n\r`()[\]{}]i+)
 
 
 // Scope
-Scope "scope" = "{" _ items:(Equal _)+ out:(Form _)? "}"
+Scope "scope" = "{" _ items:(Equal _)* out:(Form _)? "}"
 	{
 		const entries = items.map(it => it[0])
 		const ret = {ast: 'scope', scope: Object.fromEntries(entries)}

@@ -168,7 +168,7 @@ export function readStr(str: string): Exp {
 
 function wrapValue(value: Value): ExpValue {
 	const ret: ExpValue = {ast: 'value', value}
-	if (isKindOf(value, 'singleton') || isKindOf(value, 'valueType')) {
+	if (isKindOf('singleton', value) || isKindOf('valueType', value)) {
 		value.origExp = ret
 	}
 	return ret
@@ -256,7 +256,7 @@ const TypeString = createValueType('string', _.isString, () => '')
 export const TypeIO = createValueType('IO', _.isFunction, () => null)
 const TypeFnType = createValueType(
 	'fnType',
-	v => isKindOf(v, 'fnType'),
+	v => isKindOf('fnType', v),
 	() => ({
 		kind: 'fnType',
 		params: createInfVector(Any),
@@ -265,7 +265,7 @@ const TypeFnType = createValueType(
 )
 const TypeHashMap = createValueType(
 	'hashMap',
-	v => isKindOf(v, 'hashMap'),
+	v => isKindOf('hashMap', v),
 	() => createHashMap({})
 )
 
@@ -283,7 +283,7 @@ const castTypeFn = wrapValue({
 
 		const casted = castType(t, v)
 
-		if (!isKindOf(v, 'unit')) {
+		if (!isKindOf('unit', v)) {
 			this.log({
 				level: 'info',
 				reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
@@ -437,7 +437,7 @@ function uniteType(
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
 	const items: (Exclude<Value, ValueUnion> | undefined)[] = types.flatMap(t =>
-		isKindOf(t, 'union') ? t.items : [t]
+		isKindOf('union', t) ? t.items : [t]
 	)
 
 	if (items.length >= 2) {
@@ -479,22 +479,22 @@ function equalsValue(a: Value, b: Value): boolean {
 
 	switch (a.kind) {
 		case 'any':
-			return isKindOf(b, 'any')
+			return isKindOf('any', b)
 		case 'unit':
-			return isKindOf(b, 'unit')
+			return isKindOf('unit', b)
 		case 'singleton':
 		case 'fn':
 			return a === b
 		case 'valueType':
-			return isKindOf(b, 'valueType') && a.id === b.id
+			return isKindOf('valueType', b) && a.id === b.id
 		case 'fnType':
 			return (
-				isKindOf(b, 'fnType') &&
+				isKindOf('fnType', b) &&
 				equalsValue(a.params, b.params) &&
 				equalsValue(a.out, b.out)
 			)
 		case 'hashMap':
-			if (isKindOf(b, 'hashMap')) {
+			if (isKindOf('hashMap', b)) {
 				const aKeys = _.keys(a.value)
 				const bKeys = _.keys(b.value)
 				return (
@@ -507,11 +507,11 @@ function equalsValue(a: Value, b: Value): boolean {
 			return false
 		case 'union':
 			return (
-				isKindOf(b, 'union') &&
+				isKindOf('union', b) &&
 				_.xorWith(a.items, b.items, equalsValue).length === 0
 			)
 		case 'infVector':
-			return isKindOf(b, 'infVector') && equalsValue(a.items, b.items)
+			return isKindOf('infVector', b) && equalsValue(a.items, b.items)
 		case 'object':
 			return false
 	}
@@ -620,7 +620,7 @@ function assertValueType(v: Value): Value {
 		case 'hashMap':
 			return Any
 		case 'object':
-			return Any
+			return v.type
 	}
 }
 
@@ -648,7 +648,7 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
-			return isKindOf(fn, 'fnType') ? fn.out : fn
+			return isKindOf('fnType', fn) ? fn.out : fn
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
@@ -663,7 +663,7 @@ function assertExpType(exp: Exp): Value {
 
 function assertExpParamsType(exp: Exp): Value[] | ValueInfVector {
 	const type = assertExpType(exp)
-	if (!isKindOf(type, 'fnType')) {
+	if (!isKindOf('fnType', type)) {
 		return []
 	} else {
 		return type.params
@@ -718,12 +718,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 	function evalFn(exp: ExpFn): WithLog<Value> {
 		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, _eval)
-		const {result: clonedBody, log: bodyLog} = createDependencyGraph(exp.body)
-		clonedBody.parent = exp
+		const {result: pdg, log: bodyLog} = createDependencyGraph(exp.body)
+		pdg.parent = exp
 
 		const body: ValueFn['body'] = function (...params) {
 			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), params))
-			return evalExp(clonedBody, env).result
+			return evalExp(pdg, env).result
 		}
 
 		const fn: ValueFn = {
@@ -741,7 +741,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	function evalList(exp: ExpList): WithLog<Value> {
 		const {result: fn, log: fnLog} = _eval(exp.fn)
 
-		if (!isKindOf(fn, 'fn')) {
+		if (!isKindOf('fn', fn)) {
 			return _eval(exp.fn)
 		}
 
@@ -782,18 +782,18 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 }
 
-function isKindOf(x: Value, kind: 'any'): x is ValueAny
-function isKindOf(x: Value, kind: 'unit'): x is ValueUnit
-function isKindOf(x: Value, kind: 'fn'): x is ValueFn
-function isKindOf(x: Value, kind: 'fnType'): x is ValueFnType
-function isKindOf(x: Value, kind: 'hashMap'): x is ValueHashMap
-function isKindOf(x: Value, kind: 'union'): x is ValueUnion
-function isKindOf(x: Value, kind: 'valueType'): x is ValueValueType
-function isKindOf(x: Value, kind: 'infVector'): x is ValueInfVector
-function isKindOf(x: Value, kind: 'singleton'): x is ValueCustomSingleton
+function isKindOf(kind: 'any', x: Value): x is ValueAny
+function isKindOf(kind: 'unit', x: Value): x is ValueUnit
+function isKindOf(kind: 'fn', x: Value): x is ValueFn
+function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
+function isKindOf(kind: 'hashMap', x: Value): x is ValueHashMap
+function isKindOf(kind: 'union', x: Value): x is ValueUnion
+function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
+function isKindOf(kind: 'infVector', x: Value): x is ValueInfVector
+function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
->(x: Value, kind: T['kind']): x is T {
+>(kind: T['kind'], x: Value): x is T {
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
@@ -801,51 +801,61 @@ function createDependencyGraph(exp: Exp): WithLog<Exp> {
 	switch (exp.ast) {
 		case 'value':
 			return withLog(exp)
-		case 'symbol': {
-			const {result, log} = resolveSymbol(exp)
-			if (result.semantic === 'ref') {
-				return withLog(result.ref)
-			} else if (result.semantic === 'param') {
-				return withLog(exp)
-			} else {
-				return withLog(wrapValue(Unit), log)
-			}
-		}
+		case 'symbol':
+			return createSymbol(exp)
 		case 'fn':
 			throw new Error('Not yet implemented')
-		case 'list': {
-			const {result: fn, log: fnLog} = createDependencyGraph(exp.fn)
-			const {result: params, log: paramsLog} = mapWithLog(
-				exp.params,
-				createDependencyGraph
-			)
-
-			const paramsType = params.map(assertExpType)
-			const fnParamsType = assertExpParamsType(fn)
-
-			const typeAssertLog: Log[] = []
-			if (!isSubtypeOf(paramsType, fnParamsType)) {
-				const paramsStr = printValue(paramsType)
-				const fnParamsStr = printValue(fnParamsType)
-
-				typeAssertLog.push({
-					level: 'error',
-					reason: `Type ${paramsStr} cannot be casted to ${fnParamsStr}`,
-				})
-			}
-
-			console.log(paramsType, fnParamsType, typeAssertLog)
-
-			const ret = createExpList(fn, params, false)
-			return withLog(ret, [...fnLog, ...paramsLog, ...typeAssertLog])
-		}
-		case 'vector': {
-			const {result: items, log} = mapWithLog(exp.items, createDependencyGraph)
-			const ret: ExpVector = {ast: 'vector', items}
-			return withLog(ret, log)
-		}
+		case 'list':
+			return createList(exp)
+		case 'vector':
+			return createVector(exp)
+		case 'scope':
+			return createDependencyGraph(exp.out ?? wrapValue(Unit))
 		default:
 			throw new Error('Not yet implemented')
+	}
+
+	function createSymbol(exp: ExpSymbol) {
+		const {result, log} = resolveSymbol(exp)
+		if (result.semantic === 'ref') {
+			return withLog(result.ref)
+		} else if (result.semantic === 'param') {
+			return withLog(exp)
+		} else {
+			return withLog(wrapValue(Unit), log)
+		}
+	}
+
+	function createList(exp: ExpList) {
+		const {result: fn, log: fnLog} = createDependencyGraph(exp.fn)
+		const {result: params, log: paramsLog} = mapWithLog(
+			exp.params,
+			createDependencyGraph
+		)
+
+		const paramsType = params.map(assertExpType)
+		const fnParamsType = assertExpParamsType(fn)
+
+		const typeAssertLog: Log[] = []
+		if (!isSubtypeOf(paramsType, fnParamsType)) {
+			const paramsStr = printValue(paramsType)
+			const fnParamsStr = printValue(fnParamsType)
+
+			typeAssertLog.push({
+				level: 'error',
+				reason: `Type ${paramsStr} cannot be casted to ${fnParamsStr}`,
+			})
+		}
+
+		const ret = createExpList(fn, params, false)
+		const logs = [...fnLog, ...paramsLog, ...typeAssertLog]
+		return withLog(ret, logs)
+	}
+
+	function createVector(exp: ExpVector) {
+		const {result: items, log} = mapWithLog(exp.items, createDependencyGraph)
+		const ret: ExpVector = {ast: 'vector', items}
+		return withLog(ret, log)
 	}
 }
 
@@ -857,6 +867,8 @@ export function isInstanceOf(a: Value, b: Value) {
 }
 
 function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
+	if (isKindOf('unit', a)) return true
+
 	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance)
 
 	if (!_.isObject(b)) return a === b
@@ -866,7 +878,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		case 'any':
 			return true
 		case 'unit':
-			return isKindOf(a, 'unit')
+			return isKindOf('unit', a)
 		case 'valueType':
 			return compareValueType(a, b)
 		case 'infVector':
@@ -893,7 +905,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 
 		if (_.isArray(a)) {
 			aItems = a.map(value => ({inf: false, value}))
-		} else if (isKindOf(a, 'infVector')) {
+		} else if (isKindOf('infVector', a)) {
 			const aLen = a.items.length
 			aItems = a.items.slice(0, aLen - 1).map(value => ({inf: false, value}))
 			aItems.push({inf: true, value: a.items[aLen - 1]})
@@ -933,7 +945,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	}
 
 	function compareUnion(a: Value, b: ValueUnion) {
-		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
+		const aTypes: Value[] = isKindOf('union', a) ? a.items : [a]
 		const bTypes = b.items
 		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
@@ -942,7 +954,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		if (onlyInstance) {
 			return b.predicate(a)
 		} else {
-			return b.predicate(a) || (isKindOf(a, 'valueType') && a.id === b.id)
+			return b.predicate(a) || (isKindOf('valueType', a) && a.id === b.id)
 		}
 	}
 
@@ -951,7 +963,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
 
 		function normalizeToFn(a: Value): Omit<ValueFnType, 'kind'> {
-			if (isKindOf(a, 'fn')) {
+			if (isKindOf('fn', a)) {
 				const params = getParamType(a)
 				return {params, out: a.out}
 			} else {
@@ -1033,7 +1045,7 @@ function castExpParam(
 			const fromStr = printValue(fromType)
 			const toStr = printValue(toType)
 
-			if (!isKindOf(fromType, 'unit')) {
+			if (!isKindOf('unit', fromType)) {
 				log.push({
 					level: 'error',
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
@@ -1079,8 +1091,9 @@ export function printExp(exp: Exp): string {
 		case 'scope': {
 			const entries = _.entries(exp.scope)
 			const pairs = entries.map(([k, v]) => `${k} = ${printExp(v)}`)
-			const out = exp.out ? printExp(exp.out) : ''
-			return `{${pairs.join(' ')} ${out}}`
+			const out = exp.out ? [printExp(exp.out)] : []
+			const lines = [...pairs, ...out]
+			return `{${lines.join(' ')}}`
 		}
 	}
 }
@@ -1118,12 +1131,14 @@ function retrieveValueName(
 }
 
 export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
+	const print = (v: Value) => printValue(v, baseExp)
+
 	if (!_.isObject(val)) {
 		return JSON.stringify(val)
 	}
 
 	if (_.isArray(val)) {
-		return '[' + val.map(v => printValue(v, baseExp)).join(' ') + ']'
+		return '[' + val.map(print).join(' ') + ']'
 	}
 
 	switch (val.kind) {
@@ -1134,21 +1149,21 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'valueType':
 			return retrieveValueName(val, baseExp) ?? `<valueType>`
 		case 'infVector': {
-			const items = val.items.map(v => printValue(v, baseExp))
+			const items = val.items.map(print)
 			return '[' + items.join(' ') + '...]'
 		}
 		case 'union': {
 			const name = retrieveValueName(val, baseExp)
 			if (name) return name
-			return '(| ' + val.items.map(v => printValue(v, baseExp)).join(' ') + ')'
+			return '(| ' + val.items.map(print).join(' ') + ')'
 		}
 		case 'singleton':
 			return retrieveValueName(val, baseExp) ?? '<singleton>'
 		case 'fnType':
-			return '(-> ' + printValue(val.params) + ' ' + printValue(val.out) + ')'
+			return '(-> ' + print(val.params) + ' ' + print(val.out) + ')'
 		case 'fn': {
 			const params = _.entries(val.params).map(
-				([name, type]) => name + ':' + printValue(type)
+				([name, type]) => name + ':' + print(type)
 			)
 			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
 			const variadic = val.variadic ? '...' : ''
@@ -1156,11 +1171,11 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		}
 		case 'hashMap': {
 			const entries = _.entries(val.value)
-			const pairs = entries.map(([k, v]) => `${k}: ${printValue(v)}`)
+			const pairs = entries.map(([k, v]) => `${k}: ${print(v)}`)
 			return '{' + pairs.join(' ') + '}'
 		}
 		case 'object':
-			return `<object of ${printValue(val.type, baseExp)}>`
+			return `<object of ${print(val.type)}>`
 	}
 }
 
