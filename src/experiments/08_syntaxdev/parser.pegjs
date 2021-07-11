@@ -21,8 +21,11 @@ Program = form:Form
 		return form
 	}
 
-Form = Any / Unit / Constant / Number / String
-	/ Fn / List / Vector / InfVector / HashMap / Scope / QuotedSymbol / Symbol
+Form "form" = Cast / FromExceptCast
+
+FromExceptCast = Any / Unit / Constant / Number / String
+	/ Fn / List / Vector / InfVector / HashMap / Scope
+	/ QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
 	{
@@ -55,7 +58,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ .,\t\n\r`()[\]{}]i+)
+Symbol "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',
@@ -124,16 +127,23 @@ HashMap "hash map" = "{" _ items:(Pair _)* "}"
 		return ret
 	}
 
-Pair "entry" = key:(PairKey / String) _ ":" _ value:Form
+Pair "entry" = key:(Symbol / String) _ ":" _ value:FromExceptCast
 	{
-		return [key.value, value]
+		return [key.name ?? key.value, value]
 	}
 
-PairKey "entry key" = value:$([^ :.,\t\n\r`()[\]{}]i+)
+// Cast
+Cast "cast" = value:FromExceptCast _ ":" _ type:FromExceptCast
 	{
-		return {value}
+		const ret = {
+			ast: 'cast',
+			value,
+			type
+		}
+		value.parent = ret
+		type.parent = ret
+		return ret
 	}
-
 
 // Scope
 Scope "scope" = "{" _ items:(Equal _)* out:(Form _)? "}"
@@ -158,7 +168,7 @@ Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
 		return [left.name, right]
 	}
 
-SymbolEqualLeft "symbol" = name:$([^ =.,\t\n\r`()[\]{}]i+)
+SymbolEqualLeft "symbol" = name:$([^= :.,\t\n\r`()[\]{}]i+)
 	{
 		return {
 			ast: 'symbol',

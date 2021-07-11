@@ -99,6 +99,7 @@ type Exp =
 	| ExpVector
 	| ExpInfVector
 	| ExpHashMap
+	| ExpCast
 	| ExpScope
 
 export interface Log {
@@ -148,6 +149,12 @@ interface ExpHashMap extends ExpBase {
 	items: Record<string, Exp>
 }
 
+interface ExpCast extends ExpBase {
+	ast: 'cast'
+	value: Exp
+	type: Exp
+}
+
 interface ExpScope extends ExpBase {
 	ast: 'scope'
 	scope: Record<string, Exp>
@@ -180,6 +187,21 @@ function createExpList(fn: Exp, params: Exp[], setParent = true) {
 	if (setParent) {
 		fn.parent = ret
 		params.forEach(p => (p.parent = ret))
+	}
+
+	return ret
+}
+
+function createExpCast(value: Exp, type: Exp, setParent = true) {
+	const ret: ExpCast = {
+		ast: 'cast',
+		value,
+		type,
+	}
+
+	if (setParent) {
+		value.parent = ret
+		type.parent = ret
 	}
 
 	return ret
@@ -272,27 +294,6 @@ const TypeHashMap = createValueType(
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
-
-const castTypeFn = wrapValue({
-	kind: 'fn',
-	params: {type: Any, value: Any},
-	out: Any,
-	body(type, value) {
-		const t = this.eval(type)
-		const v = this.eval(value)
-
-		const casted = castType(t, v)
-
-		if (!isKindOf('unit', v)) {
-			this.log({
-				level: 'info',
-				reason: `Value ${printValue(v)} is converted to ${printValue(casted)}`,
-			})
-		}
-
-		return casted
-	},
-})
 
 export const GlobalScope = createExpScope({
 	scope: {
@@ -423,7 +424,6 @@ export const GlobalScope = createExpScope({
 				}
 			},
 		}),
-		':': castTypeFn,
 	},
 })
 
@@ -656,6 +656,8 @@ function assertExpType(exp: Exp): Value {
 			return createInfVector(...exp.items.map(assertExpType))
 		case 'hashMap':
 			return TypeHashMap
+		case 'cast':
+			return assertExpType(exp.type)
 		case 'scope':
 			return exp.out ? assertExpType(exp) : Unit
 	}
@@ -693,6 +695,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return evalInfVector(exp)
 		case 'hashMap':
 			return evalHashMap(exp)
+		case 'cast':
+			return evalCast(exp)
 		case 'scope':
 			return exp.out ? _eval(exp.out) : withLog(Unit)
 	}
@@ -709,7 +713,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 				return _eval(env[exp.name])
 			} else {
 				const {result: type, log} = _eval(result.type)
-				return withLog(castType(type, Unit), log)
+				return withLog(getDefault(type), log)
 			}
 		} else {
 			return withLog(Unit, log)
@@ -779,6 +783,14 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const {result: items, log} = mapValueWithLog(exp.items, _eval)
 		const evaluated = createHashMap(items)
 		return withLog(evaluated, log)
+	}
+
+	function evalCast(exp: ExpCast) {
+		const {result: value, log: valueLog} = _eval(exp.value)
+		const {result: type, log: typeLog} = _eval(exp.type)
+
+		const evaluated = castType(type, value)
+		return withLog(evaluated, [...valueLog, ...typeLog])
 	}
 }
 
@@ -867,8 +879,6 @@ export function isInstanceOf(a: Value, b: Value) {
 }
 
 function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
-	if (isKindOf('unit', a)) return true
-
 	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance)
 
 	if (!_.isObject(b)) return a === b
@@ -973,6 +983,10 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	}
 }
 
+function getDefault(type: Value) {
+	return castType(type, Unit)
+}
+
 function castType(type: Value, value: Value): Value {
 	if (!_.isObject(type)) {
 		return type
@@ -981,7 +995,7 @@ function castType(type: Value, value: Value): Value {
 	if (_.isArray(type)) {
 		const values = _.isArray(value) ? value : []
 		return type.map((t, i) =>
-			castType(t, values[i] !== undefined ? values[i] : Unit)
+			i < values.length ? castType(t, values[i]) : getDefault(t)
 		)
 	}
 
@@ -989,13 +1003,13 @@ function castType(type: Value, value: Value): Value {
 		case 'valueType':
 			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
-			return castType(type.out, Unit)
+			return getDefault(type.out)
 		case 'union':
 			return type.cast
 				? isInstanceOf(value, type)
 					? value
 					: type.cast(value)
-				: castType(type.items[0], Unit)
+				: getDefault(type.items[0])
 		case 'singleton':
 			return type
 		default:
@@ -1020,7 +1034,7 @@ function castExpParam(
 
 			from = [...from]
 			while (from.length < minLength) {
-				from.push(wrapValue(castType(to.items[from.length], null)))
+				from.push(wrapValue(getDefault(to.items[from.length])))
 			}
 		}
 
@@ -1051,9 +1065,7 @@ function castExpParam(
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
 				})
 			}
-			casted.push(
-				createExpList(castTypeFn, [wrapValue(toType), fromItem], false)
-			)
+			casted.push(createExpCast(fromItem, wrapValue(toType), false))
 		}
 	}
 
@@ -1088,6 +1100,8 @@ export function printExp(exp: Exp): string {
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
 			return '{' + pairs.join(' ') + '}'
 		}
+		case 'cast':
+			return printExp(exp.value) + ':' + printExp(exp.type)
 		case 'scope': {
 			const entries = _.entries(exp.scope)
 			const pairs = entries.map(([k, v]) => `${k} = ${printExp(v)}`)
