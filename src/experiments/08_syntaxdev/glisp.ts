@@ -835,7 +835,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance)
 
 	if (!_.isObject(b)) return a === b
-	if (_.isArray(b)) return vector(a, b)
+	if (_.isArray(b)) return compareVector(a, b)
 
 	switch (b.kind) {
 		case 'any':
@@ -843,13 +843,13 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		case 'unit':
 			return isKindOf(a, 'unit')
 		case 'valueType':
-			return valueType(a, b)
+			return compareValueType(a, b)
 		case 'infVector':
-			return infVector(a, b)
+			return compareInfVector(a, b)
 		case 'union':
-			return union(a, b)
+			return compareUnion(a, b)
 		case 'fnType':
-			return fnType(a, b)
+			return compareFnType(a, b)
 		case 'fn':
 		case 'singleton':
 			return a === b
@@ -858,12 +858,12 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	}
 
 	// Predicates for each types
-	function vector(a: Value, b: Value[]) {
+	function compareVector(a: Value, b: Value[]) {
 		if (!_.isArray(a) || a.length < b.length) return false
 		return _$.everyByPair(a, b, compare)
 	}
 
-	function infVector(a: Value, b: ValueInfVector) {
+	function compareInfVector(a: Value, b: ValueInfVector) {
 		let aItems: {inf: boolean; value: Value}[]
 
 		if (_.isArray(a)) {
@@ -907,13 +907,13 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		return true
 	}
 
-	function union(a: Value, b: ValueUnion) {
+	function compareUnion(a: Value, b: ValueUnion) {
 		const aTypes: Value[] = isKindOf(a, 'union') ? a.items : [a]
 		const bTypes = b.items
 		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
 
-	function valueType(a: Value, b: ValueValueType) {
+	function compareValueType(a: Value, b: ValueValueType) {
 		if (onlyInstance) {
 			return b.predicate(a)
 		} else {
@@ -921,7 +921,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		}
 	}
 
-	function fnType(a: Value, b: ValueFnType) {
+	function compareFnType(a: Value, b: ValueFnType) {
 		const _a = normalizeToFn(a)
 		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
 
