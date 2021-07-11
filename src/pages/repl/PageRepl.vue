@@ -1,12 +1,12 @@
 <template>
-	<div class="Interpreter">
+	<div class="PageRepl">
 		<AppHeader>
 			<template #left>
 				<AppHeaderBreadcumb :items="[{label: 'REPL'}]" />
 			</template>
 		</AppHeader>
-		<main class="Interpreter__main">
-			<Console class="Interpreter__console" :rep="rep" />
+		<main class="PageRepl__main">
+			<Console class="PageRepl__console" :rep="rep" />
 		</main>
 	</div>
 </template>
@@ -24,7 +24,7 @@ import Console, {IFnRep} from './Console.vue'
 import {evalExp, printValue, readStr, TypeIO} from './glisp'
 
 export default defineComponent({
-	name: 'Interpreter',
+	name: 'PageRepl',
 	components: {AppHeader, AppHeaderBreadcumb, Console},
 	setup() {
 		useScheme()
@@ -62,7 +62,7 @@ export default defineComponent({
 @import '~@/components/style/common.styl'
 @import '~@/components/style/global.styl'
 
-.Interpreter
+.PageRepl
 	app()
 	display grid
 	height 100vh

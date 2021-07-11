@@ -26,12 +26,8 @@ const PageSettings = {
 		entry: 'src/pages/ui/index.ts',
 		template: 'src/pages/template.html',
 	},
-	experiments: {
-		entry: 'src/experiments/07_new-syntax/index.ts',
-		template: 'src/pages/template.html',
-	},
-	syntaxdev: {
-		entry: 'src/experiments/08_syntaxdev/index.ts',
+	repl: {
+		entry: 'src/pages/repl/index.ts',
 		template: 'src/pages/template.html',
 	},
 	easing: {
