@@ -34,7 +34,7 @@ export default defineComponent({
 		const rep: IFnRep = async (str: string) => {
 			try {
 				const exp = readStr(str)
-				const {result, logs} = evalExp(exp)
+				const {result, log} = evalExp(exp)
 
 				// Execute IO
 				if (
@@ -46,10 +46,10 @@ export default defineComponent({
 					result.value()
 				}
 
-				return {result: printValue(result), logs}
+				return {result: printValue(result), log}
 			} catch (e) {
 				console.error(e)
-				return {result: null, logs: [{level: 'error', reason: e.message}]}
+				return {result: null, log: [{level: 'error', reason: e.message}]}
 			}
 		}
 

@@ -46,7 +46,7 @@ export type IFnRep = (str: string) => MaybePromise<WithLog<string | null>>
 
 interface Result {
 	input: string
-	logs: Log[]
+	log: Log[]
 	output: string | null
 }
 
@@ -89,11 +89,11 @@ export default defineComponent({
 			e.preventDefault()
 			if (code.value === '') return
 
-			const {result, logs} = await props.rep(code.value)
+			const {result, log} = await props.rep(code.value)
 
 			results.value.push({
 				input: code.value,
-				logs: logs,
+				log,
 				output: result,
 			})
 

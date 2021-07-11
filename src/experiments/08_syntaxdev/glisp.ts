@@ -429,7 +429,7 @@ export const GlobalScope = createExpScope({
 
 export interface WithLog<T> {
 	result: T
-	logs: Log[]
+	log: Log[]
 }
 
 function uniteType(
@@ -517,8 +517,26 @@ function equalsValue(a: Value, b: Value): boolean {
 	}
 }
 
-function withLog<T>(result: T, logs: Log[] = []) {
-	return {result, logs}
+function withLog<T>(result: T, log: Log[] = []) {
+	return {result, log}
+}
+
+function mapWithLog<A, R>(arr: A[], map: (a: A) => WithLog<R>): WithLog<R[]> {
+	const mapped = arr.map(map)
+	const result = mapped.map(r => r.result)
+	const log = mapped.flatMap(r => r.log)
+	return {result, log}
+}
+
+function mapValueWithLog<R, T>(
+	dict: Record<string, R>,
+	map: (a: R) => WithLog<T>
+): WithLog<Record<string, T>> {
+	const mapped = _.mapValues(dict, map)
+	const result = _.mapValues(mapped, m => m.result)
+	const log = _.values(mapped).flatMap(m => m.log)
+
+	return {result, log}
 }
 
 type ResolveSymbolResult =
@@ -662,7 +680,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		case 'list':
 			return evalList(exp)
 		case 'vector':
-			return evalVector(exp)
+			return mapWithLog(exp.items, _eval)
 		case 'infVector':
 			return evalInfVector(exp)
 		case 'hashMap':
@@ -672,7 +690,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLog<Value> {
-		const {result, logs} = resolveSymbol(exp)
+		const {result, log} = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return _eval(result.ref)
 		} else if (result.semantic === 'param') {
@@ -682,20 +700,17 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 				}
 				return _eval(env[exp.name])
 			} else {
-				const {result: type, logs} = _eval(result.type)
-				return withLog(castType(type, Unit), logs)
+				const {result: type, log} = _eval(result.type)
+				return withLog(castType(type, Unit), log)
 			}
 		} else {
-			return withLog(Unit, logs)
+			return withLog(Unit, log)
 		}
 	}
 
 	function evalFn(exp: ExpFn): WithLog<Value> {
-		const paramsResult = _.mapValues(exp.params, _eval)
-		const paramsLog = _.values(paramsResult).flatMap(r => r.logs)
-		const params = _.mapValues(paramsResult, r => r.result)
-
-		const {result: clonedBody, logs: bodyLogs} = createDependencyGraph(exp.body)
+		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, _eval)
+		const {result: clonedBody, log: bodyLog} = createDependencyGraph(exp.body)
 		clonedBody.parent = exp
 
 		const body: ValueFn['body'] = function (...params) {
@@ -712,11 +727,11 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			expBody: exp.body,
 		}
 
-		return withLog(fn, [...paramsLog, ...bodyLogs])
+		return withLog(fn, [...paramsLog, ...bodyLog])
 	}
 
 	function evalList(exp: ExpList): WithLog<Value> {
-		const {result: fn, logs: fnLogs} = _eval(exp.fn)
+		const {result: fn, log: fnLog} = _eval(exp.fn)
 
 		if (!isKindOf(fn, 'fn')) {
 			return _eval(exp.fn)
@@ -724,51 +739,38 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 		const paramsType = getParamType(fn)
 
-		const {result: params, logs: castLogs} = castExpParam(
-			paramsType,
-			exp.params
-		)
+		const {result: params, log: castLog} = castExpParam(paramsType, exp.params)
 
-		const paramsLogs: Log[] = []
-		const execLogs: Log[] = []
+		const paramsLog: Log[] = []
+		const execLog: Log[] = []
 
 		const context: ValueFnThis = {
 			log(log) {
-				execLogs.push(log)
+				execLog.push(log)
 			},
 			eval(e) {
-				const {result, logs} = _eval(e)
-				paramsLogs.push(...logs)
+				const {result, log} = _eval(e)
+				paramsLog.push(...log)
 				return result as any
 			},
 		}
 
 		const evaluated = fn.body.call(context, ...params)
-		const logs = [...fnLogs, ...castLogs, ...paramsLogs, ...execLogs]
+		const log = [...fnLog, ...castLog, ...paramsLog, ...execLog]
 
-		return withLog(evaluated, logs)
-	}
-
-	function evalVector(exp: ExpVector): WithLog<Value[]> {
-		const evaluated = exp.items.map(_eval)
-		return withLog(
-			evaluated.map(e => e.result),
-			evaluated.flatMap(e => e.logs)
-		)
+		return withLog(evaluated, log)
 	}
 
 	function evalInfVector(exp: ExpInfVector): WithLog<ValueInfVector> {
-		const result = exp.items.map(_eval)
-		const evaluated = createInfVector(...result.map(e => e.result))
-		const logs = result.flatMap(e => e.logs)
-		return withLog(evaluated, logs)
+		const {result: items, log} = mapWithLog(exp.items, _eval)
+		const evaluated = createInfVector(...items)
+		return withLog(evaluated, log)
 	}
 
 	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
-		const result = _.mapValues(exp.items, _eval)
-		const evaluated = createHashMap(_.mapValues(result, e => e.result))
-		const logs = _.values(result).flatMap(e => e.logs)
-		return withLog(evaluated, logs)
+		const {result: items, log} = mapValueWithLog(exp.items, _eval)
+		const evaluated = createHashMap(items)
+		return withLog(evaluated, log)
 	}
 }
 
@@ -792,31 +794,30 @@ function createDependencyGraph(exp: Exp): WithLog<Exp> {
 		case 'value':
 			return withLog(exp)
 		case 'symbol': {
-			const {result, logs} = resolveSymbol(exp)
+			const {result, log} = resolveSymbol(exp)
 			if (result.semantic === 'ref') {
 				return withLog(result.ref)
 			} else if (result.semantic === 'param') {
 				return withLog(exp)
 			} else {
-				return withLog(wrapValue(Unit), logs)
+				return withLog(wrapValue(Unit), log)
 			}
 		}
 		case 'fn':
 			throw new Error('Not yet implemented')
 		case 'list': {
-			const {result: fn, logs: fnLogs} = createDependencyGraph(exp.fn)
-			const paramsResults = exp.params.map(createDependencyGraph)
-			const params = paramsResults.map(r => r.result)
-			const paramsLogs = paramsResults.flatMap(r => r.logs)
+			const {result: fn, log: fnLog} = createDependencyGraph(exp.fn)
+			const {result: params, log: paramsLog} = mapWithLog(
+				exp.params,
+				createDependencyGraph
+			)
 			const ret = createExpList(fn, params, false)
-			return withLog(ret, [...fnLogs, ...paramsLogs])
+			return withLog(ret, [...fnLog, ...paramsLog])
 		}
 		case 'vector': {
-			const results = exp.items.map(createDependencyGraph)
-			const items = results.map(r => r.result)
-			const logs = results.flatMap(r => r.logs)
+			const {result: items, log} = mapWithLog(exp.items, createDependencyGraph)
 			const ret: ExpVector = {ast: 'vector', items}
-			return withLog(ret, logs)
+			return withLog(ret, log)
 		}
 		default:
 			throw new Error('Not yet implemented')
@@ -969,16 +970,16 @@ function castExpParam(
 	to: Value[] | ValueInfVector,
 	from: Exp[]
 ): WithLog<Exp[]> {
-	const logs: Log[] = []
+	const log: Log[] = []
 
 	if (_.isArray(to)) {
 		if (to.length > from.length) {
-			logs.push({level: 'error', reason: 'Too short aguments'})
+			log.push({level: 'error', reason: 'Too short aguments'})
 		}
 	} else {
 		const minLength = to.items.length - 1
 		if (from.length < minLength) {
-			logs.push({level: 'error', reason: 'Too short arguments'})
+			log.push({level: 'error', reason: 'Too short arguments'})
 
 			from = [...from]
 			while (from.length < minLength) {
@@ -1008,7 +1009,7 @@ function castExpParam(
 			const toStr = printValue(toType)
 
 			if (!isKindOf(fromType, 'unit')) {
-				logs.push({
+				log.push({
 					level: 'error',
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
 				})
@@ -1019,7 +1020,7 @@ function castExpParam(
 		}
 	}
 
-	return withLog(casted, logs)
+	return withLog(casted, log)
 }
 
 export function printExp(exp: Exp): string {
