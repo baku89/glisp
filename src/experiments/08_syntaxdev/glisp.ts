@@ -644,7 +644,6 @@ function assertExpType(exp: Exp): Value {
 
 			const params = assertExpType(paramsExp) as ValueFnType['params']
 			const out = assertExpType(exp.body)
-
 			return createFnType(params, out)
 		}
 		case 'list': {
@@ -659,6 +658,15 @@ function assertExpType(exp: Exp): Value {
 			return TypeHashMap
 		case 'scope':
 			return exp.out ? assertExpType(exp) : Unit
+	}
+}
+
+function assertExpParamsType(exp: Exp): Value[] | ValueInfVector {
+	const type = assertExpType(exp)
+	if (!isKindOf(type, 'fnType')) {
+		return []
+	} else {
+		return type.params
 	}
 }
 
@@ -811,8 +819,25 @@ function createDependencyGraph(exp: Exp): WithLog<Exp> {
 				exp.params,
 				createDependencyGraph
 			)
+
+			const paramsType = params.map(assertExpType)
+			const fnParamsType = assertExpParamsType(fn)
+
+			const typeAssertLog: Log[] = []
+			if (!isSubtypeOf(paramsType, fnParamsType)) {
+				const paramsStr = printValue(paramsType)
+				const fnParamsStr = printValue(fnParamsType)
+
+				typeAssertLog.push({
+					level: 'error',
+					reason: `Type ${paramsStr} cannot be casted to ${fnParamsStr}`,
+				})
+			}
+
+			console.log(paramsType, fnParamsType, typeAssertLog)
+
 			const ret = createExpList(fn, params, false)
-			return withLog(ret, [...fnLog, ...paramsLog])
+			return withLog(ret, [...fnLog, ...paramsLog, ...typeAssertLog])
 		}
 		case 'vector': {
 			const {result: items, log} = mapWithLog(exp.items, createDependencyGraph)

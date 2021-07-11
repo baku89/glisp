@@ -1,10 +1,10 @@
 <template>
 	<div class="Console" ref="root" tabindex="0" @keydown="onKeydown">
 		<ul class="Console__history">
-			<li class="rep" v-for="({input, logs, output}, i) in results" :key="i">
+			<li class="rep" v-for="({input, log, output}, i) in results" :key="i">
 				<SyntaxHighligher class="input" :code="input" />
 				<div
-					v-for="({level, reason}, j) in logs"
+					v-for="({level, reason}, j) in log"
 					:key="j"
 					class="log"
 					:class="level"
