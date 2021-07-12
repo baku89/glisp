@@ -46,7 +46,7 @@ interface ValueSpread<T extends Value = Value> {
 interface ValueValueType {
 	kind: 'valueType'
 	id: symbol
-	origExp?: Exp
+	origExp: Exp
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
 }
@@ -257,21 +257,23 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 	return {kind: 'dict', value, rest}
 }
 
-function createValueType(
-	base: ValueValueType | string,
+function createExpValueType(
+	id: string,
 	predicate: ValueValueType['predicate'],
 	cast: ValueValueType['cast']
-): ValueValueType {
-	const id = _.isString(base) ? Symbol(base) : base.id
-	const origExp = _.isString(base) ? undefined : base.origExp
-
-	return {
+): ExpValue<ValueValueType> {
+	const value: any = {
 		kind: 'valueType',
-		id,
+		id: Symbol(id),
 		predicate,
 		cast,
-		origExp,
 	}
+
+	const exp: ExpValue<ValueValueType> = {ast: 'value', value}
+
+	value.origExp = exp
+
+	return exp
 }
 
 function inheritValueType(
@@ -296,26 +298,14 @@ const TypeBoolean: ValueUnion = {
 const ExpTypeBoolean = wrapValue(TypeBoolean)
 TypeBoolean.origExp = ExpTypeBoolean
 
-const TypeNumber = createValueType('number', _.isNumber, () => 0)
-const ExpTypeNumber = wrapValue(TypeNumber)
-TypeNumber.origExp = ExpTypeNumber
+const ExpTypeNumber = createExpValueType('number', _.isNumber, () => 0)
+const TypeNumber = ExpTypeNumber.value
 
-const TypeString = createValueType('string', _.isString, () => '')
-export const TypeIO = createValueType('IO', _.isFunction, () => null)
-const TypeFnType = createValueType(
-	'fnType',
-	v => isKindOf('fnType', v),
-	() => ({
-		kind: 'fnType',
-		params: createVariadicVector(Any),
-		out: Any,
-	})
-)
-const TypeDict = createValueType(
-	'dict',
-	v => isKindOf('dict', v),
-	() => createDict({})
-)
+const ExpTypeString = createExpValueType('string', _.isString, () => '')
+const TypeString = ExpTypeString.value
+
+const ExpTypeIO = createExpValueType('IO', _.isFunction, () => null)
+export const TypeIO = ExpTypeIO.value
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -324,10 +314,9 @@ const OrderingGT: ValueSingleton = {kind: 'singleton'}
 export const GlobalScope = createExpScope({
 	scope: {
 		Number: ExpTypeNumber,
-		String: wrapValue(TypeString),
+		String: ExpTypeString,
 		Boolean: ExpTypeBoolean,
-		FnType: wrapValue(TypeFnType),
-		IO: wrapValue(TypeIO),
+		IO: ExpTypeIO,
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -387,7 +376,7 @@ export const GlobalScope = createExpScope({
 				params: {value: createVariadicVector(Any)},
 				out: {value: Any},
 			},
-			out: TypeFnType,
+			out: createFnType(createSpread([{inf: true, value: Any}]), Any),
 			body(params, out) {
 				return {
 					kind: 'fnType',
@@ -731,8 +720,11 @@ function assertExpType(exp: Exp): Value {
 			}))
 			return createSpread(items)
 		}
-		case 'dict':
-			return TypeDict
+		case 'dict': {
+			const items = _.mapValues(exp.items, assertExpType)
+			const rest = exp.rest ? assertExpType(exp.rest) : undefined
+			return createDict(items, rest)
+		}
 		case 'cast':
 			return assertExpType(exp.type)
 		case 'scope':
