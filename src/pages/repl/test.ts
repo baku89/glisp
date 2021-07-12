@@ -12,9 +12,8 @@ function testInstanceOf(aStr: string, bStr: string, toBe: boolean) {
 
 	if (!succeed) {
 		alert(msg)
+		fn(msg)
 	}
-
-	fn(msg)
 }
 
 export default function runTest() {
