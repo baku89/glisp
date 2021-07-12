@@ -1090,7 +1090,13 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 	}
 
 	function compareUnion(a: Value, b: ValueUnion) {
-		const aTypes: Value[] = isKindOf('union', a) ? a.items : [a]
+		let aTypes: Value[]
+		if (onlyInstance) {
+			aTypes = [a]
+		} else {
+			aTypes = isKindOf('union', a) ? a.items : [a]
+		}
+
 		const bTypes = b.items
 		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
