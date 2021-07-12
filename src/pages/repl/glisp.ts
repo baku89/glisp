@@ -1244,7 +1244,15 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	const print = (v: Value) => printValue(v, baseExp)
 
 	if (!_.isObject(val)) {
-		return JSON.stringify(val)
+		if (Number.isNaN(val)) return 'nan'
+		switch (val) {
+			case Infinity:
+				return 'inf'
+			case -Infinity:
+				return '-inf'
+			default:
+				return JSON.stringify(val)
+		}
 	}
 
 	if (_.isArray(val)) {

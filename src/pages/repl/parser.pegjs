@@ -14,12 +14,24 @@ FromExceptCast = Any / Unit / Constant / Number / String
 	/ Fn / List / Vector / Spread / Dict / Scope
 	/ QuotedSymbol / Symbol
 
-Constant "constant" = value:$("true" / "false" / "null")
+Constant "constant" = _value:$("true" / "false" / "null" / "inf" / "-inf" / "nan")
 	{
-		return {
-			ast: 'value',
-			value: JSON.parse(value)
+		let value
+		switch (_value) {
+			case 'inf':
+				value = Infinity
+				break
+			case '-inf':
+				value = -Infinity
+				break
+			case 'nan':
+				value = NaN
+				break
+			default:
+				value = JSON.parse(_value)
 		}
+
+		return {ast: 'value', value}
 	}
 
 Any "any" = "*" { return {ast: 'value', value: {kind: 'any'}} }
@@ -45,7 +57,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$[^ :.,\t\n\r`()[\]{}]i+
+Symbol "symbol" = name:$[^ :?.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
@@ -177,7 +189,7 @@ Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
 		return [left.name, right]
 	}
 
-SymbolEqualLeft "symbol" = name:$[^= :.,\t\n\r`()[\]{}]i+
+SymbolEqualLeft "symbol" = name:$[^= :?.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
