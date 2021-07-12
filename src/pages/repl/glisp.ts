@@ -180,6 +180,8 @@ interface ExpFncall extends ExpBase {
 	fn: ValueFn['body']
 	params: Exp[]
 	type: Value
+	origFn: Exp
+	origParams: Exp[]
 }
 
 interface ExpParam extends ExpBase {
@@ -892,11 +894,11 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
-		const {result: pdg, log: bodyLog} = createPdg(exp.body)
+		const {result: pdg, log: bodyLog} = createPdg(exp.body, env)
 
 		const body: ValueFn['body'] = function (...xs) {
-			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
-			return evalExp(pdg, env).result
+			const localEnv = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
+			return evalExp(pdg, {...env, ...localEnv}).result
 		}
 
 		const fn: ValueFn = {
@@ -991,25 +993,33 @@ export function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-function createPdg(exp: Exp): WithLog<Exp> {
+function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
+	const _createPdg = (e: Exp) => createPdg(e, env)
+
 	switch (exp.ast) {
 		case 'value':
 			return withLog(exp)
 		case 'symbol':
 			return createSymbol(exp)
 		case 'fn':
-			throw new Error('Not yet implemented')
+			return withLog(exp) //createFn(exp)
 		case 'list':
 			return createFncall(exp)
 		case 'vector':
 			return createVector(exp)
 		case 'scope':
-			return createPdg(exp.out ?? wrapValue(Unit))
+			return _createPdg(exp.out ?? wrapValue(Unit))
+		case 'fncall':
+			return withLog(exp)
 		default:
-			throw new Error('Not yet implemented')
+			throw new Error(`Not yet implemented ${exp.ast}`)
 	}
 
 	function createSymbol(exp: ExpSymbol): WithLog<Exp> {
+		if (exp.name in env) {
+			return withLog(env[exp.name])
+		}
+
 		const {result, log} = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return withLog(result.ref)
@@ -1021,9 +1031,23 @@ function createPdg(exp: Exp): WithLog<Exp> {
 		}
 	}
 
+	function createFn(exp: ExpFn): WithLog<Exp> {
+		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, p => {
+			const {result, log} = _createPdg(p.value)
+			return withLog({inf: p.inf, value: result}, log)
+		})
+		const {result: body, log: bodyLog} = _createPdg(exp.body)
+		const fn: ExpFn = {
+			ast: 'fn',
+			params,
+			body,
+		}
+		return withLog(fn, [...paramsLog, ...bodyLog])
+	}
+
 	function createFncall(exp: ExpList) {
-		const {result: fn, log: fnLog} = createPdg(exp.fn)
-		const {result: params, log: paramsLog} = mapWithLog(exp.params, createPdg)
+		const {result: fn, log: fnLog} = _createPdg(exp.fn)
+		const {result: params, log: paramsLog} = mapWithLog(exp.params, _createPdg)
 
 		const fnValue = evalExp(exp.fn).result
 
@@ -1040,6 +1064,8 @@ function createPdg(exp: Exp): WithLog<Exp> {
 				fn: fnValue.body,
 				params: assignedParams,
 				type: fnValue.out,
+				origFn: exp.fn,
+				origParams: params,
 			}
 
 			const logs = [...fnLog, ...paramsLog, ...typeAssertLog]
@@ -1050,7 +1076,7 @@ function createPdg(exp: Exp): WithLog<Exp> {
 	}
 
 	function createVector(exp: ExpVector) {
-		const {result: items, log} = mapWithLog(exp.items, createPdg)
+		const {result: items, log} = mapWithLog(exp.items, _createPdg)
 		const ret: ExpVector = {ast: 'vector', items}
 		return withLog(ret, log)
 	}
@@ -1361,8 +1387,11 @@ export function printExp(exp: Exp): string {
 			const lines = [...pairs, ...out]
 			return `{${lines.join(' ')}}`
 		}
-		case 'fncall':
-			throw new Error('Cannot print PDG expressions')
+		case 'fncall': {
+			const fn = printExp(exp.origFn)
+			const params = exp.origParams.map(printExp)
+			return `(${fn} ${params.join(' ')})`
+		}
 	}
 }
 
