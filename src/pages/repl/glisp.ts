@@ -322,6 +322,11 @@ const TypeBoolean: ValueUnion = {
 export const TypeNumber = createValueType('number', _.isNumber, () => 0)
 export const TypeString = createValueType('string', _.isString, () => '')
 export const TypeIO = createValueType('IO', _.isFunction, () => null)
+export const TypeSingleton = createValueType(
+	'singleton',
+	v => isKindOf('singleton', v),
+	() => Unit
+)
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -333,6 +338,7 @@ export const GlobalScope = createExpScope({
 		String: wrapValue(TypeString),
 		Boolean: wrapValue(TypeBoolean),
 		IO: wrapValue(TypeIO),
+		Singleton: wrapValue(TypeSingleton),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -454,7 +460,9 @@ export const GlobalScope = createExpScope({
 					kind: 'object',
 					type: TypeIO,
 					value: () => {
-						GlobalScope.scope[n] = wrapValue(v)
+						const exp = wrapValue(v)
+						GlobalScope.scope[n] = exp
+						exp.parent = GlobalScope
 					},
 				}
 			},
@@ -464,7 +472,15 @@ export const GlobalScope = createExpScope({
 			params: {x: {inf: false, value: Any}},
 			out: Any,
 			body(x) {
-				return assertExpType(wrapValue(this.eval(x), false))
+				return assertValueType(this.eval(x))
+			},
+		}),
+		singleton: wrapValue({
+			kind: 'fn',
+			params: {},
+			out: TypeSingleton,
+			body() {
+				return {kind: 'singleton'}
 			},
 		}),
 		instanceof: wrapValue({
