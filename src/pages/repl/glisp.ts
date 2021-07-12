@@ -387,7 +387,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'|': wrapValue({
 			kind: 'fn',
-			params: {xs: {value: Any}},
+			params: {xs: {inf: true, value: Any}},
 			out: Any,
 			body(xs) {
 				return uniteType(this.eval<Value[]>(xs))
