@@ -11,6 +11,7 @@ languages.setLanguageConfiguration('glisp', {
 		['[', ']'],
 		['(', ')'],
 		['{', '}'],
+		['<', '>'],
 	],
 
 	autoClosingPairs: [
@@ -25,6 +26,7 @@ languages.setLanguageConfiguration('glisp', {
 		{open: '"', close: '"'},
 		{open: '(', close: ')'},
 		{open: '{', close: '}'},
+		{open: '<', close: '>'},
 	],
 })
 
@@ -35,9 +37,10 @@ languages.setMonarchTokensProvider('glisp', {
 		{open: '[', close: ']', token: 'delimiter.square'},
 		{open: '(', close: ')', token: 'delimiter.paren'},
 		{open: '{', close: '}', token: 'delimiter.curly'},
+		{open: '<', close: '>', token: 'delimiter.angle'},
 	],
 
-	keywords: ['=>', '=', '->', '_', '*'],
+	keywords: ['=>', '=', '->', '_', '*', '|'],
 
 	constants: ['true', 'false', 'null'],
 
@@ -64,7 +67,7 @@ languages.setMonarchTokensProvider('glisp', {
 			[/@integer/, 'number.integer'],
 
 			// brackets
-			[/[()[\]]/, '@brackets'],
+			[/[()[\]{}<>]/, '@brackets'],
 
 			[/\//, 'delimiter.slash'],
 			[/\.\./, 'delimiter.slash'],
