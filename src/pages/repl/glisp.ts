@@ -4,7 +4,6 @@ import peg from 'pegjs'
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
-import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -46,7 +45,7 @@ interface ValueSpread<T extends Value = Value> {
 interface ValueValueType {
 	kind: 'valueType'
 	id: symbol
-	origExp: Exp
+	origExp?: Exp
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
 }
@@ -173,9 +172,19 @@ export function readStr(str: string): Exp {
 	}
 }
 
-function wrapValue<T extends Value = Value>(value: T): ExpValue<T> {
+function wrapValue<T extends Value = Value>(
+	value: T,
+	setOriginal = true
+): ExpValue<T> {
 	const ret: ExpValue<T> = {ast: 'value', value}
-	if (isKindOf('singleton', value) || isKindOf('valueType', value)) {
+	if (
+		setOriginal &&
+		(isKindOf('singleton', value) ||
+			isKindOf('valueType', value) ||
+			isKindOf('union', value))
+	) {
+		if (value.origExp)
+			throw new Error(`Cannot overwrite origExp of ${printValue(value)}`)
 		value.origExp = ret
 	}
 	return ret
@@ -257,36 +266,29 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 	return {kind: 'dict', value, rest}
 }
 
-function createExpValueType(
+function createValueType(
 	id: string,
 	predicate: ValueValueType['predicate'],
 	cast: ValueValueType['cast']
-): ExpValue<ValueValueType> {
-	const value: any = {
+): ValueValueType {
+	return {
 		kind: 'valueType',
 		id: Symbol(id),
 		predicate,
 		cast,
 	}
-
-	const exp: ExpValue<ValueValueType> = {ast: 'value', value}
-
-	value.origExp = exp
-
-	return exp
 }
 
 function inheritValueType(
-	exp: ExpValue<ValueValueType>,
+	value: ValueValueType,
 	cast: ValueValueType['cast']
 ): ValueValueType {
-	const {value} = exp
 	return {
 		kind: 'valueType',
 		id: value.id,
 		predicate: value.predicate,
 		cast,
-		origExp: exp,
+		origExp: value.origExp,
 	}
 }
 
@@ -295,17 +297,9 @@ const TypeBoolean: ValueUnion = {
 	items: [false, true],
 	cast: v => !!v,
 }
-const ExpTypeBoolean = wrapValue(TypeBoolean)
-TypeBoolean.origExp = ExpTypeBoolean
-
-const ExpTypeNumber = createExpValueType('number', _.isNumber, () => 0)
-const TypeNumber = ExpTypeNumber.value
-
-const ExpTypeString = createExpValueType('string', _.isString, () => '')
-const TypeString = ExpTypeString.value
-
-const ExpTypeIO = createExpValueType('IO', _.isFunction, () => null)
-export const TypeIO = ExpTypeIO.value
+export const TypeNumber = createValueType('number', _.isNumber, () => 0)
+export const TypeString = createValueType('string', _.isString, () => '')
+export const TypeIO = createValueType('IO', _.isFunction, () => null)
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -313,10 +307,10 @@ const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
 export const GlobalScope = createExpScope({
 	scope: {
-		Number: ExpTypeNumber,
-		String: ExpTypeString,
-		Boolean: ExpTypeBoolean,
-		IO: ExpTypeIO,
+		Number: wrapValue(TypeNumber),
+		String: wrapValue(TypeString),
+		Boolean: wrapValue(TypeBoolean),
+		IO: wrapValue(TypeIO),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -338,7 +332,7 @@ export const GlobalScope = createExpScope({
 			params: {
 				xs: {
 					inf: true,
-					value: inheritValueType(ExpTypeNumber, () => 1),
+					value: inheritValueType(TypeNumber, () => 1),
 				},
 			},
 			out: TypeNumber,
@@ -398,7 +392,7 @@ export const GlobalScope = createExpScope({
 			params: {
 				start: {value: TypeNumber},
 				end: {value: TypeNumber},
-				step: {value: inheritValueType(ExpTypeNumber, () => 1)},
+				step: {value: inheritValueType(TypeNumber, () => 1)},
 			},
 			out: createVariadicVector(TypeNumber),
 			body(start, end, step) {
@@ -412,8 +406,8 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {
 				x: {value: TypeNumber},
-				min: {value: inheritValueType(ExpTypeNumber, () => -Infinity)},
-				max: {value: inheritValueType(ExpTypeNumber, () => Infinity)},
+				min: {value: inheritValueType(TypeNumber, () => -Infinity)},
+				max: {value: inheritValueType(TypeNumber, () => Infinity)},
 			},
 			out: TypeNumber,
 			body(x, min, max) {
@@ -448,7 +442,7 @@ export const GlobalScope = createExpScope({
 			params: {x: {inf: false, value: Any}},
 			out: Any,
 			body(x) {
-				return assertExpType(wrapValue(this.eval(x)))
+				return assertExpType(wrapValue(this.eval(x), false))
 			},
 		}),
 		instanceof: wrapValue({
@@ -1174,7 +1168,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 		if (isSubtypeOf(fromType, to)) {
 			return withLog(from)
 		} else {
-			const cast = createExpCast(from, wrapValue(to), false)
+			const cast = createExpCast(from, wrapValue(to, false), false)
 			const log: Log[] = []
 
 			if (!isKindOf('unit', fromType)) {
@@ -1193,7 +1187,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 export function printExp(exp: Exp): string {
 	switch (exp.ast) {
 		case 'value':
-			return printValue(exp.value)
+			return printValue(exp.value, exp, false)
 		case 'symbol':
 			return exp.name
 		case 'fn': {
@@ -1266,8 +1260,12 @@ function retrieveValueName(
 	return name
 }
 
-export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
-	const print = (v: Value) => printValue(v, baseExp)
+export function printValue(
+	val: Value,
+	baseExp: Exp = GlobalScope,
+	printName = false
+): string {
+	const print = (v: Value) => printValue(v, baseExp, true)
 
 	if (!_.isObject(val)) {
 		if (Number.isNaN(val)) return 'nan'
@@ -1291,26 +1289,25 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'unit':
 			return '_'
 		case 'valueType':
-			return retrieveValueName(val, baseExp) ?? `<valueType>`
+			return (printName && retrieveValueName(val, baseExp)) || `<valueType>`
 		case 'spread': {
-			const items = val.items.map(
-				i => (i.inf ? '...' : '') + printValue(i.value)
-			)
+			const items = val.items.map(i => (i.inf ? '...' : '') + print(i.value))
 			return `[${items.join(' ')}]`
 		}
 		case 'union': {
-			const name = retrieveValueName(val, baseExp)
-			if (name) return name
+			if (printName) {
+				const name = retrieveValueName(val, baseExp)
+				if (name) return name
+			}
 			return '(| ' + val.items.map(print).join(' ') + ')'
 		}
 		case 'singleton':
-			return retrieveValueName(val, baseExp) ?? '<singleton>'
+			return (printName && retrieveValueName(val, baseExp)) || '<singleton>'
 		case 'fnType':
 			return '(-> ' + print(val.params) + ' ' + print(val.out) + ')'
 		case 'fn': {
 			const params = _.entries(val.params).map(
-				([name, {inf, value}]) =>
-					`${inf ? '...' : ''}${name}:${printValue(value)}`
+				([name, {inf, value}]) => `${inf ? '...' : ''}${name}:${print(value)}`
 			)
 			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
 			return `(=> [${params.join(' ')}] ${body})`
@@ -1327,4 +1324,4 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 	}
 }
 
-runTest()
+// runTest()
