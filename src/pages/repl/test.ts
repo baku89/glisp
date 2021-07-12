@@ -27,6 +27,9 @@ export default function runTest() {
 	test('(instanceof (+ 1 2) Number)', 'true')
 	test('(instanceof + (typeof +))', 'true')
 
+	// Subtype
+	test('(subtypeof (| 1 2 3) (| 1 2 3 4))', 'true')
+
 	// Vector
 	test('(instanceof [0 1 2] [...Number])', 'true')
 	test('(instanceof [...0] [...Number])', 'true')
@@ -35,4 +38,7 @@ export default function runTest() {
 	test('(instanceof [...0] [Number])', 'false')
 	test('(instanceof [...0] [...0])', 'true')
 	test('(instanceof [0] [Number Number])', 'false')
+
+	// Expression
+	test('(+ 1 2 (+ 3 4))', '10')
 }
