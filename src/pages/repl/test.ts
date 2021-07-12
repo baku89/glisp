@@ -42,4 +42,5 @@ export default function runTest() {
 	// Expression
 	test('(+ 1 2 (+ 3 4))', '10')
 	test('(((=> [x:Number] (=> [y: Number] (* x y))) 4) 10)', '40')
+	test('[...1 ...1 1 ...1]', '[...1]')
 }

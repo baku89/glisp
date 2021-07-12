@@ -1019,6 +1019,17 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			const [result, log] = _eval(p.value)
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
+		// Delete duplicated
+		for (let i = 0; i < items.length - 1; ) {
+			const item = items[i]
+			const nextItem = items[i + 1]
+			if (item.inf && equalsValue(item.value, nextItem.value)) {
+				items.splice(i + 1, 1)
+			} else {
+				i++
+			}
+		}
+
 		const evaluated = createSpread(items)
 		return withLog(evaluated, log)
 	}
