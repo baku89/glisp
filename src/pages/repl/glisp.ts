@@ -1217,7 +1217,10 @@ function compareType(
 		case 'union':
 			return compareUnion(a, b)
 		case 'maybe':
-			return isKindOf('maybe', a) && compare(a.value, b.value)
+			return (
+				(isKindOf('maybe', a) && compare(a.value, b.value)) ||
+				compare(a, b.value)
+			)
 		case 'fnType':
 			return compareFnType(a, b)
 		case 'fn':
@@ -1370,6 +1373,9 @@ function castType(type: Value, value: Value): Value {
 	}
 
 	switch (type.kind) {
+		case 'unit':
+		case 'typeVar':
+			return Unit
 		case 'valueType':
 			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
@@ -1388,8 +1394,12 @@ function castType(type: Value, value: Value): Value {
 			}
 		case 'singleton':
 			return type
+		case 'spread': {
+			const items = type.items.flatMap(it => (it.inf ? [] : [it.value]))
+			return castType(items, value)
+		}
 		default:
-			throw new Error('Not yet implemented')
+			throw new Error(`Not yet implemented: castType(${type.kind})`)
 	}
 }
 
@@ -1432,6 +1442,10 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 		}
 	}
 
+	if (isParamShort) {
+		log.unshift({level: 'error', reason: 'Too short parameter'})
+	}
+
 	return withLog(casted, log)
 
 	function assign(from: Exp, to: Value): WithLog<Exp> {
@@ -1444,8 +1458,8 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			const log: Log[] = []
 
 			if (!isKindOf('unit', fromType) && !isKindOf('maybe', fromType)) {
-				const fromStr = printExp(from) + ':' + printValue(fromType)
-				const toStr = printValue(to, GlobalScope, true)
+				const fromStr = printValue(fromType)
+				const toStr = printValue(to)
 				log.push({
 					level: 'error',
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
