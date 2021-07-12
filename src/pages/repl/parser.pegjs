@@ -131,7 +131,6 @@ Spread "spread vector" = "[" _ _items:(("..." _)? Form _)+ "]"
 		return ret
 	}
 
-
 // Hash Map
 Dict "hash map" = "{" _ items:(Pair _)* rest:("..." _ Form _)? "}"
 	{

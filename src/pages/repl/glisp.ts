@@ -26,6 +26,7 @@ type Value =
 	| ValueValueType
 	| ValueFnType
 	| ValueUnion
+	| ValueMaybe
 	| ValueSpread
 	| ValueDict
 	| ValueFn
@@ -63,9 +64,14 @@ interface ValueValueType {
 
 interface ValueUnion {
 	kind: 'union'
-	items: Exclude<Value, ValueUnion>[]
+	items: Exclude<Exclude<Value, ValueUnion>, ValueUnit>[]
 	cast?: (value: Value) => Value
 	origExp?: ExpValue<ValueUnion>
+}
+
+interface ValueMaybe {
+	kind: 'maybe'
+	value: Value
 }
 
 interface ValueFnType {
@@ -583,9 +589,15 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	const items: (Exclude<Value, ValueUnion> | undefined)[] = types.flatMap(t =>
+	let items: (Value | undefined)[] = types.flatMap(t =>
 		isKindOf('union', t) ? t.items : [t]
 	)
+	let isMaybe = false
+
+	if (items.findIndex(it => it && isKindOf('unit', it)) !== -1) {
+		items = items.filter(it => it && !isKindOf('unit', it))
+		isMaybe = true
+	}
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -608,14 +620,19 @@ function uniteType(
 
 	const uniqItems = items.filter(i => i !== undefined) as ValueUnion['items']
 
+	let value: Value
+
 	switch (uniqItems.length) {
 		case 0:
 			return Unit
 		case 1:
-			return uniqItems[0]
+			value = uniqItems[0]
+			break
 		default:
-			return {kind: 'union', items: uniqItems, cast}
+			value = {kind: 'union', items: uniqItems, cast}
 	}
+
+	return isMaybe ? {kind: 'maybe', value} : value
 }
 
 export function equalsValue(a: Value, b: Value): boolean {
@@ -662,6 +679,8 @@ export function equalsValue(a: Value, b: Value): boolean {
 				isKindOf('union', b) &&
 				_.xorWith(a.items, b.items, equalsValue).length === 0
 			)
+		case 'maybe':
+			return isKindOf('maybe', b) && equalsValue(a.value, b.value)
 		case 'spread':
 			return (
 				isKindOf('spread', b) &&
@@ -752,6 +771,7 @@ function assertValueType(v: Value): Value {
 		case 'valueType':
 		case 'fnType':
 		case 'union':
+		case 'maybe':
 		case 'spread':
 		case 'typeVar':
 			return v
@@ -1005,6 +1025,7 @@ export function isKindOf(kind: 'fn', x: Value): x is ValueFn
 export function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
 export function isKindOf(kind: 'dict', x: Value): x is ValueDict
 export function isKindOf(kind: 'union', x: Value): x is ValueUnion
+export function isKindOf(kind: 'maybe', x: Value): x is ValueMaybe
 export function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
 export function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 export function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
@@ -1052,20 +1073,6 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 		} else {
 			return withLog(wrapValue(Unit), log)
 		}
-	}
-
-	function createFn(exp: ExpFn): WithLog<Exp> {
-		const [params, paramsLog] = mapValueWithLog(exp.params, p => {
-			const [result, log] = _createPdg(p.value)
-			return withLog({inf: p.inf, value: result}, log)
-		})
-		const [body, bodyLog] = _createPdg(exp.body)
-		const fn: ExpFn = {
-			ast: 'fn',
-			params,
-			body,
-		}
-		return withLog(fn, [...paramsLog, ...bodyLog])
 	}
 
 	function createFncall(exp: ExpList) {
@@ -1133,6 +1140,8 @@ function compareType(
 			return compareSpread(a, b)
 		case 'union':
 			return compareUnion(a, b)
+		case 'maybe':
+			return isKindOf('maybe', a) && compare(a.value, b.value)
 		case 'fnType':
 			return compareFnType(a, b)
 		case 'fn':
@@ -1352,7 +1361,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			const cast = createExpCast(from, wrapValue(to, false), false)
 			const log: Log[] = []
 
-			if (!isKindOf('unit', fromType)) {
+			if (!isKindOf('unit', fromType) && !isKindOf('maybe', fromType)) {
 				const fromStr = printExp(from) + ':' + printValue(fromType)
 				const toStr = printValue(to, GlobalScope, true)
 				log.push({
@@ -1488,6 +1497,8 @@ export function printValue(
 			}
 			return '(| ' + val.items.map(print).join(' ') + ')'
 		}
+		case 'maybe':
+			return '?' + print(val.value)
 		case 'singleton':
 			return (printName && retrieveValueName(val, baseExp)) || '<singleton>'
 		case 'fnType':
