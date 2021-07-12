@@ -77,6 +77,7 @@ interface ValueFnType {
 interface ValueFnThis {
 	log: (log: Log) => void
 	eval: <R extends Value = Value>(exp: Exp) => R
+	getDefault: () => Value
 }
 
 interface ValueFn {
@@ -531,7 +532,7 @@ export const GlobalScope = createExpScope({
 		}),
 		instanceof: wrapValue({
 			kind: 'fn',
-			params: {value: {inf: false, value: Any}, type: {inf: false, value: Any}},
+			params: {value: {value: Any}, type: {value: Any}},
 			out: TypeBoolean,
 			body(value, type) {
 				return isInstanceOf(this.eval(value), this.eval(type))
@@ -539,10 +540,26 @@ export const GlobalScope = createExpScope({
 		}),
 		subtypeof: wrapValue({
 			kind: 'fn',
-			params: {value: {inf: false, value: Any}, type: {inf: false, value: Any}},
+			params: {value: {value: Any}, type: {value: Any}},
 			out: TypeBoolean,
 			body(value, type) {
 				return isSubtypeOf(this.eval(value), this.eval(type))
+			},
+		}),
+		nth: wrapValue({
+			kind: 'fn',
+			params: {
+				coll: {value: createVariadicVector(TypeVarT)},
+				index: {value: TypeNumber},
+			},
+			out: TypeVarT,
+			body(coll, index) {
+				const _coll = this.eval<Value[]>(coll)
+				const i = this.eval<number>(index)
+				if (i < 0 || !Number.isInteger(i) || _coll.length <= i) {
+					return this.getDefault()
+				}
+				return _coll[i]
 			},
 		}),
 		'==': wrapValue({
@@ -868,6 +885,9 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 					paramsLog.push(...log)
 					return result as any
 				},
+				getDefault() {
+					return 0
+				},
 			}
 
 			const evaluated = exp.fn.call(context, ...exp.params)
@@ -934,6 +954,10 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 				const {result, log} = _eval(e)
 				paramsLog.push(...log)
 				return result as any
+			},
+			getDefault() {
+				const outType = assertExpType(exp)
+				return getDefault(outType)
 			},
 		}
 
