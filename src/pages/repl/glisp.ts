@@ -4,6 +4,7 @@ import peg from 'pegjs'
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
+import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -20,6 +21,7 @@ type Value =
 	| ValueDict
 	| ValueFn
 	| ValueObject
+	| ValueTypeVar
 
 interface ValueAny {
 	kind: 'any'
@@ -88,6 +90,12 @@ interface ValueObject {
 	kind: 'object'
 	type: ValueValueType
 	value: any
+}
+
+interface ValueTypeVar {
+	kind: 'typeVar'
+	id: symbol
+	origExp: ExpValue<ValueTypeVar>
 }
 
 type Exp =
@@ -570,6 +578,8 @@ function equalsValue(a: Value, b: Value): boolean {
 			)
 		case 'object':
 			return false
+		case 'typeVar':
+			return isKindOf('typeVar', b) && a.id === b.id
 	}
 }
 
@@ -678,9 +688,12 @@ function assertValueType(v: Value): Value {
 			}
 		}
 		case 'dict':
-			return Any
+			// return Any
+			throw new Error('Not yet implemented')
 		case 'object':
 			return v.type
+		case 'typeVar':
+			throw new Error('Not yet implemented')
 	}
 }
 
@@ -905,6 +918,8 @@ function isKindOf(kind: 'union', x: Value): x is ValueUnion
 function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
 function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
+function isKindOf(kind: 'object', x: Value): x is ValueObject
+function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
 function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(kind: T['kind'], x: Value): x is T {
@@ -1352,7 +1367,9 @@ export function printValue(
 		}
 		case 'object':
 			return `<object of ${print(val.type)}>`
+		case 'typeVar':
+			return '<typeVar>'
 	}
 }
 
-// runTest()
+runTest()
