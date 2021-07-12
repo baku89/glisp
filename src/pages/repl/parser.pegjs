@@ -45,7 +45,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$([^ :.,\t\n\r`()[\]{}]i+)
+Symbol "symbol" = name:$[^ :.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
@@ -121,12 +121,17 @@ Spread "spread vector" = "[" _ _items:(("..." _)? Form _)+ "]"
 
 
 // Hash Map
-HashMap "hash map" = "{" _ items:(Pair _)* "}"
+HashMap "hash map" = "{" _ items:(Pair _)* rest:("..." _ Form _)? "}"
 	{
 		const entries = items.map(it => it[0])
 		const ret = {ast: 'hashMap', items: Object.fromEntries(entries)}
 
 		entries.forEach(e => e[1].parent = ret)
+
+		if (rest) {
+			ret.rest = rest[2]
+			ret.rest.parent = ret
+		}
 
 		return ret
 	}
@@ -172,7 +177,7 @@ Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
 		return [left.name, right]
 	}
 
-SymbolEqualLeft "symbol" = name:$([^= :.,\t\n\r`()[\]{}]i+)
+SymbolEqualLeft "symbol" = name:$[^= :.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
@@ -182,7 +187,7 @@ SymbolEqualLeft "symbol" = name:$([^= :.,\t\n\r`()[\]{}]i+)
 
 Comment "comment" = $(";" [^\n\r]*)
 
-Whitespace "whitespace" = $([ ,\t\n\r]*)
+Whitespace "whitespace" = $[ ,\t\n\r]*
 
 _ = w:Whitespace str:$(Comment Whitespace?)*
 	{

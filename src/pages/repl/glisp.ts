@@ -82,6 +82,7 @@ interface ValueHashMap {
 	value: {
 		[key: string]: Value
 	}
+	rest?: Value
 }
 
 interface ValueObject {
@@ -145,6 +146,7 @@ interface ExpSpread extends ExpBase {
 interface ExpHashMap extends ExpBase {
 	ast: 'hashMap'
 	items: Record<string, Exp>
+	rest?: Exp
 }
 
 interface ExpCast extends ExpBase {
@@ -251,8 +253,11 @@ function createVariadicVector(item: Value): ValueSpread {
 	}
 }
 
-function createHashMap(value: ValueHashMap['value']): ValueHashMap {
-	return {kind: 'hashMap', value}
+function createHashMap(
+	value: ValueHashMap['value'],
+	rest?: Value
+): ValueHashMap {
+	return {kind: 'hashMap', value, rest}
 }
 
 function createValueType(
@@ -826,9 +831,18 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
-		const {result: items, log} = mapValueWithLog(exp.items, _eval)
-		const evaluated = createHashMap(items)
-		return withLog(evaluated, log)
+		const {result: items, log: itemsLog} = mapValueWithLog(exp.items, _eval)
+		const restResult = exp.rest && _eval(exp.rest)
+		let rest: Value | undefined = undefined,
+			restLog: Log[] = []
+
+		if (restResult) {
+			rest = restResult.result
+			restLog = restResult.log
+		}
+
+		const evaluated = createHashMap(items, rest)
+		return withLog(evaluated, [...itemsLog, ...restLog])
 	}
 
 	function evalCast(exp: ExpCast) {
@@ -1148,7 +1162,9 @@ export function printExp(exp: Exp): string {
 		case 'hashMap': {
 			const entries = _.entries(exp.items)
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
-			return '{' + pairs.join(' ') + '}'
+			const rest = exp.rest ? ['...' + printExp(exp.rest)] : []
+			const lines = [...pairs, ...rest]
+			return '{' + lines.join(' ') + '}'
 		}
 		case 'cast':
 			return printExp(exp.value) + ':' + printExp(exp.type)
@@ -1238,7 +1254,9 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 		case 'hashMap': {
 			const entries = _.entries(val.value)
 			const pairs = entries.map(([k, v]) => `${k}: ${print(v)}`)
-			return '{' + pairs.join(' ') + '}'
+			const rest = val.rest ? ['...' + printValue(val.rest)] : []
+			const lines = [...pairs, ...rest]
+			return '{' + lines.join(' ') + '}'
 		}
 		case 'object':
 			return `<object of ${print(val.type)}>`
