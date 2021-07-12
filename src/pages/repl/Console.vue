@@ -94,7 +94,7 @@ export default defineComponent({
 			e.preventDefault()
 			if (code.value === '') return
 
-			const {result, log} = await props.rep(code.value)
+			const [result, log] = await props.rep(code.value)
 
 			// Print log to the inspector
 			log.forEach(l => ConsoleLogger[l.level](l.reason, l.error))

@@ -32,7 +32,7 @@ export default defineComponent({
 		const onError = ref<(msg: string) => any>(console.error)
 
 		const rep: IFnRep = async (str: string) => {
-			const {result, log} = evalStr(str)
+			const [result, log] = evalStr(str)
 
 			// Execute IO
 			if (isKindOf('object', result) && result.type === TypeIO) {

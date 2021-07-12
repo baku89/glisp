@@ -775,7 +775,7 @@ function assertExpType(exp: Exp): Value {
 		case 'value':
 			return assertValueType(exp.value)
 		case 'symbol': {
-			const inspected = resolveSymbol(exp).result
+			const [inspected] = resolveSymbol(exp)
 			if (inspected.semantic == 'ref') {
 				return assertExpType(inspected.ref)
 			} else if (inspected.semantic === 'param') {
@@ -881,7 +881,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 					callLog.push(log)
 				},
 				eval(e) {
-					const {result, log} = evalExp(e, env)
+					const [result, log] = evalExp(e, env)
 					paramsLog.push(...log)
 					return result as any
 				},
@@ -897,11 +897,11 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLog<Value> {
-		const {result, log} = resolveSymbol(exp)
+		const [result, log] = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return _eval(result.ref)
 		} else if (result.semantic === 'param') {
-			const {result: type, log} = _eval(result.type)
+			const [type, log] = _eval(result.type)
 			return withLog(getDefault(type), log)
 		} else {
 			return withLog(Unit, log)
@@ -909,16 +909,16 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalFn(exp: ExpFn): WithLog<Value> {
-		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, p => {
-			const {result, log} = _eval(p.value)
+		const [params, paramsLog] = mapValueWithLog(exp.params, p => {
+			const [result, log] = _eval(p.value)
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
-		const {result: pdg, log: bodyLog} = createPdg(exp.body, env)
+		const [pdg, bodyLog] = createPdg(exp.body, env)
 
 		const body: ValueFn['body'] = function (...xs) {
 			const localEnv = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
-			return evalExp(pdg, {...env, ...localEnv}).result
+			return evalExp(pdg, {...env, ...localEnv})[0]
 		}
 
 		const fn: ValueFn = {
@@ -933,7 +933,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalList(exp: ExpList): WithLog<Value> {
-		const {result: fn, log: fnLog} = _eval(exp.fn)
+		const [fn, fnLog] = _eval(exp.fn)
 
 		if (!isKindOf('fn', fn)) {
 			return _eval(exp.fn)
@@ -941,7 +941,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 		const paramsType = getParamType(fn)
 
-		const {result: params, log: castLog} = assignParam(paramsType, exp.params)
+		const [params, castLog] = assignParam(paramsType, exp.params)
 
 		const paramsLog: Log[] = []
 		const callLog: Log[] = []
@@ -951,7 +951,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 				callLog.push(log)
 			},
 			eval(e) {
-				const {result, log} = _eval(e)
+				const [result, log] = _eval(e)
 				paramsLog.push(...log)
 				return result as any
 			},
@@ -968,8 +968,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalSpread(exp: ExpSpread): WithLog<ValueSpread> {
-		const {result: items, log} = mapWithLog(exp.items, p => {
-			const {result, log} = _eval(p.value)
+		const [items, log] = mapWithLog(exp.items, p => {
+			const [result, log] = _eval(p.value)
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 		const evaluated = createSpread(items)
@@ -977,14 +977,13 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalDict(exp: ExpDict): WithLog<ValueDict> {
-		const {result: items, log: itemsLog} = mapValueWithLog(exp.items, _eval)
+		const [items, itemsLog] = mapValueWithLog(exp.items, _eval)
 		const restResult = exp.rest && _eval(exp.rest)
 		let rest: Value | undefined = undefined,
 			restLog: Log[] = []
 
 		if (restResult) {
-			rest = restResult.result
-			restLog = restResult.log
+			;[rest, restLog] = restResult
 		}
 
 		const evaluated = createDict(items, rest)
@@ -992,8 +991,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalCast(exp: ExpCast) {
-		const {result: value, log: valueLog} = _eval(exp.value)
-		const {result: type, log: typeLog} = _eval(exp.type)
+		const [value, valueLog] = _eval(exp.value)
+		const [type, typeLog] = _eval(exp.type)
 
 		const evaluated = castType(type, value)
 		return withLog(evaluated, [...valueLog, ...typeLog])
@@ -1044,7 +1043,7 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 			return withLog(env[exp.name])
 		}
 
-		const {result, log} = resolveSymbol(exp)
+		const [result, log] = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return withLog(result.ref)
 		} else if (result.semantic === 'param') {
@@ -1056,11 +1055,11 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	}
 
 	function createFn(exp: ExpFn): WithLog<Exp> {
-		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, p => {
-			const {result, log} = _createPdg(p.value)
+		const [params, paramsLog] = mapValueWithLog(exp.params, p => {
+			const [result, log] = _createPdg(p.value)
 			return withLog({inf: p.inf, value: result}, log)
 		})
-		const {result: body, log: bodyLog} = _createPdg(exp.body)
+		const [body, bodyLog] = _createPdg(exp.body)
 		const fn: ExpFn = {
 			ast: 'fn',
 			params,
@@ -1070,18 +1069,15 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	}
 
 	function createFncall(exp: ExpList) {
-		const {result: fn, log: fnLog} = _createPdg(exp.fn)
-		const {result: params, log: paramsLog} = mapWithLog(exp.params, _createPdg)
+		const [fn, fnLog] = _createPdg(exp.fn)
+		const [params, paramsLog] = mapWithLog(exp.params, _createPdg)
 
-		const fnValue = evalExp(exp.fn).result
+		const [fnValue] = evalExp(exp.fn)
 
 		if (isKindOf('fn', fnValue)) {
 			const fnParamsType = assertExpParamsType(fn)
 
-			const {result: assignedParams, log: typeAssertLog} = assignParam(
-				fnParamsType,
-				params
-			)
+			const [assignedParams, typeAssertLog] = assignParam(fnParamsType, params)
 
 			const ret: ExpFncall = {
 				ast: 'fncall',
@@ -1100,7 +1096,7 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	}
 
 	function createVector(exp: ExpVector) {
-		const {result: items, log} = mapWithLog(exp.items, _createPdg)
+		const [items, log] = mapWithLog(exp.items, _createPdg)
 		const ret: ExpVector = {ast: 'vector', items}
 		return withLog(ret, log)
 	}
@@ -1319,7 +1315,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 		if (!toType.inf) {
 			isParamShort = from.length <= i
 			const fromItem = isParamShort ? wrapValue(Unit) : from[i]
-			const {result, log: assignLog} = assign(fromItem, toType.value)
+			const [result, assignLog] = assign(fromItem, toType.value)
 			log.push(...assignLog)
 			casted.push(result)
 			i += 1
@@ -1336,7 +1332,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 					break
 				}
 
-				const {result, log: assignLog} = assign(fromItem, toType.value)
+				const [result, assignLog] = assign(fromItem, toType.value)
 				log.push(...assignLog)
 				restCasted.push(result)
 			}
@@ -1442,7 +1438,7 @@ function retrieveValueName(
 		name,
 	}
 
-	const symInspected = resolveSymbol(sym).result
+	const [symInspected] = resolveSymbol(sym)
 
 	if (symInspected.semantic !== 'ref' || symInspected.ref !== origExp) {
 		return

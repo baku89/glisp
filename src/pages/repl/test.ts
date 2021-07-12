@@ -1,8 +1,8 @@
 import {equalsValue, evalStr} from './glisp'
 
 function test(test: string, toBe: string) {
-	const _test = evalStr(test).result
-	const _toBe = evalStr(toBe).result
+	const [_test] = evalStr(test)
+	const [_toBe] = evalStr(toBe)
 
 	const succeed = equalsValue(_test, _toBe)
 	const fn = succeed ? console.log : console.error

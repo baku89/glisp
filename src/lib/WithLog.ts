@@ -6,13 +6,10 @@ export interface Log {
 	error?: Error
 }
 
-export interface WithLog<T> {
-	result: T
-	log: Log[]
-}
+export type WithLog<T> = [T, Log[]]
 
-export function withLog<T>(result: T, log: Log[] = []) {
-	return {result, log}
+export function withLog<T>(result: T, log: Log[] = []): WithLog<T> {
+	return [result, log]
 }
 
 export function composeWithLog<A, B, C>(
@@ -20,8 +17,8 @@ export function composeWithLog<A, B, C>(
 	g: (b: B) => WithLog<C>
 ): (a: A) => WithLog<C> {
 	return (a: A) => {
-		const {result: b, log: fLog} = f(a)
-		const {result: c, log: gLog} = g(b)
+		const [b, fLog] = f(a)
+		const [c, gLog] = g(b)
 
 		return withLog(c, [...fLog, ...gLog])
 	}
@@ -32,8 +29,8 @@ export function flowWithLog<A, B, C>(
 	f: (a: A) => WithLog<B>,
 	g: (b: B) => WithLog<C>
 ): WithLog<C> {
-	const {result: b, log: fLog} = f(input)
-	const {result: c, log: gLog} = g(b)
+	const [b, fLog] = f(input)
+	const [c, gLog] = g(b)
 
 	return withLog(c, [...fLog, ...gLog])
 }
@@ -43,9 +40,9 @@ export function mapWithLog<A, R>(
 	map: (a: A) => WithLog<R>
 ): WithLog<R[]> {
 	const mapped = arr.map(map)
-	const result = mapped.map(r => r.result)
-	const log = mapped.flatMap(r => r.log)
-	return {result, log}
+	const result = mapped.map(r => r[0])
+	const log = mapped.flatMap(r => r[1])
+	return [result, log]
 }
 
 export function mapValueWithLog<R, T>(
@@ -53,8 +50,8 @@ export function mapValueWithLog<R, T>(
 	map: (a: R) => WithLog<T>
 ): WithLog<Record<string, T>> {
 	const mapped = _.mapValues(dict, map)
-	const result = _.mapValues(mapped, m => m.result)
-	const log = _.values(mapped).flatMap(m => m.log)
+	const result = _.mapValues(mapped, m => m[0])
+	const log = _.values(mapped).flatMap(m => m[1])
 
-	return {result, log}
+	return [result, log]
 }
