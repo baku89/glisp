@@ -11,7 +11,7 @@ Program = form:Form
 Form "form" = Cast / FromExceptCast
 
 FromExceptCast = Any / Unit / Constant / Number / String
-	/ Fn / List / Vector / Spread / HashMap / Scope
+	/ Fn / List / Vector / Spread / Dict / Scope
 	/ QuotedSymbol / Symbol
 
 Constant "constant" = value:$("true" / "false" / "null")
@@ -91,7 +91,7 @@ List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	}
 
 ListFirst = Unit / Constant / Number / String
-	/ Fn / List / Vector / Spread / HashMap / Scope / QuotedSymbol / Symbol
+	/ Fn / List / Vector / Spread / Dict / Scope / QuotedSymbol / Symbol
 
 Vector "vector" = "[" _ items:(Form _)* "]"
 	{
@@ -121,10 +121,10 @@ Spread "spread vector" = "[" _ _items:(("..." _)? Form _)+ "]"
 
 
 // Hash Map
-HashMap "hash map" = "{" _ items:(Pair _)* rest:("..." _ Form _)? "}"
+Dict "hash map" = "{" _ items:(Pair _)* rest:("..." _ Form _)? "}"
 	{
 		const entries = items.map(it => it[0])
-		const ret = {ast: 'hashMap', items: Object.fromEntries(entries)}
+		const ret = {ast: 'dict', items: Object.fromEntries(entries)}
 
 		entries.forEach(e => e[1].parent = ret)
 

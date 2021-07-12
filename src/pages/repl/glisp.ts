@@ -18,7 +18,7 @@ type Value =
 	| ValueFnType
 	| ValueUnion
 	| ValueSpread
-	| ValueHashMap
+	| ValueDict
 	| ValueFn
 	| ValueObject
 
@@ -77,8 +77,8 @@ interface ValueFn {
 	expBody?: Exp
 }
 
-interface ValueHashMap {
-	kind: 'hashMap'
+interface ValueDict {
+	kind: 'dict'
 	value: {
 		[key: string]: Value
 	}
@@ -98,7 +98,7 @@ type Exp =
 	| ExpList
 	| ExpVector
 	| ExpSpread
-	| ExpHashMap
+	| ExpDict
 	| ExpCast
 	| ExpScope
 
@@ -143,8 +143,8 @@ interface ExpSpread extends ExpBase {
 	items: {inf: boolean; value: Exp}[]
 }
 
-interface ExpHashMap extends ExpBase {
-	ast: 'hashMap'
+interface ExpDict extends ExpBase {
+	ast: 'dict'
 	items: Record<string, Exp>
 	rest?: Exp
 }
@@ -253,11 +253,8 @@ function createVariadicVector(item: Value): ValueSpread {
 	}
 }
 
-function createHashMap(
-	value: ValueHashMap['value'],
-	rest?: Value
-): ValueHashMap {
-	return {kind: 'hashMap', value, rest}
+function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
+	return {kind: 'dict', value, rest}
 }
 
 function createValueType(
@@ -296,10 +293,10 @@ const TypeFnType = createValueType(
 		out: Any,
 	})
 )
-const TypeHashMap = createValueType(
-	'hashMap',
-	v => isKindOf('hashMap', v),
-	() => createHashMap({})
+const TypeDict = createValueType(
+	'dict',
+	v => isKindOf('dict', v),
+	() => createDict({})
 )
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
@@ -522,8 +519,8 @@ function equalsValue(a: Value, b: Value): boolean {
 				equalsValue(a.params, b.params) &&
 				equalsValue(a.out, b.out)
 			)
-		case 'hashMap':
-			if (isKindOf('hashMap', b)) {
+		case 'dict':
+			if (isKindOf('dict', b)) {
 				const aKeys = _.keys(a.value)
 				const bKeys = _.keys(b.value)
 				return (
@@ -658,7 +655,7 @@ function assertValueType(v: Value): Value {
 				out: v.out,
 			}
 		}
-		case 'hashMap':
+		case 'dict':
 			return Any
 		case 'object':
 			return v.type
@@ -700,8 +697,8 @@ function assertExpType(exp: Exp): Value {
 			}))
 			return createSpread(items)
 		}
-		case 'hashMap':
-			return TypeHashMap
+		case 'dict':
+			return TypeDict
 		case 'cast':
 			return assertExpType(exp.type)
 		case 'scope':
@@ -738,8 +735,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return mapWithLog(exp.items, _eval)
 		case 'spread':
 			return evalSpread(exp)
-		case 'hashMap':
-			return evalHashMap(exp)
+		case 'dict':
+			return evalDict(exp)
 		case 'cast':
 			return evalCast(exp)
 		case 'scope':
@@ -830,7 +827,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, log)
 	}
 
-	function evalHashMap(exp: ExpHashMap): WithLog<ValueHashMap> {
+	function evalDict(exp: ExpDict): WithLog<ValueDict> {
 		const {result: items, log: itemsLog} = mapValueWithLog(exp.items, _eval)
 		const restResult = exp.rest && _eval(exp.rest)
 		let rest: Value | undefined = undefined,
@@ -841,7 +838,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			restLog = restResult.log
 		}
 
-		const evaluated = createHashMap(items, rest)
+		const evaluated = createDict(items, rest)
 		return withLog(evaluated, [...itemsLog, ...restLog])
 	}
 
@@ -858,7 +855,7 @@ function isKindOf(kind: 'any', x: Value): x is ValueAny
 function isKindOf(kind: 'unit', x: Value): x is ValueUnit
 function isKindOf(kind: 'fn', x: Value): x is ValueFn
 function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
-function isKindOf(kind: 'hashMap', x: Value): x is ValueHashMap
+function isKindOf(kind: 'dict', x: Value): x is ValueDict
 function isKindOf(kind: 'union', x: Value): x is ValueUnion
 function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
 function isKindOf(kind: 'spread', x: Value): x is ValueSpread
@@ -1159,7 +1156,7 @@ export function printExp(exp: Exp): string {
 			const items = exp.items.map(i => (i.inf ? '...' : '') + printExp(i.value))
 			return `[${items.join(' ')}]`
 		}
-		case 'hashMap': {
+		case 'dict': {
 			const entries = _.entries(exp.items)
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
 			const rest = exp.rest ? ['...' + printExp(exp.rest)] : []
@@ -1251,7 +1248,7 @@ export function printValue(val: Value, baseExp: Exp = GlobalScope): string {
 			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
 			return `(=> [${params.join(' ')}] ${body})`
 		}
-		case 'hashMap': {
+		case 'dict': {
 			const entries = _.entries(val.value)
 			const pairs = entries.map(([k, v]) => `${k}: ${print(v)}`)
 			const rest = val.rest ? ['...' + printValue(val.rest)] : []
