@@ -18,17 +18,10 @@ import {defineComponent, ref} from 'vue'
 
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
+import {flowWithLog, withLog} from '@/lib/WithLog'
 
 import Console, {IFnRep} from './Console.vue'
-import {
-	evalExp,
-	flowWithLog,
-	isKindOf,
-	printValue,
-	readStr,
-	TypeIO,
-	withLog,
-} from './glisp'
+import {evalExp, isKindOf, printValue, readStr, TypeIO} from './glisp'
 
 export default defineComponent({
 	name: 'PageRepl',

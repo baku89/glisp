@@ -37,8 +37,7 @@ import {computed, defineComponent, PropType, ref, shallowRef, watch} from 'vue'
 
 import MonacoEditor from '@/components/layouts/MonacoEditor/MonacoEditor.vue'
 import SyntaxHighligher from '@/components/layouts/SyntaxHighligher.vue'
-
-import {Log, WithLog} from './glisp'
+import {Log, WithLog} from '@/lib/WithLog'
 
 type MaybePromise<T> = T | Promise<T>
 
