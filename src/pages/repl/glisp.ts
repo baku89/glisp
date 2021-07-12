@@ -552,12 +552,12 @@ export const GlobalScope = createExpScope({
 				coll: {value: createVariadicVector(TypeVarT)},
 				index: {value: TypeNumber},
 			},
-			out: TypeVarT,
+			out: uniteType([TypeVarT, Unit]),
 			body(coll, index) {
 				const _coll = this.eval<Value[]>(coll)
 				const i = this.eval<number>(index)
 				if (i < 0 || !Number.isInteger(i) || _coll.length <= i) {
-					return this.getDefault()
+					return Unit
 				}
 				return _coll[i]
 			},
@@ -583,9 +583,9 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	const items: (Exclude<Value, ValueUnion> | undefined)[] = types
-		.flatMap(t => (isKindOf('union', t) ? t.items : [t]))
-		.filter(t => !isKindOf('unit', t))
+	const items: (Exclude<Value, ValueUnion> | undefined)[] = types.flatMap(t =>
+		isKindOf('union', t) ? t.items : [t]
+	)
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
