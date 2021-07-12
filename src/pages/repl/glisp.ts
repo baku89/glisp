@@ -526,9 +526,9 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	const items: (Exclude<Value, ValueUnion> | undefined)[] = types.flatMap(t =>
-		isKindOf('union', t) ? t.items : [t]
-	)
+	const items: (Exclude<Value, ValueUnion> | undefined)[] = types
+		.flatMap(t => (isKindOf('union', t) ? t.items : [t]))
+		.filter(t => !isKindOf('unit', t))
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
@@ -551,9 +551,14 @@ function uniteType(
 
 	const uniqItems = items.filter(i => i !== undefined) as ValueUnion['items']
 
-	return uniqItems.length >= 2
-		? {kind: 'union', items: uniqItems, cast}
-		: uniqItems[0]
+	switch (uniqItems.length) {
+		case 0:
+			return Unit
+		case 1:
+			return uniqItems[0]
+		default:
+			return {kind: 'union', items: uniqItems, cast}
+	}
 }
 
 export function equalsValue(a: Value, b: Value): boolean {
