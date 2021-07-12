@@ -56,16 +56,16 @@ interface ValueSpread<T extends Value = Value> {
 interface ValueValueType {
 	kind: 'valueType'
 	id: symbol
-	origExp?: Exp
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
+	origExp?: ExpValue<ValueValueType>
 }
 
 interface ValueUnion {
 	kind: 'union'
 	items: Exclude<Value, ValueUnion>[]
 	cast?: (value: Value) => Value
-	origExp?: Exp
+	origExp?: ExpValue<ValueUnion>
 }
 
 interface ValueFnType {
@@ -103,7 +103,7 @@ interface ValueObject {
 
 interface ValueTypeVar {
 	kind: 'typeVar'
-	id: symbol
+	id: string
 	origExp?: ExpValue<ValueTypeVar>
 }
 
@@ -214,7 +214,8 @@ function wrapValue<T extends Value = Value>(
 		setOriginal &&
 		(isKindOf('singleton', value) ||
 			isKindOf('valueType', value) ||
-			isKindOf('union', value))
+			isKindOf('union', value) ||
+			isKindOf('typeVar', value))
 	) {
 		if (value.origExp)
 			throw new Error(`Cannot overwrite origExp of ${printValue(value)}`)
@@ -314,6 +315,10 @@ function inheritValueType(
 	}
 }
 
+function createTypeVar(id: string): ValueTypeVar {
+	return {kind: 'typeVar', id}
+}
+
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
 	items: [false, true],
@@ -336,6 +341,9 @@ export const TypeTypeVar = createValueType(
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
+
+const TypeVarT = createTypeVar('T')
+const TypeVarU = createTypeVar('U')
 
 export const GlobalScope = createExpScope({
 	scope: {
@@ -396,6 +404,14 @@ export const GlobalScope = createExpScope({
 			out: TypeBoolean,
 			body(x) {
 				return !this.eval(x)
+			},
+		}),
+		identity: wrapValue({
+			kind: 'fn',
+			params: {x: {value: TypeVarT}},
+			out: TypeVarT,
+			body(x) {
+				return this.eval(x)
 			},
 		}),
 		'->': wrapValue({
@@ -491,10 +507,24 @@ export const GlobalScope = createExpScope({
 		}),
 		typeVar: wrapValue({
 			kind: 'fn',
-			params: {},
+			params: {id: {value: TypeString}},
 			out: TypeTypeVar,
-			body() {
-				return {kind: 'typeVar', id: Symbol('typeVar')}
+			body(id) {
+				return {kind: 'typeVar', id: this.eval<string>(id)}
+			},
+		}),
+		T: wrapValue(TypeVarT),
+		U: wrapValue(TypeVarU),
+		if: wrapValue({
+			kind: 'fn',
+			params: {
+				test: {value: TypeBoolean},
+				then: {value: TypeVarT},
+				else: {value: TypeVarT},
+			},
+			out: TypeVarT,
+			body(test, then, _else) {
+				return this.eval(test) ? this.eval(then) : this.eval(_else)
 			},
 		}),
 		instanceof: wrapValue({
@@ -503,6 +533,14 @@ export const GlobalScope = createExpScope({
 			out: TypeBoolean,
 			body(value, type) {
 				return isInstanceOf(this.eval(value), this.eval(type))
+			},
+		}),
+		subtypeof: wrapValue({
+			kind: 'fn',
+			params: {value: {inf: false, value: Any}, type: {inf: false, value: Any}},
+			out: TypeBoolean,
+			body(value, type) {
+				return isSubtypeOf(this.eval(value), this.eval(type))
 			},
 		}),
 		'==': wrapValue({
@@ -696,6 +734,7 @@ function assertValueType(v: Value): Value {
 		case 'fnType':
 		case 'union':
 		case 'spread':
+		case 'typeVar':
 			return v
 		case 'fn': {
 			return {
@@ -709,8 +748,6 @@ function assertValueType(v: Value): Value {
 			throw new Error('Not yet implemented')
 		case 'object':
 			return v.type
-		case 'typeVar':
-			throw new Error('Not yet implemented')
 	}
 }
 
@@ -738,7 +775,18 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
-			return isKindOf('fnType', fn) ? fn.out : fn
+			const type = isKindOf('fnType', fn) ? fn.out : fn
+			if (isKindOf('typeVar', type) && isKindOf('fnType', fn)) {
+				const env = new Map<string, Value>()
+				const expParams = exp.params.map(assertExpType)
+				compareType(expParams, fn.params, false, env)
+
+				const t = env.get(type.id)
+				if (!t) throw new Error('NOOOO')
+				return t
+			} else {
+				return type
+			}
 		}
 		case 'vector':
 			return exp.items.map(assertExpType)
@@ -1011,14 +1059,19 @@ function createPdg(exp: Exp): WithLog<Exp> {
 export const evalStr = composeWithLog(readStr, evalExp)
 
 export function isSubtypeOf(a: Value, b: Value) {
-	return compareType(a, b, false)
+	return compareType(a, b, false, new Map())
 }
 export function isInstanceOf(a: Value, b: Value) {
-	return compareType(a, b, true)
+	return compareType(a, b, true, new Map())
 }
 
-function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
-	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance)
+function compareType(
+	a: Value,
+	b: Value,
+	onlyInstance: boolean,
+	env: Map<string, Value>
+): boolean {
+	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance, env)
 
 	if (!_.isObject(b)) return a === b
 	if (_.isArray(b)) return compareVector(a, b)
@@ -1041,6 +1094,8 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 			return a === b
 		case 'dict':
 			return compareDict(a, b)
+		case 'typeVar':
+			return compareTypeVar(a, b)
 		default:
 			throw new Error('Not yet implemented')
 	}
@@ -1105,7 +1160,11 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		if (onlyInstance) {
 			return b.predicate(a)
 		} else {
-			return b.predicate(a) || (isKindOf('valueType', a) && a.id === b.id)
+			return (
+				b.predicate(a) ||
+				(isKindOf('valueType', a) && a.id === b.id) ||
+				(isKindOf('union', a) && a.items.every(ai => compare(ai, b)))
+			)
 		}
 	}
 
@@ -1153,6 +1212,14 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 
 		return true
 	}
+
+	function compareTypeVar(a: Value, b: ValueTypeVar) {
+		const bPrevType = env.has(b.id) ? (env.get(b.id) as Value) : Unit
+		const bType = uniteType([bPrevType, a])
+		env.set(b.id, bType)
+
+		return true
+	}
 }
 
 function getDefault(type: Value) {
@@ -1177,11 +1244,11 @@ function castType(type: Value, value: Value): Value {
 		case 'fnType':
 			return getDefault(type.out)
 		case 'union':
-			return type.cast
-				? isInstanceOf(value, type)
-					? value
-					: type.cast(value)
-				: getDefault(type.items[0])
+			if (isInstanceOf(value, type)) {
+				return value
+			} else {
+				return type.cast ? type.cast(value) : getDefault(type.items[0])
+			}
 		case 'singleton':
 			return type
 		default:
@@ -1240,7 +1307,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			const log: Log[] = []
 
 			if (!isKindOf('unit', fromType)) {
-				const fromStr = printExp(from)
+				const fromStr = printExp(from) + ':' + printValue(fromType)
 				const toStr = printValue(to, GlobalScope, true)
 				log.push({
 					level: 'error',
@@ -1395,7 +1462,9 @@ export function printValue(
 		case 'object':
 			return `<object of ${print(val.type)}>`
 		case 'typeVar':
-			return `<typeVar>`
+			return (
+				(printName && retrieveValueName(val, baseExp)) || `<typeVar ${val.id}>`
+			)
 	}
 }
 
