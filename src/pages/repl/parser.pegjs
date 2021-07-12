@@ -57,7 +57,7 @@ String "string" = '"' value:$(!'"' .)* '"'
 		}
 	}
 
-Symbol "symbol" = name:$[^ :?.,\t\n\r`()[\]{}]i+
+Symbol "symbol" = name:$[^ :?#.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
@@ -189,7 +189,7 @@ Equal "equal" = left:(SymbolEqualLeft / QuotedSymbol) _ "=" _ right:Form
 		return [left.name, right]
 	}
 
-SymbolEqualLeft "symbol" = name:$[^= :?.,\t\n\r`()[\]{}]i+
+SymbolEqualLeft "symbol" = name:$[^= :?#.,\t\n\r`()[\]{}]i+
 	{
 		return {
 			ast: 'symbol',
