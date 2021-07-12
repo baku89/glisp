@@ -49,6 +49,12 @@ interface Result {
 	output: string | null
 }
 
+const ConsoleLogger: Record<Log['level'], (...x: any[]) => void> = {
+	error: console.error,
+	warn: console.warn,
+	info: console.info,
+}
+
 export default defineComponent({
 	name: 'Console',
 	components: {MonacoEditor, SyntaxHighligher},
@@ -89,6 +95,9 @@ export default defineComponent({
 			if (code.value === '') return
 
 			const {result, log} = await props.rep(code.value)
+
+			// Print log to the inspector
+			log.forEach(l => ConsoleLogger[l.level](l.reason, l.error))
 
 			results.value.push({
 				input: code.value,

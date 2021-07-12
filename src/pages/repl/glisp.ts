@@ -199,9 +199,8 @@ export function readStr(str: string): WithLog<Exp> {
 			exp.parent = GlobalScope
 			return withLog(exp)
 		}
-	} catch (err) {
-		console.log(err)
-		const parseLog: Log = {level: 'error', reason: err.message}
+	} catch (error) {
+		const parseLog: Log = {level: 'error', reason: error.message, error}
 		return withLog(wrapValue(Unit), [parseLog])
 	}
 }

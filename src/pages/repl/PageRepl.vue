@@ -18,10 +18,10 @@ import {defineComponent, ref} from 'vue'
 
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
-import {flowWithLog, withLog} from '@/lib/WithLog'
+import {withLog} from '@/lib/WithLog'
 
 import Console, {IFnRep} from './Console.vue'
-import {evalExp, isKindOf, printValue, readStr, TypeIO} from './glisp'
+import {evalStr, isKindOf, printValue, TypeIO} from './glisp'
 
 export default defineComponent({
 	name: 'PageRepl',
@@ -32,7 +32,7 @@ export default defineComponent({
 		const onError = ref<(msg: string) => any>(console.error)
 
 		const rep: IFnRep = async (str: string) => {
-			const {result, log} = flowWithLog(str, readStr, evalExp)
+			const {result, log} = evalStr(str)
 
 			// Execute IO
 			if (isKindOf('object', result) && result.type === TypeIO) {

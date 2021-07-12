@@ -3,6 +3,7 @@ import _ from 'lodash'
 export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
+	error?: Error
 }
 
 export interface WithLog<T> {
