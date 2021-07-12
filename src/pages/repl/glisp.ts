@@ -40,7 +40,7 @@ interface ValueCustomSingleton {
 
 interface ValueSpread<T extends Value = Value> {
 	kind: 'spread'
-	items: {inf: boolean; value: T}[]
+	items: {inf?: boolean; value: T}[]
 }
 
 interface ValueValueType {
@@ -71,7 +71,7 @@ interface ValueFnThis {
 
 interface ValueFn {
 	kind: 'fn'
-	params: Record<string, {inf: boolean; value: Value}>
+	params: Record<string, {inf?: boolean; value: Value}>
 	out: Value
 	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
 	expBody?: Exp
@@ -123,7 +123,7 @@ interface ExpSymbol extends ExpBase {
 
 interface ExpFn extends ExpBase {
 	ast: 'fn'
-	params: Record<string, {inf: boolean; value: Exp}>
+	params: Record<string, {inf?: boolean; value: Exp}>
 	body: Exp
 }
 
@@ -140,7 +140,7 @@ interface ExpVector extends ExpBase {
 
 interface ExpSpread extends ExpBase {
 	ast: 'spread'
-	items: {inf: boolean; value: Exp}[]
+	items: {inf?: boolean; value: Exp}[]
 }
 
 interface ExpDict extends ExpBase {
@@ -173,8 +173,8 @@ export function readStr(str: string): Exp {
 	}
 }
 
-function wrapValue(value: Value): ExpValue {
-	const ret: ExpValue = {ast: 'value', value}
+function wrapValue<T extends Value = Value>(value: T): ExpValue<T> {
+	const ret: ExpValue<T> = {ast: 'value', value}
 	if (isKindOf('singleton', value) || isKindOf('valueType', value)) {
 		value.origExp = ret
 	}
@@ -274,6 +274,20 @@ function createValueType(
 	}
 }
 
+function inheritValueType(
+	exp: ExpValue<ValueValueType>,
+	cast: ValueValueType['cast']
+): ValueValueType {
+	const {value} = exp
+	return {
+		kind: 'valueType',
+		id: value.id,
+		predicate: value.predicate,
+		cast,
+		origExp: exp,
+	}
+}
+
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
 	items: [false, true],
@@ -281,7 +295,11 @@ const TypeBoolean: ValueUnion = {
 }
 const ExpTypeBoolean = wrapValue(TypeBoolean)
 TypeBoolean.origExp = ExpTypeBoolean
+
 const TypeNumber = createValueType('number', _.isNumber, () => 0)
+const ExpTypeNumber = wrapValue(TypeNumber)
+TypeNumber.origExp = ExpTypeNumber
+
 const TypeString = createValueType('string', _.isString, () => '')
 export const TypeIO = createValueType('IO', _.isFunction, () => null)
 const TypeFnType = createValueType(
@@ -305,7 +323,7 @@ const OrderingGT: ValueSingleton = {kind: 'singleton'}
 
 export const GlobalScope = createExpScope({
 	scope: {
-		Number: wrapValue(TypeNumber),
+		Number: ExpTypeNumber,
 		String: wrapValue(TypeString),
 		Boolean: ExpTypeBoolean,
 		FnType: wrapValue(TypeFnType),
@@ -331,7 +349,7 @@ export const GlobalScope = createExpScope({
 			params: {
 				xs: {
 					inf: true,
-					value: createValueType(TypeNumber, TypeNumber.predicate, () => 1),
+					value: inheritValueType(ExpTypeNumber, () => 1),
 				},
 			},
 			out: TypeNumber,
@@ -357,7 +375,7 @@ export const GlobalScope = createExpScope({
 		}),
 		not: wrapValue({
 			kind: 'fn',
-			params: {x: {inf: false, value: TypeBoolean}},
+			params: {x: {value: TypeBoolean}},
 			out: TypeBoolean,
 			body(x) {
 				return !this.eval(x)
@@ -366,8 +384,8 @@ export const GlobalScope = createExpScope({
 		'->': wrapValue({
 			kind: 'fn',
 			params: {
-				params: {inf: false, value: createVariadicVector(Any)},
-				out: {inf: false, value: Any},
+				params: {value: createVariadicVector(Any)},
+				out: {value: Any},
 			},
 			out: TypeFnType,
 			body(params, out) {
@@ -380,7 +398,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'|': wrapValue({
 			kind: 'fn',
-			params: {xs: {inf: false, value: Any}},
+			params: {xs: {value: Any}},
 			out: Any,
 			body(xs) {
 				return uniteType(this.eval<Value[]>(xs))
@@ -389,9 +407,9 @@ export const GlobalScope = createExpScope({
 		range: wrapValue({
 			kind: 'fn',
 			params: {
-				start: {inf: false, value: TypeNumber},
-				end: {inf: false, value: TypeNumber},
-				step: {inf: false, value: TypeNumber},
+				start: {value: TypeNumber},
+				end: {value: TypeNumber},
+				step: {value: inheritValueType(ExpTypeNumber, () => 1)},
 			},
 			out: createVariadicVector(TypeNumber),
 			body(start, end, step) {
@@ -401,11 +419,27 @@ export const GlobalScope = createExpScope({
 				return _.range(_start, _end, _step)
 			},
 		}),
+		clamp: wrapValue({
+			kind: 'fn',
+			params: {
+				x: {value: TypeNumber},
+				min: {value: inheritValueType(ExpTypeNumber, () => -Infinity)},
+				max: {value: inheritValueType(ExpTypeNumber, () => Infinity)},
+			},
+			out: TypeNumber,
+			body(x, min, max) {
+				return _.clamp(
+					this.eval<number>(x),
+					this.eval<number>(min),
+					this.eval<number>(max)
+				)
+			},
+		}),
 		def: wrapValue({
 			kind: 'fn',
 			params: {
-				name: {inf: false, value: TypeString},
-				value: {inf: false, value: Any},
+				name: {value: TypeString},
+				value: {value: Any},
 			},
 			out: TypeIO,
 			body(name, value) {
@@ -543,7 +577,7 @@ function equalsValue(a: Value, b: Value): boolean {
 				_$.everyByPair(
 					a.items,
 					b.items,
-					(ai, bi) => ai.inf === bi.inf && equalsValue(ai.value, bi.value)
+					(ai, bi) => !!ai.inf === !!bi.inf && equalsValue(ai.value, bi.value)
 				)
 			)
 		case 'object':
@@ -612,7 +646,7 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 		} else if (parent.ast === 'fn' && name in parent.params) {
 			// Is a parameter of function definition
 			const param = parent.params[name]
-			const type = param.inf
+			const type = !param.inf
 				? ({
 						ast: 'spread',
 						items: [{inf: true, value: param.value}],
@@ -765,7 +799,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	function evalFn(exp: ExpFn): WithLog<Value> {
 		const {result: params, log: paramsLog} = mapValueWithLog(exp.params, p => {
 			const {result, log} = _eval(p.value)
-			return withLog({inf: p.inf, value: result}, log)
+			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
 		const {result: pdg, log: bodyLog} = createDependencyGraph(exp.body)
@@ -821,7 +855,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	function evalSpread(exp: ExpSpread): WithLog<ValueSpread> {
 		const {result: items, log} = mapWithLog(exp.items, p => {
 			const {result, log} = _eval(p.value)
-			return withLog({inf: p.inf, value: result}, log)
+			return withLog({inf: !!p.inf, value: result}, log)
 		})
 		const evaluated = createSpread(items)
 		return withLog(evaluated, log)
@@ -992,7 +1026,7 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 
 			if (!compare(a.value, b.value)) return false
 
-			if (a.inf === b.inf) {
+			if (!!a.inf === !!b.inf) {
 				ai += 1
 				bi += 1
 			} else if (!a.inf) {
