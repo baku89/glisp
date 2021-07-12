@@ -74,7 +74,7 @@ interface ValueFnType {
 	out: Value
 }
 
-interface ValueFnThis {
+interface ValueFnContext {
 	log: (log: Log) => void
 	eval: <R extends Value = Value>(exp: Exp) => R
 	getDefault: () => Value
@@ -84,7 +84,7 @@ interface ValueFn {
 	kind: 'fn'
 	params: Record<string, {inf?: boolean; value: Value}>
 	out: Value
-	body: (this: ValueFnThis, ...arg0: Exp[]) => Value
+	body: (this: ValueFnContext, ...arg0: Exp[]) => Value
 	expBody?: Exp
 }
 
@@ -876,7 +876,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			const paramsLog: Log[] = []
 			const callLog: Log[] = []
 
-			const context: ValueFnThis = {
+			const context: ValueFnContext = {
 				log(log) {
 					callLog.push(log)
 				},
@@ -946,7 +946,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const paramsLog: Log[] = []
 		const callLog: Log[] = []
 
-		const context: ValueFnThis = {
+		const context: ValueFnContext = {
 			log(log) {
 				callLog.push(log)
 			},
