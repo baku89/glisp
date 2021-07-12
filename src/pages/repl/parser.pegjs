@@ -11,7 +11,7 @@ Program = form:Form
 Form "form" = Cast / FromExceptCast
 
 FromExceptCast = Any / Unit / Constant / Number / String
-	/ Fn / List / Vector / Spread / Dict / Scope
+	/ Fn / Maybe / List / Vector / Spread / Dict / Scope
 	/ QuotedSymbol / Symbol
 
 Constant "constant" = _value:$("true" / "false" / "null" / "inf" / "-inf" / "nan")
@@ -87,6 +87,13 @@ FnParams = "[" _ params:(("..." _)? Pair _)* "]"
 		})
 		
 		return Object.fromEntries(paramItems)
+	}
+
+Maybe = "?" _ value:Form
+	{
+		const ret = {ast: 'maybe', value}
+		value.parent = ret
+		return ret
 	}
 
 List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"

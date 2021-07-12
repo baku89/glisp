@@ -118,6 +118,7 @@ type Exp =
 	| ExpValue
 	| ExpSymbol
 	| ExpFn
+	| ExpMaybe
 	| ExpList
 	| ExpVector
 	| ExpSpread
@@ -145,6 +146,11 @@ interface ExpFn extends ExpBase {
 	ast: 'fn'
 	params: Record<string, {inf?: boolean; value: Exp}>
 	body: Exp
+}
+
+interface ExpMaybe extends ExpBase {
+	ast: 'maybe'
+	value: Exp
 }
 
 interface ExpList extends ExpBase {
@@ -276,6 +282,10 @@ function createFnType(
 	out: ValueFnType['out']
 ): ValueFnType {
 	return {kind: 'fnType', params, out}
+}
+
+function createMaybe(value: ValueMaybe['value']): ValueMaybe {
+	return {kind: 'maybe', value}
 }
 
 function createSpread<T extends Value = Value>(
@@ -556,13 +566,17 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {
 				coll: {value: createVariadicVector(TypeVarT)},
-				index: {value: TypeNumber},
+				index: {value: createMaybe(TypeNumber)},
 			},
 			out: uniteType([TypeVarT, Unit]),
 			body(coll, index) {
 				const _coll = this.eval<Value[]>(coll)
-				const i = this.eval<number>(index)
-				if (i < 0 || !Number.isInteger(i) || _coll.length <= i) {
+				const i = this.eval<number | ValueUnit>(index)
+				if (
+					isKindOf('unit', i) ||
+					!Number.isInteger(i) ||
+					!(0 <= i && i < _coll.length)
+				) {
 					return Unit
 				}
 				return _coll[i]
@@ -812,6 +826,11 @@ function assertExpType(exp: Exp): Value {
 			const out = assertExpType(exp.body)
 			return createFnType(params, out)
 		}
+		case 'maybe':
+			return {
+				kind: 'maybe',
+				value: assertExpType(exp.value),
+			}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
 			const type = isKindOf('fnType', fn) ? fn.out : fn
@@ -875,6 +894,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return evalSymbol(exp)
 		case 'fn':
 			return evalFn(exp)
+		case 'maybe':
+			return evalMaybe(exp)
 		case 'list':
 			return evalList(exp)
 		case 'vector':
@@ -950,6 +971,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		}
 
 		return withLog(fn, [...paramsLog, ...bodyLog])
+	}
+
+	function evalMaybe(exp: ExpMaybe) {
+		const [value, log] = _eval(exp.value)
+		const ret: ValueMaybe = {kind: 'maybe', value}
+		return withLog(ret, log)
 	}
 
 	function evalList(exp: ExpList): WithLog<Value> {
@@ -1304,6 +1331,12 @@ function castType(type: Value, value: Value): Value {
 			} else {
 				return type.cast ? type.cast(value) : getDefault(type.items[0])
 			}
+		case 'maybe':
+			if (isInstanceOf(value, type.value)) {
+				return value
+			} else {
+				return Unit
+			}
 		case 'singleton':
 			return type
 		default:
@@ -1389,6 +1422,8 @@ export function printExp(exp: Exp): string {
 			const body = printExp(exp.body)
 			return `(=> [${params.join(' ')}] ${body})`
 		}
+		case 'maybe':
+			return `?${printExp(exp.value)}`
 		case 'list': {
 			const fn = printExp(exp.fn)
 			const params = exp.params.map(printExp)
