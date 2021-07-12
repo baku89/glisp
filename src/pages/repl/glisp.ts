@@ -104,7 +104,7 @@ interface ValueObject {
 interface ValueTypeVar {
 	kind: 'typeVar'
 	id: symbol
-	origExp: ExpValue<ValueTypeVar>
+	origExp?: ExpValue<ValueTypeVar>
 }
 
 type Exp =
@@ -327,6 +327,11 @@ export const TypeSingleton = createValueType(
 	v => isKindOf('singleton', v),
 	() => Unit
 )
+export const TypeTypeVar = createValueType(
+	'typeVar',
+	v => isKindOf('typeVar', v),
+	() => Unit
+)
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -339,6 +344,7 @@ export const GlobalScope = createExpScope({
 		Boolean: wrapValue(TypeBoolean),
 		IO: wrapValue(TypeIO),
 		Singleton: wrapValue(TypeSingleton),
+		TypeVar: wrapValue(TypeTypeVar),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -481,6 +487,14 @@ export const GlobalScope = createExpScope({
 			out: TypeSingleton,
 			body() {
 				return {kind: 'singleton'}
+			},
+		}),
+		typeVar: wrapValue({
+			kind: 'fn',
+			params: {},
+			out: TypeTypeVar,
+			body() {
+				return {kind: 'typeVar', id: Symbol('typeVar')}
 			},
 		}),
 		instanceof: wrapValue({
@@ -1275,7 +1289,7 @@ export function printExp(exp: Exp): string {
 }
 
 function retrieveValueName(
-	s: ValueUnion | ValueCustomSingleton | ValueValueType,
+	s: ValueUnion | ValueCustomSingleton | ValueValueType | ValueTypeVar,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -1355,20 +1369,22 @@ export function printValue(
 			const params = _.entries(val.params).map(
 				([name, {inf, value}]) => `${inf ? '...' : ''}${name}:${print(value)}`
 			)
-			const body = val.expBody ? printExp(val.expBody) : '<JS Function>'
+			const body = val.expBody
+				? printExp(val.expBody)
+				: `<JS>:${print(val.out)}`
 			return `(=> [${params.join(' ')}] ${body})`
 		}
 		case 'dict': {
 			const entries = _.entries(val.value)
 			const pairs = entries.map(([k, v]) => `${k}: ${print(v)}`)
-			const rest = val.rest ? ['...' + printValue(val.rest)] : []
+			const rest = val.rest ? ['...' + print(val.rest)] : []
 			const lines = [...pairs, ...rest]
 			return '{' + lines.join(' ') + '}'
 		}
 		case 'object':
 			return `<object of ${print(val.type)}>`
 		case 'typeVar':
-			return '<typeVar>'
+			return `<typeVar>`
 	}
 }
 
