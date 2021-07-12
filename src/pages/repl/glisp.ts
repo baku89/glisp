@@ -456,6 +456,27 @@ export const GlobalScope = createExpScope({
 				return uniteType(this.eval<Value[]>(xs))
 			},
 		}),
+		'/': wrapValue({
+			kind: 'fn',
+			params: {xs: {inf: true, value: inheritValueType(TypeNumber, () => 1)}},
+			out: createMaybe(TypeNumber),
+			body(xs) {
+				const _xs = this.eval<number[]>(xs)
+				let ret: number
+				switch (_xs.length) {
+					case 0:
+						ret = 1
+						break
+					case 1:
+						ret = 1 / _xs[0]
+						break
+					default:
+						ret = _xs.slice(1).reduce((a, x) => a / x, _xs[0])
+						break
+				}
+				return Number.isFinite(ret) ? ret : Unit
+			},
+		}),
 		range: wrapValue({
 			kind: 'fn',
 			params: {
