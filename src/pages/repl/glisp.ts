@@ -100,6 +100,8 @@ type Exp =
 	| ExpDict
 	| ExpCast
 	| ExpScope
+	| ExpFncall
+	| ExpParam
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -160,6 +162,20 @@ interface ExpScope extends ExpBase {
 	out?: Exp
 }
 
+// Program dependency graph inside Function body
+interface ExpFncall extends ExpBase {
+	ast: 'fncall'
+	fn: ValueFn['body']
+	params: Exp[]
+	type: Value
+}
+
+interface ExpParam extends ExpBase {
+	ast: 'param'
+	name: string
+	type: Value
+}
+
 export function readStr(str: string): Exp {
 	const exp = parser.parse(str) as Exp | undefined
 
@@ -187,17 +203,6 @@ function wrapValue<T extends Value = Value>(
 			throw new Error(`Cannot overwrite origExp of ${printValue(value)}`)
 		value.origExp = ret
 	}
-	return ret
-}
-
-function createExpList(fn: Exp, params: Exp[], setParent = true) {
-	const ret: ExpList = {ast: 'list', fn, params}
-
-	if (setParent) {
-		fn.parent = ret
-		params.forEach(p => (p.parent = ret))
-	}
-
 	return ret
 }
 
@@ -629,11 +634,11 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 		} else if (parent.ast === 'fn' && name in parent.params) {
 			// Is a parameter of function definition
 			const param = parent.params[name]
-			const type = !param.inf
-				? ({
+			const type: Exp = param.inf
+				? {
 						ast: 'spread',
 						items: [{inf: true, value: param.value}],
-				  } as ExpSpread)
+				  }
 				: param.value
 
 			return withLog({semantic: 'param', type})
@@ -723,13 +728,17 @@ function assertExpType(exp: Exp): Value {
 			return assertExpType(exp.type)
 		case 'scope':
 			return exp.out ? assertExpType(exp) : Unit
+		case 'param':
+			return exp.type
+		case 'fncall':
+			return exp.type
 	}
 }
 
-function assertExpParamsType(exp: Exp): Value[] | ValueSpread {
+function assertExpParamsType(exp: Exp): ValueSpread {
 	const type = assertExpType(exp)
 	if (!isKindOf('fnType', type)) {
-		return []
+		return createSpread([])
 	} else {
 		return type.params
 	}
@@ -761,6 +770,30 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return evalCast(exp)
 		case 'scope':
 			return exp.out ? _eval(exp.out) : withLog(Unit)
+		case 'param':
+			if (!env || !(exp.name in env)) {
+				throw new Error(`Prameter ${exp.name} does not exist in env`)
+			}
+			return _eval(env[exp.name])
+		case 'fncall': {
+			const paramsLog: Log[] = []
+			const callLog: Log[] = []
+
+			const context: ValueFnThis = {
+				log(log) {
+					callLog.push(log)
+				},
+				eval(e) {
+					const {result, log} = evalExp(e, env)
+					paramsLog.push(...log)
+					return result as any
+				},
+			}
+
+			const evaluated = exp.fn.call(context, ...exp.params)
+			const log = [...paramsLog, ...callLog]
+			return withLog(evaluated, log)
+		}
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLog<Value> {
@@ -768,15 +801,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		if (result.semantic === 'ref') {
 			return _eval(result.ref)
 		} else if (result.semantic === 'param') {
-			if (env) {
-				if (!(exp.name in env)) {
-					throw new Error('Cannot evaluated the parameter symbol')
-				}
-				return _eval(env[exp.name])
-			} else {
-				const {result: type, log} = _eval(result.type)
-				return withLog(getDefault(type), log)
-			}
+			const {result: type, log} = _eval(result.type)
+			return withLog(getDefault(type), log)
 		} else {
 			return withLog(Unit, log)
 		}
@@ -788,8 +814,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
-		const {result: pdg, log: bodyLog} = createDependencyGraph(exp.body)
-		pdg.parent = exp
+		const {result: pdg, log: bodyLog} = createPdg(exp.body)
 
 		const body: ValueFn['body'] = function (...xs) {
 			const env = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
@@ -819,11 +844,11 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const {result: params, log: castLog} = assignParam(paramsType, exp.params)
 
 		const paramsLog: Log[] = []
-		const execLog: Log[] = []
+		const callLog: Log[] = []
 
 		const context: ValueFnThis = {
 			log(log) {
-				execLog.push(log)
+				callLog.push(log)
 			},
 			eval(e) {
 				const {result, log} = _eval(e)
@@ -833,7 +858,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		}
 
 		const evaluated = fn.body.call(context, ...params)
-		const log = [...fnLog, ...castLog, ...paramsLog, ...execLog]
+		const log = [...fnLog, ...castLog, ...paramsLog, ...callLog]
 
 		return withLog(evaluated, log)
 	}
@@ -886,7 +911,7 @@ function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
-function createDependencyGraph(exp: Exp): WithLog<Exp> {
+function createPdg(exp: Exp): WithLog<Exp> {
 	switch (exp.ast) {
 		case 'value':
 			return withLog(exp)
@@ -895,54 +920,57 @@ function createDependencyGraph(exp: Exp): WithLog<Exp> {
 		case 'fn':
 			throw new Error('Not yet implemented')
 		case 'list':
-			return createList(exp)
+			return createFncall(exp)
 		case 'vector':
 			return createVector(exp)
 		case 'scope':
-			return createDependencyGraph(exp.out ?? wrapValue(Unit))
+			return createPdg(exp.out ?? wrapValue(Unit))
 		default:
 			throw new Error('Not yet implemented')
 	}
 
-	function createSymbol(exp: ExpSymbol) {
+	function createSymbol(exp: ExpSymbol): WithLog<Exp> {
 		const {result, log} = resolveSymbol(exp)
 		if (result.semantic === 'ref') {
 			return withLog(result.ref)
 		} else if (result.semantic === 'param') {
-			return withLog(exp)
+			const type = assertExpType(result.type)
+			return withLog({ast: 'param', name: exp.name, type})
 		} else {
 			return withLog(wrapValue(Unit), log)
 		}
 	}
 
-	function createList(exp: ExpList) {
-		const {result: fn, log: fnLog} = createDependencyGraph(exp.fn)
-		const {result: params, log: paramsLog} = mapWithLog(
-			exp.params,
-			createDependencyGraph
-		)
+	function createFncall(exp: ExpList) {
+		const {result: fn, log: fnLog} = createPdg(exp.fn)
+		const {result: params, log: paramsLog} = mapWithLog(exp.params, createPdg)
 
-		const paramsType = params.map(assertExpType)
-		const fnParamsType = assertExpParamsType(fn)
+		const fnValue = evalExp(exp.fn).result
 
-		const typeAssertLog: Log[] = []
-		if (!isSubtypeOf(paramsType, fnParamsType)) {
-			const paramsStr = printValue(paramsType)
-			const fnParamsStr = printValue(fnParamsType)
+		if (isKindOf('fn', fnValue)) {
+			const fnParamsType = assertExpParamsType(fn)
 
-			typeAssertLog.push({
-				level: 'error',
-				reason: `Type ${paramsStr} cannot be casted to ${fnParamsStr}`,
-			})
+			const {result: assignedParams, log: typeAssertLog} = assignParam(
+				fnParamsType,
+				params
+			)
+
+			const ret: ExpFncall = {
+				ast: 'fncall',
+				fn: fnValue.body,
+				params: assignedParams,
+				type: fnValue.out,
+			}
+
+			const logs = [...fnLog, ...paramsLog, ...typeAssertLog]
+			return withLog(ret, logs)
+		} else {
+			return withLog(exp.fn)
 		}
-
-		const ret = createExpList(fn, params, false)
-		const logs = [...fnLog, ...paramsLog, ...typeAssertLog]
-		return withLog(ret, logs)
 	}
 
 	function createVector(exp: ExpVector) {
-		const {result: items, log} = mapWithLog(exp.items, createDependencyGraph)
+		const {result: items, log} = mapWithLog(exp.items, createPdg)
 		const ret: ExpVector = {ast: 'vector', items}
 		return withLog(ret, log)
 	}
@@ -1173,7 +1201,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 
 			if (!isKindOf('unit', fromType)) {
 				const fromStr = printExp(from)
-				const toStr = printValue(to)
+				const toStr = printValue(to, GlobalScope, true)
 				log.push({
 					level: 'error',
 					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
@@ -1188,6 +1216,7 @@ export function printExp(exp: Exp): string {
 	switch (exp.ast) {
 		case 'value':
 			return printValue(exp.value, exp, false)
+		case 'param':
 		case 'symbol':
 			return exp.name
 		case 'fn': {
@@ -1225,6 +1254,8 @@ export function printExp(exp: Exp): string {
 			const lines = [...pairs, ...out]
 			return `{${lines.join(' ')}}`
 		}
+		case 'fncall':
+			throw new Error('Cannot print PDG expressions')
 	}
 }
 
