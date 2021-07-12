@@ -957,6 +957,8 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 		case 'fn':
 		case 'singleton':
 			return a === b
+		case 'dict':
+			return compareDict(a, b)
 		default:
 			throw new Error('Not yet implemented')
 	}
@@ -1031,6 +1033,37 @@ function compareType(a: Value, b: Value, onlyInstance: boolean): boolean {
 				return {params: createSpread([]), out: a}
 			}
 		}
+	}
+
+	function compareDict(a: Value, b: ValueDict) {
+		if (!isKindOf('dict', a)) return false
+
+		// Check if all keys in b exists in a
+		const bEntries = _.entries(b.value)
+		const keysResult = bEntries.every(([key, bType]) => {
+			if (!(key in a.value)) return false
+
+			const aType = a.value[key]
+
+			return compare(aType, bType)
+		})
+
+		if (!keysResult) return false
+
+		// Test the spread part
+		if (b.rest) {
+			const restType = b.rest
+			const restKeys = _.difference(_.keys(a.value), _.keys(b.value))
+
+			const restResult = restKeys.every(key => {
+				const aType = a.value[key]
+				return compare(aType, restType)
+			})
+
+			if (!restResult) return false
+		}
+
+		return true
 	}
 }
 
