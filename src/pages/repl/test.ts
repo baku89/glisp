@@ -1,14 +1,13 @@
-import {evalExp, isInstanceOf, readStr} from './glisp'
+import {equalsValue, evalExp, readStr} from './glisp'
 
-function testInstanceOf(aStr: string, bStr: string, toBe: boolean) {
-	const a = evalExp(readStr(aStr)).result
-	const b = evalExp(readStr(bStr)).result
+function test(test: string, toBe: string) {
+	const _test = evalExp(readStr(test)).result
+	const _toBe = evalExp(readStr(toBe)).result
 
-	const ret = isInstanceOf(a, b)
-	const succeed = ret === toBe
+	const succeed = equalsValue(_test, _toBe)
 	const fn = succeed ? console.log : console.error
 
-	const msg = `${aStr} :< ${bStr} | Expected: ${toBe} | Got: ${ret}`
+	const msg = `${test} | Expected: ${toBe} | Got: ${_test}`
 
 	if (!succeed) {
 		alert(msg)
@@ -17,23 +16,23 @@ function testInstanceOf(aStr: string, bStr: string, toBe: boolean) {
 }
 
 export default function runTest() {
-	testInstanceOf('Number', '*', true)
-	testInstanceOf('true', 'Boolean', true)
-	testInstanceOf('*', 'Number', false)
-	testInstanceOf('Number', 'Number', false)
-	testInstanceOf('Number', 'String', false)
-	testInstanceOf('[3 false]', '[Number]', true)
-	testInstanceOf('[Number Number]', '[]', true)
-	testInstanceOf('[Number Number]', '*', true)
-	testInstanceOf('(+ 1 2)', 'Number', true)
-	testInstanceOf('+', '(typeof +)', true)
+	test('(instanceof Number *)', 'true')
+	test('(instanceof true Boolean)', 'true')
+	test('(instanceof * Number)', 'false')
+	test('(instanceof Number Number)', 'false')
+	test('(instanceof Number String)', 'false')
+	test('(instanceof [3 false] [Number])', 'true')
+	test('(instanceof [Number Number] [])', 'true')
+	test('(instanceof [Number Number] *)', 'true')
+	test('(instanceof (+ 1 2) Number)', 'true')
+	test('(instanceof + (typeof +))', 'true')
 
 	// Vector
-	testInstanceOf('[0 1 2]', '[...Number]', true)
-	testInstanceOf('[...0]', '[...Number]', true)
-	testInstanceOf('[0 ...0]', '[...Number]', true)
-	testInstanceOf('[0 1 ...2]', '[0 ...Number]', true)
-	testInstanceOf('[...0]', '[Number]', false)
-	testInstanceOf('[...0]', '[...0]', true)
-	testInstanceOf('[0]', '[Number Number]', false)
+	test('(instanceof [0 1 2] [...Number])', 'true')
+	test('(instanceof [...0] [...Number])', 'true')
+	test('(instanceof [0 ...0] [...Number])', 'true')
+	test('(instanceof [0 1 ...2] [0 ...Number])', 'true')
+	test('(instanceof [...0] [Number])', 'false')
+	test('(instanceof [...0] [...0])', 'true')
+	test('(instanceof [0] [Number Number])', 'false')
 }

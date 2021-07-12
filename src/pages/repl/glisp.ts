@@ -522,7 +522,7 @@ function uniteType(
 		: uniqItems[0]
 }
 
-function equalsValue(a: Value, b: Value): boolean {
+export function equalsValue(a: Value, b: Value): boolean {
 	if (!_.isObject(a)) {
 		return a === b
 	}
