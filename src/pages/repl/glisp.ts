@@ -426,7 +426,7 @@ export const GlobalScope = createExpScope({
 				return assertExpType(wrapValue(this.eval(x)))
 			},
 		}),
-		isa: wrapValue({
+		instanceof: wrapValue({
 			kind: 'fn',
 			params: {value: {inf: false, value: Any}, type: {inf: false, value: Any}},
 			out: TypeBoolean,
