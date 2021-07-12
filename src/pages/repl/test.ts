@@ -1,8 +1,8 @@
-import {equalsValue, evalExp, readStr} from './glisp'
+import {equalsValue, evalStr} from './glisp'
 
 function test(test: string, toBe: string) {
-	const _test = evalExp(readStr(test)).result
-	const _toBe = evalExp(readStr(toBe)).result
+	const _test = evalStr(test).result
+	const _toBe = evalStr(toBe).result
 
 	const succeed = equalsValue(_test, _toBe)
 	const fn = succeed ? console.log : console.error

@@ -184,15 +184,21 @@ interface ExpParam extends ExpBase {
 	type: Value
 }
 
-export function readStr(str: string): Exp {
-	const exp = parser.parse(str) as Exp | undefined
+export function readStr(str: string): WithLog<Exp> {
+	try {
+		const exp = parser.parse(str) as Exp | undefined
 
-	if (exp === undefined) {
-		return wrapValue(Unit)
-	} else {
-		// Set global scope as parent
-		exp.parent = GlobalScope
-		return exp
+		if (exp === undefined) {
+			return withLog(wrapValue(Unit))
+		} else {
+			// Set global scope as parent
+			exp.parent = GlobalScope
+			return withLog(exp)
+		}
+	} catch (err) {
+		console.log(err)
+		const parseLog: Log = {level: 'error', reason: err.message}
+		return withLog(wrapValue(Unit), [parseLog])
 	}
 }
 
@@ -583,8 +589,31 @@ export function equalsValue(a: Value, b: Value): boolean {
 	}
 }
 
-function withLog<T>(result: T, log: Log[] = []) {
+export function withLog<T>(result: T, log: Log[] = []) {
 	return {result, log}
+}
+
+export function composeWithLog<A, B, C>(
+	f: (a: A) => WithLog<B>,
+	g: (b: B) => WithLog<C>
+): (a: A) => WithLog<C> {
+	return (a: A) => {
+		const {result: b, log: fLog} = f(a)
+		const {result: c, log: gLog} = g(b)
+
+		return withLog(c, [...fLog, ...gLog])
+	}
+}
+
+export function flowWithLog<A, B, C>(
+	input: A,
+	f: (a: A) => WithLog<B>,
+	g: (b: B) => WithLog<C>
+): WithLog<C> {
+	const {result: b, log: fLog} = f(input)
+	const {result: c, log: gLog} = g(b)
+
+	return withLog(c, [...fLog, ...gLog])
 }
 
 function mapWithLog<A, R>(arr: A[], map: (a: A) => WithLog<R>): WithLog<R[]> {
@@ -909,18 +938,18 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 }
 
-function isKindOf(kind: 'any', x: Value): x is ValueAny
-function isKindOf(kind: 'unit', x: Value): x is ValueUnit
-function isKindOf(kind: 'fn', x: Value): x is ValueFn
-function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
-function isKindOf(kind: 'dict', x: Value): x is ValueDict
-function isKindOf(kind: 'union', x: Value): x is ValueUnion
-function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
-function isKindOf(kind: 'spread', x: Value): x is ValueSpread
-function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
-function isKindOf(kind: 'object', x: Value): x is ValueObject
-function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
-function isKindOf<
+export function isKindOf(kind: 'any', x: Value): x is ValueAny
+export function isKindOf(kind: 'unit', x: Value): x is ValueUnit
+export function isKindOf(kind: 'fn', x: Value): x is ValueFn
+export function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
+export function isKindOf(kind: 'dict', x: Value): x is ValueDict
+export function isKindOf(kind: 'union', x: Value): x is ValueUnion
+export function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
+export function isKindOf(kind: 'spread', x: Value): x is ValueSpread
+export function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
+export function isKindOf(kind: 'object', x: Value): x is ValueObject
+export function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
+export function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(kind: T['kind'], x: Value): x is T {
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
@@ -990,6 +1019,8 @@ function createPdg(exp: Exp): WithLog<Exp> {
 		return withLog(ret, log)
 	}
 }
+
+export const evalStr = composeWithLog(readStr, evalExp)
 
 export function isSubtypeOf(a: Value, b: Value) {
 	return compareType(a, b, false)

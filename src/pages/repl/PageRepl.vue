@@ -19,9 +19,16 @@ import {defineComponent, ref} from 'vue'
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
 import useScheme from '@/components/use/use-scheme'
 
-// import {evalExp, printValue, readStr, TypeIO} from './glisp'
 import Console, {IFnRep} from './Console.vue'
-import {evalExp, printValue, readStr, TypeIO} from './glisp'
+import {
+	evalExp,
+	flowWithLog,
+	isKindOf,
+	printValue,
+	readStr,
+	TypeIO,
+	withLog,
+} from './glisp'
 
 export default defineComponent({
 	name: 'PageRepl',
@@ -32,25 +39,14 @@ export default defineComponent({
 		const onError = ref<(msg: string) => any>(console.error)
 
 		const rep: IFnRep = async (str: string) => {
-			try {
-				const exp = readStr(str)
-				const {result, log} = evalExp(exp)
+			const {result, log} = flowWithLog(str, readStr, evalExp)
 
-				// Execute IO
-				if (
-					result instanceof Object &&
-					!Array.isArray(result) &&
-					result.kind === 'object' &&
-					result.type === TypeIO
-				) {
-					result.value()
-				}
-
-				return {result: printValue(result), log}
-			} catch (e) {
-				console.error(e)
-				return {result: null, log: [{level: 'error', reason: e.message}]}
+			// Execute IO
+			if (isKindOf('object', result) && result.type === TypeIO) {
+				await result.value()
 			}
+
+			return withLog(printValue(result), log)
 		}
 
 		return {rep, onError}
