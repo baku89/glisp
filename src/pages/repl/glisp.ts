@@ -64,14 +64,14 @@ interface ValueValueType {
 
 interface ValueUnion {
 	kind: 'union'
-	items: Exclude<Exclude<Value, ValueUnion>, ValueUnit>[]
+	items: Exclude<Exclude<Exclude<Value, ValueUnion>, ValueUnit>, ValueMaybe>[]
 	cast?: (value: Value) => Value
 	origExp?: ExpValue<ValueUnion>
 }
 
 interface ValueMaybe {
 	kind: 'maybe'
-	value: Value
+	value: Exclude<Exclude<Value, ValueUnit>, ValueMaybe>
 }
 
 interface ValueFnType {
@@ -603,9 +603,15 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	let items: (Value | undefined)[] = types.flatMap(t =>
-		isKindOf('union', t) ? t.items : [t]
-	)
+	let items: (Value | undefined)[] = types.flatMap(t => {
+		if (isKindOf('union', t)) {
+			return t.items
+		} else if (isKindOf('maybe', t)) {
+			return [Unit, t.value]
+		} else {
+			return [t]
+		}
+	})
 	let isMaybe = false
 
 	if (items.findIndex(it => it && isKindOf('unit', it)) !== -1) {
@@ -826,11 +832,17 @@ function assertExpType(exp: Exp): Value {
 			const out = assertExpType(exp.body)
 			return createFnType(params, out)
 		}
-		case 'maybe':
-			return {
-				kind: 'maybe',
-				value: assertExpType(exp.value),
+		case 'maybe': {
+			const value = assertExpType(exp.value)
+			if (isKindOf('unit', value) || isKindOf('maybe', value)) {
+				return value
+			} else {
+				return {
+					kind: 'maybe',
+					value,
+				}
 			}
+		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
 			const type = isKindOf('fnType', fn) ? fn.out : fn
@@ -975,7 +987,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 	function evalMaybe(exp: ExpMaybe) {
 		const [value, log] = _eval(exp.value)
-		const ret: ValueMaybe = {kind: 'maybe', value}
+		let ret: Value
+		if (isKindOf('unit', value) || isKindOf('maybe', value)) {
+			ret = value
+		} else {
+			ret = {kind: 'maybe', value}
+		}
 		return withLog(ret, log)
 	}
 
