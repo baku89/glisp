@@ -32,7 +32,8 @@ type Value =
 	| ValueFn
 	| ValueData
 	| ValueTypeVar
-	| ValueInterface
+	| ValueClass
+	| ValuePolyFn
 
 interface ValueAny {
 	kind: 'any'
@@ -40,12 +41,6 @@ interface ValueAny {
 
 interface ValueUnit {
 	kind: 'unit'
-}
-
-interface ValueInterface {
-	kind: 'interface'
-	typeVar: ValueTypeVar
-	members: Record<string, ValueFnType>
 }
 
 type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
@@ -66,8 +61,8 @@ interface ValueDataType {
 	id: symbol
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
-	extends: ValueInterface[]
-	methods: Record<string, ValueFn>
+	extends: ValueClass[]
+	methods: Record<string, ValueFn['body']>
 	origExp?: ExpValue<ValueDataType>
 }
 
@@ -92,7 +87,6 @@ interface ValueFnType {
 interface ValueFnContext {
 	log: (log: Log) => void
 	eval: <R extends Value = Value>(exp: Exp) => R
-	getDefault: () => Value
 }
 
 interface ValueFn {
@@ -120,8 +114,19 @@ interface ValueData {
 interface ValueTypeVar {
 	kind: 'typeVar'
 	id: string
-	extends: ValueInterface[]
+	extends: ValueClass[]
 	origExp?: ExpValue<ValueTypeVar>
+}
+
+interface ValueClass {
+	kind: 'class'
+	methods: Record<string, ValuePolyFn>
+}
+
+interface ValuePolyFn {
+	kind: 'polyFn'
+	out: Value
+	ofClass: ValueClass
 }
 
 type Exp =
@@ -368,20 +373,45 @@ export const TypeTypeVar = createValueType(
 	v => isKindOf('typeVar', v),
 	() => Unit
 )
-export const TypeInterface = createValueType(
-	'interface',
-	v => isKindOf('interface', v),
+export const TypeClass = createValueType(
+	'class',
+	v => isKindOf('class', v),
+	() => Unit
+)
+export const TypeVector = createValueType(
+	'vector',
+	v => _.isArray(v) || isKindOf('spread', v),
 	() => Unit
 )
 const TypeVarT = createTypeVar('T')
 const TypeVarU = createTypeVar('U')
 
-const InterfaceHasLength: ValueInterface = {
-	kind: 'interface',
-	typeVar: TypeVarT,
-	members: {
-		length: createFnType(createSpread([{value: TypeVarT}]), TypeNumber),
-	},
+const ClassHasLength: ValueClass = {
+	kind: 'class',
+	methods: {},
+}
+const PolyFnLength: ValuePolyFn = {
+	kind: 'polyFn',
+	out: TypeNumber,
+	ofClass: ClassHasLength,
+}
+
+ClassHasLength.methods['length'] = PolyFnLength
+
+TypeString.extends.push(ClassHasLength)
+TypeString.methods['length'] = function (str) {
+	const _str = this.eval<string>(str)
+	return _str.length
+}
+
+TypeVector.extends.push(ClassHasLength)
+TypeVector.methods['length'] = function (coll) {
+	const _coll = this.eval<Value[] | ValueSpread>(coll)
+	if (_.isArray(_coll)) {
+		return _coll.length
+	} else {
+		return Infinity
+	}
 }
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
@@ -403,7 +433,8 @@ export const GlobalScope = createExpScope({
 			kind: 'union',
 			items: [OrderingLT, OrderingEQ, OrderingGT],
 		}),
-		HasLength: wrapValue(InterfaceHasLength),
+		HasLength: wrapValue(ClassHasLength),
+		length: wrapValue(PolyFnLength),
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
 			kind: 'fn',
@@ -574,12 +605,12 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {
 				id: {value: TypeString},
-				extends: {inf: true, value: TypeInterface},
+				extends: {inf: true, value: TypeClass},
 			},
 			out: TypeTypeVar,
 			body(_id, _extends) {
 				const id = this.eval<string>(_id)
-				const extendsArr = this.eval<ValueInterface[]>(_extends)
+				const extendsArr = this.eval<ValueClass[]>(_extends)
 				return {kind: 'typeVar', id, extends: extendsArr}
 			},
 		}),
@@ -767,8 +798,9 @@ export function equalsValue(a: Value, b: Value): boolean {
 			return false
 		case 'typeVar':
 			return isKindOf('typeVar', b) && a.id === b.id
-		case 'interface':
-			throw new Error('Cannot determine equality of ValueInterface yet')
+		case 'class':
+		case 'polyFn':
+			throw new Error(`Cannot determine equality of ${a.kind} yet`)
 	}
 }
 
@@ -856,7 +888,8 @@ function assertValueType(v: Value): Value {
 		case 'maybe':
 		case 'spread':
 		case 'typeVar':
-		case 'interface':
+		case 'polyFn':
+		case 'class':
 			return v
 		case 'fn': {
 			return {
@@ -873,16 +906,18 @@ function assertValueType(v: Value): Value {
 	}
 }
 
-function assertExpType(exp: Exp): Value {
+function assertExpType(exp: Exp, dataType = false): Value {
+	const assert = (e: Exp) => assertExpType(e, dataType)
+
 	switch (exp.ast) {
 		case 'value':
 			return assertValueType(exp.value)
 		case 'symbol': {
 			const [inspected] = resolveSymbol(exp)
 			if (inspected.semantic == 'ref') {
-				return assertExpType(inspected.ref)
+				return assert(inspected.ref)
 			} else if (inspected.semantic === 'param') {
-				return assertExpType(inspected.type)
+				return assert(inspected.type)
 			}
 			return Unit
 		}
@@ -891,12 +926,12 @@ function assertExpType(exp: Exp): Value {
 				ast: 'spread',
 				items: _.values(exp.params),
 			}
-			const params = assertExpType(paramsExp) as ValueFnType['params']
-			const out = assertExpType(exp.body)
+			const params = assert(paramsExp) as ValueFnType['params']
+			const out = assert(exp.body)
 			return createFnType(params, out)
 		}
 		case 'maybe': {
-			const value = assertExpType(exp.value)
+			const value = assert(exp.value)
 			if (isKindOf('unit', value) || isKindOf('maybe', value)) {
 				return value
 			} else {
@@ -907,11 +942,11 @@ function assertExpType(exp: Exp): Value {
 			}
 		}
 		case 'list': {
-			const fn = assertExpType(exp.fn)
+			const fn = assert(exp.fn)
 			const type = isKindOf('fnType', fn) ? fn.out : fn
 			if (isKindOf('typeVar', type) && isKindOf('fnType', fn)) {
 				const env = new Map<string, Value>()
-				const expParams = exp.params.map(assertExpType)
+				const expParams = exp.params.map(assert)
 				compareType(expParams, fn.params, false, env)
 
 				const t = env.get(type.id)
@@ -922,21 +957,23 @@ function assertExpType(exp: Exp): Value {
 			}
 		}
 		case 'spread': {
+			if (dataType) return TypeVector
+
 			const items = exp.items.map(({inf, value}) => ({
 				inf,
-				value: assertExpType(value),
+				value: assert(value),
 			}))
 			return createSpread(items)
 		}
 		case 'dict': {
-			const items = _.mapValues(exp.items, assertExpType)
-			const rest = exp.rest ? assertExpType(exp.rest) : undefined
+			const items = _.mapValues(exp.items, assert)
+			const rest = exp.rest ? assert(exp.rest) : undefined
 			return createDict(items, rest)
 		}
 		case 'cast':
-			return assertExpType(exp.type)
+			return assert(exp.type)
 		case 'scope':
-			return exp.out ? assertExpType(exp) : Unit
+			return exp.out ? assert(exp) : Unit
 		case 'param':
 			return exp.type
 		case 'fncall':
@@ -997,9 +1034,6 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 					paramsLog.push(...log)
 					return result as any
 				},
-				getDefault() {
-					return 0
-				},
 			}
 
 			const evaluated = exp.fn.call(context, ...exp.params)
@@ -1052,13 +1086,24 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	function evalList(exp: ExpList): WithLog<Value> {
 		const [fn, fnLog] = _eval(exp.fn)
 
-		if (!isKindOf('fn', fn)) {
-			return _eval(exp.fn)
+		let evaluated: Value, applyLog: Log[]
+
+		if (isKindOf('fn', fn)) {
+			;[evaluated, applyLog] = evalListFn(fn, exp.params)
+		} else if (isKindOf('polyFn', fn)) {
+			;[evaluated, applyLog] = evalListPolyFn(fn, exp.params)
+		} else {
+			evaluated = fn
+			applyLog = []
 		}
 
+		return withLog(evaluated, [...fnLog, ...applyLog])
+	}
+
+	function evalListFn(fn: ValueFn, origParams: Exp[]) {
 		const paramsType = getParamType(fn)
 
-		const [params, castLog] = assignParam(paramsType, exp.params)
+		const [params, castLog] = assignParam(paramsType, origParams)
 
 		const paramsLog: Log[] = []
 		const callLog: Log[] = []
@@ -1072,14 +1117,52 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 				paramsLog.push(...log)
 				return result as any
 			},
-			getDefault() {
-				const outType = assertExpType(exp)
-				return getDefault(outType)
-			},
 		}
 
 		const evaluated = fn.body.call(context, ...params)
-		const log = [...fnLog, ...castLog, ...paramsLog, ...callLog]
+		const log = [...castLog, ...paramsLog, ...callLog]
+
+		return withLog(evaluated, log)
+	}
+
+	function evalListPolyFn(fn: ValuePolyFn, params: Exp[]) {
+		if (params.length < 1) {
+			return withLog(Unit, [{level: 'error', reason: 'Too short arguments'}])
+		}
+
+		const param = params[0]
+
+		const paramType = assertExpType(params[0], true)
+		const cls = fn.ofClass
+
+		if (!isKindOf('dataType', paramType) || !paramType.extends.includes(cls)) {
+			return withLog(Unit, [
+				{
+					level: 'error',
+					reason: 'Cannot resolve the polyorphic function definition',
+				},
+			])
+		}
+		const name = _.findKey(cls.methods, m => m === fn)
+		if (!name) throw new Error('Cannot resolve the polyfn')
+		const resolvedFn = paramType.methods[name]
+
+		const callLog: Log[] = []
+		const paramsLog: Log[] = []
+
+		const context: ValueFnContext = {
+			log(log) {
+				callLog.push(log)
+			},
+			eval(e) {
+				const [result, log] = _eval(e)
+				paramsLog.push(...log)
+				return result as any
+			},
+		}
+
+		const evaluated = resolvedFn.call(context, param)
+		const log = [...paramsLog, ...callLog]
 
 		return withLog(evaluated, log)
 	}
@@ -1152,7 +1235,8 @@ export function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 export function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
 export function isKindOf(kind: 'data', x: Value): x is ValueData
 export function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
-export function isKindOf(kind: 'interface', x: Value): x is ValueInterface
+export function isKindOf(kind: 'class', x: Value): x is ValueClass
+export function isKindOf(kind: 'polyFn', x: Value): x is ValuePolyFn
 export function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(kind: T['kind'], x: Value): x is T {
@@ -1659,9 +1743,10 @@ export function printValue(
 			return (
 				(printName && retrieveValueName(val, baseExp)) || `<typeVar ${val.id}>`
 			)
-		case 'interface': {
-			return `(class ${val.typeVar.id})`
-		}
+		case 'class':
+			return '<class>'
+		case 'polyFn':
+			return '<polyFn>'
 	}
 }
 
