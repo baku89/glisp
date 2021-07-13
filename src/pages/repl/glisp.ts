@@ -743,7 +743,7 @@ export const GlobalScope = createExpScope({
 			params: {x: {inf: false, value: Any}},
 			out: Any,
 			body(x) {
-				return this.eval(x)
+				return getFnType(this.eval(x))
 			},
 		}),
 		singleton: wrapValue({
@@ -1571,17 +1571,8 @@ function compareType(
 	}
 
 	function compareFnType(a: Value, b: ValueFnType) {
-		const _a = normalizeToFn(a)
+		const _a = getFnType(a)
 		return isSubtypeOf(_a.params, b.params) && isSubtypeOf(_a.out, b.out)
-
-		function normalizeToFn(a: Value): Omit<ValueFnType, 'kind'> {
-			if (isKindOf('fn', a)) {
-				const params = getParamType(a)
-				return {params, out: a.out}
-			} else {
-				return {params: createSpread([]), out: a}
-			}
-		}
 	}
 
 	function compareDict(a: Value, b: ValueDict) {
@@ -1629,6 +1620,15 @@ function compareType(
 		if (!isInstance) return false
 
 		return true
+	}
+}
+
+function getFnType(a: Value) {
+	if (isKindOf('fn', a)) {
+		const params = getParamType(a)
+		return createFnType(params, a.out)
+	} else {
+		return createFnType(createSpread([]), a)
 	}
 }
 
