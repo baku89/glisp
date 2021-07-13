@@ -284,8 +284,12 @@ function createFnType(
 	return {kind: 'fnType', params, out}
 }
 
-function createMaybe(value: ValueMaybe['value']): ValueMaybe {
-	return {kind: 'maybe', value}
+function createMaybe(value: Value): Value {
+	if (isKindOf('unit', value) || isKindOf('maybe', value)) {
+		return value
+	} else {
+		return {kind: 'maybe', value}
+	}
 }
 
 function createSpread<T extends Value = Value>(
@@ -665,7 +669,8 @@ function uniteType(
 
 	switch (uniqItems.length) {
 		case 0:
-			return Unit
+			value = Unit
+			break
 		case 1:
 			value = uniqItems[0]
 			break
@@ -673,7 +678,7 @@ function uniteType(
 			value = {kind: 'union', items: uniqItems, cast}
 	}
 
-	return isMaybe ? {kind: 'maybe', value} : value
+	return isMaybe ? createMaybe(value) : value
 }
 
 export function equalsValue(a: Value, b: Value): boolean {
@@ -1008,13 +1013,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 
 	function evalMaybe(exp: ExpMaybe) {
 		const [value, log] = _eval(exp.value)
-		let ret: Value
-		if (isKindOf('unit', value) || isKindOf('maybe', value)) {
-			ret = value
-		} else {
-			ret = {kind: 'maybe', value}
-		}
-		return withLog(ret, log)
+		return withLog(createMaybe(value), log)
 	}
 
 	function evalList(exp: ExpList): WithLog<Value> {
