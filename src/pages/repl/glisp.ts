@@ -352,7 +352,7 @@ function createDataType(
 	}
 }
 
-function inheritValueType(
+function inheritDataType(
 	value: ValueDataType,
 	cast: ValueDataType['cast']
 ): ValueDataType {
@@ -379,6 +379,12 @@ const ClassHasSize: ValueClass = {
 }
 const THasSize = createTypeVar(ClassHasSize)
 
+const ClassMonoid: ValueClass = {
+	kind: 'class',
+	methods: {},
+}
+
+// DataTypes
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
 	items: [false, true],
@@ -392,6 +398,14 @@ export const TypeString = createDataType('string', _.isString, () => '', [
 			size: function (str) {
 				const _str = this.eval<string>(str)
 				return _str.length
+			},
+		},
+	},
+	{
+		class: ClassMonoid,
+		methods: {
+			'++': function (x, y) {
+				return this.eval<string>(x) + this.eval<string>(y)
 			},
 		},
 	},
@@ -439,6 +453,14 @@ export const TypeVector = createDataType(
 					} else {
 						return Infinity
 					}
+				},
+			},
+		},
+		{
+			class: ClassMonoid,
+			methods: {
+				'++': function (x, y) {
+					return [...this.eval<Value[]>(x), ...this.eval<Value[]>(y)]
 				},
 			},
 		},
@@ -501,6 +523,18 @@ const PolyFnSize: ValuePolyFn = {
 
 ClassHasSize.methods['size'] = PolyFnSize
 
+const PolyFnConcat: ValuePolyFn = {
+	kind: 'polyFn',
+	params: {
+		x: {value: createTypeVar(ClassMonoid)},
+		y: {value: createTypeVar(ClassMonoid)},
+	},
+	out: createTypeVar(ClassMonoid),
+	ofClass: ClassMonoid,
+}
+
+ClassMonoid.methods['++'] = PolyFnConcat
+
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
@@ -527,6 +561,8 @@ export const GlobalScope = createExpScope({
 		}),
 		HasSize: wrapValue(ClassHasSize),
 		size: wrapValue(PolyFnSize),
+		Monoid: wrapValue(ClassMonoid),
+		'++': wrapValue(PolyFnConcat),
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
 			kind: 'fn',
@@ -541,7 +577,7 @@ export const GlobalScope = createExpScope({
 			params: {
 				xs: {
 					inf: true,
-					value: inheritValueType(TypeNumber, () => 1),
+					value: inheritDataType(TypeNumber, () => 1),
 				},
 			},
 			out: TypeNumber,
@@ -606,7 +642,7 @@ export const GlobalScope = createExpScope({
 		}),
 		'/': wrapValue({
 			kind: 'fn',
-			params: {xs: {inf: true, value: inheritValueType(TypeNumber, () => 1)}},
+			params: {xs: {inf: true, value: inheritDataType(TypeNumber, () => 1)}},
 			out: createMaybe(TypeNumber),
 			body(xs) {
 				const _xs = this.eval<number[]>(xs)
@@ -630,7 +666,7 @@ export const GlobalScope = createExpScope({
 			params: {
 				start: {value: TypeNumber},
 				end: {value: TypeNumber},
-				step: {value: inheritValueType(TypeNumber, () => 1)},
+				step: {value: inheritDataType(TypeNumber, () => 1)},
 			},
 			out: createVariadicVector(TypeNumber),
 			body(start, end, step) {
@@ -644,8 +680,8 @@ export const GlobalScope = createExpScope({
 			kind: 'fn',
 			params: {
 				x: {value: TypeNumber},
-				min: {value: inheritValueType(TypeNumber, () => -Infinity)},
-				max: {value: inheritValueType(TypeNumber, () => Infinity)},
+				min: {value: inheritDataType(TypeNumber, () => -Infinity)},
+				max: {value: inheritDataType(TypeNumber, () => Infinity)},
 			},
 			out: TypeNumber,
 			body(x, min, max) {
@@ -981,7 +1017,6 @@ function assertValueType(v: Value, dataType = false): Value {
 		case 'fnType':
 		case 'spread':
 		case 'typeVar':
-		case 'polyFn':
 		case 'class':
 			return v
 		case 'dataType':
@@ -992,7 +1027,8 @@ function assertValueType(v: Value, dataType = false): Value {
 			return TypeSingleton
 		case 'maybe':
 			return createMaybe(assert(v.value))
-		case 'fn': {
+		case 'fn':
+		case 'polyFn': {
 			return {
 				kind: 'fnType',
 				params: getParamType(v),
@@ -1088,11 +1124,6 @@ function assertExpType(exp: Exp, dataType = false): Value {
 }
 
 function assertExpParamsType(exp: Exp): ValueSpread {
-	if (exp.ast === 'list') {
-		const {fn} = exp
-		const fnType = assertExpType(fn)
-	}
-
 	const type = assertExpType(exp)
 	if (!isKindOf('fnType', type)) {
 		return createSpread([])
@@ -1101,7 +1132,7 @@ function assertExpParamsType(exp: Exp): ValueSpread {
 	}
 }
 
-function getParamType(fn: ValueFn): ValueFnType['params'] {
+function getParamType(fn: ValueFn | ValuePolyFn): ValueFnType['params'] {
 	return createSpread(_.values(fn.params))
 }
 
