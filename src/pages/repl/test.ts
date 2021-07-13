@@ -38,11 +38,12 @@ export default function runTest() {
 	test('(instanceof [...0] [Number])', 'false')
 	test('(instanceof [...0] [...0])', 'true')
 	test('(instanceof [0] [Number Number])', 'false')
-
+	/* 
 	// Expression
 	test('(+ 1 2 (+ 3 4))', '10')
+	test('((=> [x:Boolean] (not x)) true)', 'false')
 	test('(((=> [x:Number] (=> [y: Number] (* x y))) 4) 10)', '40')
-
+	
 	// spread Normalization
 	test('[...1 ...1 1 ...1]', '[...1]')
 	test('{key: 1 ...1}', '{...1}')
@@ -50,5 +51,5 @@ export default function runTest() {
 	// Maybe Normalization
 	test('??Number', '?Number')
 	test('?_', '_')
-	test('(| 1 2 ?3)', '?(| 1 2 3)')
+	test('(| 1 2 ?3)', '?(| 1 2 3)') */
 }
