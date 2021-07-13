@@ -8,8 +8,6 @@ import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
-import {vec2} from 'gl-matrix'
-
 import {
 	composeWithLog,
 	Log,
@@ -123,10 +121,12 @@ interface ValueTypeVar {
 interface ValueClass {
 	kind: 'class'
 	methods: Record<string, ValuePolyFn>
+	origExp?: ExpValue<ValueClass>
 }
 
 interface ValuePolyFn {
 	kind: 'polyFn'
+	params: ValueSpread
 	out: Value
 	ofClass: ValueClass
 }
@@ -241,7 +241,8 @@ function wrapValue<T extends Value = Value>(
 		(isKindOf('singleton', value) ||
 			isKindOf('dataType', value) ||
 			isKindOf('union', value) ||
-			isKindOf('typeVar', value))
+			isKindOf('typeVar', value) ||
+			isKindOf('class', value))
 	) {
 		if (value.origExp)
 			throw new Error(`Cannot overwrite origExp of ${printValue(value)}`)
@@ -395,6 +396,11 @@ export const TypeVector = createDataType(
 	v => _.isArray(v) || isKindOf('spread', v),
 	() => []
 )
+export const TypeDict = createDataType(
+	'dict',
+	v => isKindOf('dict', v),
+	() => ({kind: 'dict', value: {}})
+)
 export const TypeVec2 = createDataType(
 	'vec2',
 	v => _.isArray(v) && v.length === 2 && v.every(_.isNumber),
@@ -411,25 +417,29 @@ export const TypeVec2 = createDataType(
 const TypeVarT = createTypeVar()
 const TypeVarU = createTypeVar()
 
-const ClassHasLength: ValueClass = {
+const ClassHasSize: ValueClass = {
 	kind: 'class',
 	methods: {},
 }
-const PolyFnLength: ValuePolyFn = {
-	kind: 'polyFn',
-	out: TypeNumber,
-	ofClass: ClassHasLength,
-}
-ClassHasLength.methods['length'] = PolyFnLength
+const THasSize = createTypeVar(ClassHasSize)
 
-TypeString.supers.push(ClassHasLength)
-TypeString.methods['length'] = function (str) {
+const PolyFnSize: ValuePolyFn = {
+	kind: 'polyFn',
+	params: createSpread([{inf: false, value: THasSize}]),
+	out: TypeNumber,
+	ofClass: ClassHasSize,
+}
+
+ClassHasSize.methods['size'] = PolyFnSize
+
+TypeString.supers.push(ClassHasSize)
+TypeString.methods['size'] = function (str) {
 	const _str = this.eval<string>(str)
 	return _str.length
 }
 
-TypeVector.supers.push(ClassHasLength)
-TypeVector.methods['length'] = function (coll) {
+TypeVector.supers.push(ClassHasSize)
+TypeVector.methods['size'] = function (coll) {
 	const _coll = this.eval<Value[] | ValueSpread>(coll)
 	if (_.isArray(_coll)) {
 		return _coll.length
@@ -438,10 +448,19 @@ TypeVector.methods['length'] = function (coll) {
 	}
 }
 
-TypeVec2.supers.push(ClassHasLength)
-TypeVec2.methods['length'] = function (_v) {
-	const v = this.eval(_v) as vec2
-	return vec2.len(v)
+TypeDict.supers.push(ClassHasSize)
+TypeDict.methods['size'] = function (dict) {
+	const d = this.eval<ValueDict>(dict)
+	if (d.rest !== undefined) {
+		return Infinity
+	} else {
+		return _.keys(d.value).length
+	}
+}
+
+TypeVec2.supers.push(ClassHasSize)
+TypeVec2.methods['size'] = function () {
+	return 2
 }
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
@@ -458,8 +477,9 @@ export const GlobalScope = createExpScope({
 		Singleton: wrapValue(TypeSingleton),
 		TypeVar: wrapValue(TypeTypeVar),
 		Vector: wrapValue(TypeVector),
+		Dict: wrapValue(TypeDict),
 		Vec2: wrapValue(TypeVec2),
-		TLength: wrapValue(createTypeVar(ClassHasLength)),
+		THasSize: wrapValue(THasSize),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -467,8 +487,8 @@ export const GlobalScope = createExpScope({
 			kind: 'union',
 			items: [OrderingLT, OrderingEQ, OrderingGT],
 		}),
-		HasLength: wrapValue(ClassHasLength),
-		length: wrapValue(PolyFnLength),
+		HasSize: wrapValue(ClassHasSize),
+		size: wrapValue(PolyFnSize),
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
 			kind: 'fn',
@@ -635,7 +655,7 @@ export const GlobalScope = createExpScope({
 				return {kind: 'singleton'}
 			},
 		}),
-		typeVar: wrapValue({
+		'<>': wrapValue({
 			kind: 'fn',
 			params: {
 				supers: {inf: true, value: TypeClass},
@@ -893,7 +913,9 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 	])
 }
 
-function assertValueType(v: Value): Value {
+function assertValueType(v: Value, dataType = false): Value {
+	const assert = (v: Value) => assertValueType(v, dataType)
+
 	if (!_.isObject(v)) {
 		if (v === null) return TypeSingleton
 		switch (typeof v) {
@@ -907,7 +929,9 @@ function assertValueType(v: Value): Value {
 	}
 
 	if (_.isArray(v)) {
-		return v.map(assertValueType)
+		if (dataType) return TypeVector
+
+		return v.map(assert)
 	}
 
 	switch (v.kind) {
@@ -925,7 +949,7 @@ function assertValueType(v: Value): Value {
 		case 'singleton':
 			return TypeSingleton
 		case 'maybe':
-			return createMaybe(assertValueType(v.value))
+			return createMaybe(assert(v.value))
 		case 'fn': {
 			return {
 				kind: 'fnType',
@@ -934,7 +958,7 @@ function assertValueType(v: Value): Value {
 			}
 		}
 		case 'dict':
-			// return Any
+			if (dataType) return TypeDict
 			throw new Error('Not yet implemented')
 		case 'data':
 			return v.type
@@ -946,7 +970,7 @@ function assertExpType(exp: Exp, dataType = false): Value {
 
 	switch (exp.ast) {
 		case 'value':
-			return assertValueType(exp.value)
+			return assertValueType(exp.value, dataType)
 		case 'symbol': {
 			const [inspected] = resolveSymbol(exp)
 			if (inspected.semantic == 'ref') {
@@ -1002,8 +1026,10 @@ function assertExpType(exp: Exp, dataType = false): Value {
 			return createSpread(items)
 		}
 		case 'dict': {
+			if (dataType) return TypeDict
+
 			const items = _.mapValues(exp.items, assert)
-			const rest = exp.rest ? assert(exp.rest) : undefined
+			const rest = exp.rest !== undefined ? assert(exp.rest) : undefined
 			return createDict(items, rest)
 		}
 		case 'cast':
@@ -1161,12 +1187,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, log)
 	}
 
-	function evalListPolyFn(fn: ValuePolyFn, params: Exp[]) {
-		if (params.length < 1) {
-			return withLog(Unit, [{level: 'error', reason: 'Too short arguments'}])
-		}
-
-		const param = params[0]
+	function evalListPolyFn(fn: ValuePolyFn, origParams: Exp[]) {
+		const [params, castLog] = assignParam(fn.params, origParams)
 
 		const paramType = assertExpType(params[0], true)
 		const cls = fn.ofClass
@@ -1197,8 +1219,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			},
 		}
 
-		const evaluated = resolvedFn.call(context, param)
-		const log = [...paramsLog, ...callLog]
+		const evaluated = resolvedFn.call(context, ...params)
+		const log = [...castLog, ...paramsLog, ...callLog]
 
 		return withLog(evaluated, log)
 	}
@@ -1490,7 +1512,7 @@ function compareType(
 		if (!keysResult) return false
 
 		// Test the spread part
-		if (b.rest) {
+		if (b.rest !== undefined) {
 			const restType = b.rest
 			const restKeys = _.difference(_.keys(a.value), _.keys(b.value))
 
@@ -1506,9 +1528,24 @@ function compareType(
 	}
 
 	function compareTypeVar(a: Value, b: ValueTypeVar) {
-		const bPrevType = env.has(b.id) ? (env.get(b.id) as Value) : Unit
-		const bType = uniteType([bPrevType, a])
+		const bPrevType = env.get(b.id)
+		const bType = bPrevType !== undefined ? uniteType([bPrevType, a]) : a
 		env.set(b.id, bType)
+
+		let bst: Value
+		if (onlyInstance) {
+			bst = assertValueType(bType, true)
+		} else if (!isKindOf('dataType', bType)) {
+			bst = assertValueType(bType, true)
+		} else {
+			bst = bType
+		}
+
+		const isInstance = b.supers.every(bs => {
+			return isKindOf('dataType', bst) && bst.supers.includes(bs)
+		})
+
+		if (!isInstance) return false
 
 		return true
 	}
@@ -1586,7 +1623,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 
 			for (; i < from.length; i++) {
 				const fromItem = from[i]
-				const fromType = assertExpType(fromItem)
+				const fromType = assertExpType(fromItem, true)
 				if (nextToType && isSubtypeOf(fromType, nextToType.value)) {
 					break
 				}
@@ -1607,7 +1644,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 	return withLog(casted, log)
 
 	function assign(from: Exp, to: Value): WithLog<Exp> {
-		const fromType = assertExpType(from)
+		const fromType = assertExpType(from, true)
 
 		if (isSubtypeOf(fromType, to)) {
 			return withLog(from)
@@ -1657,7 +1694,7 @@ export function printExp(exp: Exp): string {
 		case 'dict': {
 			const entries = _.entries(exp.items)
 			const pairs = entries.map(([k, v]) => `${k}: ${printExp(v)}`)
-			const rest = exp.rest ? ['...' + printExp(exp.rest)] : []
+			const rest = exp.rest !== undefined ? ['...' + printExp(exp.rest)] : []
 			const lines = [...pairs, ...rest]
 			return '{' + lines.join(' ') + '}'
 		}
@@ -1679,7 +1716,12 @@ export function printExp(exp: Exp): string {
 }
 
 function retrieveValueName(
-	s: ValueUnion | ValueCustomSingleton | ValueDataType | ValueTypeVar,
+	s:
+		| ValueUnion
+		| ValueCustomSingleton
+		| ValueDataType
+		| ValueTypeVar
+		| ValueClass,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -1763,13 +1805,13 @@ export function printValue(
 			)
 			const body = val.expBody
 				? printExp(val.expBody)
-				: `<JS>:${print(val.out)}`
+				: `<js>:${print(val.out)}`
 			return `(=> [${params.join(' ')}] ${body})`
 		}
 		case 'dict': {
 			const entries = _.entries(val.value)
 			const pairs = entries.map(([k, v]) => `${k}: ${print(v)}`)
-			const rest = val.rest ? ['...' + print(val.rest)] : []
+			const rest = val.rest !== undefined ? ['...' + print(val.rest)] : []
 			const lines = [...pairs, ...rest]
 			return '{' + lines.join(' ') + '}'
 		}
@@ -1778,13 +1820,14 @@ export function printValue(
 		case 'typeVar': {
 			const supers = val.supers.map(print).join(' ')
 			return (
-				(printName && retrieveValueName(val, baseExp)) || `(typeVar ${supers})`
+				(printName && retrieveValueName(val, baseExp) && false) ||
+				`(<> ${supers})`
 			)
 		}
 		case 'class':
-			return '<class>'
+			return (printName && retrieveValueName(val, baseExp)) || `<class>`
 		case 'polyFn':
-			return '<polyFn>'
+			return '(=> ' + print(val.params) + ' <poly>:' + print(val.out) + ')'
 	}
 }
 
