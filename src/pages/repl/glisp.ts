@@ -1076,8 +1076,15 @@ function getParamType(fn: ValueFn | ValuePolyFn): ValueFnType['params'] {
 	return createSpread(_.values(fn.params))
 }
 
-export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
-	const _eval = (e: Exp) => evalExp(e, env)
+interface IEvalContext {
+	env: Record<string, Exp>
+}
+
+export function evalExp(
+	exp: Exp,
+	context: IEvalContext = {env: {}}
+): WithLog<Value> {
+	const _eval = (e: Exp) => evalExp(e, context)
 
 	switch (exp.ast) {
 		case 'value':
@@ -1099,26 +1106,26 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		case 'scope':
 			return exp.out ? _eval(exp.out) : withLog(Unit)
 		case 'param':
-			if (!env || !(exp.name in env)) {
+			if (!context.env || !(exp.name in context.env)) {
 				throw new Error(`Prameter ${exp.name} does not exist in env`)
 			}
-			return _eval(env[exp.name])
+			return _eval(context.env[exp.name])
 		case 'fncall': {
 			const paramsLog: Log[] = []
 			const callLog: Log[] = []
 
-			const context: ValueFnContext = {
+			const ctx: ValueFnContext = {
 				log(log) {
 					callLog.push(log)
 				},
 				eval(e) {
-					const [result, log] = evalExp(e, env)
+					const [result, log] = evalExp(e, context)
 					paramsLog.push(...log)
 					return result as any
 				},
 			}
 
-			const evaluated = exp.fn.call(context, ...exp.params)
+			const evaluated = exp.fn.call(ctx, ...exp.params)
 			const log = [...paramsLog, ...callLog]
 			return withLog(evaluated, log)
 		}
@@ -1142,11 +1149,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
-		const [pdg, bodyLog] = createPdg(exp.body, env)
+		const [pdg, bodyLog] = createPdg(exp.body, context.env)
 
 		const body: ValueFn['body'] = function (...xs) {
 			const localEnv = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
-			return evalExp(pdg, {...env, ...localEnv})[0]
+			const env = {...context.env, ...localEnv}
+			return evalExp(pdg, {env})[0]
 		}
 
 		const fn: ValueFn = {
