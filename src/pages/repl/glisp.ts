@@ -365,8 +365,11 @@ function inheritDataType(
 	}
 }
 
-function createTypeVar(...supers: ValueTypeVar['supers']): ValueTypeVar {
-	const id = Symbol('typeVar')
+function createTypeVar(
+	_id: string,
+	...supers: ValueTypeVar['supers']
+): ValueTypeVar {
+	const id = Symbol.for(_id)
 	return {kind: 'typeVar', id, supers}
 }
 
@@ -446,7 +449,7 @@ function createClass(): ValueClass {
 const ClassHasSize = createClass()
 const PolyFnSize = createPolyFn(ClassHasSize, 'size', {
 	params: {
-		x: {value: createTypeVar(ClassHasSize)},
+		x: {value: createTypeVar('T', ClassHasSize)},
 	},
 	out: TypeNumber,
 })
@@ -454,19 +457,19 @@ const PolyFnSize = createPolyFn(ClassHasSize, 'size', {
 const ClassMonoid = createClass()
 const PolyFnConcat = createPolyFn(ClassMonoid, '++', {
 	params: {
-		x: {value: createTypeVar(ClassMonoid)},
-		y: {value: createTypeVar(ClassMonoid)},
+		x: {value: createTypeVar('T', ClassMonoid)},
+		y: {value: createTypeVar('T', ClassMonoid)},
 	},
-	out: createTypeVar(ClassMonoid),
+	out: createTypeVar('T', ClassMonoid),
 })
 
 const ClassAddable = createClass()
 const PolyFnAdd = createPolyFn(ClassAddable, '<+>', {
 	params: {
-		x: {value: createTypeVar(ClassAddable)},
-		y: {value: createTypeVar(ClassAddable)},
+		x: {value: createTypeVar('T', ClassAddable)},
+		y: {value: createTypeVar('T', ClassAddable)},
 	},
-	out: createTypeVar(ClassAddable),
+	out: createTypeVar('T', ClassAddable),
 })
 
 // Inhertis
@@ -525,8 +528,8 @@ inheritClass(TypeVec2, ClassAddable, {
 	},
 })
 
-const TypeVarT = createTypeVar()
-const TypeVarU = createTypeVar()
+const TypeVarT = createTypeVar('T')
+const TypeVarU = createTypeVar('U')
 
 function createPolyFn(
 	cls: ValueClass,
@@ -770,7 +773,7 @@ export const GlobalScope = createExpScope({
 			out: TypeTypeVar,
 			body(supers) {
 				const _supers = this.eval<ValueClass[]>(supers)
-				return createTypeVar(..._supers)
+				return createTypeVar('T', ..._supers)
 			},
 		}),
 		T: wrapValue(TypeVarT),
