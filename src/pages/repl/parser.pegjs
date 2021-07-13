@@ -11,7 +11,7 @@ Program = form:Form _
 Form "form" = Cast / FromExceptCast
 
 FromExceptCast = Any / Unit / Constant / Number / String
-	/ Fn / Maybe / List / Vector / Spread / Dict / Scope
+	/ Fn / Maybe / List / Spread / Dict / Scope
 	/ QuotedSymbol / Symbol
 
 Constant "constant" = _value:$("true" / "false" / "null" / "inf" / "-inf" / "nan")
@@ -110,21 +110,9 @@ List "list" = "(" _ _fn:(ListFirst _) _params:(Form _)* ")"
 	}
 
 ListFirst = Unit / Constant / Number / String
-	/ Fn / List / Vector / Spread / Dict / Scope / QuotedSymbol / Symbol
-
-Vector "vector" = "[" _ items:(Form _)* "]"
-	{
-		const exp = {
-			ast: 'vector',
-			items: items.map(p => p[0]),
-		}
-
-		exp.items.forEach((e, key) => e.parent = exp)
-
-		return exp
-	}
+	/ Fn / List / Spread / Dict / Scope / QuotedSymbol / Symbol
 	
-Spread "spread vector" = "[" _ _items:(("..." _)? Form _)+ "]"
+Spread "spread vector" = "[" _ _items:(("..." _)? Form _)* "]"
 	{
 		const items = _items.map(it => {
 			const [inf, value] = it

@@ -120,7 +120,6 @@ type Exp =
 	| ExpFn
 	| ExpMaybe
 	| ExpList
-	| ExpVector
 	| ExpSpread
 	| ExpDict
 	| ExpCast
@@ -157,11 +156,6 @@ interface ExpList extends ExpBase {
 	ast: 'list'
 	fn: Exp
 	params: Exp[]
-}
-
-interface ExpVector extends ExpBase {
-	ast: 'vector'
-	items: Exp[]
 }
 
 interface ExpSpread extends ExpBase {
@@ -884,8 +878,6 @@ function assertExpType(exp: Exp): Value {
 				return type
 			}
 		}
-		case 'vector':
-			return exp.items.map(assertExpType)
 		case 'spread': {
 			const items = exp.items.map(({inf, value}) => ({
 				inf,
@@ -936,8 +928,6 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			return evalMaybe(exp)
 		case 'list':
 			return evalList(exp)
-		case 'vector':
-			return mapWithLog(exp.items, _eval)
 		case 'spread':
 			return evalSpread(exp)
 		case 'dict':
@@ -1051,7 +1041,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, log)
 	}
 
-	function evalSpread(exp: ExpSpread): WithLog<ValueSpread> {
+	function evalSpread(exp: ExpSpread): WithLog<Value> {
 		const [items, log] = mapWithLog(exp.items, p => {
 			const [result, log] = _eval(p.value)
 			return withLog({inf: !!p.inf, value: result}, log)
@@ -1067,7 +1057,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 			}
 		}
 
-		const evaluated = createSpread(items)
+		let evaluated: Value
+		if (items.every(i => !i.inf)) {
+			evaluated = items.map(i => i.value)
+		} else {
+			evaluated = createSpread(items)
+		}
 		return withLog(evaluated, log)
 	}
 
@@ -1132,8 +1127,6 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 			return withLog(exp) //createFn(exp)
 		case 'list':
 			return createFncall(exp)
-		case 'vector':
-			return createVector(exp)
 		case 'scope':
 			return _createPdg(exp.out ?? wrapValue(Unit))
 		case 'fncall':
@@ -1183,12 +1176,6 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 		} else {
 			return withLog(exp.fn)
 		}
-	}
-
-	function createVector(exp: ExpVector) {
-		const [items, log] = mapWithLog(exp.items, _createPdg)
-		const ret: ExpVector = {ast: 'vector', items}
-		return withLog(ret, log)
 	}
 }
 
@@ -1431,7 +1418,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			// inf
 			const nextToType = j < to.items.length - 1 ? to.items[j + 1] : null
 
-			const restCasted: Exp[] = []
+			const restCasted: ExpSpread['items'] = []
 
 			for (; i < from.length; i++) {
 				const fromItem = from[i]
@@ -1440,12 +1427,12 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 					break
 				}
 
-				const [result, assignLog] = assign(fromItem, toType.value)
+				const [value, assignLog] = assign(fromItem, toType.value)
 				log.push(...assignLog)
-				restCasted.push(result)
+				restCasted.push({inf: false, value})
 			}
 
-			casted.push({ast: 'vector', items: restCasted})
+			casted.push({ast: 'spread', items: restCasted})
 		}
 	}
 
@@ -1499,8 +1486,6 @@ export function printExp(exp: Exp): string {
 			const params = exp.params.map(printExp)
 			return `(${fn} ${params.join(' ')})`
 		}
-		case 'vector':
-			return '[' + exp.items.map(printExp).join(' ') + ']'
 		case 'spread': {
 			const items = exp.items.map(i => (i.inf ? '...' : '') + printExp(i.value))
 			return `[${items.join(' ')}]`
