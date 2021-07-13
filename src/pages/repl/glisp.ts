@@ -1610,8 +1610,8 @@ function castType(type: Value, value: Value): Value {
 }
 
 function assignParam(exp: ExpList): WithLog<Exp[]> {
-	const from = exp.params
-	const to = _.values(assertExpListParam(exp))
+	const params = exp.params
+	const fnParams = _.values(assertExpListParam(exp))
 
 	const log: Log[] = []
 
@@ -1620,29 +1620,29 @@ function assignParam(exp: ExpList): WithLog<Exp[]> {
 	let isParamShort = false
 
 	let i = 0
-	for (let j = 0; j < to.length; j++) {
-		const toType = to[j]
-		if (!toType.inf) {
-			isParamShort = from.length <= i
-			const fromItem = isParamShort ? wrapValue(Unit) : from[i]
-			const [result, assignLog] = assign(fromItem, toType.value)
+	for (let j = 0; j < fnParams.length; j++) {
+		const {inf, value: fnParam} = fnParams[j]
+		if (!inf) {
+			// not inf
+			isParamShort = params.length <= i
+			const param = isParamShort ? wrapValue(Unit) : params[i]
+			const [result, assignLog] = assign(param, fnParam)
 			log.push(...assignLog)
 			casted.push(result)
 			i += 1
 		} else {
 			// inf
-			const nextToType = j < to.length - 1 ? to[j + 1] : null
-
+			const nextFnParam = j < fnParams.length - 1 ? fnParams[j + 1] : null
 			const restCasted: ExpSpread['items'] = []
 
-			for (; i < from.length; i++) {
-				const fromItem = from[i]
-				const fromType = assertExpType(fromItem)
-				if (nextToType && isSubtypeOf(fromType, nextToType.value)) {
+			for (; i < params.length; i++) {
+				const param = params[i]
+				const fromType = assertExpType(param)
+				if (nextFnParam && isSubtypeOf(fromType, nextFnParam.value)) {
 					break
 				}
 
-				const [value, assignLog] = assign(fromItem, toType.value)
+				const [value, assignLog] = assign(param, fnParam)
 				log.push(...assignLog)
 				restCasted.push({inf: false, value})
 			}
