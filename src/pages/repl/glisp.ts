@@ -62,7 +62,7 @@ interface ValueDataType {
 	id: string
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
-	supers: ValueClass[]
+	supers: Set<ValueClass>
 	methods: Record<string, ValueFn['body']>
 	origExp?: ExpValue<ValueDataType>
 }
@@ -334,15 +334,16 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 function createDataType(
 	id: string,
 	predicate: ValueDataType['predicate'],
-	cast: ValueDataType['cast']
+	cast: ValueDataType['cast'],
+	inherits: {class: ValueClass; methods: ValueDataType['methods']}[] = []
 ): ValueDataType {
 	return {
 		kind: 'dataType',
 		id,
 		predicate,
 		cast,
-		supers: [],
-		methods: {},
+		supers: new Set(inherits.map(i => i.class)),
+		methods: inherits.map(i => i.methods).reduce(_.merge, {}),
 	}
 }
 
@@ -366,13 +367,30 @@ function createTypeVar(...supers: ValueTypeVar['supers']): ValueTypeVar {
 	return {kind: 'typeVar', id, supers}
 }
 
+// Classes
+const ClassHasSize: ValueClass = {
+	kind: 'class',
+	methods: {},
+}
+const THasSize = createTypeVar(ClassHasSize)
+
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
 	items: [false, true],
 	cast: v => !!v,
 }
 export const TypeNumber = createDataType('number', _.isNumber, () => 0)
-export const TypeString = createDataType('string', _.isString, () => '')
+export const TypeString = createDataType('string', _.isString, () => '', [
+	{
+		class: ClassHasSize,
+		methods: {
+			size: function (str) {
+				const _str = this.eval<string>(str)
+				return _str.length
+			},
+		},
+	},
+])
 
 const TypeLiterals = new Set([TypeBoolean, TypeNumber, TypeString])
 
@@ -404,12 +422,42 @@ export const TypeClass = createDataType(
 export const TypeVector = createDataType(
 	'vector',
 	v => _.isArray(v) || isKindOf('spread', v),
-	() => []
+	() => [],
+	[
+		{
+			class: ClassHasSize,
+			methods: {
+				size: function (coll) {
+					const _coll = this.eval<Value[] | ValueSpread>(coll)
+					if (_.isArray(_coll)) {
+						return _coll.length
+					} else {
+						return Infinity
+					}
+				},
+			},
+		},
+	]
 )
 export const TypeDict = createDataType(
 	'dict',
 	v => isKindOf('dict', v),
-	() => ({kind: 'dict', value: {}})
+	() => ({kind: 'dict', value: {}}),
+	[
+		{
+			class: ClassHasSize,
+			methods: {
+				size: function (dict) {
+					const d = this.eval<ValueDict>(dict)
+					if (d.rest !== undefined) {
+						return Infinity
+					} else {
+						return _.keys(d.value).length
+					}
+				},
+			},
+		},
+	]
 )
 export const TypeVec2 = createDataType(
 	'vec2',
@@ -421,17 +469,21 @@ export const TypeVec2 = createDataType(
 			return [v, v]
 		}
 		return [0, 0]
-	}
+	},
+	[
+		{
+			class: ClassHasSize,
+			methods: {
+				size: function () {
+					return 2
+				},
+			},
+		},
+	]
 )
 
 const TypeVarT = createTypeVar()
 const TypeVarU = createTypeVar()
-
-const ClassHasSize: ValueClass = {
-	kind: 'class',
-	methods: {},
-}
-const THasSize = createTypeVar(ClassHasSize)
 
 const PolyFnSize: ValuePolyFn = {
 	kind: 'polyFn',
@@ -441,37 +493,6 @@ const PolyFnSize: ValuePolyFn = {
 }
 
 ClassHasSize.methods['size'] = PolyFnSize
-
-TypeString.supers.push(ClassHasSize)
-TypeString.methods['size'] = function (str) {
-	const _str = this.eval<string>(str)
-	return _str.length
-}
-
-TypeVector.supers.push(ClassHasSize)
-TypeVector.methods['size'] = function (coll) {
-	const _coll = this.eval<Value[] | ValueSpread>(coll)
-	if (_.isArray(_coll)) {
-		return _coll.length
-	} else {
-		return Infinity
-	}
-}
-
-TypeDict.supers.push(ClassHasSize)
-TypeDict.methods['size'] = function (dict) {
-	const d = this.eval<ValueDict>(dict)
-	if (d.rest !== undefined) {
-		return Infinity
-	} else {
-		return _.keys(d.value).length
-	}
-}
-
-TypeVec2.supers.push(ClassHasSize)
-TypeVec2.methods['size'] = function () {
-	return 2
-}
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
@@ -1206,7 +1227,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const paramType = assertExpType(params[0], true)
 		const cls = fn.ofClass
 
-		if (!isKindOf('dataType', paramType) || !paramType.supers.includes(cls)) {
+		if (!isKindOf('dataType', paramType) || !paramType.supers.has(cls)) {
 			return withLog(Unit, [
 				{
 					level: 'error',
@@ -1560,7 +1581,7 @@ function compareType(
 		}
 
 		const isInstance = b.supers.every(bs => {
-			return isKindOf('dataType', bst) && bst.supers.includes(bs)
+			return isKindOf('dataType', bst) && bst.supers.has(bs)
 		})
 
 		if (!isInstance) return false
