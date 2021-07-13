@@ -718,7 +718,7 @@ export const GlobalScope = createExpScope({
 			params: {x: {inf: false, value: Any}},
 			out: Any,
 			body(x) {
-				return assertValueType(this.eval(x))
+				return this.eval(x)
 			},
 		}),
 		singleton: wrapValue({
@@ -988,75 +988,16 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 	])
 }
 
-function assertValueType(v: Value, dataType = false): Value {
-	const assert = (v: Value) => assertValueType(v, dataType)
-
-	if (!_.isObject(v)) {
-		if (!dataType) return v
-
-		if (v === null) return TypeSingleton
-		switch (typeof v) {
-			case 'boolean':
-				return TypeBoolean
-			case 'number':
-				return TypeNumber
-			case 'string':
-				return TypeString
-		}
-	}
-
-	if (_.isArray(v)) {
-		if (dataType) return TypeVector
-
-		return v.map(assert)
-	}
-
-	switch (v.kind) {
-		case 'any':
-		case 'unit':
-		case 'fnType':
-		case 'spread':
-		case 'typeVar':
-		case 'class':
-			return v
-		case 'dataType':
-		case 'union':
-			if (dataType) return TypeType
-			return v
-		case 'singleton':
-			return TypeSingleton
-		case 'maybe':
-			return createMaybe(assert(v.value))
-		case 'fn':
-		case 'polyFn': {
-			return {
-				kind: 'fnType',
-				params: getParamType(v),
-				out: v.out,
-			}
-		}
-		case 'dict':
-			if (dataType) return TypeDict
-			throw new Error('Not yet implemented')
-		case 'data':
-			return v.type
-		case 'cast':
-			return v.type
-	}
-}
-
-function assertExpType(exp: Exp, dataType = false): Value {
-	const assert = (e: Exp) => assertExpType(e, dataType)
-
+function assertExpType(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
-			return assertValueType(exp.value, dataType)
+			return exp.value
 		case 'symbol': {
 			const [inspected] = resolveSymbol(exp)
 			if (inspected.semantic == 'ref') {
-				return assert(inspected.ref)
+				return assertExpType(inspected.ref)
 			} else if (inspected.semantic === 'param') {
-				return assert(inspected.type)
+				return assertExpType(inspected.type)
 			}
 			return Unit
 		}
@@ -1065,12 +1006,12 @@ function assertExpType(exp: Exp, dataType = false): Value {
 				ast: 'spread',
 				items: _.values(exp.params),
 			}
-			const params = assert(paramsExp) as ValueFnType['params']
-			const out = assert(exp.body)
+			const params = assertExpType(paramsExp) as ValueSpread
+			const out = assertExpType(exp.body)
 			return createFnType(params, out)
 		}
 		case 'maybe': {
-			const value = assert(exp.value)
+			const value = assertExpType(exp.value)
 			if (isKindOf('unit', value) || isKindOf('maybe', value)) {
 				return value
 			} else {
@@ -1081,41 +1022,40 @@ function assertExpType(exp: Exp, dataType = false): Value {
 			}
 		}
 		case 'list': {
-			const fn = assert(exp.fn)
-			const type =
-				isKindOf('fnType', fn) || isKindOf('polyFn', fn) ? fn.out : fn
-			if (isKindOf('typeVar', type) && isKindOf('fnType', fn)) {
-				const env = new Map<symbol, Value>()
-				const expParams = exp.params.map(assert)
-				compareType(expParams, fn.params, false, env)
+			const fn = assertExpType(exp.fn)
+			if (isKindOf('fn', fn) || isKindOf('polyFn', fn)) {
+				const type = fn.out
+				if (isKindOf('typeVar', type)) {
+					const env = new Map<symbol, Value>()
+					const expParams = exp.params.map(assertExpType)
+					compareType(expParams, getParamType(fn), false, env)
 
-				const t = env.get(type.id)
-				if (!t) throw new Error('NOOOO')
-				return t
+					const t = env.get(type.id)
+					if (!t) throw new Error('NOOOO')
+					return t
+				} else {
+					return type
+				}
 			} else {
-				return type
+				return fn
 			}
 		}
 		case 'spread': {
-			if (dataType) return TypeVector
-
 			const items = exp.items.map(({inf, value}) => ({
 				inf,
-				value: assert(value),
+				value: assertExpType(value),
 			}))
 			return createSpread(items)
 		}
 		case 'dict': {
-			if (dataType) return TypeDict
-
-			const items = _.mapValues(exp.items, assert)
-			const rest = exp.rest !== undefined ? assert(exp.rest) : undefined
+			const items = _.mapValues(exp.items, assertExpType)
+			const rest = exp.rest !== undefined ? assertExpType(exp.rest) : undefined
 			return createDict(items, rest)
 		}
 		case 'cast':
-			return assert(exp.type)
+			return assertExpType(exp.type)
 		case 'scope':
-			return exp.out ? assert(exp) : Unit
+			return exp.out ? assertExpType(exp) : Unit
 		case 'param':
 			return exp.type
 		case 'fncall':
@@ -1271,7 +1211,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const paramsType = createSpread(_.values(fn.params))
 		const [params, castLog] = assignParam(paramsType, origParams)
 
-		const paramType = assertExpType(params[0], true)
+		const paramType = assertExpType(params[0])
 		const cls = fn.ofClass
 
 		if (!isKindOf('dataType', paramType) || !paramType.supers.has(cls)) {
@@ -1618,17 +1558,8 @@ function compareType(
 		const bType = bPrevType !== undefined ? uniteType([bPrevType, a]) : a
 		env.set(b.id, bType)
 
-		let bst: Value
-		if (onlyInstance) {
-			bst = assertValueType(bType, true)
-		} else if (!isKindOf('dataType', bType)) {
-			bst = assertValueType(bType, true)
-		} else {
-			bst = bType
-		}
-
 		const isInstance = b.supers.every(bs => {
-			return isKindOf('dataType', bst) && bst.supers.has(bs)
+			return isKindOf('dataType', bType) && bType.supers.has(bs)
 		})
 
 		if (!isInstance) return false
@@ -1709,7 +1640,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 
 			for (; i < from.length; i++) {
 				const fromItem = from[i]
-				const fromType = assertExpType(fromItem, true)
+				const fromType = assertExpType(fromItem)
 				if (nextToType && isSubtypeOf(fromType, nextToType.value)) {
 					break
 				}
@@ -1730,7 +1661,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 	return withLog(casted, log)
 
 	function assign(from: Exp, to: Value): WithLog<Exp> {
-		const fromType = assertExpType(from, true)
+		const fromType = assertExpType(from)
 
 		if (isSubtypeOf(fromType, to)) {
 			return withLog(from)
@@ -1738,7 +1669,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			const cast = createExpCast(from, wrapValue(to, false), false)
 			const log: Log[] = []
 
-			if (!isKindOf('unit', fromType) && !isKindOf('maybe', fromType)) {
+			if (!isKindOf('unit', fromType)) {
 				const fromStr = printValue(fromType)
 				const toStr = printValue(to)
 				log.push({
