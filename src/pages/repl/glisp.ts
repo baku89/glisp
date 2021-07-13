@@ -831,7 +831,15 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 
 function assertValueType(v: Value): Value {
 	if (!_.isObject(v)) {
-		return v
+		if (v === null) return null
+		switch (typeof v) {
+			case 'boolean':
+				return TypeBoolean
+			case 'number':
+				return TypeNumber
+			case 'string':
+				return TypeString
+		}
 	}
 
 	if (_.isArray(v)) {
