@@ -366,9 +366,18 @@ const TypeBoolean: ValueUnion = {
 export const TypeNumber = createDataType('number', _.isNumber, () => 0)
 export const TypeString = createDataType('string', _.isString, () => '')
 export const TypeIO = createDataType('IO', _.isFunction, () => null)
+
+export const TypeType = createDataType(
+	'type',
+	v => {
+		return isKindOf('union', v) || isKindOf('dataType', v)
+	},
+	() => TypeType
+)
+
 export const TypeSingleton = createDataType(
 	'singleton',
-	v => isKindOf('singleton', v),
+	v => v === null || typeof v === 'boolean' || isKindOf('singleton', v),
 	() => Unit
 )
 export const TypeTypeVar = createDataType(
@@ -445,6 +454,7 @@ export const GlobalScope = createExpScope({
 		String: wrapValue(TypeString),
 		Boolean: wrapValue(TypeBoolean),
 		IO: wrapValue(TypeIO),
+		Type: wrapValue(TypeType),
 		Singleton: wrapValue(TypeSingleton),
 		TypeVar: wrapValue(TypeTypeVar),
 		Vector: wrapValue(TypeVector),
@@ -885,7 +895,7 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 
 function assertValueType(v: Value): Value {
 	if (!_.isObject(v)) {
-		if (v === null) return null
+		if (v === null) return TypeSingleton
 		switch (typeof v) {
 			case 'boolean':
 				return TypeBoolean
@@ -903,16 +913,19 @@ function assertValueType(v: Value): Value {
 	switch (v.kind) {
 		case 'any':
 		case 'unit':
-		case 'singleton':
-		case 'dataType':
 		case 'fnType':
-		case 'union':
-		case 'maybe':
 		case 'spread':
 		case 'typeVar':
 		case 'polyFn':
 		case 'class':
 			return v
+		case 'dataType':
+		case 'union':
+			return TypeType
+		case 'singleton':
+			return TypeSingleton
+		case 'maybe':
+			return createMaybe(assertValueType(v.value))
 		case 'fn': {
 			return {
 				kind: 'fnType',
