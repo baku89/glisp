@@ -42,5 +42,13 @@ export default function runTest() {
 	// Expression
 	test('(+ 1 2 (+ 3 4))', '10')
 	test('(((=> [x:Number] (=> [y: Number] (* x y))) 4) 10)', '40')
+
+	// spread Normalization
 	test('[...1 ...1 1 ...1]', '[...1]')
+	test('{key: 1 ...1}', '{...1}')
+
+	// Maybe Normalization
+	test('??Number', '?Number')
+	test('?_', '_')
+	test('(| 1 2 ?3)', '?(| 1 2 3)')
 }

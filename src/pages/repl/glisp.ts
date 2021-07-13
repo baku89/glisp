@@ -1072,13 +1072,21 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalDict(exp: ExpDict): WithLog<ValueDict> {
+		// Items
 		const [items, itemsLog] = mapValueWithLog(exp.items, _eval)
-		const restResult = exp.rest && _eval(exp.rest)
+
+		// Rest
 		let rest: Value | undefined = undefined,
 			restLog: Log[] = []
-
+		const restResult = exp.rest && _eval(exp.rest)
 		if (restResult) {
 			;[rest, restLog] = restResult
+			// Normalize
+			for (const key in items) {
+				if (equalsValue(items[key], rest)) {
+					delete items[key]
+				}
+			}
 		}
 
 		const evaluated = createDict(items, rest)
