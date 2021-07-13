@@ -34,6 +34,7 @@ type Value =
 	| ValueTypeVar
 	| ValueClass
 	| ValuePolyFn
+	| ValueCast
 
 interface ValueAny {
 	kind: 'any'
@@ -129,6 +130,12 @@ interface ValuePolyFn {
 	params: ValueSpread
 	out: Value
 	ofClass: ValueClass
+}
+
+interface ValueCast {
+	kind: 'cast'
+	value: Value
+	type: ValueDataType
 }
 
 type Exp =
@@ -366,6 +373,9 @@ const TypeBoolean: ValueUnion = {
 }
 export const TypeNumber = createDataType('number', _.isNumber, () => 0)
 export const TypeString = createDataType('string', _.isString, () => '')
+
+const TypeLiterals = new Set([TypeBoolean, TypeNumber, TypeString])
+
 export const TypeIO = createDataType('IO', _.isFunction, () => null)
 
 export const TypeType = createDataType(
@@ -852,6 +862,7 @@ export function equalsValue(a: Value, b: Value): boolean {
 			return isKindOf('typeVar', b) && a.id === b.id
 		case 'class':
 		case 'polyFn':
+		case 'cast':
 			throw new Error(`Cannot determine equality of ${a.kind} yet`)
 	}
 }
@@ -961,6 +972,8 @@ function assertValueType(v: Value, dataType = false): Value {
 			if (dataType) return TypeDict
 			throw new Error('Not yet implemented')
 		case 'data':
+			return v.type
+		case 'cast':
 			return v.type
 	}
 }
@@ -1276,7 +1289,12 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const [value, valueLog] = _eval(exp.value)
 		const [type, typeLog] = _eval(exp.type)
 
-		const evaluated = castType(type, value)
+		let evaluated = castType(type, value)
+
+		if (isKindOf('dataType', type) && !TypeLiterals.has(type)) {
+			evaluated = {kind: 'cast', value: evaluated, type}
+		}
+
 		return withLog(evaluated, [...valueLog, ...typeLog])
 	}
 }
@@ -1828,6 +1846,8 @@ export function printValue(
 			return (printName && retrieveValueName(val, baseExp)) || `<class>`
 		case 'polyFn':
 			return '(=> ' + print(val.params) + ' <poly>:' + print(val.out) + ')'
+		case 'cast':
+			return print(val.value) + ':' + print(val.type)
 	}
 }
 
