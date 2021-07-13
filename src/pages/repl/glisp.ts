@@ -988,6 +988,15 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 	])
 }
 
+function assertExpListParam(exp: ExpList): ValueFn['params'] {
+	const fn = assertExpType(exp.fn)
+	if (isKindOf('fn', fn) || isKindOf('polyFn', fn)) {
+		return fn.params
+	} else {
+		return {}
+	}
+}
+
 function assertExpType(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
@@ -1060,15 +1069,6 @@ function assertExpType(exp: Exp): Value {
 			return exp.type
 		case 'fncall':
 			return exp.type
-	}
-}
-
-function assertExpParamsType(exp: Exp): ValueSpread {
-	const type = assertExpType(exp)
-	if (!isKindOf('fnType', type)) {
-		return createSpread([])
-	} else {
-		return type.params
 	}
 }
 
@@ -1171,9 +1171,9 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		let evaluated: Value, applyLog: Log[]
 
 		if (isKindOf('fn', fn)) {
-			;[evaluated, applyLog] = evalListFn(fn, exp.params)
+			;[evaluated, applyLog] = evalListFn(fn, exp)
 		} else if (isKindOf('polyFn', fn)) {
-			;[evaluated, applyLog] = evalListPolyFn(fn, exp.params)
+			;[evaluated, applyLog] = evalListPolyFn(fn, exp)
 		} else {
 			evaluated = fn
 			applyLog = []
@@ -1182,10 +1182,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, [...fnLog, ...applyLog])
 	}
 
-	function evalListFn(fn: ValueFn, origParams: Exp[]) {
-		const paramsType = getParamType(fn)
-
-		const [params, castLog] = assignParam(paramsType, origParams)
+	function evalListFn(fn: ValueFn, exp: ExpList) {
+		const [params, castLog] = assignParam(exp)
 
 		const paramsLog: Log[] = []
 		const callLog: Log[] = []
@@ -1207,9 +1205,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		return withLog(evaluated, log)
 	}
 
-	function evalListPolyFn(fn: ValuePolyFn, origParams: Exp[]) {
-		const paramsType = createSpread(_.values(fn.params))
-		const [params, castLog] = assignParam(paramsType, origParams)
+	function evalListPolyFn(fn: ValuePolyFn, exp: ExpList) {
+		const [params, castLog] = assignParam(exp)
 
 		const paramType = assertExpType(params[0])
 		const cls = fn.ofClass
@@ -1364,15 +1361,12 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	}
 
 	function createFncall(exp: ExpList) {
-		const [fn, fnLog] = _createPdg(exp.fn)
 		const [params, paramsLog] = mapWithLog(exp.params, _createPdg)
 
 		const [fnValue] = evalExp(exp.fn)
 
 		if (isKindOf('fn', fnValue)) {
-			const fnParamsType = assertExpParamsType(fn)
-
-			const [assignedParams, typeAssertLog] = assignParam(fnParamsType, params)
+			const [assignedParams, typeAssertLog] = assignParam(exp)
 
 			const ret: ExpFncall = {
 				ast: 'fncall',
@@ -1383,7 +1377,7 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 				origParams: params,
 			}
 
-			const logs = [...fnLog, ...paramsLog, ...typeAssertLog]
+			const logs = [...paramsLog, ...typeAssertLog]
 			return withLog(ret, logs)
 		} else {
 			return withLog(exp.fn)
@@ -1615,7 +1609,10 @@ function castType(type: Value, value: Value): Value {
 	}
 }
 
-function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
+function assignParam(exp: ExpList): WithLog<Exp[]> {
+	const from = exp.params
+	const to = _.values(assertExpListParam(exp))
+
 	const log: Log[] = []
 
 	const casted: Exp[] = []
@@ -1623,8 +1620,8 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 	let isParamShort = false
 
 	let i = 0
-	for (let j = 0; j < to.items.length; j++) {
-		const toType = to.items[j]
+	for (let j = 0; j < to.length; j++) {
+		const toType = to[j]
 		if (!toType.inf) {
 			isParamShort = from.length <= i
 			const fromItem = isParamShort ? wrapValue(Unit) : from[i]
@@ -1634,7 +1631,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 			i += 1
 		} else {
 			// inf
-			const nextToType = j < to.items.length - 1 ? to.items[j + 1] : null
+			const nextToType = j < to.length - 1 ? to[j + 1] : null
 
 			const restCasted: ExpSpread['items'] = []
 
