@@ -740,10 +740,18 @@ export const GlobalScope = createExpScope({
 		}),
 		typeof: wrapValue({
 			kind: 'fn',
-			params: {x: {inf: false, value: Any}},
+			params: {x: {value: Any}},
 			out: Any,
 			body(x) {
 				return getFnType(this.eval(x))
+			},
+		}),
+		typeofInfer: wrapValue({
+			kind: 'fn',
+			params: {x: {value: Any}},
+			out: Any,
+			body(x) {
+				return assertExpType(x)
 			},
 		}),
 		singleton: wrapValue({
