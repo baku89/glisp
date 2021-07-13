@@ -39,7 +39,7 @@ export default defineComponent({
 				await result.value()
 			}
 
-			return withLog(printValue(result), log)
+			return withLog(printValue(result, false), log)
 		}
 
 		return {rep, onError}

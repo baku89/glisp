@@ -8,6 +8,8 @@ import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
+import {vec2} from 'gl-matrix'
+
 import {
 	composeWithLog,
 	Log,
@@ -58,10 +60,10 @@ interface ValueSpread<T extends Value = Value> {
 
 interface ValueDataType {
 	kind: 'dataType'
-	id: symbol
+	id: string
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
-	extends: ValueClass[]
+	supers: ValueClass[]
 	methods: Record<string, ValueFn['body']>
 	origExp?: ExpValue<ValueDataType>
 }
@@ -113,8 +115,8 @@ interface ValueData {
 
 interface ValueTypeVar {
 	kind: 'typeVar'
-	id: string
-	extends: ValueClass[]
+	id: symbol
+	supers: ValueClass[]
 	origExp?: ExpValue<ValueTypeVar>
 }
 
@@ -321,17 +323,17 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 	return {kind: 'dict', value, rest}
 }
 
-function createValueType(
+function createDataType(
 	id: string,
 	predicate: ValueDataType['predicate'],
 	cast: ValueDataType['cast']
 ): ValueDataType {
 	return {
 		kind: 'dataType',
-		id: Symbol(id),
+		id,
 		predicate,
 		cast,
-		extends: [],
+		supers: [],
 		methods: {},
 	}
 }
@@ -346,13 +348,14 @@ function inheritValueType(
 		predicate: value.predicate,
 		cast,
 		origExp: value.origExp,
-		extends: value.extends,
+		supers: value.supers,
 		methods: value.methods,
 	}
 }
 
-function createTypeVar(id: string): ValueTypeVar {
-	return {kind: 'typeVar', id, extends: []}
+function createTypeVar(...supers: ValueTypeVar['supers']): ValueTypeVar {
+	const id = Symbol('typeVar')
+	return {kind: 'typeVar', id, supers}
 }
 
 const TypeBoolean: ValueUnion = {
@@ -360,31 +363,44 @@ const TypeBoolean: ValueUnion = {
 	items: [false, true],
 	cast: v => !!v,
 }
-export const TypeNumber = createValueType('number', _.isNumber, () => 0)
-export const TypeString = createValueType('string', _.isString, () => '')
-export const TypeIO = createValueType('IO', _.isFunction, () => null)
-export const TypeSingleton = createValueType(
+export const TypeNumber = createDataType('number', _.isNumber, () => 0)
+export const TypeString = createDataType('string', _.isString, () => '')
+export const TypeIO = createDataType('IO', _.isFunction, () => null)
+export const TypeSingleton = createDataType(
 	'singleton',
 	v => isKindOf('singleton', v),
 	() => Unit
 )
-export const TypeTypeVar = createValueType(
+export const TypeTypeVar = createDataType(
 	'typeVar',
 	v => isKindOf('typeVar', v),
 	() => Unit
 )
-export const TypeClass = createValueType(
+export const TypeClass = createDataType(
 	'class',
 	v => isKindOf('class', v),
 	() => Unit
 )
-export const TypeVector = createValueType(
+export const TypeVector = createDataType(
 	'vector',
 	v => _.isArray(v) || isKindOf('spread', v),
-	() => Unit
+	() => []
 )
-const TypeVarT = createTypeVar('T')
-const TypeVarU = createTypeVar('U')
+export const TypeVec2 = createDataType(
+	'vec2',
+	v => _.isArray(v) && v.length === 2 && v.every(_.isNumber),
+	v => {
+		if (_.isArray(v) && v.length > 2) {
+			return v.slice(0, 2)
+		} else if (_.isNumber(v)) {
+			return [v, v]
+		}
+		return [0, 0]
+	}
+)
+
+const TypeVarT = createTypeVar()
+const TypeVarU = createTypeVar()
 
 const ClassHasLength: ValueClass = {
 	kind: 'class',
@@ -395,16 +411,15 @@ const PolyFnLength: ValuePolyFn = {
 	out: TypeNumber,
 	ofClass: ClassHasLength,
 }
-
 ClassHasLength.methods['length'] = PolyFnLength
 
-TypeString.extends.push(ClassHasLength)
+TypeString.supers.push(ClassHasLength)
 TypeString.methods['length'] = function (str) {
 	const _str = this.eval<string>(str)
 	return _str.length
 }
 
-TypeVector.extends.push(ClassHasLength)
+TypeVector.supers.push(ClassHasLength)
 TypeVector.methods['length'] = function (coll) {
 	const _coll = this.eval<Value[] | ValueSpread>(coll)
 	if (_.isArray(_coll)) {
@@ -412,6 +427,12 @@ TypeVector.methods['length'] = function (coll) {
 	} else {
 		return Infinity
 	}
+}
+
+TypeVec2.supers.push(ClassHasLength)
+TypeVec2.methods['length'] = function (_v) {
+	const v = this.eval(_v) as vec2
+	return vec2.len(v)
 }
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
@@ -426,6 +447,9 @@ export const GlobalScope = createExpScope({
 		IO: wrapValue(TypeIO),
 		Singleton: wrapValue(TypeSingleton),
 		TypeVar: wrapValue(TypeTypeVar),
+		Vector: wrapValue(TypeVector),
+		Vec2: wrapValue(TypeVec2),
+		TLength: wrapValue(createTypeVar(ClassHasLength)),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -604,14 +628,12 @@ export const GlobalScope = createExpScope({
 		typeVar: wrapValue({
 			kind: 'fn',
 			params: {
-				id: {value: TypeString},
-				extends: {inf: true, value: TypeClass},
+				supers: {inf: true, value: TypeClass},
 			},
 			out: TypeTypeVar,
-			body(_id, _extends) {
-				const id = this.eval<string>(_id)
-				const extendsArr = this.eval<ValueClass[]>(_extends)
-				return {kind: 'typeVar', id, extends: extendsArr}
+			body(supers) {
+				const _supers = this.eval<ValueClass[]>(supers)
+				return createTypeVar(..._supers)
 			},
 		}),
 		T: wrapValue(TypeVarT),
@@ -943,9 +965,10 @@ function assertExpType(exp: Exp, dataType = false): Value {
 		}
 		case 'list': {
 			const fn = assert(exp.fn)
-			const type = isKindOf('fnType', fn) ? fn.out : fn
+			const type =
+				isKindOf('fnType', fn) || isKindOf('polyFn', fn) ? fn.out : fn
 			if (isKindOf('typeVar', type) && isKindOf('fnType', fn)) {
-				const env = new Map<string, Value>()
+				const env = new Map<symbol, Value>()
 				const expParams = exp.params.map(assert)
 				compareType(expParams, fn.params, false, env)
 
@@ -1135,7 +1158,7 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 		const paramType = assertExpType(params[0], true)
 		const cls = fn.ofClass
 
-		if (!isKindOf('dataType', paramType) || !paramType.extends.includes(cls)) {
+		if (!isKindOf('dataType', paramType) || !paramType.supers.includes(cls)) {
 			return withLog(Unit, [
 				{
 					level: 'error',
@@ -1320,7 +1343,7 @@ function compareType(
 	a: Value,
 	b: Value,
 	onlyInstance: boolean,
-	env: Map<string, Value>
+	env: Map<symbol, Value>
 ): boolean {
 	const compare = (a: Value, b: Value) => compareType(a, b, onlyInstance, env)
 
@@ -1584,7 +1607,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 				const toStr = printValue(to)
 				log.push({
 					level: 'error',
-					reason: `Type ${fromStr} cannot be casted to ${toStr}`,
+					reason: `${fromStr} cannot be casted to ${toStr}`,
 				})
 			}
 			return withLog(cast, log)
@@ -1595,7 +1618,7 @@ function assignParam(to: ValueSpread, from: Exp[]): WithLog<Exp[]> {
 export function printExp(exp: Exp): string {
 	switch (exp.ast) {
 		case 'value':
-			return printValue(exp.value, exp, false)
+			return printValue(exp.value, false, exp)
 		case 'param':
 		case 'symbol':
 			return exp.name
@@ -1676,10 +1699,10 @@ function retrieveValueName(
 
 export function printValue(
 	val: Value,
-	baseExp: Exp = GlobalScope,
-	printName = false
+	printName = true,
+	baseExp: Exp = GlobalScope
 ): string {
-	const print = (v: Value) => printValue(v, baseExp, true)
+	const print = (v: Value) => printValue(v, true, baseExp)
 
 	if (!_.isObject(val)) {
 		if (Number.isNaN(val)) return 'nan'
@@ -1739,10 +1762,12 @@ export function printValue(
 		}
 		case 'data':
 			return `<object of ${print(val.type)}>`
-		case 'typeVar':
+		case 'typeVar': {
+			const supers = val.supers.map(print).join(' ')
 			return (
-				(printName && retrieveValueName(val, baseExp)) || `<typeVar ${val.id}>`
+				(printName && retrieveValueName(val, baseExp)) || `(typeVar ${supers})`
 			)
+		}
 		case 'class':
 			return '<class>'
 		case 'polyFn':

@@ -2,7 +2,7 @@ Start = Program / BlankProgram
 
 BlankProgram = _ { return }
 
-Program = form:Form _
+Program = _ form:Form _
 	{
 		form.parent = null
 		return form
