@@ -23,14 +23,14 @@ type Value =
 	| Value[]
 	| ValueSpread
 	| ValueSingleton
-	| ValueValueType
+	| ValueDataType
 	| ValueFnType
 	| ValueUnion
 	| ValueMaybe
 	| ValueSpread
 	| ValueDict
 	| ValueFn
-	| ValueObject
+	| ValueData
 	| ValueTypeVar
 
 interface ValueAny {
@@ -54,12 +54,12 @@ interface ValueSpread<T extends Value = Value> {
 	items: {inf?: boolean; value: T}[]
 }
 
-interface ValueValueType {
-	kind: 'valueType'
+interface ValueDataType {
+	kind: 'dataType'
 	id: symbol
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
-	origExp?: ExpValue<ValueValueType>
+	origExp?: ExpValue<ValueDataType>
 }
 
 interface ValueUnion {
@@ -102,9 +102,9 @@ interface ValueDict {
 	rest?: Value
 }
 
-interface ValueObject {
-	kind: 'object'
-	type: ValueValueType
+interface ValueData {
+	kind: 'data'
+	type: ValueDataType
 	value: any
 }
 
@@ -222,7 +222,7 @@ function wrapValue<T extends Value = Value>(
 	if (
 		setOriginal &&
 		(isKindOf('singleton', value) ||
-			isKindOf('valueType', value) ||
+			isKindOf('dataType', value) ||
 			isKindOf('union', value) ||
 			isKindOf('typeVar', value))
 	) {
@@ -308,11 +308,11 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 
 function createValueType(
 	id: string,
-	predicate: ValueValueType['predicate'],
-	cast: ValueValueType['cast']
-): ValueValueType {
+	predicate: ValueDataType['predicate'],
+	cast: ValueDataType['cast']
+): ValueDataType {
 	return {
-		kind: 'valueType',
+		kind: 'dataType',
 		id: Symbol(id),
 		predicate,
 		cast,
@@ -320,11 +320,11 @@ function createValueType(
 }
 
 function inheritValueType(
-	value: ValueValueType,
-	cast: ValueValueType['cast']
-): ValueValueType {
+	value: ValueDataType,
+	cast: ValueDataType['cast']
+): ValueDataType {
 	return {
-		kind: 'valueType',
+		kind: 'dataType',
 		id: value.id,
 		predicate: value.predicate,
 		cast,
@@ -517,7 +517,7 @@ export const GlobalScope = createExpScope({
 				const n = this.eval<string>(name)
 				const v = this.eval(value)
 				return {
-					kind: 'object',
+					kind: 'data',
 					type: TypeIO,
 					value: () => {
 						const exp = wrapValue(v)
@@ -694,8 +694,8 @@ export function equalsValue(a: Value, b: Value): boolean {
 		case 'singleton':
 		case 'fn':
 			return a === b
-		case 'valueType':
-			return isKindOf('valueType', b) && a.id === b.id
+		case 'dataType':
+			return isKindOf('dataType', b) && a.id === b.id
 		case 'fnType':
 			return (
 				isKindOf('fnType', b) &&
@@ -731,7 +731,7 @@ export function equalsValue(a: Value, b: Value): boolean {
 					(ai, bi) => !!ai.inf === !!bi.inf && equalsValue(ai.value, bi.value)
 				)
 			)
-		case 'object':
+		case 'data':
 			return false
 		case 'typeVar':
 			return isKindOf('typeVar', b) && a.id === b.id
@@ -808,7 +808,7 @@ function assertValueType(v: Value): Value {
 		case 'any':
 		case 'unit':
 		case 'singleton':
-		case 'valueType':
+		case 'dataType':
 		case 'fnType':
 		case 'union':
 		case 'maybe':
@@ -825,7 +825,7 @@ function assertValueType(v: Value): Value {
 		case 'dict':
 			// return Any
 			throw new Error('Not yet implemented')
-		case 'object':
+		case 'data':
 			return v.type
 	}
 }
@@ -1104,10 +1104,10 @@ export function isKindOf(kind: 'fnType', x: Value): x is ValueFnType
 export function isKindOf(kind: 'dict', x: Value): x is ValueDict
 export function isKindOf(kind: 'union', x: Value): x is ValueUnion
 export function isKindOf(kind: 'maybe', x: Value): x is ValueMaybe
-export function isKindOf(kind: 'valueType', x: Value): x is ValueValueType
+export function isKindOf(kind: 'dataType', x: Value): x is ValueDataType
 export function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 export function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
-export function isKindOf(kind: 'object', x: Value): x is ValueObject
+export function isKindOf(kind: 'data', x: Value): x is ValueData
 export function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
 export function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
@@ -1204,7 +1204,7 @@ function compareType(
 			return true
 		case 'unit':
 			return isKindOf('unit', a)
-		case 'valueType':
+		case 'dataType':
 			return compareValueType(a, b)
 		case 'spread':
 			return compareSpread(a, b)
@@ -1284,13 +1284,13 @@ function compareType(
 		return aTypes.every(at => bTypes.some(bt => compare(at, bt)))
 	}
 
-	function compareValueType(a: Value, b: ValueValueType) {
+	function compareValueType(a: Value, b: ValueDataType) {
 		if (onlyInstance) {
 			return b.predicate(a)
 		} else {
 			return (
 				b.predicate(a) ||
-				(isKindOf('valueType', a) && a.id === b.id) ||
+				(isKindOf('dataType', a) && a.id === b.id) ||
 				(isKindOf('union', a) && a.items.every(ai => compare(ai, b)))
 			)
 		}
@@ -1370,7 +1370,7 @@ function castType(type: Value, value: Value): Value {
 		case 'unit':
 		case 'typeVar':
 			return Unit
-		case 'valueType':
+		case 'dataType':
 			return isInstanceOf(value, type) ? value : type.cast(value)
 		case 'fnType':
 			return getDefault(type.out)
@@ -1515,7 +1515,7 @@ export function printExp(exp: Exp): string {
 }
 
 function retrieveValueName(
-	s: ValueUnion | ValueCustomSingleton | ValueValueType | ValueTypeVar,
+	s: ValueUnion | ValueCustomSingleton | ValueDataType | ValueTypeVar,
 	baseExp: Exp
 ): string | undefined {
 	if (!s.origExp) {
@@ -1574,7 +1574,7 @@ export function printValue(
 			return '*'
 		case 'unit':
 			return '_'
-		case 'valueType':
+		case 'dataType':
 			return (printName && retrieveValueName(val, baseExp)) || `<valueType>`
 		case 'spread': {
 			const items = val.items.map(i => (i.inf ? '...' : '') + print(i.value))
@@ -1609,7 +1609,7 @@ export function printValue(
 			const lines = [...pairs, ...rest]
 			return '{' + lines.join(' ') + '}'
 		}
-		case 'object':
+		case 'data':
 			return `<object of ${print(val.type)}>`
 		case 'typeVar':
 			return (

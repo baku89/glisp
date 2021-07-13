@@ -35,7 +35,7 @@ export default defineComponent({
 			const [result, log] = evalStr(str)
 
 			// Execute IO
-			if (isKindOf('object', result) && result.type === TypeIO) {
+			if (isKindOf('data', result) && result.type === TypeIO) {
 				await result.value()
 			}
 
