@@ -32,6 +32,7 @@ type Value =
 	| ValueFn
 	| ValueData
 	| ValueTypeVar
+	| ValueInterface
 
 interface ValueAny {
 	kind: 'any'
@@ -39,6 +40,12 @@ interface ValueAny {
 
 interface ValueUnit {
 	kind: 'unit'
+}
+
+interface ValueInterface {
+	kind: 'interface'
+	typeVar: ValueTypeVar
+	members: Record<string, ValueFnType>
 }
 
 type ValueSingleton = ValueLiteralSingleton | ValueCustomSingleton
@@ -59,6 +66,8 @@ interface ValueDataType {
 	id: symbol
 	predicate: (value: Value) => boolean
 	cast: (value: Value) => Value
+	extends: ValueInterface[]
+	methods: Record<string, ValueFn>
 	origExp?: ExpValue<ValueDataType>
 }
 
@@ -111,6 +120,7 @@ interface ValueData {
 interface ValueTypeVar {
 	kind: 'typeVar'
 	id: string
+	extends: ValueInterface[]
 	origExp?: ExpValue<ValueTypeVar>
 }
 
@@ -316,6 +326,8 @@ function createValueType(
 		id: Symbol(id),
 		predicate,
 		cast,
+		extends: [],
+		methods: {},
 	}
 }
 
@@ -329,11 +341,13 @@ function inheritValueType(
 		predicate: value.predicate,
 		cast,
 		origExp: value.origExp,
+		extends: value.extends,
+		methods: value.methods,
 	}
 }
 
 function createTypeVar(id: string): ValueTypeVar {
-	return {kind: 'typeVar', id}
+	return {kind: 'typeVar', id, extends: []}
 }
 
 const TypeBoolean: ValueUnion = {
@@ -354,13 +368,25 @@ export const TypeTypeVar = createValueType(
 	v => isKindOf('typeVar', v),
 	() => Unit
 )
+export const TypeInterface = createValueType(
+	'interface',
+	v => isKindOf('interface', v),
+	() => Unit
+)
+const TypeVarT = createTypeVar('T')
+const TypeVarU = createTypeVar('U')
+
+const InterfaceHasLength: ValueInterface = {
+	kind: 'interface',
+	typeVar: TypeVarT,
+	members: {
+		length: createFnType(createSpread([{value: TypeVarT}]), TypeNumber),
+	},
+}
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
-
-const TypeVarT = createTypeVar('T')
-const TypeVarU = createTypeVar('U')
 
 export const GlobalScope = createExpScope({
 	scope: {
@@ -377,6 +403,7 @@ export const GlobalScope = createExpScope({
 			kind: 'union',
 			items: [OrderingLT, OrderingEQ, OrderingGT],
 		}),
+		HasLength: wrapValue(InterfaceHasLength),
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
 			kind: 'fn',
@@ -545,10 +572,15 @@ export const GlobalScope = createExpScope({
 		}),
 		typeVar: wrapValue({
 			kind: 'fn',
-			params: {id: {value: TypeString}},
+			params: {
+				id: {value: TypeString},
+				extends: {inf: true, value: TypeInterface},
+			},
 			out: TypeTypeVar,
-			body(id) {
-				return {kind: 'typeVar', id: this.eval<string>(id)}
+			body(_id, _extends) {
+				const id = this.eval<string>(_id)
+				const extendsArr = this.eval<ValueInterface[]>(_extends)
+				return {kind: 'typeVar', id, extends: extendsArr}
 			},
 		}),
 		T: wrapValue(TypeVarT),
@@ -735,6 +767,8 @@ export function equalsValue(a: Value, b: Value): boolean {
 			return false
 		case 'typeVar':
 			return isKindOf('typeVar', b) && a.id === b.id
+		case 'interface':
+			throw new Error('Cannot determine equality of ValueInterface yet')
 	}
 }
 
@@ -814,6 +848,7 @@ function assertValueType(v: Value): Value {
 		case 'maybe':
 		case 'spread':
 		case 'typeVar':
+		case 'interface':
 			return v
 		case 'fn': {
 			return {
@@ -1109,6 +1144,7 @@ export function isKindOf(kind: 'spread', x: Value): x is ValueSpread
 export function isKindOf(kind: 'singleton', x: Value): x is ValueCustomSingleton
 export function isKindOf(kind: 'data', x: Value): x is ValueData
 export function isKindOf(kind: 'typeVar', x: Value): x is ValueTypeVar
+export function isKindOf(kind: 'interface', x: Value): x is ValueInterface
 export function isKindOf<
 	T extends Exclude<Value, null | boolean | number | string | any[]>
 >(kind: T['kind'], x: Value): x is T {
@@ -1615,6 +1651,9 @@ export function printValue(
 			return (
 				(printName && retrieveValueName(val, baseExp)) || `<typeVar ${val.id}>`
 			)
+		case 'interface': {
+			return `(class ${val.typeVar.id})`
+		}
 	}
 }
 
