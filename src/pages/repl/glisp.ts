@@ -36,6 +36,11 @@ type Value =
 	| ValuePolyFn
 	| ValueCast
 
+interface ISpreadItem<T> {
+	inf?: boolean
+	value: T
+}
+
 interface ValueAny {
 	kind: 'any'
 }
@@ -54,7 +59,7 @@ interface ValueCustomSingleton {
 
 interface ValueSpread<T extends Value = Value> {
 	kind: 'spread'
-	items: {inf?: boolean; value: T}[]
+	items: ISpreadItem<T>[]
 }
 
 interface ValueDataType {
@@ -92,7 +97,7 @@ interface ValueFnContext {
 
 interface ValueFn {
 	kind: 'fn'
-	params: Record<string, {inf?: boolean; value: Value}>
+	params: Record<string, ISpreadItem<Value>>
 	out: Value
 	body: (this: ValueFnContext, ...arg0: Exp[]) => Value
 	expBody?: Exp
@@ -127,7 +132,7 @@ interface ValueClass {
 
 interface ValuePolyFn {
 	kind: 'polyFn'
-	params: ValueSpread
+	params: ValueFn['params']
 	out: Value
 	ofClass: ValueClass
 }
@@ -167,7 +172,7 @@ interface ExpSymbol extends ExpBase {
 
 interface ExpFn extends ExpBase {
 	ast: 'fn'
-	params: Record<string, {inf?: boolean; value: Exp}>
+	params: Record<string, ISpreadItem<Exp>>
 	body: Exp
 }
 
@@ -184,7 +189,7 @@ interface ExpList extends ExpBase {
 
 interface ExpSpread extends ExpBase {
 	ast: 'spread'
-	items: {inf?: boolean; value: Exp}[]
+	items: ISpreadItem<Exp>[]
 }
 
 interface ExpDict extends ExpBase {
@@ -487,7 +492,9 @@ const TypeVarU = createTypeVar()
 
 const PolyFnSize: ValuePolyFn = {
 	kind: 'polyFn',
-	params: createSpread([{inf: false, value: THasSize}]),
+	params: {
+		x: {inf: false, value: THasSize},
+	},
 	out: TypeNumber,
 	ofClass: ClassHasSize,
 }
@@ -686,7 +693,7 @@ export const GlobalScope = createExpScope({
 				return {kind: 'singleton'}
 			},
 		}),
-		'<>': wrapValue({
+		typeVar: wrapValue({
 			kind: 'fn',
 			params: {
 				supers: {inf: true, value: TypeClass},
@@ -949,6 +956,8 @@ function assertValueType(v: Value, dataType = false): Value {
 	const assert = (v: Value) => assertValueType(v, dataType)
 
 	if (!_.isObject(v)) {
+		if (!dataType) return v
+
 		if (v === null) return TypeSingleton
 		switch (typeof v) {
 			case 'boolean':
@@ -977,7 +986,8 @@ function assertValueType(v: Value, dataType = false): Value {
 			return v
 		case 'dataType':
 		case 'union':
-			return TypeType
+			if (dataType) return TypeType
+			return v
 		case 'singleton':
 			return TypeSingleton
 		case 'maybe':
@@ -1078,6 +1088,11 @@ function assertExpType(exp: Exp, dataType = false): Value {
 }
 
 function assertExpParamsType(exp: Exp): ValueSpread {
+	if (exp.ast === 'list') {
+		const {fn} = exp
+		const fnType = assertExpType(fn)
+	}
+
 	const type = assertExpType(exp)
 	if (!isKindOf('fnType', type)) {
 		return createSpread([])
@@ -1222,7 +1237,8 @@ export function evalExp(exp: Exp, env?: Record<string, Exp>): WithLog<Value> {
 	}
 
 	function evalListPolyFn(fn: ValuePolyFn, origParams: Exp[]) {
-		const [params, castLog] = assignParam(fn.params, origParams)
+		const paramsType = createSpread(_.values(fn.params))
+		const [params, castLog] = assignParam(paramsType, origParams)
 
 		const paramType = assertExpType(params[0], true)
 		const cls = fn.ofClass
@@ -1822,7 +1838,7 @@ export function printValue(
 		case 'dataType':
 			return (printName && retrieveValueName(val, baseExp)) || `<valueType>`
 		case 'spread': {
-			const items = val.items.map(i => (i.inf ? '...' : '') + print(i.value))
+			const items = val.items.map(it => printSpreadItem(it))
 			return `[${items.join(' ')}]`
 		}
 		case 'union': {
@@ -1839,8 +1855,8 @@ export function printValue(
 		case 'fnType':
 			return '(-> ' + print(val.params) + ' ' + print(val.out) + ')'
 		case 'fn': {
-			const params = _.entries(val.params).map(
-				([name, {inf, value}]) => `${inf ? '...' : ''}${name}:${print(value)}`
+			const params = _.entries(val.params).map(([name, param]) =>
+				printSpreadItem(param, name)
 			)
 			const body = val.expBody
 				? printExp(val.expBody)
@@ -1860,15 +1876,26 @@ export function printValue(
 			const supers = val.supers.map(print).join(' ')
 			return (
 				(printName && retrieveValueName(val, baseExp) && false) ||
-				`(<> ${supers})`
+				`(typeVar ${supers})`
 			)
 		}
 		case 'class':
 			return (printName && retrieveValueName(val, baseExp)) || `<class>`
-		case 'polyFn':
-			return '(=> ' + print(val.params) + ' <poly>:' + print(val.out) + ')'
+		case 'polyFn': {
+			const params = _.entries(val.params).map(([name, param]) =>
+				printSpreadItem(param, name)
+			)
+			return `(=> [${params.join(' ')}] <poly>:${print(val.out)})`
+		}
 		case 'cast':
 			return print(val.value) + ':' + print(val.type)
+	}
+
+	function printSpreadItem(
+		{inf, value}: ISpreadItem<Value>,
+		name?: string
+	): string {
+		return `${inf ? '...' : ''}${name ? name + ':' : ''}${print(value)}`
 	}
 }
 
