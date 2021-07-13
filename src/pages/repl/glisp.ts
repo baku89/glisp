@@ -137,9 +137,9 @@ interface ValuePolyFn {
 	ofClass: ValueClass
 }
 
-interface ValueCast {
+interface ValueCast<T extends Value = Value> {
 	kind: 'cast'
-	value: Value
+	value: T
 	type: ValueDataType
 }
 
@@ -339,16 +339,15 @@ function createDict(value: ValueDict['value'], rest?: Value): ValueDict {
 function createDataType(
 	id: string,
 	predicate: ValueDataType['predicate'],
-	cast: ValueDataType['cast'],
-	inherits: {class: ValueClass; methods: ValueDataType['methods']}[] = []
+	cast: ValueDataType['cast']
 ): ValueDataType {
 	return {
 		kind: 'dataType',
 		id,
 		predicate,
 		cast,
-		supers: new Set(inherits.map(i => i.class)),
-		methods: inherits.map(i => i.methods).reduce(_.merge, {}),
+		supers: new Set(),
+		methods: {},
 	}
 }
 
@@ -372,18 +371,6 @@ function createTypeVar(...supers: ValueTypeVar['supers']): ValueTypeVar {
 	return {kind: 'typeVar', id, supers}
 }
 
-// Classes
-const ClassHasSize: ValueClass = {
-	kind: 'class',
-	methods: {},
-}
-const THasSize = createTypeVar(ClassHasSize)
-
-const ClassMonoid: ValueClass = {
-	kind: 'class',
-	methods: {},
-}
-
 // DataTypes
 const TypeBoolean: ValueUnion = {
 	kind: 'union',
@@ -391,25 +378,8 @@ const TypeBoolean: ValueUnion = {
 	cast: v => !!v,
 }
 export const TypeNumber = createDataType('number', _.isNumber, () => 0)
-export const TypeString = createDataType('string', _.isString, () => '', [
-	{
-		class: ClassHasSize,
-		methods: {
-			size: function (str) {
-				const _str = this.eval<string>(str)
-				return _str.length
-			},
-		},
-	},
-	{
-		class: ClassMonoid,
-		methods: {
-			'++': function (x, y) {
-				return this.eval<string>(x) + this.eval<string>(y)
-			},
-		},
-	},
-])
+
+export const TypeString = createDataType('string', _.isString, () => '')
 
 const TypeLiterals = new Set([TypeBoolean, TypeNumber, TypeString])
 
@@ -428,64 +398,31 @@ export const TypeSingleton = createDataType(
 	v => v === null || typeof v === 'boolean' || isKindOf('singleton', v),
 	() => Unit
 )
+
 export const TypeTypeVar = createDataType(
 	'typeVar',
 	v => isKindOf('typeVar', v),
 	() => Unit
 )
+
 export const TypeClass = createDataType(
 	'class',
 	v => isKindOf('class', v),
 	() => Unit
 )
+
 export const TypeVector = createDataType(
 	'vector',
 	v => _.isArray(v) || isKindOf('spread', v),
-	() => [],
-	[
-		{
-			class: ClassHasSize,
-			methods: {
-				size: function (coll) {
-					const _coll = this.eval<Value[] | ValueSpread>(coll)
-					if (_.isArray(_coll)) {
-						return _coll.length
-					} else {
-						return Infinity
-					}
-				},
-			},
-		},
-		{
-			class: ClassMonoid,
-			methods: {
-				'++': function (x, y) {
-					return [...this.eval<Value[]>(x), ...this.eval<Value[]>(y)]
-				},
-			},
-		},
-	]
+	() => []
 )
+
 export const TypeDict = createDataType(
 	'dict',
 	v => isKindOf('dict', v),
-	() => ({kind: 'dict', value: {}}),
-	[
-		{
-			class: ClassHasSize,
-			methods: {
-				size: function (dict) {
-					const d = this.eval<ValueDict>(dict)
-					if (d.rest !== undefined) {
-						return Infinity
-					} else {
-						return _.keys(d.value).length
-					}
-				},
-			},
-		},
-	]
+	() => ({kind: 'dict', value: {}})
 )
+
 export const TypeVec2 = createDataType(
 	'vec2',
 	v => _.isArray(v) && v.length === 2 && v.every(_.isNumber),
@@ -496,48 +433,136 @@ export const TypeVec2 = createDataType(
 			return [v, v]
 		}
 		return [0, 0]
-	},
-	[
-		{
-			class: ClassHasSize,
-			methods: {
-				size: function () {
-					return 2
-				},
-			},
-		},
-	]
+	}
 )
 
-const TypeVarT = createTypeVar()
-const TypeVarU = createTypeVar()
-
-const PolyFnSize: ValuePolyFn = {
-	kind: 'polyFn',
-	params: {
-		x: {inf: false, value: THasSize},
-	},
-	out: TypeNumber,
-	ofClass: ClassHasSize,
+// Classes
+function createClass(): ValueClass {
+	return {
+		kind: 'class',
+		methods: {},
+	}
 }
 
-ClassHasSize.methods['size'] = PolyFnSize
+const ClassHasSize = createClass()
+const PolyFnSize = createPolyFn(ClassHasSize, 'size', {
+	params: {
+		x: {value: createTypeVar(ClassHasSize)},
+	},
+	out: TypeNumber,
+})
 
-const PolyFnConcat: ValuePolyFn = {
-	kind: 'polyFn',
+const ClassMonoid = createClass()
+const PolyFnConcat = createPolyFn(ClassMonoid, '++', {
 	params: {
 		x: {value: createTypeVar(ClassMonoid)},
 		y: {value: createTypeVar(ClassMonoid)},
 	},
 	out: createTypeVar(ClassMonoid),
-	ofClass: ClassMonoid,
-}
+})
 
-ClassMonoid.methods['++'] = PolyFnConcat
+const ClassAddable = createClass()
+const PolyFnAdd = createPolyFn(ClassAddable, '<+>', {
+	params: {
+		x: {value: createTypeVar(ClassAddable)},
+		y: {value: createTypeVar(ClassAddable)},
+	},
+	out: createTypeVar(ClassAddable),
+})
+
+// Inhertis
+inheritClass(TypeNumber, ClassAddable, {
+	'<+>': function (x, y) {
+		return this.eval<number>(x) + this.eval<number>(y)
+	},
+})
+
+inheritClass(TypeString, ClassHasSize, {
+	size: function (str) {
+		const _str = this.eval<string>(str)
+		return _str.length
+	},
+})
+inheritClass(TypeString, ClassMonoid, {
+	'++': function (x, y) {
+		return this.eval<string>(x) + this.eval<string>(y)
+	},
+})
+
+inheritClass(TypeVector, ClassHasSize, {
+	size(coll) {
+		const _coll = this.eval<Value[] | ValueSpread>(coll)
+		if (_.isArray(_coll)) {
+			return _coll.length
+		} else {
+			return Infinity
+		}
+	},
+})
+
+inheritClass(TypeVector, ClassMonoid, {
+	'++'(x, y) {
+		return [...this.eval<Value[]>(x), ...this.eval<Value[]>(y)]
+	},
+})
+
+inheritClass(TypeDict, ClassHasSize, {
+	size(dict) {
+		const d = this.eval<ValueDict>(dict)
+		return d.rest !== undefined ? Infinity : _.keys(d.value).length
+	},
+})
+
+inheritClass(TypeVec2, ClassHasSize, {
+	size() {
+		return 2
+	},
+})
+inheritClass(TypeVec2, ClassAddable, {
+	'<+>': function (x, y) {
+		const [x1, y1] = this.eval<ValueCast<number[]>>(x).value
+		const [x2, y2] = this.eval<ValueCast<number[]>>(y).value
+		return [x1 + x2, y1 + y2]
+	},
+})
+
+const TypeVarT = createTypeVar()
+const TypeVarU = createTypeVar()
+
+function createPolyFn(
+	cls: ValueClass,
+	name: string,
+	options: Omit<ValuePolyFn, 'ofClass' | 'kind'>
+) {
+	const polyFn: ValuePolyFn = {
+		kind: 'polyFn',
+		params: options.params,
+		out: options.out,
+		ofClass: cls,
+	}
+
+	cls.methods[name] = polyFn
+
+	return polyFn
+}
 
 const OrderingLT: ValueSingleton = {kind: 'singleton'}
 const OrderingEQ: ValueSingleton = {kind: 'singleton'}
 const OrderingGT: ValueSingleton = {kind: 'singleton'}
+
+function inheritClass(
+	dataType: ValueDataType,
+	cls: ValueClass,
+	methods: ValueDataType['methods']
+) {
+	const notImplemented = _.difference(_.keys(cls.methods), _.keys(methods))
+	if (notImplemented.length > 0) {
+		throw new Error(`Method ${notImplemented.join(', ')} is not implemented`)
+	}
+
+	dataType.supers.add(cls)
+	dataType.methods = {...dataType.methods, ...methods}
+}
 
 export const GlobalScope = createExpScope({
 	scope: {
@@ -551,7 +576,6 @@ export const GlobalScope = createExpScope({
 		Vector: wrapValue(TypeVector),
 		Dict: wrapValue(TypeDict),
 		Vec2: wrapValue(TypeVec2),
-		THasSize: wrapValue(THasSize),
 		LT: wrapValue(OrderingLT),
 		EQ: wrapValue(OrderingEQ),
 		GT: wrapValue(OrderingGT),
@@ -562,6 +586,7 @@ export const GlobalScope = createExpScope({
 		HasSize: wrapValue(ClassHasSize),
 		size: wrapValue(PolyFnSize),
 		Monoid: wrapValue(ClassMonoid),
+		Addable: wrapValue(ClassAddable),
 		'++': wrapValue(PolyFnConcat),
 		PI: wrapValue(Math.PI),
 		'+': wrapValue({
@@ -572,6 +597,7 @@ export const GlobalScope = createExpScope({
 				return this.eval<number[]>(xs).reduce((a, b) => a + b, 0)
 			},
 		}),
+		'<+>': wrapValue(PolyFnAdd),
 		'*': wrapValue({
 			kind: 'fn',
 			params: {
@@ -1214,9 +1240,11 @@ export function evalExp(
 	}
 
 	function evalListPolyFn(fn: ValuePolyFn, exp: ExpList) {
-		const [params, castLog] = assignParam(exp)
+		const env = new Map()
+		const [params, castLog] = assignParam(exp, env)
 
-		const paramType = assertExpType(params[0])
+		const paramType = Array.from(env.values())[0]
+
 		const cls = fn.ofClass
 
 		if (!isKindOf('dataType', paramType) || !paramType.supers.has(cls)) {
@@ -1309,6 +1337,39 @@ export function evalExp(
 		}
 
 		return withLog(evaluated, [...valueLog, ...typeLog])
+	}
+}
+
+function getDataType(value: Value): ValueDataType | ValueUnion {
+	if (!_.isObject(value)) {
+		if (value === null) return TypeSingleton
+		switch (typeof value) {
+			case 'boolean':
+				return TypeBoolean
+			case 'number':
+				return TypeNumber
+			case 'string':
+				return TypeString
+		}
+	}
+
+	if (_.isArray(value)) {
+		return TypeVector
+	}
+
+	switch (value.kind) {
+		case 'cast':
+			return value.type
+		case 'dict':
+			return TypeDict
+		case 'spread':
+			return TypeVector
+		case 'dataType':
+			return value
+		case 'data':
+			return value.type
+		default:
+			throw new Error('Not yet implemented for retriving this')
 	}
 }
 
@@ -1556,8 +1617,10 @@ function compareType(
 	}
 
 	function compareTypeVar(a: Value, b: ValueTypeVar) {
+		const aType = getDataType(a)
 		const bPrevType = env.get(b.id)
-		const bType = bPrevType !== undefined ? uniteType([bPrevType, a]) : a
+		const bType =
+			bPrevType !== undefined ? uniteType([bPrevType, aType]) : aType
 		env.set(b.id, bType)
 
 		const isInstance = b.supers.every(bs => {
@@ -1617,7 +1680,9 @@ function castType(type: Value, value: Value): Value {
 	}
 }
 
-function assignParam(exp: ExpList): WithLog<Exp[]> {
+function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
+	const subtype = (a: Value, b: Value) => compareType(a, b, false, env)
+
 	const params = exp.params
 	const fnParams = _.values(assertExpListParam(exp))
 
@@ -1646,7 +1711,7 @@ function assignParam(exp: ExpList): WithLog<Exp[]> {
 			for (; i < params.length; i++) {
 				const param = params[i]
 				const fromType = assertExpType(param)
-				if (nextFnParam && isSubtypeOf(fromType, nextFnParam.value)) {
+				if (nextFnParam && subtype(fromType, nextFnParam.value)) {
 					break
 				}
 
@@ -1668,7 +1733,7 @@ function assignParam(exp: ExpList): WithLog<Exp[]> {
 	function assign(from: Exp, to: Value): WithLog<Exp> {
 		const fromType = assertExpType(from)
 
-		if (isSubtypeOf(fromType, to)) {
+		if (subtype(fromType, to)) {
 			return withLog(from)
 		} else {
 			const cast = createExpCast(from, wrapValue(to, false), false)
