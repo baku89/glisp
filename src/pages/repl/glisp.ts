@@ -4,7 +4,6 @@ import peg from 'pegjs'
 import _$ from '@/lodash-ext'
 
 import ParserDefinition from './parser.pegjs'
-import runTest from './test'
 
 const parser = peg.generate(ParserDefinition)
 
@@ -1930,5 +1929,3 @@ export function printValue(
 		return `${inf ? '...' : ''}${name ? name + ':' : ''}${print(value)}`
 	}
 }
-
-runTest()

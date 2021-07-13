@@ -55,3 +55,7 @@ export function mapValueWithLog<R, T>(
 
 	return [result, log]
 }
+
+export function logToString(log: Log[]) {
+	return log.map(l => `[${l.level}] ${l.reason}`).join('\n')
+}
