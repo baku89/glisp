@@ -812,7 +812,7 @@ export const GlobalScope = createExpScope({
 				coll: {value: createVariadicVector(TypeVarT)},
 				index: {value: createMaybe(TypeNumber)},
 			},
-			out: uniteType([TypeVarT, Unit]),
+			out: createMaybe(TypeVarT),
 			body(coll, index) {
 				const _coll = this.eval<Value[]>(coll)
 				const i = this.eval<number | ValueUnit>(index)
@@ -1069,18 +1069,7 @@ function assertExpType(exp: Exp): Value {
 		case 'list': {
 			const fn = assertExpType(exp.fn)
 			if (isKindOf('fn', fn) || isKindOf('polyFn', fn)) {
-				const type = fn.out
-				if (isKindOf('typeVar', type)) {
-					const env = new Map<symbol, Value>()
-					const expParams = exp.params.map(assertExpType)
-					compareType(expParams, getParamType(fn), false, env)
-
-					const t = env.get(type.id)
-					if (!t) throw new Error('NOOOO')
-					return t
-				} else {
-					return type
-				}
+				return resolveTypeVars(fn, exp)
 			} else {
 				return fn
 			}
@@ -1105,6 +1094,55 @@ function assertExpType(exp: Exp): Value {
 			return exp.type
 		case 'fncall':
 			return exp.type
+	}
+
+	function resolveTypeVars(fn: ValueFn | ValuePolyFn, exp: ExpList): Value {
+		const type = fn.out
+		const env = new Map<symbol, Value>()
+		const expParams = exp.params.map(assertExpType)
+		compareType(expParams, getParamType(fn), false, env)
+
+		return fmapValue(type, replaceTypeVar)
+
+		function replaceTypeVar(type: Value) {
+			if (isKindOf('typeVar', type)) {
+				const tvar = env.get(type.id)
+				if (!tvar || isKindOf('typeVar', tvar)) throw new Error('NOOOO')
+				return tvar
+			}
+			return type
+		}
+	}
+}
+
+function fmapValue<T extends Value = Value>(
+	value: Value,
+	callbackfn: (v: Value) => T
+) {
+	if (!_.isObject(value)) {
+		return callbackfn(value)
+	}
+
+	if (_.isArray(value)) {
+		return value.map(callbackfn)
+	}
+
+	switch (value.kind) {
+		case 'maybe':
+			return createMaybe(callbackfn(value.value))
+		case 'spread':
+			return createSpread(
+				value.items.map(it => ({...it, value: callbackfn(it.value)}))
+			)
+		case 'dict':
+			return createDict(
+				_.mapValues(value, callbackfn),
+				value.rest ? callbackfn(value.rest) : undefined
+			)
+		case 'union':
+			return uniteType(value.items.map(callbackfn))
+		default:
+			return callbackfn(value)
 	}
 }
 
@@ -1350,7 +1388,9 @@ export function evalExp(
 	}
 }
 
-function getDataType(value: Value): ValueDataType | ValueUnion {
+function getDataType(
+	value: Value
+): ValueDataType | ValueUnion | ValueSingleton {
 	if (!_.isObject(value)) {
 		if (value === null) return TypeSingleton
 		switch (typeof value) {
@@ -1378,6 +1418,8 @@ function getDataType(value: Value): ValueDataType | ValueUnion {
 			return value
 		case 'data':
 			return value.type
+		case 'singleton':
+			return value
 		default:
 			throw new Error('Not yet implemented for retriving this')
 	}
@@ -1765,7 +1807,7 @@ function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
 export function printExp(exp: Exp): string {
 	switch (exp.ast) {
 		case 'value':
-			return printValue(exp.value, false, exp)
+			return printValue(exp.value, true, exp)
 		case 'param':
 		case 'symbol':
 			return exp.name
