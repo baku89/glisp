@@ -21,7 +21,7 @@ import useScheme from '@/components/use/use-scheme'
 import {withLog} from '@/lib/WithLog'
 
 import Console, {IFnRep} from './Console.vue'
-import {evalStr, isKindOf, printValue, TypeIO} from './glisp'
+import {evalExp, isKindOf, printValue, readStr, TypeIO} from './glisp'
 
 export default defineComponent({
 	name: 'PageRepl',
@@ -32,14 +32,17 @@ export default defineComponent({
 		const onError = ref<(msg: string) => any>(console.error)
 
 		const rep: IFnRep = async (str: string) => {
-			const [result, log] = evalStr(str)
+			const [exp, readLog] = readStr(str)
+			const [result, evalLog] = evalExp(exp)
 
 			// Execute IO
 			if (isKindOf('data', result) && result.type === TypeIO) {
 				await result.value()
 			}
 
-			return withLog(printValue(result, false), log)
+			const doPrintName = exp.ast !== 'symbol'
+
+			return withLog(printValue(result, doPrintName), [...readLog, ...evalLog])
 		}
 
 		return {rep, onError}
