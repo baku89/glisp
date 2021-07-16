@@ -1026,7 +1026,7 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 
 function assertExpListParam(exp: ExpList): ValueFn['params'] {
 	const fn = assertExpType(exp.fn)
-	if (isKindOf('fn', fn) || isKindOf('polyFn', fn)) {
+	if (isFnLike(fn)) {
 		return fn.params
 	} else {
 		return {}
@@ -1068,7 +1068,7 @@ function assertExpType(exp: Exp): Value {
 		}
 		case 'list': {
 			const fn = assertExpType(exp.fn)
-			if (isKindOf('fn', fn) || isKindOf('polyFn', fn)) {
+			if (isFnLike(fn)) {
 				return resolveTypeVars(fn, exp)
 			} else {
 				return fn
@@ -1445,6 +1445,10 @@ export function isKindOf<
 	return _.isObject(x) && !_.isArray(x) && x.kind === kind
 }
 
+function isFnLike(x: Value): x is ValueFn | ValuePolyFn {
+	return _.isObject(x) && !_.isArray(x) && /^fn|polyFn$/.test(x.kind)
+}
+
 function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	const _createPdg = (e: Exp) => createPdg(e, env)
 
@@ -1677,7 +1681,7 @@ function compareType(
 }
 
 function getFnType(a: Value) {
-	if (isKindOf('fn', a)) {
+	if (isFnLike(a)) {
 		const params = getParamType(a)
 		return createFnType(params, a.out)
 	} else {
