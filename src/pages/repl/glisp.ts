@@ -154,8 +154,6 @@ type Exp =
 	| ExpDict
 	| ExpCast
 	| ExpScope
-	| ExpFncall
-	| ExpParam
 
 interface ExpBase {
 	parent?: Exp
@@ -209,22 +207,6 @@ interface ExpScope extends ExpBase {
 	ast: 'scope'
 	scope: Record<string, Exp>
 	out?: Exp
-}
-
-// Program dependency graph inside Function body
-interface ExpFncall extends ExpBase {
-	ast: 'fncall'
-	fn: {type: 'fn'; value: ValueFn['body']} | {type: 'param'; name: string}
-	params: Exp[]
-	type: Value
-	origFn: Exp
-	origParams: Exp[]
-}
-
-interface ExpParam extends ExpBase {
-	ast: 'param'
-	name: string
-	type: Value
 }
 
 export function readStr(str: string): WithLog<Exp> {
@@ -1034,15 +1016,6 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 	])
 }
 
-function assertExpListParam(exp: ExpList): ValueFn['params'] {
-	const fn = assertExpType(exp.fn)
-	if (isFnLike(fn)) {
-		return fn.params
-	} else {
-		return {}
-	}
-}
-
 function assertExpType(exp: Exp): Value {
 	switch (exp.ast) {
 		case 'value':
@@ -1100,9 +1073,6 @@ function assertExpType(exp: Exp): Value {
 			return assertExpType(exp.type)
 		case 'scope':
 			return exp.out ? assertExpType(exp) : Unit
-		case 'param':
-		case 'fncall':
-			return exp.type
 	}
 
 	function resolveTypeVars(fn: ValueFn | ValuePolyFn, exp: ExpList): Value {
@@ -1188,41 +1158,6 @@ export function evalExp(
 			return evalCast(exp)
 		case 'scope':
 			return exp.out ? _eval(exp.out) : withLog(Unit)
-		case 'param':
-			if (!context.env || !(exp.name in context.env)) {
-				throw new Error(`Prameter ${exp.name} does not exist in env`)
-			}
-			return _eval(context.env[exp.name])
-		case 'fncall': {
-			const paramsLog: Log[] = []
-			const callLog: Log[] = []
-
-			const ctx: ValueFnContext = {
-				log(log) {
-					callLog.push(log)
-				},
-				eval(e) {
-					const [result, log] = _eval(e)
-					paramsLog.push(...log)
-					return result as any
-				},
-			}
-
-			let fn: ValueFn['body']
-			if (exp.fn.type === 'param') {
-				if (!(exp.fn.name in context.env)) {
-					throw new Error('NOOOOo')
-				}
-				const fnEvaluated = _eval(context.env[exp.fn.name])[0]
-				fn = isKindOf('fn', fnEvaluated) ? fnEvaluated.body : () => fnEvaluated
-			} else {
-				fn = exp.fn.value
-			}
-
-			const evaluated = fn.call(ctx, ...exp.params)
-			const log = [...paramsLog, ...callLog]
-			return withLog(evaluated, log)
-		}
 	}
 
 	function evalSymbol(exp: ExpSymbol): WithLog<Value> {
@@ -1230,6 +1165,9 @@ export function evalExp(
 		if (result.semantic === 'ref') {
 			return _eval(result.ref)
 		} else if (result.semantic === 'param') {
+			if (exp.name in context.env) {
+				return _eval(context.env[exp.name])
+			}
 			const [type, log] = _eval(result.type)
 			return withLog(getDefault(type), log)
 		} else {
@@ -1243,12 +1181,10 @@ export function evalExp(
 			return withLog({inf: !!p.inf, value: result}, log)
 		})
 
-		const [pdg, bodyLog] = createPdg(exp.body, context.env)
-
 		const body: ValueFn['body'] = function (...xs) {
 			const localEnv = _.fromPairs(_$.zipShorter(_.keys(exp.params), xs))
 			const env = {...context.env, ...localEnv}
-			return evalExp(pdg, {env})[0]
+			return evalExp(exp.body, {env})[0]
 		}
 
 		const fn: ValueFn = {
@@ -1259,7 +1195,7 @@ export function evalExp(
 			expBody: exp.body,
 		}
 
-		return withLog(fn, [...paramsLog, ...bodyLog])
+		return withLog(fn, paramsLog)
 	}
 
 	function evalMaybe(exp: ExpMaybe) {
@@ -1468,88 +1404,6 @@ export function isKindOf<
 
 function isFnLike(x: Value): x is ValueFn | ValuePolyFn {
 	return _.isObject(x) && !_.isArray(x) && /^fn|polyFn$/.test(x.kind)
-}
-
-function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
-	const _createPdg = (e: Exp) => createPdg(e, env)
-
-	switch (exp.ast) {
-		case 'value':
-			return withLog(exp)
-		case 'symbol':
-			return createSymbol(exp)
-		case 'fn':
-			return withLog(exp) //createFn(exp)
-		case 'list':
-			return createFncall(exp)
-		case 'scope':
-			return _createPdg(exp.out ?? wrapValue(Unit))
-		case 'fncall':
-			return withLog(exp)
-		default:
-			throw new Error(`Not yet implemented ${exp.ast}`)
-	}
-
-	function createSymbol(exp: ExpSymbol): WithLog<Exp> {
-		if (exp.name in env) {
-			return withLog(env[exp.name])
-		}
-
-		const [result, log] = resolveSymbol(exp)
-		if (result.semantic === 'ref') {
-			return withLog(result.ref)
-		} else if (result.semantic === 'param') {
-			const type = assertExpType(result.type)
-			return withLog({ast: 'param', name: exp.name, type})
-		} else {
-			return withLog(wrapValue(Unit), log)
-		}
-	}
-
-	function createFncall(exp: ExpList) {
-		const [params, paramsLog] = mapWithLog(exp.params, _createPdg)
-
-		let fnInfo: [ValueFnType, ValueFn | string] | null = null
-		if (exp.fn.ast === 'symbol') {
-			const [resolved] = resolveSymbol(exp.fn)
-			if (resolved.semantic === 'param') {
-				const [evaluated] = evalExp(resolved.type)
-				if (isKindOf('fnType', evaluated)) {
-					fnInfo = [evaluated, exp.fn.name]
-				}
-			}
-		}
-		if (!fnInfo) {
-			const [fnValue] = evalExp(exp.fn)
-			if (isKindOf('fn', fnValue)) {
-				fnInfo = [getFnType(fnValue), fnValue]
-			}
-		}
-
-		if (fnInfo) {
-			const [fnType, fnValue] = fnInfo
-			const fnParams = fnType.params.items
-			const [assignedParams, typeAssertLog] = assignParams(fnParams, params)
-
-			const fn: ExpFncall['fn'] = _.isString(fnValue)
-				? {type: 'param', name: fnValue}
-				: {type: 'fn', value: fnValue.body}
-
-			const ret: ExpFncall = {
-				ast: 'fncall',
-				fn,
-				params: assignedParams,
-				type: fnType.out,
-				origFn: exp.fn,
-				origParams: params,
-			}
-
-			const logs = [...paramsLog, ...typeAssertLog]
-			return withLog(ret, logs)
-		} else {
-			return withLog(exp.fn)
-		}
-	}
 }
 
 export const evalStr = composeWithLog(readStr, evalExp)
@@ -1856,7 +1710,6 @@ export function printExp(exp: Exp): string {
 	switch (exp.ast) {
 		case 'value':
 			return printValue(exp.value, true, exp)
-		case 'param':
 		case 'symbol':
 			return exp.name
 		case 'fn': {
@@ -1893,11 +1746,6 @@ export function printExp(exp: Exp): string {
 			const out = exp.out ? [printExp(exp.out)] : []
 			const lines = [...pairs, ...out]
 			return `{${lines.join(' ')}}`
-		}
-		case 'fncall': {
-			const fn = printExp(exp.origFn)
-			const params = exp.origParams.map(printExp)
-			return `(${fn} ${params.join(' ')})`
 		}
 	}
 }
