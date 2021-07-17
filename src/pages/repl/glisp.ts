@@ -697,6 +697,17 @@ export const GlobalScope = createExpScope({
 				return _.range(_start, _end, _step)
 			},
 		}),
+		square: wrapValue({
+			kind: 'fn',
+			params: {
+				x: {value: TypeNumber},
+			},
+			out: TypeNumber,
+			body(x) {
+				const _x = this.eval<number>(x)
+				return _x * _x
+			},
+		}),
 		clamp: wrapValue({
 			kind: 'fn',
 			params: {
@@ -961,7 +972,7 @@ export function equalsValue(a: Value, b: Value): boolean {
 
 type ResolveSymbolResult =
 	| {semantic: 'ref'; ref: Exp}
-	| {semantic: 'param'; type: Exp}
+	| {semantic: 'param'; type: Value}
 	| {semantic: 'undefined'}
 
 function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
@@ -1005,7 +1016,9 @@ function resolveSymbol(exp: ExpSymbol): WithLog<ResolveSymbolResult> {
 				  }
 				: param.value
 
-			return withLog({semantic: 'param', type})
+			const [_type] = evalExp(type)
+
+			return withLog({semantic: 'param', type: _type})
 		}
 		parent = parent.parent
 	}
@@ -1025,7 +1038,7 @@ function assertExpType(exp: Exp): Value {
 			if (inspected.semantic == 'ref') {
 				return assertExpType(inspected.ref)
 			} else if (inspected.semantic === 'param') {
-				return assertExpType(inspected.type)
+				return inspected.type
 			}
 			return Unit
 		}
@@ -1168,8 +1181,7 @@ export function evalExp(
 			if (exp.name in context.env) {
 				return _eval(context.env[exp.name])
 			}
-			const [type, log] = _eval(result.type)
-			return withLog(getDefault(type), log)
+			return withLog(getDefault(result.type), log)
 		} else {
 			return withLog(Unit, log)
 		}
