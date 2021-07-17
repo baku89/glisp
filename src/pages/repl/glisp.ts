@@ -847,21 +847,20 @@ function uniteType(
 	types: Value[],
 	cast?: NonNullable<ValueUnion['cast']>
 ): Value {
-	let items: (Value | undefined)[] = types.flatMap(t => {
-		if (isKindOf('union', t)) {
+	let isMaybe = false
+	const items: (Value | undefined)[] = types.flatMap(t => {
+		if (isKindOf('unit', t)) {
+			isMaybe = true
+			return []
+		} else if (isKindOf('union', t)) {
 			return t.items
 		} else if (isKindOf('maybe', t)) {
-			return [Unit, t.value]
+			isMaybe = true
+			return isKindOf('union', t.value) ? t.value.items : t.value
 		} else {
 			return [t]
 		}
 	})
-	let isMaybe = false
-
-	if (items.findIndex(it => it && isKindOf('unit', it)) !== -1) {
-		items = items.filter(it => it && !isKindOf('unit', it))
-		isMaybe = true
-	}
 
 	if (items.length >= 2) {
 		for (let a = 0; a < items.length - 1; a++) {
