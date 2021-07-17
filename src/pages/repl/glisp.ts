@@ -214,7 +214,7 @@ interface ExpScope extends ExpBase {
 // Program dependency graph inside Function body
 interface ExpFncall extends ExpBase {
 	ast: 'fncall'
-	fn: ValueFn['body']
+	fn: {type: 'fn'; value: ValueFn['body']} | {type: 'param'; name: string}
 	params: Exp[]
 	type: Value
 	origFn: Exp
@@ -655,9 +655,18 @@ export const GlobalScope = createExpScope({
 			},
 			out: createFnType(createSpread([{inf: true, value: Any}]), Any),
 			body(params, out) {
+				const _params = this.eval<Value[] | ValueSpread>(params)
+				let _paramsSpread: ValueFnType['params']
+				if (_.isArray(_params)) {
+					_paramsSpread = createSpread(
+						_params.map(p => ({inf: false, value: p}))
+					)
+				} else {
+					_paramsSpread = _params
+				}
 				return {
 					kind: 'fnType',
-					params: this.eval(params),
+					params: _paramsSpread,
 					out: this.eval(out),
 				}
 			},
@@ -1193,13 +1202,24 @@ export function evalExp(
 					callLog.push(log)
 				},
 				eval(e) {
-					const [result, log] = evalExp(e, context)
+					const [result, log] = _eval(e)
 					paramsLog.push(...log)
 					return result as any
 				},
 			}
 
-			const evaluated = exp.fn.call(ctx, ...exp.params)
+			let fn: ValueFn['body']
+			if (exp.fn.type === 'param') {
+				if (!(exp.fn.name in context.env)) {
+					throw new Error('NOOOOo')
+				}
+				const fnEvaluated = _eval(context.env[exp.fn.name])[0]
+				fn = isKindOf('fn', fnEvaluated) ? fnEvaluated.body : () => fnEvaluated
+			} else {
+				fn = exp.fn.value
+			}
+
+			const evaluated = fn.call(ctx, ...exp.params)
 			const log = [...paramsLog, ...callLog]
 			return withLog(evaluated, log)
 		}
@@ -1343,6 +1363,7 @@ export function evalExp(
 			}
 		}
 
+		// Use JS array if evaluated spread has no infinite item
 		let evaluated: Value
 		if (items.every(i => !i.inf)) {
 			evaluated = items.map(i => i.value)
@@ -1488,19 +1509,37 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 	function createFncall(exp: ExpList) {
 		const [params, paramsLog] = mapWithLog(exp.params, _createPdg)
 
-		const [fnValue] = evalExp(exp.fn)
+		let fnInfo: [ValueFnType, ValueFn | string] | null = null
+		if (exp.fn.ast === 'symbol') {
+			const [resolved] = resolveSymbol(exp.fn)
+			if (resolved.semantic === 'param') {
+				const [evaluated] = evalExp(resolved.type)
+				if (isKindOf('fnType', evaluated)) {
+					fnInfo = [evaluated, exp.fn.name]
+				}
+			}
+		}
+		if (!fnInfo) {
+			const [fnValue] = evalExp(exp.fn)
+			if (isKindOf('fn', fnValue)) {
+				fnInfo = [getFnType(fnValue), fnValue]
+			}
+		}
 
-		if (isKindOf('fn', fnValue)) {
-			const [assignedParams, typeAssertLog] = assignParams(
-				_.values(fnValue.params),
-				params
-			)
+		if (fnInfo) {
+			const [fnType, fnValue] = fnInfo
+			const fnParams = fnType.params.items
+			const [assignedParams, typeAssertLog] = assignParams(fnParams, params)
+
+			const fn: ExpFncall['fn'] = _.isString(fnValue)
+				? {type: 'param', name: fnValue}
+				: {type: 'fn', value: fnValue.body}
 
 			const ret: ExpFncall = {
 				ast: 'fncall',
-				fn: fnValue.body,
+				fn,
 				params: assignedParams,
-				type: fnValue.out,
+				type: fnType.out,
 				origFn: exp.fn,
 				origParams: params,
 			}
