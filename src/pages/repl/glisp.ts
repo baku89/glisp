@@ -7,6 +7,8 @@ import ParserDefinition from './parser.pegjs'
 
 const parser = peg.generate(ParserDefinition)
 
+import ordinal from 'ordinal'
+
 import {
 	composeWithLog,
 	Log,
@@ -1090,7 +1092,6 @@ function assertExpType(exp: Exp): Value {
 		case 'scope':
 			return exp.out ? assertExpType(exp) : Unit
 		case 'param':
-			return exp.type
 		case 'fncall':
 			return exp.type
 	}
@@ -1264,7 +1265,7 @@ export function evalExp(
 	}
 
 	function evalListFn(fn: ValueFn, exp: ExpList) {
-		const [params, castLog] = assignParam(exp)
+		const [params, castLog] = assignParams(_.values(fn.params), exp.params)
 
 		const paramsLog: Log[] = []
 		const callLog: Log[] = []
@@ -1288,7 +1289,7 @@ export function evalExp(
 
 	function evalListPolyFn(fn: ValuePolyFn, exp: ExpList) {
 		const env = new Map()
-		const [params, castLog] = assignParam(exp, env)
+		const [params, castLog] = assignParams(_.values(fn.params), exp.params, env)
 
 		const paramType = Array.from(env.values())[0]
 
@@ -1490,7 +1491,10 @@ function createPdg(exp: Exp, env: Record<string, Exp> = {}): WithLog<Exp> {
 		const [fnValue] = evalExp(exp.fn)
 
 		if (isKindOf('fn', fnValue)) {
-			const [assignedParams, typeAssertLog] = assignParam(exp)
+			const [assignedParams, typeAssertLog] = assignParams(
+				_.values(fnValue.params),
+				params
+			)
 
 			const ret: ExpFncall = {
 				ast: 'fncall',
@@ -1735,11 +1739,12 @@ function castType(type: Value, value: Value): Value {
 	}
 }
 
-function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
+function assignParams(
+	fnParams: ISpreadItem<Value>[],
+	params: Exp[],
+	env = new Map()
+): WithLog<Exp[]> {
 	const subtype = (a: Value, b: Value) => compareType(a, b, false, env)
-
-	const params = exp.params
-	const fnParams = _.values(assertExpListParam(exp))
 
 	const log: Log[] = []
 
@@ -1754,7 +1759,7 @@ function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
 			// not inf
 			isParamShort = params.length <= i
 			const param = isParamShort ? wrapValue(Unit) : params[i]
-			const [result, assignLog] = assign(param, fnParam)
+			const [result, assignLog] = assign(param, fnParam, i)
 			log.push(...assignLog)
 			casted.push(result)
 			i += 1
@@ -1770,7 +1775,7 @@ function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
 					break
 				}
 
-				const [value, assignLog] = assign(param, fnParam)
+				const [value, assignLog] = assign(param, fnParam, i)
 				log.push(...assignLog)
 				restCasted.push({inf: false, value})
 			}
@@ -1785,7 +1790,7 @@ function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
 
 	return withLog(casted, log)
 
-	function assign(from: Exp, to: Value): WithLog<Exp> {
+	function assign(from: Exp, to: Value, index: number): WithLog<Exp> {
 		const fromType = assertExpType(from)
 
 		if (subtype(fromType, to)) {
@@ -1795,11 +1800,12 @@ function assignParam(exp: ExpList, env = new Map()): WithLog<Exp[]> {
 			const log: Log[] = []
 
 			if (!isKindOf('unit', fromType)) {
+				const ord = ordinal(index + 1)
 				const fromStr = printValue(fromType)
 				const toStr = printValue(to)
 				log.push({
 					level: 'error',
-					reason: `${fromStr} cannot be casted to ${toStr}`,
+					reason: `${ord} argument ${fromStr} is not assignable to parameter of type ${toStr}`,
 				})
 			}
 			return withLog(cast, log)
