@@ -28,7 +28,6 @@ type Value =
 	| ValueFnType
 	| ValueUnion
 	| ValueMaybe
-	| ValueSpread
 	| ValueDict
 	| ValueFn
 	| ValueData
