@@ -13,6 +13,12 @@
 					@partialUpdate="onPartialUpdate"
 				/>
 			</div>
+			<InputButton
+				class="InputColorPicker__eyeDropper"
+				v-if="isEyeDropperSupported"
+				@click="pickColor"
+				label="Pick Color"
+			/>
 		</div>
 	</div>
 </template>
@@ -20,6 +26,7 @@
 <script lang="ts">
 import {computed, defineComponent, shallowRef, watch} from 'vue'
 
+import InputButton from '../InputButton.vue'
 import SliderAlpha from './SliderAlpha.vue'
 import SliderHSV from './SliderHSV.vue'
 import SliderHSVRadial from './SliderHSVRadial.vue'
@@ -33,6 +40,7 @@ export default defineComponent({
 		SliderHSVRadial,
 		SliderRGB,
 		SliderAlpha,
+		InputButton,
 	},
 	props: {
 		modelValue: {
@@ -99,10 +107,22 @@ export default defineComponent({
 				.filter(Boolean)
 		)
 
+		// EyeDropper
+		const isEyeDropperSupported = 'EyeDropper' in window
+
+		async function pickColor() {
+			const eyeDropper = new (window as any)['EyeDropper']()
+			const newValue: string = (await eyeDropper.open()).sRGBHex
+
+			context.emit('update:modelValue', newValue)
+		}
+
 		return {
 			rgba,
 			onPartialUpdate,
 			pickerData,
+			isEyeDropperSupported,
+			pickColor,
 		}
 	},
 })
@@ -122,4 +142,8 @@ export default defineComponent({
 
 		&:last-child
 			margin-bottom 0
+
+	&__eyeDropper
+		display block
+		margin 0 auto
 </style>
