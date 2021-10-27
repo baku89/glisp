@@ -64,12 +64,13 @@ export class Call implements IExp {
 
 	public print(): string {
 		const fn = this.fn.print()
-		const args = this.args.map(a => a.print()).join(' ')
-		const namedArgs = entries(this.namedArgs)
-			.map(([k, v]) => `${k}=${v.print()}`)
-			.join(' ')
+		const args = this.args.map(a => a.print())
+		const namedArgs = entries(this.namedArgs).map(
+			([k, v]) => k + '=' + v.print()
+		)
+		const rest = [...args, ...namedArgs].join(' ')
 
-		return `(${fn} ${args} ${namedArgs})`
+		return `(${fn} ${rest})`
 	}
 }
 

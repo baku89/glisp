@@ -24,6 +24,19 @@ describe('parsing vars', () => {
 	}
 })
 
+describe('parsing call expressions', () => {
+	testParsing(
+		'(+ 1 2)',
+		new Exp.Call(new Exp.Var('+'), [new Exp.Int(1), new Exp.Int(2)])
+	)
+	testParsing('(f)', new Exp.Call(new Exp.Var('f'), []))
+	testParsing('(0 false)', new Exp.Call(new Exp.Int(1), [new Exp.Bool(false)]))
+	testParsing(
+		'((true) pi)',
+		new Exp.Call(new Exp.Call(new Exp.Bool(true), []), [new Exp.Var('pi')])
+	)
+})
+
 function testParsing(input: string, expected: Exp.Node) {
 	test(`parsing '${input}'`, () => {
 		const result = parse(input)

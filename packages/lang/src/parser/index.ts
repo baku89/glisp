@@ -8,32 +8,42 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Var / Int / Bool
+Node = Call / Int / Bool / Var
 
 Reserved = "true" / "false" / "null"
 
-Var = !(Reserved End) $([^0-9()[\\]{}:] [^()[\\]{}: \\t\\n\\r]+)
+Var "Var" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
 		return new Exp.Var(text())
 	}
 
-Int = [0-9]+
+Int "Int" = [0-9]+ &End
 	{
 		const v = parseInt(text())
 		return new Exp.Int(v)
 	}
 
-Bool = ("true" / "false")
+Bool "Bool" = ("true" / "false") &End
 	{
 		const v = text() === 'true'
 		return new Exp.Bool(v)
+	}
+
+Call "Call" = "(" _ fn:Node args:CallArg* _ ")"
+	{
+		return new Exp.Call(fn, args)
+	}
+
+CallArg = __ arg:Node
+	{
+		return arg
 	}
 
 _ = Whitespace*
 __ = Whitespace+
 
 EOF = _ !.
-End = EOF / __
+End = EOF / Whitespace / [()[\\]{}\\:]
 
 Whitespace = $[ \\t\\n\\r]
 `
