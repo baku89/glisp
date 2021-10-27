@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "es2021",
+		"module": "umd",
+		"strict": true,
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"sourceMap": true,
+		"baseUrl": ".",
+		"outDir": "lib",
+		"declaration": true,
+		"downlevelIteration": true,
+		"lib": ["esnext"]
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "src/**/*.test.ts"]
+}
