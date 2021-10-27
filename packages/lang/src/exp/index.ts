@@ -1,4 +1,4 @@
-import {entries} from 'lodash'
+import {entries, isEqualWith} from 'lodash'
 
 export type Node = Var | Int | Bool | Fn | Call
 
@@ -70,5 +70,28 @@ export class Call implements IExp {
 			.join(' ')
 
 		return `(${fn} ${args} ${namedArgs})`
+	}
+}
+
+export function isEqual(a: Node, b: Node): boolean {
+	switch (a.type) {
+		case 'var':
+			return b.type === 'var' && a.name === b.name
+		case 'bool':
+			return b.type === 'bool' && a.value === b.value
+		case 'int':
+			return b.type === 'int' && a.value === b.value
+		case 'fn':
+			return (
+				b.type === 'fn' &&
+				isEqualWith(a.params, b.params, isEqual) &&
+				isEqual(a.body, b.body)
+			)
+		case 'call':
+			return (
+				b.type === 'call' &&
+				isEqualWith(a.args, b.args, isEqual) &&
+				isEqualWith(a.namedArgs, b.namedArgs, isEqual)
+			)
 	}
 }
