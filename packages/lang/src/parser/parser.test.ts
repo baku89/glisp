@@ -1,6 +1,5 @@
-import {parse} from '.'
-
 import * as Exp from '../exp'
+import {parse} from '.'
 
 describe('parsing literals', () => {
 	testParsing('10', new Exp.Int(10))
