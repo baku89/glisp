@@ -122,7 +122,7 @@ export class Fn implements IExp {
 
 	public print(): string {
 		const params = entries(this.param)
-			.map(([k, v]) => `${k}:${v.print}`)
+			.map(([k, v]) => `${k}:${v.print()}`)
 			.join(' ')
 		const body = this.body.print()
 
