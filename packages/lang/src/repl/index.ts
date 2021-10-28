@@ -8,7 +8,7 @@ function startRepl() {
 		prompt: '>> ',
 		eval(input, context, file, cb) {
 			const exp = parse(input)
-			cb(null, exp.print())
+			cb(null, exp.eval().print())
 		},
 		writer: v => v,
 	})
