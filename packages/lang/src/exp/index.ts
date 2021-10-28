@@ -133,11 +133,7 @@ export class Fn implements IExp {
 export class Call implements IExp {
 	public type: 'call' = 'call'
 
-	public constructor(
-		public fn: Node,
-		public args: Node[],
-		public namedArgs: Record<string, Node> = {}
-	) {}
+	public constructor(public fn: Node, public args: Node[]) {}
 
 	public eval(): Val.Value {
 		const fn = this.fn.eval()
@@ -155,13 +151,9 @@ export class Call implements IExp {
 
 	public print(): string {
 		const fn = this.fn.print()
-		const args = this.args.map(a => a.print())
-		const namedArgs = entries(this.namedArgs).map(
-			([k, v]) => k + '=' + v.print()
-		)
-		const rest = [...args, ...namedArgs].join(' ')
+		const args = this.args.map(a => a.print()).join(' ')
 
-		return `(${fn} ${rest})`
+		return `(${fn} ${args})`
 	}
 }
 
@@ -182,10 +174,6 @@ export function isEqual(a: Node, b: Node): boolean {
 				isEqual(a.body, b.body)
 			)
 		case 'call':
-			return (
-				b.type === 'call' &&
-				isEqualWith(a.args, b.args, isEqual) &&
-				isEqualWith(a.namedArgs, b.namedArgs, isEqual)
-			)
+			return b.type === 'call' && isEqualWith(a.args, b.args, isEqual)
 	}
 }
