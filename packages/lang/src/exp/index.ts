@@ -1,4 +1,4 @@
-import {entries, isEqualWith} from 'lodash'
+import {entries, isEqualWith, mapValues} from 'lodash'
 
 import * as Val from '../val'
 
@@ -10,6 +10,7 @@ interface IExp {
 	type: string
 
 	eval(): Val.Value
+	inferTy(): Val.Value
 	print(): string
 }
 
@@ -40,6 +41,12 @@ export class Var implements IExp {
 		}
 	}
 
+	public inferTy() {
+		const v = this.eval()
+		if (v.type === 'fn') return v.fnType
+		return v
+	}
+
 	public print() {
 		return this.name
 	}
@@ -50,6 +57,10 @@ export class Bottom implements IExp {
 
 	public eval() {
 		return new Val.Bottom()
+	}
+
+	public inferTy() {
+		return this.eval()
 	}
 
 	public print() {
@@ -66,6 +77,10 @@ export class Int implements IExp {
 		return new Val.Int(this.value)
 	}
 
+	public inferTy() {
+		return this.eval()
+	}
+
 	public print() {
 		return this.value.toString()
 	}
@@ -80,6 +95,10 @@ export class Bool implements IExp {
 		return new Val.Bool(this.value)
 	}
 
+	public inferTy() {
+		return this.eval()
+	}
+
 	public print() {
 		return this.value.toString()
 	}
@@ -88,7 +107,13 @@ export class Bool implements IExp {
 export class Fn implements IExp {
 	public type: 'fn' = 'fn'
 
-	public constructor(public params: Record<string, Var>, public body: Node) {}
+	public constructor(public param: Record<string, Node>, public body: Node) {}
+
+	public inferTy(): Val.Value {
+		const param = mapValues(this.param, exp => exp.inferTy())
+		const out = this.body.inferTy()
+		return new Val.TyFn(param, out)
+	}
 
 	public eval() {
 		// NOTE: write how to evaluate
@@ -96,7 +121,7 @@ export class Fn implements IExp {
 	}
 
 	public print(): string {
-		const params = entries(this.params)
+		const params = entries(this.param)
 			.map(([k, v]) => `${k}:${v.print}`)
 			.join(' ')
 		const body = this.body.print()
@@ -121,6 +146,11 @@ export class Call implements IExp {
 		if (fn.type !== 'fn') return fn
 
 		return fn.value(...args)
+	}
+
+	public inferTy() {
+		const ty = this.fn.inferTy() as Val.Value
+		return ty.type === 'tyFn' ? ty.out : ty
 	}
 
 	public print(): string {
@@ -148,7 +178,7 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'fn':
 			return (
 				b.type === 'fn' &&
-				isEqualWith(a.params, b.params, isEqual) &&
+				isEqualWith(a.param, b.param, isEqual) &&
 				isEqual(a.body, b.body)
 			)
 		case 'call':
