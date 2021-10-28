@@ -1,8 +1,16 @@
-export type Value = Int | Bool | Fn
+export type Value = Bottom | Int | Bool | Fn
 
 interface IVal {
 	type: string
 	print(): string
+}
+
+export class Bottom implements IVal {
+	public type: 'bottom' = 'bottom'
+
+	public print() {
+		return '_'
+	}
 }
 
 export class Int implements IVal {

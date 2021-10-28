@@ -23,5 +23,9 @@ describe('evaluator', () => {
 })
 
 function isEqualPrimitive(a: Val.Value, b: Val.Value) {
+	if (a.type === 'bottom') {
+		return a.type === b.type
+	}
+
 	return a.type === b.type && a.value === b.value
 }

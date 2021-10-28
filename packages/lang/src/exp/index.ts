@@ -2,7 +2,7 @@ import {entries, isEqualWith} from 'lodash'
 
 import * as Val from '../val'
 
-export type Node = Var | Int | Bool | Fn | Call
+export type Node = Var | Bottom | Int | Bool | Fn | Call
 
 export type Type = Node['type']
 
@@ -42,6 +42,18 @@ export class Var implements IExp {
 	}
 }
 
+export class Bottom implements IExp {
+	public type: 'bottom' = 'bottom'
+
+	public eval() {
+		return new Val.Bottom()
+	}
+
+	public print() {
+		return '_'
+	}
+}
+
 export class Int implements IExp {
 	public type: 'int' = 'int'
 	public constructor(public value: number) {}
@@ -75,7 +87,7 @@ export class Fn implements IExp {
 
 	public eval() {
 		// NOTE: write how to evaluate
-		return new Val.Bool(false)
+		return new Val.Bottom()
 	}
 
 	public print(): string {
@@ -122,6 +134,8 @@ export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'var':
 			return b.type === 'var' && a.name === b.name
+		case 'bottom':
+			return b.type === 'bottom'
 		case 'bool':
 			return b.type === 'bool' && a.value === b.value
 		case 'int':
