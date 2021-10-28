@@ -1,4 +1,4 @@
-import {entries, isEqualWith, mapValues} from 'lodash'
+import {entries, isEqualWith, values} from 'lodash'
 
 import * as Val from '../val'
 
@@ -24,17 +24,17 @@ export class Var implements IExp {
 			case '+':
 				return new Val.Fn(
 					(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
-					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyInt)
+					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
 				)
 			case '*':
 				return new Val.Fn(
 					(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value),
-					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyInt)
+					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
 				)
 			case '<':
 				return new Val.Fn(
 					(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value),
-					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyBool)
+					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyBool)
 				)
 			default:
 				throw new Error('Variable not bound: ' + this.name)
@@ -110,7 +110,7 @@ export class Fn implements IExp {
 	public constructor(public param: Record<string, Node>, public body: Node) {}
 
 	public inferTy(): Val.Value {
-		const param = mapValues(this.param, exp => exp.inferTy())
+		const param = values(this.param).map(exp => exp.inferTy())
 		const out = this.body.inferTy()
 		return new Val.TyFn(param, out)
 	}

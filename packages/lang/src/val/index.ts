@@ -1,4 +1,4 @@
-import {entries, values} from 'lodash'
+import {values} from 'lodash'
 
 export type Value = Any | Bottom | Int | Bool | Fn | TyFn | TyAtom
 
@@ -34,6 +34,7 @@ export class Bottom implements IVal {
 
 export class Int implements IVal {
 	public type: 'int' = 'int'
+	public tyAtom = TyInt
 	public constructor(public value: number) {}
 
 	public print() {
@@ -41,12 +42,16 @@ export class Int implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		return ty.type === 'any' || ty === TyInt
+		if (ty.type === 'any') return true
+		if (ty === this.tyAtom) return true
+
+		return ty.type === 'int' && ty.value === this.value
 	}
 }
 
 export class Bool implements IVal {
 	public type: 'bool' = 'bool'
+	public tyAtom = TyBool
 	public constructor(public value: boolean) {}
 
 	public print() {
@@ -54,7 +59,10 @@ export class Bool implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		return ty.type === 'any' || ty === TyBool
+		if (ty.type === 'any') return true
+		if (ty === this.tyAtom) return true
+
+		return ty.type === 'bool' && ty.value === this.value
 	}
 }
 
@@ -78,29 +86,26 @@ export class Fn implements IVal {
 
 export class TyFn implements IVal {
 	public type: 'tyFn' = 'tyFn'
-	public constructor(public param: Record<string, Value>, public out: Value) {}
+	public constructor(public param: Value[], public out: Value) {}
 
 	public print(): string {
-		const param = entries(this.param)
-			.map(([k, v]) => k + ':' + v.print())
-			.join(' ')
-
+		const param = this.param.map(v => v.print()).join(' ')
 		const out = this.out.print()
 
-		return `(-> {${param}} ${out})`
+		return `(-> [${param} ${out})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'any') return true
 		if (ty.type !== 'tyFn') return false
 
-		const curParams = values(this.param)
-		const tyParams = values(ty.param)
+		const curParam = values(this.param)
+		const tyParam = values(ty.param)
 
-		if (curParams.length < tyParams.length) return false
+		if (curParam.length > tyParam.length) return false
 
-		const isParamSubtype = tyParams.every((typ, i) =>
-			typ.isSubtypeOf(curParams[i])
+		const isParamSubtype = curParam.every((cty, i) =>
+			tyParam[i].isSubtypeOf(cty)
 		)
 
 		const isOutSubtype = this.out.isSubtypeOf(ty.out)
