@@ -22,15 +22,18 @@ export class Var implements IExp {
 		switch (this.name) {
 			case '+':
 				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value)
+					(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
+					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyInt)
 				)
 			case '*':
 				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value)
+					(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value),
+					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyInt)
 				)
 			case '<':
 				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value)
+					(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value),
+					new Val.TyFn({a: Val.TyInt, b: Val.TyInt}, Val.TyBool)
 				)
 			default:
 				throw new Error('Variable not bound: ' + this.name)
@@ -56,6 +59,7 @@ export class Bottom implements IExp {
 
 export class Int implements IExp {
 	public type: 'int' = 'int'
+	public superType = Val.TyInt
 	public constructor(public value: number) {}
 
 	public eval() {
@@ -69,6 +73,7 @@ export class Int implements IExp {
 
 export class Bool implements IExp {
 	public type: 'bool' = 'bool'
+	public superType = Val.Bool
 	public constructor(public value: boolean) {}
 
 	public eval() {

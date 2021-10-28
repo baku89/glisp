@@ -23,9 +23,16 @@ describe('evaluator', () => {
 })
 
 function isEqualPrimitive(a: Val.Value, b: Val.Value) {
-	if (a.type === 'bottom') {
-		return a.type === b.type
+	switch (a.type) {
+		case 'any':
+		case 'bottom':
+			return a.type === b.type
+		case 'bool':
+		case 'int':
+			return a.type === b.type && a.value === b.value
+		case 'tyAtom':
+			return a === b
+		default:
+			throw new Error('Not yet implemented')
 	}
-
-	return a.type === b.type && a.value === b.value
 }
