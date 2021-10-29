@@ -169,7 +169,7 @@ export class TyUnion implements IVal {
 		if (types.length <= 1) throw new Error('Invalid union type')
 	}
 
-	public isSubtypeOf(ty: Value) {
+	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type !== 'tyUnion') return false
 
@@ -184,6 +184,28 @@ export class TyUnion implements IVal {
 		const types = this.types.map(t => t.print()).join(' ')
 		return `(| ${types})`
 	}
+}
+
+export function uniteTy(...types: Value[]) {
+	const flattenedTypes = types.flatMap(ty =>
+		ty.type === 'tyUnion' ? ty.types : [ty]
+	)
+
+	const normalizedTypes = flattenedTypes.reduce((prev, ty) => {
+		const index = prev.findIndex(p => p.isSubtypeOf(ty))
+		if (index !== -1) {
+			const cur = [...prev]
+			cur[index] = ty
+			return cur
+		}
+
+		const included = prev.some(p => ty.isSubtypeOf(p))
+		return included ? prev : [...prev, ty]
+	}, [] as Exclude<Value, TyUnion>[])
+
+	if (normalizedTypes.length === 0) return bottom
+	if (normalizedTypes.length === 1) return normalizedTypes[0]
+	return new TyUnion(normalizedTypes)
 }
 
 export class TyAtom implements IVal {

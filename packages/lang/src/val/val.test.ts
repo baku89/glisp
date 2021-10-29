@@ -47,3 +47,25 @@ describe('subtype', () => {
 		return v.print()
 	}
 })
+
+describe('normalizing union type', () => {
+	run([Val.int(1)], '1')
+	run([Val.int(1), Val.int(2)], '(| 1 2)')
+	run([Val.int(1), Val.TyInt], '(tyAtom Int)')
+	run([Val.TyInt, Val.int(1)], '(tyAtom Int)')
+	run([Val.TyInt, Val.TyBool], '(| (tyAtom Int) (tyAtom Bool))')
+	run([Val.TyInt, Val.all], 'All')
+	run([], '_')
+	run([Val.bottom, Val.bottom], '_')
+	run([Val.bottom, Val.all], 'All')
+	run(
+		[Val.TyBool, new Val.TyUnion([Val.TyInt, Val.TyBool]), Val.TyInt],
+		'(| (tyAtom Bool) (tyAtom Int))'
+	)
+
+	function run(types: Val.Value[], expected: string) {
+		test(`(| ${types.map(t => t.print()).join(' ')}) to be ${expected}`, () => {
+			expect(Val.uniteTy(...types).print()).toBe(expected)
+		})
+	}
+})
