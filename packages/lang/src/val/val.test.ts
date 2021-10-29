@@ -17,14 +17,14 @@ describe('subtype', () => {
 	run(new Val.Bool(true), new Val.Bool(true), true)
 	run(new Val.Bool(false), new Val.Bool(false), true)
 	run(new Val.Int(1), new Val.Bool(false), false)
-	run(new Val.Int(1), new Val.Any(), true)
+	run(new Val.Int(1), new Val.All(), true)
 	run(new Val.Bottom(), Val.TyInt, true)
 
 	run(square, square, true)
-	run(square, new Val.Any(), true)
+	run(square, new Val.All(), true)
 	run(square, new Val.TyFn([Val.TyInt], Val.TyInt), true)
-	run(square, new Val.TyFn([new Val.Any()], Val.TyInt), false)
-	run(square, new Val.TyFn([Val.TyInt], new Val.Any()), true)
+	run(square, new Val.TyFn([new Val.All()], Val.TyInt), false)
+	run(square, new Val.TyFn([Val.TyInt], new Val.All()), true)
 	run(square, new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt), true)
 	run(square, new Val.TyFn([], Val.TyInt), false)
 

@@ -1,6 +1,6 @@
 import {values} from 'lodash'
 
-export type Value = Any | Bottom | Int | Bool | Fn | TyFn | TyAtom
+export type Value = All | Bottom | Int | Bool | Fn | TyFn | TyAtom
 
 interface IVal {
 	type: string
@@ -8,15 +8,15 @@ interface IVal {
 	isSubtypeOf(ty: Value): boolean
 }
 
-export class Any implements IVal {
-	public type: 'any' = 'any'
+export class All implements IVal {
+	public type: 'all' = 'all'
 
 	public print() {
-		return 'Any'
+		return 'All'
 	}
 
 	public isSubtypeOf(ty: Value) {
-		return ty.type === 'any'
+		return ty.type === 'all'
 	}
 }
 
@@ -42,7 +42,7 @@ export class Int implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		if (ty.type === 'any') return true
+		if (ty.type === 'all') return true
 		if (ty === this.tyAtom) return true
 
 		return ty.type === 'int' && ty.value === this.value
@@ -59,7 +59,7 @@ export class Bool implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		if (ty.type === 'any') return true
+		if (ty.type === 'all') return true
 		if (ty === this.tyAtom) return true
 
 		return ty.type === 'bool' && ty.value === this.value
@@ -78,7 +78,7 @@ export class Fn implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		if (ty.type === 'any') return true
+		if (ty.type === 'all') return true
 		if (ty.type === 'tyFn') return this.fnType.isSubtypeOf(ty)
 		return this === ty
 	}
@@ -96,7 +96,7 @@ export class TyFn implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
-		if (ty.type === 'any') return true
+		if (ty.type === 'all') return true
 		if (ty.type !== 'tyFn') return false
 
 		const curParam = values(this.param)
@@ -126,7 +126,7 @@ export class TyAtom implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		return ty.type === 'any' || this === ty
+		return ty.type === 'all' || this === ty
 	}
 }
 

@@ -24,7 +24,7 @@ describe('evaluator', () => {
 
 function isEqualPrimitive(a: Val.Value, b: Val.Value) {
 	switch (a.type) {
-		case 'any':
+		case 'all':
 		case 'bottom':
 			return a.type === b.type
 		case 'bool':
