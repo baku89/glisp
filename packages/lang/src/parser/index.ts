@@ -34,7 +34,7 @@ Call "Call" = "(" _ fn:Node args:CallArg* _ ")"
 		return new Exp.Call(fn, args)
 	}
 
-CallArg = __ arg:Node
+CallArg = _ arg:Node
 	{
 		return arg
 	}
