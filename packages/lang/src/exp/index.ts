@@ -2,7 +2,7 @@ import {entries, isEqualWith, values} from 'lodash'
 
 import * as Val from '../val'
 
-export type Node = Var | Bottom | Int | Bool | Fn | Call
+export type Node = Var | Bottom | Int | Bool | Fn | Call | Scope
 
 export type Type = Node['type']
 
@@ -184,6 +184,34 @@ export class Call implements IExp {
 	}
 }
 
+export class Scope implements IExp {
+	public type: 'scope' = 'scope'
+	public parent: Node | null = null
+
+	public constructor(
+		public vars: Record<string, Node>,
+		public out: Node = new Bottom()
+	) {
+		values(vars).forEach(v => (v.parent = this))
+		out.parent = this
+	}
+
+	public inferTy(): Val.Value {
+		return this.out ? this.out.inferTy() : new Val.Bottom()
+	}
+
+	public eval(): Val.Value {
+		return this.out ? this.out.eval() : new Val.Bottom()
+	}
+
+	public print(): string {
+		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())
+		const out = this.out.type === 'bottom' ? [] : [this.out.print()]
+
+		return '{' + [...vars, ...out].join(' ') + '}'
+	}
+}
+
 export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'var':
@@ -202,5 +230,12 @@ export function isEqual(a: Node, b: Node): boolean {
 			)
 		case 'call':
 			return b.type === 'call' && isEqualWith(a.args, b.args, isEqual)
+		case 'scope': {
+			return (
+				b.type === 'scope' &&
+				isEqual(a.out, b.out) &&
+				isEqualWith(a.vars, b.vars, isEqual)
+			)
+		}
 	}
 }
