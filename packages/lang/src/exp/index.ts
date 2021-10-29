@@ -244,19 +244,19 @@ const GlobalScope = new Scope({
 	'+': new Obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
-			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+			Val.tyFn([Val.tyInt, Val.tyInt], Val.tyInt)
 		)
 	),
 	'*': new Obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
-			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+			Val.tyFn([Val.tyInt, Val.tyInt], Val.tyInt)
 		)
 	),
 	'<': new Obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
-			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyBool)
+			Val.tyFn([Val.tyInt, Val.tyInt], Val.tyBool)
 		)
 	),
 })

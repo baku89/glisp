@@ -49,7 +49,7 @@ export const bottom = new Bottom()
 
 export class Int implements IVal {
 	public type: 'int' = 'int'
-	public tyAtom = TyInt
+	public tyAtom = tyInt
 	constructor(public value: number) {}
 
 	public print() {
@@ -73,7 +73,7 @@ export const int = (value: number) => new Int(value)
 
 export class Bool implements IVal {
 	public type: 'bool' = 'bool'
-	public tyAtom = TyBool
+	public tyAtom = tyBool
 	public constructor(public value: boolean) {}
 
 	public print() {
@@ -226,5 +226,5 @@ export class TyAtom implements IVal {
 	}
 }
 
-export const TyInt = new TyAtom('Int', () => new Int(0))
-export const TyBool = new TyAtom('Bool', () => new Bool(false))
+export const tyInt = new TyAtom('Int', () => new Int(0))
+export const tyBool = new TyAtom('Bool', () => new Bool(false))
