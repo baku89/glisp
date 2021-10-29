@@ -31,6 +31,9 @@ describe('subtype', () => {
 	run(square, addTwo, false)
 	run(addTwo, square, false)
 
+	run(Val.TyInt, new Val.TyUnion([Val.TyInt, Val.TyBool]), true)
+	run(new Val.Int(0), new Val.TyUnion([new Val.Int(0), new Val.Int(1)]), true)
+
 	function run(sub: Val.Value, sup: Val.Value, expected: boolean) {
 		const op = expected ? '<:' : '!<:'
 		test(`${print(sub)} ${op} ${print(sup)}`, () => {
