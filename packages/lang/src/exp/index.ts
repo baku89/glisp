@@ -241,6 +241,8 @@ export function isEqual(a: Node, b: Node): boolean {
 
 const GlobalScope = new Scope({
 	_: new Obj(Val.bottom),
+	Int: new Obj(Val.tyInt),
+	Bool: new Obj(Val.tyBool),
 	'+': new Obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),

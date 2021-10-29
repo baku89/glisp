@@ -51,16 +51,16 @@ describe('subtype', () => {
 describe('normalizing union type', () => {
 	run([Val.int(1)], '1')
 	run([Val.int(1), Val.int(2)], '(| 1 2)')
-	run([Val.int(1), Val.tyInt], '(tyAtom Int)')
-	run([Val.tyInt, Val.int(1)], '(tyAtom Int)')
-	run([Val.tyInt, Val.tyBool], '(| (tyAtom Int) (tyAtom Bool))')
+	run([Val.int(1), Val.tyInt], 'Int')
+	run([Val.tyInt, Val.int(1)], 'Int')
+	run([Val.tyInt, Val.tyBool], '(| Int Bool)')
 	run([Val.tyInt, Val.all], 'All')
 	run([], '_')
 	run([Val.bottom, Val.bottom], '_')
 	run([Val.bottom, Val.all], 'All')
 	run(
 		[Val.tyBool, new Val.TyUnion([Val.tyInt, Val.tyBool]), Val.tyInt],
-		'(| (tyAtom Bool) (tyAtom Int))'
+		'(| Bool Int)'
 	)
 
 	function run(types: Val.Value[], expected: string) {

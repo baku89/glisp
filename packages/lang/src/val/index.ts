@@ -216,7 +216,8 @@ export class TyAtom implements IVal {
 	) {}
 
 	public print() {
-		return `(tyAtom ${this.name})`
+		// TODO: fix this
+		return this.name
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
