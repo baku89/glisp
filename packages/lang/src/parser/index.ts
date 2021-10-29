@@ -8,18 +8,13 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Call / Int / Bool / Bottom / Var
+Node = Call / Int / Bool / Var
 
-Reserved = "true" / "false" / "null" / "_"
+Reserved = "true" / "false" / "null"
 
 Var "Var" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
 		return new Exp.Var(text())
-	}
-
-Bottom = "_"
-	{
-		return new Exp.Bottom()
 	}
 
 Int "Int" = [0-9]+ &End

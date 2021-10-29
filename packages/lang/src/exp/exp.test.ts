@@ -6,6 +6,7 @@ describe('evaluator', () => {
 	run(new Exp.Int(10), new Val.Int(10))
 	run(new Exp.Bool(false), new Val.Bool(false))
 	run(new Exp.Bool(true), new Val.Bool(true))
+	run(new Exp.Var('_'), new Val.Bottom())
 	run(
 		new Exp.Call(new Exp.Var('+'), [new Exp.Int(1), new Exp.Int(2)]),
 		new Val.Int(3)

@@ -2,7 +2,7 @@ import {entries, isEqualWith, values} from 'lodash'
 
 import * as Val from '../val'
 
-export type Node = Var | Bottom | Int | Bool | Obj | Fn | Call | Scope
+export type Node = Var | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
@@ -36,7 +36,7 @@ export class Var implements IExp {
 			return GlobalScope.vars[this.name]
 		}
 
-		return new Bottom()
+		return new Obj(new Val.Bottom())
 	}
 
 	public eval(): Val.Value {
@@ -49,23 +49,6 @@ export class Var implements IExp {
 
 	public print() {
 		return this.name
-	}
-}
-
-export class Bottom implements IExp {
-	public type: 'bottom' = 'bottom'
-	public parent: Node | null = null
-
-	public eval() {
-		return new Val.Bottom()
-	}
-
-	public inferTy() {
-		return this.eval()
-	}
-
-	public print() {
-		return '_'
 	}
 }
 
@@ -207,10 +190,10 @@ export class Scope implements IExp {
 
 	public constructor(
 		public vars: Record<string, Node>,
-		public out: Node = new Bottom()
+		public out: Node | null = null
 	) {
 		values(vars).forEach(v => (v.parent = this))
-		out.parent = this
+		if (out) out.parent = this
 	}
 
 	public inferTy(): Val.Value {
@@ -223,7 +206,7 @@ export class Scope implements IExp {
 
 	public print(): string {
 		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())
-		const out = this.out.type === 'bottom' ? [] : [this.out.print()]
+		const out = this.out ? [this.out.print()] : []
 
 		return '{' + [...vars, ...out].join(' ') + '}'
 	}
@@ -233,8 +216,6 @@ export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'var':
 			return b.type === 'var' && a.name === b.name
-		case 'bottom':
-			return b.type === 'bottom'
 		case 'bool':
 		case 'int':
 		case 'obj':
@@ -250,7 +231,8 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'scope': {
 			return (
 				b.type === 'scope' &&
-				isEqual(a.out, b.out) &&
+				((a.out === null && b.out === null) ||
+					(a.out !== null && b.out !== null && isEqual(a.out, b.out))) &&
 				isEqualWith(a.vars, b.vars, isEqual)
 			)
 		}
@@ -258,6 +240,7 @@ export function isEqual(a: Node, b: Node): boolean {
 }
 
 const GlobalScope = new Scope({
+	_: new Obj(new Val.Bottom()),
 	'+': new Obj(
 		new Val.Fn(
 			(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
