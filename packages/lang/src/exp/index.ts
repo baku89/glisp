@@ -144,8 +144,8 @@ export class Call implements IExp {
 		return fn.value(...args)
 	}
 
-	public inferTy() {
-		const ty = this.fn.inferTy() as Val.Value
+	public inferTy(): Val.Value {
+		const ty = this.fn.inferTy()
 		return ty.type === 'tyFn' ? ty.out : ty
 	}
 
