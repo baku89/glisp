@@ -36,7 +36,7 @@ export class Var implements IExp {
 			return GlobalScope.vars[this.name]
 		}
 
-		return new Obj(new Val.Bottom())
+		return new Obj(Val.bottom)
 	}
 
 	public eval(): Val.Value {
@@ -59,7 +59,7 @@ export class Int implements IExp {
 	public constructor(public value: number) {}
 
 	public eval() {
-		return new Val.Int(this.value)
+		return Val.int(this.value)
 	}
 
 	public inferTy() {
@@ -78,7 +78,7 @@ export class Bool implements IExp {
 	public constructor(public value: boolean) {}
 
 	public eval() {
-		return new Val.Bool(this.value)
+		return Val.bool(this.value)
 	}
 
 	public inferTy() {
@@ -121,12 +121,12 @@ export class Fn implements IExp {
 	public inferTy(): Val.Value {
 		const param = values(this.param).map(exp => exp.inferTy())
 		const out = this.body.inferTy()
-		return new Val.TyFn(param, out)
+		return Val.tyFn(param, out)
 	}
 
 	public eval() {
 		// NOTE: write how to evaluate
-		return new Val.Bottom()
+		return Val.bottom
 	}
 
 	public print(): string {
@@ -158,7 +158,7 @@ export class Call implements IExp {
 			const a = args[i]
 
 			if (!a) {
-				return p.convert(new Val.Bottom())
+				return p.convert(Val.bottom)
 			}
 
 			if (!a.isSubtypeOf(p) || a.type === 'bottom') {
@@ -197,11 +197,11 @@ export class Scope implements IExp {
 	}
 
 	public inferTy(): Val.Value {
-		return this.out ? this.out.inferTy() : new Val.Bottom()
+		return this.out ? this.out.inferTy() : Val.bottom
 	}
 
 	public eval(): Val.Value {
-		return this.out ? this.out.eval() : new Val.Bottom()
+		return this.out ? this.out.eval() : Val.bottom
 	}
 
 	public print(): string {
@@ -240,23 +240,23 @@ export function isEqual(a: Node, b: Node): boolean {
 }
 
 const GlobalScope = new Scope({
-	_: new Obj(new Val.Bottom()),
+	_: new Obj(Val.bottom),
 	'+': new Obj(
-		new Val.Fn(
-			(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
-			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+		Val.fn(
+			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
+			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyInt)
 		)
 	),
 	'*': new Obj(
-		new Val.Fn(
-			(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value),
-			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+		Val.fn(
+			(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
+			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyInt)
 		)
 	),
 	'<': new Obj(
-		new Val.Fn(
-			(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value),
-			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyBool)
+		Val.fn(
+			(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
+			Val.tyFn([Val.TyInt, Val.TyInt], Val.TyBool)
 		)
 	),
 })

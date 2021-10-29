@@ -2,20 +2,20 @@ import * as Exp from '../exp'
 import * as Val from '../val'
 
 describe('evaluator', () => {
-	run(new Exp.Int(0), new Val.Int(0))
-	run(new Exp.Int(10), new Val.Int(10))
-	run(new Exp.Bool(false), new Val.Bool(false))
-	run(new Exp.Bool(true), new Val.Bool(true))
-	run(new Exp.Var('_'), new Val.Bottom())
+	run(new Exp.Int(0), Val.int(0))
+	run(new Exp.Int(10), Val.int(10))
+	run(new Exp.Bool(false), Val.bool(false))
+	run(new Exp.Bool(true), Val.bool(true))
+	run(new Exp.Var('_'), Val.bottom)
 	run(
 		new Exp.Call(new Exp.Var('+'), [new Exp.Int(1), new Exp.Int(2)]),
-		new Val.Int(3)
+		Val.int(3)
 	)
 	run(
 		new Exp.Call(new Exp.Var('<'), [new Exp.Int(1), new Exp.Int(2)]),
-		new Val.Bool(true)
+		Val.bool(true)
 	)
-	run(new Exp.Scope({a: new Exp.Int(10)}, new Exp.Var('a')), new Val.Int(10))
+	run(new Exp.Scope({a: new Exp.Int(10)}, new Exp.Var('a')), Val.int(10))
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {

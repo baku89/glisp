@@ -17,13 +17,17 @@ export class All implements IVal {
 	}
 
 	public convert() {
-		return new Bottom()
+		return bottom
 	}
 
 	public isSubtypeOf(ty: Value) {
 		return ty.type === 'all'
 	}
+
+	public static i = new All()
 }
+
+export const all = new All()
 
 export class Bottom implements IVal {
 	public type: 'bottom' = 'bottom'
@@ -33,7 +37,7 @@ export class Bottom implements IVal {
 	}
 
 	public convert() {
-		return new Bottom()
+		return bottom
 	}
 
 	public isSubtypeOf() {
@@ -41,10 +45,12 @@ export class Bottom implements IVal {
 	}
 }
 
+export const bottom = new Bottom()
+
 export class Int implements IVal {
 	public type: 'int' = 'int'
 	public tyAtom = TyInt
-	public constructor(public value: number) {}
+	constructor(public value: number) {}
 
 	public print() {
 		return this.value.toString()
@@ -62,6 +68,8 @@ export class Int implements IVal {
 		return ty.type === 'int' && ty.value === this.value
 	}
 }
+
+export const int = (value: number) => new Int(value)
 
 export class Bool implements IVal {
 	public type: 'bool' = 'bool'
@@ -84,6 +92,8 @@ export class Bool implements IVal {
 		return ty.type === 'bool' && ty.value === this.value
 	}
 }
+
+export const bool = (value: boolean) => new Bool(value)
 
 export class Fn implements IVal {
 	public type: 'fn' = 'fn'
@@ -108,6 +118,10 @@ export class Fn implements IVal {
 	}
 }
 
+export function fn(value: (...params: any[]) => Value, fnType: TyFn) {
+	return new Fn(value, fnType)
+}
+
 export class TyFn implements IVal {
 	public type: 'tyFn' = 'tyFn'
 	public constructor(public param: Value[], public out: Value) {}
@@ -122,7 +136,7 @@ export class TyFn implements IVal {
 	public convert(val: Value): Value {
 		const outVal = this.out.convert(val)
 
-		return new Fn(() => outVal, this)
+		return fn(() => outVal, this)
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -143,6 +157,10 @@ export class TyFn implements IVal {
 
 		return isParamSubtype && isOutSubtype
 	}
+}
+
+export function tyFn(param: Value[], out: Value) {
+	return new TyFn(param, out)
 }
 
 export class TyUnion implements IVal {
