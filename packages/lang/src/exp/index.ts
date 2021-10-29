@@ -8,6 +8,7 @@ export type Type = Node['type']
 
 interface IExp {
 	type: string
+	parent: Node | null
 
 	eval(): Val.Value
 	inferTy(): Val.Value
@@ -16,6 +17,7 @@ interface IExp {
 
 export class Var implements IExp {
 	public type: 'var' = 'var'
+	public parent: Node | null = null
 
 	public constructor(public name: string) {}
 
@@ -54,6 +56,7 @@ export class Var implements IExp {
 
 export class Bottom implements IExp {
 	public type: 'bottom' = 'bottom'
+	public parent: Node | null = null
 
 	public eval() {
 		return new Val.Bottom()
@@ -70,7 +73,8 @@ export class Bottom implements IExp {
 
 export class Int implements IExp {
 	public type: 'int' = 'int'
-	public superType = Val.TyInt
+	public parent: Node | null = null
+
 	public constructor(public value: number) {}
 
 	public eval() {
@@ -88,7 +92,8 @@ export class Int implements IExp {
 
 export class Bool implements IExp {
 	public type: 'bool' = 'bool'
-	public superType = Val.Bool
+	public parent: Node | null = null
+
 	public constructor(public value: boolean) {}
 
 	public eval() {
@@ -106,8 +111,12 @@ export class Bool implements IExp {
 
 export class Fn implements IExp {
 	public type: 'fn' = 'fn'
+	public parent: Node | null = null
 
-	public constructor(public param: Record<string, Node>, public body: Node) {}
+	public constructor(public param: Record<string, Node>, public body: Node) {
+		values(param).forEach(p => (p.parent = this))
+		body.parent = this
+	}
 
 	public inferTy(): Val.Value {
 		const param = values(this.param).map(exp => exp.inferTy())
@@ -132,8 +141,12 @@ export class Fn implements IExp {
 
 export class Call implements IExp {
 	public type: 'call' = 'call'
+	public parent: Node | null = null
 
-	public constructor(public fn: Node, public args: Node[]) {}
+	public constructor(public fn: Node, public args: Node[]) {
+		fn.parent = this
+		args.forEach(a => (a.parent = this))
+	}
 
 	public eval(): Val.Value {
 		const fn = this.fn.eval()
