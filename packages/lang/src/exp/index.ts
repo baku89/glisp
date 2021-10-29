@@ -2,7 +2,7 @@ import {entries, isEqualWith, values} from 'lodash'
 
 import * as Val from '../val'
 
-export type Node = Var | Bottom | Int | Bool | Fn | Call | Scope
+export type Node = Var | Bottom | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
@@ -21,32 +21,30 @@ export class Var implements IExp {
 
 	public constructor(public name: string) {}
 
-	public eval() {
-		switch (this.name) {
-			case '+':
-				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
-					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
-				)
-			case '*':
-				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value),
-					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
-				)
-			case '<':
-				return new Val.Fn(
-					(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value),
-					new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyBool)
-				)
-			default:
-				throw new Error('Variable not bound: ' + this.name)
+	public resolve() {
+		let ref = this.parent
+
+		while (ref) {
+			if (ref.type === 'scope' && this.name in ref.vars) {
+				return ref.vars[this.name]
+			}
+
+			ref = ref.parent
 		}
+
+		if (this.name in GlobalScope.vars) {
+			return GlobalScope.vars[this.name]
+		}
+
+		return new Bottom()
 	}
 
-	public inferTy() {
-		const v = this.eval()
-		if (v.type === 'fn') return v.fnType
-		return v
+	public eval(): Val.Value {
+		return this.resolve().eval()
+	}
+
+	public inferTy(): Val.Value {
+		return this.resolve().inferTy()
 	}
 
 	public print() {
@@ -106,6 +104,25 @@ export class Bool implements IExp {
 
 	public print() {
 		return this.value.toString()
+	}
+}
+
+export class Obj implements IExp {
+	public type: 'obj' = 'obj'
+	public parent: Node | null = null
+
+	public constructor(public value: Val.Value) {}
+
+	public eval() {
+		return this.value
+	}
+
+	public inferTy() {
+		return this.value
+	}
+
+	public print() {
+		return '<JS Object>:' + this.value.print()
 	}
 }
 
@@ -219,9 +236,9 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'bottom':
 			return b.type === 'bottom'
 		case 'bool':
-			return b.type === 'bool' && a.value === b.value
 		case 'int':
-			return b.type === 'int' && a.value === b.value
+		case 'obj':
+			return b.type === a.type && a.value === b.value
 		case 'fn':
 			return (
 				b.type === 'fn' &&
@@ -239,3 +256,24 @@ export function isEqual(a: Node, b: Node): boolean {
 		}
 	}
 }
+
+const GlobalScope = new Scope({
+	'+': new Obj(
+		new Val.Fn(
+			(a: Val.Int, b: Val.Int) => new Val.Int(a.value + b.value),
+			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+		)
+	),
+	'*': new Obj(
+		new Val.Fn(
+			(a: Val.Int, b: Val.Int) => new Val.Int(a.value * b.value),
+			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyInt)
+		)
+	),
+	'<': new Obj(
+		new Val.Fn(
+			(a: Val.Int, b: Val.Int) => new Val.Bool(a.value < b.value),
+			new Val.TyFn([Val.TyInt, Val.TyInt], Val.TyBool)
+		)
+	),
+})
