@@ -8,7 +8,7 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Call / Int / Bool / Var
+Node = Scope / Call / Int / Bool / Var
 
 Reserved = "true" / "false" / "null"
 
@@ -38,6 +38,17 @@ CallArg = _ arg:Node
 	{
 		return arg
 	}
+
+Scope = "{" _ pairs:ScopePair+ out:Node? _ "}"
+	{
+		return new Exp.Scope(Object.fromEntries(pairs), out ?? null)
+	}
+
+ScopePair = v:Var _ "=" _ node:Node _
+	{
+		return [v.name, node]
+	}
+
 
 _ = Whitespace*
 __ = Whitespace+

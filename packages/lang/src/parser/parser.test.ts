@@ -36,6 +36,13 @@ describe('parsing call expressions', () => {
 	)
 })
 
+describe('parsing scope', () => {
+	testParsing(
+		'{a = 10 a}',
+		new Exp.Scope({a: new Exp.Int(10)}, new Exp.Var('a'))
+	)
+})
+
 function testParsing(input: string, expected: Exp.Node) {
 	test(`parsing '${input}'`, () => {
 		const result = parse(input)

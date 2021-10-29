@@ -15,6 +15,7 @@ describe('evaluator', () => {
 		new Exp.Call(new Exp.Var('<'), [new Exp.Int(1), new Exp.Int(2)]),
 		new Val.Bool(true)
 	)
+	run(new Exp.Scope({a: new Exp.Int(10)}, new Exp.Var('a')), new Val.Int(10))
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
