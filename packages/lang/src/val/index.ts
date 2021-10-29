@@ -5,6 +5,7 @@ export type Value = All | Bottom | Int | Bool | Fn | TyFn | TyAtom
 interface IVal {
 	type: string
 	print(): string
+	convert(val: Value): Value
 	isSubtypeOf(ty: Value): boolean
 }
 
@@ -13,6 +14,10 @@ export class All implements IVal {
 
 	public print() {
 		return 'All'
+	}
+
+	public convert() {
+		return new Bottom()
 	}
 
 	public isSubtypeOf(ty: Value) {
@@ -27,6 +32,10 @@ export class Bottom implements IVal {
 		return '_'
 	}
 
+	public convert() {
+		return new Bottom()
+	}
+
 	public isSubtypeOf() {
 		return true
 	}
@@ -39,6 +48,10 @@ export class Int implements IVal {
 
 	public print() {
 		return this.value.toString()
+	}
+
+	public convert() {
+		return this
 	}
 
 	public isSubtypeOf(ty: Value) {
@@ -56,6 +69,10 @@ export class Bool implements IVal {
 
 	public print() {
 		return this.value.toString()
+	}
+
+	public convert() {
+		return this
 	}
 
 	public isSubtypeOf(ty: Value) {
@@ -77,6 +94,10 @@ export class Fn implements IVal {
 		return '(-> <JS Function>)'
 	}
 
+	public convert() {
+		return this
+	}
+
 	public isSubtypeOf(ty: Value) {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyFn') return this.fnType.isSubtypeOf(ty)
@@ -93,6 +114,12 @@ export class TyFn implements IVal {
 		const out = this.out.print()
 
 		return `(-> [${param} ${out})`
+	}
+
+	public convert(val: Value): Value {
+		const outVal = this.out.convert(val)
+
+		return new Fn(() => outVal, this)
 	}
 
 	public isSubtypeOf(ty: Value): boolean {

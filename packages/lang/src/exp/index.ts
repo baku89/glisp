@@ -141,7 +141,21 @@ export class Call implements IExp {
 
 		if (fn.type !== 'fn') return fn
 
-		return fn.value(...args)
+		const convertedArgs = fn.fnType.param.map((p, i) => {
+			const a = args[i]
+
+			if (!a) {
+				return p.convert(new Val.Bottom())
+			}
+
+			if (!a.isSubtypeOf(p) || a.type === 'bottom') {
+				return p.convert(a)
+			}
+
+			return a
+		})
+
+		return fn.value(...convertedArgs)
 	}
 
 	public inferTy(): Val.Value {
