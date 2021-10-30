@@ -32,8 +32,6 @@ export class All implements IVal {
 	public isSubtypeOf(ty: Value) {
 		return ty.type === 'all'
 	}
-
-	public static i = new All()
 }
 
 export const all = new All()
