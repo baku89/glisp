@@ -1,6 +1,15 @@
 import {values} from 'lodash'
 
-export type Value = All | Bottom | Int | Bool | Fn | TyFn | TyUnion | TyAtom
+export type Value =
+	| All
+	| Bottom
+	| Int
+	| Bool
+	| Fn
+	| TyFn
+	| TyUnion
+	| TyAtom
+	| TySingleton
 
 interface IVal {
 	type: string
@@ -224,6 +233,28 @@ export class TyAtom implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this === ty
+	}
+}
+
+export class TySingleton implements IVal {
+	public type: 'tySingleton' = 'tySingleton'
+	public constructor(public value: TyFn | TyUnion | TyAtom) {}
+
+	public print() {
+		return '(singleton ' + this.value.print() + ')'
+	}
+
+	public isSubtypeOf(ty: Value): boolean {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
+		if (ty.type === 'tySingleton') {
+			throw new Error('Not yet implemented')
+		}
+		return false
+	}
+
+	public convert() {
+		return this
 	}
 }
 
