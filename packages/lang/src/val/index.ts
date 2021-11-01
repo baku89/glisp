@@ -16,6 +16,7 @@ interface IVal {
 	print(): string
 	convert(val: Value): Value
 	isSubtypeOf(ty: Value): boolean
+	isEqualTo(val: Value): boolean
 }
 
 export class All implements IVal {
@@ -31,6 +32,10 @@ export class All implements IVal {
 
 	public isSubtypeOf(ty: Value) {
 		return ty.type === 'all'
+	}
+
+	public isEqualTo(val: Value) {
+		return val.type === this.type
 	}
 }
 
@@ -49,6 +54,10 @@ export class Bottom implements IVal {
 
 	public isSubtypeOf() {
 		return true
+	}
+
+	public isEqualTo(val: Value) {
+		return val.type === this.type
 	}
 }
 
@@ -74,6 +83,10 @@ export class Int implements IVal {
 
 		return ty.type === 'int' && ty.value === this.value
 	}
+
+	public isEqualTo(val: Value) {
+		return val.type === this.type && val.value === this.value
+	}
 }
 
 export const int = (value: number) => new Int(value)
@@ -97,6 +110,10 @@ export class Bool implements IVal {
 		if (ty === this.tyAtom) return true
 
 		return ty.type === 'bool' && ty.value === this.value
+	}
+
+	public isEqualTo(val: Value) {
+		return val.type === this.type && val.value === this.value
 	}
 }
 
@@ -122,6 +139,14 @@ export class Fn implements IVal {
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') return this.fnType.isSubtypeOf(ty)
 		return this === ty
+	}
+
+	public isEqualTo(val: Value) {
+		return (
+			val.type === this.type &&
+			val.value === this.value &&
+			val.fnType.isEqualTo(this.fnType)
+		)
 	}
 }
 
@@ -164,6 +189,15 @@ export class TyFn implements IVal {
 
 		return isParamSubtype && isOutSubtype
 	}
+
+	public isEqualTo(val: Value): boolean {
+		return (
+			val.type === this.type &&
+			val.param.length === this.param.length &&
+			val.param.every((v, i) => v.isEqualTo(this.param[i])) &&
+			val.out.isEqualTo(this.out)
+		)
+	}
 }
 
 export function tyFn(param: Value[], out: Value) {
@@ -190,6 +224,20 @@ export class TyUnion implements IVal {
 	public print(): string {
 		const types = this.types.map(t => t.print()).join(' ')
 		return `(| ${types})`
+	}
+
+	public isEqualTo(val: Value): boolean {
+		if (val.type !== this.type) return false
+		if (val.types.length !== this.types.length) return false
+
+		const dstTypes = [...this.types]
+		for (const ty of val.types) {
+			const idx = dstTypes.findIndex(dty => ty.isEqualTo(dty))
+			if (idx === -1) return false
+			dstTypes.splice(idx, 1)
+		}
+
+		return true
 	}
 }
 
@@ -232,6 +280,10 @@ export class TyAtom implements IVal {
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this === ty
 	}
+
+	public isEqualTo(val: Value): boolean {
+		return val === this
+	}
 }
 
 export class TySingleton implements IVal {
@@ -246,13 +298,17 @@ export class TySingleton implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tySingleton') {
-			throw new Error('Not yet implemented')
+			return ty.value.isEqualTo(this.value)
 		}
 		return false
 	}
 
 	public convert() {
 		return this
+	}
+
+	public isEqualTo(val: Value): boolean {
+		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 }
 
