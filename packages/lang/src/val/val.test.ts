@@ -17,14 +17,14 @@ describe('subtype', () => {
 	run(Val.bool(true), Val.bool(true), true)
 	run(Val.bool(false), Val.bool(false), true)
 	run(Val.int(1), Val.bool(false), false)
-	run(Val.int(1), Val.All.i, true)
+	run(Val.int(1), Val.all, true)
 	run(Val.bottom, Val.tyInt, true)
 
 	run(square, square, true)
-	run(square, Val.All.i, true)
+	run(square, Val.all, true)
 	run(square, Val.tyFn([Val.tyInt], Val.tyInt), true)
-	run(square, Val.tyFn([Val.All.i], Val.tyInt), false)
-	run(square, Val.tyFn([Val.tyInt], Val.All.i), true)
+	run(square, Val.tyFn([Val.all], Val.tyInt), false)
+	run(square, Val.tyFn([Val.tyInt], Val.all), true)
 	run(square, Val.tyFn([Val.tyInt, Val.tyInt], Val.tyInt), true)
 	run(square, Val.tyFn([], Val.tyInt), false)
 
