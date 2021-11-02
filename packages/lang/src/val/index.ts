@@ -329,5 +329,5 @@ export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 
 export const singleton = (ty: TyFn | TyUnion | TyAtom) => new TySingleton(ty)
 
-export const tyInt = new TyAtom('Int', () => new Int(0))
-export const tyBool = new TyAtom('Bool', () => new Bool(false))
+export const tyInt = new TyAtom('Int', () => int(0))
+export const tyBool = new TyAtom('Bool', () => bool(false))
