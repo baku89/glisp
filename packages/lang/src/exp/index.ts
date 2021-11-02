@@ -27,7 +27,6 @@ abstract class BaseNode {
 
 export class Sym extends BaseNode {
 	public type: 'sym' = 'sym'
-	public parent: Node | null = null
 
 	private constructor(public name: string) {
 		super()
@@ -78,7 +77,6 @@ export const sym = Sym.of
 
 export class Int extends BaseNode {
 	public type: 'int' = 'int'
-	public parent: Node | null = null
 
 	private constructor(public value: number) {
 		super()
@@ -105,7 +103,6 @@ export const int = Int.of
 
 export class Bool extends BaseNode {
 	public type: 'bool' = 'bool'
-	public parent: Node | null = null
 
 	private constructor(public value: boolean) {
 		super()
@@ -132,7 +129,6 @@ export const bool = Bool.of
 
 export class Obj extends BaseNode {
 	public type: 'obj' = 'obj'
-	public parent: Node | null = null
 
 	private constructor(public value: Val.Value) {
 		super()
@@ -166,7 +162,6 @@ export const obj = Obj.of
 
 export class Fn extends BaseNode {
 	public type: 'fn' = 'fn'
-	public parent: Node | null = null
 
 	private constructor(public param: Record<string, Node>, public body: Node) {
 		super()
@@ -206,7 +201,6 @@ export const fn = Fn.of
 
 export class Call extends BaseNode {
 	public type: 'call' = 'call'
-	public parent: Node | null = null
 
 	private constructor(public fn: Node, public args: Node[]) {
 		super()
@@ -278,7 +272,6 @@ export const call = Call.of
 
 export class Scope extends BaseNode {
 	public type: 'scope' = 'scope'
-	public parent: Node | null = null
 
 	private constructor(
 		public vars: Record<string, Node>,
