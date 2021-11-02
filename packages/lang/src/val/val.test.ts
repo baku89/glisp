@@ -49,23 +49,52 @@ describe('subtype', () => {
 })
 
 describe('normalizing union type', () => {
-	run([Val.int(1)], '1')
-	run([Val.int(1), Val.int(2)], '(| 1 2)')
-	run([Val.int(1), Val.tyInt], 'Int')
-	run([Val.tyInt, Val.int(1)], 'Int')
-	run([Val.tyInt, Val.tyBool], '(| Int Bool)')
-	run([Val.tyInt, Val.all], 'All')
-	run([], '_')
-	run([Val.bottom, Val.bottom], '_')
-	run([Val.bottom, Val.all], 'All')
+	run([Val.int(1)], Val.int(1))
+	run([Val.int(1), Val.int(2)], new Val.TyUnion([Val.int(1), Val.int(2)]))
+	run([Val.int(1), Val.tyInt], Val.tyInt)
+	run([Val.tyInt, Val.int(1)], Val.tyInt)
+	run([Val.tyInt, Val.tyBool], new Val.TyUnion([Val.tyInt, Val.tyBool]))
+	run([Val.tyInt, Val.all], Val.all)
+	run([], Val.bottom)
+	run([Val.bottom, Val.bottom], Val.bottom)
+	run([Val.bottom, Val.all], Val.all)
 	run(
 		[Val.tyBool, new Val.TyUnion([Val.tyInt, Val.tyBool]), Val.tyInt],
-		'(| Bool Int)'
+		new Val.TyUnion([Val.tyInt, Val.tyBool])
 	)
 
-	function run(types: Val.Value[], expected: string) {
-		test(`(| ${types.map(t => t.print()).join(' ')}) to be ${expected}`, () => {
-			expect(Val.uniteTy(...types).print()).toBe(expected)
+	function run(types: Val.Value[], expected: Val.Value) {
+		const testStr = types.map(t => t.print()).join(' ')
+		const expectedStr = expected.print()
+		test(`(| ${testStr}) to be ${expectedStr}`, () => {
+			const united = Val.uniteTy(...types)
+
+			if (!united.isEqualTo(expected)) {
+				throw new Error(`Expected ${expectedStr}, got ${united.print()}`)
+			}
+		})
+	}
+})
+
+describe('value equality', () => {
+	run(Val.int(1), Val.int(1))
+	run(new Val.All(), Val.all)
+	run(new Val.Bottom(), Val.bottom)
+	run(Val.bool(true), Val.bool(true))
+	run(Val.tyInt, Val.tyInt)
+	run(Val.uniteTy(Val.int(1), Val.int(2)), Val.uniteTy(Val.int(2), Val.int(1)))
+
+	function run(a: Val.Value, b: Val.Value) {
+		const aStr = a.print()
+		const bStr = b.print()
+
+		test(`${aStr} equals to ${bStr}`, () => {
+			if (!a.isEqualTo(b)) {
+				throw new Error(`${aStr} != ${bStr}`)
+			}
+			if (!b.isEqualTo(a)) {
+				throw new Error(`${bStr} != ${aStr}`)
+			}
 		})
 	}
 })
