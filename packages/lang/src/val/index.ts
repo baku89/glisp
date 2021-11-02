@@ -22,6 +22,10 @@ interface IVal {
 export class All implements IVal {
 	public type: 'all' = 'all'
 
+	private constructor() {
+		return this
+	}
+
 	public print() {
 		return 'All'
 	}
@@ -37,12 +41,18 @@ export class All implements IVal {
 	public isEqualTo(val: Value) {
 		return val.type === this.type
 	}
+
+	public static instance = new All()
 }
 
-export const all = new All()
+export const all = All.instance
 
 export class Bottom implements IVal {
 	public type: 'bottom' = 'bottom'
+
+	private constructor() {
+		return this
+	}
 
 	public print() {
 		return '_'
@@ -59,14 +69,16 @@ export class Bottom implements IVal {
 	public isEqualTo(val: Value) {
 		return val.type === this.type
 	}
+
+	public static instance = new Bottom()
 }
 
-export const bottom = new Bottom()
+export const bottom = Bottom.instance
 
 export class Int implements IVal {
 	public type: 'int' = 'int'
 	public tyAtom = tyInt
-	constructor(public value: number) {}
+	private constructor(public value: number) {}
 
 	public print() {
 		return this.value.toString()
@@ -87,14 +99,18 @@ export class Int implements IVal {
 	public isEqualTo(val: Value) {
 		return val.type === this.type && val.value === this.value
 	}
+
+	public static of(value: number) {
+		return new Int(value)
+	}
 }
 
-export const int = (value: number) => new Int(value)
+export const int = Int.of
 
 export class Bool implements IVal {
 	public type: 'bool' = 'bool'
 	public tyAtom = tyBool
-	public constructor(public value: boolean) {}
+	private constructor(public value: boolean) {}
 
 	public print() {
 		return this.value.toString()
@@ -115,9 +131,13 @@ export class Bool implements IVal {
 	public isEqualTo(val: Value) {
 		return val.type === this.type && val.value === this.value
 	}
+
+	public static of(value: boolean) {
+		return new Bool(value)
+	}
 }
 
-export const bool = (value: boolean) => new Bool(value)
+export const bool = Bool.of
 
 export class Fn implements IVal {
 	public type: 'fn' = 'fn'
@@ -157,19 +177,21 @@ export class Fn implements IVal {
 			this.tyOut.isEqualTo(val.tyOut)
 		)
 	}
+
+	public static of(
+		value: (...params: any[]) => Value,
+		tyParam: Record<string, Value>,
+		tyOut: Value
+	) {
+		return new Fn(value, tyParam, tyOut)
+	}
 }
 
-export function fn(
-	value: (...params: any[]) => Value,
-	tyParam: Record<string, Value>,
-	tyOut: Value
-) {
-	return new Fn(value, tyParam, tyOut)
-}
+export const fn = Fn.of
 
 export class TyFn implements IVal {
 	public type: 'tyFn' = 'tyFn'
-	public constructor(public param: Value[], public out: Value) {}
+	private constructor(public param: Value[], public out: Value) {}
 
 	public print(): string {
 		const param = this.param.map(v => v.print()).join(' ')
@@ -211,11 +233,13 @@ export class TyFn implements IVal {
 			val.out.isEqualTo(this.out)
 		)
 	}
+
+	public static of(param: Value[], out: Value) {
+		return new TyFn(param, out)
+	}
 }
 
-export function tyFn(param: Value[], out: Value) {
-	return new TyFn(param, out)
-}
+export const tyFn = TyFn.of
 
 export class TyUnion implements IVal {
 	public type: 'tyUnion' = 'tyUnion'
@@ -252,33 +276,35 @@ export class TyUnion implements IVal {
 
 		return true
 	}
+
+	public static from(...types: Value[]) {
+		const flattenedTypes = types.flatMap(ty =>
+			ty.type === 'tyUnion' ? ty.types : [ty]
+		)
+
+		const normalizedTypes = flattenedTypes.reduce((prev, ty) => {
+			const index = prev.findIndex(p => p.isSubtypeOf(ty))
+			if (index !== -1) {
+				const cur = [...prev]
+				cur[index] = ty
+				return cur
+			}
+
+			const included = prev.some(p => ty.isSubtypeOf(p))
+			return included ? prev : [...prev, ty]
+		}, [] as Exclude<Value, TyUnion>[])
+
+		if (normalizedTypes.length === 0) return bottom
+		if (normalizedTypes.length === 1) return normalizedTypes[0]
+		return new TyUnion(normalizedTypes)
+	}
 }
 
-export function uniteTy(...types: Value[]) {
-	const flattenedTypes = types.flatMap(ty =>
-		ty.type === 'tyUnion' ? ty.types : [ty]
-	)
-
-	const normalizedTypes = flattenedTypes.reduce((prev, ty) => {
-		const index = prev.findIndex(p => p.isSubtypeOf(ty))
-		if (index !== -1) {
-			const cur = [...prev]
-			cur[index] = ty
-			return cur
-		}
-
-		const included = prev.some(p => ty.isSubtypeOf(p))
-		return included ? prev : [...prev, ty]
-	}, [] as Exclude<Value, TyUnion>[])
-
-	if (normalizedTypes.length === 0) return bottom
-	if (normalizedTypes.length === 1) return normalizedTypes[0]
-	return new TyUnion(normalizedTypes)
-}
+export const uniteTy = TyUnion.from
 
 export class TyAtom implements IVal {
 	public type: 'tyAtom' = 'tyAtom'
-	public constructor(
+	private constructor(
 		public name: string,
 		public convert: (val: Value) => Value
 	) {}
@@ -297,11 +323,17 @@ export class TyAtom implements IVal {
 	public isEqualTo(val: Value): boolean {
 		return val === this
 	}
+
+	public static of(name: string, convert: (val: Value) => Value) {
+		return new TyAtom(name, convert)
+	}
 }
+
+export const tyAtom = TyAtom.of
 
 export class TySingleton implements IVal {
 	public type: 'tySingleton' = 'tySingleton'
-	public constructor(public value: TyFn | TyUnion | TyAtom) {}
+	private constructor(public value: TyFn | TyUnion | TyAtom) {}
 
 	public print() {
 		return '(singleton ' + this.value.print() + ')'
@@ -323,11 +355,15 @@ export class TySingleton implements IVal {
 	public isEqualTo(val: Value): boolean {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
+
+	public static of(ty: TyFn | TyUnion | TyAtom) {
+		return new TySingleton(ty)
+	}
 }
+
+export const singleton = TySingleton.of
 
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 
-export const singleton = (ty: TyFn | TyUnion | TyAtom) => new TySingleton(ty)
-
-export const tyInt = new TyAtom('Int', () => int(0))
-export const tyBool = new TyAtom('Bool', () => bool(false))
+export const tyInt = tyAtom('Int', () => int(0))
+export const tyBool = tyAtom('Bool', () => bool(false))

@@ -82,8 +82,8 @@ describe('normalizing union type', () => {
 
 describe('value equality', () => {
 	run(Val.int(1), Val.int(1))
-	run(new Val.All(), Val.all)
-	run(new Val.Bottom(), Val.bottom)
+	run(Val.all, Val.all)
+	run(Val.bottom, Val.bottom)
 	run(Val.bool(true), Val.bool(true))
 	run(Val.tyInt, Val.tyInt)
 	run(Val.uniteTy(Val.int(1), Val.int(2)), Val.uniteTy(Val.int(2), Val.int(1)))
