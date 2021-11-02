@@ -6,18 +6,6 @@ export class Writer<T, L> {
 		return new Writer(result, [...this.log, ...log])
 	}
 
-	public fmap<U>(f: (v: T) => U): Writer<U, L> {
-		return new Writer(f(this.result), this.log)
-	}
-
-	public tell(...log: L[]): Writer<T, L> {
-		return new Writer(this.result, [...this.log, ...log])
-	}
-
-	public static return<T, L>(result: T) {
-		return new Writer<T, L>(result, [])
-	}
-
 	public static of<T, L>(result: T, ...log: L[]) {
 		return new Writer(result, log)
 	}

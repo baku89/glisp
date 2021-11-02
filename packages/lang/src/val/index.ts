@@ -59,7 +59,7 @@ export class Bottom implements IVal {
 	}
 
 	public convert() {
-		return bottom
+		return this
 	}
 
 	public isSubtypeOf() {

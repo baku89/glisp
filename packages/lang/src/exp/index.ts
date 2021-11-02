@@ -38,14 +38,14 @@ export class Sym extends BaseNode {
 
 		while (ref) {
 			if (ref.type === 'scope' && this.name in ref.vars) {
-				return Writer.return(ref.vars[this.name])
+				return Writer.of(ref.vars[this.name])
 			}
 
 			ref = ref.parent
 		}
 
 		if (this.name in GlobalScope.vars) {
-			return Writer.return(GlobalScope.vars[this.name])
+			return Writer.of(GlobalScope.vars[this.name])
 		}
 
 		const log: Log = {
@@ -85,11 +85,11 @@ export class Int extends BaseNode {
 	}
 
 	public eval(): ValueWithLog {
-		return Writer.return(Val.int(this.value))
+		return Writer.of(Val.int(this.value))
 	}
 
 	public infer(): ValueWithLog {
-		return Writer.return(Val.int(this.value))
+		return Writer.of(Val.int(this.value))
 	}
 
 	public print() {
@@ -112,11 +112,11 @@ export class Bool extends BaseNode {
 	}
 
 	public eval(): ValueWithLog {
-		return Writer.return(Val.bool(this.value))
+		return Writer.of(Val.bool(this.value))
 	}
 
 	public infer(): ValueWithLog {
-		return Writer.return(Val.bool(this.value))
+		return Writer.of(Val.bool(this.value))
 	}
 
 	public print() {
@@ -139,7 +139,7 @@ export class Obj extends BaseNode {
 	}
 
 	public eval(): ValueWithLog {
-		return Writer.return(this.value)
+		return Writer.of(this.value)
 	}
 
 	public infer(): ValueWithLog {
@@ -148,9 +148,9 @@ export class Obj extends BaseNode {
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return Writer.return(Val.singleton(this.value))
+			return Writer.of(Val.singleton(this.value))
 		}
-		return Writer.return(this.value)
+		return Writer.of(this.value)
 	}
 
 	public print() {
@@ -182,7 +182,7 @@ export class Fn extends BaseNode {
 
 	public eval(): ValueWithLog {
 		// NOTE: write how to evaluate
-		return Writer.return(Val.bottom)
+		return Writer.of(Val.bottom)
 	}
 
 	public print(): string {
@@ -256,7 +256,7 @@ export class Call extends BaseNode {
 	public infer(): ValueWithLog {
 		return this.fn
 			.infer()
-			.bind(ty => Writer.return(ty.type === 'fn' ? ty.tyOut : ty))
+			.bind(ty => Writer.of(ty.type === 'fn' ? ty.tyOut : ty))
 	}
 
 	public print(): string {
@@ -288,11 +288,11 @@ export class Scope extends BaseNode {
 	}
 
 	public infer(): ValueWithLog {
-		return this.out ? this.out.infer() : Writer.return(Val.bottom)
+		return this.out ? this.out.infer() : Writer.of(Val.bottom)
 	}
 
 	public eval(): ValueWithLog {
-		return this.out ? this.out.eval() : Writer.return(Val.bottom)
+		return this.out ? this.out.eval() : Writer.of(Val.bottom)
 	}
 
 	public print(): string {
