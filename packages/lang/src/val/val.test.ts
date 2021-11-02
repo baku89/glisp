@@ -3,12 +3,14 @@ import * as Val from '.'
 describe('subtype', () => {
 	const square = Val.fn(
 		(x: Val.Int) => Val.int(x.value ** 2),
-		Val.tyFn([Val.tyInt], Val.tyInt)
+		{x: Val.tyInt},
+		Val.tyInt
 	)
 
 	const addTwo = Val.fn(
-		(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
-		Val.tyFn([Val.tyInt, Val.tyInt], Val.tyInt)
+		(x: Val.Int, y: Val.Int) => Val.int(x.value + y.value),
+		{x: Val.tyInt, y: Val.tyInt},
+		Val.tyInt
 	)
 
 	run(Val.int(1), Val.tyInt, true)

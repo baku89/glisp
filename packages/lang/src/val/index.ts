@@ -1,4 +1,4 @@
-import {values} from 'lodash'
+import {isEqualWith, values} from 'lodash'
 
 export type Value =
 	| All
@@ -123,7 +123,8 @@ export class Fn implements IVal {
 	public type: 'fn' = 'fn'
 	public constructor(
 		public value: (...params: any[]) => Value,
-		public fnType: TyFn
+		public tyParam: Record<string, Value>,
+		public tyOut: Value
 	) {}
 
 	public print() {
@@ -137,21 +138,29 @@ export class Fn implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tyFn') return this.fnType.isSubtypeOf(ty)
+		if (ty.type === 'tyFn') {
+			const thisTy = tyFn(values(this.tyParam), this.tyOut)
+			return thisTy.isSubtypeOf(ty)
+		}
 		return this === ty
 	}
 
-	public isEqualTo(val: Value) {
+	public isEqualTo(val: Value): boolean {
 		return (
 			val.type === this.type &&
 			val.value === this.value &&
-			val.fnType.isEqualTo(this.fnType)
+			isEqualWith(this.tyParam, val.tyParam, isEqual) &&
+			this.tyOut.isEqualTo(val.tyOut)
 		)
 	}
 }
 
-export function fn(value: (...params: any[]) => Value, fnType: TyFn) {
-	return new Fn(value, fnType)
+export function fn(
+	value: (...params: any[]) => Value,
+	tyParam: Record<string, Value>,
+	tyOut: Value
+) {
+	return new Fn(value, tyParam, tyOut)
 }
 
 export class TyFn implements IVal {
@@ -168,7 +177,7 @@ export class TyFn implements IVal {
 	public convert(val: Value): Value {
 		const outVal = this.out.convert(val)
 
-		return fn(() => outVal, this)
+		return fn(() => outVal, {}, this.out)
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -311,6 +320,8 @@ export class TySingleton implements IVal {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 }
+
+export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 
 export const singleton = (ty: TyFn | TyUnion | TyAtom) => new TySingleton(ty)
 
