@@ -24,6 +24,20 @@ describe('evaluator', () => {
 	}
 })
 
+describe('infer type', () => {
+	run(new Exp.Int(0), Val.int(0))
+	run(new Exp.Bool(false), Val.bool(false))
+	run(new Exp.Var('Int'), Val.singleton(Val.tyInt))
+	run(new Exp.Obj(Val.singleton(Val.tyInt)), Val.singleton(Val.tyInt))
+	run(new Exp.Var('_'), Val.bottom)
+
+	function run(input: Exp.Node, expected: Val.Value) {
+		test(`${input.print()} is inferred to be ${expected.print()}`, () => {
+			input.infer().result.isEqualTo(expected)
+		})
+	}
+})
+
 function isEqualPrimitive(a: Val.Value, b: Val.Value) {
 	switch (a.type) {
 		case 'all':
