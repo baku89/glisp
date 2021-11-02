@@ -101,6 +101,13 @@ export class Obj implements IExp {
 	}
 
 	public inferTy() {
+		if (
+			this.value.type === 'tyAtom' ||
+			this.value.type === 'tyFn' ||
+			this.value.type === 'tyUnion'
+		) {
+			return new Val.TySingleton(this.value)
+		}
 		return this.value
 	}
 

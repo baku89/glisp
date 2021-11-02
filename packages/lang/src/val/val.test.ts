@@ -34,6 +34,8 @@ describe('subtype', () => {
 	run(Val.tyInt, new Val.TyUnion([Val.tyInt, Val.tyBool]), true)
 	run(Val.int(0), new Val.TyUnion([Val.int(0), Val.int(1)]), true)
 
+	run(Val.singleton(Val.tyInt), Val.tyInt, false)
+
 	function run(sub: Val.Value, sup: Val.Value, expected: boolean) {
 		const op = expected ? '<:' : '!<:'
 		test(`${print(sub)} ${op} ${print(sup)}`, () => {

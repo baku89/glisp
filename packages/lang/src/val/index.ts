@@ -312,5 +312,7 @@ export class TySingleton implements IVal {
 	}
 }
 
+export const singleton = (ty: TyFn | TyUnion | TyAtom) => new TySingleton(ty)
+
 export const tyInt = new TyAtom('Int', () => new Int(0))
 export const tyBool = new TyAtom('Bool', () => new Bool(false))
