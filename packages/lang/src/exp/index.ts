@@ -121,7 +121,7 @@ export class Obj implements IExp {
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return withLog(new Val.TySingleton(this.value))
+			return withLog(Val.singleton(this.value))
 		}
 		return withLog(this.value)
 	}
@@ -174,13 +174,12 @@ export class Call implements IExp {
 
 	public eval(): ValueWithLog {
 		const {result: fn, log: fnLog} = this.fn.eval()
-		const {result: args, log: argsLog} = mapWithLog(this.args, a => a.eval())
 		const logs: Log[] = []
 
 		if (fn.type !== 'fn') return withLog(fn, fnLog)
 
 		const convertedArgs = entries(fn.tyParam).map(([name, p], i) => {
-			const a = args[i]
+			const a = this.args[i]
 
 			if (!a) {
 				logs.push({
@@ -191,23 +190,27 @@ export class Call implements IExp {
 				return p.convert(Val.bottom)
 			}
 
-			if (!a.isSubtypeOf(p) || a.type === 'bottom') {
-				if (a.type !== 'bottom') {
+			const {result: aTy, log: inferLog} = a.infer()
+			const {result: aVal, log: evalLog} = a.eval()
+			logs.push(...inferLog, ...evalLog)
+
+			if (!aTy.isSubtypeOf(p) || aVal.type === 'bottom') {
+				if (aVal.type !== 'bottom') {
 					logs.push({
 						level: 'error',
 						ref: this,
-						reason: `Parameter ${name} expects type: ${p.print()}, but got: ${a.print()}`,
+						reason: `Parameter ${name} expects type: ${p.print()}, but got: ${aTy.print()}`,
 					})
 				}
-				return p.convert(a)
+				return p.convert(aVal)
 			}
 
-			return a
+			return aVal
 		})
 
 		const result = fn.value(...convertedArgs)
 
-		return withLog(result, [...fnLog, ...argsLog, ...logs])
+		return withLog(result, [...fnLog, ...logs])
 	}
 
 	public infer(): ValueWithLog {
