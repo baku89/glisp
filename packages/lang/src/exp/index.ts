@@ -16,20 +16,22 @@ interface Log {
 export type ValueWithLog = Writer<Val.Value, Log>
 export type NodeWithLog = Writer<Node, Log>
 
-interface IExp {
-	type: string
-	parent: Node | null
+abstract class BaseNode {
+	public abstract type: string
+	public parent: Node | null = null
 
-	eval(): ValueWithLog
-	infer(): ValueWithLog
-	print(): string
+	abstract eval(): ValueWithLog
+	abstract infer(): ValueWithLog
+	abstract print(): string
 }
 
-export class Sym implements IExp {
+export class Sym extends BaseNode {
 	public type: 'sym' = 'sym'
 	public parent: Node | null = null
 
-	private constructor(public name: string) {}
+	private constructor(public name: string) {
+		super()
+	}
 
 	public resolve(): NodeWithLog {
 		let ref = this.parent
@@ -74,11 +76,13 @@ export class Sym implements IExp {
 
 export const sym = Sym.of
 
-export class Int implements IExp {
+export class Int extends BaseNode {
 	public type: 'int' = 'int'
 	public parent: Node | null = null
 
-	private constructor(public value: number) {}
+	private constructor(public value: number) {
+		super()
+	}
 
 	public eval(): ValueWithLog {
 		return Writer.return(Val.int(this.value))
@@ -99,11 +103,13 @@ export class Int implements IExp {
 
 export const int = Int.of
 
-export class Bool implements IExp {
+export class Bool extends BaseNode {
 	public type: 'bool' = 'bool'
 	public parent: Node | null = null
 
-	private constructor(public value: boolean) {}
+	private constructor(public value: boolean) {
+		super()
+	}
 
 	public eval(): ValueWithLog {
 		return Writer.return(Val.bool(this.value))
@@ -124,11 +130,13 @@ export class Bool implements IExp {
 
 export const bool = Bool.of
 
-export class Obj implements IExp {
+export class Obj extends BaseNode {
 	public type: 'obj' = 'obj'
 	public parent: Node | null = null
 
-	private constructor(public value: Val.Value) {}
+	private constructor(public value: Val.Value) {
+		super()
+	}
 
 	public eval(): ValueWithLog {
 		return Writer.return(this.value)
@@ -156,13 +164,12 @@ export class Obj implements IExp {
 
 export const obj = Obj.of
 
-export class Fn implements IExp {
+export class Fn extends BaseNode {
 	public type: 'fn' = 'fn'
 	public parent: Node | null = null
 
 	private constructor(public param: Record<string, Node>, public body: Node) {
-		values(param).forEach(p => (p.parent = this))
-		body.parent = this
+		super()
 	}
 
 	public infer(): ValueWithLog {
@@ -188,19 +195,21 @@ export class Fn implements IExp {
 	}
 
 	public static of(param: Record<string, Node>, body: Node) {
-		return new Fn(param, body)
+		const fn = new Fn(param, body)
+		values(param).forEach(p => (p.parent = fn))
+		body.parent = fn
+		return fn
 	}
 }
 
 export const fn = Fn.of
 
-export class Call implements IExp {
+export class Call extends BaseNode {
 	public type: 'call' = 'call'
 	public parent: Node | null = null
 
 	private constructor(public fn: Node, public args: Node[]) {
-		fn.parent = this
-		args.forEach(a => (a.parent = this))
+		super()
 	}
 
 	public eval(): ValueWithLog {
@@ -258,13 +267,16 @@ export class Call implements IExp {
 	}
 
 	public static of(fn: Node, args: Node[]) {
-		return new Call(fn, args)
+		const call = new Call(fn, args)
+		fn.parent = call
+		args.forEach(a => (a.parent = call))
+		return call
 	}
 }
 
 export const call = Call.of
 
-export class Scope implements IExp {
+export class Scope extends BaseNode {
 	public type: 'scope' = 'scope'
 	public parent: Node | null = null
 
@@ -272,8 +284,7 @@ export class Scope implements IExp {
 		public vars: Record<string, Node>,
 		public out: Node | null = null
 	) {
-		values(vars).forEach(v => (v.parent = this))
-		if (out) out.parent = this
+		super()
 	}
 
 	public infer(): ValueWithLog {
@@ -292,7 +303,10 @@ export class Scope implements IExp {
 	}
 
 	public static of(vars: Record<string, Node>, out: Node | null = null) {
-		return new Scope(vars, out)
+		const scope = new Scope(vars, out)
+		values(vars).forEach(v => (v.parent = scope))
+		if (out) out.parent = scope
+		return scope
 	}
 }
 
