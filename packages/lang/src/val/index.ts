@@ -1,4 +1,4 @@
-import {isEqualWith, values} from 'lodash'
+import {entries, isEqualWith, values} from 'lodash'
 
 export type Value =
 	| All
@@ -127,8 +127,12 @@ export class Fn implements IVal {
 		public tyOut: Value
 	) {}
 
-	public print() {
-		return '(-> <JS Function>)'
+	public print(): string {
+		const params = entries(this.tyParam)
+			.map(([n, ty]) => n + ':' + ty.print())
+			.join(' ')
+		const out = this.tyOut.print()
+		return `(=> [${params}] <JS Function>:${out})`
 	}
 
 	public convert() {
