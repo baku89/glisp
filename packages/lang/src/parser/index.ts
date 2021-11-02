@@ -8,13 +8,13 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Int / Bool / Var
+Node = Scope / Call / Int / Bool / Sym
 
 Reserved = "true" / "false" / "null"
 
-Var "Var" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
+Sym "Sym" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
-		return new Exp.Var(text())
+		return new Exp.Sym(text())
 	}
 
 Int "Int" = [0-9]+ &End
@@ -44,9 +44,9 @@ Scope = "{" _ pairs:ScopePair+ out:Node? _ "}"
 		return new Exp.Scope(Object.fromEntries(pairs), out ?? null)
 	}
 
-ScopePair = v:Var _ "=" _ node:Node _
+ScopePair = s:Sym _ "=" _ node:Node _
 	{
-		return [v.name, node]
+		return [s.name, node]
 	}
 
 

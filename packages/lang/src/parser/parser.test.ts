@@ -19,27 +19,27 @@ describe('parsing vars', () => {
 	run('🍡', '🍡')
 
 	function run(input: string, expected: string) {
-		testParsing(input, new Exp.Var(expected))
+		testParsing(input, new Exp.Sym(expected))
 	}
 })
 
 describe('parsing call expressions', () => {
 	testParsing(
 		'(+ 1 2)',
-		new Exp.Call(new Exp.Var('+'), [new Exp.Int(1), new Exp.Int(2)])
+		new Exp.Call(new Exp.Sym('+'), [new Exp.Int(1), new Exp.Int(2)])
 	)
-	testParsing('(f)', new Exp.Call(new Exp.Var('f'), []))
+	testParsing('(f)', new Exp.Call(new Exp.Sym('f'), []))
 	testParsing('(0 false)', new Exp.Call(new Exp.Int(1), [new Exp.Bool(false)]))
 	testParsing(
 		'((true) pi)',
-		new Exp.Call(new Exp.Call(new Exp.Bool(true), []), [new Exp.Var('pi')])
+		new Exp.Call(new Exp.Call(new Exp.Bool(true), []), [new Exp.Sym('pi')])
 	)
 })
 
 describe('parsing scope', () => {
 	testParsing(
 		'{a = 10 a}',
-		new Exp.Scope({a: new Exp.Int(10)}, new Exp.Var('a'))
+		new Exp.Scope({a: new Exp.Int(10)}, new Exp.Sym('a'))
 	)
 })
 

@@ -3,7 +3,7 @@ import {entries, isEqualWith, values} from 'lodash'
 import {bindWithLog, mapWithLog, WithLog, withLog} from '../utils/WithLog'
 import * as Val from '../val'
 
-export type Node = Var | Int | Bool | Obj | Fn | Call | Scope
+export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
@@ -24,8 +24,8 @@ interface IExp {
 	print(): string
 }
 
-export class Var implements IExp {
-	public type: 'var' = 'var'
+export class Sym implements IExp {
+	public type: 'sym' = 'sym'
 	public parent: Node | null = null
 
 	public constructor(public name: string) {}
@@ -257,8 +257,8 @@ export class Scope implements IExp {
 
 export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
-		case 'var':
-			return b.type === 'var' && a.name === b.name
+		case 'sym':
+			return b.type === 'sym' && a.name === b.name
 		case 'bool':
 		case 'int':
 		case 'obj':
