@@ -28,7 +28,7 @@ export class Sym implements IExp {
 	public type: 'sym' = 'sym'
 	public parent: Node | null = null
 
-	public constructor(public name: string) {}
+	private constructor(public name: string) {}
 
 	public resolve(): WithLog<Node, Log> {
 		let ref = this.parent
@@ -51,7 +51,7 @@ export class Sym implements IExp {
 			reason: `Variable not bound: ${this.name}`,
 		}
 
-		return withLog(new Obj(Val.bottom), [log])
+		return withLog(obj(Val.bottom), [log])
 	}
 
 	public eval(): ValueWithLog {
@@ -65,13 +65,19 @@ export class Sym implements IExp {
 	public print() {
 		return this.name
 	}
+
+	public static of(name: string) {
+		return new Sym(name)
+	}
 }
+
+export const sym = Sym.of
 
 export class Int implements IExp {
 	public type: 'int' = 'int'
 	public parent: Node | null = null
 
-	public constructor(public value: number) {}
+	private constructor(public value: number) {}
 
 	public eval(): ValueWithLog {
 		return withLog(Val.int(this.value))
@@ -84,13 +90,19 @@ export class Int implements IExp {
 	public print() {
 		return this.value.toString()
 	}
+
+	public static of(value: number) {
+		return new Int(value)
+	}
 }
+
+export const int = Int.of
 
 export class Bool implements IExp {
 	public type: 'bool' = 'bool'
 	public parent: Node | null = null
 
-	public constructor(public value: boolean) {}
+	private constructor(public value: boolean) {}
 
 	public eval(): ValueWithLog {
 		return withLog(Val.bool(this.value))
@@ -103,13 +115,19 @@ export class Bool implements IExp {
 	public print() {
 		return this.value.toString()
 	}
+
+	public static of(value: boolean) {
+		return new Bool(value)
+	}
 }
+
+export const bool = Bool.of
 
 export class Obj implements IExp {
 	public type: 'obj' = 'obj'
 	public parent: Node | null = null
 
-	public constructor(public value: Val.Value) {}
+	private constructor(public value: Val.Value) {}
 
 	public eval(): ValueWithLog {
 		return withLog(this.value)
@@ -129,13 +147,19 @@ export class Obj implements IExp {
 	public print() {
 		return '<JS Object>:' + this.value.print()
 	}
+
+	public static of(value: Val.Value) {
+		return new Obj(value)
+	}
 }
+
+export const obj = Obj.of
 
 export class Fn implements IExp {
 	public type: 'fn' = 'fn'
 	public parent: Node | null = null
 
-	public constructor(public param: Record<string, Node>, public body: Node) {
+	private constructor(public param: Record<string, Node>, public body: Node) {
 		values(param).forEach(p => (p.parent = this))
 		body.parent = this
 	}
@@ -161,13 +185,19 @@ export class Fn implements IExp {
 
 		return `(-> {${params}} ${body})`
 	}
+
+	public static of(param: Record<string, Node>, body: Node) {
+		return new Fn(param, body)
+	}
 }
+
+export const fn = Fn.of
 
 export class Call implements IExp {
 	public type: 'call' = 'call'
 	public parent: Node | null = null
 
-	public constructor(public fn: Node, public args: Node[]) {
+	private constructor(public fn: Node, public args: Node[]) {
 		fn.parent = this
 		args.forEach(a => (a.parent = this))
 	}
@@ -225,13 +255,19 @@ export class Call implements IExp {
 
 		return `(${fn} ${args})`
 	}
+
+	public static of(fn: Node, args: Node[]) {
+		return new Call(fn, args)
+	}
 }
+
+export const call = Call.of
 
 export class Scope implements IExp {
 	public type: 'scope' = 'scope'
 	public parent: Node | null = null
 
-	public constructor(
+	private constructor(
 		public vars: Record<string, Node>,
 		public out: Node | null = null
 	) {
@@ -253,7 +289,13 @@ export class Scope implements IExp {
 
 		return '{' + [...vars, ...out].join(' ') + '}'
 	}
+
+	public static of(vars: Record<string, Node>, out: Node | null = null) {
+		return new Scope(vars, out)
+	}
 }
+
+export const scope = Scope.of
 
 export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
@@ -282,32 +324,32 @@ export function isEqual(a: Node, b: Node): boolean {
 	}
 }
 
-const GlobalScope = new Scope({
-	_: new Obj(Val.bottom),
-	Int: new Obj(Val.tyInt),
-	Bool: new Obj(Val.tyBool),
-	'+': new Obj(
+const GlobalScope = scope({
+	_: obj(Val.bottom),
+	Int: obj(Val.tyInt),
+	Bool: obj(Val.tyBool),
+	'+': obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
 			{x: Val.tyInt, y: Val.tyInt},
 			Val.tyInt
 		)
 	),
-	'*': new Obj(
+	'*': obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
 			{x: Val.tyInt, y: Val.tyInt},
 			Val.tyInt
 		)
 	),
-	'<': new Obj(
+	'<': obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
 			{x: Val.tyInt, y: Val.tyInt},
 			Val.tyInt
 		)
 	),
-	'|': new Obj(
+	'|': obj(
 		Val.fn(
 			(t1: Val.Value, t2: Val.Value) => Val.uniteTy(t1, t2),
 			{x: Val.tyInt, y: Val.tyInt},

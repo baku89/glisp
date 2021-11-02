@@ -2,20 +2,14 @@ import * as Exp from '../exp'
 import * as Val from '../val'
 
 describe('evaluator', () => {
-	run(new Exp.Int(0), Val.int(0))
-	run(new Exp.Int(10), Val.int(10))
-	run(new Exp.Bool(false), Val.bool(false))
-	run(new Exp.Bool(true), Val.bool(true))
-	run(new Exp.Sym('_'), Val.bottom)
-	run(
-		new Exp.Call(new Exp.Sym('+'), [new Exp.Int(1), new Exp.Int(2)]),
-		Val.int(3)
-	)
-	run(
-		new Exp.Call(new Exp.Sym('<'), [new Exp.Int(1), new Exp.Int(2)]),
-		Val.bool(true)
-	)
-	run(new Exp.Scope({a: new Exp.Int(10)}, new Exp.Sym('a')), Val.int(10))
+	run(Exp.int(0), Val.int(0))
+	run(Exp.int(10), Val.int(10))
+	run(Exp.bool(false), Val.bool(false))
+	run(Exp.bool(true), Val.bool(true))
+	run(Exp.sym('_'), Val.bottom)
+	run(Exp.call(Exp.sym('+'), [Exp.int(1), Exp.int(2)]), Val.int(3))
+	run(Exp.call(Exp.sym('<'), [Exp.int(1), Exp.int(2)]), Val.bool(true))
+	run(Exp.scope({a: Exp.int(10)}, Exp.sym('a')), Val.int(10))
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
@@ -25,11 +19,11 @@ describe('evaluator', () => {
 })
 
 describe('infer type', () => {
-	run(new Exp.Int(0), Val.int(0))
-	run(new Exp.Bool(false), Val.bool(false))
-	run(new Exp.Sym('Int'), Val.singleton(Val.tyInt))
-	run(new Exp.Obj(Val.singleton(Val.tyInt)), Val.singleton(Val.tyInt))
-	run(new Exp.Sym('_'), Val.bottom)
+	run(Exp.int(0), Val.int(0))
+	run(Exp.bool(false), Val.bool(false))
+	run(Exp.sym('Int'), Val.singleton(Val.tyInt))
+	run(Exp.obj(Val.singleton(Val.tyInt)), Val.singleton(Val.tyInt))
+	run(Exp.sym('_'), Val.bottom)
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} is inferred to be ${expected.print()}`, () => {
