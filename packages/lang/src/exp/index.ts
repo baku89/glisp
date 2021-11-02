@@ -1,6 +1,6 @@
 import {entries, isEqualWith, values} from 'lodash'
 
-import {bindWithLog, mapWithLog, WithLog, withLog} from '../utils/WithLog'
+import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
 export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
@@ -13,7 +13,8 @@ interface Log {
 	ref: Node
 }
 
-export type ValueWithLog = WithLog<Val.Value, Log>
+export type ValueWithLog = Writer<Val.Value, Log>
+export type NodeWithLog = Writer<Node, Log>
 
 interface IExp {
 	type: string
@@ -30,19 +31,19 @@ export class Sym implements IExp {
 
 	private constructor(public name: string) {}
 
-	public resolve(): WithLog<Node, Log> {
+	public resolve(): NodeWithLog {
 		let ref = this.parent
 
 		while (ref) {
 			if (ref.type === 'scope' && this.name in ref.vars) {
-				return withLog(ref.vars[this.name])
+				return Writer.return(ref.vars[this.name])
 			}
 
 			ref = ref.parent
 		}
 
 		if (this.name in GlobalScope.vars) {
-			return withLog(GlobalScope.vars[this.name])
+			return Writer.return(GlobalScope.vars[this.name])
 		}
 
 		const log: Log = {
@@ -51,15 +52,15 @@ export class Sym implements IExp {
 			reason: `Variable not bound: ${this.name}`,
 		}
 
-		return withLog(obj(Val.bottom), [log])
+		return Writer.of(obj(Val.bottom), log)
 	}
 
 	public eval(): ValueWithLog {
-		return bindWithLog(this.resolve(), v => v.eval())
+		return this.resolve().bind(v => v.eval())
 	}
 
 	public infer(): ValueWithLog {
-		return bindWithLog(this.resolve(), v => v.infer())
+		return this.resolve().bind(v => v.infer())
 	}
 
 	public print() {
@@ -80,11 +81,11 @@ export class Int implements IExp {
 	private constructor(public value: number) {}
 
 	public eval(): ValueWithLog {
-		return withLog(Val.int(this.value))
+		return Writer.return(Val.int(this.value))
 	}
 
 	public infer(): ValueWithLog {
-		return withLog(Val.int(this.value))
+		return Writer.return(Val.int(this.value))
 	}
 
 	public print() {
@@ -105,11 +106,11 @@ export class Bool implements IExp {
 	private constructor(public value: boolean) {}
 
 	public eval(): ValueWithLog {
-		return withLog(Val.bool(this.value))
+		return Writer.return(Val.bool(this.value))
 	}
 
 	public infer(): ValueWithLog {
-		return withLog(Val.bool(this.value))
+		return Writer.return(Val.bool(this.value))
 	}
 
 	public print() {
@@ -130,7 +131,7 @@ export class Obj implements IExp {
 	private constructor(public value: Val.Value) {}
 
 	public eval(): ValueWithLog {
-		return withLog(this.value)
+		return Writer.return(this.value)
 	}
 
 	public infer(): ValueWithLog {
@@ -139,9 +140,9 @@ export class Obj implements IExp {
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return withLog(Val.singleton(this.value))
+			return Writer.return(Val.singleton(this.value))
 		}
-		return withLog(this.value)
+		return Writer.return(this.value)
 	}
 
 	public print() {
@@ -165,16 +166,16 @@ export class Fn implements IExp {
 	}
 
 	public infer(): ValueWithLog {
-		const {result: param, log: paramLog} = mapWithLog(values(this.param), exp =>
+		const {result: param, log: paramLog} = Writer.map(values(this.param), exp =>
 			exp.infer()
 		)
 		const {result: out, log: outLog} = this.body.infer()
-		return withLog(Val.tyFn(param, out), [...paramLog, ...outLog])
+		return Writer.of(Val.tyFn(param, out), ...paramLog, ...outLog)
 	}
 
 	public eval(): ValueWithLog {
 		// NOTE: write how to evaluate
-		return withLog(Val.bottom)
+		return Writer.return(Val.bottom)
 	}
 
 	public print(): string {
@@ -206,7 +207,7 @@ export class Call implements IExp {
 		const {result: fn, log: fnLog} = this.fn.eval()
 		const logs: Log[] = []
 
-		if (fn.type !== 'fn') return withLog(fn, fnLog)
+		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
 		const convertedArgs = entries(fn.tyParam).map(([name, p], i) => {
 			const a = this.args[i]
@@ -240,13 +241,13 @@ export class Call implements IExp {
 
 		const result = fn.value(...convertedArgs)
 
-		return withLog(result, [...fnLog, ...logs])
+		return Writer.of(result, ...fnLog, ...logs)
 	}
 
 	public infer(): ValueWithLog {
-		return bindWithLog(this.fn.infer(), ty =>
-			withLog(ty.type === 'fn' ? ty.tyOut : ty)
-		)
+		return this.fn
+			.infer()
+			.bind(ty => Writer.return(ty.type === 'fn' ? ty.tyOut : ty))
 	}
 
 	public print(): string {
@@ -276,11 +277,11 @@ export class Scope implements IExp {
 	}
 
 	public infer(): ValueWithLog {
-		return this.out ? this.out.infer() : withLog(Val.bottom)
+		return this.out ? this.out.infer() : Writer.return(Val.bottom)
 	}
 
 	public eval(): ValueWithLog {
-		return this.out ? this.out.eval() : withLog(Val.bottom)
+		return this.out ? this.out.eval() : Writer.return(Val.bottom)
 	}
 
 	public print(): string {
