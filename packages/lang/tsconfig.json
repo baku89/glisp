@@ -10,7 +10,9 @@
 		"outDir": "lib",
 		"declaration": true,
 		"downlevelIteration": true,
-		"lib": ["esnext"]
+		"lib": ["esnext"],
+		"skipLibCheck": true,
+		"skipDefaultLibCheck": true
 	},
 	"include": ["src/**/*.ts"],
 	"exclude": ["node_modules", "src/**/*.test.ts"]
