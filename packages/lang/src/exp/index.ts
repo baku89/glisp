@@ -245,7 +245,7 @@ export class Call implements IExp {
 
 	public infer(): ValueWithLog {
 		return bindWithLog(this.fn.infer(), ty =>
-			withLog(ty.type === 'tyFn' ? ty.out : ty)
+			withLog(ty.type === 'fn' ? ty.tyOut : ty)
 		)
 	}
 
