@@ -21,6 +21,15 @@ export function composeWithLog<A, B, C, L>(
 	}
 }
 
+export function bindWithLog<A, B, L>(
+	input: WithLog<A, L>,
+	f: (a: A) => WithLog<B, L>
+): WithLog<B, L> {
+	const {result: a, log: inputLog} = input
+	const {result: b, log: fLog} = f(a)
+	return withLog(b, [...inputLog, ...fLog])
+}
+
 export function flowWithLog<A, B, C, L>(
 	input: A,
 	f: (a: A) => WithLog<B, L>,

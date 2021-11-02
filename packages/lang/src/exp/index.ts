@@ -1,26 +1,26 @@
 import {entries, isEqualWith, values} from 'lodash'
 
-import {mapWithLog, WithLog, withLog} from '../utils/WithLog'
+import {bindWithLog, mapWithLog, WithLog, withLog} from '../utils/WithLog'
 import * as Val from '../val'
 
 export type Node = Var | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
-interface EvalLog {
+interface Log {
 	level: 'error' | 'warn' | 'info'
-	message: string
+	reason: string
 	ref: Node
 }
 
-type EvalResult = WithLog<Val.Value, EvalLog>
+export type ValueWithLog = WithLog<Val.Value, Log>
 
 interface IExp {
 	type: string
 	parent: Node | null
 
-	eval(): EvalResult
-	inferTy(): Val.Value
+	eval(): ValueWithLog
+	inferTy(): ValueWithLog
 	print(): string
 }
 
@@ -30,30 +30,36 @@ export class Var implements IExp {
 
 	public constructor(public name: string) {}
 
-	public resolve() {
+	public resolve(): WithLog<Node, Log> {
 		let ref = this.parent
 
 		while (ref) {
 			if (ref.type === 'scope' && this.name in ref.vars) {
-				return ref.vars[this.name]
+				return withLog(ref.vars[this.name])
 			}
 
 			ref = ref.parent
 		}
 
 		if (this.name in GlobalScope.vars) {
-			return GlobalScope.vars[this.name]
+			return withLog(GlobalScope.vars[this.name])
 		}
 
-		return new Obj(Val.bottom)
+		const log: Log = {
+			level: 'error',
+			ref: this,
+			reason: `Variable not bound: ${this.name}`,
+		}
+
+		return withLog(new Obj(Val.bottom), [log])
 	}
 
-	public eval(): EvalResult {
-		return this.resolve().eval()
+	public eval(): ValueWithLog {
+		return bindWithLog(this.resolve(), v => v.eval())
 	}
 
-	public inferTy(): Val.Value {
-		return this.resolve().inferTy()
+	public inferTy(): ValueWithLog {
+		return bindWithLog(this.resolve(), v => v.inferTy())
 	}
 
 	public print() {
@@ -67,12 +73,12 @@ export class Int implements IExp {
 
 	public constructor(public value: number) {}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		return withLog(Val.int(this.value))
 	}
 
-	public inferTy() {
-		return Val.int(this.value)
+	public inferTy(): ValueWithLog {
+		return withLog(Val.int(this.value))
 	}
 
 	public print() {
@@ -86,12 +92,12 @@ export class Bool implements IExp {
 
 	public constructor(public value: boolean) {}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		return withLog(Val.bool(this.value))
 	}
 
-	public inferTy() {
-		return Val.bool(this.value)
+	public inferTy(): ValueWithLog {
+		return withLog(Val.bool(this.value))
 	}
 
 	public print() {
@@ -105,19 +111,19 @@ export class Obj implements IExp {
 
 	public constructor(public value: Val.Value) {}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		return withLog(this.value)
 	}
 
-	public inferTy() {
+	public inferTy(): ValueWithLog {
 		if (
 			this.value.type === 'tyAtom' ||
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return new Val.TySingleton(this.value)
+			return withLog(new Val.TySingleton(this.value))
 		}
-		return this.value
+		return withLog(this.value)
 	}
 
 	public print() {
@@ -134,13 +140,15 @@ export class Fn implements IExp {
 		body.parent = this
 	}
 
-	public inferTy(): Val.Value {
-		const param = values(this.param).map(exp => exp.inferTy())
-		const out = this.body.inferTy()
-		return Val.tyFn(param, out)
+	public inferTy(): ValueWithLog {
+		const {result: param, log: paramLog} = mapWithLog(values(this.param), exp =>
+			exp.inferTy()
+		)
+		const {result: out, log: outLog} = this.body.inferTy()
+		return withLog(Val.tyFn(param, out), [...paramLog, ...outLog])
 	}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		// NOTE: write how to evaluate
 		return withLog(Val.bottom)
 	}
@@ -164,21 +172,33 @@ export class Call implements IExp {
 		args.forEach(a => (a.parent = this))
 	}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		const {result: fn, log: fnLog} = this.fn.eval()
 		const {result: args, log: argsLog} = mapWithLog(this.args, a => a.eval())
-		const logs: EvalLog[] = []
+		const logs: Log[] = []
 
 		if (fn.type !== 'fn') return withLog(fn, fnLog)
 
-		const convertedArgs = entries(fn.tyParam).map(([, p], i) => {
+		const convertedArgs = entries(fn.tyParam).map(([name, p], i) => {
 			const a = args[i]
 
 			if (!a) {
+				logs.push({
+					level: 'error',
+					ref: this,
+					reason: `Insufficient argument: ${name}`,
+				})
 				return p.convert(Val.bottom)
 			}
 
 			if (!a.isSubtypeOf(p) || a.type === 'bottom') {
+				if (a.type !== 'bottom') {
+					logs.push({
+						level: 'error',
+						ref: this,
+						reason: `Parameter ${name} expects type: ${p.print()}, but got: ${a.print()}`,
+					})
+				}
 				return p.convert(a)
 			}
 
@@ -190,9 +210,10 @@ export class Call implements IExp {
 		return withLog(result, [...fnLog, ...argsLog, ...logs])
 	}
 
-	public inferTy(): Val.Value {
-		const ty = this.fn.inferTy()
-		return ty.type === 'tyFn' ? ty.out : ty
+	public inferTy(): ValueWithLog {
+		return bindWithLog(this.fn.inferTy(), ty =>
+			withLog(ty.type === 'tyFn' ? ty.out : ty)
+		)
 	}
 
 	public print(): string {
@@ -215,11 +236,11 @@ export class Scope implements IExp {
 		if (out) out.parent = this
 	}
 
-	public inferTy(): Val.Value {
-		return this.out ? this.out.inferTy() : Val.bottom
+	public inferTy(): ValueWithLog {
+		return this.out ? this.out.inferTy() : withLog(Val.bottom)
 	}
 
-	public eval(): EvalResult {
+	public eval(): ValueWithLog {
 		return this.out ? this.out.eval() : withLog(Val.bottom)
 	}
 
