@@ -1,16 +1,25 @@
 import {entries, isEqualWith, values} from 'lodash'
 
+import {mapWithLog, WithLog, withLog} from '../utils/WithLog'
 import * as Val from '../val'
 
 export type Node = Var | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
+interface EvalLog {
+	level: 'error' | 'warn' | 'info'
+	message: string
+	ref: Node
+}
+
+type EvalResult = WithLog<Val.Value, EvalLog>
+
 interface IExp {
 	type: string
 	parent: Node | null
 
-	eval(): Val.Value
+	eval(): EvalResult
 	inferTy(): Val.Value
 	print(): string
 }
@@ -39,7 +48,7 @@ export class Var implements IExp {
 		return new Obj(Val.bottom)
 	}
 
-	public eval(): Val.Value {
+	public eval(): EvalResult {
 		return this.resolve().eval()
 	}
 
@@ -58,12 +67,12 @@ export class Int implements IExp {
 
 	public constructor(public value: number) {}
 
-	public eval() {
-		return Val.int(this.value)
+	public eval(): EvalResult {
+		return withLog(Val.int(this.value))
 	}
 
 	public inferTy() {
-		return this.eval()
+		return Val.int(this.value)
 	}
 
 	public print() {
@@ -77,12 +86,12 @@ export class Bool implements IExp {
 
 	public constructor(public value: boolean) {}
 
-	public eval() {
-		return Val.bool(this.value)
+	public eval(): EvalResult {
+		return withLog(Val.bool(this.value))
 	}
 
 	public inferTy() {
-		return this.eval()
+		return Val.bool(this.value)
 	}
 
 	public print() {
@@ -96,8 +105,8 @@ export class Obj implements IExp {
 
 	public constructor(public value: Val.Value) {}
 
-	public eval() {
-		return this.value
+	public eval(): EvalResult {
+		return withLog(this.value)
 	}
 
 	public inferTy() {
@@ -131,9 +140,9 @@ export class Fn implements IExp {
 		return Val.tyFn(param, out)
 	}
 
-	public eval() {
+	public eval(): EvalResult {
 		// NOTE: write how to evaluate
-		return Val.bottom
+		return withLog(Val.bottom)
 	}
 
 	public print(): string {
@@ -155,11 +164,12 @@ export class Call implements IExp {
 		args.forEach(a => (a.parent = this))
 	}
 
-	public eval(): Val.Value {
-		const fn = this.fn.eval()
-		const args = this.args.map(a => a.eval())
+	public eval(): EvalResult {
+		const {result: fn, log: fnLog} = this.fn.eval()
+		const {result: args, log: argsLog} = mapWithLog(this.args, a => a.eval())
+		const logs: EvalLog[] = []
 
-		if (fn.type !== 'fn') return fn
+		if (fn.type !== 'fn') return withLog(fn, fnLog)
 
 		const convertedArgs = entries(fn.tyParam).map(([, p], i) => {
 			const a = args[i]
@@ -175,7 +185,9 @@ export class Call implements IExp {
 			return a
 		})
 
-		return fn.value(...convertedArgs)
+		const result = fn.value(...convertedArgs)
+
+		return withLog(result, [...fnLog, ...argsLog, ...logs])
 	}
 
 	public inferTy(): Val.Value {
@@ -207,8 +219,8 @@ export class Scope implements IExp {
 		return this.out ? this.out.inferTy() : Val.bottom
 	}
 
-	public eval(): Val.Value {
-		return this.out ? this.out.eval() : Val.bottom
+	public eval(): EvalResult {
+		return this.out ? this.out.eval() : withLog(Val.bottom)
 	}
 
 	public print(): string {

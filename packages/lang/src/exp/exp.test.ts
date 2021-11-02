@@ -19,7 +19,7 @@ describe('evaluator', () => {
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
-			expect(isEqualPrimitive(input.eval(), expected)).toBe(true)
+			expect(isEqualPrimitive(input.eval().result, expected)).toBe(true)
 		})
 	}
 })
