@@ -6,6 +6,7 @@ export type Value =
 	| Int
 	| Bool
 	| Fn
+	| TyVar
 	| TyFn
 	| TyUnion
 	| TyAtom
@@ -188,6 +189,40 @@ export class Fn implements IVal {
 }
 
 export const fn = Fn.of
+
+class TyVar implements IVal {
+	public type: 'tyVar' = 'tyVar'
+
+	private constructor(private id: number = TyVar.counter++) {}
+
+	public print() {
+		return '<t' + this.id + '>'
+	}
+
+	public convert() {
+		return bottom
+	}
+
+	public isSubtypeOf(ty: Value): boolean {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
+		if (ty.type === 'tyVar') return ty.id === this.id
+
+		return false
+	}
+
+	public isEqualTo(val: Value): boolean {
+		return val.type === this.type && val.id === this.id
+	}
+
+	private static counter = 1
+
+	public static fresh() {
+		return new TyVar()
+	}
+}
+
+export const tyVar = TyVar.fresh
 
 export class TyFn implements IVal {
 	public type: 'tyFn' = 'tyFn'
