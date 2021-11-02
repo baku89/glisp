@@ -346,7 +346,7 @@ const GlobalScope = scope({
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
 			{x: Val.tyInt, y: Val.tyInt},
-			Val.tyInt
+			Val.tyBool
 		)
 	),
 	'|': obj(
