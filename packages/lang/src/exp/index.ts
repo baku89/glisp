@@ -20,7 +20,7 @@ interface IExp {
 	parent: Node | null
 
 	eval(): ValueWithLog
-	inferTy(): ValueWithLog
+	infer(): ValueWithLog
 	print(): string
 }
 
@@ -58,8 +58,8 @@ export class Var implements IExp {
 		return bindWithLog(this.resolve(), v => v.eval())
 	}
 
-	public inferTy(): ValueWithLog {
-		return bindWithLog(this.resolve(), v => v.inferTy())
+	public infer(): ValueWithLog {
+		return bindWithLog(this.resolve(), v => v.infer())
 	}
 
 	public print() {
@@ -77,7 +77,7 @@ export class Int implements IExp {
 		return withLog(Val.int(this.value))
 	}
 
-	public inferTy(): ValueWithLog {
+	public infer(): ValueWithLog {
 		return withLog(Val.int(this.value))
 	}
 
@@ -96,7 +96,7 @@ export class Bool implements IExp {
 		return withLog(Val.bool(this.value))
 	}
 
-	public inferTy(): ValueWithLog {
+	public infer(): ValueWithLog {
 		return withLog(Val.bool(this.value))
 	}
 
@@ -115,7 +115,7 @@ export class Obj implements IExp {
 		return withLog(this.value)
 	}
 
-	public inferTy(): ValueWithLog {
+	public infer(): ValueWithLog {
 		if (
 			this.value.type === 'tyAtom' ||
 			this.value.type === 'tyFn' ||
@@ -140,11 +140,11 @@ export class Fn implements IExp {
 		body.parent = this
 	}
 
-	public inferTy(): ValueWithLog {
+	public infer(): ValueWithLog {
 		const {result: param, log: paramLog} = mapWithLog(values(this.param), exp =>
-			exp.inferTy()
+			exp.infer()
 		)
-		const {result: out, log: outLog} = this.body.inferTy()
+		const {result: out, log: outLog} = this.body.infer()
 		return withLog(Val.tyFn(param, out), [...paramLog, ...outLog])
 	}
 
@@ -210,8 +210,8 @@ export class Call implements IExp {
 		return withLog(result, [...fnLog, ...argsLog, ...logs])
 	}
 
-	public inferTy(): ValueWithLog {
-		return bindWithLog(this.fn.inferTy(), ty =>
+	public infer(): ValueWithLog {
+		return bindWithLog(this.fn.infer(), ty =>
 			withLog(ty.type === 'tyFn' ? ty.out : ty)
 		)
 	}
@@ -236,8 +236,8 @@ export class Scope implements IExp {
 		if (out) out.parent = this
 	}
 
-	public inferTy(): ValueWithLog {
-		return this.out ? this.out.inferTy() : withLog(Val.bottom)
+	public infer(): ValueWithLog {
+		return this.out ? this.out.infer() : withLog(Val.bottom)
 	}
 
 	public eval(): ValueWithLog {
