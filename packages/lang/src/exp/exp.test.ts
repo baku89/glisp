@@ -13,7 +13,11 @@ describe('evaluator', () => {
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
-			expect(isEqualPrimitive(input.eval().result, expected)).toBe(true)
+			const evaluated = input.eval().result
+			if (!Val.isEqual(evaluated, expected)) {
+				const msg = `Expected=${expected.print()}, got=${evaluated.print()}`
+				throw new Error(msg)
+			}
 		})
 	}
 })
@@ -31,18 +35,3 @@ describe('infer type', () => {
 		})
 	}
 })
-
-function isEqualPrimitive(a: Val.Value, b: Val.Value) {
-	switch (a.type) {
-		case 'all':
-		case 'bottom':
-			return a.type === b.type
-		case 'bool':
-		case 'int':
-			return a.type === b.type && a.value === b.value
-		case 'tyAtom':
-			return a === b
-		default:
-			throw new Error('Not yet implemented')
-	}
-}
