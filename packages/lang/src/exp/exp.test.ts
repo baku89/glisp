@@ -18,8 +18,7 @@ describe('evaluator', () => {
 
 			const evaluated = input.eval().result
 			if (!Val.isEqual(evaluated, expected)) {
-				const msg = `Expected=${expected.print()}, got=${evaluated.print()}`
-				throw new Error(msg)
+				fail(`Expected=${expected.print()}, got=${evaluated.print()}`)
 			}
 		})
 	}

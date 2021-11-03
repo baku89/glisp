@@ -74,7 +74,7 @@ describe('normalizing union type', () => {
 			const united = Val.uniteTy(...types)
 
 			if (!united.isEqualTo(expected)) {
-				throw new Error(`Expected ${expectedStr}, got ${united.print()}`)
+				fail(`Expected ${expectedStr}, got ${united.print()}`)
 			}
 		})
 	}
@@ -94,10 +94,10 @@ describe('value equality', () => {
 
 		test(`${aStr} equals to ${bStr}`, () => {
 			if (!a.isEqualTo(b)) {
-				throw new Error(`${aStr} != ${bStr}`)
+				fail(`${aStr} != ${bStr}`)
 			}
 			if (!b.isEqualTo(a)) {
-				throw new Error(`${bStr} != ${aStr}`)
+				fail(`${bStr} != ${aStr}`)
 			}
 		})
 	}
