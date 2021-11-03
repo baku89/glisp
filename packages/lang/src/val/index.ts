@@ -190,7 +190,7 @@ export class Fn implements IVal {
 
 export const fn = Fn.of
 
-class TyVar implements IVal {
+export class TyVar implements IVal {
 	public type: 'tyVar' = 'tyVar'
 
 	private constructor(private id: number = TyVar.counter++) {}
