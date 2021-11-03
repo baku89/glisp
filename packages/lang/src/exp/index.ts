@@ -43,10 +43,6 @@ export class Sym extends BaseNode {
 			ref = ref.parent
 		}
 
-		if (this.name in GlobalScope.vars) {
-			return Writer.of(GlobalScope.vars[this.name])
-		}
-
 		const log: Log = {
 			level: 'error',
 			ref: this,
@@ -331,37 +327,3 @@ export function isEqual(a: Node, b: Node): boolean {
 		}
 	}
 }
-
-const GlobalScope = scope({
-	_: obj(Val.bottom),
-	Int: obj(Val.tyInt),
-	Bool: obj(Val.tyBool),
-	'+': obj(
-		Val.fn(
-			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
-			{x: Val.tyInt, y: Val.tyInt},
-			Val.tyInt
-		)
-	),
-	'*': obj(
-		Val.fn(
-			(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
-			{x: Val.tyInt, y: Val.tyInt},
-			Val.tyInt
-		)
-	),
-	'<': obj(
-		Val.fn(
-			(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
-			{x: Val.tyInt, y: Val.tyInt},
-			Val.tyBool
-		)
-	),
-	'|': obj(
-		Val.fn(
-			(t1: Val.Value, t2: Val.Value) => Val.uniteTy(t1, t2),
-			{x: Val.tyInt, y: Val.tyInt},
-			Val.tyInt
-		)
-	),
-})

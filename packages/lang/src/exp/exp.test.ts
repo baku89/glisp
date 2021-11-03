@@ -1,4 +1,5 @@
 import * as Exp from '../exp'
+import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
 describe('evaluator', () => {
@@ -13,6 +14,8 @@ describe('evaluator', () => {
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
+			input.parent = GlobalScope
+
 			const evaluated = input.eval().result
 			if (!Val.isEqual(evaluated, expected)) {
 				const msg = `Expected=${expected.print()}, got=${evaluated.print()}`

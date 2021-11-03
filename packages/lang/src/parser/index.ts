@@ -1,6 +1,8 @@
 import peggy from 'peggy'
 
 import * as Exp from '../exp'
+import {GlobalScope} from '../std/global'
+import * as Val from '../val'
 
 const parserDefinition = `
 Start = _ exp:Node _
@@ -14,24 +16,24 @@ Reserved = "true" / "false" / "null"
 
 Sym "Sym" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
-		return new Exp.Sym(text())
+		return Exp.sym(text())
 	}
 
 Int "Int" = [0-9]+ &End
 	{
 		const v = parseInt(text())
-		return new Exp.Int(v)
+		return Exp.int(v)
 	}
 
 Bool "Bool" = ("true" / "false") &End
 	{
 		const v = text() === 'true'
-		return new Exp.Bool(v)
+		return Exp.bool(v)
 	}
 
 Call "Call" = "(" _ fn:Node args:CallArg* _ ")"
 	{
-		return new Exp.Call(fn, args)
+		return Exp.call(fn, args)
 	}
 
 CallArg = _ arg:Node
@@ -41,7 +43,7 @@ CallArg = _ arg:Node
 
 Scope = "{" _ pairs:ScopePair+ out:Node? _ "}"
 	{
-		return new Exp.Scope(Object.fromEntries(pairs), out ?? null)
+		return Exp.scope(Object.fromEntries(pairs), out ?? null)
 	}
 
 ScopePair = s:Sym _ "=" _ node:Node _
@@ -67,5 +69,10 @@ const parserSource = peggy.generate(parserDefinition, {
 const parser = eval(parserSource)
 
 export function parse(str: string): Exp.Node {
-	return parser.parse(str)
+	const exp: Exp.Node | undefined = parser.parse(str)
+	if (!exp) return Exp.obj(Val.bottom)
+
+	exp.parent = GlobalScope
+
+	return exp
 }
