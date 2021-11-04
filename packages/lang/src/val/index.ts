@@ -283,8 +283,8 @@ export class TyFn implements IVal {
 		)
 	}
 
-	public static of(param: Value[], out: Value) {
-		return new TyFn(param, out)
+	public static of(param: Value | Value[], out: Value) {
+		return new TyFn([param].flat(), out)
 	}
 }
 
