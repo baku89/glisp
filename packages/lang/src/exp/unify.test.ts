@@ -1,7 +1,7 @@
 import _ from 'lodash'
 
 import * as Val from '../val'
-import {Const, getTyVars, Subst, unifyLower} from './unify'
+import {Const, getTyVars, Subst, unify} from './unify'
 
 describe('applySubst', () => {
 	const T = Val.tyVar()
@@ -91,7 +91,7 @@ describe('resolveLowerConsts', () => {
 		const eStr = expected.print()
 
 		test(`${tvStr} in ${cStr} equals to ${eStr}`, () => {
-			const subst = unifyLower(consts)
+			const subst = unify(consts)
 			const resolved = subst.applyLower(tv)
 			if (!resolved.isEqualTo(expected)) {
 				throw new Error('Got=' + resolved.print())

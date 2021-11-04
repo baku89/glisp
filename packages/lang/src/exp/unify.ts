@@ -82,7 +82,7 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 	}
 }
 
-export function unifyLower(consts: Const[]): Subst {
+export function unify(consts: Const[]): Subst {
 	if (consts.length === 0) return Subst.empty()
 
 	const [[s, t], ...rest] = consts
@@ -92,7 +92,7 @@ export function unifyLower(consts: Const[]): Subst {
 			throw new Error('Failed to occur check')
 		}
 
-		return unifyLower(rest).appendLower(t, s)
+		return unify(rest).appendLower(t, s)
 	}
 
 	if (t.type === 'tyFn') {
@@ -111,16 +111,16 @@ export function unifyLower(consts: Const[]): Subst {
 		const param: Const[] = t.param.map((tp, i) => [sParam[i], tp])
 		const out: Const = [sOut, t.out]
 
-		return unifyLower([...param, out, ...rest])
+		return unify([...param, out, ...rest])
 	}
 
 	if (s.type === 'tyVar') {
 		throw new Error('Not yet implemented: ' + s.print() + ' <:' + t.print())
 	}
 
-	return unifyLower(rest)
+	return unify(rest)
 }
 
 export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
-	return unifyLower(consts).applyLower(val)
+	return unify(consts).applyLower(val)
 }
