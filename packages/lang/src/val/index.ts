@@ -146,17 +146,24 @@ export const bool = Bool.of
 
 export class Fn implements IVal {
 	public readonly type: 'fn' = 'fn'
+	public readonly tyParam!: Value[]
 	public constructor(
 		public readonly value: (...params: any[]) => Value,
-		public readonly tyParam: Record<string, Value>,
-		public readonly tyOut: Value
-	) {}
+		public readonly param: Record<string, Value>,
+		public readonly out: Value
+	) {
+		this.tyParam = values(param)
+	}
+
+	public get tyOut() {
+		return this.out
+	}
 
 	public print(): string {
-		const params = entries(this.tyParam)
+		const params = entries(this.param)
 			.map(([n, ty]) => n + ':' + ty.print())
 			.join(' ')
-		const out = this.tyOut.print()
+		const out = this.out.print()
 		return `(=> [${params}] <JS Function>:${out})`
 	}
 
@@ -169,7 +176,7 @@ export class Fn implements IVal {
 		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') {
-			const thisTy = tyFn(values(this.tyParam), this.tyOut)
+			const thisTy = tyFn(this.tyParam, this.out)
 			return thisTy.isSubtypeOf(ty)
 		}
 		return this === ty
@@ -179,8 +186,8 @@ export class Fn implements IVal {
 		return (
 			val.type === this.type &&
 			val.value === this.value &&
-			isEqualWith(this.tyParam, val.tyParam, isEqual) &&
-			this.tyOut.isEqualTo(val.tyOut)
+			isEqualWith(this.param, val.param, isEqual) &&
+			this.out.isEqualTo(val.out)
 		)
 	}
 
@@ -232,21 +239,21 @@ export const tyVar = TyVar.fresh
 export class TyFn implements IVal {
 	public readonly type: 'tyFn' = 'tyFn'
 	private constructor(
-		public readonly param: Value[],
-		public readonly out: Value
+		public readonly tyParam: Value[],
+		public readonly tyOut: Value
 	) {}
 
 	public print(): string {
-		const param = this.param.map(v => v.print()).join(' ')
-		const out = this.out.print()
+		const param = this.tyParam.map(v => v.print()).join(' ')
+		const out = this.tyOut.print()
 
 		return `(-> [${param}] ${out})`
 	}
 
 	public convert(val: Value): Value {
-		const outVal = this.out.convert(val)
+		const outVal = this.tyOut.convert(val)
 
-		return fn(() => outVal, {}, this.out)
+		return fn(() => outVal, {}, this.tyOut)
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -255,8 +262,8 @@ export class TyFn implements IVal {
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type !== 'tyFn') return false
 
-		const curParam = values(this.param)
-		const tyParam = values(ty.param)
+		const curParam = this.tyParam
+		const tyParam = ty.tyParam
 
 		if (curParam.length > tyParam.length) return false
 
@@ -264,7 +271,7 @@ export class TyFn implements IVal {
 			tyParam[i].isSubtypeOf(cty)
 		)
 
-		const isOutSubtype = this.out.isSubtypeOf(ty.out)
+		const isOutSubtype = this.tyOut.isSubtypeOf(ty.tyOut)
 
 		return isParamSubtype && isOutSubtype
 	}
@@ -272,9 +279,9 @@ export class TyFn implements IVal {
 	public isEqualTo(val: Value): boolean {
 		return (
 			val.type === this.type &&
-			val.param.length === this.param.length &&
-			val.param.every((v, i) => v.isEqualTo(this.param[i])) &&
-			val.out.isEqualTo(this.out)
+			val.tyParam.length === this.tyParam.length &&
+			val.tyParam.every((v, i) => v.isEqualTo(this.tyParam[i])) &&
+			val.tyOut.isEqualTo(this.tyOut)
 		)
 	}
 

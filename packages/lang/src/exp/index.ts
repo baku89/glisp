@@ -209,7 +209,7 @@ export class Call extends BaseNode {
 
 		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
-		const convertedArgs = entries(fn.tyParam).map(([name, p], i) => {
+		const convertedArgs = entries(fn.param).map(([name, p], i) => {
 			const a = this.args[i]
 
 			if (!a) {
@@ -246,12 +246,11 @@ export class Call extends BaseNode {
 
 	public infer(): ValueWithLog {
 		return this.fn.infer().bind(ty => {
-			if (ty.type !== 'fn') return Writer.of(ty)
+			if (ty.type !== 'fn' && ty.type !== 'tyFn') return Writer.of(ty)
 
 			// Infer type by resolving constraints
-			const param = values(ty.tyParam)
 			const {result: args, log: argLog} = Writer.map(this.args, a => a.infer())
-			const consts: Const[] = args.map((a, i) => [a, param[i]])
+			const consts: Const[] = args.map((a, i) => [a, ty.tyParam[i]])
 
 			const tyOut = inferPoly(ty.tyOut, consts)
 

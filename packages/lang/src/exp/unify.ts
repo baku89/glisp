@@ -1,5 +1,3 @@
-import {values} from 'lodash'
-
 import * as Val from '../val'
 
 export type Const = [Val.Value, Val.Value]
@@ -70,12 +68,13 @@ export class Subst {
 	public applyLower(val: Val.Value): Val.Value {
 		switch (val.type) {
 			case 'tyVar': {
-				const tv = this.lower.get(val)
-				return tv ?? val
+				const l = this.lower.get(val)
+				const u = this.upper.get(val)
+				return l ?? u ?? val
 			}
 			case 'tyFn': {
-				const param = val.param.map(p => this.applyLower(p))
-				const out = this.applyLower(val.out)
+				const param = val.tyParam.map(p => this.applyLower(p))
+				const out = this.applyLower(val.tyOut)
 				return Val.tyFn(param, out)
 			}
 			default:
@@ -113,8 +112,8 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 			return new Set(tvs)
 		}
 		case 'tyFn': {
-			const param = val.param.map(ty => [...getTyVars(ty)]).flat()
-			const out = getTyVars(val.out)
+			const param = val.tyParam.map(ty => [...getTyVars(ty)]).flat()
+			const out = getTyVars(val.tyOut)
 			return new Set([...param, ...out])
 		}
 		default:
@@ -136,19 +135,12 @@ export function unify(consts: Const[]): Subst {
 	}
 
 	if (t.type === 'tyFn') {
-		let sParam: Val.Value[], sOut: Val.Value
-		if (s.type === 'fn') {
-			sParam = values(s.tyParam)
-			sOut = s.tyOut
-		} else if (s.type === 'tyFn') {
-			sParam = s.param
-			sOut = s.out
-		} else {
+		if (s.type !== 'fn' && s.type !== 'tyFn') {
 			throw new Error('Not yet implemented')
 		}
 
-		const param: Const[] = t.param.map((tp, i) => [tp, sParam[i]])
-		const out: Const = [sOut, t.out]
+		const param: Const[] = t.tyParam.map((tp, i) => [tp, s.tyParam[i]])
+		const out: Const = [s.tyOut, t.tyOut]
 
 		return unify([...param, out, ...rest])
 	}
