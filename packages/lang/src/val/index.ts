@@ -79,7 +79,7 @@ export const bottom = Bottom.instance
 export class Int implements IVal {
 	public readonly type: 'int' = 'int'
 	private superType = tyInt
-	private constructor(public value: number) {}
+	private constructor(public readonly value: number) {}
 
 	public print() {
 		return this.value.toString()
@@ -109,10 +109,12 @@ export class Int implements IVal {
 
 export const int = Int.of
 
+const a = int(10)
+
 export class Bool implements IVal {
 	public readonly type: 'bool' = 'bool'
-	private superType = tyBool
-	private constructor(public value: boolean) {}
+	private readonly superType = tyBool
+	private constructor(public readonly value: boolean) {}
 
 	public print() {
 		return this.value.toString()
@@ -145,9 +147,9 @@ export const bool = Bool.of
 export class Fn implements IVal {
 	public readonly type: 'fn' = 'fn'
 	public constructor(
-		public value: (...params: any[]) => Value,
-		public tyParam: Record<string, Value>,
-		public tyOut: Value
+		public readonly value: (...params: any[]) => Value,
+		public readonly tyParam: Record<string, Value>,
+		public readonly tyOut: Value
 	) {}
 
 	public print(): string {
@@ -196,7 +198,7 @@ export const fn = Fn.of
 export class TyVar implements IVal {
 	public readonly type: 'tyVar' = 'tyVar'
 
-	private constructor(private id: number = TyVar.counter++) {}
+	private constructor(private readonly id: number = TyVar.counter++) {}
 
 	public print() {
 		return '<t' + this.id + '>'
@@ -229,7 +231,10 @@ export const tyVar = TyVar.fresh
 
 export class TyFn implements IVal {
 	public readonly type: 'tyFn' = 'tyFn'
-	private constructor(public param: Value[], public out: Value) {}
+	private constructor(
+		public readonly param: Value[],
+		public readonly out: Value
+	) {}
 
 	public print(): string {
 		const param = this.param.map(v => v.print()).join(' ')
@@ -282,7 +287,7 @@ export const tyFn = TyFn.of
 
 export class TyUnion implements IVal {
 	public readonly type: 'tyUnion' = 'tyUnion'
-	private constructor(public types: Exclude<Value, TyUnion>[]) {
+	private constructor(public readonly types: Exclude<Value, TyUnion>[]) {
 		if (types.length <= 1) throw new Error('Invalid union type')
 	}
 
@@ -371,8 +376,8 @@ export function intersectTy(...types: Value[]) {
 export class TyAtom implements IVal {
 	public readonly type: 'tyAtom' = 'tyAtom'
 	private constructor(
-		public name: string,
-		public convert: (val: Value) => Value
+		public readonly name: string,
+		public readonly convert: (val: Value) => Value
 	) {}
 
 	public print() {
@@ -400,7 +405,7 @@ export const tyAtom = TyAtom.of
 
 export class TySingleton implements IVal {
 	public readonly type: 'tySingleton' = 'tySingleton'
-	private constructor(public value: TyFn | TyUnion | TyAtom) {}
+	private constructor(public readonly value: TyFn | TyUnion | TyAtom) {}
 
 	public print() {
 		return '(singleton ' + this.value.print() + ')'
