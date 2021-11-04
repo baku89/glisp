@@ -22,3 +22,21 @@ export function applySubst(val: Val.Value, subst: Subst): Val.Value {
 
 	return val
 }
+
+export function getTyVars(val: Val.Value): Set<Val.TyVar> {
+	switch (val.type) {
+		case 'tyVar':
+			return new Set([val])
+		case 'tyUnion': {
+			const tvs = val.types.map(ty => [...getTyVars(ty)]).flat()
+			return new Set(tvs)
+		}
+		case 'tyFn': {
+			const param = val.param.map(ty => [...getTyVars(ty)]).flat()
+			const out = getTyVars(val.out)
+			return new Set([...param, ...out])
+		}
+		default:
+			return new Set()
+	}
+}
