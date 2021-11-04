@@ -1,6 +1,8 @@
 import {obj, scope} from '../exp'
 import * as Val from '../val'
 
+const T = Val.tyVar()
+
 export const GlobalScope = scope({
 	_: obj(Val.bottom),
 	Int: obj(Val.tyInt),
@@ -31,6 +33,16 @@ export const GlobalScope = scope({
 			(t1: Val.Value, t2: Val.Value) => Val.uniteTy(t1, t2),
 			{x: Val.tyInt, y: Val.tyInt},
 			Val.tyInt
+		)
+	),
+	identity: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
+	if: obj(
+		Val.fn(
+			(test: Val.Bool, then: Val.Value, _else: Val.Value) => {
+				return test.value ? then : _else
+			},
+			{test: Val.tyBool, then: T, else: T},
+			T
 		)
 	),
 })

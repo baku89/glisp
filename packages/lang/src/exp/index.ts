@@ -2,6 +2,7 @@ import {entries, isEqualWith, values} from 'lodash'
 
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
+import {applySubst, Const, getTyVars, resolveLowerConsts} from './unify'
 
 export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
 
@@ -244,9 +245,26 @@ export class Call extends BaseNode {
 	}
 
 	public infer(): ValueWithLog {
-		return this.fn
-			.infer()
-			.bind(ty => Writer.of(ty.type === 'fn' ? ty.tyOut : ty))
+		return this.fn.infer().bind(ty => {
+			if (ty.type !== 'fn') return Writer.of(ty)
+
+			// If the function is non-polymorphic, just return tyOut
+			const tvs = getTyVars(ty.tyOut)
+			if (tvs.size === 0) return Writer.of(ty.tyOut)
+
+			// Infer type by resolving constraints
+			const param = values(ty.tyParam)
+			const {result: args, log: argLog} = Writer.map(this.args, a => a.infer())
+			const consts: Const[] = args.map((a, i) => [a, param[i]])
+
+			let tyOut = ty.tyOut
+			for (const tv of tvs) {
+				const t = resolveLowerConsts(tv, consts)
+				tyOut = applySubst(tyOut, [tv, t])
+			}
+
+			return Writer.of(tyOut, ...argLog)
+		})
 	}
 
 	public print(): string {
