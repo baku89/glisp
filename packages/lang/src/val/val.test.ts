@@ -1,6 +1,6 @@
 import * as Val from '.'
 
-describe('subtype', () => {
+describe('subtyping', () => {
 	const square = Val.fn(
 		(x: Val.Int) => Val.int(x.value ** 2),
 		{x: Val.tyInt},
@@ -12,6 +12,8 @@ describe('subtype', () => {
 		{x: Val.tyInt, y: Val.tyInt},
 		Val.tyInt
 	)
+
+	const T = Val.tyVar()
 
 	run(Val.int(1), Val.tyInt, true)
 	run(Val.tyInt, Val.tyInt, true)
@@ -34,10 +36,16 @@ describe('subtype', () => {
 	run(square, addTwo, false)
 	run(addTwo, square, false)
 
-	run(Val.tyInt, new Val.TyUnion([Val.tyInt, Val.tyBool]), true)
-	run(Val.int(0), new Val.TyUnion([Val.int(0), Val.int(1)]), true)
+	run(Val.tyInt, Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool]), true)
+	run(Val.int(0), Val.TyUnion.fromTypesUnsafe([Val.int(0), Val.int(1)]), true)
 
 	run(Val.singleton(Val.tyInt), Val.tyInt, false)
+
+	run(Val.int(1), T, true)
+	run(Val.bool(false), T, true)
+	run(Val.all, T, true)
+	run(Val.bottom, T, true)
+	run(square, Val.tyFn([T], T), true)
 
 	function run(sub: Val.Value, sup: Val.Value, expected: boolean) {
 		const op = expected ? '<:' : '!<:'
@@ -53,38 +61,59 @@ describe('subtype', () => {
 	}
 })
 
-describe('normalizing union type', () => {
+describe('uniting types', () => {
 	run([Val.int(1)], Val.int(1))
-	run([Val.int(1), Val.int(2)], new Val.TyUnion([Val.int(1), Val.int(2)]))
+	run(
+		[Val.int(1), Val.int(2)],
+		Val.TyUnion.fromTypesUnsafe([Val.int(1), Val.int(2)])
+	)
 	run([Val.int(1), Val.tyInt], Val.tyInt)
 	run([Val.tyInt, Val.int(1)], Val.tyInt)
-	run([Val.tyInt, Val.tyBool], new Val.TyUnion([Val.tyInt, Val.tyBool]))
+	run(
+		[Val.tyInt, Val.tyBool],
+		Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool])
+	)
 	run([Val.tyInt, Val.all], Val.all)
 	run([], Val.bottom)
 	run([Val.bottom, Val.bottom], Val.bottom)
 	run([Val.bottom, Val.all], Val.all)
 	run(
-		[Val.tyBool, new Val.TyUnion([Val.tyInt, Val.tyBool]), Val.tyInt],
-		new Val.TyUnion([Val.tyInt, Val.tyBool])
+		[
+			Val.tyBool,
+			Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool]),
+			Val.tyInt,
+		],
+		Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool])
 	)
 
 	function run(types: Val.Value[], expected: Val.Value) {
 		const testStr = types.map(t => t.print()).join(' ')
 		const expectedStr = expected.print()
+		const united = Val.uniteTy(...types)
+
 		test(`(| ${testStr}) to be ${expectedStr}`, () => {
-			const united = Val.uniteTy(...types)
+			if (!united.isEqualTo(expected)) {
+				fail('Got=' + united.print())
+			}
+		})
+	}
+})
+
 describe('intesecting type', () => {
 	run([], Val.all)
 	run([Val.int(1)], Val.int(1))
 	run([Val.int(1), Val.int(2)], Val.bottom)
 	run([Val.tyInt, Val.int(1), Val.int(1)], Val.int(1))
-	run([new Val.TyUnion([Val.tyInt, Val.bool(false)]), Val.tyInt], Val.tyInt)
+	run(
+		[Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.bool(false)]), Val.tyInt],
+		Val.tyInt
+	)
 	run(
 		[
-			new Val.TyUnion([Val.tyInt, Val.bool(false)]),
-			new Val.TyUnion([Val.int(1), Val.int(2), Val.tyBool]),
+			Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.bool(false)]),
+			Val.TyUnion.fromTypesUnsafe([Val.int(1), Val.int(2), Val.tyBool]),
 		],
-		new Val.TyUnion([Val.int(1), Val.int(2), Val.bool(false)])
+		Val.TyUnion.fromTypesUnsafe([Val.int(1), Val.int(2), Val.bool(false)])
 	)
 
 	function run(types: Val.Value[], expected: Val.Value) {
