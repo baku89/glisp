@@ -8,7 +8,7 @@ export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
 
 export type Type = Node['type']
 
-interface Log {
+export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
 	ref: Node

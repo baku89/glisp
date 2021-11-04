@@ -2,7 +2,7 @@ import * as Exp from '../exp'
 import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
-describe('evaluator', () => {
+describe('evaluates without errors', () => {
 	run(Exp.int(0), Val.int(0))
 	run(Exp.int(10), Val.int(10))
 	run(Exp.bool(false), Val.bool(false))
@@ -16,9 +16,12 @@ describe('evaluator', () => {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
 			input.parent = GlobalScope
 
-			const evaluated = input.eval().result
-			if (!Val.isEqual(evaluated, expected)) {
-				fail(`Expected=${expected.print()}, got=${evaluated.print()}`)
+			const {result, log} = input.eval()
+			if (!Val.isEqual(result, expected)) {
+				fail('Got=' + result.print())
+			}
+			if (log.length > 0) {
+				fail('Expected no log, but got=' + printLog(log))
 			}
 		})
 	}
@@ -55,4 +58,8 @@ function testInfer(input: Exp.Node, expected: Val.Value) {
 		const equal = inferred.isEqualTo(expected)
 		if (!equal) throw new Error('Got=' + inferred.print())
 	})
+}
+
+function printLog(log: Exp.Log[]) {
+	return log.map(l => `[${l.level}] ${l.reason}\n`).join('')
 }
