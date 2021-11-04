@@ -1,11 +1,6 @@
 import * as Val from '../val'
 
-export type Const = {
-	a: Val.Value
-	b: Val.Value
-	op: '<:' | '='
-}
-
+export type Const = [Val.Value, Val.Value]
 export type Subst = [Val.TyVar, Val.Value]
 
 export function applySubst(val: Val.Value, subst: Subst): Val.Value {
@@ -39,4 +34,32 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 		default:
 			return new Set()
 	}
+}
+
+export function resolveLowerConsts(tv: Val.TyVar, consts: Const[]): Val.Value {
+	let lower: Val.Value = Val.bottom
+
+	const restConsts: Const[] = []
+
+	for (const [s, t] of consts) {
+		if (t.isEqualTo(tv)) {
+			lower = Val.uniteTy(lower, s)
+			continue
+		}
+		if (s.isEqualTo(tv)) {
+			if (!lower.isSubtypeOf(t)) {
+				throw new Error('Invalid consts')
+			}
+		}
+		restConsts.push([s, t])
+	}
+
+	if (getTyVars(lower).size === 0) {
+		return lower
+	}
+
+	// Has free tyVars
+	if (lower.type !== 'tyVar') throw new Error('Not yet implemented')
+
+	return resolveLowerConsts(lower, restConsts)
 }

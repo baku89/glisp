@@ -1,5 +1,7 @@
+import _ from 'lodash'
+
 import * as Val from '../val'
-import {applySubst, Subst} from './unify'
+import {applySubst, Const, getTyVars, resolveLowerConsts, Subst} from './unify'
 
 describe('applySubst', () => {
 	const T = Val.tyVar()
@@ -47,5 +49,38 @@ describe('getTyVars', () => {
 				fail('Got={' + tvs.map(tv => tv.print()).join(', ') + '}')
 			}
 		})
+	}
+})
+
+describe('resolveLowerConsts', () => {
+	const T = Val.tyVar(),
+		U = Val.tyVar()
+
+	run(T, [[Val.tyInt, T]], Val.tyInt)
+	run(
+		T,
+		[
+			[Val.tyInt, U],
+			[U, T],
+		],
+		Val.tyInt
+	)
+
+	function run(tv: Val.TyVar, consts: Const[], expected: Val.Value) {
+		const tvStr = tv.print()
+		const cStr = printConsts(consts)
+		const eStr = expected.print()
+
+		test(`${tvStr} in ${cStr} equals to ${eStr}`, () => {
+			const resolved = resolveLowerConsts(tv, consts)
+			if (!resolved.isEqualTo(expected)) {
+				fail(`Got=${resolved.print()}`)
+			}
+		})
+	}
+
+	function printConsts(consts: Const[]) {
+		const strs = consts.map(([a, b]) => a.print() + ' <: ' + b.print())
+		return '{' + strs.join(', ') + '}'
 	}
 })
