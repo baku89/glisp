@@ -78,7 +78,7 @@ export const bottom = Bottom.instance
 
 export class Int implements IVal {
 	public type: 'int' = 'int'
-	public tyAtom = tyInt
+	private superType = tyInt
 	private constructor(public value: number) {}
 
 	public print() {
@@ -92,8 +92,8 @@ export class Int implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyVar') return true
+		if (ty === this.superType) return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty === this.tyAtom) return true
 
 		return ty.type === 'int' && ty.value === this.value
 	}
@@ -111,7 +111,7 @@ export const int = Int.of
 
 export class Bool implements IVal {
 	public type: 'bool' = 'bool'
-	public tyAtom = tyBool
+	private superType = tyBool
 	private constructor(public value: boolean) {}
 
 	public print() {
@@ -125,8 +125,8 @@ export class Bool implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyVar') return true
+		if (ty === this.superType) return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty === this.tyAtom) return true
 
 		return ty.type === 'bool' && ty.value === this.value
 	}
@@ -309,8 +309,11 @@ export class TyUnion implements IVal {
 		return differenceWith(val.types, this.types, isEqual).length === 0
 	}
 
-	public static fromTypesUnsafe(types: Exclude<Value, TyUnion>[]) {
-		return new TyUnion(types)
+	public static fromTypesUnsafe(types: Value[]) {
+		const flattenTypes = types.flatMap(ty =>
+			ty.type === 'tyUnion' ? ty.types : ty
+		)
+		return new TyUnion(flattenTypes)
 	}
 }
 
@@ -431,4 +434,4 @@ export const singleton = TySingleton.of
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 
 export const tyInt = tyAtom('Int', () => int(0))
-export const tyBool = tyAtom('Bool', () => bool(false))
+export const tyBool = TyUnion.fromTypesUnsafe([bool(false), bool(true)])

@@ -47,6 +47,12 @@ describe('subtyping', () => {
 	run(Val.bottom, T, true)
 	run(square, Val.tyFn([T], T), true)
 
+	run(
+		Val.TyUnion.fromTypesUnsafe([Val.bool(true), Val.bool(false)]),
+		Val.tyBool,
+		true
+	)
+
 	function run(sub: Val.Value, sup: Val.Value, expected: boolean) {
 		const op = expected ? '<:' : '!<:'
 		test(`${print(sub)} ${op} ${print(sup)}`, () => {
@@ -77,6 +83,7 @@ describe('uniting types', () => {
 	run([], Val.bottom)
 	run([Val.bottom, Val.bottom], Val.bottom)
 	run([Val.bottom, Val.all], Val.all)
+	run([Val.bool(true), Val.bool(false)], Val.tyBool)
 	run(
 		[
 			Val.tyBool,
@@ -93,7 +100,7 @@ describe('uniting types', () => {
 
 		test(`(| ${testStr}) to be ${expectedStr}`, () => {
 			if (!united.isEqualTo(expected)) {
-				fail('Got=' + united.print())
+				throw new Error('Got=' + united.print())
 			}
 		})
 	}
