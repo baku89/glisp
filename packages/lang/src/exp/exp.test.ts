@@ -43,6 +43,7 @@ describe('infer polymorphic function application', () => {
 	testInfer('(+ (identity 1) (identity 2))', Val.tyInt)
 	testInfer('(if (identity true) (identity 2) (* 1 2))', Val.tyInt)
 	testInfer('(identity (identity 1))', Val.int(1))
+	testInfer('(. succ even?)', Val.tyFn([Val.tyInt], Val.tyBool))
 })
 
 function parse(input: string | Exp.Node): Exp.Node {

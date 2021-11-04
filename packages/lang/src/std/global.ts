@@ -1,12 +1,22 @@
+import {keys} from 'lodash'
+
 import {obj, scope} from '../exp'
 import * as Val from '../val'
 
 const T = Val.tyVar()
+const U = Val.tyVar()
+const V = Val.tyVar()
 
 export const GlobalScope = scope({
 	_: obj(Val.bottom),
 	Int: obj(Val.tyInt),
 	Bool: obj(Val.tyBool),
+	succ: obj(
+		Val.fn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt)
+	),
+	'even?': obj(
+		Val.fn((x: Val.Int) => Val.bool(x.value === 0), {x: Val.tyInt}, Val.tyBool)
+	),
 	'+': obj(
 		Val.fn(
 			(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
@@ -43,6 +53,16 @@ export const GlobalScope = scope({
 			},
 			{test: Val.tyBool, then: T, else: T},
 			T
+		)
+	),
+	'.': obj(
+		Val.fn(
+			(f: Val.Fn, g: Val.Fn) => {
+				const name = keys(f.tyParam)[0]
+				return Val.fn((x: Val.Value) => g.value(f.value(x)), {[name]: T}, V)
+			},
+			{f: Val.tyFn([T], U), g: Val.tyFn([U], V)},
+			Val.tyFn([T], V)
 		)
 	),
 })

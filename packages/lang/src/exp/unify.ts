@@ -1,21 +1,24 @@
+import {values} from 'lodash'
+
 import * as Val from '../val'
 
 export type Const = [Val.Value, Val.Value]
-export type Subst = [Val.TyVar, Val.Value]
+export type Subst = Map<Val.TyVar, Val.Value>
 
 export function applySubst(val: Val.Value, subst: Subst): Val.Value {
-	const [s, t] = subst
-	if (s.isEqualTo(val)) {
-		return t
+	switch (val.type) {
+		case 'tyVar': {
+			const tv = subst.get(val)
+			return tv ?? val
+		}
+		case 'tyFn': {
+			const param = val.param.map(p => applySubst(p, subst))
+			const out = applySubst(val.out, subst)
+			return Val.tyFn(param, out)
+		}
+		default:
+			return val
 	}
-
-	if (val.type === 'tyFn') {
-		const param = val.param.map(p => applySubst(p, subst))
-		const out = applySubst(val.out, subst)
-		return Val.tyFn(param, out)
-	}
-
-	return val
 }
 
 export function getTyVars(val: Val.Value): Set<Val.TyVar> {
@@ -36,30 +39,65 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 	}
 }
 
-export function resolveLowerConsts(tv: Val.TyVar, consts: Const[]): Val.Value {
-	let lower: Val.Value = Val.bottom
-
-	const restConsts: Const[] = []
-
-	for (const [s, t] of consts) {
-		if (t.isEqualTo(tv)) {
-			lower = Val.uniteTy(lower, s)
-			continue
-		}
-		if (s.isEqualTo(tv)) {
-			if (!lower.isSubtypeOf(t)) {
-				throw new Error('Invalid consts')
-			}
-		}
-		restConsts.push([s, t])
+function consSubst(tv: Val.TyVar, val: Val.Value, subst: Subst): Subst {
+	let newVal = val
+	if (val.type === 'tyVar') {
+		newVal = subst.get(val) ?? val
 	}
 
-	if (getTyVars(lower).size === 0) {
-		return lower
+	for (const [t, v] of subst) {
+		if (v.isEqualTo(tv)) {
+			subst.set(t, newVal)
+		}
 	}
 
-	// Has free tyVars
-	if (lower.type !== 'tyVar') throw new Error('Not yet implemented')
+	const prevVal = subst.get(tv) ?? Val.bottom
+	newVal = Val.uniteTy(newVal, prevVal)
+	subst.set(tv, newVal)
 
-	return resolveLowerConsts(lower, restConsts)
+	return subst
+}
+
+export function unifyLower(consts: Const[]): Subst {
+	if (consts.length === 0) return new Map()
+
+	const [[s, t], ...rest] = consts
+
+	if (t.type === 'tyVar') {
+		if (getTyVars(s).has(t)) {
+			throw new Error('Failed to occur check')
+		}
+
+		const restSubsts = unifyLower(rest)
+		return consSubst(t, s, restSubsts)
+	}
+
+	if (t.type === 'tyFn') {
+		let sParam: Val.Value[], sOut: Val.Value
+		if (s.type === 'fn') {
+			sParam = values(s.tyParam)
+			sOut = s.tyOut
+		} else if (s.type === 'tyFn') {
+			sParam = s.param
+			sOut = s.out
+		} else {
+			throw new Error('Not yet implemented')
+		}
+
+		// NOTE: paramは反変では?
+		const param: Const[] = t.param.map((tp, i) => [sParam[i], tp])
+		const out: Const = [sOut, t.out]
+
+		return unifyLower([...param, out, ...rest])
+	}
+
+	if (s.type === 'tyVar') {
+		throw new Error('Not yet implemented: ' + s.print() + ' <:' + t.print())
+	}
+
+	return unifyLower(rest)
+}
+
+export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
+	return applySubst(val, unifyLower(consts))
 }
