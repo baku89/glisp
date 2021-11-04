@@ -27,7 +27,7 @@ abstract class BaseNode {
 }
 
 export class Sym extends BaseNode {
-	public type: 'sym' = 'sym'
+	public readonly type: 'sym' = 'sym'
 
 	private constructor(public name: string) {
 		super()
@@ -73,7 +73,7 @@ export class Sym extends BaseNode {
 export const sym = Sym.of
 
 export class Int extends BaseNode {
-	public type: 'int' = 'int'
+	public readonly type: 'int' = 'int'
 
 	private constructor(public value: number) {
 		super()
@@ -99,7 +99,7 @@ export class Int extends BaseNode {
 export const int = Int.of
 
 export class Bool extends BaseNode {
-	public type: 'bool' = 'bool'
+	public readonly type: 'bool' = 'bool'
 
 	private constructor(public value: boolean) {
 		super()
@@ -125,7 +125,7 @@ export class Bool extends BaseNode {
 export const bool = Bool.of
 
 export class Obj extends BaseNode {
-	public type: 'obj' = 'obj'
+	public readonly type: 'obj' = 'obj'
 
 	private constructor(public value: Val.Value) {
 		super()
@@ -158,7 +158,7 @@ export class Obj extends BaseNode {
 export const obj = Obj.of
 
 export class Fn extends BaseNode {
-	public type: 'fn' = 'fn'
+	public readonly type: 'fn' = 'fn'
 
 	private constructor(public param: Record<string, Node>, public body: Node) {
 		super()
@@ -197,7 +197,7 @@ export class Fn extends BaseNode {
 export const fn = Fn.of
 
 export class Call extends BaseNode {
-	public type: 'call' = 'call'
+	public readonly type: 'call' = 'call'
 
 	private constructor(public fn: Node, public args: Node[]) {
 		super()
@@ -277,7 +277,7 @@ export class Call extends BaseNode {
 export const call = Call.of
 
 export class Scope extends BaseNode {
-	public type: 'scope' = 'scope'
+	public readonly type: 'scope' = 'scope'
 
 	private constructor(
 		public vars: Record<string, Node>,
