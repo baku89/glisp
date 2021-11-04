@@ -9,29 +9,25 @@ describe('evaluating without errors', () => {
 	run(Exp.bool(false), Val.bool(false))
 	run(Exp.bool(true), Val.bool(true))
 	run(Exp.sym('_'), Val.bottom)
-	run(Exp.call(Exp.sym('+'), Exp.int(1), Exp.int(2)), Val.int(3))
-	run(Exp.call(Exp.sym('<'), Exp.int(1), Exp.int(2)), Val.bool(true))
+	run('(+ 1 2)', Val.int(3))
+	run('(< 1 2)', Val.bool(true))
 	run(Exp.scope({a: Exp.int(10)}, Exp.sym('a')), Val.int(10))
-	run(
-		Exp.call(Exp.sym('if'), Exp.bool(true), Exp.int(1), Exp.bool(false)),
-		Val.int(1)
-	)
-	run(
-		Exp.call(
-			Exp.sym('<'),
-			Exp.int(4),
-			Exp.call(Exp.sym('if'), Exp.bool(true), Exp.int(1), Exp.int(2))
-		),
-		Val.bool(false)
-	)
+	run('(if true 1 false)', Val.int(1))
+	run('(< 4 (if true 1 2))', Val.bool(false))
+	run('(not true)', Val.bool(false))
+	run('(even? 2)', Val.bool(true))
+	run('((. succ even?) 1)', Val.bool(true))
+	run('((. succ even?) 2)', Val.bool(false))
+	run('((twice succ) 1)', Val.int(3))
 
-	function run(input: Exp.Node, expected: Val.Value) {
-		test(`${input.print()} evaluates to ${expected.print()}`, () => {
-			input.parent = GlobalScope
+	function run(input: string | Exp.Node, expected: Val.Value) {
+		const exp = parse(input)
+		test(`${exp.print()} evaluates to ${expected.print()}`, () => {
+			exp.parent = GlobalScope
 
-			const {result, log} = input.eval()
+			const {result, log} = exp.eval()
 			if (!Val.isEqual(result, expected)) {
-				throw new Error('Got=' + result.print())
+				throw new Error('Got=' + result.print() + '\n' + printLog(log))
 			}
 			if (log.length > 0) {
 				throw new Error('Expected no log, but got=' + printLog(log))
