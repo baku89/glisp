@@ -15,7 +15,11 @@ export const GlobalScope = scope({
 		Val.fn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt)
 	),
 	'even?': obj(
-		Val.fn((x: Val.Int) => Val.bool(x.value === 0), {x: Val.tyInt}, Val.tyBool)
+		Val.fn(
+			(x: Val.Int) => Val.bool(x.value % 2 === 0),
+			{x: Val.tyInt},
+			Val.tyBool
+		)
 	),
 	'+': obj(
 		Val.fn(
