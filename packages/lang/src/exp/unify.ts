@@ -133,17 +133,25 @@ export function unify(consts: Const[]): Subst {
 
 	const [[s, t], ...rest] = consts
 
-	if (t.type === 'tyVar') {
-		if (getTyVars(s).has(t)) {
-			throw new Error('Failed to occur check')
-		}
-
-		return unify(rest).appendLower(t, s)
+	if (s.type === 'bottom' || t.type === 'all') {
+		return unify(rest)
 	}
 
+	const svars = getTyVars(s)
+	const tvars = getTyVars(t)
+
+	if (svars.size === 0 && tvars.size === 0) {
+		return unify(rest)
+	}
+
+	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
 		if (s.type !== 'fn' && s.type !== 'tyFn') {
 			throw new Error('Not yet implemented')
+		}
+
+		if (s.tyParam.length > t.tyParam.length) {
+			throw new Error('Subtype expects too many parameters')
 		}
 
 		const param: Const[] = zip(t.tyParam, s.tyParam)
@@ -152,15 +160,24 @@ export function unify(consts: Const[]): Subst {
 		return unify([...param, out, ...rest])
 	}
 
+	// If either type is tyVar?
+	if (t.type === 'tyVar') {
+		if (svars.has(t)) {
+			throw new Error('Failed to occur check')
+		}
+
+		return unify(rest).appendLower(t, s)
+	}
+
 	if (s.type === 'tyVar') {
-		if (getTyVars(t).has(s)) {
+		if (tvars.has(s)) {
 			throw new Error('Failed to occur check')
 		}
 
 		return unify(rest).appendUpper(s, t)
 	}
 
-	return unify(rest)
+	throw new Error('Not yet implemented')
 }
 
 export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
