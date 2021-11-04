@@ -87,6 +87,10 @@ describe('value equality', () => {
 	run(Val.bool(true), Val.bool(true))
 	run(Val.tyInt, Val.tyInt)
 	run(Val.uniteTy(Val.int(1), Val.int(2)), Val.uniteTy(Val.int(2), Val.int(1)))
+	run(
+		Val.uniteTy(Val.int(1), Val.int(2), Val.bool(true)),
+		Val.uniteTy(Val.bool(true), Val.int(2), Val.int(1))
+	)
 
 	function run(a: Val.Value, b: Val.Value) {
 		const aStr = a.print()

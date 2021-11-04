@@ -1,4 +1,4 @@
-import {entries, isEqualWith, values} from 'lodash'
+import {differenceWith, entries, isEqualWith, values} from 'lodash'
 
 export type Value =
 	| All
@@ -302,14 +302,8 @@ export class TyUnion implements IVal {
 		if (val.type !== this.type) return false
 		if (val.types.length !== this.types.length) return false
 
-		const dstTypes = [...this.types]
-		for (const ty of val.types) {
-			const idx = dstTypes.findIndex(dty => ty.isEqualTo(dty))
-			if (idx === -1) return false
-			dstTypes.splice(idx, 1)
-		}
-
-		return true
+		const diff = differenceWith(val.types, this.types, isEqual)
+		return diff.length === 0
 	}
 
 	public static from(...types: Value[]) {
