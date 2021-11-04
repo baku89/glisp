@@ -3,7 +3,7 @@ import {entries, isEqualWith, keys, values} from 'lodash'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {Const, inferPoly} from './unify'
+import {infer, unify} from './unify'
 
 export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
 
@@ -258,9 +258,8 @@ export class Call extends BaseNode {
 
 			// Infer type by resolving constraints
 			const {result: args, log: argLog} = Writer.map(this.args, a => a.infer())
-			const consts: Const[] = zip(args, ty.tyParam)
-
-			const tyOut = inferPoly(ty.tyOut, consts)
+			const consts = zip(args, ty.tyParam)
+			const tyOut = infer(ty.tyOut, consts)
 
 			return Writer.of(tyOut, ...argLog)
 		})

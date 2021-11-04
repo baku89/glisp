@@ -180,6 +180,6 @@ export function unify(consts: Const[]): Subst {
 	throw new Error('Not yet implemented')
 }
 
-export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
+export function infer(val: Val.Value, consts: Const[]): Val.Value {
 	return unify(consts).applyTo(val)
 }
