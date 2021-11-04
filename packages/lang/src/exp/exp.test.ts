@@ -12,6 +12,18 @@ describe('evaluating without errors', () => {
 	run(Exp.call(Exp.sym('+'), Exp.int(1), Exp.int(2)), Val.int(3))
 	run(Exp.call(Exp.sym('<'), Exp.int(1), Exp.int(2)), Val.bool(true))
 	run(Exp.scope({a: Exp.int(10)}, Exp.sym('a')), Val.int(10))
+	run(
+		Exp.call(Exp.sym('if'), Exp.bool(true), Exp.int(1), Exp.bool(false)),
+		Val.int(1)
+	)
+	run(
+		Exp.call(
+			Exp.sym('<'),
+			Exp.int(4),
+			Exp.call(Exp.sym('if'), Exp.bool(true), Exp.int(1), Exp.int(2))
+		),
+		Val.bool(false)
+	)
 
 	function run(input: Exp.Node, expected: Val.Value) {
 		test(`${input.print()} evaluates to ${expected.print()}`, () => {
@@ -19,10 +31,10 @@ describe('evaluating without errors', () => {
 
 			const {result, log} = input.eval()
 			if (!Val.isEqual(result, expected)) {
-				fail('Got=' + result.print())
+				throw new Error('Got=' + result.print())
 			}
 			if (log.length > 0) {
-				fail('Expected no log, but got=' + printLog(log))
+				throw new Error('Expected no log, but got=' + printLog(log))
 			}
 		})
 	}
