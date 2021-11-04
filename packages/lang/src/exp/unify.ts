@@ -1,3 +1,4 @@
+import {zip} from '../utils/zip'
 import * as Val from '../val'
 
 export type Const = [Val.Value, Val.Value]
@@ -145,7 +146,7 @@ export function unify(consts: Const[]): Subst {
 			throw new Error('Not yet implemented')
 		}
 
-		const param: Const[] = t.tyParam.map((tp, i) => [tp, s.tyParam[i]])
+		const param: Const[] = zip(t.tyParam, s.tyParam)
 		const out: Const = [s.tyOut, t.tyOut]
 
 		return unify([...param, out, ...rest])

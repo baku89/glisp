@@ -1,6 +1,7 @@
 import {entries, isEqualWith, values} from 'lodash'
 
 import {Writer} from '../utils/Writer'
+import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {Const, inferPoly} from './unify'
 
@@ -250,7 +251,7 @@ export class Call extends BaseNode {
 
 			// Infer type by resolving constraints
 			const {result: args, log: argLog} = Writer.map(this.args, a => a.infer())
-			const consts: Const[] = args.map((a, i) => [a, ty.tyParam[i]])
+			const consts: Const[] = zip(args, ty.tyParam)
 
 			const tyOut = inferPoly(ty.tyOut, consts)
 
