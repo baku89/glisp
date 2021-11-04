@@ -229,7 +229,7 @@ export class Call extends BaseNode {
 					logs.push({
 						level: 'error',
 						ref: this,
-						reason: `Parameter ${name} expects type: ${p.print()}, but got: ${aTy.print()}`,
+						reason: `Argument ${name} expects type: ${p.print()}, but got: ${aTy.print()}`,
 					})
 				}
 				return p.convert(aVal)
