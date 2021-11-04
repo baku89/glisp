@@ -232,7 +232,7 @@ export class TyFn implements IVal {
 		const param = this.param.map(v => v.print()).join(' ')
 		const out = this.out.print()
 
-		return `(-> [${param} ${out})`
+		return `(-> [${param}] ${out})`
 	}
 
 	public convert(val: Value): Value {
