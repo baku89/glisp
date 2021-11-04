@@ -73,9 +73,28 @@ describe('normalizing union type', () => {
 		const expectedStr = expected.print()
 		test(`(| ${testStr}) to be ${expectedStr}`, () => {
 			const united = Val.uniteTy(...types)
+describe('intesecting type', () => {
+	run([], Val.all)
+	run([Val.int(1)], Val.int(1))
+	run([Val.int(1), Val.int(2)], Val.bottom)
+	run([Val.tyInt, Val.int(1), Val.int(1)], Val.int(1))
+	run([new Val.TyUnion([Val.tyInt, Val.bool(false)]), Val.tyInt], Val.tyInt)
+	run(
+		[
+			new Val.TyUnion([Val.tyInt, Val.bool(false)]),
+			new Val.TyUnion([Val.int(1), Val.int(2), Val.tyBool]),
+		],
+		new Val.TyUnion([Val.int(1), Val.int(2), Val.bool(false)])
+	)
 
-			if (!united.isEqualTo(expected)) {
-				fail(`Expected ${expectedStr}, got ${united.print()}`)
+	function run(types: Val.Value[], expected: Val.Value) {
+		const testStr = types.map(t => t.print()).join(' ')
+		const expectedStr = expected.print()
+		const result = Val.intersectTy(...types)
+
+		test(`(& ${testStr}) to be ${expectedStr}`, () => {
+			if (!result.isEqualTo(expected)) {
+				throw new Error('Got=' + result.print())
 			}
 		})
 	}
