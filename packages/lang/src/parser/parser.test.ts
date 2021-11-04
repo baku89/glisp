@@ -1,12 +1,12 @@
-import * as Exp from '../exp'
+import {bool, call, int, isEqual, Node, scope, sym} from '../exp'
 import {parse} from '.'
 
 describe('parsing literals', () => {
-	testParsing('10', Exp.int(10))
-	testParsing('   10   ', Exp.int(10))
-	testParsing('false', Exp.bool(false))
-	testParsing('true', Exp.bool(true))
-	testParsing('   \t 5 \r\n', Exp.int(5))
+	testParsing('10', int(10))
+	testParsing('   10   ', int(10))
+	testParsing('false', bool(false))
+	testParsing('true', bool(true))
+	testParsing('   \t 5 \r\n', int(5))
 })
 
 describe('parsing vars', () => {
@@ -19,25 +19,25 @@ describe('parsing vars', () => {
 	run('🍡', '🍡')
 
 	function run(input: string, expected: string) {
-		testParsing(input, Exp.sym(expected))
+		testParsing(input, sym(expected))
 	}
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', Exp.call(Exp.sym('+'), Exp.int(1), Exp.int(2)))
-	testParsing('(f)', Exp.call(Exp.sym('f')))
-	testParsing('(0 false)', Exp.call(Exp.int(1), Exp.bool(false)))
-	testParsing('((true) pi)', Exp.call(Exp.call(Exp.bool(true)), Exp.sym('pi')))
+	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
+	testParsing('(f)', call(sym('f')))
+	testParsing('(0 false)', call(int(1), bool(false)))
+	testParsing('((true) pi)', call(call(bool(true)), sym('pi')))
 })
 
 describe('parsing scope', () => {
-	testParsing('{a = 10 a}', Exp.scope({a: Exp.int(10)}, Exp.sym('a')))
+	testParsing('{a = 10 a}', scope({a: int(10)}, sym('a')))
 })
 
-function testParsing(input: string, expected: Exp.Node) {
+function testParsing(input: string, expected: Node) {
 	test(`parsing '${input}'`, () => {
 		const result = parse(input)
-		if (!Exp.isEqual(result, expected)) {
+		if (!isEqual(result, expected)) {
 			fail('Got=' + result.print())
 		}
 	})
