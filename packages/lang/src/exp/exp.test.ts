@@ -3,7 +3,7 @@ import * as Parser from '../parser'
 import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
-describe('evaluates without errors', () => {
+describe('evaluating without errors', () => {
 	run(Exp.int(0), Val.int(0))
 	run(Exp.int(10), Val.int(10))
 	run(Exp.bool(false), Val.bool(false))
@@ -28,7 +28,7 @@ describe('evaluates without errors', () => {
 	}
 })
 
-describe('infer type', () => {
+describe('inferring a type', () => {
 	testInfer(Exp.int(0), Val.int(0))
 	testInfer(Exp.bool(false), Val.bool(false))
 	testInfer(Exp.sym('Int'), Val.singleton(Val.tyInt))
@@ -36,7 +36,7 @@ describe('infer type', () => {
 	testInfer(Exp.sym('_'), Val.bottom)
 })
 
-describe('infer polymorphic function application', () => {
+describe('inferring a type of polymorphic function application', () => {
 	testInfer('(identity 1)', Val.int(1))
 	testInfer('(if true 1 2)', Val.uniteTy(Val.int(1), Val.int(2)))
 	testInfer('(identity (+ 1 2))', Val.tyInt)
