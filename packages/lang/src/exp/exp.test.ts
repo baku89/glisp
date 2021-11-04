@@ -58,6 +58,13 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('(identity (identity 1))', Val.int(1))
 	testInfer('(. succ even?)', Val.tyFn([Val.tyInt], Val.tyBool))
 	testInfer('((. succ even?) 1)', Val.tyBool)
+	testInfer('(twice succ)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
+	testInfer('(twice (twice not))', Val.tyFn(Val.tyBool, Val.tyBool))
+	testInfer(
+		'(if ((twice not) true) ((twice succ) 1) ((twice succ) 2))',
+		Val.tyInt
+	)
 })
 
 describe('inferring invalid expression', () => {

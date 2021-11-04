@@ -72,4 +72,14 @@ export const GlobalScope = scope({
 			Val.tyFn([T], V)
 		)
 	),
+	twice: obj(
+		Val.fn(
+			(f: Val.Fn) => {
+				const name = keys(f.param)[0]
+				return Val.fn((x: Val.Value) => f.value(f.value(x)), {[name]: T}, T)
+			},
+			{f: Val.tyFn(T, T)},
+			Val.tyFn(T, T)
+		)
+	),
 })
