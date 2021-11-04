@@ -46,6 +46,7 @@ describe('inferring a type', () => {
 	testInfer(Exp.sym('Int'), Val.singleton(Val.tyInt))
 	testInfer(Exp.obj(Val.singleton(Val.tyInt)), Val.singleton(Val.tyInt))
 	testInfer(Exp.sym('_'), Val.bottom)
+	testInfer('(not true)', Val.tyBool)
 })
 
 describe('inferring a type of polymorphic function application', () => {
