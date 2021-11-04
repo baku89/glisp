@@ -1,4 +1,4 @@
-import {entries, isEqualWith, values} from 'lodash'
+import {entries, isEqualWith, keys, values} from 'lodash'
 
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
@@ -210,8 +210,15 @@ export class Call extends BaseNode {
 
 		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
-		const convertedArgs = entries(fn.param).map(([name, p], i) => {
+		const tyArgs = Writer.map(this.args, a => a.infer()).result
+		const consts = zip(tyArgs, fn.tyParam)
+		const subst = unify(consts)
+		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
+		const paramNames = keys(fn.tyParam)
+
+		const convertedArgs = tyParam.map((p, i) => {
 			const a = this.args[i]
+			const name = paramNames[i]
 
 			if (!a) {
 				logs.push({
@@ -222,9 +229,9 @@ export class Call extends BaseNode {
 				return p.convert(Val.bottom)
 			}
 
-			const {result: aTy, log: inferLog} = a.infer()
+			const aTy = tyArgs[i]
 			const {result: aVal, log: evalLog} = a.eval()
-			logs.push(...inferLog, ...evalLog)
+			logs.push(...evalLog)
 
 			if (!aTy.isSubtypeOf(p) || aVal.type === 'bottom') {
 				if (aVal.type !== 'bottom') {
