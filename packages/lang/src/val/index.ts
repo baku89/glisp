@@ -442,6 +442,7 @@ export class TySingleton implements IVal {
 export const singleton = TySingleton.of
 
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
+export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)
 
 export const tyInt = tyAtom('Int', () => int(0))
 export const tyBool = TyUnion.fromTypesUnsafe([bool(false), bool(true)])
