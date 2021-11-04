@@ -284,7 +284,7 @@ export class TyUnion implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
-		if (ty.type !== 'tyUnion') return false
+		if (ty.type !== 'tyUnion') return this.types.every(s => s.isSubtypeOf(ty))
 
 		return this.types.every(s => ty.types.some(t => s.isSubtypeOf(t)))
 	}

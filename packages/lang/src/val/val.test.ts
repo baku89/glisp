@@ -21,6 +21,7 @@ describe('subtype', () => {
 	run(Val.int(1), Val.bool(false), false)
 	run(Val.int(1), Val.all, true)
 	run(Val.bottom, Val.tyInt, true)
+	run(Val.uniteTy(Val.int(1), Val.int(2)), Val.tyInt, true)
 
 	run(square, square, true)
 	run(square, Val.all, true)
