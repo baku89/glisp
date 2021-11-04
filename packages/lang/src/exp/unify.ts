@@ -23,6 +23,12 @@ export class Subst {
 		}
 
 		l = Val.uniteTy(l, this.getLower(tv))
+
+		const u = this.getUpper(tv)
+		if (!l.isSubtypeOf(u)) {
+			throw new Error('Invalid subst')
+		}
+
 		this.lower.set(tv, l)
 
 		return this
@@ -30,6 +36,35 @@ export class Subst {
 
 	public getLower(tv: Val.TyVar) {
 		return this.lower.get(tv) ?? Val.bottom
+	}
+
+	public appendUpper(tv: Val.TyVar, upper: Val.Value) {
+		let u = upper
+
+		if (u.type === 'tyVar') {
+			u = this.upper.get(u) ?? u
+		}
+
+		for (const [t, v] of this.upper) {
+			if (v.isEqualTo(tv)) {
+				this.upper.set(t, u)
+			}
+		}
+
+		u = Val.intersectTy(u, this.getUpper(tv))
+
+		const l = this.getLower(tv)
+		if (!l.isSubtypeOf(u)) {
+			throw new Error('Invalid subst')
+		}
+
+		this.upper.set(tv, u)
+
+		return this
+	}
+
+	public getUpper(tv: Val.TyVar) {
+		return this.upper.get(tv) ?? Val.all
 	}
 
 	public applyLower(val: Val.Value): Val.Value {
@@ -49,8 +84,13 @@ export class Subst {
 	}
 
 	public print() {
-		const tvs = [...this.lower.keys()]
-		const strs = tvs.map(tv => this.getLower(tv).print() + '<:' + tv.print())
+		const tvs = [...new Set([...this.lower.keys(), ...this.upper.keys()])]
+		const strs = tvs.map(tv => {
+			const l = this.getLower(tv).print()
+			const x = tv.print()
+			const u = this.getUpper(tv).print()
+			return [l, x, u].join(' <: ')
+		})
 
 		return '[' + strs.join(', ') + ']'
 	}
@@ -107,15 +147,18 @@ export function unify(consts: Const[]): Subst {
 			throw new Error('Not yet implemented')
 		}
 
-		// NOTE: paramは反変では?
-		const param: Const[] = t.param.map((tp, i) => [sParam[i], tp])
+		const param: Const[] = t.param.map((tp, i) => [tp, sParam[i]])
 		const out: Const = [sOut, t.out]
 
 		return unify([...param, out, ...rest])
 	}
 
 	if (s.type === 'tyVar') {
-		throw new Error('Not yet implemented: ' + s.print() + ' <:' + t.print())
+		if (getTyVars(t).has(s)) {
+			throw new Error('Failed to occur check')
+		}
+
+		return unify(rest).appendUpper(s, t)
 	}
 
 	return unify(rest)
