@@ -109,8 +109,6 @@ export class Int implements IVal {
 
 export const int = Int.of
 
-const a = int(10)
-
 export class Bool implements IVal {
 	public readonly type: 'bool' = 'bool'
 	private readonly superType = tyBool
