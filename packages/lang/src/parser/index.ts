@@ -33,7 +33,7 @@ Bool "Bool" = ("true" / "false") &End
 
 Call "Call" = "(" _ fn:Node args:CallArg* _ ")"
 	{
-		return Exp.call(fn, args)
+		return Exp.call(fn, ...args)
 	}
 
 CallArg = _ arg:Node

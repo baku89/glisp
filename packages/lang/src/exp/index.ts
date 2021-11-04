@@ -274,7 +274,7 @@ export class Call extends BaseNode {
 		return `(${fn} ${args})`
 	}
 
-	public static of(fn: Node, args: Node[]) {
+	public static of(fn: Node, ...args: Node[]) {
 		const call = new Call(fn, args)
 		fn.parent = call
 		args.forEach(a => (a.parent = call))

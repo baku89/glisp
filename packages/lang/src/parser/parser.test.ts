@@ -24,13 +24,10 @@ describe('parsing vars', () => {
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', Exp.call(Exp.sym('+'), [Exp.int(1), Exp.int(2)]))
-	testParsing('(f)', Exp.call(Exp.sym('f'), []))
-	testParsing('(0 false)', Exp.call(Exp.int(1), [Exp.bool(false)]))
-	testParsing(
-		'((true) pi)',
-		Exp.call(Exp.call(Exp.bool(true), []), [Exp.sym('pi')])
-	)
+	testParsing('(+ 1 2)', Exp.call(Exp.sym('+'), Exp.int(1), Exp.int(2)))
+	testParsing('(f)', Exp.call(Exp.sym('f')))
+	testParsing('(0 false)', Exp.call(Exp.int(1), Exp.bool(false)))
+	testParsing('((true) pi)', Exp.call(Exp.call(Exp.bool(true)), Exp.sym('pi')))
 })
 
 describe('parsing scope', () => {
@@ -40,6 +37,8 @@ describe('parsing scope', () => {
 function testParsing(input: string, expected: Exp.Node) {
 	test(`parsing '${input}'`, () => {
 		const result = parse(input)
-		expect(Exp.isEqual(result, expected)).toBe(true)
+		if (!Exp.isEqual(result, expected)) {
+			fail('Got=' + result.print())
+		}
 	})
 }
