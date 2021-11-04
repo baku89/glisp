@@ -27,9 +27,9 @@ describe('subtyping', () => {
 
 	run(square, square, true)
 	run(square, Val.all, true)
-	run(square, Val.tyFn([Val.tyInt], Val.tyInt), true)
-	run(square, Val.tyFn([Val.all], Val.tyInt), false)
-	run(square, Val.tyFn([Val.tyInt], Val.all), true)
+	run(square, Val.tyFn(Val.tyInt, Val.tyInt), true)
+	run(square, Val.tyFn(Val.all, Val.tyInt), false)
+	run(square, Val.tyFn(Val.tyInt, Val.all), true)
 	run(square, Val.tyFn([Val.tyInt, Val.tyInt], Val.tyInt), true)
 	run(square, Val.tyFn([], Val.tyInt), false)
 
@@ -45,7 +45,7 @@ describe('subtyping', () => {
 	run(Val.bool(false), T, true)
 	run(Val.all, T, true)
 	run(Val.bottom, T, true)
-	run(square, Val.tyFn([T], T), true)
+	run(square, Val.tyFn(T, T), true)
 
 	run(
 		Val.TyUnion.fromTypesUnsafe([Val.bool(true), Val.bool(false)]),

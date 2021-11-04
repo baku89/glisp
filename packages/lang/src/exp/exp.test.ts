@@ -52,7 +52,7 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('(+ (identity 1) (identity 2))', Val.tyInt)
 	testInfer('(if (identity true) (identity 2) (* 1 2))', Val.tyInt)
 	testInfer('(identity (identity 1))', Val.int(1))
-	testInfer('(. succ even?)', Val.tyFn([Val.tyInt], Val.tyBool))
+	testInfer('(. succ even?)', Val.tyFn(Val.tyInt, Val.tyBool))
 	testInfer('((. succ even?) 1)', Val.tyBool)
 	testInfer('(twice succ)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
@@ -64,11 +64,11 @@ describe('inferring a type of polymorphic function application', () => {
 })
 
 describe('inferring invalid expression', () => {
-	testInfer('(. succ)', Val.tyFn([Val.tyInt], Val.bottom))
-	testInfer('(. _ succ)', Val.tyFn([Val.bottom], Val.tyInt))
-	testInfer('(. _ succ)', Val.tyFn([Val.bottom], Val.tyInt))
-	testInfer('(. not succ)', Val.tyFn([Val.tyBool], Val.tyInt))
-	testInfer('(. succ not)', Val.tyFn([Val.tyInt], Val.tyBool))
+	testInfer('(. succ)', Val.tyFn(Val.tyInt, Val.bottom))
+	testInfer('(. _ succ)', Val.tyFn(Val.bottom, Val.tyInt))
+	testInfer('(. _ succ)', Val.tyFn(Val.bottom, Val.tyInt))
+	testInfer('(. not succ)', Val.tyFn(Val.tyBool, Val.tyInt))
+	testInfer('(. succ not)', Val.tyFn(Val.tyInt, Val.tyBool))
 })
 
 function parse(input: string | Exp.Node): Exp.Node {
