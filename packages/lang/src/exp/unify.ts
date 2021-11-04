@@ -77,7 +77,7 @@ export class Subst {
 	private applyLimit(val: Val.Value, first: SubstMap, second: SubstMap) {
 		switch (val.type) {
 			case 'tyVar': {
-				return first.get(val) ?? second.get(val) ?? val
+				return first.get(val) ?? second.get(val) ?? Val.bottom
 			}
 			case 'tyFn': {
 				const param = val.tyParam.map(p => this.applyLower(p))
