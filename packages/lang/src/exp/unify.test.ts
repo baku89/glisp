@@ -1,35 +1,7 @@
 import _ from 'lodash'
 
 import * as Val from '../val'
-import {Const, getTyVars, Subst, unify} from './unify'
-
-describe('applySubst', () => {
-	const T = Val.tyVar()
-	const U = Val.tyVar()
-
-	run(T, Subst.fromLowers([T, Val.tyInt]), Val.tyInt)
-	run(T, Subst.fromLowers([T, U]), U)
-	run(
-		Val.tyFn([T], T),
-		Subst.fromLowers([T, Val.tyInt]),
-		Val.tyFn([Val.tyInt], Val.tyInt)
-	)
-	run(
-		Val.tyFn([T], Val.tyFn([T], T)),
-		Subst.fromLowers([T, U]),
-		Val.tyFn([U], Val.tyFn([U], U))
-	)
-
-	function run(val: Val.Value, subst: Subst, expected: Val.Value) {
-		test(subst.print() + val.print() + ' := ' + expected.print(), () => {
-			const substituted = subst.applyLower(val)
-
-			if (!substituted.isEqualTo(expected)) {
-				fail(`Got=${substituted}`)
-			}
-		})
-	}
-})
+import {Const, getTyVars, unify} from './unify'
 
 describe('getTyVars', () => {
 	const T = Val.tyVar(),
@@ -92,7 +64,7 @@ describe('resolveLowerConsts', () => {
 
 		test(`${tvStr} in ${cStr} equals to ${eStr}`, () => {
 			const subst = unify(consts)
-			const resolved = subst.applyLower(tv)
+			const resolved = subst.applyTo(tv)
 			if (!resolved.isEqualTo(expected)) {
 				throw new Error('Got=' + resolved.print())
 			}

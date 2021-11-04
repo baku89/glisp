@@ -9,28 +9,29 @@ export class Subst {
 	private constructor(private lower: SubstMap, private upper: SubstMap) {}
 
 	public appendLower(tv: Val.TyVar, lower: Val.Value) {
+		const subst = this.clone()
 		let l = lower
 
 		if (l.type === 'tyVar') {
-			l = this.lower.get(l) ?? l
+			l = subst.lower.get(l) ?? l
 		}
 
-		for (const [t, v] of this.lower) {
+		for (const [t, v] of subst.lower) {
 			if (v.isEqualTo(tv)) {
-				this.lower.set(t, l)
+				subst.lower.set(t, l)
 			}
 		}
 
-		l = Val.uniteTy(l, this.getLower(tv))
+		l = Val.uniteTy(l, subst.getLower(tv))
 
-		const u = this.getUpper(tv)
+		const u = subst.getUpper(tv)
 		if (!l.isSubtypeOf(u)) {
 			throw new Error('Invalid subst')
 		}
 
-		this.lower.set(tv, l)
+		subst.lower.set(tv, l)
 
-		return this
+		return subst
 	}
 
 	public getLower(tv: Val.TyVar) {
@@ -38,55 +39,58 @@ export class Subst {
 	}
 
 	public appendUpper(tv: Val.TyVar, upper: Val.Value) {
+		const subst = this.clone()
 		let u = upper
 
 		if (u.type === 'tyVar') {
-			u = this.upper.get(u) ?? u
+			u = subst.upper.get(u) ?? u
 		}
 
-		for (const [t, v] of this.upper) {
+		for (const [t, v] of subst.upper) {
 			if (v.isEqualTo(tv)) {
-				this.upper.set(t, u)
+				subst.upper.set(t, u)
 			}
 		}
 
-		u = Val.intersectTy(u, this.getUpper(tv))
+		u = Val.intersectTy(u, subst.getUpper(tv))
 
-		const l = this.getLower(tv)
+		const l = subst.getLower(tv)
 		if (!l.isSubtypeOf(u)) {
 			throw new Error('Invalid subst')
 		}
 
-		this.upper.set(tv, u)
+		subst.upper.set(tv, u)
 
-		return this
+		return subst
 	}
 
 	public getUpper(tv: Val.TyVar) {
 		return this.upper.get(tv) ?? Val.all
 	}
 
-	public applyLower(val: Val.Value): Val.Value {
-		return this.applyLimit(val, this.lower, this.upper)
-	}
-
-	public applyUpper(val: Val.Value): Val.Value {
-		return this.applyLimit(val, this.upper, this.lower)
-	}
-
-	private applyLimit(val: Val.Value, first: SubstMap, second: SubstMap) {
+	public applyTo(val: Val.Value): Val.Value {
 		switch (val.type) {
 			case 'tyVar': {
-				return first.get(val) ?? second.get(val) ?? Val.bottom
+				return this.lower.get(val) ?? Val.bottom
 			}
 			case 'tyFn': {
-				const param = val.tyParam.map(p => this.applyLower(p))
-				const out = this.applyLower(val.tyOut)
+				const param = val.tyParam.map(p => this.inverted.applyTo(p))
+				const out = this.applyTo(val.tyOut)
 				return Val.tyFn(param, out)
 			}
 			default:
 				return val
 		}
+	}
+
+	public clone() {
+		const lower = new Map(this.lower.entries())
+		const upper = new Map(this.upper.entries())
+		return new Subst(lower, upper)
+	}
+
+	public get inverted() {
+		return new Subst(this.upper, this.lower)
 	}
 
 	public print() {
@@ -103,10 +107,6 @@ export class Subst {
 
 	public static empty() {
 		return new Subst(new Map(), new Map())
-	}
-
-	public static fromLowers(...lowers: [Val.TyVar, Val.Value][]) {
-		return new Subst(new Map(lowers), new Map())
 	}
 }
 
@@ -181,5 +181,5 @@ export function unify(consts: Const[]): Subst {
 }
 
 export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
-	return unify(consts).applyLower(val)
+	return unify(consts).applyTo(val)
 }
