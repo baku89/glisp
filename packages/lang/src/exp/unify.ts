@@ -24,10 +24,10 @@ export class Subst {
 
 		l = Val.uniteTy(l, subst.getLower(tv))
 
-		const u = subst.getUpper(tv)
-		if (!l.isSubtypeOf(u)) {
-			throw new Error('Invalid subst')
-		}
+		// const u = subst.getUpper(tv)
+		// if (!l.isSubtypeOf(u)) {
+		// 	throw new Error('Invalid subst')
+		// }
 
 		subst.lower.set(tv, l)
 
@@ -54,10 +54,10 @@ export class Subst {
 
 		u = Val.intersectTy(u, subst.getUpper(tv))
 
-		const l = subst.getLower(tv)
-		if (!l.isSubtypeOf(u)) {
-			throw new Error('Invalid subst')
-		}
+		// const l = subst.getLower(tv)
+		// if (!l.isSubtypeOf(u)) {
+		// 	throw new Error('Invalid subst')
+		// }
 
 		subst.upper.set(tv, u)
 

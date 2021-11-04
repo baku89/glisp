@@ -60,6 +60,14 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('((. succ even?) 1)', Val.tyBool)
 })
 
+describe('inferring invalid expression', () => {
+	testInfer('(. succ)', Val.tyFn([Val.tyInt], Val.bottom))
+	testInfer('(. _ succ)', Val.tyFn([Val.bottom], Val.tyInt))
+	testInfer('(. _ succ)', Val.tyFn([Val.bottom], Val.tyInt))
+	testInfer('(. not succ)', Val.tyFn([Val.tyBool], Val.tyInt))
+	testInfer('(. succ not)', Val.tyFn([Val.tyInt], Val.tyBool))
+})
+
 function parse(input: string | Exp.Node): Exp.Node {
 	if (typeof input === 'string') {
 		return Parser.parse(input)
