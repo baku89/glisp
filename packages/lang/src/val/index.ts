@@ -302,8 +302,7 @@ export class TyUnion implements IVal {
 		if (val.type !== this.type) return false
 		if (val.types.length !== this.types.length) return false
 
-		const diff = differenceWith(val.types, this.types, isEqual)
-		return diff.length === 0
+		return differenceWith(val.types, this.types, isEqual).length === 0
 	}
 
 	public static from(...types: Value[]) {
