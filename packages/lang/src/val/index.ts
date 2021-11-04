@@ -36,7 +36,7 @@ export class All implements IVal {
 	}
 
 	public isSubtypeOf(ty: Value) {
-		return ty.type === 'all'
+		return ty.type === 'all' || ty.type === 'tyVar'
 	}
 
 	public isEqualTo(val: Value) {
@@ -91,6 +91,7 @@ export class Int implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty === this.tyAtom) return true
 
@@ -123,6 +124,7 @@ export class Bool implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty === this.tyAtom) return true
 
@@ -162,6 +164,7 @@ export class Fn implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') {
 			const thisTy = tyFn(values(this.tyParam), this.tyOut)
@@ -206,7 +209,7 @@ export class TyVar implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tyVar') return ty.id === this.id
+		if (ty.type === 'tyVar') return true //ty.id === this.id
 
 		return false
 	}
@@ -243,6 +246,7 @@ export class TyFn implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type !== 'tyFn') return false
 
@@ -344,6 +348,7 @@ export class TyAtom implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this === ty
 	}
@@ -369,6 +374,7 @@ export class TySingleton implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
+		if (ty.type === 'tyVar') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tySingleton') {
 			return ty.value.isEqualTo(this.value)
