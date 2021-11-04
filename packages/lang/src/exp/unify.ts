@@ -3,21 +3,64 @@ import {values} from 'lodash'
 import * as Val from '../val'
 
 export type Const = [Val.Value, Val.Value]
-export type Subst = Map<Val.TyVar, Val.Value>
 
-export function applySubst(val: Val.Value, subst: Subst): Val.Value {
-	switch (val.type) {
-		case 'tyVar': {
-			const tv = subst.get(val)
-			return tv ?? val
+type SubstMap = Map<Val.TyVar, Val.Value>
+
+export class Subst {
+	private constructor(private lower: SubstMap, private upper: SubstMap) {}
+
+	public appendLower(tv: Val.TyVar, lower: Val.Value) {
+		let l = lower
+
+		if (l.type === 'tyVar') {
+			l = this.lower.get(l) ?? l
 		}
-		case 'tyFn': {
-			const param = val.param.map(p => applySubst(p, subst))
-			const out = applySubst(val.out, subst)
-			return Val.tyFn(param, out)
+
+		for (const [t, v] of this.lower) {
+			if (v.isEqualTo(tv)) {
+				this.lower.set(t, l)
+			}
 		}
-		default:
-			return val
+
+		l = Val.uniteTy(l, this.getLower(tv))
+		this.lower.set(tv, l)
+
+		return this
+	}
+
+	public getLower(tv: Val.TyVar) {
+		return this.lower.get(tv) ?? Val.bottom
+	}
+
+	public applyLower(val: Val.Value): Val.Value {
+		switch (val.type) {
+			case 'tyVar': {
+				const tv = this.lower.get(val)
+				return tv ?? val
+			}
+			case 'tyFn': {
+				const param = val.param.map(p => this.applyLower(p))
+				const out = this.applyLower(val.out)
+				return Val.tyFn(param, out)
+			}
+			default:
+				return val
+		}
+	}
+
+	public print() {
+		const tvs = [...this.lower.keys()]
+		const strs = tvs.map(tv => this.getLower(tv).print() + '<:' + tv.print())
+
+		return '[' + strs.join(', ') + ']'
+	}
+
+	public static empty() {
+		return new Subst(new Map(), new Map())
+	}
+
+	public static fromLowers(...lowers: [Val.TyVar, Val.Value][]) {
+		return new Subst(new Map(lowers), new Map())
 	}
 }
 
@@ -39,27 +82,8 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 	}
 }
 
-function consSubst(tv: Val.TyVar, val: Val.Value, subst: Subst): Subst {
-	let newVal = val
-	if (val.type === 'tyVar') {
-		newVal = subst.get(val) ?? val
-	}
-
-	for (const [t, v] of subst) {
-		if (v.isEqualTo(tv)) {
-			subst.set(t, newVal)
-		}
-	}
-
-	const prevVal = subst.get(tv) ?? Val.bottom
-	newVal = Val.uniteTy(newVal, prevVal)
-	subst.set(tv, newVal)
-
-	return subst
-}
-
 export function unifyLower(consts: Const[]): Subst {
-	if (consts.length === 0) return new Map()
+	if (consts.length === 0) return Subst.empty()
 
 	const [[s, t], ...rest] = consts
 
@@ -68,8 +92,7 @@ export function unifyLower(consts: Const[]): Subst {
 			throw new Error('Failed to occur check')
 		}
 
-		const restSubsts = unifyLower(rest)
-		return consSubst(t, s, restSubsts)
+		return unifyLower(rest).appendLower(t, s)
 	}
 
 	if (t.type === 'tyFn') {
@@ -99,5 +122,5 @@ export function unifyLower(consts: Const[]): Subst {
 }
 
 export function inferPoly(val: Val.Value, consts: Const[]): Val.Value {
-	return applySubst(val, unifyLower(consts))
+	return unifyLower(consts).applyLower(val)
 }
