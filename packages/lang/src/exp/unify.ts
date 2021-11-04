@@ -66,11 +66,17 @@ export class Subst {
 	}
 
 	public applyLower(val: Val.Value): Val.Value {
+		return this.applyLimit(val, this.lower, this.upper)
+	}
+
+	public applyUpper(val: Val.Value): Val.Value {
+		return this.applyLimit(val, this.upper, this.lower)
+	}
+
+	private applyLimit(val: Val.Value, first: SubstMap, second: SubstMap) {
 		switch (val.type) {
 			case 'tyVar': {
-				const l = this.lower.get(val)
-				const u = this.upper.get(val)
-				return l ?? u ?? val
+				return first.get(val) ?? second.get(val) ?? val
 			}
 			case 'tyFn': {
 				const param = val.tyParam.map(p => this.applyLower(p))
