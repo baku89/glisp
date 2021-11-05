@@ -14,40 +14,15 @@ export type Value =
 
 interface IVal {
 	type: string
+	defaultValue: Value
 	print(): string
-	convert(val: Value): Value
 	isSubtypeOf(ty: Value): boolean
 	isEqualTo(val: Value): boolean
 }
 
-export class All implements IVal {
-	public readonly type: 'all' = 'all'
-
-	private constructor() {
-		return this
-	}
-
-	public print() {
-		return 'All'
-	}
-
-	public convert() {
-		return Bottom.instance
-	}
-
-	public isSubtypeOf(ty: Value) {
-		return ty.type === 'all'
-	}
-
-	public isEqualTo(val: Value) {
-		return val.type === this.type
-	}
-
-	public static instance = new All()
-}
-
 export class Bottom implements IVal {
 	public readonly type: 'bottom' = 'bottom'
+	public readonly defaultValue = Bottom.instance
 
 	private constructor() {
 		return this
@@ -55,10 +30,6 @@ export class Bottom implements IVal {
 
 	public print() {
 		return '_'
-	}
-
-	public convert() {
-		return this
 	}
 
 	public isSubtypeOf() {
@@ -72,17 +43,38 @@ export class Bottom implements IVal {
 	public static instance = new Bottom()
 }
 
+export class All implements IVal {
+	public readonly type: 'all' = 'all'
+	public readonly defaultValue = Bottom.instance
+
+	private constructor() {
+		return this
+	}
+
+	public print() {
+		return 'All'
+	}
+
+	public isSubtypeOf(ty: Value) {
+		return ty.type === 'all'
+	}
+
+	public isEqualTo(val: Value) {
+		return val.type === this.type
+	}
+
+	public static instance = new All()
+}
+
 export class Int implements IVal {
 	public readonly type: 'int' = 'int'
-	private superType = tyInt
+	public readonly defaultValue = this
+
+	public readonly superType = tyInt
 	private constructor(public readonly value: number) {}
 
 	public print() {
 		return this.value.toString()
-	}
-
-	public convert() {
-		return this
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -104,15 +96,13 @@ export class Int implements IVal {
 
 export class Bool implements IVal {
 	public readonly type: 'bool' = 'bool'
-	private readonly superType = tyBool
+	public readonly defaultValue = Bottom.instance
+
+	public readonly superType = tyBool
 	private constructor(public readonly value: boolean) {}
 
 	public print() {
 		return this.value.toString()
-	}
-
-	public convert() {
-		return this
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -134,6 +124,8 @@ export class Bool implements IVal {
 
 export class Fn implements IVal {
 	public readonly type: 'fn' = 'fn'
+	public readonly defaultValue = this
+
 	public readonly tyParam!: Value[]
 	public constructor(
 		public readonly value: (...params: any[]) => Value,
@@ -153,10 +145,6 @@ export class Fn implements IVal {
 			.join(' ')
 		const out = this.out.print()
 		return `(=> [${params}] <JS Function>:${out})`
-	}
-
-	public convert() {
-		return this
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -189,15 +177,12 @@ export class Fn implements IVal {
 
 export class TyVar implements IVal {
 	public readonly type: 'tyVar' = 'tyVar'
+	public readonly defaultValue = Bottom.instance
 
 	private constructor(private readonly id: number = TyVar.counter++) {}
 
 	public print() {
 		return '<t' + this.id + '>'
-	}
-
-	public convert() {
-		return Bottom.instance
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -220,6 +205,7 @@ export class TyVar implements IVal {
 
 export class TyFn implements IVal {
 	public readonly type: 'tyFn' = 'tyFn'
+
 	private constructor(
 		public readonly tyParam: Value[],
 		public readonly tyOut: Value
@@ -232,9 +218,8 @@ export class TyFn implements IVal {
 		return `(-> [${param}] ${out})`
 	}
 
-	public convert(val: Value): Value {
-		const outVal = this.tyOut.convert(val)
-
+	public get defaultValue(): Value {
+		const outVal = this.tyOut.defaultValue
 		return Fn.of(() => outVal, {}, this.tyOut)
 	}
 
@@ -273,6 +258,7 @@ export class TyFn implements IVal {
 
 export class TyUnion implements IVal {
 	public readonly type: 'tyUnion' = 'tyUnion'
+
 	private constructor(public readonly types: Exclude<Value, TyUnion>[]) {
 		if (types.length <= 1) throw new Error('Invalid union type')
 	}
@@ -284,8 +270,8 @@ export class TyUnion implements IVal {
 		return this.types.every(s => ty.types.some(t => s.isSubtypeOf(t)))
 	}
 
-	public convert(val: Value): Value {
-		return this.types[0].convert(val)
+	public get defaultValue(): Value {
+		return this.types[0].defaultValue
 	}
 
 	public print(): string {
@@ -312,7 +298,7 @@ export class TyAtom implements IVal {
 	public readonly type: 'tyAtom' = 'tyAtom'
 	private constructor(
 		public readonly name: string,
-		public readonly convert: (val: Value) => Value
+		public readonly defaultValue: Value
 	) {}
 
 	public print() {
@@ -330,8 +316,8 @@ export class TyAtom implements IVal {
 		return val === this
 	}
 
-	public static of(name: string, convert: (val: Value) => Value) {
-		return new TyAtom(name, convert)
+	public static of(name: string, defaultValue: Int | Bool) {
+		return new TyAtom(name, defaultValue)
 	}
 }
 
@@ -352,9 +338,7 @@ export class TySingleton implements IVal {
 		return false
 	}
 
-	public convert() {
-		return this
-	}
+	public readonly defaultValue = this
 
 	public isEqualTo(val: Value): boolean {
 		return val.type === this.type && val.value.isEqualTo(this.value)
@@ -365,7 +349,7 @@ export class TySingleton implements IVal {
 	}
 }
 
-export const tyInt = TyAtom.of('Int', () => Int.of(0))
+export const tyInt = TyAtom.of('Int', Int.of(0))
 export const tyBool = TyUnion.fromTypesUnsafe([Bool.of(false), Bool.of(true)])
 
 const isEqual = (a: Value, b: Value) => a.isEqualTo(b)

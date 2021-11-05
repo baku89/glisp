@@ -214,7 +214,7 @@ export class Call extends BaseNode {
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
 		const paramNames = keys(fn.tyParam)
 
-		const convertedArgs = tyParam.map((p, i) => {
+		const args = tyParam.map((p, i) => {
 			const a = this.args[i]
 			const name = paramNames[i]
 
@@ -224,7 +224,7 @@ export class Call extends BaseNode {
 					ref: this,
 					reason: `Insufficient argument: ${name}`,
 				})
-				return p.convert(Val.bottom)
+				return p.defaultValue
 			}
 
 			const aTy = tyArgs[i]
@@ -236,16 +236,18 @@ export class Call extends BaseNode {
 					logs.push({
 						level: 'error',
 						ref: this,
-						reason: `Argument ${name} expects type: ${p.print()}, but got: ${aTy.print()}`,
+						reason:
+							`Argument ${name} expects type: ${p.print()}, ` +
+							`but got: ${aTy.print()}`,
 					})
 				}
-				return p.convert(aVal)
+				return p.defaultValue
 			}
 
 			return aVal
 		})
 
-		const result = fn.value(...convertedArgs)
+		const result = fn.value(...args)
 
 		return Writer.of(result, ...fnLog, ...logs)
 	}
