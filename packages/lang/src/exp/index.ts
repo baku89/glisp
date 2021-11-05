@@ -142,7 +142,7 @@ export class Obj extends BaseNode {
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return Val.singleton(this.value)
+			return Val.tyValue(this.value)
 		}
 		return this.value
 	}

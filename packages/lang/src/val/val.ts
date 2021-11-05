@@ -10,7 +10,7 @@ export type Value =
 	| TyFn
 	| TyUnion
 	| TyAtom
-	| TySingleton
+	| TyValue
 
 interface IVal {
 	type: string
@@ -321,18 +321,18 @@ export class TyAtom implements IVal {
 	}
 }
 
-export class TySingleton implements IVal {
-	public readonly type: 'tySingleton' = 'tySingleton'
+export class TyValue implements IVal {
+	public readonly type: 'tyValue' = 'tyValue'
 	private constructor(public readonly value: TyFn | TyUnion | TyAtom | TyVar) {}
 
 	public print() {
-		return '(singleton ' + this.value.print() + ')'
+		return '(tyValue ' + this.value.print() + ')'
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tySingleton') {
+		if (ty.type === 'tyValue') {
 			return ty.value.isEqualTo(this.value)
 		}
 		return false
@@ -345,7 +345,7 @@ export class TySingleton implements IVal {
 	}
 
 	public static of(ty: TyFn | TyUnion | TyAtom) {
-		return new TySingleton(ty)
+		return new TyValue(ty)
 	}
 }
 

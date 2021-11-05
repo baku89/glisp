@@ -9,8 +9,8 @@ import {
 	tyBool,
 	TyFn,
 	tyInt,
-	TySingleton,
 	TyUnion,
+	TyValue,
 	TyVar,
 	Value,
 } from './val'
@@ -19,7 +19,7 @@ export {Value}
 
 export {All, Bool, Bottom, Fn, Int}
 
-export {TyAtom, TyFn, TyUnion, TySingleton, TyVar}
+export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
 export {tyInt, tyBool}
 
@@ -34,7 +34,7 @@ export const fn = Fn.of
 export const tyVar = TyVar.fresh
 export const tyFn = TyFn.of
 export const tyAtom = TyAtom.of
-export const singleton = TySingleton.of
+export const tyValue = TyValue.of
 
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)

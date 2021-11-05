@@ -39,8 +39,8 @@ describe('evaluating without errors', () => {
 describe('inferring a type', () => {
 	testInfer(Exp.int(0), Val.int(0))
 	testInfer(Exp.bool(false), Val.bool(false))
-	testInfer(Exp.sym('Int'), Val.singleton(Val.tyInt))
-	testInfer(Exp.obj(Val.singleton(Val.tyInt)), Val.singleton(Val.tyInt))
+	testInfer(Exp.sym('Int'), Val.tyValue(Val.tyInt))
+	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
 	testInfer(Exp.sym('_'), Val.bottom)
 	testInfer('(not true)', Val.tyBool)
 })
