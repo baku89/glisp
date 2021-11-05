@@ -45,7 +45,7 @@ Vec = "[" _ items:VecItem* "]"
 
 VecItem = item:Node _ { return item }
 
-Scope = "{" _ pairs:ScopePair+ out:Node? _ "}"
+Scope = "{" _ pairs:ScopePair* out:Node? _ "}"
 	{
 		return Exp.scope(Object.fromEntries(pairs), out ?? null)
 	}

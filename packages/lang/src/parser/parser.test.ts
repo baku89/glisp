@@ -31,7 +31,10 @@ describe('parsing call expressions', () => {
 })
 
 describe('parsing scope', () => {
-	testParsing('{a = 10 a}', scope({a: int(10)}, sym('a')))
+	testParsing('{a = 1 a}', scope({a: int(1)}, sym('a')))
+	testParsing('{a = 1}', scope({a: int(1)}))
+	testParsing('{a = {a = 1}}', scope({a: scope({a: int(1)})}))
+	testParsing('{{1}}', scope({}, scope({}, int(1))))
 })
 
 function testParsing(input: string, expected: Node) {
