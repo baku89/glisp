@@ -48,7 +48,7 @@ export class Sym extends BaseNode {
 		const log: Log = {
 			level: 'error',
 			ref: this,
-			reason: `Variable not bound: ${this.name}`,
+			reason: 'Variable not bound: ' + this.name,
 		}
 
 		return Writer.of(obj(Val.bottom), log)
@@ -222,7 +222,7 @@ export class Call extends BaseNode {
 				logs.push({
 					level: 'error',
 					ref: this,
-					reason: `Insufficient argument: ${name}`,
+					reason: 'Insufficient argument: ' + name,
 				})
 				return p.defaultValue
 			}
