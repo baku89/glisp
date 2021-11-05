@@ -23,7 +23,7 @@ abstract class BaseNode {
 	public parent: Node | null = null
 
 	abstract eval(): ValueWithLog
-	abstract infer(): ValueWithLog
+	abstract infer(): Val.Value
 	abstract print(): string
 }
 
@@ -58,8 +58,8 @@ export class Sym extends BaseNode {
 		return this.resolve().bind(v => v.eval())
 	}
 
-	public infer(): ValueWithLog {
-		return this.resolve().bind(v => v.infer())
+	public infer(): Val.Value {
+		return this.resolve().result.infer()
 	}
 
 	public print() {
@@ -84,8 +84,8 @@ export class Int extends BaseNode {
 		return Writer.of(Val.int(this.value))
 	}
 
-	public infer(): ValueWithLog {
-		return Writer.of(Val.int(this.value))
+	public infer(): Val.Value {
+		return Val.int(this.value)
 	}
 
 	public print() {
@@ -110,8 +110,8 @@ export class Bool extends BaseNode {
 		return Writer.of(Val.bool(this.value))
 	}
 
-	public infer(): ValueWithLog {
-		return Writer.of(Val.bool(this.value))
+	public infer(): Val.Value {
+		return Val.bool(this.value)
 	}
 
 	public print() {
@@ -136,15 +136,15 @@ export class Obj extends BaseNode {
 		return Writer.of(this.value)
 	}
 
-	public infer(): ValueWithLog {
+	public infer(): Val.Value {
 		if (
 			this.value.type === 'tyAtom' ||
 			this.value.type === 'tyFn' ||
 			this.value.type === 'tyUnion'
 		) {
-			return Writer.of(Val.singleton(this.value))
+			return Val.singleton(this.value)
 		}
-		return Writer.of(this.value)
+		return this.value
 	}
 
 	public print() {
@@ -165,12 +165,10 @@ export class Fn extends BaseNode {
 		super()
 	}
 
-	public infer(): ValueWithLog {
-		const {result: param, log: paramLog} = Writer.map(values(this.param), exp =>
-			exp.infer()
-		)
-		const {result: out, log: outLog} = this.body.infer()
-		return Writer.of(Val.tyFn(param, out), ...paramLog, ...outLog)
+	public infer(): Val.Value {
+		const param = values(this.param).map(p => p.infer())
+		const out = this.body.infer()
+		return Val.tyFn(param, out)
 	}
 
 	public eval(): ValueWithLog {
@@ -210,7 +208,7 @@ export class Call extends BaseNode {
 
 		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
-		const tyArgs = Writer.map(this.args, a => a.infer()).result
+		const tyArgs = this.args.map(a => a.infer())
 		const consts = zip(tyArgs, fn.tyParam)
 		const subst = unify(consts)
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
@@ -252,17 +250,16 @@ export class Call extends BaseNode {
 		return Writer.of(result, ...fnLog, ...logs)
 	}
 
-	public infer(): ValueWithLog {
-		return this.fn.infer().bind(ty => {
-			if (ty.type !== 'fn' && ty.type !== 'tyFn') return Writer.of(ty)
+	public infer(): Val.Value {
+		const ty = this.fn.infer()
+		if (ty.type !== 'fn' && ty.type !== 'tyFn') return ty
 
-			// Infer type by resolving constraints
-			const {result: args, log: argLog} = Writer.map(this.args, a => a.infer())
-			const consts = zip(args, ty.tyParam)
-			const tyOut = infer(ty.tyOut, consts)
+		// Infer type by resolving constraints
+		const args = this.args.map(a => a.infer())
+		const consts = zip(args, ty.tyParam)
+		const tyOut = infer(ty.tyOut, consts)
 
-			return Writer.of(tyOut, ...argLog)
-		})
+		return tyOut
 	}
 
 	public print(): string {
@@ -292,8 +289,8 @@ export class Scope extends BaseNode {
 		super()
 	}
 
-	public infer(): ValueWithLog {
-		return this.out ? this.out.infer() : Writer.of(Val.bottom)
+	public infer(): Val.Value {
+		return this.out ? this.out.infer() : Val.bottom
 	}
 
 	public eval(): ValueWithLog {

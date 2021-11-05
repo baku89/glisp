@@ -85,7 +85,7 @@ function testInfer(input: string | Exp.Node, expected: Val.Value) {
 	test(`${exp.print()} is inferred to be ${expected.print()}`, () => {
 		exp.parent = GlobalScope
 
-		const inferred = exp.infer().result
+		const inferred = exp.infer()
 		const equal = inferred.isEqualTo(expected)
 		if (!equal) throw new Error('Got=' + inferred.print())
 	})
