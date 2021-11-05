@@ -27,7 +27,7 @@ describe('getTyVars', () => {
 	}
 })
 
-describe('resolveLowerConsts', () => {
+describe('unifying constraints', () => {
 	const T = Val.tyVar(),
 		U = Val.tyVar()
 
