@@ -20,6 +20,12 @@ describe('evaluating without errors', () => {
 	run('((. succ even?) 2)', Val.bool(false))
 	run('((twice succ) 1)', Val.int(3))
 
+	run('[]', Val.vec())
+	run('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
+	run('[(+ 1 2)]', Val.vec(Val.int(3)))
+	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
+	run('(identity [1])', Val.vec(Val.int(1)))
+
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)
 		test(`${exp.print()} evaluates to ${expected.print()}`, () => {
@@ -43,6 +49,21 @@ describe('inferring a type', () => {
 	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
 	testInfer(Exp.sym('_'), Val.bottom)
 	testInfer('(not true)', Val.tyBool)
+})
+
+describe('inferring vectors', () => {
+	const i1 = Val.int(1)
+	const i2 = Val.int(2)
+	const i3 = Val.int(3)
+
+	testInfer('[]', Val.tyValue(Val.vec()))
+	testInfer('[1 2 3]', Val.tyValue(Val.vec(i1, i2, i3)))
+	testInfer('[Int]', Val.tyValue(Val.vec(Val.tyValue(Val.tyInt))))
+	testInfer('[(succ 0)]', Val.tyValue(Val.vec(Val.tyInt)))
+	testInfer(
+		'[(. succ even?)]',
+		Val.tyValue(Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
+	)
 })
 
 describe('inferring a type of polymorphic function application', () => {

@@ -1,3 +1,4 @@
+import {parse} from '../parser'
 import * as Val from '.'
 
 describe('subtyping', () => {
@@ -53,7 +54,28 @@ describe('subtyping', () => {
 		true
 	)
 
-	function run(sub: Val.Value, sup: Val.Value, expected: boolean) {
+	// Vectors
+	run('[1]', '[1]', true)
+	run('[1]', '[1 2]', false)
+	run('[1 2]', '[1]', true)
+	run('[1]', '[true]', false)
+	run('[1]', '[Int]', true)
+	run('[1 Int]', '[(| 1 Bool) Int]', true)
+	run('[Int Int]', '[1 2]', false)
+
+	function parseEval(input: Val.Value | string) {
+		if (typeof input === 'string') return parse(input).eval().result
+		return input
+	}
+
+	function run(
+		_sub: Val.Value | string,
+		_sup: Val.Value | string,
+		expected: boolean
+	) {
+		const sub = parseEval(_sub)
+		const sup = parseEval(_sup)
+
 		const op = expected ? '<:' : '!<:'
 		test(`${print(sub)} ${op} ${print(sup)}`, () => {
 			expect(sub.isSubtypeOf(sup)).toBe(expected)

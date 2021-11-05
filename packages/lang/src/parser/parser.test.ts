@@ -1,4 +1,4 @@
-import {bool, call, int, isEqual, Node, scope, sym} from '../exp'
+import {bool, call, int, isEqual, Node, scope, sym, vec} from '../exp'
 import {parse} from '.'
 
 describe('parsing literals', () => {
@@ -35,6 +35,17 @@ describe('parsing scope', () => {
 	testParsing('{a = 1}', scope({a: int(1)}))
 	testParsing('{a = {a = 1}}', scope({a: scope({a: int(1)})}))
 	testParsing('{{1}}', scope({}, scope({}, int(1))))
+})
+
+describe('parsing vector', () => {
+	testParsing('\t[   ]  ', vec())
+	testParsing('[    1   \t]', vec(int(1)))
+	testParsing('[1 2 3]', vec(int(1), int(2), int(3)))
+	testParsing('[1[2]3   ]', vec(int(1), vec(int(2)), int(3)))
+	testParsing(
+		'[(+)false(+)+]',
+		vec(call(sym('+')), bool(false), call(sym('+')), sym('+'))
+	)
 })
 
 function testParsing(input: string, expected: Node) {
