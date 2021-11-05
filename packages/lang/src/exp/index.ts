@@ -208,7 +208,7 @@ export class Call extends BaseNode {
 		const consts = zip(tyArgs, fn.tyParam)
 		const subst = unify(consts)
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
-		const paramNames = keys(fn.tyParam)
+		const paramNames = keys(fn.param)
 
 		const args = tyParam.map((p, i) => {
 			const a = this.args[i]
