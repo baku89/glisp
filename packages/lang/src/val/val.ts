@@ -1,11 +1,14 @@
 import {differenceWith, entries, isEqualWith, values} from 'lodash'
 
+import {zip} from '../utils/zip'
+
 export type Value =
 	| All
 	| Bottom
 	| Int
 	| Bool
 	| Fn
+	| Vec
 	| TyVar
 	| TyFn
 	| TyUnion
@@ -175,6 +178,51 @@ export class Fn implements IVal {
 	}
 }
 
+export class Vec implements IVal {
+	public readonly type: 'vec' = 'vec'
+
+	private constructor(public readonly items: Value[]) {}
+
+	public get length() {
+		return this.items.length
+	}
+
+	public isSubtypeOf(ty: Value): boolean {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
+
+		if (ty.type === 'vec') {
+			return (
+				this.length >= ty.length &&
+				zip(this.items, ty.items).every(([a, b]) => a.isSubtypeOf(b))
+			)
+		}
+
+		return false
+	}
+
+	public isEqualTo(val: Value): boolean {
+		return (
+			val.type === 'vec' &&
+			val.length === this.length &&
+			zip(val.items, this.items).every(([a, b]) => a.isEqualTo(b))
+		)
+	}
+
+	public get defaultValue(): Value {
+		return new Vec(this.items.map(it => it.defaultValue))
+	}
+
+	public print(): string {
+		const items = this.items.map(it => it.print())
+		return '[' + items.join(' ') + ']'
+	}
+
+	public static of(...items: Value[]) {
+		return new Vec(items)
+	}
+}
+
 export class TyVar implements IVal {
 	public readonly type: 'tyVar' = 'tyVar'
 	public readonly defaultValue = Bottom.instance
@@ -323,7 +371,9 @@ export class TyAtom implements IVal {
 
 export class TyValue implements IVal {
 	public readonly type: 'tyValue' = 'tyValue'
-	private constructor(public readonly value: TyFn | TyUnion | TyAtom | TyVar) {}
+	private constructor(
+		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar
+	) {}
 
 	public print() {
 		return '(tyValue ' + this.value.print() + ')'
@@ -338,13 +388,13 @@ export class TyValue implements IVal {
 		return false
 	}
 
-	public readonly defaultValue = this
+	public readonly defaultValue = this.value
 
 	public isEqualTo(val: Value): boolean {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
-	public static of(ty: TyFn | TyUnion | TyAtom | TyVar) {
+	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar) {
 		return new TyValue(ty)
 	}
 }

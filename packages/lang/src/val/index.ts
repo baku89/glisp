@@ -13,11 +13,12 @@ import {
 	TyValue,
 	TyVar,
 	Value,
+	Vec,
 } from './val'
 
 export {Value}
 
-export {All, Bool, Bottom, Fn, Int}
+export {All, Bool, Bottom, Fn, Int, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
@@ -31,6 +32,7 @@ export const bottom = Bottom.instance
 export const int = Int.of
 export const bool = Bool.of
 export const fn = Fn.of
+export const vec = Vec.of
 export const tyVar = TyVar.fresh
 export const tyFn = TyFn.of
 export const tyAtom = TyAtom.of
@@ -42,7 +44,8 @@ export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)
 export const isTyFn = (a: Value): a is Fn | TyFn =>
 	a.type === 'fn' || a.type === 'tyFn'
 
-export const isTy = (a: Value): a is TyFn | TyUnion | TyAtom | TyVar =>
+export const isTy = (a: Value): a is Vec | TyFn | TyUnion | TyAtom | TyVar =>
+	a.type === 'vec' ||
 	a.type === 'tyFn' ||
 	a.type === 'tyUnion' ||
 	a.type === 'tyAtom' ||

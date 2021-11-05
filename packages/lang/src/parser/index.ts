@@ -10,7 +10,7 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Int / Bool / Sym
+Node = Scope / Call / Vec / Int / Bool / Sym
 
 Reserved = "true" / "false" / "null"
 
@@ -31,15 +31,19 @@ Bool "Bool" = ("true" / "false") &End
 		return Exp.bool(v)
 	}
 
-Call "Call" = "(" _ fn:Node args:CallArg* _ ")"
+Call "Call" = "(" _ fn:Node _ args:CallArg* ")"
 	{
 		return Exp.call(fn, ...args)
 	}
 
-CallArg = _ arg:Node
+CallArg = arg:Node _ { return arg }
+
+Vec = "[" _ items:VecItem* "]"
 	{
-		return arg
+		return Exp.vec(...items)
 	}
+
+VecItem = item:Node _ { return item }
 
 Scope = "{" _ pairs:ScopePair+ out:Node? _ "}"
 	{

@@ -5,7 +5,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {infer, unify} from './unify'
 
-export type Node = Sym | Int | Bool | Obj | Fn | Call | Scope
+export type Node = Sym | Int | Bool | Obj | Fn | Vec | Call | Scope
 
 export type Type = Node['type']
 
@@ -191,6 +191,41 @@ export class Fn extends BaseNode {
 
 export const fn = Fn.of
 
+export class Vec extends BaseNode {
+	public readonly type: 'vec' = 'vec'
+
+	private constructor(public items: Node[]) {
+		super()
+	}
+
+	public get length() {
+		return this.items.length
+	}
+
+	public eval(): ValueWithLog {
+		const {result, log} = Writer.map(this.items, it => it.eval())
+		return Writer.of(Val.vec(...result), ...log)
+	}
+
+	public infer(): Val.Value {
+		const items = this.items.map(it => it.infer())
+		return Val.tyValue(Val.vec(...items))
+	}
+
+	public print(): string {
+		const items = this.items.map(it => it.print())
+		return '[' + items.join(' ') + ']'
+	}
+
+	public static of(...items: Node[]) {
+		const vec = new Vec(items)
+		vec.items.forEach(it => (it.parent = vec))
+		return vec
+	}
+}
+
+export const vec = Vec.of
+
 export class Call extends BaseNode {
 	public readonly type: 'call' = 'call'
 
@@ -320,6 +355,12 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'int':
 		case 'obj':
 			return b.type === a.type && a.value === b.value
+		case 'vec':
+			return (
+				b.type === 'vec' &&
+				a.length === b.length &&
+				zip(a.items, b.items).every(([ai, bi]) => isEqual(ai, bi))
+			)
 		case 'fn':
 			return (
 				b.type === 'fn' &&
