@@ -146,7 +146,7 @@ export function unify(consts: Const[]): Subst {
 
 	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
-		if (s.type !== 'fn' && s.type !== 'tyFn') {
+		if (!Val.isTyFn(s)) {
 			throw new Error('Not yet implemented')
 		}
 

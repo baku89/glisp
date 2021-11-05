@@ -344,7 +344,7 @@ export class TyValue implements IVal {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
-	public static of(ty: TyFn | TyUnion | TyAtom) {
+	public static of(ty: TyFn | TyUnion | TyAtom | TyVar) {
 		return new TyValue(ty)
 	}
 }

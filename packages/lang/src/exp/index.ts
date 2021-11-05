@@ -137,11 +137,7 @@ export class Obj extends BaseNode {
 	}
 
 	public infer(): Val.Value {
-		if (
-			this.value.type === 'tyAtom' ||
-			this.value.type === 'tyFn' ||
-			this.value.type === 'tyUnion'
-		) {
+		if (Val.isTy(this.value)) {
 			return Val.tyValue(this.value)
 		}
 		return this.value
@@ -254,7 +250,7 @@ export class Call extends BaseNode {
 
 	public infer(): Val.Value {
 		const ty = this.fn.infer()
-		if (ty.type !== 'fn' && ty.type !== 'tyFn') return ty
+		if (!Val.isTyFn(ty)) return ty
 
 		// Infer type by resolving constraints
 		const args = this.args.map(a => a.infer())
