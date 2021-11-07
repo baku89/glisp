@@ -1,5 +1,3 @@
-import {keys} from 'lodash'
-
 import {obj, scope} from '../exp'
 import * as Val from '../val'
 
@@ -56,6 +54,7 @@ export const GlobalScope = scope({
 		{test: Val.tyBool, then: T, else: T},
 		T
 	),
+	const: defn((x: Val.Value) => Val.fn(() => x, {}, T), {x: T}, T),
 	'.': defn(
 		(f: Val.Fn, g: Val.Fn) => {
 			const name = f.paramNameAt(0)
