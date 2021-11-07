@@ -117,12 +117,16 @@ export class Bool implements IVal {
 	}
 
 	public isEqualTo(val: Value) {
+		if (val === this) return true
 		return val.type === this.type && val.value === this.value
 	}
 
-	public static of(value: boolean) {
-		return new Bool(value)
+	public static of(value: boolean): Bool {
+		return value ? Bool.True : Bool.False
 	}
+
+	private static True = new Bool(true)
+	private static False = new Bool(false)
 }
 
 export class Fn implements IVal {
