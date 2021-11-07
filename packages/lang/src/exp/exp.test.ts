@@ -26,6 +26,8 @@ describe('evaluating without errors', () => {
 	run('[(+ 1 2)]', Val.vec(Val.int(3)))
 	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
 	run('(id [1])', Val.vec(Val.int(1)))
+	run('((=> [x:Int] (* x x)) 12)', Val.int(144))
+	run('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
 
 	run(
 		Exp.call(
