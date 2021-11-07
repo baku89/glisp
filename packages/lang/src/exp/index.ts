@@ -4,7 +4,7 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {infer, unify} from './unify'
+import {infer, unify, useFreshTyVars} from './unify'
 
 export type Node = Sym | Int | Obj | Fn | Vec | Call | Scope
 
@@ -232,7 +232,7 @@ export class Call extends BaseNode {
 
 		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
-		const tyArgs = this.args.map(a => a.infer())
+		const tyArgs = this.args.map(a => a.infer()).map(useFreshTyVars)
 		const consts = zip(tyArgs, fn.tyParam)
 		const subst = unify(consts)
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
