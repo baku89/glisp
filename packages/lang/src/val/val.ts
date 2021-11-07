@@ -1,5 +1,6 @@
 import {differenceWith, entries, isEqualWith, values} from 'lodash'
 
+import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
 
 export type Value =
@@ -187,7 +188,7 @@ export class Vec implements IVal {
 
 	private constructor(
 		public readonly items: Value[],
-		public readonly rest?: Value
+		public readonly rest: Value | null = null
 	) {}
 
 	public get length() {
@@ -200,6 +201,7 @@ export class Vec implements IVal {
 
 		if (ty.type === 'vec') {
 			return (
+				nullishEqual(ty.rest, this.rest, (a, b) => a.isSubtypeOf(b)) &&
 				this.length >= ty.length &&
 				zip(this.items, ty.items).every(([a, b]) => a.isSubtypeOf(b))
 			)
@@ -212,6 +214,10 @@ export class Vec implements IVal {
 		return (
 			val.type === 'vec' &&
 			val.length === this.length &&
+			((val.rest === null && this.rest === null) ||
+				(val.rest !== null &&
+					this.rest !== null &&
+					val.rest.isEqualTo(this.rest))) &&
 			zip(val.items, this.items).every(([a, b]) => a.isEqualTo(b))
 		)
 	}

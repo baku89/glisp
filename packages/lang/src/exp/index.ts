@@ -190,7 +190,7 @@ export class Vec extends BaseNode {
 			const rest = this.rest.infer()
 			return Val.tyValue(Val.vecV(...items, rest))
 		}
-		return Val.tyValue(Val.vec(...items))
+		return Val.vec(...items)
 	}
 
 	public print(): string {
