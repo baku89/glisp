@@ -56,6 +56,7 @@ describe('unifying constraints', () => {
 		],
 		Val.uniteTy(Val.int(1), Val.int(2))
 	)
+	run(T, [[Val.vec(Val.tyInt), Val.vecV(T)]], Val.tyInt)
 
 	function run(tv: Val.TyVar, consts: Const[], expected: Val.Value) {
 		const tvStr = tv.print()

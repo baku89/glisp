@@ -207,15 +207,24 @@ export class Vec implements IVal {
 			this.length >= ty.length &&
 			zip(this.items, ty.items).every(([a, b]) => a.isSubtypeOf(b))
 
-		if (ty.rest !== null) {
-			return (
-				this.rest !== null &&
-				this.rest.isSubtypeOf(ty.rest) &&
-				isAllItemsSubtype
-			)
+		if (!isAllItemsSubtype) {
+			return false
 		}
 
-		return isAllItemsSubtype
+		if (ty.rest) {
+			const tr = ty.rest
+			const isRestSubtype = this.items
+				.slice(ty.items.length)
+				.every(it => it.isSubtypeOf(tr))
+
+			if (!isRestSubtype) return false
+
+			if (this.rest) {
+				return this.rest.isSubtypeOf(ty.rest)
+			}
+		}
+
+		return true
 	}
 
 	public isEqualTo(val: Value): boolean {

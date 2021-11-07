@@ -87,6 +87,11 @@ export class Subst {
 				const out = this.applyTo(val.out)
 				return Val.fn(val.value, param, out)
 			}
+			case 'vec': {
+				const items = val.items.map(this.applyTo)
+				const rest = val.rest ? this.applyTo(val.rest) : null
+				return rest ? Val.vecV(...items, rest) : Val.vec(...items)
+			}
 			default:
 				return val
 		}
@@ -132,6 +137,11 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 			const out = getTyVars(val.tyOut)
 			return new Set([...param, ...out])
 		}
+		case 'vec': {
+			const items = val.items.map(ty => [...getTyVars(ty)]).flat()
+			const rest = val.rest ? [...getTyVars(val.rest)] : []
+			return new Set([...items, ...rest])
+		}
 		default:
 			return new Set()
 	}
@@ -156,17 +166,36 @@ export function unify(consts: Const[]): Subst {
 	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
 		if (!Val.isTyFn(s)) {
-			throw new Error('Not yet implemented')
+			return unify(rest)
 		}
 
-		if (s.tyParam.length > t.tyParam.length) {
-			throw new Error('Subtype expects too many parameters')
-		}
+		// if (s.tyParam.length > t.tyParam.length) {
+		// 	throw new Error('Subtype expects too many parameters')
+		// }
 
 		const param: Const[] = zip(t.tyParam, s.tyParam)
 		const out: Const = [s.tyOut, t.tyOut]
 
 		return unify([...param, out, ...rest])
+	}
+
+	if (t.type === 'vec') {
+		if (s.type !== 'vec') {
+			return unify(rest)
+		}
+
+		const items: Const[] = zip(s.items, t.items)
+
+		if (t.rest) {
+			const tr = t.rest
+			const rest: Const[] = s.items.slice(t.length).map(si => [si, tr])
+
+			if (s.rest) rest.push([s.rest, tr])
+
+			items.push(...rest)
+		}
+
+		return unify([...items, ...rest])
 	}
 
 	// If either type is tyVar?

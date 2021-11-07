@@ -69,6 +69,7 @@ describe('subtyping', () => {
 	run('[...Int]', '[Int ...Int]', false)
 	run('[...Int]', '[]', true)
 	run('[Int ...Int]', '[]', true)
+	run('[Int Int]', '[...Int]', true)
 
 	function parseEval(input: Val.Value | string) {
 		if (typeof input === 'string') return parse(input).eval().result
