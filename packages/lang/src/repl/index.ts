@@ -1,39 +1,56 @@
+import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {ValueWithLog} from '../exp'
+import {Log, ValueWithLog} from '../exp'
 import {parse} from '../parser'
+import {Writer} from '../utils/Writer'
+import {bottom} from '../val'
+
+function printLog({level, reason}: Log) {
+	let header: string
+	switch (level) {
+		case 'error':
+			header = chalk.bold.inverse.red(' ERROR ')
+			break
+		case 'warn':
+			header = chalk.bold.inverse.yellow(' WARN  ')
+			break
+		case 'info':
+			header = chalk.bold.inverse.blue(' INFO  ')
+			break
+	}
+
+	return header + ' ' + reason
+}
 
 function startRepl() {
 	repl.start({
-		prompt: '>> ',
+		prompt: chalk.bold.gray('> '),
 		eval(input, context, file, cb) {
-			const exp = parse(input)
-			const result = exp.eval()
-			cb(null, result)
-		},
-		writer: (v: unknown) => {
-			if (v instanceof Error) {
-				return '[fatal] ' + v.message + '\n_'
+			try {
+				const exp = parse(input)
+				const result = exp.eval()
+				cb(null, result)
+			} catch (err) {
+				if (!(err instanceof Error)) throw err
+				const r = Writer.of(bottom, {level: 'error', reason: err.message})
+				cb(null, r)
 			}
-
-			const {result, log} = v as ValueWithLog
-
+		},
+		writer: ({result, log}: ValueWithLog) => {
 			let str = ''
 
-			if (log.length > 0) {
-				str += log.map(l => `[${l.level}] ${l.reason}\n`).join('')
-			}
+			str += log.map(l => printLog(l) + '\n').join('')
+			str += chalk.bold.gray('< ') + result.print()
 
-			str += result.print()
-
-			return str
+			return str + '\n'
 		},
 	})
 }
 
 function main() {
-	console.log(`Hello ${os.userInfo().username}! This is the Glisp REPL!`)
+	console.log(`Hello ${os.userInfo().username}! Welcome to Glisp.`)
 	startRepl()
 }
 
