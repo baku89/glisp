@@ -130,13 +130,15 @@ export class Bool implements IVal {
 	private static False = new Bool(false)
 }
 
+export type IFn = (...params: any[]) => Value
+
 export class Fn implements IVal {
 	public readonly type: 'fn' = 'fn'
 	public readonly defaultValue = this
 
 	public readonly tyParam!: Value[]
 	public constructor(
-		public readonly value: (...params: any[]) => Value,
+		public readonly value: IFn,
 		public readonly param: Record<string, Value>,
 		public readonly out: Value
 	) {
