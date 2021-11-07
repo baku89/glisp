@@ -12,7 +12,13 @@ function startRepl() {
 			const result = exp.eval()
 			cb(null, result)
 		},
-		writer: ({result, log}: ValueWithLog) => {
+		writer: (v: unknown) => {
+			if (v instanceof Error) {
+				return '[fatal] ' + v.message + '\n_'
+			}
+
+			const {result, log} = v as ValueWithLog
+
 			let str = ''
 
 			if (log.length > 0) {
