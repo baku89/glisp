@@ -10,9 +10,9 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Vec / Int / Bool / Sym
+Node = Scope / Call / Vec / Int / Sym
 
-Reserved = "true" / "false" / "null"
+Reserved = "null"
 
 Sym "Sym" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
@@ -23,12 +23,6 @@ Int "Int" = [0-9]+ &End
 	{
 		const v = parseInt(text())
 		return Exp.int(v)
-	}
-
-Bool "Bool" = ("true" / "false") &End
-	{
-		const v = text() === 'true'
-		return Exp.bool(v)
 	}
 
 Call "Call" = "(" _ fn:Node _ args:CallArg* ")"

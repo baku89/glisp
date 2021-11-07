@@ -17,6 +17,8 @@ function defn(
 
 export const GlobalScope = scope({
 	_: obj(Val.bottom),
+	true: obj(Val.bool(true)),
+	false: obj(Val.bool(false)),
 	Int: obj(Val.tyInt),
 	Bool: obj(Val.tyBool),
 	succ: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),

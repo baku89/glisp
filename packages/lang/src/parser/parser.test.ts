@@ -1,11 +1,11 @@
-import {bool, call, int, isEqual, Node, scope, sym, vec, vecV} from '../exp'
+import {call, int, isEqual, Node, scope, sym, vec, vecV} from '../exp'
 import {parse} from '.'
 
 describe('parsing literals', () => {
 	testParsing('10', int(10))
 	testParsing('   10   ', int(10))
-	testParsing('false', bool(false))
-	testParsing('true', bool(true))
+	testParsing('false', sym('false'))
+	testParsing('true', sym('true'))
 	testParsing('   \t 5 \r\n', int(5))
 })
 
@@ -26,8 +26,8 @@ describe('parsing vars', () => {
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
 	testParsing('(f)', call(sym('f')))
-	testParsing('(0 false)', call(int(1), bool(false)))
-	testParsing('((true) pi)', call(call(bool(true)), sym('pi')))
+	testParsing('(0 false)', call(int(1), sym('false')))
+	testParsing('((true) pi)', call(call(sym('true')), sym('pi')))
 })
 
 describe('parsing scope', () => {
@@ -44,7 +44,7 @@ describe('parsing vector', () => {
 	testParsing('[1[2]3   ]', vec(int(1), vec(int(2)), int(3)))
 	testParsing(
 		'[(+)false(+)+]',
-		vec(call(sym('+')), bool(false), call(sym('+')), sym('+'))
+		vec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
 	)
 	testParsing('[...1]', vecV(int(1)))
 })

@@ -6,8 +6,8 @@ import * as Val from '../val'
 describe('evaluating without errors', () => {
 	run(Exp.int(0), Val.int(0))
 	run(Exp.int(10), Val.int(10))
-	run(Exp.bool(false), Val.bool(false))
-	run(Exp.bool(true), Val.bool(true))
+	run(Exp.obj(Val.bool(false)), Val.bool(false))
+	run(Exp.obj(Val.bool(true)), Val.bool(true))
 	run(Exp.sym('_'), Val.bottom)
 	run('(+ 1 2)', Val.int(3))
 	run('(< 1 2)', Val.bool(true))
@@ -44,7 +44,7 @@ describe('evaluating without errors', () => {
 
 describe('inferring a type', () => {
 	testInfer(Exp.int(0), Val.int(0))
-	testInfer(Exp.bool(false), Val.bool(false))
+	testInfer(Exp.obj(Val.bool(false)), Val.bool(false))
 	testInfer(Exp.sym('Int'), Val.tyValue(Val.tyInt))
 	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
 	testInfer(Exp.sym('_'), Val.bottom)

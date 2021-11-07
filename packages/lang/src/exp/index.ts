@@ -5,7 +5,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {infer, unify} from './unify'
 
-export type Node = Sym | Int | Bool | Obj | Fn | Vec | Call | Scope
+export type Node = Sym | Int | Obj | Fn | Vec | Call | Scope
 
 export type Type = Node['type']
 
@@ -98,32 +98,6 @@ export class Int extends BaseNode {
 }
 
 export const int = Int.of
-
-export class Bool extends BaseNode {
-	public readonly type: 'bool' = 'bool'
-
-	private constructor(public value: boolean) {
-		super()
-	}
-
-	public eval(): ValueWithLog {
-		return Writer.of(Val.bool(this.value))
-	}
-
-	public infer(): Val.Value {
-		return Val.bool(this.value)
-	}
-
-	public print() {
-		return this.value.toString()
-	}
-
-	public static of(value: boolean) {
-		return new Bool(value)
-	}
-}
-
-export const bool = Bool.of
 
 export class Obj extends BaseNode {
 	public readonly type: 'obj' = 'obj'
@@ -370,7 +344,6 @@ export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'sym':
 			return b.type === 'sym' && a.name === b.name
-		case 'bool':
 		case 'int':
 		case 'obj':
 			return b.type === a.type && a.value === b.value
