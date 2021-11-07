@@ -10,13 +10,27 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Vec / Int / Bottom / Sym
+Node = Scope / Call / Vec / Int / Bottom / Top / Sym
 
-Reserved = "_"
+Reserved = "_" / "*"
+
+Top = "*" { return Exp.obj(Val.all) }
 
 Bottom = "_" { return Exp.obj(Val.bottom) }
 
-Sym "Sym" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
+Sym = SymIdent / SymQuoted
+
+SymIdent = !(Reserved End) $([^0-9()[\\]{}\\:\`"] [^()[\\]{}\\:\`" \\t\\n\\r]*)
+	{
+		return Exp.sym(text())
+	}
+
+SymQuoted = "\`" name:$(!"\`" .)+ "\`"
+	{
+		return Exp.sym(name)
+	}
+
+SymFn = "*"
 	{
 		return Exp.sym(text())
 	}
@@ -27,7 +41,7 @@ Int "Int" = [0-9]+ &End
 		return Exp.int(v)
 	}
 
-Call "Call" = "(" _ fn:Node _ args:CallArg* ")"
+Call "Call" = "(" _ fn:(SymFn / Node) _ args:CallArg* ")"
 	{
 		return Exp.call(fn, ...args)
 	}

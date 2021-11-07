@@ -1,15 +1,19 @@
-import {call, int, isEqual, Node, scope, sym, vec, vecV} from '../exp'
+import {call, int, isEqual, Node, obj, scope, sym, vec, vecV} from '../exp'
+import {all, bottom} from '../val'
 import {parse} from '.'
 
 describe('parsing literals', () => {
 	testParsing('10', int(10))
 	testParsing('   10   ', int(10))
+	testParsing('   \t 5 \r\n', int(5))
 	testParsing('false', sym('false'))
 	testParsing('true', sym('true'))
-	testParsing('   \t 5 \r\n', int(5))
+	testParsing(' _ ', obj(bottom))
+	testParsing(' * ', obj(all))
+	testParsing('`*`', sym('*'))
 })
 
-describe('parsing vars', () => {
+describe('parsing symbols', () => {
 	run('foo', 'foo')
 	run('BAR', 'BAR')
 	run('true1', 'true1')
@@ -17,6 +21,8 @@ describe('parsing vars', () => {
 	run('+-*/&|<=>_', '+-*/&|<=>_')
 	run('変数', '変数')
 	run('🍡', '🍡')
+	run('`a symbol with spaces`', 'a symbol with spaces')
+	run('`    `', '    ')
 
 	function run(input: string, expected: string) {
 		testParsing(input, sym(expected))
@@ -25,6 +31,9 @@ describe('parsing vars', () => {
 
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
+	testParsing('(* 1 2)', call(sym('*'), int(1), int(2)))
+	testParsing('(f *)', call(sym('f'), obj(all)))
+	testParsing('(f `*`)', call(sym('f'), sym('*')))
 	testParsing('(f)', call(sym('f')))
 	testParsing('(0 false)', call(int(1), sym('false')))
 	testParsing('((true) pi)', call(call(sym('true')), sym('pi')))

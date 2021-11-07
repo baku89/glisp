@@ -10,6 +10,7 @@ describe('evaluating without errors', () => {
 	run(Exp.obj(Val.bool(true)), Val.bool(true))
 	run(Exp.obj(Val.bottom), Val.bottom)
 	run('(+ 1 2)', Val.int(3))
+	run('(* 1 2)', Val.int(2))
 	run('(< 1 2)', Val.bool(true))
 	run(Exp.scope({a: Exp.int(10)}, Exp.sym('a')), Val.int(10))
 	run('(if true 1 false)', Val.int(1))

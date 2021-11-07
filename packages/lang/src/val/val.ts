@@ -56,7 +56,7 @@ export class All implements IVal {
 	}
 
 	public print() {
-		return 'All'
+		return '*'
 	}
 
 	public isSubtypeOf(ty: Value) {
