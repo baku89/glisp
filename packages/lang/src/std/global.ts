@@ -72,4 +72,14 @@ export const GlobalScope = scope({
 		{f: Val.tyFn(T, T)},
 		Val.tyFn(T, T)
 	),
+	first: defn(
+		(coll: Val.Vec) => coll.items[0] ?? Val.bottom,
+		{coll: Val.vecV(T)},
+		T
+	),
+	rest: defn(
+		(coll: Val.Vec) => Val.vec(...coll.items.slice(1)),
+		{coll: Val.vecV(T)},
+		T
+	),
 })
