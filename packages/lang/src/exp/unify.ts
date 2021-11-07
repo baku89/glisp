@@ -1,3 +1,5 @@
+import {mapValues} from 'lodash'
+
 import {zip} from '../utils/zip'
 import * as Val from '../val'
 
@@ -79,6 +81,11 @@ export class Subst {
 				const param = val.tyParam.map(p => this.inverted.applyTo(p))
 				const out = this.applyTo(val.tyOut)
 				return Val.tyFn(param, out)
+			}
+			case 'fn': {
+				const param = mapValues(val.param, p => this.inverted.applyTo(p))
+				const out = this.applyTo(val.out)
+				return Val.fn(val.value, param, out)
 			}
 			default:
 				return val

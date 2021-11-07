@@ -271,7 +271,7 @@ export class Call extends BaseNode {
 			return aVal
 		})
 
-		const result = fn.value(...args)
+		const result = subst.applyTo(fn.value(...args))
 
 		return Writer.of(result, ...fnLog, ...logs)
 	}
