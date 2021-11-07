@@ -180,14 +180,10 @@ export function unify(consts: Const[]): Subst {
 			return unify(rest)
 		}
 
-		// if (s.tyParam.length > t.tyParam.length) {
-		// 	throw new Error('Subtype expects too many parameters')
-		// }
-
-		const param: Const[] = zip(t.tyParam, s.tyParam)
+		const param: Const = [Val.vec(...t.tyParam), Val.vec(...s.tyParam)]
 		const out: Const = [s.tyOut, t.tyOut]
 
-		return unify([...param, out, ...rest])
+		return unify([param, out, ...rest])
 	}
 
 	if (t.type === 'vec') {
