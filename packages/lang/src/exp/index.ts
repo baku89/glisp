@@ -194,7 +194,7 @@ export const fn = Fn.of
 export class Vec extends BaseNode {
 	public readonly type: 'vec' = 'vec'
 
-	private constructor(public items: Node[]) {
+	private constructor(public items: Node[], public rest: Node | null = null) {
 		super()
 	}
 
@@ -204,27 +204,46 @@ export class Vec extends BaseNode {
 
 	public eval(): ValueWithLog {
 		const {result, log} = Writer.map(this.items, it => it.eval())
+		if (this.rest) {
+			const {result: resultRest, log: logRest} = this.rest.eval()
+			return Writer.of(Val.vecV(...result, resultRest), ...log, ...logRest)
+		}
 		return Writer.of(Val.vec(...result), ...log)
 	}
 
 	public infer(): Val.Value {
 		const items = this.items.map(it => it.infer())
+		if (this.rest) {
+			const rest = this.rest.infer()
+			return Val.tyValue(Val.vecV(...items, rest))
+		}
 		return Val.tyValue(Val.vec(...items))
 	}
 
 	public print(): string {
 		const items = this.items.map(it => it.print())
-		return '[' + items.join(' ') + ']'
+		const rest = this.rest ? ['...' + this.rest.print()] : []
+		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
 	public static of(...items: Node[]) {
 		const vec = new Vec(items)
-		vec.items.forEach(it => (it.parent = vec))
+		items.forEach(it => (it.parent = vec))
+		return vec
+	}
+
+	public static ofV(...items: [Node, ...Node[]]) {
+		const heads = items.slice(0, -1)
+		const rest = items[items.length - 1]
+		const vec = new Vec(heads, rest)
+		heads.forEach(it => (it.parent = vec))
+		rest.parent = vec
 		return vec
 	}
 }
 
 export const vec = Vec.of
+export const vecV = Vec.ofV
 
 export class Call extends BaseNode {
 	public readonly type: 'call' = 'call'
@@ -359,6 +378,8 @@ export function isEqual(a: Node, b: Node): boolean {
 			return (
 				b.type === 'vec' &&
 				a.length === b.length &&
+				((a.rest === null && b.rest === null) ||
+					(a.rest !== null && b.rest !== null && isEqual(a.rest, b.rest))) &&
 				zip(a.items, b.items).every(([ai, bi]) => isEqual(ai, bi))
 			)
 		case 'fn':

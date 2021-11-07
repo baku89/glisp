@@ -33,6 +33,7 @@ export const int = Int.of
 export const bool = Bool.of
 export const fn = Fn.of
 export const vec = Vec.of
+export const vecV = Vec.ofV
 export const tyVar = TyVar.fresh
 export const tyFn = TyFn.of
 export const tyAtom = TyAtom.of

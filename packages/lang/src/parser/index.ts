@@ -38,12 +38,14 @@ Call "Call" = "(" _ fn:Node _ args:CallArg* ")"
 
 CallArg = arg:Node _ { return arg }
 
-Vec = "[" _ items:VecItem* "]"
-	{
-		return Exp.vec(...items)
+Vec = "[" _ items:VecItem* rest:VecRest? "]"
+	{		
+		return rest ? Exp.vecV(...items, rest) : Exp.vec(...items)
 	}
 
-VecItem = item:Node _ { return item }
+VecItem = !("..." _) item:Node _ { return item }
+
+VecRest = "..." _ rest:Node _ { return rest }
 
 Scope = "{" _ pairs:ScopePair* out:Node? _ "}"
 	{

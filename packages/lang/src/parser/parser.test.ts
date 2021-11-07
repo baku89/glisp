@@ -1,4 +1,4 @@
-import {bool, call, int, isEqual, Node, scope, sym, vec} from '../exp'
+import {bool, call, int, isEqual, Node, scope, sym, vec, vecV} from '../exp'
 import {parse} from '.'
 
 describe('parsing literals', () => {
@@ -46,13 +46,14 @@ describe('parsing vector', () => {
 		'[(+)false(+)+]',
 		vec(call(sym('+')), bool(false), call(sym('+')), sym('+'))
 	)
+	testParsing('[...1]', vecV(int(1)))
 })
 
 function testParsing(input: string, expected: Node) {
-	test(`parsing '${input}'`, () => {
+	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
 		if (!isEqual(result, expected)) {
-			fail('Got=' + result.print())
+			throw new Error('Got=' + result.print())
 		}
 	})
 }

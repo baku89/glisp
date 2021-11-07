@@ -181,7 +181,10 @@ export class Fn implements IVal {
 export class Vec implements IVal {
 	public readonly type: 'vec' = 'vec'
 
-	private constructor(public readonly items: Value[]) {}
+	private constructor(
+		public readonly items: Value[],
+		public readonly rest?: Value
+	) {}
 
 	public get length() {
 		return this.items.length
@@ -210,16 +213,24 @@ export class Vec implements IVal {
 	}
 
 	public get defaultValue(): Value {
-		return new Vec(this.items.map(it => it.defaultValue))
+		const items = this.items.map(it => it.defaultValue)
+		const rest = this.rest?.defaultValue
+		return new Vec(items, rest)
 	}
 
 	public print(): string {
 		const items = this.items.map(it => it.print())
-		return '[' + items.join(' ') + ']'
+		const rest = this.rest ? ['...' + this.rest.print()] : []
+		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
 	public static of(...items: Value[]) {
 		return new Vec(items)
+	}
+	public static ofV(...items: Value[]) {
+		const heads = items.slice(0, -1)
+		const rest = items[items.length - 1]
+		return new Vec(heads, rest)
 	}
 }
 
