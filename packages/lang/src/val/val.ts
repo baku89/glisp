@@ -1,4 +1,4 @@
-import {differenceWith, entries, isEqualWith, values} from 'lodash'
+import {differenceWith, entries, isEqualWith, keys, values} from 'lodash'
 
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
@@ -147,6 +147,11 @@ export class Fn implements IVal {
 
 	public get tyOut() {
 		return this.out
+	}
+
+	public paramNameAt(index: number) {
+		const names = keys(this.param)
+		return index < names.length ? names[index] : '$' + index
 	}
 
 	public print(): string {
