@@ -214,10 +214,7 @@ export class Vec implements IVal {
 		return (
 			val.type === 'vec' &&
 			val.length === this.length &&
-			((val.rest === null && this.rest === null) ||
-				(val.rest !== null &&
-					this.rest !== null &&
-					val.rest.isEqualTo(this.rest))) &&
+			nullishEqual(val.rest, this.rest, (a, b) => a.isEqualTo(b)) &&
 			zip(val.items, this.items).every(([a, b]) => a.isEqualTo(b))
 		)
 	}

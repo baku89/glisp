@@ -1,5 +1,6 @@
 import {entries, isEqualWith, keys, values} from 'lodash'
 
+import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
@@ -350,8 +351,7 @@ export function isEqual(a: Node, b: Node): boolean {
 			return (
 				b.type === 'vec' &&
 				a.length === b.length &&
-				((a.rest === null && b.rest === null) ||
-					(a.rest !== null && b.rest !== null && isEqual(a.rest, b.rest))) &&
+				nullishEqual(a.rest, b.rest, isEqual) &&
 				zip(a.items, b.items).every(([ai, bi]) => isEqual(ai, bi))
 			)
 		case 'fn':
@@ -365,8 +365,7 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'scope': {
 			return (
 				b.type === 'scope' &&
-				((a.out === null && b.out === null) ||
-					(a.out !== null && b.out !== null && isEqual(a.out, b.out))) &&
+				nullishEqual(a.out, b.out, isEqual) &&
 				isEqualWith(a.vars, b.vars, isEqual)
 			)
 		}
