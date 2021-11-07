@@ -45,8 +45,8 @@ export const GlobalScope = scope({
 	not: defn((x: Val.Bool) => Val.bool(!x.value), {x: Val.tyBool}, Val.tyBool),
 	'|': defn(
 		(t1: Val.Value, t2: Val.Value) => Val.uniteTy(t1, t2),
-		{x: Val.tyInt, y: Val.tyInt},
-		Val.tyInt
+		{x: T, y: T},
+		T
 	),
 	id: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
 	if: defn(
