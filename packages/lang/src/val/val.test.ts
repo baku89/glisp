@@ -63,9 +63,12 @@ describe('subtyping', () => {
 	run('[1 Int]', '[(| 1 Bool) Int]', true)
 	run('[Int Int]', '[1 2]', false)
 	run('[1 2]', '[Int Int]', true)
+	run('[...Int]', '[...Int]', true)
 	run('[...Int]', '[...Bool]', false)
 	run('[Int ...Int]', '[...Int]', true)
 	run('[...Int]', '[Int ...Int]', false)
+	run('[...Int]', '[]', true)
+	run('[Int ...Int]', '[]', true)
 
 	function parseEval(input: Val.Value | string) {
 		if (typeof input === 'string') return parse(input).eval().result
