@@ -10,9 +10,11 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Vec / Int / Sym
+Node = Scope / Call / Vec / Int / Bottom / Sym
 
-Reserved = "null"
+Reserved = "_"
+
+Bottom = "_" { return Exp.obj(Val.bottom) }
 
 Sym "Sym" = !(Reserved End) $([^0-9()[\\]{}\\:] [^()[\\]{}\\: \\t\\n\\r]*)
 	{
@@ -62,7 +64,7 @@ Whitespace = $[ \\t\\n\\r]
 `
 
 const parserSource = peggy.generate(parserDefinition, {
-	exportVar: {Exp},
+	exportVar: {Exp, Val},
 	output: 'source',
 })
 

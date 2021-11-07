@@ -14,7 +14,6 @@ function defn(
 }
 
 export const GlobalScope = scope({
-	_: obj(Val.bottom),
 	true: obj(Val.bool(true)),
 	false: obj(Val.bool(false)),
 	Int: obj(Val.tyInt),
