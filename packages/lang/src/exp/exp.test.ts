@@ -24,7 +24,7 @@ describe('evaluating without errors', () => {
 	run('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
 	run('[(+ 1 2)]', Val.vec(Val.int(3)))
 	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
-	run('(identity [1])', Val.vec(Val.int(1)))
+	run('(id [1])', Val.vec(Val.int(1)))
 
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)
@@ -67,12 +67,12 @@ describe('inferring vectors', () => {
 })
 
 describe('inferring a type of polymorphic function application', () => {
-	testInfer('(identity 1)', Val.int(1))
+	testInfer('(id 1)', Val.int(1))
 	testInfer('(if true 1 2)', Val.uniteTy(Val.int(1), Val.int(2)))
-	testInfer('(identity (+ 1 2))', Val.tyInt)
-	testInfer('(+ (identity 1) (identity 2))', Val.tyInt)
-	testInfer('(if (identity true) (identity 2) (* 1 2))', Val.tyInt)
-	testInfer('(identity (identity 1))', Val.int(1))
+	testInfer('(id (+ 1 2))', Val.tyInt)
+	testInfer('(+ (id 1) (id 2))', Val.tyInt)
+	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyInt)
+	testInfer('(id (id 1))', Val.int(1))
 	testInfer('(. succ even?)', Val.tyFn(Val.tyInt, Val.tyBool))
 	testInfer('((. succ even?) 1)', Val.tyBool)
 	testInfer('(twice succ)', Val.tyFn(Val.tyInt, Val.tyInt))

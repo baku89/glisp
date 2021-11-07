@@ -48,7 +48,7 @@ export const GlobalScope = scope({
 		{x: Val.tyInt, y: Val.tyInt},
 		Val.tyInt
 	),
-	identity: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
+	id: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
 	if: defn(
 		(test: Val.Bool, then: Val.Value, _else: Val.Value) => {
 			return test.value ? then : _else
