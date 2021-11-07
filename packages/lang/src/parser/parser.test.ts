@@ -1,4 +1,4 @@
-import {call, int, isEqual, Node, obj, scope, sym, vec, vecV} from '../exp'
+import {call, fn, int, isEqual, Node, obj, scope, sym, vec, vecV} from '../exp'
 import {all, bottom} from '../val'
 import {parse} from '.'
 
@@ -56,6 +56,17 @@ describe('parsing vector', () => {
 		vec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
 	)
 	testParsing('[...1]', vecV(int(1)))
+})
+
+describe('parsing function definition', () => {
+	testParsing('(=> [x:Int] x)', fn({x: sym('Int')}, sym('x')))
+	testParsing(
+		'(=> [x : Int y : Bool] x)',
+		fn({x: sym('Int'), y: sym('Bool')}, sym('x'))
+	)
+	testParsing('(=>[]_)', fn({}, obj(bottom)))
+	testParsing('(=> [] (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
+	testParsing('(=> [] (=> [] 1))', fn({}, fn({}, int(1))))
 })
 
 function testParsing(input: string, expected: Node) {

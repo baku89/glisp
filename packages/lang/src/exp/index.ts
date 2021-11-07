@@ -170,11 +170,12 @@ export class Fn extends BaseNode {
 	}
 
 	public print(): string {
-		const params = entries(this.param).map(([k, v]) => `${k}:${v.print()}`)
-		const param = params.length > 1 ? '[' + params.join(' ') + ']' : params[0]
+		const param = entries(this.param)
+			.map(([k, v]) => `${k}:${v.print()}`)
+			.join(' ')
 		const body = this.body.print()
 
-		return `(=> ${param} ${body})`
+		return `(=> [${param}] ${body})`
 	}
 
 	public static of(param: Record<string, Node>, body: Node) {

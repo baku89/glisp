@@ -155,11 +155,12 @@ export class Fn implements IVal {
 	}
 
 	public print(): string {
-		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
-		const param = params.length > 1 ? '[' + params.join(' ') + ']' : params[0]
+		const param = entries(this.param)
+			.map(([n, ty]) => n + ':' + ty.print())
+			.join(' ')
 
 		const out = this.out.print()
-		return `(=> ${param} <JS Function>:${out})`
+		return `(=> [${param}] <JS Function>:${out})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -300,11 +301,10 @@ export class TyFn implements IVal {
 	) {}
 
 	public print(): string {
-		const params = this.tyParam.map(v => v.print())
-		const param = params.length > 1 ? '[' + params.join(' ') + ']' : params[0]
+		const param = this.tyParam.map(v => v.print()).join(' ')
 		const out = this.tyOut.print()
 
-		return `(-> ${param} ${out})`
+		return `(-> [${param}] ${out})`
 	}
 
 	public get defaultValue(): Value {

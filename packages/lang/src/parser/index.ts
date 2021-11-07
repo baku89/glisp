@@ -10,9 +10,9 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Call / Vec / Int / Bottom / Top / Sym
+Node = Scope / Fn / Call / Vec / Int / Bottom / Top / Sym
 
-Reserved = "_" / "*"
+Reserved = "_" / "*" / "=>"
 
 Top = "*" { return Exp.obj(Val.all) }
 
@@ -47,6 +47,24 @@ Call "Call" = "(" _ fn:(SymFn / Node) _ args:CallArg* ")"
 	}
 
 CallArg = arg:Node _ { return arg }
+
+Fn = "(" _ "=>" _ param:FnParam _ body:Node _ ")"
+	{
+		return Exp.fn(param, body)
+	}
+
+FnParam = FnParamMulti
+
+FnParamMulti = "[" _ pairs:FnParamPair* _ "]"
+	{
+		return Object.fromEntries(pairs)
+	}
+
+
+FnParamPair = sym:Sym _ ":" _ type:Node _
+	{
+		return [sym.name, type]
+	}
 
 Vec = "[" _ items:VecItem* rest:VecRest? "]"
 	{		
