@@ -27,6 +27,17 @@ describe('evaluating without errors', () => {
 	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
 	run('(id [1])', Val.vec(Val.int(1)))
 
+	run(
+		Exp.call(
+			Exp.fn(
+				{x: Exp.obj(Val.tyInt)},
+				Exp.call(Exp.sym('+'), Exp.sym('x'), Exp.sym('x'))
+			),
+			Exp.int(1)
+		),
+		Val.int(2)
+	)
+
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)
 		test(`${exp.print()} evaluates to ${expected.print()}`, () => {

@@ -1,3 +1,5 @@
+import {mapValues, values} from 'lodash'
+
 export class Writer<T, L> {
 	private constructor(public result: T, public log: L[]) {}
 
@@ -17,6 +19,16 @@ export class Writer<T, L> {
 		const writers = arr.map(f)
 		const result = writers.map(w => w.result)
 		const log = writers.flatMap(w => w.log)
+		return new Writer(result, log)
+	}
+
+	public static mapValues<T, U, L>(
+		obj: Record<string, T>,
+		f: (v: T) => Writer<U, L>
+	) {
+		const writers = mapValues(obj, f)
+		const result = mapValues(writers, w => w.result)
+		const log = values(writers).flatMap(w => w.log)
 		return new Writer(result, log)
 	}
 }

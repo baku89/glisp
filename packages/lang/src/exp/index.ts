@@ -1,4 +1,5 @@
 import {entries, isEqualWith, keys, values} from 'lodash'
+import {IFn} from 'src/val/val'
 
 import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
@@ -23,10 +24,12 @@ abstract class BaseNode {
 	public abstract type: string
 	public parent: Node | null = null
 
-	abstract eval(): ValueWithLog
-	abstract infer(): Val.Value
+	abstract eval(env?: Env): ValueWithLog
+	abstract infer(env?: Env): Val.Value
 	abstract print(): string
 }
+
+type Env = Map<Fn, Record<string, Node>>
 
 export class Sym extends BaseNode {
 	public readonly type: 'sym' = 'sym'
@@ -35,12 +38,18 @@ export class Sym extends BaseNode {
 		super()
 	}
 
-	public resolve(): NodeWithLog {
+	public resolve(env?: Env): NodeWithLog {
 		let ref = this.parent
 
 		while (ref) {
 			if (ref.type === 'scope' && this.name in ref.vars) {
 				return Writer.of(ref.vars[this.name])
+			}
+			if (env && ref.type === 'fn') {
+				const param = env.get(ref)
+				if (param && this.name in param) {
+					return Writer.of(param[this.name])
+				}
 			}
 
 			ref = ref.parent
@@ -55,8 +64,8 @@ export class Sym extends BaseNode {
 		return Writer.of(obj(Val.bottom), log)
 	}
 
-	public eval(): ValueWithLog {
-		return this.resolve().bind(v => v.eval())
+	public eval(env?: Env): ValueWithLog {
+		return this.resolve(env).bind(v => v.eval(env))
 	}
 
 	public infer(): Val.Value {
@@ -136,15 +145,28 @@ export class Fn extends BaseNode {
 		super()
 	}
 
-	public infer(): Val.Value {
-		const param = values(this.param).map(p => p.infer())
-		const out = this.body.infer()
+	public infer(env?: Env): Val.Value {
+		const param = values(this.param).map(p => p.infer(env))
+		const out = this.body.infer(env)
 		return Val.tyFn(param, out)
 	}
 
-	public eval(): ValueWithLog {
-		// NOTE: write how to evaluate
-		return Writer.of(Val.bottom)
+	public eval(env: Env = new Map()): ValueWithLog {
+		const paramNames = keys(this.param)
+
+		const fn: IFn = (...args: Val.Value[]) => {
+			const rec = Object.fromEntries(zip(paramNames, args.map(obj)))
+			const innerEnv = new Map([...env.entries(), [this, rec]])
+
+			return this.body.eval(innerEnv).result
+		}
+
+		const param = Writer.mapValues(this.param, p => p.eval(env))
+
+		const innerEnv = new Map([...env.entries(), [this, this.param]])
+		const out = this.body.infer(innerEnv)
+
+		return Writer.of(Val.fn(fn, param.result, out), ...param.log)
 	}
 
 	public print(): string {
@@ -176,19 +198,19 @@ export class Vec extends BaseNode {
 		return this.items.length
 	}
 
-	public eval(): ValueWithLog {
-		const {result, log} = Writer.map(this.items, it => it.eval())
+	public eval(env?: Env): ValueWithLog {
+		const {result, log} = Writer.map(this.items, it => it.eval(env))
 		if (this.rest) {
-			const {result: resultRest, log: logRest} = this.rest.eval()
+			const {result: resultRest, log: logRest} = this.rest.eval(env)
 			return Writer.of(Val.vecV(...result, resultRest), ...log, ...logRest)
 		}
 		return Writer.of(Val.vec(...result), ...log)
 	}
 
-	public infer(): Val.Value {
-		const items = this.items.map(it => it.infer())
+	public infer(env?: Env): Val.Value {
+		const items = this.items.map(it => it.infer(env))
 		if (this.rest) {
-			const rest = this.rest.infer()
+			const rest = this.rest.infer(env)
 			return Val.tyValue(Val.vecV(...items, rest))
 		}
 		return Val.vec(...items)
@@ -226,13 +248,13 @@ export class Call extends BaseNode {
 		super()
 	}
 
-	public eval(): ValueWithLog {
-		const {result: fn, log: fnLog} = this.fn.eval()
+	public eval(env?: Env): ValueWithLog {
+		const {result: fn, log: fnLog} = this.fn.eval(env)
 		const logs: Log[] = []
 
 		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
 
-		const tyArgs = this.args.map(a => a.infer()).map(useFreshTyVars)
+		const tyArgs = this.args.map(a => a.infer(env)).map(useFreshTyVars)
 		const consts = zip(tyArgs, fn.tyParam)
 		const subst = unify(consts)
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
@@ -252,7 +274,7 @@ export class Call extends BaseNode {
 			}
 
 			const aTy = tyArgs[i]
-			const {result: aVal, log: evalLog} = a.eval()
+			const {result: aVal, log: evalLog} = a.eval(env)
 			logs.push(...evalLog)
 
 			if (!aTy.isSubtypeOf(p) || aVal.type === 'bottom') {
@@ -276,12 +298,12 @@ export class Call extends BaseNode {
 		return Writer.of(result, ...fnLog, ...logs)
 	}
 
-	public infer(): Val.Value {
-		const ty = this.fn.infer()
+	public infer(env?: Env): Val.Value {
+		const ty = this.fn.infer(env)
 		if (!Val.isTyFn(ty)) return ty
 
 		// Infer type by resolving constraints
-		const args = this.args.map(a => a.infer())
+		const args = this.args.map(a => a.infer(env))
 		const consts = zip(args, ty.tyParam)
 		const tyOut = infer(ty.tyOut, consts)
 
@@ -315,12 +337,12 @@ export class Scope extends BaseNode {
 		super()
 	}
 
-	public infer(): Val.Value {
-		return this.out ? this.out.infer() : Val.bottom
+	public infer(env?: Env): Val.Value {
+		return this.out ? this.out.infer(env) : Val.bottom
 	}
 
-	public eval(): ValueWithLog {
-		return this.out ? this.out.eval() : Writer.of(Val.bottom)
+	public eval(env?: Env): ValueWithLog {
+		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
 
 	public print(): string {
