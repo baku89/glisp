@@ -386,13 +386,13 @@ export class TyUnion implements IVal {
 export class TyAtom implements IVal {
 	public readonly type: 'tyAtom' = 'tyAtom'
 	private constructor(
-		public readonly name: string,
+		private readonly uid: string,
 		public readonly defaultValue: Value
 	) {}
 
 	public print() {
 		// TODO: fix this
-		return this.name
+		return this.uid
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -402,7 +402,7 @@ export class TyAtom implements IVal {
 	}
 
 	public isEqualTo(val: Value): boolean {
-		return val === this
+		return val.type === 'tyAtom' && val.uid === this.uid
 	}
 
 	public static of(name: string, defaultValue: Int | Bool) {
