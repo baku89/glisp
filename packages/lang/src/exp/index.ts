@@ -1,6 +1,7 @@
 import {entries, isEqualWith, keys, values} from 'lodash'
 import {IFn} from 'src/val/val'
 
+import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
@@ -385,7 +386,7 @@ export function isEqual(a: Node, b: Node): boolean {
 		case 'fn':
 			return (
 				b.type === 'fn' &&
-				isEqualWith(a.param, b.param, isEqual) &&
+				hasEqualValues(a.param, b.param, isEqual) &&
 				isEqual(a.body, b.body)
 			)
 		case 'call':
@@ -394,7 +395,7 @@ export function isEqual(a: Node, b: Node): boolean {
 			return (
 				b.type === 'scope' &&
 				nullishEqual(a.out, b.out, isEqual) &&
-				isEqualWith(a.vars, b.vars, isEqual)
+				hasEqualValues(a.vars, b.vars, isEqual)
 			)
 		}
 	}

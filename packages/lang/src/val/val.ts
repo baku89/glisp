@@ -1,5 +1,6 @@
-import {differenceWith, entries, isEqualWith, keys, values} from 'lodash'
+import {differenceWith, entries, keys, values} from 'lodash'
 
+import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
 
@@ -177,7 +178,7 @@ export class Fn implements IVal {
 		return (
 			val.type === this.type &&
 			val.value === this.value &&
-			isEqualWith(this.param, val.param, isEqual) &&
+			hasEqualValues(this.param, val.param, isEqual) &&
 			this.out.isEqualTo(val.out)
 		)
 	}
