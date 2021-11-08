@@ -53,11 +53,17 @@ Fn = "(" _ "=>" _ param:FnParam _ body:Node _ ")"
 		return Exp.fn(param, body)
 	}
 
-FnParam = FnParamMulti
+FnParam = FnParamMulti / FnParamSingle
 
-FnParamMulti = "[" _ pairs:FnParamPair* _ "]"
+FnParamMulti = "(" _ pairs:FnParamPair* _ ")"
 	{
 		return Object.fromEntries(pairs)
+	}
+
+FnParamSingle = pair:FnParamPair
+	{
+		const [name, type] = pair
+		return {[name]: type}
 	}
 
 
@@ -86,8 +92,8 @@ ScopePair = s:Sym _ "=" _ node:Node _
 	}
 
 
-_ = Whitespace*
-__ = Whitespace+
+_ "whitespace" = Whitespace*
+__ "whitespace" = Whitespace+
 
 EOF = _ !.
 End = EOF / Whitespace / [()[\\]{}\\:]

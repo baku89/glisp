@@ -59,14 +59,15 @@ describe('parsing vector', () => {
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> [x:Int] x)', fn({x: sym('Int')}, sym('x')))
+	testParsing('(=> x:Int x)', fn({x: sym('Int')}, sym('x')))
+	testParsing('(=> (x:Int) x)', fn({x: sym('Int')}, sym('x')))
 	testParsing(
-		'(=> [x : Int y : Bool] x)',
+		'(=> (x : Int y : Bool) x)',
 		fn({x: sym('Int'), y: sym('Bool')}, sym('x'))
 	)
-	testParsing('(=>[]_)', fn({}, obj(bottom)))
-	testParsing('(=> [] (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
-	testParsing('(=> [] (=> [] 1))', fn({}, fn({}, int(1))))
+	testParsing('(=>()_)', fn({}, obj(bottom)))
+	testParsing('(=> () (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
+	testParsing('(=> () (=> () 1))', fn({}, fn({}, int(1))))
 })
 
 function testParsing(input: string, expected: Node) {

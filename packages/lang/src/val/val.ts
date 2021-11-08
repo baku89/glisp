@@ -156,12 +156,11 @@ export class Fn implements IVal {
 	}
 
 	public print(): string {
-		const param = entries(this.param)
-			.map(([n, ty]) => n + ':' + ty.print())
-			.join(' ')
+		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
+		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
 		const out = this.out.print()
-		return `(=> [${param}] <js code>:${out})`
+		return `(=> ${param} <js code>:${out})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
