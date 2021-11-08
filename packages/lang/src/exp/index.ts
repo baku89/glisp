@@ -128,7 +128,7 @@ export class Obj extends BaseNode {
 	}
 
 	public print() {
-		return '<JS Object>:' + this.value.print()
+		return this.value.print()
 	}
 
 	public static of(value: Val.Value) {
