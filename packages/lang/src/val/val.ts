@@ -348,9 +348,15 @@ export class TyFn implements IVal {
 
 export class TyUnion implements IVal {
 	public readonly type: 'tyUnion' = 'tyUnion'
+	public readonly defaultValue!: Value
 
-	private constructor(public readonly types: Exclude<Value, TyUnion>[]) {
+	private constructor(
+		public readonly types: Exclude<Value, TyUnion>[],
+		defaultValue?: Value
+	) {
 		if (types.length <= 1) throw new Error('Invalid union type')
+
+		this.defaultValue = defaultValue ?? this.types[0].defaultValue
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -358,10 +364,6 @@ export class TyUnion implements IVal {
 		if (ty.type !== 'tyUnion') return this.types.every(s => s.isSubtypeOf(ty))
 
 		return this.types.every(s => ty.types.some(t => s.isSubtypeOf(t)))
-	}
-
-	public get defaultValue(): Value {
-		return this.types[0].defaultValue
 	}
 
 	public print(): string {
@@ -374,6 +376,10 @@ export class TyUnion implements IVal {
 		if (val.types.length !== this.types.length) return false
 
 		return differenceWith(val.types, this.types, isEqual).length === 0
+	}
+
+	public extends(defaultValue: Value) {
+		return new TyUnion(this.types, defaultValue)
 	}
 
 	public static fromTypesUnsafe(types: Value[]) {

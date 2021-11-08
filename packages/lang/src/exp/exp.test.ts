@@ -32,6 +32,9 @@ describe('evaluating without errors', () => {
 	run('(+ 7 _)', Val.int(7))
 	run('(* 2 _)', Val.int(2))
 
+	run('(and true _)', Val.bool(true))
+	run('(or _ false)', Val.bool(false))
+
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)
 		test(`${exp.print()} evaluates to ${expected.print()}`, () => {
