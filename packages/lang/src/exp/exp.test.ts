@@ -29,16 +29,8 @@ describe('evaluating without errors', () => {
 	run('((=> [x:Int] (* x x)) 12)', Val.int(144))
 	run('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
 
-	run(
-		Exp.call(
-			Exp.fn(
-				{x: Exp.obj(Val.tyInt)},
-				Exp.call(Exp.sym('+'), Exp.sym('x'), Exp.sym('x'))
-			),
-			Exp.int(1)
-		),
-		Val.int(2)
-	)
+	run('(+ 7 _)', Val.int(7))
+	run('(* 2 _)', Val.int(2))
 
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)

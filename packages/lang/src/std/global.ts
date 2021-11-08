@@ -31,7 +31,7 @@ export const GlobalScope = scope({
 	),
 	'*': defn(
 		(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
-		{x: Val.tyInt, y: Val.tyInt},
+		{x: Val.tyInt.extends(Val.int(1)), y: Val.tyInt.extends(Val.int(1))},
 		Val.tyInt
 	),
 	'<': defn(

@@ -83,8 +83,9 @@ export class Int implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
-		if (ty === this.superType) return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
+
+		if (ty.isEqualTo(this.superType)) return true
 
 		return ty.type === 'int' && ty.value === this.value
 	}
@@ -403,6 +404,10 @@ export class TyAtom implements IVal {
 
 	public isEqualTo(val: Value): boolean {
 		return val.type === 'tyAtom' && val.uid === this.uid
+	}
+
+	public extends(defaultValue: Value) {
+		return new TyAtom(this.uid, defaultValue)
 	}
 
 	public static of(name: string, defaultValue: Int | Bool) {
