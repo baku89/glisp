@@ -261,6 +261,12 @@ export class Call extends BaseNode {
 		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
 		const paramNames = keys(fn.param)
 
+		// Log unused extra arguments
+		const unusedArgLogs: Log[] = this.args
+			.slice(fn.tyParam.length)
+			.map(ref => ({level: 'info', ref, reason: 'Unused argument'}))
+		logs.push(...unusedArgLogs)
+
 		const args = tyParam.map((p, i) => {
 			const a = this.args[i]
 			const name = paramNames[i]
