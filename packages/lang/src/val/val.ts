@@ -170,7 +170,7 @@ export class Fn implements IVal {
 			const thisTy = TyFn.of(this.tyParam, this.out)
 			return thisTy.isSubtypeOf(ty)
 		}
-		return this === ty
+		return ty.isEqualTo(this)
 	}
 
 	public isEqualTo(val: Value): boolean {
