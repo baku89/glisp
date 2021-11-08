@@ -35,6 +35,8 @@ describe('evaluating without errors', () => {
 	run('(and true _)', Val.bool(true))
 	run('(or _ false)', Val.bool(false))
 
+	run('((=> [x:Int] (* x x)) 12)', Val.int(144))
+
 	function run(input: string | Exp.Node, expected: Val.Value) {
 		const exp = parse(input)
 		test(`${exp.print()} evaluates to ${expected.print()}`, () => {
