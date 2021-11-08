@@ -8,9 +8,9 @@ describe('parsing literals', () => {
 	testParsing('   \t 5 \r\n', int(5))
 	testParsing('false', sym('false'))
 	testParsing('true', sym('true'))
-	testParsing(' _ ', obj(bottom))
-	testParsing(' * ', obj(all))
-	testParsing('`*`', sym('*'))
+	testParsing(' () ', obj(bottom))
+	testParsing(' (  \t   ) ', obj(bottom))
+	testParsing(' _ ', obj(all))
 })
 
 describe('parsing symbols', () => {
@@ -23,6 +23,8 @@ describe('parsing symbols', () => {
 	run('🍡', '🍡')
 	run('`a symbol with spaces`', 'a symbol with spaces')
 	run('`    `', '    ')
+	run('`_`', '_')
+	run('`( )`', '( )')
 
 	function run(input: string, expected: string) {
 		testParsing(input, sym(expected))
@@ -32,8 +34,8 @@ describe('parsing symbols', () => {
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
 	testParsing('(* 1 2)', call(sym('*'), int(1), int(2)))
-	testParsing('(f *)', call(sym('f'), obj(all)))
-	testParsing('(f `*`)', call(sym('f'), sym('*')))
+	testParsing('(f _)', call(sym('f'), obj(all)))
+	testParsing('(f ())', call(sym('f'), obj(bottom)))
 	testParsing('(f)', call(sym('f')))
 	testParsing('(0 false)', call(int(1), sym('false')))
 	testParsing('((true) pi)', call(call(sym('true')), sym('pi')))
@@ -65,7 +67,8 @@ describe('parsing function definition', () => {
 		'(=> (x : Int y : Bool) x)',
 		fn({x: sym('Int'), y: sym('Bool')}, sym('x'))
 	)
-	testParsing('(=>()_)', fn({}, obj(bottom)))
+	testParsing('(=>()_)', fn({}, obj(all)))
+	testParsing('(=>()())', fn({}, obj(bottom)))
 	testParsing('(=> () (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
 	testParsing('(=> () (=> () 1))', fn({}, fn({}, int(1))))
 })

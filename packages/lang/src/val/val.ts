@@ -34,7 +34,7 @@ export class Bottom implements IVal {
 	}
 
 	public print() {
-		return '_'
+		return '()'
 	}
 
 	public isSubtypeOf() {
@@ -57,7 +57,7 @@ export class All implements IVal {
 	}
 
 	public print() {
-		return '*'
+		return '_'
 	}
 
 	public isSubtypeOf(ty: Value) {

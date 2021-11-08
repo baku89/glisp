@@ -29,11 +29,11 @@ describe('evaluating without errors', () => {
 	run('((=> x:Int (* x x)) 12)', Val.int(144))
 	run('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
 
-	run('(+ 7 _)', Val.int(7))
-	run('(* 2 _)', Val.int(2))
+	run('(+ 7 ())', Val.int(7))
+	run('(* 2 ())', Val.int(2))
 
-	run('(and true _)', Val.bool(true))
-	run('(or _ false)', Val.bool(false))
+	run('(and true ())', Val.bool(true))
+	run('(or () false)', Val.bool(false))
 
 	run('((=> x:Int (* x x)) 12)', Val.int(144))
 
@@ -58,7 +58,7 @@ describe('inferring a type', () => {
 	testInfer(Exp.obj(Val.bool(false)), Val.bool(false))
 	testInfer(Exp.sym('Int'), Val.tyValue(Val.tyInt))
 	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
-	testInfer(Exp.sym('_'), Val.bottom)
+	testInfer(Exp.sym('()'), Val.bottom)
 	testInfer('(not true)', Val.tyBool)
 })
 

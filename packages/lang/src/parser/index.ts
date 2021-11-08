@@ -10,13 +10,11 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Fn / Call / Vec / Int / Bottom / Top / Sym
+Node = Scope / Bottom / Fn / Call / Vec / Int / All / Sym
 
-Reserved = "_" / "*" / "=>"
+Reserved = "_" / "=>"
 
-Top = "*" { return Exp.obj(Val.all) }
-
-Bottom = "_" { return Exp.obj(Val.bottom) }
+All = "_" { return Exp.obj(Val.all) }
 
 Sym = SymIdent / SymQuoted
 
@@ -30,18 +28,15 @@ SymQuoted = "\`" name:$(!"\`" .)+ "\`"
 		return Exp.sym(name)
 	}
 
-SymFn = "*"
-	{
-		return Exp.sym(text())
-	}
-
 Int "Int" = [0-9]+ &End
 	{
 		const v = parseInt(text())
 		return Exp.int(v)
 	}
 
-Call "Call" = "(" _ fn:(SymFn / Node) _ args:CallArg* ")"
+Bottom = "(" _ ")" { return Exp.obj(Val.bottom) }
+
+Call "Call" = "(" _ fn:Node _ args:CallArg* ")"
 	{
 		return Exp.call(fn, ...args)
 	}
