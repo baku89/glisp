@@ -161,7 +161,7 @@ export class Fn implements IVal {
 			.join(' ')
 
 		const out = this.out.print()
-		return `(=> [${param}] <JS Function>:${out})`
+		return `(=> [${param}] <js code>:${out})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
