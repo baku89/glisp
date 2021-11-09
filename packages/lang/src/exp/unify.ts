@@ -151,8 +151,9 @@ export function useFreshTyVars(val: Val.Value): Val.Value {
 	let subst = Subst.empty()
 
 	for (const tv of getTyVars(val)) {
-		subst = subst.appendLower(tv, Val.freshTyVar())
-		subst = subst.appendUpper(tv, Val.freshTyVar())
+		const tv2 = Val.freshTyVar()
+		subst = subst.appendLower(tv, tv2)
+		subst = subst.appendUpper(tv, tv2)
 	}
 
 	return subst.applyTo(val)
