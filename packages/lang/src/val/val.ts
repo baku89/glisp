@@ -338,8 +338,11 @@ export class TyFn implements IVal, ITyFn {
 	) {}
 
 	public print(): string {
+		const canOmitParens =
+			this.tyParam.length === 1 && this.tyParam[0].type !== 'bottom'
+
 		const params = this.tyParam.map(v => v.print())
-		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
+		const param = canOmitParens ? params[0] : '(' + params.join(' ') + ')'
 		const out = this.tyOut.print()
 
 		return `(-> ${param} ${out})`
