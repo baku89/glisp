@@ -253,17 +253,17 @@ export class Call extends BaseNode {
 		const {result: fn, log: fnLog} = this.fn.eval(env)
 		const logs: Log[] = []
 
-		if (fn.type !== 'fn') return Writer.of(fn, ...fnLog)
+		if (!('callable' in fn)) return Writer.of(fn, ...fnLog)
 
 		const tyArgs = this.args.map(a => a.infer(env)).map(useFreshTyVars)
 		const consts = zip(tyArgs, fn.tyParam)
 		const subst = unify(consts)
-		const tyParam = fn.tyParam.map(t => subst.applyTo(t))
+		const tyParam = values(fn.param).map(t => subst.applyTo(t))
 		const paramNames = keys(fn.param)
 
 		// Log unused extra arguments
 		const unusedArgLogs: Log[] = this.args
-			.slice(fn.tyParam.length)
+			.slice(tyParam.length)
 			.map(ref => ({level: 'info', ref, reason: 'Unused argument'}))
 		logs.push(...unusedArgLogs)
 
@@ -300,7 +300,7 @@ export class Call extends BaseNode {
 			return aVal
 		})
 
-		const result = subst.applyTo(fn.value(...args))
+		const result = subst.applyTo(fn.fn(...args))
 
 		return Writer.of(result, ...fnLog, ...logs)
 	}

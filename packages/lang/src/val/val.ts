@@ -25,6 +25,13 @@ interface IVal {
 	isEqualTo(val: Value): boolean
 }
 
+interface ICallable {
+	callable: true
+	param: Record<string, Value>
+	out: Value
+	fn: IFn
+}
+
 export class Bottom implements IVal {
 	public readonly type: 'bottom' = 'bottom'
 	public readonly defaultValue = Bottom.instance
@@ -134,13 +141,14 @@ export class Bool implements IVal {
 
 export type IFn = (...params: any[]) => Value
 
-export class Fn implements IVal {
+export class Fn implements IVal, ICallable {
 	public readonly type: 'fn' = 'fn'
+	public readonly callable = true
 	public readonly defaultValue = this
 
 	public readonly tyParam!: Value[]
 	public constructor(
-		public readonly value: IFn,
+		public readonly fn: IFn,
 		public readonly param: Record<string, Value>,
 		public readonly out: Value
 	) {
@@ -177,7 +185,7 @@ export class Fn implements IVal {
 	public isEqualTo(val: Value): boolean {
 		return (
 			val.type === this.type &&
-			val.value === this.value &&
+			val.fn === this.fn &&
 			hasEqualValues(this.param, val.param, isEqual) &&
 			this.out.isEqualTo(val.out)
 		)

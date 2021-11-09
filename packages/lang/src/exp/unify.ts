@@ -85,7 +85,7 @@ export class Subst {
 			case 'fn': {
 				const param = mapValues(val.param, p => this.inverted.applyTo(p))
 				const out = this.applyTo(val.out)
-				return Val.fn(val.value, param, out)
+				return Val.fn(val.fn, param, out)
 			}
 			case 'vec': {
 				const items = val.items.map(this.applyTo)

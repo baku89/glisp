@@ -6,7 +6,7 @@ const U = Val.tyVar()
 const V = Val.tyVar()
 
 function defn(
-	value: Val.Fn['value'],
+	value: Val.Fn['fn'],
 	param: Record<string, Val.Value>,
 	out: Val.Value
 ) {
@@ -79,7 +79,7 @@ export const GlobalScope = scope({
 	'.': defn(
 		(f: Val.Fn, g: Val.Fn) => {
 			const name = f.paramNameAt(0)
-			return Val.fn((x: Val.Value) => g.value(f.value(x)), {[name]: T}, V)
+			return Val.fn((x: Val.Value) => g.fn(f.fn(x)), {[name]: T}, V)
 		},
 		{f: Val.tyFn(T, U), g: Val.tyFn(U, V)},
 		Val.tyFn(T, V)
@@ -87,7 +87,7 @@ export const GlobalScope = scope({
 	twice: defn(
 		(f: Val.Fn) => {
 			const name = f.paramNameAt(0)
-			return Val.fn((x: Val.Value) => f.value(f.value(x)), {[name]: T}, T)
+			return Val.fn((x: Val.Value) => f.fn(f.fn(x)), {[name]: T}, T)
 		},
 		{f: Val.tyFn(T, T)},
 		Val.tyFn(T, T)
