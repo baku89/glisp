@@ -90,14 +90,14 @@ describe('inferring vectors', () => {
 })
 
 describe('inferring a type of function', () => {
+	const T = Val.tyVar('T')
+	const U = Val.tyVar('U')
+
 	testInfer('(=> x:Int x)', Val.tyFn(Val.tyInt, Val.tyInt))
-	testInfer('(=> x:<T> x)', Val.tyFn(Val.tyVar('T'), Val.tyVar('T')))
+	testInfer('(=> x:<T> x)', Val.tyFn(T, T))
 	testInfer(
 		'(=> (x:<T> y:<U>) (if true x y))',
-		Val.tyFn(
-			[Val.tyVar('T'), Val.tyVar('U')],
-			Val.uniteTy(Val.tyVar('T'), Val.tyVar('U'))
-		)
+		Val.tyFn([T, U], Val.uniteTy(T, U))
 	)
 })
 
@@ -132,6 +132,7 @@ function parse(input: string | Exp.Node): Exp.Node {
 	if (typeof input === 'string') {
 		return Parser.parse(input)
 	} else {
+		input.parent = GlobalScope
 		return input
 	}
 }
@@ -139,8 +140,6 @@ function parse(input: string | Exp.Node): Exp.Node {
 function testEval(input: string | Exp.Node, expected: Val.Value) {
 	const exp = parse(input)
 	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
-		exp.parent = GlobalScope
-
 		const {result, log} = exp.eval()
 		if (!Val.isEqual(result, expected)) {
 			throw new Error('Got=' + result.print() + '\n' + printLog(log))
@@ -155,8 +154,6 @@ function testInfer(input: string | Exp.Node, expected: Val.Value) {
 	const exp = parse(input)
 
 	test(`${exp.print()} is inferred to be ${expected.print()}`, () => {
-		exp.parent = GlobalScope
-
 		const inferred = exp.infer()
 		const equal = inferred.isEqualTo(expected)
 		if (!equal) throw new Error('Got=' + inferred.print())
