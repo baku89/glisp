@@ -159,11 +159,6 @@ export class Fn implements IVal, ICallable {
 		return this.out
 	}
 
-	public paramNameAt(index: number) {
-		const names = keys(this.param)
-		return index < names.length ? names[index] : '$' + index
-	}
-
 	public print(): string {
 		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'

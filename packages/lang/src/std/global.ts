@@ -78,16 +78,14 @@ export const GlobalScope = scope({
 	const: defn((x: Val.Value) => Val.fn(() => x, {}, T), {x: T}, T),
 	'.': defn(
 		(f: Val.Fn, g: Val.Fn) => {
-			const name = f.paramNameAt(0)
-			return Val.fn((x: Val.Value) => g.fn(f.fn(x)), {[name]: T}, V)
+			return Val.fn((x: Val.Value) => g.fn(f.fn(x)), {x: T}, V)
 		},
 		{f: Val.tyFn(T, U), g: Val.tyFn(U, V)},
 		Val.tyFn(T, V)
 	),
 	twice: defn(
 		(f: Val.Fn) => {
-			const name = f.paramNameAt(0)
-			return Val.fn((x: Val.Value) => f.fn(f.fn(x)), {[name]: T}, T)
+			return Val.fn((x: Val.Value) => f.fn(f.fn(x)), {x: T}, T)
 		},
 		{f: Val.tyFn(T, T)},
 		Val.tyFn(T, T)
