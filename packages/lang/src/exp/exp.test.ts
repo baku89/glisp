@@ -3,59 +3,54 @@ import * as Parser from '../parser'
 import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
-describe('evaluating without errors', () => {
-	run(Exp.int(0), Val.int(0))
-	run(Exp.int(10), Val.int(10))
-	run(Exp.obj(Val.bool(false)), Val.bool(false))
-	run(Exp.obj(Val.bool(true)), Val.bool(true))
-	run(Exp.obj(Val.bottom), Val.bottom)
-	run('(+ 1 2)', Val.int(3))
-	run('(* 1 2)', Val.int(2))
-	run('(< 1 2)', Val.bool(true))
-	run(Exp.scope({a: Exp.int(10)}, Exp.sym('a')), Val.int(10))
-	run('(if true 1 false)', Val.int(1))
-	run('(< 4 (if true 1 2))', Val.bool(false))
-	run('(not true)', Val.bool(false))
-	run('(even? 2)', Val.bool(true))
-	run('((. succ even?) 1)', Val.bool(true))
-	run('((. succ even?) 2)', Val.bool(false))
-	run('((twice succ) 1)', Val.int(3))
+describe('evaluating literals', () => {
+	testEval(Exp.int(0), Val.int(0))
+	testEval(Exp.int(10), Val.int(10))
+	testEval(Exp.obj(Val.bool(false)), Val.bool(false))
+	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
+	testEval(Exp.obj(Val.bottom), Val.bottom)
+	testEval('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
+})
 
-	run('[]', Val.vec())
-	run('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
-	run('[(+ 1 2)]', Val.vec(Val.int(3)))
-	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
-	run('([0 1 2 3 4 5] 2)', Val.int(2))
-	run('([0 1 2 3 4 5] 10)', Val.bottom)
-	run('([true false] 0)', Val.bool(true))
-	run('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
+describe('evaluating a simple expression', () => {
+	testEval('(+ 1 2)', Val.int(3))
+	testEval('(* 1 2)', Val.int(2))
+	testEval('(< 1 2)', Val.bool(true))
+	testEval('{a = 10 a}', Val.int(10))
+	testEval('(if true 1 false)', Val.int(1))
+	testEval('(< 4 (if true 1 2))', Val.bool(false))
+	testEval('(not true)', Val.bool(false))
+	testEval('(even? 2)', Val.bool(true))
+})
 
-	run('(id [1])', Val.vec(Val.int(1)))
-	run('((=> x:Int (* x x)) 12)', Val.int(144))
-	run('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
+describe('evaluating anonymous function application', () => {
+	testEval('((=> x:Int (* x x)) 12)', Val.int(144))
+})
 
-	run('(+ 7 ())', Val.int(7))
-	run('(* 2 ())', Val.int(2))
+describe('evaluating higher-order function application', () => {
+	testEval('((. succ even?) 1)', Val.bool(true))
+	testEval('((. succ even?) 2)', Val.bool(false))
+	testEval('((twice succ) 1)', Val.int(3))
+})
 
-	run('(and true ())', Val.bool(true))
-	run('(or () false)', Val.bool(false))
+describe('evaluating vectors', () => {
+	testEval('[]', Val.vec())
+	testEval('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
+	testEval('[(+ 1 2)]', Val.vec(Val.int(3)))
+	testEval('[[[]]]', Val.vec(Val.vec(Val.vec())))
+	testEval('([0 1 2 3 4 5] 2)', Val.int(2))
+	testEval('([0 1 2 3 4 5] 10)', Val.bottom)
+	testEval('([true false] 0)', Val.bool(true))
+	testEval('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
+	testEval('(id [1])', Val.vec(Val.int(1)))
+})
 
-	run('((=> x:Int (* x x)) 12)', Val.int(144))
+describe('evaluating function call with bottom arguments', () => {
+	testEval('(+ 7 ())', Val.int(7))
+	testEval('(* 2 ())', Val.int(2))
 
-	function run(input: string | Exp.Node, expected: Val.Value) {
-		const exp = parse(input)
-		test(`${exp.print()} evaluates to ${expected.print()}`, () => {
-			exp.parent = GlobalScope
-
-			const {result, log} = exp.eval()
-			if (!Val.isEqual(result, expected)) {
-				throw new Error('Got=' + result.print() + '\n' + printLog(log))
-			}
-			if (log.length > 0) {
-				throw new Error('Expected no log, but got=' + printLog(log))
-			}
-		})
-	}
+	testEval('(and true ())', Val.bool(true))
+	testEval('(or () false)', Val.bool(false))
 })
 
 describe('inferring a type', () => {
@@ -111,8 +106,8 @@ describe('inferring a type of polymorphic function application', () => {
 
 describe('inferring invalid expression', () => {
 	testInfer('(. succ)', Val.tyFn(Val.tyInt, Val.bottom))
-	testInfer('(. _ succ)', Val.tyFn(Val.bottom, Val.tyInt))
-	testInfer('(. _ succ)', Val.tyFn(Val.bottom, Val.tyInt))
+	testInfer('(. () succ)', Val.tyFn(Val.bottom, Val.tyInt))
+	testInfer('(. () succ)', Val.tyFn(Val.bottom, Val.tyInt))
 	testInfer('(. not succ)', Val.tyFn(Val.tyBool, Val.tyInt))
 	testInfer('(. succ not)', Val.tyFn(Val.tyInt, Val.tyBool))
 })
@@ -123,6 +118,21 @@ function parse(input: string | Exp.Node): Exp.Node {
 	} else {
 		return input
 	}
+}
+
+function testEval(input: string | Exp.Node, expected: Val.Value) {
+	const exp = parse(input)
+	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
+		exp.parent = GlobalScope
+
+		const {result, log} = exp.eval()
+		if (!Val.isEqual(result, expected)) {
+			throw new Error('Got=' + result.print() + '\n' + printLog(log))
+		}
+		if (log.length > 0) {
+			throw new Error('Expected no log, but got=' + printLog(log))
+		}
+	})
 }
 
 function testInfer(input: string | Exp.Node, expected: Val.Value) {
