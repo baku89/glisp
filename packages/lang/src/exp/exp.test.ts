@@ -89,6 +89,18 @@ describe('inferring vectors', () => {
 	)
 })
 
+describe('inferring a type of function', () => {
+	testInfer('(=> x:Int x)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(=> x:<T> x)', Val.tyFn(Val.tyVar('T'), Val.tyVar('T')))
+	testInfer(
+		'(=> (x:<T> y:<U>) (if true x y))',
+		Val.tyFn(
+			[Val.tyVar('T'), Val.tyVar('U')],
+			Val.uniteTy(Val.tyVar('T'), Val.tyVar('U'))
+		)
+	)
+})
+
 describe('inferring a type of polymorphic function application', () => {
 	testInfer('(id 1)', Val.int(1))
 	testInfer('(if true 1 2)', Val.uniteTy(Val.int(1), Val.int(2)))
