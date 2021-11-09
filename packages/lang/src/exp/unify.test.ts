@@ -4,8 +4,8 @@ import * as Val from '../val'
 import {Const, getTyVars, unify} from './unify'
 
 describe('getTyVars', () => {
-	const T = Val.tyVar(),
-		U = Val.tyVar()
+	const T = Val.tyVar('T'),
+		U = Val.tyVar('U')
 
 	run(Val.int(1), [])
 	run(Val.bool(true), [])
@@ -28,8 +28,8 @@ describe('getTyVars', () => {
 })
 
 describe('unifying constraints', () => {
-	const T = Val.tyVar(),
-		U = Val.tyVar()
+	const T = Val.tyVar('T'),
+		U = Val.tyVar('U')
 
 	run(T, [[Val.tyInt, T]], Val.tyInt)
 	run(

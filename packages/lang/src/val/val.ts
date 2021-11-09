@@ -292,10 +292,10 @@ export class TyVar implements IVal {
 	public readonly type: 'tyVar' = 'tyVar'
 	public readonly defaultValue = Bottom.instance
 
-	private constructor(private readonly id: number = TyVar.counter++) {}
+	private constructor(private readonly id: string) {}
 
 	public print() {
-		return '<t' + this.id + '>'
+		return '<' + this.id + '>'
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -311,8 +311,12 @@ export class TyVar implements IVal {
 
 	private static counter = 1
 
+	public static of(id: string) {
+		return new TyVar(id)
+	}
+
 	public static fresh() {
-		return new TyVar()
+		return new TyVar('T' + TyVar.counter++)
 	}
 }
 

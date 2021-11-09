@@ -1,9 +1,9 @@
 import {obj, scope} from '../exp'
 import * as Val from '../val'
 
-const T = Val.tyVar()
-const U = Val.tyVar()
-const V = Val.tyVar()
+const T = Val.tyVar('T')
+const U = Val.tyVar('U')
+const V = Val.tyVar('V')
 
 function defn(
 	value: Val.Fn['fn'],

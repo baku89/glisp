@@ -10,9 +10,9 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Bottom / Fn / TyFn / Call / Vec / Int / All / Sym
+Node = Scope / Bottom / Fn / TyFn / Call / Vec / Int / All / TyVar / Sym
 
-Reserved = "_" / "=>" / "->"
+Reserved = "_" / "=>" / "->" / "<" [^>]+ ">"
 
 All = "_" { return Exp.obj(Val.all) }
 
@@ -26,6 +26,11 @@ SymIdent = !(Reserved End) $([^0-9()[\\]{}\\:\`"] [^()[\\]{}\\:\`" \\t\\n\\r]*)
 SymQuoted = "\`" name:$(!"\`" .)+ "\`"
 	{
 		return Exp.sym(name)
+	}
+
+TyVar = "<" id:$[^>]+ ">"
+	{
+		return Exp.obj(Val.tyVar(id))
 	}
 
 Int "Int" = [0-9]+ &End
