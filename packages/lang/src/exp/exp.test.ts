@@ -10,6 +10,10 @@ describe('evaluating literals', () => {
 	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
 	testEval(Exp.obj(Val.bottom), Val.bottom)
 	testEval('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testEval(
+		Exp.tyFn(Exp.obj(Val.tyInt), Exp.obj(Val.tyInt)),
+		Val.tyFn(Val.tyInt, Val.tyInt)
+	)
 })
 
 describe('evaluating a simple expression', () => {

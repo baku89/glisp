@@ -8,7 +8,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {unify, useFreshTyVars} from './unify'
 
-export type Node = Sym | Int | Obj | Fn | Vec | Call | Scope
+export type Node = Sym | Int | Obj | Fn | TyFn | Vec | Call | Scope
 
 export type Type = Node['type']
 
@@ -187,6 +187,45 @@ export class Fn extends BaseNode {
 }
 
 export const fn = Fn.of
+
+export class TyFn extends BaseNode {
+	public readonly type: 'tyFn' = 'tyFn'
+
+	private constructor(public tyParam: Node[], public out: Node) {
+		super()
+	}
+
+	public eval(env: Env = new Map()): ValueWithLog {
+		const {result: param, log: l1} = Writer.map(this.tyParam, p => p.eval(env))
+		const {result: out, log: l2} = this.out.eval(env)
+		const tyFn = Val.tyFn(param, out)
+		return Writer.of(tyFn, ...l1, ...l2)
+	}
+
+	public infer(env?: Env): Val.Value {
+		const param = this.tyParam.map(p => p.infer(env))
+		const out = this.out.infer(env)
+		return Val.tyFn(param, out)
+	}
+
+	public print(): string {
+		const params = this.tyParam.map(p => p.print())
+		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
+		const out = this.out.print()
+
+		return `(-> ${param} ${out})`
+	}
+
+	public static of(param: Node | Node[], out: Node) {
+		const tyParam = [param].flat()
+		const tyFn = new TyFn(tyParam, out)
+		tyParam.forEach(p => (p.parent = tyFn))
+		out.parent = tyFn
+		return tyFn
+	}
+}
+
+export const tyFn = TyFn.of
 
 export class Vec extends BaseNode {
 	public readonly type: 'vec' = 'vec'
@@ -391,6 +430,14 @@ export function isEqual(a: Node, b: Node): boolean {
 				hasEqualValues(a.param, b.param, isEqual) &&
 				isEqual(a.body, b.body)
 			)
+		case 'tyFn': {
+			return (
+				b.type === 'tyFn' &&
+				a.tyParam.length === b.tyParam.length &&
+				zip(a.tyParam, b.tyParam).every(([ap, bp]) => isEqual(ap, bp)) &&
+				isEqual(a.out, b.out)
+			)
+		}
 		case 'call':
 			return b.type === 'call' && isEqualWith(a.args, b.args, isEqual)
 		case 'scope': {
