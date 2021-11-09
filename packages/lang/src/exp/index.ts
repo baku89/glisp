@@ -1,4 +1,4 @@
-import {entries, fromPairs, isEqualWith, keys, values} from 'lodash'
+import {entries, fromPairs, isEqualWith, keys, mapValues, values} from 'lodash'
 
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
@@ -68,8 +68,8 @@ export class Sym extends BaseNode {
 		return this.resolve(env).bind(v => v.eval(env))
 	}
 
-	public infer(): Val.Value {
-		return this.resolve().result.infer()
+	public infer(env?: Env): Val.Value {
+		return this.resolve(env).result.infer(env)
 	}
 
 	public print() {
@@ -112,7 +112,7 @@ export const int = Int.of
 export class Obj extends BaseNode {
 	public readonly type: 'obj' = 'obj'
 
-	private constructor(public value: Val.Value) {
+	private constructor(public value: Val.Value, public asType: boolean) {
 		super()
 	}
 
@@ -121,7 +121,7 @@ export class Obj extends BaseNode {
 	}
 
 	public infer(): Val.Value {
-		if (Val.isTy(this.value)) {
+		if (this.asType === false && Val.isTy(this.value)) {
 			return Val.tyValue(this.value)
 		}
 		return this.value
@@ -132,7 +132,11 @@ export class Obj extends BaseNode {
 	}
 
 	public static of(value: Val.Value) {
-		return new Obj(value)
+		return new Obj(value, false)
+	}
+
+	public static asType(value: Val.Value) {
+		return new Obj(value, true)
 	}
 }
 
@@ -145,10 +149,14 @@ export class Fn extends BaseNode {
 		super()
 	}
 
-	public infer(env?: Env): Val.Value {
-		const param = values(this.param).map(p => p.infer(env))
-		const out = this.body.infer(env)
-		return Val.tyFn(param, out)
+	public infer(env: Env = new Map()): Val.Value {
+		const {result: param} = Writer.mapValues(this.param, p => p.eval(env))
+		const rec = mapValues(param, Obj.asType)
+
+		const innerEnv = new Map([...env.entries(), [this, rec]])
+		const out = this.body.infer(innerEnv)
+
+		return Val.tyFn(values(param), out)
 	}
 
 	public eval(env: Env = new Map()): ValueWithLog {
@@ -161,13 +169,15 @@ export class Fn extends BaseNode {
 			return this.body.eval(innerEnv).result
 		}
 
-		const param = Writer.mapValues(this.param, p => p.eval(env))
+		const evParam = Writer.mapValues(this.param, p => p.eval(env))
+		const {result: param, log: paramLog} = evParam
 
-		const innerEnv = new Map([...env.entries(), [this, this.param]])
+		const rec = mapValues(param, Obj.asType)
+		const innerEnv = new Map([...env.entries(), [this, rec]])
 		const out = this.body.infer(innerEnv)
 
-		const fnVal = Val.fn(fn, param.result, out, this.body)
-		return Writer.of(fnVal, ...param.log)
+		const fnVal = Val.fn(fn, param, out, this.body)
+		return Writer.of(fnVal, ...paramLog)
 	}
 
 	public print(): string {
