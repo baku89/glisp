@@ -3,6 +3,9 @@ import * as Parser from '../parser'
 import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
+const T = Val.tyVar('T')
+const U = Val.tyVar('U')
+
 describe('evaluating literals', () => {
 	testEval(Exp.int(0), Val.int(0))
 	testEval(Exp.int(10), Val.int(10))
@@ -90,14 +93,15 @@ describe('inferring vectors', () => {
 })
 
 describe('inferring a type of function', () => {
-	const T = Val.tyVar('T')
-	const U = Val.tyVar('U')
-
 	testInfer('(=> x:Int x)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(=> x:<T> x)', Val.tyFn(T, T))
 	testInfer(
 		'(=> (x:<T> y:<U>) (if true x y))',
 		Val.tyFn([T, U], Val.uniteTy(T, U))
+	)
+	testInfer(
+		'(=> (f:(-> <T> <U>) x:<T>) (f x))',
+		Val.tyFn([Val.tyFn(T, U), U], U)
 	)
 })
 
@@ -118,6 +122,7 @@ describe('inferring a type of polymorphic function application', () => {
 		'(if ((twice not) true) ((twice succ) 1) ((twice succ) 2))',
 		Val.tyInt
 	)
+	testInfer('(twice id)', Val.tyFn(T, T))
 })
 
 describe('inferring invalid expression', () => {
