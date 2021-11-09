@@ -167,7 +167,8 @@ export class Fn extends BaseNode {
 		const innerEnv = new Map([...env.entries(), [this, this.param]])
 		const out = this.body.infer(innerEnv)
 
-		return Writer.of(Val.fn(fn, param.result, out), ...param.log)
+		const fnVal = Val.fn(fn, param.result, out, this.body)
+		return Writer.of(fnVal, ...param.log)
 	}
 
 	public print(): string {

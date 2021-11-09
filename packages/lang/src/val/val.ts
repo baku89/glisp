@@ -1,5 +1,6 @@
 import {differenceWith, entries, values} from 'lodash'
 
+import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
@@ -156,7 +157,8 @@ export class Fn implements IVal, ICallable {
 	public constructor(
 		public readonly fn: IFn,
 		public readonly param: Record<string, Value>,
-		public readonly out: Value
+		public readonly out: Value,
+		public readonly body: Exp.Node | null = null
 	) {
 		this.tyFn = TyFn.of(values(param), out)
 	}
@@ -165,8 +167,9 @@ export class Fn implements IVal, ICallable {
 		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
-		const out = this.out.print()
-		return `(=> ${param} <js code>:${out})`
+		const body = this.body?.print() ?? '<js code>:' + this.out.print()
+
+		return `(=> ${param} ${body})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -190,9 +193,10 @@ export class Fn implements IVal, ICallable {
 	public static of(
 		value: (...params: any[]) => Value,
 		tyParam: Record<string, Value>,
-		tyOut: Value
+		tyOut: Value,
+		body?: Exp.Node
 	) {
-		return new Fn(value, tyParam, tyOut)
+		return new Fn(value, tyParam, tyOut, body)
 	}
 }
 
