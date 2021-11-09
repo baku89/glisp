@@ -167,9 +167,10 @@ export class Fn implements IVal, ICallable {
 		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
-		const body = this.body?.print() ?? '<js code>:' + this.out.print()
+		const body = this.body?.print() ?? '(js code)'
+		const out = this.out.print()
 
-		return `(=> ${param} ${body})`
+		return `(=> ${param} ${body}:${out})`
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
