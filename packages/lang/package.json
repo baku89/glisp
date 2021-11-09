@@ -5,8 +5,9 @@
 	"scripts": {
 		"build": "tsc",
 		"lint": "eslint src",
-		"repl": "npm run build; node ./lib/repl/index.js",
 		"test": "jest --slient=false",
+		"serve": "npm run test -- --watch",
+		"repl": "npm run build; node ./lib/repl/index.js",
 		"prepare": "npm run build"
 	},
 	"typings": "./lib/index.d.ts",
