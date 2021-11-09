@@ -327,10 +327,11 @@ export class TyFn implements IVal, ITyFn {
 	) {}
 
 	public print(): string {
-		const param = this.tyParam.map(v => v.print()).join(' ')
+		const params = this.tyParam.map(v => v.print())
+		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 		const out = this.tyOut.print()
 
-		return `(-> [${param}] ${out})`
+		return `(-> ${param} ${out})`
 	}
 
 	public get defaultValue(): Value {
