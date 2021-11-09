@@ -10,9 +10,9 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Bottom / Fn / Call / Vec / Int / All / Sym
+Node = Scope / Bottom / Fn / TyFn / Call / Vec / Int / All / Sym
 
-Reserved = "_" / "=>"
+Reserved = "_" / "=>" / "->"
 
 All = "_" { return Exp.obj(Val.all) }
 
@@ -61,11 +61,19 @@ FnParamSingle = pair:FnParamPair
 		return {[name]: type}
 	}
 
-
 FnParamPair = sym:Sym _ ":" _ type:Node _
 	{
 		return [sym.name, type]
 	}
+
+TyFn = "(" _ "->" _ param:TyFnParam _ out:Node _ ")"
+	{
+		return Exp.tyFn(param, out)
+	}
+
+TyFnParam = 
+	"(" _ params:(Node _)* ")" { return params.map(p => p[0]) } /
+	param:Node { return [param] }
 
 Vec = "[" _ items:VecItem* rest:VecRest? "]"
 	{		

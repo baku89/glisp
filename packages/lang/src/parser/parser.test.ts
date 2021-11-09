@@ -1,6 +1,20 @@
-import {call, fn, int, isEqual, Node, obj, scope, sym, vec, vecV} from '../exp'
+import {
+	call,
+	fn,
+	int,
+	isEqual,
+	Node,
+	obj,
+	scope,
+	sym,
+	tyFn,
+	vec,
+	vecV,
+} from '../exp'
 import {all, bottom} from '../val'
 import {parse} from '.'
+
+const Int = sym('Int')
 
 describe('parsing literals', () => {
 	testParsing('10', int(10))
@@ -61,16 +75,24 @@ describe('parsing vector', () => {
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> x:Int x)', fn({x: sym('Int')}, sym('x')))
-	testParsing('(=> (x:Int) x)', fn({x: sym('Int')}, sym('x')))
+	testParsing('(=> x:Int x)', fn({x: Int}, sym('x')))
+	testParsing('(=> (x:Int) x)', fn({x: Int}, sym('x')))
 	testParsing(
 		'(=> (x : Int y : Bool) x)',
-		fn({x: sym('Int'), y: sym('Bool')}, sym('x'))
+		fn({x: Int, y: sym('Bool')}, sym('x'))
 	)
 	testParsing('(=>()_)', fn({}, obj(all)))
 	testParsing('(=>()())', fn({}, obj(bottom)))
 	testParsing('(=> () (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
 	testParsing('(=> () (=> () 1))', fn({}, fn({}, int(1))))
+})
+
+describe('parsing function type', () => {
+	testParsing('(-> Int Int)', tyFn(Int, Int))
+	testParsing('(-> [Int] Int)', tyFn(vec(Int), Int))
+	testParsing('(-> [...Int] Int)', tyFn(vecV(Int), Int))
+	testParsing('(-> (x y) z)', tyFn([sym('x'), sym('y')], sym('z')))
+	testParsing('(-> [x y] z)', tyFn(vec(sym('x'), sym('y')), sym('z')))
 })
 
 function testParsing(input: string, expected: Node) {

@@ -61,12 +61,6 @@ export const GlobalScope = scope({
 		{x: T, y: T},
 		T
 	),
-	'->': defn(
-		(param: Val.Vec, out: Val.Value) => Val.tyFn(param.items, out),
-		{param: Val.vecV(T), out: U},
-		// TODO: Fix this to (-> [...T] U)
-		Val.all
-	),
 	id: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
 	if: defn(
 		(test: Val.Bool, then: Val.Value, _else: Val.Value) => {
