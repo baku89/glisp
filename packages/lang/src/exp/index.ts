@@ -1,4 +1,4 @@
-import {entries, isEqualWith, keys, values} from 'lodash'
+import {entries, fromPairs, isEqualWith, keys, values} from 'lodash'
 import {IFn} from 'src/val/val'
 
 import {hasEqualValues} from '../utils/hasEqualValues'
@@ -156,7 +156,7 @@ export class Fn extends BaseNode {
 		const paramNames = keys(this.param)
 
 		const fn: IFn = (...args: Val.Value[]) => {
-			const rec = Object.fromEntries(zip(paramNames, args.map(obj)))
+			const rec = fromPairs(zip(paramNames, args.map(obj)))
 			const innerEnv = new Map([...env.entries(), [this, rec]])
 
 			return this.body.eval(innerEnv).result
