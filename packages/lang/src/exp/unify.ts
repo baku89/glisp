@@ -167,13 +167,6 @@ export function unify(consts: Const[]): Subst {
 		return unify(rest)
 	}
 
-	const svars = getTyVars(s)
-	const tvars = getTyVars(t)
-
-	if (svars.size === 0 && tvars.size === 0) {
-		return unify(rest)
-	}
-
 	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
 		if (!('tyFn' in s)) {
@@ -206,21 +199,23 @@ export function unify(consts: Const[]): Subst {
 	}
 
 	// If either type is tyVar?
+	let unified = unify(rest)
+
 	if (t.type === 'tyVar') {
-		if (svars.has(t)) {
+		if (getTyVars(s).has(t)) {
 			throw new Error('Failed to occur check')
 		}
 
-		return unify(rest).appendLower(t, s)
+		unified = unified.appendLower(t, s)
 	}
 
 	if (s.type === 'tyVar') {
-		if (tvars.has(s)) {
+		if (getTyVars(t).has(s)) {
 			throw new Error('Failed to occur check')
 		}
 
-		return unify(rest).appendUpper(s, t)
+		unified = unified.appendUpper(s, t)
 	}
 
-	throw new Error('Not yet implemented')
+	return unified
 }

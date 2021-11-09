@@ -360,10 +360,12 @@ export class Call extends BaseNode {
 		if (!('tyFn' in ty)) return ty
 
 		// Infer type by resolving constraints
+		const tyFn = useFreshTyVars(ty.tyFn) as Val.TyFn
+
 		const args = this.args.map(a => a.infer(env))
-		const consts = zip(args, ty.tyFn.tyParam)
+		const consts = zip(args, tyFn.tyParam)
 		const subst = unify(consts)
-		const tyOut = subst.applyTo(ty.tyFn.tyOut)
+		const tyOut = subst.applyTo(tyFn.tyOut)
 
 		return tyOut
 	}
