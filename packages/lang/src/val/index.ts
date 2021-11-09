@@ -42,9 +42,6 @@ export const tyValue = TyValue.of
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)
 
-export const isTyFn = (a: Value): a is Fn | TyFn =>
-	a.type === 'fn' || a.type === 'tyFn'
-
 export const isTy = (a: Value): a is Vec | TyFn | TyUnion | TyAtom | TyVar =>
 	a.type === 'vec' ||
 	a.type === 'tyFn' ||

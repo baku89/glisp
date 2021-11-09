@@ -176,12 +176,12 @@ export function unify(consts: Const[]): Subst {
 
 	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
-		if (!Val.isTyFn(s)) {
+		if (!('tyFn' in s)) {
 			return unify(rest)
 		}
 
-		const param: Const = [Val.vec(...t.tyParam), Val.vec(...s.tyParam)]
-		const out: Const = [s.tyOut, t.tyOut]
+		const param: Const = [Val.vec(...t.tyParam), Val.vec(...s.tyFn.tyParam)]
+		const out: Const = [s.tyFn.tyOut, t.tyOut]
 
 		return unify([param, out, ...rest])
 	}
@@ -223,8 +223,4 @@ export function unify(consts: Const[]): Subst {
 	}
 
 	throw new Error('Not yet implemented')
-}
-
-export function infer(val: Val.Value, consts: Const[]): Val.Value {
-	return unify(consts).applyTo(val)
 }

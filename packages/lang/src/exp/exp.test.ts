@@ -25,6 +25,11 @@ describe('evaluating without errors', () => {
 	run('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
 	run('[(+ 1 2)]', Val.vec(Val.int(3)))
 	run('[[[]]]', Val.vec(Val.vec(Val.vec())))
+	run('([0 1 2 3 4 5] 2)', Val.int(2))
+	run('([0 1 2 3 4 5] 10)', Val.bottom)
+	run('([true false] 0)', Val.bool(true))
+	run('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
+
 	run('(id [1])', Val.vec(Val.int(1)))
 	run('((=> x:Int (* x x)) 12)', Val.int(144))
 	run('(-> [Int] Int)', Val.tyFn(Val.tyInt, Val.tyInt))
@@ -96,6 +101,7 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('((. succ even?) 1)', Val.tyBool)
 	testInfer('(twice succ)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
+	testInfer('(twice (twice succ))', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice (twice not))', Val.tyFn(Val.tyBool, Val.tyBool))
 	testInfer(
 		'(if ((twice not) true) ((twice succ) 1) ((twice succ) 2))',

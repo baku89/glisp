@@ -6,7 +6,7 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {infer, unify, useFreshTyVars} from './unify'
+import {unify, useFreshTyVars} from './unify'
 
 export type Node = Sym | Int | Obj | Fn | Vec | Call | Scope
 
@@ -255,10 +255,11 @@ export class Call extends BaseNode {
 
 		if (!('callable' in fn)) return Writer.of(fn, ...fnLog)
 
+		const rawTyParam = values(fn.param)
 		const tyArgs = this.args.map(a => a.infer(env)).map(useFreshTyVars)
-		const consts = zip(tyArgs, fn.tyParam)
+		const consts = zip(tyArgs, rawTyParam)
 		const subst = unify(consts)
-		const tyParam = values(fn.param).map(t => subst.applyTo(t))
+		const tyParam = rawTyParam.map(t => subst.applyTo(t))
 		const paramNames = keys(fn.param)
 
 		// Log unused extra arguments
@@ -307,12 +308,13 @@ export class Call extends BaseNode {
 
 	public infer(env?: Env): Val.Value {
 		const ty = this.fn.infer(env)
-		if (!Val.isTyFn(ty)) return ty
+		if (!('tyFn' in ty)) return ty
 
 		// Infer type by resolving constraints
-		const args = this.args.map(a => a.infer(env))
-		const consts = zip(args, ty.tyParam)
-		const tyOut = infer(ty.tyOut, consts)
+		const args = this.args.map(a => useFreshTyVars(a.infer(env)))
+		const consts = zip(args, ty.tyFn.tyParam)
+		const subst = unify(consts)
+		const tyOut = subst.applyTo(ty.tyFn.tyOut)
 
 		return tyOut
 	}

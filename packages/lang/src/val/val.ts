@@ -1,8 +1,9 @@
-import {differenceWith, entries, keys, values} from 'lodash'
+import {differenceWith, entries, values} from 'lodash'
 
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
+import {uniteTy} from '.'
 
 export type Value =
 	| All
@@ -25,7 +26,11 @@ interface IVal {
 	isEqualTo(val: Value): boolean
 }
 
-interface ICallable {
+interface ITyFn {
+	tyFn: TyFn
+}
+
+interface ICallable extends ITyFn {
 	callable: true
 	param: Record<string, Value>
 	out: Value
@@ -146,17 +151,14 @@ export class Fn implements IVal, ICallable {
 	public readonly callable = true
 	public readonly defaultValue = this
 
-	public readonly tyParam!: Value[]
+	public readonly tyFn!: TyFn
+
 	public constructor(
 		public readonly fn: IFn,
 		public readonly param: Record<string, Value>,
 		public readonly out: Value
 	) {
-		this.tyParam = values(param)
-	}
-
-	public get tyOut() {
-		return this.out
+		this.tyFn = TyFn.of(values(param), out)
 	}
 
 	public print(): string {
@@ -171,8 +173,7 @@ export class Fn implements IVal, ICallable {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') {
-			const thisTy = TyFn.of(this.tyParam, this.out)
-			return thisTy.isSubtypeOf(ty)
+			return this.tyFn.isSubtypeOf(ty)
 		}
 		return ty.isEqualTo(this)
 	}
@@ -195,8 +196,9 @@ export class Fn implements IVal, ICallable {
 	}
 }
 
-export class Vec implements IVal {
+export class Vec implements IVal, ICallable {
 	public readonly type: 'vec' = 'vec'
+	public readonly callable = true
 
 	private constructor(
 		public readonly items: Value[],
@@ -207,9 +209,23 @@ export class Vec implements IVal {
 		return this.items.length
 	}
 
+	public param: Record<string, Value> = {index: tyInt}
+	public get out() {
+		return uniteTy(...this.items, ...(this.rest ? [this.rest] : []))
+	}
+
+	public get tyFn() {
+		return TyFn.of(tyInt, this.out)
+	}
+
+	public fn: IFn = (index: Int) => this.items[index.value] ?? Bottom.instance
+
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
+		if (ty.type === 'tyFn') {
+			return this.tyFn.isSubtypeOf(ty)
+		}
 
 		if (ty.type !== 'vec') return false
 
@@ -296,8 +312,10 @@ export class TyVar implements IVal {
 	}
 }
 
-export class TyFn implements IVal {
+export class TyFn implements IVal, ITyFn {
 	public readonly type: 'tyFn' = 'tyFn'
+
+	public readonly tyFn = this
 
 	private constructor(
 		public readonly tyParam: Value[],
