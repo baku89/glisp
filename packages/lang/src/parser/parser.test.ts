@@ -15,6 +15,11 @@ import {all, bottom} from '../val'
 import {parse} from '.'
 
 const Int = sym('Int')
+const Bool = sym('Bool')
+const x = sym('x')
+const y = sym('y')
+const z = sym('z')
+const w = sym('w')
 
 describe('parsing literals', () => {
 	testParsing('10', int(10))
@@ -48,17 +53,17 @@ describe('parsing symbols', () => {
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
 	testParsing('(* 1 2)', call(sym('*'), int(1), int(2)))
-	testParsing('(f _)', call(sym('f'), obj(all)))
-	testParsing('(f ())', call(sym('f'), obj(bottom)))
-	testParsing('(f)', call(sym('f')))
+	testParsing('(x _)', call(x, obj(all)))
+	testParsing('(x ())', call(x, obj(bottom)))
+	testParsing('(x)', call(x))
 	testParsing('(0 false)', call(int(1), sym('false')))
-	testParsing('((true) pi)', call(call(sym('true')), sym('pi')))
+	testParsing('((true) x)', call(call(sym('true')), x))
 })
 
 describe('parsing scope', () => {
-	testParsing('{a = 1 a}', scope({a: int(1)}, sym('a')))
-	testParsing('{a = 1}', scope({a: int(1)}))
-	testParsing('{a = {a = 1}}', scope({a: scope({a: int(1)})}))
+	testParsing('{x = 1 x}', scope({x: int(1)}, x))
+	testParsing('{x = 1}', scope({x: int(1)}))
+	testParsing('{x = {x = 1}}', scope({x: scope({x: int(1)})}))
 	testParsing('{{1}}', scope({}, scope({}, int(1))))
 })
 
@@ -75,12 +80,9 @@ describe('parsing vector', () => {
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> x:Int x)', fn({x: Int}, sym('x')))
-	testParsing('(=> (x:Int) x)', fn({x: Int}, sym('x')))
-	testParsing(
-		'(=> (x : Int y : Bool) x)',
-		fn({x: Int, y: sym('Bool')}, sym('x'))
-	)
+	testParsing('(=> x:Int x)', fn({x: Int}, x))
+	testParsing('(=> (x:Int) x)', fn({x: Int}, x))
+	testParsing('(=> (x : Int y : Bool) x)', fn({x: Int, y: Bool}, x))
 	testParsing('(=>()_)', fn({}, obj(all)))
 	testParsing('(=>()())', fn({}, obj(bottom)))
 	testParsing('(=> () (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
@@ -91,8 +93,15 @@ describe('parsing function type', () => {
 	testParsing('(-> Int Int)', tyFn(Int, Int))
 	testParsing('(-> [Int] Int)', tyFn(vec(Int), Int))
 	testParsing('(-> [...Int] Int)', tyFn(vecV(Int), Int))
-	testParsing('(-> (x y) z)', tyFn([sym('x'), sym('y')], sym('z')))
-	testParsing('(-> [x y] z)', tyFn(vec(sym('x'), sym('y')), sym('z')))
+	testParsing('(-> _ _)', tyFn(obj(all), obj(all)))
+	testParsing('(-> () ())', tyFn([], obj(bottom)))
+	testParsing('(-> (()) ())', tyFn([obj(bottom)], obj(bottom)))
+	testParsing('(-> () z)', tyFn([], z))
+	testParsing('(-> x z)', tyFn(x, z))
+	testParsing('(-> (x) z)', tyFn(x, z))
+	testParsing('(-> (x y) z)', tyFn([x, y], z))
+	testParsing('(-> (x y z) w)', tyFn([x, y, z], w))
+	testParsing('(-> [x y] z)', tyFn(vec(x, y), z))
 })
 
 function testParsing(input: string, expected: Node) {
