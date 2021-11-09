@@ -4,6 +4,7 @@ import {
 	Bool,
 	Bottom,
 	Fn,
+	IFn,
 	Int,
 	TyAtom,
 	tyBool,
@@ -38,6 +39,8 @@ export const tyVar = TyVar.fresh
 export const tyFn = TyFn.of
 export const tyAtom = TyAtom.of
 export const tyValue = TyValue.of
+
+export {IFn}
 
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)

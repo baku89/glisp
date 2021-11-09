@@ -1,5 +1,4 @@
 import {entries, fromPairs, isEqualWith, keys, values} from 'lodash'
-import {IFn} from 'src/val/val'
 
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
@@ -155,7 +154,7 @@ export class Fn extends BaseNode {
 	public eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
 
-		const fn: IFn = (...args: Val.Value[]) => {
+		const fn: Val.IFn = (...args: Val.Value[]) => {
 			const rec = fromPairs(zip(paramNames, args.map(obj)))
 			const innerEnv = new Map([...env.entries(), [this, rec]])
 
