@@ -311,13 +311,19 @@ export class TyVar implements IVal {
 	}
 
 	private static counter = 1
+	private static store: Map<string, TyVar> = new Map()
 
 	public static of(id: string) {
-		return new TyVar(id)
+		let v = TyVar.store.get(id)
+		if (!v) {
+			v = new TyVar(id)
+			TyVar.store.set(id, v)
+		}
+		return v
 	}
 
 	public static fresh() {
-		return new TyVar('T' + TyVar.counter++)
+		return TyVar.of('T' + TyVar.counter++)
 	}
 }
 
