@@ -14,16 +14,6 @@ export class Subst {
 		const subst = this.clone()
 		let l = lower
 
-		if (l.type === 'tyVar') {
-			l = subst.lower.get(l) ?? l
-		}
-
-		for (const [t, v] of subst.lower) {
-			if (v.isEqualTo(tv)) {
-				subst.lower.set(t, l)
-			}
-		}
-
 		l = Val.uniteTy(l, subst.getLower(tv))
 
 		const u = subst.getUpper(tv)
@@ -44,16 +34,6 @@ export class Subst {
 	public appendUpper(tv: Val.TyVar, upper: Val.Value) {
 		const subst = this.clone()
 		let u = upper
-
-		if (u.type === 'tyVar') {
-			u = subst.upper.get(u) ?? u
-		}
-
-		for (const [t, v] of subst.upper) {
-			if (v.isEqualTo(tv)) {
-				subst.upper.set(t, u)
-			}
-		}
 
 		u = Val.intersectTy(u, subst.getUpper(tv))
 
@@ -196,7 +176,8 @@ export function useFreshTyVars(val: Val.Value): Val.Value {
 	let subst = Subst.empty()
 
 	for (const tv of getTyVars(val)) {
-		const tv2 = tv.shadow()
+		if (tv.shadowed) continue
+		const tv2 = tv.duplicate()
 		subst = subst.appendLower(tv, tv2)
 		subst = subst.appendUpper(tv, tv2)
 	}
@@ -249,6 +230,8 @@ export function unify(consts: Const[]): Subst {
 
 	// If either type is tyVar?
 	let unified = unify(rest)
+
+	if (s.isEqualTo(t)) return unified
 
 	if (t.type === 'tyVar') {
 		if (getTyVars(s).has(t)) {

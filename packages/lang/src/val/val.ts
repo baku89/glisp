@@ -293,7 +293,10 @@ export class TyVar implements IVal {
 	public readonly type: 'tyVar' = 'tyVar'
 	public readonly defaultValue = Bottom.instance
 
-	private constructor(private readonly id: string) {}
+	private constructor(
+		private readonly id: string,
+		public readonly shadowed: boolean
+	) {}
 
 	public print() {
 		return '<' + this.id + '>'
@@ -311,7 +314,11 @@ export class TyVar implements IVal {
 	}
 
 	public shadow(): TyVar {
-		return new TyVar(this.id + TyVar.counter++)
+		return new TyVar(this.id + '-' + TyVar.counter++, true)
+	}
+
+	public duplicate(): TyVar {
+		return new TyVar(this.id + '-' + TyVar.counter++, false)
 	}
 
 	private static counter = 1
@@ -320,14 +327,14 @@ export class TyVar implements IVal {
 	public static of(id: string) {
 		let v = TyVar.store.get(id)
 		if (!v) {
-			v = new TyVar(id)
+			v = new TyVar(id, false)
 			TyVar.store.set(id, v)
 		}
 		return v
 	}
 
 	public static fresh() {
-		return TyVar.of('T' + TyVar.counter++)
+		return TyVar.of('T-' + TyVar.counter++)
 	}
 }
 
