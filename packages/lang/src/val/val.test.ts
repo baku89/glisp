@@ -14,7 +14,8 @@ describe('subtyping', () => {
 		Val.tyInt
 	)
 
-	// const T = Val.tyVar()
+	const T = Val.tyVar('T')
+	const U = Val.tyVar('U')
 
 	run(Val.int(1), Val.tyInt, true)
 	run(Val.tyInt, Val.tyInt, true)
@@ -42,13 +43,10 @@ describe('subtyping', () => {
 
 	run(Val.tyValue(Val.tyInt), Val.tyInt, false)
 
-	// run(Val.int(1), T, true)
-	// run(Val.bool(false), T, true)
-	// run(Val.all, T, true)
-	// run(Val.bottom, T, true)
-	// run(square, Val.tyFn(T, T), true)
-
+	run(T, U, false)
+	run(T, T, true)
 	run('(-> <T> <T>)', '(-> <T> <T>)', true)
+	run('(-> <U> <U>)', '(-> <T> <T>)', false)
 
 	run(
 		Val.TyUnion.fromTypesUnsafe([Val.bool(true), Val.bool(false)]),
