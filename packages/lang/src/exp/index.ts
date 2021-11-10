@@ -132,7 +132,7 @@ export class Fn extends BaseNode {
 	}
 
 	public infer(env: Env = new Map()): Val.Value {
-		const {result: param} = Writer.mapValues(this.param, p => p.eval(env))
+		const param = Writer.mapValues(this.param, p => p.eval(env)).result
 		const [table, tableRev] = createFreshTyVarsTable(...values(param))
 		const rec = mapValues(param, p => Obj.asType(replaceTyVars(p, table)))
 
@@ -153,7 +153,7 @@ export class Fn extends BaseNode {
 		}
 
 		const evParam = Writer.mapValues(this.param, p => p.eval(env))
-		const {result: param, log: paramLog} = evParam
+		const [param, paramLog] = evParam.asTuple
 
 		const rec = mapValues(param, Obj.asType)
 		const innerEnv = new Map([...env.entries(), [this, rec]])
@@ -189,8 +189,8 @@ export class TyFn extends BaseNode {
 	}
 
 	public eval(env: Env = new Map()): ValueWithLog {
-		const {result: param, log: l1} = Writer.map(this.tyParam, p => p.eval(env))
-		const {result: out, log: l2} = this.out.eval(env)
+		const [param, l1] = Writer.map(this.tyParam, p => p.eval(env)).asTuple
+		const [out, l2] = this.out.eval(env).asTuple
 		const tyFn = Val.tyFn(param, out)
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
@@ -239,12 +239,12 @@ export class Vec extends BaseNode {
 	}
 
 	public eval(env?: Env): ValueWithLog {
-		const {result: items, log} = Writer.map(this.items, it => it.eval(env))
+		const [items, li] = Writer.map(this.items, it => it.eval(env)).asTuple
 		if (this.rest) {
-			const {result: rest, log: logRest} = this.rest.eval(env)
-			return Writer.of(Val.vecFrom(items, rest), ...log, ...logRest)
+			const [rest, lr] = this.rest.eval(env).asTuple
+			return Writer.of(Val.vecFrom(items, rest), ...li, ...lr)
 		}
-		return Writer.of(Val.vecFrom(items), ...log)
+		return Writer.of(Val.vecFrom(items), ...li)
 	}
 
 	public infer(env?: Env): Val.Value {
@@ -306,7 +306,7 @@ export class App extends BaseNode {
 	}
 
 	public eval(env?: Env): ValueWithLog {
-		const {result: fn, log: fnLog} = this.fn.eval(env)
+		const [fn, fnLog] = this.fn.eval(env).asTuple
 		const logs: Log[] = []
 
 		if (!('fn' in fn)) return Writer.of(fn, ...fnLog)
@@ -334,8 +334,8 @@ export class App extends BaseNode {
 			}
 
 			const aTy = tyArgs[i]
-			const {result: aVal, log: evalLog} = a.eval(env)
-			logs.push(...evalLog)
+			const [aVal, aLog] = a.eval(env).asTuple
+			logs.push(...aLog)
 
 			if (!aTy.isSubtypeOf(p) || aVal.type === 'bottom') {
 				if (aVal.type !== 'bottom') {

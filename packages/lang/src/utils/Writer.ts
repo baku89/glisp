@@ -3,6 +3,10 @@ import {mapValues, values} from 'lodash'
 export class Writer<T, L> {
 	private constructor(public result: T, public log: L[]) {}
 
+	public get asTuple(): [T, L[]] {
+		return [this.result, this.log]
+	}
+
 	public bind<U>(f: (v: T) => Writer<U, L>): Writer<U, L> {
 		const {result, log} = f(this.result)
 		return new Writer(result, [...this.log, ...log])
