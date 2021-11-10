@@ -48,6 +48,8 @@ describe('subtyping', () => {
 	// run(Val.bottom, T, true)
 	// run(square, Val.tyFn(T, T), true)
 
+	run('(-> <T> <T>)', '(-> <T> <T>)', true)
+
 	run(
 		Val.TyUnion.fromTypesUnsafe([Val.bool(true), Val.bool(false)]),
 		Val.tyBool,

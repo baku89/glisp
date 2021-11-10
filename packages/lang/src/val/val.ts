@@ -303,7 +303,7 @@ export class TyVar implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
-		return false
+		return this.isEqualTo(ty)
 	}
 
 	public isEqualTo(val: Value): boolean {
