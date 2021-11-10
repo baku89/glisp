@@ -183,9 +183,7 @@ export function createFreshTyVarsTable(
 	...vals: Val.Value[]
 ): [Map<Val.TyVar, Val.TyVar>, Map<Val.TyVar, Val.TyVar>] {
 	const tvs = [...new Set(vals.flatMap(v => [...getTyVars(v)]))]
-	const entries = tvs.map(
-		tv => [tv, Val.freshTyVar()] as [Val.TyVar, Val.TyVar]
-	)
+	const entries = tvs.map(tv => [tv, tv.shadow()] as [Val.TyVar, Val.TyVar])
 	const entriesRev = entries.map(
 		([t1, t2]) => [t2, t1] as [Val.TyVar, Val.TyVar]
 	)
@@ -198,7 +196,7 @@ export function useFreshTyVars(val: Val.Value): Val.Value {
 	let subst = Subst.empty()
 
 	for (const tv of getTyVars(val)) {
-		const tv2 = Val.freshTyVar()
+		const tv2 = tv.shadow()
 		subst = subst.appendLower(tv, tv2)
 		subst = subst.appendUpper(tv, tv2)
 	}

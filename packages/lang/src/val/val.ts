@@ -310,6 +310,10 @@ export class TyVar implements IVal {
 		return val.type === this.type && val.id === this.id
 	}
 
+	public shadow(): TyVar {
+		return new TyVar(this.id + TyVar.counter++)
+	}
+
 	private static counter = 1
 	private static store: Map<string, TyVar> = new Map()
 
