@@ -38,6 +38,7 @@ describe('evaluating higher-order function application', () => {
 	testEval('((. succ even?) 1)', Val.bool(true))
 	testEval('((. succ even?) 2)', Val.bool(false))
 	testEval('((twice succ) 1)', Val.int(3))
+	testEval('((. id id) 1)', Val.int(1))
 })
 
 describe('evaluating vectors', () => {
@@ -123,6 +124,7 @@ describe('inferring a type of polymorphic function application', () => {
 		Val.tyInt
 	)
 	testInfer('(twice id)', Val.tyFn(T, T))
+	testInfer('(. id id)', Val.tyFn(T, T))
 })
 
 describe('inferring invalid expression', () => {
