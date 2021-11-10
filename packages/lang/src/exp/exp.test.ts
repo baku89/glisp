@@ -53,7 +53,7 @@ describe('evaluating vectors', () => {
 	testEval('(id [1])', Val.vec(Val.int(1)))
 })
 
-describe('evaluating function call with bottom arguments', () => {
+describe('evaluating function application with bottom arguments', () => {
 	testEval('(+ 7 ())', Val.int(7))
 	testEval('(* 2 ())', Val.int(2))
 

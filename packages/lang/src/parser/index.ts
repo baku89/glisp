@@ -10,7 +10,7 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Bottom / Fn / TyFn / Call / Vec / Int / All / TyVar / Sym
+Node = Scope / Bottom / Fn / TyFn / App / Vec / Int / All / TyVar / Sym
 
 Reserved = "_" / "=>" / "->" / "<" [^>]+ ">"
 
@@ -41,12 +41,12 @@ Int "Int" = [0-9]+ &End
 
 Bottom = "(" _ ")" { return Exp.obj(Val.bottom) }
 
-Call "Call" = "(" _ fn:Node _ args:CallArg* ")"
+App "App" = "(" _ fn:Node _ args:AppArg* ")"
 	{
-		return Exp.call(fn, ...args)
+		return Exp.app(fn, ...args)
 	}
 
-CallArg = arg:Node _ { return arg }
+AppArg = arg:Node _ { return arg }
 
 Fn = "(" _ "=>" _ param:FnParam _ body:Node _ ")"
 	{

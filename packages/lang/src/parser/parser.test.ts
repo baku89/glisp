@@ -1,5 +1,5 @@
 import {
-	call,
+	app,
 	fn,
 	int,
 	isEqual,
@@ -51,13 +51,13 @@ describe('parsing symbols', () => {
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', call(sym('+'), int(1), int(2)))
-	testParsing('(* 1 2)', call(sym('*'), int(1), int(2)))
-	testParsing('(x _)', call(x, obj(all)))
-	testParsing('(x ())', call(x, obj(bottom)))
-	testParsing('(x)', call(x))
-	testParsing('(0 false)', call(int(1), sym('false')))
-	testParsing('((true) x)', call(call(sym('true')), x))
+	testParsing('(+ 1 2)', app(sym('+'), int(1), int(2)))
+	testParsing('(* 1 2)', app(sym('*'), int(1), int(2)))
+	testParsing('(x _)', app(x, obj(all)))
+	testParsing('(x ())', app(x, obj(bottom)))
+	testParsing('(x)', app(x))
+	testParsing('(0 false)', app(int(1), sym('false')))
+	testParsing('((true) x)', app(app(sym('true')), x))
 })
 
 describe('parsing scope', () => {
@@ -74,7 +74,7 @@ describe('parsing vector', () => {
 	testParsing('[1[2]3   ]', vec(int(1), vec(int(2)), int(3)))
 	testParsing(
 		'[(+)false(+)+]',
-		vec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
+		vec(app(sym('+')), sym('false'), app(sym('+')), sym('+'))
 	)
 	testParsing('[...1]', vecV(int(1)))
 })
@@ -85,7 +85,7 @@ describe('parsing function definition', () => {
 	testParsing('(=> (x : Int y : Bool) x)', fn({x: Int, y: Bool}, x))
 	testParsing('(=>()_)', fn({}, obj(all)))
 	testParsing('(=>()())', fn({}, obj(bottom)))
-	testParsing('(=> () (+ 1 2))', fn({}, call(sym('+'), int(1), int(2))))
+	testParsing('(=> () (+ 1 2))', fn({}, app(sym('+'), int(1), int(2))))
 	testParsing('(=> () (=> () 1))', fn({}, fn({}, int(1))))
 })
 

@@ -14,7 +14,7 @@ import {
 	useFreshTyVars,
 } from './unify'
 
-export type Node = Sym | Obj | Fn | TyFn | Vec | Call | Scope
+export type Node = Sym | Obj | Fn | TyFn | Vec | App | Scope
 
 export type Type = Node['type']
 
@@ -281,8 +281,8 @@ export class Vec extends BaseNode {
 export const vec = Vec.of
 export const vecV = Vec.ofV
 
-export class Call extends BaseNode {
-	public readonly type: 'call' = 'call'
+export class App extends BaseNode {
+	public readonly type: 'app' = 'app'
 
 	private constructor(public fn: Node, public args: Node[]) {
 		super()
@@ -372,14 +372,14 @@ export class Call extends BaseNode {
 	}
 
 	public static of(fn: Node, ...args: Node[]) {
-		const call = new Call(fn, args)
-		fn.parent = call
-		args.forEach(a => (a.parent = call))
-		return call
+		const app = new App(fn, args)
+		fn.parent = app
+		args.forEach(a => (a.parent = app))
+		return app
 	}
 }
 
-export const call = Call.of
+export const app = App.of
 
 export class Scope extends BaseNode {
 	public readonly type: 'scope' = 'scope'
@@ -443,8 +443,8 @@ export function isEqual(a: Node, b: Node): boolean {
 				isEqual(a.out, b.out)
 			)
 		}
-		case 'call':
-			return b.type === 'call' && isEqualWith(a.args, b.args, isEqual)
+		case 'app':
+			return b.type === 'app' && isEqualWith(a.args, b.args, isEqual)
 		case 'scope': {
 			return (
 				b.type === 'scope' &&
