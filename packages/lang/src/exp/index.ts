@@ -14,7 +14,7 @@ import {
 	useFreshTyVars,
 } from './unify'
 
-export type Node = Sym | Int | Obj | Fn | TyFn | Vec | Call | Scope
+export type Node = Sym | Obj | Fn | TyFn | Vec | Call | Scope
 
 export type Type = Node['type']
 
@@ -90,32 +90,6 @@ export class Sym extends BaseNode {
 
 export const sym = Sym.of
 
-export class Int extends BaseNode {
-	public readonly type: 'int' = 'int'
-
-	private constructor(public value: number) {
-		super()
-	}
-
-	public eval(): ValueWithLog {
-		return Writer.of(Val.int(this.value))
-	}
-
-	public infer(): Val.Value {
-		return Val.int(this.value)
-	}
-
-	public print() {
-		return this.value.toString()
-	}
-
-	public static of(value: number) {
-		return new Int(value)
-	}
-}
-
-export const int = Int.of
-
 export class Obj extends BaseNode {
 	public readonly type: 'obj' = 'obj'
 
@@ -148,6 +122,7 @@ export class Obj extends BaseNode {
 }
 
 export const obj = Obj.of
+export const int = (v: number) => Obj.of(Val.int(v))
 
 export class Fn extends BaseNode {
 	public readonly type: 'fn' = 'fn'
@@ -445,9 +420,8 @@ export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'sym':
 			return b.type === 'sym' && a.name === b.name
-		case 'int':
 		case 'obj':
-			return b.type === a.type && a.value === b.value
+			return b.type === a.type && a.value.isEqualTo(b.value)
 		case 'vec':
 			return (
 				b.type === 'vec' &&
