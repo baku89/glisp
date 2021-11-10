@@ -127,8 +127,7 @@ describe('inferring a type of polymorphic function application', () => {
 
 describe('inferring invalid expression', () => {
 	testInfer('(. succ)', Val.tyFn(Val.tyInt, Val.bottom))
-	testInfer('(. () succ)', Val.tyFn(Val.bottom, Val.tyInt))
-	testInfer('(. () succ)', Val.tyFn(Val.bottom, Val.tyInt))
+	testInfer('(. () succ)', Val.tyFn(Val.all, Val.tyInt))
 	testInfer('(. not succ)', Val.tyFn(Val.tyBool, Val.tyInt))
 	testInfer('(. succ not)', Val.tyFn(Val.tyInt, Val.tyBool))
 })
