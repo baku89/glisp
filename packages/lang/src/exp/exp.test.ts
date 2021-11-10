@@ -102,7 +102,7 @@ describe('inferring a type of function', () => {
 	)
 	testInfer(
 		'(=> (f:(-> <T> <U>) x:<T>) (f x))',
-		Val.tyFn([Val.tyFn(T, U), U], U)
+		Val.tyFn([Val.tyFn(T, U), T], U)
 	)
 })
 
