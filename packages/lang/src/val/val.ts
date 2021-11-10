@@ -279,10 +279,8 @@ export class Vec implements IVal, IFnLike {
 	public static of(...items: Value[]) {
 		return new Vec(items)
 	}
-	public static ofV(...items: Value[]) {
-		const heads = items.slice(0, -1)
-		const rest = items[items.length - 1]
-		return new Vec(heads, rest)
+	public static from(items: Value[], rest: Value | null = null) {
+		return new Vec(items, rest)
 	}
 }
 

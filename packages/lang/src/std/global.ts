@@ -86,12 +86,12 @@ export const GlobalScope = scope({
 	),
 	first: defn(
 		(coll: Val.Vec) => coll.items[0] ?? Val.bottom,
-		{coll: Val.vecV(T)},
+		{coll: Val.vecFrom([], T)},
 		T
 	),
 	rest: defn(
-		(coll: Val.Vec) => Val.vec(...coll.items.slice(1)),
-		{coll: Val.vecV(T)},
+		(coll: Val.Vec) => Val.vecFrom(coll.items.slice(1)),
+		{coll: Val.vecFrom([], T)},
 		T
 	),
 })

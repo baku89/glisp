@@ -239,21 +239,22 @@ export class Vec extends BaseNode {
 	}
 
 	public eval(env?: Env): ValueWithLog {
-		const {result, log} = Writer.map(this.items, it => it.eval(env))
+		const {result: items, log} = Writer.map(this.items, it => it.eval(env))
 		if (this.rest) {
-			const {result: resultRest, log: logRest} = this.rest.eval(env)
-			return Writer.of(Val.vecV(...result, resultRest), ...log, ...logRest)
+			const {result: rest, log: logRest} = this.rest.eval(env)
+			return Writer.of(Val.vecFrom(items, rest), ...log, ...logRest)
 		}
-		return Writer.of(Val.vec(...result), ...log)
+		return Writer.of(Val.vecFrom(items), ...log)
 	}
 
 	public infer(env?: Env): Val.Value {
 		const items = this.items.map(it => it.infer(env))
-		if (this.rest) {
-			const rest = this.rest.infer(env)
-			return Val.tyValue(Val.vecV(...items, rest))
+		const rest = this.rest?.infer(env)
+		if (rest) {
+			return Val.tyValue(Val.vecFrom(items, rest))
+		} else {
+			return Val.vecFrom(items)
 		}
-		return Val.vec(...items)
 	}
 
 	public print(): string {
@@ -268,18 +269,16 @@ export class Vec extends BaseNode {
 		return vec
 	}
 
-	public static ofV(...items: [Node, ...Node[]]) {
-		const heads = items.slice(0, -1)
-		const rest = items[items.length - 1]
-		const vec = new Vec(heads, rest)
-		heads.forEach(it => (it.parent = vec))
-		rest.parent = vec
+	public static from(items: Node[], rest: Node | null = null) {
+		const vec = new Vec(items, rest)
+		items.forEach(it => (it.parent = vec))
+		if (rest) rest.parent = vec
 		return vec
 	}
 }
 
 export const vec = Vec.of
-export const vecV = Vec.ofV
+export const vecFrom = Vec.from
 
 export class App extends BaseNode {
 	public readonly type: 'app' = 'app'

@@ -80,16 +80,16 @@ describe('inferring vectors', () => {
 	testInfer('[Int]', Val.vec(Val.tyValue(Val.tyInt)))
 	testInfer('[(succ 0)]', Val.vec(Val.tyInt))
 	testInfer('[(. succ even?)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
-	testInfer('[...1]', Val.tyValue(Val.vecV(i1)))
-	testInfer('[...Int]', Val.tyValue(Val.vecV(Val.tyValue(Val.tyInt))))
-	testInfer('[...Bool]', Val.tyValue(Val.vecV(Val.tyValue(Val.tyBool))))
+	testInfer('[...1]', Val.tyValue(Val.vecFrom([], i1)))
+	testInfer('[...Int]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyInt))))
+	testInfer('[...Bool]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyBool))))
 	testInfer(
 		'[Int Bool]',
 		Val.vec(Val.tyValue(Val.tyInt), Val.tyValue(Val.tyBool))
 	)
 	testInfer(
 		'[Int ...Bool]',
-		Val.tyValue(Val.vecV(Val.tyValue(Val.tyInt), Val.tyValue(Val.tyBool)))
+		Val.tyValue(Val.vecFrom([Val.tyValue(Val.tyInt)], Val.tyValue(Val.tyBool)))
 	)
 })
 

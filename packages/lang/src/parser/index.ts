@@ -82,7 +82,7 @@ TyFnParam =
 
 Vec = "[" _ items:VecItem* rest:VecRest? "]"
 	{		
-		return rest ? Exp.vecV(...items, rest) : Exp.vec(...items)
+		return Exp.vecFrom(items, rest)
 	}
 
 VecItem = !("..." _) item:Node _ { return item }

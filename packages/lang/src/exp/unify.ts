@@ -70,7 +70,7 @@ export class Subst {
 			case 'vec': {
 				const items = val.items.map(this.applyTo)
 				const rest = val.rest ? this.applyTo(val.rest) : null
-				return rest ? Val.vecV(...items, rest) : Val.vec(...items)
+				return Val.vecFrom(items, rest)
 			}
 			default:
 				return val
@@ -152,7 +152,7 @@ export function replaceTyVars(
 		case 'vec': {
 			const items = val.items.map(it => replaceTyVars(it, table))
 			const rest = val.rest ? replaceTyVars(val.rest, table) : null
-			return rest ? Val.vecV(...items, rest) : Val.vec(...items)
+			return Val.vecFrom(items, rest)
 		}
 		default:
 			return val
@@ -194,10 +194,13 @@ export function unify(consts: Const[]): Subst {
 	if (t.type === 'tyFn') {
 		let param: Const, out: Const
 		if (!('tyFn' in s)) {
-			param = [Val.vec(...t.tyParam), Val.vec(...t.tyParam.map(() => Val.all))]
+			param = [
+				Val.vecFrom(t.tyParam),
+				Val.vecFrom(t.tyParam.map(() => Val.all)),
+			]
 			out = [Val.bottom, t.tyFn.tyOut]
 		} else {
-			param = [Val.vec(...t.tyParam), Val.vec(...s.tyFn.tyParam)]
+			param = [Val.vecFrom(t.tyParam), Val.vecFrom(s.tyFn.tyParam)]
 			out = [s.tyFn.tyOut, t.tyOut]
 		}
 
@@ -209,7 +212,7 @@ export function unify(consts: Const[]): Subst {
 		if (s.type !== 'vec') {
 			const items = t.items.map(() => Val.bottom)
 			const rest = t.rest ? Val.bottom : null
-			svec = rest ? Val.vecV(...items, rest) : Val.vec(...items)
+			svec = Val.vecFrom(items, rest)
 		} else {
 			svec = s
 		}

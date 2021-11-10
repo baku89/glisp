@@ -9,7 +9,7 @@ import {
 	sym,
 	tyFn,
 	vec,
-	vecV,
+	vecFrom,
 } from '../exp'
 import {all, bottom} from '../val'
 import {parse} from '.'
@@ -76,7 +76,7 @@ describe('parsing vector', () => {
 		'[(+)false(+)+]',
 		vec(app(sym('+')), sym('false'), app(sym('+')), sym('+'))
 	)
-	testParsing('[...1]', vecV(int(1)))
+	testParsing('[...1]', vecFrom([], int(1)))
 })
 
 describe('parsing function definition', () => {
@@ -92,7 +92,7 @@ describe('parsing function definition', () => {
 describe('parsing function type', () => {
 	testParsing('(-> Int Int)', tyFn(Int, Int))
 	testParsing('(-> [Int] Int)', tyFn(vec(Int), Int))
-	testParsing('(-> [...Int] Int)', tyFn(vecV(Int), Int))
+	testParsing('(-> [...Int] Int)', tyFn(vecFrom([], Int), Int))
 	testParsing('(-> _ _)', tyFn(obj(all), obj(all)))
 	testParsing('(-> () ())', tyFn([], obj(bottom)))
 	testParsing('(-> (()) ())', tyFn([obj(bottom)], obj(bottom)))
