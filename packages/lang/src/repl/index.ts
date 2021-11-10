@@ -14,10 +14,10 @@ function printLog({level, reason}: Log) {
 			header = chalk.bold.inverse.red(' ERROR ')
 			break
 		case 'warn':
-			header = chalk.bold.inverse.yellow(' WARN  ')
+			header = chalk.bold.inverse.yellow('  WARN ')
 			break
 		case 'info':
-			header = chalk.bold.inverse.blue(' INFO  ')
+			header = chalk.bold.inverse.blue('  INFO ')
 			break
 	}
 
