@@ -75,7 +75,7 @@ export class Subst {
 	public applyTo(val: Val.Value): Val.Value {
 		switch (val.type) {
 			case 'tyVar': {
-				return this.lower.get(val) ?? Val.bottom
+				return this.lower.get(val) ?? val
 			}
 			case 'tyFn': {
 				const param = val.tyParam.map(p => this.inverted.applyTo(p))
@@ -147,6 +147,53 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 	}
 }
 
+export function replaceTyVars(
+	val: Val.Value,
+	table: Map<Val.TyVar, Val.TyVar>
+): Val.Value {
+	switch (val.type) {
+		case 'tyVar': {
+			return table.get(val) ?? val
+		}
+		case 'tyUnion': {
+			const types = val.types.map(t => replaceTyVars(t, table))
+			return Val.uniteTy(...types)
+		}
+		case 'tyFn': {
+			const param = val.tyParam.map(p => replaceTyVars(p, table))
+			const out = replaceTyVars(val.tyOut, table)
+			return Val.tyFn(param, out)
+		}
+		case 'fn': {
+			const param = mapValues(val.param, p => replaceTyVars(p, table))
+			const out = replaceTyVars(val.out, table)
+			return Val.fn(val.fn, param, out)
+		}
+		case 'vec': {
+			const items = val.items.map(it => replaceTyVars(it, table))
+			const rest = val.rest ? replaceTyVars(val.rest, table) : null
+			return rest ? Val.vecV(...items, rest) : Val.vec(...items)
+		}
+		default:
+			return val
+	}
+}
+
+export function createFreshTyVarsTable(
+	...vals: Val.Value[]
+): [Map<Val.TyVar, Val.TyVar>, Map<Val.TyVar, Val.TyVar>] {
+	const tvs = [...new Set(vals.flatMap(v => [...getTyVars(v)]))]
+	const entries = tvs.map(
+		tv => [tv, Val.freshTyVar()] as [Val.TyVar, Val.TyVar]
+	)
+	const entriesRev = entries.map(
+		([t1, t2]) => [t2, t1] as [Val.TyVar, Val.TyVar]
+	)
+	const map = new Map(entries)
+	const mapRev = new Map(entriesRev)
+	return [map, mapRev]
+}
+
 export function useFreshTyVars(val: Val.Value): Val.Value {
 	let subst = Subst.empty()
 
@@ -164,34 +211,37 @@ export function unify(consts: Const[]): Subst {
 
 	const [[s, t], ...rest] = consts
 
-	if (s.type === 'bottom' || t.type === 'all') {
-		return unify(rest)
-	}
-
 	// Match constraints spawing sub-constraints
 	if (t.type === 'tyFn') {
+		let param: Const, out: Const
 		if (!('tyFn' in s)) {
-			return unify(rest)
+			param = [Val.vec(...t.tyParam), Val.vec(...t.tyParam.map(() => Val.all))]
+			out = [Val.bottom, t.tyFn.tyOut]
+		} else {
+			param = [Val.vec(...t.tyParam), Val.vec(...s.tyFn.tyParam)]
+			out = [s.tyFn.tyOut, t.tyOut]
 		}
-
-		const param: Const = [Val.vec(...t.tyParam), Val.vec(...s.tyFn.tyParam)]
-		const out: Const = [s.tyFn.tyOut, t.tyOut]
 
 		return unify([param, out, ...rest])
 	}
 
 	if (t.type === 'vec') {
+		let svec: Val.Vec
 		if (s.type !== 'vec') {
-			return unify(rest)
+			const items = t.items.map(() => Val.bottom)
+			const rest = t.rest ? Val.bottom : null
+			svec = rest ? Val.vecV(...items, rest) : Val.vec(...items)
+		} else {
+			svec = s
 		}
 
-		const items: Const[] = zip(s.items, t.items)
+		const items: Const[] = zip(svec.items, t.items)
 
 		if (t.rest) {
 			const tr = t.rest
-			const rest: Const[] = s.items.slice(t.length).map(si => [si, tr])
+			const rest: Const[] = svec.items.slice(t.length).map(si => [si, tr])
 
-			if (s.rest) rest.push([s.rest, tr])
+			if (svec.rest) rest.push([svec.rest, tr])
 
 			items.push(...rest)
 		}

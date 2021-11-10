@@ -5,7 +5,13 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {unify, useFreshTyVars} from './unify'
+import {
+	Const,
+	createFreshTyVarsTable,
+	replaceTyVars,
+	unify,
+	useFreshTyVars,
+} from './unify'
 
 export type Node = Sym | Int | Obj | Fn | TyFn | Vec | Call | Scope
 
@@ -151,12 +157,13 @@ export class Fn extends BaseNode {
 
 	public infer(env: Env = new Map()): Val.Value {
 		const {result: param} = Writer.mapValues(this.param, p => p.eval(env))
-		const rec = mapValues(param, Obj.asType)
+		const [table, tableRev] = createFreshTyVarsTable(...values(param))
+		const rec = mapValues(param, p => Obj.asType(replaceTyVars(p, table)))
 
 		const innerEnv = new Map([...env.entries(), [this, rec]])
 		const out = this.body.infer(innerEnv)
 
-		return Val.tyFn(values(param), out)
+		return Val.tyFn(values(param), replaceTyVars(out, tableRev))
 	}
 
 	public eval(env: Env = new Map()): ValueWithLog {
@@ -313,7 +320,9 @@ export class Call extends BaseNode {
 
 		const rawTyParam = values(fn.param)
 		const tyArgs = this.args.map(a => a.infer(env)).map(useFreshTyVars)
-		const consts = zip(tyArgs, rawTyParam)
+		const consts = rawTyParam.map(
+			(pTy, i) => [tyArgs[i] ?? Val.bottom, pTy] as Const
+		)
 		const subst = unify(consts)
 		const tyParam = rawTyParam.map(t => subst.applyTo(t))
 		const paramNames = keys(fn.param)
@@ -370,7 +379,9 @@ export class Call extends BaseNode {
 		const tyFn = useFreshTyVars(ty.tyFn) as Val.TyFn
 
 		const args = this.args.map(a => a.infer(env))
-		const consts = zip(args, tyFn.tyParam)
+		const consts = tyFn.tyParam.map(
+			(pTy, i) => [args[i] ?? Val.bottom, pTy] as Const
+		)
 		const subst = unify(consts)
 		const tyOut = subst.applyTo(tyFn.tyOut)
 
