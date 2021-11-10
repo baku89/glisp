@@ -310,7 +310,7 @@ export class App extends BaseNode {
 		const {result: fn, log: fnLog} = this.fn.eval(env)
 		const logs: Log[] = []
 
-		if (!('callable' in fn)) return Writer.of(fn, ...fnLog)
+		if (!('fn' in fn)) return Writer.of(fn, ...fnLog)
 
 		const [{tyParam}, subst, tyArgs] = this.inferFn(env)
 		const paramNames = keys(fn.param)

@@ -31,12 +31,13 @@ interface ITyFn {
 	tyFn: TyFn
 }
 
-interface ICallable extends ITyFn {
-	callable: true
+interface IFnLike extends ITyFn {
 	param: Record<string, Value>
 	out: Value
 	fn: IFn
 }
+
+export type IFn = (...params: any[]) => Value
 
 export class Bottom implements IVal {
 	public readonly type: 'bottom' = 'bottom'
@@ -145,11 +146,8 @@ export class Bool implements IVal {
 	private static False = new Bool(false)
 }
 
-export type IFn = (...params: any[]) => Value
-
-export class Fn implements IVal, ICallable {
+export class Fn implements IVal, IFnLike {
 	public readonly type: 'fn' = 'fn'
-	public readonly callable = true
 	public readonly defaultValue = this
 
 	public readonly tyFn!: TyFn
@@ -201,9 +199,8 @@ export class Fn implements IVal, ICallable {
 	}
 }
 
-export class Vec implements IVal, ICallable {
+export class Vec implements IVal, IFnLike {
 	public readonly type: 'vec' = 'vec'
-	public readonly callable = true
 
 	private constructor(
 		public readonly items: Value[],
