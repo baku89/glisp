@@ -9,6 +9,7 @@ import {
 	Const,
 	createFreshTyVarsTable,
 	replaceTyVars,
+	Subst,
 	unify,
 	useFreshTyVars,
 } from './unify'
@@ -312,19 +313,31 @@ export class Call extends BaseNode {
 		super()
 	}
 
+	private inferFn(env?: Env): [Val.TyFn, Subst, Val.Value[]] {
+		const ty = this.fn.infer(env)
+		if (!('tyFn' in ty)) return [Val.tyFn([], ty), Subst.empty(), []]
+
+		// Infer type by resolving constraints
+		const tyFn = useFreshTyVars(ty.tyFn) as Val.TyFn
+
+		const tyArgs = this.args.map(a => useFreshTyVars(a.infer(env)))
+		const consts = tyFn.tyParam.map(
+			(pTy, i) => [tyArgs[i] ?? Val.bottom, pTy] as Const
+		)
+		const subst = unify(consts)
+		const tyParam = tyFn.tyParam.map(p => subst.applyTo(p))
+		const tyOut = subst.applyTo(tyFn.tyOut)
+
+		return [Val.tyFn(tyParam, tyOut), subst, tyArgs]
+	}
+
 	public eval(env?: Env): ValueWithLog {
 		const {result: fn, log: fnLog} = this.fn.eval(env)
 		const logs: Log[] = []
 
 		if (!('callable' in fn)) return Writer.of(fn, ...fnLog)
 
-		const rawTyParam = values(fn.param)
-		const tyArgs = this.args.map(a => a.infer(env)).map(useFreshTyVars)
-		const consts = rawTyParam.map(
-			(pTy, i) => [tyArgs[i] ?? Val.bottom, pTy] as Const
-		)
-		const subst = unify(consts)
-		const tyParam = rawTyParam.map(t => subst.applyTo(t))
+		const [{tyParam}, subst, tyArgs] = this.inferFn(env)
 		const paramNames = keys(fn.param)
 
 		// Log unused extra arguments
@@ -372,20 +385,8 @@ export class Call extends BaseNode {
 	}
 
 	public infer(env?: Env): Val.Value {
-		const ty = this.fn.infer(env)
-		if (!('tyFn' in ty)) return ty
-
-		// Infer type by resolving constraints
-		const tyFn = useFreshTyVars(ty.tyFn) as Val.TyFn
-
-		const args = this.args.map(a => a.infer(env))
-		const consts = tyFn.tyParam.map(
-			(pTy, i) => [args[i] ?? Val.bottom, pTy] as Const
-		)
-		const subst = unify(consts)
-		const tyOut = subst.applyTo(tyFn.tyOut)
-
-		return tyOut
+		const [tyFn] = this.inferFn(env)
+		return tyFn.tyOut
 	}
 
 	public print(): string {
