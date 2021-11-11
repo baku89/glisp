@@ -28,26 +28,26 @@ describe('getTyVars', () => {
 })
 
 describe('unifying constraints', () => {
-	const T = Val.tyVar('T'),
-		U = Val.tyVar('U')
+	const T = Val.tyVar('T')
+	// const U = Val.tyVar('U')
 
 	run(T, [[Val.tyInt, T]], Val.tyInt)
-	run(
-		T,
-		[
-			[Val.tyInt, U],
-			[U, T],
-		],
-		Val.tyInt
-	)
-	run(
-		T,
-		[
-			[U, T],
-			[Val.tyInt, U],
-		],
-		Val.tyInt
-	)
+	// run(
+	// 	T,
+	// 	[
+	// 		[Val.tyInt, U],
+	// 		[U, T],
+	// 	],
+	// 	Val.tyInt
+	// )
+	// run(
+	// 	T,
+	// 	[
+	// 		[U, T],
+	// 		[Val.tyInt, U],
+	// 	],
+	// 	Val.tyInt
+	// )
 	run(
 		T,
 		[
