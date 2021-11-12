@@ -29,6 +29,8 @@ export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
 export {tyInt, tyBool}
 
+export {True, False}
+
 export {intersectTy, uniteTy}
 
 export {TyVariant, Alg, AlgCtor}

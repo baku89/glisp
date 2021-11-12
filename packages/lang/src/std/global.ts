@@ -56,8 +56,7 @@ export const GlobalScope = scope({
 		Val.tyBool
 	),
 	and: defn(
-		(x: Val.Value, y: Val.Value) =>
-			Val.bool(x === Val.bool(true) && y === Val.bool(true)),
+		(x: Val.Value, y: Val.Value) => Val.bool(x === Val.True && y === Val.True),
 		{
 			x: Val.tyBool.extends(Val.bool(true)),
 			y: Val.tyBool.extends(Val.bool(true)),
@@ -65,8 +64,7 @@ export const GlobalScope = scope({
 		Val.tyBool
 	),
 	or: defn(
-		(x: Val.Value, y: Val.Value) =>
-			Val.bool(x === Val.bool(true) || y === Val.bool(true)),
+		(x: Val.Value, y: Val.Value) => Val.bool(x === Val.True || y === Val.True),
 		{
 			x: Val.tyBool,
 			y: Val.tyBool,
@@ -81,7 +79,7 @@ export const GlobalScope = scope({
 	id: defn((x: Val.Value) => x, {x: T}, T),
 	if: defn(
 		(test: Val.Value, then: Val.Value, _else: Val.Value) => {
-			return test === Val.bool(true) ? then : _else
+			return test === Val.True ? then : _else
 		},
 		{test: Val.tyBool, then: T, else: T},
 		T
