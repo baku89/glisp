@@ -20,6 +20,11 @@ export const GlobalScope = scope({
 	Int: obj(Val.tyInt),
 	Bool: obj(Val.tyBool),
 	succ: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),
+	pred: defn(
+		(x: Val.Int) => Val.int(Math.max(x.value - 1, 0)),
+		{x: Val.tyInt},
+		Val.tyInt
+	),
 	'even?': defn(
 		(x: Val.Int) => Val.bool(x.value % 2 === 0),
 		{x: Val.tyInt},
@@ -38,6 +43,11 @@ export const GlobalScope = scope({
 	'<': defn(
 		(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
 		{x: Val.tyInt, y: Val.tyInt},
+		Val.tyBool
+	),
+	'==': defn(
+		(a: Val.Value, b: Val.Value) => Val.bool(Val.isEqual(a, b)),
+		{x: Val.all, y: Val.all},
 		Val.tyBool
 	),
 	not: defn((x: Val.Bool) => Val.bool(!x.value), {x: Val.tyBool}, Val.tyBool),
