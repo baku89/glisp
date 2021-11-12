@@ -358,9 +358,9 @@ export class App extends BaseNode {
 
 	public print(): string {
 		const fn = this.fn.print()
-		const args = this.args.map(a => a.print()).join(' ')
+		const args = this.args.map(a => a.print())
 
-		return `(${fn} ${args})`
+		return '(' + [fn, ...args].join(' ') + ')'
 	}
 
 	public static of(fn: Node, ...args: Node[]) {
