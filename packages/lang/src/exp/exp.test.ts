@@ -35,9 +35,9 @@ describe('evaluating anonymous function application', () => {
 })
 
 describe('evaluating higher-order function application', () => {
-	testEval('((. succ even?) 1)', Val.bool(true))
-	testEval('((. succ even?) 2)', Val.bool(false))
-	testEval('((twice succ) 1)', Val.int(3))
+	testEval('((. inc even?) 1)', Val.bool(true))
+	testEval('((. inc even?) 2)', Val.bool(false))
+	testEval('((twice inc) 1)', Val.int(3))
 	testEval('((. id id) 1)', Val.int(1))
 })
 
@@ -78,8 +78,8 @@ describe('inferring vectors', () => {
 	testInfer('[]', Val.vec())
 	testInfer('[1 2 3]', Val.vec(i1, i2, i3))
 	testInfer('[Int]', Val.vec(Val.tyValue(Val.tyInt)))
-	testInfer('[(succ 0)]', Val.vec(Val.tyInt))
-	testInfer('[(. succ even?)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
+	testInfer('[(inc 0)]', Val.vec(Val.tyInt))
+	testInfer('[(. inc even?)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
 	testInfer('[...1]', Val.tyValue(Val.vecFrom([], i1)))
 	testInfer('[...Int]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyInt))))
 	testInfer('[...Bool]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyBool))))
@@ -113,29 +113,29 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('(+ (id 1) (id 2))', Val.tyInt)
 	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyInt)
 	testInfer('(id (id 1))', Val.int(1))
-	testInfer('(. succ even?)', Val.tyFn(Val.tyInt, Val.tyBool))
-	testInfer('((. succ even?) 1)', Val.tyBool)
-	testInfer('(twice succ)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. inc even?)', Val.tyFn(Val.tyInt, Val.tyBool))
+	testInfer('((. inc even?) 1)', Val.tyBool)
+	testInfer('(twice inc)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
-	testInfer('(twice (twice succ))', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(twice (twice inc))', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice (twice not))', Val.tyFn(Val.tyBool, Val.tyBool))
 	testInfer(
-		'(if ((twice not) true) ((twice succ) 1) ((twice succ) 2))',
+		'(if ((twice not) true) ((twice inc) 1) ((twice inc) 2))',
 		Val.tyInt
 	)
 	testInfer('(twice id)', Val.tyFn(T, T))
 	testInfer('(. id id)', Val.tyFn(T, T))
-	testInfer('(. id succ)', Val.tyFn(Val.tyInt, Val.tyInt))
-	testInfer('(. succ id)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. id inc)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. inc id)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(. twice id)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 	testInfer('(. id twice)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 })
 
 describe('inferring invalid expression', () => {
-	testInfer('(. succ)', Val.tyFn(Val.tyInt, Val.bottom))
-	testInfer('(. () succ)', Val.tyFn(Val.all, Val.tyInt))
-	testInfer('(. not succ)', Val.tyFn(Val.tyBool, Val.tyInt))
-	testInfer('(. succ not)', Val.tyFn(Val.tyInt, Val.tyBool))
+	testInfer('(. inc)', Val.tyFn(Val.tyInt, Val.bottom))
+	testInfer('(. () inc)', Val.tyFn(Val.all, Val.tyInt))
+	testInfer('(. not inc)', Val.tyFn(Val.tyBool, Val.tyInt))
+	testInfer('(. inc not)', Val.tyFn(Val.tyInt, Val.tyBool))
 })
 
 function parse(input: string | Exp.Node): Exp.Node {

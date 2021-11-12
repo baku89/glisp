@@ -19,8 +19,8 @@ export const GlobalScope = scope({
 	false: obj(Val.bool(false)),
 	Int: obj(Val.tyInt),
 	Bool: obj(Val.tyBool),
-	succ: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),
-	pred: defn(
+	inc: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),
+	dec: defn(
 		(x: Val.Int) => Val.int(Math.max(x.value - 1, 0)),
 		{x: Val.tyInt},
 		Val.tyInt
