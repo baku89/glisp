@@ -101,9 +101,7 @@ export class Int implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
-		if (ty.isEqualTo(this.superType)) return true
-
-		return ty.type === 'int' && ty.value === this.value
+		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
 	}
 
 	public isEqualTo(val: Value) {
@@ -128,10 +126,9 @@ export class Bool implements IVal {
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
-		if (ty === this.superType) return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
-		return ty.type === 'bool' && ty.value === this.value
+		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
 	}
 
 	public isEqualTo(val: Value) {
@@ -175,9 +172,8 @@ export class Fn implements IVal, IFnLike {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tyFn') {
-			return this.tyFn.isSubtypeOf(ty)
-		}
+		if (ty.type === 'tyFn') return this.tyFn.isSubtypeOf(ty)
+
 		return this.isEqualTo(ty)
 	}
 
@@ -235,9 +231,7 @@ export class Vec implements IVal, IFnLike {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tyFn') {
-			return this.tyFn.isSubtypeOf(ty)
-		}
+		if (ty.type === 'tyFn') return this.tyFn.isSubtypeOf(ty)
 
 		if (ty.type !== 'vec') return false
 
@@ -507,5 +501,7 @@ export class TyValue implements IVal {
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
 export const tyBool = TyUnion.fromTypesUnsafe([Bool.of(false), Bool.of(true)])
+;(Bool.of(false) as any).superType = tyBool
+;(Bool.of(true) as any).superType = tyBool
 
 const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
