@@ -115,6 +115,17 @@ export class SubstRanged {
 
 		const subst = SubstRanged.empty()
 
+		const ltvs = getTyVars(l)
+		const utvs = getTyVars(u)
+		if (ltvs.size === 0 && utvs.size === 0) {
+			/**
+			 * When both limits have no tyVars (e.g. α |-> [Int, Bool]),
+			 * simply copy lower to upper
+			 **/
+			this.uppers.set(tv, l)
+			return
+		}
+
 		/**
 		 * TODO: 等式制約をつかった単一化アルゴリズムを使う
 		 * X |-> [A -> B, C -> (D -> E)] のように、下限、上限の両方に型変数を含み、
@@ -127,12 +138,12 @@ export class SubstRanged {
 		 * オーソドックスな単一化アルゴリズムで解きつつ、
 		 * かつ不正な制約の場合の場合分けについて考えなくてはいけない。
 		 **/
-		if (getTyVars(u).size === 0 || l.type === 'tyVar') {
+		if (utvs.size === 0 || l.type === 'tyVar') {
 			subst.unify([
 				[l, '>=', u],
 				[l, '<=', u],
 			])
-		} else if (getTyVars(l).size === 0 || u.type === 'tyVar') {
+		} else if (ltvs.size === 0 || u.type === 'tyVar') {
 			subst.unify([
 				[u, '>=', l],
 				[u, '<=', l],
