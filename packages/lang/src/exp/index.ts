@@ -279,12 +279,13 @@ export class App extends BaseNode {
 		super()
 	}
 
-	private inferFn(env?: Env): [Val.TyFn, SubstRanged, Val.Value[]] {
+	private inferFn(env?: Env): [Val.TyFn, Val.Value[], SubstRanged] {
 		const ty = this.fn.infer(env)
-		if (!('tyFn' in ty)) return [Val.tyFn([], ty), SubstRanged.empty(), []]
+		if (!('tyFn' in ty)) return [Val.tyFn([], ty), [], SubstRanged.empty()]
 
-		// Infer type by resolving constraints
-		const tyArgs = this.args.map(a => shadowTyVars(a.infer(env)))
+		const tyArgs = this.args
+			.slice(0, ty.tyFn.tyParam.length)
+			.map(a => shadowTyVars(a.infer(env)))
 
 		const subst = SubstRanged.unify([
 			[Val.vecFrom(ty.tyFn.tyParam), '>=', Val.vecFrom(tyArgs)],
@@ -293,7 +294,7 @@ export class App extends BaseNode {
 		const unifiedTyFn = subst.applyTo(ty.tyFn, false) as Val.TyFn
 		const unifiedTyArgs = tyArgs.map(a => subst.applyTo(a))
 
-		return [unifiedTyFn, subst, unifiedTyArgs]
+		return [unifiedTyFn, unifiedTyArgs, subst]
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -302,7 +303,7 @@ export class App extends BaseNode {
 
 		if (!('fn' in fn)) return Writer.of(fn, ...fnLog)
 
-		const [{tyParam}, subst, tyArgs] = this.inferFn(env)
+		const [{tyParam}, tyArgs, subst] = this.inferFn(env)
 		const paramNames = keys(fn.param)
 
 		// Log unused extra arguments
