@@ -112,6 +112,13 @@ export function getTyVars(val: Val.Value): Set<Val.TyVar> {
 			const tvs = val.types.map(ty => [...getTyVars(ty)]).flat()
 			return new Set(tvs)
 		}
+		case 'fn': {
+			const param = values(val.param)
+				.map(ty => [...getTyVars(ty)])
+				.flat()
+			const out = getTyVars(val.out)
+			return new Set([...param, ...out])
+		}
 		case 'tyFn': {
 			const param = val.tyParam.map(ty => [...getTyVars(ty)]).flat()
 			const out = getTyVars(val.tyOut)
