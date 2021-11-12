@@ -1,7 +1,7 @@
 import _ from 'lodash'
 
 import * as Val from '../val'
-import {Const, getTyVars, unify} from './unify'
+import {getTyVars} from './unify'
 
 describe('getTyVars', () => {
 	const T = Val.tyVar('T'),
@@ -26,54 +26,3 @@ describe('getTyVars', () => {
 		})
 	}
 })
-
-describe('unifying constraints', () => {
-	const T = Val.tyVar('T')
-	// const U = Val.tyVar('U')
-
-	run(T, [[Val.tyInt, T]], Val.tyInt)
-	// run(
-	// 	T,
-	// 	[
-	// 		[Val.tyInt, U],
-	// 		[U, T],
-	// 	],
-	// 	Val.tyInt
-	// )
-	// run(
-	// 	T,
-	// 	[
-	// 		[U, T],
-	// 		[Val.tyInt, U],
-	// 	],
-	// 	Val.tyInt
-	// )
-	run(
-		T,
-		[
-			[Val.int(1), T],
-			[Val.int(2), T],
-		],
-		Val.uniteTy(Val.int(1), Val.int(2))
-	)
-	run(T, [[Val.vec(Val.tyInt), Val.vecFrom([], T)]], Val.tyInt)
-
-	function run(tv: Val.TyVar, consts: Const[], expected: Val.Value) {
-		const tvStr = tv.print()
-		const cStr = printConsts(consts)
-		const eStr = expected.print()
-
-		test(`${tvStr} in ${cStr} equals to ${eStr}`, () => {
-			const subst = unify(consts)
-			const resolved = subst.applyTo(tv)
-			if (!resolved.isEqualTo(expected)) {
-				throw new Error('Got=' + resolved.print())
-			}
-		})
-	}
-})
-
-function printConsts(consts: Const[]) {
-	const strs = consts.map(([a, b]) => a.print() + ' <: ' + b.print())
-	return '{' + strs.join(', ') + '}'
-}
