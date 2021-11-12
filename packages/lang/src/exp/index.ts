@@ -346,7 +346,7 @@ export class App extends BaseNode {
 
 		const [result, evalLog] = fn.fn(...args).asTuple
 
-		const resultTyped = subst.applyTo(result)
+		const resultTyped = unshadowTyVars(subst.applyTo(result))
 
 		return Writer.of(resultTyped, ...fnLog, ...logs, ...evalLog)
 	}
