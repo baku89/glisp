@@ -178,7 +178,7 @@ export class Fn implements IVal, IFnLike {
 		if (ty.type === 'tyFn') {
 			return this.tyFn.isSubtypeOf(ty)
 		}
-		return ty.isEqualTo(this)
+		return this.isEqualTo(ty)
 	}
 
 	public isEqualTo(val: Value): boolean {
@@ -310,7 +310,6 @@ export class TyVar implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-
 		return this.isEqualTo(ty)
 	}
 
@@ -492,10 +491,7 @@ export class TyValue implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		if (ty.type === 'tyValue') {
-			return ty.value.isEqualTo(this.value)
-		}
-		return false
+		return this.isEqualTo(ty)
 	}
 
 	public readonly defaultValue = this.value
