@@ -543,7 +543,10 @@ export class TyVariant implements IVal {
 	public readonly type: 'tyVariant' = 'tyVariant'
 	public readonly defaultValue!: Alg | AlgCtor
 
-	public constructor(public readonly uid: string) {}
+	public constructor(
+		public readonly uid: string,
+		public readonly types: AlgCtor[]
+	) {}
 
 	public print() {
 		// TODO: fix this
@@ -562,7 +565,7 @@ export class TyVariant implements IVal {
 	}
 
 	public extends(defaultValue: Alg | AlgCtor): TyVariant {
-		const variant = new TyVariant(this.uid)
+		const variant = new TyVariant(this.uid, this.types)
 		;(variant as any).defaultValue = defaultValue
 		return variant
 	}
@@ -570,9 +573,9 @@ export class TyVariant implements IVal {
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
 
-export const tyBool = new TyVariant('Bool')
 export const True = new AlgCtor('true')
 export const False = new AlgCtor('false')
+export const tyBool = new TyVariant('Bool', [True, False])
 ;(tyBool as any).defaultValue = False
 ;(True as any).superType = tyBool
 ;(False as any).superType = tyBool

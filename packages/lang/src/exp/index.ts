@@ -5,7 +5,7 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {shadowTyVars, SubstRanged, unshadowTyVars} from './unify'
+import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Sym | Obj | Fn | TyFn | Vec | App | Scope
 
@@ -279,20 +279,20 @@ export class App extends BaseNode {
 		super()
 	}
 
-	private inferFn(env?: Env): [Val.TyFn, Val.Value[], SubstRanged] {
+	private inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
 		const ty = this.fn.infer(env)
-		if (!('tyFn' in ty)) return [Val.tyFn([], ty), [], SubstRanged.empty()]
+		if (!('tyFn' in ty)) return [Val.tyFn([], ty), [], RangedUnifier.empty()]
 
 		const tyArgs = this.args
 			.slice(0, ty.tyFn.tyParam.length)
 			.map(a => shadowTyVars(a.infer(env)))
 
-		const subst = SubstRanged.unify([
+		const subst = RangedUnifier.unify([
 			[Val.vecFrom(ty.tyFn.tyParam), '>=', Val.vecFrom(tyArgs)],
 		])
 
-		const unifiedTyFn = subst.applyTo(ty.tyFn, false) as Val.TyFn
-		const unifiedTyArgs = tyArgs.map(a => subst.applyTo(a))
+		const unifiedTyFn = subst.substitute(ty.tyFn, false) as Val.TyFn
+		const unifiedTyArgs = tyArgs.map(a => subst.substitute(a))
 
 		return [unifiedTyFn, unifiedTyArgs, subst]
 	}
@@ -347,7 +347,7 @@ export class App extends BaseNode {
 
 		const [result, evalLog] = fn.fn(...args).asTuple
 
-		const resultTyped = unshadowTyVars(subst.applyTo(result))
+		const resultTyped = unshadowTyVars(subst.substitute(result))
 
 		return Writer.of(resultTyped, ...fnLog, ...logs, ...evalLog)
 	}

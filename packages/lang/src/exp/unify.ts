@@ -42,17 +42,17 @@ export function getTyVars(ty: Val.Value): Set<Val.TyVar> {
 }
 
 export function shadowTyVars(ty: Val.Value) {
-	const subst = SubstRanged.empty()
+	const subst = RangedUnifier.empty()
 
 	for (const tv of getTyVars(ty)) {
 		const tv2 = tv.shadow()
-		subst.unify([
+		subst.addConsts([
 			[tv, '<=', tv2],
 			[tv, '>=', tv2],
 		])
 	}
 
-	return subst.applyTo(ty)
+	return subst.substitute(ty)
 }
 export function unshadowTyVars(ty: Val.Value): Val.Value {
 	switch (ty.type) {
@@ -80,7 +80,7 @@ export function unshadowTyVars(ty: Val.Value): Val.Value {
 	}
 }
 
-export class SubstRanged {
+export class RangedUnifier {
 	private lowers: SubstMap = new Map()
 	private uppers: SubstMap = new Map()
 	private constructor() {
@@ -113,7 +113,7 @@ export class SubstRanged {
 
 		if (l.isSubtypeOf(u)) return
 
-		const subst = SubstRanged.empty()
+		const subst = RangedUnifier.empty()
 
 		const ltvs = getTyVars(l)
 		const utvs = getTyVars(u)
@@ -139,33 +139,33 @@ export class SubstRanged {
 		 * かつ不正な制約の場合の場合分けについて考えなくてはいけない。
 		 **/
 		if (utvs.size === 0 || l.type === 'tyVar') {
-			subst.unify([
+			subst.addConsts([
 				[l, '>=', u],
 				[l, '<=', u],
 			])
 		} else if (ltvs.size === 0 || u.type === 'tyVar') {
-			subst.unify([
+			subst.addConsts([
 				[u, '>=', l],
 				[u, '<=', l],
 			])
 		} else {
-			subst.unify([
+			subst.addConsts([
 				[u, '>=', l],
 				[u, '<=', l],
 			])
 		}
 
 		for (const [tv, l] of this.lowers) {
-			this.lowers.set(tv, subst.applyTo(l))
+			this.lowers.set(tv, subst.substitute(l))
 		}
 		for (const [tv, u] of this.uppers) {
-			this.uppers.set(tv, subst.applyTo(u))
+			this.uppers.set(tv, subst.substitute(u))
 		}
 
 		this.mergeWith(subst)
 	}
 
-	private mergeWith(subst: SubstRanged) {
+	private mergeWith(subst: RangedUnifier) {
 		for (const [tv, l] of subst.lowers) {
 			if (this.lowers.has(tv)) throw new Error('Cannot merge substs')
 			this.lowers.set(tv, l)
@@ -176,7 +176,7 @@ export class SubstRanged {
 		}
 	}
 
-	public unify(consts: Const[]): SubstRanged {
+	public addConsts(consts: Const[]): RangedUnifier {
 		if (consts.length === 0) return this
 
 		const [[t, R, u], ...cs] = consts
@@ -205,7 +205,7 @@ export class SubstRanged {
 			const cParam: Const = [tParam, Ri, uParam]
 			const cOut: Const = [tOut, R, uOut]
 
-			this.unify([cParam, cOut])
+			this.addConsts([cParam, cOut])
 		}
 
 		// [...ts] R [...us]
@@ -230,13 +230,13 @@ export class SubstRanged {
 				}
 			}
 
-			this.unify([...cItems, ...cRest])
+			this.addConsts([...cItems, ...cRest])
 		}
 
 		if (t.type === 'tyVar') {
 			if (getTyVars(u).has(t)) throw new Error('Occur check')
 
-			const Su = this.applyTo(u)
+			const Su = this.substitute(u)
 
 			if (R === '<=') {
 				this.setUpper(t, Su)
@@ -245,28 +245,28 @@ export class SubstRanged {
 			}
 		}
 
-		return this.unify(cs)
+		return this.addConsts(cs)
 	}
 
-	public applyTo(val: Val.Value, covariant = true): Val.Value {
+	public substitute(val: Val.Value, covariant = true): Val.Value {
 		const limits = covariant ? this.lowers : this.uppers
 		switch (val.type) {
 			case 'tyVar': {
 				return limits.get(val) ?? val
 			}
 			case 'tyFn': {
-				const param = val.tyParam.map(p => this.applyTo(p, !covariant))
-				const out = this.applyTo(val.tyOut)
+				const param = val.tyParam.map(p => this.substitute(p, !covariant))
+				const out = this.substitute(val.tyOut)
 				return Val.tyFn(param, out)
 			}
 			case 'fn': {
-				const param = mapValues(val.param, p => this.applyTo(p, !covariant))
-				const out = this.applyTo(val.out)
+				const param = mapValues(val.param, p => this.substitute(p, !covariant))
+				const out = this.substitute(val.out)
 				return Val.fn(val.fn, param, out)
 			}
 			case 'vec': {
-				const items = val.items.map(it => this.applyTo(it, covariant))
-				const rest = val.rest ? this.applyTo(val.rest) : null
+				const items = val.items.map(it => this.substitute(it, covariant))
+				const rest = val.rest ? this.substitute(val.rest) : null
 				return Val.vecFrom(items, rest)
 			}
 			default:
@@ -287,10 +287,10 @@ export class SubstRanged {
 	}
 
 	public static empty() {
-		return new SubstRanged()
+		return new RangedUnifier()
 	}
 
 	public static unify(consts: Const[]) {
-		return new SubstRanged().unify(consts)
+		return new RangedUnifier().addConsts(consts)
 	}
 }
