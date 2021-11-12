@@ -3,6 +3,7 @@ import {differenceWith, entries, values} from 'lodash'
 import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
+import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import {uniteTy} from '.'
 
@@ -37,7 +38,7 @@ interface IFnLike extends ITyFn {
 	fn: IFn
 }
 
-export type IFn = (...params: any[]) => Value
+export type IFn = (...params: any[]) => Exp.ValueWithLog
 
 export class Bottom implements IVal {
 	public readonly type: 'bottom' = 'bottom'
@@ -190,7 +191,7 @@ export class Fn implements IVal, IFnLike {
 	}
 
 	public static of(
-		value: (...params: any[]) => Value,
+		value: IFn,
 		tyParam: Record<string, Value>,
 		tyOut: Value,
 		body?: Exp.Node
@@ -220,7 +221,16 @@ export class Vec implements IVal, IFnLike {
 		return TyFn.of(tyInt, this.out)
 	}
 
-	public fn: IFn = (index: Int) => this.items[index.value] ?? Bottom.instance
+	public fn: IFn = (index: Int) => {
+		const ret = this.items[index.value]
+		if (ret === undefined) {
+			return Writer.of(Bottom.instance, {
+				level: 'warn',
+				reason: 'Index out of range',
+			})
+		}
+		return Writer.of(ret)
+	}
 
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
@@ -356,7 +366,7 @@ export class TyFn implements IVal, ITyFn {
 
 	public get defaultValue(): Value {
 		const outVal = this.tyOut.defaultValue
-		return Fn.of(() => outVal, {}, this.tyOut)
+		return Fn.of(() => Writer.of(outVal), {}, this.tyOut)
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -451,7 +461,7 @@ export class TyAtom implements IVal {
 	public isSubtypeOf(ty: Value): boolean {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-		return this === ty
+		return this.isEqualTo(ty)
 	}
 
 	public isEqualTo(val: Value): boolean {

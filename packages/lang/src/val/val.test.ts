@@ -1,15 +1,16 @@
 import {parse} from '../parser'
+import {Writer} from '../utils/Writer'
 import * as Val from '.'
 
 describe('subtyping', () => {
 	const square = Val.fn(
-		(x: Val.Int) => Val.int(x.value ** 2),
+		(x: Val.Int) => Writer.of(Val.int(x.value ** 2)),
 		{x: Val.tyInt},
 		Val.tyInt
 	)
 
 	const addTwo = Val.fn(
-		(x: Val.Int, y: Val.Int) => Val.int(x.value + y.value),
+		(x: Val.Int, y: Val.Int) => Writer.of(Val.int(x.value + y.value)),
 		{x: Val.tyInt, y: Val.tyInt},
 		Val.tyInt
 	)

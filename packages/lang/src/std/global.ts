@@ -1,4 +1,5 @@
 import {obj, scope} from '../exp'
+import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
 const T = Val.tyVar('T')
@@ -6,11 +7,11 @@ const U = Val.tyVar('U')
 const V = Val.tyVar('V')
 
 function defn(
-	value: Val.Fn['fn'],
+	value: (...args: any[]) => Val.Value,
 	param: Record<string, Val.Value>,
 	out: Val.Value
 ) {
-	return obj(Val.fn(value, param, out))
+	return obj(Val.fn((...args: any[]) => Writer.of(value(...args)), param, out))
 }
 
 export const GlobalScope = scope({
@@ -61,7 +62,7 @@ export const GlobalScope = scope({
 		{x: T, y: T},
 		T
 	),
-	id: obj(Val.fn((x: Val.Value) => x, {x: T}, T)),
+	id: defn((x: Val.Value) => x, {x: T}, T),
 	if: defn(
 		(test: Val.Bool, then: Val.Value, _else: Val.Value) => {
 			return test.value ? then : _else
@@ -69,18 +70,32 @@ export const GlobalScope = scope({
 		{test: Val.tyBool, then: T, else: T},
 		T
 	),
-	const: defn((x: Val.Value) => Val.fn(() => x, {}, T), {x: T}, T),
+	const: defn((x: Val.Value) => Val.fn(() => Writer.of(x), {}, T), {x: T}, T),
 	'.': defn(
-		(f: Val.Fn, g: Val.Fn) => {
-			return Val.fn((x: Val.Value) => g.fn(f.fn(x)), {x: T}, V)
-		},
+		(f: Val.Fn, g: Val.Fn) =>
+			Val.fn(
+				(x: Val.Value) => {
+					const [fx, fLog] = f.fn(x).asTuple
+					const [gx, gLog] = g.fn(fx).asTuple
+					return Writer.of(gx, ...fLog, ...gLog)
+				},
+				{x: T},
+				V
+			),
 		{f: Val.tyFn(T, U), g: Val.tyFn(U, V)},
 		Val.tyFn(T, V)
 	),
 	twice: defn(
-		(f: Val.Fn) => {
-			return Val.fn((x: Val.Value) => f.fn(f.fn(x)), {x: T}, T)
-		},
+		(f: Val.Fn) =>
+			Val.fn(
+				(x: Val.Value) => {
+					const [fx, fLog] = f.fn(x).asTuple
+					const [ffx, ffLog] = f.fn(fx).asTuple
+					return Writer.of(ffx, ...fLog, ...ffLog)
+				},
+				{x: T},
+				T
+			),
 		{f: Val.tyFn(T, T)},
 		Val.tyFn(T, T)
 	),

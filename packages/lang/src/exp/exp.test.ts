@@ -47,7 +47,7 @@ describe('evaluating vectors', () => {
 	testEval('[(+ 1 2)]', Val.vec(Val.int(3)))
 	testEval('[[[]]]', Val.vec(Val.vec(Val.vec())))
 	testEval('([0 1 2 3 4 5] 2)', Val.int(2))
-	testEval('([0 1 2 3 4 5] 10)', Val.bottom)
+	testEval('([0 1 2 3 4 5] 10)', Val.bottom, true)
 	testEval('([true false] 0)', Val.bool(true))
 	testEval('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
 	testEval('(id [1])', Val.vec(Val.int(1)))
@@ -143,14 +143,18 @@ function parse(input: string | Exp.Node): Exp.Node {
 	}
 }
 
-function testEval(input: string | Exp.Node, expected: Val.Value) {
+function testEval(
+	input: string | Exp.Node,
+	expected: Val.Value,
+	hasLog = false
+) {
 	const exp = parse(input)
 	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
 		const {result, log} = exp.eval()
 		if (!Val.isEqual(result, expected)) {
 			throw new Error('Got=' + result.print() + '\n' + printLog(log))
 		}
-		if (log.length > 0) {
+		if (!hasLog && log.length > 0) {
 			throw new Error('Expected no log, but got=' + printLog(log))
 		}
 	})

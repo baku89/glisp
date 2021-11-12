@@ -21,7 +21,7 @@ export type Type = Node['type']
 export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
-	ref: Node
+	ref?: Node
 }
 
 export type ValueWithLog = Writer<Val.Value, Log>
@@ -149,7 +149,7 @@ export class Fn extends BaseNode {
 			const rec = fromPairs(zip(paramNames, args.map(obj)))
 			const innerEnv = new Map([...env.entries(), [this, rec]])
 
-			return this.body.eval(innerEnv).result
+			return this.body.eval(innerEnv)
 		}
 
 		const evParam = Writer.mapValues(this.param, p => p.eval(env))
@@ -353,9 +353,11 @@ export class App extends BaseNode {
 			return aVal
 		})
 
-		const result = subst.applyTo(fn.fn(...args))
+		const [result, evalLog] = fn.fn(...args).asTuple
 
-		return Writer.of(result, ...fnLog, ...logs)
+		const resultTyped = subst.applyTo(result)
+
+		return Writer.of(resultTyped, ...fnLog, ...logs, ...evalLog)
 	}
 
 	public infer(env?: Env): Val.Value {
