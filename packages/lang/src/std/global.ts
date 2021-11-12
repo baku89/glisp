@@ -109,4 +109,9 @@ export const GlobalScope = scope({
 		{coll: Val.vecFrom([], T)},
 		T
 	),
+	'subtype?': defn(
+		(s: Val.Value, t: Val.Value) => Val.bool(s.isSubtypeOf(t)),
+		{s: Val.all, t: Val.all},
+		Val.tyBool
+	),
 })
