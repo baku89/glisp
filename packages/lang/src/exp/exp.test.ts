@@ -125,6 +125,10 @@ describe('inferring a type of polymorphic function application', () => {
 	)
 	testInfer('(twice id)', Val.tyFn(T, T))
 	testInfer('(. id id)', Val.tyFn(T, T))
+	testInfer('(. id succ)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. succ id)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. twice id)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
+	testInfer('(. id twice)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 })
 
 describe('inferring invalid expression', () => {
