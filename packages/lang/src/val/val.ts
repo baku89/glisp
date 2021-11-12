@@ -11,7 +11,6 @@ export type Value =
 	| All
 	| Bottom
 	| Int
-	| Bool
 	| Fn
 	| Vec
 	| TyVar
@@ -114,37 +113,6 @@ export class Int implements IVal {
 	public static of(value: number) {
 		return new Int(value)
 	}
-}
-
-export class Bool implements IVal {
-	public readonly type: 'bool' = 'bool'
-	public readonly defaultValue = this
-
-	public readonly superType = tyBool
-	private constructor(public readonly value: boolean) {}
-
-	public print() {
-		return this.value.toString()
-	}
-
-	public isSubtypeOf(ty: Value): boolean {
-		if (ty.type === 'all') return true
-		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-
-		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
-	}
-
-	public isEqualTo(val: Value) {
-		if (val === this) return true
-		return val.type === this.type && val.value === this.value
-	}
-
-	public static of(value: boolean): Bool {
-		return value ? Bool.True : Bool.False
-	}
-
-	private static True = new Bool(true)
-	private static False = new Bool(false)
 }
 
 export class Fn implements IVal, IFnLike {
@@ -468,7 +436,7 @@ export class TyAtom implements IVal {
 		return new TyAtom(this.uid, defaultValue)
 	}
 
-	public static of(name: string, defaultValue: Int | Bool) {
+	public static of(name: string, defaultValue: Int) {
 		const atom = new TyAtom(name, defaultValue)
 		;(defaultValue as any).superType = atom
 		return atom
@@ -478,7 +446,7 @@ export class TyAtom implements IVal {
 export class TyValue implements IVal {
 	public readonly type: 'tyValue' = 'tyValue'
 	private constructor(
-		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar
+		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar | TyVariant
 	) {}
 
 	public print() {
@@ -497,7 +465,7 @@ export class TyValue implements IVal {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
-	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar) {
+	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyVariant) {
 		return new TyValue(ty)
 	}
 }
@@ -573,13 +541,13 @@ export class AlgCtor implements IVal {
 
 export class TyVariant implements IVal {
 	public readonly type: 'tyVariant' = 'tyVariant'
-	public readonly defaultValue!: Alg
+	public readonly defaultValue!: Alg | AlgCtor
 
-	public constructor(public readonly id: string) {}
+	public constructor(public readonly uid: string) {}
 
 	public print() {
 		// TODO: fix this
-		return this.id
+		return this.uid
 	}
 
 	public isSubtypeOf(ty: Value): boolean {
@@ -590,13 +558,23 @@ export class TyVariant implements IVal {
 	}
 
 	public isEqualTo(val: Value) {
-		return val.type === this.type && val.id === this.id
+		return val.type === this.type && val.uid === this.uid
+	}
+
+	public extends(defaultValue: Alg | AlgCtor): TyVariant {
+		const variant = new TyVariant(this.uid)
+		;(variant as any).defaultValue = defaultValue
+		return variant
 	}
 }
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
-export const tyBool = TyUnion.fromTypesUnsafe([Bool.of(false), Bool.of(true)])
-;(Bool.of(false) as any).superType = tyBool
-;(Bool.of(true) as any).superType = tyBool
+
+export const tyBool = new TyVariant('Bool')
+export const True = new AlgCtor('true')
+export const False = new AlgCtor('false')
+;(tyBool as any).defaultValue = False
+;(True as any).superType = tyBool
+;(False as any).superType = tyBool
 
 const isEqual = (a: Value, b: Value) => a.isEqualTo(b)

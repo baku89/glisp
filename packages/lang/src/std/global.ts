@@ -50,9 +50,14 @@ export const GlobalScope = scope({
 		{x: Val.all, y: Val.all},
 		Val.tyBool
 	),
-	not: defn((x: Val.Bool) => Val.bool(!x.value), {x: Val.tyBool}, Val.tyBool),
+	not: defn(
+		(x: Val.Value) => Val.bool(x !== Val.bool(true)),
+		{x: Val.tyBool},
+		Val.tyBool
+	),
 	and: defn(
-		(x: Val.Bool, y: Val.Bool) => Val.bool(x.value && y.value),
+		(x: Val.Value, y: Val.Value) =>
+			Val.bool(x === Val.bool(true) && y === Val.bool(true)),
 		{
 			x: Val.tyBool.extends(Val.bool(true)),
 			y: Val.tyBool.extends(Val.bool(true)),
@@ -60,7 +65,8 @@ export const GlobalScope = scope({
 		Val.tyBool
 	),
 	or: defn(
-		(x: Val.Bool, y: Val.Bool) => Val.bool(x.value || y.value),
+		(x: Val.Value, y: Val.Value) =>
+			Val.bool(x === Val.bool(true) || y === Val.bool(true)),
 		{
 			x: Val.tyBool,
 			y: Val.tyBool,
@@ -74,8 +80,8 @@ export const GlobalScope = scope({
 	),
 	id: defn((x: Val.Value) => x, {x: T}, T),
 	if: defn(
-		(test: Val.Bool, then: Val.Value, _else: Val.Value) => {
-			return test.value ? then : _else
+		(test: Val.Value, then: Val.Value, _else: Val.Value) => {
+			return test === Val.bool(true) ? then : _else
 		},
 		{test: Val.tyBool, then: T, else: T},
 		T

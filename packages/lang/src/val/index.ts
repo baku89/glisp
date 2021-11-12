@@ -1,11 +1,14 @@
 import {intersectTy, uniteTy} from './type-operators'
 import {
+	Alg,
+	AlgCtor,
 	All,
-	Bool,
 	Bottom,
+	False,
 	Fn,
 	IFn,
 	Int,
+	True,
 	TyAtom,
 	tyBool,
 	TyFn,
@@ -13,13 +16,14 @@ import {
 	TyUnion,
 	TyValue,
 	TyVar,
+	TyVariant,
 	Value,
 	Vec,
 } from './val'
 
 export {Value}
 
-export {All, Bool, Bottom, Fn, Int, Vec}
+export {All, Bottom, Fn, Int, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
@@ -27,11 +31,13 @@ export {tyInt, tyBool}
 
 export {intersectTy, uniteTy}
 
+export {TyVariant, Alg, AlgCtor}
+
 // Shorthands
 export const all = All.instance
 export const bottom = Bottom.instance
 export const int = Int.of
-export const bool = Bool.of
+export const bool = (v: boolean): AlgCtor => (v ? True : False)
 export const fn = Fn.of
 export const vec = Vec.of
 export const vecFrom = Vec.from
@@ -51,4 +57,5 @@ export const isTy = (a: Value): a is Vec | TyFn | TyUnion | TyAtom | TyVar =>
 	a.type === 'tyFn' ||
 	a.type === 'tyUnion' ||
 	a.type === 'tyAtom' ||
-	a.type === 'tyVar'
+	a.type === 'tyVar' ||
+	a.type === 'tyVariant'
