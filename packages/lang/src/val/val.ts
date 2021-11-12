@@ -42,7 +42,7 @@ export type IFn = (...params: any[]) => Exp.ValueWithLog
 
 export class Bottom implements IVal {
 	public readonly type: 'bottom' = 'bottom'
-	public readonly defaultValue = Bottom.instance
+	public readonly defaultValue = this
 
 	private constructor() {
 		return this
@@ -117,7 +117,7 @@ export class Int implements IVal {
 
 export class Bool implements IVal {
 	public readonly type: 'bool' = 'bool'
-	public readonly defaultValue = Bottom.instance
+	public readonly defaultValue = this
 
 	public readonly superType = tyBool
 	private constructor(public readonly value: boolean) {}
@@ -473,7 +473,9 @@ export class TyAtom implements IVal {
 	}
 
 	public static of(name: string, defaultValue: Int | Bool) {
-		return new TyAtom(name, defaultValue)
+		const atom = new TyAtom(name, defaultValue)
+		;(defaultValue as any).superType = atom
+		return atom
 	}
 }
 
