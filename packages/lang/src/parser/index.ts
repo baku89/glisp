@@ -12,7 +12,7 @@ Start = _ exp:Node _
 
 Node = Scope / Bottom / Fn / TyFn / App / Vec / Int / All / TyVar / Sym
 
-Reserved = "_" / "=>" / "->" / "<" [^>]+ ">"
+Reserved = "_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
 All = "_" { return Exp.obj(Val.all) }
 
