@@ -5,14 +5,7 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {
-	Const,
-	createFreshTyVarsTable,
-	replaceTyVars,
-	Subst,
-	unify,
-	useFreshTyVars,
-} from './unify'
+import {shadowTyVars, SubstRanged, unshadowTyVars} from './unify'
 
 export type Node = Sym | Obj | Fn | TyFn | Vec | App | Scope
 
@@ -133,13 +126,12 @@ export class Fn extends BaseNode {
 
 	public infer(env: Env = new Map()): Val.Value {
 		const param = Writer.mapValues(this.param, p => p.eval(env)).result
-		const [table, tableRev] = createFreshTyVarsTable(...values(param))
-		const rec = mapValues(param, p => Obj.asType(replaceTyVars(p, table)))
+		const paramDict = mapValues(param, p => Obj.asType(p))
 
-		const innerEnv = new Map([...env.entries(), [this, rec]])
+		const innerEnv = new Map([...env.entries(), [this, paramDict]])
 		const out = this.body.infer(innerEnv)
 
-		return Val.tyFn(values(param), replaceTyVars(out, tableRev))
+		return Val.tyFn(values(param), out)
 	}
 
 	public eval(env: Env = new Map()): ValueWithLog {
@@ -287,22 +279,21 @@ export class App extends BaseNode {
 		super()
 	}
 
-	private inferFn(env?: Env): [Val.TyFn, Subst, Val.Value[]] {
+	private inferFn(env?: Env): [Val.TyFn, SubstRanged, Val.Value[]] {
 		const ty = this.fn.infer(env)
-		if (!('tyFn' in ty)) return [Val.tyFn([], ty), Subst.empty(), []]
+		if (!('tyFn' in ty)) return [Val.tyFn([], ty), SubstRanged.empty(), []]
 
 		// Infer type by resolving constraints
-		const tyFn = useFreshTyVars(ty.tyFn) as Val.TyFn
+		const tyArgs = this.args.map(a => shadowTyVars(a.infer(env)))
 
-		const tyArgs = this.args.map(a => useFreshTyVars(a.infer(env)))
-		const consts = tyFn.tyParam.map(
-			(pTy, i) => [tyArgs[i] ?? Val.bottom, pTy] as Const
-		)
-		const subst = unify(consts)
-		const tyParam = tyFn.tyParam.map(p => subst.applyTo(p))
-		const tyOut = subst.applyTo(tyFn.tyOut)
+		const subst = SubstRanged.unify([
+			[Val.vecFrom(ty.tyFn.tyParam), '>=', Val.vecFrom(tyArgs)],
+		])
 
-		return [Val.tyFn(tyParam, tyOut), subst, tyArgs]
+		const unifiedTyFn = subst.applyTo(ty.tyFn, false) as Val.TyFn
+		const unifiedTyArgs = tyArgs.map(a => subst.applyTo(a))
+
+		return [unifiedTyFn, subst, unifiedTyArgs]
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -362,7 +353,7 @@ export class App extends BaseNode {
 
 	public infer(env?: Env): Val.Value {
 		const [tyFn] = this.inferFn(env)
-		return tyFn.tyOut
+		return unshadowTyVars(tyFn.tyOut)
 	}
 
 	public print(): string {

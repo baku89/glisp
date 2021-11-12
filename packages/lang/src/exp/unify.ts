@@ -1,74 +1,260 @@
-import {mapValues} from 'lodash'
+import {mapValues, values} from 'lodash'
 
-import {zip} from '../utils/zip'
 import * as Val from '../val'
-
-export type Const = [Val.Value, Val.Value]
 
 type SubstMap = Map<Val.TyVar, Val.Value>
 
-export class Subst {
-	private constructor(private lower: SubstMap, private upper: SubstMap) {}
+type Const = [Val.Value, Relation, Val.Value]
+type Relation = '<=' | '>='
 
-	public appendLower(tv: Val.TyVar, lower: Val.Value) {
-		const subst = this.clone()
-		let l = lower
+const invRelation = (op: Relation): Relation => (op === '<=' ? '>=' : '<=')
+const fillerForRelation = (op: Relation) => (op === '<=' ? Val.all : Val.bottom)
 
-		l = Val.uniteTy(l, subst.getLower(tv))
-
-		const u = subst.getUpper(tv)
-		if (!l.isSubtypeOf(u)) {
-			// Copy lower to upper
-			subst.upper.set(tv, l)
+export function getTyVars(ty: Val.Value): Set<Val.TyVar> {
+	switch (ty.type) {
+		case 'tyVar':
+			return new Set([ty])
+		case 'tyUnion': {
+			const tvs = ty.types.map(ty => [...getTyVars(ty)]).flat()
+			return new Set(tvs)
+		}
+		case 'tyFn': {
+			const param = ty.tyParam.map(p => [...getTyVars(p)]).flat()
+			const out = getTyVars(ty.tyOut)
+			return new Set([...param, ...out])
+		}
+		case 'fn': {
+			const param = values(ty.param)
+				.map(p => [...getTyVars(p)])
+				.flat()
+			const out = getTyVars(ty.out)
+			return new Set([...param, ...out])
 		}
 
-		subst.lower.set(tv, l)
+		case 'vec': {
+			const items = ty.items.map(i => [...getTyVars(i)]).flat()
+			const rest = ty.rest ? [...getTyVars(ty.rest)] : []
+			return new Set([...items, ...rest])
+		}
+		default:
+			return new Set()
+	}
+}
 
-		return subst
+export function shadowTyVars(ty: Val.Value) {
+	const subst = SubstRanged.empty()
+
+	for (const tv of getTyVars(ty)) {
+		const tv2 = tv.shadow()
+		subst.unify([
+			[tv, '<=', tv2],
+			[tv, '>=', tv2],
+		])
 	}
 
-	public getLower(tv: Val.TyVar) {
-		return this.lower.get(tv) ?? Val.bottom
+	return subst.applyTo(ty)
+}
+export function unshadowTyVars(ty: Val.Value): Val.Value {
+	switch (ty.type) {
+		case 'tyVar':
+			return ty.unshadow()
+		case 'tyUnion':
+			return Val.TyUnion.fromTypesUnsafe(ty.types.map(unshadowTyVars))
+		case 'tyFn': {
+			const param = ty.tyParam.map(unshadowTyVars)
+			const out = unshadowTyVars(ty.tyOut)
+			return Val.tyFn(param, out)
+		}
+		case 'fn': {
+			const param = mapValues(ty.param, unshadowTyVars)
+			const out = unshadowTyVars(ty.out)
+			return Val.fn(ty.fn, param, out)
+		}
+		case 'vec': {
+			const items = ty.items.map(unshadowTyVars)
+			const rest = ty.rest ? unshadowTyVars(ty.rest) : null
+			return Val.vecFrom(items, rest)
+		}
+		default:
+			return ty
+	}
+}
+
+export class SubstRanged {
+	private lowers: SubstMap = new Map()
+	private uppers: SubstMap = new Map()
+	private constructor() {
+		return
 	}
 
-	public appendUpper(tv: Val.TyVar, upper: Val.Value) {
-		const subst = this.clone()
-		let u = upper
+	private getLower(tv: Val.TyVar) {
+		return this.lowers.get(tv) ?? Val.bottom
+	}
 
-		u = Val.intersectTy(u, subst.getUpper(tv))
+	private getUpper(tv: Val.TyVar) {
+		return this.uppers.get(tv) ?? Val.all
+	}
 
-		const l = subst.getLower(tv)
-		if (!l.isSubtypeOf(u)) {
-			// Copy lower to upper
-			u = l
+	private setLower(tv: Val.TyVar, l: Val.Value) {
+		const nl = Val.uniteTy(l, this.getLower(tv))
+		this.lowers.set(tv, nl)
+		this.normalizeRange(tv)
+	}
+
+	private setUpper(tv: Val.TyVar, u: Val.Value) {
+		const nu = Val.intersectTy(u, this.getUpper(tv))
+		this.uppers.set(tv, nu)
+		this.normalizeRange(tv)
+	}
+
+	private normalizeRange(tv: Val.TyVar) {
+		const l = this.getLower(tv)
+		const u = this.getUpper(tv)
+
+		if (l.isSubtypeOf(u)) return
+
+		const subst = SubstRanged.empty()
+
+		/**
+		 * TODO: 等式制約をつかった単一化アルゴリズムを使う
+		 * X |-> [A -> B, C -> (D -> E)] のように、下限、上限の両方に型変数を含み、
+		 * かつどちらも複合的な型の場合、以下の条件式だと else節の C={u >= l /\ u <= l}
+		 * で単一化を試みようとする。
+		 * SubstRangedの単一化アルゴリズムは、不等式の左辺に登場する型変数の代入を求め、
+		 * かつ不正な制約の場合も、α |-> [bot, top] にフォールバックする仕組みのため、
+		 * 本来欲しかった σ = [A |-> C, B |-> (D -> E)] ではなく、
+		 * σ = [C |-> A, D |-> [bot, top], E |-> [bot, top]] を返してしまう。
+		 * オーソドックスな単一化アルゴリズムで解きつつ、
+		 * かつ不正な制約の場合の場合分けについて考えなくてはいけない。
+		 **/
+		if (getTyVars(u).size === 0 || l.type === 'tyVar') {
+			subst.unify([
+				[l, '>=', u],
+				[l, '<=', u],
+			])
+		} else if (getTyVars(l).size === 0 || u.type === 'tyVar') {
+			subst.unify([
+				[u, '>=', l],
+				[u, '<=', l],
+			])
+		} else {
+			subst.unify([
+				[u, '>=', l],
+				[u, '<=', l],
+			])
 		}
 
-		subst.upper.set(tv, u)
+		for (const [tv, l] of this.lowers) {
+			this.lowers.set(tv, subst.applyTo(l))
+		}
+		for (const [tv, u] of this.uppers) {
+			this.uppers.set(tv, subst.applyTo(u))
+		}
 
-		return subst
+		this.mergeWith(subst)
 	}
 
-	public getUpper(tv: Val.TyVar) {
-		return this.upper.get(tv) ?? Val.all
+	private mergeWith(subst: SubstRanged) {
+		for (const [tv, l] of subst.lowers) {
+			if (this.lowers.has(tv)) throw new Error('Cannot merge substs')
+			this.lowers.set(tv, l)
+		}
+		for (const [tv, u] of subst.uppers) {
+			if (this.uppers.has(tv)) throw new Error('Cannot merge substs')
+			this.uppers.set(tv, u)
+		}
 	}
 
-	public applyTo(val: Val.Value): Val.Value {
+	public unify(consts: Const[]): SubstRanged {
+		if (consts.length === 0) return this
+
+		const [[t, R, u], ...cs] = consts
+
+		const Ri = invRelation(R)
+		const f = fillerForRelation(R)
+		const fi = fillerForRelation(Ri)
+
+		// Match constraints spawing sub-constraints
+		// tp -> to R up -> uo
+		//--------------------- TyFn
+		// tp R' up /\ to R tp
+		if (t.type === 'tyFn') {
+			const tParam = Val.vecFrom(t.tyFn.tyParam)
+			const tOut = t.tyFn.tyOut
+
+			let uParam: Val.Value, uOut: Val.Value
+			if ('tyFn' in u) {
+				uParam = Val.vecFrom(u.tyFn.tyParam)
+				uOut = u.tyFn.tyOut
+			} else {
+				uParam = fi
+				uOut = f
+			}
+
+			const cParam: Const = [tParam, Ri, uParam]
+			const cOut: Const = [tOut, R, uOut]
+
+			this.unify([cParam, cOut])
+		}
+
+		// [...ts] R [...us]
+		// --------------------------- Vec
+		// t1 R u1 /\ t2 R u2 /\ ...
+		if (t.type === 'vec') {
+			let uItems: Val.Value[], uRest: Val.Value | null
+			if (u.type === 'vec') {
+				uItems = u.items
+				uRest = u.rest
+			} else {
+				uItems = []
+				uRest = null
+			}
+
+			const cItems = t.items.map((ti, i) => [ti, R, uItems[i] ?? f] as Const)
+			let cRest: Const[] = []
+			if (t.rest) {
+				cRest = uItems.slice(t.length).map(ui => [t.rest, R, ui] as Const)
+				if (uRest) {
+					cRest.push([t.rest, R, uRest])
+				}
+			}
+
+			this.unify([...cItems, ...cRest])
+		}
+
+		if (t.type === 'tyVar') {
+			if (getTyVars(u).has(t)) throw new Error('Occur check')
+
+			const Su = this.applyTo(u)
+
+			if (R === '<=') {
+				this.setUpper(t, Su)
+			} else {
+				this.setLower(t, Su)
+			}
+		}
+
+		return this.unify(cs)
+	}
+
+	public applyTo(val: Val.Value, covariant = true): Val.Value {
+		const limits = covariant ? this.lowers : this.uppers
 		switch (val.type) {
 			case 'tyVar': {
-				return this.lower.get(val) ?? val
+				return limits.get(val) ?? val
 			}
 			case 'tyFn': {
-				const param = val.tyParam.map(p => this.inverted.applyTo(p))
+				const param = val.tyParam.map(p => this.applyTo(p, !covariant))
 				const out = this.applyTo(val.tyOut)
 				return Val.tyFn(param, out)
 			}
 			case 'fn': {
-				const param = mapValues(val.param, p => this.inverted.applyTo(p))
+				const param = mapValues(val.param, p => this.applyTo(p, !covariant))
 				const out = this.applyTo(val.out)
 				return Val.fn(val.fn, param, out)
 			}
 			case 'vec': {
-				const items = val.items.map(this.applyTo)
+				const items = val.items.map(it => this.applyTo(it, covariant))
 				const rest = val.rest ? this.applyTo(val.rest) : null
 				return Val.vecFrom(items, rest)
 			}
@@ -77,187 +263,23 @@ export class Subst {
 		}
 	}
 
-	public clone() {
-		const lower = new Map(this.lower.entries())
-		const upper = new Map(this.upper.entries())
-		return new Subst(lower, upper)
-	}
-
-	public get inverted() {
-		return new Subst(this.upper, this.lower)
-	}
-
 	public print() {
-		const tvs = [...new Set([...this.lower.keys(), ...this.upper.keys()])]
+		const tvs = [...new Set([...this.lowers.keys(), ...this.uppers.keys()])]
 		const strs = tvs.map(tv => {
-			const l = this.getLower(tv).print()
 			const x = tv.print()
+			const l = this.getLower(tv).print()
 			const u = this.getUpper(tv).print()
-			return [l, x, u].join(' <: ')
+			return `${x} |-> [${l}, ${u}]`
 		})
 
 		return '[' + strs.join(', ') + ']'
 	}
 
 	public static empty() {
-		return new Subst(new Map(), new Map())
-	}
-}
-
-export function getTyVars(val: Val.Value): Set<Val.TyVar> {
-	switch (val.type) {
-		case 'tyVar':
-			return new Set([val])
-		case 'tyUnion': {
-			const tvs = val.types.map(ty => [...getTyVars(ty)]).flat()
-			return new Set(tvs)
-		}
-		case 'fn': {
-			const param = values(val.param)
-				.map(ty => [...getTyVars(ty)])
-				.flat()
-			const out = getTyVars(val.out)
-			return new Set([...param, ...out])
-		}
-		case 'tyFn': {
-			const param = val.tyParam.map(ty => [...getTyVars(ty)]).flat()
-			const out = getTyVars(val.tyOut)
-			return new Set([...param, ...out])
-		}
-		case 'vec': {
-			const items = val.items.map(ty => [...getTyVars(ty)]).flat()
-			const rest = val.rest ? [...getTyVars(val.rest)] : []
-			return new Set([...items, ...rest])
-		}
-		default:
-			return new Set()
-	}
-}
-
-export function replaceTyVars(
-	val: Val.Value,
-	table: Map<Val.TyVar, Val.TyVar>
-): Val.Value {
-	switch (val.type) {
-		case 'tyVar': {
-			return table.get(val) ?? val
-		}
-		case 'tyUnion': {
-			const types = val.types.map(t => replaceTyVars(t, table))
-			return Val.uniteTy(...types)
-		}
-		case 'tyFn': {
-			const param = val.tyParam.map(p => replaceTyVars(p, table))
-			const out = replaceTyVars(val.tyOut, table)
-			return Val.tyFn(param, out)
-		}
-		case 'fn': {
-			const param = mapValues(val.param, p => replaceTyVars(p, table))
-			const out = replaceTyVars(val.out, table)
-			return Val.fn(val.fn, param, out)
-		}
-		case 'vec': {
-			const items = val.items.map(it => replaceTyVars(it, table))
-			const rest = val.rest ? replaceTyVars(val.rest, table) : null
-			return Val.vecFrom(items, rest)
-		}
-		default:
-			return val
-	}
-}
-
-export function createFreshTyVarsTable(
-	...vals: Val.Value[]
-): [Map<Val.TyVar, Val.TyVar>, Map<Val.TyVar, Val.TyVar>] {
-	const tvs = [...new Set(vals.flatMap(v => [...getTyVars(v)]))]
-	const entries = tvs.map(tv => [tv, tv.shadow()] as [Val.TyVar, Val.TyVar])
-	const entriesRev = entries.map(
-		([t1, t2]) => [t2, t1] as [Val.TyVar, Val.TyVar]
-	)
-	const map = new Map(entries)
-	const mapRev = new Map(entriesRev)
-	return [map, mapRev]
-}
-
-export function useFreshTyVars(val: Val.Value): Val.Value {
-	let subst = Subst.empty()
-
-	for (const tv of getTyVars(val)) {
-		if (tv.shadowed) continue
-		const tv2 = tv.duplicate()
-		subst = subst.appendLower(tv, tv2)
-		subst = subst.appendUpper(tv, tv2)
+		return new SubstRanged()
 	}
 
-	return subst.applyTo(val)
-}
-
-export function unify(consts: Const[]): Subst {
-	if (consts.length === 0) return Subst.empty()
-
-	const [[s, t], ...rest] = consts
-
-	// Match constraints spawing sub-constraints
-	if (t.type === 'tyFn') {
-		let param: Const, out: Const
-		if (!('tyFn' in s)) {
-			param = [
-				Val.vecFrom(t.tyParam),
-				Val.vecFrom(t.tyParam.map(() => Val.all)),
-			]
-			out = [Val.bottom, t.tyFn.tyOut]
-		} else {
-			param = [Val.vecFrom(t.tyParam), Val.vecFrom(s.tyFn.tyParam)]
-			out = [s.tyFn.tyOut, t.tyOut]
-		}
-
-		return unify([param, out, ...rest])
+	public static unify(consts: Const[]) {
+		return new SubstRanged().unify(consts)
 	}
-
-	if (t.type === 'vec') {
-		let svec: Val.Vec
-		if (s.type !== 'vec') {
-			const items = t.items.map(() => Val.bottom)
-			const rest = t.rest ? Val.bottom : null
-			svec = Val.vecFrom(items, rest)
-		} else {
-			svec = s
-		}
-
-		const items: Const[] = zip(svec.items, t.items)
-
-		if (t.rest) {
-			const tr = t.rest
-			const rest: Const[] = svec.items.slice(t.length).map(si => [si, tr])
-
-			if (svec.rest) rest.push([svec.rest, tr])
-
-			items.push(...rest)
-		}
-
-		return unify([...items, ...rest])
-	}
-
-	// If either type is tyVar?
-	let unified = unify(rest)
-
-	if (s.isEqualTo(t)) return unified
-
-	if (t.type === 'tyVar') {
-		if (getTyVars(s).has(t)) {
-			throw new Error('Failed to occur check')
-		}
-
-		unified = unified.appendLower(t, s)
-	}
-
-	if (s.type === 'tyVar') {
-		if (getTyVars(t).has(s)) {
-			throw new Error('Failed to occur check')
-		}
-
-		unified = unified.appendUpper(s, t)
-	}
-
-	return unified
 }

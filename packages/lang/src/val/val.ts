@@ -300,7 +300,7 @@ export class TyVar implements IVal {
 
 	private constructor(
 		private readonly id: string,
-		public readonly shadowed: boolean
+		public readonly original?: TyVar
 	) {}
 
 	public print() {
@@ -319,11 +319,11 @@ export class TyVar implements IVal {
 	}
 
 	public shadow(): TyVar {
-		return new TyVar(this.id + '-' + TyVar.counter++, true)
+		return new TyVar(this.id + '-' + TyVar.counter++, this)
 	}
 
-	public duplicate(): TyVar {
-		return new TyVar(this.id + '-' + TyVar.counter++, false)
+	public unshadow(): TyVar {
+		return this.original ?? this
 	}
 
 	private static counter = 1
@@ -332,7 +332,7 @@ export class TyVar implements IVal {
 	public static of(id: string) {
 		let v = TyVar.store.get(id)
 		if (!v) {
-			v = new TyVar(id, false)
+			v = new TyVar(id)
 			TyVar.store.set(id, v)
 		}
 		return v
