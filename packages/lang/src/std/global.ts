@@ -121,7 +121,17 @@ export const GlobalScope = scope({
 	rest: defn(
 		(coll: Val.Vec) => Val.vecFrom(coll.items.slice(1)),
 		{coll: Val.vecFrom([], T)},
-		T
+		Val.vecFrom([], T)
+	),
+	map: obj(
+		Val.fn(
+			(f: Val.Fn, coll: Val.Vec) => {
+				const [newItems, log] = Writer.map(coll.items, f.fn).asTuple
+				return Writer.of(Val.vecFrom(newItems), ...log)
+			},
+			{f: Val.tyFn(T, U), coll: Val.vecFrom([], T)},
+			Val.vecFrom([], U)
+		)
 	),
 	'subtype?': defn(
 		(s: Val.Value, t: Val.Value) => Val.bool(s.isSubtypeOf(t)),
