@@ -49,15 +49,15 @@ export class Bottom implements IVal {
 		return this
 	}
 
-	public print() {
+	public print = (): string => {
 		return '()'
 	}
 
-	public isSubtypeOf() {
+	public isSubtypeOf = (): boolean => {
 		return true
 	}
 
-	public isEqualTo(val: Value) {
+	public isEqualTo = (val: Value) => {
 		return val.type === this.type
 	}
 
@@ -72,15 +72,15 @@ export class All implements IVal {
 		return this
 	}
 
-	public print() {
+	public print = (): string => {
 		return '_'
 	}
 
-	public isSubtypeOf(ty: Value) {
+	public isSubtypeOf = (ty: Value): boolean => {
 		return ty.type === 'all'
 	}
 
-	public isEqualTo(val: Value) {
+	public isEqualTo = (val: Value) => {
 		return val.type === this.type
 	}
 
@@ -94,18 +94,18 @@ export class Int implements IVal {
 	public readonly superType = tyInt
 	private constructor(public readonly value: number) {}
 
-	public print() {
+	public print = (): string => {
 		return this.value.toString()
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
 		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
 	}
 
-	public isEqualTo(val: Value) {
+	public isEqualTo = (val: Value) => {
 		return val.type === this.type && val.value === this.value
 	}
 
@@ -129,7 +129,7 @@ export class Fn implements IVal, IFnLike {
 		this.tyFn = TyFn.of(values(param), out)
 	}
 
-	public print(): string {
+	public print = (): string => {
 		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
@@ -139,7 +139,7 @@ export class Fn implements IVal, IFnLike {
 		return `(=> ${param} ${body}:${out})`
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') return this.tyFn.isSubtypeOf(ty)
@@ -147,7 +147,7 @@ export class Fn implements IVal, IFnLike {
 		return this.isEqualTo(ty)
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return (
 			val.type === this.type &&
 			val.fn === this.fn &&
@@ -198,7 +198,7 @@ export class Vec implements IVal, IFnLike {
 		return Writer.of(ret)
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type === 'tyFn') return this.tyFn.isSubtypeOf(ty)
@@ -229,7 +229,7 @@ export class Vec implements IVal, IFnLike {
 		return true
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return (
 			val.type === 'vec' &&
 			val.length === this.length &&
@@ -244,7 +244,7 @@ export class Vec implements IVal, IFnLike {
 		return new Vec(items, rest)
 	}
 
-	public print(): string {
+	public print = (): string => {
 		const items = this.items.map(it => it.print())
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '[' + [...items, ...rest].join(' ') + ']'
@@ -267,25 +267,25 @@ export class TyVar implements IVal {
 		public readonly original?: TyVar
 	) {}
 
-	public print() {
+	public print = (): string => {
 		return '<' + this.id + '>'
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this.isEqualTo(ty)
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return val.type === this.type && val.id === this.id
 	}
 
-	public shadow(): TyVar {
+	public shadow = (): TyVar => {
 		return new TyVar(this.id + '-' + TyVar.counter++, this)
 	}
 
-	public unshadow(): TyVar {
+	public unshadow = (): TyVar => {
 		return this.original ?? this
 	}
 
@@ -316,7 +316,12 @@ export class TyFn implements IVal, ITyFn {
 		public readonly tyOut: Value
 	) {}
 
-	public print(): string {
+	public get defaultValue(): Value {
+		const outVal = this.tyOut.defaultValue
+		return Fn.of(() => Writer.of(outVal), {}, this.tyOut)
+	}
+
+	public print = (): string => {
 		const canOmitParens =
 			this.tyParam.length === 1 && this.tyParam[0].type !== 'bottom'
 
@@ -327,12 +332,7 @@ export class TyFn implements IVal, ITyFn {
 		return `(-> ${param} ${out})`
 	}
 
-	public get defaultValue(): Value {
-		const outVal = this.tyOut.defaultValue
-		return Fn.of(() => Writer.of(outVal), {}, this.tyOut)
-	}
-
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		if (ty.type !== 'tyFn') return false
@@ -351,7 +351,7 @@ export class TyFn implements IVal, ITyFn {
 		return isParamSubtype && isOutSubtype
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return (
 			val.type === this.type &&
 			val.tyParam.length === this.tyParam.length &&
@@ -378,19 +378,19 @@ export class TyUnion implements IVal {
 		this.defaultValue = defaultValue ?? this.types[0].defaultValue
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type !== 'tyUnion') return this.types.every(s => s.isSubtypeOf(ty))
 
 		return this.types.every(s => ty.types.some(t => s.isSubtypeOf(t)))
 	}
 
-	public print(): string {
+	public print = (): string => {
 		const types = this.types.map(t => t.print()).join(' ')
 		return `(| ${types})`
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		if (val.type !== this.type) return false
 		if (val.types.length !== this.types.length) return false
 
@@ -416,22 +416,22 @@ export class TyAtom implements IVal {
 		public readonly defaultValue: Value
 	) {}
 
-	public print() {
+	public print = (): string => {
 		// TODO: fix this
 		return this.uid
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this.isEqualTo(ty)
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return val.type === 'tyAtom' && val.uid === this.uid
 	}
 
-	public extends(defaultValue: Value) {
+	public extends = (defaultValue: Value) => {
 		return new TyAtom(this.uid, defaultValue)
 	}
 
@@ -448,19 +448,19 @@ export class TyValue implements IVal {
 		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar | TyVariant
 	) {}
 
-	public print() {
+	public readonly defaultValue = this.value
+
+	public print = (): string => {
 		return '(tyValue ' + this.value.print() + ')'
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 		return this.isEqualTo(ty)
 	}
 
-	public readonly defaultValue = this.value
-
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
@@ -476,12 +476,12 @@ export class AlgCtor implements IVal {
 
 	public constructor(public readonly id: string) {}
 
-	public print() {
+	public print = (): string => {
 		// TODO: fix this
 		return this.id
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
@@ -492,7 +492,7 @@ export class AlgCtor implements IVal {
 		return this.isEqualTo(ty)
 	}
 
-	public isEqualTo(val: Value): boolean {
+	public isEqualTo = (val: Value): boolean => {
 		return val.type === this.type && val.id === this.id
 	}
 }
@@ -506,19 +506,19 @@ export class TyVariant implements IVal {
 		public readonly types: AlgCtor[]
 	) {}
 
-	public print() {
+	public print = (): string => {
 		// TODO: fix this
 		return this.uid
 	}
 
-	public isSubtypeOf(ty: Value): boolean {
+	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
 		return this.isEqualTo(ty)
 	}
 
-	public isEqualTo(val: Value) {
+	public isEqualTo = (val: Value) => {
 		return val.type === this.type && val.uid === this.uid
 	}
 
