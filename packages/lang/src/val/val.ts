@@ -1,4 +1,4 @@
-import {differenceWith, entries, keys, values} from 'lodash'
+import {differenceWith, entries, values} from 'lodash'
 
 import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
@@ -18,7 +18,6 @@ export type Value =
 	| TyUnion
 	| TyAtom
 	| TyValue
-	| Alg
 	| AlgCtor
 	| TyVariant
 
@@ -470,53 +469,12 @@ export class TyValue implements IVal {
 	}
 }
 
-export class Alg implements IVal {
-	public readonly type: 'alg' = 'alg'
-	public readonly superType!: TyVariant
-	public readonly defaultValue: Alg = this
-
-	public constructor(
-		public readonly ctor: AlgCtor,
-		public readonly values: Value[]
-	) {
-		if (values.length === 0) throw new Error('Empty alg')
-	}
-
-	public print(): string {
-		const items = [this.ctor, ...this.values].map(v => v.print())
-		return '(' + items.join(' ') + ')'
-	}
-
-	public isSubtypeOf(ty: Value): boolean {
-		if (ty.type === 'all') return true
-		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
-
-		return this.superType.isEqualTo(ty) || this.isEqualTo(ty)
-	}
-
-	public isEqualTo(val: Value): boolean {
-		return (
-			val.type === this.type &&
-			val.ctor.isEqualTo(this) &&
-			val.values.length === this.values.length &&
-			zip(val.values, this.values).every(([v, t]) => v.isEqualTo(t))
-		)
-	}
-}
-
 export class AlgCtor implements IVal {
 	public readonly type: 'algCtor' = 'algCtor'
 	public readonly defaultValue: AlgCtor = this
-	public readonly superType?: TyVariant
+	public readonly superType!: TyVariant
 
-	public constructor(
-		public readonly id: string,
-		public readonly param?: Record<string, Value>
-	) {
-		if (param && keys(param).length === 0) {
-			throw new Error('Empty AlgCtor')
-		}
-	}
+	public constructor(public readonly id: string) {}
 
 	public print() {
 		// TODO: fix this
@@ -528,7 +486,7 @@ export class AlgCtor implements IVal {
 		if (ty.type === 'tyUnion') return ty.types.some(t => this.isSubtypeOf(t))
 
 		if (ty.type === 'tyVariant') {
-			return (!this.param && this.superType?.isEqualTo(ty)) ?? false
+			return this.superType.isEqualTo(ty)
 		}
 
 		return this.isEqualTo(ty)
@@ -541,7 +499,7 @@ export class AlgCtor implements IVal {
 
 export class TyVariant implements IVal {
 	public readonly type: 'tyVariant' = 'tyVariant'
-	public readonly defaultValue!: Alg | AlgCtor
+	public readonly defaultValue!: AlgCtor
 
 	public constructor(
 		public readonly uid: string,
@@ -564,7 +522,7 @@ export class TyVariant implements IVal {
 		return val.type === this.type && val.uid === this.uid
 	}
 
-	public extends(defaultValue: Alg | AlgCtor): TyVariant {
+	public extends(defaultValue: AlgCtor): TyVariant {
 		const variant = new TyVariant(this.uid, this.types)
 		;(variant as any).defaultValue = defaultValue
 		return variant

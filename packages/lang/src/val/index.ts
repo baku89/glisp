@@ -1,6 +1,5 @@
 import {intersectTy, uniteTy} from './type-operators'
 import {
-	Alg,
 	AlgCtor,
 	All,
 	Bottom,
@@ -33,7 +32,7 @@ export {True, False}
 
 export {intersectTy, uniteTy}
 
-export {TyVariant, Alg, AlgCtor}
+export {TyVariant, AlgCtor}
 
 // Shorthands
 export const all = All.instance
