@@ -20,10 +20,19 @@ describe('subtyping', () => {
 
 	run(Val.int(1), Val.int(1), true)
 	run(Val.int(1), Val.tyInt, true)
+	run(Val.int(1), Val.tyInt.extends(Val.int(1)), true)
 	run(Val.tyInt, Val.tyInt, true)
+
+	run(Val.str('hello'), Val.str('hello'), true)
+	run(Val.str('hello'), Val.tyStr, true)
+	run(Val.tyStr, Val.tyStr, true)
+	run(Val.tyStr, Val.tyInt, false)
+	run(Val.str('hello'), Val.tyInt, false)
+
 	run(Val.bool(true), Val.bool(true), true)
-	run(Val.tyBool, Val.tyBool, true)
 	run(Val.bool(false), Val.tyBool, true)
+	run(Val.tyBool, Val.tyBool, true)
+
 	run(Val.int(1), Val.bool(false), false)
 	run(Val.int(1), Val.all, true)
 	run(Val.bottom, Val.tyInt, true)
