@@ -12,6 +12,7 @@ export type Value =
 	| Bottom
 	| Int
 	| Str
+	| Atom<any>
 	| Fn
 	| Vec
 	| TyVar
@@ -139,6 +140,35 @@ export class Str implements IVal {
 
 	public static of(value: string) {
 		return new Str(value)
+	}
+}
+
+export class Atom<T> implements IVal {
+	public readonly type: 'atom' = 'atom'
+	public readonly defaultValue = this
+
+	private constructor(
+		public readonly value: T,
+		public readonly superType: TyAtom
+	) {}
+
+	public print = (): string => {
+		return '<instance of ' + this.superType.print() + '>'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+
+		return ty.isEqualTo(this) || ty.isEqualTo(this.superType)
+	}
+
+	public isEqualTo = () => {
+		return false
+	}
+
+	public static of<T>(value: T, superType: TyAtom) {
+		return new Atom<T>(value, superType)
 	}
 }
 
