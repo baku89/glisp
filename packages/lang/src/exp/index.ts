@@ -116,6 +116,7 @@ export class Obj extends BaseNode {
 
 export const obj = Obj.of
 export const int = (v: number) => Obj.of(Val.int(v))
+export const str = (v: string) => Obj.of(Val.str(v))
 
 export class Fn extends BaseNode {
 	public readonly type: 'fn' = 'fn'

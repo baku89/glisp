@@ -11,6 +11,7 @@ export type Value =
 	| All
 	| Bottom
 	| Int
+	| Str
 	| Fn
 	| Vec
 	| TyVar
@@ -111,6 +112,33 @@ export class Int implements IVal {
 
 	public static of(value: number) {
 		return new Int(value)
+	}
+}
+
+export class Str implements IVal {
+	public readonly type: 'str' = 'str'
+	public readonly defaultValue = this
+
+	public readonly superType = tyStr
+	private constructor(public readonly value: string) {}
+
+	public print = (): string => {
+		return '"' + this.value.toString() + '"'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+
+		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
+	}
+
+	public isEqualTo = (val: Value) => {
+		return val.type === this.type && val.value === this.value
+	}
+
+	public static of(value: string) {
+		return new Str(value)
 	}
 }
 
@@ -435,7 +463,7 @@ export class TyAtom implements IVal {
 		return new TyAtom(this.uid, defaultValue)
 	}
 
-	public static of(name: string, defaultValue: Int) {
+	public static of(name: string, defaultValue: Int | Str) {
 		const atom = new TyAtom(name, defaultValue)
 		;(defaultValue as any).superType = atom
 		return atom
@@ -530,6 +558,7 @@ export class TyVariant implements IVal {
 }
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
+export const tyStr = TyAtom.of('Str', Str.of(''))
 
 export const True = new AlgCtor('true')
 export const False = new AlgCtor('false')

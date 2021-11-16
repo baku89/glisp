@@ -10,13 +10,13 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Bottom / Fn / TyFn / App / Vec / Int / All / TyVar / Sym
+Node = Scope / Bottom / Fn / TyFn / App / Vec / Int / Str / All / TyVar / Sym
 
 Reserved = "_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
-All = "_" { return Exp.obj(Val.all) }
+All "All" = "_" { return Exp.obj(Val.all) }
 
-Sym = SymIdent / SymQuoted
+Sym "Sym" = SymIdent / SymQuoted
 
 SymIdent = !(Reserved End) $([^0-9()[\\]{}\\:\`"] [^()[\\]{}\\:\`" \\t\\n\\r]*)
 	{
@@ -37,6 +37,11 @@ Int "Int" = [0-9]+ &End
 	{
 		const v = parseInt(text())
 		return Exp.int(v)
+	}
+
+Str "Str" = '"' value:$(!'"' .)* '"'
+	{
+		return Exp.str(value)
 	}
 
 Bottom = "(" _ ")" { return Exp.obj(Val.bottom) }

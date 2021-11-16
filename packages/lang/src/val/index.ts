@@ -7,11 +7,13 @@ import {
 	Fn,
 	IFn,
 	Int,
+	Str,
 	True,
 	TyAtom,
 	tyBool,
 	TyFn,
 	tyInt,
+	tyStr,
 	TyUnion,
 	TyValue,
 	TyVar,
@@ -22,11 +24,11 @@ import {
 
 export {Value}
 
-export {All, Bottom, Fn, Int, Vec}
+export {All, Bottom, Fn, Int, Str, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
-export {tyInt, tyBool}
+export {tyInt, tyStr, tyBool}
 
 export {True, False}
 
@@ -38,6 +40,7 @@ export {TyVariant, AlgCtor}
 export const all = All.instance
 export const bottom = Bottom.instance
 export const int = Int.of
+export const str = Str.of
 export const bool = (v: boolean): AlgCtor => (v ? True : False)
 export const fn = Fn.of
 export const vec = Vec.of

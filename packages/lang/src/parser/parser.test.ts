@@ -6,6 +6,7 @@ import {
 	Node,
 	obj,
 	scope,
+	str,
 	sym,
 	tyFn,
 	vec,
@@ -27,6 +28,8 @@ describe('parsing literals', () => {
 	testParsing('   \t 5 \r\n', int(5))
 	testParsing('false', sym('false'))
 	testParsing('true', sym('true'))
+	testParsing('"hello"', str('hello'))
+	testParsing('"hello, world"', str('hello, world'))
 	testParsing(' () ', obj(bottom))
 	testParsing(' (  \t   ) ', obj(bottom))
 	testParsing(' _ ', obj(all))
