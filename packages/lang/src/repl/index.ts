@@ -2,10 +2,11 @@ import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {Log, ValueWithLog} from '../exp'
+import {Log, obj, scope, ValueWithLog} from '../exp'
 import {parse} from '../parser'
+import {GlobalScope} from '../std/global'
 import {Writer} from '../utils/Writer'
-import {bottom} from '../val'
+import * as Val from '../val'
 
 function printLog({level, reason}: Log) {
 	let header: string
@@ -24,17 +25,40 @@ function printLog({level, reason}: Log) {
 	return header + ' ' + reason
 }
 
+const replScope = scope({
+	def: obj(
+		Val.fn(
+			(name: Val.Str, value: Val.Value) => {
+				return Writer.of(
+					Val.atom(() => {
+						replScope.vars[name.value] = obj(value)
+					}, Val.tyIO)
+				)
+			},
+			{name: Val.tyStr, value: Val.all},
+			Val.tyIO
+		)
+	),
+})
+replScope.parent = GlobalScope
+
 function startRepl() {
 	repl.start({
 		prompt: chalk.bold.gray('> '),
 		eval(input, context, file, cb) {
 			try {
 				const exp = parse(input)
-				const result = exp.eval()
-				cb(null, result)
+				exp.parent = replScope
+				const evaluated = exp.eval()
+
+				if (Val.tyIO.isInstance(evaluated.result)) {
+					evaluated.result.value()
+				}
+
+				cb(null, evaluated)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
-				const r = Writer.of(bottom, {level: 'error', reason: err.message})
+				const r = Writer.of(Val.bottom, {level: 'error', reason: err.message})
 				cb(null, r)
 			}
 		},

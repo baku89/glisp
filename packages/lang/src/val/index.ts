@@ -1,6 +1,7 @@
 import {intersectTy, uniteTy} from './type-operators'
 import {
 	All,
+	Atom,
 	Bottom,
 	Enum,
 	False,
@@ -14,6 +15,7 @@ import {
 	TyEnum,
 	TyFn,
 	tyInt,
+	tyIO,
 	tyStr,
 	TyUnion,
 	TyValue,
@@ -28,7 +30,7 @@ export {All, Bottom, Fn, Int, Str, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
-export {tyInt, tyStr, tyBool}
+export {tyInt, tyStr, tyBool, tyIO}
 
 export {True, False}
 
@@ -41,6 +43,7 @@ export const all = All.instance
 export const bottom = Bottom.instance
 export const int = Int.of
 export const str = Str.of
+export const atom = Atom.of
 export const bool = (v: boolean): Enum => (v ? True : False)
 export const fn = Fn.of
 export const vec = Vec.of

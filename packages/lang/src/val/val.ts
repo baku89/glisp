@@ -479,6 +479,10 @@ export class TyAtom implements IVal {
 		return this.uid
 	}
 
+	public isInstance = <T = any>(val: Value): val is Atom<T> => {
+		return val.type === 'atom' && val.superType.uid === this.uid
+	}
+
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
@@ -588,6 +592,9 @@ export class TyEnum implements IVal {
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
 export const tyStr = TyAtom.of('Str', Str.of(''))
+
+const defaultIO = (Atom.of as any)(() => undefined)
+export const tyIO = TyAtom.of('IO', defaultIO)
 
 export const True = new Enum('true')
 export const False = new Enum('false')
