@@ -20,8 +20,8 @@ export type Value =
 	| TyUnion
 	| TyAtom
 	| TyValue
-	| AlgCtor
-	| TyVariant
+	| Enum
+	| TyEnum
 
 interface IVal {
 	type: string
@@ -503,7 +503,7 @@ export class TyAtom implements IVal {
 export class TyValue implements IVal {
 	public readonly type: 'tyValue' = 'tyValue'
 	private constructor(
-		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar | TyVariant
+		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum
 	) {}
 
 	public readonly defaultValue = this.value
@@ -522,15 +522,15 @@ export class TyValue implements IVal {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
-	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyVariant) {
+	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum) {
 		return new TyValue(ty)
 	}
 }
 
-export class AlgCtor implements IVal {
-	public readonly type: 'algCtor' = 'algCtor'
-	public readonly defaultValue: AlgCtor = this
-	public readonly superType!: TyVariant
+export class Enum implements IVal {
+	public readonly type: 'enum' = 'enum'
+	public readonly defaultValue: Enum = this
+	public readonly superType!: TyEnum
 
 	public constructor(public readonly id: string) {}
 
@@ -542,8 +542,7 @@ export class AlgCtor implements IVal {
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
-
-		if (ty.type === 'tyVariant') {
+		if (ty.type === 'tyEnum') {
 			return this.superType.isEqualTo(ty)
 		}
 
@@ -555,13 +554,13 @@ export class AlgCtor implements IVal {
 	}
 }
 
-export class TyVariant implements IVal {
-	public readonly type: 'tyVariant' = 'tyVariant'
-	public readonly defaultValue!: AlgCtor
+export class TyEnum implements IVal {
+	public readonly type: 'tyEnum' = 'tyEnum'
+	public readonly defaultValue!: Enum
 
 	public constructor(
 		public readonly uid: string,
-		public readonly types: AlgCtor[]
+		public readonly types: Enum[]
 	) {}
 
 	public print = (): string => {
@@ -580,19 +579,19 @@ export class TyVariant implements IVal {
 		return val.type === this.type && val.uid === this.uid
 	}
 
-	public extends(defaultValue: AlgCtor): TyVariant {
-		const variant = new TyVariant(this.uid, this.types)
-		;(variant as any).defaultValue = defaultValue
-		return variant
+	public extends(defaultValue: Enum): TyEnum {
+		const tyEnum = new TyEnum(this.uid, this.types)
+		;(tyEnum as any).defaultValue = defaultValue
+		return tyEnum
 	}
 }
 
 export const tyInt = TyAtom.of('Int', Int.of(0))
 export const tyStr = TyAtom.of('Str', Str.of(''))
 
-export const True = new AlgCtor('true')
-export const False = new AlgCtor('false')
-export const tyBool = new TyVariant('Bool', [True, False])
+export const True = new Enum('true')
+export const False = new Enum('false')
+export const tyBool = new TyEnum('Bool', [True, False])
 ;(tyBool as any).defaultValue = False
 ;(True as any).superType = tyBool
 ;(False as any).superType = tyBool

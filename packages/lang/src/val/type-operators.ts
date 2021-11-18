@@ -20,16 +20,16 @@ export function uniteTy(...types: Value[]) {
 			return prev
 		}
 
-		if (ty.type === 'algCtor') {
-			const variant = ty.superType
+		if (ty.type === 'enum') {
+			const tyEnum = ty.superType
 			const arr = [...prev, ty]
 			const indices = new Set(
-				variant.types.map(t => arr.findIndex(a => t.isSubtypeOf(a)))
+				tyEnum.types.map(t => arr.findIndex(a => t.isSubtypeOf(a)))
 			)
-			const includesAllAlgCtors = !indices.has(-1)
-			if (includesAllAlgCtors) {
+			const includesAllValues = !indices.has(-1)
+			if (includesAllValues) {
 				const arrSpliced = arr.filter((_, i) => !indices.has(i))
-				return [...arrSpliced, variant]
+				return [...arrSpliced, tyEnum]
 			}
 		}
 
