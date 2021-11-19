@@ -15,7 +15,6 @@ import {
 	TyEnum,
 	TyFn,
 	tyInt,
-	tyIO,
 	tyStr,
 	TyUnion,
 	TyValue,
@@ -30,7 +29,7 @@ export {All, Bottom, Fn, Int, Str, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
-export {tyInt, tyStr, tyBool, tyIO}
+export {tyInt, tyStr, tyBool}
 
 export {True, False}
 

@@ -12,7 +12,7 @@ export type Value =
 	| Bottom
 	| Int
 	| Str
-	| Atom<any>
+	| Atom
 	| Fn
 	| Vec
 	| TyVar
@@ -143,7 +143,7 @@ export class Str implements IVal {
 	}
 }
 
-export class Atom<T> implements IVal {
+export class Atom<T = any> implements IVal {
 	public readonly type: 'atom' = 'atom'
 	public readonly defaultValue = this
 
@@ -467,11 +467,11 @@ export class TyUnion implements IVal {
 	}
 }
 
-export class TyAtom implements IVal {
+export class TyAtom<T = any> implements IVal {
 	public readonly type: 'tyAtom' = 'tyAtom'
 	private constructor(
 		private readonly uid: string,
-		public readonly defaultValue: Value
+		public readonly defaultValue: Int | Str | Atom<T>
 	) {}
 
 	public print = (): string => {
@@ -493,14 +493,19 @@ export class TyAtom implements IVal {
 		return val.type === 'tyAtom' && val.uid === this.uid
 	}
 
-	public extends = (defaultValue: Value) => {
-		return new TyAtom(this.uid, defaultValue)
+	public extends = <T>(defaultValue: Int | Str | Atom<T>) => {
+		return new TyAtom<T>(this.uid, defaultValue)
 	}
 
-	public static of(name: string, defaultValue: Int | Str) {
-		const atom = new TyAtom(name, defaultValue)
-		;(defaultValue as any).superType = atom
-		return atom
+	public static ofLiteral(name: string, defaultValue: Int | Str): TyAtom<any> {
+		return new TyAtom(name, defaultValue)
+	}
+
+	public static of<T>(name: string, defaultValue: T): TyAtom<T> {
+		const tyAtom = new TyAtom(name, null as any)
+		const defaultAtom = Atom.of(defaultValue, tyAtom)
+		;(tyAtom as any).defaultValue = defaultAtom
+		return tyAtom
 	}
 }
 
@@ -590,11 +595,8 @@ export class TyEnum implements IVal {
 	}
 }
 
-export const tyInt = TyAtom.of('Int', Int.of(0))
-export const tyStr = TyAtom.of('Str', Str.of(''))
-
-const defaultIO = (Atom.of as any)(() => undefined)
-export const tyIO = TyAtom.of('IO', defaultIO)
+export const tyInt = TyAtom.ofLiteral('Int', Int.of(0))
+export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
 
 export const True = new Enum('true')
 export const False = new Enum('false')

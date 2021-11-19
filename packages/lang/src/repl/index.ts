@@ -8,6 +8,8 @@ import {GlobalScope} from '../std/global'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
+const tyIO = Val.tyAtom('IO', () => undefined)
+
 function printLog({level, reason}: Log) {
 	let header: string
 	switch (level) {
@@ -26,17 +28,18 @@ function printLog({level, reason}: Log) {
 }
 
 const replScope = scope({
+	IO: obj(tyIO),
 	def: obj(
 		Val.fn(
 			(name: Val.Str, value: Val.Value) => {
 				return Writer.of(
 					Val.atom(() => {
 						replScope.vars[name.value] = obj(value)
-					}, Val.tyIO)
+					}, tyIO)
 				)
 			},
 			{name: Val.tyStr, value: Val.all},
-			Val.tyIO
+			tyIO
 		)
 	),
 })
@@ -51,7 +54,7 @@ function startRepl() {
 				exp.parent = replScope
 				const evaluated = exp.eval()
 
-				if (Val.tyIO.isInstance(evaluated.result)) {
+				if (tyIO.isInstance(evaluated.result)) {
 					evaluated.result.value()
 				}
 
