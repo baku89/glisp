@@ -400,6 +400,12 @@ export class Scope extends BaseNode {
 		return '{' + [...vars, ...out].join(' ') + '}'
 	}
 
+	public extend(vars: Record<string, Node>, out: Node | null = null): Scope {
+		const scope = new Scope(vars, out)
+		scope.parent = this
+		return scope
+	}
+
 	public static of(vars: Record<string, Node>, out: Node | null = null) {
 		const scope = new Scope(vars, out)
 		values(vars).forEach(v => (v.parent = scope))

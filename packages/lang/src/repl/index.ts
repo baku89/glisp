@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {Log, obj, scope, ValueWithLog} from '../exp'
+import {Log, obj, ValueWithLog} from '../exp'
 import {parse} from '../parser'
 import {GlobalScope} from '../std/global'
 import {Writer} from '../utils/Writer'
@@ -27,7 +27,7 @@ function printLog({level, reason}: Log) {
 	return header + ' ' + reason
 }
 
-const replScope = scope({
+const replScope = GlobalScope.extend({
 	IO: obj(tyIO),
 	def: obj(
 		Val.fn(
@@ -43,7 +43,6 @@ const replScope = scope({
 		)
 	),
 })
-replScope.parent = GlobalScope
 
 function startRepl() {
 	repl.start({
