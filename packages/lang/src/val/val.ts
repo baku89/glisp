@@ -106,7 +106,7 @@ export class Int implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
 
-		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
+		return this.superType.isEqualTo(ty) || this.isEqualTo(ty)
 	}
 
 	public isEqualTo = (val: Value) => {
@@ -133,7 +133,7 @@ export class Str implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
 
-		return ty.isEqualTo(this.superType) || ty.isEqualTo(this)
+		return this.superType.isEqualTo(ty) || this.isEqualTo(ty)
 	}
 
 	public isEqualTo = (val: Value) => {
@@ -162,7 +162,7 @@ export class Atom<T = any> implements IVal {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
 
-		return ty.isEqualTo(this) || ty.isEqualTo(this.superType)
+		return this.superType.isEqualTo(ty)
 	}
 
 	public isEqualTo = () => {
@@ -233,7 +233,7 @@ export class TyProd implements IVal, IFnLike {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
 
-		return ty.isEqualTo(this)
+		return this.isEqualTo(ty)
 	}
 
 	public isEqualTo = (val: Value): boolean => {
@@ -330,11 +330,9 @@ export class Vec implements IVal, IFnLike {
 		return uniteTy(...this.items, ...(this.rest ? [this.rest] : []))
 	}
 
-	public get tyFn() {
-		return TyFn.of(tyInt, this.out)
-	}
+	public readonly tyFn = TyFn.of(tyInt, this.out)
 
-	public fn: IFn = (index: Int) => {
+	public readonly fn: IFn = (index: Int) => {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
 			return Writer.of(Bottom.instance, {
