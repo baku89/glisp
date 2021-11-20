@@ -65,10 +65,13 @@ export {IFn}
 export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
 export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)
 
-export const isTy = (a: Value): a is Vec | TyFn | TyUnion | TyAtom | TyVar =>
+export const isTy = (
+	a: Value
+): a is Vec | TyFn | TyUnion | TyAtom | TyVar | TyProd =>
 	a.type === 'vec' ||
 	a.type === 'tyFn' ||
 	a.type === 'tyUnion' ||
 	a.type === 'tyAtom' ||
 	a.type === 'tyVar' ||
-	a.type === 'tyEnum'
+	a.type === 'tyEnum' ||
+	a.type === 'tyProd'

@@ -633,7 +633,14 @@ export class TyAtom<T = any> implements IVal {
 export class TyValue implements IVal {
 	public readonly type: 'tyValue' = 'tyValue'
 	private constructor(
-		public readonly value: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum
+		public readonly value:
+			| Vec
+			| TyFn
+			| TyUnion
+			| TyAtom
+			| TyVar
+			| TyEnum
+			| TyProd
 	) {}
 
 	public readonly defaultValue = this.value
@@ -652,7 +659,9 @@ export class TyValue implements IVal {
 		return val.type === this.type && val.value.isEqualTo(this.value)
 	}
 
-	public static of(ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum) {
+	public static of(
+		ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum | TyProd
+	) {
 		return new TyValue(ty)
 	}
 }
