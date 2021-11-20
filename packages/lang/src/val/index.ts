@@ -4,12 +4,10 @@ import {
 	Atom,
 	Bottom,
 	Enum,
-	False,
 	Fn,
 	IFn,
 	Int,
 	Str,
-	True,
 	TyAtom,
 	tyBool,
 	TyEnum,
@@ -29,9 +27,11 @@ export {All, Bottom, Fn, Int, Str, Vec}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
-export {tyInt, tyStr, tyBool}
+export {tyInt, tyStr}
 
-export {True, False}
+const True = tyBool.getEnum('true') as Enum
+const False = tyBool.getEnum('false') as Enum
+export {tyBool, True, False}
 
 export {intersectTy, uniteTy}
 

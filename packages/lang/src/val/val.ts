@@ -541,11 +541,11 @@ export class Enum implements IVal {
 	public readonly defaultValue: Enum = this
 	public readonly superType!: TyEnum
 
-	public constructor(public readonly id: string) {}
+	public constructor(public readonly uid: string) {}
 
 	public print = (): string => {
 		// TODO: fix this
-		return this.id
+		return this.uid
 	}
 
 	public isSubtypeOf = (ty: Value): boolean => {
@@ -559,7 +559,11 @@ export class Enum implements IVal {
 	}
 
 	public isEqualTo = (val: Value): boolean => {
-		return val.type === this.type && val.id === this.id
+		return (
+			val.type === this.type &&
+			val.uid === this.uid &&
+			this.superType.isEqualTo(val.superType)
+		)
 	}
 }
 
@@ -593,16 +597,27 @@ export class TyEnum implements IVal {
 		;(tyEnum as any).defaultValue = defaultValue
 		return tyEnum
 	}
+
+	public getEnum(label: string) {
+		const en = this.types.find(t => t.uid === label)
+		if (!en) throw new Error('Cannot find label')
+		return en
+	}
+
+	public static of(uid: string, labels: string[]) {
+		if (labels.length === 0) throw new Error('Zero-length enum')
+
+		const values = labels.map(l => new Enum(l))
+		const tyEnum = new TyEnum(uid, values)
+		;(tyEnum as any).defaultValue = values[0]
+		values.forEach(v => ((v as any).superType = tyEnum))
+
+		return tyEnum
+	}
 }
 
 export const tyInt = TyAtom.ofLiteral('Int', Int.of(0))
 export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
-
-export const True = new Enum('true')
-export const False = new Enum('false')
-export const tyBool = new TyEnum('Bool', [True, False])
-;(tyBool as any).defaultValue = False
-;(True as any).superType = tyBool
-;(False as any).superType = tyBool
+export const tyBool = TyEnum.of('Bool', ['false', 'true'])
 
 const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
