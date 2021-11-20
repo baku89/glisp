@@ -7,12 +7,14 @@ import {
 	Fn,
 	IFn,
 	Int,
+	Prod,
 	Str,
 	TyAtom,
 	tyBool,
 	TyEnum,
 	TyFn,
 	tyInt,
+	TyProd,
 	tyStr,
 	TyUnion,
 	TyValue,
@@ -37,6 +39,8 @@ export {intersectTy, uniteTy}
 
 export {TyEnum, Enum}
 
+export {TyProd, Prod}
+
 // Shorthands
 export const all = All.instance
 export const bottom = Bottom.instance
@@ -51,6 +55,7 @@ export const tyVar = TyVar.of
 export const freshTyVar = TyVar.fresh
 export const tyFn = TyFn.of
 export const tyAtom = TyAtom.of
+export const tyProd = TyProd.of
 export const tyValue = TyValue.of
 
 export {IFn}

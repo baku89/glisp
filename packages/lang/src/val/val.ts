@@ -20,6 +20,8 @@ export type Value =
 	| TyUnion
 	| TyAtom
 	| TyValue
+	| Prod
+	| TyProd
 	| Enum
 	| TyEnum
 
@@ -169,6 +171,93 @@ export class Atom<T = any> implements IVal {
 
 	public static of<T>(value: T, superType: TyAtom) {
 		return new Atom<T>(value, superType)
+	}
+}
+
+export class Prod implements IVal {
+	public readonly type: 'prod' = 'prod'
+	public readonly defaultValue = this
+
+	private constructor(
+		public readonly superType: TyProd,
+		public readonly items: Value[]
+	) {}
+
+	public print = (): string => {
+		const ctor = this.superType.print()
+		const items = this.items.map(it => it.print())
+		return '(' + [ctor, ...items].join(' ') + ')'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+
+		return this.superType.isEqualTo(ty) || this.isEqualTo(ty)
+	}
+
+	public isEqualTo = (val: Value): boolean => {
+		return (
+			this.type === val.type &&
+			this.superType.isEqualTo(val.superType) &&
+			this.items.every((t, i) => t.isEqualTo(val.items[i]))
+		)
+	}
+
+	public static of(ctor: TyProd, items: Value[]) {
+		return new Prod(ctor, items)
+	}
+}
+
+export class TyProd implements IVal, IFnLike {
+	public readonly type: 'tyProd' = 'tyProd'
+	public readonly defaultValue!: Prod
+
+	private constructor(
+		public readonly uid: string,
+		public readonly param: Record<string, Value>
+	) {}
+
+	public out = this
+
+	public tyFn = TyFn.of(values(this.param), this)
+
+	public fn: IFn = (...items: Value[]) => Writer.of(Prod.of(this, items))
+
+	public print = () => {
+		// TODO: fix this
+		return this.uid
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+
+		return ty.isEqualTo(this)
+	}
+
+	public isEqualTo = (val: Value): boolean => {
+		return this.type === val.type && this.uid === val.uid
+	}
+
+	public static of(
+		uid: string,
+		param: Record<string, Value>,
+		defaultValue: Value[]
+	) {
+		const tyParam = values(param)
+		if (defaultValue.length !== tyParam.length) {
+			throw new Error('Wrong parameter length')
+		}
+		if (!zip(defaultValue, tyParam).every(([d, t]) => d.isSubtypeOf(t))) {
+			throw new Error('Wrong parameter type')
+		}
+
+		const tyProd = new TyProd(uid, param)
+		const defaultProd = Prod.of(tyProd, defaultValue)
+		;(tyProd as any).defaultValue = defaultProd
+
+		return tyProd
 	}
 }
 
