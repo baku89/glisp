@@ -42,6 +42,7 @@ const replScope = GlobalScope.extend({
 			tyIO
 		)
 	),
+	exit: obj(Val.atom(process.exit, tyIO)),
 })
 
 function startRepl() {
