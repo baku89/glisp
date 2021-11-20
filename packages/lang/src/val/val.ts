@@ -1,4 +1,4 @@
-import {differenceWith, entries, values} from 'lodash'
+import {differenceWith, entries, mapValues, values} from 'lodash'
 
 import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
@@ -15,6 +15,7 @@ export type Value =
 	| Atom
 	| Fn
 	| Vec
+	| Dict
 	| TyVar
 	| TyFn
 	| TyUnion
@@ -355,9 +356,7 @@ export class Vec implements IVal, IFnLike {
 			this.length >= ty.length &&
 			zip(this.items, ty.items).every(([a, b]) => a.isSubtypeOf(b))
 
-		if (!isAllItemsSubtype) {
-			return false
-		}
+		if (!isAllItemsSubtype) return false
 
 		if (ty.rest) {
 			const tr = ty.rest
@@ -401,6 +400,40 @@ export class Vec implements IVal, IFnLike {
 	}
 	public static from(items: Value[], rest: Value | null = null) {
 		return new Vec(items, rest)
+	}
+}
+
+export class Dict implements IVal {
+	public readonly type: 'dict' = 'dict'
+	private constructor(public readonly items: Record<string, Value>) {}
+
+	public get defaultValue(): Value {
+		const items = mapValues(this.items, it => it.defaultValue)
+		return new Dict(items)
+	}
+
+	public print = (): string => {
+		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
+		return '{' + items.join(' ') + '}'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+		if (ty.type !== 'dict') return false
+
+		return entries(ty.items).every(
+			([k, vty]) => k in this.items && this.items[k].isSubtypeOf(vty)
+		)
+	}
+
+	public isEqualTo = (val: Value): boolean => {
+		if (this.type !== val.type) return false
+		return hasEqualValues(this.items, val.items, isEqual)
+	}
+
+	public static of(items: Record<string, Value>) {
+		return new Dict(items)
 	}
 }
 
@@ -708,4 +741,4 @@ export const tyInt = TyAtom.ofLiteral('Int', Int.of(0))
 export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
 export const tyBool = TyEnum.of('Bool', ['false', 'true'])
 
-const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
+export const isEqual = (a: Value, b: Value) => a.isEqualTo(b)
