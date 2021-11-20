@@ -29,8 +29,8 @@ export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
 export {tyInt, tyStr}
 
-const True = tyBool.getEnum('true') as Enum
-const False = tyBool.getEnum('false') as Enum
+const True = tyBool.getEnum('true')
+const False = tyBool.getEnum('false')
 export {tyBool, True, False}
 
 export {intersectTy, uniteTy}
@@ -43,7 +43,7 @@ export const bottom = Bottom.instance
 export const int = Int.of
 export const str = Str.of
 export const atom = Atom.of
-export const bool = (v: boolean): Enum => (v ? True : False)
+export const bool = (v: boolean) => (v ? True : False)
 export const fn = Fn.of
 export const vec = Vec.of
 export const vecFrom = Vec.from
