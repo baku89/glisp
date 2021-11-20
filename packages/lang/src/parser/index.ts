@@ -10,7 +10,12 @@ Start = _ exp:Node _
 		return exp
 	}
 
-Node = Scope / Bottom / Fn / TyFn / App / Vec / Int / Str / All / TyVar / Sym
+Node =
+	Dict / Scope /
+	Bottom / All /
+	Fn / TyFn / App /
+	Vec /
+	Int / Str / TyVar / Sym
 
 Reserved = "_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
@@ -93,6 +98,17 @@ Vec = "[" _ items:VecItem* rest:VecRest? "]"
 VecItem = !("..." _) item:Node _ { return item }
 
 VecRest = "..." _ rest:Node _ { return rest }
+
+Dict = "{" _ entries:DictEntry* "}"
+	{
+		return Exp.dict(Object.fromEntries(entries))
+	}
+
+DictEntry = k:(SymIdent / Str) _ ":" _ v:Node _
+	{
+		const key = k.type === 'sym' ? k.name : k.value.value
+		return [key, v]
+	}
 
 Scope = "{" _ pairs:ScopePair* out:Node? _ "}"
 	{

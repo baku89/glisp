@@ -1,5 +1,6 @@
 import {
 	app,
+	dict,
 	fn,
 	int,
 	isEqual,
@@ -80,6 +81,15 @@ describe('parsing vector', () => {
 		vec(app(sym('+')), sym('false'), app(sym('+')), sym('+'))
 	)
 	testParsing('[...1]', vecFrom([], int(1)))
+})
+
+describe('parsing dictionary', () => {
+	testParsing('{   a :    1 }', dict({a: int(1)}))
+	testParsing('{\t"foo bar"  : 1\t}', dict({'foo bar': int(1)}))
+	testParsing('{   }', dict({}))
+	testParsing('{a: A b: B}', dict({a: sym('A'), b: sym('B')}))
+	testParsing('{a: {a: 1}}', dict({a: dict({a: int(1)})}))
+	testParsing('{{}}', scope({}, dict({})))
 })
 
 describe('parsing function definition', () => {
