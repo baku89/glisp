@@ -6,6 +6,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {
 	App,
+	Dict,
 	Fn,
 	Log,
 	Node,
@@ -31,6 +32,7 @@ export const obj = Obj.of
 export const fn = Fn.of
 export const tyFn = TyFn.of
 export const vec = Vec.of
+export const dict = Dict.of
 export const vecFrom = Vec.from
 export const app = App.of
 export const scope = Scope.of
@@ -51,6 +53,8 @@ export function isEqual(a: Node, b: Node): boolean {
 				nullishEqual(a.rest, b.rest, isEqual) &&
 				zip(a.items, b.items).every(([ai, bi]) => isEqual(ai, bi))
 			)
+		case 'dict':
+			return b.type === 'dict' && hasEqualValues(a.items, b.items, isEqual)
 		case 'fn':
 			return (
 				b.type === 'fn' &&

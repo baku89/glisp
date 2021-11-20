@@ -5,7 +5,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Fn | TyFn | Vec | App | Scope
+export type Node = Sym | Obj | Fn | TyFn | Vec | Dict | App | Scope
 
 export type Type = Node['type']
 
@@ -255,6 +255,35 @@ export class Vec extends BaseNode {
 		items.forEach(it => (it.parent = vec))
 		if (rest) rest.parent = vec
 		return vec
+	}
+}
+
+export class Dict extends BaseNode {
+	public readonly type: 'dict' = 'dict'
+
+	private constructor(public items: Record<string, Node>) {
+		super()
+	}
+
+	public infer(env?: Env): Val.Value {
+		const items = mapValues(this.items, it => it.infer(env))
+		return Val.dict(items)
+	}
+
+	public eval(env?: Env): ValueWithLog {
+		const [items, l] = Writer.mapValues(this.items, it => it.eval(env)).asTuple
+		return Writer.of(Val.dict(items), ...l)
+	}
+
+	public print(): string {
+		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
+		return '{' + items.join(' ') + '}'
+	}
+
+	public static of(items: Record<string, Node>) {
+		const dict = new Dict(items)
+		values(items).forEach(it => (it.parent = dict))
+		return dict
 	}
 }
 
