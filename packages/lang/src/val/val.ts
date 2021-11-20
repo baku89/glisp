@@ -169,7 +169,7 @@ export class Atom<T = any> implements IVal {
 		return false
 	}
 
-	public static of<T>(value: T, superType: TyAtom) {
+	public static of<T>(value: T, superType: TyAtom<T>) {
 		return new Atom<T>(value, superType)
 	}
 }
