@@ -232,6 +232,7 @@ export class TyProd implements IVal, IFnLike {
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+		if (ty.type === 'tyFn') return this.tyFn.isSubtypeOf(ty)
 
 		return this.isEqualTo(ty)
 	}
