@@ -262,7 +262,7 @@ export class Dict extends BaseNode {
 	public readonly type: 'dict' = 'dict'
 
 	private constructor(
-		public items: Record<string, {optional: boolean; value: Node}>,
+		public items: Record<string, {optional?: boolean; value: Node}>,
 		public rest?: Node
 	) {
 		super()
@@ -294,12 +294,12 @@ export class Dict extends BaseNode {
 	}
 
 	public static of(items: Record<string, Node>) {
-		const its = mapValues(items, value => ({optional: false, value}))
+		const its = mapValues(items, value => ({value}))
 		return Dict.from(its)
 	}
 
 	public static from(
-		items: Record<string, {optional: boolean; value: Node}>,
+		items: Record<string, {optional?: boolean; value: Node}>,
 		rest?: Node
 	) {
 		const dict = new Dict(items, rest)

@@ -60,7 +60,7 @@ export function isEqual(a: Node, b: Node): boolean {
 				hasEqualValues(
 					a.items,
 					b.items,
-					(a, b) => a.optional === b.optional && isEqual(a.value, b.value)
+					(a, b) => !!a.optional === !!b.optional && isEqual(a.value, b.value)
 				)
 			)
 		case 'fn':

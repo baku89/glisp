@@ -439,7 +439,7 @@ export class Dict implements IVal {
 	}
 
 	public get asTyDictLike(): TyDictLike {
-		const items = mapValues(this.items, value => ({optional: false, value}))
+		const items = mapValues(this.items, value => ({value}))
 		return {items, rest: null}
 	}
 
@@ -448,7 +448,7 @@ export class Dict implements IVal {
 	}
 }
 
-type TyDictItems = Record<string, {optional: boolean; value: Value}>
+type TyDictItems = Record<string, {optional?: boolean; value: Value}>
 
 interface TyDictLike {
 	items: TyDictItems
@@ -487,7 +487,7 @@ export class TyDict implements IVal {
 		const isItemsSame = hasEqualValues(
 			this.items,
 			val.items,
-			(t, v) => t.optional === v.optional && isEqual(t.value, v.value)
+			(t, v) => !!t.optional === !!v.optional && isEqual(t.value, v.value)
 		)
 
 		const isRestSame = nullishEqual(this.rest, val.rest, isEqual)
