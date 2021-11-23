@@ -86,6 +86,17 @@ describe('subtyping', () => {
 	run('[...Int]', '(-> Int Int)', true)
 	run('[...Bool]', '(-> Int Int)', false)
 
+	// Dict
+	run('{}', '{}', true)
+	run('{a:0}', '{a:Int}', true)
+	run('{a:Int}', '{a:Int}', true)
+	run('{a:Int}', '{a:Bool}', false)
+	run('{a:0}', '{a:Bool}', false)
+	run('{a:Int b:Int}', '{a:Int}', true)
+	run('{a:0}', '{a:Int b:Int}', false)
+	run('{a:Int}', '{a:Int b:Int}', false)
+	run('{a:()}', '{a:Int}', true)
+
 	function parseEval(input: Val.Value | string) {
 		if (typeof input === 'string') return parse(input).eval().result
 		return input

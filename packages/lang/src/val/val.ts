@@ -1,4 +1,11 @@
-import {differenceWith, entries, mapValues, values} from 'lodash'
+import {
+	difference,
+	differenceWith,
+	entries,
+	keys,
+	mapValues,
+	values,
+} from 'lodash'
 
 import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
@@ -16,6 +23,7 @@ export type Value =
 	| Fn
 	| Vec
 	| Dict
+	| TyDict
 	| TyVar
 	| TyFn
 	| TyUnion
@@ -420,11 +428,9 @@ export class Dict implements IVal {
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
 		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
-		if (ty.type !== 'dict') return false
+		if (!('asTyDictLike' in ty)) return false
 
-		return entries(ty.items).every(
-			([k, vty]) => k in this.items && this.items[k].isSubtypeOf(vty)
-		)
+		return isSubtypeDict(this.asTyDictLike, ty.asTyDictLike)
 	}
 
 	public isEqualTo = (val: Value): boolean => {
@@ -432,9 +438,105 @@ export class Dict implements IVal {
 		return hasEqualValues(this.items, val.items, isEqual)
 	}
 
+	public get asTyDictLike(): TyDictLike {
+		const items = mapValues(this.items, value => ({optional: false, value}))
+		return {items, rest: null}
+	}
+
 	public static of(items: Record<string, Value>) {
 		return new Dict(items)
 	}
+}
+
+type TyDictItems = Record<string, {optional: boolean; value: Value}>
+
+interface TyDictLike {
+	items: TyDictItems
+	rest: Value | null
+}
+
+export class TyDict implements IVal {
+	public readonly type: 'tyDict' = 'tyDict'
+	public readonly defaultValue = this
+
+	private constructor(
+		public readonly items: TyDictItems,
+		public readonly rest: Value | null = null
+	) {}
+
+	public print = (): string => {
+		const items = entries(this.items).map(([k, {optional, value}]) => {
+			return k + (optional ? '?' : '') + ':' + value.print()
+		})
+		const rest = this.rest ? ['...' + this.rest.print()] : []
+
+		return '{' + [...items, ...rest].join(' ') + '}'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+		if (!('asTyDictLike' in ty)) return false
+
+		return isSubtypeDict(this, ty.asTyDictLike)
+	}
+
+	public isEqualTo = (val: Value): boolean => {
+		if (val.type !== 'tyDict') return false
+
+		const isItemsSame = hasEqualValues(
+			this.items,
+			val.items,
+			(t, v) => t.optional === v.optional && isEqual(t.value, v.value)
+		)
+
+		const isRestSame = nullishEqual(this.rest, val.rest, isEqual)
+
+		return isItemsSame && isRestSame
+	}
+
+	public asTyDictLike: TyDictLike = this
+
+	public static of(items: TyDictItems, rest?: Value) {
+		const noOptional = values(items).every(it => !it.optional)
+
+		if (noOptional && !rest) {
+			const itemsRec = mapValues(items, it => it.value)
+			return Dict.of(itemsRec)
+		}
+	}
+}
+
+function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
+	const tKeys = keys(t.items)
+
+	for (const k of tKeys) {
+		const tk = t.items[k]
+		if (!tk.optional) {
+			const sx =
+				k in s.items
+					? !s.items[k].optional
+						? s.items[k].value
+						: undefined
+					: s.rest
+			if (!sx || !sx.isSubtypeOf(tk.value)) return false
+		} else {
+			const sx = k in s.items ? s.items[k].value : s.rest
+			if (sx && !sx.isSubtypeOf(tk.value)) return false
+		}
+	}
+
+	if (t.rest) {
+		const sKeys = keys(s.items)
+		for (const k of difference(tKeys, sKeys)) {
+			if (!s.items[k].value.isSubtypeOf(t.rest)) return false
+		}
+		if (s.rest) {
+			if (!s.rest.isSubtypeOf(t.rest)) return false
+		}
+	}
+
+	return true
 }
 
 export class TyVar implements IVal {
