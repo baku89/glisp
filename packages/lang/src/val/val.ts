@@ -504,6 +504,8 @@ export class TyDict implements IVal {
 			const itemsRec = mapValues(items, it => it.value)
 			return Dict.of(itemsRec)
 		}
+
+		return new TyDict(items, rest)
 	}
 }
 
