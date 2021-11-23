@@ -411,13 +411,31 @@ export class Vec implements IVal, IFnLike {
 	}
 }
 
-export class Dict implements IVal {
+export class Dict implements IVal, IFnLike {
 	public readonly type: 'dict' = 'dict'
 	private constructor(public readonly items: Record<string, Value>) {}
 
 	public get defaultValue(): Value {
 		const items = mapValues(this.items, it => it.defaultValue)
 		return new Dict(items)
+	}
+
+	public param: Record<string, Value> = {key: tyStr}
+	public get out() {
+		return uniteTy(...values(this.items))
+	}
+
+	public readonly tyFn = TyFn.of(tyStr, this.out)
+
+	public readonly fn: IFn = (key: Str) => {
+		const ret = this.items[key.value]
+		if (ret === undefined) {
+			return Writer.of(Bottom.instance, {
+				level: 'warn',
+				reason: "Field for key '" + key.value + "' not found",
+			})
+		}
+		return Writer.of(ret)
 	}
 
 	public print = (): string => {
