@@ -278,9 +278,9 @@ export class Dict extends BaseNode {
 	}
 
 	public eval(env?: Env): ValueWithLog {
-		const [items, l] = Writer.mapValues(this.items, ({optional, value}) => {
-			return value.eval(env).bind(value => Writer.of({optional, value}))
-		}).asTuple
+		const [items, l] = Writer.mapValues(this.items, ({optional, value}) =>
+			value.eval(env).fmap(value => ({optional, value}))
+		).asTuple
 		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
