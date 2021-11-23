@@ -12,6 +12,7 @@ import {
 	Str,
 	TyAtom,
 	tyBool,
+	TyDict,
 	TyEnum,
 	TyFn,
 	tyInt,
@@ -26,7 +27,7 @@ import {
 
 export {Value}
 
-export {All, Bottom, Fn, Int, Str, Vec, Dict}
+export {All, Bottom, Fn, Int, Str, Vec, Dict, TyDict}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
@@ -52,6 +53,7 @@ export const bool = (v: boolean) => (v ? True : False)
 export const fn = Fn.of
 export const vec = Vec.of
 export const dict = Dict.of
+export const tyDict = TyDict.of
 export const vecFrom = Vec.from
 export const tyVar = TyVar.of
 export const freshTyVar = TyVar.fresh

@@ -33,6 +33,7 @@ export const fn = Fn.of
 export const tyFn = TyFn.of
 export const vec = Vec.of
 export const dict = Dict.of
+export const dictFrom = Dict.from
 export const vecFrom = Vec.from
 export const app = App.of
 export const scope = Scope.of
@@ -54,7 +55,14 @@ export function isEqual(a: Node, b: Node): boolean {
 				zip(a.items, b.items).every(([ai, bi]) => isEqual(ai, bi))
 			)
 		case 'dict':
-			return b.type === 'dict' && hasEqualValues(a.items, b.items, isEqual)
+			return (
+				b.type === 'dict' &&
+				hasEqualValues(
+					a.items,
+					b.items,
+					(a, b) => a.optional === b.optional && isEqual(a.value, b.value)
+				)
+			)
 		case 'fn':
 			return (
 				b.type === 'fn' &&

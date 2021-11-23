@@ -261,28 +261,50 @@ export class Vec extends BaseNode {
 export class Dict extends BaseNode {
 	public readonly type: 'dict' = 'dict'
 
-	private constructor(public items: Record<string, Node>) {
+	private constructor(
+		public items: Record<string, {optional: boolean; value: Node}>,
+		public rest?: Node
+	) {
 		super()
 	}
 
 	public infer(env?: Env): Val.Value {
-		const items = mapValues(this.items, it => it.infer(env))
-		return Val.dict(items)
+		const items = mapValues(this.items, it => ({
+			optional: it.optional,
+			value: it.value.infer(env),
+		}))
+		const rest = this.rest?.infer(env)
+		return Val.tyDict(items, rest)
 	}
 
 	public eval(env?: Env): ValueWithLog {
-		const [items, l] = Writer.mapValues(this.items, it => it.eval(env)).asTuple
-		return Writer.of(Val.dict(items), ...l)
+		const [items, l] = Writer.mapValues(this.items, ({optional, value}) => {
+			return value.eval(env).bind(value => Writer.of({optional, value}))
+		}).asTuple
+		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
+		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
 
 	public print(): string {
-		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
-		return '{' + items.join(' ') + '}'
+		const items = entries(this.items).map(
+			([k, v]) => k + (v.optional ? '?' : '') + ':' + v.value.print()
+		)
+		const rest = this.rest ? ['...' + this.rest.print()] : []
+		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
 	public static of(items: Record<string, Node>) {
-		const dict = new Dict(items)
-		values(items).forEach(it => (it.parent = dict))
+		const its = mapValues(items, value => ({optional: false, value}))
+		return Dict.from(its)
+	}
+
+	public static from(
+		items: Record<string, {optional: boolean; value: Node}>,
+		rest?: Node
+	) {
+		const dict = new Dict(items, rest)
+		values(items).forEach(it => (it.value.parent = dict))
+		if (rest) rest.parent = dict
 		return dict
 	}
 }
