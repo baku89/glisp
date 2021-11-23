@@ -287,7 +287,7 @@ export class Fn implements IVal, IFnLike {
 	}
 
 	public print = (): string => {
-		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
+		const params = entries(this.param).map(([n, ty]) => n + ': ' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
 		const body = this.body?.print() ?? '(js code)'
@@ -439,7 +439,7 @@ export class Dict implements IVal, IFnLike {
 	}
 
 	public print = (): string => {
-		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
+		const items = entries(this.items).map(([k, v]) => k + ': ' + v.print())
 		return '{' + items.join(' ') + '}'
 	}
 
@@ -484,7 +484,7 @@ export class TyDict implements IVal {
 
 	public print = (): string => {
 		const items = entries(this.items).map(([k, {optional, value}]) => {
-			return k + (optional ? '?' : '') + ':' + value.print()
+			return k + (optional ? '?' : '') + ': ' + value.print()
 		})
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 

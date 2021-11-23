@@ -149,7 +149,7 @@ export class Fn extends BaseNode {
 	}
 
 	public print(): string {
-		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
+		const params = entries(this.param).map(([k, v]) => k + ': ' + v.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 		const body = this.body.print()
 
@@ -287,7 +287,7 @@ export class Dict extends BaseNode {
 
 	public print(): string {
 		const items = entries(this.items).map(
-			([k, v]) => k + (v.optional ? '?' : '') + ':' + v.value.print()
+			([k, v]) => k + (v.optional ? '?' : '') + ': ' + v.value.print()
 		)
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '{' + [...items, ...rest].join(' ') + '}'
