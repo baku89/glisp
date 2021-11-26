@@ -90,16 +90,14 @@ TyFnParam =
 	"(" _ params:(Node _)* ")" { return params.map(p => p[0]) } /
 	param:Node { return [param] }
 
-Vec = "[" _ items:VecItem* rest:VecRest? "]"
+Vec = "[" _ items:VecItem* rest:Rest? "]"
 	{		
 		return Exp.vecFrom(items, rest)
 	}
 
 VecItem = !("..." _) item:Node _ { return item }
 
-VecRest = "..." _ rest:Node _ { return rest }
-
-Dict = "{" _ entries:DictEntry* rest:VecRest? "}"
+Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
 		return Exp.dictFrom(Object.fromEntries(entries), rest)
 	}
@@ -110,6 +108,8 @@ DictEntry = k:(SymIdent / Str) _ optional:"?"? _ ":" _ value:Node _
 		const field = {optional: !!optional, value}
 		return [key, field]
 	}
+
+Rest = "..." _ rest:Node _ { return rest }
 
 Scope = "{" _ pairs:ScopePair* out:Node? _ "}"
 	{
