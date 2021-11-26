@@ -55,7 +55,7 @@ interface IFnLike extends ITyFn {
 export type IFn = (...params: any[]) => Exp.ValueWithLog
 
 export class Bottom implements IVal {
-	public readonly type: 'bottom' = 'bottom'
+	public readonly type = 'bottom' as const
 	public readonly defaultValue = this
 
 	private constructor() {
@@ -78,7 +78,7 @@ export class Bottom implements IVal {
 }
 
 export class All implements IVal {
-	public readonly type: 'all' = 'all'
+	public readonly type = 'all' as const
 	public readonly defaultValue = Bottom.instance
 
 	private constructor() {
@@ -101,7 +101,7 @@ export class All implements IVal {
 }
 
 export class Int implements IVal {
-	public readonly type: 'int' = 'int'
+	public readonly type = 'int' as const
 	public readonly defaultValue = this
 
 	public readonly superType = tyInt
@@ -128,7 +128,7 @@ export class Int implements IVal {
 }
 
 export class Str implements IVal {
-	public readonly type: 'str' = 'str'
+	public readonly type = 'str' as const
 	public readonly defaultValue = this
 
 	public readonly superType = tyStr
@@ -155,7 +155,7 @@ export class Str implements IVal {
 }
 
 export class Atom<T = any> implements IVal {
-	public readonly type: 'atom' = 'atom'
+	public readonly type = 'atom' as const
 	public readonly defaultValue = this
 
 	private constructor(
@@ -184,7 +184,7 @@ export class Atom<T = any> implements IVal {
 }
 
 export class Prod implements IVal {
-	public readonly type: 'prod' = 'prod'
+	public readonly type = 'prod' as const
 	public readonly defaultValue = this
 
 	private constructor(
@@ -219,7 +219,7 @@ export class Prod implements IVal {
 }
 
 export class TyProd implements IVal, IFnLike {
-	public readonly type: 'tyProd' = 'tyProd'
+	public readonly type = 'tyProd' as const
 	public readonly defaultValue!: Prod
 
 	private constructor(
@@ -272,7 +272,7 @@ export class TyProd implements IVal, IFnLike {
 }
 
 export class Fn implements IVal, IFnLike {
-	public readonly type: 'fn' = 'fn'
+	public readonly type = 'fn' as const
 	public readonly defaultValue = this
 
 	public readonly tyFn!: TyFn
@@ -324,7 +324,7 @@ export class Fn implements IVal, IFnLike {
 }
 
 export class Vec implements IVal, IFnLike {
-	public readonly type: 'vec' = 'vec'
+	public readonly type = 'vec' as const
 
 	private constructor(
 		public readonly items: Value[],
@@ -412,7 +412,7 @@ export class Vec implements IVal, IFnLike {
 }
 
 export class Dict implements IVal, IFnLike {
-	public readonly type: 'dict' = 'dict'
+	public readonly type = 'dict' as const
 	private constructor(public readonly items: Record<string, Value>) {}
 
 	public get defaultValue(): Value {
@@ -474,7 +474,7 @@ interface TyDictLike {
 }
 
 export class TyDict implements IVal {
-	public readonly type: 'tyDict' = 'tyDict'
+	public readonly type = 'tyDict' as const
 	public readonly defaultValue = this
 
 	private constructor(
@@ -560,7 +560,7 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 }
 
 export class TyVar implements IVal {
-	public readonly type: 'tyVar' = 'tyVar'
+	public readonly type = 'tyVar' as const
 	public readonly defaultValue = Bottom.instance
 
 	private constructor(
@@ -608,7 +608,7 @@ export class TyVar implements IVal {
 }
 
 export class TyFn implements IVal, ITyFn {
-	public readonly type: 'tyFn' = 'tyFn'
+	public readonly type = 'tyFn' as const
 
 	public readonly tyFn = this
 
@@ -667,7 +667,7 @@ export class TyFn implements IVal, ITyFn {
 }
 
 export class TyUnion implements IVal {
-	public readonly type: 'tyUnion' = 'tyUnion'
+	public readonly type = 'tyUnion' as const
 	public readonly defaultValue!: Value
 
 	private constructor(
@@ -711,7 +711,7 @@ export class TyUnion implements IVal {
 }
 
 export class TyAtom<T = any> implements IVal {
-	public readonly type: 'tyAtom' = 'tyAtom'
+	public readonly type = 'tyAtom' as const
 	private constructor(
 		private readonly uid: string,
 		public readonly defaultValue: Int | Str | Atom<T>
@@ -753,7 +753,7 @@ export class TyAtom<T = any> implements IVal {
 }
 
 export class TyValue implements IVal {
-	public readonly type: 'tyValue' = 'tyValue'
+	public readonly type = 'tyValue' as const
 	private constructor(
 		public readonly value:
 			| Vec
@@ -789,7 +789,7 @@ export class TyValue implements IVal {
 }
 
 export class Enum implements IVal {
-	public readonly type: 'enum' = 'enum'
+	public readonly type = 'enum' as const
 	public readonly defaultValue: Enum = this
 	public readonly superType!: TyEnum
 
@@ -820,7 +820,7 @@ export class Enum implements IVal {
 }
 
 export class TyEnum implements IVal {
-	public readonly type: 'tyEnum' = 'tyEnum'
+	public readonly type = 'tyEnum' as const
 	public readonly defaultValue!: Enum
 
 	public constructor(

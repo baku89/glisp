@@ -30,7 +30,7 @@ abstract class BaseNode {
 type Env = Map<Fn, Record<string, Node>>
 
 export class Sym extends BaseNode {
-	public readonly type: 'sym' = 'sym'
+	public readonly type = 'sym' as const
 
 	private constructor(public name: string) {
 		super()
@@ -80,7 +80,7 @@ export class Sym extends BaseNode {
 }
 
 export class Obj extends BaseNode {
-	public readonly type: 'obj' = 'obj'
+	public readonly type = 'obj' as const
 
 	private constructor(public value: Val.Value, public asType: boolean) {
 		super()
@@ -111,7 +111,7 @@ export class Obj extends BaseNode {
 }
 
 export class Fn extends BaseNode {
-	public readonly type: 'fn' = 'fn'
+	public readonly type = 'fn' as const
 
 	private constructor(public param: Record<string, Node>, public body: Node) {
 		super()
@@ -165,7 +165,7 @@ export class Fn extends BaseNode {
 }
 
 export class TyFn extends BaseNode {
-	public readonly type: 'tyFn' = 'tyFn'
+	public readonly type = 'tyFn' as const
 
 	private constructor(public tyParam: Node[], public out: Node) {
 		super()
@@ -209,7 +209,7 @@ export class TyFn extends BaseNode {
 }
 
 export class Vec extends BaseNode {
-	public readonly type: 'vec' = 'vec'
+	public readonly type = 'vec' as const
 
 	private constructor(public items: Node[], public rest: Node | null = null) {
 		super()
@@ -259,7 +259,7 @@ export class Vec extends BaseNode {
 }
 
 export class Dict extends BaseNode {
-	public readonly type: 'dict' = 'dict'
+	public readonly type = 'dict' as const
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Node}>,
@@ -310,7 +310,7 @@ export class Dict extends BaseNode {
 }
 
 export class App extends BaseNode {
-	public readonly type: 'app' = 'app'
+	public readonly type = 'app' as const
 
 	private constructor(public fn: Node, public args: Node[]) {
 		super()
@@ -410,7 +410,7 @@ export class App extends BaseNode {
 }
 
 export class Scope extends BaseNode {
-	public readonly type: 'scope' = 'scope'
+	public readonly type = 'scope' as const
 
 	private constructor(
 		public vars: Record<string, Node>,
