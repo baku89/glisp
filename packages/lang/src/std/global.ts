@@ -92,6 +92,7 @@ export const GlobalScope = scope({
 			Val.fn(
 				(x: Val.Value) => {
 					const [fx, fLog] = f.fn(x).asTuple
+					if (fx.type === 'bottom') return Writer.of(fx, ...fLog)
 					const [gx, gLog] = g.fn(fx).asTuple
 					return Writer.of(gx, ...fLog, ...gLog)
 				},
