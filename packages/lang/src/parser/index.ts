@@ -23,7 +23,7 @@ All "All" = "_" { return Exp.obj(Val.all) }
 
 Sym "Sym" = SymIdent / SymQuoted
 
-SymIdent = !(Reserved End) $([^0-9()[\\]{}\\:\`"] [^()[\\]{}\\:\`" \\t\\n\\r]*)
+SymIdent = !(Reserved End) !(Digit / Delimiter / Whitespace) . (!(Delimiter / Whitespace) .)*
 	{
 		return Exp.sym(text())
 	}
@@ -102,11 +102,15 @@ Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 		return Exp.dictFrom(Object.fromEntries(entries), rest)
 	}
 
-DictEntry = k:(SymIdent / Str) _ optional:"?"? _ ":" _ value:Node _
+DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
 	{
-		const key = k.type === 'sym' ? k.name : k.value.value
 		const field = {optional: !!optional, value}
-		return [key, field]
+		return [key.value.value, field]
+	}
+
+DictKey = (!(Whitespace / Delimiter) .)+
+	{
+		return Exp.str(text())
 	}
 
 Rest = "..." _ rest:Node _ { return rest }
@@ -125,10 +129,15 @@ ScopePair = s:Sym _ "=" _ node:Node _
 _ "whitespace" = Whitespace*
 __ "whitespace" = Whitespace+
 
+Delimiter = [()[\\]{}\\:\`"]
+
+Digit = [0-9]
+
 EOF = _ !.
 End = EOF / Whitespace / [()[\\]{}\\:]
 
-Whitespace = $[ \\t\\n\\r]
+Whitespace = [ \\t\\n\\r]
+
 `
 
 const parserSource = peggy.generate(parserDefinition, {
