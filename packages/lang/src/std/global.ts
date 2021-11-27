@@ -1,3 +1,4 @@
+import * as Exp from '../Exp'
 import {obj, scope} from '../exp'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
@@ -127,11 +128,30 @@ export const GlobalScope = scope({
 	map: obj(
 		Val.fn(
 			(f: Val.Fn, coll: Val.Vec) => {
-				const [newItems, log] = Writer.map(coll.items, f.fn).asTuple
+				const [newItems, log] = Writer.map(coll.items, it =>
+					it.type === 'bottom' ? Writer.of<Val.Value, Exp.Log>(it) : f.fn(it)
+				).asTuple
 				return Writer.of(Val.vecFrom(newItems), ...log)
 			},
 			{f: Val.tyFn(T, U), coll: Val.vecFrom([], T)},
 			Val.vecFrom([], U)
+		)
+	),
+	reduce: obj(
+		Val.fn(
+			(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
+				const logs: Exp.Log[] = []
+				const ret = coll.items.reduce((p: Val.Value, c: Val.Value) => {
+					const _p = p.type === 'bottom' ? f.tyFn.tyParam[0].defaultValue : p
+					const _c = c.type === 'bottom' ? f.tyFn.tyParam[1].defaultValue : c
+					const [r, l] = f.fn(_p, _c).asTuple
+					logs.push(...l)
+					return r
+				}, initial)
+				return Writer.of(ret, ...logs)
+			},
+			{f: Val.tyFn([U, T], U), coll: Val.vecFrom([], T), initial: U},
+			U
 		)
 	),
 	'subtype?': defn(
