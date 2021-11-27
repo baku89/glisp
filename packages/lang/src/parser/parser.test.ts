@@ -1,6 +1,7 @@
 import {
 	app,
 	dict,
+	dictFrom,
 	fn,
 	int,
 	isEqual,
@@ -90,6 +91,7 @@ describe('parsing dictionary', () => {
 	testParsing('{a: A b: B}', dict({a: sym('A'), b: sym('B')}))
 	testParsing('{a: {a: 1}}', dict({a: dict({a: int(1)})}))
 	testParsing('{{}}', scope({}, dict({})))
+	testParsing('{a?: 10}', dictFrom({a: {optional: true, value: int(10)}}))
 })
 
 describe('parsing function definition', () => {
