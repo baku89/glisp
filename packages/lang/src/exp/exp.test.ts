@@ -23,7 +23,7 @@ describe('evaluating a simple expression', () => {
 	testEval('(if true 1 false)', Val.int(1))
 	testEval('(< 4 (if true 1 2))', Val.bool(false))
 	testEval('(not true)', Val.bool(false))
-	testEval('(even? 2)', Val.bool(true))
+	testEval('(isEven 2)', Val.bool(true))
 })
 
 describe('evaluating anonymous function application', () => {
@@ -31,8 +31,8 @@ describe('evaluating anonymous function application', () => {
 })
 
 describe('evaluating higher-order function application', () => {
-	testEval('((. inc even?) 1)', Val.bool(true))
-	testEval('((. inc even?) 2)', Val.bool(false))
+	testEval('((. inc isEven) 1)', Val.bool(true))
+	testEval('((. inc isEven) 2)', Val.bool(false))
 	testEval('((twice inc) 1)', Val.int(3))
 	testEval('((. id id) 1)', Val.int(1))
 })
@@ -75,7 +75,7 @@ describe('inferring vectors', () => {
 	testInfer('[1 2 3]', Val.vec(i1, i2, i3))
 	testInfer('[Int]', Val.vec(Val.tyValue(Val.tyInt)))
 	testInfer('[(inc 0)]', Val.vec(Val.tyInt))
-	testInfer('[(. inc even?)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
+	testInfer('[(. inc isEven)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
 	testInfer('[...1]', Val.tyValue(Val.vecFrom([], i1)))
 	testInfer('[...Int]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyInt))))
 	testInfer('[...Bool]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyBool))))
@@ -109,8 +109,8 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('(+ (id 1) (id 2))', Val.tyInt)
 	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyInt)
 	testInfer('(id (id 1))', Val.int(1))
-	testInfer('(. inc even?)', Val.tyFn(Val.tyInt, Val.tyBool))
-	testInfer('((. inc even?) 1)', Val.tyBool)
+	testInfer('(. inc isEven)', Val.tyFn(Val.tyInt, Val.tyBool))
+	testInfer('((. inc isEven) 1)', Val.tyBool)
 	testInfer('(twice inc)', Val.tyFn(Val.tyInt, Val.tyInt))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
 	testInfer('(twice (twice inc))', Val.tyFn(Val.tyInt, Val.tyInt))

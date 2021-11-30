@@ -27,7 +27,7 @@ export const GlobalScope = scope({
 		{x: Val.tyInt},
 		Val.tyInt
 	),
-	'even?': defn(
+	isEven: defn(
 		(x: Val.Int) => Val.bool(x.value % 2 === 0),
 		{x: Val.tyInt},
 		Val.tyBool
@@ -155,7 +155,7 @@ export const GlobalScope = scope({
 			U
 		)
 	),
-	'subtype?': defn(
+	isSubtype: defn(
 		(s: Val.Value, t: Val.Value) => Val.bool(s.isSubtypeOf(t)),
 		{s: Val.all, t: Val.all},
 		Val.tyBool
