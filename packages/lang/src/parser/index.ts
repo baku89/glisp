@@ -129,7 +129,7 @@ ScopePair = s:Sym _ "=" _ node:Node _
 _ "whitespace" = Whitespace*
 __ "whitespace" = Whitespace+
 
-Delimiter = [()[\\]{}\\:\`"]
+Delimiter = [()[\\]{}\\:\`"?]
 
 Digit = [0-9]
 
