@@ -14,7 +14,7 @@ import {
 	vec,
 	vecFrom,
 } from '../exp'
-import {all, bottom} from '../val'
+import {all, bottom, tyVar} from '../val'
 import {parse} from '.'
 
 const Int = sym('Int')
@@ -35,6 +35,7 @@ describe('parsing literals', () => {
 	testParsing(' () ', obj(bottom))
 	testParsing(' (  \t   ) ', obj(bottom))
 	testParsing(' _ ', obj(all))
+	testParsing('<T>', obj(tyVar('T')))
 })
 
 describe('parsing symbols', () => {
@@ -49,9 +50,16 @@ describe('parsing symbols', () => {
 	run('`    `', '    ')
 	run('`_`', '_')
 	run('`( )`', '( )')
+	run('symbol?', null)
+	run('10deg', null)
+	run('->', null)
 
-	function run(input: string, expected: string) {
-		testParsing(input, sym(expected))
+	function run(input: string, expected: string | null) {
+		if (expected) {
+			testParsing(input, sym(expected))
+		} else {
+			testErrorParsing(input)
+		}
 	}
 })
 
@@ -124,6 +132,17 @@ function testParsing(input: string, expected: Node) {
 		const result = parse(input)
 		if (!isEqual(result, expected)) {
 			throw new Error('Got=' + result.print())
+		}
+	})
+}
+
+function testErrorParsing(input: string) {
+	test(`parsing '${input}' throws an error`, () => {
+		try {
+			const result = parse(input)
+			throw new Error('Unexpectedly parsed as ' + result.print())
+		} catch {
+			return
 		}
 	})
 }
