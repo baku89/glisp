@@ -59,7 +59,7 @@ export class Sym extends BaseNode {
 			reason: 'Variable not bound: ' + this.name,
 		}
 
-		return Writer.of(Obj.of(Val.bottom), log)
+		return Writer.of(Obj.of(Val.unit), log)
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -441,6 +441,16 @@ export class Scope extends BaseNode {
 		const scope = new Scope(vars, out)
 		scope.parent = this
 		return scope
+	}
+
+	public def(name: string, exp: Node) {
+		if (name in this.vars)
+			throw new Error(`Variable '${name}' is already defined`)
+
+		exp.parent = this
+		this.vars[name] = exp
+
+		return this
 	}
 
 	public static of(vars: Record<string, Node>, out: Node | null = null) {
