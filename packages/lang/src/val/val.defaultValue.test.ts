@@ -1,4 +1,5 @@
 import {parse} from '../parser'
+import {GlobalScope} from '../std/global'
 
 describe('default values of types', () => {
 	run('1', '1')
@@ -36,5 +37,8 @@ describe('default values of types', () => {
 })
 
 function parseEval(input: string) {
-	return parse(input).eval().result
+	const exp = parse(input)
+	exp.parent = GlobalScope
+
+	return exp.eval().result
 }

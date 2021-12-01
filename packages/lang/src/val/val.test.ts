@@ -1,4 +1,5 @@
 import {parse} from '../parser'
+import {GlobalScope} from '../std/global'
 import {Writer} from '../utils/Writer'
 import * as Val from '.'
 
@@ -104,7 +105,11 @@ describe('subtyping', () => {
 	run('{a:_|_}', '{a:Num}', true)
 
 	function parseEval(input: Val.Value | string) {
-		if (typeof input === 'string') return parse(input).eval().result
+		if (typeof input === 'string') {
+			const exp = parse(input)
+			exp.parent = GlobalScope
+			return exp.eval().result
+		}
 		return input
 	}
 

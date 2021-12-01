@@ -1,7 +1,6 @@
 import peggy from 'peggy'
 
 import * as Exp from '../exp'
-import {GlobalScope} from '../std/global'
 import * as Val from '../val'
 
 const parserDefinition = `
@@ -153,8 +152,6 @@ const parser = eval(parserSource)
 export function parse(str: string): Exp.Node {
 	const exp: Exp.Node | undefined = parser.parse(str)
 	if (!exp) return Exp.obj(Val.bottom)
-
-	exp.parent = GlobalScope
 
 	return exp
 }

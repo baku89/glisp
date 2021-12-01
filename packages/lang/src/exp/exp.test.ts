@@ -136,12 +136,14 @@ describe('inferring invalid expression', () => {
 })
 
 function parse(input: string | Exp.Node): Exp.Node {
+	let exp: Exp.Node
 	if (typeof input === 'string') {
-		return Parser.parse(input)
+		exp = Parser.parse(input)
 	} else {
-		input.parent = GlobalScope
-		return input
+		exp = input
 	}
+	exp.parent = GlobalScope
+	return exp
 }
 
 function testEval(
