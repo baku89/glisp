@@ -1,4 +1,5 @@
 import * as Exp from '../exp'
+import {parse} from '../parser'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -22,12 +23,6 @@ export const GlobalScope = Exp.scope({
 	Num: Exp.obj(Val.tyNum),
 	Str: Exp.obj(Val.tyStr),
 	Bool: Exp.obj(Val.tyBool),
-	inc: defn((x: Val.Num) => Val.num(x.value + 1), {x: Val.tyNum}, Val.tyNum),
-	dec: defn(
-		(x: Val.Num) => Val.num(Math.max(x.value - 1, 0)),
-		{x: Val.tyNum},
-		Val.tyNum
-	),
 	isEven: defn(
 		(x: Val.Num) => Val.bool(x.value % 2 === 0),
 		{x: Val.tyNum},
@@ -88,34 +83,6 @@ export const GlobalScope = Exp.scope({
 		T
 	),
 	const: defn((x: Val.Value) => Val.fn(() => Writer.of(x), {}, T), {x: T}, T),
-	'.': defn(
-		(f: Val.Fn, g: Val.Fn) =>
-			Val.fn(
-				(x: Val.Value) => {
-					const [fx, fLog] = f.fn(x).asTuple
-					const [gx, gLog] = g.fn(fx).asTuple
-					return Writer.of(gx, ...fLog, ...gLog)
-				},
-				{x: T},
-				V
-			),
-		{f: Val.tyFn(T, U), g: Val.tyFn(U, V)},
-		Val.tyFn(T, V)
-	),
-	twice: defn(
-		(f: Val.Fn) =>
-			Val.fn(
-				(x: Val.Value) => {
-					const [fx, fLog] = f.fn(x).asTuple
-					const [ffx, ffLog] = f.fn(fx).asTuple
-					return Writer.of(ffx, ...fLog, ...ffLog)
-				},
-				{x: T},
-				T
-			),
-		{f: Val.tyFn(T, T)},
-		Val.tyFn(T, T)
-	),
 	first: defn(
 		(coll: Val.Vec) => coll.items[0] ?? Val.bottom,
 		{coll: Val.vecFrom([], T)},
@@ -175,3 +142,13 @@ export const GlobalScope = Exp.scope({
 		Val.tyFn(T, Val.uniteTy(Val.unit, V))
 	),
 })
+
+GlobalScope.def(
+	'.',
+	parse('(=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))')
+)
+
+GlobalScope.def('twice', parse('(=> f:(-> <T> <T>) (=> x:<T> (f (f x))))'))
+
+GlobalScope.def('inc', parse('(=> x:Num (+ x 1))'))
+GlobalScope.def('dec', parse('(=> x:Num (+ x -1))'))
