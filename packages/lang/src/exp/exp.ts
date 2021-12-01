@@ -149,7 +149,7 @@ export class Fn extends BaseNode {
 	}
 
 	public print(): string {
-		const params = entries(this.param).map(([k, v]) => k + ': ' + v.print())
+		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 		const body = this.body.print()
 

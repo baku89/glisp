@@ -329,7 +329,7 @@ export class Fn implements IVal, IFnLike {
 	}
 
 	public print = (): string => {
-		const params = entries(this.param).map(([n, ty]) => n + ': ' + ty.print())
+		const params = entries(this.param).map(([n, ty]) => n + ':' + ty.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 
 		const body = this.body?.print() ?? '(js code)'
