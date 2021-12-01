@@ -155,4 +155,22 @@ export const GlobalScope = scope({
 		{s: Val.all, t: Val.all},
 		Val.tyBool
 	),
+	bindMaybe: defn(
+		(f: Val.Fn, g: Val.Fn) =>
+			Val.fn(
+				(x: Val.Value) => {
+					const [fx, fLog] = f.fn(x).asTuple
+					if (fx.type === 'unit') return Writer.of(fx, ...fLog)
+					const [gx, gLog] = g.fn(fx).asTuple
+					return Writer.of(gx, ...fLog, ...gLog)
+				},
+				{x: T},
+				Val.uniteTy(Val.unit, V)
+			),
+		{
+			f: Val.tyFn(T, Val.uniteTy(Val.unit, U)),
+			g: Val.tyFn(U, Val.uniteTy(Val.unit, V)),
+		},
+		Val.tyFn(T, Val.uniteTy(Val.unit, V))
+	),
 })
