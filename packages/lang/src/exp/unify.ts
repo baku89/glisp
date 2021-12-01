@@ -233,6 +233,25 @@ export class RangedUnifier {
 			this.addConsts([...cItems, ...cRest])
 		}
 
+		// ST-Union
+		if (t.type === 'tyUnion') {
+			const uTypes = u.type === 'tyUnion' ? u.types : [u]
+
+			const cUnion: Const[] = t.types.map(ti => {
+				const tOthers = t.types.filter(t => ti !== t)
+
+				const uSubtractedTypes = uTypes.filter(
+					ut => !tOthers.some(ut.isSubtypeOf)
+				)
+
+				const ui = Val.uniteTy(...uSubtractedTypes)
+
+				return [ti, R, ui]
+			})
+
+			this.addConsts([...cUnion])
+		}
+
 		if (t.type === 'tyVar') {
 			if (getTyVars(u).has(t)) throw new Error('Occur check')
 
@@ -258,6 +277,10 @@ export class RangedUnifier {
 				const param = val.tyParam.map(p => this.substitute(p, !covariant))
 				const out = this.substitute(val.tyOut)
 				return Val.tyFn(param, out)
+			}
+			case 'tyUnion': {
+				const types = val.types.map(ty => this.substitute(ty, covariant))
+				return Val.uniteTy(...types)
 			}
 			case 'fn': {
 				const param = mapValues(val.param, p => this.substitute(p, !covariant))
