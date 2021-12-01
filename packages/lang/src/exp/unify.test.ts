@@ -1,12 +1,12 @@
 import _ from 'lodash'
 
 import * as Val from '../val'
-import {getTyVars} from './unify'
+import {Const, getTyVars, RangedUnifier} from './unify'
+
+const T = Val.tyVar('T'),
+	U = Val.tyVar('U')
 
 describe('getTyVars', () => {
-	const T = Val.tyVar('T'),
-		U = Val.tyVar('U')
-
 	run(Val.int(1), [])
 	run(Val.bool(true), [])
 	run(T, [T])
@@ -24,5 +24,39 @@ describe('getTyVars', () => {
 				fail('Got={' + tvs.map(tv => tv.print()).join(', ') + '}')
 			}
 		})
+	}
+})
+
+describe('unifyTyVars', () => {
+	run([[T, '>=', Val.tyInt]], T, Val.tyInt)
+	run(
+		[
+			[T, '>=', Val.unit],
+			[T, '>=', Val.tyInt],
+		],
+		T,
+		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyInt])
+	)
+
+	function run(consts: Const[], tv: Val.TyVar, expected: Val.Value) {
+		const cStr = printConsts(consts)
+		const tvStr = tv.print()
+		const eStr = expected.print()
+		const subst = RangedUnifier.unify(consts)
+		const resolved = subst.substitute(tv)
+
+		test(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
+			if (!resolved.isEqualTo(expected)) {
+				throw new Error('Got=' + resolved.print())
+			}
+		})
+	}
+
+	function printConsts(consts: Const[]) {
+		const strs = consts
+			.map(([s, R, t]) => [s.print(), R, t.print()].join(' '))
+			.join(', ')
+
+		return '{' + strs + '}'
 	}
 })
