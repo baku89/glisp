@@ -15,7 +15,7 @@ Node =
 	Unit / Bottom / All /
 	Fn / TyFn / App /
 	Vec /
-	Int / Str / TyVar / Sym
+	Num / Str / TyVar / Sym
 
 Reserved = "_" / "_|_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
@@ -42,10 +42,10 @@ TyVar = "<" id:$[^>]+ ">"
 		return Exp.obj(Val.tyVar(id))
 	}
 
-Int "Int" = [0-9]+ &End
+Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
 	{
-		const v = parseInt(text())
-		return Exp.int(v)
+		const v = parseFloat(text())
+		return Exp.num(v)
 	}
 
 Str "Str" = '"' value:$(!'"' .)* '"'

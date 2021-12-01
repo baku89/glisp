@@ -119,7 +119,7 @@ export class RangedUnifier {
 		const utvs = getTyVars(u)
 		if (ltvs.size === 0 && utvs.size === 0) {
 			/**
-			 * When both limits have no tyVars (e.g. α |-> [Int, Bool]),
+			 * When both limits have no tyVars (e.g. α |-> [Num, Bool]),
 			 * simply copy lower to upper
 			 **/
 			this.uppers.set(tv, l)

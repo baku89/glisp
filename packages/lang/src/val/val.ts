@@ -18,7 +18,7 @@ export type Value =
 	| Unit
 	| All
 	| Bottom
-	| Int
+	| Num
 	| Str
 	| Atom
 	| Fn
@@ -127,11 +127,11 @@ export class All implements IVal {
 	public static instance = new All()
 }
 
-export class Int implements IVal {
-	public readonly type = 'int' as const
+export class Num implements IVal {
+	public readonly type = 'num' as const
 	public readonly defaultValue = this
 
-	public readonly superType = tyInt
+	public readonly superType = tyNum
 	private constructor(public readonly value: number) {}
 
 	public print = (): string => {
@@ -150,7 +150,7 @@ export class Int implements IVal {
 	}
 
 	public static of(value: number) {
-		return new Int(value)
+		return new Num(value)
 	}
 }
 
@@ -362,7 +362,7 @@ export class Vec implements IVal, IFnLike {
 		return this.items.length
 	}
 
-	public param: Record<string, Value> = {index: tyInt}
+	public param: Record<string, Value> = {index: tyNum}
 	public get out() {
 		return uniteTy(
 			Unit.instance,
@@ -371,9 +371,9 @@ export class Vec implements IVal, IFnLike {
 		)
 	}
 
-	public readonly tyFn = TyFn.of(tyInt, this.out)
+	public readonly tyFn = TyFn.of(tyNum, this.out)
 
-	public readonly fn: IFn = (index: Int) => {
+	public readonly fn: IFn = (index: Num) => {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
 			return Writer.of(Unit.instance, {
@@ -745,7 +745,7 @@ export class TyAtom<T = any> implements IVal {
 	public readonly type = 'tyAtom' as const
 	private constructor(
 		private readonly uid: string,
-		public readonly defaultValue: Int | Str | Atom<T>
+		public readonly defaultValue: Num | Str | Atom<T>
 	) {}
 
 	public print = (): string => {
@@ -767,11 +767,11 @@ export class TyAtom<T = any> implements IVal {
 		return val.type === 'tyAtom' && val.uid === this.uid
 	}
 
-	public extends = <T>(defaultValue: Int | Str | Atom<T>) => {
+	public extends = <T>(defaultValue: Num | Str | Atom<T>) => {
 		return new TyAtom<T>(this.uid, defaultValue)
 	}
 
-	public static ofLiteral(name: string, defaultValue: Int | Str): TyAtom<any> {
+	public static ofLiteral(name: string, defaultValue: Num | Str): TyAtom<any> {
 		const ty = new TyAtom(name, defaultValue)
 		;(defaultValue as any).superType = ty
 		return ty
@@ -902,7 +902,7 @@ export class TyEnum implements IVal {
 	}
 }
 
-export const tyInt = TyAtom.ofLiteral('Int', Int.of(0))
+export const tyNum = TyAtom.ofLiteral('Num', Num.of(0))
 export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
 export const tyBool = TyEnum.of('Bool', ['false', 'true'])
 

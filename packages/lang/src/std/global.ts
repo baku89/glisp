@@ -19,33 +19,33 @@ function defn(
 export const GlobalScope = Exp.scope({
 	true: Exp.obj(Val.bool(true)),
 	false: Exp.obj(Val.bool(false)),
-	Int: Exp.obj(Val.tyInt),
+	Num: Exp.obj(Val.tyNum),
 	Str: Exp.obj(Val.tyStr),
 	Bool: Exp.obj(Val.tyBool),
-	inc: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),
+	inc: defn((x: Val.Num) => Val.num(x.value + 1), {x: Val.tyNum}, Val.tyNum),
 	dec: defn(
-		(x: Val.Int) => Val.int(Math.max(x.value - 1, 0)),
-		{x: Val.tyInt},
-		Val.tyInt
+		(x: Val.Num) => Val.num(Math.max(x.value - 1, 0)),
+		{x: Val.tyNum},
+		Val.tyNum
 	),
 	isEven: defn(
-		(x: Val.Int) => Val.bool(x.value % 2 === 0),
-		{x: Val.tyInt},
+		(x: Val.Num) => Val.bool(x.value % 2 === 0),
+		{x: Val.tyNum},
 		Val.tyBool
 	),
 	'+': defn(
-		(a: Val.Int, b: Val.Int) => Val.int(a.value + b.value),
-		{x: Val.tyInt, y: Val.tyInt},
-		Val.tyInt
+		(a: Val.Num, b: Val.Num) => Val.num(a.value + b.value),
+		{x: Val.tyNum, y: Val.tyNum},
+		Val.tyNum
 	),
 	'*': defn(
-		(a: Val.Int, b: Val.Int) => Val.int(a.value * b.value),
-		{x: Val.tyInt.extends(Val.int(1)), y: Val.tyInt.extends(Val.int(1))},
-		Val.tyInt
+		(a: Val.Num, b: Val.Num) => Val.num(a.value * b.value),
+		{x: Val.tyNum.extends(Val.num(1)), y: Val.tyNum.extends(Val.num(1))},
+		Val.tyNum
 	),
 	'<': defn(
-		(a: Val.Int, b: Val.Int) => Val.bool(a.value < b.value),
-		{x: Val.tyInt, y: Val.tyInt},
+		(a: Val.Num, b: Val.Num) => Val.bool(a.value < b.value),
+		{x: Val.tyNum, y: Val.tyNum},
 		Val.tyBool
 	),
 	'==': defn(

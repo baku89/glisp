@@ -7,7 +7,7 @@ import {
 	Enum,
 	Fn,
 	IFn,
-	Int,
+	Num,
 	Prod,
 	Str,
 	TyAtom,
@@ -15,7 +15,7 @@ import {
 	TyDict,
 	TyEnum,
 	TyFn,
-	tyInt,
+	tyNum,
 	TyProd,
 	tyStr,
 	TyUnion,
@@ -28,11 +28,11 @@ import {
 
 export {Value}
 
-export {All, Bottom, Fn, Int, Str, Vec, Dict, TyDict}
+export {All, Bottom, Fn, Num, Str, Vec, Dict, TyDict}
 
 export {TyAtom, TyFn, TyUnion, TyValue, TyVar}
 
-export {tyInt, tyStr}
+export {tyNum, tyStr}
 
 const True = tyBool.getEnum('true')
 const False = tyBool.getEnum('false')
@@ -48,7 +48,7 @@ export {TyProd, Prod}
 export const unit = Unit.instance
 export const all = All.instance
 export const bottom = Bottom.instance
-export const int = Int.of
+export const num = Num.of
 export const str = Str.of
 export const atom = Atom.of
 export const bool = (v: boolean) => (v ? True : False)

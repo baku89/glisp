@@ -7,7 +7,7 @@ const T = Val.tyVar('T'),
 	U = Val.tyVar('U')
 
 describe('getTyVars', () => {
-	run(Val.int(1), [])
+	run(Val.num(1), [])
 	run(Val.bool(true), [])
 	run(T, [T])
 	run(Val.uniteTy(T, U), [T, U])
@@ -28,14 +28,14 @@ describe('getTyVars', () => {
 })
 
 describe('unifyTyVars', () => {
-	run([[T, '>=', Val.tyInt]], T, Val.tyInt)
+	run([[T, '>=', Val.tyNum]], T, Val.tyNum)
 	run(
 		[
 			[T, '>=', Val.unit],
-			[T, '>=', Val.tyInt],
+			[T, '>=', Val.tyNum],
 		],
 		T,
-		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyInt])
+		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
 	)
 
 	function run(consts: Const[], tv: Val.TyVar, expected: Val.Value) {

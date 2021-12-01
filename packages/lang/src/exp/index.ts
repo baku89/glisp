@@ -38,7 +38,7 @@ export const vecFrom = Vec.from
 export const app = App.of
 export const scope = Scope.of
 
-export const int = (v: number) => Obj.of(Val.int(v))
+export const num = (v: number) => Obj.of(Val.num(v))
 export const str = (v: string) => Obj.of(Val.str(v))
 
 export function isEqual(a: Node, b: Node): boolean {

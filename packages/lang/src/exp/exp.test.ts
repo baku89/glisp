@@ -7,91 +7,91 @@ const T = Val.tyVar('T')
 const U = Val.tyVar('U')
 
 describe('evaluating literals', () => {
-	testEval(Exp.int(0), Val.int(0))
-	testEval(Exp.int(10), Val.int(10))
+	testEval(Exp.num(0), Val.num(0))
+	testEval(Exp.num(10), Val.num(10))
 	testEval(Exp.obj(Val.bool(false)), Val.bool(false))
 	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
 	testEval(Exp.obj(Val.unit), Val.unit)
 	testEval(Exp.obj(Val.bottom), Val.bottom)
-	testEval('(-> Int Int)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testEval('(-> Num Num)', Val.tyFn(Val.tyNum, Val.tyNum))
 })
 
 describe('evaluating a simple expression', () => {
-	testEval('(+ 1 2)', Val.int(3))
-	testEval('(* 1 2)', Val.int(2))
+	testEval('(+ 1 2)', Val.num(3))
+	testEval('(* 1 2)', Val.num(2))
 	testEval('(< 1 2)', Val.bool(true))
-	testEval('{a = 10 a}', Val.int(10))
-	testEval('(if true 1 false)', Val.int(1))
+	testEval('{a = 10 a}', Val.num(10))
+	testEval('(if true 1 false)', Val.num(1))
 	testEval('(< 4 (if true 1 2))', Val.bool(false))
 	testEval('(not true)', Val.bool(false))
 	testEval('(isEven 2)', Val.bool(true))
-	testEval('(| () Int)', Val.uniteTy(Val.unit, Val.tyInt))
+	testEval('(| () Num)', Val.uniteTy(Val.unit, Val.tyNum))
 })
 
 describe('evaluating anonymous function application', () => {
-	testEval('((=> x:Int (* x x)) 12)', Val.int(144))
+	testEval('((=> x:Num (* x x)) 12)', Val.num(144))
 })
 
 describe('evaluating higher-order function application', () => {
 	testEval('((. inc isEven) 1)', Val.bool(true))
 	testEval('((. inc isEven) 2)', Val.bool(false))
-	testEval('((twice inc) 1)', Val.int(3))
-	testEval('((. id id) 1)', Val.int(1))
+	testEval('((twice inc) 1)', Val.num(3))
+	testEval('((. id id) 1)', Val.num(1))
 })
 
 describe('evaluating vectors', () => {
 	testEval('[]', Val.vec())
-	testEval('[1 true]', Val.vec(Val.int(1), Val.bool(true)))
-	testEval('[(+ 1 2)]', Val.vec(Val.int(3)))
+	testEval('[1 true]', Val.vec(Val.num(1), Val.bool(true)))
+	testEval('[(+ 1 2)]', Val.vec(Val.num(3)))
 	testEval('[[[]]]', Val.vec(Val.vec(Val.vec())))
-	testEval('([0 1 2 3 4 5] 2)', Val.int(2))
+	testEval('([0 1 2 3 4 5] 2)', Val.num(2))
 	testEval('([0 1 2 3 4 5] 10)', Val.unit, true)
 	testEval('([true false] 0)', Val.bool(true))
-	testEval('(id [1])', Val.vec(Val.int(1)))
+	testEval('(id [1])', Val.vec(Val.num(1)))
 })
 
 describe('evaluating function application with unit arguments', () => {
-	testEval('(+ 7 ())', Val.int(7))
-	testEval('(* 2 ())', Val.int(2))
+	testEval('(+ 7 ())', Val.num(7))
+	testEval('(* 2 ())', Val.num(2))
 
 	testEval('(and true ())', Val.bool(true))
 	testEval('(or () false)', Val.bool(false))
 })
 
 describe('inferring a type', () => {
-	testInfer(Exp.int(0), Val.int(0))
+	testInfer(Exp.num(0), Val.num(0))
 	testInfer(Exp.obj(Val.bool(false)), Val.bool(false))
-	testInfer(Exp.sym('Int'), Val.tyValue(Val.tyInt))
-	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
+	testInfer(Exp.sym('Num'), Val.tyValue(Val.tyNum))
+	testInfer(Exp.obj(Val.tyValue(Val.tyNum)), Val.tyValue(Val.tyNum))
 	testInfer(Exp.obj(Val.unit), Val.unit)
 	testInfer('(not true)', Val.tyBool)
 })
 
 describe('inferring vectors', () => {
-	const i1 = Val.int(1)
-	const i2 = Val.int(2)
-	const i3 = Val.int(3)
+	const i1 = Val.num(1)
+	const i2 = Val.num(2)
+	const i3 = Val.num(3)
 
 	testInfer('[]', Val.vec())
 	testInfer('[1 2 3]', Val.vec(i1, i2, i3))
-	testInfer('[Int]', Val.vec(Val.tyValue(Val.tyInt)))
-	testInfer('[(inc 0)]', Val.vec(Val.tyInt))
-	testInfer('[(. inc isEven)]', Val.vec(Val.tyFn(Val.tyInt, Val.tyBool)))
+	testInfer('[Num]', Val.vec(Val.tyValue(Val.tyNum)))
+	testInfer('[(inc 0)]', Val.vec(Val.tyNum))
+	testInfer('[(. inc isEven)]', Val.vec(Val.tyFn(Val.tyNum, Val.tyBool)))
 	testInfer('[...1]', Val.tyValue(Val.vecFrom([], i1)))
-	testInfer('[...Int]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyInt))))
+	testInfer('[...Num]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyNum))))
 	testInfer('[...Bool]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyBool))))
 	testInfer(
-		'[Int Bool]',
-		Val.vec(Val.tyValue(Val.tyInt), Val.tyValue(Val.tyBool))
+		'[Num Bool]',
+		Val.vec(Val.tyValue(Val.tyNum), Val.tyValue(Val.tyBool))
 	)
 	testInfer(
-		'[Int ...Bool]',
-		Val.tyValue(Val.vecFrom([Val.tyValue(Val.tyInt)], Val.tyValue(Val.tyBool)))
+		'[Num ...Bool]',
+		Val.tyValue(Val.vecFrom([Val.tyValue(Val.tyNum)], Val.tyValue(Val.tyBool)))
 	)
 })
 
 describe('inferring a type of function', () => {
-	testInfer('(=> x:Int x)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(=> x:Num x)', Val.tyFn(Val.tyNum, Val.tyNum))
 	testInfer('(=> x:<T> x)', Val.tyFn(T, T))
 	testInfer(
 		'(=> (x:<T> y:<U>) (if true x y))',
@@ -104,35 +104,35 @@ describe('inferring a type of function', () => {
 })
 
 describe('inferring a type of polymorphic function application', () => {
-	testInfer('(id 1)', Val.int(1))
-	testInfer('(if true 1 2)', Val.uniteTy(Val.int(1), Val.int(2)))
-	testInfer('(id (+ 1 2))', Val.tyInt)
-	testInfer('(+ (id 1) (id 2))', Val.tyInt)
-	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyInt)
-	testInfer('(id (id 1))', Val.int(1))
-	testInfer('(. inc isEven)', Val.tyFn(Val.tyInt, Val.tyBool))
+	testInfer('(id 1)', Val.num(1))
+	testInfer('(if true 1 2)', Val.uniteTy(Val.num(1), Val.num(2)))
+	testInfer('(id (+ 1 2))', Val.tyNum)
+	testInfer('(+ (id 1) (id 2))', Val.tyNum)
+	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyNum)
+	testInfer('(id (id 1))', Val.num(1))
+	testInfer('(. inc isEven)', Val.tyFn(Val.tyNum, Val.tyBool))
 	testInfer('((. inc isEven) 1)', Val.tyBool)
-	testInfer('(twice inc)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(twice inc)', Val.tyFn(Val.tyNum, Val.tyNum))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
-	testInfer('(twice (twice inc))', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(twice (twice inc))', Val.tyFn(Val.tyNum, Val.tyNum))
 	testInfer('(twice (twice not))', Val.tyFn(Val.tyBool, Val.tyBool))
 	testInfer(
 		'(if ((twice not) true) ((twice inc) 1) ((twice inc) 2))',
-		Val.tyInt
+		Val.tyNum
 	)
 	testInfer('(twice id)', Val.tyFn(T, T))
 	testInfer('(. id id)', Val.tyFn(T, T))
-	testInfer('(. id inc)', Val.tyFn(Val.tyInt, Val.tyInt))
-	testInfer('(. inc id)', Val.tyFn(Val.tyInt, Val.tyInt))
+	testInfer('(. id inc)', Val.tyFn(Val.tyNum, Val.tyNum))
+	testInfer('(. inc id)', Val.tyFn(Val.tyNum, Val.tyNum))
 	testInfer('(. twice id)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 	testInfer('(. id twice)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 })
 
 describe('inferring invalid expression', () => {
-	testInfer('(. inc)', Val.tyFn(Val.tyInt, Val.bottom))
-	testInfer('(. () inc)', Val.tyFn(Val.all, Val.tyInt))
-	testInfer('(. not inc)', Val.tyFn(Val.tyBool, Val.tyInt))
-	testInfer('(. inc not)', Val.tyFn(Val.tyInt, Val.tyBool))
+	testInfer('(. inc)', Val.tyFn(Val.tyNum, Val.bottom))
+	testInfer('(. () inc)', Val.tyFn(Val.all, Val.tyNum))
+	testInfer('(. not inc)', Val.tyFn(Val.tyBool, Val.tyNum))
+	testInfer('(. inc not)', Val.tyFn(Val.tyNum, Val.tyBool))
 })
 
 function parse(input: string | Exp.Node): Exp.Node {
