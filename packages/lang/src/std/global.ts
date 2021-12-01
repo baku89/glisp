@@ -1,5 +1,4 @@
-import * as Exp from '../Exp'
-import {obj, scope} from '../exp'
+import * as Exp from '../exp'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -12,15 +11,17 @@ function defn(
 	param: Record<string, Val.Value>,
 	out: Val.Value
 ) {
-	return obj(Val.fn((...args: any[]) => Writer.of(value(...args)), param, out))
+	return Exp.obj(
+		Val.fn((...args: any[]) => Writer.of(value(...args)), param, out)
+	)
 }
 
-export const GlobalScope = scope({
-	true: obj(Val.bool(true)),
-	false: obj(Val.bool(false)),
-	Int: obj(Val.tyInt),
-	Str: obj(Val.tyStr),
-	Bool: obj(Val.tyBool),
+export const GlobalScope = Exp.scope({
+	true: Exp.obj(Val.bool(true)),
+	false: Exp.obj(Val.bool(false)),
+	Int: Exp.obj(Val.tyInt),
+	Str: Exp.obj(Val.tyStr),
+	Bool: Exp.obj(Val.tyBool),
 	inc: defn((x: Val.Int) => Val.int(x.value + 1), {x: Val.tyInt}, Val.tyInt),
 	dec: defn(
 		(x: Val.Int) => Val.int(Math.max(x.value - 1, 0)),
@@ -125,7 +126,7 @@ export const GlobalScope = scope({
 		{coll: Val.vecFrom([], T)},
 		Val.vecFrom([], T)
 	),
-	map: obj(
+	map: Exp.obj(
 		Val.fn(
 			(f: Val.Fn, coll: Val.Vec) => {
 				const [newItems, log] = Writer.map(coll.items, f.fn).asTuple
@@ -135,7 +136,7 @@ export const GlobalScope = scope({
 			Val.vecFrom([], U)
 		)
 	),
-	reduce: obj(
+	reduce: Exp.obj(
 		Val.fn(
 			(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
 				const logs: Exp.Log[] = []
