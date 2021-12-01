@@ -15,6 +15,7 @@ import {zip} from '../utils/zip'
 import {uniteTy} from '.'
 
 export type Value =
+	| Unit
 	| All
 	| Bottom
 	| Int
@@ -54,6 +55,29 @@ interface IFnLike extends ITyFn {
 
 export type IFn = (...params: any[]) => Exp.ValueWithLog
 
+export class Unit implements IVal {
+	public readonly type = 'unit' as const
+	public readonly defaultValue = this
+
+	private constructor() {
+		return this
+	}
+
+	public print = (): string => {
+		return '()'
+	}
+
+	public isSubtypeOf = (ty: Value): boolean => {
+		return ty.type === 'all' || ty.type === 'unit'
+	}
+
+	public isEqualTo = (val: Value): boolean => {
+		return val.type === this.type
+	}
+
+	public static instance = new Unit()
+}
+
 export class Bottom implements IVal {
 	public readonly type = 'bottom' as const
 	public readonly defaultValue = this
@@ -63,7 +87,7 @@ export class Bottom implements IVal {
 	}
 
 	public print = (): string => {
-		return '()'
+		return '_|_'
 	}
 
 	public isSubtypeOf = (): boolean => {
@@ -624,7 +648,7 @@ export class TyFn implements IVal, ITyFn {
 
 	public print = (): string => {
 		const canOmitParens =
-			this.tyParam.length === 1 && this.tyParam[0].type !== 'bottom'
+			this.tyParam.length === 1 && this.tyParam[0].type !== 'unit'
 
 		const params = this.tyParam.map(v => v.print())
 		const param = canOmitParens ? params[0] : '(' + params.join(' ') + ')'

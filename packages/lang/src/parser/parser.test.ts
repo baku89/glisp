@@ -14,7 +14,7 @@ import {
 	vec,
 	vecFrom,
 } from '../exp'
-import {all, bottom, tyVar} from '../val'
+import {all, bottom, tyVar, unit} from '../val'
 import {parse} from '.'
 
 const Int = sym('Int')
@@ -32,9 +32,10 @@ describe('parsing literals', () => {
 	testParsing('true', sym('true'))
 	testParsing('"hello"', str('hello'))
 	testParsing('"hello, world"', str('hello, world'))
-	testParsing(' () ', obj(bottom))
-	testParsing(' (  \t   ) ', obj(bottom))
+	testParsing(' () ', obj(unit))
+	testParsing(' (  \t   ) ', obj(unit))
 	testParsing(' _ ', obj(all))
+	testParsing('_|_', obj(bottom))
 	testParsing('<T>', obj(tyVar('T')))
 })
 
@@ -67,7 +68,7 @@ describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', app(sym('+'), int(1), int(2)))
 	testParsing('(* 1 2)', app(sym('*'), int(1), int(2)))
 	testParsing('(x _)', app(x, obj(all)))
-	testParsing('(x ())', app(x, obj(bottom)))
+	testParsing('(x ())', app(x, obj(unit)))
 	testParsing('(x)', app(x))
 	testParsing('(0 false)', app(int(1), sym('false')))
 	testParsing('((true) x)', app(app(sym('true')), x))
@@ -107,7 +108,7 @@ describe('parsing function definition', () => {
 	testParsing('(=> (x:Int) x)', fn({x: Int}, x))
 	testParsing('(=> (x : Int y : Bool) x)', fn({x: Int, y: Bool}, x))
 	testParsing('(=>()_)', fn({}, obj(all)))
-	testParsing('(=>()())', fn({}, obj(bottom)))
+	testParsing('(=>()())', fn({}, obj(unit)))
 	testParsing('(=> () (+ 1 2))', fn({}, app(sym('+'), int(1), int(2))))
 	testParsing('(=> () (=> () 1))', fn({}, fn({}, int(1))))
 })
@@ -117,8 +118,8 @@ describe('parsing function type', () => {
 	testParsing('(-> [Int] Int)', tyFn(vec(Int), Int))
 	testParsing('(-> [...Int] Int)', tyFn(vecFrom([], Int), Int))
 	testParsing('(-> _ _)', tyFn(obj(all), obj(all)))
-	testParsing('(-> () ())', tyFn([], obj(bottom)))
-	testParsing('(-> (()) ())', tyFn([obj(bottom)], obj(bottom)))
+	testParsing('(-> () ())', tyFn([], obj(unit)))
+	testParsing('(-> (()) ())', tyFn([obj(unit)], obj(unit)))
 	testParsing('(-> () z)', tyFn([], z))
 	testParsing('(-> x z)', tyFn(x, z))
 	testParsing('(-> (x) z)', tyFn(x, z))

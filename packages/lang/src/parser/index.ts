@@ -12,14 +12,18 @@ Start = _ exp:Node _
 
 Node =
 	Dict / Scope /
-	Bottom / All /
+	Unit / Bottom / All /
 	Fn / TyFn / App /
 	Vec /
 	Int / Str / TyVar / Sym
 
-Reserved = "_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
+Reserved = "_" / "_|_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
-All "All" = "_" { return Exp.obj(Val.all) }
+Unit = "(" _ ")" { return Exp.obj(Val.unit) }
+
+All "all" = "_" { return Exp.obj(Val.all) }
+
+Bottom "bottom" = "_|_" { return Exp.obj(Val.bottom) }
 
 Sym "Sym" = SymIdent / SymQuoted
 
@@ -49,7 +53,6 @@ Str "Str" = '"' value:$(!'"' .)* '"'
 		return Exp.str(value)
 	}
 
-Bottom = "(" _ ")" { return Exp.obj(Val.bottom) }
 
 App "App" = "(" _ fn:Node _ args:AppArg* ")"
 	{

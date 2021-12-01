@@ -21,6 +21,7 @@ import {
 	TyUnion,
 	TyValue,
 	TyVar,
+	Unit,
 	Value,
 	Vec,
 } from './val'
@@ -44,6 +45,7 @@ export {TyEnum, Enum}
 export {TyProd, Prod}
 
 // Shorthands
+export const unit = Unit.instance
 export const all = All.instance
 export const bottom = Bottom.instance
 export const int = Int.of
