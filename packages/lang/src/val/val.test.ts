@@ -38,6 +38,11 @@ describe('subtyping', () => {
 	run(Val.bottom, Val.tyInt, true)
 	run(Val.uniteTy(Val.int(1), Val.int(2)), Val.tyInt, true)
 
+	run(Val.unit, Val.tyInt, false)
+	run(Val.unit, Val.tyInt, false)
+	run(Val.tyInt, Val.unit, false)
+	run(Val.bottom, Val.unit, true)
+
 	run(square, square, true)
 	run(square, Val.all, true)
 	run(square, Val.tyFn(Val.tyInt, Val.tyInt), true)
@@ -124,38 +129,34 @@ describe('subtyping', () => {
 })
 
 describe('uniting types', () => {
+	const unite = Val.TyUnion.fromTypesUnsafe
+
 	run([Val.int(1)], Val.int(1))
-	run(
-		[Val.int(1), Val.int(2)],
-		Val.TyUnion.fromTypesUnsafe([Val.int(1), Val.int(2)])
-	)
+	run([Val.int(1), Val.int(2)], [Val.int(1), Val.int(2)])
 	run([Val.int(1), Val.tyInt], Val.tyInt)
 	run([Val.tyInt, Val.int(1)], Val.tyInt)
-	run(
-		[Val.tyInt, Val.tyBool],
-		Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool])
-	)
+	run([Val.tyInt, Val.tyBool], [Val.tyInt, Val.tyBool])
 	run([Val.tyInt, Val.all], Val.all)
 	run([], Val.bottom)
 	run([Val.bottom, Val.bottom], Val.bottom)
 	run([Val.bottom, Val.all], Val.all)
 	run([Val.bool(true), Val.bool(false)], Val.tyBool)
 	run(
-		[
-			Val.tyBool,
-			Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool]),
-			Val.tyInt,
-		],
-		Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool])
+		[Val.tyBool, unite([Val.tyInt, Val.tyBool]), Val.tyInt],
+		[Val.tyInt, Val.tyBool]
 	)
+	run([Val.tyInt, Val.unit], [Val.tyInt, Val.unit])
 
-	function run(types: Val.Value[], expected: Val.Value) {
+	function run(types: Val.Value[], expected: Val.Value | Val.Value[]) {
 		const testStr = types.map(t => t.print()).join(' ')
-		const expectedStr = expected.print()
+
+		const expectedTy = Array.isArray(expected) ? unite(expected) : expected
+
+		const expectedStr = expectedTy.print()
 		const united = Val.uniteTy(...types)
 
 		test(`(| ${testStr}) to be ${expectedStr}`, () => {
-			if (!united.isEqualTo(expected)) {
+			if (!united.isEqualTo(expectedTy)) {
 				throw new Error('Got=' + united.print())
 			}
 		})
