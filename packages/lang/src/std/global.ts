@@ -5,7 +5,6 @@ import * as Val from '../val'
 
 const T = Val.tyVar('T')
 const U = Val.tyVar('U')
-const V = Val.tyVar('V')
 
 function defn(
 	value: (...args: any[]) => Val.Value,
