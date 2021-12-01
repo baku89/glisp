@@ -87,11 +87,10 @@ export const GlobalScope = Exp.scope({
 		{test: Val.tyBool, then: T, else: T},
 		T
 	),
-	const: defn((x: Val.Value) => Val.fn(() => Writer.of(x), {}, T), {x: T}, T),
 	first: defn(
-		(coll: Val.Vec) => coll.items[0] ?? Val.bottom,
+		(coll: Val.Vec) => coll.items[0] ?? Val.unit,
 		{coll: Val.vecFrom([], T)},
-		T
+		Val.uniteTy(T, Val.unit)
 	),
 	rest: defn(
 		(coll: Val.Vec) => Val.vecFrom(coll.items.slice(1)),
@@ -140,7 +139,17 @@ GlobalScope.def(
 	parse('(=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))')
 )
 
+GlobalScope.def(
+	'bindMaybe',
+	parse(`(=> (f:(-> <T> (| () <U>))
+	            g:(-> <U> (| () <V>)))
+	            (=> x:<T>
+	                {fx = (f x)
+	                 (if (== fx ()) () (g fx))}))`)
+)
+
 GlobalScope.def('twice', parse('(=> f:(-> <T> <T>) (=> x:<T> (f (f x))))'))
 
 GlobalScope.def('inc', parse('(=> x:Num (+ x 1))'))
 GlobalScope.def('dec', parse('(=> x:Num (+ x -1))'))
+GlobalScope.def('const', parse('(=> x:<T> (=> () x))'))
