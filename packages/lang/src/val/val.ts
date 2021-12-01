@@ -361,10 +361,14 @@ export class Vec implements IVal, IFnLike {
 
 	public param: Record<string, Value> = {index: tyInt}
 	public get out() {
-		return uniteTy(...this.items, ...(this.rest ? [this.rest] : []))
+		return uniteTy(
+			Unit.instance,
+			...this.items,
+			...(this.rest ? [this.rest] : [])
+		)
 	}
 
-	public readonly tyFn = TyFn.of(uniteTy(tyInt, Unit.instance), this.out)
+	public readonly tyFn = TyFn.of(tyInt, this.out)
 
 	public readonly fn: IFn = (index: Int) => {
 		const ret = this.items[index.value]
@@ -446,7 +450,7 @@ export class Dict implements IVal, IFnLike {
 
 	public param: Record<string, Value> = {key: tyStr}
 	public get out() {
-		return uniteTy(...values(this.items))
+		return uniteTy(Unit.instance, ...values(this.items))
 	}
 
 	public readonly tyFn = TyFn.of(uniteTy(tyStr, Unit.instance), this.out)
