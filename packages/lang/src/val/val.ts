@@ -227,7 +227,6 @@ export class Prod implements IVal, IFnLike {
 
 	public fn: IFn = (key: Str) => {
 		const index = keys(this.superType.param).findIndex(k => k === key.value)
-		console.log(index, keys(this.superType.param), key.value)
 		return Writer.of(this.items[index])
 	}
 
