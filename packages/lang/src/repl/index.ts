@@ -61,7 +61,7 @@ function startRepl() {
 				cb(null, evaluated)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
-				const r = Writer.of(Val.bottom, {level: 'error', reason: err.message})
+				const r = Writer.of(Val.unit, {level: 'error', reason: err.message})
 				cb(null, r)
 			}
 		},
