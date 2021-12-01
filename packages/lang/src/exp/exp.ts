@@ -366,16 +366,16 @@ export class App extends BaseNode {
 			const [aVal, aLog] = a.eval(env).asTuple
 			logs.push(...aLog)
 
-			if (aTy.type === 'unit') return p.defaultValue
-
 			if (!aTy.isSubtypeOf(p)) {
-				logs.push({
-					level: 'error',
-					ref: this,
-					reason:
-						`Argument ${name} expects type: ${p.print()}, ` +
-						`but got: ${aTy.print()}`,
-				})
+				if (aTy.type !== 'unit') {
+					logs.push({
+						level: 'error',
+						ref: this,
+						reason:
+							`Argument ${name} expects type: ${p.print()}, ` +
+							`but got: ${aTy.print()}`,
+					})
+				}
 				return p.defaultValue
 			}
 
