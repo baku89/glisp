@@ -5,6 +5,7 @@ import * as repl from 'repl'
 import {Log, obj, ValueWithLog} from '../exp'
 import {parse} from '../parser'
 import {GlobalScope} from '../std/global'
+import Vec2Scope from '../std/vec2'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -27,7 +28,7 @@ function printLog({level, reason}: Log) {
 	return header + ' ' + reason
 }
 
-const replScope = GlobalScope.extend({
+const replScope = GlobalScope.extend(Vec2Scope.vars).extend({
 	IO: obj(tyIO),
 	def: obj(
 		Val.fn(
