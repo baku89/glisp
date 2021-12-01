@@ -11,6 +11,7 @@ describe('evaluating literals', () => {
 	testEval(Exp.int(10), Val.int(10))
 	testEval(Exp.obj(Val.bool(false)), Val.bool(false))
 	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
+	testEval(Exp.obj(Val.unit), Val.unit)
 	testEval(Exp.obj(Val.bottom), Val.bottom)
 	testEval('(-> Int Int)', Val.tyFn(Val.tyInt, Val.tyInt))
 })
@@ -43,13 +44,13 @@ describe('evaluating vectors', () => {
 	testEval('[(+ 1 2)]', Val.vec(Val.int(3)))
 	testEval('[[[]]]', Val.vec(Val.vec(Val.vec())))
 	testEval('([0 1 2 3 4 5] 2)', Val.int(2))
-	testEval('([0 1 2 3 4 5] 10)', Val.bottom, true)
+	testEval('([0 1 2 3 4 5] 10)', Val.unit, true)
 	testEval('([true false] 0)', Val.bool(true))
 	testEval('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
 	testEval('(id [1])', Val.vec(Val.int(1)))
 })
 
-describe('evaluating function application with bottom arguments', () => {
+describe('evaluating function application with unit arguments', () => {
 	testEval('(+ 7 ())', Val.int(7))
 	testEval('(* 2 ())', Val.int(2))
 
@@ -62,7 +63,7 @@ describe('inferring a type', () => {
 	testInfer(Exp.obj(Val.bool(false)), Val.bool(false))
 	testInfer(Exp.sym('Int'), Val.tyValue(Val.tyInt))
 	testInfer(Exp.obj(Val.tyValue(Val.tyInt)), Val.tyValue(Val.tyInt))
-	testInfer(Exp.sym('()'), Val.bottom)
+	testInfer(Exp.obj(Val.unit), Val.unit)
 	testInfer('(not true)', Val.tyBool)
 })
 
