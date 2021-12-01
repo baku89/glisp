@@ -370,7 +370,7 @@ export class Vec implements IVal, IFnLike {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
 			return Writer.of(Unit.instance, {
-				level: 'warn',
+				level: 'error',
 				reason: 'Index out of range',
 			})
 		}
@@ -455,7 +455,7 @@ export class Dict implements IVal, IFnLike {
 		const ret = this.items[key.value]
 		if (ret === undefined) {
 			return Writer.of(Unit.instance, {
-				level: 'warn',
+				level: 'error',
 				reason: "Field for key '" + key.value + "' not found",
 			})
 		}
