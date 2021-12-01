@@ -52,6 +52,7 @@ export const num = Num.of
 export const str = Str.of
 export const atom = Atom.of
 export const bool = (v: boolean) => (v ? True : False)
+export const prod = Prod.of
 export const fn = Fn.of
 export const vec = Vec.of
 export const dict = Dict.of
