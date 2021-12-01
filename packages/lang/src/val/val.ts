@@ -68,7 +68,10 @@ export class Unit implements IVal {
 	}
 
 	public isSubtypeOf = (ty: Value): boolean => {
-		return ty.type === 'all' || this.isEqualTo(ty)
+		if (ty.type === 'all') return true
+		if (ty.type === 'tyUnion') return ty.types.some(this.isSubtypeOf)
+
+		return this.isEqualTo(ty)
 	}
 
 	public isEqualTo = (val: Value): boolean => {
