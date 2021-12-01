@@ -4,7 +4,7 @@ import * as Val from '../val'
 
 type SubstMap = Map<Val.TyVar, Val.Value>
 
-type Const = [Val.Value, Relation, Val.Value]
+export type Const = [Val.Value, Relation, Val.Value]
 type Relation = '<=' | '>='
 
 const invRelation = (op: Relation): Relation => (op === '<=' ? '>=' : '<=')
