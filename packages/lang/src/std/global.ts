@@ -38,6 +38,11 @@ export const GlobalScope = Exp.scope({
 		{x: Val.tyNum.extends(Val.num(1)), y: Val.tyNum.extends(Val.num(1))},
 		Val.tyNum
 	),
+	sqrt: defn(
+		(x: Val.Num) => Val.num(Math.sqrt(x.value)),
+		{x: Val.tyNum},
+		Val.tyNum
+	),
 	'<': defn(
 		(a: Val.Num, b: Val.Num) => Val.bool(a.value < b.value),
 		{x: Val.tyNum, y: Val.tyNum},
