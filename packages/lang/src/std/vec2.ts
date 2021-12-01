@@ -29,7 +29,7 @@ const scope = Exp.scope({
 				const sx = x1.value + x2.value
 				const sy = y1.value + y2.value
 
-				return Writer.of(Val.prod(Vec2, [Val.num(sx), Val.num(sy)]))
+				return Writer.of(Vec2.of(Val.num(sx), Val.num(sy)))
 			},
 			{x: Vec2, y: Vec2},
 			Vec2

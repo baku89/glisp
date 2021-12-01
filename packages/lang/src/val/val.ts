@@ -277,6 +277,10 @@ export class TyProd implements IVal, IFnLike {
 		return this.type === val.type && this.uid === val.uid
 	}
 
+	public of(...items: Value[]): Prod {
+		return Prod.of(this, items)
+	}
+
 	public static of(
 		uid: string,
 		param: Record<string, Value>,
