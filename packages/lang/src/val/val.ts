@@ -210,7 +210,7 @@ export class Atom<T = any> implements IVal {
 	}
 }
 
-export class Prod implements IVal {
+export class Prod implements IVal, IFnLike {
 	public readonly type = 'prod' as const
 	public readonly defaultValue = this
 
@@ -218,6 +218,18 @@ export class Prod implements IVal {
 		public readonly superType: TyProd,
 		public readonly items: Value[]
 	) {}
+
+	public param = {x: uniteTy(...keys(this.superType.param).map(Str.of))}
+
+	public out = uniteTy(...values(this.superType.param))
+
+	public tyFn = TyFn.of(values(this.param), this.out)
+
+	public fn: IFn = (key: Str) => {
+		const index = keys(this.superType.param).findIndex(k => k === key.value)
+		console.log(index, keys(this.superType.param), key.value)
+		return Writer.of(this.items[index])
+	}
 
 	public print = (): string => {
 		const ctor = this.superType.print()
@@ -254,7 +266,7 @@ export class TyProd implements IVal, IFnLike {
 		public readonly param: Record<string, Value>
 	) {}
 
-	public out = this
+	public out = this.defaultValue
 
 	public tyFn = TyFn.of(values(this.param), this)
 
