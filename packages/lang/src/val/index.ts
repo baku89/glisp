@@ -71,7 +71,8 @@ export const isSubtype = (a: Value, b: Value) => a.isSubtypeOf(b)
 
 export const isTy = (
 	a: Value
-): a is Vec | TyFn | TyUnion | TyAtom | TyVar | TyProd =>
+): a is Vec | TyFn | TyUnion | TyAtom | TyVar | TyProd | Bottom =>
+	a.type === 'bottom' ||
 	a.type === 'vec' ||
 	a.type === 'tyFn' ||
 	a.type === 'tyUnion' ||

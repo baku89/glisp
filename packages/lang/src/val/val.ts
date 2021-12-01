@@ -787,6 +787,7 @@ export class TyValue implements IVal {
 	public readonly type = 'tyValue' as const
 	private constructor(
 		public readonly value:
+			| Bottom
 			| Vec
 			| TyFn
 			| TyUnion
@@ -813,7 +814,7 @@ export class TyValue implements IVal {
 	}
 
 	public static of(
-		ty: Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum | TyProd
+		ty: Bottom | Vec | TyFn | TyUnion | TyAtom | TyVar | TyEnum | TyProd
 	) {
 		return new TyValue(ty)
 	}
