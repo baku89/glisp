@@ -188,8 +188,8 @@ export class TyFn extends BaseNode {
 		let canOmitParens = this.tyParam.length === 1
 		if (canOmitParens) {
 			const fp = this.tyParam[0]
-			const isFirstParamBottom = fp.type === 'obj' && fp.value.type === 'bottom'
-			canOmitParens = !isFirstParamBottom
+			const isFirstParamUnit = fp.type === 'obj' && fp.value.type === 'unit'
+			canOmitParens = !isFirstParamUnit
 		}
 
 		const params = this.tyParam.map(p => p.print())
