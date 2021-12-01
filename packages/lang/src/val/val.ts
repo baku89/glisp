@@ -103,7 +103,7 @@ export class Bottom implements IVal {
 
 export class All implements IVal {
 	public readonly type = 'all' as const
-	public readonly defaultValue = Bottom.instance
+	public readonly defaultValue = Unit.instance
 
 	private constructor() {
 		return this
@@ -364,12 +364,12 @@ export class Vec implements IVal, IFnLike {
 		return uniteTy(...this.items, ...(this.rest ? [this.rest] : []))
 	}
 
-	public readonly tyFn = TyFn.of(tyInt, this.out)
+	public readonly tyFn = TyFn.of(uniteTy(tyInt, Unit.instance), this.out)
 
 	public readonly fn: IFn = (index: Int) => {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
-			return Writer.of(Bottom.instance, {
+			return Writer.of(Unit.instance, {
 				level: 'warn',
 				reason: 'Index out of range',
 			})
@@ -449,12 +449,12 @@ export class Dict implements IVal, IFnLike {
 		return uniteTy(...values(this.items))
 	}
 
-	public readonly tyFn = TyFn.of(tyStr, this.out)
+	public readonly tyFn = TyFn.of(uniteTy(tyStr, Unit.instance), this.out)
 
 	public readonly fn: IFn = (key: Str) => {
 		const ret = this.items[key.value]
 		if (ret === undefined) {
-			return Writer.of(Bottom.instance, {
+			return Writer.of(Unit.instance, {
 				level: 'warn',
 				reason: "Field for key '" + key.value + "' not found",
 			})
@@ -585,7 +585,7 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 
 export class TyVar implements IVal {
 	public readonly type = 'tyVar' as const
-	public readonly defaultValue = Bottom.instance
+	public readonly defaultValue = Unit.instance
 
 	private constructor(
 		private readonly id: string,
