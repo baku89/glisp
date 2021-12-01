@@ -56,6 +56,7 @@ describe('subtyping', () => {
 
 	run(Val.tyInt, Val.TyUnion.fromTypesUnsafe([Val.tyInt, Val.tyBool]), true)
 	run(Val.int(0), Val.TyUnion.fromTypesUnsafe([Val.int(0), Val.int(1)]), true)
+	run(Val.unit, Val.TyUnion.fromTypesUnsafe([Val.unit, Val.int(1)]), true)
 
 	run(Val.tyValue(Val.tyInt), Val.tyInt, false)
 
