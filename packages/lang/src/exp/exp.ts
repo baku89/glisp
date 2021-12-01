@@ -317,7 +317,10 @@ export class App extends BaseNode {
 	}
 
 	private inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
-		const ty = this.fn.infer(env)
+		let ty = this.fn.infer(env)
+
+		if (ty.type === 'tyValue') ty = ty.value
+
 		if (!('tyFn' in ty)) return [Val.tyFn([], ty), [], RangedUnifier.empty()]
 
 		const tyArgs = this.args
