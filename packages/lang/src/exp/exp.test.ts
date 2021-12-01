@@ -25,6 +25,7 @@ describe('evaluating a simple expression', () => {
 	testEval('(< 4 (if true 1 2))', Val.bool(false))
 	testEval('(not true)', Val.bool(false))
 	testEval('(isEven 2)', Val.bool(true))
+	testEval('(| () Int)', Val.uniteTy(Val.unit, Val.tyInt))
 })
 
 describe('evaluating anonymous function application', () => {
@@ -46,7 +47,6 @@ describe('evaluating vectors', () => {
 	testEval('([0 1 2 3 4 5] 2)', Val.int(2))
 	testEval('([0 1 2 3 4 5] 10)', Val.unit, true)
 	testEval('([true false] 0)', Val.bool(true))
-	testEval('((. [1 2 3 0] [1 2 3 0]) 1)', Val.int(3))
 	testEval('(id [1])', Val.vec(Val.int(1)))
 })
 

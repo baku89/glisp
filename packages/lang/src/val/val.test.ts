@@ -86,10 +86,10 @@ describe('subtyping', () => {
 	run('[...Int]', '[]', true)
 	run('[Int ...Int]', '[]', true)
 	run('[Int Int]', '[...Int]', true)
-	run('[true false]', '(-> Int Bool)', true)
-	run('[1 2 3 4 5]', '(-> Int Int)', true)
-	run('[...Int]', '(-> Int Int)', true)
-	run('[...Bool]', '(-> Int Int)', false)
+	run('[true false]', '(-> Int (| () Bool))', true)
+	run('[1 2 3 4 5]', '(-> Int (| () Int))', true)
+	run('[...Int]', '(-> Int (| () Int))', true)
+	run('[...Bool]', '(-> Int (| () Int))', false)
 
 	// Dict
 	run('{}', '{}', true)
