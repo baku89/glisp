@@ -92,7 +92,6 @@ export const GlobalScope = scope({
 			Val.fn(
 				(x: Val.Value) => {
 					const [fx, fLog] = f.fn(x).asTuple
-					if (fx.type === 'bottom') return Writer.of(fx, ...fLog)
 					const [gx, gLog] = g.fn(fx).asTuple
 					return Writer.of(gx, ...fLog, ...gLog)
 				},
@@ -129,9 +128,7 @@ export const GlobalScope = scope({
 	map: obj(
 		Val.fn(
 			(f: Val.Fn, coll: Val.Vec) => {
-				const [newItems, log] = Writer.map(coll.items, it =>
-					it.type === 'bottom' ? Writer.of<Val.Value, Exp.Log>(it) : f.fn(it)
-				).asTuple
+				const [newItems, log] = Writer.map(coll.items, f.fn).asTuple
 				return Writer.of(Val.vecFrom(newItems), ...log)
 			},
 			{f: Val.tyFn(T, U), coll: Val.vecFrom([], T)},
@@ -143,9 +140,7 @@ export const GlobalScope = scope({
 			(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
 				const logs: Exp.Log[] = []
 				const ret = coll.items.reduce((p: Val.Value, c: Val.Value) => {
-					const _p = p.type === 'bottom' ? f.tyFn.tyParam[0].defaultValue : p
-					const _c = c.type === 'bottom' ? f.tyFn.tyParam[1].defaultValue : c
-					const [r, l] = f.fn(_p, _c).asTuple
+					const [r, l] = f.fn(p, c).asTuple
 					logs.push(...l)
 					return r
 				}, initial)
