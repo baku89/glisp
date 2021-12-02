@@ -39,6 +39,11 @@ export const GlobalScope = Exp.scope({
 		{x: Val.tyNum.extends(Val.num(1)), y: Val.tyNum.extends(Val.num(1))},
 		Val.tyNum
 	),
+	'/': defn(
+		(a: Val.Num, b: Val.Num) => Val.num(a.value / b.value),
+		{x: Val.tyNum.extends(Val.num(1)), y: Val.tyNum.extends(Val.num(1))},
+		Val.tyNum
+	),
 	'**': defn(
 		(x: Val.Num, a: Val.Num) => Val.num(Math.pow(x.value, a.value)),
 		{x: Val.tyNum, a: Val.tyNum},
@@ -48,6 +53,15 @@ export const GlobalScope = Exp.scope({
 		(a: Val.Num, b: Val.Num) => Val.bool(a.value < b.value),
 		{x: Val.tyNum, y: Val.tyNum},
 		Val.tyBool
+	),
+	gcd: defn(
+		(() => {
+			const gcd = (x: Val.Num, y: Val.Num): Val.Num =>
+				x.value % y.value ? gcd(y, Val.num(x.value % y.value)) : y
+			return gcd
+		})(),
+		{x: Val.tyNum, y: Val.tyNum},
+		Val.tyNum
 	),
 	'==': defn(
 		(a: Val.Value, b: Val.Value) => Val.bool(Val.isEqual(a, b)),
