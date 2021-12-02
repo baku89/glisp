@@ -39,9 +39,9 @@ export const GlobalScope = Exp.scope({
 		{x: Val.tyNum.extends(Val.num(1)), y: Val.tyNum.extends(Val.num(1))},
 		Val.tyNum
 	),
-	sqrt: defn(
-		(x: Val.Num) => Val.num(Math.sqrt(x.value)),
-		{x: Val.tyNum},
+	'**': defn(
+		(x: Val.Num, a: Val.Num) => Val.num(Math.pow(x.value, a.value)),
+		{x: Val.tyNum, a: Val.tyNum},
 		Val.tyNum
 	),
 	'<': defn(
@@ -143,12 +143,21 @@ export const GlobalScope = Exp.scope({
 		{name: Val.tyStr, param: Val.tyDict({}, Val.all)},
 		Val.all
 	),
+	len: defn(
+		(x: Val.Str | Val.Vec) => {
+			if (x.type === 'str') return Val.num(x.value.length)
+			else return Val.num(x.items.length)
+		},
+		{x: Val.uniteTy(Val.tyStr, Val.vecFrom([], Val.all))},
+		Val.tyNum
+	),
 })
 
 GlobalScope.defs(
 	parseModule(`
 
 . = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))
+twice = (=> f:(-> <T> <T>) (. f f))
 
 bindMaybe =
 (=> (f:(-> <T> (| () <U>))
@@ -157,7 +166,6 @@ bindMaybe =
         {fx = (f x)
          (if (== fx ()) () (g fx))}))
 
-twice = (=> f:(-> <T> <T>) (=> x:<T> (f (f x))))
 
 inc = (=> x:Num (+ x 1))
 
@@ -166,5 +174,17 @@ dec = (=> x:Num (+ x -1))
 const = (=> x:<T> (=> () x))
 
 id = (=> x:<T> x)
+
+sum = (=> xs:[...Num] (reduce + xs 0))
+
+neg = (=> x:Num (* x -1))
+
+- = (=> (x:Num y:Num) (+ x (neg y)))
+
+sqrt = (=> x:Num (** x 0.5))
+square = (=> x:Num (** x 2))
+hypot = (=> (x:Num y:Num) (sqrt (+ (* x x) (* y y))))
+PI = 3.1415926535897932384626433832795028841971693993
+
 `)
 )
