@@ -1,7 +1,7 @@
 import {values} from 'lodash'
 
 import * as Exp from '../exp'
-import {parse} from '../parser'
+import {parseModule} from '../parser'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -80,7 +80,6 @@ export const GlobalScope = Exp.scope({
 		{x: T, y: T},
 		T
 	),
-	id: defn((x: Val.Value) => x, {x: T}, T),
 	if: defn(
 		(test: Val.Value, then: Val.Value, _else: Val.Value) => {
 			return test === Val.True ? then : _else
@@ -146,22 +145,26 @@ export const GlobalScope = Exp.scope({
 	),
 })
 
-GlobalScope.def(
-	'.',
-	parse('(=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))')
+GlobalScope.defs(
+	parseModule(`
+
+. = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))
+
+bindMaybe =
+(=> (f:(-> <T> (| () <U>))
+     g:(-> <U> (| () <V>)))
+    (=> x:<T>
+        {fx = (f x)
+         (if (== fx ()) () (g fx))}))
+
+twice = (=> f:(-> <T> <T>) (=> x:<T> (f (f x))))
+
+inc = (=> x:Num (+ x 1))
+
+dec = (=> x:Num (+ x -1))
+
+const = (=> x:<T> (=> () x))
+
+id = (=> x:<T> x)
+`)
 )
-
-GlobalScope.def(
-	'bindMaybe',
-	parse(`(=> (f:(-> <T> (| () <U>))
-	            g:(-> <U> (| () <V>)))
-	            (=> x:<T>
-	                {fx = (f x)
-	                 (if (== fx ()) () (g fx))}))`)
-)
-
-GlobalScope.def('twice', parse('(=> f:(-> <T> <T>) (=> x:<T> (f (f x))))'))
-
-GlobalScope.def('inc', parse('(=> x:Num (+ x 1))'))
-GlobalScope.def('dec', parse('(=> x:Num (+ x -1))'))
-GlobalScope.def('const', parse('(=> x:<T> (=> () x))'))

@@ -453,6 +453,12 @@ export class Scope extends BaseNode {
 		return this
 	}
 
+	public defs(vars: Record<string, Node>) {
+		for (const [name, exp] of entries(vars)) {
+			this.def(name, exp)
+		}
+	}
+
 	public static of(vars: Record<string, Node>, out: Node | null = null) {
 		const scope = new Scope(vars, out)
 		values(vars).forEach(v => (v.parent = scope))
