@@ -317,9 +317,7 @@ export class App extends BaseNode {
 	}
 
 	private inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
-		let ty = this.fn.infer(env)
-
-		if (ty.type === 'tyProd') ty = ty.defaultValue
+		let [ty] = this.fn.eval(env).asTuple
 
 		if (ty.type === 'tyValue') ty = ty.value
 
