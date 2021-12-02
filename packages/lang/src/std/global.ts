@@ -1,3 +1,5 @@
+import {values} from 'lodash'
+
 import * as Exp from '../exp'
 import {parse} from '../parser'
 import {Writer} from '../utils/Writer'
@@ -129,6 +131,17 @@ export const GlobalScope = Exp.scope({
 	fnType: defn(
 		(f: Val.Value) => ('tyFn' in f ? f.tyFn : f),
 		{f: Val.all},
+		Val.all
+	),
+	struct: defn(
+		(name: Val.Str, {items}: Val.Dict) => {
+			return Val.tyProd(
+				name.value,
+				items,
+				values(items).map(it => it.defaultValue)
+			)
+		},
+		{name: Val.tyStr, param: Val.tyDict({}, Val.all)},
 		Val.all
 	),
 })

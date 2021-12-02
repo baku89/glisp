@@ -1,16 +1,9 @@
-import * as Exp from '../exp'
 import {parse} from '../parser'
 import {GlobalScope} from '../std/global'
-import * as Val from '../val'
 
-const Vec2 = Val.tyProd('Vec2', {x: Val.tyNum, y: Val.tyNum}, [
-	Val.num(0),
-	Val.num(0),
-])
+const scope = GlobalScope.extend({})
 
-const scope = GlobalScope.extend({
-	Vec2: Exp.obj(Vec2),
-})
+scope.def('Vec2', parse('(struct "Vec2" {x:Num y:Num})'))
 
 scope.def(
 	'Vec2/length',
