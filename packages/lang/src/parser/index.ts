@@ -4,7 +4,7 @@ import * as Exp from '../exp'
 import * as Val from '../val'
 
 const parserDefinition = `
-Start = _ exp:Node _
+Program = _ exp:Node _
 	{
 		return exp
 	}
@@ -154,4 +154,11 @@ export function parse(str: string): Exp.Node {
 	if (!exp) return Exp.obj(Val.bottom)
 
 	return exp
+}
+
+export function parseModule(str: string): Record<string, Exp.Node> {
+	const exp: Exp.Node | undefined = parser.parse('{' + str + '}')
+	if (!exp || exp.type !== 'scope') return {}
+
+	return exp.vars
 }
