@@ -39,9 +39,9 @@ SymQuoted = "\`" name:$(!"\`" .)+ "\`"
 		return Exp.sym(name)
 	}
 
-TyVar = "<" id:$[^>]+ ">"
+TyVar = "<" name:$[^>]+ ">"
 	{
-		return Exp.obj(Val.tyVar(id))
+		return Exp.tyVar(name)
 	}
 
 Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End

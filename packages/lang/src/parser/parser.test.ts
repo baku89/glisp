@@ -8,16 +8,15 @@ import {
 	isEqual,
 	Node,
 	num,
-	obj,
 	scope,
 	str,
 	sym,
 	tyFn,
+	tyVar,
 	unit,
 	vec,
 	vecFrom,
 } from '../exp'
-import {tyVar} from '../val'
 import {parse} from '.'
 
 const Num = sym('Num')
@@ -39,7 +38,7 @@ describe('parsing literals', () => {
 	testParsing(' (  \t   ) ', unit())
 	testParsing(' _ ', all())
 	testParsing('_|_', bottom())
-	testParsing('<T>', obj(tyVar('T')))
+	testParsing('<T>', tyVar('T'))
 })
 
 describe('parsing symbols', () => {

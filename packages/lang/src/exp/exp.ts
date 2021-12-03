@@ -13,6 +13,7 @@ export type Node =
 	| Unit
 	| Num
 	| Str
+	| TyVar
 	| Fn
 	| TyFn
 	| Vec
@@ -182,6 +183,22 @@ export class Str extends BaseNode {
 
 	public static of(value: string) {
 		return new Str(value)
+	}
+}
+
+export class TyVar extends BaseNode {
+	public readonly type = 'tyVar' as const
+
+	private constructor(public name: string) {
+		super()
+	}
+
+	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
+	public infer = () => Val.tyVar(this.name)
+	public print = () => '<' + this.name + '>'
+
+	public static of(name: string) {
+		return new TyVar(name)
 	}
 }
 

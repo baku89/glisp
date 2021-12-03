@@ -19,6 +19,7 @@ import {
 	Sym,
 	TyFn,
 	Type,
+	TyVar,
 	Unit,
 	ValueWithLog,
 	Vec,
@@ -38,6 +39,7 @@ export const bottom = Bottom.of
 export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
+export const tyVar = TyVar.of
 export const fn = Fn.of
 export const tyFn = TyFn.of
 export const vec = Vec.of
@@ -50,7 +52,8 @@ export const scope = Scope.of
 export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'sym':
-			return b.type === 'sym' && a.name === b.name
+		case 'tyVar':
+			return b.type === a.type && a.name === b.name
 		case 'obj':
 			return b.type === a.type && a.value.isEqualTo(b.value)
 		case 'all':
