@@ -1,6 +1,5 @@
 import * as Exp from '../exp'
-import * as Parser from '../parser'
-import {GlobalScope} from '../std/global'
+import {testEval, testInfer} from '../utils/testUtils'
 import * as Val from '../val'
 
 const T = Val.tyVar('T')
@@ -16,29 +15,9 @@ describe('evaluating literals', () => {
 	testEval('(-> Num Num)', Val.tyFn(Val.tyNum, Val.tyNum))
 })
 
-describe('evaluating a simple expression', () => {
-	testEval('(+ 1 2)', Val.num(3))
-	testEval('(* 1 2)', Val.num(2))
-	testEval('(< 1 2)', Val.bool(true))
-	testEval('{a = 10 a}', Val.num(10))
-	testEval('(if true 1 false)', Val.num(1))
-	testEval('(< 4 (if true 1 2))', Val.bool(false))
-	testEval('(not true)', Val.bool(false))
-	testEval('(isEven 2)', Val.bool(true))
-	testEval('(| () Num)', Val.uniteTy(Val.unit, Val.tyNum))
-})
-
 describe('evaluating anonymous function application', () => {
 	testEval('((=> x:Num (* x x)) 12)', Val.num(144))
 })
-
-describe('evaluating higher-order function application', () => {
-	testEval('((compose inc isEven) 1)', Val.bool(true))
-	testEval('((compose inc isEven) 2)', Val.bool(false))
-	testEval('((twice inc) 1)', Val.num(3))
-	testEval('((compose id id) 1)', Val.num(1))
-})
-
 describe('evaluating vectors', () => {
 	testEval('[]', Val.vec())
 	testEval('[1 true]', Val.vec(Val.num(1), Val.bool(true)))
@@ -134,45 +113,3 @@ describe('inferring invalid expression', () => {
 	testInfer('(compose not inc)', Val.tyFn(Val.tyBool, Val.tyNum))
 	testInfer('(compose inc not)', Val.tyFn(Val.tyNum, Val.tyBool))
 })
-
-function parse(input: string | Exp.Node): Exp.Node {
-	let exp: Exp.Node
-	if (typeof input === 'string') {
-		exp = Parser.parse(input)
-	} else {
-		exp = input
-	}
-	exp.parent = GlobalScope
-	return exp
-}
-
-function testEval(
-	input: string | Exp.Node,
-	expected: Val.Value,
-	hasLog = false
-) {
-	const exp = parse(input)
-	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
-		const {result, log} = exp.eval()
-		if (!Val.isEqual(result, expected)) {
-			throw new Error('Got=' + result.print() + '\n' + printLog(log))
-		}
-		if (!hasLog && log.length > 0) {
-			throw new Error('Expected no log, but got=' + printLog(log))
-		}
-	})
-}
-
-function testInfer(input: string | Exp.Node, expected: Val.Value) {
-	const exp = parse(input)
-
-	test(`${exp.print()} is inferred to be ${expected.print()}`, () => {
-		const inferred = exp.infer()
-		const equal = inferred.isEqualTo(expected)
-		if (!equal) throw new Error('Got=' + inferred.print())
-	})
-}
-
-function printLog(log: Exp.Log[]) {
-	return log.map(l => `[${l.level}] ${l.reason}\n`).join('')
-}
