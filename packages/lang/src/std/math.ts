@@ -1,9 +1,9 @@
 import {parseModule} from '../parser'
-import {GlobalScope} from './global'
+import {PreludeScope} from './prelude'
 
-const scope = GlobalScope.extend({})
+const MathScope = PreludeScope.extend({})
 
-scope.defs(
+MathScope.defs(
 	parseModule(`
 Vec2 = (struct "Vec2" {x:Num y:Num})
 
@@ -67,4 +67,4 @@ Frac/neg = (=> r:Frac (Frac/scale r -1))
 `)
 )
 
-export default scope
+export {MathScope}

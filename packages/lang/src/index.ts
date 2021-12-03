@@ -1,6 +1,6 @@
 import * as Exp from './exp'
 import {parse} from './parser'
-import {GlobalScope} from './std/global'
+import {PreludeScope} from './std/prelude'
 import * as Val from './val'
 
-export {Val, Exp, GlobalScope, parse}
+export {Val, Exp, PreludeScope, parse}

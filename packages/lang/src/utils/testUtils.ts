@@ -1,6 +1,6 @@
 import * as Exp from '../exp'
 import * as Parser from '../parser'
-import {GlobalScope} from '../std/global'
+import {PreludeScope} from '../std/prelude'
 import * as Val from '../val'
 
 function parse(input: string | Exp.Node): Exp.Node {
@@ -10,7 +10,7 @@ function parse(input: string | Exp.Node): Exp.Node {
 	} else {
 		exp = input
 	}
-	exp.parent = GlobalScope
+	exp.parent = PreludeScope
 	return exp
 }
 

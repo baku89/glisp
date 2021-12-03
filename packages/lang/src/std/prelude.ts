@@ -18,7 +18,7 @@ function defn(
 	)
 }
 
-export const GlobalScope = Exp.scope({
+export const PreludeScope = Exp.scope({
 	true: Exp.obj(Val.bool(true)),
 	false: Exp.obj(Val.bool(false)),
 	Num: Exp.obj(Val.tyNum),
@@ -162,7 +162,7 @@ export const GlobalScope = Exp.scope({
 	),
 })
 
-GlobalScope.defs(
+PreludeScope.defs(
 	parseModule(`
 
 compose = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))

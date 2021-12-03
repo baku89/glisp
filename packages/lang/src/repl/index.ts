@@ -4,8 +4,8 @@ import * as repl from 'repl'
 
 import {Log, obj, ValueWithLog} from '../exp'
 import {parse} from '../parser'
-import {GlobalScope} from '../std/global'
-import MathScope from '../std/math'
+import {MathScope} from '../std/math'
+import {PreludeScope} from '../std/prelude'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -30,7 +30,7 @@ function printLog({level, reason}: Log) {
 	return header + ' ' + reason
 }
 
-const replScope = GlobalScope.extend(MathScope.vars).extend({
+const replScope = PreludeScope.extend(MathScope.vars).extend({
 	IO: obj(tyIO),
 	def: obj(
 		Val.fn(
