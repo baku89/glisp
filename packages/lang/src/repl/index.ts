@@ -5,11 +5,13 @@ import * as repl from 'repl'
 import {Log, obj, ValueWithLog} from '../exp'
 import {parse} from '../parser'
 import {GlobalScope} from '../std/global'
-import Vec2Scope from '../std/math'
+import MathScope from '../std/math'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
-const tyIO = Val.tyAtom('IO', () => undefined)
+const tyIO = Val.tyAtom('IO', () => {
+	return
+})
 
 function printLog({level, reason}: Log) {
 	let header: string
@@ -28,22 +30,22 @@ function printLog({level, reason}: Log) {
 	return header + ' ' + reason
 }
 
-const replScope = GlobalScope.extend(Vec2Scope.vars).extend({
+const replScope = GlobalScope.extend(MathScope.vars).extend({
 	IO: obj(tyIO),
 	def: obj(
 		Val.fn(
 			(name: Val.Str, value: Val.Value) => {
 				return Writer.of(
-					Val.atom(() => {
+					tyIO.of(() => {
 						replScope.vars[name.value] = obj(value)
-					}, tyIO)
+					})
 				)
 			},
 			{name: Val.tyStr, value: Val.all},
 			tyIO
 		)
 	),
-	exit: obj(Val.atom(process.exit, tyIO)),
+	exit: obj(tyIO.of(process.exit)),
 })
 
 function startRepl() {
