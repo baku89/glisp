@@ -33,25 +33,24 @@ export interface Log {
 export type ValueWithLog = Writer<Val.Value, Log>
 export type NodeWithLog = Writer<Node, Log>
 
-abstract class BaseNode {
-	public abstract readonly type: string
-	public parent: Node | null = null
+interface INode {
+	readonly type: string
+	parent: Node | null
 
-	abstract eval(env?: Env): ValueWithLog
-	abstract infer(env?: Env): Val.Value
-	abstract print(): string
+	eval(env?: Env): ValueWithLog
+	infer(env?: Env): Val.Value
+	print(): string
 
-	abstract isSameTo(exp: Node): boolean
+	isSameTo(exp: Node): boolean
 }
 
 type Env = Map<Fn, Record<string, Node>>
 
-export class Sym extends BaseNode {
+export class Sym implements INode {
 	public readonly type = 'sym' as const
+	public parent: Node | null = null
 
-	private constructor(public name: string) {
-		super()
-	}
+	private constructor(public name: string) {}
 
 	public resolve(env?: Env): NodeWithLog {
 		let ref = this.parent
@@ -98,12 +97,11 @@ export class Sym extends BaseNode {
 	}
 }
 
-export class Obj extends BaseNode {
+export class Obj implements INode {
 	public readonly type = 'obj' as const
+	public parent: Node | null = null
 
-	private constructor(public value: Val.Value, public asType: boolean) {
-		super()
-	}
+	private constructor(public value: Val.Value, public asType: boolean) {}
 
 	public eval(): ValueWithLog {
 		return Writer.of(this.value)
@@ -132,8 +130,9 @@ export class Obj extends BaseNode {
 	}
 }
 
-export class All extends BaseNode {
+export class All implements INode {
 	public readonly type = 'all' as const
+	public parent: Node | null = null
 
 	public eval = (): ValueWithLog => Writer.of(Val.all)
 	public infer = () => Val.all
@@ -143,8 +142,9 @@ export class All extends BaseNode {
 	public static of = () => new All()
 }
 
-export class Bottom extends BaseNode {
+export class Bottom implements INode {
 	public readonly type = 'bottom' as const
+	public parent: Node | null = null
 
 	public eval = (): ValueWithLog => Writer.of(Val.bottom)
 	public infer = () => Val.bottom
@@ -154,8 +154,9 @@ export class Bottom extends BaseNode {
 	public static of = () => new Bottom()
 }
 
-export class Unit extends BaseNode {
+export class Unit implements INode {
 	public readonly type = 'unit' as const
+	public parent: Node | null = null
 
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public infer = () => Val.unit
@@ -165,12 +166,11 @@ export class Unit extends BaseNode {
 	public static of = () => new Unit()
 }
 
-export class Num extends BaseNode {
+export class Num implements INode {
 	public readonly type = 'num' as const
+	public parent: Node | null = null
 
-	private constructor(public value: number) {
-		super()
-	}
+	private constructor(public value: number) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
 	public infer = () => Val.num(this.value)
@@ -183,12 +183,11 @@ export class Num extends BaseNode {
 	}
 }
 
-export class Str extends BaseNode {
+export class Str implements INode {
 	public readonly type = 'str' as const
+	public parent: Node | null = null
 
-	private constructor(public value: string) {
-		super()
-	}
+	private constructor(public value: string) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
 	public infer = () => Val.str(this.value)
@@ -201,12 +200,11 @@ export class Str extends BaseNode {
 	}
 }
 
-export class TyVar extends BaseNode {
+export class TyVar implements INode {
 	public readonly type = 'tyVar' as const
+	public parent: Node | null = null
 
-	private constructor(public name: string) {
-		super()
-	}
+	private constructor(public name: string) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
 	public infer = () => Val.tyVar(this.name)
@@ -219,12 +217,11 @@ export class TyVar extends BaseNode {
 	}
 }
 
-export class Fn extends BaseNode {
+export class Fn implements INode {
 	public readonly type = 'fn' as const
+	public parent: Node | null = null
 
-	private constructor(public param: Record<string, Node>, public body: Node) {
-		super()
-	}
+	private constructor(public param: Record<string, Node>, public body: Node) {}
 
 	public infer(env: Env = new Map()): Val.Value {
 		const param = Writer.mapValues(this.param, p => p.eval(env)).result
@@ -278,12 +275,11 @@ export class Fn extends BaseNode {
 	}
 }
 
-export class TyFn extends BaseNode {
+export class TyFn implements INode {
 	public readonly type = 'tyFn' as const
+	public parent: Node | null = null
 
-	private constructor(public tyParam: Node[], public out: Node) {
-		super()
-	}
+	private constructor(public tyParam: Node[], public out: Node) {}
 
 	public eval(env: Env = new Map()): ValueWithLog {
 		const [param, l1] = Writer.map(this.tyParam, p => p.eval(env)).asTuple
@@ -327,12 +323,11 @@ export class TyFn extends BaseNode {
 	}
 }
 
-export class Vec extends BaseNode {
+export class Vec implements INode {
 	public readonly type = 'vec' as const
+	public parent: Node | null = null
 
-	private constructor(public items: Node[], public rest: Node | null = null) {
-		super()
-	}
+	private constructor(public items: Node[], public rest: Node | null = null) {}
 
 	public get length() {
 		return this.items.length
@@ -382,15 +377,14 @@ export class Vec extends BaseNode {
 	}
 }
 
-export class Dict extends BaseNode {
+export class Dict implements INode {
 	public readonly type = 'dict' as const
+	public parent: Node | null = null
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Node}>,
 		public rest?: Node
-	) {
-		super()
-	}
+	) {}
 
 	public infer(env?: Env): Val.Value {
 		const items = mapValues(this.items, it => ({
@@ -441,12 +435,11 @@ export class Dict extends BaseNode {
 	}
 }
 
-export class App extends BaseNode {
+export class App implements INode {
 	public readonly type = 'app' as const
+	public parent: Node | null = null
 
-	private constructor(public fn: Node, public args: Node[]) {
-		super()
-	}
+	private constructor(public fn: Node, public args: Node[]) {}
 
 	private inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
 		let [ty] = this.fn.eval(env).asTuple
@@ -547,15 +540,14 @@ export class App extends BaseNode {
 	}
 }
 
-export class Scope extends BaseNode {
+export class Scope implements INode {
 	public readonly type = 'scope' as const
+	public parent: Node | null = null
 
 	private constructor(
 		public vars: Record<string, Node>,
 		public out: Node | null = null
-	) {
-		super()
-	}
+	) {}
 
 	public infer(env?: Env): Val.Value {
 		return this.out ? this.out.infer(env) : Val.bottom
