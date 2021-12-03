@@ -110,7 +110,7 @@ Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
 	{
 		const field = {optional: !!optional, value}
-		return [key.value.value, field]
+		return [key.value, field]
 	}
 
 DictKey = (!(Whitespace / Delimiter) .)+

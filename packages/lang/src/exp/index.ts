@@ -3,7 +3,6 @@ import {isEqualWith} from 'lodash'
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
-import * as Val from '../val'
 import {
 	App,
 	Dict,
@@ -11,8 +10,10 @@ import {
 	Log,
 	Node,
 	NodeWithLog,
+	Num,
 	Obj,
 	Scope,
+	Str,
 	Sym,
 	TyFn,
 	Type,
@@ -29,6 +30,8 @@ export {Type, Log, ValueWithLog, NodeWithLog}
 // Shorthands
 export const sym = Sym.of
 export const obj = Obj.of
+export const num = Num.of
+export const str = Str.of
 export const fn = Fn.of
 export const tyFn = TyFn.of
 export const vec = Vec.of
@@ -38,15 +41,15 @@ export const vecFrom = Vec.from
 export const app = App.of
 export const scope = Scope.of
 
-export const num = (v: number) => Obj.of(Val.num(v))
-export const str = (v: string) => Obj.of(Val.str(v))
-
 export function isEqual(a: Node, b: Node): boolean {
 	switch (a.type) {
 		case 'sym':
 			return b.type === 'sym' && a.name === b.name
 		case 'obj':
 			return b.type === a.type && a.value.isEqualTo(b.value)
+		case 'num':
+		case 'str':
+			return b.type === a.type && a.value === b.value
 		case 'vec':
 			return (
 				b.type === 'vec' &&

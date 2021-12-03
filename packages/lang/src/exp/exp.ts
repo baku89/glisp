@@ -5,7 +5,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Fn | TyFn | Vec | Dict | App | Scope
+export type Node = Sym | Obj | Num | Str | Fn | TyFn | Vec | Dict | App | Scope
 
 export type Type = Node['type']
 
@@ -107,6 +107,38 @@ export class Obj extends BaseNode {
 
 	public static asType(value: Val.Value) {
 		return new Obj(value, true)
+	}
+}
+
+export class Num extends BaseNode {
+	public readonly type = 'num' as const
+
+	private constructor(public value: number) {
+		super()
+	}
+
+	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
+	public infer = () => Val.num(this.value)
+	public print = () => this.value.toString()
+
+	public static of(value: number) {
+		return new Num(value)
+	}
+}
+
+export class Str extends BaseNode {
+	public readonly type = 'str' as const
+
+	private constructor(public value: string) {
+		super()
+	}
+
+	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
+	public infer = () => Val.str(this.value)
+	public print = () => this.value.toString()
+
+	public static of(value: string) {
+		return new Str(value)
 	}
 }
 
