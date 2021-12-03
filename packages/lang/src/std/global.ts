@@ -24,11 +24,6 @@ export const GlobalScope = Exp.scope({
 	Num: Exp.obj(Val.tyNum),
 	Str: Exp.obj(Val.tyStr),
 	Bool: Exp.obj(Val.tyBool),
-	isEven: defn(
-		(x: Val.Num) => Val.bool(x.value % 2 === 0),
-		{x: Val.tyNum},
-		Val.tyBool
-	),
 	'+': defn(
 		(a: Val.Num, b: Val.Num) => Val.num(a.value + b.value),
 		{x: Val.tyNum, y: Val.tyNum},
@@ -47,6 +42,11 @@ export const GlobalScope = Exp.scope({
 	'**': defn(
 		(x: Val.Num, a: Val.Num) => Val.num(Math.pow(x.value, a.value)),
 		{x: Val.tyNum, a: Val.tyNum},
+		Val.tyNum
+	),
+	'%': defn(
+		(x: Val.Num, y: Val.Num) => Val.num(x.value % y.value),
+		{x: Val.tyNum, y: Val.tyNum.extends(Val.num(1))},
 		Val.tyNum
 	),
 	'<': defn(
@@ -179,6 +179,8 @@ bindMaybe =
 inc = (=> x:Num (+ x 1))
 
 dec = (=> x:Num (+ x -1))
+
+isEven = (=> x:Num (== (% x 2) 0))
 
 const = (=> x:<T> (=> () x))
 
