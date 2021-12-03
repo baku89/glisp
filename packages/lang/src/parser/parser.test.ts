@@ -1,5 +1,7 @@
 import {
+	all,
 	app,
+	bottom,
 	dict,
 	dictFrom,
 	fn,
@@ -11,10 +13,11 @@ import {
 	str,
 	sym,
 	tyFn,
+	unit,
 	vec,
 	vecFrom,
 } from '../exp'
-import {all, bottom, tyVar, unit} from '../val'
+import {tyVar} from '../val'
 import {parse} from '.'
 
 const Num = sym('Num')
@@ -32,10 +35,10 @@ describe('parsing literals', () => {
 	testParsing('true', sym('true'))
 	testParsing('"hello"', str('hello'))
 	testParsing('"hello, world"', str('hello, world'))
-	testParsing(' () ', obj(unit))
-	testParsing(' (  \t   ) ', obj(unit))
-	testParsing(' _ ', obj(all))
-	testParsing('_|_', obj(bottom))
+	testParsing(' () ', unit())
+	testParsing(' (  \t   ) ', unit())
+	testParsing(' _ ', all())
+	testParsing('_|_', bottom())
 	testParsing('<T>', obj(tyVar('T')))
 })
 
@@ -67,8 +70,8 @@ describe('parsing symbols', () => {
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', app(sym('+'), num(1), num(2)))
 	testParsing('(* 1 2)', app(sym('*'), num(1), num(2)))
-	testParsing('(x _)', app(x, obj(all)))
-	testParsing('(x ())', app(x, obj(unit)))
+	testParsing('(x _)', app(x, all()))
+	testParsing('(x ())', app(x, unit()))
 	testParsing('(x)', app(x))
 	testParsing('(0 false)', app(num(1), sym('false')))
 	testParsing('((true) x)', app(app(sym('true')), x))
@@ -107,8 +110,8 @@ describe('parsing function definition', () => {
 	testParsing('(=> x:Num x)', fn({x: Num}, x))
 	testParsing('(=> (x:Num) x)', fn({x: Num}, x))
 	testParsing('(=> (x : Num y : Bool) x)', fn({x: Num, y: Bool}, x))
-	testParsing('(=>()_)', fn({}, obj(all)))
-	testParsing('(=>()())', fn({}, obj(unit)))
+	testParsing('(=>()_)', fn({}, all()))
+	testParsing('(=>()())', fn({}, unit()))
 	testParsing('(=> () (+ 1 2))', fn({}, app(sym('+'), num(1), num(2))))
 	testParsing('(=> () (=> () 1))', fn({}, fn({}, num(1))))
 })
@@ -117,9 +120,9 @@ describe('parsing function type', () => {
 	testParsing('(-> Num Num)', tyFn(Num, Num))
 	testParsing('(-> [Num] Num)', tyFn(vec(Num), Num))
 	testParsing('(-> [...Num] Num)', tyFn(vecFrom([], Num), Num))
-	testParsing('(-> _ _)', tyFn(obj(all), obj(all)))
-	testParsing('(-> () ())', tyFn([], obj(unit)))
-	testParsing('(-> (()) ())', tyFn([obj(unit)], obj(unit)))
+	testParsing('(-> _ _)', tyFn(all(), all()))
+	testParsing('(-> () ())', tyFn([], unit()))
+	testParsing('(-> (()) ())', tyFn([unit()], unit()))
 	testParsing('(-> () z)', tyFn([], z))
 	testParsing('(-> x z)', tyFn(x, z))
 	testParsing('(-> (x) z)', tyFn(x, z))

@@ -5,7 +5,20 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Num | Str | Fn | TyFn | Vec | Dict | App | Scope
+export type Node =
+	| Sym
+	| Obj
+	| All
+	| Bottom
+	| Unit
+	| Num
+	| Str
+	| Fn
+	| TyFn
+	| Vec
+	| Dict
+	| App
+	| Scope
 
 export type Type = Node['type']
 
@@ -59,7 +72,7 @@ export class Sym extends BaseNode {
 			reason: 'Variable not bound: ' + this.name,
 		}
 
-		return Writer.of(Obj.of(Val.unit), log)
+		return Writer.of(Unit.of(), log)
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -108,6 +121,36 @@ export class Obj extends BaseNode {
 	public static asType(value: Val.Value) {
 		return new Obj(value, true)
 	}
+}
+
+export class All extends BaseNode {
+	public readonly type = 'all' as const
+
+	public eval = (): ValueWithLog => Writer.of(Val.all)
+	public infer = () => Val.all
+	public print = () => '_'
+
+	public static of = () => new All()
+}
+
+export class Bottom extends BaseNode {
+	public readonly type = 'bottom' as const
+
+	public eval = (): ValueWithLog => Writer.of(Val.bottom)
+	public infer = () => Val.bottom
+	public print = () => '_|_'
+
+	public static of = () => new Bottom()
+}
+
+export class Unit extends BaseNode {
+	public readonly type = 'unit' as const
+
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public infer = () => Val.unit
+	public print = () => '()'
+
+	public static of = () => new Unit()
 }
 
 export class Num extends BaseNode {

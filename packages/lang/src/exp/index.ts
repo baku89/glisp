@@ -4,7 +4,9 @@ import {hasEqualValues} from '../utils/hasEqualValues'
 import {nullishEqual} from '../utils/nullishEqual'
 import {zip} from '../utils/zip'
 import {
+	All,
 	App,
+	Bottom,
 	Dict,
 	Fn,
 	Log,
@@ -17,6 +19,7 @@ import {
 	Sym,
 	TyFn,
 	Type,
+	Unit,
 	ValueWithLog,
 	Vec,
 } from './exp'
@@ -30,6 +33,9 @@ export {Type, Log, ValueWithLog, NodeWithLog}
 // Shorthands
 export const sym = Sym.of
 export const obj = Obj.of
+export const all = All.of
+export const bottom = Bottom.of
+export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
 export const fn = Fn.of
@@ -47,6 +53,10 @@ export function isEqual(a: Node, b: Node): boolean {
 			return b.type === 'sym' && a.name === b.name
 		case 'obj':
 			return b.type === a.type && a.value.isEqualTo(b.value)
+		case 'all':
+		case 'bottom':
+		case 'unit':
+			return b.type === a.type
 		case 'num':
 		case 'str':
 			return b.type === a.type && a.value === b.value

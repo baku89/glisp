@@ -18,11 +18,11 @@ Node =
 
 Reserved = "_" / "_|_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
-Unit = "(" _ ")" { return Exp.obj(Val.unit) }
+Unit = "(" _ ")" { return Exp.unit() }
 
-All "all" = "_" { return Exp.obj(Val.all) }
+All "all" = "_" { return Exp.all() }
 
-Bottom "bottom" = "_|_" { return Exp.obj(Val.bottom) }
+Bottom "bottom" = "_|_" { return Exp.bottom() }
 
 Sym "Sym" = SymIdent / SymQuoted
 
