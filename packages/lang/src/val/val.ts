@@ -63,9 +63,7 @@ export class Unit implements IVal {
 		return this
 	}
 
-	public print = (): string => {
-		return '()'
-	}
+	public print = () => '()'
 
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
@@ -89,17 +87,11 @@ export class Bottom implements IVal {
 		return this
 	}
 
-	public print = (): string => {
-		return '_|_'
-	}
+	public print = () => '_|_'
 
-	public isSubtypeOf = (): boolean => {
-		return true
-	}
+	public isSubtypeOf = () => true
 
-	public isEqualTo = (val: Value) => {
-		return val.type === this.type
-	}
+	public isEqualTo = (val: Value) => val.type === this.type
 
 	public static instance = new Bottom()
 }
@@ -112,17 +104,11 @@ export class All implements IVal {
 		return this
 	}
 
-	public print = (): string => {
-		return '_'
-	}
+	public print = () => '_'
 
-	public isSubtypeOf = (ty: Value): boolean => {
-		return ty.type === 'all'
-	}
+	public isSubtypeOf = (ty: Value) => ty.type === 'all'
 
-	public isEqualTo = (val: Value) => {
-		return val.type === this.type
-	}
+	public isEqualTo = (val: Value) => val.type === this.type
 
 	public static instance = new All()
 }
@@ -134,9 +120,7 @@ export class Num implements IVal {
 	public readonly superType = tyNum
 	private constructor(public readonly value: number) {}
 
-	public print = (): string => {
-		return this.value.toString()
-	}
+	public print = () => this.value.toString()
 
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
@@ -161,9 +145,7 @@ export class Str implements IVal {
 	public readonly superType = tyStr
 	private constructor(public readonly value: string) {}
 
-	public print = (): string => {
-		return '"' + this.value.toString() + '"'
-	}
+	public print = () => '"' + this.value.toString() + '"'
 
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
@@ -190,9 +172,7 @@ export class Atom<T = any> implements IVal {
 		public readonly superType: TyAtom
 	) {}
 
-	public print = (): string => {
-		return '<instance of ' + this.superType.print() + '>'
-	}
+	public print = () => `<instance of ${this.superType.print()}>`
 
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
@@ -201,9 +181,7 @@ export class Atom<T = any> implements IVal {
 		return this.superType.isEqualTo(ty)
 	}
 
-	public isEqualTo = () => {
-		return false
-	}
+	public isEqualTo = () => false
 
 	public static of<T>(value: T, superType: TyAtom<T>) {
 		return new Atom<T>(value, superType)
@@ -614,9 +592,7 @@ export class TyVar implements IVal {
 		public readonly original?: TyVar
 	) {}
 
-	public print = (): string => {
-		return '<' + this.id + '>'
-	}
+	public print = () => '<' + this.id + '>'
 
 	public isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'all') return true
