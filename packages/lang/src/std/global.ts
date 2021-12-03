@@ -101,11 +101,6 @@ export const GlobalScope = Exp.scope({
 		{test: Val.tyBool, then: T, else: T},
 		T
 	),
-	first: defn(
-		(coll: Val.Vec) => coll.items[0] ?? Val.unit,
-		{coll: Val.vecFrom([], T)},
-		Val.uniteTy(T, Val.unit)
-	),
 	rest: defn(
 		(coll: Val.Vec) => Val.vecFrom(coll.items.slice(1)),
 		{coll: Val.vecFrom([], T)},
@@ -186,6 +181,8 @@ inc = (=> x:Num (+ x 1))
 dec = (=> x:Num (+ x -1))
 
 const = (=> x:<T> (=> () x))
+
+first = (=> coll:[...<T>] (coll 0))
 
 id = (=> x:<T> x)
 
