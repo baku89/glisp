@@ -1,5 +1,8 @@
 import {entries, fromPairs, keys, mapValues, values} from 'lodash'
 
+import {hasEqualValues} from '../utils/hasEqualValues'
+import {isEqualArray} from '../utils/isEqualArray'
+import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
@@ -39,6 +42,8 @@ abstract class BaseNode {
 	abstract eval(env?: Env): ValueWithLog
 	abstract infer(env?: Env): Val.Value
 	abstract print(): string
+
+	abstract isSameTo(exp: Node): boolean
 }
 
 type Env = Map<Fn, Record<string, Node>>
@@ -88,6 +93,8 @@ export class Sym extends BaseNode {
 		return this.name
 	}
 
+	public isSameTo = (exp: Node) => exp.type === 'sym' && this.name === exp.name
+
 	public static of(name: string) {
 		return new Sym(name)
 	}
@@ -115,6 +122,9 @@ export class Obj extends BaseNode {
 		return this.value.print()
 	}
 
+	public isSameTo = (exp: Node) =>
+		exp.type === 'obj' && this.value.isEqualTo(exp.value)
+
 	public static of(value: Val.Value) {
 		return new Obj(value, false)
 	}
@@ -130,6 +140,7 @@ export class All extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.all)
 	public infer = () => Val.all
 	public print = () => '_'
+	public isSameTo = (exp: Node) => exp.type === 'all'
 
 	public static of = () => new All()
 }
@@ -140,6 +151,7 @@ export class Bottom extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.bottom)
 	public infer = () => Val.bottom
 	public print = () => '_|_'
+	public isSameTo = (exp: Node) => exp.type === 'bottom'
 
 	public static of = () => new Bottom()
 }
@@ -150,6 +162,7 @@ export class Unit extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public infer = () => Val.unit
 	public print = () => '()'
+	public isSameTo = (exp: Node) => exp.type === 'unit'
 
 	public static of = () => new Unit()
 }
@@ -164,6 +177,8 @@ export class Num extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
 	public infer = () => Val.num(this.value)
 	public print = () => this.value.toString()
+	public isSameTo = (exp: Node) =>
+		exp.type === 'num' && this.value === exp.value
 
 	public static of(value: number) {
 		return new Num(value)
@@ -180,6 +195,8 @@ export class Str extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
 	public infer = () => Val.str(this.value)
 	public print = () => this.value.toString()
+	public isSameTo = (exp: Node) =>
+		exp.type === 'str' && this.value === exp.value
 
 	public static of(value: string) {
 		return new Str(value)
@@ -196,6 +213,8 @@ export class TyVar extends BaseNode {
 	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
 	public infer = () => Val.tyVar(this.name)
 	public print = () => '<' + this.name + '>'
+	public isSameTo = (exp: Node) =>
+		exp.type === 'tyVar' && this.name === exp.name
 
 	public static of(name: string) {
 		return new TyVar(name)
@@ -248,6 +267,11 @@ export class Fn extends BaseNode {
 		return `(=> ${param} ${body})`
 	}
 
+	public isSameTo = (exp: Node) =>
+		exp.type === 'fn' &&
+		hasEqualValues(this.param, exp.param, isSame) &&
+		isSame(this.body, exp.body)
+
 	public static of(param: Record<string, Node>, body: Node) {
 		const fn = new Fn(param, body)
 		values(param).forEach(p => (p.parent = fn))
@@ -290,6 +314,12 @@ export class TyFn extends BaseNode {
 
 		return `(-> ${param} ${out})`
 	}
+
+	public isSameTo = (exp: Node): boolean =>
+		exp.type === 'tyFn' &&
+		this.tyParam.length === this.tyParam.length &&
+		this.tyParam.every((t, i) => t.isSameTo(exp.tyParam[i])) &&
+		isSame(this.out, this.out)
 
 	public static of(param: Node | Node[], out: Node) {
 		const tyParam = [param].flat()
@@ -335,6 +365,12 @@ export class Vec extends BaseNode {
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
+
+	public isSameTo = (exp: Node): boolean =>
+		exp.type === 'vec' &&
+		this.length === exp.length &&
+		nullishEqual(this.rest, this.rest, isSame) &&
+		zip(this.items, this.items).every(([ai, bi]) => isSame(ai, bi))
 
 	public static of(...items: Node[]) {
 		const vec = new Vec(items)
@@ -384,6 +420,14 @@ export class Dict extends BaseNode {
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
+
+	public isSameTo = (exp: Node): boolean =>
+		exp.type === 'dict' &&
+		hasEqualValues(
+			this.items,
+			exp.items,
+			(t, e) => !!t.optional === !!e.optional && isSame(t.value, e.value)
+		)
 
 	public static of(items: Record<string, Node>) {
 		const its = mapValues(items, value => ({value}))
@@ -496,6 +540,9 @@ export class App extends BaseNode {
 		return '(' + [fn, ...args].join(' ') + ')'
 	}
 
+	public isSameTo = (exp: Node) =>
+		exp.type === 'app' && isEqualArray(this.args, exp.args, isSame)
+
 	public static of(fn: Node, ...args: Node[]) {
 		const app = new App(fn, args)
 		fn.parent = app
@@ -529,6 +576,11 @@ export class Scope extends BaseNode {
 		return '{' + [...vars, ...out].join(' ') + '}'
 	}
 
+	public isSameTo = (exp: Node) =>
+		exp.type === 'scope' &&
+		nullishEqual(this.out, exp.out, isSame) &&
+		hasEqualValues(this.vars, exp.vars, isSame)
+
 	public extend(vars: Record<string, Node>, out: Node | null = null): Scope {
 		const scope = new Scope(vars, out)
 		scope.parent = this
@@ -557,4 +609,8 @@ export class Scope extends BaseNode {
 		if (out) out.parent = scope
 		return scope
 	}
+}
+
+export function isSame(a: Node, b: Node): boolean {
+	return a.isSameTo(b)
 }

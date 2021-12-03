@@ -5,7 +5,7 @@ import {
 	dict,
 	dictFrom,
 	fn,
-	isEqual,
+	isSame,
 	Node,
 	num,
 	scope,
@@ -133,7 +133,7 @@ describe('parsing function type', () => {
 function testParsing(input: string, expected: Node) {
 	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
-		if (!isEqual(result, expected)) {
+		if (!isSame(result, expected)) {
 			throw new Error('Got=' + result.print())
 		}
 	})
