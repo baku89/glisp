@@ -762,6 +762,10 @@ export class TyAtom<T = any> implements IVal {
 		return new TyAtom<T>(this.uid, defaultValue)
 	}
 
+	public of(value: T): Atom<T> {
+		return Atom.of(value, this)
+	}
+
 	public static ofLiteral(name: string, defaultValue: Num | Str): TyAtom<any> {
 		const ty = new TyAtom(name, defaultValue)
 		;(defaultValue as any).superType = ty
