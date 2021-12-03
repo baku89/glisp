@@ -86,9 +86,7 @@ export class Sym implements INode {
 		return this.resolve(env).result.infer(env)
 	}
 
-	public print() {
-		return this.name
-	}
+	public print = () => this.name
 
 	public isSameTo = (exp: Node) => exp.type === 'sym' && this.name === exp.name
 
@@ -114,9 +112,7 @@ export class Obj implements INode {
 		return this.value
 	}
 
-	public print() {
-		return this.value.print()
-	}
+	public print = () => this.value.print()
 
 	public isSameTo = (exp: Node) =>
 		exp.type === 'obj' && this.value.isEqualTo(exp.value)
