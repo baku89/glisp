@@ -14,7 +14,6 @@ import {
 	Str,
 	Sym,
 	TyFn,
-	Type,
 	TyVar,
 	Unit,
 	ValueWithLog,
@@ -25,7 +24,7 @@ export {Node}
 
 export {Sym, Obj, Fn, TyFn, Vec, App, Scope}
 
-export {Type, Log, ValueWithLog, NodeWithLog}
+export {Log, ValueWithLog, NodeWithLog}
 
 // Shorthands
 export const sym = Sym.of

@@ -24,8 +24,6 @@ export type Node =
 	| App
 	| Scope
 
-export type Type = Node['type']
-
 export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
