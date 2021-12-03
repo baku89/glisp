@@ -1,5 +1,5 @@
 import {parse} from '../parser'
-import {GlobalScope} from '../std/global'
+import {PreludeScope} from '../std/prelude'
 
 describe('default values of types', () => {
 	run('1', '1')
@@ -38,7 +38,7 @@ describe('default values of types', () => {
 
 function parseEval(input: string) {
 	const exp = parse(input)
-	exp.parent = GlobalScope
+	exp.parent = PreludeScope
 
 	return exp.eval().result
 }

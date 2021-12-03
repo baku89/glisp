@@ -1,5 +1,5 @@
 import {parse} from '../parser'
-import {GlobalScope} from '../std/global'
+import {PreludeScope} from '../std/prelude'
 import {Writer} from '../utils/Writer'
 import * as Val from '.'
 
@@ -107,7 +107,7 @@ describe('subtyping', () => {
 	function parseEval(input: Val.Value | string) {
 		if (typeof input === 'string') {
 			const exp = parse(input)
-			exp.parent = GlobalScope
+			exp.parent = PreludeScope
 			return exp.eval().result
 		}
 		return input
