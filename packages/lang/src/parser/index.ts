@@ -26,7 +26,10 @@ Bottom "bottom" = "_|_" { return Exp.obj(Val.bottom) }
 
 Sym "Sym" = SymIdent / SymQuoted
 
-SymIdent = !(Reserved End) !(Digit / Delimiter / Whitespace) . (!(Delimiter / Whitespace) .)*
+SymIdent =
+	!(Reserved End)
+	!(Digit / Delimiter / Whitespace) .
+	(!(Delimiter / Whitespace) .)*
 	{
 		return Exp.sym(text())
 	}
@@ -131,7 +134,7 @@ ScopePair = s:Sym _ "=" _ node:Node _
 _ "whitespace" = Whitespace*
 __ "whitespace" = Whitespace+
 
-Delimiter = [()[\\]{}\\:\`"?]
+Delimiter = [()[\\]{}\\:\`"?.]
 
 Digit = [0-9]
 
