@@ -170,8 +170,8 @@ export const GlobalScope = Exp.scope({
 GlobalScope.defs(
 	parseModule(`
 
-. = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))
-twice = (=> f:(-> <T> <T>) (. f f))
+compose = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))
+twice = (=> f:(-> <T> <T>) (compose f f))
 
 bindMaybe =
 (=> (f:(-> <T> (| () <U>))

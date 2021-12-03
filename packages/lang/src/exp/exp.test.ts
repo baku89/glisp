@@ -33,10 +33,10 @@ describe('evaluating anonymous function application', () => {
 })
 
 describe('evaluating higher-order function application', () => {
-	testEval('((. inc isEven) 1)', Val.bool(true))
-	testEval('((. inc isEven) 2)', Val.bool(false))
+	testEval('((compose inc isEven) 1)', Val.bool(true))
+	testEval('((compose inc isEven) 2)', Val.bool(false))
 	testEval('((twice inc) 1)', Val.num(3))
-	testEval('((. id id) 1)', Val.num(1))
+	testEval('((compose id id) 1)', Val.num(1))
 })
 
 describe('evaluating vectors', () => {
@@ -76,7 +76,7 @@ describe('inferring vectors', () => {
 	testInfer('[1 2 3]', Val.vec(i1, i2, i3))
 	testInfer('[Num]', Val.vec(Val.tyValue(Val.tyNum)))
 	testInfer('[(inc 0)]', Val.vec(Val.tyNum))
-	testInfer('[(. inc isEven)]', Val.vec(Val.tyFn(Val.tyNum, Val.tyBool)))
+	testInfer('[(compose inc isEven)]', Val.vec(Val.tyFn(Val.tyNum, Val.tyBool)))
 	testInfer('[...1]', Val.tyValue(Val.vecFrom([], i1)))
 	testInfer('[...Num]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyNum))))
 	testInfer('[...Bool]', Val.tyValue(Val.vecFrom([], Val.tyValue(Val.tyBool))))
@@ -110,8 +110,8 @@ describe('inferring a type of polymorphic function application', () => {
 	testInfer('(+ (id 1) (id 2))', Val.tyNum)
 	testInfer('(if (id true) (id 2) (* 1 2))', Val.tyNum)
 	testInfer('(id (id 1))', Val.num(1))
-	testInfer('(. inc isEven)', Val.tyFn(Val.tyNum, Val.tyBool))
-	testInfer('((. inc isEven) 1)', Val.tyBool)
+	testInfer('(compose inc isEven)', Val.tyFn(Val.tyNum, Val.tyBool))
+	testInfer('((compose inc isEven) 1)', Val.tyBool)
 	testInfer('(twice inc)', Val.tyFn(Val.tyNum, Val.tyNum))
 	testInfer('(twice not)', Val.tyFn(Val.tyBool, Val.tyBool))
 	testInfer('(twice (twice inc))', Val.tyFn(Val.tyNum, Val.tyNum))
@@ -121,18 +121,18 @@ describe('inferring a type of polymorphic function application', () => {
 		Val.tyNum
 	)
 	testInfer('(twice id)', Val.tyFn(T, T))
-	testInfer('(. id id)', Val.tyFn(T, T))
-	testInfer('(. id inc)', Val.tyFn(Val.tyNum, Val.tyNum))
-	testInfer('(. inc id)', Val.tyFn(Val.tyNum, Val.tyNum))
-	testInfer('(. twice id)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
-	testInfer('(. id twice)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
+	testInfer('(compose id id)', Val.tyFn(T, T))
+	testInfer('(compose id inc)', Val.tyFn(Val.tyNum, Val.tyNum))
+	testInfer('(compose inc id)', Val.tyFn(Val.tyNum, Val.tyNum))
+	testInfer('(compose twice id)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
+	testInfer('(compose id twice)', Val.tyFn(Val.tyFn(T, T), Val.tyFn(T, T)))
 })
 
 describe('inferring invalid expression', () => {
-	testInfer('(. inc)', Val.tyFn(Val.tyNum, Val.bottom))
-	testInfer('(. () inc)', Val.tyFn(Val.all, Val.tyNum))
-	testInfer('(. not inc)', Val.tyFn(Val.tyBool, Val.tyNum))
-	testInfer('(. inc not)', Val.tyFn(Val.tyNum, Val.tyBool))
+	testInfer('(compose inc)', Val.tyFn(Val.tyNum, Val.bottom))
+	testInfer('(compose () inc)', Val.tyFn(Val.all, Val.tyNum))
+	testInfer('(compose not inc)', Val.tyFn(Val.tyBool, Val.tyNum))
+	testInfer('(compose inc not)', Val.tyFn(Val.tyNum, Val.tyBool))
 })
 
 function parse(input: string | Exp.Node): Exp.Node {
