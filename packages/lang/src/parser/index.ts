@@ -154,7 +154,7 @@ const parser = eval(parserSource)
 
 export function parse(str: string): Exp.Node {
 	const exp: Exp.Node | undefined = parser.parse(str)
-	if (!exp) return Exp.obj(Val.bottom)
+	if (!exp) return Exp.unit()
 
 	return exp
 }
