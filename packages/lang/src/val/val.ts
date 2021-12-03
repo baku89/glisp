@@ -9,6 +9,7 @@ import {
 
 import * as Exp from '../exp'
 import {hasEqualValues} from '../utils/hasEqualValues'
+import {isEqualArray} from '../utils/isEqualArray'
 import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
@@ -409,9 +410,8 @@ export class Vec implements IVal, IFnLike {
 	public isEqualTo = (val: Value): boolean => {
 		return (
 			val.type === 'vec' &&
-			val.length === this.length &&
-			nullishEqual(val.rest, this.rest, (a, b) => a.isEqualTo(b)) &&
-			zip(val.items, this.items).every(([a, b]) => a.isEqualTo(b))
+			isEqualArray(this.items, val.items, isEqual) &&
+			nullishEqual(val.rest, this.rest, isEqual)
 		)
 	}
 
@@ -676,9 +676,8 @@ export class TyFn implements IVal, ITyFn {
 
 	public isEqualTo = (val: Value): boolean => {
 		return (
-			val.type === this.type &&
-			val.tyParam.length === this.tyParam.length &&
-			val.tyParam.every((v, i) => v.isEqualTo(this.tyParam[i])) &&
+			val.type === 'tyFn' &&
+			isEqualArray(this.tyParam, val.tyParam, isEqual) &&
 			val.tyOut.isEqualTo(this.tyOut)
 		)
 	}

@@ -315,8 +315,7 @@ export class TyFn extends BaseNode {
 
 	public isSameTo = (exp: Node): boolean =>
 		exp.type === 'tyFn' &&
-		this.tyParam.length === this.tyParam.length &&
-		this.tyParam.every((t, i) => t.isSameTo(exp.tyParam[i])) &&
+		isEqualArray(this.tyParam, exp.tyParam, isSame) &&
 		isSame(this.out, this.out)
 
 	public static of(param: Node | Node[], out: Node) {
@@ -366,9 +365,8 @@ export class Vec extends BaseNode {
 
 	public isSameTo = (exp: Node): boolean =>
 		exp.type === 'vec' &&
-		this.length === exp.length &&
-		nullishEqual(this.rest, this.rest, isSame) &&
-		zip(this.items, this.items).every(([ai, bi]) => isSame(ai, bi))
+		isEqualArray(this.items, exp.items, isSame) &&
+		nullishEqual(this.rest, this.rest, isSame)
 
 	public static of(...items: Node[]) {
 		const vec = new Vec(items)
