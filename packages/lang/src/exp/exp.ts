@@ -19,7 +19,7 @@ export type ValueWithLog = Writer<Val.Value, Log>
 export type NodeWithLog = Writer<Node, Log>
 
 abstract class BaseNode {
-	public abstract type: string
+	public abstract readonly type: string
 	public parent: Node | null = null
 
 	abstract eval(env?: Env): ValueWithLog
