@@ -30,6 +30,7 @@ type Value =
 	| TyAtom
 	| Enum
 	| TyEnum
+	| TyFn
 	| Vec
 	| TyVec
 	| Prod
@@ -462,6 +463,56 @@ export class ETyFn implements INode {
 	}
 }
 
+export class TyFn implements INode, IValue {
+	public readonly type = 'tyFn' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(public param: Record<string, Value>, public out: Value) {}
+
+	public printParam = () => {
+		const pStr = entries(this.param).map(TyFn.printParamPair).join(' ')
+
+		const names = keys(this.param)
+		const canOmitParens =
+			names.length === 1 && this.param[names[0]].type !== 'unit'
+
+		return canOmitParens ? pStr : `(${pStr})`
+	}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		return `(-> ${this.printParam()} ${this.out.print()})`
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'tyFn' &&
+		isEqualArray(values(this.param), values(e.param), isSame) &&
+		isSame(this.out, e.out)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+		if (e.type !== 'tyFn') return false
+
+		const tParam = Vec.of(...values(this.param))
+		const eParam = Vec.of(...values(e.param))
+
+		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
+	}
+
+	private static printParamPair([name, ty]: [string, Value]) {
+		if (/^\$[0-9]$/.test(name)) return ty
+		return name + ':' + ty
+	}
+}
+
 export class EVec implements INode {
 	public readonly type = 'eVec' as const
 	public parent: Node | null = null
@@ -553,6 +604,10 @@ export class Vec implements INode, IValue {
 			this.items.slice(e.items.length).every(ti => ti.isSubtypeOf(e.rest))
 
 		return isAllItemsSubtype && isRestSubtype
+	}
+
+	public static of(...items: Value[]) {
+		return new Vec(items)
 	}
 }
 
