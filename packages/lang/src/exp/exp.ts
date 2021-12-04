@@ -12,7 +12,6 @@ export type Node =
 	| Sym
 	| Obj
 	| Value
-	| TyAtom
 	| TyVar
 	| Fn
 	| TyFn
@@ -21,7 +20,7 @@ export type Node =
 	| App
 	| Scope
 
-type Value = All | Bottom | Unit | Num | Str | Atom
+type Value = All | Bottom | Unit | Num | Str | Atom | TyAtom | Enum | TyEnum
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -256,6 +255,56 @@ export class TyAtom implements INode, IValue {
 	public static ofLiteral(name: string, defaultValue: Num | Str) {
 		return new TyAtom(name, defaultValue)
 	}
+}
+
+export class Enum implements INode, IValue {
+	public readonly type = 'enum' as const
+	public parent: Node | null = null
+	public superType!: TyEnum
+
+	private constructor(public readonly name: string) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	// TODO: fix this
+	public print = () => this.name
+
+	public isSameTo = (e: Node) =>
+		e.type === 'enum' &&
+		this.name === e.name &&
+		this.superType.isSameTo(e.superType)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+}
+
+export class TyEnum implements INode, IValue {
+	public readonly type = 'tyEnum' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(
+		public readonly name: string,
+		public readonly types: Enum[]
+	) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	// TODO: fix this
+	public print = () => this.name
+
+	public isSameTo = (e: Node) => e.type === 'tyEnum' && this.name === e.name
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
 export class TyVar implements INode, IValue {
