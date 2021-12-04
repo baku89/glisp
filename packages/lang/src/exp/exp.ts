@@ -489,6 +489,10 @@ export class Fn implements INode, IValue, IFnLike {
 	public isEqualTo = () => false
 
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public static of(tyFn: TyFn, fn: IFn) {
+		return new Fn(tyFn, fn)
+	}
 }
 
 export class ETyFn implements INode {
@@ -504,8 +508,11 @@ export class ETyFn implements INode {
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
-	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+	public eval2 = (env?: Env): ValueWithLog2 => {
+		const [params, lp] = Writer.map(this.tyParam, p => p.eval2(env)).asTuple
+		const [out, lo] = this.out.eval2(env).asTuple
+		return Writer.of(TyFn.of(params, out), ...lp, ...lo)
+	}
 
 	public infer(env?: Env): Val.Value {
 		const param = this.tyParam.map(p => p.infer(env))
@@ -513,8 +520,7 @@ export class ETyFn implements INode {
 		return Val.tyFn(param, out)
 	}
 
-	// TODO: fix this
-	public infer2 = () => Unit.of()
+	public infer2 = (env?: Env) => this.eval2(env).result
 
 	public print(): string {
 		let canOmitParens = this.tyParam.length === 1
@@ -594,6 +600,12 @@ export class TyFn implements INode, IValue {
 	private static printParamPair([name, ty]: [string, Value]) {
 		if (/^\$[0-9]$/.test(name)) return ty
 		return name + ':' + ty
+	}
+
+	public static of(params: Value[], out: Value) {
+		const pairs = params.map((p, i) => ['$' + i, p])
+		const param = fromPairs(pairs)
+		return new TyFn(param, out)
 	}
 }
 
@@ -776,8 +788,22 @@ export class EDict implements INode {
 		return Val.tyDict(items, rest)
 	}
 
-	// TODO: fix this
-	public infer2 = () => Unit.of()
+	public infer2 = (env?: Env): Value => {
+		const items = mapValues(this.items, i => ({
+			optional: i.optional,
+			value: i.value.infer2(env),
+		}))
+		const rest = this.rest?.infer2(env)
+
+		const noOptional = values(items).every(it => !it.optional)
+		const noRest = !rest
+
+		if (noOptional && noRest) {
+			return Dict.of(mapValues(items, i => i.value))
+		} else {
+			return TyDict.of(items, rest)
+		}
+	}
 
 	public eval(env?: Env): ValueWithLog {
 		const [items, l] = Writer.mapValues(this.items, ({optional, value}) =>
@@ -787,8 +813,23 @@ export class EDict implements INode {
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
 
-	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+	public eval2(env?: Env): ValueWithLog2 {
+		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
+			value.eval2(env).fmap(value => ({optional, value}))
+		).asTuple
+		const [rest, lr] = this.rest
+			? this.rest.eval2(env).asTuple
+			: [undefined, []]
+
+		const noOptional = values(items).every(it => !it.optional)
+		const noRest = !rest
+
+		if (noOptional && noRest) {
+			return Writer.of(Dict.of(mapValues(items, i => i.value)), ...li)
+		} else {
+			return Writer.of(TyDict.of(items, rest), ...li, ...lr)
+		}
+	}
 
 	public print(): string {
 		const items = entries(this.items).map(
@@ -858,6 +899,10 @@ export class Dict implements INode, IValue {
 		const items = mapValues(this.items, value => ({value}))
 		return {items, rest: null}
 	}
+
+	public static of(items: Record<string, Value>) {
+		return new Dict(items)
+	}
 }
 
 export class TyDict implements INode, IValue {
@@ -905,6 +950,10 @@ export class TyDict implements INode, IValue {
 	}
 
 	public asTyDictLike: TyDictLike = this
+
+	public static of(items: TyDict['items'], rest?: Value) {
+		return new TyDict(items, rest ?? null)
+	}
 }
 
 interface TyDictLike {
