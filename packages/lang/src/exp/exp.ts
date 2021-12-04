@@ -20,7 +20,7 @@ export type Node = Exp | Value | Obj
 
 type Exp = Sym | App | Scope | EFn | ETyFn | EVec | EDict
 
-type Value =
+export type Value =
 	| All
 	| Bottom
 	| Unit
@@ -235,7 +235,7 @@ export class Unit implements INode, IValue {
 export class Num implements INode, IValue {
 	public readonly type = 'num' as const
 	public parent: Node | null = null
-	public superType!: TyAtom
+	public superType = tyNum
 
 	private constructor(public value: number) {}
 
@@ -257,7 +257,7 @@ export class Num implements INode, IValue {
 export class Str implements INode, IValue {
 	public readonly type = 'str' as const
 	public parent: Node | null = null
-	public superType!: TyAtom
+	public superType = tyStr
 
 	private constructor(public value: string) {}
 
@@ -296,6 +296,10 @@ export class Atom<T = any> implements INode, IValue {
 	public isEqualTo = () => false
 
 	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
+
+	public static of<T>(ty: TyAtom, value: T) {
+		return new Atom(ty, value)
+	}
 }
 
 export class TyAtom implements INode, IValue {
@@ -305,7 +309,7 @@ export class TyAtom implements INode, IValue {
 
 	private constructor(
 		private readonly name: string,
-		public defaultValue: Num | Str
+		public defaultValue: Num | Str | Atom
 	) {}
 
 	// TODO: fix this
@@ -323,9 +327,14 @@ export class TyAtom implements INode, IValue {
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static ofLiteral(name: string, defaultValue: Num | Str) {
-		return new TyAtom(name, defaultValue)
+		const ty = new TyAtom(name, defaultValue)
+		defaultValue.superType = ty
+		return ty
 	}
 }
+
+const tyNum = TyAtom.ofLiteral('Int', Num.of(0))
+const tyStr = TyAtom.ofLiteral('Int', Str.of(''))
 
 export class Enum implements INode, IValue {
 	public readonly type = 'enum' as const
