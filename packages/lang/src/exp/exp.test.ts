@@ -10,8 +10,8 @@ describe('evaluating literals', () => {
 	testEval(Exp.num(10), Val.num(10))
 	testEval(Exp.obj(Val.bool(false)), Val.bool(false))
 	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
-	testEval(Exp.obj(Val.unit), Val.unit)
-	testEval(Exp.obj(Val.bottom), Val.bottom)
+	testEval(Exp.unit(), Val.unit)
+	testEval(Exp.bottom(), Val.bottom)
 	testEval('(-> Num Num)', Val.tyFn(Val.tyNum, Val.tyNum))
 })
 
@@ -42,7 +42,7 @@ describe('inferring a type', () => {
 	testInfer(Exp.obj(Val.bool(false)), Val.bool(false))
 	testInfer(Exp.sym('Num'), Val.tyValue(Val.tyNum))
 	testInfer(Exp.obj(Val.tyValue(Val.tyNum)), Val.tyValue(Val.tyNum))
-	testInfer(Exp.obj(Val.unit), Val.unit)
+	testInfer(Exp.unit(), Val.unit)
 	testInfer('(not true)', Val.tyBool)
 })
 
