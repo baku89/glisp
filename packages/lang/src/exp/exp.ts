@@ -16,6 +16,7 @@ export type Node =
 	| Unit
 	| Num
 	| Str
+	| TyAtom
 	| TyVar
 	| Fn
 	| TyFn
@@ -193,6 +194,25 @@ export class Str implements INode {
 
 	public static of(value: string) {
 		return new Str(value)
+	}
+}
+
+export class TyAtom implements INode {
+	public readonly type = 'tyAtom' as const
+	public parent: Node | null = null
+
+	private constructor(private readonly name: string) {}
+
+	// TODO: fix this
+	public eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
+	public infer = () => Val.tyAtom(this.name, null)
+	public print = () => this.name
+
+	public isSameTo = (exp: Node) =>
+		exp.type === 'tyAtom' && this.name === exp.name
+
+	public static of(name: string) {
+		return new TyAtom(name)
 	}
 }
 
