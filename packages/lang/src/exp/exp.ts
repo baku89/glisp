@@ -1,4 +1,5 @@
 import {
+	difference,
 	differenceWith,
 	entries,
 	fromPairs,
@@ -35,6 +36,7 @@ type Value =
 	| Vec
 	| TyVec
 	| Dict
+	| TyDict
 	| Prod
 	| TyProd
 	| TyValue
@@ -847,10 +849,95 @@ export class Dict implements INode, IValue {
 	public isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
 		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-		if (e.type !== 'dict') return false
+		if (!('asTyDictLike' in e)) return false
 
-		return hasEqualValues(this.items, e.items, isSubtype)
+		return isSubtypeDict(this.asTyDictLike, e.asTyDictLike)
 	}
+
+	public get asTyDictLike(): TyDictLike {
+		const items = mapValues(this.items, value => ({value}))
+		return {items, rest: null}
+	}
+}
+
+export class TyDict implements INode, IValue {
+	public readonly type = 'tyDict' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(
+		public items: Record<string, {optional?: boolean; value: Value}>,
+		public rest: Value | null
+	) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	public infer2 = () => this
+
+	public print = (): string => {
+		const items = entries(this.items).map(([k, {optional, value}]) => {
+			return k + (optional ? '?' : '') + ': ' + value.print()
+		})
+		const rest = this.rest ? ['...' + this.rest.print()] : []
+
+		return '{' + [...items, ...rest].join(' ') + '}'
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'tyDict' &&
+		hasEqualValues(
+			this.items,
+			e.items,
+			(ti, ei) => !!ti.optional === !!ei.optional && isSame(ti.value, ei.value)
+		)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+		if (!('asTyDictLike' in e)) return false
+
+		return isSubtypeDict(this, e.asTyDictLike)
+	}
+
+	public asTyDictLike: TyDictLike = this
+}
+
+interface TyDictLike {
+	items: Record<string, {optional?: boolean; value: Value}>
+	rest: Value | null
+}
+
+function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
+	const tKeys = keys(t.items)
+
+	for (const k of tKeys) {
+		const tk = t.items[k]
+		if (!tk.optional) {
+			const sx =
+				k in s.items ? (!s.items[k].optional ? s.items[k].value : null) : s.rest
+			if (!sx || !sx.isSubtypeOf(tk.value)) return false
+		} else {
+			const sx = k in s.items ? s.items[k].value : s.rest
+			if (sx && !sx.isSubtypeOf(tk.value)) return false
+		}
+	}
+
+	if (t.rest) {
+		const sKeys = keys(s.items)
+		for (const k of difference(tKeys, sKeys)) {
+			if (!s.items[k].value.isSubtypeOf(t.rest)) return false
+		}
+		if (s.rest) {
+			if (!s.rest.isSubtypeOf(t.rest)) return false
+		}
+	}
+
+	return true
 }
 
 export class Prod implements INode, IValue {
