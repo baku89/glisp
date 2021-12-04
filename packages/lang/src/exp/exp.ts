@@ -11,12 +11,7 @@ import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 export type Node =
 	| Sym
 	| Obj
-	| All
-	| Bottom
-	| Unit
-	| Num
-	| Str
-	| Atom
+	| Value
 	| TyAtom
 	| TyVar
 	| Fn
@@ -25,6 +20,8 @@ export type Node =
 	| Dict
 	| App
 	| Scope
+
+type Value = All | Bottom | Unit | Num | Str | Atom
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -44,6 +41,11 @@ interface INode {
 	print(): string
 
 	isSameTo(exp: Node): boolean
+}
+
+interface IValue {
+	isEqualTo(e: Node): boolean
+	isSubtypeOf(e: Value): boolean
 }
 
 type Env = Map<Fn, Record<string, Node>>
@@ -128,7 +130,7 @@ export class Obj implements INode {
 	}
 }
 
-export class All implements INode {
+export class All implements INode, IValue {
 	public readonly type = 'all' as const
 	public parent: Node | null = null
 
@@ -136,11 +138,15 @@ export class All implements INode {
 	public infer = () => Val.all
 	public print = () => '_'
 	public isSameTo = (exp: Node) => exp.type === 'all'
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = this.isSameTo
 
 	public static of = () => new All()
+
+	public static instance = new All()
 }
 
-export class Bottom implements INode {
+export class Bottom implements INode, IValue {
 	public readonly type = 'bottom' as const
 	public parent: Node | null = null
 
@@ -148,18 +154,24 @@ export class Bottom implements INode {
 	public infer = () => Val.bottom
 	public print = () => '_|_'
 	public isSameTo = (exp: Node) => exp.type === 'bottom'
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = () => true
 
 	public static of = () => new Bottom()
 }
 
-export class Unit implements INode {
+export class Unit implements INode, IValue {
 	public readonly type = 'unit' as const
 	public parent: Node | null = null
+	public superType = All.instance
 
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public infer = () => Val.unit
 	public print = () => '()'
 	public isSameTo = (exp: Node) => exp.type === 'unit'
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isEqualTo(e)
 
 	public static of = () => new Unit()
 }
@@ -198,7 +210,7 @@ export class Str implements INode {
 	}
 }
 
-export class Atom<T = any> implements INode {
+export class Atom<T = any> implements INode, IValue {
 	public readonly type = 'atom' as const
 	public parent: Node | null = null
 
@@ -209,13 +221,19 @@ export class Atom<T = any> implements INode {
 	// TODO: Fix this
 	public infer = () => Val.unit
 	public print = () => `<instance of ${this.superType.print()}>`
+
 	public isSameTo = (exp: Node) =>
 		exp.type === 'atom' && this.superType === exp.superType
+
+	public isEqualTo = () => false
+
+	public isSubtypeOf = (e: Value) => this.superType.isSubtypeOf(e)
 }
 
-export class TyAtom implements INode {
+export class TyAtom implements INode, IValue {
 	public readonly type = 'tyAtom' as const
 	public parent: Node | null = null
+	public superType = All.instance
 
 	private constructor(
 		private readonly name: string,
@@ -230,14 +248,20 @@ export class TyAtom implements INode {
 	public isSameTo = (exp: Node) =>
 		exp.type === 'tyAtom' && this.name === exp.name
 
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+
 	public static ofLiteral(name: string, defaultValue: Num | Str) {
 		return new TyAtom(name, defaultValue)
 	}
 }
 
-export class TyVar implements INode {
+export class TyVar implements INode, IValue {
 	public readonly type = 'tyVar' as const
 	public parent: Node | null = null
+	public superType = All.instance
 
 	private constructor(public name: string) {}
 
@@ -246,6 +270,11 @@ export class TyVar implements INode {
 	public print = () => '<' + this.name + '>'
 	public isSameTo = (exp: Node) =>
 		exp.type === 'tyVar' && this.name === exp.name
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 
 	public static of(name: string) {
 		return new TyVar(name)
