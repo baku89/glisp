@@ -27,7 +27,9 @@ import {
 	TyDict,
 	TyEnum,
 	TyFn,
+	tyNum,
 	TyProd,
+	tyStr,
 	TyUnion,
 	TyValue,
 	TyVar,
@@ -67,8 +69,10 @@ export {
 	Num,
 	Str,
 	Atom,
-	TyVar,
 	TyAtom,
+	tyNum,
+	tyStr,
+	TyVar,
 	Enum,
 	TyEnum,
 	Fn,
@@ -88,7 +92,7 @@ export const bottom = Bottom.of
 export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
-export const atom = Atom.of
+export const tyAtom = TyAtom.of
 export const tyVar = TyVar.of
 export const vec = Vec.of
 

@@ -12,7 +12,7 @@ describe('evaluating literals', () => {
 function testEval(input: Exp.Node, expected: Exp.Value, hasLog = false) {
 	input.parent = PreludeScope
 
-	test(`${input.eval2()} evaluates to ${expected.print()}`, () => {
+	test(`${input.print()} evaluates to ${expected.print()}`, () => {
 		const {result, log} = input.eval2()
 		if (!result.isEqualTo(expected)) {
 			throw new Error('Got=' + result.print())

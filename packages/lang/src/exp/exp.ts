@@ -232,77 +232,56 @@ export class Unit implements INode, IValue {
 	public static of = () => new Unit()
 }
 
-export class Num implements INode, IValue {
-	public readonly type = 'num' as const
-	public parent: Node | null = null
-	public superType = tyNum
-
-	private constructor(public value: number) {}
-
-	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.num(this.value)
-	public infer2 = () => this
-	public print = () => this.value.toString()
-	public isSameTo = (exp: Node) =>
-		exp.type === 'num' && this.value === exp.value
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	public static of(value: number) {
-		return new Num(value)
-	}
-}
-
-export class Str implements INode, IValue {
-	public readonly type = 'str' as const
-	public parent: Node | null = null
-	public superType = tyStr
-
-	private constructor(public value: string) {}
-
-	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.str(this.value)
-	public infer2 = () => this
-	public print = () => this.value.toString()
-	public isSameTo = (exp: Node) =>
-		exp.type === 'str' && this.value === exp.value
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	public static of(value: string) {
-		return new Str(value)
-	}
-}
-
 export class Atom<T = any> implements INode, IValue {
 	public readonly type = 'atom' as const
 	public parent: Node | null = null
 
-	private constructor(public superType: TyAtom, public value: T) {}
+	protected constructor(public superType: TyAtom, public value: T) {}
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
+	public infer = (): Val.Value => Val.unit
 	public infer2 = () => this
 	public print = () => `<instance of ${this.superType.print()}>`
 
 	public isSameTo = (exp: Node) =>
-		exp.type === 'atom' && this.superType === exp.superType
+		exp.type === 'atom' &&
+		isSame(this.superType, exp.superType) &&
+		this.value === exp.value
 
-	public isEqualTo = () => false
+	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	public static of<T>(ty: TyAtom, value: T) {
+	public static from<T>(ty: TyAtom, value: T) {
 		return new Atom(ty, value)
 	}
 }
 
-export class TyAtom implements INode, IValue {
+export class Num extends Atom<number> {
+	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
+	public infer = () => Val.num(this.value)
+	public print = () => this.value.toString()
+
+	public static of(value: number) {
+		return new Num(tyNum, value)
+	}
+}
+
+export class Str extends Atom<string> {
+	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
+	public infer = () => Val.str(this.value)
+
+	public print = () => '"' + this.value + '"'
+
+	public static of(value: string) {
+		return new Str(tyStr, value)
+	}
+}
+
+export class TyAtom<T = any> implements INode, IValue {
 	public readonly type = 'tyAtom' as const
 	public parent: Node | null = null
 	public superType = All.instance
@@ -324,17 +303,24 @@ export class TyAtom implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	public static ofLiteral(name: string, defaultValue: Num | Str) {
+	public of(value: T) {
+		return Atom.from(this, value)
+	}
+
+	public static of(name: string, defaultValue: Atom) {
 		const ty = new TyAtom(name, defaultValue)
 		defaultValue.superType = ty
 		return ty
 	}
 }
 
-const tyNum = TyAtom.ofLiteral('Int', Num.of(0))
-const tyStr = TyAtom.ofLiteral('Int', Str.of(''))
+export const tyNum = TyAtom.of('Num', Num.of(0))
+export const tyStr = TyAtom.of('Str', Str.of(''))
+
+Num.prototype.superType = tyNum
+Str.prototype.superType = tyStr
 
 export class Enum implements INode, IValue {
 	public readonly type = 'enum' as const
