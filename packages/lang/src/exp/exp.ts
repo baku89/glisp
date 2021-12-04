@@ -15,17 +15,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node =
-	| Sym
-	| Obj
-	| Value
-	| TyVar
-	| Fn
-	| TyFn
-	| Vec
-	| Dict
-	| App
-	| Scope
+export type Node = Sym | Obj | Value | Fn | TyFn | Vec | Dict | App | Scope
 
 type Value =
 	| All
@@ -34,6 +24,7 @@ type Value =
 	| Num
 	| Str
 	| Atom
+	| TyVar
 	| TyAtom
 	| Enum
 	| TyEnum
@@ -69,6 +60,14 @@ interface IValue {
 }
 
 type Env = Map<Fn, Record<string, Node>>
+
+function isSubtypeOfGeneric(
+	this: Exclude<Value, All | Bottom | TyUnion>,
+	e: Value
+): boolean {
+	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+}
 
 export class Sym implements INode {
 	public readonly type = 'sym' as const
@@ -190,8 +189,7 @@ export class Unit implements INode, IValue {
 	public print = () => '()'
 	public isSameTo = (exp: Node) => exp.type === 'unit'
 	public isEqualTo = this.isSameTo
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isEqualTo(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static of = () => new Unit()
 }
@@ -209,8 +207,7 @@ export class Num implements INode, IValue {
 	public isSameTo = (exp: Node) =>
 		exp.type === 'num' && this.value === exp.value
 	public isEqualTo = this.isSameTo
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isEqualTo(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static of(value: number) {
 		return new Num(value)
@@ -230,8 +227,7 @@ export class Str implements INode, IValue {
 	public isSameTo = (exp: Node) =>
 		exp.type === 'str' && this.value === exp.value
 	public isEqualTo = this.isSameTo
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isEqualTo(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static of(value: string) {
 		return new Str(value)
@@ -255,7 +251,7 @@ export class Atom<T = any> implements INode, IValue {
 
 	public isEqualTo = () => false
 
-	public isSubtypeOf = (e: Value) => this.superType.isSubtypeOf(e)
+	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyAtom implements INode, IValue {
@@ -278,8 +274,7 @@ export class TyAtom implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static ofLiteral(name: string, defaultValue: Num | Str) {
 		return new TyAtom(name, defaultValue)
@@ -307,8 +302,7 @@ export class Enum implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyEnum implements INode, IValue {
@@ -332,8 +326,7 @@ export class TyEnum implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyVar implements INode, IValue {
@@ -351,8 +344,7 @@ export class TyVar implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	public static of(name: string) {
 		return new TyVar(name)
@@ -601,8 +593,7 @@ export class Prod implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isEqualTo(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyProd implements INode, IValue {
@@ -626,8 +617,7 @@ export class TyProd implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Node) =>
-		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyUnion implements INode, IValue {
