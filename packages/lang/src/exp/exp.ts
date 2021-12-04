@@ -15,7 +15,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Value | Fn | TyFn | Vec | Dict | App | Scope
+export type Node = Sym | Obj | Value | Fn | TyFn | EVec | Dict | App | Scope
 
 type Value =
 	| All
@@ -28,6 +28,8 @@ type Value =
 	| TyAtom
 	| Enum
 	| TyEnum
+	| Vec
+	| TyVec
 	| Prod
 	| TyProd
 	| TyUnion
@@ -457,8 +459,8 @@ export class TyFn implements INode {
 	}
 }
 
-export class Vec implements INode {
-	public readonly type = 'vec' as const
+export class EVec implements INode {
+	public readonly type = 'eVec' as const
 	public parent: Node | null = null
 
 	private constructor(public items: Node[], public rest: Node | null = null) {}
@@ -493,21 +495,103 @@ export class Vec implements INode {
 	}
 
 	public isSameTo = (exp: Node): boolean =>
-		exp.type === 'vec' &&
+		exp.type === 'eVec' &&
 		isEqualArray(this.items, exp.items, isSame) &&
 		nullishEqual(this.rest, this.rest, isSame)
 
 	public static of(...items: Node[]) {
-		const vec = new Vec(items)
+		const vec = new EVec(items)
 		items.forEach(it => (it.parent = vec))
 		return vec
 	}
 
 	public static from(items: Node[], rest: Node | null = null) {
-		const vec = new Vec(items, rest)
+		const vec = new EVec(items, rest)
 		items.forEach(it => (it.parent = vec))
 		if (rest) rest.parent = vec
 		return vec
+	}
+}
+
+export class Vec implements INode, IValue {
+	public readonly type = 'vec' as const
+	public readonly superType = All.instance
+	public parent: Node | null = null
+
+	private constructor(public items: Value[]) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		const items = this.items.map(print)
+		return '[' + items.join(' ') + ']'
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'vec' && isEqualArray(this.items, e.items, isSame)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+
+		if (e.type !== 'vec' && e.type !== 'tyVec') return false
+
+		const isAllItemsSubtype =
+			this.items.length >= e.items.length &&
+			e.items.every((ei, i) => isSubtype(this.items[i], ei))
+
+		const isRestSubtype =
+			!('rest' in e) ||
+			this.items.slice(e.items.length).every(ti => ti.isSubtypeOf(e.rest))
+
+		return isAllItemsSubtype && isRestSubtype
+	}
+}
+
+export class TyVec implements INode, IValue {
+	public readonly type = 'tyVec' as const
+	public readonly superType = All.instance
+	public parent: Node | null = null
+
+	private constructor(public items: Value[], public rest: Value) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		const items = this.items.map(print)
+		return '[' + items.join(' ') + ']'
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'tyVec' && isEqualArray(this.items, e.items, isSame)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+
+		if (e.type !== 'tyVec') return false
+
+		const isAllItemsSubtype =
+			this.items.length >= e.items.length &&
+			e.items.every((ei, i) => isSubtype(this.items[i], ei))
+
+		const isSurplusItemsSubtype = this.items
+			.slice(e.items.length)
+			.every(ti => ti.isSubtypeOf(e.rest))
+
+		const isRestSubtype = isSubtype(this.rest, e.rest)
+
+		return isAllItemsSubtype && isSurplusItemsSubtype && isRestSubtype
 	}
 }
 
@@ -824,6 +908,10 @@ export function isSame(a: Node, b: Node): boolean {
 
 export function isEqual(a: Value, b: Value): boolean {
 	return a.isEqualTo(b)
+}
+
+export function isSubtype(a: Value, b: Value): boolean {
+	return a.isSubtypeOf(b)
 }
 
 export function print(n: Node) {

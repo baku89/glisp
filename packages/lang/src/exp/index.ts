@@ -3,6 +3,7 @@ import {
 	App,
 	Bottom,
 	Dict,
+	EVec,
 	Fn,
 	isSame,
 	Log,
@@ -17,12 +18,11 @@ import {
 	TyVar,
 	Unit,
 	ValueWithLog,
-	Vec,
 } from './exp'
 
 export {Node}
 
-export {Sym, Obj, Fn, TyFn, Vec, App, Scope}
+export {Sym, Obj, Fn, TyFn, EVec as Vec, App, Scope}
 
 export {Log, ValueWithLog, NodeWithLog}
 
@@ -37,10 +37,10 @@ export const str = Str.of
 export const tyVar = TyVar.of
 export const fn = Fn.of
 export const tyFn = TyFn.of
-export const vec = Vec.of
+export const vec = EVec.of
 export const dict = Dict.of
 export const dictFrom = Dict.from
-export const vecFrom = Vec.from
+export const vecFrom = EVec.from
 export const app = App.of
 export const scope = Scope.of
 
