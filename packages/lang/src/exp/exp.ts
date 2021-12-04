@@ -951,10 +951,7 @@ export class TyDict implements INode, IValue {
 	}
 }
 
-interface TyDictLike {
-	items: Record<string, {optional?: boolean; value: Value}>
-	rest: Value | null
-}
+type TyDictLike = Pick<TyDict, 'items' | 'rest'>
 
 function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 	const tKeys = keys(t.items)
