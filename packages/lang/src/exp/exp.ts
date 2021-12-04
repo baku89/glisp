@@ -32,6 +32,7 @@ type Value =
 	| TyVec
 	| Prod
 	| TyProd
+	| TyValue
 	| TyUnion
 
 type UnitableType = Exclude<Value, All | Bottom>
@@ -698,6 +699,29 @@ export class TyProd implements INode, IValue {
 	public print = () => this.name
 
 	public isSameTo = (e: Node) => e.type === 'tyProd' && this.name === e.name
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+}
+
+export class TyValue implements INode, IValue {
+	public readonly type = 'tyValue' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(
+		public value: Bottom | TyVec | TyUnion | TyAtom | TyVar | TyEnum | TyProd
+	) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	public print = () => this.value.print()
+
+	public isSameTo = (e: Node): boolean =>
+		e.type === 'tyValue' && this.isSameTo(e)
 
 	public isEqualTo = this.isSameTo
 
