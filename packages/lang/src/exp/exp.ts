@@ -34,6 +34,7 @@ type Value =
 	| TyFn
 	| Vec
 	| TyVec
+	| Dict
 	| Prod
 	| TyProd
 	| TyValue
@@ -739,6 +740,37 @@ export class EDict implements INode {
 		values(items).forEach(it => (it.value.parent = dict))
 		if (rest) rest.parent = dict
 		return dict
+	}
+}
+
+export class Dict implements INode, IValue {
+	public readonly type = 'dict' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(public items: Record<string, Value>) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
+		return '{' + items.join(' ') + '}'
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'dict' && hasEqualValues(this.items, e.items, isSame)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+		if (e.type !== 'dict') return false
+
+		return hasEqualValues(this.items, e.items, isSubtype)
 	}
 }
 
