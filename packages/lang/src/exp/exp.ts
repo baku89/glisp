@@ -15,7 +15,9 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Value | Fn | TyFn | EVec | EDict | App | Scope
+export type Node = Exp | Value | Obj
+
+type Exp = Sym | App | Scope | EFn | ETyFn | EVec | EDict
 
 type Value =
 	| All
@@ -62,7 +64,7 @@ interface IValue {
 	isSubtypeOf(e: Value): boolean
 }
 
-type Env = Map<Fn, Record<string, Node>>
+type Env = Map<EFn, Record<string, Node>>
 
 function isSubtypeOfGeneric(
 	this: Exclude<Value, All | Bottom | TyUnion>,
@@ -85,7 +87,7 @@ export class Sym implements INode {
 			if (ref.type === 'scope' && this.name in ref.vars) {
 				return Writer.of(ref.vars[this.name])
 			}
-			if (env && ref.type === 'fn') {
+			if (env && ref.type === 'eFn') {
 				const param = env.get(ref)
 				if (param && this.name in param) {
 					return Writer.of(param[this.name])
@@ -354,8 +356,8 @@ export class TyVar implements INode, IValue {
 	}
 }
 
-export class Fn implements INode {
-	public readonly type = 'fn' as const
+export class EFn implements INode {
+	public readonly type = 'eFn' as const
 	public parent: Node | null = null
 
 	private constructor(public param: Record<string, Node>, public body: Node) {}
@@ -400,20 +402,20 @@ export class Fn implements INode {
 	}
 
 	public isSameTo = (exp: Node) =>
-		exp.type === 'fn' &&
+		exp.type === 'eFn' &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.body, exp.body)
 
 	public static of(param: Record<string, Node>, body: Node) {
-		const fn = new Fn(param, body)
+		const fn = new EFn(param, body)
 		values(param).forEach(p => (p.parent = fn))
 		body.parent = fn
 		return fn
 	}
 }
 
-export class TyFn implements INode {
-	public readonly type = 'tyFn' as const
+export class ETyFn implements INode {
+	public readonly type = 'eTyFn' as const
 	public parent: Node | null = null
 
 	private constructor(public tyParam: Node[], public out: Node) {}
@@ -447,13 +449,13 @@ export class TyFn implements INode {
 	}
 
 	public isSameTo = (exp: Node): boolean =>
-		exp.type === 'tyFn' &&
+		exp.type === 'eTyFn' &&
 		isEqualArray(this.tyParam, exp.tyParam, isSame) &&
 		isSame(this.out, this.out)
 
 	public static of(param: Node | Node[], out: Node) {
 		const tyParam = [param].flat()
-		const tyFn = new TyFn(tyParam, out)
+		const tyFn = new ETyFn(tyParam, out)
 		tyParam.forEach(p => (p.parent = tyFn))
 		out.parent = tyFn
 		return tyFn

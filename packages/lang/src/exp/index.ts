@@ -3,8 +3,9 @@ import {
 	App,
 	Bottom,
 	EDict,
+	EFn,
+	ETyFn,
 	EVec,
-	Fn,
 	isSame,
 	Log,
 	Node,
@@ -14,7 +15,6 @@ import {
 	Scope,
 	Str,
 	Sym,
-	TyFn,
 	TyVar,
 	Unit,
 	ValueWithLog,
@@ -22,7 +22,7 @@ import {
 
 export {Node}
 
-export {Sym, Obj, Fn, TyFn, EVec as Vec, App, Scope}
+export {Sym, Obj, EFn as Fn, ETyFn as TyFn, EVec as Vec, App, Scope}
 
 export {Log, ValueWithLog, NodeWithLog}
 
@@ -35,8 +35,8 @@ export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
 export const tyVar = TyVar.of
-export const fn = Fn.of
-export const tyFn = TyFn.of
+export const fn = EFn.of
+export const tyFn = ETyFn.of
 export const vec = EVec.of
 export const dict = EDict.of
 export const dictFrom = EDict.from
