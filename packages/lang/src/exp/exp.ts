@@ -49,6 +49,7 @@ export interface Log {
 }
 
 export type ValueWithLog = Writer<Val.Value, Log>
+export type ValueWithLog2 = Writer<Value, Log>
 export type NodeWithLog = Writer<Node, Log>
 
 interface INode {
@@ -56,7 +57,9 @@ interface INode {
 	parent: Node | null
 
 	eval(env?: Env): ValueWithLog
+	eval2(env?: Env): ValueWithLog2
 	infer(env?: Env): Val.Value
+	infer2(env?: Env): Value
 	print(): string
 
 	isSameTo(exp: Node): boolean
@@ -120,8 +123,16 @@ export class Sym implements INode {
 		return this.resolve(env).bind(v => v.eval(env))
 	}
 
+	public eval2 = (env?: Env): ValueWithLog2 => {
+		return this.resolve(env).bind(n => n.eval2(env))
+	}
+
 	public infer(env?: Env): Val.Value {
 		return this.resolve(env).result.infer(env)
+	}
+
+	public infer2(env?: Env): Value {
+		return this.resolve(env).result.infer2(env)
 	}
 
 	public print = () => this.name
@@ -142,6 +153,8 @@ export class Obj implements INode {
 	public eval(): ValueWithLog {
 		return Writer.of(this.value)
 	}
+	// TODO: fix this
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
 
 	public infer(): Val.Value {
 		if (this.asType === false && Val.isTy(this.value)) {
@@ -149,6 +162,8 @@ export class Obj implements INode {
 		}
 		return this.value
 	}
+	// TODO: fix this
+	public infer2 = () => Unit.of()
 
 	public print = () => this.value.print()
 
@@ -169,7 +184,9 @@ export class All implements INode, IValue {
 	public parent: Node | null = null
 
 	public eval = (): ValueWithLog => Writer.of(Val.all)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.all
+	public infer2 = () => this
 	public print = () => '_'
 	public isSameTo = (exp: Node) => exp.type === 'all'
 	public isEqualTo = this.isSameTo
@@ -185,7 +202,9 @@ export class Bottom implements INode, IValue {
 	public parent: Node | null = null
 
 	public eval = (): ValueWithLog => Writer.of(Val.bottom)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.bottom
+	public infer2 = () => this
 	public print = () => '_|_'
 	public isSameTo = (exp: Node) => exp.type === 'bottom'
 	public isEqualTo = this.isSameTo
@@ -200,7 +219,9 @@ export class Unit implements INode, IValue {
 	public superType = All.instance
 
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.unit
+	public infer2 = () => this
 	public print = () => '()'
 	public isSameTo = (exp: Node) => exp.type === 'unit'
 	public isEqualTo = this.isSameTo
@@ -217,7 +238,9 @@ export class Num implements INode, IValue {
 	private constructor(public value: number) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.num(this.value)
+	public infer2 = () => this
 	public print = () => this.value.toString()
 	public isSameTo = (exp: Node) =>
 		exp.type === 'num' && this.value === exp.value
@@ -237,7 +260,9 @@ export class Str implements INode, IValue {
 	private constructor(public value: string) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.str(this.value)
+	public infer2 = () => this
 	public print = () => this.value.toString()
 	public isSameTo = (exp: Node) =>
 		exp.type === 'str' && this.value === exp.value
@@ -257,8 +282,10 @@ export class Atom<T = any> implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	public print = () => `<instance of ${this.superType.print()}>`
 
 	public isSameTo = (exp: Node) =>
@@ -281,7 +308,9 @@ export class TyAtom implements INode, IValue {
 
 	// TODO: fix this
 	public eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.tyAtom(this.name, null)
+	public infer2 = () => this
 	public print = () => this.name
 
 	public isSameTo = (exp: Node) =>
@@ -305,8 +334,10 @@ export class Enum implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	// TODO: fix this
 	public print = () => this.name
 
@@ -332,8 +363,10 @@ export class TyEnum implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	// TODO: fix this
 	public print = () => this.name
 
@@ -352,7 +385,9 @@ export class TyVar implements INode, IValue {
 	private constructor(public name: string) {}
 
 	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	public infer = () => Val.tyVar(this.name)
+	public infer2 = () => this
 	public print = () => '<' + this.name + '>'
 	public isSameTo = (exp: Node) =>
 		exp.type === 'tyVar' && this.name === exp.name
@@ -382,6 +417,9 @@ export class EFn implements INode {
 		return Val.tyFn(values(param), out)
 	}
 
+	// TODO: fix this
+	public infer2 = () => Unit.of()
+
 	public eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
 
@@ -402,6 +440,8 @@ export class EFn implements INode {
 		const fnVal = Val.fn(fn, param, out, this.body)
 		return Writer.of(fnVal, ...paramLog)
 	}
+	// TODO: fix this
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
 
 	public print(): string {
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
@@ -432,8 +472,10 @@ export class Fn implements INode, IValue, IFnLike {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	// TODO: fix this
 	public print = (): string => {
 		const param = this.superType.printParam()
@@ -460,11 +502,17 @@ export class ETyFn implements INode {
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
+	// TODO: fix this
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+
 	public infer(env?: Env): Val.Value {
 		const param = this.tyParam.map(p => p.infer(env))
 		const out = this.out.infer(env)
 		return Val.tyFn(param, out)
 	}
+
+	// TODO: fix this
+	public infer2 = () => Unit.of()
 
 	public print(): string {
 		let canOmitParens = this.tyParam.length === 1
@@ -514,8 +562,10 @@ export class TyFn implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		return `(-> ${this.printParam()} ${this.out.print()})`
@@ -564,6 +614,16 @@ export class EVec implements INode {
 		return Writer.of(Val.vecFrom(items), ...li)
 	}
 
+	public eval2 = (env?: Env): ValueWithLog2 => {
+		const [items, li] = Writer.map(this.items, i => i.eval2(env)).asTuple
+		if (this.rest) {
+			const [rest, lr] = this.rest.eval2(env).asTuple
+			return Writer.of(TyVec.of(items, rest), ...li, ...lr)
+		} else {
+			return Writer.of(Vec.of(...items), ...li)
+		}
+	}
+
 	public infer(env?: Env): Val.Value {
 		const items = this.items.map(it => it.infer(env))
 		const rest = this.rest?.infer(env)
@@ -573,6 +633,9 @@ export class EVec implements INode {
 			return Val.vecFrom(items)
 		}
 	}
+
+	// TODO: fix this
+	public infer2 = () => Unit.of()
 
 	public print(): string {
 		const items = this.items.map(it => it.print())
@@ -608,8 +671,10 @@ export class Vec implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		const items = this.items.map(print)
@@ -652,8 +717,10 @@ export class TyVec implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		const items = this.items.map(print)
@@ -683,6 +750,10 @@ export class TyVec implements INode, IValue {
 
 		return isAllItemsSubtype && isSurplusItemsSubtype && isRestSubtype
 	}
+
+	public static of(items: Value[], rest: Value) {
+		return new TyVec(items, rest)
+	}
 }
 
 export class EDict implements INode {
@@ -703,6 +774,9 @@ export class EDict implements INode {
 		return Val.tyDict(items, rest)
 	}
 
+	// TODO: fix this
+	public infer2 = () => Unit.of()
+
 	public eval(env?: Env): ValueWithLog {
 		const [items, l] = Writer.mapValues(this.items, ({optional, value}) =>
 			value.eval(env).fmap(value => ({optional, value}))
@@ -710,6 +784,9 @@ export class EDict implements INode {
 		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
+
+	// TODO: fix this
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
 
 	public print(): string {
 		const items = entries(this.items).map(
@@ -752,8 +829,10 @@ export class Dict implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
@@ -782,8 +861,10 @@ export class Prod implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		const ctor = this.superType.print()
@@ -813,8 +894,10 @@ export class TyProd implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	// TODO: Fix this
 	public print = () => this.name
 
@@ -836,8 +919,10 @@ export class TyValue implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 	public print = () => this.value.print()
 
 	public isSameTo = (e: Node): boolean =>
@@ -857,8 +942,10 @@ export class TyUnion implements INode, IValue {
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	public infer = () => Val.unit
+	public infer2 = () => this
 
 	public print = (): string => {
 		const types = this.types.map(t => t.print()).join(' ')
@@ -964,10 +1051,16 @@ export class App implements INode {
 		return Writer.of(resultTyped, ...fnLog, ...logs, ...evalLog)
 	}
 
+	// TODO: fix this
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+
 	public infer(env?: Env): Val.Value {
 		const [tyFn] = this.inferFn(env)
 		return unshadowTyVars(tyFn.tyOut)
 	}
+
+	// TODO: fix this
+	public infer2 = () => Unit.of()
 
 	public print(): string {
 		const fn = this.fn.print()
@@ -1000,9 +1093,14 @@ export class Scope implements INode {
 		return this.out ? this.out.infer(env) : Val.bottom
 	}
 
+	public infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.of()
+
 	public eval(env?: Env): ValueWithLog {
 		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
+
+	public eval2 = (env?: Env): ValueWithLog2 =>
+		this.out?.eval2(env) ?? Writer.of(Unit.of())
 
 	public print(): string {
 		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())
