@@ -1,4 +1,11 @@
-import {entries, fromPairs, keys, mapValues, values} from 'lodash'
+import {
+	differenceWith,
+	entries,
+	fromPairs,
+	keys,
+	mapValues,
+	values,
+} from 'lodash'
 
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {isEqualArray} from '../utils/isEqualArray'
@@ -32,6 +39,9 @@ type Value =
 	| TyEnum
 	| Prod
 	| TyProd
+	| TyUnion
+
+type UnitableType = Exclude<Value, All | Bottom>
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -186,9 +196,10 @@ export class Unit implements INode, IValue {
 	public static of = () => new Unit()
 }
 
-export class Num implements INode {
+export class Num implements INode, IValue {
 	public readonly type = 'num' as const
 	public parent: Node | null = null
+	public superType!: TyAtom
 
 	private constructor(public value: number) {}
 
@@ -197,15 +208,19 @@ export class Num implements INode {
 	public print = () => this.value.toString()
 	public isSameTo = (exp: Node) =>
 		exp.type === 'num' && this.value === exp.value
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isEqualTo(e)
 
 	public static of(value: number) {
 		return new Num(value)
 	}
 }
 
-export class Str implements INode {
+export class Str implements INode, IValue {
 	public readonly type = 'str' as const
 	public parent: Node | null = null
+	public superType!: TyAtom
 
 	private constructor(public value: string) {}
 
@@ -214,6 +229,9 @@ export class Str implements INode {
 	public print = () => this.value.toString()
 	public isSameTo = (exp: Node) =>
 		exp.type === 'str' && this.value === exp.value
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isEqualTo(e)
 
 	public static of(value: string) {
 		return new Str(value)
@@ -612,6 +630,40 @@ export class TyProd implements INode, IValue {
 		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
+export class TyUnion implements INode, IValue {
+	public readonly type = 'tyUnion' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(public types: UnitableType[]) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		const types = this.types.map(t => t.print()).join(' ')
+		return `(| ${types})`
+	}
+
+	public isEqualTo = (e: Node): boolean =>
+		e.type === 'tyUnion' &&
+		differenceWith(this.types, e.types, isEqual).length === 0
+
+	public isSameTo = this.isEqualTo
+
+	public isSubtypeOf = (e: Value): boolean => {
+		if (this.superType.isSubtypeOf(e)) return true
+
+		const types: Value[] = e.type === 'tyUnion' ? e.types : [e]
+		return this.types.every(s => types.some(s.isSubtypeOf))
+	}
+
+	public isSupertypeOf = (s: Exclude<Value, TyUnion>) =>
+		this.types.some(s.isSubtypeOf)
+}
+
 export class App implements INode {
 	public readonly type = 'app' as const
 	public parent: Node | null = null
@@ -778,4 +830,12 @@ export class Scope implements INode {
 
 export function isSame(a: Node, b: Node): boolean {
 	return a.isSameTo(b)
+}
+
+export function isEqual(a: Value, b: Value): boolean {
+	return a.isEqualTo(b)
+}
+
+export function print(n: Node) {
+	return n.print()
 }
