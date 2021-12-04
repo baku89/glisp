@@ -16,6 +16,7 @@ export type Node =
 	| Unit
 	| Num
 	| Str
+	| Atom
 	| TyAtom
 	| TyVar
 	| Fn
@@ -197,11 +198,29 @@ export class Str implements INode {
 	}
 }
 
+export class Atom<T = any> implements INode {
+	public readonly type = 'atom' as const
+	public parent: Node | null = null
+
+	private constructor(public superType: TyAtom, public value: T) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	public print = () => `<instance of ${this.superType.print()}>`
+	public isSameTo = (exp: Node) =>
+		exp.type === 'atom' && this.superType === exp.superType
+}
+
 export class TyAtom implements INode {
 	public readonly type = 'tyAtom' as const
 	public parent: Node | null = null
 
-	private constructor(private readonly name: string) {}
+	private constructor(
+		private readonly name: string,
+		public defaultValue: Num | Str
+	) {}
 
 	// TODO: fix this
 	public eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
@@ -211,8 +230,8 @@ export class TyAtom implements INode {
 	public isSameTo = (exp: Node) =>
 		exp.type === 'tyAtom' && this.name === exp.name
 
-	public static of(name: string) {
-		return new TyAtom(name)
+	public static ofLiteral(name: string, defaultValue: Num | Str) {
+		return new TyAtom(name, defaultValue)
 	}
 }
 
