@@ -20,7 +20,18 @@ export type Node =
 	| App
 	| Scope
 
-type Value = All | Bottom | Unit | Num | Str | Atom | TyAtom | Enum | TyEnum
+type Value =
+	| All
+	| Bottom
+	| Unit
+	| Num
+	| Str
+	| Atom
+	| TyAtom
+	| Enum
+	| TyEnum
+	| Prod
+	| TyProd
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -546,6 +557,59 @@ export class Dict implements INode {
 		if (rest) rest.parent = dict
 		return dict
 	}
+}
+
+export class Prod implements INode, IValue {
+	public readonly type = 'prod' as const
+	public parent: Node | null = null
+
+	private constructor(public superType: TyProd, public items: Value[]) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+
+	public print = (): string => {
+		const ctor = this.superType.print()
+		const items = this.items.map(it => it.print())
+		return '(' + [ctor, ...items].join(' ') + ')'
+	}
+
+	public isSameTo = (e: Node) =>
+		e.type === 'prod' &&
+		this.superType.isSameTo(e.superType) &&
+		isEqualArray(this.items, e.items, isSame)
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isEqualTo(e)
+}
+
+export class TyProd implements INode, IValue {
+	public readonly type = 'tyProd' as const
+	public parent: Node | null = null
+	public superType = All.instance
+
+	private constructor(
+		public name: string,
+		public param: Record<string, Value>
+	) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	// TODO: Fix this
+	public print = () => this.name
+
+	public isSameTo = (e: Node) => e.type === 'tyProd' && this.name === e.name
+
+	public isEqualTo = this.isSameTo
+
+	public isSubtypeOf = (e: Node) =>
+		this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
 export class App implements INode {
