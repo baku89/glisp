@@ -2,7 +2,7 @@ import {
 	All,
 	App,
 	Bottom,
-	Dict,
+	EDict,
 	EVec,
 	Fn,
 	isSame,
@@ -38,8 +38,8 @@ export const tyVar = TyVar.of
 export const fn = Fn.of
 export const tyFn = TyFn.of
 export const vec = EVec.of
-export const dict = Dict.of
-export const dictFrom = Dict.from
+export const dict = EDict.of
+export const dictFrom = EDict.from
 export const vecFrom = EVec.from
 export const app = App.of
 export const scope = Scope.of

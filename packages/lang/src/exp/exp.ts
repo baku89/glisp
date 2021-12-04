@@ -15,7 +15,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Sym | Obj | Value | Fn | TyFn | EVec | Dict | App | Scope
+export type Node = Sym | Obj | Value | Fn | TyFn | EVec | EDict | App | Scope
 
 type Value =
 	| All
@@ -596,8 +596,8 @@ export class TyVec implements INode, IValue {
 	}
 }
 
-export class Dict implements INode {
-	public readonly type = 'dict' as const
+export class EDict implements INode {
+	public readonly type = 'eDict' as const
 	public parent: Node | null = null
 
 	private constructor(
@@ -631,7 +631,7 @@ export class Dict implements INode {
 	}
 
 	public isSameTo = (exp: Node): boolean =>
-		exp.type === 'dict' &&
+		exp.type === 'eDict' &&
 		hasEqualValues(
 			this.items,
 			exp.items,
@@ -640,14 +640,14 @@ export class Dict implements INode {
 
 	public static of(items: Record<string, Node>) {
 		const its = mapValues(items, value => ({value}))
-		return Dict.from(its)
+		return EDict.from(its)
 	}
 
 	public static from(
 		items: Record<string, {optional?: boolean; value: Node}>,
 		rest?: Node
 	) {
-		const dict = new Dict(items, rest)
+		const dict = new EDict(items, rest)
 		values(items).forEach(it => (it.value.parent = dict))
 		if (rest) rest.parent = dict
 		return dict
