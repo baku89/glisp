@@ -65,7 +65,7 @@ AppArg = arg:Node _ { return arg }
 
 Fn = "(" _ "=>" _ param:FnParam _ body:Node _ ")"
 	{
-		return Exp.fn(param, body)
+		return Exp.eFn(param, body)
 	}
 
 FnParam = FnParamMulti / FnParamSingle
@@ -88,7 +88,7 @@ FnParamPair = sym:Sym _ ":" _ type:Node _
 
 TyFn = "(" _ "->" _ param:TyFnParam _ out:Node _ ")"
 	{
-		return Exp.tyFn(param, out)
+		return Exp.eTyFn(param, out)
 	}
 
 TyFnParam = 
@@ -97,14 +97,14 @@ TyFnParam =
 
 Vec = "[" _ items:VecItem* rest:Rest? "]"
 	{		
-		return Exp.vecFrom(items, rest)
+		return Exp.eVecFrom(items, rest)
 	}
 
 VecItem = !("..." _) item:Node _ { return item }
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
-		return Exp.dictFrom(Object.fromEntries(entries), rest)
+		return Exp.eDictFrom(Object.fromEntries(entries), rest)
 	}
 
 DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
