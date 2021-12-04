@@ -30,6 +30,7 @@ type Value =
 	| TyAtom
 	| Enum
 	| TyEnum
+	| Fn
 	| TyFn
 	| Vec
 	| TyVec
@@ -63,6 +64,13 @@ interface INode {
 interface IValue {
 	isEqualTo(e: Node): boolean
 	isSubtypeOf(e: Value): boolean
+}
+
+type IFn = (...params: any[]) => Writer<Value, Log>
+
+interface IFnLike {
+	superType: TyFn
+	fn: IFn
 }
 
 type Env = Map<EFn, Record<string, Node>>
@@ -413,6 +421,29 @@ export class EFn implements INode {
 		body.parent = fn
 		return fn
 	}
+}
+
+export class Fn implements INode, IValue, IFnLike {
+	public readonly type = 'fn' as const
+	public parent: Node | null = null
+
+	private constructor(public superType: TyFn, public fn: IFn) {}
+
+	// TODO: Fix this
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	// TODO: Fix this
+	public infer = () => Val.unit
+	// TODO: fix this
+	public print = (): string => {
+		const param = this.superType.printParam()
+		const out = this.superType.out.print()
+		return `(=> ${param} (js code):${out})`
+	}
+
+	public isSameTo = () => false
+	public isEqualTo = () => false
+
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class ETyFn implements INode {
