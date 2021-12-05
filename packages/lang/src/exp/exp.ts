@@ -27,7 +27,7 @@ export type Value = Type | Atomic
 type Type =
 	| All
 	| TyVar
-	| TyAtom
+	| TyPrim
 	| TyEnum
 	| TyFn
 	| TyVec
@@ -38,7 +38,7 @@ type Type =
 type Atomic =
 	| Bottom
 	| Unit
-	| Atom<any>
+	| Prim<any>
 	| Num
 	| Str
 	| Enum
@@ -243,12 +243,12 @@ export class Bottom implements INode, IValue {
 	public static of = () => new Bottom()
 }
 
-export class Atom<T = any> implements INode, IValue {
-	public readonly type = 'atom' as const
+export class Prim<T = any> implements INode, IValue {
+	public readonly type = 'prim' as const
 	public parent: Node | null = null
 	public defaultValue = this
 
-	protected constructor(public superType: TyAtom, public value: T) {}
+	protected constructor(public superType: TyPrim, public value: T) {}
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -259,7 +259,7 @@ export class Atom<T = any> implements INode, IValue {
 	public print = () => `<instance of ${this.superType.print()}>`
 
 	public isSameTo = (exp: Node) =>
-		exp.type === 'atom' &&
+		exp.type === 'prim' &&
 		isSame(this.superType, exp.superType) &&
 		this.value === exp.value
 
@@ -267,12 +267,12 @@ export class Atom<T = any> implements INode, IValue {
 
 	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	public static from<T>(ty: TyAtom, value: T) {
-		return new Atom(ty, value)
+	public static from<T>(ty: TyPrim, value: T) {
+		return new Prim(ty, value)
 	}
 }
 
-export class Num extends Atom<number> {
+export class Num extends Prim<number> {
 	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
 	public infer = () => Val.num(this.value)
 	public print = () => this.value.toString()
@@ -282,7 +282,7 @@ export class Num extends Atom<number> {
 	}
 }
 
-export class Str extends Atom<string> {
+export class Str extends Prim<string> {
 	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
 	public infer = () => Val.str(this.value)
 
@@ -293,11 +293,11 @@ export class Str extends Atom<string> {
 	}
 }
 
-export class TyAtom<T = any> implements INode, IValue {
-	public readonly type = 'tyAtom' as const
+export class TyPrim<T = any> implements INode, IValue {
+	public readonly type = 'tyPrim' as const
 	public parent: Node | null = null
 	public superType = All.instance
-	public defaultValue!: Num | Str | Atom
+	public defaultValue!: Num | Str | Prim
 
 	private constructor(private readonly name: string) {}
 
@@ -309,33 +309,33 @@ export class TyAtom<T = any> implements INode, IValue {
 	public print = () => this.name
 
 	public isSameTo = (exp: Node) =>
-		exp.type === 'tyAtom' && this.name === exp.name
+		exp.type === 'tyPrim' && this.name === exp.name
 
 	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
 	public of(value: T) {
-		return Atom.from(this, value)
+		return Prim.from(this, value)
 	}
 
-	public static ofLiteral(name: string, defaultValue: Atom) {
-		const ty = new TyAtom(name)
+	public static ofLiteral(name: string, defaultValue: Prim) {
+		const ty = new TyPrim(name)
 		ty.defaultValue = defaultValue
 		defaultValue.superType = ty
 		return ty
 	}
 
 	public static of<T>(name: string, defaultValue: T) {
-		const ty = new TyAtom(name)
-		const d = Atom.from(ty, defaultValue)
+		const ty = new TyPrim(name)
+		const d = Prim.from(ty, defaultValue)
 		ty.defaultValue = d
 		return ty
 	}
 }
 
-export const tyNum = TyAtom.ofLiteral('Num', Num.of(0))
-export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
+export const tyNum = TyPrim.ofLiteral('Num', Num.of(0))
+export const tyStr = TyPrim.ofLiteral('Str', Str.of(''))
 
 Num.prototype.superType = tyNum
 Str.prototype.superType = tyStr
@@ -1147,7 +1147,7 @@ export class TyValue implements INode, IValue {
 	public superType = All.instance
 
 	private constructor(
-		public value: Bottom | TyVec | TyUnion | TyAtom | TyVar | TyEnum | TyProd
+		public value: Bottom | TyVec | TyUnion | TyPrim | TyVar | TyEnum | TyProd
 	) {}
 
 	public defaultValue = Unit.of()

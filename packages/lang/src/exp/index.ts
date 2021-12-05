@@ -1,7 +1,6 @@
 import {
 	All,
 	App,
-	Atom,
 	Bottom,
 	Dict,
 	EDict,
@@ -18,16 +17,17 @@ import {
 	NodeWithLog,
 	Num,
 	Obj,
+	Prim,
 	print,
 	Prod,
 	Scope,
 	Str,
 	Sym,
-	TyAtom,
 	TyDict,
 	TyEnum,
 	TyFn,
 	tyNum,
+	TyPrim,
 	TyProd,
 	tyStr,
 	TyUnion,
@@ -68,8 +68,8 @@ export {
 	Unit,
 	Num,
 	Str,
-	Atom,
-	TyAtom,
+	Prim,
+	TyPrim,
 	TyVar,
 	Enum,
 	TyEnum,
@@ -97,7 +97,7 @@ export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
 export const bool = (value: boolean) => (value ? True : False)
-export const tyAtom = TyAtom.of
+export const tyPrim = TyPrim.of
 export const tyEnum = TyEnum.of
 export const tyFn = TyFn.of
 export const tyVar = TyVar.of
