@@ -1,6 +1,5 @@
 import * as Exp from '../exp'
-import * as Parser from '../parser'
-import {PreludeScope} from '../std/prelude'
+import {testEval} from '../utils/testUtils2'
 
 describe('evaluating literals', () => {
 	testEval(Exp.all(), Exp.all())
@@ -23,35 +22,3 @@ describe('evaluating literals', () => {
 	testEval('{a = 10 a}', Exp.num(10))
 	testEval('{a = {a = 20 a} a}', Exp.num(20))
 })
-
-function parse(input: string | Exp.Node): Exp.Node {
-	let exp: Exp.Node
-	if (typeof input === 'string') {
-		exp = Parser.parse(input)
-	} else {
-		exp = input
-	}
-	exp.parent = PreludeScope
-	return exp
-}
-
-function testEval(
-	input: Exp.Node | string,
-	expected: Exp.Value,
-	hasLog = false
-) {
-	const exp = parse(input)
-
-	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
-		const {result, log} = exp.eval2()
-		if (!result.isEqualTo(expected)) {
-			throw new Error('Got=' + result.print())
-		}
-		if (!hasLog && log.length > 0) {
-			throw new Error('Expected no log, but got=' + printLog(log))
-		}
-	})
-}
-function printLog(log: Exp.Log[]) {
-	return log.map(l => `[${l.level}] ${l.reason}\n`).join('')
-}

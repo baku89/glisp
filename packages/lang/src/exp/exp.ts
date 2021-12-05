@@ -285,11 +285,9 @@ export class TyAtom<T = any> implements INode, IValue {
 	public readonly type = 'tyAtom' as const
 	public parent: Node | null = null
 	public superType = All.instance
+	public defaultValue!: Num | Str | Atom
 
-	private constructor(
-		private readonly name: string,
-		public defaultValue: Num | Str | Atom
-	) {}
+	private constructor(private readonly name: string) {}
 
 	// TODO: fix this
 	public eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
@@ -309,15 +307,23 @@ export class TyAtom<T = any> implements INode, IValue {
 		return Atom.from(this, value)
 	}
 
-	public static of(name: string, defaultValue: Atom) {
-		const ty = new TyAtom(name, defaultValue)
+	public static ofLiteral(name: string, defaultValue: Atom) {
+		const ty = new TyAtom(name)
+		ty.defaultValue = defaultValue
 		defaultValue.superType = ty
+		return ty
+	}
+
+	public static of<T>(name: string, defaultValue: T) {
+		const ty = new TyAtom(name)
+		const d = Atom.from(ty, defaultValue)
+		ty.defaultValue = d
 		return ty
 	}
 }
 
-export const tyNum = TyAtom.of('Num', Num.of(0))
-export const tyStr = TyAtom.of('Str', Str.of(''))
+export const tyNum = TyAtom.ofLiteral('Num', Num.of(0))
+export const tyStr = TyAtom.ofLiteral('Str', Str.of(''))
 
 Num.prototype.superType = tyNum
 Str.prototype.superType = tyStr
@@ -718,21 +724,10 @@ export class Vec implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+	public isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
-		if (e.type !== 'vec' && e.type !== 'tyVec') return false
-
-		const isAllItemsSubtype =
-			this.items.length >= e.items.length &&
-			e.items.every((ei, i) => isSubtype(this.items[i], ei))
-
-		const isRestSubtype =
-			!('rest' in e) ||
-			this.items.slice(e.items.length).every(ti => ti.isSubtypeOf(e.rest))
-
-		return isAllItemsSubtype && isRestSubtype
+	public get asTyVecLike(): TyVecLike {
+		return {items: this.items}
 	}
 
 	public static of(...items: Value[]) {
@@ -764,28 +759,49 @@ export class TyVec implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+	public isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
-		if (e.type !== 'tyVec') return false
-
-		const isAllItemsSubtype =
-			this.items.length >= e.items.length &&
-			e.items.every((ei, i) => isSubtype(this.items[i], ei))
-
-		const isSurplusItemsSubtype = this.items
-			.slice(e.items.length)
-			.every(ti => ti.isSubtypeOf(e.rest))
-
-		const isRestSubtype = isSubtype(this.rest, e.rest)
-
-		return isAllItemsSubtype && isSurplusItemsSubtype && isRestSubtype
-	}
+	public asTyVecLike: TyVecLike = this
 
 	public static of(items: Value[], rest: Value) {
 		return new TyVec(items, rest)
 	}
+}
+
+type TyVecLike = {
+	items: Value[]
+	rest?: Value
+}
+
+function isSubtypeVecGeneric(this: Vec | TyVec, e: Value): boolean {
+	if (this.superType.isSubtypeOf(e)) return true
+	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+	if (!('asTyVecLike' in e)) return false
+
+	return isSubtypeVec(this.asTyVecLike, e.asTyVecLike)
+}
+
+function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
+	const isAllItemsSubtype =
+		s.items.length >= t.items.length &&
+		zip(s.items, t.items).every(([si, ti]) => isSubtype(si, ti))
+
+	if (!isAllItemsSubtype) return false
+
+	if (t.rest) {
+		const tr = t.rest
+		const isRestSubtype = s.items
+			.slice(t.items.length)
+			.every(ti => ti.isSubtypeOf(tr))
+
+		if (!isRestSubtype) return false
+
+		if (s.rest) {
+			return isSubtype(s.rest, t.rest)
+		}
+	}
+
+	return true
 }
 
 export class EDict implements INode {
@@ -905,13 +921,7 @@ export class Dict implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-		if (!('asTyDictLike' in e)) return false
-
-		return isSubtypeDict(this.asTyDictLike, e.asTyDictLike)
-	}
+	public isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
 	public get asTyDictLike(): TyDictLike {
 		const items = mapValues(this.items, value => ({value}))
@@ -959,13 +969,7 @@ export class TyDict implements INode, IValue {
 
 	public isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-		if (!('asTyDictLike' in e)) return false
-
-		return isSubtypeDict(this, e.asTyDictLike)
-	}
+	public isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
 	public asTyDictLike: TyDictLike = this
 
@@ -976,29 +980,35 @@ export class TyDict implements INode, IValue {
 
 type TyDictLike = Pick<TyDict, 'items' | 'rest'>
 
+function isSubtypeDictGeneric(this: Dict | TyDict, e: Value): boolean {
+	if (this.superType.isSubtypeOf(e)) return true
+	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
+	if (!('asTyDictLike' in e)) return false
+
+	return isSubtypeDict(this.asTyDictLike, e.asTyDictLike)
+}
+
 function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 	const tKeys = keys(t.items)
 
 	for (const k of tKeys) {
-		const tk = t.items[k]
-		if (!tk.optional) {
-			const sx =
-				k in s.items ? (!s.items[k].optional ? s.items[k].value : null) : s.rest
-			if (!sx || !sx.isSubtypeOf(tk.value)) return false
+		const ti = t.items[k]
+		if (!ti.optional) {
+			const sv = k in s.items && !s.items[k].optional ? s.items[k].value : false
+			if (!sv || !isSubtype(sv, ti.value)) return false
 		} else {
-			const sx = k in s.items ? s.items[k].value : s.rest
-			if (sx && !sx.isSubtypeOf(tk.value)) return false
+			const sv = k in s.items ? s.items[k].value : s.rest
+			if (sv && !isSubtype(sv, ti.value)) return false
 		}
 	}
 
 	if (t.rest) {
 		const sKeys = keys(s.items)
-		for (const k of difference(tKeys, sKeys)) {
-			if (!s.items[k].value.isSubtypeOf(t.rest)) return false
+		const extraKeys = difference(sKeys, tKeys)
+		for (const k of extraKeys) {
+			if (!isSubtype(s.items[k].value, t.rest)) return false
 		}
-		if (s.rest) {
-			if (!s.rest.isSubtypeOf(t.rest)) return false
-		}
+		if (s.rest && !isSubtype(s.rest, t.rest)) return false
 	}
 
 	return true

@@ -102,7 +102,14 @@ describe('parsing dictionary', () => {
 	testParsing('{a: A b: B}', eDict({a: sym('A'), b: sym('B')}))
 	testParsing('{a: {a: 1}}', eDict({a: eDict({a: num(1)})}))
 	testParsing('{{}}', scope({}, eDict({})))
-	testParsing('{a?: 10}', eDictFrom({a: {optional: true, value: num(10)}}))
+	testParsing('{a?:1}', eDictFrom({a: {optional: true, value: num(1)}}))
+	testParsing(
+		'{a?:1 b:2 ...c}',
+		eDictFrom(
+			{a: {optional: true, value: num(1)}, b: {optional: false, value: num(2)}},
+			sym('c')
+		)
+	)
 })
 
 describe('parsing function definition', () => {
