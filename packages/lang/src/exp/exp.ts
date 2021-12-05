@@ -83,7 +83,7 @@ interface IValue {
 type IFn = (...params: any[]) => Writer<Value, Log>
 
 interface IFnLike {
-	superType: TyFn
+	tyFn: TyFn
 	fn: IFn
 }
 
@@ -511,6 +511,8 @@ export class Fn implements INode, IValue, IFnLike {
 	public parent: Node | null = null
 
 	private constructor(public superType: TyFn, public fn: IFn) {}
+
+	public tyFn = this.superType
 
 	public defaultValue = this
 
@@ -1291,16 +1293,85 @@ export class App implements INode {
 		return Writer.of(resultTyped, ...fnLog, ...logs, ...evalLog)
 	}
 
-	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+	// TODO: polymorphic function is not yet supported
+	public eval2 = (env?: Env): ValueWithLog2 => {
+		// Evaluate the function itself at first
+		const [fn, fnLog] = this.fn.eval2(env).asTuple
+
+		// Check if it's not a function
+		if (!('tyFn' in fn)) {
+			return Writer.of(fn, ...fnLog, {
+				level: 'warn',
+				ref: this,
+				reason: 'Not a function: ' + fn.print(),
+			})
+		}
+
+		// Start function application
+		const logs: Log[] = []
+		const names = keys(fn.tyFn.param)
+		const params = values(fn.tyFn.param)
+
+		// const [{tyParam}, tyArgs, subst] = this.inferFn(env)
+		// const paramNames = keys(fn.param)
+
+		// Length-check of arguments
+		const lenArgs = this.args.length
+		const lenParams = params.length
+
+		if (lenArgs !== lenParams) {
+			logs.push({
+				level: 'info',
+				ref: this,
+				reason: `Expected ${lenParams} arguments, but got ${lenArgs}`,
+			})
+		}
+
+		// Check types of args and cast them to default if necessary
+		const args = params.map((p, i) => {
+			const a = this.args[i] ?? Unit.of()
+			const name = names[i]
+
+			const aTy = a.infer2(env)
+
+			if (!isSubtype(aTy, p)) {
+				if (aTy.type !== 'unit') {
+					logs.push({
+						level: 'error',
+						ref: this,
+						reason:
+							`Argument '${name}' expects type: ${p.print()}, ` +
+							`but got: '${aTy.print()}''`,
+					})
+				}
+				return p.defaultValue
+			}
+
+			const [aVal, aLog] = a.eval2(env).asTuple
+			logs.push(...aLog)
+
+			return aVal
+		})
+
+		// Call the function
+		const [result, callLog] = fn.fn(...args).asTuple
+
+		// const resultTyped = unshadowTyVars(subst.substitute(result))
+
+		return Writer.of(result, ...fnLog, ...logs, ...callLog)
+	}
 
 	public infer(env?: Env): Val.Value {
 		const [tyFn] = this.inferFn(env)
 		return unshadowTyVars(tyFn.tyOut)
 	}
 
-	// TODO: fix this
-	public infer2 = () => Unit.of()
+	// TODO: polymorphic function is not yet supported
+	public infer2 = (env?: Env): Value => {
+		const fn = this.fn.eval2(env).result
+		if (!('tyFn' in fn)) return fn
+		return fn.tyFn.out
+	}
 
 	public print(): string {
 		const fn = this.fn.print()
