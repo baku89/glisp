@@ -70,8 +70,6 @@ export {
 	Str,
 	Atom,
 	TyAtom,
-	tyNum,
-	tyStr,
 	TyVar,
 	Enum,
 	TyEnum,
@@ -87,13 +85,24 @@ export {
 	TyUnion,
 }
 
+const tyBool = TyEnum.of('Bool', ['true', 'false'])
+const True = tyBool.getEnum('true')
+const False = tyBool.getEnum('false')
+
+export {tyNum, tyStr, tyBool, True, False}
+
 export const all = All.of
 export const bottom = Bottom.of
 export const unit = Unit.of
 export const num = Num.of
 export const str = Str.of
+export const bool = (value: boolean) => (value ? True : False)
 export const tyAtom = TyAtom.of
+export const tyEnum = TyEnum.of
+export const tyFn = TyFn.of
 export const tyVar = TyVar.of
+export const dict = Dict.of
+export const tyDict = TyDict.of
 export const vec = Vec.of
 
 export {isSame, isEqual, isSubtype, print}

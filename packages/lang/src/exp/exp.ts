@@ -346,12 +346,17 @@ export class Enum implements INode, IValue {
 	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public static of(name: string) {
+		return new Enum(name)
+	}
 }
 
 export class TyEnum implements INode, IValue {
 	public readonly type = 'tyEnum' as const
 	public parent: Node | null = null
 	public superType = All.instance
+	public defaultValue!: Enum
 
 	private constructor(
 		public readonly name: string,
@@ -372,6 +377,23 @@ export class TyEnum implements INode, IValue {
 	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public getEnum = (label: string) => {
+		const en = this.types.find(t => t.name === label)
+		if (!en) throw new Error('Cannot find label')
+		return en
+	}
+
+	public static of(name: string, labels: string[]) {
+		if (labels.length === 0) throw new Error('Zero-length enum')
+
+		const types = labels.map(Enum.of)
+		const tyEnum = new TyEnum(name, types)
+		tyEnum.defaultValue = types[0]
+		types.forEach(t => (t.superType = tyEnum))
+
+		return tyEnum
+	}
 }
 
 export class TyVar implements INode, IValue {
@@ -597,10 +619,11 @@ export class TyFn implements INode, IValue {
 		return name + ':' + ty
 	}
 
-	public static of(params: Value[], out: Value) {
-		const pairs = params.map((p, i) => ['$' + i, p])
-		const param = fromPairs(pairs)
-		return new TyFn(param, out)
+	public static of(param: Value | Value[], out: Value) {
+		const paramArr = [param].flat()
+		const pairs = paramArr.map((p, i) => ['$' + i, p])
+		const paramDict = fromPairs(pairs)
+		return new TyFn(paramDict, out)
 	}
 }
 

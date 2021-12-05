@@ -20,10 +20,15 @@ function defn(
 
 export const PreludeScope = Exp.scope({
 	true: Exp.obj(Val.bool(true)),
+	true2: Exp.True,
 	false: Exp.obj(Val.bool(false)),
+	false2: Exp.False,
 	Num: Exp.obj(Val.tyNum),
+	Num2: Exp.tyNum,
 	Str: Exp.obj(Val.tyStr),
+	Str2: Exp.tyStr,
 	Bool: Exp.obj(Val.tyBool),
+	Bool2: Exp.tyBool,
 	'+': defn(
 		(a: Val.Num, b: Val.Num) => Val.num(a.value + b.value),
 		{x: Val.tyNum, y: Val.tyNum},
