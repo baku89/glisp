@@ -22,7 +22,7 @@ export class Writer<T, L> {
 
 	public static map<T, U, L>(
 		arr: T[],
-		f: (v: T) => Writer<U, L>
+		f: (v: T, index: number) => Writer<U, L>
 	): Writer<U[], L> {
 		const writers = arr.map(f)
 		const result = writers.map(w => w.result)
