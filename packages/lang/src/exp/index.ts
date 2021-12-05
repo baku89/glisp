@@ -101,8 +101,9 @@ export const tyAtom = TyAtom.of
 export const tyEnum = TyEnum.of
 export const tyFn = TyFn.of
 export const tyVar = TyVar.of
+export const vec = Vec.of
+export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
-export const vec = Vec.of
 
 export {isSame, isEqual, isSubtype, print}
