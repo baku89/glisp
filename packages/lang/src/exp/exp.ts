@@ -1041,6 +1041,10 @@ export class Prod implements INode, IValue {
 	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public static of(ctor: TyProd, items: Value[]) {
+		return new Prod(ctor, items)
+	}
 }
 
 export class TyProd implements INode, IValue {
@@ -1067,6 +1071,14 @@ export class TyProd implements INode, IValue {
 	public isEqualTo = this.isSameTo
 
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public of(...items: Value[]) {
+		return Prod.of(this, items)
+	}
+
+	public static of(name: string, param: Record<string, Value>) {
+		return new TyProd(name, param)
+	}
 }
 
 export class TyValue implements INode, IValue {
