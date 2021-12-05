@@ -1,5 +1,5 @@
-import {Value} from '../exp'
 import {parse} from '../utils/testUtils2'
+import {Value} from '.'
 
 describe('default values of types', () => {
 	run('1', '1')
