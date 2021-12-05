@@ -85,7 +85,7 @@ export {
 	TyUnion,
 }
 
-const tyBool = TyEnum.of('Bool', ['true', 'false'])
+const tyBool = TyEnum.of('Bool', ['false', 'true'])
 const True = tyBool.getEnum('true')
 const False = tyBool.getEnum('false')
 

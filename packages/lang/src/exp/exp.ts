@@ -1,8 +1,10 @@
 import {
+	chain,
 	difference,
 	differenceWith,
 	entries,
 	fromPairs,
+	isNull,
 	keys,
 	mapValues,
 	values,
@@ -20,27 +22,31 @@ export type Node = Exp | Value | Obj
 
 type Exp = Sym | App | Scope | EFn | ETyFn | EVec | EDict
 
-export type Value =
+export type Value = Type | Atomic
+
+type Type =
 	| All
-	| Bottom
-	| Unit
-	| Num
-	| Str
-	| Atom
 	| TyVar
 	| TyAtom
-	| Enum
 	| TyEnum
-	| Fn
 	| TyFn
-	| Vec
 	| TyVec
-	| Dict
 	| TyDict
-	| Prod
 	| TyProd
-	| TyValue
 	| TyUnion
+
+type Atomic =
+	| Bottom
+	| Unit
+	| Atom<any>
+	| Num
+	| Str
+	| Enum
+	| Fn
+	| Vec
+	| Dict
+	| Prod
+	| TyValue
 
 type UnitableType = Exclude<Value, All | Bottom>
 
@@ -68,6 +74,8 @@ interface INode {
 }
 
 interface IValue {
+	defaultValue: Atomic
+
 	isEqualTo(e: Node): boolean
 	isSubtypeOf(e: Value): boolean
 }
@@ -181,9 +189,28 @@ export class Obj implements INode {
 	}
 }
 
+export class Unit implements INode, IValue {
+	public readonly type = 'unit' as const
+	public parent: Node | null = null
+	public superType = All.instance
+	public defaultValue = this
+
+	public eval = (): ValueWithLog => Writer.of(Val.unit)
+	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	public infer = () => Val.unit
+	public infer2 = () => this
+	public print = () => '()'
+	public isSameTo = (exp: Node) => exp.type === 'unit'
+	public isEqualTo = this.isSameTo
+	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	public static of = () => new Unit()
+}
+
 export class All implements INode, IValue {
 	public readonly type = 'all' as const
 	public parent: Node | null = null
+	public defaultValue = Unit.of()
 
 	public eval = (): ValueWithLog => Writer.of(Val.all)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -202,6 +229,7 @@ export class All implements INode, IValue {
 export class Bottom implements INode, IValue {
 	public readonly type = 'bottom' as const
 	public parent: Node | null = null
+	public defaultValue = this
 
 	public eval = (): ValueWithLog => Writer.of(Val.bottom)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -215,26 +243,10 @@ export class Bottom implements INode, IValue {
 	public static of = () => new Bottom()
 }
 
-export class Unit implements INode, IValue {
-	public readonly type = 'unit' as const
-	public parent: Node | null = null
-	public superType = All.instance
-
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.unit
-	public infer2 = () => this
-	public print = () => '()'
-	public isSameTo = (exp: Node) => exp.type === 'unit'
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	public static of = () => new Unit()
-}
-
 export class Atom<T = any> implements INode, IValue {
 	public readonly type = 'atom' as const
 	public parent: Node | null = null
+	public defaultValue = this
 
 	protected constructor(public superType: TyAtom, public value: T) {}
 
@@ -335,6 +347,8 @@ export class Enum implements INode, IValue {
 
 	private constructor(public readonly name: string) {}
 
+	public defaultValue = this
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -362,12 +376,13 @@ export class TyEnum implements INode, IValue {
 	public readonly type = 'tyEnum' as const
 	public parent: Node | null = null
 	public superType = All.instance
-	public defaultValue!: Enum
 
 	private constructor(
 		public readonly name: string,
 		public readonly types: Enum[]
 	) {}
+
+	public defaultValue = this.types[0]
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -408,6 +423,8 @@ export class TyVar implements INode, IValue {
 	public superType = All.instance
 
 	private constructor(public name: string) {}
+
+	public defaultValue = Unit.of()
 
 	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -495,6 +512,8 @@ export class Fn implements INode, IValue, IFnLike {
 
 	private constructor(public superType: TyFn, public fn: IFn) {}
 
+	public defaultValue = this
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -580,6 +599,12 @@ export class TyFn implements INode, IValue {
 	public superType = All.instance
 
 	private constructor(public param: Record<string, Value>, public out: Value) {}
+
+	#defaultValue?: Fn
+	public get defaultValue() {
+		this.#defaultValue ??= Fn.of(this, () => Writer.of(this.out.defaultValue))
+		return this.#defaultValue
+	}
 
 	public printParam = () => {
 		const pStr = entries(this.param).map(TyFn.printParamPair).join(' ')
@@ -707,6 +732,12 @@ export class Vec implements INode, IValue {
 
 	private constructor(public items: Value[]) {}
 
+	#defaultValue?: Vec
+	public get defaultValue() {
+		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
+		return this.#defaultValue
+	}
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -741,6 +772,12 @@ export class TyVec implements INode, IValue {
 	public parent: Node | null = null
 
 	private constructor(public items: Value[], public rest: Value) {}
+
+	#defaultValue?: Vec
+	public get defaultValue() {
+		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
+		return this.#defaultValue
+	}
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -904,6 +941,12 @@ export class Dict implements INode, IValue {
 
 	private constructor(public items: Record<string, Value>) {}
 
+	#defaultValue?: Dict
+	public get defaultValue() {
+		this.#defaultValue ??= Dict.of(mapValues(this.items, it => it.defaultValue))
+		return this.#defaultValue
+	}
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -942,6 +985,19 @@ export class TyDict implements INode, IValue {
 		public items: Record<string, {optional?: boolean; value: Value}>,
 		public rest: Value | null
 	) {}
+
+	#defaultValue?: Dict
+	public get defaultValue(): Dict {
+		if (!this.#defaultValue) {
+			const items = chain(this.items)
+				.mapValues(it => (it.optional ? null : it.value.defaultValue))
+				.omitBy(isNull)
+				.value() as Record<string, Atomic>
+			this.#defaultValue = Dict.of(items)
+		}
+
+		return this.#defaultValue
+	}
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -1020,6 +1076,8 @@ export class Prod implements INode, IValue {
 
 	private constructor(public superType: TyProd, public items: Value[]) {}
 
+	public defaultValue = this
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -1057,6 +1115,15 @@ export class TyProd implements INode, IValue {
 		public param: Record<string, Value>
 	) {}
 
+	#defaultValue?: Prod
+	public get defaultValue() {
+		if (!this.#defaultValue) {
+			const items = values(this.param).map(p => p.defaultValue)
+			this.#defaultValue = Prod.of(this, items)
+		}
+		return this.#defaultValue
+	}
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -1090,6 +1157,8 @@ export class TyValue implements INode, IValue {
 		public value: Bottom | TyVec | TyUnion | TyAtom | TyVar | TyEnum | TyProd
 	) {}
 
+	public defaultValue = Unit.of()
+
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -1112,6 +1181,11 @@ export class TyUnion implements INode, IValue {
 	public superType = All.instance
 
 	private constructor(public types: UnitableType[]) {}
+
+	#defaultValue?: Atomic
+	public get defaultValue(): Atomic {
+		return (this.#defaultValue ??= this.types[0].defaultValue)
+	}
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
