@@ -866,14 +866,7 @@ export class EDict implements INode {
 		}))
 		const rest = this.rest?.infer2(env)
 
-		const noOptional = values(items).every(it => !it.optional)
-		const noRest = !rest
-
-		if (noOptional && noRest) {
-			return Dict.of(mapValues(items, i => i.value))
-		} else {
-			return TyDict.of(items, rest)
-		}
+		return TyDict.of(items, rest)
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -892,14 +885,7 @@ export class EDict implements INode {
 			? this.rest.eval2(env).asTuple
 			: [undefined, []]
 
-		const noOptional = values(items).every(it => !it.optional)
-		const noRest = !rest
-
-		if (noOptional && noRest) {
-			return Writer.of(Dict.of(mapValues(items, i => i.value)), ...li)
-		} else {
-			return Writer.of(TyDict.of(items, rest), ...li, ...lr)
-		}
+		return Writer.of(TyDict.of(items, rest), ...li, ...lr)
 	}
 
 	public print(): string {
@@ -968,7 +954,7 @@ export class Dict implements INode, IValue {
 
 	public get asTyDictLike(): TyDictLike {
 		const items = mapValues(this.items, value => ({value}))
-		return {items, rest: null}
+		return {items}
 	}
 
 	public static of(items: Record<string, Value>) {
@@ -983,7 +969,7 @@ export class TyDict implements INode, IValue {
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Value}>,
-		public rest: Value | null
+		public rest?: Value
 	) {}
 
 	#defaultValue?: Dict
@@ -1030,7 +1016,14 @@ export class TyDict implements INode, IValue {
 	public asTyDictLike: TyDictLike = this
 
 	public static of(items: TyDict['items'], rest?: Value) {
-		return new TyDict(items, rest ?? null)
+		const noOptional = values(items).every(it => !it.optional)
+		const noRest = !rest
+
+		if (noOptional && noRest) {
+			return Dict.of(mapValues(items, i => i.value))
+		} else {
+			return new TyDict(items, rest)
+		}
 	}
 }
 
