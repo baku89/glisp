@@ -3,14 +3,17 @@ import * as Parser from '../parser'
 import {PreludeScope} from '../std/prelude'
 import * as Val from '../val'
 
-function parse(input: string | Exp.Node): Exp.Node {
+function parse(
+	input: string | Exp.Node,
+	parent: Exp.ExpComplex = PreludeScope
+): Exp.Node {
 	let exp: Exp.Node
 	if (typeof input === 'string') {
-		exp = Parser.parse(input)
+		exp = Parser.parse(input, parent)
 	} else {
 		exp = input
+		Exp.setParent(exp, parent)
 	}
-	exp.parent = PreludeScope
 	return exp
 }
 

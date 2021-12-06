@@ -106,8 +106,7 @@ describe('subtyping', () => {
 
 	function parseEval(input: Val.Value | string) {
 		if (typeof input === 'string') {
-			const exp = parse(input)
-			exp.parent = PreludeScope
+			const exp = parse(input, PreludeScope)
 			return exp.eval().result
 		}
 		return input

@@ -20,7 +20,8 @@ import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value | Obj
 
-type Exp = Sym | App | Scope | EFn | ETyFn | EVec | EDict
+export type Exp = Sym | ExpComplex
+export type ExpComplex = App | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
 
@@ -62,7 +63,6 @@ export type NodeWithLog = Writer<Node, Log>
 
 interface INode {
 	readonly type: string
-	parent: Node | null
 
 	eval(env?: Env): ValueWithLog
 	eval2(env?: Env): ValueWithLog2
@@ -71,6 +71,10 @@ interface INode {
 	print(): string
 
 	isSameTo(exp: Node): boolean
+}
+
+interface IExp {
+	parent: ExpComplex | null
 }
 
 interface IValue {
@@ -97,9 +101,9 @@ function isSubtypeOfGeneric(
 	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
-export class Sym implements INode {
+export class Sym implements INode, IExp {
 	public readonly type = 'sym' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public name: string) {}
 
@@ -154,9 +158,9 @@ export class Sym implements INode {
 	}
 }
 
-export class Obj implements INode {
+export class Obj implements INode, IExp {
 	public readonly type = 'obj' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public value: Val.Value, public asType: boolean) {}
 
@@ -191,7 +195,6 @@ export class Obj implements INode {
 
 export class Unit implements INode, IValue {
 	public readonly type = 'unit' as const
-	public parent: Node | null = null
 	public superType = All.instance
 	public defaultValue = this
 
@@ -209,7 +212,6 @@ export class Unit implements INode, IValue {
 
 export class All implements INode, IValue {
 	public readonly type = 'all' as const
-	public parent: Node | null = null
 	public defaultValue = Unit.of()
 
 	public eval = (): ValueWithLog => Writer.of(Val.all)
@@ -228,7 +230,6 @@ export class All implements INode, IValue {
 
 export class Bottom implements INode, IValue {
 	public readonly type = 'bottom' as const
-	public parent: Node | null = null
 	public defaultValue = this
 
 	public eval = (): ValueWithLog => Writer.of(Val.bottom)
@@ -245,7 +246,6 @@ export class Bottom implements INode, IValue {
 
 export class Prim<T = any> implements INode, IValue {
 	public readonly type = 'prim' as const
-	public parent: Node | null = null
 	public defaultValue = this
 
 	protected constructor(public superType: TyPrim, public value: T) {}
@@ -295,7 +295,6 @@ export class Str extends Prim<string> {
 
 export class TyPrim<T = any> implements INode, IValue {
 	public readonly type = 'tyPrim' as const
-	public parent: Node | null = null
 	public superType = All.instance
 	public defaultValue!: Num | Str | Prim
 
@@ -342,7 +341,6 @@ Str.prototype.superType = tyStr
 
 export class Enum implements INode, IValue {
 	public readonly type = 'enum' as const
-	public parent: Node | null = null
 	public superType!: TyEnum
 
 	private constructor(public readonly name: string) {}
@@ -374,7 +372,6 @@ export class Enum implements INode, IValue {
 
 export class TyEnum implements INode, IValue {
 	public readonly type = 'tyEnum' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(
@@ -419,7 +416,6 @@ export class TyEnum implements INode, IValue {
 
 export class TyVar implements INode, IValue {
 	public readonly type = 'tyVar' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(public name: string) {}
@@ -443,9 +439,9 @@ export class TyVar implements INode, IValue {
 	}
 }
 
-export class EFn implements INode {
+export class EFn implements INode, IExp {
 	public readonly type = 'eFn' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public param: Record<string, Node>, public body: Node) {}
 
@@ -500,15 +496,14 @@ export class EFn implements INode {
 
 	public static of(param: Record<string, Node>, body: Node) {
 		const fn = new EFn(param, body)
-		values(param).forEach(p => (p.parent = fn))
-		body.parent = fn
+		values(param).forEach(p => setParent(p, fn))
+		setParent(body, fn)
 		return fn
 	}
 }
 
 export class Fn implements INode, IValue, IFnLike {
 	public readonly type = 'fn' as const
-	public parent: Node | null = null
 
 	private constructor(public superType: TyFn, public fn: IFn) {}
 
@@ -539,9 +534,9 @@ export class Fn implements INode, IValue, IFnLike {
 	}
 }
 
-export class ETyFn implements INode {
+export class ETyFn implements INode, IExp {
 	public readonly type = 'eTyFn' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public tyParam: Node[], public out: Node) {}
 
@@ -589,15 +584,14 @@ export class ETyFn implements INode {
 	public static of(param: Node | Node[], out: Node) {
 		const tyParam = [param].flat()
 		const tyFn = new ETyFn(tyParam, out)
-		tyParam.forEach(p => (p.parent = tyFn))
-		out.parent = tyFn
+		tyParam.forEach(p => setParent(p, tyFn))
+		setParent(out, tyFn)
 		return tyFn
 	}
 }
 
 export class TyFn implements INode, IValue {
 	public readonly type = 'tyFn' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(public param: Record<string, Value>, public out: Value) {}
@@ -662,7 +656,7 @@ export class TyFn implements INode, IValue {
 
 export class EVec implements INode {
 	public readonly type = 'eVec' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public items: Node[], public rest: Node | null = null) {}
 
@@ -715,14 +709,14 @@ export class EVec implements INode {
 
 	public static of(...items: Node[]) {
 		const vec = new EVec(items)
-		items.forEach(it => (it.parent = vec))
+		items.forEach(it => setParent(it, vec))
 		return vec
 	}
 
 	public static from(items: Node[], rest: Node | null = null) {
 		const vec = new EVec(items, rest)
-		items.forEach(it => (it.parent = vec))
-		if (rest) rest.parent = vec
+		items.forEach(it => setParent(it, vec))
+		if (rest) setParent(rest, vec)
 		return vec
 	}
 }
@@ -730,7 +724,6 @@ export class EVec implements INode {
 export class Vec implements INode, IValue {
 	public readonly type = 'vec' as const
 	public readonly superType = All.instance
-	public parent: Node | null = null
 
 	private constructor(public items: Value[]) {}
 
@@ -771,7 +764,6 @@ export class Vec implements INode, IValue {
 export class TyVec implements INode, IValue {
 	public readonly type = 'tyVec' as const
 	public readonly superType = All.instance
-	public parent: Node | null = null
 
 	private constructor(public items: Value[], public rest: Value) {}
 
@@ -843,9 +835,9 @@ function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
 	return true
 }
 
-export class EDict implements INode {
+export class EDict implements INode, IExp {
 	public readonly type = 'eDict' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Node}>,
@@ -916,15 +908,14 @@ export class EDict implements INode {
 		rest?: Node
 	) {
 		const dict = new EDict(items, rest)
-		values(items).forEach(it => (it.value.parent = dict))
-		if (rest) rest.parent = dict
+		values(items).forEach(it => setParent(it.value, dict))
+		if (rest) setParent(rest, dict)
 		return dict
 	}
 }
 
 export class Dict implements INode, IValue {
 	public readonly type = 'dict' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(public items: Record<string, Value>) {}
@@ -966,7 +957,6 @@ export class Dict implements INode, IValue {
 
 export class TyDict implements INode, IValue {
 	public readonly type = 'tyDict' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(
@@ -1067,7 +1057,6 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 
 export class Prod implements INode, IValue {
 	public readonly type = 'prod' as const
-	public parent: Node | null = null
 
 	private constructor(public superType: TyProd, public items: Value[]) {}
 
@@ -1102,7 +1091,6 @@ export class Prod implements INode, IValue {
 
 export class TyProd implements INode, IValue {
 	public readonly type = 'tyProd' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(
@@ -1145,7 +1133,6 @@ export class TyProd implements INode, IValue {
 
 export class TyValue implements INode, IValue {
 	public readonly type = 'tyValue' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(
@@ -1172,7 +1159,6 @@ export class TyValue implements INode, IValue {
 
 export class TyUnion implements INode, IValue {
 	public readonly type = 'tyUnion' as const
-	public parent: Node | null = null
 	public superType = All.instance
 
 	private constructor(public types: UnitableType[]) {}
@@ -1211,9 +1197,9 @@ export class TyUnion implements INode, IValue {
 		this.types.some(s.isSubtypeOf)
 }
 
-export class App implements INode {
+export class App implements INode, IExp {
 	public readonly type = 'app' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(public fn: Node, public args: Node[]) {}
 
@@ -1385,15 +1371,15 @@ export class App implements INode {
 
 	public static of(fn: Node, ...args: Node[]) {
 		const app = new App(fn, args)
-		fn.parent = app
-		args.forEach(a => (a.parent = app))
+		setParent(fn, app)
+		args.forEach(a => setParent(a, app))
 		return app
 	}
 }
 
-export class Scope implements INode {
+export class Scope implements INode, IExp {
 	public readonly type = 'scope' as const
-	public parent: Node | null = null
+	public parent: ExpComplex | null = null
 
 	private constructor(
 		public vars: Record<string, Node>,
@@ -1435,7 +1421,7 @@ export class Scope implements INode {
 		if (name in this.vars)
 			throw new Error(`Variable '${name}' is already defined`)
 
-		exp.parent = this
+		setParent(exp, this)
 		this.vars[name] = exp
 
 		return this
@@ -1449,9 +1435,15 @@ export class Scope implements INode {
 
 	public static of(vars: Record<string, Node>, out: Node | null = null) {
 		const scope = new Scope(vars, out)
-		values(vars).forEach(v => (v.parent = scope))
-		if (out) out.parent = scope
+		values(vars).forEach(v => setParent(v, scope))
+		if (out) setParent(out, scope)
 		return scope
+	}
+}
+
+export function setParent(exp: Node, parent: Exclude<Exp, Sym>) {
+	if ('parent' in exp) {
+		exp.parent = parent
 	}
 }
 

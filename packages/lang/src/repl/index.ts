@@ -53,8 +53,7 @@ function startRepl() {
 		prompt: chalk.bold.gray('> '),
 		eval(input, context, file, cb) {
 			try {
-				const exp = parse(input)
-				exp.parent = replScope
+				const exp = parse(input, replScope)
 				const evaluated = exp.eval()
 
 				if (tyIO.isInstance(evaluated.result)) {

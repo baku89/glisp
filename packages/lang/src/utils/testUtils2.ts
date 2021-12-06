@@ -2,14 +2,17 @@ import * as Exp from '../exp'
 import * as Parser from '../parser'
 import {PreludeScope} from '../std/prelude'
 
-export function parse(input: string | Exp.Node): Exp.Node {
+export function parse(
+	input: string | Exp.Node,
+	parent: Exp.ExpComplex = PreludeScope
+): Exp.Node {
 	let exp: Exp.Node
 	if (typeof input === 'string') {
-		exp = Parser.parse(input)
+		exp = Parser.parse(input, parent)
 	} else {
 		exp = input
+		Exp.setParent(exp, parent)
 	}
-	exp.parent = PreludeScope
 	return exp
 }
 

@@ -8,6 +8,8 @@ import {
 	Enum,
 	ETyFn,
 	EVec,
+	Exp,
+	ExpComplex,
 	Fn,
 	isEqual,
 	isSame,
@@ -21,6 +23,7 @@ import {
 	print,
 	Prod,
 	Scope,
+	setParent,
 	Str,
 	Sym,
 	TyDict,
@@ -40,7 +43,7 @@ import {
 	Vec,
 } from './exp'
 
-export {Node, Value}
+export {Node, Exp, ExpComplex, Value}
 
 export {Log, ValueWithLog, NodeWithLog}
 
@@ -106,4 +109,4 @@ export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
 
-export {isSame, isEqual, isSubtype, print}
+export {isSame, isEqual, isSubtype, print, setParent}

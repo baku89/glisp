@@ -37,8 +37,5 @@ describe('default values of types', () => {
 })
 
 function parseEval(input: string) {
-	const exp = parse(input)
-	exp.parent = PreludeScope
-
-	return exp.eval().result
+	return parse(input, PreludeScope).eval().result
 }
