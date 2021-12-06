@@ -11,15 +11,15 @@ describe('default values of types', () => {
 	run('()', '()')
 	run('_', '()')
 	run('<T>', '()')
-	run('(-> () Num)', '0', true)
-	run('(-> Num Num)', '0', true)
-	run('(-> (Num Num) Num)', '0', true)
-	run('(-> Num Bool)', 'false', true)
-	run('(-> <T> <T>)', '()', true)
-	run('(-> _ ())', '()', true)
+	run('(-> [] Num)', '0', true)
+	run('(-> [Num] Num)', '0', true)
+	run('(-> [Num Num] Num)', '0', true)
+	run('(-> [Num] Bool)', 'false', true)
+	run('(-> [<T>] <T>)', '()', true)
+	run('(-> [_] ())', '()', true)
 
 	function run(input: string, expected: string, fn = false) {
-		const eStr = fn ? `(=> () ${expected})` : expected
+		const eStr = fn ? `(=> [] ${expected})` : expected
 		it(`default value of '${input}' is '${eStr}'`, () => {
 			let dv = parseEval(input).defaultValue
 			const expectedVal = parseEval(expected)

@@ -12,11 +12,11 @@ describe('evaluating literals', () => {
 	testEval(Exp.obj(Val.bool(true)), Val.bool(true))
 	testEval(Exp.unit, Val.unit)
 	testEval(Exp.bottom, Val.bottom)
-	testEval('(-> Num Num)', Val.tyFn(Val.tyNum, Val.tyNum))
+	testEval('(-> [Num] Num)', Val.tyFn(Val.tyNum, Val.tyNum))
 })
 
 describe('evaluating anonymous function application', () => {
-	testEval('((=> x:Num (* x x)) 12)', Val.num(144))
+	testEval('((=> [x:Num] (* x x)) 12)', Val.num(144))
 })
 describe('evaluating vectors', () => {
 	testEval('[]', Val.vec())
@@ -70,14 +70,14 @@ describe('inferring vectors', () => {
 })
 
 describe('inferring a type of function', () => {
-	testInfer('(=> x:Num x)', Val.tyFn(Val.tyNum, Val.tyNum))
-	testInfer('(=> x:<T> x)', Val.tyFn(T, T))
+	testInfer('(=> [x:Num] x)', Val.tyFn(Val.tyNum, Val.tyNum))
+	testInfer('(=> [x:<T>] x)', Val.tyFn(T, T))
 	testInfer(
-		'(=> (x:<T> y:<U>) (if true x y))',
+		'(=> [x:<T> y:<U>] (if true x y))',
 		Val.tyFn([T, U], Val.uniteTy(T, U))
 	)
 	testInfer(
-		'(=> (f:(-> <T> <U>) x:<T>) (f x))',
+		'(=> [f:(-> [<T>] <U>) x:<T>] (f x))',
 		Val.tyFn([Val.tyFn(T, U), T], U)
 	)
 })

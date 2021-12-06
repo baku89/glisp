@@ -17,7 +17,7 @@ describe('evaluating literals', () => {
 		'{a?:Num2 ...Str}',
 		Exp.tyDict({a: {optional: true, value: Exp.tyNum}}, Exp.tyStr)
 	)
-	testEval('(-> Num2 Num2)', Exp.tyFn(Exp.tyNum, Exp.tyNum))
+	testEval('(-> [Num2] Num2)', Exp.tyFn(Exp.tyNum, Exp.tyNum))
 	testEval('<T>', Exp.tyVar('T'))
 	testEval('{a = 10 a}', Exp.num(10))
 	testEval('{a = {a = 20 a} a}', Exp.num(20))

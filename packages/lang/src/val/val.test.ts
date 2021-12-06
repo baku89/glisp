@@ -63,8 +63,8 @@ describe('subtyping', () => {
 
 	run(T, U, false)
 	run(T, T, true)
-	run('(-> <T> <T>)', '(-> <T> <T>)', true)
-	run('(-> <U> <U>)', '(-> <T> <T>)', false)
+	run('(-> [<T>] <T>)', '(-> [<T>] <T>)', true)
+	run('(-> [<U>] <U>)', '(-> [<T>] <T>)', false)
 
 	run(
 		Val.TyUnion.fromTypesUnsafe([Val.bool(true), Val.bool(false)]),
@@ -88,10 +88,10 @@ describe('subtyping', () => {
 	run('[...Num]', '[]', true)
 	run('[Num ...Num]', '[]', true)
 	run('[Num Num]', '[...Num]', true)
-	run('[true false]', '(-> Num (| () Bool))', true)
-	run('[1 2 3 4 5]', '(-> Num (| () Num))', true)
-	run('[...Num]', '(-> Num (| () Num))', true)
-	run('[...Bool]', '(-> Num (| () Num))', false)
+	run('[true false]', '(-> [Num] (| () Bool))', true)
+	run('[1 2 3 4 5]', '(-> [Num] (| () Num))', true)
+	run('[...Num]', '(-> [Num] (| () Num))', true)
+	run('[...Bool]', '(-> [Num] (| () Num))', false)
 
 	// Dict
 	run('{}', '{}', true)

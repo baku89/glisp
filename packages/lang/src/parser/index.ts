@@ -70,19 +70,9 @@ Fn = "(" _ "=>" _ param:FnParam body:Node _ ")"
 		return Exp.eFn(param, body)
 	}
 
-FnParam = param:(FnParamMulti / FnParamSingle) _
+FnParam = "[" _ pairs:NamedNode* "]" _
 	{
-		return Object.fromEntries(param)
-	}
-
-FnParamMulti = "(" _ pairs:NamedNode* ")" _
-	{
-		return pairs
-	}
-
-FnParamSingle = pair:NamedNode
-	{
-		return [pair]
+		return Object.fromEntries(pairs)
 	}
 
 TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
@@ -92,13 +82,9 @@ TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
 		return Exp.eTyFnFrom(paramDict, out)
 	}
 
-TyFnParam = 
-	"(" _ params:TyFnParamEntry* ")" _ { return params } /
-	param:TyFnParamEntry { return [param] }
+TyFnParam = "[" _ params:TyFnParamEntry* "]" _ { return params }
 
-TyFnParamEntry =
-	type:Node _ { return [null, type] } /
-	NamedNode
+TyFnParamEntry = type:Node _ { return [null, type] }
 
 NamedNode = sym:Sym _ ":" _ value:Node _
 	{

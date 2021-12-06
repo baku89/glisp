@@ -563,9 +563,9 @@ export class ETyFn implements INode, IExp {
 	infer2 = (env?: Env) => this.eval2(env).result
 
 	print = (): string => {
-		const param = '(' + entries(this.param).map(printNamedNode).join(' ') + ')'
+		const param = entries(this.param).map(printNamedNode).join(' ')
 		const out = this.out.print()
-		return `(-> ${param} ${out})`
+		return `(-> [${param}] ${out})`
 	}
 
 	isSameTo = (exp: Node): boolean =>
@@ -613,7 +613,7 @@ export class TyFn implements INode, IValue {
 	infer = () => Val.unit
 	infer2 = () => this
 
-	printParam = () => `(${entries(this.param).map(printNamedNode).join(' ')})`
+	printParam = () => `[${entries(this.param).map(printNamedNode).join(' ')}]`
 
 	print = (): string => {
 		const param = this.printParam()

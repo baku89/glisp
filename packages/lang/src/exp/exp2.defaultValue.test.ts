@@ -26,13 +26,13 @@ describe('default values of types', () => {
 	run('{a:Num2 ...Str2}', '{a:0}')
 	run('{a?:Num2 ...Str2}', '{}')
 
-	run('(-> () Num2)', '0', true)
-	run('(-> Num2 Bool2)', 'false2', true)
-	run('(-> <T> <T>)', '()', true)
-	run('(-> _ ())', '()', true)
+	run('(-> [] Num2)', '0', true)
+	run('(-> [Num2] Bool2)', 'false2', true)
+	run('(-> [<T>] <T>)', '()', true)
+	run('(-> [_] ())', '()', true)
 
 	function run(input: string, expected: string, fn = false) {
-		const eStr = fn ? `(=> () ${expected})` : expected
+		const eStr = fn ? `(=> [] ${expected})` : expected
 
 		it(`default value of '${input}' is '${eStr}'`, () => {
 			let dv: Value = parse(input).eval2().result.defaultValue

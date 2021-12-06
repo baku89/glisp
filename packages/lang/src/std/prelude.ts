@@ -170,38 +170,38 @@ export const PreludeScope = Exp.scope({
 PreludeScope.defs(
 	parseModule(`
 
-compose = (=> (f:(-> <T> <U>) g:(-> <U> <V>)) (=> x:<T> (g (f x))))
-twice = (=> f:(-> <T> <T>) (compose f f))
+compose = (=> [f:(-> [<T>] <U>) g:(-> [<U>] <V>)] (=> [x:<T>] (g (f x))))
+twice = (=> [f:(-> [<T>] <T>)] (compose f f))
 
 bindMaybe =
-(=> (f:(-> <T> (| () <U>))
-     g:(-> <U> (| () <V>)))
-    (=> x:<T>
+(=> [f:(-> [<T>] (| () <U>))
+     g:(-> [<U>] (| () <V>))]
+    (=> [x:<T>]
         {fx = (f x)
          (if (== fx ()) () (g fx))}))
 
 
-inc = (=> x:Num (+ x 1))
+inc = (=> [x:Num] (+ x 1))
 
-dec = (=> x:Num (+ x -1))
+dec = (=> [x:Num] (+ x -1))
 
-isEven = (=> x:Num (== (% x 2) 0))
+isEven = (=> [x:Num] (== (% x 2) 0))
 
-const = (=> x:<T> (=> () x))
+const = (=> [x:<T>] (=> [] x))
 
-first = (=> coll:[...<T>] (coll 0))
+first = (=> [coll:[...<T>]] (coll 0))
 
-id = (=> x:<T> x)
+id = (=> [x:<T>] x)
 
-sum = (=> xs:[...Num] (reduce + xs 0))
+sum = (=> [xs:[...Num]] (reduce + xs 0))
 
-neg = (=> x:Num (* x -1))
+neg = (=> [x:Num] (* x -1))
 
-- = (=> (x:Num y:Num) (+ x (neg y)))
+- = (=> [x:Num y:Num] (+ x (neg y)))
 
-sqrt = (=> x:Num (** x 0.5))
-square = (=> x:Num (** x 2))
-hypot = (=> (x:Num y:Num) (sqrt (+ (* x x) (* y y))))
+sqrt = (=> [x:Num] (** x 0.5))
+square = (=> [x:Num] (** x 2))
+hypot = (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
 PI = 3.1415926535897932384626433832795028841971693993
 
 `)
