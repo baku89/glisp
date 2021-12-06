@@ -17,6 +17,7 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
+import {uniteTy} from '.'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value | Obj
@@ -817,7 +818,7 @@ export class EVec implements INode {
 	}
 }
 
-export class Vec implements INode, IValue {
+export class Vec implements INode, IValue, IFnLike {
 	readonly type = 'vec' as const
 	readonly superType = All.instance
 
@@ -850,6 +851,19 @@ export class Vec implements INode, IValue {
 
 	get isType() {
 		return this.items.some(isType)
+	}
+
+	tyFn = TyFn.of(tyNum, uniteTy(...this.items))
+
+	fn: IFn = (index: Num) => {
+		const ret = this.items[index.value]
+		if (ret === undefined) {
+			return Writer.of(this.tyFn.out.defaultValue, {
+				level: 'error',
+				reason: 'Index out of range',
+			})
+		}
+		return Writer.of(ret)
 	}
 
 	get asTyVecLike(): TyVecLike {
