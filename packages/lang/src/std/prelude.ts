@@ -2,6 +2,7 @@ import {values} from 'lodash'
 
 import * as Exp from '../exp'
 import {parseModule} from '../parser'
+import {parse} from '../parser'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
@@ -16,6 +17,13 @@ function defn(
 	return Exp.obj(
 		Val.fn((...args: any[]) => Writer.of(value(...args)), param, out)
 	)
+}
+
+function defn2(ty: string, fn: (...args: any[]) => Exp.Value) {
+	const fnTy = parse(ty, PreludeScope).eval2().result
+	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
+
+	return Exp.fn(fnTy.param, fnTy.out, (...args) => Writer.of(fn(...args)))
 }
 
 export const PreludeScope = Exp.scope({
@@ -166,6 +174,13 @@ export const PreludeScope = Exp.scope({
 		Val.tyNum
 	),
 })
+
+PreludeScope.def(
+	'+$',
+	defn2('(-> [x:Num2 y:Num2] Num2)', (a: Exp.Num, b: Exp.Num) =>
+		Exp.num(a.value + b.value)
+	)
+)
 
 PreludeScope.defs(
 	parseModule(`

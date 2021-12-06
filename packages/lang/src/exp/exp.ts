@@ -85,7 +85,7 @@ interface IValue {
 	isSubtypeOf(e: Value): boolean
 }
 
-type IFn = (...params: any[]) => Writer<Value, Log>
+export type IFn = (...params: any[]) => Writer<Value, Log>
 
 interface IFnLike {
 	tyFn: TyFn

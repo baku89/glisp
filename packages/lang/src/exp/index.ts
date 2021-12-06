@@ -11,6 +11,7 @@ import {
 	Exp,
 	ExpComplex,
 	Fn,
+	IFn,
 	isEqual,
 	isSame,
 	isSubtype,
@@ -42,6 +43,8 @@ import {
 	ValueWithLog,
 	Vec,
 } from './exp'
+
+export {IFn}
 
 export {Node, Exp, ExpComplex, Value}
 
