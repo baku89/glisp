@@ -109,5 +109,6 @@ export const vec = Vec.of
 export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
+export const tyValue = TyValue.of
 
 export {isSame, isEqual, isSubtype, print, setParent}

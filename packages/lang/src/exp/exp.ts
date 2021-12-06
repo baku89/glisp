@@ -236,7 +236,7 @@ export class Bottom implements INode, IValue {
 	eval = (): ValueWithLog => Writer.of(Val.bottom)
 	eval2 = (): ValueWithLog2 => Writer.of(this)
 	infer = () => Val.bottom
-	infer2 = () => this
+	infer2 = () => TyValue.of(this)
 	print = () => '_|_'
 	isSameTo = (exp: Node) => exp.type === 'bottom'
 	isEqualTo = this.isSameTo
@@ -305,7 +305,7 @@ export class TyPrim<T = any> implements INode, IValue {
 	eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
 	eval2 = (): ValueWithLog2 => Writer.of(this)
 	infer = () => Val.tyAtom(this.name, null)
-	infer2 = () => this
+	infer2 = (): Value => TyValue.of(this)
 	print = () => this.name
 
 	isSameTo = (exp: Node) => exp.type === 'tyPrim' && this.name === exp.name
@@ -386,7 +386,7 @@ export class TyEnum implements INode, IValue {
 	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	infer = () => Val.unit
-	infer2 = () => this
+	infer2 = () => TyValue.of(this)
 	// TODO: fix this
 	print = () => this.name
 
@@ -696,7 +696,15 @@ export class EVec implements INode {
 	}
 
 	// TODO: fix this
-	infer2 = () => Unit.instance
+	infer2(env?: Env): Value {
+		const items = this.items.map(it => it.infer2(env))
+		const rest = this.rest?.infer2(env)
+		if (rest) {
+			return TyValue.of(TyVec.of(items, rest))
+		} else {
+			return Vec.of(...items)
+		}
+	}
 
 	print(): string {
 		const items = this.items.map(it => it.print())
@@ -780,7 +788,7 @@ export class TyVec implements INode, IValue {
 	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	infer = () => Val.unit
-	infer2 = () => this
+	infer2 = () => TyValue.of(this)
 
 	print = (): string => {
 		const items = this.items.map(print)
@@ -862,7 +870,7 @@ export class EDict implements INode, IExp {
 		}))
 		const rest = this.rest?.infer2(env)
 
-		return TyDict.of(items, rest)
+		return TyValue.of(TyDict.of(items, rest))
 	}
 
 	eval(env?: Env): ValueWithLog {
@@ -984,7 +992,7 @@ export class TyDict implements INode, IValue {
 	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
 	infer = () => Val.unit
-	infer2 = () => this
+	infer2 = () => TyValue.of(this)
 
 	print = (): string => {
 		const items = entries(this.items).map(([k, {optional, value}]) => {
@@ -1137,9 +1145,7 @@ export class TyValue implements INode, IValue {
 	readonly type = 'tyValue' as const
 	superType = All.instance
 
-	private constructor(
-		public value: Bottom | TyVec | TyUnion | TyPrim | TyVar | TyEnum | TyProd
-	) {}
+	private constructor(public value: Exclude<Type, All> | Bottom) {}
 
 	defaultValue = Unit.instance
 
@@ -1149,13 +1155,33 @@ export class TyValue implements INode, IValue {
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
-	print = () => this.value.print()
+	print = () => `<${this.value.print()} as value>`
 
-	isSameTo = (e: Node): boolean => e.type === 'tyValue' && this.isSameTo(e)
+	isSameTo = (e: Node): boolean =>
+		e.type === 'tyValue' && this.value.isSameTo(e.value)
 
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
+	static of(value: Value) {
+		if (TyValue.#TypesToWrap.has(value.type)) {
+			return new TyValue(value as TyValue['value'])
+		}
+		return value
+	}
+
+	static #TypesToWrap = new Set([
+		'bottom',
+		'tyVar',
+		'tyPrim',
+		'tyEnum',
+		'tyFn',
+		'tyVec',
+		'tyDict',
+		'tyProd',
+		'tyUnion',
+	])
 }
 
 export class TyUnion implements INode, IValue {
