@@ -269,7 +269,7 @@ export class Prim<T = any> implements INode, IValue {
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
 	static from<T>(ty: TyPrim, value: T) {
-		return new Prim(ty, value)
+		return new Prim<T>(ty, value)
 	}
 }
 
@@ -314,9 +314,12 @@ export class TyPrim<T = any> implements INode, IValue {
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	of(value: T) {
+	of(value: T): Prim<T> {
 		return Prim.from(this, value)
 	}
+
+	isInstance = (e: Value): e is Prim<T> =>
+		e.type === 'prim' && e.isSubtypeOf(this)
 
 	static ofLiteral(name: string, defaultValue: Prim) {
 		const ty = new TyPrim(name)
@@ -326,7 +329,7 @@ export class TyPrim<T = any> implements INode, IValue {
 	}
 
 	static of<T>(name: string, defaultValue: T) {
-		const ty = new TyPrim(name)
+		const ty = new TyPrim<T>(name)
 		const d = Prim.from(ty, defaultValue)
 		ty.defaultValue = d
 		return ty
@@ -528,8 +531,11 @@ export class Fn implements INode, IValue, IFnLike {
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	static of(tyFn: TyFn, fn: IFn) {
-		return new Fn(tyFn, fn)
+	static of(param: Record<string, Value>, out: Value, fn: IFn) {
+		return new Fn(TyFn.from(param, out), fn)
+	}
+	static from(ty: TyFn, fn: IFn) {
+		return new Fn(ty, fn)
 	}
 }
 
@@ -602,7 +608,7 @@ export class TyFn implements INode, IValue {
 
 	#defaultValue?: Fn
 	get defaultValue() {
-		this.#defaultValue ??= Fn.of(this, () => Writer.of(this.out.defaultValue))
+		this.#defaultValue ??= Fn.from(this, () => Writer.of(this.out.defaultValue))
 		return this.#defaultValue
 	}
 

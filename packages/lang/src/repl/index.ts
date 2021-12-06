@@ -2,14 +2,15 @@ import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {Log, obj, ValueWithLog} from '../exp'
+import {Log, ValueWithLog} from '../exp'
+import * as Exp from '../exp'
 import {parse} from '../parser'
 import {MathScope} from '../std/math'
 import {PreludeScope} from '../std/prelude'
 import {Writer} from '../utils/Writer'
 import * as Val from '../val'
 
-const tyIO = Val.tyAtom('IO', () => {
+const IO = Exp.tyPrim('IO', () => {
 	return
 })
 
@@ -31,21 +32,19 @@ function printLog({level, reason}: Log) {
 }
 
 const replScope = PreludeScope.extend(MathScope.vars).extend({
-	IO: obj(tyIO),
-	def: obj(
-		Val.fn(
-			(name: Val.Str, value: Val.Value) => {
-				return Writer.of(
-					tyIO.of(() => {
-						replScope.vars[name.value] = obj(value)
-					})
-				)
-			},
-			{name: Val.tyStr, value: Val.all},
-			tyIO
-		)
+	IO: IO,
+	def: Exp.fn(
+		{name: Exp.tyStr, value: Exp.all},
+		IO,
+		(name: Exp.Str, value: Exp.Value) => {
+			return Writer.of(
+				IO.of(() => {
+					replScope.vars[name.value] = value
+				})
+			)
+		}
 	),
-	exit: obj(tyIO.of(process.exit)),
+	exit: IO.of(process.exit),
 })
 
 function startRepl() {
@@ -54,9 +53,9 @@ function startRepl() {
 		eval(input, context, file, cb) {
 			try {
 				const exp = parse(input, replScope)
-				const evaluated = exp.eval()
+				const evaluated = exp.eval2()
 
-				if (tyIO.isInstance(evaluated.result)) {
+				if (IO.isInstance(evaluated.result)) {
 					evaluated.result.value()
 				}
 

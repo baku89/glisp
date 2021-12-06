@@ -103,6 +103,7 @@ export const str = Str.of
 export const bool = (value: boolean) => (value ? True : False)
 export const tyPrim = TyPrim.of
 export const tyEnum = TyEnum.of
+export const fn = Fn.of
 export const tyFn = TyFn.of
 export const tyVar = TyVar.of
 export const vec = Vec.of
