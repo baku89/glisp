@@ -42,6 +42,7 @@ import {
 	ValueWithLog,
 	Vec,
 } from './exp'
+import {intersectTy, uniteTy} from './type-operators'
 
 export {IFn}
 
@@ -105,7 +106,9 @@ export const bool = (value: boolean) => (value ? True : False)
 export const tyPrim = TyPrim.of
 export const tyEnum = TyEnum.of
 export const fn = Fn.of
+export const fnFrom = Fn.from
 export const tyFn = TyFn.of
+export const tyFnFrom = TyFn.from
 export const tyVar = TyVar.of
 export const vec = Vec.of
 export const tyVec = TyVec.of
@@ -113,3 +116,5 @@ export const dict = Dict.of
 export const tyDict = TyDict.of
 
 export {isSame, isEqual, isSubtype, print, setParent}
+
+export {uniteTy, intersectTy}

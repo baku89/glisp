@@ -478,7 +478,7 @@ export class TyVar implements INode, IValue {
 	readonly type = 'tyVar' as const
 	superType = All.instance
 
-	private constructor(public name: string) {}
+	private constructor(public name: string, public readonly original?: TyVar) {}
 
 	defaultValue = Unit.instance
 
@@ -496,8 +496,27 @@ export class TyVar implements INode, IValue {
 	// NOTE: is this correct?
 	isType = true
 
-	static of(name: string) {
-		return new TyVar(name)
+	shadow = (): TyVar => {
+		return new TyVar(this.name + '-' + TyVar.#counter++, this)
+	}
+
+	unshadow = (): TyVar => {
+		return this.original ?? this
+	}
+	static #counter = 1
+	static #store: Map<string, TyVar> = new Map()
+
+	public static fresh() {
+		return TyVar.of('T-' + TyVar.#counter++)
+	}
+
+	public static of(name: string) {
+		let v = TyVar.#store.get(name)
+		if (!v) {
+			v = new TyVar(name)
+			TyVar.#store.set(name, v)
+		}
+		return v
 	}
 }
 
