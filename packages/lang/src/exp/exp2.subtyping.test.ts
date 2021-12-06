@@ -15,6 +15,11 @@ describe('subtyping', () => {
 	test('()', '0', '!=')
 	test('()', '_', '<')
 
+	test('<T>', '<T>', '=')
+	test('<U>', '<T>', '!=')
+	test('<U>', '_', '<')
+	test('0', '<T>', '!=')
+
 	// Atom, TyAtom
 	test('1', '1', '=')
 	test('1', 'Num2', '<')
@@ -102,6 +107,7 @@ describe('checking type or atom', () => {
 	test('0', false)
 	test('"hello"', false)
 	test('false2', false)
+	test('<T>', true)
 	test('Num2', true)
 	test('Bool2', true)
 	test('[]', false)
