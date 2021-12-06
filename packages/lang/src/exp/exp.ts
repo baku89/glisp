@@ -3,6 +3,7 @@ import {
 	difference,
 	differenceWith,
 	entries,
+	forOwn,
 	fromPairs,
 	isNull,
 	keys,
@@ -536,53 +537,58 @@ export class ETyFn implements INode, IExp {
 	readonly type = 'eTyFn' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public tyParam: Node[], public out: Node) {}
+	private constructor(public param: Record<string, Node>, public out: Node) {}
 
-	eval(env: Env = new Map()): ValueWithLog {
-		const [param, l1] = Writer.map(this.tyParam, p => p.eval(env)).asTuple
+	eval(env?: Env): ValueWithLog {
+		const paramArr = values(this.param)
+
+		const [param, l1] = Writer.map(paramArr, p => p.eval(env)).asTuple
 		const [out, l2] = this.out.eval(env).asTuple
 		const tyFn = Val.tyFn(param, out)
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
 	eval2 = (env?: Env): ValueWithLog2 => {
-		const [params, lp] = Writer.map(this.tyParam, p => p.eval2(env)).asTuple
+		const [params, lp] = Writer.mapValues(this.param, p => p.eval2(env)).asTuple
 		const [out, lo] = this.out.eval2(env).asTuple
-		return Writer.of(TyFn.of(params, out), ...lp, ...lo)
+		return Writer.of(TyFn.from(params, out), ...lp, ...lo)
 	}
 
 	infer(env?: Env): Val.Value {
-		const param = this.tyParam.map(p => p.infer(env))
+		const param = values(this.param).map(p => p.infer(env))
 		const out = this.out.infer(env)
 		return Val.tyFn(param, out)
 	}
 
 	infer2 = (env?: Env) => this.eval2(env).result
 
-	print(): string {
-		let canOmitParens = this.tyParam.length === 1
-		if (canOmitParens) {
-			const fp = this.tyParam[0]
-			const isFirstParamUnit = fp.type === 'obj' && fp.value.type === 'unit'
-			canOmitParens = !isFirstParamUnit
-		}
-
-		const params = this.tyParam.map(p => p.print())
-		const param = canOmitParens ? params[0] : '(' + params.join(' ') + ')'
+	print = (): string => {
+		const param = '(' + entries(this.param).map(printNamedNode).join(' ') + ')'
 		const out = this.out.print()
-
 		return `(-> ${param} ${out})`
 	}
 
 	isSameTo = (exp: Node): boolean =>
 		exp.type === 'eTyFn' &&
-		isEqualArray(this.tyParam, exp.tyParam, isSame) &&
+		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.out, this.out)
 
 	static of(param: Node | Node[], out: Node) {
-		const tyParam = [param].flat()
-		const tyFn = new ETyFn(tyParam, out)
-		tyParam.forEach(p => setParent(p, tyFn))
+		const paramArr = [param].flat()
+		const pairs = paramArr.map((p, i) => [i, p] as const)
+		const paramDict = Object.fromEntries(pairs)
+
+		const tyFn = new ETyFn(paramDict, out)
+
+		paramArr.forEach(p => setParent(p, tyFn))
+		setParent(out, tyFn)
+
+		return tyFn
+	}
+
+	static from(param: Record<string, Node>, out: Node) {
+		const tyFn = new ETyFn(param, out)
+		forOwn(param, p => setParent(p, tyFn))
 		setParent(out, tyFn)
 		return tyFn
 	}
@@ -600,16 +606,6 @@ export class TyFn implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	printParam = () => {
-		const pStr = entries(this.param).map(TyFn.printParamPair).join(' ')
-
-		const names = keys(this.param)
-		const canOmitParens =
-			names.length === 1 && this.param[names[0]].type !== 'unit'
-
-		return canOmitParens ? pStr : `(${pStr})`
-	}
-
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
 	eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -617,8 +613,12 @@ export class TyFn implements INode, IValue {
 	infer = () => Val.unit
 	infer2 = () => this
 
+	printParam = () => `(${entries(this.param).map(printNamedNode).join(' ')})`
+
 	print = (): string => {
-		return `(-> ${this.printParam()} ${this.out.print()})`
+		const param = this.printParam()
+		const out = this.out.print()
+		return `(-> ${param} ${out})`
 	}
 
 	isSameTo = (e: Node) =>
@@ -639,17 +639,21 @@ export class TyFn implements INode, IValue {
 		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
 	}
 
-	static printParamPair([name, ty]: [string, Value]) {
-		if (/^[0-9]$/.test(name)) return ty
-		return name + ':' + ty
-	}
-
 	static of(param: Value | Value[], out: Value) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
 		return new TyFn(paramDict, out)
 	}
+
+	static from(param: Record<string, Value>, out: Value) {
+		return new TyFn(param, out)
+	}
+}
+
+function printNamedNode([name, ty]: [string, Node]) {
+	if (/^[0-9]+$/.test(name)) return ty.print()
+	return name + ':' + ty.print()
 }
 
 export class EVec implements INode {

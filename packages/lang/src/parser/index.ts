@@ -65,37 +65,45 @@ App "App" = "(" _ fn:Node _ args:AppArg* ")"
 
 AppArg = arg:Node _ { return arg }
 
-Fn = "(" _ "=>" _ param:FnParam _ body:Node _ ")"
+Fn = "(" _ "=>" _ param:FnParam body:Node _ ")"
 	{
 		return Exp.eFn(param, body)
 	}
 
-FnParam = FnParamMulti / FnParamSingle
-
-FnParamMulti = "(" _ pairs:FnParamPair* _ ")"
+FnParam = param:(FnParamMulti / FnParamSingle) _
 	{
-		return Object.fromEntries(pairs)
+		return Object.fromEntries(param)
 	}
 
-FnParamSingle = pair:FnParamPair
+FnParamMulti = "(" _ pairs:NamedNode* ")" _
 	{
-		const [name, type] = pair
-		return {[name]: type}
+		return pairs
 	}
 
-FnParamPair = sym:Sym _ ":" _ type:Node _
+FnParamSingle = pair:NamedNode
 	{
-		return [sym.name, type]
+		return [pair]
 	}
 
-TyFn = "(" _ "->" _ param:TyFnParam _ out:Node _ ")"
+TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
 	{
-		return Exp.eTyFn(param, out)
+		const entries = param.map(([name, type], i) => [name ?? i, type])
+		const paramDict = Object.fromEntries(entries)
+		return Exp.eTyFnFrom(paramDict, out)
 	}
 
 TyFnParam = 
-	"(" _ params:(Node _)* ")" { return params.map(p => p[0]) } /
-	param:Node { return [param] }
+	"(" _ params:TyFnParamEntry* ")" _ { return params } /
+	param:TyFnParamEntry { return [param] }
+
+TyFnParamEntry =
+	type:Node _ { return [null, type] } /
+	NamedNode
+
+NamedNode = sym:Sym _ ":" _ value:Node _
+	{
+		return [sym.name, value]
+	}
 
 Vec = "[" _ items:VecItem* rest:Rest? "]"
 	{		

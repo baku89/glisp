@@ -59,6 +59,7 @@ export const app = App.of
 export const scope = Scope.of
 export const eFn = EFn.of
 export const eTyFn = ETyFn.of
+export const eTyFnFrom = ETyFn.from
 export const eVec = EVec.of
 export const eVecFrom = EVec.from
 export const eDict = EDict.of
