@@ -85,11 +85,8 @@ function run(
 	yInput: string | Exp.Node,
 	expected: '<' | '=' | '!='
 ) {
-	const xExp = parse(xInput)
-	const yExp = parse(yInput)
-
-	const x = evaluate(xExp)
-	const y = evaluate(yExp)
+	const x = evaluate(parse(xInput))
+	const y = evaluate(parse(yInput))
 
 	const [x2y, y2x] =
 		expected === '<'
@@ -98,7 +95,7 @@ function run(
 			? [true, true]
 			: [false, false]
 
-	test(`${xExp.print()} ${expected} ${yExp.print()}`, () => {
+	test(`${xInput} ${expected} ${yInput}`, () => {
 		expect(Exp.isSubtype(x, y)).toBe(x2y)
 		expect(Exp.isSubtype(y, x)).toBe(y2x)
 	})
