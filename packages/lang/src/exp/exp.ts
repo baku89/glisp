@@ -49,7 +49,7 @@ type Atomic =
 	| Dict
 	| Prod
 
-type UnitableType = Exclude<Value, All | Bottom>
+export type UnitableType = Exclude<Value, All | Bottom>
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -1243,7 +1243,7 @@ export class TyUnion implements INode, IValue {
 	infer2 = () => this
 
 	print = (): string => {
-		const types = this.types.map(t => t.print()).join(' ')
+		const types = this.types.map(print).join(' ')
 		return `(| ${types})`
 	}
 
@@ -1263,6 +1263,10 @@ export class TyUnion implements INode, IValue {
 	isType = true
 
 	isSupertypeOf = (s: Exclude<Value, TyUnion>) => this.types.some(s.isSubtypeOf)
+
+	static fromTypesUnsafe(types: UnitableType[]) {
+		return new TyUnion(types)
+	}
 }
 
 export class App implements INode, IExp {
