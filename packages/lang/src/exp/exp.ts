@@ -83,7 +83,6 @@ interface IValue {
 	isType: boolean
 	isEqualTo(e: Node): boolean
 	isSubtypeOf(e: Value): boolean
-	isInstanceOf(e: Value): boolean
 }
 
 export type IFn = (...params: any[]) => Writer<Value, Log>
@@ -101,11 +100,6 @@ function isSubtypeOfGeneric(
 ): boolean {
 	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
 	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
-}
-
-function isInstanceOfGeneric(this: Value, e: Value): boolean {
-	if (e.type === 'all') return true
-	return this.isType ? false : this.isSubtypeOf(e)
 }
 
 export class Sym implements INode, IExp {
@@ -259,7 +253,6 @@ export class Unit implements INode, IValue {
 	isSameTo = (exp: Node) => exp.type === 'unit'
 	isEqualTo = this.isSameTo
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 	isType = false
 
 	static instance = new Unit()
@@ -277,7 +270,6 @@ export class All implements INode, IValue {
 	isSameTo = (exp: Node) => exp.type === 'all'
 	isEqualTo = this.isSameTo
 	isSubtypeOf = this.isSameTo
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 	isType = false
 
 	static instance = new All()
@@ -297,7 +289,6 @@ export class Bottom implements INode, IValue {
 	isSameTo = (exp: Node) => exp.type === 'bottom'
 	isEqualTo = this.isSameTo
 	isSubtypeOf = () => true
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 	isType = true
 
 	static instance = new Bottom()
@@ -325,8 +316,6 @@ export class Prim<T = any> implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
-
-	isInstanceOf: (e: Value) => boolean = isInstanceOfGeneric.bind(this)
 
 	isType = false
 
@@ -375,8 +364,6 @@ export class TyPrim<T = any> implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
-
-	isInstanceOf: (e: Value) => boolean = isInstanceOfGeneric.bind(this)
 
 	of(value: T): Prim<T> {
 		return Prim.from(this, value)
@@ -434,8 +421,6 @@ export class Enum implements INode, IValue {
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	isInstanceOf: (e: Value) => boolean = isInstanceOfGeneric.bind(this)
-
 	isType = false
 
 	static of(name: string) {
@@ -468,8 +453,6 @@ export class TyEnum implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	isInstanceOf: (e: Value) => boolean = isInstanceOfGeneric.bind(this)
 
 	isType = true
 
@@ -509,8 +492,6 @@ export class TyVar implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	isInstanceOf: (e: Value) => boolean = isInstanceOfGeneric.bind(this)
 
 	// NOTE: is this correct?
 	isType = true
@@ -612,7 +593,6 @@ export class Fn implements INode, IValue, IFnLike {
 	isSameTo = () => false
 	isEqualTo = () => false
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 	isType = false
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
@@ -728,8 +708,6 @@ export class TyFn implements INode, IValue {
 
 		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
 	}
-
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 
 	isType = true
 
@@ -851,8 +829,6 @@ export class Vec implements INode, IValue {
 
 	isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
-	isInstanceOf = isInstanceOfGeneric.bind(this)
-
 	get isType() {
 		return this.items.some(isType)
 	}
@@ -896,8 +872,6 @@ export class TyVec implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeVecGeneric.bind(this)
-
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 
 	isType = true
 
@@ -1054,8 +1028,6 @@ export class Dict implements INode, IValue {
 
 	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
-	isInstanceOf = isInstanceOfGeneric.bind(this)
-
 	get isType() {
 		return values(this.items).some(isType)
 	}
@@ -1119,8 +1091,6 @@ export class TyDict implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeDictGeneric.bind(this)
-
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 
 	isType = true
 
@@ -1203,8 +1173,6 @@ export class Prod implements INode, IValue {
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	isInstanceOf = isInstanceOfGeneric.bind(this)
-
 	isType = false
 
 	static of(ctor: TyProd, items: Value[]) {
@@ -1244,8 +1212,6 @@ export class TyProd implements INode, IValue {
 	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 
 	isType = true
 
@@ -1293,8 +1259,6 @@ export class TyUnion implements INode, IValue {
 		const types: Value[] = e.type === 'tyUnion' ? e.types : [e]
 		return this.types.every(s => types.some(s.isSubtypeOf))
 	}
-
-	isInstanceOf = isInstanceOfGeneric.bind(this)
 
 	isType = true
 

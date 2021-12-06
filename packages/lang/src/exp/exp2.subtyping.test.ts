@@ -162,7 +162,6 @@ describe('instance relationship', () => {
 		it(`${i} is ${expected ? '' : 'not '}a instance of ${t}`, () => {
 			const iv = evaluate(parse(i))
 			const tv = evaluate(parse(t))
-			expect(iv.isInstanceOf(tv)).toBe(expected)
 			expect(iv.infer2().isSubtypeOf(tv)).toBe(expected)
 		})
 	}
