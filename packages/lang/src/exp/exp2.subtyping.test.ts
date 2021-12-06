@@ -139,6 +139,9 @@ describe('instance relationship', () => {
 
 	test('0', 'Num2')
 	test('"hello"', 'Num2', false)
+	test('0', '<T>', false)
+	test('<T>', '<T>', false)
+	test('<T>', '_')
 
 	test('[]', '[]')
 	test('[1 2]', '[...Num2]')

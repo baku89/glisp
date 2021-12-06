@@ -51,6 +51,8 @@ describe('inferring expression type', () => {
 	test('"foo"', '"foo"')
 	test('true2', 'true2')
 
+	test('<T>', '_')
+
 	test('Num2', '_')
 	test('Bool2', '_')
 
