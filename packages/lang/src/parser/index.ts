@@ -24,7 +24,7 @@ All "all" = "_" { return Exp.all }
 
 Bottom "bottom" = "_|_" { return Exp.bottom }
 
-Sym "Sym" = SymIdent / SymQuoted
+Sym "Sym" = SymIdent /*/ SymQuoted*/
 
 SymIdent =
 	!(Reserved End)
@@ -34,10 +34,12 @@ SymIdent =
 		return Exp.sym(text())
 	}
 
+/*
 SymQuoted = "\`" name:$(!"\`" .)+ "\`"
 	{
 		return Exp.sym(name)
 	}
+*/
 
 TyVar = "<" name:$[^>]+ ">"
 	{
