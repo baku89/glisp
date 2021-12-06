@@ -639,15 +639,15 @@ export class TyFn implements INode, IValue {
 		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
 	}
 
-	private static printParamPair([name, ty]: [string, Value]) {
-		if (/^\$[0-9]$/.test(name)) return ty
+	static printParamPair([name, ty]: [string, Value]) {
+		if (/^[0-9]$/.test(name)) return ty
 		return name + ':' + ty
 	}
 
 	static of(param: Value | Value[], out: Value) {
 		const paramArr = [param].flat()
-		const pairs = paramArr.map((p, i) => ['$' + i, p])
-		const paramDict = fromPairs(pairs)
+		const pairs = paramArr.map((p, i) => [i, p] as const)
+		const paramDict = Object.fromEntries(pairs)
 		return new TyFn(paramDict, out)
 	}
 }
