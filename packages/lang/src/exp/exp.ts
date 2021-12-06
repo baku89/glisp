@@ -102,12 +102,12 @@ function isSubtypeOfGeneric(
 }
 
 export class Sym implements INode, IExp {
-	public readonly type = 'sym' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'sym' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public name: string) {}
 
-	public resolve(env?: Env): NodeWithLog {
+	resolve(env?: Env): NodeWithLog {
 		let ref = this.parent
 
 		while (ref) {
@@ -133,199 +133,198 @@ export class Sym implements INode, IExp {
 		return Writer.of(Unit.instance, log)
 	}
 
-	public eval(env?: Env): ValueWithLog {
+	eval(env?: Env): ValueWithLog {
 		return this.resolve(env).bind(v => v.eval(env))
 	}
 
-	public eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env): ValueWithLog2 => {
 		return this.resolve(env).bind(n => n.eval2(env))
 	}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		return this.resolve(env).result.infer(env)
 	}
 
-	public infer2(env?: Env): Value {
+	infer2(env?: Env): Value {
 		return this.resolve(env).result.infer2(env)
 	}
 
-	public print = () => this.name
+	print = () => this.name
 
-	public isSameTo = (exp: Node) => exp.type === 'sym' && this.name === exp.name
+	isSameTo = (exp: Node) => exp.type === 'sym' && this.name === exp.name
 
-	public static of(name: string) {
+	static of(name: string) {
 		return new Sym(name)
 	}
 }
 
 export class Obj implements INode, IExp {
-	public readonly type = 'obj' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'obj' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public value: Val.Value, public asType: boolean) {}
 
-	public eval(): ValueWithLog {
+	eval(): ValueWithLog {
 		return Writer.of(this.value)
 	}
 	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
+	eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
 
-	public infer(): Val.Value {
+	infer(): Val.Value {
 		if (this.asType === false && Val.isTy(this.value)) {
 			return Val.tyValue(this.value)
 		}
 		return this.value
 	}
 	// TODO: fix this
-	public infer2 = () => Unit.instance
+	infer2 = () => Unit.instance
 
-	public print = () => this.value.print()
+	print = () => this.value.print()
 
-	public isSameTo = (exp: Node) =>
+	isSameTo = (exp: Node) =>
 		exp.type === 'obj' && this.value.isEqualTo(exp.value)
 
-	public static of(value: Val.Value) {
+	static of(value: Val.Value) {
 		return new Obj(value, false)
 	}
 
-	public static asType(value: Val.Value) {
+	static asType(value: Val.Value) {
 		return new Obj(value, true)
 	}
 }
 
 export class Unit implements INode, IValue {
-	public readonly type = 'unit' as const
-	public superType!: All
-	public defaultValue = this
+	readonly type = 'unit' as const
+	superType!: All
+	defaultValue = this
 
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.unit
-	public infer2 = () => this
-	public print = () => '()'
-	public isSameTo = (exp: Node) => exp.type === 'unit'
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
+	infer = () => Val.unit
+	infer2 = () => this
+	print = () => '()'
+	isSameTo = (exp: Node) => exp.type === 'unit'
+	isEqualTo = this.isSameTo
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static instance = new Unit()
+	static instance = new Unit()
 }
 
 export class All implements INode, IValue {
-	public readonly type = 'all' as const
-	public defaultValue = Unit.instance
+	readonly type = 'all' as const
+	defaultValue = Unit.instance
 
-	public eval = (): ValueWithLog => Writer.of(Val.all)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.all
-	public infer2 = () => this
-	public print = () => '_'
-	public isSameTo = (exp: Node) => exp.type === 'all'
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = this.isSameTo
+	eval = (): ValueWithLog => Writer.of(Val.all)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
+	infer = () => Val.all
+	infer2 = () => this
+	print = () => '_'
+	isSameTo = (exp: Node) => exp.type === 'all'
+	isEqualTo = this.isSameTo
+	isSubtypeOf = this.isSameTo
 
-	public static instance = new All()
+	static instance = new All()
 }
 
 Unit.prototype.superType = All.instance
 
 export class Bottom implements INode, IValue {
-	public readonly type = 'bottom' as const
-	public defaultValue = this
+	readonly type = 'bottom' as const
+	defaultValue = this
 
-	public eval = (): ValueWithLog => Writer.of(Val.bottom)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.bottom
-	public infer2 = () => this
-	public print = () => '_|_'
-	public isSameTo = (exp: Node) => exp.type === 'bottom'
-	public isEqualTo = this.isSameTo
-	public isSubtypeOf = () => true
+	eval = (): ValueWithLog => Writer.of(Val.bottom)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
+	infer = () => Val.bottom
+	infer2 = () => this
+	print = () => '_|_'
+	isSameTo = (exp: Node) => exp.type === 'bottom'
+	isEqualTo = this.isSameTo
+	isSubtypeOf = () => true
 
-	public static instance = new Bottom()
+	static instance = new Bottom()
 }
 
 export class Prim<T = any> implements INode, IValue {
-	public readonly type = 'prim' as const
-	public defaultValue = this
+	readonly type = 'prim' as const
+	defaultValue = this
 
 	protected constructor(public superType: TyPrim, public value: T) {}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = (): Val.Value => Val.unit
-	public infer2 = () => this
-	public print = () => `<instance of ${this.superType.print()}>`
+	infer = (): Val.Value => Val.unit
+	infer2 = () => this
+	print = () => `<instance of ${this.superType.print()}>`
 
-	public isSameTo = (exp: Node) =>
+	isSameTo = (exp: Node) =>
 		exp.type === 'prim' &&
 		isSame(this.superType, exp.superType) &&
 		this.value === exp.value
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	public static from<T>(ty: TyPrim, value: T) {
+	static from<T>(ty: TyPrim, value: T) {
 		return new Prim(ty, value)
 	}
 }
 
 export class Num extends Prim<number> {
-	public eval = (): ValueWithLog => Writer.of(Val.num(this.value))
-	public infer = () => Val.num(this.value)
-	public print = () => this.value.toString()
+	eval = (): ValueWithLog => Writer.of(Val.num(this.value))
+	infer = () => Val.num(this.value)
+	print = () => this.value.toString()
 
-	public static of(value: number) {
+	static of(value: number) {
 		return new Num(tyNum, value)
 	}
 }
 
 export class Str extends Prim<string> {
-	public eval = (): ValueWithLog => Writer.of(Val.str(this.value))
-	public infer = () => Val.str(this.value)
+	eval = (): ValueWithLog => Writer.of(Val.str(this.value))
+	infer = () => Val.str(this.value)
 
-	public print = () => '"' + this.value + '"'
+	print = () => '"' + this.value + '"'
 
-	public static of(value: string) {
+	static of(value: string) {
 		return new Str(tyStr, value)
 	}
 }
 
 export class TyPrim<T = any> implements INode, IValue {
-	public readonly type = 'tyPrim' as const
-	public superType = All.instance
-	public defaultValue!: Num | Str | Prim
+	readonly type = 'tyPrim' as const
+	superType = All.instance
+	defaultValue!: Num | Str | Prim
 
 	private constructor(private readonly name: string) {}
 
 	// TODO: fix this
-	public eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.tyAtom(this.name, null)
-	public infer2 = () => this
-	public print = () => this.name
+	eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
+	eval2 = (): ValueWithLog2 => Writer.of(this)
+	infer = () => Val.tyAtom(this.name, null)
+	infer2 = () => this
+	print = () => this.name
 
-	public isSameTo = (exp: Node) =>
-		exp.type === 'tyPrim' && this.name === exp.name
+	isSameTo = (exp: Node) => exp.type === 'tyPrim' && this.name === exp.name
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
-	public of(value: T) {
+	of(value: T) {
 		return Prim.from(this, value)
 	}
 
-	public static ofLiteral(name: string, defaultValue: Prim) {
+	static ofLiteral(name: string, defaultValue: Prim) {
 		const ty = new TyPrim(name)
 		ty.defaultValue = defaultValue
 		defaultValue.superType = ty
 		return ty
 	}
 
-	public static of<T>(name: string, defaultValue: T) {
+	static of<T>(name: string, defaultValue: T) {
 		const ty = new TyPrim(name)
 		const d = Prim.from(ty, defaultValue)
 		ty.defaultValue = d
@@ -340,69 +339,69 @@ Num.prototype.superType = tyNum
 Str.prototype.superType = tyStr
 
 export class Enum implements INode, IValue {
-	public readonly type = 'enum' as const
-	public superType!: TyEnum
+	readonly type = 'enum' as const
+	superType!: TyEnum
 
 	private constructor(public readonly name: string) {}
 
-	public defaultValue = this
+	defaultValue = this
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 	// TODO: fix this
-	public print = () => this.name
+	print = () => this.name
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'enum' &&
 		this.name === e.name &&
 		this.superType.isSameTo(e.superType)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static of(name: string) {
+	static of(name: string) {
 		return new Enum(name)
 	}
 }
 
 export class TyEnum implements INode, IValue {
-	public readonly type = 'tyEnum' as const
-	public superType = All.instance
+	readonly type = 'tyEnum' as const
+	superType = All.instance
 
 	private constructor(
 		public readonly name: string,
 		public readonly types: Enum[]
 	) {}
 
-	public defaultValue = this.types[0]
+	defaultValue = this.types[0]
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 	// TODO: fix this
-	public print = () => this.name
+	print = () => this.name
 
-	public isSameTo = (e: Node) => e.type === 'tyEnum' && this.name === e.name
+	isSameTo = (e: Node) => e.type === 'tyEnum' && this.name === e.name
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public getEnum = (label: string) => {
+	getEnum = (label: string) => {
 		const en = this.types.find(t => t.name === label)
 		if (!en) throw new Error('Cannot find label')
 		return en
 	}
 
-	public static of(name: string, labels: string[]) {
+	static of(name: string, labels: string[]) {
 		if (labels.length === 0) throw new Error('Zero-length enum')
 
 		const types = labels.map(Enum.of)
@@ -415,37 +414,36 @@ export class TyEnum implements INode, IValue {
 }
 
 export class TyVar implements INode, IValue {
-	public readonly type = 'tyVar' as const
-	public superType = All.instance
+	readonly type = 'tyVar' as const
+	superType = All.instance
 
 	private constructor(public name: string) {}
 
-	public defaultValue = Unit.instance
+	defaultValue = Unit.instance
 
-	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
-	public infer = () => Val.tyVar(this.name)
-	public infer2 = () => this
-	public print = () => '<' + this.name + '>'
-	public isSameTo = (exp: Node) =>
-		exp.type === 'tyVar' && this.name === exp.name
+	eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
+	eval2 = (): ValueWithLog2 => Writer.of(this)
+	infer = () => Val.tyVar(this.name)
+	infer2 = () => this
+	print = () => '<' + this.name + '>'
+	isSameTo = (exp: Node) => exp.type === 'tyVar' && this.name === exp.name
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static of(name: string) {
+	static of(name: string) {
 		return new TyVar(name)
 	}
 }
 
 export class EFn implements INode, IExp {
-	public readonly type = 'eFn' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'eFn' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public param: Record<string, Node>, public body: Node) {}
 
-	public infer(env: Env = new Map()): Val.Value {
+	infer(env: Env = new Map()): Val.Value {
 		const param = Writer.mapValues(this.param, p => p.eval(env)).result
 		const paramDict = mapValues(param, p => Obj.asType(p))
 
@@ -456,9 +454,9 @@ export class EFn implements INode, IExp {
 	}
 
 	// TODO: fix this
-	public infer2 = () => Unit.instance
+	infer2 = () => Unit.instance
 
-	public eval(env: Env = new Map()): ValueWithLog {
+	eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
 
 		const fn: Val.IFn = (...args: Val.Value[]) => {
@@ -479,9 +477,9 @@ export class EFn implements INode, IExp {
 		return Writer.of(fnVal, ...paramLog)
 	}
 	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
+	eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
 
-	public print(): string {
+	print(): string {
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
 		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
 		const body = this.body.print()
@@ -489,12 +487,12 @@ export class EFn implements INode, IExp {
 		return `(=> ${param} ${body})`
 	}
 
-	public isSameTo = (exp: Node) =>
+	isSameTo = (exp: Node) =>
 		exp.type === 'eFn' &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.body, exp.body)
 
-	public static of(param: Record<string, Node>, body: Node) {
+	static of(param: Record<string, Node>, body: Node) {
 		const fn = new EFn(param, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
@@ -503,65 +501,65 @@ export class EFn implements INode, IExp {
 }
 
 export class Fn implements INode, IValue, IFnLike {
-	public readonly type = 'fn' as const
+	readonly type = 'fn' as const
 
 	private constructor(public superType: TyFn, public fn: IFn) {}
 
-	public tyFn = this.superType
+	tyFn = this.superType
 
-	public defaultValue = this
+	defaultValue = this
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 	// TODO: fix this
-	public print = (): string => {
+	print = (): string => {
 		const param = this.superType.printParam()
 		const out = this.superType.out.print()
 		return `(=> ${param} (js code):${out})`
 	}
 
-	public isSameTo = () => false
-	public isEqualTo = () => false
+	isSameTo = () => false
+	isEqualTo = () => false
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static of(tyFn: TyFn, fn: IFn) {
+	static of(tyFn: TyFn, fn: IFn) {
 		return new Fn(tyFn, fn)
 	}
 }
 
 export class ETyFn implements INode, IExp {
-	public readonly type = 'eTyFn' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'eTyFn' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public tyParam: Node[], public out: Node) {}
 
-	public eval(env: Env = new Map()): ValueWithLog {
+	eval(env: Env = new Map()): ValueWithLog {
 		const [param, l1] = Writer.map(this.tyParam, p => p.eval(env)).asTuple
 		const [out, l2] = this.out.eval(env).asTuple
 		const tyFn = Val.tyFn(param, out)
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
-	public eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env): ValueWithLog2 => {
 		const [params, lp] = Writer.map(this.tyParam, p => p.eval2(env)).asTuple
 		const [out, lo] = this.out.eval2(env).asTuple
 		return Writer.of(TyFn.of(params, out), ...lp, ...lo)
 	}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		const param = this.tyParam.map(p => p.infer(env))
 		const out = this.out.infer(env)
 		return Val.tyFn(param, out)
 	}
 
-	public infer2 = (env?: Env) => this.eval2(env).result
+	infer2 = (env?: Env) => this.eval2(env).result
 
-	public print(): string {
+	print(): string {
 		let canOmitParens = this.tyParam.length === 1
 		if (canOmitParens) {
 			const fp = this.tyParam[0]
@@ -576,12 +574,12 @@ export class ETyFn implements INode, IExp {
 		return `(-> ${param} ${out})`
 	}
 
-	public isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Node): boolean =>
 		exp.type === 'eTyFn' &&
 		isEqualArray(this.tyParam, exp.tyParam, isSame) &&
 		isSame(this.out, this.out)
 
-	public static of(param: Node | Node[], out: Node) {
+	static of(param: Node | Node[], out: Node) {
 		const tyParam = [param].flat()
 		const tyFn = new ETyFn(tyParam, out)
 		tyParam.forEach(p => setParent(p, tyFn))
@@ -591,18 +589,18 @@ export class ETyFn implements INode, IExp {
 }
 
 export class TyFn implements INode, IValue {
-	public readonly type = 'tyFn' as const
-	public superType = All.instance
+	readonly type = 'tyFn' as const
+	superType = All.instance
 
 	private constructor(public param: Record<string, Value>, public out: Value) {}
 
 	#defaultValue?: Fn
-	public get defaultValue() {
+	get defaultValue() {
 		this.#defaultValue ??= Fn.of(this, () => Writer.of(this.out.defaultValue))
 		return this.#defaultValue
 	}
 
-	public printParam = () => {
+	printParam = () => {
 		const pStr = entries(this.param).map(TyFn.printParamPair).join(' ')
 
 		const names = keys(this.param)
@@ -613,24 +611,24 @@ export class TyFn implements INode, IValue {
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		return `(-> ${this.printParam()} ${this.out.print()})`
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'tyFn' &&
 		isEqualArray(values(this.param), values(e.param), isSame) &&
 		isSame(this.out, e.out)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = (e: Value): boolean => {
+	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
 		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
 		if (e.type !== 'tyFn') return false
@@ -646,7 +644,7 @@ export class TyFn implements INode, IValue {
 		return name + ':' + ty
 	}
 
-	public static of(param: Value | Value[], out: Value) {
+	static of(param: Value | Value[], out: Value) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => ['$' + i, p])
 		const paramDict = fromPairs(pairs)
@@ -655,16 +653,16 @@ export class TyFn implements INode, IValue {
 }
 
 export class EVec implements INode {
-	public readonly type = 'eVec' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'eVec' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public items: Node[], public rest: Node | null = null) {}
 
-	public get length() {
+	get length() {
 		return this.items.length
 	}
 
-	public eval(env?: Env): ValueWithLog {
+	eval(env?: Env): ValueWithLog {
 		const [items, li] = Writer.map(this.items, it => it.eval(env)).asTuple
 		if (this.rest) {
 			const [rest, lr] = this.rest.eval(env).asTuple
@@ -673,7 +671,7 @@ export class EVec implements INode {
 		return Writer.of(Val.vecFrom(items), ...li)
 	}
 
-	public eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env): ValueWithLog2 => {
 		const [items, li] = Writer.map(this.items, i => i.eval2(env)).asTuple
 		if (this.rest) {
 			const [rest, lr] = this.rest.eval2(env).asTuple
@@ -683,7 +681,7 @@ export class EVec implements INode {
 		}
 	}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		const items = this.items.map(it => it.infer(env))
 		const rest = this.rest?.infer(env)
 		if (rest) {
@@ -694,26 +692,26 @@ export class EVec implements INode {
 	}
 
 	// TODO: fix this
-	public infer2 = () => Unit.instance
+	infer2 = () => Unit.instance
 
-	public print(): string {
+	print(): string {
 		const items = this.items.map(it => it.print())
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
-	public isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Node): boolean =>
 		exp.type === 'eVec' &&
 		isEqualArray(this.items, exp.items, isSame) &&
 		nullishEqual(this.rest, this.rest, isSame)
 
-	public static of(...items: Node[]) {
+	static of(...items: Node[]) {
 		const vec = new EVec(items)
 		items.forEach(it => setParent(it, vec))
 		return vec
 	}
 
-	public static from(items: Node[], rest: Node | null = null) {
+	static from(items: Node[], rest: Node | null = null) {
 		const vec = new EVec(items, rest)
 		items.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
@@ -722,79 +720,79 @@ export class EVec implements INode {
 }
 
 export class Vec implements INode, IValue {
-	public readonly type = 'vec' as const
-	public readonly superType = All.instance
+	readonly type = 'vec' as const
+	readonly superType = All.instance
 
 	private constructor(public items: Value[]) {}
 
 	#defaultValue?: Vec
-	public get defaultValue() {
+	get defaultValue() {
 		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
 		return this.#defaultValue
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const items = this.items.map(print)
 		return '[' + items.join(' ') + ']'
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'vec' && isEqualArray(this.items, e.items, isSame)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeVecGeneric.bind(this)
+	isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
-	public get asTyVecLike(): TyVecLike {
+	get asTyVecLike(): TyVecLike {
 		return {items: this.items}
 	}
 
-	public static of(...items: Value[]) {
+	static of(...items: Value[]) {
 		return new Vec(items)
 	}
 }
 
 export class TyVec implements INode, IValue {
-	public readonly type = 'tyVec' as const
-	public readonly superType = All.instance
+	readonly type = 'tyVec' as const
+	readonly superType = All.instance
 
 	private constructor(public items: Value[], public rest: Value) {}
 
 	#defaultValue?: Vec
-	public get defaultValue() {
+	get defaultValue() {
 		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
 		return this.#defaultValue
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const items = this.items.map(print)
 		return '[' + items.join(' ') + ']'
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'tyVec' && isEqualArray(this.items, e.items, isSame)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeVecGeneric.bind(this)
+	isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
-	public asTyVecLike: TyVecLike = this
+	asTyVecLike: TyVecLike = this
 
-	public static of(items: Value[], rest: Value) {
+	static of(items: Value[], rest: Value) {
 		return new TyVec(items, rest)
 	}
 }
@@ -836,15 +834,15 @@ function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
 }
 
 export class EDict implements INode, IExp {
-	public readonly type = 'eDict' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'eDict' as const
+	parent: ExpComplex | null = null
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Node}>,
 		public rest?: Node
 	) {}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		const items = mapValues(this.items, it => ({
 			optional: it.optional,
 			value: it.value.infer(env),
@@ -853,7 +851,7 @@ export class EDict implements INode, IExp {
 		return Val.tyDict(items, rest)
 	}
 
-	public infer2 = (env?: Env): Value => {
+	infer2 = (env?: Env): Value => {
 		const items = mapValues(this.items, i => ({
 			optional: i.optional,
 			value: i.value.infer2(env),
@@ -863,7 +861,7 @@ export class EDict implements INode, IExp {
 		return TyDict.of(items, rest)
 	}
 
-	public eval(env?: Env): ValueWithLog {
+	eval(env?: Env): ValueWithLog {
 		const [items, l] = Writer.mapValues(this.items, ({optional, value}) =>
 			value.eval(env).fmap(value => ({optional, value}))
 		).asTuple
@@ -871,7 +869,7 @@ export class EDict implements INode, IExp {
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
 
-	public eval2(env?: Env): ValueWithLog2 {
+	eval2(env?: Env): ValueWithLog2 {
 		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
 			value.eval2(env).fmap(value => ({optional, value}))
 		).asTuple
@@ -882,7 +880,7 @@ export class EDict implements INode, IExp {
 		return Writer.of(TyDict.of(items, rest), ...li, ...lr)
 	}
 
-	public print(): string {
+	print(): string {
 		const items = entries(this.items).map(
 			([k, v]) => k + (v.optional ? '?' : '') + ': ' + v.value.print()
 		)
@@ -890,7 +888,7 @@ export class EDict implements INode, IExp {
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
-	public isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Node): boolean =>
 		exp.type === 'eDict' &&
 		hasEqualValues(
 			this.items,
@@ -898,12 +896,12 @@ export class EDict implements INode, IExp {
 			(t, e) => !!t.optional === !!e.optional && isSame(t.value, e.value)
 		)
 
-	public static of(items: Record<string, Node>) {
+	static of(items: Record<string, Node>) {
 		const its = mapValues(items, value => ({value}))
 		return EDict.from(its)
 	}
 
-	public static from(
+	static from(
 		items: Record<string, {optional?: boolean; value: Node}>,
 		rest?: Node
 	) {
@@ -915,49 +913,49 @@ export class EDict implements INode, IExp {
 }
 
 export class Dict implements INode, IValue {
-	public readonly type = 'dict' as const
-	public superType = All.instance
+	readonly type = 'dict' as const
+	superType = All.instance
 
 	private constructor(public items: Record<string, Value>) {}
 
 	#defaultValue?: Dict
-	public get defaultValue() {
+	get defaultValue() {
 		this.#defaultValue ??= Dict.of(mapValues(this.items, it => it.defaultValue))
 		return this.#defaultValue
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
 		return '{' + items.join(' ') + '}'
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'dict' && hasEqualValues(this.items, e.items, isSame)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeDictGeneric.bind(this)
+	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
-	public get asTyDictLike(): TyDictLike {
+	get asTyDictLike(): TyDictLike {
 		const items = mapValues(this.items, value => ({value}))
 		return {items}
 	}
 
-	public static of(items: Record<string, Value>) {
+	static of(items: Record<string, Value>) {
 		return new Dict(items)
 	}
 }
 
 export class TyDict implements INode, IValue {
-	public readonly type = 'tyDict' as const
-	public superType = All.instance
+	readonly type = 'tyDict' as const
+	superType = All.instance
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Value}>,
@@ -965,7 +963,7 @@ export class TyDict implements INode, IValue {
 	) {}
 
 	#defaultValue?: Dict
-	public get defaultValue(): Dict {
+	get defaultValue(): Dict {
 		if (!this.#defaultValue) {
 			const items = chain(this.items)
 				.mapValues(it => (it.optional ? null : it.value.defaultValue))
@@ -978,13 +976,13 @@ export class TyDict implements INode, IValue {
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const items = entries(this.items).map(([k, {optional, value}]) => {
 			return k + (optional ? '?' : '') + ': ' + value.print()
 		})
@@ -993,7 +991,7 @@ export class TyDict implements INode, IValue {
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'tyDict' &&
 		hasEqualValues(
 			this.items,
@@ -1001,13 +999,13 @@ export class TyDict implements INode, IValue {
 			(ti, ei) => !!ti.optional === !!ei.optional && isSame(ti.value, ei.value)
 		)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeDictGeneric.bind(this)
+	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
-	public asTyDictLike: TyDictLike = this
+	asTyDictLike: TyDictLike = this
 
-	public static of(items: TyDict['items'], rest?: Value) {
+	static of(items: TyDict['items'], rest?: Value) {
 		const noOptional = values(items).every(it => !it.optional)
 		const noRest = !rest
 
@@ -1056,42 +1054,42 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 }
 
 export class Prod implements INode, IValue {
-	public readonly type = 'prod' as const
+	readonly type = 'prod' as const
 
 	private constructor(public superType: TyProd, public items: Value[]) {}
 
-	public defaultValue = this
+	defaultValue = this
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const ctor = this.superType.print()
 		const items = this.items.map(it => it.print())
 		return '(' + [ctor, ...items].join(' ') + ')'
 	}
 
-	public isSameTo = (e: Node) =>
+	isSameTo = (e: Node) =>
 		e.type === 'prod' &&
 		this.superType.isSameTo(e.superType) &&
 		isEqualArray(this.items, e.items, isSame)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static of(ctor: TyProd, items: Value[]) {
+	static of(ctor: TyProd, items: Value[]) {
 		return new Prod(ctor, items)
 	}
 }
 
 export class TyProd implements INode, IValue {
-	public readonly type = 'tyProd' as const
-	public superType = All.instance
+	readonly type = 'tyProd' as const
+	superType = All.instance
 
 	private constructor(
 		public name: string,
@@ -1099,7 +1097,7 @@ export class TyProd implements INode, IValue {
 	) {}
 
 	#defaultValue?: Prod
-	public get defaultValue() {
+	get defaultValue() {
 		if (!this.#defaultValue) {
 			const items = values(this.param).map(p => p.defaultValue)
 			this.#defaultValue = Prod.of(this, items)
@@ -1108,98 +1106,96 @@ export class TyProd implements INode, IValue {
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 	// TODO: Fix this
-	public print = () => this.name
+	print = () => this.name
 
-	public isSameTo = (e: Node) => e.type === 'tyProd' && this.name === e.name
+	isSameTo = (e: Node) => e.type === 'tyProd' && this.name === e.name
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public of(...items: Value[]) {
+	of(...items: Value[]) {
 		return Prod.of(this, items)
 	}
 
-	public static of(name: string, param: Record<string, Value>) {
+	static of(name: string, param: Record<string, Value>) {
 		return new TyProd(name, param)
 	}
 }
 
 export class TyValue implements INode, IValue {
-	public readonly type = 'tyValue' as const
-	public superType = All.instance
+	readonly type = 'tyValue' as const
+	superType = All.instance
 
 	private constructor(
 		public value: Bottom | TyVec | TyUnion | TyPrim | TyVar | TyEnum | TyProd
 	) {}
 
-	public defaultValue = Unit.instance
+	defaultValue = Unit.instance
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
-	public print = () => this.value.print()
+	infer = () => Val.unit
+	infer2 = () => this
+	print = () => this.value.print()
 
-	public isSameTo = (e: Node): boolean =>
-		e.type === 'tyValue' && this.isSameTo(e)
+	isSameTo = (e: Node): boolean => e.type === 'tyValue' && this.isSameTo(e)
 
-	public isEqualTo = this.isSameTo
+	isEqualTo = this.isSameTo
 
-	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
+	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 }
 
 export class TyUnion implements INode, IValue {
-	public readonly type = 'tyUnion' as const
-	public superType = All.instance
+	readonly type = 'tyUnion' as const
+	superType = All.instance
 
 	private constructor(public types: UnitableType[]) {}
 
 	#defaultValue?: Atomic
-	public get defaultValue(): Atomic {
+	get defaultValue(): Atomic {
 		return (this.#defaultValue ??= this.types[0].defaultValue)
 	}
 
 	// TODO: Fix this
-	public eval = (): ValueWithLog => Writer.of(Val.unit)
-	public eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval = (): ValueWithLog => Writer.of(Val.unit)
+	eval2 = (): ValueWithLog2 => Writer.of(this)
 	// TODO: Fix this
-	public infer = () => Val.unit
-	public infer2 = () => this
+	infer = () => Val.unit
+	infer2 = () => this
 
-	public print = (): string => {
+	print = (): string => {
 		const types = this.types.map(t => t.print()).join(' ')
 		return `(| ${types})`
 	}
 
-	public isEqualTo = (e: Node): boolean =>
+	isEqualTo = (e: Node): boolean =>
 		e.type === 'tyUnion' &&
 		differenceWith(this.types, e.types, isEqual).length === 0
 
-	public isSameTo = this.isEqualTo
+	isSameTo = this.isEqualTo
 
-	public isSubtypeOf = (e: Value): boolean => {
+	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
 
 		const types: Value[] = e.type === 'tyUnion' ? e.types : [e]
 		return this.types.every(s => types.some(s.isSubtypeOf))
 	}
 
-	public isSupertypeOf = (s: Exclude<Value, TyUnion>) =>
-		this.types.some(s.isSubtypeOf)
+	isSupertypeOf = (s: Exclude<Value, TyUnion>) => this.types.some(s.isSubtypeOf)
 }
 
 export class App implements INode, IExp {
-	public readonly type = 'app' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'app' as const
+	parent: ExpComplex | null = null
 
 	private constructor(public fn: Node, public args: Node[]) {}
 
@@ -1224,7 +1220,7 @@ export class App implements INode, IExp {
 		return [unifiedTyFn, unifiedTyArgs, subst]
 	}
 
-	public eval(env?: Env): ValueWithLog {
+	eval(env?: Env): ValueWithLog {
 		const [fn, fnLog] = this.fn.eval(env).asTuple
 		const logs: Log[] = []
 
@@ -1280,7 +1276,7 @@ export class App implements INode, IExp {
 	}
 
 	// TODO: polymorphic function is not yet supported
-	public eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env): ValueWithLog2 => {
 		// Evaluate the function itself at first
 		const [fn, fnLog] = this.fn.eval2(env).asTuple
 
@@ -1347,29 +1343,29 @@ export class App implements INode, IExp {
 		return Writer.of(result, ...fnLog, ...logs, ...callLog)
 	}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		const [tyFn] = this.inferFn(env)
 		return unshadowTyVars(tyFn.tyOut)
 	}
 
 	// TODO: polymorphic function is not yet supported
-	public infer2 = (env?: Env): Value => {
+	infer2 = (env?: Env): Value => {
 		const fn = this.fn.eval2(env).result
 		if (!('tyFn' in fn)) return fn
 		return fn.tyFn.out
 	}
 
-	public print(): string {
+	print(): string {
 		const fn = this.fn.print()
 		const args = this.args.map(a => a.print())
 
 		return '(' + [fn, ...args].join(' ') + ')'
 	}
 
-	public isSameTo = (exp: Node) =>
+	isSameTo = (exp: Node) =>
 		exp.type === 'app' && isEqualArray(this.args, exp.args, isSame)
 
-	public static of(fn: Node, ...args: Node[]) {
+	static of(fn: Node, ...args: Node[]) {
 		const app = new App(fn, args)
 		setParent(fn, app)
 		args.forEach(a => setParent(a, app))
@@ -1378,46 +1374,46 @@ export class App implements INode, IExp {
 }
 
 export class Scope implements INode, IExp {
-	public readonly type = 'scope' as const
-	public parent: ExpComplex | null = null
+	readonly type = 'scope' as const
+	parent: ExpComplex | null = null
 
 	private constructor(
 		public vars: Record<string, Node>,
 		public out: Node | null = null
 	) {}
 
-	public infer(env?: Env): Val.Value {
+	infer(env?: Env): Val.Value {
 		return this.out ? this.out.infer(env) : Val.bottom
 	}
 
-	public infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.instance
+	infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.instance
 
-	public eval(env?: Env): ValueWithLog {
+	eval(env?: Env): ValueWithLog {
 		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
 
-	public eval2 = (env?: Env): ValueWithLog2 =>
+	eval2 = (env?: Env): ValueWithLog2 =>
 		this.out?.eval2(env) ?? Writer.of(Unit.instance)
 
-	public print(): string {
+	print(): string {
 		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())
 		const out = this.out ? [this.out.print()] : []
 
 		return '{' + [...vars, ...out].join(' ') + '}'
 	}
 
-	public isSameTo = (exp: Node) =>
+	isSameTo = (exp: Node) =>
 		exp.type === 'scope' &&
 		nullishEqual(this.out, exp.out, isSame) &&
 		hasEqualValues(this.vars, exp.vars, isSame)
 
-	public extend(vars: Record<string, Node>, out: Node | null = null): Scope {
+	extend(vars: Record<string, Node>, out: Node | null = null): Scope {
 		const scope = new Scope(vars, out)
 		scope.parent = this
 		return scope
 	}
 
-	public def(name: string, exp: Node) {
+	def(name: string, exp: Node) {
 		if (name in this.vars)
 			throw new Error(`Variable '${name}' is already defined`)
 
@@ -1427,13 +1423,13 @@ export class Scope implements INode, IExp {
 		return this
 	}
 
-	public defs(vars: Record<string, Node>) {
+	defs(vars: Record<string, Node>) {
 		for (const [name, exp] of entries(vars)) {
 			this.def(name, exp)
 		}
 	}
 
-	public static of(vars: Record<string, Node>, out: Node | null = null) {
+	static of(vars: Record<string, Node>, out: Node | null = null) {
 		const scope = new Scope(vars, out)
 		values(vars).forEach(v => setParent(v, scope))
 		if (out) setParent(out, scope)
