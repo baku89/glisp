@@ -95,7 +95,7 @@ describe('subtyping', () => {
 	}
 })
 
-describe('type or atom', () => {
+describe('checking type or atom', () => {
 	test('_', false)
 	test('_|_', true)
 	test('()', false)
@@ -122,10 +122,44 @@ describe('type or atom', () => {
 	test('+$', false)
 
 	function test(input: string, isType: boolean) {
-		const exp = evaluate(parse(input))
-
 		it(input + ' is ' + (isType ? 'type' : 'an atom'), () => {
+			const exp = evaluate(parse(input))
 			expect(exp.isType).toBe(isType)
+		})
+	}
+})
+
+describe('instance relationship', () => {
+	test('_', '_')
+	test('_|_', '_')
+	test('()', '()')
+	test('_|_', '_|_')
+	test('0', '_')
+	test('Num2', '_')
+
+	test('0', 'Num2')
+	test('"hello"', 'Num2', false)
+
+	test('[]', '[]')
+	test('[1 2]', '[...Num2]')
+	test('[1 2 ...3]', '[...Num2]', false)
+	test('[Num2 Num2]', '[...Num2]', false)
+
+	test('{}', '{}')
+	test('{a:1 b:2}', '{...Num2}')
+	test('{a:1 ...2}', '{a:1 b:2}', false)
+	test('{}', '{a?:Num2}')
+	test('{a:1}', '{a?:Num2}')
+	test('{a:1 b:"foo"}', '{...Num2}', false)
+
+	test('+$', '(-> [Num2 Num2] Num2)')
+	test('(-> [Num2 Num2] Num2)', '(-> [Num2 Num2] Num2)', false)
+
+	function test(i: string, t: string, expected = true) {
+		it(`${i} is ${expected ? '' : 'not '}a instance of ${t}`, () => {
+			const iv = evaluate(parse(i))
+			const tv = evaluate(parse(t))
+			expect(iv.isInstanceOf(tv)).toBe(expected)
 		})
 	}
 })
