@@ -132,6 +132,8 @@ describe('parsing function type', () => {
 	testParsing('(-> [x y] z)', eTyFnFrom({0: x, 1: y}, z))
 	testParsing('(-> [x y z] w)', eTyFnFrom({0: x, 1: y, 2: z}, w))
 	testParsing('(-> [[x y]] z)', eTyFnFrom({0: eVec(x, y)}, z))
+	testParsing('(-> [x:x] z)', eTyFnFrom({x}, z))
+	testParsing('(-> [x:x y] z)', eTyFnFrom({x, 1: y}, z))
 })
 
 function testParsing(input: string, expected: Node) {

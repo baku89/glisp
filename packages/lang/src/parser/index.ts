@@ -84,7 +84,10 @@ TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
 
 TyFnParam = "[" _ params:TyFnParamEntry* "]" _ { return params }
 
-TyFnParamEntry = type:Node _ { return [null, type] }
+TyFnParamEntry =
+	NamedNode /
+	type:Node _ { return [null, type] }
+
 
 NamedNode = sym:Sym _ ":" _ value:Node _
 	{
