@@ -444,19 +444,6 @@ export class EFn implements INode, IExp {
 
 	private constructor(public param: Record<string, Node>, public body: Node) {}
 
-	infer(env: Env = new Map()): Val.Value {
-		const param = Writer.mapValues(this.param, p => p.eval(env)).result
-		const paramDict = mapValues(param, p => Obj.asType(p))
-
-		const innerEnv = new Map([...env.entries(), [this, paramDict]])
-		const out = this.body.infer(innerEnv)
-
-		return Val.tyFn(values(param), out)
-	}
-
-	// TODO: fix this
-	infer2 = () => Unit.instance
-
 	eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
 
@@ -479,6 +466,19 @@ export class EFn implements INode, IExp {
 	}
 	// TODO: fix this
 	eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
+
+	infer(env: Env = new Map()): Val.Value {
+		const param = Writer.mapValues(this.param, p => p.eval(env)).result
+		const paramDict = mapValues(param, p => Obj.asType(p))
+
+		const innerEnv = new Map([...env.entries(), [this, paramDict]])
+		const out = this.body.infer(innerEnv)
+
+		return Val.tyFn(values(param), out)
+	}
+
+	// TODO: fix this
+	infer2 = () => Unit.instance
 
 	print(): string {
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
@@ -560,7 +560,7 @@ export class ETyFn implements INode, IExp {
 		return Val.tyFn(param, out)
 	}
 
-	infer2 = (env?: Env) => this.eval2(env).result
+	infer2 = (env?: Env) => TyValue.of(this.eval2(env).result)
 
 	print = (): string => {
 		const param = entries(this.param).map(printNamedNode).join(' ')

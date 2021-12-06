@@ -61,12 +61,15 @@ describe('inferring expression type', () => {
 	testInfer('[0 1]', vec(num(0), num(1)))
 	testInfer('[Num2]', vec(tyValue(tyNum)))
 	testInfer('[...0]', tyValue(tyVec([], num(0))))
+
 	testInfer('{}', dict({}))
 	testInfer('{a:0}', dict({a: num(0)}))
 	testInfer('{a:Num2}', dict({a: tyValue(tyNum)}))
 	testInfer('{a?:0}', tyValue(tyDict({a: {optional: true, value: num(0)}})))
 	testInfer('{...0}', tyValue(tyDict({}, num(0))))
 	testInfer('{a = Num2 a}', tyValue(tyNum))
+
+	testInfer('(-> [Num2] Num2)', tyValue(tyFn(tyNum, tyNum)))
 
 	function testInfer(input: string, expected: Value) {
 		it(`${input} is inferred to be ${expected.print()}`, () => {
