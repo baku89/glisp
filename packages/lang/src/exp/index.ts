@@ -94,9 +94,9 @@ const False = tyBool.getEnum('false')
 
 export {tyNum, tyStr, tyBool, True, False}
 
-export const all = All.of
-export const bottom = Bottom.of
-export const unit = Unit.of
+export const all = All.instance
+export const bottom = Bottom.instance
+export const unit = Unit.instance
 export const num = Num.of
 export const str = Str.of
 export const bool = (value: boolean) => (value ? True : False)

@@ -130,7 +130,7 @@ export class Sym implements INode, IExp {
 			reason: 'Variable not bound: ' + this.name,
 		}
 
-		return Writer.of(Unit.of(), log)
+		return Writer.of(Unit.instance, log)
 	}
 
 	public eval(env?: Env): ValueWithLog {
@@ -168,7 +168,7 @@ export class Obj implements INode, IExp {
 		return Writer.of(this.value)
 	}
 	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
 
 	public infer(): Val.Value {
 		if (this.asType === false && Val.isTy(this.value)) {
@@ -177,7 +177,7 @@ export class Obj implements INode, IExp {
 		return this.value
 	}
 	// TODO: fix this
-	public infer2 = () => Unit.of()
+	public infer2 = () => Unit.instance
 
 	public print = () => this.value.print()
 
@@ -195,7 +195,7 @@ export class Obj implements INode, IExp {
 
 export class Unit implements INode, IValue {
 	public readonly type = 'unit' as const
-	public superType = All.instance
+	public superType!: All
 	public defaultValue = this
 
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -207,12 +207,12 @@ export class Unit implements INode, IValue {
 	public isEqualTo = this.isSameTo
 	public isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
-	public static of = () => new Unit()
+	public static instance = new Unit()
 }
 
 export class All implements INode, IValue {
 	public readonly type = 'all' as const
-	public defaultValue = Unit.of()
+	public defaultValue = Unit.instance
 
 	public eval = (): ValueWithLog => Writer.of(Val.all)
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -223,10 +223,10 @@ export class All implements INode, IValue {
 	public isEqualTo = this.isSameTo
 	public isSubtypeOf = this.isSameTo
 
-	public static of = () => new All()
-
 	public static instance = new All()
 }
+
+Unit.prototype.superType = All.instance
 
 export class Bottom implements INode, IValue {
 	public readonly type = 'bottom' as const
@@ -241,7 +241,7 @@ export class Bottom implements INode, IValue {
 	public isEqualTo = this.isSameTo
 	public isSubtypeOf = () => true
 
-	public static of = () => new Bottom()
+	public static instance = new Bottom()
 }
 
 export class Prim<T = any> implements INode, IValue {
@@ -420,7 +420,7 @@ export class TyVar implements INode, IValue {
 
 	private constructor(public name: string) {}
 
-	public defaultValue = Unit.of()
+	public defaultValue = Unit.instance
 
 	public eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
 	public eval2 = (): ValueWithLog2 => Writer.of(this)
@@ -456,7 +456,7 @@ export class EFn implements INode, IExp {
 	}
 
 	// TODO: fix this
-	public infer2 = () => Unit.of()
+	public infer2 = () => Unit.instance
 
 	public eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
@@ -479,7 +479,7 @@ export class EFn implements INode, IExp {
 		return Writer.of(fnVal, ...paramLog)
 	}
 	// TODO: fix this
-	public eval2 = (): ValueWithLog2 => Writer.of(Unit.of())
+	public eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
 
 	public print(): string {
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
@@ -694,7 +694,7 @@ export class EVec implements INode {
 	}
 
 	// TODO: fix this
-	public infer2 = () => Unit.of()
+	public infer2 = () => Unit.instance
 
 	public print(): string {
 		const items = this.items.map(it => it.print())
@@ -1139,7 +1139,7 @@ export class TyValue implements INode, IValue {
 		public value: Bottom | TyVec | TyUnion | TyPrim | TyVar | TyEnum | TyProd
 	) {}
 
-	public defaultValue = Unit.of()
+	public defaultValue = Unit.instance
 
 	// TODO: Fix this
 	public eval = (): ValueWithLog => Writer.of(Val.unit)
@@ -1315,7 +1315,7 @@ export class App implements INode, IExp {
 
 		// Check types of args and cast them to default if necessary
 		const args = params.map((p, i) => {
-			const a = this.args[i] ?? Unit.of()
+			const a = this.args[i] ?? Unit.instance
 			const name = names[i]
 
 			const aTy = a.infer2(env)
@@ -1390,14 +1390,14 @@ export class Scope implements INode, IExp {
 		return this.out ? this.out.infer(env) : Val.bottom
 	}
 
-	public infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.of()
+	public infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.instance
 
 	public eval(env?: Env): ValueWithLog {
 		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
 
 	public eval2 = (env?: Env): ValueWithLog2 =>
-		this.out?.eval2(env) ?? Writer.of(Unit.of())
+		this.out?.eval2(env) ?? Writer.of(Unit.instance)
 
 	public print(): string {
 		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())

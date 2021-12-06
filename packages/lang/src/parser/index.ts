@@ -18,11 +18,11 @@ Node =
 
 Reserved = "_" / "_|_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
 
-Unit = "(" _ ")" { return Exp.unit() }
+Unit = "(" _ ")" { return Exp.unit }
 
-All "all" = "_" { return Exp.all() }
+All "all" = "_" { return Exp.all }
 
-Bottom "bottom" = "_|_" { return Exp.bottom() }
+Bottom "bottom" = "_|_" { return Exp.bottom }
 
 Sym "Sym" = SymIdent / SymQuoted
 
@@ -163,7 +163,7 @@ type Literal =
 
 export function parse(str: string, parent: Exp.Exp['parent'] = null): Literal {
 	const exp: Literal | undefined = parser.parse(str)
-	if (!exp) return Exp.unit()
+	if (!exp) return Exp.unit
 
 	if ('parent' in exp) exp.parent = parent
 

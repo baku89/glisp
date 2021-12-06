@@ -2,9 +2,9 @@ import * as Exp from '../exp'
 import {testEval} from '../utils/testUtils2'
 
 describe('evaluating literals', () => {
-	testEval(Exp.all(), Exp.all())
-	testEval(Exp.bottom(), Exp.bottom())
-	testEval(Exp.unit(), Exp.unit())
+	testEval(Exp.all, Exp.all)
+	testEval(Exp.bottom, Exp.bottom)
+	testEval(Exp.unit, Exp.unit)
 	testEval(Exp.num(0), Exp.num(0))
 	testEval(Exp.str('foo'), Exp.str('foo'))
 	testEval(Exp.sym('true2'), Exp.True)
