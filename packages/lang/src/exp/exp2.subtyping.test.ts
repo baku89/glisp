@@ -133,7 +133,7 @@ describe('instance relationship', () => {
 	test('_', '_')
 	test('_|_', '_')
 	test('()', '()')
-	test('_|_', '_|_')
+	test('_|_', '_|_', false)
 	test('0', '_')
 	test('Num2', '_')
 
@@ -160,6 +160,7 @@ describe('instance relationship', () => {
 			const iv = evaluate(parse(i))
 			const tv = evaluate(parse(t))
 			expect(iv.isInstanceOf(tv)).toBe(expected)
+			expect(iv.infer2().isSubtypeOf(tv)).toBe(expected)
 		})
 	}
 })

@@ -7,16 +7,13 @@ import {
 	str,
 	sym,
 	True,
-	tyBool,
 	tyDict,
 	tyFn,
 	tyNum,
 	tyStr,
-	tyValue,
 	tyVar,
 	tyVec,
 	unit,
-	Value,
 	vec,
 } from '../exp'
 import {parse, testEval} from '../utils/testUtils2'
@@ -47,36 +44,69 @@ describe('evaluating literals', () => {
 })
 
 describe('inferring expression type', () => {
-	testInfer('_', all)
-	testInfer('_|_', tyValue(bottom))
-	testInfer('()', unit)
-	testInfer('0', num(0))
-	testInfer('"foo"', str('foo'))
-	testInfer('true2', True)
+	test('_', '_')
+	test('_|_', '_')
+	test('()', '()')
+	test('0', '0')
+	test('"foo"', '"foo"')
+	test('true2', 'true2')
 
-	testInfer('Num2', tyValue(tyNum))
-	testInfer('Bool2', tyValue(tyBool))
+	test('Num2', '_')
+	test('Bool2', '_')
 
-	testInfer('[]', vec())
-	testInfer('[0 1]', vec(num(0), num(1)))
-	testInfer('[Num2]', vec(tyValue(tyNum)))
-	testInfer('[...0]', tyValue(tyVec([], num(0))))
+	test('[]', '[]')
+	test('[0 1]', '[0 1]')
+	test('[Num2]', '[_]')
+	test('[...0]', '_')
 
-	testInfer('{}', dict({}))
-	testInfer('{a:0}', dict({a: num(0)}))
-	testInfer('{a:Num2}', dict({a: tyValue(tyNum)}))
-	testInfer('{a?:0}', tyValue(tyDict({a: {optional: true, value: num(0)}})))
-	testInfer('{...0}', tyValue(tyDict({}, num(0))))
-	testInfer('{a = Num2 a}', tyValue(tyNum))
+	test('{}', '{}')
+	test('{a:0}', '{a:0}')
+	test('{a:Num2}', '{a:_}')
+	test('{a?:0}', '_')
+	test('{...0}', '_')
+	test('{a: Num2}', '{a: _}')
+	test('{a: (+$ 1 2)}', '{a: Num2}')
 
-	testInfer('(-> [Num2] Num2)', tyValue(tyFn(tyNum, tyNum)))
+	test('(+$ 1 2)', 'Num2')
+	test('[(+$ 1 2)]', '[Num2]')
 
-	function testInfer(input: string, expected: Value) {
-		it(`${input} is inferred to be ${expected.print()}`, () => {
-			const inferred = parse(input).infer2()
+	test('(=> [] 5)', '(-> [] 5)')
+	test('(=> [x:Num2] "foo")', '(-> [Num2] "foo")')
+	test('(=> [x:Num2] x)', '(-> [Num2] Num2)')
+	test('(=> [x:(+$ 1 2)] (+$ x 4))', '(-> [3] Num2)')
+	test('(=> [x:_] Num2)', '(-> [_] _)')
 
-			if (!inferred.isEqualTo(expected))
-				throw new Error('Got=' + inferred.print())
+	test('(-> [Num2] Num2)', '_')
+
+	test('{a = Num2 a}', '_')
+	test('{a = 10}', '()')
+	test('{a = (+$ 1 2) b = a b}', 'Num2')
+
+	function test(input: string, expected: string) {
+		it(`${input} is inferred to be ${expected}`, () => {
+			const i = parse(input).infer2()
+			const e = parse(expected).eval2().result
+
+			if (!i.isEqualTo(e)) throw new Error('Got=' + i.print())
+		})
+	}
+})
+
+describe('evaluating function body', () => {
+	test('(=> [x:Num2] x)', '0')
+	test('(=> [x:Num2] (+$ x 10))', '10')
+	test('(=> [x:Bool2] x)', 'false2')
+
+	function test(input: string, expected: string) {
+		it(`body of ${input} should evaluate to ${expected}`, () => {
+			const i = parse(input)
+			const e = parse(expected).eval2().result
+
+			if (i.type !== 'eFn') throw new Error('Not a function, got =' + i.print())
+
+			const result = i.body.eval2().result
+
+			if (!result.isEqualTo(e)) throw new Error('Got=' + result.print())
 		})
 	}
 })
