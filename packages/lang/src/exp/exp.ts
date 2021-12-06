@@ -108,7 +108,7 @@ export class Sym implements INode, IExp {
 
 	private constructor(public name: string) {}
 
-	resolve(env?: Env): NodeWithLog {
+	#resolve(env?: Env): NodeWithLog {
 		let ref = this.parent
 
 		while (ref) {
@@ -135,19 +135,19 @@ export class Sym implements INode, IExp {
 	}
 
 	eval(env?: Env): ValueWithLog {
-		return this.resolve(env).bind(v => v.eval(env))
+		return this.#resolve(env).bind(v => v.eval(env))
 	}
 
 	eval2 = (env?: Env): ValueWithLog2 => {
-		return this.resolve(env).bind(n => n.eval2(env))
+		return this.#resolve(env).bind(n => n.eval2(env))
 	}
 
 	infer(env?: Env): Val.Value {
-		return this.resolve(env).result.infer(env)
+		return this.#resolve(env).result.infer(env)
 	}
 
 	infer2(env?: Env): Value {
-		return this.resolve(env).result.infer2(env)
+		return this.#resolve(env).result.infer2(env)
 	}
 
 	print = () => this.name
