@@ -1,6 +1,13 @@
 import {All, Bottom, TyUnion, UnitableType, Value} from './exp'
 
-export function uniteTy(...types: Value[]) {
+function asUnion(ty: Value): Value[] {
+	return ty.type === 'tyUnion' ? ty.types : [ty]
+}
+
+export function uniteTy(...types: Value[]): Value {
+	if (types.length === 0) return Bottom.instance
+	if (types.length === 1) return types[0]
+
 	const flattenedTypes: UnitableType[] = []
 
 	for (const ty of types) {
@@ -48,6 +55,25 @@ export function uniteTy(...types: Value[]) {
 	return TyUnion.fromTypesUnsafe(normalizedTypes)
 }
 
+export function tyDifference(original: Value, ...types: Value[]) {
+	// Prefix 'o' and 's' means O(riginal) - S(ubtrahead)
+	const oTypes = asUnion(original)
+	const sTypes = asUnion(uniteTy(...types))
+
+	/**
+	 * Oの各要素について、それを部分型とするSの要素が１つでもあれば除外
+	 * (Num | Str | false) - (Num | "hello" | Bool) = Str
+	 * false <: Bool なので除外
+	 * Num <: Num なので除外
+	 * Str を部分型とする要素がSに無いので残す
+	 */
+
+	// 残り
+	const restTypes = oTypes.filter(o => !sTypes.some(s => o.isSubtypeOf(s)))
+
+	return uniteTy(...restTypes)
+}
+
 export function intersectTy(...types: Value[]) {
 	if (types.length === 0) return All.instance
 	if (types.length === 1) return types[0]
@@ -64,8 +90,8 @@ export function intersectTy(...types: Value[]) {
 		if (a.isSubtypeOf(b)) return a
 
 		// TODO: Below code takes O(n^2) time
-		const aTypes = a.type === 'tyUnion' ? a.types : [a]
-		const bTypes = b.type === 'tyUnion' ? b.types : [b]
+		const aTypes = asUnion(a)
+		const bTypes = asUnion(b)
 
 		const types = aTypes.flatMap(at => {
 			return bTypes.flatMap(bt => {
@@ -77,6 +103,6 @@ export function intersectTy(...types: Value[]) {
 
 		if (types.length === 0) return Bottom.instance
 		if (types.length === 1) return types[0]
-		return TyUnion.fromTypesUnsafe(types)
+		return TyUnion.fromTypesUnsafe(types as UnitableType[])
 	}
 }
