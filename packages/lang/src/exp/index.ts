@@ -41,7 +41,7 @@ import {
 	Vec,
 } from './exp'
 import {Log, WithLog, withLog} from './log'
-import {intersectTy, uniteTy} from './type-operators'
+import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
 
 export {IFn}
 
@@ -114,6 +114,7 @@ export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
 
-export {isSame, isEqual, isSubtype, print, setParent}
+// Type operations
+export {tyUnion, tyDifference, tyIntersection}
 
-export {uniteTy, intersectTy}
+export {isSame, isEqual, isSubtype, print, setParent}

@@ -14,7 +14,7 @@ import {
 	Value,
 	vec,
 } from '.'
-import {intersectTy, tyDifference, uniteTy} from './type-operators'
+import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
 
 type SubstMap = Map<TyVar, Value>
 
@@ -105,13 +105,13 @@ export class RangedUnifier {
 	}
 
 	#setLower(tv: TyVar, l: Value) {
-		const nl = uniteTy(l, this.#getLower(tv))
+		const nl = tyUnion(l, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
 		this.#normalizeRange(tv)
 	}
 
 	#setUpper(tv: TyVar, u: Value) {
-		const nu = intersectTy(u, this.#getUpper(tv))
+		const nu = tyIntersection(u, this.#getUpper(tv))
 		this.#uppers.set(tv, nu)
 		this.#normalizeRange(tv)
 	}
@@ -306,7 +306,7 @@ export class RangedUnifier {
 			}
 			case 'tyUnion': {
 				const types = val.types.map(ty => this.substitute(ty, covariant))
-				return uniteTy(...types)
+				return tyUnion(...types)
 			}
 			case 'fn':
 				return fnFrom(this.substitute(val.superType, covariant) as TyFn, val.fn)

@@ -4,7 +4,7 @@ function asUnion(ty: Value): Value[] {
 	return ty.type === 'tyUnion' ? ty.types : [ty]
 }
 
-export function uniteTy(...types: Value[]): Value {
+export function tyUnion(...types: Value[]): Value {
 	if (types.length === 0) return Bottom.instance
 	if (types.length === 1) return types[0]
 
@@ -58,7 +58,7 @@ export function uniteTy(...types: Value[]): Value {
 export function tyDifference(original: Value, ...types: Value[]) {
 	// Prefix 'o' and 's' means O(riginal) - S(ubtrahead)
 	const oTypes = asUnion(original)
-	const sTypes = asUnion(uniteTy(...types))
+	const sTypes = asUnion(tyUnion(...types))
 
 	/**
 	 * Oの各要素について、それを部分型とするSの要素が１つでもあれば除外
@@ -71,10 +71,10 @@ export function tyDifference(original: Value, ...types: Value[]) {
 	// 残り
 	const restTypes = oTypes.filter(o => !sTypes.some(s => o.isSubtypeOf(s)))
 
-	return uniteTy(...restTypes)
+	return tyUnion(...restTypes)
 }
 
-export function intersectTy(...types: Value[]) {
+export function tyIntersection(...types: Value[]) {
 	if (types.length === 0) return All.instance
 	if (types.length === 1) return types[0]
 

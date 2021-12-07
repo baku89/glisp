@@ -10,18 +10,18 @@ describe('getTyVars', () => {
 	run(Exp.num(1), [])
 	run(Exp.bool(true), [])
 	run(T, [T])
-	run(Exp.uniteTy(T, U), [T, U])
+	run(Exp.tyUnion(T, U), [T, U])
 	run(Exp.tyFn([Exp.tyBool, T, T], U), [T, U])
 
 	function run(ty: Exp.Value, expected: Exp.TyVar[]) {
-		const eStr = '{' + expected.map(e => e.print()).join(', ') + '}'
+		const eStr = '{' + expected.map(Exp.print).join(', ') + '}'
 
 		test(`FV(${ty.print()}) equals to ${eStr}`, () => {
 			const tvs = [...getTyVars(ty)]
 			const diff = _.differenceWith(tvs, expected, Exp.isEqual)
 
 			if (diff.length > 0) {
-				fail('Got={' + tvs.map(tv => tv.print()).join(', ') + '}')
+				fail('Got={' + tvs.map(Exp.print).join(', ') + '}')
 			}
 		})
 	}

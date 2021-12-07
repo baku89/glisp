@@ -17,9 +17,9 @@ import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {uniteTy} from '.'
 import {Env as Env2} from './env'
 import {Log, WithLog, withLog} from './log'
+import {tyUnion} from './TypeOperation'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value | Obj
@@ -868,7 +868,7 @@ export class Vec implements INode, IValue, IFnLike {
 		return this.items.some(isType)
 	}
 
-	tyFn = TyFn.of(tyNum, uniteTy(...this.items))
+	tyFn = TyFn.of(tyNum, tyUnion(...this.items))
 
 	fn: IFn = (index: Num) => {
 		const ret = this.items[index.value]
@@ -1315,6 +1315,8 @@ export class TyUnion implements INode, IValue {
 	static fromTypesUnsafe(types: UnitableType[]) {
 		return new TyUnion(types)
 	}
+
+	static of = tyUnion
 }
 
 export class App implements INode, IExp {
