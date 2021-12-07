@@ -6,7 +6,6 @@ import {
 	isSubtype,
 	num,
 	str,
-	sym,
 	True,
 	tyDict,
 	tyFn,
@@ -19,6 +18,38 @@ import {
 	vec,
 } from '../exp'
 import {evaluate, parse, testEval} from '../utils/testUtils2'
+
+describe('evaluating literals', () => {
+	testEval('_', all)
+	testEval('_|_', bottom)
+	testEval('()', unit)
+	testEval('0', num(0))
+	testEval('"foo"', str('foo'))
+	testEval('true2', True)
+	testEval('false2', False)
+
+	testEval('[]', vec())
+	testEval('[0]', vec(num(0)))
+	testEval('[...Num2]', tyVec([], tyNum))
+	testEval('[1 ...Num2]', tyVec([num(1)], tyNum))
+	testEval('[0]', vec(num(0)))
+	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
+	testEval(
+		'{a?:Num2 ...Str}',
+		tyDict({a: {optional: true, value: tyNum}}, tyStr)
+	)
+	testEval('(-> [Num2] Num2)', tyFn(tyNum, tyNum))
+	testEval('<T>', tyVar('T'))
+	testEval('{a = 10 a}', num(10))
+	testEval('{a = {a = 20 a} a}', num(20))
+})
+
+describe('evaluating function definition', () => {
+	testEval('((=> [] 5))', '5')
+	testEval('((=> [x:Num2] x) 1)', '1')
+	testEval('((=> [x:Num2] (+$ x 1)) 10)', '11')
+	testEval('(((=> [x:Num2] (=> [y:Num2] (+$ x y))) 3) 4)', '7')
+})
 
 describe('default values of types', () => {
 	run('1', '1')
@@ -239,31 +270,6 @@ describe('instance relationship', () => {
 			expect(iv.infer2().isSubtypeOf(tv)).toBe(expected)
 		})
 	}
-})
-
-describe('evaluating literals', () => {
-	testEval(all, all)
-	testEval(bottom, bottom)
-	testEval(unit, unit)
-	testEval(num(0), num(0))
-	testEval(str('foo'), str('foo'))
-	testEval(sym('true2'), True)
-	testEval(sym('false2'), False)
-
-	testEval('[]', vec())
-	testEval('[0]', vec(num(0)))
-	testEval('[...Num2]', tyVec([], tyNum))
-	testEval('[1 ...Num2]', tyVec([num(1)], tyNum))
-	testEval(vec(num(0)), vec(num(0)))
-	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
-	testEval(
-		'{a?:Num2 ...Str}',
-		tyDict({a: {optional: true, value: tyNum}}, tyStr)
-	)
-	testEval('(-> [Num2] Num2)', tyFn(tyNum, tyNum))
-	testEval('<T>', tyVar('T'))
-	testEval('{a = 10 a}', num(10))
-	testEval('{a = {a = 20 a} a}', num(20))
 })
 
 describe('inferring expression type', () => {

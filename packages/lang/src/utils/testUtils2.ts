@@ -22,14 +22,15 @@ export function evaluate(input: string | Exp.Node): Exp.Value {
 
 export function testEval(
 	input: Exp.Node | string,
-	expected: Exp.Value,
+	expected: Exp.Value | string,
 	hasLog = false
 ) {
 	const exp = parse(input)
+	const expectedVal = parse(input).eval2().result
 
-	test(`${exp.print()} evaluates to ${expected.print()}`, () => {
+	test(`${exp.print()} evaluates to ${expectedVal.print()}`, () => {
 		const {result, log} = exp.eval2()
-		if (!result.isEqualTo(expected)) {
+		if (!result.isEqualTo(expectedVal)) {
 			throw new Error('Got=' + result.print())
 		}
 		if (!hasLog && log.length > 0) {
