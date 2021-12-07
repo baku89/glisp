@@ -7,8 +7,6 @@ import * as Exp from '../exp'
 import {parse} from '../parser'
 import {MathScope} from '../std/math'
 import {PreludeScope} from '../std/prelude'
-import {Writer} from '../utils/Writer'
-import * as Val from '../val'
 
 const IO = Exp.tyPrim('IO', () => {
 	return
@@ -37,7 +35,7 @@ const replScope = PreludeScope.extend(MathScope.vars).extend({
 		{name: Exp.tyStr, value: Exp.all},
 		IO,
 		(name: Exp.Str, value: Exp.Value) => {
-			return Writer.of(
+			return Exp.withLog(
 				IO.of(() => {
 					replScope.vars[name.value] = value
 				})
@@ -62,7 +60,7 @@ function startRepl() {
 				cb(null, evaluated)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
-				const r = Writer.of(Val.unit, {level: 'error', reason: err.message})
+				const r = Exp.withLog(Exp.unit, {level: 'error', reason: err.message})
 				cb(null, r)
 			}
 		},

@@ -23,7 +23,7 @@ function defn2(ty: string, fn: (...args: any[]) => Exp.Value) {
 	const fnTy = parse(ty, PreludeScope).eval2().result
 	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-	return Exp.fn(fnTy.param, fnTy.out, (...args) => Writer.of(fn(...args)))
+	return Exp.fn(fnTy.param, fnTy.out, (...args) => Exp.withLog(fn(...args)))
 }
 
 export const PreludeScope = Exp.scope({

@@ -19,6 +19,7 @@ import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {uniteTy} from '.'
 import {Env as Env2} from './env'
+import {Log, WithLog, withLog} from './log'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value | Obj
@@ -53,21 +54,13 @@ type Atomic =
 
 export type UnitableType = Exclude<Value, All | Bottom>
 
-export interface Log {
-	level: 'error' | 'warn' | 'info'
-	reason: string
-	ref?: Node
-}
-
 export type ValueWithLog = Writer<Val.Value, Log>
-export type ValueWithLog2 = Writer<Value, Log>
-export type NodeWithLog = Writer<Node, Log>
 
 interface INode {
 	readonly type: string
 
 	eval(env?: Env): ValueWithLog
-	eval2(env?: Env2): ValueWithLog2
+	eval2(env?: Env2): WithLog
 	infer(env?: Env): Val.Value
 	infer2(env?: Env2): Value
 	print(): string
@@ -182,12 +175,12 @@ export class Sym implements INode, IExp {
 		return this.#resolve(env).bind(v => v.eval(env))
 	}
 
-	eval2 = (env?: Env2): ValueWithLog2 => {
+	eval2 = (env?: Env2): WithLog => {
 		return this.#resolve2(this.parent, env).bind(({node, isFnParam}) => {
 			const value = node.eval2(env)
 
 			return isFnParam
-				? Writer.of(value.result.defaultValue, ...value.log)
+				? withLog(value.result.defaultValue, ...value.log)
 				: value
 		})
 	}
@@ -221,7 +214,7 @@ export class Obj implements INode, IExp {
 		return Writer.of(this.value)
 	}
 	// TODO: fix this
-	eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
+	eval2 = () => withLog(Unit.instance)
 
 	infer(): Val.Value {
 		if (this.asType === false && Val.isTy(this.value)) {
@@ -252,7 +245,7 @@ export class Unit implements INode, IValue {
 	defaultValue = this
 
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	infer = () => Val.unit
 	infer2 = () => this
 	print = () => '()'
@@ -269,7 +262,7 @@ export class All implements INode, IValue {
 	defaultValue = Unit.instance
 
 	eval = (): ValueWithLog => Writer.of(Val.all)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	infer = () => Val.all
 	infer2 = () => this
 	print = () => '_'
@@ -288,7 +281,7 @@ export class Bottom implements INode, IValue {
 	defaultValue = this
 
 	eval = (): ValueWithLog => Writer.of(Val.bottom)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	infer = () => Val.bottom
 	infer2 = () => All.instance
 	print = () => '_|_'
@@ -308,7 +301,7 @@ export class Prim<T = any> implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = (): WithLog => withLog(this)
 	// TODO: Fix this
 	infer = (): Val.Value => Val.unit
 	infer2 = () => this
@@ -360,7 +353,7 @@ export class TyPrim<T = any> implements INode, IValue {
 
 	// TODO: fix this
 	eval = (): ValueWithLog => Writer.of(Val.tyAtom(this.name, null))
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = (): WithLog => withLog(this)
 	infer = () => Val.tyAtom(this.name, null)
 	infer2 = () => All.instance
 	print = () => this.name
@@ -411,7 +404,7 @@ export class Enum implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
@@ -447,7 +440,7 @@ export class TyEnum implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => All.instance
@@ -489,7 +482,7 @@ export class TyVar implements INode, IValue {
 	defaultValue = Unit.instance
 
 	eval = (): ValueWithLog => Writer.of(Val.tyVar(this.name))
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	infer = () => Val.tyVar(this.name)
 	infer2 = () => All.instance
 	print = () => '<' + this.name + '>'
@@ -553,7 +546,7 @@ export class EFn implements INode, IExp {
 		return Writer.of(fnVal, ...paramLog)
 	}
 
-	eval2 = (env?: Env2): ValueWithLog2 => {
+	eval2 = (env?: Env2): WithLog => {
 		const names = keys(this.param)
 
 		const fn: IFn = (...args: Value[]) => {
@@ -564,7 +557,7 @@ export class EFn implements INode, IExp {
 
 		const ty = this.infer2(env)
 
-		return Writer.of(Fn.from(ty, fn, this.body))
+		return withLog(Fn.from(ty, fn, this.body))
 	}
 
 	infer(env: Env = new Map()): Val.Value {
@@ -620,7 +613,7 @@ export class Fn implements INode, IValue, IFnLike {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
@@ -660,10 +653,10 @@ export class ETyFn implements INode, IExp {
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
-	eval2 = (env?: Env2): ValueWithLog2 => {
+	eval2 = (env?: Env2): WithLog => {
 		const [params, lp] = Writer.mapValues(this.param, p => p.eval2(env)).asTuple
 		const [out, lo] = this.out.eval2(env).asTuple
-		return Writer.of(TyFn.from(params, out), ...lp, ...lo)
+		return withLog(TyFn.from(params, out), ...lp, ...lo)
 	}
 
 	infer(env?: Env): Val.Value {
@@ -714,13 +707,13 @@ export class TyFn implements INode, IValue {
 
 	#defaultValue?: Fn
 	get defaultValue() {
-		this.#defaultValue ??= Fn.from(this, () => Writer.of(this.out.defaultValue))
+		this.#defaultValue ??= Fn.from(this, () => withLog(this.out.defaultValue))
 		return this.#defaultValue
 	}
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => All.instance
@@ -789,13 +782,13 @@ export class EVec implements INode {
 		return Writer.of(Val.vecFrom(items), ...li)
 	}
 
-	eval2 = (env?: Env2): ValueWithLog2 => {
+	eval2 = (env?: Env2): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval2(env)).asTuple
 		if (this.rest) {
 			const [rest, lr] = this.rest.eval2(env).asTuple
-			return Writer.of(TyVec.of(items, rest), ...li, ...lr)
+			return withLog(TyVec.of(items, rest), ...li, ...lr)
 		} else {
-			return Writer.of(Vec.of(...items), ...li)
+			return withLog(Vec.of(...items), ...li)
 		}
 	}
 
@@ -854,7 +847,7 @@ export class Vec implements INode, IValue, IFnLike {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => (this.isType ? All.instance : this)
@@ -880,12 +873,12 @@ export class Vec implements INode, IValue, IFnLike {
 	fn: IFn = (index: Num) => {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
-			return Writer.of(this.tyFn.out.defaultValue, {
+			return withLog(this.tyFn.out.defaultValue, {
 				level: 'error',
 				reason: 'Index out of range',
 			})
 		}
-		return Writer.of(ret)
+		return withLog(ret)
 	}
 
 	get asTyVecLike(): TyVecLike {
@@ -911,7 +904,7 @@ export class TyVec implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => All.instance
@@ -1009,7 +1002,7 @@ export class EDict implements INode, IExp {
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
 
-	eval2(env?: Env2): ValueWithLog2 {
+	eval2 = (env?: Env2): WithLog => {
 		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
 			value.eval2(env).fmap(value => ({optional, value}))
 		).asTuple
@@ -1017,7 +1010,7 @@ export class EDict implements INode, IExp {
 			? this.rest.eval2(env).asTuple
 			: [undefined, []]
 
-		return Writer.of(TyDict.of(items, rest), ...li, ...lr)
+		return withLog(TyDict.of(items, rest), ...li, ...lr)
 	}
 
 	print(): string {
@@ -1066,7 +1059,7 @@ export class Dict implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => (this.isType ? All.instance : this)
@@ -1121,7 +1114,7 @@ export class TyDict implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => All.instance
@@ -1208,7 +1201,7 @@ export class Prod implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
@@ -1255,7 +1248,7 @@ export class TyProd implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
@@ -1292,7 +1285,7 @@ export class TyUnion implements INode, IValue {
 
 	// TODO: Fix this
 	eval = (): ValueWithLog => Writer.of(Val.unit)
-	eval2 = (): ValueWithLog2 => Writer.of(this)
+	eval2 = () => withLog(this)
 	// TODO: Fix this
 	infer = () => Val.unit
 	infer2 = () => this
@@ -1407,7 +1400,7 @@ export class App implements INode, IExp {
 	}
 
 	// TODO: polymorphic function is not yet supported
-	eval2 = (env?: Env2): ValueWithLog2 => {
+	eval2 = (env?: Env2): WithLog => {
 		// Evaluate the function itself at first
 		const [fn, fnLog] = this.fn.eval2(env).asTuple
 
@@ -1470,7 +1463,7 @@ export class App implements INode, IExp {
 
 		// const resultTyped = unshadowTyVars(subst.substitute(result))
 
-		return Writer.of(result, ...fnLog, ...logs, ...callLog)
+		return withLog(result, ...fnLog, ...logs, ...callLog)
 	}
 
 	infer(env?: Env): Val.Value {
@@ -1522,7 +1515,7 @@ export class Scope implements INode, IExp {
 		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
 
-	eval2 = (env?: Env2): ValueWithLog2 =>
+	eval2 = (env?: Env2): WithLog =>
 		this.out?.eval2(env) ?? Writer.of(Unit.instance)
 
 	print(): string {

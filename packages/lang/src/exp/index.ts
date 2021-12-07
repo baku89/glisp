@@ -15,9 +15,7 @@ import {
 	isEqual,
 	isSame,
 	isSubtype,
-	Log,
 	Node,
-	NodeWithLog,
 	Num,
 	Obj,
 	Prim,
@@ -42,13 +40,14 @@ import {
 	ValueWithLog,
 	Vec,
 } from './exp'
+import {Log, WithLog, withLog} from './log'
 import {intersectTy, uniteTy} from './type-operators'
 
 export {IFn}
 
 export {Node, Exp, ExpComplex, Value}
 
-export {Log, ValueWithLog, NodeWithLog}
+export {Log, ValueWithLog, WithLog, withLog}
 
 export {Obj}
 
