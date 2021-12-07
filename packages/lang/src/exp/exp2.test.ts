@@ -3,6 +3,7 @@ import {
 	bottom,
 	dict,
 	False,
+	isEqual,
 	isSubtype,
 	num,
 	str,
@@ -18,6 +19,29 @@ import {
 	vec,
 } from '../exp'
 import {evaluate, parse, testEval} from '../utils/testUtils2'
+
+describe('value equality', () => {
+	test('()')
+	test('_')
+	test('_|_')
+	test('0')
+	test('"hello"')
+	test('false')
+	test('Num2')
+	test('[1 1]')
+	test('[1 ...1]')
+	test('{a: 10}')
+	test('{a?: 10}')
+	test('{...Num2}')
+	test('(-> [Num2] Num2)')
+
+	function test(input: string) {
+		it(`${input} equals to itself`, () => {
+			const value = parse(input).eval2().result
+			expect(isEqual(value, value)).toBe(true)
+		})
+	}
+})
 
 describe('evaluating literals', () => {
 	testEval('_', all)
