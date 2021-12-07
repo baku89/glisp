@@ -148,11 +148,9 @@ export class Sym implements INode, IExp {
 				if (env) {
 					// In a context of function appliction
 					const param = env.get(ref)
-					if (!param) continue
-					if (!(this.name in param)) {
-						throw new Error('Not bounded: ' + this.name)
+					if (param && this.name in param) {
+						return Writer.of({node: param[this.name]})
 					}
-					return Writer.of({node: param[this.name]})
 				} else {
 					// In normal evaluation
 					if (this.name in ref.param) {
@@ -547,8 +545,22 @@ export class EFn implements INode, IExp {
 		const fnVal = Val.fn(fn, param, out, this.body)
 		return Writer.of(fnVal, ...paramLog)
 	}
-	// TODO: fix this
-	eval2 = (): ValueWithLog2 => Writer.of(Unit.instance)
+
+	eval2 = (env?: Env): ValueWithLog2 => {
+		const names = keys(this.param)
+
+		const currentEnv = env ?? new Map()
+
+		const fn: IFn = (...args: Value[]) => {
+			const record = fromPairs(zip(names, args))
+			const innerEnv = new Map([...currentEnv.entries(), [this, record]])
+			return this.body.eval2(innerEnv)
+		}
+
+		const ty = this.infer2(env)
+
+		return Writer.of(Fn.from(ty, fn, this.body))
+	}
 
 	infer(env: Env = new Map()): Val.Value {
 		const param = Writer.mapValues(this.param, p => p.eval(env)).result
@@ -560,7 +572,7 @@ export class EFn implements INode, IExp {
 		return Val.tyFn(values(param), out)
 	}
 
-	infer2 = (env?: Env): Value => {
+	infer2 = (env?: Env): TyFn => {
 		const param = Writer.mapValues(this.param, p => p.eval2(env)).result
 		const out = this.body.infer2(env)
 
@@ -569,7 +581,7 @@ export class EFn implements INode, IExp {
 
 	print(): string {
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
-		const param = params.length === 1 ? params[0] : '(' + params.join(' ') + ')'
+		const param = '[' + params.join(' ') + ']'
 		const body = this.body.print()
 
 		return `(=> ${param} ${body})`
@@ -591,7 +603,11 @@ export class EFn implements INode, IExp {
 export class Fn implements INode, IValue, IFnLike {
 	readonly type = 'fn' as const
 
-	private constructor(public superType: TyFn, public fn: IFn) {}
+	private constructor(
+		public superType: TyFn,
+		public fn: IFn,
+		public body?: Node
+	) {}
 
 	tyFn = this.superType
 
@@ -606,8 +622,9 @@ export class Fn implements INode, IValue, IFnLike {
 	// TODO: fix this
 	print = (): string => {
 		const param = this.superType.printParam()
+		const body = this.body?.print() ?? '<js code>'
 		const out = this.superType.out.print()
-		return `(=> ${param} (js code):${out})`
+		return `(=> ${param} ${body}:${out})`
 	}
 
 	isSameTo = () => false
@@ -618,8 +635,8 @@ export class Fn implements INode, IValue, IFnLike {
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
 		return new Fn(TyFn.from(param, out), fn)
 	}
-	static from(ty: TyFn, fn: IFn) {
-		return new Fn(ty, fn)
+	static from(ty: TyFn, fn: IFn, body?: Node) {
+		return new Fn(ty, fn, body)
 	}
 }
 
@@ -1404,7 +1421,6 @@ export class App implements INode, IExp {
 		const params = values(fn.tyFn.param)
 
 		// const [{tyParam}, tyArgs, subst] = this.inferFn(env)
-		// const paramNames = keys(fn.param)
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
