@@ -25,10 +25,13 @@ export function testEval(
 	expected: Exp.Value | string,
 	hasLog = false
 ) {
-	const exp = parse(input)
-	const expectedVal = parse(input).eval2().result
+	const iStr = typeof input === 'string' ? input : input.print()
+	const eStr = typeof expected === 'string' ? expected : expected.print()
 
-	test(`${exp.print()} evaluates to ${expectedVal.print()}`, () => {
+	test(`${iStr} evaluates to ${eStr}`, () => {
+		const exp = parse(input)
+		const expectedVal = parse(input).eval2().result
+
 		const {result, log} = exp.eval2()
 		if (!result.isEqualTo(expectedVal)) {
 			throw new Error('Got=' + result.print())

@@ -48,7 +48,27 @@ describe('evaluating function definition', () => {
 	testEval('((=> [] 5))', '5')
 	testEval('((=> [x:Num2] x) 1)', '1')
 	testEval('((=> [x:Num2] (+$ x 1)) 10)', '11')
-	testEval('(((=> [x:Num2] (=> [y:Num2] (+$ x y))) 3) 4)', '7')
+	testEval(
+		`
+{add = (=> [x:Num2] (=> [y:Num2] (+$ x y)))
+ ((add 2) 3)}
+`,
+		'5'
+	)
+	testEval(
+		`
+{f = (=> [x:Num2] {x = 20 x})
+ (f 5)}
+`,
+		'20'
+	)
+	testEval(
+		`
+{f = (=> [x:Num2] {x = 100 (=> [y:Num2] (+$ x y))})
+ ((f 2) 3)}
+`,
+		'103'
+	)
 })
 
 describe('default values of types', () => {
