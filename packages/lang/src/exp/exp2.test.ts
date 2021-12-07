@@ -19,6 +19,7 @@ import {
 	vec,
 } from '../exp'
 import {evaluate, parse, testEval} from '../utils/testUtils2'
+import {TyUnion} from './exp'
 
 describe('value equality', () => {
 	test('()')
@@ -34,9 +35,11 @@ describe('value equality', () => {
 	test('{a?: 10}')
 	test('{...Num2}')
 	test('(-> [Num2] Num2)')
+	test(TyUnion.fromTypesUnsafe([num(1), num(2), num(3)]))
 
-	function test(input: string) {
-		it(`${input} equals to itself`, () => {
+	function test(input: string | Value) {
+		const inputStr = typeof input === 'string' ? input : input.print()
+		it(`${inputStr} equals to itself`, () => {
 			const value = parse(input).eval2().result
 			expect(isEqual(value, value)).toBe(true)
 		})

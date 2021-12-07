@@ -461,6 +461,8 @@ export class TyEnum implements INode, IValue {
 		return en
 	}
 
+	isInstance = (e: Value): e is Enum => e.type === 'enum' && e.isSubtypeOf(this)
+
 	static of(name: string, labels: string[]) {
 		if (labels.length === 0) throw new Error('Zero-length enum')
 
@@ -1276,7 +1278,9 @@ export class TyUnion implements INode, IValue {
 	readonly type = 'tyUnion' as const
 	superType = All.instance
 
-	private constructor(public types: UnitableType[]) {}
+	private constructor(public types: UnitableType[]) {
+		if (types.length < 2) throw new Error('Too few types to create union type')
+	}
 
 	#defaultValue?: Atomic
 	get defaultValue(): Atomic {

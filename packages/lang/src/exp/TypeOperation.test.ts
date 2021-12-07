@@ -1,90 +1,169 @@
-import {xorWith} from 'lodash'
-
-import {parse} from '../utils/testUtils2'
 import {
 	all,
-	bool,
 	bottom,
-	isEqual,
+	False,
 	num,
 	print,
+	str,
+	True,
 	tyBool,
+	tyDifference,
+	tyIntersection,
 	tyNum,
+	tyStr,
 	TyUnion,
+	unit,
 	Value,
 } from '.'
-import {tyIntersection, tyUnion} from './TypeOperation'
+import {UnitableType} from './exp'
+import {tyUnion} from './TypeOperation'
 
-function parseTypes(types: string) {
-	return types.split(' ').map(e => parse(e).eval2().result)
-}
+const unite = (...types: UnitableType[]) => TyUnion.fromTypesUnsafe(types)
 
-function asUnion(ty: Value): Value[] {
-	return ty.type === 'tyUnion' ? ty.types : [ty]
-}
+const N1 = num(1)
+const N2 = num(2)
+const N3 = num(3)
+
+const S1 = str('foo')
+const S2 = str('bar')
 
 describe('uniting types', () => {
-	test('1', '1')
-	test('1 2', '1 2')
-	test('1 Num2', 'Num2')
-	test('Num2 1', 'Num2')
+	test().toBe(bottom)
+	test(bottom).toBe(bottom)
+	test(all).toBe(all)
+	test(unit).toBe(unit)
+	test(N1).toBe(N1)
+	test(N1, N2).toBe(unite(N1, N2))
+	test(S1, S2).toBe(unite(S1, S2))
+	test(N1, N2, S1).toBe(unite(N1, N2, S1))
+	test(S1, tyStr).toBe(tyStr)
+	test(unite(N1, N2), unite(N2, N3)).toBe(unite(N1, N2, N3))
+	test(unite(N1, N2), tyNum).toBe(tyNum)
+	test(tyNum, unite(N1, N2)).toBe(tyNum)
+	test(tyNum, tyBool).toBe(unite(tyNum, tyBool))
+	test(tyNum, bottom).toBe(tyNum)
+	test(bottom, bottom).toBe(bottom)
+	test(bottom, all).toBe(all)
+	test(True, False).toBe(tyBool)
+	test(tyBool, True, False).toBe(tyBool)
+	test(True, False).toBe(tyBool)
+	test(N2, unit).toBe(unite(N2, unit))
 
-	// test([num(1)], num(1))
-	// test([num(1), num(2)], [num(1), num(2)])
-	// test([num(1), tyNum], tyNum)
-	// test([tyNum, num(1)], tyNum)
-	// test([tyNum, tyBool], [tyNum, tyBool])
-	// test([tyNum, all], all)
-	// test([], bottom)
-	// test([bottom, bottom], bottom)
-	// test([bottom, all], all)
-	// test([bool(true), bool(false)], tyBool)
-	// test([tyBool, unite([tyNum, tyBool]), tyNum], [tyNum, tyBool])
-	// test([tyNum, unit], [tyNum, unit])
+	function test(...types: Value[]) {
+		const f = (expected: Value) => {
+			const typesStr = types.map(print).join(', ')
+			const expectedStr = expected.print()
+			it(`'${typesStr}' to be '${expectedStr}'`, () => {
+				for (const orderedTypes of permutation(types)) {
+					const result = tyUnion(...orderedTypes)
+					if (!result.isEqualTo(expected)) {
+						throwError(result, orderedTypes)
+					}
+				}
+			})
+		}
 
-	function test(input: string, expected: string) {
-		it(`(| ${input}) to be (| ${expected})`, () => {
-			const types = parseTypes(input)
-			const result = tyUnion(...types)
-
-			const expectedTypes = parseTypes(input)
-			const surplusTypes = xorWith(asUnion(result), expectedTypes, isEqual)
-
-			if (surplusTypes.length > 0) {
-				throw new Error(
-					'Got=' +
-						result.print() +
-						', Surplus types=' +
-						surplusTypes.map(print).join(',')
-				)
-			}
-		})
+		return {toBe: f}
 	}
 })
 
-describe('intesecting type', () => {
-	test([], all)
-	test([num(1)], num(1))
-	test([num(1), num(2)], bottom)
-	test([tyNum, num(1), num(1)], num(1))
-	test([TyUnion.fromTypesUnsafe([tyNum, bool(false)]), tyNum], tyNum)
-	test(
-		[
-			TyUnion.fromTypesUnsafe([tyNum, bool(false)]),
-			TyUnion.fromTypesUnsafe([num(1), num(2), tyBool]),
-		],
-		TyUnion.fromTypesUnsafe([num(1), num(2), bool(false)])
+describe('intersecting types', () => {
+	test().toBe(all)
+	test(bottom).toBe(bottom)
+	test(unite(N1, N2), unite(N2, N3)).toBe(N2)
+	test(N1, N2).toBe(bottom)
+	test(unite(N1, N2), unite(S1, S2)).toBe(bottom)
+	test(unite(N1, N2), unite(N1, N2)).toBe(unite(N1, N2))
+	test(N1, tyNum).toBe(N1)
+	test(unite(N1, False), N1).toBe(N1)
+	test(unite(tyNum, False), unite(N1, N2, tyBool)).toBe(unite(N1, N2, False))
+
+	function test(...types: Value[]) {
+		const f = (expected: Value) => {
+			const typesStr = types.map(print).join(', ')
+			const expectedStr = expected.print()
+			it(`'${typesStr}' to be '${expectedStr}'`, () => {
+				for (const orderedTypes of permutation(types)) {
+					const result = tyIntersection(...orderedTypes)
+					if (!result.isEqualTo(expected)) {
+						throwError(result, orderedTypes)
+					}
+				}
+			})
+		}
+
+		return {toBe: f}
+	}
+})
+
+describe('differential types', () => {
+	// X = X
+	test(all).toBe(all)
+	test(bottom).toBe(bottom)
+	test(unit).toBe(unit)
+
+	// A - A = _|_
+	test(all, all).toBe(bottom)
+	test(bottom, bottom).toBe(bottom)
+	test(N1, N1).toBe(bottom)
+	test(S1, S1).toBe(bottom)
+	test(True, True).toBe(bottom)
+	test(tyNum, tyNum).toBe(bottom)
+	test(tyStr, tyStr).toBe(bottom)
+	test(tyBool, tyBool).toBe(bottom)
+	test(unite(N1, N2), unite(N1, N2)).toBe(bottom)
+
+	// T - S = T
+	test(all, N1).toBe(all)
+	test(tyNum, N1).toBe(tyNum)
+	test(all, N1).toBe(all)
+
+	// Enum substraction
+	test(tyBool, True).toBe(False)
+	test(tyBool, True, False).toBe(bottom)
+	test(unite(tyBool, N1), True).toBe(unite(N1, False))
+	test(unite(tyBool, N1), True, N1).toBe(False)
+
+	function test(original: Value, ...types: Value[]) {
+		const f = (expected: Value) => {
+			const typesStr = types.map(print).join(', ')
+			const expectedStr = expected.print()
+			it(`'${typesStr}' to be '${expectedStr}'`, () => {
+				for (const orderedTypes of permutation(types)) {
+					const result = tyDifference(original, ...orderedTypes)
+					if (!result.isEqualTo(expected)) {
+						throwError(result, orderedTypes)
+					}
+				}
+			})
+		}
+
+		return {toBe: f}
+	}
+})
+
+function permutation<T>(inputArr: T[]) {
+	const result: T[][] = []
+
+	const permute = (arr: T[], m: T[] = []) => {
+		if (arr.length === 0) {
+			result.push(m)
+		} else {
+			for (let i = 0; i < arr.length; i++) {
+				const curr = arr.slice()
+				const next = curr.splice(i, 1)
+				permute(curr.slice(), m.concat(next))
+			}
+		}
+	}
+
+	permute(inputArr)
+
+	return result
+}
+
+function throwError(result: Value, orderedTypes: Value[]): never {
+	throw new Error(
+		`Got '${result.print()}' in order '${orderedTypes.map(print)}'`
 	)
-
-	function test(types: Value[], expected: Value) {
-		const testStr = types.map(print).join(' ')
-		const expectedStr = expected.print()
-
-		it(`(& ${testStr}) to be ${expectedStr}`, () => {
-			const result = tyIntersection(...types)
-			if (!result.isEqualTo(expected)) {
-				throw new Error('Got=' + result.print())
-			}
-		})
-	}
-})
+}

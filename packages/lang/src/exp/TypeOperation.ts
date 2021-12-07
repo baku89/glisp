@@ -1,6 +1,9 @@
+import {differenceWith, remove} from 'lodash'
+
+import {isEqual} from '.'
 import {All, Bottom, TyUnion, UnitableType, Value} from './exp'
 
-function asUnion(ty: Value): Value[] {
+function asUnion<T extends Value>(ty: T): (T | UnitableType)[] {
 	return ty.type === 'tyUnion' ? ty.types : [ty]
 }
 
@@ -17,36 +20,31 @@ export function tyUnion(...types: Value[]): Value {
 		else flattenedTypes.push(ty)
 	}
 
-	const normalizedTypes = flattenedTypes.reduce((prev, ty) => {
-		const index = prev.findIndex(p => p.isSubtypeOf(ty))
-
-		const includesPrev = index !== -1
-		if (includesPrev) {
-			const cur = [...prev]
-			cur[index] = ty
-			return cur
-		}
-
-		const includedByPrev = prev.some(p => ty.isSubtypeOf(p))
+	const normalizedTypes = flattenedTypes.reduce((prevTypes, ty) => {
+		const includedByPrev = prevTypes.some(pty => ty.isSubtypeOf(pty))
 		if (includedByPrev) {
-			return prev
+			return prevTypes
 		}
+
+		remove(prevTypes, pty => pty.isSubtypeOf(ty))
+		prevTypes.push(ty)
 
 		// Unite enum
-		if (ty.type === 'enum') {
-			const tyEnum = ty.superType
-			const arr = [...prev, ty]
-			const indices = new Set(
-				tyEnum.types.map(t => arr.findIndex(a => t.isSubtypeOf(a)))
+		for (const pty of prevTypes) {
+			if (pty.type !== 'enum') continue
+
+			const tyEnum = pty.superType
+
+			const includesAllEnum = tyEnum.types.every(enm =>
+				prevTypes.some(p => isEqual(p, enm))
 			)
-			const includesAllValues = !indices.has(-1)
-			if (includesAllValues) {
-				const arrSpliced = arr.filter((_, i) => !indices.has(i))
-				return [...arrSpliced, tyEnum]
-			}
+			if (!includesAllEnum) continue
+
+			remove(prevTypes, pty => pty.superType.isEqualTo(tyEnum))
+			prevTypes.push(tyEnum)
 		}
 
-		return [...prev, ty]
+		return prevTypes
 	}, [] as UnitableType[])
 
 	if (normalizedTypes.length === 0) return Bottom.instance
@@ -57,8 +55,29 @@ export function tyUnion(...types: Value[]): Value {
 
 export function tyDifference(original: Value, ...types: Value[]) {
 	// Prefix 'o' and 's' means O(riginal) - S(ubtrahead)
-	const oTypes = asUnion(original)
+	let oTypes: Value[] = asUnion(original)
 	const sTypes = asUnion(tyUnion(...types))
+
+	/**
+	 * OにTyEnumが含まれる時、引き算をする。Bool - true = false になるように
+	 */
+	oTypes = oTypes.flatMap((oty): Value[] => {
+		if (oty.type !== 'tyEnum') return [oty]
+
+		// 列挙の差分を取る
+		const enums = oty.types
+		const restEnums = differenceWith(enums, sTypes, isEqual)
+
+		// 特に引かさるものはねぇ
+		if (restEnums.length === enums.length) {
+			return [oty]
+		}
+
+		// Sから当核の列挙値すべてを消しておく
+		remove(sTypes, sty => sty.type === 'enum' && oty.isInstance(sty))
+
+		return restEnums
+	})
 
 	/**
 	 * Oの各要素について、それを部分型とするSの要素が１つでもあれば除外
@@ -103,6 +122,6 @@ export function tyIntersection(...types: Value[]) {
 
 		if (types.length === 0) return Bottom.instance
 		if (types.length === 1) return types[0]
-		return TyUnion.fromTypesUnsafe(types as UnitableType[])
+		return TyUnion.fromTypesUnsafe(types)
 	}
 }
