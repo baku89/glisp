@@ -18,6 +18,7 @@ import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {uniteTy} from '.'
+import {Env as Env2} from './env'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value | Obj
@@ -66,9 +67,9 @@ interface INode {
 	readonly type: string
 
 	eval(env?: Env): ValueWithLog
-	eval2(env?: Env): ValueWithLog2
+	eval2(env?: Env2): ValueWithLog2
 	infer(env?: Env): Val.Value
-	infer2(env?: Env): Value
+	infer2(env?: Env2): Value
 	print(): string
 
 	isSameTo(exp: Node): boolean
@@ -135,8 +136,10 @@ export class Sym implements INode, IExp {
 		return Writer.of(Unit.instance, log)
 	}
 
-	#resolve2(env?: Env): Writer<{node: Node; isFreeVar?: boolean}, Log> {
+	#resolve2(env?: Env2): Writer<{node: Node; isFnParam?: boolean}, Log> {
 		let ref = this.parent
+
+		let curEnv: Env2 | undefined = env
 
 		while (ref) {
 			if (ref.type === 'scope') {
@@ -145,16 +148,18 @@ export class Sym implements INode, IExp {
 				}
 			}
 			if (ref.type === 'eFn') {
-				if (env) {
+				if (curEnv) {
 					// In a context of function appliction
-					const param = env.get(ref)
-					if (param && this.name in param) {
-						return Writer.of({node: param[this.name]})
+					const node = curEnv.get(this.name)
+					if (node) {
+						return Writer.of({node})
 					}
+					// If no corresponding arg has found for the eFn, then pop the env.
+					curEnv = curEnv.pop()
 				} else {
 					// In normal evaluation
 					if (this.name in ref.param) {
-						return Writer.of({node: ref.param[this.name], isFreeVar: true})
+						return Writer.of({node: ref.param[this.name], isFnParam: true})
 					}
 				}
 			}
@@ -175,11 +180,11 @@ export class Sym implements INode, IExp {
 		return this.#resolve(env).bind(v => v.eval(env))
 	}
 
-	eval2 = (env?: Env): ValueWithLog2 => {
-		return this.#resolve2(env).bind(({node, isFreeVar}) => {
+	eval2 = (env?: Env2): ValueWithLog2 => {
+		return this.#resolve2(env).bind(({node, isFnParam}) => {
 			const value = node.eval2(env)
 
-			return isFreeVar
+			return isFnParam
 				? Writer.of(value.result.defaultValue, ...value.log)
 				: value
 		})
@@ -189,10 +194,10 @@ export class Sym implements INode, IExp {
 		return this.#resolve(env).result.infer(env)
 	}
 
-	infer2(env?: Env): Value {
-		const {node, isFreeVar} = this.#resolve2(env).result
+	infer2(env?: Env2): Value {
+		const {node, isFnParam} = this.#resolve2(env).result
 
-		return isFreeVar ? node.eval2(env).result : node.infer2()
+		return isFnParam ? node.eval2(env).result : node.infer2()
 	}
 
 	print = () => this.name
@@ -546,14 +551,12 @@ export class EFn implements INode, IExp {
 		return Writer.of(fnVal, ...paramLog)
 	}
 
-	eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env2): ValueWithLog2 => {
 		const names = keys(this.param)
 
-		const currentEnv = env ?? new Map()
-
 		const fn: IFn = (...args: Value[]) => {
-			const record = fromPairs(zip(names, args))
-			const innerEnv = new Map([...currentEnv.entries(), [this, record]])
+			const arg = fromPairs(zip(names, args))
+			const innerEnv = env ? env.push(arg) : Env2.from(arg)
 			return this.body.eval2(innerEnv)
 		}
 
@@ -572,7 +575,7 @@ export class EFn implements INode, IExp {
 		return Val.tyFn(values(param), out)
 	}
 
-	infer2 = (env?: Env): TyFn => {
+	infer2 = (env?: Env2): TyFn => {
 		const param = Writer.mapValues(this.param, p => p.eval2(env)).result
 		const out = this.body.infer2(env)
 
@@ -655,7 +658,7 @@ export class ETyFn implements INode, IExp {
 		return Writer.of(tyFn, ...l1, ...l2)
 	}
 
-	eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env2): ValueWithLog2 => {
 		const [params, lp] = Writer.mapValues(this.param, p => p.eval2(env)).asTuple
 		const [out, lo] = this.out.eval2(env).asTuple
 		return Writer.of(TyFn.from(params, out), ...lp, ...lo)
@@ -784,7 +787,7 @@ export class EVec implements INode {
 		return Writer.of(Val.vecFrom(items), ...li)
 	}
 
-	eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env2): ValueWithLog2 => {
 		const [items, li] = Writer.map(this.items, i => i.eval2(env)).asTuple
 		if (this.rest) {
 			const [rest, lr] = this.rest.eval2(env).asTuple
@@ -804,7 +807,7 @@ export class EVec implements INode {
 		}
 	}
 
-	infer2(env?: Env): Value {
+	infer2(env?: Env2): Value {
 		if (this.rest) return All.instance
 		const items = this.items.map(it => it.infer2(env))
 		return Vec.of(...items)
@@ -1004,7 +1007,7 @@ export class EDict implements INode, IExp {
 		return Writer.of(Val.tyDict(items, rest), ...l, ...lr)
 	}
 
-	eval2(env?: Env): ValueWithLog2 {
+	eval2(env?: Env2): ValueWithLog2 {
 		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
 			value.eval2(env).fmap(value => ({optional, value}))
 		).asTuple
@@ -1402,7 +1405,7 @@ export class App implements INode, IExp {
 	}
 
 	// TODO: polymorphic function is not yet supported
-	eval2 = (env?: Env): ValueWithLog2 => {
+	eval2 = (env?: Env2): ValueWithLog2 => {
 		// Evaluate the function itself at first
 		const [fn, fnLog] = this.fn.eval2(env).asTuple
 
@@ -1474,7 +1477,7 @@ export class App implements INode, IExp {
 	}
 
 	// TODO: polymorphic function is not yet supported
-	infer2 = (env?: Env): Value => {
+	infer2 = (env?: Env2): Value => {
 		const fn = this.fn.eval2(env).result
 		if (!('tyFn' in fn)) return fn
 		return fn.tyFn.out
@@ -1511,13 +1514,13 @@ export class Scope implements INode, IExp {
 		return this.out ? this.out.infer(env) : Val.bottom
 	}
 
-	infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.instance
+	infer2 = (env?: Env2): Value => this.out?.infer2(env) ?? Unit.instance
 
 	eval(env?: Env): ValueWithLog {
 		return this.out ? this.out.eval(env) : Writer.of(Val.bottom)
 	}
 
-	eval2 = (env?: Env): ValueWithLog2 =>
+	eval2 = (env?: Env2): ValueWithLog2 =>
 		this.out?.eval2(env) ?? Writer.of(Unit.instance)
 
 	print(): string {
