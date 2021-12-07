@@ -5,7 +5,6 @@ import {
 	eDict,
 	eDictFrom,
 	eFn,
-	eTyFn,
 	eTyFnFrom,
 	eVec,
 	eVecFrom,
@@ -114,26 +113,26 @@ describe('parsing dictionary', () => {
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> [x:Num] x)', eFn({x: Num}, x))
-	testParsing('(=> [x : Num y : Bool] x)', eFn({x: Num, y: Bool}, x))
-	testParsing('(=>[]_)', eFn({}, all))
-	testParsing('(=>[]())', eFn({}, unit))
-	testParsing('(=> [] (+ 1 2))', eFn({}, app(sym('+'), num(1), num(2))))
-	testParsing('(=> [] (=> [] 1))', eFn({}, eFn({}, num(1))))
+	testParsing('(=> [x:Num] x)', eFn({}, {x: Num}, x))
+	testParsing('(=> [x : Num y : Bool] x)', eFn({}, {x: Num, y: Bool}, x))
+	testParsing('(=>[]_)', eFn({}, {}, all))
+	testParsing('(=>[]())', eFn({}, {}, unit))
+	testParsing('(=> [] (+ 1 2))', eFn({}, {}, app(sym('+'), num(1), num(2))))
+	testParsing('(=> [] (=> [] 1))', eFn({}, {}, eFn({}, {}, num(1))))
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', eTyFn(eVecFrom([], x), x))
-	testParsing('(-> [_] _)', eTyFn(all, all))
-	testParsing('(-> [[]] ())', eTyFnFrom({0: eVec()}, unit))
-	testParsing('(-> [] z)', eTyFnFrom({}, z))
-	testParsing('(-> [] [])', eTyFnFrom({}, eVec()))
-	testParsing('(-> [x] z)', eTyFnFrom({0: x}, z))
-	testParsing('(-> [x y] z)', eTyFnFrom({0: x, 1: y}, z))
-	testParsing('(-> [x y z] w)', eTyFnFrom({0: x, 1: y, 2: z}, w))
-	testParsing('(-> [[x y]] z)', eTyFnFrom({0: eVec(x, y)}, z))
-	testParsing('(-> [x:x] z)', eTyFnFrom({x}, z))
-	testParsing('(-> [x:x y] z)', eTyFnFrom({x, 1: y}, z))
+	testParsing('(-> [[...x]] x)', eTyFnFrom({}, {0: eVecFrom([], x)}, x))
+	testParsing('(-> [_] _)', eTyFnFrom({}, {0: all}, all))
+	testParsing('(-> [[]] ())', eTyFnFrom({}, {0: eVec()}, unit))
+	testParsing('(-> [] z)', eTyFnFrom({}, {}, z))
+	testParsing('(-> [] [])', eTyFnFrom({}, {}, eVec()))
+	testParsing('(-> [x] z)', eTyFnFrom({}, {0: x}, z))
+	testParsing('(-> [x y] z)', eTyFnFrom({}, {0: x, 1: y}, z))
+	testParsing('(-> [x y z] w)', eTyFnFrom({}, {0: x, 1: y, 2: z}, w))
+	testParsing('(-> [[x y]] z)', eTyFnFrom({}, {0: eVec(x, y)}, z))
+	testParsing('(-> [x:x] z)', eTyFnFrom({}, {x}, z))
+	testParsing('(-> [x:x y] z)', eTyFnFrom({}, {x, 1: y}, z))
 })
 
 function testParsing(input: string, expected: Node) {

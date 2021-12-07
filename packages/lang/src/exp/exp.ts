@@ -525,7 +525,11 @@ export class EFn implements INode, IExp {
 	readonly type = 'eFn' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public param: Record<string, Node>, public body: Node) {}
+	private constructor(
+		public tyVars: Record<string, TyVar>,
+		public param: Record<string, Node>,
+		public body: Node
+	) {}
 
 	eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
@@ -592,8 +596,8 @@ export class EFn implements INode, IExp {
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.body, exp.body)
 
-	static of(param: Record<string, Node>, body: Node) {
-		const fn = new EFn(param, body)
+	static of(tyVars: EFn['tyVars'], param: EFn['param'], body: Node) {
+		const fn = new EFn(tyVars, param, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
 		return fn
@@ -644,7 +648,11 @@ export class ETyFn implements INode, IExp {
 	readonly type = 'eTyFn' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public param: Record<string, Node>, public out: Node) {}
+	private constructor(
+		public tyVars: Record<string, TyVar>,
+		public param: Record<string, Node>,
+		public out: Node
+	) {}
 
 	eval(env?: Env): ValueWithLog {
 		const paramArr = values(this.param)
@@ -680,12 +688,12 @@ export class ETyFn implements INode, IExp {
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.out, this.out)
 
-	static of(param: Node | Node[], out: Node) {
+	static of(tyVars: ETyFn['tyVars'], param: Node | Node[], out: Node) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
 
-		const tyFn = new ETyFn(paramDict, out)
+		const tyFn = new ETyFn(tyVars, paramDict, out)
 
 		paramArr.forEach(p => setParent(p, tyFn))
 		setParent(out, tyFn)
@@ -693,8 +701,8 @@ export class ETyFn implements INode, IExp {
 		return tyFn
 	}
 
-	static from(param: Record<string, Node>, out: Node) {
-		const tyFn = new ETyFn(param, out)
+	static from(tyVars: ETyFn['tyVars'], param: Record<string, Node>, out: Node) {
+		const tyFn = new ETyFn(tyVars, param, out)
 		forOwn(param, p => setParent(p, tyFn))
 		setParent(out, tyFn)
 		return tyFn

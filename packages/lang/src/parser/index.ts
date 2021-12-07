@@ -67,7 +67,7 @@ AppArg = arg:Node _ { return arg }
 
 Fn = "(" _ "=>" _ param:FnParam body:Node _ ")"
 	{
-		return Exp.eFn(param, body)
+		return Exp.eFn({}, param, body)
 	}
 
 FnParam = "[" _ pairs:NamedNode* "]" _
@@ -79,7 +79,7 @@ TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
 		const paramDict = Object.fromEntries(entries)
-		return Exp.eTyFnFrom(paramDict, out)
+		return Exp.eTyFnFrom({}, paramDict, out)
 	}
 
 TyFnParam = "[" _ params:TyFnParamEntry* "]" _ { return params }
