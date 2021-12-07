@@ -136,44 +136,46 @@ export class Sym implements INode, IExp {
 		return Writer.of(Unit.instance, log)
 	}
 
-	#resolve2(env?: Env2): Writer<{node: Node; isFnParam?: boolean}, Log> {
-		let ref = this.parent
-
-		let curEnv: Env2 | undefined = env
-
-		while (ref) {
-			if (ref.type === 'scope') {
-				if (this.name in ref.vars) {
-					return Writer.of({node: ref.vars[this.name]})
-				}
+	#resolve2(
+		ref: ExpComplex | null,
+		env?: Env2
+	): Writer<{node: Node; isFnParam?: boolean}, Log> {
+		if (!ref) {
+			// If no parent and still couldn't resolve the symbol,
+			// assume there's no bound expression for it.
+			const log: Log = {
+				level: 'error',
+				ref: this,
+				reason: 'Variable not bound: ' + this.name,
 			}
-			if (ref.type === 'eFn') {
-				if (curEnv) {
-					// In a context of function appliction
-					const node = curEnv.get(this.name)
-					if (node) {
-						return Writer.of({node})
-					}
-					// If no corresponding arg has found for the eFn, then pop the env.
-					curEnv = curEnv.pop()
+
+			return Writer.of({node: Unit.instance}, log)
+		}
+
+		if (ref.type === 'scope') {
+			if (this.name in ref.vars) {
+				return Writer.of({node: ref.vars[this.name]})
+			}
+		} else if (ref.type === 'eFn') {
+			if (env) {
+				// Situation A. In a context of function appliction
+				const node = env.get(this.name)
+				if (node) {
+					return Writer.of({node})
 				} else {
-					// In normal evaluation
-					if (this.name in ref.param) {
-						return Writer.of({node: ref.param[this.name], isFnParam: true})
-					}
+					// If no corresponding arg has found for the eFn, pop the env.
+					env = env.pop()
+				}
+			} else {
+				// Situation B. While normal evaluation
+				if (this.name in ref.param) {
+					return Writer.of({node: ref.param[this.name], isFnParam: true})
 				}
 			}
-
-			ref = ref.parent
 		}
 
-		const log: Log = {
-			level: 'error',
-			ref: this,
-			reason: 'Variable not bound: ' + this.name,
-		}
-
-		return Writer.of({node: Unit.instance}, log)
+		// Resolve with parent node recursively
+		return this.#resolve2(ref.parent, env)
 	}
 
 	eval(env?: Env): ValueWithLog {
@@ -181,7 +183,7 @@ export class Sym implements INode, IExp {
 	}
 
 	eval2 = (env?: Env2): ValueWithLog2 => {
-		return this.#resolve2(env).bind(({node, isFnParam}) => {
+		return this.#resolve2(this.parent, env).bind(({node, isFnParam}) => {
 			const value = node.eval2(env)
 
 			return isFnParam
@@ -195,7 +197,7 @@ export class Sym implements INode, IExp {
 	}
 
 	infer2(env?: Env2): Value {
-		const {node, isFnParam} = this.#resolve2(env).result
+		const {node, isFnParam} = this.#resolve2(this.parent, env).result
 
 		return isFnParam ? node.eval2(env).result : node.infer2()
 	}
