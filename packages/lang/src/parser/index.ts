@@ -10,13 +10,13 @@ Program = _ exp:Node _
 	}
 
 Node =
-	Dict / Scope /
+	Dict /
 	Unit / Bottom / All /
-	Fn / TyFn / App /
+	Fn / TyFn / Scope / App /
 	Vec /
 	Num / Str / TyVar / Sym
 
-Reserved = "_" / "_|_" / "=>" / "->" / "~>" / "<" [^>]+ ">"
+Reserved = "_" / "_|_" / "=>" / "->" / "let" / "<" [^>]+ ">"
 
 Unit = "(" _ ")" { return Exp.unit }
 
@@ -119,7 +119,7 @@ DictKey = (!(Whitespace / Delimiter) .)+
 
 Rest = "..." _ rest:Node _ { return rest }
 
-Scope = "{" _ pairs:ScopePair* out:Node? _ "}"
+Scope = "(" _ "let" _ pairs:ScopePair* out:Node? _ ")"
 	{
 		return Exp.scope(Object.fromEntries(pairs), out ?? null)
 	}
@@ -170,8 +170,12 @@ export function parse(str: string, parent: Exp.Exp['parent'] = null): Literal {
 }
 
 export function parseModule(str: string): Record<string, Exp.Node> {
-	const exp: Exp.Node | undefined = parser.parse('{' + str + '}')
-	if (!exp || exp.type !== 'scope') return {}
+	try {
+		const exp: Exp.Node | undefined = parser.parse('(let ' + str + ')')
+		if (!exp || exp.type !== 'scope') return {}
 
-	return exp.vars
+		return exp.vars
+	} catch {
+		throw new Error('Failed to parse module')
+	}
 }

@@ -67,8 +67,8 @@ describe('evaluating literals', () => {
 	)
 	testEval('(-> [Num2] Num2)', tyFn(tyNum, tyNum))
 	testEval('<T>', tyVar('T'))
-	testEval('{a = 10 a}', num(10))
-	testEval('{a = {a = 20 a} a}', num(20))
+	testEval('(let a = 10 a)', num(10))
+	testEval('(let a = (let a = 20 a) a)', num(20))
 })
 
 describe('evaluating function definition', () => {
@@ -77,22 +77,22 @@ describe('evaluating function definition', () => {
 	testEval('((=> [x:Num2] (+$ x 1)) 10)', '11')
 	testEval(
 		`
-{add = (=> [x:Num2] (=> [y:Num2] (+$ x y)))
- ((add 2) 3)}
+(let add = (=> [x:Num2] (=> [y:Num2] (+$ x y)))
+     ((add 2) 3))
 `,
 		'5'
 	)
 	testEval(
 		`
-{f = (=> [x:Num2] {x = 20 x})
- (f 5)}
+(let f = (=> [x:Num2] (let x = 20 x))
+     (f 5))
 `,
 		'20'
 	)
 	testEval(
 		`
-{f = (=> [x:Num2] {x = 100 (=> [y:Num2] (+$ x y))})
- ((f 2) 3)}
+(let f = (=> [x:Num2] (let x = 100 (=> [y:Num2] (+$ x y))))
+     ((f 2) 3))
 `,
 		'103'
 	)
@@ -356,9 +356,9 @@ describe('inferring expression type', () => {
 
 	test('(-> [Num2] Num2)', '_')
 
-	test('{a = Num2 a}', '_')
-	test('{a = 10}', '()')
-	test('{a = (+$ 1 2) b = a b}', 'Num2')
+	test('(let a = Num2 a)', '_')
+	test('(let a = 10)', '()')
+	test('(let a = (+$ 1 2) b = a b)', 'Num2')
 
 	function test(input: string, expected: string) {
 		it(`${input} is inferred to be ${expected}`, () => {

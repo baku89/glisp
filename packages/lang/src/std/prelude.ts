@@ -184,7 +184,6 @@ PreludeScope.def(
 
 PreludeScope.defs(
 	parseModule(`
-
 compose = (=> [f:(-> [<T>] <U>) g:(-> [<U>] <V>)] (=> [x:<T>] (g (f x))))
 twice = (=> [f:(-> [<T>] <T>)] (compose f f))
 
@@ -192,8 +191,8 @@ bindMaybe =
 (=> [f:(-> [<T>] (| () <U>))
      g:(-> [<U>] (| () <V>))]
     (=> [x:<T>]
-        {fx = (f x)
-         (if (== fx ()) () (g fx))}))
+        (let fx = (f x)
+          (if (== fx ()) () (g fx)))))
 
 
 inc = (=> [x:Num] (+ x 1))

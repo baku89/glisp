@@ -78,10 +78,11 @@ describe('parsing call expressions', () => {
 })
 
 describe('parsing scope', () => {
-	testParsing('{x = 1 x}', scope({x: num(1)}, x))
-	testParsing('{x = 1}', scope({x: num(1)}))
-	testParsing('{x = {x = 1}}', scope({x: scope({x: num(1)})}))
-	testParsing('{{1}}', scope({}, scope({}, num(1))))
+	testParsing('(let x = 1 x)', scope({x: num(1)}, x))
+	testParsing('(let x = 1)', scope({x: num(1)}))
+	testParsing('(let x = (let x = 1))', scope({x: scope({x: num(1)})}))
+	testParsing('(let (let 1))', scope({}, scope({}, num(1))))
+	testParsing('(let)', scope({}))
 })
 
 describe('parsing vector', () => {
@@ -102,7 +103,6 @@ describe('parsing dictionary', () => {
 	testParsing('{   }', eDict({}))
 	testParsing('{a: A b: B}', eDict({a: sym('A'), b: sym('B')}))
 	testParsing('{a: {a: 1}}', eDict({a: eDict({a: num(1)})}))
-	testParsing('{{}}', scope({}, eDict({})))
 	testParsing('{a?:1}', eDictFrom({a: {optional: true, value: num(1)}}))
 	testParsing(
 		'{a?:1 b:2 ...c}',

@@ -1525,10 +1525,10 @@ export class Scope implements INode, IExp {
 		this.out?.eval2(env) ?? Writer.of(Unit.instance)
 
 	print(): string {
-		const vars = entries(this.vars).map(([k, v]) => k + '=' + v.print())
+		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())
 		const out = this.out ? [this.out.print()] : []
 
-		return '{' + [...vars, ...out].join(' ') + '}'
+		return '(let ' + [...vars, ...out].join(' ') + ')'
 	}
 
 	isSameTo = (exp: Node) =>
