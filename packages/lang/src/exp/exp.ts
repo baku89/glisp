@@ -1355,7 +1355,7 @@ export class App implements INode, IExp {
 
 	private constructor(public fn: Node, public args: Node[]) {}
 
-	private inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
+	#inferFn(env?: Env): [Val.TyFn, Val.Value[], RangedUnifier] {
 		let [ty] = this.fn.eval(env).asTuple
 
 		if (ty.type === 'tyValue') ty = ty.value
@@ -1382,7 +1382,7 @@ export class App implements INode, IExp {
 
 		if (!('fn' in fn)) return Writer.of(fn, ...fnLog)
 
-		const [{tyParam}, tyArgs, subst] = this.inferFn(env)
+		const [{tyParam}, tyArgs, subst] = this.#inferFn(env)
 		const paramNames = keys(fn.param)
 
 		// Log unused extra arguments
@@ -1499,7 +1499,7 @@ export class App implements INode, IExp {
 	}
 
 	infer(env?: Env): Val.Value {
-		const [tyFn] = this.inferFn(env)
+		const [tyFn] = this.#inferFn(env)
 		return unshadowTyVars(tyFn.tyOut)
 	}
 
