@@ -37,28 +37,28 @@ Frac/fromNum = (=> [num:Num den:Num] (Frac/reduce (Frac num den)))
 Frac/asNum = (=> [r:Frac] (/ (r "num") (r "den")))
 
 Frac/reduce = (=> [r:Frac]
-                  {num = (r "num")
-                   den = (r "den")
-                   g = (gcd num den)
-                   (Frac (/ num g) (/ den g))})
+                  (let num = (r "num")
+                       den = (r "den")
+                       g   = (gcd num den)
+                       (Frac (/ num g) (/ den g))))
 
 Frac/+ = (=> [x:Frac y:Frac]
-             {xn = (x "num")
-              xd = (x "den")
-              yn = (y "num")
-              yd = (y "den")
-              (Frac/fromNum (+ (* xn yd) (* yn xd))
-                            (* xd yd))})
+             (let xn = (x "num")
+                  xd = (x "den")
+                  yn = (y "num")
+                  yd = (y "den")
+                  (Frac/fromNum (+ (* xn yd) (* yn xd))
+                                (* xd yd))))
 
 Frac/- = (=> [x:Frac y:Frac] (Frac/+ x (Frac/neg y)))
 
 Frac/* = (=> [x:Frac y:Frac]
-             {xn = (x "num")
-              xd = (x "den")
-              yn = (y "num")
-              yd = (y "den")
-              (Frac/fromNum (* (* xn yd) (* yn xd))
-                            (* xd yd))})
+             (let xn = (x "num")
+                  xd = (x "den")
+                  yn = (y "num")
+                  yd = (y "den")
+                  (Frac/fromNum (* (* xn yd) (* yn xd))
+                                (* xd yd))))
 
 Frac/scale = (=> [r:Frac s:Num]
                  (Frac/fromNum (* (r "num") s) (r "den")))
