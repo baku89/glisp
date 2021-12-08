@@ -82,8 +82,11 @@ interface IValue {
 
 export type IFn = (...params: any[]) => Writer<Value, Log>
 
-interface IFnLike {
+interface ITyFn {
 	tyFn: TyFn
+}
+
+interface IFnLike extends ITyFn {
 	fn: IFn
 }
 
@@ -164,6 +167,9 @@ export class Sym implements INode, IExp {
 				if (this.name in ref.param) {
 					return Writer.of({node: ref.param[this.name], isFnParam: true})
 				}
+				if (this.name in ref.tyVars) {
+					return Writer.of({node: ref.tyVars[this.name]})
+				}
 			}
 		}
 
@@ -192,6 +198,9 @@ export class Sym implements INode, IExp {
 	infer2(env?: Env2): Value {
 		const {node, isFnParam} = this.#resolve2(this.parent, env).result
 
+		/**
+		 * (=> [x:(+ 1 2)] x) のようなケースでは、 (+ 1 2) は評価しないといけない
+		 */
 		return isFnParam ? node.eval2(env).result : node.infer2()
 	}
 
@@ -721,11 +730,13 @@ export class ETyFn implements INode, IExp {
 	}
 }
 
-export class TyFn implements INode, IValue {
+export class TyFn implements INode, IValue, ITyFn {
 	readonly type = 'tyFn' as const
 	superType = All.instance
 
 	private constructor(public param: Record<string, Value>, public out: Value) {}
+
+	tyFn = this
 
 	#defaultValue?: Fn
 	get defaultValue() {
@@ -1437,7 +1448,7 @@ export class App implements INode, IExp {
 		const [fn, fnLog] = this.fn.eval2(env).asTuple
 
 		// Check if it's not a function
-		if (!('tyFn' in fn)) {
+		if (!('fn' in fn)) {
 			return Writer.of(fn, ...fnLog, {
 				level: 'warn',
 				ref: this,
@@ -1505,9 +1516,9 @@ export class App implements INode, IExp {
 
 	// TODO: polymorphic function is not yet supported
 	infer2 = (env?: Env2): Value => {
-		const fn = this.fn.eval2(env).result
-		if (!('tyFn' in fn)) return fn
-		return fn.tyFn.out
+		const ty = this.fn.infer2(env)
+		if (!('tyFn' in ty)) return ty
+		return ty.tyFn.out
 	}
 
 	print(): string {
