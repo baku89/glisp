@@ -152,7 +152,8 @@ export class Sym implements INode, IExp {
 			if (this.name in ref.vars) {
 				return Writer.of({node: ref.vars[this.name]})
 			}
-		} else if (ref.type === 'eFn') {
+		}
+		if (ref.type === 'eFn') {
 			if (env) {
 				// Situation A. In a context of function appliction
 				const node = env.get(this.name)
@@ -167,9 +168,12 @@ export class Sym implements INode, IExp {
 				if (this.name in ref.param) {
 					return Writer.of({node: ref.param[this.name], isFnParam: true})
 				}
-				if (this.name in ref.tyVars) {
-					return Writer.of({node: ref.tyVars[this.name]})
-				}
+			}
+		}
+		// Resolve tyVars
+		if (ref.type === 'eFn' || ref.type === 'eTyFn') {
+			if (this.name in ref.tyVars) {
+				return Writer.of({node: ref.tyVars[this.name]})
 			}
 		}
 
@@ -1518,6 +1522,7 @@ export class App implements INode, IExp {
 	infer2 = (env?: Env2): Value => {
 		const ty = this.fn.infer2(env)
 		if (!('tyFn' in ty)) return ty
+
 		return ty.tyFn.out
 	}
 
