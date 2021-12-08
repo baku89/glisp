@@ -525,11 +525,15 @@ export class EFn implements INode, IExp {
 	readonly type = 'eFn' as const
 	parent: ExpComplex | null = null
 
+	readonly tyVars: Record<string, TyVar>
+
 	private constructor(
-		public tyVars: Record<string, TyVar>,
+		tyVars: string[],
 		public param: Record<string, Node>,
 		public body: Node
-	) {}
+	) {
+		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
+	}
 
 	eval(env: Env = new Map()): ValueWithLog {
 		const paramNames = keys(this.param)
@@ -584,19 +588,21 @@ export class EFn implements INode, IExp {
 	}
 
 	print(): string {
+		const tyVars = printTyVars(this.tyVars)
 		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
 		const param = '[' + params.join(' ') + ']'
 		const body = this.body.print()
 
-		return `(=> ${param} ${body})`
+		return `(=> ${tyVars}${param} ${body})`
 	}
 
 	isSameTo = (exp: Node) =>
 		exp.type === 'eFn' &&
+		hasEqualValues(this.tyVars, exp.tyVars, isSame) &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.body, exp.body)
 
-	static of(tyVars: EFn['tyVars'], param: EFn['param'], body: Node) {
+	static of(tyVars: string[], param: EFn['param'], body: Node) {
 		const fn = new EFn(tyVars, param, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
@@ -648,11 +654,15 @@ export class ETyFn implements INode, IExp {
 	readonly type = 'eTyFn' as const
 	parent: ExpComplex | null = null
 
+	tyVars: Record<string, TyVar>
+
 	private constructor(
-		public tyVars: Record<string, TyVar>,
+		tyVars: string[],
 		public param: Record<string, Node>,
 		public out: Node
-	) {}
+	) {
+		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
+	}
 
 	eval(env?: Env): ValueWithLog {
 		const paramArr = values(this.param)
@@ -678,17 +688,19 @@ export class ETyFn implements INode, IExp {
 	infer2 = () => All.instance
 
 	print = (): string => {
+		const tyVars = printTyVars(this.tyVars)
 		const param = entries(this.param).map(printNamedNode).join(' ')
 		const out = this.out.print()
-		return `(-> [${param}] ${out})`
+		return `(-> ${tyVars}[${param}] ${out})`
 	}
 
 	isSameTo = (exp: Node): boolean =>
 		exp.type === 'eTyFn' &&
+		hasEqualValues(this.tyVars, exp.tyVars, isSame) &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.out, this.out)
 
-	static of(tyVars: ETyFn['tyVars'], param: Node | Node[], out: Node) {
+	static of(tyVars: string[], param: Node | Node[], out: Node) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
@@ -701,7 +713,7 @@ export class ETyFn implements INode, IExp {
 		return tyFn
 	}
 
-	static from(tyVars: ETyFn['tyVars'], param: Record<string, Node>, out: Node) {
+	static from(tyVars: string[], param: Record<string, Node>, out: Node) {
 		const tyFn = new ETyFn(tyVars, param, out)
 		forOwn(param, p => setParent(p, tyFn))
 		setParent(out, tyFn)
@@ -766,6 +778,12 @@ export class TyFn implements INode, IValue {
 	static from(param: Record<string, Value>, out: Value) {
 		return new TyFn(param, out)
 	}
+}
+
+function printTyVars(tyVars: Record<string, TyVar>): string {
+	const es = keys(tyVars)
+	if (es.length === 0) return ''
+	return '<' + es.join(' ') + '> '
 }
 
 function printNamedNode([name, ty]: [string, Node]) {

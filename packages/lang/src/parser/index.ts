@@ -65,9 +65,9 @@ App "App" = "(" _ fn:Node _ args:AppArg* ")"
 
 AppArg = arg:Node _ { return arg }
 
-Fn = "(" _ "=>" _ param:FnParam body:Node _ ")"
+Fn = "(" _ "=>" _ tyVars:FnTyVars? param:FnParam body:Node _ ")"
 	{
-		return Exp.eFn({}, param, body)
+		return Exp.eFn(tyVars ?? [], param, body)
 	}
 
 FnParam = "[" _ pairs:NamedNode* "]" _
@@ -75,11 +75,11 @@ FnParam = "[" _ pairs:NamedNode* "]" _
 		return Object.fromEntries(pairs)
 	}
 
-TyFn = "(" _ "->" _ param:TyFnParam out:Node _ ")"
+TyFn = "(" _ "->" _ tyVars:FnTyVars? param:TyFnParam out:Node _ ")"
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
 		const paramDict = Object.fromEntries(entries)
-		return Exp.eTyFnFrom({}, paramDict, out)
+		return Exp.eTyFnFrom(tyVars ?? [], paramDict, out)
 	}
 
 TyFnParam = "[" _ params:TyFnParamEntry* "]" _ { return params }
@@ -88,6 +88,15 @@ TyFnParamEntry =
 	NamedNode /
 	type:Node _ { return [null, type] }
 
+FnTyVars = "<" _ tyVars:FnTyVarEntry* ">" _
+	{
+		return tyVars
+	}
+
+FnTyVarEntry = name:$([a-zA-Z] [a-zA-Z0-9]*) _
+	{
+		return name
+	}
 
 NamedNode = sym:Sym _ ":" _ value:Node _
 	{
