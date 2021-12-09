@@ -1,6 +1,7 @@
 import {mapValues, values} from 'lodash'
 
 import {union} from '../utils/SetOperation'
+import {zip} from '../utils/zip'
 import {
 	all,
 	bottom,
@@ -11,37 +12,37 @@ import {
 	tyFnFrom,
 	TyVar,
 	tyVec,
+	unit,
 	Value,
 	vec,
 } from '.'
 import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
 
-type SubstMap = Map<TyVar, Value>
-
 export type Const = [Value, Relation, Value]
-type Relation = '<=' | '>='
 
-const invRelation = (op: Relation): Relation => (op === '<=' ? '>=' : '<=')
-const fillerForRelation = (op: Relation) => (op === '<=' ? all : bottom)
+type Relation = '<=' | '>=' | '=='
+
+function invRelation(op: Relation): Relation {
+	if (op === '<=') return '>='
+	if (op === '>=') return '<='
+	return '=='
+}
 
 export function getTyVars(ty: Value): Set<TyVar> {
 	switch (ty.type) {
 		case 'tyVar':
 			return new Set([ty])
-		case 'tyUnion': {
+		case 'tyUnion':
 			return union(...ty.types.map(getTyVars))
-		}
 		case 'tyFn': {
 			const param = values(ty.param).map(getTyVars)
 			const out = getTyVars(ty.out)
 			return union(...param, out)
 		}
-		case 'fn': {
+		case 'fn':
 			return getTyVars(ty.superType)
-		}
-		case 'vec': {
+		case 'vec':
 			return union(...ty.items.map(getTyVars))
-		}
 		case 'tyVec': {
 			const items = ty.items.map(getTyVars)
 			const rest = getTyVars(ty.rest)
@@ -66,10 +67,7 @@ export function shadowTyVars(ty: Value) {
 
 	for (const tv of getTyVars(ty)) {
 		const tv2 = tv.shadow()
-		subst.addConsts([
-			[tv, '<=', tv2],
-			[tv, '>=', tv2],
-		])
+		subst.addConsts([tv, '<=', tv2], [tv, '>=', tv2])
 	}
 
 	return subst.substitute(ty)
@@ -80,18 +78,15 @@ export function unshadowTyVars(ty: Value): Value {
 
 	for (const shadowed of getTyVars(ty)) {
 		const original = shadowed.unshadow()
-		subst.addConsts([
-			[shadowed, '<=', original],
-			[shadowed, '>=', original],
-		])
+		subst.addConsts([shadowed, '<=', original], [shadowed, '>=', original])
 	}
 
 	return subst.substitute(ty)
 }
 
 export class RangedUnifier {
-	#lowers: SubstMap = new Map()
-	#uppers: SubstMap = new Map()
+	#lowers = new Map<TyVar, Value>()
+	#uppers = new Map<TyVar, Value>()
 	constructor() {
 		return
 	}
@@ -116,6 +111,16 @@ export class RangedUnifier {
 		this.#normalizeRange(tv)
 	}
 
+	#setEqual(tv: TyVar, e: Value) {
+		const nl = tyUnion(e, this.#getLower(tv))
+		this.#lowers.set(tv, nl)
+
+		const nu = tyIntersection(e, this.#getUpper(tv))
+		this.#uppers.set(tv, nu)
+
+		this.#normalizeRange(tv)
+	}
+
 	/**
 	 * α |-> [S, T] が S <: Tとならない場合に、無理矢理解決する
 	 * @param tv
@@ -126,8 +131,6 @@ export class RangedUnifier {
 		const u = this.#getUpper(tv)
 
 		if (l.isSubtypeOf(u)) return
-
-		const subst = RangedUnifier.empty()
 
 		const ltvs = getTyVars(l)
 		const utvs = getTyVars(u)
@@ -151,27 +154,21 @@ export class RangedUnifier {
 		 * σ = [C |-> A, D |-> [bot, top], E |-> [bot, top]] を返してしまう。
 		 * オーソドックスな単一化アルゴリズムで解きつつ、
 		 * かつ不正な制約の場合の場合分けについて考えなくてはいけない。
+		 *
+		 * 21/12/09: 試しに等式制約でやってみた
 		 **/
+		const subst = RangedUnifier.empty()
 		if (utvs.size === 0 || l.type === 'tyVar') {
 			// α |-> [(has tyVars), (no tyvar)]
 			// α |-> [<T>, ...]
-			subst.addConsts([
-				[l, '>=', u],
-				[l, '<=', u],
-			])
+			subst.addConsts([l, '==', u])
 		} else if (ltvs.size === 0 || u.type === 'tyVar') {
 			// α |-> [(no tyVar), (has tyVar)]
 			// α |-> [..., <T>]
-			subst.addConsts([
-				[u, '>=', l],
-				[u, '<=', l],
-			])
+			subst.addConsts([u, '==', l])
 		} else {
 			// NOTE: In this case the algorithm won't work
-			subst.addConsts([
-				[u, '>=', l],
-				[u, '<=', l],
-			])
+			subst.addConsts([u, '==', l])
 		}
 
 		// Eliminate surplus tyVars from this subst
@@ -197,16 +194,10 @@ export class RangedUnifier {
 		}
 	}
 
-	addConsts(consts: Const[]): RangedUnifier {
+	addConsts(...consts: Const[]): RangedUnifier {
 		if (consts.length === 0) return this
 
 		const [[t, R, u], ...cs] = consts
-
-		const Ri = invRelation(R)
-
-		// fillerとは、tがいかなる場合も t R u を満たすu
-		const f = fillerForRelation(R)
-		const fi = fillerForRelation(Ri)
 
 		// Match constraints spawing sub-constraints
 
@@ -215,23 +206,17 @@ export class RangedUnifier {
 		 *--------------------- ST-TyFn
 		 * tp -> to R up -> uo
 		 */
-		if (t.type === 'tyFn') {
+		if (t.type === 'tyFn' && 'tyFn' in u) {
 			const tParam = vec(...values(t.param))
+			const uParam = vec(...values(u.tyFn.param))
+
 			const tOut = t.out
+			const uOut = u.tyFn.out
 
-			let uParam: Value, uOut: Value
-			if ('tyFn' in u) {
-				uParam = vec(...values(u.tyFn.param))
-				uOut = u.tyFn.out
-			} else {
-				uParam = fi
-				uOut = f
-			}
-
-			const cParam: Const = [tParam, Ri, uParam]
+			const cParam: Const = [tParam, invRelation(R), uParam]
 			const cOut: Const = [tOut, R, uOut]
 
-			this.addConsts([cParam, cOut])
+			this.addConsts(cParam, cOut)
 		}
 
 		/**
@@ -239,18 +224,17 @@ export class RangedUnifier {
 		 * --------------------------- ST-Vec
 		 *    [...ts] R [...us]
 		 */
-		if (t.type === 'vec' || t.type === 'tyVec') {
-			let uItems: Value[], uRest: Value | null
+		if (
+			(t.type === 'vec' || t.type === 'tyVec') &&
+			(u.type === 'vec' || u.type === 'tyVec')
+		) {
+			const uItems = u.items
+			const uRest = 'rest' in u ? u.rest : null
 
-			if (u.type === 'vec' || u.type === 'tyVec') {
-				uItems = u.items
-				uRest = 'rest' in u ? u.rest : null
-			} else {
-				uItems = []
-				uRest = null
-			}
+			const cItems = zip(t.items, u.items).map(
+				([ti, ui]) => [ti, R, ui] as Const
+			)
 
-			const cItems = t.items.map((ti, i) => [ti, R, uItems[i] ?? f] as Const)
 			let cRest: Const[] = []
 			if ('rest' in t) {
 				cRest = uItems.slice(t.items.length).map(ui => [t.rest, R, ui] as Const)
@@ -259,7 +243,7 @@ export class RangedUnifier {
 				}
 			}
 
-			this.addConsts([...cItems, ...cRest])
+			this.addConsts(...cItems, ...cRest)
 		}
 
 		/**
@@ -275,58 +259,55 @@ export class RangedUnifier {
 				return [ti, R, ui]
 			})
 
-			this.addConsts([...cUnion])
+			this.addConsts(...cUnion)
 		}
 
+		// Finary set limits
 		if (t.type === 'tyVar') {
 			if (getTyVars(u).has(t)) throw new Error('Occur check')
 
 			const Su = this.substitute(u)
 
-			if (R === '<=') {
-				this.#setUpper(t, Su)
-			} else {
-				this.#setLower(t, Su)
-			}
+			if (R === '<=') this.#setUpper(t, Su)
+			if (R === '>=') this.#setLower(t, Su)
+			if (R === '==') this.#setEqual(t, Su)
 		}
 
-		return this.addConsts(cs)
+		return this.addConsts(...cs)
 	}
 
-	substitute(val: Value, covariant = true): Value {
-		const limits = covariant ? this.#lowers : this.#uppers
+	substitute = (val: Value): Value => {
 		switch (val.type) {
-			case 'tyVar': {
-				return limits.get(val) ?? val
-			}
+			case 'tyVar':
+				return this.#lowers.get(val) ?? this.#uppers.get(val) ?? unit
 			case 'tyFn': {
-				const param = mapValues(val.param, p => this.substitute(p, !covariant))
+				const param = mapValues(val.param, this.substitute)
 				const out = this.substitute(val.out)
 				return tyFnFrom(param, out)
 			}
 			case 'tyUnion': {
-				const types = val.types.map(ty => this.substitute(ty, covariant))
+				const types = val.types.map(this.substitute)
 				return tyUnion(...types)
 			}
 			case 'fn':
-				return fnFrom(this.substitute(val.superType, covariant) as TyFn, val.fn)
+				return fnFrom(this.substitute(val.superType) as TyFn, val.fn)
 			case 'vec': {
-				const items = val.items.map(it => this.substitute(it, covariant))
+				const items = val.items.map(this.substitute)
 				return vec(...items)
 			}
 			case 'tyVec': {
-				const items = val.items.map(it => this.substitute(it, covariant))
+				const items = val.items.map(this.substitute)
 				const rest = this.substitute(val.rest)
 				return tyVec(items, rest)
 			}
 			case 'dict': {
-				const items = mapValues(val.items, it => this.substitute(it, covariant))
+				const items = mapValues(val.items, this.substitute)
 				return dict(items)
 			}
 			case 'tyDict': {
 				const items = mapValues(val.items, ({optional, value}) => ({
 					optional,
-					value: this.substitute(value, covariant),
+					value: this.substitute(value),
 				}))
 				const rest = val.rest ? this.substitute(val.rest) : undefined
 				return tyDict(items, rest)
@@ -353,6 +334,6 @@ export class RangedUnifier {
 	}
 
 	static unify(consts: Const[]) {
-		return new RangedUnifier().addConsts(consts)
+		return new RangedUnifier().addConsts(...consts)
 	}
 }
