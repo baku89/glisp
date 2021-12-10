@@ -1,7 +1,6 @@
 import peggy from 'peggy'
 
 import * as Exp from '../exp'
-import * as Val from '../val'
 
 const parserDefinition = `
 Program = _ exp:Node _
@@ -130,7 +129,12 @@ Rest = "..." _ rest:Node _ { return rest }
 
 Scope = "(" _ "let" _ pairs:ScopePair* out:Node? _ ")"
 	{
-		return Exp.scope(Object.fromEntries(pairs), out ?? null)
+		const vars = {}
+		for (const [name, value] of pairs) {
+			if (name in vars) throw new Error('Duplicated symbol name: ' + name)
+			vars[name] = value
+		}
+		return Exp.scope(vars, out ?? null)
 	}
 
 ScopePair = s:Sym _ "=" _ node:Node _
@@ -154,7 +158,7 @@ Whitespace = [ \\t\\n\\r]
 `
 
 const parserSource = peggy.generate(parserDefinition, {
-	exportVar: {Exp, Val},
+	exportVar: {Exp},
 	output: 'source',
 })
 
