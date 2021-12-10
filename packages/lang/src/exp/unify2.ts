@@ -87,7 +87,8 @@ export function unshadowTyVars(ty: Value): Value {
 export class RangedUnifier {
 	#lowers = new Map<TyVar, Value>()
 	#uppers = new Map<TyVar, Value>()
-	constructor() {
+
+	private constructor() {
 		return
 	}
 
@@ -171,6 +172,11 @@ export class RangedUnifier {
 			subst.addConsts([u, '==', l])
 		}
 
+		// Then merge the new subst
+		this.#mergeWith(subst)
+	}
+
+	#mergeWith(subst: RangedUnifier) {
 		// Eliminate surplus tyVars from this subst
 		for (const [tv, l] of this.#lowers) {
 			this.#lowers.set(tv, subst.substitute(l))
@@ -179,11 +185,6 @@ export class RangedUnifier {
 			this.#uppers.set(tv, subst.substitute(u))
 		}
 
-		// Then merge the new subst
-		this.#mergeWith(subst)
-	}
-
-	#mergeWith(subst: RangedUnifier) {
 		for (const [tv, l] of subst.#lowers) {
 			if (this.#lowers.has(tv)) throw new Error('Cannot merge substs')
 			this.#lowers.set(tv, l)
@@ -199,6 +200,8 @@ export class RangedUnifier {
 
 		const [[t, R, u], ...cs] = consts
 
+		const Ri = invRelation(R)
+
 		// Match constraints spawing sub-constraints
 
 		/**
@@ -213,7 +216,7 @@ export class RangedUnifier {
 			const tOut = t.out
 			const uOut = u.tyFn.out
 
-			const cParam: Const = [tParam, invRelation(R), uParam]
+			const cParam: Const = [tParam, Ri, uParam]
 			const cOut: Const = [tOut, R, uOut]
 
 			this.addConsts(cParam, cOut)
@@ -271,6 +274,10 @@ export class RangedUnifier {
 			if (R === '<=') this.#setUpper(t, Su)
 			if (R === '>=') this.#setLower(t, Su)
 			if (R === '==') this.#setEqual(t, Su)
+		}
+
+		if (u.type === 'tyVar') {
+			this.addConsts([u, Ri, u])
 		}
 
 		return this.addConsts(...cs)
@@ -333,7 +340,7 @@ export class RangedUnifier {
 		return new RangedUnifier()
 	}
 
-	static unify(consts: Const[]) {
+	static unify(...consts: Const[]) {
 		return new RangedUnifier().addConsts(...consts)
 	}
 }
