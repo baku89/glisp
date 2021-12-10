@@ -14,6 +14,7 @@ import {
 import {hasEqualValues} from '../utils/hasEqualValues'
 import {isEqualArray} from '../utils/isEqualArray'
 import {nullishEqual} from '../utils/nullishEqual'
+import {union} from '../utils/SetOperation'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
@@ -21,6 +22,12 @@ import {Env as Env2} from './env'
 import {Log, WithLog, withLog} from './log'
 import {tyUnion} from './TypeOperation'
 import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
+import {
+	getTyVars,
+	RangedUnifier as RangedUnifier2,
+	shadowTyVars as shadowTyVars2,
+	unshadowTyVars as unshadowTyVars2,
+} from './unify2'
 
 export type Node = Exp | Value | Obj
 
@@ -135,7 +142,7 @@ export class Sym implements INode, IExp {
 	#resolve2(
 		ref: ExpComplex | null,
 		env?: Env2
-	): Writer<{node: Node; isFnParam?: boolean}, Log> {
+	): Writer<{node: Node; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
 		if (!ref) {
 			// If no parent and still couldn't resolve the symbol,
 			// assume there's no bound expression for it.
@@ -158,22 +165,21 @@ export class Sym implements INode, IExp {
 				// Situation A. In a context of function appliction
 				const node = env.get(this.name)
 				if (node) {
-					return Writer.of({node})
-				} else {
-					// If no corresponding arg has found for the eFn, pop the env.
-					env = env.pop()
+					return Writer.of({node, mode: 'arg'})
 				}
+				// If no corresponding arg has found for the eFn, pop the env.
+				env = env.pop()
 			} else {
 				// Situation B. While normal evaluation
 				if (this.name in ref.param) {
-					return Writer.of({node: ref.param[this.name], isFnParam: true})
+					return Writer.of({node: ref.param[this.name], mode: 'param'})
 				}
 			}
 		}
 		// Resolve tyVars
 		if (ref.type === 'eFn' || ref.type === 'eTyFn') {
 			if (this.name in ref.tyVars) {
-				return Writer.of({node: ref.tyVars[this.name]})
+				return Writer.of({node: ref.tyVars[this.name], mode: 'tyVar'})
 			}
 		}
 
@@ -186,10 +192,10 @@ export class Sym implements INode, IExp {
 	}
 
 	eval2 = (env?: Env2): WithLog => {
-		return this.#resolve2(this.parent, env).bind(({node, isFnParam}) => {
+		return this.#resolve2(this.parent, env).bind(({node, mode}) => {
 			const value = node.eval2(env)
 
-			return isFnParam
+			return mode === 'param'
 				? withLog(value.result.defaultValue, ...value.log)
 				: value
 		})
@@ -200,12 +206,16 @@ export class Sym implements INode, IExp {
 	}
 
 	infer2(env?: Env2): Value {
-		const {node, isFnParam} = this.#resolve2(this.parent, env).result
+		const {node, mode} = this.#resolve2(this.parent, env).result
 
 		/**
 		 * (=> [x:(+ 1 2)] x) のようなケースでは、 (+ 1 2) は評価しないといけない
 		 */
-		return isFnParam ? node.eval2(env).result : node.infer2()
+		if (mode === 'param' || mode === 'arg' || mode === 'tyVar') {
+			return node.eval2(env).result
+		} else {
+			return node.infer2(env)
+		}
 	}
 
 	print = () => this.name
@@ -595,7 +605,10 @@ export class EFn implements INode, IExp {
 
 	infer2 = (env?: Env2): TyFn => {
 		const param = Writer.mapValues(this.param, p => p.eval2(env)).result
-		const out = this.body.infer2(env)
+
+		const innerEnv = env ? env.push(param) : Env2.from(param)
+
+		const out = this.body.infer2(innerEnv)
 
 		return TyFn.from(param, out)
 	}
@@ -1391,6 +1404,28 @@ export class App implements INode, IExp {
 		return [unifiedTyFn, unifiedTyArgs, subst]
 	}
 
+	#unifyFn(env?: Env2): [RangedUnifier2, Value[]] {
+		const ty = this.fn.infer2(env)
+
+		if (!('tyFn' in ty)) return [RangedUnifier2.empty(), []]
+
+		const tyFn = ty.tyFn
+
+		const params = values(tyFn.param)
+
+		const shadowedArgs = this.args
+			.slice(0, params.length)
+			.map(a => shadowTyVars2(a.infer2(env)))
+
+		const subst = RangedUnifier2.unify([
+			Vec.of(...params),
+			'>=',
+			Vec.of(...shadowedArgs),
+		])
+
+		return [subst, shadowedArgs]
+	}
+
 	eval(env?: Env): ValueWithLog {
 		const [fn, fnLog] = this.fn.eval(env).asTuple
 		const logs: Log[] = []
@@ -1465,8 +1500,6 @@ export class App implements INode, IExp {
 		const names = keys(fn.tyFn.param)
 		const params = values(fn.tyFn.param)
 
-		// const [{tyParam}, tyArgs, subst] = this.inferFn(env)
-
 		// Length-check of arguments
 		const lenArgs = this.args.length
 		const lenParams = params.length
@@ -1479,38 +1512,59 @@ export class App implements INode, IExp {
 			})
 		}
 
+		// Unify tyFn and args
+		const [subst, shadowedArgs] = this.#unifyFn(env)
+		const unifiedParams = params.map(subst.substitute)
+		const unifiedArgs = shadowedArgs.map(subst.substitute)
+
 		// Check types of args and cast them to default if necessary
-		const args = params.map((p, i) => {
-			const a = this.args[i] ?? Unit.instance
+		const args = unifiedParams.map((pTy, i) => {
+			const aTy = unifiedArgs[i] ?? Unit.instance
 			const name = names[i]
 
-			const aTy = a.infer2(env)
-
-			if (!isSubtype(aTy, p)) {
+			if (!isSubtype(aTy, pTy)) {
 				if (aTy.type !== 'unit') {
+					const aTyUnshadowed = unshadowTyVars2(aTy)
 					logs.push({
 						level: 'error',
 						ref: this,
 						reason:
-							`Argument '${name}' expects type: ${p.print()}, ` +
-							`but got: '${aTy.print()}''`,
+							`Argument '${name}' expects type: ${pTy.print()}, ` +
+							`but got: '${aTyUnshadowed.print()}''`,
 					})
 				}
-				return p.defaultValue
+				return pTy.defaultValue
 			}
 
-			const [aVal, aLog] = a.eval2(env).asTuple
+			const [aVal, aLog] = this.args[i].eval2(env).asTuple
+
 			logs.push(...aLog)
 
 			return aVal
 		})
 
 		// Call the function
-		const [result, callLog] = fn.fn(...args).asTuple
+		let result: Value, callLog: Log[]
+		if ('body' in fn && fn.body) {
+			const arg: Record<string, Value> = fromPairs(zip(names, args))
 
-		// const resultTyped = unshadowTyVars(subst.substitute(result))
+			const tyVars = union(...params.map(getTyVars))
 
-		return withLog(result, ...fnLog, ...logs, ...callLog)
+			for (const tv of tyVars) {
+				arg[tv.name] = subst.substitute(tv)
+			}
+
+			const innerEnv = env ? env.push(arg) : Env2.from(arg)
+
+			;[result, callLog] = fn.body.eval2(innerEnv).asTuple
+		} else {
+			;[result, callLog] = fn.fn(...args).asTuple
+		}
+
+		// Set this as 'ref'
+		const callLogWithRef = callLog.map(log => ({...log, ref: this}))
+
+		return withLog(result, ...fnLog, ...logs, ...callLogWithRef)
 	}
 
 	infer(env?: Env): Val.Value {
@@ -1518,12 +1572,12 @@ export class App implements INode, IExp {
 		return unshadowTyVars(tyFn.tyOut)
 	}
 
-	// TODO: polymorphic function is not yet supported
 	infer2 = (env?: Env2): Value => {
 		const ty = this.fn.infer2(env)
 		if (!('tyFn' in ty)) return ty
 
-		return ty.tyFn.out
+		const [subst] = this.#unifyFn(env)
+		return unshadowTyVars2(subst.substitute(ty.tyFn.out))
 	}
 
 	print(): string {

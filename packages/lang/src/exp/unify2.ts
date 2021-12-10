@@ -12,7 +12,6 @@ import {
 	tyFnFrom,
 	TyVar,
 	tyVec,
-	unit,
 	Value,
 	vec,
 } from '.'
@@ -66,8 +65,8 @@ export function shadowTyVars(ty: Value) {
 	const subst = RangedUnifier.empty()
 
 	for (const tv of getTyVars(ty)) {
-		const tv2 = tv.shadow()
-		subst.addConsts([tv, '<=', tv2], [tv, '>=', tv2])
+		const shadowed = tv.shadow()
+		subst.mapTo(tv, shadowed)
 	}
 
 	return subst.substitute(ty)
@@ -78,7 +77,7 @@ export function unshadowTyVars(ty: Value): Value {
 
 	for (const shadowed of getTyVars(ty)) {
 		const original = shadowed.unshadow()
-		subst.addConsts([shadowed, '<=', original], [shadowed, '>=', original])
+		subst.mapTo(shadowed, original)
 	}
 
 	return subst.substitute(ty)
@@ -98,6 +97,10 @@ export class RangedUnifier {
 
 	#getUpper(tv: TyVar) {
 		return this.#uppers.get(tv) ?? all
+	}
+
+	mapTo(tv: TyVar, l: Value) {
+		this.#setLower(tv, l)
 	}
 
 	#setLower(tv: TyVar, l: Value) {
@@ -274,9 +277,7 @@ export class RangedUnifier {
 			if (R === '<=') this.#setUpper(t, Su)
 			if (R === '>=') this.#setLower(t, Su)
 			if (R === '==') this.#setEqual(t, Su)
-		}
-
-		if (u.type === 'tyVar') {
+		} else if (u.type === 'tyVar') {
 			this.addConsts([u, Ri, u])
 		}
 
@@ -286,7 +287,7 @@ export class RangedUnifier {
 	substitute = (val: Value): Value => {
 		switch (val.type) {
 			case 'tyVar':
-				return this.#lowers.get(val) ?? this.#uppers.get(val) ?? unit
+				return this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
 			case 'tyFn': {
 				const param = mapValues(val.param, this.substitute)
 				const out = this.substitute(val.out)

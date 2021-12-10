@@ -360,6 +360,11 @@ describe('inferring expression type', () => {
 	test('(let a = 10)', '()')
 	test('(let a = (+$ 1 2) b = a b)', 'Num2')
 
+	test('((=> <T> [x:T] x) 4)', '4')
+	test('((=> <T> [x:T] x) (+$ 1 2))', 'Num2')
+	test('((=> <T> [f:(-> [T] T)] f) inc$)', '(-> [Num2] Num2)')
+	test('((=> <T> [f:(-> [T] T)] (=> [x:T] (f x))) inc$)', '(-> [Num2] Num2)')
+
 	function test(input: string, expected: string) {
 		it(`${input} is inferred to be ${expected}`, () => {
 			const i = parse(input).infer2()
@@ -374,6 +379,7 @@ describe('evaluating function body', () => {
 	test('(=> [x:Num2] x)', '0')
 	test('(=> [x:Num2] (+$ x 10))', '10')
 	test('(=> [x:Bool2] x)', 'false2')
+	test('(=> <T> [x:T] x)', '()')
 
 	function test(input: string, expected: string) {
 		it(`body of ${input} should evaluate to ${expected}`, () => {
