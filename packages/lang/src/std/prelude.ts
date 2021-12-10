@@ -182,6 +182,11 @@ PreludeScope.def(
 	)
 )
 
+PreludeScope.def(
+	'inc$',
+	defn2('(-> [x:Num2] Num2)', (x: Exp.Num) => Exp.num(x.value + 1))
+)
+
 PreludeScope.defs(
 	parseModule(`
 compose = (=> [f:(-> [<T>] <U>) g:(-> [<U>] <V>)] (=> [x:<T>] (g (f x))))
