@@ -28,8 +28,8 @@ describe('getTyVars', () => {
 })
 
 describe('unifyTyVars', () => {
-	run([[T, '>=', Exp.tyNum]], T, Exp.tyNum)
-	run(
+	test([[T, '>=', Exp.tyNum]], T, Exp.tyNum)
+	test(
 		[
 			[T, '>=', Exp.unit],
 			[T, '>=', Exp.tyNum],
@@ -38,14 +38,14 @@ describe('unifyTyVars', () => {
 		Exp.TyUnion.fromTypesUnsafe([Exp.unit, Exp.tyNum])
 	)
 
-	function run(consts: Const[], tv: Exp.TyVar, expected: Exp.Value) {
+	function test(consts: Const[], tv: Exp.TyVar, expected: Exp.Value) {
 		const cStr = printConsts(consts)
 		const tvStr = tv.print()
 		const eStr = expected.print()
-		const subst = RangedUnifier.unify(consts)
+		const subst = RangedUnifier.unify(...consts)
 		const resolved = subst.substitute(tv)
 
-		test(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
+		it(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
 			if (!resolved.isEqualTo(expected)) {
 				throw new Error('Got=' + resolved.print())
 			}
