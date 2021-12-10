@@ -576,6 +576,7 @@ export class EFn implements INode, IExp {
 		const out = this.body.infer(innerEnv)
 
 		const fnVal = Val.fn(fn, param, out, this.body)
+
 		return Writer.of(fnVal, ...paramLog)
 	}
 
@@ -590,7 +591,10 @@ export class EFn implements INode, IExp {
 
 		const ty = this.infer2(env)
 
-		return withLog(Fn.from(ty, fn, this.body))
+		const fnVal = Fn.from(ty, fn, this.body)
+		fnVal.env = env
+
+		return withLog(fnVal)
 	}
 
 	infer(env: Env = new Map()): Val.Value {
@@ -638,6 +642,8 @@ export class EFn implements INode, IExp {
 
 export class Fn implements INode, IValue, IFnLike {
 	readonly type = 'fn' as const
+
+	env?: Env2
 
 	private constructor(
 		public superType: TyFn,
@@ -1554,7 +1560,7 @@ export class App implements INode, IExp {
 				arg[tv.name] = subst.substitute(tv)
 			}
 
-			const innerEnv = env ? env.push(arg) : Env2.from(arg)
+			const innerEnv = fn.env ? fn.env.push(arg) : Env2.from(arg)
 
 			;[result, callLog] = fn.body.eval2(innerEnv).asTuple
 		} else {
