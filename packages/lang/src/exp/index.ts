@@ -107,6 +107,7 @@ export const vec = Vec.of
 export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
+export const tyProd = TyProd.of
 
 // Type operations
 export {tyUnion, tyDifference, tyIntersection}

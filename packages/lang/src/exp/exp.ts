@@ -1080,7 +1080,7 @@ export class Prod implements INode, IValue {
 	}
 }
 
-export class TyProd implements INode, IValue {
+export class TyProd implements INode, IValue, IFnLike {
 	readonly type = 'tyProd' as const
 	superType = All.instance
 
@@ -1097,6 +1097,10 @@ export class TyProd implements INode, IValue {
 		}
 		return this.#defaultValue
 	}
+
+	tyFn: TyFn = TyFn.from(this.param, this)
+
+	fn = (...items: Value[]) => withLog(this.of(...items))
 
 	eval2 = () => withLog(this)
 
