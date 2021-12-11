@@ -90,7 +90,7 @@ PreludeScope.defs({
 	nand: defn('(-> [x:Bool y:Bool] Bool)', (x: Exp.Enum, y: Exp.Enum) =>
 		Exp.bool(!(x === Exp.True && y === Exp.True))
 	),
-	len: defn('(-> [x:(| Str [..._])] Num)', (x: Exp.Str | Exp.Vec) => {
+	len: defn('(-> x:(| Str [..._]) Num)', (x: Exp.Str | Exp.Vec) => {
 		if (x.type === 'vec') return Exp.num(x.items.length)
 		else return Exp.num(x.value.length)
 	}),
@@ -102,11 +102,11 @@ PreludeScope.defs({
 			return gcd
 		})()
 	),
-	rest: defn('(-> <T> [coll:[...T]] [...T])', (coll: Exp.Vec) =>
+	rest: defn('(-> <T> coll:[...T] [...T])', (coll: Exp.Vec) =>
 		Exp.vec(...coll.items.slice(1))
 	),
 	map: defn(
-		'(-> <T U> [f: (-> [T] U) coll:[...T]] [...U])',
+		'(-> <T U> [f: (-> T U) coll:[...T]] [...U])',
 		(f: Exp.Fn, coll: Exp.Vec) => {
 			const [items] = Writer.map(coll.items, f.fn).asTuple
 			return Exp.vec(...items)
@@ -125,32 +125,36 @@ PreludeScope.defs({
 
 PreludeScope.defs(
 	parseModule(`
-not = (=> [x:Bool] (nand x x))
+not = (=> x:Bool (nand x x))
 or  = (=> [x:Bool y:Bool] (nand (not x) (not y)))
 
-compose = (=> <T U V> [f:(-> [T] U) g:(-> [U] V)] (=> [x:T] (g (f x))))
-twice = (=> <T> [f:(-> [T] T)] (compose f f))
+compose = (=> <T U V>
+              [f:(-> T U)
+               g:(-> U V)]
+              (=> x:T (g (f x))))
 
-inc = (=> [x:Num] (+ x 1))
+twice = (=> <T> f:(-> T T) (compose f f))
 
-dec = (=> [x:Num] (- x 1))
+inc = (=> x:Num (+ x 1))
 
-isEven = (=> [x:Num] (== (mod x 2) 0))
+dec = (=> x:Num (- x 1))
 
-const = (=> <T> [x:T] (=> [] x))
+isEven = (=> x:Num (== (mod x 2) 0))
 
-first = (=> [coll:[...<T>]] (coll 0))
+const = (=> <T> x:T (=> [] x))
 
-id = (=> [x:<T>] x)
+first = (=> <T> coll:[...T] (coll 0))
 
-sum = (=> [xs:[...Num]] (reduce + xs 0))
+id = (=> x:<T> x)
 
-neg = (=> [x:Num] (* x -1))
+sum = (=> xs:[...Num] (reduce + xs 0))
+
+neg = (=> x:Num (* x -1))
 
 - = (=> [x:Num y:Num] (+ x (neg y)))
 
-sqrt   = (=> [x:Num] (** x 0.5))
-square = (=> [x:Num] (** x 2))
+sqrt   = (=> x:Num (** x 0.5))
+square = (=> x:Num (** x 2))
 hypot  = (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
 PI = 3.1415926535897932384626433832795028841971693993
 
