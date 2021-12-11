@@ -199,6 +199,10 @@ export class All implements INode, IValue {
 	readonly type = 'all' as const
 	defaultValue = Unit.instance
 
+	private constructor() {
+		return this
+	}
+
 	eval = () => withLog(this)
 	infer = () => this
 	print = () => '_'
@@ -215,6 +219,10 @@ Unit.prototype.superType = All.instance
 export class Bottom implements INode, IValue {
 	readonly type = 'bottom' as const
 	defaultValue = this
+
+	private constructor() {
+		return this
+	}
 
 	eval = () => withLog(this)
 
