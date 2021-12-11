@@ -19,18 +19,18 @@ import {
 	Num,
 	Prim,
 	print,
-	Prod,
 	Scope,
 	setParent,
 	Str,
+	Struct,
 	Sym,
 	TyDict,
 	TyEnum,
 	TyFn,
 	tyNum,
 	TyPrim,
-	TyProd,
 	tyStr,
+	TyStruct,
 	TyUnion,
 	TyVar,
 	TyVec,
@@ -79,8 +79,8 @@ export {
 	TyVec,
 	Dict,
 	TyDict,
-	Prod,
-	TyProd,
+	Struct,
+	TyStruct,
 	TyUnion,
 }
 
@@ -107,7 +107,7 @@ export const vec = Vec.of
 export const tyVec = TyVec.of
 export const dict = Dict.of
 export const tyDict = TyDict.of
-export const tyProd = TyProd.of
+export const tyStruct = TyStruct.of
 
 // Type operations
 export {tyUnion, tyDifference, tyIntersection}

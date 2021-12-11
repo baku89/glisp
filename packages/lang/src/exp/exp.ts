@@ -37,7 +37,7 @@ type Type =
 	| TyFn
 	| TyVec
 	| TyDict
-	| TyProd
+	| TyStruct
 	| TyUnion
 
 type Atomic =
@@ -50,7 +50,7 @@ type Atomic =
 	| Fn
 	| Vec
 	| Dict
-	| Prod
+	| Struct
 
 export type UnitableType = Exclude<Value, All | Bottom>
 
@@ -1045,10 +1045,10 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 	return true
 }
 
-export class Prod implements INode, IValue {
-	readonly type = 'prod' as const
+export class Struct implements INode, IValue {
+	readonly type = 'struct' as const
 
-	private constructor(public superType: TyProd, public items: Value[]) {}
+	private constructor(public superType: TyStruct, public items: Value[]) {}
 
 	defaultValue = this
 
@@ -1063,7 +1063,7 @@ export class Prod implements INode, IValue {
 	}
 
 	isSameTo = (e: Node) =>
-		e.type === 'prod' &&
+		e.type === 'struct' &&
 		this.superType.isSameTo(e.superType) &&
 		isEqualArray(this.items, e.items, isSame)
 
@@ -1073,13 +1073,13 @@ export class Prod implements INode, IValue {
 
 	isType = false
 
-	static of(ctor: TyProd, items: Value[]) {
-		return new Prod(ctor, items)
+	static of(ctor: TyStruct, items: Value[]) {
+		return new Struct(ctor, items)
 	}
 }
 
-export class TyProd implements INode, IValue, IFnLike {
-	readonly type = 'tyProd' as const
+export class TyStruct implements INode, IValue, IFnLike {
+	readonly type = 'tyStruct' as const
 	superType = All.instance
 
 	private constructor(
@@ -1087,11 +1087,11 @@ export class TyProd implements INode, IValue, IFnLike {
 		public param: Record<string, Value>
 	) {}
 
-	#defaultValue?: Prod
+	#defaultValue?: Struct
 	get defaultValue() {
 		if (!this.#defaultValue) {
 			const items = values(this.param).map(p => p.defaultValue)
-			this.#defaultValue = Prod.of(this, items)
+			this.#defaultValue = Struct.of(this, items)
 		}
 		return this.#defaultValue
 	}
@@ -1107,7 +1107,7 @@ export class TyProd implements INode, IValue, IFnLike {
 	// TODO: Fix this
 	print = () => this.name
 
-	isSameTo = (e: Node) => e.type === 'tyProd' && this.name === e.name
+	isSameTo = (e: Node) => e.type === 'tyStruct' && this.name === e.name
 
 	isEqualTo = this.isSameTo
 
@@ -1116,11 +1116,11 @@ export class TyProd implements INode, IValue, IFnLike {
 	isType = true
 
 	of(...items: Value[]) {
-		return Prod.of(this, items)
+		return Struct.of(this, items)
 	}
 
 	static of(name: string, param: Record<string, Value>) {
-		return new TyProd(name, param)
+		return new TyStruct(name, param)
 	}
 }
 

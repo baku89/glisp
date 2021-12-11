@@ -91,7 +91,7 @@ PreludeScope.defs({
 	),
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
-		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyProd(name.value, items)
+		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyStruct(name.value, items)
 	),
 	fnType: defn('(-> f:_ _)', (f: Exp.Value) => ('tyFn' in f ? f.tyFn : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Exp.Value, t: Exp.Value) =>
