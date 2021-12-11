@@ -1,7 +1,7 @@
 import {
 	all,
-	app,
 	bottom,
+	call,
 	eDict,
 	eDictFrom,
 	eFn,
@@ -67,13 +67,13 @@ describe('parsing symbols', () => {
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', app(sym('+'), num(1), num(2)))
-	testParsing('(* 1 2)', app(sym('*'), num(1), num(2)))
-	testParsing('(x _)', app(x, all))
-	testParsing('(x ())', app(x, unit))
-	testParsing('(x)', app(x))
-	testParsing('(0 false)', app(num(1), sym('false')))
-	testParsing('((true) x)', app(app(sym('true')), x))
+	testParsing('(+ 1 2)', call(sym('+'), num(1), num(2)))
+	testParsing('(* 1 2)', call(sym('*'), num(1), num(2)))
+	testParsing('(x _)', call(x, all))
+	testParsing('(x ())', call(x, unit))
+	testParsing('(x)', call(x))
+	testParsing('(0 false)', call(num(1), sym('false')))
+	testParsing('((true) x)', call(call(sym('true')), x))
 })
 
 describe('parsing scope', () => {
@@ -91,7 +91,7 @@ describe('parsing vector', () => {
 	testParsing('[1[2]3   ]', eVec(num(1), eVec(num(2)), num(3)))
 	testParsing(
 		'[(+)false(+)+]',
-		eVec(app(sym('+')), sym('false'), app(sym('+')), sym('+'))
+		eVec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
 	)
 	testParsing('[...1]', eVecFrom([], num(1)))
 })
@@ -117,7 +117,7 @@ describe('parsing function definition', () => {
 	testParsing('(=> [x : Num y : Bool] x)', eFn([], {x: Num, y: Bool}, x))
 	testParsing('(=>[]_)', eFn([], {}, all))
 	testParsing('(=>[]())', eFn([], {}, unit))
-	testParsing('(=> [] (+ 1 2))', eFn([], {}, app(sym('+'), num(1), num(2))))
+	testParsing('(=> [] (+ 1 2))', eFn([], {}, call(sym('+'), num(1), num(2))))
 	testParsing('(=> [] (=> [] 1))', eFn([], {}, eFn([], {}, num(1))))
 	testParsing('(=> <T> [x:T] x)', eFn(['T'], {x: sym('T')}, x))
 	testParsing('(=> <T U> [x:T] x)', eFn(['T', 'U'], {x: sym('T')}, x))

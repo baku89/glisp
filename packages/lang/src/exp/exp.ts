@@ -25,7 +25,7 @@ import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 export type Node = Exp | Value
 
 export type Exp = Sym | ExpComplex
-export type ExpComplex = App | Scope | EFn | ETyFn | EVec | EDict
+export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
 
@@ -1170,8 +1170,8 @@ export class TyUnion implements INode, IValue {
 	static of = tyUnion
 }
 
-export class App implements INode, IExp {
-	readonly type = 'app' as const
+export class Call implements INode, IExp {
+	readonly type = 'call' as const
 	parent: ExpComplex | null = null
 
 	private constructor(public fn: Node, public args: Node[]) {}
@@ -1299,10 +1299,10 @@ export class App implements INode, IExp {
 	}
 
 	isSameTo = (exp: Node) =>
-		exp.type === 'app' && isEqualArray(this.args, exp.args, isSame)
+		exp.type === 'call' && isEqualArray(this.args, exp.args, isSame)
 
 	static of(fn: Node, ...args: Node[]) {
-		const app = new App(fn, args)
+		const app = new Call(fn, args)
 		setParent(fn, app)
 		args.forEach(a => setParent(a, app))
 		return app

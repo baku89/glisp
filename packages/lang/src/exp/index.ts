@@ -1,7 +1,7 @@
 import {
 	All,
-	App,
 	Bottom,
+	Call,
 	Dict,
 	EDict,
 	EFn,
@@ -48,10 +48,10 @@ export {Node, Exp, ExpComplex, Value}
 export {Log, WithLog, withLog}
 
 // Exp
-export {Sym, App, Scope, EFn, ETyFn, EVec, EDict}
+export {Sym, Call as Call, Scope, EFn, ETyFn, EVec, EDict}
 
 export const sym = Sym.of
-export const app = App.of
+export const call = Call.of
 export const scope = Scope.of
 export const eFn = EFn.of
 export const eTyFn = ETyFn.of

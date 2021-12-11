@@ -59,7 +59,7 @@ Str "Str" = '"' value:$(!'"' .)* '"'
 
 App "App" = "(" _ fn:Node _ args:AppArg* ")"
 	{
-		return Exp.app(fn, ...args)
+		return Exp.call(fn, ...args)
 	}
 
 AppArg = arg:Node _ { return arg }
