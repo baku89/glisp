@@ -5,7 +5,7 @@ import {Writer} from '../utils/Writer'
 
 function defn(ty: string, fn: (...args: any[]) => Exp.Value) {
 	try {
-		const fnTy = parse(ty, PreludeScope).eval2().result
+		const fnTy = parse(ty, PreludeScope).eval().result
 
 		if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
@@ -27,38 +27,6 @@ export const PreludeScope = Exp.scope({
 		Exp.withLog(Exp.tyUnion(t1, t2))
 	),
 })
-
-// 	map: Exp.obj(
-// 		Val.fn(
-// 			(f: Val.Fn, coll: Val.Vec) => {
-// 				const [newItems, log] = Writer.map(coll.items, f.fn).asTuple
-// 				return Writer.of(Val.vecFrom(newItems), ...log)
-// 			},
-// 			{f: Val.tyFn(T, U), coll: Val.vecFrom([], T)},
-// 			Val.vecFrom([], U)
-// 		)
-// 	),
-// 	isSubtype: defn(
-// 		(s: Val.Value, t: Val.Value) => Val.bool(s.isSubtypeOf(t)),
-// 		{s: Val.all, t: Val.all},
-// 		Val.tyBool
-// 	),
-// 	fnType: defn(
-// 		(f: Val.Value) => ('tyFn' in f ? f.tyFn : f),
-// 		{f: Val.all},
-// 		Val.all
-// 	),
-// 	struct: defn(
-// 		(name: Val.Str, {items}: Val.Dict) => {
-// 			return Val.tyProd(
-// 				name.value,
-// 				items,
-// 				values(items).map(it => it.defaultValue)
-// 			)
-// 		},
-// 		{name: Val.tyStr, param: Val.tyDict({}, Val.all)},
-// 		Val.all
-// 	),
 
 PreludeScope.defs({
 	'+': defn('(-> [x:Num y:Num] Num)', (a: Exp.Num, b: Exp.Num) =>
@@ -120,6 +88,14 @@ PreludeScope.defs({
 				initial
 			)
 		}
+	),
+	struct: defn(
+		'(-> [name:Str param:{..._}] _)',
+		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyProd(name.value, items)
+	),
+	fnType: defn('(-> f:_ _)', (f: Exp.Value) => ('tyFn' in f ? f.tyFn : f)),
+	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Exp.Value, t: Exp.Value) =>
+		Exp.bool(s.isSubtypeOf(t))
 	),
 })
 

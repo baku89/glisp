@@ -51,7 +51,7 @@ function startRepl() {
 		eval(input, context, file, cb) {
 			try {
 				const exp = parse(input, replScope)
-				const evaluated = exp.eval2()
+				const evaluated = exp.eval()
 
 				if (IO.isInstance(evaluated.result)) {
 					evaluated.result.value()

@@ -56,8 +56,8 @@ export type UnitableType = Exclude<Value, All | Bottom>
 
 interface INode {
 	readonly type: string
-	eval2(env?: Env): WithLog
-	infer2(env?: Env): Value
+	eval(env?: Env): WithLog
+	infer(env?: Env): Value
 	print(): string
 
 	isSameTo(exp: Node): boolean
@@ -147,9 +147,9 @@ export class Sym implements INode, IExp {
 		return this.#resolve2(ref.parent, env)
 	}
 
-	eval2 = (env?: Env): WithLog => {
+	eval = (env?: Env): WithLog => {
 		return this.#resolve2(this.parent, env).bind(({node, mode}) => {
-			const value = node.eval2(env)
+			const value = node.eval(env)
 
 			return mode === 'param'
 				? withLog(value.result.defaultValue, ...value.log)
@@ -157,16 +157,16 @@ export class Sym implements INode, IExp {
 		})
 	}
 
-	infer2(env?: Env): Value {
+	infer(env?: Env): Value {
 		const {node, mode} = this.#resolve2(this.parent, env).result
 
 		/**
 		 * (=> [x:(+ 1 2)] x) のようなケースでは、 (+ 1 2) は評価しないといけない
 		 */
 		if (mode === 'param' || mode === 'arg' || mode === 'tyVar') {
-			return node.eval2(env).result
+			return node.eval(env).result
 		} else {
-			return node.infer2(env)
+			return node.infer(env)
 		}
 	}
 
@@ -184,8 +184,8 @@ export class Unit implements INode, IValue {
 	superType!: All
 	defaultValue = this
 
-	eval2 = () => withLog(this)
-	infer2 = () => this
+	eval = () => withLog(this)
+	infer = () => this
 	print = () => '()'
 	isSameTo = (exp: Node) => exp.type === 'unit'
 	isEqualTo = this.isSameTo
@@ -199,8 +199,8 @@ export class All implements INode, IValue {
 	readonly type = 'all' as const
 	defaultValue = Unit.instance
 
-	eval2 = () => withLog(this)
-	infer2 = () => this
+	eval = () => withLog(this)
+	infer = () => this
 	print = () => '_'
 	isSameTo = (exp: Node) => exp.type === 'all'
 	isEqualTo = this.isSameTo
@@ -216,9 +216,9 @@ export class Bottom implements INode, IValue {
 	readonly type = 'bottom' as const
 	defaultValue = this
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 	print = () => '_|_'
 	isSameTo = (exp: Node) => exp.type === 'bottom'
 	isEqualTo = this.isSameTo
@@ -234,8 +234,8 @@ export class Prim<T = any> implements INode, IValue {
 
 	protected constructor(public superType: TyPrim, public value: T) {}
 
-	eval2 = (): WithLog => withLog(this)
-	infer2 = () => this
+	eval = (): WithLog => withLog(this)
+	infer = () => this
 	print = () => `<instance of ${this.superType.print()}>`
 
 	isSameTo = (exp: Node) =>
@@ -277,9 +277,9 @@ export class TyPrim<T = any> implements INode, IValue {
 
 	private constructor(private readonly name: string) {}
 
-	eval2 = (): WithLog => withLog(this)
+	eval = (): WithLog => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	print = () => this.name
 
@@ -327,8 +327,8 @@ export class Enum implements INode, IValue {
 
 	defaultValue = this
 
-	eval2 = () => withLog(this)
-	infer2 = () => this
+	eval = () => withLog(this)
+	infer = () => this
 	// TODO: fix this
 	print = () => this.name
 
@@ -359,9 +359,9 @@ export class TyEnum implements INode, IValue {
 
 	defaultValue = this.types[0]
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	// TODO: fix this
 	print = () => this.name
@@ -402,8 +402,8 @@ export class TyVar implements INode, IValue {
 
 	defaultValue = Unit.instance
 
-	eval2 = () => withLog(this)
-	infer2 = () => All.instance
+	eval = () => withLog(this)
+	infer = () => All.instance
 	print = () => '<' + this.name + '>'
 	isSameTo = (exp: Node) => exp.type === 'tyVar' && this.name === exp.name
 
@@ -452,16 +452,16 @@ export class EFn implements INode, IExp {
 		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
 	}
 
-	eval2 = (env?: Env): WithLog => {
+	eval = (env?: Env): WithLog => {
 		const names = keys(this.param)
 
 		const fn: IFn = (...args: Value[]) => {
 			const arg = fromPairs(zip(names, args))
 			const innerEnv = env ? env.push(arg) : Env.from(arg)
-			return this.body.eval2(innerEnv)
+			return this.body.eval(innerEnv)
 		}
 
-		const ty = this.infer2(env)
+		const ty = this.infer(env)
 
 		const fnVal = Fn.from(ty, fn, this.body)
 		fnVal.env = env
@@ -469,12 +469,12 @@ export class EFn implements INode, IExp {
 		return withLog(fnVal)
 	}
 
-	infer2 = (env?: Env): TyFn => {
-		const param = Writer.mapValues(this.param, p => p.eval2(env)).result
+	infer = (env?: Env): TyFn => {
+		const param = Writer.mapValues(this.param, p => p.eval(env)).result
 
 		const innerEnv = env ? env.push(param) : Env.from(param)
 
-		const out = this.body.infer2(innerEnv)
+		const out = this.body.infer(innerEnv)
 
 		return TyFn.from(param, out)
 	}
@@ -517,9 +517,9 @@ export class Fn implements INode, IValue, IFnLike {
 
 	defaultValue = this
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => this
+	infer = () => this
 
 	print = (): string => {
 		const param = this.superType.printParam()
@@ -555,13 +555,13 @@ export class ETyFn implements INode, IExp {
 		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
 	}
 
-	eval2 = (env?: Env): WithLog => {
-		const [params, lp] = Writer.mapValues(this.param, p => p.eval2(env)).asTuple
-		const [out, lo] = this.out.eval2(env).asTuple
+	eval = (env?: Env): WithLog => {
+		const [params, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
+		const [out, lo] = this.out.eval(env).asTuple
 		return withLog(TyFn.from(params, out), ...lp, ...lo)
 	}
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	print = (): string => {
 		const tyVars = printTyVars(this.tyVars)
@@ -611,9 +611,9 @@ export class TyFn implements INode, IValue, ITyFn {
 		return this.#defaultValue
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	printParam = () => `[${entries(this.param).map(printNamedNode).join(' ')}]`
 
@@ -676,19 +676,19 @@ export class EVec implements INode {
 		return this.items.length
 	}
 
-	eval2 = (env?: Env): WithLog => {
-		const [items, li] = Writer.map(this.items, i => i.eval2(env)).asTuple
+	eval = (env?: Env): WithLog => {
+		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
 		if (this.rest) {
-			const [rest, lr] = this.rest.eval2(env).asTuple
+			const [rest, lr] = this.rest.eval(env).asTuple
 			return withLog(TyVec.of(items, rest), ...li, ...lr)
 		} else {
 			return withLog(Vec.of(...items), ...li)
 		}
 	}
 
-	infer2(env?: Env): Value {
+	infer(env?: Env): Value {
 		if (this.rest) return All.instance
-		const items = this.items.map(it => it.infer2(env))
+		const items = this.items.map(it => it.infer(env))
 		return Vec.of(...items)
 	}
 
@@ -729,9 +729,9 @@ export class Vec implements INode, IValue, IFnLike {
 		return this.#defaultValue
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => (this.isType ? All.instance : this)
+	infer = () => (this.isType ? All.instance : this)
 
 	print = (): string => {
 		const items = this.items.map(print)
@@ -783,9 +783,9 @@ export class TyVec implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	print = (): string => {
 		const items = this.items.map(print)
@@ -853,23 +853,21 @@ export class EDict implements INode, IExp {
 		public rest?: Node
 	) {}
 
-	infer2 = (): Value => {
+	infer = (): Value => {
 		if (this.rest) return All.instance
 		const items: Dict['items'] = {}
 		for (const [key, {optional, value}] of entries(this.items)) {
 			if (optional) return All.instance
-			items[key] = value.infer2()
+			items[key] = value.infer()
 		}
 		return Dict.of(items)
 	}
 
-	eval2 = (env?: Env): WithLog => {
+	eval = (env?: Env): WithLog => {
 		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
-			value.eval2(env).fmap(value => ({optional, value}))
+			value.eval(env).fmap(value => ({optional, value}))
 		).asTuple
-		const [rest, lr] = this.rest
-			? this.rest.eval2(env).asTuple
-			: [undefined, []]
+		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
 
 		return withLog(TyDict.of(items, rest), ...li, ...lr)
 	}
@@ -918,9 +916,9 @@ export class Dict implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => (this.isType ? All.instance : this)
+	infer = () => (this.isType ? All.instance : this)
 
 	print = (): string => {
 		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
@@ -970,9 +968,9 @@ export class TyDict implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => All.instance
+	infer = () => All.instance
 
 	print = (): string => {
 		const items = entries(this.items).map(([k, {optional, value}]) => {
@@ -1054,9 +1052,9 @@ export class Prod implements INode, IValue {
 
 	defaultValue = this
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => this
+	infer = () => this
 
 	print = (): string => {
 		const ctor = this.superType.print()
@@ -1102,9 +1100,9 @@ export class TyProd implements INode, IValue, IFnLike {
 
 	fn = (...items: Value[]) => withLog(this.of(...items))
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => this
+	infer = () => this
 
 	// TODO: Fix this
 	print = () => this.name
@@ -1139,9 +1137,9 @@ export class TyUnion implements INode, IValue {
 		return (this.#defaultValue ??= this.types[0].defaultValue)
 	}
 
-	eval2 = () => withLog(this)
+	eval = () => withLog(this)
 
-	infer2 = () => this
+	infer = () => this
 
 	print = (): string => {
 		const types = this.types.map(print).join(' ')
@@ -1179,7 +1177,7 @@ export class App implements INode, IExp {
 	private constructor(public fn: Node, public args: Node[]) {}
 
 	#unifyFn(env?: Env): [RangedUnifier, Value[]] {
-		const ty = this.fn.infer2(env)
+		const ty = this.fn.infer(env)
 
 		if (!('tyFn' in ty)) return [RangedUnifier.empty(), []]
 
@@ -1189,7 +1187,7 @@ export class App implements INode, IExp {
 
 		const shadowedArgs = this.args
 			.slice(0, params.length)
-			.map(a => shadowTyVars(a.infer2(env)))
+			.map(a => shadowTyVars(a.infer(env)))
 
 		const subst = RangedUnifier.unify([
 			Vec.of(...params),
@@ -1200,9 +1198,9 @@ export class App implements INode, IExp {
 		return [subst, shadowedArgs]
 	}
 
-	eval2 = (env?: Env): WithLog => {
+	eval = (env?: Env): WithLog => {
 		// Evaluate the function itself at first
-		const [fn, fnLog] = this.fn.eval2(env).asTuple
+		const [fn, fnLog] = this.fn.eval(env).asTuple
 
 		// Check if it's not a function
 		if (!('fn' in fn)) {
@@ -1254,7 +1252,7 @@ export class App implements INode, IExp {
 				return pTy.defaultValue
 			}
 
-			const [aVal, aLog] = this.args[i].eval2(env).asTuple
+			const [aVal, aLog] = this.args[i].eval(env).asTuple
 
 			logs.push(...aLog)
 
@@ -1274,7 +1272,7 @@ export class App implements INode, IExp {
 
 			const innerEnv = fn.env ? fn.env.push(arg) : Env.from(arg)
 
-			;[result, callLog] = fn.body.eval2(innerEnv).asTuple
+			;[result, callLog] = fn.body.eval(innerEnv).asTuple
 		} else {
 			;[result, callLog] = fn.fn(...args).asTuple
 		}
@@ -1285,8 +1283,8 @@ export class App implements INode, IExp {
 		return withLog(result, ...fnLog, ...logs, ...callLogWithRef)
 	}
 
-	infer2 = (env?: Env): Value => {
-		const ty = this.fn.infer2(env)
+	infer = (env?: Env): Value => {
+		const ty = this.fn.infer(env)
 		if (!('tyFn' in ty)) return ty
 
 		const [subst] = this.#unifyFn(env)
@@ -1320,10 +1318,9 @@ export class Scope implements INode, IExp {
 		public out: Node | null = null
 	) {}
 
-	infer2 = (env?: Env): Value => this.out?.infer2(env) ?? Unit.instance
+	infer = (env?: Env): Value => this.out?.infer(env) ?? Unit.instance
 
-	eval2 = (env?: Env): WithLog =>
-		this.out?.eval2(env) ?? Writer.of(Unit.instance)
+	eval = (env?: Env): WithLog => this.out?.eval(env) ?? Writer.of(Unit.instance)
 
 	print(): string {
 		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())

@@ -7,7 +7,7 @@ MathScope.defs(
 	parseModule(`
 Vec2 = (struct "Vec2" {x:Num y:Num})
 
-Vec2/length = (=> [v:Vec2] (hypot (v "x") (v "y")))
+Vec2/length = (=> v:Vec2 (hypot (v "x") (v "y")))
 
 Vec2/+ = (=> [x:Vec2 y:Vec2]
              (Vec2 (+ (x "x") (y "x"))
@@ -34,9 +34,9 @@ Frac = (struct "Frac" {num:Num den:Num})
 
 Frac/fromNum = (=> [num:Num den:Num] (Frac/reduce (Frac num den)))
 
-Frac/asNum = (=> [r:Frac] (/ (r "num") (r "den")))
+Frac/asNum = (=> r:Frac (/ (r "num") (r "den")))
 
-Frac/reduce = (=> [r:Frac]
+Frac/reduce = (=> r:Frac
                   (let num = (r "num")
                        den = (r "den")
                        g   = (gcd num den)
@@ -63,7 +63,7 @@ Frac/* = (=> [x:Frac y:Frac]
 Frac/scale = (=> [r:Frac s:Num]
                  (Frac/fromNum (* (r "num") s) (r "den")))
 
-Frac/neg = (=> [r:Frac] (Frac/scale r -1))
+Frac/neg = (=> r:Frac (Frac/scale r -1))
 `)
 )
 

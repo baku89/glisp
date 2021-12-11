@@ -17,7 +17,7 @@ export function parse(
 }
 
 export function evaluate(input: string | Exp.Node): Exp.Value {
-	return parse(input).eval2().result
+	return parse(input).eval().result
 }
 
 export function testEval(
@@ -30,9 +30,9 @@ export function testEval(
 
 	test(`${iStr} evaluates to ${eStr}`, () => {
 		const exp = parse(input)
-		const expectedVal = parse(input).eval2().result
+		const expectedVal = parse(input).eval().result
 
-		const {result, log} = exp.eval2()
+		const {result, log} = exp.eval()
 		if (!result.isEqualTo(expectedVal)) {
 			throw new Error('Got=' + result.print())
 		}

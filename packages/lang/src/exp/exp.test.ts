@@ -40,7 +40,7 @@ describe('value equality', () => {
 	function test(input: string | Value) {
 		const inputStr = typeof input === 'string' ? input : input.print()
 		it(`${inputStr} equals to itself`, () => {
-			const value = parse(input).eval2().result
+			const value = parse(input).eval().result
 			expect(isEqual(value, value)).toBe(true)
 		})
 	}
@@ -132,8 +132,8 @@ describe('default values of types', () => {
 		const eStr = fn ? `(=> [] ${expected})` : expected
 
 		it(`default value of '${input}' is '${eStr}'`, () => {
-			let dv: Value = parse(input).eval2().result.defaultValue
-			const ev = parse(expected).eval2().result
+			let dv: Value = parse(input).eval().result.defaultValue
+			const ev = parse(expected).eval().result
 
 			if (fn) {
 				if (dv.type !== 'fn') throw new Error('Got=' + dv.print())
@@ -314,7 +314,7 @@ describe('instance relationship', () => {
 		it(`${i} is ${expected ? '' : 'not '}a instance of ${t}`, () => {
 			const iv = evaluate(parse(i))
 			const tv = evaluate(parse(t))
-			expect(iv.infer2().isSubtypeOf(tv)).toBe(expected)
+			expect(iv.infer().isSubtypeOf(tv)).toBe(expected)
 		})
 	}
 })
@@ -367,8 +367,8 @@ describe('inferring expression type', () => {
 
 	function test(input: string, expected: string) {
 		it(`${input} is inferred to be ${expected}`, () => {
-			const i = parse(input).infer2()
-			const e = parse(expected).eval2().result
+			const i = parse(input).infer()
+			const e = parse(expected).eval().result
 
 			if (!i.isEqualTo(e)) throw new Error('Got=' + i.print())
 		})
@@ -384,11 +384,11 @@ describe('evaluating function body', () => {
 	function test(input: string, expected: string) {
 		it(`body of ${input} should evaluate to ${expected}`, () => {
 			const i = parse(input)
-			const e = parse(expected).eval2().result
+			const e = parse(expected).eval().result
 
 			if (i.type !== 'eFn') throw new Error('Not a function, got =' + i.print())
 
-			const result = i.body.eval2().result
+			const result = i.body.eval().result
 
 			if (!result.isEqualTo(e)) throw new Error('Got=' + result.print())
 		})
