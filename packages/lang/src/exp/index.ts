@@ -17,7 +17,6 @@ import {
 	isSubtype,
 	Node,
 	Num,
-	Obj,
 	Prim,
 	print,
 	Prod,
@@ -37,7 +36,6 @@ import {
 	TyVec,
 	Unit,
 	Value,
-	ValueWithLog,
 	Vec,
 } from './exp'
 import {Log, WithLog, withLog} from './log'
@@ -47,11 +45,7 @@ export {IFn}
 
 export {Node, Exp, ExpComplex, Value}
 
-export {Log, ValueWithLog, WithLog, withLog}
-
-export {Obj}
-
-export const obj = Obj.of
+export {Log, WithLog, withLog}
 
 // Exp
 export {Sym, App, Scope, EFn, ETyFn, EVec, EDict}

@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {Log, ValueWithLog} from '../exp'
+import {Log} from '../exp'
 import * as Exp from '../exp'
 import {parse} from '../parser'
 import {MathScope} from '../std/math'
@@ -64,7 +64,7 @@ function startRepl() {
 				cb(null, r)
 			}
 		},
-		writer: ({result, log}: ValueWithLog) => {
+		writer: ({result, log}: Exp.WithLog) => {
 			let str = ''
 
 			str += log.map(l => printLog(l) + '\n').join('')

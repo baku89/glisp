@@ -1,51 +1,51 @@
 import _ from 'lodash'
 
-import * as Val from '../val'
+import * as Exp from '.'
 import {Const, getTyVars, RangedUnifier} from './unify'
 
-const T = Val.tyVar('T'),
-	U = Val.tyVar('U')
+const T = Exp.tyVar('T'),
+	U = Exp.tyVar('U')
 
 describe('getTyVars', () => {
-	run(Val.num(1), [])
-	run(Val.bool(true), [])
+	run(Exp.num(1), [])
+	run(Exp.bool(true), [])
 	run(T, [T])
-	run(Val.uniteTy(T, U), [T, U])
-	run(Val.tyFn([Val.tyBool, T, T], U), [T, U])
+	run(Exp.tyUnion(T, U), [T, U])
+	run(Exp.tyFn([Exp.tyBool, T, T], U), [T, U])
 
-	function run(ty: Val.Value, expected: Val.TyVar[]) {
-		const eStr = '{' + expected.map(e => e.print()).join(', ') + '}'
+	function run(ty: Exp.Value, expected: Exp.TyVar[]) {
+		const eStr = '{' + expected.map(Exp.print).join(', ') + '}'
 
 		test(`FV(${ty.print()}) equals to ${eStr}`, () => {
 			const tvs = [...getTyVars(ty)]
-			const diff = _.differenceWith(tvs, expected, Val.isEqual)
+			const diff = _.differenceWith(tvs, expected, Exp.isEqual)
 
 			if (diff.length > 0) {
-				fail('Got={' + tvs.map(tv => tv.print()).join(', ') + '}')
+				fail('Got={' + tvs.map(Exp.print).join(', ') + '}')
 			}
 		})
 	}
 })
 
 describe('unifyTyVars', () => {
-	run([[T, '>=', Val.tyNum]], T, Val.tyNum)
-	run(
+	test([[T, '>=', Exp.tyNum]], T, Exp.tyNum)
+	test(
 		[
-			[T, '>=', Val.unit],
-			[T, '>=', Val.tyNum],
+			[T, '>=', Exp.unit],
+			[T, '>=', Exp.tyNum],
 		],
 		T,
-		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
+		Exp.TyUnion.fromTypesUnsafe([Exp.unit, Exp.tyNum])
 	)
 
-	function run(consts: Const[], tv: Val.TyVar, expected: Val.Value) {
+	function test(consts: Const[], tv: Exp.TyVar, expected: Exp.Value) {
 		const cStr = printConsts(consts)
 		const tvStr = tv.print()
 		const eStr = expected.print()
-		const subst = RangedUnifier.unify(consts)
+		const subst = RangedUnifier.unify(...consts)
 		const resolved = subst.substitute(tv)
 
-		test(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
+		it(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
 			if (!resolved.isEqualTo(expected)) {
 				throw new Error('Got=' + resolved.print())
 			}
