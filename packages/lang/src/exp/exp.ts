@@ -506,6 +506,7 @@ export class Fn implements INode, IValue, IFnLike {
 	readonly type = 'fn' as const
 
 	env?: Env
+	isTypeCtor = false
 
 	private constructor(
 		public superType: TyFn,
@@ -1286,6 +1287,10 @@ export class Call implements INode, IExp {
 	infer = (env?: Env): Value => {
 		const ty = this.fn.infer(env)
 		if (!('tyFn' in ty)) return ty
+
+		if (ty.type === 'fn' && ty.isTypeCtor) {
+			return this.eval(env).result
+		}
 
 		const [subst] = this.#unifyFn(env)
 		return unshadowTyVars(subst.substitute(ty.tyFn.out))

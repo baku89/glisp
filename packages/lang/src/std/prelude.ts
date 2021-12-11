@@ -3,13 +3,23 @@ import {parseModule} from '../parser'
 import {parse} from '../parser'
 import {Writer} from '../utils/Writer'
 
-function defn(ty: string, fn: (...args: any[]) => Exp.Value) {
+function defn(
+	ty: string,
+	f: (...args: any[]) => Exp.Value,
+	isTypeCtor = false
+) {
 	try {
 		const fnTy = parse(ty, PreludeScope).eval().result
 
 		if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-		return Exp.fn(fnTy.param, fnTy.out, (...args) => Exp.withLog(fn(...args)))
+		const fn = Exp.fn(fnTy.param, fnTy.out, (...args) =>
+			Exp.withLog(f(...args))
+		)
+
+		fn.isTypeCtor = isTypeCtor
+
+		return fn
 	} catch {
 		throw new Error('defn failed' + ty)
 	}
@@ -91,7 +101,8 @@ PreludeScope.defs({
 	),
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
-		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyStruct(name.value, items)
+		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyStruct(name.value, items),
+		true
 	),
 	fnType: defn('(-> f:_ _)', (f: Exp.Value) => ('tyFn' in f ? f.tyFn : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Exp.Value, t: Exp.Value) =>
