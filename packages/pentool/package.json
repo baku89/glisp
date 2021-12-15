@@ -12,6 +12,7 @@
 		"vue": "^3.0.0"
 	},
 	"devDependencies": {
+		"@types/lodash": "^4.14.178",
 		"@typescript-eslint/eslint-plugin": "^4.18.0",
 		"@typescript-eslint/parser": "^4.18.0",
 		"@vue/cli-plugin-eslint": "~4.5.0",
@@ -20,15 +21,26 @@
 		"@vue/compiler-sfc": "^3.0.0",
 		"@vue/eslint-config-prettier": "^6.0.0",
 		"@vue/eslint-config-typescript": "^7.0.0",
+		"axios": "^0.24.0",
+		"brace": "^0.11.1",
+		"download-as-file": "^1.1.0",
 		"eslint": "^6.7.2",
 		"eslint-plugin-prettier": "^3.3.1",
 		"eslint-plugin-simple-import-sort": "^7.0.0",
 		"eslint-plugin-unused-imports": "^2.0.0",
 		"eslint-plugin-vue": "^7.0.0",
+		"json-beautify": "^1.1.1",
+		"lines-intersection": "^1.0.0",
+		"localeval": "^15.3.0",
+		"lodash": "^4.17.21",
+		"paper": "^0.12.15",
 		"prettier": "^2.2.1",
 		"pug-plain-loader": "^1.1.0",
+		"query-string": "^7.0.1",
 		"stylus": "^0.54.7",
 		"stylus-loader": "^3.0.2",
-		"typescript": "^4.5.4"
+		"tslib": "^2.3.1",
+		"typescript": "^4.5.4",
+		"uid": "^2.0.0"
 	}
 }
