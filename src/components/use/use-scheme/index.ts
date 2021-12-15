@@ -37,7 +37,7 @@ function base16ToStaticColors(scheme: Base16): [string, StaticColors] {
 			.map(([k, v]) => [k, chroma(v).rgb().join(',')])
 	)
 
-	return [scheme.scheme, (c as any) as StaticColors]
+	return [scheme.scheme, c as any as StaticColors]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
