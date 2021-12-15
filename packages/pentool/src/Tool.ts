@@ -1,20 +1,15 @@
 import EventEmitter from 'eventemitter3'
 import linesIntersection from 'lines-intersection'
-import localeval from 'localeval'
 import Mousetrap from 'mousetrap'
 import paper from 'paper'
 
 import {jsonStringify} from './util/JsonStringify'
 
-const guideLayer = paper.project.layers.find(
-	l => l.name === 'guide'
-) as paper.Layer
-
-if (!guideLayer) throw new Error('No guide layer')
-
 type GuideMode = 'stroke' | 'fill'
 
 export type Parameters = Record<string, number | string>
+
+const evaluate = (window as any).evaluate
 
 export interface ParamScheme {
 	type: 'float' | 'color'
@@ -57,15 +52,14 @@ export default class Tool extends EventEmitter {
 		this.globalVariables = {...globalVariables}
 
 		const codeToCompile = createEvalChunk(this.code)
-		const scope = {
-			...sandbox,
-			globalVariables: this.globalVariables,
-			parameters,
-		}
 
-		const events = localeval(codeToCompile, scope)
+		;(window as any).sandbox = sandbox
+		;(window as any).globalVariables = this.globalVariables
+		;(window as any).parameters = parameters
 
-		for (const [name, cb] of events) {
+		const events: Record<string, any> = evaluate(codeToCompile)
+
+		for (const [name, cb] of Object.entries(events)) {
 			this.on(name, cb)
 		}
 	}
@@ -96,6 +90,9 @@ export default class Tool extends EventEmitter {
 	}
 
 	end() {
+		const guideLayer = paper.project.layers.find(l => l.name === 'guide')
+		if (!guideLayer) throw new Error('No guide layer')
+
 		this.isDrawing = false
 		this.isDragging = false
 		this.isPressing = false
@@ -222,6 +219,9 @@ const sandbox: Record<string, any> = {
 
 	Guide: {
 		add(item: paper.Item, mode: GuideMode = 'stroke') {
+			const guideLayer = paper.project.layers.find(l => l.name === 'guide')
+			if (!guideLayer) throw new Error('No guide layer')
+
 			item.addTo(guideLayer)
 
 			if (mode === 'stroke') {
@@ -238,6 +238,9 @@ const sandbox: Record<string, any> = {
 		},
 
 		addPoint(center: paper.Point, mode: GuideMode = 'fill') {
+			const guideLayer = paper.project.layers.find(l => l.name === 'guide')
+			if (!guideLayer) throw new Error('No guide layer')
+
 			const item = new paper.Path.Circle(center, 3)
 			item.applyMatrix = false
 
@@ -260,6 +263,9 @@ const sandbox: Record<string, any> = {
 		},
 
 		addLine(from: paper.Point, to: paper.Point, width = 0.5) {
+			const guideLayer = paper.project.layers.find(l => l.name === 'guide')
+			if (!guideLayer) throw new Error('No guide layer')
+
 			const item = new paper.Path.Line(from, to)
 			item.addTo(guideLayer)
 			item.strokeColor = new paper.Color('#3e999f')
@@ -304,8 +310,8 @@ for (const name of Object.getOwnPropertyNames(Math)) {
 
 function createEvalChunk(code: string) {
 	return `try {
-	with (globalVariables) {
-		with (parameters) {
+	with (window.globalVariables) {
+		with (window.parameters) {
 			${code}
 		}
 	}
