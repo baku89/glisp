@@ -108,7 +108,7 @@ Vec = "[" _ items:VecItem* rest:Rest? "]"
 		return Exp.eVecFrom(items, rest)
 	}
 
-VecItem = !("..." _) item:Node _ { return item }
+VecItem = !"..." item:Node _ { return item }
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
