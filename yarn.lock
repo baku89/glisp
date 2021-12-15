@@ -12284,6 +12284,11 @@ vue-cli-plugin-electron-builder@~2.1.1:
     webpack-merge "^4.2.2"
     yargs "^15.3.1"
 
+vue-cli-plugin-yaml-loader@~1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/vue-cli-plugin-yaml-loader/-/vue-cli-plugin-yaml-loader-1.0.0.tgz#13d6cc8a9461b7e48475db6a8b6d20f6c2d748e1"
+  integrity sha512-Mm/CwFrBtsVZVML4+AtggQqKMz8Qb3B5dgQhUvA4KmI/r2Fd7gyMYK2Iwe1glc/bIMmaNE9qKITm4OimTfoCTw==
+
 vue-cli-plugin-yaml@^1.0.2:
   version "1.0.2"
   resolved "https://registry.npmmirror.com/vue-cli-plugin-yaml/download/vue-cli-plugin-yaml-1.0.2.tgz#f87fad162a4545e498febdc26d7b76941b7b6a54"
@@ -12846,8 +12851,8 @@ yallist@^4.0.0:
 
 yaml-loader@^0.6.0:
   version "0.6.0"
-  resolved "https://registry.npm.taobao.org/yaml-loader/download/yaml-loader-0.6.0.tgz#fe1c48b9f4803dace55a59a1474e790ba6ab1b48"
-  integrity sha1-/hxIufSAPazlWlmhR055C6arG0g=
+  resolved "https://registry.yarnpkg.com/yaml-loader/-/yaml-loader-0.6.0.tgz#fe1c48b9f4803dace55a59a1474e790ba6ab1b48"
+  integrity sha512-1bNiLelumURyj+zvVHOv8Y3dpCri0F2S+DCcmps0pA1zWRLjS+FhZQg4o3aUUDYESh73+pKZNI18bj7stpReow==
   dependencies:
     loader-utils "^1.4.0"
     yaml "^1.8.3"

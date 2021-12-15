@@ -18,6 +18,11 @@ declare module 'localeval' {
 	export default function <T = any>(code: string, scope: Record<string, any>): T
 }
 
+declare module '*.yml' {
+	const YamlData: any
+	export default component
+}
+
 declare module 'lines-intersection' {
 	export default function (
 		x0: number,

@@ -87,6 +87,7 @@ import Mousetrap from 'mousetrap'
 import paper from 'paper'
 import queryString from 'query-string'
 
+import useScheme from '../../../src/components/use/use-scheme'
 import Editor from './components/Editor.vue'
 import ParameterControl from './components/ParameterControl.vue'
 import Tool, {Parameters, ToolInfo} from './Tool'
@@ -105,6 +106,8 @@ export default defineComponent({
 		ParameterControl,
 	},
 	setup() {
+		useScheme()
+
 		const canvas = ref<null | HTMLCanvasElement>(null)
 
 		const data = reactive({
@@ -415,6 +418,8 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
+@import url('https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css')
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Commissioner:wght@400;700&display=swap')
 @import './style/common.styl'
 
 global-reset()
