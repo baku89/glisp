@@ -2,6 +2,7 @@
 	"name": "@glisp/lang",
 	"author": "Baku Hashimoto <mail@baku89.com> (https://baku89.com)",
 	"version": "0.1.0",
+	"private": true,
 	"scripts": {
 		"build": "tsc",
 		"lint": "eslint src",
