@@ -1554,22 +1554,6 @@
     postcss "^8.1.10"
     source-map "^0.6.1"
 
-"@vue/compiler-sfc@^3.2.26":
-  version "3.2.26"
-  resolved "https://registry.yarnpkg.com/@vue/compiler-sfc/-/compiler-sfc-3.2.26.tgz#3ce76677e4aa58311655a3bea9eb1cb804d2273f"
-  integrity sha512-ePpnfktV90UcLdsDQUh2JdiTuhV0Skv2iYXxfNMOK/F3Q+2BO0AulcVcfoksOpTJGmhhfosWfMyEaEf0UaWpIw==
-  dependencies:
-    "@babel/parser" "^7.16.4"
-    "@vue/compiler-core" "3.2.26"
-    "@vue/compiler-dom" "3.2.26"
-    "@vue/compiler-ssr" "3.2.26"
-    "@vue/reactivity-transform" "3.2.26"
-    "@vue/shared" "3.2.26"
-    estree-walker "^2.0.2"
-    magic-string "^0.25.7"
-    postcss "^8.1.10"
-    source-map "^0.6.1"
-
 "@vue/compiler-ssr@3.2.26":
   version "3.2.26"
   resolved "https://registry.npmmirror.com/@vue/compiler-ssr/download/@vue/compiler-ssr-3.2.26.tgz#fd049523341fbf4ab5e88e25eef566d862894ba7"

@@ -5,10 +5,6 @@ declare module 'download-as-file' {
 	}): void
 }
 
-declare module 'uid' {
-	export default function uid(seed: any): string
-}
-
 declare module 'query-string' {
 	export function parse(search: string): Record<string, string>
 }
