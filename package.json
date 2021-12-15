@@ -132,5 +132,6 @@
 		"yaml": "^1.10.2",
 		"yaml-loader": "^0.6.0",
 		"yargs": "^17.0.1"
-	}
+	},
+	"packageManager": "yarn@3.1.1"
 }
