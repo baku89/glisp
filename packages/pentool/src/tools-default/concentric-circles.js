@@ -38,7 +38,7 @@ function begin() {
 }
 
 function press({altKey}) {
-	if (pressCount == 1) return
+	if (pressCount === 1) return
 
 	minAngle = mouse.subtract(center).angle
 	maxAngle = prevAngle = minAngle
@@ -58,7 +58,7 @@ function move({altKey}) {
 }
 
 function drag() {
-	if (pressCount == 1) {
+	if (pressCount === 1) {
 		center = mouse
 		centerGuide.position = mouse
 		circleGuide.position = mouse

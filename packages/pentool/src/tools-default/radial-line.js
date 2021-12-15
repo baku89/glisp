@@ -31,7 +31,7 @@ function begin() {
 }
 
 function press({altKey}) {
-	if (pressCount == 1) return
+	if (pressCount === 1) return
 
 	line = new Line(mouse, mouse)
 	line.strokeColor = strokeColor
@@ -42,7 +42,7 @@ function press({altKey}) {
 }
 
 function release() {
-	if (line && mindist == maxdist) {
+	if (line && mindist === maxdist) {
 		line.remove()
 	}
 
@@ -59,7 +59,7 @@ function move({altKey}) {
 }
 
 function drag() {
-	if (pressCount == 1) {
+	if (pressCount === 1) {
 		center = mouse
 		centerGuide.position = mouse
 	} else {

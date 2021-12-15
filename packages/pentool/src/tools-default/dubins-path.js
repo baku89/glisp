@@ -62,8 +62,8 @@ function genCurve() {
 
 	const {type, param} = dp
 
-	const dir0 = type[0] == 'L' ? 1 : -1
-	const dir1 = type[2] == 'L' ? 1 : -1
+	const dir0 = type[0] === 'L' ? 1 : -1
+	const dir1 = type[2] === 'L' ? 1 : -1
 
 	const c0 = tan0
 		.multiply(radius)
@@ -95,11 +95,11 @@ function genCurve() {
 
 	// intermediate
 	if (circlem) circlem.remove()
-	if (type[1] == 'S') {
+	if (type[1] === 'S') {
 		path.lineTo(t1)
 	} else {
 		const cm = getIntersection(c0, t0, c1, t1)
-		const dirm = type[1] == 'L' ? 1 : -1
+		const dirm = type[1] === 'L' ? 1 : -1
 		const tmm = t0.rotate(degrees((dirm * param[1]) / 2), cm)
 
 		path.arcTo(tmm, t1)
@@ -147,7 +147,7 @@ function drag() {
 	gh1.position = mouse
 	gtan1.lastSegment.point = mouse
 
-	if (pressCount == 1) {
+	if (pressCount === 1) {
 		return
 	}
 
@@ -196,7 +196,7 @@ function dubinsShortestPath(q0, q1, rho) {
 
 	PATH_TYPES.forEach(pathType => {
 		let errcode = dubinsWord(ir, pathType, params)
-		if (errcode == RESULT_OK) {
+		if (errcode === RESULT_OK) {
 			cost = params[0] + params[1] + params[2]
 			if (cost < best_cost) {
 				best_word = pathType
