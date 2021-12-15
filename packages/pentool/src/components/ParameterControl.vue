@@ -6,16 +6,16 @@ ul.ParameterControl
 		input.ParameterControl__input(
 			v-if='type === "float"',
 			type='number',
-			:value.number='value[name]',
+			:value.number='modelValue[name]',
 			@change='onChange(name, parseFloat($event.target.value))'
 		)
 
 		input.ParameterControl__input(
 			v-if='type === "color"',
 			type='text',
-			:value='value[name]',
-			:class='{light: isLight(value[name])}',
-			:style='{backgroundColor: value[name]}',
+			:value='modelValue[name]',
+			:class='{light: isLight(modelValue[name])}',
+			:style='{backgroundColor: modelValue[name]}',
 			@change='onChange(name, $event.target.value)'
 		)
 </template>
@@ -28,7 +28,7 @@ import {ParamScheme} from '../Tool'
 
 export default defineComponent({
 	props: {
-		value: {
+		modelValue: {
 			type: Object as PropType<Record<string, number | string>>,
 			required: true,
 		},

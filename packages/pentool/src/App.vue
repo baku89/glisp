@@ -5,8 +5,8 @@
 		.sidebar__split(@click='showSidebar = !showSidebar')
 		.tool-editor
 			.tool-editor__header
-				input.icon(type='text', v-model='activeTool.icon', maxlength='2')
-				input.label(type='text', v-model='activeTool.label', maxlength='20')
+				input.icon(type='text', v-model='activeTool.meta.icon', maxlength='2')
+				input.label(type='text', v-model='activeTool.meta.label', maxlength='20')
 				button.btn-update(:class='{dirty: isDirty}', @click='recompileActiveTool') Update
 				button.btn-menu(@click='openToolEditorMenu = !openToolEditorMenu') ⠇
 				ul.menu(v-if='openToolEditorMenu', @click='openToolEditorMenu = false')
@@ -39,8 +39,8 @@
 				) Params
 
 		ParameterControl(
-			v-model='parameters',
-			:scheme='activeTool.metadata.parameters',
+			:modelValue='parameters',
+			:scheme='activeTool.meta.parameters',
 			@update='updateParameter'
 		)
 
@@ -93,9 +93,6 @@ import Tool, {Parameters, ToolInfo} from './Tool'
 import * as ToolPresets from './ToolPresets'
 import {jsonStringify} from './util/JsonStringify'
 
-paper.project.currentStyle.strokeCap = 'round'
-paper.project.currentStyle.strokeJoin = 'round'
-
 function getLocalStorage<T = any>(name: string, defaultValue: T): T {
 	const str = localStorage.getItem(name) ?? 'null'
 	return JSON.parse(str) ?? defaultValue
@@ -124,8 +121,15 @@ export default defineComponent({
 			openSettingsMenu: false,
 		})
 
-		const activeTool = computed({
-			get: () => data.tools[data.activeToolIndex],
+		const activeTool = computed<ToolInfo>({
+			get: () => {
+				return (
+					data.tools[data.activeToolIndex] ?? {
+						code: '',
+						meta: {id: '', icon: '', label: '', parameters: []},
+					}
+				)
+			},
 			set: activeTool => (data.tools[data.activeToolIndex] = activeTool),
 		})
 
@@ -145,8 +149,20 @@ export default defineComponent({
 
 		// Canvas setup
 		onMounted(() => {
-			if (!canvas.value) return
+			if (!canvas.value) {
+				console.log('!!!!!!')
+				return
+			}
 			paper.setup(canvas.value)
+
+			const project = paper.project
+			const activeLayer = paper.project.activeLayer
+			const guideLayer = new paper.Layer()
+
+			activeLayer.activate()
+
+			paper.project.currentStyle.strokeCap = 'round'
+			paper.project.currentStyle.strokeJoin = 'round'
 
 			canvas.value.addEventListener('mousewheel', (e: any) => {
 				const view = paper.project.view
@@ -168,94 +184,89 @@ export default defineComponent({
 			})
 
 			// project.view.applyMatrix = false
+			guideLayer.bringToFront()
+			guideLayer.name = 'guide'
 
-			activeLayer.activate()
-		})
+			const scaleGuide = (item: paper.Item, zoom: number) => {
+				if (item.data.isMarker) {
+					const s = 1 / zoom
+					item.scaling = new paper.Point(s, s)
+				}
 
-		const project = paper.project
-		const activeLayer = paper.project.activeLayer
-		const guideLayer = new paper.Layer()
-		guideLayer.bringToFront()
-		guideLayer.name = 'guide'
-
-		const scaleGuide = (item: paper.Item, zoom: number) => {
-			if (item.data.isMarker) {
-				const s = 1 / zoom
-				item.scaling = new paper.Point(s, s)
-			}
-
-			if (item.children) {
-				item.children.forEach(child => scaleGuide(child, zoom))
-			}
-		}
-
-		// canvas navigation
-		{
-			let px: number,
-				py: number,
-				isDragging = false
-
-			const mousedown = ({x, y}: MouseEvent) => {
-				isDragging = true
-				px = x
-				py = y
-			}
-
-			const mousemove = ({x, y}: MouseEvent) => {
-				if (isDragging) {
-					const layer = paper.project.activeLayer
-
-					const dx = x - px
-					const dy = y - py
-
-					layer.translate(new paper.Point(dx, dy))
-					px = x
-					py = y
+				if (item.children) {
+					item.children.forEach(child => scaleGuide(child, zoom))
 				}
 			}
 
-			const mouseup = () => {
-				isDragging = false
+			// canvas navigation
+			{
+				let px: number,
+					py: number,
+					isDragging = false
+
+				const mousedown = ({x, y}: MouseEvent) => {
+					isDragging = true
+					px = x
+					py = y
+				}
+
+				const mousemove = ({x, y}: MouseEvent) => {
+					if (isDragging) {
+						const layer = paper.project.activeLayer
+
+						const dx = x - px
+						const dy = y - py
+
+						layer.translate(new paper.Point(dx, dy))
+						px = x
+						py = y
+					}
+				}
+
+				const mouseup = () => {
+					isDragging = false
+				}
+
+				Mousetrap.bind(
+					'space',
+					() => {
+						if (!canvas.value) return
+						data.pan = true
+						toolInstance?.pause()
+
+						canvas.value.addEventListener('mousedown', mousedown)
+						canvas.value.addEventListener('mousemove', mousemove)
+						canvas.value.addEventListener('mouseup', mouseup)
+					},
+					'keydown'
+				)
+
+				Mousetrap.bind(
+					'space',
+					() => {
+						if (!canvas.value) return
+
+						data.pan = false
+						toolInstance?.resume()
+
+						canvas.value.removeEventListener('mousedown', mousedown)
+						canvas.value.removeEventListener('mousemove', mousemove)
+						canvas.value.removeEventListener('mouseup', mouseup)
+					},
+					'keyup'
+				)
 			}
 
-			Mousetrap.bind(
-				'space',
-				() => {
-					if (!canvas.value) return
-					data.pan = true
-					toolInstance?.pause()
-
-					canvas.value.addEventListener('mousedown', mousedown)
-					canvas.value.addEventListener('mousemove', mousemove)
-					canvas.value.addEventListener('mouseup', mouseup)
-				},
-				'keydown'
-			)
-
-			Mousetrap.bind(
-				'space',
-				() => {
-					if (!canvas.value) return
-
-					data.pan = false
-					toolInstance?.resume()
-
-					canvas.value.removeEventListener('mousedown', mousedown)
-					canvas.value.removeEventListener('mousemove', mousemove)
-					canvas.value.removeEventListener('mouseup', mouseup)
-				},
-				'keyup'
-			)
-		}
-
-		// other keybinds
-		Mousetrap.bind(['command+del', 'command+backspace'], clearArtboard)
+			// other keybinds
+			Mousetrap.bind(['command+del', 'command+backspace'], clearArtboard)
+		})
 
 		// Initialize tool instances from info
 		let toolInstance: Tool | null = null
 		watch(
-			activeTool,
-			tool => {
+			[activeTool, canvas],
+			([tool, canvas]) => {
+				if (!canvas) return
 				toolInstance?.deactivate()
 				toolInstance = Tool.compile(tool, data.parameters)
 				toolInstance.activate()
@@ -620,11 +631,10 @@ input[type=text], input[type=number]
 
 .settings-button
 	position absolute
-	bottom @left
+	bottom 0.5rem
 	left 0.5rem
 	overflow hidden
 	width 2.5rem
-	height @width
 	border-radius 1.5em
 	background-image url('./gear.svg')
 	background-position center
@@ -632,6 +642,7 @@ input[type=text], input[type=number]
 	background-repeat no-repeat
 	cursor pointer
 	transition all 250ms ease
+	aspect-ratio 1
 
 	&:hover
 		transform scale(1.2) rotate(30deg)
@@ -664,7 +675,6 @@ input[type=text], input[type=number]
 
 		.btn-update
 			position absolute
-			top -0.1em
 			top 0.75em
 			right 2.5em
 			display inline-block

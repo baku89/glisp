@@ -1,5 +1,5 @@
 import TemplateText from 'raw-loader!./tools-default/template.js'
-import uid from 'uid'
+import {uid} from 'uid'
 
 import Tool from './Tool'
 

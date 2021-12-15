@@ -1,51 +1,55 @@
 <template lang="pug">
 .Editor(:class='{hide}')
-	.Editor__code(:id='editorId')
+	.Editor__code(ref='el')
 </template>
 
 <script lang="ts">
-import {defineComponent, watch} from '@vue/runtime-core'
+import {defineComponent, onMounted, ref, watch} from '@vue/runtime-core'
 import ace from 'brace'
 
 export default defineComponent({
 	props: {
 		hide: {type: Boolean},
-		value: {type: String, required: true},
+		modelValue: {type: String, required: true},
 		lang: {type: String, default: 'text'},
 	},
-	emits: ['save', 'input'],
+	emits: ['save', 'update:modelValue'],
 	setup(props, {emit}) {
-		const editorId = 'editor-' + Math.random()
+		const el = ref<HTMLElement | null>(null)
 
-		const editor = ace.edit(editorId)
-		editor.setValue(props.value, -1)
-		editor.setTheme('ace/theme/tomorrow_night')
-		editor.renderer.setShowGutter(false)
-		editor.setHighlightActiveLine(false)
-		editor.$blockScrolling = Infinity
+		onMounted(() => {
+			if (!el.value) return
 
-		const session = editor.getSession()
-		session.setMode(`ace/mode/${props.lang}`)
-		session.setTabSize(2)
-		session.setUseSoftTabs(false)
-		session.on('change', () => {
-			emit('input', editor.getValue())
+			const editor = ace.edit(el.value)
+			editor.setValue(props.modelValue, -1)
+			// editor.setTheme('ace/theme/tomorrow_night')
+			editor.renderer.setShowGutter(false)
+			editor.setHighlightActiveLine(false)
+			editor.$blockScrolling = Infinity
+
+			const session = editor.getSession()
+			session.setMode(`ace/mode/${props.lang}`)
+			session.setTabSize(2)
+			session.setUseSoftTabs(false)
+			session.on('change', () => {
+				emit('update:modelValue', editor.getValue())
+			})
+
+			editor.commands.addCommand({
+				name: 'save',
+				bindKey: {win: 'Ctrl-S', mac: 'Cmd-S'},
+				exec: () => emit('save', editor.getValue()),
+			})
+
+			watch(
+				() => props.modelValue,
+				value => {
+					if (editor.getValue() != value) editor.setValue(value, -1)
+				}
+			)
 		})
 
-		editor.commands.addCommand({
-			name: 'save',
-			bindKey: {win: 'Ctrl-S', mac: 'Cmd-S'},
-			exec: () => emit('save', editor.getValue()),
-		})
-
-		watch(
-			() => props.value,
-			value => {
-				if (editor.getValue() != value) editor.setValue(value, -1)
-			}
-		)
-
-		return {editorId}
+		return {el}
 	},
 })
 </script>
