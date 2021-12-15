@@ -1,17 +1,17 @@
 <template lang="pug">
 ul.ParameterControl
-	li.ParameterControl__param(v-for='{type, name, label} in schemes')
+	li.ParameterControl__param(v-for='{type, name, label} in scheme')
 		label.ParameterControl__label {{label || name}}
 
 		input.ParameterControl__input(
-			v-if='type == "float"',
+			v-if='type === "float"',
 			type='number',
 			:value.number='value[name]',
 			@change='onChange(name, parseFloat($event.target.value))'
 		)
 
 		input.ParameterControl__input(
-			v-if='type == "color"',
+			v-if='type === "color"',
 			type='text',
 			:value='value[name]',
 			:class='{light: isLight(value[name])}',
@@ -20,7 +20,7 @@ ul.ParameterControl
 		)
 </template>
 
-<script lang="typescript">
+<script lang="ts">
 import {defineComponent, PropType} from '@vue/runtime-core'
 import Color from 'color'
 
@@ -32,7 +32,7 @@ export default defineComponent({
 			type: Object as PropType<Record<string, number | string>>,
 			required: true,
 		},
-		schemes: {type: Array as PropType<ParamScheme[]>, required: true},
+		scheme: {type: Array as PropType<ParamScheme[]>, required: true},
 	},
 	emits: ['update'],
 	setup(_, {emit}) {

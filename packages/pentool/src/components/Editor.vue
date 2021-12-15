@@ -3,7 +3,7 @@
 	.Editor__code(:id='editorId')
 </template>
 
-<script lang="typescript">
+<script lang="ts">
 import {defineComponent, watch} from '@vue/runtime-core'
 import ace from 'brace'
 
