@@ -1,7 +1,7 @@
 import TemplateText from 'raw-loader!./tools-default/template.js'
 import uid from 'uid'
 
-import Tool from './tool'
+import Tool from './Tool'
 
 const presets = [
 	// fs.readFileSync(__dirname + '/tools-default/pencil.js', 'utf-8'),
