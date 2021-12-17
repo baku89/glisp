@@ -83,7 +83,7 @@ export default defineComponent({
 		const {colors} = useScheme()
 
 		function openEditor() {
-			const url = new URL('.', location.href)
+			const url = new URL('.', location.origin)
 			url.searchParams.set('code', code.value)
 			window.open(url.toString())
 		}
