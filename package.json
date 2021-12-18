@@ -21,7 +21,7 @@
 	},
 	"main": "background.js",
 	"dependencies": {
-		"docsify": "^4.11.5",
+		"docsify": "^4.12.0",
 		"vue": "^2.6.12"
 	},
 	"devDependencies": {
