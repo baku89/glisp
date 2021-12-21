@@ -25,20 +25,18 @@ function defn(
 	}
 }
 
-const T = Exp.tyVar('T')
-
 export const PreludeScope = Exp.scope({
-	true: Exp.True,
-	false: Exp.False,
 	Num: Exp.tyNum,
 	Str: Exp.tyStr,
 	Bool: Exp.tyBool,
-	'|': Exp.fn({x: T, y: T}, T, (t1: Exp.Value, t2: Exp.Value) =>
-		Exp.withLog(Exp.tyUnion(t1, t2))
-	),
 })
 
 PreludeScope.defs({
+	true: Exp.True,
+	false: Exp.False,
+	'|': defn('(-> <T> [x:T y:T] T)', (t1: Exp.Value, t2: Exp.Value) =>
+		Exp.tyUnion(t1, t2)
+	),
 	'+': defn('(-> [x:Num y:Num] Num)', (a: Exp.Num, b: Exp.Num) =>
 		Exp.num(a.value + b.value)
 	),
