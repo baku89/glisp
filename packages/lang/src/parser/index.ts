@@ -15,7 +15,7 @@ Node =
 	Vec /
 	Num / Str / TyVar / Sym
 
-Reserved = "_" / "_|_" / "=>" / "->" / "let" / "<" [^>]+ ">"
+Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "<" [^>]+ ">"
 
 Unit = "(" _ ")" { return Exp.unit }
 
@@ -57,12 +57,10 @@ Str "Str" = '"' value:$(!'"' .)* '"'
 	}
 
 
-App "App" = "(" _ fn:Node _ args:AppArg* ")"
+App "App" = "(" _ fn:Node _ args:(@Node _)* ")"
 	{
 		return Exp.call(fn, ...args)
 	}
-
-AppArg = arg:Node _ { return arg }
 
 Fn = "(" _ "=>" _ tyVars:FnTyVars? param:FnParam body:Node _ ")"
 	{
@@ -103,12 +101,10 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 		return [sym.name, value]
 	}
 
-Vec = "[" _ items:VecItem* rest:Rest? "]"
+Vec = "[" _ items:(@Node _)* rest:Rest? "]"
 	{		
 		return Exp.eVecFrom(items, rest)
 	}
-
-VecItem = !"..." item:Node _ { return item }
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
