@@ -25,7 +25,7 @@ import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 export type Node = Exp | Value
 
 export type Exp = ExpLiteral | ExpComplex
-export type ExpLiteral = Sym | LNum | LStr
+export type ExpLiteral = Sym | LUnit | LAll | LBottom | LNum | LStr
 export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
@@ -180,6 +180,24 @@ export class Sym implements INode, IExp {
 	}
 }
 
+export class LUnit implements INode, IExp {
+	type = 'lUnit' as const
+	parent: ExpComplex | null = null
+
+	private constructor() {
+		return this
+	}
+
+	eval = () => withLog(Unit.instance)
+	infer = () => Unit.instance
+	print = () => '()'
+	isSameTo = (exp: Node) => this.type === exp.type
+
+	static of() {
+		return new LUnit()
+	}
+}
+
 export class Unit implements INode, IValue {
 	readonly type = 'unit' as const
 	superType!: All
@@ -194,6 +212,24 @@ export class Unit implements INode, IValue {
 	isType = false
 
 	static instance = new Unit()
+}
+
+export class LAll implements INode, IExp {
+	type = 'lAll' as const
+	parent: ExpComplex | null = null
+
+	private constructor() {
+		return this
+	}
+
+	eval = () => withLog(All.instance)
+	infer = () => All.instance
+	print = () => '_'
+	isSameTo = (exp: Node) => this.type === exp.type
+
+	static of() {
+		return new LAll()
+	}
 }
 
 export class All implements INode, IValue {
@@ -216,6 +252,24 @@ export class All implements INode, IValue {
 }
 
 Unit.prototype.superType = All.instance
+
+export class LBottom implements INode, IExp {
+	type = 'lBottom' as const
+	parent: ExpComplex | null = null
+
+	private constructor() {
+		return this
+	}
+
+	eval = () => withLog(Bottom.instance)
+	infer = () => All.instance
+	print = () => '_|_'
+	isSameTo = (exp: Node) => this.type === exp.type
+
+	static of() {
+		return new LBottom()
+	}
+}
 
 export class Bottom implements INode, IValue {
 	readonly type = 'bottom' as const
@@ -270,9 +324,8 @@ export class LNum implements INode, IExp {
 	private constructor(public value: number) {}
 
 	eval = () => withLog(Num.of(this.value))
-	infer = (): Value => Num.of(this.value)
+	infer = () => Num.of(this.value)
 	print = () => this.value.toString()
-
 	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
 
 	static of(value: number) {
@@ -295,9 +348,8 @@ export class LStr implements INode, IExp {
 	private constructor(public value: string) {}
 
 	eval = () => withLog(Str.of(this.value))
-	infer = (): Value => Str.of(this.value)
+	infer = () => Str.of(this.value)
 	print = () => '"' + this.value + '"'
-
 	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
 
 	static of(value: string) {

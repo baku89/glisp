@@ -16,11 +16,11 @@ Node =
 
 Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "<" [^>]+ ">"
 
-Unit = "(" _ ")" { return Exp.unit }
+Unit = "(" _ ")" { return Exp.lUnit() }
 
-All "all" = "_" { return Exp.all }
+All "all" = "_" { return Exp.lAll() }
 
-Bottom "bottom" = "_|_" { return Exp.bottom }
+Bottom "bottom" = "_|_" { return Exp.lBottom() }
 
 Sym "Sym" = SymIdent
 

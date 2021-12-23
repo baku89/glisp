@@ -15,8 +15,11 @@ import {
 	isEqual,
 	isSame,
 	isSubtype,
+	LAll,
+	LBottom,
 	LNum,
 	LStr,
+	LUnit,
 	Node,
 	Num,
 	Prim,
@@ -53,6 +56,9 @@ export {Log, WithLog, withLog}
 export {Sym, LNum, Call, Scope, EFn, ETyFn, EVec, EDict}
 
 export const sym = Sym.of
+export const lUnit = LUnit.of
+export const lAll = LAll.of
+export const lBottom = LBottom.of
 export const lNum = LNum.of
 export const lStr = LStr.of
 export const call = Call.of
