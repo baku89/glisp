@@ -9,10 +9,10 @@ import {
 	eVec,
 	eVecFrom,
 	isSame,
+	lNum,
+	lStr,
 	Node,
-	num,
 	scope,
-	str,
 	sym,
 	tyVar,
 	unit,
@@ -27,13 +27,13 @@ const z = sym('z')
 const w = sym('w')
 
 describe('parsing literals', () => {
-	testParsing('10', num(10))
-	testParsing('   10   ', num(10))
-	testParsing('   \t 5 \r\n', num(5))
+	testParsing('10', lNum(10))
+	testParsing('   10   ', lNum(10))
+	testParsing('   \t 5 \r\n', lNum(5))
 	testParsing('false', sym('false'))
 	testParsing('true', sym('true'))
-	testParsing('"hello"', str('hello'))
-	testParsing('"hello, world"', str('hello, world'))
+	testParsing('"hello"', lStr('hello'))
+	testParsing('"hello, world"', lStr('hello, world'))
 	testParsing(' () ', unit)
 	testParsing(' (  \t   ) ', unit)
 	testParsing(' _ ', all)
@@ -67,46 +67,49 @@ describe('parsing symbols', () => {
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', call(sym('+'), num(1), num(2)))
-	testParsing('(* 1 2)', call(sym('*'), num(1), num(2)))
+	testParsing('(+ 1 2)', call(sym('+'), lNum(1), lNum(2)))
+	testParsing('(* 1 2)', call(sym('*'), lNum(1), lNum(2)))
 	testParsing('(x _)', call(x, all))
 	testParsing('(x ())', call(x, unit))
 	testParsing('(x)', call(x))
-	testParsing('(0 false)', call(num(1), sym('false')))
+	testParsing('(0 false)', call(lNum(1), sym('false')))
 	testParsing('((true) x)', call(call(sym('true')), x))
 })
 
 describe('parsing scope', () => {
-	testParsing('(let x = 1 x)', scope({x: num(1)}, x))
-	testParsing('(let x = 1)', scope({x: num(1)}))
-	testParsing('(let x = (let x = 1))', scope({x: scope({x: num(1)})}))
-	testParsing('(let (let 1))', scope({}, scope({}, num(1))))
+	testParsing('(let x = 1 x)', scope({x: lNum(1)}, x))
+	testParsing('(let x = 1)', scope({x: lNum(1)}))
+	testParsing('(let x = (let x = 1))', scope({x: scope({x: lNum(1)})}))
+	testParsing('(let (let 1))', scope({}, scope({}, lNum(1))))
 	testParsing('(let)', scope({}))
 })
 
 describe('parsing vector', () => {
 	testParsing('\t[   ]  ', eVec())
-	testParsing('[    1   \t]', eVec(num(1)))
-	testParsing('[1 2 3]', eVec(num(1), num(2), num(3)))
-	testParsing('[1[2]3   ]', eVec(num(1), eVec(num(2)), num(3)))
+	testParsing('[    1   \t]', eVec(lNum(1)))
+	testParsing('[1 2 3]', eVec(lNum(1), lNum(2), lNum(3)))
+	testParsing('[1[2]3   ]', eVec(lNum(1), eVec(lNum(2)), lNum(3)))
 	testParsing(
 		'[(+)false(+)+]',
 		eVec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
 	)
-	testParsing('[...1]', eVecFrom([], num(1)))
+	testParsing('[...1]', eVecFrom([], lNum(1)))
 })
 
 describe('parsing dictionary', () => {
-	testParsing('{   a :    1 }', eDict({a: num(1)}))
-	testParsing('{\t"foo bar"  : 1\t}', eDict({'foo bar': num(1)}))
+	testParsing('{   a :    1 }', eDict({a: lNum(1)}))
+	testParsing('{\t"foo bar"  : 1\t}', eDict({'foo bar': lNum(1)}))
 	testParsing('{   }', eDict({}))
 	testParsing('{a: A b: B}', eDict({a: sym('A'), b: sym('B')}))
-	testParsing('{a: {a: 1}}', eDict({a: eDict({a: num(1)})}))
-	testParsing('{a?:1}', eDictFrom({a: {optional: true, value: num(1)}}))
+	testParsing('{a: {a: 1}}', eDict({a: eDict({a: lNum(1)})}))
+	testParsing('{a?:1}', eDictFrom({a: {optional: true, value: lNum(1)}}))
 	testParsing(
 		'{a?:1 b:2 ...c}',
 		eDictFrom(
-			{a: {optional: true, value: num(1)}, b: {optional: false, value: num(2)}},
+			{
+				a: {optional: true, value: lNum(1)},
+				b: {optional: false, value: lNum(2)},
+			},
 			sym('c')
 		)
 	)
@@ -117,8 +120,8 @@ describe('parsing function definition', () => {
 	testParsing('(=> [x : Num y : Bool] x)', eFn([], {x: Num, y: Bool}, x))
 	testParsing('(=>[]_)', eFn([], {}, all))
 	testParsing('(=>[]())', eFn([], {}, unit))
-	testParsing('(=> [] (+ 1 2))', eFn([], {}, call(sym('+'), num(1), num(2))))
-	testParsing('(=> [] (=> [] 1))', eFn([], {}, eFn([], {}, num(1))))
+	testParsing('(=> [] (+ 1 2))', eFn([], {}, call(sym('+'), lNum(1), lNum(2))))
+	testParsing('(=> [] (=> [] 1))', eFn([], {}, eFn([], {}, lNum(1))))
 	testParsing('(=> <T> [x:T] x)', eFn(['T'], {x: sym('T')}, x))
 	testParsing('(=> <T U> [x:T] x)', eFn(['T', 'U'], {x: sym('T')}, x))
 	testErrorParsing('(=> <> [] Num)')

@@ -40,12 +40,12 @@ TyVar = "<" name:$[^>]+ ">"
 Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
 	{
 		const v = parseFloat(text())
-		return Exp.num(v)
+		return Exp.lNum(v)
 	}
 
 Str "Str" = '"' value:$(!'"' .)* '"'
 	{
-		return Exp.str(value)
+		return Exp.lStr(value)
 	}
 
 
@@ -111,7 +111,7 @@ DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
 
 DictKey = (!(Whitespace / Delimiter) .)+
 	{
-		return Exp.str(text())
+		return Exp.lStr(text())
 	}
 
 Rest = "..." _ rest:Node _ { return rest }

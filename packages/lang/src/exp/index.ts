@@ -15,6 +15,8 @@ import {
 	isEqual,
 	isSame,
 	isSubtype,
+	LNum,
+	LStr,
 	Node,
 	Num,
 	Prim,
@@ -48,9 +50,11 @@ export {Node, Exp, ExpComplex, Value}
 export {Log, WithLog, withLog}
 
 // Exp
-export {Sym, Call as Call, Scope, EFn, ETyFn, EVec, EDict}
+export {Sym, LNum, Call, Scope, EFn, ETyFn, EVec, EDict}
 
 export const sym = Sym.of
+export const lNum = LNum.of
+export const lStr = LStr.of
 export const call = Call.of
 export const scope = Scope.of
 export const eFn = EFn.of

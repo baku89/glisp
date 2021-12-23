@@ -24,7 +24,8 @@ import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Exp | Value
 
-export type Exp = Sym | ExpComplex
+export type Exp = ExpLiteral | ExpComplex
+export type ExpLiteral = Sym | LNum | LStr
 export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
@@ -262,11 +263,45 @@ export class Prim<T = any> implements INode, IValue {
 	}
 }
 
+export class LNum implements INode, IExp {
+	type = 'lNum' as const
+	parent: ExpComplex | null = null
+
+	private constructor(public value: number) {}
+
+	eval = () => withLog(Num.of(this.value))
+	infer = (): Value => Num.of(this.value)
+	print = () => this.value.toString()
+
+	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+
+	static of(value: number) {
+		return new LNum(value)
+	}
+}
+
 export class Num extends Prim<number> {
 	print = () => this.value.toString()
 
 	static of(value: number) {
 		return new Num(tyNum, value)
+	}
+}
+
+export class LStr implements INode, IExp {
+	type = 'lStr' as const
+	parent: ExpComplex | null = null
+
+	private constructor(public value: string) {}
+
+	eval = () => withLog(Str.of(this.value))
+	infer = (): Value => Str.of(this.value)
+	print = () => '"' + this.value + '"'
+
+	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+
+	static of(value: string) {
+		return new LStr(value)
 	}
 }
 
@@ -1377,7 +1412,7 @@ export class Scope implements INode, IExp {
 	}
 }
 
-export function setParent(exp: Node, parent: Exclude<Exp, Sym>) {
+export function setParent(exp: Node, parent: ExpComplex) {
 	if ('parent' in exp) {
 		exp.parent = parent
 	}
