@@ -1,5 +1,3 @@
-{{}}
-
 {
 	const Exp = options.Exp
 }
@@ -118,21 +116,15 @@ DictKey = (!(Whitespace / Delimiter) .)+
 
 Rest = "..." _ rest:Node _ { return rest }
 
-Scope = "(" _ "let" _ pairs:ScopePair* out:Node? _ ")"
+Scope = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 	{
 		const vars = {}
-		for (const [name, value] of pairs) {
+		for (const [{name}, value] of pairs) {
 			if (name in vars) throw new Error('Duplicated symbol name: ' + name)
 			vars[name] = value
 		}
 		return Exp.scope(vars, out ?? null)
 	}
-
-ScopePair = s:Sym _ "=" _ node:Node _
-	{
-		return [s.name, node]
-	}
-
 
 _ "whitespace" = Whitespace*
 __ "whitespace" = Whitespace+
