@@ -4,9 +4,11 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"build": "tsc",
+		"build": "npm run build:tsc; npm run build:peggy",
+		"build:tsc": "tsc",
+		"build:peggy": "peggy -o ./lib/parser/parser.peg.js -o ./src/parser/parser.peg.js --format umd ./src/parser/parser.pegjs",
 		"lint": "eslint src",
-		"test": "jest --slient=false",
+		"test": "npm run build:peggy; jest --slient=false",
 		"serve": "npm run test -- --watch",
 		"repl": "npm run build; node ./lib/repl/index.js",
 		"prepare": "npm run build"

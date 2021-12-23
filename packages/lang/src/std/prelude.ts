@@ -8,21 +8,15 @@ function defn(
 	f: (...args: any[]) => Exp.Value,
 	isTypeCtor = false
 ) {
-	try {
-		const fnTy = parse(ty, PreludeScope).eval().result
+	const fnTy = parse(ty, PreludeScope).eval().result
 
-		if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
+	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-		const fn = Exp.fn(fnTy.param, fnTy.out, (...args) =>
-			Exp.withLog(f(...args))
-		)
+	const fn = Exp.fn(fnTy.param, fnTy.out, (...args) => Exp.withLog(f(...args)))
 
-		fn.isTypeCtor = isTypeCtor
+	fn.isTypeCtor = isTypeCtor
 
-		return fn
-	} catch {
-		throw new Error('defn failed' + ty)
-	}
+	return fn
 }
 
 export const PreludeScope = Exp.scope({
