@@ -25,7 +25,7 @@ import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 export type Node = Exp | Value
 
 export type Exp = ExpLiteral | ExpComplex
-export type ExpLiteral = Sym | LUnit | LAll | LBottom | LNum | LStr
+export type ExpLiteral = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
@@ -177,6 +177,22 @@ export class Sym implements INode, IExp {
 
 	static of(name: string) {
 		return new Sym(name)
+	}
+}
+
+export class Obj implements INode, IExp {
+	readonly type = 'obj' as const
+	parent: ExpComplex | null = null
+
+	private constructor(public value: Value) {}
+
+	eval = () => withLog(this.value)
+	infer = () => this.value
+	print = this.value.print
+	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+
+	static of(value: Value) {
+		return new Obj(value)
 	}
 }
 
