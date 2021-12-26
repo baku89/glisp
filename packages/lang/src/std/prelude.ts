@@ -16,18 +16,18 @@ function defn(
 
 	fn.isTypeCtor = isTypeCtor
 
-	return fn
+	return Exp.obj(fn)
 }
 
 export const PreludeScope = Exp.scope({
-	Num: Exp.tyNum,
-	Str: Exp.tyStr,
-	Bool: Exp.tyBool,
+	Num: Exp.obj(Exp.tyNum),
+	Str: Exp.obj(Exp.tyStr),
+	Bool: Exp.obj(Exp.tyBool),
 })
 
 PreludeScope.defs({
-	true: Exp.True,
-	false: Exp.False,
+	true: Exp.obj(Exp.True),
+	false: Exp.obj(Exp.False),
 	'|': defn('(-> <T> [x:T y:T] T)', (t1: Exp.Value, t2: Exp.Value) =>
 		Exp.tyUnion(t1, t2)
 	),

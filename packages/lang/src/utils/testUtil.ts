@@ -3,10 +3,10 @@ import * as Parser from '../parser'
 import {PreludeScope} from '../std/prelude'
 
 export function parse(
-	input: string | Exp.Node,
+	input: string | Exp.Exp,
 	parent: Exp.ExpComplex = PreludeScope
-): Exp.Node {
-	let exp: Exp.Node
+): Exp.Exp {
+	let exp: Exp.Exp
 	if (typeof input === 'string') {
 		exp = Parser.parse(input, parent)
 	} else {
@@ -16,17 +16,18 @@ export function parse(
 	return exp
 }
 
-export function evaluate(input: string | Exp.Node): Exp.Value {
+export function evaluate(input: string | Exp.Exp): Exp.Value {
 	return parse(input).eval().result
 }
 
 export function testEval(
-	input: Exp.Node | string,
+	input: Exp.Exp | string,
 	expected: Exp.Value | string,
 	hasLog = false
 ) {
 	const iStr = typeof input === 'string' ? input : input.print()
-	const eStr = typeof expected === 'string' ? expected : expected.print()
+	const eStr =
+		typeof expected === 'string' ? expected : expected.toAst().print()
 
 	test(`${iStr} evaluates to ${eStr}`, () => {
 		const exp = parse(input)
@@ -34,7 +35,7 @@ export function testEval(
 
 		const {result, log} = exp.eval()
 		if (!result.isEqualTo(expectedVal)) {
-			throw new Error('Got=' + result.print())
+			throw new Error('Got=' + result.toAst().print())
 		}
 		if (!hasLog && log.length > 0) {
 			throw new Error('Expected no log, but got=' + printLog(log))

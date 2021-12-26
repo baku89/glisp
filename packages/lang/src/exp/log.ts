@@ -1,12 +1,12 @@
 import {Writer} from '../utils/Writer'
-import type {Node, Value} from './exp'
+import type {Exp, Value} from './exp'
 
 export type WithLog = Writer<Value, Log>
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
-	ref?: Node
+	ref?: Exp
 }
 
 export function withLog(value: Value, ...log: Log[]): WithLog {

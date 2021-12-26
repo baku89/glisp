@@ -19,9 +19,10 @@ import {
 	LBottom,
 	LNum,
 	LStr,
+	LTyVar,
 	LUnit,
-	Node,
 	Num,
+	Obj,
 	Prim,
 	print,
 	Scope,
@@ -48,19 +49,36 @@ import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
 
 export {IFn}
 
-export {Node, Exp, ExpComplex, Value}
+export {Exp, ExpComplex, Value}
 
 export {Log, WithLog, withLog}
 
 // Exp
-export {Sym, LNum, Call, Scope, EFn, ETyFn, EVec, EDict}
+export {
+	Sym,
+	Obj,
+	LUnit,
+	LAll,
+	LBottom,
+	LNum,
+	LStr,
+	LTyVar,
+	Call,
+	Scope,
+	EFn,
+	ETyFn,
+	EVec,
+	EDict,
+}
 
 export const sym = Sym.of
+export const obj = Obj.of
 export const lUnit = LUnit.of
 export const lAll = LAll.of
 export const lBottom = LBottom.of
 export const lNum = LNum.of
 export const lStr = LStr.of
+export const lTyVar = LTyVar.of
 export const call = Call.of
 export const scope = Scope.of
 export const eFn = EFn.of

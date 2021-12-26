@@ -22,17 +22,23 @@ import {Log, WithLog, withLog} from './log'
 import {tyUnion} from './TypeOperation'
 import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
-export type Node = Exp | Value
-
 export type Exp = ExpLiteral | ExpComplex
-export type ExpLiteral = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
+export type ExpLiteral =
+	| Sym
+	| Obj
+	| LUnit
+	| LAll
+	| LBottom
+	| LNum
+	| LStr
+	| LTyVar
+
 export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
 export type Value = Type | Atomic
 
 type Type =
 	| All
-	| TyVar
 	| TyPrim
 	| TyEnum
 	| TyFn
@@ -40,6 +46,7 @@ type Type =
 	| TyDict
 	| TyStruct
 	| TyUnion
+	| TyVar
 
 type Atomic =
 	| Bottom
@@ -55,25 +62,23 @@ type Atomic =
 
 export type UnitableType = Exclude<Value, All | Bottom>
 
-interface INode {
+interface IExp {
 	readonly type: string
+	print(): string
+	parent: ExpComplex | null
 	eval(env?: Env): WithLog
 	infer(env?: Env): Value
-	print(): string
-
-	isSameTo(exp: Node): boolean
-}
-
-interface IExp {
-	parent: ExpComplex | null
+	isSameTo(exp: Exp): boolean
 }
 
 interface IValue {
+	readonly type: string
 	defaultValue: Atomic
 
 	isType: boolean
-	isEqualTo(e: Node): boolean
+	isEqualTo(e: Value): boolean
 	isSubtypeOf(e: Value): boolean
+	toAst(): Exp
 }
 
 export type IFn = (...params: any[]) => Writer<Value, Log>
@@ -94,7 +99,7 @@ function isSubtypeOfGeneric(
 	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
-export class Sym implements INode, IExp {
+export class Sym implements IExp {
 	readonly type = 'sym' as const
 	parent: ExpComplex | null = null
 
@@ -103,7 +108,7 @@ export class Sym implements INode, IExp {
 	#resolve2(
 		ref: ExpComplex | null,
 		env?: Env
-	): Writer<{node: Node; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
+	): Writer<{node: Exp; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
 		if (!ref) {
 			// If no parent and still couldn't resolve the symbol,
 			// assume there's no bound expression for it.
@@ -113,7 +118,7 @@ export class Sym implements INode, IExp {
 				reason: 'Variable not bound: ' + this.name,
 			}
 
-			return Writer.of({node: Unit.instance}, log)
+			return Writer.of({node: LUnit.of()}, log)
 		}
 
 		if (ref.type === 'scope') {
@@ -173,30 +178,32 @@ export class Sym implements INode, IExp {
 
 	print = () => this.name
 
-	isSameTo = (exp: Node) => exp.type === 'sym' && this.name === exp.name
+	isSameTo = (exp: Exp) => exp.type === 'sym' && this.name === exp.name
 
 	static of(name: string) {
 		return new Sym(name)
 	}
 }
 
-export class Obj implements INode, IExp {
+export class Obj implements IExp {
 	readonly type = 'obj' as const
 	parent: ExpComplex | null = null
 
 	private constructor(public value: Value) {}
 
 	eval = () => withLog(this.value)
-	infer = () => this.value
-	print = this.value.print
-	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+	infer = () => (this.value.isType ? All.instance : this.value)
+
+	print = () => '<object>'
+
+	isSameTo = (exp: Exp) => this.type === exp.type && this.value === exp.value
 
 	static of(value: Value) {
 		return new Obj(value)
 	}
 }
 
-export class LUnit implements INode, IExp {
+export class LUnit implements IExp {
 	type = 'lUnit' as const
 	parent: ExpComplex | null = null
 
@@ -207,30 +214,28 @@ export class LUnit implements INode, IExp {
 	eval = () => withLog(Unit.instance)
 	infer = () => Unit.instance
 	print = () => '()'
-	isSameTo = (exp: Node) => this.type === exp.type
+	isSameTo = (exp: Exp) => this.type === exp.type
 
 	static of() {
 		return new LUnit()
 	}
 }
 
-export class Unit implements INode, IValue {
+export class Unit implements IValue {
 	readonly type = 'unit' as const
 	superType!: All
 	defaultValue = this
 
-	eval = () => withLog(this)
-	infer = () => this
-	print = () => '()'
-	isSameTo = (exp: Node) => exp.type === 'unit'
-	isEqualTo = this.isSameTo
+	toAst = () => LUnit.of()
+
+	isEqualTo = (v: Value) => v.type === 'unit'
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 	isType = false
 
 	static instance = new Unit()
 }
 
-export class LAll implements INode, IExp {
+export class LAll implements IExp {
 	type = 'lAll' as const
 	parent: ExpComplex | null = null
 
@@ -241,14 +246,14 @@ export class LAll implements INode, IExp {
 	eval = () => withLog(All.instance)
 	infer = () => All.instance
 	print = () => '_'
-	isSameTo = (exp: Node) => this.type === exp.type
+	isSameTo = (exp: Exp) => this.type === exp.type
 
 	static of() {
 		return new LAll()
 	}
 }
 
-export class All implements INode, IValue {
+export class All implements IValue {
 	readonly type = 'all' as const
 	defaultValue = Unit.instance
 
@@ -256,12 +261,10 @@ export class All implements INode, IValue {
 		return this
 	}
 
-	eval = () => withLog(this)
-	infer = () => this
-	print = () => '_'
-	isSameTo = (exp: Node) => exp.type === 'all'
-	isEqualTo = this.isSameTo
-	isSubtypeOf = this.isSameTo
+	toAst = () => LAll.of()
+
+	isEqualTo = (v: Value) => v.type === 'all'
+	isSubtypeOf = this.isEqualTo
 	isType = false
 
 	static instance = new All()
@@ -269,7 +272,7 @@ export class All implements INode, IValue {
 
 Unit.prototype.superType = All.instance
 
-export class LBottom implements INode, IExp {
+export class LBottom implements IExp {
 	type = 'lBottom' as const
 	parent: ExpComplex | null = null
 
@@ -280,14 +283,14 @@ export class LBottom implements INode, IExp {
 	eval = () => withLog(Bottom.instance)
 	infer = () => All.instance
 	print = () => '_|_'
-	isSameTo = (exp: Node) => this.type === exp.type
+	isSameTo = (exp: Exp) => this.type === exp.type
 
 	static of() {
 		return new LBottom()
 	}
 }
 
-export class Bottom implements INode, IValue {
+export class Bottom implements IValue {
 	readonly type = 'bottom' as const
 	defaultValue = this
 
@@ -295,34 +298,27 @@ export class Bottom implements INode, IValue {
 		return this
 	}
 
-	eval = () => withLog(this)
+	toAst = () => LBottom.of()
 
-	infer = () => All.instance
-	print = () => '_|_'
-	isSameTo = (exp: Node) => exp.type === 'bottom'
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) => v.type === 'bottom'
 	isSubtypeOf = () => true
 	isType = true
 
 	static instance = new Bottom()
 }
 
-export class Prim<T = any> implements INode, IValue {
+export class Prim<T = any> implements IValue {
 	readonly type = 'prim' as const
 	defaultValue = this
 
 	protected constructor(public superType: TyPrim, public value: T) {}
 
-	eval = (): WithLog => withLog(this)
-	infer = () => this
-	print = () => `<instance of ${this.superType.print()}>`
+	toAst = (): Exp => Obj.of(this)
 
-	isSameTo = (exp: Node) =>
-		exp.type === 'prim' &&
-		isSame(this.superType, exp.superType) &&
-		this.value === exp.value
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (val: Value) =>
+		val.type === 'prim' &&
+		isEqual(this.superType, val.superType) &&
+		this.value === val.value
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
@@ -333,7 +329,7 @@ export class Prim<T = any> implements INode, IValue {
 	}
 }
 
-export class LNum implements INode, IExp {
+export class LNum implements IExp {
 	type = 'lNum' as const
 	parent: ExpComplex | null = null
 
@@ -342,7 +338,7 @@ export class LNum implements INode, IExp {
 	eval = () => withLog(Num.of(this.value))
 	infer = () => Num.of(this.value)
 	print = () => this.value.toString()
-	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+	isSameTo = (exp: Exp) => this.type === exp.type && this.value === exp.value
 
 	static of(value: number) {
 		return new LNum(value)
@@ -357,7 +353,7 @@ export class Num extends Prim<number> {
 	}
 }
 
-export class LStr implements INode, IExp {
+export class LStr implements IExp {
 	type = 'lStr' as const
 	parent: ExpComplex | null = null
 
@@ -366,7 +362,7 @@ export class LStr implements INode, IExp {
 	eval = () => withLog(Str.of(this.value))
 	infer = () => Str.of(this.value)
 	print = () => '"' + this.value + '"'
-	isSameTo = (exp: Node) => this.type === exp.type && this.value === exp.value
+	isSameTo = (exp: Exp) => this.type === exp.type && this.value === exp.value
 
 	static of(value: string) {
 		return new LStr(value)
@@ -381,22 +377,17 @@ export class Str extends Prim<string> {
 	}
 }
 
-export class TyPrim<T = any> implements INode, IValue {
+export class TyPrim<T = any> implements IValue {
 	readonly type = 'tyPrim' as const
 	superType = All.instance
 	defaultValue!: Num | Str | Prim
 
 	private constructor(private readonly name: string) {}
 
-	eval = (): WithLog => withLog(this)
+	// TODO: fix this
+	toAst = () => Sym.of(this.name)
 
-	infer = () => All.instance
-
-	print = () => this.name
-
-	isSameTo = (exp: Node) => exp.type === 'tyPrim' && this.name === exp.name
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) => v.type === 'tyPrim' && this.name === v.name
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
@@ -430,7 +421,7 @@ export const tyStr = TyPrim.ofLiteral('Str', Str.of(''))
 Num.prototype.superType = tyNum
 Str.prototype.superType = tyStr
 
-export class Enum implements INode, IValue {
+export class Enum implements IValue {
 	readonly type = 'enum' as const
 	superType!: TyEnum
 
@@ -438,17 +429,13 @@ export class Enum implements INode, IValue {
 
 	defaultValue = this
 
-	eval = () => withLog(this)
-	infer = () => this
 	// TODO: fix this
-	print = () => this.name
+	toAst = () => Sym.of(this.name)
 
-	isSameTo = (e: Node) =>
-		e.type === 'enum' &&
-		this.name === e.name &&
-		this.superType.isSameTo(e.superType)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'enum' &&
+		this.name === v.name &&
+		this.superType.isEqualTo(v.superType)
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -459,7 +446,7 @@ export class Enum implements INode, IValue {
 	}
 }
 
-export class TyEnum implements INode, IValue {
+export class TyEnum implements IValue {
 	readonly type = 'tyEnum' as const
 	superType = All.instance
 
@@ -470,16 +457,10 @@ export class TyEnum implements INode, IValue {
 
 	defaultValue = this.types[0]
 
-	eval = () => withLog(this)
-
-	infer = () => All.instance
-
 	// TODO: fix this
-	print = () => this.name
+	toAst = () => Sym.of(this.name)
 
-	isSameTo = (e: Node) => e.type === 'tyEnum' && this.name === e.name
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) => v.type === 'tyEnum' && this.name === v.name
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -505,7 +486,23 @@ export class TyEnum implements INode, IValue {
 	}
 }
 
-export class TyVar implements INode, IValue {
+export class LTyVar implements IExp {
+	readonly type = 'lTyVar' as const
+	parent: ExpComplex | null = null
+
+	private constructor(public name: string, public readonly original?: TyVar) {}
+
+	eval = () => withLog(TyVar.of(this.name))
+	infer = () => All.instance
+	print = () => '<' + this.name + '>'
+	isSameTo = (exp: Exp) => exp.type === 'lTyVar' && this.name === exp.name
+
+	public static of(name: string) {
+		return new LTyVar(name)
+	}
+}
+
+export class TyVar implements IValue {
 	readonly type = 'tyVar' as const
 	superType = All.instance
 
@@ -513,16 +510,10 @@ export class TyVar implements INode, IValue {
 
 	defaultValue = Unit.instance
 
-	eval = () => withLog(this)
-	infer = () => All.instance
-	print = () => '<' + this.name + '>'
-	isSameTo = (exp: Node) => exp.type === 'tyVar' && this.name === exp.name
+	toAst = () => LTyVar.of(this.name)
 
-	isEqualTo = this.isSameTo
-
+	isEqualTo = (v: Value) => v.type === 'tyVar' && this.name === v.name
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
-	// NOTE: is this correct?
 	isType = true
 
 	shadow = (): TyVar => {
@@ -549,25 +540,26 @@ export class TyVar implements INode, IValue {
 	}
 }
 
-export class EFn implements INode, IExp {
+export class EFn implements IExp {
 	readonly type = 'eFn' as const
 	parent: ExpComplex | null = null
 
-	readonly tyVars: Record<string, TyVar>
+	readonly tyVars: Record<string, LTyVar>
 
 	private constructor(
 		tyVars: string[],
-		public param: Record<string, Node>,
-		public body: Node
+		public param: Record<string, Exp>,
+		public body: Exp
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, LTyVar.of(name)]))
 	}
 
 	eval = (env?: Env): WithLog => {
 		const names = keys(this.param)
 
 		const fn: IFn = (...args: Value[]) => {
-			const arg = fromPairs(zip(names, args))
+			const objs = args.map(Obj.of)
+			const arg = fromPairs(zip(names, objs))
 			const innerEnv = env ? env.push(arg) : Env.from(arg)
 			return this.body.eval(innerEnv)
 		}
@@ -583,7 +575,7 @@ export class EFn implements INode, IExp {
 	infer = (env?: Env): TyFn => {
 		const param = Writer.mapValues(this.param, p => p.eval(env)).result
 
-		const innerEnv = env ? env.push(param) : Env.from(param)
+		const innerEnv = env ? env.push(this.param) : Env.from(this.param)
 
 		const out = this.body.infer(innerEnv)
 
@@ -599,13 +591,13 @@ export class EFn implements INode, IExp {
 		return `(=> ${tyVars}${param} ${body})`
 	}
 
-	isSameTo = (exp: Node) =>
+	isSameTo = (exp: Exp) =>
 		exp.type === 'eFn' &&
 		hasEqualValues(this.tyVars, exp.tyVars, isSame) &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.body, exp.body)
 
-	static of(tyVars: string[], param: EFn['param'], body: Node) {
+	static of(tyVars: string[], param: EFn['param'], body: Exp) {
 		const fn = new EFn(tyVars, param, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
@@ -613,7 +605,7 @@ export class EFn implements INode, IExp {
 	}
 }
 
-export class Fn implements INode, IValue, IFnLike {
+export class Fn implements IValue, IFnLike {
 	readonly type = 'fn' as const
 
 	env?: Env
@@ -622,22 +614,16 @@ export class Fn implements INode, IValue, IFnLike {
 	private constructor(
 		public superType: TyFn,
 		public fn: IFn,
-		public body?: Node
+		public body?: Exp
 	) {}
 
 	tyFn = this.superType
 
 	defaultValue = this
 
-	eval = () => withLog(this)
-
-	infer = () => this
-
-	print = (): string => {
-		const param = this.superType.printParam()
-		const body = this.body?.print() ?? '<js code>'
-		const out = this.superType.out.print()
-		return `(=> ${param} ${body}:${out})`
+	// TODO: fix this
+	toAst = () => {
+		return Sym.of('fn')
 	}
 
 	isSameTo = () => false
@@ -648,23 +634,23 @@ export class Fn implements INode, IValue, IFnLike {
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
 		return new Fn(TyFn.from(param, out), fn)
 	}
-	static from(ty: TyFn, fn: IFn, body?: Node) {
+	static from(ty: TyFn, fn: IFn, body?: Exp) {
 		return new Fn(ty, fn, body)
 	}
 }
 
-export class ETyFn implements INode, IExp {
+export class ETyFn implements IExp {
 	readonly type = 'eTyFn' as const
 	parent: ExpComplex | null = null
 
-	tyVars: Record<string, TyVar>
+	tyVars: Record<string, LTyVar>
 
 	private constructor(
 		tyVars: string[],
-		public param: Record<string, Node>,
-		public out: Node
+		public param: Record<string, Exp>,
+		public out: Exp
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, TyVar.of(name)]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, LTyVar.of(name)]))
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -682,13 +668,13 @@ export class ETyFn implements INode, IExp {
 		return `(-> ${tyVars}[${param}] ${out})`
 	}
 
-	isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Exp): boolean =>
 		exp.type === 'eTyFn' &&
 		hasEqualValues(this.tyVars, exp.tyVars, isSame) &&
 		hasEqualValues(this.param, exp.param, isSame) &&
 		isSame(this.out, this.out)
 
-	static of(tyVars: string[], param: Node | Node[], out: Node) {
+	static of(tyVars: string[], param: Exp | Exp[], out: Exp) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
@@ -701,7 +687,7 @@ export class ETyFn implements INode, IExp {
 		return tyFn
 	}
 
-	static from(tyVars: string[], param: Record<string, Node>, out: Node) {
+	static from(tyVars: string[], param: Record<string, Exp>, out: Exp) {
 		const tyFn = new ETyFn(tyVars, param, out)
 		forOwn(param, p => setParent(p, tyFn))
 		setParent(out, tyFn)
@@ -709,7 +695,7 @@ export class ETyFn implements INode, IExp {
 	}
 }
 
-export class TyFn implements INode, IValue, ITyFn {
+export class TyFn implements IValue, ITyFn {
 	readonly type = 'tyFn' as const
 	superType = All.instance
 
@@ -723,24 +709,16 @@ export class TyFn implements INode, IValue, ITyFn {
 		return this.#defaultValue
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => All.instance
-
-	printParam = () => `[${entries(this.param).map(printNamedNode).join(' ')}]`
-
-	print = (): string => {
-		const param = this.printParam()
-		const out = this.out.print()
-		return `(-> ${param} ${out})`
+	toAst = (): Exp => {
+		const param = mapValues(this.param, p => p.toAst())
+		const out = this.out.toAst()
+		return ETyFn.from([], param, out)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'tyFn' &&
-		isEqualArray(values(this.param), values(e.param), isSame) &&
-		isSame(this.out, e.out)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'tyFn' &&
+		isEqualArray(values(this.param), values(v.param), isEqual) &&
+		isEqual(this.out, v.out)
 
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
@@ -767,22 +745,22 @@ export class TyFn implements INode, IValue, ITyFn {
 	}
 }
 
-function printTyVars(tyVars: Record<string, TyVar>): string {
+function printTyVars(tyVars: Record<string, LTyVar>): string {
 	const es = keys(tyVars)
 	if (es.length === 0) return ''
 	return '<' + es.join(' ') + '> '
 }
 
-function printNamedNode([name, ty]: [string, Node]) {
+function printNamedNode([name, ty]: [string, Exp]) {
 	if (/^[0-9]+$/.test(name)) return ty.print()
 	return name + ':' + ty.print()
 }
 
-export class EVec implements INode {
+export class EVec implements IExp {
 	readonly type = 'eVec' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public items: Node[], public rest: Node | null = null) {}
+	private constructor(public items: Exp[], public rest: Exp | null = null) {}
 
 	get length() {
 		return this.items.length
@@ -810,18 +788,18 @@ export class EVec implements INode {
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
-	isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Exp): boolean =>
 		exp.type === 'eVec' &&
 		isEqualArray(this.items, exp.items, isSame) &&
 		nullishEqual(this.rest, this.rest, isSame)
 
-	static of(...items: Node[]) {
+	static of(...items: Exp[]) {
 		const vec = new EVec(items)
 		items.forEach(it => setParent(it, vec))
 		return vec
 	}
 
-	static from(items: Node[], rest: Node | null = null) {
+	static from(items: Exp[], rest: Exp | null = null) {
 		const vec = new EVec(items, rest)
 		items.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
@@ -829,7 +807,7 @@ export class EVec implements INode {
 	}
 }
 
-export class Vec implements INode, IValue, IFnLike {
+export class Vec implements IValue, IFnLike {
 	readonly type = 'vec' as const
 	readonly superType = All.instance
 
@@ -841,19 +819,13 @@ export class Vec implements INode, IValue, IFnLike {
 		return this.#defaultValue
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => (this.isType ? All.instance : this)
-
-	print = (): string => {
-		const items = this.items.map(print)
-		return '[' + items.join(' ') + ']'
+	toAst = (): Exp => {
+		const items = this.items.map(it => it.toAst())
+		return EVec.of(...items)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'vec' && isEqualArray(this.items, e.items, isSame)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'vec' && isEqualArray(this.items, v.items, isEqual)
 
 	isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
@@ -883,7 +855,7 @@ export class Vec implements INode, IValue, IFnLike {
 	}
 }
 
-export class TyVec implements INode, IValue {
+export class TyVec implements IValue {
 	readonly type = 'tyVec' as const
 	readonly superType = All.instance
 
@@ -895,19 +867,14 @@ export class TyVec implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => All.instance
-
-	print = (): string => {
-		const items = this.items.map(print)
-		return '[' + items.join(' ') + ']'
+	toAst = (): Exp => {
+		const items = this.items.map(it => it.toAst())
+		const rest = this.rest.toAst()
+		return EVec.from(items, rest)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'tyVec' && isEqualArray(this.items, e.items, isSame)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'tyVec' && isEqualArray(this.items, v.items, isEqual)
 
 	isSubtypeOf = isSubtypeVecGeneric.bind(this)
 
@@ -956,13 +923,13 @@ function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
 	return true
 }
 
-export class EDict implements INode, IExp {
+export class EDict implements IExp {
 	readonly type = 'eDict' as const
 	parent: ExpComplex | null = null
 
 	private constructor(
-		public items: Record<string, {optional?: boolean; value: Node}>,
-		public rest?: Node
+		public items: Record<string, {optional?: boolean; value: Exp}>,
+		public rest?: Exp
 	) {}
 
 	infer = (): Value => {
@@ -992,7 +959,7 @@ export class EDict implements INode, IExp {
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
-	isSameTo = (exp: Node): boolean =>
+	isSameTo = (exp: Exp): boolean =>
 		exp.type === 'eDict' &&
 		hasEqualValues(
 			this.items,
@@ -1000,14 +967,14 @@ export class EDict implements INode, IExp {
 			(t, e) => !!t.optional === !!e.optional && isSame(t.value, e.value)
 		)
 
-	static of(items: Record<string, Node>) {
+	static of(items: Record<string, Exp>) {
 		const its = mapValues(items, value => ({value}))
 		return EDict.from(its)
 	}
 
 	static from(
-		items: Record<string, {optional?: boolean; value: Node}>,
-		rest?: Node
+		items: Record<string, {optional?: boolean; value: Exp}>,
+		rest?: Exp
 	) {
 		const dict = new EDict(items, rest)
 		values(items).forEach(it => setParent(it.value, dict))
@@ -1016,7 +983,7 @@ export class EDict implements INode, IExp {
 	}
 }
 
-export class Dict implements INode, IValue {
+export class Dict implements IValue {
 	readonly type = 'dict' as const
 	superType = All.instance
 
@@ -1028,19 +995,16 @@ export class Dict implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => (this.isType ? All.instance : this)
-
-	print = (): string => {
-		const items = entries(this.items).map(([k, v]) => k + ':' + v.print())
-		return '{' + items.join(' ') + '}'
+	toAst = (): Exp => {
+		const items = mapValues(this.items, it => ({
+			optional: false,
+			value: it.toAst(),
+		}))
+		return EDict.from(items)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'dict' && hasEqualValues(this.items, e.items, isSame)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'dict' && hasEqualValues(this.items, v.items, isEqual)
 
 	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
@@ -1058,7 +1022,7 @@ export class Dict implements INode, IValue {
 	}
 }
 
-export class TyDict implements INode, IValue {
+export class TyDict implements IValue {
 	readonly type = 'tyDict' as const
 	superType = All.instance
 
@@ -1080,28 +1044,21 @@ export class TyDict implements INode, IValue {
 		return this.#defaultValue
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => All.instance
-
-	print = (): string => {
-		const items = entries(this.items).map(([k, {optional, value}]) => {
-			return k + (optional ? '?' : '') + ': ' + value.print()
-		})
-		const rest = this.rest ? ['...' + this.rest.print()] : []
-
-		return '{' + [...items, ...rest].join(' ') + '}'
+	toAst = (): Exp => {
+		const items = mapValues(this.items, ({optional, value}) => ({
+			optional,
+			value: value.toAst(),
+		}))
+		return EDict.from(items)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'tyDict' &&
+	isEqualTo = (v: Value) =>
+		v.type === 'tyDict' &&
 		hasEqualValues(
 			this.items,
-			e.items,
-			(ti, ei) => !!ti.optional === !!ei.optional && isSame(ti.value, ei.value)
+			v.items,
+			(ti, ei) => !!ti.optional === !!ei.optional && isEqual(ti.value, ei.value)
 		)
-
-	isEqualTo = this.isSameTo
 
 	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
@@ -1157,29 +1114,23 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 	return true
 }
 
-export class Struct implements INode, IValue {
+export class Struct implements IValue {
 	readonly type = 'struct' as const
 
 	private constructor(public superType: TyStruct, public items: Value[]) {}
 
 	defaultValue = this
 
-	eval = () => withLog(this)
-
-	infer = () => this
-
-	print = (): string => {
-		const ctor = this.superType.print()
-		const items = this.items.map(it => it.print())
-		return '(' + [ctor, ...items].join(' ') + ')'
+	toAst = (): Exp => {
+		const items = this.items.map(it => it.toAst())
+		const fn = this.superType.toAst()
+		return Call.of(fn, ...items)
 	}
 
-	isSameTo = (e: Node) =>
-		e.type === 'struct' &&
-		this.superType.isSameTo(e.superType) &&
-		isEqualArray(this.items, e.items, isSame)
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) =>
+		v.type === 'struct' &&
+		this.superType.isEqualTo(v.superType) &&
+		isEqualArray(this.items, v.items, isEqual)
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -1190,7 +1141,7 @@ export class Struct implements INode, IValue {
 	}
 }
 
-export class TyStruct implements INode, IValue, IFnLike {
+export class TyStruct implements IValue, IFnLike {
 	readonly type = 'tyStruct' as const
 	superType = All.instance
 
@@ -1212,16 +1163,10 @@ export class TyStruct implements INode, IValue, IFnLike {
 
 	fn = (...items: Value[]) => withLog(this.of(...items))
 
-	eval = () => withLog(this)
-
-	infer = () => this
-
 	// TODO: Fix this
-	print = () => this.name
+	toAst = () => Sym.of(this.name)
 
-	isSameTo = (e: Node) => e.type === 'tyStruct' && this.name === e.name
-
-	isEqualTo = this.isSameTo
+	isEqualTo = (v: Value) => v.type === 'tyStruct' && this.name === v.name
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -1236,7 +1181,7 @@ export class TyStruct implements INode, IValue, IFnLike {
 	}
 }
 
-export class TyUnion implements INode, IValue {
+export class TyUnion implements IValue {
 	readonly type = 'tyUnion' as const
 	superType = All.instance
 
@@ -1249,20 +1194,14 @@ export class TyUnion implements INode, IValue {
 		return (this.#defaultValue ??= this.types[0].defaultValue)
 	}
 
-	eval = () => withLog(this)
-
-	infer = () => this
-
-	print = (): string => {
-		const types = this.types.map(print).join(' ')
-		return `(| ${types})`
+	toAst = (): Exp => {
+		const types = this.types.map(ty => ty.toAst())
+		return Call.of(Sym.of('|'), ...types)
 	}
 
-	isEqualTo = (e: Node): boolean =>
-		e.type === 'tyUnion' &&
-		differenceWith(this.types, e.types, isEqual).length === 0
-
-	isSameTo = this.isEqualTo
+	isEqualTo = (v: Value): boolean =>
+		v.type === 'tyUnion' &&
+		differenceWith(this.types, v.types, isEqual).length === 0
 
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
@@ -1282,11 +1221,11 @@ export class TyUnion implements INode, IValue {
 	static of = tyUnion
 }
 
-export class Call implements INode, IExp {
+export class Call implements IExp {
 	readonly type = 'call' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public fn: Node, public args: Node[]) {}
+	private constructor(public fn: Exp, public args: Exp[]) {}
 
 	#unifyFn(env?: Env): [RangedUnifier, Value[]] {
 		const ty = this.fn.infer(env)
@@ -1319,7 +1258,7 @@ export class Call implements INode, IExp {
 			return Writer.of(fn, ...fnLog, {
 				level: 'warn',
 				ref: this,
-				reason: 'Not a function: ' + fn.print(),
+				reason: 'Not a function',
 			})
 		}
 
@@ -1357,8 +1296,8 @@ export class Call implements INode, IExp {
 						level: 'error',
 						ref: this,
 						reason:
-							`Argument '${name}' expects type: ${pTy.print()}, ` +
-							`but got: '${aTyUnshadowed.print()}''`,
+							`Argument '${name}' expects type: ${pTy.toAst().print()}, ` +
+							`but got: '${aTyUnshadowed.toAst().print()}''`,
 					})
 				}
 				return pTy.defaultValue
@@ -1382,7 +1321,9 @@ export class Call implements INode, IExp {
 				arg[tv.name] = unshadowTyVars(subst.substitute(tv))
 			}
 
-			const innerEnv = fn.env ? fn.env.push(arg) : Env.from(arg)
+			const objs = mapValues(arg, Obj.of)
+
+			const innerEnv = fn.env ? fn.env.push(objs) : Env.from(objs)
 
 			;[result, callLog] = fn.body.eval(innerEnv).asTuple
 		} else {
@@ -1414,10 +1355,10 @@ export class Call implements INode, IExp {
 		return '(' + [fn, ...args].join(' ') + ')'
 	}
 
-	isSameTo = (exp: Node) =>
+	isSameTo = (exp: Exp) =>
 		exp.type === 'call' && isEqualArray(this.args, exp.args, isSame)
 
-	static of(fn: Node, ...args: Node[]) {
+	static of(fn: Exp, ...args: Exp[]) {
 		const app = new Call(fn, args)
 		setParent(fn, app)
 		args.forEach(a => setParent(a, app))
@@ -1425,13 +1366,13 @@ export class Call implements INode, IExp {
 	}
 }
 
-export class Scope implements INode, IExp {
+export class Scope implements IExp {
 	readonly type = 'scope' as const
 	parent: ExpComplex | null = null
 
 	private constructor(
-		public vars: Record<string, Node>,
-		public out: Node | null = null
+		public vars: Record<string, Exp>,
+		public out: Exp | null = null
 	) {}
 
 	infer = (env?: Env): Value => this.out?.infer(env) ?? Unit.instance
@@ -1445,18 +1386,18 @@ export class Scope implements INode, IExp {
 		return '(let ' + [...vars, ...out].join(' ') + ')'
 	}
 
-	isSameTo = (exp: Node) =>
+	isSameTo = (exp: Exp) =>
 		exp.type === 'scope' &&
 		nullishEqual(this.out, exp.out, isSame) &&
 		hasEqualValues(this.vars, exp.vars, isSame)
 
-	extend(vars: Record<string, Node>, out: Node | null = null): Scope {
+	extend(vars: Record<string, Exp>, out: Exp | null = null): Scope {
 		const scope = new Scope(vars, out)
 		scope.parent = this
 		return scope
 	}
 
-	def(name: string, exp: Node) {
+	def(name: string, exp: Exp) {
 		if (name in this.vars)
 			throw new Error(`Variable '${name}' is already defined`)
 
@@ -1466,13 +1407,13 @@ export class Scope implements INode, IExp {
 		return this
 	}
 
-	defs(vars: Record<string, Node>) {
+	defs(vars: Record<string, Exp>) {
 		for (const [name, exp] of entries(vars)) {
 			this.def(name, exp)
 		}
 	}
 
-	static of(vars: Record<string, Node>, out: Node | null = null) {
+	static of(vars: Record<string, Exp>, out: Exp | null = null) {
 		const scope = new Scope(vars, out)
 		values(vars).forEach(v => setParent(v, scope))
 		if (out) setParent(out, scope)
@@ -1480,13 +1421,13 @@ export class Scope implements INode, IExp {
 	}
 }
 
-export function setParent(exp: Node, parent: ExpComplex) {
+export function setParent(exp: Exp, parent: ExpComplex) {
 	if ('parent' in exp) {
 		exp.parent = parent
 	}
 }
 
-export function isSame(a: Node, b: Node): boolean {
+export function isSame(a: Exp, b: Exp): boolean {
 	return a.isSameTo(b)
 }
 
@@ -1502,6 +1443,6 @@ function isType(value: Value): boolean {
 	return value.isType
 }
 
-export function print(n: Node) {
+export function print(n: Exp) {
 	return n.print()
 }

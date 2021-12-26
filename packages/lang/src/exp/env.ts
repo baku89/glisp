@@ -1,6 +1,6 @@
-import type {Node} from './exp'
+import type {Exp} from './exp'
 
-type Arg = Record<string, Node>
+type Arg = Record<string, Exp>
 
 export class Env {
 	#original!: Env | undefined
@@ -19,7 +19,7 @@ export class Env {
 		return this.#original
 	}
 
-	get(name: string): Node | undefined {
+	get(name: string): Exp | undefined {
 		return this.#arg[name]
 	}
 

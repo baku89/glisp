@@ -19,7 +19,6 @@ import {
 	Value,
 	vec,
 } from '.'
-import {TyUnion} from './exp'
 
 describe('value equality', () => {
 	test('()')
@@ -35,11 +34,10 @@ describe('value equality', () => {
 	test('{a?: 10}')
 	test('{...Num}')
 	test('(-> [Num] Num)')
-	test(TyUnion.fromTypesUnsafe([num(1), num(2), num(3)]))
+	test('(| 1 2 3)')
 
-	function test(input: string | Value) {
-		const inputStr = typeof input === 'string' ? input : input.print()
-		it(`${inputStr} equals to itself`, () => {
+	function test(input: string) {
+		it(`${input} equals to itself`, () => {
 			const value = parse(input).eval().result
 			expect(isEqual(value, value)).toBe(true)
 		})
@@ -136,12 +134,12 @@ describe('default values of types', () => {
 			const ev = parse(expected).eval().result
 
 			if (fn) {
-				if (dv.type !== 'fn') throw new Error('Got=' + dv.print())
+				if (dv.type !== 'fn') throw new Error('Got=' + dv.toAst().print())
 				dv = dv.fn().result
 			}
 
 			if (!dv.isEqualTo(ev)) {
-				throw new Error('Got=' + dv.print())
+				throw new Error('Got=' + dv.toAst().print())
 			}
 		})
 	}
@@ -312,7 +310,7 @@ describe('instance relationship', () => {
 
 	function test(i: string, t: string, expected = true) {
 		it(`${i} is ${expected ? '' : 'not '}a instance of ${t}`, () => {
-			const iv = evaluate(parse(i))
+			const iv = parse(i)
 			const tv = evaluate(parse(t))
 			expect(iv.infer().isSubtypeOf(tv)).toBe(expected)
 		})
@@ -370,7 +368,7 @@ describe('inferring expression type', () => {
 			const i = parse(input).infer()
 			const e = parse(expected).eval().result
 
-			if (!i.isEqualTo(e)) throw new Error('Got=' + i.print())
+			if (!i.isEqualTo(e)) throw new Error('Got=' + i.toAst().print())
 		})
 	}
 })
@@ -390,7 +388,7 @@ describe('evaluating function body', () => {
 
 			const result = i.body.eval().result
 
-			if (!result.isEqualTo(e)) throw new Error('Got=' + result.print())
+			if (!result.isEqualTo(e)) throw new Error('Got=' + result.toAst().print())
 		})
 	}
 })

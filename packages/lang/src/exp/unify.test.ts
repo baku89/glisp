@@ -14,14 +14,14 @@ describe('getTyVars', () => {
 	run(Exp.tyFn([Exp.tyBool, T, T], U), [T, U])
 
 	function run(ty: Exp.Value, expected: Exp.TyVar[]) {
-		const eStr = '{' + expected.map(Exp.print).join(', ') + '}'
+		const eStr = '{' + expected.map(e => e.toAst().print()).join(', ') + '}'
 
-		test(`FV(${ty.print()}) equals to ${eStr}`, () => {
+		test(`FV(${ty.toAst().print()}) equals to ${eStr}`, () => {
 			const tvs = [...getTyVars(ty)]
 			const diff = _.differenceWith(tvs, expected, Exp.isEqual)
 
 			if (diff.length > 0) {
-				fail('Got={' + tvs.map(Exp.print).join(', ') + '}')
+				fail('Got={' + tvs.map(t => t.toAst().print()).join(', ') + '}')
 			}
 		})
 	}
@@ -40,21 +40,21 @@ describe('unifyTyVars', () => {
 
 	function test(consts: Const[], tv: Exp.TyVar, expected: Exp.Value) {
 		const cStr = printConsts(consts)
-		const tvStr = tv.print()
-		const eStr = expected.print()
+		const tvStr = tv.toAst().print()
+		const eStr = expected.toAst().print()
 		const subst = RangedUnifier.unify(...consts)
 		const resolved = subst.substitute(tv)
 
 		it(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
 			if (!resolved.isEqualTo(expected)) {
-				throw new Error('Got=' + resolved.print())
+				throw new Error('Got=' + resolved.toAst().print())
 			}
 		})
 	}
 
 	function printConsts(consts: Const[]) {
 		const strs = consts
-			.map(([s, R, t]) => [s.print(), R, t.print()].join(' '))
+			.map(([s, R, t]) => [s.toAst().print(), R, t.toAst().print()].join(' '))
 			.join(', ')
 
 		return '{' + strs + '}'

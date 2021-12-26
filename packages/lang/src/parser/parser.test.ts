@@ -6,16 +6,16 @@ import {
 	eTyFnFrom,
 	eVec,
 	eVecFrom,
+	Exp,
 	isSame,
 	lAll,
 	lBottom,
 	lNum,
 	lStr,
+	lTyVar,
 	lUnit,
-	Node,
 	scope,
 	sym,
-	tyVar,
 } from '../exp'
 import {parse} from '.'
 
@@ -38,7 +38,7 @@ describe('parsing literals', () => {
 	testParsing(' (  \t   ) ', lUnit())
 	testParsing(' _ ', lAll())
 	testParsing('_|_', lBottom())
-	testParsing('<T>', tyVar('T'))
+	testParsing('<T>', lTyVar('T'))
 })
 
 describe('parsing symbols', () => {
@@ -149,7 +149,7 @@ describe('parsing function type', () => {
 	testErrorParsing('(-> <1> [] Num)')
 })
 
-function testParsing(input: string, expected: Node) {
+function testParsing(input: string, expected: Exp) {
 	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
 		if (!isSame(result, expected)) {

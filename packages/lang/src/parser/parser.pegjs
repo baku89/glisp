@@ -34,7 +34,7 @@ SymIdent =
 
 TyVar = "<" name:$[^>]+ ">"
 	{
-		return Exp.tyVar(name)
+		return Exp.lTyVar(name)
 	}
 
 Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
