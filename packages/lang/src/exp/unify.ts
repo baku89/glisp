@@ -268,7 +268,7 @@ export class RangedUnifier {
 			this.addConsts(...cUnion)
 		}
 
-		// Finary set limits
+		// Finally set limits
 		if (t.type === 'tyVar') {
 			if (getTyVars(u).has(t)) throw new Error('Occur check')
 
