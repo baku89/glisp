@@ -1,9 +1,9 @@
-import {keys} from 'lodash'
+import {identity, keys} from 'lodash'
 
-export function hasEqualValues<T>(
+export function isEqualDict<T>(
 	a: Record<string, T>,
 	b: Record<string, T>,
-	isEqual: (a: T, b: T) => boolean
+	isEqual: (a: T, b: T) => boolean = identity
 ): boolean {
 	const aKeys = new Set(keys(a))
 	const bKeys = new Set(keys(b))

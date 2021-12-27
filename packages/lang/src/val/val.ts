@@ -11,8 +11,8 @@ import {
 import * as Ast from '../ast'
 import {Env} from '../ast/env'
 import {Log, withLog} from '../log'
-import {hasEqualValues} from '../utils/hasEqualValues'
 import {isEqualArray} from '../utils/isEqualArray'
+import {isEqualDict} from '../utils/isEqualDict'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import {tyUnion} from './TypeOperation'
@@ -515,7 +515,7 @@ export class Dict implements IValue {
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'dict' && hasEqualValues(this.items, v.items, isEqual)
+		v.type === 'dict' && isEqualDict(this.items, v.items, isEqual)
 
 	isSubtypeOf = isSubtypeDictGeneric.bind(this)
 
@@ -565,7 +565,7 @@ export class TyDict implements IValue {
 
 	isEqualTo = (v: Value) =>
 		v.type === 'tyDict' &&
-		hasEqualValues(
+		isEqualDict(
 			this.items,
 			v.items,
 			(ti, ei) => !!ti.optional === !!ei.optional && isEqual(ti.value, ei.value)

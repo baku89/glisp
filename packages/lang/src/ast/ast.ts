@@ -1,8 +1,8 @@
 import {entries, forOwn, fromPairs, keys, mapValues, values} from 'lodash'
 
 import {Log, WithLog, withLog} from '../log'
-import {hasEqualValues} from '../utils/hasEqualValues'
 import {isEqualArray} from '../utils/isEqualArray'
+import {isEqualDict} from '../utils/isEqualDict'
 import {nullishEqual} from '../utils/nullishEqual'
 import {union} from '../utils/SetOperation'
 import {Writer} from '../utils/Writer'
@@ -273,7 +273,7 @@ export class EFn implements IAst {
 	isSameTo = (ast: Node) =>
 		ast.type === 'eFn' &&
 		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
-		hasEqualValues(this.param, ast.param, isSame) &&
+		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.body, ast.body)
 
 	static of(tyVars: string[], param: EFn['param'], body: Node) {
@@ -316,7 +316,7 @@ export class ETyFn implements IAst {
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eTyFn' &&
 		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
-		hasEqualValues(this.param, ast.param, isSame) &&
+		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.out, this.out)
 
 	static of(tyVars: string[], param: Node | Node[], out: Node) {
@@ -440,7 +440,7 @@ export class EDict implements IAst {
 
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eDict' &&
-		hasEqualValues(
+		isEqualDict(
 			this.items,
 			ast.items,
 			(t, e) => !!t.optional === !!e.optional && isSame(t.value, e.value)
@@ -630,7 +630,7 @@ export class Scope implements IAst {
 	isSameTo = (ast: Node) =>
 		ast.type === 'scope' &&
 		nullishEqual(this.out, ast.out, isSame) &&
-		hasEqualValues(this.vars, ast.vars, isSame)
+		isEqualDict(this.vars, ast.vars, isSame)
 
 	extend(vars: Record<string, Node>, out: Node | null = null): Scope {
 		const scope = new Scope(vars, out)
