@@ -71,7 +71,7 @@ export class Sym implements IAst {
 		// Resolve tyVars
 		if (ref.type === 'eFn' || ref.type === 'eTyFn') {
 			if (this.name in ref.tyVars) {
-				return Writer.of({node: ref.tyVars[this.name], mode: 'tyVar'})
+				return Writer.of({node: Obj.of(ref.tyVars[this.name]), mode: 'tyVar'})
 			}
 		}
 
@@ -223,14 +223,14 @@ export class EFn implements IAst {
 	readonly type = 'eFn' as const
 	parent: Node | null = null
 
-	readonly tyVars: Record<string, Obj<Val.TyVar>>
+	readonly tyVars: Record<string, Val.TyVar>
 
 	private constructor(
 		tyVars: string[],
 		public param: Record<string, Node>,
 		public body: Node
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, Obj.of(Val.tyVar(name))]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -272,7 +272,7 @@ export class EFn implements IAst {
 
 	isSameTo = (ast: Node) =>
 		ast.type === 'eFn' &&
-		hasEqualValues(this.tyVars, ast.tyVars, isSame) &&
+		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
 		hasEqualValues(this.param, ast.param, isSame) &&
 		isSame(this.body, ast.body)
 
@@ -288,14 +288,14 @@ export class ETyFn implements IAst {
 	readonly type = 'eTyFn' as const
 	parent: Node | null = null
 
-	tyVars: Record<string, Obj<Val.TyVar>>
+	tyVars: Record<string, Val.TyVar>
 
 	private constructor(
 		tyVars: string[],
 		public param: Record<string, Node>,
 		public out: Node
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, Obj.of(Val.tyVar(name))]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -315,7 +315,7 @@ export class ETyFn implements IAst {
 
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eTyFn' &&
-		hasEqualValues(this.tyVars, ast.tyVars, isSame) &&
+		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
 		hasEqualValues(this.param, ast.param, isSame) &&
 		isSame(this.out, this.out)
 
@@ -340,7 +340,7 @@ export class ETyFn implements IAst {
 	}
 }
 
-function printTyVars(tyVars: Record<string, Obj<Val.TyVar>>): string {
+function printTyVars(tyVars: Record<string, Val.TyVar>): string {
 	const es = keys(tyVars)
 	if (es.length === 0) return ''
 	return '<' + es.join(' ') + '> '

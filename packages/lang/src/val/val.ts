@@ -270,7 +270,7 @@ export class TyEnum implements IValue {
 
 export class TyVar implements IValue {
 	readonly type = 'tyVar' as const
-	superType = All.instance
+	readonly superType = All.instance
 
 	private constructor(public name: string, public readonly original?: TyVar) {}
 
@@ -278,31 +278,20 @@ export class TyVar implements IValue {
 
 	toAst = () => Ast.sym(this.name)
 
-	isEqualTo = (v: Value) => v.type === 'tyVar' && this.name === v.name
+	isEqualTo = (v: Value) => this === v
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 	isType = true
 
 	shadow = (): TyVar => {
-		return new TyVar(this.name + '-' + TyVar.#counter++, this)
+		return new TyVar(this.name, this)
 	}
 
 	unshadow = (): TyVar => {
 		return this.original ?? this
 	}
-	static #counter = 1
-	static #store: Map<string, TyVar> = new Map()
-
-	public static fresh() {
-		return TyVar.of('T-' + TyVar.#counter++)
-	}
 
 	public static of(name: string) {
-		let v = TyVar.#store.get(name)
-		if (!v) {
-			v = new TyVar(name)
-			TyVar.#store.set(name, v)
-		}
-		return v
+		return new TyVar(name)
 	}
 }
 
