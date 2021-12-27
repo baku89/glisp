@@ -30,7 +30,7 @@
 		"eslint-config-prettier": "^8.3.0",
 		"eslint-plugin-simple-import-sort": "^7.0.0",
 		"eslint-plugin-unused-imports": "^1.1.2",
-		"jest": "^27.2.4",
+		"jest": "^27.4.5",
 		"jest-runner-eslint": "^1.0.0",
 		"peggy": "^1.2.0",
 		"prettier": "^2.3.2",
