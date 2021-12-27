@@ -602,7 +602,6 @@ export class Fn implements IValue, IFnLike {
 		return Sym.of('fn')
 	}
 
-	isSameTo = () => false
 	isEqualTo = () => false
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 	isType = false
