@@ -30,19 +30,21 @@ function printLog({level, reason}: Log) {
 }
 
 const replScope = PreludeScope.extend(MathScope.vars).extend({
-	IO: IO,
-	def: Exp.fn(
-		{name: Exp.tyStr, value: Exp.all},
-		IO,
-		(name: Exp.Str, value: Exp.Value) => {
-			return Exp.withLog(
-				IO.of(() => {
-					replScope.vars[name.value] = value
-				})
-			)
-		}
+	IO: Exp.obj(IO),
+	def: Exp.obj(
+		Exp.fn(
+			{name: Exp.tyStr, value: Exp.all},
+			IO,
+			(name: Exp.Str, value: Exp.Value) => {
+				return Exp.withLog(
+					IO.of(() => {
+						replScope.vars[name.value] = Exp.obj(value)
+					})
+				)
+			}
+		)
 	),
-	exit: IO.of(process.exit),
+	exit: Exp.obj(IO.of(process.exit)),
 })
 
 function startRepl() {
@@ -68,7 +70,7 @@ function startRepl() {
 			let str = ''
 
 			str += log.map(l => printLog(l) + '\n').join('')
-			str += chalk.bold.gray('< ') + result.print()
+			str += chalk.bold.gray('< ') + result.toAst().print()
 
 			return str + '\n'
 		},

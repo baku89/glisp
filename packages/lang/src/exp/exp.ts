@@ -23,15 +23,7 @@ import {tyUnion} from './TypeOperation'
 import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Exp = ExpLiteral | ExpComplex
-export type ExpLiteral =
-	| Sym
-	| Obj
-	| LUnit
-	| LAll
-	| LBottom
-	| LNum
-	| LStr
-	| LTyVar
+export type ExpLiteral = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 
 export type ExpComplex = Call | Scope | EFn | ETyFn | EVec | EDict
 
@@ -185,11 +177,11 @@ export class Sym implements IExp {
 	}
 }
 
-export class Obj implements IExp {
+export class Obj<V extends Value = Value> implements IExp {
 	readonly type = 'obj' as const
 	parent: ExpComplex | null = null
 
-	private constructor(public value: Value) {}
+	private constructor(public value: V) {}
 
 	eval = () => withLog(this.value)
 	infer = () => (this.value.isType ? All.instance : this.value)
@@ -198,7 +190,7 @@ export class Obj implements IExp {
 
 	isSameTo = (exp: Exp) => this.type === exp.type && this.value === exp.value
 
-	static of(value: Value) {
+	static of<V extends Value = Value>(value: V) {
 		return new Obj(value)
 	}
 }
@@ -486,22 +478,6 @@ export class TyEnum implements IValue {
 	}
 }
 
-export class LTyVar implements IExp {
-	readonly type = 'lTyVar' as const
-	parent: ExpComplex | null = null
-
-	private constructor(public name: string, public readonly original?: TyVar) {}
-
-	eval = () => withLog(TyVar.of(this.name))
-	infer = () => All.instance
-	print = () => '<' + this.name + '>'
-	isSameTo = (exp: Exp) => exp.type === 'lTyVar' && this.name === exp.name
-
-	public static of(name: string) {
-		return new LTyVar(name)
-	}
-}
-
 export class TyVar implements IValue {
 	readonly type = 'tyVar' as const
 	superType = All.instance
@@ -510,7 +486,7 @@ export class TyVar implements IValue {
 
 	defaultValue = Unit.instance
 
-	toAst = () => LTyVar.of(this.name)
+	toAst = () => Sym.of(this.name)
 
 	isEqualTo = (v: Value) => v.type === 'tyVar' && this.name === v.name
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
@@ -544,14 +520,14 @@ export class EFn implements IExp {
 	readonly type = 'eFn' as const
 	parent: ExpComplex | null = null
 
-	readonly tyVars: Record<string, LTyVar>
+	readonly tyVars: Record<string, Obj<TyVar>>
 
 	private constructor(
 		tyVars: string[],
 		public param: Record<string, Exp>,
 		public body: Exp
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, LTyVar.of(name)]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, Obj.of(TyVar.of(name))]))
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -643,14 +619,14 @@ export class ETyFn implements IExp {
 	readonly type = 'eTyFn' as const
 	parent: ExpComplex | null = null
 
-	tyVars: Record<string, LTyVar>
+	tyVars: Record<string, Obj<TyVar>>
 
 	private constructor(
 		tyVars: string[],
 		public param: Record<string, Exp>,
 		public out: Exp
 	) {
-		this.tyVars = fromPairs(tyVars.map(name => [name, LTyVar.of(name)]))
+		this.tyVars = fromPairs(tyVars.map(name => [name, Obj.of(TyVar.of(name))]))
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -745,7 +721,7 @@ export class TyFn implements IValue, ITyFn {
 	}
 }
 
-function printTyVars(tyVars: Record<string, LTyVar>): string {
+function printTyVars(tyVars: Record<string, Obj<TyVar>>): string {
 	const es = keys(tyVars)
 	if (es.length === 0) return ''
 	return '<' + es.join(' ') + '> '

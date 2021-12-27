@@ -13,7 +13,6 @@ import {
 	tyFn,
 	tyNum,
 	tyStr,
-	tyVar,
 	tyVec,
 	unit,
 	Value,
@@ -64,7 +63,6 @@ describe('evaluating literals', () => {
 		tyDict({a: {optional: true, value: tyNum}}, tyStr)
 	)
 	testEval('(-> [Num] Num)', tyFn(tyNum, tyNum))
-	testEval('<T>', tyVar('T'))
 	testEval('(let a = 10 a)', num(10))
 	testEval('(let a = (let a = 20 a) a)', num(20))
 })
@@ -107,7 +105,6 @@ describe('default values of types', () => {
 	test('()', '()')
 	test('_', '()')
 	test('_|_', '_|_')
-	test('<T>', '()')
 
 	test('[]', '[]')
 	test('[Num Str]', '[0 ""]')
@@ -122,9 +119,9 @@ describe('default values of types', () => {
 	test('{a?:Num ...Str}', '{}')
 
 	test('(-> [] Num)', '0', true)
-	test('(-> [Num] Bool)', 'false', true)
-	test('(-> [<T>] <T>)', '()', true)
-	test('(-> [_] ())', '()', true)
+	test('(-> Num Bool)', 'false', true)
+	test('(-> <T> T T)', '()', true)
+	test('(-> _ ())', '()', true)
 
 	function test(input: string, expected: string, fn = false) {
 		const eStr = fn ? `(=> [] ${expected})` : expected
@@ -158,11 +155,6 @@ describe('subtyping', () => {
 	test('()', '()', '=')
 	test('()', '0', '!=')
 	test('()', '_', '<')
-
-	test('<T>', '<T>', '=')
-	test('<U>', '<T>', '!=')
-	test('<U>', '_', '<')
-	test('0', '<T>', '!=')
 
 	// Atom, TyAtom
 	test('1', '1', '=')
@@ -251,7 +243,6 @@ describe('checking type or atom', () => {
 	test('0', false)
 	test('"hello"', false)
 	test('false', false)
-	test('<T>', true)
 	test('Num', true)
 	test('Bool', true)
 	test('[]', false)
@@ -289,9 +280,6 @@ describe('instance relationship', () => {
 
 	test('0', 'Num')
 	test('"hello"', 'Num', false)
-	test('0', '<T>', false)
-	test('<T>', '<T>', false)
-	test('<T>', '_')
 
 	test('[]', '[]')
 	test('[1 2]', '[...Num]')
@@ -324,8 +312,6 @@ describe('inferring expression type', () => {
 	test('0', '0')
 	test('"foo"', '"foo"')
 	test('true', 'true')
-
-	test('<T>', '_')
 
 	test('Num', '_')
 	test('Bool', '_')

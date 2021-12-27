@@ -12,7 +12,6 @@ import {
 	lBottom,
 	lNum,
 	lStr,
-	lTyVar,
 	lUnit,
 	scope,
 	sym,
@@ -38,7 +37,6 @@ describe('parsing literals', () => {
 	testParsing(' (  \t   ) ', lUnit())
 	testParsing(' _ ', lAll())
 	testParsing('_|_', lBottom())
-	testParsing('<T>', lTyVar('T'))
 })
 
 describe('parsing symbols', () => {

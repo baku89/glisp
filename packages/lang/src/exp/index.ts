@@ -19,7 +19,6 @@ import {
 	LBottom,
 	LNum,
 	LStr,
-	LTyVar,
 	LUnit,
 	Num,
 	Obj,
@@ -62,7 +61,6 @@ export {
 	LBottom,
 	LNum,
 	LStr,
-	LTyVar,
 	Call,
 	Scope,
 	EFn,
@@ -78,7 +76,6 @@ export const lAll = LAll.of
 export const lBottom = LBottom.of
 export const lNum = LNum.of
 export const lStr = LStr.of
-export const lTyVar = LTyVar.of
 export const call = Call.of
 export const scope = Scope.of
 export const eFn = EFn.of

@@ -107,24 +107,24 @@ PreludeScope.defs(
 not = (=> x:Bool (nand x x))
 or  = (=> [x:Bool y:Bool] (nand (not x) (not y)))
 
-compose = (=> <T U V>
-              [f:(-> T U)
-               g:(-> U V)]
-              (=> x:T (g (f x))))
-
-twice = (=> <T> f:(-> T T) (compose f f))
-
 inc = (=> x:Num (+ x 1))
 
 dec = (=> x:Num (- x 1))
 
 isEven = (=> x:Num (== (mod x 2) 0))
 
+compose = (=> <T U V>
+	[f:(-> T U)
+	 g:(-> U V)] 
+	(=> x:T (g (f x))))
+
+twice = (=> <T> f:(-> T T) (compose f f))
+
 const = (=> <T> x:T (=> [] x))
 
 first = (=> <T> coll:[...T] (coll 0))
 
-id = (=> x:<T> x)
+id = (=> <T> x:T x)
 
 sum = (=> xs:[...Num] (reduce + xs 0))
 

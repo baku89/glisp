@@ -12,7 +12,7 @@ Node =
 	Unit / Bottom / All /
 	Fn / TyFn / Scope / App /
 	Vec /
-	Num / Str / TyVar / Sym
+	Num / Str / Sym
 
 Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "<" [^>]+ ">"
 
@@ -30,11 +30,6 @@ SymIdent =
 	(!(Delimiter / Whitespace) .)*
 	{
 		return Exp.sym(text())
-	}
-
-TyVar = "<" name:$[^>]+ ">"
-	{
-		return Exp.lTyVar(name)
 	}
 
 Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
@@ -78,14 +73,9 @@ TyFnParamEntry =
 	NamedNode /
 	type:Node _ { return [null, type] }
 
-FnTyVars = "<" _ tyVars:FnTyVarEntry* ">" _
+FnTyVars = "<" _ tyVars:(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
 	{
 		return tyVars
-	}
-
-FnTyVarEntry = name:$([a-zA-Z] [a-zA-Z0-9]*) _
-	{
-		return name
 	}
 
 NamedNode = sym:Sym _ ":" _ value:Node _

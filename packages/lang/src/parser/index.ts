@@ -8,7 +8,6 @@ type Literal =
 	| Exp.LUnit
 	| Exp.LNum
 	| Exp.LStr
-	| Exp.LTyVar
 
 export function parse(str: string, parent: Exp.Exp['parent'] = null): Literal {
 	const exp: Literal | undefined = parser.parse(str, {Exp})
