@@ -2,13 +2,14 @@ import chalk from 'chalk'
 import * as os from 'os'
 import * as repl from 'repl'
 
-import {Log} from '../exp'
-import * as Exp from '../exp'
+import * as Ast from '../ast'
+import {Log, WithLog, withLog} from '../log'
 import {parse} from '../parser'
 import {MathScope} from '../std/math'
 import {PreludeScope} from '../std/prelude'
+import * as Val from '../val'
 
-const IO = Exp.tyPrim('IO', () => {
+const IO = Val.tyPrim('IO', () => {
 	return
 })
 
@@ -30,21 +31,21 @@ function printLog({level, reason}: Log) {
 }
 
 const replScope = PreludeScope.extend(MathScope.vars).extend({
-	IO: Exp.obj(IO),
-	def: Exp.obj(
-		Exp.fn(
-			{name: Exp.tyStr, value: Exp.all},
+	IO: Ast.obj(IO),
+	def: Ast.obj(
+		Val.fn(
+			{name: Val.tyStr, value: Val.all},
 			IO,
-			(name: Exp.Str, value: Exp.Value) => {
-				return Exp.withLog(
+			(name: Val.Str, value: Val.Value) => {
+				return withLog(
 					IO.of(() => {
-						replScope.vars[name.value] = Exp.obj(value)
+						replScope.vars[name.value] = Ast.obj(value)
 					})
 				)
 			}
 		)
 	),
-	exit: Exp.obj(IO.of(process.exit)),
+	exit: Ast.obj(IO.of(process.exit)),
 })
 
 function startRepl() {
@@ -62,11 +63,11 @@ function startRepl() {
 				cb(null, evaluated)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
-				const r = Exp.withLog(Exp.unit, {level: 'error', reason: err.message})
+				const r = withLog(Val.unit, {level: 'error', reason: err.message})
 				cb(null, r)
 			}
 		},
-		writer: ({result, log}: Exp.WithLog) => {
+		writer: ({result, log}: WithLog) => {
 			let str = ''
 
 			str += log.map(l => printLog(l) + '\n').join('')

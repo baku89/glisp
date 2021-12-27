@@ -1,24 +1,24 @@
 import _ from 'lodash'
 
-import * as Exp from '.'
+import * as Val from '../val'
 import {Const, getTyVars, RangedUnifier} from './unify'
 
-const T = Exp.tyVar('T'),
-	U = Exp.tyVar('U')
+const T = Val.tyVar('T'),
+	U = Val.tyVar('U')
 
 describe('getTyVars', () => {
-	run(Exp.num(1), [])
-	run(Exp.bool(true), [])
+	run(Val.num(1), [])
+	run(Val.bool(true), [])
 	run(T, [T])
-	run(Exp.tyUnion(T, U), [T, U])
-	run(Exp.tyFn([Exp.tyBool, T, T], U), [T, U])
+	run(Val.tyUnion(T, U), [T, U])
+	run(Val.tyFn([Val.tyBool, T, T], U), [T, U])
 
-	function run(ty: Exp.Value, expected: Exp.TyVar[]) {
+	function run(ty: Val.Value, expected: Val.TyVar[]) {
 		const eStr = '{' + expected.map(e => e.toAst().print()).join(', ') + '}'
 
 		test(`FV(${ty.toAst().print()}) equals to ${eStr}`, () => {
 			const tvs = [...getTyVars(ty)]
-			const diff = _.differenceWith(tvs, expected, Exp.isEqual)
+			const diff = _.differenceWith(tvs, expected, Val.isEqual)
 
 			if (diff.length > 0) {
 				fail('Got={' + tvs.map(t => t.toAst().print()).join(', ') + '}')
@@ -28,17 +28,17 @@ describe('getTyVars', () => {
 })
 
 describe('unifyTyVars', () => {
-	test([[T, '>=', Exp.tyNum]], T, Exp.tyNum)
+	test([[T, '>=', Val.tyNum]], T, Val.tyNum)
 	test(
 		[
-			[T, '>=', Exp.unit],
-			[T, '>=', Exp.tyNum],
+			[T, '>=', Val.unit],
+			[T, '>=', Val.tyNum],
 		],
 		T,
-		Exp.TyUnion.fromTypesUnsafe([Exp.unit, Exp.tyNum])
+		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
 	)
 
-	function test(consts: Const[], tv: Exp.TyVar, expected: Exp.Value) {
+	function test(consts: Const[], tv: Val.TyVar, expected: Val.Value) {
 		const cStr = printConsts(consts)
 		const tvStr = tv.toAst().print()
 		const eStr = expected.toAst().print()

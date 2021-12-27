@@ -6,16 +6,16 @@ import {
 	eTyFnFrom,
 	eVec,
 	eVecFrom,
-	Exp,
 	isSame,
 	lAll,
 	lBottom,
 	lNum,
 	lStr,
 	lUnit,
+	Node,
 	scope,
 	sym,
-} from '../exp'
+} from '../ast'
 import {parse} from '.'
 
 const Num = sym('Num')
@@ -147,7 +147,7 @@ describe('parsing function type', () => {
 	testErrorParsing('(-> <1> [] Num)')
 })
 
-function testParsing(input: string, expected: Exp) {
+function testParsing(input: string, expected: Node) {
 	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
 		if (!isSame(result, expected)) {

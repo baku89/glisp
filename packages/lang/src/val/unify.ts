@@ -99,10 +99,6 @@ export class RangedUnifier {
 		return this.#uppers.get(tv) ?? all
 	}
 
-	mapTo(tv: TyVar, l: Value) {
-		this.#setLower(tv, l)
-	}
-
 	#setLower(tv: TyVar, l: Value) {
 		const nl = tyUnion(l, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
@@ -196,6 +192,10 @@ export class RangedUnifier {
 			if (this.#uppers.has(tv)) throw new Error('Cannot merge substs')
 			this.#uppers.set(tv, u)
 		}
+	}
+
+	mapTo(tv: TyVar, l: Value) {
+		this.#setLower(tv, l)
 	}
 
 	addConsts(...consts: Const[]): RangedUnifier {

@@ -17,7 +17,7 @@ import {
 	unit,
 	Value,
 	vec,
-} from '.'
+} from '../val'
 
 describe('value equality', () => {
 	test('()')
@@ -159,7 +159,7 @@ describe('subtyping', () => {
 	// Atom, TyAtom
 	test('1', '1', '=')
 	test('1', 'Num', '<')
-	// run('1', Exp.tyNum.extends('1'), true)
+	// run('1', Val.tyNum.extends('1'), true)
 	test('"hello"', '"hello"', '=')
 	test('"hello"', 'Str', '<')
 	test('Str', 'Num', '!=')

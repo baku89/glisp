@@ -14,8 +14,8 @@ import {
 	unit,
 	Value,
 } from '.'
-import {UnitableType} from './exp'
 import {tyUnion} from './TypeOperation'
+import {UnitableType} from './val'
 
 const unite = (...types: UnitableType[]) => TyUnion.fromTypesUnsafe(types)
 

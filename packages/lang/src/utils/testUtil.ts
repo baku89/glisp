@@ -1,30 +1,33 @@
-import * as Exp from '../exp'
+import * as Ast from '../ast'
+import {Log} from '../log'
 import * as Parser from '../parser'
 import {PreludeScope} from '../std/prelude'
+import * as Val from '../val'
 
 export function parse(
-	input: string | Exp.Exp,
-	parent: Exp.ExpComplex = PreludeScope
-): Exp.Exp {
-	let exp: Exp.Exp
+	input: string | Ast.Node,
+	parent: Ast.Exp = PreludeScope
+): Ast.Node {
+	let ast: Ast.Node
 	if (typeof input === 'string') {
-		exp = Parser.parse(input, parent)
+		ast = Parser.parse(input, parent)
 	} else {
-		exp = input
-		Exp.setParent(exp, parent)
+		ast = input
+		Ast.setParent(ast, parent)
 	}
-	return exp
+	return ast
 }
 
-export function evaluate(input: string | Exp.Exp): Exp.Value {
+export function evaluate(input: string | Ast.Node): Val.Value {
 	return parse(input).eval().result
 }
 
 export function testEval(
-	input: Exp.Exp | string,
-	expected: Exp.Value | string,
+	input: Ast.Node | string,
+	expected: Val.Value | string,
 	hasLog = false
 ) {
+	console.log(expected)
 	const iStr = typeof input === 'string' ? input : input.print()
 	const eStr =
 		typeof expected === 'string' ? expected : expected.toAst().print()
@@ -43,6 +46,6 @@ export function testEval(
 	})
 }
 
-export function printLog(log: Exp.Log[]) {
+export function printLog(log: Log[]) {
 	return log.map(l => `[${l.level}] ${l.reason}\n`).join('')
 }

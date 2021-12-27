@@ -1,5 +1,5 @@
 {
-	const Exp = options.Exp
+	const Ast = options.Ast
 }
 
 Program = _ exp:Node _
@@ -16,11 +16,11 @@ Node =
 
 Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "<" [^>]+ ">"
 
-Unit = "(" _ ")" { return Exp.lUnit() }
+Unit = "(" _ ")" { return Ast.lUnit() }
 
-All "all" = "_" { return Exp.lAll() }
+All "all" = "_" { return Ast.lAll() }
 
-Bottom "bottom" = "_|_" { return Exp.lBottom() }
+Bottom "bottom" = "_|_" { return Ast.lBottom() }
 
 Sym "Sym" = SymIdent
 
@@ -29,29 +29,29 @@ SymIdent =
 	!(Digit / Delimiter / Whitespace) .
 	(!(Delimiter / Whitespace) .)*
 	{
-		return Exp.sym(text())
+		return Ast.sym(text())
 	}
 
 Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
 	{
 		const v = parseFloat(text())
-		return Exp.lNum(v)
+		return Ast.lNum(v)
 	}
 
 Str "Str" = '"' value:$(!'"' .)* '"'
 	{
-		return Exp.lStr(value)
+		return Ast.lStr(value)
 	}
 
 
 App "App" = "(" _ fn:Node _ args:(@Node _)* ")"
 	{
-		return Exp.call(fn, ...args)
+		return Ast.call(fn, ...args)
 	}
 
 Fn = "(" _ "=>" _ tyVars:FnTyVars? param:FnParam body:Node _ ")"
 	{
-		return Exp.eFn(tyVars ?? [], param, body)
+		return Ast.eFn(tyVars ?? [], param, body)
 	}
 
 FnParam =
@@ -62,7 +62,7 @@ TyFn = "(" _ "->" _ tyVars:FnTyVars? param:TyFnParam out:Node _ ")"
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
 		const paramDict = Object.fromEntries(entries)
-		return Exp.eTyFnFrom(tyVars ?? [], paramDict, out)
+		return Ast.eTyFnFrom(tyVars ?? [], paramDict, out)
 	}
 
 TyFnParam =
@@ -85,12 +85,12 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 
 Vec = "[" _ items:(@Node _)* rest:Rest? "]"
 	{		
-		return Exp.eVecFrom(items, rest)
+		return Ast.eVecFrom(items, rest)
 	}
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
-		return Exp.eDictFrom(Object.fromEntries(entries), rest)
+		return Ast.eDictFrom(Object.fromEntries(entries), rest)
 	}
 
 DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
@@ -101,7 +101,7 @@ DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
 
 DictKey = (!(Whitespace / Delimiter) .)+
 	{
-		return Exp.lStr(text())
+		return Ast.lStr(text())
 	}
 
 Rest = "..." _ rest:Node _ { return rest }
@@ -113,7 +113,7 @@ Scope = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 			if (name in vars) throw new Error('Duplicated symbol name: ' + name)
 			vars[name] = value
 		}
-		return Exp.scope(vars, out ?? null)
+		return Ast.scope(vars, out ?? null)
 	}
 
 _ "whitespace" = Whitespace*

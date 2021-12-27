@@ -1,104 +1,106 @@
-import * as Exp from '../exp'
+import * as Ast from '../ast'
+import {withLog} from '../log'
 import {parseModule} from '../parser'
 import {parse} from '../parser'
 import {Writer} from '../utils/Writer'
+import * as Val from '../val'
 
 function defn(
 	ty: string,
-	f: (...args: any[]) => Exp.Value,
+	f: (...args: any[]) => Val.Value,
 	isTypeCtor = false
 ) {
 	const fnTy = parse(ty, PreludeScope).eval().result
 
 	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-	const fn = Exp.fn(fnTy.param, fnTy.out, (...args) => Exp.withLog(f(...args)))
+	const fn = Val.fn(fnTy.param, fnTy.out, (...args) => withLog(f(...args)))
 
 	fn.isTypeCtor = isTypeCtor
 
-	return Exp.obj(fn)
+	return Ast.obj(fn)
 }
 
-export const PreludeScope = Exp.scope({
-	Num: Exp.obj(Exp.tyNum),
-	Str: Exp.obj(Exp.tyStr),
-	Bool: Exp.obj(Exp.tyBool),
+export const PreludeScope = Ast.scope({
+	Num: Ast.obj(Val.tyNum),
+	Str: Ast.obj(Val.tyStr),
+	Bool: Ast.obj(Val.tyBool),
 })
 
 PreludeScope.defs({
-	true: Exp.obj(Exp.True),
-	false: Exp.obj(Exp.False),
-	'|': defn('(-> <T> [x:T y:T] T)', (t1: Exp.Value, t2: Exp.Value) =>
-		Exp.tyUnion(t1, t2)
+	true: Ast.obj(Val.True),
+	false: Ast.obj(Val.False),
+	'|': defn('(-> <T> [x:T y:T] T)', (t1: Val.Value, t2: Val.Value) =>
+		Val.tyUnion(t1, t2)
 	),
-	'+': defn('(-> [x:Num y:Num] Num)', (a: Exp.Num, b: Exp.Num) =>
-		Exp.num(a.value + b.value)
+	'+': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
+		Val.num(a.value + b.value)
 	),
-	'*': defn('(-> [x:Num y:Num] Num)', (a: Exp.Num, b: Exp.Num) =>
-		Exp.num(a.value * b.value)
+	'*': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
+		Val.num(a.value * b.value)
 	),
-	'/': defn('(-> [x:Num y:Num] Num)', (a: Exp.Num, b: Exp.Num) =>
-		Exp.num(a.value / b.value)
+	'/': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
+		Val.num(a.value / b.value)
 	),
-	'**': defn('(-> [x:Num a:Num] Num)', (x: Exp.Num, a: Exp.Num) =>
-		Exp.num(Math.pow(x.value, a.value))
+	'**': defn('(-> [x:Num a:Num] Num)', (x: Val.Num, a: Val.Num) =>
+		Val.num(Math.pow(x.value, a.value))
 	),
-	mod: defn('(-> [x:Num y:Num] Num)', (x: Exp.Num, y: Exp.Num) =>
-		Exp.num(x.value % y.value)
+	mod: defn('(-> [x:Num y:Num] Num)', (x: Val.Num, y: Val.Num) =>
+		Val.num(x.value % y.value)
 	),
-	'<': defn('(-> [x:Num y:Num] Bool)', (x: Exp.Num, y: Exp.Num) =>
-		Exp.bool(x.value < y.value)
+	'<': defn('(-> [x:Num y:Num] Bool)', (x: Val.Num, y: Val.Num) =>
+		Val.bool(x.value < y.value)
 	),
-	'==': defn('(-> [x:_ y:_] Bool)', (x: Exp.Num, y: Exp.Num) =>
-		Exp.bool(x.isEqualTo(y))
+	'==': defn('(-> [x:_ y:_] Bool)', (x: Val.Num, y: Val.Num) =>
+		Val.bool(x.isEqualTo(y))
 	),
 	if: defn(
 		'(-> <T> [test:Bool then:T else:T] T)',
-		(test: Exp.Enum, then: Exp.Value, _else: Exp.Value) =>
-			test === Exp.True ? then : _else
+		(test: Val.Enum, then: Val.Value, _else: Val.Value) =>
+			test === Val.True ? then : _else
 	),
-	nand: defn('(-> [x:Bool y:Bool] Bool)', (x: Exp.Enum, y: Exp.Enum) =>
-		Exp.bool(!(x === Exp.True && y === Exp.True))
+	nand: defn('(-> [x:Bool y:Bool] Bool)', (x: Val.Enum, y: Val.Enum) =>
+		Val.bool(!(x === Val.True && y === Val.True))
 	),
-	len: defn('(-> x:(| Str [..._]) Num)', (x: Exp.Str | Exp.Vec) => {
-		if (x.type === 'vec') return Exp.num(x.items.length)
-		else return Exp.num(x.value.length)
+	len: defn('(-> x:(| Str [..._]) Num)', (x: Val.Str | Val.Vec) => {
+		if (x.type === 'vec') return Val.num(x.items.length)
+		else return Val.num(x.value.length)
 	}),
 	gcd: defn(
 		'(-> [x:Num y:Num] Num)',
 		(() => {
-			const gcd = (x: Exp.Num, y: Exp.Num): Exp.Num =>
-				x.value % y.value ? gcd(y, Exp.num(x.value % y.value)) : y
+			const gcd = (x: Val.Num, y: Val.Num): Val.Num =>
+				x.value % y.value ? gcd(y, Val.num(x.value % y.value)) : y
 			return gcd
 		})()
 	),
-	rest: defn('(-> <T> coll:[...T] [...T])', (coll: Exp.Vec) =>
-		Exp.vec(...coll.items.slice(1))
+	rest: defn('(-> <T> coll:[...T] [...T])', (coll: Val.Vec) =>
+		Val.vec(...coll.items.slice(1))
 	),
 	map: defn(
 		'(-> <T U> [f: (-> T U) coll:[...T]] [...U])',
-		(f: Exp.Fn, coll: Exp.Vec) => {
+		(f: Val.Fn, coll: Val.Vec) => {
 			const [items] = Writer.map(coll.items, f.fn).asTuple
-			return Exp.vec(...items)
+			return Val.vec(...items)
 		}
 	),
 	reduce: defn(
 		'(-> <T U> [f: (-> [U T] U) coll: [...T] initial: U] U)',
-		(f: Exp.Fn, coll: Exp.Vec, initial: Exp.Value) => {
+		(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
 			return coll.items.reduce(
-				(prev: Exp.Value, curt: Exp.Value) => f.fn(prev, curt).result,
+				(prev: Val.Value, curt: Val.Value) => f.fn(prev, curt).result,
 				initial
 			)
 		}
 	),
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
-		(name: Exp.Str, {items}: Exp.Dict) => Exp.tyStruct(name.value, items),
+		(name: Val.Str, {items}: Val.Dict) => Val.tyStruct(name.value, items),
 		true
 	),
-	fnType: defn('(-> f:_ _)', (f: Exp.Value) => ('tyFn' in f ? f.tyFn : f)),
-	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Exp.Value, t: Exp.Value) =>
-		Exp.bool(s.isSubtypeOf(t))
+	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('tyFn' in f ? f.tyFn : f)),
+	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
+		Val.bool(s.isSubtypeOf(t))
 	),
 })
 
