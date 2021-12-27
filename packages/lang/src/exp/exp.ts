@@ -186,7 +186,11 @@ export class Obj<V extends Value = Value> implements IExp {
 	eval = () => withLog(this.value)
 	infer = () => (this.value.isType ? All.instance : this.value)
 
-	print = () => '<object>'
+	print = () => {
+		const ast = this.value.toAst()
+		if (ast.type !== 'obj') return ast.print()
+		return `<object of ${this.value.type}>`
+	}
 
 	isSameTo = (exp: Exp) => this.type === exp.type && this.value === exp.value
 
@@ -338,7 +342,7 @@ export class LNum implements IExp {
 }
 
 export class Num extends Prim<number> {
-	print = () => this.value.toString()
+	toAst = () => LNum.of(this.value)
 
 	static of(value: number) {
 		return new Num(tyNum, value)
@@ -362,7 +366,7 @@ export class LStr implements IExp {
 }
 
 export class Str extends Prim<string> {
-	print = () => '"' + this.value + '"'
+	toAst = () => LStr.of(this.value)
 
 	static of(value: string) {
 		return new Str(tyStr, value)
