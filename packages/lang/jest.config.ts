@@ -4,6 +4,8 @@ const config: Config.InitialOptions = {
 	silent: false,
 	preset: 'ts-jest',
 	passWithNoTests: true,
+	maxWorkers: 1,
+	watchAll: true,
 	projects: [
 		{
 			transform: {

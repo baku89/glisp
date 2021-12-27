@@ -6,7 +6,7 @@
 		"allowJs": true,
 		"moduleResolution": "node",
 		"esModuleInterop": true,
-		"sourceMap": true,
+		"inlineSourceMap": true,
 		"baseUrl": ".",
 		"outDir": "lib",
 		"declaration": true,
