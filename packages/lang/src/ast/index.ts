@@ -4,6 +4,7 @@ import {
 	EFn,
 	ETyFn,
 	EVec,
+	Exp,
 	isSame,
 	LAll,
 	LBottom,
@@ -19,7 +20,7 @@ import {
 	Sym,
 } from './ast'
 
-export {Node, Literal, Node as Exp}
+export {Node, Literal, Exp}
 
 // Exp
 export {
