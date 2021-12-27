@@ -115,7 +115,7 @@ export class Obj<V extends Val.Value = Val.Value> implements IAst {
 	readonly type = 'obj' as const
 	parent: Node | null = null
 
-	private constructor(public value: V) {}
+	private constructor(public readonly value: V) {}
 
 	eval = () => withLog(this.value)
 	infer = () => (this.value.isType ? Val.all : this.value)
@@ -134,7 +134,7 @@ export class Obj<V extends Val.Value = Val.Value> implements IAst {
 }
 
 export class LUnit implements IAst {
-	type = 'lUnit' as const
+	readonly type = 'lUnit' as const
 	parent: Node | null = null
 
 	private constructor() {
@@ -152,7 +152,7 @@ export class LUnit implements IAst {
 }
 
 export class LAll implements IAst {
-	type = 'lAll' as const
+	readonly type = 'lAll' as const
 	parent: Node | null = null
 
 	private constructor() {
@@ -170,7 +170,7 @@ export class LAll implements IAst {
 }
 
 export class LBottom implements IAst {
-	type = 'lBottom' as const
+	readonly type = 'lBottom' as const
 	parent: Node | null = null
 
 	private constructor() {
@@ -188,10 +188,10 @@ export class LBottom implements IAst {
 }
 
 export class LNum implements IAst {
-	type = 'lNum' as const
+	readonly type = 'lNum' as const
 	parent: Node | null = null
 
-	private constructor(public value: number) {}
+	private constructor(public readonly value: number) {}
 
 	eval = () => withLog(Val.num(this.value))
 	infer = () => Val.num(this.value)
@@ -204,10 +204,10 @@ export class LNum implements IAst {
 }
 
 export class LStr implements IAst {
-	type = 'lStr' as const
+	readonly type = 'lStr' as const
 	parent: Node | null = null
 
-	private constructor(public value: string) {}
+	private constructor(public readonly value: string) {}
 
 	eval = () => withLog(Val.str(this.value))
 	infer = () => Val.str(this.value)
