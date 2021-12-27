@@ -89,7 +89,7 @@ export class Sym implements IAst {
 		})
 	}
 
-	infer(env?: Env): Val.Value {
+	infer = (env?: Env): Val.Value => {
 		const {node, mode} = this.#resolve(this.parent, env).result
 
 		/**
@@ -371,7 +371,7 @@ export class EVec implements IAst {
 		}
 	}
 
-	infer(env?: Env): Val.Value {
+	infer = (env?: Env): Val.Value => {
 		if (this.rest) return Val.all
 		const items = this.items.map(it => it.infer(env))
 		return Val.vec(...items)
