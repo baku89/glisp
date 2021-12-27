@@ -97,7 +97,7 @@ export class Sym implements IExp {
 
 	private constructor(public name: string) {}
 
-	#resolve2(
+	#resolve(
 		ref: ExpComplex | null,
 		env?: Env
 	): Writer<{node: Exp; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
@@ -142,11 +142,11 @@ export class Sym implements IExp {
 		}
 
 		// Resolve with parent node recursively
-		return this.#resolve2(ref.parent, env)
+		return this.#resolve(ref.parent, env)
 	}
 
 	eval = (env?: Env): WithLog => {
-		return this.#resolve2(this.parent, env).bind(({node, mode}) => {
+		return this.#resolve(this.parent, env).bind(({node, mode}) => {
 			const value = node.eval(env)
 
 			return mode === 'param'
@@ -156,7 +156,7 @@ export class Sym implements IExp {
 	}
 
 	infer(env?: Env): Value {
-		const {node, mode} = this.#resolve2(this.parent, env).result
+		const {node, mode} = this.#resolve(this.parent, env).result
 
 		/**
 		 * (=> [x:(+ 1 2)] x) のようなケースでは、 (+ 1 2) は評価しないといけない
