@@ -8,14 +8,16 @@ import {
 	dict,
 	fnFrom,
 	tyDict,
+	tyDifference,
 	TyFn,
 	tyFnFrom,
+	tyIntersection,
+	tyUnion,
 	TyVar,
 	tyVec,
 	Value,
 	vec,
-} from '.'
-import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
+} from '../val'
 
 export type Const = [Value, Relation, Value]
 

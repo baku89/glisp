@@ -8,13 +8,8 @@ import {union} from '../utils/SetOperation'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
-import {
-	getTyVars,
-	RangedUnifier,
-	shadowTyVars,
-	unshadowTyVars,
-} from '../val/unify'
 import {Env} from './env'
+import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
