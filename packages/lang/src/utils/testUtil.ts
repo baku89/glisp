@@ -27,7 +27,6 @@ export function testEval(
 	expected: Val.Value | string,
 	hasLog = false
 ) {
-	console.log(expected)
 	const iStr = typeof input === 'string' ? input : input.print()
 	const eStr =
 		typeof expected === 'string' ? expected : expected.toAst().print()

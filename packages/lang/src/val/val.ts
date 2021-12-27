@@ -77,7 +77,7 @@ export class Unit implements IValue {
 	superType!: All
 	defaultValue = this
 
-	toAst = Ast.lUnit
+	toAst = () => Ast.lUnit()
 
 	isEqualTo = (v: Value) => v.type === 'unit'
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
@@ -94,7 +94,7 @@ export class All implements IValue {
 		return this
 	}
 
-	toAst = Ast.lAll
+	toAst = () => Ast.lAll()
 	isEqualTo = (v: Value) => v.type === 'all'
 	isSubtypeOf = this.isEqualTo
 	isType = false
@@ -112,7 +112,7 @@ export class Bottom implements IValue {
 		return this
 	}
 
-	toAst = Ast.lBottom
+	toAst = () => Ast.lBottom()
 
 	isEqualTo = (v: Value) => v.type === 'bottom'
 	isSubtypeOf = () => true
