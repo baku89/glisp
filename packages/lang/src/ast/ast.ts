@@ -16,20 +16,28 @@ export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 
 export type Exp = Call | Scope | EFn | ETyFn | EVec | EDict
 
-interface IAst {
-	readonly type: string
-	print(): string
-	parent: Node | null
-	eval(env?: Env): WithLog
-	infer(env?: Env): Val.Value
-	isSameTo(ast: Node): boolean
-}
-
-export class Sym implements IAst {
-	readonly type = 'sym' as const
+abstract class BaseNode {
+	abstract readonly type: string
 	parent: Node | null = null
 
-	private constructor(public name: string) {}
+	protected constructor() {
+		return this
+	}
+
+	abstract print(): string
+	abstract eval(env?: Env): WithLog
+	abstract infer(env?: Env): Val.Value
+	abstract isSameTo(ast: Node): boolean
+
+	getLog = () => this.eval().log
+}
+
+export class Sym extends BaseNode {
+	readonly type = 'sym' as const
+
+	private constructor(public name: string) {
+		super()
+	}
 
 	#resolve(
 		ref: Node | null,
@@ -111,11 +119,12 @@ export class Sym implements IAst {
 	}
 }
 
-export class Obj<V extends Val.Value = Val.Value> implements IAst {
+export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
 	readonly type = 'obj' as const
-	parent: Node | null = null
 
-	private constructor(public readonly value: V) {}
+	private constructor(public readonly value: V) {
+		super()
+	}
 
 	eval = () => withLog(this.value)
 	infer = () => (this.value.isType ? Val.all : this.value)
@@ -133,13 +142,8 @@ export class Obj<V extends Val.Value = Val.Value> implements IAst {
 	}
 }
 
-export class LUnit implements IAst {
+export class LUnit extends BaseNode {
 	readonly type = 'lUnit' as const
-	parent: Node | null = null
-
-	private constructor() {
-		return this
-	}
 
 	eval = () => withLog(Val.unit)
 	infer = () => Val.unit
@@ -151,13 +155,8 @@ export class LUnit implements IAst {
 	}
 }
 
-export class LAll implements IAst {
+export class LAll extends BaseNode {
 	readonly type = 'lAll' as const
-	parent: Node | null = null
-
-	private constructor() {
-		return this
-	}
 
 	eval = () => withLog(Val.all)
 	infer = () => Val.all
@@ -169,13 +168,8 @@ export class LAll implements IAst {
 	}
 }
 
-export class LBottom implements IAst {
+export class LBottom extends BaseNode {
 	readonly type = 'lBottom' as const
-	parent: Node | null = null
-
-	private constructor() {
-		return this
-	}
 
 	eval = () => withLog(Val.bottom)
 	infer = () => Val.all
@@ -187,11 +181,12 @@ export class LBottom implements IAst {
 	}
 }
 
-export class LNum implements IAst {
+export class LNum extends BaseNode {
 	readonly type = 'lNum' as const
-	parent: Node | null = null
 
-	private constructor(public readonly value: number) {}
+	private constructor(public readonly value: number) {
+		super()
+	}
 
 	eval = () => withLog(Val.num(this.value))
 	infer = () => Val.num(this.value)
@@ -203,11 +198,12 @@ export class LNum implements IAst {
 	}
 }
 
-export class LStr implements IAst {
+export class LStr extends BaseNode {
 	readonly type = 'lStr' as const
-	parent: Node | null = null
 
-	private constructor(public readonly value: string) {}
+	private constructor(public readonly value: string) {
+		super()
+	}
 
 	eval = () => withLog(Val.str(this.value))
 	infer = () => Val.str(this.value)
@@ -219,9 +215,8 @@ export class LStr implements IAst {
 	}
 }
 
-export class EFn implements IAst {
+export class EFn extends BaseNode {
 	readonly type = 'eFn' as const
-	parent: Node | null = null
 
 	readonly tyVars: Record<string, Val.TyVar>
 
@@ -230,6 +225,8 @@ export class EFn implements IAst {
 		public param: Record<string, Node>,
 		public body: Node
 	) {
+		super()
+
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
@@ -284,9 +281,8 @@ export class EFn implements IAst {
 	}
 }
 
-export class ETyFn implements IAst {
+export class ETyFn extends BaseNode {
 	readonly type = 'eTyFn' as const
-	parent: Node | null = null
 
 	tyVars: Record<string, Val.TyVar>
 
@@ -295,6 +291,8 @@ export class ETyFn implements IAst {
 		public param: Record<string, Node>,
 		public out: Node
 	) {
+		super()
+
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
@@ -351,11 +349,12 @@ function printNamedNode([name, ty]: [string, Node]) {
 	return name + ':' + ty.print()
 }
 
-export class EVec implements IAst {
+export class EVec extends BaseNode {
 	readonly type = 'eVec' as const
-	parent: Node | null = null
 
-	private constructor(public items: Node[], public rest: Node | null = null) {}
+	private constructor(public items: Node[], public rest: Node | null = null) {
+		super()
+	}
 
 	get length() {
 		return this.items.length
@@ -402,14 +401,15 @@ export class EVec implements IAst {
 	}
 }
 
-export class EDict implements IAst {
+export class EDict extends BaseNode {
 	readonly type = 'eDict' as const
-	parent: Node | null = null
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Node}>,
 		public rest?: Node
-	) {}
+	) {
+		super()
+	}
 
 	infer = (): Val.Value => {
 		if (this.rest) return Val.all
@@ -462,11 +462,12 @@ export class EDict implements IAst {
 	}
 }
 
-export class Call implements IAst {
+export class Call extends BaseNode {
 	readonly type = 'call' as const
-	parent: Node | null = null
 
-	private constructor(public fn: Node, public args: Node[]) {}
+	private constructor(public fn: Node, public args: Node[]) {
+		super()
+	}
 
 	#unifyFn(env?: Env): [RangedUnifier, Val.Value[]] {
 		const ty = this.fn.infer(env)
@@ -607,14 +608,15 @@ export class Call implements IAst {
 	}
 }
 
-export class Scope implements IAst {
+export class Scope extends BaseNode {
 	readonly type = 'scope' as const
-	parent: Node | null = null
 
 	private constructor(
 		public vars: Record<string, Node>,
 		public out: Node | null = null
-	) {}
+	) {
+		super()
+	}
 
 	infer = (env?: Env): Val.Value => this.out?.infer(env) ?? Val.unit
 
