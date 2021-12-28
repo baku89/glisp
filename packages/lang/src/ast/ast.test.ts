@@ -300,7 +300,7 @@ describe('instance relationship', () => {
 		it(`${i} is ${expected ? '' : 'not '}a instance of ${t}`, () => {
 			const iv = parse(i)
 			const tv = evaluate(parse(t))
-			expect(iv.infer().isSubtypeOf(tv)).toBe(expected)
+			expect(iv.infer().result.isSubtypeOf(tv)).toBe(expected)
 		})
 	}
 })
@@ -351,7 +351,7 @@ describe('inferring expression type', () => {
 
 	function test(input: string, expected: string) {
 		it(`${input} is inferred to be ${expected}`, () => {
-			const i = parse(input).infer()
+			const i = parse(input).infer().result
 			const e = parse(expected).eval().result
 
 			if (!i.isEqualTo(e)) throw new Error('Got=' + i.toAst().print())

@@ -26,7 +26,7 @@ abstract class BaseNode {
 
 	abstract print(): string
 	abstract eval(env?: Env): WithLog
-	abstract infer(env?: Env): Val.Value
+	abstract infer(env?: Env): WithLog
 	abstract isSameTo(ast: Node): boolean
 
 	getLog = () => this.eval().log
@@ -97,13 +97,13 @@ export class Sym extends BaseNode {
 		})
 	}
 
-	infer = (env?: Env): Val.Value => {
+	infer = (env?: Env): WithLog => {
 		const {node, mode} = this.#resolve(this.parent, env).result
 
 		if (mode) {
 			// In cases such as inferring `x` in `(=> [x:(+ 1 2)] x)`,
 			// The type of parameter `(+ 1 2)` needs to be *evaluated*
-			return node.eval(env).result
+			return node.eval(env)
 		} else {
 			// othersise, infer it as usual
 			return node.infer(env)
@@ -127,7 +127,7 @@ export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
 	}
 
 	eval = () => withLog(this.value)
-	infer = () => (this.value.isType ? Val.all : this.value)
+	infer = () => withLog(this.value.isType ? Val.all : this.value)
 
 	print = () => {
 		const ast = this.value.toAst()
@@ -146,7 +146,7 @@ export class LUnit extends BaseNode {
 	readonly type = 'lUnit' as const
 
 	eval = () => withLog(Val.unit)
-	infer = () => Val.unit
+	infer = this.eval
 	print = () => '()'
 	isSameTo = (ast: Node) => this.type === ast.type
 
@@ -159,7 +159,7 @@ export class LAll extends BaseNode {
 	readonly type = 'lAll' as const
 
 	eval = () => withLog(Val.all)
-	infer = () => Val.all
+	infer = this.eval
 	print = () => '_'
 	isSameTo = (ast: Node) => this.type === ast.type
 
@@ -172,7 +172,7 @@ export class LBottom extends BaseNode {
 	readonly type = 'lBottom' as const
 
 	eval = () => withLog(Val.bottom)
-	infer = () => Val.all
+	infer = () => withLog(Val.all)
 	print = () => '_|_'
 	isSameTo = (ast: Node) => this.type === ast.type
 
@@ -189,7 +189,7 @@ export class LNum extends BaseNode {
 	}
 
 	eval = () => withLog(Val.num(this.value))
-	infer = () => Val.num(this.value)
+	infer = this.eval
 	print = () => this.value.toString()
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
@@ -206,7 +206,7 @@ export class LStr extends BaseNode {
 	}
 
 	eval = () => withLog(Val.str(this.value))
-	infer = () => Val.str(this.value)
+	infer = this.eval
 	print = () => '"' + this.value + '"'
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
@@ -240,22 +240,22 @@ export class EFn extends BaseNode {
 			return this.body.eval(innerEnv)
 		}
 
-		const ty = this.infer(env)
+		const [ty, lty] = this.infer(env).asTuple
 
 		const fnVal = Val.fnFrom(ty, fn, this.body)
 		fnVal.env = env
 
-		return withLog(fnVal)
+		return withLog(fnVal, ...lty)
 	}
 
-	infer = (env?: Env): Val.TyFn => {
-		const param = Writer.mapValues(this.param, p => p.eval(env)).result
+	infer = (env?: Env): WithLog<Val.TyFn> => {
+		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 
 		const innerEnv = env ? env.push(this.param) : Env.from(this.param)
 
-		const out = this.body.infer(innerEnv)
+		const [out, lo] = this.body.infer(innerEnv).asTuple
 
-		return Val.tyFnFrom(param, out)
+		return withLog(Val.tyFnFrom(param, out), ...lp, ...lo)
 	}
 
 	print = (): string => {
@@ -302,7 +302,7 @@ export class ETyFn extends BaseNode {
 		return withLog(Val.tyFnFrom(params, out), ...lp, ...lo)
 	}
 
-	infer = () => Val.all
+	infer = () => withLog(Val.all)
 
 	print = (): string => {
 		const tyVars = printTyVars(this.tyVars)
@@ -370,10 +370,10 @@ export class EVec extends BaseNode {
 		}
 	}
 
-	infer = (env?: Env): Val.Value => {
-		if (this.rest) return Val.all
-		const items = this.items.map(it => it.infer(env))
-		return Val.vec(...items)
+	infer = (env?: Env): WithLog => {
+		if (this.rest) return withLog(Val.all)
+		const [items, log] = Writer.map(this.items, it => it.infer(env)).asTuple
+		return withLog(Val.vec(...items), ...log)
 	}
 
 	print = (): string => {
@@ -411,14 +411,17 @@ export class EDict extends BaseNode {
 		super()
 	}
 
-	infer = (): Val.Value => {
-		if (this.rest) return Val.all
+	infer = (): WithLog => {
+		if (this.rest) return withLog(Val.all)
 		const items: Val.Dict['items'] = {}
+		const logs: Log[] = []
 		for (const [key, {optional, value}] of entries(this.items)) {
-			if (optional) return Val.all
-			items[key] = value.infer()
+			if (optional) return withLog(Val.all)
+			const [inferred, l] = value.infer().asTuple
+			items[key] = inferred
+			logs.push(...l)
 		}
-		return Val.dict(items)
+		return withLog(Val.dict(items), ...logs)
 	}
 
 	eval = (env?: Env): WithLog => {
@@ -470,7 +473,7 @@ export class Call extends BaseNode {
 	}
 
 	#unifyFn(env?: Env): [RangedUnifier, Val.Value[]] {
-		const ty = this.fn.infer(env)
+		const ty = this.fn.infer(env).result
 
 		if (!('tyFn' in ty)) return [RangedUnifier.empty(), []]
 
@@ -480,7 +483,7 @@ export class Call extends BaseNode {
 
 		const shadowedArgs = this.args
 			.slice(0, params.length)
-			.map(a => shadowTyVars(a.infer(env)))
+			.map(a => shadowTyVars(a.infer(env).result))
 
 		const subst = RangedUnifier.unify([
 			Val.vec(...params),
@@ -578,16 +581,16 @@ export class Call extends BaseNode {
 		return withLog(result, ...fnLog, ...logs, ...callLogWithRef)
 	}
 
-	infer = (env?: Env): Val.Value => {
-		const ty = this.fn.infer(env)
-		if (!('tyFn' in ty)) return ty
+	infer = (env?: Env): WithLog => {
+		const [ty] = this.fn.infer(env).asTuple
+		if (!('tyFn' in ty)) return withLog(ty)
 
 		if (ty.type === 'fn' && ty.isTypeCtor) {
-			return this.eval(env).result
+			return this.eval(env)
 		}
 
 		const [subst] = this.#unifyFn(env)
-		return unshadowTyVars(subst.substitute(ty.tyFn.out))
+		return withLog(unshadowTyVars(subst.substitute(ty.tyFn.out)))
 	}
 
 	print = (): string => {
@@ -618,7 +621,7 @@ export class Scope extends BaseNode {
 		super()
 	}
 
-	infer = (env?: Env): Val.Value => this.out?.infer(env) ?? Val.unit
+	infer = (env?: Env): WithLog => this.out?.infer(env) ?? withLog(Val.unit)
 
 	eval = (env?: Env): WithLog => this.out?.eval(env) ?? Writer.of(Val.unit)
 
