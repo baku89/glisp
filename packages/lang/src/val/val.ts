@@ -336,10 +336,8 @@ export class TyFn implements IValue, ITyFn {
 
 	tyFn = this
 
-	#defaultValue?: Fn
-	get defaultValue() {
-		this.#defaultValue ??= Fn.from(this, () => withLog(this.out.defaultValue))
-		return this.#defaultValue
+	get defaultValue(): Fn {
+		return Fn.from(this, () => withLog(this.out.defaultValue))
 	}
 
 	toAst = (): Ast.ETyFn => {
@@ -384,10 +382,8 @@ export class Vec implements IValue, IFnLike {
 
 	private constructor(public items: Value[]) {}
 
-	#defaultValue?: Vec
-	get defaultValue() {
-		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
-		return this.#defaultValue
+	get defaultValue(): Vec {
+		return Vec.of(...this.items.map(it => it.defaultValue))
 	}
 
 	toAst = (): Ast.Node => {
@@ -432,10 +428,8 @@ export class TyVec implements IValue {
 
 	private constructor(public items: Value[], public rest: Value) {}
 
-	#defaultValue?: Vec
-	get defaultValue() {
-		this.#defaultValue ??= Vec.of(...this.items.map(it => it.defaultValue))
-		return this.#defaultValue
+	get defaultValue(): Vec {
+		return Vec.of(...this.items.map(it => it.defaultValue))
 	}
 
 	toAst = (): Ast.EVec => {
@@ -500,10 +494,8 @@ export class Dict implements IValue {
 
 	private constructor(public items: Record<string, Value>) {}
 
-	#defaultValue?: Dict
-	get defaultValue() {
-		this.#defaultValue ??= Dict.of(mapValues(this.items, it => it.defaultValue))
-		return this.#defaultValue
+	get defaultValue(): Dict {
+		return Dict.of(mapValues(this.items, it => it.defaultValue))
 	}
 
 	toAst = (): Ast.EDict => {
@@ -542,17 +534,12 @@ export class TyDict implements IValue {
 		public rest?: Value
 	) {}
 
-	#defaultValue?: Dict
 	get defaultValue(): Dict {
-		if (!this.#defaultValue) {
-			const items = chain(this.items)
-				.mapValues(it => (it.optional ? null : it.value.defaultValue))
-				.omitBy(isNull)
-				.value() as Record<string, Atomic>
-			this.#defaultValue = Dict.of(items)
-		}
-
-		return this.#defaultValue
+		const items = chain(this.items)
+			.mapValues(it => (it.optional ? null : it.value.defaultValue))
+			.omitBy(isNull)
+			.value() as Record<string, Atomic>
+		return Dict.of(items)
 	}
 
 	toAst = (): Ast.EDict => {
@@ -661,13 +648,9 @@ export class TyStruct implements IValue, IFnLike {
 		public param: Record<string, Value>
 	) {}
 
-	#defaultValue?: Struct
-	get defaultValue() {
-		if (!this.#defaultValue) {
-			const items = values(this.param).map(p => p.defaultValue)
-			this.#defaultValue = Struct.of(this, items)
-		}
-		return this.#defaultValue
+	get defaultValue(): Struct {
+		const items = values(this.param).map(p => p.defaultValue)
+		return Struct.of(this, items)
 	}
 
 	tyFn: TyFn = TyFn.from(this.param, this)
@@ -700,9 +683,8 @@ export class TyUnion implements IValue {
 		if (types.length < 2) throw new Error('Too few types to create union type')
 	}
 
-	#defaultValue?: Atomic
 	get defaultValue(): Atomic {
-		return (this.#defaultValue ??= this.types[0].defaultValue)
+		return this.types[0].defaultValue
 	}
 
 	toAst = (): Ast.Call => {
