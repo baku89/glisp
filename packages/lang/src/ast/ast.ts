@@ -92,12 +92,12 @@ export class Sym implements IAst {
 	infer = (env?: Env): Val.Value => {
 		const {node, mode} = this.#resolve(this.parent, env).result
 
-		/**
-		 * (=> [x:(+ 1 2)] x) のようなケースでは、 (+ 1 2) は評価しないといけない
-		 */
-		if (mode === 'param' || mode === 'arg' || mode === 'tyVar') {
+		if (mode) {
+			// In cases such as inferring `x` in `(=> [x:(+ 1 2)] x)`,
+			// The type of parameter `(+ 1 2)` needs to be *evaluated*
 			return node.eval(env).result
 		} else {
+			// othersise, infer it as usual
 			return node.infer(env)
 		}
 	}
