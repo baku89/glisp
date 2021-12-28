@@ -2,7 +2,7 @@ import type {Node} from './ast'
 import {Writer} from './utils/Writer'
 import * as Val from './val'
 
-export type WithLog = Writer<Val.Value, Log>
+export type WithLog<V extends Val.Value = Val.Value> = Writer<V, Log>
 
 export interface Log {
 	level: 'error' | 'warn' | 'info'
@@ -10,6 +10,9 @@ export interface Log {
 	ref?: Node
 }
 
-export function withLog(value: Val.Value, ...log: Log[]): WithLog {
+export function withLog<V extends Val.Value = Val.Value>(
+	value: V,
+	...log: Log[]
+): WithLog<V> {
 	return Writer.of(value, ...log)
 }
