@@ -14,7 +14,7 @@ Node =
 	Vec /
 	Num / Str / Sym
 
-Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "<" [^>]+ ">"
+Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let"
 
 Unit = "(" _ ")" { return Ast.lUnit() }
 
