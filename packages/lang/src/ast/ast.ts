@@ -245,7 +245,6 @@ export class EFn extends BaseNode {
 		const [ty, lty] = this.infer(env).asTuple
 
 		const fnVal = Val.fnFrom(ty, fn, this.body)
-		fnVal.env = env
 
 		return withLog(fnVal, ...lty)
 	}

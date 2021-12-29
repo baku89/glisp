@@ -9,7 +9,6 @@ import {
 } from 'lodash'
 
 import * as Ast from '../ast'
-import {Env} from '../ast/env'
 import {Log, withLog} from '../log'
 import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
@@ -299,7 +298,6 @@ export class TyVar extends BaseValue {
 export class Fn extends BaseValue implements IFnLike {
 	readonly type = 'fn' as const
 
-	env?: Env
 	isTypeCtor = false
 
 	private constructor(
