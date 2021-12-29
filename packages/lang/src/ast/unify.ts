@@ -330,9 +330,9 @@ export class RangedUnifier {
 	print() {
 		const tvs = [...new Set([...this.#lowers.keys(), ...this.#uppers.keys()])]
 		const strs = tvs.map(tv => {
-			const x = tv.toAst().print()
-			const l = this.#getLower(tv).toAst().print()
-			const u = this.#getUpper(tv).toAst().print()
+			const x = tv.print()
+			const l = this.#getLower(tv).print()
+			const u = this.#getUpper(tv).print()
 			return `${x} |-> [${l}, ${u}]`
 		})
 

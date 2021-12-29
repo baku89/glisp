@@ -131,12 +131,12 @@ describe('default values of types', () => {
 			const ev = parse(expected).eval().result
 
 			if (fn) {
-				if (dv.type !== 'fn') throw new Error('Got=' + dv.toAst().print())
+				if (dv.type !== 'fn') throw new Error('Got=' + dv.print())
 				dv = dv.fn().result
 			}
 
 			if (!dv.isEqualTo(ev)) {
-				throw new Error('Got=' + dv.toAst().print())
+				throw new Error('Got=' + dv.print())
 			}
 		})
 	}
@@ -354,7 +354,7 @@ describe('inferring expression type', () => {
 			const i = parse(input).infer().result
 			const e = parse(expected).eval().result
 
-			if (!i.isEqualTo(e)) throw new Error('Got=' + i.toAst().print())
+			if (!i.isEqualTo(e)) throw new Error('Got=' + i.print())
 		})
 	}
 })
@@ -374,7 +374,7 @@ describe('evaluating function body', () => {
 
 			const result = i.body.eval().result
 
-			if (!result.isEqualTo(e)) throw new Error('Got=' + result.toAst().print())
+			if (!result.isEqualTo(e)) throw new Error('Got=' + result.print())
 		})
 	}
 })

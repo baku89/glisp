@@ -50,8 +50,8 @@ describe('uniting types', () => {
 
 	function test(...types: Value[]) {
 		const f = (expected: Value) => {
-			const typesStr = types.map(t => t.toAst().print()).join(', ')
-			const expectedStr = expected.toAst().print()
+			const typesStr = types.map(t => t.print()).join(', ')
+			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
 					const result = tyUnion(...orderedTypes)
@@ -79,8 +79,8 @@ describe('intersecting types', () => {
 
 	function test(...types: Value[]) {
 		const f = (expected: Value) => {
-			const typesStr = types.map(t => t.toAst().print()).join(', ')
-			const expectedStr = expected.toAst().print()
+			const typesStr = types.map(t => t.print()).join(', ')
+			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
 					const result = tyIntersection(...orderedTypes)
@@ -125,8 +125,8 @@ describe('differential types', () => {
 
 	function test(original: Value, ...types: Value[]) {
 		const f = (expected: Value) => {
-			const typesStr = types.map(t => t.toAst().print()).join(', ')
-			const expectedStr = expected.toAst().print()
+			const typesStr = types.map(t => t.print()).join(', ')
+			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
 					const result = tyDifference(original, ...orderedTypes)
@@ -162,7 +162,7 @@ function permutation<T>(inputArr: T[]) {
 }
 
 function throwError(result: Value, orderedTypes: Value[]): never {
-	const v = result.toAst().print()
-	const ord = orderedTypes.map(o => o.toAst().print()).join(', ')
+	const v = result.print()
+	const ord = orderedTypes.map(o => o.print()).join(', ')
 	throw new Error(`Got '${v}' in order '${ord}'`)
 }

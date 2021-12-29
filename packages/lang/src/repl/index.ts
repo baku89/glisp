@@ -71,7 +71,7 @@ function startRepl() {
 			let str = ''
 
 			str += log.map(l => printLog(l) + '\n').join('')
-			str += chalk.bold.gray('< ') + result.toAst().print()
+			str += chalk.bold.gray('< ') + result.print()
 
 			return str + '\n'
 		},

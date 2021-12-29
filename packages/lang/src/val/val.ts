@@ -44,14 +44,20 @@ type Atomic =
 
 export type UnitableType = Exclude<Value, All | Bottom>
 
-interface IValue {
-	readonly type: string
-	defaultValue: Atomic
+abstract class BaseValue {
+	protected constructor() {
+		return this
+	}
 
-	isType: boolean
-	isEqualTo(e: Value): boolean
-	isSubtypeOf(e: Value): boolean
-	toAst(): Ast.Node
+	abstract readonly type: string
+	abstract defaultValue: Atomic
+
+	abstract isType: boolean
+	abstract isEqualTo(e: Value): boolean
+	abstract isSubtypeOf(e: Value): boolean
+	abstract toAst(): Ast.Node
+
+	print = () => this.toAst().print()
 }
 
 export type IFn = (...params: any[]) => Writer<Value, Log>
@@ -72,7 +78,7 @@ function isSubtypeOfGeneric(
 	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
 }
 
-export class Unit implements IValue {
+export class Unit extends BaseValue {
 	readonly type = 'unit' as const
 	superType!: All
 	defaultValue = this
@@ -86,13 +92,9 @@ export class Unit implements IValue {
 	static instance = new Unit()
 }
 
-export class All implements IValue {
+export class All extends BaseValue {
 	readonly type = 'all' as const
 	defaultValue = Unit.instance
-
-	private constructor() {
-		return this
-	}
 
 	toAst = () => Ast.lAll()
 	isEqualTo = (v: Value) => v.type === 'all'
@@ -104,13 +106,9 @@ export class All implements IValue {
 
 Unit.prototype.superType = All.instance
 
-export class Bottom implements IValue {
+export class Bottom extends BaseValue {
 	readonly type = 'bottom' as const
 	defaultValue = this
-
-	private constructor() {
-		return this
-	}
 
 	toAst = () => Ast.lBottom()
 
@@ -121,11 +119,13 @@ export class Bottom implements IValue {
 	static instance = new Bottom()
 }
 
-export class Prim<T = any> implements IValue {
+export class Prim<T = any> extends BaseValue {
 	readonly type = 'prim' as const
 	defaultValue = this
 
-	protected constructor(public superType: TyPrim, public value: T) {}
+	protected constructor(public superType: TyPrim, public value: T) {
+		super()
+	}
 
 	toAst = (): Ast.Node => Ast.obj(this)
 
@@ -159,12 +159,14 @@ export class Str extends Prim<string> {
 	}
 }
 
-export class TyPrim<T = any> implements IValue {
+export class TyPrim<T = any> extends BaseValue {
 	readonly type = 'tyPrim' as const
 	superType = All.instance
 	defaultValue!: Num | Str | Prim
 
-	private constructor(private readonly name: string) {}
+	private constructor(private readonly name: string) {
+		super()
+	}
 
 	// TODO: fix this
 	toAst = () => Ast.sym(this.name)
@@ -203,11 +205,13 @@ export const tyStr = TyPrim.ofLiteral('Str', Str.of(''))
 Num.prototype.superType = tyNum
 Str.prototype.superType = tyStr
 
-export class Enum implements IValue {
+export class Enum extends BaseValue {
 	readonly type = 'enum' as const
 	superType!: TyEnum
 
-	private constructor(public readonly name: string) {}
+	private constructor(public readonly name: string) {
+		super()
+	}
 
 	defaultValue = this
 
@@ -228,14 +232,16 @@ export class Enum implements IValue {
 	}
 }
 
-export class TyEnum implements IValue {
+export class TyEnum extends BaseValue {
 	readonly type = 'tyEnum' as const
 	superType = All.instance
 
 	private constructor(
 		public readonly name: string,
 		public readonly types: Enum[]
-	) {}
+	) {
+		super()
+	}
 
 	defaultValue = this.types[0]
 
@@ -268,11 +274,13 @@ export class TyEnum implements IValue {
 	}
 }
 
-export class TyVar implements IValue {
+export class TyVar extends BaseValue {
 	readonly type = 'tyVar' as const
 	readonly superType = All.instance
 
-	private constructor(public name: string, public readonly original?: TyVar) {}
+	private constructor(public name: string, public readonly original?: TyVar) {
+		super()
+	}
 
 	defaultValue = Unit.instance
 
@@ -295,7 +303,7 @@ export class TyVar implements IValue {
 	}
 }
 
-export class Fn implements IValue, IFnLike {
+export class Fn extends BaseValue implements IFnLike {
 	readonly type = 'fn' as const
 
 	env?: Env
@@ -305,7 +313,9 @@ export class Fn implements IValue, IFnLike {
 		public superType: TyFn,
 		public fn: IFn,
 		public body?: Ast.Node
-	) {}
+	) {
+		super()
+	}
 
 	tyFn = this.superType
 
@@ -328,11 +338,13 @@ export class Fn implements IValue, IFnLike {
 	}
 }
 
-export class TyFn implements IValue, ITyFn {
+export class TyFn extends BaseValue implements ITyFn {
 	readonly type = 'tyFn' as const
 	superType = All.instance
 
-	private constructor(public param: Record<string, Value>, public out: Value) {}
+	private constructor(public param: Record<string, Value>, public out: Value) {
+		super()
+	}
 
 	tyFn = this
 
@@ -376,11 +388,13 @@ export class TyFn implements IValue, ITyFn {
 	}
 }
 
-export class Vec implements IValue, IFnLike {
+export class Vec extends BaseValue implements IFnLike {
 	readonly type = 'vec' as const
 	readonly superType = All.instance
 
-	private constructor(public items: Value[]) {}
+	private constructor(public items: Value[]) {
+		super()
+	}
 
 	get defaultValue(): Vec {
 		return Vec.of(...this.items.map(it => it.defaultValue))
@@ -422,11 +436,13 @@ export class Vec implements IValue, IFnLike {
 	}
 }
 
-export class TyVec implements IValue {
+export class TyVec extends BaseValue {
 	readonly type = 'tyVec' as const
 	readonly superType = All.instance
 
-	private constructor(public items: Value[], public rest: Value) {}
+	private constructor(public items: Value[], public rest: Value) {
+		super()
+	}
 
 	get defaultValue(): Vec {
 		return Vec.of(...this.items.map(it => it.defaultValue))
@@ -488,11 +504,13 @@ function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
 	return true
 }
 
-export class Dict implements IValue {
+export class Dict extends BaseValue {
 	readonly type = 'dict' as const
 	superType = All.instance
 
-	private constructor(public items: Record<string, Value>) {}
+	private constructor(public items: Record<string, Value>) {
+		super()
+	}
 
 	get defaultValue(): Dict {
 		return Dict.of(mapValues(this.items, it => it.defaultValue))
@@ -525,14 +543,16 @@ export class Dict implements IValue {
 	}
 }
 
-export class TyDict implements IValue {
+export class TyDict extends BaseValue {
 	readonly type = 'tyDict' as const
 	superType = All.instance
 
 	private constructor(
 		public items: Record<string, {optional?: boolean; value: Value}>,
 		public rest?: Value
-	) {}
+	) {
+		super()
+	}
 
 	get defaultValue(): Dict {
 		const items = chain(this.items)
@@ -612,10 +632,12 @@ function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
 	return true
 }
 
-export class Struct implements IValue {
+export class Struct extends BaseValue {
 	readonly type = 'struct' as const
 
-	private constructor(public superType: TyStruct, public items: Value[]) {}
+	private constructor(public superType: TyStruct, public items: Value[]) {
+		super()
+	}
 
 	defaultValue = this
 
@@ -639,14 +661,16 @@ export class Struct implements IValue {
 	}
 }
 
-export class TyStruct implements IValue, IFnLike {
+export class TyStruct extends BaseValue implements IFnLike {
 	readonly type = 'tyStruct' as const
 	superType = All.instance
 
 	private constructor(
 		public name: string,
 		public param: Record<string, Value>
-	) {}
+	) {
+		super()
+	}
 
 	get defaultValue(): Struct {
 		const items = values(this.param).map(p => p.defaultValue)
@@ -675,11 +699,12 @@ export class TyStruct implements IValue, IFnLike {
 	}
 }
 
-export class TyUnion implements IValue {
+export class TyUnion extends BaseValue {
 	readonly type = 'tyUnion' as const
 	superType = All.instance
 
 	private constructor(public types: UnitableType[]) {
+		super()
 		if (types.length < 2) throw new Error('Too few types to create union type')
 	}
 

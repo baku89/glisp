@@ -552,8 +552,8 @@ export class Call extends BaseNode {
 						level: 'error',
 						ref: this,
 						reason:
-							`Argument '${name}' expects type: ${pTy.toAst().print()}, ` +
-							`but got: '${aTyUnshadowed.toAst().print()}''`,
+							`Argument '${name}' expects type: ${pTy.print()}, ` +
+							`but got: '${aTyUnshadowed.print()}''`,
 					})
 				}
 				return pTy.defaultValue

@@ -28,8 +28,7 @@ export function testEval(
 	hasLog = false
 ) {
 	const iStr = typeof input === 'string' ? input : input.print()
-	const eStr =
-		typeof expected === 'string' ? expected : expected.toAst().print()
+	const eStr = typeof expected === 'string' ? expected : expected.print()
 
 	test(`${iStr} evaluates to ${eStr}`, () => {
 		const exp = parse(input)
@@ -37,7 +36,7 @@ export function testEval(
 
 		const {result, log} = exp.eval()
 		if (!result.isEqualTo(expectedVal)) {
-			throw new Error('Got=' + result.toAst().print())
+			throw new Error('Got=' + result.print())
 		}
 		if (!hasLog && log.length > 0) {
 			throw new Error('Expected no log, but got=' + printLog(log))
