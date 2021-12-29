@@ -483,7 +483,7 @@ export class Call extends BaseNode {
 		super()
 	}
 
-	#unifyFn(env?: Env): [RangedUnifier, Val.Value[]] {
+	#unify(env?: Env): [RangedUnifier, Val.Value[]] {
 		const ty = this.fn.infer(env).result
 
 		if (!('tyFn' in ty)) return [RangedUnifier.empty(), []]
@@ -536,7 +536,7 @@ export class Call extends BaseNode {
 		}
 
 		// Unify tyFn and args
-		const [subst, shadowedArgs] = this.#unifyFn(env)
+		const [subst, shadowedArgs] = this.#unify(env)
 		const unifiedParams = params.map(subst.substitute)
 		const unifiedArgs = shadowedArgs.map(subst.substitute)
 
@@ -593,15 +593,15 @@ export class Call extends BaseNode {
 	}
 
 	infer = (env?: Env): WithLog => {
-		const [ty] = this.fn.infer(env).asTuple
-		if (!('tyFn' in ty)) return withLog(ty)
+		const [ty, log] = this.fn.infer(env).asTuple
+		if (!('tyFn' in ty)) return withLog(ty, ...log)
 
 		if (ty.type === 'fn' && ty.isTypeCtor) {
 			return this.eval(env)
 		}
 
-		const [subst] = this.#unifyFn(env)
-		return withLog(unshadowTyVars(subst.substitute(ty.tyFn.out)))
+		const [subst] = this.#unify(env)
+		return withLog(unshadowTyVars(subst.substitute(ty.tyFn.out)), ...log)
 	}
 
 	print = (): string => {
@@ -621,6 +621,14 @@ export class Call extends BaseNode {
 		return app
 	}
 }
+
+const id = <T>(v: T) => v
+const w =
+	<X, Y>(f: (x: X) => X, g: (y: Y) => Y) =>
+	(x: X, y: Y) =>
+		[f(x), g(y)] as const
+
+const wid = w(id, id)
 
 export class Scope extends BaseNode {
 	readonly type = 'scope' as const
