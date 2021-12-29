@@ -23,7 +23,7 @@ export class Env {
 		return this.#arg[name]
 	}
 
-	static from(arg: Arg) {
-		return new Env(undefined, arg)
+	static extend(env: Env | undefined, arg: Arg) {
+		return new Env(env, arg)
 	}
 }

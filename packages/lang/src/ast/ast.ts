@@ -237,7 +237,7 @@ export class EFn extends BaseNode {
 		const fn: Val.IFn = (...args: Val.Value[]) => {
 			const objs = args.map(Obj.of)
 			const arg = fromPairs(zip(names, objs))
-			const innerEnv = env ? env.push(arg) : Env.from(arg)
+			const innerEnv = Env.extend(env, arg)
 			return this.body.eval(innerEnv)
 		}
 
@@ -252,7 +252,7 @@ export class EFn extends BaseNode {
 	infer = (env?: Env): WithLog<Val.TyFn> => {
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 
-		const innerEnv = env ? env.push(this.param) : Env.from(this.param)
+		const innerEnv = Env.extend(env, this.param)
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
@@ -572,7 +572,7 @@ export class Call extends BaseNode {
 
 			const objs = mapValues(arg, Obj.of)
 
-			const innerEnv = fn.env ? fn.env.push(objs) : Env.from(objs)
+			const innerEnv = Env.extend(fn.env, objs)
 
 			;[result, callLog] = fn.body.eval(innerEnv).asTuple
 		} else {
