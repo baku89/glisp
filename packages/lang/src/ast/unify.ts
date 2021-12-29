@@ -265,6 +265,7 @@ export class Unifier {
 
 	substitute = (val: Value, unshadow = false): Value => {
 		if (this.#isEmpty) return val
+		if (val.type !== 'fn' && !val.isType) return val
 
 		switch (val.type) {
 			case 'tyVar': {

@@ -45,8 +45,13 @@ abstract class BaseValue {
 	abstract defaultValue: Atomic
 
 	abstract isType: boolean
-	abstract isEqualTo(e: Value): boolean
-	abstract isSubtypeOf(e: Value): boolean
+
+	isEqualTo(val: Value): boolean {
+		return this === val
+	}
+
+	abstract isSubtypeOf(ty: Value): boolean
+
 	abstract toAst(): Ast.Node
 
 	print = () => this.toAst().print()
@@ -77,7 +82,6 @@ export class Unit extends BaseValue {
 
 	toAst = () => Ast.lUnit()
 
-	isEqualTo = (v: Value) => v.type === 'unit'
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 	isType = false
 
@@ -89,7 +93,6 @@ export class All extends BaseValue {
 	defaultValue = Unit.instance
 
 	toAst = () => Ast.lAll()
-	isEqualTo = (v: Value) => v.type === 'all'
 	isSubtypeOf = this.isEqualTo
 	isType = false
 
@@ -103,8 +106,6 @@ export class Bottom extends BaseValue {
 	defaultValue = this
 
 	toAst = () => Ast.lBottom()
-
-	isEqualTo = (v: Value) => v.type === 'bottom'
 	isSubtypeOf = () => true
 	isType = true
 
@@ -122,9 +123,10 @@ export class Prim<T = any> extends BaseValue {
 	toAst = (): Ast.Node => Ast.obj(this)
 
 	isEqualTo = (val: Value) =>
-		val.type === 'prim' &&
-		isEqual(this.superType, val.superType) &&
-		this.value === val.value
+		super.isEqualTo(val) ||
+		(this.type === val.type &&
+			this.value === val.value &&
+			isEqual(this.superType, val.superType))
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
@@ -163,7 +165,8 @@ export class TyPrim<T = any> extends BaseValue {
 	// TODO: fix this
 	toAst = () => Ast.sym(this.name)
 
-	isEqualTo = (v: Value) => v.type === 'tyPrim' && this.name === v.name
+	isEqualTo = (v: Value) =>
+		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
 
 	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
@@ -211,9 +214,10 @@ export class Enum extends BaseValue {
 	toAst = () => Ast.sym(this.name)
 
 	isEqualTo = (v: Value) =>
-		v.type === 'enum' &&
-		this.name === v.name &&
-		this.superType.isEqualTo(v.superType)
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			this.name === v.name &&
+			this.superType.isEqualTo(v.superType))
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -240,7 +244,8 @@ export class TyEnum extends BaseValue {
 	// TODO: fix this
 	toAst = () => Ast.sym(this.name)
 
-	isEqualTo = (v: Value) => v.type === 'tyEnum' && this.name === v.name
+	isEqualTo = (v: Value) =>
+		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -278,8 +283,8 @@ export class TyVar extends BaseValue {
 
 	toAst = () => Ast.sym(this.name)
 
-	isEqualTo = (v: Value) => this === v
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
 	isType = true
 
 	shadow = (): TyVar => {
@@ -317,8 +322,8 @@ export class Fn extends BaseValue implements IFnLike {
 		return Ast.sym('fn')
 	}
 
-	isEqualTo = () => false
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
+
 	isType = false
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
@@ -350,9 +355,10 @@ export class TyFn extends BaseValue implements ITyFn {
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'tyFn' &&
-		isEqualArray(values(this.param), values(v.param), isEqual) &&
-		isEqual(this.out, v.out)
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			isEqual(this.out, v.out) &&
+			isEqualArray(values(this.param), values(v.param), isEqual))
 
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
@@ -397,9 +403,10 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'vec' &&
-		isEqualArray(this.items, v.items, isEqual) &&
-		nullishEqual(this.rest, v.rest, isEqual)
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			isEqualArray(this.items, v.items, isEqual) &&
+			nullishEqual(this.rest, v.rest, isEqual))
 
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
@@ -483,10 +490,11 @@ export class Dict extends BaseValue {
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'dict' &&
-		isEqualDict(this.items, v.items, isEqual) &&
-		isEqualSet(this.optionalKeys, v.optionalKeys) &&
-		nullishEqual(this.rest, v.rest, isEqual)
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			isEqualDict(this.items, v.items, isEqual) &&
+			isEqualSet(this.optionalKeys, v.optionalKeys) &&
+			nullishEqual(this.rest, v.rest, isEqual))
 
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
@@ -551,9 +559,10 @@ export class Struct extends BaseValue {
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'struct' &&
-		this.superType.isEqualTo(v.superType) &&
-		isEqualArray(this.items, v.items, isEqual)
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			isEqual(this.superType, v.superType) &&
+			isEqualArray(this.items, v.items, isEqual))
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -587,7 +596,8 @@ export class TyStruct extends BaseValue implements IFnLike {
 	// TODO: Fix this
 	toAst = () => Ast.sym(this.name)
 
-	isEqualTo = (v: Value) => v.type === 'tyStruct' && this.name === v.name
+	isEqualTo = (v: Value) =>
+		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
 
 	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
@@ -621,8 +631,9 @@ export class TyUnion extends BaseValue {
 	}
 
 	isEqualTo = (v: Value): boolean =>
-		v.type === 'tyUnion' &&
-		differenceWith(this.types, v.types, isEqual).length === 0
+		super.isEqualTo(v) ||
+		(this.type === v.type &&
+			differenceWith(this.types, v.types, isEqual).length === 0)
 
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
