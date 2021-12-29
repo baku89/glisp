@@ -25,11 +25,11 @@ abstract class BaseNode {
 	}
 
 	abstract print(): string
-	abstract eval(env?: Env): WithLog
-	abstract infer(env?: Env): WithLog
+	abstract eval(env: Env): WithLog
+	abstract infer(env: Env): WithLog
 	abstract isSameTo(ast: Node): boolean
 
-	getLog = () => this.eval().log
+	getLog = () => this.eval(Env.global).log
 }
 
 export class Sym extends BaseNode {
@@ -41,7 +41,7 @@ export class Sym extends BaseNode {
 
 	#resolve(
 		ref: Node | null,
-		env?: Env
+		env: Env
 	): Writer<{node: Node; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
 		if (!ref) {
 			// If no parent and still couldn't resolve the symbol,
@@ -61,19 +61,19 @@ export class Sym extends BaseNode {
 			}
 		}
 		if (ref.type === 'eFn') {
-			if (env) {
-				// Situation A. In a context of function appliction
+			if (env.isGlobal) {
+				// Situation A. While normal evaluation
+				if (this.name in ref.param) {
+					return Writer.of({node: ref.param[this.name], mode: 'param'})
+				}
+			} else {
+				// Situation B. In a context of function appliction
 				const node = env.get(this.name)
 				if (node) {
 					return Writer.of({node, mode: 'arg'})
 				}
 				// If no corresponding arg has found for the eFn, pop the env.
 				env = env.pop()
-			} else {
-				// Situation B. While normal evaluation
-				if (this.name in ref.param) {
-					return Writer.of({node: ref.param[this.name], mode: 'param'})
-				}
 			}
 		}
 		// Resolve tyVars
@@ -87,7 +87,7 @@ export class Sym extends BaseNode {
 		return this.#resolve(ref.parent, env)
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		return this.#resolve(this.parent, env).bind(({node, mode}) => {
 			const value = node.eval(env)
 
@@ -97,7 +97,7 @@ export class Sym extends BaseNode {
 		})
 	}
 
-	infer = (env?: Env): WithLog => {
+	infer = (env = Env.global): WithLog => {
 		const {node, mode} = this.#resolve(this.parent, env).result
 
 		if (mode) {
@@ -230,13 +230,13 @@ export class EFn extends BaseNode {
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		const names = keys(this.param)
 
 		const fn: Val.IFn = (...args: Val.Value[]) => {
 			const objs = args.map(Obj.of)
 			const arg = fromPairs(zip(names, objs))
-			const innerEnv = Env.extend(env, arg)
+			const innerEnv = env.extend(arg)
 			return this.body.eval(innerEnv)
 		}
 
@@ -248,10 +248,10 @@ export class EFn extends BaseNode {
 		return withLog(fnVal, ...lty)
 	}
 
-	infer = (env?: Env): WithLog<Val.TyFn> => {
+	infer = (env = Env.global): WithLog<Val.TyFn> => {
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 
-		const innerEnv = Env.extend(env, this.param)
+		const innerEnv = env.extend(this.param)
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
@@ -295,7 +295,7 @@ export class ETyFn extends BaseNode {
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		const [params, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 		const [out, lo] = this.out.eval(env).asTuple
 		return withLog(Val.tyFnFrom(params, out), ...lp, ...lo)
@@ -371,13 +371,13 @@ export class EVec extends BaseNode {
 		return this.items.length
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
 		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
 		return withLog(Val.vecFrom(items, rest), ...li, ...lr)
 	}
 
-	infer = (env?: Env): WithLog => {
+	infer = (env = Env.global): WithLog => {
 		if (this.rest) return withLog(Val.all)
 		const [items, log] = Writer.map(this.items, it => it.infer(env)).asTuple
 		return withLog(Val.vec(...items), ...log)
@@ -423,7 +423,7 @@ export class EDict extends BaseNode {
 		return this.optionalKeys.has(key)
 	}
 
-	infer = (env?: Env): WithLog => {
+	infer = (env = Env.global): WithLog => {
 		if (this.optionalKeys.size > 0 || this.rest) return withLog(Val.all)
 
 		const [items, logs] = Writer.mapValues(this.items, it =>
@@ -432,7 +432,7 @@ export class EDict extends BaseNode {
 		return withLog(Val.dict(items), ...logs)
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		const [items, li] = Writer.mapValues(this.items, it => it.eval(env)).asTuple
 		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
 		return withLog(Val.dict(items, this.optionalKeys, rest), ...li, ...lr)
@@ -475,7 +475,7 @@ export class Call extends BaseNode {
 		super()
 	}
 
-	#unify(env?: Env): [RangedUnifier, Val.Value[]] {
+	#unify(env: Env): [RangedUnifier, Val.Value[]] {
 		const ty = this.fn.infer(env).result
 
 		if (!('tyFn' in ty)) return [RangedUnifier.empty(), []]
@@ -497,7 +497,7 @@ export class Call extends BaseNode {
 		return [subst, shadowedArgs]
 	}
 
-	eval = (env?: Env): WithLog => {
+	eval = (env = Env.global): WithLog => {
 		// Evaluate the function itself at first
 		const [fn, fnLog] = this.fn.eval(env).asTuple
 
@@ -567,7 +567,7 @@ export class Call extends BaseNode {
 		return withLog(unifiedResult, ...fnLog, ...argLog, ...callLogWithRef)
 	}
 
-	infer = (env?: Env): WithLog => {
+	infer = (env = Env.global): WithLog => {
 		const [ty, log] = this.fn.infer(env).asTuple
 		if (!('tyFn' in ty)) return withLog(ty, ...log)
 
@@ -607,9 +607,11 @@ export class Scope extends BaseNode {
 		super()
 	}
 
-	infer = (env?: Env): WithLog => this.out?.infer(env) ?? withLog(Val.unit)
+	infer = (env = Env.global): WithLog =>
+		this.out?.infer(env) ?? withLog(Val.unit)
 
-	eval = (env?: Env): WithLog => this.out?.eval(env) ?? Writer.of(Val.unit)
+	eval = (env = Env.global): WithLog =>
+		this.out?.eval(env) ?? Writer.of(Val.unit)
 
 	print = (): string => {
 		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())

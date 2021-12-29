@@ -1,14 +1,18 @@
+import {WithLog} from '../log'
 import type {Node} from './ast'
 
 type Arg = Record<string, Node>
 
 export class Env {
-	#original!: Env | undefined
+	#outer!: Env | undefined
 	#arg: Arg
+	#evaluated: WeakMap<Node, WithLog> = new WeakMap()
+	readonly isGlobal!: boolean
 
 	private constructor(original: Env | undefined, arg: Arg) {
-		this.#original = original
+		this.#outer = original
 		this.#arg = arg
+		this.isGlobal = !original
 	}
 
 	push(arg: Arg) {
@@ -16,14 +20,25 @@ export class Env {
 	}
 
 	pop() {
-		return this.#original
+		return this.#outer ?? this
 	}
 
 	get(name: string): Node | undefined {
 		return this.#arg[name]
 	}
 
-	static extend(env: Env | undefined, arg: Arg) {
-		return new Env(env, arg)
+	extend(arg: Arg) {
+		return new Env(this, arg)
 	}
+
+	memoizeEval(ast: Node, evaluate: () => WithLog): WithLog {
+		let evaluated = this.#evaluated.get(ast)
+		if (!evaluated) {
+			evaluated = evaluate()
+			this.#evaluated.set(ast, evaluated)
+		}
+		return evaluated
+	}
+
+	static global = new Env(undefined, {})
 }
