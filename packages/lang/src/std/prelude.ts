@@ -1,3 +1,5 @@
+import {range} from 'lodash'
+
 import * as Ast from '../ast'
 import {withLog} from '../log'
 import {parseModule} from '../parser'
@@ -66,6 +68,11 @@ PreludeScope.defs({
 		if (x.type === 'vec') return Val.num(x.items.length)
 		else return Val.num(x.value.length)
 	}),
+	range: defn(
+		'(-> [start:Num end:Num] [...Num])',
+		(start: Val.Num, end: Val.Num) =>
+			Val.vecFrom(range(start.value, end.value).map(Val.num))
+	),
 	gcd: defn(
 		'(-> [x:Num y:Num] Num)',
 		(() => {
