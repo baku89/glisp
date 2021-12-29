@@ -21,7 +21,6 @@ import {
 	TyStruct,
 	TyUnion,
 	TyVar,
-	TyVec,
 	Unit,
 	Value,
 	Vec,
@@ -44,7 +43,6 @@ export {
 	Fn,
 	TyFn,
 	Vec,
-	TyVec,
 	Dict,
 	TyDict,
 	Struct,
@@ -72,7 +70,7 @@ export const tyFn = TyFn.of
 export const tyFnFrom = TyFn.from
 export const tyVar = TyVar.of
 export const vec = Vec.of
-export const tyVec = TyVec.of
+export const vecFrom = Vec.from
 export const dict = Dict.of
 export const tyDict = TyDict.of
 export const tyStruct = TyStruct.of

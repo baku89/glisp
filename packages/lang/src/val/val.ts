@@ -13,22 +13,14 @@ import {Env} from '../ast/env'
 import {Log, withLog} from '../log'
 import {isEqualArray} from '../utils/isEqualArray'
 import {isEqualDict} from '../utils/isEqualDict'
+import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import {tyUnion} from './TypeOperation'
 
 export type Value = Type | Atomic
 
-type Type =
-	| All
-	| TyPrim
-	| TyEnum
-	| TyFn
-	| TyVec
-	| TyDict
-	| TyStruct
-	| TyUnion
-	| TyVar
+type Type = All | TyPrim | TyEnum | TyFn | TyDict | TyStruct | TyUnion | TyVar
 
 type Atomic =
 	| Bottom
@@ -392,7 +384,7 @@ export class Vec extends BaseValue implements IFnLike {
 	readonly type = 'vec' as const
 	readonly superType = All.instance
 
-	private constructor(public items: Value[]) {
+	private constructor(public readonly items: Value[], public rest?: Value) {
 		super()
 	}
 
@@ -402,16 +394,43 @@ export class Vec extends BaseValue implements IFnLike {
 
 	toAst = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
-		return Ast.eVecFrom(items)
+		return Ast.eVecFrom(items, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'vec' && isEqualArray(this.items, v.items, isEqual)
+		v.type === 'vec' &&
+		isEqualArray(this.items, v.items, isEqual) &&
+		nullishEqual(this.rest, v.rest, isEqual)
 
-	isSubtypeOf = isSubtypeVecGeneric.bind(this)
+	isSubtypeOf = (v: Value): boolean => {
+		if (this.superType.isSubtypeOf(v)) return true
+		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
+		if (v.type !== 'vec') return false
+
+		const isAllItemsSubtype =
+			this.items.length >= v.items.length &&
+			zip(this.items, v.items).every(([ti, vi]) => isSubtype(ti, vi))
+
+		if (!isAllItemsSubtype) return false
+
+		if (v.rest) {
+			const tr = v.rest
+			const isRestSubtype = this.items
+				.slice(v.items.length)
+				.every(ti => ti.isSubtypeOf(tr))
+
+			if (!isRestSubtype) return false
+
+			if (this.rest) {
+				return isSubtype(this.rest, v.rest)
+			}
+		}
+
+		return true
+	}
 
 	get isType() {
-		return this.items.some(isType)
+		return !!this.rest || this.items.some(isType)
 	}
 
 	tyFn = TyFn.of(tyNum, tyUnion(...this.items))
@@ -427,83 +446,14 @@ export class Vec extends BaseValue implements IFnLike {
 		return withLog(ret)
 	}
 
-	get asTyVecLike(): TyVecLike {
-		return {items: this.items}
-	}
-
 	static of(...items: Value[]) {
 		return new Vec(items)
 	}
-}
 
-export class TyVec extends BaseValue {
-	readonly type = 'tyVec' as const
-	readonly superType = All.instance
-
-	private constructor(public items: Value[], public rest: Value) {
-		super()
-	}
-
-	get defaultValue(): Vec {
-		return Vec.of(...this.items.map(it => it.defaultValue))
-	}
-
-	toAst = (): Ast.EVec => {
-		const items = this.items.map(it => it.toAst())
-		const rest = this.rest.toAst()
-		return Ast.eVecFrom(items, rest)
-	}
-
-	isEqualTo = (v: Value) =>
-		v.type === 'tyVec' && isEqualArray(this.items, v.items, isEqual)
-
-	isSubtypeOf = isSubtypeVecGeneric.bind(this)
-
-	isType = true
-
-	asTyVecLike: TyVecLike = this
-
-	static of(items: Value[], rest: Value) {
-		return new TyVec(items, rest)
+	static from(items: Value[], rest?: Value) {
+		return new Vec(items, rest)
 	}
 }
-
-type TyVecLike = {
-	items: Value[]
-	rest?: Value
-}
-
-function isSubtypeVecGeneric(this: Vec | TyVec, e: Value): boolean {
-	if (this.superType.isSubtypeOf(e)) return true
-	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-	if (!('asTyVecLike' in e)) return false
-
-	return isSubtypeVec(this.asTyVecLike, e.asTyVecLike)
-}
-
-function isSubtypeVec(s: TyVecLike, t: TyVecLike) {
-	const isAllItemsSubtype =
-		s.items.length >= t.items.length &&
-		zip(s.items, t.items).every(([si, ti]) => isSubtype(si, ti))
-
-	if (!isAllItemsSubtype) return false
-
-	if (t.rest) {
-		const tr = t.rest
-		const isRestSubtype = s.items
-			.slice(t.items.length)
-			.every(ti => ti.isSubtypeOf(tr))
-
-		if (!isRestSubtype) return false
-
-		if (s.rest) {
-			return isSubtype(s.rest, t.rest)
-		}
-	}
-
-	return true
-}
-
 export class Dict extends BaseValue {
 	readonly type = 'dict' as const
 	superType = All.instance

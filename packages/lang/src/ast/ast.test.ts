@@ -13,10 +13,10 @@ import {
 	tyFn,
 	tyNum,
 	tyStr,
-	tyVec,
 	unit,
 	Value,
 	vec,
+	vecFrom,
 } from '../val'
 
 describe('value equality', () => {
@@ -54,8 +54,8 @@ describe('evaluating literals', () => {
 
 	testEval('[]', vec())
 	testEval('[0]', vec(num(0)))
-	testEval('[...Num]', tyVec([], tyNum))
-	testEval('[1 ...Num]', tyVec([num(1)], tyNum))
+	testEval('[...Num]', vecFrom([], tyNum))
+	testEval('[1 ...Num]', vecFrom([num(1)], tyNum))
 	testEval('[0]', vec(num(0)))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
 	testEval(

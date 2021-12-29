@@ -15,9 +15,9 @@ import {
 	tyIntersection,
 	tyUnion,
 	TyVar,
-	tyVec,
 	Value,
 	vec,
+	vecFrom,
 } from '../val'
 
 export type Const = [Value, Relation, Value]
@@ -43,11 +43,9 @@ export function getTyVars(ty: Value): Set<TyVar> {
 		}
 		case 'fn':
 			return getTyVars(ty.superType)
-		case 'vec':
-			return union(...ty.items.map(getTyVars))
-		case 'tyVec': {
+		case 'vec': {
 			const items = ty.items.map(getTyVars)
-			const rest = getTyVars(ty.rest)
+			const rest: Set<TyVar> = ty.rest ? getTyVars(ty.rest) : new Set()
 			return union(...items, rest)
 		}
 		case 'dict': {
@@ -237,22 +235,18 @@ export class RangedUnifier {
 		 * --------------------------- ST-Vec
 		 *    [...ts] R [...us]
 		 */
-		if (
-			(t.type === 'vec' || t.type === 'tyVec') &&
-			(u.type === 'vec' || u.type === 'tyVec')
-		) {
+		if (t.type === 'vec' && u.type === 'vec') {
 			const uItems = u.items
-			const uRest = 'rest' in u ? u.rest : null
 
 			const cItems = zip(t.items, u.items).map(
 				([ti, ui]) => [ti, R, ui] as Const
 			)
 
 			let cRest: Const[] = []
-			if ('rest' in t) {
+			if (t.rest) {
 				cRest = uItems.slice(t.items.length).map(ui => [t.rest, R, ui] as Const)
-				if (uRest) {
-					cRest.push([t.rest, R, uRest])
+				if (u.rest) {
+					cRest.push([t.rest, R, u.rest])
 				}
 			}
 
@@ -312,12 +306,8 @@ export class RangedUnifier {
 				return fnFrom(this.substitute(val.superType) as TyFn, val.fn)
 			case 'vec': {
 				const items = val.items.map(this.substitute)
-				return vec(...items)
-			}
-			case 'tyVec': {
-				const items = val.items.map(this.substitute)
-				const rest = this.substitute(val.rest)
-				return tyVec(items, rest)
+				const rest = val.rest ? this.substitute(val.rest) : undefined
+				return vecFrom(items, rest)
 			}
 			case 'dict': {
 				const items = mapValues(val.items, this.substitute)

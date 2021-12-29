@@ -373,12 +373,8 @@ export class EVec extends BaseNode {
 
 	eval = (env?: Env): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
-		if (this.rest) {
-			const [rest, lr] = this.rest.eval(env).asTuple
-			return withLog(Val.tyVec(items, rest), ...li, ...lr)
-		} else {
-			return withLog(Val.vec(...items), ...li)
-		}
+		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
+		return withLog(Val.vecFrom(items, rest), ...li, ...lr)
 	}
 
 	infer = (env?: Env): WithLog => {
