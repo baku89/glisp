@@ -622,14 +622,6 @@ export class Call extends BaseNode {
 	}
 }
 
-const id = <T>(v: T) => v
-const w =
-	<X, Y>(f: (x: X) => X, g: (y: Y) => Y) =>
-	(x: X, y: Y) =>
-		[f(x), g(y)] as const
-
-const wid = w(id, id)
-
 export class Scope extends BaseNode {
 	readonly type = 'scope' as const
 
