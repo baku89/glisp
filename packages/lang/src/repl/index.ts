@@ -70,7 +70,10 @@ function startRepl() {
 		writer: ({result, log}: WithLog) => {
 			let str = ''
 
-			str += log.map(l => printLog(l) + '\n').join('')
+			for (const l of log) {
+				str += printLog(l) + '\n'
+			}
+
 			str += chalk.bold.gray('< ') + result.print()
 
 			return str + '\n'

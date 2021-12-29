@@ -38,12 +38,12 @@ export function testEval(
 		if (!result.isEqualTo(expectedVal)) {
 			throw new Error('Got=' + result.print())
 		}
-		if (!hasLog && log.length > 0) {
+		if (!hasLog && log.size > 0) {
 			throw new Error('Expected no log, but got=' + printLog(log))
 		}
 	})
 }
 
-export function printLog(log: Log[]) {
-	return log.map(l => `[${l.level}] ${l.reason}\n`).join('')
+export function printLog(log: Set<Log>) {
+	return [...log].map(l => `[${l.level}] ${l.reason}\n`).join('')
 }

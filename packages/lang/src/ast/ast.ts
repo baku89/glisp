@@ -563,7 +563,7 @@ export class Call extends BaseNode {
 		const unifiedResult = unifier.substitute(result, true)
 
 		// Set this as 'ref'
-		const callLogWithRef = callLog.map(log => ({...log, ref: this}))
+		const callLogWithRef = [...callLog].map(log => ({...log, ref: this}))
 
 		return withLog(unifiedResult, ...fnLog, ...argLog, ...callLogWithRef)
 	}
