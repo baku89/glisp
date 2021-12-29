@@ -9,7 +9,7 @@ import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {Env} from './env'
-import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
+import {RangedUnifier, shadowTyVars} from './unify'
 
 export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
@@ -529,8 +529,8 @@ export class Call extends BaseNode {
 
 		// Unify tyFn and args
 		const [subst, shadowedArgs] = this.#unify(env)
-		const unifiedParams = params.map(subst.substitute)
-		const unifiedArgs = shadowedArgs.map(subst.substitute)
+		const unifiedParams = params.map(p => subst.substitute(p))
+		const unifiedArgs = shadowedArgs.map(a => subst.substitute(a))
 
 		// Check types of args and cast them to default if necessary
 		const args = unifiedParams.map((pTy, i) => {
@@ -539,13 +539,12 @@ export class Call extends BaseNode {
 
 			if (!Val.isSubtype(aTy, pTy)) {
 				if (aTy.type !== 'unit') {
-					const aTyUnshadowed = unshadowTyVars(aTy)
 					argLog.push({
 						level: 'error',
 						ref: this,
 						reason:
 							`Argument '${name}' expects type: ${pTy.print()}, ` +
-							`but got: '${aTyUnshadowed.print()}''`,
+							`but got: '${aTy.print()}''`,
 					})
 				}
 				return pTy.defaultValue
@@ -560,7 +559,7 @@ export class Call extends BaseNode {
 
 		// Call the function
 		const [result, callLog] = fn.fn(...args).asTuple
-		const unifiedResult = unshadowTyVars(subst.substitute(result))
+		const unifiedResult = subst.substitute(result, true)
 
 		// Set this as 'ref'
 		const callLogWithRef = callLog.map(log => ({...log, ref: this}))
@@ -577,7 +576,7 @@ export class Call extends BaseNode {
 		}
 
 		const [subst] = this.#unify(env)
-		return withLog(unshadowTyVars(subst.substitute(ty.tyFn.out)), ...log)
+		return withLog(subst.substitute(ty.tyFn.out, true), ...log)
 	}
 
 	print = (): string => {

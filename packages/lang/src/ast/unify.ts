@@ -68,17 +68,6 @@ export function shadowTyVars(ty: Value) {
 	return subst.substitute(ty)
 }
 
-export function unshadowTyVars(ty: Value): Value {
-	const subst = RangedUnifier.empty()
-
-	for (const shadowed of getTyVars(ty)) {
-		const original = shadowed.unshadow()
-		subst.mapTo(shadowed, original)
-	}
-
-	return subst.substitute(ty)
-}
-
 export class RangedUnifier {
 	#lowers = new Map<TyVar, Value>()
 	#uppers = new Map<TyVar, Value>()
@@ -288,31 +277,33 @@ export class RangedUnifier {
 		return this.#addConsts(...cs)
 	}
 
-	substitute = (val: Value): Value => {
+	substitute = (val: Value, unshadow = false): Value => {
 		if (this.#isEmpty) return val
 
 		switch (val.type) {
-			case 'tyVar':
-				return this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
+			case 'tyVar': {
+				const v = this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
+				return unshadow && v.type === 'tyVar' ? v.unshadow() : v
+			}
 			case 'tyFn': {
-				const param = mapValues(val.param, this.substitute)
-				const out = this.substitute(val.out)
+				const param = mapValues(val.param, p => this.substitute(p, unshadow))
+				const out = this.substitute(val.out, unshadow)
 				return tyFnFrom(param, out)
 			}
 			case 'tyUnion': {
-				const types = val.types.map(this.substitute)
+				const types = val.types.map(ty => this.substitute(ty, unshadow))
 				return tyUnion(...types)
 			}
 			case 'fn':
-				return fnFrom(this.substitute(val.superType) as TyFn, val.fn)
+				return fnFrom(this.substitute(val.superType, unshadow) as TyFn, val.fn)
 			case 'vec': {
-				const items = val.items.map(this.substitute)
-				const rest = val.rest ? this.substitute(val.rest) : undefined
+				const items = val.items.map(it => this.substitute(it, unshadow))
+				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
 				return vecFrom(items, rest)
 			}
 			case 'dict': {
-				const items = mapValues(val.items, this.substitute)
-				const rest = val.rest ? this.substitute(val.rest) : undefined
+				const items = mapValues(val.items, it => this.substitute(it, unshadow))
+				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
 				return dict(items, val.optionalKeys, rest)
 			}
 			default:
