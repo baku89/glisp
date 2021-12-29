@@ -9,7 +9,6 @@ import {
 	num,
 	str,
 	True,
-	tyDict,
 	tyFn,
 	tyNum,
 	tyStr,
@@ -58,10 +57,7 @@ describe('evaluating literals', () => {
 	testEval('[1 ...Num]', vecFrom([num(1)], tyNum))
 	testEval('[0]', vec(num(0)))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
-	testEval(
-		'{a?:Num ...Str}',
-		tyDict({a: {optional: true, value: tyNum}}, tyStr)
-	)
+	testEval('{a?:Num ...Str}', dict({a: tyNum}, ['a'], tyStr))
 	testEval('(-> [Num] Num)', tyFn(tyNum, tyNum))
 	testEval('(let a = 10 a)', num(10))
 	testEval('(let a = (let a = 20 a) a)', num(20))

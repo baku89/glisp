@@ -3,6 +3,7 @@ import {entries, forOwn, fromPairs, keys, mapValues, values} from 'lodash'
 import {Log, WithLog, withLog} from '../log'
 import {isEqualArray} from '../utils/isEqualArray'
 import {isEqualDict} from '../utils/isEqualDict'
+import {isEqualSet} from '../utils/isEqualSet'
 import {nullishEqual} from '../utils/nullishEqual'
 import {union} from '../utils/SetOperation'
 import {Writer} from '../utils/Writer'
@@ -412,37 +413,35 @@ export class EDict extends BaseNode {
 	readonly type = 'eDict' as const
 
 	private constructor(
-		public items: Record<string, {optional?: boolean; value: Node}>,
+		public items: Record<string, Node>,
+		public optionalKeys: Set<string>,
 		public rest?: Node
 	) {
 		super()
 	}
 
-	infer = (): WithLog => {
-		if (this.rest) return withLog(Val.all)
-		const items: Val.Dict['items'] = {}
-		const logs: Log[] = []
-		for (const [key, {optional, value}] of entries(this.items)) {
-			if (optional) return withLog(Val.all)
-			const [inferred, l] = value.infer().asTuple
-			items[key] = inferred
-			logs.push(...l)
-		}
+	#isOptional(key: string) {
+		return this.optionalKeys.has(key)
+	}
+
+	infer = (env?: Env): WithLog => {
+		if (this.optionalKeys.size > 0 || this.rest) return withLog(Val.all)
+
+		const [items, logs] = Writer.mapValues(this.items, it =>
+			it.infer(env)
+		).asTuple
 		return withLog(Val.dict(items), ...logs)
 	}
 
 	eval = (env?: Env): WithLog => {
-		const [items, li] = Writer.mapValues(this.items, ({optional, value}) =>
-			value.eval(env).fmap(value => ({optional, value}))
-		).asTuple
+		const [items, li] = Writer.mapValues(this.items, it => it.eval(env)).asTuple
 		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
-
-		return withLog(Val.tyDict(items, rest), ...li, ...lr)
+		return withLog(Val.dict(items, this.optionalKeys, rest), ...li, ...lr)
 	}
 
 	print = (): string => {
 		const items = entries(this.items).map(
-			([k, v]) => k + (v.optional ? '?' : '') + ': ' + v.value.print()
+			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print()
 		)
 		const rest = this.rest ? ['...' + this.rest.print()] : []
 		return '{' + [...items, ...rest].join(' ') + '}'
@@ -450,23 +449,21 @@ export class EDict extends BaseNode {
 
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eDict' &&
-		isEqualDict(
-			this.items,
-			ast.items,
-			(t, e) => !!t.optional === !!e.optional && isSame(t.value, e.value)
-		)
+		isEqualDict(this.items, ast.items, isSame) &&
+		isEqualSet(this.optionalKeys, ast.optionalKeys) &&
+		nullishEqual(this.rest, ast.rest, isSame)
 
 	static of(items: Record<string, Node>) {
-		const its = mapValues(items, value => ({value}))
-		return EDict.from(its)
+		return EDict.from(items)
 	}
 
 	static from(
-		items: Record<string, {optional?: boolean; value: Node}>,
+		items: Record<string, Node>,
+		optionalKeys: Iterable<string> = [],
 		rest?: Node
 	) {
-		const dict = new EDict(items, rest)
-		values(items).forEach(it => setParent(it.value, dict))
+		const dict = new EDict(items, new Set(optionalKeys), rest)
+		values(items).forEach(it => setParent(it, dict))
 		if (rest) setParent(rest, dict)
 		return dict
 	}

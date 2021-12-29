@@ -1,8 +1,8 @@
 import {
-	chain,
 	difference,
 	differenceWith,
-	isNull,
+	entries,
+	fromPairs,
 	keys,
 	mapValues,
 	values,
@@ -13,6 +13,7 @@ import {Env} from '../ast/env'
 import {Log, withLog} from '../log'
 import {isEqualArray} from '../utils/isEqualArray'
 import {isEqualDict} from '../utils/isEqualDict'
+import {isEqualSet} from '../utils/isEqualSet'
 import {nullishEqual} from '../utils/nullishEqual'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
@@ -20,7 +21,7 @@ import {tyUnion} from './TypeOperation'
 
 export type Value = Type | Atomic
 
-type Type = All | TyPrim | TyEnum | TyFn | TyDict | TyStruct | TyUnion | TyVar
+type Type = All | TyPrim | TyEnum | TyFn | TyStruct | TyUnion | TyVar
 
 type Atomic =
 	| Bottom
@@ -458,128 +459,82 @@ export class Dict extends BaseValue {
 	readonly type = 'dict' as const
 	superType = All.instance
 
-	private constructor(public items: Record<string, Value>) {
-		super()
-	}
-
-	get defaultValue(): Dict {
-		return Dict.of(mapValues(this.items, it => it.defaultValue))
-	}
-
-	toAst = (): Ast.EDict => {
-		const items = mapValues(this.items, it => ({
-			optional: false,
-			value: it.toAst(),
-		}))
-		return Ast.eDictFrom(items)
-	}
-
-	isEqualTo = (v: Value) =>
-		v.type === 'dict' && isEqualDict(this.items, v.items, isEqual)
-
-	isSubtypeOf = isSubtypeDictGeneric.bind(this)
-
-	get isType() {
-		return values(this.items).some(isType)
-	}
-
-	get asTyDictLike(): TyDictLike {
-		const items = mapValues(this.items, value => ({value}))
-		return {items}
-	}
-
-	static of(items: Record<string, Value>) {
-		return new Dict(items)
-	}
-}
-
-export class TyDict extends BaseValue {
-	readonly type = 'tyDict' as const
-	superType = All.instance
-
 	private constructor(
-		public items: Record<string, {optional?: boolean; value: Value}>,
-		public rest?: Value
+		public readonly items: Record<string, Value>,
+		public readonly optionalKeys: Set<string>,
+		public readonly rest?: Value
 	) {
 		super()
 	}
 
+	#isRequredKey(key: string) {
+		return key in this.items && !this.optionalKeys.has(key)
+	}
+
 	get defaultValue(): Dict {
-		const items = chain(this.items)
-			.mapValues(it => (it.optional ? null : it.value.defaultValue))
-			.omitBy(isNull)
-			.value() as Record<string, Atomic>
-		return Dict.of(items)
+		const itemEntries = entries(this.items)
+			.filter(([k]) => this.#isRequredKey(k))
+			.map(([k, v]) => [k, v.defaultValue])
+
+		return Dict.of(fromPairs(itemEntries))
 	}
 
 	toAst = (): Ast.EDict => {
-		const items = mapValues(this.items, ({optional, value}) => ({
-			optional,
-			value: value.toAst(),
-		}))
-		return Ast.eDictFrom(items)
+		const items = mapValues(this.items, it => it.toAst())
+		return Ast.eDictFrom(items, this.optionalKeys, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
-		v.type === 'tyDict' &&
-		isEqualDict(
-			this.items,
-			v.items,
-			(ti, ei) => !!ti.optional === !!ei.optional && isEqual(ti.value, ei.value)
+		v.type === 'dict' &&
+		isEqualDict(this.items, v.items, isEqual) &&
+		isEqualSet(this.optionalKeys, v.optionalKeys) &&
+		nullishEqual(this.rest, v.rest, isEqual)
+
+	isSubtypeOf = (v: Value): boolean => {
+		if (this.superType.isSubtypeOf(v)) return true
+		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
+		if (v.type !== 'dict') return false
+
+		const tKeys = keys(v.items)
+
+		for (const k of tKeys) {
+			const vi = v.items[k]
+			if (v.#isRequredKey(k)) {
+				const sv = this.#isRequredKey(k) ? this.items[k] : false
+				if (!sv || !isSubtype(sv, vi)) return false
+			} else {
+				const sv = k in this.items ? this.items[k] : this.rest
+				if (sv && !isSubtype(sv, vi)) return false
+			}
+		}
+
+		if (v.rest) {
+			const sKeys = keys(this.items)
+			const extraKeys = difference(sKeys, tKeys)
+			for (const k of extraKeys) {
+				if (!isSubtype(this.items[k], v.rest)) return false
+			}
+			if (this.rest && !isSubtype(this.rest, v.rest)) return false
+		}
+
+		return true
+	}
+
+	get isType() {
+		return (
+			!!this.rest ||
+			this.optionalKeys.size > 0 ||
+			values(this.items).some(isType)
 		)
-
-	isSubtypeOf = isSubtypeDictGeneric.bind(this)
-
-	isType = true
-
-	asTyDictLike: TyDictLike = this
-
-	static of(items: TyDict['items'], rest?: Value) {
-		const noOptional = values(items).every(it => !it.optional)
-		const noRest = !rest
-
-		if (noOptional && noRest) {
-			return Dict.of(mapValues(items, i => i.value))
-		} else {
-			return new TyDict(items, rest)
-		}
-	}
-}
-
-type TyDictLike = Pick<TyDict, 'items' | 'rest'>
-
-function isSubtypeDictGeneric(this: Dict | TyDict, e: Value): boolean {
-	if (this.superType.isSubtypeOf(e)) return true
-	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-	if (!('asTyDictLike' in e)) return false
-
-	return isSubtypeDict(this.asTyDictLike, e.asTyDictLike)
-}
-
-function isSubtypeDict(s: TyDictLike, t: TyDictLike) {
-	const tKeys = keys(t.items)
-
-	for (const k of tKeys) {
-		const ti = t.items[k]
-		if (!ti.optional) {
-			const sv = k in s.items && !s.items[k].optional ? s.items[k].value : false
-			if (!sv || !isSubtype(sv, ti.value)) return false
-		} else {
-			const sv = k in s.items ? s.items[k].value : s.rest
-			if (sv && !isSubtype(sv, ti.value)) return false
-		}
 	}
 
-	if (t.rest) {
-		const sKeys = keys(s.items)
-		const extraKeys = difference(sKeys, tKeys)
-		for (const k of extraKeys) {
-			if (!isSubtype(s.items[k].value, t.rest)) return false
-		}
-		if (s.rest && !isSubtype(s.rest, t.rest)) return false
+	static of(
+		items: Record<string, Value>,
+		optionalKeys: Iterable<string> = [],
+		rest?: Value
+	) {
+		return new Dict(items, new Set(optionalKeys), rest)
 	}
-
-	return true
 }
 
 export class Struct extends BaseValue {

@@ -12,7 +12,6 @@ import {
 	Prim,
 	Str,
 	Struct,
-	TyDict,
 	TyEnum,
 	TyFn,
 	tyNum,
@@ -44,7 +43,6 @@ export {
 	TyFn,
 	Vec,
 	Dict,
-	TyDict,
 	Struct,
 	TyStruct,
 	TyUnion,
@@ -72,7 +70,6 @@ export const tyVar = TyVar.of
 export const vec = Vec.of
 export const vecFrom = Vec.from
 export const dict = Dict.of
-export const tyDict = TyDict.of
 export const tyStruct = TyStruct.of
 
 // Type operations

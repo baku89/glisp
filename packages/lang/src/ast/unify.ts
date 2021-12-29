@@ -8,7 +8,6 @@ import {
 	dict,
 	fnFrom,
 	isEqual,
-	tyDict,
 	tyDifference,
 	TyFn,
 	tyFnFrom,
@@ -50,10 +49,6 @@ export function getTyVars(ty: Value): Set<TyVar> {
 		}
 		case 'dict': {
 			const items = values(ty.items).map(getTyVars)
-			return union(...items)
-		}
-		case 'tyDict': {
-			const items = values(ty.items).map(p => getTyVars(p.value))
 			const rest: Set<TyVar> = ty.rest ? getTyVars(ty.rest) : new Set()
 			return union(...items, rest)
 		}
@@ -311,15 +306,8 @@ export class RangedUnifier {
 			}
 			case 'dict': {
 				const items = mapValues(val.items, this.substitute)
-				return dict(items)
-			}
-			case 'tyDict': {
-				const items = mapValues(val.items, ({optional, value}) => ({
-					optional,
-					value: this.substitute(value),
-				}))
 				const rest = val.rest ? this.substitute(val.rest) : undefined
-				return tyDict(items, rest)
+				return dict(items, val.optionalKeys, rest)
 			}
 			default:
 				return val

@@ -90,13 +90,18 @@ Vec = "[" _ items:(@Node _)* rest:Rest? "]"
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 	{
-		return Ast.eDictFrom(Object.fromEntries(entries), rest)
+		const items = {}
+		const optionalKeys = new Set()
+		for (const [key, value, optional] of entries) {
+			items[key] = value
+			if (optional) optionalKeys.add(key)
+		}
+		return Ast.eDictFrom(items, optionalKeys, rest)
 	}
 
 DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
 	{
-		const field = {optional: !!optional, value}
-		return [key.value, field]
+		return [key.value, value, optional]
 	}
 
 DictKey = (!(Whitespace / Delimiter) .)+
@@ -104,7 +109,7 @@ DictKey = (!(Whitespace / Delimiter) .)+
 		return Ast.lStr(text())
 	}
 
-Rest = "..." _ rest:Node _ { return rest }
+Rest = "..." _ @rest:Node _
 
 Scope = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 	{
