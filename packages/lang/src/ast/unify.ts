@@ -7,6 +7,7 @@ import {
 	bottom,
 	dict,
 	fnFrom,
+	isEqual,
 	tyDict,
 	tyDifference,
 	TyFn,
@@ -163,14 +164,14 @@ export class RangedUnifier {
 		if (utvs.size === 0 || l.type === 'tyVar') {
 			// α |-> [(has tyVars), (no tyvar)]
 			// α |-> [<T>, ...]
-			subst.addConsts([l, '==', u])
+			subst.#addConsts([l, '==', u])
 		} else if (ltvs.size === 0 || u.type === 'tyVar') {
 			// α |-> [(no tyVar), (has tyVar)]
 			// α |-> [..., <T>]
-			subst.addConsts([u, '==', l])
+			subst.#addConsts([u, '==', l])
 		} else {
 			// NOTE: In this case the algorithm won't work
-			subst.addConsts([u, '==', l])
+			subst.#addConsts([u, '==', l])
 		}
 
 		// Then merge the new subst
@@ -200,10 +201,14 @@ export class RangedUnifier {
 		this.#setLower(tv, l)
 	}
 
-	addConsts(...consts: Const[]): RangedUnifier {
+	#addConsts(...consts: Const[]): RangedUnifier {
 		if (consts.length === 0) return this
 
 		const [[t, R, u], ...cs] = consts
+
+		if (isEqual(t, u)) {
+			return this.#addConsts(...cs)
+		}
 
 		const Ri = invRelation(R)
 
@@ -224,7 +229,7 @@ export class RangedUnifier {
 			const cParam: Const = [tParam, Ri, uParam]
 			const cOut: Const = [tOut, R, uOut]
 
-			this.addConsts(cParam, cOut)
+			return this.#addConsts(cParam, cOut, ...cs)
 		}
 
 		/**
@@ -251,7 +256,7 @@ export class RangedUnifier {
 				}
 			}
 
-			this.addConsts(...cItems, ...cRest)
+			return this.#addConsts(...cItems, ...cRest, ...cs)
 		}
 
 		/**
@@ -267,7 +272,7 @@ export class RangedUnifier {
 				return [ti, R, ui]
 			})
 
-			this.addConsts(...cUnion)
+			return this.#addConsts(...cUnion, ...cs)
 		}
 
 		// Finally set limits
@@ -279,11 +284,15 @@ export class RangedUnifier {
 			if (R === '<=') this.#setUpper(t, Su)
 			if (R === '>=') this.#setLower(t, Su)
 			if (R === '==') this.#setEqual(t, Su)
-		} else if (u.type === 'tyVar') {
-			this.addConsts([u, Ri, u])
+
+			return this.#addConsts(...cs)
 		}
 
-		return this.addConsts(...cs)
+		if (u.type === 'tyVar') {
+			return this.#addConsts([u, Ri, u], ...cs)
+		}
+
+		return this.#addConsts(...cs)
 	}
 
 	substitute = (val: Value): Value => {
@@ -344,6 +353,6 @@ export class RangedUnifier {
 	}
 
 	static unify(...consts: Const[]) {
-		return new RangedUnifier().addConsts(...consts)
+		return new RangedUnifier().#addConsts(...consts)
 	}
 }
