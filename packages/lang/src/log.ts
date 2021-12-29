@@ -1,5 +1,5 @@
 import type {Node} from './ast'
-import {Writer} from './utils/Writer'
+import {Writer} from './util/Writer'
 import * as Val from './val'
 
 export type WithLog<V extends Val.Value = Val.Value> = Writer<V, Log>

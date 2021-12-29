@@ -2,7 +2,7 @@ import * as Ast from '../ast'
 import {withLog} from '../log'
 import {parseModule} from '../parser'
 import {parse} from '../parser'
-import {Writer} from '../utils/Writer'
+import {Writer} from '../util/Writer'
 import * as Val from '../val'
 
 function defn(

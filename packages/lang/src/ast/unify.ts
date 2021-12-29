@@ -1,7 +1,7 @@
 import {mapValues, values} from 'lodash'
 
-import {union} from '../utils/SetOperation'
-import {zip} from '../utils/zip'
+import {union} from '../util/SetOperation'
+import {zip} from '../util/zip'
 import {
 	all,
 	bottom,

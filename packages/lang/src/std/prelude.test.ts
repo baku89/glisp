@@ -1,4 +1,4 @@
-import {testEval} from '../utils/TestUtil'
+import {testEval} from '../util/TestUtil'
 import * as Val from '../val'
 
 describe('functions in the prelude module', () => {

@@ -1,4 +1,4 @@
-import {evaluate, parse, testEval} from '../utils/TestUtil'
+import {evaluate, parse, testEval} from '../util/TestUtil'
 import {
 	all,
 	bottom,

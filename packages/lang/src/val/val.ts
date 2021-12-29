@@ -11,12 +11,12 @@ import {
 import * as Ast from '../ast'
 import {Env} from '../ast/env'
 import {Log, withLog} from '../log'
-import {isEqualArray} from '../utils/isEqualArray'
-import {isEqualDict} from '../utils/isEqualDict'
-import {isEqualSet} from '../utils/isEqualSet'
-import {nullishEqual} from '../utils/nullishEqual'
-import {Writer} from '../utils/Writer'
-import {zip} from '../utils/zip'
+import {isEqualArray} from '../util/isEqualArray'
+import {isEqualDict} from '../util/isEqualDict'
+import {isEqualSet} from '../util/isEqualSet'
+import {nullishEqual} from '../util/nullishEqual'
+import {Writer} from '../util/Writer'
+import {zip} from '../util/zip'
 import {tyUnion} from './TypeOperation'
 
 export type Value = Type | Atomic
