@@ -533,7 +533,7 @@ export class Call extends BaseNode {
 
 		if (lenArgs !== lenParams) {
 			argLog.push({
-				level: 'info',
+				level: 'error',
 				ref: this,
 				reason: `Expected ${lenParams} arguments, but got ${lenArgs}`,
 			})
