@@ -545,7 +545,7 @@ export class Call extends BaseNode {
 						ref: this,
 						reason:
 							`Argument '${name}' expects type: ${pTy.print()}, ` +
-							`but got: '${aTy.print()}''`,
+							`but got: ${aTy.print()}`,
 					})
 				}
 				return pTy.defaultValue
