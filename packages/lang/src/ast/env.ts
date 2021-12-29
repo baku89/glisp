@@ -6,7 +6,8 @@ type Arg = Record<string, Node>
 export class Env {
 	#outer!: Env | undefined
 	#arg: Arg
-	#evaluated: WeakMap<BaseNode, WithLog> = new WeakMap()
+	#evalCache: WeakMap<BaseNode, WithLog> = new WeakMap()
+	#inferCache: WeakMap<BaseNode, WithLog> = new WeakMap()
 	readonly isGlobal!: boolean
 
 	private constructor(original: Env | undefined, arg: Arg) {
@@ -32,12 +33,19 @@ export class Env {
 	}
 
 	memoizeEval(ast: BaseNode, evaluate: () => WithLog): WithLog {
-		let evaluated = this.#evaluated.get(ast)
-		if (!evaluated) {
-			evaluated = evaluate()
-			this.#evaluated.set(ast, evaluated)
+		let cache = this.#evalCache.get(ast)
+		if (!cache) {
+			this.#evalCache.set(ast, (cache = evaluate()))
 		}
-		return evaluated
+		return cache
+	}
+
+	memoizeInfer(ast: BaseNode, infer: () => WithLog): WithLog {
+		let cache = this.#inferCache.get(ast)
+		if (!cache) {
+			this.#inferCache.set(ast, (cache = infer()))
+		}
+		return cache
 	}
 
 	static global = new Env(undefined, {})
