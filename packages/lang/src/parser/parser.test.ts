@@ -123,7 +123,7 @@ describe('parsing function definition', () => {
 	testParsing('(=> [] (=> [] 1))', eFn([], {}, eFn([], {}, lNum(1))))
 	testParsing('(=> <T> [x:T] x)', eFn(['T'], {x: sym('T')}, x))
 	testParsing('(=> <T U> [x:T] x)', eFn(['T', 'U'], {x: sym('T')}, x))
-	testErrorParsing('(=> <> [] Num)')
+	testParsing('(=> <> [] Num)', eFn([], {}, Num))
 	testErrorParsing('(=> <1> [] Num)')
 })
 
