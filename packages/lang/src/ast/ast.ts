@@ -260,8 +260,7 @@ export class EFn extends BaseNode {
 
 	print = (): string => {
 		const tyVars = printTyVars(this.tyVars)
-		const params = entries(this.param).map(([k, v]) => k + ':' + v.print())
-		const param = '[' + params.join(' ') + ']'
+		const param = printParam(this.param)
 		const body = this.body.print()
 
 		return `(=> ${tyVars}${param} ${body})`
@@ -306,9 +305,9 @@ export class ETyFn extends BaseNode {
 
 	print = (): string => {
 		const tyVars = printTyVars(this.tyVars)
-		const param = entries(this.param).map(printNamedNode).join(' ')
+		const param = printParam(this.param)
 		const out = this.out.print()
-		return `(-> ${tyVars}[${param}] ${out})`
+		return `(-> ${tyVars}${param} ${out})`
 	}
 
 	isSameTo = (ast: Node): boolean =>
@@ -344,9 +343,21 @@ function printTyVars(tyVars: Record<string, Val.TyVar>): string {
 	return '<' + es.join(' ') + '> '
 }
 
-function printNamedNode([name, ty]: [string, Node]) {
-	if (/^[0-9]+$/.test(name)) return ty.print()
-	return name + ':' + ty.print()
+function printParam(param: Record<string, Node>) {
+	const params = entries(param)
+
+	const canOmitBracket =
+		params.length === 1 &&
+		!(params[0][1].type === 'eVec' && params[0][1].length === 0)
+
+	const paramStr = params.map(printNamedNode).join(' ')
+
+	return canOmitBracket ? paramStr : '[' + paramStr + ']'
+
+	function printNamedNode([name, ty]: [string, Node]) {
+		if (/^[0-9]+$/.test(name)) return ty.print()
+		return name + ':' + ty.print()
+	}
 }
 
 export class EVec extends BaseNode {
