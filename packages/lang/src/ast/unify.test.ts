@@ -37,6 +37,15 @@ describe('unifyTyVars', () => {
 		T,
 		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
 	)
+	test([[Val.tyNum, '>=', T]], T, Val.tyNum)
+	test(
+		[
+			[T, '>=', Val.unit],
+			[T, '>=', Val.tyNum],
+		],
+		T,
+		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
+	)
 
 	function test(consts: Const[], tv: Val.TyVar, expected: Val.Value) {
 		const cStr = printConsts(consts)

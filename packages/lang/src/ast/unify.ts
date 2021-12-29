@@ -289,7 +289,7 @@ export class RangedUnifier {
 		}
 
 		if (u.type === 'tyVar') {
-			return this.#addConsts([u, Ri, u], ...cs)
+			return this.#addConsts([u, Ri, t], ...cs)
 		}
 
 		return this.#addConsts(...cs)

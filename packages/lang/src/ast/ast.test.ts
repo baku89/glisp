@@ -92,6 +92,7 @@ describe('evaluating function definition', () => {
 `,
 		'103'
 	)
+	testEval('((=> f:(-> Num Num) (f 1)) id)', '1')
 })
 
 describe('default values of types', () => {
@@ -188,10 +189,6 @@ describe('subtyping', () => {
 	test('[...0]', '[]', '=')
 	test('[0 ...0]', '[]', '<')
 	test('[0 0]', '[...0]', '<')
-	// run('[true false]', '(-> [Num] (| () Bool))', true)
-	// run('[1 2 3 4 5]', '(-> [Num] (| () Num))', true)
-	// run('[...Num]', '(-> [Num] (| () Num))', true)
-	// run('[...Bool]', '(-> [Num] (| () Num))', false)
 
 	// Dict
 	test('{}', '{}', '=')
