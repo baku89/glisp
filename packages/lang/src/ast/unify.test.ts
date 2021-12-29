@@ -1,10 +1,15 @@
 import _ from 'lodash'
 
 import * as Val from '../val'
-import {Const, getTyVars, RangedUnifier} from './unify'
+import {Const, getTyVars, Unifier} from './unify'
 
 const T = Val.tyVar('T'),
-	U = Val.tyVar('U')
+	U = Val.tyVar('U'),
+	T1 = Val.tyVar('T1'),
+	T2 = Val.tyVar('T2'),
+	T3 = Val.tyVar('T3'),
+	T4 = Val.tyVar('T4'),
+	T5 = Val.tyVar('T5')
 
 describe('getTyVars', () => {
 	run(Val.num(1), [])
@@ -46,13 +51,23 @@ describe('unifyTyVars', () => {
 		T,
 		Val.TyUnion.fromTypesUnsafe([Val.unit, Val.tyNum])
 	)
+	test(
+		[[Val.tyFn(Val.tyFn(T1, T2), T3), '==', Val.tyFn(T4, T5)]],
+		T4,
+		Val.tyFn(T1, T2)
+	)
+	test(
+		[[Val.tyFn(T1, T2), '==', Val.tyFn(T3, Val.tyFn(T4, T5))]],
+		T2,
+		Val.tyFn(T4, T5)
+	)
 
 	function test(consts: Const[], tv: Val.TyVar, expected: Val.Value) {
 		const cStr = printConsts(consts)
 		const tvStr = tv.print()
 		const eStr = expected.print()
-		const subst = RangedUnifier.unify(...consts)
-		const resolved = subst.substitute(tv)
+		const unifier = new Unifier(...consts)
+		const resolved = unifier.substitute(tv)
 
 		it(`Under constraints ${cStr}, σ(${tvStr}) equals to ${eStr}`, () => {
 			if (!resolved.isEqualTo(expected)) {

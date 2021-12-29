@@ -58,23 +58,23 @@ export function getTyVars(ty: Value): Set<TyVar> {
 }
 
 export function shadowTyVars(ty: Value) {
-	const subst = RangedUnifier.empty()
+	const unifier = new Unifier()
 
 	for (const tv of getTyVars(ty)) {
 		const shadowed = tv.shadow()
-		subst.mapTo(tv, shadowed)
+		unifier.mapTo(tv, shadowed)
 	}
 
-	return subst.substitute(ty)
+	return unifier.substitute(ty)
 }
 
-export class RangedUnifier {
+export class Unifier {
 	#lowers = new Map<TyVar, Value>()
 	#uppers = new Map<TyVar, Value>()
 	#isEmpty = true
 
-	private constructor() {
-		return
+	constructor(...consts: Const[]) {
+		this.#addConsts(...consts)
 	}
 
 	#getLower(tv: TyVar) {
@@ -132,52 +132,38 @@ export class RangedUnifier {
 			return
 		}
 
-		/**
-		 * TODO: 等式制約をつかった単一化アルゴリズムを使う
-		 * X |-> [A -> B, C -> (D -> E)] のように、下限、上限の両方に型変数を含み、
-		 * かつどちらも複合的な型の場合、以下の条件式だと else節の C={u >= l /\ u <= l}
-		 * で単一化を試みようとする。
-		 * RangedUnifierの単一化アルゴリズムは、不等式の左辺に登場する型変数の代入を求め、
-		 * かつ不正な制約の場合も、α |-> [bot, top] にフォールバックする仕組みのため、
-		 * 本来欲しかった σ = [A |-> C, B |-> (D -> E)] ではなく、
-		 * σ = [C |-> A, D |-> [bot, top], E |-> [bot, top]] を返してしまう。
-		 * オーソドックスな単一化アルゴリズムで解きつつ、
-		 * かつ不正な制約の場合の場合分けについて考えなくてはいけない。
-		 *
-		 * 21/12/09: 試しに等式制約でやってみた
-		 **/
-		const subst = RangedUnifier.empty()
+		const subUnifier = new Unifier()
 		if (utvs.size === 0 || l.type === 'tyVar') {
 			// α |-> [(has tyVars), (no tyvar)]
 			// α |-> [<T>, ...]
-			subst.#addConsts([l, '==', u])
+			subUnifier.#addConsts([l, '==', u])
 		} else if (ltvs.size === 0 || u.type === 'tyVar') {
 			// α |-> [(no tyVar), (has tyVar)]
 			// α |-> [..., <T>]
-			subst.#addConsts([u, '==', l])
+			subUnifier.#addConsts([u, '==', l])
 		} else {
 			// NOTE: In this case the algorithm won't work
-			subst.#addConsts([u, '==', l])
+			subUnifier.#addConsts([u, '==', l])
 		}
 
 		// Then merge the new subst
-		this.#mergeWith(subst)
+		this.#mergeWith(subUnifier)
 	}
 
-	#mergeWith(subst: RangedUnifier) {
+	#mergeWith(unifier: Unifier) {
 		// Eliminate surplus tyVars from this subst
 		for (const [tv, l] of this.#lowers) {
-			this.#lowers.set(tv, subst.substitute(l))
+			this.#lowers.set(tv, unifier.substitute(l))
 		}
 		for (const [tv, u] of this.#uppers) {
-			this.#uppers.set(tv, subst.substitute(u))
+			this.#uppers.set(tv, unifier.substitute(u))
 		}
 
-		for (const [tv, l] of subst.#lowers) {
+		for (const [tv, l] of unifier.#lowers) {
 			if (this.#lowers.has(tv)) throw new Error('Cannot merge substs')
 			this.#lowers.set(tv, l)
 		}
-		for (const [tv, u] of subst.#uppers) {
+		for (const [tv, u] of unifier.#uppers) {
 			if (this.#uppers.has(tv)) throw new Error('Cannot merge substs')
 			this.#uppers.set(tv, u)
 		}
@@ -187,7 +173,7 @@ export class RangedUnifier {
 		this.#setLower(tv, l)
 	}
 
-	#addConsts(...consts: Const[]): RangedUnifier {
+	#addConsts(...consts: Const[]): Unifier {
 		if (consts.length === 0) return this
 
 		const [[t, R, u], ...cs] = consts
@@ -321,13 +307,5 @@ export class RangedUnifier {
 		})
 
 		return '[' + strs.join(', ') + ']'
-	}
-
-	static empty() {
-		return new RangedUnifier()
-	}
-
-	static unify(...consts: Const[]) {
-		return new RangedUnifier().#addConsts(...consts)
 	}
 }

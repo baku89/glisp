@@ -9,7 +9,7 @@ import {Writer} from '../util/Writer'
 import {zip} from '../util/zip'
 import * as Val from '../val'
 import {Env} from './env'
-import {RangedUnifier, shadowTyVars} from './unify'
+import {shadowTyVars, Unifier} from './unify'
 
 export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
@@ -476,10 +476,10 @@ export class Call extends BaseNode {
 		super()
 	}
 
-	#unify(env: Env): [RangedUnifier, Val.Value[]] {
+	#unify(env: Env): [Unifier, Val.Value[]] {
 		const ty = this.fn.infer(env).result
 
-		if (!('tyFn' in ty)) return [RangedUnifier.empty(), []]
+		if (!('tyFn' in ty)) return [new Unifier(), []]
 
 		const tyFn = ty.tyFn
 
@@ -489,13 +489,13 @@ export class Call extends BaseNode {
 			.slice(0, params.length)
 			.map(a => shadowTyVars(a.infer(env).result))
 
-		const subst = RangedUnifier.unify([
+		const unifier = new Unifier([
 			Val.vec(...params),
 			'>=',
 			Val.vec(...shadowedArgs),
 		])
 
-		return [subst, shadowedArgs]
+		return [unifier, shadowedArgs]
 	}
 
 	protected forceEval = (env: Env): WithLog => {
@@ -529,9 +529,9 @@ export class Call extends BaseNode {
 		}
 
 		// Unify tyFn and args
-		const [subst, shadowedArgs] = this.#unify(env)
-		const unifiedParams = params.map(p => subst.substitute(p))
-		const unifiedArgs = shadowedArgs.map(a => subst.substitute(a))
+		const [unifier, shadowedArgs] = this.#unify(env)
+		const unifiedParams = params.map(p => unifier.substitute(p))
+		const unifiedArgs = shadowedArgs.map(a => unifier.substitute(a))
 
 		// Check types of args and cast them to default if necessary
 		const args = unifiedParams.map((pTy, i) => {
@@ -560,7 +560,7 @@ export class Call extends BaseNode {
 
 		// Call the function
 		const [result, callLog] = fn.fn(...args).asTuple
-		const unifiedResult = subst.substitute(result, true)
+		const unifiedResult = unifier.substitute(result, true)
 
 		// Set this as 'ref'
 		const callLogWithRef = callLog.map(log => ({...log, ref: this}))
@@ -576,8 +576,8 @@ export class Call extends BaseNode {
 			return this.eval(env)
 		}
 
-		const [subst] = this.#unify(env)
-		return withLog(subst.substitute(ty.tyFn.out, true), ...log)
+		const [unifier] = this.#unify(env)
+		return withLog(unifier.substitute(ty.tyFn.out, true), ...log)
 	}
 
 	print = (): string => {
@@ -668,7 +668,3 @@ export function isSame(a: Node, b: Node): boolean {
 export function print(n: Node) {
 	return n.print()
 }
-
-const a = Sym.of('a')
-
-a.e
