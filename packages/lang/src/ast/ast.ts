@@ -1,16 +1,15 @@
-import {entries, forOwn, fromPairs, keys, mapValues, values} from 'lodash'
+import {entries, forOwn, fromPairs, keys, values} from 'lodash'
 
 import {Log, WithLog, withLog} from '../log'
 import {isEqualArray} from '../utils/isEqualArray'
 import {isEqualDict} from '../utils/isEqualDict'
 import {isEqualSet} from '../utils/isEqualSet'
 import {nullishEqual} from '../utils/nullishEqual'
-import {union} from '../utils/SetOperation'
 import {Writer} from '../utils/Writer'
 import {zip} from '../utils/zip'
 import * as Val from '../val'
 import {Env} from './env'
-import {getTyVars, RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
+import {RangedUnifier, shadowTyVars, unshadowTyVars} from './unify'
 
 export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
@@ -512,7 +511,7 @@ export class Call extends BaseNode {
 		}
 
 		// Start function application
-		const logs: Log[] = []
+		const argLog: Log[] = []
 		const names = keys(fn.tyFn.param)
 		const params = values(fn.tyFn.param)
 
@@ -521,7 +520,7 @@ export class Call extends BaseNode {
 		const lenParams = params.length
 
 		if (lenArgs !== lenParams) {
-			logs.push({
+			argLog.push({
 				level: 'info',
 				ref: this,
 				reason: `Expected ${lenParams} arguments, but got ${lenArgs}`,
@@ -541,7 +540,7 @@ export class Call extends BaseNode {
 			if (!Val.isSubtype(aTy, pTy)) {
 				if (aTy.type !== 'unit') {
 					const aTyUnshadowed = unshadowTyVars(aTy)
-					logs.push({
+					argLog.push({
 						level: 'error',
 						ref: this,
 						reason:
@@ -554,35 +553,19 @@ export class Call extends BaseNode {
 
 			const [aVal, aLog] = this.args[i].eval(env).asTuple
 
-			logs.push(...aLog)
+			argLog.push(...aLog)
 
 			return aVal
 		})
 
 		// Call the function
-		let result: Val.Value, callLog: Log[]
-		if ('body' in fn && fn.body) {
-			const arg: Record<string, Val.Value> = fromPairs(zip(names, args))
-
-			const tyVars = union(...params.map(getTyVars))
-
-			for (const tv of tyVars) {
-				arg[tv.name] = unshadowTyVars(subst.substitute(tv))
-			}
-
-			const objs = mapValues(arg, Obj.of)
-
-			const innerEnv = Env.extend(fn.env, objs)
-
-			;[result, callLog] = fn.body.eval(innerEnv).asTuple
-		} else {
-			;[result, callLog] = fn.fn(...args).asTuple
-		}
+		const [result, callLog] = fn.fn(...args).asTuple
+		const unifiedResult = unshadowTyVars(subst.substitute(result))
 
 		// Set this as 'ref'
 		const callLogWithRef = callLog.map(log => ({...log, ref: this}))
 
-		return withLog(result, ...fnLog, ...logs, ...callLogWithRef)
+		return withLog(unifiedResult, ...fnLog, ...argLog, ...callLogWithRef)
 	}
 
 	infer = (env?: Env): WithLog => {
