@@ -16,7 +16,7 @@ export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 
 export type Exp = Call | Scope | EFn | ETyFn | EVec | EDict
 
-abstract class BaseNode {
+export abstract class BaseNode {
 	abstract readonly type: string
 	parent: Node | null = null
 
@@ -25,9 +25,11 @@ abstract class BaseNode {
 	}
 
 	abstract print(): string
-	abstract eval(env: Env): WithLog
+	abstract forceEval(env: Env): WithLog
 	abstract infer(env: Env): WithLog
 	abstract isSameTo(ast: Node): boolean
+
+	eval = (env = Env.global) => env.memoizeEval(this, () => this.forceEval(env))
 
 	getLog = () => this.eval(Env.global).log
 }
@@ -87,7 +89,7 @@ export class Sym extends BaseNode {
 		return this.#resolve(ref.parent, env)
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		return this.#resolve(this.parent, env).bind(({node, mode}) => {
 			const value = node.eval(env)
 
@@ -126,7 +128,7 @@ export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
 		super()
 	}
 
-	eval = () => withLog(this.value)
+	forceEval = () => withLog(this.value)
 	infer = () => withLog(this.value.isType ? Val.all : this.value)
 
 	print = () => {
@@ -145,7 +147,7 @@ export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
 export class LUnit extends BaseNode {
 	readonly type = 'lUnit' as const
 
-	eval = () => withLog(Val.unit)
+	forceEval = () => withLog(Val.unit)
 	infer = this.eval
 	print = () => '()'
 	isSameTo = (ast: Node) => this.type === ast.type
@@ -158,7 +160,7 @@ export class LUnit extends BaseNode {
 export class LAll extends BaseNode {
 	readonly type = 'lAll' as const
 
-	eval = () => withLog(Val.all)
+	forceEval = () => withLog(Val.all)
 	infer = this.eval
 	print = () => '_'
 	isSameTo = (ast: Node) => this.type === ast.type
@@ -171,7 +173,7 @@ export class LAll extends BaseNode {
 export class LBottom extends BaseNode {
 	readonly type = 'lBottom' as const
 
-	eval = () => withLog(Val.bottom)
+	forceEval = () => withLog(Val.bottom)
 	infer = () => withLog(Val.all)
 	print = () => '_|_'
 	isSameTo = (ast: Node) => this.type === ast.type
@@ -188,7 +190,7 @@ export class LNum extends BaseNode {
 		super()
 	}
 
-	eval = () => withLog(Val.num(this.value))
+	forceEval = () => withLog(Val.num(this.value))
 	infer = this.eval
 	print = () => this.value.toString()
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
@@ -205,7 +207,7 @@ export class LStr extends BaseNode {
 		super()
 	}
 
-	eval = () => withLog(Val.str(this.value))
+	forceEval = () => withLog(Val.str(this.value))
 	infer = this.eval
 	print = () => '"' + this.value + '"'
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
@@ -230,7 +232,7 @@ export class EFn extends BaseNode {
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		const names = keys(this.param)
 
 		const fn: Val.IFn = (...args: Val.Value[]) => {
@@ -295,7 +297,7 @@ export class ETyFn extends BaseNode {
 		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		const [params, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 		const [out, lo] = this.out.eval(env).asTuple
 		return withLog(Val.tyFnFrom(params, out), ...lp, ...lo)
@@ -371,7 +373,7 @@ export class EVec extends BaseNode {
 		return this.items.length
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
 		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
 		return withLog(Val.vecFrom(items, rest), ...li, ...lr)
@@ -432,7 +434,7 @@ export class EDict extends BaseNode {
 		return withLog(Val.dict(items), ...logs)
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		const [items, li] = Writer.mapValues(this.items, it => it.eval(env)).asTuple
 		const [rest, lr] = this.rest ? this.rest.eval(env).asTuple : [undefined, []]
 		return withLog(Val.dict(items, this.optionalKeys, rest), ...li, ...lr)
@@ -497,7 +499,7 @@ export class Call extends BaseNode {
 		return [subst, shadowedArgs]
 	}
 
-	eval = (env = Env.global): WithLog => {
+	forceEval = (env: Env): WithLog => {
 		// Evaluate the function itself at first
 		const [fn, fnLog] = this.fn.eval(env).asTuple
 
@@ -610,8 +612,7 @@ export class Scope extends BaseNode {
 	infer = (env = Env.global): WithLog =>
 		this.out?.infer(env) ?? withLog(Val.unit)
 
-	eval = (env = Env.global): WithLog =>
-		this.out?.eval(env) ?? Writer.of(Val.unit)
+	forceEval = (env: Env) => this.out?.eval(env) ?? Writer.of(Val.unit)
 
 	print = (): string => {
 		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())
