@@ -82,6 +82,7 @@ export function unshadowTyVars(ty: Value): Value {
 export class RangedUnifier {
 	#lowers = new Map<TyVar, Value>()
 	#uppers = new Map<TyVar, Value>()
+	#isEmpty = true
 
 	private constructor() {
 		return
@@ -96,18 +97,21 @@ export class RangedUnifier {
 	}
 
 	#setLower(tv: TyVar, l: Value) {
+		this.#isEmpty = false
 		const nl = tyUnion(l, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
 		this.#normalizeRange(tv)
 	}
 
 	#setUpper(tv: TyVar, u: Value) {
+		this.#isEmpty = false
 		const nu = tyIntersection(u, this.#getUpper(tv))
 		this.#uppers.set(tv, nu)
 		this.#normalizeRange(tv)
 	}
 
 	#setEqual(tv: TyVar, e: Value) {
+		this.#isEmpty = false
 		const nl = tyUnion(e, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
 
@@ -285,6 +289,8 @@ export class RangedUnifier {
 	}
 
 	substitute = (val: Value): Value => {
+		if (this.#isEmpty) return val
+
 		switch (val.type) {
 			case 'tyVar':
 				return this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
