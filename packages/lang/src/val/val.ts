@@ -41,6 +41,7 @@ abstract class BaseValue {
 	}
 
 	abstract readonly type: string
+	abstract superType: Value
 	abstract defaultValue: Atomic
 
 	abstract isType: boolean
@@ -49,7 +50,10 @@ abstract class BaseValue {
 		return this === val
 	}
 
-	abstract isSubtypeOf(ty: Value): boolean
+	isSubtypeOf = (ty: Value): boolean => {
+		if (ty.type === 'tyUnion') return ty.isSupertypeOf(this)
+		return this.isEqualTo(ty) || this.superType.isSubtypeOf(ty)
+	}
 
 	abstract toAst(): Ast.Node
 
@@ -66,14 +70,6 @@ interface IFnLike extends ITyFn {
 	fn: IFn
 }
 
-function isSubtypeOfGeneric(
-	this: Exclude<Value, All | Bottom | TyUnion>,
-	e: Value
-): boolean {
-	if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-	return this.isEqualTo(e) || this.superType.isSubtypeOf(e)
-}
-
 export class Unit extends BaseValue {
 	readonly type = 'unit' as const
 	superType!: All
@@ -81,7 +77,6 @@ export class Unit extends BaseValue {
 
 	toAst = () => Ast.lUnit()
 
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 	isType = false
 
 	static instance = new Unit()
@@ -89,6 +84,7 @@ export class Unit extends BaseValue {
 
 export class All extends BaseValue {
 	readonly type = 'all' as const
+	superType = this
 	defaultValue = Unit.instance
 
 	toAst = () => Ast.lAll()
@@ -102,6 +98,7 @@ Unit.prototype.superType = All.instance
 
 export class Bottom extends BaseValue {
 	readonly type = 'bottom' as const
+	superType = All.instance
 	defaultValue = this
 
 	toAst = () => Ast.lBottom()
@@ -126,8 +123,6 @@ export class Prim<T = any> extends BaseValue {
 		(this.type === val.type &&
 			this.value === val.value &&
 			isEqual(this.superType, val.superType))
-
-	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
 	isType = false
 
@@ -166,8 +161,6 @@ export class TyPrim<T = any> extends BaseValue {
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
-
-	isSubtypeOf: (e: Value) => boolean = isSubtypeOfGeneric.bind(this)
 
 	of(value: T): Prim<T> {
 		return Prim.from(this, value)
@@ -218,8 +211,6 @@ export class Enum extends BaseValue {
 			this.name === v.name &&
 			this.superType.isEqualTo(v.superType))
 
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
 	isType = false
 
 	static of(name: string) {
@@ -245,8 +236,6 @@ export class TyEnum extends BaseValue {
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
-
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	isType = true
 
@@ -281,8 +270,6 @@ export class TyVar extends BaseValue {
 	defaultValue = Unit.instance
 
 	toAst = () => Ast.sym(this.name)
-
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	isType = true
 
@@ -320,8 +307,6 @@ export class Fn extends BaseValue implements IFnLike {
 	toAst = () => {
 		return Ast.sym('fn')
 	}
-
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	isType = false
 
@@ -583,8 +568,6 @@ export class Struct extends BaseValue {
 			isEqual(this.superType, v.superType) &&
 			isEqualArray(this.items, v.items, isEqual))
 
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
-
 	isType = false
 
 	static of(ctor: TyStruct, items: Value[]) {
@@ -617,8 +600,6 @@ export class TyStruct extends BaseValue implements IFnLike {
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
-
-	isSubtypeOf = isSubtypeOfGeneric.bind(this)
 
 	isType = true
 
@@ -663,7 +644,8 @@ export class TyUnion extends BaseValue {
 
 	isType = true
 
-	isSupertypeOf = (s: Exclude<Value, TyUnion>) => this.types.some(s.isSubtypeOf)
+	isSupertypeOf = (s: Pick<Value, 'isSubtypeOf'>) =>
+		this.types.some(s.isSubtypeOf)
 
 	static fromTypesUnsafe(types: UnitableType[]) {
 		return new TyUnion(types)
