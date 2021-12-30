@@ -99,7 +99,7 @@ Dict = "{" _ entries:DictEntry* rest:Rest? "}"
 		return Ast.eDictFrom(items, optionalKeys, rest)
 	}
 
-DictEntry = key:(Str / DictKey) _ optional:"?"? _ ":" _ value:Node _
+DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _
 	{
 		return [key.value, value, optional]
 	}
@@ -109,7 +109,7 @@ DictKey = (!(Whitespace / Delimiter) .)+
 		return Ast.lStr(text())
 	}
 
-Rest = "..." _ @rest:Node _
+Rest = "..." @rest:Node _
 
 Scope = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 	{

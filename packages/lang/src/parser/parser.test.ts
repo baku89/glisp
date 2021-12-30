@@ -95,8 +95,8 @@ describe('parsing vector', () => {
 })
 
 describe('parsing dictionary', () => {
-	testParsing('{   a :    1 }', eDict({a: lNum(1)}))
-	testParsing('{\t"foo bar"  : 1\t}', eDict({'foo bar': lNum(1)}))
+	testParsing('{   a:    1 }', eDict({a: lNum(1)}))
+	testParsing('{\t"foo bar": 1\t}', eDict({'foo bar': lNum(1)}))
 	testParsing('{   }', eDict({}))
 	testParsing('{a: A b: B}', eDict({a: sym('A'), b: sym('B')}))
 	testParsing('{a: {a: 1}}', eDict({a: eDict({a: lNum(1)})}))
