@@ -53,8 +53,8 @@ describe('evaluating literals', () => {
 
 	testEval('[]', vec())
 	testEval('[0]', vec(num(0)))
-	testEval('[...Num]', vecFrom([], [], tyNum))
-	testEval('[1 ...Num]', vecFrom([num(1)], [], tyNum))
+	testEval('[...Num]', vecFrom([], undefined, tyNum))
+	testEval('[1 ...Num]', vecFrom([num(1)], undefined, tyNum))
 	testEval('[0]', vec(num(0)))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
 	testEval('{a?:Num ...Str}', dict({a: tyNum}, ['a'], tyStr))

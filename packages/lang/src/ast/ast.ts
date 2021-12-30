@@ -360,7 +360,7 @@ function printParam(param: Record<string, Node>) {
 
 	const canOmitBracket =
 		params.length === 1 &&
-		!(params[0][1].type === 'eVec' && params[0][1].length === 0)
+		!(params[0][1].type === 'eVec' && params[0][1].items.length === 0)
 
 	const paramStr = params.map(printNamedNode).join(' ')
 
@@ -377,52 +377,48 @@ export class EVec extends BaseNode {
 
 	private constructor(
 		public items: Node[],
-		public optionalItems: Node[],
+		public optionalPos: number,
 		public rest?: Node
 	) {
 		super()
-	}
-
-	get length() {
-		return this.items.length
+		if (optionalPos < 0 || items.length < optionalPos || optionalPos % 1 !== 0)
+			throw new Error('Invalid optionalPos: ' + optionalPos)
 	}
 
 	protected forceEval = (env: Env): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
-		const [oItems, lo] = Writer.map(this.optionalItems, i =>
-			i.eval(env)
-		).asTuple
 		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
-		return withLog(Val.vecFrom(items, oItems, rest), ...li, ...lo, ...lr)
+		return withLog(Val.vecFrom(items, this.optionalPos, rest), ...li, ...lr)
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
-		if (this.rest || this.optionalItems.length > 0) return withLog(Val.all)
+		if (this.rest || this.items.length < this.optionalPos) {
+			return withLog(Val.all)
+		}
 		const [items, log] = Writer.map(this.items, it => it.infer(env)).asTuple
 		return withLog(Val.vec(...items), ...log)
 	}
 
 	print = (): string => {
-		const items = this.items.map(it => it.print())
-		const oItems = this.optionalItems.map(it => it.print() + '?')
+		const op = this.optionalPos
+		const items = this.items.map((it, i) => it.print() + (op <= i ? '?' : ''))
 		const rest = this.rest ? ['...' + this.rest.print()] : []
-		return '[' + [...items, ...oItems, ...rest].join(' ') + ']'
+		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eVec' &&
 		isEqualArray(this.items, ast.items, isSame) &&
-		isEqualArray(this.optionalItems, ast.optionalItems, isSame) &&
+		this.optionalPos === ast.optionalPos &&
 		nullishEqual(this.rest, this.rest, isSame)
 
 	static of(...items: Node[]) {
 		return EVec.from(items)
 	}
 
-	static from(items: Node[], optionalItems: Node[] = [], rest?: Node) {
-		const vec = new EVec(items, optionalItems, rest)
+	static from(items: Node[], optionalPos?: number, rest?: Node) {
+		const vec = new EVec(items, optionalPos ?? items.length, rest)
 		items.forEach(it => setParent(it, vec))
-		optionalItems.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
 		return vec
 	}

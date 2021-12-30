@@ -390,10 +390,12 @@ export class Vec extends BaseValue implements IFnLike {
 
 	private constructor(
 		public readonly items: Value[],
-		public readonly optionalItems: Value[],
+		public readonly optionalPos: number,
 		public rest?: Value
 	) {
 		super()
+		if (optionalPos < 0 || items.length < optionalPos || optionalPos % 1 !== 0)
+			throw new Error('Invalid optionalPos: ' + optionalPos)
 	}
 
 	get defaultValue(): Vec {
@@ -402,18 +404,18 @@ export class Vec extends BaseValue implements IFnLike {
 
 	toAst = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
-		const oItems = this.optionalItems.map(it => it.toAst())
-		return Ast.eVecFrom(items, oItems, this.rest?.toAst())
+		return Ast.eVecFrom(items, this.optionalPos, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) ||
 		(this.type === v.type &&
 			isEqualArray(this.items, v.items, isEqual) &&
+			this.optionalPos === v.optionalPos &&
 			nullishEqual(this.rest, v.rest, isEqual))
 
 	private *asIterator(): Generator<Value, void, boolean> {
-		for (const it of [...this.items, ...this.optionalItems]) {
+		for (const it of this.items) {
 			yield it
 		}
 		if (!this.rest) return
@@ -428,19 +430,15 @@ export class Vec extends BaseValue implements IFnLike {
 		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
 		if (v.type !== 'vec') return false
 
-		if (this.items.length < v.items.length) return false
+		if (this.optionalPos < v.optionalPos) return false
 
 		const tIter = this.asIterator()
 
+		let i = 0
 		for (const vi of v.items) {
 			const ti = tIter.next().value
+			if (!ti && v.optionalPos <= i++) break
 			if (!ti || !isSubtype(ti, vi)) return false
-		}
-
-		for (const vi of v.optionalItems) {
-			const ti = tIter.next().value
-			if (!ti) break
-			if (!isSubtype(ti, vi)) return false
 		}
 
 		if (v.rest) {
@@ -454,7 +452,9 @@ export class Vec extends BaseValue implements IFnLike {
 
 	get isType() {
 		return (
-			!!this.rest || this.optionalItems.length > 0 || this.items.some(isType)
+			!!this.rest ||
+			this.optionalPos < this.items.length ||
+			this.items.some(isType)
 		)
 	}
 
@@ -472,11 +472,11 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 
 	static of(...items: Value[]) {
-		return new Vec(items, [])
+		return Vec.from(items)
 	}
 
-	static from(items: Value[], optionalItems: Value[] = [], rest?: Value) {
-		return new Vec(items, optionalItems, rest)
+	static from(items: Value[], optionalPos?: number, rest?: Value) {
+		return new Vec(items, optionalPos ?? items.length, rest)
 	}
 }
 export class Dict extends BaseValue {

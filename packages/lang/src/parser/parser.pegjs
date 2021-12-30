@@ -83,7 +83,7 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 
 Vec "vector" = "[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
 	{		
-		return Ast.eVecFrom(items, optionalItems, rest)
+		return Ast.eVecFrom([...items, ...optionalItems], items.length, rest)
 	}
 
 Dict "dictionary" = "{" _ entries:DictEntry* rest:Rest? "}"
