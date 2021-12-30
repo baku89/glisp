@@ -389,7 +389,11 @@ export class Vec extends BaseValue implements IFnLike {
 	readonly type = 'vec' as const
 	readonly superType = All.instance
 
-	private constructor(public readonly items: Value[], public rest?: Value) {
+	private constructor(
+		public readonly items: Value[],
+		public readonly optionalItems: Value[],
+		public rest?: Value
+	) {
 		super()
 	}
 
@@ -399,7 +403,8 @@ export class Vec extends BaseValue implements IFnLike {
 
 	toAst = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
-		return Ast.eVecFrom(items, this.rest?.toAst())
+		const oItems = this.optionalItems.map(it => it.toAst())
+		return Ast.eVecFrom(items, oItems, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
@@ -436,7 +441,9 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 
 	get isType() {
-		return !!this.rest || this.items.some(isType)
+		return (
+			!!this.rest || this.optionalItems.length > 0 || this.items.some(isType)
+		)
 	}
 
 	tyFn = TyFn.of(tyNum, tyUnion(...this.items))
@@ -453,11 +460,11 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 
 	static of(...items: Value[]) {
-		return new Vec(items)
+		return new Vec(items, [])
 	}
 
-	static from(items: Value[], rest?: Value) {
-		return new Vec(items, rest)
+	static from(items: Value[], optionalItems: Value[] = [], rest?: Value) {
+		return new Vec(items, optionalItems, rest)
 	}
 }
 export class Dict extends BaseValue {

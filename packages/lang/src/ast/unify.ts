@@ -285,8 +285,11 @@ export class Unifier {
 				return fnFrom(this.substitute(val.superType, unshadow) as TyFn, val.fn)
 			case 'vec': {
 				const items = val.items.map(it => this.substitute(it, unshadow))
+				const optionalItems = val.optionalItems.map(it =>
+					this.substitute(it, unshadow)
+				)
 				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
-				return vecFrom(items, rest)
+				return vecFrom(items, optionalItems, rest)
 			}
 			case 'dict': {
 				const items = mapValues(val.items, it => this.substitute(it, unshadow))

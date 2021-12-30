@@ -91,7 +91,14 @@ describe('parsing vector', () => {
 		'[(+)false(+)+]',
 		eVec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
 	)
-	testParsing('[...1]', eVecFrom([], lNum(1)))
+	testParsing('[...1]', eVecFrom([], [], lNum(1)))
+	testParsing('[1?]', eVecFrom([], [lNum(1)]))
+	testParsing('[1? ...2]', eVecFrom([], [lNum(1)], lNum(2)))
+	testParsing('[1 2?]', eVecFrom([lNum(1)], [lNum(2)]))
+	testParsing(
+		'[1 2? 3? ...4]',
+		eVecFrom([lNum(1)], [lNum(2), lNum(3)], lNum(4))
+	)
 })
 
 describe('parsing dictionary', () => {
@@ -128,7 +135,7 @@ describe('parsing function definition', () => {
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', eTyFnFrom([], {0: eVecFrom([], x)}, x))
+	testParsing('(-> [[...x]] x)', eTyFnFrom([], {0: eVecFrom([], [], x)}, x))
 	testParsing('(-> [_] _)', eTyFnFrom([], {0: lAll()}, lAll()))
 	testParsing('(-> [[]] ())', eTyFnFrom([], {0: eVec()}, lUnit()))
 	testParsing('(-> [] z)', eTyFnFrom([], {}, z))

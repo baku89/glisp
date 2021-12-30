@@ -32,7 +32,7 @@ SymIdent =
 		return Ast.sym(text())
 	}
 
-Num "Num" = [+-]? ([0-9]* ".")? [0-9]+ &End
+Num "Num" = [+-]? ([0-9]* ".")? [0-9]+
 	{
 		const v = parseFloat(text())
 		return Ast.lNum(v)
@@ -83,9 +83,9 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 		return [sym.name, value]
 	}
 
-Vec = "[" _ items:(@Node _)* rest:Rest? "]"
+Vec = "[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
 	{		
-		return Ast.eVecFrom(items, rest)
+		return Ast.eVecFrom(items, optionalItems, rest)
 	}
 
 Dict = "{" _ entries:DictEntry* rest:Rest? "}"

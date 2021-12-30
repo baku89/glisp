@@ -375,7 +375,11 @@ function printParam(param: Record<string, Node>) {
 export class EVec extends BaseNode {
 	readonly type = 'eVec' as const
 
-	private constructor(public items: Node[], public rest: Node | null = null) {
+	private constructor(
+		public items: Node[],
+		public optionalItems: Node[],
+		public rest?: Node
+	) {
 		super()
 	}
 
@@ -385,36 +389,40 @@ export class EVec extends BaseNode {
 
 	protected forceEval = (env: Env): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
+		const [oItems, lo] = Writer.map(this.optionalItems, i =>
+			i.eval(env)
+		).asTuple
 		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
-		return withLog(Val.vecFrom(items, rest), ...li, ...lr)
+		return withLog(Val.vecFrom(items, oItems, rest), ...li, ...lo, ...lr)
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
-		if (this.rest) return withLog(Val.all)
+		if (this.rest || this.optionalItems.length > 0) return withLog(Val.all)
 		const [items, log] = Writer.map(this.items, it => it.infer(env)).asTuple
 		return withLog(Val.vec(...items), ...log)
 	}
 
 	print = (): string => {
 		const items = this.items.map(it => it.print())
+		const oItems = this.optionalItems.map(it => it.print() + '?')
 		const rest = this.rest ? ['...' + this.rest.print()] : []
-		return '[' + [...items, ...rest].join(' ') + ']'
+		return '[' + [...items, ...oItems, ...rest].join(' ') + ']'
 	}
 
 	isSameTo = (ast: Node): boolean =>
 		ast.type === 'eVec' &&
 		isEqualArray(this.items, ast.items, isSame) &&
+		isEqualArray(this.optionalItems, ast.optionalItems, isSame) &&
 		nullishEqual(this.rest, this.rest, isSame)
 
 	static of(...items: Node[]) {
-		const vec = new EVec(items)
-		items.forEach(it => setParent(it, vec))
-		return vec
+		return EVec.from(items)
 	}
 
-	static from(items: Node[], rest: Node | null = null) {
-		const vec = new EVec(items, rest)
+	static from(items: Node[], optionalItems: Node[] = [], rest?: Node) {
+		const vec = new EVec(items, optionalItems, rest)
 		items.forEach(it => setParent(it, vec))
+		optionalItems.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
 		return vec
 	}
