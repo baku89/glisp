@@ -15,7 +15,6 @@ import {isEqualDict} from '../util/isEqualDict'
 import {isEqualSet} from '../util/isEqualSet'
 import {nullishEqual} from '../util/nullishEqual'
 import {Writer} from '../util/Writer'
-import {zip} from '../util/zip'
 import {tyUnion} from './TypeOperation'
 
 export type Value = Type | Atomic
@@ -413,27 +412,40 @@ export class Vec extends BaseValue implements IFnLike {
 			isEqualArray(this.items, v.items, isEqual) &&
 			nullishEqual(this.rest, v.rest, isEqual))
 
+	private *asIterator(): Generator<Value, void, boolean> {
+		for (const it of [...this.items, ...this.optionalItems]) {
+			yield it
+		}
+		if (!this.rest) return
+		while (true) {
+			const endsWithRest: boolean = yield this.rest
+			if (endsWithRest) return
+		}
+	}
+
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
 		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
 		if (v.type !== 'vec') return false
 
-		const isAllItemsSubtype =
-			this.items.length >= v.items.length &&
-			zip(this.items, v.items).every(([ti, vi]) => isSubtype(ti, vi))
+		if (this.items.length < v.items.length) return false
 
-		if (!isAllItemsSubtype) return false
+		const tIter = this.asIterator()
+
+		for (const vi of v.items) {
+			const ti = tIter.next().value
+			if (!ti || !isSubtype(ti, vi)) return false
+		}
+
+		for (const vi of v.optionalItems) {
+			const ti = tIter.next().value
+			if (!ti) break
+			if (!isSubtype(ti, vi)) return false
+		}
 
 		if (v.rest) {
-			const tr = v.rest
-			const isRestSubtype = this.items
-				.slice(v.items.length)
-				.every(ti => ti.isSubtypeOf(tr))
-
-			if (!isRestSubtype) return false
-
-			if (this.rest) {
-				return isSubtype(this.rest, v.rest)
+			for (let ti; (ti = tIter.next(true).value); ) {
+				if (!isSubtype(ti, v.rest)) return false
 			}
 		}
 
