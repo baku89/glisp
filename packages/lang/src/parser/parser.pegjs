@@ -124,7 +124,6 @@ TryCatch = "(" _ "try" _ block:Node _ handler:(@Node _)? ")"
 	}
 
 _ "whitespace" = Whitespace*
-__ "whitespace" = Whitespace+
 
 Delimiter = [()[\]{}:`"?.]
 
