@@ -109,6 +109,10 @@ PreludeScope.defs({
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
 		Val.bool(s.isSubtypeOf(t))
 	),
+	show: defn('(-> _ Str)', (v: Val.Value) => Val.str(v.print())),
+	'++': defn('(-> [a:Str b:Str] Str)', (a: Val.Str, b: Val.Str) =>
+		Val.str(a.value + b.value)
+	),
 })
 
 PreludeScope.defs(
