@@ -60,7 +60,7 @@ abstract class BaseValue {
 	print = () => this.toAst().print()
 }
 
-export type IFn = (...params: any[]) => Writer<Value, Log>
+export type IFn = (...params: any[]) => Writer<Value, Omit<Log, 'ref'>>
 
 interface ITyFn {
 	tyFn: TyFn

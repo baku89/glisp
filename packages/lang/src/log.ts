@@ -7,7 +7,7 @@ export type WithLog<V extends Val.Value = Val.Value> = Writer<V, Log>
 export interface Log {
 	level: 'error' | 'warn' | 'info'
 	reason: string
-	ref?: Node
+	ref: Node
 }
 
 export function withLog<V extends Val.Value = Val.Value>(

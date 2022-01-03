@@ -13,7 +13,9 @@ const IO = Val.tyPrim('IO', () => {
 	return
 })
 
-function printLog({level, reason}: Log) {
+const defaultExp = Ast.lUnit()
+
+function printLog({level, reason, ref}: Log) {
 	let header: string
 	switch (level) {
 		case 'error':
@@ -27,7 +29,10 @@ function printLog({level, reason}: Log) {
 			break
 	}
 
-	return header + ' ' + reason
+	const content = header + ' ' + reason
+	const loc = ref !== defaultExp ? chalk.gray('\n    at ' + ref.print()) : ''
+
+	return content + loc
 }
 
 const replScope = PreludeScope.extend(MathScope.vars).extend({
@@ -52,8 +57,23 @@ function startRepl() {
 	repl.start({
 		prompt: chalk.bold.gray('> '),
 		eval(input, context, file, cb) {
+			let exp: Ast.Node = defaultExp
+
+			// Parse
 			try {
-				const exp = parse(input, replScope)
+				exp = parse(input, replScope)
+			} catch (err) {
+				if (!(err instanceof Error)) throw err
+				const r = withLog(Val.unit, {
+					level: 'error',
+					reason: err.message,
+					ref: exp,
+				})
+				cb(null, r)
+			}
+
+			// Eval
+			try {
 				const evaluated = exp.eval()
 
 				if (IO.isInstance(evaluated.result)) {
@@ -63,7 +83,11 @@ function startRepl() {
 				cb(null, evaluated)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
-				const r = withLog(Val.unit, {level: 'error', reason: err.message})
+				const r = withLog(Val.unit, {
+					level: 'error',
+					reason: err.message,
+					ref: exp,
+				})
 				cb(null, r)
 			}
 		},
