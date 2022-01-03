@@ -689,7 +689,7 @@ export class Scope extends BaseNode {
 export class TryCatch extends BaseNode {
 	readonly type = 'tryCatch'
 
-	private constructor(public block: Node, public handler?: Node) {
+	private constructor(public block: Node, public handler: Node) {
 		super()
 	}
 
@@ -697,15 +697,15 @@ export class TryCatch extends BaseNode {
 		try {
 			return this.block.eval(env)
 		} catch (e) {
+			if (!(e instanceof GlispError)) throw e
+
 			const log: Log = {
 				level: 'error',
-				reason: e instanceof Error ? e.message : 'Error',
-				ref: e instanceof GlispError ? e.ref : this,
+				reason: e.message,
+				ref: e.ref,
 			}
 
-			const [handler, lh] = this.handler
-				? this.handler.eval(env).asTuple
-				: [Val.unit, []]
+			const [handler, lh] = this.handler.eval(env).asTuple
 
 			return withLog(handler, log, ...lh)
 		}
@@ -713,17 +713,15 @@ export class TryCatch extends BaseNode {
 
 	protected forceInfer = (env: Env): WithLog => {
 		const [block, lb] = this.block.infer(env).asTuple
-		const [handler, lh] = this.handler
-			? this.handler.infer(env).asTuple
-			: [Val.unit, []]
+		const [handler, lh] = this.handler.infer(env).asTuple
 
 		return withLog(Val.tyUnion(block, handler), ...lb, ...lh)
 	}
 
 	print = (): string => {
 		const block = this.block.print()
-		const handler = this.handler ? ' ' + this.handler.print() : ''
-		return `(try ${block}${handler})`
+		const handler = this.handler.print()
+		return `(try ${block} ${handler})`
 	}
 
 	isSameTo = (ast: Node): boolean =>
@@ -731,7 +729,7 @@ export class TryCatch extends BaseNode {
 		isSame(this.block, ast.block) &&
 		nullishEqual(this.handler, ast.handler, isSame)
 
-	static of(block: Node, handler?: Node) {
+	static of(block: Node, handler: Node) {
 		const tryCatch = new TryCatch(block, handler)
 
 		setParent(block, tryCatch)

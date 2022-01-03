@@ -120,7 +120,7 @@ Scope "scope" = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 		return Ast.scope(vars, out ?? null)
 	}
 
-TryCatch = "(" _ "try" _ block:Node _ handler:(@Node _)? ")"
+TryCatch = "(" _ "try" _ block:Node _ handler:Node _ ")"
 	{
 		return Ast.tryCatch(block, handler)
 	}

@@ -66,7 +66,6 @@ describe('evaluating function definition', () => {
 
 describe('run-time error handling', () => {
 	testEval('(try ([] 0) 1)', '1', true)
-	testEval('(try ([] 0))', '()', true)
 })
 
 describe('inferring expression type', () => {
@@ -113,7 +112,6 @@ describe('inferring expression type', () => {
 	test('((=> <T> [f:(-> [T] T)] f) inc)', '(-> [Num] Num)')
 	test('((=> <T> [f:(-> [T] T)] (=> [x:T] (f x))) inc)', '(-> [Num] Num)')
 	test('(try 1 2)', '(| 1 2)')
-	test('(try 1)', '(| 1 ())')
 
 	function test(input: string, expected: string) {
 		it(`${input} is inferred to be ${expected}`, () => {
