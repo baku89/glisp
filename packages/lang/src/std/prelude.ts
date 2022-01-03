@@ -8,31 +8,31 @@ import {Writer} from '../util/Writer'
 import * as Val from '../val'
 
 function defn(
-	ty: string,
+	type: string,
 	f: (...args: Ast.Arg<any>[]) => Val.Value,
 	options?: {isTypeCtor?: boolean; lazy?: true}
 ): Ast.Obj
 function defn(
-	ty: string,
+	type: string,
 	f: (...args: any[]) => Val.Value,
 	options?: {isTypeCtor?: boolean; lazy?: false}
 ): Ast.Obj
 function defn(
-	ty: string,
+	type: string,
 	f: (...args: any[]) => Val.Value,
 	{isTypeCtor = false, lazy = false} = {}
 ) {
-	const fnTy = parse(ty, PreludeScope).eval().result
+	const tyFn = parse(type, PreludeScope).eval().result
 
-	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
+	if (tyFn.type !== 'tyFn') throw new Error('Not a tyFn:' + type)
+
+	tyFn.isTypeCtor = isTypeCtor
 
 	const _f: Val.IFn = lazy
 		? (...args) => withLog(f(...args))
 		: (...args) => withLog(f(...args.map(a => a())))
 
-	const fn = Val.fn(fnTy.param, fnTy.out, _f)
-
-	fn.isTypeCtor = isTypeCtor
+	const fn = Val.fn(tyFn.param, tyFn.out, _f)
 
 	return Ast.obj(fn)
 }

@@ -289,8 +289,6 @@ export class TyVar extends BaseValue {
 export class Fn extends BaseValue implements IFnLike {
 	readonly type = 'fn' as const
 
-	isTypeCtor = false
-
 	private constructor(
 		public superType: TyFn,
 		public fn: IFn,
@@ -322,7 +320,11 @@ export class TyFn extends BaseValue implements ITyFn {
 	readonly type = 'tyFn' as const
 	superType = All.instance
 
-	private constructor(public param: Record<string, Value>, public out: Value) {
+	private constructor(
+		public param: Record<string, Value>,
+		public out: Value,
+		public isTypeCtor = false
+	) {
 		super()
 	}
 

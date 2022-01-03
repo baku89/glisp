@@ -603,7 +603,7 @@ export class Call extends BaseNode {
 		const [ty, log] = this.fn.infer(env).asTuple
 		if (!('tyFn' in ty)) return withLog(ty, ...log)
 
-		if (ty.type === 'fn' && ty.isTypeCtor) {
+		if (ty.tyFn.isTypeCtor) {
 			return this.eval(env)
 		}
 
