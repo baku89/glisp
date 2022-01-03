@@ -448,10 +448,7 @@ export class Vec extends BaseValue implements IFnLike {
 	fn: IFn = (index: Num) => {
 		const ret = this.items[index.value]
 		if (ret === undefined) {
-			return withLog(this.tyFn.out.defaultValue, {
-				level: 'error',
-				reason: 'Index out of range',
-			})
+			throw new Error('Index out of range')
 		}
 		return withLog(ret)
 	}

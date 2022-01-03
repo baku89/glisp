@@ -1,5 +1,6 @@
 import {entries, forOwn, fromPairs, keys, values} from 'lodash'
 
+import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
 import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
@@ -14,7 +15,7 @@ import {shadowTyVars, Unifier} from './unify'
 export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 
-export type Exp = Call | Scope | EFn | ETyFn | EVec | EDict
+export type Exp = Call | Scope | TryCatch | EFn | ETyFn | EVec | EDict
 
 export abstract class BaseNode {
 	abstract readonly type: string
@@ -566,7 +567,14 @@ export class Call extends BaseNode {
 				return pTy.defaultValue
 			}
 
-			const [aVal, aLog] = this.args[i].eval(env).asTuple
+			let aVal: Val.Value, aLog: Set<Log>
+
+			try {
+				;[aVal, aLog] = this.args[i].eval(env).asTuple
+			} catch (e) {
+				const message = e instanceof Error ? e.message : 'Run-time error'
+				throw new GlispError(this, message)
+			}
 
 			argLog.push(...aLog)
 
@@ -667,6 +675,63 @@ export class Scope extends BaseNode {
 		values(vars).forEach(v => setParent(v, scope))
 		if (out) setParent(out, scope)
 		return scope
+	}
+}
+
+export class TryCatch extends BaseNode {
+	readonly type = 'tryCatch'
+
+	private constructor(public block: Node, public handler?: Node) {
+		super()
+	}
+
+	protected forceEval = (env: Env): WithLog => {
+		try {
+			return this.block.eval(env)
+		} catch (e) {
+			const reason = e instanceof Error ? e.message : 'Error'
+			const ref = e instanceof GlispError ? e.ref : this
+			const log: Log = {
+				level: 'error',
+				reason,
+				ref,
+			}
+
+			const [handler, lh] = this.handler
+				? this.handler.eval(env).asTuple
+				: [Val.unit, []]
+
+			return withLog(handler, log, ...lh)
+		}
+	}
+
+	protected forceInfer = (env: Env): WithLog => {
+		const [block, lb] = this.block.infer(env).asTuple
+		const [handler, lh] = this.handler
+			? this.handler.infer(env).asTuple
+			: [Val.unit, []]
+
+		return withLog(Val.tyUnion(block, handler), ...lb, ...lh)
+	}
+
+	print = (): string => {
+		const block = this.block.print()
+		const handler = this.handler ? ' ' + this.handler.print() : ''
+		return `(try ${block}${handler})`
+	}
+
+	isSameTo = (ast: Node): boolean =>
+		this.type === ast.type &&
+		isSame(this.block, ast.block) &&
+		nullishEqual(this.handler, ast.handler, isSame)
+
+	static of(block: Node, handler?: Node) {
+		const tryCatch = new TryCatch(block, handler)
+
+		setParent(block, tryCatch)
+		if (handler) setParent(handler, tryCatch)
+
+		return tryCatch
 	}
 }
 

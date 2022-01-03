@@ -10,11 +10,11 @@ Program = _ exp:Node _
 Node =
 	Dict /
 	Unit / Bottom / All /
-	Fn / TyFn / Scope / Call /
+	Fn / TyFn / Scope / TryCatch / Call /
 	Vec /
 	Num / Str / Sym
 
-Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let"
+Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
 Unit = "(" _ ")" { return Ast.lUnit() }
 
@@ -40,7 +40,6 @@ Str "string" = '"' value:$(!'"' .)* '"'
 	{
 		return Ast.lStr(value)
 	}
-
 
 Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
 	{
@@ -117,6 +116,11 @@ Scope "scope" = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
 			vars[name] = value
 		}
 		return Ast.scope(vars, out ?? null)
+	}
+
+TryCatch = "(" _ "try" _ block:Node _ handler:(@Node _)? ")"
+	{
+		return Ast.tryCatch(block, handler)
 	}
 
 _ "whitespace" = Whitespace*

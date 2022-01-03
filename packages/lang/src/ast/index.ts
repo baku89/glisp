@@ -18,6 +18,7 @@ import {
 	Scope,
 	setParent,
 	Sym,
+	TryCatch,
 } from './ast'
 
 export {Node, Literal, Exp}
@@ -33,6 +34,7 @@ export {
 	LStr,
 	Call,
 	Scope,
+	TryCatch,
 	EFn,
 	ETyFn,
 	EVec,
@@ -48,6 +50,7 @@ export const lNum = LNum.of
 export const lStr = LStr.of
 export const call = Call.of
 export const scope = Scope.of
+export const tryCatch = TryCatch.of
 export const eFn = EFn.of
 export const eTyFn = ETyFn.of
 export const eTyFnFrom = ETyFn.from
