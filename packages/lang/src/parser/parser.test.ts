@@ -64,6 +64,17 @@ describe('parsing symbols', () => {
 	}
 })
 
+describe('parsing line comment', () => {
+	testParsing('1;comment', lNum(1))
+	testParsing(';comment\n1', lNum(1))
+	testParsing('1;comment\n\n', lNum(1))
+	testParsing('1;comment\n;comment\n', lNum(1))
+	testParsing(';comment\n;comment\n1', lNum(1))
+	testParsing(';\n;\n1', lNum(1))
+	testParsing('[;comment]\n1;comment]\n]', eVec(lNum(1)))
+	testParsing(';;\n1', lNum(1))
+})
+
 describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(sym('+'), lNum(1), lNum(2)))
 	testParsing('(* 1 2)', call(sym('*'), lNum(1), lNum(2)))

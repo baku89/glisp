@@ -2,12 +2,12 @@
 	const Ast = options.Ast
 }
 
-Program = _ exp:Node _
+Program = _ exp:Node _ Comment?
 	{
 		return exp
 	}
 
-Node =
+Node "node" =
 	Dict /
 	Unit / Bottom / All /
 	Fn / TyFn / Scope / TryCatch / Call /
@@ -24,13 +24,13 @@ Bottom "_|_" = "_|_" { return Ast.lBottom() }
 
 Sym "symbol" =
 	!(Reserved End)
-	!(Digit / Delimiter / Whitespace) .
-	(!(Delimiter / Whitespace) .)*
+	!(Digit / End) .
+	(!End .)*
 	{
 		return Ast.sym(text())
 	}
 
-Num "number" = [+-]? ([0-9]* ".")? [0-9]+
+Num "number" = [+-]? (Digit* ".")? Digit+
 	{
 		const v = parseFloat(text())
 		return Ast.lNum(v)
@@ -55,7 +55,8 @@ FnParam =
 	"[" _ pairs:NamedNode* "]" _ { return Object.fromEntries(pairs) } /
 	pair:NamedNode _             { return Object.fromEntries([pair]) }
 
-TyFn "function type" = "(" _ "->" _ tyVars:FnTyVars? param:TyFnParam out:Node _ ")"
+TyFn "function type" =
+	"(" _ "->" _ tyVars:FnTyVars? param:TyFnParam out:Node _ ")"
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
 		const paramDict = Object.fromEntries(entries)
@@ -80,7 +81,8 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 		return [sym.name, value]
 	}
 
-Vec "vector" = "[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
+Vec "vector" =
+	"[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
 	{		
 		return Ast.eVecFrom([...items, ...optionalItems], items.length, rest)
 	}
@@ -101,7 +103,7 @@ DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _
 		return [key.value, value, optional]
 	}
 
-DictKey = (!(Whitespace / Delimiter) .)+
+DictKey = (!End .)+
 	{
 		return Ast.lStr(text())
 	}
@@ -123,13 +125,17 @@ TryCatch = "(" _ "try" _ block:Node _ handler:(@Node _)? ")"
 		return Ast.tryCatch(block, handler)
 	}
 
-_ "whitespace" = Whitespace*
+_ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*
 
-Delimiter = [()[\]{}:`"?.]
+Comment = ";" (!Newline .)*
+
+Punctuation = [()[\]{}:`"?.;]
+
+Newline = [\n\r]
+
+Whitespace = [ \t]
 
 Digit = [0-9]
 
-EOF = _ !.
-End = EOF / Whitespace / [()[\]{}:]
-
-Whitespace = [ \t\n\r]
+EOF = !.
+End = EOF / Whitespace / Newline / Punctuation
