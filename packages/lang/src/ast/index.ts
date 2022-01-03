@@ -1,4 +1,5 @@
 import {
+	Arg,
 	Call,
 	EDict,
 	EFn,
@@ -21,7 +22,7 @@ import {
 	TryCatch,
 } from './ast'
 
-export {Node, Literal, Exp}
+export {Node, Literal, Exp, Arg}
 
 // Exp
 export {

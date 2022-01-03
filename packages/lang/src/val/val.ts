@@ -60,7 +60,7 @@ abstract class BaseValue {
 	print = () => this.toAst().print()
 }
 
-export type IFn = (...params: any[]) => Writer<Value, Omit<Log, 'ref'>>
+export type IFn = (...params: Ast.Arg<any>[]) => Writer<Value, Omit<Log, 'ref'>>
 
 interface ITyFn {
 	tyFn: TyFn
@@ -445,8 +445,8 @@ export class Vec extends BaseValue implements IFnLike {
 
 	tyFn = TyFn.of(tyNum, tyUnion(...this.items))
 
-	fn: IFn = (index: Num) => {
-		const ret = this.items[index.value]
+	fn: IFn = (index: Ast.Arg<Num>) => {
+		const ret = this.items[index().value]
 		if (ret === undefined) {
 			throw new Error('Index out of range')
 		}
@@ -590,7 +590,7 @@ export class TyStruct extends BaseValue implements IFnLike {
 
 	tyFn: TyFn = TyFn.from(this.param, this)
 
-	fn = (...items: Value[]) => withLog(this.of(...items))
+	fn = (...items: Ast.Arg[]) => withLog(this.of(...items.map(i => i())))
 
 	// TODO: Fix this
 	toAst = () => Ast.sym(this.name)

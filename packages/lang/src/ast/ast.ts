@@ -1,4 +1,4 @@
-import {entries, forOwn, fromPairs, keys, values} from 'lodash'
+import {entries, forOwn, fromPairs, keys, mapValues, values} from 'lodash'
 
 import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
@@ -16,6 +16,8 @@ export type Node = Literal | Exp
 export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
 
 export type Exp = Call | Scope | TryCatch | EFn | ETyFn | EVec | EDict
+
+export type Arg<T extends Val.Value = Val.Value> = () => T
 
 export abstract class BaseNode {
 	abstract readonly type: string
@@ -77,9 +79,9 @@ export class Sym extends BaseNode {
 				}
 			} else {
 				// Situation B. In a context of function appliction
-				const node = env.get(this.name)
-				if (node) {
-					return Writer.of({node, mode: 'arg'})
+				const arg = env.get(this.name)
+				if (arg) {
+					return Writer.of({node: Obj.of(arg()), mode: 'arg'})
 				}
 				// If no corresponding arg has found for the eFn, pop the env.
 				env = env.pop()
@@ -247,9 +249,8 @@ export class EFn extends BaseNode {
 	protected forceEval = (env: Env): WithLog => {
 		const names = keys(this.param)
 
-		const fn: Val.IFn = (...args: Val.Value[]) => {
-			const objs = args.map(Obj.of)
-			const arg = fromPairs(zip(names, objs))
+		const fn: Val.IFn = (...args: Arg[]) => {
+			const arg = fromPairs(zip(names, args))
 			const innerEnv = env.extend(arg)
 			return this.body.eval(innerEnv)
 		}
@@ -264,7 +265,9 @@ export class EFn extends BaseNode {
 	protected forceInfer = (env: Env): WithLog<Val.TyFn> => {
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 
-		const innerEnv = env.extend(this.param)
+		const arg = mapValues(param, p => () => p)
+
+		const innerEnv = env.extend(arg)
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
@@ -564,22 +567,14 @@ export class Call extends BaseNode {
 							`but got: ${aTy.print()}`,
 					})
 				}
-				return pTy.defaultValue
+				return () => pTy.defaultValue
 			}
 
-			let aVal: Val.Value, aLog: Set<Log>
-
-			try {
-				;[aVal, aLog] = this.args[i].eval(env).asTuple
-			} catch (e) {
-				const message = e instanceof Error ? e.message : 'Run-time error'
-				const ref = e instanceof GlispError ? e.ref : this
-				throw new GlispError(ref, message)
+			return () => {
+				const [a, la] = this.args[i].eval(env).asTuple
+				argLog.push(...la)
+				return a
 			}
-
-			argLog.push(...aLog)
-
-			return aVal
 		})
 
 		// Call the function

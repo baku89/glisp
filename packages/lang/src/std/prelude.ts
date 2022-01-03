@@ -16,7 +16,9 @@ function defn(
 
 	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-	const fn = Val.fn(fnTy.param, fnTy.out, (...args) => withLog(f(...args)))
+	const fn = Val.fn(fnTy.param, fnTy.out, (...args: Ast.Arg[]) =>
+		withLog(f(...args.map(a => a())))
+	)
 
 	fn.isTypeCtor = isTypeCtor
 
@@ -88,7 +90,7 @@ PreludeScope.defs({
 	map: defn(
 		'(-> <T U> [f: (-> T U) coll:[...T]] [...U])',
 		(f: Val.Fn, coll: Val.Vec) => {
-			const [items] = Writer.map(coll.items, f.fn).asTuple
+			const [items] = Writer.map(coll.items, i => f.fn(() => i)).asTuple
 			return Val.vec(...items)
 		}
 	),
@@ -96,7 +98,11 @@ PreludeScope.defs({
 		'(-> <T U> [f: (-> [U T] U) coll: [...T] initial: U] U)',
 		(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
 			return coll.items.reduce(
-				(prev: Val.Value, curt: Val.Value) => f.fn(prev, curt).result,
+				(prev: Val.Value, curt: Val.Value) =>
+					f.fn(
+						() => prev,
+						() => curt
+					).result,
 				initial
 			)
 		}

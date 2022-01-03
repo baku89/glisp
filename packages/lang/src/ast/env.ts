@@ -1,22 +1,22 @@
 import {WithLog} from '../log'
-import type {BaseNode, Node} from './ast'
+import type {Arg, BaseNode} from './ast'
 
-type Arg = Record<string, Node>
+type ArgDict = Record<string, Arg>
 
 export class Env {
 	#outer!: Env | undefined
-	#arg: Arg
+	#arg: ArgDict
 	#evalCache: WeakMap<BaseNode, WithLog> = new WeakMap()
 	#inferCache: WeakMap<BaseNode, WithLog> = new WeakMap()
 	readonly isGlobal!: boolean
 
-	private constructor(original: Env | undefined, arg: Arg) {
+	private constructor(original: Env | undefined, arg: ArgDict) {
 		this.#outer = original
 		this.#arg = arg
 		this.isGlobal = !original
 	}
 
-	push(arg: Arg) {
+	push(arg: ArgDict) {
 		return new Env(this, arg)
 	}
 
@@ -24,11 +24,11 @@ export class Env {
 		return this.#outer ?? this
 	}
 
-	get(name: string): Node | undefined {
+	get(name: string): Arg | undefined {
 		return this.#arg[name]
 	}
 
-	extend(arg: Arg) {
+	extend(arg: ArgDict) {
 		return new Env(this, arg)
 	}
 
