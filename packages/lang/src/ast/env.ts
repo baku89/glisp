@@ -32,18 +32,18 @@ export class Env {
 		return new Env(this, arg)
 	}
 
-	memoizeEval(ast: BaseNode, evaluate: () => WithLog): WithLog {
+	memoizeEval(ast: BaseNode, evaluate: (env: Env) => WithLog): WithLog {
 		let cache = this.#evalCache.get(ast)
 		if (!cache) {
-			this.#evalCache.set(ast, (cache = evaluate()))
+			this.#evalCache.set(ast, (cache = evaluate(this)))
 		}
 		return cache
 	}
 
-	memoizeInfer(ast: BaseNode, infer: () => WithLog): WithLog {
+	memoizeInfer(ast: BaseNode, infer: (env: Env) => WithLog): WithLog {
 		let cache = this.#inferCache.get(ast)
 		if (!cache) {
-			this.#inferCache.set(ast, (cache = infer()))
+			this.#inferCache.set(ast, (cache = infer(this)))
 		}
 		return cache
 	}

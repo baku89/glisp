@@ -33,11 +33,11 @@ export abstract class BaseNode {
 	abstract isSameTo(ast: Node): boolean
 
 	eval(env = Env.global) {
-		return env.memoizeEval(this, () => this.forceEval(env))
+		return env.memoizeEval(this, this.forceEval)
 	}
 
 	infer(env = Env.global) {
-		return env.memoizeInfer(this, () => this.forceInfer(env))
+		return env.memoizeInfer(this, this.forceInfer)
 	}
 
 	getLog = () => this.eval(Env.global).log
@@ -159,7 +159,7 @@ export class LUnit extends BaseNode {
 
 	protected forceEval = () => withLog(Val.unit)
 
-	protected forceInfer = this.eval
+	protected forceInfer = () => withLog(Val.unit)
 
 	print = () => '()'
 
@@ -173,7 +173,7 @@ export class LUnit extends BaseNode {
 export class LAll extends BaseNode {
 	readonly type = 'lAll' as const
 
-	protected forceEval = this.infer
+	protected forceEval = () => withLog(Val.all)
 	protected forceInfer = () => withLog(Val.all)
 	print = () => '_'
 	isSameTo = (ast: Node) => this.type === ast.type
@@ -203,7 +203,7 @@ export class LNum extends BaseNode {
 		super()
 	}
 
-	protected forceEval = this.infer
+	protected forceEval = () => withLog(Val.num(this.value))
 	protected forceInfer = () => withLog(Val.num(this.value))
 	print = () => this.value.toString()
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
@@ -220,7 +220,7 @@ export class LStr extends BaseNode {
 		super()
 	}
 
-	protected forceEval = this.infer
+	protected forceEval = () => withLog(Val.str(this.value))
 	protected forceInfer = () => withLog(Val.str(this.value))
 
 	print = () => '"' + this.value + '"'
