@@ -582,9 +582,13 @@ export class Call extends BaseNode {
 		try {
 			;[result, callLog] = fn.fn(...args).asTuple
 		} catch (e) {
-			const message = e instanceof Error ? e.message : 'Run-time error'
-			const ref = e instanceof GlispError ? e.ref : this
-			throw new GlispError(ref, message)
+			if (env.isGlobal) {
+				const message = e instanceof Error ? e.message : 'Run-time error'
+				const ref = e instanceof GlispError ? e.ref : this
+				throw new GlispError(ref, message)
+			} else {
+				throw e
+			}
 		}
 
 		const unifiedResult = unifier.substitute(result, true)

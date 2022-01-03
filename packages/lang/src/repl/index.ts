@@ -42,10 +42,10 @@ const replScope = PreludeScope.extend(MathScope.vars).extend({
 		Val.fn(
 			{name: Val.tyStr, value: Val.all},
 			IO,
-			(name: Val.Str, value: Val.Value) => {
+			(name: Ast.Arg<Val.Str>, value: Ast.Arg<Val.Value>) => {
 				return withLog(
 					IO.of(() => {
-						replScope.vars[name.value] = Ast.obj(value)
+						replScope.vars[name().value] = Ast.obj(value())
 					})
 				)
 			}

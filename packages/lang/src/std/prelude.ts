@@ -9,16 +9,28 @@ import * as Val from '../val'
 
 function defn(
 	ty: string,
+	f: (...args: Ast.Arg<any>[]) => Val.Value,
+	options?: {isTypeCtor?: boolean; lazy?: true}
+): Ast.Obj
+function defn(
+	ty: string,
 	f: (...args: any[]) => Val.Value,
-	isTypeCtor = false
+	options?: {isTypeCtor?: boolean; lazy?: false}
+): Ast.Obj
+function defn(
+	ty: string,
+	f: (...args: any[]) => Val.Value,
+	{isTypeCtor = false, lazy = false} = {}
 ) {
 	const fnTy = parse(ty, PreludeScope).eval().result
 
 	if (fnTy.type !== 'tyFn') throw new Error('Not a tyFn:' + ty)
 
-	const fn = Val.fn(fnTy.param, fnTy.out, (...args: Ast.Arg[]) =>
-		withLog(f(...args.map(a => a())))
-	)
+	const _f: Val.IFn = lazy
+		? (...args) => withLog(f(...args))
+		: (...args) => withLog(f(...args.map(a => a())))
+
+	const fn = Val.fn(fnTy.param, fnTy.out, _f)
 
 	fn.isTypeCtor = isTypeCtor
 
@@ -34,6 +46,9 @@ export const PreludeScope = Ast.scope({
 PreludeScope.defs({
 	true: Ast.obj(Val.True),
 	false: Ast.obj(Val.False),
+	throw: defn('(-> reason:_ _|_)', (reason: Val.Str) => {
+		throw new Error(reason.value)
+	}),
 	'|': defn('(-> <T> [x:T y:T] T)', (t1: Val.Value, t2: Val.Value) =>
 		Val.tyUnion(t1, t2)
 	),
@@ -61,8 +76,9 @@ PreludeScope.defs({
 	),
 	if: defn(
 		'(-> <T> [test:Bool then:T else:T] T)',
-		(test: Val.Enum, then: Val.Value, _else: Val.Value) =>
-			Val.isEqual(test, Val.True) ? then : _else
+		(test: Ast.Arg, then: Ast.Arg, _else: Ast.Arg) =>
+			Val.isEqual(test(), Val.True) ? then() : _else(),
+		{lazy: true}
 	),
 	nand: defn('(-> [x:Bool y:Bool] Bool)', (x: Val.Enum, y: Val.Enum) =>
 		Val.bool(!(x === Val.True && y === Val.True))
@@ -110,7 +126,7 @@ PreludeScope.defs({
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
 		(name: Val.Str, {items}: Val.Dict) => Val.tyStruct(name.value, items),
-		true
+		{isTypeCtor: true}
 	),
 	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('tyFn' in f ? f.tyFn : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
@@ -156,7 +172,10 @@ neg = (=> x:Num (* x -1))
 
 - = (=> [x:Num y:Num] (+ x (neg y)))
 
-sqrt   = (=> x:Num (** x 0.5))
+sqrt = (=> x:Num (if (<= 0 x)
+                     (** x 0.5)
+                     (throw "Negative number")))
+
 square = (=> x:Num (** x 2))
 hypot  = (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
 PI = 3.1415926535897932384626433832795028841971693993
