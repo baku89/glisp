@@ -491,12 +491,12 @@ export class EDict extends BaseNode {
 export class Call extends BaseNode {
 	readonly type = 'call' as const
 
-	private constructor(public fn: Node, public args: Node[]) {
+	private constructor(public callee: Node, public args: Node[]) {
 		super()
 	}
 
 	#unify(env: Env): [Unifier, Val.Value[]] {
-		const ty = this.fn.infer(env).result
+		const ty = this.callee.infer(env).result
 
 		if (!('tyFn' in ty)) return [new Unifier(), []]
 
@@ -519,11 +519,11 @@ export class Call extends BaseNode {
 
 	protected forceEval = (env: Env): WithLog => {
 		// Evaluate the function itself at first
-		const [fn, fnLog] = this.fn.eval(env).asTuple
+		const [callee, calleeLog] = this.callee.eval(env).asTuple
 
 		// Check if it's not a function
-		if (!('fn' in fn)) {
-			return Writer.of(fn, ...fnLog, {
+		if (!('fn' in callee)) {
+			return Writer.of(callee, ...calleeLog, {
 				level: 'warn',
 				ref: this,
 				reason: 'Not a function',
@@ -532,8 +532,8 @@ export class Call extends BaseNode {
 
 		// Start function application
 		const argLog: Log[] = []
-		const names = keys(fn.tyFn.param)
-		const params = values(fn.tyFn.param)
+		const names = keys(callee.tyFn.param)
+		const params = values(callee.tyFn.param)
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
@@ -580,7 +580,7 @@ export class Call extends BaseNode {
 		// Call the function
 		let result: Val.Value, callLog: Set<Log | Omit<Log, 'ref'>>
 		try {
-			;[result, callLog] = fn.fn(...args).asTuple
+			;[result, callLog] = callee.fn(...args).asTuple
 		} catch (e) {
 			if (env.isGlobal) {
 				const message = e instanceof Error ? e.message : 'Run-time error'
@@ -596,11 +596,11 @@ export class Call extends BaseNode {
 		// Set this as 'ref'
 		const callLogWithRef = [...callLog].map(log => ({...log, ref: this}))
 
-		return withLog(unifiedResult, ...fnLog, ...argLog, ...callLogWithRef)
+		return withLog(unifiedResult, ...calleeLog, ...argLog, ...callLogWithRef)
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
-		const [ty, log] = this.fn.infer(env).asTuple
+		const [ty, log] = this.callee.infer(env).asTuple
 		if (!('tyFn' in ty)) return withLog(ty, ...log)
 
 		if (ty.tyFn.isTypeCtor) {
@@ -612,7 +612,7 @@ export class Call extends BaseNode {
 	}
 
 	print = (): string => {
-		const fn = this.fn.print()
+		const fn = this.callee.print()
 		const args = this.args.map(a => a.print())
 
 		return '(' + [fn, ...args].join(' ') + ')'
