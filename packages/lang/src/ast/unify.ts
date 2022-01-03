@@ -4,10 +4,10 @@ import {union} from '../util/SetOperation'
 import {zip} from '../util/zip'
 import {
 	all,
-	bottom,
 	dict,
 	fnFrom,
 	isEqual,
+	never,
 	tyDifference,
 	TyFn,
 	tyFnFrom,
@@ -78,7 +78,7 @@ export class Unifier {
 	}
 
 	#getLower(tv: TyVar) {
-		return this.#lowers.get(tv) ?? bottom
+		return this.#lowers.get(tv) ?? never
 	}
 
 	#getUpper(tv: TyVar) {

@@ -1,7 +1,7 @@
 import {
 	all,
-	bottom,
 	False,
+	never,
 	num,
 	str,
 	True,
@@ -27,8 +27,8 @@ const S1 = str('foo')
 const S2 = str('bar')
 
 describe('uniting types', () => {
-	test().toBe(bottom)
-	test(bottom).toBe(bottom)
+	test().toBe(never)
+	test(never).toBe(never)
 	test(all).toBe(all)
 	test(unit).toBe(unit)
 	test(N1).toBe(N1)
@@ -40,9 +40,9 @@ describe('uniting types', () => {
 	test(unite(N1, N2), tyNum).toBe(tyNum)
 	test(tyNum, unite(N1, N2)).toBe(tyNum)
 	test(tyNum, tyBool).toBe(unite(tyNum, tyBool))
-	test(tyNum, bottom).toBe(tyNum)
-	test(bottom, bottom).toBe(bottom)
-	test(bottom, all).toBe(all)
+	test(tyNum, never).toBe(tyNum)
+	test(never, never).toBe(never)
+	test(never, all).toBe(all)
 	test(True, False).toBe(tyBool)
 	test(tyBool, True, False).toBe(tyBool)
 	test(True, False).toBe(tyBool)
@@ -68,10 +68,10 @@ describe('uniting types', () => {
 
 describe('intersecting types', () => {
 	test().toBe(all)
-	test(bottom).toBe(bottom)
+	test(never).toBe(never)
 	test(unite(N1, N2), unite(N2, N3)).toBe(N2)
-	test(N1, N2).toBe(bottom)
-	test(unite(N1, N2), unite(S1, S2)).toBe(bottom)
+	test(N1, N2).toBe(never)
+	test(unite(N1, N2), unite(S1, S2)).toBe(never)
 	test(unite(N1, N2), unite(N1, N2)).toBe(unite(N1, N2))
 	test(N1, tyNum).toBe(N1)
 	test(unite(N1, False), N1).toBe(N1)
@@ -98,19 +98,19 @@ describe('intersecting types', () => {
 describe('differential types', () => {
 	// X = X
 	test(all).toBe(all)
-	test(bottom).toBe(bottom)
+	test(never).toBe(never)
 	test(unit).toBe(unit)
 
-	// A - A = _|_
-	test(all, all).toBe(bottom)
-	test(bottom, bottom).toBe(bottom)
-	test(N1, N1).toBe(bottom)
-	test(S1, S1).toBe(bottom)
-	test(True, True).toBe(bottom)
-	test(tyNum, tyNum).toBe(bottom)
-	test(tyStr, tyStr).toBe(bottom)
-	test(tyBool, tyBool).toBe(bottom)
-	test(unite(N1, N2), unite(N1, N2)).toBe(bottom)
+	// A - A = Never
+	test(all, all).toBe(never)
+	test(never, never).toBe(never)
+	test(N1, N1).toBe(never)
+	test(S1, S1).toBe(never)
+	test(True, True).toBe(never)
+	test(tyNum, tyNum).toBe(never)
+	test(tyStr, tyStr).toBe(never)
+	test(tyBool, tyBool).toBe(never)
+	test(unite(N1, N2), unite(N1, N2)).toBe(never)
 
 	// T - S = T
 	test(all, N1).toBe(all)
@@ -119,7 +119,7 @@ describe('differential types', () => {
 
 	// Enum substraction
 	test(tyBool, True).toBe(False)
-	test(tyBool, True, False).toBe(bottom)
+	test(tyBool, True, False).toBe(never)
 	test(unite(tyBool, N1), True).toBe(unite(N1, False))
 	test(unite(tyBool, N1), True, N1).toBe(False)
 

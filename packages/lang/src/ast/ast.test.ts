@@ -1,9 +1,9 @@
 import {parse, testEval} from '../util/TestUtil'
 import {
 	all,
-	bottom,
 	dict,
 	False,
+	never,
 	num,
 	str,
 	True,
@@ -17,7 +17,7 @@ import {
 
 describe('evaluating literals', () => {
 	testEval('_', all)
-	testEval('_|_', bottom)
+	testEval('Never', never)
 	testEval('()', unit)
 	testEval('0', num(0))
 	testEval('"foo"', str('foo'))
@@ -70,7 +70,7 @@ describe('run-time error handling', () => {
 
 describe('inferring expression type', () => {
 	test('_', '_')
-	test('_|_', '_')
+	test('Never', '_')
 	test('()', '()')
 	test('0', '0')
 	test('"foo"', '"foo"')

@@ -46,7 +46,7 @@ export const PreludeScope = Ast.scope({
 PreludeScope.defs({
 	true: Ast.obj(Val.True),
 	false: Ast.obj(Val.False),
-	throw: defn('(-> reason:_ _|_)', (reason: Val.Str) => {
+	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
 		throw new Error(reason.value)
 	}),
 	'|': defn('(-> <T> [x:T y:T] T)', (t1: Val.Value, t2: Val.Value) =>

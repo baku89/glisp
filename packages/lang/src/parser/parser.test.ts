@@ -8,7 +8,7 @@ import {
 	eVecFrom,
 	isSame,
 	lAll,
-	lBottom,
+	lNever,
 	lNum,
 	lStr,
 	lUnit,
@@ -36,7 +36,7 @@ describe('parsing literals', () => {
 	testParsing(' () ', lUnit())
 	testParsing(' (  \t   ) ', lUnit())
 	testParsing(' _ ', lAll())
-	testParsing('_|_', lBottom())
+	testParsing('Never', lNever())
 })
 
 describe('parsing symbols', () => {

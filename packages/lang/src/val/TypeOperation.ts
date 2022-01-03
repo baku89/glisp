@@ -1,20 +1,20 @@
 import {differenceWith, remove} from 'lodash'
 
-import {All, Bottom, isEqual, TyUnion, UnitableType, Value} from './val'
+import {All, isEqual, Never, TyUnion, UnitableType, Value} from './val'
 
 function asUnion<T extends Value>(ty: T): (T | UnitableType)[] {
 	return ty.type === 'tyUnion' ? ty.types : [ty]
 }
 
 export function tyUnion(...types: Value[]): Value {
-	if (types.length === 0) return Bottom.instance
+	if (types.length === 0) return Never.instance
 	if (types.length === 1) return types[0]
 
 	const flattenedTypes: UnitableType[] = []
 
 	for (const ty of types) {
 		if (ty.type === 'all') return ty
-		if (ty.type === 'bottom') continue
+		if (ty.type === 'never') continue
 		if (ty.type === 'tyUnion') flattenedTypes.push(...ty.types)
 		else flattenedTypes.push(ty)
 	}
@@ -46,7 +46,7 @@ export function tyUnion(...types: Value[]): Value {
 		return prevTypes
 	}, [] as UnitableType[])
 
-	if (normalizedTypes.length === 0) return Bottom.instance
+	if (normalizedTypes.length === 0) return Never.instance
 	if (normalizedTypes.length === 1) return normalizedTypes[0]
 
 	return TyUnion.fromTypesUnsafe(normalizedTypes)
@@ -100,7 +100,7 @@ export function tyIntersection(...types: Value[]) {
 	return rest.reduce(intersectTwo, first)
 
 	function intersectTwo(a: Value, b: Value): Value {
-		if (a.type === 'bottom' || b.type === 'bottom') return Bottom.instance
+		if (a.type === 'never' || b.type === 'never') return Never.instance
 		if (a.type === 'all') return b
 		if (b.type === 'all') return a
 
@@ -119,7 +119,7 @@ export function tyIntersection(...types: Value[]) {
 			})
 		})
 
-		if (types.length === 0) return Bottom.instance
+		if (types.length === 0) return Never.instance
 		if (types.length === 1) return types[0]
 		return TyUnion.fromTypesUnsafe(types)
 	}

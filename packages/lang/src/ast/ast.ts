@@ -13,7 +13,7 @@ import {Env} from './env'
 import {shadowTyVars, Unifier} from './unify'
 
 export type Node = Literal | Exp
-export type Literal = Sym | Obj | LUnit | LAll | LBottom | LNum | LStr
+export type Literal = Sym | Obj | LUnit | LAll | LNever | LNum | LStr
 
 export type Exp = Call | Scope | TryCatch | EFn | ETyFn | EVec | EDict
 
@@ -183,16 +183,16 @@ export class LAll extends BaseNode {
 	}
 }
 
-export class LBottom extends BaseNode {
-	readonly type = 'lBottom' as const
+export class LNever extends BaseNode {
+	readonly type = 'lNever' as const
 
-	protected forceEval = () => withLog(Val.bottom)
+	protected forceEval = () => withLog(Val.never)
 	protected forceInfer = () => withLog(Val.all)
-	print = () => '_|_'
+	print = () => 'Never'
 	isSameTo = (ast: Node) => this.type === ast.type
 
 	static of() {
-		return new LBottom()
+		return new LNever()
 	}
 }
 

@@ -22,7 +22,7 @@ export type Value = Type | Atomic
 type Type = All | TyPrim | TyEnum | TyFn | TyStruct | TyUnion | TyVar
 
 type Atomic =
-	| Bottom
+	| Never
 	| Unit
 	| Prim<any>
 	| Num
@@ -33,7 +33,7 @@ type Atomic =
 	| Dict
 	| Struct
 
-export type UnitableType = Exclude<Value, All | Bottom>
+export type UnitableType = Exclude<Value, All | Never>
 
 abstract class BaseValue {
 	protected constructor() {
@@ -96,16 +96,16 @@ export class All extends BaseValue {
 
 Unit.prototype.superType = All.instance
 
-export class Bottom extends BaseValue {
-	readonly type = 'bottom' as const
+export class Never extends BaseValue {
+	readonly type = 'never' as const
 	superType = All.instance
 	defaultValue = this
 
-	toAst = () => Ast.lBottom()
+	toAst = () => Ast.lNever()
 	isSubtypeOf = () => true
 	isType = true
 
-	static instance = new Bottom()
+	static instance = new Never()
 }
 
 export class Prim<T = any> extends BaseValue {

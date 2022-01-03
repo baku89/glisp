@@ -4,7 +4,7 @@ import {isEqual, isSubtype, Value} from './val'
 describe('value equality', () => {
 	test('()')
 	test('_')
-	test('_|_')
+	test('Never')
 	test('0')
 	test('"hello"')
 	test('false')
@@ -26,12 +26,12 @@ describe('value equality', () => {
 })
 
 describe('subtyping', () => {
-	// Top, Bottom, Unit
-	test('_|_', '_|_', '=')
-	test('_|_', '_', '<')
-	test('_|_', '()', '<')
-	test('_|_', '0', '<')
-	test('_|_', 'Num', '<')
+	// All, Never, Unit
+	test('Never', 'Never', '=')
+	test('Never', '_', '<')
+	test('Never', '()', '<')
+	test('Never', '0', '<')
+	test('Never', 'Num', '<')
 	test('0', '_', '<')
 	test('Num', '_', '<')
 	test('_', '_', '=')
@@ -82,7 +82,7 @@ describe('subtyping', () => {
 	// Dict
 	test('{}', '{}', '=')
 	test('{a:0}', '{a:_}', '<')
-	test('{a:_|_}', '{a:0}', '<')
+	test('{a:Never}', '{a:0}', '<')
 	test('{a:0}', '{a:0}', '=')
 	test('{a:0}', '{a:1}', '!=')
 	test('{a:0 b:0}', '{a:0}', '<')
@@ -124,7 +124,7 @@ describe('subtyping', () => {
 
 describe('checking type or atom', () => {
 	test('_', false)
-	test('_|_', true)
+	test('Never', true)
 	test('()', false)
 	test('0', false)
 	test('"hello"', false)
@@ -158,9 +158,9 @@ describe('checking type or atom', () => {
 
 describe('instance relationship', () => {
 	test('_', '_')
-	test('_|_', '_')
+	test('Never', '_')
 	test('()', '()')
-	test('_|_', '_|_', false)
+	test('Never', 'Never', false)
 	test('0', '_')
 	test('Num', '_')
 
@@ -201,7 +201,7 @@ describe('default values of types', () => {
 	test('(| Bool Num)', 'false')
 	test('()', '()')
 	test('_', '()')
-	test('_|_', '_|_')
+	test('Never', 'Never')
 
 	test('[]', '[]')
 	test('[Num Str]', '[0 ""]')

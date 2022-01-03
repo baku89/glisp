@@ -9,18 +9,18 @@ Program = _ exp:Node _ Comment?
 
 Node "node" =
 	Dict /
-	Unit / Bottom / All /
+	Unit / Never / All /
 	Fn / TyFn / Scope / TryCatch / Call /
 	Vec /
 	Num / Str / Sym
 
-Reserved = "_" / "_|_" / "..." / "=>" / "->" / "let" / "try" / "catch"
+Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
 Unit = "(" _ ")" { return Ast.lUnit() }
 
-All "_" = "_" { return Ast.lAll() }
+All = "_" { return Ast.lAll() }
 
-Bottom "_|_" = "_|_" { return Ast.lBottom() }
+Never = "Never" { return Ast.lNever() }
 
 Sym "symbol" =
 	!(Reserved End)

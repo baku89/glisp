@@ -1,13 +1,13 @@
 import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
 import {
 	All,
-	Bottom,
 	Dict,
 	Enum,
 	Fn,
 	IFn,
 	isEqual,
 	isSubtype,
+	Never,
 	Num,
 	Prim,
 	Str,
@@ -30,7 +30,7 @@ export {IFn, Value}
 // Value
 export {
 	All,
-	Bottom,
+	Never,
 	Unit,
 	Num,
 	Str,
@@ -55,7 +55,7 @@ const False = tyBool.getEnum('false')
 export {tyNum, tyStr, tyBool, True, False}
 
 export const all = All.instance
-export const bottom = Bottom.instance
+export const never = Never.instance
 export const unit = Unit.instance
 export const num = Num.of
 export const str = Str.of

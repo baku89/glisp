@@ -8,8 +8,8 @@ import {
 	Exp,
 	isSame,
 	LAll,
-	LBottom,
 	Literal,
+	LNever,
 	LNum,
 	LStr,
 	LUnit,
@@ -30,7 +30,7 @@ export {
 	Obj,
 	LUnit,
 	LAll,
-	LBottom,
+	LNever,
 	LNum,
 	LStr,
 	Call,
@@ -46,7 +46,7 @@ export const sym = Sym.of
 export const obj = Obj.of
 export const lUnit = LUnit.of
 export const lAll = LAll.of
-export const lBottom = LBottom.of
+export const lNever = LNever.of
 export const lNum = LNum.of
 export const lStr = LStr.of
 export const call = Call.of
