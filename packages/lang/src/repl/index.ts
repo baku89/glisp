@@ -3,6 +3,7 @@ import * as os from 'os'
 import * as repl from 'repl'
 
 import * as Ast from '../ast'
+import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
 import {parse} from '../parser'
 import {MathScope} from '../std/math'
@@ -82,11 +83,10 @@ function startRepl() {
 
 				cb(null, evaluated)
 			} catch (err) {
-				if (!(err instanceof Error)) throw err
 				const r = withLog(Val.unit, {
 					level: 'error',
-					reason: err.message,
-					ref: exp,
+					reason: err instanceof Error ? err.message : 'Run-time error',
+					ref: err instanceof GlispError ? err.ref : exp,
 				})
 				cb(null, r)
 			}

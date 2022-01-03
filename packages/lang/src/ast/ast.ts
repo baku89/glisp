@@ -573,7 +573,8 @@ export class Call extends BaseNode {
 				;[aVal, aLog] = this.args[i].eval(env).asTuple
 			} catch (e) {
 				const message = e instanceof Error ? e.message : 'Run-time error'
-				throw new GlispError(this, message)
+				const ref = e instanceof GlispError ? e.ref : this
+				throw new GlispError(ref, message)
 			}
 
 			argLog.push(...aLog)
@@ -582,7 +583,15 @@ export class Call extends BaseNode {
 		})
 
 		// Call the function
-		const [result, callLog] = fn.fn(...args).asTuple
+		let result: Val.Value, callLog: Set<Log | Omit<Log, 'ref'>>
+		try {
+			;[result, callLog] = fn.fn(...args).asTuple
+		} catch (e) {
+			const message = e instanceof Error ? e.message : 'Run-time error'
+			const ref = e instanceof GlispError ? e.ref : this
+			throw new GlispError(ref, message)
+		}
+
 		const unifiedResult = unifier.substitute(result, true)
 
 		// Set this as 'ref'
@@ -689,12 +698,10 @@ export class TryCatch extends BaseNode {
 		try {
 			return this.block.eval(env)
 		} catch (e) {
-			const reason = e instanceof Error ? e.message : 'Error'
-			const ref = e instanceof GlispError ? e.ref : this
 			const log: Log = {
 				level: 'error',
-				reason,
-				ref,
+				reason: e instanceof Error ? e.message : 'Error',
+				ref: e instanceof GlispError ? e.ref : this,
 			}
 
 			const [handler, lh] = this.handler
