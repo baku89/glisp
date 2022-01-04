@@ -1,20 +1,13 @@
 import {
 	AllKeyword,
-	Arg,
 	Call,
 	DictLiteral,
 	FnDef,
 	FnTypeDef,
 	Identifier,
-	InnerNode,
-	isSame,
-	LeafNode,
 	NeverKeyword,
-	Node,
 	NumLiteral,
-	print,
 	Scope,
-	setParent,
 	StrLiteral,
 	TryCatch,
 	UnitLiteral,
@@ -22,7 +15,9 @@ import {
 	VecLiteral,
 } from './ast'
 
-export {Node, LeafNode, InnerNode, Arg}
+export {Node, LeafNode, InnerNode, Arg} from './ast'
+
+export {isSame, print, setParent, clone} from './ast'
 
 // Exp
 export {
@@ -59,5 +54,3 @@ export const vec = VecLiteral.of
 export const vecFrom = VecLiteral.from
 export const dict = DictLiteral.of
 export const dictFrom = DictLiteral.from
-
-export {isSame, print, setParent}

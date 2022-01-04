@@ -42,9 +42,14 @@ export abstract class BaseNode {
 	}
 
 	abstract print(): string
+
 	protected abstract forceEval(env: Env): WithLog
+
 	protected abstract forceInfer(env: Env): WithLog
+
 	abstract isSameTo(ast: Node): boolean
+
+	abstract clone(): Node
 
 	eval(env = Env.global) {
 		return env.memoizeEval(this, this.forceEval)
@@ -142,6 +147,8 @@ export class Identifier extends BaseNode {
 
 	isSameTo = (ast: Node) => this.type === ast.type && this.name === ast.name
 
+	clone = () => Identifier.of(this.name)
+
 	static of(name: string) {
 		return new Identifier(name)
 	}
@@ -166,6 +173,8 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
+	clone = () => ValueContainer.of(this.value)
+
 	static of<V extends Val.Value = Val.Value>(value: V) {
 		return new ValueContainer(value)
 	}
@@ -175,12 +184,10 @@ export class UnitLiteral extends BaseNode {
 	readonly type = 'UnitLiteral' as const
 
 	protected forceEval = () => withLog(Val.unit)
-
 	protected forceInfer = () => withLog(Val.unit)
-
 	print = () => '()'
-
 	isSameTo = (ast: Node) => this.type === ast.type
+	clone = () => UnitLiteral.of()
 
 	static of() {
 		return new UnitLiteral()
@@ -194,6 +201,7 @@ export class AllKeyword extends BaseNode {
 	protected forceInfer = () => withLog(Val.all)
 	print = () => '_'
 	isSameTo = (ast: Node) => this.type === ast.type
+	clone = () => AllKeyword.of()
 
 	static of() {
 		return new AllKeyword()
@@ -207,6 +215,7 @@ export class NeverKeyword extends BaseNode {
 	protected forceInfer = () => withLog(Val.all)
 	print = () => 'Never'
 	isSameTo = (ast: Node) => this.type === ast.type
+	clone = () => NeverKeyword.of()
 
 	static of() {
 		return new NeverKeyword()
@@ -224,6 +233,7 @@ export class NumLiteral extends BaseNode {
 	protected forceInfer = () => withLog(Val.num(this.value))
 	print = () => this.value.toString()
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
+	clone = () => NumLiteral.of(this.value)
 
 	static of(value: number) {
 		return new NumLiteral(value)
@@ -242,6 +252,7 @@ export class StrLiteral extends BaseNode {
 
 	print = () => '"' + this.value + '"'
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
+	clone = () => StrLiteral.of(this.value)
 
 	static of(value: string) {
 		return new StrLiteral(value)
@@ -305,6 +316,13 @@ export class FnDef extends BaseNode {
 		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.body, ast.body)
 
+	clone = (): FnDef =>
+		FnDef.of(
+			values(this.typeVars).map(tv => tv.name),
+			mapValues(this.param, clone),
+			this.body.clone()
+		)
+
 	static of(typeVars: string[], param: FnDef['param'], body: Node) {
 		const fn = new FnDef(typeVars, param, body)
 		values(param).forEach(p => setParent(p, fn))
@@ -348,6 +366,13 @@ export class FnTypeDef extends BaseNode {
 		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
 		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.out, this.out)
+
+	clone = (): FnTypeDef =>
+		FnTypeDef.from(
+			values(this.typeVars).map(tv => tv.name),
+			mapValues(this.param, clone),
+			this.out.clone()
+		)
 
 	static of(typeVars: string[], param: Node | Node[], out: Node) {
 		const paramArr = [param].flat()
@@ -433,6 +458,9 @@ export class VecLiteral extends BaseNode {
 		this.optionalPos === ast.optionalPos &&
 		nullishEqual(this.rest, this.rest, isSame)
 
+	clone = (): VecLiteral =>
+		VecLiteral.from(this.items.map(clone), this.optionalPos, this.rest?.clone())
+
 	static of(...items: Node[]) {
 		return VecLiteral.from(items)
 	}
@@ -488,6 +516,13 @@ export class DictLiteral extends BaseNode {
 		isEqualDict(this.items, ast.items, isSame) &&
 		isEqualSet(this.optionalKeys, ast.optionalKeys) &&
 		nullishEqual(this.rest, ast.rest, isSame)
+
+	clone = (): DictLiteral =>
+		DictLiteral.from(
+			mapValues(this.items, clone),
+			this.optionalKeys,
+			this.rest?.clone()
+		)
 
 	static of(items: Record<string, Node>) {
 		return DictLiteral.from(items)
@@ -643,9 +678,11 @@ export class Call extends BaseNode {
 	isSameTo = (ast: Node) =>
 		this.type === ast.type && isEqualArray(this.args, ast.args, isSame)
 
-	static of(fn: Node, ...args: Node[]) {
-		const app = new Call(fn, args)
-		setParent(fn, app)
+	clone = (): Call => Call.of(this.callee, ...this.args.map(clone))
+
+	static of(callee: Node, ...args: Node[]) {
+		const app = new Call(callee, args)
+		setParent(callee, app)
 		args.forEach(a => setParent(a, app))
 		return app
 	}
@@ -654,10 +691,7 @@ export class Call extends BaseNode {
 export class Scope extends BaseNode {
 	readonly type = 'Scope' as const
 
-	private constructor(
-		public vars: Record<string, Node>,
-		public out: Node | null = null
-	) {
+	private constructor(public vars: Record<string, Node>, public out?: Node) {
 		super()
 	}
 
@@ -678,7 +712,9 @@ export class Scope extends BaseNode {
 		nullishEqual(this.out, ast.out, isSame) &&
 		isEqualDict(this.vars, ast.vars, isSame)
 
-	extend(vars: Record<string, Node>, out: Node | null = null): Scope {
+	clone = (): Scope => Scope.of(mapValues(this.vars, clone), this.out?.clone())
+
+	extend(vars: Record<string, Node>, out?: Node): Scope {
 		const scope = new Scope(vars, out)
 		scope.parent = this
 		return scope
@@ -700,7 +736,7 @@ export class Scope extends BaseNode {
 		}
 	}
 
-	static of(vars: Record<string, Node>, out: Node | null = null) {
+	static of(vars: Record<string, Node>, out?: Node) {
 		const scope = new Scope(vars, out)
 		values(vars).forEach(v => setParent(v, scope))
 		if (out) setParent(out, scope)
@@ -751,6 +787,8 @@ export class TryCatch extends BaseNode {
 		isSame(this.block, ast.block) &&
 		nullishEqual(this.handler, ast.handler, isSame)
 
+	clone = (): TryCatch => TryCatch.of(this.block.clone(), this.handler.clone())
+
 	static of(block: Node, handler: Node) {
 		const tryCatch = new TryCatch(block, handler)
 
@@ -773,4 +811,8 @@ export function isSame(a: Node, b: Node): boolean {
 
 export function print(n: Node) {
 	return n.print()
+}
+
+export function clone(n: Node) {
+	return n.clone()
 }
