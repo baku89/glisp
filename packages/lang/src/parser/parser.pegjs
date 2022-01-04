@@ -1,3 +1,17 @@
+{{
+	function zip(coll) {
+		const as = []
+		const bs = []
+
+		for (const [a, b] of coll) {
+			as.push(a)
+			bs.push(b)
+		}
+
+		return [as, bs]
+	}
+}}
+
 {
 	const Ast = options.Ast
 }
@@ -82,9 +96,23 @@ NamedNode = sym:Identifier _ ":" _ value:Node _
 	}
 
 Vec "vector" =
-	"[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
-	{		
-		return Ast.vecFrom([...items, ...optionalItems], items.length, rest)
+	"[" _ itemsWithOptionalFlag:(@Node @"?"? _)* rest:Rest? "]"
+	{
+		const [items, optionalFlags] = zip(itemsWithOptionalFlag)
+
+		let optionalPos = undefined
+		
+		for (let i = 0; i < optionalFlags.length; i++) {
+			if (optionalFlags[i]) {
+				if (optionalPos === undefined)
+					optionalPos = i
+			} else {
+				if (optionalPos !== undefined) 
+					throw new Error('A required item cannot follow an optional item')
+			}
+		}
+
+		return Ast.vec(items, optionalPos, rest)
 	}
 
 Dict "dictionary" = "{" _ entries:DictEntry* rest:Rest? "}"

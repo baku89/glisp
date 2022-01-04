@@ -106,6 +106,8 @@ describe('parsing vector', () => {
 	testParsing('[1? ...2]', vec([num(1)], 0, num(2)))
 	testParsing('[1 2?]', vec([num(1), num(2)], 1))
 	testParsing('[1 2? 3? ...4]', vec([num(1), num(2), num(3)], 1, num(4)))
+	testErrorParsing('[1? 2]')
+	testErrorParsing('[1? 2 3? 4?]')
 })
 
 describe('parsing dictionary', () => {
