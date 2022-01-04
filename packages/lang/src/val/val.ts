@@ -9,6 +9,7 @@ import {
 } from 'lodash'
 
 import * as Ast from '../ast'
+import {getTypeVars} from '../ast/unify'
 import {Log, withLog} from '../log'
 import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
@@ -299,8 +300,13 @@ export class Fn extends BaseValue implements IFnLike {
 	defaultValue = this
 
 	// TODO: fix this
-	toAst = () => {
-		return Ast.id('Fn')
+	toAst = (): Ast.Node => {
+		if (!this.body) {
+			return Ast.value(this)
+		}
+		const typeVars = [...getTypeVars(this.fnType)].map(tv => tv.name)
+		const param = mapValues(this.fnType.param, p => p.toAst())
+		return Ast.fn(typeVars, param, this.body.clone())
 	}
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
