@@ -5,15 +5,15 @@ import {zip} from '../util/zip'
 import {
 	all,
 	dict,
+	differenceType,
 	fnFrom,
+	FnType,
+	fnTypeFrom,
+	intersectionType,
 	isEqual,
 	never,
-	tyDifference,
-	TyFn,
-	tyFnFrom,
-	tyIntersection,
-	tyUnion,
-	TyVar,
+	TypeVar,
+	unionType,
 	Value,
 	vec,
 	vecFrom,
@@ -29,27 +29,27 @@ function invRelation(op: Relation): Relation {
 	return '=='
 }
 
-export function getTyVars(ty: Value): Set<TyVar> {
+export function getTypeVars(ty: Value): Set<TypeVar> {
 	switch (ty.type) {
-		case 'tyVar':
+		case 'TypeVar':
 			return new Set([ty])
-		case 'tyUnion':
-			return union(...ty.types.map(getTyVars))
-		case 'tyFn': {
-			const param = values(ty.param).map(getTyVars)
-			const out = getTyVars(ty.out)
+		case 'UnionType':
+			return union(...ty.types.map(getTypeVars))
+		case 'FnType': {
+			const param = values(ty.param).map(getTypeVars)
+			const out = getTypeVars(ty.out)
 			return union(...param, out)
 		}
-		case 'fn':
-			return getTyVars(ty.superType)
-		case 'vec': {
-			const items = ty.items.map(getTyVars)
-			const rest: Set<TyVar> = ty.rest ? getTyVars(ty.rest) : new Set()
+		case 'Fn':
+			return getTypeVars(ty.superType)
+		case 'Vec': {
+			const items = ty.items.map(getTypeVars)
+			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
 			return union(...items, rest)
 		}
-		case 'dict': {
-			const items = values(ty.items).map(getTyVars)
-			const rest: Set<TyVar> = ty.rest ? getTyVars(ty.rest) : new Set()
+		case 'Dict': {
+			const items = values(ty.items).map(getTypeVars)
+			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
 			return union(...items, rest)
 		}
 		default:
@@ -57,10 +57,10 @@ export function getTyVars(ty: Value): Set<TyVar> {
 	}
 }
 
-export function shadowTyVars(ty: Value) {
+export function shadowTypeVars(ty: Value) {
 	const unifier = new Unifier()
 
-	for (const tv of getTyVars(ty)) {
+	for (const tv of getTypeVars(ty)) {
 		const shadowed = tv.shadow()
 		unifier.mapTo(tv, shadowed)
 	}
@@ -69,42 +69,42 @@ export function shadowTyVars(ty: Value) {
 }
 
 export class Unifier {
-	#lowers = new Map<TyVar, Value>()
-	#uppers = new Map<TyVar, Value>()
+	#lowers = new Map<TypeVar, Value>()
+	#uppers = new Map<TypeVar, Value>()
 	#isEmpty = true
 
 	constructor(...consts: Const[]) {
 		this.#addConsts(...consts)
 	}
 
-	#getLower(tv: TyVar) {
+	#getLower(tv: TypeVar) {
 		return this.#lowers.get(tv) ?? never
 	}
 
-	#getUpper(tv: TyVar) {
+	#getUpper(tv: TypeVar) {
 		return this.#uppers.get(tv) ?? all
 	}
 
-	#setLower(tv: TyVar, l: Value) {
+	#setLower(tv: TypeVar, l: Value) {
 		this.#isEmpty = false
-		const nl = tyUnion(l, this.#getLower(tv))
+		const nl = unionType(l, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
 		this.#normalizeRange(tv)
 	}
 
-	#setUpper(tv: TyVar, u: Value) {
+	#setUpper(tv: TypeVar, u: Value) {
 		this.#isEmpty = false
-		const nu = tyIntersection(u, this.#getUpper(tv))
+		const nu = intersectionType(u, this.#getUpper(tv))
 		this.#uppers.set(tv, nu)
 		this.#normalizeRange(tv)
 	}
 
-	#setEqual(tv: TyVar, e: Value) {
+	#setEqual(tv: TypeVar, e: Value) {
 		this.#isEmpty = false
-		const nl = tyUnion(e, this.#getLower(tv))
+		const nl = unionType(e, this.#getLower(tv))
 		this.#lowers.set(tv, nl)
 
-		const nu = tyIntersection(e, this.#getUpper(tv))
+		const nu = intersectionType(e, this.#getUpper(tv))
 		this.#uppers.set(tv, nu)
 
 		this.#normalizeRange(tv)
@@ -115,17 +115,17 @@ export class Unifier {
 	 * @param tv
 	 * @returns
 	 */
-	#normalizeRange(tv: TyVar) {
+	#normalizeRange(tv: TypeVar) {
 		const l = this.#getLower(tv)
 		const u = this.#getUpper(tv)
 
 		if (l.isSubtypeOf(u)) return
 
-		const ltvs = getTyVars(l)
-		const utvs = getTyVars(u)
+		const ltvs = getTypeVars(l)
+		const utvs = getTypeVars(u)
 		if (ltvs.size === 0 && utvs.size === 0) {
 			/**
-			 * When both limits have no tyVars (e.g. α |-> [Num, Bool]),
+			 * When both limits have no typeVars (e.g. α |-> [Num, Bool]),
 			 * simply copy lower to upper
 			 **/
 			this.#uppers.set(tv, l)
@@ -133,12 +133,12 @@ export class Unifier {
 		}
 
 		const subUnifier = new Unifier()
-		if (utvs.size === 0 || l.type === 'tyVar') {
-			// α |-> [(has tyVars), (no tyvar)]
+		if (utvs.size === 0 || l.type === 'TypeVar') {
+			// α |-> [(has typeVars), (no tyvar)]
 			// α |-> [<T>, ...]
 			subUnifier.#addConsts([l, '==', u])
-		} else if (ltvs.size === 0 || u.type === 'tyVar') {
-			// α |-> [(no tyVar), (has tyVar)]
+		} else if (ltvs.size === 0 || u.type === 'TypeVar') {
+			// α |-> [(no typeVar), (has typeVar)]
 			// α |-> [..., <T>]
 			subUnifier.#addConsts([u, '==', l])
 		} else {
@@ -151,7 +151,7 @@ export class Unifier {
 	}
 
 	#mergeWith(unifier: Unifier) {
-		// Eliminate surplus tyVars from this subst
+		// Eliminate surplus typeVars from this subst
 		for (const [tv, l] of this.#lowers) {
 			this.#lowers.set(tv, unifier.substitute(l))
 		}
@@ -169,7 +169,7 @@ export class Unifier {
 		}
 	}
 
-	mapTo(tv: TyVar, l: Value) {
+	mapTo(tv: TypeVar, l: Value) {
 		this.#setLower(tv, l)
 	}
 
@@ -191,12 +191,12 @@ export class Unifier {
 		 *--------------------- ST-TyFn
 		 * tp -> to R up -> uo
 		 */
-		if (t.type === 'tyFn' && 'tyFn' in u) {
+		if (t.type === 'FnType' && 'fnType' in u) {
 			const tParam = vec(...values(t.param))
-			const uParam = vec(...values(u.tyFn.param))
+			const uParam = vec(...values(u.fnType.param))
 
 			const tOut = t.out
-			const uOut = u.tyFn.out
+			const uOut = u.fnType.out
 
 			const cParam: Const = [tParam, Ri, uParam]
 			const cOut: Const = [tOut, R, uOut]
@@ -210,7 +210,7 @@ export class Unifier {
 		 *    [...ts] R [...us]
 		 */
 		// TODO: Generate optional/rest items
-		if (t.type === 'vec' && u.type === 'vec') {
+		if (t.type === 'Vec' && u.type === 'Vec') {
 			const uItems = u.items
 
 			const cItems = zip(t.items, u.items).map(
@@ -236,10 +236,10 @@ export class Unifier {
 		 * --------------------------- ST-Union
 		 *     t1 | t2... R u
 		 */
-		if (t.type === 'tyUnion') {
+		if (t.type === 'UnionType') {
 			const cUnion: Const[] = t.types.map(ti => {
-				const tRest = tyDifference(t, ti)
-				const ui = tyDifference(u, tRest)
+				const tRest = differenceType(t, ti)
+				const ui = differenceType(u, tRest)
 				return [ti, R, ui]
 			})
 
@@ -247,8 +247,8 @@ export class Unifier {
 		}
 
 		// Finally set limits
-		if (t.type === 'tyVar') {
-			if (getTyVars(u).has(t)) throw new Error('Occur check')
+		if (t.type === 'TypeVar') {
+			if (getTypeVars(u).has(t)) throw new Error('Occur check')
 
 			const Su = this.substitute(u)
 
@@ -259,7 +259,7 @@ export class Unifier {
 			return this.#addConsts(...cs)
 		}
 
-		if (u.type === 'tyVar') {
+		if (u.type === 'TypeVar') {
 			return this.#addConsts([u, Ri, t], ...cs)
 		}
 
@@ -268,30 +268,33 @@ export class Unifier {
 
 	substitute = (val: Value, unshadow = false): Value => {
 		if (this.#isEmpty) return val
-		if (val.type !== 'fn' && !val.isType) return val
+		if (val.type !== 'Fn' && !val.isType) return val
 
 		switch (val.type) {
-			case 'tyVar': {
+			case 'TypeVar': {
 				const v = this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
-				return unshadow && v.type === 'tyVar' ? v.unshadow() : v
+				return unshadow && v.type === 'TypeVar' ? v.unshadow() : v
 			}
-			case 'tyFn': {
+			case 'FnType': {
 				const param = mapValues(val.param, p => this.substitute(p, unshadow))
 				const out = this.substitute(val.out, unshadow)
-				return tyFnFrom(param, out)
+				return fnTypeFrom(param, out)
 			}
-			case 'tyUnion': {
+			case 'UnionType': {
 				const types = val.types.map(ty => this.substitute(ty, unshadow))
-				return tyUnion(...types)
+				return unionType(...types)
 			}
-			case 'fn':
-				return fnFrom(this.substitute(val.superType, unshadow) as TyFn, val.fn)
-			case 'vec': {
+			case 'Fn':
+				return fnFrom(
+					this.substitute(val.superType, unshadow) as FnType,
+					val.fn
+				)
+			case 'Vec': {
 				const items = val.items.map(it => this.substitute(it, unshadow))
 				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
 				return vecFrom(items, val.optionalPos, rest)
 			}
-			case 'dict': {
+			case 'Dict': {
 				const items = mapValues(val.items, it => this.substitute(it, unshadow))
 				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
 				return dict(items, val.optionalKeys, rest)

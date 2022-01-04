@@ -1,21 +1,21 @@
 import {differenceWith, remove} from 'lodash'
 
-import {All, isEqual, Never, TyUnion, UnitableType, Value} from './val'
+import {All, isEqual, Never, UnionType, UnitableType, Value} from './val'
 
 function asUnion<T extends Value>(ty: T): (T | UnitableType)[] {
-	return ty.type === 'tyUnion' ? ty.types : [ty]
+	return ty.type === 'UnionType' ? ty.types : [ty]
 }
 
-export function tyUnion(...types: Value[]): Value {
+export function unionType(...types: Value[]): Value {
 	if (types.length === 0) return Never.instance
 	if (types.length === 1) return types[0]
 
 	const flattenedTypes: UnitableType[] = []
 
 	for (const ty of types) {
-		if (ty.type === 'all') return ty
-		if (ty.type === 'never') continue
-		if (ty.type === 'tyUnion') flattenedTypes.push(...ty.types)
+		if (ty.type === 'All') return ty
+		if (ty.type === 'Never') continue
+		if (ty.type === 'UnionType') flattenedTypes.push(...ty.types)
 		else flattenedTypes.push(ty)
 	}
 
@@ -30,17 +30,17 @@ export function tyUnion(...types: Value[]): Value {
 
 		// Unite enum
 		for (const pty of prevTypes) {
-			if (pty.type !== 'enum') continue
+			if (pty.type !== 'Enum') continue
 
-			const tyEnum = pty.superType
+			const enumType = pty.superType
 
-			const includesAllEnum = tyEnum.types.every(enm =>
+			const includesAllEnum = enumType.types.every(enm =>
 				prevTypes.some(p => isEqual(p, enm))
 			)
 			if (!includesAllEnum) continue
 
-			remove(prevTypes, pty => pty.superType.isEqualTo(tyEnum))
-			prevTypes.push(tyEnum)
+			remove(prevTypes, pty => pty.superType.isEqualTo(enumType))
+			prevTypes.push(enumType)
 		}
 
 		return prevTypes
@@ -49,19 +49,19 @@ export function tyUnion(...types: Value[]): Value {
 	if (normalizedTypes.length === 0) return Never.instance
 	if (normalizedTypes.length === 1) return normalizedTypes[0]
 
-	return TyUnion.fromTypesUnsafe(normalizedTypes)
+	return UnionType.fromTypesUnsafe(normalizedTypes)
 }
 
-export function tyDifference(original: Value, ...types: Value[]) {
+export function differenceType(original: Value, ...types: Value[]) {
 	// Prefix 'o' and 's' means O(riginal) - S(ubtrahead)
 	let oTypes: Value[] = asUnion(original)
-	const sTypes = asUnion(tyUnion(...types))
+	const sTypes = asUnion(unionType(...types))
 
 	/**
 	 * OにTyEnumが含まれる時、引き算をする。Bool - true = false になるように
 	 */
 	oTypes = oTypes.flatMap((oty): Value[] => {
-		if (oty.type !== 'tyEnum') return [oty]
+		if (oty.type !== 'EnumType') return [oty]
 
 		// 列挙の差分を取る
 		const enums = oty.types
@@ -73,7 +73,7 @@ export function tyDifference(original: Value, ...types: Value[]) {
 		}
 
 		// Sから当核の列挙値すべてを消しておく
-		remove(sTypes, sty => sty.type === 'enum' && oty.isInstance(sty))
+		remove(sTypes, sty => sty.type === 'Enum' && oty.isInstance(sty))
 
 		return restEnums
 	})
@@ -89,10 +89,10 @@ export function tyDifference(original: Value, ...types: Value[]) {
 	// 残り
 	const restTypes = oTypes.filter(o => !sTypes.some(s => o.isSubtypeOf(s)))
 
-	return tyUnion(...restTypes)
+	return unionType(...restTypes)
 }
 
-export function tyIntersection(...types: Value[]) {
+export function intersectionType(...types: Value[]) {
 	if (types.length === 0) return All.instance
 	if (types.length === 1) return types[0]
 
@@ -100,9 +100,9 @@ export function tyIntersection(...types: Value[]) {
 	return rest.reduce(intersectTwo, first)
 
 	function intersectTwo(a: Value, b: Value): Value {
-		if (a.type === 'never' || b.type === 'never') return Never.instance
-		if (a.type === 'all') return b
-		if (b.type === 'all') return a
+		if (a.type === 'Never' || b.type === 'Never') return Never.instance
+		if (a.type === 'All') return b
+		if (b.type === 'All') return a
 
 		if (b.isSubtypeOf(a)) return b
 		if (a.isSubtypeOf(b)) return a
@@ -121,6 +121,6 @@ export function tyIntersection(...types: Value[]) {
 
 		if (types.length === 0) return Never.instance
 		if (types.length === 1) return types[0]
-		return TyUnion.fromTypesUnsafe(types)
+		return UnionType.fromTypesUnsafe(types)
 	}
 }

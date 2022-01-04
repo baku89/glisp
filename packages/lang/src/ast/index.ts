@@ -1,63 +1,63 @@
 import {
+	AllKeyword,
 	Arg,
 	Call,
-	EDict,
-	EFn,
-	ETyFn,
-	EVec,
+	DictLiteral,
 	Exp,
+	FnDef,
+	FnTypeDef,
+	Identifier,
 	isSame,
-	LAll,
 	Literal,
-	LNever,
-	LNum,
-	LStr,
-	LUnit,
+	NeverKeyword,
 	Node,
-	Obj,
+	NumLiteral,
 	print,
 	Scope,
 	setParent,
-	Sym,
+	StrLiteral,
 	TryCatch,
+	UnitLiteral,
+	ValueContainer,
+	VecLiteral,
 } from './ast'
 
 export {Node, Literal, Exp, Arg}
 
 // Exp
 export {
-	Sym,
-	Obj,
-	LUnit,
-	LAll,
-	LNever,
-	LNum,
-	LStr,
+	Identifier,
+	ValueContainer,
+	UnitLiteral,
+	AllKeyword,
+	NeverKeyword,
+	NumLiteral,
+	StrLiteral,
 	Call,
 	Scope,
 	TryCatch,
-	EFn,
-	ETyFn,
-	EVec,
-	EDict,
+	FnDef,
+	FnTypeDef,
+	VecLiteral,
+	DictLiteral,
 }
 
-export const sym = Sym.of
-export const obj = Obj.of
-export const lUnit = LUnit.of
-export const lAll = LAll.of
-export const lNever = LNever.of
-export const lNum = LNum.of
-export const lStr = LStr.of
+export const id = Identifier.of
+export const value = ValueContainer.of
+export const unit = UnitLiteral.of
+export const all = AllKeyword.of
+export const never = NeverKeyword.of
+export const num = NumLiteral.of
+export const str = StrLiteral.of
 export const call = Call.of
 export const scope = Scope.of
 export const tryCatch = TryCatch.of
-export const eFn = EFn.of
-export const eTyFn = ETyFn.of
-export const eTyFnFrom = ETyFn.from
-export const eVec = EVec.of
-export const eVecFrom = EVec.from
-export const eDict = EDict.of
-export const eDictFrom = EDict.from
+export const fn = FnDef.of
+export const fnType = FnTypeDef.of
+export const fnTypeFrom = FnTypeDef.from
+export const vec = VecLiteral.of
+export const vecFrom = VecLiteral.from
+export const dict = DictLiteral.of
+export const dictFrom = DictLiteral.from
 
 export {isSame, print, setParent}

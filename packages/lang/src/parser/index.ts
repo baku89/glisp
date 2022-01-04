@@ -3,7 +3,7 @@ import parser from './parser.peg.js'
 
 export function parse(str: string, parent: Ast.Exp | null = null): Ast.Node {
 	const exp: Ast.Node | undefined = parser.parse(str, {Ast})
-	if (!exp) return Ast.lUnit()
+	if (!exp) return Ast.unit()
 
 	if ('parent' in exp) exp.parent = parent
 
@@ -12,7 +12,7 @@ export function parse(str: string, parent: Ast.Exp | null = null): Ast.Node {
 
 export function parseModule(str: string): Record<string, Ast.Node> {
 	const exp: Ast.Node | undefined = parser.parse('(let ' + str + ')', {Ast})
-	if (!exp || exp.type !== 'scope') return {}
+	if (!exp || exp.type !== 'Scope') return {}
 
 	return exp.vars
 }

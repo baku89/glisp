@@ -3,13 +3,13 @@ import {
 	all,
 	dict,
 	False,
+	fnType,
 	never,
 	num,
+	NumType,
 	str,
+	StrType,
 	True,
-	tyFn,
-	tyNum,
-	tyStr,
 	unit,
 	vec,
 	vecFrom,
@@ -26,12 +26,12 @@ describe('evaluating literals', () => {
 
 	testEval('[]', vec())
 	testEval('[0]', vec(num(0)))
-	testEval('[...Num]', vecFrom([], undefined, tyNum))
-	testEval('[1 ...Num]', vecFrom([num(1)], undefined, tyNum))
+	testEval('[...Num]', vecFrom([], undefined, NumType))
+	testEval('[1 ...Num]', vecFrom([num(1)], undefined, NumType))
 	testEval('[0]', vec(num(0)))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
-	testEval('{a?:Num ...Str}', dict({a: tyNum}, ['a'], tyStr))
-	testEval('(-> [Num] Num)', tyFn(tyNum, tyNum))
+	testEval('{a?:Num ...Str}', dict({a: NumType}, ['a'], StrType))
+	testEval('(-> [Num] Num)', fnType(NumType, NumType))
 	testEval('(let a = 10 a)', num(10))
 	testEval('(let a = (let a = 20 a) a)', num(20))
 })
@@ -134,7 +134,8 @@ describe('evaluating function body', () => {
 			const i = parse(input)
 			const e = parse(expected).eval().result
 
-			if (i.type !== 'eFn') throw new Error('Not a function, got =' + i.print())
+			if (i.type !== 'FnDef')
+				throw new Error('Not a function, got =' + i.print())
 
 			const result = i.body.eval().result
 

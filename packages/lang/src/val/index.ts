@@ -1,25 +1,25 @@
-import {tyDifference, tyIntersection, tyUnion} from './TypeOperation'
+import {differenceType, intersectionType, unionType} from './TypeOperation'
 import {
 	All,
 	Dict,
 	Enum,
+	EnumType,
 	Fn,
+	FnType,
 	IFn,
 	isEqual,
 	isSubtype,
 	Never,
 	Num,
+	NumType,
 	Prim,
+	PrimType,
 	Str,
+	StrType,
 	Struct,
-	TyEnum,
-	TyFn,
-	tyNum,
-	TyPrim,
-	tyStr,
-	TyStruct,
-	TyUnion,
-	TyVar,
+	StructType,
+	TypeVar,
+	UnionType,
 	Unit,
 	Value,
 	Vec,
@@ -35,24 +35,24 @@ export {
 	Num,
 	Str,
 	Prim,
-	TyPrim,
-	TyVar,
+	PrimType,
+	TypeVar,
 	Enum,
-	TyEnum,
+	EnumType,
 	Fn,
-	TyFn,
+	FnType,
 	Vec,
 	Dict,
 	Struct,
-	TyStruct,
-	TyUnion,
+	StructType,
+	UnionType,
 }
 
-const tyBool = TyEnum.of('Bool', ['false', 'true'])
-const True = tyBool.getEnum('true')
-const False = tyBool.getEnum('false')
+const BoolType = EnumType.of('Bool', ['false', 'true'])
+const True = BoolType.getEnum('true')
+const False = BoolType.getEnum('false')
 
-export {tyNum, tyStr, tyBool, True, False}
+export {NumType, StrType, BoolType, True, False}
 
 export const all = All.instance
 export const never = Never.instance
@@ -60,19 +60,19 @@ export const unit = Unit.instance
 export const num = Num.of
 export const str = Str.of
 export const bool = (value: boolean) => (value ? True : False)
-export const tyPrim = TyPrim.of
-export const tyEnum = TyEnum.of
+export const primType = PrimType.of
+export const enumType = EnumType.of
 export const fn = Fn.of
 export const fnFrom = Fn.from
-export const tyFn = TyFn.of
-export const tyFnFrom = TyFn.from
-export const tyVar = TyVar.of
+export const fnType = FnType.of
+export const fnTypeFrom = FnType.from
+export const typeVar = TypeVar.of
 export const vec = Vec.of
 export const vecFrom = Vec.from
 export const dict = Dict.of
-export const tyStruct = TyStruct.of
+export const structType = StructType.of
 
 // Type operations
-export {tyUnion, tyDifference, tyIntersection}
+export {unionType, differenceType, intersectionType}
 
 export {isEqual, isSubtype}

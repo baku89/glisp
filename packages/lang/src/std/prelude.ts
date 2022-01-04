@@ -11,46 +11,46 @@ function defn(
 	type: string,
 	f: (...args: Ast.Arg<any>[]) => Val.Value,
 	options?: {isTypeCtor?: boolean; lazy?: true}
-): Ast.Obj
+): Ast.ValueContainer
 function defn(
 	type: string,
 	f: (...args: any[]) => Val.Value,
 	options?: {isTypeCtor?: boolean; lazy?: false}
-): Ast.Obj
+): Ast.ValueContainer
 function defn(
 	type: string,
 	f: (...args: any[]) => Val.Value,
 	{isTypeCtor = false, lazy = false} = {}
 ) {
-	const tyFn = parse(type, PreludeScope).eval().result
+	const fnType = parse(type, PreludeScope).eval().result
 
-	if (tyFn.type !== 'tyFn') throw new Error('Not a tyFn:' + type)
+	if (fnType.type !== 'FnType') throw new Error('Not a fnType:' + type)
 
-	tyFn.isTypeCtor = isTypeCtor
+	fnType.isTypeCtor = isTypeCtor
 
 	const _f: Val.IFn = lazy
 		? (...args) => withLog(f(...args))
 		: (...args) => withLog(f(...args.map(a => a())))
 
-	const fn = Val.fn(tyFn.param, tyFn.out, _f)
+	const fn = Val.fn(fnType.param, fnType.out, _f)
 
-	return Ast.obj(fn)
+	return Ast.value(fn)
 }
 
 export const PreludeScope = Ast.scope({
-	Num: Ast.obj(Val.tyNum),
-	Str: Ast.obj(Val.tyStr),
-	Bool: Ast.obj(Val.tyBool),
+	Num: Ast.value(Val.NumType),
+	Str: Ast.value(Val.StrType),
+	Bool: Ast.value(Val.BoolType),
 })
 
 PreludeScope.defs({
-	true: Ast.obj(Val.True),
-	false: Ast.obj(Val.False),
+	true: Ast.value(Val.True),
+	false: Ast.value(Val.False),
 	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
 		throw new Error(reason.value)
 	}),
 	'|': defn('(-> <T> [x:T y:T] T)', (t1: Val.Value, t2: Val.Value) =>
-		Val.tyUnion(t1, t2)
+		Val.unionType(t1, t2)
 	),
 	'+': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
 		Val.num(a.value + b.value)
@@ -84,7 +84,7 @@ PreludeScope.defs({
 		Val.bool(!(x === Val.True && y === Val.True))
 	),
 	len: defn('(-> x:(| Str [..._]) Num)', (x: Val.Str | Val.Vec) => {
-		if (x.type === 'vec') return Val.num(x.items.length)
+		if (x.type === 'Vec') return Val.num(x.items.length)
 		else return Val.num(x.value.length)
 	}),
 	range: defn(
@@ -125,10 +125,10 @@ PreludeScope.defs({
 	),
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
-		(name: Val.Str, {items}: Val.Dict) => Val.tyStruct(name.value, items),
+		(name: Val.Str, {items}: Val.Dict) => Val.structType(name.value, items),
 		{isTypeCtor: true}
 	),
-	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('tyFn' in f ? f.tyFn : f)),
+	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('fnType' in f ? f.fnType : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
 		Val.bool(s.isSubtypeOf(t))
 	),

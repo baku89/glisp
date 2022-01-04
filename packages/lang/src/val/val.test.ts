@@ -42,7 +42,7 @@ describe('subtyping', () => {
 	// Atom, TyAtom
 	test('1', '1', '=')
 	test('1', 'Num', '<')
-	// run('1', Val.tyNum.extends('1'), true)
+	// run('1', Val.NumType.extends('1'), true)
 	test('"hello"', '"hello"', '=')
 	test('"hello"', 'Str', '<')
 	test('Str', 'Num', '!=')
@@ -228,7 +228,7 @@ describe('default values of types', () => {
 			const ev = parse(expected).eval().result
 
 			if (fn) {
-				if (dv.type !== 'fn') throw new Error('Got=' + dv.print())
+				if (dv.type !== 'Fn') throw new Error('Got=' + dv.print())
 				dv = dv.fn().result
 			}
 

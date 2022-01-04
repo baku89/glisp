@@ -1,23 +1,23 @@
 import {
 	all,
+	BoolType,
+	differenceType,
 	False,
+	intersectionType,
 	never,
 	num,
+	NumType,
 	str,
+	StrType,
 	True,
-	tyBool,
-	tyDifference,
-	tyIntersection,
-	tyNum,
-	tyStr,
-	TyUnion,
+	UnionType,
 	unit,
 	Value,
 } from '.'
-import {tyUnion} from './TypeOperation'
+import {unionType} from './TypeOperation'
 import {UnitableType} from './val'
 
-const unite = (...types: UnitableType[]) => TyUnion.fromTypesUnsafe(types)
+const unite = (...types: UnitableType[]) => UnionType.fromTypesUnsafe(types)
 
 const N1 = num(1)
 const N2 = num(2)
@@ -35,17 +35,17 @@ describe('uniting types', () => {
 	test(N1, N2).toBe(unite(N1, N2))
 	test(S1, S2).toBe(unite(S1, S2))
 	test(N1, N2, S1).toBe(unite(N1, N2, S1))
-	test(S1, tyStr).toBe(tyStr)
+	test(S1, StrType).toBe(StrType)
 	test(unite(N1, N2), unite(N2, N3)).toBe(unite(N1, N2, N3))
-	test(unite(N1, N2), tyNum).toBe(tyNum)
-	test(tyNum, unite(N1, N2)).toBe(tyNum)
-	test(tyNum, tyBool).toBe(unite(tyNum, tyBool))
-	test(tyNum, never).toBe(tyNum)
+	test(unite(N1, N2), NumType).toBe(NumType)
+	test(NumType, unite(N1, N2)).toBe(NumType)
+	test(NumType, BoolType).toBe(unite(NumType, BoolType))
+	test(NumType, never).toBe(NumType)
 	test(never, never).toBe(never)
 	test(never, all).toBe(all)
-	test(True, False).toBe(tyBool)
-	test(tyBool, True, False).toBe(tyBool)
-	test(True, False).toBe(tyBool)
+	test(True, False).toBe(BoolType)
+	test(BoolType, True, False).toBe(BoolType)
+	test(True, False).toBe(BoolType)
 	test(N2, unit).toBe(unite(N2, unit))
 
 	function test(...types: Value[]) {
@@ -54,7 +54,7 @@ describe('uniting types', () => {
 			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
-					const result = tyUnion(...orderedTypes)
+					const result = unionType(...orderedTypes)
 					if (!result.isEqualTo(expected)) {
 						throwError(result, orderedTypes)
 					}
@@ -73,9 +73,11 @@ describe('intersecting types', () => {
 	test(N1, N2).toBe(never)
 	test(unite(N1, N2), unite(S1, S2)).toBe(never)
 	test(unite(N1, N2), unite(N1, N2)).toBe(unite(N1, N2))
-	test(N1, tyNum).toBe(N1)
+	test(N1, NumType).toBe(N1)
 	test(unite(N1, False), N1).toBe(N1)
-	test(unite(tyNum, False), unite(N1, N2, tyBool)).toBe(unite(N1, N2, False))
+	test(unite(NumType, False), unite(N1, N2, BoolType)).toBe(
+		unite(N1, N2, False)
+	)
 
 	function test(...types: Value[]) {
 		const f = (expected: Value) => {
@@ -83,7 +85,7 @@ describe('intersecting types', () => {
 			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
-					const result = tyIntersection(...orderedTypes)
+					const result = intersectionType(...orderedTypes)
 					if (!result.isEqualTo(expected)) {
 						throwError(result, orderedTypes)
 					}
@@ -107,21 +109,21 @@ describe('differential types', () => {
 	test(N1, N1).toBe(never)
 	test(S1, S1).toBe(never)
 	test(True, True).toBe(never)
-	test(tyNum, tyNum).toBe(never)
-	test(tyStr, tyStr).toBe(never)
-	test(tyBool, tyBool).toBe(never)
+	test(NumType, NumType).toBe(never)
+	test(StrType, StrType).toBe(never)
+	test(BoolType, BoolType).toBe(never)
 	test(unite(N1, N2), unite(N1, N2)).toBe(never)
 
 	// T - S = T
 	test(all, N1).toBe(all)
-	test(tyNum, N1).toBe(tyNum)
+	test(NumType, N1).toBe(NumType)
 	test(all, N1).toBe(all)
 
 	// Enum substraction
-	test(tyBool, True).toBe(False)
-	test(tyBool, True, False).toBe(never)
-	test(unite(tyBool, N1), True).toBe(unite(N1, False))
-	test(unite(tyBool, N1), True, N1).toBe(False)
+	test(BoolType, True).toBe(False)
+	test(BoolType, True, False).toBe(never)
+	test(unite(BoolType, N1), True).toBe(unite(N1, False))
+	test(unite(BoolType, N1), True, N1).toBe(False)
 
 	function test(original: Value, ...types: Value[]) {
 		const f = (expected: Value) => {
@@ -129,7 +131,7 @@ describe('differential types', () => {
 			const expectedStr = expected.print()
 			it(`'${typesStr}' to be '${expectedStr}'`, () => {
 				for (const orderedTypes of permutation(types)) {
-					const result = tyDifference(original, ...orderedTypes)
+					const result = differenceType(original, ...orderedTypes)
 					if (!result.isEqualTo(expected)) {
 						throwError(result, orderedTypes)
 					}

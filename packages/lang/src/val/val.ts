@@ -15,11 +15,18 @@ import {isEqualDict} from '../util/isEqualDict'
 import {isEqualSet} from '../util/isEqualSet'
 import {nullishEqual} from '../util/nullishEqual'
 import {Writer} from '../util/Writer'
-import {tyUnion} from './TypeOperation'
+import {unionType} from './TypeOperation'
 
 export type Value = Type | Atomic
 
-type Type = All | TyPrim | TyEnum | TyFn | TyStruct | TyUnion | TyVar
+type Type =
+	| All
+	| PrimType
+	| EnumType
+	| FnType
+	| StructType
+	| UnionType
+	| TypeVar
 
 type Atomic =
 	| Never
@@ -51,7 +58,7 @@ abstract class BaseValue {
 	}
 
 	isSubtypeOf = (ty: Value): boolean => {
-		if (ty.type === 'tyUnion') return ty.isSupertypeOf(this)
+		if (ty.type === 'UnionType') return ty.isSupertypeOf(this)
 		return this.isEqualTo(ty) || this.superType.isSubtypeOf(ty)
 	}
 
@@ -62,20 +69,20 @@ abstract class BaseValue {
 
 export type IFn = (...params: Ast.Arg<any>[]) => Writer<Value, Omit<Log, 'ref'>>
 
-interface ITyFn {
-	tyFn: TyFn
+interface IFnType {
+	fnType: FnType
 }
 
-interface IFnLike extends ITyFn {
+interface IFnLike extends IFnType {
 	fn: IFn
 }
 
 export class Unit extends BaseValue {
-	readonly type = 'unit' as const
+	readonly type = 'Unit' as const
 	superType!: All
 	defaultValue = this
 
-	toAst = () => Ast.lUnit()
+	toAst = () => Ast.unit()
 
 	isType = false
 
@@ -83,11 +90,11 @@ export class Unit extends BaseValue {
 }
 
 export class All extends BaseValue {
-	readonly type = 'all' as const
+	readonly type = 'All' as const
 	superType = this
 	defaultValue = Unit.instance
 
-	toAst = () => Ast.lAll()
+	toAst = () => Ast.all()
 	isSubtypeOf = this.isEqualTo
 	isType = false
 
@@ -97,11 +104,11 @@ export class All extends BaseValue {
 Unit.prototype.superType = All.instance
 
 export class Never extends BaseValue {
-	readonly type = 'never' as const
+	readonly type = 'Never' as const
 	superType = All.instance
 	defaultValue = this
 
-	toAst = () => Ast.lNever()
+	toAst = () => Ast.never()
 	isSubtypeOf = () => true
 	isType = true
 
@@ -109,14 +116,14 @@ export class Never extends BaseValue {
 }
 
 export class Prim<T = any> extends BaseValue {
-	readonly type = 'prim' as const
+	readonly type = 'Prim' as const
 	defaultValue = this
 
-	protected constructor(public superType: TyPrim, public value: T) {
+	protected constructor(public superType: PrimType, public value: T) {
 		super()
 	}
 
-	toAst = (): Ast.Node => Ast.obj(this)
+	toAst = (): Ast.Node => Ast.value(this)
 
 	isEqualTo = (val: Value) =>
 		super.isEqualTo(val) ||
@@ -126,29 +133,29 @@ export class Prim<T = any> extends BaseValue {
 
 	isType = false
 
-	static from<T>(ty: TyPrim, value: T) {
+	static from<T>(ty: PrimType, value: T) {
 		return new Prim<T>(ty, value)
 	}
 }
 
 export class Num extends Prim<number> {
-	toAst = () => Ast.lNum(this.value)
+	toAst = () => Ast.num(this.value)
 
 	static of(value: number) {
-		return new Num(tyNum, value)
+		return new Num(NumType, value)
 	}
 }
 
 export class Str extends Prim<string> {
-	toAst = () => Ast.lStr(this.value)
+	toAst = () => Ast.str(this.value)
 
 	static of(value: string) {
-		return new Str(tyStr, value)
+		return new Str(StrType, value)
 	}
 }
 
-export class TyPrim<T = any> extends BaseValue {
-	readonly type = 'tyPrim' as const
+export class PrimType<T = any> extends BaseValue {
+	readonly type = 'PrimType' as const
 	superType = All.instance
 	defaultValue!: Num | Str | Prim
 
@@ -157,7 +164,7 @@ export class TyPrim<T = any> extends BaseValue {
 	}
 
 	// TODO: fix this
-	toAst = () => Ast.sym(this.name)
+	toAst = () => Ast.id(this.name)
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
@@ -169,32 +176,32 @@ export class TyPrim<T = any> extends BaseValue {
 	isType = true
 
 	isInstance = (e: Value): e is Prim<T> =>
-		e.type === 'prim' && e.isSubtypeOf(this)
+		e.type === 'Prim' && e.isSubtypeOf(this)
 
 	static ofLiteral(name: string, defaultValue: Prim) {
-		const ty = new TyPrim(name)
-		ty.defaultValue = defaultValue
-		defaultValue.superType = ty
-		return ty
+		const primType = new PrimType(name)
+		primType.defaultValue = defaultValue
+		defaultValue.superType = primType
+		return primType
 	}
 
 	static of<T>(name: string, defaultValue: T) {
-		const ty = new TyPrim<T>(name)
-		const d = Prim.from(ty, defaultValue)
-		ty.defaultValue = d
-		return ty
+		const primType = new PrimType<T>(name)
+		const d = Prim.from(primType, defaultValue)
+		primType.defaultValue = d
+		return primType
 	}
 }
 
-export const tyNum = TyPrim.ofLiteral('Num', Num.of(0))
-export const tyStr = TyPrim.ofLiteral('Str', Str.of(''))
+export const NumType = PrimType.ofLiteral('Num', Num.of(0))
+export const StrType = PrimType.ofLiteral('Str', Str.of(''))
 
-Num.prototype.superType = tyNum
-Str.prototype.superType = tyStr
+Num.prototype.superType = NumType
+Str.prototype.superType = StrType
 
 export class Enum extends BaseValue {
-	readonly type = 'enum' as const
-	superType!: TyEnum
+	readonly type = 'Enum' as const
+	superType!: EnumType
 
 	private constructor(public readonly name: string) {
 		super()
@@ -203,7 +210,7 @@ export class Enum extends BaseValue {
 	defaultValue = this
 
 	// TODO: fix this
-	toAst = () => Ast.sym(this.name)
+	toAst = () => Ast.id(this.name)
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) ||
@@ -218,8 +225,8 @@ export class Enum extends BaseValue {
 	}
 }
 
-export class TyEnum extends BaseValue {
-	readonly type = 'tyEnum' as const
+export class EnumType extends BaseValue {
+	readonly type = 'EnumType' as const
 	superType = All.instance
 
 	private constructor(
@@ -232,7 +239,7 @@ export class TyEnum extends BaseValue {
 	defaultValue = this.types[0]
 
 	// TODO: fix this
-	toAst = () => Ast.sym(this.name)
+	toAst = () => Ast.id(this.name)
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
@@ -245,79 +252,79 @@ export class TyEnum extends BaseValue {
 		return en
 	}
 
-	isInstance = (e: Value): e is Enum => e.type === 'enum' && e.isSubtypeOf(this)
+	isInstance = (e: Value): e is Enum => e.type === 'Enum' && e.isSubtypeOf(this)
 
 	static of(name: string, labels: string[]) {
 		if (labels.length === 0) throw new Error('Zero-length enum')
 
 		const types = labels.map(Enum.of)
-		const tyEnum = new TyEnum(name, types)
-		tyEnum.defaultValue = types[0]
-		types.forEach(t => (t.superType = tyEnum))
+		const enumType = new EnumType(name, types)
+		enumType.defaultValue = types[0]
+		types.forEach(t => (t.superType = enumType))
 
-		return tyEnum
+		return enumType
 	}
 }
 
-export class TyVar extends BaseValue {
-	readonly type = 'tyVar' as const
+export class TypeVar extends BaseValue {
+	readonly type = 'TypeVar' as const
 	readonly superType = All.instance
 
-	private constructor(public name: string, public readonly original?: TyVar) {
+	private constructor(public name: string, public readonly original?: TypeVar) {
 		super()
 	}
 
 	defaultValue = Unit.instance
 
-	toAst = () => Ast.sym(this.name)
+	toAst = () => Ast.id(this.name)
 
 	isType = true
 
-	shadow = (): TyVar => {
-		return new TyVar(this.name, this)
+	shadow = (): TypeVar => {
+		return new TypeVar(this.name, this)
 	}
 
-	unshadow = (): TyVar => {
+	unshadow = (): TypeVar => {
 		return this.original ?? this
 	}
 
 	public static of(name: string) {
-		return new TyVar(name)
+		return new TypeVar(name)
 	}
 }
 
 export class Fn extends BaseValue implements IFnLike {
-	readonly type = 'fn' as const
+	readonly type = 'Fn' as const
 
 	private constructor(
-		public superType: TyFn,
+		public superType: FnType,
 		public fn: IFn,
 		public body?: Ast.Node
 	) {
 		super()
 	}
 
-	tyFn = this.superType
+	fnType = this.superType
 
 	defaultValue = this
 
 	// TODO: fix this
 	toAst = () => {
-		return Ast.sym('fn')
+		return Ast.id('Fn')
 	}
 
 	isType = false
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
-		return new Fn(TyFn.from(param, out), fn)
+		return new Fn(FnType.from(param, out), fn)
 	}
-	static from(ty: TyFn, fn: IFn, body?: Ast.Node) {
+	static from(ty: FnType, fn: IFn, body?: Ast.Node) {
 		return new Fn(ty, fn, body)
 	}
 }
 
-export class TyFn extends BaseValue implements ITyFn {
-	readonly type = 'tyFn' as const
+export class FnType extends BaseValue implements IFnType {
+	readonly type = 'FnType' as const
 	superType = All.instance
 
 	private constructor(
@@ -328,16 +335,16 @@ export class TyFn extends BaseValue implements ITyFn {
 		super()
 	}
 
-	tyFn = this
+	fnType = this
 
 	get defaultValue(): Fn {
 		return Fn.from(this, () => withLog(this.out.defaultValue))
 	}
 
-	toAst = (): Ast.ETyFn => {
+	toAst = (): Ast.FnTypeDef => {
 		const param = mapValues(this.param, p => p.toAst())
 		const out = this.out.toAst()
-		return Ast.eTyFnFrom([], param, out)
+		return Ast.fnTypeFrom([], param, out)
 	}
 
 	isEqualTo = (v: Value) =>
@@ -348,8 +355,8 @@ export class TyFn extends BaseValue implements ITyFn {
 
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'tyUnion') return e.isSupertypeOf(this)
-		if (e.type !== 'tyFn') return false
+		if (e.type === 'UnionType') return e.isSupertypeOf(this)
+		if (e.type !== 'FnType') return false
 
 		const tParam = Vec.of(...values(this.param))
 		const eParam = Vec.of(...values(e.param))
@@ -363,16 +370,16 @@ export class TyFn extends BaseValue implements ITyFn {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
-		return new TyFn(paramDict, out)
+		return new FnType(paramDict, out)
 	}
 
 	static from(param: Record<string, Value>, out: Value) {
-		return new TyFn(param, out)
+		return new FnType(param, out)
 	}
 }
 
 export class Vec extends BaseValue implements IFnLike {
-	readonly type = 'vec' as const
+	readonly type = 'Vec' as const
 	readonly superType = All.instance
 
 	private constructor(
@@ -391,7 +398,7 @@ export class Vec extends BaseValue implements IFnLike {
 
 	toAst = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
-		return Ast.eVecFrom(items, this.optionalPos, this.rest?.toAst())
+		return Ast.vecFrom(items, this.optionalPos, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
@@ -414,8 +421,8 @@ export class Vec extends BaseValue implements IFnLike {
 
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
-		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
-		if (v.type !== 'vec') return false
+		if (v.type === 'UnionType') return v.isSupertypeOf(this)
+		if (v.type !== 'Vec') return false
 
 		if (this.optionalPos < v.optionalPos) return false
 
@@ -445,7 +452,7 @@ export class Vec extends BaseValue implements IFnLike {
 		)
 	}
 
-	tyFn = TyFn.of(tyNum, tyUnion(...this.items))
+	fnType = FnType.of(NumType, unionType(...this.items))
 
 	fn: IFn = (index: Ast.Arg<Num>) => {
 		const ret = this.items[index().value]
@@ -464,7 +471,7 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 }
 export class Dict extends BaseValue {
-	readonly type = 'dict' as const
+	readonly type = 'Dict' as const
 	superType = All.instance
 
 	private constructor(
@@ -487,9 +494,9 @@ export class Dict extends BaseValue {
 		return Dict.of(fromPairs(itemEntries))
 	}
 
-	toAst = (): Ast.EDict => {
+	toAst = (): Ast.DictLiteral => {
 		const items = mapValues(this.items, it => it.toAst())
-		return Ast.eDictFrom(items, this.optionalKeys, this.rest?.toAst())
+		return Ast.dictFrom(items, this.optionalKeys, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
@@ -501,8 +508,8 @@ export class Dict extends BaseValue {
 
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
-		if (v.type === 'tyUnion') return v.isSupertypeOf(this)
-		if (v.type !== 'dict') return false
+		if (v.type === 'UnionType') return v.isSupertypeOf(this)
+		if (v.type !== 'Dict') return false
 
 		const tKeys = keys(v.items)
 
@@ -547,9 +554,9 @@ export class Dict extends BaseValue {
 }
 
 export class Struct extends BaseValue {
-	readonly type = 'struct' as const
+	readonly type = 'Struct' as const
 
-	private constructor(public superType: TyStruct, public items: Value[]) {
+	private constructor(public superType: StructType, public items: Value[]) {
 		super()
 	}
 
@@ -569,13 +576,13 @@ export class Struct extends BaseValue {
 
 	isType = false
 
-	static of(ctor: TyStruct, items: Value[]) {
+	static of(ctor: StructType, items: Value[]) {
 		return new Struct(ctor, items)
 	}
 }
 
-export class TyStruct extends BaseValue implements IFnLike {
-	readonly type = 'tyStruct' as const
+export class StructType extends BaseValue implements IFnLike {
+	readonly type = 'StructType' as const
 	superType = All.instance
 
 	private constructor(
@@ -590,12 +597,12 @@ export class TyStruct extends BaseValue implements IFnLike {
 		return Struct.of(this, items)
 	}
 
-	tyFn: TyFn = TyFn.from(this.param, this)
+	fnType: FnType = FnType.from(this.param, this)
 
 	fn = (...items: Ast.Arg[]) => withLog(this.of(...items.map(i => i())))
 
 	// TODO: Fix this
-	toAst = () => Ast.sym(this.name)
+	toAst = () => Ast.id(this.name)
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
@@ -607,12 +614,12 @@ export class TyStruct extends BaseValue implements IFnLike {
 	}
 
 	static of(name: string, param: Record<string, Value>) {
-		return new TyStruct(name, param)
+		return new StructType(name, param)
 	}
 }
 
-export class TyUnion extends BaseValue {
-	readonly type = 'tyUnion' as const
+export class UnionType extends BaseValue {
+	readonly type = 'UnionType' as const
 	superType = All.instance
 
 	private constructor(public types: UnitableType[]) {
@@ -626,7 +633,7 @@ export class TyUnion extends BaseValue {
 
 	toAst = (): Ast.Call => {
 		const types = this.types.map(ty => ty.toAst())
-		return Ast.call(Ast.sym('|'), ...types)
+		return Ast.call(Ast.id('|'), ...types)
 	}
 
 	isEqualTo = (v: Value): boolean =>
@@ -637,7 +644,7 @@ export class TyUnion extends BaseValue {
 	isSubtypeOf = (e: Value): boolean => {
 		if (this.superType.isSubtypeOf(e)) return true
 
-		const types: Value[] = e.type === 'tyUnion' ? e.types : [e]
+		const types: Value[] = e.type === 'UnionType' ? e.types : [e]
 		return this.types.every(s => types.some(s.isSubtypeOf))
 	}
 
@@ -647,10 +654,10 @@ export class TyUnion extends BaseValue {
 		this.types.some(s.isSubtypeOf)
 
 	static fromTypesUnsafe(types: UnitableType[]) {
-		return new TyUnion(types)
+		return new UnionType(types)
 	}
 
-	static of = tyUnion
+	static of = unionType
 }
 
 export function isEqual(a: Value, b: Value): boolean {

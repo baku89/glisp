@@ -1,42 +1,42 @@
 import {
+	all,
 	call,
-	eDict,
-	eDictFrom,
-	eFn,
-	eTyFnFrom,
-	eVec,
-	eVecFrom,
+	dict,
+	dictFrom,
+	fn,
+	fnTypeFrom,
+	id,
 	isSame,
-	lAll,
-	lNever,
-	lNum,
-	lStr,
-	lUnit,
+	never,
 	Node,
+	num,
 	scope,
-	sym,
+	str,
+	unit,
+	vec,
+	vecFrom,
 } from '../ast'
 import {parse} from '.'
 
-const Num = sym('Num')
-const Bool = sym('Bool')
-const x = sym('x')
-const y = sym('y')
-const z = sym('z')
-const w = sym('w')
+const Num = id('Num')
+const Bool = id('Bool')
+const x = id('x')
+const y = id('y')
+const z = id('z')
+const w = id('w')
 
 describe('parsing literals', () => {
-	testParsing('10', lNum(10))
-	testParsing('   10   ', lNum(10))
-	testParsing('   \t 5 \r\n', lNum(5))
-	testParsing('false', sym('false'))
-	testParsing('true', sym('true'))
-	testParsing('"hello"', lStr('hello'))
-	testParsing('"hello, world"', lStr('hello, world'))
-	testParsing(' () ', lUnit())
-	testParsing(' (  \t   ) ', lUnit())
-	testParsing(' _ ', lAll())
-	testParsing('Never', lNever())
+	testParsing('10', num(10))
+	testParsing('   10   ', num(10))
+	testParsing('   \t 5 \r\n', num(5))
+	testParsing('false', id('false'))
+	testParsing('true', id('true'))
+	testParsing('"hello"', str('hello'))
+	testParsing('"hello, world"', str('hello, world'))
+	testParsing(' () ', unit())
+	testParsing(' (  \t   ) ', unit())
+	testParsing(' _ ', all())
+	testParsing('Never', never())
 })
 
 describe('parsing symbols', () => {
@@ -57,7 +57,7 @@ describe('parsing symbols', () => {
 
 	function run(input: string, expected: string | null) {
 		if (expected) {
-			testParsing(input, sym(expected))
+			testParsing(input, id(expected))
 		} else {
 			testErrorParsing(input)
 		}
@@ -65,102 +65,99 @@ describe('parsing symbols', () => {
 })
 
 describe('parsing line comment', () => {
-	testParsing('1;comment', lNum(1))
-	testParsing(';comment\n1', lNum(1))
-	testParsing('1;comment\n\n', lNum(1))
-	testParsing('1;comment\n;comment\n', lNum(1))
-	testParsing(';comment\n;comment\n1', lNum(1))
-	testParsing(';\n;\n1', lNum(1))
-	testParsing('[;comment]\n1;comment]\n]', eVec(lNum(1)))
-	testParsing(';;\n1', lNum(1))
+	testParsing('1;comment', num(1))
+	testParsing(';comment\n1', num(1))
+	testParsing('1;comment\n\n', num(1))
+	testParsing('1;comment\n;comment\n', num(1))
+	testParsing(';comment\n;comment\n1', num(1))
+	testParsing(';\n;\n1', num(1))
+	testParsing('[;comment]\n1;comment]\n]', vec(num(1)))
+	testParsing(';;\n1', num(1))
 })
 
 describe('parsing call expressions', () => {
-	testParsing('(+ 1 2)', call(sym('+'), lNum(1), lNum(2)))
-	testParsing('(* 1 2)', call(sym('*'), lNum(1), lNum(2)))
-	testParsing('(x _)', call(x, lAll()))
-	testParsing('(x ())', call(x, lUnit()))
+	testParsing('(+ 1 2)', call(id('+'), num(1), num(2)))
+	testParsing('(* 1 2)', call(id('*'), num(1), num(2)))
+	testParsing('(x _)', call(x, all()))
+	testParsing('(x ())', call(x, unit()))
 	testParsing('(x)', call(x))
-	testParsing('(0 false)', call(lNum(1), sym('false')))
-	testParsing('((true) x)', call(call(sym('true')), x))
+	testParsing('(0 false)', call(num(1), id('false')))
+	testParsing('((true) x)', call(call(id('true')), x))
 })
 
 describe('parsing scope', () => {
-	testParsing('(let x = 1 x)', scope({x: lNum(1)}, x))
-	testParsing('(let x = 1)', scope({x: lNum(1)}))
-	testParsing('(let x = (let x = 1))', scope({x: scope({x: lNum(1)})}))
-	testParsing('(let (let 1))', scope({}, scope({}, lNum(1))))
+	testParsing('(let x = 1 x)', scope({x: num(1)}, x))
+	testParsing('(let x = 1)', scope({x: num(1)}))
+	testParsing('(let x = (let x = 1))', scope({x: scope({x: num(1)})}))
+	testParsing('(let (let 1))', scope({}, scope({}, num(1))))
 	testParsing('(let)', scope({}))
 })
 
 describe('parsing vector', () => {
-	testParsing('\t[   ]  ', eVec())
-	testParsing('[    1   \t]', eVec(lNum(1)))
-	testParsing('[1 2 3]', eVec(lNum(1), lNum(2), lNum(3)))
-	testParsing('[1[2]3   ]', eVec(lNum(1), eVec(lNum(2)), lNum(3)))
+	testParsing('\t[   ]  ', vec())
+	testParsing('[    1   \t]', vec(num(1)))
+	testParsing('[1 2 3]', vec(num(1), num(2), num(3)))
+	testParsing('[1[2]3   ]', vec(num(1), vec(num(2)), num(3)))
 	testParsing(
 		'[(+)false(+)+]',
-		eVec(call(sym('+')), sym('false'), call(sym('+')), sym('+'))
+		vec(call(id('+')), id('false'), call(id('+')), id('+'))
 	)
-	testParsing('[...1]', eVecFrom([], 0, lNum(1)))
-	testParsing('[1?]', eVecFrom([lNum(1)], 0))
-	testParsing('[1? ...2]', eVecFrom([lNum(1)], 0, lNum(2)))
-	testParsing('[1 2?]', eVecFrom([lNum(1), lNum(2)], 1))
-	testParsing(
-		'[1 2? 3? ...4]',
-		eVecFrom([lNum(1), lNum(2), lNum(3)], 1, lNum(4))
-	)
+	testParsing('[...1]', vecFrom([], 0, num(1)))
+	testParsing('[1?]', vecFrom([num(1)], 0))
+	testParsing('[1? ...2]', vecFrom([num(1)], 0, num(2)))
+	testParsing('[1 2?]', vecFrom([num(1), num(2)], 1))
+	testParsing('[1 2? 3? ...4]', vecFrom([num(1), num(2), num(3)], 1, num(4)))
 })
 
 describe('parsing dictionary', () => {
-	testParsing('{   a:    1 }', eDict({a: lNum(1)}))
-	testParsing('{\t"foo bar": 1\t}', eDict({'foo bar': lNum(1)}))
-	testParsing('{   }', eDict({}))
-	testParsing('{a: A b: B}', eDict({a: sym('A'), b: sym('B')}))
-	testParsing('{a: {a: 1}}', eDict({a: eDict({a: lNum(1)})}))
-	testParsing('{a?:1}', eDictFrom({a: lNum(1)}, ['a']))
+	testParsing('{   a:    1 }', dict({a: num(1)}))
+	testParsing('{\t"foo bar": 1\t}', dict({'foo bar': num(1)}))
+	testParsing('{   }', dict({}))
+	testParsing('{a: A b: B}', dict({a: id('A'), b: id('B')}))
+	testParsing('{a: {a: 1}}', dict({a: dict({a: num(1)})}))
+	testParsing('{a?:1}', dictFrom({a: num(1)}, ['a']))
 	testParsing(
 		'{a?:1 b:2 ...c}',
-		eDictFrom(
+		dictFrom(
 			{
-				a: lNum(1),
-				b: lNum(2),
+				a: num(1),
+				b: num(2),
 			},
 			['a'],
-			sym('c')
+			id('c')
 		)
 	)
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> [x:Num] x)', eFn([], {x: Num}, x))
-	testParsing('(=> [x : Num y : Bool] x)', eFn([], {x: Num, y: Bool}, x))
-	testParsing('(=>[]_)', eFn([], {}, lAll()))
-	testParsing('(=>[]())', eFn([], {}, lUnit()))
-	testParsing('(=> [] (+ 1 2))', eFn([], {}, call(sym('+'), lNum(1), lNum(2))))
-	testParsing('(=> [] (=> [] 1))', eFn([], {}, eFn([], {}, lNum(1))))
-	testParsing('(=> <T> [x:T] x)', eFn(['T'], {x: sym('T')}, x))
-	testParsing('(=> <T U> [x:T] x)', eFn(['T', 'U'], {x: sym('T')}, x))
-	testParsing('(=> <> [] Num)', eFn([], {}, Num))
+	testParsing('(=> [x:Num] x)', fn([], {x: Num}, x))
+	testParsing('(=> [x : Num y : Bool] x)', fn([], {x: Num, y: Bool}, x))
+	testParsing('(=>[]_)', fn([], {}, all()))
+	testParsing('(=>[]())', fn([], {}, unit()))
+	testParsing('(=> [] (+ 1 2))', fn([], {}, call(id('+'), num(1), num(2))))
+	testParsing('(=> [] (=> [] 1))', fn([], {}, fn([], {}, num(1))))
+	testParsing('(=> <T> [x:T] x)', fn(['T'], {x: id('T')}, x))
+	testParsing('(=> <T U> [x:T] x)', fn(['T', 'U'], {x: id('T')}, x))
+	testParsing('(=> <> [] Num)', fn([], {}, Num))
 	testErrorParsing('(=> <1> [] Num)')
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', eTyFnFrom([], {0: eVecFrom([], 0, x)}, x))
-	testParsing('(-> [_] _)', eTyFnFrom([], {0: lAll()}, lAll()))
-	testParsing('(-> [[]] ())', eTyFnFrom([], {0: eVec()}, lUnit()))
-	testParsing('(-> [] z)', eTyFnFrom([], {}, z))
-	testParsing('(-> [] [])', eTyFnFrom([], {}, eVec()))
-	testParsing('(-> [x] z)', eTyFnFrom([], {0: x}, z))
-	testParsing('(-> [x y] z)', eTyFnFrom([], {0: x, 1: y}, z))
-	testParsing('(-> [x y z] w)', eTyFnFrom([], {0: x, 1: y, 2: z}, w))
-	testParsing('(-> [[x y]] z)', eTyFnFrom([], {0: eVec(x, y)}, z))
-	testParsing('(-> [x:x] z)', eTyFnFrom([], {x}, z))
-	testParsing('(-> [x:x y] z)', eTyFnFrom([], {x, 1: y}, z))
-	testParsing('(-> <T> [x:T] T)', eTyFnFrom(['T'], {x: sym('T')}, sym('T')))
+	testParsing('(-> [[...x]] x)', fnTypeFrom([], {0: vecFrom([], 0, x)}, x))
+	testParsing('(-> [_] _)', fnTypeFrom([], {0: all()}, all()))
+	testParsing('(-> [[]] ())', fnTypeFrom([], {0: vec()}, unit()))
+	testParsing('(-> [] z)', fnTypeFrom([], {}, z))
+	testParsing('(-> [] [])', fnTypeFrom([], {}, vec()))
+	testParsing('(-> [x] z)', fnTypeFrom([], {0: x}, z))
+	testParsing('(-> [x y] z)', fnTypeFrom([], {0: x, 1: y}, z))
+	testParsing('(-> [x y z] w)', fnTypeFrom([], {0: x, 1: y, 2: z}, w))
+	testParsing('(-> [[x y]] z)', fnTypeFrom([], {0: vec(x, y)}, z))
+	testParsing('(-> [x:x] z)', fnTypeFrom([], {x}, z))
+	testParsing('(-> [x:x y] z)', fnTypeFrom([], {x, 1: y}, z))
+	testParsing('(-> <T> [x:T] T)', fnTypeFrom(['T'], {x: id('T')}, id('T')))
 	testParsing(
 		'(-> <T U> [x:T] T)',
-		eTyFnFrom(['T', 'U'], {x: sym('T')}, sym('T'))
+		fnTypeFrom(['T', 'U'], {x: id('T')}, id('T'))
 	)
 	testErrorParsing('(-> <> [] Num)')
 	testErrorParsing('(-> <1> [] Num)')

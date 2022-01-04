@@ -16,7 +16,7 @@ describe('functions in the prelude module', () => {
 	testEval('(gcd 20 16)', '4')
 	testEval('(- 10 9)', '1')
 
-	testEval('(| () Num)', Val.tyUnion(Val.unit, Val.tyNum))
+	testEval('(| () Num)', Val.unionType(Val.unit, Val.NumType))
 
 	testEval('(inc 10)', '11')
 	testEval('(dec 10)', '9')

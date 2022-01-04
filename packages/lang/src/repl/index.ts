@@ -10,11 +10,11 @@ import {MathScope} from '../std/math'
 import {PreludeScope} from '../std/prelude'
 import * as Val from '../val'
 
-const IO = Val.tyPrim('IO', () => {
+const IO = Val.primType('IO', () => {
 	return
 })
 
-const defaultExp = Ast.lUnit()
+const defaultExp = Ast.unit()
 
 function printLog({level, reason, ref}: Log) {
 	let header: string
@@ -37,21 +37,21 @@ function printLog({level, reason, ref}: Log) {
 }
 
 const replScope = PreludeScope.extend(MathScope.vars).extend({
-	IO: Ast.obj(IO),
-	def: Ast.obj(
+	IO: Ast.value(IO),
+	def: Ast.value(
 		Val.fn(
-			{name: Val.tyStr, value: Val.all},
+			{name: Val.StrType, value: Val.all},
 			IO,
 			(name: Ast.Arg<Val.Str>, value: Ast.Arg<Val.Value>) => {
 				return withLog(
 					IO.of(() => {
-						replScope.vars[name().value] = Ast.obj(value())
+						replScope.vars[name().value] = Ast.value(value())
 					})
 				)
 			}
 		)
 	),
-	exit: Ast.obj(IO.of(process.exit)),
+	exit: Ast.value(IO.of(process.exit)),
 })
 
 function startRepl() {

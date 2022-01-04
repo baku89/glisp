@@ -10,12 +10,26 @@ import {Writer} from '../util/Writer'
 import {zip} from '../util/zip'
 import * as Val from '../val'
 import {Env} from './env'
-import {shadowTyVars, Unifier} from './unify'
+import {shadowTypeVars, Unifier} from './unify'
 
 export type Node = Literal | Exp
-export type Literal = Sym | Obj | LUnit | LAll | LNever | LNum | LStr
+export type Literal =
+	| Identifier
+	| ValueContainer
+	| UnitLiteral
+	| AllKeyword
+	| NeverKeyword
+	| NumLiteral
+	| StrLiteral
 
-export type Exp = Call | Scope | TryCatch | EFn | ETyFn | EVec | EDict
+export type Exp =
+	| Call
+	| Scope
+	| TryCatch
+	| FnDef
+	| FnTypeDef
+	| VecLiteral
+	| DictLiteral
 
 export type Arg<T extends Val.Value = Val.Value> = () => T
 
@@ -43,8 +57,8 @@ export abstract class BaseNode {
 	getLog = () => this.eval(Env.global).log
 }
 
-export class Sym extends BaseNode {
-	readonly type = 'sym' as const
+export class Identifier extends BaseNode {
+	readonly type = 'Identifier' as const
 
 	private constructor(public name: string) {
 		super()
@@ -53,7 +67,7 @@ export class Sym extends BaseNode {
 	#resolve(
 		ref: Node | null,
 		env: Env
-	): Writer<{node: Node; mode?: 'param' | 'arg' | 'tyVar'}, Log> {
+	): Writer<{node: Node; mode?: 'param' | 'arg' | 'TypeVar'}, Log> {
 		if (!ref) {
 			// If no parent and still couldn't resolve the symbol,
 			// assume there's no bound expression for it.
@@ -63,15 +77,15 @@ export class Sym extends BaseNode {
 				reason: 'Variable not bound: ' + this.name,
 			}
 
-			return Writer.of({node: LUnit.of()}, log)
+			return Writer.of({node: UnitLiteral.of()}, log)
 		}
 
-		if (ref.type === 'scope') {
+		if (ref.type === 'Scope') {
 			if (this.name in ref.vars) {
 				return Writer.of({node: ref.vars[this.name]})
 			}
 		}
-		if (ref.type === 'eFn') {
+		if (ref.type === 'FnDef') {
 			if (env.isGlobal) {
 				// Situation A. While normal evaluation
 				if (this.name in ref.param) {
@@ -81,16 +95,19 @@ export class Sym extends BaseNode {
 				// Situation B. In a context of function appliction
 				const arg = env.get(this.name)
 				if (arg) {
-					return Writer.of({node: Obj.of(arg()), mode: 'arg'})
+					return Writer.of({node: ValueContainer.of(arg()), mode: 'arg'})
 				}
-				// If no corresponding arg has found for the eFn, pop the env.
+				// If no corresponding arg has found for the fn, pop the env.
 				env = env.pop()
 			}
 		}
-		// Resolve tyVars
-		if (ref.type === 'eFn' || ref.type === 'eTyFn') {
-			if (this.name in ref.tyVars) {
-				return Writer.of({node: Obj.of(ref.tyVars[this.name]), mode: 'tyVar'})
+		// Resolve typeVars
+		if (ref.type === 'FnDef' || ref.type === 'FnTypeDef') {
+			if (this.name in ref.typeVars) {
+				return Writer.of({
+					node: ValueContainer.of(ref.typeVars[this.name]),
+					mode: 'TypeVar',
+				})
 			}
 		}
 
@@ -123,15 +140,15 @@ export class Sym extends BaseNode {
 
 	print = () => this.name
 
-	isSameTo = (ast: Node) => ast.type === 'sym' && this.name === ast.name
+	isSameTo = (ast: Node) => this.type === ast.type && this.name === ast.name
 
 	static of(name: string) {
-		return new Sym(name)
+		return new Identifier(name)
 	}
 }
 
-export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
-	readonly type = 'obj' as const
+export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
+	readonly type = 'ValueContainer' as const
 
 	private constructor(public readonly value: V) {
 		super()
@@ -143,19 +160,19 @@ export class Obj<V extends Val.Value = Val.Value> extends BaseNode {
 
 	print = () => {
 		const ast = this.value.toAst()
-		if (ast.type !== 'obj') return ast.print()
-		return `<object of ${this.value.type}>`
+		if (ast.type !== this.type) return ast.print()
+		return `<value container of ${this.value.type}>`
 	}
 
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
 	static of<V extends Val.Value = Val.Value>(value: V) {
-		return new Obj(value)
+		return new ValueContainer(value)
 	}
 }
 
-export class LUnit extends BaseNode {
-	readonly type = 'lUnit' as const
+export class UnitLiteral extends BaseNode {
+	readonly type = 'UnitLiteral' as const
 
 	protected forceEval = () => withLog(Val.unit)
 
@@ -166,12 +183,12 @@ export class LUnit extends BaseNode {
 	isSameTo = (ast: Node) => this.type === ast.type
 
 	static of() {
-		return new LUnit()
+		return new UnitLiteral()
 	}
 }
 
-export class LAll extends BaseNode {
-	readonly type = 'lAll' as const
+export class AllKeyword extends BaseNode {
+	readonly type = 'AllKeyword' as const
 
 	protected forceEval = () => withLog(Val.all)
 	protected forceInfer = () => withLog(Val.all)
@@ -179,12 +196,12 @@ export class LAll extends BaseNode {
 	isSameTo = (ast: Node) => this.type === ast.type
 
 	static of() {
-		return new LAll()
+		return new AllKeyword()
 	}
 }
 
-export class LNever extends BaseNode {
-	readonly type = 'lNever' as const
+export class NeverKeyword extends BaseNode {
+	readonly type = 'NeverKeyword' as const
 
 	protected forceEval = () => withLog(Val.never)
 	protected forceInfer = () => withLog(Val.all)
@@ -192,12 +209,12 @@ export class LNever extends BaseNode {
 	isSameTo = (ast: Node) => this.type === ast.type
 
 	static of() {
-		return new LNever()
+		return new NeverKeyword()
 	}
 }
 
-export class LNum extends BaseNode {
-	readonly type = 'lNum' as const
+export class NumLiteral extends BaseNode {
+	readonly type = 'NumLiteral' as const
 
 	private constructor(public readonly value: number) {
 		super()
@@ -209,12 +226,12 @@ export class LNum extends BaseNode {
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
 	static of(value: number) {
-		return new LNum(value)
+		return new NumLiteral(value)
 	}
 }
 
-export class LStr extends BaseNode {
-	readonly type = 'lStr' as const
+export class StrLiteral extends BaseNode {
+	readonly type = 'StrLiteral' as const
 
 	private constructor(public readonly value: string) {
 		super()
@@ -227,23 +244,23 @@ export class LStr extends BaseNode {
 	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
 
 	static of(value: string) {
-		return new LStr(value)
+		return new StrLiteral(value)
 	}
 }
 
-export class EFn extends BaseNode {
-	readonly type = 'eFn' as const
+export class FnDef extends BaseNode {
+	readonly type = 'FnDef' as const
 
-	readonly tyVars: Record<string, Val.TyVar>
+	readonly typeVars: Record<string, Val.TypeVar>
 
 	private constructor(
-		tyVars: string[],
+		typeVars: string[],
 		public param: Record<string, Node>,
 		public body: Node
 	) {
 		super()
 
-		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
+		this.typeVars = fromPairs(typeVars.map(name => [name, Val.typeVar(name)]))
 	}
 
 	protected forceEval = (env: Env): WithLog => {
@@ -262,7 +279,7 @@ export class EFn extends BaseNode {
 		return withLog(fnVal, ...lty)
 	}
 
-	protected forceInfer = (env: Env): WithLog<Val.TyFn> => {
+	protected forceInfer = (env: Env): WithLog<Val.FnType> => {
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 
 		const arg = mapValues(param, p => () => p)
@@ -271,90 +288,90 @@ export class EFn extends BaseNode {
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
-		return withLog(Val.tyFnFrom(param, out), ...lp, ...lo)
+		return withLog(Val.fnTypeFrom(param, out), ...lp, ...lo)
 	}
 
 	print = (): string => {
-		const tyVars = printTyVars(this.tyVars)
+		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param)
 		const body = this.body.print()
 
-		return `(=> ${tyVars}${param} ${body})`
+		return `(=> ${typeVars}${param} ${body})`
 	}
 
 	isSameTo = (ast: Node) =>
-		ast.type === 'eFn' &&
-		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
+		this.type === ast.type &&
+		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
 		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.body, ast.body)
 
-	static of(tyVars: string[], param: EFn['param'], body: Node) {
-		const fn = new EFn(tyVars, param, body)
+	static of(typeVars: string[], param: FnDef['param'], body: Node) {
+		const fn = new FnDef(typeVars, param, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
 		return fn
 	}
 }
 
-export class ETyFn extends BaseNode {
-	readonly type = 'eTyFn' as const
+export class FnTypeDef extends BaseNode {
+	readonly type = 'FnTypeDef' as const
 
-	tyVars: Record<string, Val.TyVar>
+	typeVars: Record<string, Val.TypeVar>
 
 	private constructor(
-		tyVars: string[],
+		typeVars: string[],
 		public param: Record<string, Node>,
 		public out: Node
 	) {
 		super()
 
-		this.tyVars = fromPairs(tyVars.map(name => [name, Val.tyVar(name)]))
+		this.typeVars = fromPairs(typeVars.map(name => [name, Val.typeVar(name)]))
 	}
 
 	protected forceEval = (env: Env): WithLog => {
 		const [params, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 		const [out, lo] = this.out.eval(env).asTuple
-		return withLog(Val.tyFnFrom(params, out), ...lp, ...lo)
+		return withLog(Val.fnTypeFrom(params, out), ...lp, ...lo)
 	}
 
 	protected forceInfer = () => withLog(Val.all)
 
 	print = (): string => {
-		const tyVars = printTyVars(this.tyVars)
+		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param)
 		const out = this.out.print()
-		return `(-> ${tyVars}${param} ${out})`
+		return `(-> ${typeVars}${param} ${out})`
 	}
 
 	isSameTo = (ast: Node): boolean =>
-		ast.type === 'eTyFn' &&
-		isEqualArray(keys(this.tyVars), keys(ast.tyVars)) &&
+		this.type === ast.type &&
+		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
 		isEqualDict(this.param, ast.param, isSame) &&
 		isSame(this.out, this.out)
 
-	static of(tyVars: string[], param: Node | Node[], out: Node) {
+	static of(typeVars: string[], param: Node | Node[], out: Node) {
 		const paramArr = [param].flat()
 		const pairs = paramArr.map((p, i) => [i, p] as const)
 		const paramDict = Object.fromEntries(pairs)
 
-		const tyFn = new ETyFn(tyVars, paramDict, out)
+		const fnType = new FnTypeDef(typeVars, paramDict, out)
 
-		paramArr.forEach(p => setParent(p, tyFn))
-		setParent(out, tyFn)
+		paramArr.forEach(p => setParent(p, fnType))
+		setParent(out, fnType)
 
-		return tyFn
+		return fnType
 	}
 
-	static from(tyVars: string[], param: Record<string, Node>, out: Node) {
-		const tyFn = new ETyFn(tyVars, param, out)
-		forOwn(param, p => setParent(p, tyFn))
-		setParent(out, tyFn)
-		return tyFn
+	static from(typeVars: string[], param: Record<string, Node>, out: Node) {
+		const fnType = new FnTypeDef(typeVars, param, out)
+		forOwn(param, p => setParent(p, fnType))
+		setParent(out, fnType)
+		return fnType
 	}
 }
 
-function printTyVars(tyVars: Record<string, Val.TyVar>): string {
-	const es = keys(tyVars)
+function printTypeVars(typeVars: Record<string, Val.TypeVar>): string {
+	const es = keys(typeVars)
 	if (es.length === 0) return ''
 	return '<' + es.join(' ') + '> '
 }
@@ -364,7 +381,7 @@ function printParam(param: Record<string, Node>) {
 
 	const canOmitBracket =
 		params.length === 1 &&
-		!(params[0][1].type === 'eVec' && params[0][1].items.length === 0)
+		!(params[0][1].type === 'VecLiteral' && params[0][1].items.length === 0)
 
 	const paramStr = params.map(printNamedNode).join(' ')
 
@@ -376,8 +393,8 @@ function printParam(param: Record<string, Node>) {
 	}
 }
 
-export class EVec extends BaseNode {
-	readonly type = 'eVec' as const
+export class VecLiteral extends BaseNode {
+	readonly type = 'VecLiteral' as const
 
 	private constructor(
 		public items: Node[],
@@ -411,25 +428,25 @@ export class EVec extends BaseNode {
 	}
 
 	isSameTo = (ast: Node): boolean =>
-		ast.type === 'eVec' &&
+		this.type === ast.type &&
 		isEqualArray(this.items, ast.items, isSame) &&
 		this.optionalPos === ast.optionalPos &&
 		nullishEqual(this.rest, this.rest, isSame)
 
 	static of(...items: Node[]) {
-		return EVec.from(items)
+		return VecLiteral.from(items)
 	}
 
 	static from(items: Node[], optionalPos?: number, rest?: Node) {
-		const vec = new EVec(items, optionalPos ?? items.length, rest)
+		const vec = new VecLiteral(items, optionalPos ?? items.length, rest)
 		items.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
 		return vec
 	}
 }
 
-export class EDict extends BaseNode {
-	readonly type = 'eDict' as const
+export class DictLiteral extends BaseNode {
+	readonly type = 'DictLiteral' as const
 
 	private constructor(
 		public items: Record<string, Node>,
@@ -467,13 +484,13 @@ export class EDict extends BaseNode {
 	}
 
 	isSameTo = (ast: Node): boolean =>
-		ast.type === 'eDict' &&
+		this.type === ast.type &&
 		isEqualDict(this.items, ast.items, isSame) &&
 		isEqualSet(this.optionalKeys, ast.optionalKeys) &&
 		nullishEqual(this.rest, ast.rest, isSame)
 
 	static of(items: Record<string, Node>) {
-		return EDict.from(items)
+		return DictLiteral.from(items)
 	}
 
 	static from(
@@ -481,7 +498,7 @@ export class EDict extends BaseNode {
 		optionalKeys: Iterable<string> = [],
 		rest?: Node
 	) {
-		const dict = new EDict(items, new Set(optionalKeys), rest)
+		const dict = new DictLiteral(items, new Set(optionalKeys), rest)
 		values(items).forEach(it => setParent(it, dict))
 		if (rest) setParent(rest, dict)
 		return dict
@@ -489,24 +506,24 @@ export class EDict extends BaseNode {
 }
 
 export class Call extends BaseNode {
-	readonly type = 'call' as const
+	readonly type = 'Call' as const
 
 	private constructor(public callee: Node, public args: Node[]) {
 		super()
 	}
 
 	#unify(env: Env): [Unifier, Val.Value[]] {
-		const ty = this.callee.infer(env).result
+		const calleeType = this.callee.infer(env).result
 
-		if (!('tyFn' in ty)) return [new Unifier(), []]
+		if (!('fnType' in calleeType)) return [new Unifier(), []]
 
-		const tyFn = ty.tyFn
+		const fnType = calleeType.fnType
 
-		const params = values(tyFn.param)
+		const params = values(fnType.param)
 
 		const shadowedArgs = this.args
 			.slice(0, params.length)
-			.map(a => shadowTyVars(a.infer(env).result))
+			.map(a => shadowTypeVars(a.infer(env).result))
 
 		const unifier = new Unifier([
 			Val.vec(...params),
@@ -532,8 +549,8 @@ export class Call extends BaseNode {
 
 		// Start function application
 		const argLog: Log[] = []
-		const names = keys(callee.tyFn.param)
-		const params = values(callee.tyFn.param)
+		const names = keys(callee.fnType.param)
+		const params = values(callee.fnType.param)
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
@@ -547,7 +564,7 @@ export class Call extends BaseNode {
 			})
 		}
 
-		// Unify tyFn and args
+		// Unify FnType and args
 		const [unifier, shadowedArgs] = this.#unify(env)
 		const unifiedParams = params.map(p => unifier.substitute(p))
 		const unifiedArgs = shadowedArgs.map(a => unifier.substitute(a))
@@ -558,7 +575,7 @@ export class Call extends BaseNode {
 			const name = names[i]
 
 			if (!Val.isSubtype(aTy, pTy)) {
-				if (aTy.type !== 'unit') {
+				if (aTy.type !== 'Unit') {
 					argLog.push({
 						level: 'error',
 						ref: this,
@@ -601,14 +618,14 @@ export class Call extends BaseNode {
 
 	protected forceInfer = (env: Env): WithLog => {
 		const [ty, log] = this.callee.infer(env).asTuple
-		if (!('tyFn' in ty)) return withLog(ty, ...log)
+		if (!('fnType' in ty)) return withLog(ty, ...log)
 
-		if (ty.tyFn.isTypeCtor) {
+		if (ty.fnType.isTypeCtor) {
 			return this.eval(env)
 		}
 
 		const [unifier] = this.#unify(env)
-		return withLog(unifier.substitute(ty.tyFn.out, true), ...log)
+		return withLog(unifier.substitute(ty.fnType.out, true), ...log)
 	}
 
 	print = (): string => {
@@ -619,7 +636,7 @@ export class Call extends BaseNode {
 	}
 
 	isSameTo = (ast: Node) =>
-		ast.type === 'call' && isEqualArray(this.args, ast.args, isSame)
+		this.type === ast.type && isEqualArray(this.args, ast.args, isSame)
 
 	static of(fn: Node, ...args: Node[]) {
 		const app = new Call(fn, args)
@@ -630,7 +647,7 @@ export class Call extends BaseNode {
 }
 
 export class Scope extends BaseNode {
-	readonly type = 'scope' as const
+	readonly type = 'Scope' as const
 
 	private constructor(
 		public vars: Record<string, Node>,
@@ -652,7 +669,7 @@ export class Scope extends BaseNode {
 	}
 
 	isSameTo = (ast: Node) =>
-		ast.type === 'scope' &&
+		this.type === ast.type &&
 		nullishEqual(this.out, ast.out, isSame) &&
 		isEqualDict(this.vars, ast.vars, isSame)
 
@@ -687,7 +704,7 @@ export class Scope extends BaseNode {
 }
 
 export class TryCatch extends BaseNode {
-	readonly type = 'tryCatch'
+	readonly type = 'TryCatch'
 
 	private constructor(public block: Node, public handler: Node) {
 		super()
@@ -715,7 +732,7 @@ export class TryCatch extends BaseNode {
 		const [block, lb] = this.block.infer(env).asTuple
 		const [handler, lh] = this.handler.infer(env).asTuple
 
-		return withLog(Val.tyUnion(block, handler), ...lb, ...lh)
+		return withLog(Val.unionType(block, handler), ...lb, ...lh)
 	}
 
 	print = (): string => {

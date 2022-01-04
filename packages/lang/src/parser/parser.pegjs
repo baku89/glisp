@@ -12,33 +12,33 @@ Node "node" =
 	Unit / Never / All /
 	Fn / TyFn / Scope / TryCatch / Call /
 	Vec /
-	Num / Str / Sym
+	Num / Str / Identifier
 
 Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
-Unit = "(" _ ")" { return Ast.lUnit() }
+Unit = "(" _ ")" { return Ast.unit() }
 
-All = "_" { return Ast.lAll() }
+All = "_" { return Ast.all() }
 
-Never = "Never" { return Ast.lNever() }
+Never = "Never" { return Ast.never() }
 
-Sym "symbol" =
+Identifier "identifier" =
 	!(Reserved End)
 	!(Digit / End) .
 	(!End .)*
 	{
-		return Ast.sym(text())
+		return Ast.id(text())
 	}
 
 Num "number" = [+-]? (Digit* ".")? Digit+
 	{
 		const v = parseFloat(text())
-		return Ast.lNum(v)
+		return Ast.num(v)
 	}
 
 Str "string" = '"' value:$(!'"' .)* '"'
 	{
-		return Ast.lStr(value)
+		return Ast.str(value)
 	}
 
 Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
@@ -48,7 +48,7 @@ Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
 
 Fn "function" = "(" _ "=>" _ tyVars:FnTyVars? param:FnParam body:Node _ ")"
 	{
-		return Ast.eFn(tyVars ?? [], param, body)
+		return Ast.fn(tyVars ?? [], param, body)
 	}
 
 FnParam =
@@ -60,7 +60,7 @@ TyFn "function type" =
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
 		const paramDict = Object.fromEntries(entries)
-		return Ast.eTyFnFrom(tyVars ?? [], paramDict, out)
+		return Ast.fnTypeFrom(tyVars ?? [], paramDict, out)
 	}
 
 TyFnParam =
@@ -76,7 +76,7 @@ FnTyVars = "<" _ tyVars:(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
 		return tyVars
 	}
 
-NamedNode = sym:Sym _ ":" _ value:Node _
+NamedNode = sym:Identifier _ ":" _ value:Node _
 	{
 		return [sym.name, value]
 	}
@@ -84,7 +84,7 @@ NamedNode = sym:Sym _ ":" _ value:Node _
 Vec "vector" =
 	"[" _ items:(@Node !"?" _)* optionalItems:(@Node "?" _)* rest:Rest? "]"
 	{		
-		return Ast.eVecFrom([...items, ...optionalItems], items.length, rest)
+		return Ast.vecFrom([...items, ...optionalItems], items.length, rest)
 	}
 
 Dict "dictionary" = "{" _ entries:DictEntry* rest:Rest? "}"
@@ -95,7 +95,7 @@ Dict "dictionary" = "{" _ entries:DictEntry* rest:Rest? "}"
 			items[key] = value
 			if (optional) optionalKeys.add(key)
 		}
-		return Ast.eDictFrom(items, optionalKeys, rest)
+		return Ast.dictFrom(items, optionalKeys, rest)
 	}
 
 DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _
@@ -105,12 +105,12 @@ DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _
 
 DictKey = (!End .)+
 	{
-		return Ast.lStr(text())
+		return Ast.str(text())
 	}
 
 Rest = "..." @rest:Node _
 
-Scope "scope" = "(" _ "let" _ pairs:(@Sym _ "=" _ @Node _)* out:Node? _ ")"
+Scope "scope" = "(" _ "let" _ pairs:(@Identifier _ "=" _ @Node _)* out:Node? _ ")"
 	{
 		const vars = {}
 		for (const [{name}, value] of pairs) {
