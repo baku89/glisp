@@ -38,11 +38,11 @@ Program = _ exp:Node _ Comment?
 	}
 
 Node "node" =
-	Dict /
 	Unit / Never / All /
+	Num / Str / Identifier /
 	Fn / FnType / Scope / TryCatch / Call /
-	Vec /
-	Num / Str / Identifier
+	Vec / Dict
+	
 
 Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
@@ -76,8 +76,8 @@ Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
 		return Ast.call(fn, ...args)
 	}
 
-Fn "function" =
-	"(" _ "=>" _ typeVars:FnTypeVars? param:FnParam body:Node _ ")"
+Fn "function definition" =
+	"(" _ "=>" _ typeVars:TypeVars? param:FnParam body:Node _ ")"
 	{
 		const [paramEntries, optionalFlags] = zip(param)
 
@@ -96,8 +96,8 @@ FnParam =
 	"[" _ @(@NamedNode _)* "]" _ /
 	entry:NamedNode _            { return [entry] }
 
-FnType "function type" =
-	"(" _ "->" _ typeVars:FnTypeVars? param:FnTypeParam out:Node _ ")"
+FnType "function type definition" =
+	"(" _ "->" _ typeVars:TypeVars? param:FnTypeParam out:Node _ ")"
 	{
 		const [paramEntries, optionalFlags] = zip(param)
 
@@ -120,20 +120,17 @@ FnTypeParamEntry =
 	@NamedNode _ /
 	node:Node optional:"?"? _ { return [[null, node], optional] }
 
-NamedNode = id:Identifier _ optional:"?"? ":" _ node:Node
+TypeVars = "<" _ @(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
+
+NamedNode = id:Identifier optional:"?"? ":" _ node:Node
 	{
 		return [[id.name, node], optional]
 	}
-	
-FnTypeVars = "<" _ typeVars:(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
-	{
-		return typeVars
-	}
 
 Vec "vector" =
-	"[" _ itemsWithOptionalFlag:(@Node @"?"? _)* rest:Rest? "]"
+	"[" _ entries:(@Node @"?"? _)* rest:("..." @Node _)? "]"
 	{
-		const [items, optionalFlags] = zip(itemsWithOptionalFlag)
+		const [items, optionalFlags] = zip(entries)
 		const optionalPos = getOptionalPos(optionalFlags)
 		
 		if (optionalPos === null) {
@@ -143,7 +140,7 @@ Vec "vector" =
 		return Ast.vec(items, optionalPos, rest)
 	}
 
-Dict "dictionary" = "{" _ entries:DictEntry* rest:Rest? "}"
+Dict "dictionary" = "{" _ entries:DictEntry* rest:("..." @Node _)? "}"
 	{
 		const items = {}
 		const optionalKeys = new Set()
@@ -163,8 +160,6 @@ DictKey = (!End .)+
 	{
 		return Ast.str(text())
 	}
-
-Rest = "..." @rest:Node _
 
 Scope "scope" = "(" _ "let" _ pairs:(@Identifier _ "=" _ @Node _)* out:Node? _ ")"
 	{

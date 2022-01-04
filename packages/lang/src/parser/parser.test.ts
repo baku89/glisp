@@ -132,8 +132,10 @@ describe('parsing dictionary', () => {
 
 describe('parsing function definition', () => {
 	testParsing('(=> [x:Num] x)', fn({param: {x: Num}, body: x}))
+	testParsing('(=> x:Num x)', fn({param: {x: Num}, body: x}))
+	testParsing('(=> x: Num x)', fn({param: {x: Num}, body: x}))
 	testParsing(
-		'(=> [x : Num y : Bool] x)',
+		'(=> [x: Num y: Bool] x)',
 		fn({param: {x: Num, y: Bool}, body: x})
 	)
 	testParsing('(=>[]_)', fn({param: {}, body: all()}))
