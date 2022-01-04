@@ -1,4 +1,4 @@
-import _ from 'lodash'
+import _, {fromPairs} from 'lodash'
 
 import * as Val from '../val'
 import {Const, getTypeVars, Unifier} from './unify'
@@ -11,12 +11,19 @@ const T = Val.typeVar('T'),
 	T4 = Val.typeVar('T4'),
 	T5 = Val.typeVar('T5')
 
+function ft(param: Val.Value | Val.Value[], out: Val.Value) {
+	const _param = Array.isArray(param)
+		? fromPairs(param.map((p, i) => [i, p]))
+		: {0: param}
+	return Val.fnType({param: _param, out})
+}
+
 describe('getTypeVars', () => {
 	run(Val.num(1), [])
 	run(Val.bool(true), [])
 	run(T, [T])
 	run(Val.unionType(T, U), [T, U])
-	run(Val.fnType([Val.BoolType, T, T], U), [T, U])
+	run(ft([Val.BoolType, T, T], U), [T, U])
 
 	function run(ty: Val.Value, expected: Val.TypeVar[]) {
 		const eStr = '{' + expected.map(e => e.print()).join(', ') + '}'
@@ -51,28 +58,16 @@ describe('unifyTypeVars', () => {
 		T,
 		Val.UnionType.fromTypesUnsafe([Val.unit, Val.NumType])
 	)
-	test(
-		[[Val.fnType(Val.fnType(T1, T2), T3), '==', Val.fnType(T4, T5)]],
-		T4,
-		Val.fnType(T1, T2)
-	)
-	test(
-		[[Val.fnType(T1, T2), '==', Val.fnType(T3, Val.fnType(T4, T5))]],
-		T2,
-		Val.fnType(T4, T5)
-	)
-	test(
-		[[Val.fnType(T, U), '>=', Val.fnType(Val.NumType, Val.NumType)]],
-		T,
-		Val.NumType
-	)
+	test([[ft(ft(T1, T2), T3), '==', ft(T4, T5)]], T4, ft(T1, T2))
+	test([[ft(T1, T2), '==', ft(T3, ft(T4, T5))]], T2, ft(T4, T5))
+	test([[ft(T, U), '>=', ft(Val.NumType, Val.NumType)]], T, Val.NumType)
 	test(
 		[
-			[Val.fnType(T1, T2), '>=', Val.fnType(Val.NumType, Val.NumType)],
-			[Val.fnType(T2, T3), '>=', Val.fnType(Val.NumType, Val.BoolType)],
+			[ft(T1, T2), '>=', ft(Val.NumType, Val.NumType)],
+			[ft(T2, T3), '>=', ft(Val.NumType, Val.BoolType)],
 		],
-		Val.fnType(T1, T3),
-		Val.fnType(Val.NumType, Val.BoolType)
+		ft(T1, T3),
+		ft(Val.NumType, Val.BoolType)
 	)
 
 	function test(consts: Const[], original: Val.Value, expected: Val.Value) {

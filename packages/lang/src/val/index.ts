@@ -62,7 +62,6 @@ export const enumType = EnumType.of
 export const fn = Fn.of
 export const fnFrom = Fn.from
 export const fnType = FnType.of
-export const fnTypeFrom = FnType.from
 export const typeVar = TypeVar.of
 export const vec = Vec.of
 export const vecFrom = Vec.from

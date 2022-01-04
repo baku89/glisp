@@ -8,7 +8,7 @@ import {
 	differenceType,
 	fnFrom,
 	FnType,
-	fnTypeFrom,
+	fnType,
 	intersectionType,
 	isEqual,
 	never,
@@ -260,8 +260,9 @@ export class Unifier {
 			}
 			case 'FnType': {
 				const param = mapValues(val.param, p => this.substitute(p, unshadow))
+				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
 				const out = this.substitute(val.out, unshadow)
-				return fnTypeFrom(param, out)
+				return fnType({param, rest, out})
 			}
 			case 'UnionType': {
 				const types = val.types.map(ty => this.substitute(ty, unshadow))

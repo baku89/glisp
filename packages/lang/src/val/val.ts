@@ -310,7 +310,7 @@ export class Fn extends BaseValue implements IFnLike {
 	}
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
-		return new Fn(FnType.from(param, out), fn)
+		return new Fn(FnType.of({param, out}), fn)
 	}
 	static from(ty: FnType, fn: IFn, body?: Ast.Node) {
 		return new Fn(ty, fn, body)
@@ -321,8 +321,19 @@ export class FnType extends BaseValue implements IFnType {
 	readonly type = 'FnType' as const
 	superType = All.instance
 
-	private constructor(public param: Record<string, Value>, public out: Value) {
+	private constructor(
+		public readonly param: Record<string, Value>,
+		public readonly optionalPos: number,
+		public readonly rest: Value | undefined,
+		public readonly out: Value
+	) {
 		super()
+		if (
+			optionalPos < 0 ||
+			values(param).length < optionalPos ||
+			optionalPos % 1 !== 0
+		)
+			throw new Error('Invalid optionalPos: ' + optionalPos)
 	}
 
 	fnType = this
@@ -340,29 +351,35 @@ export class FnType extends BaseValue implements IFnType {
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) ||
 		(this.type === v.type &&
+			this.optionalPos === v.optionalPos &&
+			nullishEqual(this.rest, v.rest, isEqual) &&
 			isEqual(this.out, v.out) &&
 			isEqualArray(values(this.param), values(v.param), isEqual))
 
-	isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
-		if (e.type === 'UnionType') return e.isSupertypeOf(this)
-		if (e.type !== 'FnType') return false
+	isSubtypeOf = (v: Value): boolean => {
+		if (this.superType.isSubtypeOf(v)) return true
+		if (v.type === 'UnionType') return v.isSupertypeOf(this)
+		if (v.type !== 'FnType') return false
 
-		const tParam = Vec.of(...values(this.param))
-		const eParam = Vec.of(...values(e.param))
+		const tParam = Vec.from(values(this.param), this.optionalPos, this.rest)
+		const eParam = Vec.from(values(v.param), v.optionalPos, v.rest)
 
-		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
+		return isSubtype(eParam, tParam) && isSubtype(this.out, v.out)
 	}
 
-	static of(param: Value | Value[], out: Value) {
-		const paramArr = [param].flat()
-		const pairs = paramArr.map((p, i) => [i, p] as const)
-		const paramDict = Object.fromEntries(pairs)
-		return new FnType(paramDict, out)
-	}
-
-	static from(param: Record<string, Value>, out: Value) {
-		return new FnType(param, out)
+	static of({
+		param,
+		rest = undefined,
+		optionalPos,
+		out,
+	}: {
+		param: Record<string, Value>
+		optionalPos?: number
+		rest?: Value | undefined
+		out: Value
+	}) {
+		const _optionalPos = optionalPos ?? values(param).length
+		return new FnType(param, _optionalPos, rest, out)
 	}
 }
 
@@ -440,7 +457,7 @@ export class Vec extends BaseValue implements IFnLike {
 		)
 	}
 
-	fnType = FnType.of(NumType, unionType(...this.items))
+	fnType = FnType.of({param: {index: NumType}, out: unionType(...this.items)})
 
 	fn: IFn = (index: Ast.Arg<Num>) => {
 		const ret = this.items[index().value]
@@ -583,7 +600,7 @@ export class StructType extends BaseValue implements IFnLike {
 		return Struct.of(this, items)
 	}
 
-	fnType: FnType = FnType.from(this.param, this)
+	fnType: FnType = FnType.of({param: this.param, out: this})
 
 	fn = (...items: Ast.Arg[]) => withLog(this.of(...items.map(i => i())))
 

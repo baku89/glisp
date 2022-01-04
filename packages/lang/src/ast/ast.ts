@@ -299,7 +299,7 @@ export class FnDef extends BaseNode {
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
-		return withLog(Val.fnTypeFrom(param, out), ...lp, ...lo)
+		return withLog(Val.fnType({param, out}), ...lp, ...lo)
 	}
 
 	print = (): string => {
@@ -347,9 +347,9 @@ export class FnTypeDef extends BaseNode {
 	}
 
 	protected forceEval = (env: Env): WithLog => {
-		const [params, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
+		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
 		const [out, lo] = this.out.eval(env).asTuple
-		return withLog(Val.fnTypeFrom(params, out), ...lp, ...lo)
+		return withLog(Val.fnType({param, out}), ...lp, ...lo)
 	}
 
 	protected forceInfer = () => withLog(Val.all)
