@@ -10,6 +10,7 @@
 
 		return [as, bs]
 	}
+	const fromPairs = Object.fromEntries
 }}
 
 {
@@ -66,14 +67,14 @@ Fn "function" = "(" _ "=>" _ tyVars:FnTyVars? param:FnParam body:Node _ ")"
 	}
 
 FnParam =
-	"[" _ pairs:NamedNode* "]" _ { return Object.fromEntries(pairs) } /
-	pair:NamedNode _             { return Object.fromEntries([pair]) }
+	"[" _ pairs:NamedNode* "]" _ { return fromPairs(pairs) } /
+	pair:NamedNode _             { return fromPairs([pair]) }
 
 TyFn "function type" =
 	"(" _ "->" _ tyVars:FnTyVars? param:TyFnParam out:Node _ ")"
 	{
 		const entries = param.map(([name, type], i) => [name ?? i, type])
-		const paramDict = Object.fromEntries(entries)
+		const paramDict = fromPairs(entries)
 		return Ast.fnTypeFrom(tyVars ?? [], paramDict, out)
 	}
 
