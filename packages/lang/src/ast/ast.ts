@@ -369,9 +369,13 @@ export class FnDef extends BaseNode {
 		body: Node
 	}) {
 		const _optionalPos = optionalPos ?? values(param).length
+
 		const fn = new FnDef(typeVars ?? [], param, _optionalPos, rest, body)
+
 		values(param).forEach(p => setParent(p, fn))
+		if (rest) setParent(rest.node, fn)
 		setParent(body, fn)
+
 		return fn
 	}
 }
@@ -464,6 +468,7 @@ export class FnTypeDef extends BaseNode {
 		const fnType = new FnTypeDef(typeVars, _param, _optionalPos, rest, out)
 
 		forOwn(_param, p => setParent(p, fnType))
+		if (rest) setParent(rest.node, fnType)
 		setParent(out, fnType)
 
 		return fnType

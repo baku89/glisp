@@ -79,42 +79,76 @@ Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
 Fn "function definition" =
 	"(" _ "=>" _ typeVars:TypeVars? param:FnParam body:Node _ ")"
 	{
-		const [paramEntries, optionalFlags] = zip(param)
+		const {entries, rest: _rest} = param
+		const [paramEntries, optionalFlags] = zip(entries)
 
 		typeVars ??= undefined
 		param = fromPairs(paramEntries)
-		const optionalPos = getOptionalPos(optionalFlags)
 
+		const optionalPos = getOptionalPos(optionalFlags)
 		if (optionalPos === null) {
 			throw new Error('A required parameter cannot follow an optional parameter')
 		}
 
-		return Ast.fn({typeVars, param, optionalPos, body})
+		let rest
+		if (_rest) {
+			const [[name, node], optional] = _rest
+			rest = {name, node}
+
+			if (optional) {
+				throw new Error('A rest parameter cannot be marked optional')
+			}
+		}
+
+		return Ast.fn({typeVars, param, optionalPos, rest, body})
 	}
 
-FnParam =
-	"[" _ @(@NamedNode _)* "]" _ /
-	entry:NamedNode _            { return [entry] }
+FnParam = FnParamMulti / FnParamSingle
+	
+FnParamMulti =
+	"[" _ entries:(@NamedNode _)* rest:("..." @NamedNode _)? "]" _
+	{
+		return {entries, rest}
+	}
+
+FnParamSingle = entry:NamedNode _ { return {entries: [entry]} }
 
 FnType "function type definition" =
 	"(" _ "->" _ typeVars:TypeVars? param:FnTypeParam out:Node _ ")"
 	{
-		const [paramEntries, optionalFlags] = zip(param)
+		const {entries, rest: _rest} = param
+		const [paramEntries, optionalFlags] = zip(entries)
 
 		typeVars ??= undefined
 		param = fromPairs(paramEntries.map(([name, node], i) => [name ?? i, node]))
+		
 		const optionalPos = getOptionalPos(optionalFlags)
-
 		if (optionalPos === null) {
 			throw new Error('A required parameter cannot follow an optional parameter')
 		}
 
-		return Ast.fnType({typeVars, param, optionalPos, out})
+		let rest
+		if (_rest) {
+			const [[name, node], optional] = _rest
+			rest = {name, node}
+
+			if (optional) {
+				throw new Error('A rest parameter cannot be marked optional')
+			}
+		}
+		
+		return Ast.fnType({typeVars, param, optionalPos, rest, out})
 	}
 
-FnTypeParam =
-	"[" _ @FnTypeParamEntry* "]" _ /
-	entry:FnTypeParamEntry _       { return [entry] }
+FnTypeParam = FnTypeParamMulti / FnTypeParamSingle
+ 
+FnTypeParamMulti =
+	"[" _ entries:FnTypeParamEntry* rest:("..." @FnTypeParamEntry _)? "]" _
+	{
+		return {entries, rest}
+	}
+
+FnTypeParamSingle = entry:FnTypeParamEntry _ { return {entries: [entry]} }
 
 FnTypeParamEntry =
 	@NamedNode _ /

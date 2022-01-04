@@ -142,6 +142,8 @@ describe('parsing function definition', () => {
 	testParsing('(=>[]())', fn({body: unit()}))
 	testParsing('(=> [] (+ 1 2))', fn({body: call(id('+'), num(1), num(2))}))
 	testParsing('(=> [] (=> [] 1))', fn({body: fn({body: num(1)})}))
+
+	// Polymorphic functions
 	testParsing(
 		'(=> <T> [x:T] x)',
 		fn({typeVars: ['T'], param: {x: id('T')}, body: x})
@@ -152,6 +154,13 @@ describe('parsing function definition', () => {
 	)
 	testParsing('(=> <> [] Num)', fn({body: Num}))
 	testErrorParsing('(=> <1> [] Num)')
+
+	// functions with rest parameter
+	testParsing('(=> [...x:x] y)', fn({rest: {name: 'x', node: x}, body: y}))
+	testParsing(
+		'(=> [x:x ...y:y] z)',
+		fn({param: {x}, rest: {name: 'y', node: y}, body: z})
+	)
 })
 
 describe('parsing function type', () => {
