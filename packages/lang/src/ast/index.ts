@@ -51,6 +51,5 @@ export const fn = FnDef.of
 export const fnType = FnTypeDef.of
 export const fnTypeFrom = FnTypeDef.from
 export const vec = VecLiteral.of
-export const vecFrom = VecLiteral.from
 export const dict = DictLiteral.of
 export const dictFrom = DictLiteral.from

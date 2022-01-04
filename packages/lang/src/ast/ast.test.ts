@@ -12,7 +12,6 @@ import {
 	True,
 	unit,
 	vec,
-	vecFrom,
 } from '../val'
 
 describe('evaluating literals', () => {
@@ -25,10 +24,10 @@ describe('evaluating literals', () => {
 	testEval('false', False)
 
 	testEval('[]', vec())
-	testEval('[0]', vec(num(0)))
-	testEval('[...Num]', vecFrom([], undefined, NumType))
-	testEval('[1 ...Num]', vecFrom([num(1)], undefined, NumType))
-	testEval('[0]', vec(num(0)))
+	testEval('[0]', vec([num(0)]))
+	testEval('[...Num]', vec([], undefined, NumType))
+	testEval('[1 ...Num]', vec([num(1)], undefined, NumType))
+	testEval('[0]', vec([num(0)]))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
 	testEval('{a?:Num ...Str}', dict({a: NumType}, ['a'], StrType))
 	testEval('(-> [Num] Num)', fnType({param: {0: NumType}, out: NumType}))

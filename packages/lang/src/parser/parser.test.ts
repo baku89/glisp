@@ -14,7 +14,6 @@ import {
 	str,
 	unit,
 	vec,
-	vecFrom,
 } from '../ast'
 import {parse} from '.'
 
@@ -71,7 +70,7 @@ describe('parsing line comment', () => {
 	testParsing('1;comment\n;comment\n', num(1))
 	testParsing(';comment\n;comment\n1', num(1))
 	testParsing(';\n;\n1', num(1))
-	testParsing('[;comment]\n1;comment]\n]', vec(num(1)))
+	testParsing('[;comment]\n1;comment]\n]', vec([num(1)]))
 	testParsing(';;\n1', num(1))
 })
 
@@ -95,18 +94,18 @@ describe('parsing scope', () => {
 
 describe('parsing vector', () => {
 	testParsing('\t[   ]  ', vec())
-	testParsing('[    1   \t]', vec(num(1)))
-	testParsing('[1 2 3]', vec(num(1), num(2), num(3)))
-	testParsing('[1[2]3   ]', vec(num(1), vec(num(2)), num(3)))
+	testParsing('[    1   \t]', vec([num(1)]))
+	testParsing('[1 2 3]', vec([num(1), num(2), num(3)]))
+	testParsing('[1[2]3   ]', vec([num(1), vec([num(2)]), num(3)]))
 	testParsing(
 		'[(+)false(+)+]',
-		vec(call(id('+')), id('false'), call(id('+')), id('+'))
+		vec([call(id('+')), id('false'), call(id('+')), id('+')])
 	)
-	testParsing('[...1]', vecFrom([], 0, num(1)))
-	testParsing('[1?]', vecFrom([num(1)], 0))
-	testParsing('[1? ...2]', vecFrom([num(1)], 0, num(2)))
-	testParsing('[1 2?]', vecFrom([num(1), num(2)], 1))
-	testParsing('[1 2? 3? ...4]', vecFrom([num(1), num(2), num(3)], 1, num(4)))
+	testParsing('[...1]', vec([], 0, num(1)))
+	testParsing('[1?]', vec([num(1)], 0))
+	testParsing('[1? ...2]', vec([num(1)], 0, num(2)))
+	testParsing('[1 2?]', vec([num(1), num(2)], 1))
+	testParsing('[1 2? 3? ...4]', vec([num(1), num(2), num(3)], 1, num(4)))
 })
 
 describe('parsing dictionary', () => {
@@ -143,7 +142,7 @@ describe('parsing function definition', () => {
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', fnTypeFrom([], {0: vecFrom([], 0, x)}, x))
+	testParsing('(-> [[...x]] x)', fnTypeFrom([], {0: vec([], 0, x)}, x))
 	testParsing('(-> [_] _)', fnTypeFrom([], {0: all()}, all()))
 	testParsing('(-> [[]] ())', fnTypeFrom([], {0: vec()}, unit()))
 	testParsing('(-> [] z)', fnTypeFrom([], {}, z))
@@ -151,7 +150,7 @@ describe('parsing function type', () => {
 	testParsing('(-> [x] z)', fnTypeFrom([], {0: x}, z))
 	testParsing('(-> [x y] z)', fnTypeFrom([], {0: x, 1: y}, z))
 	testParsing('(-> [x y z] w)', fnTypeFrom([], {0: x, 1: y, 2: z}, w))
-	testParsing('(-> [[x y]] z)', fnTypeFrom([], {0: vec(x, y)}, z))
+	testParsing('(-> [[x y]] z)', fnTypeFrom([], {0: vec([x, y])}, z))
 	testParsing('(-> [x:x] z)', fnTypeFrom([], {x}, z))
 	testParsing('(-> [x:x y] z)', fnTypeFrom([], {x, 1: y}, z))
 	testParsing('(-> <T> [x:T] T)', fnTypeFrom(['T'], {x: id('T')}, id('T')))

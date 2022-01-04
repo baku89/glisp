@@ -361,8 +361,8 @@ export class FnType extends BaseValue implements IFnType {
 		if (v.type === 'UnionType') return v.isSupertypeOf(this)
 		if (v.type !== 'FnType') return false
 
-		const tParam = Vec.from(values(this.param), this.optionalPos, this.rest)
-		const eParam = Vec.from(values(v.param), v.optionalPos, v.rest)
+		const tParam = Vec.of(values(this.param), this.optionalPos, this.rest)
+		const eParam = Vec.of(values(v.param), v.optionalPos, v.rest)
 
 		return isSubtype(eParam, tParam) && isSubtype(this.out, v.out)
 	}
@@ -398,12 +398,12 @@ export class Vec extends BaseValue implements IFnLike {
 	}
 
 	get defaultValue(): Vec {
-		return Vec.of(...this.items.map(it => it.defaultValue))
+		return Vec.of(this.items.map(it => it.defaultValue))
 	}
 
 	toAst = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
-		return Ast.vecFrom(items, this.optionalPos, this.rest?.toAst())
+		return Ast.vec(items, this.optionalPos, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>
@@ -467,11 +467,7 @@ export class Vec extends BaseValue implements IFnLike {
 		return withLog(ret)
 	}
 
-	static of(...items: Value[]) {
-		return Vec.from(items)
-	}
-
-	static from(items: Value[], optionalPos?: number, rest?: Value) {
+	static of(items: Value[] = [], optionalPos?: number, rest?: Value) {
 		return new Vec(items, optionalPos ?? items.length, rest)
 	}
 }

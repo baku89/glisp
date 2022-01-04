@@ -434,7 +434,7 @@ export class VecLiteral extends BaseNode {
 	protected forceEval = (env: Env): WithLog => {
 		const [items, li] = Writer.map(this.items, i => i.eval(env)).asTuple
 		const [rest, lr] = this.rest?.eval(env).asTuple ?? [undefined, []]
-		return withLog(Val.vecFrom(items, this.optionalPos, rest), ...li, ...lr)
+		return withLog(Val.vec(items, this.optionalPos, rest), ...li, ...lr)
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
@@ -442,7 +442,7 @@ export class VecLiteral extends BaseNode {
 			return withLog(Val.all)
 		}
 		const [items, log] = Writer.map(this.items, it => it.infer(env)).asTuple
-		return withLog(Val.vec(...items), ...log)
+		return withLog(Val.vec(items), ...log)
 	}
 
 	print = (): string => {
@@ -459,13 +459,9 @@ export class VecLiteral extends BaseNode {
 		nullishEqual(this.rest, this.rest, isSame)
 
 	clone = (): VecLiteral =>
-		VecLiteral.from(this.items.map(clone), this.optionalPos, this.rest?.clone())
+		VecLiteral.of(this.items.map(clone), this.optionalPos, this.rest?.clone())
 
-	static of(...items: Node[]) {
-		return VecLiteral.from(items)
-	}
-
-	static from(items: Node[], optionalPos?: number, rest?: Node) {
+	static of(items: Node[] = [], optionalPos?: number, rest?: Node) {
 		const vec = new VecLiteral(items, optionalPos ?? items.length, rest)
 		items.forEach(it => setParent(it, vec))
 		if (rest) setParent(rest, vec)
@@ -560,11 +556,7 @@ export class Call extends BaseNode {
 			.slice(0, params.length)
 			.map(a => shadowTypeVars(a.infer(env).result))
 
-		const unifier = new Unifier([
-			Val.vec(...params),
-			'>=',
-			Val.vec(...shadowedArgs),
-		])
+		const unifier = new Unifier([Val.vec(params), '>=', Val.vec(shadowedArgs)])
 
 		return [unifier, shadowedArgs]
 	}

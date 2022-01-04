@@ -16,7 +16,6 @@ import {
 	unionType,
 	Value,
 	vec,
-	vecFrom,
 } from '../val'
 import {createFoldFn} from '../val/walk'
 
@@ -175,8 +174,8 @@ export class Unifier {
 		 * tp -> to R up -> uo
 		 */
 		if (t.type === 'FnType' && 'fnType' in u) {
-			const tParam = vec(...values(t.param))
-			const uParam = vec(...values(u.fnType.param))
+			const tParam = vec(values(t.param))
+			const uParam = vec(values(u.fnType.param))
 
 			const tOut = t.out
 			const uOut = u.fnType.out
@@ -276,7 +275,7 @@ export class Unifier {
 			case 'Vec': {
 				const items = val.items.map(it => this.substitute(it, unshadow))
 				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
-				return vecFrom(items, val.optionalPos, rest)
+				return vec(items, val.optionalPos, rest)
 			}
 			case 'Dict': {
 				const items = mapValues(val.items, it => this.substitute(it, unshadow))

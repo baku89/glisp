@@ -64,7 +64,6 @@ export const fnFrom = Fn.from
 export const fnType = FnType.of
 export const typeVar = TypeVar.of
 export const vec = Vec.of
-export const vecFrom = Vec.from
 export const dict = Dict.of
 export const structType = StructType.of
 

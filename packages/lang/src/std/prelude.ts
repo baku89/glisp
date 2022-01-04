@@ -88,7 +88,7 @@ PreludeScope.defs({
 	range: defn(
 		'(-> [start:Num end:Num] [...Num])',
 		(start: Val.Num, end: Val.Num) =>
-			Val.vecFrom(range(start.value, end.value).map(Val.num))
+			Val.vec(range(start.value, end.value).map(Val.num))
 	),
 	gcd: defn(
 		'(-> [x:Num y:Num] Num)',
@@ -99,13 +99,13 @@ PreludeScope.defs({
 		})()
 	),
 	rest: defn('(-> <T> coll:[...T] [...T])', (coll: Val.Vec) =>
-		Val.vec(...coll.items.slice(1))
+		Val.vec(coll.items.slice(1))
 	),
 	map: defn(
 		'(-> <T U> [f: (-> T U) coll:[...T]] [...U])',
 		(f: Val.Fn, coll: Val.Vec) => {
 			const [items] = Writer.map(coll.items, i => f.fn(() => i)).asTuple
-			return Val.vec(...items)
+			return Val.vec(items)
 		}
 	),
 	reduce: defn(
