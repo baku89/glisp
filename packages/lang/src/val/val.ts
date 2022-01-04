@@ -16,6 +16,7 @@ import {isEqualSet} from '../util/isEqualSet'
 import {nullishEqual} from '../util/nullishEqual'
 import {Writer} from '../util/Writer'
 import {unionType} from './TypeOperation'
+import {createFoldFn} from './walk'
 
 export type Value = Type | Atomic
 
@@ -52,8 +53,6 @@ abstract class BaseValue {
 	abstract superType: Value
 	abstract defaultValue: Atomic
 
-	abstract isType: boolean
-
 	isEqualTo(val: Value): boolean {
 		return this === val
 	}
@@ -61,6 +60,10 @@ abstract class BaseValue {
 	isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'UnionType') return ty.isSupertypeOf(this)
 		return this.isEqualTo(ty) || this.superType.isSubtypeOf(ty)
+	}
+
+	get isType(): boolean {
+		return isType(this as Value)
 	}
 
 	abstract toAst(): Ast.Node
@@ -85,8 +88,6 @@ export class Unit extends BaseValue {
 
 	toAst = () => Ast.unit()
 
-	isType = false
-
 	static instance = new Unit()
 }
 
@@ -97,7 +98,6 @@ export class All extends BaseValue {
 
 	toAst = () => Ast.all()
 	isSubtypeOf = this.isEqualTo
-	isType = false
 
 	static instance = new All()
 }
@@ -111,7 +111,6 @@ export class Never extends BaseValue {
 
 	toAst = () => Ast.never()
 	isSubtypeOf = () => true
-	isType = true
 
 	static instance = new Never()
 }
@@ -131,8 +130,6 @@ export class Prim<T = any> extends BaseValue {
 		(this.type === val.type &&
 			this.value === val.value &&
 			isEqual(this.superType, val.superType))
-
-	isType = false
 
 	static from<T>(ty: PrimType, value: T) {
 		return new Prim<T>(ty, value)
@@ -173,8 +170,6 @@ export class PrimType<T = any> extends BaseValue {
 	of(value: T): Prim<T> {
 		return Prim.from(this, value)
 	}
-
-	isType = true
 
 	isInstance = (e: Value): e is Prim<T> =>
 		e.type === 'Prim' && e.isSubtypeOf(this)
@@ -219,8 +214,6 @@ export class Enum extends BaseValue {
 			this.name === v.name &&
 			this.superType.isEqualTo(v.superType))
 
-	isType = false
-
 	static of(name: string) {
 		return new Enum(name)
 	}
@@ -244,8 +237,6 @@ export class EnumType extends BaseValue {
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
-
-	isType = true
 
 	getEnum = (label: string) => {
 		const en = this.types.find(t => t.name === label)
@@ -279,8 +270,6 @@ export class TypeVar extends BaseValue {
 
 	toAst = () => Ast.id(this.name)
 
-	isType = true
-
 	shadow = (): TypeVar => {
 		return new TypeVar(this.name, this)
 	}
@@ -313,8 +302,6 @@ export class Fn extends BaseValue implements IFnLike {
 	toAst = () => {
 		return Ast.id('Fn')
 	}
-
-	isType = false
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
 		return new Fn(FnType.from(param, out), fn)
@@ -360,8 +347,6 @@ export class FnType extends BaseValue implements IFnType {
 
 		return isSubtype(eParam, tParam) && isSubtype(this.out, e.out)
 	}
-
-	isType = true
 
 	static of(param: Value | Value[], out: Value) {
 		const paramArr = [param].flat()
@@ -571,8 +556,6 @@ export class Struct extends BaseValue {
 			isEqual(this.superType, v.superType) &&
 			isEqualArray(this.items, v.items, isEqual))
 
-	isType = false
-
 	static of(ctor: StructType, items: Value[]) {
 		return new Struct(ctor, items)
 	}
@@ -603,8 +586,6 @@ export class StructType extends BaseValue implements IFnLike {
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
-
-	isType = true
 
 	of(...items: Value[]) {
 		return Struct.of(this, items)
@@ -645,8 +626,6 @@ export class UnionType extends BaseValue {
 		return this.types.every(s => types.some(s.isSubtypeOf))
 	}
 
-	isType = true
-
 	isSupertypeOf = (s: Pick<Value, 'isSubtypeOf'>) =>
 		this.types.some(s.isSubtypeOf)
 
@@ -665,6 +644,27 @@ export function isSubtype(a: Value, b: Value): boolean {
 	return a.isSubtypeOf(b)
 }
 
-function isType(value: Value): boolean {
-	return value.isType
-}
+const or = (...xs: boolean[]) => xs.reduce(x => x)
+
+const isType = createFoldFn(
+	{
+		TypeVar: () => true,
+		Never: () => true,
+		PrimType: () => true,
+		EnumType: () => true,
+		FnType: () => true,
+		StructType: () => true,
+		UnionType: () => true,
+
+		Fn: () => false,
+
+		Vec(v, fold, c) {
+			return fold(...v.items.map(c), v.optionalPos < v.items.length, !!v.rest)
+		},
+		Dict(v, fold, c) {
+			return fold(...values(v.items).map(c), v.optionalKeys.size > 0, !!v.rest)
+		},
+	},
+	false,
+	or
+)

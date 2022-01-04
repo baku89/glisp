@@ -1,4 +1,3 @@
-import {differenceType, intersectionType, unionType} from './TypeOperation'
 import {
 	All,
 	Dict,
@@ -7,8 +6,6 @@ import {
 	Fn,
 	FnType,
 	IFn,
-	isEqual,
-	isSubtype,
 	Never,
 	Num,
 	NumType,
@@ -72,7 +69,6 @@ export const vecFrom = Vec.from
 export const dict = Dict.of
 export const structType = StructType.of
 
-// Type operations
-export {unionType, differenceType, intersectionType}
+export {isEqual, isSubtype} from './val'
 
-export {isEqual, isSubtype}
+export {unionType, differenceType, intersectionType} from './TypeOperation'

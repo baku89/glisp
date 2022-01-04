@@ -18,6 +18,7 @@ import {
 	vec,
 	vecFrom,
 } from '../val'
+import {createFoldFn} from '../val/walk'
 
 export type Const = [Value, Relation, Value]
 
@@ -29,33 +30,43 @@ function invRelation(op: Relation): Relation {
 	return '=='
 }
 
-export function getTypeVars(ty: Value): Set<TypeVar> {
-	switch (ty.type) {
-		case 'TypeVar':
+export const getTypeVars = createFoldFn(
+	{
+		TypeVar(ty) {
 			return new Set([ty])
-		case 'UnionType':
-			return union(...ty.types.map(getTypeVars))
-		case 'FnType': {
-			const param = values(ty.param).map(getTypeVars)
-			const out = getTypeVars(ty.out)
-			return union(...param, out)
-		}
-		case 'Fn':
-			return getTypeVars(ty.superType)
-		case 'Vec': {
-			const items = ty.items.map(getTypeVars)
-			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
-			return union(...items, rest)
-		}
-		case 'Dict': {
-			const items = values(ty.items).map(getTypeVars)
-			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
-			return union(...items, rest)
-		}
-		default:
-			return new Set()
-	}
-}
+		},
+	},
+	new Set<TypeVar>(),
+	union
+)
+
+// (ty: Value): Set<TypeVar> {
+// 	switch (ty.type) {
+// 		case 'TypeVar':
+// 			return new Set([ty])
+// 		case 'UnionType':
+// 			return union(...ty.types.map(getTypeVars))
+// 		case 'FnType': {
+// 			const param = values(ty.param).map(getTypeVars)
+// 			const out = getTypeVars(ty.out)
+// 			return union(...param, out)
+// 		}
+// 		case 'Fn':
+// 			return getTypeVars(ty.superType)
+// 		case 'Vec': {
+// 			const items = ty.items.map(getTypeVars)
+// 			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
+// 			return union(...items, rest)
+// 		}
+// 		case 'Dict': {
+// 			const items = values(ty.items).map(getTypeVars)
+// 			const rest: Set<TypeVar> = ty.rest ? getTypeVars(ty.rest) : new Set()
+// 			return union(...items, rest)
+// 		}
+// 		default:
+// 			return new Set()
+// 	}
+// }
 
 export function shadowTypeVars(ty: Value) {
 	const unifier = new Unifier()
