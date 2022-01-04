@@ -134,7 +134,7 @@ export class Unifier {
 
 		const subUnifier = new Unifier()
 		if (utvs.size === 0 || l.type === 'TypeVar') {
-			// α |-> [(has typeVars), (no tyvar)]
+			// α |-> [(has typeVars), (no typeVar)]
 			// α |-> [<T>, ...]
 			subUnifier.#addConsts([l, '==', u])
 		} else if (ltvs.size === 0 || u.type === 'TypeVar') {

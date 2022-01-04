@@ -6,7 +6,7 @@ import * as Val from '../val'
 
 export function parse(
 	input: string | Ast.Node,
-	parent: Ast.Exp = PreludeScope
+	parent: Ast.InnerNode = PreludeScope
 ): Ast.Node {
 	let ast: Ast.Node
 	if (typeof input === 'string') {

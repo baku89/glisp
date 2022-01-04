@@ -3,12 +3,12 @@ import {
 	Arg,
 	Call,
 	DictLiteral,
-	Exp,
 	FnDef,
 	FnTypeDef,
 	Identifier,
+	InnerNode,
 	isSame,
-	Literal,
+	LeafNode,
 	NeverKeyword,
 	Node,
 	NumLiteral,
@@ -22,7 +22,7 @@ import {
 	VecLiteral,
 } from './ast'
 
-export {Node, Literal, Exp, Arg}
+export {Node, LeafNode, InnerNode, Arg}
 
 // Exp
 export {

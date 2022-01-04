@@ -28,6 +28,7 @@ type Type =
 	| UnionType
 	| TypeVar
 
+// Value that can be a default value
 type Atomic =
 	| Never
 	| Unit

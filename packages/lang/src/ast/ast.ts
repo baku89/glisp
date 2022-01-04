@@ -12,8 +12,8 @@ import * as Val from '../val'
 import {Env} from './env'
 import {shadowTypeVars, Unifier} from './unify'
 
-export type Node = Literal | Exp
-export type Literal =
+export type Node = LeafNode | InnerNode
+export type LeafNode =
 	| Identifier
 	| ValueContainer
 	| UnitLiteral
@@ -22,7 +22,7 @@ export type Literal =
 	| NumLiteral
 	| StrLiteral
 
-export type Exp =
+export type InnerNode =
 	| Call
 	| Scope
 	| TryCatch

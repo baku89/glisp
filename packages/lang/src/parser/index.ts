@@ -1,18 +1,21 @@
 import * as Ast from '../ast'
 import parser from './parser.peg.js'
 
-export function parse(str: string, parent: Ast.Exp | null = null): Ast.Node {
-	const exp: Ast.Node | undefined = parser.parse(str, {Ast})
-	if (!exp) return Ast.unit()
+export function parse(
+	str: string,
+	parent: Ast.InnerNode | null = null
+): Ast.Node {
+	const node: Ast.Node | undefined = parser.parse(str, {Ast})
+	if (!node) return Ast.unit()
 
-	if ('parent' in exp) exp.parent = parent
+	if ('parent' in node) node.parent = parent
 
-	return exp
+	return node
 }
 
 export function parseModule(str: string): Record<string, Ast.Node> {
-	const exp: Ast.Node | undefined = parser.parse('(let ' + str + ')', {Ast})
-	if (!exp || exp.type !== 'Scope') return {}
+	const node: Ast.Node | undefined = parser.parse('(let ' + str + ')', {Ast})
+	if (!node || node.type !== 'Scope') return {}
 
-	return exp.vars
+	return node.vars
 }
